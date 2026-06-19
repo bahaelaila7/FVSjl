@@ -309,13 +309,14 @@ mutable struct Calibration
     htg_mult::Vector{Float32}    # per-species HTG growth multiplier
     dg_const::Vector{Float32}    # site-dependent DG constant              (DGCON)
     dg_cor::Vector{Float32}      # large-tree DG calibration correction    (COR)
+    htg_cor::Vector{Float32}     # height-growth calibration constant      (HTCON)
     atten::Vector{Float32}       # prior observation count (Bayes)         (ATTEN)
     sigma::Vector{Float32}       # DG residual standard deviation          (SIGMA)
     vardg::Vector{Float32}       # DG variance                             (VARDG)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP))
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
