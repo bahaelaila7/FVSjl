@@ -302,14 +302,17 @@ end
     diameter_growth!(state, ::Southern; sfint=5f0)
 
 Variant hook: compute each tree's periodic diameter growth into `trees.diam_growth`
-(DGDRIV growth mode, sn/dgdriv.f). SN is STOCHASTIC (DGSD=2): per tree,
-`DG = sqrt(d_ib² + exp(ln DDS)·frm) − d_ib`, where `frm = exp(raw)` is the
-serial-correlation factor from `dgscor!` (BACHLO + AR(1) on `old_random`). The
-large-tree calibration COR is attenuated each cycle toward its goal (WCI). Trees
-are walked in species-sorted order to keep the RNG draw sequence bit-exact.
-`sfint = IY[icyc+1]−IY[1]` (5 for snt01 cycle 1).
+(DGDRIV growth mode, sn/dgdriv.f). `DG = sqrt(d_ib² + exp(ln DDS)·frm) − d_ib`,
+where `frm = exp(raw)`. While tripling is active (snt01 early cycles, `tripling=true`)
+the serial-correlation factor is DETERMINISTIC — `raw = FM·ssigma·rhocp + corr·OLDRN`
+(dgdriv.f:90,117, FM=−0.14228); once tripling stops it is the stochastic `dgscor!`
+(BACHLO + AR(1)). COR is attenuated each cycle toward its goal (WCI). Trees are
+walked in species-sorted order to keep any RNG draws bit-exact. `sfint = IY[icyc+1]−IY[1]`.
 """
-function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0)
+const DG_FM = -0.14228f0      # tripling mid-record variance factor (dgdriv.f FM)
+
+function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
+                          tripling::Bool = true)
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
@@ -344,11 +347,18 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0)
         rho = (sig1 > 0f0 && ssigma > 0f0) ?
               log(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
         rhocp = sqrt(max(1f0 - rho * rho, 0f0))
+        frmbase = DG_FM * ssigma * rhocp
         for k in i1:i2
             i = ind1[k]
             bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
-            frm  = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
+            if tripling
+                frmt = frmbase + corr * oldrn[i]           # deterministic (dgdriv.f:117)
+                oldrn[i] = frmt
+                frm = exp(frmt)
+            else
+                frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
+            end
             dds  = exp(wk2[i])                              # xdgrow = log(XDMULT)=0
             dg   = sqrt(d_ib * d_ib + dds * frm) - d_ib
             t.diam_growth[i] = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], dg, s.control.sp_size_cap)
