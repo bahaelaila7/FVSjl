@@ -49,8 +49,13 @@ function grow_cycle!(s::StandState)
     height_growth!(s, s.variant)
     mortality!(s, s.variant)               # reduces tpa (uses the projected diameter)
     t = s.trees
+    sd = s.coef.species
+    bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
     @inbounds for i in 1:t.n
-        t.dbh[i]    += t.diam_growth[i]
+        # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
+        # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75).
+        bark = bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
+        t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
     end
     s.control.cycle += Int32(1)
