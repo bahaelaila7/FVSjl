@@ -38,6 +38,7 @@ include("variants/southern/dgf_coefficients.jl")
 include("variants/southern/bark_and_bounds.jl")
 include("variants/southern/diameter_growth.jl")
 include("variants/southern/height_growth.jl")
+include("variants/southern/mortality.jl")
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
