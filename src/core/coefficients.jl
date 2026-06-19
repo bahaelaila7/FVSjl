@@ -45,6 +45,11 @@ struct SpeciesCoefficients
     valid_habitat::Vector{Int32}
     crown_species::Dict{String,Tuple{String,String}} # 2-char code → (eqn_default, eqn_open)
     crown_eqs::Dict{String,CrownWidthEq}             # equation number → coefficients
+    fia_group::Dict{Int,Int}                         # FIA code → ITG stocking group (TAB3 col1)
+    fia_stock_eq::Dict{Int,Int}                      # FIA code → stocking-equation index (TAB3 col2)
+    stock_b0::Vector{Float32}                        # 36 stocking-equation intercepts (TAB2)
+    stock_b1::Vector{Float32}                        # 36 stocking-equation exponents  (TAB2)
+    forest_type_codes::Vector{Int32}                 # valid FIA forest-type codes (FTYPE)
 end
 
 "Per-species coefficient column by its descriptive name."
@@ -106,9 +111,19 @@ function load_species_coefficients(datadir::AbstractString)
             g(r, :power), g(r, :dbh_cap), g(r, :max_cw))
         for r in cwe)
 
+    _, sc = _read_csv(joinpath(datadir, "stocking_coeffs.csv"))
+    stock_b0 = zeros(Float32, 36); stock_b1 = zeros(Float32, 36)
+    for r in sc; e = parse(Int, r[1]); stock_b0[e] = parse(Float32, r[2]); stock_b1[e] = parse(Float32, r[3]); end
+    _, fm = _read_csv(joinpath(datadir, "fia_stocking_map.csv"))
+    fia_group = Dict{Int,Int}(parse(Int, r[1]) => parse(Int, r[2]) for r in fm)
+    fia_stock_eq = Dict{Int,Int}(parse(Int, r[1]) => parse(Int, r[3]) for r in fm)
+    _, ftc = _read_csv(joinpath(datadir, "forest_type_codes.csv"))
+    forest_type_codes = Int32[parse(Int32, r[1]) for r in ftc]
+
     return SpeciesCoefficients(species, alpha, fia, plants, translation,
                                site_idx, site_grp, grp_rep, forests, habitat,
-                               crown_species, crown_eqs)
+                               crown_species, crown_eqs,
+                               fia_group, fia_stock_eq, stock_b0, stock_b1, forest_type_codes)
 end
 
 "Cached coefficient load, one per variant (filled by each variant's `coefficients`)."

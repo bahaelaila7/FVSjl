@@ -17,6 +17,7 @@ site-dependent diameter-growth constants (DGCONS) and run the diameter-growth
 calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
+    compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     dgcons!(s)
     calibrate_diameter_growth!(s)        # LSTART — uses the input measured DG
