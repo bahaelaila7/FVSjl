@@ -112,6 +112,25 @@ function stand_top_height(s::StandState)
 end
 
 """
+    point_basal_area!(state)
+
+Fill `density.point_ba[ip]` = per-point basal area (PTBAA, ptbal.f): for each
+subplot, Σ tpa·0.005454154·DBH² · PI/GROSPC. Used by the diameter-growth point
+competition term. Call after notre! (needs expanded tpa) and finalize_design!.
+"""
+function point_basal_area!(s::StandState)
+    p, t = s.plot, s.trees
+    pb = s.density.point_ba
+    fill!(pb, 0f0)
+    scale = p.pi / p.gross_space
+    @inbounds for i in 1:t.n
+        ip = t.plot_id[i]
+        pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+    end
+    return s
+end
+
+"""
     stand_ccf(state)
 
 Crown competition factor (RELDEN): Σ over trees of the open-grown crown area

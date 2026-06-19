@@ -322,8 +322,9 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
 # ---------------------------------------------------------------------------
 mutable struct Density
     sdi_sum::Float32
+    point_ba::Vector{Float32}    # per-point basal area (PTBAA), indexed by subplot
 end
-Density() = Density(0.0f0)
+Density() = Density(0.0f0, zeros(Float32, MAXPLT))
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls

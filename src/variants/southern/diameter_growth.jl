@@ -132,7 +132,8 @@ function dgf!(s::StandState)
         ba_v  = p.basal_area <= 0f0 ? 25f0 : p.basal_area
         icr_i = t.crown_pct[i] <= 0 ? 25 : t.crown_pct[i]
         bal   = (1f0 - t.crown_ratio[i] / 100f0) * ba_v
-        pba   = ba_v                                   # point BA (PTBAA) — stand BA until ported
+        pba   = s.density.point_ba[t.plot_id[i]]       # PTBAA (per-point BA)
+        pba <= 0f0 && (pba = ba_v)
         pbal  = pba * (1f0 - t.crown_ratio[i] / 100f0)
         pbal <= 0f0 && (pbal = bal)
 
