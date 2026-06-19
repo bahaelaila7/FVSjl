@@ -51,7 +51,9 @@ function notre!(s::StandState)
         vp = 0f0; fp2 = -p.baf / p.pi
     end
     brk = p.min_dbh_var_plot
-    @inbounds for i in 1:t.n
+    # expand live records and the dead partition (n+1:n+ndead) alike — dead trees
+    # carry their expanded TPA into the backdated calibration BA.
+    @inbounds for i in 1:(t.n + t.ndead)
         pr = t.tpa[i]; d = t.dbh[i]
         pr <= 0f0 && (pr = 1f0)
         pr = d < brk ? pr * fp : pr * vp / (d * d) + pr * fp2

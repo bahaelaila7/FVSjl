@@ -28,6 +28,7 @@ function load_trees!(s::StandState, trepath::AbstractString)
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
+    dead = Tuple{Any,Int32,Int32}[]  # (record, species idx, subplot) for dead trees
     n0 = t.n
 
     for line in eachline(path)
@@ -47,50 +48,68 @@ function load_trees!(s::StandState, trepath::AbstractString)
 
         # IMC1 == 8 marks a non-stockable plot record — not a tree (intree.f:368)
         rec.mort_code == 8 && continue
-        # Dead trees (history/ITH 6-9) are excluded from the live stand; they are
-        # partitioned into the dead pool for mortality reporting in C4 (intree.f:516).
-        # For now (live cycle-0 statistics) they are skipped.
-        (6 <= rec.history <= 9) && continue
-
-        i = t.n + 1
-        i > MAXTRE && break
 
         idx, fmt = resolve_species(rec.species_code, s.variant, s.species, s.coef)
         p.sp_format[idx] = fmt
         p.sp_format_default <= 0 && (p.sp_format_default = fmt)
 
-        t.species[i]     = idx
-        t.tree_id[i]     = rec.id
-        t.tpa[i]         = rec.tpa
-        t.history[i]     = rec.history
-        t.dbh[i]         = rec.dbh
-        t.diam_growth[i] = rec.diam_growth
-        t.height[i]      = rec.height
-        t.ht_growth[i]   = rec.ht_growth
-        t.mort_code[i]   = rec.mort_code
-        t.cut_code[i]    = rec.cut_code
-        @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
-        @inbounds for k in 1:5; t.pest_vars[k, i] = rec.pest_vars[k]; end
-
-        # crown-class code → crown ratio percent (intree.f:311)
-        icr = rec.crown_pct
-        if icr > 0
-            icr = icr < 10 ? icr * Int32(10) - Int32(5) : min(icr, Int32(99))
-        end
-        t.crown_pct[i] = icr
-        t.crown_ratio[i] = Float32(icr)        # PCT (working crown ratio, percent)
-
-        # birth-age flag (intree.f:190)
-        if rec.birth_age <= 0f0
-            t.birth_age[i] = 0f0; t.age_known[i] = false
-        else
-            t.birth_age[i] = rec.birth_age; t.age_known[i] = true
+        # Dead trees (history/ITH 6-9) are partitioned out of the live stand (intree.f:516):
+        # collected here, stored after the live records so live stats use 1:n but the dead
+        # remain available (mortality reporting; backdated calibration BA at current dbh).
+        if 6 <= rec.history <= 9
+            push!(dead, (rec, idx, Int32(pj)))
+            continue
         end
 
-        t.plot_id[i] = Int32(pj)            # subplot index from the full registration above
+        i = t.n + 1
+        i > MAXTRE && break
+        _store_tree!(t, i, rec, idx, Int32(pj))
         t.n = i
+    end
+
+    # append the dead records after the live ones (indices n+1 : n+ndead)
+    t.ndead = 0
+    for (rec, idx, pj) in dead
+        i = t.n + t.ndead + 1
+        i > MAXTRE && break
+        _store_tree!(t, i, rec, idx, pj)
+        t.ndead += 1
     end
 
     s.control.ntrees_active = Int32(t.n)
     return t.n - n0
+end
+
+# Fill all per-tree fields of record `rec` (resolved species `idx`, subplot `pj`)
+# into TreeList slot `i`. Shared by the live and dead partitions of the loader.
+function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
+    t.species[i]     = idx
+    t.tree_id[i]     = rec.id
+    t.tpa[i]         = rec.tpa
+    t.history[i]     = rec.history
+    t.dbh[i]         = rec.dbh
+    t.diam_growth[i] = rec.diam_growth
+    t.height[i]      = rec.height
+    t.ht_growth[i]   = rec.ht_growth
+    t.mort_code[i]   = rec.mort_code
+    t.cut_code[i]    = rec.cut_code
+    @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
+    @inbounds for k in 1:5; t.pest_vars[k, i] = rec.pest_vars[k]; end
+
+    # crown-class code → crown ratio percent (intree.f:311)
+    icr = rec.crown_pct
+    if icr > 0
+        icr = icr < 10 ? icr * Int32(10) - Int32(5) : min(icr, Int32(99))
+    end
+    t.crown_pct[i] = icr
+    t.crown_ratio[i] = Float32(icr)        # PCT (working crown ratio, percent)
+
+    # birth-age flag (intree.f:190)
+    if rec.birth_age <= 0f0
+        t.birth_age[i] = 0f0; t.age_known[i] = false
+    else
+        t.birth_age[i] = rec.birth_age; t.age_known[i] = true
+    end
+    t.plot_id[i] = pj
+    return t
 end

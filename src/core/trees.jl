@@ -24,7 +24,8 @@ are active. Multi-valued attributes (damage codes, pest vars) are stored as
 `(k, MAXTRE)` matrices so each tree's slice is contiguous.
 """
 mutable struct TreeList
-    n::Int                       # active record count                     (ITRN)
+    n::Int                       # live record count                       (ITRN/IREC1)
+    ndead::Int                   # dead records, stored at indices n+1:n+ndead (IREC2..)
 
     # --- identity / classification ---
     species   ::Vector{Int32}    # species index 1..MAXSP                  (ISP)
@@ -90,7 +91,7 @@ function TreeList(maxtre::Int = MAXTRE)
     iz()  = zeros(Int32,   maxtre)
     fz()  = zeros(Float32, maxtre)
     TreeList(
-        0,
+        0, 0,
         iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(),
         fz(), fz(), fz(), fz(), fz(), iz(), fz(), fz(), fz(),
         fz(), zeros(Bool, maxtre), fz(),

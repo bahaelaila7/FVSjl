@@ -205,7 +205,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
         t.dbh[i] = sqrt(d * d * r)
     end
-    compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT from WK3
+    # DENSE keeps dead trees at current dbh in the backdated stand, so they count in
+    # the past BA/point-BA/PCT: temporarily expose them (n+1:n+ndead) to the density
+    # pass, then restore so growth + the calibration sums process live trees only.
+    nlive = t.n
+    # dead trees with IMC==9 (history 8) are zeroed out of the backdated stand
+    # (dense.jl:44-46); save/zero their dbh for the density pass, then restore.
+    saved_dead = Float32[t.dbh[j] for j in (nlive + 1):(nlive + t.ndead)]
+    @inbounds for j in (nlive + 1):(nlive + t.ndead)
+        t.history[j] == 8 && (t.dbh[j] = 0f0)
+    end
+    t.n = nlive + t.ndead
+    compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT from WK3 + dead
+    t.n = nlive
+    @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
+        t.dbh[j] = saved_dead[k]
+    end
     dgf!(s)                                   # WK2 = DGF prediction at the PAST stand
     wk2 = view(s.scratch.wk, 2, :)
 
