@@ -126,6 +126,32 @@ function oracle_a_keywords(keypath::AbstractString)
     return recs
 end
 
+"""
+    oracle_a_resolve(codes) -> Vector{Int}
+
+Resolve raw species codes to indices via Oracle A's direct alpha/FIA/PLANTS match
+then SPCTRN, exactly as INTREE does. Used to validate FVSjl's species loading.
+"""
+function oracle_a_resolve(codes::AbstractVector{<:AbstractString})
+    jl = julia_bin()
+    list = join(("\"" * c * "\"" for c in codes), ",")
+    code = """
+        using FVSjulia
+        function res(cc)
+            c = uppercase(strip(cc)); isempty(c) && (c="OT")
+            for j in 1:90
+                strip(FVSjulia.JSP[j])==c && return j
+                strip(FVSjulia.FIAJSP[j])==c && return j
+                strip(FVSjulia.PLNJSP[j])==c && return j
+            end
+            return Int(FVSjulia.SPCTRN(c, 0))
+        end
+        for c in [$list]; println(res(c)); end
+    """
+    out = read(`$jl --project=$FVSJULIA_DIR -e $code`, String)
+    return [parse(Int, strip(l)) for l in eachline(IOBuffer(out)) if !isempty(strip(l))]
+end
+
 "Run FVSjl on `keypath`; returns its temp output dir. (Wired up from C2 onward.)"
 function run_fvsjl(keypath::AbstractString)
     jl = julia_bin()

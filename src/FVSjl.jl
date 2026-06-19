@@ -42,6 +42,9 @@ include("io/input.jl")
 
 # --- engine -----------------------------------------------------------------
 include("engine/species_translation.jl")
+include("engine/treeinput.jl")
+include("engine/keyword_dispatch.jl")
+include("engine/init.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------
 # include("engine/...")    # C2–C5
@@ -56,5 +59,6 @@ export parse_tree_format, parse_tree_record, read_tree_file, TreeRecord, DEFAULT
 export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF, KW_STOP, KW_PARMS
 export read_tree_records, read_trees_csv, write_trees_csv, convert_tre_to_csv, TREE_CSV_HEADER
 export read_keyword_records, read_keywords_yaml, write_keywords_yaml, convert_key_to_yaml, read_keyfile_records
+export initialize, initialize!, process_keywords!, load_trees!, strip_key_ext
 
 end # module FVSjl
