@@ -31,6 +31,7 @@ include("core/state.jl")
 
 # --- variants ---------------------------------------------------------------
 include("variants/southern/southern.jl")
+include("variants/southern/species.jl")
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
@@ -42,6 +43,7 @@ include("io/keyword.jl")
 # include("cli.jl")        # C8
 
 export StandState, Southern, AbstractVariant, variant_code
+export load_species_coefficients!, init_blockdata!
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
 export parse_tree_format, parse_tree_record, read_tree_file, TreeRecord, DEFAULT_TREE_FORMAT
 export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF, KW_STOP, KW_PARMS
