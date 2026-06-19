@@ -36,6 +36,7 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     end
     reason = process_keywords!(s, kr, base_path)
     finalize_design!(s)                            # INITRE end: PI:=IPTINV, GROSPC
+    site_index_setup!(s)                           # SITSET: fan site index to all species
     return reason
 end
 

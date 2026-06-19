@@ -67,6 +67,7 @@ function kw_sitecode!(s::StandState, rec::KeywordRecord)
         fill!(s.plot.sp_site_index, si)
     elseif 1 <= isp <= MAXSP
         s.plot.sp_site_index[isp] = si
+        s.plot.site_species = Int32(isp)        # ISISP — the site species
     end
     rec.present[2] && (s.plot.site_index = si)
     return
