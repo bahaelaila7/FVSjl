@@ -116,6 +116,7 @@ function init_blockdata!(s::StandState, ::Southern)
 
     s.control.tree_format = DEFAULT_TREE_FORMAT
     s.control.year = 5.0f0                                # YR default cycle length
+    s.control.zeide_sdi = true                            # SN uses Zeide/Reineke SDI
 
     # RNG: both streams seeded 55329 (blkdat S0/SS + ESBLKD ESS0/ESSS)
     s.rng.s0 = Float64(SN_RNG_SEED); s.rng.ss = SN_RNG_SEED

@@ -16,6 +16,7 @@ using FVSjl
     include("unit/test_species.jl")        # C2: SN species tables + blkdat defaults
     include("unit/test_diameter_growth.jl")# C3: DGF/DGCONS equation core
     include("unit/test_growth.jl")         # C3: DG calibration + HTGF + cycle loop
+    include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips

@@ -46,6 +46,7 @@ function grow_cycle!(s::StandState)
     compute_density!(s)
     diameter_growth!(s, s.variant)
     height_growth!(s, s.variant)
+    mortality!(s, s.variant)               # reduces tpa (uses the projected diameter)
     t = s.trees
     @inbounds for i in 1:t.n
         t.dbh[i]    += t.diam_growth[i]
