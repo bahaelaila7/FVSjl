@@ -140,6 +140,34 @@ function point_basal_area!(s::StandState)
 end
 
 """
+    stand_pct!(state)
+
+Fill `trees.crown_ratio[i]` with PCT, the stand basal-area percentile (PCTILE,
+pctile.f via dense.f): trees in descending-DBH order, `PCT[i] = (BA of tree i and
+all smaller) / total · 100`. So `1 − PCT/100` is the fraction of stand BA in larger
+trees, which the diameter-growth competition term uses. (Despite the field name,
+this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/ICR.)
+"""
+function stand_pct!(s::StandState)
+    t = s.trees; n = t.n
+    n == 0 && return s
+    order = sortperm(view(t.dbh, 1:n); rev = true)     # largest DBH first
+    pct = t.crown_ratio
+    cum = 0f0
+    @inbounds for k in n:-1:1                            # accumulate from smallest up
+        ii = order[k]
+        cum += t.dbh[ii]^2 * t.tpa[ii]
+        pct[ii] = cum
+    end
+    if cum > 0f0
+        @inbounds for ii in 1:n
+            pct[ii] = pct[ii] / cum * 100f0
+        end
+    end
+    return s
+end
+
+"""
     stand_ccf(state)
 
 Crown competition factor (RELDEN): Σ over trees of the open-grown crown area

@@ -33,6 +33,7 @@ function compute_density!(s::StandState)
     s.plot.basal_area = stand_ba(s)
     s.plot.avg_height = stand_top_height(s)
     point_basal_area!(s)
+    stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)
     return s
 end
 
