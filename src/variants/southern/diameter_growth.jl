@@ -165,27 +165,40 @@ const DG_PSIGSQ = 0.089827273f0
 """
     calibrate_diameter_growth!(state; scale=1f0)
 
-DGDRIV calibration pass (LSTART, dgdriv.f:150). For each species with measured
-diameter growth in the input, regress the residuals of the DGF prediction against
-the measured DG to get the large-tree calibration `calib.dg_cor` (COR), then shrink
-it toward 0 with an empirical-Bayes weight. Deterministic (DGSD=0 ⇒ no RNG).
-`scale = YR/FINT` converts the measurement period to the cycle length (1 for snt01).
-Must run before `diameter_growth!` (it reads the measured DG from `trees.diam_growth`).
+DGDRIV calibration pass (LSTART, dgdriv.f:150). For each species with enough
+measured diameter growth, regress the DGF residuals to get the large-tree
+calibration `calib.dg_cor` (COR, empirical-Bayes shrunk) and the attenuation goal
+`calib.dg_cor_goal` (WCI). Also seeds the per-tree serial-correlation residual
+`trees.old_random` (OLDRN) — measured trees get their residual, calibrated species
+fill the rest by regression, and uncalibrated species draw from BACHLO — and the
+per-species `calib.vardg` (VARDG). Consumes the RNG, so trees are walked in FVS's
+species-sorted order. `scale = YR/FINT` (1 for snt01). Run before `diameter_growth!`.
 """
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
     t, c = s.trees, s.calib
-    bark_a = s.coef.species[:bark_intercept]; bark_b = s.coef.species[:bark_slope]
+    sd = s.coef.species
+    bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]; sigmar = sd[:dg_resid_sd]
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    species_sort!(s)
     dgf!(s)                                   # WK2 = DGF prediction at WK3=DBH, COR=0
     wk2 = view(s.scratch.wk, 2, :)
 
-    # per-species accumulators
+    # calibration VMLT (autcor LSTART: new=old=floor(YR))
+    yr = Int(floor(s.control.year)); yr < 1 && (yr = 1)
+    _, vmlt = autcor(yr, yr); c.vmlt = vmlt
+
+    # per-species DBH range + endpoint predictions over measured trees
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
+    pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
         (t.dbh[i] < 3f0 || t.diam_growth[i] <= 0f0) && continue
         sp = t.species[i]
-        t.dbh[i] < dn[sp] && (dn[sp] = t.dbh[i])
-        t.dbh[i] > dx[sp] && (dx[sp] = t.dbh[i])
+        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
+        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
     end
+
+    # per-species sums; remember each measured tree's residual
+    reslog_t = zeros(Float32, t.n); measured = falses(t.n)
     spopn = zeros(Float32, MAXSP); spopx = zeros(Float32, MAXSP)
     dev = zeros(Float32, MAXSP); devsq = zeros(Float32, MAXSP); fn = zeros(Float32, MAXSP)
     snp = zeros(Float32, MAXSP); snx = zeros(Float32, MAXSP); sny = zeros(Float32, MAXSP)
@@ -199,57 +212,147 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
+        reslog_t[i] = reslog; measured[i] = true
         fn[sp] += 1f0; dev[sp] += reslog; devsq[sp] += reslog^2
         snp[sp] += p; snx[sp] += p * edds; sny[sp] += p * reslog
         snxx[sp] += p * edds^2; snxy[sp] += p * reslog * edds
     end
 
+    # per-species COR / SIGMA / regression line / VARDG
+    slop = zeros(Float32, MAXSP); bnx = zeros(Float32, MAXSP); bny = zeros(Float32, MAXSP)
+    calibrated = falses(MAXSP)
     @inbounds for sp in 1:MAXSP
-        (fn[sp] < fnmin || snp[sp] <= 0f0) && continue     # FNMIN observations to calibrate
-        bpopx = spopx[sp] / spopn[sp]; bnx = snx[sp] / snp[sp]; bny = sny[sp] / snp[sp]
-        csnxy = snxy[sp] - bnx * bny * snp[sp]
-        csnxx = snxx[sp] - bnx * bnx * snp[sp]
-        csnxx < 0f0 && continue
-        slop = csnxy / csnxx
-        sdpred = sqrt(csnxx / (snp[sp] * (1f0 - 1f0 / fn[sp])))
-        dist = abs(bpopx - bnx) / sdpred
-        regcor = bny + (bpopx - bnx) * slop
-        cornew = dist > 3f0 ? bny :
-                 dist <= 1f0 ? regcor :
-                 bny * (dist / 2f0) + regcor * (1f0 - dist / 2f0)
-        # empirical-Bayes shrinkage toward 0
-        svar = devsq[sp] - dev[sp]^2 / fn[sp]
-        svar_v = (svar / (fn[sp] - 1f0)) / fn[sp]
-        temp = min(cornew * cornew / DG_PSIGSQ, 72f0)
-        wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / DG_PSIGSQ))
-        c.dg_cor[sp] = wc * cornew
+        c.sigma[sp] = sigmar[sp]                      # SIGMA=SIGMAR unless calibrated (dgdriv.f:196)
+        if isct[sp, 1] != 0 && fn[sp] >= fnmin && snp[sp] > 0f0
+            bnxv = snx[sp] / snp[sp]; bnyv = sny[sp] / snp[sp]
+            csnxy = snxy[sp] - bnxv * bnyv * snp[sp]
+            csnxx = snxx[sp] - bnxv * bnxv * snp[sp]
+            if csnxx >= 0f0
+                slp = csnxy / csnxx
+                bpopx = spopx[sp] / spopn[sp]
+                sdpred = sqrt(csnxx / (snp[sp] * (1f0 - 1f0 / fn[sp])))
+                dist = abs(bpopx - bnxv) / sdpred
+                regcor = bnyv + (bpopx - bnxv) * slp
+                cornew = dist > 3f0 ? bnyv : dist <= 1f0 ? regcor :
+                         bnyv * (dist / 2f0) + regcor * (1f0 - dist / 2f0)
+                svar = devsq[sp] - dev[sp]^2 / fn[sp]
+                svar_v = (svar / (fn[sp] - 1f0)) / fn[sp]
+                temp = min(cornew * cornew / DG_PSIGSQ, 72f0)
+                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / DG_PSIGSQ))
+                corv = wc * cornew
+                # out-of-range trap (cortem = exp(COR))
+                if exp(corv) < 0.0821f0 || exp(corv) > 12.1825f0
+                    corv = 0f0
+                end
+                c.dg_cor[sp] = corv
+                # modified residual SD only for calibrated species (dgdriv.f:323-325)
+                c.sigma[sp] = sqrt((svar + c.atten[sp] * sigmar[sp]^2) / (fn[sp] + c.atten[sp]))
+                slop[sp] = slp; bnx[sp] = bnxv; bny[sp] = bnyv; calibrated[sp] = true
+            end
+        end
+        vtemp = exp(c.sigma[sp]^2)
+        c.vardg[sp] = (vtemp - 1f0) * vtemp / vmlt
+    end
+
+    # seed OLDRN in FVS species-sorted RNG order
+    oldrn = t.old_random
+    @inbounds for sp in 1:MAXSP
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        if calibrated[sp]
+            rx = bny[sp] + (px[sp] - bnx[sp]) * slop[sp]
+            rn = bny[sp] + (pn[sp] - bnx[sp]) * slop[sp]
+            for k in i1:i2
+                i = ind1[k]
+                if measured[i]
+                    oldrn[i] = reslog_t[i]
+                else
+                    oldrn[i] = bny[sp] + (exp(wk2[i]) - bnx[sp]) * slop[sp]
+                    t.dbh[i] < dn[sp] && (oldrn[i] = rn)
+                    t.dbh[i] > dx[sp] && (oldrn[i] = rx)
+                end
+            end
+        else
+            bound = DG_DGSD * c.sigma[sp]
+            for k in i1:i2
+                i = ind1[k]
+                z = 0f0
+                while true
+                    z = bachlo(s.rng, 0f0, c.sigma[sp])
+                    z <= bound && break
+                end
+                oldrn[i] = z
+            end
+        end
+    end
+
+    # COR attenuation goal (WCI) + clamp OLDRN to ±DGSD·SIGMA
+    @inbounds for sp in 1:MAXSP
+        c.dg_cor_goal[sp] = 0.5f0 * c.dg_cor[sp]
+    end
+    @inbounds for i in 1:t.n
+        lim = DG_DGSD * c.sigma[t.species[i]]
+        oldrn[i] > lim && (oldrn[i] = lim)
+        oldrn[i] < -lim && (oldrn[i] = -lim)
     end
     return s
 end
 
 """
-    diameter_growth!(state, ::Southern)
+    diameter_growth!(state, ::Southern; sfint=5f0)
 
 Variant hook: compute each tree's periodic diameter growth into `trees.diam_growth`
-(DGDRIV, sn/dgdriv.f). For the deterministic case (no DGSTDEV → DGSD=0 so the
-serial-correlation multiplier is 1, no growth multipliers → xdgrow=0, no
-calibration → COR=0) this reduces to `DG = sqrt(d_ib² + exp(ln DDS)) − d_ib`,
-bounded. (Calibration + serial correlation are added when a test stand needs them.)
+(DGDRIV growth mode, sn/dgdriv.f). SN is STOCHASTIC (DGSD=2): per tree,
+`DG = sqrt(d_ib² + exp(ln DDS)·frm) − d_ib`, where `frm = exp(raw)` is the
+serial-correlation factor from `dgscor!` (BACHLO + AR(1) on `old_random`). The
+large-tree calibration COR is attenuated each cycle toward its goal (WCI). Trees
+are walked in species-sorted order to keep the RNG draw sequence bit-exact.
+`sfint = IY[icyc+1]−IY[1]` (5 for snt01 cycle 1).
 """
-function diameter_growth!(s::StandState, ::Southern)
-    dgf!(s)
-    t = s.trees
+function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0)
+    t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
     dlo_v = sd[:dg_bound_dbh_lo]; dhi_v = sd[:dg_bound_dbh_hi]
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    oldrn = t.old_random
+
+    # attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79)
+    cormlt = exp(-0.02773f0 * sfint)
+    @inbounds for sp in 1:MAXSP
+        c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+    end
+
+    species_sort!(s)
+    dgf!(s)
     wk2 = view(s.scratch.wk, 2, :)
-    @inbounds for i in 1:t.n
-        sp = t.species[i]
-        bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
-        d_ib = t.dbh[i] * bark
-        dds  = exp(wk2[i])                                  # xdgrow = log(XDMULT)=0
-        dg   = sqrt(d_ib * d_ib + dds) - d_ib
-        t.diam_growth[i] = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], dg, s.control.sp_size_cap)
+
+    # per-cycle ARMA multipliers (cyc1: new=old=floor(YR); multi-cycle TODO)
+    yr = Int(floor(s.control.year)); yr < 1 && (yr = 1)
+    covmlt, vmlt = autcor(yr, yr)
+    pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
+    corr = covmlt / sqrt(vmlt * pvmlt)
+
+    @inbounds for sp in 1:MAXSP
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        vardg = c.vardg[sp]
+        evarp1 = (sqrt(1f0 + 4f0 * vardg * pvmlt) + 1f0) / 2f0
+        sig1   = sqrt(log(max(evarp1, 1f0 + eps(Float32))))
+        evarp2 = (sqrt(1f0 + 4f0 * vardg * vmlt) + 1f0) / 2f0
+        ssigma = sqrt(log(max(evarp2, 1f0 + eps(Float32))))
+        rho = (sig1 > 0f0 && ssigma > 0f0) ?
+              log(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
+        rhocp = sqrt(max(1f0 - rho * rho, 0f0))
+        for k in i1:i2
+            i = ind1[k]
+            bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+            d_ib = t.dbh[i] * bark
+            frm  = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
+            dds  = exp(wk2[i])                              # xdgrow = log(XDMULT)=0
+            dg   = sqrt(d_ib * d_ib + dds * frm) - d_ib
+            t.diam_growth[i] = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], dg, s.control.sp_size_cap)
+        end
     end
     return s
 end

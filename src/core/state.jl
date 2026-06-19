@@ -313,10 +313,13 @@ mutable struct Calibration
     atten::Vector{Float32}       # prior observation count (Bayes)         (ATTEN)
     sigma::Vector{Float32}       # DG residual standard deviation          (SIGMA)
     vardg::Vector{Float32}       # DG variance                             (VARDG)
+    dg_cor_goal::Vector{Float32} # DG calibration attenuation goal          (WCI)
+    vmlt::Float32                # ARMA variance multiplier (calibration)  (VMLT)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP))
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
+    zeros(Float32,MAXSP), 0f0)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
