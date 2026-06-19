@@ -27,7 +27,10 @@ defaults then processes keywords until PROCESS/STOP/EOF (the returned reason).
 function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString)
     load_species_coefficients!(s, s.variant)      # BLOCK DATA (species, TREFMT, RNG seed)
     ranseed!(s.rng, false, s.rng.ss)              # INITRE: RANSED(false,...) → reset to seed
-    return process_keywords!(s, kr, base_path)
+    s.plot.gross_space = -1f0                      # GRINIT reset (sn/grinit.f:156)
+    reason = process_keywords!(s, kr, base_path)
+    finalize_design!(s)                            # INITRE end: PI:=IPTINV, GROSPC
+    return reason
 end
 
 """

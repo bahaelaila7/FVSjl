@@ -11,7 +11,7 @@ const KEY = joinpath(Oracle.FVSSN_TESTS, "snt01.key")
 @testset "initialize! snt01 stand 1: keyword state" begin
     s, reason = initialize(KEY)
     @test reason == :process                      # stopped at the first PROCESS
-    @test s.trees.n == 30                          # 30 tree records loaded
+    @test s.trees.n == 27                          # 30 records − 2 dead − 1 non-stockable
     @test s.control.ncycle == 10                   # NUMCYCLE 10
     @test s.control.cycle_year[1] == 1990           # INVYEAR 1990
     @test strip(s.plot.stand_id) == "S248112"      # STDIDENT
@@ -33,6 +33,23 @@ end
     @test t.height[1] == 73.0f0
 end
 
+@testset "cycle-0 density stats match Oracle A (.sum stand 1)" begin
+    s, _ = initialize(KEY)
+    @test s.trees.n == 27                      # 30 records − 2 dead (ITH 6,8) − 1 IMC1=8
+    FVSjl.notre!(s)
+    g = s.plot.gross_space                      # reciprocal stockable multiplier
+    tpa = FVSjl.stand_tpa(s) / g
+    ba  = FVSjl.stand_ba(s)  / g
+    sdi = FVSjl.stand_sdi(s) / g
+    qmd = FVSjl.stand_qmd(s)
+    # targets from snt01.sum / cruise summary (per total acre)
+    @test isapprox(tpa, 536.05; rtol=0.002)
+    @test isapprox(ba,   77.39; rtol=0.002)
+    @test round(Int, sdi) == 160
+    @test isapprox(qmd, 5.14;  atol=0.05)
+    @test s.plot.pi == 11f0                      # PI overwritten with IPTINV
+end
+
 @testset "species loading matches Oracle A (custom format)" begin
     s, _ = initialize(KEY)
     # re-parse raw species codes with the same custom format the loader used
@@ -43,6 +60,8 @@ end
         occursin("-999", line) && break
         r = parse_tree_record(fields, line)
         r === nothing && break
+        r.mort_code == 8 && continue            # non-stockable plot record (skipped by loader)
+        (6 <= r.history <= 9) && continue        # dead tree (skipped by loader)
         push!(codes, strip(r.species_code))
     end
     @test length(codes) == s.trees.n

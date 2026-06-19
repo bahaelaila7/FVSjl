@@ -45,6 +45,7 @@ include("engine/species_translation.jl")
 include("engine/treeinput.jl")
 include("engine/keyword_dispatch.jl")
 include("engine/init.jl")
+include("engine/standstats.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------
 # include("engine/...")    # C2–C5

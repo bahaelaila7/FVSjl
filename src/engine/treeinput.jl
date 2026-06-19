@@ -37,6 +37,13 @@ function load_trees!(s::StandState, trepath::AbstractString)
         rec = parse_tree_record(fields, line)
         rec === nothing && break
 
+        # IMC1 == 8 marks a non-stockable plot record — not a tree (intree.f:368)
+        rec.mort_code == 8 && continue
+        # Dead trees (history/ITH 6-9) are excluded from the live stand; they are
+        # partitioned into the dead pool for mortality reporting in C4 (intree.f:516).
+        # For now (live cycle-0 statistics) they are skipped.
+        (6 <= rec.history <= 9) && continue
+
         i = t.n + 1
         i > MAXTRE && break
 
