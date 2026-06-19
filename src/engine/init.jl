@@ -28,6 +28,12 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     load_species_coefficients!(s, s.variant)      # BLOCK DATA (species, TREFMT, RNG seed)
     ranseed!(s.rng, false, s.rng.ss)              # INITRE: RANSED(false,...) → reset to seed
     s.plot.gross_space = -1f0                      # GRINIT reset (sn/grinit.f:156)
+    @inbounds for i in 1:MAXSP                      # GRINIT size-cap defaults (sn/grinit.f:62)
+        s.control.sp_size_cap[i, 1] = 999f0
+        s.control.sp_size_cap[i, 2] = 1f0
+        s.control.sp_size_cap[i, 3] = 0f0
+        s.control.sp_size_cap[i, 4] = 999f0
+    end
     reason = process_keywords!(s, kr, base_path)
     finalize_design!(s)                            # INITRE end: PI:=IPTINV, GROSPC
     return reason

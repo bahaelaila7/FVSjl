@@ -34,6 +34,7 @@ include("variants/southern/southern.jl")
 include("variants/southern/species.jl")
 include("variants/southern/forest_location.jl")
 include("variants/southern/dgf_coefficients.jl")
+include("variants/southern/bark_and_bounds.jl")
 include("variants/southern/diameter_growth.jl")
 
 # --- io ---------------------------------------------------------------------
