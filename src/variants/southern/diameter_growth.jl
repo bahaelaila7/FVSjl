@@ -180,7 +180,33 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]; sigmar = sd[:dg_resid_sd]
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
-    dgf!(s)                                   # WK2 = DGF prediction at WK3=DBH, COR=0
+
+    # Backdate diameters to the start of the measured-growth period (DENSE/LBKDEN,
+    # dense.f:70-86): WK3 = sqrt(d²·r). For a tree with measured DG, r=(d−DG/bark)²/d²
+    # (so WK3 = past inside-bark-adjusted dbh); unmeasured trees use the stand-average
+    # ratio bagr. The calibration DGF must predict from this PAST stand state (past
+    # dbh + past BA/AVH/PCT), which is what makes COR/OLDRN bit-exact.
+    saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    bagr = 0f0; nb = 0f0
+    @inbounds for i in 1:t.n
+        g = t.diam_growth[i]; g <= 0f0 && continue
+        d = t.dbh[i]; gadj = g / bark_ratio(bark_a, bark_b, t.species[i], d)
+        gadj > d && continue
+        bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
+    end
+    nb > 0f0 && (bagr /= nb)
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]; g = t.diam_growth[i]
+        r = bagr
+        if g > 0f0
+            gadj = min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
+            rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
+            (gadj >= 0f0 && rr > 0f0) && (r = rr)
+        end
+        t.dbh[i] = sqrt(d * d * r)
+    end
+    compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT from WK3
+    dgf!(s)                                   # WK2 = DGF prediction at the PAST stand
     wk2 = view(s.scratch.wk, 2, :)
 
     # calibration VMLT (autcor LSTART: new=old=floor(YR))
@@ -208,7 +234,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = bark_ratio(bark_a, bark_b, sp, wk3)
+        bark = bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:225)
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
@@ -295,6 +321,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         oldrn[i] > lim && (oldrn[i] = lim)
         oldrn[i] < -lim && (oldrn[i] = -lim)
     end
+
+    # restore current diameters + current-stand density (the backdating was local)
+    @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
+    compute_density!(s)
     return s
 end
 
