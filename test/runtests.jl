@@ -16,6 +16,7 @@ using FVSjl
     include("unit/test_species.jl")        # C2: SN species tables + blkdat defaults
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
+    include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips
     # include("integration/test_snt01.jl")  # enabled at C5
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
