@@ -53,6 +53,7 @@ include("engine/keyword_dispatch.jl")
 include("engine/init.jl")
 include("engine/crown_width.jl")
 include("engine/standstats.jl")
+include("engine/simulate.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------
 # include("engine/...")    # C2–C5
