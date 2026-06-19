@@ -89,6 +89,28 @@ function stand_qmd(s::StandState)
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
 end
 
+"""
+    stand_top_height(state)
+
+Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
+height"). Trees are taken in descending-DBH order; the last one is prorated to
+hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotpath.)
+"""
+function stand_top_height(s::StandState)
+    t = s.trees
+    t.n == 0 && return 0f0
+    order = sortperm(view(t.dbh, 1:t.n); rev = true)
+    avh = 0f0; ssumn = 0f0
+    for ii in order
+        p = t.tpa[ii]
+        ssumn + p > 40f0 && (p = 40f0 - ssumn)
+        ssumn += p
+        avh += t.height[ii] * p
+        ssumn >= 40f0 && break
+    end
+    return ssumn > 0f0 ? avh / ssumn : 0f0
+end
+
 "Reineke stand density index by summation: Σ tpa·(DBH/10)^1.605 (DR016/dense.f)."
 function stand_sdi(s::StandState)
     t = s.trees; sdi = 0f0

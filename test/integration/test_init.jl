@@ -47,6 +47,7 @@ end
     @test isapprox(ba,   77.39; rtol=0.002)
     @test round(Int, sdi) == 160
     @test isapprox(qmd, 5.14;  atol=0.05)
+    @test round(Int, FVSjl.stand_top_height(s)) == 63   # AVHT40 top height
     @test s.plot.pi == 11f0                      # PI overwritten with IPTINV
 end
 
