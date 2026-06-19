@@ -81,8 +81,8 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     # SN: STDINFO field 2 is the ecological unit code (PCOM), e.g. "231Dd"
     rec.present[2] && (p.eco_unit = rpad(strip(rec.fields[2]), 10))
     rec.present[3] && (p.stand_age = nint(v[3]))
-    rec.present[4] && (p.aspect = v[4])
-    rec.present[5] && (p.slope = v[5])
+    rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
+    rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
     (rec.present[6] && v[6] > 0f0) && (p.elevation = v[6])
     if rec.present[9]
         org = nint(v[9])
