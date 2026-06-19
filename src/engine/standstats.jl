@@ -114,17 +114,26 @@ end
 """
     point_basal_area!(state)
 
-Fill `density.point_ba[ip]` = per-point basal area (PTBAA, ptbal.f): for each
-subplot, Σ tpa·0.005454154·DBH² · PI/GROSPC. Used by the diameter-growth point
-competition term. Call after notre! (needs expanded tpa) and finalize_design!.
+Fill `density.point_ba[ip]` (PTBAA, per-point basal area) AND `density.point_bal[i]`
+(PTBALT, the BA in trees LARGER than tree i on the same point). For each subplot,
+trees are taken in descending-DBH order and BA accumulates; PTBALT[i] is the sum
+before tree i. The diameter-growth competition term uses PTBALT (= pbal). Per-tree
+BA = tpa·0.005454154·DBH²·PI/GROSPC. (Sorts per point — once-per-cycle, not hotpath.)
 """
 function point_basal_area!(s::StandState)
     p, t = s.plot, s.trees
-    pb = s.density.point_ba
+    pb = s.density.point_ba; pbal = s.density.point_bal
     fill!(pb, 0f0)
     scale = p.pi / p.gross_space
+    npts = 0
     @inbounds for i in 1:t.n
-        ip = t.plot_id[i]
+        npts = max(npts, Int(t.plot_id[i]))
+        pbal[i] = 0f0
+    end
+    order = sortperm(view(t.dbh, 1:t.n); rev = true)   # descending DBH (stable)
+    @inbounds for i in order
+        ip = Int(t.plot_id[i])
+        pbal[i] = pb[ip]                                # BA already accumulated = larger trees
         pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
     end
     return s
