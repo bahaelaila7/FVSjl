@@ -179,7 +179,7 @@ function stand_ccf(s::StandState)
     @inbounds for i in 1:t.n
         sp = t.species[i]
         sp2 = s.species.class_codes[sp, 1][1:2]
-        cw = crown_width(sp2, t.dbh[i], t.height[i], 90, 1,
+        cw = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
                          p.latitude, p.longitude, p.elevation)
         ccf += t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
     end

@@ -14,6 +14,7 @@ using FVSjl
 @testset "FVSjl" begin
     include("unit/test_core.jl")           # C0: state, rng, units, variant
     include("unit/test_species.jl")        # C2: SN species tables + blkdat defaults
+    include("unit/test_crown_width.jl")    # C2: CSV-driven crown-width library
     include("unit/test_diameter_growth.jl")# C3: DGF/DGCONS equation core
     include("unit/test_growth.jl")         # C3: DG calibration + HTGF + cycle loop
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL

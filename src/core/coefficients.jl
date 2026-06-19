@@ -11,6 +11,21 @@
 # =============================================================================
 
 """
+    CrownWidthEq
+
+One crown-width equation: a `family` (`:bechtold`/`:bragg`/`:ek`/`:smith`) plus its
+coefficients. Evaluated by `crown_width` (engine/crown_width.jl). Data-only here.
+"""
+struct CrownWidthEq
+    family::Symbol
+    a::Float32; b::Float32; c::Float32     # intercept, D coef, D²(or Smith D_cm²) coef
+    cr_coef::Float32; hi_coef::Float32     # crown-ratio and Hopkins-index coefs (bechtold)
+    power::Float32                         # D exponent (bragg/ek)
+    dbh_cap::Float32                       # D cap before the quadratic (bechtold)
+    max_cw::Float32                        # upper clamp (0 ⇒ none)
+end
+
+"""
     SpeciesCoefficients
 
 Loaded reference data for one variant: every numeric per-species column (keyed by
@@ -28,6 +43,8 @@ struct SpeciesCoefficients
     master_group_rep::Vector{Int32}              # MGSISP
     forest_location::Dict{Int,NTuple{3,Float32}} # forest → (lat, long, elev)
     valid_habitat::Vector{Int32}
+    crown_species::Dict{String,Tuple{String,String}} # 2-char code → (eqn_default, eqn_open)
+    crown_eqs::Dict{String,CrownWidthEq}             # equation number → coefficients
 end
 
 "Per-species coefficient column by its descriptive name."
@@ -78,8 +95,20 @@ function load_species_coefficients(datadir::AbstractString)
     habitat = zeros(Int32, 122)
     for (k, r) in enumerate(hc); k <= 122 && (habitat[k] = parse(Int32, r[1])); end
 
+    _, cws = _read_csv(joinpath(datadir, "crown_width_species.csv"))
+    crown_species = Dict{String,Tuple{String,String}}(r[1] => (r[2], r[3]) for r in cws)
+    ceh, cwe = _read_csv(joinpath(datadir, "crown_width_equations.csv"))
+    cidx = Dict(h => i for (i, h) in enumerate(ceh))
+    g(r, name) = parse(Float32, r[cidx[name]])
+    crown_eqs = Dict{String,CrownWidthEq}(
+        r[cidx[:equation]] => CrownWidthEq(Symbol(r[cidx[:family]]),
+            g(r, :a), g(r, :b), g(r, :c), g(r, :cr_coef), g(r, :hi_coef),
+            g(r, :power), g(r, :dbh_cap), g(r, :max_cw))
+        for r in cwe)
+
     return SpeciesCoefficients(species, alpha, fia, plants, translation,
-                               site_idx, site_grp, grp_rep, forests, habitat)
+                               site_idx, site_grp, grp_rep, forests, habitat,
+                               crown_species, crown_eqs)
 end
 
 "Cached coefficient load, one per variant (filled by each variant's `coefficients`)."
