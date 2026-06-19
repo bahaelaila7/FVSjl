@@ -1,0 +1,20 @@
+name = "FVSjl"
+uuid = "f5d3a1c2-9b4e-4a7d-8c61-2e0f7b9a4d33"
+version = "0.1.0"
+authors = ["BahaaEddin AlAila <bahaelaila7@gmail.com>"]
+
+[deps]
+DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
+
+[compat]
+DBInterface = "2"
+SQLite = "1"
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

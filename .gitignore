@@ -1,0 +1,19 @@
+# Simulation output — FVS writes these next to the keyword file / in the cwd.
+*.db
+*.sum
+*.out
+*.tls
+*.trl
+*.chp
+*.sng
+*.key.bak
+
+# Julia build artifacts (Manifest.toml IS tracked for reproducibility)
+*.so
+*.dylib
+*.dll
+LocalPreferences.toml
+
+# Editor / OS
+.DS_Store
+*.swp
