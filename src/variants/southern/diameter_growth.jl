@@ -152,3 +152,27 @@ function dgf!(s::StandState)
     end
     return s
 end
+
+"""
+    diameter_growth!(state, ::Southern)
+
+Variant hook: compute each tree's periodic diameter growth into `trees.diam_growth`
+(DGDRIV, sn/dgdriv.f). For the deterministic case (no DGSTDEV → DGSD=0 so the
+serial-correlation multiplier is 1, no growth multipliers → xdgrow=0, no
+calibration → COR=0) this reduces to `DG = sqrt(d_ib² + exp(ln DDS)) − d_ib`,
+bounded. (Calibration + serial correlation are added when a test stand needs them.)
+"""
+function diameter_growth!(s::StandState, ::Southern)
+    dgf!(s)
+    t = s.trees
+    wk2 = view(s.scratch.wk, 2, :)
+    @inbounds for i in 1:t.n
+        sp = t.species[i]
+        bark = bark_ratio(sp, t.dbh[i])
+        d_ib = t.dbh[i] * bark
+        dds  = exp(wk2[i])                                  # xdgrow = log(XDMULT)=0
+        dg   = sqrt(d_ib * d_ib + dds) - d_ib
+        t.diam_growth[i] = dg_bound(sp, t.dbh[i], dg, s.control.sp_size_cap)
+    end
+    return s
+end
