@@ -153,6 +153,73 @@ function dgf!(s::StandState)
     return s
 end
 
+"Empirical-Bayes prior variance for DG calibration (dgdriv.f PSIGSQ)."
+const DG_PSIGSQ = 0.089827273f0
+
+"""
+    calibrate_diameter_growth!(state; scale=1f0)
+
+DGDRIV calibration pass (LSTART, dgdriv.f:150). For each species with measured
+diameter growth in the input, regress the residuals of the DGF prediction against
+the measured DG to get the large-tree calibration `calib.dg_cor` (COR), then shrink
+it toward 0 with an empirical-Bayes weight. Deterministic (DGSD=0 ⇒ no RNG).
+`scale = YR/FINT` converts the measurement period to the cycle length (1 for snt01).
+Must run before `diameter_growth!` (it reads the measured DG from `trees.diam_growth`).
+"""
+function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
+    t, c = s.trees, s.calib
+    dgf!(s)                                   # WK2 = DGF prediction at WK3=DBH, COR=0
+    wk2 = view(s.scratch.wk, 2, :)
+
+    # per-species accumulators
+    dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
+    @inbounds for i in 1:t.n
+        (t.dbh[i] < 3f0 || t.diam_growth[i] <= 0f0) && continue
+        sp = t.species[i]
+        t.dbh[i] < dn[sp] && (dn[sp] = t.dbh[i])
+        t.dbh[i] > dx[sp] && (dx[sp] = t.dbh[i])
+    end
+    spopn = zeros(Float32, MAXSP); spopx = zeros(Float32, MAXSP)
+    dev = zeros(Float32, MAXSP); devsq = zeros(Float32, MAXSP); fn = zeros(Float32, MAXSP)
+    snp = zeros(Float32, MAXSP); snx = zeros(Float32, MAXSP); sny = zeros(Float32, MAXSP)
+    snxx = zeros(Float32, MAXSP); snxy = zeros(Float32, MAXSP)
+    @inbounds for i in 1:t.n
+        sp = t.species[i]; wk3 = t.dbh[i]; dg = t.diam_growth[i]; p = t.tpa[i]
+        (wk3 < dn[sp] || wk3 > dx[sp]) && continue
+        edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
+        dg <= 0f0 && continue
+        bark = bark_ratio(sp, wk3)
+        term = dg * (2f0 * bark * wk3 + dg) * scale
+        term <= 0f0 && continue
+        reslog = log(term) - wk2[i]
+        fn[sp] += 1f0; dev[sp] += reslog; devsq[sp] += reslog^2
+        snp[sp] += p; snx[sp] += p * edds; sny[sp] += p * reslog
+        snxx[sp] += p * edds^2; snxy[sp] += p * reslog * edds
+    end
+
+    @inbounds for sp in 1:MAXSP
+        (fn[sp] < fnmin || snp[sp] <= 0f0) && continue     # FNMIN observations to calibrate
+        bpopx = spopx[sp] / spopn[sp]; bnx = snx[sp] / snp[sp]; bny = sny[sp] / snp[sp]
+        csnxy = snxy[sp] - bnx * bny * snp[sp]
+        csnxx = snxx[sp] - bnx * bnx * snp[sp]
+        csnxx < 0f0 && continue
+        slop = csnxy / csnxx
+        sdpred = sqrt(csnxx / (snp[sp] * (1f0 - 1f0 / fn[sp])))
+        dist = abs(bpopx - bnx) / sdpred
+        regcor = bny + (bpopx - bnx) * slop
+        cornew = dist > 3f0 ? bny :
+                 dist <= 1f0 ? regcor :
+                 bny * (dist / 2f0) + regcor * (1f0 - dist / 2f0)
+        # empirical-Bayes shrinkage toward 0
+        svar = devsq[sp] - dev[sp]^2 / fn[sp]
+        svar_v = (svar / (fn[sp] - 1f0)) / fn[sp]
+        temp = min(cornew * cornew / DG_PSIGSQ, 72f0)
+        wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / DG_PSIGSQ))
+        c.dg_cor[sp] = wc * cornew
+    end
+    return s
+end
+
 """
     diameter_growth!(state, ::Southern)
 

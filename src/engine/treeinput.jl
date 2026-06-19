@@ -37,6 +37,14 @@ function load_trees!(s::StandState, trepath::AbstractString)
         rec = parse_tree_record(fields, line)
         rec === nothing && break
 
+        # Subplot index (IPVEC/ITRE) is assigned to EVERY record before the dead /
+        # non-stockable exclusions (intree.f: plot counting precedes those checks),
+        # so the numbering matches FVS even when some records aren't kept.
+        pj = findfirst(==(rec.plot), plot_ids)
+        if pj === nothing
+            push!(plot_ids, rec.plot); pj = length(plot_ids)
+        end
+
         # IMC1 == 8 marks a non-stockable plot record — not a tree (intree.f:368)
         rec.mort_code == 8 && continue
         # Dead trees (history/ITH 6-9) are excluded from the live stand; they are
@@ -79,13 +87,7 @@ function load_trees!(s::StandState, trepath::AbstractString)
             t.birth_age[i] = rec.birth_age; t.age_known[i] = true
         end
 
-        # subplot index (IPVEC / ITRE)
-        pj = findfirst(==(rec.plot), plot_ids)
-        if pj === nothing
-            push!(plot_ids, rec.plot); pj = length(plot_ids)
-        end
-        t.plot_id[i] = Int32(pj)
-
+        t.plot_id[i] = Int32(pj)            # subplot index from the full registration above
         t.n = i
     end
 
