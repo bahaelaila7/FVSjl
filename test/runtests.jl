@@ -12,7 +12,9 @@ using Test
 using FVSjl
 
 @testset "FVSjl" begin
-    include("unit/test_core.jl")        # C0: state, rng, units, variant
+    include("unit/test_core.jl")           # C0: state, rng, units, variant
+    include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
+    include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     # include("integration/test_snt01.jl")  # enabled at C5
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8

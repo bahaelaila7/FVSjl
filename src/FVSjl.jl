@@ -32,13 +32,18 @@ include("core/state.jl")
 # --- variants ---------------------------------------------------------------
 include("variants/southern/southern.jl")
 
-# --- engine, io, extensions, cli are added in later chunks ------------------
-# include("io/...")        # C1
+# --- io ---------------------------------------------------------------------
+include("io/treedata.jl")
+include("io/keyword.jl")
+
+# --- engine, extensions, cli are added in later chunks ----------------------
 # include("engine/...")    # C2–C5
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
 export StandState, Southern, AbstractVariant, variant_code
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
+export parse_tree_format, parse_tree_record, read_tree_file, TreeRecord, DEFAULT_TREE_FORMAT
+export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF, KW_STOP, KW_PARMS
 
 end # module FVSjl

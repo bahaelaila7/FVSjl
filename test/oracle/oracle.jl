@@ -58,6 +58,74 @@ function run_oracle_a(keypath::AbstractString)
     end
 end
 
+"""
+    oracle_a_tree_tuples(trepath) -> Vector
+
+Parse every record of a `.tre` file using Oracle A's `parse_tree_record` (which
+uses the default TREFMT set in FVSjulia's blkdat), returned as the 25-element
+tuples FVSjulia produces. Used to byte-check FVSjl's tree parser.
+"""
+function oracle_a_tree_tuples(trepath::AbstractString)
+    jl = julia_bin()
+    code = """
+        using FVSjulia
+        for line in eachline("$trepath")
+            isempty(strip(line)) && continue
+            t = FVSjulia.parse_tree_record(line)
+            t === nothing || println(t)
+        end
+    """
+    out = read(`$jl --project=$FVSJULIA_DIR -e $code`, String)
+    tuples = Any[]
+    for ln in eachline(IOBuffer(out))
+        isempty(strip(ln)) && continue
+        push!(tuples, eval(Meta.parse(ln)))
+    end
+    return tuples
+end
+
+"""
+    oracle_a_keywords(keypath) -> Vector{Tuple{String,Vector{Float32},Vector{Bool}}}
+
+Read every keyword record of `keypath` with Oracle A's KEYRDR, returning
+`(name, values[1:12], present[1:12])` per record. Used to byte-check FVSjl's
+keyword lexer. STOP terminates; EOF ends.
+"""
+function oracle_a_keywords(keypath::AbstractString)
+    jl = julia_bin()
+    code = """
+        using FVSjulia, Printf
+        let
+            FVSjulia.io_units[Int32(77)] = open("$keypath","r")
+            FVSjulia.io_units[Int32(98)] = open("/dev/null","w")
+            lnotbk = fill(false,12); array = zeros(Float32,12); kard = fill(" "^10,12)
+            irecnt = Int32(0); kode = Int32(0); lflag = false
+            while true
+                (kw,lnotbk,array,irecnt,kode,kard,lflag) =
+                    FVSjulia.KEYRDR(Int32(77),Int32(98),false,lnotbk,array,irecnt,kode,kard,lflag,false)
+                kode == Int32(2) && break
+                kode == Int32(3) && (println("##STOP##"); break)
+                print(strip(kw)); print('\\t')
+                print(join(array, ",")); print('\\t')
+                println(join(Int.(lnotbk), ","))
+            end
+        end
+    """
+    out = read(`$jl --project=$FVSJULIA_DIR -e $code`, String)
+    recs = Tuple{String,Vector{Float32},Vector{Bool}}[]
+    for ln in eachline(IOBuffer(out))
+        isempty(strip(ln)) && continue
+        ln == "##STOP##" && break
+        parts = split(ln, '\t')
+        length(parts) < 3 && continue
+        name = String(parts[1])
+        vals = Float32[parse(Float32, x) for x in split(parts[2], ",")]
+        pres = Bool[x == "1" for x in split(parts[3], ",")]
+        push!(recs, (name, vals, pres))
+    end
+    return recs
+end
+
 "Run FVSjl on `keypath`; returns its temp output dir. (Wired up from C2 onward.)"
 function run_fvsjl(keypath::AbstractString)
     jl = julia_bin()
