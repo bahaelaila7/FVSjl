@@ -48,6 +48,8 @@ end
     @test round(Int, sdi) == 160
     @test isapprox(qmd, 5.14;  atol=0.05)
     @test round(Int, FVSjl.stand_top_height(s)) == 63   # AVHT40 top height
+    @test round(Int, FVSjl.stand_ccf(s) / g) == 218     # crown competition factor
+    @test s.plot.latitude == 32.37f0             # FORKOD forest-location default
     @test s.plot.pi == 11f0                      # PI overwritten with IPTINV
 end
 

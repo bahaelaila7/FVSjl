@@ -32,6 +32,7 @@ include("core/state.jl")
 # --- variants ---------------------------------------------------------------
 include("variants/southern/southern.jl")
 include("variants/southern/species.jl")
+include("variants/southern/forest_location.jl")
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
@@ -45,6 +46,7 @@ include("engine/species_translation.jl")
 include("engine/treeinput.jl")
 include("engine/keyword_dispatch.jl")
 include("engine/init.jl")
+include("engine/crown_width.jl")
 include("engine/standstats.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------

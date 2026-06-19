@@ -111,6 +111,25 @@ function stand_top_height(s::StandState)
     return ssumn > 0f0 ? avh / ssumn : 0f0
 end
 
+"""
+    stand_ccf(state)
+
+Crown competition factor (RELDEN): Σ over trees of the open-grown crown area
+(CCFCAL/ccfcal.f): `0.001803·crownwidth²·tpa` (or `0.001·tpa` for DBH ≤ 0.1).
+"""
+function stand_ccf(s::StandState)
+    p, t = s.plot, s.trees
+    ccf = 0f0
+    @inbounds for i in 1:t.n
+        sp = t.species[i]
+        sp2 = s.species.class_codes[sp, 1][1:2]
+        cw = crown_width(sp2, t.dbh[i], t.height[i], 90, 1,
+                         p.latitude, p.longitude, p.elevation)
+        ccf += t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
+    end
+    return ccf
+end
+
 "Reineke stand density index by summation: Σ tpa·(DBH/10)^1.605 (DR016/dense.f)."
 function stand_sdi(s::StandState)
     t = s.trees; sdi = 0f0
