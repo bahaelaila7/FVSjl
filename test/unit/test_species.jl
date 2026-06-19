@@ -4,41 +4,41 @@
 
 using Test
 using FVSjl
-using FVSjl: SN_ALPHA, SN_FIA, SN_PLANTS, SN_SIGMAR, SN_VALID_HABITAT, SN_NSPECIES,
-             init_blockdata!, DEFAULT_TREE_FORMAT
+using FVSjl: SN_NSPECIES, init_blockdata!, DEFAULT_TREE_FORMAT, coefficients
 
-@testset "species table shapes & anchors" begin
+@testset "species table shapes & anchors (loaded from CSV)" begin
+    c = coefficients(Southern())
     @test SN_NSPECIES == 90
-    @test length(SN_ALPHA) == 90
-    @test length(SN_FIA) == 90
-    @test length(SN_PLANTS) == 90
-    @test length(SN_SIGMAR) == 90
-    @test length(SN_VALID_HABITAT) == 122
+    @test length(c.code_alpha) == 90
+    @test length(c.code_fia) == 90
+    @test length(c.code_plants) == 90
+    @test length(c.species[:dg_resid_sd]) == 90
+    @test length(c.valid_habitat) == 122
     # anchors (first / mid / last species)
-    @test strip(SN_ALPHA[1]) == "FR"   && SN_FIA[1] == "010" && strip(SN_PLANTS[1]) == "ABIES"
-    @test strip(SN_ALPHA[13]) == "LP"  && SN_FIA[13] == "131"   # loblolly pine
-    @test strip(SN_ALPHA[90]) == "OT"  && SN_FIA[90] == "999"
-    @test SN_SIGMAR[1] == 0.4511f0
-    @test SN_VALID_HABITAT[95] == 999 && SN_VALID_HABITAT[96] == 0
+    @test strip(c.code_alpha[1]) == "FR"  && c.code_fia[1] == "010" && strip(c.code_plants[1]) == "ABIES"
+    @test strip(c.code_alpha[13]) == "LP" && c.code_fia[13] == "131"   # loblolly pine
+    @test strip(c.code_alpha[90]) == "OT" && c.code_fia[90] == "999"
+    @test c.species[:dg_resid_sd][1] == 0.4511f0
+    @test c.valid_habitat[95] == 999 && c.valid_habitat[96] == 0
 end
 
 @testset "species resolution (direct + SPCTRN crosswalk)" begin
     s = StandState(Southern()); init_blockdata!(s, s.variant)
-    sp, v = s.species, s.variant
+    sp, v, co = s.species, s.variant, s.coef
     # direct matches against the variant's own codes (format 1=alpha,2=FIA,3=PLANTS)
-    @test resolve_species("FR", v, sp)    == (Int32(1), Int32(1))
-    @test resolve_species("010", v, sp)   == (Int32(1), Int32(2))
-    @test resolve_species("ABIES", v, sp) == (Int32(1), Int32(3))
-    @test resolve_species("LP", v, sp)    == (Int32(13), Int32(1))   # loblolly pine
-    @test resolve_species("131", v, sp)   == (Int32(13), Int32(2))
+    @test resolve_species("FR", v, sp, co)    == (Int32(1), Int32(1))
+    @test resolve_species("010", v, sp, co)   == (Int32(1), Int32(2))
+    @test resolve_species("ABIES", v, sp, co) == (Int32(1), Int32(3))
+    @test resolve_species("LP", v, sp, co)    == (Int32(13), Int32(1))   # loblolly pine
+    @test resolve_species("131", v, sp, co)   == (Int32(13), Int32(2))
     # SPCTRN crosswalk: "BF" (balsam fir, not an SN species) → SN target FR → idx 1
-    @test resolve_species("BF", v, sp)[1]    == Int32(1)
+    @test resolve_species("BF", v, sp, co)[1]    == Int32(1)
     # PLANTS "2TREE" → SN target OT → idx 90 (catch-all other)
-    @test resolve_species("2TREE", v, sp)[1] == Int32(90)
+    @test resolve_species("2TREE", v, sp, co)[1] == Int32(90)
     # blank code → OT
-    @test resolve_species("   ", v, sp)[1]   == Int32(90)
-    # SPCTRN_TABLE shape
-    @test length(FVSjl.SPCTRN_TABLE) == 562
+    @test resolve_species("   ", v, sp, co)[1]   == Int32(90)
+    # crosswalk table shape (loaded from CSV)
+    @test length(co.translation) == 562
     @test FVSjl.spctrn_column(v) == 7
     @test FVSjl.other_species(v) == Int32(90)
 end

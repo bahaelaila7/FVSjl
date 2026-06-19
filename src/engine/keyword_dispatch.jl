@@ -89,7 +89,7 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
     end
     # FORKOD phase 3: default lat/long/elev from the forest code (forkod.f:193).
-    lat0, long0, elev0 = forest_location(div(p.user_forest_code, 100))
+    lat0, long0, elev0 = forest_location(s.coef, div(p.user_forest_code, 100))
     p.latitude  == 0f0 && (p.latitude  = lat0)
     p.longitude == 0f0 && (p.longitude = long0)
     p.elevation == 0f0 && (p.elevation = elev0)

@@ -55,7 +55,7 @@ function load_trees!(s::StandState, trepath::AbstractString)
         i = t.n + 1
         i > MAXTRE && break
 
-        idx, fmt = resolve_species(rec.species_code, s.variant, s.species)
+        idx, fmt = resolve_species(rec.species_code, s.variant, s.species, s.coef)
         p.sp_format[idx] = fmt
         p.sp_format_default <= 0 && (p.sp_format_default = fmt)
 

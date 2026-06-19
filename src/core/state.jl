@@ -381,6 +381,7 @@ EconState() = EconState(false)
 # ---------------------------------------------------------------------------
 mutable struct StandState{V<:AbstractVariant}
     variant::V
+    coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
     control::Control
     trees::TreeList
     plot::PlotData
@@ -408,7 +409,7 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     ctrl.faithful = faithful
     ctrl.variant_code = variant_code(variant)
     StandState(
-        variant, ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
+        variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
         DbsState(), nothing, nothing,
     )

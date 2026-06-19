@@ -4,12 +4,13 @@
 
 using Test
 using FVSjl
-using FVSjl: DGF_INTERC, DGF_P411, _dgf_phys_group, _dgf_forest_group, dgcons!, dgf!
+using FVSjl: _dgf_phys_group, _dgf_forest_group, dgcons!, dgf!, coefficients, Southern
 
-@testset "DGF coefficient tables" begin
-    @test length(DGF_INTERC) == 90
-    @test length(DGF_P411) == 90
-    @test DGF_INTERC[13] == 0.222214f0          # loblolly pine intercept
+@testset "DGF coefficient tables (loaded from CSV)" begin
+    sd = coefficients(Southern()).species
+    @test length(sd[:dg_intercept]) == 90
+    @test length(sd[:dg_phys_p411]) == 90
+    @test sd[:dg_intercept][13] == 0.222214f0    # loblolly pine intercept
 end
 
 @testset "ecological-unit → physiographic group" begin
