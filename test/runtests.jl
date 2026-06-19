@@ -14,6 +14,7 @@ using FVSjl
 @testset "FVSjl" begin
     include("unit/test_core.jl")           # C0: state, rng, units, variant
     include("unit/test_species.jl")        # C2: SN species tables + blkdat defaults
+    include("unit/test_diameter_growth.jl")# C3: DGF/DGCONS equation core
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips

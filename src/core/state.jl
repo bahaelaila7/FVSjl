@@ -181,6 +181,7 @@ mutable struct PlotData
     pv_ref::String              # PV reference code                     (CPVREF)
     stand_id::String            # stand identification                  (NPLT)
     db_control::String          # database control number              (DBCN)
+    eco_unit::String            # SN ecological unit code (e.g. 231Dd)  (PCOM)
 
     # integer scalars
     stand_age::Int32            # input stand age                       (IAGE)
@@ -268,7 +269,7 @@ end
 
 function PlotData()
     PlotData(
-        "    ", "    ", " "^10, repeat(' ',26), repeat(' ',40),
+        "    ", "    ", " "^10, repeat(' ',26), repeat(' ',40), " "^10,
         Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),
         Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),
         Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),
@@ -304,10 +305,17 @@ SpeciesData() = SpeciesData(
 # Calibration — COMMON /CALCOM/ + /HTCAL/ : growth-model calibration (C3)
 # ---------------------------------------------------------------------------
 mutable struct Calibration
-    dg_mult::Vector{Float32}     # per-species DG calibration multiplier
-    htg_mult::Vector{Float32}    # per-species HTG calibration multiplier
+    dg_mult::Vector{Float32}     # per-species DG growth multiplier        (XDMULT)
+    htg_mult::Vector{Float32}    # per-species HTG growth multiplier
+    dg_const::Vector{Float32}    # site-dependent DG constant              (DGCON)
+    dg_cor::Vector{Float32}      # large-tree DG calibration correction    (COR)
+    atten::Vector{Float32}       # prior observation count (Bayes)         (ATTEN)
+    sigma::Vector{Float32}       # DG residual standard deviation          (SIGMA)
+    vardg::Vector{Float32}       # DG variance                             (VARDG)
 end
-Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP))
+Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

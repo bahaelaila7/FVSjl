@@ -70,6 +70,7 @@ function load_trees!(s::StandState, trepath::AbstractString)
             icr = icr < 10 ? icr * Int32(10) - Int32(5) : min(icr, Int32(99))
         end
         t.crown_pct[i] = icr
+        t.crown_ratio[i] = Float32(icr)        # PCT (working crown ratio, percent)
 
         # birth-age flag (intree.f:190)
         if rec.birth_age <= 0f0

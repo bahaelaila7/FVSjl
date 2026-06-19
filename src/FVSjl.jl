@@ -33,6 +33,8 @@ include("core/state.jl")
 include("variants/southern/southern.jl")
 include("variants/southern/species.jl")
 include("variants/southern/forest_location.jl")
+include("variants/southern/dgf_coefficients.jl")
+include("variants/southern/diameter_growth.jl")
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
@@ -63,5 +65,6 @@ export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF
 export read_tree_records, read_trees_csv, write_trees_csv, convert_tre_to_csv, TREE_CSV_HEADER
 export read_keyword_records, read_keywords_yaml, write_keywords_yaml, convert_key_to_yaml, read_keyfile_records
 export initialize, initialize!, process_keywords!, load_trees!, strip_key_ext
+export dgcons!, dgf!, notre!, stand_tpa, stand_ba, stand_qmd, stand_sdi, stand_ccf, stand_top_height
 
 end # module FVSjl
