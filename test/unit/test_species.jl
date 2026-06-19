@@ -22,6 +22,27 @@ using FVSjl: SN_ALPHA, SN_FIA, SN_PLANTS, SN_SIGMAR, SN_VALID_HABITAT, SN_NSPECI
     @test SN_VALID_HABITAT[95] == 999 && SN_VALID_HABITAT[96] == 0
 end
 
+@testset "species resolution (direct + SPCTRN crosswalk)" begin
+    s = StandState(Southern()); init_blockdata!(s, s.variant)
+    sp, v = s.species, s.variant
+    # direct matches against the variant's own codes (format 1=alpha,2=FIA,3=PLANTS)
+    @test resolve_species("FR", v, sp)    == (Int32(1), Int32(1))
+    @test resolve_species("010", v, sp)   == (Int32(1), Int32(2))
+    @test resolve_species("ABIES", v, sp) == (Int32(1), Int32(3))
+    @test resolve_species("LP", v, sp)    == (Int32(13), Int32(1))   # loblolly pine
+    @test resolve_species("131", v, sp)   == (Int32(13), Int32(2))
+    # SPCTRN crosswalk: "BF" (balsam fir, not an SN species) → SN target FR → idx 1
+    @test resolve_species("BF", v, sp)[1]    == Int32(1)
+    # PLANTS "2TREE" → SN target OT → idx 90 (catch-all other)
+    @test resolve_species("2TREE", v, sp)[1] == Int32(90)
+    # blank code → OT
+    @test resolve_species("   ", v, sp)[1]   == Int32(90)
+    # SPCTRN_TABLE shape
+    @test length(FVSjl.SPCTRN_TABLE) == 562
+    @test FVSjl.spctrn_column(v) == 7
+    @test FVSjl.other_species(v) == Int32(90)
+end
+
 @testset "init_blockdata! applies SN defaults" begin
     s = StandState(Southern())
     @test s.rng.s0 == 0.0                     # bare state: neutral seed
