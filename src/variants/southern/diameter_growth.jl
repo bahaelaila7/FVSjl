@@ -405,8 +405,11 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     rnU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
 
-    # attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79)
-    cormlt = exp(-0.02773f0 * sfint)
+    # Attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79).
+    # The attenuation clock is the cumulative time SINCE the inventory (calibration),
+    # so the first projection cycle uses the FULL COR (cormlt=1 at 0 elapsed years);
+    # it decays in later cycles. (Was wrongly using one period's length every cycle.)
+    cormlt = exp(-0.02773f0 * sfint * Float32(s.control.cycle))
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
     end
