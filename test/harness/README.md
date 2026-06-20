@@ -35,8 +35,16 @@ bash test/harness/three_way.sh            # Fortran vs FVSjulia vs FVSjl
 - **Fire (3):** scheduled SIMFIRE at early/mid/late years with varied
   intensity/%-area.
 
-Not exhaustive (141 forest types / 90 species exist), but a wide representative
-spread that validates the oracle + the FORTYP port across many types.
+- **Mixes (16):** oak-pine / conifer / hardwood compositions that reach the forest
+  types homogeneous stands can't, so **all 8 DGF forest-type groups** (the
+  `_dgf_forest_group` codepaths: lohd/nohd/okpn/sfhp/uphd/upok/ylpn/none) are hit.
+- **SITSET (8):** vary SITECODE across the 9 site-index master-group representatives
+  → each SITSET A/B/C/D site-index codepath.
+- **SPCTRN (4):** foreign (non-SN) species codes (BF/JP/NS/QA) → the species-
+  translation crosswalk codepath.
+
+Goal is **codepath coverage**, not enumeration: every distinct forest-type-group
+and species-resolution branch the engine takes is exercised and Fortran-validated.
 
 ## Status
 
