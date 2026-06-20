@@ -96,6 +96,23 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
     @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
     @inbounds for k in 1:5; t.pest_vars[k, i] = rec.pest_vars[k]; end
 
+    # Topkill / broken-top detection (intree.f:479-502): damage agent 96 or 97 in
+    # any agent slot (odd positions), or an explicit broken-top height THT. Flag
+    # with norm_ht=-1 (resolved to the predicted full height later, in CRATET);
+    # trunc = break height ×100. A measured height at/below the break is dropped.
+    t.trunc[i] = Int32(0); t.norm_ht[i] = Int32(0)
+    topkilled = rec.damage[1] == 96 || rec.damage[1] == 97 ||
+                rec.damage[3] == 96 || rec.damage[3] == 97 ||
+                rec.damage[5] == 96 || rec.damage[5] == 97
+    tht = rec.top_height
+    if topkilled || tht > 0f0
+        t.norm_ht[i] = Int32(-1)
+        if tht > 0f0
+            t.trunc[i] = round(Int32, tht * 100f0 + 0.5f0)
+            t.height[i] <= tht && (t.height[i] = 0f0)
+        end
+    end
+
     # crown-class code → crown ratio percent (intree.f:311)
     icr = rec.crown_pct
     if icr > 0

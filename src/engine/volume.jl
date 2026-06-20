@@ -13,25 +13,143 @@
 # (snt01 has no defect; defect correction + the two-pass dead handling come later.)
 # =============================================================================
 
+"HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
+@inline function _htdbh_height(sd, sp::Integer, d::Float32)
+    p2 = sd[:htdbh_p2][sp]; p3 = sd[:htdbh_p3][sp]
+    p4 = sd[:htdbh_p4][sp]; db = sd[:htdbh_db][sp]
+    if d >= 3f0
+        return 4.5f0 + p2 * exp(-p3 * d ^ p4)
+    else
+        hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+        return (hat3 - 4.51f0) * (d - db) / (3f0 - db) + 4.51f0
+    end
+end
+
+"Bark ratio BRATIO (inside/outside-bark diameter), clamped to [0.80, 0.99] (sn/bratio.f)."
+@inline function bark_ratio(sd, sp::Integer, d::Float32)
+    d <= 0f0 && return 0.99f0
+    r = (sd[:bark_b0][sp] + sd[:bark_b1][sp] * d) / d
+    r > 0.99f0 ? 0.99f0 : (r < 0.80f0 ? 0.80f0 : r)
+end
+
+# Behre hyperbola taper (behprm.f / BEHRE) used to redistribute volume after a
+# broken/killed top. `behre_params` returns the (AHAT,BHAT) hyperbola constants
+# plus a cone flag; `behre` integrates the relative profile between two heights.
+@inline function behre_params(vmax::Float32, d::Float32, h::Float32, bark::Float32)
+    bhat = vmax / (0.00545415f0 * d^2 * bark^2 * h)
+    bhat > 0.95f0 && (bhat = 0.95f0)
+    ahat = 0.44277f0 - 0.99167f0 / bhat - 1.43237f0 * log(bhat) +
+           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat^2
+    lcone = false
+    if abs(ahat) < 0.05f0
+        lcone = true
+        ahat = ahat < 0f0 ? -0.05f0 : 0.05f0
+    end
+    bhat = 1f0 - ahat
+    bhat < 0.0001f0 && (bhat = 0.0001f0)
+    return ahat, bhat, lcone
+end
+
+@inline function behre(ahat::Float32, bhat::Float32, l1::Float32, l2::Float32)
+    alb1 = ahat * l1 + bhat
+    alb2 = ahat * l2 + bhat
+    return alb2 - alb1 - 2f0 * bhat * (log(alb2) - log(alb1)) -
+           bhat * bhat / alb2 + bhat * bhat / alb1
+end
+
+"""
+    cftopk(sd, sp, d, h, tcf, mcf, scf, vmax, bark, itht) -> (tcf, mcf, scf)
+
+CFTOPK (cftopk.f): reduce total/merch/sawtimber cubic for a broken top at height
+`itht/100` ft, using the Behre taper fit to the full-height tree. Pure.
+"""
+function cftopk(sd, sp::Integer, d::Float32, h::Float32,
+                tcf::Float32, mcf::Float32, scf::Float32,
+                vmax::Float32, bark::Float32, itht::Integer)
+    ahat, bhat, lcone = behre_params(vmax, d, h, bark)
+    pht = 0f0; dtrunc = 0f0
+    if tcf > 0f0
+        volt = behre(ahat, bhat, 0f0, 1f0)
+        pht = 1f0 - (Float32(itht) / 100f0) / h
+        pht < 0f0 && (pht = 0f0)
+        dtrunc = pht / (ahat * pht + bhat)
+        if !lcone
+            tcf = tcf * behre(ahat, bhat, pht, 1f0) / volt
+        else
+            tcf = tcf * (1f0 - pht^3)
+        end
+    end
+    if mcf > 0f0
+        stump = 1f0 - sd[:stump][sp] / h
+        dmrch = sd[:top_dib][sp] / d
+        htmrch = (bhat * dmrch) / (1f0 - ahat * dmrch)
+        if !lcone
+            if dtrunc > dmrch
+                mcf = mcf * behre(ahat, bhat, pht, stump) / behre(ahat, bhat, htmrch, stump)
+            end
+        else
+            s3 = stump^3
+            dtrunc > dmrch && (mcf = mcf * (s3 - pht^3) / (s3 - htmrch^3))
+        end
+        mcf > tcf && (mcf = tcf); mcf < 0f0 && (mcf = 0f0)
+        if scf > 0f0
+            stump = 1f0 - sd[:scf_stump][sp] / h
+            dmrch = sd[:scf_top_dib][sp] / d
+            htmrch = (bhat * dmrch) / (1f0 - ahat * dmrch)
+            if !lcone
+                if dtrunc > dmrch
+                    scf = scf * behre(ahat, bhat, pht, stump) / behre(ahat, bhat, htmrch, stump)
+                end
+            else
+                s3 = stump^3
+                dtrunc > dmrch && (scf = scf * (s3 - pht^3) / (s3 - htmrch^3))
+            end
+            scf > mcf && (scf = mcf); scf < 0f0 && (scf = 0f0)
+        end
+    end
+    return tcf, mcf, scf
+end
+
 """
     dub_missing_heights!(state)
 
-HTDBH (htdbh.f, mode 0): assign a height to every tree whose input height is ≤ 0,
-from the species height/DBH curve `h = 4.5 + p2·exp(-p3·D^p4)` (linear below 3").
-Run before volume/growth so missing-height trees still get cubic volume (CRATET).
+CRATET height resolution (cratet.f:212-265): assign heights to trees missing one
+and resolve the full ("normal") height of broken-top trees. Missing-height live
+trees get the HTDBH curve height. Topkill trees (norm_ht<0) keep their broken
+height but get `norm_ht` = full predicted height ×100 (≥ the standing height), and
+a break point `trunc` (80% of standing height when none was supplied).
 """
 function dub_missing_heights!(s::StandState)
     t = s.trees; sd = s.coef.species
-    p2 = sd[:htdbh_p2]; p3 = sd[:htdbh_p3]; p4 = sd[:htdbh_p4]; db = sd[:htdbh_db]
     @inbounds for i in 1:t.n
-        t.height[i] > 0f0 && continue
-        d = t.dbh[i]; d <= 0f0 && continue
-        sp = t.species[i]
-        if d >= 3f0
-            t.height[i] = 4.5f0 + p2[sp] * exp(-p3[sp] * d ^ p4[sp])
+        d = t.dbh[i]; sp = t.species[i]
+        tkill = t.norm_ht[i] < 0
+        if t.height[i] > 0f0 && !tkill
+            continue
+        end
+        h_v = d <= 0.1f0 ? 1.01f0 : _htdbh_height(sd, sp, d)
+        h_v < 4.5f0 && (h_v = 4.5f0)
+        if !tkill
+            t.height[i] = h_v
         else
-            hat3 = 4.5f0 + p2[sp] * exp(-p3[sp] * 3f0 ^ p4[sp])
-            t.height[i] = (hat3 - 4.51f0) * (d - db[sp]) / (3f0 - db[sp]) + 4.51f0
+            t.norm_ht[i] = round(Int32, h_v * 100f0 + 0.5f0)
+            if t.trunc[i] == 0
+                if t.height[i] > 0f0
+                    t.trunc[i] = round(Int32, 80f0 * t.height[i] + 0.5f0)
+                else
+                    t.trunc[i] = round(Int32, 80f0 * h_v + 0.5f0)
+                    t.height[i] = h_v
+                end
+            else
+                if t.height[i] > 0f0
+                    t.height[i] < Float32(t.trunc[i]) * 0.01f0 &&
+                        (t.height[i] = Float32(t.trunc[i]) * 0.01f0)
+                else
+                    t.height[i] = Float32(t.trunc[i]) * 0.01f0
+                end
+            end
+            Float32(t.norm_ht[i]) * 0.01f0 < t.height[i] &&
+                (t.norm_ht[i] = round(Int32, t.height[i] * 100f0))
         end
     end
     return s
@@ -55,6 +173,10 @@ function compute_volumes!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
             continue
         end
+        # Broken-top trees: build the volume profile from the full ("normal")
+        # height, then truncate it back to the break with CFTOPK (vols.f:60-120).
+        tkill = h >= 4.5f0 && t.trunc[i] > 0
+        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
         if d >= scfmin[sp]
             prod = "01"; stump = scfstmp[sp]; mtopp = scftop[sp]
         else
@@ -62,9 +184,16 @@ function compute_volumes!(s::StandState)
         end
         mtops = topd[sp]
         v, _, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod)
-        t.cuft_vol[i]       = v[1]
-        t.merch_cuft_vol[i] = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
-        t.saw_cuft_vol[i]   = d >= scfmin[sp] ? v[4] : 0f0
+        tcf = v[1]
+        mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
+        scf = d >= scfmin[sp] ? v[4] : 0f0
+        if tkill && tcf > 0f0
+            tcf, mcf, scf = cftopk(sd, sp, d, h, tcf, mcf, scf, v[1],
+                                   bark_ratio(sd, sp, d), Int(t.trunc[i]))
+        end
+        t.cuft_vol[i]       = tcf
+        t.merch_cuft_vol[i] = mcf
+        t.saw_cuft_vol[i]   = scf
         t.bdft_vol[i]       = v[10]
     end
     return s
