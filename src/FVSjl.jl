@@ -56,6 +56,7 @@ include("engine/keyword_dispatch.jl")
 include("engine/init.jl")
 include("engine/crown_width.jl")
 include("engine/forest_type.jl")
+include("engine/r8clark_vol.jl")
 include("engine/standstats.jl")
 include("engine/simulate.jl")
 
