@@ -193,17 +193,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # (history≠8) count toward PTBAA at their current dbh too (long-dead history-8 are
     # zeroed). Compute it here with the dead partition exposed at current dbh, then
     # restore. (Stand BA/AVH/PCT stay backdated; only this point-BA total is current.)
+    # PTBAA uses CURRENT dbh for ALL dead trees (history 6 and 8) — a prism tree
+    # contributes a fixed point-BA regardless of dbh, so even a long-dead snag counts.
+    # (Only the BACKDATED percentile zeroes history-8; PTBAA does not.)
     let nlive0 = t.n
-        saved_d = Float32[t.dbh[j] for j in (nlive0 + 1):(nlive0 + t.ndead)]
-        @inbounds for j in (nlive0 + 1):(nlive0 + t.ndead)
-            t.history[j] == 8 && (t.dbh[j] = 0f0)
-        end
         t.n = nlive0 + t.ndead
         point_basal_area!(s)
         t.n = nlive0
-        @inbounds for (k, j) in enumerate((nlive0 + 1):(nlive0 + t.ndead))
-            t.dbh[j] = saved_d[k]
-        end
     end
     cur_point_ba = copy(s.density.point_ba)
     bagr = 0f0; nb = 0f0
