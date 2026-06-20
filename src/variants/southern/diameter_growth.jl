@@ -229,6 +229,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.dbh[j] = saved_dead[k]
     end
     s.density.point_ba .= cur_point_ba        # PTBAA from current DBH, live-only (above)
+    # PCT (BA percentile, dense.f pass-1 PCTILE) accumulates the BACKDATED point-BA
+    # weights in the CURRENT-dbh rank order — IND is fixed at setup, so the backdated
+    # pass keeps the current ordering. compute_density! above re-sorted by backdated
+    # dbh; recompute crown_ratio (PCT) here in current-dbh order with backdated WK5.
+    let nlive2 = t.n
+        ord = sortperm(view(saved_dbh, 1:nlive2); rev = true)
+        cum = 0f0
+        @inbounds for k in nlive2:-1:1
+            ii = ord[k]
+            cum += t.dbh[ii]^2 * t.tpa[ii]        # backdated WK5
+            t.crown_ratio[ii] = cum
+        end
+        if cum > 0f0
+            @inbounds for ii in 1:nlive2; t.crown_ratio[ii] = t.crown_ratio[ii] / cum * 100f0; end
+        end
+    end
     # FORTYP is computed in the GROW path (per cycle), AFTER the LSTART calibration,
     # so the calibration prediction must NOT include the forest-type term (kuphd etc.
     # are all 0 at LSTART). Zero it for this dgf!, restore after. (dgf.f:453 reads
