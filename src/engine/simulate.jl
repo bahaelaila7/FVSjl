@@ -17,6 +17,8 @@ site-dependent diameter-growth constants (DGCONS) and run the diameter-growth
 calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
+    dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
+    setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     dgcons!(s)
