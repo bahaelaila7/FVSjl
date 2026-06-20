@@ -187,6 +187,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # ratio bagr. The calibration DGF must predict from this PAST stand state (past
     # dbh + past BA/AVH/PCT), which is what makes COR/OLDRN bit-exact.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    # PTBAA (point basal area) in the calibration prediction uses the CURRENT-DBH
+    # point BA, not the backdated one (ptbal.f / dgf.f:493 read the live PTBAA the
+    # last DENSE pass filled at current diameters). Stand BA/AVH/PCT stay backdated;
+    # only the point-BA total is the current one. Saved here (still current from the
+    # setup_growth! density pass), restored before the calibration dgf! below.
+    # NOTE: this closes part of the sp33/sp65 large-tree DG-calibration gap; a residual
+    # remains in the predicted WK2 (see fvsjl-modernization-state) still under study.
+    cur_point_ba = copy(s.density.point_ba)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:t.n
         g = t.diam_growth[i]; g <= 0f0 && continue
@@ -221,6 +229,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
     end
+    s.density.point_ba .= cur_point_ba        # PTBAA from current DBH (see above)
     dgf!(s)                                   # WK2 = DGF prediction at the PAST stand
     wk2 = view(s.scratch.wk, 2, :)
 
