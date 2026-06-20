@@ -69,7 +69,7 @@ stand state: per-acre TPA/BA/SDI/CCF/top-height/QMD, the four stand volumes, and
 the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
-function summary_row(s::StandState; period::Int = 0)
+function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
     tpa  = dt(stand_tpa(s) / g)
@@ -82,13 +82,19 @@ function summary_row(s::StandState; period::Int = 0)
     vtot(f) = dt(sum(getfield(t, f)[i] * t.tpa[i] for i in 1:t.n) / g)
     ci = Int(s.control.cycle) + 1                       # year at start of this cycle (IY)
     yr = ci <= length(s.control.cycle_year) ? Int(s.control.cycle_year[ci]) : 0
+    age = Int(s.plot.stand_age)
+    mcuft = vtot(:merch_cuft_vol)
+    # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
+    # `total_removed_merch` carries cross-cycle removals (0 at the inventory).
+    # Computed in Float32 to match FVS REAL*4 (the %.1f rounding differs from Float64).
+    mai = age > 0 ? Float32(mcuft + total_removed_merch) / Float32(age) : 0f0
     SummaryRow(
-        year = yr, age = Int(s.plot.stand_age), tpa = tpa,
+        year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,
-        cuft = vtot(:cuft_vol), mcuft = vtot(:merch_cuft_vol),
+        cuft = vtot(:cuft_vol), mcuft = mcuft,
         scuft = vtot(:saw_cuft_vol), bdft = vtot(:bdft_vol),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
-        period = period,
+        period = period, mai = mai,
         fortype = Int(s.plot.forest_type), sizecls = Int(s.plot.size_class),
         stockcls = Int(s.plot.stocking_class))
 end
