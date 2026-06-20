@@ -103,3 +103,31 @@ function TreeList(maxtre::Int = MAXTRE)
 end
 
 @inline ntrees(t::TreeList) = t.n
+
+# Per-tree vector fields copied by `copy_tree!` (every Vector field of TreeList).
+const _TREE_VEC_FIELDS = (
+    :species, :plot_id, :tree_id, :history, :mort_code, :cut_code, :special,
+    :decay_code, :defect, :trunc, :norm_ht, :woodland_stems,
+    :dbh, :height, :tpa, :diam_growth, :ht_growth, :crown_pct, :crown_ratio,
+    :crown_width, :plot_size, :birth_age, :age_known, :last_diam_year,
+    :bdft_vol, :cuft_vol, :merch_cuft_vol, :saw_cuft_vol, :merch_top_bf,
+    :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
+    :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
+    :old_crown_pct, :old_random, :tree_random)
+
+"""
+    copy_tree!(t, dst, src)
+
+Copy every per-tree attribute from record `src` to record `dst` (all vector
+fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
+"""
+@inline function copy_tree!(t::TreeList, dst::Int, src::Int)
+    @inbounds begin
+        for f in _TREE_VEC_FIELDS
+            getfield(t, f)[dst] = getfield(t, f)[src]
+        end
+        for k in 1:6; t.damage[k, dst]    = t.damage[k, src];    end
+        for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
+    end
+    return t
+end

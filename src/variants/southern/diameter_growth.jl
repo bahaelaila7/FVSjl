@@ -370,6 +370,8 @@ the serial-correlation factor is DETERMINISTIC — `raw = FM·ssigma·rhocp + co
 walked in species-sorted order to keep any RNG draws bit-exact. `sfint = IY[icyc+1]−IY[1]`.
 """
 const DG_FM = -0.14228f0      # tripling mid-record variance factor (dgdriv.f FM)
+const DG_FU =  1.271f0        # tripling upper-record factor (dgdriv.f FU)
+const DG_FL = -1.549f0        # tripling lower-record factor (dgdriv.f FL)
 
 function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
                           tripling::Bool = true)
@@ -379,6 +381,13 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     dlo_v = sd[:dg_bound_dbh_lo]; dhi_v = sd[:dg_bound_dbh_hi]
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     oldrn = t.old_random
+    nlive = t.n
+    # tripling scratch: per-tree upper/lower DG + their serial-correlation residual
+    do_trip = tripling && 3 * nlive + t.ndead <= length(t.dbh)
+    dgU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    dgL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    rnU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
 
     # attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79)
     cormlt = exp(-0.02773f0 * sfint)
@@ -408,21 +417,50 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
               log(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
         rhocp = sqrt(max(1f0 - rho * rho, 0f0))
         frmbase = DG_FM * ssigma * rhocp
+        fru = DG_FU * ssigma * rhocp           # upper-triple FRM factor (dgdriv.f:91)
+        frl = DG_FL * ssigma * rhocp           # lower-triple FRM factor (dgdriv.f:89)
         for k in i1:i2
             i = ind1[k]
             bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
-            if tripling
-                frmt = frmbase + corr * oldrn[i]           # deterministic (dgdriv.f:117)
-                oldrn[i] = frmt
-                frm = exp(frmt)
-            else
-                frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
-            end
             dds  = exp(wk2[i])                              # xdgrow = log(XDMULT)=0
-            dg   = sqrt(d_ib * d_ib + dds * frm) - d_ib
-            t.diam_growth[i] = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], dg, s.control.sp_size_cap)
+            bnd(x) = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], x, s.control.sp_size_cap)
+            if do_trip
+                rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
+                frmt = frmbase + corr * rnpar; oldrn[i] = frmt
+                t.diam_growth[i] = bnd(sqrt(d_ib * d_ib + dds * exp(frmt)) - d_ib)
+                ru = fru + corr * rnpar; rnU[i] = ru
+                dgU[i] = bnd(sqrt(d_ib * d_ib + dds * exp(ru)) - d_ib)
+                rl = frl + corr * rnpar; rnL[i] = rl
+                dgL[i] = bnd(sqrt(d_ib * d_ib + dds * exp(rl)) - d_ib)
+            else
+                if tripling
+                    frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
+                    oldrn[i] = frmt
+                    frm = exp(frmt)
+                else
+                    frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
+                end
+                t.diam_growth[i] = bnd(sqrt(d_ib * d_ib + dds * frm) - d_ib)
+            end
         end
+    end
+
+    # TRIPLE (triple.f): split each tree into 3 weighted records — central 0.60,
+    # upper 0.25 (FU growth), lower 0.15 (FL growth) — so the diameter spread feeds
+    # density/mortality/volume. Dead records are pushed to the end of the array.
+    if do_trip
+        @inbounds for k in t.ndead:-1:1
+            copy_tree!(t, 3 * nlive + k, nlive + k)
+        end
+        @inbounds for i in 1:nlive
+            u = nlive + i; l = 2 * nlive + i
+            copy_tree!(t, u, i); copy_tree!(t, l, i)
+            t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
+            t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+            t.tpa[i] *= 0.60f0
+        end
+        t.n = 3 * nlive
     end
     return s
 end
