@@ -69,7 +69,8 @@ stand state: per-acre TPA/BA/SDI/CCF/top-height/QMD, the four stand volumes, and
 the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
-function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0)
+function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0,
+                     accretion::Real = 0, mortality::Real = 0)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
     tpa  = dt(stand_tpa(s) / g)
@@ -95,6 +96,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         scuft = vtot(:saw_cuft_vol), bdft = vtot(:bdft_vol),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
         period = period, mai = mai,
+        accretion = trunc(Int, accretion + 0.5), mortality = trunc(Int, mortality + 0.5),
         fortype = Int(s.plot.forest_type), sizecls = Int(s.plot.size_class),
         stockcls = Int(s.plot.stocking_class))
 end

@@ -41,17 +41,25 @@ function compute_density!(s::StandState)
 end
 
 """
-    grow_cycle!(state)
+    grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
-Advance the stand by one growth cycle: recompute density, compute diameter and
-height growth, and apply them. (Mortality/regeneration/volume added in C4/C5.)
+Advance the stand by one growth cycle: recompute density, grow diameters/heights
+(with record tripling), apply mortality, update dimensions, and recompute volumes.
+Returns the period's per-acre cubic accretion and mortality (OACC/OMORT,
+vols.f:190 / update.f:60): accretion = Σ(newCFV−oldCFV)·survivingTPA / fint,
+mortality = Σ killedTPA·oldCFV / fint, both ÷ gross area. Requires the cycle-start
+volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup).
 """
-function grow_cycle!(s::StandState)
+function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
-    diameter_growth!(s, s.variant)
+    diameter_growth!(s, s.variant)         # may triple records; copies old CFV/TPA across
+    t = s.trees
+    n = t.n
+    # Cycle-start volume + TPA per (possibly tripled) record, for the period accounting.
+    old_cfv = Float32[t.cuft_vol[i] for i in 1:n]
+    old_tpa = Float32[t.tpa[i]      for i in 1:n]
     height_growth!(s, s.variant)
     mortality!(s, s.variant)               # reduces tpa (uses the projected diameter)
-    t = s.trees
     sd = s.coef.species
     bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
     @inbounds for i in 1:t.n
@@ -61,6 +69,13 @@ function grow_cycle!(s::StandState)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
     end
+    compute_volumes!(s)                     # end-of-period volumes
+    g = s.plot.gross_space
+    accr = 0f0; mort = 0f0
+    @inbounds for i in 1:n
+        accr += (t.cuft_vol[i] - old_cfv[i]) * t.tpa[i]
+        mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
+    end
     s.control.cycle += Int32(1)
-    return s
+    return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
