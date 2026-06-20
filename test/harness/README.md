@@ -24,13 +24,28 @@ bash test/harness/gen_scenarios.sh        # (re)generate scenarios/*.key + *.tre
 bash test/harness/three_way.sh            # Fortran vs FVSjulia vs FVSjl
 ```
 
-## Status / coverage
+## Scenario coverage
 
-- **Leg 1+2:** 12/12 scenarios — FVSjulia matches live Fortran byte-for-byte
-  (baseline, site lo/hi, site-species LP/YP, ecounit M221/232, forest 808,
-  3/20 cycles, simulated fire, THINBTA).
-- **Leg 3:** 12/12 — FVSjl cycle-0 stand summary matches the Fortran `.sum` row 1
-  (init / NOTRE / stand statistics validated across the matrix).
+- **Baseline (12):** site lo/hi, site-species LP/YP, ecounit M221/232, forest 808,
+  3/20 cycles, fire, THINBTA — `gen_scenarios.sh`.
+- **Species (36):** homogeneous stands of a broad SN species set (pines, oaks,
+  hickories, maples, gums, ashes, cypress, cedar, elm, basswood…) — exercise
+  **~29 distinct FIA forest types** (103, 141, 142, 161-168, 181, 501-520, 601-607,
+  702-706, 801-809, 997) — `gen_species_scenarios.sh`.
+- **Fire (3):** scheduled SIMFIRE at early/mid/late years with varied
+  intensity/%-area.
+
+Not exhaustive (141 forest types / 90 species exist), but a wide representative
+spread that validates the oracle + the FORTYP port across many types.
+
+## Status
+
+- **Leg 1+2 (oracle):** baseline 12/12 + fire 3/3 — FVSjulia matches live Fortran
+  byte-for-byte. (FVSjulia + FFE is slow; allow ~5 min/scenario.)
+- **FORTYP port:** FVSjl `compute_forest_type!` matches the Fortran `.sum` FORTYP on
+  **34/34** runnable species scenarios across the ~29 types.
+- **Leg 3:** FVSjl cycle-0 stand summary matches the Fortran `.sum` row 1 on the
+  baseline matrix (init / NOTRE / stand statistics).
 
 Leg 3 is limited to cycle 0 until FVSjl gains the volume + `.sum` writer (C5) and
 fire (C7); once those land this harness extends to the full multi-cycle `.sum` and
