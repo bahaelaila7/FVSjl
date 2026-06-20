@@ -14,6 +14,30 @@
 # =============================================================================
 
 """
+    dub_missing_heights!(state)
+
+HTDBH (htdbh.f, mode 0): assign a height to every tree whose input height is ≤ 0,
+from the species height/DBH curve `h = 4.5 + p2·exp(-p3·D^p4)` (linear below 3").
+Run before volume/growth so missing-height trees still get cubic volume (CRATET).
+"""
+function dub_missing_heights!(s::StandState)
+    t = s.trees; sd = s.coef.species
+    p2 = sd[:htdbh_p2]; p3 = sd[:htdbh_p3]; p4 = sd[:htdbh_p4]; db = sd[:htdbh_db]
+    @inbounds for i in 1:t.n
+        t.height[i] > 0f0 && continue
+        d = t.dbh[i]; d <= 0f0 && continue
+        sp = t.species[i]
+        if d >= 3f0
+            t.height[i] = 4.5f0 + p2[sp] * exp(-p3[sp] * d ^ p4[sp])
+        else
+            hat3 = 4.5f0 + p2[sp] * exp(-p3[sp] * 3f0 ^ p4[sp])
+            t.height[i] = (hat3 - 4.51f0) * (d - db[sp]) / (3f0 - db[sp]) + 4.51f0
+        end
+    end
+    return s
+end
+
+"""
     compute_volumes!(state)
 
 Fill `trees.{cuft_vol,merch_cuft_vol,saw_cuft_vol,bdft_vol}` for every live tree
