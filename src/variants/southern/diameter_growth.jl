@@ -190,21 +190,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # PTBAA (point basal area) in the calibration prediction uses the CURRENT-DBH
     # point BA, not the backdated one (ptbal.f / dgf.f:493 read the live PTBAA the
     # last DENSE pass filled at current diameters). Stand BA/AVH/PCT stay backdated;
-    # only the point-BA total is the current one. Computed here at current dbh WITH
-    # dead trees exposed (DENSE keeps dead at current dbh, so they count in PTBAA),
-    # then restored before the calibration dgf! below.
-    let nlive0 = t.n
-        saved_d8 = Float32[t.dbh[j] for j in (nlive0 + 1):(nlive0 + t.ndead)]
-        @inbounds for j in (nlive0 + 1):(nlive0 + t.ndead)
-            t.history[j] == 8 && (t.dbh[j] = 0f0)
-        end
-        t.n = nlive0 + t.ndead
-        point_basal_area!(s)
-        t.n = nlive0
-        @inbounds for (k, j) in enumerate((nlive0 + 1):(nlive0 + t.ndead))
-            t.dbh[j] = saved_d8[k]
-        end
-    end
+    # only the point-BA total is the current one. PTBAL loops only the live trees
+    # (ISCT/IND1 = ITRN; the IREC2 dead partition is excluded), so the live-only
+    # current point_ba — already computed by the setup_growth! density pass — is
+    # exactly right (verified to match the oracle PTBAA on every plot). Saved here,
+    # restored before the calibration dgf! below.
     cur_point_ba = copy(s.density.point_ba)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:t.n
@@ -224,23 +214,21 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
         t.dbh[i] = sqrt(d * d * r)
     end
-    # DENSE keeps dead trees at current dbh in the backdated stand, so they count in
-    # the past BA/point-BA/PCT: temporarily expose them (n+1:n+ndead) to the density
-    # pass, then restore so growth + the calibration sums process live trees only.
+    # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
+    # expose the dead partition for this density pass, then restore. (PTBAA itself is
+    # overridden below with the live-only current point_ba; only BA/AVH/PCT use this.)
     nlive = t.n
-    # dead trees with IMC==9 (history 8) are zeroed out of the backdated stand
-    # (dense.jl:44-46); save/zero their dbh for the density pass, then restore.
     saved_dead = Float32[t.dbh[j] for j in (nlive + 1):(nlive + t.ndead)]
     @inbounds for j in (nlive + 1):(nlive + t.ndead)
         t.history[j] == 8 && (t.dbh[j] = 0f0)
     end
     t.n = nlive + t.ndead
-    compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT from WK3 + dead
+    compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
     t.n = nlive
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
     end
-    s.density.point_ba .= cur_point_ba        # PTBAA from current DBH (see above)
+    s.density.point_ba .= cur_point_ba        # PTBAA from current DBH, live-only (above)
     # FORTYP is computed in the GROW path (per cycle), AFTER the LSTART calibration,
     # so the calibration prediction must NOT include the forest-type term (kuphd etc.
     # are all 0 at LSTART). Zero it for this dgf!, restore after. (dgf.f:453 reads
