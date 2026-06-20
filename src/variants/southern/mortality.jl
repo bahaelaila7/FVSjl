@@ -70,6 +70,85 @@ function _pretzsch_tn10(t, dia0, d10, const_v, pmsdil, pmsdiu)
     end
 end
 
+# Per-species shade-tolerance scalar for the VARMRT mortality distribution (VARADJ,
+# varmrt.f). Higher = more tolerant (survives suppression). (TODO: move to a CSV.)
+const VARMRT_SHADE_ADJ = Float32[
+    0.1, 0.7, 0.3, 0.7, 0.7, 0.7, 0.1, 0.7, 0.7, 0.7,
+    0.7, 0.5, 0.7, 0.7, 0.5, 0.5, 0.1, 0.3, 0.3, 0.3,
+    0.3, 0.1, 0.3, 0.7, 0.7, 0.1, 0.5, 0.7, 0.5, 0.3,
+    0.1, 0.1, 0.1, 0.3, 0.7, 0.7, 0.3, 0.7, 0.3, 0.3,
+    0.1, 0.7, 0.7, 0.7, 0.7, 0.3, 0.5, 0.3, 0.5, 0.3,
+    0.7, 0.3, 0.7, 0.3, 0.7, 0.3, 0.3, 0.3, 0.5, 0.9,
+    0.9, 0.7, 0.5, 0.9, 0.5, 0.7, 0.7, 0.3, 0.5, 0.7,
+    0.7, 0.7, 0.7, 0.5, 0.5, 0.7, 0.7, 0.5, 0.5, 0.9,
+    0.9, 0.7, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5, 0.5, 0.5]
+
+"""
+    _varmrt!(killed, t, n, tokill) -> sumkil
+
+VARMRT (varmrt.f): distribute `tokill` TPA of mortality across the `n` live records
+by a geometric progression weighted toward suppressed trees. Per-tree efficiency
+`efftr = peff(PCT)·shade_adj·0.1`, where `peff = 0.84525 − 0.01074·PCT +
+2e-7·PCT³` (low percentile ⇒ high mortality). Fills `killed[i]`; returns the total.
+"""
+function _varmrt!(killed::Vector{Float32}, t::TreeList, n::Int, tokill::Float32)
+    fill!(view(killed, 1:n), 0f0)
+    tokill <= 0f0 && return 0f0
+    pct = t.crown_ratio; tpa = t.tpa; sp = t.species
+    efftr = Vector{Float32}(undef, n); temwk2 = zeros(Float32, n)
+    pass1 = 0f0
+    @inbounds for i in 1:n
+        pe = clamp(0.84525f0 - 0.01074f0 * pct[i] + 0.0000002f0 * pct[i]^3f0, 0.01f0, 1f0)
+        efftr[i] = pe * VARMRT_SHADE_ADJ[sp[i]] * 0.1f0
+        pass1 += tpa[i] * efftr[i]
+    end
+    pass1 <= 0f0 && return 0f0
+    npass = floor(Int, tokill / pass1) + 1
+    sumkil = 0f0; temkil = tokill; short_v = 0f0; jpass = 0
+    while true
+        jpass += 1; jpass > 1 && (temkil = short_v)
+        iswtch = 0; temsum = 0f0
+        while true                                   # adjust npass into [0.8,1.2]
+            temsum = 0f0
+            @inbounds for i in 1:n
+                tpalft = tpa[i] - killed[i]
+                if tpalft > 0f0
+                    temwk2[i] = -tpalft * ((1f0 - efftr[i])^npass - 1f0)
+                    temsum += temwk2[i]
+                end
+            end
+            minstp = npass > 50 ? 5 : (npass > 20 ? 2 : 1)
+            adjust = temsum > 0f0 ? temkil / temsum : 1f0
+            if adjust < 0.8f0 && iswtch != 2
+                npass -= max(minstp, floor(Int, (temsum - temkil) / pass1)); iswtch = 1
+                npass > 0 && continue
+            elseif adjust > 1.2f0 && iswtch != 1
+                npass += max(minstp, floor(Int, (temkil - temsum) / pass1)); iswtch = 2
+                continue
+            end
+            break
+        end
+        short_v = 0f0
+        adjust = temsum == 0f0 ? 1f0 : temkil / temsum
+        @inbounds for i in 1:n
+            tpalft = tpa[i] - killed[i]
+            tpalft < 0.00001f0 && continue
+            xkill = temwk2[i] * adjust
+            if (tpa[i] - killed[i] - xkill) <= 0.00001f0
+                xk = tpa[i] - killed[i]
+                short_v += xkill - xk; pass1 -= efftr[i]
+                killed[i] += xk; sumkil += xk
+            else
+                killed[i] += xkill; sumkil += xkill
+            end
+        end
+        short_v <= 0f0 && break
+        pass1 <= 0f0 && break
+        npass = floor(Int, short_v / pass1) + 1
+    end
+    return sumkil
+end
+
 """
     mortality!(state, ::Southern; fint=5f0)
 
@@ -119,14 +198,27 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         density_on = !(tt <= tem_v2 || rn <= 0f0)
     end
 
-    @inbounds for i in 1:t.n
-        pr = t.tpa[i]; pr <= 0f0 && continue
-        sp = t.species[i]; d = t.dbh[i]
-        ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * d))
-        rip = density_on ? rn : ri
-        rip > 1f0 && (rip = 1f0)
-        deaths = min(pr * (1f0 - (1f0 - rip)^fint), pr)
-        t.tpa[i] = pr - deaths
+    # Total mortality to apply this period (tokill, MORTS): when density-driven it's
+    # the excess over the self-thinning target (t − tn10); otherwise the summed
+    # background (Hamilton) mortality. VARMRT then distributes it by suppression so
+    # small/low-percentile trees die first (not the uniform rate).
+    n = t.n
+    tokill = 0f0
+    if density_on
+        tokill = max(tt - tn10, 0f0)
+    else
+        @inbounds for i in 1:n
+            pr = t.tpa[i]; pr <= 0f0 && continue
+            sp = t.species[i]
+            ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))
+            ri > 1f0 && (ri = 1f0)
+            tokill += min(pr * (1f0 - (1f0 - ri)^fint), pr)
+        end
+    end
+    killed = Vector{Float32}(undef, n)
+    _varmrt!(killed, t, n, tokill)
+    @inbounds for i in 1:n
+        t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end
     return s
 end
