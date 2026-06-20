@@ -60,6 +60,7 @@ include("engine/r8clark_vol.jl")
 include("engine/volume_equations.jl")
 include("engine/volume.jl")
 include("engine/standstats.jl")
+include("io/summary.jl")
 include("engine/simulate.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------
