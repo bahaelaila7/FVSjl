@@ -188,13 +188,23 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # dbh + past BA/AVH/PCT), which is what makes COR/OLDRN bit-exact.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
     # PTBAA (point basal area) in the calibration prediction uses the CURRENT-DBH
-    # point BA, not the backdated one (ptbal.f / dgf.f:493 read the live PTBAA the
-    # last DENSE pass filled at current diameters). Stand BA/AVH/PCT stay backdated;
-    # only the point-BA total is the current one. PTBAL loops only the live trees
-    # (ISCT/IND1 = ITRN; the IREC2 dead partition is excluded), so the live-only
-    # current point_ba — already computed by the setup_growth! density pass — is
-    # exactly right (verified to match the oracle PTBAA on every plot). Saved here,
-    # restored before the calibration dgf! below.
+    # point BA (dgf.f:493 reads the live PTBAA the last DENSE pass filled at current
+    # diameters). The percentile population is the full ITRN, so recently-dead trees
+    # (history≠8) count toward PTBAA at their current dbh too (long-dead history-8 are
+    # zeroed). Compute it here with the dead partition exposed at current dbh, then
+    # restore. (Stand BA/AVH/PCT stay backdated; only this point-BA total is current.)
+    let nlive0 = t.n
+        saved_d = Float32[t.dbh[j] for j in (nlive0 + 1):(nlive0 + t.ndead)]
+        @inbounds for j in (nlive0 + 1):(nlive0 + t.ndead)
+            t.history[j] == 8 && (t.dbh[j] = 0f0)
+        end
+        t.n = nlive0 + t.ndead
+        point_basal_area!(s)
+        t.n = nlive0
+        @inbounds for (k, j) in enumerate((nlive0 + 1):(nlive0 + t.ndead))
+            t.dbh[j] = saved_d[k]
+        end
+    end
     cur_point_ba = copy(s.density.point_ba)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:t.n
