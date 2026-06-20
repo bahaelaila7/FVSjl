@@ -120,6 +120,13 @@ function load_species_coefficients(datadir::AbstractString)
     _, ftc = _read_csv(joinpath(datadir, "forest_type_codes.csv"))
     forest_type_codes = Int32[parse(Int32, r[1]) for r in ftc]
 
+    # merchantability specs (MRULES) → per-species columns in `species`
+    mhdr, mrows = _read_csv(joinpath(datadir, "merch_specs.csv"))
+    for (j, h) in enumerate(mhdr)
+        h == :species_index && continue
+        species[h] = Float32[parse(Float32, mrows[i][j]) for i in 1:length(mrows)]
+    end
+
     return SpeciesCoefficients(species, alpha, fia, plants, translation,
                                site_idx, site_grp, grp_rep, forests, habitat,
                                crown_species, crown_eqs,
