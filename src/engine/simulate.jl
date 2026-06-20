@@ -40,6 +40,9 @@ function compute_density!(s::StandState)
     return s
 end
 
+"Number of early cycles that use deterministic record tripling (FVS ICL4)."
+const TRIPLE_CYCLE_LIMIT = 2
+
 """
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
@@ -52,7 +55,11 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
-    diameter_growth!(s, s.variant)         # may triple records; copies old CFV/TPA across
+    # Tripling is active only for the first few cycles (ICL4); afterwards growth is
+    # the stochastic serial-correlation path. (Multi-cycle past ~cycle 2 also needs
+    # COMPRS to merge the tripled records — see notes; not yet wired.)
+    trip = Int(s.control.cycle) < TRIPLE_CYCLE_LIMIT
+    diameter_growth!(s, s.variant; tripling = trip)  # may triple records; copies old CFV/TPA
     t = s.trees
     n = t.n
     # Cycle-start volume + TPA per (possibly tripled) record, for the period accounting.

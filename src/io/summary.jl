@@ -25,7 +25,7 @@ One `.sum` period row. Mirrors the SUMOUT/IOSUM columns; the `at_*`
 (after-treatment) fields equal the start values when there is no cut in the
 period, and the removal fields are 0.
 """
-Base.@kwdef struct SummaryRow
+Base.@kwdef mutable struct SummaryRow
     year::Int; age::Int; tpa::Int
     ba::Int; sdi::Int; ccf::Int; topht::Int; qmd::Float64
     cuft::Int; mcuft::Int; scuft::Int; bdft::Int
@@ -62,6 +62,42 @@ function write_sum_header(io::IO, nperiods::Integer, stand_id::AbstractString,
 end
 
 """
+    write_sum_file(io, state; period=5, stand_id="", mgmt_id="NONE",
+                   sample_wt=nothing, variant="SN", date="", time="", header=true)
+
+Run the full projection and write the complete `.sum` table: the `-999` header
+(when `header`) plus one period row per cycle. Each row's start-of-period stats
+come from `summary_row` at that cycle; the growth columns (accretion/mortality)
+come from `grow_cycle!` advancing to the next period. The final cycle has no
+growth period. Cumulative removed merch volume feeds MAI. Requires `state` set up
+through `setup_growth!` + `compute_forest_type!` + `compute_volumes!`.
+"""
+function write_sum_file(io::IO, s::StandState; period::Int = 5,
+                        stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
+                        sample_wt = nothing, variant::AbstractString = "SN",
+                        date::AbstractString = "", time::AbstractString = "", header::Bool = true)
+    ncyc = Int(s.control.ncycle)             # rows = ncyc + 1 (inventory + each cycle)
+    g = s.plot.gross_space
+    sw = sample_wt === nothing ? g : sample_wt
+    if header
+        write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
+    end
+    cum_rem_merch = 0f0
+    for c in 0:ncyc
+        compute_forest_type!(s)
+        last = c == ncyc
+        r = summary_row(s; period = last ? 0 : period, total_removed_merch = cum_rem_merch)
+        if !last
+            gr = grow_cycle!(s)              # advances cycle, returns period accr/mort
+            r.accretion = trunc(Int, gr.accretion + 0.5)
+            r.mortality = trunc(Int, gr.mortality + 0.5)
+        end
+        write_sum_row(io, r)
+    end
+    return io
+end
+
+"""
     summary_row(state) -> SummaryRow
 
 Build the start-of-period `.sum` row from the current (already-grown-to-cycle)
@@ -81,9 +117,11 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     qmd  = round(stand_qmd(s); digits = 1)
     t = s.trees
     vtot(f) = dt(sum(getfield(t, f)[i] * t.tpa[i] for i in 1:t.n) / g)
-    ci = Int(s.control.cycle) + 1                       # year at start of this cycle (IY)
-    yr = ci <= length(s.control.cycle_year) ? Int(s.control.cycle_year[ci]) : 0
-    age = Int(s.plot.stand_age)
+    # Year/age advance by the period length each cycle from the inventory (IY/IAGE).
+    cyc = Int(s.control.cycle)
+    interval = period > 0 ? period : 5
+    yr = Int(s.control.cycle_year[1]) + cyc * interval
+    age = Int(s.plot.stand_age) + cyc * interval
     mcuft = vtot(:merch_cuft_vol)
     # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
     # `total_removed_merch` carries cross-cycle removals (0 at the inventory).
