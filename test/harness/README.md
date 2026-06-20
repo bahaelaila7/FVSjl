@@ -9,10 +9,18 @@ before any FVSjl comparison is trusted.
 
 | file | role |
 |------|------|
-| `gen_scenarios.sh`  | derive a matrix of valid single-stand `.key` files from `snt01.key`, varying site index, site species, ecological unit / forest, cycle count, fire, and thinning. Copies the shared `snt01.tre`. |
-| `validate_oracle.sh`| Leg 1+2 — run each scenario through the rebuilt Fortran `FVSsn` and FVSjulia, diff the full `.sum` (whitespace- and timestamp-insensitive). Proves the oracle is trustworthy. |
-| `fvsjl_cycle0.jl`   | Leg 3 helper — initialize FVSjl on a key and print the cycle-0 stand summary (`TPA BA SDI CCF TopHt QMD`, per-acre quantities ÷ gross_space). |
-| `three_way.sh`      | run all three legs and report. |
+| `gen_scenarios.sh`         | 12 baseline single-stand keys from `snt01` (site, site-species, ecounit/forest, cycles, fire, thinning). |
+| `gen_species_scenarios.sh` | homogeneous stands for **all 90 SN species** (`all_<CODE>`) + 8 `fire_*` SIMFIRE variants (timing/intensity/fuel-model/salvage/repeat). |
+| `gen_codepath_scenarios.sh`| `mix_*` (oak-pine/conifer compositions → all 8 DGF forest-type groups), `sitset_*` (9 SITSET master-group site species), `spctrn_*` (foreign species → translation crosswalk). |
+| `validate_oracle.sh`       | Leg 1+2 — Fortran `FVSsn` vs FVSjulia full-`.sum` diff. Proves the oracle is trustworthy (and catches when it isn't). |
+| `fvsjl_cycle0.jl`          | Leg 3 helper — FVSjl cycle-0 stand summary (`TPA BA SDI CCF TopHt QMD`, per-acre ÷ gross_space). |
+| `three_way.sh`             | run all three legs and report. |
+
+~135 scenarios total. FVSjl `compute_forest_type!` matches the Fortran `.sum`
+FORTYP on **all 83 runnable species** (0 diff) → **45 distinct FIA forest types,
+all 8 DGF groups**. The oracle gate also surfaced a real FVSjulia bug
+(`spctrn_quakingaspen` — FVSjulia ≠ Fortran on aspen/BT growth), confirming the
+three-way design: aspen-type stands must be validated against **Fortran**, not FVSjulia.
 
 The Fortran ground truth is built on demand by FVSjulia's `tests/fortran_baseline.sh`
 (rebuilds `/tmp/FVSsn_new` + a glibc shim from `bin/FVSsn_buildDir/*.o`).
