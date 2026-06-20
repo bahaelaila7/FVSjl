@@ -230,19 +230,23 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     s.density.point_ba .= cur_point_ba        # PTBAA from current DBH, live-only (above)
     # PCT (BA percentile, dense.f pass-1 PCTILE) accumulates the BACKDATED point-BA
-    # weights in the CURRENT-dbh rank order — IND is fixed at setup, so the backdated
-    # pass keeps the current ordering. compute_density! above re-sorted by backdated
-    # dbh; recompute crown_ratio (PCT) here in current-dbh order with backdated WK5.
-    let nlive2 = t.n
-        ord = sortperm(view(saved_dbh, 1:nlive2); rev = true)
-        cum = 0f0
-        @inbounds for k in nlive2:-1:1
-            ii = ord[k]
-            cum += t.dbh[ii]^2 * t.tpa[ii]        # backdated WK5
-            t.crown_ratio[ii] = cum
-        end
-        if cum > 0f0
-            @inbounds for ii in 1:nlive2; t.crown_ratio[ii] = t.crown_ratio[ii] / cum * 100f0; end
+    # weights in the CURRENT-dbh rank order (IND is fixed at setup). The percentile
+    # POPULATION is the full ITRN including recently-dead trees (history≠8) at their
+    # CURRENT dbh — long-dead (history 8) are in the order but zeroed. Only the live
+    # trees' crown_ratio is read downstream by dgf!. compute_density! above re-sorted
+    # by backdated dbh; recompute crown_ratio here.
+    let nlive2 = t.n, ntot = t.n + t.ndead
+        rankd = Float32[i <= nlive2 ? saved_dbh[i] : t.dbh[i] for i in 1:ntot]   # current dbh
+        wk5   = Float32[i <= nlive2 ? t.dbh[i]^2 * t.tpa[i] :                     # live: backdated
+                        (t.history[i] == 8 ? 0f0 : t.dbh[i]^2 * t.tpa[i]) for i in 1:ntot]  # dead: current/0
+        ord = sortperm(rankd; rev = true)
+        tot = sum(wk5); cum = 0f0
+        if tot > 0f0
+            @inbounds for k in ntot:-1:1
+                ii = ord[k]
+                cum += wk5[ii]
+                ii <= nlive2 && (t.crown_ratio[ii] = cum / tot * 100f0)
+            end
         end
     end
     # FORTYP is computed in the GROW path (per cycle), AFTER the LSTART calibration,
