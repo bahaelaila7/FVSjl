@@ -16,6 +16,9 @@ const SNT01 = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         FVSjl.notre!(s)
         @test compute_forest_type!(s) == Int32(520)
         @test s.plot.forest_type == Int32(520)
+        # STKVAL size / stocking class (Fortran snt01.sum trailing "...520 22")
+        @test s.plot.size_class == Int32(2)
+        @test s.plot.stocking_class == Int32(2)
     end
     c = coefficients(Southern())
     @test length(c.stock_b0) == 36 && length(c.stock_b1) == 36

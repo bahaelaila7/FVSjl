@@ -67,20 +67,31 @@ function _stkval_stocking(st::StandState)
         end
     end
     s = zeros(Float32, 210)
+    totstk = 0f0; szcl1 = 0f0; szcl2 = 0f0; szcl3 = 0f0   # for size/stocking class
     @inbounds for ispc in 1:MAXSP
         isct[ispc,1] == 0 && continue
         ifia, b0, b1 = _coeffs(ispc)
         grp = get(coef.fia_group, ifia, 0)
-        (grp < 1 || grp > 210) && continue
         acc = 0f0
         for i3 in isct[ispc,1]:isct[ispc,2]
             i = Int(ind1[i3]); d = dbh[i]; d <= 0f0 && continue
             d_adj = (ttst52 < 20f0 && d < 5f0) ? 5f0 : d
-            acc += b0 * d_adj^b1 * prob[i] * _cf(d)
+            stk = b0 * d_adj^b1 * prob[i] * _cf(d)
+            acc += stk
+            totstk += stk
+            # size-class bin by ORIGINAL dbh (stkval.f:466-477); softwood (FIA<300)
+            # large ≥9", hardwood (≥300) large ≥11".
+            if d < 5f0;                              szcl1 += stk
+            elseif (ifia < 300 ? d < 9f0 : d < 11f0); szcl2 += stk
+            else;                                     szcl3 += stk
+            end
         end
-        s[grp] += acc
+        (1 <= grp <= 210) && (s[grp] += acc)
     end
-    return s
+    # stocking class (stkval.f:498) and size class (stkval.f:487-496)
+    istcl = totstk > 100f0 ? 1 : totstk >= 60f0 ? 2 : totstk >= 35f0 ? 3 : totstk >= 10f0 ? 4 : 5
+    iszcl = totstk < 10f0 ? 5 : szcl1 > totstk * 0.5f0 ? 3 : szcl2 > szcl3 ? 2 : 1
+    return s, Int32(iszcl), Int32(istcl)
 end
 
 """
@@ -94,7 +105,8 @@ function compute_forest_type!(st::StandState)
     VARACD = "SN"
     south  = 0f0
     species_sort!(st)
-    s = _stkval_stocking(st)
+    s, iszcl, istcl = _stkval_stocking(st)
+    st.plot.size_class = iszcl; st.plot.stocking_class = istcl
     sftwds = sum(s[1:58]) + s[60] + sum(s[62:79]) + s[161] + s[162] + s[170]
     trfirspr = sum(s[1:5]) + s[7] + s[9] + s[14] + s[15] + s[28] + s[34] + s[35]
     spsafir  = s[4] + s[14] + s[15]
