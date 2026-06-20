@@ -190,10 +190,21 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # PTBAA (point basal area) in the calibration prediction uses the CURRENT-DBH
     # point BA, not the backdated one (ptbal.f / dgf.f:493 read the live PTBAA the
     # last DENSE pass filled at current diameters). Stand BA/AVH/PCT stay backdated;
-    # only the point-BA total is the current one. Saved here (still current from the
-    # setup_growth! density pass), restored before the calibration dgf! below.
-    # NOTE: this closes part of the sp33/sp65 large-tree DG-calibration gap; a residual
-    # remains in the predicted WK2 (see fvsjl-modernization-state) still under study.
+    # only the point-BA total is the current one. Computed here at current dbh WITH
+    # dead trees exposed (DENSE keeps dead at current dbh, so they count in PTBAA),
+    # then restored before the calibration dgf! below.
+    let nlive0 = t.n
+        saved_d8 = Float32[t.dbh[j] for j in (nlive0 + 1):(nlive0 + t.ndead)]
+        @inbounds for j in (nlive0 + 1):(nlive0 + t.ndead)
+            t.history[j] == 8 && (t.dbh[j] = 0f0)
+        end
+        t.n = nlive0 + t.ndead
+        point_basal_area!(s)
+        t.n = nlive0
+        @inbounds for (k, j) in enumerate((nlive0 + 1):(nlive0 + t.ndead))
+            t.dbh[j] = saved_d8[k]
+        end
+    end
     cur_point_ba = copy(s.density.point_ba)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:t.n
