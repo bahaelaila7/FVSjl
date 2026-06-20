@@ -16,9 +16,14 @@ for k in keys
         FVSjl.setup_growth!(s)
         FVSjl.compute_forest_type!(s)
         FVSjl.compute_volumes!(s)
-        r = FVSjl.summary_row(s; period = 5)
-        io = IOBuffer(); FVSjl.write_sum_row(io, r)
+        r0 = FVSjl.summary_row(s; period = 5)
+        gr = FVSjl.grow_cycle!(s)                     # advance to cycle 1
+        FVSjl.compute_forest_type!(s)
+        r1 = FVSjl.summary_row(s; period = 5)
+        io = IOBuffer(); FVSjl.write_sum_row(io, r0)
+        io1 = IOBuffer(); FVSjl.write_sum_row(io1, r1)
         println(name, " | ", rstrip(String(take!(io))))
+        println(name, "@1 | ", rstrip(String(take!(io1))))
     catch e
         println(name, " | ERROR ", sprint(showerror, e))
     end
