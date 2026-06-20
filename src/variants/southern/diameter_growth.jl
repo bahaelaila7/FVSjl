@@ -230,7 +230,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.dbh[j] = saved_dead[k]
     end
     s.density.point_ba .= cur_point_ba        # PTBAA from current DBH (see above)
+    # FORTYP is computed in the GROW path (per cycle), AFTER the LSTART calibration,
+    # so the calibration prediction must NOT include the forest-type term (kuphd etc.
+    # are all 0 at LSTART). Zero it for this dgf!, restore after. (dgf.f:453 reads
+    # IFORTP, which is 0 until the first STKVAL/FORTYP call in the cycle loop.)
+    saved_fortype = s.plot.forest_type
+    s.plot.forest_type = 0
     dgf!(s)                                   # WK2 = DGF prediction at the PAST stand
+    s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)
 
     # calibration VMLT (autcor LSTART: new=old=floor(YR))
