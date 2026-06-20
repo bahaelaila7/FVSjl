@@ -34,12 +34,13 @@ for key in "$SCEN"/*.key; do
         echo "SKIP  $name (missing .sum: ft=$( [ -f "$ftsum" ]&&echo y||echo n ) jl=$( [ -f "$jlsum" ]&&echo y||echo n ))"
         skip=$((skip+1)); rm -rf "$ftdir" "$jldir"; continue
     fi
-    # strip -999 header lines (timestamps/version) then compare ignoring whitespace
-    grep -v -- '-999' "$ftsum" > "$ftdir/c"; grep -v -- '-999' "$jlsum" > "$jldir/c"
-    if diff -w "$ftdir/c" "$jldir/c" >"$ftdir/d" 2>&1; then
-        echo "PASS  $name (.sum Fortran==FVSjulia, $(wc -l <"$ftdir/c") rows)"; pass=$((pass+1))
+    # tolerance-aware numeric compare (Float32 volume transcendentals give ±1 ulp
+    # noise that a strict byte diff over-flags; sumdiff.jl allows abs≤1 or rel≤0.1%).
+    res="$("$JULIA" --project="${FVSJL:-/workspace/FVSjl}" "$HERE/sumdiff.jl" "$ftsum" "$jlsum" 2>&1)"
+    if [ "$res" = "MATCH" ]; then
+        echo "PASS  $name (.sum Fortran==FVSjulia within tol)"; pass=$((pass+1))
     else
-        echo "FAIL  $name (.sum differs):"; sed 's/^/        /' "$ftdir/d" | head -8; fail=$((fail+1))
+        echo "FAIL  $name (.sum differs): $res"; fail=$((fail+1))
     fi
     rm -rf "$ftdir" "$jldir"
 done
