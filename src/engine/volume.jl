@@ -111,6 +111,31 @@ function cftopk(sd, sp::Integer, d::Float32, h::Float32,
 end
 
 """
+    bftopk(sd, sp, d, h, bbfv, vmax, bark, itht) -> bbfv
+
+BFTOPK (bftopk.f): reduce board-foot volume for a broken top at `itht/100` ft,
+using the Behre taper and the board-foot merch limits (BFTOPD/BFSTMP). Pure.
+"""
+function bftopk(sd, sp::Integer, d::Float32, h::Float32, bbfv::Float32,
+                vmax::Float32, bark::Float32, itht::Integer)
+    bbfv <= 0f0 && return bbfv
+    ahat, bhat, lcone = behre_params(vmax, d, h, bark)
+    pht = 1f0 - (Float32(itht) / 100f0) / h
+    dtrunc = pht / (ahat * pht + bhat)
+    bftopd = sd[:bf_top_dib][sp]
+    if dtrunc > bftopd / d
+        htmrch = (bhat * bftopd / d) / (1f0 - ahat * bftopd / d)
+        stump = 1f0 - sd[:bf_stump][sp] / h
+        if lcone
+            bbfv = bbfv * (stump^3 - pht^3) / (stump^3 - htmrch^3)
+        else
+            bbfv = bbfv * behre(ahat, bhat, pht, stump) / behre(ahat, bhat, htmrch, stump)
+        end
+    end
+    return bbfv
+end
+
+"""
     dub_missing_heights!(state)
 
 CRATET height resolution (cratet.f:212-265): assign heights to trees missing one
@@ -187,14 +212,16 @@ function compute_volumes!(s::StandState)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
+        bf = v[10]
         if tkill && tcf > 0f0
-            tcf, mcf, scf = cftopk(sd, sp, d, h, tcf, mcf, scf, v[1],
-                                   bark_ratio(sd, sp, d), Int(t.trunc[i]))
+            bark = bark_ratio(sd, sp, d)
+            tcf, mcf, scf = cftopk(sd, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
+            bf = bftopk(sd, sp, d, h, bf, v[1], bark, Int(t.trunc[i]))
         end
         t.cuft_vol[i]       = tcf
         t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i]   = scf
-        t.bdft_vol[i]       = v[10]
+        t.bdft_vol[i]       = bf
     end
     return s
 end
