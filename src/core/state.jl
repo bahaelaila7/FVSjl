@@ -295,10 +295,11 @@ mutable struct SpeciesData
     plants::Vector{String}       # PLANTS symbols                        (PLNJSP)
     class_codes::Matrix{String}  # species-tree class codes (MAXSP,3)     (NSP)
     dg_const::Vector{Float32}    # site-dependent DG constant per sp      (DGCON)
+    vol_eq::Vector{String}       # per-species NVEL volume equation id    (VEQNNC/VEQNNB)
 end
 SpeciesData() = SpeciesData(
     fill("    ",MAXSP), fill("    ",MAXSP), fill("      ",MAXSP),
-    fill("    ",MAXSP,3), zeros(Float32,MAXSP),
+    fill("    ",MAXSP,3), zeros(Float32,MAXSP), fill("           ",MAXSP),
 )
 
 # ---------------------------------------------------------------------------
