@@ -83,11 +83,27 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end
     cum_rem_merch = 0f0
+    di(x) = trunc(Int, x + 0.5)
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
+        # main columns reflect the start-of-cycle (pre-thin) stand
         r = summary_row(s; period = last ? 0 : period, total_removed_merch = cum_rem_merch)
         if !last
+            # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
+            # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is
+            # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
+            rem = cuts!(s; fint = Float32(period))
+            if rem.tpa > 0f0
+                compute_density!(s)
+                r.rem_tpa  = di(rem.tpa / g);  r.rem_cuft  = di(rem.cuft / g)
+                r.rem_mcuft = di(rem.mcuft / g); r.rem_scuft = di(rem.scuft / g)
+                r.rem_bdft = di(rem.bdft / g)
+                r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
+                r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
+                r.at_qmd = round(stand_qmd(s); digits = 1)
+                cum_rem_merch += rem.mcuft / g
+            end
             gr = grow_cycle!(s)              # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)

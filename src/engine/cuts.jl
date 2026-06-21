@@ -27,9 +27,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # Year of the current cycle (matches summary_row): inventory year + cycle·period.
     # (cycle_year only stores the inventory year; later years are derived.)
     yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
+    yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
     rem = _NO_REMOVAL
+    applied = false
     @inbounds for act in sched
         act.year == yr || continue
+        applied = true
         if act.icflag == Int32(8)                          # THINDBH; more methods later
             r = _thindbh!(s, act)
             rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -37,6 +40,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
                    bdft = rem.bdft + r.bdft)
         end
     end
+    applied && push!(s.control.years_cut, yr)
     return rem
 end
 
