@@ -44,6 +44,37 @@ end
 const TRIPLE_CYCLE_LIMIT = 2
 
 """
+    dead_inclusive_competition!(state)
+
+Recompute only the DG-competition inputs — point basal area (`density.point_ba`)
+and the BA percentile (`trees.crown_ratio`/PCT) — with the recently-dead partition
+INCLUDED at current dbh (FVS DENSE/PTBAL/PCTILE walk the full ITRN incl. dead).
+Stand BA/AVH/SDI/CCF stay live-only (already set by `compute_density!`); this only
+overwrites the two competition fields the growth model reads.
+"""
+function dead_inclusive_competition!(s::StandState)
+    t = s.trees; ndead = t.ndead
+    ndead == 0 && return s
+    nlive = t.n; ntot = nlive + ndead
+    # PTBAA + pbal with dead exposed at current dbh
+    t.n = ntot
+    point_basal_area!(s)
+    t.n = nlive
+    # PCT = current-dbh percentile over live+dead (only live crown_ratio is read by DGF)
+    ord = sortperm(view(t.dbh, 1:ntot); rev = true)
+    tot = 0f0
+    @inbounds for i in 1:ntot; tot += t.dbh[i]^2 * t.tpa[i]; end
+    if tot > 0f0
+        cum = 0f0
+        @inbounds for k in ntot:-1:1
+            ii = ord[k]; cum += t.dbh[ii]^2 * t.tpa[ii]
+            ii <= nlive && (t.crown_ratio[ii] = cum / tot * 100f0)
+        end
+    end
+    return s
+end
+
+"""
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
 Advance the stand by one growth cycle: recompute density, grow diameters/heights
@@ -55,21 +86,31 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
-    # Tripling is active only for the first few cycles (ICL4); afterwards growth is
-    # the stochastic serial-correlation path. (Multi-cycle past ~cycle 2 also needs
-    # COMPRS to merge the tripled records — see notes; not yet wired.)
-    trip = Int(s.control.cycle) < TRIPLE_CYCLE_LIMIT
-    diameter_growth!(s, s.variant; tripling = trip)  # may triple records; copies old CFV/TPA
     t = s.trees
-    n = t.n
-    # Cycle-start volume + TPA per (possibly tripled) record, for the period accounting.
-    old_cfv = Float32[t.cuft_vol[i] for i in 1:n]
-    old_tpa = Float32[t.tpa[i]      for i in 1:n]
+    nlive = t.n                              # ORIGINAL live records (pre-tripling)
+    # Cycle-start volume + TPA of the originals, for the period accounting.
+    old_cfv = Float32[t.cuft_vol[i] for i in 1:nlive]
+    old_tpa = Float32[t.tpa[i]      for i in 1:nlive]
+    # Tripling is active only for the first few cycles (ICL4); afterwards growth is
+    # the stochastic serial-correlation path.
+    trip = Int(s.control.cycle) < TRIPLE_CYCLE_LIMIT
+    stash = diameter_growth!(s, s.variant; tripling = trip)  # DGs only; no records yet
     height_growth!(s, s.variant)
-    mortality!(s, s.variant)               # reduces tpa (uses the projected diameter)
+    small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
+    mortality!(s, s.variant)               # MORTS on the ORIGINAL records (FVS order)
+    g = s.plot.gross_space
+    # Mortality volume (OMORT) is accounted on the originals, before tripling.
+    mort = 0f0
+    @inbounds for i in 1:nlive
+        mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
+    end
+    triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
+    # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
+    n = t.n
+    old_cfv2 = Float32[t.cuft_vol[i] for i in 1:n]
     sd = s.coef.species
     bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
-    @inbounds for i in 1:t.n
+    @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75).
         bark = bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
@@ -77,11 +118,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         t.height[i] += t.ht_growth[i]
     end
     compute_volumes!(s)                     # end-of-period volumes
-    g = s.plot.gross_space
-    accr = 0f0; mort = 0f0
+    accr = 0f0
     @inbounds for i in 1:n
-        accr += (t.cuft_vol[i] - old_cfv[i]) * t.tpa[i]
-        mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
+        accr += (t.cuft_vol[i] - old_cfv2[i]) * t.tpa[i]   # OACC over the tripled set
     end
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)

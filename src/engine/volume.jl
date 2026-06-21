@@ -25,6 +25,19 @@
     end
 end
 
+"HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1)."
+@inline function _htdbh_dbh(sd, sp::Integer, h::Float32)
+    p2 = sd[:htdbh_p2][sp]; p3 = sd[:htdbh_p3][sp]
+    p4 = sd[:htdbh_p4][sp]; db = sd[:htdbh_db][sp]
+    hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+    if h >= hat3
+        ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
+        return ratio > 0f0 ? exp(log(ratio) * (1f0 / p4)) : 100f0
+    else
+        return ((h - 4.51f0) * (3f0 - db) / (hat3 - 4.51f0)) + db
+    end
+end
+
 "Bark ratio BRATIO (inside/outside-bark diameter), clamped to [0.80, 0.99] (sn/bratio.f)."
 @inline function bark_ratio(sd, sp::Integer, d::Float32)
     d <= 0f0 && return 0.99f0

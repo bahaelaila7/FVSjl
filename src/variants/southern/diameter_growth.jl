@@ -420,8 +420,17 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     # so the first projection cycle uses the FULL COR (cormlt=1 at 0 elapsed years);
     # it decays in later cycles. (Was wrongly using one period's length every cycle.)
     cormlt = exp(-0.02773f0 * sfint * Float32(s.control.cycle))
+    # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
+    # diameter COR (dgdriv.f:68-79) but on the elapsed-at-END-of-period clock (cycle+1),
+    # matching FVS's HCOR = WCI·(1−cormlt_h) progression (0.070, 0.131, 0.185, … for snt01
+    # sp33). It is SEPARATE from the large-tree HTGF term HTCON (`htg_cor`, from the HCOR2
+    # keyword, 0 for snt01). HCOR_init (the small-tree height calibration regression) is 0
+    # unless a calibrated species has ≥NCALHT small trees with measured height growth (not
+    # snt01) — that init term is the one piece of REGENT still to port.
+    cormlt_h = exp(-0.02773f0 * sfint * Float32(s.control.cycle + 1))
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+        c.htg_cor_small[sp] = c.dg_cor_goal[sp] * (1f0 - cormlt_h)
     end
 
     species_sort!(s)
@@ -475,21 +484,48 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
         end
     end
 
-    # TRIPLE (triple.f): split each tree into 3 weighted records — central 0.60,
-    # upper 0.25 (FU growth), lower 0.15 (FL growth) — so the diameter spread feeds
-    # density/mortality/volume. Dead records are pushed to the end of the array.
-    if do_trip
-        @inbounds for k in t.ndead:-1:1
-            copy_tree!(t, 3 * nlive + k, nlive + k)
-        end
-        @inbounds for i in 1:nlive
-            u = nlive + i; l = 2 * nlive + i
-            copy_tree!(t, u, i); copy_tree!(t, l, i)
-            t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
-            t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
-            t.tpa[i] *= 0.60f0
-        end
-        t.n = 3 * nlive
+    # Record tripling is performed LATER (after height growth + mortality), because
+    # FVS runs MORTS before TRIPLE (grincr.f) — VARMRT must distribute mortality over
+    # the original ITRN records, not the tripled set. Return the per-tree upper/lower
+    # DG + serial-correlation residual so `triple_records!` can build the records.
+    # htgU/htgL/is_small carry the small-tree (REGENT) tripled-record overrides that
+    # `small_tree_growth!` fills after height growth (large-tree records keep is_small
+    # = false and inherit the central HTG via copy_tree!).
+    htgU = do_trip ? zeros(Float32, nlive) : Float32[]
+    htgL = do_trip ? zeros(Float32, nlive) : Float32[]
+    is_small = do_trip ? falses(nlive) : BitVector()
+    return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
+                      htgU = htgU, htgL = htgL, is_small = is_small) : nothing
+end
+
+"""
+    triple_records!(state, stash)
+
+TRIPLE (triple.f): split each of the `stash.nlive` original live records into 3
+weighted records — central 0.60, upper 0.25 (FU growth), lower 0.15 (FL growth) —
+using the DGs stashed by `diameter_growth!`. Run AFTER mortality so the split is of
+the post-mortality TPA (matching FVS's MORTS-before-TRIPLE order). Dead records are
+pushed to the end. No-op when `stash === nothing`.
+"""
+function triple_records!(s::StandState, stash)
+    stash === nothing && return s
+    t = s.trees; nlive = stash.nlive
+    dgU = stash.dgU; dgL = stash.dgL; rnU = stash.rnU; rnL = stash.rnL
+    htgU = stash.htgU; htgL = stash.htgL; is_small = stash.is_small
+    @inbounds for k in t.ndead:-1:1
+        copy_tree!(t, 3 * nlive + k, nlive + k)
     end
+    @inbounds for i in 1:nlive
+        u = nlive + i; l = 2 * nlive + i
+        copy_tree!(t, u, i); copy_tree!(t, l, i)
+        t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
+        t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+        # small-tree records carry per-record height increments (REGENT random effect)
+        if is_small[i]
+            t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
+        end
+        t.tpa[i] *= 0.60f0
+    end
+    t.n = 3 * nlive
     return s
 end

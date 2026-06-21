@@ -315,12 +315,13 @@ mutable struct Calibration
     sigma::Vector{Float32}       # DG residual standard deviation          (SIGMA)
     vardg::Vector{Float32}       # DG variance                             (VARDG)
     dg_cor_goal::Vector{Float32} # DG calibration attenuation goal          (WCI)
+    htg_cor_small::Vector{Float32} # small-tree (REGENT) height calibration (HCOR)
     vmlt::Float32                # ARMA variance multiplier (calibration)  (VMLT)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), 0f0)
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), 0f0)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
