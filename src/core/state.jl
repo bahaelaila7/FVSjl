@@ -330,8 +330,10 @@ mutable struct Density
     sdi_sum::Float32
     point_ba::Vector{Float32}    # per-point basal area (PTBAA), indexed by subplot
     point_bal::Vector{Float32}   # per-tree BA in larger trees on its point (PTBALT)
+    mort_slope::Float32          # Pretzsch self-thinning line slope, set once   (SLPMRT)
+    mort_intercept::Float32      # Pretzsch self-thinning line intercept, set once (CEPMRT)
 end
-Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE))
+Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE), 0.0f0, 0.0f0)
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls

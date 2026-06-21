@@ -29,8 +29,10 @@ function stand_sdimax(s::StandState)
     return totba <= 0f0 ? 1f0 : num / totba
 end
 
-# Pretzsch self-thinning target density tn10 (morts.f:200-343).
-function _pretzsch_tn10(t, dia0, d10, const_v, pmsdil, pmsdiu)
+# Pretzsch self-thinning target density tn10 (morts.f:200-343). The self-thinning
+# line (slope/intercept) is computed ONCE per stand and PERSISTED in `dens`
+# (SLPMRT/CEPMRT, morts.f:317-322); subsequent cycles reuse it with the new d10.
+function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
     tmd0  = min(const_v * dia0^SDI_EXP, 35000f0)
     t85d0 = tmd0 * pmsdiu;  t55d0 = pmsdil * tmd0
     tmd10  = min(const_v * d10^SDI_EXP, 35000f0)
@@ -53,6 +55,7 @@ function _pretzsch_tn10(t, dia0, d10, const_v, pmsdil, pmsdiu)
         (slp, t55m - slp * d55m)
     end
 
+    local slp::Float32, cept::Float32
     if t > t55d0                                   # ipath 1: converge treeit
         abs(t85d0 - t) <= 5f0 && return min(t85d10, t)
         treeit = t + 0.1f0 * t; slp = 0f0; cept = 0f0
@@ -62,12 +65,15 @@ function _pretzsch_tn10(t, dia0, d10, const_v, pmsdil, pmsdiu)
             (-5f0 <= diff <= 5f0) && break
             treeit += 0.5f0 * diff
         end
-        return min(exp(cept + slp * log(d10)), t85d10)
     else                                           # t ≤ t55d0
         t <= t55d10 && return t
         slp, cept = line(t)                        # ipath 2
-        return min(exp(cept + slp * log(d10)), t85d10)
     end
+    # persist the line the first time it is solved; reuse it every later cycle
+    if dens.mort_slope == 0f0
+        dens.mort_slope = slp; dens.mort_intercept = cept
+    end
+    return min(exp(dens.mort_intercept + dens.mort_slope * log(d10)), t85d10)
 end
 
 # Per-species shade-tolerance scalar for the VARMRT mortality distribution (VARADJ,
@@ -188,35 +194,58 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     dia0 < 0.3f0 && (d10 = 0.3f0 + d10 - dia0; dia0 = 0.3f0)
 
     sdimax = stand_sdimax(s)
-    density_on = false; rn = 0f0
-    if sdimax >= 5f0
-        const_v = sdimax / PRETZSCH_SDIK
-        tn10 = _pretzsch_tn10(tt, dia0, d10, const_v, pmsdil, pmsdiu)
-        tn10 = clamp(tn10, 0f0, tt); tn10 < 0.1f0 && (tn10 = 0f0)
-        rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-        tem_v2 = min(const_v * d10^SDI_EXP, 35000f0) * pmsdil
-        density_on = !(tt <= tem_v2 || rn <= 0f0)
+    n = t.n
+    killed = zeros(Float32, n)
+
+    # Background (Hamilton) mortality total — used when density mortality is off; it
+    # depends only on the start-of-cycle TPA, so it is computed once.
+    bg_tokill = 0f0
+    @inbounds for i in 1:n
+        pr = t.tpa[i]; pr <= 0f0 && continue
+        sp = t.species[i]
+        ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))
+        ri > 1f0 && (ri = 1f0)
+        bg_tokill += min(pr * (1f0 - (1f0 - ri)^fint), pr)
     end
 
-    # Total mortality to apply this period (tokill, MORTS): when density-driven it's
-    # the excess over the self-thinning target (t − tn10); otherwise the summed
-    # background (Hamilton) mortality. VARMRT then distributes it by suppression so
-    # small/low-percentile trees die first (not the uniform rate).
-    n = t.n
-    tokill = 0f0
-    if density_on
-        tokill = max(tt - tn10, 0f0)
+    if sdimax < 5f0
+        _varmrt!(killed, t, n, bg_tokill)
     else
-        @inbounds for i in 1:n
-            pr = t.tpa[i]; pr <= 0f0 && continue
-            sp = t.species[i]
-            ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))
-            ri > 1f0 && (ri = 1f0)
-            tokill += min(pr * (1f0 - (1f0 - ri)^fint), pr)
+        # MORTS QMD-convergence iteration (morts.f:184-481): solve tn10 for the
+        # assumed end-of-cycle QMD d10, distribute the excess (t − tn10) by VARMRT,
+        # recompute the post-mortality QMD d10n, and re-iterate with d10=d10n until it
+        # converges (|d10−d10n|≤0.1) or the QMD would fall below dia0. The self-
+        # thinning line is solved once (persisted in s.density) and reused each pass.
+        const_v = sdimax / PRETZSCH_SDIK
+        d10cur = d10
+        @inbounds for _ in 1:10
+            tn10 = _pretzsch_tn10(s.density, tt, dia0, d10cur, const_v, pmsdil, pmsdiu)
+            tn10 = clamp(tn10, 0f0, tt); tn10 < 0.1f0 && (tn10 = 0f0)
+            rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
+            tem_v2 = min(const_v * d10cur^SDI_EXP, 35000f0) * pmsdil
+            density_on = !(tt <= tem_v2 || rn <= 0f0)
+            tokill = density_on ? max(tt - tn10, 0f0) : bg_tokill
+            _varmrt!(killed, t, n, tokill)
+            density_on || break              # background ⇒ no d10 dependence, one pass
+            # recompute the post-mortality QMD (d10n) from the surviving TPA
+            ttn = 0f0; sdr = 0f0
+            for i in 1:n
+                d = t.dbh[i]; d < dthresh && continue
+                pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
+                bark = bark_ratio(bark_a, bark_b, t.species[i], d)
+                g = (t.diam_growth[i] / bark) * (fint / 5f0)
+                if zeide
+                    sdr += pr * (d + g)^1.605f0
+                else
+                    sdr += pr * (d * d + 2f0 * d * g + g * g)
+                end
+                ttn += pr
+            end
+            d10n = ttn <= 0f0 ? 0f0 : (zeide ? (sdr / ttn)^(1f0 / 1.605f0) : sqrt(sdr / ttn))
+            (abs(d10cur - d10n) <= 0.1f0 || d10n <= dia0) && break
+            d10cur = d10n
         end
     end
-    killed = Vector{Float32}(undef, n)
-    _varmrt!(killed, t, n, tokill)
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end
