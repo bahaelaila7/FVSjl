@@ -41,6 +41,7 @@ include("variants/southern/serial_correlation.jl")
 include("variants/southern/diameter_growth.jl")
 include("variants/southern/height_growth.jl")
 include("variants/southern/small_tree_growth.jl")
+include("variants/southern/crown_ratio.jl")
 include("variants/southern/mortality.jl")
 
 # --- io ---------------------------------------------------------------------
