@@ -38,22 +38,28 @@ end
             notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_forest_type!(s)
             FVSjl.compute_volumes!(s)
             g = s.plot.gross_space
+            # TIGHT tolerances — the DGSCOR record-order fix made the multi-cycle path
+            # RNG-bit-exact, so only Float32 transcendental noise remains (≤0.6 TPA,
+            # ≤0.06% cuft across 11 cycles). No slack: a real regression now fails.
+            # EXCEPTION: from-below/above thins (THINBTA/ATA/BBA/ABA) still carry a
+            # ~1% post-cut ordering residual (RDPSRT cut-selection not yet bit-exact);
+            # that single known issue gets a wider, explicitly-labelled bound.
+            fromabove = occursin("thinbta", scn) || occursin("thinata", scn) ||
+                        occursin("thinbba", scn) || occursin("thinaba", scn)
+            tT, rT = fromabove ? (10.0, 0.06) : (2.0, 0.012)
+            tQ     = fromabove ? 0.8 : 0.2
+            tC, rC = fromabove ? (40.0, 0.06) : (12.0, 0.015)
             @testset "$scn" begin
                 for (cyc, tpa, ba, sdi, qmd, tcuft) in rows
                     FVSjl.compute_forest_type!(s)
                     mtpa = stand_tpa(s) / g; mba = stand_ba(s) / g
                     msdi = stand_sdi(s) / g; mqmd = stand_qmd(s)
                     mtcuft = FVSjl.summary_row(s; period = 0).cuft
-                    # BA is BAMAX-capped ⇒ kept TIGHT: it is the regression sentinel
-                    # (a self-thinning/BAMAX regression blows BA). TPA/QMD/cuft carry
-                    # the known untripled-cycle serial-correlation tail (up to ~9% on
-                    # mixed stands at late cycles), so they are looser — still well
-                    # below a gross regression (the pre-BAMAX overshoot was ~20%+).
-                    @test isapprox(mba,  ba;  atol = 3, rtol = 0.05)   # sentinel
-                    @test isapprox(mtpa, tpa; atol = 4, rtol = 0.10)
-                    @test isapprox(msdi, sdi; atol = 6, rtol = 0.08)
-                    @test isapprox(mqmd, qmd; atol = 0.7, rtol = 0.05)  # rtol for large late-cycle QMD (sparse post-thin stands)
-                    @test isapprox(mtcuft, tcuft; atol = 40, rtol = 0.08)
+                    @test isapprox(mba,  ba;  atol = 2.0, rtol = 0.012)
+                    @test isapprox(mtpa, tpa; atol = tT, rtol = rT)
+                    @test isapprox(msdi, sdi; atol = 3.0, rtol = 0.012)
+                    @test isapprox(mqmd, qmd; atol = tQ)
+                    @test isapprox(mtcuft, tcuft; atol = tC, rtol = rC)
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
                 end
             end
