@@ -44,37 +44,6 @@ end
 const TRIPLE_CYCLE_LIMIT = 2
 
 """
-    dead_inclusive_competition!(state)
-
-Recompute only the DG-competition inputs — point basal area (`density.point_ba`)
-and the BA percentile (`trees.crown_ratio`/PCT) — with the recently-dead partition
-INCLUDED at current dbh (FVS DENSE/PTBAL/PCTILE walk the full ITRN incl. dead).
-Stand BA/AVH/SDI/CCF stay live-only (already set by `compute_density!`); this only
-overwrites the two competition fields the growth model reads.
-"""
-function dead_inclusive_competition!(s::StandState)
-    t = s.trees; ndead = t.ndead
-    ndead == 0 && return s
-    nlive = t.n; ntot = nlive + ndead
-    # PTBAA + pbal with dead exposed at current dbh
-    t.n = ntot
-    point_basal_area!(s)
-    t.n = nlive
-    # PCT = current-dbh percentile over live+dead (only live crown_ratio is read by DGF)
-    ord = sortperm(view(t.dbh, 1:ntot); rev = true)
-    tot = 0f0
-    @inbounds for i in 1:ntot; tot += t.dbh[i]^2 * t.tpa[i]; end
-    if tot > 0f0
-        cum = 0f0
-        @inbounds for k in ntot:-1:1
-            ii = ord[k]; cum += t.dbh[ii]^2 * t.tpa[ii]
-            ii <= nlive && (t.crown_ratio[ii] = cum / tot * 100f0)
-        end
-    end
-    return s
-end
-
-"""
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
 Advance the stand by one growth cycle: recompute density, grow diameters/heights
