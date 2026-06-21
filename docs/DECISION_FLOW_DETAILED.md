@@ -26,7 +26,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | SITECODE / site-species (`SITSET`) | per-species site index array | ✅ `site_index.jl` |
 | DESIGN / sample design | TPA expansion factors | ✅ |
 | INVYEAR / NUMCYCLE / TIMEINT | cycle calendar | ✅ |
-| thinning/harvest keywords (THINDBH/THINBTA/THINxxx) | schedule CUTS | ⛔ NOT ported — no THIN* handler, no removal in grow_cycle! (audit finding) |
+| thinning/harvest keywords (THINDBH/THINBTA/THINxxx) | schedule CUTS | 🟡 THINDBH ported (engine/cuts.jl, validated vs oracle); BTA/ATA/BBA/ABA/CC/SDI + removed-vol columns pending |
 | MSB / SIZECAP / MORTMULT / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
