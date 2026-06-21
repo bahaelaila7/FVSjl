@@ -63,6 +63,7 @@ include("engine/r8clark_vol.jl")
 include("engine/volume_equations.jl")
 include("engine/volume.jl")
 include("engine/standstats.jl")
+include("engine/cuts.jl")
 include("io/summary.jl")
 include("engine/simulate.jl")
 
