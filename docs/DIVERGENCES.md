@@ -76,3 +76,27 @@ in-scope routines individually; the gated rows are identified *structurally* (in
 oracle graph, absent in FVSjl), not yet branch-audited. Turning on each gate with a
 scenario is how to convert "structurally diverges" into "validated" — that is the
 test backlog implied by `docs/DECISION_FLOW_DETAILED.md`.
+
+## Branch-level differential (`tools/branch_diff.js`)
+
+The call-graph coverage above sees whole *routines*; it cannot see a branch missing
+*inside* a routine that is otherwise ported (the class that hid the BAMAX gap). To
+catch those, `branch_diff.js` fingerprints every distinctive numeric constant
+(4-significant-figure value) in each C3/C4/C5 oracle routine and flags any whose
+value appears nowhere in FVSjl (`src/*.jl` + the coefficient CSVs). A flagged
+constant ⇒ a candidate un-ported formula/branch. After clearing false positives
+(printf format specs, `f0`-suffixed integers, CSV precision), the real findings:
+
+| finding | where | gate | status |
+|---|---|---|---|
+| **Fort Bragg special equations** — `dgf` dg5 growth (sp 8,13), `bratio` bark (sp 5,6,8,11,13), DG ATTEN override (sp 8=2056,13=689) | `dgf.f:515-537`, `bratio.f:106-118`, `dgf.f:636` | `IFOR==20` ⇔ forest code 701 (Fort Bragg → mapped to Uwharrie 81110). No `IFOR==20` handling exists in FVSjl. | **real, un-ported (C3)** — validatable with a forest-701 scenario |
+| REGENT establishment-mode crown draw (`0.89722−0.0000461·PCCF + 0.07985·ran`) | `regent.f:107-113` | establishment (`lestb`) — regen keywords | un-ported (C4 regen) |
+| SDICLS relative-density quadratics (3 species-group eqns) | `sdical.f:320-345` | stand-stage classification (not the .sum SDI number) | partial (SDICLS) |
+| `cfvol` merch-height conversion (8.3333) | `cfvol.f:37` | alternate cubic-volume equation (snt01 uses R8 Clark) | un-ported, vol-eq-gated |
+| carbon factors (0.47/0.501/…) | `vols.f:157` | carbon output | C6/DBS |
+| CRNMLT DBH bound default 99.0 | `crown.f` | `CRNMLT` keyword | gated, inert |
+
+Everything else in the C3/C4/C5 core fingerprints clean. None of the above is on the
+currently-validated path (consistent with snt01 being bit-exact). **Porting order is
+upstream→downstream per the FVS flow:** Fort Bragg `IFOR==20` (DGF/BRATIO) → REGENT
+establishment → SDICLS density → `cfvol`/carbon.
