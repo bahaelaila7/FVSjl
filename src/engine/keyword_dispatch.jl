@@ -97,6 +97,20 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# Thinning/harvest keyword → CUTS method code (icflag). Extended per method as the
+# cuts! port lands; THINDBH is the first (milestone 1). (cuts.f label dispatch.)
+const _THIN_ICFLAG = Dict("THINDBH" => Int32(8))
+
+# Parse a THIN* activity: field 1 = calendar year, fields 2-7 = the 6 method params.
+# Stores a ScheduledActivity for `cuts!` to apply on the matching cycle.
+function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
+    v = rec.values
+    yr = nint(v[1])
+    params = ntuple(i -> Float32(v[i + 1]), 6)
+    push!(s.control.schedule, ScheduledActivity(Int32(yr), icflag, params))
+    return
+end
+
 # OPTION 15 — STDIDENT (initre.f:862): stand id from the next raw line.
 function kw_stdident!(s::StandState, kr::KeywordReader)
     record = rpad(read_raw_line!(kr), 250)[1:250]
@@ -145,6 +159,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre")
+        elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
         elseif kw == "PROCESS";  return :process
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

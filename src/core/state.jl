@@ -19,6 +19,15 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# ScheduledActivity — a parsed management activity (thinning/harvest) with its
+# calendar date, the CUTS method code (icflag), and up to 6 numeric parameters.
+# Populated by the THIN* keyword handlers; consumed by `cuts!` each cycle.
+struct ScheduledActivity
+    year::Int32                  # calendar year the activity fires
+    icflag::Int32                # CUTS method code (8=THINDBH, …)
+    params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
+end
+
 # Control — COMMON /CONTRL/ + /CONCHR/ : simulation control & flags
 # ---------------------------------------------------------------------------
 mutable struct Control
@@ -140,6 +149,8 @@ mutable struct Control
     sp_scf_dbhmin::Vector{Float32}#                                      (SCFMIND)
     sp_scf_topd::Vector{Float32} #                                       (SCFTOPD)
     sp_scf_stump::Vector{Float32}#                                       (SCFSTMP)
+
+    schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
 end
 
 function Control()
@@ -168,6 +179,7 @@ function Control()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
+        ScheduledActivity[],                                    # schedule
     )
 end
 
