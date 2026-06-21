@@ -1,5 +1,9 @@
 # FVS-Southern decision flow (input → output)
 
+> Branch-level companion: [`DECISION_FLOW_DETAILED.md`](DECISION_FLOW_DETAILED.md)
+> expands each hot-path routine below into its individual decision branches with
+> per-branch port status.
+
 A bird's-eye map of how a simulation flows from input to output in the original
 Fortran (`FVSsn`), with the corresponding **FVSjl** entry point and **port
 status** for each major step. It is intentionally one level deep: it names the
