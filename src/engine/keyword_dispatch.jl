@@ -78,8 +78,9 @@ end
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
-    # SN: STDINFO field 2 is the ecological unit code (PCOM), e.g. "231Dd"
-    rec.present[2] && (p.eco_unit = rpad(strip(rec.fields[2]), 10))
+    # SN: STDINFO field 2 is the habitat/ecological-unit field, decoded by HABTYP
+    # (numeric → index into SNECU; alpha → matched, uppercased) into the PCOM code.
+    rec.present[2] && (p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10))
     rec.present[3] && (p.stand_age = nint(v[3]))
     rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
     rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
