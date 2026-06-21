@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FVS-Southern — full interactive call graph</title>
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e6e6; --muted:#9aa4b2; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  #wrap { display:flex; height:100%; }
+  #cy { flex:1; height:100%; }
+  #side { width:340px; background:var(--panel); padding:16px 18px; overflow:auto; border-left:1px solid #262b35; }
+  h1 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 12px; }
+  input#q { width:100%; box-sizing:border-box; background:#0b0d11; color:var(--ink);
+    border:1px solid #333b49; border-radius:6px; padding:7px 9px; margin-bottom:10px; }
+  .toolbar button { background:#222732; color:var(--ink); border:1px solid #333b49;
+    border-radius:6px; padding:6px 10px; margin:0 6px 8px 0; cursor:pointer; font-size:12px; }
+  .toolbar button:hover { background:#2c3340; }
+  .legend { margin-top:6px; }
+  .legend h3 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:10px 0 4px; }
+  .legend div { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:12px; }
+  .sw { width:14px; height:14px; border-radius:3px; display:inline-block; }
+  .shp { width:16px; text-align:center; color:#cdd5e0; }
+  #detail { margin-top:14px; border-top:1px solid #262b35; padding-top:12px; }
+  #detail h2 { font-size:14px; margin:0 0 6px; }
+  #detail .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; color:#0c0f14; font-weight:600; margin-right:6px; }
+  #detail p { color:#cdd5e0; margin:8px 0; }
+  #detail .calls { color:var(--muted); font-size:12px; }
+  code { background:#0b0d11; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="cy"></div>
+  <div id="side">
+    <h1>FVS-Southern call graph</h1>
+    <p class="sub">Auto-extracted from the faithful oracle (<code>/workspace/FVSjulia/src</code>),
+      588 routines. Click a node to break it into the functions it calls (dotted = enter,
+      solid = execution order, dashed = shared callee). Leaves with no border are atomic
+      (only math/intrinsics). Double-click to expand a whole subtree.</p>
+    <input id="q" placeholder="search routine (e.g. COMPRS, VARMRT)…" autocomplete="off"/>
+    <div class="toolbar">
+      <button onclick="collapseAll()">Collapse all</button>
+      <button onclick="cy.fit(null,40)">Fit</button>
+    </div>
+    <div class="legend">
+      <h3>port status (fill)</h3>
+      <div><span class="sw" style="background:#3fb950"></span> ported &amp; validated</div>
+      <div><span class="sw" style="background:#d29922"></span> partial / simplified</div>
+      <div><span class="sw" style="background:#f85149"></span> not ported (in-scope)</div>
+      <div><span class="sw" style="background:#388bfd"></span> out of scope / no scenario</div>
+      <div><span class="sw" style="background:#6e7681"></span> no-op in oracle (correctly absent)</div>
+      <div><span class="sw" style="background:#30363d"></span> not yet classified</div>
+      <h3>scope (shape)</h3>
+      <div><span class="shp">▭</span> generic (base, all variants)</div>
+      <div><span class="shp">⬡</span> variant-only (Southern, src/sn)</div>
+      <div><span class="shp">◆</span> extension (fire / econ / other)</div>
+      <div><span class="shp">⬭</span> shared COMMON / utility</div>
+    </div>
+    <div id="detail"><p class="sub">Hover or click a node for details.</p></div>
+  </div>
+</div>
+
+<script>
+/*__GRAPH__*/   // const GRAPH = { id: {label, scope, calls:[...]}, ... }
+
+// ---- port-status overlay (curated for the analyzed C3/C4 core; extensions get a
+//      scope default; everything else is 'unknown' until classified) -----------
+const STATUS = {
+  FVS:'partial', INITRE:'ported', SETUP:'ported', NOTRE:'ported', CRATET:'ported',
+  VOLS:'ported', CFVOL:'ported', BFVOL:'ported', OCFVOL:'ported', OBFVOL:'ported',
+  CFTOPK:'ported', BFTOPK:'ported', ECVOL:'ported', NATCRS:'ported', VOLKEY:'ported',
+  R8CLARK_VOL:'ported', CWIDTH:'ported', CWCALC:'ported',
+  DENSE:'ported', BRATIO:'ported', MBACAL:'ported', CCFCAL:'ported', PCTILE:'ported',
+  PTBAL:'ported', DIST:'ported', COMP:'ported', STATS:'ported', DISPLY:'ported',
+  SDICAL:'ported', CLMAXDEN:'noop', SDICLS:'partial', SDICHK:'ported',
+  DGDRIV:'ported', DGF:'ported', DGCONS:'ported', MULTS:'partial', AUTCOR:'ported',
+  ARMA:'ported', DGSCOR:'partial', BACHLO:'ported', MISDGF:'noop',
+  HTGF:'ported', HTCALC:'ported', REGENT:'partial', HTDBH:'ported',
+  MORTS:'ported', VARMRT:'ported', MSBMRT:'notported', _MORTS_IN_GRP:'ported',
+  TRIPLE:'ported', REASS:'ported', UPDATE:'ported', CROWN:'ported', DUBSCR:'ported',
+  RANN:'ported', CUTS:'ported', SSTAGE:'partial', COMPRS:'notported', CMRANG:'notported',
+  MEANSD:'ported', RDPSRT:'ported', IQRSRT:'ported', TREDEL:'ported',
+  HABTYP:'ported', HBDECD:'ported', SITSET:'ported', FORTYP:'ported', FORKOD:'ported',
+  GETSED:'ported', COMCUP:'notported',
+  ESNUTR:'notported', BRTREG:'notported', RDTREG:'notported', CLAUESTB:'notported',
+  HTGSTP:'notported', FFERT:'notported', MISTOE:'notported',
+};
+// short human notes for the analyzed routines (others fall back to a generated line)
+const DESC = {
+  FVS:'Top-level driver: init, then the per-cycle report→grow loop, then output.',
+  SDICAL:'BA-weighted stand max SDI; CLMAXDEN climate reduction is a no-op without the CLIMATE extension.',
+  MORTS:'Periodic mortality: self-thinning target → VARMRT distribution → BAMAX cap; MSB/size-cap are keyword-gated.',
+  DGDRIV:'Diameter-growth driver: DGF prediction + (tripling | DGSCOR serial-correlation).',
+  DGSCOR:'Serial-correlated single DG for untripled cycles — source of the ~1–2% OLDRN volume tail.',
+  HABTYP:'Decode the STDINFO habitat field into the PCOM ecological-unit code (numeric ⇒ SNECU index).',
+  COMPRS:'Record compression (similar trees merged): MEANSD stats → sort → range/group → TREDEL. Not yet ported.',
+  CROWN:'Crown-ratio update (relSDI → mean CR → Weibull draw → ±change cap).',
+  VOLS:'Per-tree volumes: cubic (CFVOL/Clark), merch, sawtimber, board-ft (BFVOL), with top-kill corrections.',
+};
+const COLOR={ ported:'#3fb950', partial:'#d29922', notported:'#f85149', ooscope:'#388bfd', noop:'#6e7681', unknown:'#30363d' };
+const SLABEL={ ported:'ported & validated', partial:'partial / simplified', notported:'not ported (in-scope)', ooscope:'out of scope', noop:'no-op in oracle', unknown:'not yet classified' };
+const SCOPELABEL={ base:'generic (all variants)', sn:'variant-only (Southern)', fire:'extension — fire (FFE)', econ:'extension — economics', ext:'extension', common:'shared COMMON / utility' };
+const SHAPE={ base:'round-rectangle', sn:'hexagon', fire:'diamond', econ:'diamond', ext:'diamond', common:'ellipse' };
+
+const statusOf = id => STATUS[id] || (['fire','econ','ext'].includes((GRAPH[id]||{}).scope) ? 'ooscope' : 'unknown');
+const childrenOf = id => (GRAPH[id] ? GRAPH[id].calls : []).filter(c=>GRAPH[c]);
+
+// ---- expand / collapse ----------------------------------------------------
+const ROOTS=['FVS'];
+const expanded=new Set(ROOTS);
+function visibleSet(){ const vis=new Set(ROOTS); let ch=true;
+  while(ch){ ch=false; for(const id of Array.from(vis)){ if(!expanded.has(id))continue;
+    for(const c of childrenOf(id)) if(!vis.has(c)){vis.add(c);ch=true;} } } return vis; }
+function buildElements(){
+  const vis=visibleSet(); const els=[];
+  for(const id of vis){ const g=GRAPH[id]; const kids=childrenOf(id).length;
+    const mark=!kids?'':(expanded.has(id)?'  ▾':'  ▸');
+    els.push({data:{id,label:(g?g.label:id)+mark,status:statusOf(id),scope:(g?g.scope:'base'),hasKids:kids>0}}); }
+  const seen=new Set();
+  const add=(s,t,kind)=>{ if(!vis.has(s)||!vis.has(t)||s===t)return; const e=kind+':'+s+'>'+t;
+    if(seen.has(e))return; seen.add(e); els.push({data:{id:e,source:s,target:t,kind}}); };
+  // each expanded node flows through the functions it calls, in source/exec order;
+  // a callee shared by several expanded callers gets an arrow from each (auto-dedup).
+  const drawnTo=new Set();
+  for(const id of vis){ if(!expanded.has(id))continue;
+    const kids=childrenOf(id).filter(c=>vis.has(c)); if(!kids.length)continue;
+    add(id,kids[0],'enter');
+    for(let i=0;i<kids.length-1;i++) add(kids[i],kids[i+1],'flow');
+  }
+  return els;
+}
+function layoutOpts(){ return {name:'breadthfirst',directed:true,roots:ROOTS,spacingFactor:.9,padding:40,animate:true,animationDuration:250}; }
+
+const cy=cytoscape({ container:document.getElementById('cy'), elements:buildElements(),
+  style:[
+    {selector:'node',style:{'label':'data(label)','color':'#0c0f14','font-size':11,'font-weight':600,
+      'text-valign':'center','text-halign':'center','shape':e=>SHAPE[e.data('scope')]||'round-rectangle',
+      'width':'label','height':26,'padding':'7px','background-color':e=>COLOR[e.data('status')]||'#30363d',
+      'border-width':1,'border-color':'#0a0c10','color':e=>e.data('status')==='unknown'?'#e6e6e6':'#0c0f14'}},
+    {selector:'node[?hasKids]',style:{'border-width':3,'border-color':'#e6e6e6'}},
+    {selector:'edge',style:{'width':2,'line-color':'#9aa4b2','target-arrow-color':'#9aa4b2',
+      'target-arrow-shape':'triangle','curve-style':'bezier','arrow-scale':.9}},
+    {selector:'edge[kind="enter"]',style:{'line-style':'dotted','width':1.5,'line-color':'#3a4150','target-arrow-color':'#3a4150'}},
+    {selector:'edge[kind="ref"]',style:{'line-style':'dashed','line-color':'#8a5cf6','target-arrow-color':'#8a5cf6'}},
+    {selector:'.hl',style:{'border-color':'#fff','border-width':4}},
+  ], layout:layoutOpts(), wheelSensitivity:0.2 });
+
+function refresh(){ cy.elements().remove(); cy.add(buildElements()); cy.layout(layoutOpts()).run(); }
+function collapseAll(){ expanded.clear(); ROOTS.forEach(r=>expanded.add(r)); refresh(); }
+function expandSubtree(id){ const stack=[id]; const seen=new Set();
+  while(stack.length){ const n=stack.pop(); if(seen.has(n))continue; seen.add(n);
+    if(childrenOf(n).length){ expanded.add(n); childrenOf(n).forEach(c=>stack.push(c)); } }
+  refresh(); }
+
+cy.on('tap','node',e=>{ const id=e.target.id();
+  if(childrenOf(id).length){ expanded.has(id)?expanded.delete(id):expanded.add(id); refresh(); }
+  showDetail(id); });
+cy.on('dbltap','node',e=>expandSubtree(e.target.id()));
+cy.on('mouseover','node',e=>showDetail(e.target.id()));
+
+function showDetail(id){ const g=GRAPH[id]||{label:id,scope:'base'}; const st=statusOf(id);
+  const calls=childrenOf(id).map(c=>GRAPH[c]?GRAPH[c].label:c);
+  document.getElementById('detail').innerHTML=
+    `<h2>${g.label}</h2>
+     <span class="tag" style="background:${COLOR[st]}">${SLABEL[st]}</span>
+     <span class="tag" style="background:#2c3340;color:#e6e6e6">${SCOPELABEL[g.scope]||g.scope}</span>
+     <p>${DESC[id]||(calls.length?'Calls '+calls.length+' routine(s).':'Atomic — only math / intrinsics.')}</p>`+
+    (calls.length?`<p class="calls"><b>calls:</b> ${calls.join(' · ')}</p>`:'')+
+    (childrenOf(id).length?`<p class="calls">Click to ${expanded.has(id)?'collapse':'expand'} · double-click for full subtree.</p>`:'');
+}
+
+// ---- search: reveal a node by expanding the shortest path from a root --------
+function pathTo(target){ const prev={}; const q=['FVS']; const seen=new Set(q);
+  while(q.length){ const n=q.shift(); if(n===target){ const p=[]; let c=target; while(c!==undefined){p.unshift(c);c=prev[c];} return p; }
+    for(const k of childrenOf(n)) if(!seen.has(k)){seen.add(k);prev[k]=n;q.push(k);} } return null; }
+document.getElementById('q').addEventListener('keydown',ev=>{ if(ev.key!=='Enter')return;
+  const t=ev.target.value.trim().toUpperCase(); if(!GRAPH[t]){ ev.target.style.borderColor='#f85149'; return; }
+  ev.target.style.borderColor='#333b49'; const p=pathTo(t)||[t];
+  for(const n of p) if(childrenOf(n).length && n!==t) expanded.add(n);
+  refresh(); const el=cy.$id(t); if(el.length){ cy.animate({center:{eles:el},zoom:1.1},{duration:300});
+    cy.elements('.hl').removeClass('hl'); el.addClass('hl'); showDetail(t); } });
+
+showDetail('FVS');
+</script>
+</body>
+</html>

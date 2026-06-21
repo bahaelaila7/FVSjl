@@ -3,6 +3,12 @@
 > Branch-level companion: [`DECISION_FLOW_DETAILED.md`](DECISION_FLOW_DETAILED.md)
 > expands each hot-path routine below into its individual decision branches with
 > per-branch port status.
+>
+> Interactive view: open [`decision_flow.html`](decision_flow.html) in a browser —
+> the **complete 588-routine call graph** auto-extracted from the oracle. Click a
+> node to break it into the functions it calls (down to atomic math/intrinsics),
+> colored by port status and shaped by scope (▭ generic / ⬡ Southern-variant /
+> ◆ extension). Regenerate after source changes with `tools/gen_callgraph.js`.
 
 A bird's-eye map of how a simulation flows from input to output in the original
 Fortran (`FVSsn`), with the corresponding **FVSjl** entry point and **port

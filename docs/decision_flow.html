@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>FVS-Southern decision flow — interactive call graph</title>
-<!-- Cytoscape.js (single CDN dependency; needs internet on first open). -->
+<title>FVS-Southern — full interactive call graph</title>
 <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
 <style>
   :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e6e6; --muted:#9aa4b2; }
@@ -12,19 +11,22 @@
     font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
   #wrap { display:flex; height:100%; }
   #cy { flex:1; height:100%; }
-  #side { width:320px; background:var(--panel); padding:16px 18px; overflow:auto;
-    border-left:1px solid #262b35; }
+  #side { width:340px; background:var(--panel); padding:16px 18px; overflow:auto; border-left:1px solid #262b35; }
   h1 { font-size:15px; margin:0 0 4px; }
-  .sub { color:var(--muted); font-size:12px; margin:0 0 14px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 12px; }
+  input#q { width:100%; box-sizing:border-box; background:#0b0d11; color:var(--ink);
+    border:1px solid #333b49; border-radius:6px; padding:7px 9px; margin-bottom:10px; }
   .toolbar button { background:#222732; color:var(--ink); border:1px solid #333b49;
     border-radius:6px; padding:6px 10px; margin:0 6px 8px 0; cursor:pointer; font-size:12px; }
   .toolbar button:hover { background:#2c3340; }
-  .legend div { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:12px; }
+  .legend { margin-top:6px; }
+  .legend h3 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:10px 0 4px; }
+  .legend div { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:12px; }
   .sw { width:14px; height:14px; border-radius:3px; display:inline-block; }
-  #detail { margin-top:16px; border-top:1px solid #262b35; padding-top:14px; }
+  .shp { width:16px; text-align:center; color:#cdd5e0; }
+  #detail { margin-top:14px; border-top:1px solid #262b35; padding-top:12px; }
   #detail h2 { font-size:14px; margin:0 0 6px; }
-  #detail .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px;
-    color:#0c0f14; font-weight:600; }
+  #detail .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; color:#0c0f14; font-weight:600; margin-right:6px; }
   #detail p { color:#cdd5e0; margin:8px 0; }
   #detail .calls { color:var(--muted); font-size:12px; }
   code { background:#0b0d11; padding:1px 5px; border-radius:4px; }
@@ -34,233 +36,154 @@
 <div id="wrap">
   <div id="cy"></div>
   <div id="side">
-    <h1>FVS-Southern decision flow</h1>
-    <p class="sub">Click a node to break it into the flow between the functions it
-      calls. Dotted = enters first step; solid = flow (execution order); dashed
-      purple = cross-call to a shared routine. Click again to collapse. Derived
-      from <code>DECISION_FLOW_DETAILED.md</code>.</p>
+    <h1>FVS-Southern call graph</h1>
+    <p class="sub">Auto-extracted from the faithful oracle (<code>/workspace/FVSjulia/src</code>),
+      588 routines. Click a node to break it into the functions it calls (dotted = enter,
+      solid = execution order, dashed = shared callee). Leaves with no border are atomic
+      (only math/intrinsics). Double-click to expand a whole subtree.</p>
+    <input id="q" placeholder="search routine (e.g. COMPRS, VARMRT)…" autocomplete="off"/>
     <div class="toolbar">
-      <button onclick="expandAll()">Expand all</button>
       <button onclick="collapseAll()">Collapse all</button>
       <button onclick="cy.fit(null,40)">Fit</button>
     </div>
     <div class="legend">
+      <h3>port status (fill)</h3>
       <div><span class="sw" style="background:#3fb950"></span> ported &amp; validated</div>
       <div><span class="sw" style="background:#d29922"></span> partial / simplified</div>
       <div><span class="sw" style="background:#f85149"></span> not ported (in-scope)</div>
       <div><span class="sw" style="background:#388bfd"></span> out of scope / no scenario</div>
       <div><span class="sw" style="background:#6e7681"></span> no-op in oracle (correctly absent)</div>
+      <div><span class="sw" style="background:#30363d"></span> not yet classified</div>
+      <h3>scope (shape)</h3>
+      <div><span class="shp">▭</span> generic (base, all variants)</div>
+      <div><span class="shp">⬡</span> variant-only (Southern, src/sn)</div>
+      <div><span class="shp">◆</span> extension (fire / econ / other)</div>
+      <div><span class="shp">⬭</span> shared COMMON / utility</div>
     </div>
     <div id="detail"><p class="sub">Hover or click a node for details.</p></div>
   </div>
 </div>
 
 <script>
-// ---- status palette -------------------------------------------------------
-const COLOR = { ported:'#3fb950', partial:'#d29922', notported:'#f85149',
-                ooscope:'#388bfd', noop:'#6e7681' };
-const STATUS_LABEL = { ported:'ported & validated', partial:'partial / simplified',
-  notported:'not ported (in-scope)', ooscope:'out of scope', noop:'no-op in oracle' };
+const GRAPH = {"_INIT_IO_UNITS":{"id":"_INIT_IO_UNITS","label":"_init_io_units!","scope":"base","calls":[]},"_SNAPSHOT_STATE":{"id":"_SNAPSHOT_STATE","label":"_snapshot_state!","scope":"base","calls":[]},"_RESTORE_STATE":{"id":"_RESTORE_STATE","label":"_restore_state!","scope":"base","calls":[]},"__INIT__":{"id":"__INIT__","label":"__init__","scope":"base","calls":[]},"_PRECOMPILE_ALL":{"id":"_PRECOMPILE_ALL","label":"_precompile_all!","scope":"base","calls":[]},"ALGPTG":{"id":"ALGPTG","label":"ALGPTG","scope":"base","calls":[]},"ALGSPP":{"id":"ALGSPP","label":"ALGSPP","scope":"base","calls":[]},"ALGKEY":{"id":"ALGKEY","label":"ALGKEY","scope":"base","calls":["ALGSPP","ALGPTG"]},"ALGEXP":{"id":"ALGEXP","label":"ALGEXP","scope":"base","calls":[]},"ALGCMP":{"id":"ALGCMP","label":"ALGCMP","scope":"base","calls":["ALGKEY","EVMKV"]},"ALGEVL":{"id":"ALGEVL","label":"ALGEVL","scope":"base","calls":["EVLDX","ALGSLP","BACHLO"]},"ALGSLP":{"id":"ALGSLP","label":"ALGSLP","scope":"base","calls":[]},"AUTCOR":{"id":"AUTCOR","label":"AUTCOR","scope":"base","calls":[]},"BACHLO":{"id":"BACHLO","label":"BACHLO","scope":"base","calls":[]},"BASDAM":{"id":"BASDAM","label":"BASDAM","scope":"base","calls":[]},"BEHPRM":{"id":"BEHPRM","label":"BEHPRM","scope":"base","calls":[]},"BFTOPK":{"id":"BFTOPK","label":"BFTOPK","scope":"base","calls":["BEHPRM","BEHRE"]},"BFVOL":{"id":"BFVOL","label":"BFVOL","scope":"base","calls":[]},"JENKINS":{"id":"JENKINS","label":"JENKINS","scope":"base","calls":[]},"WOODDEN":{"id":"WOODDEN","label":"WOODDEN","scope":"base","calls":[]},"SAPLINGADJ":{"id":"SAPLINGADJ","label":"SAPLINGADJ","scope":"base","calls":[]},"FIABEQ2NVELBEQ":{"id":"FIABEQ2NVELBEQ","label":"FIABEQ2NVELBEQ","scope":"base","calls":[]},"STR2INT":{"id":"STR2INT","label":"str2int","scope":"base","calls":[]},"FIA_NW":{"id":"FIA_NW","label":"FIA_NW","scope":"base","calls":[]},"FIA_RM":{"id":"FIA_RM","label":"FIA_RM","scope":"base","calls":[]},"FIA_NC":{"id":"FIA_NC","label":"FIA_NC","scope":"base","calls":[]},"FIA_NE":{"id":"FIA_NE","label":"FIA_NE","scope":"base","calls":[]},"FIA_SE":{"id":"FIA_SE","label":"FIA_SE","scope":"base","calls":[]},"PI_BIOMASS":{"id":"PI_BIOMASS","label":"PI_BIOMASS","scope":"base","calls":[]},"BROWN":{"id":"BROWN","label":"BROWN","scope":"base","calls":[]},"BIOEQFORMULA":{"id":"BIOEQFORMULA","label":"BioeqFormula","scope":"base","calls":[]},"BIOMASSFORMULA":{"id":"BIOMASSFORMULA","label":"BIOMASSFORMULA","scope":"base","calls":["BIOEQFORMULA"]},"BIOEQDB":{"id":"BIOEQDB","label":"BIOEQDB","scope":"base","calls":[]},"MILESDATA":{"id":"MILESDATA","label":"MILESDATA","scope":"base","calls":[]},"CRZSPDFT":{"id":"CRZSPDFT","label":"CRZSPDFT","scope":"base","calls":[]},"CALCBIOMASS":{"id":"CALCBIOMASS","label":"CalcBiomass","scope":"base","calls":["BIOMASSLIBRARY"]},"BIOMASSLIBRARY":{"id":"BIOMASSLIBRARY","label":"BiomassLibrary","scope":"base","calls":["BIOMASSLIBRARY2"]},"BIOMASSLIBRARY2":{"id":"BIOMASSLIBRARY2","label":"BiomassLibrary2","scope":"base","calls":[]},"CCFCAL":{"id":"CCFCAL","label":"CCFCAL","scope":"base","calls":["CWCALC"]},"CFTOPK":{"id":"CFTOPK","label":"CFTOPK","scope":"base","calls":["BEHPRM","BEHRE"]},"CFVOL":{"id":"CFVOL","label":"CFVOL","scope":"base","calls":["NBOLT"]},"CH4BSR":{"id":"CH4BSR","label":"CH4BSR","scope":"base","calls":[]},"CH4SRT":{"id":"CH4SRT","label":"CH4SRT","scope":"base","calls":[]},"CHPUT":{"id":"CHPUT","label":"CHPUT","scope":"base","calls":["CHWRIT","DBSCHPUT","VARCHPUT","MSCHPUT"]},"CHGET":{"id":"CHGET","label":"CHGET","scope":"base","calls":["CHREAD","DBSCHGET","VARCHGET","MSCHGET"]},"MSCHPUT":{"id":"MSCHPUT","label":"MSCHPUT","scope":"base","calls":[]},"MSCHGET":{"id":"MSCHGET","label":"MSCHGET","scope":"base","calls":[]},"PUTSTD":{"id":"PUTSTD","label":"putstd","scope":"base","calls":["GETSTD","FILCLOSE","GENRPT","FILOPN","GETNRPTS","IFWRIT","FMATV","LFWRIT","BFWRIT","VARPUT","FMPPPUT","CHPUT"]},"FVSGETSTOPPOINTCODES":{"id":"FVSGETSTOPPOINTCODES","label":"fvsGetStoppointCodes","scope":"base","calls":[]},"FVSSETSTOPPOINTCODES":{"id":"FVSSETSTOPPOINTCODES","label":"fvsSetStoppointCodes","scope":"base","calls":[]},"FVSGETRESTARTCODE":{"id":"FVSGETRESTARTCODE","label":"fvsGetRestartCode","scope":"base","calls":[]},"CLEARRESTARTCODE":{"id":"CLEARRESTARTCODE","label":"clearrestartcode","scope":"base","calls":[]},"FVSRESTART":{"id":"FVSRESTART","label":"fvsRestart","scope":"base","calls":["GETSTD"]},"FVSRESTARTLASTSTAND":{"id":"FVSRESTARTLASTSTAND","label":"fvsRestartLastStand","scope":"base","calls":["FVSSETRTNCODE","GETSTD"]},"FVSGETKEYWORDFILENAME":{"id":"FVSGETKEYWORDFILENAME","label":"fvsGetKeywordFileName","scope":"base","calls":[]},"FVSSETRTNCODE":{"id":"FVSSETRTNCODE","label":"fvsSetRtnCode","scope":"base","calls":["FILCLOSE"]},"FVSGETRTNCODE":{"id":"FVSGETRTNCODE","label":"fvsGetRtnCode","scope":"base","calls":[]},"FVSSTOPPOINT":{"id":"FVSSTOPPOINT","label":"fvsStopPoint","scope":"base","calls":["PUTSTD"]},"GETAMSTOPPING":{"id":"GETAMSTOPPING","label":"getAmStopping","scope":"base","calls":[]},"COMCUP":{"id":"COMCUP","label":"COMCUP","scope":"base","calls":["TREDEL","OPFIND","OPGET","OPDEL1","COMPRS","OPDONE","SPESRT","RDPSRT","PCTILE","FINDAG","DIST","COMP","DENSE"]},"COMP":{"id":"COMP","label":"COMP","scope":"base","calls":["RDPSRT","PCTILE"]},"COMPRS":{"id":"COMPRS","label":"COMPRS","scope":"base","calls":["MEANSD","RDPSRT","IQRSRT","CMRANG","TREDEL"]},"EIGEN":{"id":"EIGEN","label":"EIGEN!","scope":"base","calls":[]},"RANN_RAND":{"id":"RANN_RAND","label":"RANN_rand!","scope":"base","calls":[]},"COVOLP":{"id":"COVOLP","label":"COVOLP","scope":"base","calls":[]},"CRATET":{"id":"CRATET","label":"CRATET","scope":"base","calls":["MAICAL","RCON","DENSE","DGDRIV","REGENT","MBACAL","RDPSRT","SPESRT","HTDBH","FMSSEE","CROWN","AVHT40","FINDAG","PCTILE","DIST","COMP","SDICHK"]},"CUTQFA":{"id":"CUTQFA","label":"CUTQFA","scope":"base","calls":["CLSSTK","SDICLS"]},"CYCQFA":{"id":"CYCQFA","label":"CYCQFA","scope":"base","calls":[]},"CUTS":{"id":"CUTS","label":"CUTS","scope":"base","calls":["RDPSRT","TREDEL","SPESRT","FMATV","FMSALV","OPFIND","OPGET","OPDONE","OPDEL1","AUTSTK","CLSSTK","CUTQFA","CYCQFA","OPCHPR","SDICLS","CCCLS","RDCLS","RDCLS2","RDSLTR","ESTUMP","RDSTR","PRTRLS","DBS_FIAVBC_CUTLST","DBS_FIAVBC_ATRTLS","SVCUTS","COMP","PCTILE","DIST","FMSCUT","FMTREM","FMPRUN"]},"AUTSTK":{"id":"AUTSTK","label":"AUTSTK","scope":"base","calls":[]},"CLSSTK":{"id":"CLSSTK","label":"CLSSTK","scope":"base","calls":[]},"CWCALC":{"id":"CWCALC","label":"CWCALC","scope":"base","calls":[]},"CWIDTH":{"id":"CWIDTH","label":"CWIDTH","scope":"base","calls":["CWCALC","OPFIND","OPGET","OPDONE"]},"DAMCDS":{"id":"DAMCDS","label":"DAMCDS","scope":"base","calls":["BASDAM"]},"DAMPRO":{"id":"DAMPRO","label":"DAMPRO","scope":"base","calls":["MISDAM"]},"DBADD":{"id":"DBADD","label":"DBADD","scope":"base","calls":["CH2NUM"]},"DBALL":{"id":"DBALL","label":"DBALL","scope":"base","calls":["DBINIT","DBADD"]},"DBCHK":{"id":"DBCHK","label":"DBCHK","scope":"base","calls":[]},"DBINIT":{"id":"DBINIT","label":"DBINIT","scope":"base","calls":[]},"DBPRSE":{"id":"DBPRSE","label":"DBPRSE","scope":"base","calls":["ISTLNB","DBADD"]},"DBSCAN":{"id":"DBSCAN","label":"DBSCAN","scope":"base","calls":["CH2NUM"]},"DENSE":{"id":"DENSE","label":"DENSE","scope":"base","calls":["BRATIO","MBACAL","CCFCAL","PCTILE","PTBAL"]},"DGBND":{"id":"DGBND","label":"DGBND","scope":"base","calls":[]},"DGSCOR":{"id":"DGSCOR","label":"DGSCOR","scope":"base","calls":["BACHLO"]},"DISPLY":{"id":"DISPLY","label":"DISPLY","scope":"base","calls":["FORTYP","PRTEXM","GROHED","LBSPLW","SUMOUT","OPLIST","SUMHED","DBSSUMRY2","DBSCARBBIOSUMRY"]},"DIST":{"id":"DIST","label":"DIST","scope":"base","calls":[]},"DBSERROR":{"id":"DBSERROR","label":"DBSERROR","scope":"base","calls":["FVSSETRTNCODE","DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"GRSTOP":{"id":"GRSTOP","label":"GRSTOP","scope":"base","calls":["FVSSETRTNCODE"]},"FVSGETICCODE":{"id":"FVSGETICCODE","label":"fvsGetICCode","scope":"base","calls":[]},"ESIN":{"id":"ESIN","label":"ESIN","scope":"base","calls":["OPMODE","RCDSET","KEYRDR","FNDKEY","OPNEW","SPDECD","KEYDMP"]},"ESINIT":{"id":"ESINIT","label":"ESINIT","scope":"base","calls":["ESRNSD"]},"ESEZCR":{"id":"ESEZCR","label":"ESEZCR","scope":"base","calls":[]},"ESNUTR":{"id":"ESNUTR","label":"ESNUTR","scope":"base","calls":["OPFIND","OPGET","OPDONE","ESUCKR","SPESRT","RDPSRT","OPSTUS","OPADD","ESTAB","OPDEL1"]},"ESPLT1":{"id":"ESPLT1","label":"ESPLT1","scope":"base","calls":[]},"_ESPLT_HABMAP":{"id":"_ESPLT_HABMAP","label":"_esplt_habmap","scope":"base","calls":[]},"ESPLT2":{"id":"ESPLT2","label":"ESPLT2","scope":"base","calls":["_ESPLT_HABMAP"]},"ESSPRT":{"id":"ESSPRT","label":"ESSPRT","scope":"base","calls":[]},"NSPREC":{"id":"NSPREC","label":"NSPREC","scope":"base","calls":[]},"SPRTHT":{"id":"SPRTHT","label":"SPRTHT","scope":"base","calls":[]},"ASSPTN":{"id":"ASSPTN","label":"ASSPTN","scope":"base","calls":[]},"ESTAB":{"id":"ESTAB","label":"ESTAB","scope":"base","calls":["ESETPR","ESRNSD","ESPREP","OPFIND","OPGET","OPDEL1","ESTIME","ESSUBH","BACHLO","OPDONE","ESGENT","CWCALC"]},"ESSUBH":{"id":"ESSUBH","label":"ESSUBH","scope":"base","calls":["HTCALC"]},"ESPREP":{"id":"ESPREP","label":"ESPREP","scope":"base","calls":[]},"ESTIME":{"id":"ESTIME","label":"ESTIME","scope":"base","calls":[]},"ESETPR":{"id":"ESETPR","label":"ESETPR","scope":"base","calls":["OPGET2","OPDON2"]},"ESGENT":{"id":"ESGENT","label":"ESGENT","scope":"base","calls":["SPESRT","REGENT"]},"ESASID":{"id":"ESASID","label":"ESASID","scope":"base","calls":[]},"ESTUMP":{"id":"ESTUMP","label":"ESTUMP","scope":"base","calls":["ESASID"]},"ESUCKR":{"id":"ESUCKR","label":"ESUCKR","scope":"base","calls":["OPFIND","OPGET","OPDONE","NSPREC","ESASID","ASSPTN","ESSPRT","SPRTHT","BACHLO","CWCALC"]},"EVLDX":{"id":"EVLDX","label":"EVLDX","scope":"base","calls":["RANN","SDICLS","RDCLS","RDSLTR","COVOLP","FMATV","FMEVCWD","FMEVSNG","FMEVFLM","FMEVMRT","FMEVFMD","FMEVSAL","FMEVTYP","FMEVSRT","FMEVRIN","FMEVTBM","FMEVCARB","RDPSRT","FMEVLSF","FMDWD","CLSPVIAB"]},"EVMON":{"id":"EVMON","label":"EVMON","scope":"base","calls":["EVTSTV","EVAGE","ALGEVL","EVPOST","LBTRIM","OPSAME","LBINTR","OPSCHD","OPINCR"]},"EVAGE":{"id":"EVAGE","label":"EVAGE","scope":"base","calls":[]},"EVALNK":{"id":"EVALNK","label":"EVALNK","scope":"base","calls":[]},"EVCOMP":{"id":"EVCOMP","label":"EVCOMP","scope":"base","calls":["ISTLNB","RCDSET","ALGCMP"]},"EVIF":{"id":"EVIF","label":"EVIF","scope":"base","calls":["EVEND","EVCOMP"]},"EVPOST":{"id":"EVPOST","label":"EVPOST","scope":"base","calls":["EVALNK"]},"FISHER_SN":{"id":"FISHER_SN","label":"FISHER_SN","scope":"base","calls":["FMATV","RDPSRT","FMEVMSN"]},"EVUSRV":{"id":"EVUSRV","label":"EVUSRV","scope":"base","calls":["ALGEXP","ALGKEY","EVMKV","ALGCMP","OPNEW"]},"_EVTACT_BODY5":{"id":"_EVTACT_BODY5","label":"_evtact_body5","scope":"base","calls":["KEYDMP","ALGCMP"]},"EVTHEN":{"id":"EVTHEN","label":"EVTHEN","scope":"base","calls":["KEYDMP","_EVTACT_BODY5"]},"EVALSO":{"id":"EVALSO","label":"EVALSO","scope":"base","calls":["KEYDMP","_EVTACT_BODY5"]},"EVEND":{"id":"EVEND","label":"EVEND","scope":"base","calls":["KEYDMP"]},"EVTSTV":{"id":"EVTSTV","label":"EVTSTV","scope":"base","calls":["RDCLS2","FISHER_SN","GETORGV","OPFIND","OPGET","ALGEVL","OPDONE","OPDEL1","DBSEVM"]},"GETORGV":{"id":"GETORGV","label":"GETORGV","scope":"base","calls":[]},"DBSEVM":{"id":"DBSEVM","label":"DBSEVM","scope":"base","calls":["OPGETC","DBSOPEN","DBSEXECSQL","OPDONE"]},"EVSET4":{"id":"EVSET4","label":"EVSET4","scope":"base","calls":[]},"EVUST4":{"id":"EVUST4","label":"EVUST4","scope":"base","calls":[]},"EVGET4":{"id":"EVGET4","label":"EVGET4","scope":"base","calls":[]},"EXTREE":{"id":"EXTREE","label":"EXTREE","scope":"base","calls":[]},"MISDAM":{"id":"MISDAM","label":"MISDAM","scope":"base","calls":[]},"CLSPVIAB":{"id":"CLSPVIAB","label":"CLSPVIAB","scope":"base","calls":[]},"CALCDIA":{"id":"CALCDIA","label":"CALCDIA","scope":"base","calls":[]},"MISIN":{"id":"MISIN","label":"MISIN","scope":"base","calls":[]},"RDIN":{"id":"RDIN","label":"RDIN","scope":"base","calls":[]},"SVSNAD":{"id":"SVSNAD","label":"SVSNAD","scope":"base","calls":[]},"ESPRIN":{"id":"ESPRIN","label":"ESPRIN","scope":"base","calls":["KEYDMP","OPNEW"]},"DBSFMLINK":{"id":"DBSFMLINK","label":"DBSFMLINK","scope":"base","calls":[]},"FMCANC":{"id":"FMCANC","label":"FMCANC","scope":"base","calls":[]},"FMCFIM":{"id":"FMCFIM","label":"FMCFIM","scope":"base","calls":[]},"BRK_UP":{"id":"BRK_UP","label":"BRK_UP","scope":"base","calls":[]},"SF_CORR":{"id":"SF_CORR","label":"SF_CORR","scope":"base","calls":[]},"EXCFIM":{"id":"EXCFIM","label":"EXCFIM","scope":"base","calls":[]},"BMPPPT":{"id":"BMPPPT","label":"BMPPPT","scope":"base","calls":[]},"RRPPPT":{"id":"RRPPPT","label":"RRPPPT","scope":"base","calls":[]},"BRESTB":{"id":"BRESTB","label":"BRESTB","scope":"base","calls":[]},"MPBLNKD":{"id":"MPBLNKD","label":"MPBLNKD","scope":"base","calls":[]},"MISINF":{"id":"MISINF","label":"MISINF","scope":"base","calls":["RDTRES"]},"RDSTR":{"id":"RDSTR","label":"RDSTR","scope":"base","calls":[]},"ESRNSD":{"id":"ESRNSD","label":"ESRNSD","scope":"base","calls":[]},"ESOUT":{"id":"ESOUT","label":"ESOUT","scope":"base","calls":["MPBLNKD","MISINF"]},"FFERT":{"id":"FFERT","label":"FFERT","scope":"base","calls":["OPFIND","OPGET","OPDONE","OPDEL1","RCDSET","BRATIO"]},"FFIN":{"id":"FFIN","label":"FFIN","scope":"base","calls":["KEYDMP","OPNEWC","OPNEW"]},"SRS_VOL":{"id":"SRS_VOL","label":"SRS_VOL","scope":"base","calls":[]},"FILOPN":{"id":"FILOPN","label":"FILOPN","scope":"base","calls":["FVSSETRTNCODE","KEYFN","DBSVKFN","CALL_REVISE_PROMPT","UNBLNK","RCDSET","MYOPEN","FVSGETKEYWORDFILENAME_STORE"]},"FILCLOSE":{"id":"FILCLOSE","label":"FILClose","scope":"base","calls":["DBSCLOSE"]},"OPENIFCLOSED":{"id":"OPENIFCLOSED","label":"openIfClosed","scope":"base","calls":[]},"MYOPEN":{"id":"MYOPEN","label":"MYOPEN","scope":"base","calls":[]},"DBSVKFN":{"id":"DBSVKFN","label":"DBSVKFN","scope":"base","calls":[]},"CALL_REVISE_PROMPT":{"id":"CALL_REVISE_PROMPT","label":"CALL_REVISE_prompt","scope":"base","calls":[]},"FVSGETKEYWORDFILENAME_STORE":{"id":"FVSGETKEYWORDFILENAME_STORE","label":"fvsGetKeywordFileName_store","scope":"base","calls":[]},"_FORMCL_BSEARCH":{"id":"_FORMCL_BSEARCH","label":"_formcl_bsearch","scope":"base","calls":[]},"_IFCDBH":{"id":"_IFCDBH","label":"_ifcdbh","scope":"base","calls":[]},"FORMCL_BM":{"id":"FORMCL_BM","label":"FORMCL_BM","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_CA":{"id":"FORMCL_CA","label":"FORMCL_CA","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_EC":{"id":"FORMCL_EC","label":"FORMCL_EC","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_NI":{"id":"FORMCL_NI","label":"FORMCL_NI","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_PN":{"id":"FORMCL_PN","label":"FORMCL_PN","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_SO":{"id":"FORMCL_SO","label":"FORMCL_SO","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORMCL_WC":{"id":"FORMCL_WC","label":"FORMCL_WC","scope":"base","calls":["_FORMCL_BSEARCH","_IFCDBH"]},"FORTYP":{"id":"FORTYP","label":"FORTYP","scope":"base","calls":["STKVAL"]},"FVS":{"id":"FVS","label":"FVS!","scope":"base","calls":["INITRE","ECSETP","OPEXPN","OPCYCL","OPLIST","SETUP","NOTRE","OPCSET","SDICLS","CRATET","CWIDTH","VOLS","PCTILE","DIST","EXTREE","STATS","DBSREFERENCE","GHEADS","DISPLY","PRTRLS","DBS_FIAVBC_TRLS","SVSTART","EVTSTV","TREGRO","RESAGE","SSTAGE","ESOUT","BWEOUT","GENPRT"]},"DBCHK_FVS":{"id":"DBCHK_FVS","label":"DBCHK_FVS","scope":"base","calls":[]},"SVSTART":{"id":"SVSTART","label":"SVSTART","scope":"base","calls":[]},"BWEOUT":{"id":"BWEOUT","label":"BWEOUT","scope":"base","calls":[]},"NATCRS":{"id":"NATCRS","label":"NATCRS","scope":"base","calls":["_R8CLARK_VOL","SRS_VOL","JENKINS"]},"OCFVOL":{"id":"OCFVOL","label":"OCFVOL","scope":"base","calls":["FVSBRUCEDEMARS","FVSHANNBARE","FVSSIERRALOG","TWIGCF"]},"OBFVOL":{"id":"OBFVOL","label":"OBFVOL","scope":"base","calls":["FVSOLDGRO","HANNBAREBF","LOGS","TWIGBF"]},"GETEQN":{"id":"GETEQN","label":"GETEQN","scope":"base","calls":["BRATIO"]},"FVSBRUCEDEMARS":{"id":"FVSBRUCEDEMARS","label":"FVSBRUCEDEMARS","scope":"base","calls":[]},"FVSHANNBARE":{"id":"FVSHANNBARE","label":"FVSHANNBARE","scope":"base","calls":[]},"HANNBAREBF":{"id":"HANNBAREBF","label":"HANNBAREBF","scope":"base","calls":[]},"FVSSIERRALOG":{"id":"FVSSIERRALOG","label":"FVSSIERRALOG","scope":"base","calls":[]},"FVSOLDGRO":{"id":"FVSOLDGRO","label":"FVSOLDGRO","scope":"base","calls":[]},"LOGS":{"id":"LOGS","label":"LOGS","scope":"base","calls":[]},"TWIGCF":{"id":"TWIGCF","label":"TWIGCF","scope":"base","calls":[]},"TWIGBF":{"id":"TWIGBF","label":"TWIGBF","scope":"base","calls":[]},"GENRPT":{"id":"GENRPT","label":"GENRPT","scope":"base","calls":[]},"GETID":{"id":"GETID","label":"GETID","scope":"base","calls":[]},"GETLUN":{"id":"GETLUN","label":"GETLUN","scope":"base","calls":[]},"GENPRT":{"id":"GENPRT","label":"GENPRT","scope":"base","calls":[]},"GETNRPTS":{"id":"GETNRPTS","label":"GETNRPTS","scope":"base","calls":[]},"SETNRPTS":{"id":"SETNRPTS","label":"SETNRPTS","scope":"base","calls":[]},"GETSED":{"id":"GETSED","label":"GETSED","scope":"base","calls":["GRDTIM"]},"GETSTD":{"id":"GETSTD","label":"GETSTD","scope":"base","calls":["IFREAD","SETNRPTS","LFREAD","FMSATV","BFREAD","VARGET","FMPPGET","DBSPPGET","CHGET","MYOPEN"]},"GHEADS":{"id":"GHEADS","label":"GHEADS","scope":"base","calls":["GROHED"]},"FIAHEAD":{"id":"FIAHEAD","label":"FIAHEAD","scope":"base","calls":[]},"VOLEQHEAD":{"id":"VOLEQHEAD","label":"VOLEQHEAD","scope":"base","calls":[]},"GRADD":{"id":"GRADD","label":"GRADD","scope":"base","calls":["BRATIO","FMMAIN","FMKILL","OPSTUS","HTGSTP","UPDATE","RDPSRT","DENSE","ESNUTR","ECCALC","CROWN","CWIDTH","PCTILE","DIST","COMP"]},"GRDTIM":{"id":"GRDTIM","label":"GRDTIM","scope":"base","calls":[]},"GRINCR":{"id":"GRINCR","label":"GRINCR","scope":"base","calls":["OPCSET","OPFIND","OPGET","OPDONE","HABTYP","RCON","FMSDIT","SILFTY","SDICAL","SDICLS","SSTAGE","EVMON","ECSTATUS","CUTS","DENSE","COMCUP","DGDRIV","HTGF","REGENT","MORTS","REASS","FFERT"]},"GROWS":{"id":"GROWS","label":"GROWS","scope":"base","calls":[]},"HTDBH":{"id":"HTDBH","label":"HTDBH","scope":"base","calls":[]},"HTGSTP":{"id":"HTGSTP","label":"HTGSTP","scope":"base","calls":["OPFIND","OPGET","OPDONE","BRATIO","RANN","BACHLO"]},"IAPSRT":{"id":"IAPSRT","label":"IAPSRT","scope":"base","calls":[]},"INITRE":{"id":"INITRE","label":"INITRE","scope":"base","calls":["KEYRDR","FVSSETRTNCODE","FNDKEY","GRINIT","OPINIT","RANSED","ESINIT","ISSTAG","FMINIT","ECINIT","DBSINIT","EVEND","INTREE","ESEZCR","DAMPRO","TRESOR","DBSCASE","FORKOD","HABTYP","SITSET","LBDSET","TRNSLO","TRNASP","ESPLT2","KEYDMP","OPNEWC","SPDECD","OPNEW","NVB_REGION_CHECK","DBPRSE","DBALL","LBSPLR","LBAGLR","EVUSRV","FFIN","SDEFLN","SDEFET","ESIN","DBINIT","GETSED","EVIF","EVTHEN","EVALSO","KEYOPN","DUNN","MISIN","RDIN","FMIN","KSSTAG","FORTYP","SVKEY","ECIN","DBSIN","PTGDECD","VOLEQDEF","SETCUBICDFLTS"]},"INTREE":{"id":"INTREE","label":"INTREE","scope":"base","calls":["RDTRES","PARSE_TREE_RECORD","SPCTRN","ESPLT1","DAMCDS","LNKCHN"]},"_FMT_SPLIT":{"id":"_FMT_SPLIT","label":"_fmt_split","scope":"base","calls":[]},"_FMT_EXPAND":{"id":"_FMT_EXPAND","label":"_fmt_expand!","scope":"base","calls":["_FMT_SPLIT"]},"_FMT_SINGLE":{"id":"_FMT_SINGLE","label":"_fmt_single!","scope":"base","calls":[]},"_GET_TREFMT_FIELDS":{"id":"_GET_TREFMT_FIELDS","label":"_get_trefmt_fields","scope":"base","calls":[]},"_READ_FIELD":{"id":"_READ_FIELD","label":"_read_field","scope":"base","calls":[]},"_RI":{"id":"_RI","label":"_ri","scope":"base","calls":[]},"_RF":{"id":"_RF","label":"_rf","scope":"base","calls":[]},"_RS":{"id":"_RS","label":"_rs","scope":"base","calls":[]},"PARSE_TREE_RECORD":{"id":"PARSE_TREE_RECORD","label":"parse_tree_record","scope":"base","calls":["_GET_TREFMT_FIELDS","_RI","_RF","_RS"]},"PARSE_INT_FIELD":{"id":"PARSE_INT_FIELD","label":"parse_int_field","scope":"base","calls":[]},"PARSE_REAL_FIELD":{"id":"PARSE_REAL_FIELD","label":"parse_real_field","scope":"base","calls":[]},"RDTRES":{"id":"RDTRES","label":"RDTRES","scope":"base","calls":[]},"IQRSRT":{"id":"IQRSRT","label":"IQRSRT","scope":"base","calls":[]},"ISSTAG":{"id":"ISSTAG","label":"ISSTAG","scope":"base","calls":[]},"RQSSTG":{"id":"RQSSTG","label":"RQSSTG","scope":"base","calls":[]},"KSSTAG":{"id":"KSSTAG","label":"KSSTAG","scope":"base","calls":[]},"KEYRDR":{"id":"KEYRDR","label":"KEYRDR","scope":"base","calls":["GROHED","ISTLNB","UPKEY","KEYDMP"]},"KEYFN":{"id":"KEYFN","label":"KEYFN","scope":"base","calls":[]},"FNDKEY":{"id":"FNDKEY","label":"FNDKEY","scope":"base","calls":[]},"KEYOPN":{"id":"KEYOPN","label":"KEYOPN","scope":"base","calls":["KEYDMP","UNBLNK","MYOPEN"]},"KEYDMP":{"id":"KEYDMP","label":"KEYDMP","scope":"base","calls":[]},"RCDSET":{"id":"RCDSET","label":"RCDSET","scope":"base","calls":["FVSSETRTNCODE"]},"LB1MEM":{"id":"LB1MEM","label":"LB1MEM","scope":"base","calls":[]},"LBMEMR":{"id":"LBMEMR","label":"LBMEMR","scope":"base","calls":["LB1MEM"]},"LBUNIN":{"id":"LBUNIN","label":"LBUNIN","scope":"base","calls":["LB1MEM","LBMEMR"]},"LBINTR":{"id":"LBINTR","label":"LBINTR","scope":"base","calls":["LB1MEM","LBMEMR"]},"LBTRIM":{"id":"LBTRIM","label":"LBTRIM","scope":"base","calls":["LBINTR"]},"LBGET1":{"id":"LBGET1","label":"LBGET1","scope":"base","calls":["ISTLNB"]},"LBSTRD":{"id":"LBSTRD","label":"LBSTRD","scope":"base","calls":["LBGET1","LBUNIN","ISTLNB"]},"LBAGLR":{"id":"LBAGLR","label":"LBAGLR","scope":"base","calls":["LBSTRD","RCDSET"]},"LBSPLR":{"id":"LBSPLR","label":"LBSPLR","scope":"base","calls":["LBSTRD","RCDSET"]},"LBDSET":{"id":"LBDSET","label":"LBDSET","scope":"base","calls":["LBUNIN","RCDSET"]},"LBSPLW":{"id":"LBSPLW","label":"LBSPLW","scope":"base","calls":[]},"LNKCHN":{"id":"LNKCHN","label":"LNKCHN","scope":"base","calls":[]},"LNKINT":{"id":"LNKINT","label":"LNKINT","scope":"base","calls":[]},"MAIN":{"id":"MAIN","label":"main","scope":"base","calls":["FVS","FVSGETICCODE"]},"MBACAL":{"id":"MBACAL","label":"MBACAL","scope":"base","calls":[]},"MEANSD":{"id":"MEANSD","label":"MEANSD","scope":"base","calls":[]},"MAICAL":{"id":"MAICAL","label":"MAICAL","scope":"base","calls":[]},"MRULES":{"id":"MRULES","label":"MRULES","scope":"base","calls":[]},"MULTS":{"id":"MULTS","label":"MULTS","scope":"base","calls":["OPFIND","OPGET","OPDONE"]},"NOTRE":{"id":"NOTRE","label":"NOTRE","scope":"base","calls":[]},"OPADD":{"id":"OPADD","label":"OPADD","scope":"base","calls":["OPNEW"]},"OPREDT":{"id":"OPREDT","label":"OPREDT","scope":"base","calls":[]},"OPCOPY":{"id":"OPCOPY","label":"OPCOPY","scope":"base","calls":[]},"OPSCHD":{"id":"OPSCHD","label":"OPSCHD","scope":"base","calls":[]},"OPINCR":{"id":"OPINCR","label":"OPINCR","scope":"base","calls":["OPSORT","OPCYCL","OPCSET"]},"OPBISR":{"id":"OPBISR","label":"OPBISR","scope":"base","calls":[]},"OPCACT":{"id":"OPCACT","label":"OPCACT","scope":"base","calls":[]},"OPCSET":{"id":"OPCSET","label":"OPCSET","scope":"base","calls":["IAPSRT"]},"OPCYCL":{"id":"OPCYCL","label":"OPCYCL","scope":"base","calls":[]},"OPDON2":{"id":"OPDON2","label":"OPDON2","scope":"base","calls":[]},"OPEXPN":{"id":"OPEXPN","label":"OPEXPN","scope":"base","calls":["OPSORT"]},"OPFIND":{"id":"OPFIND","label":"OPFIND","scope":"base","calls":["OPMERG"]},"OPGET":{"id":"OPGET","label":"OPGET","scope":"base","calls":["OPEVAL"]},"OPGETC":{"id":"OPGETC","label":"OPGETC","scope":"base","calls":[]},"OPCHPR":{"id":"OPCHPR","label":"OPCHPR","scope":"base","calls":[]},"OPDONE":{"id":"OPDONE","label":"OPDONE","scope":"base","calls":[]},"OPDEL1":{"id":"OPDEL1","label":"OPDEL1","scope":"base","calls":[]},"OPDEL2":{"id":"OPDEL2","label":"OPDEL2","scope":"base","calls":[]},"OPDEL3":{"id":"OPDEL3","label":"OPDEL3","scope":"base","calls":[]},"OPGET2":{"id":"OPGET2","label":"OPGET2","scope":"base","calls":["OPEVAL"]},"OPGET3":{"id":"OPGET3","label":"OPGET3","scope":"base","calls":["OPEVAL"]},"OPINIT":{"id":"OPINIT","label":"OPINIT","scope":"base","calls":[]},"ESKEY":{"id":"ESKEY","label":"ESKEY","scope":"base","calls":["FMKEY"]},"OPLIST":{"id":"OPLIST","label":"OPLIST","scope":"base","calls":["OPSORT","OPCYCL","DBSCMPU","OPBISR","ESKEY","FMKEY"]},"OPMERG":{"id":"OPMERG","label":"OPMERG","scope":"base","calls":["OPSORT"]},"OPNEW":{"id":"OPNEW","label":"OPNEW","scope":"base","calls":[]},"OPMODE":{"id":"OPMODE","label":"OPMODE","scope":"base","calls":[]},"OPNEWC":{"id":"OPNEWC","label":"OPNEWC","scope":"base","calls":["UPCASE","ISTLNB","ALGCMP"]},"OPRDAT":{"id":"OPRDAT","label":"OPRDAT","scope":"base","calls":["OPADD","OPINCR"]},"OPSAME":{"id":"OPSAME","label":"OPSAME","scope":"base","calls":["LBUNIN"]},"OPSORT":{"id":"OPSORT","label":"OPSORT","scope":"base","calls":[]},"OPSTUS":{"id":"OPSTUS","label":"OPSTUS","scope":"base","calls":[]},"OPEVAC":{"id":"OPEVAC","label":"OPEVAC","scope":"base","calls":[]},"PCTILE":{"id":"PCTILE","label":"PCTILE","scope":"base","calls":[]},"PRTEXM":{"id":"PRTEXM","label":"PRTEXM","scope":"base","calls":["GHEADS"]},"DBSTRLS":{"id":"DBSTRLS","label":"DBSTRLS","scope":"base","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC","_DBS_ADD_COLUMN"]},"DBSATRTLS":{"id":"DBSATRTLS","label":"DBSATRTLS","scope":"base","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC","_DBS_ADD_COLUMN"]},"DBSCUTS":{"id":"DBSCUTS","label":"DBSCUTS","scope":"base","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC","_DBS_ADD_COLUMN"]},"PRTRLS":{"id":"PRTRLS","label":"PRTRLS","scope":"base","calls":["OPFIND","OPGET","OPDONE","DBSTRLS","DBSATRTLS","DBSCUTS","OPENIFCLOSED"]},"DBS_FIAVBC_TRLS":{"id":"DBS_FIAVBC_TRLS","label":"DBS_FIAVBC_TRLS","scope":"base","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"PTBAL":{"id":"PTBAL","label":"PTBAL","scope":"base","calls":[]},"PTGDECD":{"id":"PTGDECD","label":"PTGDECD","scope":"base","calls":[]},"BFREAD":{"id":"BFREAD","label":"BFREAD","scope":"base","calls":["DSTASH"]},"BFWRIT":{"id":"BFWRIT","label":"BFWRIT","scope":"base","calls":["STASH"]},"CHREAD":{"id":"CHREAD","label":"CHREAD","scope":"base","calls":["CHDSTH"]},"CHWRIT":{"id":"CHWRIT","label":"CHWRIT","scope":"base","calls":["CHSTSH"]},"LFREAD":{"id":"LFREAD","label":"LFREAD","scope":"base","calls":["DSTASH"]},"LFWRIT":{"id":"LFWRIT","label":"LFWRIT","scope":"base","calls":["STASH"]},"IFREAD":{"id":"IFREAD","label":"IFREAD","scope":"base","calls":["DSTASH"]},"IFWRIT":{"id":"IFWRIT","label":"IFWRIT","scope":"base","calls":["STASH"]},"_R8_REMAP_SPEC":{"id":"_R8_REMAP_SPEC","label":"_r8_remap_spec","scope":"base","calls":[]},"_R8CLARK_LOOKUP":{"id":"_R8CLARK_LOOKUP","label":"_r8clark_lookup","scope":"base","calls":["_R8_REMAP_SPEC"]},"_R9CUFT":{"id":"_R9CUFT","label":"_r9cuft","scope":"base","calls":[]},"_R9HT":{"id":"_R9HT","label":"_r9ht","scope":"base","calls":[]},"_R8_FCMIN_ADJ":{"id":"_R8_FCMIN_ADJ","label":"_r8_fcmin_adj","scope":"base","calls":[]},"_R8CLARK_VOL":{"id":"_R8CLARK_VOL","label":"_R8CLARK_VOL","scope":"base","calls":["_R8CLARK_LOOKUP","_R8_FCMIN_ADJ","_R9CUFT","_R9HT","_R8_SCRIBNER_BF"]},"_R8_SCRIBNER_BF":{"id":"_R8_SCRIBNER_BF","label":"_r8_scribner_bf","scope":"base","calls":["_R9DIB_CLARK"]},"_R9DIB_CLARK":{"id":"_R9DIB_CLARK","label":"_r9dib_clark","scope":"base","calls":[]},"RANN":{"id":"RANN","label":"RANN","scope":"base","calls":[]},"RANSED":{"id":"RANSED","label":"RANSED","scope":"base","calls":[]},"RANNGET":{"id":"RANNGET","label":"RANNGET","scope":"base","calls":[]},"RANNPUT":{"id":"RANNPUT","label":"RANNPUT","scope":"base","calls":[]},"RCON":{"id":"RCON","label":"RCON","scope":"base","calls":["DGCONS","HTCONS","REGCON","MORCON","CRCONS"]},"RDPSRT":{"id":"RDPSRT","label":"RDPSRT","scope":"base","calls":[]},"REGENT":{"id":"REGENT","label":"REGENT","scope":"base","calls":["MULTS","BACHLO","HTCALC","HTDBH","BRATIO","DGBND","DBSCALIB"]},"REGCON":{"id":"REGCON","label":"REGCON","scope":"base","calls":[]},"RESAGE":{"id":"RESAGE","label":"RESAGE","scope":"base","calls":["OPFIND","OPGET","OPDONE"]},"REVISE":{"id":"REVISE","label":"REVISE","scope":"base","calls":[]},"SDEFET":{"id":"SDEFET","label":"SDEFET","scope":"base","calls":["KEYDMP","OPNEWC","SPDECD","ALGSLP","OPNEW"]},"SDEFLN":{"id":"SDEFLN","label":"SDEFLN","scope":"base","calls":["SPDECD"]},"SDICAL":{"id":"SDICAL","label":"SDICAL","scope":"base","calls":["CLMAXDEN"]},"SDICLS":{"id":"SDICLS","label":"SDICLS","scope":"base","calls":[]},"CCCLS":{"id":"CCCLS","label":"CCCLS","scope":"base","calls":[]},"RDCLS":{"id":"RDCLS","label":"RDCLS","scope":"base","calls":[]},"RDCLS2":{"id":"RDCLS2","label":"RDCLS2","scope":"base","calls":[]},"RDSLTR":{"id":"RDSLTR","label":"RDSLTR","scope":"base","calls":[]},"SILFTY":{"id":"SILFTY","label":"SILFTY","scope":"base","calls":[]},"SDICHK":{"id":"SDICHK","label":"SDICHK","scope":"base","calls":["SDICAL"]},"SETCUBICDFLTS":{"id":"SETCUBICDFLTS","label":"SETCUBICDFLTS","scope":"base","calls":[]},"SETUP":{"id":"SETUP","label":"SETUP","scope":"base","calls":[]},"SF_TAPER":{"id":"SF_TAPER","label":"SF_TAPER","scope":"base","calls":[]},"SGDECD":{"id":"SGDECD","label":"SGDECD","scope":"base","calls":[]},"SPCTRN":{"id":"SPCTRN","label":"SPCTRN","scope":"base","calls":[]},"SPDECD":{"id":"SPDECD","label":"SPDECD","scope":"base","calls":["SGDECD","KEYDMP"]},"SPESRT":{"id":"SPESRT","label":"SPESRT","scope":"base","calls":["LNKCHN","SETUP"]},"SSTAGE":{"id":"SSTAGE","label":"SSTAGE","scope":"base","calls":["UPDATECCCOEF","EVUST4"]},"FMSSTAGE":{"id":"FMSSTAGE","label":"FMSSTAGE","scope":"base","calls":[]},"_SSTAGE_CORE":{"id":"_SSTAGE_CORE","label":"_sstage_core!","scope":"base","calls":["RDPSRT","COVOLP","EVSET4","EVUST4","DBSSTRCLASS","GETID"]},"_SSTGHP":{"id":"_SSTGHP","label":"_sstghp!","scope":"base","calls":["RDPSRT","PCTILE"]},"_SSTGHTPA":{"id":"_SSTGHTPA","label":"_sstghtpa!","scope":"base","calls":[]},"UPDATECCCOEF":{"id":"UPDATECCCOEF","label":"UPDATECCCOEF","scope":"base","calls":["OPFIND","OPGET","OPDONE"]},"_WRITE_FORTRAN_RECORD":{"id":"_WRITE_FORTRAN_RECORD","label":"_write_fortran_record","scope":"base","calls":[]},"_READ_FORTRAN_RECORD":{"id":"_READ_FORTRAN_RECORD","label":"_read_fortran_record!","scope":"base","calls":[]},"STASH":{"id":"STASH","label":"STASH","scope":"base","calls":["_WRITE_FORTRAN_RECORD"]},"CHSTSH":{"id":"CHSTSH","label":"CHSTSH","scope":"base","calls":["_WRITE_FORTRAN_RECORD"]},"DSTASH":{"id":"DSTASH","label":"DSTASH","scope":"base","calls":[]},"CHDSTH":{"id":"CHDSTH","label":"CHDSTH","scope":"base","calls":[]},"TVALUE":{"id":"TVALUE","label":"TVALUE","scope":"base","calls":[]},"STATS":{"id":"STATS","label":"STATS","scope":"base","calls":["TVALUE","DBSSTATS"]},"_STKVAL_INIT_TAB3":{"id":"_STKVAL_INIT_TAB3","label":"_stkval_init_tab3!","scope":"base","calls":[]},"STKVAL":{"id":"STKVAL","label":"STKVAL","scope":"base","calls":[]},"SUMHED":{"id":"SUMHED","label":"SUMHED","scope":"base","calls":["REVISE"]},"SUMOUT":{"id":"SUMOUT","label":"SUMOUT","scope":"base","calls":["REVISE","GRDTIM","DBSSUMRY"]},"SVCUTS":{"id":"SVCUTS","label":"SVCUTS","scope":"base","calls":[]},"SVKEY":{"id":"SVKEY","label":"SVKEY","scope":"base","calls":["RCDSET"]},"SVRANN":{"id":"SVRANN","label":"SVRANN","scope":"base","calls":[]},"SVRSED":{"id":"SVRSED","label":"SVRSED","scope":"base","calls":[]},"SVRANNGET":{"id":"SVRANNGET","label":"SVRANNGET","scope":"base","calls":[]},"SVRANNPUT":{"id":"SVRANNPUT","label":"SVRANNPUT","scope":"base","calls":[]},"SVCROL":{"id":"SVCROL","label":"SVCROL","scope":"base","calls":[]},"SVNTR":{"id":"SVNTR","label":"SVNTR","scope":"base","calls":["SVRANN"]},"SVHABT":{"id":"SVHABT","label":"SVHABT","scope":"base","calls":[]},"SVGTPT":{"id":"SVGTPT","label":"SVGTPT","scope":"base","calls":["SVRANN"]},"SVONLN":{"id":"SVONLN","label":"SVONLN","scope":"base","calls":[]},"SVDFLN":{"id":"SVDFLN","label":"SVDFLN","scope":"base","calls":[]},"SVLCOL":{"id":"SVLCOL","label":"SVLCOL","scope":"base","calls":["SVDFLN"]},"SVLSOL":{"id":"SVLSOL","label":"SVLSOL","scope":"base","calls":[]},"SVLNOL":{"id":"SVLNOL","label":"SVLNOL","scope":"base","calls":["SVDFLN","SVLSOL","SVONLN"]},"SVOBOL":{"id":"SVOBOL","label":"SVOBOL","scope":"base","calls":["SVCROL","SVLCOL","SVLNOL"]},"FVSOLDSEC":{"id":"FVSOLDSEC","label":"FVSOLDSEC","scope":"base","calls":[]},"FVSOLDFST":{"id":"FVSOLDFST","label":"FVSOLDFST","scope":"base","calls":[]},"TREDEL":{"id":"TREDEL","label":"TREDEL","scope":"base","calls":["IQRSRT","TREMOV","FMTDEL"]},"TREGRO":{"id":"TREGRO","label":"TREGRO","scope":"base","calls":["GRINCR","GRADD"]},"TREMOV":{"id":"TREMOV","label":"TREMOV","scope":"base","calls":[]},"SVTRIP":{"id":"SVTRIP","label":"SVTRIP","scope":"base","calls":["FMTRIP"]},"REASS":{"id":"REASS","label":"REASS","scope":"base","calls":[]},"UPDATE":{"id":"UPDATE","label":"UPDATE","scope":"base","calls":["PCTILE","DIST","COMP","VOLS","BRATIO"]},"UPCASE":{"id":"UPCASE","label":"UPCASE","scope":"base","calls":[]},"CH2NUM":{"id":"CH2NUM","label":"CH2NUM","scope":"base","calls":[]},"UPKEY":{"id":"UPKEY","label":"UPKEY","scope":"base","calls":[]},"UNBLNK":{"id":"UNBLNK","label":"UNBLNK","scope":"base","calls":[]},"TRESOR":{"id":"TRESOR","label":"TRESOR","scope":"base","calls":[]},"DUNN":{"id":"DUNN","label":"DUNN","scope":"base","calls":[]},"BEHRE":{"id":"BEHRE","label":"BEHRE","scope":"base","calls":[]},"TRNSLO":{"id":"TRNSLO","label":"TRNSLO","scope":"base","calls":[]},"CMRANG":{"id":"CMRANG","label":"CMRANG","scope":"base","calls":[]},"ISTFNB":{"id":"ISTFNB","label":"ISTFNB","scope":"base","calls":[]},"ISTLNB":{"id":"ISTLNB","label":"ISTLNB","scope":"base","calls":[]},"TRNASP":{"id":"TRNASP","label":"TRNASP","scope":"base","calls":[]},"EVMKV":{"id":"EVMKV","label":"EVMKV","scope":"base","calls":[]},"R6FIX":{"id":"R6FIX","label":"R6FIX!","scope":"base","calls":[]},"NUMLOG":{"id":"NUMLOG","label":"NUMLOG","scope":"base","calls":[]},"UUIDGEN":{"id":"UUIDGEN","label":"UUIDGEN","scope":"base","calls":[]},"VERNUM":{"id":"VERNUM","label":"VERNUM","scope":"base","calls":[]},"VERNUM2":{"id":"VERNUM2","label":"VERNUM2","scope":"base","calls":[]},"VERNUM_F":{"id":"VERNUM_F","label":"VERNUM_F","scope":"base","calls":[]},"VERNUM_R":{"id":"VERNUM_R","label":"vernum_r","scope":"base","calls":[]},"VOLKEY":{"id":"VOLKEY","label":"VOLKEY","scope":"base","calls":["OPFIND","OPGET","OPDEL1","OPDONE"]},"VOLS":{"id":"VOLS","label":"VOLS","scope":"base","calls":["VOLKEY","BRATIO","NATCRS","OCFVOL","CFVOL","CFTOPK","ALGSLP","ECVOL","OBFVOL","BFVOL","BFTOPK","COMP","PCTILE","DIST"]},"ECVOL":{"id":"ECVOL","label":"ECVOL","scope":"base","calls":[]},"_R8_CEQN":{"id":"_R8_CEQN","label":"_r8_ceqn","scope":"base","calls":[]},"VOLEQDEF":{"id":"VOLEQDEF","label":"VOLEQDEF","scope":"base","calls":["_R8_CEQN"]},"NVBEQDEF":{"id":"NVBEQDEF","label":"NVBEQDEF","scope":"base","calls":[]},"NVB_REGION_CHECK":{"id":"NVB_REGION_CHECK","label":"NVB_REGION_CHECK","scope":"base","calls":[]},"CLMAXDEN":{"id":"CLMAXDEN","label":"CLMAXDEN","scope":"base","calls":[]},"OPEVAL":{"id":"OPEVAL","label":"OPEVAL","scope":"base","calls":["ALGEVL"]},"_INIT_OUTCOM_CHARS":{"id":"_INIT_OUTCOM_CHARS","label":"_init_outcom_chars!","scope":"common","calls":[]},"_DBS_TABLE_EXISTS":{"id":"_DBS_TABLE_EXISTS","label":"_dbs_table_exists","scope":"ext","calls":[]},"_DBS_COLUMN_EXISTS":{"id":"_DBS_COLUMN_EXISTS","label":"_dbs_column_exists","scope":"ext","calls":[]},"_DBS_ADD_COLUMN":{"id":"_DBS_ADD_COLUMN","label":"_dbs_add_column","scope":"ext","calls":["_DBS_COLUMN_EXISTS","_DBS_EXEC"]},"_DBS_EXEC":{"id":"_DBS_EXEC","label":"_dbs_exec","scope":"ext","calls":[]},"DBSINIT":{"id":"DBSINIT","label":"DBSINIT","scope":"ext","calls":[]},"DBSACTV":{"id":"DBSACTV","label":"DBSACTV","scope":"ext","calls":[]},"DBSCLOSE":{"id":"DBSCLOSE","label":"DBSCLOSE","scope":"ext","calls":[]},"DBSCASE":{"id":"DBSCASE","label":"DBSCASE","scope":"ext","calls":["_DBS_EXEC","UUIDGEN","_DBS_TABLE_EXISTS","GRDTIM","REVISE"]},"DBSCARBBIOSUMRY":{"id":"DBSCARBBIOSUMRY","label":"DBSCARBBIOSUMRY","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSSUMRY":{"id":"DBSSUMRY","label":"DBSSUMRY","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC","_DBS_ADD_COLUMN"]},"DBSSUMRY2":{"id":"DBSSUMRY2","label":"DBSSUMRY2","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBS_FIAVBC_ATRTLS":{"id":"DBS_FIAVBC_ATRTLS","label":"DBS_FIAVBC_ATRTLS","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBS_FIAVBC_CUTLST":{"id":"DBS_FIAVBC_CUTLST","label":"DBS_FIAVBC_CUTLST","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSOPEN":{"id":"DBSOPEN","label":"DBSOPEN","scope":"ext","calls":["DBSCLOSE","_DBS_EXEC"]},"DBSIN":{"id":"DBSIN","label":"DBSIN","scope":"ext","calls":["KEYRDR","FNDKEY","DBSOPEN","DBSCASE","FMLNKD"]},"DBSSTANDIN":{"id":"DBSSTANDIN","label":"DBSSTANDIN","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSPRS":{"id":"DBSPRS","label":"DBSPRS","scope":"ext","calls":[]},"DBSPRSSQL":{"id":"DBSPRSSQL","label":"DBSPRSSQL","scope":"ext","calls":["DBSCASE","ALGKEY","EVLDX"]},"DBSCALIB":{"id":"DBSCALIB","label":"DBSCALIB","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSREFERENCE":{"id":"DBSREFERENCE","label":"DBSREFERENCE","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSSITEPREP":{"id":"DBSSITEPREP","label":"DBSSITEPREP","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSSTATS":{"id":"DBSSTATS","label":"DBSSTATS","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSSTRCLASS":{"id":"DBSSTRCLASS","label":"DBSSTRCLASS","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSCMPU":{"id":"DBSCMPU","label":"DBSCMPU","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC","_DBS_ADD_COLUMN","_INSERT_CMPU"]},"_INSERT_CMPU":{"id":"_INSERT_CMPU","label":"_insert_cmpu","scope":"ext","calls":[]},"DBSEXECSQL":{"id":"DBSEXECSQL","label":"DBSEXECSQL","scope":"ext","calls":["DBSPRSSQL","RCDSET"]},"DBSTALLY":{"id":"DBSTALLY","label":"DBSTALLY","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSFUELS":{"id":"DBSFUELS","label":"DBSFUELS","scope":"ext","calls":[]},"DBSFMBURN":{"id":"DBSFMBURN","label":"DBSFMBURN","scope":"ext","calls":[]},"DBSFMFUEL":{"id":"DBSFMFUEL","label":"DBSFMFUEL","scope":"ext","calls":[]},"DBSFMMORT":{"id":"DBSFMMORT","label":"DBSFMMORT","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSFMPF":{"id":"DBSFMPF","label":"DBSFMPF","scope":"ext","calls":[]},"DBSFMPFC":{"id":"DBSFMPFC","label":"DBSFMPFC","scope":"ext","calls":[]},"DBSFMSSNAG":{"id":"DBSFMSSNAG","label":"DBSFMSSNAG","scope":"ext","calls":[]},"DBSFMDWVOL":{"id":"DBSFMDWVOL","label":"DBSFMDWVOL","scope":"ext","calls":[]},"DBSFMDWCOV":{"id":"DBSFMDWCOV","label":"DBSFMDWCOV","scope":"ext","calls":[]},"DBSFMHRPT":{"id":"DBSFMHRPT","label":"DBSFMHRPT","scope":"ext","calls":[]},"DBSFMDSNAG":{"id":"DBSFMDSNAG","label":"DBSFMDSNAG","scope":"ext","calls":[]},"DBSECHARV_OPEN":{"id":"DBSECHARV_OPEN","label":"DBSECHARV_open","scope":"ext","calls":["DBSCASE","_DBS_TABLE_EXISTS","_DBS_EXEC"]},"DBSECHARV":{"id":"DBSECHARV","label":"DBSECHARV","scope":"ext","calls":[]},"DBSFMCANPR":{"id":"DBSFMCANPR","label":"DBSFMCANPR","scope":"ext","calls":["IFWRIT","DBSCLOSE"]},"DBSPPGET":{"id":"DBSPPGET","label":"DBSPPGET","scope":"ext","calls":["IFREAD","DBSCLOSE","DBSOPEN"]},"DBSCHPUT":{"id":"DBSCHPUT","label":"DBSCHPUT","scope":"ext","calls":["CHWRIT","DBSCLOSE"]},"DBSCHGET":{"id":"DBSCHGET","label":"DBSCHGET","scope":"ext","calls":["CHREAD"]},"_EC_PV":{"id":"_EC_PV","label":"_ec_pv","scope":"econ","calls":[]},"ECINIT":{"id":"ECINIT","label":"ECINIT","scope":"econ","calls":[]},"ECSETP":{"id":"ECSETP","label":"ECSETP","scope":"econ","calls":["OPNEW"]},"ECSTATUS":{"id":"ECSTATUS","label":"ECSTATUS","scope":"econ","calls":["OPFIND","OPGET","OPDONE"]},"ECCALC":{"id":"ECCALC","label":"ECCALC","scope":"econ","calls":["DBSECHARV_OPEN","_EC_PV"]},"ECIN":{"id":"ECIN","label":"ECIN","scope":"econ","calls":["KEYRDR","RCDSET"]},"FMBRKT":{"id":"FMBRKT","label":"FMBRKT","scope":"fire","calls":[]},"FMBURN":{"id":"FMBURN","label":"FMBURN","scope":"fire","calls":["OPFIND","OPGET","OPDONE","OPDEL1","FMCFMD3","FMFOUT","FMMOIS","ALGSLP","FMCFMD","FMFINT","FMCFIR","FMCBA","FMSOILHEAT","FMEFF","FMCONS"]},"FMCADD":{"id":"FMCADD","label":"FMCADD","scope":"fire","calls":[]},"FMCBA":{"id":"FMCBA","label":"FMCBA","scope":"fire","calls":["ALGSLP","FMSNFT","RCDSET","OPFIND","OPGET","FMPHOTOVAL","OPDONE"]},"SNGCOE":{"id":"SNGCOE","label":"SNGCOE","scope":"fire","calls":[]},"FMCBIO":{"id":"FMCBIO","label":"FMCBIO","scope":"fire","calls":[]},"FMCBLK":{"id":"FMCBLK","label":"FMCBLK!","scope":"fire","calls":[]},"FMCFIR":{"id":"FMCFIR","label":"FMCFIR","scope":"fire","calls":["FMFINT"]},"FMCFMD":{"id":"FMCFMD","label":"FMCFMD","scope":"fire","calls":["FMSNFT","FMDYN"]},"FMCFMD2":{"id":"FMCFMD2","label":"FMCFMD2","scope":"fire","calls":["OPFIND","OPGET","OPDONE","RDPSRT","RCDSET"]},"FMCFMD3":{"id":"FMCFMD3","label":"FMCFMD3","scope":"fire","calls":["FMPOCR","FMCFMD","FMCFMD2"]},"FMCHRVOUT":{"id":"FMCHRVOUT","label":"FMCHRVOUT","scope":"fire","calls":["DBSFMHRPT"]},"FMCMPR":{"id":"FMCMPR","label":"FMCMPR","scope":"fire","calls":[]},"FMCONS":{"id":"FMCONS","label":"FMCONS","scope":"fire","calls":["EVSET4","OPADD","OPINCR"]},"FMCRBOUT":{"id":"FMCRBOUT","label":"FMCRBOUT","scope":"fire","calls":["FMCBIO","FMSVL2"]},"FMCROW":{"id":"FMCROW","label":"FMCROW","scope":"fire","calls":["FMCROWE"]},"FMCROWE":{"id":"FMCROWE","label":"FMCROWE","scope":"fire","calls":["HTDBH","FMSVL2","BRATIO"]},"FMCWD":{"id":"FMCWD","label":"FMCWD","scope":"fire","calls":[]},"_FMCWD_PROCESS":{"id":"_FMCWD_PROCESS","label":"_fmcwd_process!","scope":"fire","calls":[]},"CWD1":{"id":"CWD1","label":"CWD1","scope":"fire","calls":["FMSVL2"]},"CWD2":{"id":"CWD2","label":"CWD2","scope":"fire","calls":["FMSVL2"]},"CWD3":{"id":"CWD3","label":"CWD3","scope":"fire","calls":["FMSVL2"]},"FMDOUT":{"id":"FMDOUT","label":"FMDOUT","scope":"fire","calls":["FMSVOL","FMSVL2","DBSFUELS"]},"FMCHKFWT":{"id":"FMCHKFWT","label":"FMCHKFWT","scope":"fire","calls":["RCDSET"]},"FMDYN":{"id":"FMDYN","label":"FMDYN","scope":"fire","calls":["FMCHKFWT","RCDSET"]},"FMEFF":{"id":"FMEFF","label":"FMEFF","scope":"fire","calls":["RANNGET","RANN","FMBRKT","FMSCRO","FMSSEE","RANNPUT","FMSVTOBJ","FMSVOUT","FMSADD"]},"FMEVFLM":{"id":"FMEVFLM","label":"FMEVFLM","scope":"fire","calls":[]},"FMEVMRT":{"id":"FMEVMRT","label":"FMEVMRT","scope":"fire","calls":[]},"FMEVFMD":{"id":"FMEVFMD","label":"FMEVFMD","scope":"fire","calls":[]},"FMEVCWD":{"id":"FMEVCWD","label":"FMEVCWD","scope":"fire","calls":[]},"FMEVSNG":{"id":"FMEVSNG","label":"FMEVSNG","scope":"fire","calls":["_FMEV_SPECIES_MATCH","_FMEV_SNAG_VAL"]},"_FMEV_SPECIES_MATCH":{"id":"_FMEV_SPECIES_MATCH","label":"_fmev_species_match","scope":"fire","calls":[]},"_FMEV_SNAG_VAL":{"id":"_FMEV_SNAG_VAL","label":"_fmev_snag_val","scope":"fire","calls":["FMSVOL"]},"FMEVSAL":{"id":"FMEVSAL","label":"FMEVSAL","scope":"fire","calls":["_FMEV_SPECIES_MATCH","FMSVL2"]},"FMEVTYP":{"id":"FMEVTYP","label":"FMEVTYP","scope":"fire","calls":[]},"FMTREM":{"id":"FMTREM","label":"FMTREM","scope":"fire","calls":[]},"FMEVTBM":{"id":"FMEVTBM","label":"FMEVTBM","scope":"fire","calls":["_FMEV_SPECIES_MATCH","FMSVOL","FMSVL2"]},"FMEVSRT":{"id":"FMEVSRT","label":"FMEVSRT","scope":"fire","calls":[]},"FMEVRIN":{"id":"FMEVRIN","label":"FMEVRIN","scope":"fire","calls":[]},"FMEVCARB":{"id":"FMEVCARB","label":"FMEVCARB","scope":"fire","calls":[]},"FMDWD":{"id":"FMDWD","label":"FMDWD","scope":"fire","calls":[]},"FMEVMSN":{"id":"FMEVMSN","label":"FMEVMSN","scope":"fire","calls":[]},"FMEVLSF":{"id":"FMEVLSF","label":"FMEVLSF","scope":"fire","calls":[]},"FMFINT":{"id":"FMFINT","label":"FMFINT","scope":"fire","calls":["FMGFMV"]},"FMFOUT":{"id":"FMFOUT","label":"FMFOUT","scope":"fire","calls":["DBSFMBURN","DBSFMFUEL","DBSFMMORT"]},"FMGFMV":{"id":"FMGFMV","label":"FMGFMV","scope":"fire","calls":["ALGSLP"]},"FMHIDE":{"id":"FMHIDE","label":"FMHIDE","scope":"fire","calls":["FMSVOL"]},"FMKEYDMP":{"id":"FMKEYDMP","label":"FMKEYDMP","scope":"fire","calls":[]},"FMKEYRDR":{"id":"FMKEYRDR","label":"FMKEYRDR","scope":"fire","calls":["GROHED","UPKEY","FMKEYDMP"]},"FMKEY":{"id":"FMKEY","label":"FMKEY","scope":"fire","calls":[]},"FMIN":{"id":"FMIN","label":"FMIN","scope":"fire","calls":["FMKEYRDR","FNDKEY","FMKEYDMP","OPNEWC","SPDECD","OPNEW","GETID","FMMOIS","DBSFMLINK","FMPHOTOCODE","RCDSET"]},"FMINIT":{"id":"FMINIT","label":"FMINIT","scope":"fire","calls":["FMVINIT"]},"FMATV":{"id":"FMATV","label":"FMATV","scope":"fire","calls":[]},"FMSATV":{"id":"FMSATV","label":"FMSATV","scope":"fire","calls":[]},"FMLNKD":{"id":"FMLNKD","label":"FMLNKD","scope":"fire","calls":[]},"FMKILL":{"id":"FMKILL","label":"FMKILL","scope":"fire","calls":["ESTUMP","FMSSEE","FMSADD"]},"FMMAIN":{"id":"FMMAIN","label":"FMMAIN","scope":"fire","calls":["EVSET4","OPFIND","OPGET","OPDONE","FMCBA","FMTRET","FMFMOV","FMUSRFM","FMBURN","FMSOUT","FMSSUM","FMPOCR","FMCFMD3","FMPOFL","FMDOUT","FMCRBOUT","FMCHRVOUT","EVTSTV","FMSNAG","FMCWD","FMCADD","FMOLDC","FMSVSYNC"]},"FMMOIS":{"id":"FMMOIS","label":"FMMOIS","scope":"fire","calls":[]},"FMOLDC":{"id":"FMOLDC","label":"FMOLDC","scope":"fire","calls":[]},"FMPHOTOCODE":{"id":"FMPHOTOCODE","label":"FMPHOTOCODE","scope":"fire","calls":["RCDSET"]},"_MK_PROPROT":{"id":"_MK_PROPROT","label":"_mk_proprot","scope":"fire","calls":[]},"FMPHOTOVAL":{"id":"FMPHOTOVAL","label":"FMPHOTOVAL","scope":"fire","calls":["RCDSET"]},"FMPOCR":{"id":"FMPOCR","label":"FMPOCR","scope":"fire","calls":["DBSFMCANPR"]},"FMPOFL":{"id":"FMPOFL","label":"FMPOFL","scope":"fire","calls":["ALGSLP","FMMOIS","FMCFMD","FMFINT","FMEFF","FMCONS","FVSSETRTNCODE","FMPOFL_FMPTRH","EVSET4","DBSFMPFC","DBSFMPF"]},"FMPOFL_FMPTRH":{"id":"FMPOFL_FMPTRH","label":"FMPOFL_FMPTRH","scope":"fire","calls":["RDPSRT","RANNGET","RANN","FMPOFL_NPROB","RANNPUT"]},"FMPOFL_NPROB":{"id":"FMPOFL_NPROB","label":"FMPOFL_NPROB","scope":"fire","calls":[]},"FMPPGET":{"id":"FMPPGET","label":"FMPPGET","scope":"fire","calls":["IFREAD","LFREAD","BFREAD"]},"FMPPPUT":{"id":"FMPPPUT","label":"FMPPPUT","scope":"fire","calls":["IFWRIT","LFWRIT","BFWRIT"]},"FMPRUN":{"id":"FMPRUN","label":"FMPRUN","scope":"fire","calls":["FMCROW"]},"FMR6HTLS":{"id":"FMR6HTLS","label":"FMR6HTLS","scope":"fire","calls":["RANN"]},"FMR6SDCY":{"id":"FMR6SDCY","label":"FMR6SDCY","scope":"fire","calls":[]},"FMSADD":{"id":"FMSADD","label":"FMSADD","scope":"fire","calls":["FMSCRO","FMCBIO","OPGET"]},"FMSALV":{"id":"FMSALV","label":"FMSALV","scope":"fire","calls":["OPFIND","FMSVOL","OPGET","OPDONE","FMSVL2","CWD1","OPCHPR"]},"FMSCRO":{"id":"FMSCRO","label":"FMSCRO","scope":"fire","calls":["FMSNGDK"]},"FMSCUT":{"id":"FMSCUT","label":"FMSCUT","scope":"fire","calls":["FMSSEE","CWD3","FMSVL2","FMCBIO","FMSADD"]},"FMSDIT":{"id":"FMSDIT","label":"FMSDIT","scope":"fire","calls":["EVUST4","EVSET4","FMCROW","FMSADD"]},"FMSFALL":{"id":"FMSFALL","label":"FMSFALL","scope":"fire","calls":[]},"FMSNAG":{"id":"FMSNAG","label":"FMSNAG","scope":"fire","calls":["OPFIND","OPGET","FMSSEE","FMSADD","OPDONE","RANNGET","FMSFALL","CWD1","FMSNGHT","CWD2","FMSNGDK","RANNPUT"]},"FMSNFT":{"id":"FMSNFT","label":"FMSNFT","scope":"fire","calls":[]},"FMSNGDK":{"id":"FMSNGDK","label":"FMSNGDK","scope":"fire","calls":["SVHABT","FMR6SDCY"]},"FMSNGHT":{"id":"FMSNGHT","label":"FMSNGHT","scope":"fire","calls":["FMR6HTLS"]},"FMSOILHEAT":{"id":"FMSOILHEAT","label":"FMSOILHEAT","scope":"fire","calls":[]},"FMSOUT":{"id":"FMSOUT","label":"FMSOUT","scope":"fire","calls":["OPFIND","OPGET","OPDONE","FMSVOL","DBSFMDSNAG","OPENIFCLOSED"]},"FMSSEE":{"id":"FMSSEE","label":"FMSSEE","scope":"fire","calls":[]},"FMSSUM":{"id":"FMSSUM","label":"FMSSUM","scope":"fire","calls":["DBSFMSSNAG","GETID"]},"FMSVFL":{"id":"FMSVFL","label":"FMSVFL","scope":"fire","calls":[]},"FMGETFL":{"id":"FMGETFL","label":"FMGETFL","scope":"fire","calls":[]},"_FMSVOL_SHARED":{"id":"_FMSVOL_SHARED","label":"_fmsvol_shared","scope":"fire","calls":["BRATIO","NATCRS","OCFVOL","CFVOL","CFTOPK"]},"FMSVOL":{"id":"FMSVOL","label":"FMSVOL","scope":"fire","calls":["_FMSVOL_SHARED"]},"FMSVL2":{"id":"FMSVL2","label":"FMSVL2","scope":"fire","calls":["_FMSVOL_SHARED"]},"FMSVOUT":{"id":"FMSVOUT","label":"FMSVOUT","scope":"fire","calls":["BACHLO"]},"FMSVSYNC":{"id":"FMSVSYNC","label":"FMSVSYNC","scope":"fire","calls":[]},"FMSVTOBJ":{"id":"FMSVTOBJ","label":"FMSVTOBJ","scope":"fire","calls":[]},"FMSVTREE":{"id":"FMSVTREE","label":"FMSVTREE","scope":"fire","calls":["SVRANN","BACHLO"]},"FMTDEL":{"id":"FMTDEL","label":"FMTDEL","scope":"fire","calls":[]},"FMTRET":{"id":"FMTRET","label":"FMTRET","scope":"fire","calls":["OPFIND","OPGET","OPDONE","FMMOIS","FMCONS","FMSSEE","FMSCRO","FMSADD"]},"FMFMOV":{"id":"FMFMOV","label":"FMFMOV","scope":"fire","calls":["OPFIND","OPGET","OPDEL1","OPCHPR","OPDONE"]},"FMTRIP":{"id":"FMTRIP","label":"FMTRIP","scope":"fire","calls":[]},"FMUSRFM":{"id":"FMUSRFM","label":"FMUSRFM","scope":"fire","calls":["OPFIND","OPGET","OPDONE","RDPSRT","RCDSET","OPDEL1"]},"FMVINIT":{"id":"FMVINIT","label":"FMVINIT","scope":"fire","calls":[]},"AVHT40":{"id":"AVHT40","label":"AVHT40","scope":"sn","calls":[]},"BLKDAT":{"id":"BLKDAT","label":"BLKDAT!","scope":"sn","calls":[]},"BRATIO":{"id":"BRATIO","label":"BRATIO","scope":"sn","calls":[]},"_BUILD_MCREQN":{"id":"_BUILD_MCREQN","label":"_build_mcreqn","scope":"sn","calls":[]},"_BUILD_WEIBUL":{"id":"_BUILD_WEIBUL","label":"_build_weibul","scope":"sn","calls":[]},"CROWN":{"id":"CROWN","label":"CROWN","scope":"sn","calls":["OPFIND","OPGET","OPDONE","RANN","DUBSCR"]},"CRCONS":{"id":"CRCONS","label":"CRCONS","scope":"sn","calls":[]},"DGDRIV":{"id":"DGDRIV","label":"DGDRIV","scope":"sn","calls":["MULTS","AUTCOR","DGF","BRATIO","DGSCOR","MISDGF","DGBND","REVISE","GRDTIM","BACHLO","DBSCALIB"]},"MISDGF":{"id":"MISDGF","label":"MISDGF","scope":"sn","calls":[]},"DGF":{"id":"DGF","label":"DGF","scope":"sn","calls":["BRATIO"]},"DGCONS":{"id":"DGCONS","label":"DGCONS","scope":"sn","calls":[]},"DUBSCR":{"id":"DUBSCR","label":"DUBSCR","scope":"sn","calls":[]},"FINDAG":{"id":"FINDAG","label":"FINDAG","scope":"sn","calls":["HTCALC"]},"FORKOD":{"id":"FORKOD","label":"FORKOD","scope":"sn","calls":[]},"FORMCL":{"id":"FORMCL","label":"FORMCL","scope":"sn","calls":[]},"GRINIT":{"id":"GRINIT","label":"GRINIT","scope":"sn","calls":["LNKINT","DBINIT"]},"GROHED":{"id":"GROHED","label":"GROHED","scope":"sn","calls":["REVISE","GRDTIM"]},"HBDECD":{"id":"HBDECD","label":"HBDECD","scope":"sn","calls":[]},"HABTYP":{"id":"HABTYP","label":"HABTYP","scope":"sn","calls":["HBDECD"]},"HTCALC":{"id":"HTCALC","label":"HTCALC","scope":"sn","calls":[]},"HTGF":{"id":"HTGF","label":"HTGF","scope":"sn","calls":["MULTS","HTCALC"]},"HTCONS":{"id":"HTCONS","label":"HTCONS","scope":"sn","calls":[]},"_MORTS_IN_GRP":{"id":"_MORTS_IN_GRP","label":"_morts_in_grp","scope":"sn","calls":[]},"MORTS":{"id":"MORTS","label":"MORTS","scope":"sn","calls":["OPFIND","OPGET","OPDONE","BRATIO","SDICAL","VARMRT","MSBMRT","_MORTS_IN_GRP","RDPSRT"]},"MORCON":{"id":"MORCON","label":"MORCON","scope":"sn","calls":[]},"MSBMRT":{"id":"MSBMRT","label":"MSBMRT","scope":"sn","calls":[]},"NBOLT":{"id":"NBOLT","label":"NBOLT","scope":"sn","calls":[]},"SITSET":{"id":"SITSET","label":"SITSET","scope":"sn","calls":["NVB_REGION_CHECK","VOLEQDEF","NVBEQDEF","FIAHEAD","VOLEQHEAD"]},"VARGET":{"id":"VARGET","label":"VARGET","scope":"sn","calls":["IFREAD"]},"VARCHGET":{"id":"VARCHGET","label":"VARCHGET","scope":"sn","calls":[]},"VARMRT":{"id":"VARMRT","label":"VARMRT","scope":"sn","calls":[]},"VARPUT":{"id":"VARPUT","label":"VARPUT","scope":"sn","calls":["IFWRIT"]},"VARCHPUT":{"id":"VARCHPUT","label":"VARCHPUT","scope":"sn","calls":[]}};   // const GRAPH = { id: {label, scope, calls:[...]}, ... }
 
-// ---- graph model ----------------------------------------------------------
-// children = call hierarchy (drives expand/collapse). refs = cross-calls shown
-// whenever both endpoints are visible (this is how a shared routine gets new
-// arrows from each expanded caller).
-const N = (label,status,desc,children=[],refs=[]) => ({label,status,desc,children,refs});
-const MODEL = {
-  FVS: N('FVS main','partial','Top-level driver (fvs.f): init, then the per-cycle report→grow loop, then output.',
-         ['INITRE','SETUP','NOTRE','CYCLE']),
-
-  INITRE: N('INITRE','ported','Read .key keywords + .tre tree data; set all run options. → initialize()',
-            ['KWDISP','HABTYP','SITSET','FORKOD']),
-  KWDISP: N('keyword dispatch','ported','Dispatch each keyword card by name (engine/keyword_dispatch.jl).'),
-  HABTYP: N('HABTYP','ported','Decode the STDINFO habitat field into the PCOM ecological-unit code.',['HBDECD','SNECU']),
-  HBDECD: N('HBDECD','ported','Numeric ⇒ index into SNECU; alpha ⇒ uppercased exact match; else default #122.'),
-  SNECU:  N('SNECU table','ported','320 Southern ecological-unit codes (variants/southern/habitat.jl).'),
-  SITSET: N('SITSET','ported','Per-species site-index array from the site species/SITECODE.'),
-  FORKOD: N('FORKOD','ported','Forest-code → default lat/long/elevation.'),
-
-  SETUP: N('SETUP','ported','Per-stand setup before cycling. → setup_growth!',['GETSED','DGCONS','SDICHK','DGCAL']),
-  GETSED: N('GETSED','ported','Seed the faithful LCG RNG (FVSRng).'),
-  DGCONS: N('DGCONS','ported','Site-dependent diameter-growth constants dg_const/atten (dgcons!).'),
-  SDICHK: N('SDICHK','ported','If the stand starts over-dense, reset every species SDImax so self-thinning does not run away (sdi_max_check!).'),
-  DGCAL:  N('DG calibration','ported','LSTART pass: per-species growth COR from the input measured DG.'),
-
-  NOTRE: N('NOTRE','ported','Expand sample-design tree records into the live TreeList (SoA). → notre!'),
-
-  CYCLE: N('per-cycle loop','partial','For each cycle: REPORT the stand, then GROW it one period.',['REPORT','TREGRO']),
-
-  REPORT: N('REPORT','ported','Compute volume + stats and emit the .sum/.out row before growth.',
-            ['CRATET','VOLS','CWIDTH','STATS']),
-  CRATET: N('CRATET','ported','Dub missing heights; resolve broken-top NORMHT (dub_missing_heights!).'),
-  VOLS:   N('VOLS','ported','Per-tree volumes. → compute_volumes!',['R8CLARK','CFTOPK','BFTOPK','SCRIB']),
-  R8CLARK:N('R8 Clark','ported','Cubic-foot volume (Clark profile).'),
-  CFTOPK: N('CFTOPK','ported','Behre cubic top-kill correction for broken tops.'),
-  BFTOPK: N('BFTOPK','ported','Board-foot top-kill correction.'),
-  SCRIB:  N('Scribner','ported','Board-foot (Scribner) volume.'),
-  CWIDTH: N('CWIDTH','ported','Crown width by species (CSV-driven).'),
-  STATS:  N('STATS','ported','Stand statistics + the .sum row.',['DISPLY','SUMOUT']),
-  DISPLY: N('DISPLY','ported','Stand/age-class display tables.'),
-  SUMOUT: N('SUMOUT','ported','Write the .sum summary row (io/summary.jl).'),
-
-  TREGRO: N('TREGRO','ported','One growth cycle = GRINCR (increments) + GRADD (apply). → grow_cycle!',['GRINCR','GRADD']),
-
-  GRINCR: N('GRINCR','ported','Compute growth increments + scheduled harvest (no records applied yet).',
-            ['SDICAL','SSTAGE','CUTS','DENSE','DGDRIV','HTGF','REGENT','MORTS','TRIPLE','FFERT']),
-  SDICAL: N('SDICAL','ported','BA-weighted stand max SDI. → stand_sdimax',['CLMAXDEN','BAMAX']),
-  CLMAXDEN:N('CLMAXDEN','noop','Climate SDImax reduction — IF(.NOT.LCLIMATE)RETURN; no-op without the CLIMATE extension (oracle stubs it too).'),
-  BAMAX:  N('BAMAX','ported','Stand max basal area = SDImax·0.5454154·PMSDIU.'),
-  SSTAGE: N('SSTAGE','partial','Stand structure stage / class (not used in the .sum math).'),
-  CUTS:   N('CUTS','ported','Scheduled thinning / harvest (THINDBH/THINBTA…).'),
-  DENSE:  N('DENSE','ported','Recompute stand density (BA, AVH, PTBAA). → compute_density! (shared).'),
-  DGDRIV: N('DGDRIV','ported','Diameter growth driver. → diameter_growth!',['DGF','MULTS','AUTCOR','DGSCOR','MISDGF','BACHLO']),
-  DGF:    N('DGF','ported','Predicted ln(DDS) per tree from site/competition/physiography.'),
-  MULTS:  N('MULTS','partial','Growth-multiplier keyword hooks (inert without the keyword).'),
-  AUTCOR: N('AUTCOR','ported','Serial-correlation parameters (σ, ρ) for the untripled path.'),
-  DGSCOR: N('DGSCOR','partial','Serial-correlated single DG (untripled cyc≥3). Source of the ~1–2% OLDRN volume tail.'),
-  MISDGF: N('MISDGF','noop','Mistletoe DG reduction — no-op without the mistletoe model.'),
-  BACHLO: N('BACHLO','ported','Box–Muller normal draw for reproducible per-tree growth noise (shared).'),
-  HTGF:   N('HTGF','ported','Height growth. → height_growth!',['HTCALC','HTCAP']),
-  HTCALC: N('HTCALC','ported','Chapman-Richards curve: back out age (mode 0), take 5-yr increment (mode 9) (shared).'),
-  HTCAP:  N('SIZCAP[,4] cap','notported','Species height cap HT+HTG>SIZCAP[,4]. No-op now (default 999); needed for the SIZECAP keyword.'),
-  REGENT: N('REGENT','partial','Small-tree (<3") height-driven growth. → small_tree_growth!',['HTCALC','HTDBH','BACHLO','ESTAB']),
-  HTDBH:  N('HTDBH','ported','Inverse height→dbh to derive the small-tree DG (_htdbh_dbh).'),
-  ESTAB:  N('establishment mode','notported','REGENT lestb branch: grow newly-established trees (C4 regen).'),
-  MORTS:  N('MORTS','ported','Periodic mortality. → mortality!',['SDICAL','VARMRT','BAMAX','MSBMRT','SIZCAPM']),
-  VARMRT: N('VARMRT','ported','Distribute mortality toward suppressed (low-percentile) trees.'),
-  MSBMRT: N('MSB mortality','notported','Mature-stand-boundary extra mortality — keyword-gated (QMDMSB=999 default).'),
-  SIZCAPM:N('size-cap mortality','notported','Kill trees above SIZCAP[,1] — keyword-gated (default 999).'),
-  TRIPLE: N('TRIPLE','ported','Record tripling (cyc1-2): split each tree into central/upper/lower. → triple_records!',['REASS']),
-  REASS:  N('REASS','ported','Reindex records after tripling (ITRN*=3).'),
-  FFERT:  N('FFERT','notported','Fertilizer response — keyword option.'),
-
-  GRADD:  N('GRADD','partial','Apply growth & update records, establishment, crown.',
-            ['FMMAIN','REGEN','HTGSTP','UPDATE','DENSE','CROWN','CWIDTH']),
-  FMMAIN: N('FMMAIN','ooscope','FFE fire effects + fire-caused mortality (C7). The s10_fire/fire_* divergence.'),
-  REGEN:  N('regeneration','notported','Natural/planted/sprout regen + nutrient hook (C4).',['CLAUESTB','ESNUTR','BRTREG']),
-  CLAUESTB:N('CLAUESTB','notported','Natural establishment.'),
-  ESNUTR: N('ESNUTR','notported','Establishment nutrient hook.'),
-  BRTREG: N('BRTREG','notported','Sprout regeneration.'),
-  HTGSTP: N('HTGSTP','notported','HTGSTOP/TOPKILL keyword height edits (no-op otherwise).'),
-  UPDATE: N('UPDATE','ported','Apply DG/HTG → DBH/HT (+bark, NORMHT for broken tops). Inline in grow_cycle!.'),
-  CROWN:  N('CROWN','ported','Crown-ratio update: relSDI → mean CR → Weibull draw → ±change cap. → crown_ratio_update!'),
+// ---- port-status overlay (curated for the analyzed C3/C4 core; extensions get a
+//      scope default; everything else is 'unknown' until classified) -----------
+const STATUS = {
+  FVS:'partial', INITRE:'ported', SETUP:'ported', NOTRE:'ported', CRATET:'ported',
+  VOLS:'ported', CFVOL:'ported', BFVOL:'ported', OCFVOL:'ported', OBFVOL:'ported',
+  CFTOPK:'ported', BFTOPK:'ported', ECVOL:'ported', NATCRS:'ported', VOLKEY:'ported',
+  R8CLARK_VOL:'ported', CWIDTH:'ported', CWCALC:'ported',
+  DENSE:'ported', BRATIO:'ported', MBACAL:'ported', CCFCAL:'ported', PCTILE:'ported',
+  PTBAL:'ported', DIST:'ported', COMP:'ported', STATS:'ported', DISPLY:'ported',
+  SDICAL:'ported', CLMAXDEN:'noop', SDICLS:'partial', SDICHK:'ported',
+  DGDRIV:'ported', DGF:'ported', DGCONS:'ported', MULTS:'partial', AUTCOR:'ported',
+  ARMA:'ported', DGSCOR:'partial', BACHLO:'ported', MISDGF:'noop',
+  HTGF:'ported', HTCALC:'ported', REGENT:'partial', HTDBH:'ported',
+  MORTS:'ported', VARMRT:'ported', MSBMRT:'notported', _MORTS_IN_GRP:'ported',
+  TRIPLE:'ported', REASS:'ported', UPDATE:'ported', CROWN:'ported', DUBSCR:'ported',
+  RANN:'ported', CUTS:'ported', SSTAGE:'partial', COMPRS:'notported', CMRANG:'notported',
+  MEANSD:'ported', RDPSRT:'ported', IQRSRT:'ported', TREDEL:'ported',
+  HABTYP:'ported', HBDECD:'ported', SITSET:'ported', FORTYP:'ported', FORKOD:'ported',
+  GETSED:'ported', COMCUP:'notported',
+  ESNUTR:'notported', BRTREG:'notported', RDTREG:'notported', CLAUESTB:'notported',
+  HTGSTP:'notported', FFERT:'notported', MISTOE:'notported',
 };
+// short human notes for the analyzed routines (others fall back to a generated line)
+const DESC = {
+  FVS:'Top-level driver: init, then the per-cycle report→grow loop, then output.',
+  SDICAL:'BA-weighted stand max SDI; CLMAXDEN climate reduction is a no-op without the CLIMATE extension.',
+  MORTS:'Periodic mortality: self-thinning target → VARMRT distribution → BAMAX cap; MSB/size-cap are keyword-gated.',
+  DGDRIV:'Diameter-growth driver: DGF prediction + (tripling | DGSCOR serial-correlation).',
+  DGSCOR:'Serial-correlated single DG for untripled cycles — source of the ~1–2% OLDRN volume tail.',
+  HABTYP:'Decode the STDINFO habitat field into the PCOM ecological-unit code (numeric ⇒ SNECU index).',
+  COMPRS:'Record compression (similar trees merged): MEANSD stats → sort → range/group → TREDEL. Not yet ported.',
+  CROWN:'Crown-ratio update (relSDI → mean CR → Weibull draw → ±change cap).',
+  VOLS:'Per-tree volumes: cubic (CFVOL/Clark), merch, sawtimber, board-ft (BFVOL), with top-kill corrections.',
+};
+const COLOR={ ported:'#3fb950', partial:'#d29922', notported:'#f85149', ooscope:'#388bfd', noop:'#6e7681', unknown:'#30363d' };
+const SLABEL={ ported:'ported & validated', partial:'partial / simplified', notported:'not ported (in-scope)', ooscope:'out of scope', noop:'no-op in oracle', unknown:'not yet classified' };
+const SCOPELABEL={ base:'generic (all variants)', sn:'variant-only (Southern)', fire:'extension — fire (FFE)', econ:'extension — economics', ext:'extension', common:'shared COMMON / utility' };
+const SHAPE={ base:'round-rectangle', sn:'hexagon', fire:'diamond', econ:'diamond', ext:'diamond', common:'ellipse' };
 
-// explicit flows (override the linear default) — 'P' = parent/entry, branches OK.
-MODEL.MORTS.flow = [['P','SDICAL'],['SDICAL','VARMRT'],['VARMRT','BAMAX'],
-                    ['BAMAX','MSBMRT'],['BAMAX','SIZCAPM']];
+const statusOf = id => STATUS[id] || (['fire','econ','ext'].includes((GRAPH[id]||{}).scope) ? 'ooscope' : 'unknown');
+const childrenOf = id => (GRAPH[id] ? GRAPH[id].calls : []).filter(c=>GRAPH[c]);
 
-// ---- expand / collapse engine --------------------------------------------
-const ROOTS = ['FVS'];
-const expanded = new Set(ROOTS);   // start with only the root opened
-
-function visibleSet() {
-  const vis = new Set(ROOTS);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const id of Array.from(vis)) {
-      if (!expanded.has(id)) continue;
-      for (const c of MODEL[id].children) if (!vis.has(c)) { vis.add(c); changed = true; }
-    }
+// ---- expand / collapse ----------------------------------------------------
+const ROOTS=['FVS'];
+const expanded=new Set(ROOTS);
+function visibleSet(){ const vis=new Set(ROOTS); let ch=true;
+  while(ch){ ch=false; for(const id of Array.from(vis)){ if(!expanded.has(id))continue;
+    for(const c of childrenOf(id)) if(!vis.has(c)){vis.add(c);ch=true;} } } return vis; }
+function buildElements(){
+  const vis=visibleSet(); const els=[];
+  for(const id of vis){ const g=GRAPH[id]; const kids=childrenOf(id).length;
+    const mark=!kids?'':(expanded.has(id)?'  ▾':'  ▸');
+    els.push({data:{id,label:(g?g.label:id)+mark,status:statusOf(id),scope:(g?g.scope:'base'),hasKids:kids>0}}); }
+  const seen=new Set();
+  const add=(s,t,kind)=>{ if(!vis.has(s)||!vis.has(t)||s===t)return; const e=kind+':'+s+'>'+t;
+    if(seen.has(e))return; seen.add(e); els.push({data:{id:e,source:s,target:t,kind}}); };
+  // each expanded node flows through the functions it calls, in source/exec order;
+  // a callee shared by several expanded callers gets an arrow from each (auto-dedup).
+  const drawnTo=new Set();
+  for(const id of vis){ if(!expanded.has(id))continue;
+    const kids=childrenOf(id).filter(c=>vis.has(c)); if(!kids.length)continue;
+    add(id,kids[0],'enter');
+    for(let i=0;i<kids.length-1;i++) add(kids[i],kids[i+1],'flow');
   }
-  return vis;
-}
-
-function buildElements() {
-  const vis = visibleSet();
-  const els = [];
-  for (const id of vis) {
-    const m = MODEL[id];
-    const hasKids = m.children.length > 0;
-    const mark = !hasKids ? '' : (expanded.has(id) ? '  ▾' : '  ▸');
-    els.push({ data:{ id, label:m.label + mark, status:m.status, hasKids } });
-  }
-  const seen = new Set();
-  const addEdge = (s,t,kind) => {
-    if (!vis.has(s) || !vis.has(t) || s===t) return;
-    const eid = kind+':'+s+'>'+t; if (seen.has(eid)) return; seen.add(eid);
-    els.push({ data:{ id:eid, source:s, target:t, kind } });
-  };
-  // Expanding a node reveals the FLOW between the functions it calls: the parent
-  // enters its first sub-step (dotted), then each sub-step flows to the next in
-  // execution order (solid). An explicit MODEL.flow overrides the linear default
-  // (use 'P' as the parent/entry, 'OUT' to stop). Shared callees get arrows from
-  // every expanded caller automatically (edges dedupe by id).
-  for (const id of vis) {
-    if (!expanded.has(id)) continue;
-    const kids = MODEL[id].children.filter(c => vis.has(c));
-    if (!kids.length) continue;
-    const flow = MODEL[id].flow;
-    if (flow) {
-      for (const [a,b] of flow) { if (b==='OUT') continue; addEdge(a==='P'?id:a, b, a==='P'?'enter':'flow'); }
-    } else {
-      addEdge(id, kids[0], 'enter');
-      for (let i=0; i<kids.length-1; i++) addEdge(kids[i], kids[i+1], 'flow');
-    }
-  }
-  for (const id of vis)              // cross-calls (dashed): shown when both ends visible
-    for (const r of (MODEL[id].refs||[])) addEdge(id, r, 'ref');
   return els;
 }
+function layoutOpts(){ return {name:'breadthfirst',directed:true,roots:ROOTS,spacingFactor:.9,padding:40,animate:true,animationDuration:250}; }
 
-const cy = cytoscape({
-  container: document.getElementById('cy'),
-  elements: buildElements(),
-  style: [
-    { selector:'node', style:{
-        'label':'data(label)', 'color':'#0c0f14', 'font-size':12, 'font-weight':600,
-        'text-valign':'center', 'text-halign':'center', 'shape':'round-rectangle',
-        'width':'label', 'height':28, 'padding':'8px',
-        'background-color': ele => COLOR[ele.data('status')] || '#888',
-        'border-width':1, 'border-color':'#0a0c10' } },
-    { selector:'node[?hasKids]', style:{ 'border-width':3, 'border-color':'#e6e6e6' } },
-    { selector:'edge', style:{
-        'width':2, 'line-color':'#9aa4b2', 'target-arrow-color':'#9aa4b2',
-        'target-arrow-shape':'triangle', 'curve-style':'bezier', 'arrow-scale':1.0 } },
-    { selector:'edge[kind="enter"]', style:{   /* parent → first internal step */
-        'line-style':'dotted', 'width':1.5, 'line-color':'#3a4150',
-        'target-arrow-color':'#3a4150' } },
-    { selector:'edge[kind="ref"]', style:{     /* cross-call to a shared routine */
-        'line-style':'dashed', 'line-color':'#8a5cf6', 'target-arrow-color':'#8a5cf6' } },
-    { selector:'.hl', style:{ 'border-color':'#fff', 'border-width':3 } },
-  ],
-  layout: layoutOpts(),
-  wheelSensitivity: 0.2,
-});
+const cy=cytoscape({ container:document.getElementById('cy'), elements:buildElements(),
+  style:[
+    {selector:'node',style:{'label':'data(label)','color':'#0c0f14','font-size':11,'font-weight':600,
+      'text-valign':'center','text-halign':'center','shape':e=>SHAPE[e.data('scope')]||'round-rectangle',
+      'width':'label','height':26,'padding':'7px','background-color':e=>COLOR[e.data('status')]||'#30363d',
+      'border-width':1,'border-color':'#0a0c10','color':e=>e.data('status')==='unknown'?'#e6e6e6':'#0c0f14'}},
+    {selector:'node[?hasKids]',style:{'border-width':3,'border-color':'#e6e6e6'}},
+    {selector:'edge',style:{'width':2,'line-color':'#9aa4b2','target-arrow-color':'#9aa4b2',
+      'target-arrow-shape':'triangle','curve-style':'bezier','arrow-scale':.9}},
+    {selector:'edge[kind="enter"]',style:{'line-style':'dotted','width':1.5,'line-color':'#3a4150','target-arrow-color':'#3a4150'}},
+    {selector:'edge[kind="ref"]',style:{'line-style':'dashed','line-color':'#8a5cf6','target-arrow-color':'#8a5cf6'}},
+    {selector:'.hl',style:{'border-color':'#fff','border-width':4}},
+  ], layout:layoutOpts(), wheelSensitivity:0.2 });
 
-function layoutOpts() {
-  return { name:'breadthfirst', directed:true, roots:ROOTS, spacingFactor:1.05,
-           padding:40, animate:true, animationDuration:300 };
-}
-function refresh() {
-  cy.elements().remove();
-  cy.add(buildElements());
-  cy.layout(layoutOpts()).run();
-}
-function expandAll(){ for (const k in MODEL) if (MODEL[k].children.length) expanded.add(k); refresh(); }
+function refresh(){ cy.elements().remove(); cy.add(buildElements()); cy.layout(layoutOpts()).run(); }
 function collapseAll(){ expanded.clear(); ROOTS.forEach(r=>expanded.add(r)); refresh(); }
+function expandSubtree(id){ const stack=[id]; const seen=new Set();
+  while(stack.length){ const n=stack.pop(); if(seen.has(n))continue; seen.add(n);
+    if(childrenOf(n).length){ expanded.add(n); childrenOf(n).forEach(c=>stack.push(c)); } }
+  refresh(); }
 
-cy.on('tap','node', e => {
-  const id = e.target.id();
-  if (MODEL[id].children.length) {
-    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
-    refresh();
-  }
-  showDetail(id);
-});
-cy.on('mouseover','node', e => showDetail(e.target.id()));
+cy.on('tap','node',e=>{ const id=e.target.id();
+  if(childrenOf(id).length){ expanded.has(id)?expanded.delete(id):expanded.add(id); refresh(); }
+  showDetail(id); });
+cy.on('dbltap','node',e=>expandSubtree(e.target.id()));
+cy.on('mouseover','node',e=>showDetail(e.target.id()));
 
-function showDetail(id) {
-  const m = MODEL[id];
-  const calls = [...m.children, ...(m.refs||[])].map(c=>MODEL[c]?MODEL[c].label:c);
-  document.getElementById('detail').innerHTML =
-    `<h2>${m.label}</h2>
-     <span class="tag" style="background:${COLOR[m.status]}">${STATUS_LABEL[m.status]}</span>
-     <p>${m.desc}</p>` +
-    (calls.length ? `<p class="calls"><b>calls:</b> ${calls.join(' · ')}</p>` : '') +
-    (m.children.length ? `<p class="calls">Click the node to ${expanded.has(id)?'collapse':'expand'} its sub-steps.</p>` : '');
+function showDetail(id){ const g=GRAPH[id]||{label:id,scope:'base'}; const st=statusOf(id);
+  const calls=childrenOf(id).map(c=>GRAPH[c]?GRAPH[c].label:c);
+  document.getElementById('detail').innerHTML=
+    `<h2>${g.label}</h2>
+     <span class="tag" style="background:${COLOR[st]}">${SLABEL[st]}</span>
+     <span class="tag" style="background:#2c3340;color:#e6e6e6">${SCOPELABEL[g.scope]||g.scope}</span>
+     <p>${DESC[id]||(calls.length?'Calls '+calls.length+' routine(s).':'Atomic — only math / intrinsics.')}</p>`+
+    (calls.length?`<p class="calls"><b>calls:</b> ${calls.join(' · ')}</p>`:'')+
+    (childrenOf(id).length?`<p class="calls">Click to ${expanded.has(id)?'collapse':'expand'} · double-click for full subtree.</p>`:'');
 }
+
+// ---- search: reveal a node by expanding the shortest path from a root --------
+function pathTo(target){ const prev={}; const q=['FVS']; const seen=new Set(q);
+  while(q.length){ const n=q.shift(); if(n===target){ const p=[]; let c=target; while(c!==undefined){p.unshift(c);c=prev[c];} return p; }
+    for(const k of childrenOf(n)) if(!seen.has(k)){seen.add(k);prev[k]=n;q.push(k);} } return null; }
+document.getElementById('q').addEventListener('keydown',ev=>{ if(ev.key!=='Enter')return;
+  const t=ev.target.value.trim().toUpperCase(); if(!GRAPH[t]){ ev.target.style.borderColor='#f85149'; return; }
+  ev.target.style.borderColor='#333b49'; const p=pathTo(t)||[t];
+  for(const n of p) if(childrenOf(n).length && n!==t) expanded.add(n);
+  refresh(); const el=cy.$id(t); if(el.length){ cy.animate({center:{eles:el},zoom:1.1},{duration:300});
+    cy.elements('.hl').removeClass('hl'); el.addClass('hl'); showDetail(t); } });
+
 showDetail('FVS');
 </script>
 </body>
