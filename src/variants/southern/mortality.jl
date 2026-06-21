@@ -283,6 +283,34 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             d10cur = d10n
         end
     end
+
+    # Size-cap mortality (SIZCAP, morts.f:537-552) is a no-op without the SIZECAP
+    # keyword (defaults SIZCAP[*,1]=999) and is not yet ported.
+    #
+    # BAMAX enforcement (morts.f:555-615): if the residual basal area exceeds the
+    # stand maximum BAMAX = SDImax·0.5454154·PMSDIU, scale up every record's kill by
+    # adjfac=(BA−BAMAX)/BAdead and re-test, iterating until BA ≤ BAMAX (max 100). This
+    # caps the stand at its self-thinning BA — without it dense stands grow unbounded.
+    bamax = sdimax * 0.5454154f0 * pmsdiu
+    if bamax > 0f0
+        @inbounds for _ in 1:100
+            banew = 0f0; badead = 0f0
+            for i in 1:n
+                d = t.dbh[i]
+                bark = bark_ratio(bark_a, bark_b, t.species[i], d)
+                g = (t.diam_growth[i] / bark) * (fint / 5f0)
+                de2 = 0.0054542f0 * (d + g)^2
+                banew  += de2 * (t.tpa[i] - killed[i])
+                badead += de2 * killed[i]
+            end
+            ((banew - bamax) > 1f0 && badead > 0f0) || break
+            adjfac = (banew - bamax) / badead
+            for i in 1:n
+                killed[i] = min(t.tpa[i], killed[i] * (1f0 + adjfac))
+            end
+        end
+    end
+
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end
