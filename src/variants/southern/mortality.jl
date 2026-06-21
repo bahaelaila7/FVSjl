@@ -225,6 +225,13 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         tt += pr
     end
     tt < 1f0 && return s
+    # Reset the persisted self-thinning line when the stand TPA changed materially
+    # since last cycle — i.e. after a thin or ingrowth (morts.f:160, |t−TPAMRT|>1).
+    # For a closed stand t≈TPAMRT so the line persists (snt01 unaffected); after a
+    # from-below thin it is recomputed for the new (large-tree) QMD.
+    if s.density.tpa_mort > 0f0 && abs(tt - s.density.tpa_mort) > 1f0
+        s.density.mort_slope = 0f0; s.density.mort_intercept = 0f0
+    end
     tt > 35000f0 && (tt = 35000f0)
     dia0 = zeide ? (sumdr0  / tt)^(1f0 / 1.605f0) : sqrt(sdq0  / tt)
     d10  = zeide ? (sumdr10 / tt)^(1f0 / 1.605f0) : sqrt(sd2sq / tt)
@@ -314,5 +321,12 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end
+    # remember this cycle's surviving over-threshold TPA (TPAMRT) for next cycle's
+    # line-reset test.
+    surv = 0f0
+    @inbounds for i in 1:n
+        t.dbh[i] >= dthresh && (surv += t.tpa[i])
+    end
+    s.density.tpa_mort = surv
     return s
 end

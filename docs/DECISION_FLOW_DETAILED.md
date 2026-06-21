@@ -110,7 +110,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | branch / condition | effect | status |
 |---|---|---|
 | RMSQD==0 ⇒ reset line; PMSDIL/U rescale | init | ✅ |
-| ICYC>1 & \|t−TPAMRT\|>1 ⇒ reset self-thinning line | per-cycle recompute | 🟡 persisted-once (valid for closed stands; revisit with regen) |
+| ICYC>1 & |t−TPAMRT|>1 ⇒ reset self-thinning line | per-cycle recompute | ✅ ported (mortality.jl tpa_mort) — resets after thinning/ingrowth; closed stands persist |
 | SDIMAX<5 ⇒ background (Hamilton) only | sparse stand | ✅ |
 | t>t85d0 ⇒ tn10=t85d10 (over-dense) | strong self-thin | ✅ |
 | t55d0<t≤t85d0 ⇒ solve self-thinning line (iterate treeit) | intermediate | ✅ |

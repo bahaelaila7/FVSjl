@@ -33,33 +33,36 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     @inbounds for act in sched
         act.year == yr || continue
         applied = true
-        if act.icflag == Int32(8)                          # THINDBH; more methods later
-            r = _thindbh!(s, act)
-            rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
-                   mcuft = rem.mcuft + r.mcuft, scuft = rem.scuft + r.scuft,
-                   bdft = rem.bdft + r.bdft)
-        end
+        ic = act.icflag
+        r = ic == Int32(8) ? _thindbh!(s, act) :                       # proportional DBH-class
+            (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
+            _NO_REMOVAL
+        rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
+               mcuft = rem.mcuft + r.mcuft, scuft = rem.scuft + r.scuft,
+               bdft = rem.bdft + r.bdft)
     end
     applied && push!(s.control.years_cut, yr)
     return rem
 end
 
 # CLSSTK (cutstk.f): TPA (jtyp=1) or basal-area (jtyp=2) stocking over the trees in
-# the DBH / species class, using the pre-thin TPA copy `wk4`.
-@inline function _clsstk(t::TreeList, wk4, n, jtyp, ispcut, dl, du)
+# the DBH/HT/species class, using the pre-thin TPA copy `wk4`.
+@inline function _clsstk(t::TreeList, wk4, n, jtyp, ispcut, dl, du, hl=0f0, hu=999f0)
     cstock = 0f0
     @inbounds for i in 1:n
-        _cut_eligible(t, i, ispcut, dl, du) || continue
+        _cut_eligible(t, i, ispcut, dl, du, hl, hu) || continue
         cstock += jtyp == 2 ? wk4[i] * t.dbh[i]^2 * _BA_PER_TREE : wk4[i]
     end
     return cstock
 end
 
-# WK2 eligibility for THINDBH/lspecl (cuts.f:611-628): DBH in [dl,du) and species
+# WK2 eligibility (cuts.f:611-648): DBH in [dl,du) and HT in [hl,hu) and species
 # included. (Group/LEAVESP handling is added when those keywords are ported.)
-@inline function _cut_eligible(t::TreeList, i, ispcut, dl, du)
+@inline function _cut_eligible(t::TreeList, i, ispcut, dl, du, hl=0f0, hu=999f0)
     d = t.dbh[i]
     (d < dl || d >= du) && return false
+    h = t.height[i]
+    (h < hl || h >= hu) && return false
     return ispcut == 0 || ispcut == t.species[i]
 end
 
@@ -69,7 +72,7 @@ end
 # record is partial); the residual replaces PROB.
 function _thindbh!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
-    n == 0 && return
+    n == 0 && return _NO_REMOVAL
     dbhlo, dbhhi, _eff, spf, ctpa_in, cba_in = act.params
     ispcut = floor(Int32, spf)
     valmin = dbhlo
@@ -108,6 +111,66 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     end
     @inbounds for i in 1:n
         t.tpa[i] = wk4[i]                               # residual replaces PROB
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINBTA/ATA/BBA/ABA (cuts.f label_200/225/250/275): thin the DBH/HT class from
+# below (BTA/BBA) or above (ATA/ABA) to a residual TPA (BTA/ATA) or BA (BBA/ABA).
+# Trees are ranked by size (RDPSRT, descending priority: −DBH from below ⇒ smallest
+# first; +DBH from above ⇒ largest first) and whole records are removed (×cuteff)
+# until the removal budget is spent (last record partial).
+function _thin_sorted!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    ic = act.icflag
+    lbelow = ic == Int32(3) || ic == Int32(5)        # BTA, BBA from below
+    lbarea = ic == Int32(5) || ic == Int32(6)        # BBA, ABA to basal area
+    jtyp = lbarea ? 2 : 1
+    target, cuteff_p, dbhlo, dbhhi_p, htlo, hthi_p = act.params
+    cuteff = cuteff_p > 0f0 ? cuteff_p : 1f0
+    target = max(0f0, target)
+    valmax = dbhhi_p < dbhlo ? 9999f0 : dbhhi_p
+    hthi   = hthi_p   < htlo  ? 9999f0 : hthi_p
+
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    cstock = _clsstk(t, wk4, n, jtyp, 0, dbhlo, valmax, htlo, hthi)
+    cstock <= 0f0 && return _NO_REMOVAL
+    remove = cstock - target
+    remove <= 0f0 && return _NO_REMOVAL
+
+    # priority key = ±DBH (size); eligible records ranked, ineligible pushed last.
+    elig = falses(n); key = Vector{Float32}(undef, n)
+    @inbounds for i in 1:n
+        e = _cut_eligible(t, i, 0, dbhlo, valmax, htlo, hthi)
+        elig[i] = e
+        key[i] = e ? (lbelow ? -t.dbh[i] : t.dbh[i]) : -Inf32
+    end
+    order = sortperm(key; rev = true)               # descending (RDPSRT order)
+
+    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
+    totcut = 0f0
+    @inbounds for it in order
+        elig[it] || continue
+        d = t.dbh[it]
+        prem = wk4[it] * cuteff
+        prem > wk4[it] && (prem = wk4[it])
+        prem <= 0f0 && continue
+        cut_v = lbarea ? prem * d * d * _BA_PER_TREE : prem
+        xleft = remove - (totcut + cut_v)
+        if xleft < 0f0
+            prem = ((xleft + cut_v) / cut_v) * prem
+            cut_v = remove - totcut
+        end
+        totcut += cut_v
+        wk4[it] -= prem
+        rtpa += prem; rcuft += prem * t.cuft_vol[it]
+        rmcuft += prem * t.merch_cuft_vol[it]; rscuft += prem * t.saw_cuft_vol[it]
+        rbdft += prem * t.bdft_vol[it]
+        totcut >= remove && break
+    end
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end
