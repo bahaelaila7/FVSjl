@@ -21,6 +21,7 @@ function setup_growth!(s::StandState)
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
+    sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     dgcons!(s)
     calibrate_diameter_growth!(s)        # LSTART — uses the input measured DG
     return s

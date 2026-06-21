@@ -29,6 +29,43 @@ function stand_sdimax(s::StandState)
     return totba <= 0f0 ? 1f0 : num / totba
 end
 
+"""
+    sdi_max_check!(state)
+
+SDICHK (sdichk.f): if the INITIAL stand stocking exceeds 5% above the upper density
+limit (TPROB > (PMSDIU+0.05)·temmax), the species SDI maxima are too low for this
+stand — reset them all to a value `tem2` fitted to the observed (TPROB, QMD) so the
+self-thinning mortality doesn't run away. Called once at setup. No-op for stands at or
+below the limit (e.g. snt01). Without it, over-dense single-species stands over-kill.
+"""
+function sdi_max_check!(s::StandState)
+    t = s.trees; n = t.n
+    n == 0 && return s
+    sdimax = stand_sdimax(s)
+    sdimax < 5f0 && return s
+    p = s.plot
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
+    zeide = s.control.zeide_sdi
+    dthresh = zeide ? s.control.dbh_zeide : s.control.dbh_stage
+    tprob = 0f0; sumdr = 0f0; sumd2 = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d < dthresh && continue
+        pr = t.tpa[i]
+        sumdr += pr * d^1.605f0; sumd2 += pr * d * d; tprob += pr
+    end
+    tprob < 1f0 && return s
+    dq0 = zeide ? (sumdr / tprob)^(1f0 / 1.605f0) : sqrt(sumd2 / tprob)
+    dq0 < 0.3f0 && (dq0 = 0.3f0)
+    const_v = sdimax / PRETZSCH_SDIK
+    upmax = min(pmsdiu + 0.05f0, 1f0)
+    temmax = const_v * dq0^SDI_EXP
+    tprob <= upmax * temmax && return s        # not over the upper limit ⇒ keep SDIDEF
+    const_v2 = exp(log(tprob + 1f0) + 1.605f0 * log(dq0)) / pmsdiu
+    tem2 = const_v2 * PRETZSCH_SDIK
+    @inbounds for i in 1:MAXSP; p.sp_sdi_def[i] = tem2; end
+    return s
+end
+
 # Pretzsch self-thinning target density tn10 (morts.f:200-343). The self-thinning
 # line (slope/intercept) is computed ONCE per stand and PERSISTED in `dens`
 # (SLPMRT/CEPMRT, morts.f:317-322); subsequent cycles reuse it with the new d10.
