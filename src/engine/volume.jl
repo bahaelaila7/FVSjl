@@ -38,12 +38,8 @@ end
     end
 end
 
-"Bark ratio BRATIO (inside/outside-bark diameter), clamped to [0.80, 0.99] (sn/bratio.f)."
-@inline function bark_ratio(sd, sp::Integer, d::Float32)
-    d <= 0f0 && return 0.99f0
-    r = (sd[:bark_b0][sp] + sd[:bark_b1][sp] * d) / d
-    r > 0.99f0 ? 0.99f0 : (r < 0.80f0 ? 0.80f0 : r)
-end
+# (The duplicate volume-side bark_ratio + bark_coeffs.csv were removed: bark is now a
+# single per-stand source, calib.bark_a/bark_b — see bark_and_bounds.jl / dgcons!.)
 
 # Behre hyperbola taper (behprm.f / BEHRE) used to redistribute volume after a
 # broken/killed top. `behre_params` returns the (AHAT,BHAT) hyperbola constants
@@ -227,7 +223,7 @@ function compute_volumes!(s::StandState)
         scf = d >= scfmin[sp] ? v[4] : 0f0
         bf = v[10]
         if tkill && tcf > 0f0
-            bark = bark_ratio(sd, sp, d)
+            bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
             tcf, mcf, scf = cftopk(sd, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(sd, sp, d, h, bf, v[1], bark, Int(t.trunc[i]))
         end
