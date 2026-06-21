@@ -56,7 +56,7 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
-    cuts!(s; fint = fint) && compute_density!(s)  # CUTS — thin, then recompute post-thin density
+    cuts!(s; fint = fint).tpa > 0f0 && compute_density!(s)  # CUTS — thin, then recompute post-thin density
     t = s.trees
     nlive = t.n                              # ORIGINAL live records (pre-tripling)
     # Cycle-start volume + TPA of the originals, for the period accounting.

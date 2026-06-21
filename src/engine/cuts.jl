@@ -11,24 +11,33 @@
 
 const _BA_PER_TREE = 0.005454154f0   # cuts.f basal-area-per-tree factor
 
+"Per-acre removed totals from a thin (zeros when nothing is cut)."
+const _NO_REMOVAL = (tpa = 0f0, cuft = 0f0, mcuft = 0f0, scuft = 0f0, bdft = 0f0)
+
 """
-    cuts!(state) -> state
+    cuts!(state; fint) -> removed
 
 Run any thinning/harvest scheduled for the current cycle's year. Reduces
-`trees.tpa` (PROB) in place. Call at the top of `grow_cycle!`, before growth.
+`trees.tpa` (PROB) in place and returns the period's removed totals (TPA + the four
+volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 """
 function cuts!(s::StandState; fint::Float32 = 5f0)
     sched = s.control.schedule
-    isempty(sched) && return false
+    isempty(sched) && return _NO_REMOVAL
     # Year of the current cycle (matches summary_row): inventory year + cycle·period.
     # (cycle_year only stores the inventory year; later years are derived.)
     yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
-    cut = false
+    rem = _NO_REMOVAL
     @inbounds for act in sched
         act.year == yr || continue
-        act.icflag == Int32(8) && (cut |= _thindbh!(s, act))   # THINDBH; more methods later
+        if act.icflag == Int32(8)                          # THINDBH; more methods later
+            r = _thindbh!(s, act)
+            rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
+                   mcuft = rem.mcuft + r.mcuft, scuft = rem.scuft + r.scuft,
+                   bdft = rem.bdft + r.bdft)
+        end
     end
-    return cut
+    return rem
 end
 
 # CLSSTK (cutstk.f): TPA (jtyp=1) or basal-area (jtyp=2) stocking over the trees in
@@ -67,11 +76,13 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
 
     wk4 = Float32[t.tpa[i] for i in 1:n]               # pre-thin PROB copy
     cstock = _clsstk(t, wk4, n, jtyp, ispcut, valmin, valmax)
-    cstock <= 0f0 && return false
+    cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - (ctpa + cba)
-    remove <= 0f0 && return false
+    remove <= 0f0 && return _NO_REMOVAL
     cuteff = min(1f0, remove / cstock)
 
+    # removed totals (per-acre, gross): Σ prem·{1, CFV, MCFV, SCFV, BFV}
+    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
     @inbounds for i in 1:n
         _cut_eligible(t, i, ispcut, valmin, valmax) || continue
@@ -87,9 +98,12 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[i] -= prem
+        rtpa += prem; rcuft += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
     end
     @inbounds for i in 1:n
         t.tpa[i] = wk4[i]                               # residual replaces PROB
     end
-    return true
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end
