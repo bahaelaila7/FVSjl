@@ -131,3 +131,28 @@ fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
     end
     return t
 end
+
+"""
+    compact_live!(t)
+
+Drop live records whose TPA has fallen to ≤0 (e.g. removed by a thin), compacting
+the remaining live records (order preserved) and shifting the dead partition to
+follow. The FVS `TREDEL` after `CUTS`: removed records must not linger, else the
+per-tree serial-correlation RNG sequence in the next growth pass diverges.
+"""
+function compact_live!(t::TreeList)
+    w = 0
+    @inbounds for i in 1:t.n
+        if t.tpa[i] > 0f0
+            w += 1
+            w != i && copy_tree!(t, w, i)
+        end
+    end
+    if t.ndead > 0 && w < t.n
+        @inbounds for k in 1:t.ndead
+            copy_tree!(t, w + k, t.n + k)
+        end
+    end
+    t.n = w
+    return t
+end

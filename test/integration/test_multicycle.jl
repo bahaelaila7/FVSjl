@@ -52,7 +52,7 @@ end
                     @test isapprox(mba,  ba;  atol = 3, rtol = 0.05)   # sentinel
                     @test isapprox(mtpa, tpa; atol = 4, rtol = 0.10)
                     @test isapprox(msdi, sdi; atol = 6, rtol = 0.08)
-                    @test isapprox(mqmd, qmd; atol = 0.7)
+                    @test isapprox(mqmd, qmd; atol = 0.7, rtol = 0.05)  # rtol for large late-cycle QMD (sparse post-thin stands)
                     @test isapprox(mtcuft, tcuft; atol = 40, rtol = 0.08)
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
                 end

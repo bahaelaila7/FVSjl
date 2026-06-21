@@ -41,7 +41,10 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
                mcuft = rem.mcuft + r.mcuft, scuft = rem.scuft + r.scuft,
                bdft = rem.bdft + r.bdft)
     end
-    applied && push!(s.control.years_cut, yr)
+    if applied
+        push!(s.control.years_cut, yr)
+        rem.tpa > 0f0 && compact_live!(s.trees)   # TREDEL: drop removed records (RNG alignment)
+    end
     return rem
 end
 
