@@ -13,10 +13,23 @@
 # (snt01 has no defect; defect correction + the two-pass dead handling come later.)
 # =============================================================================
 
-"HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
-@inline function _htdbh_height(sd, sp::Integer, d::Float32)
+# Curtis-Arney H-D parameters for `sp`, with the Fort Bragg (IFOR=20, htdbh.f:145)
+# longleaf/loblolly overrides applied. `ifor` defaults to 0 (no override).
+@inline function _htdbh_params(sd, sp::Integer, ifor::Integer)
     p2 = sd[:htdbh_p2][sp]; p3 = sd[:htdbh_p3][sp]
     p4 = sd[:htdbh_p4][sp]; db = sd[:htdbh_db][sp]
+    if ifor == 20
+        sp == 6  && (p2 = 110.3f0; p3 = 7.0670f0; p4 = -1.0420f0)
+        sp == 8  && (p2 = 114.6f0; p3 = 4.1840f0; p4 = -0.6940f0)
+        sp == 11 && (p2 = 623.9f0; p3 = 4.7396f0; p4 = -0.2763f0)
+        sp == 13 && (p2 = 184.3f0; p3 = 4.2660f0; p4 = -0.5496f0)
+    end
+    return p2, p3, p4, db
+end
+
+"HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
+@inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0)
+    p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     if d >= 3f0
         return 4.5f0 + p2 * exp(-p3 * d ^ p4)
     else
@@ -26,9 +39,8 @@
 end
 
 "HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1)."
-@inline function _htdbh_dbh(sd, sp::Integer, h::Float32)
-    p2 = sd[:htdbh_p2][sp]; p3 = sd[:htdbh_p3][sp]
-    p4 = sd[:htdbh_p4][sp]; db = sd[:htdbh_db][sp]
+@inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0)
+    p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
     if h >= hat3
         ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
@@ -154,14 +166,14 @@ height but get `norm_ht` = full predicted height ×100 (≥ the standing height)
 a break point `trunc` (80% of standing height when none was supplied).
 """
 function dub_missing_heights!(s::StandState)
-    t = s.trees; sd = s.coef.species
+    t = s.trees; sd = s.coef.species; ifor = Int(s.plot.forest_idx)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0
         if t.height[i] > 0f0 && !tkill
             continue
         end
-        h_v = d <= 0.1f0 ? 1.01f0 : _htdbh_height(sd, sp, d)
+        h_v = d <= 0.1f0 ? 1.01f0 : _htdbh_height(sd, sp, d, ifor)
         h_v < 4.5f0 && (h_v = 4.5f0)
         if !tkill
             t.height[i] = h_v

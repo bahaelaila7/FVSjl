@@ -39,11 +39,11 @@ const REGENT_DIAM = Float32[
 # (regent.f:195-275, HTDBH-inverse branch). `d`,`h` are the record's pre-growth
 # dbh/height; returns the outside-bark DG (before DGBND).
 @inline function _regent_dg(sd, bark_a, bark_b, sp::Integer, d::Float32, h::Float32, htg::Float32,
-                            scale2::Float32, dgmx::Float32)
+                            scale2::Float32, dgmx::Float32, ifor::Integer = 0)
     hk = h + htg
     hk <= 4.5f0 && return 0f0                         # (DBH bump path; not hit for snt01)
-    dkk = _htdbh_dbh(sd, sp, hk)
-    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h)
+    dkk = _htdbh_dbh(sd, sp, hk, ifor)
+    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, ifor)
     bark = bark_ratio(bark_a, bark_b, sp, d)          # per-stand bark (Fort Bragg override)
     dg = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dkk - dk) * bark
     dg < 0f0 && (dg = 0.1f0)
@@ -107,7 +107,7 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
                 end
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
-                dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx)
+                dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx))
                 (d + dg) < REGENT_DIAM[sp] && (dg = REGENT_DIAM[sp] - d)
                 dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)
                 if l == 0
