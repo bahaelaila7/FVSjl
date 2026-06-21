@@ -525,6 +525,11 @@ function triple_records!(s::StandState, stash)
             t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
         end
         t.tpa[i] *= 0.60f0
+        # lineage keys: upper=3K, central=3K+1, lower=3K+2 → species-sort then visits
+        # records in the oracle's LNKCHN order (upper,central,lower depth-first), so the
+        # untripled DGSCOR consumes the BACHLO stream in the same sequence (RNG-exact).
+        kk = t.sort_key[i]
+        t.sort_key[u] = 3 * kk; t.sort_key[i] = 3 * kk + 1; t.sort_key[l] = 3 * kk + 2
     end
     t.n = 3 * nlive
     return s

@@ -60,6 +60,11 @@ function notre!(s::StandState)
         pr <= 0f0 && (pr = 9.0f-25)
         t.tpa[i] = pr * p.gross_space
     end
+    # base species-sort key = original record index (FVS chain order pre-tripling);
+    # tripling derives child keys so the per-tree RNG draw order matches the oracle.
+    @inbounds for i in 1:(t.n + t.ndead)
+        t.sort_key[i] = Float64(i)
+    end
     return s
 end
 

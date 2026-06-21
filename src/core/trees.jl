@@ -81,6 +81,7 @@ mutable struct TreeList
     old_crown_pct::Vector{Float32} # crown % previous cycle                (OLDPCT)
     old_random   ::Vector{Float32} # tree's saved random deviate           (OLDRN)
     tree_random  ::Vector{Float32} # per-tree random draw                  (ZRAND)
+    sort_key     ::Vector{Float64} # species-sort lineage key (FVS LNKCHN/TRIPLE order)
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -90,6 +91,7 @@ end
 function TreeList(maxtre::Int = MAXTRE)
     iz()  = zeros(Int32,   maxtre)
     fz()  = zeros(Float32, maxtre)
+    dz()  = zeros(Float64, maxtre)
     TreeList(
         0, 0,
         iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(),
@@ -97,7 +99,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(), zeros(Bool, maxtre), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(),
-        fz(), fz(), fz(),
+        fz(), fz(), fz(), dz(),
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
     )
 end
@@ -113,7 +115,7 @@ const _TREE_VEC_FIELDS = (
     :bdft_vol, :cuft_vol, :merch_cuft_vol, :saw_cuft_vol, :merch_top_bf,
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
-    :old_crown_pct, :old_random, :tree_random)
+    :old_crown_pct, :old_random, :tree_random, :sort_key)
 
 """
     copy_tree!(t, dst, src)
