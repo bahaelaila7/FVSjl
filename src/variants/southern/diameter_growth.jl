@@ -93,6 +93,7 @@ function dgcons!(s::StandState)
     phys = _dgf_phys_group(s.plot.eco_unit)
     phys_coef = haskey(_DG_PHYS_COL, phys) ? sd[_DG_PHYS_COL[phys]] : nothing
     cosa = cos(p.aspect); sina = sin(p.aspect)
+    bark_a0 = sd[:bark_intercept]; bark_b0 = sd[:bark_slope]
     @inbounds for sp in 1:MAXSP
         c.atten[sp] = prior_obs_count[sp]
         base = site_coef[sp] * p.sp_site_index[sp] +
@@ -101,6 +102,17 @@ function dgcons!(s::StandState)
                slope_sin[sp] * p.slope * sina
         phys_coef === nothing || (base += phys_coef[sp])
         c.dg_const[sp] = base
+        c.bark_a[sp] = bark_a0[sp]; c.bark_b[sp] = bark_b0[sp]   # per-stand bark copy
+    end
+    # Fort Bragg (IFOR==20, dgf.f:636 / bratio.f:106): override the DG attenuation
+    # count for longleaf/loblolly and the special bark equations (sp 5,6,8,11,13).
+    if p.forest_idx == 20
+        c.atten[8] = 2056f0; c.atten[13] = 689f0
+        c.bark_a[5]  = 0.1713f0;  c.bark_b[5]  = 0.87459f0
+        c.bark_a[6]  = -0.26207f0; c.bark_b[6] = 0.87347f0
+        c.bark_a[8]  = -0.43439f0; c.bark_b[8] = 0.91382f0
+        c.bark_a[11] = -0.62033f0; c.bark_b[11]= 0.91645f0
+        c.bark_a[13] = -0.4671f0;  c.bark_b[13]= 0.90198f0
     end
     return s
 end
@@ -153,6 +165,28 @@ function dgf!(s::StandState)
               (ft_coef === nothing ? 0f0 : ft_coef[sp]) +
               planted[sp]    * kplant
 
+        # Fort Bragg (IFOR==20, dgf.f:515-537): special longleaf(8)/loblolly(13)
+        # diameter-growth equations replace the standard DDS. dg5 is the inside-bark
+        # DG; dds = ln(dg5·(2·d_ib + dg5)) re-encodes it for the sqrt growth formula.
+        if p.forest_idx == 20 && (sp == 8 || sp == 13)
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            dib  = d * bark
+            site = p.sp_site_index[sp]
+            pctf = Float32(t.crown_ratio[i])              # PCT (BA percentile)
+            cr   = Float32(icr_i) / 100f0
+            dg5 = sp == 8 ?
+                dib * (-0.4553f0 * (0.09737f0 - exp(-0.2428f0 * d)) + 0.05574f0 * cr -
+                       0.0002965f0 * ba_v - 0.00002481f0 * pba -
+                       0.001192f0 * (pctf / 100f0)^(-0.9663f0) +
+                       0.0010110f0 * site - 0.007711f0 * relht) :
+                dib * (-0.3428f0 * (-0.1741f0 - exp(-0.1328f0 * d)) + 0.1145f0 * cr -
+                       0.0001682f0 * ba_v - 0.00003978f0 * pba -
+                       0.159400f0 * (pctf / 100f0)^(-0.1299f0) +
+                       0.0006204f0 * site + 0.02474f0 * relht)
+            dg5 < 0.01f0 && (dg5 = 0.01f0)
+            dds = log(dg5 * (2f0 * dib + dg5))
+        end
+
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end
@@ -177,7 +211,7 @@ species-sorted order. `scale = YR/FINT` (1 for snt01). Run before `diameter_grow
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
     t, c = s.trees, s.calib
     sd = s.coef.species
-    bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]; sigmar = sd[:dg_resid_sd]
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b; sigmar = sd[:dg_resid_sd]
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -403,7 +437,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
                           tripling::Bool = true)
     t, c = s.trees, s.calib
     sd = s.coef.species
-    bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     dlo_v = sd[:dg_bound_dbh_lo]; dhi_v = sd[:dg_bound_dbh_hi]
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     oldrn = t.old_random

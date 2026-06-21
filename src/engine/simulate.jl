@@ -80,7 +80,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     n = t.n
     old_cfv2 = Float32[t.cuft_vol[i] for i in 1:n]
     sd = s.coef.species
-    bark_a = sd[:bark_intercept]; bark_b = sd[:bark_slope]
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75).

@@ -89,6 +89,9 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         org = nint(v[9])
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
     end
+    # Fort Bragg (forkod.f:137): forest 701 (location 701xx) ⇒ IFOR=20, which selects
+    # the special longleaf/loblolly diameter-growth + bark equations.
+    div(p.user_forest_code, 100) == 701 && (p.forest_idx = Int32(20))
     # FORKOD phase 3: default lat/long/elev from the forest code (forkod.f:193).
     lat0, long0, elev0 = forest_location(s.coef, div(p.user_forest_code, 100))
     p.latitude  == 0f0 && (p.latitude  = lat0)

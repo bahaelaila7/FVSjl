@@ -209,7 +209,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     #   dia0 = (Σ p·d^1.605 / Σ p)^(1/1.605), and d10 the same with grown diameters.
     zeide = s.control.zeide_sdi
     dthresh = zeide ? s.control.dbh_zeide : dbhstage
-    bark_a = s.coef.species[:bark_intercept]; bark_b = s.coef.species[:bark_slope]
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
     tt = 0f0; sdq0 = 0f0; sd2sq = 0f0; sumdr0 = 0f0; sumdr10 = 0f0
     @inbounds for i in 1:t.n
