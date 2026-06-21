@@ -89,7 +89,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_volumes!(s)                     # end-of-period volumes
     accr = 0f0
     @inbounds for i in 1:n
-        accr += (t.cuft_vol[i] - old_cfv2[i]) * t.tpa[i]   # OACC over the tripled set
+        d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
+        d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
