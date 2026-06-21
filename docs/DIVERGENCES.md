@@ -97,6 +97,30 @@ constant ⇒ a candidate un-ported formula/branch. After clearing false positive
 | CRNMLT DBH bound default 99.0 | `crown.f` | `CRNMLT` keyword | gated, inert |
 
 Everything else in the C3/C4/C5 core fingerprints clean. None of the above is on the
-currently-validated path (consistent with snt01 being bit-exact). **Porting order is
-upstream→downstream per the FVS flow:** Fort Bragg `IFOR==20` (DGF/BRATIO) → REGENT
-establishment → SDICLS density → `cfvol`/carbon.
+currently-validated path (consistent with snt01 being bit-exact).
+
+## Test-coverage audit vs the decision flow (blindspots)
+
+Auditing the test suite against the decision flow found, and closed, several
+coverage blindspots — and in doing so corrected a wrong assumption:
+
+1. **Physiography** — 133/135 scenarios used ecounit `231Dd`; only 3 of 11 DGF
+   physiography branches were exercised. **Closed**: 8 numeric-index scenarios
+   (s12–s19), all bit-exact at cyc0+cyc1 → every `dg_phys_*` column validated. No bug.
+2. **Multi-cycle depth** — the suite only checked cyc0/cyc1. **Closed**:
+   `test_multicycle.jl` regresses all 11 cycles vs a Fortran-oracle golden (BA kept
+   tight as the BAMAX sentinel). Suite 187→627 assertions.
+3. **Forest codes** — only 2 exercised. **Closed (partial)**: s20–s22 (forests
+   802/806/809) bit-exact. Special mappings (905/908/701) still untested.
+4. **★ Thinning/CUTS — WRONG ASSUMPTION CORRECTED.** It was marked "ported" from
+   old FVSjulia-era notes, but **FVSjl has no thinning at all**: no `THIN*` keyword
+   handler in `keyword_dispatch.jl`, no removal step in `grow_cycle!`. The snt01
+   suite only validates the *unthinned* first stand; the `s11_thinbta` scenario
+   silently no-ops in both engines (oracle had non-cutting params, FVSjl ignores the
+   keyword), so it never tested anything. **CUTS / TREMOV / TREDEL / SDICLS-after-
+   treatment / the removed-volume `.sum` columns are all un-ported.** This is the
+   single biggest gap and is **upstream** in the cycle (GRINCR, before growth).
+
+**Revised porting order (upstream→downstream):** **CUTS/thinning** (biggest, most
+upstream, real scenarios exercise it) → Fort Bragg `IFOR==20` → REGENT establishment
+→ SDICLS density → `cfvol`/carbon.

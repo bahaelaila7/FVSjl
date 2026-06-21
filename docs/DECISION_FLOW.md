@@ -85,7 +85,7 @@ SDICLS → SDIBC       SDI class                                          🟡
 SSTAGE               stand structure stage                              ⛔ (stand-class only; not in .sum math)
 EVMON(1)             event monitor (pre-thin)                           🟡
 save OLD* density (OLDTPA/OLDBA/OLDAVH/ORMSQD/…)                          ✅ implicit in compute_density!
-CUTS                 scheduled thinning / harvest                       ✅ thinning (THINDBH/THINBTA…)
+CUTS                 scheduled thinning / harvest                       ⛔ NOT ported (no THIN* handler; see DIVERGENCES)
 CVGO + DENSE(if cut) recompute density post-thin                        ✅ compute_density!
 ATSDIX = SDICAL; SDICLS → SDIAC   after-treatment SDI                    🟡
 save per-tree vol history (PTOCFV/PDBH/PHT/NCFDEF/NBFDEF)                 ✅ old_cfv/old_tpa snapshots
