@@ -4,11 +4,16 @@
 > expands each hot-path routine below into its individual decision branches with
 > per-branch port status.
 >
-> Interactive view: open [`decision_flow.html`](decision_flow.html) in a browser —
-> the **complete 588-routine call graph** auto-extracted from the oracle. Click a
-> node to break it into the functions it calls (down to atomic math/intrinsics),
-> colored by port status and shaped by scope (▭ generic / ⬡ Southern-variant /
-> ◆ extension). Regenerate after source changes with `tools/gen_callgraph.js`.
+> Interactive views (open in a browser; click a node to break it into the functions
+> it calls down to atomic math/intrinsics — hover/click shows the **code excerpt**;
+> fill = port status, shape = scope ▭ generic / ⬡ Southern-variant / ◆ extension):
+> - [`decision_flow.html`](decision_flow.html) — the **FVS** (Fortran oracle) graph,
+>   588 routines. The source-of-truth semantics.
+> - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
+>   126 routines (idiomatic, compressed). Put side by side with the FVS graph to see
+>   where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD).
+>
+> Regenerate either with `tools/gen_callgraph.js <srcRoot> <outHtml> <rootsCSV>`.
 
 A bird's-eye map of how a simulation flows from input to output in the original
 Fortran (`FVSsn`), with the corresponding **FVSjl** entry point and **port
