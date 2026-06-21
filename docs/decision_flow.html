@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FVS-Southern decision flow — interactive call graph</title>
+<!-- Cytoscape.js (single CDN dependency; needs internet on first open). -->
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e6e6; --muted:#9aa4b2; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  #wrap { display:flex; height:100%; }
+  #cy { flex:1; height:100%; }
+  #side { width:320px; background:var(--panel); padding:16px 18px; overflow:auto;
+    border-left:1px solid #262b35; }
+  h1 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 14px; }
+  .toolbar button { background:#222732; color:var(--ink); border:1px solid #333b49;
+    border-radius:6px; padding:6px 10px; margin:0 6px 8px 0; cursor:pointer; font-size:12px; }
+  .toolbar button:hover { background:#2c3340; }
+  .legend div { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:12px; }
+  .sw { width:14px; height:14px; border-radius:3px; display:inline-block; }
+  #detail { margin-top:16px; border-top:1px solid #262b35; padding-top:14px; }
+  #detail h2 { font-size:14px; margin:0 0 6px; }
+  #detail .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px;
+    color:#0c0f14; font-weight:600; }
+  #detail p { color:#cdd5e0; margin:8px 0; }
+  #detail .calls { color:var(--muted); font-size:12px; }
+  code { background:#0b0d11; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="cy"></div>
+  <div id="side">
+    <h1>FVS-Southern decision flow</h1>
+    <p class="sub">Click a node to break it into the flow between the functions it
+      calls. Dotted = enters first step; solid = flow (execution order); dashed
+      purple = cross-call to a shared routine. Click again to collapse. Derived
+      from <code>DECISION_FLOW_DETAILED.md</code>.</p>
+    <div class="toolbar">
+      <button onclick="expandAll()">Expand all</button>
+      <button onclick="collapseAll()">Collapse all</button>
+      <button onclick="cy.fit(null,40)">Fit</button>
+    </div>
+    <div class="legend">
+      <div><span class="sw" style="background:#3fb950"></span> ported &amp; validated</div>
+      <div><span class="sw" style="background:#d29922"></span> partial / simplified</div>
+      <div><span class="sw" style="background:#f85149"></span> not ported (in-scope)</div>
+      <div><span class="sw" style="background:#388bfd"></span> out of scope / no scenario</div>
+      <div><span class="sw" style="background:#6e7681"></span> no-op in oracle (correctly absent)</div>
+    </div>
+    <div id="detail"><p class="sub">Hover or click a node for details.</p></div>
+  </div>
+</div>
+
+<script>
+// ---- status palette -------------------------------------------------------
+const COLOR = { ported:'#3fb950', partial:'#d29922', notported:'#f85149',
+                ooscope:'#388bfd', noop:'#6e7681' };
+const STATUS_LABEL = { ported:'ported & validated', partial:'partial / simplified',
+  notported:'not ported (in-scope)', ooscope:'out of scope', noop:'no-op in oracle' };
+
+// ---- graph model ----------------------------------------------------------
+// children = call hierarchy (drives expand/collapse). refs = cross-calls shown
+// whenever both endpoints are visible (this is how a shared routine gets new
+// arrows from each expanded caller).
+const N = (label,status,desc,children=[],refs=[]) => ({label,status,desc,children,refs});
+const MODEL = {
+  FVS: N('FVS main','partial','Top-level driver (fvs.f): init, then the per-cycle report→grow loop, then output.',
+         ['INITRE','SETUP','NOTRE','CYCLE']),
+
+  INITRE: N('INITRE','ported','Read .key keywords + .tre tree data; set all run options. → initialize()',
+            ['KWDISP','HABTYP','SITSET','FORKOD']),
+  KWDISP: N('keyword dispatch','ported','Dispatch each keyword card by name (engine/keyword_dispatch.jl).'),
+  HABTYP: N('HABTYP','ported','Decode the STDINFO habitat field into the PCOM ecological-unit code.',['HBDECD','SNECU']),
+  HBDECD: N('HBDECD','ported','Numeric ⇒ index into SNECU; alpha ⇒ uppercased exact match; else default #122.'),
+  SNECU:  N('SNECU table','ported','320 Southern ecological-unit codes (variants/southern/habitat.jl).'),
+  SITSET: N('SITSET','ported','Per-species site-index array from the site species/SITECODE.'),
+  FORKOD: N('FORKOD','ported','Forest-code → default lat/long/elevation.'),
+
+  SETUP: N('SETUP','ported','Per-stand setup before cycling. → setup_growth!',['GETSED','DGCONS','SDICHK','DGCAL']),
+  GETSED: N('GETSED','ported','Seed the faithful LCG RNG (FVSRng).'),
+  DGCONS: N('DGCONS','ported','Site-dependent diameter-growth constants dg_const/atten (dgcons!).'),
+  SDICHK: N('SDICHK','ported','If the stand starts over-dense, reset every species SDImax so self-thinning does not run away (sdi_max_check!).'),
+  DGCAL:  N('DG calibration','ported','LSTART pass: per-species growth COR from the input measured DG.'),
+
+  NOTRE: N('NOTRE','ported','Expand sample-design tree records into the live TreeList (SoA). → notre!'),
+
+  CYCLE: N('per-cycle loop','partial','For each cycle: REPORT the stand, then GROW it one period.',['REPORT','TREGRO']),
+
+  REPORT: N('REPORT','ported','Compute volume + stats and emit the .sum/.out row before growth.',
+            ['CRATET','VOLS','CWIDTH','STATS']),
+  CRATET: N('CRATET','ported','Dub missing heights; resolve broken-top NORMHT (dub_missing_heights!).'),
+  VOLS:   N('VOLS','ported','Per-tree volumes. → compute_volumes!',['R8CLARK','CFTOPK','BFTOPK','SCRIB']),
+  R8CLARK:N('R8 Clark','ported','Cubic-foot volume (Clark profile).'),
+  CFTOPK: N('CFTOPK','ported','Behre cubic top-kill correction for broken tops.'),
+  BFTOPK: N('BFTOPK','ported','Board-foot top-kill correction.'),
+  SCRIB:  N('Scribner','ported','Board-foot (Scribner) volume.'),
+  CWIDTH: N('CWIDTH','ported','Crown width by species (CSV-driven).'),
+  STATS:  N('STATS','ported','Stand statistics + the .sum row.',['DISPLY','SUMOUT']),
+  DISPLY: N('DISPLY','ported','Stand/age-class display tables.'),
+  SUMOUT: N('SUMOUT','ported','Write the .sum summary row (io/summary.jl).'),
+
+  TREGRO: N('TREGRO','ported','One growth cycle = GRINCR (increments) + GRADD (apply). → grow_cycle!',['GRINCR','GRADD']),
+
+  GRINCR: N('GRINCR','ported','Compute growth increments + scheduled harvest (no records applied yet).',
+            ['SDICAL','SSTAGE','CUTS','DENSE','DGDRIV','HTGF','REGENT','MORTS','TRIPLE','FFERT']),
+  SDICAL: N('SDICAL','ported','BA-weighted stand max SDI. → stand_sdimax',['CLMAXDEN','BAMAX']),
+  CLMAXDEN:N('CLMAXDEN','noop','Climate SDImax reduction — IF(.NOT.LCLIMATE)RETURN; no-op without the CLIMATE extension (oracle stubs it too).'),
+  BAMAX:  N('BAMAX','ported','Stand max basal area = SDImax·0.5454154·PMSDIU.'),
+  SSTAGE: N('SSTAGE','partial','Stand structure stage / class (not used in the .sum math).'),
+  CUTS:   N('CUTS','ported','Scheduled thinning / harvest (THINDBH/THINBTA…).'),
+  DENSE:  N('DENSE','ported','Recompute stand density (BA, AVH, PTBAA). → compute_density! (shared).'),
+  DGDRIV: N('DGDRIV','ported','Diameter growth driver. → diameter_growth!',['DGF','MULTS','AUTCOR','DGSCOR','MISDGF','BACHLO']),
+  DGF:    N('DGF','ported','Predicted ln(DDS) per tree from site/competition/physiography.'),
+  MULTS:  N('MULTS','partial','Growth-multiplier keyword hooks (inert without the keyword).'),
+  AUTCOR: N('AUTCOR','ported','Serial-correlation parameters (σ, ρ) for the untripled path.'),
+  DGSCOR: N('DGSCOR','partial','Serial-correlated single DG (untripled cyc≥3). Source of the ~1–2% OLDRN volume tail.'),
+  MISDGF: N('MISDGF','noop','Mistletoe DG reduction — no-op without the mistletoe model.'),
+  BACHLO: N('BACHLO','ported','Box–Muller normal draw for reproducible per-tree growth noise (shared).'),
+  HTGF:   N('HTGF','ported','Height growth. → height_growth!',['HTCALC','HTCAP']),
+  HTCALC: N('HTCALC','ported','Chapman-Richards curve: back out age (mode 0), take 5-yr increment (mode 9) (shared).'),
+  HTCAP:  N('SIZCAP[,4] cap','notported','Species height cap HT+HTG>SIZCAP[,4]. No-op now (default 999); needed for the SIZECAP keyword.'),
+  REGENT: N('REGENT','partial','Small-tree (<3") height-driven growth. → small_tree_growth!',['HTCALC','HTDBH','BACHLO','ESTAB']),
+  HTDBH:  N('HTDBH','ported','Inverse height→dbh to derive the small-tree DG (_htdbh_dbh).'),
+  ESTAB:  N('establishment mode','notported','REGENT lestb branch: grow newly-established trees (C4 regen).'),
+  MORTS:  N('MORTS','ported','Periodic mortality. → mortality!',['SDICAL','VARMRT','BAMAX','MSBMRT','SIZCAPM']),
+  VARMRT: N('VARMRT','ported','Distribute mortality toward suppressed (low-percentile) trees.'),
+  MSBMRT: N('MSB mortality','notported','Mature-stand-boundary extra mortality — keyword-gated (QMDMSB=999 default).'),
+  SIZCAPM:N('size-cap mortality','notported','Kill trees above SIZCAP[,1] — keyword-gated (default 999).'),
+  TRIPLE: N('TRIPLE','ported','Record tripling (cyc1-2): split each tree into central/upper/lower. → triple_records!',['REASS']),
+  REASS:  N('REASS','ported','Reindex records after tripling (ITRN*=3).'),
+  FFERT:  N('FFERT','notported','Fertilizer response — keyword option.'),
+
+  GRADD:  N('GRADD','partial','Apply growth & update records, establishment, crown.',
+            ['FMMAIN','REGEN','HTGSTP','UPDATE','DENSE','CROWN','CWIDTH']),
+  FMMAIN: N('FMMAIN','ooscope','FFE fire effects + fire-caused mortality (C7). The s10_fire/fire_* divergence.'),
+  REGEN:  N('regeneration','notported','Natural/planted/sprout regen + nutrient hook (C4).',['CLAUESTB','ESNUTR','BRTREG']),
+  CLAUESTB:N('CLAUESTB','notported','Natural establishment.'),
+  ESNUTR: N('ESNUTR','notported','Establishment nutrient hook.'),
+  BRTREG: N('BRTREG','notported','Sprout regeneration.'),
+  HTGSTP: N('HTGSTP','notported','HTGSTOP/TOPKILL keyword height edits (no-op otherwise).'),
+  UPDATE: N('UPDATE','ported','Apply DG/HTG → DBH/HT (+bark, NORMHT for broken tops). Inline in grow_cycle!.'),
+  CROWN:  N('CROWN','ported','Crown-ratio update: relSDI → mean CR → Weibull draw → ±change cap. → crown_ratio_update!'),
+};
+
+// explicit flows (override the linear default) — 'P' = parent/entry, branches OK.
+MODEL.MORTS.flow = [['P','SDICAL'],['SDICAL','VARMRT'],['VARMRT','BAMAX'],
+                    ['BAMAX','MSBMRT'],['BAMAX','SIZCAPM']];
+
+// ---- expand / collapse engine --------------------------------------------
+const ROOTS = ['FVS'];
+const expanded = new Set(ROOTS);   // start with only the root opened
+
+function visibleSet() {
+  const vis = new Set(ROOTS);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const id of Array.from(vis)) {
+      if (!expanded.has(id)) continue;
+      for (const c of MODEL[id].children) if (!vis.has(c)) { vis.add(c); changed = true; }
+    }
+  }
+  return vis;
+}
+
+function buildElements() {
+  const vis = visibleSet();
+  const els = [];
+  for (const id of vis) {
+    const m = MODEL[id];
+    const hasKids = m.children.length > 0;
+    const mark = !hasKids ? '' : (expanded.has(id) ? '  ▾' : '  ▸');
+    els.push({ data:{ id, label:m.label + mark, status:m.status, hasKids } });
+  }
+  const seen = new Set();
+  const addEdge = (s,t,kind) => {
+    if (!vis.has(s) || !vis.has(t) || s===t) return;
+    const eid = kind+':'+s+'>'+t; if (seen.has(eid)) return; seen.add(eid);
+    els.push({ data:{ id:eid, source:s, target:t, kind } });
+  };
+  // Expanding a node reveals the FLOW between the functions it calls: the parent
+  // enters its first sub-step (dotted), then each sub-step flows to the next in
+  // execution order (solid). An explicit MODEL.flow overrides the linear default
+  // (use 'P' as the parent/entry, 'OUT' to stop). Shared callees get arrows from
+  // every expanded caller automatically (edges dedupe by id).
+  for (const id of vis) {
+    if (!expanded.has(id)) continue;
+    const kids = MODEL[id].children.filter(c => vis.has(c));
+    if (!kids.length) continue;
+    const flow = MODEL[id].flow;
+    if (flow) {
+      for (const [a,b] of flow) { if (b==='OUT') continue; addEdge(a==='P'?id:a, b, a==='P'?'enter':'flow'); }
+    } else {
+      addEdge(id, kids[0], 'enter');
+      for (let i=0; i<kids.length-1; i++) addEdge(kids[i], kids[i+1], 'flow');
+    }
+  }
+  for (const id of vis)              // cross-calls (dashed): shown when both ends visible
+    for (const r of (MODEL[id].refs||[])) addEdge(id, r, 'ref');
+  return els;
+}
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: buildElements(),
+  style: [
+    { selector:'node', style:{
+        'label':'data(label)', 'color':'#0c0f14', 'font-size':12, 'font-weight':600,
+        'text-valign':'center', 'text-halign':'center', 'shape':'round-rectangle',
+        'width':'label', 'height':28, 'padding':'8px',
+        'background-color': ele => COLOR[ele.data('status')] || '#888',
+        'border-width':1, 'border-color':'#0a0c10' } },
+    { selector:'node[?hasKids]', style:{ 'border-width':3, 'border-color':'#e6e6e6' } },
+    { selector:'edge', style:{
+        'width':2, 'line-color':'#9aa4b2', 'target-arrow-color':'#9aa4b2',
+        'target-arrow-shape':'triangle', 'curve-style':'bezier', 'arrow-scale':1.0 } },
+    { selector:'edge[kind="enter"]', style:{   /* parent → first internal step */
+        'line-style':'dotted', 'width':1.5, 'line-color':'#3a4150',
+        'target-arrow-color':'#3a4150' } },
+    { selector:'edge[kind="ref"]', style:{     /* cross-call to a shared routine */
+        'line-style':'dashed', 'line-color':'#8a5cf6', 'target-arrow-color':'#8a5cf6' } },
+    { selector:'.hl', style:{ 'border-color':'#fff', 'border-width':3 } },
+  ],
+  layout: layoutOpts(),
+  wheelSensitivity: 0.2,
+});
+
+function layoutOpts() {
+  return { name:'breadthfirst', directed:true, roots:ROOTS, spacingFactor:1.05,
+           padding:40, animate:true, animationDuration:300 };
+}
+function refresh() {
+  cy.elements().remove();
+  cy.add(buildElements());
+  cy.layout(layoutOpts()).run();
+}
+function expandAll(){ for (const k in MODEL) if (MODEL[k].children.length) expanded.add(k); refresh(); }
+function collapseAll(){ expanded.clear(); ROOTS.forEach(r=>expanded.add(r)); refresh(); }
+
+cy.on('tap','node', e => {
+  const id = e.target.id();
+  if (MODEL[id].children.length) {
+    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+    refresh();
+  }
+  showDetail(id);
+});
+cy.on('mouseover','node', e => showDetail(e.target.id()));
+
+function showDetail(id) {
+  const m = MODEL[id];
+  const calls = [...m.children, ...(m.refs||[])].map(c=>MODEL[c]?MODEL[c].label:c);
+  document.getElementById('detail').innerHTML =
+    `<h2>${m.label}</h2>
+     <span class="tag" style="background:${COLOR[m.status]}">${STATUS_LABEL[m.status]}</span>
+     <p>${m.desc}</p>` +
+    (calls.length ? `<p class="calls"><b>calls:</b> ${calls.join(' · ')}</p>` : '') +
+    (m.children.length ? `<p class="calls">Click the node to ${expanded.has(id)?'collapse':'expand'} its sub-steps.</p>` : '');
+}
+showDetail('FVS');
+</script>
+</body>
+</html>
