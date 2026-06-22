@@ -41,8 +41,13 @@ emit s03_sitesp_lp  's/^SITECODE.*/SITECODE          13      70./'   # loblolly 
 emit s04_sitesp_yp  's/^SITECODE.*/SITECODE          45      75./'   # yellow-poplar
 
 # 4. ecological-unit / forest variations (different physiographic + FORTYP path)
-emit s05_ecounit_m221 's/231Dd /M221   /'
-emit s06_ecounit_232  's/231Dd /232    /'
+# NOTE: keep the replacement EXACTLY the width of "231Dd " (6 chars) so the fixed
+# STDINFO columns (age/aspect/slope at bytes 36/45/56/67) stay aligned. A wider
+# replacement shifts those fields right; FVS's column-strict STDINFO read then drops
+# slope/aspect, perturbing diameter growth (Fortran's read tolerates it; FVSjl's
+# doesn't). See ORACLE_A_BUGS.md "STDINFO column-shift".
+emit s05_ecounit_m221 's/231Dd /M221  /'
+emit s06_ecounit_232  's/231Dd /232   /'
 emit s07_forest_808   's/^STDINFO        80106/STDINFO        80806/'
 
 # 5. cycle-count variations

@@ -75,13 +75,23 @@ Format per entry:
   bit-exact pre-burn, then FVSjulia kills ~10-28 more TPA than Fortran at the burn
   cycle (e.g. fire_fuel9 2010: 133 vs 143 TPA, BA equal). A real but small FFE
   fire-effects divergence in Oracle A's fire extension. Needs tracing in SIMFIRE/FMEFF.
-- **Physiography transcendental tail (shared):** `s06_ecounit_232`→p234,
-  `s13_phys_p222`→p222, `s16_phys_p255`→p255 each show a small **shared**
-  Julia-vs-Fortran cuft drift (±3-10 cuft, ±3-4 TPA) that **both** ports exhibit
-  identically (so not a port-specific logic bug). cyc0 is exact; the drift appears in
-  growth, is bounded/oscillating (not compounding), and tracks ±0.1 QMD sub-display
-  flips → accumulated single-precision transcendental (`exp`/`sqrt`) rounding in the
-  DG→volume chain. Pending a definitive live-Fortran per-tree `wk2`/DG trace to confirm.
+- **Physiography "drift" (RESOLVED — was a malformed test scenario, not ulp):**
+  `s06_ecounit_232`/`s13_phys_p222`/`s16_phys_p255`/etc. showed a small shared
+  Julia-vs-Fortran cuft drift (±3-10 cuft, ±3-4 TPA). A definitive live-Fortran
+  per-tree trace (instrumented `dgf.f` dumping `DGCON`/`COR`/`CONSPP`/`DDS`) localized
+  it to the per-species DG constant `DGCON`: for these stands FVSjl's `DGCON` differed
+  from Fortran by 0.013-0.22 (**not** ulp), while p231 (snt01) matched to ulp. The
+  `P234`/`P222`/`P255` coefficients matched Fortran exactly and `COR=0` at cyc1, so the
+  gap was in `DGCON`'s **slope/aspect** terms — FVSjl was reading `slope=0, aspect=0`.
+  Root cause: the scenario generator (`gen_scenarios.sh`) substituted the STDINFO
+  habitat with a **wider** string (`231Dd `→`232    `), shifting the fixed-column
+  age/aspect/slope fields +1 byte. Fortran's STDINFO read tolerates the shift; FVSjl's
+  column-strict read drops slope/aspect → perturbed DG. **Fixed** by making the
+  generator substitution width-preserving and realigning the 13 affected committed
+  `.key` files (s05/s06/s12-s22) to the canonical byte columns (age@36 etc.). After the
+  fix FVSjl matches Fortran bit-exact at cyc1; only the genuine bounded transcendental
+  tail (±1 BdFt) remains. (Minor note: FVSjl's STDINFO parser is stricter than
+  Fortran's free-within-field read — acceptable for well-formed input.)
 - **Live Fortran FP-crashes (ground truth):** species `all_AE/EL/RL/SU/WE` abort the
   Fortran `FVSsn` binary itself with SIGFPE — a likely FVS bug or degenerate species
   coefficients; those species cannot be validated against Fortran.
