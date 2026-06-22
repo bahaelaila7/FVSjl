@@ -98,10 +98,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    crown_ratio_update!(s; fint = fint)     # CROWN — update crown for NEXT cycle's DGF
-    # ESNUTR/ESTAB (gradd.f:156) — establish scheduled regen AFTER growth+mortality, so
-    # the new trees enter fresh (full TPA) this period and first grow/die next cycle.
-    establish!(s; fint = fint) && compute_volumes!(s)
+    # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
+    # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
+    # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
+    # bogus into next cycle's DGF/mortality).
+    newregen = establish!(s; fint = fint)   # ESNUTR — adds regen (ICR=0), recomputes density
+    crown_ratio_update!(s; fint = fint)     # CROWN — crown ratio for ALL trees incl. new regen
+    newregen && compute_volumes!(s)         # VOLS — volumes for the new trees
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end

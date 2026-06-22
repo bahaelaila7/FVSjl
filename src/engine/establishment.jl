@@ -104,8 +104,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
                 t.plot_id[n]     = Int32(rep)
-                t.crown_pct[n]   = Int32(40)
-                t.crown_ratio[n] = 40f0
+                t.crown_pct[n]   = Int32(0)     # ICR=0 at creation (estab.f:320); CROWN computes it
+                t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
                 t.sort_key[n]    = Float64(n)
                 created = true
