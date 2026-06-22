@@ -105,7 +105,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
-                t.plot_id[n]     = Int32(rep)
+                # All replicate records sit on the SAME inventory point (estab.f:313
+                # ITRE=NNID=IPTIDS[nn]); the `rep` loop is statistical replication, NOT
+                # separate points. Putting them on one point makes point_ba (PTBAA)
+                # reflect the full stand BA — the DGF point-competition term — instead of
+                # stand_BA/idup. (NPTIDS=1 here; NPTIDS>1 needs a per-point loop — TODO.)
+                t.plot_id[n]     = Int32(1)
                 t.crown_pct[n]   = Int32(0)            # crown set in phase 2 (REGENT lestb)
                 t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
