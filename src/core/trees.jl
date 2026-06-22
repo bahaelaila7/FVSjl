@@ -184,6 +184,13 @@ function tredel_compact!(t::TreeList; thresh::Float32 = 0f0)
         @inbounds for k in 1:t.ndead; copy_tree!(t, newn + k, n + k); end
     end
     t.n = newn
+    # A TREDEL removal triggers Fortran's species-sort REBUILD (spesrt→lnkchn→setup),
+    # which re-lists each species in ASCENDING PHYSICAL record index — and crucially
+    # does NOT re-run REASS (the post-TRIPLE U,C,L interleave, grincr.f:553), so the
+    # tripled lineage order is discarded after a thin/comcup and replaced by physical
+    # order. Reset sort_key to the compacted physical position so species_sort! (and
+    # thus the DGSCOR per-tree RNG assignment) tracks the oracle post-removal.
+    @inbounds for i in 1:newn; t.sort_key[i] = Float64(i); end
     return t
 end
 

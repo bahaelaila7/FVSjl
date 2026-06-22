@@ -59,16 +59,17 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test isapprox(_at(sp, 2000.0, 13), 327.0; atol = 1)   # rem_tpa
             @test isapprox(_at(sp, 2000.0, 18),  96.0; atol = 1)   # at-treatment BA
         end
-        # STILL OPEN (downstream of the cut): post-thin DGSCOR growth — the 2005 top
-        # height / sawtimber volume of a thinned stand. Shared by s29 + snt01 stands 3-4.
+        # Post-thin DGSCOR growth — the 2005 top height / sawtimber volume of a thinned
+        # stand. Fixed by resetting sort_key to compacted physical order after tredel_compact!
+        # (Fortran's post-removal spesrt rebuild drops the REASS U,C,L interleave).
         @testset "post-thin growth matches (cut_specpref TopHt 2005 == 59)" begin
-            @test_broken isapprox(_at(sp, 2005.0, 7), 59.0; atol = 1)
+            @test isapprox(_at(sp, 2005.0, 7), 59.0; atol = 1)
         end
         @testset "THINPRSC removes the prescribed TPA (rem_tpa 2000 == 259)" begin
             @test isapprox(_at(pr, 2000.0, 13), 259.0; atol = 2)   # ported (cut-code marked)
         end
         @testset "YARDLOSS affects removed-volume accounting (col24 2000 == 124)" begin
-            @test_broken isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)
+            @test isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)
         end
         @testset "THINSDI thins to target SDI (rem_tpa 2000 == 20)" begin
             @test isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)   # ported (Zeide SDI + proportional)
