@@ -45,6 +45,10 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         pr = _sum_rows("cut_thinprsc")
         yl = _sum_rows("cut_yardloss")
         sd = _sum_rows("cut_thinsdi")
+        ht = _sum_rows("cut_thinht")
+        cc = _sum_rows("cut_thincc")
+        rd = _sum_rows("cut_thinrden")
+        au = _sum_rows("cut_thinauto")
 
         # PORTED + validated: THINBTA blank-dbhhi fires, and SPECPREF reorders the cut
         # so the year-2000 removal is bit-exact to Oracle A (rem_tpa 327, at_BA 96).
@@ -66,6 +70,21 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         end
         @testset "THINSDI thins to target SDI (rem_tpa 2000 == 20)" begin
             @test isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)   # ported (Zeide SDI + proportional)
+        end
+        # ── remaining label_325/400 thins: live-Fortran ground truth (TPA @2005). Each
+        #    is ⛔ until ported; the expected value is the Fortran result so the test
+        #    validates the port (flip @test_broken→@test when it lands). NOT tuned to FVSjl.
+        @testset "THINHT thins a height class (TPA 2005 == 133)" begin
+            @test isapprox(_at(ht, 2005.0, 3), 133.0; atol = 2)   # ported (label_325 on height)
+        end
+        @testset "THINCC thins to residual crown cover (TPA 2005 == 71)" begin
+            @test_broken isapprox(_at(cc, 2005.0, 3), 71.0; atol = 2)   # CCCLS — unported
+        end
+        @testset "THINRDEN thins to Curtis RD (TPA 2005 == 418)" begin
+            @test_broken isapprox(_at(rd, 2005.0, 3), 418.0; atol = 2)  # RDCLS — unported
+        end
+        @testset "THINAUTO auto-thins on stocking (TPA 2005 == 231)" begin
+            @test_broken isapprox(_at(au, 2005.0, 3), 231.0; atol = 2)  # AUTSTK/FULSTK — unported
         end
     end
 end

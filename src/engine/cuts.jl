@@ -115,9 +115,9 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12)) || continue
         applied = true
-        r = ic == Int32(8)  ? _thindbh!(s, act) :                      # proportional DBH-class
+        r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
@@ -170,23 +170,27 @@ end
     return ispcut == 0 || ispcut == t.species[i]
 end
 
-# THINDBH (cuts.f label_325→355→550→1100): thin the DBH/species class to a residual
-# TPA (ctpa) and/or basal area (cba). cuteff = remove/cstock is applied to each
-# eligible record's TPA in record order until the removal budget is spent (the last
-# record is partial); the residual replaces PROB.
+# THINDBH/THINHT (cuts.f label_325→355→550→1100): thin the species class to a residual
+# TPA (ctpa) and/or basal area (cba). The class is bounded by DBH (THINDBH, ICFLAG 8) or
+# by HEIGHT (THINHT, ICFLAG 12) — VALMIN/VALMAX hold DBH or HT accordingly (cuts.f:637).
+# cuteff = remove/cstock is applied to each eligible record's TPA in record order until
+# the removal budget is spent (the last record is partial); the residual replaces PROB.
 function _thindbh!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
-    dbhlo, dbhhi, _eff, spf, ctpa_in, cba_in = act.params
+    p1, p2, _eff, spf, ctpa_in, cba_in = act.params
     ispcut = floor(Int32, spf)
-    valmin = dbhlo
-    valmax = dbhhi < dbhlo ? 999f0 : dbhhi
+    if act.icflag == Int32(12)                         # THINHT: class on height
+        dlo = 0f0; dhi = 999f0; hlo = p1; hhi = p2 < p1 ? 9999f0 : p2
+    else                                               # THINDBH: class on DBH
+        dlo = p1; dhi = p2 < p1 ? 9999f0 : p2; hlo = 0f0; hhi = 999f0
+    end
     ctpa = max(0f0, ctpa_in); cba = max(0f0, cba_in)
     lbarea = cba > 0f0
     jtyp = lbarea ? 2 : 1
 
     wk4 = Float32[t.tpa[i] for i in 1:n]               # pre-thin PROB copy
-    cstock = _clsstk(t, wk4, n, jtyp, ispcut, valmin, valmax)
+    cstock = _clsstk(t, wk4, n, jtyp, ispcut, dlo, dhi, hlo, hhi)
     cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - (ctpa + cba)
     remove <= 0f0 && return _NO_REMOVAL
@@ -196,7 +200,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
     @inbounds for i in 1:n
-        _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+        _cut_eligible(t, i, ispcut, dlo, dhi, hlo, hhi) || continue
         d = t.dbh[i]
         prem = wk4[i] * cuteff
         prem > wk4[i] && (prem = wk4[i])
