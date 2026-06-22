@@ -141,7 +141,7 @@ map cannot surface those; each ported routine needs its own branch checklist.
 RMSQD==0 → reset CEPMRT/SLPMRT                                            ✅
 PMSDIL/PMSDIU rescale (>1 ⇒ /100)                                         ✅
 compute DQ0/DR0 (Zeide) start QMD, DQ10/DR10 end QMD                      ✅
-ICYC>1 & |t-TPAMRT|>1 → reset self-thinning line                          🟡 persisted-once (ok for closed stands)
+ICYC>1 & |t-TPAMRT|>1 → reset self-thinning line                          ✅ mortality.jl:229-233 (resets when TPA changes)
 SDICAL → SDIMAX; const = SDIMAX/0.02483133                               ✅
 SDIMAX<5 → background only                                               ✅
 t > t85d0  → tn10 = t85d10 (over-dense)                                  ✅

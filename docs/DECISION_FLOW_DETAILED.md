@@ -98,7 +98,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | `CLSSTK` class stocking (TPA jtyp=1 / BA jtyp=2) over eligibility window | budget | ✅ `_clsstk` |
 | `RDPSRT` size rank (−DBH below / +DBH above) **+ IORDER[sp]** (SPECPREF) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled; TCONDMLT/point/density weights default 0) |
 | `TREDEL` compact removed (PROB≤0) records | RNG alignment + post-thin physical layout | ✅ `tredel_compact!` (swap-from-end: smallest-index vacancy ← largest-index survivor; faithful `tredel.f`. commit 625b970. No `.sum` change vs the old order-preserving `compact_live!` for single-thin — mortality/growth read RNG in `sort_key` order, not physical — but it reproduces the oracle's exact layout for a 2nd thin's TREDEL) |
-| **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ⚠ diverges after a thin (s29 RNG splits at ICYC=4) — see [[fvsjl-c5-sum-state]] |
+| **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ✅ fixed — TRIPLE appends interleaved (ITRN+2i-1/+2i) so the cut removes the oracle's exact record set; s29 cut now bit-exact, post-thin TPA aligned (commit 29bea70) |
 | removed-volume columns (rem_tpa/cuft/mcuft/scuft/bdft) | `.sum` reporting | ✅ |
 
 ### `DGDRIV` — diameter growth (`dgdriv.f`) → `diameter_growth!`
