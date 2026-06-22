@@ -113,7 +113,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     end
     if applied
         push!(s.control.years_cut, yr)
-        rem.tpa > 0f0 && compact_live!(s.trees)   # TREDEL: drop removed records (RNG alignment)
+        rem.tpa > 0f0 && tredel_compact!(s.trees)   # TREDEL: swap-from-end (oracle's exact post-thin layout)
     end
     return rem
 end
