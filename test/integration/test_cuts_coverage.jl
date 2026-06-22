@@ -65,7 +65,7 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test_broken isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)
         end
         @testset "THINSDI thins to target SDI (rem_tpa 2000 == 20)" begin
-            @test_broken isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)
+            @test isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)   # ported (Zeide SDI + proportional)
         end
     end
 end

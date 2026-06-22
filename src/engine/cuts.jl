@@ -115,10 +115,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10)) || continue
         applied = true
-        r = ic == Int32(8) ? _thindbh!(s, act) :                       # proportional DBH-class
-            ic == Int32(7) ? _thinprsc!(s, act) :                      # prescription (cut-code marked)
+        r = ic == Int32(8)  ? _thindbh!(s, act) :                      # proportional DBH-class
+            ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
+            ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -306,6 +307,99 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
         rbdft += prem * t.bdft_vol[it]
         totcut >= remove && break
     end
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINSDI (cuts.f label_400, ICFLAG 10): thin to a residual Stand Density Index.
+# Ported from FVSjulia (Oracle A) cuts.jl label_400 + sdical.jl SDICLS — NOT re-derived.
+# SN sets LZEIDE=.TRUE. (sn/grinit.f:129), so SDICLS returns the ZEIDE *summation* SDI
+#   SDI(class) = Σ_class tpa·(D/10)^1.605   (D ≥ DBHZEIDE, =0 for SN)
+# — NOT the Stage linearised form (which equals Reineke N·(QMD/10)^1.605). For a stand
+# with many small tripled stems the two differ materially (here 261 vs 293), and SDICLS
+# uses Zeide. Removal (cuts.f:888): CUTEFF = REMOVE/SDIC (capped 1), REMOVE = SDI−target.
+# Sparse form (icut=0) = LSPECL "throughout": apply CUTEFF proportionally to every
+# eligible tree (residual = SDI·(1−CUTEFF) = target exactly, since the Zeide weight is
+# fixed per tree). icut=1/2 = from below/above: RDPSRT by ∓DBH and remove whole records
+# (cut_v = prem·(D/10)^1.605) until the SDI budget is met, last record partial.
+@inline function _sdi_zeide(t::TreeList, wk4, n, ispcut, dlo, dhi)
+    s = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d <= 0f0 && continue          # DBHZEIDE = 0 (SN)
+        _cut_eligible(t, i, ispcut, dlo, dhi) || continue
+        s += wk4[i] * (d / 10f0)^1.605f0
+    end
+    return s
+end
+
+function _thin_sdi!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    target, cuteff_p, ispcut_f, dbhlo, dbhhi_p, icut_f = act.params
+    target = max(0f0, target)
+    ispcut = Int(round(ispcut_f))
+    icut   = Int(round(icut_f))
+    valmin = dbhlo
+    valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
+
+    wk4  = Float32[t.tpa[i] for i in 1:n]
+    sdic = _sdi_zeide(t, wk4, n, ispcut, valmin, valmax)
+    sdic <= target && return _NO_REMOVAL
+    remove = sdic - target
+    cuteff = remove / sdic
+    cuteff > 1f0 && (cuteff = 1f0)
+
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    @inline function _remove!(i, prem)
+        prem <= 0f0 && return
+        wk4[i] -= prem
+        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
+        return
+    end
+
+    if icut == 0
+        # LSPECL "throughout": proportional removal of CUTEFF from every eligible tree.
+        @inbounds for i in 1:n
+            d = t.dbh[i]; d <= 0f0 && continue
+            _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+            prem = wk4[i] * cuteff
+            prem > wk4[i] && (prem = wk4[i])
+            _remove!(i, prem)
+        end
+    else
+        # from below (icut==1) / above: rank by ∓DBH, remove whole records until the SDI
+        # budget is spent; the last record is partial (prem = remaining / (D/10)^1.605).
+        lbelow = icut == 1
+        ce = cuteff_p > 0f0 ? cuteff_p : 1f0
+        pref = s.control.cut_pref
+        key = Vector{Float32}(undef, n)
+        @inbounds for i in 1:n
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+        end
+        order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        totcut = 0f0
+        @inbounds for it in order
+            d = t.dbh[it]; d <= 0f0 && continue
+            _cut_eligible(t, it, ispcut, valmin, valmax) || continue
+            totcut >= remove && break
+            w  = (d / 10f0)^1.605f0
+            prem = wk4[it] * ce
+            prem > wk4[it] && (prem = wk4[it])
+            cut_v = prem * w
+            if totcut + cut_v > remove                      # last (partial) record
+                prem = (remove - totcut) / w
+                prem > wk4[it] && (prem = wk4[it])
+                cut_v = prem * w
+            end
+            totcut += cut_v
+            _remove!(it, prem)
+        end
+    end
+
     @inbounds for i in 1:n
         t.tpa[i] = wk4[i]
     end
