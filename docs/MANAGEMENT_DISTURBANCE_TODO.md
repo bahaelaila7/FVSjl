@@ -94,7 +94,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 
 | keyword | effect | status |
 |---|---|---|
-| IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ⛔ |
+| IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ✅ event_monitor.jl (AST evaluator); stand 2 first 2 thins bit-exact; 3rd = class-boundary residual |
 | COMPUTE | event-monitor variable assignment | ⛔ |
 | CYCLEAT / TIMEINT | explicit cycle boundaries / interval | ⛔ |
 | ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL; ⛔ TALLY counts / SPROUT |
