@@ -114,7 +114,7 @@ const _THIN_ICFLAG = Dict("THINBTA" => Int32(3), "THINATA" => Int32(4),
                           "THINBBA" => Int32(5), "THINABA" => Int32(6),
                           "THINPRSC" => Int32(7), "THINDBH" => Int32(8),
                           "THINSDI" => Int32(10), "THINHT" => Int32(12),
-                          "THINRDEN" => Int32(14))
+                          "THINRDEN" => Int32(14), "THINAUTO" => Int32(1))
 
 # Parse a THIN* activity: field 1 = calendar year, fields 2-7 = the 6 method params.
 # Stores a ScheduledActivity for `cuts!` to apply on the matching cycle.

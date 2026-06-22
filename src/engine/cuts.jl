@@ -92,7 +92,10 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
     # Effective activities this cycle: the dated ones (year==yr) plus any IF/THEN block
     # whose algebraic condition is true this cycle (EVMON), with their year set to yr.
-    acts = ScheduledActivity[a for a in sched if a.year == yr]
+    # THINAUTO (icflag 1) is a RECURRING auto-thin: once scheduled it re-evaluates the
+    # AUTMAX stocking gate every cycle from its start year (cuts.f auto path), not once.
+    acts = ScheduledActivity[a for a in sched
+                             if a.year == yr || (a.icflag == Int32(1) && yr >= a.year)]
     if !isempty(conds)
         ctx = EventCtx(Int(s.control.cycle) + 1, Int(yr), s)   # FVS CYCLE is 1-based
         for c in conds
@@ -115,12 +118,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1)) || continue
         applied = true
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
             ic == Int32(14) ? _thin_rden!(s, act) :                    # THINRDEN (Curtis RD)
+            ic == Int32(1)  ? _thin_auto!(s, act) :                    # THINAUTO (auto to normal stocking)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -506,4 +510,46 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         t.tpa[i] = wk4[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINAUTO (cuts.f label_150, ICFLAG 1): automatic thinning to a normal-stocking target.
+# Ported from Oracle A cutstk.jl AUTSTK + cuts.f:582-597. AUTSTK gives FULSTK = normal
+# full stocking (stems/acre) from the BA-weighted mean species SDImax (SDIDEF) and the
+# stand QMD (RMSQD): FULSTK = 1 / (0.02483133/tmpmax · QMD^1.605). The thin fires only
+# when STOCK ≥ AUTMAX%·FULSTK (SN default 60), and removes FROM BELOW down to a residual
+# of AUTMIN%·FULSTK (SN default 45) TPA — i.e. exactly a THINBTA-below to that residual,
+# so it delegates to the validated _thin_sorted! (icflag 3).
+@inline function _autstk(t::TreeList, wk4, n, sp_sdi_def)
+    totba = 0f0; temba = 0f0; sdsq = 0f0; stpa = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]
+        tba = _BA_PER_TREE * d * d * wk4[i]
+        temba += tba * sp_sdi_def[t.species[i]]
+        totba += tba
+        sdsq += d * d * wk4[i]; stpa += wk4[i]
+    end
+    (totba <= 1f0 || temba <= 1f0) && return 0f0
+    tmpmax = temba / totba
+    rmsqd  = stpa > 0f0 ? sqrt(sdsq / stpa) : 0f0      # current stand QMD (RMSQD)
+    q = rmsqd > 2f0 ? rmsqd : 2f0
+    return 1f0 / (0.02483133f0 / tmpmax * q^1.605f0)
+end
+
+function _thin_auto!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    p = act.params
+    autmin = p[1] > 0f0 ? p[1] : 45f0          # SN grinit defaults when fields blank
+    autmax = p[2] > 0f0 ? p[2] : 60f0
+    eff    = p[3] > 0f0 ? p[3] : 1f0
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    fulstk = _autstk(t, wk4, n, s.plot.sp_sdi_def)
+    fulstk <= 0f0 && return _NO_REMOVAL
+    stock = 0f0
+    @inbounds for i in 1:n; stock += wk4[i]; end
+    stock < (autmax / 100f0) * fulstk && return _NO_REMOVAL    # cuts.f:588 gate
+    rstock = (autmin / 100f0) * fulstk
+    # from-below thin to rstock TPA — reuse the validated THINBTA-below path (icflag 3).
+    return _thin_sorted!(s, ScheduledActivity(act.year, Int32(3),
+                                              (rstock, eff, 0f0, 0f0, 0f0, 0f0)))
 end

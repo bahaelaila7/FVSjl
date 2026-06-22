@@ -84,7 +84,7 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test isapprox(_at(rd, 2005.0, 3), 418.0; atol = 2)        # ported (Curtis RD + proportional)
         end
         @testset "THINAUTO auto-thins on stocking (TPA 2005 == 231)" begin
-            @test_broken isapprox(_at(au, 2005.0, 3), 231.0; atol = 2)  # AUTSTK/FULSTK — unported
+            @test isapprox(_at(au, 2005.0, 3), 231.0; atol = 2)        # ported (AUTSTK + recurring from-below)
         end
     end
 end
