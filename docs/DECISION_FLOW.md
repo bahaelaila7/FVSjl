@@ -85,7 +85,7 @@ SDICLS → SDIBC       SDI class                                          🟡
 SSTAGE               stand structure stage                              ⛔ (stand-class only; not in .sum math)
 EVMON(1)             event monitor (pre-thin)                           🟡
 save OLD* density (OLDTPA/OLDBA/OLDAVH/ORMSQD/…)                          ✅ implicit in compute_density!
-CUTS                 scheduled thinning / harvest                       🟡 THINDBH ported (cuts.jl); other methods pending
+CUTS                 scheduled thinning / harvest                       🟡 5/17 methods (THINDBH+B/A·TA/BA); 0/6 modifiers. ⛔ test-critical gaps: SPECPREF, THINPRSC, SALVAGE, YARDLOSS (snt01/sn stands 3-4). Destructured audit → DECISION_FLOW_DETAILED.md §CUTS
 CVGO + DENSE(if cut) recompute density post-thin                        ✅ compute_density!
 ATSDIX = SDICAL; SDICLS → SDIAC   after-treatment SDI                    🟡
 save per-tree vol history (PTOCFV/PDBH/PHT/NCFDEF/NBFDEF)                 ✅ old_cfv/old_tpa snapshots

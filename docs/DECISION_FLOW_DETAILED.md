@@ -26,7 +26,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | SITECODE / site-species (`SITSET`) | per-species site index array | ✅ `site_index.jl` |
 | DESIGN / sample design | TPA expansion factors | ✅ |
 | INVYEAR / NUMCYCLE / TIMEINT | cycle calendar | ✅ |
-| thinning/harvest keywords (THINDBH/THINBTA/THINxxx) | schedule CUTS | 🟡 THINDBH ported (engine/cuts.jl, validated vs oracle); BTA/ATA/BBA/ABA/CC/SDI + removed-vol columns pending |
+| thinning/harvest keywords (THIN*/SALVAGE/SPECPREF/…) | schedule CUTS + set cut modifiers | 🟡 5 of ~17 methods + 0 of 6 modifiers ported — see the destructured **CUTS** section below for the per-keyword audit |
 | MSB / SIZECAP / MORTMULT / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
@@ -56,6 +56,51 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 
 ## GROW step — `GRINCR` then `GRADD`
 
+### `CUTS` — scheduled thinning / harvest (`cuts.f` + `cutstk.f`) → `cuts!`
+
+Runs at the top of `GRINCR` (before `DGDRIV`). The keyword dispatch (`cuts.f` computed-GOTO
+on `ICFLAG`/`IACTK`) is **destructured below into atomic methods + modifiers**, each with port
+status. `ICFLAG = IACTK − 220` for cut activities; modifiers use `IACTK` 201–206. ⛔ = not
+ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wrong/partial.
+
+**Cut methods** (each removes TPA/BA over an eligibility class, ranked by `RDPSRT`):
+
+| keyword | ICFLAG | cuts.f label | semantics | status |
+|---|---|---|---|---|
+| THINBTA | 3 | label_200 | from below to residual **TPA** | ✅ `_thin_sorted!` |
+| THINATA | 4 | label_225 | from above to residual **TPA** | ✅ `_thin_sorted!` |
+| THINBBA | 5 | label_250 | from below to residual **BA** | ✅ `_thin_sorted!` |
+| THINABA | 6 | label_275 | from above to residual **BA** | ✅ `_thin_sorted!` |
+| THINDBH | 8 | label_325 | proportional cut of a **DBH class** to residual TPA/BA | ✅ `_thindbh!` |
+| THINAUTO | 1 | label_150 | auto-thin to FULSTK when stocking exceeds a trigger | ⛔ **used by no test** |
+| THINPRSC | 7 | label_300 | **prescription** thin (per-DBH-class residual table) | ⛔ **USED BY snt01/sn (stand 3)** |
+| xSALVAGE | 9 | label_300 | **salvage** dead/damaged trees | ⛔ **USED BY snt01/sn (stand 4)** |
+| THINSDI | 10/14/16 | label_400 | thin to a target **SDI** | ⛔ |
+| THINHT | 12 | label_325 | thin a **height** class | ⛔ |
+| THINMIST | 13 | label_450 | mistletoe (DMR-based) thin | ⛔ |
+| THINRDEN | 14 | label_400 | **relative-density** thin | ⛔ |
+| SETPTHIN/THINPT | 15 | label_475 | **point** (plot-specific) thin | ⛔ |
+| THINQFA | 17 | label_350 | **Q-factor** (per-class diameter-dist) thin | ⛔ |
+
+**Cut modifiers** (set state the cut loop reads — do NOT remove trees themselves):
+
+| keyword | IACTK | cuts.f label | effect on the cut | status |
+|---|---|---|---|---|
+| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ⛔ **USED BY snt01/sn ×4 (stand 3) — my THINBTA cuts the wrong species without it** |
+| TCONDMLT | 202 | — | thin-**condition multiplier** (scales the trigger) | ⛔ |
+| YARDLOSS | 203 | label_1325 | **yarding loss** → removed-volume accounting | ⛔ **USED BY snt01/sn (stand 4)** |
+| SPLEAVE/LEAVESP | 206 | label_1340 | **leave** named species (exclude from cut) | ⛔ |
+| SPGROUP | (125) | — | define **species groups** (referenced by SPECPREF/LEAVESP) | ⛔ |
+| CUTEFF | (52) | — | default **cutting efficiency** | ⛔ |
+
+| shared cut-loop branch | effect | status |
+|---|---|---|
+| `CLSSTK` class stocking (TPA jtyp=1 / BA jtyp=2) over eligibility window | budget | ✅ `_clsstk` |
+| `RDPSRT` size rank (−DBH below / +DBH above) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled) |
+| `TREDEL` compact removed (PROB≤0) records | RNG alignment | ✅ `compact_live!` |
+| **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ⚠ diverges after a thin (s29 RNG splits at ICYC=4) — see [[fvsjl-c5-sum-state]] |
+| removed-volume columns (rem_tpa/cuft/mcuft/scuft/bdft) | `.sum` reporting | ✅ |
+
 ### `DGDRIV` — diameter growth (`dgdriv.f`) → `diameter_growth!`
 
 | branch / condition | effect | status |
@@ -72,6 +117,8 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | **`LTRIP` true** ⇒ deterministic tripling DG (central/upper/lower × `MISDGF`) | 3 weighted DGs | ✅ `triple_records!` stash |
 | **`LTRIP` false** ⇒ `DGSCOR` serial-correlated DG (ssigma, frm, rho, OLDRN) × `MISDGF` | stochastic single DG | ✅ (this is the cyc3+ OLDRN tail source) |
 | `MISDGF` mistletoe DG reduction | ×DG | ⚪ no-op without mistletoe |
+| **Fort Bragg (IFOR=20)**: dg5 special DG (sp 8/13), ATTEN override (2056/689), special bark (sp 5,6,8,11,13) | longleaf/loblolly growth | ✅ `dgf!`/`dgcons!` (dgf.f:515) — s30 bit-exact |
+| **bark source** (BRATIO) for DG / volume / mortality | inside-bark conversion | ✅ unified to one per-stand `calib.bark_a/bark_b` (was two duplicate tables) |
 
 ### `HTGF` — height growth (`htgf.f`) → `height_growth!`
 
@@ -103,7 +150,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | [xmn,xmx] weight blend with large-tree HTG (xwt; d≤xmn or lestb ⇒ xwt=0) | small/large blend | ✅ |
 | htgr floor 0.1 | min | ✅ |
 | DGSD≥1 ⇒ BACHLO ±noise (uses ESRANN in estab) | reproducible noise | ✅ (main RANN; ESRANN path is estab ⛔) |
-| HTDBH inverse (height→dbh) | derive DG from HT growth | ✅ `_htdbh_dbh` |
+| HTDBH inverse (height→dbh) | derive DG from HT growth | ✅ `_htdbh_dbh` (incl. **Fort Bragg IFOR=20 p2/p3/p4 override** for sp 6/8/11/13 — htdbh.f:145) |
 
 ### `MORTS` — mortality (`morts.f`) → `mortality!`  *(see DECISION_FLOW.md §3)*
 
