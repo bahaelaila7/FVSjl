@@ -50,3 +50,25 @@ end
         end
     end
 end
+
+@testset "multi-point establishment (NPTIDS>1, estab.f nn-loop)" begin
+    # bare stand with DESIGN field-4 = 5 inventory points. The oracle replicates planting
+    # over `for nn in 1:NPTIDS` × idup; with idup=fld(MINREP=50, NPTIDS), that is
+    # NPTIDS·idup records carrying the SAME total planted TPA. Before the per-point loop,
+    # FVSjl made only `idup` records → total planted TPA was undercounted by ×NPTIDS.
+    key = joinpath(_HARNESS, "bare_multipoint.key")
+    if !isfile(key)
+        @test_skip "bare_multipoint.key not available"
+    else
+        s, _ = initialize(key)
+        @test s.plot.points_inv == 5                       # DESIGN field 4 → NPTIDS
+        notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.compute_forest_type!(s); FVSjl.grow_cycle!(s)
+        # NPTIDS·idup = 5·10 = 50 records/species × 2 species = 100 (NOT 20), and the
+        # planted TPA is conserved at 800 (NOT 800/5) — the per-point-loop fix.
+        @test s.trees.n == 100
+        @test isapprox(stand_tpa(s) / s.plot.gross_space, 800.0; atol = 2)
+        # records distributed over the 5 points (plot_id), so DGF point-BA = stand BA
+        @test length(unique(Int(s.trees.plot_id[i]) for i in 1:s.trees.n)) == 5
+    end
+end

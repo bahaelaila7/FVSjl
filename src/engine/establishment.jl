@@ -67,7 +67,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     pccf = 0f0          # point crown competition factor (≈0 for the sparse established plots)
     created = false
     nstart = t.n        # tree count before establishment (phase-2 crown pass starts here)
-    @inbounds for rep in 1:idup
+    # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
+    # → NPTIDS·idup records total. For a BARE stand every point is identical (BAAA=0,
+    # uniform slope/aspect/habitat), so the per-point variables don't vary; only the
+    # record count and the ESRANN draw count scale with NPTIDS. (ptree already divides by
+    # dupnpt = NPTIDS·idup, so the planted TPA is conserved across all the records.)
+    @inbounds for nn in 1:nptids, rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
         # (unused on the no-treeht path), one for esdraw (the re-seed value).
         esrann!(s.rng); esrann!(s.rng)
@@ -105,12 +110,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
-                # All replicate records sit on the SAME inventory point (estab.f:313
-                # ITRE=NNID=IPTIDS[nn]); the `rep` loop is statistical replication, NOT
-                # separate points. Putting them on one point makes point_ba (PTBAA)
-                # reflect the full stand BA — the DGF point-competition term — instead of
-                # stand_BA/idup. (NPTIDS=1 here; NPTIDS>1 needs a per-point loop — TODO.)
-                t.plot_id[n]     = Int32(1)
+                # Records go on inventory point `nn` (estab.f:313 ITRE=IPTIDS[nn]).
+                # point_ba scales each point's raw BA by PI/GROSPC with PI=NPTIDS, so with
+                # the planted TPA spread evenly over NPTIDS points each point_ba comes back
+                # to the full stand BA — matching the oracle's pba=ba_v fallback (PTBAA≤0)
+                # for fresh establishment, for any NPTIDS (NPTIDS=1 ⇒ this is point 1).
+                t.plot_id[n]     = Int32(nn)
                 t.crown_pct[n]   = Int32(0)            # crown set in phase 2 (REGENT lestb)
                 t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
