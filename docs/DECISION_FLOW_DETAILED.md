@@ -107,7 +107,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 |---|---|---|
 | `LSTART` (label_100) | **calibration pass** (once): predict DDS for input trees, derive per-species COR, set OLDRN | ✅ `calibrate_diameter_growth!` |
 | ↳ IDG=1 or 3 | convert input DG to inside-bark | ✅ |
-| ↳ poor-sample abort (csnxx<0) | skip species calibration | 🟡 unverified — needs a sparse-species key to exercise |
+| ↳ poor-sample abort (fn<fnmin) | skip species calibration (SIGMA=SIGMAR) | ✅ **covered** — hit by ~135 single-species stands (few measured-growth trees); congruent (MCOV probe sweep). csnxx<0 sub-case is a degenerate negative-variance guard (unhit). |
 | ↳ DGSD≥1 ⇒ set OLDRN residuals (BACHLO draws) | reproducible per-tree noise | ✅ |
 | normal cycle: `MULTS(7)` cov, `AUTCOR` | serial-correlation params (σ,ρ) | ✅ `serial_correlation.jl` |
 | `DGF(DBH)` | predicted ln(DDS) per tree | ✅ `dgf!` |

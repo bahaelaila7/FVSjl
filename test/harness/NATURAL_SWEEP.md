@@ -23,3 +23,19 @@ scenarios and diffing the full multi-cycle `.sum`.
   yet ported to FVSjl. Closing regen = add a bare-stand scenario + port the ESTAB model.
 - Volume-only residuals (out of the growth/mortality/density/regen scope): Fort Bragg
   cyc0 scuft=0 (sp8 volume-eq selection at forest 701) + all_BK/all_DW board-foot ulp.
+
+## Branch-coverage audit (2026-06-22)
+Mapped the natural-process condition branches from the FVS flow and probed which the
+scenarios actually EXERCISE (MCOV env probe, since removed):
+- **MORTS density regimes:** over-dense (t85), both intermediate paths, low-density,
+  density-on/background — ALL covered by the `all_*` species variety. `SDIMAX<5` is an
+  empty-stand guard (not a real path).
+- **DGDRIV calibration:** both `CALIB_done` (212×) and the `poor-sample abort` (135×)
+  covered; `csnxx<0` is a degenerate negative-variance guard.
+- **HTGF:** near-max-height cap heavily hit. **CROWN:** all 5 mean-CR form equations +
+  the relsdi clamp-high all covered.
+- **Gap found + closed:** the low-density/no-mortality (`t<=t55d10`) and sparse-crown
+  (`relsdi<=1`) branches needed an UNDERSTOCKED stand (all scenarios use snt01 stocking).
+  Added `sparse_lowdens` + `sparse_min` (gen_natural_coverage.sh) — both bit-congruent to
+  Oracle A; they close those branches.
+- **Still open:** REGEN (ESTAB) — needs the model ported AND a bare/auto-estab stand.
