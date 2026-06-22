@@ -9,16 +9,18 @@ using Test, FVSjl
 
 const _HARNESS = joinpath(@__DIR__, "..", "harness", "scenarios")
 
-function _cyc1_tpa(key)
+# cycle-1 (1997) row: (TPA, BA, QMD) or nothing
+function _cyc1_row(key)
     s, _ = initialize(key)
     FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
     io = IOBuffer(); FVSjl.write_sum_file(io, s)
     for ln in eachline(IOBuffer(String(take!(io))))
         occursin("-999", ln) && continue
-        t = split(strip(ln)); length(t) >= 3 || continue
-        startswith(t[1], "1997") && return tryparse(Float64, t[3])
+        t = split(strip(ln)); length(t) >= 8 || continue
+        startswith(t[1], "1997") &&
+            return (tryparse(Float64, t[3]), tryparse(Float64, t[4]), tryparse(Float64, t[8]))
     end
-    return missing
+    return nothing
 end
 
 @testset "REGEN / establishment coverage (ESTAB gap tracker)" begin
@@ -27,13 +29,18 @@ end
         if !isfile(key)
             @test_skip "$nm scenario not generated (gen_estab_scenarios.sh)"
         else
-            @testset "$nm: bare stand runs + regenerates" begin
-                tpa = _cyc1_tpa(key)
-                @test tpa !== missing                       # PREREQUISITE: bare stand runs (no crash)
-                # ESTAB now regenerates this bare stand to 800 TPA at cycle 1 (1997),
-                # matching Oracle A (TPA bit-exact for the first ~5 cycles). The full
-                # .sum BA/QMD bit-exactness needs ESGENT established heights (stage 4b).
-                @test tpa !== missing && isapprox(tpa, 800.0; atol = 2)
+            @testset "$nm: bare stand regenerates (bit-exact @1997)" begin
+                row = _cyc1_row(key)
+                @test row !== nothing                       # PREREQUISITE: bare stand runs (no crash)
+                if row !== nothing
+                    tpa, ba, qmd = row
+                    # ESTAB regenerates to Oracle A's cycle-1 stand BIT-EXACT (established
+                    # heights via ESSUBH + ESRANN, dbh from height). Later cycles drift on
+                    # the cyc3+ stochastic-DGSCOR tail (a separate residual class).
+                    @test isapprox(tpa, 800.0; atol = 2)
+                    @test isapprox(ba,   14.0; atol = 1)
+                    @test isapprox(qmd,   1.8; atol = 0.1)
+                end
             end
         end
     end
