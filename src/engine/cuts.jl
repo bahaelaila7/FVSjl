@@ -99,9 +99,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     applied = false
     @inbounds for act in sched
         act.year == yr || continue
-        act.icflag == Int32(201) && continue          # modifier, applied above
-        applied = true
         ic = act.icflag
+        # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
+        # (201, applied above) are consumed elsewhere (ESNUTR).
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(8)) || continue
+        applied = true
         r = ic == Int32(8) ? _thindbh!(s, act) :                       # proportional DBH-class
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL

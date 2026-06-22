@@ -19,6 +19,8 @@ const KNOWN_NOOP = Set([
     "SCREEN", "NOSCREEN", "STATS", "NOAUTOES", "TREELIST", "ECHOSUM", "ECHO",
     "NOECHO", "NOSUM", "NODEBUG", "DEBUG", "CALBSTAT", "COMPRESS", "REWIND",
     "ATRTLIST", "CUTLIST", "MANAGED", "ENDFILE", "FVSSTAND",
+    # bare-stand / establishment-adjacent flags (no cycle-0 stand effect yet)
+    "NOTREES", "NOTRIPLE", "NOHTDREG", "AUTOES",
 ])
 
 "Read one raw (un-lexed) line from the keyword stream, advancing the record count."
@@ -116,6 +118,44 @@ function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     return
 end
 
+# OPTION — ESTAB…END establishment packet (esin.f). ESTAB opens the packet (field 1 =
+# date of disturbance); subsequent PLANT(430)/NATURAL(431) cards each schedule a regen
+# activity (year, species, TPA, %survival, age, height, shade); END closes it. Other
+# establishment keywords (TALLY/SPROUT/…) are recognized and skipped for now. At END a
+# TALLY(427) trigger is scheduled at the disturbance date and IDSDAT→-9999 (esin.f:100-117).
+function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    s.estab.active = true
+    idsdat = rec.present[1] ? nint(rec.values[1]) : Int32(-1)   # ESTAB date field
+    sched = s.control.schedule
+    while true
+        r = read_keyword!(kr)
+        (r.status == KW_EOF || r.status == KW_STOP) && break
+        k = strip(r.name)
+        isempty(k) && continue
+        if k == "END"
+            break
+        elseif k == "PLANT" || k == "NATURAL"
+            ic = k == "PLANT" ? Int32(430) : Int32(431)
+            v = r.values
+            yr   = r.present[1] ? nint(v[1]) : Int32(1)
+            sp   = Float32(v[2])
+            tpa  = Float32(v[3])
+            tpa <= 0f0 && continue                                # esin.f:143 (TPA must be >0)
+            surv = (v[4] < 0.001f0 || v[4] > 100f0) ? 100f0 : Float32(v[4])  # esin.f:149
+            push!(sched, ScheduledActivity(yr, ic, (sp, tpa, surv, Float32(v[5]), Float32(v[6]), Float32(v[7]))))
+        end
+        # other establishment keywords (TALLY/SPROUT/…) not yet ported — skipped
+    end
+    # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
+    # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.
+    if idsdat != Int32(-1)
+        push!(sched, ScheduledActivity(max(Int32(1), idsdat), Int32(427),
+                                       (Float32(idsdat), 0f0, 0f0, 0f0, 0f0, 0f0)))
+    end
+    s.estab.idsdat = Int32(-9999)
+    return
+end
+
 # OPTION 15 — STDIDENT (initre.f:862): stand id from the next raw line.
 function kw_stdident!(s::StandState, kr::KeywordReader)
     record = rpad(read_raw_line!(kr), 250)[1:250]
@@ -163,6 +203,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
+        elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre")
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference

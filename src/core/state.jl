@@ -379,8 +379,10 @@ Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,M
 # ---------------------------------------------------------------------------
 mutable struct Establishment
     active::Bool
+    idsdat::Int32       # date of disturbance (ESTAB keyword); -9999 = unset (ESNUTR defaults it)
+    ntally::Int32       # regen-tally counter (NTALLY)
 end
-Establishment() = Establishment(false)
+Establishment() = Establishment(false, Int32(-9999), Int32(0))
 
 mutable struct DbsState
     enabled::Bool
