@@ -66,6 +66,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     gentim = (Int(yr) + per - idsdat) - per; gentim < 0 && (gentim = 0)
     pccf = 0f0          # point crown competition factor (≈0 for the sparse established plots)
     created = false
+    nstart = t.n        # tree count before establishment (phase-2 crown pass starts here)
     @inbounds for rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
         # (unused on the no-treeht path), one for esdraw (the re-seed value).
@@ -105,20 +106,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
                 t.plot_id[n]     = Int32(rep)
-                # Establishment (open-grown) crown ratio (REGENT lestb, regent.f:107-116):
-                # cr = 0.89722 − 0.0000461·PCCF + 0.07985·N(0,1)[±1], clamp [0.20,0.90].
-                # The per-cycle CROWN (crown_ratio_update! after this) then applies its
-                # ±1%/yr change limit, settling it near ~85. The crown draw uses the MAIN
-                # RANN stream (separate from the ESRANN height draws above).
-                ran_cr = 0f0
-                while true
-                    ran_cr = bachlo(s.rng, 0f0, 1f0)
-                    -1f0 <= ran_cr <= 1f0 && break
-                end
-                cr = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
-                icr0 = floor(Int32, cr * 100f0 + 0.5f0)
-                t.crown_pct[n]   = icr0
-                t.crown_ratio[n] = Float32(icr0)
+                t.crown_pct[n]   = Int32(0)            # crown set in phase 2 (REGENT lestb)
+                t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
                 t.sort_key[n]    = Float64(n)
                 created = true
@@ -126,7 +115,26 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         end
         es = esdraw; (es % 2f0 == 0f0) && (es += 1f0); s.rng.es0 = Float64(es)  # ESRNSD(true,esdraw)
     end
+    # PHASE 2 — ESGENT → REGENT(lestb): assign each new tree its open-grown crown in
+    # SPESRT (species-then-record) order (regent.f:107-116). cr = 0.89722 −
+    # 0.0000461·PCCF + 0.07985·N(0,1)[±1], clamp [0.20,0.90]; the crown draw uses the
+    # MAIN RANN stream (separate from the ESRANN heights). The per-cycle CROWN
+    # (crown_ratio_update!, run after) then applies its ±1%/yr change limit (~85).
+    if created
+        newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))
+        @inbounds for i in newidx
+            ran_cr = 0f0
+            while true
+                ran_cr = bachlo(s.rng, 0f0, 1f0)
+                -1f0 <= ran_cr <= 1f0 && break
+            end
+            cr = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
+            icr0 = floor(Int32, cr * 100f0 + 0.5f0)
+            t.crown_pct[i]   = icr0
+            t.crown_ratio[i] = Float32(icr0)
+        end
+        compute_density!(s)
+    end
     push!(s.estab.years_done, yr)
-    created && compute_density!(s)
     return created
 end
