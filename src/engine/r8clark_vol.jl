@@ -580,7 +580,7 @@ const _OTOTAL = Float32[
 # R8CLARK species remapping (r8prep.f lines 99-116)
 # ---------------------------------------------------------------------------
 function _r8_remap_spec(spec::Int)
-    spec == 123 || spec == 197            && return 100
+    (spec == 123 || spec == 197)          && return 100   # parens: && binds tighter than ||
     spec == 268                            && return 261
     spec ∈ (313,314,317,650,651,691,711,742,762,920,930,545,546) && return 300
     spec ∈ (521,550,580,601,602,318)      && return 500
