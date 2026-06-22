@@ -24,10 +24,16 @@ Legend: ✅ implemented+tested · 🟡 implemented, UNtested · ⛔ NOT implemen
   → a tree carrying cull/defect/decay/woodland gets the wrong (too-high) volume.
 - **Why untested:** snt01's TREEFMT has no cull/defect/decay/woodland columns → all
   default 0 → the branch never fires → snt01 stays bit-exact and hides the gap.
-- **Plan:** port the defect/cull/woodland/decay handling in the volume path; add a
-  `.tre` scenario with cull%, defect codes, woodland stems, and a dead+decay tree;
-  validate the cuft/bdft/carbon vs live Fortran.
-- Status: ⛔ OPEN
+- **Deeper (C1 input):** FVSjl's `parse_tree_record` reads only through field 25
+  (birth_age) — it never reads CULL/DEFECT/DECAYCD at all. And `intree.f:123-126`
+  DEFAULTS `DECAYCD=3` for dead trees (ith>5) / 0 for live; FVSjl does neither. So the
+  gap spans **C1 (parser doesn't read them) → C2 (no dead-tree DECAYCD default) → C5
+  (volume/biomass don't apply them)**.
+- **Plan (multi-layer):** (1) extend TreeRecord + parser to read cull/defect/decay
+  (and the woodland default); (2) intree DECAYCD=3-for-dead default; (3) apply
+  defect%/cull in the volume path + woodland multi-stem; (4) a `.tre` scenario with
+  cull/defect/woodland + dead/decay trees, validated vs live Fortran.
+- Status: ⛔ OPEN — multi-layer (C1+C2+C5)
 
 ### G2 — Biomass / carbon not computed at all  ⛔  (C5)
 - **Fortran (`vols.f` → `calcbiomass.f`):** `JENKINS` (Jenkins 2003 above-ground
