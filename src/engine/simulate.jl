@@ -102,9 +102,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
     # bogus into next cycle's DGF/mortality).
-    newregen = establish!(s; fint = fint)   # ESNUTR — adds regen (ICR=0), recomputes density
+    establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
     crown_ratio_update!(s; fint = fint)     # CROWN — crown ratio for ALL trees incl. new regen
-    newregen && compute_volumes!(s)         # VOLS — volumes for the new trees
+    # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
+    # VOLS in the establishment cycle runs before the records are inserted, so a planted
+    # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first
+    # gets volume from the next cycle's VOLS (next grow_cycle!'s compute_volumes!). The
+    # crown pass above DOES set the new trees' ICR this cycle (DGF/mortality read it next).
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
