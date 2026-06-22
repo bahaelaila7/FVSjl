@@ -25,6 +25,7 @@ using FVSjl
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
+    include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end
