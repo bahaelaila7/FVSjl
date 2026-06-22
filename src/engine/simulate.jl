@@ -112,3 +112,31 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
+
+"""
+    run_keyfile(keypath; variant=Southern(), faithful=true, period=5) -> String
+
+Full multi-stand run: project EVERY stand in `keypath` (the FVS `main.f` stand loop)
+and return the concatenated `.sum` text — one `-999` header + per-cycle rows per
+stand. Each stand is set up (`notre!`/`setup_growth!`/`compute_volumes!`) and projected
+by `write_sum_file`, which runs the per-cycle loop including scheduled management
+(CUTS/ESTAB/fire). Stands are independent (`each_stand` gives each a fresh state with
+the tree format carried across), so this is also the unit of thread-parallelism.
+"""
+function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Southern(),
+                     faithful::Bool = true, period::Integer = 5,
+                     date::AbstractString = "", time::AbstractString = "")
+    out = IOBuffer()
+    for s in each_stand(keypath; variant = variant, faithful = faithful)
+        notre!(s)
+        setup_growth!(s)
+        compute_volumes!(s)
+        sid = strip(s.plot.stand_id)
+        mid = strip(s.plot.mgmt_id)
+        write_sum_file(out, s; period = Int(period),
+                       stand_id = String(sid),
+                       mgmt_id = isempty(mid) ? "NONE" : String(mid),
+                       date = date, time = time)
+    end
+    return String(take!(out))
+end

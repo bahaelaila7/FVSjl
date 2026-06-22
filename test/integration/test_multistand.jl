@@ -38,3 +38,34 @@ const _MS_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test stands[5].estab.active
     end
 end
+
+@testset "full multi-cycle driver (run_keyfile) — snt01" begin
+    if !isfile(_MS_KEY)
+        @test_skip "snt01.key not available"
+    else
+        txt = run_keyfile(_MS_KEY)
+        rows = [strip(l) for l in split(txt, '\n') if !isempty(strip(l))]
+        hdrs = filter(l -> startswith(l, "-999"), rows)
+        @test length(hdrs) == 5                      # one -999 header per stand
+        @test [split(h)[3] for h in hdrs] == ["S248112","S248112","S248112","FFE","BARE"]
+
+        # Stand 1 (unthinned control) is bit-exact modulo Float32 ulp — assert the first
+        # block's data rows match the Fortran baseline to ±2 on TPA/BA/cuft.
+        savef = _MS_KEY[1:end-4] * ".sum.save"
+        data = filter(l -> !startswith(l, "-999"), rows)[1:11]   # stand-1 block (11 cycles)
+        base = isfile(savef) ?
+            filter(l -> !startswith(l, "-999"),
+                   [strip(l) for l in eachline(savef)])[1:11] : String[]
+        isempty(base) && @test_skip "snt01.sum.save baseline not available"
+        for (m, o) in zip(data, base)
+            mf = split(m); of = split(o)
+            @test mf[1] == of[1]                                       # year
+            @test abs(parse(Int, mf[3]) - parse(Int, of[3])) <= 2      # TPA
+            @test abs(parse(Int, mf[4]) - parse(Int, of[4])) <= 1      # BA
+            @test abs(parse(Int, mf[9]) - parse(Int, of[9])) <= 3      # total cuft
+        end
+        # NOTE: stands 2 (THINDBH in IF/THEN event monitor), 3 (THINPRSC), and 4 (FFE
+        # fire) require management subsystems still being ported — the driver runs them
+        # but their thinning/fire is not yet applied. Tracked, not asserted here.
+    end
+end

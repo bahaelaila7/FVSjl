@@ -81,7 +81,7 @@ export parse_tree_format, parse_tree_record, read_tree_file, TreeRecord, DEFAULT
 export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF, KW_STOP, KW_PARMS
 export read_tree_records, read_trees_csv, write_trees_csv, convert_tre_to_csv, TREE_CSV_HEADER
 export read_keyword_records, read_keywords_yaml, write_keywords_yaml, convert_key_to_yaml, read_keyfile_records
-export initialize, initialize!, each_stand, process_keywords!, load_trees!, strip_key_ext
+export initialize, initialize!, each_stand, run_keyfile, process_keywords!, load_trees!, strip_key_ext
 export dgcons!, dgf!, notre!, stand_tpa, stand_ba, stand_qmd, stand_sdi, stand_ccf, stand_top_height
 
 end # module FVSjl
