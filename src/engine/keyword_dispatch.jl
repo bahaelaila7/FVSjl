@@ -112,7 +112,7 @@ end
 # cuts! port lands; THINDBH is the first (milestone 1). (cuts.f label dispatch.)
 const _THIN_ICFLAG = Dict("THINBTA" => Int32(3), "THINATA" => Int32(4),
                           "THINBBA" => Int32(5), "THINABA" => Int32(6),
-                          "THINDBH" => Int32(8))
+                          "THINPRSC" => Int32(7), "THINDBH" => Int32(8))
 
 # Parse a THIN* activity: field 1 = calendar year, fields 2-7 = the 6 method params.
 # Stores a ScheduledActivity for `cuts!` to apply on the matching cycle.

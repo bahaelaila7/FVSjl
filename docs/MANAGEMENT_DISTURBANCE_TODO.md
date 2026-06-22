@@ -20,7 +20,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 | THINBTA/THINATA/THINBBA/THINABA | from below/above to residual TPA/BA | ✅ |
 | THINDBH | proportional DBH-class to residual TPA/BA | ✅ |
 | THINAUTO | auto-thin to FULSTK on stocking trigger | ⛔ |
-| THINPRSC | prescription (per-DBH-class residual table) — snt01 stand 3 | ⛔ |
+| THINPRSC | prescription thin — remove cut-code-marked (KUTKOD≥2) records at cuteff — snt01 stand 3 | ✅ (`_thinprsc!`; stand 3 bit-exact; nps>1 deferred) |
 | THINSDI | thin to target SDI | ⛔ |
 | THINCC | thin to residual **crown competition / cover** | ⛔ (was missing) |
 | THINHT | thin a height class | ⛔ |

@@ -59,7 +59,7 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test_broken isapprox(_at(sp, 2005.0, 7), 59.0; atol = 1)
         end
         @testset "THINPRSC removes the prescribed TPA (rem_tpa 2000 == 259)" begin
-            @test_broken isapprox(_at(pr, 2000.0, 13), 259.0; atol = 2)
+            @test isapprox(_at(pr, 2000.0, 13), 259.0; atol = 2)   # ported (cut-code marked)
         end
         @testset "YARDLOSS affects removed-volume accounting (col24 2000 == 124)" begin
             @test_broken isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)

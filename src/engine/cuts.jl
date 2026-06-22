@@ -102,9 +102,10 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(8)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8)) || continue
         applied = true
         r = ic == Int32(8) ? _thindbh!(s, act) :                       # proportional DBH-class
+            ic == Int32(7) ? _thinprsc!(s, act) :                      # prescription (cut-code marked)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -200,6 +201,32 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     end
     @inbounds for i in 1:n
         t.tpa[i] = wk4[i]                               # residual replaces PROB
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINPRSC (cuts.f label_300 → label_550 lspecl path, ICFLAG 7): "prescription" thin.
+# Despite the name it is not a per-DBH-class table — it removes the records the user
+# PRE-MARKED with a cut code in the tree data (KUTKOD≥2; cuts.f:616-617 for the single-
+# prescription case nps==1), at cutting efficiency `cuteff` (params[1]). All species,
+# all DBH (label_300 leaves valmin=0/valmax=9999). Each marked record loses cuteff·tpa.
+# (Multiple same-year prescriptions, nps>1, use the kutnow/KUTKOD-match path — deferred;
+# snt01 uses one THINPRSC so nps==1.)
+function _thinprsc!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    cuteff = act.params[1]
+    cuteff <= 0f0 && return _NO_REMOVAL
+    cuteff > 1f0 && (cuteff = 1f0)
+    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
+    @inbounds for i in 1:n
+        t.cut_code[i] < Int32(2) && continue        # only pre-marked (KUTKOD≥2) records
+        prem = t.tpa[i] * cuteff
+        prem <= 0f0 && continue
+        t.tpa[i] -= prem
+        rtpa  += prem;                  rcuft  += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end
