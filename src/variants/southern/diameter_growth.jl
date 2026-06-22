@@ -550,7 +550,11 @@ function triple_records!(s::StandState, stash)
         copy_tree!(t, 3 * nlive + k, nlive + k)
     end
     @inbounds for i in 1:nlive
-        u = nlive + i; l = 2 * nlive + i
+        # FVS TRIPLE (triple.f:18) appends BOTH new records per parent contiguously:
+        # itfn = ITRN+2i-1 (weight .25), itfn+1 = ITRN+2i (weight .15). This interleaved
+        # physical layout (not all-uppers-then-all-lowers) is what TREDEL's swap-from-end
+        # walks after a thin, so it must match the oracle's append order exactly.
+        u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
