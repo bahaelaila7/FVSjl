@@ -17,7 +17,7 @@ Legend: ⛔ unported · 🟡 partial/simplified · 🔬 ported-but-accuracy-tail
 | item | FVS source | what it does | why untested today | status |
 |---|---|---|---|---|
 | **COMCUP zero-PROB delete** | `base/comcup.f` (top, before COMPRS) | every cycle, TREDEL records with `PROB ≤ 1e-5` (suppressed trees whose expansion → ~0) so the next cycle's DGSCOR doesn't draw an extra deviate for a dead record | snt01 live records never reach 1e-5 → bit-exact without it; dense/long stands trigger it | ✅ `comcup!` (trees.jl) in grow_cycle!; dense_long 30-cyc scenario validates ±1 vs oracle (test_longrun.jl) |
-| **ESFLTR** | `base/esfltr.f` | establishment filter — flag "best tree" records for the estab model | regen scenarios don't hit it | ⛔ |
+| **ESFLTR** | `estb/esfltr.f` | sets BAAINV/TPAAINV (understory/overstory densities) + IESTAT best-tree flags that feed the AUTO-establishment probability | SN establishment is keyword-driven (PLANT/NATURAL give TPA explicitly) → the auto-estab probability path is bypassed; Oracle A stubs ESFLTR and stays bit-exact | ✅ confirmed no-op for SN (matches oracle; would only matter for auto-ingrowth, which SN doesn't use) |
 | **NPTIDS>1 replication** | `base/estab.f` (nn-loop over IPTIDS) | establishment replicated per inventory point (multi-point) | bare scenarios are single-point | ✅ per-point loop + plot_id=nn (point_ba×PI→ba_v); bare_multipoint/mp3 match oracle |
 
 ## B. Natural ACCURACY tails (ported, not bit-exact)
@@ -48,6 +48,10 @@ Legend: ⛔ unported · 🟡 partial/simplified · 🔬 ported-but-accuracy-tail
 
 1. ✅ **COMCUP zero-PROB delete** — DONE (dense_long 30-cyc scenario, ±1 vs oracle).
 2. ✅ **NPTIDS>1** — DONE (bare_multipoint 5-pt / bare_mp3 3-pt match oracle).
-3. **ESFLTR** — regen scenario; port the establishment filter.
+3. ✅ **ESFLTR** — confirmed no-op for SN (auto-estab probability path, bypassed by keyword PLANT/NATURAL).
 4. Classification (SSTAGE/SDICLS/SILFTY) + PCTILE/DIST/COMP — belongs with C5-detail/C6 output.
 5. DG calibration tail — pick one calibrated outlier species, reconcile per-tree.
+
+> **Natural DYNAMICS are now complete** (COMCUP + NPTIDS>1 ported; ESFLTR confirmed no-op for SN).
+> Remaining natural items are the DG-accuracy tail (#5) and classification/reporting (#4 → C5-detail/C6),
+> which are output, not simulation dynamics.
