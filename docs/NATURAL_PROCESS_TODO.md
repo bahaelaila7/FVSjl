@@ -16,7 +16,7 @@ Legend: ⛔ unported · 🟡 partial/simplified · 🔬 ported-but-accuracy-tail
 
 | item | FVS source | what it does | why untested today | status |
 |---|---|---|---|---|
-| **COMCUP / COMPRS** | `base/comprs.f` (+EIGEN!), `base/comcup.f` | record compression when live records overflow `MAXTRE÷3` (auto) or on COMPRESS keyword | snt01 caps at 243 records → never triggers | ⛔ |
+| **COMCUP zero-PROB delete** | `base/comcup.f` (top, before COMPRS) | every cycle, TREDEL records with `PROB ≤ 1e-5` (suppressed trees whose expansion → ~0) so the next cycle's DGSCOR doesn't draw an extra deviate for a dead record | snt01 live records never reach 1e-5 → bit-exact without it; dense/long stands trigger it | ⛔ |
 | **ESFLTR** | `base/esfltr.f` | establishment filter — flag "best tree" records for the estab model | regen scenarios don't hit it | ⛔ |
 | **NPTIDS>1 replication** | `base/estab.f` (nn-loop over IPTIDS) | establishment replicated per inventory point (multi-point) | bare scenarios are single-point | 🟡 (single-point done) |
 
