@@ -45,7 +45,7 @@ completeness + tested per-tree (not via `.sum`), per the user's request.
   (and the woodland default); (2) intree DECAYCD=3-for-dead default; (3) apply
   defect%/cull in the volume path + woodland multi-stem; (4) a `.tre` scenario with
   cull/defect/woodland + dead/decay trees, validated vs live Fortran.
-- Status: ⛔ OPEN — multi-layer (C1+C2+C5)
+- Status: ⏭️ DEFERRED TO C6 (see docs/C6_DBS_TODO.md) — DBS-input + Carbon-table coupled
 
 ### G2 — Biomass / carbon not computed at all  ⛔  (C5)
 - **Fortran (`vols.f` → `calcbiomass.f`):** `JENKINS` (Jenkins 2003 above-ground
