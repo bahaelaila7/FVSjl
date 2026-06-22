@@ -27,8 +27,8 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | THINRDEN | relative-density thin (Curtis RD) | ✅ |
 | THINRDSL | relative-density SDI-line (SILVAH RD) thin | ⚪ N/A in SN (RDCLS2 gated VARACD≠NE → no-op) |
 | THINMIST | mistletoe (DMR) thin | ⚪ N/A in SN (no dwarf-mistletoe model → IDMR=0 → no-op) |
-| THINPT / SETPTHIN | point (plot-specific) thin | ⛔ |
-| THINQFA | Q-factor diameter-dist thin | ⛔ |
+| THINPT / SETPTHIN | point (plot-specific) thin | ⛔ SN-relevant; needs SETPTHIN per-point prescriptions + multi-plot point-thinning infra (JPNUM/IPTINV/LPTALL) — a focused build |
+| THINQFA | Q-factor diameter-dist thin | ⛔ SN-relevant; scenario validated (cut_thinqfa, 2-record, Fortran 2005=89). Scope: port CUTQFA (155-ln Q-factor negative-exponential target distribution → per-class CLSTAR targets) + label_350 per-class driver + 2-record keyword parser. Self-contained (reuses CLSSTK/SDICLS). Next focused unit. |
 
 ## 2. CUTS — modifiers (`cuts.f`, IACTK 201-206 + setup keywords)
 
