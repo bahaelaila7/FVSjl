@@ -111,14 +111,24 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
     end
+    # SETPTHIN (icflag 248) prescription this cycle → (point, metric) read by THINPT.
+    # (same-cycle prescription; cross-cycle persistence would need control state.)
+    pt_point = Int32(0); pt_metric = Int32(0); pt_set = false
+    @inbounds for act in acts
+        if act.icflag == Int32(248)
+            pt_point  = Int32(round(act.params[1]))
+            pt_metric = Int32(round(act.params[2]))
+            pt_set = true
+        end
+    end
     # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
     @inbounds for act in acts
         ic = act.icflag
-        # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
-        # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17)) || continue
+        # only CUTS methods here; establishment (427/430/431), the SPECPREF (201) and
+        # SETPTHIN (248) modifiers are consumed elsewhere.
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17), Int32(15)) || continue
         applied = true
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
@@ -127,6 +137,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             ic == Int32(1)  ? _thin_auto!(s, act) :                    # THINAUTO (auto to normal stocking)
             ic == Int32(11) ? _thin_cc!(s, act) :                      # THINCC (crown cover)
             ic == Int32(17) ? _thin_qfa!(s, act) :                     # THINQFA (Q-factor distribution)
+            ic == Int32(15) ? (pt_set ? _thin_pt!(s, act, pt_point, pt_metric) : _NO_REMOVAL) :  # THINPT (point)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -747,6 +758,124 @@ function _thin_qfa!(s::StandState, act::ScheduledActivity)
                                             (clstar2[i], 0f0, Float32(ispcut), dlo, dhi, 1f0)))
         end
         rtpa += r.tpa; rcuft += r.cuft; rmcuft += r.mcuft; rscuft += r.scuft; rbdft += r.bdft
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINPT (cuts.f label_475→400, ICFLAG 15): point-level thin. SETPTHIN sets the point
+# (pt_point; 0 = all points / LPTALL) and the residual metric (ithnpa: 1=TPA, 2=BA, 3=SDI
+# Zeide, 4=CC crown cover, 5=Curtis RD). THINPT gives the residual + DBH class + direction
+# (0 throughout / 1 below / 2 above). Each targeted point is thinned independently to the
+# residual in its metric; the per-point metric scales the point's per-acre stocking by
+# (PI−NONSTK) (the jpnum path in CLSSTK/SDICLS/…). Ported from Oracle A cuts.jl label_475.
+function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnpa::Int32)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    (ithnpa < 1 || ithnpa > 5) && return _NO_REMOVAL
+    residual, _eff, spec_f, dbhlo, dbhhi_p, dir_f = act.params
+    residual = max(0f0, residual)
+    ispcut = Int(round(spec_f))
+    dir    = Int(round(dir_f))
+    valmin = dbhlo; valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
+    scale  = Float32(s.plot.points_inv) - Float32(s.plot.nonstockable)
+    scale <= 0f0 && (scale = 1f0)
+    pmax = max(1, Int(s.plot.points_inv))
+    points = pt_point == 0 ? (1:pmax) : (Int(pt_point):Int(pt_point))
+
+    # per-tree weight w[i] for the metric (point-independent for TPA/BA/SDI/CC; RD is
+    # point-dependent and filled inside the loop).
+    w = zeros(Float32, n)
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d <= 0f0 && continue
+        if ithnpa == 1
+            w[i] = 1f0
+        elseif ithnpa == 2
+            w[i] = d * d * _BA_PER_TREE
+        elseif ithnpa == 3
+            w[i] = (d / 10f0)^1.605f0
+        elseif ithnpa == 4
+            sp2 = s.species.class_codes[t.species[i], 1][1:2]
+            cw = crown_width(s.coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
+                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            w[i] = cw * cw
+        end
+    end
+
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    @inline function _rmp!(i, prem)
+        prem <= 0f0 && return
+        wk4[i] -= prem
+        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
+        return
+    end
+
+    for jp in points
+        # Curtis RD weight is point-specific (linearised about the point's QMD)
+        if ithnpa == 5
+            cd2 = 0f0; ct = 0f0
+            @inbounds for i in 1:n
+                (t.plot_id[i] == jp && t.dbh[i] > 0f0) || continue
+                cd2 += t.dbh[i]^2 * wk4[i]; ct += wk4[i]
+            end
+            ct <= 0f0 && continue
+            q = cd2 / ct; c2 = 24f0^2
+            a_rd = (0.25f0 * 3.14159f0 / c2) * q^0.75f0
+            b_rd = (0.75f0 * 3.14159f0 / c2) * q^(0.75f0 - 1f0)
+            @inbounds for i in 1:n
+                t.plot_id[i] == jp && t.dbh[i] > 0f0 && (w[i] = a_rd + b_rd * t.dbh[i]^2)
+            end
+        end
+        # point metric (scaled to the point's per-acre stocking)
+        metric = 0f0
+        @inbounds for i in 1:n
+            t.dbh[i] <= 0f0 && continue
+            (t.plot_id[i] == jp) || continue
+            _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+            metric += w[i] * wk4[i]
+        end
+        metric *= scale
+        metric <= residual && continue
+        cuteff = (metric - residual) / metric
+
+        if dir == 0
+            @inbounds for i in 1:n
+                t.dbh[i] <= 0f0 && continue
+                (t.plot_id[i] == jp) || continue
+                _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+                prem = wk4[i] * cuteff
+                prem > wk4[i] && (prem = wk4[i])
+                _rmp!(i, prem)
+            end
+        else                                            # from below (1) / above (2)
+            lbelow = dir == 1
+            remove = metric - residual                  # in metric units (already ×scale)
+            pref = s.control.cut_pref
+            idx = Int32[i for i in 1:n if t.plot_id[i] == jp && t.dbh[i] > 0f0 &&
+                        _cut_eligible(t, i, ispcut, valmin, valmax)]
+            isempty(idx) && continue
+            key = Float32[(lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]]) for i in idx]
+            ord = Vector{Int32}(undef, length(idx)); _rdpsrt!(key, ord)
+            totcut = 0f0
+            @inbounds for k in ord
+                i = idx[k]; totcut >= remove && break
+                cv = w[i] * scale
+                cv <= 0f0 && continue
+                prem = wk4[i]
+                if totcut + prem * cv > remove
+                    prem = (remove - totcut) / cv
+                    prem > wk4[i] && (prem = wk4[i])
+                end
+                totcut += prem * cv
+                _rmp!(i, prem)
+            end
+        end
+    end
+
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end

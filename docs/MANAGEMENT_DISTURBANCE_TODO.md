@@ -27,7 +27,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | THINRDEN | relative-density thin (Curtis RD) | ✅ |
 | THINRDSL | relative-density SDI-line (SILVAH RD) thin | ⚪ N/A in SN (RDCLS2 gated VARACD≠NE → no-op) |
 | THINMIST | mistletoe (DMR) thin | ⚪ N/A in SN (no dwarf-mistletoe model → IDMR=0 → no-op) |
-| THINPT / SETPTHIN | point (plot-specific) thin | ⛔ SN-relevant; needs SETPTHIN per-point prescriptions + multi-plot point-thinning infra (JPNUM/IPTINV/LPTALL) — a focused build |
+| THINPT / SETPTHIN | point (plot-specific) thin (per-point + PI/NONSTK) | ✅ |
 | THINQFA | Q-factor diameter-dist thin (CUTQFA + 2-record) | ✅ |
 
 ## 2. CUTS — modifiers (`cuts.f`, IACTK 201-206 + setup keywords)

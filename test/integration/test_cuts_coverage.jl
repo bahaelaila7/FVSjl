@@ -50,6 +50,7 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         rd = _sum_rows("cut_thinrden")
         au = _sum_rows("cut_thinauto")
         qf = _sum_rows("cut_thinqfa")
+        pt = _sum_rows("cut_thinpt")
 
         # PORTED + validated: THINBTA blank-dbhhi fires, and SPECPREF reorders the cut
         # so the year-2000 removal is bit-exact to Oracle A (rem_tpa 327, at_BA 96).
@@ -89,6 +90,9 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         end
         @testset "THINQFA thins to a Q-factor distribution (TPA 2005 == 89)" begin
             @test isapprox(_at(qf, 2005.0, 3), 89.0; atol = 2)         # ported (CUTQFA Q-factor + 2-record)
+        end
+        @testset "THINPT point thin (SETPTHIN all-points TPA; TPA 2005 == 18)" begin
+            @test isapprox(_at(pt, 2005.0, 3), 18.0; atol = 2)         # ported (per-point + PI/NONSTK)
         end
     end
 end
