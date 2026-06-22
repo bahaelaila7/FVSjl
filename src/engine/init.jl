@@ -24,8 +24,14 @@ end
 Initialize one stand from an already-open keyword reader. Applies BLOCK DATA
 defaults then processes keywords until PROCESS/STOP/EOF (the returned reason).
 """
-function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString)
+function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString;
+                     inherited_format::AbstractString = "")
     load_species_coefficients!(s, s.variant)      # BLOCK DATA (species, TREFMT, RNG seed)
+    # TREFMT persists across stands in FVS (it lives in COMMON; INITRE never resets it —
+    # only the TREEFMT keyword changes it). A 2nd+ stand with no TREEFMT keyword inherits
+    # the previous stand's format, so re-applying the BLOCK DATA default here would break
+    # it. Restore the inherited format; a TREEFMT keyword in this stand still overrides.
+    isempty(inherited_format) || (s.control.tree_format = inherited_format)
     ranseed!(s.rng, false, s.rng.ss)              # INITRE: RANSED(false,...) → reset to seed
     s.plot.gross_space = -1f0                      # GRINIT reset (sn/grinit.f:156)
     @inbounds for i in 1:MAXSP                      # GRINIT size-cap defaults (sn/grinit.f:62)
@@ -53,4 +59,35 @@ function initialize(keypath::AbstractString; variant::AbstractVariant = Southern
         initialize!(s, KeywordReader(io), base)
     end
     return s, reason
+end
+
+"""
+    each_stand(keypath; variant=Southern(), faithful=true) -> Vector{StandState}
+
+Initialize EVERY stand in a multi-stand keyword file (stands are separated by
+`PROCESS` and the run ends at `STOP`/EOF). FVS re-runs INITRE per stand — each stand
+gets a fresh `StandState` (so `ITRN` resets) — but the tree-record format (`TREFMT`)
+persists in COMMON across stands, so it is carried forward here; a `TREEFMT` keyword
+inside a later stand still overrides it. Returns the per-stand initialized states
+(cyc0-ready; run `notre!`/`setup_growth!`/`compute_volumes!` to project each).
+"""
+function each_stand(keypath::AbstractString; variant::AbstractVariant = Southern(),
+                    faithful::Bool = true)
+    base = strip_key_ext(keypath)
+    stands = StandState[]
+    open(keypath) do io
+        kr = KeywordReader(io)
+        fmt = ""                                   # TREFMT carried across stands
+        while true
+            s = StandState(variant; faithful = faithful)
+            reason = initialize!(s, kr, base; inherited_format = fmt)
+            fmt = s.control.tree_format            # may have been set by a TREEFMT keyword
+            # A bare STOP/EOF after the last stand's PROCESS is the run terminator, not a
+            # stand: no STDINFO ran, no trees, no establishment. Don't emit a phantom stand.
+            real = s.plot.user_forest_code != 0 || s.trees.n > 0 || s.estab.active
+            real && push!(stands, s)
+            reason in (:stop, :eof) && break
+        end
+    end
+    return stands
 end

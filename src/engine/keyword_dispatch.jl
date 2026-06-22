@@ -196,12 +196,22 @@ keyword file path with the extension stripped (used to locate the `.tre` file fo
 TREEDATA). Returns the terminating reason (:process, :stop, :eof).
 """
 function process_keywords!(s::StandState, kr::KeywordReader, base_path::AbstractString)
+    trees_loaded = false   # an explicit TREEDATA was processed
+    notrees      = false   # NOTREES suppresses the default tree read
+    nkw          = 0       # real keywords seen (0 ⇒ bare STOP/EOF, not a stand)
+    # INITRE end (initre.f:334-336): if no TREEDATA keyword ran, read the tree file once
+    # anyway — so a stand without TREEDATA (e.g. snt01's FFE stand, which only REWINDs the
+    # shared data unit) still gets its trees. NOTREES (bare stands) suppresses this, and a
+    # bare terminator (STOP/EOF with no keywords) is not a stand at all (nkw==0).
+    finish(reason) = (nkw > 0 && !trees_loaded && !notrees &&
+                      load_trees!(s, base_path * ".tre"); reason)
     while true
         rec = read_keyword!(kr)
-        rec.status == KW_EOF && return :eof
-        rec.status == KW_STOP && return :stop
+        rec.status == KW_EOF && return finish(:eof)
+        rec.status == KW_STOP && return finish(:stop)
         kw = strip(rec.name)
         isempty(kw) && continue                      # blank-line record
+        nkw += 1
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "NUMCYCLE"; kw_numcycle!(s, rec)
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)
@@ -210,10 +220,11 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
-        elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre")
+        elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
+        elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
-        elseif kw == "PROCESS";  return :process
+        elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet
         else
