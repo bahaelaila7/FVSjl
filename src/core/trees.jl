@@ -168,14 +168,14 @@ and survivor pointers cross. Unlike `compact_live!` this does NOT preserve order
 it reproduces the oracle's exact post-thin physical record layout, which any
 physical-order-dependent pass (mortality kill distribution) then walks identically.
 """
-function tredel_compact!(t::TreeList)
+function tredel_compact!(t::TreeList; thresh::Float32 = 0f0)
     n = t.n; ndel = 0
-    @inbounds for i in 1:n; t.tpa[i] <= 0f0 && (ndel += 1); end
+    @inbounds for i in 1:n; t.tpa[i] <= thresh && (ndel += 1); end
     ndel == 0 && return t
     iv = 1; ir = n
     @inbounds while true
-        while iv <= n && t.tpa[iv] > 0f0; iv += 1; end
-        while ir >= 1 && t.tpa[ir] <= 0f0; ir -= 1; end
+        while iv <= n && t.tpa[iv] > thresh; iv += 1; end
+        while ir >= 1 && t.tpa[ir] <= thresh; ir -= 1; end
         iv >= ir && break
         copy_tree!(t, iv, ir); t.tpa[ir] = 0f0; iv += 1; ir -= 1
     end
@@ -186,3 +186,15 @@ function tredel_compact!(t::TreeList)
     t.n = newn
     return t
 end
+
+"""
+    comcup!(t)
+
+COMCUP (comcup.f, top half): each cycle, delete live records whose expansion factor
+`PROB` (tpa) has fallen to ≤ 1e-5 — suppressed trees whittled to ~0 by mortality.
+Uses the same swap-from-end TREDEL as a thin. Keeping them is harmless to the `.sum`
+(they contribute ~0), but they would consume an extra per-tree DGSCOR random deviate
+next cycle, drifting the RNG from the oracle. (The COMPRESS-keyword compression in the
+bottom half of comcup.f is a management option — not ported here.)
+"""
+comcup!(t::TreeList) = tredel_compact!(t; thresh = 1f-5)

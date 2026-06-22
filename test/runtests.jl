@@ -29,6 +29,7 @@ using FVSjl
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)
     include("integration/test_fortbragg_coverage.jl")# C5: Fort Bragg (forest 701) KODFOR remap → nonzero volume
     include("integration/test_multistand.jl")# C2/C8: multi-stand driver (each_stand) — TREFMT persist + default INTREE
+    include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end

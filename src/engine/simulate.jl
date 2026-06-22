@@ -98,6 +98,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
+    comcup!(t)                              # COMCUP (grincr.f:318, end of GRINCR): drop
+                                            # PROB≤1e-5 records before GRADD/next cycle
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
