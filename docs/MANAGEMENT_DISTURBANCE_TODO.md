@@ -38,7 +38,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | SPLEAVE / LEAVESP | leave named species | ⛔ |
 | CUTEFF | default cutting efficiency | ⛔ |
 | TCONDMLT | thin-condition multiplier | ⛔ |
-| YARDLOSS | yarding-loss: scales REMOVED merch/saw/bdft by (1-prlost) + feeds fire-fuel pools (dsng/ssng/crown→C7). cut_yardloss removes 0 merch so .sum-effect is nil there; its `broken` test is really a post-THINDBH accretion residual (130 vs 124), not yardloss | ⛔ (C7-coupled; .sum part trivial) |
+| YARDLOSS | yarding-loss → scales removed merch/saw/bdft by (1−prlost) **and feeds the FFE down-wood/snag/crown fuel pools** | 🧊 **rolled into C7** (substantive effect is fuel-pool routing; standalone .sum effect nil; its `@test_broken` is the post-thin DGSCOR tail, not yardloss) |
 | MINHARV | minimum-harvest threshold (skip cut below it) | ⛔ (was missing) |
 | TFIXAREA | treatment fixed-area / pro-rate | ⛔ (was missing) |
 | SPGROUP (via SPCODES/SPLABEL) | species groups referenced by SPECPREF/LEAVESP | ⛔ |
