@@ -115,11 +115,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14)) || continue
         applied = true
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
+            ic == Int32(14) ? _thin_rden!(s, act) :                    # THINRDEN (Curtis RD)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -401,6 +402,103 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
             end
             totcut += cut_v
             _remove!(it, prem)
+        end
+    end
+
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINRDEN (cuts.f label_400, ICFLAG 14): thin to a residual Curtis relative density.
+# Ported from Oracle A cuts.jl label_400 + sdical.jl RDCLS. Curtis RD linearises about
+# the stand QMD (q = Σ D²·tpa / Σ tpa over DBH≥DBHSTAGE=0):
+#   tpafac = (0.25π/24²)·q^0.75 ;  diamfac = (0.75π/24²)·q^(−0.25)
+#   RD(class) = Σ_class tpa·(tpafac + diamfac·D²)
+# REMOVE = RD − target; CUTEFF = REMOVE/RD; sparse (icut=0) = proportional throughout;
+# icut=1/2 = from below/above (sorted), per-tree weight = tpafac + diamfac·D².
+@inline function _rd_curtis(t::TreeList, wk4, n, ispcut, dlo, dhi)
+    clsd2 = 0f0; clstpa = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d <= 0f0 && continue
+        clsd2 += d * d * wk4[i]; clstpa += wk4[i]
+    end
+    clstpa <= 0f0 && return (0f0, 0f0, 0f0)
+    q = clsd2 / clstpa
+    c2 = 24f0^2
+    tpafac  = (0.25f0 * 3.14159f0 / c2) * q^0.75f0
+    diamfac = (0.75f0 * 3.14159f0 / c2) * q^(0.75f0 - 1f0)
+    crd = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d <= 0f0 && continue
+        _cut_eligible(t, i, ispcut, dlo, dhi) || continue
+        crd += (tpafac + diamfac * d * d) * wk4[i]
+    end
+    return (crd, tpafac, diamfac)
+end
+
+function _thin_rden!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    target, cuteff_p, ispcut_f, dbhlo, dbhhi_p, icut_f = act.params
+    target = max(0f0, target)
+    ispcut = Int(round(ispcut_f))
+    icut   = Int(round(icut_f))
+    valmin = dbhlo
+    valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
+
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    crd, tpafac, diamfac = _rd_curtis(t, wk4, n, ispcut, valmin, valmax)
+    crd <= target && return _NO_REMOVAL
+    remove = crd - target
+    cuteff = remove / crd
+    cuteff > 1f0 && (cuteff = 1f0)
+
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    @inline function _rm!(i, prem)
+        prem <= 0f0 && return
+        wk4[i] -= prem
+        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
+        return
+    end
+
+    if icut == 0
+        @inbounds for i in 1:n
+            d = t.dbh[i]; d <= 0f0 && continue
+            _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+            prem = wk4[i] * cuteff
+            prem > wk4[i] && (prem = wk4[i])
+            _rm!(i, prem)
+        end
+    else
+        lbelow = icut == 1
+        ce = cuteff_p > 0f0 ? cuteff_p : 1f0
+        pref = s.control.cut_pref
+        key = Vector{Float32}(undef, n)
+        @inbounds for i in 1:n
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+        end
+        order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        totcut = 0f0
+        @inbounds for it in order
+            d = t.dbh[it]; d <= 0f0 && continue
+            _cut_eligible(t, it, ispcut, valmin, valmax) || continue
+            totcut >= remove && break
+            w = tpafac + diamfac * d * d
+            w <= 0f0 && continue
+            prem = wk4[it] * ce
+            prem > wk4[it] && (prem = wk4[it])
+            cut_v = prem * w
+            if totcut + cut_v > remove
+                prem = (remove - totcut) / w
+                prem > wk4[it] && (prem = wk4[it])
+                cut_v = prem * w
+            end
+            totcut += cut_v
+            _rm!(it, prem)
         end
     end
 
