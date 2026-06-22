@@ -78,7 +78,7 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test isapprox(_at(ht, 2005.0, 3), 133.0; atol = 2)   # ported (label_325 on height)
         end
         @testset "THINCC thins to residual crown cover (TPA 2005 == 71)" begin
-            @test_broken isapprox(_at(cc, 2005.0, 3), 71.0; atol = 2)   # CCCLS — unported
+            @test isapprox(_at(cc, 2005.0, 3), 71.0; atol = 2)         # ported (CCCLS crown cover)
         end
         @testset "THINRDEN thins to Curtis RD (TPA 2005 == 418)" begin
             @test isapprox(_at(rd, 2005.0, 3), 418.0; atol = 2)        # ported (Curtis RD + proportional)

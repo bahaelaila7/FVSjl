@@ -118,13 +118,14 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11)) || continue
         applied = true
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
             ic == Int32(14) ? _thin_rden!(s, act) :                    # THINRDEN (Curtis RD)
             ic == Int32(1)  ? _thin_auto!(s, act) :                    # THINAUTO (auto to normal stocking)
+            ic == Int32(11) ? _thin_cc!(s, act) :                      # THINCC (crown cover)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -552,4 +553,97 @@ function _thin_auto!(s::StandState, act::ScheduledActivity)
     # from-below thin to rstock TPA — reuse the validated THINBTA-below path (icflag 3).
     return _thin_sorted!(s, ScheduledActivity(act.year, Int32(3),
                                               (rstock, eff, 0f0, 0f0, 0f0, 0f0)))
+end
+
+# THINCC (cuts.f label_400, ICFLAG 11): thin to a residual canopy cover %.
+# Ported from Oracle A cuts.jl label_400 + sdical.jl CCCLS + cwidth.jl CWIDTH. The class
+# metric is crown cover AREA: CCCLS = Σ_class tpa·CW², where CW is each tree's FOREST-grown
+# crown width (CWIDTH/CWCALC with the tree's actual crown ratio — not the open-grown
+# iwho=1 form CCF uses). The keyword target is a cover PERCENT → equivalent crown area
+# (cuts.f:816, CCC=1): CSDI = −(43560·ln(1−CC/100)/0.785398). REMOVE = area − CSDI;
+# CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
+function _thin_cc!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    cc_target, cuteff_p, ispcut_f, dbhlo, dbhhi_p, icut_f = act.params
+    cc_target >= 100f0 && return _NO_REMOVAL           # cuts.f:823 cancel if ≥100%
+    ispcut = Int(round(ispcut_f))
+    icut   = Int(round(icut_f))
+    valmin = dbhlo
+    valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
+    csdi = cc_target <= 0f0 ? 0f0 :
+           -(43560f0 * log(1f0 - cc_target / 100f0) / 0.785398f0)
+
+    # per-tree forest-grown crown width (CRWDTH array, cwidth.f)
+    p = s.plot
+    cw = Vector{Float32}(undef, n)
+    @inbounds for i in 1:n
+        sp2 = s.species.class_codes[t.species[i], 1][1:2]
+        cw[i] = crown_width(s.coef, sp2, t.dbh[i], t.height[i],
+                            Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
+    end
+
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    area = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; d <= 0f0 && continue
+        _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+        area += cw[i] * cw[i] * wk4[i]
+    end
+    area <= csdi && return _NO_REMOVAL
+    remove = area - csdi
+    cuteff = remove / area
+    cuteff > 1f0 && (cuteff = 1f0)
+
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    @inline function _rmc!(i, prem)
+        prem <= 0f0 && return
+        wk4[i] -= prem
+        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
+        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
+        rbdft += prem * t.bdft_vol[i]
+        return
+    end
+
+    if icut == 0
+        @inbounds for i in 1:n
+            d = t.dbh[i]; d <= 0f0 && continue
+            _cut_eligible(t, i, ispcut, valmin, valmax) || continue
+            prem = wk4[i] * cuteff
+            prem > wk4[i] && (prem = wk4[i])
+            _rmc!(i, prem)
+        end
+    else
+        lbelow = icut == 1
+        ce = cuteff_p > 0f0 ? cuteff_p : 1f0
+        pref = s.control.cut_pref
+        key = Vector{Float32}(undef, n)
+        @inbounds for i in 1:n
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+        end
+        order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        totcut = 0f0
+        @inbounds for it in order
+            d = t.dbh[it]; d <= 0f0 && continue
+            _cut_eligible(t, it, ispcut, valmin, valmax) || continue
+            totcut >= remove && break
+            w = cw[it] * cw[it]
+            w <= 0f0 && continue
+            prem = wk4[it] * ce
+            prem > wk4[it] && (prem = wk4[it])
+            cut_v = prem * w
+            if totcut + cut_v > remove
+                prem = (remove - totcut) / w
+                prem > wk4[it] && (prem = wk4[it])
+                cut_v = prem * w
+            end
+            totcut += cut_v
+            _rmc!(it, prem)
+        end
+    end
+
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end

@@ -22,7 +22,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 | THINAUTO | auto-thin to FULSTK on stocking trigger (recurring) | ✅ (±1-2 TPA) |
 | THINPRSC | prescription thin — remove cut-code-marked (KUTKOD≥2) records at cuteff — snt01 stand 3 | ✅ (`_thinprsc!`; stand 3 bit-exact; nps>1 deferred) |
 | THINSDI | thin to target SDI (Zeide summation + proportional CUTEFF) | ✅ |
-| THINCC | thin to residual crown cover (CCCLS) | 🟡 ported but BLOCKED on crown-width model (crown_width=0) |
+| THINCC | thin to residual crown cover (CCCLS, forest-grown crown width) | ✅ |
 | THINHT | thin a height class (label_325 on height) | ✅ |
 | THINRDEN | relative-density thin (Curtis RD) | ✅ |
 | THINRDSL | relative-density **SDI-line / Reineke** thin | ⛔ (was missing) |
