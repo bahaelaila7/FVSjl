@@ -188,6 +188,40 @@ function kw_treefmt!(s::StandState, kr::KeywordReader)
     return
 end
 
+# OPTION — IF / THEN / ENDIF (event monitor, evmon.f). Reads the condition expression
+# (raw lines up to THEN), then the activity keywords up to ENDIF, into a
+# ConditionalActivity whose acts fire only in cycles where the condition is true.
+# The IF-block activities carry NO date (field 1 blank) — their year is filled in at
+# fire time — so they parse with the same (year=v[1]=0, params=v[2:7]) layout.
+function kw_if!(s::StandState, kr::KeywordReader)
+    cond = ""
+    while true
+        line = strip(read_raw_line!(kr))
+        (isempty(line) || startswith(uppercase(line), "THEN")) && (isempty(line) ? continue : break)
+        cond *= " " * line
+        uppercase(line) == "THEN" && break
+    end
+    acts = ScheduledActivity[]
+    while true
+        rec = read_keyword!(kr)
+        (rec.status == KW_EOF || rec.status == KW_STOP) && break
+        kw = strip(rec.name); isempty(kw) && continue
+        uppercase(kw) == "ENDIF" && break
+        v = rec.values
+        if haskey(_THIN_ICFLAG, kw)
+            push!(acts, ScheduledActivity(nint(v[1]), _THIN_ICFLAG[kw],
+                                          ntuple(i -> Float32(v[i + 1]), 6)))
+        elseif kw == "SPECPREF"
+            push!(acts, ScheduledActivity(nint(v[1]), Int32(201),
+                                          ntuple(i -> Float32(v[i + 1]), 6)))
+        end
+        # unknown keywords inside IF (e.g. COMPUTE) are skipped for now
+    end
+    push!(s.control.conditionals,
+          ConditionalActivity(parse_event_condition(cond), acts, strip(cond)))
+    return
+end
+
 """
     process_keywords!(state, kr, base_path) -> Symbol
 
@@ -219,6 +253,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
+        elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read

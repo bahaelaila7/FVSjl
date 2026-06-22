@@ -28,6 +28,18 @@ struct ScheduledActivity
     params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
 end
 
+# Event-monitor expression AST node (concrete types + evaluator in event_monitor.jl).
+abstract type EvNode end
+
+# ConditionalActivity — an IF/THEN/ENDIF block (event monitor): its activities fire
+# only in cycles where the condition expression is true. Built by the IF keyword
+# handler, evaluated each cycle in `cuts!` via `eval_event` over the parsed AST.
+struct ConditionalActivity
+    cond::EvNode
+    acts::Vector{ScheduledActivity}
+    src::String
+end
+
 # Control — COMMON /CONTRL/ + /CONCHR/ : simulation control & flags
 # ---------------------------------------------------------------------------
 mutable struct Control
@@ -151,6 +163,7 @@ mutable struct Control
     sp_scf_stump::Vector{Float32}#                                       (SCFSTMP)
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
+    conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
     years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
 end
@@ -181,7 +194,7 @@ function Control()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-        ScheduledActivity[], Set{Int32}(),                      # schedule, years_cut
+        ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
     )
 end

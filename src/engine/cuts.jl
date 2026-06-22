@@ -84,21 +84,34 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 """
 function cuts!(s::StandState; fint::Float32 = 5f0)
     sched = s.control.schedule
-    isempty(sched) && return _NO_REMOVAL
+    conds = s.control.conditionals
+    (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
     # Year of the current cycle (matches summary_row): inventory year + cycle·period.
     # (cycle_year only stores the inventory year; later years are derived.)
     yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
+    # Effective activities this cycle: the dated ones (year==yr) plus any IF/THEN block
+    # whose algebraic condition is true this cycle (EVMON), with their year set to yr.
+    acts = ScheduledActivity[a for a in sched if a.year == yr]
+    if !isempty(conds)
+        ctx = EventCtx(Int(s.control.cycle) + 1, Int(yr), s)   # FVS CYCLE is 1-based
+        for c in conds
+            eval_event(c.cond, ctx) != 0f0 || continue
+            for a in c.acts
+                push!(acts, ScheduledActivity(yr, a.icflag, a.params))
+            end
+        end
+    end
+    isempty(acts) && return _NO_REMOVAL
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
     # method runs (cuts.f processes SPECPREF/SPLEAVE/… then the thin in the cycle).
-    @inbounds for act in sched
-        act.year == yr && act.icflag == Int32(201) && _apply_specpref!(s, act)
+    @inbounds for act in acts
+        act.icflag == Int32(201) && _apply_specpref!(s, act)
     end
     # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
-    @inbounds for act in sched
-        act.year == yr || continue
+    @inbounds for act in acts
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
