@@ -109,11 +109,30 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 | PRMFROST / CLIMATE | permafrost / climate-FVS modifiers | 🧊 |
 | ECON / CHEAPO | economic analysis | 🧊 C8 (ANNUCST path exists) |
 
+## Validation status — 3-way sweep vs live Fortran (2026-06-22)
+
+The comprehensive 3-way sweep (162 scenarios × with/without management, vs live
+Fortran) confirms the **cut logic of every ported method is correct**; the only
+management-scenario residuals are *post-cut* tails, not thinning bugs:
+
+| scenario | thin | finding |
+|---|---|---|
+| `s11`/`s28`/`s29_thinbta` | THINBTA | cut **bit-exact** (536→162 at the thin); post-thin ±4 TPA drift over 7 cycles = the **post-thin DGSCOR/serial-correlation tail** (cut re-ranks the stand → the stochastic DG/mortality responds slightly differently; the increment even flips sign cycle-to-cycle, so it does not propagate). Not a cut bug. |
+| `s28_thindbh` | THINDBH | bit-identical (snt01 block 2). |
+| `cut_thinprsc` | THINPRSC | Δ2 at the cut because the scenario uses `DESIGN …11.0` = **nps=11 plots** — the deferred multi-plot THINPRSC path (single-plot/snt01 stand 3 is bit-exact). + post-thin tail. |
+| `cut_yardloss` | YARDLOSS | removes 0 merch → .sum-neutral; the ±9 TPA is the same post-THINDBH accretion tail, not yardloss. C7-coupled for the fuel pools. |
+| `cut_thinsdi` | THINSDI | ±19 TPA — **genuinely unported** (target-SDI thin); the largest real gap. |
+| SPECPREF / IF-THEN | — | cut-preference + event-monitor blocks fire and cut correctly. |
+
+**Conclusion:** ported thinning methods (THINBTA/ATA/BBA/ABA, THINDBH, single-plot
+THINPRSC, SPECPREF, IF/THEN event monitor) are cut-exact. Remaining work is the
+*unported* methods below + the multi-plot THINPRSC path; the post-thin numeric tail is
+the same single-precision/serial-correlation floor seen in the natural-process runs.
+
 ## Suggested order (when starting)
-1. THINPRSC + (SALVAGE) + YARDLOSS — snt01 stands 3-4
-2. Event monitor (IF/THEN/COMPUTE) — snt01 stand 2
+1. THINSDI/CC/HT/RDEN/RDSL/PT/QFA (label_400 SDI-class thins) + LEAVESP/MINHARV — the real gaps
+2. Multi-plot (nps>1) THINPRSC path
 3. DEFECT/BFDEFECT/MCDEFECT (.sum-affecting volume) + a defect scenario
-4. Remaining CUTS methods/modifiers (THINSDI/CC/HT/RDEN/RDSL/PT/QFA + LEAVESP/MINHARV/…)
-5. Growth/mort multipliers (FIXDG/HTGMULT/MORTMULT/… — all keyword no-ops at default)
-6. PRUNE / FERTILIZ / COMPRESS / ADDFILE
-7. FFE fire (C7), insects (no scenario), econ (C8)
+4. Growth/mort multipliers (FIXDG/HTGMULT/MORTMULT/… — all keyword no-ops at default)
+5. PRUNE / FERTILIZ / COMPRESS / ADDFILE
+6. FFE fire (C7), insects (no scenario), econ (C8)
