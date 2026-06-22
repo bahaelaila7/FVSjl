@@ -43,3 +43,45 @@ Format per entry:
 - **Fix:** in FVSjulia `HBDECD`, build `temp` as a fixed 8-char space-padded string
   from the first non-blank run of `KARD2` and compare `temp == rpad(code,8)[1:8]`
   (or compare trimmed-vs-trimmed), matching `hbdecd.f`.
+- **STATUS: FIXED** in FVSjulia commit `ddfac81` (2026-06-22). Validated vs live
+  Fortran: a snt01 stand with habitat `232BA` was 53 `.sum` rows wrong (defaulted to
+  231DD), now bit-exact. Found via the FVSjl 3-way harness.
+
+---
+
+### R8 Clark `_r8_remap_spec` operator-precedence bug → zero volume for FIA 123/197
+- **Oracle A (FVSjulia):** `src/base/r8clark_vol.jl:583` —
+  `spec == 123 || spec == 197 && return 100`. Julia binds `&&` tighter than `||`, so
+  this parses as `spec == 123 || (spec == 197 && return 100)`. For `spec==123` the
+  expression short-circuits to a discarded `true`; the remap never fires, 123 is
+  looked up directly, the Clark coefficient table has no 123 entry, and **cubic
+  volume comes out 0**. (197 worked, via the `&&`.)
+- **Real Fortran:** `base/r8prep.f` lines 99-116 — `IF (SPEC.EQ.123 .OR. SPEC.EQ.197)
+  SPEC=100`; **both** codes remap to species 100's coefficients.
+- **FVSjl:** had the **same** bug (inherited from this file) at
+  `src/engine/r8clark_vol.jl:583`; fixed in parallel.
+- **Impact / how found:** comprehensive 3-way sweep (162 scenarios × with/without
+  management) — `all_TM` (Table Mountain pine, FIA 123) reported `cuft=0` every cycle
+  in **both** Julia ports while live Fortran gave 1491/2184/2715/…. After the fix
+  FVSjulia is bit-exact to Fortran on all_TM.
+- **Fix:** parenthesize the `||`: `(spec == 123 || spec == 197) && return 100`.
+- **STATUS: FIXED** — FVSjulia commit `06dbc1d`, FVSjl commit `8fa68ea` (2026-06-22).
+
+---
+
+## Open items surfaced by the 3-way sweep (not yet fixed)
+
+- **FFE fire mortality residual (FVSjulia):** `fire_fuel9`/`fire_fuel11` match Fortran
+  bit-exact pre-burn, then FVSjulia kills ~10-28 more TPA than Fortran at the burn
+  cycle (e.g. fire_fuel9 2010: 133 vs 143 TPA, BA equal). A real but small FFE
+  fire-effects divergence in Oracle A's fire extension. Needs tracing in SIMFIRE/FMEFF.
+- **Physiography transcendental tail (shared):** `s06_ecounit_232`→p234,
+  `s13_phys_p222`→p222, `s16_phys_p255`→p255 each show a small **shared**
+  Julia-vs-Fortran cuft drift (±3-10 cuft, ±3-4 TPA) that **both** ports exhibit
+  identically (so not a port-specific logic bug). cyc0 is exact; the drift appears in
+  growth, is bounded/oscillating (not compounding), and tracks ±0.1 QMD sub-display
+  flips → accumulated single-precision transcendental (`exp`/`sqrt`) rounding in the
+  DG→volume chain. Pending a definitive live-Fortran per-tree `wk2`/DG trace to confirm.
+- **Live Fortran FP-crashes (ground truth):** species `all_AE/EL/RL/SU/WE` abort the
+  Fortran `FVSsn` binary itself with SIGFPE — a likely FVS bug or degenerate species
+  coefficients; those species cannot be validated against Fortran.
