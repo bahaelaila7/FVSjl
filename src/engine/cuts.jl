@@ -11,6 +11,67 @@
 
 const _BA_PER_TREE = 0.005454154f0   # cuts.f basal-area-per-tree factor
 
+# RDPSRT (rdpsrt.f): real descending indirect quicksort — fill `index[1..n]` with a
+# permutation so that key[index[1]] >= key[index[2]] >= … A faithful port of the
+# Fortran partition (NOT Julia's `sortperm`) because the TIE-BREAK among equal keys
+# must match FVS: snt01 has identical input trees that triple into exact-DBH-tied
+# records, so the from-below cut's tie order decides WHICH lineage is removed — and
+# the surviving lineages set the post-thin DGSCOR traversal order (and thus the RNG).
+function _rdpsrt!(key::AbstractVector{Float32}, index::AbstractVector{Int32})
+    n = length(key)
+    @inbounds for i in 1:n; index[i] = Int32(i); end
+    n < 2 && return index
+    ipush = zeros(Int, 64)
+    itop = 0; il = 1; iu = n
+    indil = indiu = indip = indkl = indku = 0
+    ip = kl = ku = jl = ju = 0
+    t = 0f0
+    @inbounds while true
+        @label l30
+        if iu <= il; @goto l40; end
+        indil = Int(index[il]); indiu = Int(index[iu])
+        if iu > il + 1; @goto l50; end
+        if key[indil] >= key[indiu]; @goto l40; end
+        index[il] = Int32(indiu); index[iu] = Int32(indil)
+        @label l40
+        itop == 0 && break
+        il = ipush[itop-1]; iu = ipush[itop]; itop -= 2
+        @goto l30
+        @label l50
+        ip = (il + iu) ÷ 2
+        indip = Int(index[ip]); t = key[indip]
+        index[ip] = Int32(indil)
+        kl = il; ku = iu
+        @label l60
+        kl += 1
+        if kl > ku; @goto l90; end
+        indkl = Int(index[kl])
+        if key[indkl] >= t; @goto l60; end
+        @label l70
+        indku = Int(index[ku])
+        if ku < kl; @goto l100; end
+        if key[indku] > t; @goto l80; end
+        ku -= 1
+        @goto l70
+        @label l80
+        index[kl] = Int32(indku); index[ku] = Int32(indkl); ku -= 1
+        @goto l60
+        @label l90
+        indku = Int(index[ku])
+        @label l100
+        index[il] = Int32(indku); index[ku] = Int32(indip)
+        if ku <= ip; @goto l110; end
+        jl = il; ju = ku - 1; il = ku + 1
+        @goto l120
+        @label l110
+        jl = ku + 1; ju = iu; iu = ku - 1
+        @label l120
+        itop += 2
+        ipush[itop-1] = jl; ipush[itop] = ju
+    end
+    return index
+end
+
 "Per-acre removed totals from a thin (zeros when nothing is cut)."
 const _NO_REMOVAL = (tpa = 0f0, cuft = 0f0, mcuft = 0f0, scuft = 0f0, bdft = 0f0)
 
@@ -168,17 +229,19 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     remove = cstock - target
     remove <= 0f0 && return _NO_REMOVAL
 
-    # priority key = ±DBH (size) + IORDER[sp] species preference (SPECPREF); eligible
-    # records ranked, ineligible pushed last. (cuts.f:635 WK2 = xsz + IORDER + weights;
-    # the condition/density weights default to 0 until TCONDMLT/point keywords land.)
+    # priority key = ±DBH (size) + IORDER[sp] species preference (SPECPREF). cuts.f:635
+    # computes WK2 = xsz + IORDER + weights for ALL records (the condition/density
+    # weights default 0 until TCONDMLT/point keywords land) and ranks them with RDPSRT;
+    # eligibility is applied in the removal loop, NOT by excluding from the sort — this
+    # preserves the exact RDPSRT tie-break among equal keys (critical: see _rdpsrt!).
     pref = s.control.cut_pref
     elig = falses(n); key = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        e = _cut_eligible(t, i, 0, dbhlo, valmax, htlo, hthi)
-        elig[i] = e
-        key[i] = e ? (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]]) : -Inf32
+        elig[i] = _cut_eligible(t, i, 0, dbhlo, valmax, htlo, hthi)
+        key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
     end
-    order = sortperm(key; rev = true)               # descending (RDPSRT order)
+    order = Vector{Int32}(undef, n)
+    _rdpsrt!(key, order)                             # descending, FVS tie-break
 
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
