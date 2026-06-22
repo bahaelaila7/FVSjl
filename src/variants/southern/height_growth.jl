@@ -29,6 +29,13 @@ end
 htcalc_htmax(bc, sp::Integer, si::Real, montane::Bool=false) =
     (b = _htcalc_coef(bc, sp, montane); b[1] * Float32(si)^b[2])
 
+"Height (ft) at a given age on the Chapman-Richards curve (HTCALC mode 1) — used by
+ESSUBH to assign established-tree heights."
+function htcalc_height(bc, sp::Integer, si::Real, age::Real, montane::Bool=false)
+    b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si)
+    return (b1 * sif^b2) * (1f0 - exp(b3 * Float32(age)))^(b4 * sif^b5)
+end
+
 "Solve tree age from current height (HTCALC mode 0)."
 function htcalc_age(bc, sp::Integer, si::Real, h::Real, montane::Bool=false)
     b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si)
