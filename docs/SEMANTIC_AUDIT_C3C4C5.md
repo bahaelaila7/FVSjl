@@ -13,6 +13,18 @@ Legend: ✅ implemented+tested · 🟡 implemented, UNtested · ⛔ NOT implemen
 
 ---
 
+## ⚑ RE-SCOPING (after reading intree.f field layout)
+
+The `.sum` is **semantically congruent** — G1/G2 do NOT silently corrupt it. Verified:
+`intree.f` reads exactly 25 fields (same as FVSjl) and **CULL/DEFECT are never read
+from a text `.tre`** — they're zeroed for text input and only set via the DBS database
+path. For text records: CULL=DEFECT=0 (no volume reduction), DECAYCD=3 dead / 0 live
+(carbon only, not `.sum`), WDLDSTEM=1 woodland (single-stem ⇒ no change). So every
+attribute branch is a no-op for the text-input `.sum`, which is why the 90-species
+sweep is bit-exact. **G1 and G2 are therefore C6-coupled** (DBS database input + the
+DBS Carbon/biomass tables), not natural-process `.sum` gaps. Still ported here for
+completeness + tested per-tree (not via `.sum`), per the user's request.
+
 ## GAP LOG (findings; fix + scenario tracked here)
 
 ### G1 — Volume: CULL / DEFECT / DECAYCD / WDLDSTEM not applied  ⛔  (C5)
@@ -49,6 +61,20 @@ Legend: ✅ implemented+tested · 🟡 implemented, UNtested · ⛔ NOT implemen
 - Status: ⛔ OPEN
 
 ---
+
+## Designed test coverage for G1/G2
+
+- **G2 biomass/carbon** — extend the 90-species harness to dump **per-tree**
+  `ABVGRD_BIO/MERCH_BIO/CUBSAW_BIO/FOLI_BIO` + carbon and diff vs Oracle A (the `.sum`
+  can't show it). The 90-species relabel already spans the Jenkins species groups, so
+  this gives broad coverage. New test: `test_biomass.jl` (per-tree, ±tol).
+- **DECAYCD-dead / WDLDSTEM defaults** — testable from text `.tre` now: assert mine's
+  dead trees (history 6-9) get `decay_code=3` and woodland species get
+  `woodland_stems=1`, matching the oracle (per-tree state, not `.sum`).
+- **G1 cull/defect volume** — CANNOT be set from a text `.tre` (Fortran reads 25 fields;
+  cull/defect come from DBS database input). Genuine coverage needs **DBS input = C6**.
+  Port the volume-side application now (ready); add the cull/defect scenario as a C6
+  DBS-input test. Tracked.
 
 ## Routine-by-routine audit (coverage confirmations)
 
