@@ -91,9 +91,15 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         org = nint(v[9])
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
     end
-    # Fort Bragg (forkod.f:137): forest 701 (location 701xx) ⇒ IFOR=20, which selects
-    # the special longleaf/loblolly diameter-growth + bark equations.
-    div(p.user_forest_code, 100) == 701 && (p.forest_idx = Int32(20))
+    # Fort Bragg (forkod.f:137-140): forest 701 (location 701xx) ⇒ IFOR=20 (special
+    # longleaf/loblolly DG + bark equations) AND KODFOR is remapped to NC Uwharrie
+    # district 81110 (region 8) for downstream FORTYP + VOLEQDEF. Without the KODFOR
+    # remap, VOLEQDEF sees region 7 (70106÷10000) and assigns NO R8 Clark equation ⇒
+    # every tree gets zero volume.
+    if div(p.user_forest_code, 100) == 701
+        p.forest_idx = Int32(20)
+        p.user_forest_code = Int32(81110)
+    end
     # FORKOD phase 3: default lat/long/elev from the forest code (forkod.f:193).
     lat0, long0, elev0 = forest_location(s.coef, div(p.user_forest_code, 100))
     p.latitude  == 0f0 && (p.latitude  = lat0)

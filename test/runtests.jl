@@ -27,6 +27,7 @@ using FVSjl
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)
+    include("integration/test_fortbragg_coverage.jl")# C5: Fort Bragg (forest 701) KODFOR remap → nonzero volume
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end
