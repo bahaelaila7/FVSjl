@@ -11,7 +11,7 @@ insects) are C7; econ is C8 — noted here for completeness but owned there.
 > discipline: port the real FVS code; tests only catch bugs. C6-coupled items live in
 > [`C6_DBS_TODO.md`](C6_DBS_TODO.md).
 
-Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
+Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 extension
 
 ## 1. CUTS — thinning / harvest methods (`cuts.f`, ICFLAG)
 
@@ -25,8 +25,8 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 | THINCC | thin to residual crown cover (CCCLS, forest-grown crown width) | ✅ |
 | THINHT | thin a height class (label_325 on height) | ✅ |
 | THINRDEN | relative-density thin (Curtis RD) | ✅ |
-| THINRDSL | relative-density **SDI-line / Reineke** thin | ⛔ (was missing) |
-| THINMIST | mistletoe (DMR) thin | ⛔ |
+| THINRDSL | relative-density SDI-line (SILVAH RD) thin | ⚪ N/A in SN (RDCLS2 gated VARACD≠NE → no-op) |
+| THINMIST | mistletoe (DMR) thin | ⚪ N/A in SN (no dwarf-mistletoe model → IDMR=0 → no-op) |
 | THINPT / SETPTHIN | point (plot-specific) thin | ⛔ |
 | THINQFA | Q-factor diameter-dist thin | ⛔ |
 
