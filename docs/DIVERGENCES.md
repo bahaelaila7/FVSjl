@@ -89,7 +89,7 @@ constant ⇒ a candidate un-ported formula/branch. After clearing false positive
 
 | finding | where | gate | status |
 |---|---|---|---|
-| **Fort Bragg special equations** — `dgf` dg5 growth (sp 8,13), `bratio` bark (sp 5,6,8,11,13), DG ATTEN override (sp 8=2056,13=689) | `dgf.f:515-537`, `bratio.f:106-118`, `dgf.f:636` | `IFOR==20` ⇔ forest code 701 (Fort Bragg → mapped to Uwharrie 81110). No `IFOR==20` handling exists in FVSjl. | **real, un-ported (C3)** — validatable with a forest-701 scenario |
+| **Fort Bragg special equations** — `dgf` dg5 growth (sp 8,13), `bratio` bark (sp 5,6,8,11,13), DG ATTEN override (sp 8=2056,13=689), AND KODFOR→81110 remap for volume | `dgf.f:515-537`, `bratio.f:106-118`, `dgf.f:636`, `forkod.f:137-140` | `IFOR==20` ⇔ forest code 701 (Fort Bragg → mapped to Uwharrie 81110) | ✅ **PORTED** — dgf/bratio/atten (s30 growth bit-exact) + KODFOR=81110 remap so VOLEQDEF gets region 8 (was zero-volume; s30 .sum now ±1 ulp). `test_fortbragg_coverage.jl` |
 | REGENT establishment-mode crown draw (`0.89722−0.0000461·PCCF + 0.07985·ran`) | `regent.f:107-113` | establishment (`lestb`) — regen keywords | un-ported (C4 regen) |
 | SDICLS relative-density quadratics (3 species-group eqns) | `sdical.f:320-345` | stand-stage classification (not the .sum SDI number) | partial (SDICLS) |
 | `cfvol` merch-height conversion (8.3333) | `cfvol.f:37` | alternate cubic-volume equation (snt01 uses R8 Clark) | un-ported, vol-eq-gated |
