@@ -180,6 +180,30 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | weight<0.2 ⇒ break (skip degenerate) | guard | ✅ |
 | ITRN*=3, IREC1*=3, REASS reindex | record bookkeeping | ✅ |
 
+### `ESNUTR` / `ESTAB` — regeneration / establishment (`esnutr.f`, `estab.f`, …) → ⛔ UNPORTED
+
+Called once per cycle from `GRADD` (after mortality). SN uses the **partial (keyword-
+driven)** establishment model — there is NO automatic ingrowth; ESNUTR is a clean no-op
+unless an establishment keyword is present (which is why all stocked scenarios are
+congruent without it). Destructured (port order = upstream→downstream; see
+[[estab_chunk_plan]]). Target: the bare-stand scenarios regenerate 0→**800 TPA @cyc1**.
+
+| node (file) | role | status |
+|---|---|---|
+| empty/bare-stand engine support | run a NOTREES stand without crashing (all-zero .sum) | ✅ **done** (summary `vtot` init; prerequisite) |
+| `ESINIT` (esinit.f) | one-time establishment init at INITRE | ⛔ |
+| `ESIN` (esin.f) | parse the `ESTAB`…`END` packet: PLANT/NATURAL/TALLY/SPECMULT/… → schedule | ⛔ |
+| `ESNUTR` (esnutr.f) | per-cycle hook: SPECMULT/STOCKADJ/HTADJ; decide if establishment runs (TALLY/PLANT/NATURAL triggers); IDSDAT/≤20-yr window | ⛔ |
+| ↳ sprouting `ESUCKR` (esuckr.f) | stump sprouts after removal of LSPRUT species (ITRNRM≥1) | ⛔ (truly natural; needs a sprouting-species harvest) |
+| `ESPLT1/2` (esplt.f) | per-plot stockability / replication setup | ⛔ |
+| `ESTAB` (estab.f) | create trees from PLANT & NATURAL (MODE 1): est. probability, count, assign | ⛔ |
+| ↳ helpers `ESSUBH/ESETPR/ESPREP/ESTIME/ESGENT` (estab_helpers.f) | height/age/CR of new trees, generate records | ⛔ |
+| keyword parsing: `ESTAB`/`PLANT`/`NATURAL`/`TALLY`/`NOAUTOES` | INITRE dispatch → schedule | ⛔ (currently ignored) |
+
+**Coverage**: `bare_plant` + `bare_natural` scenarios (gen_estab_scenarios.sh) + the
+`@test_broken` trackers in test_regen_coverage.jl (bare→800). PLANT is the snt01 stand-5
+test; NATURAL is the natural-process form (same engine, identical target).
+
 ### `UPDATE` — apply growth (`update.f`) → inline in `grow_cycle!`
 
 | branch | effect | status |

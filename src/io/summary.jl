@@ -132,7 +132,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     toph = dt(stand_top_height(s))
     qmd  = round(stand_qmd(s); digits = 1)
     t = s.trees
-    vtot(f) = dt(sum(getfield(t, f)[i] * t.tpa[i] for i in 1:t.n) / g)
+    vtot(f) = dt(sum((getfield(t, f)[i] * t.tpa[i] for i in 1:t.n); init = 0f0) / g)  # init for bare/empty stands
     # Year/age advance by the period length each cycle from the inventory (IY/IAGE).
     cyc = Int(s.control.cycle)
     interval = period > 0 ? period : 5
