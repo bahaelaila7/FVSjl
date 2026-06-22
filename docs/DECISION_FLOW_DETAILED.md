@@ -97,7 +97,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 |---|---|---|
 | `CLSSTK` class stocking (TPA jtyp=1 / BA jtyp=2) over eligibility window | budget | ✅ `_clsstk` |
 | `RDPSRT` size rank (−DBH below / +DBH above) **+ IORDER[sp]** (SPECPREF) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled; TCONDMLT/point/density weights default 0) |
-| `TREDEL` compact removed (PROB≤0) records | RNG alignment | ✅ `compact_live!` |
+| `TREDEL` compact removed (PROB≤0) records | RNG alignment + post-thin physical layout | ✅ `tredel_compact!` (swap-from-end: smallest-index vacancy ← largest-index survivor; faithful `tredel.f`. commit 625b970. No `.sum` change vs the old order-preserving `compact_live!` for single-thin — mortality/growth read RNG in `sort_key` order, not physical — but it reproduces the oracle's exact layout for a 2nd thin's TREDEL) |
 | **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ⚠ diverges after a thin (s29 RNG splits at ICYC=4) — see [[fvsjl-c5-sum-state]] |
 | removed-volume columns (rem_tpa/cuft/mcuft/scuft/bdft) | `.sum` reporting | ✅ |
 
@@ -179,30 +179,36 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | central 0.60 / upper 0.25 / lower 0.15 weights | record probs | ✅ |
 | weight<0.2 ⇒ break (skip degenerate) | guard | ✅ |
 | ITRN*=3, IREC1*=3, REASS reindex | record bookkeeping | ✅ |
+| **append layout**: new records go to `ITRN+2i-1` (.25) and `ITRN+2i` (.15) — BOTH per parent contiguous, NOT all-uppers-then-all-lowers | physical record order CUTS/TREDEL walk | ✅ `u=nlive+2i-1; l=nlive+2i` (commit 29bea70 — was grouped; only surfaced under a thin: cut record set diverged from oracle) |
 
-### `ESNUTR` / `ESTAB` — regeneration / establishment (`esnutr.f`, `estab.f`, …) → ⛔ UNPORTED
+> The within-species RNG order is `sort_key`-driven (species_sort), so the grouped layout was still bit-exact for **unthinned** stands; the wrong *physical* append order only diverged once `TREDEL` (after a from-below thin) walked it. With the interleaved layout the s29 cyc2 THINBTA cut removes the IDENTICAL 79 record positions as the oracle.
 
-Called once per cycle from `GRADD` (after mortality). SN uses the **partial (keyword-
-driven)** establishment model — there is NO automatic ingrowth; ESNUTR is a clean no-op
-unless an establishment keyword is present (which is why all stocked scenarios are
-congruent without it). Destructured (port order = upstream→downstream; see
-[[estab_chunk_plan]]). Target: the bare-stand scenarios regenerate 0→**800 TPA @cyc1**.
+### `ESNUTR` / `ESTAB` — regeneration / establishment (`esnutr.f`, `estab.f`, …) → ✅ PORTED (keyword-driven)
+
+Called once per cycle from `GRADD` (after mortality, before CROWN). SN uses the **partial
+(keyword-driven)** establishment model — there is NO automatic ingrowth; ESNUTR is a clean
+no-op unless an establishment keyword is present (which is why all stocked scenarios are
+congruent without it). Target: the bare-stand scenarios regenerate 0→**800 TPA @cyc1**.
 
 | node (file) | role | status |
 |---|---|---|
-| empty/bare-stand engine support | run a NOTREES stand without crashing (all-zero .sum) | ✅ **done** (summary `vtot` init; prerequisite) |
-| `ESINIT` (esinit.f) | one-time establishment init at INITRE | ⛔ |
-| `ESIN` (esin.f) | parse the `ESTAB`…`END` packet: PLANT/NATURAL/TALLY/SPECMULT/… → schedule | ⛔ |
-| `ESNUTR` (esnutr.f) | per-cycle hook: SPECMULT/STOCKADJ/HTADJ; decide if establishment runs (TALLY/PLANT/NATURAL triggers); IDSDAT/≤20-yr window | ⛔ |
-| ↳ sprouting `ESUCKR` (esuckr.f) | stump sprouts after removal of LSPRUT species (ITRNRM≥1) | ⛔ (truly natural; needs a sprouting-species harvest) |
-| `ESPLT1/2` (esplt.f) | per-plot stockability / replication setup | ⛔ |
-| `ESTAB` (estab.f) | create trees from PLANT & NATURAL (MODE 1): est. probability, count, assign | ⛔ |
-| ↳ helpers `ESSUBH/ESETPR/ESPREP/ESTIME/ESGENT` (estab_helpers.f) | height/age/CR of new trees, generate records | ⛔ |
-| keyword parsing: `ESTAB`/`PLANT`/`NATURAL`/`TALLY`/`NOAUTOES` | INITRE dispatch → schedule | ⛔ (currently ignored) |
+| empty/bare-stand engine support | run a NOTREES stand without crashing (all-zero .sum) | ✅ (summary `vtot` init) |
+| `ESINIT` (esinit.f) | one-time establishment init at INITRE | ✅ |
+| `ESIN` (esin.f) | parse the `ESTAB`…`END` packet: PLANT/NATURAL/TALLY/SPECMULT/… → schedule | ✅ `kw_estab!` |
+| `ESNUTR` (esnutr.f) | per-cycle hook: decide if establishment runs (TALLY/PLANT/NATURAL triggers); IDSDAT/≤20-yr window | ✅ `establish!` |
+| ↳ sprouting `ESUCKR` (esuckr.f) | stump sprouts after removal of LSPRUT species (ITRNRM≥1) | ⛔ stub (never reached by snt01; needs a sprouting-species harvest — deferred w/ management) |
+| `ESPLT1/2` (esplt.f) | per-plot stockability / replication setup | ✅ (single bare plot, MINREP=50) |
+| `ESTAB` (estab.f) | create trees from PLANT & NATURAL (MODE 1): est. probability, count, assign | ✅ |
+| ↳ helpers `ESSUBH/ESETPR/ESPREP/ESTIME/ESGENT` (estab_helpers.f) | height/age/CR of new trees, generate records | ✅ |
+| keyword parsing: `ESTAB`/`PLANT`/`NATURAL`/`TALLY`/`NOAUTOES` | INITRE dispatch → schedule | ✅ |
 
-**Coverage**: `bare_plant` + `bare_natural` scenarios (gen_estab_scenarios.sh) + the
-`@test_broken` trackers in test_regen_coverage.jl (bare→800). PLANT is the snt01 stand-5
-test; NATURAL is the natural-process form (same engine, identical target).
+**Coverage**: `bare_plant` + `bare_natural` scenarios. **bare→800 TPA @cyc1 bit-exact**
+(verified 800/781/763/745 TPA for the first 4 cycles vs the Fortran/FVSjulia oracle).
+**Open residual** (regen-volume, NOT record-order): at cyc1 mine reports cuft=240 vs oracle
+0 — the planted sp13 records sit at DBH 2.54"×**ht 20** (a clamped `_ES_HHTMAX`=20 height),
+and that tall/skinny stem gives the CFVOL total-cubic a nonzero value the oracle does not.
+Suspect the established-height (ESSUBH/HTCALC) clamp or the CFVOL small-tree path. TPA then
+drifts from ~cyc5 (regen mortality). See [[fvsjl-modernization-state]].
 
 ### `UPDATE` — apply growth (`update.f`) → inline in `grow_cycle!`
 

@@ -97,7 +97,7 @@ HTGF                 height growth (HTGF/HTCALC/HTDBH)                   ✅ hei
 REGENT(false,1)      small-tree (<3") height-driven growth              ✅ small_tree_growth!  (establishment mode ⛔)
 FIXDG / FIXHTG       keyword DG/HTG multipliers                         ⛔ (keyword option)
 MORTS                periodic mortality                                 ✅ mortality!  (see §3 for branch map)
-TRIPLE + REASS       record tripling (cyc1-2), ITRN*=3                  ✅ triple_records!
+TRIPLE + REASS       record tripling (cyc1-2), ITRN*=3                  ✅ triple_records! (interleaved append ITRN+2i-1/+2i — match FVS layout for post-thin TREDEL)
 FFERT                fertilizer response                                ⛔ (keyword option)
 ```
 
