@@ -28,10 +28,17 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # (cycle_year only stores the inventory year; later years are derived.)
     yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
+    # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
+    # method runs (cuts.f processes SPECPREF/SPLEAVE/… then the thin in the cycle).
+    @inbounds for act in sched
+        act.year == yr && act.icflag == Int32(201) && _apply_specpref!(s, act)
+    end
+    # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
     @inbounds for act in sched
         act.year == yr || continue
+        act.icflag == Int32(201) && continue          # modifier, applied above
         applied = true
         ic = act.icflag
         r = ic == Int32(8) ? _thindbh!(s, act) :                       # proportional DBH-class
@@ -46,6 +53,22 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         rem.tpa > 0f0 && compact_live!(s.trees)   # TREDEL: drop removed records (RNG alignment)
     end
     return rem
+end
+
+# SPECPREF (cuts.f label_1200): set the per-species cut preference IORDER (added to
+# the RDPSRT priority, so a higher value ⇒ that species is removed first). params[1]
+# = species (>0 single, 0 all, <0 group via SPGROUP — group path pending), params[2]
+# = preference value.
+function _apply_specpref!(s::StandState, act::ScheduledActivity)
+    isp = floor(Int, act.params[1]); pref = floor(Int32, act.params[2])
+    pref_v = s.control.cut_pref
+    if isp == 0
+        fill!(pref_v, pref)
+    elseif isp > 0
+        1 <= isp <= MAXSP && (pref_v[isp] = pref)
+    end
+    # isp < 0 (species-group) needs SPGROUP/ISPGRP — handled when that lands.
+    return
 end
 
 # CLSSTK (cutstk.f): TPA (jtyp=1) or basal-area (jtyp=2) stocking over the trees in
@@ -145,12 +168,15 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     remove = cstock - target
     remove <= 0f0 && return _NO_REMOVAL
 
-    # priority key = ±DBH (size); eligible records ranked, ineligible pushed last.
+    # priority key = ±DBH (size) + IORDER[sp] species preference (SPECPREF); eligible
+    # records ranked, ineligible pushed last. (cuts.f:635 WK2 = xsz + IORDER + weights;
+    # the condition/density weights default to 0 until TCONDMLT/point keywords land.)
+    pref = s.control.cut_pref
     elig = falses(n); key = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
         e = _cut_eligible(t, i, 0, dbhlo, valmax, htlo, hthi)
         elig[i] = e
-        key[i] = e ? (lbelow ? -t.dbh[i] : t.dbh[i]) : -Inf32
+        key[i] = e ? (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]]) : -Inf32
     end
     order = sortperm(key; rev = true)               # descending (RDPSRT order)
 

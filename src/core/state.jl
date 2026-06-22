@@ -152,6 +152,7 @@ mutable struct Control
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
+    cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
 end
 
 function Control()
@@ -181,6 +182,7 @@ function Control()
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         ScheduledActivity[], Set{Int32}(),                      # schedule, years_cut
+        zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
     )
 end
 

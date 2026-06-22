@@ -86,7 +86,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 
 | keyword | IACTK | cuts.f label | effect on the cut | status |
 |---|---|---|---|---|
-| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ⛔ **USED BY snt01/sn ×4 (stand 3) — my THINBTA cuts the wrong species without it** |
+| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ✅ `_apply_specpref!` + IORDER term in the `_thin_sorted!` key — cut_specpref year-2000 removal bit-exact vs Oracle A (single-species path; the species-GROUP path needs SPGROUP) |
 | TCONDMLT | 202 | — | thin-**condition multiplier** (scales the trigger) | ⛔ |
 | YARDLOSS | 203 | label_1325 | **yarding loss** → removed-volume accounting | ⛔ **USED BY snt01/sn (stand 4)** |
 | SPLEAVE/LEAVESP | 206 | label_1340 | **leave** named species (exclude from cut) | ⛔ |
@@ -96,7 +96,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | shared cut-loop branch | effect | status |
 |---|---|---|
 | `CLSSTK` class stocking (TPA jtyp=1 / BA jtyp=2) over eligibility window | budget | ✅ `_clsstk` |
-| `RDPSRT` size rank (−DBH below / +DBH above) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled) |
+| `RDPSRT` size rank (−DBH below / +DBH above) **+ IORDER[sp]** (SPECPREF) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled; TCONDMLT/point/density weights default 0) |
 | `TREDEL` compact removed (PROB≤0) records | RNG alignment | ✅ `compact_live!` |
 | **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ⚠ diverges after a thin (s29 RNG splits at ICYC=4) — see [[fvsjl-c5-sum-state]] |
 | removed-volume columns (rem_tpa/cuft/mcuft/scuft/bdft) | `.sum` reporting | ✅ |

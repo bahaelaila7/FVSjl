@@ -165,6 +165,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre")
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
+        elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
         elseif kw == "PROCESS";  return :process
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

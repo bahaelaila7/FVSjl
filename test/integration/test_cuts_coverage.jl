@@ -46,14 +46,16 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         yl = _sum_rows("cut_yardloss")
         sd = _sum_rows("cut_thinsdi")
 
-        # Regression (FIXED): THINBTA with blank dbhhi must actually thin.
-        @testset "THINBTA fires with blank dbhhi (cut_specpref)" begin
-            @test _at(sp, 2000.0, 13) > 0          # rem_tpa non-zero at the cut year
+        # PORTED + validated: THINBTA blank-dbhhi fires, and SPECPREF reorders the cut
+        # so the year-2000 removal is bit-exact to Oracle A (rem_tpa 327, at_BA 96).
+        @testset "SPECPREF cut is bit-exact at the cut year (cut_specpref)" begin
+            @test _at(sp, 2000.0, 13) > 0                          # THINBTA fires
+            @test isapprox(_at(sp, 2000.0, 13), 327.0; atol = 1)   # rem_tpa
+            @test isapprox(_at(sp, 2000.0, 18),  96.0; atol = 1)   # at-treatment BA
         end
-
-        # Unported semantics — SHOULD match the oracle, currently do not. These flip
-        # to passing (alerting) when the keyword is ported.
-        @testset "SPECPREF reorders the cut (TopHt 2005 == oracle 59)" begin
+        # STILL OPEN (downstream of the cut): post-thin DGSCOR growth — the 2005 top
+        # height / sawtimber volume of a thinned stand. Shared by s29 + snt01 stands 3-4.
+        @testset "post-thin growth matches (cut_specpref TopHt 2005 == 59)" begin
             @test_broken isapprox(_at(sp, 2005.0, 7), 59.0; atol = 1)
         end
         @testset "THINPRSC removes the prescribed TPA (rem_tpa 2000 == 259)" begin
