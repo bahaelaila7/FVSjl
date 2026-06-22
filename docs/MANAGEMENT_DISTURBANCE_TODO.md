@@ -38,7 +38,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · 🧊 C7/C8 extension
 | SPLEAVE / LEAVESP | leave named species | ⛔ |
 | CUTEFF | default cutting efficiency | ⛔ |
 | TCONDMLT | thin-condition multiplier | ⛔ |
-| YARDLOSS | yarding-loss removed-volume accounting (snt01 stand 4) | ⛔ |
+| YARDLOSS | yarding-loss: scales REMOVED merch/saw/bdft by (1-prlost) + feeds fire-fuel pools (dsng/ssng/crown→C7). cut_yardloss removes 0 merch so .sum-effect is nil there; its `broken` test is really a post-THINDBH accretion residual (130 vs 124), not yardloss | ⛔ (C7-coupled; .sum part trivial) |
 | MINHARV | minimum-harvest threshold (skip cut below it) | ⛔ (was missing) |
 | TFIXAREA | treatment fixed-area / pro-rate | ⛔ (was missing) |
 | SPGROUP (via SPCODES/SPLABEL) | species groups referenced by SPECPREF/LEAVESP | ⛔ |
