@@ -7,6 +7,10 @@ completeness oracle — NOT from passing tests. A row is "done" only when the FV
 logic is **genuinely ported from the Fortran** (Oracle A `/workspace/FVSjulia/src`)
 AND a Fortran-validated coverage scenario exercises its branch.
 
+> **STATUS (current):** natural-process DYNAMICS complete (COMCUP, NPTIDS>1 ported; ESFLTR no-op for
+> SN). DG calibration verified bit-exact 89/90 species (±2 ulp; all_TM ±4). `.sum` classification
+> matches all 90. Remaining natural items are all C6-coupled OUTPUT detail (PCTILE/DIST/SSTAGE).
+>
 > **Discipline (user rule):** port the real FVS code for each item; use tests only to
 > *catch and fix bugs*, never to back-fill logic that just makes a test pass.
 
@@ -24,17 +28,23 @@ Legend: ⛔ unported · 🟡 partial/simplified · 🔬 ported-but-accuracy-tail
 
 | item | where | symptom | status |
 |---|---|---|---|
-| per-species DG calibration | `sn/dgf.f` calib | sp33/65, single-species `all_*`, s31 loblolly off by ~1 | 🔬 |
+| per-species DG calibration | `sn/dgf.f` calib | RESOLVED by the session's TRIPLE-interleave/COMCUP/point-BA fixes. Full 90-species sweep: **89/90 bit-exact ±2 ulp**; only all_TM off by 4 TPA (one non-commercial species, one mortality cycle; BA matches). | ✅ (stale memory said 38 outliers; verified gone) |
+| `.sum` classification code | FORTYP + SDI/size class | **all 90 species match** the oracle's trailing `FORTYP class` codes | ✅ |
 | Float32 / sawtimber-threshold | volume | ±1 ulp in cuft/bdft; one boundary tree flips sawtimber class | 🔬 (irreducible) |
+| all_TM mortality | morts | 1 species, ±4 TPA one cycle — low value, likely irreducible | 🔬 (deferred) |
 
 ## C. Classification / reporting (in C4/C5 but OUTPUT, not dynamics)
 
+> The `.sum`-facing part of classification is DONE: FORTYP + the SDI/size class code match the oracle
+> across all 90 species (verified). The rows below are the DETAIL-table forms that feed `.out`/DBS, which
+> have no output layer yet → they belong with **C6 (DBS)**, not natural dynamics. Deferred to C6.
+
 | item | FVS source | feeds | status |
 |---|---|---|---|
-| SSTAGE | `base/sstage.f` | stand-structure-stage code (.out/DBS) | ⛔ |
-| SDICLS → SDIBC/SDIAC | `base/sdicls.f` | SDI class column (.out); `.sum` class code already matches | 🟡 |
-| PCTILE / DIST / COMP | `base/pctile.f`/`dist.f` | `.out` detail + DBS Compute tables | 🟡 |
-| SILFTY | `base/silfty.f` | silvicultural forest type (.out) | 🟡 |
+| SSTAGE | `base/sstage.f` | stand-structure-stage code (.out/DBS) | ⛔ → C6 |
+| SDICLS → SDIBC/SDIAC | `base/sdicls.f` | SDI class column (.out); **`.sum` class code already matches all 90 species** | 🟡 → C6 |
+| PCTILE / DIST / COMP | `base/pctile.f`/`dist.f` | `.out` detail + DBS Compute tables | 🟡 → C6 |
+| SILFTY | `base/silfty.f` | silvicultural forest type (.out) | 🟡 → C6 |
 
 ## D. Done this stretch (kept here so docs stay honest)
 
