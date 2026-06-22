@@ -29,9 +29,11 @@ end
         else
             @testset "$nm: bare stand runs + regenerates" begin
                 tpa = _cyc1_tpa(key)
-                @test tpa !== missing            # PREREQUISITE: bare stand runs (no crash)
-                # Oracle A regenerates this bare stand to 800 TPA at cycle 1 (1997).
-                @test_broken tpa !== missing && isapprox(tpa, 800.0; atol = 2)
+                @test tpa !== missing                       # PREREQUISITE: bare stand runs (no crash)
+                # ESTAB now regenerates this bare stand to 800 TPA at cycle 1 (1997),
+                # matching Oracle A (TPA bit-exact for the first ~5 cycles). The full
+                # .sum BA/QMD bit-exactness needs ESGENT established heights (stage 4b).
+                @test tpa !== missing && isapprox(tpa, 800.0; atol = 2)
             end
         end
     end

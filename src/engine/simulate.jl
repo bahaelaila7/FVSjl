@@ -99,6 +99,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
     crown_ratio_update!(s; fint = fint)     # CROWN — update crown for NEXT cycle's DGF
+    # ESNUTR/ESTAB (gradd.f:156) — establish scheduled regen AFTER growth+mortality, so
+    # the new trees enter fresh (full TPA) this period and first grow/die next cycle.
+    establish!(s; fint = fint) && compute_volumes!(s)
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
