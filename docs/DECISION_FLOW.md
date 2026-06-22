@@ -34,7 +34,9 @@ FVSjl roots: `/workspace/FVSjl/src`.
 ## 1. Top level — `fvs.f` main driver
 
 ```
-INITRE        read keywords (.key) + tree data (.tre); set all options   ✅ initialize()
+STAND LOOP    main.f: while FVS()==0 → one stand per call (PROCESS-sep, STOP-end) ✅ each_stand()
+  ↳ TREFMT persists across stands (COMMON); default INTREE if no TREEDATA unless NOTREES ✅
+INITRE        read keywords (.key) + tree data (.tre); set all options   ✅ initialize()/initialize!
   ├ keyword dispatch (STDINFO/SITECODE/DESIGN/INVYEAR/NUMCYCLE/thinning…) ✅ engine/keyword_dispatch.jl
   └ HABTYP     decode ecological-unit field → PCOM (table index/alpha)    ✅ variants/southern/habitat.jl
 MPBOPS/TMOPS/DFBSCH   insect/disease activity schedules                   🧊 (no pest scenario)
