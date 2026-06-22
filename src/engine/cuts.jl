@@ -118,7 +118,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431) + the SPECPREF modifier
         # (201, applied above) are consumed elsewhere (ESNUTR).
-        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11)) || continue
+        ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17)) || continue
         applied = true
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
@@ -126,6 +126,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             ic == Int32(14) ? _thin_rden!(s, act) :                    # THINRDEN (Curtis RD)
             ic == Int32(1)  ? _thin_auto!(s, act) :                    # THINAUTO (auto to normal stocking)
             ic == Int32(11) ? _thin_cc!(s, act) :                      # THINCC (crown cover)
+            ic == Int32(17) ? _thin_qfa!(s, act) :                     # THINQFA (Q-factor distribution)
             (ic in (Int32(3), Int32(4), Int32(5), Int32(6))) ? _thin_sorted!(s, act) :  # BTA/ATA/BBA/ABA
             _NO_REMOVAL
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
@@ -644,6 +645,108 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
 
     @inbounds for i in 1:n
         t.tpa[i] = wk4[i]
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+# THINQFA (cuts.f label_350, ICFLAG 17): Q-factor diameter-distribution thin. Ported from
+# Oracle A cutqfa.jl (CUTQFA + CYCQFA) + cuts.f:671-759. Divides [valmin,valmax] into
+# diameter classes of width DIACW; builds a target negative-exponential (Q-factor)
+# distribution that meets the stand-level target (TARQFA in TPA/BA/SDI per QFATAR),
+# yielding a residual target per class (clstar2); then thins each class that has excess
+# down to its residual via the validated per-class residual path (_thindbh! for TPA/BA,
+# _thin_sdi! for SDI). aux carries QFATAR (0=BA, 1=TPA, 2=SDI).
+function _thin_qfa!(s::StandState, act::ScheduledActivity)
+    t = s.trees; n = t.n
+    n == 0 && return _NO_REMOVAL
+    valmin, valmax_p, spec_f, qfac, diacw, tarqfa_p = act.params
+    valmax = valmax_p < valmin ? 9999f0 : valmax_p
+    ispcut = Int(round(spec_f))
+    qfatar = Int(round(act.aux))                      # 0=BA, 1=TPA, 2=SDI
+    ctar0  = max(0f0, tarqfa_p)
+    (qfac <= 0f0 || diacw <= 0f0) && return _NO_REMOVAL
+    ndcls = Int(floor((valmax - valmin) / diacw))
+    (ndcls < 1 || ndcls > 30) && return _NO_REMOVAL
+
+    # diameter-class midpoints (top class centred at valmax−DIACW/2, descending)
+    dcls = Vector{Float32}(undef, ndcls)
+    dcls[ndcls] = valmax - diacw / 2f0
+    for i in ndcls-1:-1:1; dcls[i] = dcls[i+1] - diacw; end
+
+    # per-class current TPA (tpacls1) and per-tree metric (clstar1: BA/TPA/SDI per tree)
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    tpacls1 = zeros(Float32, ndcls); clstar1 = zeros(Float32, ndcls)
+    for i in 1:ndcls
+        dlo = dcls[i] - diacw / 2f0; dhi = dcls[i] + diacw / 2f0
+        ctpa = _clsstk(t, wk4, n, 1, ispcut, dlo, dhi)
+        tpacls1[i] = ctpa
+        clstar1[i] = if ctpa <= 0f0
+            0f0
+        elseif qfatar <= 0      # BA per tree
+            _clsstk(t, wk4, n, 2, ispcut, dlo, dhi) / ctpa
+        elseif qfatar <= 1      # TPA per tree = 1
+            1f0
+        else                    # Zeide SDI per tree
+            _sdi_zeide(t, wk4, n, ispcut, dlo, dhi) / ctpa
+        end
+    end
+    suminv = 0f0
+    for i in 1:ndcls; suminv += clstar1[i] * tpacls1[i]; end
+    suminv < ctar0 && return _NO_REMOVAL              # not enough inventory to meet target
+
+    # Q-factor convergence (cutqfa.jl:111-164) → clstar2 = residual target per class
+    tpacls4 = copy(tpacls1)
+    tpacls2 = zeros(Float32, ndcls); tpacls3 = zeros(Float32, ndcls)
+    clstar2 = zeros(Float32, ndcls)
+    dinom = 0f0
+    for i in 1:ndcls; dinom += clstar1[i] / qfac^(i-1); end
+    dinom <= 0f0 && return _NO_REMOVAL
+    tpa1 = ctar0 / dinom
+    ctar = ctar0
+    for _iter in 1:200
+        for i in 1:ndcls
+            tpacls2[i] = tpa1 / qfac^(i-1)
+            tpacls3[i] = tpacls4[i] - tpacls2[i]
+        end
+        sumtar = 0f0
+        for i in 1:ndcls
+            sumtar += (tpacls3[i] <= 0f0 ? tpacls4[i] : tpacls2[i]) * clstar1[i]
+        end
+        dinom2 = 0f0
+        for i in 1:ndcls
+            if tpacls3[i] > 0f0
+                dinom2 += clstar1[i] / qfac^(i-1); tpacls4[i] = tpacls3[i]
+            else
+                tpacls4[i] = 0f0
+            end
+        end
+        sumv = 0f0
+        for i in 1:ndcls
+            clstar2[i] = tpacls3[i] > 0f0 ? clstar2[i] + tpacls2[i] * clstar1[i] :
+                                            tpacls1[i] * clstar1[i]
+            sumv += clstar2[i]
+        end
+        abs(ctar0 - sumv) < 0.1f0 && break
+        dinom2 > 0f0 && (tpa1 = (ctar - sumtar) / dinom2)
+        ctar -= sumtar
+        abs(tpa1) <= 0.1f0 && break
+    end
+
+    # thin each excess class down to its residual target (per-class residual path)
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    for i in 1:ndcls
+        (tpacls1[i] * clstar1[i] - clstar2[i]) > 1f-5 || continue
+        dlo = dcls[i] - diacw / 2f0; dhi = dcls[i] + diacw / 2f0
+        r = if qfatar <= 1
+            ctpa_t = qfatar <= 0 ? 0f0 : clstar2[i]
+            cba_t  = qfatar <= 0 ? clstar2[i] : 0f0
+            _thindbh!(s, ScheduledActivity(act.year, Int32(8),
+                                           (dlo, dhi, 0f0, Float32(ispcut), ctpa_t, cba_t)))
+        else
+            _thin_sdi!(s, ScheduledActivity(act.year, Int32(10),
+                                            (clstar2[i], 0f0, Float32(ispcut), dlo, dhi, 1f0)))
+        end
+        rtpa += r.tpa; rcuft += r.cuft; rmcuft += r.mcuft; rscuft += r.scuft; rbdft += r.bdft
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end

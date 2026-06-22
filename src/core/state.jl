@@ -26,7 +26,11 @@ struct ScheduledActivity
     year::Int32                  # calendar year the activity fires
     icflag::Int32                # CUTS method code (8=THINDBH, …)
     params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
+    aux::Float32                 # 7th param for keywords that need it (THINQFA QFATAR)
 end
+# 3-arg form (the common case): aux defaults to 0.
+ScheduledActivity(year, icflag, params) =
+    ScheduledActivity(Int32(year), Int32(icflag), params, 0f0)
 
 # Event-monitor expression AST node (concrete types + evaluator in event_monitor.jl).
 abstract type EvNode end

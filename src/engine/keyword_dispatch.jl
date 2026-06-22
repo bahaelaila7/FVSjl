@@ -127,6 +127,26 @@ function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     return
 end
 
+# THINQFA (option 141, ICFLAG 17): Q-factor diameter-distribution thin — a TWO-record
+# keyword (initre.f:5981). Line 1: [year, loDBH, hiDBH, species, Qfactor, classWidth,
+# target]; line 2: a single integer for the target units (≤0 BA, ==1 TPA, >1 SDI → 0/1/2).
+# Defaults (initre): loDBH=0, hiDBH=24, Q=1.4, classWidth=2. qfatar → activity aux slot.
+function kw_thinqfa!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    v = rec.values; pr = rec.present
+    yr     = nint(v[1])
+    valmin = pr[2] ? Float32(v[2]) : 0f0
+    valmax = pr[3] ? Float32(v[3]) : 24f0
+    spec   = pr[4] ? Float32(v[4]) : 0f0
+    qfac   = pr[5] ? Float32(v[5]) : 1.4f0
+    diacw  = pr[6] ? Float32(v[6]) : 2f0
+    tarqfa = pr[7] ? Float32(v[7]) : 0f0
+    iset   = something(tryparse(Int, strip(read_raw_line!(kr))), 0)   # 2nd record: units switch
+    qfatar = iset <= 0 ? 0f0 : (iset <= 1 ? 1f0 : 2f0)
+    push!(s.control.schedule,
+          ScheduledActivity(Int32(yr), Int32(17), (valmin, valmax, spec, qfac, diacw, tarqfa), qfatar))
+    return
+end
+
 # OPTION — ESTAB…END establishment packet (esin.f). ESTAB opens the packet (field 1 =
 # date of disturbance); subsequent PLANT(430)/NATURAL(431) cards each schedule a regen
 # activity (year, species, TPA, %survival, age, height, shade); END closes it. Other
@@ -260,6 +280,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
+        elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
         elseif kw == "PROCESS";  return finish(:process)
