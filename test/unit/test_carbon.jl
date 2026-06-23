@@ -1,7 +1,8 @@
 # Tests for the standing live-tree carbon pools (FFE F8, fmcrbout.f).
 # Carbon = Jenkins biomass × TPA × 0.5, summed over the tree list.
-using FVSjl: stand_live_carbon, jenkins_biomass, StandState, init_blockdata!,
-             init_merch_standards!, coefficients, Southern
+using FVSjl: stand_live_carbon, standing_dead_carbon, down_wood_carbon, stand_carbon,
+             jenkins_biomass, StandState, init_blockdata!, init_merch_standards!,
+             coefficients, Southern, FireState, add_snag!, fmcba!
 
 @testset "standing live-tree carbon (FMCRBOUT)" begin
     s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
@@ -37,4 +38,34 @@ using FVSjl: stand_live_carbon, jenkins_biomass, StandState, init_blockdata!,
     for i in 1:3; t.tpa[i] = 0f0; end
     c0 = stand_live_carbon(s)
     @test c0.aboveground == 0f0 && c0.belowground == 0f0
+end
+
+@testset "dead + total stand carbon pools (FMCRBOUT)" begin
+    s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
+    s.plot.forest_type = Int32(520)
+    s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+    coef = coefficients(Southern())
+    t = s.trees; t.n = 2
+    t.species[1]=Int32(65); t.dbh[1]=14f0; t.height[1]=72f0; t.tpa[1]=40f0; t.crown_pct[1]=Int32(40)
+    t.species[2]=Int32(33); t.dbh[2]= 8f0; t.height[2]=55f0; t.tpa[2]=30f0; t.crown_pct[2]=Int32(45)
+
+    # no FFE → all dead pools zero
+    @test standing_dead_carbon(s) == 0f0 && down_wood_carbon(s) == 0f0
+
+    s.fire = FireState(); s.fire.active = true
+    fmcba!(s)                                         # populate the down-wood (cwd) pools
+    @test down_wood_carbon(s) > 0f0                   # surface fuels → down-wood carbon
+    @test down_wood_carbon(s) ≈ sum(s.fire.cwd) * 0.5f0
+
+    # snag carbon = Jenkins aboveground × standing density × 0.5
+    add_snag!(s.fire, 65, 14f0, 40f0, 2003)
+    a, _, _ = jenkins_biomass(coef, 65, 14f0)
+    @test standing_dead_carbon(s) ≈ a * 40f0 * 0.5f0
+
+    # the combined report: total = live(above+below) + standing dead + down wood
+    c = stand_carbon(s)
+    @test c.standing_dead ≈ standing_dead_carbon(s)
+    @test c.down_wood ≈ down_wood_carbon(s)
+    @test c.total ≈ c.live_above + c.live_below + c.standing_dead + c.down_wood
+    @test c.total > 0f0
 end

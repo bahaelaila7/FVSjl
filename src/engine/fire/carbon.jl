@@ -29,3 +29,50 @@ function stand_live_carbon(s::StandState)
     end
     return (aboveground = above * 0.5f0, merch = merch * 0.5f0, belowground = root * 0.5f0)
 end
+
+"""
+    standing_dead_carbon(s) -> Float32
+
+Standing-dead (snag) carbon pool in tons C/acre: the Jenkins aboveground biomass of each
+snag cohort (`fire.snags`, F7) weighted by its still-standing density (hard + soft),
+converted to carbon at 0.5 (fmcrbout.f). Zero when FFE is off / no snags.
+"""
+function standing_dead_carbon(s::StandState)::Float32
+    fs = s.fire; fs === nothing && return 0f0
+    sn = fs.snags; coef = s.coef
+    c = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        den = sn.den_hard[i] + sn.den_soft[i]
+        den > 0f0 || continue
+        a, _, _ = jenkins_biomass(coef, sn.sp[i], sn.dbh[i])
+        c += a * den
+    end
+    return c * 0.5f0
+end
+
+"""
+    down_wood_carbon(s) -> Float32
+
+Down dead wood + forest-floor carbon pool in tons C/acre: the FFE surface fuel pools
+(`fire.cwd`, the dead down-wood/litter/duff loadings in tons/ac, F3) converted to carbon
+at 0.5. Zero when FFE is off.
+"""
+function down_wood_carbon(s::StandState)::Float32
+    fs = s.fire; fs === nothing && return 0f0
+    return sum(fs.cwd) * 0.5f0
+end
+
+"""
+    stand_carbon(s) -> (; live_above, live_below, standing_dead, down_wood, total)
+
+All the main stand carbon pools (tons C/acre): live aboveground + belowground (trees),
+standing dead (snags), and down dead wood / forest floor (FFE Stand Carbon Report).
+"""
+function stand_carbon(s::StandState)
+    lc = stand_live_carbon(s)
+    sd = standing_dead_carbon(s)
+    dw = down_wood_carbon(s)
+    return (; live_above = lc.aboveground, live_below = lc.belowground,
+            standing_dead = sd, down_wood = dw,
+            total = lc.aboveground + lc.belowground + sd + dw)
+end
