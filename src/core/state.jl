@@ -214,6 +214,9 @@ mutable struct Control
     merch_init::Bool                         # whether the per-stand sp_* merch arrays are populated yet
     voleqnum_overrides::Vector{Tuple{Int32,String}} # VOLEQNUM (initre.f:5061): (species idx, NVEL
                                              # cubic equation id) — overrides species.vol_eq after VOLEQDEF
+    sp_bf_vol_eq::Vector{String}             # board-foot NVEL equation per species (VEQNNB) — snapshot
+                                             # of vol_eq taken BEFORE VOLEQNUM, so board feet keeps the
+                                             # default equation when only the cubic eq is overridden
 end
 
 function Control()
@@ -255,6 +258,7 @@ function Control()
         Tuple{Int32,String,EvNode}[], Dict{String,Float32}(),   # compute_defs, compute_vars (COMPUTE)
         ScheduledActivity[], false,                             # volume_events (VOLUME/BFVOLUME), merch_init
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
+        String[],                                               # sp_bf_vol_eq (board equation snapshot)
     )
 end
 

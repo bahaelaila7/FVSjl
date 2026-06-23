@@ -310,6 +310,13 @@ function compute_volumes!(s::StandState)
     stmp = c.sp_stump_ht; scfstmp = c.sp_scf_stump; dbhmin = c.sp_dbh_min
     merch = (stmp = stmp, topd = topd, scfstmp = scfstmp, scftop = scftop,
              bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # Board-foot equation/standards (BFVOLUME / VOLEQNUM). BFPFLG=1 (fvsvol.f:257) ⇒ board feet rides
+    # the cubic call (the default, since SN's board eq+standards equal the sawtimber ones); else a
+    # separate board-foot call with the board equation + BFTOPD/BFSTMP is needed. Precompute the
+    # per-species flag once so the common all-default path stays a single bool test.
+    bfmin = c.sp_bf_dbhmin; bftop = c.sp_bf_topd; bfstm = c.sp_bf_stump; bfeq = c.sp_bf_vol_eq
+    bfpflg0 = !isempty(bfeq) && any(k -> bfmin[k] != scfmin[k] || bfstm[k] != scfstmp[k] ||
+                                          bftop[k] != scftop[k] || bfeq[k] != veq[k], 1:length(veq))
     cfdef = c.sp_cf_defect; bfdef = c.sp_bf_defect          # MCDEFECT / BFDEFECT defect curves
     cff0 = c.sp_cf_form0; cff1 = c.sp_cf_form1              # MCFDLN cubic log-linear form coefs
     bff0 = c.sp_bf_form0; bff1 = c.sp_bf_form1              # BFFDLN board log-linear form coefs
@@ -337,12 +344,21 @@ function compute_volumes!(s::StandState)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
-        # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default since
-        # SN's board-foot standards equal the sawtimber ones for every species. When BFVOLUME/
-        # VOLUME breaks that coincidence (BFPFLG=0), Fortran recomputes board feet from a separate
-        # BF-top call AND that call's Region-8 "10 ft of product" rule (fvsvol.f:499) also zeros
-        # the sawtimber cubic — a coupling not yet ported; see DIVERGENCES.md.
+        # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default. When
+        # BFVOLUME/VOLEQNUM make the board equation or standards differ from the sawtimber ones
+        # (BFPFLG=0), recompute board feet from a separate board call (BFTOPD/BFSTMP + board eq),
+        # gated by BFMIND (fvsvol.f:362). NOTE: the Region-8 "10 ft of product" rule that also zeros
+        # the sawtimber cubic in that path (fvsvol.f:499) is not yet ported — see DIVERGENCES.md.
         bf = v[10]
+        if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
+                       bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
+            if d >= bfmin[sp]
+                vb, _, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01")
+                bf = vb[10]
+            else
+                bf = 0f0
+            end
+        end
         if tkill && tcf > 0f0
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))

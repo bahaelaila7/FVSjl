@@ -24,8 +24,8 @@ Format per entry:
 
 ---
 
-### Board feet derived from the shared sawtimber R8 Clark call (not a separate BF taper)
-- **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (`bf = v[10]` from the single per-tree `_R8CLARK_VOL` call)
+### Board feet: separate BF-equation call done; BFVOLUME standards-change still needs Region-8
+- **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (BFPFLG=0 → second `_R8CLARK_VOL` board call)
 - **Where (Fortran):** `base/vols.f` / `base/fvsvol.f` — board feet uses its own BFMIND/BFTOPD/BFSTMP merch limits
 - **Category:** modelling-simplification (architecture)
 - **Gate:** always (no keyword default exercises it; snt01 + all default scenarios are bit-exact)
@@ -34,16 +34,17 @@ Format per entry:
   merch standards, reading board feet as `v[10]`. By default this is exact because the SN
   merch table has `scf_top_dib == bf_top_dib`, `scf_min_dbh == bf_min_dbh`, and
   `scf_stump == bf_stump` for every species (sawtimber and board-foot standards coincide).
-  The **VOLUME** keyword's merch-top/stump params (`TOPD/SCFTOPD/SCFSTMP`) and the entire
-  **BFVOLUME** keyword can break that coincidence; when they do, FVSjl's board feet ride the
-  changed sawtimber call while Fortran's board feet stay on the (separate) BF standards, so
-  the board-foot `.sum` column diverges (observed up to ~7% on a `SCFTOPD 7→9` override).
-  The **VOLUME `DBHMIN` gate is exact** (it only gates merch cubic, never the taper call) and
-  is validated bit-exact vs Fortran (`test_volume_override.jl`). BFVOLUME currently only
-  affects topkilled-tree board feet (via `bftopk`, which does read the per-stand BF standards).
-  **VOLEQNUM exposes the same limitation:** it overrides only the cubic equation (`VEQNNC`), so
-  Fortran's board feet stays on the default board equation `VEQNNB`, but FVSjl's board feet rides
-  the overridden cubic call → ~5% board-foot divergence (cubic columns are bit-exact).
+  `compute_volumes!` now implements the **BFPFLG=0 separate board-foot call** (fvsvol.f:362): when a
+  species' board equation or BF standards differ from the sawtimber ones, board feet is recomputed
+  from a second `_R8CLARK_VOL` call with the board equation + `BFTOPD/BFSTMP` (gated by `BFMIND`),
+  via the per-stand `sp_bf_vol_eq` snapshot (`VEQNNB`). This **fully fixes VOLEQNUM** — overriding
+  only the cubic equation now keeps board feet on the default equation, **bit-exact incl. board feet**
+  (`test_voleqnum.jl`).
+  **Remaining gap — BFVOLUME (standards change):** when `BFTOPD ≠ SCFTOPD` the second call's
+  Region-8 "≥10 ft of product" rule (`fvsvol.f:499`, `HT1PRD<10 ⇒ TVOL(4)=0`) *also* zeros the
+  sawtimber cubic, so a `BFTOPD 9→11` override drops the merch-cubic/sawtimber `.sum` columns
+  (~5%) — that coupling is still un-ported. (VOLEQNUM doesn't hit it because it leaves the
+  standards/top unchanged.) The **VOLUME `DBHMIN` gate is exact** (gates merch cubic only).
 - **Full-fix roadmap (investigated, deferred):** Fortran's structure is `fvsvol.f:257` — it sets
   `BFPFLG=1` when the BF standards equal the sawtimber standards (the default → board feet from
   the one sawtimber call), else `BFPFLG=0` and a **second** `VOLINITNVB` call is made with
