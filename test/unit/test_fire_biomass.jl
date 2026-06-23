@@ -66,6 +66,13 @@ end
     @test coef_col(coef, :dkr_cls)[1]  == 4f0
     @test coef_col(coef, :snag_cls)[2] == 3f0
     @test coef_col(coef, :tfall_cls)[2] == 1f0
+    # snag fall/decay dynamics by snag class (fmvinit.f:1060-1086), with species overrides
+    @test coef_col(coef, :snag_decayx)[5] ≈ 0.07f0  # shortleaf pine = fast snag class 1
+    @test coef_col(coef, :snag_fallx)[5]  ≈ 7.17f0
+    @test coef_col(coef, :snag_alldwn)[5] ≈ 50.0f0  # pine ALLDWN override
+    @test coef_col(coef, :snag_alldwn)[2] ≈ 100.0f0 # redcedar ALLDWN override
+    @test coef_col(coef, :snag_decayx)[65] ≈ 0.21f0 # oak = average snag class 2
+    @test coef_col(coef, :snag_alldwn)[65] ≈ 15.0f0
     # every species populated (1..90, no gaps)
     @test all(coef_col(coef, :v2t)[s] > 0f0 for s in 1:90)
     @test all(1 <= coef_col(coef, :ls_spi)[s] <= 68 for s in 1:90)
