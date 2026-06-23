@@ -810,6 +810,45 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     return
 end
 
+"""
+    kw_econ!(s, rec, kr)
+
+Parse the ECON economic-analysis keyword block (read to END). Captures the management
+costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest revenues by
+species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
+are recognized but not yet ported.
+"""
+function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    s.econ === nothing && (s.econ = EconState())
+    ec = s.econ
+    ec.active = true
+    while true
+        r = read_keyword!(kr)
+        (r.status == KW_EOF || r.status == KW_STOP) && break
+        k = strip(r.name)
+        isempty(k) && continue
+        if k == "END"
+            break
+        elseif k == "ANNUCST"                              # annual management cost ($/ac/yr)
+            r.present[1] && (ec.ann_cost += Float32(r.values[1]))
+        elseif k == "HRVVRCST"                             # variable harvest cost by DBH class
+            r.present[1] || continue
+            hi = (r.present[4] && r.values[4] > 0f0) ? Float32(r.values[4]) : 999f0
+            push!(ec.hrv_cost, EconCostRev(Float32(r.values[1]), Int32(nint(r.values[2])),
+                                           Float32(r.values[3]), hi, Int32(0)))
+        elseif k == "HRVRVN"                               # harvest revenue by species + DBH (field 4 = species)
+            r.present[1] || continue
+            code = length(r.fields) >= 4 ? strip(uppercase(r.fields[4])) : "ALL"
+            sp = code == "ALL" || isempty(code) ? Int32(0) :
+                 Int32(first(resolve_species(code, s.variant, s.species, s.coef)))
+            sp < 0 && (sp = Int32(0))
+            push!(ec.hrv_rev, EconCostRev(Float32(r.values[1]), Int32(nint(r.values[2])),
+                                          Float32(r.values[3]), 999f0, sp))
+        end
+    end
+    return
+end
+
 # OPTION 15 — STDIDENT (initre.f:862): stand id from the next raw line.
 function kw_stdident!(s::StandState, kr::KeywordReader)
     record = rpad(read_raw_line!(kr), 250)[1:250]
@@ -926,6 +965,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
         elseif kw == "FMIN";     kw_fmin!(s, rec, kr)      # Fire & Fuels Extension block (SIMFIRE/FLAMEADJ)
+        elseif kw == "ECON";     kw_econ!(s, rec, kr)      # ECON economic-analysis block (ANNUCST/HRVVRCST/HRVRVN)
         # SPROUT/NOSPROUT are establishment-extension sub-keywords (read by ESIN inside an
         # ESTAB…END block, esin.f opt 26/27) — NOT top-level base keywords (the Fortran base
         # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.

@@ -529,10 +529,31 @@ end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList())
 
+"""
+One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
+applied to harvested trees with DBH in `[dbh_lo, dbh_hi)`. `sp` is the species the
+record applies to (0 = all). Unit codes (ECNCOM.F77): 1=per tree, 2=per MBF, 3=per CCF.
+"""
+struct EconCostRev
+    amount::Float32
+    unit::Int32
+    dbh_lo::Float32
+    dbh_hi::Float32
+    sp::Int32
+end
+EconCostRev(amount, unit, lo, hi) = EconCostRev(Float32(amount), Int32(unit), Float32(lo), Float32(hi), Int32(0))
+
+"ECON economic-analysis state (no globals): discount rate, cost/revenue keyword tables, accumulated streams."
 mutable struct EconState
     active::Bool
+    discount_rate::Float32                # discount/interest rate (fraction)
+    ann_cost::Float32                     # ANNUCST total annual management cost ($/ac/yr)
+    hrv_cost::Vector{EconCostRev}         # HRVVRCST variable harvest costs
+    hrv_rev::Vector{EconCostRev}          # HRVRVN harvest revenues (per species)
+    undisc_cost::Vector{Float32}          # accumulated undiscounted cost by analysis year
+    undisc_rev::Vector{Float32}           # accumulated undiscounted revenue by analysis year
 end
-EconState() = EconState(false)
+EconState() = EconState(false, 0.04f0, 0f0, EconCostRev[], EconCostRev[], Float32[], Float32[])
 
 # ---------------------------------------------------------------------------
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the
