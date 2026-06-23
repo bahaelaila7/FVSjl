@@ -67,6 +67,7 @@ include("engine/event_monitor.jl")
 include("engine/cuts.jl")
 include("engine/establishment.jl")
 include("engine/sprout.jl")
+include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass
 include("io/summary.jl")
 include("engine/simulate.jl")
 
