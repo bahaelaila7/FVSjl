@@ -28,6 +28,45 @@
     end
 end
 
+"""
+    ffe_forest_type(s) -> Int
+
+The FFE categorical forest type IFFEFT (1–9) for the stand (FMSNFT, fmsnft.f),
+used to set default live surface fuels (F3) and in the fuel-model logic (F4):
+1 hardwood · 2 hardwood/pine · 3 pine/hardwood · 4 pine · 5 pine-bluestem ·
+6 oak-savannah · 7 redcedar · 8 St-Francis · 9 nonstocked. The mixed pine/hardwood
+classes split on the stand's pine basal-area fraction (SN species 4–14 are pines);
+the savannah/bluestem classes also use top height (ATAVH = AVHT40) and stocking class.
+"""
+function ffe_forest_type(s::StandState)::Int
+    ifortp = Int(s.plot.forest_type)
+    t = s.trees
+    if ifortp in (997, 504, 505, 510, 512, 515, 519, 520)
+        return 1                                       # hardwood
+    elseif ifortp in (103, 104, 141, 142, 996, 401, 409) ||
+           (161 <= ifortp <= 168) || (403 <= ifortp <= 407)
+        pineba = 0f0; npineba = 0f0                     # pine vs non-pine basal area
+        @inbounds for i in 1:t.n
+            x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+            (4 <= t.species[i] <= 14) ? (pineba += x) : (npineba += x)
+        end
+        tot = pineba + npineba
+        iffeft = tot > 0f0 ? (f = pineba / tot; f <= 0.50f0 ? 2 : f <= 0.70f0 ? 3 : 4) : 0
+        (ifortp == 162 && stand_top_height(s) > 50f0 && Int(s.plot.stocking_class) >= 3) && (iffeft = 5)
+        return iffeft
+    elseif ifortp == 501 || ifortp == 503
+        return (stand_top_height(s) > 30f0 && Int(s.plot.stocking_class) >= 3) ? 6 : 1
+    elseif ifortp == 181 || ifortp == 402
+        return 7                                       # eastern redcedar
+    elseif ifortp in (602, 605, 701, 706, 708, 807)
+        return 8                                       # St. Francis types
+    elseif ifortp == 999
+        return 9                                       # nonstocked
+    else
+        return 1                                       # default → hardwood
+    end
+end
+
 "FFE live-fuel category (1–4) from the FFE forest type IFFEFT (FMCBA, fmcba.f:161)."
 @inline function ffe_live_fuel_type(iffeft::Integer)::Int
     if     3 <= iffeft <= 5    1   # pines

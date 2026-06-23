@@ -2,7 +2,8 @@
 # Expected values hand-computed directly from fmcbio.f's equations + coefficients.
 using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
              crown_biomass, StandState, init_blockdata!, init_merch_standards!,
-             ffe_dead_fuel_type, ffe_live_fuel_type, ffe_dead_fuel_loading, ffe_live_fuel_loading
+             ffe_dead_fuel_type, ffe_live_fuel_type, ffe_dead_fuel_loading, ffe_live_fuel_loading,
+             ffe_forest_type
 
 @testset "Jenkins tree biomass (FMCBIO)" begin
     coef = coefficients(Southern())
@@ -122,4 +123,24 @@ end
     # live herb/shrub loadings (FULIV)
     @test ffe_live_fuel_loading(coef, 4) == (0.1f0, 0.25f0)     # pines
     @test ffe_live_fuel_loading(coef, 7) == (1.0f0, 5.0f0)      # redcedar
+end
+
+@testset "FFE forest-type classifier (FMSNFT)" begin
+    s = StandState(Southern()); init_blockdata!(s, s.variant)
+    ft(code) = (s.plot.forest_type = Int32(code); ffe_forest_type(s))
+    s.trees.n = 0
+    @test ft(520) == 1          # oak-hickory hardwood (snt01 stand 4)
+    @test ft(181) == 7          # eastern redcedar
+    @test ft(605) == 8          # St. Francis type
+    @test ft(999) == 9          # nonstocked
+    @test ft(888) == 1          # default → hardwood
+    @test ft(161) == 0          # pine type but no trees → IFFEFT unset (0)
+    # pine-fraction split for a loblolly-shortleaf (161) stand
+    t = s.trees; s.plot.forest_type = Int32(161)
+    t.n = 2
+    t.species[1] = Int32(13); t.dbh[1] = 12.0f0; t.tpa[1] = 100.0f0   # loblolly pine
+    t.species[2] = Int32(65); t.dbh[2] = 12.0f0; t.tpa[2] = 10.0f0    # an oak
+    @test ffe_forest_type(s) == 4                                     # >70% pine BA → pine
+    t.tpa[2] = 100.0f0                                                # 50/50 pine/hardwood
+    @test ffe_forest_type(s) == 2                                     # ≤50% pine → hardwood/pine
 end
