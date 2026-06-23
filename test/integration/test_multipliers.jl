@@ -19,8 +19,11 @@ _mult_base(path) = [split(l) for l in eachline(path)
                        (y = tryparse(Int, first(split(l))); y !== nothing && 1900 < y < 2100)]
 
 @testset "growth/mortality multipliers (MULTS) vs Fortran" begin
-    # (scenario, cycles validated bit-exact) — cols 3 TPA / 4 BA / 7 TopHt / 8 QMD
-    for (nm, ncyc) in (("mult_htgmult", 11), ("mult_baimult", 11), ("mult_mortmult", 6))
+    # (scenario, cycles validated bit-exact) — cols 3 TPA / 4 BA / 7 TopHt / 8 QMD.
+    # mult_reghmult/mult_regdmult are bare-stand regen multipliers: validated on the early
+    # cycles where the small-tree REGENT model (and thus XRHGRO/XRDGRO) is in effect.
+    for (nm, ncyc) in (("mult_htgmult", 11), ("mult_baimult", 11), ("mult_mortmult", 6),
+                       ("mult_reghmult", 5), ("mult_regdmult", 5))
         key  = joinpath(_MULT_DIR, nm * ".key")
         base = joinpath(_MULT_DIR, nm * ".sum.save")
         if !isfile(key) || !isfile(base)

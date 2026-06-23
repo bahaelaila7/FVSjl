@@ -50,11 +50,11 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | FIXDG | fix/scale diameter growth | ⛔ |
 | FIXHTG | fix/scale height growth | ⛔ |
 | HTGSTOP / TOPKILL | stop height growth / topkill edits | ⛔ |
-| BAIMULT | basal-area-increment multiplier | ⛔ (was missing) |
-| HTGMULT | height-growth multiplier | ⛔ (was missing) |
+| BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
+| HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
 | CRNMULT | crown-ratio/width multiplier | ⛔ (was missing) |
 | FIXCW | fix crown width | ⛔ (was missing) |
-| REGDMULT / REGHMULT | regen diameter / height growth multiplier | ⛔ (was missing) |
+| REGDMULT / REGHMULT | regen diameter / height growth multiplier | ✅ (MULTS kinds 6/3; regent XRDGRO/XRHGRO; ±1 vs Fortran on regen cycles) |
 | NOTRIPLE / NUMTRIP | tripling control (LTRIP) | 🟡 (hardcoded limit=2) |
 
 ## 4. Mortality keyword overrides (`morts.f`/`fixmort.f`)
@@ -63,7 +63,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | FIXMORT | keyword mortality rate override | ⛔ |
 | MORTMSB | MSB alternate mortality (QMDMSB) | ⛔ (default 999 no-op) |
-| MORTMULT | mortality-rate multiplier | ⛔ (was missing) |
+| MORTMULT | mortality-rate multiplier (background only, morts.f:524) | ✅ (MULTS; bit-exact on bg-mortality cycles) |
 | TREESZCP | tree size-cap mortality (SIZCAP) | ⛔ (default 999 no-op) |
 
 ## 5. Other stand management

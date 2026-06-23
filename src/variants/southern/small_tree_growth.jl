@@ -39,13 +39,14 @@ const REGENT_DIAM = Float32[
 # (regent.f:195-275, HTDBH-inverse branch). `d`,`h` are the record's pre-growth
 # dbh/height; returns the outside-bark DG (before DGBND).
 @inline function _regent_dg(sd, bark_a, bark_b, sp::Integer, d::Float32, h::Float32, htg::Float32,
-                            scale2::Float32, dgmx::Float32, ifor::Integer = 0)
+                            scale2::Float32, dgmx::Float32, ifor::Integer = 0, xrdgro::Float32 = 1f0)
     hk = h + htg
     hk <= 4.5f0 && return 0f0                         # (DBH bump path; not hit for snt01)
     dkk = _htdbh_dbh(sd, sp, hk, ifor)
     dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, ifor)
     bark = bark_ratio(bark_a, bark_b, sp, d)          # per-stand bark (Fort Bragg override)
-    dg = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dkk - dk) * bark
+    # REGDMULT: regent.f:347/350 multiply DG by XRDGRO before the DDS-scale conversion.
+    dg = ((dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dkk - dk) * bark) * xrdgro
     dg < 0f0 && (dg = 0.1f0)
     dg > dgmx && (dg = dgmx)
     dds = dg * (2f0 * bark * d + dg) * scale2
@@ -75,6 +76,9 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
     scale = fint / REGENT_REGYR                       # fnt/REGYR
     scale2 = 1f0                                       # YR/fnt (normal cycle)
     random_on = DG_DGSD >= 1f0       # SN DGSD = 2 (grinit.f) ⇒ random effect on
+    # REGHMULT/REGDMULT (MULTS kinds 3/6): per-species regen height/diameter multipliers
+    # (regent.f:233 HTGR·XRHGRO, :347/:350 DG·XRDGRO). cur_year = inventory + cycle·period.
+    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
     @inbounds for sp in 1:MAXSP
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
@@ -82,18 +86,20 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
         htmax = htcalc_htmax(bc, sp, si, montane)
         dgmx = REGENT_DGMAX * scale
         con = exp(c.htg_cor_small[sp])    # RHCON·exp(HCOR); RHCON = 1 (no HCOR2 keyword)
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         for k3 in i1:i2
             i = ind1[k3]
             d = t.dbh[i]
             (d >= REGENT_XMAX || t.tpa[i] <= 0f0) && continue
             h = t.height[i]
-            # base small-tree height increment (HGADJ=xrhgro=1)
+            # base small-tree height increment (HGADJ=1; XRHGRO=REGHMULT)
             if htmax - h <= 1f0
                 htgr_s = 0.1f0
             else
                 aget = htcalc_age(bc, sp, si, h, montane)
                 htg1 = htcalc_incr(bc, sp, si, aget, montane)
-                htgr_s = max(htg1 * con * scale, 0.1f0)
+                htgr_s = max(htg1 * con * scale * xrhgro, 0.1f0)
             end
             xwt = d <= REGENT_XMIN ? 0f0 : (d - REGENT_XMIN) / (REGENT_XMAX - REGENT_XMIN)
             htgr = max(htgr_s * (1f0 - xwt) + xwt * t.ht_growth[i], 0.1f0)
@@ -107,7 +113,7 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
                 end
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
-                dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx))
+                dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx), xrdgro)
                 (d + dg) < REGENT_DIAM[sp] && (dg = REGENT_DIAM[sp] - d)
                 dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)
                 if l == 0
