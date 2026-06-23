@@ -153,10 +153,12 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
   fire, down-wood transfer.
   - **F7-data:** ✅ **DONE** — the snag fall/decay-rate parameters (`snag_decayx`/`snag_fallx`/
     `snag_alldwn`) by snag class with the pine/redcedar ALLDWN overrides, in `fire_species_props.csv`.
-  - **F7-state — REMAINING:** the per-stand snag records (species/dbh/height/density-hard/soft/year)
-    created on tree death (FMSSEE/FMSADD), evolved each cycle (FMSFALL falldown, DECAYX hard→soft,
-    height loss), and transferred to the CWD pools (FMCWD); fuel consumption (FMCONS). Stateful, multi-
-    routine; DBS-report-only (no `.sum`).
+  - **F7-state:** ✅ **DONE (snag list + evolution)** — `SnagList` (FireState.snags, structure-of-arrays
+    cohorts), `add_snag!` (FMSADD, fed by `fmburn!` for fire-killed cohorts), `update_snags!` (FMSNAG:
+    per-year `snag_fall_density` falldown split hard/soft + DECAYX hard→soft), wired into `grow_cycle!`.
+    12 tests + integration. Suite 3276→3288. The snag pool is now live and evolving.
+  - **F7-rest — REMAINING:** transfer the fallen snags into the CWD size/decay pools (FMCWD), the fuel
+    consumption by the fire (FMCONS), and the snag height-loss/breakage detail (HTX, ≈0 for SN).
 - **F8 — carbon pools (FMCADD) + reports:** the carbon accounting + the DBS/list reports
   (BurnRept/FuelRept/MortRept/CarbonReport) — overlaps C6 (DBS output).
   - **F8-live:** ✅ **DONE** — `stand_live_carbon` (fmcrbout.f): the live-tree aboveground/merch/
