@@ -69,10 +69,25 @@ Format per entry:
   DEFECT** input (damage codes 25/26/27 → `basdam.f` packing → `ICDF=DEFECT/1e6`, `IBDF=DEFECT/1e4
   mod 100`, max'd with the curves) are all ported and bit-exact, including the cubic/board coupling
   `MCFV = PULPV + post-board-defect SCFV` (`test_mcdefect.jl` + `test_pertree_defect.jl`). The
-  **CFLA0/CFLA1/BFLA0/BFLA1** log-linear form model is **verified no-op for SN** (only ever set to
-  0/1 in grinit/initre — not a divergence). All invisible on snt01 (zero defect).
-- **Status:** RESOLVED for SN — the volume defect model (MCDEFECT/BFDEFECT/per-tree DEFECT) is ported;
-  CFLA/BFLA form model is verified-inert. (The separate board-foot BFPFLG=0 taper limitation above is unrelated.)
+  **CFLA0/CFLA1/BFLA0/BFLA1** log-linear form model (`VOLCOR=exp(B0+B1·ln(V))`, set by MCFDLN/BFFDLN)
+  is also folded into ICDF/IBDF (vols.f:303-310) — default 0/1 is a no-op; activation can't be
+  bit-exact-validated (see next entry). All invisible on snt01 (zero defect, default form coefs).
+- **Status:** MCDEFECT/BFDEFECT/per-tree DEFECT bit-exact; MCFDLN/BFFDLN form model ported but no oracle (below).
+
+### MCFDLN / BFFDLN form model: live Fortran FPE-crashes when activated (no oracle)
+- **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (guards `temvol > 0` before the `log`)
+- **Where (Fortran):** `bin/FVSsn_buildDir/vols.f:306` — `VOLCOR=EXP(CFLA0+CFLA1*ALOG(TEMVOL))`
+- **Category:** Fortran build bug (blocks validation)
+- **Gate:** always (only when the form model is activated — default 0/1 is a no-op, bit-exact)
+- **Description / evidence:** MCFDLN/BFFDLN set the log-linear form coefs CFLA0/CFLA1 / BFLA0/BFLA1.
+  The SN Fortran build computes `ALOG(TEMVOL)` at vols.f:306 **before** the `IF(TEMVOL.EQ.0) GOTO 25`
+  guard at :308, so any tree with `MCFV==SCFV` (zero pulpwood) triggers `log(0)` → **SIGFPE / core
+  dump**. Verified: every non-default `B1` (0.9/0.95/0.98) cores-dumps on the base stand; `B1=1.0`
+  (the default) runs. So there is **no bit-exact oracle** for the activated form model. FVSjl
+  implements it faithfully per vols.f but guards `temvol > 0` (the guard Fortran misplaced), so it
+  runs robustly + deterministically; `test_mcfdln.jl` pins the no-op default (byte-identical to no
+  keyword) and that activation deterministically lowers merch cubic. NOT bit-exact-validated.
+- **Status:** open — faithful transcription, un-validatable until the Fortran FPE is fixed in the reference build.
 
 ---
 

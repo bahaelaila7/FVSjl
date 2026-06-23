@@ -311,8 +311,11 @@ function compute_volumes!(s::StandState)
     merch = (stmp = stmp, topd = topd, scfstmp = scfstmp, scftop = scftop,
              bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     cfdef = c.sp_cf_defect; bfdef = c.sp_bf_defect          # MCDEFECT / BFDEFECT defect curves
+    cff0 = c.sp_cf_form0; cff1 = c.sp_cf_form1              # MCFDLN cubic log-linear form coefs
+    bff0 = c.sp_bf_form0; bff1 = c.sp_bf_form1              # BFFDLN board log-linear form coefs
     anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
-    anydef = anydef_cf || anydef_bf || any(!iszero, t.defect) # gate the no-defect hot path
+    anyform = any(!iszero, cff0) || any(!=(1f0), cff1) || any(!iszero, bff0) || any(!=(1f0), bff1)
+    anydef = anydef_cf || anydef_bf || anyform || any(!iszero, t.defect) # gate the no-defect hot path
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
@@ -352,19 +355,31 @@ function compute_volumes!(s::StandState)
         #   • BOARD (vols.f:419-432): board feet AND sawtimber cubic are cut by IBDF% (≥99 ⇒ both 0),
         #     applied only where board feet exist.
         # Then MCFV = PULPV + (post-board-defect SCFV), so a BFDEFECT also lowers reported merch cubic.
-        # (Per-tree DEFECT input is deferred; the CFLA0/CFLA1 form model is verified no-op for SN.)
+        # ICDF/IBDF are the LARGEST of three sources (vols.f:298): the per-tree DEFECT input, the
+        # CFDEFT/BFDEFT DBH curve, and the MCFDLN/BFFDLN log-linear form model VOLCOR=exp(B0+B1·ln(V))
+        # (the implied % reduction (V−VOLCOR)/V); the form coefs default to 0/1 ⇒ no-op.
         if anydef
             dpack = Int(t.defect[i])
-            # ICDF = max(per-tree CF defect, CFDEFT curve); IBDF = max(per-tree BF defect, BFDEFT).
+            # ICDF = max(per-tree CF defect, CFDEFT curve, cubic form model on the pulpwood MCFV−SCFV).
             icdf = dpack ÷ 1000000
             (anydef_cf && mcf > scf) &&
                 (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99)))
+            temvol = mcf - scf
+            if temvol > 0f0 && (cff0[sp] != 0f0 || cff1[sp] != 1f0)
+                volcor = exp(cff0[sp] + cff1[sp] * log(temvol))
+                icdf = max(icdf, round(Int, (temvol - volcor) / temvol * 100f0))
+            end
             icdf = clamp(icdf, 0, 99)
             pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
             if bf > 0f0
+                # IBDF = max(per-tree BF defect, BFDEFT curve, board form model on BFV).
                 ibdf = (dpack ÷ 10000) % 100
                 anydef_bf &&
                     (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0), 0, 99)))
+                if bff0[sp] != 0f0 || bff1[sp] != 1f0
+                    volcorb = exp(bff0[sp] + bff1[sp] * log(bf))
+                    ibdf = max(ibdf, round(Int, (bf - volcorb) / bf * 100f0))
+                end
                 ibdf = clamp(ibdf, 0, 99)
                 if ibdf >= 99
                     bf = 0f0; scf = 0f0

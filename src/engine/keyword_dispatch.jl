@@ -393,6 +393,45 @@ kw_mcdefect!(s::StandState, rec::KeywordRecord) =
 kw_bfdefect!(s::StandState, rec::KeywordRecord) =
     _set_defect!(s.control, s.control.sp_bf_defect, nint(rec.values[2]), _defect_vals(rec.values))
 
+# Set the log-linear form-model coefficients B0/B1 (CFLA/BFLA) for a species (sdefln.f): field 1 =
+# species (alpha/FIA/−group), field 2 = B0 (intercept), field 3 = B1 (slope). `b0`/`b1` are the
+# target per-species arrays. Only present fields are written (LNOTBK), preserving the 0/1 defaults.
+function _set_form!(s::StandState, b0::Vector{Float32}, b1::Vector{Float32}, rec::KeywordRecord)
+    spfield = strip(rec.fields[1])
+    has0 = rec.present[2]; has1 = rec.present[3]
+    v0 = Float32(rec.values[2]); v1 = Float32(rec.values[3])
+    setone(sp) = @inbounds begin
+        (1 <= sp <= length(b0)) || return
+        has0 && (b0[sp] = v0); has1 && (b1[sp] = v1)
+    end
+    fnum = tryparse(Float64, spfield)        # numeric species field (may be "0." / "-1")
+    if fnum !== nothing
+        isp = round(Int, fnum)
+        if isp == 0                          # SPDECD IS=0 ⇒ all species
+            for sp in 1:length(b0); setone(sp); end
+        elseif isp < 0                       # −N ⇒ SPGROUP N
+            g = -isp
+            (1 <= g <= length(s.control.sp_groups)) || return
+            for sp in s.control.sp_groups[g]; setone(sp); end
+        else
+            setone(isp)
+        end
+    else                                     # alpha / FIA code
+        idx, _ = resolve_species(spfield, s.variant, s.species, s.coef)
+        idx > 0 && setone(Int(idx))
+    end
+    return
+end
+
+# MCFDLN (sdefln.f, option 39) — set the CUBIC form-model coefficients CFLA0/CFLA1 (activates the
+# log-linear merch-cubic form/defect correction in the volume path).
+kw_mcfdln!(s::StandState, rec::KeywordRecord) =
+    _set_form!(s, s.control.sp_cf_form0, s.control.sp_cf_form1, rec)
+
+# BFFDLN (sdefln.f, option 40) — set the BOARD-FOOT form-model coefficients BFLA0/BFLA1.
+kw_bffdln!(s::StandState, rec::KeywordRecord) =
+    _set_form!(s, s.control.sp_bf_form0, s.control.sp_bf_form1, rec)
+
 # VOLEQNUM (initre.f:5061) — override the cubic NVEL volume-equation id (VEQNNC) for a species.
 # Field 1 = species (alpha code / FIA number / −N SPGROUP), field 2 = the 10-char equation id (e.g.
 # "841CLKE318"). Stored and applied AFTER VOLEQDEF assigns the defaults (apply_voleqnum_overrides!).
@@ -829,6 +868,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MCDEFECT"; kw_mcdefect!(s, rec)      # cubic-volume defect curve (sdefet.f/vols.f)
         elseif kw == "BFDEFECT"; kw_bfdefect!(s, rec)      # board-foot defect curve (sdefet.f/vols.f)
         elseif kw == "VOLEQNUM"; kw_voleqnum!(s, rec)      # cubic volume-equation override (initre.f:5061)
+        elseif kw == "MCFDLN";   kw_mcfdln!(s, rec)        # cubic form-model coefs CFLA0/CFLA1 (sdefln.f)
+        elseif kw == "BFFDLN";   kw_bffdln!(s, rec)        # board form-model coefs BFLA0/BFLA1 (sdefln.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP

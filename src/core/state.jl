@@ -186,6 +186,10 @@ mutable struct Control
     sp_bf_stump::Vector{Float32} #  board-foot stump height               (BFSTMP)
     sp_cf_defect::Matrix{Float32}#  cubic-foot defect curve, 9 DBHCLS pts × MAXSP (CFDEFT; MCDEFECT)
     sp_bf_defect::Matrix{Float32}#  board-foot defect curve, 9 DBHCLS pts × MAXSP (BFDEFT; BFDEFECT)
+    sp_cf_form0::Vector{Float32} #  cubic log-linear form model intercept (CFLA0; MCFDLN), default 0
+    sp_cf_form1::Vector{Float32} #  cubic log-linear form model slope     (CFLA1; MCFDLN), default 1
+    sp_bf_form0::Vector{Float32} #  board log-linear form model intercept (BFLA0; BFFDLN), default 0
+    sp_bf_form1::Vector{Float32} #  board log-linear form model slope     (BFLA1; BFFDLN), default 1
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
@@ -240,6 +244,8 @@ function Control()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), # sp_bf_dbhmin, sp_bf_topd, sp_bf_stump
         zeros(Float32,9,MAXSP), zeros(Float32,9,MAXSP),         # sp_cf_defect (MCDEFECT), sp_bf_defect (BFDEFECT)
+        zeros(Float32,MAXSP), ones(Float32,MAXSP),              # sp_cf_form0/1 (MCFDLN): CFLA0=0, CFLA1=1
+        zeros(Float32,MAXSP), ones(Float32,MAXSP),              # sp_bf_form0/1 (BFFDLN): BFLA0=0, BFLA1=1
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
