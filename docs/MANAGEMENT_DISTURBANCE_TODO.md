@@ -129,6 +129,38 @@ THINPRSC, SPECPREF, IF/THEN event monitor) are cut-exact. Remaining work is the
 *unported* methods below + the multi-plot THINPRSC path; the post-thin numeric tail is
 the same single-precision/serial-correlation floor seen in the natural-process runs.
 
+## Triage: which ⛔ items are actually APPLIED in SN code (2026-06-23)
+
+Grepped each keyword's effect-variable for READ references in `sn/`+`base/` (beyond
+init/keyword-table). This separates real ports from set-but-not-read no-ops:
+
+**Genuinely applied (real ports, each non-trivial):**
+- `SIZCAP`/TREESZCP — 18 refs (dgbnd/htgf/morts/regent). FVSjl HAS the cap matrix +
+  DG-cap (dg_bound) + regen height cap; MISSING the SIZECAP keyword + the size-cap
+  MORTALITY (morts.f:691-698: if D+G≥SIZCAP[is,1] & SIZCAP[is,3]≠1 ⇒ kill floor
+  WK2=max(WK2, P·SIZCAP[is,2]·FINT/5)). The floor-vs-distribute interaction with VARMRT
+  needs care.
+- `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation).
+- `FIXCW` — cwidth.f (crown-width override).
+- `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume).
+- FIXDG/FIXHTG — grincr.f:481 (DG/HTG·PRM(2) over a DBH window). ⚠ ATTEMPTED a post-growth-
+  pass port this session → BUGGY (FIXDG over-scaled QMD 23.8 vs 16.9; FIXHTG corrupted
+  TopHt down 58→44 vs ~no-effect). REVERTED. Needs the post-pass + tripling-stash + growth/
+  mortality-compensation interaction debugged (isolate on a NOTRIPLE stand first).
+
+**Set-but-not-read in SN (0 application refs ⇒ likely NO-OP in SN, or external component):**
+- CRNMULT, TOPKILL, CUTEFF, MINHARV, TCONDMLT — 0 refs.
+- SPLEAVE/LEAVESP — only `grinit.f:125 LEAVESP(I)=.FALSE.` (init), never checked in the cut logic.
+- DEFECT/BFDEFECT/MCDEFECT — CFDEFT/BFDEFT set in sdefet.f/volkey.f, never read in sn/base
+  (the per-tree defect reduction is in the NVEL volume LIBRARY, a separate component). Also
+  the DEFECT keyword CRASHES this Fortran build on a simple scenario (exit 2). ⇒ verify it is
+  even active in SN before porting; FVSjl's R8-Clark volume would need an NVEL-style defect hook.
+- ⚠ CAVEAT: "0 refs" used a guessed effect-variable name; some may apply under a different
+  COMMON name. Confirm empirically (does the keyword change the .sum?) before declaring no-op.
+
+⇒ The cheap management wins (the 5 MULTS multipliers) are DONE. Every remaining item is a
+focused chunk, not a quick port. Several listed-⛔ items are probably SN no-ops.
+
 ## Suggested order (when starting)
 1. THINCC/HT/RDEN/RDSL/PT/QFA (remaining label_400 SDI-class thins; THINSDI ✅ done) + LEAVESP/MINHARV
 2. Multi-plot (nps>1) THINPRSC path
