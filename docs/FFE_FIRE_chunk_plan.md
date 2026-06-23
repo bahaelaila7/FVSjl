@@ -178,6 +178,12 @@ stays bit-exact until each chunk lands.
 
 ## C8 (insects / econ)
 
-Econ (ANNUCST/HRVxxx, sn.key) and the insect models are separate, smaller extension families ported
-after the FFE core. Econ is partly scoped already (see the FVS-econ memory); it affects the econ DBS
-tables, not the `.sum`.
+Econ (ANNUCST/HRVxxx, exercised by snt01 stand 3) and the insect models are separate extension families.
+Econ affects the econ DBS tables, not the `.sum`.
+- **C8-econ-core:** ✅ **DONE** — the discounting kernels (`econ_present_value`/`econ_pnv`/`econ_bc_ratio`/
+  `econ_rate_of_return`, `src/engine/econ.jl`, eccalc.f): present value, present net value (start-of-year
+  costs / end-of-year revenues), benefit/cost ratio, realizable rate of return. 17 tests; suite 3296→3313.
+- **C8-econ-rest — REMAINING:** the ANNUCST/HRVVRCST/HRVRVN keyword layer that builds the per-year
+  cost/revenue streams from the harvested volumes (cuts!), the SEV (soil expectation value), and the DBS
+  econ report tables.
+- **C8-insects — REMAINING:** the insect/disease models (a separate family).
