@@ -77,6 +77,19 @@ and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/e
     clamped `BACHLO(0,.5,ESRANN)` `:estab` deviation → H-D-inverse DBH → CWCALC crown → tree-record
     init), wire into the cycle hook (esnutr.f:112-124, after COMPRS, gated on LSPRUT && ITRNRM≥1),
     handle the SPROUT keyword per-species/DBH multiplier table (OPGET action 450). The .sum chunk.
+    Sub-pieces that are already available to reuse: `crown_width(...)` (CWCALC), `bachlo(...;stream=:estab)`
+    + `esrann!` (ESRANN), and the establishment tree-record-init / GRADD-order insertion pattern in
+    `establish!`.
+    ⚠ **PREREQUISITE found (C2a — sprout-DBH H-D coefficients).** ESUCKR's sprout DBH is the **Wykoff**
+    inverse `DBH = HT2/(ln(HT−4.5) − AX) − 1`, `AX = (IABFLG==1 ? HT1 : AA)` (esuckr.f:296-307). These
+    `HT1/HT2/AA/IABFLG` are the **CRATET** coefficients (cratet.f:303-345: per-species `AA = mean(ln(H−4.5)
+    − HT2/(D+1))` over D≥3 trees; `IABFLG=0` when ≥3 obs & `LHTDRG` & `AA≥0`, else default HT1). FVSjl does
+    **NOT** compute these — its height dubbing (`dub_missing_heights!`/`_htdbh_height`) uses the **Curtis-Arney**
+    form (htdbh.f:300, P2/P3/P4) and is bit-exact to baseline, so SN dubbing is Curtis-Arney while ESUCKR's
+    DBH path is a *separate* Wykoff fit. Before C2 can be bit-exact: extract the SN default `HT1`/`HT2` (COEFFS,
+    set in coeffs.f/blkdat) into the species CSV, and port the CRATET `AA`/`IABFLG` per-stand fit (or confirm
+    that for a fresh sprout stand the K1<3 / `LHTDRG` path keeps `IABFLG=1` ⇒ default `HT1`, sidestepping the
+    fit). Resolve empirically vs live Fortran on a SPROUT stand — do not guess the coefficient source.
 - **D — validation:** a SPROUT + harvest stand (cut a sprouting species, e.g. an oak), 3-way vs live
   Fortran; resolve the LSPRUT default. Bit-exact bar `:estab` Float32 noise.
 
