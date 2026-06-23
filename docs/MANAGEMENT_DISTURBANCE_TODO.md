@@ -64,7 +64,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | FIXMORT | keyword mortality rate override | ⛔ |
 | MORTMSB | MSB alternate mortality (QMDMSB) | ⛔ (default 999 no-op) |
 | MORTMULT | mortality-rate multiplier (background only, morts.f:524) | ✅ (MULTS; bit-exact on bg-mortality cycles) |
-| TREESZCP | tree size-cap mortality (SIZCAP) | ⛔ (default 999 no-op) |
+| TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
 
 ## 5. Other stand management
 
@@ -135,11 +135,19 @@ Grepped each keyword's effect-variable for READ references in `sn/`+`base/` (bey
 init/keyword-table). This separates real ports from set-but-not-read no-ops:
 
 **Genuinely applied (real ports, each non-trivial):**
-- `SIZCAP`/TREESZCP — 18 refs (dgbnd/htgf/morts/regent). FVSjl HAS the cap matrix +
-  DG-cap (dg_bound) + regen height cap; MISSING the SIZECAP keyword + the size-cap
-  MORTALITY (morts.f:691-698: if D+G≥SIZCAP[is,1] & SIZCAP[is,3]≠1 ⇒ kill floor
-  WK2=max(WK2, P·SIZCAP[is,2]·FINT/5)). The floor-vs-distribute interaction with VARMRT
-  needs care.
+- `SIZCAP`/TREESZCP — ✅ DONE. The **TREESZCP** keyword (kw_treeszcp!, keyword_dispatch.jl)
+  loads SIZCAP[is,1..4] immediately (no date): field 1 = species (0=all), 2 = cap DBH,
+  3 = mortality rate, 4 = IDMFLG flag, 5 = HT cap (field order confirmed empirically vs
+  live Fortran). The three effects: (a) DG bound (dg_bound, already present); (b) size-cap
+  MORTALITY floor — ported in mortality.jl AFTER _varmrt!, before BAMAX, matching
+  sn/morts.f:692: if (D+G)≥SIZCAP[is,1] & IFIX(SIZCAP[is,3])≠1 ⇒ killed=max(killed,
+  P·SIZCAP[is,2]·FINT/5)≤P, where **G is OUTSIDE-bark, period-scaled (DG/BARK)·(FINT/5)**
+  (the inside-bark diam_growth under-counts which trees reach the cap → too few killed);
+  (c) HT cap — htgf.f:286-288 in height_growth!: if HT+HTG>SIZCAP[is,4] ⇒ HTG=max(SIZCAP[is,4]
+  −HT, 0.1) (the 0.1 floor: trees already past the cap crawl, never shrink). Validated by
+  test/integration/test_treeszcp.jl (3 scenarios vs Fortran, 106 asserts). Residuals: cap
+  mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint
+  matches); htcap TopHt drifts ≤4' as a declining-stand artifact (TPA/BA/QMD bit-exact).
 - `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation).
 - `FIXCW` — cwidth.f (crown-width override).
 - `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume).

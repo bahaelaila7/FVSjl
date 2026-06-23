@@ -79,6 +79,8 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htcon = c.htg_cor[sp]
         if htmax - hti <= 1f0
             t.ht_growth[i] = 0.10f0 * xht * scale * exp(htcon)
+            sc4 = s.control.sp_size_cap[sp, 4]
+            (hti + t.ht_growth[i]) > sc4 && (t.ht_growth[i] = max(sc4 - hti, 0.1f0))
             continue
         end
         aget = htcalc_age(bc, sp, si, hti, montane)
@@ -95,6 +97,10 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htgmod = clamp(0.25f0 * hgmdcr + 0.75f0 * hgmdrh, 0.1f0, 2f0)
         htg = max(htg1 * htgmod, 0.1f0)
         t.ht_growth[i] = htg * xht * scale * exp(htcon)
+        # htgf.f:286-288 — large-tree height cap (SIZCAP[4], set by TREESZCP). Default 999.
+        # A tree already past the cap still crawls by the 0.1 floor (never shrinks).
+        sc4 = s.control.sp_size_cap[sp, 4]
+        (hti + t.ht_growth[i]) > sc4 && (t.ht_growth[i] = max(sc4 - hti, 0.1f0))
     end
     return s
 end

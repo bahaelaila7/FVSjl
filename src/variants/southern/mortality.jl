@@ -295,9 +295,25 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         end
     end
 
-    # Size-cap mortality (SIZCAP, morts.f:537-552) is a no-op without the SIZECAP
-    # keyword (defaults SIZCAP[*,1]=999) and is not yet ported.
-    #
+    # Size-cap mortality (SIZCAP, morts.f:691-694): a tree whose grown DBH reaches the
+    # per-species cap SIZCAP[1] (set by TREESZCP) gets a kill FLOOR of P·SIZCAP[2]·FINT/5
+    # (≤ P), unless the no-mortality flag SIZCAP[3] truncates to 1. Applied after VARMRT,
+    # before BAMAX. No-op unless TREESZCP set a cap (default SIZCAP[*,1]=999).
+    let sc = s.control.sp_size_cap
+        @inbounds for i in 1:n
+            sp = t.species[i]
+            (sc[sp, 1] >= 999f0 || trunc(Int, sc[sp, 3]) == 1) && continue
+            d = t.dbh[i]
+            # G is the OUTSIDE-bark, period-scaled increment (sn/morts.f:690), same as
+            # the BAMAX BA reconstruction below — NOT the raw inside-bark diam_growth.
+            g = (t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)) * (fint / 5f0)
+            if (d + g) >= sc[sp, 1]
+                kc = min(t.tpa[i] * sc[sp, 2] * fint / 5f0, t.tpa[i])
+                killed[i] < kc && (killed[i] = kc)
+            end
+        end
+    end
+
     # BAMAX enforcement (morts.f:555-615): if the residual basal area exceeds the
     # stand maximum BAMAX = SDImax·0.5454154·PMSDIU, scale up every record's kill by
     # adjfac=(BA−BAMAX)/BAdead and re-test, iterating until BA ≤ BAMAX (max 100). This

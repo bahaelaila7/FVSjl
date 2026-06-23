@@ -136,6 +136,27 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     return
 end
 
+# TREESZCP (base/keywds.f:51 / SIZCAP): a per-species maximum tree size. Field 1 =
+# species (0 = all), 2 = cap DBH (SIZCAP[1]), 3 = annual mortality rate applied to
+# trees that reach the cap (SIZCAP[2]), 4 = no-mortality flag IDMFLG (SIZCAP[3]),
+# 5 = height cap (SIZCAP[4]). Applied immediately to every matching species; the cap
+# then governs diameter growth (dgbnd), height growth (htgf) and a size-cap mortality
+# floor (morts). No date field — the cap holds for the whole projection.
+function kw_treeszcp!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    isp   = nint(v[1])
+    cap   = pr[2] ? Float32(v[2]) : 999f0
+    mrate = pr[3] ? Float32(v[3]) : 1f0
+    flag  = pr[4] ? Float32(v[4]) : 0f0
+    htcap = (pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 999f0
+    sc = s.control.sp_size_cap
+    rng = isp <= 0 ? (1:size(sc, 1)) : (isp:isp)
+    @inbounds for sp in rng
+        sc[sp, 1] = cap; sc[sp, 2] = mrate; sc[sp, 3] = flag; sc[sp, 4] = htcap
+    end
+    return
+end
+
 """
     active_multiplier(control, kind, sp, year) -> Float32
 
@@ -320,6 +341,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MORTMULT"; kw_mult!(s, rec, :mort)  # mortality-rate multiplier
         elseif kw == "REGHMULT"; kw_mult!(s, rec, :regh)  # regen height-growth multiplier
         elseif kw == "REGDMULT"; kw_mult!(s, rec, :regd)  # regen diameter-growth multiplier
+        elseif kw == "TREESZCP"; kw_treeszcp!(s, rec)     # per-species size cap (SIZCAP)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

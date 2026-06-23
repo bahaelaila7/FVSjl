@@ -134,7 +134,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | relative-height modifier (AVH>0, relht≤1.5) | scale HTG | ✅ |
 | `htgmod` clamp [0.1, 2.0] | bound modifier | ✅ |
 | HTG floor 0.1 | min growth | ✅ |
-| **HT+HTG > SIZCAP[sp,4] ⇒ cap HTG** | species height cap | ⛔ not in FVSjl; ⚪ no-op now (SIZCAP=999), needed for the SIZECAP keyword |
+| **HT+HTG > SIZCAP[sp,4] ⇒ HTG=max(SIZCAP[sp,4]−HT, 0.1)** | species height cap | ✅ height_growth! (htgf.f:286-288, both growth paths); set by TREESZCP field 5 |
 | `LTRIP` ⇒ repeat caps for upper/lower records | tripled HTG | ✅ |
 | HTCONS entry: HTCON from HCOR2 calibration | per-species HT calib | ✅ (`htg_cor`, =0 for snt01) |
 
@@ -168,7 +168,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | `VARMRT` distribute (t−tn10) toward suppressed | kill assignment | ✅ |
 | QMD-convergence: recompute d10n, re-iterate ≤10 | end-QMD fixed point | ✅ |
 | **MSB alternate mortality** (d10>QMDMSB ⇒ MSBMRT) | extra mortality | ⛔ keyword-only (QMDMSB=999 default) |
-| **SIZE-CAP mortality** (d+g≥SIZCAP[,1]) | cap big trees | ⛔ keyword-only (SIZCAP=999 default) |
+| **SIZE-CAP mortality** (d+g≥SIZCAP[,1] & IFIX(SIZCAP[,3])≠1 ⇒ kill floor P·SIZCAP[,2]·FINT/5) | cap big trees | ✅ mortality.jl after _varmrt!, before BAMAX (sn/morts.f:692); set by TREESZCP; **G=(DG/BARK)·(FINT/5) outside-bark** |
 | **BAMAX enforcement** (scale kills until BA≤BAMAX) | density BA cap | ✅ (commit aedecd1 — was the multi-cycle gap) |
 | FIXMORT keyword | forced mortality | ⛔ keyword option |
 | TPAMRT = surviving TPA | next-cycle reset basis | 🟡 |

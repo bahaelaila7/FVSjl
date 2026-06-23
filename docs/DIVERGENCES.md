@@ -64,7 +64,8 @@ scenario must set to make it execute and become Fortran-validatable.
 |---|---|---|
 | record compression `COMPRS/COMCUP/CMRANG/MEANSD` | `COMPRESS` keyword or >~3000 records (tests sit ~243) | — |
 | establishment/regen `ESTAB/ESIN/ESUCKR/ESPLT*/…` (~20) | `NATURAL`/`PLANT`/`SPROUT`/AUTOES (tests are NOAUTOES) | C4 |
-| MSB mortality `MSBMRT`, size-cap mortality | `MATUREW` / `SIZECAP` (defaults QMDMSB=999, SIZCAP=999) | C4 |
+| MSB mortality `MSBMRT` | `MATUREW` (default QMDMSB=999) | C4 |
+| size-cap (SIZCAP): DG bound + size-cap mortality + HT cap | `TREESZCP` — ✅ ported (kw_treeszcp!; sn/morts.f:692 floor + htgf.f:286 HT cap, test_treeszcp.jl). Residuals: cap mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint matches); htcap TopHt ≤4' declining-stand drift (TPA/BA/QMD bit-exact) | — |
 | BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT (`MULTS` 1/2/4/3/6) | the keyword — ✅ ported (active_multiplier; bit-exact vs Fortran, test_multipliers.jl) | — |
 | `FFERT`, `HTGSTP` (HTGSTOP/TOPKILL), FIXMORT/FIXDG/FIXHTG | the respective keyword (defaults inert) | — |
 | event-monitor expression eval `EV*`/`ALGEVL` | `COMPUTE`/`IF` keywords (basic IF/THEN works; full expr partial) | — |
