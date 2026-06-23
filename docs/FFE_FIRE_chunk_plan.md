@@ -79,7 +79,17 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     `fire.active` and wire `fmcba!` into the cycle. (Until FMIN parses, FFE stays inactive ⇒ all
     scenarios bit-exact; `fmcba!` is validated standalone.)
 - **F4 — fuel model classification (FMCFMD):** stand condition → fire-behavior fuel model (static +
-  dynamic weighting). The Anderson/SB fuel-model loadings → CSV.
+  dynamic weighting). **This is the now-confirmed root cause of stand 4's post-fire divergence.**
+  - **F4-data — REMAINING:** the standard fire-behavior fuel-model database (the Anderson 13 + the
+    models FMCFMD selects: 5, 8, 9, 10, …) — per-model loads/SAV/depth/moisture-of-extinction → CSV.
+  - **F4-select — REMAINING:** `FMCFMD` (fmcfmd.f) — by `IFFEFT` (`ffe_forest_type`, ported) + the
+    SMALL/LARGE fuel amounts + fuel moisture (`fuel_moisture`, ported), pick standard models with
+    weights `EQWT` (e.g. hardwood + SMALL>6 ⇒ model 5; else moisture-weighted 8/9; …). Returns up to
+    MXFMOD=5 `(model, weight)` pairs.
+  - **F4-weight — REMAINING:** FMFINT loops the weighted models (`rothermel_surface_fire` per model,
+    `flame += 0.45·(byramt/60)^.46 · FWT`, fmfint.f:508) — replace the single custom-89 call in `fmburn!`.
+  - **DEFULMOD** (fmin.f opt 39) redefines a fuel model's parameters; it only matters once F4 uses the
+    standard models (and FUELMODL/IFLOGIC=2 would force a static one — snt01 stand 4 does not).
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
   FLAMEADJ; the SIMFIRE trigger + fire-type (surface/passive/active crown) logic.
   - **F5-core:** ✅ **DONE (the Rothermel model)** — `rothermel_surface_fire`
@@ -116,11 +126,17 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     `FireState`; `grow_cycle!` fires `fmburn!` once on the SIMFIRE year (before growth). **snt01 stand 4's
     SIMFIRE 2003 now actually burns from the .key file** (468→223 TPA at the right year). The whole FFE
     fire path is live; stands without FMIN are untouched (suite stays 3250/3250 green).
-  - **F5b-validate — REMAINING (tuning):** make snt01 stand 4 bit-exact vs live Fortran. Two gaps
-    observed: (a) a pre-existing bare-`THINDBH 3.` thinning isn't applied (Fortran thins 245 TPA at 1993,
-    FVSjl doesn't) — a thinning-keyword issue, not fire; (b) the fire-mortality precision (the RANN-stream
-    order vs growth/mortality, the dynamic fuel-model details, DEFULMOD overrides). Both are now
-    observable since the fire runs.
+  - **F5b-validate — IN PROGRESS (upstream-first):**
+    - (a) ✅ **DONE** — the bare-`THINDBH 3.` gap was a **cycle-number date** bug (blank date → IDT=1,
+      a cycle number; FVSjl matched it as year 0 so it never fired). Fixed in cuts.jl/kw_thin!; snt01
+      stand 4 is now **bit-exact vs Fortran through 2003** (pre-fire). Commit 8e9d92a.
+    - (b) **REMAINING — the fuel-model PATH (root cause scoped, not the mortality math).** The Fortran's
+      PotFire report shows stand 4's 2003 fire uses **standard fuel models 10 (96%) + 5 (4%)** (flame
+      2.9–4.7 ft). FVSjl feeds its *custom model-89* (`build_dynamic_fuel_model`) straight to Rothermel →
+      flame 2.2 → kills 96 vs Fortran's ~138. Default `IFLOGIC=0` (fminit.f:824) + no FUELMODL ⇒ the fire
+      runs **`FMCFMD`** (fmburn.f:397, fmcfmd.f), which maps the stand `(IFFEFT, SMALL/LARGE fuel, fuel
+      moisture)` to the *closest weighted standard fuel models* — NOT model-89. FMCFMD3 (model 89) is only
+      built, not used here. **The fix is the F4 chunk below**, then FMFINT weights the selected models.
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
