@@ -1,6 +1,7 @@
 # Tests for the ECON economic-analysis core (C8, eccalc.f).
 using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
-             econ_sev, econ_forest_value
+             econ_sev, econ_forest_value, harvest_value, EconCostRev,
+             ECON_TPA, ECON_BF_1000, ECON_FT3_100
 
 @testset "ECON discounting / present value (eccalc.f)" begin
     @testset "present value" begin
@@ -52,5 +53,30 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         @test r.forest_value ≈ 1000f0 + econ_present_value(800f0, 20, 0.04f0)
         @test r.reprod_value ≈ r.forest_value - 800f0
         @test r.reprod_value < r.forest_value
+    end
+
+    @testset "harvest cost/revenue valuation (HRVVRCST/HRVRVN)" begin
+        # variable harvest cost by DBH class (per MBF), like snt01 stand 3
+        cost = [EconCostRev(90f0, ECON_BF_1000,  6f0, 12f0),
+                EconCostRev(70f0, ECON_BF_1000, 12f0, 16f0),
+                EconCostRev(50f0, ECON_BF_1000, 16f0, 22f0),
+                EconCostRev(30f0, ECON_BF_1000, 22f0, 999f0)]
+        # a 14" tree, 10 TPA, 120 bdft/tree → matches the 12–16" $70/MBF record
+        @test harvest_value(cost, 14f0, 10f0, 30f0, 120f0) ≈ 70f0 * 120f0 * 10f0 / 1000f0
+        # a 20" tree → the 16–22" $50/MBF record
+        @test harvest_value(cost, 20f0, 5f0, 40f0, 200f0) ≈ 50f0 * 200f0 * 5f0 / 1000f0
+        # below the smallest class ⇒ no cost
+        @test harvest_value(cost, 4f0, 10f0, 10f0, 0f0) == 0f0
+        # half-open ranges: a 12" tree falls in the 12–16 class, not 6–12
+        @test harvest_value(cost, 12f0, 1f0, 10f0, 100f0) ≈ 70f0 * 100f0 / 1000f0
+
+        # per-tree and per-CCF units
+        @test harvest_value([EconCostRev(5f0, ECON_TPA, 0f0, 999f0)], 10f0, 8f0, 50f0, 100f0) ≈ 5f0 * 8f0
+        @test harvest_value([EconCostRev(20f0, ECON_FT3_100, 0f0, 999f0)], 10f0, 8f0, 50f0, 0f0) ≈
+              20f0 * 50f0 * 8f0 / 100f0
+
+        # revenue grows with the harvested volume (bigger/more trees ⇒ more value)
+        rev = [EconCostRev(300f0, ECON_BF_1000, 4f0, 999f0)]
+        @test harvest_value(rev, 16f0, 20f0, 80f0, 250f0) > harvest_value(rev, 16f0, 5f0, 80f0, 250f0)
     end
 end

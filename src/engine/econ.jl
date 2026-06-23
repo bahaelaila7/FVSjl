@@ -80,3 +80,41 @@ starting land value.
     fv = pnv + disc_sev
     return (; forest_value = fv, reprod_value = fv - sev_input)
 end
+
+# ECON quantity-units of measure (ECNCOM.F77:19).
+const ECON_TPA      = Int32(1)   # per tree
+const ECON_BF_1000  = Int32(2)   # per thousand board feet (whole tree)
+const ECON_FT3_100  = Int32(3)   # per hundred cubic feet (whole tree)
+
+"""
+One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`, applied
+to harvested trees with DBH in `[dbh_lo, dbh_hi)`.
+"""
+struct EconCostRev
+    amount::Float32
+    unit::Int32
+    dbh_lo::Float32
+    dbh_hi::Float32
+end
+
+"""
+    harvest_value(records, dbh, tpa, cuft, bdft) -> Float32
+
+Cost or revenue from harvesting one tree record (DBH `dbh`, `tpa` trees/ac, `cuft` cubic
+and `bdft` board feet per tree) against a list of `EconCostRev` (echarv.f / eccalc.f):
+each record whose DBH range contains the tree contributes `amount × volume`, where the
+volume is per-tree (TPA), per-MBF (BF_1000 = bdft·tpa/1000), or per-CCF
+(FT3_100 = cuft·tpa/100). Log-graded units are handled by the log-bucking layer (TODO).
+"""
+function harvest_value(records::AbstractVector{EconCostRev}, dbh::Float32, tpa::Float32,
+                       cuft::Float32, bdft::Float32)::Float32
+    total = 0f0
+    @inbounds for r in records
+        (r.dbh_lo <= dbh < r.dbh_hi) || continue
+        vol = r.unit == ECON_TPA     ? tpa :
+              r.unit == ECON_BF_1000 ? bdft * tpa / 1000f0 :
+              r.unit == ECON_FT3_100 ? cuft * tpa / 100f0  : 0f0
+        total += r.amount * vol
+    end
+    return total
+end
