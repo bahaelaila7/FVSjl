@@ -1,7 +1,8 @@
 # Unit tests for fire-caused tree mortality (FFE F6, FMEFF + FMBRKT).
 # Expected values come from a reference transcription of fmeff.f / fmbrkt.f.
 using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
-             scorch_height, crown_volume_scorched, coefficients, Southern, coef_col
+             fire_mortality_adjust, scorch_height, crown_volume_scorched,
+             coefficients, Southern, coef_col
 
 @testset "fire mortality (FMEFF) + bark thickness (FMBRKT)" begin
     coef = coefficients(Southern())
@@ -101,5 +102,23 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
         flame = 0.45f0 * (by/60f0)^0.46f0
         p = fire_tree_mortality(coef, 1, 12f0, flame, csv)
         @test 0f0 <= p <= 1f0
+    end
+
+    @testset "SN mortality season/size adjustments" begin
+        # small maple (<4") fully killed regardless of base
+        @test fire_mortality_adjust(0.3f0, 26, 3.0f0, 3) == 1f0
+        @test fire_mortality_adjust(0.3f0, 26, 5.0f0, 3) == 0.3f0   # ≥4" maple unchanged (late season)
+        # very small hardwood (≤1") fully killed
+        @test fire_mortality_adjust(0.2f0, 65, 1.0f0, 3) == 1f0
+        # early-season (burnseas≤2): oak ≥2.5" halved, other hardwood ×0.8
+        @test fire_mortality_adjust(0.8f0, 30, 6.0f0, 1) ≈ 0.4f0    # oak ≥2.5 → /2
+        @test fire_mortality_adjust(0.8f0, 30, 2.0f0, 1) ≈ 0.8f0*0.8f0  # oak <2.5 → ×0.8
+        @test fire_mortality_adjust(0.5f0, 65, 8.0f0, 1) ≈ 0.5f0*0.8f0  # other hardwood ×0.8
+        # late season (burnseas>2): no hardwood reduction
+        @test fire_mortality_adjust(0.5f0, 65, 8.0f0, 3) == 0.5f0
+        # softwood (sp≤14) untouched by the hardwood rules
+        @test fire_mortality_adjust(0.5f0, 5, 8.0f0, 1) == 0.5f0
+        # Fortran order: small maple set to 1.0, early-season ×0.8, then >1" so stays 0.8
+        @test fire_mortality_adjust(0.3f0, 26, 3.0f0, 1) ≈ 0.8f0
     end
 end
