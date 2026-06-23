@@ -21,6 +21,12 @@ const KNOWN_NOOP = Set([
     "ATRTLIST", "CUTLIST", "MANAGED", "ENDFILE", "FVSSTAND",
     # bare-stand / establishment-adjacent flags (no cycle-0 stand effect yet)
     "NOTREES", "NOHTDREG", "AUTOES",
+    # FIXCW (cwidth.f): crown-width override — verified .sum-inert (CRWDTH is output-only, never
+    # fed into CCF/growth; a live-Fortran FIXCW run is byte-identical to no FIXCW).
+    "FIXCW",
+    # FIAVBC: switches volume/biomass to the FIA National Volume Library — FVSjl has only the R8
+    # Clark equations (the SN default, LFIANVB=.FALSE.), so the FIA NVB path is out of scope.
+    "FIAVBC",
 ])
 
 "Read one raw (un-lexed) line from the keyword stream, advancing the record count."

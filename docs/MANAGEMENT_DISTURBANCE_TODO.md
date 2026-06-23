@@ -53,7 +53,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
 | HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
 | CRNMULT | crown-ratio-change multiplier (sn/crown.f:319) | ✅ (active_crn_mult; scales the limited CR change over a DBH window, persistent; bit-exact within ±1 drift, test_crnmult.jl) |
-| FIXCW | fix crown width | ⛔ (was missing) |
+| FIXCW | fix crown width | ✅ recognized no-op — **verified .sum-inert** (CRWDTH is output-only, never fed into CCF/growth; a live-Fortran FIXCW run is byte-identical to no FIXCW). In KNOWN_NOOP |
 | REGDMULT / REGHMULT | regen diameter / height growth multiplier | ✅ (MULTS kinds 6/3; regent XRDGRO/XRHGRO; ±1 vs Fortran on regen cycles) |
 | NOTRIPLE / NUMTRIP | tripling control (ICL4) | ✅ (NOTRIPLE→icl4=0, NUMTRIP n→icl4=n; bit-exact vs Fortran, test_tripling.jl) |
 
@@ -91,7 +91,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | VOLUME / BFVOLUME | per-species cubic / board-foot merch-standard overrides (volkey.f:9915/9905) | ✅ **DONE** (kw_volume!/kw_bfvolume! → per-stand Control.sp_* arrays via init_merch_standards! + scheduled apply_volume_overrides!; 0/+species/−SPGROUP). VOLUME DBHMIN gate bit-exact (test_volume_override.jl). **BFVOLUME bit-exact** incl. board feet via the BFPFLG=0 separate board call + Region-8 ≥10ft-product zeroing (test_bfvolume.jl, BFTOPD 9→11). FRMCLS/METHC/METHB ignored (no form-class/method selector in R8 Clark). LFIANVB=.FALSE. for SN |
 | VOLEQNUM | per-species cubic volume-equation override (VEQNNC, initre.f:5061) | ✅ **DONE incl. board feet** (kw_voleqnum! → Control.voleqnum_overrides → apply_voleqnum_overrides! after VOLEQDEF; species via resolve_species alpha/FIA or −N group). Board feet kept on the default equation via the per-stand `sp_bf_vol_eq` snapshot + the BFPFLG=0 separate board-foot call (fvsvol.f:362). **Fully bit-exact vs Fortran** (test_voleqnum.jl, SM→AB eq: total cuft 1368→1419, board feet matches) |
 | CFVOLEQU / BFVOLEQU | per-species cubic/board volume-equation (old keywords) | ⚪ DEPRECATED ("NO LONGER ACTIVE", errgro.f:514/524) — superseded by VOLEQNUM |
-| FIAVBC | FIA volume/biomass calc switch | ⛔ |
+| FIAVBC | FIA volume/biomass calc switch | ⚪ OUT OF SCOPE — switches to the FIA National Volume Library; FVSjl has only the R8 Clark equations (the SN default LFIANVB=.FALSE.), so the FIA NVB path is unsupported. Recognized no-op (KNOWN_NOOP) so it doesn't error; a stand that sets FIAVBC would diverge (FVSjl stays on R8 Clark) |
 
 ## 7. Event monitor & activity scheduling (`evmon.f`/`opcycl.f`)
 
