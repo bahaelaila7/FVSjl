@@ -82,7 +82,20 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
   dynamic weighting). The Anderson/SB fuel-model loadings → CSV.
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
   FLAMEADJ; the SIMFIRE trigger + fire-type (surface/passive/active crown) logic.
-  **The one remaining link** between the ported fuel state (F1–F3) and the ported mortality (F6).
+  - **F5-core:** ✅ **DONE (the Rothermel model)** — `rothermel_surface_fire`
+    (`src/engine/fire/rothermel.jl`) transcribes FMFINT's single-fuel-model body: size-class area
+    weighting, live moisture of extinction, moisture/mineral damping, optimum reaction velocity → reaction
+    intensity, propagating flux, wind & slope factors, spread rate, Byram intensity, and Byram→flame.
+    Constants RHOP=32 / TMIN=0.0555 / SILFRE=0.01 per fmfint.f. Produces the Byram intensity the F6 chain
+    consumes. 14 tests: physical invariants (wind/slope ↑ spread, moisture ↓ spread, too-moist→0),
+    Byram→flame relation, grass-vs-timber, determinism. ⚠ exact bit-validation needs the Fortran oracle
+    (no standalone `.sum`); confirmed at the integrated-fire step. Suite 3194→3208.
+  - **F5b — REMAINING (integration):** the FVS *dynamic* fuel-model construction (FMCFMD/FMCFMD2/FMGFMV —
+    build the fuel model's loads/SAV/depth/Mx from the stand CWD pools + the DEFULMOD/FUELMODL keywords),
+    the SIMFIRE fire-weather scenario (fuel moistures, wind — from the keyword), FLAMEADJ, and the FMBURN
+    driver that ties F5-core → F6 (scorch/CSV/PSBURN → apply PMORT to TPA). This is the wiring that makes
+    snt01 stand 4 validate end-to-end and lights up every inert F1–F6 piece.
+  **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
   by `FMGFMV` (the fuel-model database: `SURFVL` SAV, `FMLOAD` loads, `FMDEP` depth, `MOISEX` moisture of

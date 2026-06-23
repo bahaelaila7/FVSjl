@@ -72,6 +72,7 @@ include("engine/fire/crown_biomass.jl")  # FFE F2 — crown biomass by size clas
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
 include("engine/fire/fire_effects.jl")   # FFE F6 — fire-caused tree mortality (FMEFF/FMBRKT)
+include("engine/fire/rothermel.jl")      # FFE F5 — Rothermel surface fire behavior (FMFINT)
 include("io/summary.jl")
 include("engine/simulate.jl")
 
