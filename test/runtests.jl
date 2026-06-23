@@ -36,6 +36,7 @@ using FVSjl
     include("integration/test_fix_scalers.jl") # C3: FIXDG/FIXHTG one-shot growth scalers vs Fortran
     include("integration/test_htgstp.jl")      # C4: HTGSTOP/TOPKILL top-damage events vs Fortran
     include("integration/test_fixmort.jl")     # C4: FIXMORT forced-mortality override vs Fortran
+    include("integration/test_crnmult.jl")     # C3: CRNMULT crown-ratio-change multiplier vs Fortran
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6

@@ -240,7 +240,7 @@ drifts from ~cyc5 (regen mortality). See [[fvsjl-modernization-state]].
 |---|---|---|
 | LSTART ⇒ dub initial crowns | init CR | ✅ |
 | ITRN==0 / TPROB≤0 ⇒ early return | empty | ✅ |
-| CRNMLT/DLOW/DHI/ICFLG keyword (per sp / group / all) | CR multipliers | ⛔ keyword path (defaults inert) |
+| CRNMLT/DLOW/DHI/ICFLG keyword (per sp / group / all) | CR multipliers | ✅ `active_crn_mult` scales the limited CR change over [DLOW,DHI] (sn/crown.f:319); groups (ISPCC<0) deferred |
 | relsdi = SDIAC/SDIDEF·10 clamp[1,12] | density driver | ✅ |
 | acrnew via MCREQN form (5 eqn types `imceqn`) | mean CR | ✅ |
 | Weibull draw at diameter percentile | per-tree CR | ✅ |

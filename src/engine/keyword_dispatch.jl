@@ -133,7 +133,7 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     v = rec.values; pr = rec.present
     # MORTMULT (kind :mort) additionally carries a DBH window (PRM(3)/PRM(4) → XMDIA1/XMDIA2,
     # morts.f:170-171); the others ignore fields 4-5. Defaults: D1=0, D2=99999 (all trees).
-    windowed = kind === :mort || kind === :fixdg || kind === :fixhtg
+    windowed = kind === :mort || kind === :fixdg || kind === :fixhtg || kind === :crn
     d1 = (windowed && pr[4]) ? Float32(v[4]) : 0f0
     d2 = (windowed && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 99999f0
     push!(s.control.multipliers,
@@ -160,6 +160,26 @@ function active_mort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
         end
     end
     return (d1 <= dbh < d2) ? val : 1f0
+end
+
+"""
+    active_crn_mult(control, sp, year, dbh) -> Float32
+
+The CRNMULT crown-ratio multiplier in effect for species `sp` at cycle `year`, when the
+tree's `dbh` is in the keyword's CLOSED DBH window [d1, d2] (sn/crown.f:318). Persists from
+the keyword date onward (most recent / species-specific wins). 1.0 when none applies.
+"""
+function active_crn_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
+    isempty(c.multipliers) && return 1f0
+    val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
+    @inbounds for m in c.multipliers
+        (m.kind === :crn && (m.species == 0 || m.species == sp) && m.year <= year) || continue
+        spec = m.species != 0
+        if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
+            val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
+        end
+    end
+    return (d1 <= dbh <= d2) ? val : 1f0
 end
 
 """
@@ -567,6 +587,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "HTGSTOP";  kw_htgstp!(s, rec, 110)   # top-damage: scale height growth
         elseif kw == "TOPKILL";  kw_htgstp!(s, rec, 111)   # top-damage: top-kill (htgstp.f)
         elseif kw == "FIXMORT";  kw_fixmort!(s, rec)       # forced-mortality override (morts.f:781)
+        elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

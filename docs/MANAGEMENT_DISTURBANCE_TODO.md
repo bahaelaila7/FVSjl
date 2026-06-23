@@ -52,7 +52,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | HTGSTOP / TOPKILL | scale height growth / top-kill (htgstp.f) | ✅ (act 110 HTG×PKIL + act 111 top-kill w/ NORMHT/ITRUNC/Behre/crown; deterministic + stochastic (htgstop_stoch) bit-exact through firing cycle, test_htgstp.jl) |
 | BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
 | HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
-| CRNMULT | crown-ratio/width multiplier | ⛔ (was missing) |
+| CRNMULT | crown-ratio-change multiplier (sn/crown.f:319) | ✅ (active_crn_mult; scales the limited CR change over a DBH window, persistent; bit-exact within ±1 drift, test_crnmult.jl) |
 | FIXCW | fix crown width | ⛔ (was missing) |
 | REGDMULT / REGHMULT | regen diameter / height growth multiplier | ✅ (MULTS kinds 6/3; regent XRDGRO/XRHGRO; ±1 vs Fortran on regen cycles) |
 | NOTRIPLE / NUMTRIP | tripling control (LTRIP) | 🟡 (hardcoded limit=2) |
@@ -187,7 +187,11 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   not yet handled (rare); only 0=all and >0=single species.
 
 **Set-but-not-read in SN (0 application refs ⇒ likely NO-OP in SN, or external component):**
-- CRNMULT, TOPKILL, CUTEFF, MINHARV, TCONDMLT — 0 refs.
+- CUTEFF, MINHARV, TCONDMLT — 0 refs.
+- ⚠ CORRECTION: CRNMULT and TOPKILL were on this list but are NOT no-ops — both are applied in
+  SN (CRNMULT scales the crown-ratio change in sn/crown.f:319; TOPKILL is the htgstp.f act 111
+  top-kill). Both are now ✅ ported. The lesson: "0 application refs" from a coarse grep missed
+  them because the grep keyed on the keyword name, not the COMMON variable (CRNMLT / IACT 111).
 - SPLEAVE/LEAVESP — only `grinit.f:125 LEAVESP(I)=.FALSE.` (init), never checked in the cut logic.
 - DEFECT/BFDEFECT/MCDEFECT — CFDEFT/BFDEFT set in sdefet.f/volkey.f, never read in sn/base
   (the per-tree defect reduction is in the NVEL volume LIBRARY, a separate component). Also

@@ -23,6 +23,8 @@ stand. No-op for an empty stand. Call once per cycle after growth + density.
 function crown_ratio_update!(s::StandState; fint::Float32 = 5f0)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
+    # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
+    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
     sdiac = stand_sdi(s)                 # SDIAC — post-growth stand SDI
     relden = stand_ccf(s)                # RELDEN — crown competition factor
     sdidef = s.plot.sp_sdi_def
@@ -68,7 +70,9 @@ function crown_ratio_update!(s::StandState; fint::Float32 = 5f0)
             pdifpy = chg / Float32(icr_old) / fint
             pdifpy >  0.01f0 && (chg = Float32(icr_old) *  0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr_old) * -0.01f0 * fint)
-            crnew = Float32(icr_old) + chg
+            # CRNMULT (crown.f:319): scale the crown-ratio change for trees in the keyword's
+            # DBH window (1.0 = no CRNMULT keyword, the common case).
+            crnew = Float32(icr_old) + chg * active_crn_mult(s.control, sp, cur_year, d)
         end
         icri = trunc(Int32, crnew + 0.5f0)
         # Crown-length cap: the crown can't exceed (old length + HTG) over new height.

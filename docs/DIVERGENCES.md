@@ -99,7 +99,7 @@ constant ⇒ a candidate un-ported formula/branch. After clearing false positive
 | SDICLS relative-density quadratics (3 species-group eqns) | `sdical.f:320-345` | stand-stage classification (not the .sum SDI number) | partial (SDICLS) |
 | `cfvol` merch-height conversion (8.3333) | `cfvol.f:37` | alternate cubic-volume equation (snt01 uses R8 Clark) | un-ported, vol-eq-gated |
 | carbon factors (0.47/0.501/…) | `vols.f:157` | carbon output | C6/DBS |
-| CRNMLT DBH bound default 99.0 | `crown.f` | `CRNMLT` keyword | gated, inert |
+| CRNMLT DBH bound default 99.0 | `crown.f` | `CRNMLT` keyword | ✅ ported (active_crn_mult; the multiplier IS applied — the "inert" note referred only to the bound default, not the multiplier) |
 
 Everything else in the C3/C4/C5 core fingerprints clean. None of the above is on the
 currently-validated path (consistent with snt01 being bit-exact).
