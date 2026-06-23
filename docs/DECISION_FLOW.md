@@ -80,7 +80,7 @@ folds the *exercised* parts into the single `grow_cycle!` (🔁).
 
 ```
 RDMN2 / RDTRP        management read; set tripling flag LTRIP            🟡 FVSjl hardcodes TRIPLE_CYCLE_LIMIT=2
-FMSDIT               FFE stand SDI for fire                              🧊 C7
+FMSDIT               FFE stand SDI for fire                              ✅ compute_density! (SDI feeds FFE)
 SILFTY               silviculture forest type                           🟡 compute_forest_type!
 SDICAL → BTSDIX      stand max SDI                                       ✅ stand_sdimax / sdical path
 SDICLS → SDIBC       SDI class                                          🟡
@@ -107,7 +107,7 @@ FFERT                fertilizer response                                ⛔ (key
 
 ```
 MPBCUP/DFBWIN/MISTOE/TMCOUP/BWECUP   insect/disease record updates       🧊
-FMMAIN               FFE fire effects + fire-caused mortality            🧊 C7  (this is the s10_fire/fire_* gap)
+FMMAIN               FFE fire effects + fire-caused mortality            ✅ fmburn! (FMCFMD/FMDYN/FMFINT fuel models → Rothermel → FMEFF kill, booked as periodic mortality). snt01 stand-4 post-fire TPA/MORT bit-exact; small self-correcting BA transient from per-tree kill distribution remains.
 BRTREG / RDTREG      sprout / planted regeneration                       ⛔ C4 regen
 HTGSTP               HTGSTOP / TOPKILL keyword height edits              ⛔ (keyword option; no-op otherwise)
 UPDATE               apply DG/HTG → DBH/HT (+ bark, NORMHT for topkill)  ✅ inline in grow_cycle!
@@ -174,8 +174,11 @@ than something discovered by accident mid-debug:
 1. **Insect/disease models** (mountain pine beetle, DF beetle, tussock moth,
    western budworm, mistletoe): `MPB*/DFB*/TM*/BWE*/MISTOE`. 🧊 No test scenario
    activates them; not in the C0–C9 plan.
-2. **FFE fire** (`FMSDIT`, `FMMAIN`, fire reports): ⛔ **C7**. This is the only
-   reason the `s10_fire` / `fire_*` scenarios diverge (no fire-caused mortality).
+2. **FFE fire** (`FMSDIT`, `FMMAIN`): ✅ **ported** — the full surface-fire path
+   (FMCFMD/FMDYN/FMFINT weighted standard fuel models → Rothermel → FMEFF kill,
+   booked as periodic mortality). snt01 stand-4 post-fire TPA and MORT volume are
+   bit-exact vs Fortran; flame/scorch match. Remaining: a small self-correcting
+   per-tree kill-distribution BA transient, and the FFE DBS **report** tables (C6/C7).
 3. **Regeneration / establishment** (`REGENT` establishment mode, `ESFLTR`,
    `CLAUESTB`, `ESNUTR`, `BRTREG`, `RDTREG`, `ESOUT`): ⛔ **C4** remaining. Not
    exercised by the snt/all/mix scenarios (NOAUTOES).
