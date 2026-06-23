@@ -1,0 +1,67 @@
+# SPROUT / ESUCKR (stump-sprout regeneration) — chunk plan
+
+The last unported *natural process* in SN: stump/root sprouting after a harvest. Verified scoped
+from the Fortran (`bin/FVSsn_buildDir/`). It is multi-component and stochastic, so it is chunked
+here rather than attempted in one pass. All other SN management/CUTS/volume extensions are ported
+and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/econ).
+
+## How it works (Fortran)
+
+1. **Trigger** (`esnutr.f:108-126`): each cycle, if `LSPRUT` (sprouting enabled) **and** `ITRNRM ≥ 1`
+   (trees were cut this cycle), call `ESUCKR`. `LSPRUT` defaults `.TRUE.` (`esinit.f:50`), is set by
+   the **SPROUT** keyword (`esin.f:598`), and cleared by **NOSPROUT** / when no valid sprouting
+   species is supplied (`esin.f:626/655/681/735`).
+   - ⚠ FVSjl currently hard-sets `LSPRUT=false` (esinit.jl) — an "untraced COMMON artifact" that
+     makes snt01 bit-exact. Resolve this: the real default is `.TRUE.`, but ESUCKR produces no
+     sprouts for snt01's cut species (so the net effect matches). Confirm *why* before enabling.
+
+2. **Cut-tracking — `ESTUMP` (`estump.f`, 115 ln)**: called once per cut tree from `cuts.f:1713`
+   (`CALL ESTUMP(species, DBH, max(0, PREM−SSNG), plot, ISHAG)`) and from `fmkill.f:80` (fire kill).
+   It appends to parallel arrays indexed by `ITRNRM`: `DSTUMP` (stump DBH), `PRBREM` (removed TPA),
+   `ISHOOT`, `JSHAGE` (shade/age). When `ITRNRM > MAXTRE` it merges into the best-matching record.
+   → **FVSjl gap:** `cuts!` reduces `tpa` but records nothing per-cut. Need a per-cut log
+   (species, DBH, removed TPA, plot) populated in every thin method's removal loop.
+
+3. **Sprout generation — `ESUCKR` (`esuckr.f`, 382 ln)**: for each of the `ITRNRM` cut records:
+   - `PREM = PRBREM(i)`, `DSTMP = DSTUMP(i)`, `ISSP = ISP(i)`; skip if `PREM < 0.001`.
+   - `NSPREC(VARACD, ISSP, NSPRT, DSTMP)` → `NUMSPR` = sprouts per stump (species + stump-DBH).
+   - aspen-only `ASSPTN` (INDXAS) — N/A for SN species; skip.
+   - `ESSPRT(VARACD, ISSP, PREM, DSTMP)` (`essprt.f`, present in build) → adjusts `PREM` (per-record
+     TPA rules); skip if `PREM < 0.001`.
+   - create `NUMSPR` sprout records: `IMC=2`, `ISP=ISSP`, `ITRE=plot`, `PROB=PREM·SMULT`, volumes 0.
+   - height `SPRTHT(VARACD, ISSP, SITE, ISHAG, HTI)` → `HT = HTI·HMULT`, plus a clamped
+     `BACHLO(0, 0.5, ESRANN)` deviation: `HT += BACHLO·HT/5.5`. DBH from the species H-D inverse
+     (`HT2/AA/HT1`, `IABFLG`) when `HT > 4.5`, else a small-tree rule.
+   - record-list overflow → `ESCPRS` compression.
+
+4. **Sub-routines:** `NSPREC` (sprout count by species/stump DBH — `DMIN/DMAX/SMULT` per species),
+   `SPRTHT` (sprout height by species/site/shade), `ESSPRT` (per-record TPA). Each carries
+   **per-species coefficient blobs** → CSVs (`data/southern/sprout_*.csv`).
+
+5. **RNG:** `ESRANN` — the establishment stream (FVSjl already has `:estab`; the existing `establish!`
+   uses it). The height deviation `BACHLO(0,0.5,ESRANN)` must consume `:estab` in the exact ESUCKR
+   order to stay bit-exact.
+
+6. **Keywords:** **SPROUT** (esin.f opt 26): date + species list + `SMULT` (number mult) + `HMULT`
+   (height mult), sets `LSPRUT=.TRUE.`. **NOSPROUT** (opt 27): `LSPRUT=.FALSE.`
+   - NOSPROUT is a safe no-op in FVSjl *today* (sprouting already off) — could be recognized now.
+   - SPROUT is NOT a no-op (it enables a .sum-affecting feature) — needs the full port.
+
+## Proposed chunks
+
+- **A — cut-tracking + keywords:** add a per-stand cut log (species, DBH, removed TPA, plot) written
+  in each thin method's removal loop (mirrors `ESTUMP`); parse SPROUT/NOSPROUT (`SMULT`/`HMULT`/
+  `LSPRUT`). Inert until C — guard so snt01 stays bit-exact.
+- **B — sub-routine coefficients:** extract `NSPREC`/`SPRTHT`/`ESSPRT` species coefficients to CSVs +
+  port the three functions (pure, testable in isolation against hand-computed values).
+- **C — ESUCKR sprout-gen + ESRANN:** the generation loop, creating sprout records with the exact
+  `:estab` RNG order. The .sum-affecting chunk.
+- **D — validation:** a SPROUT + harvest stand (cut a sprouting species, e.g. an oak), 3-way vs live
+  Fortran; resolve the LSPRUT default. Bit-exact bar `:estab` Float32 noise.
+
+## Validation note
+
+Needs a stand that both **cuts a sprouting species** and has **SPROUT** active. snt01 never triggers
+ESUCKR (LSPRUT-effectively-false), so a new scenario is required. The sprout heights/DBH are
+RNG-driven (`:estab`), so expect the same ±Float32 establishment noise seen in the existing bare-stand
+PLANT/NATURAL regen tests.
