@@ -62,12 +62,14 @@ Format per entry:
   defect percent `ICDF`: (1) the per-tree `DEFECT` field (digit-packed: `ICDF=DEFECT/1e6`,
   `IBDF=DEFECT/1e4 mod 100`), (2) the species **CFDEFT/BFDEFT** curves (the MCDEFECT/BFDEFECT
   keywords) via `ALGSLP`, and (3) a **log-linear form model** `VOLCOR=exp(CFLA0+CFLA1·ln(V))`.
-  Only the **MCDEFECT cubic CFDEFT** path is ported (bit-exact, `test_mcdefect.jl`). Still missing:
-  **BFDEFECT** (reduces board feet AND sawtimber cubic, `vols.f:419-430`), **per-tree DEFECT**
-  input (FVSjl doesn't yet parse/apply the tree DEFECT field), and the **CFLA/BFLA** form model
-  (defaults `CFLA0=0,CFLA1=1` ⇒ no-op, so latent — but a species with non-default coefs would
-  diverge even with no keyword). All invisible on snt01 (zero defect, default form coefs).
-- **Status:** open — MCDEFECT cubic done; BFDEFECT + per-tree DEFECT + CFLA/BFLA deferred.
+  The **MCDEFECT (cubic CFDEFT)** and **BFDEFECT (board BFDEFT)** keyword paths are both ported and
+  bit-exact, including their coupling `MCFV = PULPV + post-board-defect SCFV` (`test_mcdefect.jl`,
+  three scenarios). Still missing: **per-tree DEFECT** input — FVSjl's `.tre` reader parses no
+  DEFECT column into the tree record (`treedata.jl` stops at 25 fields), so the `ICDF=DEFECT/1e6` /
+  `IBDF=DEFECT/1e4 mod 100` per-tree contribution is always 0. The **CFLA0/CFLA1/BFLA0/BFLA1**
+  log-linear form model is **verified no-op for SN** (only ever set to 0/1 in grinit/initre — not a
+  divergence). All invisible on snt01 (zero defect).
+- **Status:** open — MCDEFECT + BFDEFECT keyword curves done; per-tree DEFECT input deferred (CFLA inert).
 
 ---
 

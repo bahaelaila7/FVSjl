@@ -359,20 +359,19 @@ function kw_bfvolume!(s::StandState, rec::KeywordRecord)
     return
 end
 
-# Set the per-species cubic defect curve (CFDEFT rows, sdefet.f:151): values at DBH 5/10/15/20/25"
-# go to rows 2..6, and the 25" value extends flat to rows 7,8,9 (DBH 30/35/40"); row 1 (DBH 0")
-# stays 0. `isp` selects 0=all / +species / −SPGROUP.
-function _set_cf_defect!(c, isp::Integer, vals::NTuple{5,Float32})
-    cf = c.sp_cf_defect
+# Load a per-species defect curve (CFDEFT or BFDEFT rows, sdefet.f:151): the five values at DBH
+# 5/10/15/20/25" go to rows 2..6, the 25" value extends flat to rows 7,8,9 (DBH 30/35/40"); row 1
+# (DBH 0") stays 0. `isp` selects 0=all / +species / −SPGROUP.
+function _set_defect!(c, dmat::Matrix{Float32}, isp::Integer, vals::NTuple{5,Float32})
     setone(sp) = @inbounds begin
-        cf[2, sp] = vals[1]; cf[3, sp] = vals[2]; cf[4, sp] = vals[3]
-        cf[5, sp] = vals[4]; cf[6, sp] = vals[5]
-        cf[7, sp] = vals[5]; cf[8, sp] = vals[5]; cf[9, sp] = vals[5]
+        dmat[2, sp] = vals[1]; dmat[3, sp] = vals[2]; dmat[4, sp] = vals[3]
+        dmat[5, sp] = vals[4]; dmat[6, sp] = vals[5]
+        dmat[7, sp] = vals[5]; dmat[8, sp] = vals[5]; dmat[9, sp] = vals[5]
     end
     if isp == 0
-        for sp in 1:size(cf, 2); setone(sp); end
+        for sp in 1:size(dmat, 2); setone(sp); end
     elseif isp > 0
-        isp <= size(cf, 2) && setone(isp)
+        isp <= size(dmat, 2) && setone(isp)
     else
         g = -isp
         (1 <= g <= length(c.sp_groups)) || return
@@ -381,15 +380,18 @@ function _set_cf_defect!(c, isp::Integer, vals::NTuple{5,Float32})
     return
 end
 
-# MCDEFECT (sdefet.f) — per-species CUBIC defect curve (CFDEFT). Fields: 1=date, 2=species,
-# 3..7 = defect fractions at DBH 5/10/15/20/25". Applied immediately (undated path, the common
-# case — affects cycle 0 like sdefet.f's "date not defined" branch; dated scheduling deferred).
-function kw_mcdefect!(s::StandState, rec::KeywordRecord)
-    v = rec.values
-    _set_cf_defect!(s.control, nint(v[2]),
-                    (Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[6]), Float32(v[7])))
-    return
-end
+_defect_vals(v) = (Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[6]), Float32(v[7]))
+
+# MCDEFECT (sdefet.f, IACTK 215) — per-species CUBIC defect curve (CFDEFT). Fields: 1=date,
+# 2=species, 3..7 = defect fractions at DBH 5/10/15/20/25". Applied immediately (undated path,
+# the common case — affects cycle 0 like sdefet.f's "date not defined" branch; dated deferred).
+kw_mcdefect!(s::StandState, rec::KeywordRecord) =
+    _set_defect!(s.control, s.control.sp_cf_defect, nint(rec.values[2]), _defect_vals(rec.values))
+
+# BFDEFECT (sdefet.f, IACTK 216) — per-species BOARD-FOOT defect curve (BFDEFT). Same fields;
+# reduces board feet AND sawtimber cubic by IBDF% in the volume path.
+kw_bfdefect!(s::StandState, rec::KeywordRecord) =
+    _set_defect!(s.control, s.control.sp_bf_defect, nint(rec.values[2]), _defect_vals(rec.values))
 
 """
     apply_fixmort!(s, killed, n, fint)
@@ -772,6 +774,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "VOLUME";   kw_volume!(s, rec)        # cubic merch-standard override (volkey.f)
         elseif kw == "BFVOLUME"; kw_bfvolume!(s, rec)      # board-foot merch-standard override (volkey.f)
         elseif kw == "MCDEFECT"; kw_mcdefect!(s, rec)      # cubic-volume defect curve (sdefet.f/vols.f)
+        elseif kw == "BFDEFECT"; kw_bfdefect!(s, rec)      # board-foot defect curve (sdefet.f/vols.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP

@@ -310,7 +310,9 @@ function compute_volumes!(s::StandState)
     stmp = c.sp_stump_ht; scfstmp = c.sp_scf_stump; dbhmin = c.sp_dbh_min
     merch = (stmp = stmp, topd = topd, scfstmp = scfstmp, scftop = scftop,
              bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
-    cfdef = c.sp_cf_defect; anydef = any(!iszero, cfdef)   # MCDEFECT active? (gate the hot path)
+    cfdef = c.sp_cf_defect; bfdef = c.sp_bf_defect          # MCDEFECT / BFDEFECT defect curves
+    anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
+    anydef = anydef_cf || anydef_bf                         # gate the no-defect hot path
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
@@ -343,13 +345,27 @@ function compute_volumes!(s::StandState)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(merch, sp, d, h, bf, v[1], bark, Int(t.trunc[i]))
         end
-        # MCDEFECT cubic defect (vols.f:294-332, SN branch): the pulpwood/topwood part of merch
-        # cubic (MCFV−SCFV) is reduced by ICDF%, where ICDF = NINT(ALGSLP(DBH, CFDEFT)·100) clamped
-        # to [0,99]; sawtimber (SCFV) is untouched by cubic defect. (Per-tree DEFECT input + the
-        # CFLA0/CFLA1 log-linear form model default to no-op and are deferred; see DIVERGENCES.md.)
-        if anydef && mcf > scf
-            icdf = clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99)
-            icdf > 0 && (mcf = scf + (mcf - scf) * (1f0 - icdf * 0.01f0))
+        # Volume defect (FVSsn vols.f, SN branch). Two coupled corrections, both keyed off the
+        # per-species DBH defect curves (MCDEFECT→CFDEFT, BFDEFECT→BFDEFT) via ALGSLP:
+        #   • CUBIC (vols.f:294-325): the pulpwood/topwood part MCFV−SCFV is cut by ICDF% (ICDF≥99
+        #     ⇒ all pulpwood gone); sawtimber is left for the board step.
+        #   • BOARD (vols.f:419-432): board feet AND sawtimber cubic are cut by IBDF% (≥99 ⇒ both 0),
+        #     applied only where board feet exist.
+        # Then MCFV = PULPV + (post-board-defect SCFV), so a BFDEFECT also lowers reported merch cubic.
+        # (Per-tree DEFECT input is deferred; the CFLA0/CFLA1 form model is verified no-op for SN.)
+        if anydef
+            icdf = (anydef_cf && mcf > scf) ?
+                   clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99) : 0
+            pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
+            if anydef_bf && bf > 0f0
+                ibdf = clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0), 0, 99)
+                if ibdf >= 99
+                    bf = 0f0; scf = 0f0
+                elseif ibdf > 0
+                    f = 1f0 - ibdf * 0.01f0; bf *= f; scf *= f
+                end
+            end
+            mcf = pulpv + scf
         end
         t.cuft_vol[i]       = tcf
         t.merch_cuft_vol[i] = mcf
