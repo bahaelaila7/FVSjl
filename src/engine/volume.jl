@@ -347,14 +347,20 @@ function compute_volumes!(s::StandState)
         # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default. When
         # BFVOLUME/VOLEQNUM make the board equation or standards differ from the sawtimber ones
         # (BFPFLG=0), recompute board feet from a separate board call (BFTOPD/BFSTMP + board eq),
-        # gated by BFMIND (fvsvol.f:362). NOTE: the Region-8 "10 ft of product" rule that also zeros
-        # the sawtimber cubic in that path (fvsvol.f:499) is not yet ported — see DIVERGENCES.md.
+        # gated by BFMIND (fvsvol.f:362). That call's Region-8 "≥10 ft of product" rule
+        # (fvsvol.f:499) ALSO zeros the sawtimber cubic when the board-top sawlog is < 10 ft, which
+        # drops the reported sawtimber + the sawtimber part of merch cubic.
         bf = v[10]
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
-                vb, _, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01")
+                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01")
                 bf = vb[10]
+                if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
+                    bf = 0f0                              # no product — zero board feet (TVOL(2))
+                    scf = 0f0                             # and the sawtimber cubic (TVOL(4)), which
+                    mcf = d >= dbhmin[sp] ? v[7] : 0f0    # also drops the saw part of merch cubic
+                end
             else
                 bf = 0f0
             end

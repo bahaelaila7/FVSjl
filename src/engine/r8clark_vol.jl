@@ -904,10 +904,14 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
         plpHt = 0.0f0
     end
 
-    sawHt = 0.0f0
+    sawHt = 0.0f0; rawSawHt = 0.0f0
     if isProd1
-        # 3. Sawtimber height (height to sawDib using outside-bark coefs)
-        sawHt = min(_r9ht(Ro,Co,Eo,Po,Bo,Ao, totHt,dbhOb,dob17, sawDib), totHt)
+        # 3. Sawtimber height (height to sawDib using outside-bark coefs). `rawSawHt` is the
+        # un-truncated height to the merch top (= VOLINIT's HT1PRD), needed by the caller for the
+        # Region-8 "≥10 ft of product" rule (fvsvol.f); `sawHt` is the merch-length-zeroed version
+        # used for the cubic/board volumes here.
+        rawSawHt = min(_r9ht(Ro,Co,Eo,Po,Bo,Ao, totHt,dbhOb,dob17, sawDib), totHt)
+        sawHt = rawSawHt
         if sawHt < merchL + stump + trim   # r9clark.f 320
             sawHt = 0.0f0
         end
@@ -948,7 +952,7 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
     vol[7]  = Float32(round(vol[7]*10)/10)
     vol[10] = Float32(round(vol[10]))
 
-    return vol, sawHt, plpHt
+    return vol, rawSawHt, plpHt
 end
 
 # ---------------------------------------------------------------------------

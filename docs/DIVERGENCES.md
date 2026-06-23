@@ -24,38 +24,23 @@ Format per entry:
 
 ---
 
-### Board feet: separate BF-equation call done; BFVOLUME standards-change still needs Region-8
+### Board feet: separate BF-equation call + Region-8 coupling — RESOLVED
 - **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (BFPFLG=0 → second `_R8CLARK_VOL` board call)
-- **Where (Fortran):** `base/vols.f` / `base/fvsvol.f` — board feet uses its own BFMIND/BFTOPD/BFSTMP merch limits
-- **Category:** modelling-simplification (architecture)
-- **Gate:** always (no keyword default exercises it; snt01 + all default scenarios are bit-exact)
-- **Description / evidence:** FVSjl computes all four per-tree volumes (total/merch/sawtimber
-  cubic + board feet) from ONE R8 Clark taper call parameterised by the *cubic/sawtimber*
-  merch standards, reading board feet as `v[10]`. By default this is exact because the SN
-  merch table has `scf_top_dib == bf_top_dib`, `scf_min_dbh == bf_min_dbh`, and
-  `scf_stump == bf_stump` for every species (sawtimber and board-foot standards coincide).
-  `compute_volumes!` now implements the **BFPFLG=0 separate board-foot call** (fvsvol.f:362): when a
-  species' board equation or BF standards differ from the sawtimber ones, board feet is recomputed
-  from a second `_R8CLARK_VOL` call with the board equation + `BFTOPD/BFSTMP` (gated by `BFMIND`),
-  via the per-stand `sp_bf_vol_eq` snapshot (`VEQNNB`). This **fully fixes VOLEQNUM** — overriding
-  only the cubic equation now keeps board feet on the default equation, **bit-exact incl. board feet**
-  (`test_voleqnum.jl`).
-  **Remaining gap — BFVOLUME (standards change):** when `BFTOPD ≠ SCFTOPD` the second call's
-  Region-8 "≥10 ft of product" rule (`fvsvol.f:499`, `HT1PRD<10 ⇒ TVOL(4)=0`) *also* zeros the
-  sawtimber cubic, so a `BFTOPD 9→11` override drops the merch-cubic/sawtimber `.sum` columns
-  (~5%) — that coupling is still un-ported. (VOLEQNUM doesn't hit it because it leaves the
-  standards/top unchanged.) The **VOLUME `DBHMIN` gate is exact** (gates merch cubic only).
-- **Full-fix roadmap (investigated, deferred):** Fortran's structure is `fvsvol.f:257` — it sets
-  `BFPFLG=1` when the BF standards equal the sawtimber standards (the default → board feet from
-  the one sawtimber call), else `BFPFLG=0` and a **second** `VOLINITNVB` call is made with
-  `MTOPP=BFTOPD, STUMP=BFSTMP, PROD='01'` to get board feet (`fvsvol.f:362-503`). A prototype
-  second `_R8CLARK_VOL` call made board feet match — **but** it surfaced a further coupling:
-  the BF call's Region-8 "≥10 ft of product" rule (`fvsvol.f:499`, `HT1PRD<10 ⇒ TVOL(4)=0`)
-  zeros the **sawtimber cubic** too, so a BFTOPD override also drops the merch-cubic / sawtimber
-  `.sum` columns. Replicating that needs the un-zeroed BF-top log height (FVSjl's `_R8CLARK_VOL`
-  already zeros `sawHt` at a slightly different `merchL+stump+trim`≈9.5 threshold), so the full
-  port must thread `HT1PRD` out of the taper model and apply the 10-ft rule across both products.
-- **Status:** open — needs the BFPFLG=0 second call **plus** the Region-8 10-ft product coupling; deferred.
+- **Where (Fortran):** `fvsvol.f:257-503` (NATCRS) — separate board call + the Region-8 10-ft rule
+- **Category:** was modelling-simplification — now ported
+- **Gate:** n/a (resolved; snt01 + all scenarios bit-exact)
+- **Description / evidence:** FVSjl read board feet as `v[10]` from the cubic/sawtimber R8 Clark
+  call. Exact by default (SN's `scf_* == bf_*` for every species), but a board equation/standard
+  override broke the coincidence. `compute_volumes!` now implements the full **BFPFLG=0** path
+  (fvsvol.f:362): when a species' board equation or BF standards differ from the sawtimber ones,
+  board feet is recomputed from a second `_R8CLARK_VOL` call with the board equation + `BFTOPD/BFSTMP`
+  (gated by `BFMIND`, via the per-stand `sp_bf_vol_eq` snapshot = `VEQNNB`), **and** that call's
+  **Region-8 "≥10 ft of product" rule** (fvsvol.f:499): where the board-top sawlog `HT1PRD < 10`,
+  board feet AND the sawtimber cubic (→ the saw part of merch cubic) are zeroed — threaded out of
+  `_R8CLARK_VOL` as the un-truncated `rawSawHt`. Both override paths are now bit-exact vs Fortran:
+  **VOLEQNUM** (equation differs — `test_voleqnum.jl`, incl. board feet) and **BFVOLUME** (BFTOPD
+  9→11, Region-8 zeroing — `test_bfvolume.jl`, cubic exact + board feet within Scribner noise).
+- **Status:** RESOLVED.
 
 ### Volume defect/form: per-tree DEFECT input + CFLA/BFLA log-linear form model not ported
 - **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (only the CFDEFT/MCDEFECT cubic path is ported)
