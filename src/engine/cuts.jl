@@ -98,6 +98,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
                              if a.year == yr || (a.icflag == Int32(1) && yr >= a.year)]
     if !isempty(conds)
         ctx = EventCtx(Int(s.control.cycle) + 1, Int(yr), s)   # FVS CYCLE is 1-based
+        # COMPUTE: evaluate event-monitor user variables this cycle BEFORE the IF conditions
+        # read them (defs are in declaration order, so a later one may use an earlier one).
+        @inbounds for (cd, nm, ast) in s.control.compute_defs
+            yr >= cd && (s.control.compute_vars[nm] = eval_event(ast, ctx))
+        end
         for c in conds
             eval_event(c.cond, ctx) != 0f0 || continue
             for a in c.acts

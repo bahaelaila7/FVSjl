@@ -67,6 +67,10 @@ end
 
 "Resolve an event-monitor variable to its current value. Extend as scenarios need."
 function _event_var(name::AbstractString, ctx::EventCtx)::Float32
+    if ctx.state !== nothing                       # COMPUTE user variables (checked first)
+        cv = ctx.state.control.compute_vars
+        (!isempty(cv) && haskey(cv, name)) && return cv[name]
+    end
     name == "CYCLE" ? Float32(ctx.cycle) :
     name == "YEAR"  ? Float32(ctx.year) :
     name == "BBA" || name == "BSDI" ? stand_ba(ctx.state) / ctx.state.plot.gross_space :

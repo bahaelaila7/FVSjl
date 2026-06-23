@@ -95,7 +95,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | keyword | effect | status |
 |---|---|---|
 | IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ✅ event_monitor.jl (AST evaluator); stand 2 first 2 thins bit-exact; 3rd = class-boundary residual |
-| COMPUTE | event-monitor variable assignment | ⛔ |
+| COMPUTE | event-monitor variable assignment | ✅ (kw_compute! parses NAME=expr…END, evaluated each cycle in cuts! before IF conditions read them via compute_vars; ≡ direct ref, bit-exact lead stand, test_compute.jl) |
 | TIMEINT | cycle length (period scaling) | 🟡 (kw_timeint! uniform path; DDS·FINT/5 + HTG·FINT/5 + mortality^FINT + year/age step; snt01 bit-exact, TIMEINT-10 TPA ≤8 / volume ≤2% — calibrated-species residual; test_timeint.jl). CYCLEAT + per-cycle GROWTH deferred |
 | ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL; ⛔ TALLY counts / SPROUT |
 
@@ -226,7 +226,9 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
   them and the 3× averaging masked the regen DGSCOR tail at ±1). The fix exposed the true ±2 no-trip
   tail; the base+NOTRIPLE stand is bit-exact (test_tripling.jl).
 - **ADDFILE / ADDTREES** — add tree records mid-run (record-set upstream).
-- **COMPUTE** — event-monitor variable assignment (extends the ported IF/THEN evaluator).
+- ~~**COMPUTE**~~ ✅ DONE — kw_compute! stores NAME=expression defs (parsed with the event-monitor
+  expression parser); cuts! evaluates them each cycle before the IF conditions, and _event_var resolves
+  them; bit-exact (COMPUTE MYCYC=CYCLE ≡ direct CYCLE; firing thins match Fortran), test_compute.jl.
 - **CYCLEAT / TIMEINT** scheduling boundaries (if not covered by the calendar item).
 - **PRUNE** — crown/CR edit + pruned-log volume.
 - **Volume overrides** — `VOLEQNUM`/`CFVOLEQU`/`BFVOLEQU` (🟡), `VOLUME`/`BFVOLUME`,

@@ -196,6 +196,9 @@ mutable struct Control
     sp_groups::Vector{Vector{Int32}}         # SPGROUP species groups (ISPGRP members); group N
                                              # = sp_groups[N], referenced in a species field by -N
     sp_group_names::Vector{String}           # SPGROUP group names (NAMGRP), upper-cased
+    compute_defs::Vector{Tuple{Int32,String,EvNode}} # COMPUTE event-monitor variable definitions
+                                             # (start year, NAME, parsed RHS expression AST)
+    compute_vars::Dict{String,Float32}       # current COMPUTE variable values (EVMON user vars)
 end
 
 function Control()
@@ -230,6 +233,7 @@ function Control()
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
         ScheduledActivity[],                                    # fixmort_events (FIXMORT)
         Vector{Int32}[], String[],                              # sp_groups, sp_group_names (SPGROUP)
+        Tuple{Int32,String,EvNode}[], Dict{String,Float32}(),   # compute_defs, compute_vars (COMPUTE)
     )
 end
 

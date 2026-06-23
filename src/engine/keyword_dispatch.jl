@@ -563,6 +563,25 @@ end
 # ConditionalActivity whose acts fire only in cycles where the condition is true.
 # The IF-block activities carry NO date (field 1 blank) — their year is filled in at
 # fire time — so they parse with the same (year=v[1]=0, params=v[2:7]) layout.
+# OPTION 33 — COMPUTE (vbase/initre.f:1266 → EVUSRV): an event-monitor user-variable block.
+# Field 1 = start year (IDT, default 1). The following raw lines are `NAME = expression`
+# assignments, re-evaluated each cycle from the start year (a later def may use an earlier one);
+# the block ends at END. The values become variables readable by IF/THEN conditions.
+function kw_compute!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    date = rec.present[1] ? nint(rec.values[1]) : Int32(1)
+    while !eof(kr.io)
+        t = strip(read_raw_line!(kr))
+        isempty(t) && continue
+        uppercase(t) == "END" && break
+        eq = findfirst('=', t)
+        eq === nothing && continue
+        name = uppercase(strip(t[1:eq-1])); expr = strip(t[eq+1:end])
+        (isempty(name) || isempty(expr)) && continue
+        push!(s.control.compute_defs, (date, String(name), parse_event_condition(String(expr))))
+    end
+    return
+end
+
 function kw_if!(s::StandState, kr::KeywordReader)
     cond = ""
     while true
@@ -630,6 +649,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
         elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword
         elseif kw == "SPGROUP"; kw_spgroup!(s, rec, kr)   # species group: name + next-record species list
+        elseif kw == "COMPUTE"; kw_compute!(s, rec, kr)   # event-monitor variable block (NAME = expr … END)
         elseif kw == "NOTRIPLE"; s.control.icl4 = Int32(0)            # disable record tripling (initre.f:5500)
         elseif kw == "NUMTRIP";  rec.present[1] && (s.control.icl4 = Int32(nint(rec.values[1])))  # set ICL4 (initre.f:2709)
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
