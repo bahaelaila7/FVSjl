@@ -53,6 +53,23 @@ end
 # (The duplicate volume-side bark_ratio + bark_coeffs.csv were removed: bark is now a
 # single per-stand source, calib.bark_a/bark_b — see bark_and_bounds.jl / dgcons!.)
 
+# DBH-class breakpoints for the segmented defect curves (vols.f DBHCLS).
+const _DBHCLS = (0f0, 5f0, 10f0, 15f0, 20f0, 25f0, 30f0, 35f0, 40f0)
+
+# ALGSLP (algslp.f): segmented-linear interpolation of defect column `sp` of `m` over the
+# DBH breakpoints `x` at `xx`, flat-extrapolated beyond the ends. Reads the matrix column
+# directly (no SubArray) to keep the volume loop allocation-free.
+@inline function _algslp_col(xx::Float32, x::NTuple{9,Float32}, m::Matrix{Float32}, sp::Integer)
+    @inbounds begin
+        xx < x[1] && return m[1, sp]
+        xx >= x[9] && return m[9, sp]
+        for i in 1:8
+            xx < x[i+1] && return m[i, sp] + (m[i+1, sp] - m[i, sp]) / (x[i+1] - x[i]) * (xx - x[i])
+        end
+        return m[9, sp]
+    end
+end
+
 # Behre hyperbola taper (behprm.f / BEHRE) used to redistribute volume after a
 # broken/killed top. `behre_params` returns the (AHAT,BHAT) hyperbola constants
 # plus a cone flag; `behre` integrates the relative profile between two heights.
@@ -293,6 +310,7 @@ function compute_volumes!(s::StandState)
     stmp = c.sp_stump_ht; scfstmp = c.sp_scf_stump; dbhmin = c.sp_dbh_min
     merch = (stmp = stmp, topd = topd, scfstmp = scfstmp, scftop = scftop,
              bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    cfdef = c.sp_cf_defect; anydef = any(!iszero, cfdef)   # MCDEFECT active? (gate the hot path)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
@@ -324,6 +342,14 @@ function compute_volumes!(s::StandState)
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(merch, sp, d, h, bf, v[1], bark, Int(t.trunc[i]))
+        end
+        # MCDEFECT cubic defect (vols.f:294-332, SN branch): the pulpwood/topwood part of merch
+        # cubic (MCFV−SCFV) is reduced by ICDF%, where ICDF = NINT(ALGSLP(DBH, CFDEFT)·100) clamped
+        # to [0,99]; sawtimber (SCFV) is untouched by cubic defect. (Per-tree DEFECT input + the
+        # CFLA0/CFLA1 log-linear form model default to no-op and are deferred; see DIVERGENCES.md.)
+        if anydef && mcf > scf
+            icdf = clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99)
+            icdf > 0 && (mcf = scf + (mcf - scf) * (1f0 - icdf * 0.01f0))
         end
         t.cuft_vol[i]       = tcf
         t.merch_cuft_vol[i] = mcf

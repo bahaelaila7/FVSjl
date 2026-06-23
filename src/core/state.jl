@@ -184,6 +184,7 @@ mutable struct Control
     sp_bf_dbhmin::Vector{Float32}#  board-foot min merch DBH              (BFMIND)
     sp_bf_topd::Vector{Float32}  #  board-foot merch top diameter         (BFTOPD)
     sp_bf_stump::Vector{Float32} #  board-foot stump height               (BFSTMP)
+    sp_cf_defect::Matrix{Float32}#  cubic-foot defect curve, 9 DBHCLS pts × MAXSP (CFDEFT; MCDEFECT)
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
@@ -235,6 +236,7 @@ function Control()
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), # sp_bf_dbhmin, sp_bf_topd, sp_bf_stump
+        zeros(Float32,9,MAXSP),                                 # sp_cf_defect (CFDEFT; MCDEFECT)
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)

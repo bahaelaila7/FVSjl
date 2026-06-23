@@ -53,6 +53,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | `CRATET` | dub HT=0 trees; resolve broken-top NORMHT; LSTART dub-crowns; ITRN==0 / TPROB≤0 early returns | ✅ `dub_missing_heights!` (init); per-cycle re-dub only matters with regen |
 | `VOLS` | per-tree cuft (R8 Clark) / merch MCF (D≥DBHMIN) / sawtimber SCF / board-ft (Scribner); topkill CFTOPK/BFTOPK | ✅ `compute_volumes!` — reads per-stand merch standards (`Control.sp_*`, populated at LSTART by `init_merch_standards!`) so VOLUME/BFVOLUME overrides take effect |
 | VOLUME / BFVOLUME | per-species cubic / board-foot merch-standard override (volkey.f) | 🟡 `kw_volume!`/`kw_bfvolume!` → `apply_volume_overrides!` (scheduled, per-stand, 0/+sp/−group). DBHMIN merch-cubic gate bit-exact vs Fortran (`test_volume_override.jl`); merch-top/stump + BFVOLUME board feet limited (shared sawtimber R8 Clark call — see DIVERGENCES.md) |
+| MCDEFECT | per-species cubic defect curve (CFDEFT, sdefet.f + FVSsn vols.f:294) | 🟡 `kw_mcdefect!` → `Control.sp_cf_defect`; cubic pulpwood reduced by ICDF%=NINT(ALGSLP(DBH,CFDEFT)·100) in `compute_volumes!`; bit-exact vs Fortran (`test_mcdefect.jl`). BFDEFECT + per-tree DEFECT + CFLA form model deferred (DIVERGENCES.md) |
 | `CWIDTH` | crown-width by species eq | ✅ |
 | `STATS`/`DISPLY`/`SUMOUT` | stand stats + `.sum` row | ✅ `io/summary.jl` |
 | `EXTREE`/`CVGO`/`MISPRT`/`RDPR`/`BRPR` | tree list, cover, mistletoe/down-wood/snag reports | 🧊 |

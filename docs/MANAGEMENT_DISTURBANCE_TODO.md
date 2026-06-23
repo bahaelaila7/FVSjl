@@ -84,7 +84,9 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| DEFECT / BFDEFECT / MCDEFECT | per-species/size cull+defect % → reduces cuft/bdft | ⛔ (G1 volume-side; .sum-affecting) |
+| MCDEFECT | per-species CUBIC defect curve (CFDEFT) → reduces merch cubic | 🟡 **DONE** (kw_mcdefect! → Control.sp_cf_defect 9×MAXSP; FVSsn vols.f:294-332 SN branch: pulpwood part MCFV−SCFV reduced by ICDF%=NINT(ALGSLP(DBH,CFDEFT)·100) clamp[0,99], sawtimber untouched; ALGSLP segmented-linear over DBHCLS=[0,5..40]). Undated→immediate (affects cyc0). **Bit-exact vs live Fortran** (test_mcdefect.jl, fires −144..530 cuft/ac). Deferred: dated scheduling, per-tree DEFECT input, CFLA0/CFLA1 log-linear form model (default no-op) |
+| BFDEFECT | per-species BOARD-FOOT defect curve (BFDEFT) → reduces board feet AND sawtimber cubic | ⛔ (vols.f:390-440: BFV·(1−IBDF/100) AND SCFV·(1−IBDF/100); analogous to MCDEFECT but couples into sawtimber — needs the board-foot path) |
+| DEFECT | per-tree CF/BF/MC defect packed in the tree DEFECT field (vols.f:294 ICDF=DEFECT/1e6, :352 IBDF) | ⛔ (per-tree input parsing + digit-unpacking; ICDF=max(input, CFDEFT, CFLA-model)) |
 | BFFDLN / MCFDLN | board/cubic form-class / log-length defaults | ⛔ |
 | VOLUME / BFVOLUME | per-species cubic / board-foot merch-standard overrides (volkey.f:9915/9905) | 🟡 **wired** (kw_volume!/kw_bfvolume! → per-stand Control.sp_* arrays, populated once at LSTART by init_merch_standards!, overwritten per scheduled date by apply_volume_overrides!; 0/+species/−SPGROUP). **VOLUME DBHMIN merch-cubic gate bit-exact vs Fortran** (test_volume_override.jl, fires −179 cuft/ac). LIMITED: VOLUME's merch-top/stump (TOPD/SCFTOPD/SCFSTMP) + BFVOLUME only partly reproduce board feet because FVSjl derives BdFt from the shared sawtimber R8 Clark call, not a separate BF taper (see DIVERGENCES.md). FRMCLS/METHC/METHB ignored (no form-class/method selector in the R8 Clark path). LFIANVB=.FALSE. for SN so VOLUME is active |
 | VOLEQNUM / CFVOLEQU / BFVOLEQU | per-species volume-equation selection | 🟡 (R8 Clark default works; explicit override unported) |
@@ -200,10 +202,15 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   top-kill). Both are now ✅ ported. The lesson: "0 application refs" from a coarse grep missed
   them because the grep keyed on the keyword name, not the COMMON variable (CRNMLT / IACT 111).
 - SPLEAVE/LEAVESP — only `grinit.f:125 LEAVESP(I)=.FALSE.` (init), never checked in the cut logic.
-- DEFECT/BFDEFECT/MCDEFECT — CFDEFT/BFDEFT set in sdefet.f/volkey.f, never read in sn/base
-  (the per-tree defect reduction is in the NVEL volume LIBRARY, a separate component). Also
-  the DEFECT keyword CRASHES this Fortran build on a simple scenario (exit 2). ⇒ verify it is
-  even active in SN before porting; FVSjl's R8-Clark volume would need an NVEL-style defect hook.
+- DEFECT/BFDEFECT/MCDEFECT — ★ CORRECTION (earlier note was WRONG): CFDEFT/BFDEFT ARE read, by
+  **`bin/FVSsn_buildDir/vols.f`** — the REAL SN volume driver (the older R8 path that orchestrates
+  the taper call via NATCRS and layers form+defect on top), NOT `vvolume/fvsvol.f` (the NVEL
+  path). Verified empirically: a 50%-ish MCDEFECT slashes the live-Fortran merch-cubic `.sum`
+  column. **MCDEFECT (cubic) now ported + bit-exact** (vols.f:294-332, ALGSLP over CFDEFT, SN
+  pulpwood reduction; test_mcdefect.jl). REMAINING: BFDEFECT (vols.f:390-440 reduces BFV AND
+  SCFV — needs the board-foot path), per-tree DEFECT input (digit-packed CF/BF/MC defect), and
+  the CFLA0/CFLA1 / BFLA0/BFLA1 log-linear form model (default 0/1 = no-op, so latent until a
+  species has non-default coefs — a separate gap that also affects un-keyworded stands).
 - ⚠ CAVEAT: "0 refs" used a guessed effect-variable name; some may apply under a different
   COMMON name. Confirm empirically (does the keyword change the .sum?) before declaring no-op.
 
