@@ -83,7 +83,17 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
   FLAMEADJ; the SIMFIRE trigger + fire-type (surface/passive/active crown) logic.
 - **F6 — fire effects (FMEFF):** fire-caused mortality + crown/top-kill from flame length & bark
-  thickness — the .sum-affecting kill that makes stand 4 diverge today. Wire into the mortality path.
+  thickness — the .sum-affecting kill that makes stand 4 diverge today.
+  - **F6-mort:** ✅ **DONE (the mortality equation)** — `fire_tree_mortality` + `fire_bark_thickness`
+    (`src/engine/fire/fire_effects.jl`) port FMEFF's per-tree kill and FMBRKT: SN oaks/hickory/red-
+    maple/black-gum use the Regelbrugge-Smith DBH + char-height (0.7·flame) logistic (MORTB0/1/2 by the
+    6 mortality groups), other species the Reinhardt bark-thickness + crown-scorch logistic. Bark
+    `B1[EQNUM]` (fmbrkt.f) → `bark_eqnum` column in `fire_species_props.csv` (+ the sp-5 Harmon
+    quadratic). 41 unit tests vs a hand-transcribed reference (exact per-group values + monotonicity in
+    flame/DBH); suite 3141→3182. Self-contained given flame length + crown-volume-scorched.
+  - **F6-wire — REMAINING:** the per-tree burn loop (FMEFF body): RANN draw vs %-stand-burned (PSBURN),
+    scorch length → CSV from the scorch height SCH, then apply `PMORT` to tree TPA in FMBURN (the actual
+    `.sum` kill). SCH/PSBURN/flame come from F5 (fire behavior); this is where stand 4 finally validates.
 - **F7 — snags + CWD + consumption (FMSNAG/FMCWD/FMCONS):** snag fall/decay, fuel consumption by the
   fire, down-wood transfer.
 - **F8 — carbon pools (FMCADD) + reports:** the carbon accounting + the DBS/list reports
