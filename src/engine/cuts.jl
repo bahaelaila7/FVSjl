@@ -117,6 +117,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
         act.icflag == Int32(206) && _apply_spleave!(s, act)   # SPLEAVE: per-species leave flag
+        act.icflag == Int32(202) && (cc.total_wt = act.params[1])  # TCONDMLT: tree-condition weight (TCWT)
         if act.icflag == Int32(200)        # MINHARV (cuts.f:400): set the harvest-minimum thresholds
             cc.ba_min = act.params[1]; cc.tcf_min = act.params[2]; cc.cf_min = act.params[3]
             cc.scf_min = act.params[4]; cc.bf_min = act.params[5]
@@ -337,6 +338,18 @@ function _thinprsc!(s::StandState, act::ScheduledActivity)
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end
 
+# Static (non-size) part of the RDPSRT cut-priority weight (cuts.f:1074):
+#   IORDER[sp] (SPECPREF) + TCWT·IMC (TCONDMLT condition weight) + SPCLWT·ISPECL (special status).
+# IMC is the tree's mortality/condition code clamped to 1..3 for live trees (intree.f:621). A higher
+# weight ⇒ removed earlier. Defaults (TCWT=SPCLWT=0) leave just the species preference, so the
+# common path is unchanged.
+@inline function _cut_pref_wt(s::StandState, i::Integer)
+    c = s.control; t = s.trees
+    imc = Int(t.mort_code[i]); imc = imc <= 0 ? 1 : imc > 3 ? 3 : imc
+    return Float32(c.cut_pref[t.species[i]]) + c.total_wt * Float32(imc) +
+           c.special_wt * Float32(t.special[i])
+end
+
 # THINBTA/ATA/BBA/ABA (cuts.f label_200/225/250/275): thin the DBH/HT class from
 # below (BTA/BBA) or above (ATA/ABA) to a residual TPA (BTA/ATA) or BA (BBA/ABA).
 # Trees are ranked by size (RDPSRT, descending priority: −DBH from below ⇒ smallest
@@ -369,11 +382,10 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     # weights default 0 until TCONDMLT/point keywords land) and ranks them with RDPSRT;
     # eligibility is applied in the removal loop, NOT by excluding from the sort — this
     # preserves the exact RDPSRT tie-break among equal keys (critical: see _rdpsrt!).
-    pref = s.control.cut_pref
     elig = falses(n); key = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
         elig[i] = _cut_eligible(s, i, 0, dbhlo, valmax, htlo, hthi)
-        key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+        key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
     end
     order = Vector{Int32}(undef, n)
     _rdpsrt!(key, order)                             # descending, FVS tie-break
@@ -469,10 +481,9 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         # budget is spent; the last record is partial (prem = remaining / (D/10)^1.605).
         lbelow = icut == 1
         ce = cuteff_p > 0f0 ? cuteff_p : 1f0
-        pref = s.control.cut_pref
         key = Vector{Float32}(undef, n)
         @inbounds for i in 1:n
-            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         totcut = 0f0
@@ -567,10 +578,9 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
     else
         lbelow = icut == 1
         ce = cuteff_p > 0f0 ? cuteff_p : 1f0
-        pref = s.control.cut_pref
         key = Vector{Float32}(undef, n)
         @inbounds for i in 1:n
-            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         totcut = 0f0
@@ -703,10 +713,9 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     else
         lbelow = icut == 1
         ce = cuteff_p > 0f0 ? cuteff_p : 1f0
-        pref = s.control.cut_pref
         key = Vector{Float32}(undef, n)
         @inbounds for i in 1:n
-            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
+            key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         totcut = 0f0
@@ -929,11 +938,10 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         else                                            # from below (1) / above (2)
             lbelow = dir == 1
             remove = metric - residual                  # in metric units (already ×scale)
-            pref = s.control.cut_pref
             idx = Int32[i for i in 1:n if t.plot_id[i] == jp && t.dbh[i] > 0f0 &&
                         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)]
             isempty(idx) && continue
-            key = Float32[(lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]]) for i in idx]
+            key = Float32[(lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i) for i in idx]
             ord = Vector{Int32}(undef, length(idx)); _rdpsrt!(key, ord)
             totcut = 0f0
             @inbounds for k in ord

@@ -864,6 +864,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
         elseif kw == "MINHARV";  kw_thin!(s, rec, Int32(200))   # cut modifier: minimum-harvest thresholds
         elseif kw == "SPLEAVE";  kw_thin!(s, rec, Int32(206))   # cut modifier: leave named species
+        elseif kw == "TCONDMLT"; kw_thin!(s, rec, Int32(202))   # cut modifier: tree-condition weight (TCWT)
         elseif kw == "LEAVESP";  kw_thin!(s, rec, Int32(206))   # alias for SPLEAVE
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)
         elseif kw == "THINPT";   kw_thin!(s, rec, Int32(15))    # point thin (residual + class + dir)
