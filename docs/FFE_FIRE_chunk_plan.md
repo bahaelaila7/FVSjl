@@ -96,12 +96,19 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     Rothermel needs from the fire weather + stand canopy. 12 tests incl. a full
     `fuel_moisture → wind_reduction → rothermel → scorch → CSV → mortality` chain on realistic inputs;
     suite 3208→3220.
-  - **F5b-rest — REMAINING (orchestration):** the FVS *dynamic* fuel-model construction
-    (FMCFMD/FMCFMD2/FMGFMV — build the fuel model's loads/SAV/depth/Mx from the stand CWD pools [F3] +
-    DEFULMOD/FUELMODL keywords; SN custom model from CURRCWD), the SIMFIRE/FLAMEADJ keyword parse (date,
-    wind, mortality code, %-burned, season → FMOIS), and the FMBURN driver that ties F5-core → F6
-    (RANN vs PSBURN per tree → apply PMORT to TPA). All the physics + inputs are now in place; this is
-    the remaining glue that makes snt01 stand 4 validate end-to-end and lights up every inert F1–F6 piece.
+  - **F5b-fuelmodel:** ✅ **DONE** — `build_dynamic_fuel_model` (`src/engine/fire/fuel_model.jl`)
+    ports FMCFMD3: the SN custom fuel model assembled from the stand's own fuels — dead loads from the
+    `fire.cwd` down-wood pools (1-hr = 0–.25"+litter), live-woody from the understory **crown biomass**
+    (`crown_biomass`, foliage+½·fine for trees ≤ CANMHT) + live shrub, live-herb from `fire.flive`, with
+    the fmgfmv dead-herb moisture split, USAV/UBD/CANMHT defaults, and the load-weighted depth + moisture
+    of extinction. **This makes F2 crown biomass a live input** (no longer inert). 7 tests incl. the full
+    `fmcba! → build_dynamic_fuel_model → rothermel_surface_fire` integration producing a fire; suite
+    3220→3227.
+  - **F5b-driver — REMAINING:** the FMBURN cycle driver that runs the chain per SIMFIRE event
+    (fmcba! → fuel model → moisture/wind → rothermel → scorch → per-tree RANN vs PSBURN → apply PMORT to
+    TPA), plus the FMIN/SIMFIRE/FLAMEADJ/DEFULMOD keyword parse (set `fire.active`, the fire date, wind,
+    %-burned, season→FMOIS). Every physics + input + the fuel model now compose correctly at the function
+    level; this driver + keyword layer is the last glue before snt01 stand 4 validates end-to-end.
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized

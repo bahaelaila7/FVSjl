@@ -6,7 +6,8 @@
 # Byram→flame relationship, and the too-moist cutoff — the behaviors a correct Rothermel
 # implementation must satisfy — plus determinism.
 using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
-             scorch_height, crown_volume_scorched, fire_tree_mortality, coefficients, Southern
+             scorch_height, crown_volume_scorched, fire_tree_mortality, coefficients, Southern,
+             build_dynamic_fuel_model, StandState, init_blockdata!, init_merch_standards!, FireState, fmcba!
 
 @testset "Rothermel surface fire (FMFINT)" begin
     # a single dead 1-hr fuel (grass-like): load, SAV, depth, Mx, moisture
@@ -94,5 +95,39 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
         pmort = fire_tree_mortality(coef, 64, 6f0, r.flame, csv)   # small scarlet oak
         @test 0f0 <= pmort <= 1f0
         @test pmort > fire_tree_mortality(coef, 64, 20f0, r.flame, csv)  # big tree survives better
+    end
+
+    @testset "dynamic fuel model (FMCFMD3) → fire, full integration" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
+        s.plot.forest_type = Int32(520)
+        s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+        t = s.trees; t.n = 4
+        for (i, (sp, d, h, ic)) in enumerate(((65,14f0,72f0,40),(33,8f0,55f0,45),
+                                              (22,4f0,18f0,50),(65,2f0,8f0,55)))
+            t.species[i]=Int32(sp); t.dbh[i]=d; t.height[i]=h; t.tpa[i]=30f0; t.crown_pct[i]=Int32(ic)
+        end
+        s.fire = FireState(); s.fire.active = true
+        fmcba!(s)                                       # populate cwd / flive / cover
+        mois = fuel_moisture(1)                          # very dry
+        load, sav, depth, mext = build_dynamic_fuel_model(s, mois)
+
+        # dead 1-hr load = 0–.25" + litter pools (lb/ft²); depth and Mx are positive
+        currcwd1 = sum(@view s.fire.cwd[1, :, :]) * 0.04591f0
+        currcwd10 = sum(@view s.fire.cwd[10, :, :]) * 0.04591f0
+        @test load[1, 1] ≈ currcwd1 + currcwd10
+        @test depth > 0f0 && 0f0 < mext < 1f0
+        # the understory trees (≤ 6 ft: the 2-ft sapling) put live-woody load in via crown biomass
+        @test load[2, 1] > 0f0
+        @test sav[1, 1] == 2000f0 && sav[1, 2] == 109f0  # USAV / 10-hr SAV
+        # dry herb ⇒ part of the live herb moves to the dead-herb class
+        @test load[1, 4] >= 0f0
+
+        # the constructed model carries a fire under very-dry/windy conditions
+        fwind = 20f0 * fire_wind_reduction(s.fire.percov)
+        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind)
+        @test r.byram > 0f0 && r.flame > 0f0
+        # determinism
+        l2, s2, d2, m2 = build_dynamic_fuel_model(s, mois)
+        @test l2 == load && d2 == depth && m2 == mext
     end
 end

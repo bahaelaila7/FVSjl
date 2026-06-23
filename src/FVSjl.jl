@@ -74,6 +74,7 @@ include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-typ
 include("engine/fire/fire_effects.jl")   # FFE F6 — fire-caused tree mortality (FMEFF/FMBRKT)
 include("engine/fire/rothermel.jl")      # FFE F5 — Rothermel surface fire behavior (FMFINT)
 include("engine/fire/fuel_moisture.jl")  # FFE F5b — fuel-moisture scenario + wind reduction (FMMOIS)
+include("engine/fire/fuel_model.jl")     # FFE F5b — dynamic fuel-model construction (FMCFMD3)
 include("io/summary.jl")
 include("engine/simulate.jl")
 
