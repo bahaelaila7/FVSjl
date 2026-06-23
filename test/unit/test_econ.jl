@@ -1,5 +1,6 @@
 # Tests for the ECON economic-analysis core (C8, eccalc.f).
-using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return
+using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
+             econ_sev, econ_forest_value
 
 @testset "ECON discounting / present value (eccalc.f)" begin
     @testset "present value" begin
@@ -35,5 +36,21 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return
         @test econ_rate_of_return(200f0, 0f0, 10, 0.04f0) == 0f0   # no cost → 0
         # a profitable harvest (B/C > 1) returns more than the discount rate
         @test econ_rate_of_return(200f0, 100f0, 10, 0.04f0) > 4f0
+    end
+
+    @testset "SEV + forest/reproduction value" begin
+        # Faustmann: SEV = net·(1+r)^t / ((1+r)^t − 1)
+        f = 1.04f0^30
+        @test econ_sev(500f0, 0.04f0, 30) ≈ 500f0 * f / (f - 1f0)
+        # SEV exceeds the single-rotation net (it capitalizes the infinite series)
+        @test econ_sev(500f0, 0.04f0, 30) > 500f0
+        # longer rotations (more discounting between harvests) ⇒ lower land value
+        @test econ_sev(500f0, 0.04f0, 50) < econ_sev(500f0, 0.04f0, 30)
+
+        # forest value = pnv + SEV discounted back endTime years; reprod subtracts starting land
+        r = econ_forest_value(1000f0, 800f0, 0.04f0, 20)
+        @test r.forest_value ≈ 1000f0 + econ_present_value(800f0, 20, 0.04f0)
+        @test r.reprod_value ≈ r.forest_value - 800f0
+        @test r.reprod_value < r.forest_value
     end
 end

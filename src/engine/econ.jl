@@ -54,3 +54,29 @@ Realizable rate of return (%) (eccalc.f:686): `100·((revDisc/costDisc)^(1/endTi
     (disc_cost > 0f0 && disc_rev > 0f0) || return 0f0
     return 100f0 * ((disc_rev / disc_cost)^(1f0 / endtime) * (1f0 + rate) - 1f0)
 end
+
+"""
+    econ_sev(net_rotation, rate, rotation) -> Float32
+
+Soil expectation value (Faustmann land value): the present value of an infinite series
+of identical rotations, each returning a present net value `net_rotation` over `rotation`
+years at annual `rate` — `net_rotation·(1+rate)^rotation / ((1+rate)^rotation − 1)`.
+"""
+@inline function econ_sev(net_rotation::Float32, rate::Float32, rotation::Integer)::Float32
+    f = (1f0 + rate)^rotation
+    return f > 1f0 ? net_rotation * f / (f - 1f0) : 0f0
+end
+
+"""
+    econ_forest_value(pnv, sev_input, rate, endtime) -> (; forest_value, reprod_value)
+
+Forest and reproduction (bare-land) value at the end of the analysis given a known
+end-of-horizon land value `sev_input` (eccalc.f:649-655): the SEV is discounted back
+`endtime` years and added to the management `pnv`; the reproduction value subtracts the
+starting land value.
+"""
+@inline function econ_forest_value(pnv::Float32, sev_input::Float32, rate::Float32, endtime::Integer)
+    disc_sev = econ_present_value(sev_input, endtime, rate)
+    fv = pnv + disc_sev
+    return (; forest_value = fv, reprod_value = fv - sev_input)
+end
