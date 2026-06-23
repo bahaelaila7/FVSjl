@@ -41,7 +41,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | YARDLOSS | yarding-loss → scales removed merch/saw/bdft by (1−prlost) **and feeds the FFE down-wood/snag/crown fuel pools** | 🧊 **rolled into C7** (substantive effect is fuel-pool routing; standalone .sum effect nil; its `@test_broken` is the post-thin DGSCOR tail, not yardloss) |
 | MINHARV | minimum-harvest threshold (skip cut below it) | ⛔ (was missing) |
 | TFIXAREA | treatment fixed-area / pro-rate | ⛔ (was missing) |
-| SPGROUP (via SPCODES/SPLABEL) | species groups referenced by SPECPREF/LEAVESP | ⛔ |
+| SPGROUP | species groups (vbase/initre.f:4726) referenced by a −N species field | ✅ (kw_spgroup! builds the group table; sp_field_matches wires the ISPCC<0 branch into FIXDG/FIXHTG/FIXMORT/HTGSTOP/TOPKILL/MORTMULT/CRNMULT/TREESZCP/SPECPREF; bit-exact, test_spgroup.jl) |
 
 ## 3. Growth keyword multipliers / overrides (`dgdriv.f`/`htgf.f`/`regent.f`)
 
@@ -158,7 +158,7 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   big-tree replace) vs live Fortran (test_fixmort.jl). DEFERRED: point/size concentration
   reallocation (PRM(6)≥10 — KBIG bottom-up/top-down + KPOINT multi-plot, morts.f:838-1015), which
   redistributes the killed TPA across DBH/point classes; those events are currently skipped.
-  Species groups (ISPCC<0) also deferred.
+  Species groups (ISPCC<0) ✅ via SPGROUP + sp_field_matches.
 - `FIXCW` — cwidth.f (crown-width override). ⚪ **OUTPUT-ONLY for the .sum** (verified): CRWDTH
   is referenced only by the calculator (cwidth.f), record bookkeeping that carries it along
   (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx
@@ -184,7 +184,7 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   (2) it must scale the **tripled** DG/HTG too — the stash dgU/dgL (htgU/htgL), matching FVS's
   DG(ITFN)/DG(ITFN+1). Reuses the GrowthMultiplier d1/d2 window. Bit-exact every cycle on 3
   scenarios (all/windowed DG, HTG) vs live Fortran (test_fix_scalers.jl). Species groups (ISPCC<0)
-  not yet handled (rare); only 0=all and >0=single species.
+  ✅ via SPGROUP + sp_field_matches (test_spgroup.jl).
 
 **Set-but-not-read in SN (0 application refs ⇒ likely NO-OP in SN, or external component):**
 - CUTEFF, MINHARV, TCONDMLT — 0 refs.

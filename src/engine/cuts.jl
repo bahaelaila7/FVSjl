@@ -162,8 +162,11 @@ function _apply_specpref!(s::StandState, act::ScheduledActivity)
         fill!(pref_v, pref)
     elseif isp > 0
         1 <= isp <= MAXSP && (pref_v[isp] = pref)
+    elseif -isp <= length(s.control.sp_groups)        # SPGROUP group −isp (cuts.f label_1200)
+        @inbounds for sp in s.control.sp_groups[-isp]
+            1 <= sp <= MAXSP && (pref_v[sp] = pref)
+        end
     end
-    # isp < 0 (species-group) needs SPGROUP/ISPGRP — handled when that lands.
     return
 end
 

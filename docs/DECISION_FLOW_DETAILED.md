@@ -90,11 +90,11 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 
 | keyword | IACTK | cuts.f label | effect on the cut | status |
 |---|---|---|---|---|
-| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ✅ `_apply_specpref!` + IORDER term in the `_thin_sorted!` key — cut_specpref year-2000 removal bit-exact vs Oracle A (single-species path; the species-GROUP path needs SPGROUP) |
+| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ✅ `_apply_specpref!` + IORDER term in the `_thin_sorted!` key — cut_specpref year-2000 removal bit-exact vs Oracle A (single-species path; the species-GROUP path ✅ via SPGROUP/sp_field_matches) |
 | TCONDMLT | 202 | — | thin-**condition multiplier** (scales the trigger) | ⛔ |
 | YARDLOSS | 203 | label_1325 | **yarding loss** → removed-volume accounting | ⛔ **USED BY snt01/sn (stand 4)** |
 | SPLEAVE/LEAVESP | 206 | label_1340 | **leave** named species (exclude from cut) | ⛔ |
-| SPGROUP | (125) | — | define **species groups** (referenced by SPECPREF/LEAVESP) | ⛔ |
+| SPGROUP | (125) | initre.f:4726 | define **species groups** (name + next-record species list) referenced by a −N species field | ✅ `kw_spgroup!` + `sp_field_matches` wired into FIXDG/FIXMORT/HTGSTP/MORTMULT/CRNMULT/TREESZCP/SPECPREF (test_spgroup.jl) |
 | CUTEFF | (52) | — | default **cutting efficiency** | ⛔ |
 
 | shared cut-loop branch | effect | status |
@@ -240,7 +240,7 @@ drifts from ~cyc5 (regen mortality). See [[fvsjl-modernization-state]].
 |---|---|---|
 | LSTART ⇒ dub initial crowns | init CR | ✅ |
 | ITRN==0 / TPROB≤0 ⇒ early return | empty | ✅ |
-| CRNMLT/DLOW/DHI/ICFLG keyword (per sp / group / all) | CR multipliers | ✅ `active_crn_mult` scales the limited CR change over [DLOW,DHI] (sn/crown.f:319); groups (ISPCC<0) deferred |
+| CRNMLT/DLOW/DHI/ICFLG keyword (per sp / group / all) | CR multipliers | ✅ `active_crn_mult` scales the limited CR change over [DLOW,DHI] (sn/crown.f:319); groups (ISPCC<0) ✅ via SPGROUP/sp_field_matches |
 | relsdi = SDIAC/SDIDEF·10 clamp[1,12] | density driver | ✅ |
 | acrnew via MCREQN form (5 eqn types `imceqn`) | mean CR | ✅ |
 | Weibull draw at diameter percentile | per-tree CR | ✅ |

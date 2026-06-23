@@ -193,6 +193,9 @@ mutable struct Control
     fixmort_events::Vector{ScheduledActivity} # FIXMORT forced-mortality events (morts.f:781);
                                              # params = species,rate,d1,d2,IP(1=replace/2=add/
                                              # 3=max/4=mult),pointflag
+    sp_groups::Vector{Vector{Int32}}         # SPGROUP species groups (ISPGRP members); group N
+                                             # = sp_groups[N], referenced in a species field by -N
+    sp_group_names::Vector{String}           # SPGROUP group names (NAMGRP), upper-cased
 end
 
 function Control()
@@ -226,6 +229,7 @@ function Control()
         GrowthMultiplier[],                                     # multipliers (MULTS)
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
         ScheduledActivity[],                                    # fixmort_events (FIXMORT)
+        Vector{Int32}[], String[],                              # sp_groups, sp_group_names (SPGROUP)
     )
 end
 

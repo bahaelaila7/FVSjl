@@ -153,7 +153,7 @@ function active_mort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
     isempty(c.multipliers) && return 1f0
     val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
     @inbounds for m in c.multipliers
-        (m.kind === :mort && (m.species == 0 || m.species == sp) && m.year <= year) || continue
+        (m.kind === :mort && sp_field_matches(c, m.species, sp) && m.year <= year) || continue
         spec = m.species != 0
         if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
             val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
@@ -173,7 +173,7 @@ function active_crn_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
     isempty(c.multipliers) && return 1f0
     val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
     @inbounds for m in c.multipliers
-        (m.kind === :crn && (m.species == 0 || m.species == sp) && m.year <= year) || continue
+        (m.kind === :crn && sp_field_matches(c, m.species, sp) && m.year <= year) || continue
         spec = m.species != 0
         if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
             val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
@@ -206,7 +206,7 @@ function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
         # date before the first cycle fires in cycle 0 (Fortran OPFIND past-date behaviour).
         (cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)) || continue
         for i in 1:nlive
-            (m.species == 0 || m.species == t.species[i]) || continue
+            sp_field_matches(s.control, m.species, t.species[i]) || continue
             d = t.dbh[i]
             (m.d1 <= d < m.d2) || continue
             if isdg
@@ -219,6 +219,46 @@ function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
         end
     end
     return s
+end
+
+# SPGROUP (vbase/initre.f:4726): define a species group. The keyword-line field is the group
+# name (optional → auto "GROUPnn"); the NEXT record lists the member species (alpha or numeric
+# codes, space-separated, ALL/0/dups skipped, max 90, `&` continues — rare, not handled). Groups
+# are numbered in definition order and referenced from a species field by the negative index −N.
+# Max 30 groups.
+function kw_spgroup!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    line = read_raw_line!(kr)
+    length(s.control.sp_groups) >= 30 && return
+    members = Int32[]
+    for tok in split(line)
+        u = uppercase(tok)
+        (u == "ALL" || u == "0") && continue
+        n = tryparse(Int, tok)
+        idx = n !== nothing ? (n > 0 ? Int32(n) : Int32(0)) :
+              first(resolve_species(tok, s.variant, s.species, s.coef))
+        (idx <= 0 || idx in members) && continue          # skip invalid + duplicates
+        push!(members, idx)
+        length(members) >= 90 && break
+    end
+    push!(s.control.sp_groups, members)
+    nm = isempty(rec.fields) ? "" : strip(rec.fields[1])
+    push!(s.control.sp_group_names,
+          isempty(nm) ? "GROUP" * lpad(length(s.control.sp_groups), 2, '0') : uppercase(String(nm)))
+    s.control.n_spgroups = Int32(length(s.control.sp_groups))
+    return
+end
+
+"""
+    sp_field_matches(control, isp, sp) -> Bool
+
+Does species `sp` match a keyword species field `isp`? 0 = all species, >0 = that single
+species, <0 = every member of SPGROUP group −isp. The one place the ISPCC<0 group branch lives.
+"""
+@inline function sp_field_matches(c::Control, isp::Integer, sp::Integer)
+    isp == 0 && return true
+    isp > 0 && return Int(isp) == Int(sp)
+    g = -Int(isp)
+    return g <= length(c.sp_groups) && (Int32(sp) in c.sp_groups[g])
 end
 
 # TREESZCP (base/keywds.f:51 / SIZCAP): a per-species maximum tree size. Field 1 =
@@ -235,7 +275,9 @@ function kw_treeszcp!(s::StandState, rec::KeywordRecord)
     flag  = pr[4] ? Float32(v[4]) : 0f0
     htcap = (pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 999f0
     sc = s.control.sp_size_cap
-    rng = isp <= 0 ? (1:size(sc, 1)) : (isp:isp)
+    # species selection: 0 = all, >0 = single, <0 = SPGROUP group −isp.
+    rng = isp < 0 ? (isp <= -1 && -isp <= length(s.control.sp_groups) ? s.control.sp_groups[-isp] : Int32[]) :
+          isp == 0 ? (1:size(sc, 1)) : (isp:isp)
     @inbounds for sp in rng
         sc[sp, 1] = cap; sc[sp, 2] = mrate; sc[sp, 3] = flag; sc[sp, 4] = htcap
     end
@@ -299,7 +341,7 @@ function apply_fixmort!(s::StandState, killed::Vector{Float32}, n::Int, fint::Fl
         d1 = ev.params[3]; d2 = ev.params[4]; ip = round(Int, ev.params[5])
         ev.params[6] >= 10f0 && continue          # KBIG point/size reallocation not yet ported
         @inbounds for i in 1:n
-            (isp == 0 || isp == t.species[i]) || continue
+            sp_field_matches(s.control, isp, t.species[i]) || continue
             d = t.dbh[i]
             (d1 <= d < d2) || continue
             p = t.tpa[i]
@@ -345,6 +387,8 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
         act = ev.icflag
         sp1 = isp <= 0 ? 1 : isp; sp2 = isp <= 0 ? MAXSP : isp
         @inbounds for sp in sp1:sp2
+            # isp<0 (SPGROUP group) loops all species but keeps only members.
+            (isp < 0 && !sp_field_matches(s.control, isp, sp)) && continue
             i1 = isct[sp, 1]; i1 == 0 && continue
             i2 = isct[sp, 2]
             for k in i1:i2
@@ -572,6 +616,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
         elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword
+        elseif kw == "SPGROUP"; kw_spgroup!(s, rec, kr)   # species group: name + next-record species list
         elseif haskey(_THIN_ICFLAG, kw); kw_thin!(s, rec, _THIN_ICFLAG[kw])
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)
