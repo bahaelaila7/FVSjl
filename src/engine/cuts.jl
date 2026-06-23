@@ -116,6 +116,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     cc = s.control
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
+        act.icflag == Int32(206) && _apply_spleave!(s, act)   # SPLEAVE: per-species leave flag
         if act.icflag == Int32(200)        # MINHARV (cuts.f:400): set the harvest-minimum thresholds
             cc.ba_min = act.params[1]; cc.tcf_min = act.params[2]; cc.cf_min = act.params[3]
             cc.scf_min = act.params[4]; cc.bf_min = act.params[5]
@@ -198,6 +199,24 @@ function _apply_specpref!(s::StandState, act::ScheduledActivity)
     return
 end
 
+# SPLEAVE (cuts.f:1466): set the per-species LEAVESP flag — a "left" species is excluded from
+# every thin. params[1] = species (<0 SPGROUP group / 0 reset ALL to false / >0 single), params[2]
+# = flag (>0 ⇒ leave, else don't leave).
+function _apply_spleave!(s::StandState, act::ScheduledActivity)
+    lv = s.control.leave_species
+    isp = round(Int, act.params[1]); flag = act.params[2] >= 0.5f0
+    if isp < 0
+        g = -isp
+        (1 <= g <= length(s.control.sp_groups)) || return
+        @inbounds for sp in s.control.sp_groups[g]; 1 <= sp <= length(lv) && (lv[sp] = flag); end
+    elseif isp == 0
+        fill!(lv, false)
+    else
+        1 <= isp <= length(lv) && (lv[isp] = flag)
+    end
+    return
+end
+
 # Empty species-group table — the default for cuts that don't filter by a SPGROUP group
 # (a const sentinel, so the common path allocates nothing).
 const _NOGROUPS = Vector{Int32}[]
@@ -213,25 +232,29 @@ end
 
 # CLSSTK (cutstk.f): TPA (jtyp=1) or basal-area (jtyp=2) stocking over the trees in
 # the DBH/HT/species class, using the pre-thin TPA copy `wk4`.
-@inline function _clsstk(t::TreeList, wk4, n, jtyp, ispcut, dl, du, hl=0f0, hu=999f0,
+@inline function _clsstk(s::StandState, wk4, n, jtyp, ispcut, dl, du, hl=0f0, hu=999f0,
                          sp_groups::Vector{Vector{Int32}}=_NOGROUPS)
-    cstock = 0f0
+    t = s.trees; cstock = 0f0
     @inbounds for i in 1:n
-        _cut_eligible(t, i, ispcut, dl, du, hl, hu, sp_groups) || continue
+        _cut_eligible(s, i, ispcut, dl, du, hl, hu, sp_groups) || continue
         cstock += jtyp == 2 ? wk4[i] * t.dbh[i]^2 * _BA_PER_TREE : wk4[i]
     end
     return cstock
 end
 
 # WK2 eligibility (cuts.f:611-648): DBH in [dl,du) and HT in [hl,hu) and species included
-# (ispcut: 0 = all, >0 = one species, <0 = SPGROUP group, via `sp_groups`).
-@inline function _cut_eligible(t::TreeList, i, ispcut, dl, du, hl=0f0, hu=999f0,
+# (ispcut: 0 = all, >0 = one species, <0 = SPGROUP group, via `sp_groups`). A species flagged
+# by SPLEAVE (leave_species) is never eligible — it's left out of both stocking and removal.
+@inline function _cut_eligible(s::StandState, i, ispcut, dl, du, hl=0f0, hu=999f0,
                                sp_groups::Vector{Vector{Int32}}=_NOGROUPS)
+    t = s.trees
+    sp = t.species[i]
+    @inbounds s.control.leave_species[sp] && return false   # SPLEAVE: leave this species
     d = t.dbh[i]
     (d < dl || d >= du) && return false
     h = t.height[i]
     (h < hl || h >= hu) && return false
-    return _sp_in_cut(sp_groups, ispcut, t.species[i])
+    return _sp_in_cut(sp_groups, ispcut, sp)
 end
 
 # THINDBH/THINHT (cuts.f label_325→355→550→1100): thin the species class to a residual
@@ -255,7 +278,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
 
     grps = s.control.sp_groups                         # SPGROUP table (for ispcut<0)
     wk4 = Float32[t.tpa[i] for i in 1:n]               # pre-thin PROB copy
-    cstock = _clsstk(t, wk4, n, jtyp, ispcut, dlo, dhi, hlo, hhi, grps)
+    cstock = _clsstk(s, wk4, n, jtyp, ispcut, dlo, dhi, hlo, hhi, grps)
     cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - (ctpa + cba)
     remove <= 0f0 && return _NO_REMOVAL
@@ -265,7 +288,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
     @inbounds for i in 1:n
-        _cut_eligible(t, i, ispcut, dlo, dhi, hlo, hhi, grps) || continue
+        _cut_eligible(s, i, ispcut, dlo, dhi, hlo, hhi, grps) || continue
         d = t.dbh[i]
         prem = wk4[i] * cuteff
         prem > wk4[i] && (prem = wk4[i])
@@ -336,7 +359,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     hthi   = hthi_p  <= htlo  ? 9999f0 : hthi_p
 
     wk4 = Float32[t.tpa[i] for i in 1:n]
-    cstock = _clsstk(t, wk4, n, jtyp, 0, dbhlo, valmax, htlo, hthi)
+    cstock = _clsstk(s, wk4, n, jtyp, 0, dbhlo, valmax, htlo, hthi)
     cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - target
     remove <= 0f0 && return _NO_REMOVAL
@@ -349,7 +372,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     pref = s.control.cut_pref
     elig = falses(n); key = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        elig[i] = _cut_eligible(t, i, 0, dbhlo, valmax, htlo, hthi)
+        elig[i] = _cut_eligible(s, i, 0, dbhlo, valmax, htlo, hthi)
         key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]])
     end
     order = Vector{Int32}(undef, n)
@@ -393,15 +416,15 @@ end
 # eligible tree (residual = SDI·(1−CUTEFF) = target exactly, since the Zeide weight is
 # fixed per tree). icut=1/2 = from below/above: RDPSRT by ∓DBH and remove whole records
 # (cut_v = prem·(D/10)^1.605) until the SDI budget is met, last record partial.
-@inline function _sdi_zeide(t::TreeList, wk4, n, ispcut, dlo, dhi,
+@inline function _sdi_zeide(s::StandState, wk4, n, ispcut, dlo, dhi,
                             sp_groups::Vector{Vector{Int32}}=_NOGROUPS)
-    s = 0f0
+    t = s.trees; acc = 0f0
     @inbounds for i in 1:n
         d = t.dbh[i]; d <= 0f0 && continue          # DBHZEIDE = 0 (SN)
-        _cut_eligible(t, i, ispcut, dlo, dhi, 0f0, 999f0, sp_groups) || continue
-        s += wk4[i] * (d / 10f0)^1.605f0
+        _cut_eligible(s, i, ispcut, dlo, dhi, 0f0, 999f0, sp_groups) || continue
+        acc += wk4[i] * (d / 10f0)^1.605f0
     end
-    return s
+    return acc
 end
 
 function _thin_sdi!(s::StandState, act::ScheduledActivity)
@@ -416,7 +439,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
 
     grps = s.control.sp_groups                       # SPGROUP table (for ispcut<0)
     wk4  = Float32[t.tpa[i] for i in 1:n]
-    sdic = _sdi_zeide(t, wk4, n, ispcut, valmin, valmax, grps)
+    sdic = _sdi_zeide(s, wk4, n, ispcut, valmin, valmax, grps)
     sdic <= target && return _NO_REMOVAL
     remove = sdic - target
     cuteff = remove / sdic
@@ -436,7 +459,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         # LSPECL "throughout": proportional removal of CUTEFF from every eligible tree.
         @inbounds for i in 1:n
             d = t.dbh[i]; d <= 0f0 && continue
-            _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             prem = wk4[i] * cuteff
             prem > wk4[i] && (prem = wk4[i])
             _remove!(i, prem)
@@ -455,7 +478,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
-            _cut_eligible(t, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             totcut >= remove && break
             w  = (d / 10f0)^1.605f0
             prem = wk4[it] * ce
@@ -484,9 +507,9 @@ end
 #   RD(class) = Σ_class tpa·(tpafac + diamfac·D²)
 # REMOVE = RD − target; CUTEFF = REMOVE/RD; sparse (icut=0) = proportional throughout;
 # icut=1/2 = from below/above (sorted), per-tree weight = tpafac + diamfac·D².
-@inline function _rd_curtis(t::TreeList, wk4, n, ispcut, dlo, dhi,
+@inline function _rd_curtis(s::StandState, wk4, n, ispcut, dlo, dhi,
                             sp_groups::Vector{Vector{Int32}}=_NOGROUPS)
-    clsd2 = 0f0; clstpa = 0f0
+    t = s.trees; clsd2 = 0f0; clstpa = 0f0
     @inbounds for i in 1:n
         d = t.dbh[i]; d <= 0f0 && continue
         clsd2 += d * d * wk4[i]; clstpa += wk4[i]
@@ -499,7 +522,7 @@ end
     crd = 0f0
     @inbounds for i in 1:n
         d = t.dbh[i]; d <= 0f0 && continue
-        _cut_eligible(t, i, ispcut, dlo, dhi, 0f0, 999f0, sp_groups) || continue
+        _cut_eligible(s, i, ispcut, dlo, dhi, 0f0, 999f0, sp_groups) || continue
         crd += (tpafac + diamfac * d * d) * wk4[i]
     end
     return (crd, tpafac, diamfac)
@@ -517,7 +540,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
 
     grps = s.control.sp_groups                       # SPGROUP table (for ispcut<0)
     wk4 = Float32[t.tpa[i] for i in 1:n]
-    crd, tpafac, diamfac = _rd_curtis(t, wk4, n, ispcut, valmin, valmax, grps)
+    crd, tpafac, diamfac = _rd_curtis(s, wk4, n, ispcut, valmin, valmax, grps)
     crd <= target && return _NO_REMOVAL
     remove = crd - target
     cuteff = remove / crd
@@ -536,7 +559,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
     if icut == 0
         @inbounds for i in 1:n
             d = t.dbh[i]; d <= 0f0 && continue
-            _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             prem = wk4[i] * cuteff
             prem > wk4[i] && (prem = wk4[i])
             _rm!(i, prem)
@@ -553,7 +576,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
-            _cut_eligible(t, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             totcut >= remove && break
             w = tpafac + diamfac * d * d
             w <= 0f0 && continue
@@ -651,7 +674,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     area = 0f0
     @inbounds for i in 1:n
         d = t.dbh[i]; d <= 0f0 && continue
-        _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+        _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
     end
     area <= csdi && return _NO_REMOVAL
@@ -672,7 +695,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     if icut == 0
         @inbounds for i in 1:n
             d = t.dbh[i]; d <= 0f0 && continue
-            _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             prem = wk4[i] * cuteff
             prem > wk4[i] && (prem = wk4[i])
             _rmc!(i, prem)
@@ -689,7 +712,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
-            _cut_eligible(t, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, it, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             totcut >= remove && break
             w = cw[it] * cw[it]
             w <= 0f0 && continue
@@ -742,16 +765,16 @@ function _thin_qfa!(s::StandState, act::ScheduledActivity)
     tpacls1 = zeros(Float32, ndcls); clstar1 = zeros(Float32, ndcls)
     for i in 1:ndcls
         dlo = dcls[i] - diacw / 2f0; dhi = dcls[i] + diacw / 2f0
-        ctpa = _clsstk(t, wk4, n, 1, ispcut, dlo, dhi, 0f0, 999f0, grps)
+        ctpa = _clsstk(s, wk4, n, 1, ispcut, dlo, dhi, 0f0, 999f0, grps)
         tpacls1[i] = ctpa
         clstar1[i] = if ctpa <= 0f0
             0f0
         elseif qfatar <= 0      # BA per tree
-            _clsstk(t, wk4, n, 2, ispcut, dlo, dhi, 0f0, 999f0, grps) / ctpa
+            _clsstk(s, wk4, n, 2, ispcut, dlo, dhi, 0f0, 999f0, grps) / ctpa
         elseif qfatar <= 1      # TPA per tree = 1
             1f0
         else                    # Zeide SDI per tree
-            _sdi_zeide(t, wk4, n, ispcut, dlo, dhi, grps) / ctpa
+            _sdi_zeide(s, wk4, n, ispcut, dlo, dhi, grps) / ctpa
         end
     end
     suminv = 0f0
@@ -887,7 +910,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         @inbounds for i in 1:n
             t.dbh[i] <= 0f0 && continue
             (t.plot_id[i] == jp) || continue
-            _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+            _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
             metric += w[i] * wk4[i]
         end
         metric *= scale
@@ -898,7 +921,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
             @inbounds for i in 1:n
                 t.dbh[i] <= 0f0 && continue
                 (t.plot_id[i] == jp) || continue
-                _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
+                _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
                 prem = wk4[i] * cuteff
                 prem > wk4[i] && (prem = wk4[i])
                 _rmp!(i, prem)
@@ -908,7 +931,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
             remove = metric - residual                  # in metric units (already ×scale)
             pref = s.control.cut_pref
             idx = Int32[i for i in 1:n if t.plot_id[i] == jp && t.dbh[i] > 0f0 &&
-                        _cut_eligible(t, i, ispcut, valmin, valmax, 0f0, 999f0, grps)]
+                        _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)]
             isempty(idx) && continue
             key = Float32[(lbelow ? -t.dbh[i] : t.dbh[i]) + Float32(pref[t.species[i]]) for i in idx]
             ord = Vector{Int32}(undef, length(idx)); _rdpsrt!(key, ord)

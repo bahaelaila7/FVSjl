@@ -35,7 +35,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | keyword | effect | status |
 |---|---|---|
 | SPECPREF | per-species cut preference (RDPSRT order) | ✅ |
-| SPLEAVE / LEAVESP | leave named species | ⛔ |
+| SPLEAVE / LEAVESP | leave named species — exclude from every thin (cuts.f:1466) | ✅ **DONE** (kw_thin! icflag 206 → cuts! PASS 1 `_apply_spleave!` sets Control.leave_species: PRMS(1) <0 group / 0 reset-all / >0 species, PRMS(2)>0 = leave; `_cut_eligible` now takes the StandState and skips any LEAVESP species in both stocking + removal). Bit-exact vs Fortran (test_spleave.jl: THINBBA leaving SM ≠ no-SPLEAVE, matches Fortran) |
 | CUTEFF | default cutting efficiency | ⛔ |
 | TCONDMLT | thin-condition multiplier | ⛔ |
 | YARDLOSS | yarding-loss → scales removed merch/saw/bdft by (1−prlost) **and feeds the FFE down-wood/snag/crown fuel pools** | 🧊 **rolled into C7** (substantive effect is fuel-pool routing; standalone .sum effect nil; its `@test_broken` is the post-thin DGSCOR tail, not yardloss) |

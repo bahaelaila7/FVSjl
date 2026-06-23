@@ -47,6 +47,7 @@ using FVSjl
     include("integration/test_voleqnum.jl")     # C5: VOLEQNUM cubic volume-equation override vs Fortran
     include("integration/test_bfvolume.jl")     # C5: BFVOLUME board-foot override + Region-8 vs Fortran
     include("integration/test_minharv.jl")      # C3: MINHARV minimum-harvest cancel gate vs Fortran
+    include("integration/test_spleave.jl")      # C3: SPLEAVE/LEAVESP leave-species-during-thin vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
