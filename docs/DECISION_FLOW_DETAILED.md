@@ -90,7 +90,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 
 | keyword | IACTK | cuts.f label | effect on the cut | status |
 |---|---|---|---|---|
-| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ✅ `_apply_specpref!` + IORDER term in the `_thin_sorted!` key — cut_specpref year-2000 removal bit-exact vs Oracle A (single-species path; the species-GROUP path ✅ via SPGROUP/sp_field_matches) |
+| SPECPREF | 201 | label_1200 | per-species **cut preference** → reorders RDPSRT (which species go first) | ✅ `_apply_specpref!` + IORDER term in the `_thin_sorted!` key — cut_specpref year-2000 removal bit-exact vs Oracle A (single-species path; the species-GROUP path ✅ via SPGROUP — _cut_eligible threads sp_groups; THINDBH −1 bit-exact) |
 | TCONDMLT | 202 | — | thin-**condition multiplier** (scales the trigger) | ⛔ |
 | YARDLOSS | 203 | label_1325 | **yarding loss** → removed-volume accounting | ⛔ **USED BY snt01/sn (stand 4)** |
 | SPLEAVE/LEAVESP | 206 | label_1340 | **leave** named species (exclude from cut) | ⛔ |

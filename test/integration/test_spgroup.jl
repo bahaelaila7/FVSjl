@@ -8,6 +8,8 @@
 #     verified equal to FIXMORT 22 (SM) in Fortran.
 #   * spgroup_fixdg   — group {SM, AB} + FIXDG −1 0.3: exercises a MULTI-species group parse and
 #     the FIXDG (apply_fix_scalers!) group branch.
+#   * spgroup_thindbh — group {SM} + THINDBH −1: the thin-method species filter (_cut_eligible
+#     threads s.control.sp_groups); verified equal to THINDBH 22 in Fortran.
 
 using Test, FVSjl
 
@@ -21,7 +23,7 @@ _sgcol(r, c) = parse(Float64, r[c])
 
 @testset "SPGROUP species groups vs Fortran" begin
     have(nm) = isfile(joinpath(_SG_DIR, nm * ".key")) && isfile(joinpath(_SG_DIR, nm * ".sum.save"))
-    for nm in ("spgroup_fixmort", "spgroup_fixdg")
+    for nm in ("spgroup_fixmort", "spgroup_fixdg", "spgroup_thindbh")
         if !have(nm); @test_skip "$nm scenario not available"; continue; end
         @testset "$nm" begin
             jl = _sg_rows(FVSjl.run_keyfile(joinpath(_SG_DIR, nm * ".key"); faithful = true))

@@ -41,7 +41,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | YARDLOSS | yarding-loss → scales removed merch/saw/bdft by (1−prlost) **and feeds the FFE down-wood/snag/crown fuel pools** | 🧊 **rolled into C7** (substantive effect is fuel-pool routing; standalone .sum effect nil; its `@test_broken` is the post-thin DGSCOR tail, not yardloss) |
 | MINHARV | minimum-harvest threshold (skip cut below it) | ⛔ (was missing) |
 | TFIXAREA | treatment fixed-area / pro-rate | ⛔ (was missing) |
-| SPGROUP | species groups (vbase/initre.f:4726) referenced by a −N species field | ✅ (kw_spgroup! builds the group table; sp_field_matches wires the ISPCC<0 branch into FIXDG/FIXHTG/FIXMORT/HTGSTOP/TOPKILL/MORTMULT/CRNMULT/TREESZCP/SPECPREF; bit-exact, test_spgroup.jl) |
+| SPGROUP | species groups (vbase/initre.f:4726) referenced by a −N species field | ✅ (kw_spgroup! builds the table; the ISPCC<0 branch is wired into FIXDG/FIXHTG/FIXMORT/HTGSTOP/TOPKILL/MORTMULT/CRNMULT/TREESZCP/SPECPREF via sp_field_matches AND the species-filtering thins THINDBH/SDI/RDEN/CC/PT/QFA via _cut_eligible; bit-exact, test_spgroup.jl) |
 
 ## 3. Growth keyword multipliers / overrides (`dgdriv.f`/`htgf.f`/`regent.f`)
 
@@ -212,8 +212,16 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
 
 **A. Genuinely-applied, .sum-affecting — real ports (ranked most-upstream → downstream):**
 - **Cycle calendar** — `TIMEINT` / `CYCLEAT` / `GROWTH` (per-cycle length). FVSjl hardcodes
-  period=5; grow_cycle!(fint)/autcor already take the period, so this is mostly plumbing +
-  the calibration "one-period-ahead" clock. MOST upstream (the loop structure).
+  period=5. ⚠ NOT plumbing-only (2026-06-23 scoping): although grow_cycle!(fint)/height
+  (scale=FINT/5)/mortality/autcor all take the period, the **diameter-growth DDS is
+  period-INDEPENDENT in all the visible SN code** (dgf.f/dgdriv.f/dgcons.f/update.f have no
+  FINT scaling of DDS or DG), YET a 10-yr cycle grows DBH exactly 2× a 5-yr cycle (empirical:
+  tree grew 11.5→12.3 over 10yr vs 11.5→11.9 over 5yr; cuft 2479@2000 ≈ base 2481). GRINCR is
+  called ONCE per cycle (no sub-stepping in fvs.f/tregro.f), and the displayed DIB_INCR is the
+  SAME (1.00) for both. So the period enters the diameter growth through a HIDDEN mechanism
+  (a global TIME/FINT the DDS path consumes, or DGCONS recomputed per-cycle) that must be
+  traced before porting — this is a real investigation, not a quick win. MOST upstream but
+  blocked on this.
 - ~~**Tripling control** — `NOTRIPLE` / `NUMTRIP`~~ ✅ DONE — wired through s.control.icl4
   (default 2; NOTRIPLE→0, NUMTRIP n→n). Was a real gap: FVSjl ignored NOTRIPLE (20 cols diverged)
   AND the bare-PLANT scenarios were silently passing for the wrong reason (FVSjl wrongly tripled
@@ -232,8 +240,10 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
 **B. Deferred sub-paths inside already-✅ items:**
 - FIXMORT point/size concentration reallocation (PRM(6)≥10 — KBIG/KPOINT, morts.f:838-1015).
 - THINPRSC multi-plot (nps>1) path.
-- Species-group **thin-method filter** (`THINBTA −1` etc. — needs StandState threaded through
-  `_cut_eligible`) and group-**name** field refs (only −N numeric now).
+- ~~Species-group thin-method filter~~ ✅ DONE — `_cut_eligible` (and `_clsstk`/`_sdi_zeide`/
+  `_rd_curtis`) take the SPGROUP table; the species-filtering thins (THINDBH/THINSDI/THINRDEN/
+  THINCC/THINPT/THINQFA) thread `s.control.sp_groups`, so `THINDBH −1` resolves a group (bit-exact
+  vs Fortran, test_spgroup.jl). REMAINING: group-**name** field refs (only −N numeric now).
 - IF/THEN snt01 stand-2 3rd-thin class-boundary residual.
 
 **C. Listed-⛔ but likely SN NO-OPS — confirm empirically (does it change the .sum?) first:**
