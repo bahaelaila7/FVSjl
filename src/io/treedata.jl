@@ -185,3 +185,71 @@ function read_tree_file(path::AbstractString; fmt::AbstractString = DEFAULT_TREE
     end
     return recs
 end
+
+# The 25 record fields in FORMAT order (intree.f:185-188), matching `parse_tree_record`.
+_tree_field_values(r::TreeRecord) = (
+    r.plot, r.id, r.tpa, r.history, r.species_code, r.dbh, r.diam_growth, r.height,
+    r.top_height, r.ht_growth, r.crown_pct, r.damage..., r.mort_code, r.cut_code,
+    r.pest_vars..., r.birth_age,
+)
+
+# Render one field value to text. Floats use Fortran implied decimals (no point,
+# value×10^d) so the reader recovers them exactly; ints/floats are digit strings,
+# strings are the (trimmed) text. Returns "" to skip placement (string at col1).
+function _tree_field_text(f::FormatField, val)::String
+    if f.kind == :string
+        w = f.col2 - f.col1 + 1
+        return first(rpad(strip(string(val)), w), w)
+    elseif f.kind == :int
+        return string(round(Int, val))
+    else
+        return string(round(Int, Float64(val) * 10.0^f.decimals))   # implied-decimal integer
+    end
+end
+
+"""
+    write_tree_file(records, path; fmt=DEFAULT_TREE_FORMAT) -> path
+
+Write tree records back to a legacy fixed-column `.tre` file using FORMAT `fmt`. Each
+field is placed at its FORMAT column span; floats use Fortran implied decimals so
+`read_tree_file` recovers the same value. Strings are left-justified at the field start;
+numbers are right-justified to the field end — except where fields share a start column
+(the SN `I4,T1,I7` plot/id overlap), where the value is anchored to the *narrowest*
+overlapping field's end (the column convention FVS uses: a small id sits in the plot's
+columns, a full-width id fills the I7). Narrower fields are written last so their value
+wins the shared columns. A *semantic* round-trip, like the CSV form; useful for feeding a
+CSV-edited stand back to legacy FVS.
+"""
+function write_tree_file(records::AbstractVector{TreeRecord}, path::AbstractString;
+                         fmt::AbstractString = DEFAULT_TREE_FORMAT)
+    fields = parse_tree_format(fmt)
+    width = isempty(fields) ? 0 : maximum(f.col2 for f in fields)
+    # for each field, the smallest col2 among fields sharing its start column (overlap anchor)
+    minc2 = [minimum(g.col2 for g in fields if g.col1 == f.col1) for f in fields]
+    # write widest-span fields first so the narrower overlapping field's value wins
+    order = sortperm(eachindex(fields); by = n -> -(fields[n].col2 - fields[n].col1))
+    open(path, "w") do io
+        for r in records
+            vals = _tree_field_values(r)
+            buf = fill(' ', width)
+            for n in order
+                n > length(vals) && continue
+                f = fields[n]; txt = _tree_field_text(f, vals[n])
+                isempty(txt) && continue
+                if f.kind == :string
+                    start = f.col1                                    # left-justified
+                else
+                    # right edge = narrowest-overlap end, grown to fit the value, capped at col2
+                    redge = clamp(f.col1 + length(txt) - 1, minc2[n], f.col2)
+                    start = redge - length(txt) + 1
+                end
+                for (k, c) in enumerate(txt)
+                    col = start + k - 1
+                    1 <= col <= width && (buf[col] = c)
+                end
+            end
+            println(io, rstrip(String(buf)))
+        end
+    end
+    return path
+end

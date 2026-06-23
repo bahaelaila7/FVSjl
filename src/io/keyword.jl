@@ -168,3 +168,41 @@ _record(name, raw, nf, _present, _vals, status, pf) = KeywordRecord(
     name, raw, fill(" "^10, N_KEY_FIELDS), zeros(Float32, N_KEY_FIELDS),
     falses(N_KEY_FIELDS), nf, status, pf,
 )
+
+# Index of the last present field (so trailing blank fields are dropped on write).
+_last_present_field(rec::KeywordRecord) = (i = findlast(rec.present); i === nothing ? 0 : i)
+
+"""
+    write_keyfile(records, path) -> path
+
+Write keyword records back to a legacy fixed-column `.key` file: the keyword name in
+cols 1-8 and each present field left-justified in its 10-column slot (field `i` at cols
+`10i+1`..`10i+10`), trailing blank fields dropped. This reproduces a card that the KEYRDR
+reader (`_decode_keyword`) parses back to the same name / values / presence — a *semantic*
+round-trip (the original's exact column padding is not meaningful and is not preserved,
+matching the YAML form). Lets a modern YAML keyword file be converted back for legacy FVS.
+"""
+# A "plain" keyword record reconstructs faithfully from name + 10-col fields. Free-form
+# supplemental lines (a TREEFMT FORMAT string, inline tree data) do not — they carry
+# punctuation in the keyword columns — so those are round-tripped by their raw text.
+_is_plain_keyword(rec::KeywordRecord) =
+    occursin(r"^[A-Za-z][A-Za-z0-9]*$", strip(rec.name)) || isempty(strip(rec.name))
+
+function write_keyfile(records::AbstractVector{KeywordRecord}, path::AbstractString)
+    open(path, "w") do io
+        for rec in records
+            if !_is_plain_keyword(rec) && !isempty(rec.raw)
+                println(io, rstrip(rec.raw))            # free-form line: emit verbatim
+                continue
+            end
+            name = strip(rec.name)
+            np = _last_present_field(rec)
+            line = rpad(name, 10)                       # cols 1-8 name (+ blank 9-10)
+            for i in 1:np
+                line *= rpad(strip(rec.fields[i]), 10)  # field i at cols 10i+1 .. 10i+10
+            end
+            println(io, rstrip(line))
+        end
+    end
+    return path
+end

@@ -30,6 +30,12 @@ function write_keywords_yaml(records::AbstractVector{KeywordRecord}, path::Abstr
         println(io, "# fields (left to right); omitted = no parameters.")
         println(io, "keywords:")
         for rec in records
+            # Free-form supplemental lines (a TREEFMT FORMAT string, inline tree data) are
+            # not keyword+params; carry them verbatim so the form stays lossless.
+            if !_is_plain_keyword(rec) && !isempty(rec.raw)
+                println(io, "  - raw: ", _yq(rstrip(rec.raw)))
+                continue
+            end
             name = strip(rec.name)
             np = _last_present(rec)
             print(io, "  - keyword: ", _yq(name))
@@ -49,8 +55,11 @@ end
 # YAML-quote a string (always quote → unambiguous for codes like "60." or "9999").
 _yq(s) = '"' * replace(String(s), "\\" => "\\\\", "\"" => "\\\"") * '"'
 
-"Reconstruct a KeywordRecord from a YAML entry (name + optional params)."
+"Reconstruct a KeywordRecord from a YAML entry (name + optional params, or a raw line)."
 function _record_from_yaml(entry::AbstractDict)
+    if haskey(entry, "raw")                          # free-form line: decode verbatim
+        return _decode_keyword(rpad(string(entry["raw"]), 130))
+    end
     name = uppercase(rpad(strip(string(get(entry, "keyword", ""))), 8))
     raw_params = get(entry, "params", Any[])
     params = String[strip(string(p)) for p in raw_params]

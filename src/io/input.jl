@@ -66,3 +66,51 @@ Translate a legacy `.key` file into the readable, order-preserving YAML form.
 function convert_key_to_yaml(key::AbstractString, yaml::AbstractString)
     write_keywords_yaml(read_keyfile_records(key), yaml)
 end
+
+"""
+    convert_yaml_to_key(yaml, key) -> key
+
+Translate a modern `.yaml` keyword file back into a legacy fixed-column `.key` file
+(for feeding the original Fortran FVS). Semantic round-trip — see `write_keyfile`.
+"""
+function convert_yaml_to_key(yaml::AbstractString, key::AbstractString)
+    write_keyfile(read_keywords_yaml(yaml), key)
+end
+
+"""
+    convert_csv_to_tre(csv, tre; fmt=DEFAULT_TREE_FORMAT) -> tre
+
+Translate a modern `.csv` tree file back into a legacy fixed-column `.tre` file using
+FORMAT `fmt` (for feeding the original Fortran FVS). Semantic round-trip — see
+`write_tree_file`.
+"""
+function convert_csv_to_tre(csv::AbstractString, tre::AbstractString;
+                            fmt::AbstractString = DEFAULT_TREE_FORMAT)
+    write_tree_file(read_trees_csv(csv), tre; fmt = fmt)
+end
+
+"""
+    translate_io(src, dst; tree_fmt=DEFAULT_TREE_FORMAT) -> dst
+
+Translate one input file between the legacy and modern forms, picking the direction from
+the source/destination extensions: `.key`↔`.yaml` for keywords, `.tre`↔`.csv` for trees.
+The engine reads either form directly; this is the user-facing converter (`bin/
+fvsjl-translate.jl`) for moving a stand to the readable format or back for legacy FVS.
+"""
+function translate_io(src::AbstractString, dst::AbstractString;
+                      tree_fmt::AbstractString = DEFAULT_TREE_FORMAT)
+    se = lowercase(splitext(src)[2]); de = lowercase(splitext(dst)[2])
+    isyaml(e) = e == ".yaml" || e == ".yml"
+    if se == ".key" && isyaml(de)
+        convert_key_to_yaml(src, dst)
+    elseif isyaml(se) && de == ".key"
+        convert_yaml_to_key(src, dst)
+    elseif se == ".tre" && de == ".csv"
+        convert_tre_to_csv(src, dst; fmt = tree_fmt)
+    elseif se == ".csv" && de == ".tre"
+        convert_csv_to_tre(src, dst; fmt = tree_fmt)
+    else
+        error("don't know how to translate $se → $de (expected .key↔.yaml or .tre↔.csv)")
+    end
+    return dst
+end
