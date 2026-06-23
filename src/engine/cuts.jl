@@ -324,7 +324,7 @@ end
 function _thinprsc!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
-    cuteff = act.params[1]
+    cuteff = act.params[1] > 0f0 ? act.params[1] : s.control.cut_eff   # blank ⇒ EFF (CUTEFF default)
     cuteff <= 0f0 && return _NO_REMOVAL
     cuteff > 1f0 && (cuteff = 1f0)
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
@@ -640,7 +640,7 @@ function _thin_auto!(s::StandState, act::ScheduledActivity)
     p = act.params
     autmin = p[1] > 0f0 ? p[1] : 45f0          # SN grinit defaults when fields blank
     autmax = p[2] > 0f0 ? p[2] : 60f0
-    eff    = p[3] > 0f0 ? p[3] : 1f0
+    eff    = p[3] > 0f0 ? p[3] : s.control.cut_eff   # blank ⇒ EFF (CUTEFF default)
     wk4 = Float32[t.tpa[i] for i in 1:n]
     fulstk = _autstk(t, wk4, n, s.plot.sp_sdi_def)
     fulstk <= 0f0 && return _NO_REMOVAL

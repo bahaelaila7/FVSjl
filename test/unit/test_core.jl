@@ -27,7 +27,7 @@ end
     @test s.control.unit_summary == 8
     @test s.control.auto_max == 60f0
     @test s.control.auto_min == 45f0
-    @test s.control.cut_eff == 0.98f0
+    @test s.control.cut_eff == 1.0f0      # EFF default (grinit.f:172); CUTEFF overrides it
     @test s.control.mort_period == 5f0
     @test s.plot.baf == 40f0
     @test s.plot.fixed_plot_inv == 300f0

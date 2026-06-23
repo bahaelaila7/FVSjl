@@ -243,7 +243,7 @@ function Control()
         zeros(Int32,6), zeros(Int32,30,52), zeros(Int32,30,92),
         zeros(Int32,MAXCY1), zeros(Int32,7),
         0.0f0,60.0f0,45.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,
-        0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.98f0,5.0f0,
+        0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,1.0f0,5.0f0,  # …,cut_eff(EFF)=1.0,mort_period=5
         0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
