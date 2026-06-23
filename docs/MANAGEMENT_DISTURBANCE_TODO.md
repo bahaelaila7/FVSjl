@@ -203,10 +203,41 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
 ⇒ The cheap management wins (the 5 MULTS multipliers) are DONE. Every remaining item is a
 focused chunk, not a quick port. Several listed-⛔ items are probably SN no-ops.
 
-## Suggested order (when starting)
-1. THINCC/HT/RDEN/RDSL/PT/QFA (remaining label_400 SDI-class thins; THINSDI ✅ done) + LEAVESP/MINHARV
-2. Multi-plot (nps>1) THINPRSC path
-3. DEFECT/BFDEFECT/MCDEFECT (.sum-affecting volume) + a defect scenario
-4. Growth/mort multipliers (FIXDG/HTGMULT/MORTMULT/… — all keyword no-ops at default)
-5. PRUNE / FERTILIZ / COMPRESS / ADDFILE
-6. FFE fire (C7), insects (no scenario), econ (C8)
+## Remaining work (current — 2026-06-23, after the growth/mortality surface + SPGROUP)
+
+The entire growth/mortality keyword surface is ported & bit-exact: all CUTS methods (§1),
+all MULTS multipliers, FIXDG/FIXHTG, FIXMORT, TREESZCP, HTGSTOP/TOPKILL, CRNMULT, SPGROUP
+species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32 noise
+(see DIVERGENCES.md §1). What is left, by kind of work:
+
+**A. Genuinely-applied, .sum-affecting — real ports (ranked most-upstream → downstream):**
+- **Cycle calendar** — `TIMEINT` / `CYCLEAT` / `GROWTH` (per-cycle length). FVSjl hardcodes
+  period=5; grow_cycle!(fint)/autcor already take the period, so this is mostly plumbing +
+  the calibration "one-period-ahead" clock. MOST upstream (the loop structure).
+- **Tripling control** — `NOTRIPLE` / `NUMTRIP` (🟡 hardcoded TRIPLE_CYCLE_LIMIT=2; NOTRIPLE
+  currently in KNOWN_NOOP). Growth-path upstream; verify FVSjl is actually wrong first.
+- **ADDFILE / ADDTREES** — add tree records mid-run (record-set upstream).
+- **COMPUTE** — event-monitor variable assignment (extends the ported IF/THEN evaluator).
+- **CYCLEAT / TIMEINT** scheduling boundaries (if not covered by the calendar item).
+- **PRUNE** — crown/CR edit + pruned-log volume.
+- **Volume overrides** — `VOLEQNUM`/`CFVOLEQU`/`BFVOLEQU` (🟡), `VOLUME`/`BFVOLUME`,
+  `BFFDLN`/`MCFDLN`, `FIAVBC` (C5 volume side).
+- **ESTAB TALLY / SPROUT** — tally-count regen + stump sprouting (downstream, C4 regen).
+- `COMPRESS` — only fires with the keyword or >~3000 records; comprs.f is a 762-line
+  subsystem (incl. EIGEN!) — NOT least-dependent.
+
+**B. Deferred sub-paths inside already-✅ items:**
+- FIXMORT point/size concentration reallocation (PRM(6)≥10 — KBIG/KPOINT, morts.f:838-1015).
+- THINPRSC multi-plot (nps>1) path.
+- Species-group **thin-method filter** (`THINBTA −1` etc. — needs StandState threaded through
+  `_cut_eligible`) and group-**name** field refs (only −N numeric now).
+- IF/THEN snt01 stand-2 3rd-thin class-boundary residual.
+
+**C. Listed-⛔ but likely SN NO-OPS — confirm empirically (does it change the .sum?) first:**
+- SPLEAVE/LEAVESP (only grinit init, never read in cut logic), CUTEFF / MINHARV / TCONDMLT
+  (0 refs), MORTMSB (QMDMSB=999 inert), FIXCW (verified output-only),
+  DEFECT/BFDEFECT/MCDEFECT (external NVEL lib; the keyword crashes this build — verify active).
+  ⚠ "0 refs" mis-flagged CRNMULT+TOPKILL once; always confirm with a .sum diff.
+
+**D. Out of scope here (C7/C8):** YARDLOSS (C7 fuel pools), FFE fire, insects, root disease
+(RDIN/ANIN/RRIN), PRMFROST/CLIMATE, ECON/CHEAPO.
