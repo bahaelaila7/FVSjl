@@ -68,7 +68,7 @@ scenario must set to make it execute and become Fortran-validatable.
 | size-cap (SIZCAP): DG bound + size-cap mortality + HT cap | `TREESZCP` — ✅ ported (kw_treeszcp!; sn/morts.f:692 floor + htgf.f:286 HT cap, test_treeszcp.jl). Residuals: cap mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint matches); htcap TopHt ≤4' declining-stand drift (TPA/BA/QMD bit-exact) | — |
 | BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT (`MULTS` 1/2/4/3/6) | the keyword — ✅ ported (active_multiplier; bit-exact vs Fortran, test_multipliers.jl) | — |
 | FIXDG/FIXHTG | the keyword — ✅ ported (one-shot DG/HTG scaler + DBH window + tripled-record scaling; bit-exact, test_fix_scalers.jl) | — |
-| HTGSTOP/TOPKILL | the keyword — ✅ ported (htgstp! + crown negative-ICR bypass; deterministic bit-exact, test_htgstp.jl; stochastic path in place) | — |
+| HTGSTOP/TOPKILL | the keyword — ✅ ported (htgstp! + crown negative-ICR bypass; deterministic + stochastic bit-exact through firing cycle, test_htgstp.jl) | — |
 | FIXMORT | the keyword — ✅ normal path ported (replace/add/max/mult + TPAMRT ordering; bit-exact, test_fixmort.jl); point/size concentration deferred | — |
 | `FFERT` | the keyword (defaults inert) | — |
 | event-monitor expression eval `EV*`/`ALGEVL` | `COMPUTE`/`IF` keywords (basic IF/THEN works; full expr partial) | — |

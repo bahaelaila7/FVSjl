@@ -9,7 +9,10 @@
 #     NORMHT/ITRUNC for permanent broken tops, crown ratio cut). Recovery over later cycles
 #     exercises the negative-ICR ("crown adjusted elsewhere") bypass in crown_ratio_update!.
 # The stochastic path (STDPBR>0 / PRB<1) walks records in species-sorted IND1 order so the
-# RANN/BACHLO stream lines up with FVS; that path is in place but validated separately.
+# RANN/BACHLO stream lines up with FVS:
+#   * htgstop_stoch — bare PLANT stand (NOTRIPLE, RNG-exact), a 2002 HTGSTOP with STDPBR=0.2
+#     (PKIL ~ N(0.5, 0.2)) on trees >20'. Bit-exact through 2017 — the firing cycle and several
+#     beyond — confirming the RNG traversal; later cycles carry the known bare-plant regen tail.
 
 using Test, FVSjl
 
@@ -26,13 +29,15 @@ _hcol(r, c) = parse(Float64, r[c])
     runjl(nm) = (_hg_rows(FVSjl.run_keyfile(joinpath(_HG_DIR, nm * ".key"); faithful = true)),
                  _hg_base(joinpath(_HG_DIR, nm * ".sum.save")))
 
-    for nm in ("htgstop_det", "topkill_det")
+    # (scenario, cycles validated bit-exact). The deterministic stands match every cycle; the
+    # stochastic bare-plant stand matches through the firing cycle (later carry the regen tail).
+    for (nm, ncyc) in (("htgstop_det", 999), ("topkill_det", 999), ("htgstop_stoch", 6))
         if !have(nm); @test_skip "$nm scenario not available"; continue; end
         @testset "$nm" begin
             jl, ft = runjl(nm)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for i in 1:length(jl), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
+                for i in 1:min(ncyc, length(jl)), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
                     @test abs(_hcol(jl[i], c) - _hcol(ft[i], c)) <= 1
                 end
             end

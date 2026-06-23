@@ -49,7 +49,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | FIXDG | fix/scale diameter growth | ✅ (one-shot scaler, species×DBH window, scales tripled DG; bit-exact, test_fix_scalers.jl) |
 | FIXHTG | fix/scale height growth | ✅ (one-shot scaler, species×DBH window, scales tripled HTG; bit-exact, test_fix_scalers.jl) |
-| HTGSTOP / TOPKILL | scale height growth / top-kill (htgstp.f) | ✅ (act 110 HTG×PKIL + act 111 top-kill w/ NORMHT/ITRUNC/Behre/crown; deterministic bit-exact, test_htgstp.jl; stochastic path in place) |
+| HTGSTOP / TOPKILL | scale height growth / top-kill (htgstp.f) | ✅ (act 110 HTG×PKIL + act 111 top-kill w/ NORMHT/ITRUNC/Behre/crown; deterministic + stochastic (htgstop_stoch) bit-exact through firing cycle, test_htgstp.jl) |
 | BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
 | HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
 | CRNMULT | crown-ratio/width multiplier | ⛔ (was missing) |
@@ -174,7 +174,7 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   already adjusted by topkill/pest models (ICR<0) is restored to +ICR and NOT recomputed that
   cycle; without it the top-killed trees' crown (hence DG/mortality) drifted and TPA ran ~10% high.
   Deterministic scenarios (HTGSTOP 0.5×, TOPKILL 0.5× >30') bit-exact every cycle vs live Fortran
-  (test_htgstp.jl). Stochastic (STDPBR>0/PRB<1) path implemented but validated separately; IMC
+  (test_htgstp.jl) AND a stochastic bare-plant scenario (STDPBR=0.2, htgstop_stoch) bit-exact through the firing cycle — the species-sorted IND1 RNG traversal is confirmed. IMC
   (management code) and ABIRTH (age) are set in Fortran but don't affect the .sum, so skipped.
 - FIXDG/FIXHTG — ✅ DONE. grincr.f:451-525: DG/HTG·PRM(2) over a species×DBH window, applied
   in `apply_fix_scalers!` (keyword_dispatch.jl) after all growth / before MORTS. TWO things the
