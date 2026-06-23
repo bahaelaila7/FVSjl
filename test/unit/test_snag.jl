@@ -76,6 +76,11 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         pine_left = (sn.den_hard[2] + sn.den_soft[2]) / sn.origden[2]
         @test pine_left < oak_left
 
+        # the fallen snags transferred biomass into the down-wood (CWD) pools
+        @test sum(s.fire.cwd) > 0f0
+        # a 14" oak snag → the 12–20" down-wood size class (6)
+        @test sum(@view s.fire.cwd[6, :, :]) > 0f0
+
         # eventually nearly all fall
         update_snags!(s, 20)
         @test snag_standing_density(s.fire) < 1f0

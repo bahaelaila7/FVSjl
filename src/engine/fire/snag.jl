@@ -66,31 +66,42 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     return
 end
 
+# CWD down-wood size class (1–9) from a stem diameter, matching the FUINI breakpoints
+# (<0.25, .25–1, 1–3, 3–6, 6–12, 12–20, 20–35, 35–50, >50 inches).
+@inline _cwd_size_class(d::Float32) =
+    d < 0.25f0 ? 1 : d < 1f0 ? 2 : d < 3f0 ? 3 : d < 6f0 ? 4 :
+    d < 12f0 ? 5 : d < 20f0 ? 6 : d < 35f0 ? 7 : d < 50f0 ? 8 : 9
+
 """
     update_snags!(s, nyears) -> Float32
 
 Advance every snag cohort `nyears` years (FMSNAG): each year the hard snags decay toward
 soft (`snag_decay_fraction`) and a `snag_fall_density` share falls — split proportionally
-between the hard and soft pools (fmsnag.f:197-221). Returns the total density (stems/ac)
-that fell (i.e. transferred to the coarse-woody-debris pools).
+between the hard and soft pools (fmsnag.f:197-221). The fallen snags transfer into the
+coarse-woody-debris pools (`fire.cwd`, CWD1): the fallen aboveground biomass (Jenkins ×
+fallen density) is added to the down-wood class for the stem DBH and the species' decay
+class. Returns the total density (stems/ac) that fell.
 """
 function update_snags!(s::StandState, nyears::Integer)::Float32
     fs = s.fire; (fs === nothing) && return 0f0
     sn = fs.snags; coef = s.coef
     fallen = 0f0
     @inbounds for i in eachindex(sn.sp)
+        sp = sn.sp[i]
+        a, _, _ = jenkins_biomass(coef, sp, sn.dbh[i])     # aboveground biomass per tree (tons)
+        isz = _cwd_size_class(sn.dbh[i])
+        idc = Int(coef_col(coef, :dkr_cls)[sp])             # decay-rate class
         for _ in 1:nyears
             denttl = sn.den_hard[i] + sn.den_soft[i]
             denttl > 0f0 || break
-            # hard → soft decay
-            shift = min(sn.den_hard[i], sn.den_hard[i] * snag_decay_fraction(coef, sn.sp[i]))
+            shift = min(sn.den_hard[i], sn.den_hard[i] * snag_decay_fraction(coef, sp))
             sn.den_hard[i] -= shift; sn.den_soft[i] += shift
-            # falldown, split proportionally between the hard and soft pools
             denttl = sn.den_hard[i] + sn.den_soft[i]
-            dfall = min(denttl, snag_fall_density(coef, sn.sp[i], sn.dbh[i], sn.origden[i], denttl))
+            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
+            fs.cwd[isz, 2, idc] += a * dfall                # fallen biomass → down-wood pool
             fallen += dfall
         end
     end
