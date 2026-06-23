@@ -29,7 +29,8 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | thinning/harvest keywords (THIN*/SALVAGE/SPECPREF/…) | schedule CUTS + set cut modifiers | 🟡 5 of ~17 methods + 0 of 6 modifiers ported — see the destructured **CUTS** section below for the per-keyword audit |
 | MORTMULT | mortality-rate multiplier (+ DBH window) | ✅ `active_mort_mult` (background rate, D1≤DBH<D2; bit-exact windowed + windowless, test_multipliers.jl) |
 | FIXDG / FIXHTG | one-shot DG/HTG scalers (grincr.f:451) | ✅ `apply_fix_scalers!` (species×DBH window, scales tripled DG/HTG; bit-exact, test_fix_scalers.jl) |
-| MSB / FIXMORT / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
+| HTGSTOP / TOPKILL | top-damage events (htgstp.f) | ✅ `htgstp!` (HTG scale / top-kill + NORMHT/ITRUNC/crown; deterministic bit-exact, test_htgstp.jl) |
+| MSB / FIXMORT / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
 ## NOTRE / SETUP — build records (`notre.f`, `setup.f`)
@@ -253,7 +254,7 @@ drifts from ~cyc5 (regen mortality). See [[fvsjl-modernization-state]].
 | `MPBCUP`/`DFBWIN`/`MISTOE`/`TMCOUP`/`BWECUP` | insect/disease record edits | 🧊 |
 | `FMMAIN` | **FFE fire effects + fire mortality** | 🧊 C7 (the `s10_fire`/`fire_*` divergence) |
 | `BRTREG`/`RDTREG`/`CLAUESTB`/`ESNUTR` | sprout/planted/natural regen + nutrient hook | ⛔ C4 regen |
-| `HTGSTP` | HTGSTOP/TOPKILL keyword height edits | ⛔ keyword (no-op otherwise) |
+| `HTGSTP` | HTGSTOP/TOPKILL keyword height edits | ✅ `htgstp!` (act 110/111; + crown.f negative-ICR bypass in crown_ratio_update!) |
 | `CVGO`/`CVBROW`/`CVCNOP` | canopy cover | 🧊 |
 
 ---

@@ -187,6 +187,9 @@ mutable struct Control
     years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
     multipliers::Vector{GrowthMultiplier} # keyword growth/mortality multipliers (MULTS)
+    htgstp_events::Vector{ScheduledActivity} # HTGSTOP/TOPKILL top-damage events (htgstp.f);
+                                             # icflag = activity (110 HTGSTOP / 111 TOPKILL),
+                                             # params = species,HT1,HT2,PRB,AVEPRB,STDPBR
 end
 
 function Control()
@@ -218,6 +221,7 @@ function Control()
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
+        ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
     )
 end
 

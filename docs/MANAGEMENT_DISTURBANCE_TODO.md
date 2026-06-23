@@ -49,7 +49,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | FIXDG | fix/scale diameter growth | ✅ (one-shot scaler, species×DBH window, scales tripled DG; bit-exact, test_fix_scalers.jl) |
 | FIXHTG | fix/scale height growth | ✅ (one-shot scaler, species×DBH window, scales tripled HTG; bit-exact, test_fix_scalers.jl) |
-| HTGSTOP / TOPKILL | stop height growth / topkill edits | ⛔ |
+| HTGSTOP / TOPKILL | scale height growth / top-kill (htgstp.f) | ✅ (act 110 HTG×PKIL + act 111 top-kill w/ NORMHT/ITRUNC/Behre/crown; deterministic bit-exact, test_htgstp.jl; stochastic path in place) |
 | BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
 | HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
 | CRNMULT | crown-ratio/width multiplier | ⛔ (was missing) |
@@ -156,8 +156,18 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx
   event-monitor var). It never feeds DGF/HTGF/MORTS/DENSE — those use crown RATIO, not width.
   So a FIXCW port changes no .sum growth number; defer until SVS/structure output is in scope.
-- `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume). The
-  next real GROWTH-affecting port after FIXDG/FIXHTG (height growth, upstream of mortality).
+- `HTGSTP` (HTGSTOP/TOPKILL) — ✅ DONE. htgstp! (keyword_dispatch.jl), called in grow_cycle!
+  after TRIPLE/MORTS and before UPDATE (gradd.f:158). act 110 (HTGSTOP) scales HTG by PKIL;
+  act 111 (TOPKILL) sets HT=H·(1−PKIL≤0.8), and for tall trees (H≥25, D≥6) whose Behre top
+  diameter ≥4 marks a permanent broken top (NORMHT/ITRUNC) and cuts the crown ratio (ICR=−NEW).
+  PKIL=BACHLO(AVEPRB,STDPBR), deterministic (=AVEPRB, no RNG) when STDPBR≤0; RANN escape when
+  PRB<1; records walked in species-sorted IND1 order for RNG-exactness when stochastic. Needed a
+  companion fix to crown_ratio_update! — the **negative-ICR bypass** (sn/crown.f:271): a crown
+  already adjusted by topkill/pest models (ICR<0) is restored to +ICR and NOT recomputed that
+  cycle; without it the top-killed trees' crown (hence DG/mortality) drifted and TPA ran ~10% high.
+  Deterministic scenarios (HTGSTOP 0.5×, TOPKILL 0.5× >30') bit-exact every cycle vs live Fortran
+  (test_htgstp.jl). Stochastic (STDPBR>0/PRB<1) path implemented but validated separately; IMC
+  (management code) and ABIRTH (age) are set in Fortran but don't affect the .sum, so skipped.
 - FIXDG/FIXHTG — ✅ DONE. grincr.f:451-525: DG/HTG·PRM(2) over a species×DBH window, applied
   in `apply_fix_scalers!` (keyword_dispatch.jl) after all growth / before MORTS. TWO things the
   earlier buggy attempt missed: (1) it is **ONE-SHOT** (OPDONE) — fires only in the cycle whose

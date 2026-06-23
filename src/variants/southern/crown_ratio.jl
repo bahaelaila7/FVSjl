@@ -54,6 +54,10 @@ function crown_ratio_update!(s::StandState; fint::Float32 = 5f0)
             Aw[sp] = wa[sp]; Bw[sp] = bb; Cw[sp] = cc; seen[sp] = true
         end
         icr_old = t.crown_pct[i]
+        if icr_old < 0   # crown change already computed by the topkill/pest model
+            t.crown_pct[i] = -icr_old   # (sn/crown.f:271): restore sign, bypass the recompute
+            continue
+        end
         d = t.dbh[i]
         x = d > 0f0 ? Float32(isort[i]) / Float32(n) * scale : 0.5f0 * scale
         x = clamp(x, 0.05f0, 0.95f0)

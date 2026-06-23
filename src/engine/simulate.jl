@@ -78,6 +78,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
     end
     triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
+    htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
     n = t.n
     old_cfv2 = Float32[t.cuft_vol[i] for i in 1:n]

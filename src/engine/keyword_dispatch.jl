@@ -222,6 +222,97 @@ function kw_treeszcp!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# HTGSTOP (act 110) / TOPKILL (act 111) top-damage events (htgstp.f). Keyword fields:
+# date, species (0/neg = all/group), HT1, HT2, PRB (damage prob), AVEPRB, STDPBR (BACHLO
+# mean/sd of the kill proportion). Stored as a ScheduledActivity (icflag = act code).
+function kw_htgstp!(s::StandState, rec::KeywordRecord, act::Integer)
+    v = rec.values; pr = rec.present
+    f(i, dflt) = (pr[i] ? Float32(v[i]) : dflt)
+    p = (f(2, 0f0), f(3, 0f0), f(4, 9999f0), f(5, 1f0), f(6, 0f0), f(7, 0f0))
+    push!(s.control.htgstp_events, ScheduledActivity(Int32(nint(v[1])), Int32(act), p))
+    return
+end
+
+"""
+    htgstp!(s; fint)
+
+HTGSTOP / TOPKILL top-damage events (htgstp.f). Runs once per cycle, after TRIPLE/MORTS and
+before UPDATE applies the increments (gradd.f:158). For each event firing this cycle (one-shot,
+matched by date), damage the trees of its species whose height is in (HT1, HT2]:
+  * act 110 (HTGSTOP): scale the height increment HTG by PKIL∈[0,1].
+  * act 111 (TOPKILL): reduce height to H·(1−PKIL) (PKIL≤0.8); for a tall (H≥25, D≥6) tree
+    whose Behre top diameter ≥4 set NORMHT/ITRUNC (permanent broken top); cut the crown ratio.
+PKIL = BACHLO(AVEPRB, STDPBR) — deterministic (= AVEPRB, no RNG) when STDPBR≤0; a RANN escape
+draw skips a tree when PRB<1. Records are visited in species-sorted (IND1) order so the RNG
+stream matches FVS when the event is stochastic.
+"""
+function htgstp!(s::StandState; fint::Float32 = 5f0)
+    isempty(s.control.htgstp_events) && return s
+    period = round(Int, s.control.year)
+    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
+    cyc_end = cyc_start + period
+    t = s.trees; bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    species_sort!(s)
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    for ev in s.control.htgstp_events
+        (cyc_start <= ev.year < cyc_end || (ev.year < cyc_start && s.control.cycle == 0)) || continue
+        isp = round(Int, ev.params[1]); ht1 = ev.params[2]; ht2 = ev.params[3]
+        prb = ev.params[4]; aveprb = ev.params[5]; stdpbr = ev.params[6]
+        act = ev.icflag
+        sp1 = isp <= 0 ? 1 : isp; sp2 = isp <= 0 ? MAXSP : isp
+        @inbounds for sp in sp1:sp2
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]
+            for k in i1:i2
+                i = ind1[k]
+                t.tpa[i] <= 0f0 && continue
+                h = t.height[i]
+                (h <= ht1 || h > ht2) && continue
+                if prb <= 0.99999f0
+                    rann!(s.rng) > prb && continue
+                end
+                pkil = bachlo(s.rng, aveprb, stdpbr)
+                pkil <= 0f0 && continue
+                if act == 110
+                    pkil > 1f0 && (pkil = 1f0)
+                    t.ht_growth[i] *= pkil
+                else
+                    pkil > 0.8f0 && (pkil = 0.8f0)
+                    topk = h * pkil; toph = h - topk
+                    itrc2 = floor(Int32, toph * 100f0 + 0.5f0)
+                    if t.trunc[i] > 0                       # already topkilled: lower the truncation
+                        t.trunc[i] > itrc2 && (t.trunc[i] = itrc2)
+                        t.height[i] = toph
+                        continue
+                    end
+                    brk = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+                    d = t.dbh[i] * brk
+                    if !(h < 25f0 || d < 6f0)              # tall enough to maybe break permanently
+                        af = t.cuft_vol[i] / (0.00545415f0 * d * d * h)
+                        af = 0.44244f0 - (0.99167f0 / af) - 1.43237f0 * log(af) +
+                             1.68581f0 * sqrt(af) - 0.13611f0 * af * af
+                        dtk = topk / h
+                        dtk = (dtk / (af * dtk + (1f0 - af))) * d
+                        if dtk >= 4f0                       # permanent broken top
+                            t.trunc[i] = itrc2
+                            t.norm_ht[i] = floor(Int32, h * 100f0 + 0.5f0)
+                        end
+                    end
+                    t.height[i] = toph
+                    iod = t.crown_pct[i]                    # crown reduction (skip if bug-adjusted <0)
+                    if iod >= 0
+                        cn = (Float32(iod) / 100f0) * h - h + toph
+                        new = floor(Int32, cn / toph * 100f0 + 0.5f0)
+                        new < 5 && (new = Int32(5))
+                        t.crown_pct[i] = -new
+                    end
+                end
+            end
+        end
+    end
+    return s
+end
+
 """
     active_multiplier(control, kind, sp, year) -> Float32
 
@@ -409,6 +500,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREESZCP"; kw_treeszcp!(s, rec)     # per-species size cap (SIZCAP)
         elseif kw == "FIXDG";    kw_mult!(s, rec, :fixdg)  # one-shot DG scaler (grincr.f:451)
         elseif kw == "FIXHTG";   kw_mult!(s, rec, :fixhtg) # one-shot HTG scaler (grincr.f:492)
+        elseif kw == "HTGSTOP";  kw_htgstp!(s, rec, 110)   # top-damage: scale height growth
+        elseif kw == "TOPKILL";  kw_htgstp!(s, rec, 111)   # top-damage: top-kill (htgstp.f)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet
