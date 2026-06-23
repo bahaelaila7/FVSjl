@@ -490,6 +490,22 @@ mutable struct DbsState
 end
 DbsState() = DbsState(false, "FVSOut.db", nothing, Dict{Symbol,Bool}())
 
+"""
+Standing-dead (snag) records (FFE FMCOM), structure-of-arrays. Each entry is a cohort of
+snags created when trees died: `sp` species, `dbh`, `den_hard`/`den_soft` the densities
+(stems/ac) still standing in the hard / soft decay states, `origden` the density at
+creation, `year` the year of death. Snags fall and decay each cycle (`update_snags!`).
+"""
+mutable struct SnagList
+    sp::Vector{Int32}
+    dbh::Vector{Float32}
+    den_hard::Vector{Float32}     # DENIH — initially-hard snags still standing
+    den_soft::Vector{Float32}     # DENIS — soft (decayed) snags still standing
+    origden::Vector{Float32}      # DEND  — original density at creation
+    year::Vector{Int32}           # YRDEAD
+end
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[])
+
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
     covtyp::Int32                      # cover type = species with the most basal area (COVTYP)
@@ -508,9 +524,10 @@ mutable struct FireState
     burnseas::Int32                    # burn season 1–4                 (BURNSEAS, PRMS6)
     flmult::Float32                    # flame-length multiplier         (FLAMEADJ)
     crburn::Float32                    # crown-fire fraction             (FLAMEADJ)
+    snags::SnagList                    # standing-dead snag cohorts
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
-                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0)
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList())
 
 mutable struct EconState
     active::Bool

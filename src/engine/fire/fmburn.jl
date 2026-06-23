@@ -34,7 +34,7 @@ share). No-op unless FFE is active.
 """
 function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmois::Integer = 1,
                  psburn::Float32 = 100f0, mortcode::Integer = 1, burnseas::Integer = 1,
-                 flmult::Float32 = 1f0, crburn::Float32 = 0f0)::FireResult
+                 flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0)::FireResult
     fs = s.fire
     (fs === nothing || !fs.active) && return FireResult(0f0, 0f0, 0f0, 0f0)
     fmcba!(s)                                            # fuel pools, cover, percent cover
@@ -63,6 +63,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             killed += curkil
+            add_snag!(fs, sp, d, curkil, year)         # fire-killed trees become standing snags
         end
     end
     return FireResult(killed, flame, r.byram, sch)

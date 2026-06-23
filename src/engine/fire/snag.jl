@@ -49,3 +49,53 @@ Annual fraction of standing-hard snags of species `ksp` that transition to soft 
 """
 @inline snag_decay_fraction(coef::SpeciesCoefficients, ksp::Integer) =
     coef_col(coef, :snag_decayx)[ksp]
+
+"""
+    add_snag!(fs, sp, dbh, density, year)
+
+Create a standing-dead snag cohort (FMSADD) for `density` stems/acre of species `sp`,
+DBH `dbh`, that died in `year`. New snags start fully hard. No-op for non-positive
+density.
+"""
+function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer)
+    density > 0f0 || return
+    sn = fs.snags
+    push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
+    push!(sn.den_hard, density); push!(sn.den_soft, 0f0)
+    push!(sn.origden, density);  push!(sn.year, Int32(year))
+    return
+end
+
+"""
+    update_snags!(s, nyears) -> Float32
+
+Advance every snag cohort `nyears` years (FMSNAG): each year the hard snags decay toward
+soft (`snag_decay_fraction`) and a `snag_fall_density` share falls — split proportionally
+between the hard and soft pools (fmsnag.f:197-221). Returns the total density (stems/ac)
+that fell (i.e. transferred to the coarse-woody-debris pools).
+"""
+function update_snags!(s::StandState, nyears::Integer)::Float32
+    fs = s.fire; (fs === nothing) && return 0f0
+    sn = fs.snags; coef = s.coef
+    fallen = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        for _ in 1:nyears
+            denttl = sn.den_hard[i] + sn.den_soft[i]
+            denttl > 0f0 || break
+            # hard → soft decay
+            shift = min(sn.den_hard[i], sn.den_hard[i] * snag_decay_fraction(coef, sn.sp[i]))
+            sn.den_hard[i] -= shift; sn.den_soft[i] += shift
+            # falldown, split proportionally between the hard and soft pools
+            denttl = sn.den_hard[i] + sn.den_soft[i]
+            dfall = min(denttl, snag_fall_density(coef, sn.sp[i], sn.dbh[i], sn.origden[i], denttl))
+            dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
+            dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
+            sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
+            fallen += dfall
+        end
+    end
+    return fallen
+end
+
+"Total standing snag density (stems/ac) currently in the snag list."
+snag_standing_density(fs::FireState) = sum(fs.snags.den_hard) + sum(fs.snags.den_soft)

@@ -109,10 +109,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         if yr == Int(s.fire.fire_year)
             fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
                     psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
-                    burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn)
+                    burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
+                    year = yr)
             s.fire.fire_year = Int32(0)                    # one-shot
             compute_density!(s)
         end
+    end
+    # FFE: age the standing snag cohorts (falldown + decay) over the cycle.
+    if s.fire !== nothing && s.fire.active && !isempty(s.fire.snags.sp)
+        update_snags!(s, round(Int, fint))
     end
     apply_volume_overrides!(s; fint = fint)  # VOLUME/BFVOLUME merch-standard overrides (volkey.f)
     t = s.trees

@@ -1,5 +1,7 @@
 # Tests for the snag falldown + decay dynamics (FFE F7, FMSFALL + DECAYX).
-using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coef_col
+using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coef_col,
+             add_snag!, update_snags!, snag_standing_density, FireState, StandState,
+             init_blockdata!, init_merch_standards!, fmburn!
 
 @testset "snag falldown + decay (FMSFALL)" begin
     coef = coefficients(Southern())
@@ -49,5 +51,48 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         @test snag_decay_fraction(coef, 5)  ≈ 0.07f0   # fast snag class 1
         @test snag_decay_fraction(coef, 65) ≈ 0.21f0   # average snag class 2
         @test snag_decay_fraction(coef, 2)  ≈ 0.35f0   # slow snag class 3 (redcedar)
+    end
+
+    @testset "snag list: creation + per-cycle aging" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant)
+        s.fire = FireState()
+        # add two cohorts; a zero-density add is a no-op
+        add_snag!(s.fire, 65, 14f0, 40f0, 2003)
+        add_snag!(s.fire, 5,  10f0, 25f0, 2003)
+        add_snag!(s.fire, 33,  8f0,  0f0, 2003)        # no-op
+        @test length(s.fire.snags.sp) == 2
+        @test snag_standing_density(s.fire) ≈ 65f0
+        @test all(s.fire.snags.den_soft .== 0f0)       # new snags start hard
+
+        # age 5 years: some fall (transfer to CWD), some hard→soft
+        fell = update_snags!(s, 5)
+        @test fell > 0f0
+        @test snag_standing_density(s.fire) < 65f0
+        @test snag_standing_density(s.fire) ≈ 65f0 - fell
+        @test sum(s.fire.snags.den_soft) > 0f0          # decay produced soft snags
+        # the fast-falling pine cohort loses a larger fraction than the oak
+        sn = s.fire.snags
+        oak_left = (sn.den_hard[1] + sn.den_soft[1]) / sn.origden[1]
+        pine_left = (sn.den_hard[2] + sn.den_soft[2]) / sn.origden[2]
+        @test pine_left < oak_left
+
+        # eventually nearly all fall
+        update_snags!(s, 20)
+        @test snag_standing_density(s.fire) < 1f0
+    end
+
+    @testset "fire creates snags (fmburn! integration)" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
+        s.plot.forest_type = Int32(520)
+        s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+        t = s.trees; t.n = 2
+        t.species[1]=Int32(65); t.dbh[1]=14f0; t.height[1]=72f0; t.tpa[1]=30f0; t.crown_pct[1]=Int32(40)
+        t.species[2]=Int32(22); t.dbh[2]= 4f0; t.height[2]=18f0; t.tpa[2]=30f0; t.crown_pct[2]=Int32(50)
+        s.fire = FireState(); s.fire.active = true
+        res = fmburn!(s; wind = 20f0, fmois = 1, year = 2003)
+        @test res.killed > 0f0
+        # the killed TPA became standing snags
+        @test snag_standing_density(s.fire) ≈ res.killed
+        @test all(s.fire.snags.year .== 2003)
     end
 end
