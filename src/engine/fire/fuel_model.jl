@@ -21,6 +21,25 @@ const _TONS_TO_LBFT2 = 0.04591f0              # tons/acre → lb/ft²
     x < x1 ? y1 : x >= x2 ? y2 : y1 + (y2 - y1) / (x2 - x1) * (x - x1)
 
 """
+    standard_fuel_model(coef, model) -> (load, sav, depth, mext)
+
+Rothermel inputs for one standard fire-behavior fuel model (1–13, the Anderson models,
+fminit.f / `fire_fuel_models.csv`). `load[2,4]`/`sav[2,4]` are loads (lb/ft²) and surface-
+area-to-volume by [1=dead/2=live, class]; the 10-hr / 100-hr / dead-herb / live-herb SAVs
+take the FFE constant defaults (109 / 30 / 1500 / 1500). `depth` is bed depth (ft), `mext`
+the dead moisture of extinction.
+"""
+function standard_fuel_model(coef::SpeciesCoefficients, model::Integer)
+    m = @view coef.ffe_fuel_models[model, :]   # [sav_1hr, sav_lwoody, l_1hr,l_10,l_100,l_lwoody,l_lherb, depth, mext]
+    load = zeros(Float32, 2, 4); sav = zeros(Float32, 2, 4)
+    load[1, 1] = m[3]; load[1, 2] = m[4]; load[1, 3] = m[5]      # dead 1/10/100-hr
+    load[2, 1] = m[6]; load[2, 2] = m[7]                          # live woody / herb
+    sav[1, 1] = m[1]; sav[1, 2] = 109f0; sav[1, 3] = 30f0; sav[1, 4] = 1500f0
+    sav[2, 1] = m[2]; sav[2, 2] = 1500f0
+    return (load, sav, m[8], m[9])
+end
+
+"""
     build_dynamic_fuel_model(s, mois) -> (load, sav, depth, mext)
 
 Construct the SN dynamic surface fuel model (FMCFMD3, fmcfmd2.f) from the stand's fuel

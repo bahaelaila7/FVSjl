@@ -52,6 +52,7 @@ struct SpeciesCoefficients
     forest_type_codes::Vector{Int32}                 # valid FIA forest-type codes (FTYPE)
     ffe_fuel_dead::Matrix{Float32}                   # FFE dead surface fuels [9 forest types × 11 size classes] (FUINI)
     ffe_fuel_live::Matrix{Float32}                   # FFE live herb/shrub fuels [4 live types × 2] (FULIV)
+    ffe_fuel_models::Matrix{Float32}                 # standard fire-behavior fuel models [13 models × params] (fminit.f)
 end
 
 "Per-species coefficient column by its descriptive name."
@@ -128,6 +129,9 @@ function load_species_coefficients(datadir::AbstractString)
     ffe_fuel_dead = Float32[parse(Float32, dr[i][j]) for i in 1:length(dr), j in 3:length(hd)]
     hl, lr = _read_csv(joinpath(datadir, "fire_fuel_live.csv"))
     ffe_fuel_live = Float32[parse(Float32, lr[i][j]) for i in 1:length(lr), j in 3:length(hl)]
+    # standard fire-behavior fuel models (Anderson 13): numeric columns (skip model id + name)
+    hm, mr = _read_csv(joinpath(datadir, "fire_fuel_models.csv"))
+    ffe_fuel_models = Float32[parse(Float32, mr[i][j]) for i in 1:length(mr), j in 3:length(hm)]
 
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
@@ -144,7 +148,7 @@ function load_species_coefficients(datadir::AbstractString)
                                site_idx, site_grp, grp_rep, forests, habitat,
                                crown_species, crown_eqs,
                                fia_group, fia_stock_eq, stock_b0, stock_b1, forest_type_codes,
-                               ffe_fuel_dead, ffe_fuel_live)
+                               ffe_fuel_dead, ffe_fuel_live, ffe_fuel_models)
 end
 
 "Cached coefficient load, one per variant (filled by each variant's `coefficients`)."

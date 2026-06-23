@@ -80,8 +80,11 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     scenarios bit-exact; `fmcba!` is validated standalone.)
 - **F4 — fuel model classification (FMCFMD):** stand condition → fire-behavior fuel model (static +
   dynamic weighting). **This is the now-confirmed root cause of stand 4's post-fire divergence.**
-  - **F4-data — REMAINING:** the standard fire-behavior fuel-model database (the Anderson 13 + the
-    models FMCFMD selects: 5, 8, 9, 10, …) — per-model loads/SAV/depth/moisture-of-extinction → CSV.
+  - **F4-data — ✅ DONE:** the Anderson-13 standard fuel-model database (`fire_fuel_models.csv` from
+    fminit.f:184+, per-model loads/SAV/depth/M_ext) loaded into `SpeciesCoefficients.ffe_fuel_models`;
+    `standard_fuel_model(coef, m)` returns Rothermel inputs. Validated: the weighted 10(96%)+5(4%) blend
+    under a canopy-reduced wind gives flame ≈5.5 (severe) / 3.2 (moderate) — vs the Fortran PotFire 4.7 /
+    2.9, and FVSjl's wrong-path dynamic ≈2.2. 8 tests; suite 3357→3365.
   - **F4-select — REMAINING:** `FMCFMD` (fmcfmd.f) — by `IFFEFT` (`ffe_forest_type`, ported) + the
     SMALL/LARGE fuel amounts + fuel moisture (`fuel_moisture`, ported), pick standard models with
     weights `EQWT` (e.g. hardwood + SMALL>6 ⇒ model 5; else moisture-weighted 8/9; …). Returns up to

@@ -7,7 +7,8 @@
 # implementation must satisfy — plus determinism.
 using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
              scorch_height, crown_volume_scorched, fire_tree_mortality, coefficients, Southern,
-             build_dynamic_fuel_model, StandState, init_blockdata!, init_merch_standards!, FireState, fmcba!
+             build_dynamic_fuel_model, StandState, init_blockdata!, init_merch_standards!, FireState, fmcba!,
+             standard_fuel_model
 
 @testset "Rothermel surface fire (FMFINT)" begin
     # a single dead 1-hr fuel (grass-like): load, SAV, depth, Mx, moisture
@@ -60,6 +61,35 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
         z = zeros(Float32, 2, 4)
         r = rothermel_surface_fire(z, z, 1f0, 0.12f0, z; wind = 5f0)
         @test r.byram == 0f0 && r.flame == 0f0
+    end
+
+    @testset "standard fuel models (Anderson 13)" begin
+        coef = coefficients(Southern())
+        # database values (fminit.f) for the models snt01 stand 4 uses
+        l10, s10, d10, m10 = standard_fuel_model(coef, 10)   # timber litter + understory
+        @test l10[1, 1] ≈ 0.13820f0 && l10[1, 2] ≈ 0.09183f0 && l10[1, 3] ≈ 0.23003f0
+        @test l10[2, 1] ≈ 0.09183f0                          # live woody
+        @test s10[1, 1] == 2000f0 && s10[1, 2] == 109f0 && s10[1, 3] == 30f0
+        @test d10 == 1.0f0 && m10 ≈ 0.25f0
+        l5, _, d5, m5 = standard_fuel_model(coef, 5)         # brush
+        @test l5[1, 1] ≈ 0.04591f0 && d5 == 2.0f0 && m5 ≈ 0.20f0
+
+        # model 10 carries a stronger fire than the sparse model-5 brush at equal conditions
+        mois = fuel_moisture(1)
+        r10 = rothermel_surface_fire(l10, s10, d10, m10, mois; wind = 2f0)
+        r5  = rothermel_surface_fire(l5, standard_fuel_model(coef, 5)[2], d5, m5, mois; wind = 2f0)
+        @test r10.byram > 0f0 && r10.flame > 0f0
+        @test r10.byram > r5.byram
+
+        # the weighted 10(96%)+5(4%) blend under a canopy-reduced wind reproduces the
+        # Fortran PotFire flame magnitude (~3–5 ft), not the dynamic model's low ~2 ft.
+        fwind = 20f0 * fire_wind_reduction(87.6f0)
+        flame = 0f0
+        for (fm, wt) in ((10, 0.96f0), (5, 0.04f0))
+            ld, sv, dp, mx = standard_fuel_model(coef, fm)
+            flame += rothermel_surface_fire(ld, sv, dp, mx, mois; wind = fwind).flame * wt
+        end
+        @test 3.5f0 < flame < 7f0
     end
 
     @testset "fuel moisture scenario (FMMOIS)" begin
