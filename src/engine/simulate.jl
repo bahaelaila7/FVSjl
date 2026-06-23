@@ -91,6 +91,34 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
 end
 
 """
+    _maybe_burn!(s, fint) -> fire_mort
+
+Run a scheduled SIMFIRE if this cycle's year matches `fire.fire_year` (FMMAIN). Operates
+on the current (post-MORTS, post-TRIPLE) records at cycle-start dimensions, and returns
+the periodic mortality VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-
+start cubic volume), for the caller to add to OMORT. No-op (returns 0) otherwise.
+"""
+function _maybe_burn!(s::StandState, fint::Float32)::Float32
+    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return 0f0
+    yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
+    yr == Int(s.fire.fire_year) || return 0f0
+    t = s.trees
+    pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
+    pre_cfv = Float32[t.cuft_vol[i] for i in 1:t.n]
+    fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
+            psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
+            burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
+            year = yr)
+    fm = 0f0
+    @inbounds for i in 1:length(pre_tpa)
+        fm += (pre_tpa[i] - t.tpa[i]) * pre_cfv[i]
+    end
+    s.fire.fire_year = Int32(0)            # one-shot
+    compute_density!(s)
+    return fm
+end
+
+"""
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
 Advance the stand by one growth cycle: recompute density, grow diameters/heights
@@ -113,27 +141,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         (s.econ.cycle_cost > 0f0 || s.econ.cycle_rev > 0f0) &&
             push!(s.econ.harvests, (Float32(yr), s.econ.cycle_cost, s.econ.cycle_rev))
     end
-    # FFE: a scheduled SIMFIRE burns this cycle's year — kills trees before growth (FMMAIN).
-    # The fire kill is periodic MORTALITY (booked at the cycle-start volume, like OMORT), so
-    # capture each record's pre-fire TPA/volume and tally the lost volume into `fire_mort`.
-    fire_mort = 0f0
-    if s.fire !== nothing && s.fire.active && s.fire.fire_year != 0
-        yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
-        if yr == Int(s.fire.fire_year)
-            tf = s.trees
-            pre_tpa = Float32[tf.tpa[i] for i in 1:tf.n]
-            pre_cfv = Float32[tf.cuft_vol[i] for i in 1:tf.n]
-            fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
-                    psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
-                    burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
-                    year = yr)
-            @inbounds for i in 1:length(pre_tpa)
-                fire_mort += (pre_tpa[i] - tf.tpa[i]) * pre_cfv[i]
-            end
-            s.fire.fire_year = Int32(0)                    # one-shot
-            compute_density!(s)
-        end
-    end
+    # FFE: a scheduled SIMFIRE burns this cycle (FMMAIN). The fire kill is periodic
+    # MORTALITY (booked at the cycle-start volume, like OMORT) — added to `mort` below.
+    fire_mort = _maybe_burn!(s, fint)
     # FFE: age the standing snag cohorts (falldown + decay) over the cycle.
     if s.fire !== nothing && s.fire.active && !isempty(s.fire.snags.sp)
         update_snags!(s, round(Int, fint))
@@ -154,8 +164,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
     mortality!(s, s.variant; fint = fint)  # MORTS on the ORIGINAL records (FVS order)
     g = s.plot.gross_space
-    # Mortality volume (OMORT) is accounted on the originals, before tripling.
-    mort = fire_mort                       # fire kill (booked above) + this cycle's MORTS deaths
+    # Mortality volume (OMORT): the fire kill (booked above) plus this cycle's MORTS deaths,
+    # accounted on the originals before tripling.
+    mort = fire_mort
     @inbounds for i in 1:nlive
         mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
     end
