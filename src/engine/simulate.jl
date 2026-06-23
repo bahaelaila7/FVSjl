@@ -65,12 +65,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
     trip = Int(s.control.cycle) < Int(s.control.icl4)
-    stash = diameter_growth!(s, s.variant; tripling = trip)  # DGs only; no records yet
-    height_growth!(s, s.variant)
+    stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
+    height_growth!(s, s.variant; scale = fint / 5f0)         # HTG scaled to the cycle length
     small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
-    mortality!(s, s.variant)               # MORTS on the ORIGINAL records (FVS order)
+    mortality!(s, s.variant; fint = fint)  # MORTS on the ORIGINAL records (FVS order)
     g = s.plot.gross_space
     # Mortality volume (OMORT) is accounted on the originals, before tripling.
     mort = 0f0

@@ -217,7 +217,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         d < dthresh && continue
         pr = t.tpa[i]
         bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-        g = (t.diam_growth[i] / bark) * (fint / 5f0)
+        g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
         sd2sq += pr * (d * d + 2f0 * d * g + g * g)
         sdq0  += pr * d * d
         sumdr0  += pr * d^1.605f0
@@ -281,7 +281,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
                 d = t.dbh[i]; d < dthresh && continue
                 pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = (t.diam_growth[i] / bark) * (fint / 5f0)
+                g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
                 if zeide
                     sdr += pr * (d + g)^1.605f0
                 else
@@ -306,7 +306,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             d = t.dbh[i]
             # G is the OUTSIDE-bark, period-scaled increment (sn/morts.f:690), same as
             # the BAMAX BA reconstruction below — NOT the raw inside-bark diam_growth.
-            g = (t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)) * (fint / 5f0)
+            g = t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)   # cycle growth (already fint-scaled)
             if (d + g) >= sc[sp, 1]
                 kc = min(t.tpa[i] * sc[sp, 2] * fint / 5f0, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
@@ -325,7 +325,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             for i in 1:n
                 d = t.dbh[i]
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = (t.diam_growth[i] / bark) * (fint / 5f0)
+                g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]

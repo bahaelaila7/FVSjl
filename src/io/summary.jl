@@ -77,6 +77,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         sample_wt = nothing, variant::AbstractString = "SN",
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true)
     ncyc = Int(s.control.ncycle)             # rows = ncyc + 1 (inventory + each cycle)
+    per = round(Int, s.control.year)         # cycle length (YR/IFINT; TIMEINT) — default 5
+    per < 1 && (per = period)
     g = s.plot.gross_space
     sw = sample_wt === nothing ? g : sample_wt
     if header
@@ -88,12 +90,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         compute_forest_type!(s)
         last = c == ncyc
         # main columns reflect the start-of-cycle (pre-thin) stand
-        r = summary_row(s; period = last ? 0 : period, total_removed_merch = cum_rem_merch)
+        r = summary_row(s; period = last ? 0 : per, total_removed_merch = cum_rem_merch)
         if !last
             # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
             # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
-            rem = cuts!(s; fint = Float32(period))
+            rem = cuts!(s; fint = Float32(per))
             if rem.tpa > 0f0
                 compute_density!(s)
                 r.rem_tpa  = di(rem.tpa / g);  r.rem_cuft  = di(rem.cuft / g)
@@ -104,7 +106,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_qmd = round(stand_qmd(s); digits = 1)
                 cum_rem_merch += rem.mcuft / g
             end
-            gr = grow_cycle!(s)              # advances cycle, returns period accr/mort
+            gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)
         end
@@ -133,9 +135,11 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     qmd  = round(stand_qmd(s); digits = 1)
     t = s.trees
     vtot(f) = dt(sum((getfield(t, f)[i] * t.tpa[i] for i in 1:t.n); init = 0f0) / g)  # init for bare/empty stands
-    # Year/age advance by the period length each cycle from the inventory (IY/IAGE).
+    # Year/age advance by the CYCLE LENGTH each cycle from the inventory (IY/IAGE). Use the
+    # actual period (s.control.year, set by TIMEINT) — NOT the `period` arg, which is 0 on the
+    # final (no-growth) row and would wrongly default the last year/age to a 5-yr step.
     cyc = Int(s.control.cycle)
-    interval = period > 0 ? period : 5
+    interval = round(Int, s.control.year); interval < 1 && (interval = 5)
     yr = Int(s.control.cycle_year[1]) + cyc * interval
     age = Int(s.plot.stand_age) + cyc * interval
     mcuft = vtot(:merch_cuft_vol)

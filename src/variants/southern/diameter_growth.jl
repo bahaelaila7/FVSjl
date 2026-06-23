@@ -299,9 +299,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)
 
-    # calibration VMLT (autcor LSTART: new=old=floor(YR))
-    yr = Int(floor(s.control.year)); yr < 1 && (yr = 1)
-    _, vmlt = autcor(yr, yr); c.vmlt = vmlt
+    # calibration VMLT (autcor LSTART: new=old=YR, the measurement base period = 5 for SN —
+    # NOT the cycle length FINT, which TIMEINT can change; the projection VMLT below uses FINT).
+    _, vmlt = autcor(5, 5); c.vmlt = vmlt
 
     # per-species DBH range + endpoint predictions over measured trees
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
@@ -539,7 +539,10 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
             i = ind1[k]
             bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
-            dds  = exp(wk2[i]) * xbai                       # BAIMULT: DDS·XDMULT
+            # DDS is scaled to the cycle length: SCALE = FINT/YR (dgdriv.f:325/715), where
+            # FINT = the cycle period (`sfint`) and YR = the SN measurement base period (5yr).
+            # snt01 (period 5) ⇒ 5/5 = 1 (unchanged); a 10-yr cycle ⇒ ×2 the DDS (≈2× DG).
+            dds  = exp(wk2[i]) * xbai * (sfint / 5f0)       # BAIMULT: DDS·XDMULT
             bnd(x) = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], x, s.control.sp_size_cap)
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)

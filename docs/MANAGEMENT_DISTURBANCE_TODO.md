@@ -96,7 +96,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ✅ event_monitor.jl (AST evaluator); stand 2 first 2 thins bit-exact; 3rd = class-boundary residual |
 | COMPUTE | event-monitor variable assignment | ⛔ |
-| CYCLEAT / TIMEINT | explicit cycle boundaries / interval | ⛔ |
+| TIMEINT | cycle length (period scaling) | 🟡 (kw_timeint! uniform path; DDS·FINT/5 + HTG·FINT/5 + mortality^FINT + year/age step; snt01 bit-exact, TIMEINT-10 TPA ≤8 / volume ≤2% — calibrated-species residual; test_timeint.jl). CYCLEAT + per-cycle GROWTH deferred |
 | ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL; ⛔ TALLY counts / SPROUT |
 
 ## 8. Disturbance models (C7/C8 extensions — owned there)
@@ -211,17 +211,15 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
 (see DIVERGENCES.md §1). What is left, by kind of work:
 
 **A. Genuinely-applied, .sum-affecting — real ports (ranked most-upstream → downstream):**
-- **Cycle calendar** — `TIMEINT` / `CYCLEAT` / `GROWTH` (per-cycle length). FVSjl hardcodes
-  period=5. ⚠ NOT plumbing-only (2026-06-23 scoping): although grow_cycle!(fint)/height
-  (scale=FINT/5)/mortality/autcor all take the period, the **diameter-growth DDS is
-  period-INDEPENDENT in all the visible SN code** (dgf.f/dgdriv.f/dgcons.f/update.f have no
-  FINT scaling of DDS or DG), YET a 10-yr cycle grows DBH exactly 2× a 5-yr cycle (empirical:
-  tree grew 11.5→12.3 over 10yr vs 11.5→11.9 over 5yr; cuft 2479@2000 ≈ base 2481). GRINCR is
-  called ONCE per cycle (no sub-stepping in fvs.f/tregro.f), and the displayed DIB_INCR is the
-  SAME (1.00) for both. So the period enters the diameter growth through a HIDDEN mechanism
-  (a global TIME/FINT the DDS path consumes, or DGCONS recomputed per-cycle) that must be
-  traced before porting — this is a real investigation, not a quick win. MOST upstream but
-  blocked on this.
+- ~~**Cycle calendar** — `TIMEINT`~~ 🟡 RESOLVED & IMPLEMENTED (uniform path). The hidden
+  period-scaling mechanism was traced via a Fortran DEBUG dump: the DDS is FINT-independent, but
+  dgdriv.f:325/715 applies SCALE=FINT/YR ⇒ DDS·(FINT/5) (YR=5 SN base); a 10-yr cycle ⇒ ×2 DG.
+  Ported: diameter_growth! scales DDS by sfint/5; height by FINT/5; mortality^FINT; year/age step.
+  Companion fixes: the morts grown-DBH G must NOT re-apply FINT/5 (diam_growth is already cycle-
+  scaled); the calibration VMLT uses YR=5 not FINT; the .sum last-row year uses the real period.
+  snt01 (period 5) bit-exact; TIMEINT-10 TPA ≤8, volume ≤2% (calibrated-species residual, like the
+  DGSCOR tail). REMAINING: full YR-vs-FINT calibration split for bit-exactness; per-cycle GROWTH/
+  CYCLEAT boundaries.
 - ~~**Tripling control** — `NOTRIPLE` / `NUMTRIP`~~ ✅ DONE — wired through s.control.icl4
   (default 2; NOTRIPLE→0, NUMTRIP n→n). Was a real gap: FVSjl ignored NOTRIPLE (20 cols diverged)
   AND the bare-PLANT scenarios were silently passing for the wrong reason (FVSjl wrongly tripled

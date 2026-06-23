@@ -54,6 +54,18 @@ function kw_numcycle!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# OPTION 2 — TIMEINT (vbase/initre.f:533): cycle length (IY). Field 1 = cycle index (0/absent =
+# all cycles), field 2 = period length in years (default 10). Sets s.control.year (YR/IFINT), the
+# cycle length threaded through the growth models — DDS/HTG scale by FINT/5, autcor/year-age by it.
+# UNIFORM path only (all cycles same length); per-cycle lengths (field 1 > 0) deferred.
+function kw_timeint!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    len = pr[2] ? Float32(v[2]) : 10f0
+    cyc = pr[1] ? nint(v[1]) : 0
+    cyc <= 0 && (s.control.year = len)
+    return
+end
+
 # OPTION 16 — INVYEAR (initre.f:895).
 function kw_invyear!(s::StandState, rec::KeywordRecord)
     rec.present[1] && (s.control.cycle_year[1] = nint(rec.values[1]))
@@ -606,6 +618,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         nkw += 1
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "NUMCYCLE"; kw_numcycle!(s, rec)
+        elseif kw == "TIMEINT";  kw_timeint!(s, rec)      # cycle length (period); default 5
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)
         elseif kw == "SITECODE"; kw_sitecode!(s, rec)
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
