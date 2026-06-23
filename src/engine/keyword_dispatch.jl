@@ -423,6 +423,18 @@ function _set_form!(s::StandState, b0::Vector{Float32}, b1::Vector{Float32}, rec
     return
 end
 
+# FERTILIZE (ffin.f) — schedule a fertilizer application. Fields: 1=date, 2=N (forced to 200, the
+# only representable amount), 3=P / 4=K (ignored), 5=efficacy multiplier (default 1). Only the
+# efficacy feeds the response (FFERT), so we carry just that (activity 260, params[1]=efficacy).
+function kw_fertiliz!(s::StandState, rec::KeywordRecord)
+    v = rec.values
+    yr = nint(rec.present[1] ? v[1] : 1f0)
+    eff = rec.present[5] ? Float32(v[5]) : 1f0
+    push!(s.control.fertilize_events,
+          ScheduledActivity(Int32(yr), Int32(260), (eff, 0f0, 0f0, 0f0, 0f0, 0f0)))
+    return
+end
+
 # MCFDLN (sdefln.f, option 39) — set the CUBIC form-model coefficients CFLA0/CFLA1 (activates the
 # log-linear merch-cubic form/defect correction in the volume path).
 kw_mcfdln!(s::StandState, rec::KeywordRecord) =
@@ -871,6 +883,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MCDEFECT"; kw_mcdefect!(s, rec)      # cubic-volume defect curve (sdefet.f/vols.f)
         elseif kw == "BFDEFECT"; kw_bfdefect!(s, rec)      # board-foot defect curve (sdefet.f/vols.f)
         elseif kw == "VOLEQNUM"; kw_voleqnum!(s, rec)      # cubic volume-equation override (initre.f:5061)
+        elseif kw == "FERTILIZ"; kw_fertiliz!(s, rec)      # fertilizer growth response (ffin.f/ffert.f)
         elseif kw == "MCFDLN";   kw_mcfdln!(s, rec)        # cubic form-model coefs CFLA0/CFLA1 (sdefln.f)
         elseif kw == "BFFDLN";   kw_bffdln!(s, rec)        # board form-model coefs BFLA0/BFLA1 (sdefln.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)

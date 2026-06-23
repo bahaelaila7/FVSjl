@@ -71,7 +71,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | keyword | effect | status |
 |---|---|---|
 | PRUNE | pruning (option 108, act 249) | 🧊 .sum-INERT in SN (verified: no TPA/BA/TopHt/QMD change) — feeds ecopls.f pruned-log volume (C8 econ), the crown edit doesn't reach SN growth |
-| FERTILIZ / FFERT | fertilizer growth response | ⛔ |
+| FERTILIZ / FFERT | fertilizer growth response (ffin.f/ffert.f) | ✅ **DONE** (kw_fertiliz! → Control.fertilize_events; `fertilizer_growth!` in grow_cycle! after TRIPLE, grincr.f:564): 200-lb-N response boosts each tree's DDS by RDDS=exp(0.1108·lnD+0.003004·BAL/ln(D+1)) (cap 2.6) and HTG by 1.1626, for the IFLEN of the cycle's years within 10 yr of application, scaled by efficacy; carries over via ifert_date/ifert_eff. Bit-exact vs Fortran (test_fertiliz.jl: BA 126→138 at 2000). SN is outside the calibrated DF/GF range — Fortran warns but applies it, so we match |
 | COMPRESS | record compression to a target (comprs.f act=250) | ⛔ |
 | ADDFILE | (option 22) redirect input to another unit | ⚪ NOT a tree-add — it just switches IREAD to a Fortran file UNIT (an include-file mechanism); no clean FVSjl mapping (FVSjl uses filenames, not units). 'ADDTREES' is not an SN keyword |
 | MANAGED | managed-stand flag (DGF kplant term) | ✅ |

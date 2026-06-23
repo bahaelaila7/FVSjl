@@ -217,6 +217,9 @@ mutable struct Control
     sp_bf_vol_eq::Vector{String}             # board-foot NVEL equation per species (VEQNNB) — snapshot
                                              # of vol_eq taken BEFORE VOLEQNUM, so board feet keeps the
                                              # default equation when only the cubic eq is overridden
+    fertilize_events::Vector{ScheduledActivity} # FERTILIZE (ffin.f): icflag 260, params[1]=efficacy
+    ifert_date::Int32                        # year of the last fertilizer application (FFCOM IFFDAT; −1=none)
+    ifert_eff::Float32                       # efficacy of that application (FFCOM FFPRMS(4))
 end
 
 function Control()
@@ -259,6 +262,7 @@ function Control()
         ScheduledActivity[], false,                             # volume_events (VOLUME/BFVOLUME), merch_init
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
+        ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
     )
 end
 

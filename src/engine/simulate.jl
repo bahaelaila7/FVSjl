@@ -49,6 +49,48 @@ end
 const TRIPLE_CYCLE_LIMIT = 2
 
 """
+    fertilizer_growth!(s; fint)
+
+FERTILIZE / FFERT (ffert.f): the 200-lb-N fertilizer response — a multiplicative boost to each
+tree's squared-diameter change (DDS) and height growth for up to 10 years after application,
+applied for the `iflen` of the cycle's years that fall in that window and scaled by the application
+efficacy. Carries over across cycles via `ifert_date`/`ifert_eff`. No-op until a FERTILIZE keyword
+fires (so default stands are unchanged). SN is outside the model's calibrated DF/GF range — Fortran
+warns but still applies the (species-agnostic) factor, so we match.
+"""
+function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
+    c = s.control
+    (isempty(c.fertilize_events) && c.ifert_date < 0) && return s
+    yr = Int(c.cycle_year[1]) + Int(c.cycle) * round(Int, fint)
+    @inbounds for ev in c.fertilize_events           # a fert scheduled this cycle becomes active (OPDONE)
+        Int(ev.year) == yr && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
+    end
+    c.ifert_date < 0 && return s
+    ifint  = round(Int, fint)
+    ifstrt = yr - Int(c.ifert_date)
+    ifstrt > 10 && return s                          # > 10 yr since application ⇒ effect gone
+    iflen  = min(ifstrt + ifint, 10) - ifstrt        # years of fertilizer effect within this cycle
+    iflen <= 0 && return s
+    feff = c.ifert_eff
+    t = s.trees; ba = s.plot.basal_area
+    ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]; d <= 0f0 && continue
+        dib = d * bark_ratio(ba_a, ba_b, t.species[i], d)
+        bal = (1f0 - t.crown_ratio[i] / 100f0) * ba   # basal area in larger trees (PCT in crown_ratio)
+        rdds = exp(0.1108f0 * log(d) + 0.003004f0 * bal / log(d + 1f0))
+        rdds > 2.6f0 && (rdds = 2.6f0)
+        dg  = t.diam_growth[i]
+        dds = 2f0 * dib * dg + dg * dg                # squared-diameter change this cycle
+        ddsit = (dds / 5f0) * (rdds * iflen * feff + ifint - iflen)
+        t.diam_growth[i] = sqrt(dib * dib + ddsit * 5f0 / fint) - dib
+        htgit = (t.ht_growth[i] / 5f0) * (1.1626f0 * iflen * feff + ifint - iflen)
+        t.ht_growth[i]   = htgit * 5f0 / fint
+    end
+    return s
+end
+
+"""
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
 Advance the stand by one growth cycle: recompute density, grow diameters/heights
@@ -83,6 +125,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
     end
     triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
+    fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
     n = t.n
