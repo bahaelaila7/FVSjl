@@ -61,6 +61,7 @@ using FVSjl
     include("unit/test_fmburn.jl")              # FFE-F5b: fire event driver (FMBURN/FMEFF) → kill TPA
     include("unit/test_carbon.jl")              # FFE-F8: standing live-tree carbon pools (FMCRBOUT)
     include("unit/test_snag.jl")                # FFE-F7: snag falldown + decay dynamics (FMSFALL)
+    include("unit/test_econ.jl")                # C8: ECON economic-analysis core (eccalc.f)
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6
