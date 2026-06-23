@@ -39,7 +39,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | CUTEFF | default cutting efficiency | ⛔ |
 | TCONDMLT | thin-condition multiplier | ⛔ |
 | YARDLOSS | yarding-loss → scales removed merch/saw/bdft by (1−prlost) **and feeds the FFE down-wood/snag/crown fuel pools** | 🧊 **rolled into C7** (substantive effect is fuel-pool routing; standalone .sum effect nil; its `@test_broken` is the post-thin DGSCOR tail, not yardloss) |
-| MINHARV | minimum-harvest threshold (skip cut below it) | ⛔ (was missing) |
+| MINHARV | minimum-harvest thresholds — cancel a cut whose total removal is below ANY minimum (cuts.f:400/1556) | ✅ **DONE** (kw_thin! icflag 200 → cuts! PASS 1 sets ba_min/tcf_min/cf_min/scf_min/bf_min; after the methods, if BA/total/merch/sawlog-cubic/board-feet removed < the thresholds, restore the pre-thin TPA snapshot + return no removal). Bit-exact vs Fortran (test_minharv.jl: THINBBA + BAMIN=100 cancels the cut → identical to no-thin). Default 0 ⇒ no-op |
 | TFIXAREA | treatment fixed-area / pro-rate | ⛔ (was missing) |
 | SPGROUP | species groups (vbase/initre.f:4726) referenced by a −N species field | ✅ (kw_spgroup! builds the table; the ISPCC<0 branch is wired into FIXDG/FIXHTG/FIXMORT/HTGSTOP/TOPKILL/MORTMULT/CRNMULT/TREESZCP/SPECPREF via sp_field_matches AND the species-filtering thins THINDBH/SDI/RDEN/CC/PT/QFA via _cut_eligible; bit-exact, test_spgroup.jl) |
 

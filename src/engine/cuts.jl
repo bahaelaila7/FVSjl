@@ -112,10 +112,18 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     end
     isempty(acts) && return _NO_REMOVAL
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
-    # method runs (cuts.f processes SPECPREF/SPLEAVE/… then the thin in the cycle).
+    # method runs (cuts.f processes SPECPREF/MINHARV/… then the thin in the cycle).
+    cc = s.control
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
+        if act.icflag == Int32(200)        # MINHARV (cuts.f:400): set the harvest-minimum thresholds
+            cc.ba_min = act.params[1]; cc.tcf_min = act.params[2]; cc.cf_min = act.params[3]
+            cc.scf_min = act.params[4]; cc.bf_min = act.params[5]
+        end
     end
+    # MINHARV gate is live whenever any threshold is set (persists across cycles once set).
+    minharv_on = cc.ba_min > 0f0 || cc.tcf_min > 0f0 || cc.cf_min > 0f0 || cc.scf_min > 0f0 || cc.bf_min > 0f0
+    tpa_snap = minharv_on ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
     # SETPTHIN (icflag 248) prescription this cycle → (point, metric) read by THINPT.
     # (same-cycle prescription; cross-cycle persistence would need control state.)
     pt_point = Int32(0); pt_metric = Int32(0); pt_set = false
@@ -148,6 +156,21 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         rem = (tpa = rem.tpa + r.tpa, cuft = rem.cuft + r.cuft,
                mcuft = rem.mcuft + r.mcuft, scuft = rem.scuft + r.scuft,
                bdft = rem.bdft + r.bdft)
+    end
+    # MINHARV (cuts.f:1556): if the cycle's total removal falls below ANY harvest minimum
+    # (BA / total / merch / sawlog cubic / board feet), the whole cut is CANCELED — restore the
+    # pre-thin TPA and report no removal. Default thresholds are 0, so the gate is a no-op then.
+    if applied && minharv_on
+        t = s.trees
+        ba_rem = 0f0
+        @inbounds for i in 1:length(tpa_snap)
+            ba_rem += (tpa_snap[i] - t.tpa[i]) * t.dbh[i]^2 * _BA_PER_TREE
+        end
+        if !(ba_rem >= cc.ba_min && rem.cuft >= cc.tcf_min && rem.mcuft >= cc.cf_min &&
+             rem.scuft >= cc.scf_min && rem.bdft >= cc.bf_min)
+            @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
+            return _NO_REMOVAL
+        end
     end
     if applied
         push!(s.control.years_cut, yr)
