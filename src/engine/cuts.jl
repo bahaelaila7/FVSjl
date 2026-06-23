@@ -117,7 +117,9 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
         act.icflag == Int32(206) && _apply_spleave!(s, act)   # SPLEAVE: per-species leave flag
-        act.icflag == Int32(202) && (cc.total_wt = act.params[1])  # TCONDMLT: tree-condition weight (TCWT)
+        if act.icflag == Int32(202)        # TCONDMLT (cuts.f:1424): TCWT·IMC + SPCLWT·ISPECL weights
+            cc.total_wt = act.params[1]; cc.special_wt = act.params[2]
+        end
         if act.icflag == Int32(200)        # MINHARV (cuts.f:400): set the harvest-minimum thresholds
             cc.ba_min = act.params[1]; cc.tcf_min = act.params[2]; cc.cf_min = act.params[3]
             cc.scf_min = act.params[4]; cc.bf_min = act.params[5]

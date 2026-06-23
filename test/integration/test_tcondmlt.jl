@@ -1,12 +1,14 @@
-# test_tcondmlt.jl — TCONDMLT tree-condition cut weight (cuts.f:1074/1424) vs live Fortran.
+# test_tcondmlt.jl — TCONDMLT tree-condition cut weights (cuts.f:1074/1424) vs live Fortran.
 #
-# TCONDMLT sets TCWT, a weight added to the RDPSRT cut-priority key: WK2 = ±DBH + IORDER(SPECPREF)
-# + TCWT·IMC + SPCLWT·ISPECL. IMC is the tree's mortality/condition code (1..3 for live trees), so a
-# positive TCWT removes worse-condition trees first, regardless of size. The scenario marks the sugar
-# maples with IMC=3 in the .tre and thins from below (THINBBA) with TCWT=100, so those trees are cut
-# first. Checks:
-#   1. NON-VACUOUS — the result differs from the same thin without the TCONDMLT line;
-#   2. FORTRAN — TPA/BA/cubic columns match live Fortran (board feet within Scribner noise).
+# TCONDMLT sets two weights added to the RDPSRT cut-priority key:
+#   WK2 = ±DBH + IORDER(SPECPREF) + TCWT·IMC + SPCLWT·ISPECL
+# TCWT (PRM 1) weights the mortality/condition code IMC (1..3 live); SPCLWT (PRM 2) weights the
+# special-status code ISPECL (damage code 55). A positive weight removes the flagged trees first,
+# regardless of size. Two scenarios, each marking the sugar maples and thinning from below (THINBBA):
+#   * tcondmlt — IMC=3 + TCWT=100 (condition weight);
+#   * spclwt   — special-status code 55 (ISPECL=9) + SPCLWT=100 (special-status weight).
+# Each must (1) differ from the same thin without the TCONDMLT line, and (2) match live Fortran on
+# TPA/BA/cubic columns (board feet within Scribner noise).
 
 using Test, FVSjl
 
@@ -19,30 +21,31 @@ _tc_base(path) = [split(l) for l in eachline(path)
 _tccol(r, c) = parse(Float64, r[c])
 
 @testset "TCONDMLT condition-weighted thin vs Fortran" begin
-    key = joinpath(_TC_DIR, "tcondmlt.key")
-    sav = joinpath(_TC_DIR, "tcondmlt.sum.save")
-    tre = joinpath(_TC_DIR, "tcondmlt.tre")
-    if !isfile(key) || !isfile(sav)
-        @test_skip "tcondmlt scenario not available"
-    else
-        jl = _tc_rows(FVSjl.run_keyfile(key; faithful = true))
+    for stem in ("tcondmlt", "spclwt")
+        key = joinpath(_TC_DIR, stem * ".key"); sav = joinpath(_TC_DIR, stem * ".sum.save")
+        tre = joinpath(_TC_DIR, stem * ".tre")
+        if !isfile(key) || !isfile(sav)
+            @test_skip "$stem scenario not available"; continue
+        end
+        @testset "$stem" begin
+            jl = _tc_rows(FVSjl.run_keyfile(key; faithful = true))
 
-        # 1. NON-VACUOUS: without TCONDMLT the thin ranks by size only → a different cut.
-        notc = tempname() * ".key"
-        write(notc, join(filter(l -> !startswith(l, "TCONDMLT"), readlines(key)), "\n") * "\n")
-        cp(tre, replace(notc, ".key" => ".tre"); force = true)
-        notcrows = _tc_rows(FVSjl.run_keyfile(notc; faithful = true))
-        @test jl != notcrows
+            # 1. NON-VACUOUS: without TCONDMLT the thin ranks by size only → a different cut.
+            notc = tempname() * ".key"
+            write(notc, join(filter(l -> !startswith(l, "TCONDMLT"), readlines(key)), "\n") * "\n")
+            cp(tre, replace(notc, ".key" => ".tre"); force = true)
+            @test jl != _tc_rows(FVSjl.run_keyfile(notc; faithful = true))
 
-        # 2. matches live Fortran (cubic columns bit-exact; board feet within Scribner noise).
-        ft = _tc_base(sav)
-        @test length(jl) == length(ft)
-        if length(jl) == length(ft)
-            for i in 1:length(jl)
-                for c in (3, 4, 9, 10, 11)
-                    @test abs(_tccol(jl[i], c) - _tccol(ft[i], c)) <= 2
+            # 2. matches live Fortran (cubic columns bit-exact; board feet within Scribner noise).
+            ft = _tc_base(sav)
+            @test length(jl) == length(ft)
+            if length(jl) == length(ft)
+                for i in 1:length(jl)
+                    for c in (3, 4, 9, 10, 11)
+                        @test abs(_tccol(jl[i], c) - _tccol(ft[i], c)) <= 2
+                    end
+                    @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1 + 0.005 * _tccol(ft[i], 12)
                 end
-                @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1 + 0.005 * _tccol(ft[i], 12)
             end
         end
     end
