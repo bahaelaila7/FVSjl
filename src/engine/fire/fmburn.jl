@@ -42,11 +42,19 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     t = s.trees; coef = s.coef
     mois = fuel_moisture(fmois)
     fwind = wind * fire_wind_reduction(fs.percov)        # 20-ft wind → midflame
-    load, sav, depth, mext = build_dynamic_fuel_model(s, mois)
-    r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind)
-    flame = r.flame * flmult
-    # scorch height (Van Wagner) from the Byram intensity
-    sch = r.byram > 0f0 ? scorch_height(r.byram, atemp, fwind) : 0f0
+    # SN surface fire (FMCFMD + FMDYN + FMFINT): select the weighted standard fuel models
+    # for the stand and integrate Rothermel over them, summing the weighted flame & Byram.
+    models = select_fuel_models(s, mois)
+    flame_raw = 0f0; byram = 0f0
+    for (fm, w) in models
+        load, sav, depth, mext = standard_fuel_model(coef, fm)
+        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind)
+        flame_raw += r.flame * w
+        byram += r.byram * w
+    end
+    flame = flame_raw * flmult
+    # scorch height (Van Wagner) from the (weighted) Byram intensity
+    sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
     killed = 0f0
     if mortcode != 0
@@ -69,5 +77,5 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest
     carbon_released = apply_fire_consumption!(fs, mois)
-    return FireResult(killed, flame, r.byram, sch, carbon_released)
+    return FireResult(killed, flame, byram, sch, carbon_released)
 end

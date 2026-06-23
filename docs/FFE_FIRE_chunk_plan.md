@@ -85,14 +85,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     `standard_fuel_model(coef, m)` returns Rothermel inputs. Validated: the weighted 10(96%)+5(4%) blend
     under a canopy-reduced wind gives flame ≈5.5 (severe) / 3.2 (moderate) — vs the Fortran PotFire 4.7 /
     2.9, and FVSjl's wrong-path dynamic ≈2.2. 8 tests; suite 3357→3365.
-  - **F4-select — REMAINING:** `FMCFMD` (fmcfmd.f) — by `IFFEFT` (`ffe_forest_type`, ported) + the
-    SMALL/LARGE fuel amounts + fuel moisture (`fuel_moisture`, ported), pick standard models with
-    weights `EQWT` (e.g. hardwood + SMALL>6 ⇒ model 5; else moisture-weighted 8/9; …). Returns up to
-    MXFMOD=5 `(model, weight)` pairs.
-  - **F4-weight — REMAINING:** FMFINT loops the weighted models (`rothermel_surface_fire` per model,
-    `flame += 0.45·(byramt/60)^.46 · FWT`, fmfint.f:508) — replace the single custom-89 call in `fmburn!`.
-  - **DEFULMOD** (fmin.f opt 39) redefines a fuel model's parameters; it only matters once F4 uses the
-    standard models (and FUELMODL/IFLOGIC=2 would force a static one — snt01 stand 4 does not).
+  - **F4-select — ✅ DONE:** `select_fuel_models` (`fuel_model.jl`) ports FMCFMD (candidate `EQWT` by
+    `ffe_forest_type`/FMSNFT + dead 100-hr moisture `mois[1,4]`) **and** FMDYN (the SMALL/LARGE down-wood
+    point's inverse-perpendicular-distance weighting over the model iso-lines, incl. collinear-group
+    sharing). `_small_large_fuel` = classes 1–3 + litter(10) vs 4–9 (fmtret.f:382). Returns up to
+    MXFMOD=5 `(model, weight)` pairs. Confirmed the SN active path is FMCFMD (not FMCFMD3): fmburn.f:400
+    overrides for VARACD='SN' when IFLOGIC=0.
+  - **F4-weight — ✅ DONE:** `fmburn!` now loops the weighted standard models (FMFINT) — per model
+    `rothermel_surface_fire` → `flame += r.flame·w`, `byram += r.byram·w` — replacing the wrong custom-89
+    `build_dynamic_fuel_model` call. **Validated on snt01 stand 4 (2003 fire): flame 3.84 vs Fortran 3.9,
+    scorch 15.65 vs 15.9, models 10(99%)+12(1%) — essentially exact.**
+  - **DEFULMOD** (fmin.f opt 39) redefines a fuel model's parameters; the snt01 stand-4 DEFULMOD targets
+    model **20** (not 10/12), so it does not affect that fire. Only matters under FUELMODL/IFLOGIC=2.
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
   FLAMEADJ; the SIMFIRE trigger + fire-type (surface/passive/active crown) logic.
   - **F5-core:** ✅ **DONE (the Rothermel model)** — `rothermel_surface_fire`
@@ -133,13 +137,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     - (a) ✅ **DONE** — the bare-`THINDBH 3.` gap was a **cycle-number date** bug (blank date → IDT=1,
       a cycle number; FVSjl matched it as year 0 so it never fired). Fixed in cuts.jl/kw_thin!; snt01
       stand 4 is now **bit-exact vs Fortran through 2003** (pre-fire). Commit 8e9d92a.
-    - (b) **REMAINING — the fuel-model PATH (root cause scoped, not the mortality math).** The Fortran's
-      PotFire report shows stand 4's 2003 fire uses **standard fuel models 10 (96%) + 5 (4%)** (flame
-      2.9–4.7 ft). FVSjl feeds its *custom model-89* (`build_dynamic_fuel_model`) straight to Rothermel →
-      flame 2.2 → kills 96 vs Fortran's ~138. Default `IFLOGIC=0` (fminit.f:824) + no FUELMODL ⇒ the fire
-      runs **`FMCFMD`** (fmburn.f:397, fmcfmd.f), which maps the stand `(IFFEFT, SMALL/LARGE fuel, fuel
-      moisture)` to the *closest weighted standard fuel models* — NOT model-89. FMCFMD3 (model 89) is only
-      built, not used here. **The fix is the F4 chunk below**, then FMFINT weights the selected models.
+    - (b) ✅ **DONE — the fuel-model PATH (F4-select + F4-weight) + two downstream fixes.** Replaced the
+      wrong custom model-89 path with FMCFMD/FMDYN-selected weighted standard models + FMFINT weighting.
+      The actual-fire **Burn Conditions Report** (not the severe-weather PotFire report) shows stand 4's
+      2003 fire is models **10(99%)+12(1%)**, midflame wind 1.0, **flame 3.9, scorch 15.9** — FVSjl now
+      computes flame 3.84 / scorch 15.65 (essentially exact). Two further fixes were needed for the kill:
+      (i) `fire_mortality_adjust` wrongly applied the LS/ON/NE season/maple rules to SN (fmeff.f:278-326
+      are variant-gated; **SN has none** bar the dbh≤1&csv>50 rule in `fmburn!`) → made it a no-op;
+      (ii) the fire kill wasn't booked as periodic MORTALITY (the OMORT snapshot ran *after* the fire) →
+      `grow_cycle!` now tallies the pre-fire-volume of fire-killed TPA into `mort`. **Result: snt01 stand
+      4 post-fire TPA is bit-exact (240→107→104→101 vs Fortran), MORT vol 223 vs 224.** Residual: a small
+      accretion/BA divergence (2008 BA 81 vs 78) from the exact per-tree kill *distribution* (crown-ratio/
+      CSV precision + the pre-fire internal tree state) — the remaining F5b-validate item.
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized

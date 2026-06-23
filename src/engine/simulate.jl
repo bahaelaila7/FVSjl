@@ -114,13 +114,22 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
             push!(s.econ.harvests, (Float32(yr), s.econ.cycle_cost, s.econ.cycle_rev))
     end
     # FFE: a scheduled SIMFIRE burns this cycle's year — kills trees before growth (FMMAIN).
+    # The fire kill is periodic MORTALITY (booked at the cycle-start volume, like OMORT), so
+    # capture each record's pre-fire TPA/volume and tally the lost volume into `fire_mort`.
+    fire_mort = 0f0
     if s.fire !== nothing && s.fire.active && s.fire.fire_year != 0
         yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
         if yr == Int(s.fire.fire_year)
+            tf = s.trees
+            pre_tpa = Float32[tf.tpa[i] for i in 1:tf.n]
+            pre_cfv = Float32[tf.cuft_vol[i] for i in 1:tf.n]
             fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
                     psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
                     burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
                     year = yr)
+            @inbounds for i in 1:length(pre_tpa)
+                fire_mort += (pre_tpa[i] - tf.tpa[i]) * pre_cfv[i]
+            end
             s.fire.fire_year = Int32(0)                    # one-shot
             compute_density!(s)
         end
@@ -146,7 +155,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     mortality!(s, s.variant; fint = fint)  # MORTS on the ORIGINAL records (FVS order)
     g = s.plot.gross_space
     # Mortality volume (OMORT) is accounted on the originals, before tripling.
-    mort = 0f0
+    mort = fire_mort                       # fire kill (booked above) + this cycle's MORTS deaths
     @inbounds for i in 1:nlive
         mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
     end

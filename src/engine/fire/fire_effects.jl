@@ -105,18 +105,13 @@ end
 """
     fire_mortality_adjust(pmort, sp, dbh, burnseas) -> Float32
 
-SN species/size/season adjustments to the base fire mortality `pmort` (FMEFF,
-fmeff.f:281-300): small maples (<4") and very small hardwoods (≤1") are fully killed;
-in an early-season burn (`burnseas` ≤ 2) hardwood mortality is reduced — oaks ≥2.5"
-halved, other hardwoods ×0.8. Applied in Fortran order (the season reduction can act on
-the maple's 1.0 before the ≤1" rule restores it).
+Variant-specific post-logistic mortality adjustments (FMEFF, fmeff.f:278-326). **For SN
+(and CS) these do not apply** — the maple-<4″, hardwood-≤1″ and early-season (`burnseas`
+≤ 2) reductions are gated by `IF (VARACD .EQ. 'LS'/'ON'/'NE')` and are skipped in the SN
+variant. The only universal SN rule is `dbh ≤ 1″ & csv > 50% ⇒ 1.0` (fmeff.f:330), which
+needs the scorch volume and is applied in `fmburn!`. This is a no-op kept as the seam
+where a future LS/NE/ON port would re-introduce those branches.
 """
 @inline function fire_mortality_adjust(pmort::Float32, sp::Integer, dbh::Float32, burnseas::Integer)::Float32
-    p = pmort
-    (sp == 18 || sp == 19 || sp == 26 || sp == 27 || sp == 51 || sp == 52) && dbh < 4f0 && (p = 1f0)
-    if burnseas <= 2 && sp > 14
-        p = (30 <= sp <= 36) ? (dbh >= 2.5f0 ? p / 2f0 : p * 0.8f0) : p * 0.8f0
-    end
-    (sp > 14 && dbh <= 1f0) && (p = 1f0)
-    return p
+    return pmort
 end

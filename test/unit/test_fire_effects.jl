@@ -104,21 +104,14 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
         @test 0f0 <= p <= 1f0
     end
 
-    @testset "SN mortality season/size adjustments" begin
-        # small maple (<4") fully killed regardless of base
-        @test fire_mortality_adjust(0.3f0, 26, 3.0f0, 3) == 1f0
-        @test fire_mortality_adjust(0.3f0, 26, 5.0f0, 3) == 0.3f0   # ≥4" maple unchanged (late season)
-        # very small hardwood (≤1") fully killed
-        @test fire_mortality_adjust(0.2f0, 65, 1.0f0, 3) == 1f0
-        # early-season (burnseas≤2): oak ≥2.5" halved, other hardwood ×0.8
-        @test fire_mortality_adjust(0.8f0, 30, 6.0f0, 1) ≈ 0.4f0    # oak ≥2.5 → /2
-        @test fire_mortality_adjust(0.8f0, 30, 2.0f0, 1) ≈ 0.8f0*0.8f0  # oak <2.5 → ×0.8
-        @test fire_mortality_adjust(0.5f0, 65, 8.0f0, 1) ≈ 0.5f0*0.8f0  # other hardwood ×0.8
-        # late season (burnseas>2): no hardwood reduction
-        @test fire_mortality_adjust(0.5f0, 65, 8.0f0, 3) == 0.5f0
-        # softwood (sp≤14) untouched by the hardwood rules
-        @test fire_mortality_adjust(0.5f0, 5, 8.0f0, 1) == 0.5f0
-        # Fortran order: small maple set to 1.0, early-season ×0.8, then >1" so stays 0.8
-        @test fire_mortality_adjust(0.3f0, 26, 3.0f0, 1) ≈ 0.8f0
+    @testset "SN has no FMEFF season/size adjustments" begin
+        # The maple-<4″, hardwood-≤1″ and early-season reductions in fmeff.f are gated by
+        # IF (VARACD .EQ. 'LS'/'ON'/'NE') and do NOT apply to SN — fire_mortality_adjust is
+        # a no-op for every species/size/season (fmeff.f:278-326). The only universal SN
+        # rule (dbh≤1 & csv>50 ⇒ 1.0, fmeff.f:330) lives in fmburn!, not here.
+        for (sp, d, seas) in ((26, 3.0f0, 3), (65, 1.0f0, 3), (30, 6.0f0, 1),
+                              (30, 2.0f0, 1), (65, 8.0f0, 1), (5, 8.0f0, 1), (26, 3.0f0, 1))
+            @test fire_mortality_adjust(0.3f0, sp, d, seas) == 0.3f0
+        end
     end
 end
