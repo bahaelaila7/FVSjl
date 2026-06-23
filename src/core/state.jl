@@ -32,6 +32,16 @@ end
 ScheduledActivity(year, icflag, params) =
     ScheduledActivity(Int32(year), Int32(icflag), params, 0f0)
 
+# GrowthMultiplier — a keyword growth/mortality multiplier (MULTS, base/mults.f).
+# `kind` ∈ (:bai,:htg,:regh,:mort,:regd); applies to `species` (0 = all) from `year`
+# onward (the most recent matching one wins). `value` is the per-species multiplier.
+struct GrowthMultiplier
+    kind::Symbol
+    year::Int32
+    species::Int32        # 0 = all species
+    value::Float32
+end
+
 # Event-monitor expression AST node (concrete types + evaluator in event_monitor.jl).
 abstract type EvNode end
 
@@ -170,6 +180,7 @@ mutable struct Control
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
     years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
+    multipliers::Vector{GrowthMultiplier} # keyword growth/mortality multipliers (MULTS)
 end
 
 function Control()
@@ -200,6 +211,7 @@ function Control()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
+        GrowthMultiplier[],                                     # multipliers (MULTS)
     )
 end
 

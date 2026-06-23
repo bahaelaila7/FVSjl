@@ -516,10 +516,14 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     covmlt, vmlt = autcor(yr, yr)
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
+    # BAIMULT (MULTS kind 1): per-species diameter-growth multiplier scaling DDS
+    # (dgdriv.f XDGROW=ln(XDMULT) added to ln(DDS) ⇒ DDS·XDMULT).
+    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
 
     @inbounds for sp in 1:MAXSP
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
+        xbai = active_multiplier(s.control, :bai, sp, cur_year)
         vardg = c.vardg[sp]
         evarp1 = (sqrt(1f0 + 4f0 * vardg * pvmlt) + 1f0) / 2f0
         sig1   = sqrt(log(max(evarp1, 1f0 + eps(Float32))))
@@ -535,7 +539,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
             i = ind1[k]
             bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
-            dds  = exp(wk2[i])                              # xdgrow = log(XDMULT)=0
+            dds  = exp(wk2[i]) * xbai                       # BAIMULT: DDS·XDMULT
             bnd(x) = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], x, s.control.sp_size_cap)
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)

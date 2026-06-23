@@ -127,6 +127,36 @@ function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     return
 end
 
+# Growth/mortality multipliers (BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT — MULTS,
+# base/mults.f). Field 1 = date, field 2 = species (0 = all), field 3 = multiplier.
+function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
+    v = rec.values
+    push!(s.control.multipliers,
+          GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[2])), Float32(v[3])))
+    return
+end
+
+"""
+    active_multiplier(control, kind, sp, year) -> Float32
+
+The growth/mortality multiplier in effect for species `sp` at the cycle `year`
+(MULTS): the most recent matching keyword wins, a species-specific one beating an
+all-species (`species==0`) one of the same date. Returns 1.0 when none apply (the
+common case — short-circuited).
+"""
+function active_multiplier(c::Control, kind::Symbol, sp::Integer, year::Integer)
+    isempty(c.multipliers) && return 1f0
+    val = 1f0; bestyr = typemin(Int32); bestspec = false
+    @inbounds for m in c.multipliers
+        (m.kind === kind && (m.species == 0 || m.species == sp) && m.year <= year) || continue
+        spec = m.species != 0
+        if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
+            val = m.value; bestyr = m.year; bestspec = spec
+        end
+    end
+    return val
+end
+
 # THINQFA (option 141, ICFLAG 17): Q-factor diameter-distribution thin — a TWO-record
 # keyword (initre.f:5981). Line 1: [year, loDBH, hiDBH, species, Qfactor, classWidth,
 # target]; line 2: a single integer for the target units (≤0 BA, ==1 TPA, >1 SDI → 0/1/2).
@@ -285,6 +315,11 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SPECPREF"; kw_thin!(s, rec, Int32(201))   # cut modifier: species preference
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)
         elseif kw == "THINPT";   kw_thin!(s, rec, Int32(15))    # point thin (residual + class + dir)
+        elseif kw == "BAIMULT";  kw_mult!(s, rec, :bai)   # diameter-growth (BA-increment) multiplier
+        elseif kw == "HTGMULT";  kw_mult!(s, rec, :htg)   # height-growth multiplier
+        elseif kw == "MORTMULT"; kw_mult!(s, rec, :mort)  # mortality-rate multiplier
+        elseif kw == "REGHMULT"; kw_mult!(s, rec, :regh)  # regen height-growth multiplier
+        elseif kw == "REGDMULT"; kw_mult!(s, rec, :regd)  # regen diameter-growth multiplier
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

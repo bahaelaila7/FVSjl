@@ -66,15 +66,19 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
     rhyxs_v = sd[:ht_relht_yxs]; rhr_v = sd[:ht_relht_r]; rhb_v = sd[:ht_relht_b]
     montane = !isempty(p.eco_unit) && p.eco_unit[1] == 'M'
     avh = p.avg_height
+    # HTGMULT (MULTS kind 2): per-species height-growth multiplier — htgf.f:163,260 apply
+    # XHT at HTG = HTG·XHT·SCALE·EXP(HTCON). cur_year = inventory year + cycle·period.
+    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
     @inbounds for i in 1:t.n
         sp = t.species[i]; hti = t.height[i]
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
+        xht = active_multiplier(s.control, :htg, sp, cur_year)
         si = p.sp_site_index[sp]
         htmax = htcalc_htmax(bc, sp, si, montane)
         htcon = c.htg_cor[sp]
         if htmax - hti <= 1f0
-            t.ht_growth[i] = 0.10f0 * scale * exp(htcon)
+            t.ht_growth[i] = 0.10f0 * xht * scale * exp(htcon)
             continue
         end
         aget = htcalc_age(bc, sp, si, hti, montane)
@@ -90,7 +94,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         hgmdrh = HTGF_RHK * (1f0 + fctrkx * exp(fctrrb * fctrxb))^fctrm
         htgmod = clamp(0.25f0 * hgmdcr + 0.75f0 * hgmdrh, 0.1f0, 2f0)
         htg = max(htg1 * htgmod, 0.1f0)
-        t.ht_growth[i] = htg * scale * exp(htcon)
+        t.ht_growth[i] = htg * xht * scale * exp(htcon)
     end
     return s
 end
