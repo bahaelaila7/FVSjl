@@ -332,6 +332,33 @@ function kw_fixmort!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# VOLUME (volkey.f:9915) — override the CUBIC merch standards for a species (0=all, <0=group).
+# Keyword fields after the date: 2=species, 3=DBHMIN, 4=TOPD, 5=STMP, 6=FRMCLS, 7=METHC,
+# 8=SCFMIND, 9=SCFTOPD, 10=SCFSTMP. FRMCLS/METHC are not used by the SN R8 Clark taper path
+# (it has no form-class or method selector), so we carry only the 7 standards the model reads:
+# species + DBHMIN/TOPD/STMP/SCFMIND/SCFTOPD in params, SCFSTMP in aux.
+function kw_volume!(s::StandState, rec::KeywordRecord)
+    v = rec.values
+    isp = Float32(nint(v[2]))
+    push!(s.control.volume_events,
+          ScheduledActivity(Int32(nint(v[1])), Int32(217),
+              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9])),
+              Float32(v[10])))
+    return
+end
+
+# BFVOLUME (volkey.f:9905) — override the BOARD-FOOT merch standards for a species.
+# Fields after the date: 2=species, 3=BFMIND, 4=BFTOPD, 5=BFSTMP, 6=FRMCLS, 7=METHB
+# (FRMCLS/METHB unused by the R8 Clark path).
+function kw_bfvolume!(s::StandState, rec::KeywordRecord)
+    v = rec.values
+    isp = Float32(nint(v[2]))
+    push!(s.control.volume_events,
+          ScheduledActivity(Int32(nint(v[1])), Int32(218),
+              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), 0f0, 0f0), 0f0))
+    return
+end
+
 """
     apply_fixmort!(s, killed, n, fint)
 
@@ -710,6 +737,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "HTGSTOP";  kw_htgstp!(s, rec, 110)   # top-damage: scale height growth
         elseif kw == "TOPKILL";  kw_htgstp!(s, rec, 111)   # top-damage: top-kill (htgstp.f)
         elseif kw == "FIXMORT";  kw_fixmort!(s, rec)       # forced-mortality override (morts.f:781)
+        elseif kw == "VOLUME";   kw_volume!(s, rec)        # cubic merch-standard override (volkey.f)
+        elseif kw == "BFVOLUME"; kw_bfvolume!(s, rec)      # board-foot merch-standard override (volkey.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP

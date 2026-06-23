@@ -181,6 +181,9 @@ mutable struct Control
     sp_scf_dbhmin::Vector{Float32}#                                      (SCFMIND)
     sp_scf_topd::Vector{Float32} #                                       (SCFTOPD)
     sp_scf_stump::Vector{Float32}#                                       (SCFSTMP)
+    sp_bf_dbhmin::Vector{Float32}#  board-foot min merch DBH              (BFMIND)
+    sp_bf_topd::Vector{Float32}  #  board-foot merch top diameter         (BFTOPD)
+    sp_bf_stump::Vector{Float32} #  board-foot stump height               (BFSTMP)
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
@@ -199,6 +202,10 @@ mutable struct Control
     compute_defs::Vector{Tuple{Int32,String,EvNode}} # COMPUTE event-monitor variable definitions
                                              # (start year, NAME, parsed RHS expression AST)
     compute_vars::Dict{String,Float32}       # current COMPUTE variable values (EVMON user vars)
+    volume_events::Vector{ScheduledActivity} # VOLUME/BFVOLUME merch-standard overrides (volkey.f);
+                                             # icflag = activity (217 VOLUME cubic / 218 BFVOLUME bd-ft),
+                                             # params = species, then the merch standards for that path
+    merch_init::Bool                         # whether the per-stand sp_* merch arrays are populated yet
 end
 
 function Control()
@@ -227,6 +234,7 @@ function Control()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
+        zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), # sp_bf_dbhmin, sp_bf_topd, sp_bf_stump
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
@@ -234,6 +242,7 @@ function Control()
         ScheduledActivity[],                                    # fixmort_events (FIXMORT)
         Vector{Int32}[], String[],                              # sp_groups, sp_group_names (SPGROUP)
         Tuple{Int32,String,EvNode}[], Dict{String,Float32}(),   # compute_defs, compute_vars (COMPUTE)
+        ScheduledActivity[], false,                             # volume_events (VOLUME/BFVOLUME), merch_init
     )
 end
 

@@ -24,7 +24,24 @@ Format per entry:
 
 ---
 
-_No behavioural (faithful-mode) divergences recorded yet — snt01.sum is bit-exact._
+### Board feet derived from the shared sawtimber R8 Clark call (not a separate BF taper)
+- **Where (FVSjl):** `engine/volume.jl:compute_volumes!` (`bf = v[10]` from the single per-tree `_R8CLARK_VOL` call)
+- **Where (Fortran):** `base/vols.f` / `base/fvsvol.f` — board feet uses its own BFMIND/BFTOPD/BFSTMP merch limits
+- **Category:** modelling-simplification (architecture)
+- **Gate:** always (no keyword default exercises it; snt01 + all default scenarios are bit-exact)
+- **Description / evidence:** FVSjl computes all four per-tree volumes (total/merch/sawtimber
+  cubic + board feet) from ONE R8 Clark taper call parameterised by the *cubic/sawtimber*
+  merch standards, reading board feet as `v[10]`. By default this is exact because the SN
+  merch table has `scf_top_dib == bf_top_dib`, `scf_min_dbh == bf_min_dbh`, and
+  `scf_stump == bf_stump` for every species (sawtimber and board-foot standards coincide).
+  The **VOLUME** keyword's merch-top/stump params (`TOPD/SCFTOPD/SCFSTMP`) and the entire
+  **BFVOLUME** keyword can break that coincidence; when they do, FVSjl's board feet ride the
+  changed sawtimber call while Fortran's board feet stay on the (separate) BF standards, so
+  the board-foot `.sum` column diverges (observed up to ~7% on a `SCFTOPD 7→9` override).
+  The **VOLUME `DBHMIN` gate is exact** (it only gates merch cubic, never the taper call) and
+  is validated bit-exact vs Fortran (`test_volume_override.jl`). BFVOLUME currently only
+  affects topkilled-tree board feet (via `bftopk`, which does read the per-stand BF standards).
+- **Status:** open — a full fix needs a separate board-foot R8 Clark call (deferred volume-model refactor).
 
 ---
 

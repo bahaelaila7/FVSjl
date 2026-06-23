@@ -41,6 +41,7 @@ using FVSjl
     include("integration/test_tripling.jl")    # C3: NOTRIPLE/NUMTRIP tripling control (ICL4) vs Fortran
     include("integration/test_timeint.jl")     # C3: TIMEINT cycle calendar (period scaling) vs Fortran
     include("integration/test_compute.jl")     # C4: COMPUTE event-monitor user variables vs Fortran
+    include("integration/test_volume_override.jl")# C5: VOLUME merch-standard override (DBHMIN gate) vs Fortran
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6

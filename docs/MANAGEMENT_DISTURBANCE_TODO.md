@@ -86,7 +86,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | DEFECT / BFDEFECT / MCDEFECT | per-species/size cull+defect % → reduces cuft/bdft | ⛔ (G1 volume-side; .sum-affecting) |
 | BFFDLN / MCFDLN | board/cubic form-class / log-length defaults | ⛔ |
-| VOLUME / BFVOLUME | volume-keyword overrides | ⛔ |
+| VOLUME / BFVOLUME | per-species cubic / board-foot merch-standard overrides (volkey.f:9915/9905) | 🟡 **wired** (kw_volume!/kw_bfvolume! → per-stand Control.sp_* arrays, populated once at LSTART by init_merch_standards!, overwritten per scheduled date by apply_volume_overrides!; 0/+species/−SPGROUP). **VOLUME DBHMIN merch-cubic gate bit-exact vs Fortran** (test_volume_override.jl, fires −179 cuft/ac). LIMITED: VOLUME's merch-top/stump (TOPD/SCFTOPD/SCFSTMP) + BFVOLUME only partly reproduce board feet because FVSjl derives BdFt from the shared sawtimber R8 Clark call, not a separate BF taper (see DIVERGENCES.md). FRMCLS/METHC/METHB ignored (no form-class/method selector in the R8 Clark path). LFIANVB=.FALSE. for SN so VOLUME is active |
 | VOLEQNUM / CFVOLEQU / BFVOLEQU | per-species volume-equation selection | 🟡 (R8 Clark default works; explicit override unported) |
 | FIAVBC | FIA volume/biomass calc switch | ⛔ |
 
