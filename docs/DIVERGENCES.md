@@ -41,7 +41,17 @@ Format per entry:
   The **VOLUME `DBHMIN` gate is exact** (it only gates merch cubic, never the taper call) and
   is validated bit-exact vs Fortran (`test_volume_override.jl`). BFVOLUME currently only
   affects topkilled-tree board feet (via `bftopk`, which does read the per-stand BF standards).
-- **Status:** open — a full fix needs a separate board-foot R8 Clark call (deferred volume-model refactor).
+- **Full-fix roadmap (investigated, deferred):** Fortran's structure is `fvsvol.f:257` — it sets
+  `BFPFLG=1` when the BF standards equal the sawtimber standards (the default → board feet from
+  the one sawtimber call), else `BFPFLG=0` and a **second** `VOLINITNVB` call is made with
+  `MTOPP=BFTOPD, STUMP=BFSTMP, PROD='01'` to get board feet (`fvsvol.f:362-503`). A prototype
+  second `_R8CLARK_VOL` call made board feet match — **but** it surfaced a further coupling:
+  the BF call's Region-8 "≥10 ft of product" rule (`fvsvol.f:499`, `HT1PRD<10 ⇒ TVOL(4)=0`)
+  zeros the **sawtimber cubic** too, so a BFTOPD override also drops the merch-cubic / sawtimber
+  `.sum` columns. Replicating that needs the un-zeroed BF-top log height (FVSjl's `_R8CLARK_VOL`
+  already zeros `sawHt` at a slightly different `merchL+stump+trim`≈9.5 threshold), so the full
+  port must thread `HT1PRD` out of the taper model and apply the 10-ft rule across both products.
+- **Status:** open — needs the BFPFLG=0 second call **plus** the Region-8 10-ft product coupling; deferred.
 
 ---
 

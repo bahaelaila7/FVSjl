@@ -314,6 +314,11 @@ function compute_volumes!(s::StandState)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
+        # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default since
+        # SN's board-foot standards equal the sawtimber ones for every species. When BFVOLUME/
+        # VOLUME breaks that coincidence (BFPFLG=0), Fortran recomputes board feet from a separate
+        # BF-top call AND that call's Region-8 "10 ft of product" rule (fvsvol.f:499) also zeros
+        # the sawtimber cubic — a coupling not yet ported; see DIVERGENCES.md.
         bf = v[10]
         if tkill && tcf > 0f0
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
