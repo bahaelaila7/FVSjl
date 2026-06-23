@@ -65,7 +65,8 @@ scenario must set to make it execute and become Fortran-validatable.
 | record compression `COMPRS/COMCUP/CMRANG/MEANSD` | `COMPRESS` keyword or >~3000 records (tests sit ~243) | — |
 | establishment/regen `ESTAB/ESIN/ESUCKR/ESPLT*/…` (~20) | `NATURAL`/`PLANT`/`SPROUT`/AUTOES (tests are NOAUTOES) | C4 |
 | MSB mortality `MSBMRT`, size-cap mortality | `MATUREW` / `SIZECAP` (defaults QMDMSB=999, SIZCAP=999) | C4 |
-| `FFERT`, `HTGSTP` (HTGSTOP/TOPKILL), `MULTS`/MORTMULT/FIXMORT/FIXDG/FIXHTG | the respective keyword (defaults inert) | — |
+| BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT (`MULTS` 1/2/4/3/6) | the keyword — ✅ ported (active_multiplier; bit-exact vs Fortran, test_multipliers.jl) | — |
+| `FFERT`, `HTGSTP` (HTGSTOP/TOPKILL), FIXMORT/FIXDG/FIXHTG | the respective keyword (defaults inert) | — |
 | event-monitor expression eval `EV*`/`ALGEVL` | `COMPUTE`/`IF` keywords (basic IF/THEN works; full expr partial) | — |
 | stand-structure stage `SSTAGE/ISSTAG/KSSTAG/COVOLP` | structure-class output (not in .sum growth math) | — |
 | fire `FM*` (~100), econ `EC*`, insects `MPB/DFB/TM/BWE`, mistletoe `MIS*` | FFE / econ / pest keywords | C7/C8 |

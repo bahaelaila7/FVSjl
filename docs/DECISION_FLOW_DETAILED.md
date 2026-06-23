@@ -27,7 +27,8 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | DESIGN / sample design | TPA expansion factors | ✅ |
 | INVYEAR / NUMCYCLE / TIMEINT | cycle calendar | ✅ |
 | thinning/harvest keywords (THIN*/SALVAGE/SPECPREF/…) | schedule CUTS + set cut modifiers | 🟡 5 of ~17 methods + 0 of 6 modifiers ported — see the destructured **CUTS** section below for the per-keyword audit |
-| MSB / SIZECAP / MORTMULT / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
+| MORTMULT | mortality-rate multiplier | ✅ `active_multiplier` (background rate; bit-exact, test_multipliers.jl) |
+| MSB / SIZECAP / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
 ## NOTRE / SETUP — build records (`notre.f`, `setup.f`)
@@ -98,7 +99,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | `CLSSTK` class stocking (TPA jtyp=1 / BA jtyp=2) over eligibility window | budget | ✅ `_clsstk` |
 | `RDPSRT` size rank (−DBH below / +DBH above) **+ IORDER[sp]** (SPECPREF) then whole-record removal ×cuteff | selection | ✅ (⚠ tie-break/stable-sort vs oracle not yet reconciled; TCONDMLT/point/density weights default 0) |
 | `TREDEL` compact removed (PROB≤0) records | RNG alignment + post-thin physical layout | ✅ `tredel_compact!` (swap-from-end: smallest-index vacancy ← largest-index survivor; faithful `tredel.f`. commit 625b970. No `.sum` change vs the old order-preserving `compact_live!` for single-thin — mortality/growth read RNG in `sort_key` order, not physical — but it reproduces the oracle's exact layout for a 2nd thin's TREDEL) |
-| **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ✅ fixed — TRIPLE appends interleaved (ITRN+2i-1/+2i) so the cut removes the oracle's exact record set; s29 cut now bit-exact, post-thin TPA aligned (commit 29bea70) |
+| **post-thin DGSCOR traversal order** on the compacted set | stochastic draw alignment | ✅ fully closed (commit c705810): after TRIPLE, `REASS` rebuilds IND1 as U,C,L (FVSjl `sort_key`), but `SETUP`/spesrt is not re-run every cycle — a TREDEL removal triggers a rebuild to ASCENDING PHYSICAL order (no REASS). Fix = reset `sort_key[i]=i` after `tredel_compact!`. s29_thinbta `.sum` now BIT-IDENTICAL to Fortran every row. (Supersedes the earlier 29bea70 TRIPLE-interleave note.) |
 | removed-volume columns (rem_tpa/cuft/mcuft/scuft/bdft) | `.sum` reporting | ✅ |
 
 ### `DGDRIV` — diameter growth (`dgdriv.f`) → `diameter_growth!`
@@ -111,7 +112,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | ↳ DGSD≥1 ⇒ set OLDRN residuals (BACHLO draws) | reproducible per-tree noise | ✅ |
 | normal cycle: `MULTS(7)` cov, `AUTCOR` | serial-correlation params (σ,ρ) | ✅ `serial_correlation.jl` |
 | `DGF(DBH)` | predicted ln(DDS) per tree | ✅ `dgf!` |
-| `MULTS(1)` XDMULT | DG multiplier keyword | 🟡 (no MULT keyword in tests) |
+| `MULTS(1)` XDMULT | DG multiplier keyword (BAIMULT) | ✅ `active_multiplier(:bai)` → DDS·XDMULT; bit-exact vs Fortran |
 | ICYC==1 special | first-cycle DG handling | ✅ |
 | `LDGCAL[sp]` | apply species COR or not | ✅ |
 | **`LTRIP` true** ⇒ deterministic tripling DG (central/upper/lower × `MISDGF`) | 3 weighted DGs | ✅ `triple_records!` stash |
@@ -124,7 +125,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 
 | branch / condition | effect | status |
 |---|---|---|
-| `MULTS(2)` XHMULT | HTG multiplier keyword | 🟡 |
+| `MULTS(2)` XHMULT | HTG multiplier keyword (HTGMULT) | ✅ `active_multiplier(:htg)`; bit-exact |
 | PROB≤0 ⇒ skip | dead record | ✅ |
 | `HTCALC` mode 0 | back out tree AGE from current HT on Chapman-Richards curve | ✅ |
 | `HTCALC` mode 9 | 5-yr HT increment from that age | ✅ |
@@ -142,6 +143,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | branch / condition | effect | status |
 |---|---|---|
 | `LSTART` (label_40) | calibration of small-tree HT | ✅ |
+| `MULTS(3/6)` XRHGRO/XRDGRO | regen HT/DG multipliers (REGHMULT/REGDMULT) | ✅ `active_multiplier(:regh/:regd)`; ±1 vs Fortran on regen cycles |
 | `lestb` (establishment mode) | grow newly-established trees only (i≥itrnin), random CR draw, FINT≤5 split | ⛔ **C4 regen** |
 | d ≥ xmx (=3") ⇒ skip (large tree) | hand off to DGF | ✅ |
 | MANAGD==1 ⇒ ddum=1 | managed-stand modifier | 🟡 |
@@ -162,7 +164,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | t>t85d0 ⇒ tn10=t85d10 (over-dense) | strong self-thin | ✅ |
 | t55d0<t≤t85d0 ⇒ solve self-thinning line (iterate treeit) | intermediate | ✅ |
 | t≤t55d10 ⇒ tn10=t (none) | low density | ✅ |
-| per-tree rip = Hamilton ri or rn; XMMULT window (MORTMULT) | rate | ✅ (XMMULT default 1) |
+| per-tree rip = Hamilton ri or rn; XMMULT window (MORTMULT) | rate | ✅ MORTMULT wired to bg_tokill (background rate only, morts.f:524) |
 | `VARMRT` distribute (t−tn10) toward suppressed | kill assignment | ✅ |
 | QMD-convergence: recompute d10n, re-iterate ≤10 | end-QMD fixed point | ✅ |
 | **MSB alternate mortality** (d10>QMDMSB ⇒ MSBMRT) | extra mortality | ⛔ keyword-only (QMDMSB=999 default) |
