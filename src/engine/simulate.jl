@@ -62,9 +62,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # Cycle-start volume + TPA of the originals, for the period accounting.
     old_cfv = Float32[t.cuft_vol[i] for i in 1:nlive]
     old_tpa = Float32[t.tpa[i]      for i in 1:nlive]
-    # Tripling is active only for the first few cycles (ICL4); afterwards growth is
-    # the stochastic serial-correlation path.
-    trip = Int(s.control.cycle) < TRIPLE_CYCLE_LIMIT
+    # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
+    # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
+    trip = Int(s.control.cycle) < Int(s.control.icl4)
     stash = diameter_growth!(s, s.variant; tripling = trip)  # DGs only; no records yet
     height_growth!(s, s.variant)
     small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"

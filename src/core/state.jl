@@ -208,7 +208,7 @@ function Control()
         false,false,false,false,false,false,false,false,false,
         zeros(Bool,MAXSP), zeros(Bool,MAXSP), zeros(Bool,MAXSP),
         Int32(0),Int32(0),                                      # error_code, cut_algorithm
-        Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0), # icl1..6
+        Int32(0),Int32(0),Int32(0),Int32(2),Int32(0),Int32(0), # icl1..6 (icl4=tripling cycle limit, grinit ICL4=2)
         Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0),Int32(0), # cycle..start_year (9)
         Int32(0),Int32(0),Int32(0),Int32(0),                    # ithnpa,ithnpi,ithnpn,ntrees_active
         Int32(0),Int32(7),Int32(6),Int32(8),Int32(9),           # unit_calib,list,stand,summary,tree

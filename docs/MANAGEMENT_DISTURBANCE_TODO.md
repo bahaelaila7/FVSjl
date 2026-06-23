@@ -55,7 +55,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | CRNMULT | crown-ratio-change multiplier (sn/crown.f:319) | ✅ (active_crn_mult; scales the limited CR change over a DBH window, persistent; bit-exact within ±1 drift, test_crnmult.jl) |
 | FIXCW | fix crown width | ⛔ (was missing) |
 | REGDMULT / REGHMULT | regen diameter / height growth multiplier | ✅ (MULTS kinds 6/3; regent XRDGRO/XRHGRO; ±1 vs Fortran on regen cycles) |
-| NOTRIPLE / NUMTRIP | tripling control (LTRIP) | 🟡 (hardcoded limit=2) |
+| NOTRIPLE / NUMTRIP | tripling control (ICL4) | ✅ (NOTRIPLE→icl4=0, NUMTRIP n→icl4=n; bit-exact vs Fortran, test_tripling.jl) |
 
 ## 4. Mortality keyword overrides (`morts.f`/`fixmort.f`)
 
@@ -214,8 +214,11 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
 - **Cycle calendar** — `TIMEINT` / `CYCLEAT` / `GROWTH` (per-cycle length). FVSjl hardcodes
   period=5; grow_cycle!(fint)/autcor already take the period, so this is mostly plumbing +
   the calibration "one-period-ahead" clock. MOST upstream (the loop structure).
-- **Tripling control** — `NOTRIPLE` / `NUMTRIP` (🟡 hardcoded TRIPLE_CYCLE_LIMIT=2; NOTRIPLE
-  currently in KNOWN_NOOP). Growth-path upstream; verify FVSjl is actually wrong first.
+- ~~**Tripling control** — `NOTRIPLE` / `NUMTRIP`~~ ✅ DONE — wired through s.control.icl4
+  (default 2; NOTRIPLE→0, NUMTRIP n→n). Was a real gap: FVSjl ignored NOTRIPLE (20 cols diverged)
+  AND the bare-PLANT scenarios were silently passing for the wrong reason (FVSjl wrongly tripled
+  them and the 3× averaging masked the regen DGSCOR tail at ±1). The fix exposed the true ±2 no-trip
+  tail; the base+NOTRIPLE stand is bit-exact (test_tripling.jl).
 - **ADDFILE / ADDTREES** — add tree records mid-run (record-set upstream).
 - **COMPUTE** — event-monitor variable assignment (extends the ported IF/THEN evaluator).
 - **CYCLEAT / TIMEINT** scheduling boundaries (if not covered by the calendar item).
