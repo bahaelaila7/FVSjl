@@ -90,11 +90,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     consumes. 14 tests: physical invariants (wind/slope ↑ spread, moisture ↓ spread, too-moist→0),
     Byram→flame relation, grass-vs-timber, determinism. ⚠ exact bit-validation needs the Fortran oracle
     (no standalone `.sum`); confirmed at the integrated-fire step. Suite 3194→3208.
-  - **F5b — REMAINING (integration):** the FVS *dynamic* fuel-model construction (FMCFMD/FMCFMD2/FMGFMV —
-    build the fuel model's loads/SAV/depth/Mx from the stand CWD pools + the DEFULMOD/FUELMODL keywords),
-    the SIMFIRE fire-weather scenario (fuel moistures, wind — from the keyword), FLAMEADJ, and the FMBURN
-    driver that ties F5-core → F6 (scorch/CSV/PSBURN → apply PMORT to TPA). This is the wiring that makes
-    snt01 stand 4 validate end-to-end and lights up every inert F1–F6 piece.
+  - **F5b-inputs:** ✅ **DONE** — `fuel_moisture` (FMMOIS preset dead/live moistures by dryness model
+    1–4, fmmois.f) and `fire_wind_reduction` (canopy wind multiplier WMULT = interp of CORFAC over
+    CANCLS, fmburn.f:390/fmvinit.f) in `src/engine/fire/fuel_moisture.jl` — the two environmental inputs
+    Rothermel needs from the fire weather + stand canopy. 12 tests incl. a full
+    `fuel_moisture → wind_reduction → rothermel → scorch → CSV → mortality` chain on realistic inputs;
+    suite 3208→3220.
+  - **F5b-rest — REMAINING (orchestration):** the FVS *dynamic* fuel-model construction
+    (FMCFMD/FMCFMD2/FMGFMV — build the fuel model's loads/SAV/depth/Mx from the stand CWD pools [F3] +
+    DEFULMOD/FUELMODL keywords; SN custom model from CURRCWD), the SIMFIRE/FLAMEADJ keyword parse (date,
+    wind, mortality code, %-burned, season → FMOIS), and the FMBURN driver that ties F5-core → F6
+    (RANN vs PSBURN per tree → apply PMORT to TPA). All the physics + inputs are now in place; this is
+    the remaining glue that makes snt01 stand 4 validate end-to-end and lights up every inert F1–F6 piece.
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
