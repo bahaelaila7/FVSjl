@@ -148,9 +148,16 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   test/integration/test_treeszcp.jl (3 scenarios vs Fortran, 106 asserts). Residuals: cap
   mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint
   matches); htcap TopHt drifts ≤4' as a declining-stand artifact (TPA/BA/QMD bit-exact).
-- `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation).
-- `FIXCW` — cwidth.f (crown-width override).
-- `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume).
+- `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation). Mortality
+  (downstream); the activity-97 block sn/morts.f:781-1042 (forced rate + point/size KBIG
+  reallocation). The "normal" path (line 1017, no concentration) is the tractable common case.
+- `FIXCW` — cwidth.f (crown-width override). ⚪ **OUTPUT-ONLY for the .sum** (verified): CRWDTH
+  is referenced only by the calculator (cwidth.f), record bookkeeping that carries it along
+  (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx
+  event-monitor var). It never feeds DGF/HTGF/MORTS/DENSE — those use crown RATIO, not width.
+  So a FIXCW port changes no .sum growth number; defer until SVS/structure output is in scope.
+- `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume). The
+  next real GROWTH-affecting port after FIXDG/FIXHTG (height growth, upstream of mortality).
 - FIXDG/FIXHTG — ✅ DONE. grincr.f:451-525: DG/HTG·PRM(2) over a species×DBH window, applied
   in `apply_fix_scalers!` (keyword_dispatch.jl) after all growth / before MORTS. TWO things the
   earlier buggy attempt missed: (1) it is **ONE-SHOT** (OPDONE) — fires only in the cycle whose
