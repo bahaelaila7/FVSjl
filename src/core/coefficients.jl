@@ -50,6 +50,8 @@ struct SpeciesCoefficients
     stock_b0::Vector{Float32}                        # 36 stocking-equation intercepts (TAB2)
     stock_b1::Vector{Float32}                        # 36 stocking-equation exponents  (TAB2)
     forest_type_codes::Vector{Int32}                 # valid FIA forest-type codes (FTYPE)
+    ffe_fuel_dead::Matrix{Float32}                   # FFE dead surface fuels [9 forest types × 11 size classes] (FUINI)
+    ffe_fuel_live::Matrix{Float32}                   # FFE live herb/shrub fuels [4 live types × 2] (FULIV)
 end
 
 "Per-species coefficient column by its descriptive name."
@@ -120,6 +122,13 @@ function load_species_coefficients(datadir::AbstractString)
     _, ftc = _read_csv(joinpath(datadir, "forest_type_codes.csv"))
     forest_type_codes = Int32[parse(Int32, r[1]) for r in ftc]
 
+    # FFE surface fuel-loading tables (FMCBA): dead fuels by forest type × size class,
+    # live herb/shrub by live-fuel type. Numeric columns only (skip the id + name columns).
+    hd, dr = _read_csv(joinpath(datadir, "fire_fuel_dead.csv"))
+    ffe_fuel_dead = Float32[parse(Float32, dr[i][j]) for i in 1:length(dr), j in 3:length(hd)]
+    hl, lr = _read_csv(joinpath(datadir, "fire_fuel_live.csv"))
+    ffe_fuel_live = Float32[parse(Float32, lr[i][j]) for i in 1:length(lr), j in 3:length(hl)]
+
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
                   "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv",
@@ -134,7 +143,8 @@ function load_species_coefficients(datadir::AbstractString)
     return SpeciesCoefficients(species, alpha, fia, plants, translation,
                                site_idx, site_grp, grp_rep, forests, habitat,
                                crown_species, crown_eqs,
-                               fia_group, fia_stock_eq, stock_b0, stock_b1, forest_type_codes)
+                               fia_group, fia_stock_eq, stock_b0, stock_b1, forest_type_codes,
+                               ffe_fuel_dead, ffe_fuel_live)
 end
 
 "Cached coefficient load, one per variant (filled by each variant's `coefficients`)."

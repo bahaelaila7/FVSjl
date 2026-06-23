@@ -1,7 +1,8 @@
 # Unit tests for the Jenkins tree-biomass model (FFE F1, FMCBIO).
 # Expected values hand-computed directly from fmcbio.f's equations + coefficients.
 using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
-             crown_biomass, StandState, init_blockdata!, init_merch_standards!
+             crown_biomass, StandState, init_blockdata!, init_merch_standards!,
+             ffe_dead_fuel_type, ffe_live_fuel_type, ffe_dead_fuel_loading, ffe_live_fuel_loading
 
 @testset "Jenkins tree biomass (FMCBIO)" begin
     coef = coefficients(Southern())
@@ -94,4 +95,31 @@ end
     oak  = cb(65, 12.0, 70.0, 40)               # ls_spi 34 → red-oak form
     pine = cb(1,  12.0, 70.0, 40)               # ls_spi 8  → shortleaf-pine form
     @test oak != pine
+end
+
+@testset "FFE surface fuel loading (FMCBA / FUINI / FULIV)" begin
+    coef = coefficients(Southern())
+    # dead-fuel forest-type classification (fmcba.f:260)
+    @test ffe_dead_fuel_type(101) == 1          # eastern white pine
+    @test ffe_dead_fuel_type(161) == 3          # loblolly–shortleaf
+    @test ffe_dead_fuel_type(520) == 6          # oak–hickory (snt01's forest type)
+    @test ffe_dead_fuel_type(805) == 9          # maple–beech–birch
+    @test ffe_dead_fuel_type(999) == 6          # default → oak–hickory
+    # live-fuel classification (fmcba.f:161)
+    @test ffe_live_fuel_type(4) == 1            # pines
+    @test ffe_live_fuel_type(7) == 3            # redcedar
+    @test ffe_live_fuel_type(6) == 4            # oak savannah
+    @test ffe_live_fuel_type(2) == 2            # default → hardwoods
+    # dead-fuel loadings (FUINI) — oak–hickory (type 6): litter 4.28, duff 5.91
+    fd = ffe_dead_fuel_loading(coef, 520)
+    @test length(fd) == 11
+    @test fd[1]  ≈ 0.13f0                        # <0.25" class
+    @test fd[3]  ≈ 1.93f0                        # 1–3" class
+    @test fd[10] ≈ 4.28f0                        # litter
+    @test fd[11] ≈ 5.91f0                        # duff
+    # white pine (type 1): duff is the heaviest at 12.52
+    @test ffe_dead_fuel_loading(coef, 103)[11] ≈ 12.52f0
+    # live herb/shrub loadings (FULIV)
+    @test ffe_live_fuel_loading(coef, 4) == (0.1f0, 0.25f0)     # pines
+    @test ffe_live_fuel_loading(coef, 7) == (1.0f0, 5.0f0)      # redcedar
 end

@@ -53,8 +53,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     confirmed against live Fortran once F5/F6 (fire behavior) exist. Inert (not yet called); 27
     structural unit tests pin the component split / size-class ordering / species-form selection.
     Suite 3072→3099. Next: FMCBA aggregates XV → canopy bulk density + canopy base height.
-- **F3 — FFE state + fuel pools (FMINIT):** the per-stand `FireState` (no globals): surface fuel
+- **F3 — FFE state + fuel pools (FMINIT/FMCBA):** the per-stand `FireState` (no globals): surface fuel
   loadings by size/decay class, snag arrays, the down-wood pools; SNAGINIT/DEFULMOD keyword setup.
+  - **F3-data:** ✅ **DONE** — the FMCBA initial surface fuel-loading tables extracted to
+    `fire_fuel_dead.csv` (FUINI, 9 forest types × 11 size classes: 9 down-wood + litter + duff) and
+    `fire_fuel_live.csv` (FULIV, 4 live-fuel types × herb/shrub), loaded into `SpeciesCoefficients`
+    (`ffe_fuel_dead`/`ffe_fuel_live`). The two pure forest-type→fuel-category maps (`ffe_dead_fuel_type`
+    from FIA forest type, `ffe_live_fuel_type` from IFFEFT) + loading accessors ported in
+    `src/engine/fire/fuel_loading.jl`. 17 unit tests vs the Fortran table values; suite 3099→3116.
+  - **F3-state — REMAINING:** the per-stand `FireState` struct (STFUEL down-wood pools by size/decay
+    class, snag arrays, cover type / percent cover), `FMSNFT` (FIA→IFFEFT FFE-forest-type map, also
+    needed by F3's live fuels + F4), the decay-class split (fmcba.f:372+), the FULIV2 understory
+    age/SI shrub curve, and the SNAGINIT/DEFULMOD/FUELINIT keyword setup. Wire FMCBA into the cycle.
 - **F4 — fuel model classification (FMCFMD):** stand condition → fire-behavior fuel model (static +
   dynamic weighting). The Anderson/SB fuel-model loadings → CSV.
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
