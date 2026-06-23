@@ -190,6 +190,9 @@ mutable struct Control
     htgstp_events::Vector{ScheduledActivity} # HTGSTOP/TOPKILL top-damage events (htgstp.f);
                                              # icflag = activity (110 HTGSTOP / 111 TOPKILL),
                                              # params = species,HT1,HT2,PRB,AVEPRB,STDPBR
+    fixmort_events::Vector{ScheduledActivity} # FIXMORT forced-mortality events (morts.f:781);
+                                             # params = species,rate,d1,d2,IP(1=replace/2=add/
+                                             # 3=max/4=mult),pointflag
 end
 
 function Control()
@@ -222,6 +225,7 @@ function Control()
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
+        ScheduledActivity[],                                    # fixmort_events (FIXMORT)
     )
 end
 

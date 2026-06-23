@@ -233,6 +233,70 @@ function kw_htgstp!(s::StandState, rec::KeywordRecord, act::Integer)
     return
 end
 
+# FIXMORT (activity 97, morts.f:781): a one-shot forced-mortality override. Fields: date,
+# species (0 = all), rate, DBH window d1/d2, option PRM(5) (0=replace,1=add,2=max,3=mult →
+# IP 1/2/3/4), point/size flag PRM(6). Normal (non-concentration) path only — PRM(6)≥10 is
+# deferred. The rate is clamped here exactly as Fortran (≤1 when PRM(5) absent; [0,1] when
+# PRM(5)<3) so the apply step is a clean per-tree formula.
+function kw_fixmort!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    isp = Float32(nint(v[2]))
+    rate = Float32(v[3])
+    d1 = (pr[4] ? Float32(v[4]) : 0f0); d1 < 0f0 && (d1 = 0f0)
+    d2 = (pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 999f0
+    ip = 1
+    if pr[6]                      # PRM(5) given (NP>4)
+        p5 = Float32(v[6])
+        p5 < 3f0 && (rate = clamp(rate, 0f0, 1f0))
+        ip = p5 == 1f0 ? 2 : p5 == 2f0 ? 3 : p5 == 3f0 ? 4 : 1
+    else
+        rate > 1f0 && (rate = 1f0)
+    end
+    pflag = pr[7] ? Float32(v[7]) : 0f0
+    push!(s.control.fixmort_events,
+          ScheduledActivity(Int32(nint(v[1])), Int32(97), (isp, rate, d1, d2, Float32(ip), pflag)))
+    return
+end
+
+"""
+    apply_fixmort!(s, killed, n, fint)
+
+FIXMORT (morts.f:781-1042, normal path): a one-shot forced-mortality override applied AFTER
+the BA-check, the last word on `killed[]`. In the cycle whose range holds the event date, for
+each of the `n` original records of the matching species (0 = all) with d1≤DBH<d2, override the
+kill by the option: 1 replace (P·rate), 2 add ((P−killed)·rate), 3 max, 4 multiply (killed·rate,
+≤P). Point/size concentration (PRM(6)≥10) is deferred — those events are skipped.
+"""
+function apply_fixmort!(s::StandState, killed::Vector{Float32}, n::Int, fint::Float32)
+    isempty(s.control.fixmort_events) && return
+    period = round(Int, s.control.year)
+    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
+    cyc_end = cyc_start + period
+    t = s.trees
+    for ev in s.control.fixmort_events
+        (cyc_start <= ev.year < cyc_end || (ev.year < cyc_start && s.control.cycle == 0)) || continue
+        isp = round(Int, ev.params[1]); rate = ev.params[2]
+        d1 = ev.params[3]; d2 = ev.params[4]; ip = round(Int, ev.params[5])
+        ev.params[6] >= 10f0 && continue          # KBIG point/size reallocation not yet ported
+        @inbounds for i in 1:n
+            (isp == 0 || isp == t.species[i]) || continue
+            d = t.dbh[i]
+            (d1 <= d < d2) || continue
+            p = t.tpa[i]
+            if ip == 1
+                killed[i] = p * rate
+            elseif ip == 2
+                killed[i] += max(0f0, p - killed[i]) * rate
+            elseif ip == 3
+                killed[i] = max(killed[i], p * rate)
+            else
+                killed[i] = min(p, killed[i] * rate)
+            end
+        end
+    end
+    return
+end
+
 """
     htgstp!(s; fint)
 
@@ -502,6 +566,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "FIXHTG";   kw_mult!(s, rec, :fixhtg) # one-shot HTG scaler (grincr.f:492)
         elseif kw == "HTGSTOP";  kw_htgstp!(s, rec, 110)   # top-damage: scale height growth
         elseif kw == "TOPKILL";  kw_htgstp!(s, rec, 111)   # top-damage: top-kill (htgstp.f)
+        elseif kw == "FIXMORT";  kw_fixmort!(s, rec)       # forced-mortality override (morts.f:781)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

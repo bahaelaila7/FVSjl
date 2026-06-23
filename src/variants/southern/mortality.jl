@@ -338,15 +338,20 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         end
     end
 
+    # TPAMRT (morts.f:772): the surviving over-threshold TPA used for next cycle's self-thinning
+    # line-reset test — locked HERE, from the BA-check survivors, BEFORE FIXMORT overrides the
+    # kill (the forced FIXMORT mortality must NOT move the self-thinning line).
+    surv = 0f0
+    @inbounds for i in 1:n
+        t.dbh[i] >= dthresh && (surv += t.tpa[i] - killed[i])
+    end
+    s.density.tpa_mort = surv
+
+    # FIXMORT (morts.f:781): forced-mortality override, applied AFTER the BA-check and TPAMRT.
+    apply_fixmort!(s, killed, n, fint)
+
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end
-    # remember this cycle's surviving over-threshold TPA (TPAMRT) for next cycle's
-    # line-reset test.
-    surv = 0f0
-    @inbounds for i in 1:n
-        t.dbh[i] >= dthresh && (surv += t.tpa[i])
-    end
-    s.density.tpa_mort = surv
     return s
 end

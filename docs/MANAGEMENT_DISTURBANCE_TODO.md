@@ -61,7 +61,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| FIXMORT | keyword mortality rate override | ⛔ |
+| FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl). Point/size concentration (PRM(6)≥10) deferred |
 | MORTMSB | MSB alternate mortality (QMDMSB) | ⛔ (default 999 no-op) |
 | MORTMULT | mortality-rate multiplier (background only + DBH window, morts.f:518/524) | ✅ (MULTS; DBH window D1≤DBH<D2 via active_mort_mult; bit-exact on bg-mortality cycles, windowed + windowless) |
 | TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
@@ -148,9 +148,17 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   test/integration/test_treeszcp.jl (3 scenarios vs Fortran, 106 asserts). Residuals: cap
   mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint
   matches); htcap TopHt drifts ≤4' as a declining-stand artifact (TPA/BA/QMD bit-exact).
-- `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation). Mortality
-  (downstream); the activity-97 block sn/morts.f:781-1042 (forced rate + point/size KBIG
-  reallocation). The "normal" path (line 1017, no concentration) is the tractable common case.
+- `FIXMORT` — ✅ normal path DONE (morts.f:1017). apply_fixmort! (keyword_dispatch.jl) overrides
+  killed[] AFTER the BA-check (the last word on the kill), one-shot in the date's cycle, over a
+  species×DBH window: IP 1 replace (P·rate), 2 add, 3 max, 4 multiply (kill·rate≤P), selected by
+  PRM(5) (0/1/2/3), with Fortran's rate clamps. Needed a companion fix to mortality! ordering:
+  **TPAMRT (the self-thinning line-reset, morts.f:772) is locked from the BA-check survivors
+  BEFORE FIXMORT**, so the forced kill doesn't move next cycle's self-thinning line — without it
+  the recovery ran TPA up to ~6% high. Bit-exact every cycle on 3 scenarios (replace, multiply,
+  big-tree replace) vs live Fortran (test_fixmort.jl). DEFERRED: point/size concentration
+  reallocation (PRM(6)≥10 — KBIG bottom-up/top-down + KPOINT multi-plot, morts.f:838-1015), which
+  redistributes the killed TPA across DBH/point classes; those events are currently skipped.
+  Species groups (ISPCC<0) also deferred.
 - `FIXCW` — cwidth.f (crown-width override). ⚪ **OUTPUT-ONLY for the .sum** (verified): CRWDTH
   is referenced only by the calculator (cwidth.f), record bookkeeping that carries it along
   (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx

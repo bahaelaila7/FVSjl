@@ -69,7 +69,8 @@ scenario must set to make it execute and become Fortran-validatable.
 | BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT (`MULTS` 1/2/4/3/6) | the keyword — ✅ ported (active_multiplier; bit-exact vs Fortran, test_multipliers.jl) | — |
 | FIXDG/FIXHTG | the keyword — ✅ ported (one-shot DG/HTG scaler + DBH window + tripled-record scaling; bit-exact, test_fix_scalers.jl) | — |
 | HTGSTOP/TOPKILL | the keyword — ✅ ported (htgstp! + crown negative-ICR bypass; deterministic bit-exact, test_htgstp.jl; stochastic path in place) | — |
-| `FFERT`, FIXMORT | the respective keyword (defaults inert) | — |
+| FIXMORT | the keyword — ✅ normal path ported (replace/add/max/mult + TPAMRT ordering; bit-exact, test_fixmort.jl); point/size concentration deferred | — |
+| `FFERT` | the keyword (defaults inert) | — |
 | event-monitor expression eval `EV*`/`ALGEVL` | `COMPUTE`/`IF` keywords (basic IF/THEN works; full expr partial) | — |
 | stand-structure stage `SSTAGE/ISSTAG/KSSTAG/COVOLP` | structure-class output (not in .sum growth math) | — |
 | fire `FM*` (~100), econ `EC*`, insects `MPB/DFB/TM/BWE`, mistletoe `MIS*` | FFE / econ / pest keywords | C7/C8 |
