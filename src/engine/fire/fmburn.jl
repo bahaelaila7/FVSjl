@@ -19,6 +19,7 @@ struct FireResult
     flame::Float32       # flame length (ft)
     byram::Float32       # Byram fireline intensity (BTU/ft/min)
     scorch::Float32      # scorch height (ft)
+    carbon_released::Float32  # carbon released by fuel consumption (tons C/ac)
 end
 
 """
@@ -36,7 +37,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                  psburn::Float32 = 100f0, mortcode::Integer = 1, burnseas::Integer = 1,
                  flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0)::FireResult
     fs = s.fire
-    (fs === nothing || !fs.active) && return FireResult(0f0, 0f0, 0f0, 0f0)
+    (fs === nothing || !fs.active) && return FireResult(0f0, 0f0, 0f0, 0f0, 0f0)
     fmcba!(s)                                            # fuel pools, cover, percent cover
     t = s.trees; coef = s.coef
     mois = fuel_moisture(fmois)
@@ -66,5 +67,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             add_snag!(fs, sp, d, curkil, year)         # fire-killed trees become standing snags
         end
     end
-    return FireResult(killed, flame, r.byram, sch)
+    # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest
+    carbon_released = apply_fire_consumption!(fs, mois)
+    return FireResult(killed, flame, r.byram, sch, carbon_released)
 end
