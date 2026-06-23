@@ -35,12 +35,18 @@ ScheduledActivity(year, icflag, params) =
 # GrowthMultiplier — a keyword growth/mortality multiplier (MULTS, base/mults.f).
 # `kind` ∈ (:bai,:htg,:regh,:mort,:regd); applies to `species` (0 = all) from `year`
 # onward (the most recent matching one wins). `value` is the per-species multiplier.
+# `d1`/`d2` are the DBH window for MORTMULT (morts.f:518: X applied only if d1≤DBH<d2;
+# defaults 0/99999 = all trees); unused by the other kinds.
 struct GrowthMultiplier
     kind::Symbol
     year::Int32
     species::Int32        # 0 = all species
     value::Float32
+    d1::Float32           # MORTMULT DBH window low  (XMDIA1, default 0)
+    d2::Float32           # MORTMULT DBH window high (XMDIA2, default 99999)
 end
+GrowthMultiplier(kind, year, species, value) =
+    GrowthMultiplier(kind, year, species, value, 0f0, 99999f0)
 
 # Event-monitor expression AST node (concrete types + evaluator in event_monitor.jl).
 abstract type EvNode end

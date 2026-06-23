@@ -252,7 +252,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         sp = t.species[i]
         ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))
         ri > 1f0 && (ri = 1f0)
-        xmort = active_multiplier(s.control, :mort, sp, cur_year)
+        xmort = active_mort_mult(s.control, sp, cur_year, t.dbh[i])  # 1 outside the DBH window
         bg_tokill += min(pr * (1f0 - (1f0 - ri)^fint) * xmort, pr)
     end
 

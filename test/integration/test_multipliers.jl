@@ -8,6 +8,9 @@
 #   * mult_htgmult / mult_baimult — base stand (s29 records, no thin), bit-exact every cycle.
 #   * mult_mortmult — a bare PLANT stand whose early cycles are background-mortality (where
 #     MORTMULT applies); validated on those cycles (later cycles carry the regen density tail).
+#   * mult_mortmult_win — same stand with a DBH-windowed MORTMULT (3× for DBH<4", morts.f:518):
+#     the multiplier kills the small planted trees, then stops once they grow past 4" (≈2012),
+#     so its TPA diverges from the windowless 3× — guards the per-tree window logic.
 
 using Test, FVSjl
 
@@ -23,7 +26,7 @@ _mult_base(path) = [split(l) for l in eachline(path)
     # mult_reghmult/mult_regdmult are bare-stand regen multipliers: validated on the early
     # cycles where the small-tree REGENT model (and thus XRHGRO/XRDGRO) is in effect.
     for (nm, ncyc) in (("mult_htgmult", 11), ("mult_baimult", 11), ("mult_mortmult", 6),
-                       ("mult_reghmult", 5), ("mult_regdmult", 5))
+                       ("mult_mortmult_win", 7), ("mult_reghmult", 5), ("mult_regdmult", 5))
         key  = joinpath(_MULT_DIR, nm * ".key")
         base = joinpath(_MULT_DIR, nm * ".sum.save")
         if !isfile(key) || !isfile(base)

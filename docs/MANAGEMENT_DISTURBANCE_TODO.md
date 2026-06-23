@@ -63,7 +63,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | FIXMORT | keyword mortality rate override | ⛔ |
 | MORTMSB | MSB alternate mortality (QMDMSB) | ⛔ (default 999 no-op) |
-| MORTMULT | mortality-rate multiplier (background only, morts.f:524) | ✅ (MULTS; bit-exact on bg-mortality cycles) |
+| MORTMULT | mortality-rate multiplier (background only + DBH window, morts.f:518/524) | ✅ (MULTS; DBH window D1≤DBH<D2 via active_mort_mult; bit-exact on bg-mortality cycles, windowed + windowless) |
 | TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
 
 ## 5. Other stand management

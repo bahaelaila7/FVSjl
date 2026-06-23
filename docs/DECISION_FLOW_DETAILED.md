@@ -27,7 +27,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | DESIGN / sample design | TPA expansion factors | ✅ |
 | INVYEAR / NUMCYCLE / TIMEINT | cycle calendar | ✅ |
 | thinning/harvest keywords (THIN*/SALVAGE/SPECPREF/…) | schedule CUTS + set cut modifiers | 🟡 5 of ~17 methods + 0 of 6 modifiers ported — see the destructured **CUTS** section below for the per-keyword audit |
-| MORTMULT | mortality-rate multiplier | ✅ `active_multiplier` (background rate; bit-exact, test_multipliers.jl) |
+| MORTMULT | mortality-rate multiplier (+ DBH window) | ✅ `active_mort_mult` (background rate, D1≤DBH<D2; bit-exact windowed + windowless, test_multipliers.jl) |
 | MSB / SIZECAP / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
@@ -164,7 +164,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | t>t85d0 ⇒ tn10=t85d10 (over-dense) | strong self-thin | ✅ |
 | t55d0<t≤t85d0 ⇒ solve self-thinning line (iterate treeit) | intermediate | ✅ |
 | t≤t55d10 ⇒ tn10=t (none) | low density | ✅ |
-| per-tree rip = Hamilton ri or rn; XMMULT window (MORTMULT) | rate | ✅ MORTMULT wired to bg_tokill (background rate only, morts.f:524) |
+| per-tree rip = Hamilton ri or rn; XMMULT window (MORTMULT) | rate | ✅ MORTMULT wired to bg_tokill (background rate only + DBH window D1≤DBH<D2, active_mort_mult, morts.f:518/524) |
 | `VARMRT` distribute (t−tn10) toward suppressed | kill assignment | ✅ |
 | QMD-convergence: recompute d10n, re-iterate ≤10 | end-QMD fixed point | ✅ |
 | **MSB alternate mortality** (d10>QMDMSB ⇒ MSBMRT) | extra mortality | ⛔ keyword-only (QMDMSB=999 default) |

@@ -130,10 +130,35 @@ end
 # Growth/mortality multipliers (BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT — MULTS,
 # base/mults.f). Field 1 = date, field 2 = species (0 = all), field 3 = multiplier.
 function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
-    v = rec.values
+    v = rec.values; pr = rec.present
+    # MORTMULT (kind :mort) additionally carries a DBH window (PRM(3)/PRM(4) → XMDIA1/XMDIA2,
+    # morts.f:170-171); the others ignore fields 4-5. Defaults: D1=0, D2=99999 (all trees).
+    d1 = (kind === :mort && pr[4]) ? Float32(v[4]) : 0f0
+    d2 = (kind === :mort && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 99999f0
     push!(s.control.multipliers,
-          GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[2])), Float32(v[3])))
+          GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[2])), Float32(v[3]), d1, d2))
     return
+end
+
+"""
+    active_mort_mult(control, sp, year, dbh) -> Float32
+
+The MORTMULT multiplier in effect for species `sp` at cycle `year`, applied only when
+the tree's `dbh` falls in the keyword's DBH window [d1, d2) (morts.f:518). Outside the
+window — or when no MORTMULT applies — returns 1.0. Same most-recent / species-specific
+precedence as `active_multiplier`.
+"""
+function active_mort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
+    isempty(c.multipliers) && return 1f0
+    val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
+    @inbounds for m in c.multipliers
+        (m.kind === :mort && (m.species == 0 || m.species == sp) && m.year <= year) || continue
+        spec = m.species != 0
+        if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
+            val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
+        end
+    end
+    return (d1 <= dbh < d2) ? val : 1f0
 end
 
 # TREESZCP (base/keywds.f:51 / SIZCAP): a per-species maximum tree size. Field 1 =
