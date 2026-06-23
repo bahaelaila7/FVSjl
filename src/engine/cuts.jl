@@ -83,6 +83,7 @@ Run any thinning/harvest scheduled for the current cycle's year. Reduces
 volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 """
 function cuts!(s::StandState; fint::Float32 = 5f0)
+    s.control.lsprut && empty!(s.control.cut_log)   # fresh ESTUMP cut log each cycle (for ESUCKR)
     sched = s.control.schedule
     conds = s.control.conditionals
     (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
@@ -408,6 +409,9 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[it] -= prem
+        # ESTUMP (cuts.f:1713): log each removed tree for stump sprouting, in removal order.
+        s.control.lsprut && prem > 0f0 &&
+            push!(s.control.cut_log, (Float32(t.species[it]), t.dbh[it], prem, Float32(t.plot_id[it])))
         rtpa += prem; rcuft += prem * t.cuft_vol[it]
         rmcuft += prem * t.merch_cuft_vol[it]; rscuft += prem * t.saw_cuft_vol[it]
         rbdft += prem * t.bdft_vol[it]

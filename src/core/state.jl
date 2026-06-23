@@ -220,6 +220,11 @@ mutable struct Control
     fertilize_events::Vector{ScheduledActivity} # FERTILIZE (ffin.f): icflag 260, params[1]=efficacy
     ifert_date::Int32                        # year of the last fertilizer application (FFCOM IFFDAT; −1=none)
     ifert_eff::Float32                       # efficacy of that application (FFCOM FFPRMS(4))
+    lsprut::Bool                             # stump-sprouting enabled (LSPRUT; SPROUT/NOSPROUT)
+    sprout_smult::Float32                    # sprout NUMBER multiplier (SMULT; SPROUT), default 1
+    sprout_hmult::Float32                    # sprout HEIGHT multiplier (HMULT; SPROUT), default 1
+    cut_log::Vector{NTuple{4,Float32}}       # ESTUMP cut record per removed tree, in removal order
+                                             # (species, stump DBH, removed TPA, plot) — fed to ESUCKR
 end
 
 function Control()
@@ -263,6 +268,7 @@ function Control()
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
         ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
+        false, 1f0, 1f0, NTuple{4,Float32}[],                   # lsprut, sprout_smult, sprout_hmult, cut_log
     )
 end
 

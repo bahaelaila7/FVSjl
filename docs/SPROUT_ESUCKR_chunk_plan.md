@@ -49,9 +49,13 @@ and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/e
 
 ## Proposed chunks
 
-- **A — cut-tracking + keywords:** add a per-stand cut log (species, DBH, removed TPA, plot) written
-  in each thin method's removal loop (mirrors `ESTUMP`); parse SPROUT/NOSPROUT (`SMULT`/`HMULT`/
-  `LSPRUT`). Inert until C — guard so snt01 stays bit-exact.
+- **A — cut-tracking + keywords:** ✅ **DONE** (Control `cut_log`/`lsprut`/`sprout_smult`/
+  `sprout_hmult`; `cuts!` clears the log each cycle and `_thin_sorted!` appends (species, stump DBH,
+  removed TPA, plot) per removal, in removal order, gated on `lsprut`; SPROUT/NOSPROUT parsed in
+  `kw_estab!`). Inert until C (the log is write-only), so snt01 + all scenarios stay bit-exact
+  (2938/2938). NOTE: only `_thin_sorted!` (THINBTA/ATA/BBA/ABA) logs so far — the other thin methods
+  (`_thindbh!`/`_thinprsc!`/`_thin_sdi!`/`_thin_rden!`/`_thin_cc!`/`_thin_qfa!`/`_thin_pt!`) each need
+  the same one-line append at their removal point when C lands.
 - **B — sub-routine coefficients:** extract `NSPREC`/`SPRTHT`/`ESSPRT` species coefficients to CSVs +
   port the three functions (pure, testable in isolation against hand-computed values).
 - **C — ESUCKR sprout-gen + ESRANN:** the generation loop, creating sprout records with the exact

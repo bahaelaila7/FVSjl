@@ -747,8 +747,14 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             tpa <= 0f0 && continue                                # esin.f:143 (TPA must be >0)
             surv = (v[4] < 0.001f0 || v[4] > 100f0) ? 100f0 : Float32(v[4])  # esin.f:149
             push!(sched, ScheduledActivity(yr, ic, (sp, tpa, surv, Float32(v[5]), Float32(v[6]), Float32(v[7]))))
+        elseif k == "SPROUT"                                  # esin.f opt 26: enable stump sprouting
+            s.control.lsprut = true                           # (per-species sprout tables land in ESUCKR/Chunk C)
+            r.present[3] && (s.control.sprout_smult = Float32(r.values[3]))
+            r.present[4] && (s.control.sprout_hmult = Float32(r.values[4]))
+        elseif k == "NOSPROUT"                                # esin.f opt 27: disable sprouting
+            s.control.lsprut = false
         end
-        # other establishment keywords (TALLY/SPROUT/…) not yet ported — skipped
+        # other establishment keywords (TALLY/…) not yet ported — skipped
     end
     # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
     # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.
