@@ -498,8 +498,19 @@ mutable struct FireState
     flive::NTuple{2,Float32}           # live herb / shrub surface fuel, tons/ac (FLIVE)
     cwd::Array{Float32,3}              # surface fuel [size class 1:11, dead(2)/soft(1), decay class 1:4] (CWD)
     fuels_init::Bool                   # dead-fuel pools loaded yet (first FFE year only)
+    # scheduled SIMFIRE event (fire_year = 0 ⇒ none) and its conditions
+    fire_year::Int32                   # calendar year of the simulated fire (SIMFIRE date)
+    swind::Float32                     # 20-ft wind (mi/h)               (SWIND, PRMS1)
+    fmois::Int32                       # fuel-moisture dryness model 1–4 (FMOIS, PRMS2)
+    atemp::Float32                     # air temperature (°F)            (ATEMP, PRMS3)
+    mortcode::Int32                    # 1 = FFE estimates mortality     (MKODE, PRMS4)
+    psburn::Float32                    # percent of the stand burned     (PSBURN, PRMS5)
+    burnseas::Int32                    # burn season 1–4                 (BURNSEAS, PRMS6)
+    flmult::Float32                    # flame-length multiplier         (FLAMEADJ)
+    crburn::Float32                    # crown-fire fraction             (FLAMEADJ)
 end
-FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false)
+FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0)
 
 mutable struct EconState
     active::Bool

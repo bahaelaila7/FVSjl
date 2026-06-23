@@ -773,6 +773,43 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     return
 end
 
+"""
+    kw_fmin!(s, rec, kr)
+
+Parse the FMIN Fire & Fuels keyword block (read to END, like ESTAB). Activates the FFE
+and captures the SIMFIRE event (date + fire conditions) and FLAMEADJ (flame multiplier /
+crown-fire fraction). The remaining FMIN keywords (snag/fuel setup, reports) are
+recognized but not yet ported, so they are skipped.
+"""
+function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    s.fire === nothing && (s.fire = FireState())
+    fs = s.fire
+    fs.active = true
+    while true
+        r = read_keyword!(kr)
+        (r.status == KW_EOF || r.status == KW_STOP) && break
+        k = strip(r.name)
+        isempty(k) && continue
+        if k == "END"
+            break
+        elseif k == "SIMFIRE"                              # fire event + conditions (fmburn.f:284-289)
+            v = r.values
+            r.present[1] && (fs.fire_year = nint(v[1]))
+            r.present[2] && (fs.swind    = Float32(v[2]))                          # SWIND  = PRMS(1)
+            r.present[3] && (fs.fmois    = clamp(Int32(nint(v[3])), Int32(1), Int32(4)))   # FMOIS = PRMS(2)
+            r.present[4] && (fs.atemp    = Float32(trunc(v[4])))                   # ATEMP  = INT(PRMS(3))
+            r.present[5] && (fs.mortcode = clamp(Int32(nint(v[5])), Int32(0), Int32(1)))   # MKODE = PRMS(4)
+            r.present[6] && (fs.psburn   = clamp(Float32(v[6]), 0f0, 100f0))       # PSBURN = PRMS(5)
+            r.present[7] && (fs.burnseas = clamp(Int32(nint(v[7])), Int32(1), Int32(4)))   # BURNSEAS = PRMS(6)
+        elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
+            v = r.values
+            r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
+            r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : 0f0)  # CRBURN = FPRMS(3)·.01
+        end
+    end
+    return
+end
+
 # OPTION 15 — STDIDENT (initre.f:862): stand id from the next raw line.
 function kw_stdident!(s::StandState, kr::KeywordReader)
     record = rpad(read_raw_line!(kr), 250)[1:250]
@@ -888,6 +925,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
+        elseif kw == "FMIN";     kw_fmin!(s, rec, kr)      # Fire & Fuels Extension block (SIMFIRE/FLAMEADJ)
         # SPROUT/NOSPROUT are establishment-extension sub-keywords (read by ESIN inside an
         # ESTAB…END block, esin.f opt 26/27) — NOT top-level base keywords (the Fortran base
         # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.

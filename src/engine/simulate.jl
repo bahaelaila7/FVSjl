@@ -103,6 +103,17 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
     cuts!(s; fint = fint).tpa > 0f0 && compute_density!(s)  # CUTS — thin, then recompute post-thin density
+    # FFE: a scheduled SIMFIRE burns this cycle's year — kills trees before growth (FMMAIN).
+    if s.fire !== nothing && s.fire.active && s.fire.fire_year != 0
+        yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
+        if yr == Int(s.fire.fire_year)
+            fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
+                    psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
+                    burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn)
+            s.fire.fire_year = Int32(0)                    # one-shot
+            compute_density!(s)
+        end
+    end
     apply_volume_overrides!(s; fint = fint)  # VOLUME/BFVOLUME merch-standard overrides (volkey.f)
     t = s.trees
     nlive = t.n                              # ORIGINAL live records (pre-tripling)
