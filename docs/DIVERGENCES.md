@@ -41,6 +41,9 @@ Format per entry:
   The **VOLUME `DBHMIN` gate is exact** (it only gates merch cubic, never the taper call) and
   is validated bit-exact vs Fortran (`test_volume_override.jl`). BFVOLUME currently only
   affects topkilled-tree board feet (via `bftopk`, which does read the per-stand BF standards).
+  **VOLEQNUM exposes the same limitation:** it overrides only the cubic equation (`VEQNNC`), so
+  Fortran's board feet stays on the default board equation `VEQNNB`, but FVSjl's board feet rides
+  the overridden cubic call → ~5% board-foot divergence (cubic columns are bit-exact).
 - **Full-fix roadmap (investigated, deferred):** Fortran's structure is `fvsvol.f:257` — it sets
   `BFPFLG=1` when the BF standards equal the sawtimber standards (the default → board feet from
   the one sawtimber call), else `BFPFLG=0` and a **second** `VOLINITNVB` call is made with

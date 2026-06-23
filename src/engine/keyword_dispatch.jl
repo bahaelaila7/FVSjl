@@ -393,6 +393,35 @@ kw_mcdefect!(s::StandState, rec::KeywordRecord) =
 kw_bfdefect!(s::StandState, rec::KeywordRecord) =
     _set_defect!(s.control, s.control.sp_bf_defect, nint(rec.values[2]), _defect_vals(rec.values))
 
+# VOLEQNUM (initre.f:5061) — override the cubic NVEL volume-equation id (VEQNNC) for a species.
+# Field 1 = species (alpha code / FIA number / −N SPGROUP), field 2 = the 10-char equation id (e.g.
+# "841CLKE318"). Stored and applied AFTER VOLEQDEF assigns the defaults (apply_voleqnum_overrides!).
+function kw_voleqnum!(s::StandState, rec::KeywordRecord)
+    spfield = strip(rec.fields[1]); eq = strip(rec.fields[2])
+    isempty(eq) && return
+    eqs = String(eq)
+    num = tryparse(Int, spfield)
+    if num !== nothing && num < 0                       # species group −N
+        g = -num
+        (1 <= g <= length(s.control.sp_groups)) || return
+        for sp in s.control.sp_groups[g]
+            push!(s.control.voleqnum_overrides, (Int32(sp), eqs))
+        end
+    else                                                # alpha / FIA code
+        idx, _ = resolve_species(spfield, s.variant, s.species, s.coef)
+        idx > 0 && push!(s.control.voleqnum_overrides, (Int32(idx), eqs))
+    end
+    return
+end
+
+"Apply VOLEQNUM overrides to `species.vol_eq` (after VOLEQDEF has set the defaults)."
+function apply_voleqnum_overrides!(s::StandState)
+    for (sp, eq) in s.control.voleqnum_overrides
+        1 <= sp <= length(s.species.vol_eq) && (s.species.vol_eq[sp] = eq)
+    end
+    return s
+end
+
 """
     apply_fixmort!(s, killed, n, fint)
 
@@ -799,6 +828,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BFVOLUME"; kw_bfvolume!(s, rec)      # board-foot merch-standard override (volkey.f)
         elseif kw == "MCDEFECT"; kw_mcdefect!(s, rec)      # cubic-volume defect curve (sdefet.f/vols.f)
         elseif kw == "BFDEFECT"; kw_bfdefect!(s, rec)      # board-foot defect curve (sdefet.f/vols.f)
+        elseif kw == "VOLEQNUM"; kw_voleqnum!(s, rec)      # cubic volume-equation override (initre.f:5061)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP

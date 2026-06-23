@@ -208,6 +208,8 @@ mutable struct Control
                                              # icflag = activity (217 VOLUME cubic / 218 BFVOLUME bd-ft),
                                              # params = species, then the merch standards for that path
     merch_init::Bool                         # whether the per-stand sp_* merch arrays are populated yet
+    voleqnum_overrides::Vector{Tuple{Int32,String}} # VOLEQNUM (initre.f:5061): (species idx, NVEL
+                                             # cubic equation id) — overrides species.vol_eq after VOLEQDEF
 end
 
 function Control()
@@ -246,6 +248,7 @@ function Control()
         Vector{Int32}[], String[],                              # sp_groups, sp_group_names (SPGROUP)
         Tuple{Int32,String,EvNode}[], Dict{String,Float32}(),   # compute_defs, compute_vars (COMPUTE)
         ScheduledActivity[], false,                             # volume_events (VOLUME/BFVOLUME), merch_init
+        Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
     )
 end
 

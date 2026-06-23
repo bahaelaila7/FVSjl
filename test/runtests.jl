@@ -44,6 +44,7 @@ using FVSjl
     include("integration/test_volume_override.jl")# C5: VOLUME merch-standard override (DBHMIN gate) vs Fortran
     include("integration/test_mcdefect.jl")     # C5: MCDEFECT/BFDEFECT defect curves vs Fortran
     include("integration/test_pertree_defect.jl")# C5: per-tree DEFECT (damage-code) input vs Fortran
+    include("integration/test_voleqnum.jl")     # C5: VOLEQNUM cubic volume-equation override vs Fortran
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6
