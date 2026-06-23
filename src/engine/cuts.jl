@@ -123,8 +123,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # whose algebraic condition is true this cycle (EVMON), with their year set to yr.
     # THINAUTO (icflag 1) is a RECURRING auto-thin: once scheduled it re-evaluates the
     # AUTMAX stocking gate every cycle from its start year (cuts.f auto path), not once.
+    # A date < 1000 is a cycle number (FVS 1-based), not a calendar year: it fires in the
+    # cycle whose 1-based index equals the date (OPNEW/OPFIND date convention).
+    fvscyc = Int(s.control.cycle) + 1
     acts = ScheduledActivity[a for a in sched
-                             if a.year == yr || (a.icflag == Int32(1) && yr >= a.year)]
+                             if a.year == yr || (a.icflag == Int32(1) && yr >= a.year) ||
+                                (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)]
     if !isempty(conds)
         ctx = EventCtx(Int(s.control.cycle) + 1, Int(yr), s)   # FVS CYCLE is 1-based
         # COMPUTE: evaluate event-monitor user variables this cycle BEFORE the IF conditions

@@ -55,6 +55,7 @@ using FVSjl
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran
+    include("integration/test_thindbh_cycledate.jl") # cuts: blank-date THINDBH = cycle-number date (initre.f:1189)
     include("unit/test_fire_biomass.jl")        # FFE-F1/F2/F3: biomass, crown fuels, surface fuels
     include("unit/test_fire_effects.jl")        # FFE-F6: fire-caused mortality (FMEFF/FMBRKT)
     include("unit/test_rothermel.jl")           # FFE-F5: Rothermel surface fire behavior (FMFINT)

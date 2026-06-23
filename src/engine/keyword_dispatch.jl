@@ -153,9 +153,11 @@ const _THIN_ICFLAG = Dict("THINBTA" => Int32(3), "THINATA" => Int32(4),
 # Stores a ScheduledActivity for `cuts!` to apply on the matching cycle.
 function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     v = rec.values
-    yr = nint(v[1])
+    # Blank date field defaults to cycle 1 (IDT=1, initre.f:1189) — a cycle number, not a
+    # year. cuts! interprets dates < 1000 as cycle numbers (FVS cycle = FVSjl cycle + 1).
+    yr = rec.present[1] ? nint(v[1]) : Int32(1)
     params = ntuple(i -> Float32(v[i + 1]), 6)
-    push!(s.control.schedule, ScheduledActivity(Int32(yr), icflag, params))
+    push!(s.control.schedule, ScheduledActivity(yr, icflag, params))
     return
 end
 
