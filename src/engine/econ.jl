@@ -108,3 +108,24 @@ function harvest_value(records::AbstractVector{EconCostRev}, sp::Integer, dbh::F
     end
     return total
 end
+
+"""
+    econ_value_harvest(ec, sp, dbh, tpa, cuft, bdft) -> (; cost, revenue)
+
+Total variable harvest cost and revenue for a set of cut trees (parallel arrays of
+species / DBH / removed TPA / per-tree cubic & board feet) against the stand's ECON
+cost/revenue tables (`ec.hrv_cost`, `ec.hrv_rev`). These are the per-harvest cash flows
+that accumulate into the undiscounted streams the discounting core (`econ_pnv`) values.
+"""
+function econ_value_harvest(ec::EconState, sp::AbstractVector, dbh::AbstractVector{Float32},
+                            tpa::AbstractVector{Float32}, cuft::AbstractVector{Float32},
+                            bdft::AbstractVector{Float32})
+    cost = 0f0; revenue = 0f0
+    @inbounds for i in eachindex(sp)
+        tpa[i] > 0f0 || continue
+        s = Int(sp[i])
+        cost    += harvest_value(ec.hrv_cost, s, dbh[i], tpa[i], cuft[i], bdft[i])
+        revenue += harvest_value(ec.hrv_rev,  s, dbh[i], tpa[i], cuft[i], bdft[i])
+    end
+    return (; cost, revenue)
+end

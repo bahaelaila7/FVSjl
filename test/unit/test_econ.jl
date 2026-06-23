@@ -1,7 +1,7 @@
 # Tests for the ECON economic-analysis core (C8, eccalc.f).
 using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
              econ_sev, econ_forest_value, harvest_value, EconCostRev,
-             ECON_TPA, ECON_BF_1000, ECON_FT3_100, run_keyfile
+             ECON_TPA, ECON_BF_1000, ECON_FT3_100, run_keyfile, econ_value_harvest, EconState
 
 @testset "ECON discounting / present value (eccalc.f)" begin
     @testset "present value" begin
@@ -104,5 +104,24 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         """)
         out = run_keyfile(key; faithful = true)   # must not crash; econ state captured
         @test occursin("ECON TEST", out) || true   # ran
+    end
+
+    @testset "harvest cash-flow aggregation (econ_value_harvest)" begin
+        ec = EconState()
+        ec.hrv_cost = [EconCostRev(70f0, ECON_BF_1000, 6f0, 999f0)]           # $70/MBF, all species
+        ec.hrv_rev  = [EconCostRev(300f0, ECON_BF_1000, 10f0, 999f0, Int32(65)),  # oak revenue
+                       EconCostRev(150f0, ECON_BF_1000, 10f0, 999f0, Int32(0))]   # all-species revenue
+        sp   = Int32[65, 33, 22]
+        dbh  = Float32[14, 12, 4]      # the 4" tree is below both revenue classes
+        tpa  = Float32[10, 5, 20]
+        cuft = Float32[30, 20, 5]
+        bdft = Float32[120, 90, 0]
+        r = econ_value_harvest(ec, sp, dbh, tpa, cuft, bdft)
+        # cost = Σ 70 · bdft·tpa/1000 over the two merch trees
+        @test r.cost ≈ 70f0*(120f0*10f0 + 90f0*5f0)/1000f0
+        # revenue: oak (65) gets 300+150, the 12" maple (33) gets only the all-species 150,
+        # the 4" tree gets nothing (below the 10" class)
+        @test r.revenue ≈ (300f0+150f0)*120f0*10f0/1000f0 + 150f0*90f0*5f0/1000f0
+        @test r.revenue > 0f0 && r.cost > 0f0
     end
 end
