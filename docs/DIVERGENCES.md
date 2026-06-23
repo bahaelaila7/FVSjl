@@ -51,10 +51,34 @@ branch no test scenario triggers — structurally divergent, not yet validated.
 
 ### 1. DGSCOR per-record serial-correlation (the one *live* divergence)
 - **Where:** `variants/southern/diameter_growth.jl:dgscor!` vs `base/dgscor.f`.
-- **Gate:** always, but only visible in untripled cycles (cyc ≥ 3).
-- **Evidence:** TPA/BA/SDI/QMD/TopHt stay bit-exact; only the nonlinear cubic-volume
-  sum drifts ~1–2% because the per-record growth draw distributes differently while
-  the aggregate matches. Needs exact per-record RNG-order matching to close.
+- **Gate:** always, but only visible from the first UNTRIPLED grow (snt01 cycle 2,
+  the 2005 .sum row; tripling covers cycles 0–1).
+- **Evidence (measured 2026-06-23, base.trl per-record vs FVSjl):** every linear
+  aggregate is bit-exact EVERY cycle — TPA/BA/SDI/QMD/TopHt match to the .sum print.
+  The only residual is the nonlinear cubic-volume sum: **±1 cuft on ~3026 (≈0.03%)**,
+  first at 2005, slowly compounding (cuft ±1, bdft ±4–18 by 2040). NOT ~1–2% (that was
+  a stale pessimistic estimate). Reconstructed the Fortran stand cuft from base.trl
+  (243 records × TPA·TotCuFt = 3026.3 ✓) and compared per-record to FVSjl: per-record
+  HEIGHTS agree exactly and per-record DBH agrees **to the .trl's 0.1" print precision**
+  (max|Δdbh| = 0.050" = exactly half the 0.1" quantum, uniform across all 5 species;
+  mean 0.027" = the rounding mean). So the per-record growth matches at print precision;
+  the ±1 cuft is a *sub-0.1"-per-record* effect in the nonlinear volume, below .trl
+  resolution. **To diagnose further requires SOURCE-LEVEL high-precision Fortran dumps**
+  (a custom WRITE of per-record DBH/DG/OLDRN in dgscor.f / the cycle-2 tree loop) to see
+  whether it is a closable within-species draw-assignment/serial-correlation ordering
+  difference for near-identical records, or irreducible Float32 propagation. At ≈0.03%
+  with per-record agreement already at print precision, this is at/near the Float32 floor.
+- **Resolution (2026-06-23): IRREDUCIBLE NUMERIC DRIFT (category 2), not a bug.** Verified
+  `dgscor!` line-by-line against base/dgscor.f — it is a bit-exact transliteration (BACHLO·
+  RHOCP + RHO·OLDRN, the |FRM|>DGSD·SSIG bounded REDRAW, the DDS>4/>5 taper, OLDRN=FRM,
+  EXP(FRM)). So the DGSCOR kernel arithmetic is NOT the source. The residual is upstream
+  transcendental ulp (exp/log/sqrt in DGF's WK2, autcor's SSIG/RHO) propagating through the
+  **bounded redraw**: a sub-ulp OLDRN difference can flip whether a given tree re-draws, which
+  reshuffles the per-record assignment of an otherwise-identical draw multiset (aggregate BA
+  averages out, nonlinear cuft drifts ≈0.03%) and the AR(1) carry compounds it slowly. Closing
+  it would require bit-identical transcendental libs Julia↔Fortran — out of scope. ⇒ snt01 is
+  effectively bit-exact: every linear aggregate exact every cycle, only provably-irreducible
+  Float32 noise in the nonlinear volume. Same class as the "single off-by-1 BdFt" drift.
 
 ### Conditionally-gated branches absent from FVSjl (diverge only if triggered)
 Each is present in the oracle graph but not (yet) in FVSjl; the **gate** is what a
