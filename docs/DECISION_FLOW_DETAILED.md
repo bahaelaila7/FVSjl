@@ -30,7 +30,7 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | MORTMULT | mortality-rate multiplier (+ DBH window) | ✅ `active_mort_mult` (background rate, D1≤DBH<D2; bit-exact windowed + windowless, test_multipliers.jl) |
 | FIXDG / FIXHTG | one-shot DG/HTG scalers (grincr.f:451) | ✅ `apply_fix_scalers!` (species×DBH window, scales tripled DG/HTG; bit-exact, test_fix_scalers.jl) |
 | HTGSTOP / TOPKILL | top-damage events (htgstp.f) | ✅ `htgstp!` (HTG scale / top-kill + NORMHT/ITRUNC/crown; deterministic bit-exact, test_htgstp.jl) |
-| FIXMORT | forced-mortality override (morts.f:781) | ✅ `apply_fixmort!` normal path (replace/add/max/mult; + TPAMRT-before-FIXMORT ordering); point/size concentration deferred |
+| FIXMORT | forced-mortality override (morts.f:781) | ✅ `apply_fixmort!` normal path (replace/add/max/mult; + TPAMRT-before-FIXMORT ordering) **+ size concentration** (PRM(6)=10/20 KBIG: XMORE-pool + ∓grown-DBH `_rdpsrt!` whole-record reallocation, morts.f:838; bit-exact); KPOINT multi-plot point concentration deferred (no-op on 1-plot stands) |
 | MSB / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
@@ -173,7 +173,7 @@ ported (silently ignored today — a real gap, not a no-op). ⚠ = parsed but wr
 | **MSB alternate mortality** (d10>QMDMSB ⇒ MSBMRT) | extra mortality | ⛔ keyword-only (QMDMSB=999 default) |
 | **SIZE-CAP mortality** (d+g≥SIZCAP[,1] & IFIX(SIZCAP[,3])≠1 ⇒ kill floor P·SIZCAP[,2]·FINT/5) | cap big trees | ✅ mortality.jl after _varmrt!, before BAMAX (sn/morts.f:692); set by TREESZCP; **G=(DG/BARK)·(FINT/5) outside-bark** |
 | **BAMAX enforcement** (scale kills until BA≤BAMAX) | density BA cap | ✅ (commit aedecd1 — was the multi-cycle gap) |
-| FIXMORT keyword | forced mortality | ✅ `apply_fixmort!` after BA-check; TPAMRT locked before it (normal path; concentration deferred) |
+| FIXMORT keyword | forced mortality | ✅ `apply_fixmort!` after BA-check; TPAMRT locked before it (normal path + KBIG size concentration; KPOINT point concentration deferred — no-op on 1-plot stands) |
 | TPAMRT = surviving TPA | next-cycle reset basis | 🟡 |
 
 ### `TRIPLE` + `REASS` — record tripling (`triple.f`) → `triple_records!`

@@ -6,7 +6,10 @@
 # (kill·rate). Deterministic — no RNG. Each .sum.save is live-Fortran output.
 #   * fixmort_replace — 0.5 replace, all DBH: ~50% of every record killed in the 1995 cycle.
 #   * fixmort_mult    — 0.5 multiply (PRM(5)=3): halves the already-predicted mortality.
-#   * fixmort_big     — 0.9 replace for DBH≥10": removes most of the large trees (QMD drops).
+#   * fixmort_big     — 0.9 replace for DBH≥10" with PRM(6)=10 (KBIG=1, BOTTOM UP): the window's
+#       mortality is pooled and re-imposed whole-record on the SMALLEST grown trees first
+#       (morts.f:838 size concentration), so the large trees survive — BA/SDI stay high and QMD
+#       climbs, unlike a flat per-record kill. Validates the XMORE-pool + ∓grown-DBH RDPSRT sort.
 # These exercise the fix that makes the recovery match: TPAMRT (the self-thinning line-reset
 # carried to next cycle) is locked from the BA-check survivors BEFORE FIXMORT, so the forced
 # kill doesn't move the self-thinning line (morts.f:772 precedes the FIXMORT block at 781).

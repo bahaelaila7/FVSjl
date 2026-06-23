@@ -351,20 +351,63 @@ function apply_fixmort!(s::StandState, killed::Vector{Float32}, n::Int, fint::Fl
         (cyc_start <= ev.year < cyc_end || (ev.year < cyc_start && s.control.cycle == 0)) || continue
         isp = round(Int, ev.params[1]); rate = ev.params[2]
         d1 = ev.params[3]; d2 = ev.params[4]; ip = round(Int, ev.params[5])
-        ev.params[6] >= 10f0 && continue          # KBIG point/size reallocation not yet ported
-        @inbounds for i in 1:n
-            sp_field_matches(s.control, isp, t.species[i]) || continue
-            d = t.dbh[i]
-            (d1 <= d < d2) || continue
-            p = t.tpa[i]
-            if ip == 1
-                killed[i] = p * rate
-            elseif ip == 2
-                killed[i] += max(0f0, p - killed[i]) * rate
-            elseif ip == 3
-                killed[i] = max(killed[i], p * rate)
-            else
-                killed[i] = min(p, killed[i] * rate)
+        pflag = ev.params[6]
+        kbig = (pflag == 10f0 || pflag == 11f0) ? 1 : (pflag == 20f0 || pflag == 21f0) ? 2 : 0
+        if kbig == 0
+            # NORMAL per-tree override (morts.f:1017): set the kill in place per the IP mode.
+            @inbounds for i in 1:n
+                sp_field_matches(s.control, isp, t.species[i]) || continue
+                d = t.dbh[i]; (d1 <= d < d2) || continue
+                p = t.tpa[i]
+                if ip == 1
+                    killed[i] = p * rate
+                elseif ip == 2
+                    killed[i] += max(0f0, p - killed[i]) * rate
+                elseif ip == 3
+                    killed[i] = max(killed[i], p * rate)
+                else
+                    killed[i] = min(p, killed[i] * rate)
+                end
+            end
+        else
+            # SIZE concentration (morts.f:838): pool the window's mortality into XMORE per the IP
+            # (zeroing the in-window kills where the IP replaces), then re-impose it WHOLE-RECORD
+            # at a time on the trees ranked by grown DBH — KBIG=1 smallest-first (BOTTOM UP),
+            # =2 largest-first (TOP DOWN) — until XMORE is spent. KPOINT multi-plot concentration
+            # is deferred.
+            ba = s.calib.bark_a; bb = s.calib.bark_b
+            xmore = 0f0
+            @inbounds for i in 1:n
+                sp_field_matches(s.control, isp, t.species[i]) || continue
+                d = t.dbh[i]; (d1 <= d < d2) || continue
+                p = t.tpa[i]
+                if ip == 1
+                    xmore += p * rate; killed[i] = 0f0
+                elseif ip == 2
+                    xmore += max(0f0, p - killed[i]) * rate
+                elseif ip == 3
+                    tmp = max(killed[i], p * rate); tmp > killed[i] && (xmore += tmp - killed[i])
+                else
+                    xmore += killed[i] * rate; killed[i] = 0f0
+                end
+            end
+            # rank by WORK3 = ∓(DBH+DG/bark), RDPSRT descending (morts.f:889): KBIG=1 negates so the
+            # smallest grown trees sort first (bottom up); KBIG=2 keeps the largest first (top down).
+            # Reuse the faithful _rdpsrt! so the tie-break among equal grown DBHs matches FVS.
+            gdbh(i) = t.dbh[i] + t.diam_growth[i] / bark_ratio(ba, bb, t.species[i], t.dbh[i])
+            sgn = kbig == 1 ? -1f0 : 1f0
+            key = Float32[sgn * gdbh(i) for i in 1:n]
+            ord = Vector{Int32}(undef, n); _rdpsrt!(key, ord)
+            credit = 0f0
+            @inbounds for ix in ord
+                sp_field_matches(s.control, isp, t.species[ix]) || continue
+                d = t.dbh[ix]; (d1 <= d < d2) || continue
+                avail = t.tpa[ix] - killed[ix]
+                if credit + avail <= xmore + 0.0001f0
+                    credit += avail; killed[ix] = t.tpa[ix]
+                else
+                    killed[ix] += xmore - credit; break
+                end
             end
         end
     end

@@ -61,7 +61,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl). Point/size concentration (PRM(6)≥10) deferred |
+| FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl) **+ SIZE concentration** PRM(6)=10/20 (KBIG bottom-up/top-down): pools the window's kill into XMORE then re-imposes it whole-record on trees ranked by ∓(DBH+DG/bark) via the faithful `_rdpsrt!`, until XMORE is spent (morts.f:838). fixmort_big.key (pflag=10) bit-exact vs live Fortran on TPA/BA/SDI/QMD across 11 cycles. **KPOINT** multi-plot point concentration (PRM(6)=1/11/21) still deferred (single-plot stands: IPTINV=1, so it's a no-op anyway) |
 | MORTMSB / MATUREW | MSB mature-stand break-up mortality (msbmrt.f) | ⚪ EFFECTIVELY INERT for self-thinning/managed stands (verified): fires only when survivors EXCEED the 85% mature self-thinning line, but BAMAX/self-thinning hold the stand AT that line, so TMORE=0 — even a 30-cycle run to QMD 38 doesn't trigger it. Rare-trigger (overmature break-up only); deterministic if ported |
 | MORTMULT | mortality-rate multiplier (background only + DBH window, morts.f:518/524) | ✅ (MULTS; DBH window D1≤DBH<D2 via active_mort_mult; bit-exact on bg-mortality cycles, windowed + windowless) |
 | TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
@@ -155,10 +155,17 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   **TPAMRT (the self-thinning line-reset, morts.f:772) is locked from the BA-check survivors
   BEFORE FIXMORT**, so the forced kill doesn't move next cycle's self-thinning line — without it
   the recovery ran TPA up to ~6% high. Bit-exact every cycle on 3 scenarios (replace, multiply,
-  big-tree replace) vs live Fortran (test_fixmort.jl). DEFERRED: point/size concentration
-  reallocation (PRM(6)≥10 — KBIG bottom-up/top-down + KPOINT multi-plot, morts.f:838-1015), which
-  redistributes the killed TPA across DBH/point classes; those events are currently skipped.
-  Species groups (ISPCC<0) ✅ via SPGROUP + sp_field_matches.
+  big-tree replace) vs live Fortran (test_fixmort.jl). ✅ **SIZE concentration DONE**
+  (PRM(6)=10/20, morts.f:838-935): the window's mortality is pooled into XMORE per the IP, the
+  in-window kills are zeroed where the IP replaces, then XMORE is re-imposed WHOLE-RECORD on the
+  trees ranked by WORK3=∓(DBH+DG/bark) — KBIG=1 negates so the smallest grown trees go first
+  (bottom up), KBIG=2 the largest (top down) — via the faithful `_rdpsrt!` (descending, FVS
+  tie-break), killing each record fully (CREDIT+=tpa−killed) until CREDIT reaches XMORE (last
+  record partial: killed+=XMORE−CREDIT). fixmort_big.key (pflag=10) is bit-exact vs live Fortran
+  on TPA/BA/SDI/TopHt/QMD across all 11 cycles; the only diffs are ±1 in the volume cols (9-12)
+  and per-acre growth (24-25) — the documented Float32 DGSCOR/volume noise, not the kill itself.
+  DEFERRED: **KPOINT** multi-plot point concentration (PRM(6)=1/11/21, morts.f:937-1015) — a no-op
+  on single-plot stands (IPTINV=1) anyway. Species groups (ISPCC<0) ✅ via SPGROUP + sp_field_matches.
 - `FIXCW` — cwidth.f (crown-width override). ⚪ **OUTPUT-ONLY for the .sum** (verified): CRWDTH
   is referenced only by the calculator (cwidth.f), record bookkeeping that carries it along
   (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx
