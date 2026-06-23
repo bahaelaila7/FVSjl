@@ -1,7 +1,9 @@
 # Tests for the ECON economic-analysis core (C8, eccalc.f).
 using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
              econ_sev, econ_forest_value, harvest_value, EconCostRev,
-             ECON_TPA, ECON_BF_1000, ECON_FT3_100, run_keyfile, econ_value_harvest, EconState
+             ECON_TPA, ECON_BF_1000, ECON_FT3_100, run_keyfile, econ_value_harvest, EconState,
+             econ_stand_pnv, StandState, Southern, init_blockdata!, init_merch_standards!,
+             cuts!, ScheduledActivity
 
 @testset "ECON discounting / present value (eccalc.f)" begin
     @testset "present value" begin
@@ -123,5 +125,35 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         # the 4" tree gets nothing (below the 10" class)
         @test r.revenue ≈ (300f0+150f0)*120f0*10f0/1000f0 + 150f0*90f0*5f0/1000f0
         @test r.revenue > 0f0 && r.cost > 0f0
+    end
+
+    @testset "per-cycle harvest accumulation + stand PNV (cuts! → ECON)" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
+        s.control.cycle_year[1] = Int32(1990); s.control.cycle = Int32(2)   # cycle 2 = year 2000
+        t = s.trees; t.n = 3
+        for (i, (sp, d)) in enumerate(((65,16f0),(33,12f0),(22,8f0)))
+            t.species[i]=Int32(sp); t.dbh[i]=d; t.height[i]=70f0; t.tpa[i]=40f0; t.crown_pct[i]=Int32(45)
+            t.bdft_vol[i]=200f0; t.cuft_vol[i]=40f0
+        end
+        s.econ = EconState(); s.econ.active = true; s.econ.base_year = Int32(1990)
+        push!(s.econ.hrv_cost, EconCostRev(70f0, ECON_BF_1000, 6f0, 999f0))
+        push!(s.econ.hrv_rev,  EconCostRev(300f0, ECON_BF_1000, 10f0, 999f0, Int32(0)))
+        push!(s.control.schedule, ScheduledActivity(Int32(2000), Int32(3), (40f0,1f0,0f0,0f0,0f0,0f0)))
+        # the cut (cuts! → _log_cut!) values each removed tree before the list is compacted
+        s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0
+        rem = cuts!(s; fint = 5f0)
+        @test rem.tpa > 0f0
+        @test s.econ.cycle_cost > 0f0 && s.econ.cycle_rev > 0f0
+        push!(s.econ.harvests, (2000f0, s.econ.cycle_cost, s.econ.cycle_rev))
+
+        yr, cost, rev = s.econ.harvests[1]
+        @test yr == 2000f0 && cost > 0f0 && rev > 0f0
+        @test rev > cost                                   # revenue ($300/MBF) exceeds cost ($70/MBF)
+
+        # stand PNV discounts the harvest (rev at year-end 10, cost at year-start 9) back to 1990
+        pnv = econ_stand_pnv(s.econ, 2020)
+        @test pnv.disc_rev ≈ econ_present_value(rev, 2000 - 1990, 0.04f0)
+        @test pnv.pnv ≈ pnv.disc_rev - pnv.disc_cost
+        @test pnv.pnv > 0f0                                # a profitable harvest
     end
 end

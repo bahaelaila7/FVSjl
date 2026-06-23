@@ -129,3 +129,46 @@ function econ_value_harvest(ec::EconState, sp::AbstractVector, dbh::AbstractVect
     end
     return (; cost, revenue)
 end
+
+"""
+    record_harvest!(ec, year, sp, dbh, removed_tpa, cuft, bdft)
+
+Value a cycle's harvest (the per-tree removed TPA from `cuts!`) against the ECON tables
+and append the `(year, cost, revenue)` cash flow to `ec.harvests` (no-op if nothing was
+cut or no cost/revenue resulted). The discounting core (`econ_stand_pnv`) values the
+accumulated flows.
+"""
+function record_harvest!(ec::EconState, year::Integer, sp::AbstractVector,
+                         dbh::AbstractVector{Float32}, removed_tpa::AbstractVector{Float32},
+                         cuft::AbstractVector{Float32}, bdft::AbstractVector{Float32})
+    v = econ_value_harvest(ec, sp, dbh, removed_tpa, cuft, bdft)
+    (v.cost > 0f0 || v.revenue > 0f0) && push!(ec.harvests, (Float32(year), v.cost, v.revenue))
+    return
+end
+
+"""
+    econ_stand_pnv(ec, end_year) -> (; pnv, disc_cost, disc_rev)
+
+Present net value of the stand's management from `ec.base_year` to `end_year` (eccalc.f):
+the annual cost `ann_cost` accrues every year (discounted at the year's start) and each
+recorded harvest's cost/revenue is discounted from its year, at `ec.discount_rate`.
+"""
+function econ_stand_pnv(ec::EconState, end_year::Integer)
+    rate = ec.discount_rate
+    base = Int(ec.base_year)
+    (base < 0 || end_year < base) && return (; pnv = 0f0, disc_cost = 0f0, disc_rev = 0f0)
+    disc_cost = 0f0; disc_rev = 0f0
+    # annual management cost: accrues at the start of each year (time t = 0 … end-base-1)
+    if ec.ann_cost > 0f0
+        for t in 0:(end_year - base - 1)
+            disc_cost += econ_present_value(ec.ann_cost, t, rate)
+        end
+    end
+    # harvest cash flows (revenue at end of its year, cost at start)
+    for (yr, cost, rev) in ec.harvests
+        t = Int(yr) - base
+        disc_cost += econ_present_value(cost, max(0, t - 1), rate)
+        disc_rev  += econ_present_value(rev,  max(0, t),     rate)
+    end
+    return (; pnv = disc_rev - disc_cost, disc_cost, disc_rev)
+end

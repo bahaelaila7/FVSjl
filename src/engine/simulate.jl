@@ -102,7 +102,17 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
-    cuts!(s; fint = fint).tpa > 0f0 && compute_density!(s)  # CUTS — thin, then recompute post-thin density
+    # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
+    econ_on = s.econ !== nothing && s.econ.active
+    econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
+    rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree)
+    rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
+    if econ_on
+        yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
+        s.econ.base_year < 0 && (s.econ.base_year = Int32(yr))
+        (s.econ.cycle_cost > 0f0 || s.econ.cycle_rev > 0f0) &&
+            push!(s.econ.harvests, (Float32(yr), s.econ.cycle_cost, s.econ.cycle_rev))
+    end
     # FFE: a scheduled SIMFIRE burns this cycle's year — kills trees before growth (FMMAIN).
     if s.fire !== nothing && s.fire.active && s.fire.fire_year != 0
         yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)

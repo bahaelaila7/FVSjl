@@ -90,9 +90,16 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 # CSV flag) are logged — ESTUMP returns immediately for any other species. Consumed
 # by `esuckr!`; inert (write-only) until that loop is wired into the cycle (Chunk C2).
 @inline function _log_cut!(s::StandState, t, i::Integer, prem::Float32)
-    (s.control.lsprut && prem > 0f0) || return
+    prem > 0f0 || return
     sp = Int(t.species[i])
-    coef_col(s.coef, :is_sprouting)[sp] == 1f0 || return
+    # ECON: value this removed tree (DBH-class cost/revenue) at the removal point, before
+    # the tree list is compacted (eccalc.f/echarv.f). Accumulated for the cycle's harvest.
+    if s.econ !== nothing && s.econ.active
+        s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
+        s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
+    end
+    # ESTUMP cut log (sprouting species only, when sprouting is on)
+    (s.control.lsprut && coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
     push!(s.control.cut_log,
           (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))

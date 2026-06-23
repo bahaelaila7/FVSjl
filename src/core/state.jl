@@ -550,10 +550,13 @@ mutable struct EconState
     ann_cost::Float32                     # ANNUCST total annual management cost ($/ac/yr)
     hrv_cost::Vector{EconCostRev}         # HRVVRCST variable harvest costs
     hrv_rev::Vector{EconCostRev}          # HRVRVN harvest revenues (per species)
-    undisc_cost::Vector{Float32}          # accumulated undiscounted cost by analysis year
-    undisc_rev::Vector{Float32}           # accumulated undiscounted revenue by analysis year
+    base_year::Int32                      # ECON analysis start year (−1 until set)
+    harvests::Vector{NTuple{3,Float32}}   # accumulated (year, cost, revenue) per harvest
+    cycle_cost::Float32                   # this cycle's harvest cost so far (accrued per cut tree)
+    cycle_rev::Float32                    # this cycle's harvest revenue so far
 end
-EconState() = EconState(false, 0.04f0, 0f0, EconCostRev[], EconCostRev[], Float32[], Float32[])
+EconState() = EconState(false, 0.04f0, 0f0, EconCostRev[], EconCostRev[], Int32(-1),
+                        NTuple{3,Float32}[], 0f0, 0f0)
 
 # ---------------------------------------------------------------------------
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the
