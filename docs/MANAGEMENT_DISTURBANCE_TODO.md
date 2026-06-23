@@ -61,7 +61,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl) **+ SIZE concentration** PRM(6)=10/20 (KBIG bottom-up/top-down): pools the window's kill into XMORE then re-imposes it whole-record on trees ranked by ∓(DBH+DG/bark) via the faithful `_rdpsrt!`, until XMORE is spent (morts.f:838). fixmort_big.key (pflag=10) bit-exact vs live Fortran on TPA/BA/SDI/QMD across 11 cycles. **KPOINT** multi-plot point concentration (PRM(6)=1/11/21) still deferred (single-plot stands: IPTINV=1, so it's a no-op anyway) |
+| FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl) **+ SIZE concentration** PRM(6)=10/20 (KBIG bottom-up/top-down): pools the window's kill into XMORE then re-imposes it whole-record on trees ranked by ∓(DBH+DG/bark) via the faithful `_rdpsrt!`, until XMORE is spent (morts.f:838). fixmort_big.key (pflag=10) bit-exact vs live Fortran on TPA/BA/SDI/QMD across 11 cycles. **+ KPOINT** point concentration PRM(6)=1 (point-by-point, morts.f:937) and **combined** PRM(6)=11/21 (size-within-point, morts.f:978) — DONE & bit-exact on the 11-point base stand (fixmort_kpoint/fixmort_kpbig, using t.plot_id=ITRE + points_inv=IPTINV). FIXMORT concentration now COMPLETE |
 | MORTMSB / MATUREW | MSB mature-stand break-up mortality (msbmrt.f) | ⚪ EFFECTIVELY INERT for self-thinning/managed stands (verified): fires only when survivors EXCEED the 85% mature self-thinning line, but BAMAX/self-thinning hold the stand AT that line, so TMORE=0 — even a 30-cycle run to QMD 38 doesn't trigger it. Rare-trigger (overmature break-up only); deterministic if ported |
 | MORTMULT | mortality-rate multiplier (background only + DBH window, morts.f:518/524) | ✅ (MULTS; DBH window D1≤DBH<D2 via active_mort_mult; bit-exact on bg-mortality cycles, windowed + windowless) |
 | TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
@@ -166,8 +166,10 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
   record partial: killed+=XMORE−CREDIT). fixmort_big.key (pflag=10) is bit-exact vs live Fortran
   on TPA/BA/SDI/TopHt/QMD across all 11 cycles; the only diffs are ±1 in the volume cols (9-12)
   and per-acre growth (24-25) — the documented Float32 DGSCOR/volume noise, not the kill itself.
-  DEFERRED: **KPOINT** multi-plot point concentration (PRM(6)=1/11/21, morts.f:937-1015) — a no-op
-  on single-plot stands (IPTINV=1) anyway. Species groups (ISPCC<0) ✅ via SPGROUP + sp_field_matches.
+  ★ **KPOINT** point concentration (PRM(6)=1, morts.f:937) and **combined** size-within-point
+  (PRM(6)=11/21, morts.f:978) now DONE & bit-exact (the base stand is 11-point, NOT single-plot —
+  the earlier "no-op on IPTINV=1" note was wrong): the point walk uses `t.plot_id` (ITRE) +
+  `points_inv` (IPTINV). Species groups (ISPCC<0) ✅ via SPGROUP + sp_field_matches.
 - `FIXCW` — cwidth.f (crown-width override). ⚪ **OUTPUT-ONLY for the .sum** (verified): CRWDTH
   is referenced only by the calculator (cwidth.f), record bookkeeping that carries it along
   (comprs/tremov/triple), and OUTPUT consumers (sstage structure-class, svsnad SVS, evldx
@@ -252,7 +254,7 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
   subsystem (incl. EIGEN!) — NOT least-dependent.
 
 **B. Deferred sub-paths inside already-✅ items:**
-- FIXMORT point/size concentration reallocation (PRM(6)≥10 — KBIG/KPOINT, morts.f:838-1015).
+- FIXMORT point/size concentration reallocation (PRM(6) — KBIG/KPOINT/combined, morts.f:838-1015) ✅ DONE.
 - THINPRSC multi-plot (nps>1) path.
 - ~~Species-group thin-method filter~~ ✅ DONE — `_cut_eligible` (and `_clsstk`/`_sdi_zeide`/
   `_rd_curtis`) take the SPGROUP table; the species-filtering thins (THINDBH/THINSDI/THINRDEN/

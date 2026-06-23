@@ -10,6 +10,11 @@
 #       mortality is pooled and re-imposed whole-record on the SMALLEST grown trees first
 #       (morts.f:838 size concentration), so the large trees survive — BA/SDI stay high and QMD
 #       climbs, unlike a flat per-record kill. Validates the XMORE-pool + ∓grown-DBH RDPSRT sort.
+#   * fixmort_kpoint  — same window, PRM(6)=1 (KPOINT): the pooled mortality is concentrated point
+#       by point (the 11-point base stand), killing whole records on the first points until XMORE
+#       is spent (morts.f:937). A different survivor set than KBIG — a real, non-flat distribution.
+#   * fixmort_kpbig   — PRM(6)=11 (KPOINT+KBIG): points have priority, smallest-first within each
+#       point (morts.f:978) — the combined traversal.
 # These exercise the fix that makes the recovery match: TPAMRT (the self-thinning line-reset
 # carried to next cycle) is locked from the BA-check survivors BEFORE FIXMORT, so the forced
 # kill doesn't move the self-thinning line (morts.f:772 precedes the FIXMORT block at 781).
@@ -29,7 +34,7 @@ _fmcol(r, c) = parse(Float64, r[c])
     runjl(nm) = (_fm_rows(FVSjl.run_keyfile(joinpath(_FM_DIR, nm * ".key"); faithful = true)),
                  _fm_base(joinpath(_FM_DIR, nm * ".sum.save")))
 
-    for nm in ("fixmort_replace", "fixmort_mult", "fixmort_big")
+    for nm in ("fixmort_replace", "fixmort_mult", "fixmort_big", "fixmort_kpoint", "fixmort_kpbig")
         if !have(nm); @test_skip "$nm scenario not available"; continue; end
         @testset "$nm" begin
             jl, ft = runjl(nm)
