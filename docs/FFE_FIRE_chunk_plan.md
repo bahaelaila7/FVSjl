@@ -163,8 +163,11 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
   (BurnRept/FuelRept/MortRept/CarbonReport) — overlaps C6 (DBS output).
   - **F8-live:** ✅ **DONE** — `stand_live_carbon` (fmcrbout.f): the live-tree aboveground/merch/
     belowground carbon pools = Σ Jenkins biomass (F1) × TPA × 0.5. 8 tests; suite 3256→3264.
-  - **F8-rest — REMAINING:** the dead carbon pools (standing snags, down dead wood, forest floor) from
-    F7, the fire carbon release, and the DBS Carbon/Fuel/Burn/Mort report tables (overlaps C6).
+  - **F8-dead:** ✅ **DONE** — `standing_dead_carbon` (snag carbon from `fire.snags`, F7),
+    `down_wood_carbon` (the `fire.cwd` surface pools, F3), and `stand_carbon` (the combined live+dead+
+    total report) in tons C/ac. 8 tests; suite 3288→3296.
+  - **F8-rest — REMAINING:** the fire carbon *release* (consumed fuel during the burn) and the DBS
+    Carbon/Fuel/Burn/Mort report *tables* (writing the pools to the DBS output, overlaps C6).
 
 ## Validation
 
