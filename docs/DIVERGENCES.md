@@ -67,7 +67,8 @@ scenario must set to make it execute and become Fortran-validatable.
 | MSB mortality `MSBMRT` | `MATUREW` (default QMDMSB=999) | C4 |
 | size-cap (SIZCAP): DG bound + size-cap mortality + HT cap | `TREESZCP` — ✅ ported (kw_treeszcp!; sn/morts.f:692 floor + htgf.f:286 HT cap, test_treeszcp.jl). Residuals: cap mid-cycle TPA/BA carry the regen response to cap-driven mortality (QMD bit-exact, endpoint matches); htcap TopHt ≤4' declining-stand drift (TPA/BA/QMD bit-exact) | — |
 | BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT (`MULTS` 1/2/4/3/6) | the keyword — ✅ ported (active_multiplier; bit-exact vs Fortran, test_multipliers.jl) | — |
-| `FFERT`, `HTGSTP` (HTGSTOP/TOPKILL), FIXMORT/FIXDG/FIXHTG | the respective keyword (defaults inert) | — |
+| FIXDG/FIXHTG | the keyword — ✅ ported (one-shot DG/HTG scaler + DBH window + tripled-record scaling; bit-exact, test_fix_scalers.jl) | — |
+| `FFERT`, `HTGSTP` (HTGSTOP/TOPKILL), FIXMORT | the respective keyword (defaults inert) | — |
 | event-monitor expression eval `EV*`/`ALGEVL` | `COMPUTE`/`IF` keywords (basic IF/THEN works; full expr partial) | — |
 | stand-structure stage `SSTAGE/ISSTAG/KSSTAG/COVOLP` | structure-class output (not in .sum growth math) | — |
 | fire `FM*` (~100), econ `EC*`, insects `MPB/DFB/TM/BWE`, mistletoe `MIS*` | FFE / econ / pest keywords | C7/C8 |

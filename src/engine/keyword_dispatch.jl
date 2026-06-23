@@ -133,8 +133,9 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     v = rec.values; pr = rec.present
     # MORTMULT (kind :mort) additionally carries a DBH window (PRM(3)/PRM(4) → XMDIA1/XMDIA2,
     # morts.f:170-171); the others ignore fields 4-5. Defaults: D1=0, D2=99999 (all trees).
-    d1 = (kind === :mort && pr[4]) ? Float32(v[4]) : 0f0
-    d2 = (kind === :mort && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 99999f0
+    windowed = kind === :mort || kind === :fixdg || kind === :fixhtg
+    d1 = (windowed && pr[4]) ? Float32(v[4]) : 0f0
+    d2 = (windowed && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 99999f0
     push!(s.control.multipliers,
           GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[2])), Float32(v[3]), d1, d2))
     return
@@ -159,6 +160,45 @@ function active_mort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
         end
     end
     return (d1 <= dbh < d2) ? val : 1f0
+end
+
+"""
+    apply_fix_scalers!(s, stash, kind, fint)
+
+FIXDG/FIXHTG (grincr.f:451-525): a ONE-SHOT per-cycle scaler. In the cycle whose year
+range [cyc_start, cyc_start+period) contains the keyword date, multiply DG (kind=:fixdg)
+or HTG (:fixhtg) by `value` for every tree of the matching species (0 = all) whose DBH is
+in [d1, d2). The tripled upper/lower records (stash dgU/dgL, htgU/htgL) get the same factor
+(FVS scales DG(ITFN)/DG(ITFN+1)). Runs after all growth, before mortality (MORTS reads the
+scaled DG). Multiple scalers firing the same cycle compound, in keyword order.
+"""
+function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
+    isempty(s.control.multipliers) && return s
+    period = round(Int, s.control.year)
+    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
+    cyc_end = cyc_start + period
+    t = s.trees
+    nlive = stash === nothing ? t.n : stash.nlive
+    isdg = kind === :fixdg
+    @inbounds for m in s.control.multipliers
+        m.kind === kind || continue
+        # one-shot: a fixed-year scaler matches exactly one cycle's [start,end) range. A
+        # date before the first cycle fires in cycle 0 (Fortran OPFIND past-date behaviour).
+        (cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)) || continue
+        for i in 1:nlive
+            (m.species == 0 || m.species == t.species[i]) || continue
+            d = t.dbh[i]
+            (m.d1 <= d < m.d2) || continue
+            if isdg
+                t.diam_growth[i] *= m.value
+                stash !== nothing && (stash.dgU[i] *= m.value; stash.dgL[i] *= m.value)
+            else
+                t.ht_growth[i] *= m.value
+                stash !== nothing && (stash.htgU[i] *= m.value; stash.htgL[i] *= m.value)
+            end
+        end
+    end
+    return s
 end
 
 # TREESZCP (base/keywds.f:51 / SIZCAP): a per-species maximum tree size. Field 1 =
@@ -367,6 +407,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "REGHMULT"; kw_mult!(s, rec, :regh)  # regen height-growth multiplier
         elseif kw == "REGDMULT"; kw_mult!(s, rec, :regd)  # regen diameter-growth multiplier
         elseif kw == "TREESZCP"; kw_treeszcp!(s, rec)     # per-species size cap (SIZCAP)
+        elseif kw == "FIXDG";    kw_mult!(s, rec, :fixdg)  # one-shot DG scaler (grincr.f:451)
+        elseif kw == "FIXHTG";   kw_mult!(s, rec, :fixhtg) # one-shot HTG scaler (grincr.f:492)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP
             # recognized, no cycle-0 effect yet

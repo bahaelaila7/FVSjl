@@ -68,6 +68,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     stash = diameter_growth!(s, s.variant; tripling = trip)  # DGs only; no records yet
     height_growth!(s, s.variant)
     small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
+    apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
+    apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
     mortality!(s, s.variant)               # MORTS on the ORIGINAL records (FVS order)
     g = s.plot.gross_space
     # Mortality volume (OMORT) is accounted on the originals, before tripling.

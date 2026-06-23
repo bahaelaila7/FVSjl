@@ -47,8 +47,8 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| FIXDG | fix/scale diameter growth | ⛔ |
-| FIXHTG | fix/scale height growth | ⛔ |
+| FIXDG | fix/scale diameter growth | ✅ (one-shot scaler, species×DBH window, scales tripled DG; bit-exact, test_fix_scalers.jl) |
+| FIXHTG | fix/scale height growth | ✅ (one-shot scaler, species×DBH window, scales tripled HTG; bit-exact, test_fix_scalers.jl) |
 | HTGSTOP / TOPKILL | stop height growth / topkill edits | ⛔ |
 | BAIMULT | basal-area-increment multiplier (scales DDS) | ✅ (MULTS; bit-exact vs Fortran, test_multipliers.jl) |
 | HTGMULT | height-growth multiplier | ✅ (MULTS; bit-exact vs Fortran) |
@@ -151,10 +151,15 @@ init/keyword-table). This separates real ports from set-but-not-read no-ops:
 - `FIXMORT` — morts.f subsystem (per-tree rate override + point/size reallocation).
 - `FIXCW` — cwidth.f (crown-width override).
 - `HTGSTP` (HTGSTOP/TOPKILL) — htgstp.f 200-ln topkill subsystem (reduces HT + volume).
-- FIXDG/FIXHTG — grincr.f:481 (DG/HTG·PRM(2) over a DBH window). ⚠ ATTEMPTED a post-growth-
-  pass port this session → BUGGY (FIXDG over-scaled QMD 23.8 vs 16.9; FIXHTG corrupted
-  TopHt down 58→44 vs ~no-effect). REVERTED. Needs the post-pass + tripling-stash + growth/
-  mortality-compensation interaction debugged (isolate on a NOTRIPLE stand first).
+- FIXDG/FIXHTG — ✅ DONE. grincr.f:451-525: DG/HTG·PRM(2) over a species×DBH window, applied
+  in `apply_fix_scalers!` (keyword_dispatch.jl) after all growth / before MORTS. TWO things the
+  earlier buggy attempt missed: (1) it is **ONE-SHOT** (OPDONE) — fires only in the cycle whose
+  [start, start+period) range holds the keyword date, not every cycle (confirmed empirically:
+  0.3× at 1995 drops QMD only in the 1995-cycle, then the gap persists ~constant, not runaway);
+  (2) it must scale the **tripled** DG/HTG too — the stash dgU/dgL (htgU/htgL), matching FVS's
+  DG(ITFN)/DG(ITFN+1). Reuses the GrowthMultiplier d1/d2 window. Bit-exact every cycle on 3
+  scenarios (all/windowed DG, HTG) vs live Fortran (test_fix_scalers.jl). Species groups (ISPCC<0)
+  not yet handled (rare); only 0=all and >0=single species.
 
 **Set-but-not-read in SN (0 application refs ⇒ likely NO-OP in SN, or external component):**
 - CRNMULT, TOPKILL, CUTEFF, MINHARV, TCONDMLT — 0 refs.

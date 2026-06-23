@@ -33,6 +33,7 @@ using FVSjl
     include("integration/test_hcor_calib.jl")# C3: REGENT small-tree HCOR calibration vs Fortran
     include("integration/test_multipliers.jl")# C3: growth/mortality keyword multipliers (BAIMULT/HTGMULT/MORTMULT) vs Fortran
     include("integration/test_treeszcp.jl")   # C3: per-species size cap (TREESZCP/SIZCAP) vs Fortran
+    include("integration/test_fix_scalers.jl") # C3: FIXDG/FIXHTG one-shot growth scalers vs Fortran
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6

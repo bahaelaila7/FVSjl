@@ -28,7 +28,8 @@ Fortran refs are `file.f`; FVSjl refs are `src/...`.
 | INVYEAR / NUMCYCLE / TIMEINT | cycle calendar | ✅ |
 | thinning/harvest keywords (THIN*/SALVAGE/SPECPREF/…) | schedule CUTS + set cut modifiers | 🟡 5 of ~17 methods + 0 of 6 modifiers ported — see the destructured **CUTS** section below for the per-keyword audit |
 | MORTMULT | mortality-rate multiplier (+ DBH window) | ✅ `active_mort_mult` (background rate, D1≤DBH<D2; bit-exact windowed + windowless, test_multipliers.jl) |
-| MSB / SIZECAP / FIXMORT / FIXDG / FIXHTG / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
+| FIXDG / FIXHTG | one-shot DG/HTG scalers (grincr.f:451) | ✅ `apply_fix_scalers!` (species×DBH window, scales tripled DG/HTG; bit-exact, test_fix_scalers.jl) |
+| MSB / FIXMORT / HTGSTOP / TOPKILL / FFERT | option activities | ⛔ keyword paths not wired (defaults = no-op) |
 | BAMAX (SETSITE basal-area max) keyword | sets LBAMAX + BAMAX | 🟡 BAMAX honored in MORTS; keyword path partial |
 
 ## NOTRE / SETUP — build records (`notre.f`, `setup.f`)
