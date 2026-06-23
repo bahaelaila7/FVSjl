@@ -59,6 +59,27 @@ everything else falls back to the original NI regen rule `0.5 + 0.5·age`.
     return _sprtht_sn_curve(ispc) ? (0.1f0 + si / 50f0) * a : 0.5f0 + 0.5f0 * a
 end
 
+"""
+    sprout_dbh(coef, ispc, ht) -> Float32
+
+Sprout DBH (in) from sprout height `ht` (ft) via the ESUCKR Wykoff height–diameter
+inverse (esuckr.f:296-307): `DBH = HT2/(ln(HT−4.5) − AX) − 1`, floored at 0.1.
+
+`AX = HT1` (the default coefficient) in the standard case: `IABFLG` defaults 1
+(grinit.f:105) and CRATET only re-fits it (`IABFLG=0`, `AX=AA`) when the species'
+height–diameter regression is enabled — `LHTDRG`, off by default (grinit.f:104),
+flipped only by an explicit HT-DBH keyword. So for an ordinary SPROUT stand the
+per-stand AA fit never runs and the Wykoff defaults `HT1`/`HT2` (sitset.f, in
+`sprout_htdbh_wykoff.csv`) apply directly. Heights ≤ 4.5 ft get the 0.1-in floor.
+"""
+@inline function sprout_dbh(coef::SpeciesCoefficients, ispc::Integer, ht::Float32)::Float32
+    ht > 4.5f0 || return 0.1f0
+    ax = coef_col(coef, :wykoff_ht1)[ispc]
+    bx = coef_col(coef, :wykoff_ht2)[ispc]
+    d = bx / (log(ht - 4.5f0) - ax) - 1f0
+    return d < 0.1f0 ? 0.1f0 : d
+end
+
 "Special-establishment forests (R8/R9 NFs) that trigger the ESSPRT overrides."
 @inline _es_special_forest(isefor::Integer) =
     isefor == 809 || isefor == 810 || isefor == 905 || isefor == 908
@@ -96,4 +117,85 @@ function essprt_sn(coef::SpeciesCoefficients, ispc::Integer, prem::Float32,
     end
     p2 = coef_col(coef, :essprt_p2)[ispc]
     return prem * (1f0 / (1f0 + exp(-(p1 + p2 * dstmp))))   # logistic in DSTMP
+end
+
+"""
+    esuckr!(s; fint) -> Bool
+
+Stump/root-sprout regeneration (ESUCKR, esuckr.f:156-349). For each cut record logged
+by `_log_cut!` this cycle (a sprouting species, in removal order) create its sprouts:
+`nsprec_sn` gives the number of sprout records, `essprt_sn` the survival-adjusted
+carried TPA, `sprtht_sn` the height (× HMULT, plus a clamped `BACHLO(0,0.5)` `:estab`
+deviation scaled by HT/5.5), and `sprout_dbh` the Wykoff DBH. New records carry
+`IMC=2`, `ICR=70`, `ABIRTH=ISHAG`, and `PROB = PREM·SMULT`.
+
+Runs in the ESNUTR phase (GRADD order, esnutr.f:113) *before* `establish!` — both draw
+the `:estab` stream, and ESUCKR consumes it first. Gated on LSPRUT; a no-op when
+sprouting is off or nothing was cut, so the default (LSPRUT off) path is untouched.
+SMULT/HMULT use the stand-level SPROUT keyword values (the per-species/DBH-range OPGET
+table, esuckr.f:96-150, is a later refinement — the common SPROUT form applies one pair
+to all sprouting species).
+"""
+function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
+    (s.control.lsprut && !isempty(s.control.cut_log)) || return false
+    smult = s.control.sprout_smult
+    smult <= 0f0 && return false                       # esuckr.f:211
+    hmult = s.control.sprout_hmult
+    t = s.trees; coef = s.coef
+    isefor = Int(s.plot.user_forest_code)
+    icyc = Int(s.control.cycle)
+    created = false
+    @inbounds for rec in s.control.cut_log
+        prem = rec.prem
+        prem < 0.001f0 && continue                     # esuckr.f:170
+        issp = Int(rec.species); dstmp = rec.dstmp
+        ishag = Int(rec.ishag); iplot = Int(rec.plot)
+        numspr = nsprec_sn(issp, dstmp)                # number of sprout records
+        prem = essprt_sn(coef, issp, prem, dstmp, isefor)  # per-record survival multiplier
+        prem < 0.001f0 && continue                     # esuckr.f:244
+        si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)
+        sp2 = s.species.class_codes[issp, 1][1:2]      # 2-char alpha code (for CWCALC)
+        prob = prem * smult                            # PROB(ITRN)
+        for _ in 1:numspr
+            n = t.n + 1; n > length(t.dbh) && break    # no ESCPRS compression — list-overflow guard
+            t.n = n
+            # height: SPRTHT × HMULT + clamped BACHLO(0,0.5,ESRANN) deviation (× HT/5.5)
+            ht = sprtht_sn(issp, si, ishag) * hmult
+            randev = 0f0
+            while true
+                randev = bachlo(s.rng, 0f0, 0.5f0; stream = :estab)
+                -1f0 <= randev <= 1f0 && break
+            end
+            ht += randev * ht / 5.5f0
+            dbh = sprout_dbh(coef, issp, ht)
+            cw = crown_width(coef, sp2, dbh, ht, 70f0, 0,
+                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            # tree-record initialization (esuckr.f:258-343)
+            t.mort_code[n]   = Int32(2)                # IMC = 2 (sprout regeneration)
+            t.species[n]     = Int32(issp)
+            t.plot_id[n]     = Int32(iplot)
+            t.tpa[n]         = prob
+            t.dbh[n]         = dbh
+            t.height[n]      = ht
+            t.crown_pct[n]   = Int32(70)               # ICR
+            t.crown_ratio[n] = 70f0                    # regen convention (see establish!)
+            t.crown_width[n] = cw
+            t.norm_ht[n]     = Int32(0)
+            t.trunc[n]       = Int32(0)
+            t.birth_age[n]   = Float32(ishag)          # ABIRTH
+            t.tree_id[n]     = Int32(10000000 + icyc * 10000 + n)  # IDTREE
+            t.tree_random[n] = -999f0                  # ZRAND
+            t.sort_key[n]    = Float64(n)
+            # zero the carried-over fields (the slot may hold a previously-deleted record)
+            t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
+            t.cuft_vol[n]    = 0f0; t.merch_cuft_vol[n] = 0f0
+            t.saw_cuft_vol[n] = 0f0; t.bdft_vol[n] = 0f0
+            t.defect[n]      = Int32(0); t.special[n] = Int32(0)
+            t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
+            t.old_random[n]  = 0f0; t.old_crown_pct[n] = 0f0
+            created = true
+        end
+    end
+    created && compute_density!(s)
+    return created
 end

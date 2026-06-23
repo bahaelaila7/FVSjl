@@ -1,6 +1,6 @@
 # Unit tests for the stump-sprout sub-routines (NSPREC / SPRTHT / ESSPRT, SN).
 # Expected values are hand-computed directly from essprt.f's SN SELECT CASE blocks.
-using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, coefficients, Southern,
+using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, sprout_dbh, coefficients, Southern,
              StandState, init_blockdata!, _log_cut!
 
 @testset "sprout sub-routines (NSPREC/SPRTHT/ESSPRT)" begin
@@ -48,6 +48,16 @@ using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, coefficients, Southern,
         @test essprt_sn(coef, 77, 1.0f0, 10.0f0, 905) ≈
               1f0 / (1f0 + exp(-(-2.8058f0 + 22.6839f0 *
                                   (1f0 / ((10f0/0.7788f0) - 0.4403f0)))))
+    end
+
+    @testset "ESUCKR sprout DBH (Wykoff H-D inverse, IABFLG=1)" begin
+        # DBH = HT2/(ln(HT-4.5) - HT1) - 1, floored at 0.1; HT<=4.5 -> 0.1.
+        # sp65: HT1=4.5142, HT2=-5.2205
+        @test sprout_dbh(coef, 65, 15.0f0) ≈ (-5.2205f0 / (log(15f0 - 4.5f0) - 4.5142f0) - 1f0)
+        @test sprout_dbh(coef, 33, 12.0f0) ≈ (-4.7206f0 / (log(12f0 - 4.5f0) - 4.4772f0) - 1f0)
+        @test sprout_dbh(coef, 22,  4.5f0) == 0.1f0     # HT == 4.5 -> floor
+        @test sprout_dbh(coef, 22,  3.0f0) == 0.1f0     # HT < 4.5  -> floor
+        @test sprout_dbh(coef, 65, 15.0f0) >= 0.1f0     # never below floor
     end
 
     @testset "ESTUMP cut-log fidelity (_log_cut!)" begin

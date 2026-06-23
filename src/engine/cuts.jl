@@ -100,10 +100,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 end
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
-    if s.control.lsprut
-        empty!(s.control.cut_log)            # fresh ESTUMP cut log each cycle (for ESUCKR)
-        s.plot.cycle_length = fint           # IFINT (FINT) — sprout age carried to ESTUMP/SPRTHT
-    end
+    s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT
     sched = s.control.schedule
     conds = s.control.conditionals
     (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
@@ -111,6 +108,10 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # (cycle_year only stores the inventory year; later years are derived.)
     yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
+    # Fresh ESTUMP cut log for this cycle (for ESUCKR). Cleared HERE — after the
+    # idempotency guard — so the second (summary) cuts! call of the cycle, which
+    # early-returns above, does not wipe the log the first call populated.
+    s.control.lsprut && empty!(s.control.cut_log)
     # Effective activities this cycle: the dated ones (year==yr) plus any IF/THEN block
     # whose algebraic condition is true this cycle (EVMON), with their year set to yr.
     # THINAUTO (icflag 1) is a RECURRING auto-thin: once scheduled it re-evaluates the

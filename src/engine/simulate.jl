@@ -155,6 +155,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
     # bogus into next cycle's DGF/mortality).
+    esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
     crown_ratio_update!(s; fint = fint)     # CROWN — crown ratio for ALL trees incl. new regen
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's

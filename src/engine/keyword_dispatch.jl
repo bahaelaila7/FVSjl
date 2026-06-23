@@ -748,9 +748,16 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             surv = (v[4] < 0.001f0 || v[4] > 100f0) ? 100f0 : Float32(v[4])  # esin.f:149
             push!(sched, ScheduledActivity(yr, ic, (sp, tpa, surv, Float32(v[5]), Float32(v[6]), Float32(v[7]))))
         elseif k == "SPROUT"                                  # esin.f opt 26: enable stump sprouting
-            s.control.lsprut = true                           # (per-species sprout tables land in ESUCKR/Chunk C)
-            r.present[3] && (s.control.sprout_smult = Float32(r.values[3]))
-            r.present[4] && (s.control.sprout_hmult = Float32(r.values[4]))
+            # field 2 = species (0 ⇒ all sproutable); blank ⇒ no valid species ⇒ LSPRUT=.FALSE.
+            # (esin.f:625). SMULT/HMULT (fields 3/4) apply to all sprouting species — the
+            # per-species/DBH-range table (esuckr.f OPGET 450) is a later refinement.
+            if r.present[2]
+                s.control.lsprut = true
+                r.present[3] && (s.control.sprout_smult = Float32(r.values[3]))
+                r.present[4] && (s.control.sprout_hmult = Float32(r.values[4]))
+            else
+                s.control.lsprut = false
+            end
         elseif k == "NOSPROUT"                                # esin.f opt 27: disable sprouting
             s.control.lsprut = false
         end
@@ -881,6 +888,9 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
+        # SPROUT/NOSPROUT are establishment-extension sub-keywords (read by ESIN inside an
+        # ESTAB…END block, esin.f opt 26/27) — NOT top-level base keywords (the Fortran base
+        # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
         elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword

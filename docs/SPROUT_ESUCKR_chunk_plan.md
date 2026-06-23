@@ -73,7 +73,19 @@ and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/e
     `_thin_sorted!` + the `_remove!`/`_rm!`/`_rmc!`/`_rmp!` closures of SDI/RDEN/CC/PT; `_thin_auto!`→
     sorted and `_thin_qfa!`→dbh/sdi are covered by delegation). 4 unit tests (filter, contents,
     lsprut-off); suite 2962→2966. Still inert (write-only) — no live caller until C2.
-  - **C2 — generation loop:** port esuckr.f:156-349 (NSPREC count → ESSPRT survival → SPRTHT height +
+  - **C2 + C2a + D — generation loop, Wykoff DBH, validation:** ✅ **DONE.** `esuckr!`
+    (`src/engine/sprout.jl`) ports esuckr.f:156-349 and is wired into `grow_cycle!` (ESNUTR phase,
+    before `establish!`), gated on LSPRUT. C2a: sprout DBH uses the Wykoff inverse with default
+    `HT1/HT2` (`sprout_htdbh_wykoff.csv`, sitset.f) — confirmed `IABFLG=1`/`LHTDRG=.FALSE.` by default
+    (grinit.f:104-105) so the CRATET AA fit never runs. SPROUT is an establishment **sub-keyword**
+    (ESTAB…END, esin.f opt 26 — the base processor rejects a top-level SPROUT as "INVALID KEYWORD"),
+    handled in `kw_estab!`. Also fixed a double-`cuts!`-call bug (summary.jl calls `cuts!` too; the
+    cut-log `empty!` now sits after the idempotency guard so the 2nd call doesn't wipe it).
+    **Validated bit-exact vs live Fortran** (`test/integration/test_sprout_regen.jl`, scenario
+    `sprout.key`: heavy THINBBA of sugar maple + SPROUT) — all TPA/BA/cubic columns match through the
+    sprout-regeneration cycle (board feet within Scribner noise). Suite 2971→3051. **ESUCKR COMPLETE.**
+
+  - ~~**C2 — generation loop:**~~ port esuckr.f:156-349 (NSPREC count → ESSPRT survival → SPRTHT height +
     clamped `BACHLO(0,.5,ESRANN)` `:estab` deviation → H-D-inverse DBH → CWCALC crown → tree-record
     init), wire into the cycle hook (esnutr.f:112-124, after COMPRS, gated on LSPRUT && ITRNRM≥1),
     handle the SPROUT keyword per-species/DBH multiplier table (OPGET action 450). The .sum chunk.
