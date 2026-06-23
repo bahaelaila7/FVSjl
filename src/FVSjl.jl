@@ -66,6 +66,7 @@ include("engine/standstats.jl")
 include("engine/event_monitor.jl")
 include("engine/cuts.jl")
 include("engine/establishment.jl")
+include("engine/sprout.jl")
 include("io/summary.jl")
 include("engine/simulate.jl")
 

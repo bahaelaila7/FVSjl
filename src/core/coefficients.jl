@@ -121,7 +121,8 @@ function load_species_coefficients(datadir::AbstractString)
     forest_type_codes = Int32[parse(Int32, r[1]) for r in ftc]
 
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
-    for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv")
+    for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
+                  "sprout_essprt.csv")
         h2, rows2 = _read_csv(joinpath(datadir, fname))
         for (j, h) in enumerate(h2)
             h == :species_index && continue

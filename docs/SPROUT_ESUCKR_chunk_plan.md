@@ -56,8 +56,13 @@ and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/e
   (2938/2938). NOTE: only `_thin_sorted!` (THINBTA/ATA/BBA/ABA) logs so far — the other thin methods
   (`_thindbh!`/`_thinprsc!`/`_thin_sdi!`/`_thin_rden!`/`_thin_cc!`/`_thin_qfa!`/`_thin_pt!`) each need
   the same one-line append at their removal point when C lands.
-- **B — sub-routine coefficients:** extract `NSPREC`/`SPRTHT`/`ESSPRT` species coefficients to CSVs +
-  port the three functions (pure, testable in isolation against hand-computed values).
+- **B — sub-routine coefficients:** ✅ **DONE** (`src/engine/sprout.jl` + `data/southern/sprout_essprt.csv`).
+  `nsprec_sn` / `sprtht_sn` / `essprt_sn` ported pure & bit-faithful to essprt.f's SN blocks. The
+  ESSPRT per-species blob is the CSV (per-species `essprt_kind`/`essprt_p1`/`essprt_p2`/`essprt_fsp`
+  columns, loaded alongside merch_specs); the 5 forest-special species (64/66/70/75/77, forests
+  809/810/905/908) keep their distinct formulas in code with the common-forest ELSE form in the CSV.
+  NSPREC/SPRTHT are tiny piecewise rules kept inline (NINT via `nint`). 24 unit tests vs hand-computed
+  values (`test/unit/test_sprout.jl`); suite 2938→2962. Still inert (no caller) until C.
 - **C — ESUCKR sprout-gen + ESRANN:** the generation loop, creating sprout records with the exact
   `:estab` RNG order. The .sum-affecting chunk.
 - **D — validation:** a SPROUT + harvest stand (cut a sprouting species, e.g. an oak), 3-way vs live

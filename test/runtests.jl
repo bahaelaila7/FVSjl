@@ -53,6 +53,7 @@ using FVSjl
     include("integration/test_tfixarea.jl")     # C2: TFIXAREA fixed-plot-area expansion vs Fortran
     include("integration/test_cuteff.jl")       # C3: CUTEFF default cutting efficiency vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
+    include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6
