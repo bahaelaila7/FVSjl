@@ -3,7 +3,7 @@
 using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
              crown_biomass, StandState, init_blockdata!, init_merch_standards!,
              ffe_dead_fuel_type, ffe_live_fuel_type, ffe_dead_fuel_loading, ffe_live_fuel_loading,
-             ffe_forest_type
+             ffe_forest_type, fmcba!, FireState
 
 @testset "Jenkins tree biomass (FMCBIO)" begin
     coef = coefficients(Southern())
@@ -143,4 +143,37 @@ end
     @test ffe_forest_type(s) == 4                                     # >70% pine BA → pine
     t.tpa[2] = 100.0f0                                                # 50/50 pine/hardwood
     @test ffe_forest_type(s) == 2                                     # ≤50% pine → hardwood/pine
+end
+
+@testset "FFE per-cycle fuel/cover update (FMCBA)" begin
+    function build()
+        s = StandState(Southern()); init_blockdata!(s, s.variant)
+        s.plot.forest_type = Int32(520)
+        s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+        t = s.trees; t.n = 3
+        t.species[1]=Int32(65); t.dbh[1]=14f0; t.height[1]=72f0; t.tpa[1]=40f0; t.crown_pct[1]=Int32(40)
+        t.species[2]=Int32(33); t.dbh[2]= 8f0; t.height[2]=55f0; t.tpa[2]=30f0; t.crown_pct[2]=Int32(45)
+        t.species[3]=Int32(22); t.dbh[3]= 6f0; t.height[3]=45f0; t.tpa[3]=20f0; t.crown_pct[3]=Int32(50)
+        s.fire = FireState(); s.fire.active = true
+        s
+    end
+    s = build(); fmcba!(s); fs = s.fire
+
+    @test fs.covtyp == 65                       # oak carries the most basal area
+    @test fs.bigdbh == 14f0
+    @test 0f0 < fs.percov <= 100f0
+    # forest 520 → hardwood (IFFEFT 1) → hardwood live fuels FULIV[2]
+    @test fs.flive == (0.01f0, 0.03f0)
+    # the BA-weighted decay-class split conserves each size class's FUINI total
+    fd = ffe_dead_fuel_loading(coefficients(Southern()), 520)
+    for isz in 1:11
+        @test sum(@view fs.cwd[isz, 2, :]) ≈ fd[isz]
+    end
+    # determinism
+    s2 = build(); fmcba!(s2)
+    @test s2.fire.covtyp == fs.covtyp && s2.fire.percov ≈ fs.percov
+
+    # no-op when FFE is inactive
+    s3 = build(); s3.fire.active = false; fmcba!(s3)
+    @test s3.fire.covtyp == 0 && s3.fire.percov == 0f0 && all(s3.fire.cwd .== 0f0)
 end

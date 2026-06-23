@@ -67,10 +67,17 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     species 4–14), the savannah/bluestem classes use top height (`stand_top_height` = AVHT40 = ATAVH)
     and `stocking_class` (ISTCL). 8 unit tests (incl. snt01 ft 520→1, pine-fraction splits); suite
     3116→3124. Drives F3's live fuels and F4's fuel model.
-  - **F3-state — REMAINING:** the per-stand `FireState` struct (STFUEL down-wood pools by size/decay
-    class, snag arrays, cover type / percent cover), the decay-class split (fmcba.f:372+), the FULIV2
-    understory age/SI shrub curve, and the SNAGINIT/DEFULMOD/FUELINIT keyword setup. Wire FMCBA into
-    the cycle (computing cover type, percent cover, and the live/dead fuel pools each cycle).
+  - **F3-state:** ✅ **DONE (fuel/cover body)** — `FireState` expanded (cover type, percent cover, big
+    DBH, live fuels, the `cwd[11 size × 2 dead/soft × 4 decay]` down-wood pools) and `fmcba!`
+    (`src/engine/fire/fmcba.jl`) ports FMCBA's deterministic body: cover type = max-BA species, percent
+    cover from per-tree crown areas (crown width computed on the fly, CWCALC iwho=0), live fuels by FFE
+    forest type, and the first-year dead-fuel load split into decay classes by species BA share
+    (`DKRCLS`). Gated on `fire.active` (no-op otherwise). 17 unit tests incl. fuel-pool conservation
+    (Σ decay = FUINI) and cover-type/live-fuel correctness; suite 3124→3141.
+  - **F3-rest — REMAINING:** the snag arrays + FULIV2 understory age/SI shrub curve, and the FFE
+    activation path — parse the **FMIN** keyword block (SNAGINIT/DEFULMOD/FUELINIT/…) to set
+    `fire.active` and wire `fmcba!` into the cycle. (Until FMIN parses, FFE stays inactive ⇒ all
+    scenarios bit-exact; `fmcba!` is validated standalone.)
 - **F4 — fuel model classification (FMCFMD):** stand condition → fire-behavior fuel model (static +
   dynamic weighting). The Anderson/SB fuel-model loadings → CSV.
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with

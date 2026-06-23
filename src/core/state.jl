@@ -491,9 +491,15 @@ end
 DbsState() = DbsState(false, "FVSOut.db", nothing, Dict{Symbol,Bool}())
 
 mutable struct FireState
-    active::Bool
+    active::Bool                       # FFE enabled (FMIN keyword)
+    covtyp::Int32                      # cover type = species with the most basal area (COVTYP)
+    percov::Float32                    # percent canopy cover (PERCOV)
+    bigdbh::Float32                    # largest DBH seen in the stand (BIGDBH)
+    flive::NTuple{2,Float32}           # live herb / shrub surface fuel, tons/ac (FLIVE)
+    cwd::Array{Float32,3}              # surface fuel [size class 1:11, dead(2)/soft(1), decay class 1:4] (CWD)
+    fuels_init::Bool                   # dead-fuel pools loaded yet (first FFE year only)
 end
-FireState() = FireState(false)
+FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false)
 
 mutable struct EconState
     active::Bool
