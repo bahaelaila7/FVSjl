@@ -1,7 +1,7 @@
 # Unit tests for fire-caused tree mortality (FFE F6, FMEFF + FMBRKT).
 # Expected values come from a reference transcription of fmeff.f / fmbrkt.f.
 using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
-             coefficients, Southern, coef_col
+             scorch_height, crown_volume_scorched, coefficients, Southern, coef_col
 
 @testset "fire mortality (FMEFF) + bark thickness (FMBRKT)" begin
     coef = coefficients(Southern())
@@ -72,5 +72,34 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
             p = fire_tree_mortality(coef, sp, 10f0, fl, 50f0)
             @test 0f0 <= p <= 1f0
         end
+    end
+
+    @testset "scorch height (Van Wagner) + crown volume scorched" begin
+        # SCH = (63/(140-ATEMP)) · BYRAM'^(7/6) / sqrt(BYRAM' + FWIND^3), BYRAM'=BYRAM/60
+        sch_ref(byram, atemp, fwind) = (b = byram/60; (63/(140-atemp)) * (b^(7/6)/sqrt(b + fwind^3)))
+        for (by, at, wd) in ((3000f0, 77f0, 5f0), (12000f0, 90f0, 10f0), (500f0, 60f0, 2f0))
+            @test scorch_height(by, at, wd) ≈ Float32(sch_ref(by, at, wd))
+        end
+        @test scorch_height(12000f0, 90f0, 5f0) > scorch_height(3000f0, 90f0, 5f0)  # hotter ⇒ taller scorch
+
+        # CSV: crown length CRL = HT·CR; scorch length SL = SCH-(HT-CRL), clamped to [0,CRL]
+        function csv_ref(sch, ht, cr)
+            crl = ht*(cr/100); crl <= 0 && return 100.0
+            sl = sch - (ht - crl); sl = clamp(sl, 0.0, crl)
+            100*(sl*(2*crl - sl)/(crl*crl))
+        end
+        for (sch, ht, cr) in ((40f0, 60f0, 40), (80f0, 60f0, 40), (10f0, 60f0, 40), (100f0, 50f0, 50))
+            @test crown_volume_scorched(sch, ht, cr) ≈ Float32(csv_ref(sch, ht, cr))
+        end
+        @test crown_volume_scorched(5f0, 60f0, 0) == 100f0    # no crown → fully scorched
+        @test crown_volume_scorched(0f0, 60f0, 40) == 0f0     # scorch below crown → 0
+        @test crown_volume_scorched(100f0, 60f0, 40) == 100f0 # scorch past crown top → 100%
+        # full chain: byram → scorch → CSV → mortality (group-6 species)
+        by = 4000f0
+        sch = scorch_height(by, 77f0, 5f0)
+        csv = crown_volume_scorched(sch, 60f0, 40)
+        flame = 0.45f0 * (by/60f0)^0.46f0
+        p = fire_tree_mortality(coef, 1, 12f0, flame, csv)
+        @test 0f0 <= p <= 1f0
     end
 end

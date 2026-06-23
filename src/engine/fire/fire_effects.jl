@@ -52,6 +52,33 @@ end
 end
 
 """
+    scorch_height(byram, atemp, fwind) -> Float32
+
+Van Wagner crown scorch height (ft) from Byram fireline intensity `byram`
+(BTU/ft/min), air temperature `atemp` (°F), and wind speed `fwind` (fmburn.f:470).
+"""
+@inline function scorch_height(byram::Float32, atemp::Float32, fwind::Float32)::Float32
+    b = byram / 60f0                                    # BTU/ft/min → BTU/ft/sec
+    return (63f0 / (140f0 - atemp)) * (b^(7f0 / 6f0) / sqrt(b + fwind^3))
+end
+
+"""
+    crown_volume_scorched(sch, ht, crown_pct) -> Float32
+
+Percent crown volume scorched (CSV) for a tree of height `ht` (ft) and crown ratio
+`crown_pct` (%) under scorch height `sch` (ft) (FMEFF, fmeff.f:170-186). A tree with
+no live crown is treated as fully scorched.
+"""
+@inline function crown_volume_scorched(sch::Float32, ht::Float32, crown_pct::Integer)::Float32
+    crl = ht * (Float32(crown_pct) / 100f0)            # crown length
+    crl > 0f0 || return 100f0
+    sl = sch - (ht - crl)                              # scorch length within the crown
+    sl < 0f0 && (sl = 0f0)
+    sl > crl && (sl = crl)
+    return 100f0 * (sl * (2f0 * crl - sl) / (crl * crl))
+end
+
+"""
     fire_tree_mortality(coef, sp, dbh, flame, csv) -> Float32
 
 Probability (0–1) of fire-caused mortality (FMEFF, fmeff.f) for a tree of species `sp`,

@@ -82,6 +82,16 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
   dynamic weighting). The Anderson/SB fuel-model loadings → CSV.
 - **F5 — fire behavior (FMBURN core):** fuel moisture → Rothermel surface spread → flame length, with
   FLAMEADJ; the SIMFIRE trigger + fire-type (surface/passive/active crown) logic.
+  **The one remaining link** between the ported fuel state (F1–F3) and the ported mortality (F6).
+  Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
+  `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
+  by `FMGFMV` (the fuel-model database: `SURFVL` SAV, `FMLOAD` loads, `FMDEP` depth, `MOISEX` moisture of
+  extinction — assembled at runtime, not a simple DATA block). The Rothermel computation: size-class
+  weighting (area `A`, weighting `F`), reaction intensity `XIR` (optimum reaction velocity `GAMMA`,
+  moisture/mineral damping), propagating flux `XIO`, wind `PHIW`/slope `PHIS` factors, heat sink
+  `RHOBQIG`, spread rate `R`. This is the hardest single FFE chunk — it needs a dedicated, careful pass
+  (the fuel-model DB extraction + the full Rothermel transcription), validated by `BYRAMT`/`FLAME` for
+  fm 10 against live Fortran, then feeding F6's now-complete `byram → scorch → CSV → mortality` chain.
 - **F6 — fire effects (FMEFF):** fire-caused mortality + crown/top-kill from flame length & bark
   thickness — the .sum-affecting kill that makes stand 4 diverge today.
   - **F6-mort:** ✅ **DONE (the mortality equation)** — `fire_tree_mortality` + `fire_bark_thickness`
@@ -91,9 +101,15 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     `B1[EQNUM]` (fmbrkt.f) → `bark_eqnum` column in `fire_species_props.csv` (+ the sp-5 Harmon
     quadratic). 41 unit tests vs a hand-transcribed reference (exact per-group values + monotonicity in
     flame/DBH); suite 3141→3182. Self-contained given flame length + crown-volume-scorched.
+  - **F6-scorch:** ✅ **DONE** — `scorch_height` (Van Wagner, fmburn.f:470) and
+    `crown_volume_scorched` (CSV from scorch height + crown geometry, fmeff.f:170-186) ported and
+    tested. The full per-tree fire-effects chain is now closed **given a Byram fireline intensity**:
+    `byram → scorch_height → crown_volume_scorched → fire_tree_mortality`. 12 more unit tests (Van
+    Wagner exact values, CSV crown-geometry edge cases, the byram→mortality chain); suite 3182→3194.
   - **F6-wire — REMAINING:** the per-tree burn loop (FMEFF body): RANN draw vs %-stand-burned (PSBURN),
-    scorch length → CSV from the scorch height SCH, then apply `PMORT` to tree TPA in FMBURN (the actual
-    `.sum` kill). SCH/PSBURN/flame come from F5 (fire behavior); this is where stand 4 finally validates.
+    then apply `PMORT` to tree TPA in FMBURN (the actual `.sum` kill). The only missing input is the
+    Byram intensity / flame length + PSBURN from **F5** — once F5 lands, the whole chain is bit-exact
+    testable and snt01 stand 4 validates end-to-end.
 - **F7 — snags + CWD + consumption (FMSNAG/FMCWD/FMCONS):** snag fall/decay, fuel consumption by the
   fire, down-wood transfer.
 - **F8 — carbon pools (FMCADD) + reports:** the carbon accounting + the DBS/list reports
