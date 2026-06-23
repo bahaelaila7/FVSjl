@@ -349,7 +349,6 @@ mutable struct Calibration
     dg_cor_goal::Vector{Float32} # DG calibration attenuation goal          (WCI)
     htg_cor_small::Vector{Float32} # small-tree (REGENT) height calibration (HCOR)
     htg_cor_init::Vector{Float32}  # initial small-tree HCOR from the regent calibration regression (HCOR @ ICYC=1)
-    ldgcal::Vector{Bool}         # large-tree DG calibration succeeded for this species (LDGCAL)
     bark_a::Vector{Float32}      # per-stand bark intercept (BRATIO; Fort Bragg override)
     bark_b::Vector{Float32}      # per-stand bark slope     (BRATIO; Fort Bragg override)
     vmlt::Float32                # ARMA variance multiplier (calibration)  (VMLT)
@@ -357,7 +356,7 @@ end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), 0f0)
 
 # ---------------------------------------------------------------------------

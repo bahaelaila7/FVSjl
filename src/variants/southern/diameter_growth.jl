@@ -424,7 +424,6 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
         ncalht = 5
         @inbounds for sp in 1:MAXSP
-            c.ldgcal[sp] = calibrated[sp]
             i1 = isct[sp, 1]; i1 == 0 && continue
             i2 = isct[sp, 2]
             si = s.plot.sp_site_index[sp]
@@ -494,19 +493,18 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     cormlt = exp(-0.02773f0 * sfint * Float32(s.control.cycle))
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
     # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
-    # HCOR = WCI + cormlt_h·DIFH, where DIFH = HCOR_init − WCI (set at ICYC=1). The
-    # attenuation only runs for LDGCAL species (dgdriv.f:190); a species calibrated for
-    # small-tree HEIGHT (HCOR_init) but NOT large-tree DBH holds HCOR_init constant. When
-    # HCOR_init = 0 (e.g. snt01, no small-tree height calibration) this reduces to the
-    # WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
+    # HCOR = WCI + cormlt_h·DIFH, DIFH = HCOR_init − WCI (set at ICYC=1). This runs for LDGCAL
+    # species, and LDGCAL defaults TRUE for ALL species (grinit.f:102; only the unported
+    # NOCALIB keyword turns it off), so it always runs here. For a species with NO diameter
+    # calibration WCI=0, so the height calibration DECAYS as cormlt_h·HCOR_init (it is NOT held
+    # constant — that was the bug); for one with no height calibration HCOR_init=0, reducing to
+    # the WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
     cormlt_h = exp(-0.02773f0 * sfint * Float32(s.control.cycle + 1))
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
-        c.htg_cor_small[sp] = c.ldgcal[sp] ?
-            c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp]) :
-            c.htg_cor_init[sp]
+        c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
     end
 
     species_sort!(s)
