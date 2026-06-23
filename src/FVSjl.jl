@@ -68,6 +68,7 @@ include("engine/cuts.jl")
 include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass
+include("engine/fire/crown_biomass.jl")  # FFE F2 — crown biomass by size class (FMCROWE)
 include("io/summary.jl")
 include("engine/simulate.jl")
 

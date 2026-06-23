@@ -41,12 +41,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     equation set, fmcrow.f:148) and `v2t` (wood specific gravity lb/cuft = the `SG` arg, fmvinit.f).
     The same file also carries the snag decay/fall classes (`tfall_cls`/`dkr_cls`/`snag_cls`/`leaf_life`)
     that F3/F7 (snag dynamics) will need. 12 unit tests vs the Fortran source values; suite 3060→3072.
-  - **F2-fn — REMAINING:** port `FMCROWE` (fmcrowe.f, ~600 ln): Jenkins total-aboveground (lb) →
-    foliage/bark/wood/branch split → size-class allocation (red-oak / shortleaf-pine / maple / aspen
-    proportion forms) + the unmerch bole-tip geometry (`UMBTW`, `LILPCE`) → `XV(0:5)` crown weight by
-    size class. Constants in hand: `P2T=0.0005` (lb→ton), ISPMAP, V2T, DBHMIN. Deps to verify/port:
-    `BRATIO` (DIB/DOB bark ratio — check the FFE form vs FVSjl `bark_ratio`) and `FMSVL2` (FFE volume,
-    used only on the D<DBHMIN small-tree sub-path). Then FMCBA aggregates XV → canopy bulk density.
+  - **F2-fn — PORTED (validation deferred):** `crown_biomass` (`src/engine/fire/crown_biomass.jl`)
+    transcribes `FMCROWE` (fmcrowe.f, ~230 Julia ln): Jenkins total-aboveground → foliage/bark/wood/
+    branch split → size-class allocation (red-oak / shortleaf-pine / maple / aspen proportion forms) +
+    the unmerch bole-tip geometry (`UMBTW`, `LILPCE`) → `XV(0:5)`. Deps RESOLVED: `BRATIO` = FVSjl
+    `bark_ratio` (verified identical Clark DIB=a+b·D + [0.80,0.99] clamp, bar Fort-Bragg overrides),
+    `HTDBH` = `_htdbh_height`, `FMSVL2` = the SN cubic model via `_R8CLARK_VOL` (`_fm_cuft`), `SG`=`v2t`,
+    `P2T`=0.0005. Faithfully reproduces FMCROWE's quirks (cone/frustum ×`SG/P2T`≈×2000, the
+    sub-breast-height cylinder added RAW with no SG/P2T) ⇒ FFE-internal units, not literal tons.
+    ⚠ **NOT end-to-end validated** — crown biomass has no `.sum` output; its magnitude can only be
+    confirmed against live Fortran once F5/F6 (fire behavior) exist. Inert (not yet called); 27
+    structural unit tests pin the component split / size-class ordering / species-form selection.
+    Suite 3072→3099. Next: FMCBA aggregates XV → canopy bulk density + canopy base height.
 - **F3 — FFE state + fuel pools (FMINIT):** the per-stand `FireState` (no globals): surface fuel
   loadings by size/decay class, snag arrays, the down-wood pools; SNAGINIT/DEFULMOD keyword setup.
 - **F4 — fuel model classification (FMCFMD):** stand condition → fire-behavior fuel model (static +

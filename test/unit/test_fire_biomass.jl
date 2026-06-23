@@ -1,6 +1,7 @@
 # Unit tests for the Jenkins tree-biomass model (FFE F1, FMCBIO).
 # Expected values hand-computed directly from fmcbio.f's equations + coefficients.
-using FVSjl: jenkins_biomass, coefficients, Southern, coef_col
+using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
+             crown_biomass, StandState, init_blockdata!, init_merch_standards!
 
 @testset "Jenkins tree biomass (FMCBIO)" begin
     coef = coefficients(Southern())
@@ -66,4 +67,31 @@ end
     # every species populated (1..90, no gaps)
     @test all(coef_col(coef, :v2t)[s] > 0f0 for s in 1:90)
     @test all(1 <= coef_col(coef, :ls_spi)[s] <= 68 for s in 1:90)
+end
+
+@testset "crown biomass by size class (FMCROWE) — structural" begin
+    # FMCROWE has no .sum-visible output and feeds canopy bulk density (validated only
+    # at F5/F6), so these tests pin structure/invariants, not absolute bit-exactness.
+    s = StandState(Southern()); init_blockdata!(s, s.variant); init_merch_standards!(s)
+    cb(sp, d, h, ic) = crown_biomass(s, sp, Float32(d), Float32(h), ic)
+
+    # degenerate trees → all zero
+    @test cb(65, 0.0, 70.0, 40) == (0f0, 0f0, 0f0, 0f0, 0f0, 0f0)
+    @test cb(65, 12.0, 0.0, 40) == (0f0, 0f0, 0f0, 0f0, 0f0, 0f0)
+
+    for (sp, d, h, ic) in ((65, 12.0, 70.0, 40), (1, 10.0, 60.0, 50),
+                           (22, 8.0, 55.0, 45), (33, 15.0, 72.0, 55))
+        xv = cb(sp, d, h, ic)
+        @test length(xv) == 6
+        @test xv[1] > 0f0                       # XV[0]: foliage is non-trivial
+        @test xv[6] == 0f0                      # XV[5]: unused
+        @test all(x -> x >= -1f-3, xv)          # size classes non-negative (bar Float32 noise)
+        @test sum(xv) > 0f0                      # total crown weight positive
+        @test xv == cb(sp, d, h, ic)            # deterministic
+    end
+
+    # species map to different proportion forms (oak vs pine vs maple) ⇒ distinct splits
+    oak  = cb(65, 12.0, 70.0, 40)               # ls_spi 34 → red-oak form
+    pine = cb(1,  12.0, 70.0, 40)               # ls_spi 8  → shortleaf-pine form
+    @test oak != pine
 end
