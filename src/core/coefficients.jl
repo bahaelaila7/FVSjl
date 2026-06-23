@@ -122,7 +122,8 @@ function load_species_coefficients(datadir::AbstractString)
 
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
-                  "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv")
+                  "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv",
+                  "fire_species_props.csv")
         h2, rows2 = _read_csv(joinpath(datadir, fname))
         for (j, h) in enumerate(h2)
             h == :species_index && continue

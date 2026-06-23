@@ -47,3 +47,23 @@ using FVSjl: jenkins_biomass, coefficients, Southern, coef_col
     # zero / non-positive DBH → all zero
     @test jenkins_biomass(coef, 1, 0.0f0) == (0f0, 0f0, 0f0)
 end
+
+@testset "FFE species properties (fmvinit.f / fmcrow.f ISPMAP)" begin
+    coef = coefficients(Southern())
+    # SN→LS species map (ISPMAP, fmcrow.f:148) — used to pick the crown-biomass equation set
+    @test coef_col(coef, :ls_spi)[1]  == 8f0     # fir → LS 8 (true fir/hemlock)
+    @test coef_col(coef, :ls_spi)[2]  == 14f0    # redcedar → LS 14
+    @test coef_col(coef, :ls_spi)[22] == 26f0    # sugar maple → LS 26
+    @test coef_col(coef, :ls_spi)[65] == 34f0    # black willow group → LS 34 (red oak set)
+    # V2T wood specific gravity (lb/cuft, fmvinit.f) — the SG passed to FMCROWE
+    @test coef_col(coef, :v2t)[1]  ≈ 20.6f0
+    @test coef_col(coef, :v2t)[2]  ≈ 27.4f0
+    @test coef_col(coef, :v2t)[22] ≈ 34.9f0
+    # snag decay/fall classes (fmvinit.f) — feed the snag dynamics (F3/F7)
+    @test coef_col(coef, :dkr_cls)[1]  == 4f0
+    @test coef_col(coef, :snag_cls)[2] == 3f0
+    @test coef_col(coef, :tfall_cls)[2] == 1f0
+    # every species populated (1..90, no gaps)
+    @test all(coef_col(coef, :v2t)[s] > 0f0 for s in 1:90)
+    @test all(1 <= coef_col(coef, :ls_spi)[s] <= 68 for s in 1:90)
+end
