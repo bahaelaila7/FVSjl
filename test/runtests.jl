@@ -30,6 +30,7 @@ using FVSjl
     include("integration/test_fortbragg_coverage.jl")# C5: Fort Bragg (forest 701) KODFOR remap → nonzero volume
     include("integration/test_multistand.jl")# C2/C8: multi-stand driver (each_stand) — TREFMT persist + default INTREE
     include("integration/test_multistand_sum.jl")# C5: multi-stand .sum parity vs Fortran (all 5 stands, state-carry guard)
+    include("integration/test_hcor_calib.jl")# C3: REGENT small-tree HCOR calibration vs Fortran
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6

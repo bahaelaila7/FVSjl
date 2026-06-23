@@ -412,6 +412,44 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         oldrn[i] < -lim && (oldrn[i] = -lim)
     end
 
+    # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
+    # LHTCAL species (all by default) regress measured-vs-predicted small-tree (dbh<5)
+    # height growth: HCOR_init = ln( Σ(HTG·P) / Σ(EDH·P) ) when ≥ NCALHT(5) observations,
+    # where EDH = HTCALC-predicted increment (mode 0 age → mode 9 HTGR, ≥0.1) and the
+    # measured HTG is scaled by SCALE3 = REGYR/FINTH = 1 (and RHCON = 1, no HCOR2). This
+    # initial value seeds DIFH = HCOR_init − WCI; the per-cycle attenuation (diameter_growth!)
+    # rides it like COR. Uses the CURRENT diameters (saved_dbh) for the dbh<5 filter, since
+    # the regent calibration is independent of the large-tree diameter backdating.
+    let bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5]),
+        montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
+        ncalht = 5
+        @inbounds for sp in 1:MAXSP
+            c.ldgcal[sp] = calibrated[sp]
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]
+            si = s.plot.sp_site_index[sp]
+            snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                saved_dbh[i] >= 5f0 && continue            # large trees excluded
+                hh = t.height[i] - t.ht_growth[i]          # start-of-period height (IHTG<2)
+                hh < 0.01f0 && continue
+                t.ht_growth[i] < 0.001f0 && continue       # no measured height growth
+                aget = htcalc_age(bc, sp, si, hh, montane)
+                htgr = htcalc_incr(bc, sp, si, aget, montane)
+                htgr < 0.1f0 && (htgr = 0.1f0)
+                edh = htgr                                  # ·RHCON(=1); EDH≥0.1 already
+                p = t.tpa[i]
+                snp += p; snx += edh * p; sny += t.ht_growth[i] * p; nh += 1
+            end
+            nh < ncalht && continue
+            cornew = sny / snx                              # (ΣHTG·P)/(ΣEDH·P)
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
+
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s)
@@ -455,16 +493,20 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     # it decays in later cycles. (Was wrongly using one period's length every cycle.)
     cormlt = exp(-0.02773f0 * sfint * Float32(s.control.cycle))
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
-    # diameter COR (dgdriv.f:68-79) but on the elapsed-at-END-of-period clock (cycle+1),
-    # matching FVS's HCOR = WCI·(1−cormlt_h) progression (0.070, 0.131, 0.185, … for snt01
-    # sp33). It is SEPARATE from the large-tree HTGF term HTCON (`htg_cor`, from the HCOR2
-    # keyword, 0 for snt01). HCOR_init (the small-tree height calibration regression) is 0
-    # unless a calibrated species has ≥NCALHT small trees with measured height growth (not
-    # snt01) — that init term is the one piece of REGENT still to port.
+    # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
+    # HCOR = WCI + cormlt_h·DIFH, where DIFH = HCOR_init − WCI (set at ICYC=1). The
+    # attenuation only runs for LDGCAL species (dgdriv.f:190); a species calibrated for
+    # small-tree HEIGHT (HCOR_init) but NOT large-tree DBH holds HCOR_init constant. When
+    # HCOR_init = 0 (e.g. snt01, no small-tree height calibration) this reduces to the
+    # WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
+    # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
+    # regression in `calibrate_diameter_growth!`.
     cormlt_h = exp(-0.02773f0 * sfint * Float32(s.control.cycle + 1))
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
-        c.htg_cor_small[sp] = c.dg_cor_goal[sp] * (1f0 - cormlt_h)
+        c.htg_cor_small[sp] = c.ldgcal[sp] ?
+            c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp]) :
+            c.htg_cor_init[sp]
     end
 
     species_sort!(s)
