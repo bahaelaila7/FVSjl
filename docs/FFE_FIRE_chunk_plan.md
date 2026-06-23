@@ -104,11 +104,18 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     of extinction. **This makes F2 crown biomass a live input** (no longer inert). 7 tests incl. the full
     `fmcba! → build_dynamic_fuel_model → rothermel_surface_fire` integration producing a fire; suite
     3220→3227.
-  - **F5b-driver — REMAINING:** the FMBURN cycle driver that runs the chain per SIMFIRE event
-    (fmcba! → fuel model → moisture/wind → rothermel → scorch → per-tree RANN vs PSBURN → apply PMORT to
-    TPA), plus the FMIN/SIMFIRE/FLAMEADJ/DEFULMOD keyword parse (set `fire.active`, the fire date, wind,
-    %-burned, season→FMOIS). Every physics + input + the fuel model now compose correctly at the function
-    level; this driver + keyword layer is the last glue before snt01 stand 4 validates end-to-end.
+  - **F5b-driver:** ✅ **DONE (the fire driver)** — `fmburn!` (`src/engine/fire/fmburn.jl`) runs one
+    simulated fire: FMCBA → dynamic fuel model → FMMOIS/wind → Rothermel → Van Wagner scorch → per-tree
+    RANN draw vs PSBURN → `fire_tree_mortality` + adjust → `CURKIL = PMORT·TPA (+ crown share)` →
+    `tpa -= CURKIL` (fmeff.f:542-548). Returns a `FireResult` (killed TPA, flame, Byram, scorch). 14
+    tests: kills trees size-dependently (saplings die, big oak survives, ≤1" outright), honors PSBURN /
+    mortcode / FFE-off, deterministic, wetter fuel ⇒ fewer kills. Suite 3236→3250. **The whole fire now
+    runs and applies the `.sum` kill.**
+  - **F5b-keyword — REMAINING:** parse the FMIN keyword block (SIMFIRE date/wind/%-burned/season,
+    FLAMEADJ flame-mult/crown, DEFULMOD fuel params) → set `fire.active` + schedule the fire event, and
+    call `fmburn!` in the cycle on the fire year. That keyword+wiring layer is the last step before
+    snt01 stand 4 runs its 2003 fire end-to-end and validates vs live Fortran (RANN-stream ordering is
+    the bit-exactness pin to confirm there).
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
