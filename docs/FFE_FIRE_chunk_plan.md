@@ -111,11 +111,16 @@ dynamics) → `FMCWD` (coarse woody debris) → `FMCADD` (carbon pools).
     tests: kills trees size-dependently (saplings die, big oak survives, ≤1" outright), honors PSBURN /
     mortcode / FFE-off, deterministic, wetter fuel ⇒ fewer kills. Suite 3236→3250. **The whole fire now
     runs and applies the `.sum` kill.**
-  - **F5b-keyword — REMAINING:** parse the FMIN keyword block (SIMFIRE date/wind/%-burned/season,
-    FLAMEADJ flame-mult/crown, DEFULMOD fuel params) → set `fire.active` + schedule the fire event, and
-    call `fmburn!` in the cycle on the fire year. That keyword+wiring layer is the last step before
-    snt01 stand 4 runs its 2003 fire end-to-end and validates vs live Fortran (RANN-stream ordering is
-    the bit-exactness pin to confirm there).
+  - **F5b-keyword:** ✅ **DONE** — `kw_fmin!` parses the FMIN block (SIMFIRE date/wind/FMOIS/temp/
+    mortcode/%-burned/season + FLAMEADJ flame-mult/crown), sets `fire.active`, and stores the event in
+    `FireState`; `grow_cycle!` fires `fmburn!` once on the SIMFIRE year (before growth). **snt01 stand 4's
+    SIMFIRE 2003 now actually burns from the .key file** (468→223 TPA at the right year). The whole FFE
+    fire path is live; stands without FMIN are untouched (suite stays 3250/3250 green).
+  - **F5b-validate — REMAINING (tuning):** make snt01 stand 4 bit-exact vs live Fortran. Two gaps
+    observed: (a) a pre-existing bare-`THINDBH 3.` thinning isn't applied (Fortran thins 245 TPA at 1993,
+    FVSjl doesn't) — a thinning-keyword issue, not fire; (b) the fire-mortality precision (the RANN-stream
+    order vs growth/mortality, the dynamic fuel-model details, DEFULMOD overrides). Both are now
+    observable since the fire runs.
   **All the FFE physics (F1–F6) is now ported**; F5b is the remaining integration/wiring + keyword layer.
   Scoped: `FMFINT` (fmfint.f, ~520 ln) is the Rothermel core — flame `= 0.45·(BYRAMT/60)^0.46`,
   `BYRAMT = XIR·R·384/SIGMA`; it loops the (up to MXFMOD=5) fuel models from `FMCFMD`, each characterized
