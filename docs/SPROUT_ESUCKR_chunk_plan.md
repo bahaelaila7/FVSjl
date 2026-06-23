@@ -64,7 +64,19 @@ and bit-exact; this is the remaining regen piece (alongside C7/C8 fire/insects/e
   NSPREC/SPRTHT are tiny piecewise rules kept inline (NINT via `nint`). 24 unit tests vs hand-computed
   values (`test/unit/test_sprout.jl`); suite 2938→2962. Still inert (no caller) until C.
 - **C — ESUCKR sprout-gen + ESRANN:** the generation loop, creating sprout records with the exact
-  `:estab` RNG order. The .sum-affecting chunk.
+  `:estab` RNG order. The .sum-affecting chunk. Split into:
+  - **C1 — cut-log fidelity:** ✅ **DONE.** Revised the Chunk-A cut-log to true ESTUMP semantics
+    (estump.f): a `CutRecord` NamedTuple `(species, dstmp, prem, plot, ishag)`; only the 72 SN
+    sprouting species (ISPSPE → `is_sprouting` CSV flag) are logged (ESTUMP returns early otherwise);
+    `ishag = IFINT` (cycle length, from `plot.cycle_length` set in `cuts!`). Centralized into a single
+    `_log_cut!` helper now called at **every** thin method's removal point (`_thindbh!`/`_thinprsc!`/
+    `_thin_sorted!` + the `_remove!`/`_rm!`/`_rmc!`/`_rmp!` closures of SDI/RDEN/CC/PT; `_thin_auto!`→
+    sorted and `_thin_qfa!`→dbh/sdi are covered by delegation). 4 unit tests (filter, contents,
+    lsprut-off); suite 2962→2966. Still inert (write-only) — no live caller until C2.
+  - **C2 — generation loop:** port esuckr.f:156-349 (NSPREC count → ESSPRT survival → SPRTHT height +
+    clamped `BACHLO(0,.5,ESRANN)` `:estab` deviation → H-D-inverse DBH → CWCALC crown → tree-record
+    init), wire into the cycle hook (esnutr.f:112-124, after COMPRS, gated on LSPRUT && ITRNRM≥1),
+    handle the SPROUT keyword per-species/DBH multiplier table (OPGET action 450). The .sum chunk.
 - **D — validation:** a SPROUT + harvest stand (cut a sprouting species, e.g. an oak), 3-way vs live
   Fortran; resolve the LSPRUT default. Bit-exact bar `:estab` Float32 noise.
 

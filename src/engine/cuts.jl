@@ -82,8 +82,28 @@ Run any thinning/harvest scheduled for the current cycle's year. Reduces
 `trees.tpa` (PROB) in place and returns the period's removed totals (TPA + the four
 volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 """
+# ESTUMP (estump.f): log one removed tree of a *sprouting* species for stump
+# sprouting, in removal order, gated on LSPRUT. `prem` is the removed TPA (less
+# standing snags, which FVSjl's basic cut path does not model ⇒ SSNG=0). The record
+# carries the stump DBH (= the cut tree's DBH), the point, and the sprout age ISHAG
+# (= IFINT, the cycle length). Only the 72 SN sprouting species (ISPSPE, is_sprouting
+# CSV flag) are logged — ESTUMP returns immediately for any other species. Consumed
+# by `esuckr!`; inert (write-only) until that loop is wired into the cycle (Chunk C2).
+@inline function _log_cut!(s::StandState, t, i::Integer, prem::Float32)
+    (s.control.lsprut && prem > 0f0) || return
+    sp = Int(t.species[i])
+    coef_col(s.coef, :is_sprouting)[sp] == 1f0 || return
+    push!(s.control.cut_log,
+          (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
+           plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
+    return
+end
+
 function cuts!(s::StandState; fint::Float32 = 5f0)
-    s.control.lsprut && empty!(s.control.cut_log)   # fresh ESTUMP cut log each cycle (for ESUCKR)
+    if s.control.lsprut
+        empty!(s.control.cut_log)            # fresh ESTUMP cut log each cycle (for ESUCKR)
+        s.plot.cycle_length = fint           # IFINT (FINT) — sprout age carried to ESTUMP/SPRTHT
+    end
     sched = s.control.schedule
     conds = s.control.conditionals
     (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
@@ -305,6 +325,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa += prem; rcuft += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]
@@ -334,6 +355,7 @@ function _thinprsc!(s::StandState, act::ScheduledActivity)
         prem = t.tpa[i] * cuteff
         prem <= 0f0 && continue
         t.tpa[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                  rcuft  += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]
@@ -409,9 +431,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[it] -= prem
-        # ESTUMP (cuts.f:1713): log each removed tree for stump sprouting, in removal order.
-        s.control.lsprut && prem > 0f0 &&
-            push!(s.control.cut_log, (Float32(t.species[it]), t.dbh[it], prem, Float32(t.plot_id[it])))
+        _log_cut!(s, t, it, prem)            # ESTUMP (cuts.f:1713), in removal order
         rtpa += prem; rcuft += prem * t.cuft_vol[it]
         rmcuft += prem * t.merch_cuft_vol[it]; rscuft += prem * t.saw_cuft_vol[it]
         rbdft += prem * t.bdft_vol[it]
@@ -467,6 +487,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
     @inline function _remove!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]
@@ -567,6 +588,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
     @inline function _rm!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]
@@ -702,6 +724,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     @inline function _rmc!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]
@@ -898,6 +921,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
     @inline function _rmp!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
+        _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
         rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
         rbdft += prem * t.bdft_vol[i]

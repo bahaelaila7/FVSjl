@@ -60,6 +60,16 @@ struct ConditionalActivity
     src::String
 end
 
+"""
+One `ESTUMP` cut record (estump.f) for stump-sprout regeneration. Built per removed
+tree of a *sprouting* species, in removal order, and consumed by `esuckr!`:
+`species` (FVS species code), `dstmp` (stump DBH = the cut tree's DBH), `prem`
+(TPA removed, less standing snags), `plot` (point id), `ishag` (sprout age = the
+cycle length IFINT, carried into SPRTHT/ABIRTH).
+"""
+const CutRecord = @NamedTuple{species::Int32, dstmp::Float32, prem::Float32,
+                             plot::Int32, ishag::Int32}
+
 # Control — COMMON /CONTRL/ + /CONCHR/ : simulation control & flags
 # ---------------------------------------------------------------------------
 mutable struct Control
@@ -223,8 +233,7 @@ mutable struct Control
     lsprut::Bool                             # stump-sprouting enabled (LSPRUT; SPROUT/NOSPROUT)
     sprout_smult::Float32                    # sprout NUMBER multiplier (SMULT; SPROUT), default 1
     sprout_hmult::Float32                    # sprout HEIGHT multiplier (HMULT; SPROUT), default 1
-    cut_log::Vector{NTuple{4,Float32}}       # ESTUMP cut record per removed tree, in removal order
-                                             # (species, stump DBH, removed TPA, plot) — fed to ESUCKR
+    cut_log::Vector{CutRecord}               # ESTUMP cut record per removed sprouting tree, fed to ESUCKR
 end
 
 function Control()
@@ -268,7 +277,7 @@ function Control()
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
         ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
-        false, 1f0, 1f0, NTuple{4,Float32}[],                   # lsprut, sprout_smult, sprout_hmult, cut_log
+        false, 1f0, 1f0, CutRecord[],                           # lsprut, sprout_smult, sprout_hmult, cut_log
     )
 end
 

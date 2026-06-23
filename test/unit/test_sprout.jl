@@ -1,6 +1,7 @@
 # Unit tests for the stump-sprout sub-routines (NSPREC / SPRTHT / ESSPRT, SN).
 # Expected values are hand-computed directly from essprt.f's SN SELECT CASE blocks.
-using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, coefficients, Southern
+using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, coefficients, Southern,
+             StandState, init_blockdata!, _log_cut!
 
 @testset "sprout sub-routines (NSPREC/SPRTHT/ESSPRT)" begin
     coef = coefficients(Southern())
@@ -47,5 +48,27 @@ using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, coefficients, Southern
         @test essprt_sn(coef, 77, 1.0f0, 10.0f0, 905) ≈
               1f0 / (1f0 + exp(-(-2.8058f0 + 22.6839f0 *
                                   (1f0 / ((10f0/0.7788f0) - 0.4403f0)))))
+    end
+
+    @testset "ESTUMP cut-log fidelity (_log_cut!)" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant)
+        t = s.trees; t.n = 3
+        t.species[1] = Int32(22); t.dbh[1] = 8.0f0;  t.plot_id[1] = Int32(2)  # sprouting
+        t.species[2] = Int32(17); t.dbh[2] = 9.0f0;  t.plot_id[2] = Int32(1)  # NOT sprouting
+        t.species[3] = Int32(65); t.dbh[3] = 12.0f0; t.plot_id[3] = Int32(3)  # sprouting
+        s.control.lsprut = true; s.plot.cycle_length = 10f0
+        empty!(s.control.cut_log)
+        _log_cut!(s, t, 1, 5.0f0)
+        _log_cut!(s, t, 2, 4.0f0)   # non-sprouting species 17 → skipped
+        _log_cut!(s, t, 3, 6.0f0)
+        _log_cut!(s, t, 1, 0.0f0)   # zero PREM → skipped
+        log = s.control.cut_log
+        @test length(log) == 2                       # only the two sprouting cuts logged
+        @test log[1] == (species = Int32(22), dstmp = 8.0f0,  prem = 5.0f0, plot = Int32(2), ishag = Int32(10))
+        @test log[2] == (species = Int32(65), dstmp = 12.0f0, prem = 6.0f0, plot = Int32(3), ishag = Int32(10))
+        # lsprut off ⇒ nothing logged at all
+        s.control.lsprut = false; empty!(s.control.cut_log)
+        _log_cut!(s, t, 1, 5.0f0)
+        @test isempty(s.control.cut_log)
     end
 end
