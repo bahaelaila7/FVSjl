@@ -76,6 +76,7 @@ include("engine/fire/rothermel.jl")      # FFE F5 — Rothermel surface fire beh
 include("engine/fire/fuel_moisture.jl")  # FFE F5b — fuel-moisture scenario + wind reduction (FMMOIS)
 include("engine/fire/fuel_model.jl")     # FFE F5b — dynamic fuel-model construction (FMCFMD3)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
+include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
 include("io/summary.jl")
 include("engine/simulate.jl")
 

@@ -59,6 +59,7 @@ using FVSjl
     include("unit/test_fire_effects.jl")        # FFE-F6: fire-caused mortality (FMEFF/FMBRKT)
     include("unit/test_rothermel.jl")           # FFE-F5: Rothermel surface fire behavior (FMFINT)
     include("unit/test_fmburn.jl")              # FFE-F5b: fire event driver (FMBURN/FMEFF) → kill TPA
+    include("unit/test_carbon.jl")              # FFE-F8: standing live-tree carbon pools (FMCRBOUT)
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     # include("integration/test_sndb.jl")   # enabled at C6
