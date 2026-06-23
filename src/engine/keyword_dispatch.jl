@@ -31,6 +31,13 @@ end
 
 # --- individual keyword handlers (each ported from its initre.f label) --------
 
+# OPTION 12 — TFIXAREA (initre.f:816): total fixed plot area. NOTRE then expands the small-tree
+# (DBH < BRK) sample by FP = 1/TFPA instead of the default fixed_plot_inv/π (notre.f:45).
+function kw_tfixarea!(s::StandState, rec::KeywordRecord)
+    rec.present[1] && (s.plot.total_fixed_plot = Float32(rec.values[1]))
+    return
+end
+
 # OPTION 10 — DESIGN (initre.f:743): plot design.
 function kw_design!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
@@ -844,6 +851,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         isempty(kw) && continue                      # blank-line record
         nkw += 1
         if     kw == "DESIGN";   kw_design!(s, rec)
+        elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "NUMCYCLE"; kw_numcycle!(s, rec)
         elseif kw == "TIMEINT";  kw_timeint!(s, rec)      # cycle length (period); default 5
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)
