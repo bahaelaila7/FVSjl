@@ -62,7 +62,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | keyword | effect | status |
 |---|---|---|
 | FIXMORT | keyword mortality rate override | ✅ normal path (replace/add/max/mult, DBH window, one-shot; bit-exact, test_fixmort.jl). Point/size concentration (PRM(6)≥10) deferred |
-| MORTMSB | MSB alternate mortality (QMDMSB) | ⛔ (default 999 no-op) |
+| MORTMSB / MATUREW | MSB mature-stand break-up mortality (msbmrt.f) | ⚪ EFFECTIVELY INERT for self-thinning/managed stands (verified): fires only when survivors EXCEED the 85% mature self-thinning line, but BAMAX/self-thinning hold the stand AT that line, so TMORE=0 — even a 30-cycle run to QMD 38 doesn't trigger it. Rare-trigger (overmature break-up only); deterministic if ported |
 | MORTMULT | mortality-rate multiplier (background only + DBH window, morts.f:518/524) | ✅ (MULTS; DBH window D1≤DBH<D2 via active_mort_mult; bit-exact on bg-mortality cycles, windowed + windowless) |
 | TREESZCP | per-species size cap (SIZCAP): DG bound + size-cap mortality + HT cap | ✅ (keyword + morts size-cap floor + htgf HT cap; nomort path bit-exact, see §SIZCAP) |
 
@@ -70,10 +70,10 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 | keyword | effect | status |
 |---|---|---|
-| PRUNE | pruning (crown/CR edit + pruned-log volume) | ⛔ (was missing) |
+| PRUNE | pruning (option 108, act 249) | 🧊 .sum-INERT in SN (verified: no TPA/BA/TopHt/QMD change) — feeds ecopls.f pruned-log volume (C8 econ), the crown edit doesn't reach SN growth |
 | FERTILIZ / FFERT | fertilizer growth response | ⛔ |
 | COMPRESS | record compression to a target (comprs.f act=250) | ⛔ |
-| ADDFILE / ADDTREES | add tree records mid-run | ⛔ |
+| ADDFILE | (option 22) redirect input to another unit | ⚪ NOT a tree-add — it just switches IREAD to a Fortran file UNIT (an include-file mechanism); no clean FVSjl mapping (FVSjl uses filenames, not units). 'ADDTREES' is not an SN keyword |
 | MANAGED | managed-stand flag (DGF kplant term) | ✅ |
 | MGMTID / RESETAGE / SETSITE | mgmt id / reset age / set site mid-run | 🟡 (MGMTID read) |
 
@@ -225,12 +225,12 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
   AND the bare-PLANT scenarios were silently passing for the wrong reason (FVSjl wrongly tripled
   them and the 3× averaging masked the regen DGSCOR tail at ±1). The fix exposed the true ±2 no-trip
   tail; the base+NOTRIPLE stand is bit-exact (test_tripling.jl).
-- **ADDFILE / ADDTREES** — add tree records mid-run (record-set upstream).
+- ~~ADDFILE~~ ⚪ unit-redirect include, not a tree-add (verified); no clean FVSjl mapping.
 - ~~**COMPUTE**~~ ✅ DONE — kw_compute! stores NAME=expression defs (parsed with the event-monitor
   expression parser); cuts! evaluates them each cycle before the IF conditions, and _event_var resolves
   them; bit-exact (COMPUTE MYCYC=CYCLE ≡ direct CYCLE; firing thins match Fortran), test_compute.jl.
 - **CYCLEAT / TIMEINT** scheduling boundaries (if not covered by the calendar item).
-- **PRUNE** — crown/CR edit + pruned-log volume.
+- ~~PRUNE~~ 🧊 .sum-inert in SN (verified) — C8 econ pruned-log volume only.
 - **Volume overrides** — `VOLEQNUM`/`CFVOLEQU`/`BFVOLEQU` (🟡), `VOLUME`/`BFVOLUME`,
   `BFFDLN`/`MCFDLN`, `FIAVBC` (C5 volume side).
 - **ESTAB TALLY / SPROUT** — tally-count regen + stump sprouting (downstream, C4 regen).
