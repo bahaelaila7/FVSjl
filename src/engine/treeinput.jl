@@ -96,6 +96,18 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
     @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
     @inbounds for k in 1:5; t.pest_vars[k, i] = rec.pest_vars[k]; end
 
+    # Per-tree volume defect from the damage codes (basdam.f): agent 25 = percent defect for
+    # BOTH cubic and board, 26 = cubic only, 27 = board only; the paired value (clamped 0-99)
+    # is the percent. Packed as CF·1e6 + BF·1e4 to match DEFECT (digits 11=CF%, 22=BF%); the
+    # volume model reads ICDF=DEFECT/1e6 and IBDF=DEFECT/1e4 mod 100.
+    defcf = 0; defbf = 0
+    @inbounds for j in (1, 3, 5)
+        ag = rec.damage[j]
+        (ag == 25 || ag == 26) && (defcf += clamp(Int(rec.damage[j+1]), 0, 99))
+        (ag == 25 || ag == 27) && (defbf += clamp(Int(rec.damage[j+1]), 0, 99))
+    end
+    t.defect[i] = Int32(defcf * 1000000 + defbf * 10000)
+
     # Topkill / broken-top detection (intree.f:479-502): damage agent 96 or 97 in
     # any agent slot (odd positions), or an explicit broken-top height THT. Flag
     # with norm_ht=-1 (resolved to the predicted full height later, in CRATET);

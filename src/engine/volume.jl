@@ -312,7 +312,7 @@ function compute_volumes!(s::StandState)
              bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     cfdef = c.sp_cf_defect; bfdef = c.sp_bf_defect          # MCDEFECT / BFDEFECT defect curves
     anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
-    anydef = anydef_cf || anydef_bf                         # gate the no-defect hot path
+    anydef = anydef_cf || anydef_bf || any(!iszero, t.defect) # gate the no-defect hot path
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
@@ -354,11 +354,18 @@ function compute_volumes!(s::StandState)
         # Then MCFV = PULPV + (post-board-defect SCFV), so a BFDEFECT also lowers reported merch cubic.
         # (Per-tree DEFECT input is deferred; the CFLA0/CFLA1 form model is verified no-op for SN.)
         if anydef
-            icdf = (anydef_cf && mcf > scf) ?
-                   clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99) : 0
+            dpack = Int(t.defect[i])
+            # ICDF = max(per-tree CF defect, CFDEFT curve); IBDF = max(per-tree BF defect, BFDEFT).
+            icdf = dpack ÷ 1000000
+            (anydef_cf && mcf > scf) &&
+                (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99)))
+            icdf = clamp(icdf, 0, 99)
             pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
-            if anydef_bf && bf > 0f0
-                ibdf = clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0), 0, 99)
+            if bf > 0f0
+                ibdf = (dpack ÷ 10000) % 100
+                anydef_bf &&
+                    (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0), 0, 99)))
+                ibdf = clamp(ibdf, 0, 99)
                 if ibdf >= 99
                     bf = 0f0; scf = 0f0
                 elseif ibdf > 0

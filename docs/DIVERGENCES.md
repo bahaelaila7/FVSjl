@@ -62,14 +62,14 @@ Format per entry:
   defect percent `ICDF`: (1) the per-tree `DEFECT` field (digit-packed: `ICDF=DEFECT/1e6`,
   `IBDF=DEFECT/1e4 mod 100`), (2) the species **CFDEFT/BFDEFT** curves (the MCDEFECT/BFDEFECT
   keywords) via `ALGSLP`, and (3) a **log-linear form model** `VOLCOR=exp(CFLA0+CFLA1·ln(V))`.
-  The **MCDEFECT (cubic CFDEFT)** and **BFDEFECT (board BFDEFT)** keyword paths are both ported and
-  bit-exact, including their coupling `MCFV = PULPV + post-board-defect SCFV` (`test_mcdefect.jl`,
-  three scenarios). Still missing: **per-tree DEFECT** input — FVSjl's `.tre` reader parses no
-  DEFECT column into the tree record (`treedata.jl` stops at 25 fields), so the `ICDF=DEFECT/1e6` /
-  `IBDF=DEFECT/1e4 mod 100` per-tree contribution is always 0. The **CFLA0/CFLA1/BFLA0/BFLA1**
-  log-linear form model is **verified no-op for SN** (only ever set to 0/1 in grinit/initre — not a
-  divergence). All invisible on snt01 (zero defect).
-- **Status:** open — MCDEFECT + BFDEFECT keyword curves done; per-tree DEFECT input deferred (CFLA inert).
+  The **MCDEFECT (cubic CFDEFT)**, **BFDEFECT (board BFDEFT)** keyword curves and the **per-tree
+  DEFECT** input (damage codes 25/26/27 → `basdam.f` packing → `ICDF=DEFECT/1e6`, `IBDF=DEFECT/1e4
+  mod 100`, max'd with the curves) are all ported and bit-exact, including the cubic/board coupling
+  `MCFV = PULPV + post-board-defect SCFV` (`test_mcdefect.jl` + `test_pertree_defect.jl`). The
+  **CFLA0/CFLA1/BFLA0/BFLA1** log-linear form model is **verified no-op for SN** (only ever set to
+  0/1 in grinit/initre — not a divergence). All invisible on snt01 (zero defect).
+- **Status:** RESOLVED for SN — the volume defect model (MCDEFECT/BFDEFECT/per-tree DEFECT) is ported;
+  CFLA/BFLA form model is verified-inert. (The separate board-foot BFPFLG=0 taper limitation above is unrelated.)
 
 ---
 
