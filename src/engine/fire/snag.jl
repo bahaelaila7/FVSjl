@@ -136,3 +136,4 @@ end
 
 "Total standing snag density (stems/ac) currently in the snag list."
 snag_standing_density(fs::FireState) = sum(fs.snags.den_hard) + sum(fs.snags.den_soft)
+

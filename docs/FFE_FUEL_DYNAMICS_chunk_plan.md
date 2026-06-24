@@ -412,3 +412,22 @@ The remaining diffs isolate to exactly three FFE pieces, now cleanly separable o
   ⛔ crown-LIFT: post-1990 DDW (the in-loop restructure, already specified).
   ⛔ FLIVE live-surface-fuel growth: Shb/Hrb grows 2.5/3.8/5.7 in Fortran vs 1.7/2.5/3.8 FVSjl.
 This stand is the right harness to close all three (and confirms the live model needs no further work).
+
+### Input-snag seeding (the inventory Stand-Dead/Below-Dead) — SCOPED on carbon_snt
+carbon_snt has 2 input dead records (FVSjl reads them into the dead partition): sp65 d34.6 tpa0.61
+hist=8 (standing SNAG), sp27 d7.2 tpa14.15 hist=6 (mortality). They produce the Fortran's inventory
+Stand-Dead=3.8 / Below-Dead=1.0 (FMSDIT→FMSADD ITYP=3, fmsdit.f:135). FVSjl reads them but does not
+seed FFE snags. A first `ffe_seed_input_snags!` (loop dead partition → add_snag!/fmscro!/bioroot, like
+the mortality block) OVERSHOT Stand-Dead 8.2 vs 3.8, root-caused to two data gaps (function removed,
+not shipped — it would regress the carbon_snt Stand-Dead bound):
+  1. **cuft_vol = 0 for the dead partition** — compute_volumes! only volumes live trees (1:t.n), so the
+     bole `cuft·V2T` is 0 ⇒ snag_bole_carbon falls back to whole-tree JENKINS (≈2× the stem-only bole).
+     FIX: volume the dead records (extend compute_volumes! to the dead partition, or volume them in the
+     seeder) so the bole is the stem volume the Fortran uses (SNVIS·V2T).
+  2. **crown handling by history code** — hist≥7 (standing snag) has NO crown (already fallen) ⇒ crown=0
+     (correct here); hist 6 (fresh mortality) keeps its crown → CWD2B. The seeder must branch on history.
+  3. likely also **snag aging**: FMSADD ITYP=3 dates input snags at IY(1)−FINTM (≈1 period old), so they
+     get pre-inventory decay/falldown — couples to the snag bole HEIGHT-LOSS model (FMSVOL), which
+     snag_bole_carbon does not yet do (noted there as "the next refinement").
+So input-snag seeding bit-exact = the seeder (branch on history) + dead-record volumes + the snag
+bole-height-loss model. The mechanism + the three precise gaps are now pinned on the carbon_snt harness.
