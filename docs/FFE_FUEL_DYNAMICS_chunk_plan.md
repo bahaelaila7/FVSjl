@@ -230,3 +230,18 @@ So the DDW gap is a per-size ADDITION-CONTENT difference in sizes 1-6, timing-re
 additions (snag-bole falldown vs cwd2b-crown flow vs the FMSADD snag-init), which directly shows which
 path carries the ~1.7 and when — the same dump method that landed bole/crown/Stand-Dead. The 8 bit-exact
 columns stand; DDW is the only remaining one, now structurally understood.
+
+### DDW residual — ROOT CAUSE: within-cycle deaths-timing (per-year Fortran dump)
+Instrumented fmmain.f to dump the down-wood (sizes 1-6) per YEAR. The Fortran DDW grows GRADUALLY
+within each cycle and jumps at the cycle boundary, e.g. over 1995→2000: 2.56, 2.82, 3.04, 3.23, 3.40
+(year-by-year), then a boundary jump. The carbon-report DDW (3.8 mt/ha @2000 = 3.39 t/ac) matches the
+year-1999 value (3.40), i.e. it's read at the cycle boundary BEFORE the next mortality booking.
+⇒ The crown/snag debris flows into DDW GRADUALLY over the cycle (annual loop), which requires the
+deaths to be spread across the cycle (FVS applies the cycle's mortality + schedules the debris before
+the annual fuel loop). FVSjl books all the cycle's mortality at the boundary and flows the crown in the
+NEXT cycle (UPD-before-GROW), so its DDW addition lands a cycle late (2005 not 2000) — even though the
+TOTAL snags (Stand-Dead) reconcile. So DDW bit-exact needs the within-cycle flow ordering (mortality
+schedules → annual flow same cycle) AND the Stand-Dead crown to then be the un-fallen REMAINDER (my
+UPD-order full-crown = the Fortran's remainder was a coincidence at 1.46). This is the FFE main-loop
+ordering (fmmain.f: GRINCR → FMSADD schedule → annual FMSNAG/FMCWD/FMCADD), i.e. the grow_cycle!
+hot-path wiring with the crown snapshot — the integration step, now with the exact behavior pinned.
