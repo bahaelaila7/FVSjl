@@ -129,9 +129,17 @@ end
 Add ONE year of woody crown-breakage debris to the FFE down-wood pools (FMCADD, fmcadd.f:78-84): for
 each live tree and crown size class SIZE 1..5, `LIMBRK · CROWNW(SIZE) · TPA · P2T` tons/ac into
 `cwd[SIZE, hard, dkr_cls(sp)]`. `CROWNW(SIZE)` is the woody crown component from `crown_biomass`
-(`xv[2..6]`), now correctly scaled after the V2T /2000 fix. The crown-LIFT term (fmcadd.f:95-102,
-dead material shed as the crown base rises) needs previous-cycle crown tracking and is deferred —
-small for a closing-canopy stand. No-op unless FFE is active.
+(`xv[2..6]`), now correctly scaled after the V2T /2000 fix. No-op unless FFE is active.
+
+REMAINING — the crown-LIFT term (fmcadd.f:95-102): `X · CROWNW(SIZE) · TPA · P2T`, the lower crown that
+dies as the crown base rises, where `X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN` is the annual crown-base-rise
+fraction (FMSDIT, fmsdit.f:103-117). An instrumented FMCADD dump showed this is NOT small — it is the
+DOMINANT post-mortality down-wood addition (~0.39 vs 0.15 t/ac/yr for breakage on carbon_jenkins), the
+source of the last DDW residual (Fortran 3.8 vs FVSjl 2.1 @2000). It needs the PREVIOUS-cycle per-tree
+height + crown length, tracked across the regen/mortality-changing tree list (FVS does this with the
+OLDCRW record-maintenance in FMTDEL/FMTRIP/FMCMPR) — a stable tree-record id, not a naive index
+snapshot (a first index-snapshot attempt failed because regen grows the list 6→18 each cycle). That is
+the focused next step for the DDW column; see FFE_FUEL_DYNAMICS_chunk_plan.md.
 """
 function fmcadd_woody!(s::StandState)
     fs = s.fire

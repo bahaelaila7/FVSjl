@@ -278,3 +278,26 @@ sequencing around the cycle boundary remains, which is exactly the hot-path wiri
 test_fire.jl with the YNEXTY-aligned annual flow, not an end-of-session rush).
 Ruled out across this investigation: crown-lift (negligible) · CWD I/L structure (collapses for this
 stand) · simple grow/flow ordering swap (breaks Stand-Dead) · crown magnitude (confirmed correct).
+
+### DDW residual — SOLVED (source identified + validated): the crown-LIFT term
+The full decomposition, via an instrumented FMCADD (fmmain.f 3-point DDW dump + fmcadd.f per-source dump):
+the within-cycle DDW additions (sizes 1-6) are **breakage 0.150 + crown-lift 0.392 + cwd2b-flow ~0 =
+0.542 t/ac/yr**, against decay ~−0.30/yr ⇒ net +0.24/yr — exactly the Fortran's within-cycle DDW growth
+(2.56→3.40 over 1995-99) that FVSjl was missing. So the entire post-mortality DDW residual is the
+**crown-LIFT** term, which FVSjl had deferred with the (now-disproven) note "small for a closing canopy".
+
+Crown-lift = `X · CROWNW(SIZE) · TPA · P2T` per year, where (fmsdit.f:103-117):
+  OLDBOT = OLDHT − OLDCRL ; NEWBOT = HT − HT·ICR/100 ; X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN  (if >0 else 0)
+i.e. X = the annual fraction of the OLD crown lifted into dead wood as the crown base rises. OLDCRW is
+set to CROWNW at the cycle boundary (fmoldc.f:55) then scaled to X·CROWNW by FMSDIT.
+
+IMPLEMENTATION BLOCKER (why it stays a focused task, not a one-liner): it needs the PREVIOUS-cycle
+per-tree HT + crown length. A naive index snapshot FAILS here because the tree list changes every cycle
+— carbon_jenkins regen grows it 6→18, and mortality compacts it — so OLD and NEW trees don't line up by
+index (and crown_pct is 0 at the first snapshot point). FVS solves this with OLDCRW record-maintenance
+in FMTDEL/FMTRIP/FMCMPR (the array is permuted in lock-step with every tree-list mutation). FVSjl needs
+either a stable per-tree record id to match across cycles, or the same lock-step maintenance on
+fs.oldht/oldcrl through regen/mortality/tripling. THEN: snapshot at cycle end (with valid crown_pct),
+add `X·CROWNW·TPA·P2T` alongside breakage in fmcadd_woody!. Magnitude target: +0.39 t/ac/yr (validated).
+This supersedes all earlier DDW hypotheses (crown-lift-negligible [buggy dump], ordering, magnitude) —
+the source and formula are now PINNED and the only open part is the tree-record plumbing.
