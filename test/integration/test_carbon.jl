@@ -62,15 +62,16 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
             @test abs(r.shrub_herb   - parse(Float64, f[9]))  <= 0.1    # Shrub/herb (0.7, via FULIV2)
             @test abs(r.total        - parse(Float64, f[10])) <= 0.2    # Total stand carbon (90.1)
 
-            # GROWN-cycle FOREST FLOOR via the FFE annual fuel loop (FMCWD decay + FMCADD litterfall,
-            # NYRS=1 per year, crown held at the cycle's start). Reconciles BIT-EXACT vs the Fortran
-            # 1995 report row — validating the decay/litterfall coupling AND crown_biomass foliage.
-            # (DDW at 1995 needs the woody-breakage additions, chunk 2b, so it is not asserted here.)
+            # GROWN-cycle FOREST FLOOR + DDW via the FFE annual fuel loop (FMCWD decay + FMCADD
+            # litterfall + woody breakage, NYRS=1 per year, crown held at the cycle's start). BOTH
+            # reconcile vs the Fortran 1995 report row — validating the decay/litterfall/breakage
+            # coupling AND crown_biomass (foliage + the V2T/2000 woody fix, checked vs a Fortran XV dump).
             for _ in 1:5
-                FVSjl.fmcwd!(s2, 1); FVSjl.fmcadd_litterfall!(s2)
+                FVSjl.fmcwd!(s2, 1); FVSjl.fmcadd_litterfall!(s2); FVSjl.fmcadd_woody!(s2)
             end
             r95 = FVSjl.stand_carbon_report(s2)
             @test abs(r95.forest_floor - parse(Float64, ft[2][8])) <= 0.1   # 1995 Floor = 6.6
+            @test abs(r95.down_wood    - parse(Float64, ft[2][7])) <= 0.1   # 1995 DDW   = 2.5
         end
     end
 end

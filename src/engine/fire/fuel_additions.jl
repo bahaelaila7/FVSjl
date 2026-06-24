@@ -35,11 +35,28 @@ function fmcadd_litterfall!(s::StandState)
     return s
 end
 
-# ⛔ Woody crown-breakage additions (FMCADD, fmcadd.f:78-84: `LIMBRK·CROWNW(SIZE)·TPA·P2T` into the
-# woody cwd pools) are NOT ported yet — they are BLOCKED on the `crown_biomass` WOODY components
-# (`xv[2..6]`), which are in FMCROWE's "FFE-internal units, not literal tons" (a known fmcrowe.f
-# scaling inconsistency: bole-tip frusta ×SG/P2T, sub-breast cylinder raw). For an 8" loblolly they
-# come out as (8.7, 545, 14394, 20484) — clearly not tons — and applying P2T gives DDW ≈ 120 t/ac vs
-# the report's 2.5. The FOLIAGE component (`xv[1]`, Jenkins-derived pounds) IS right (it lands the
-# forest floor bit-exact above), so only the woody side is blocked. ⇒ chunk 2b needs FMCROWE woody-
-# component validation/fix first (the F5/F6 crown-biomass chunk). See FFE_FUEL_DYNAMICS_chunk_plan.md.
+"""
+    fmcadd_woody!(s) -> StandState
+
+Add ONE year of woody crown-breakage debris to the FFE down-wood pools (FMCADD, fmcadd.f:78-84): for
+each live tree and crown size class SIZE 1..5, `LIMBRK · CROWNW(SIZE) · TPA · P2T` tons/ac into
+`cwd[SIZE, hard, dkr_cls(sp)]`. `CROWNW(SIZE)` is the woody crown component from `crown_biomass`
+(`xv[2..6]`), now correctly scaled after the V2T /2000 fix. The crown-LIFT term (fmcadd.f:95-102,
+dead material shed as the crown base rises) needs previous-cycle crown tracking and is deferred —
+small for a closing-canopy stand. No-op unless FFE is active.
+"""
+function fmcadd_woody!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees; coef = s.coef; dkrcls = coef_col(coef, :dkr_cls)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i])
+        xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        dkcl = clamp(Int(dkrcls[sp]), 1, 4)
+        for sz in 1:5
+            fs.cwd[sz, 2, dkcl] += _FM_LIMBRK * xv[sz + 1] * t.tpa[i] * _FM_P2T
+        end
+    end
+    return s
+end

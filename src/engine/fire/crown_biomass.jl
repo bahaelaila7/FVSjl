@@ -81,7 +81,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     (d == 0f0 || h == 0f0) && return (0f0, 0f0, 0f0, 0f0, 0f0, 0f0)
     coef = s.coef
     spils = Int(coef_col(coef, :ls_spi)[sp])
-    sg    = coef_col(coef, :v2t)[sp]
+    sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
+                                                 # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]
     ifor  = Int(s.plot.forest_idx)
     cr    = Float32(ic)
