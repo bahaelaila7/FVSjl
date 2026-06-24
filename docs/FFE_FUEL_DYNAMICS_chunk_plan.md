@@ -46,6 +46,14 @@ The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together t
    not tons) → DDW ≈ 120 vs the report's 2.5. So **2b first needs the FMCROWE woody-component
    validation/fix (the F5/F6 crown-biomass chunk)**; foliage is already right, only the woody side is
    blocked. DDW at 1995 is 2.1 (decay only) vs Fortran 2.5 — the 0.4 gap is exactly these additions.
+   - **Diagnosis (this session):** the bug is localized to the UMBTW **bole-tip cone weights** `u1..u4`
+     in `crown_biomass` (the `sg·vol/P2T` terms, lines ~150-173) — they dominate `xv[3..5]` and are
+     ~50× too large (an 8″ LP gives a 1-3" component of ~7 tons after ×P2T, vs a whole-tree biomass of
+     ~0.5 t). Since `CROWNW(I,J)=XV(J)` directly (fmcrow.f:197) and Fortran's DDW is 2.5, Fortran's XV
+     woody must be SMALL → it's a FVSjl cone-weight units bug. **To fix:** get the Fortran XV reference
+     for the carbon_jenkins trees, then correct the cone weights. ⚠ The `DEBUG` keyword (which would
+     dump `CROWNW=` via fmcrow.f:198) **SEGFAULTS the stripped binary** — so the reference needs an
+     INSTRUMENTED REBUILD of fmcrow.f (an unconditional `WRITE` of XV), not the DEBUG keyword.
 
 2. **Additions — `FMCADD` (fire/base/fmcadd.f:65-130) is the litter/wood input each cycle** (NOT fmsadd,
    which is salvage). Per live tree (FMPROB>0, decay class `DKRCLS(SP)`):
