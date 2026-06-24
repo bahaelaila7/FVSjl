@@ -51,9 +51,14 @@ end
         s1c = first(FVSjl.each_stand(snt))
         FVSjl.notre!(s1c); FVSjl.setup_growth!(s1c); FVSjl.compute_volumes!(s1c)
         ftcov = [82, 87, 90, 92, 91, 90, 89, 89, 87, 86, 85]
+        # uppermost-stratum DBH (SSTGHP DBHNOM, 70th crown-percentile of the canopy cohort).
+        # Fortran snt01 stand-1 stratum-1 DBH; 8/11 exact, rest ≤0.5 (cohort/window-edge boundary).
+        ftdbh = [10.3, 9.8, 11.5, 12.3, 15.1, 17.0, 18.2, 20.7, 22.6, 23.8, 24.1]
         for c in 0:10
             FVSjl.compute_density!(s1c)
-            @test abs(round(Int, FVSjl.structure_class(s1c).cover) - ftcov[c+1]) <= 1
+            r = FVSjl.structure_class(s1c)
+            @test abs(round(Int, r.cover) - ftcov[c+1]) <= 1
+            @test abs(r.strdbh - ftdbh[c+1]) <= 0.6
             c < 10 && FVSjl.grow_cycle!(s1c; fint = 5f0)
         end
     end

@@ -15,9 +15,10 @@
 #     post-fire diverges only by the known fire kill residual). NB: the crown AREA uses the RAW
 #     PROB (`t.tpa`, NOT /GROSPC) — that was the cover fix, not the crown width (which already
 #     matched Fortran's CrWidth exactly). CCCOEF=1 default.
-# Not yet bit-exact: the uppermost-stratum DBH (`strdbh`, the report's per-stratum DBH column /
-# the BSTRDBH event var) — `_ss_dbhnom` tracks but runs ~1-5" low vs the SSTGHP DBHNOM; the class
-# is robust to it (coarse 5/25 thresholds). Needs an SSTGHP DEBUG dump to finish — see chunk plan.
+#   • the uppermost-stratum DBH (`strdbh`, SSTGHP DBHNOM / the BSTRDBH event var) — 8/11 cycles
+#     exact, the rest ≤0.5" (cohort/window-edge boundary). The fix was the WK4 sort DIRECTION:
+#     `RDPSRT(.FALSE.)` is DESCENDING (biggest crown first), so the "70th percentile = 30% down from
+#     the top" lands on the upper canopy, not mid-cohort.
 # =============================================================================
 
 # Default SSTAGE thresholds (isstag.f:32-37), in the `control.strclass_thresh` order:
@@ -39,15 +40,16 @@ function _ss_dbhnom(ord, dlo::Int, dhi::Int, dbh, tpa, crarea)::Float64
     coh = [ord[k] for k in dlo:i3]                  # canopy cohort tree indices
     isempty(coh) && return 0.0
     wk4 = [crarea[i] / max(tpa[i], 1e-9) for i in coh]   # crown area per single tree
-    cohS = coh[sortperm(wk4)]                        # ascending single-crown size (RDPSRT .FALSE.)
+    cohS = coh[sortperm(wk4; rev = true)]            # DESCENDING single-crown size (RDPSRT .FALSE.)
     tot = sum(crarea[i] for i in cohS)
     tot <= 0.0 && return 0.0
-    pct = zeros(length(cohS))                        # PCTILE: cum crown area of ≥-crown trees, %
+    pct = zeros(length(cohS))                        # PCTILE: cum crown area of this-or-larger trees, %
     acc = 0.0
     @inbounds for j in length(cohS):-1:1
         acc += crarea[cohS[j]]; pct[j] = acc / tot * 100.0
     end
-    i70 = argmin(abs.(pct .- 70.0))                  # tree nearest the 70th percentile
+    # 70th percentile = "30% down from the top" (the big-crown end) — i70 nearest pct 70 (sstage.f:838)
+    i70 = argmin(abs.(pct .- 70.0))
     k1 = max(1, i70 - 4); k2 = min(length(cohS), i70 + 4)
     sd = 0.0; spw = 0.0
     @inbounds for j in k1:k2
