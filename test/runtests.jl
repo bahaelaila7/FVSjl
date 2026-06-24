@@ -63,6 +63,7 @@ using FVSjl
     include("integration/test_rannseed.jl")   # RNG: RANNSEED reseed of the main stochastic stream vs Fortran
     include("integration/test_compress.jl")    # COMPRESS keyword recognition + scheduling (algorithm = chunk plan)
     include("integration/test_structure_stage.jl") # SSTAGE structural-stage class (1-6) vs Fortran
+    include("integration/test_growth.jl")       # GROWTH keyword recognition + param capture
     include("integration/test_dgstdev.jl")     # DGSCOR: DGSTDEV DGSD bound on stochastic DG variation vs Fortran
     include("integration/test_nocalib.jl")     # NOCALIB disable DG self-calibration (LDGCAL) vs Fortran
     include("integration/test_serlcorr.jl")    # DGSCOR: SERLCORR ARMA(1,1) phi/theta vs Fortran

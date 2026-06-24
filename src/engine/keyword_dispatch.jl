@@ -136,6 +136,25 @@ function kw_strclass!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# OPTION 13 — GROWTH (vbase/initre.f:2300): the INPUT growth-data type codes + measurement periods
+# used by the LSTART calibration — field 1 = IDG (diameter data type: 0 none/increment, 1/3 = the DG
+# field is past DBH → PDBH, 2 = increment), 2 = FINT (DG measurement period), 3 = IHTG (height data
+# type), 4 = FINTH (HTG period), 5 = FINTM (mortality period). Defaults IDG/IHTG=0, periods=5 — which
+# is FVSjl's current bit-exact behaviour (the DG field is the increment over 5 yr). The captured
+# params are stored; the IDG=1/3 past-DBH interpretation + non-default FINT scaling are the WK3
+# past-DBH calibration chunk (intree.f:531-537 / dgdriv.f:330) — they CHANGE the calibration, so they
+# are deferred until validated against a purpose-built past-DBH / non-5-yr-FINT scenario (the WK3
+# residual area, sp33/65), not wired blind.
+function kw_growth!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    pr[1] && (s.control.growth_idg = nint(v[1]))
+    pr[2] && v[2] > 0f0 && (s.control.growth_fint = Float32(v[2]))
+    pr[3] && (s.control.growth_ihtg = nint(v[3]))
+    pr[4] && v[4] > 0f0 && (s.control.growth_finth = Float32(v[4]))
+    pr[5] && v[5] > 0f0 && (s.control.growth_fintm = Float32(v[5]))
+    return
+end
+
 # OPTION 16 — INVYEAR (initre.f:895).
 function kw_invyear!(s::StandState, rec::KeywordRecord)
     rec.present[1] && (s.control.cycle_year[1] = nint(rec.values[1]))
@@ -1341,6 +1360,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)
         elseif kw == "NUMCYCLE"; kw_numcycle!(s, rec)
         elseif kw == "TIMEINT";  kw_timeint!(s, rec)      # cycle length (period); default 5
+        elseif kw == "GROWTH";   kw_growth!(s, rec)        # input growth-data type codes + measurement periods (initre.f:2300)
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)
         elseif kw == "SITECODE"; kw_sitecode!(s, rec)
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
