@@ -18,7 +18,11 @@ subsystem**, not part of the carbon report itself — this plan scopes it from t
 A first instinct is "just port the decay" — but the constants show that fails on its own (see below).
 The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together to validate.
 
-1. **Per-cycle down-wood decay — `FMCWD` (fire/base/fmcwd.f:78-134).** For decay class L=1..4, size J:
+1. ✅ **DONE (decay routine) — `FMCWD`** ported to `fire/fuel_decay.jl` (`fmcwd!`) + DKR/PRDUFF consts,
+   unit-tested (`test_fuel_decay.jl`): duff persists (0.002/yr), litter crashes (0.65/yr, awaiting
+   litterfall), DDW decays 3.42→1.91 t/ac per 5-yr cycle (the ~0.3 gap to the report's 2.5 is the
+   chunk-2 woody-breakage additions). End-to-end report validation still pending chunk 2 (the coupling).
+   For decay class L=1..4, size J:
    - duff (size 11): `cwd[11,1,L] *= (1−DKR[11,L]·1.1)^NYRS` (soft); `cwd[11,2,L] *= (1−DKR[11,L])^NYRS` (hard).
    - woody J=1..10: decayed amount `AMT = cwd[J,k,L]·(1−(1−DKR·{1.1 soft})^NYRS)`; `cwd[11,2,L] += AMT·PRDUFF[J,L]`
      (a fraction to duff); then `cwd[J,k,L] *= (1−DKR·{1.1 soft})^NYRS`; then hard→soft transfer (J<10)

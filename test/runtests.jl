@@ -84,6 +84,7 @@ using FVSjl
     include("unit/test_rothermel.jl")           # FFE-F5: Rothermel surface fire behavior (FMFINT)
     include("unit/test_fmburn.jl")              # FFE-F5b: fire event driver (FMBURN/FMEFF) → kill TPA
     include("unit/test_carbon.jl")              # FFE-F8: standing live-tree carbon pools (FMCRBOUT)
+    include("unit/test_fuel_decay.jl")          # FFE-F3: surface-fuel decay (FMCWD)
     include("unit/test_snag.jl")                # FFE-F7: snag falldown + decay dynamics (FMSFALL)
     include("unit/test_consumption.jl")         # FFE-F7/F8: fire fuel consumption + carbon release (FMCONS)
     include("unit/test_econ.jl")                # C8: ECON economic-analysis core (eccalc.f)
