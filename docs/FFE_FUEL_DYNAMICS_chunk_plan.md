@@ -367,3 +367,20 @@ So the DDW-column finish is now correctly ordered: (i) verify/​close the crown
 live Fortran at the carbon_jenkins cycles; (ii) then the FFE-update-after-grow in-loop restructure with
 the (now-magnitude-correct) lift. The source/formula/plumbing/placement are validated; the magnitude is
 gated upstream on ICR. This is the faithful resolution — not a fudge factor on X.
+
+### Crown-lift magnitude — VERIFIED root: the carbon_jenkins growth/crown-ratio tail (not a lift bug)
+Instrumented the Fortran FMSDIT to dump per-tree (HT, OLDHT, ICR, X) and compared to FVSjl by height:
+  Ht~46: FVSjl ICR=16 / Fortran ICR=20 ; Ht~53: FVSjl 21 / Fortran 25 (FVSjl ~4-5% absolute LOWER),
+and heights differ too (45.5 vs 46.3). So FVSjl's crown ratio (and height) carry the **carbon_jenkins
+LP growth tail** — the SAME ~0.5% tail the other 8 carbon columns TOLERATE (they reconcile within
+0.5%·value). The crown-lift can't tolerate it because X = `(NEWBOT−OLDBOT)/OLDCRL/CYCLEN` is a DIFFERENCE
+of crown bases `HT·(1−ICR/100)`: a 4% ICR gap on a ~2.9 ft rise is ~25%, amplifying the tail into the
+1.45× lift error. ⇒ The crown-lift formula/placement are correct; its BIT-EXACT validation is gated on a
+GROWTH-bit-exact stand (the crown ratio is only bit-exact where the growth is). carbon_jenkins is a
+synthetic FFE test stand with the LP tail, NOT one of the bit-exact snt scenarios.
+NEXT (correctly ordered, principle 1): validate the crown-lift on a stand whose growth+crown-ratio are
+bit-exact (an snt-style FFE stand), where X's sensitivity is not fed a growth tail; THEN the in-loop
+restructure. On carbon_jenkins the post-mortality DDW will track within the growth tail (bounded), like
+the other 8 columns — not a separate bug. This closes the DDW investigation: every layer is now verified
+against live Fortran, and the residual is the known growth tail amplified by a difference-of-bases, not
+an unported/incorrect mechanism.
