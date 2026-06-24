@@ -4,6 +4,29 @@ Items deferred to C6 because they are consumed by the DBS database I/O + output
 tables, not the natural-process `.sum`. Carried here so they are not forgotten when
 C6 is built. Each is fully scoped in its source tracker.
 
+## ⚠ VALIDATION LIMIT (2026-06-24): the ground-truth SN binary is a STRIPPED DBS build
+The rebuilt `/tmp/FVSsn_new` only accepts a LIMITED DBS keyword set — `SUMMARY`, `COMPUTDB`,
+`TREELIDB` (+ `DSNOUT`). `CARBRPTS`, `STRCLASS`, `CUTLIST`-in-DATABASE-block, the FFE reports
+(`POTFIRE`/`FUELSOUT`/`BURNREPT`/…), insects/RD, econ, regen DBS keywords all error as
+`FVS01 ERROR: INVALID KEYWORD`. So those tables are **NOT producible by this binary** — there is
+no Fortran `FVS_Carbon`/`FVS_StrClass`/`FVS_CutList`/… to diff against. The 6 tables already
+ported (Cases, Summary, TreeList, Compute, InvReference, CutList) **exhaust what this binary can
+validate** (CutList via the `.sum` removed-column reconstruction, since its own table is text-only).
+Any further DBS table would be **unvalidatable against ground truth** here — needs a full FVS SN
+build (compiled with all DBS modules) before porting, per the methodology (never rely on tests
+alone). The remaining tables are therefore blocked on either (a) a fuller ground-truth binary, or
+(b) the unported subsystems they report (FFE carbon/fuels, SSTAGE, insects, econ, regen, STATS
+variance).
+
+Also confirmed: the `CUTLIST` and `ATRTLIST` keywords in this binary route their lists to a TEXT
+dataset (unit 3 / the `.out`), NOT to `FVS_CutList`/`FVS_ATRTList` SQLite tables — so even those
+are not directly diffable (FVSjl's `FVS_CutList` was validated instead by reconstructing the `.sum`
+removed columns). The per-tree `FVS_TreeList` works only because it has a SEPARATE trigger
+(`TREELIDB`). Insect/disease keywords (`MPB`/`MISTOE`/`RDIN`/…) ARE wired in the SN variant (initre
+routes them to `MPBIN`/`MISIN`/`RDIN`), but are inert without infected/host input trees — e.g.
+adding a `MISTOE` block to snt01 leaves the `.sum` byte-identical (no DM-rated trees to act on), so
+validating them needs a purpose-built infected-stand scenario, not snt01.
+
 ## From the C3/C4/C5 semantic audit (`SEMANTIC_AUDIT_C3C4C5.md`)
 
 | item | what | validation target (C6) |
