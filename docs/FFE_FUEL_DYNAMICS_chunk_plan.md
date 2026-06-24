@@ -352,3 +352,18 @@ post-grow X for the lift. That is the grow_cycle! hot-path integration (couples 
 death-dating); reverted the lump-sum wiring (overshoots the DDW bound) — kept the tested `crown_lift_rate`.
 NET across the session: DDW source + formula + plumbing + PLACEMENT all validated; only the in-loop
 restructure remains, now fully specified.
+
+### Crown-lift magnitude — ROOT traced to an UPSTREAM dependency: crown ratio (ICR) sensitivity
+Quantified the residual per-tree (diagnostic, reverted): FVSjl's CROWNW·TPA-weighted crown-lift rate
+X = 0.038 vs the Fortran's 0.026 (lift 0.57 vs 0.392 t/ac/yr, 1.45×); CROWNW/TPA are validated (the
+breakage term reconciles bit-exact pre-mortality), so it is X. Per-tree X = 0.08/0.06/0.045/0.032 for
+the four largest trees — each crown base rises ~2.9 ft as the tree grows ~3 ft.
+KEY: X's numerator is `(NEWBOT−OLDBOT)` = a DIFFERENCE of two crown bases `HT·(1−ICR/100)`, so it is
+acutely sensitive to the crown ratio ICR — a 1-2% ICR difference vs the Fortran moves the ~2.9 ft rise
+~15%, hence X ~1.45×. ⇒ The crown-lift can only be bit-exact once the crown ratio (ICR/`crown_pct`) is
+bit-exact at these cycles. That is an UPSTREAM dependency (the SN crown-ratio model, crown_ratio.jl),
+which per principle (1) most-upstream-least-dependent-first must be validated BEFORE the crown-lift.
+So the DDW-column finish is now correctly ordered: (i) verify/​close the crown-ratio (ICR) residual vs
+live Fortran at the carbon_jenkins cycles; (ii) then the FFE-update-after-grow in-loop restructure with
+the (now-magnitude-correct) lift. The source/formula/plumbing/placement are validated; the magnitude is
+gated upstream on ICR. This is the faithful resolution — not a fudge factor on X.
