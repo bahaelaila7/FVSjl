@@ -156,6 +156,24 @@ function kw_bamax!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_rannseed!(s, rec)
+
+RANNSEED (initre.f:6300, option 61): reseed the main random-number stream (RANSED). A
+present non-zero field 1 installs that seed (forced odd); a present field-1 of 0 means
+GETSED — a clock-based seed, intentionally NOT reproduced (non-deterministic); a blank
+field restarts the stream from its saved seed `ss`. Set at keyword time, before any draw.
+"""
+function kw_rannseed!(s::StandState, rec::KeywordRecord)
+    if rec.present[1]
+        rec.values[1] == 0f0 && return                 # GETSED clock seed — non-deterministic
+        ranseed!(s.rng, true, Float32(rec.values[1]))
+    else
+        ranseed!(s.rng, false, 0f0)                     # restart from the saved seed
+    end
+    return
+end
+
+"""
     kw_sdimax!(s, rec)
 
 SDIMAX (initre.f:3072, option 89): override the maximum stand density index and the self-
@@ -1047,6 +1065,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MANAGED";  kw_managed!(s, rec)       # managed-stand flag → DGF kplant term (dgf.f:179)
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
+        elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)

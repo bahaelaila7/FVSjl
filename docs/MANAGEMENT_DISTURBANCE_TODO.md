@@ -130,11 +130,11 @@ Diffed the **142-keyword SN master list** (`keywds.f`) against everything FVSjl 
 **silently ignored** (fall through to the no-op `else`). This is exactly how MANAGED/BAMAX/
 SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* decision.
 
-**⚠ Simulation-affecting, UNRECOGNIZED (highest priority — silent `.sum` gaps, same class as
-the 3 just fixed; not yet ported):**
-- `RANNSEED` (opt 61) — RNG seed. A stand setting it gets a different stochastic stream ⇒
-  different DG/mortality/regen. **Bit-exactness-critical** for any RANNSEED stand.
-- `DGSTDEV` (opt 57) — diameter-growth standard deviation (feeds DGSCOR).
+**⚠ Simulation-affecting, UNRECOGNIZED (silent `.sum` gaps, same class as MANAGED/BAMAX/SDIMAX):**
+- `RANNSEED` (opt 61) — ✅ **DONE** (audit find #4). `kw_rannseed!` reseeds the main RNG via
+  the existing `ranseed!` (forced odd; field-1==0 GETSED clock seed skipped as non-deterministic).
+  Bit-exact vs live Fortran (`test_rannseed.jl`, seed 12345; ±DGSCOR/Scribner noise).
+- `DGSTDEV` (opt 57) — diameter-growth standard deviation (feeds DGSCOR). **next**
 - `SERLCORR` (opt 91) + `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` —
   serial-correlation / calibration-correlation read & reuse (the DGSCOR machinery).
 - `NOCALIB` (opt 56) — disable the self-calibration (changes DG/HTG scale factors).
