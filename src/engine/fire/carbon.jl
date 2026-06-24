@@ -192,10 +192,14 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
     fs = stand.fire
-    fs !== nothing && fs.active && compute_forest_type!(stand)
-    fs !== nothing && fs.active && fmcba!(stand)
     for c in 0:ncyc
         compute_density!(stand)
+        # Refresh cover type + live herb/shrub fuels (FLIVE) from the CURRENT (post-growth) stand at
+        # each report point — FVS reports the cycle's own live fuels, so computing them only pre-growth
+        # lags the Shrub/Herb column one cycle. fmcba! loads the initial dead fuels just once (fuels_init).
+        if fs !== nothing && fs.active
+            compute_forest_type!(stand); fmcba!(stand)
+        end
         println(io, carbon_report_row(stand, Int(current_cycle_year(stand))))
         if c < ncyc
             fs !== nothing && fs.active && ffe_fuel_update!(stand, period)

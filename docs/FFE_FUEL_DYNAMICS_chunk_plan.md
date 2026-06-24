@@ -431,3 +431,14 @@ not shipped — it would regress the carbon_snt Stand-Dead bound):
      snag_bole_carbon does not yet do (noted there as "the next refinement").
 So input-snag seeding bit-exact = the seeder (branch on history) + dead-record volumes + the snag
 bole-height-loss model. The mechanism + the three precise gaps are now pinned on the carbon_snt harness.
+
+### FLIVE (Shrub/Herb column) — DONE & bit-exact
+The Shrub/Herb pool (BIOSHRB = FLIVE(1)+FLIVE(2)) lagged one cycle because write_carbon_report computed
+the live herb/shrub fuels (fmcba!) only from the PRE-growth stand. FVS reports each cycle's OWN live
+fuels, so fmcba! must refresh at the report point (post-growth). Moving the per-cycle
+compute_forest_type!+fmcba! to the top of the report loop makes Shrub/Herb BIT-EXACT every cycle on
+carbon_snt (1.7/2.5/3.8/5.7). fmcba! still loads the initial dead fuels just once (fuels_init), so DDW/
+Floor are unaffected. So on the bit-exact-growth stand the carbon report is now bit-exact in 6 of 9
+columns (Aboveground Total/Merch, Belowground-Live, Forest Floor, Shrub/Herb) + the structure; the two
+remaining are the DEAD pools: input-snag seeding (Stand-Dead/Below-Dead — three gaps scoped above) and
+the crown-lift (DDW).

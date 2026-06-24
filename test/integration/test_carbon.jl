@@ -190,7 +190,8 @@ end
             @test mv[3] ≈ fv[3] atol = 0.1     # Merch             — BIT-EXACT
             @test mv[4] ≈ fv[4] atol = 0.1     # Belowground Live  — BIT-EXACT
             @test mv[8] ≈ fv[8] atol = 0.1     # Forest Floor      — BIT-EXACT
-            # dead pools are bounded (≤ Fortran) pending FMSSEE + crown-lift + FLIVE
+            @test mv[9] ≈ fv[9] atol = 0.1     # Shrub/Herb (FLIVE) — BIT-EXACT (post-grow FLIVE refresh)
+            # remaining dead pools bounded (≤ Fortran) pending input-snag seeding + crown-lift
             @test mv[6] <= fv[6] + 0.2         # Stand-Dead never over (no input snags yet)
             @test mv[7] <= fv[7] + 0.2         # DDW never over (no crown-lift yet)
         end
