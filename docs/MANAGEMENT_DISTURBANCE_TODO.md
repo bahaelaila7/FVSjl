@@ -116,11 +116,20 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 
 ## 8. Disturbance models (C7/C8 extensions — owned there)
 
+> ★ **INSECTS/DISEASE ARE NOT PART OF THE SN VARIANT (2026-06-24).** The rebuilt SN binary links
+> only the `ex*.f` no-op STUBS for every insect/disease model (exmpb/exdfb/exdftm/exmist/exbm/exrd);
+> there is NO real model (mpbmza/dfbmza/… are absent from `bin/FVSsn_buildDir`). A `DFB`/`MPB`/… keyword
+> in SN emits `FVS11 ERROR: REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM` and leaves the simulation
+> unchanged (verified: DFB on snt01 ⇒ byte-identical `.sum`). So these are **NOT unported omissions** —
+> they are not in SN FVS at all (mostly western insects/diseases with no Southern hosts). The faithful
+> SN behaviour is recognize-and-do-nothing, which FVSjl now does explicitly via
+> `SN_UNSUPPORTED_EXTENSIONS` (southern.jl) ⇒ they are **out of scope for the SN port**, not a gap.
+
 | keyword | model | status |
 |---|---|---|
-| FMIN … END | FFE fire (SIMFIRE/SALVAGE/fuels/snags/CWD/carbon) | 🧊 C7 |
-| MPB / DFB / DFTM / WSBW / MISTOE / BRUST | mtn pine beetle / DF beetle / DF tussock moth / W spruce budworm / mistletoe / blister rust | 🧊 (no scenario) |
-| RDIN / ANIN / RRIN | root-disease model (Western root disease / Annosus) input | 🧊 (no scenario; was missing) |
+| FMIN … END | FFE fire (SIMFIRE/SALVAGE/fuels/snags/CWD/carbon) | 🧊 C7 (FFE IS in SN) |
+| MPB / DFB / DFTM / WSBW / MISTOE / BRUST | mtn pine beetle / DF beetle / DF tussock moth / W spruce budworm / mistletoe / blister rust | ⚪ **NOT in SN** (ex* stub ⇒ "NOT PART OF THIS PROGRAM"); recognized-inert in `SN_UNSUPPORTED_EXTENSIONS` |
+| RDIN / ANIN / RRIN | root-disease model (Western root disease / Annosus) input | ⚪ **NOT in SN** (exrd stub); recognized-inert |
 | PRMFROST / CLIMATE | permafrost / climate-FVS modifiers | 🧊 |
 | ECON / CHEAPO | economic analysis | 🧊 C8 (ANNUCST path exists) |
 

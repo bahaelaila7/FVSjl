@@ -33,4 +33,18 @@ const KNOWN_NOOP_SN = Set([
     "FIXCW", "FIAVBC", "NOAUTOES", "AUTOES", "NOHTDREG",
 ])
 
-variant_noop_keywords(::Southern) = KNOWN_NOOP_SN
+# Insect/disease EXTENSIONS that FVS itself STUBS OUT of the SN variant — the SN build links only the
+# `ex*.f` no-op stubs (exmpb/exdfb/exdftm/exmist/exbm/exrd …), and the keyword handler emits
+# `FVS11 ERROR: REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM` then leaves the simulation unchanged
+# (verified: DFB on snt01 ⇒ byte-identical .sum). These are NOT unported omissions — they are not part
+# of SN FVS at all (mostly western insects/diseases with no Southern hosts), so the faithful SN
+# behaviour is exactly this: recognize, do nothing. (Block keywords like MISTOE/RDIN read sub-keywords
+# in full FVS; the stub doesn't consume them, and FVSjl likewise ignores both the keyword and its
+# orphaned sub-keyword lines — same nil .sum.)
+const SN_UNSUPPORTED_EXTENSIONS = Set([
+    "MPB", "DFB", "DFTM", "WSBW", "BWE", "BRUST", "MISTOE", "RDIN", "ANIN", "RRIN",
+    "RDBBMORT", "RDSUM", "RDDETAIL",   # root-disease report sub-keywords (also ex* in SN)
+])
+
+const _SN_NOOP_ALL = union(KNOWN_NOOP_SN, SN_UNSUPPORTED_EXTENSIONS)
+variant_noop_keywords(::Southern) = _SN_NOOP_ALL
