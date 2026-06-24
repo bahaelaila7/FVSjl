@@ -7,13 +7,25 @@ so it is chunked here rather than ported in one pass. Bit-exactness is *fragile*
 through an iterative eigensolver + several descending sorts with FVS tie-breaks), so each
 sub-step must be validated against live Fortran, not just "records reduced."
 
-## Status (2026-06-24)
+## Status — ✅ DONE (2026-06-24, with the eigensolver substituted)
 - ✅ **Keyword** (`kw_compress!`): recognized + scheduled (icflag 250, params = target
   records `NCLAS`, `PN1`%, date). Defaults: `NCLAS = MAXTRE/2 = 1500`, `PN1 = 50`, date 1.
-  `cuts!` PASS 2 skips icflag 250 (not a cut method), so records currently pass through
-  **uncompressed** — a stand using COMPRESS still diverges from Fortran by the compression.
-  This is now a *visible, tracked* gap (was silently dropped).
-- ⛔ **Algorithm** (comprs.f) — the chunks below.
+- ✅ **Algorithm** (`src/engine/compress.jl`, `compress!` + `apply_compress!`): the full
+  comprs.f / comcup.f port — standardize → correlation matrix → eigen → PC scores → Method 1
+  (gap breaks) → Method 2 (range splits) → PROB-weighted merge — wired at act 250 in
+  `grow_cycle!` (suppresses tripling = NOTRIP). **The 1966 IBM-SSP Jacobi eigensolver is replaced
+  by `LinearAlgebra.eigen`** (project direction: use Julia's linear algebra rather than re-port
+  the routine). Consequences, validated vs live Fortran (`test_compress.jl`):
+  - exact: reduces to **NCLAS** records and **conserves total TPA exactly**;
+  - at the compression cycle the compressed stand's `.sum` aggregates (TPA/BA/SDI/CCF/TopHt/QMD/
+    cubic volume) are **bit-identical** to Fortran — the merge math is correct;
+  - the **multi-cycle trajectory diverges** (≈ several % by late cycles) because LAPACK and the
+    SSP routine produce slightly different eigenvectors → slightly different PC scores → a
+    different class PARTITION among near-identical records (compounded by sort tie-breaks that
+    `RDPSRT` resolves differently than a stable sort). This is the accepted cost of the
+    eigensolver substitution; bit-exact COMPRESS would require porting `EIGEN` + `RDPSRT` exactly.
+
+### Original chunk plan (kept for reference / if bit-exactness is ever required)
 
 ## How it works (comprs.f)
 Classification variables (per tree): `HT`, `ICR`, `IMC`, `ln(DBH)`, `DG` (5 vars, NRANK=5).

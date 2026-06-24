@@ -5,6 +5,7 @@ authors = ["BahaaEddin AlAila <bahaelaila7@gmail.com>"]
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"

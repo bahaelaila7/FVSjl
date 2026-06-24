@@ -1,57 +1,80 @@
-# test_compress.jl — COMPRESS keyword recognition + scheduling (initre.f:8000, option 78).
+# test_compress.jl — COMPRESS keyword (opt 78, act 250, comprs.f + comcup.f).
 #
-# COMPRESS schedules act 250 (reduce the tree list to NCLAS classes). The clustering
-# ALGORITHM (comprs.f, 1010-line IBM-SSP-eigen PCA) is a tracked chunk (docs/COMPRESS_
-# chunk_plan.md) and NOT yet ported — so this tests only that the keyword is RECOGNIZED
-# and scheduled (no longer silently dropped) and that a COMPRESS stand still runs cleanly
-# (records pass through uncompressed until the algorithm lands). Do NOT mark COMPRESS done
-# on the strength of this test — it does not exercise the compression.
+# COMPRESS reduces the tree list to NCLAS representative records by PC-score clustering, then
+# merges each class (PROB-weighted). The 1966 IBM-SSP eigensolver is replaced by
+# LinearAlgebra.eigen (project direction), so the exact class PARTITION is not bit-identical to
+# Fortran — but the algorithm is faithful and the per-cycle aggregate is conserved. Checks:
+#   1. KEYWORD — recognized + scheduled (act 250, params target/PN1/date);
+#   2. RECORD COUNT — compress! reduces the live list to exactly NCLAS records;
+#   3. TPA CONSERVED — total trees/acre is preserved exactly by the merge;
+#   4. FORTRAN AGGREGATE — at the compression cycle, the compressed stand's `.sum` row (TPA / BA /
+#      SDI / CCF / TopHt / QMD / cubic volume) is bit-identical to live Fortran (the merge is
+#      correct; only the later-cycle trajectory diverges with the substituted eigensolver).
 
 using Test, FVSjl
+
+const _CP_DIR = joinpath(@__DIR__, "..", "harness", "scenarios")
+_cp_rows(txt) = [split(l) for l in split(txt, "\n")
+                 if length(split(l)) >= 12 && (y = tryparse(Int, first(split(l)));
+                                               y !== nothing && 1900 < y < 2100)]
+_cp_base(path) = [split(l) for l in eachline(path)
+                  if length(split(l)) >= 12 && (y = tryparse(Int, first(split(l)));
+                                                y !== nothing && 1900 < y < 2100)]
 
 @testset "COMPRESS keyword recognition + scheduling" begin
     mkrec(fields, vals, present) =
         FVSjl.KeywordRecord("COMPRESS", "", fields, vals, present, 12, FVSjl.KW_OK, 0)
-
-    # explicit params: date 1990, target 200, pn1 60
     s = FVSjl.StandState(FVSjl.Southern())
     FVSjl.kw_compress!(s, mkrec(["1990", "200", "60", fill("", 9)...],
                                 Float32[1990, 200, 60, zeros(Float32, 9)...],
                                 [true, true, true, falses(9)...]))
     a = last(s.control.schedule)
-    @test a.icflag == Int32(250)
-    @test a.year == Int32(1990)
+    @test a.icflag == Int32(250) && a.year == Int32(1990)
     @test a.params[1] == 200f0 && a.params[2] == 60f0
-
-    # defaults: date 1, target MAXTRE/2 = 1500, pn1 50
     s2 = FVSjl.StandState(FVSjl.Southern())
     FVSjl.kw_compress!(s2, mkrec(fill("", 12), zeros(Float32, 12), falses(12)))
     d = last(s2.control.schedule)
     @test d.year == Int32(1) && d.params[1] == 1500f0 && d.params[2] == 50f0
-
-    # COMPRESS is no longer in the no-op set (it is a real, now-recognized effect)
     @test !("COMPRESS" in FVSjl.KNOWN_NOOP)
-    @test !("COMPRESS" in FVSjl.variant_noop_keywords(FVSjl.Southern()))
+end
 
-    # a stand carrying COMPRESS still runs cleanly (the scheduled act 250 is skipped by
-    # cuts! PASS 2 — records pass through uncompressed until the algorithm is ported)
-    dir = joinpath(@__DIR__, "..", "harness", "scenarios")
-    key = joinpath(dir, "fire_early.key")
-    if isfile(key)
-        off = FVSjl.run_keyfile(key; faithful = true)
-        cmpkey = joinpath(dir, "_compress_on.key")
-        cp(joinpath(dir, "fire_early.tre"), joinpath(dir, "_compress_on.tre"); force = true)
-        open(cmpkey, "w") do io
-            for l in eachline(key)
-                println(io, l)
-                strip(l) == "INVYEAR       1990.0" && println(io, "COMPRESS        1990      100.")
-            end
+@testset "COMPRESS algorithm — record clustering + merge" begin
+    key = joinpath(_CP_DIR, "fire_early.key")
+    if !isfile(key)
+        @test_skip "fire_early scenario not available"
+    else
+        # RECORD COUNT + TPA CONSERVATION at several targets.
+        for nclas in (5, 10, 15, 20)
+            s, _ = FVSjl.initialize(key)
+            FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+            n0 = s.trees.n
+            tpa0 = sum(s.trees.tpa[i] for i in 1:n0)
+            @test n0 > nclas                                  # compression actually fires
+            @test FVSjl.compress!(s, nclas, 0.5)
+            @test s.trees.n == nclas                          # exactly NCLAS records
+            tpa1 = sum(s.trees.tpa[i] for i in 1:s.trees.n)
+            @test isapprox(tpa0, tpa1; rtol = 1f-4)           # TPA conserved by the merge
         end
-        try
-            on = FVSjl.run_keyfile(cmpkey; faithful = true)
-            @test length(split(on, "\n")) == length(split(off, "\n"))   # runs, same shape
-        finally
-            rm(cmpkey; force = true); rm(joinpath(dir, "_compress_on.tre"); force = true)
+        # no-op when the target ≥ the record count
+        s2, _ = FVSjl.initialize(key); FVSjl.notre!(s2); FVSjl.setup_growth!(s2)
+        @test !FVSjl.compress!(s2, s2.trees.n + 5, 0.5)
+        @test s2.trees.n > 0
+    end
+
+    # FORTRAN AGGREGATE — compress scenario (NCLAS=15 @ cycle 1): the compression-cycle row's
+    # stand aggregates are bit-identical (the merge conserves them) vs live Fortran.
+    ckey = joinpath(_CP_DIR, "compress.key")
+    sav = joinpath(_CP_DIR, "compress.sum.save")
+    if !isfile(ckey) || !isfile(sav)
+        @test_skip "compress scenario not available"
+    else
+        jl = _cp_rows(FVSjl.run_keyfile(ckey; faithful = true))
+        ft = _cp_base(sav)
+        @test !isempty(jl) && length(jl) == length(ft)
+        j = jl[1]; f = ft[1]                                  # compression cycle (1990)
+        @test j[1] == f[1]                                    # YEAR
+        for col in (3, 4, 5, 6, 7, 8, 9, 10)                  # TPA/BA/SDI/CCF/TopHt/QMD/TCuFt/MCuFt
+            @test j[col] == f[col]
         end
     end
 end

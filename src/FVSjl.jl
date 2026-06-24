@@ -65,6 +65,7 @@ include("engine/volume.jl")
 include("engine/standstats.jl")
 include("engine/event_monitor.jl")
 include("engine/cuts.jl")
+include("engine/compress.jl")            # COMPRESS (act 250) — PC-score tree-record clustering
 include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass

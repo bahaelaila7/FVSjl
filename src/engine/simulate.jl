@@ -186,6 +186,7 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
+    compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (suppresses tripling)
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
@@ -212,7 +213,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     old_tpa = Float32[t.tpa[i]      for i in 1:nlive]
     # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
-    trip = Int(s.control.cycle) < Int(s.control.icl4)
+    trip = !compressed && Int(s.control.cycle) < Int(s.control.icl4)   # COMPRESS suppresses tripling (NOTRIP)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     height_growth!(s, s.variant; scale = fint / 5f0)         # HTG scaled to the cycle length
     small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
