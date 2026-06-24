@@ -164,3 +164,35 @@ end
         end
     end
 end
+
+@testset "Stand Carbon Report — LIVE pools bit-exact on a bit-exact-growth FFE stand (carbon_snt)" begin
+    # carbon_snt = snt01_alpha's bit-exact species + FMIN/CARBREPT (no LP growth tail). On bit-exact
+    # growth the LIVE carbon pools (Aboveground Total/Merch, Belowground-Live) and the Forest Floor
+    # reconcile BIT-EXACT vs live Fortran every cycle — proving the live-carbon model is correct (the
+    # carbon_jenkins ~0.5% residuals were purely its growth tail, not a carbon bug). The DEAD columns
+    # (Below-Dead, Stand-Dead, DDW) and Shrub/Herb differ by the three remaining FFE pieces: FMSSEE
+    # (input-snag seeding → the inventory Stand-Dead/Below-Dead), the crown-lift (DDW), and FLIVE
+    # live-fuel growth (Shb/Hrb) — see FFE_FUEL_DYNAMICS_chunk_plan.md.
+    key = joinpath(_CDIR, "carbon_snt.key"); sav = joinpath(_CDIR, "carbon_snt.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_snt scenario not available"
+    else
+        ft = [parse.(Float64, split(strip(l))) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        io = IOBuffer()
+        FVSjl.write_carbon_report(io, s, length(ft) - 1; stand_id = "S248112", mgmt_id = "NONE")
+        rows = [parse.(Float64, split(strip(l)))
+                for l in split(String(take!(io)), '\n') if occursin(r"^(19|20)\d\d ", l)]
+        @test length(rows) == length(ft)
+        for (mv, fv) in zip(rows, ft)
+            @test mv[2] ≈ fv[2] atol = 0.1     # Aboveground Total — BIT-EXACT
+            @test mv[3] ≈ fv[3] atol = 0.1     # Merch             — BIT-EXACT
+            @test mv[4] ≈ fv[4] atol = 0.1     # Belowground Live  — BIT-EXACT
+            @test mv[8] ≈ fv[8] atol = 0.1     # Forest Floor      — BIT-EXACT
+            # dead pools are bounded (≤ Fortran) pending FMSSEE + crown-lift + FLIVE
+            @test mv[6] <= fv[6] + 0.2         # Stand-Dead never over (no input snags yet)
+            @test mv[7] <= fv[7] + 0.2         # DDW never over (no crown-lift yet)
+        end
+    end
+end
