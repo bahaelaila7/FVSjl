@@ -164,3 +164,17 @@ reconcile and would have regressed the validated Stand-Dead. What it surfaced:
   `ffe_fuel_update!` ahead of `grow_cycle!`, so the order was wrong.
 ⇒ CWD2B is more than the spec above: it needs the dynamic-snag accounting + the crown-snapshot
 ordering. A focused port should do those two first, validating Stand-Dead AND DDW together.
+
+### ROOT CAUSE of the Stand-Dead discrepancy (a different biomass model)
+Checked how Fortran computes the Stand-Dead column: `BIOSNAG = TOTSNG(1)+TOTSNG(2)` (fmdout.f:280),
+where TOTSNG = the standing snag **stem VOLUME × V2T** (SNVIS+SNVIH, fmdout.f:153) **PLUS the CWD2B
+crown debris still in waiting** (fmdout.f:173: `+= P2T·(CWD2B+CWD2B2)`). So:
+- The standing snag biomass is the **stem-volume bole** (a snag stem-volume model SNVIS/SNVIH × V2T),
+  NOT the whole-tree Jenkins aboveground FVSjl uses → that alone is why FVSjl reads 6.1 vs 5.2 even
+  with no crown split (Jenkins aboveground > merch stem volume).
+- The crown is **still counted in Stand-Dead** (via CWD2B) until it falls; when it falls it moves to
+  DDW. No double-count — Stand-Dead = bole + (crown not-yet-fallen); DDW = crown fallen + bole fallen.
+⇒ Reconciling Stand-Dead bit-exact needs (a) the snag **stem-volume** model (SNVIS/SNVIH), not Jenkins,
+and (b) Stand-Dead = stem-bole + Σ(CWD2B)·P2T. This is a deeper port than "subtract the crown"; it
+replaces FVSjl's Jenkins-based `standing_dead_carbon` with the volume-based FFE snag model + CWD2B.
+The 7-of-9 reconciled columns (incl. below-dead, floor, DDW@95/2005) are independent of this and stand.
