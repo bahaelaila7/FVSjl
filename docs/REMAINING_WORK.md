@@ -4,7 +4,7 @@ Status snapshot (suite 4223). The natural-process core + most management/disturb
 ported and validated bit-exact vs live Fortran. What remains, grouped by the **nature of the blocker**
 (not just "todo") so the path for each is clear.
 
-## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (7/9 COLUMNS BIT-EXACT)
+## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (8/9 COLUMNS BIT-EXACT)
 Inventory cycle bit-exact (all columns). **Grown-cycle: 7 of 9 report columns now reconcile bit-exact**
 vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported + validated this session:
 - ✅ `FMCWD` decay (fuel_decay.jl) · ✅ `FMCADD` litterfall + woody breakage (fuel_additions.jl) ·
@@ -55,3 +55,15 @@ SQLite to diff against (see `fvsjl-ground-truth-binary-limits`).
   per-tree calib decomposition (ran/HTCALC/COR) vs oracle; partly transcendental-ulp. snt01 is the gate.
 - **DGSCOR per-record cubic-volume ±0.03% drift** — documented as **irreducible** (transcendental-ulp
   through the bounded redraw), not a bug. See `DIVERGENCES.md`.
+
+### Update — Stand-Dead now bit-exact (8/9), DDW is the last column
+The snag stem-volume bole + CWD2B crown model landed the STAND-DEAD column bit-exact (5.2/4.5 =
+bole 3.72 + crown 1.46), validated piece-by-piece against an instrumented Fortran dump. So 8 of 9
+report columns now reconcile bit-exact. The ONE remaining: **post-mortality DDW** carries a ~1.7-1.9
+residual (Fortran 3.8/8.0 @2000/2005 vs FVSjl 2.1/6.1) — a missing within-cycle DDW addition. The
+prime suspect is the **crown-lift** term (FMCADD, fmcadd.f:95-102): `FMPROB·OLDCRW(SIZE)·P2T` → down
+wood, where OLDCRW is the previous-cycle crown (fmoldc.f:55). It needs per-tree previous-crown tracking
+across the (changing) tree list, and the magnitude must be validated (a naive whole-OLDCRW add looks
+like it would overshoot, so the exact lift semantics need a Fortran DDW-addition dump first, like the
+bole/crown dumps that unlocked Stand-Dead). That is the last FFE carbon piece + then grow_cycle!
+wiring + the .out writer.
