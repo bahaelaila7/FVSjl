@@ -141,16 +141,13 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   bit-exact).
 - `SERLCORR` (opt 91) + `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` —
   serial-correlation / calibration-correlation read & reuse (the DGSCOR machinery).
-- `NOCALIB` (opt 56) — disable self-calibration for a species (0/all, −N group, code): sets
-  `LDGCAL=LHTCAL=.FALSE.` ⇒ the DG/HT correction terms are not scaled (dgdriv.f:567). **Scoped
-  as a focused calibration chunk, NOT a quick wire-up:** (a) `control.dg_calib_sp` (LDGCAL) is
-  DECLARED but DEAD — defaults all-`false` and is never read; flip its default to all-`true`
-  and add the consumption; (b) there is NO `htg_calib_sp` (LHTCAL) field — add it + its guard;
-  (c) gate `dg_cor[sp]`/`htg_cor[sp]` to 0 when a species' flag is off, in
-  `calibrate_diameter_growth!` + the HT calibration; (d) `kw_nocalib!` with SPDECD species
-  decode; (e) validate NOCALIB 0 ⇒ raw DG/HT == live Fortran AND snt01 (no NOCALIB) stays
-  bit-exact. Touches the precision-sensitive calibration core (the dominant residual area) —
-  do with focused attention, not at the tail of an unrelated session.
+- `NOCALIB` (opt 56) — ✅ **DONE** (audit find #6). Disables DG self-calibration per species
+  (0/all, −N group, code). `control.dg_calib_sp` (LDGCAL) was declared-but-DEAD (defaulted
+  all-`false`, never read) — flipped to all-`true` and now gates the COR fit in
+  `calibrate_diameter_growth!` (a skipped species keeps `dg_cor`/`dg_cor_goal`=0). `kw_nocalib!`
+  with SPDECD species decode. The SN LHTCAL side is naturally inert (FVSjl does no large-tree
+  HT self-calibration — `htg_cor`=0 unless HCOR2). Bit-exact vs live Fortran (`test_nocalib.jl`,
+  NOCALIB 0 ⇒ uncalibrated DG matches exactly; snt01 stays bit-exact with the all-true default).
 - `CCADJ` (opt 145) — crown-competition-factor adjustment.
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
 - `CYCLEAT` — explicit cycle-boundary years. `SDICALC` — SDI method. `MGMTID`/`RESETAGE`/

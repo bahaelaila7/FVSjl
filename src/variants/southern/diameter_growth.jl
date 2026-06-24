@@ -339,7 +339,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     calibrated = falses(MAXSP)
     @inbounds for sp in 1:MAXSP
         c.sigma[sp] = sigmar[sp]                      # SIGMA=SIGMAR unless calibrated (dgdriv.f:196)
-        if isct[sp, 1] != 0 && fn[sp] >= fnmin && snp[sp] > 0f0
+        # NOCALIB (LDGCAL=.FALSE.) suppresses the self-calibration for a species: skip the COR
+        # fit so dg_cor / dg_cor_goal stay 0 (dgdriv.f:567 — correction terms not scaled).
+        if s.control.dg_calib_sp[sp] && isct[sp, 1] != 0 && fn[sp] >= fnmin && snp[sp] > 0f0
             bnxv = snx[sp] / snp[sp]; bnyv = sny[sp] / snp[sp]
             csnxy = snxy[sp] - bnxv * bnyv * snp[sp]
             csnxx = snxx[sp] - bnxv * bnxv * snp[sp]

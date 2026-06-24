@@ -175,6 +175,32 @@ function kw_compress!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_nocalib!(s, rec)
+
+NOCALIB (initre.f:5800, option 56): disable diameter-growth self-calibration (LDGCAL) for a
+species — field 1 is `0`/blank = all, `−N` = SPGROUP, else a code. Clears `dg_calib_sp[sp]`
+so `calibrate_diameter_growth!` skips the COR fit (the species uses its uncalibrated DG).
+(SN also clears LHTCAL, but FVSjl does not do large-tree HT self-calibration — `htg_cor` is
+0 unless set by HCOR2 — so the HT side is already inert here.)
+"""
+function kw_nocalib!(s::StandState, rec::KeywordRecord)
+    spfield = strip(rec.fields[1]); num = tryparse(Int, spfield)
+    if isempty(spfield) || spfield == "0"
+        fill!(s.control.dg_calib_sp, false)                 # all species
+    elseif num !== nothing && num < 0                       # species group −N
+        g = -num
+        (1 <= g <= length(s.control.sp_groups)) || return
+        for sp in s.control.sp_groups[g]
+            (1 <= sp <= length(s.control.dg_calib_sp)) && (s.control.dg_calib_sp[sp] = false)
+        end
+    else
+        idx, _ = resolve_species(spfield, s.variant, s.species, s.coef)
+        idx > 0 && (s.control.dg_calib_sp[idx] = false)
+    end
+    return
+end
+
+"""
     kw_dgstdev!(s, rec)
 
 DGSTDEV (initre.f:5900, option 57): set DGSD, the number of standard deviations the
@@ -1099,6 +1125,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
         elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
+        elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
