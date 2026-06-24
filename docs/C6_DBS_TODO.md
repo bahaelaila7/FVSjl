@@ -54,7 +54,14 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   end-to-end through the DBS path (MYSDI 202.94, not the BA-77 of the old copy-paste bug). NOTE: a
   bare `TPA` event var exists in FVSjl but not in stock Fortran (Fortran leaves `MYTPA=TPA` null),
   so it is not a valid parity column.
-- ⛔ The remaining ~15 tables + the FVS_Cases full schema. Findings:
+- ✅ **FVS_InvReference** (`write_dbs_invref!`, dbsinvref.f) — DONE. A once-per-stand dump of the
+  variant's 90-species master list: FVS/PLANTS/FIA codes, SDI method (`zeide_sdi` → "ZEIDE"),
+  per-species SDImax + site index, cubic/board volume-equation ids and merch specs (min DBH / top
+  dia / stump for total / sawtimber / board). All from engine state after `compute_volumes!`;
+  emitted whenever the DSNOUT db is active. **Bit-exact vs live Fortran FVSOut.db — 0 mismatches
+  across 90 species × 19 columns** (`test_dbs_invref.jl`); incl. the 9 woodland species' CFMinDBH=6.
+  One fix: SiteIndex/SDIMax use FVS `trunc(x+0.5)` (round-half-up), not Julia `round` (half-even).
+- ⛔ The remaining ~14 tables + the FVS_Cases full schema. Findings:
   - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
     compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 

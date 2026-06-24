@@ -25,6 +25,7 @@ using FVSjl
     include("integration/test_dbs_summary.jl")# C6: DBS FVS_Summary SQLite table vs Fortran
     include("integration/test_dbs_treelist.jl")# C6: DBS FVS_TreeList per-tree table
     include("integration/test_dbs_compute.jl") # C6: DBS FVS_Compute event-monitor vars table
+    include("integration/test_dbs_invref.jl")  # C6: DBS FVS_InvReference per-species reference table
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden

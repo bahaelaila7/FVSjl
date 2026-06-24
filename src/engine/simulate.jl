@@ -304,9 +304,11 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows)
-        if sum_on || tl_on || cp_on
+        if has_db
             case += 1
             caseid = string(sid, "-", case)
+            # FVS_InvReference: the per-species reference dump accompanies any DBS output.
+            write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
             tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)

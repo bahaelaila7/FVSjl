@@ -104,6 +104,53 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
     return (Int(year), Int(prdlen), rows)
 end
 
+# FVS_InvReference schema (dbsinvref.f): a once-per-case dump of the variant's species master
+# list — codes, SDI method/max, site index, and the cubic/board volume-equation specs.
+const _FVS_INVREF_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_InvReference(
+  CaseID text not null, StandID text not null, SpeciesNum int, SpeciesFVS text,
+  SpeciesPlants text, SpeciesFIA text, SDIType text, SDIMax int, SiteIndex int,
+  CFCruiseType text, CFVolEq text, CFMinDBH real, CFTopDia real, CFStump real,
+  CFSawMinDBH real, CFSawTopDia real, CFSawStump real, BFVolEq text, BFMinDBH real,
+  BFTopDia real, BFStump real);
+"""
+
+"""
+    write_dbs_invref!(dbpath, caseid, standid, s)
+
+Write the per-species inventory-reference rows (FVS_InvReference, dbsinvref.f) for stand `s` —
+one row per species in the variant master list: FVS/PLANTS/FIA codes, the SDI method + per-species
+SDImax and site index, and the cubic/board volume-equation ids and merch specs (min DBH / top
+diameter / stump for total, sawtimber, and board). All data the engine already holds after
+`compute_volumes!`. A static reference table, so it is written once per stand.
+"""
+function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, s::StandState)
+    c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
+    nsp = length(co.code_alpha)
+    sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_INVREF_CREATE)
+        ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", 21), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for sp in 1:nsp
+            DBInterface.execute(stmt, (caseid, standid, sp,
+                String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
+                String(strip(co.code_fia[sp])), sditype,
+                trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
+                "FVS", String(strip(sp_eq[sp])),
+                Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
+                Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
+                String(strip(c.sp_bf_vol_eq[sp])),
+                Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 """
     write_dbs_compute!(dbpath, caseid, standid, var_names, rows)
 
