@@ -564,9 +564,11 @@ mutable struct FireState
     flmult::Float32                    # flame-length multiplier         (FLAMEADJ)
     crburn::Float32                    # crown-fire fraction             (FLAMEADJ)
     snags::SnagList                    # standing-dead snag cohorts
+    bioroot::Float32                   # dead coarse-root biomass pool, tons/ac (BIOROOT) — accrues at
+                                       # tree death, decays at CRDCAY each cycle; → the Below-Dead column
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
-                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList())
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

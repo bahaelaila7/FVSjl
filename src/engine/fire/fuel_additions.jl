@@ -21,6 +21,8 @@ are held at the cycle's start (their end-of-previous-cycle state, as FVS records
 FFE is active. This is what makes the Stand Carbon Report's dead/down-wood/floor pools evolve across
 grown cycles (validated bit-exact on carbon_jenkins). Snag-debris falldown (CWD2B) is still pending.
 """
+const _FM_CRDCAY = 0.0425f0   # dead coarse-root decay rate per year (fminit.f:918)
+
 function ffe_fuel_update!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
@@ -28,6 +30,7 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
     @inbounds for _ in 1:nyrs
         fmcwd!(s, 1); fmcadd_litterfall!(s); fmcadd_woody!(s)
     end
+    fs.bioroot *= (1f0 - _FM_CRDCAY)^nyrs    # dead-root decay (fmcrbout.f:273)
     return s
 end
 

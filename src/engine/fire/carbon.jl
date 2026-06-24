@@ -75,6 +75,16 @@ function forest_floor_carbon(s::StandState)::Float32
 end
 
 """
+    belowground_dead_carbon(s) -> Float32
+
+Dead coarse-root carbon pool in tons C/acre: the FFE `BIOROOT` accumulator (Jenkins root biomass of
+trees as they die, decayed at CRDCAY each cycle; fmsadd.f:320 / fmcrbout.f:273) × 0.5. Zero when FFE
+is off / nothing has died.
+"""
+belowground_dead_carbon(s::StandState)::Float32 =
+    (s.fire === nothing ? 0f0 : s.fire.bioroot) * 0.5f0
+
+"""
     shrub_herb_carbon(s) -> Float32
 
 Live shrub + herb carbon pool in tons C/acre: `BIOSHRB = FLIVE(1) + FLIVE(2)` (the FFE live
@@ -127,10 +137,11 @@ function stand_carbon_report(s::StandState)
     merch = lc.merch       * _TONAC_TO_MTHA
     below = lc.belowground * _TONAC_TO_MTHA
     sd  = standing_dead_carbon(s) * _TONAC_TO_MTHA
+    bd  = belowground_dead_carbon(s) * _TONAC_TO_MTHA
     dw  = down_wood_carbon(s)     * _TONAC_TO_MTHA
     ff  = forest_floor_carbon(s)  * _TONAC_TO_MTHA
     sh  = shrub_herb_carbon(s)    * _TONAC_TO_MTHA
-    return (; aboveground = above, merch = merch, belowground = below, standing_dead = sd,
-            down_wood = dw, forest_floor = ff, shrub_herb = sh,
+    return (; aboveground = above, merch = merch, belowground = below, belowground_dead = bd,
+            standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh,
             total = above + below + sd + dw + ff + sh)
 end

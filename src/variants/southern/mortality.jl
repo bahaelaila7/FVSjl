@@ -354,10 +354,14 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     # the fire-kill snags in fmburn!). The snags feed the Stand-Dead carbon pool and, as they fall
     # (update_snags!), the down-wood pool. No-op unless FFE is active.
     if s.fire !== nothing && s.fire.active
-        yr = current_cycle_year(s)
+        yr = current_cycle_year(s); coef = s.coef
         @inbounds for i in 1:n
-            killed[i] > 0f0 && t.dbh[i] > 0f0 &&
-                add_snag!(s.fire, Int(t.species[i]), t.dbh[i], killed[i], yr)
+            (killed[i] > 0f0 && t.dbh[i] > 0f0) || continue
+            sp = Int(t.species[i])
+            add_snag!(s.fire, sp, t.dbh[i], killed[i], yr)
+            # dead coarse roots accrue to the BIOROOT pool (FMSADD/FMCBIO RBIO, fmsadd.f:320)
+            _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])
+            s.fire.bioroot += rbio * killed[i]
         end
     end
 

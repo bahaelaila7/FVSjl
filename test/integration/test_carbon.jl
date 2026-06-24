@@ -100,6 +100,8 @@ end
             @test abs(r.belowground - parse(Float64, f[4])) <= 0.02 * parse(Float64, f[4]) + 0.2
             # forest floor reconciles every cycle (decay + litterfall)
             @test abs(r.forest_floor - parse(Float64, f[8])) <= 0.2
+            # Below-Dead (dead coarse roots, BIOROOT) reconciles bit-exact every cycle
+            @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.1
             # DDW reconciles before mortality starts (1990/1995); after, periodic-mortality snags
             # feed it as they fall (the 2005 column reconciles); the exact falldown timing at 2000
             # still needs the CWD2B debris-scheduling, so DDW is asserted only on the matched cycles.
