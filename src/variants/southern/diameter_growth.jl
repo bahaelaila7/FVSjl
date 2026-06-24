@@ -114,6 +114,19 @@ function dgcons!(s::StandState)
         c.bark_a[11] = -0.62033f0; c.bark_b[11]= 0.91645f0
         c.bark_a[13] = -0.4671f0;  c.bark_b[13]= 0.90198f0
     end
+    # READCORD/READCORH (dgf.f:1168 / htgf.f:332): add ln(COR2)/ln(HCOR2) to DGCON/HTCON before
+    # the LSTART calibration. Default off (terms = 1 ⇒ ln 1 = 0, no-op); guarded > 0 like Fortran.
+    ctl = s.control
+    if ctl.dg_cor2_on
+        @inbounds for sp in 1:MAXSP
+            ctl.dg_cor2[sp] > 0f0 && (c.dg_const[sp] += log(ctl.dg_cor2[sp]))
+        end
+    end
+    if ctl.htg_cor2_on
+        @inbounds for sp in 1:MAXSP
+            ctl.htg_cor2[sp] > 0f0 && (c.htg_cor[sp] += log(ctl.htg_cor2[sp]))
+        end
+    end
     return s
 end
 

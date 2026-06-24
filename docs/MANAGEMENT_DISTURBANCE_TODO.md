@@ -145,9 +145,16 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   the BJRHO autocorrelation series only when overridden (default path keeps the precomputed const
   ⇒ zero overhead + snt01 bit-exact), threaded into both `autcor` calls. Bit-exact vs live Fortran
   (`test_serlcorr.jl`, phi 0.50 / theta 0.30).
-- `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` — calibration-correlation **read &
-  reuse** across stands/runs (persist the COR state to a file and reload). The DGSCOR machinery's
-  cross-run persistence — a distinct chunk (file I/O of the calibration state), not a value-setter.
+- `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` — ✅ **DONE** (NOT cross-run file
+  persistence — earlier mischaracterization). Each READ* reads a block of MAXSP per-species
+  correction terms (8F10.0 continuation lines, blank ⇒ 0) that modify a growth-model CONSTANT
+  before the LSTART calibration: COR2 → `DGCON += ln(COR2)` (dgf.f:1168, large-tree DG); HCOR2 →
+  `HTCON += ln(HCOR2)` (htgf.f:332, large-tree HT); RCOR2 → `RHCON = RCOR2` (regent.f:585, small-tree
+  HT multiplier). REUSE* re-enables the prior terms without re-reading. `kw_readcor{d,h,r}!` +
+  `read_species_corr!` + `kw_reuscor{d,h,r}!`; applied in `dgcons!` (COR2/HCOR2) and the REGENT con
+  (RCOR2). Control gained `dg_cor2/htg_cor2/regh_cor2` (default 1) + `*_on` flags. Default off ⇒
+  no-op (snt01 bit-exact). READCORD COR2=1.3 vs live Fortran: every structural column bit-exact,
+  board-feet within ±Scribner Float32 noise; confirmed it changes the stand. `test_readcor.jl`.
 - `NOCALIB` (opt 56) — ✅ **DONE** (audit find #6). Disables DG self-calibration per species
   (0/all, −N group, code). `control.dg_calib_sp` (LDGCAL) was declared-but-DEAD (defaulted
   all-`false`, never read) — flipped to all-`true` and now gates the COR fit in

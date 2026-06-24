@@ -245,6 +245,12 @@ mutable struct Control
     cycle_lengths::Vector{Int32}              # per-cycle period override (TIMEINT field-1); 0 = use uniform `year`  (IY pre-cumulation)
     cycleat_years::Vector{Int32}              # CYCLEAT-requested extra cycle-boundary years (calendar)              (IWORK1)
     ncycle_eff::Int32                         # effective cycle count after CYCLEAT insertions (build_cycle_schedule!) (NCYC)
+    dg_cor2::Vector{Float32}                  # READCORD/REUSCORD large-tree DG correction terms per sp (default 1)  (COR2)
+    htg_cor2::Vector{Float32}                 # READCORH/REUSCORH large-tree HTG correction terms per sp (default 1) (HCOR2)
+    regh_cor2::Vector{Float32}                # READCORR/REUSCORR small-tree HTG correction terms per sp (default 1) (RCOR2)
+    dg_cor2_on::Bool                          # LDCOR2: apply ln(COR2) to DGCON before calibration                   (LDCOR2)
+    htg_cor2_on::Bool                         # LHCOR2: apply ln(HCOR2) to HTCON before calibration                  (LHCOR2)
+    regh_cor2_on::Bool                        # LRCOR2: small-tree con multiplied by RHCON=RCOR2                     (LRCOR2)
 end
 
 function Control()
@@ -293,6 +299,8 @@ function Control()
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false,                                       # dbs_out_file, dbs_summary, dbs_treelist (DATABASE)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
+        ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
+        false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)
     )
 end
 

@@ -275,6 +275,45 @@ function kw_serlcorr!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# READCOR{D,H,R} read a continuation block of MAXSP per-species correction terms (Fortran 8F10.0,
+# initre.f:5650). A blank field reads as 0.0 (Fortran F10.0), and the apply guards `> 0`, so an
+# unspecified species gets no correction. Returns the freshly-read array (replacing the default 1s).
+function read_species_corr!(kr::KeywordReader)
+    vals = zeros(Float32, MAXSP)
+    @inbounds for ln in 1:cld(MAXSP, 8)
+        line = rpad(read_raw_line!(kr), 80)
+        for f in 1:8
+            i = (ln - 1) * 8 + f
+            i > MAXSP && break
+            field = strip(line[(f-1)*10+1 : f*10])
+            isempty(field) || (vals[i] = something(tryparse(Float32, field), 0f0))
+        end
+    end
+    return vals
+end
+
+# OPTIONS 54/55 — READCORD/REUSCORD (initre.f:5600/5700): large-tree DIAMETER-growth correction
+# COR2 (added as ln(COR2) to DGCON before calibration, dgf.f:1168). READ reloads the terms; REUSE
+# re-enables the previously-read terms without reading (multi-stand carry-over).
+function kw_readcord!(s::StandState, kr::KeywordReader)
+    s.control.dg_cor2 = read_species_corr!(kr); s.control.dg_cor2_on = true; return
+end
+kw_reuscord!(s::StandState) = (s.control.dg_cor2_on = true; return)
+
+# OPTIONS 67/68 — READCORH/REUSCORH (initre.f:6900/7000): large-tree HEIGHT-growth correction
+# HCOR2 (added as ln(HCOR2) to HTCON before calibration, htgf.f:332).
+function kw_readcorh!(s::StandState, kr::KeywordReader)
+    s.control.htg_cor2 = read_species_corr!(kr); s.control.htg_cor2_on = true; return
+end
+kw_reuscorh!(s::StandState) = (s.control.htg_cor2_on = true; return)
+
+# OPTIONS 73/74 — READCORR/REUSCORR (initre.f:7500/7600): small-tree HEIGHT-growth correction
+# RCOR2 (the small-tree height constant RHCON = RCOR2, a multiplier on the REGENT con, regent.f:585).
+function kw_readcorr!(s::StandState, kr::KeywordReader)
+    s.control.regh_cor2 = read_species_corr!(kr); s.control.regh_cor2_on = true; return
+end
+kw_reuscorr!(s::StandState) = (s.control.regh_cor2_on = true; return)
+
 """
     kw_dgstdev!(s, rec)
 
@@ -1229,6 +1268,12 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
         elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
         elseif kw == "SERLCORR"; kw_serlcorr!(s, rec)      # ARMA(1,1) DGSCOR phi/theta (initre.f:9300)
+        elseif kw == "READCORD"; kw_readcord!(s, kr)       # read large-tree DG correction COR2 → DGCON (initre.f:5600)
+        elseif kw == "REUSCORD"; kw_reuscord!(s)           # reuse prior COR2 (initre.f:5700)
+        elseif kw == "READCORH"; kw_readcorh!(s, kr)       # read large-tree HTG correction HCOR2 → HTCON (initre.f:6900)
+        elseif kw == "REUSCORH"; kw_reuscorh!(s)           # reuse prior HCOR2 (initre.f:7000)
+        elseif kw == "READCORR"; kw_readcorr!(s, kr)       # read small-tree HTG correction RCOR2 → RHCON (initre.f:7500)
+        elseif kw == "REUSCORR"; kw_reuscorr!(s)           # reuse prior RCOR2 (initre.f:7600)
         elseif kw == "RESETAGE"; kw_resetage!(s, rec)      # rebase stand age at a date (resage.f act 443)
         elseif kw == "SDICALC";  kw_sdicalc!(s, rec)       # SDI method + thresholds (LZEIDE drives report+mortality, initre.f:14000)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
