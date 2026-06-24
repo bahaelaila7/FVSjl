@@ -88,12 +88,15 @@ function site_index_setup!(s::StandState)
         end
     end
 
+    # When BAMAX is user-set, every species' SDImax default is derived from it (sdical.f:208,
+    # XMAX = BAMAX/(0.5454154·PMSDIU)); otherwise the per-species SDI constant is used. PMSDIU
+    # is the upper self-thinning fraction (0.85 default) — a *fraction*, used as `mortality.jl`
+    # does (no /100; and apply the same 0.85 default so an unset SDIMAX doesn't divide by zero).
     bamax = s.control.ba_max
-    pmsdiu = p.pct_sdimax_mort_hi
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     @inbounds for i in 1:MAXSP
         if p.sp_sdi_def[i] <= 0f0
-            p.sp_sdi_def[i] = bamax > 0f0 ?
-                bamax / (0.5454154f0 * (pmsdiu / 100f0)) : sdicon[i]
+            p.sp_sdi_def[i] = bamax > 0f0 ? bamax / (0.5454154f0 * pmsdiu) : sdicon[i]
         end
     end
     return s

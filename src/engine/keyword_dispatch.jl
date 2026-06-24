@@ -141,6 +141,20 @@ function kw_managed!(s::StandState, rec::KeywordRecord)
     return
 end
 
+"""
+    kw_bamax!(s, rec)
+
+BAMAX (initre.f:6800, option 66): pin the stand's maximum basal area. With field 1 > 0,
+`ba_max = field 1` (LBAMAX). `site_index_setup!` then derives every species' SDImax
+default from it (`sp_sdi_def = BAMAX / (0.5454154·PMSDIU)`, sdical.f:208) instead of the
+per-species SDI constants, so the SDImax-driven self-thinning mortality is keyed to the
+user's BAMAX. Without the keyword (`ba_max == 0`) the SDImax stays dynamic, as before.
+"""
+function kw_bamax!(s::StandState, rec::KeywordRecord)
+    rec.present[1] && rec.values[1] > 0f0 && (s.control.ba_max = Float32(rec.values[1]))
+    return
+end
+
 # OPTION 14 — STDINFO (initre.f:808): stand info. Forest/habitat decoding
 # (FORKOD/HABTYP) is deferred; the geometry/site fields are set here.
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
@@ -997,6 +1011,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SITECODE"; kw_sitecode!(s, rec)
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
         elseif kw == "MANAGED";  kw_managed!(s, rec)       # managed-stand flag → DGF kplant term (dgf.f:179)
+        elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
