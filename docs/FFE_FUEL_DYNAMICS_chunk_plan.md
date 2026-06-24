@@ -398,3 +398,17 @@ crown-lift fires from any growing canopy, mortality not required), where ICR is 
 On carbon_jenkins the post-mortality DDW will remain bounded-within-the-tail (the `.out` writer test
 asserts exactly that). The `.out` Stand-Carbon-Report writer is DONE and byte-exact (header + inventory
 row vs live Fortran; test_carbon.jl, 18 assertions).
+
+### Bit-exact-growth FFE+CARBREPT validation stand (carbon_snt) — confirms the model + isolates the rest
+Built carbon_snt (snt01_alpha's bit-exact species + FMIN/CARBREPT/CARBCALC, 4 cycles) and ran live
+Fortran. On this BIT-EXACT-growth stand the carbon report confirms:
+  ✅ Aboveground Total/Merch, Belowground-Live, Forest Floor — **BIT-EXACT every cycle** (60.8/89.2/117/
+     138.9 …) — so the live-carbon model is correct; carbon_jenkins's ~0.5% residuals were purely its LP
+     growth tail, NOT a carbon bug.
+  ✅ DDW @1990 bit-exact (5.8); Shb/Hrb @1990 bit-exact (1.7).
+The remaining diffs isolate to exactly three FFE pieces, now cleanly separable on a clean-growth stand:
+  ⛔ FMSSEE (input-snag seeding): Fortran Stand-Dead=3.8 / Below-Dead=1.0 at INVENTORY (input dead
+     trees) vs FVSjl 0/0 — FVSjl's add_snag! only fires from fire/mortality, not input dead records.
+  ⛔ crown-LIFT: post-1990 DDW (the in-loop restructure, already specified).
+  ⛔ FLIVE live-surface-fuel growth: Shb/Hrb grows 2.5/3.8/5.7 in Fortran vs 1.7/2.5/3.8 FVSjl.
+This stand is the right harness to close all three (and confirms the live model needs no further work).
