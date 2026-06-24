@@ -5,7 +5,7 @@ ported and validated bit-exact vs live Fortran. What remains, grouped by the **n
 (not just "todo") so the path for each is clear.
 
 ## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (8/9 COLUMNS BIT-EXACT)
-Inventory cycle bit-exact (all columns). **Grown-cycle: 7 of 9 report columns now reconcile bit-exact**
+Inventory cycle bit-exact (all columns). **Grown-cycle: 8 of 9 report columns now reconcile bit-exact**
 vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported + validated this session:
 - ✅ `FMCWD` decay (fuel_decay.jl) · ✅ `FMCADD` litterfall + woody breakage (fuel_additions.jl) ·
   ✅ per-cycle driver `ffe_fuel_update!` · ✅ periodic-mortality → snags (mortality.jl) · ✅ dead coarse-
@@ -15,14 +15,16 @@ vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported 
   revert — the `DEBUG` keyword segfaults the stripped binary). One-line fix `sg = v2t * _FM_P2T`.
 - ✅ RECONCILE: above/merch/below-live, **below-dead**, forest floor (every cycle), DDW (1990/95/2005),
   shrub — all bit-exact; Stand-Dead populated.
-- ⛔ **REMAINING — CWD2B crown-debris scheduling (FMSCRO)**, fully specified in
-  FFE_FUEL_DYNAMICS_chunk_plan.md (the `cwd2b[4,6,60]` state, the TFALL table, the at-death crown
-  spread, the annual flow → DDW, and the snag = bole-only split). Closes the last two: DDW *timing*
-  at the first post-mortality cycle (2000: 2.1 vs 3.8) + the exact Stand-Dead split (6.1 vs 5.2). ⚠ a
-  coupled refactor that touches `add_snag!` (so the validated fire path via fmburn! too) — needs its
-  own focused effort behind test_fire.jl, not an end-of-session rush.
-- ⛔ then: `grow_cycle!` hot-path wiring of the driver + the `.out` Stand-Carbon-Report writer.
-- **Blocker:** none external; the most-upstream remaining item is now down to FMSCRO + 2 integration steps.
+- ✅ **CWD2B crown-debris scheduling (FMSCRO) — DONE & bit-exact for Stand-Dead** (`cwd2b[4,6,60]`
+  state, the TFALL table, the at-death crown spread, the snag = bole-only split). Landed the STAND-DEAD
+  column bit-exact (5.2/4.5 = bole 3.72 + crown 1.46), validated vs an instrumented Fortran dump.
+- ⛔ **REMAINING — DDW within-cycle flow timing** = the `grow_cycle!` hot-path wiring of
+  `ffe_fuel_update!` so the cycle's mortality is scheduled and its crown debris FLOWS within the same
+  cycle (see the root-cause analysis in the Update section below). ⚠ a coupled refactor that touches
+  the validated fire path via fmburn! — needs its own focused effort behind test_fire.jl, not an
+  end-of-session rush.
+- ⛔ then: the `.out` Stand-Carbon-Report writer.
+- **Blocker:** none external; the remaining item is the grow_cycle! integration (timing) + the .out writer.
 
 ## B. Validation-blocked by the stripped ground-truth binary
 The rebuilt `/tmp/FVSsn_new` is a **stripped DBS build**: the DATABASE block accepts only
@@ -56,14 +58,27 @@ SQLite to diff against (see `fvsjl-ground-truth-binary-limits`).
 - **DGSCOR per-record cubic-volume ±0.03% drift** — documented as **irreducible** (transcendental-ulp
   through the bounded redraw), not a bug. See `DIVERGENCES.md`.
 
-### Update — Stand-Dead now bit-exact (8/9), DDW is the last column
+### Update — Stand-Dead bit-exact (8/9); DDW root cause = within-cycle deaths-timing
 The snag stem-volume bole + CWD2B crown model landed the STAND-DEAD column bit-exact (5.2/4.5 =
 bole 3.72 + crown 1.46), validated piece-by-piece against an instrumented Fortran dump. So 8 of 9
-report columns now reconcile bit-exact. The ONE remaining: **post-mortality DDW** carries a ~1.7-1.9
-residual (Fortran 3.8/8.0 @2000/2005 vs FVSjl 2.1/6.1) — a missing within-cycle DDW addition. The
-prime suspect is the **crown-lift** term (FMCADD, fmcadd.f:95-102): `FMPROB·OLDCRW(SIZE)·P2T` → down
-wood, where OLDCRW is the previous-cycle crown (fmoldc.f:55). It needs per-tree previous-crown tracking
-across the (changing) tree list, and the magnitude must be validated (a naive whole-OLDCRW add looks
-like it would overshoot, so the exact lift semantics need a Fortran DDW-addition dump first, like the
-bole/crown dumps that unlocked Stand-Dead). That is the last FFE carbon piece + then grow_cycle!
-wiring + the .out writer.
+report columns now reconcile bit-exact. The ONE remaining: **post-mortality DDW** (Fortran 3.8/8.0
+@2000/2005 vs FVSjl 2.1/6.1).
+
+**ROOT CAUSE (pinned via a per-year Fortran dump of fmmain.f — supersedes the earlier crown-lift
+guess, which an instrumented dump RULED OUT as negligible, ~0.0007 t/ac/yr).** The Fortran down-wood
+grows GRADUALLY within each cycle — over 1995→2000 the per-year DDW is 2.56, 2.82, 3.04, 3.23, 3.40 —
+because FVS spreads the cycle's mortality across the annual fuel loop, so EARLY-period deaths' crown
+debris (CWD2B) flows into DDW *within that same cycle* (+0.84), while the still-in-waiting crown at the
+boundary is the 1.46 already validated for Stand-Dead. FVSjl books ALL the cycle's mortality at the
+boundary and runs the fuel flow UPD-before-GROW, so its crown debris flows a cycle LATE (the addition
+lands at 2005, not 2000) — even though the TOTAL snags (Stand-Dead) reconcile. The report reads the
+boundary value BEFORE the next mortality booking (carbon DDW 3.8 mt/ha @2000 = 3.39 t/ac = the year-
+1999 dump value 3.40), confirming the read point.
+
+So DDW bit-exact is NOT a missing addition term — it's the **FFE main-loop ordering**: the cycle's
+mortality must be scheduled into CWD2B and then flowed through the annual loop WITHIN the same cycle
+(FVS: GRINCR → FMSADD → annual FMSNAG/FMCWD/FMCADD), with the Stand-Dead crown then being the un-fallen
+remainder. That is exactly the `grow_cycle!` hot-path wiring of `ffe_fuel_update!` (with the at-death
+crown snapshot) — the integration step already on the list, now with the exact target behavior pinned.
+A coupled refactor (touches the validated fire snag path via fmburn!); do it behind test_fire.jl, not
+an end-of-session rush. Then the `.out` Stand-Carbon-Report writer.
