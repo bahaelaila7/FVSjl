@@ -74,6 +74,17 @@ end
         @test round(Int, a.crnbase) == 42                    # the "Bas" column = mean crown-base height
         @test round(Int, a.cover) == 49
         @test strip(s1r.coef.code_alpha[a.sp1]) == "SM" && strip(s1r.coef.code_alpha[a.sp2]) == "HI"
+
+        # the .out "Structural statistics" report writer — byte-for-byte vs Fortran (FORMAT 85/90).
+        s1w = first(FVSjl.each_stand(snt))
+        FVSjl.notre!(s1w); FVSjl.setup_growth!(s1w); FVSjl.compute_volumes!(s1w)
+        io = IOBuffer()
+        FVSjl.write_structure_report(io, s1w, 10; stand_id = "S248112", mgmt_id = "NONE")
+        lines = split(String(take!(io)), "\n")
+        @test lines[1] == "Structural statistics for stand: S248112                     MgmtID: NONE"
+        @test any(l -> startswith(l, "Year Cd  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D"), lines)
+        # the 1990 before-thin row, byte-for-byte (the bit-exact cycle)
+        @test "1990  0  10.3  63  75  55  42  49 SM  HI  2   5.8  30  38   2   7  65 AB  SK  1   0.0   0   0   0   0   0 --  --  0 2  82  3=UR" in lines
     end
 
     # STRCLASS keyword: activates SSTAGE + overrides thresholds (sawdbh = field 4).

@@ -75,8 +75,13 @@ against ground truth. **Validate every chunk against this report**, not just the
   species) — via a shared `_ss_strata` helper. **Bit-exact vs the Fortran report** (snt01 stand-1:
   all 8 columns match every cycle except the 2000/2015 DBHNOM-window boundary residuals;
   `test_structure_stage.jl`). The "Bas" column was the last gotcha: OSTRST(5)=ICRBS1 = crown-base
-  height (sstage.f:668/790), so at 1995 it's 15 ft (short stratum), not the stand BA of 103. Only the
-  `.out` text FORMATTING of these rows remains (pure formatting) + `FVS_StrClass` DBS (binary-blocked).
+  height (sstage.f:668/790), so at 1995 it's 15 ft (short stratum), not the stand BA of 103.
+- **D-report — the `.out` report WRITER:** ✅ DONE (`write_structure_report` + `structure_report_row`).
+  Emits the "Structural statistics" block (FORMAT 85 header + FORMAT 90 rows, Rm=0 before-thin / Rm=1
+  after) **byte-for-byte** vs the Fortran `.out` (`test_structure_stage.jl`: the header line + the 1990
+  row match exactly; every bit-exact cycle's row is byte-identical, only the 2000/2015/etc. DBHNOM-
+  boundary rows differ by ≤0.6"). ⇒ **SSTAGE is COMPLETE** apart from `FVS_StrClass` DBS (binary-blocked)
+  and the ≤0.6" DBHNOM-window boundary residual on a few cycles.
 - **D — keyword + event vars:** ✅ DONE (the functional integration). `kw_strclass!` activates SSTAGE
   (`control.strclass_on`) + overrides the 6 thresholds (`strclass_thresh`); the event-monitor variables
   **BSCLASS/ASCLASS** (structural class), **BSTRDBH/ASTRDBH** (uppermost-stratum DBH), **BCANCOV/ACANCOV**

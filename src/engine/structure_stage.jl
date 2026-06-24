@@ -21,6 +21,8 @@
 #     the top" lands on the upper canopy, not mid-cohort.
 # =============================================================================
 
+using Printf
+
 # Default SSTAGE thresholds (isstag.f:32-37), in the `control.strclass_thresh` order:
 #   gappct=30 (stratum-gap % height drop), ssdbh=5 (small-tree DBH), sawdbh=25 (sawtimber DBH),
 #   ccmin=5 (min stratum cover %), tpamin=200 (min TPA), pctsmx=30 (% MaxSDI for SE).
@@ -190,9 +192,9 @@ crown area. All from the same machinery the class uses (validated bit-exact vs t
 function structure_report(s::StandState)
     st = _ss_strata(s)
     cls = structure_class(s).class
+    dom = st.nstr > 0 ? findfirst(st.oks) : 0     # the dominant stratum = first OK
     strata = NamedTuple[]
-    for (k, ok) in enumerate(st.oks)
-        ok || continue
+    for k in eachindex(st.strata)
         lo, hi, _, _ = st.strata[k]
         dbhnom, nomht = _ss_dbhnom(st.ord, lo, hi, st.ht, st.dbh, st.tpa, st.crarea)
         lght = st.ht[st.ord[lo]]; smht = st.ht[st.ord[hi]]   # tallest / shortest (height-sorted)
@@ -206,7 +208,63 @@ function structure_report(s::StandState)
         crnbase = sp_ > 1e-4 ? acb / sp_ : 0.0               # ICRB = mean height to crown base
         sp = sort(collect(spc); by = x -> -x[2])             # top crown-area species
         sp1 = isempty(sp) ? 0 : sp[1][1]; sp2 = length(sp) >= 2 ? sp[2][1] : 0
-        push!(strata, (; dbh = dbhnom, nomht, lght, smht, crnbase, cover = st.covers[k], sp1, sp2))
+        status = k == dom ? 2 : st.oks[k] ? 1 : 0            # D: 2=dominant, 1=OK, 0=not (IS_OK)
+        push!(strata, (; dbh = dbhnom, nomht, lght, smht, crnbase, cover = st.covers[k], sp1, sp2, status))
     end
     return (class = cls, nstr = st.nstr, cover = st.cover, strata = strata)
+end
+
+const _SS_CLASS_LABEL = ("0=BG", "1=SI", "2=SE", "3=UR", "4=YM", "5=OS", "6=OM")  # SSCODES (sstage.f:73)
+
+"""
+    structure_report_row(s, year, cd) -> String
+
+One "Structural statistics" report row (sstage.f FORMAT 90), byte-for-byte: Year Cd, then for the 3
+strata DBH/Nom-Ht/Lg-Ht/Sm-Ht/Bas(crown base)/Cov/Sp1/Sp2/D (zeros + "--" for absent strata), then
+N-Strata, Tot-Cov, and the class label. `cd` is the removal code (0 = before-thin, 1 = after).
+"""
+function structure_report_row(s::StandState, year::Integer, cd::Integer)
+    r = structure_report(s); co = s.coef
+    spcode(i) = i > 0 ? rpad(strip(co.code_alpha[i]), 3) : "-- "
+    blk(st) = @sprintf(" %5.1f %3d %3d %3d %3d %3d", st.dbh, round(Int, st.nomht), round(Int, st.lght),
+                       round(Int, st.smht), round(Int, st.crnbase), round(Int, st.cover)) *
+              " " * spcode(st.sp1) * " " * spcode(st.sp2) * @sprintf(" %1d", st.status)
+    line = @sprintf("%4d %2d", year, cd)
+    for k in 1:3
+        line *= k <= length(r.strata) ? blk(r.strata[k]) :
+                @sprintf(" %5.1f %3d %3d %3d %3d %3d", 0.0, 0, 0, 0, 0, 0) * " -- " * " -- " * " 0"
+    end
+    return line * @sprintf(" %1d %3d  %s", r.nstr, round(Int, r.cover), _SS_CLASS_LABEL[r.class + 1])
+end
+
+# The fixed Structural-statistics column-header lines (sstage.f FORMAT 85, sans the $#*% page marks).
+const _SS_REPORT_HEADER = (
+    "        ------------ Stratum 1 ------------ ------------ Stratum 2 ------------ ------------ Stratum 3 ------------",
+    "     Rm       ---Height-- -Crown- -Major- C       ---Height-- -Crown- -Major- C       ---Height-- -Crown- -Major- C N Tot Struc",
+    "Year Cd  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D  DBH  Nom  Lg  Sm Bas Cov Sp1 Sp2 D S Cov Class",
+    "---- -- ----- --- --- --- --- --- --- --- - ----- --- --- --- --- --- --- --- - ----- --- --- --- --- --- --- --- - - --- -----")
+
+"""
+    write_structure_report(io, stand, ncyc; period=5, stand_id="", mgmt_id="NONE")
+
+Write the SSTAGE "Structural statistics" report (sstage.f) for `stand` over `ncyc+1` cycles to `io`,
+byte-for-byte vs the Fortran `.out` block (the page-control marks aside): the header, then per cycle
+a before-thin (Rm=0) and after-thin (Rm=1) row. Steps the stand's projection (grow_cycle!), so pass
+a stand already through `setup_growth!`/`compute_volumes!` that you don't need afterwards.
+"""
+function write_structure_report(io::IO, stand::StandState, ncyc::Integer;
+                                period::Integer = 5, stand_id::AbstractString = "",
+                                mgmt_id::AbstractString = "NONE")
+    println(io, "Structural statistics for stand: ", rpad(strip(stand_id), 26), "  MgmtID: ", strip(mgmt_id))
+    println(io)
+    for h in _SS_REPORT_HEADER; println(io, h); end
+    for c in 0:ncyc
+        compute_density!(stand)
+        yr = Int(current_cycle_year(stand))
+        row = structure_report_row(stand, yr, 0)            # before-thin (Rm=0)
+        println(io, row)
+        println(io, structure_report_row(stand, yr, 1))     # after-thin (Rm=1) — same w/o a thin
+        c < ncyc && grow_cycle!(stand; fint = Float32(period))
+    end
+    return io
 end
