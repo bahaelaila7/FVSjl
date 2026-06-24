@@ -87,3 +87,24 @@ The committed `carbon_jenkins.report.save` already has the 1995/2000 rows (DDW 2
 Shb 1.0/…, Total 129.9/…). Each chunk above is validated by another report column/cycle reconciling
 bit-exact — same method as the inventory cycle. See [[fvsjl-ground-truth-binary-limits]] (the report
 is a `.out` text report the stripped binary prints, so this is bit-exact-validatable).
+
+## Status (after the chunk-1-3 + mortality-snag session)
+✅ **FMCWD decay** (fuel_decay.jl) · ✅ **FMCADD litterfall + woody breakage** (fuel_additions.jl) ·
+✅ **per-cycle driver `ffe_fuel_update!`** · ✅ **crown_biomass V2T/2000 fix** (validated vs a Fortran
+XV dump) · ✅ **periodic-mortality → snags** (mortality.jl → add_snag!). The grown-cycle Stand Carbon
+Report now reconciles vs the 4-cycle Fortran baseline (carbon_jenkins) for: **live pools every cycle,
+Forest Floor every cycle, DDW at 1990/1995/2005, Stand-Dead populated** — see test_carbon.jl.
+
+### Remaining (each a specific term, in priority order)
+1. **CWD2B crown-debris scheduling (`FMSCRO`, fmsadd.f:306).** When a tree dies, only its BOLE should
+   become the slow-falling snag; its CROWN components go to the `CWD2B` debris-in-waiting pool and fall
+   over `TFALL` years (fast for foliage/fine, slow for coarse), flowed to DDW by FMCADD (fmcadd.f:113-125).
+   FVSjl currently puts the whole-tree aboveground in the snag → DDW falls too slowly at the first
+   post-mortality cycle (DDW 2000: 2.1 vs 3.8; it catches up by 2005). This split should also tighten
+   the Stand-Dead column (bole-only, vs whole-tree now: 6.1 vs 5.2 at 2000). Needs the CWD2B state
+   array (decay×size×year-to-fall) + FMSCRO + TFALL (a per-species crown-component fall-time table).
+2. **Dead-root pool → the report's Below-Dead column** (FMCBIO RBIO at death + CRDCAY decay; currently 0).
+3. **`grow_cycle!` hot-path wiring** of `ffe_fuel_update!` (fuel update BEFORE growth per the crown-timing
+   finding; fire uses the evolved pools) — behind the `test_fire.jl` regression gate. ⚠ likely shifts the
+   fire-stand fuels from initial→evolved, which may surface the known SIMFIRE fire-mortality residual.
+4. **The `.out` Stand-Carbon-Report WRITER** (byte-exact like write_structure_report) — last, once 1-3 land.
