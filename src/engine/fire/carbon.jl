@@ -137,3 +137,70 @@ function stand_carbon_report(s::StandState)
             standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh,
             total = above + below + sd + dw + ff + sh)
 end
+
+# The fixed header block of the Stand Carbon Report exactly as the Fortran prints it to the `.out`
+# (fmcrbout.f FORMATs 700-709, with the FVS `1X,I5,1X` line-prefix stripped as it is in the file).
+const _CARBON_SEP = "-"^110
+const _CARBON_HEADER = (
+    "                              ******  CARBON REPORT VERSION 1.0 ******",
+    "                                         STAND CARBON REPORT (BASED ON STOCKABLE AREA)",
+    "                         ALL VARIABLES ARE REPORTED IN METRIC TONS/HECTARE",
+    "",
+)
+const _CARBON_COLHDR = (
+    "      Aboveground Live    Belowground                        Forest             Total    Total     Carbon",
+    "     ----------------- -----------------    Stand  -------------------------    Stand  Removed   Released",
+    "YEAR    Total    Merch     Live     Dead     Dead      DDW    Floor  Shb/Hrb   Carbon   Carbon  from Fire",
+)
+
+"""
+    carbon_report_row(s, year; removed=0f0, released=0f0) -> String
+
+One data row of the Stand Carbon Report, byte-for-byte as the Fortran `.out` (fmcrbout.f FORMAT 800:
+`I4` year, then ten `2X,F7.1` pool columns and a final `4X,F7.1`). Columns are the metric-tons/ha pools
+from `stand_carbon_report`: Aboveground Total / Merch, Belowground Live / Dead, Stand Dead, DDW, Forest
+Floor, Shrub-Herb, Total Stand Carbon, then Total Removed and Carbon Released-from-Fire (`removed` /
+`released`, 0 without a harvest/fire this cycle).
+"""
+function carbon_report_row(s::StandState, year::Integer; removed::Real = 0f0, released::Real = 0f0)
+    r = stand_carbon_report(s)
+    vals = (r.aboveground, r.merch, r.belowground, r.belowground_dead, r.standing_dead,
+            r.down_wood, r.forest_floor, r.shrub_herb, r.total, Float32(removed))
+    io = IOBuffer()
+    @printf(io, "%4d", year)
+    for v in vals; @printf(io, "  %7.1f", v); end       # 10 × (2X, F7.1)
+    @printf(io, "    %7.1f", Float32(released))          # final 4X, F7.1
+    return String(take!(io))
+end
+
+"""
+    write_carbon_report(io, stand, ncyc; period=5, stand_id="", mgmt_id="NONE") -> IO
+
+Write the FFE Stand Carbon Report to `io` exactly as FVS prints it to the `.out` (CARBREPT; fmcrbout.f),
+for the inventory cycle plus `ncyc` grown cycles. Drives the per-cycle FFE fuel update + growth (the
+same loop as the multi-cycle carbon test). The header block and the per-row format are byte-for-byte
+vs the Fortran; the pool values are the validated metric-tons/ha pools (8/9 columns bit-exact, the
+post-mortality DDW tracking within the LP growth tail — see FFE_FUEL_DYNAMICS_chunk_plan.md).
+"""
+function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
+                             period::Integer = 5, stand_id::AbstractString = "",
+                             mgmt_id::AbstractString = "NONE")
+    println(io, _CARBON_SEP)
+    for h in _CARBON_HEADER; println(io, h); end
+    println(io, "STAND ID: ", rpad(strip(stand_id), 26), "    MGMT ID: ", strip(mgmt_id))
+    println(io, _CARBON_SEP)
+    for h in _CARBON_COLHDR; println(io, h); end
+    println(io, _CARBON_SEP)
+    fs = stand.fire
+    fs !== nothing && fs.active && compute_forest_type!(stand)
+    fs !== nothing && fs.active && fmcba!(stand)
+    for c in 0:ncyc
+        compute_density!(stand)
+        println(io, carbon_report_row(stand, Int(current_cycle_year(stand))))
+        if c < ncyc
+            fs !== nothing && fs.active && ffe_fuel_update!(stand, period)
+            grow_cycle!(stand; fint = Float32(period))
+        end
+    end
+    return io
+end

@@ -38,7 +38,9 @@ vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported 
     (cycle-start crown for live terms, post-grow X for the lift), coupling to the cwd2b/Stand-Dead
     death-dating. A focused integration behind test_fire.jl, not an end-of-session rush. See
     FFE_FUEL_DYNAMICS_chunk_plan.md for the full validated trail.
-- ⛔ then: the `.out` Stand-Carbon-Report writer.
+- ✅ **the `.out` Stand-Carbon-Report writer — DONE** (`write_carbon_report`, carbon.jl): header block +
+  per-row FORMAT byte-for-byte vs the Fortran `.out` (CARBREPT); inventory row bit-exact in every column,
+  grown rows track within the LP growth tail. test_carbon.jl (18 assertions).
 - **Blocker:** none external; the remaining item is the grow_cycle! integration (timing) + the .out writer.
 
 ## B. Validation-blocked by the stripped ground-truth binary

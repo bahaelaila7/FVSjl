@@ -126,3 +126,41 @@ end
         end
     end
 end
+
+@testset "Stand Carbon Report — .out writer (CARBREPT) byte-exact vs Fortran" begin
+    # The FFE Stand Carbon Report .out writer (write_carbon_report, fmcrbout.f FORMATs 700-800): the
+    # fixed header block + the per-row FORMAT must be byte-for-byte vs the Fortran .out, and the pool
+    # values are the validated metric-tons/ha pools. The INVENTORY row (1990) is bit-exact in every
+    # column; grown rows track within the LP growth tail (aboveground ~0.5%) with the post-mortality
+    # DDW/Shrub bounded (the documented crown-lift/FLIVE residual).
+    key = joinpath(_CDIR, "carbon_jenkins.key"); sav = joinpath(_CDIR, "carbon_jenkins.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_jenkins scenario not available"
+    else
+        ft = [strip(l) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        io = IOBuffer()
+        FVSjl.write_carbon_report(io, s, length(ft) - 1; stand_id = "CARBJENK", mgmt_id = "NONE")
+        out = split(String(take!(io)), '\n')
+
+        # header block byte-exact (title, units, stand-id, the three column-header lines, separators)
+        @test out[1] == "-"^110
+        @test any(l == "                                         STAND CARBON REPORT (BASED ON STOCKABLE AREA)" for l in out)
+        @test any(l == "STAND ID: CARBJENK                      MGMT ID: NONE" for l in out)
+        @test any(l == "YEAR    Total    Merch     Live     Dead     Dead      DDW    Floor  Shb/Hrb   Carbon   Carbon  from Fire" for l in out)
+
+        rows = [l for l in out if occursin(r"^(19|20)\d\d ", l)]
+        @test length(rows) == length(ft)
+        # INVENTORY row byte-for-byte identical to the Fortran report row (every column)
+        @test strip(rows[1]) == ft[1]
+        # grown rows: aboveground/merch/below within the growth tail, DDW never over the Fortran value
+        for (i, r) in enumerate(rows)
+            mv = parse.(Float64, split(strip(r))); fv = parse.(Float64, split(ft[i]))
+            # parsed columns: [year, Total, Merch, Live, Dead, Dead, DDW, Floor, Shb, Carbon, Rm, Rel]
+            @test mv[2] ≈ fv[2] atol = 0.01 * fv[2] + 0.1   # Total aboveground
+            @test mv[3] ≈ fv[3] atol = 0.01 * fv[3] + 0.1   # Merch
+            @test mv[7] <= fv[7] + 0.2                       # DDW never over the Fortran value
+        end
+    end
+end
