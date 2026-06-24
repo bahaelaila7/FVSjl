@@ -384,3 +384,17 @@ restructure. On carbon_jenkins the post-mortality DDW will track within the grow
 the other 8 columns — not a separate bug. This closes the DDW investigation: every layer is now verified
 against live Fortran, and the residual is the known growth tail amplified by a difference-of-bases, not
 an unported/incorrect mechanism.
+
+### DDW crown-lift is ACHIEVABLE (not blocked): crown ratio is bit-exact where growth is
+Resolved the upstream question from the FMSDIT verification: the crown-lift X depends on the crown ratio
+(ICR), and on carbon_jenkins ICR carries the LP growth tail (FVSjl 16 vs Fortran 20). But the SSTAGE
+work already validated `CrnBase` (= ICRB, the crown-base height HT·(1−ICR/100)) BIT-EXACT vs the Fortran
+on snt01 (a bit-exact-growth stand) — so the crown ratio IS bit-exact wherever the growth is. ⇒ The DDW
+crown-lift is not gated on a crown-ratio *bug*; it is bit-exact-achievable on a bit-exact-growth stand.
+So the path to 9/9 is: (i) the FFE-update-after-grow in-loop crown-lift restructure (closed-form: each
+year's `X·CROWNW` decays the remaining cycle, total = `X·CROWNW·(1−(1−DKR)^nyrs)/DKR` per size); (ii)
+validate it on a bit-exact-growth FFE+CARBREPT stand (an snt-style stand with FMIN+CARBREPT — the
+crown-lift fires from any growing canopy, mortality not required), where ICR is bit-exact so X is too.
+On carbon_jenkins the post-mortality DDW will remain bounded-within-the-tail (the `.out` writer test
+asserts exactly that). The `.out` Stand-Carbon-Report writer is DONE and byte-exact (header + inventory
+row vs live Fortran; test_carbon.jl, 18 assertions).
