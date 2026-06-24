@@ -245,3 +245,19 @@ schedules → annual flow same cycle) AND the Stand-Dead crown to then be the un
 UPD-order full-crown = the Fortran's remainder was a coincidence at 1.46). This is the FFE main-loop
 ordering (fmmain.f: GRINCR → FMSADD schedule → annual FMSNAG/FMCWD/FMCADD), i.e. the grow_cycle!
 hot-path wiring with the crown snapshot — the integration step, now with the exact behavior pinned.
+
+### DDW residual — ordering experiment DISPROVES the simple fix; it's crown MAGNITUDE
+Ran both fuel/grow orderings on carbon_jenkins (experiment in tmp/ddw_exp.jl, NO production change):
+- `flow_grow` (current/UPD-1st): DDW 2.06/6.10, Stand-Dead 5.18/4.45 (✓ vs 5.2/4.5), Floor ✓.
+- `grow_flow` (GROW-1st):        DDW 2.86/4.82, Stand-Dead 3.72/3.26 (✗ — crown flowed out, bole only).
+So grow_flow moves the crown Stand-Dead→DDW but (a) DDW is STILL short (2.86 vs 3.8) and (b) it breaks
+Stand-Dead. Conservation: Fortran total mortality-dead @2000 ≈ Stand-Dead 5.2 + (DDW−FUINI ~2.1) +
+Below-Dead 1.3 ≈ 8.6; FVSjl flow_grow ≈ 5.18 + ~0.36 + 1.3 ≈ 6.8 — short by ~1.8, ALL in the down-wood
+the crown should contribute. ⇒ **The flow_grow Stand-Dead match (crown 1.46) was COINCIDENTAL** — my
+full un-flowed crown equals the Fortran's POST-FLOW remaining. The Fortran's FULL scheduled crown is
+larger (≈1.46 remaining + ≈2.1 that flows to DDW ≈ 3.5); mine is ≈1.46 and flowing ALL of it only adds
+~0.8 to DDW. So the residual is a crown-MAGNITUDE shortfall (FMSCRO/crown_biomass), not just main-loop
+ordering. NEXT: dump the Fortran's SCHEDULED crown at FMSCRO/FMSADD (before any annual flow) — if it's
+~3.5 not ~1.46, fix crown_biomass magnitude, THEN apply grow_flow ordering with the fine→DDW /
+coarse→remaining TFALL split so BOTH DDW and Stand-Dead reconcile. (This supersedes "ordering is the
+fix"; the per-year dump showed WHEN, this experiment shows the amount is also short.)
