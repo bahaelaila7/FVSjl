@@ -12,6 +12,26 @@ const _FM_LIMBRK = 0.01f0   # woody-crown limb-breakage fraction per year (sn/fm
 const _FM_P2T = 1f0 / 2000f0
 
 """
+    ffe_fuel_update!(s, nyrs) -> StandState
+
+The per-cycle FFE surface-fuel update (the deterministic core of fmmain.f:226-259): refresh the
+cover type + live fuels and load the initial dead fuels once (`fmcba!`), then run the ANNUAL fuel
+loop `nyrs` times — decay (`fmcwd!`) + litterfall and woody breakage (`fmcadd_*`). The tree crowns
+are held at the cycle's start (their end-of-previous-cycle state, as FVS records them). No-op unless
+FFE is active. This is what makes the Stand Carbon Report's dead/down-wood/floor pools evolve across
+grown cycles (validated bit-exact on carbon_jenkins). Snag-debris falldown (CWD2B) is still pending.
+"""
+function ffe_fuel_update!(s::StandState, nyrs::Integer)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    fmcba!(s)
+    @inbounds for _ in 1:nyrs
+        fmcwd!(s, 1); fmcadd_litterfall!(s); fmcadd_woody!(s)
+    end
+    return s
+end
+
+"""
     fmcadd_litterfall!(s) -> StandState
 
 Add ONE year of foliage litterfall to the FFE litter pool (FMCADD, fmcadd.f:72-76): for each live

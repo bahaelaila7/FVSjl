@@ -75,3 +75,39 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
         end
     end
 end
+
+@testset "Stand Carbon Report — FFE fuel driver across grown cycles" begin
+    # `ffe_fuel_update!` (the per-cycle FFE fuel driver: fmcba! + the annual decay/litterfall/breakage
+    # loop) evolves the surface-fuel pools across grown cycles. Validated vs the multi-cycle Fortran
+    # report (carbon_jenkins, 4 cycles): the live Jenkins pools track within the LP growth tail, and
+    # the FOREST FLOOR reconciles every cycle. DOWN DEAD WOOD reconciles until tree mortality begins
+    # (2000+, where the report's Stand-Dead/Below-Dead columns turn on) — the snag-debris falldown
+    # (CWD2B) that feeds DDW from dying trees is the remaining FMCADD term.
+    key = joinpath(_CDIR, "carbon_jenkins.key"); sav = joinpath(_CDIR, "carbon_jenkins.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_jenkins scenario not available"
+    else
+        ft = [split(strip(l)) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.compute_forest_type!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.fmcba!(s)
+        for (c, f) in enumerate(ft)
+            FVSjl.compute_density!(s)
+            r = FVSjl.stand_carbon_report(s)
+            # live Jenkins pools within the LP growth-calibration tail
+            @test abs(r.aboveground - parse(Float64, f[2])) <= 0.02 * parse(Float64, f[2]) + 0.2
+            @test abs(r.belowground - parse(Float64, f[4])) <= 0.02 * parse(Float64, f[4]) + 0.2
+            # forest floor reconciles every cycle (decay + litterfall)
+            @test abs(r.forest_floor - parse(Float64, f[8])) <= 0.2
+            # DDW reconciles before mortality starts (1990/1995); 2000+ needs snag-debris (CWD2B)
+            f[1] in ("1990", "1995") && @test abs(r.down_wood - parse(Float64, f[7])) <= 0.1
+            if c < length(ft)
+                # evolve the fuels with the START-of-cycle crown (FVS records the crown at the END of
+                # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.
+                FVSjl.ffe_fuel_update!(s, 5)
+                FVSjl.grow_cycle!(s; fint = 5f0)
+            end
+        end
+    end
+end
