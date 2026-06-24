@@ -43,7 +43,20 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   TPA / cubic volume (`test_dbs_treelist.jl`). The exact per-tree row set differs from Fortran
   only by the tripling/COMCUP record PARTITION (same totals). Not-yet-filled cols (nullable):
   MortPA, TreeVal/SSCD/PtIndex, MistCD, MDefect/BDefect split, EstHt, ActPt.
-- ⛔ The remaining ~16 tables (Compute, Carbon, …) + the FVS_Cases full schema.
+- ⛔ The remaining ~16 tables + the FVS_Cases full schema. Findings from attempts:
+  - **FVS_Compute** (dbscmpu.f): a working dynamic-schema writer was built (one REAL col per
+    COMPUTE var, `compute_snapshot`/`write_dbs_compute!`) but REVERTED — validation showed
+    Fortran writes only **1 row (cycle 0)**, not per-cycle, for a COMPUTE block with no IF.
+    The row-write trigger is tied to the event-monitor evaluation (FVSjl gates the COMPUTE eval
+    on `!isempty(conds)`, cuts.jl:132), so the table can't just snapshot every cycle. Resolve
+    the COMPUTE eval/write trigger vs Fortran before re-adding. (MYBA=BBA / MYCYC=CYCLE matched
+    Fortran exactly, so the writer + dynamic schema are correct — only the row cadence is wrong.)
+    ⚠ **Found a real event-monitor bug** doing this: `event_monitor.jl:76` returns `stand_ba`
+    for BOTH `BBA` and `BSDI` (copy-paste) — `BSDI` should be an SDI. Fortran's BSDI≈203 is a
+    Reineke-style SDI (≠ the `.sum` Zeide 160), so the fix needs the right SDI method too. See
+    DIVERGENCES.
+  - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
+    compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 
 > Next: TreeList (per-tree records) + Compute (event-monitor vars), then G1/G2-dependent
 > Carbon. The Summary writer establishes the pattern (CREATE TABLE IF NOT EXISTS + prepared
