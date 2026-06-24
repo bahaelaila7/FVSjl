@@ -120,6 +120,22 @@ function kw_cycleat!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# STRCLASS (ksstag.f): activate the stand structural-stage classification (SSTAGE) + optionally
+# override its thresholds. Field 1 = print code (0 = compute but don't print, else print — we always
+# compute; the per-cycle `.out` report is Chunk D-report, deferred). Fields 2-7 override
+# GAPPCT/SSDBH/SAWDBH/CCMIN/TPAMIN/PCTSMX. The class is then available as the event-monitor
+# variables BSCLASS/ASCLASS (structural class), BSTRDBH/ASTRDBH (uppermost-stratum DBH),
+# BCANCOV/ACANCOV (canopy cover).
+function kw_strclass!(s::StandState, rec::KeywordRecord)
+    s.control.strclass_on = true
+    v = rec.values; pr = rec.present
+    d = s.control.strclass_thresh                       # (gappct, ssdbh, sawdbh, ccmin, tpamin, pctsmx)
+    s.control.strclass_thresh = (
+        pr[2] ? Float32(v[2]) : d[1], pr[3] ? Float32(v[3]) : d[2], pr[4] ? Float32(v[4]) : d[3],
+        pr[5] ? Float32(v[5]) : d[4], pr[6] ? Float32(v[6]) : d[5], pr[7] ? Float32(v[7]) : d[6])
+    return
+end
+
 # OPTION 16 — INVYEAR (initre.f:895).
 function kw_invyear!(s::StandState, rec::KeywordRecord)
     rec.present[1] && (s.control.cycle_year[1] = nint(rec.values[1]))
@@ -1392,6 +1408,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
         elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
+        elseif kw == "STRCLASS"; kw_strclass!(s, rec)      # activate SSTAGE structural-stage classification (ksstag.f)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

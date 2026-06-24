@@ -46,4 +46,26 @@ end
         # Fortran snt01 stand-1 (S248112) Struct-Class: UR@1990, SE@1995..2040
         @test got == vcat([3], fill(2, 10))
     end
+
+    # STRCLASS keyword: activates SSTAGE + overrides thresholds (sawdbh = field 4).
+    sk = FVSjl.StandState(FVSjl.Southern())
+    rec = FVSjl.KeywordRecord("STRCLASS", "", ["1", "", "", "30", fill("", 8)...],
+        Float32[1, 0, 0, 30, zeros(Float32, 8)...], [true, false, false, true, falses(8)...],
+        12, FVSjl.KW_OK, 0)
+    FVSjl.kw_strclass!(sk, rec)
+    @test sk.control.strclass_on
+    @test sk.control.strclass_thresh[3] == 30f0           # SAWDBH override applied
+
+    # event-monitor integration: BSCLASS drives an IF condition (fires at UR, not SE).
+    if isfile(joinpath(@__DIR__, "..", "harness", "scenarios", "fire_early.key"))
+        st, _ = FVSjl.initialize(joinpath(@__DIR__, "..", "harness", "scenarios", "fire_early.key"))
+        FVSjl.notre!(st); FVSjl.setup_growth!(st); FVSjl.compute_volumes!(st); FVSjl.compute_density!(st)
+        ctx = FVSjl.EventCtx(1, 1990, st)
+        @test FVSjl._event_var("BSCLASS", ctx) == 3f0     # UR (matches structure_class)
+        @test FVSjl._event_var("BSTRDBH", ctx) > 0f0      # uppermost-stratum DBH
+        cond = FVSjl.parse_event_condition("BSCLASS EQ 3")
+        @test FVSjl.eval_event(cond, ctx) != 0f0          # fires at 1990 (UR)
+        FVSjl.grow_cycle!(st; fint = 5f0); FVSjl.compute_density!(st)
+        @test FVSjl.eval_event(cond, FVSjl.EventCtx(2, 1995, st)) == 0f0   # not at 1995 (SE)
+    end
 end

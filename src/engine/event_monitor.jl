@@ -98,6 +98,11 @@ function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     name == "YEAR"  ? Float32(ctx.year) :
     name == "BBA"  ? stand_ba(ctx.state) / ctx.state.plot.gross_space :
     name == "BSDI" ? _event_bsdi(ctx.state) :                       # SDIBC (Reineke SDI, evtstv.f:116)
+    # SSTAGE structural-stage event vars (evtstv.f:203-229; need STRCLASS on). The conditions
+    # evaluate pre-thin, so the before/after-thin pairs read the same current stand here.
+    (name == "BSCLASS" || name == "ASCLASS") ? Float32(structure_class(ctx.state).class) :
+    (name == "BSTRDBH" || name == "ASTRDBH") ? Float32(structure_class(ctx.state).strdbh) :
+    (name == "BCANCOV" || name == "ACANCOV") ? Float32(structure_class(ctx.state).cover) :
     name == "TPA"  ? stand_tpa(ctx.state) / ctx.state.plot.gross_space :
     name == "AGE"  ? Float32(ctx.state.plot.stand_age) :
     error("event-monitor variable not yet ported: $name")

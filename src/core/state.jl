@@ -245,6 +245,8 @@ mutable struct Control
     dbs_compute::Bool                         # DATABASE COMPUTDB ⇒ emit the FVS_Compute table         (ICOMPUTE)
     dbs_cutlist::Bool                         # DATABASE CUTLIST ⇒ emit the FVS_CutList table          (ICUTLIST)
     cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle cut-record sink (_log_cut!), else nothing
+    strclass_on::Bool                         # STRCLASS keyword ⇒ compute the structural stage each cycle (LCALC)
+    strclass_thresh::NTuple{6,Float32}        # STRCLASS thresholds: gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx
     cycle_lengths::Vector{Int32}              # per-cycle period override (TIMEINT field-1); 0 = use uniform `year`  (IY pre-cumulation)
     cycleat_years::Vector{Int32}              # CYCLEAT-requested extra cycle-boundary years (calendar)              (IWORK1)
     ncycle_eff::Int32                         # effective cycle count after CYCLEAT insertions (build_cycle_schedule!) (NCYC)
@@ -302,6 +304,7 @@ function Control()
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
         false, nothing,                                         # dbs_cutlist, cutlist_capture (FVS_CutList)
+        false, SS_THRESH_DEFAULT,                               # strclass_on, strclass_thresh (SSTAGE)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
         ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
         false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)

@@ -16,11 +16,10 @@
 # Validated against the Fortran "Structural statistics" Struct-Class column.
 # =============================================================================
 
-const _SS_SSDBH  = 5.0f0    # small-tree DBH threshold      (TMPSSD)
-const _SS_SAWDBH = 25.0f0   # sawtimber DBH threshold       (TMPSAW)
-const _SS_GAPPCT = 30.0f0   # stratum-gap % height drop     (TMPGAP)
-const _SS_CCMIN  = 5.0f0    # min stratum canopy cover %    (TMPCCM)
-const _SS_TPAMIN = 200.0f0  # min TPA to be a stand         (TMPTPA)
+# Default SSTAGE thresholds (isstag.f:32-37), in the `control.strclass_thresh` order:
+#   gappct=30 (stratum-gap % height drop), ssdbh=5 (small-tree DBH), sawdbh=25 (sawtimber DBH),
+#   ccmin=5 (min stratum cover %), tpamin=200 (min TPA), pctsmx=30 (% MaxSDI for SE).
+const SS_THRESH_DEFAULT = (30.0f0, 5.0f0, 25.0f0, 5.0f0, 200.0f0, 30.0f0)
 
 # SSTGHP nominal DBH (sstage.f:780-870): the dominant-cohort DBH. Within the stratum (height-sorted
 # ord[dlo:dhi]), take the CANOPY COHORT = top trees until cumulative crown area exceeds 41382 sq ft
@@ -62,16 +61,20 @@ function _ss_cover(crarea::Vector{Float64}, idx, cccoef::Float64)::Float64
 end
 
 """
-    structure_class(s) -> (; class, nstr, cover)
+    structure_class(s) -> (; class, nstr, cover, strdbh)
 
 The stand structural-stage class (1-6) for the current stand (SSTAGE). Returns the class, the
-number of valid strata, and the whole-stand canopy cover %. `class == 0` means unclassified
-(too few trees / TPA below TPAMIN with no strata). `iba` selects the SDI (before/after thin) for
-the NSTR=1 SE→SI demotion.
+number of valid strata, the whole-stand canopy cover %, and the uppermost-stratum dominant DBH
+(`strdbh`). `class == 0` means unclassified (too few trees / TPA below TPAMIN with no strata).
+`iba` selects the SDI (before/after thin) for the NSTR=1 SE→SI demotion. The STRCLASS keyword can
+override the thresholds (`control.strclass_thresh` = gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx).
 """
 function structure_class(s::StandState; iba::Int = 1)
     t = s.trees; p = s.plot; co = s.coef; g = p.gross_space
     cccoef = Float64(s.control.cc_coef)
+    th = s.control.strclass_thresh
+    gappct = Float64(th[1]); ssdbh = Float64(th[2]); sawdbh = Float64(th[3])
+    ccmin = Float64(th[4]); tpamin = Float64(th[5]); pctsmx = Float64(th[6])
     # working list: live trees with HT > 0; per-acre TPA; crown area = π/4·CW²·TPA (covolp.f)
     n = 0; ht = Float64[]; dbh = Float64[]; tpa = Float64[]; crarea = Float64[]
     @inbounds for i in 1:t.n
@@ -83,7 +86,7 @@ function structure_class(s::StandState; iba::Int = 1)
         n += 1; push!(ht, Float64(t.height[i])); push!(dbh, Float64(t.dbh[i]))
         push!(tpa, pa); push!(crarea, Float64(cw)^2 * pa * 0.785398)
     end
-    n == 0 && return (class = 0, nstr = 0, cover = 0.0)
+    n == 0 && return (class = 0, nstr = 0, cover = 0.0, strdbh = 0.0)
     tprob = sum(tpa)
     ord = sortperm(ht; rev = true)                  # INDEX: trees by height descending
 
@@ -92,7 +95,7 @@ function structure_class(s::StandState; iba::Int = 1)
     iilg = 1; ilarge = ord[1]; sumprb = 0.0
     @inbounds for ii in 2:n
         ismall = ord[ii]
-        x = ht[ilarge] * _SS_GAPPCT * 0.01; x < 10.0 && (x = 10.0)
+        x = ht[ilarge] * gappct * 0.01; x < 10.0 && (x = 10.0)
         if ht[ismall] < ht[ilarge] - x              # a gap
             if tpa[ismall] + sumprb < 2.0
                 sumprb += tpa[ismall]
@@ -130,18 +133,18 @@ function structure_class(s::StandState; iba::Int = 1)
     # cover per stratum (incl. the gap trees), present if > CCMIN (sstage.f:430-465)
     covrange(lo, hi) = _ss_cover(crarea, (ord[k] for k in lo:hi), cccoef)
     crs1 = covrange(is1i1, max(is1i2, is2i1 - 1))
-    is1ok = crs1 > _SS_CCMIN
+    is1ok = crs1 > ccmin
     is2ok = false; is3ok = false
     if is2i1 > 0
-        crs2 = covrange(is2i1, max(is2i2, is3i1 - 1)); is2ok = crs2 > _SS_CCMIN
+        crs2 = covrange(is2i1, max(is2i2, is3i1 - 1)); is2ok = crs2 > ccmin
     end
     if is3i1 > 0
-        crs3 = covrange(is3i1, is3i2); is3ok = crs3 > _SS_CCMIN
+        crs3 = covrange(is3i1, is3i2); is3ok = crs3 > ccmin
     end
     nstr = is1ok + is2ok + is3ok
     cover = _ss_cover(crarea, 1:n, cccoef)
     if nstr == 0
-        tprob < _SS_TPAMIN && return (class = 0, nstr = 0, cover = cover)
+        tprob < tpamin && return (class = 0, nstr = 0, cover = cover, strdbh = 0.0)
         is1ok = true; nstr = 1; is1i1 = 1; is1i2 = n
     end
 
@@ -156,20 +159,20 @@ function structure_class(s::StandState; iba::Int = 1)
     # classify (sstage.f:539-576)
     cls = 0
     if nstr == 1
-        if tmpdbh < _SS_SSDBH
+        if tmpdbh < ssdbh
             cls = 1
-        elseif tmpdbh < _SS_SAWDBH
+        elseif tmpdbh < sawdbh
             cls = 2
             xsdi = iba == 1 ? _event_bsdi(s) : _event_bsdi(s)   # SDIBC (before) ≈ SDIAC for our use
             xbamax = Float64(s.control.ba_max)
-            (xbamax > 0 && xsdi < 0.01 * 30.0 * xbamax) && (cls = 1)   # PCTSMX demotion
+            (xbamax > 0 && xsdi < 0.01 * pctsmx * xbamax) && (cls = 1)   # PCTSMX demotion
         else
             cls = dmind < 3.0 ? 6 : 5
         end
     elseif nstr == 2
-        cls = tmpdbh < _SS_SSDBH ? 1 : tmpdbh < _SS_SAWDBH ? 3 : 6
+        cls = tmpdbh < ssdbh ? 1 : tmpdbh < sawdbh ? 3 : 6
     else
-        cls = tmpdbh < _SS_SSDBH ? 1 : tmpdbh < _SS_SAWDBH ? 4 : 6
+        cls = tmpdbh < ssdbh ? 1 : tmpdbh < sawdbh ? 4 : 6
     end
-    return (class = cls, nstr = nstr, cover = cover)
+    return (class = cls, nstr = nstr, cover = cover, strdbh = tmpdbh)
 end

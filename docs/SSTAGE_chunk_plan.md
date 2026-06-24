@@ -67,10 +67,15 @@ against ground truth. **Validate every chunk against this report**, not just the
   stands, all match. The class is robust to the cover/CRWDTH precision (it only uses cover as the
   `>5%` stratum threshold). Default thresholds wired (SSDBH=5/SAWDBH=25/GAPPCT=30/CCMIN=5/TPAMIN=200);
   the SE→SI SDI demotion uses `_event_bsdi` (SDIBC).
-- **D — keyword + wiring + report (REMAINING):** `kw_strclass!` (ksstag.f defaults/overrides), call SSTAGE per
-  cycle (after CUTS, like grincr.f:342; emit the before/after Rm rows), the `.out` report writer, the
-  event-monitor `SSTAGE` variable, and finally `FVS_StrClass` DBS (only once a fuller binary can
-  validate it — the table writer is trivial on top of the class).
+- **D — keyword + event vars:** ✅ DONE (the functional integration). `kw_strclass!` activates SSTAGE
+  (`control.strclass_on`) + overrides the 6 thresholds (`strclass_thresh`); the event-monitor variables
+  **BSCLASS/ASCLASS** (structural class), **BSTRDBH/ASTRDBH** (uppermost-stratum DBH), **BCANCOV/ACANCOV**
+  (canopy cover) are wired in `_event_var` (evtstv.f:203-229) — so `IF BSCLASS EQ 3 THEN …` works
+  (`test_structure_stage.jl`: fires at UR@1990, not SE@1995). NB the conditions evaluate pre-thin, so
+  the before/after pairs read the same current stand. ⚠ **Still remaining (validation-blocked):** the
+  per-cycle `.out` "Structural statistics" REPORT (the per-stratum DBH/height/cover/species columns —
+  need the exact CRWDTH source, Chunk-A finding) and `FVS_StrClass` DBS (needs a fuller ground-truth
+  binary — [[fvsjl-ground-truth-binary-limits]]). The class + event vars are the usable extension.
 
 ## Validation note
 Use `fire_early` (FMIN stand, exercises before/after-thin Rm rows) + a managed stand (THIN → the
