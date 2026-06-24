@@ -25,5 +25,16 @@ C6 is built. Each is fully scoped in its source tracker.
 The 18+ base DBS output tables (Summary, TreeList, Compute, Carbon, …) — see the
 existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are C7/C8.)
 
-> When C6 starts: do G1/G2 first (they make VOLS branch-complete), then the Compute/
-> Carbon tables that consume them, then the rest of the DBS schema.
+**C6 STARTED (2026-06-24):**
+- ✅ **FVS_Summary** (`src/io/dbs_output.jl`, `write_dbs_summary!`) + **FVS_Cases** — the
+  per-cycle summary written to the DSNOUT SQLite db. The **DATABASE** block keyword is ported
+  (`kw_database!`: `DSNOUT` filename on the next line, `SUMMARY` ⇒ ISUMARY); `run_keyfile`
+  collects the `SummaryRow`s (via `write_sum_file`'s `collect_rows`) and appends them. **Bit-
+  exact vs the live Fortran `FVSOut.db`** (`test_dbs_summary.jl`, `dbs_summary.key`: every
+  column — Tpa/BA/SDI/CCF/TopHt/QMD/MCuFt/BdFt — matches, only ±1 cuft Float32 noise). This is
+  the same data the text `.sum` carries, into a database (the "same SQLite outputs" goal).
+- ⛔ The remaining ~17 tables (TreeList, Compute, Carbon, …) + the FVS_Cases full schema.
+
+> Next: TreeList (per-tree records) + Compute (event-monitor vars), then G1/G2-dependent
+> Carbon. The Summary writer establishes the pattern (CREATE TABLE IF NOT EXISTS + prepared
+> INSERT, gated on the DATABASE keyword, validated vs the Fortran .db).

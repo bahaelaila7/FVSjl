@@ -81,6 +81,7 @@ include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dyna
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)
 include("io/summary.jl")
+include("io/dbs_output.jl")
 include("engine/simulate.jl")
 
 # --- more engine, extensions, cli are added in later chunks -----------------

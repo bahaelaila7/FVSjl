@@ -75,7 +75,8 @@ through `setup_growth!` + `compute_forest_type!` + `compute_volumes!`.
 function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
-                        date::AbstractString = "", time::AbstractString = "", header::Bool = true)
+                        date::AbstractString = "", time::AbstractString = "", header::Bool = true,
+                        collect_rows::Union{Nothing,Vector} = nothing)
     ncyc = Int(s.control.ncycle)             # rows = ncyc + 1 (inventory + each cycle)
     per = round(Int, s.control.year)         # cycle length (YR/IFINT; TIMEINT) — default 5
     per < 1 && (per = period)
@@ -111,6 +112,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             r.mortality = trunc(Int, gr.mortality + 0.5)
         end
         write_sum_row(io, r)
+        collect_rows === nothing || push!(collect_rows, r)
     end
     return io
 end

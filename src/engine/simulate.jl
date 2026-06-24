@@ -227,16 +227,24 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
                      faithful::Bool = true, period::Integer = 5,
                      date::AbstractString = "", time::AbstractString = "")
     out = IOBuffer()
+    case = 0
     for s in each_stand(keypath; variant = variant, faithful = faithful)
         notre!(s)
         setup_growth!(s)
         compute_volumes!(s)
         sid = strip(s.plot.stand_id)
-        mid = strip(s.plot.mgmt_id)
-        write_sum_file(out, s; period = Int(period),
-                       stand_id = String(sid),
-                       mgmt_id = isempty(mid) ? "NONE" : String(mid),
-                       date = date, time = time)
+        mid = strip(s.plot.mgmt_id); mid = isempty(mid) ? "NONE" : String(mid)
+        # DBS output (DATABASE/SUMMARY): collect this stand's rows and append them to the
+        # FVS_Summary table of the DSNOUT database, in addition to the text `.sum`.
+        dbs_on = s.control.dbs_summary && !isempty(s.control.dbs_out_file)
+        rows = dbs_on ? SummaryRow[] : nothing
+        write_sum_file(out, s; period = Int(period), stand_id = String(sid),
+                       mgmt_id = mid, date = date, time = time, collect_rows = rows)
+        if dbs_on
+            case += 1
+            write_dbs_summary!(s.control.dbs_out_file, string(sid, "-", case), String(sid),
+                               rows; mgmt_id = mid, variant = variant_code(s.variant))
+        end
     end
     return String(take!(out))
 end

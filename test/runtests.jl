@@ -22,6 +22,7 @@ using FVSjl
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips
+    include("integration/test_dbs_summary.jl")# C6: DBS FVS_Summary SQLite table vs Fortran
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden

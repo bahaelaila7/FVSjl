@@ -991,6 +991,31 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
 end
 
 """
+    kw_database!(s, rec, kr)
+
+DATABASE (dbsin.f): the DBS output block. Read to END; `DSNOUT` sets the output SQLite file
+(its name is on the FOLLOWING line, `READ(IREAD,'(A)')DSNOUT`), `SUMMARY` enables the
+FVS_Summary table (ISUMARY=1). Other DBS sub-keywords (SQLOUT/COMPUTDB/TREELIDB/…) are
+recognized and skipped — only the Summary table is emitted so far (see `write_dbs_summary!`).
+"""
+function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    while true
+        r = read_keyword!(kr)
+        (r.status == KW_EOF || r.status == KW_STOP) && break
+        k = strip(r.name)
+        isempty(k) && continue
+        if k == "END"
+            break
+        elseif k == "DSNOUT"
+            s.control.dbs_out_file = strip(read_raw_line!(kr))   # filename on the next line
+        elseif k == "SUMMARY"
+            s.control.dbs_summary = true
+        end
+    end
+    return
+end
+
+"""
     kw_fmin!(s, rec, kr)
 
 Parse the FMIN Fire & Fuels keyword block (read to END, like ESTAB). Activates the FFE
@@ -1191,6 +1216,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
+        elseif kw == "DATABASE"; kw_database!(s, rec, kr)  # DBS output block (DSNOUT/SUMMARY → SQLite)
         elseif kw == "FMIN";     kw_fmin!(s, rec, kr)      # Fire & Fuels Extension block (SIMFIRE/FLAMEADJ)
         elseif kw == "ECON";     kw_econ!(s, rec, kr)      # ECON economic-analysis block (ANNUCST/HRVVRCST/HRVRVN)
         # SPROUT/NOSPROUT are establishment-extension sub-keywords (read by ESIN inside an

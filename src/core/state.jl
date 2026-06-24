@@ -239,6 +239,8 @@ mutable struct Control
     dg_bjthet::Float32                        # ARMA(1,1) MA parameter for DGSCOR (BJTHET; SERLCORR), default 0.42
     age_reset_year::Int32                     # RESETAGE: calendar year of the age reset (−1 = none)   (resage.f)
     age_reset_age::Int32                      # RESETAGE: stand age to set AT that year                (PRMS(1))
+    dbs_out_file::String                      # DATABASE/DSNOUT output SQLite file ("" = none)         (DSNOUT)
+    dbs_summary::Bool                         # DATABASE SUMMARY ⇒ emit the FVS_Summary table          (ISUMARY)
 end
 
 function Control()
@@ -285,6 +287,7 @@ function Control()
         false, 1f0, 1f0, CutRecord[],                           # lsprut, sprout_smult, sprout_hmult, cut_log
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
+        "", false,                                              # dbs_out_file, dbs_summary (DATABASE/DSNOUT/SUMMARY)
     )
 end
 
