@@ -193,11 +193,33 @@ function stand_ccf(s::StandState)
     return ccf
 end
 
-"Reineke stand density index by summation: Σ tpa·(DBH/10)^1.605 (DR016/dense.f)."
+"""
+    stand_sdi(s)
+
+Reported `.sum` stand density index (SDICLS, sdical.f), following the SDICALC method flag
+`zeide_sdi` (LZEIDE, SN default Zeide) — the SAME flag the SDImax mortality uses, so the two
+stay consistent. **Zeide:** Σ TPA·(D/10)^1.605 over `D ≥ DBHZEIDE` (sdical.f:326). **Reineke:**
+the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-327). Defaults
+(Zeide, threshold 0) reproduce the prior behavior.
+"""
 function stand_sdi(s::StandState)
-    t = s.trees; sdi = 0f0
-    @inbounds for i in 1:t.n
-        t.dbh[i] >= s.control.dbh_sdi && (sdi += t.tpa[i] * (t.dbh[i] / 10f0)^1.605f0)
+    t = s.trees
+    if s.control.zeide_sdi
+        thr = s.control.dbh_zeide; sdi = 0f0
+        @inbounds for i in 1:t.n
+            t.dbh[i] >= thr && (sdi += t.tpa[i] * (t.dbh[i] / 10f0)^1.605f0)
+        end
+        return sdi
     end
-    return sdi
+    thr = s.control.dbh_stage; sprob = 0f0; sdsq = 0f0
+    @inbounds for i in 1:t.n
+        if t.dbh[i] >= thr
+            sprob += t.tpa[i]; sdsq += t.dbh[i]^2 * t.tpa[i]
+        end
+    end
+    sprob <= 0f0 && return 0f0
+    mdsq = sdsq / sprob
+    a = 10f0^(-1.605f0) * (1f0 - 1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0)
+    b = 10f0^(-1.605f0) * (1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0 - 1f0)
+    return sprob * a + b * sdsq
 end

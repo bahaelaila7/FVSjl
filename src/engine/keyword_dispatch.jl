@@ -201,6 +201,24 @@ function kw_nocalib!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_sdicalc!(s, rec)
+
+SDICALC (initre.f:14000, option 1400): choose the SDI method + min-DBH thresholds. Field 1 =
+`DBHSTAGE` (Reineke min DBH), field 2 = `DBHZEIDE` (Zeide min DBH), field 3 ≥ 1 ⇒ Zeide method
+else Reineke. Sets the SHARED `zeide_sdi` (LZEIDE) flag, so BOTH the reported `.sum` SDI column
+(`stand_sdi`) AND the SDImax self-thinning mortality (`mortality.jl`, which already reads it)
+follow the chosen method — matching Fortran, where SDICALC's LZEIDE drives both.
+"""
+function kw_sdicalc!(s::StandState, rec::KeywordRecord)
+    p = rec.present; v = rec.values
+    p[1] && (s.control.dbh_stage = Float32(v[1]))
+    p[2] && (s.control.dbh_zeide = Float32(v[2]))
+    s.control.zeide_sdi = v[3] >= 1f0                 # field 3 ≥ 1 ⇒ Zeide, else Reineke
+    s.control.sdi_method = s.control.zeide_sdi ? "ZEIDE  " : "REINEKE"
+    return
+end
+
+"""
     kw_resetage!(s, rec)
 
 RESETAGE (initre.f:9500, option 92; applied by resage.f act 443): rebase the stand age so
@@ -1162,6 +1180,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
         elseif kw == "SERLCORR"; kw_serlcorr!(s, rec)      # ARMA(1,1) DGSCOR phi/theta (initre.f:9300)
         elseif kw == "RESETAGE"; kw_resetage!(s, rec)      # rebase stand age at a date (resage.f act 443)
+        elseif kw == "SDICALC";  kw_sdicalc!(s, rec)       # SDI method + thresholds (LZEIDE drives report+mortality, initre.f:14000)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)

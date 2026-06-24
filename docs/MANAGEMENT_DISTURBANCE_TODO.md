@@ -157,7 +157,17 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
 - `CCADJ` (opt 145) — crown-competition-factor adjustment.
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
 - `CYCLEAT` — explicit cycle-boundary years (interacts with NUMCYCLE/TIMEINT). `SDICALC` — SDI
-  method — **scoped, entangled with FVSjl's multi-path SDI:** the fields exist + are read
+  method — ✅ **DONE** (audit find #9). The entanglement resolved cleanly: `zeide_sdi` (LZEIDE)
+  is `true` after init (SN default; my first check read the bare *constructor*), and `mortality.jl`
+  ALREADY consumes it — so `kw_sdicalc!` setting the SHARED `zeide_sdi` (+ `dbh_zeide`/`dbh_stage`)
+  routes BOTH the reported SDI column and the SDImax mortality through the method. Made `stand_sdi`
+  honor it (Zeide Σ vs the Reineke `SPROB·A+B·SDSQ` Taylor form, sdical.f:281-327) + the right
+  threshold. **Bit-exact MULTI-CYCLE vs live Fortran** (`test_sdicalc.jl`, SDICALC→Reineke:
+  TPA/BA/SDI/QMD match every cycle, ±Scribner board-feet); snt01 (default Zeide) unaffected. The
+  earlier report-only attempt that diverged at cycle 1 was the tell that the mortality must follow
+  — fixed by using the shared flag instead of a separate report flag.
+
+  ~~method — **scoped, entangled with FVSjl's multi-path SDI:**~~ the fields exist + are read
   (`control.zeide_sdi`/`dbh_zeide`/`dbh_stage`/`sdi_method`, consumed by `mortality.jl`), so
   `kw_sdicalc!` setting them *looks* like a BAMAX-class wire-up — BUT `zeide_sdi` defaults
   `false` (Reineke) while `stand_sdi` (the `.sum` SDI column) hardcodes Zeide per-tree
