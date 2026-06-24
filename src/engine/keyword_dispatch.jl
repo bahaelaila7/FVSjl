@@ -13,20 +13,35 @@
 # added here as later chunks need them (thinning, fire, econ, ...).
 # =============================================================================
 
-# Keywords recognized but not yet acted on (flags/reports that don't change the
-# cycle-0 stand state). Acting on these is added in their respective chunks.
+# Keywords recognized but not acted on. ⚠ SCOPE: these determinations are made for the SN
+# variant — they are NOT all guaranteed inert in other variants. When a second variant is
+# added, re-verify the SN-specific group (below) by tracing each keyword's EFFECT variable
+# (the MANAGED bug — a real SN growth effect mislabeled here — is the cautionary tale).
 const KNOWN_NOOP = Set([
-    "SCREEN", "NOSCREEN", "STATS", "NOAUTOES", "TREELIST", "ECHOSUM", "ECHO",
-    "NOECHO", "NOSUM", "NODEBUG", "DEBUG", "CALBSTAT", "COMPRESS", "REWIND",
-    "ATRTLIST", "CUTLIST", "ENDFILE", "FVSSTAND",
-    # bare-stand / establishment-adjacent flags (no cycle-0 stand effect yet)
-    "NOTREES", "NOHTDREG", "AUTOES",
-    # FIXCW (cwidth.f): crown-width override — verified .sum-inert (CRWDTH is output-only, never
-    # fed into CCF/growth; a live-Fortran FIXCW run is byte-identical to no FIXCW).
+    # (1) Universally inert — pure I/O / echo / debug / report control, no simulation effect
+    #     in ANY variant.
+    "SCREEN", "NOSCREEN", "STATS", "ECHOSUM", "ECHO", "NOECHO", "NOSUM",
+    "NODEBUG", "DEBUG", "CALBSTAT", "REWIND", "ENDFILE", "FVSSTAND",
+    # (2) Report-table requests — no .sum effect in any variant, but they DO request output
+    #     tables (C6 DBS / .out) that FVSjl does not yet emit. "No-op" = report not produced.
+    "TREELIST", "ATRTLIST", "CUTLIST",
+    # (3) Establishment-control flags — establishment is variant-specific; their inertness is
+    #     a CURRENT-STATE assumption (NOAUTOES matches FVSjl's no-auto-establish default; AUTOES
+    #     would need the auto-establishment trigger ported — a latent gap, like MANAGED was).
+    "NOTREES", "NOHTDREG", "AUTOES", "NOAUTOES",
+    # (4) SN-VERIFIED inert / SN-scoped — re-check for other variants:
+    #   FIXCW (sn/cwidth.f): crown-width override — verified .sum-inert in SN (CRWDTH is output-
+    #     only, never fed into CCF/growth; a live-Fortran SN FIXCW run is byte-identical). Other
+    #     variants may use crown width differently.
     "FIXCW",
-    # FIAVBC: switches volume/biomass to the FIA National Volume Library — FVSjl has only the R8
-    # Clark equations (the SN default, LFIANVB=.FALSE.), so the FIA NVB path is out of scope.
+    #   FIAVBC: switches volume/biomass to the FIA National Volume Library — FVSjl has only the
+    #     R8 Clark equations (the SN default, LFIANVB=.FALSE.). A variant/config using the NVB
+    #     path would diverge; out of scope.
     "FIAVBC",
+    # (5) ⚠ NOT inert — real effect, UNPORTED (parked here only because it doesn't fire in the
+    #     current test scenarios). COMPRESS (comprs.f) compresses the record list — it changes
+    #     results in EVERY variant once it fires (the COMPRESS keyword, or >~3000 records).
+    "COMPRESS",
 ])
 
 "Read one raw (un-lexed) line from the keyword stream, advancing the record count."
