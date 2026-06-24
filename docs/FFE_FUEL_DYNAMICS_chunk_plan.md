@@ -330,3 +330,25 @@ litterfall, breakage} and post-grow {crown-lift with the current-cycle rise}. Ma
 (~0.39 t/ac/yr); only this split placement remains. Reverted the wiring (it overshoots the DDW bound
 test pre-split); kept `crown_lift_rate` (committed, tested). The fields/snapshot/lift are a ~30-line
 re-add once the grow_cycle! split lands.
+
+### Crown-lift POST-GROW placement — VALIDATED direction; magnitude needs in-annual-loop application
+Re-implemented with the lift applied AFTER grow_cycle! (the placement the previous note prescribed),
+adding `prev_height`/`prev_crown_len`/`prev_dbh` tree-record fields (snapshot at cycle start via
+`fmoldc!`, ride through compaction via `copy_tree!`), and an `apply_crown_lift!(s, cyclen)` post-grow.
+RESULT (carbon_jenkins): the lift now FIRES AT THE RIGHT CYCLES — DDW jumps at BOTH 2000 (2.06→5.25)
+and 2005 (→11.03), versus the pre-grow version that only fired at 2005. So **post-grow placement is the
+correct structure** (it gives the lift this cycle's crown-base rise + reaches the first post-growth
+cycle). Using the cycle-START crown (recomputed from prev_dbh/prev_height, = OLDCRW, fmoldc.f:55)
+instead of the post-grow crown also correctly lowered it (5.88→5.25).
+
+REMAINING (magnitude): it OVERSHOOTS ~1.5× because a lump-sum `cyclen·X·CROWNW` adds all `cyclen` years
+undecayed, whereas FVS adds `X·CROWNW` PER YEAR inside the annual loop where each year's addition then
+DECAYS over the rest of the cycle (and the report reads the window's pre-final-year value). Hand-check:
+the Fortran crown-lift over the reported 4-yr window ≈ 0.39·4·0.5·2.2417 ≈ 1.76 mt/ha ≈ the exact gap
+(3.8−2.06) — so the magnitude is RIGHT once applied per-year-with-decay. ⇒ the faithful fix is the full
+FFE-update-AFTER-grow restructure: ONE post-grow annual loop carrying decay + litterfall + breakage +
+cwd2b-flow + crown-lift together, each year, with the cycle-start crown for the live-crown terms and the
+post-grow X for the lift. That is the grow_cycle! hot-path integration (couples to the cwd2b/Stand-Dead
+death-dating); reverted the lump-sum wiring (overshoots the DDW bound) — kept the tested `crown_lift_rate`.
+NET across the session: DDW source + formula + plumbing + PLACEMENT all validated; only the in-loop
+restructure remains, now fully specified.
