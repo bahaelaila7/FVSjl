@@ -156,9 +156,16 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   NOCALIB 0 ⇒ uncalibrated DG matches exactly; snt01 stays bit-exact with the all-true default).
 - `CCADJ` (opt 145) — crown-competition-factor adjustment.
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
-- `CYCLEAT` — explicit cycle-boundary years. `SDICALC` — SDI method. `MGMTID`/`RESETAGE`/
-  `SETSITE` (mid-run id/age/site; MGMTID is read, the others are **OPNEW-scheduled** act
-  443/444 needing scheduler + a per-cycle handler — not immediate value-setters).
+- `CYCLEAT` — explicit cycle-boundary years (interacts with NUMCYCLE/TIMEINT). `SDICALC` — SDI
+  method. `MGMTID` is read; `RESETAGE`/`SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
+  443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
+  activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
+  - `RESETAGE` (resage.f, act 443): `IAGE = age − IDT + IY(1)` at the date, affects only the
+    `.sum` AGE/MAI columns. FVSjl computes AGE as the closed form `stand_age + cyc·interval`
+    (summary.jl:144) — a mid-run reset requires switching to STATEFUL age carrying (touches every
+    stand's AGE column), so it is risk-bearing for a reporting-only, no-scenario keyword.
+  - `SETSITE` (act 120): habitat (HABTYP) + species (SPDECD) decode + per-species site index — a
+    multi-param scheduled site change feeding height growth.
   (`BMIN` is NOT a simple gap — it is the WWPB insect-model input (exbm.f), an *extension*,
   belongs with insects below.)
 
