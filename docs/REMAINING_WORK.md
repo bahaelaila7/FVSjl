@@ -41,7 +41,8 @@ vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported 
 - ✅ **the `.out` Stand-Carbon-Report writer — DONE** (`write_carbon_report`, carbon.jl): header block +
   per-row FORMAT byte-for-byte vs the Fortran `.out` (CARBREPT); inventory row bit-exact in every column,
   grown rows track within the LP growth tail. test_carbon.jl (18 assertions).
-- **Blocker:** none external; the remaining item is the grow_cycle! integration (timing) + the .out writer.
+- **Blocker:** none external; the ONE remaining A item is the post-mortality DDW crown-lift in-loop
+  integration (gated upstream on crown-ratio bit-exactness — see chunk plan). The `.out` writer is done.
 
 ## B. Validation-blocked by the stripped ground-truth binary
 The rebuilt `/tmp/FVSsn_new` is a **stripped DBS build**: the DATABASE block accepts only
