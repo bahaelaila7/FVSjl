@@ -13,6 +13,15 @@ insects) are C7; econ is C8 — noted here for completeness but owned there.
 
 Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 extension
 
+> **Audit 2026-06-24** (don't trust a ✅ without checking the code is *wired*, not just
+> that a unit test passes): **MANAGED** was a **false ✅** — it sat in `KNOWN_NOOP` and
+> `plot.managed` was never set, so the DGF planted growth term never fired. Found by
+> tracing `plot.managed` from its DGF reader back to its (missing) setter; now ported +
+> bit-exact vs Fortran (§5, `test_managed.jl`). Conversely **SPROUT/ESUCKR** was a stale
+> **⛔** (actually done & bit-exact). Lesson: a keyword whose effect-variable is *read*
+> in growth/mortality but only *set* in `KNOWN_NOOP` is a latent gap — grep the effect
+> variable's **setters**, not just the keyword name.
+
 ## 1. CUTS — thinning / harvest methods (`cuts.f`, ICFLAG)
 
 | keyword | semantics | status |
@@ -74,7 +83,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | FERTILIZ / FFERT | fertilizer growth response (ffin.f/ffert.f) | ✅ **DONE** (kw_fertiliz! → Control.fertilize_events; `fertilizer_growth!` in grow_cycle! after TRIPLE, grincr.f:564): 200-lb-N response boosts each tree's DDS by RDDS=exp(0.1108·lnD+0.003004·BAL/ln(D+1)) (cap 2.6) and HTG by 1.1626, for the IFLEN of the cycle's years within 10 yr of application, scaled by efficacy; carries over via ifert_date/ifert_eff. Bit-exact vs Fortran (test_fertiliz.jl: BA 126→138 at 2000). SN is outside the calibrated DF/GF range — Fortran warns but applies it, so we match |
 | COMPRESS | record compression to a target (comprs.f act=250) | ⛔ |
 | ADDFILE | (option 22) redirect input to another unit | ⚪ NOT a tree-add — it just switches IREAD to a Fortran file UNIT (an include-file mechanism); no clean FVSjl mapping (FVSjl uses filenames, not units). 'ADDTREES' is not an SN keyword |
-| MANAGED | managed-stand flag (DGF kplant term) | ✅ |
+| MANAGED | managed-stand flag (DGF kplant term) | ✅ **DONE** (was a FALSE ✅ — found 2026-06-24: the keyword was in `KNOWN_NOOP` and `plot.managed` was never set, so the DGF planted term `dg_planted[sp]·kplant` (dgf.f:179/328) never fired). Now `kw_managed!` sets `plot.managed` per initre.f:10000 (immediate path: bare card / field-2≠0 ⇒ managed=1, field-2==0 ⇒ 0; dated OPNEW-act-82 path deferred). **Bit-exact vs live Fortran** on a loblolly-pine stand for BOTH managed and unmanaged (`test_managed.jl`, `managed.key`; the planted-pine boost self-thins the stand slightly more, matching Fortran). Non-planted species have `dg_planted=0` so MANAGED is correctly inert for them (which is why snt01 never exposed the gap) |
 | MGMTID / RESETAGE / SETSITE | mgmt id / reset age / set site mid-run | 🟡 (MGMTID read) |
 
 ## 6. Volume / defect keywords (C5 — **.sum-affecting**, keyword-settable)
@@ -100,7 +109,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ✅ event_monitor.jl (AST evaluator); stand 2 first 2 thins bit-exact; 3rd = class-boundary residual |
 | COMPUTE | event-monitor variable assignment | ✅ (kw_compute! parses NAME=expr…END, evaluated each cycle in cuts! before IF conditions read them via compute_vars; ≡ direct ref, bit-exact lead stand, test_compute.jl) |
 | TIMEINT | cycle length (period scaling) | 🟡 (kw_timeint! uniform path; DDS·FINT/5 + HTG·FINT/5 + mortality^FINT + year/age step; snt01 bit-exact, TIMEINT-10 TPA ≤8 / volume ≤2% — calibrated-species residual; test_timeint.jl). CYCLEAT + per-cycle GROWTH deferred |
-| ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL; ⛔ TALLY counts / SPROUT |
+| ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL **and SPROUT** (ESUCKR stump-sprout regen — bit-exact vs live Fortran on `sprout.key`, 113 tests); ⛔ TALLY counts only |
 
 ## 8. Disturbance models (C7/C8 extensions — owned there)
 
@@ -250,7 +259,7 @@ species groups. The DGSCOR cubic-volume drift is resolved as irreducible Float32
 - ~~PRUNE~~ 🧊 .sum-inert in SN (verified) — C8 econ pruned-log volume only.
 - **Volume overrides** — `VOLEQNUM`/`CFVOLEQU`/`BFVOLEQU` (🟡), `VOLUME`/`BFVOLUME`,
   `BFFDLN`/`MCFDLN`, `FIAVBC` (C5 volume side).
-- **ESTAB TALLY / SPROUT** — tally-count regen + stump sprouting (downstream, C4 regen).
+- **ESTAB TALLY** — tally-count regen (downstream, C4 regen). ~~SPROUT~~ ✅ DONE (ESUCKR, bit-exact).
 - `COMPRESS` — only fires with the keyword or >~3000 records; comprs.f is a 762-line
   subsystem (incl. EIGEN!) — NOT least-dependent.
 

@@ -18,7 +18,7 @@
 const KNOWN_NOOP = Set([
     "SCREEN", "NOSCREEN", "STATS", "NOAUTOES", "TREELIST", "ECHOSUM", "ECHO",
     "NOECHO", "NOSUM", "NODEBUG", "DEBUG", "CALBSTAT", "COMPRESS", "REWIND",
-    "ATRTLIST", "CUTLIST", "MANAGED", "ENDFILE", "FVSSTAND",
+    "ATRTLIST", "CUTLIST", "ENDFILE", "FVSSTAND",
     # bare-stand / establishment-adjacent flags (no cycle-0 stand effect yet)
     "NOTREES", "NOHTDREG", "AUTOES",
     # FIXCW (cwidth.f): crown-width override — verified .sum-inert (CRWDTH is output-only, never
@@ -104,6 +104,25 @@ function kw_sitecode!(s::StandState, rec::KeywordRecord)
         s.plot.site_species = Int32(isp)        # ISISP — the site species
     end
     rec.present[2] && (s.plot.site_index = si)
+    return
+end
+
+"""
+    kw_managed!(s, rec)
+
+MANAGED (initre.f:10000): set the managed-stand flag (`MANAGD`), which turns on the DGF
+planted/managed diameter-growth term — `kplant = MANAGD>0 ? 1 : 0`, added as
+`dg_planted[sp]·kplant` to ln(DDS) (dgf.f:179/328). With no date (or date ≤ 0): immediate
+— an explicit field-2 value of 0 sets unmanaged, anything else (incl. a bare `MANAGED`
+card) sets managed. A *dated* MANAGED (field 1 > 0) is scheduled by FVS for that cycle
+(OPNEW act 82); that deferred path is not yet ported (rare — MANAGED is normally a
+stand-level setup flag).
+"""
+function kw_managed!(s::StandState, rec::KeywordRecord)
+    v = rec.values; p = rec.present
+    idt = p[1] ? nint(v[1]) : Int32(0)
+    idt > 0 && return                                  # dated MANAGED (OPNEW act 82) — deferred
+    s.plot.managed = (p[2] && v[2] == 0f0) ? Int32(0) : Int32(1)
     return
 end
 
@@ -962,6 +981,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)
         elseif kw == "SITECODE"; kw_sitecode!(s, rec)
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
+        elseif kw == "MANAGED";  kw_managed!(s, rec)       # managed-stand flag → DGF kplant term (dgf.f:179)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)

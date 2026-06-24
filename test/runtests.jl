@@ -52,6 +52,7 @@ using FVSjl
     include("integration/test_tcondmlt.jl")     # C3: TCONDMLT tree-condition cut weight vs Fortran
     include("integration/test_tfixarea.jl")     # C2: TFIXAREA fixed-plot-area expansion vs Fortran
     include("integration/test_cuteff.jl")       # C3: CUTEFF default cutting efficiency vs Fortran
+    include("integration/test_managed.jl")      # C3: MANAGED → DGF planted/managed growth term vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran
