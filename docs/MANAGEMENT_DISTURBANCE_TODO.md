@@ -160,10 +160,12 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   method. `MGMTID` is read; `RESETAGE`/`SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
-  - `RESETAGE` (resage.f, act 443): `IAGE = age − IDT + IY(1)` at the date, affects only the
-    `.sum` AGE/MAI columns. FVSjl computes AGE as the closed form `stand_age + cyc·interval`
-    (summary.jl:144) — a mid-run reset requires switching to STATEFUL age carrying (touches every
-    stand's AGE column), so it is risk-bearing for a reporting-only, no-scenario keyword.
+  - `RESETAGE` (resage.f, act 443): ✅ **DONE** (audit find #8). Turned out NOT to need the
+    scheduler — it is a pure function of the row year: `kw_resetage!` stores `age_reset_year`/
+    `_age` (resolving a cycle-number date against INVYEAR), and `summary_row` rebases `age(Y) =
+    age_reset_age + (Y − reset_year)` for `Y > reset_year` (the reset row keeps the old age,
+    matching RESAGE running after DISPLY). Bit-exact vs live Fortran (`test_resetage.jl`,
+    RESETAGE 2000 30 → AGE rebases 70→35→40…, MAI recomputed; snt01 unaffected).
   - `SETSITE` (act 120): habitat (HABTYP) + species (SPDECD) decode + per-species site index — a
     multi-param scheduled site change feeding height growth.
   (`BMIN` is NOT a simple gap — it is the WWPB insect-model input (exbm.f), an *extension*,

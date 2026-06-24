@@ -201,6 +201,26 @@ function kw_nocalib!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_resetage!(s, rec)
+
+RESETAGE (initre.f:9500, option 92; applied by resage.f act 443): rebase the stand age so
+that at the activity's date the age equals field 2 (`IAGE = age − IDT + IY(1)`). Because
+RESAGE runs after DISPLY, the reset year's own `.sum` row keeps the old age and the rebase
+takes effect the following row — handled in `summary_row` from `age_reset_year`/`_age`.
+Field 1 is the date (a calendar year, or a 1-based cycle number resolved against INVYEAR).
+"""
+function kw_resetage!(s::StandState, rec::KeywordRecord)
+    v = rec.values; p = rec.present
+    idt = p[1] ? nint(v[1]) : Int32(1)
+    invyr = Int(s.control.cycle_year[1]); period = round(Int, s.control.year)
+    period < 1 && (period = 5)
+    yr = idt >= Int32(1000) ? Int(idt) : invyr + (Int(idt) - 1) * period   # cycle number → year
+    s.control.age_reset_year = Int32(yr)
+    s.control.age_reset_age = p[2] ? Int32(nint(v[2])) : Int32(0)
+    return
+end
+
+"""
     kw_serlcorr!(s, rec)
 
 SERLCORR (initre.f:9300, option 91): set the ARMA(1,1) serial-correlation parameters of the
@@ -1141,6 +1161,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
         elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
         elseif kw == "SERLCORR"; kw_serlcorr!(s, rec)      # ARMA(1,1) DGSCOR phi/theta (initre.f:9300)
+        elseif kw == "RESETAGE"; kw_resetage!(s, rec)      # rebase stand age at a date (resage.f act 443)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)

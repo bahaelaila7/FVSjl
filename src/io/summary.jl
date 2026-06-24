@@ -142,6 +142,10 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     interval = round(Int, s.control.year); interval < 1 && (interval = 5)
     yr = Int(s.control.cycle_year[1]) + cyc * interval
     age = Int(s.plot.stand_age) + cyc * interval
+    # RESETAGE (resage.f): after the reset year (run after DISPLY, so the reset row itself keeps
+    # the old age) the stand age is rebased — age(Y) = age_reset_age + (Y − reset_year).
+    ry = Int(s.control.age_reset_year)
+    (ry >= 0 && yr > ry) && (age = Int(s.control.age_reset_age) + (yr - ry))
     mcuft = vtot(:merch_cuft_vol)
     # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
     # `total_removed_merch` carries cross-cycle removals (0 at the inventory).

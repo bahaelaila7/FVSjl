@@ -60,6 +60,7 @@ using FVSjl
     include("integration/test_dgstdev.jl")     # DGSCOR: DGSTDEV DGSD bound on stochastic DG variation vs Fortran
     include("integration/test_nocalib.jl")     # NOCALIB disable DG self-calibration (LDGCAL) vs Fortran
     include("integration/test_serlcorr.jl")    # DGSCOR: SERLCORR ARMA(1,1) phi/theta vs Fortran
+    include("integration/test_resetage.jl")    # RESETAGE rebase stand age (resage.f) vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran
