@@ -69,6 +69,14 @@ against ground truth. **Validate every chunk against this report**, not just the
   stands, all match. The class is robust to the cover/CRWDTH precision (it only uses cover as the
   `>5%` stratum threshold). Default thresholds wired (SSDBH=5/SAWDBH=25/GAPPCT=30/CCMIN=5/TPAMIN=200);
   the SE→SI SDI demotion uses `_event_bsdi` (SDIBC).
+- **D-report — per-stratum report data:** ✅ DONE (`structure_report`). The full per-stratum
+  "Structural statistics" data — DBH (DBHNOM), Nom-Ht (window mean), Lg-Ht/Sm-Ht (stratum extremes),
+  **Bas = ICRB (mean height to crown BASE, NOT stand basal area)**, Cov, Sp1/Sp2 (top crown-area
+  species) — via a shared `_ss_strata` helper. **Bit-exact vs the Fortran report** (snt01 stand-1:
+  all 8 columns match every cycle except the 2000/2015 DBHNOM-window boundary residuals;
+  `test_structure_stage.jl`). The "Bas" column was the last gotcha: OSTRST(5)=ICRBS1 = crown-base
+  height (sstage.f:668/790), so at 1995 it's 15 ft (short stratum), not the stand BA of 103. Only the
+  `.out` text FORMATTING of these rows remains (pure formatting) + `FVS_StrClass` DBS (binary-blocked).
 - **D — keyword + event vars:** ✅ DONE (the functional integration). `kw_strclass!` activates SSTAGE
   (`control.strclass_on`) + overrides the 6 thresholds (`strclass_thresh`); the event-monitor variables
   **BSCLASS/ASCLASS** (structural class), **BSTRDBH/ASTRDBH** (uppermost-stratum DBH), **BCANCOV/ACANCOV**

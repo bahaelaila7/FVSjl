@@ -61,6 +61,19 @@ end
             @test abs(r.strdbh - ftdbh[c+1]) <= 0.6
             c < 10 && FVSjl.grow_cycle!(s1c; fint = 5f0)
         end
+
+        # structure_report per-stratum columns vs the Fortran Structural-statistics report
+        # (snt01 stand-1 stratum 1 @1990): DBH/Nom-Ht/Lg-Ht/Sm-Ht/CrnBase/Cov/Sp1/Sp2 all bit-exact.
+        s1r = first(FVSjl.each_stand(snt))
+        FVSjl.notre!(s1r); FVSjl.setup_growth!(s1r); FVSjl.compute_volumes!(s1r); FVSjl.compute_density!(s1r)
+        rep = FVSjl.structure_report(s1r)
+        @test !isempty(rep.strata)
+        a = rep.strata[1]
+        @test isapprox(a.dbh, 10.3; atol = 0.1)              # DBHNOM
+        @test round(Int, a.nomht) == 63 && round(Int, a.lght) == 75 && round(Int, a.smht) == 55
+        @test round(Int, a.crnbase) == 42                    # the "Bas" column = mean crown-base height
+        @test round(Int, a.cover) == 49
+        @test strip(s1r.coef.code_alpha[a.sp1]) == "SM" && strip(s1r.coef.code_alpha[a.sp2]) == "HI"
     end
 
     # STRCLASS keyword: activates SSTAGE + overrides thresholds (sawdbh = field 4).
