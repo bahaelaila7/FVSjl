@@ -45,6 +45,17 @@ end
         got = _ss_classes(s1, 10)
         # Fortran snt01 stand-1 (S248112) Struct-Class: UR@1990, SE@1995..2040
         @test got == vcat([3], fill(2, 10))
+
+        # Tot-Cov column bit-exact (raw-PROB crown area). Fortran snt01 stand-1: 82/87/90/92/91/90/
+        # 89/89/87/86/85 — match within 1 (IFIX round at .5 boundaries).
+        s1c = first(FVSjl.each_stand(snt))
+        FVSjl.notre!(s1c); FVSjl.setup_growth!(s1c); FVSjl.compute_volumes!(s1c)
+        ftcov = [82, 87, 90, 92, 91, 90, 89, 89, 87, 86, 85]
+        for c in 0:10
+            FVSjl.compute_density!(s1c)
+            @test abs(round(Int, FVSjl.structure_class(s1c).cover) - ftcov[c+1]) <= 1
+            c < 10 && FVSjl.grow_cycle!(s1c; fint = 5f0)
+        end
     end
 
     # STRCLASS keyword: activates SSTAGE + overrides thresholds (sawdbh = field 4).

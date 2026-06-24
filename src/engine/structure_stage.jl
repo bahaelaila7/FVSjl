@@ -9,11 +9,15 @@
 #   3 = UR  (understory reinitiation) 6 = old multi-strata / continuous
 # Defaults (isstag.f:32-37): SSDBH=5, SAWDBH=25, GAPPCT=30, PCTSMX=30, CCMIN=5, TPAMIN=200.
 #
-# Scope of THIS chunk (the CLASS — SSTAGE's primary discrete output): the class uses
-# cover only as a `> CCMIN(5%)` stratum-present threshold and DBH vs the coarse 5/25
-# thresholds, so it is robust to the few-% cover / DBH precision the full per-stratum
-# REPORT columns need (those need the exact CRWDTH source — see docs/SSTAGE_chunk_plan.md).
-# Validated against the Fortran "Structural statistics" Struct-Class column.
+# Validated bit-exact vs the Fortran "Structural statistics" report:
+#   • the CLASS column (1-6) — every cycle, fire_early + snt01 stand-1;
+#   • the Tot-Cov column — every cycle (snt01 10/11 ± a single ULP round, fire stands pre-fire;
+#     post-fire diverges only by the known fire kill residual). NB: the crown AREA uses the RAW
+#     PROB (`t.tpa`, NOT /GROSPC) — that was the cover fix, not the crown width (which already
+#     matched Fortran's CrWidth exactly). CCCOEF=1 default.
+# Not yet bit-exact: the uppermost-stratum DBH (`strdbh`, the report's per-stratum DBH column /
+# the BSTRDBH event var) — `_ss_dbhnom` tracks but runs ~1-5" low vs the SSTGHP DBHNOM; the class
+# is robust to it (coarse 5/25 thresholds). Needs an SSTGHP DEBUG dump to finish — see chunk plan.
 # =============================================================================
 
 # Default SSTAGE thresholds (isstag.f:32-37), in the `control.strclass_thresh` order:
@@ -70,19 +74,19 @@ number of valid strata, the whole-stand canopy cover %, and the uppermost-stratu
 override the thresholds (`control.strclass_thresh` = gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx).
 """
 function structure_class(s::StandState; iba::Int = 1)
-    t = s.trees; p = s.plot; co = s.coef; g = p.gross_space
+    t = s.trees; p = s.plot; co = s.coef
     cccoef = Float64(s.control.cc_coef)
     th = s.control.strclass_thresh
     gappct = Float64(th[1]); ssdbh = Float64(th[2]); sawdbh = Float64(th[3])
     ccmin = Float64(th[4]); tpamin = Float64(th[5]); pctsmx = Float64(th[6])
-    # working list: live trees with HT > 0; per-acre TPA; crown area = π/4·CW²·TPA (covolp.f)
+    # working list: live trees with HT > 0; PROB (raw); crown area = π/4·CW²·TPA (covolp.f)
     n = 0; ht = Float64[]; dbh = Float64[]; tpa = Float64[]; crarea = Float64[]
     @inbounds for i in 1:t.n
         t.height[i] > 0f0 && t.tpa[i] > 0f0 || continue
         sp2 = strip(co.code_alpha[Int(t.species[i])])
         cw = crown_width(co, sp2, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
                          p.latitude, p.longitude, p.elevation)
-        pa = Float64(t.tpa[i] / g)
+        pa = Float64(t.tpa[i])                          # PROB (raw, as SSTAGE uses it — NOT /GROSPC)
         n += 1; push!(ht, Float64(t.height[i])); push!(dbh, Float64(t.dbh[i]))
         push!(tpa, pa); push!(crarea, Float64(cw)^2 * pa * 0.785398)
     end

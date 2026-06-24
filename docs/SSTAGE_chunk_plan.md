@@ -45,17 +45,15 @@ against ground truth. **Validate every chunk against this report**, not just the
 ## Proposed chunks (each validated vs the Structural statistics report)
 - **A — helpers:** `covolp` (cover from crown areas + CCCOEF) and `sstghp` (per-stratum PROB-wtd
   DBH/heights/crown/dominant-species). Pure, unit-testable against the report's per-stratum columns.
-  ⚠ **Chunk-A finding (2026-06-24):** `covolp` itself is trivial — `PCCU = CCCOEF·(Σ
-  0.785398·CW²·TPA)/43560`, `cover=(1−exp(−PCCU))·100` (cap 100) — and CCCOEF=1.0 is now the
-  default (grinit.f:269, just fixed). The precision blocker is **which crown width `CW`**: using
-  FVSjl's base `crown_width` (CWEQN) gives whole-stand cover **79.4 (forest-grown, iwho=0)** /
-  **83.1 (open-grown, iwho=1)** vs the report's **82** for fire_early @1990. The exact `CRWDTH`
-  FVS feeds COVOLP is the question — and fire_early has FFE ACTIVE, so SSTAGE likely uses the
-  **FMCROWE** crown width (`fire/crown_biomass.jl`, the FFE crown model), NOT the base CWEQN.
-  Resolve the crown-width SOURCE first (trace `CRWDTH` in the SN+FFE flow / dump Fortran's per-tree
-  CRWDTH), else the per-stratum Cover columns won't be bit-exact. NOTE: the class only uses cover as
-  a `> CCMIN=5%` threshold, so it is robust to a few-% cover error — Chunks B/C (the CLASS) may be
-  validatable even before the cover is bit-exact, but the report's Cover columns need the right CW.
+  ✅ **Chunk-A RESOLVED (2026-06-24): the cover is bit-exact.** `covolp` = `PCCU = CCCOEF·(Σ
+  0.785398·CW²·PROB)/43560`, `cover=(1−exp(−PCCU))·100` (cap 100), CCCOEF=1.0 default. The earlier
+  79.4-vs-82 gap was NOT the crown width (the "FMCROWE" hypothesis was wrong) — FVSjl's base
+  `crown_width` (forest-grown, iwho=0) **exactly matches Fortran's per-tree CrWidth** (21.83/15.43/…,
+  dumped via TREELIDB). The fix was the **TPA normalization**: COVOLP uses the **RAW PROB** (`t.tpa`),
+  NOT per-acre (`t.tpa/GROSPC`) → cover 82 (was 79.4). Validated: snt01 stand-1 Tot-Cov 10/11 cycles
+  bit-exact (±1 ULP round); fire_early pre-fire 82/87/90 exact (post-fire = the known fire residual).
+  ⚠ Still open: the per-stratum **DBH** column (`_ss_dbhnom`/strdbh) tracks but runs ~1-5" low vs the
+  SSTGHP DBHNOM — needs an SSTGHP DEBUG dump to pin the I3-cutoff / PCTILE / window detail.
 - **B — stratification:** ✅ DONE (`structure_stage.jl`). The HT-sort + two-largest-gap finder →
   strata boundaries + NSTR, plus the SSTGHP dominant-cohort DBH (`_ss_dbhnom`: canopy cohort = top
   trees until cumulative crown area > 41382 sq ft, then the PROB-wtd mean DBH of the ±4-tree window
