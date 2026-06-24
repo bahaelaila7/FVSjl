@@ -54,6 +54,7 @@ using FVSjl
     include("integration/test_cuteff.jl")       # C3: CUTEFF default cutting efficiency vs Fortran
     include("integration/test_managed.jl")      # C3: MANAGED → DGF planted/managed growth term vs Fortran
     include("integration/test_bamax.jl")         # C3: BAMAX → SDImax self-thinning cap vs Fortran
+    include("integration/test_sdimax.jl")     # C3/C4: SDIMAX per-species SDImax + PMSDIL/PMSDIU vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

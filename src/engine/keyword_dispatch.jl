@@ -155,6 +155,40 @@ function kw_bamax!(s::StandState, rec::KeywordRecord)
     return
 end
 
+"""
+    kw_sdimax!(s, rec)
+
+SDIMAX (initre.f:3072, option 89): override the maximum stand density index and the self-
+thinning bounds. Field 1 is a species (blank/0 = all, −N = SPGROUP, else a code); field 2
+(if > 0) sets that species' `sp_sdi_def` (SDIDEF, the per-species SDImax — a flagged user
+value that `site_index_setup!` then leaves untouched). Fields 5/6 set the lower/upper
+self-thinning *percents* PMSDIL (≥10) / PMSDIU (≤95) — stored here as the fractions the
+mortality model uses (`pct_sdimax_mort_lo`/`_hi`, ÷100).
+"""
+function kw_sdimax!(s::StandState, rec::KeywordRecord)
+    p = s.plot; v = rec.values; pr = rec.present
+    if pr[2] && v[2] > 0f0                              # per-species max SDI (SDIDEF + MAXSDI)
+        spfield = strip(rec.fields[1])
+        num = tryparse(Int, spfield)
+        targets = Int[]
+        if isempty(spfield) || spfield == "0"
+            append!(targets, 1:length(p.sp_sdi_def))    # all species
+        elseif num !== nothing && num < 0               # species group −N
+            g = -num
+            (1 <= g <= length(s.control.sp_groups)) && append!(targets, s.control.sp_groups[g])
+        else
+            idx, _ = resolve_species(spfield, s.variant, s.species, s.coef)
+            idx > 0 && push!(targets, idx)
+        end
+        for sp in targets
+            (1 <= sp <= length(p.sp_sdi_def)) && (p.sp_sdi_def[sp] = Float32(v[2]))
+        end
+    end
+    pr[5] && (p.pct_sdimax_mort_lo = max(Float32(v[5]), 10f0) / 100f0)   # PMSDIL (≥10) → fraction
+    pr[6] && (p.pct_sdimax_mort_hi = min(Float32(v[6]), 95f0) / 100f0)   # PMSDIU (≤95) → fraction
+    return
+end
+
 # OPTION 14 — STDINFO (initre.f:808): stand info. Forest/habitat decoding
 # (FORKOD/HABTYP) is deferred; the geometry/site fields are set here.
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
@@ -1012,6 +1046,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
         elseif kw == "MANAGED";  kw_managed!(s, rec)       # managed-stand flag → DGF kplant term (dgf.f:179)
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
+        elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
