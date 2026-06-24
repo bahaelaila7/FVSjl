@@ -350,6 +350,17 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     # FIXMORT (morts.f:781): forced-mortality override, applied AFTER the BA-check and TPAMRT.
     apply_fixmort!(s, killed, n, fint)
 
+    # FFE: trees killed by ordinary mortality become standing snags (FMSDIT, the FFE counterpart of
+    # the fire-kill snags in fmburn!). The snags feed the Stand-Dead carbon pool and, as they fall
+    # (update_snags!), the down-wood pool. No-op unless FFE is active.
+    if s.fire !== nothing && s.fire.active
+        yr = current_cycle_year(s)
+        @inbounds for i in 1:n
+            killed[i] > 0f0 && t.dbh[i] > 0f0 &&
+                add_snag!(s.fire, Int(t.species[i]), t.dbh[i], killed[i], yr)
+        end
+    end
+
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
     end

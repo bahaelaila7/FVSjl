@@ -100,8 +100,14 @@ end
             @test abs(r.belowground - parse(Float64, f[4])) <= 0.02 * parse(Float64, f[4]) + 0.2
             # forest floor reconciles every cycle (decay + litterfall)
             @test abs(r.forest_floor - parse(Float64, f[8])) <= 0.2
-            # DDW reconciles before mortality starts (1990/1995); 2000+ needs snag-debris (CWD2B)
+            # DDW reconciles before mortality starts (1990/1995); after, periodic-mortality snags
+            # feed it as they fall (the 2005 column reconciles); the exact falldown timing at 2000
+            # still needs the CWD2B debris-scheduling, so DDW is asserted only on the matched cycles.
             f[1] in ("1990", "1995") && @test abs(r.down_wood - parse(Float64, f[7])) <= 0.1
+            f[1] == "2005" && @test abs(r.down_wood - parse(Float64, f[7])) <= 0.3
+            # Stand-Dead (snag) carbon: 0 before mortality, populated after (periodic-mortality snags)
+            f[1] in ("1990",) && @test r.standing_dead == 0f0
+            f[1] in ("2000", "2005") && @test parse(Float64, f[6]) - 2f0 <= r.standing_dead <= parse(Float64, f[6]) + 2f0
             if c < length(ft)
                 # evolve the fuels with the START-of-cycle crown (FVS records the crown at the END of
                 # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.
