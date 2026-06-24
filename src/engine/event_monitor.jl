@@ -73,10 +73,30 @@ function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     end
     name == "CYCLE" ? Float32(ctx.cycle) :
     name == "YEAR"  ? Float32(ctx.year) :
-    name == "BBA" || name == "BSDI" ? stand_ba(ctx.state) / ctx.state.plot.gross_space :
+    name == "BBA"  ? stand_ba(ctx.state) / ctx.state.plot.gross_space :
+    name == "BSDI" ? _event_bsdi(ctx.state) :                       # SDIBC (Reineke SDI, evtstv.f:116)
     name == "TPA"  ? stand_tpa(ctx.state) / ctx.state.plot.gross_space :
     name == "AGE"  ? Float32(ctx.state.plot.stand_age) :
     error("event-monitor variable not yet ported: $name")
+end
+
+# BSDI = SDIBC (evtstv.f:116) = the before-cut REINEKE stand density index — the
+# `SDIC = SPROB·A + B·SDSQ` Taylor form (sdical.f:281-327, via SDICLS). This is a DIFFERENT
+# SDI from the reported `.sum` column (SDIBC2 = Zeide summation) AND the mortality SDImax —
+# FVS keeps all three. The event monitor reports SDIBC RAW (NOT divided by GROSPC, unlike
+# BBA/TPA — evtstv.f:285 has no /GROSPC), so `t.tpa` is used directly (already gross-scaled).
+# (Earlier this returned the BA — a copy-paste bug from BBA.)
+function _event_bsdi(s::StandState)::Float32
+    t = s.trees
+    sprob = 0f0; sdsq = 0f0
+    @inbounds for i in 1:t.n
+        sprob += t.tpa[i]; sdsq += t.dbh[i]^2 * t.tpa[i]
+    end
+    sprob <= 0f0 && return 0f0
+    mdsq = sdsq / sprob
+    a = 10f0^(-1.605f0) * (1f0 - 1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0)
+    b = 10f0^(-1.605f0) * (1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0 - 1f0)
+    return sprob * a + b * sdsq
 end
 
 # --- tokenizer --------------------------------------------------------------

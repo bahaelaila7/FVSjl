@@ -51,10 +51,12 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
     on `!isempty(conds)`, cuts.jl:132), so the table can't just snapshot every cycle. Resolve
     the COMPUTE eval/write trigger vs Fortran before re-adding. (MYBA=BBA / MYCYC=CYCLE matched
     Fortran exactly, so the writer + dynamic schema are correct — only the row cadence is wrong.)
-    ⚠ **Found a real event-monitor bug** doing this: `event_monitor.jl:76` returns `stand_ba`
-    for BOTH `BBA` and `BSDI` (copy-paste) — `BSDI` should be an SDI. Fortran's BSDI≈203 is a
-    Reineke-style SDI (≠ the `.sum` Zeide 160), so the fix needs the right SDI method too. See
-    DIVERGENCES.
+    ✅ **Fixed a real event-monitor bug** found doing this: `event_monitor.jl` returned
+    `stand_ba` for BOTH `BBA` and `BSDI` (copy-paste). `BSDI` = SDIBC = the **raw** Reineke
+    SDIC (`SPROB·A + B·SDSQ`, sdical.f:281-327) — a different SDI from the `.sum` Zeide column
+    (160) and the mortality SDImax. Reported RAW (no /GROSPC, unlike BBA/TPA — that 1.10× factor
+    was the whole 184.5-vs-203 gap). Now `_event_bsdi` = **202.9, bit-exact** vs live Fortran
+    `COMPUTE BSDI` (`test_event_monitor.jl`).
   - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
     compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 

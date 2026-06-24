@@ -51,3 +51,21 @@ const _EM_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test isapprox(tpa2030, 257.0; atol = 3)
     end
 end
+
+@testset "event monitor — BSDI is the Reineke SDIBC, not the BA" begin
+    # Regression for the copy-paste bug where BSDI returned the basal area. BSDI = SDIBC
+    # (the raw Reineke SDIC = SPROB·A + B·SDSQ, sdical.f:281-327) — a DIFFERENT SDI from the
+    # `.sum` Zeide column and the mortality SDImax. Reported RAW (no /GROSPC, unlike BBA/TPA).
+    key = "/workspace/FVSjl/test/harness/scenarios/fire_early.key"
+    if !isfile(key)
+        @test_skip "fire_early.key not available"
+    else
+        s, _ = FVSjl.initialize(key)
+        notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s); FVSjl.compute_density!(s)
+        bsdi = FVSjl._event_bsdi(s)
+        ctx = FVSjl.EventCtx(1, 1990, s)
+        @test FVSjl._event_var("BSDI", ctx) ≈ bsdi          # the variable dispatches to BSDI
+        @test FVSjl._event_var("BSDI", ctx) != FVSjl._event_var("BBA", ctx)   # not the BA
+        @test isapprox(bsdi, 202.9; atol = 0.2)             # bit-exact vs live Fortran COMPUTE BSDI
+    end
+end
