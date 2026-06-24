@@ -178,3 +178,16 @@ crown debris still in waiting** (fmdout.f:173: `+= P2T·(CWD2B+CWD2B2)`). So:
 and (b) Stand-Dead = stem-bole + Σ(CWD2B)·P2T. This is a deeper port than "subtract the crown"; it
 replaces FVSjl's Jenkins-based `standing_dead_carbon` with the volume-based FFE snag model + CWD2B.
 The 7-of-9 reconciled columns (incl. below-dead, floor, DDW@95/2005) are independent of this and stand.
+
+### Stand-Dead needs the snag HEIGHT-LOSS + stem-volume model (final root cause)
+`TOTSNG = (SNVIS+SNVIH)·V2T` where `SNVIH = FMSVOL(I, HTIH(I))·DENIH` (fmdout.f:140-155): the snag
+biomass is the stem VOLUME computed at the snag's CURRENT height `HTIH/HTIS`, and that height
+DECREASES each cycle as the snag loses its top (HTX height-loss rate). So Stand-Dead is dynamic on
+two axes — falling density (already in `update_snags!`) AND shrinking height/volume (NOT in FVSjl).
+To reconcile bit-exact, the FFE snag model must additionally:
+1. track per-cohort snag HEIGHT (HTIH/HTIS) and apply the per-species HTX height-loss each cycle;
+2. compute the standing bole as `FMSVOL(dbh, current_height)·V2T·density` (a stem-volume routine, not
+   Jenkins) — FVSjl's per-tree cubic volume is the starting point but it's a full-height volume;
+3. add the CWD2B crown-still-in-waiting to Stand-Dead (and move it to DDW as it falls).
+⇒ The Stand-Dead + DDW-timing remainder is a focused FFE snag-volume sub-port (height-loss + FMSVOL +
+CWD2B), not a line fix. The 7 reconciled columns (live, below-dead, floor, DDW@95/2005, shrub) stand.
