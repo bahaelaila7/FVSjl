@@ -76,7 +76,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true,
-                        collect_rows::Union{Nothing,Vector} = nothing)
+                        collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing)
     ncyc = Int(s.control.ncycle)             # rows = ncyc + 1 (inventory + each cycle)
     per = round(Int, s.control.year)         # cycle length (YR/IFINT; TIMEINT) — default 5
     per < 1 && (per = period)
@@ -92,6 +92,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         last = c == ncyc
         # main columns reflect the start-of-cycle (pre-thin) stand
         r = summary_row(s; period = last ? 0 : per, total_removed_merch = cum_rem_merch)
+        # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
+        cycle_hook === nothing || cycle_hook(s, r.year, last ? 0 : per)
         if !last
             # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
             # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is

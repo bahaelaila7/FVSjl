@@ -234,16 +234,23 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         compute_volumes!(s)
         sid = strip(s.plot.stand_id)
         mid = strip(s.plot.mgmt_id); mid = isempty(mid) ? "NONE" : String(mid)
-        # DBS output (DATABASE/SUMMARY): collect this stand's rows and append them to the
-        # FVS_Summary table of the DSNOUT database, in addition to the text `.sum`.
-        dbs_on = s.control.dbs_summary && !isempty(s.control.dbs_out_file)
-        rows = dbs_on ? SummaryRow[] : nothing
+        # DBS output (DATABASE block): collect this stand's summary rows and/or per-cycle tree
+        # snapshots and append them to the DSNOUT database, in addition to the text `.sum`.
+        has_db = !isempty(s.control.dbs_out_file)
+        sum_on = s.control.dbs_summary && has_db
+        tl_on = s.control.dbs_treelist && has_db
+        rows = sum_on ? SummaryRow[] : nothing
+        tl_cycles = tl_on ? Tuple[] : nothing
+        hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
-                       mgmt_id = mid, date = date, time = time, collect_rows = rows)
-        if dbs_on
+                       mgmt_id = mid, date = date, time = time,
+                       collect_rows = rows, cycle_hook = hook)
+        if sum_on || tl_on
             case += 1
-            write_dbs_summary!(s.control.dbs_out_file, string(sid, "-", case), String(sid),
-                               rows; mgmt_id = mid, variant = variant_code(s.variant))
+            caseid = string(sid, "-", case)
+            sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
+                                         mgmt_id = mid, variant = variant_code(s.variant))
+            tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
         end
     end
     return String(take!(out))

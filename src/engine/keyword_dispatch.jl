@@ -1010,6 +1010,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_out_file = strip(read_raw_line!(kr))   # filename on the next line
         elseif k == "SUMMARY"
             s.control.dbs_summary = true
+        elseif k == "TREELIDB"
+            s.control.dbs_treelist = true
         end
     end
     return

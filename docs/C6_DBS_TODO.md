@@ -33,7 +33,17 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   exact vs the live Fortran `FVSOut.db`** (`test_dbs_summary.jl`, `dbs_summary.key`: every
   column — Tpa/BA/SDI/CCF/TopHt/QMD/MCuFt/BdFt — matches, only ±1 cuft Float32 noise). This is
   the same data the text `.sum` carries, into a database (the "same SQLite outputs" goal).
-- ⛔ The remaining ~17 tables (TreeList, Compute, Carbon, …) + the FVS_Cases full schema.
+- ✅ **FVS_TreeList** (`write_dbs_treelist!` + `treelist_snapshot`) — the per-cycle, per-tree
+  detail table (dbstrls.f). `write_sum_file` gained a `cycle_hook` that snapshots the start-of-
+  cycle tree list (DATABASE `TREELIDB` ⇒ `dbs_treelist`); columns map directly from the
+  `TreeList` struct (species FVS/PLANTS/FIA, TPA, DBH, DG, Ht, HtG, PctCr, CrWidth, BAPctile,
+  PtBAL, TCuFt/MCuFt/SCuFt/BdFt, TruncHt, the merch-top heights Ht2TDCF/BF, TreeAge). **Per-tree
+  TPA = `t.tpa/gross_space`** (= Fortran `PROB/GROSPC`; the validation caught a missing /g).
+  Validated: each cycle's Σ(TPA) and Σ(TCuFt·TPA) reconstruct the Fortran-bit-exact `.sum` stand
+  TPA / cubic volume (`test_dbs_treelist.jl`). The exact per-tree row set differs from Fortran
+  only by the tripling/COMCUP record PARTITION (same totals). Not-yet-filled cols (nullable):
+  MortPA, TreeVal/SSCD/PtIndex, MistCD, MDefect/BDefect split, EstHt, ActPt.
+- ⛔ The remaining ~16 tables (Compute, Carbon, …) + the FVS_Cases full schema.
 
 > Next: TreeList (per-tree records) + Compute (event-monitor vars), then G1/G2-dependent
 > Carbon. The Summary writer establishes the pattern (CREATE TABLE IF NOT EXISTS + prepared

@@ -67,3 +67,62 @@ function write_dbs_summary!(dbpath::AbstractString, caseid::AbstractString,
     end
     return dbpath
 end
+
+# FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
+# computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
+const _FVS_TREELIST_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_TreeList(
+  CaseID text not null, StandID text not null, Year int, PrdLen int, TreeId text,
+  TreeIndex int, SpeciesFVS text, SpeciesPLANTS text, SpeciesFIA text, TPA real,
+  DBH real, DG real, Ht real, HtG real, PctCr int, CrWidth real, BAPctile real,
+  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, TruncHt int,
+  Ht2TDCF real, Ht2TDBF real, TreeAge real);
+"""
+
+"""
+    treelist_snapshot(s, year, prdlen) -> (year, prdlen, rows)
+
+Capture the start-of-cycle (pre-thin) tree list for the FVS_TreeList table — one tuple per
+live record (the columns FVSjl computes directly). Called per cycle by `write_sum_file`'s
+`cycle_hook`; the tuples are written later by `write_dbs_treelist!`.
+"""
+function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
+    t = s.trees; c = s.coef; pbal = s.density.point_bal
+    g = s.plot.gross_space                      # TPA is per-acre = t.tpa/g (Fortran PROB/GROSPC)
+    rows = Vector{Any}[]
+    @inbounds for i in 1:t.n
+        sp = Int(t.species[i])
+        push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
+            strip(c.code_plants[sp]), strip(c.code_fia[sp]), Float64(t.tpa[i] / g),
+            Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
+            Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(t.crown_width[i]),
+            Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
+            Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
+            Float64(t.bdft_vol[i]), Int(t.trunc[i]), Float64(t.merch_top_cf[i]),
+            Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+    end
+    return (Int(year), Int(prdlen), rows)
+end
+
+"""
+    write_dbs_treelist!(dbpath, caseid, standid, cycles)
+
+Write the per-cycle tree snapshots (`treelist_snapshot` tuples) to the FVS_TreeList table.
+"""
+function write_dbs_treelist!(dbpath::AbstractString, caseid::AbstractString,
+                             standid::AbstractString, cycles)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_TREELIST_CREATE)
+        ins = "INSERT INTO FVS_TreeList VALUES (" * join(fill("?", 26), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (year, prdlen, rows) in cycles, r in rows
+            # r = [TreeId,TreeIndex,SpFVS,SpPLANTS,SpFIA,TPA,DBH,DG,Ht,HtG,PctCr,CrWidth,
+            #      BAPctile,PtBAL,TCuFt,MCuFt,SCuFt,BdFt,TruncHt,Ht2TDCF,Ht2TDBF,TreeAge]
+            DBInterface.execute(stmt, (caseid, standid, year, prdlen, r...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
