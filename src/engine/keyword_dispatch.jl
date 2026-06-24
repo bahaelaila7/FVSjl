@@ -13,36 +13,32 @@
 # added here as later chunks need them (thinning, fire, econ, ...).
 # =============================================================================
 
-# Keywords recognized but not acted on. ⚠ SCOPE: these determinations are made for the SN
-# variant — they are NOT all guaranteed inert in other variants. When a second variant is
-# added, re-verify the SN-specific group (below) by tracing each keyword's EFFECT variable
-# (the MANAGED bug — a real SN growth effect mislabeled here — is the cautionary tale).
+# Variant-AGNOSTIC no-ops: keywords inert in EVERY variant — pure I/O / echo / debug /
+# report control, plus report-table requests (no `.sum` effect anywhere; they request a
+# C6 DBS/.out table FVSjl doesn't emit yet). Acting on these is a reporting chunk, not a
+# simulation change. Variant-SPECIFIC no-op determinations live with each variant (see
+# `variant_noop_keywords`) so they get re-verified per variant — the MANAGED bug (a real SN
+# growth effect once mislabeled inert) is why that split matters.
 const KNOWN_NOOP = Set([
-    # (1) Universally inert — pure I/O / echo / debug / report control, no simulation effect
-    #     in ANY variant.
+    # pure I/O / echo / debug / report control
     "SCREEN", "NOSCREEN", "STATS", "ECHOSUM", "ECHO", "NOECHO", "NOSUM",
     "NODEBUG", "DEBUG", "CALBSTAT", "REWIND", "ENDFILE", "FVSSTAND",
-    # (2) Report-table requests — no .sum effect in any variant, but they DO request output
-    #     tables (C6 DBS / .out) that FVSjl does not yet emit. "No-op" = report not produced.
+    # report-table requests (output not yet emitted)
     "TREELIST", "ATRTLIST", "CUTLIST",
-    # (3) Establishment-control flags — establishment is variant-specific; their inertness is
-    #     a CURRENT-STATE assumption (NOAUTOES matches FVSjl's no-auto-establish default; AUTOES
-    #     would need the auto-establishment trigger ported — a latent gap, like MANAGED was).
-    "NOTREES", "NOHTDREG", "AUTOES", "NOAUTOES",
-    # (4) SN-VERIFIED inert / SN-scoped — re-check for other variants:
-    #   FIXCW (sn/cwidth.f): crown-width override — verified .sum-inert in SN (CRWDTH is output-
-    #     only, never fed into CCF/growth; a live-Fortran SN FIXCW run is byte-identical). Other
-    #     variants may use crown width differently.
-    "FIXCW",
-    #   FIAVBC: switches volume/biomass to the FIA National Volume Library — FVSjl has only the
-    #     R8 Clark equations (the SN default, LFIANVB=.FALSE.). A variant/config using the NVB
-    #     path would diverge; out of scope.
-    "FIAVBC",
-    # (5) ⚠ NOT inert — real effect, UNPORTED (parked here only because it doesn't fire in the
-    #     current test scenarios). COMPRESS (comprs.f) compresses the record list — it changes
-    #     results in EVERY variant once it fires (the COMPRESS keyword, or >~3000 records).
-    "COMPRESS",
+    # bare-stand flag (also handled explicitly below; harmless here)
+    "NOTREES",
 ])
+
+"""
+    variant_noop_keywords(variant) -> Set{String}
+
+Keywords that are inert *for this variant* but NOT guaranteed inert for others — so each
+new variant supplies its own set (default empty). The dispatch treats these as no-ops
+alongside the variant-agnostic [`KNOWN_NOOP`]. Re-verify by tracing the keyword's effect
+variable when porting another variant.
+"""
+const EMPTY_STRING_SET = Set{String}()
+variant_noop_keywords(::AbstractVariant) = EMPTY_STRING_SET
 
 "Read one raw (un-lexed) line from the keyword stream, advancing the record count."
 function read_raw_line!(kr::KeywordReader)
@@ -1111,8 +1107,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BFFDLN";   kw_bffdln!(s, rec)        # board form-model coefs BFLA0/BFLA1 (sdefln.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "PROCESS";  return finish(:process)
-        elseif kw in KNOWN_NOOP
-            # recognized, no cycle-0 effect yet
+        elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
+            # recognized no-op — variant-agnostic, or inert for this variant
         else
             # unrecognized keyword — ignored for now (handlers added per chunk)
         end
