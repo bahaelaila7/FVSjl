@@ -110,7 +110,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 |---|---|---|
 | IF / THEN / ENDIF | conditional activity scheduling (snt01 stand 2) | ✅ event_monitor.jl (AST evaluator); stand 2 first 2 thins bit-exact; 3rd = class-boundary residual |
 | COMPUTE | event-monitor variable assignment | ✅ (kw_compute! parses NAME=expr…END, evaluated each cycle in cuts! before IF conditions read them via compute_vars; ≡ direct ref, bit-exact lead stand, test_compute.jl) |
-| TIMEINT | cycle length (period scaling) | ✅ uniform **and per-cycle** (field-1 = cycle N → `cycle_lengths[N+1]`, cumulated by `build_cycle_schedule!`; DDS·FINT/5 + HTG·FINT/5 + mortality^FINT + year/age from the IY schedule; snt01 bit-exact, TIMEINT-10 TPA ≤8 / volume ≤2% — calibrated-species sp33/65 non-5-yr period residual; test_timeint.jl). Per-cycle GROWTH still deferred |
+| TIMEINT | cycle length (period scaling) | ✅ uniform **and per-cycle** (field-1 = cycle N → `cycle_lengths[N+1]`, cumulated by `build_cycle_schedule!`; DDS·FINT/5 + HTG·FINT/5 + mortality^FINT + year/age from the IY schedule; snt01 bit-exact, TIMEINT-10 TPA ≤8 / volume ≤2% — calibrated-species sp33/65 non-5-yr period residual; test_timeint.jl). GROWTH (input-growth-data calibration keyword, ≠ per-cycle mult) still deferred |
 | CYCLEAT | extra cycle-boundary year | ✅ **DONE** (opt 134, initre.f:13400 + fvs.f:116-135). `kw_cycleat!` collects de-duplicated calendar years; `build_cycle_schedule!` inserts each as a new boundary strictly inside the run (no end-extend / start-move), bumping `ncycle_eff`. Built the **non-uniform cycle schedule** (the FVS IY array) it needs: `cycle_year`/`cycle_period_at`/`current_cycle_year`, routing every per-cycle year derivation (summary, growth, mortality, cuts, fire, fert, econ, multiplier windows) through it — **bit-exact for uniform cycles** (snt01 unchanged). vs live Fortran: YEAR + PrdLen columns **bit-exact**; stand within the same TIMEINT non-5-yr residual (confirmed identical in a plain uniform-TIMEINT-3 control → period scaling, not CYCLEAT). test_cycleat.jl |
 | ESTAB-block (TALLY/PLANT/NATURAL/SPROUT) | establishment scheduling | ✅ PLANT/NATURAL **and SPROUT** (ESUCKR stump-sprout regen — bit-exact vs live Fortran on `sprout.key`, 113 tests); ⛔ TALLY counts only |
 
@@ -161,8 +161,15 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   and `evldx.f:430` (the cover event-monitor var) — never by the core growth/mortality/density.
   Empirically: live-Fortran snt01 `+CCADJ 0.5` is byte-identical to baseline (only the run
   timestamp differs). In KNOWN_NOOP; revisit only when COVER/SSTAGE output is ported (C6/output).
-- `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item). Now
-  unblocked: the non-uniform cycle schedule (`build_cycle_schedule!` / `cycle_period_at`) is in.
+- `GROWTH` (opt 13, vbase/initre.f:2300) — ⛔ **NOT a per-cycle DG/HTG multiplier** (earlier
+  mischaracterization, corrected 2026-06-24). It sets how the INPUT tree records' growth fields are
+  interpreted for the LSTART calibration: `IDG`/`IHTG` data-type codes (0 = none [grinit default],
+  1/3 = the field is past DBH/HT → `PDBH`/`PHT`, 2 = increment) and the measurement periods
+  `FINT`/`FINTH`/`FINTM` (diameter/height/mortality) used in the calibration SCALE = YR/FINT. The
+  IDG/IHTG paths live in intree.f:531-537 (set PDBH/PHT), cratet.f:170-185/556-558 (dub from past
+  measurement), dgdriv.f:330/726 + dense.f:101-122. **This is WK3 past-DBH calibration territory**
+  (sp33/65) — a focused calibration chunk, not a value-setter. No current scenario uses it
+  (fire_early.key has it commented `!GROWTH`); FVSjl's default IDG=0 path is bit-exact for snt01.
 - `CYCLEAT` — ✅ **DONE** (see the keyword table above): explicit cycle-boundary years built on the
   new non-uniform IY schedule; bit-exact YEAR/PrdLen vs Fortran, stand within the TIMEINT residual.
   `SDICALC` — SDI
