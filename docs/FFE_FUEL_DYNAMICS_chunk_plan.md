@@ -312,3 +312,21 @@ ONLY remaining part of the crown-lift (hence the last DDW column) is the tree-re
 the previous-cycle per-tree oldht/oldcrl, maintained across the regen/mortality/tripling tree-list
 mutations (compact_live!/tredel_compact!/establishment/tripling/sprout — the FVSjl analogues of FVS's
 FMTDEL/FMTRIP/FMCMPR OLDCRW maintenance). Suite 4273.
+
+### Crown-lift plumbing — PROVEN to work; remaining issue is POST-GROW placement (grow_cycle! wiring)
+Implemented the full plumbing end-to-end (then reverted, see below): added `prev_height`/`prev_crown_len`
+as TreeList fields in `_TREE_VEC_FIELDS` (so they ride through compaction/tripling via `copy_tree!` for
+free — the clean architecture, no parallel-array maintenance needed), an `fmoldc!` cycle-end snapshot,
+and the `(_FM_LIMBRK + X)·CROWNW·TPA·P2T` lift in `fmcadd_woody!`. Result on carbon_jenkins (flow_grow):
+the lift FIRES with the right magnitude — DDW@2005 went 6.10 → 9.15. But it is MISTIMED:
+- @2000 unchanged (2.06): its lift would come from the 1990 snapshot, but inventory crown_pct=0 there;
+- @2005 OVERSHOOTS (9.15 vs 8.0): both cycles' lift piled onto 2005.
+ROOT: in the flow-before-grow order the fuel update sees PRE-grow trees, so X measures the PREVIOUS
+cycle's crown-base rise; FVS's FMSDIT runs POST-grow (after GRINCR), so X measures the CURRENT cycle's
+rise and is applied in that cycle's annual loop. So the lift belongs AFTER grow_cycle!, using the
+post-grow crown — exactly the grow_cycle! hot-path wiring. The cwd2b crown flow must STAY pre-grow
+(it matched Stand-Dead), so the FFE update splits around grow_cycle!: pre-grow {cwd2b-fall, decay,
+litterfall, breakage} and post-grow {crown-lift with the current-cycle rise}. Magnitude is validated
+(~0.39 t/ac/yr); only this split placement remains. Reverted the wiring (it overshoots the DDW bound
+test pre-split); kept `crown_lift_rate` (committed, tested). The fields/snapshot/lift are a ~30-line
+re-add once the grow_cycle! split lands.
