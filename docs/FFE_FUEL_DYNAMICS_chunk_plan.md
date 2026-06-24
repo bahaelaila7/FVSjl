@@ -31,9 +31,17 @@ The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together t
      replenished by annual **litterfall** (chunk 2). Porting FMCWD without it makes Floor far too low ⇒
      NOT independently validatable against the report. (Initial split for carbon_jenkins: FUINI 160s =
      litter 4.90 + duff 6.03 = 10.93 t/ac ⇒ ×0.37×2.2417 = 9.1; duff barely decays at 0.002/yr.)
-2. **Additions — litterfall + mortality → dead wood (`FMSADD` fire/base/fmsadd.f, 447 ln).** Annual canopy
-   litterfall replenishes size-10 litter (the missing term above); dying trees + falling snags add to the
-   woody pools. Must land WITH chunk 1 for the net DDW/Floor to validate at 1995/2000.
+2. **Additions — `FMCADD` (fire/base/fmcadd.f:65-130) is the litter/wood input each cycle** (NOT fmsadd,
+   which is salvage). Per live tree (FMPROB>0, decay class `DKRCLS(SP)`):
+   - **Litterfall** = `CROWNW(I,0)·FMPROB(I)/LEAFLF(SP)·P2T` → size-10 litter. `CROWNW(I,0)` = foliage
+     biomass (FVSjl has crown_biomass.jl / FMCROWE), `LEAFLF` = per-species leaf lifespan (→ CSV), P2T =
+     lb→ton. This is the term that keeps litter from crashing — the crux of the decay/addition coupling.
+   - **Woody crown breakage** = `LIMBRK·FMPROB·CROWNW(I,SIZE)·P2T` for SIZE 1..5 → woody CWD; plus
+     crown-lift dead material `FMPROB·OLDCRW(I,SIZE)·P2T`.
+   - **Snag debris falldown**: the year-1 pool `CWD2B(DKCL,·,1)` flows into CWD (couples to snag.jl
+     falldown). Needs the `CWD2B` debris-in-waiting accumulator (new state).
+   Dependencies to add: `LEAFLF` table, `LIMBRK` constant, the `CWD2B` pool, and the per-tree foliage +
+   woody crown biomass (CROWNW) wired from crown_biomass.jl. Must land WITH chunk 1 to validate.
 3. **Per-cycle FFE driver** — call the fuel update (`fmcba!` live/cover + `fmcwd!` decay + `fmsadd!` adds)
    every cycle for FFE-active stands from `grow_cycle!` (today only `fmburn!` runs, only on a fire year).
    Order vs growth/mortality must follow the FFE main (`fmmain.f`). ⚠ Fire-path regression gate is now in
