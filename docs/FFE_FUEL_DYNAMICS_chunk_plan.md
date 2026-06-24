@@ -146,3 +146,21 @@ After CWD2B: (2) grow_cycle! hot-path wiring (fuel update BEFORE growth, behind 
   fire-kill (`fmburn!`) and mortality call sites pass the bole; SAFE for test_fire (it asserts the live
   `.sum`, not snag carbon).
 ⇒ ~10 touch points + the FMSNGDK dependency — a focused chunk, not a tail-end task.
+
+### CWD2B attempt findings (the snag is DYNAMIC, not a static bole)
+Attempted the full CWD2B port (cwd2b[4,6,60] state, FMSCRO spread, TFALL/TSOFT, the annual flow, and
+a SnagList `abv` bole field with both add_snag! call sites) — then REVERTED it because it did not
+reconcile and would have regressed the validated Stand-Dead. What it surfaced:
+- **The snag biomass is DYNAMIC.** A static `abv = jenkins_above − all_crown` over-removes the crown:
+  Stand-Dead went 6.1 → 4.6 (Fortran 5.2). The faithful model is the snag = whole tree MINUS the crown
+  that has FALLEN so far; the standing biomass decreases each cycle as the coarse crown (long TFALL)
+  comes off. So `standing_dead_carbon` must subtract the *cumulative* CWD2B outflow for each cohort,
+  not a fixed bole — i.e. track per-cohort crown-remaining, or recompute from the cohort's CWD2B share.
+- **Timing / crown snapshot.** The crown scheduled at a cycle's mortality must FLOW during that same
+  cycle to land in that cycle's DDW; but litterfall needs the cycle-START crown. With the driver placed
+  after mortality, the crown flows a cycle late (DDW@2000 stayed 2.1). Needs the fmmain.f:264 crown
+  snapshot: record each tree's crown at cycle END for the NEXT cycle's litterfall, and run mortality →
+  FMSCRO → the annual flow within the same cycle. The reverted attempt placed the flow in
+  `ffe_fuel_update!` ahead of `grow_cycle!`, so the order was wrong.
+⇒ CWD2B is more than the spec above: it needs the dynamic-snag accounting + the crown-snapshot
+ordering. A focused port should do those two first, validating Stand-Dead AND DDW together.
