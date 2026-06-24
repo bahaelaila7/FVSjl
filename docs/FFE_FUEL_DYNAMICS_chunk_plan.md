@@ -131,3 +131,18 @@ from CWD2B. Everything needed to port it:
 
 After CWD2B: (2) grow_cycle! hot-path wiring (fuel update BEFORE growth, behind test_fire.jl); (3) the
 `.out` Stand-Carbon-Report writer. These finish the FFE Stand Carbon Report extension.
+
+### CWD2B — final spec details (size mapping, flow, extra dependency)
+- **Size→cwd mapping (FMCADD flow, fmcadd.f:122-135):** CWD2B size 0 (foliage) → `cwd[10,2,dkcl]`
+  (litter); CWD2B size 1-5 (woody) → `cwd[size,2,dkcl]`. Each year `DOWN = cwd2b[dkcl,size,1]`; add
+  `DOWN·P2T` to the mapped cwd pool; zero it; then shift `cwd2b[·,·,k]=cwd2b[·,·,k+1]`. cwd2b is in
+  CROWNW pounds (P2T converts on the way out).
+- **Spread (FMSCRO):** each crown component `CROWNW(size)·density` spread EQUALLY over years
+  `YNEXTY..min(TSOFT, TFALL(sp,size))`. ⚠ **extra dependency: `TSOFT` = FMSNGDK** (snag soft-transition
+  time by species+dbh) — a routine that must also be ported (or approximated as ≥TFALL so TFALL bounds).
+- **Bole-split:** at death `bole = jenkins_above − (foliage+Σwoody)·P2T`; store per snag cohort (add an
+  `abv` field to SnagList — `add_snag!` has no cohort averaging, so it's a clean push). `update_snags!`
+  falldown and `standing_dead_carbon` then use `sn.abv` (bole) instead of whole-tree Jenkins. Both the
+  fire-kill (`fmburn!`) and mortality call sites pass the bole; SAFE for test_fire (it asserts the live
+  `.sum`, not snag carbon).
+⇒ ~10 touch points + the FMSNGDK dependency — a focused chunk, not a tail-end task.
