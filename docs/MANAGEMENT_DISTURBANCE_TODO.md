@@ -154,7 +154,12 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   with SPDECD species decode. The SN LHTCAL side is naturally inert (FVSjl does no large-tree
   HT self-calibration — `htg_cor`=0 unless HCOR2). Bit-exact vs live Fortran (`test_nocalib.jl`,
   NOCALIB 0 ⇒ uncalibrated DG matches exactly; snt01 stays bit-exact with the all-true default).
-- `CCADJ` (opt 145) — crown-competition-factor adjustment.
+- `CCADJ` (opt 444) — crown-competition-factor adjustment (sets `CCCOEF`, sstage.f:923
+  `UPDATECCCOEF`). ✅ **Verified `.sum`-inert in SN** (like PRUNE/FIXCW): `CCCOEF` is read ONLY
+  by `covolp.f` (the COVER canopy-cover report), `sstage.f` (the SSTAGE structure-stage code),
+  and `evldx.f:430` (the cover event-monitor var) — never by the core growth/mortality/density.
+  Empirically: live-Fortran snt01 `+CCADJ 0.5` is byte-identical to baseline (only the run
+  timestamp differs). In KNOWN_NOOP; revisit only when COVER/SSTAGE output is ported (C6/output).
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
 - `CYCLEAT` — explicit cycle-boundary years (interacts with NUMCYCLE/TIMEINT). `SDICALC` — SDI
   method — ✅ **DONE** (audit find #9). The entanglement resolved cleanly: `zeide_sdi` (LZEIDE)
