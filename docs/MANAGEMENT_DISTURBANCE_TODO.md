@@ -153,8 +153,19 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   do with focused attention, not at the tail of an unrelated session.
 - `CCADJ` (opt 145) — crown-competition-factor adjustment.
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
-- `CYCLEAT` — explicit cycle-boundary years. `SDICALC` — SDI method. `BMIN`, `MGMTID`/
-  `RESETAGE`/`SETSITE` (mid-run id/age/site; MGMTID is read, the others are gaps).
+- `CYCLEAT` — explicit cycle-boundary years. `SDICALC` — SDI method. `MGMTID`/`RESETAGE`/
+  `SETSITE` (mid-run id/age/site; MGMTID is read, the others are **OPNEW-scheduled** act
+  443/444 needing scheduler + a per-cycle handler — not immediate value-setters).
+  (`BMIN` is NOT a simple gap — it is the WWPB insect-model input (exbm.f), an *extension*,
+  belongs with insects below.)
+
+> ⚠ **Audit status (2026-06-24):** the clean *immediate value-setter* wins are DONE
+> (MANAGED/BAMAX/SDIMAX/RANNSEED/DGSTDEV — all bit-exact). Every keyword still on this list
+> is now **focused-session work**, not a quick wire-up: the NOCALIB/SERLCORR/`*CORR`
+> calibration cluster touches the precision-sensitive calibration core; CCADJ/GROWTH/
+> CYCLEAT/SETSITE/RESETAGE are OPNEW-scheduled activities needing scheduler+handler
+> integration (and none are exercised by a current test scenario); COMPRESS's algorithm +
+> insects + C6 DBS are large subsystems. Port these with focused attention per chunk.
 
 **Already triaged elsewhere in this doc** (no new action): `PRUNE` (.sum-inert), `YARDLOSS`
 (C7 fuels), `MORTMSB` (effectively inert), `BFVOLEQU/CFVOLEQU` (deprecated), `THINMIST/
