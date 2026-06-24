@@ -124,3 +124,37 @@ end
         end
     end
 end
+
+@testset "GROWTH FINTH — height-measurement-period scaling vs live Fortran" begin
+    # FINTH scales the SMALL-tree height-growth (HCOR) calibration: the measured HTG spans FINTH
+    # years, so the regression rescales it to the 5-yr basis via SCALE3 = REGYR/FINTH = 5/FINTH
+    # (regent.f:406/462, `TERM = HTG·SCALE3`). The firing stand needs ≥NCALHT=5 SMALL (dbh<5) trees
+    # of a species with measured HTG. Baseline growth_finth10.sum.save is live Fortran at FINTH=10;
+    # the residual is the small-tree REGENT growth tail (present identically at FINTH=5).
+    sc = joinpath(_GDIR, "growth_finth10.key"); sav = joinpath(_GDIR, "growth_finth10.sum.save")
+    sc5 = joinpath(_GDIR, "growth_finth5.key")
+    if !isfile(sc) || !isfile(sav)
+        @test_skip "growth_finth10 scenario not available"
+    else
+        jl = _g_rows(FVSjl.run_keyfile(sc; faithful = true))
+        ft = _g_rows(read(sav, String))
+        @test length(jl) == length(ft) >= 3
+        for (j, f) in zip(jl, ft)
+            @test j[1] == f[1]                                              # YEAR
+            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  (matched exactly)
+            @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI
+            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
+            @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 0.015 * parse(Int, f[3]) + 5  # TPA (small-tree tail)
+        end
+        # SCALE3 is ACTIVE and matches Fortran: the FINTH5→FINTH10 delta is reproduced. At 1995 both
+        # engines move BA 325→330 and TPA 4392/4419→4123/4150 (ΔTPA −269 in each).
+        if isfile(sc5)
+            j5 = _g_rows(FVSjl.run_keyfile(sc5; faithful = true))
+            i = findfirst(r -> r[1] == "1995", jl); k = findfirst(r -> r[1] == "1995", j5)
+            @test i !== nothing && k !== nothing
+            d_jl = parse(Int, j5[k][3]) - parse(Int, jl[i][3])             # FVSjl ΔTPA (5→10)
+            @test 240 <= d_jl <= 300                                       # ≈269, matching Fortran
+            @test parse(Int, jl[i][4]) > parse(Int, j5[k][4])             # FINTH=10 BA above FINTH=5
+        end
+    end
+end

@@ -474,13 +474,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # LHTCAL species (all by default) regress measured-vs-predicted small-tree (dbh<5)
     # height growth: HCOR_init = ln( Σ(HTG·P) / Σ(EDH·P) ) when ≥ NCALHT(5) observations,
     # where EDH = HTCALC-predicted increment (mode 0 age → mode 9 HTGR, ≥0.1) and the
-    # measured HTG is scaled by SCALE3 = REGYR/FINTH = 1 (and RHCON = 1, no HCOR2). This
+    # measured HTG is scaled by SCALE3 = REGYR/FINTH (regent.f:406/462; REGYR=5, FINTH = the
+    # GROWTH keyword's height measurement period, default 5 → SCALE3 = 1; RHCON = 1, no HCOR2). This
     # initial value seeds DIFH = HCOR_init − WCI; the per-cycle attenuation (diameter_growth!)
     # rides it like COR. Uses the CURRENT diameters (saved_dbh) for the dbh<5 filter, since
     # the regent calibration is independent of the large-tree diameter backdating.
     let bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5]),
         montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
         ncalht = 5
+        scale3 = s.control.growth_finth > 0f0 ? 5f0 / s.control.growth_finth : 1f0  # REGYR/FINTH
         @inbounds for sp in 1:MAXSP
             i1 = isct[sp, 1]; i1 == 0 && continue
             i2 = isct[sp, 2]
@@ -497,7 +499,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 htgr < 0.1f0 && (htgr = 0.1f0)
                 edh = htgr                                  # ·RHCON(=1); EDH≥0.1 already
                 p = t.tpa[i]
-                snp += p; snx += edh * p; sny += t.ht_growth[i] * p; nh += 1
+                term = t.ht_growth[i] * scale3            # TERM = HTG·SCALE3 (regent.f:462)
+                snp += p; snx += edh * p; sny += term * p; nh += 1
             end
             nh < ncalht && continue
             cornew = sny / snx                              # (ΣHTG·P)/(ΣEDH·P)

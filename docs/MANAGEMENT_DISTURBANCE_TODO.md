@@ -205,11 +205,20 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   (test/harness/scenarios/growth_fint10 + `growth_fint10.sum.save`): FVSjl matches Fortran
   TPA/SDI/QMD every cycle (BA ±1), the FINT5→FINT10 delta matching (ΔBA −30/−29, Δcuft −647/−643),
   the residual being the same LP tail. The projection-cycle length (TIMEINT) is a SEPARATE FINT,
-  unaffected. ⇒ The DIAMETER path (IDG codes + FINT scaling) is COMPLETE & validated. ⛔ **Still
-  open:** the non-default `FINTH` (height measurement period → SCALE3=5/FINTH in the HCOR height
-  calibration) and `FINTM` (mortality period) scaling — the same one-line pattern as FINT, but each
-  needs its OWN calibration-firing scenario to validate (HCOR needs ≥NCALHT small trees with measured
-  HTG; mortality its own). The default (=5) is bit-exact for both; only the ≠5 scaling is unwired.
+  unaffected. ✅ `FINTH` (height measurement period) is ALSO done: it scales the SMALL-tree HCOR
+  height calibration via `SCALE3 = REGYR/FINTH = 5/FINTH` (regent.f:406/462, `TERM = HTG·SCALE3`),
+  wired in the HCOR regression in `calibrate_diameter_growth!`. VALIDATED vs live Fortran on a
+  ≥NCALHT(5)-small-tree (dbh<5) HTG-firing stand (growth_finth10 + `.sum.save`): FVSjl matches the
+  Fortran BA/SDI/CCF/QMD every cycle and reproduces the exact FINTH5→FINTH10 delta (ΔTPA −269, ΔBA
+  +5), the TPA ~0.7% residual being the small-tree REGENT growth tail (identical at FINTH=5). ⇒ The
+  growth-calibration scalings (FINT diameter + FINTH height) are COMPLETE. ⛔ **`FINTM` (mortality
+  period) — NOT a growth-calibration scaling and NOT `.sum`-affecting:** its sole use (sn/cratet.f:486)
+  scales the PROB of INPUT dead-tree records fed to the FFE snag model (FMSSEE) by `FINTM/FINT`. That
+  is (a) live-`.sum`-inert (it only seeds the snag list, not the live projection), (b) reached via an
+  input-mortality→initial-snag path FVSjl doesn't yet port (FVSjl `add_snag!` only fires from
+  fire-kills), and (c) validatable only via the FFE snag DBS tables the stripped ground-truth binary
+  can't emit ([[fvsjl-ground-truth-binary-limits]]). So FINTM stays unported deliberately — wiring it
+  blind would repeat the vacuous-validation mistake; it belongs with the FFE snag-input chunk, not GROWTH.
 - `CYCLEAT` — ✅ **DONE** (see the keyword table above): explicit cycle-boundary years built on the
   new non-uniform IY schedule; bit-exact YEAR/PrdLen vs Fortran, stand within the TIMEINT residual.
   `SDICALC` — SDI
