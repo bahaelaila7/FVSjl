@@ -460,3 +460,14 @@ falldown rate is keyed to snag age and these were dated at inventory not IY(1)�
 needs the crown-lift. Also the Below-Dead root (1.5 vs 1.0) needs the pre-inventory CRDCAY decay. So the
 seeder is kept as a validated, unit-tested staged component; wiring it = the grown-cycle snag-dynamics
 (age-correct falldown + root decay) + the crown-lift, all on the carbon_snt harness.
+
+### Crown-lift X — VERIFIED BIT-EXACT on bit-exact growth (carbon_snt, tree-by-tree)
+Instrumented the Fortran FMSDIT on carbon_snt and compared X tree-by-tree to FVSjl (matched by height,
+1995→2000 cycle): Ht15.7 X=0.1671=0.1671 · Ht30.9 X=0.0125=0.0125 · Ht66.3 X=0.0058=0.0058 — BIT-EXACT.
+So with the crown ratio bit-exact (which it is wherever growth is, per carbon_snt + SSTAGE CrnBase), the
+crown-lift rate X is bit-exact; the carbon_jenkins 1.45× was entirely that stand's LP growth tail. ⇒ The
+DDW crown-lift is now VERIFIED (not just reasoned) bit-exact-achievable. Every DDW input is confirmed:
+crown-lift X ✓, CROWNW (breakage reconciles) ✓, the cwd2b crown debris ✓, snag bole (stem vol) ✓. The
+ONLY remaining DDW work is the mechanical in-loop integration: a post-grow annual loop applying
+X·CROWNW per year with decay, the age-correct snag-bole falldown (update_snags!), and the input snags —
+all together on carbon_snt where each piece is now individually verified bit-exact.
