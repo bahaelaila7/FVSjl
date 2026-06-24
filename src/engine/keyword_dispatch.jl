@@ -136,6 +136,15 @@ function kw_strclass!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# CARBREPT (FFE carbon extension): request the per-cycle Stand Carbon Report. CARBCALC field 1
+# selects the carbon-calculation method (0 = FFE fuel-based, 1 = JENKINS national biomass — the
+# default and the only one FVSjl's live pools implement via `stand_live_carbon`/`jenkins_biomass`).
+kw_carbrept!(s::StandState, ::KeywordRecord) = (s.control.carbon_report_on = true; nothing)
+function kw_carbcalc!(s::StandState, rec::KeywordRecord)
+    rec.present[1] && (s.control.carbon_method = Int32(round(rec.values[1])))
+    return
+end
+
 # OPTION 13 — GROWTH (vbase/initre.f:2300): the INPUT growth-data type codes + measurement periods
 # used by the LSTART calibration — field 1 = IDG (diameter data type: 0 none/increment, 1/3 = the DG
 # field is past DBH → PDBH, 2 = increment), 2 = FINT (DG measurement period), 3 = IHTG (height data
@@ -1429,6 +1438,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
         elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
         elseif kw == "STRCLASS"; kw_strclass!(s, rec)      # activate SSTAGE structural-stage classification (ksstag.f)
+        elseif kw == "CARBREPT"; kw_carbrept!(s, rec)      # request the FFE Stand Carbon Report (fmcrbout.f)
+        elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

@@ -76,3 +76,27 @@ function stand_carbon(s::StandState)
             standing_dead = sd, down_wood = dw,
             total = lc.aboveground + lc.belowground + sd + dw)
 end
+
+# short tons/acre → metric tons/hectare (the Stand Carbon Report's units, fmcrbout.f METRIC.F77).
+const _TONAC_TO_MTHA = 0.90718474f0 / 0.40468564f0
+
+"""
+    stand_carbon_report(s) -> (; aboveground, merch, belowground, standing_dead, down_wood, total)
+
+The live-tree Stand Carbon Report pools in **metric tons C / hectare** (CARBREPT, CARBCALC method 1
+= Jenkins; fmcrbout.f). The aboveground / merchantable / belowground (root) live pools come from
+`stand_live_carbon` (Jenkins biomass × 0.5 carbon fraction × TPA) and are unit-converted; these are
+bit-exact vs the Fortran report. The standing-dead / down-wood pools are populated only when the FFE
+fuel model is active (`fire_on`) — the down-dead-wood / forest-floor / shrub-herb columns of the full
+report still need that FFE surface-fuel chunk, so `total` here is the live-tree subtotal.
+"""
+function stand_carbon_report(s::StandState)
+    lc = stand_live_carbon(s)
+    above = lc.aboveground * _TONAC_TO_MTHA
+    merch = lc.merch       * _TONAC_TO_MTHA
+    below = lc.belowground * _TONAC_TO_MTHA
+    sd = standing_dead_carbon(s) * _TONAC_TO_MTHA
+    dw = down_wood_carbon(s)     * _TONAC_TO_MTHA
+    return (; aboveground = above, merch = merch, belowground = below,
+            standing_dead = sd, down_wood = dw, total = above + below + sd + dw)
+end

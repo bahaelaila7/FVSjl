@@ -261,6 +261,8 @@ mutable struct Control
     dg_cor2_on::Bool                          # LDCOR2: apply ln(COR2) to DGCON before calibration                   (LDCOR2)
     htg_cor2_on::Bool                         # LHCOR2: apply ln(HCOR2) to HTCON before calibration                  (LHCOR2)
     regh_cor2_on::Bool                        # LRCOR2: small-tree con multiplied by RHCON=RCOR2                     (LRCOR2)
+    carbon_report_on::Bool                    # CARBREPT: emit the Stand Carbon Report                              (LCARBON)
+    carbon_method::Int32                      # CARBCALC method: 0 = FFE, 1 = JENKINS                               (ICTYPE)
 end
 
 function Control()
@@ -314,6 +316,7 @@ function Control()
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
         ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
         false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)
+        false, Int32(1),                                         # carbon_report_on, carbon_method (CARBREPT/CARBCALC, default JENKINS)
     )
 end
 
