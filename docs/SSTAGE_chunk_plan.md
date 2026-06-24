@@ -45,10 +45,29 @@ against ground truth. **Validate every chunk against this report**, not just the
 ## Proposed chunks (each validated vs the Structural statistics report)
 - **A — helpers:** `covolp` (cover from crown areas + CCCOEF) and `sstghp` (per-stratum PROB-wtd
   DBH/heights/crown/dominant-species). Pure, unit-testable against the report's per-stratum columns.
-- **B — stratification:** the HT-sort + two-largest-gap finder → strata boundaries + NSTR. Validate
-  the N-Strata column + stratum DBH/cover vs the report.
-- **C — classify:** the NSTR×DBH threshold logic → class 1-6. Validate the Struct Class column.
-- **D — keyword + wiring + report:** `kw_strclass!` (ksstag.f defaults/overrides), call SSTAGE per
+  ⚠ **Chunk-A finding (2026-06-24):** `covolp` itself is trivial — `PCCU = CCCOEF·(Σ
+  0.785398·CW²·TPA)/43560`, `cover=(1−exp(−PCCU))·100` (cap 100) — and CCCOEF=1.0 is now the
+  default (grinit.f:269, just fixed). The precision blocker is **which crown width `CW`**: using
+  FVSjl's base `crown_width` (CWEQN) gives whole-stand cover **79.4 (forest-grown, iwho=0)** /
+  **83.1 (open-grown, iwho=1)** vs the report's **82** for fire_early @1990. The exact `CRWDTH`
+  FVS feeds COVOLP is the question — and fire_early has FFE ACTIVE, so SSTAGE likely uses the
+  **FMCROWE** crown width (`fire/crown_biomass.jl`, the FFE crown model), NOT the base CWEQN.
+  Resolve the crown-width SOURCE first (trace `CRWDTH` in the SN+FFE flow / dump Fortran's per-tree
+  CRWDTH), else the per-stratum Cover columns won't be bit-exact. NOTE: the class only uses cover as
+  a `> CCMIN=5%` threshold, so it is robust to a few-% cover error — Chunks B/C (the CLASS) may be
+  validatable even before the cover is bit-exact, but the report's Cover columns need the right CW.
+- **B — stratification:** ✅ DONE (`structure_stage.jl`). The HT-sort + two-largest-gap finder →
+  strata boundaries + NSTR, plus the SSTGHP dominant-cohort DBH (`_ss_dbhnom`: canopy cohort = top
+  trees until cumulative crown area > 41382 sq ft, then the PROB-wtd mean DBH of the ±4-tree window
+  around the 70th crown-area percentile — the understory-excluding detail that the simple mean got
+  wrong at the post-regen 1995 cycle).
+- **C — classify:** ✅ DONE (`structure_class`). The NSTR×DBH threshold logic → class 1-6.
+  **VALIDATED bit-exact vs the Fortran Struct-Class column** (`test_structure_stage.jl`): fire_early
+  (FFE stand, 6 cycles: 3=UR then 2=SE) AND snt01 stand-1 (11 cycles: UR→SE) — 17 cycle-points, two
+  stands, all match. The class is robust to the cover/CRWDTH precision (it only uses cover as the
+  `>5%` stratum threshold). Default thresholds wired (SSDBH=5/SAWDBH=25/GAPPCT=30/CCMIN=5/TPAMIN=200);
+  the SE→SI SDI demotion uses `_event_bsdi` (SDIBC).
+- **D — keyword + wiring + report (REMAINING):** `kw_strclass!` (ksstag.f defaults/overrides), call SSTAGE per
   cycle (after CUTS, like grincr.f:342; emit the before/after Rm rows), the `.out` report writer, the
   event-monitor `SSTAGE` variable, and finally `FVS_StrClass` DBS (only once a fuller binary can
   validate it — the table writer is trivial on top of the class).

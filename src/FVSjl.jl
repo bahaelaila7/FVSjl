@@ -66,6 +66,7 @@ include("engine/standstats.jl")
 include("engine/event_monitor.jl")
 include("engine/cuts.jl")
 include("engine/compress.jl")            # COMPRESS (act 250) — PC-score tree-record clustering
+include("engine/structure_stage.jl")    # SSTAGE — stand structural-stage class (1-6)
 include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass
