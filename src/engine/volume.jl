@@ -275,7 +275,7 @@ function apply_volume_overrides!(s::StandState; fint::Float32 = 5f0)
     isempty(s.control.volume_events) && return s
     s.control.merch_init || init_merch_standards!(s)
     c = s.control
-    yr = Int(c.cycle_year[1]) + Int(c.cycle) * round(Int, fint)
+    yr = cycle_year_at(c, Int(c.cycle))   # IY schedule (TIMEINT/CYCLEAT-aware)
     for ev in c.volume_events
         Int(ev.year) <= yr || continue
         isp = round(Int, ev.params[1])

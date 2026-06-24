@@ -17,6 +17,7 @@ site-dependent diameter-growth constants (DGCONS) and run the diameter-growth
 calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
+    build_cycle_schedule!(s)             # CYCLEAT/TIMEINT → cycle-boundary year array (IY)
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
     isempty(s.control.sp_bf_vol_eq) && (s.control.sp_bf_vol_eq = copy(s.species.vol_eq)) # VEQNNB = default
@@ -30,6 +31,60 @@ function setup_growth!(s::StandState)
     calibrate_diameter_growth!(s)
     return s
 end
+
+"""
+    build_cycle_schedule!(s)
+
+Build the cycle-boundary year array (`control.cycle_year`, the FVS IY) from NUMCYCLE +
+TIMEINT + CYCLEAT, mirroring base/fvs.f:106-135. Each cycle's length is its TIMEINT
+per-cycle override (`cycle_lengths[k]`) or the uniform `control.year` (default 5); the
+lengths are cumulated onto the inventory year (`cycle_year[1]`, INVYEAR) to give the
+calendar year at each boundary. CYCLEAT then inserts each requested year as a NEW boundary
+strictly inside the run (never extending the end or moving the start), bumping the effective
+cycle count `ncycle_eff` (capped at MAXCYC). Idempotent: recomputes purely from the
+immutable inputs (cycle_year[1], ncycle, cycle_lengths, cycleat_years), so the per-stand
+double-call from setup is safe. For uniform cycles `cycle_year[k+1] == cycle_year[1] + k·per`
+exactly, so routing the year derivations through this array is bit-exact for snt01.
+"""
+function build_cycle_schedule!(s::StandState)
+    c = s.control
+    ncyc = Int(c.ncycle); ncyc < 1 && (ncyc = 1); ncyc > MAXCYC && (ncyc = MAXCYC)
+    per = round(Int, c.year); per < 1 && (per = 5)
+    iy = c.cycle_year
+    @inbounds for k in 2:MAXCY1                         # cumulate per-cycle lengths → boundary years
+        len = c.cycle_lengths[k] > 0 ? Int(c.cycle_lengths[k]) : per
+        iy[k] = iy[k-1] + Int32(len)
+    end
+    for yr in c.cycleat_years                           # CYCLEAT insert (fvs.f:116-135)
+        (yr <= iy[1] || yr >= iy[ncyc+1]) && continue   # don't extend end / move start
+        @inbounds for i in 1:ncyc
+            if iy[i] < yr < iy[i+1]
+                ncyc += 1; ncyc > MAXCYC && (ncyc = MAXCYC)
+                for k in ncyc+1:-1:i+2; iy[k] = iy[k-1]; end
+                iy[i+1] = Int32(yr)
+                break
+            end
+        end
+    end
+    c.ncycle_eff = Int32(ncyc)
+    return s
+end
+
+"""
+Calendar year at the start of cycle `cyc` (0-based) from the IY schedule (build_cycle_schedule!).
+Falls back to the uniform derivation `cycle_year[1] + cyc·per` when the schedule has not been
+built yet (a boundary of 0), so direct callers that skip `setup_growth!` still get the right year.
+"""
+function cycle_year_at(c::Control, cyc::Integer)
+    y = Int(c.cycle_year[cyc + 1])
+    y > 0 && return y
+    per = round(Int, c.year); per < 1 && (per = 5)
+    return Int(c.cycle_year[1]) + Int(cyc) * per
+end
+"Calendar year at the start of the current cycle (`control.cycle`)."
+current_cycle_year(s::StandState) = cycle_year_at(s.control, Int(s.control.cycle))
+"Length in years of cycle `cyc` (0-based) = next boundary − this boundary."
+cycle_period_at(c::Control, cyc::Integer) = Int(c.cycle_year[cyc + 2] - c.cycle_year[cyc + 1])
 
 """
     compute_density!(state)
@@ -61,7 +116,7 @@ warns but still applies the (species-agnostic) factor, so we match.
 function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
     c = s.control
     (isempty(c.fertilize_events) && c.ifert_date < 0) && return s
-    yr = Int(c.cycle_year[1]) + Int(c.cycle) * round(Int, fint)
+    yr = cycle_year_at(c, Int(c.cycle))   # IY schedule (TIMEINT/CYCLEAT-aware)
     @inbounds for ev in c.fertilize_events           # a fert scheduled this cycle becomes active (OPDONE)
         Int(ev.year) == yr && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
     end
@@ -100,7 +155,7 @@ start cubic volume), for the caller to add to OMORT. No-op (returns 0) otherwise
 """
 function _maybe_burn!(s::StandState, fint::Float32)::Float32
     (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return 0f0
-    yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
+    yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     yr == Int(s.fire.fire_year) || return 0f0
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
@@ -136,7 +191,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if econ_on
-        yr = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint)
+        yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
         s.econ.base_year < 0 && (s.econ.base_year = Int32(yr))
         (s.econ.cycle_cost > 0f0 || s.econ.cycle_rev > 0f0) &&
             push!(s.econ.harvests, (Float32(yr), s.econ.cycle_cost, s.econ.cycle_rev))

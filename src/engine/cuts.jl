@@ -113,7 +113,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
     # Year of the current cycle (matches summary_row): inventory year + cycle·period.
     # (cycle_year only stores the inventory year; later years are derived.)
-    yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, fint))
+    yr = Int32(current_cycle_year(s))   # IY schedule (TIMEINT/CYCLEAT-aware)
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
     # Fresh ESTUMP cut log for this cycle (for ESUCKR). Cleared HERE — after the
     # idempotency guard — so the second (summary) cuts! call of the cycle, which

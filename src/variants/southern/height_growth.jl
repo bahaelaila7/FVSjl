@@ -68,7 +68,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
     avh = p.avg_height
     # HTGMULT (MULTS kind 2): per-species height-growth multiplier — htgf.f:163,260 apply
     # XHT at HTG = HTG·XHT·SCALE·EXP(HTCON). cur_year = inventory year + cycle·period.
-    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
+    cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     @inbounds for i in 1:t.n
         sp = t.species[i]; hti = t.height[i]
         t.ht_growth[i] = 0f0

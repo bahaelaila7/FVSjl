@@ -49,7 +49,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
     per = round(Int, fint)
-    yr = Int32(Int(s.control.cycle_year[1]) + Int(s.control.cycle) * per)
+    yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
     due = [a for a in s.control.schedule
            if (a.icflag == Int32(430) || a.icflag == Int32(431)) && yr <= a.year < yr + per]

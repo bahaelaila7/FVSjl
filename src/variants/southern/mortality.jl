@@ -245,7 +245,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     # depends only on the start-of-cycle TPA, so it is computed once.
     # MORTMULT (MULTS kind 4): per-species multiplier on the BACKGROUND rate only
     # (morts.f:520-525: X=XMORT in [D1,D2], X=1 when the density rate is in effect).
-    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
+    cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     bg_tokill = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; pr <= 0f0 && continue

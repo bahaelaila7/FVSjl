@@ -78,7 +78,7 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
     random_on = s.control.dg_stddev_bound >= 1f0   # DGSD (DGSTDEV; default 2, grinit.f) ⇒ random effect on
     # REGHMULT/REGDMULT (MULTS kinds 3/6): per-species regen height/diameter multipliers
     # (regent.f:233 HTGR·XRHGRO, :347/:350 DG·XRDGRO). cur_year = inventory + cycle·period.
-    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
+    cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     @inbounds for sp in 1:MAXSP
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]

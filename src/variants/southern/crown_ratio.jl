@@ -24,7 +24,7 @@ function crown_ratio_update!(s::StandState; fint::Float32 = 5f0)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
-    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
+    cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     sdiac = stand_sdi(s)                 # SDIAC — post-growth stand SDI
     relden = stand_ccf(s)                # RELDEN — crown competition factor
     sdidef = s.plot.sp_sdi_def

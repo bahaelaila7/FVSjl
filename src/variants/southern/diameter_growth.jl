@@ -522,7 +522,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     corr = covmlt / sqrt(vmlt * pvmlt)
     # BAIMULT (MULTS kind 1): per-species diameter-growth multiplier scaling DDS
     # (dgdriv.f XDGROW=ln(XDMULT) added to ln(DDS) ⇒ DDS·XDMULT).
-    cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)
+    cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
 
     @inbounds for sp in 1:MAXSP
         i1 = isct[sp, 1]; i1 == 0 && continue

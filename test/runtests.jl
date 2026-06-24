@@ -65,6 +65,7 @@ using FVSjl
     include("integration/test_resetage.jl")    # RESETAGE rebase stand age (resage.f) vs Fortran
     include("integration/test_sdicalc.jl")     # SDICALC SDI method (Zeide/Reineke) + thresholds vs Fortran
     include("integration/test_ccadj.jl")       # CCADJ crown-competition adj: recognized .sum-inert no-op (SN)
+    include("integration/test_cycleat.jl")      # CYCLEAT extra cycle boundary (non-uniform IY schedule) vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

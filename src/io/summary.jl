@@ -77,9 +77,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         sample_wt = nothing, variant::AbstractString = "SN",
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing)
-    ncyc = Int(s.control.ncycle)             # rows = ncyc + 1 (inventory + each cycle)
-    per = round(Int, s.control.year)         # cycle length (YR/IFINT; TIMEINT) — default 5
-    per < 1 && (per = period)
+    build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
+    ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
+    ncyc < 1 && (ncyc = Int(s.control.ncycle))
     g = s.plot.gross_space
     sw = sample_wt === nothing ? g : sample_wt
     if header
@@ -90,10 +90,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
+        per = last ? 0 : cycle_period_at(s.control, c)   # THIS cycle's length (varies w/ TIMEINT/CYCLEAT)
         # main columns reflect the start-of-cycle (pre-thin) stand
-        r = summary_row(s; period = last ? 0 : per, total_removed_merch = cum_rem_merch)
+        r = summary_row(s; period = per, total_removed_merch = cum_rem_merch)
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
-        cycle_hook === nothing || cycle_hook(s, r.year, last ? 0 : per)
+        cycle_hook === nothing || cycle_hook(s, r.year, per)
         if !last
             # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
             # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is
@@ -139,13 +140,13 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     qmd  = round(stand_qmd(s); digits = 1)
     t = s.trees
     vtot(f) = dt(sum((getfield(t, f)[i] * t.tpa[i] for i in 1:t.n); init = 0f0) / g)  # init for bare/empty stands
-    # Year/age advance by the CYCLE LENGTH each cycle from the inventory (IY/IAGE). Use the
-    # actual period (s.control.year, set by TIMEINT) — NOT the `period` arg, which is 0 on the
-    # final (no-growth) row and would wrongly default the last year/age to a 5-yr step.
+    # Year/age come from the cycle-boundary schedule (IY, build_cycle_schedule!): the calendar
+    # year at this cycle's start, and the age advanced by the elapsed years from the inventory.
+    # For uniform cycles this is exactly cycle_year[1] + cyc·per (bit-exact); non-uniform TIMEINT
+    # and CYCLEAT-inserted boundaries make the steps vary.
     cyc = Int(s.control.cycle)
-    interval = round(Int, s.control.year); interval < 1 && (interval = 5)
-    yr = Int(s.control.cycle_year[1]) + cyc * interval
-    age = Int(s.plot.stand_age) + cyc * interval
+    yr = cycle_year_at(s.control, cyc)
+    age = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
     # RESETAGE (resage.f): after the reset year (run after DISPLY, so the reset row itself keeps
     # the old age) the stand age is rebased — age(Y) = age_reset_age + (Y − reset_year).
     ry = Int(s.control.age_reset_year)

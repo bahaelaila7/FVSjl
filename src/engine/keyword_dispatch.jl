@@ -90,15 +90,33 @@ function kw_numcycle!(s::StandState, rec::KeywordRecord)
     return
 end
 
-# OPTION 2 — TIMEINT (vbase/initre.f:533): cycle length (IY). Field 1 = cycle index (0/absent =
-# all cycles), field 2 = period length in years (default 10). Sets s.control.year (YR/IFINT), the
-# cycle length threaded through the growth models — DDS/HTG scale by FINT/5, autcor/year-age by it.
-# UNIFORM path only (all cycles same length); per-cycle lengths (field 1 > 0) deferred.
+# OPTION 2 — TIMEINT (vbase/initre.f:1200): cycle length (IY). Field 1 = cycle index (0/absent =
+# all cycles), field 2 = period length in years (default 10). The uniform path sets s.control.year
+# (YR/IFINT), the cycle length threaded through the growth models — DDS/HTG scale by FINT/5,
+# autcor/year-age by it. A per-cycle index N stores the override in cycle_lengths[N+1] (Fortran
+# `I=IABS(ARRAY(1))+1; IY(I)=I2`); build_cycle_schedule! cumulates it into the boundary years.
 function kw_timeint!(s::StandState, rec::KeywordRecord)
     v = rec.values; pr = rec.present
     len = pr[2] ? Float32(v[2]) : 10f0
-    cyc = pr[1] ? nint(v[1]) : 0
-    cyc <= 0 && (s.control.year = len)
+    cyc = pr[1] ? abs(nint(v[1])) : Int32(0)
+    if cyc <= 0
+        s.control.year = len                                      # all cycles (uniform period)
+    else
+        idx = Int(cyc) + 1
+        idx <= MAXCY1 && (s.control.cycle_lengths[idx] = nint(len))  # cycle N → IY(N+1) = len
+    end
+    return
+end
+
+# OPTION 134 — CYCLEAT (vbase/initre.f:13400): request an extra cycle boundary at a calendar year.
+# Collects de-duplicated positive years into control.cycleat_years (Fortran IWORK1); fvs.f /
+# build_cycle_schedule! later inserts each as a new boundary strictly inside the run (without
+# extending the end or moving the start), increasing the effective cycle count.
+function kw_cycleat!(s::StandState, rec::KeywordRecord)
+    rec.present[1] || return
+    yr = nint(rec.values[1])
+    yr <= 0 && return
+    yr in s.control.cycleat_years || push!(s.control.cycleat_years, yr)
     return
 end
 
@@ -443,9 +461,9 @@ scaled DG). Multiple scalers firing the same cycle compound, in keyword order.
 """
 function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
     isempty(s.control.multipliers) && return s
-    period = round(Int, s.control.year)
-    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
-    cyc_end = cyc_start + period
+    # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
+    cyc_start = current_cycle_year(s)
+    cyc_end = cycle_year_at(s.control, Int(s.control.cycle) + 1)
     t = s.trees
     nlive = stash === nothing ? t.n : stash.nlive
     isdg = kind === :fixdg
@@ -723,9 +741,9 @@ in the chosen order (size-ranked / point-by-point / size-within-point) until XMO
 """
 function apply_fixmort!(s::StandState, killed::Vector{Float32}, n::Int, fint::Float32)
     isempty(s.control.fixmort_events) && return
-    period = round(Int, s.control.year)
-    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
-    cyc_end = cyc_start + period
+    # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
+    cyc_start = current_cycle_year(s)
+    cyc_end = cycle_year_at(s.control, Int(s.control.cycle) + 1)
     t = s.trees
     iptinv = max(1, Int(s.plot.points_inv))
     for ev in s.control.fixmort_events
@@ -831,9 +849,9 @@ stream matches FVS when the event is stochastic.
 """
 function htgstp!(s::StandState; fint::Float32 = 5f0)
     isempty(s.control.htgstp_events) && return s
-    period = round(Int, s.control.year)
-    cyc_start = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * period
-    cyc_end = cyc_start + period
+    # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
+    cyc_start = current_cycle_year(s)
+    cyc_end = cycle_year_at(s.control, Int(s.control.cycle) + 1)
     t = s.trees; bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     species_sort!(s)
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
@@ -1259,6 +1277,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MCFDLN";   kw_mcfdln!(s, rec)        # cubic form-model coefs CFLA0/CFLA1 (sdefln.f)
         elseif kw == "BFFDLN";   kw_bffdln!(s, rec)        # board form-model coefs BFLA0/BFLA1 (sdefln.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
+        elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant
