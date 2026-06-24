@@ -215,3 +215,18 @@ addition must come from the snag-related path: the CWD2B woody-crown FALLDOWN to
 — same instrument-then-port method that landed bole/crown/Stand-Dead. NB the Stand-Dead crown
 reconciles (un-fallen cwd2b = 1.46), so the DDW gap is specifically the FALLEN crown/bole timing, not
 the scheduled amount.
+
+### DDW residual — structure understood, source still to pin (next: per-year per-source dump)
+Two more things ruled out this turn (consulting the Fortran):
+- **CWD structure**: Fortran `CWD(3,size,2,5)` is `(I=1:3 category, size, soft/hard, L=1:5)`. The DDW
+  report sums `CWD(3,·,·,5)` = aggregate over I=1 (natural) + I=2 (fuel-treatment PILES) and decay
+  L=1:4 (fmdout.f:101-109), then only **sizes 1-6** (`SMALL2+LARGE2`, fmdout.f:119-120), NOT 1-9. For
+  carbon_jenkins (no piling, no >20" wood) this collapses to FVSjl's `cwd[1:9,:,1:4]` slice, so the
+  I/L structure is NOT the gap here. (But FVSjl's `down_wood_carbon` should sum sizes 1-6, not 1-9, to
+  be exact for stands with large wood — a minor correctness fix.)
+- **crown-lift / breakage**: negligible (~0.0007 t/ac/yr, instrumented) — not the ~1.7 gap.
+So the DDW gap is a per-size ADDITION-CONTENT difference in sizes 1-6, timing-related (Fortran adds at
+2000, FVSjl at 2005). Next concrete step: instrument fmcadd.f to dump the per-YEAR per-source down-wood
+additions (snag-bole falldown vs cwd2b-crown flow vs the FMSADD snag-init), which directly shows which
+path carries the ~1.7 and when — the same dump method that landed bole/crown/Stand-Dead. The 8 bit-exact
+columns stand; DDW is the only remaining one, now structurally understood.
