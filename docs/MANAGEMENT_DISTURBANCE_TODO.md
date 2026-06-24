@@ -157,7 +157,16 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
 - `CCADJ` (opt 145) — crown-competition-factor adjustment.
 - `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
 - `CYCLEAT` — explicit cycle-boundary years (interacts with NUMCYCLE/TIMEINT). `SDICALC` — SDI
-  method. `MGMTID` is read; `RESETAGE`/`SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
+  method — **scoped, entangled with FVSjl's multi-path SDI:** the fields exist + are read
+  (`control.zeide_sdi`/`dbh_zeide`/`dbh_stage`/`sdi_method`, consumed by `mortality.jl`), so
+  `kw_sdicalc!` setting them *looks* like a BAMAX-class wire-up — BUT `zeide_sdi` defaults
+  `false` (Reineke) while `stand_sdi` (the `.sum` SDI column) hardcodes Zeide per-tree
+  summation with the `dbh_sdi` threshold, and both are bit-exact for snt01. Before SDICALC can
+  switch methods correctly, reconcile: (a) why the `.sum` column is Zeide but `zeide_sdi`=false;
+  (b) `dbh_sdi` vs `dbh_zeide`/`dbh_stage` thresholds; (c) make `stand_sdi` honor the method
+  (Zeide per-tree vs the Reineke `SDIC = SPROB·A + B·SDSQ` Taylor form, sdical.f:281-327). A
+  focused SDI-computation chunk, validated vs Fortran for both methods + a non-zero threshold.
+  `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
   - `RESETAGE` (resage.f, act 443): ✅ **DONE** (audit find #8). Turned out NOT to need the
