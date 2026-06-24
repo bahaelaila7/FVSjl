@@ -75,7 +75,7 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
     nrec = trip ? 3 : 1
     scale = fint / REGENT_REGYR                       # fnt/REGYR
     scale2 = 1f0                                       # YR/fnt (normal cycle)
-    random_on = DG_DGSD >= 1f0       # SN DGSD = 2 (grinit.f) ⇒ random effect on
+    random_on = s.control.dg_stddev_bound >= 1f0   # DGSD (DGSTDEV; default 2, grinit.f) ⇒ random effect on
     # REGHMULT/REGDMULT (MULTS kinds 3/6): per-species regen height/diameter multipliers
     # (regent.f:233 HTGR·XRHGRO, :347/:350 DG·XRDGRO). cur_year = inventory + cycle·period.
     cur_year = Int(s.control.cycle_year[1]) + Int(s.control.cycle) * round(Int, s.control.year)

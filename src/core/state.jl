@@ -234,6 +234,7 @@ mutable struct Control
     sprout_smult::Float32                    # sprout NUMBER multiplier (SMULT; SPROUT), default 1
     sprout_hmult::Float32                    # sprout HEIGHT multiplier (HMULT; SPROUT), default 1
     cut_log::Vector{CutRecord}               # ESTUMP cut record per removed sprouting tree, fed to ESUCKR
+    dg_stddev_bound::Float32                  # DGSD: std-dev bound on stochastic DG variation (DGSTDEV; <1 ⇒ off)
 end
 
 function Control()
@@ -278,6 +279,7 @@ function Control()
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
         ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
         false, 1f0, 1f0, CutRecord[],                           # lsprut, sprout_smult, sprout_hmult, cut_log
+        2f0,                                                    # dg_stddev_bound (DGSD, grinit.f:171 = 2.0)
     )
 end
 

@@ -175,6 +175,19 @@ function kw_compress!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_dgstdev!(s, rec)
+
+DGSTDEV (initre.f:5900, option 57): set DGSD, the number of standard deviations the
+stochastic serial-correlation diameter-growth variation is bounded to (default 2.0,
+grinit.f:171). `DGSD < 1` turns the random variation OFF (deterministic DG). Consumed by
+`dgscor!` + the OLDRN bound in `diameter_growth!`/`small_tree_growth!`.
+"""
+function kw_dgstdev!(s::StandState, rec::KeywordRecord)
+    rec.present[1] && (s.control.dg_stddev_bound = Float32(rec.values[1]))
+    return
+end
+
+"""
     kw_rannseed!(s, rec)
 
 RANNSEED (initre.f:6300, option 61): reseed the main random-number stream (RANSED). A
@@ -1085,6 +1098,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
+        elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)

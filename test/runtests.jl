@@ -57,6 +57,7 @@ using FVSjl
     include("integration/test_sdimax.jl")     # C3/C4: SDIMAX per-species SDImax + PMSDIL/PMSDIU vs Fortran
     include("integration/test_rannseed.jl")   # RNG: RANNSEED reseed of the main stochastic stream vs Fortran
     include("integration/test_compress.jl")    # COMPRESS keyword recognition + scheduling (algorithm = chunk plan)
+    include("integration/test_dgstdev.jl")     # DGSCOR: DGSTDEV DGSD bound on stochastic DG variation vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

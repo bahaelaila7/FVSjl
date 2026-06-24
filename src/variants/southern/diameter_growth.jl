@@ -389,7 +389,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 end
             end
         else
-            bound = DG_DGSD * c.sigma[sp]
+            bound = s.control.dg_stddev_bound * c.sigma[sp]
             for k in i1:i2
                 i = ind1[k]
                 z = 0f0
@@ -407,7 +407,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         c.dg_cor_goal[sp] = 0.5f0 * c.dg_cor[sp]
     end
     @inbounds for i in 1:t.n
-        lim = DG_DGSD * c.sigma[t.species[i]]
+        lim = s.control.dg_stddev_bound * c.sigma[t.species[i]]
         oldrn[i] > lim && (oldrn[i] = lim)
         oldrn[i] < -lim && (oldrn[i] = -lim)
     end
@@ -558,7 +558,8 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
                     oldrn[i] = frmt
                     frm = exp(frmt)
                 else
-                    frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i])
+                    frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i];
+                                  dgsd = s.control.dg_stddev_bound)
                 end
                 t.diam_growth[i] = bnd(sqrt(d_ib * d_ib + dds * frm) - d_ib)
             end

@@ -58,17 +58,19 @@ function autcor(newv::Integer, oldv::Integer)
 end
 
 """
-    dgscor!(rng, oldrn, it, ssig, rho, rhocp, wk2_it) -> frm
+    dgscor!(rng, oldrn, it, ssig, rho, rhocp, wk2_it; dgsd=DG_DGSD) -> frm
 
 DGSCOR: draw the per-tree auto-correlated DG error multiplier `frm=exp(raw)` and
 store the raw residual back into `oldrn[it]` (for next cycle). `wk2_it` is the
-tree's ln(DDS) prediction; large predictions taper the error to 0. dgscor.f.
+tree's ln(DDS) prediction; large predictions taper the error to 0. dgscor.f. `dgsd`
+is the std-dev bound on the variation (DGSD, default 2; `<1` ⇒ no random variation).
 """
 @inline function dgscor!(rng::FVSRng, oldrn::AbstractVector{Float32}, it::Integer,
-                         ssig::Real, rho::Real, rhocp::Real, wk2_it::Real)::Float32
+                         ssig::Real, rho::Real, rhocp::Real, wk2_it::Real;
+                         dgsd::Real = DG_DGSD)::Float32
     frm = 0f0
-    if DG_DGSD >= 1f0
-        bound = DG_DGSD * Float32(ssig)
+    if dgsd >= 1f0
+        bound = Float32(dgsd) * Float32(ssig)
         while true
             frm = bachlo(rng, 0f0, Float32(ssig))
             frm = frm * Float32(rhocp) + Float32(rho) * oldrn[it]

@@ -134,7 +134,11 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
 - `RANNSEED` (opt 61) — ✅ **DONE** (audit find #4). `kw_rannseed!` reseeds the main RNG via
   the existing `ranseed!` (forced odd; field-1==0 GETSED clock seed skipped as non-deterministic).
   Bit-exact vs live Fortran (`test_rannseed.jl`, seed 12345; ±DGSCOR/Scribner noise).
-- `DGSTDEV` (opt 57) — diameter-growth standard deviation (feeds DGSCOR). **next**
+- `DGSTDEV` (opt 57) — ✅ **DONE** (audit find #5). `kw_dgstdev!` sets the new per-stand
+  `control.dg_stddev_bound` (default 2.0); threaded into `dgscor!` + the OLDRN clamp in
+  `diameter_growth!`/`small_tree_growth!` (was a hardcoded const). Bit-exact vs live Fortran
+  (`test_dgstdev.jl`, DGSTDEV 0 ⇒ deterministic DG matches exactly; default 2.0 keeps snt01
+  bit-exact).
 - `SERLCORR` (opt 91) + `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` —
   serial-correlation / calibration-correlation read & reuse (the DGSCOR machinery).
 - `NOCALIB` (opt 56) — disable the self-calibration (changes DG/HTG scale factors).
