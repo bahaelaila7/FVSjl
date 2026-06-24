@@ -123,6 +123,43 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | PRMFROST / CLIMATE | permafrost / climate-FVS modifiers | 🧊 |
 | ECON / CHEAPO | economic analysis | 🧊 C8 (ANNUCST path exists) |
 
+## Keyword-recognition audit — full keywds.f cross-check (2026-06-24)
+
+Diffed the **142-keyword SN master list** (`keywds.f`) against everything FVSjl recognizes
+(dispatch + `KNOWN_NOOP` + block sub-keywords). FVSjl recognizes 103 tokens; the rest are
+**silently ignored** (fall through to the no-op `else`). This is exactly how MANAGED/BAMAX/
+SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* decision.
+
+**⚠ Simulation-affecting, UNRECOGNIZED (highest priority — silent `.sum` gaps, same class as
+the 3 just fixed; not yet ported):**
+- `RANNSEED` (opt 61) — RNG seed. A stand setting it gets a different stochastic stream ⇒
+  different DG/mortality/regen. **Bit-exactness-critical** for any RANNSEED stand.
+- `DGSTDEV` (opt 57) — diameter-growth standard deviation (feeds DGSCOR).
+- `SERLCORR` (opt 91) + `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` —
+  serial-correlation / calibration-correlation read & reuse (the DGSCOR machinery).
+- `NOCALIB` (opt 56) — disable the self-calibration (changes DG/HTG scale factors).
+- `CCADJ` (opt 145) — crown-competition-factor adjustment.
+- `GROWTH` — per-cycle DG/HTG override (the deferred half of the TIMEINT calendar item).
+- `CYCLEAT` — explicit cycle-boundary years. `SDICALC` — SDI method. `BMIN`, `MGMTID`/
+  `RESETAGE`/`SETSITE` (mid-run id/age/site; MGMTID is read, the others are gaps).
+
+**Already triaged elsewhere in this doc** (no new action): `PRUNE` (.sum-inert), `YARDLOSS`
+(C7 fuels), `MORTMSB` (effectively inert), `BFVOLEQU/CFVOLEQU` (deprecated), `THINMIST/
+THINRDSL` (⚪ N/A in SN), `ADDFILE` (unit redirect), `DEFECT` (per-tree path handled in
+treeinput.jl — but the keyword default-setter is unverified).
+
+**C7/C8 extensions (owned there):** insects `MPB/DFB/DFTM/WSBW/BRUST/MISTOE`, root disease
+`RDIN/ANIN/RRIN`, `CHEAPO` (econ), `CLIMATE/PRMFROST`, `ORGANON` (alt growth model).
+
+**Output / report / control (C6 or output-only — no `.sum` math):** `DATABASE/DATASCRN/
+DELOTAB` (DBS output), `SVS` (visualization), `COVER` (canopy report), the label/metadata
+keywords `AGPLABEL/SPLABEL/SPCODES/STANDCN/MODTYPE/STRCLASS/LOCATE`, `OPEN/CLOSE` (file I/O),
+`POINTREF/PTGROUP`, `ALSOTRY`, `CWEQN`.
+
+> Next audit-driven ports (most-upstream first): `RANNSEED` + the `SERLCORR`/`*CORR`/`DGSTDEV`/
+> `NOCALIB` calibration-&-correlation cluster (they govern the stochastic DGSCOR path that is
+> already the dominant residual everywhere), then `CCADJ`, then `GROWTH`/`CYCLEAT`.
+
 ## Validation status — 3-way sweep vs live Fortran (2026-06-22)
 
 The comprehensive 3-way sweep (162 scenarios × with/without management, vs live
