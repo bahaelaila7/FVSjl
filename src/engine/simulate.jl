@@ -19,6 +19,7 @@ calibration against the input measured growth (COR). Needs density set first.
 function setup_growth!(s::StandState)
     build_cycle_schedule!(s)             # CYCLEAT/TIMEINT → cycle-boundary year array (IY)
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
+    apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
     isempty(s.control.sp_bf_vol_eq) && (s.control.sp_bf_vol_eq = copy(s.species.vol_eq)) # VEQNNB = default
     apply_voleqnum_overrides!(s)         # VOLEQNUM — user overrides of those equation ids (cubic only)

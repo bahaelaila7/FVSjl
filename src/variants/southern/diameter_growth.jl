@@ -221,6 +221,28 @@ fill the rest by regression, and uncalibrated species draw from BACHLO — and t
 per-species `calib.vardg` (VARDG). Consumes the RNG, so trees are walked in FVS's
 species-sorted order. `scale = YR/FINT` (1 for snt01). Run before `diameter_growth!`.
 """
+# GROWTH IDG=1/3 (intree.f:536): the input DG field is the PAST DBH (`PDBH`), not the growth
+# increment. Convert it to the increment (current DBH − past DBH) so the calibration — which treats
+# `diam_growth` as the measured outside-bark increment — works unchanged. A past DBH that is ≤0 or
+# ≥ the current DBH means no usable measured growth (the tree falls back to the stand-average
+# backdating). Likewise IHTG=1/3 for the height field (PHT). Gated: a no-op for the default IDG=0.
+function apply_growth_input_types!(s::StandState)
+    t = s.trees
+    if s.control.growth_idg == 1 || s.control.growth_idg == 3
+        @inbounds for i in 1:t.n
+            p = t.diam_growth[i]
+            t.diam_growth[i] = (p > 0f0 && p < t.dbh[i]) ? t.dbh[i] - p : 0f0
+        end
+    end
+    if s.control.growth_ihtg == 1 || s.control.growth_ihtg == 3
+        @inbounds for i in 1:t.n
+            p = t.ht_growth[i]
+            t.ht_growth[i] = (p > 0f0 && p < t.height[i]) ? t.height[i] - p : 0f0
+        end
+    end
+    return
+end
+
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
     t, c = s.trees, s.calib
     sd = s.coef.species

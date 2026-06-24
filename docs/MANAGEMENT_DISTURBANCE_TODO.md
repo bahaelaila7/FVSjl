@@ -177,18 +177,22 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   and `evldx.f:430` (the cover event-monitor var) — never by the core growth/mortality/density.
   Empirically: live-Fortran snt01 `+CCADJ 0.5` is byte-identical to baseline (only the run
   timestamp differs). In KNOWN_NOOP; revisit only when COVER/SSTAGE output is ported (C6/output).
-- `GROWTH` (opt 13, vbase/initre.f:2300) — 🟡 **RECOGNIZED + params captured** (`kw_growth!`,
-  test_growth.jl). It sets how the INPUT tree records' growth fields are interpreted for the LSTART
-  calibration: `IDG`/`IHTG` data-type codes (0 = none/increment [grinit default], 1/3 = the field is
-  past DBH/HT → `PDBH`/`PHT`, 2 = increment) + measurement periods `FINT`/`FINTH`/`FINTM`. FVSjl now
-  stores all 5 (`control.growth_*`); the **default (IDG/IHTG=0, periods=5) is the current bit-exact
-  behaviour** (the DG field is the 5-yr increment) — verified a bare GROWTH is a no-op in live Fortran
-  too (snt01 + GROWTH ⇒ byte-identical `.sum`). ⛔ **Deferred (the behavioral part):** the IDG=1/3
-  past-DBH interpretation (intree.f:531-537 / cratet.f:170-185 / dgdriv.f:330) + non-default FINT
-  scaling of the calibration — **WK3 past-DBH calibration territory** (sp33/65). These CHANGE the
-  calibration, so they're not wired blind; they need a purpose-built past-DBH / non-5-yr-FINT scenario
-  to validate bit-exact (the WK3 residual area). So GROWTH is no longer silently dropped, and the
-  default/no-GROWTH case is faithful; only the non-default IDG/FINT behavior remains.
+- `GROWTH` (opt 13, vbase/initre.f:2300) — ✅ **DONE (IDG/IHTG data-type path)** + params captured
+  (`kw_growth!`, test_growth.jl). It sets how the INPUT tree records' growth fields are interpreted
+  for the LSTART calibration: `IDG`/`IHTG` data-type codes (0 = none/increment [grinit default],
+  1/3 = the field is past DBH/HT → `PDBH`/`PHT`, 2 = increment) + measurement periods
+  `FINT`/`FINTH`/`FINTM`. FVSjl stores all 5 (`control.growth_*`); the **default (IDG/IHTG=0,
+  periods=5) is bit-exact** (the DG field is the 5-yr increment) — verified a bare GROWTH is a no-op
+  in live Fortran too (snt01 + GROWTH ⇒ byte-identical `.sum`). ✅ The **IDG/IHTG=1/3 past-DBH/HT
+  interpretation** (intree.f:531-537) is now wired: `apply_growth_input_types!` (diameter_growth.jl)
+  converts the past-DBH/HT field to the increment (current − past) before calibration, after which
+  the bit-exact IDG=0 path runs unchanged. **VALIDATED vs live Fortran** on a purpose-built wide-DG-
+  field stand (the stock F2.1 DG fields are too narrow to carry a past DBH): Fortran `GROWTH IDG=1`
+  reading the past DBH ⇒ byte-identical `.sum` to `IDG=0` reading the increment; FVSjl reproduces the
+  same exact equivalence (test_growth.jl, the in-memory snt01 reconstruction). ⛔ **Still deferred:**
+  the non-default `FINT` measurement-period scaling of the calibration (FINT≠5) — **WK3 past-DBH
+  calibration territory** (sp33/65); it changes the calibration weights, so it stays unwired until a
+  non-5-yr-FINT scenario validates it bit-exact.
 - `CYCLEAT` — ✅ **DONE** (see the keyword table above): explicit cycle-boundary years built on the
   new non-uniform IY schedule; bit-exact YEAR/PrdLen vs Fortran, stand within the TIMEINT residual.
   `SDICALC` — SDI
