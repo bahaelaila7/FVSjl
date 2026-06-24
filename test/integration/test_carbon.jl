@@ -197,3 +197,28 @@ end
         end
     end
 end
+
+@testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
+    # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
+    # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,
+    # since the dead partition has no input height/volume) reproduces the Fortran inventory Stand-Dead
+    # (3.8 mt/ha). Validated as a standalone mechanism here; wiring it into the grown-cycle report needs
+    # the age-dependent snag falldown + the crown-lift (else grown-cycle DDW/Stand-Dead overshoot) —
+    # see FFE_FUEL_DYNAMICS_chunk_plan.md.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        @test s.trees.ndead == 2                        # the two input dead records were read
+        s.fire !== nothing && s.fire.active && FVSjl.compute_forest_type!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.fmcba!(s)
+        FVSjl.ffe_seed_input_snags!(s)
+        TO = 0.90718474 / 0.40468564
+        # input snags carry no crown (history ≥7 ⇒ crown fallen), so Stand-Dead = the stem bole
+        @test FVSjl.snag_crown_carbon(s) == 0f0
+        @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.8) <= 0.2     # Fortran inventory Stand-Dead 3.8
+        @test FVSjl.snag_standing_density(s.fire) > 0f0            # snags actually created
+    end
+end

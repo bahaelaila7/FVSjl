@@ -442,3 +442,21 @@ Floor are unaffected. So on the bit-exact-growth stand the carbon report is now 
 columns (Aboveground Total/Merch, Belowground-Live, Forest Floor, Shrub/Herb) + the structure; the two
 remaining are the DEAD pools: input-snag seeding (Stand-Dead/Below-Dead — three gaps scoped above) and
 the crown-lift (DDW).
+
+### Input-snag seeding — MECHANISM validated (inventory Stand-Dead bit-exact); grown-cycle dynamics remain
+`ffe_seed_input_snags!` (snag.jl) ports FMSADD ITYP=3: each input dead record (dead partition) → a snag
+cohort. Two of the three scoped gaps are now SOLVED:
+  ✅ dead-record bole: the dead partition has no input height/volume, so the seeder LOCALLY dubs the
+     height (HTDBH) and computes the stem volume (R8 Clark) × V2T — reproduces the Fortran inventory
+     Stand-Dead BIT-EXACT (3.9 vs 3.8 on carbon_snt). Unit-tested (test_carbon.jl).
+  ✅ crown: input snags (history ≥7) carry no crown (crown_pct=0) ⇒ no CWD2B (snag_crown_carbon=0,
+     asserted). TSOFT (11.9/8.0) > inventory age ⇒ hard snags, so the static stem bole is exact (no
+     FMSVOL height-loss needed here).
+REMAINING (why it is not yet wired into the grown-cycle report): the input snags must FALL and DECAY
+over the grown cycles (update_snags!), age-dependently. Wiring seeder+update_snags! into
+write_carbon_report made the inventory bit-exact but the GROWN cycles overshoot the carbon_snt ±0.2
+bounds (snags fall too fast / wrong age → Stand-Dead under, DDW 1995 6.8 vs 5.4), because the snag
+falldown rate is keyed to snag age and these were dated at inventory not IY(1)−FINTM, AND the DDW also
+needs the crown-lift. Also the Below-Dead root (1.5 vs 1.0) needs the pre-inventory CRDCAY decay. So the
+seeder is kept as a validated, unit-tested staged component; wiring it = the grown-cycle snag-dynamics
+(age-correct falldown + root decay) + the crown-lift, all on the carbon_snt harness.

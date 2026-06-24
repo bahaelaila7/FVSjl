@@ -137,3 +137,37 @@ end
 "Total standing snag density (stems/ac) currently in the snag list."
 snag_standing_density(fs::FireState) = sum(fs.snags.den_hard) + sum(fs.snags.den_soft)
 
+
+"""
+    ffe_seed_input_snags!(s) -> StandState
+
+Seed the FFE snag list from the INPUT dead-tree records (the tree-list dead partition `n+1 : n+ndead`,
+history codes 6-9) at stand initialization (FMSDIT→FMSADD ITYP=3, fmsdit.f:135). Each becomes a
+standing-dead cohort: its STEM-volume bole (`cuft·V2T`) → the Stand-Dead bole, its coarse roots → the
+Below-Dead BIOROOT pool. Input snags carry no crown (history ≥7 ⇒ crown already fallen; the records have
+`crown_pct = 0`), so there is no CWD2B contribution. Heights/volumes are computed locally here because
+`compute_volumes!` covers only the live partition (the dead records arrive with height 0). The snags are
+young enough (TSOFT > the inventory age) to be hard, so the static stem bole is exact (no FMSVOL
+height-loss yet). Populates the inventory-cycle Stand-Dead / Below-Dead carbon. No-op without FFE / dead records.
+"""
+function ffe_seed_input_snags!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active || s.trees.ndead <= 0) && return s
+    t = s.trees; coef = s.coef; c = s.control; sd = coef.species
+    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx); yr = Int(current_cycle_year(s))
+    s.control.merch_init || init_merch_standards!(s)
+    @inbounds for i in (t.n + 1):(t.n + t.ndead)
+        den = t.tpa[i]; d = t.dbh[i]
+        (den > 0f0 && d >= 1f0) || continue
+        sp = Int(t.species[i])
+        h = t.height[i] > 0f0 ? t.height[i] : max(4.5f0, _htdbh_height(sd, sp, d, ifor))
+        prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
+            ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
+        v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+        bolevol = v[1] * v2t[sp] / 2000f0
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol)
+        _, _, rbio = jenkins_biomass(coef, sp, d)
+        fs.bioroot += rbio * den
+    end
+    return s
+end
