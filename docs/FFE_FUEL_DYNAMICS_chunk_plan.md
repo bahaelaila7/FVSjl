@@ -40,8 +40,12 @@ The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together t
    year loop `fmcwd!(1)+fmcadd_litterfall!` ×NYRS with the crown held at the cycle start reconciles the
    grown-cycle **Forest Floor BIT-EXACT** (carbon_jenkins 1990→1995: 9.1→6.6 = Fortran), which also
    implicitly validates crown_biomass foliage (FMCROWE). LEAFLF/dkr_cls are already in
-   fire_species_props.csv. **⛔ 2b REMAINING — woody crown breakage + snag falldown** (below): DDW at
-   1995 is 2.1 vs Fortran 2.5; the 0.4 gap is the woody-breakage additions.
+   fire_species_props.csv. **⛔ 2b BLOCKED — woody crown breakage → DDW**: the FMCADD breakage logic
+   (`LIMBRK·CROWNW(SIZE)·TPA·P2T`) is correct, but the `crown_biomass` WOODY components (`xv[2..6]`)
+   are in FMCROWE "FFE-internal units, not literal tons" (an 8" loblolly gives 8.7/545/14394/20484 —
+   not tons) → DDW ≈ 120 vs the report's 2.5. So **2b first needs the FMCROWE woody-component
+   validation/fix (the F5/F6 crown-biomass chunk)**; foliage is already right, only the woody side is
+   blocked. DDW at 1995 is 2.1 (decay only) vs Fortran 2.5 — the 0.4 gap is exactly these additions.
 
 2. **Additions — `FMCADD` (fire/base/fmcadd.f:65-130) is the litter/wood input each cycle** (NOT fmsadd,
    which is salvage). Per live tree (FMPROB>0, decay class `DKRCLS(SP)`):

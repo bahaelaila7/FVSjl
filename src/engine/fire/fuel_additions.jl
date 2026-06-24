@@ -34,3 +34,12 @@ function fmcadd_litterfall!(s::StandState)
     end
     return s
 end
+
+# ⛔ Woody crown-breakage additions (FMCADD, fmcadd.f:78-84: `LIMBRK·CROWNW(SIZE)·TPA·P2T` into the
+# woody cwd pools) are NOT ported yet — they are BLOCKED on the `crown_biomass` WOODY components
+# (`xv[2..6]`), which are in FMCROWE's "FFE-internal units, not literal tons" (a known fmcrowe.f
+# scaling inconsistency: bole-tip frusta ×SG/P2T, sub-breast cylinder raw). For an 8" loblolly they
+# come out as (8.7, 545, 14394, 20484) — clearly not tons — and applying P2T gives DDW ≈ 120 t/ac vs
+# the report's 2.5. The FOLIAGE component (`xv[1]`, Jenkins-derived pounds) IS right (it lands the
+# forest floor bit-exact above), so only the woody side is blocked. ⇒ chunk 2b needs FMCROWE woody-
+# component validation/fix first (the F5/F6 crown-biomass chunk). See FFE_FUEL_DYNAMICS_chunk_plan.md.
