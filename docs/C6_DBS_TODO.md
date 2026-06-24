@@ -68,7 +68,16 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   (`test_dbs_invref.jl`): StandID/MgmtID/Variant/KeywordFile (basename, no ext)/SamplingWt match —
   SamplingWt is the DESIGN sample weight `plot.sample_weight` (SAMWT=11), NOT gross_space (1.1).
   Version/RV/RunDateTime/CaseID are FVSjl/environment build metadata (not Fortran-parity fields).
-- ⛔ The remaining ~14 tables. Findings:
+- ✅ **FVS_CutList** (`write_dbs_cutlist!` + `_cut_record`, dbscuts.f) — DONE. The per-cycle list of
+  REMOVED records (FVS_TreeList per-tree columns, TPA = removed trees/acre). Captured non-invasively
+  by a gated observer in `_log_cut!` (the cut path) — zero effect when off; `write_sum_file` arms the
+  sink around the real thin and stashes per cycle. CUTLIST is a **main keyword** (`dbs_cutlist`), not
+  a DATABASE sub-keyword (it is invalid in the DATABASE block in this SN build). ⚠ This SN Fortran
+  binary writes the cut list only to a TEXT dataset (no FVS_CutList table), so there is no Fortran
+  table to diff — instead validated that the CutList **reconstructs the `.sum` removed columns**
+  (Σ TPA = RTpa, Σ(TPA·TCuFt)=RTCuFt=843, Σ(TPA·MCuFt)=RMCuFt=718), which are bit-exact vs Fortran
+  (`test_dbs_cutlist.jl`). Same nullable columns as TreeList.
+- ⛔ The remaining ~13 tables. Findings:
   - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
     compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 

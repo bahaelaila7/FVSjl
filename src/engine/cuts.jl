@@ -92,6 +92,10 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 @inline function _log_cut!(s::StandState, t, i::Integer, prem::Float32)
     prem > 0f0 || return
     sp = Int(t.species[i])
+    # FVS_CutList (DBS): capture this removed record (per-acre removed TPA = prem/GROSPC). A pure
+    # observer, active only when the CutList sink is set — no effect on the thinning otherwise.
+    cap = s.control.cutlist_capture
+    cap === nothing || push!(cap, _cut_record(s, i, prem))
     # ECON: value this removed tree (DBH-class cost/revenue) at the removal point, before
     # the tree list is compacted (eccalc.f/echarv.f). Accumulated for the cycle's harvest.
     if s.econ !== nothing && s.econ.active

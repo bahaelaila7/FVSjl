@@ -77,7 +77,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         sample_wt = nothing, variant::AbstractString = "SN",
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
-                        compute_collect::Union{Nothing,Vector} = nothing)
+                        compute_collect::Union{Nothing,Vector} = nothing,
+                        cutlist_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
@@ -104,7 +105,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
             # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
+            # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
+            cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
             rem = cuts!(s; fint = Float32(per))
+            if cutlist_collect !== nothing
+                push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
+                s.control.cutlist_capture = nothing
+            end
             if rem.tpa > 0f0
                 compute_density!(s)
                 r.rem_tpa  = di(rem.tpa / g);  r.rem_cuft  = di(rem.cuft / g)

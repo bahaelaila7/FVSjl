@@ -180,6 +180,62 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_CutList schema (dbscuts.f) — the per-cycle list of REMOVED records (same per-tree columns as
+# FVS_TreeList, but TPA = removed trees/acre). The not-yet-computed columns are nullable.
+const _FVS_CUTLIST_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_CutList(
+  CaseID text not null, StandID text not null, Year int, PrdLen int, TreeId text,
+  TreeIndex int, Species text, TreeVal int, SSCD int, PtIndex int, TPA real, MortPA real,
+  DBH real, DG real, Ht real, HtG real, PctCr int, CrWidth real, MistCD int, BAPctile real,
+  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, MDefect int, BDefect int,
+  TruncHt int, EstHt real, ActPt int, Ht2TDCF real, Ht2TDBF real, TreeAge real);
+"""
+
+# Capture one removed record `i` for FVS_CutList (per-acre removed TPA = prem/GROSPC). The fillable
+# per-tree attributes; the rest (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are
+# nullable — exactly as FVS_TreeList. (FVSjl field `crown_ratio` is the BA percentile PCT; `crown_pct`
+# is the crown ratio ICR — the confusing names are documented in the TreeList writer.)
+function _cut_record(s::StandState, i::Integer, prem::Float32)
+    t = s.trees; c = s.coef; g = s.plot.gross_space; pbal = s.density.point_bal
+    sp = Int(t.species[i])
+    return (treeid = string(Int(t.tree_id[i])), index = Int(i),
+            species = String(strip(c.code_alpha[sp])), tpa = Float64(prem / g),
+            dbh = Float64(t.dbh[i]), dg = Float64(t.diam_growth[i]), ht = Float64(t.height[i]),
+            htg = Float64(t.ht_growth[i]), pctcr = Int(t.crown_pct[i]),
+            crwidth = Float64(t.crown_width[i]), bapctile = Float64(t.crown_ratio[i]),
+            ptbal = Float64(i <= length(pbal) ? pbal[i] : 0f0), tcuft = Float64(t.cuft_vol[i]),
+            mcuft = Float64(t.merch_cuft_vol[i]), scuft = Float64(t.saw_cuft_vol[i]),
+            bdft = Float64(t.bdft_vol[i]), truncht = Int(t.trunc[i]),
+            ht2tdcf = Float64(t.merch_top_cf[i]), ht2tdbf = Float64(t.merch_top_bf[i]),
+            treeage = Float64(t.birth_age[i]))
+end
+
+"""
+    write_dbs_cutlist!(dbpath, caseid, standid, cycles)
+
+Write the per-cycle removed-record snapshots to FVS_CutList. `cycles` is `[(year, prdlen, recs), …]`
+where `recs` are `_cut_record` NamedTuples captured by `_log_cut!` during the cycle's thin.
+"""
+function write_dbs_cutlist!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, cycles)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_CUTLIST_CREATE)
+        ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 33), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (year, prdlen, recs) in cycles, r in recs
+            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen),
+                r.treeid, r.index, r.species, missing, missing, missing, r.tpa, missing,
+                r.dbh, r.dg, r.ht, r.htg, r.pctcr, r.crwidth, missing, r.bapctile,
+                r.ptbal, r.tcuft, r.mcuft, r.scuft, r.bdft, missing, missing,
+                r.truncht, missing, missing, r.ht2tdcf, r.ht2tdbf, r.treeage))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 """
     write_dbs_compute!(dbpath, caseid, standid, var_names, rows)
 

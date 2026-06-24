@@ -1391,6 +1391,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
+        elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant
