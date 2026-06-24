@@ -27,9 +27,13 @@ function setup_growth!(s::StandState)
     compute_density!(s)
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     dgcons!(s)
-    # LSTART calibration uses the input measured DG. SCALE = YR/FINT (dgdriv.f:325) = 1: at LSTART
-    # FINT is still the default 5 (TIMEINT adjusts it only for the projection cycles), and YR = 5.
-    calibrate_diameter_growth!(s)
+    # LSTART calibration uses the input measured DG. SCALE = YR/FINT (dgdriv.f:325): YR = 5 (the SN
+    # base measurement period), FINT = the GROWTH keyword's DIAMETER measurement period (default 5 →
+    # SCALE = 1). A FINT≠5 means the input DG increment spans FINT years, so the measured DDS is
+    # rescaled to the 5-yr basis the model predicts. (The projection-cycle length is a SEPARATE FINT,
+    # threaded into diameter_growth! by TIMEINT; this scale is the input-measurement period only.)
+    dfint = s.control.growth_fint
+    calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
     return s
 end
 

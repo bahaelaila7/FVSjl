@@ -87,3 +87,40 @@ end
         end
     end
 end
+
+@testset "GROWTH FINT — input measurement-period scaling vs live Fortran" begin
+    # FINT = the GROWTH keyword's DIAMETER measurement period. The input DG increment spans FINT
+    # years, so the calibration rescales the measured DDS to the 5-yr model basis: SCALE = YR/FINT =
+    # 5/FINT (dgdriv.f:325), wired in setup_growth!. A FINT=10 stand reads the SAME 1.5" increment as
+    # covering 10 yr (half the annual growth) ⇒ the calibration shrinks future growth — a MATERIAL,
+    # non-default effect (Fortran 1995 BA 129 vs the FINT=5 158). Baseline growth_fint10.sum.save is
+    # live Fortran on the same ≥5-LP-tree calibration-firing stand. FVSjl must match its structural
+    # columns; the ~1.5% cuft gap is the LP calibration tail (identical at FINT=5, orthogonal to FINT).
+    sc = joinpath(_GDIR, "growth_fint10.key"); sav = joinpath(_GDIR, "growth_fint10.sum.save")
+    if !isfile(sc) || !isfile(sav)
+        @test_skip "growth_fint10 scenario not available"
+    else
+        jl = _g_rows(FVSjl.run_keyfile(sc; faithful = true))
+        ft = _g_rows(read(sav, String))
+        @test length(jl) == length(ft) >= 3
+        for (j, f) in zip(jl, ft)
+            @test j[1] == f[1]                                              # YEAR
+            @test j[3] == f[3]                                              # TPA exact
+            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  ±1
+            @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI ±1
+            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
+            for c in (9, 10, 11)                                            # cuft within the LP tail
+                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.03 * parse(Int, f[c]) + 2
+            end
+        end
+        # The scaling is ACTIVE: FINT=10 grows materially slower than FINT=5 on the SAME tree data
+        # (growth_idg0 = the identical .tre with the default FINT=5). BA at 1995: ≈128 vs ≈158.
+        sc5 = joinpath(_GDIR, "growth_idg0.key")
+        if isfile(sc5)
+            j5 = _g_rows(FVSjl.run_keyfile(sc5; faithful = true))
+            i = findfirst(r -> r[1] == "1995", jl); k = findfirst(r -> r[1] == "1995", j5)
+            @test i !== nothing && k !== nothing
+            @test parse(Int, jl[i][4]) < parse(Int, j5[k][4]) - 20         # FINT=10 BA well below FINT=5
+        end
+    end
+end

@@ -197,9 +197,19 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   cuft gap being the known LP growth-calibration tail (identical under IDG=0, orthogonal to IDG).
   *(NOTE: an earlier pass shipped this with a vacuous 3-tree check — calibration never fired, so the
   DG field was ignored — AND omitted BRATIO. Corrected here: faithful cratet+dgdriv semantics +
-  a calibration-firing Fortran baseline.)* ⛔ **Still deferred:** the non-default `FINT` measurement-
-  period scaling of the calibration (FINT≠5) — **WK3 past-DBH calibration territory** (sp33/65); it
-  changes the calibration weights, so it stays unwired until a non-5-yr-FINT scenario validates it.
+  a calibration-firing Fortran baseline.)* ✅ The **non-default `FINT` (≠5) measurement-period
+  scaling** is now also wired: the input DG increment spans FINT years, so the calibration rescales
+  the measured DDS to the 5-yr model basis via `SCALE = YR/FINT = 5/FINT` (sn/dgdriv.f:325), passed
+  to `calibrate_diameter_growth!` from `setup_growth!`. Not a no-op (Fortran 1995 BA 129 at FINT=10
+  vs 158 at FINT=5). **VALIDATED vs live Fortran** on the ≥5-LP-tree firing stand
+  (test/harness/scenarios/growth_fint10 + `growth_fint10.sum.save`): FVSjl matches Fortran
+  TPA/SDI/QMD every cycle (BA ±1), the FINT5→FINT10 delta matching (ΔBA −30/−29, Δcuft −647/−643),
+  the residual being the same LP tail. The projection-cycle length (TIMEINT) is a SEPARATE FINT,
+  unaffected. ⇒ The DIAMETER path (IDG codes + FINT scaling) is COMPLETE & validated. ⛔ **Still
+  open:** the non-default `FINTH` (height measurement period → SCALE3=5/FINTH in the HCOR height
+  calibration) and `FINTM` (mortality period) scaling — the same one-line pattern as FINT, but each
+  needs its OWN calibration-firing scenario to validate (HCOR needs ≥NCALHT small trees with measured
+  HTG; mortality its own). The default (=5) is bit-exact for both; only the ≠5 scaling is unwired.
 - `CYCLEAT` — ✅ **DONE** (see the keyword table above): explicit cycle-boundary years built on the
   new non-uniform IY schedule; bit-exact YEAR/PrdLen vs Fortran, stand within the TIMEINT residual.
   `SDICALC` — SDI
