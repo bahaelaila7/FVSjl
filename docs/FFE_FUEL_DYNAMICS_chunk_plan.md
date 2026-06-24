@@ -35,6 +35,14 @@ The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together t
      replenished by annual **litterfall** (chunk 2). Porting FMCWD without it makes Floor far too low ⇒
      NOT independently validatable against the report. (Initial split for carbon_jenkins: FUINI 160s =
      litter 4.90 + duff 6.03 = 10.93 t/ac ⇒ ×0.37×2.2417 = 9.1; duff barely decays at 0.002/yr.)
+   ✅ **2a DONE — litterfall** (`fmcadd_litterfall!`, fuel_additions.jl): `foliage·TPA/LEAFLF·P2T` →
+   litter, per tree into its `dkr_cls`. The FFE update runs ANNUALLY (fmmain.f:226-259, NYRS=1) — the
+   year loop `fmcwd!(1)+fmcadd_litterfall!` ×NYRS with the crown held at the cycle start reconciles the
+   grown-cycle **Forest Floor BIT-EXACT** (carbon_jenkins 1990→1995: 9.1→6.6 = Fortran), which also
+   implicitly validates crown_biomass foliage (FMCROWE). LEAFLF/dkr_cls are already in
+   fire_species_props.csv. **⛔ 2b REMAINING — woody crown breakage + snag falldown** (below): DDW at
+   1995 is 2.1 vs Fortran 2.5; the 0.4 gap is the woody-breakage additions.
+
 2. **Additions — `FMCADD` (fire/base/fmcadd.f:65-130) is the litter/wood input each cycle** (NOT fmsadd,
    which is salvage). Per live tree (FMPROB>0, decay class `DKRCLS(SP)`):
    - **Litterfall** = `CROWNW(I,0)·FMPROB(I)/LEAFLF(SP)·P2T` → size-10 litter. `CROWNW(I,0)` = foliage
