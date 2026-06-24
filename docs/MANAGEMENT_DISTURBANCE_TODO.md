@@ -161,11 +161,18 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   (`control.zeide_sdi`/`dbh_zeide`/`dbh_stage`/`sdi_method`, consumed by `mortality.jl`), so
   `kw_sdicalc!` setting them *looks* like a BAMAX-class wire-up — BUT `zeide_sdi` defaults
   `false` (Reineke) while `stand_sdi` (the `.sum` SDI column) hardcodes Zeide per-tree
-  summation with the `dbh_sdi` threshold, and both are bit-exact for snt01. Before SDICALC can
-  switch methods correctly, reconcile: (a) why the `.sum` column is Zeide but `zeide_sdi`=false;
-  (b) `dbh_sdi` vs `dbh_zeide`/`dbh_stage` thresholds; (c) make `stand_sdi` honor the method
-  (Zeide per-tree vs the Reineke `SDIC = SPROB·A + B·SDSQ` Taylor form, sdical.f:281-327). A
-  focused SDI-computation chunk, validated vs Fortran for both methods + a non-zero threshold.
+  summation with the `dbh_sdi` threshold, and both are bit-exact for snt01. **Reconciliation
+  DONE (the entanglement is understood, 2026-06-24):** SN default is `LZEIDE=.TRUE.`
+  (grinit.f:129, Zeide). FVSjl is correct via TWO independent paths — `stand_sdi` does Zeide
+  per-tree summation for the reported `.sum` column (matches LZEIDE=true), while `mortality.jl`
+  uses the QMD path `sqrt(ΣD²/ΣTPA)` (the `zeide_sdi=false` branch), which is the SN SDImax
+  computation independent of the report flag. So `zeide_sdi=false` is the *mortality* method,
+  NOT a mis-set report flag. **Remaining port:** make `stand_sdi` honor the SDICALC report
+  method (Zeide vs the Reineke `SDIC=SPROB*A+B*SDSQ` Taylor form, sdical.f:281-327) + the
+  `dbh_zeide`/`dbh_stage` threshold (not the always-0 `dbh_sdi`), defaulting to today's Zeide/0
+  behavior; `kw_sdicalc!` sets a *report* method flag + the thresholds. Validate the reported
+  SDI column for both methods + a non-zero threshold vs Fortran, without disturbing the QMD
+  mortality (snt01 must stay bit-exact).
   `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
