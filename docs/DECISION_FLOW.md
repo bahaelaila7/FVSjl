@@ -108,12 +108,12 @@ FFERT                fertilizer response                                ⛔ (key
 ```
 MPBCUP/DFBWIN/MISTOE/TMCOUP/BWECUP   insect/disease record updates       🧊
 FMMAIN               FFE fire effects + fire-caused mortality            ✅ fmburn! (FMCFMD/FMDYN/FMFINT fuel models → Rothermel → FMEFF kill, booked as periodic mortality). snt01 stand-4 post-fire TPA/MORT bit-exact; small self-correcting BA transient from per-tree kill distribution remains.
-BRTREG / RDTREG      sprout / planted regeneration                       ⛔ C4 regen
+BRTREG / RDTREG      sprout / planted regeneration                       ✅ esuckr! (stump sprout, ESUCKR — bit-exact vs Fortran) + establish! (planted/natural)
 HTGSTP               HTGSTOP / TOPKILL keyword height edits              ⛔ (keyword option; no-op otherwise)
 UPDATE               apply DG/HTG → DBH/HT (+ bark, NORMHT for topkill)  ✅ inline in grow_cycle!
 RDPSRT / DENSE       sort + recompute density                           ✅ compute_density!
 CVGO                 canopy cover                                        🧊
-CLAUESTB / ESNUTR    establishment (natural + nutrient hook)            ⛔ C4 regen
+CLAUESTB / ESNUTR    establishment (natural + nutrient hook)            ✅ establish! + esuckr! (ESNUTR phase; establishment model chunks A–D complete)
 DENSE                density (post-establishment)                        ✅
 CROWN                crown-ratio update (Weibull, ±change cap)           ✅ crown_ratio_update!
 CWIDTH               crown width                                         ✅
@@ -179,9 +179,12 @@ than something discovered by accident mid-debug:
    booked as periodic mortality). snt01 stand-4 post-fire TPA and MORT volume are
    bit-exact vs Fortran; flame/scorch match. Remaining: a small self-correcting
    per-tree kill-distribution BA transient, and the FFE DBS **report** tables (C6/C7).
-3. **Regeneration / establishment** (`REGENT` establishment mode, `ESFLTR`,
-   `CLAUESTB`, `ESNUTR`, `BRTREG`, `RDTREG`, `ESOUT`): ⛔ **C4** remaining. Not
-   exercised by the snt/all/mix scenarios (NOAUTOES).
+3. **Regeneration / establishment**: ✅ **ported & validated** — natural/planted
+   establishment (`establish!`, ESTAB chunks A–D, bare-stand bit-exact for the first
+   cycles) and stump-sprout regen (`esuckr!`, ESUCKR — bit-exact vs live Fortran on
+   `sprout.key`). Remaining sub-pieces: `ESFLTR` filter detail and `ESOUT` (a DBS/`.out`
+   **report**, C6). The SN natural-process model (growth/mortality/density/regen/sprout)
+   is complete.
 4. **Economics** (`ECSETP/ECSTATUS`, `eccalc`): 🧊 **C8** (a minimal ANNUCST
    path exists for the econ test only).
 5. **Keyword option paths** not yet wired: `FIXDG`, `FIXHTG`, `FFERT`, `HTGSTP`
