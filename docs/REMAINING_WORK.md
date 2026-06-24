@@ -18,11 +18,26 @@ vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported 
 - ✅ **CWD2B crown-debris scheduling (FMSCRO) — DONE & bit-exact for Stand-Dead** (`cwd2b[4,6,60]`
   state, the TFALL table, the at-death crown spread, the snag = bole-only split). Landed the STAND-DEAD
   column bit-exact (5.2/4.5 = bole 3.72 + crown 1.46), validated vs an instrumented Fortran dump.
-- ⛔ **REMAINING — DDW within-cycle flow timing** = the `grow_cycle!` hot-path wiring of
-  `ffe_fuel_update!` so the cycle's mortality is scheduled and its crown debris FLOWS within the same
-  cycle (see the root-cause analysis in the Update section below). ⚠ a coupled refactor that touches
-  the validated fire path via fmburn! — needs its own focused effort behind test_fire.jl, not an
-  end-of-session rush.
+- ⛔ **REMAINING — DDW post-mortality column = the crown-LIFT term, FULLY CHARACTERIZED this session**
+  (every piece validated; only the in-loop integration remains):
+  - ✅ SOURCE: the crown-LIFT (`X·CROWNW·TPA·P2T`, fmcadd.f:95-102) — the lower crown shed as the crown
+    base rises — is the dominant post-mortality down-wood addition (~0.39 t/ac/yr, instrumented FMCADD
+    dump); breakage/cwd2b are minor. (Ruled out: crown-lift-negligible [buggy dump], CWD I/L structure,
+    ordering swap, crown magnitude — all via dumps.)
+  - ✅ FORMULA: `crown_lift_rate` (X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN, FMSDIT) — implemented + unit-tested
+    (test_crown_lift.jl, 7 assertions).
+  - ✅ PLUMBING: previous-cycle per-tree crown via `prev_height`/`prev_crown_len`/`prev_dbh` TreeList
+    fields in `_TREE_VEC_FIELDS` (ride through compaction/tripling via `copy_tree!` — clean, no parallel
+    arrays); cycle-start snapshot via `fmoldc!`. Validated to fire.
+  - ✅ PLACEMENT: POST-grow (after `grow_cycle!`) — fires the lift at the right cycles (DDW jumps at
+    2000 AND 2005), using this cycle's crown-base rise + the cycle-START crown (OLDCRW, from `prev_dbh`).
+  - ⛔ ONLY REMAINING: apply it PER-YEAR inside a post-grow annual loop so each year's lift DECAYS over
+    the rest of the cycle (a lump-sum `cyclen·X·CROWNW` overshoots ~1.5×; the per-year-with-decay
+    magnitude hand-checks to the exact gap, ~1.76 mt/ha). = the FFE-update-AFTER-grow restructure: one
+    post-grow annual loop carrying decay + litterfall + breakage + cwd2b-flow + crown-lift together
+    (cycle-start crown for live terms, post-grow X for the lift), coupling to the cwd2b/Stand-Dead
+    death-dating. A focused integration behind test_fire.jl, not an end-of-session rush. See
+    FFE_FUEL_DYNAMICS_chunk_plan.md for the full validated trail.
 - ⛔ then: the `.out` Stand-Carbon-Report writer.
 - **Blocker:** none external; the remaining item is the grow_cycle! integration (timing) + the .out writer.
 
