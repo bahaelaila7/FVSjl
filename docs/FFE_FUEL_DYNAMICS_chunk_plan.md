@@ -261,3 +261,20 @@ ordering. NEXT: dump the Fortran's SCHEDULED crown at FMSCRO/FMSADD (before any 
 ~3.5 not ~1.46, fix crown_biomass magnitude, THEN apply grow_flow ordering with the fine→DDW /
 coarse→remaining TFALL split so BOTH DDW and Stand-Dead reconcile. (This supersedes "ordering is the
 fix"; the per-year dump showed WHEN, this experiment shows the amount is also short.)
+
+### DDW residual — crown MAGNITUDE confirmed CORRECT; residual is flow-timing/report-point
+Instrumented fmscro.f (the crown-scheduling routine) to dump the SCHEDULED crown per death year:
+- death 1994: 0.013 · death 1999: **1.304** · death 2004: 1.064 · death 2009: 0.774 t/ac.
+My `snag_crown_carbon` gives 1.3 t/ac for the 1995-2000 (death-1999) cohort ⇒ **crown magnitude is
+bit-correct** (1.3 vs 1.304). Also confirmed `SCHT == CRWO` ⇒ the OLDCRW term (YRSCYC·OLDCRW·X,
+fmscro.f:147) is ZERO here — nothing missing. So last turn's "crown magnitude shortfall" is ALSO ruled
+out. The deaths are dated cycle_end−1 (1994/1999/2004/2009); the crown flows starting YNEXTY (~the
+boundary year), and the per-year DDW dump's report value (3.39 t/ac @2000) equals the year-1999 value
+(3.40), i.e. the report reads BEFORE the boundary-year crown flow. ⇒ The entire DDW residual is a
+precise FLOW-TIMING + report-read-point detail in the FFE main loop (YNEXTY flow start vs the report
+snapshot), with every magnitude (bole 3.72, crown 1.304, root/BIOROOT) already bit-correct. This is the
+grow_cycle! integration wiring — the model pieces are validated; only the per-year flow/report
+sequencing around the cycle boundary remains, which is exactly the hot-path wiring step (do it behind
+test_fire.jl with the YNEXTY-aligned annual flow, not an end-of-session rush).
+Ruled out across this investigation: crown-lift (negligible) · CWD I/L structure (collapses for this
+stand) · simple grow/flow ordering swap (breaks Stand-Dead) · crown magnitude (confirmed correct).
