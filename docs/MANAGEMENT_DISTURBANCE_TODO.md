@@ -189,7 +189,7 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   ALSO route the mortality SDImax through the method (and resolve how the FVSjl `zeide_sdi`
   mortality flag — `false` for the SN Zeide default — maps to LZEIDE). Report-only is NOT enough;
   do both together + validate the multi-cycle TPA, not just the cycle-0 SDI column.
-  `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
+  `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`GROWTH` is **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
   - `RESETAGE` (resage.f, act 443): ✅ **DONE** (audit find #8). Turned out NOT to need the

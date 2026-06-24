@@ -25,6 +25,11 @@ const KNOWN_NOOP = Set([
     "NODEBUG", "DEBUG", "CALBSTAT", "REWIND", "ENDFILE", "FVSSTAND",
     # report-table requests (output not yet emitted)
     "TREELIST", "ATRTLIST", "CUTLIST",
+    # CCADJ (sstage.f act 444): adjusts CCCOEF/CCCOEF2 used ONLY inside SSTAGE (the structural-
+    # stage CLASSIFICATION, Stage et al.) — verified .sum-inert (FVSjl doesn't emit SSTAGE; the
+    # coefficient never reaches DGF/CCF growth). Variant-agnostic (sstage is base). Recognize when
+    # SSTAGE output is in scope.
+    "CCADJ",
     # bare-stand flag (also handled explicitly below; harmless here)
     "NOTREES",
 ])
