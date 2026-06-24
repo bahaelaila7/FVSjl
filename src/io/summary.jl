@@ -76,7 +76,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true,
-                        collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing)
+                        collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
+                        compute_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
@@ -96,6 +97,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
         cycle_hook === nothing || cycle_hook(s, r.year, per)
         if !last
+            # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
+            # start — only the growing cycles get a row (the event monitor runs during growth).
+            compute_collect === nothing ||
+                push!(compute_collect, (r.year, snapshot_compute!(s, r.year, c)))
             # apply this cycle's scheduled thin (CUTS) BEFORE growth; report the removed
             # + after-treatment columns on THIS row (matching the Fortran .sum). cuts! is
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.

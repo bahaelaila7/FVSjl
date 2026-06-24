@@ -65,6 +65,29 @@ function eval_event(n::EvNode, ctx::EventCtx)::Float32
     end
 end
 
+"""
+    snapshot_compute!(s, year, cycle) -> Vector{Tuple{String,Float32}}
+
+Evaluate the COMPUTE definitions active at `year` (date ≤ year) against the current
+(start-of-cycle) stand, updating `control.compute_vars`, and return the active variables in
+declaration order — the per-cycle row for the DBS FVS_Compute table (dbscmpu.f). Mirrors the
+COMPUTE evaluation in `cuts!` (same start-of-cycle values), so the IF conditions and the table
+agree. `cycle` is the 0-based FVSjl cycle (the event monitor's CYCLE is `cycle + 1`).
+"""
+function snapshot_compute!(s::StandState, year::Integer, cycle::Integer)
+    defs = s.control.compute_defs
+    isempty(defs) && return Tuple{String,Float32}[]
+    ctx = EventCtx(Int(cycle) + 1, Int(year), s)
+    snap = Tuple{String,Float32}[]
+    for (cd, nm, ast) in defs
+        Int(year) >= Int(cd) || continue
+        v = eval_event(ast, ctx)
+        s.control.compute_vars[nm] = v
+        push!(snap, (nm, v))
+    end
+    return snap
+end
+
 "Resolve an event-monitor variable to its current value. Extend as scenarios need."
 function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     if ctx.state !== nothing                       # COMPUTE user variables (checked first)

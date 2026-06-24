@@ -242,6 +242,7 @@ mutable struct Control
     dbs_out_file::String                      # DATABASE/DSNOUT output SQLite file ("" = none)         (DSNOUT)
     dbs_summary::Bool                         # DATABASE SUMMARY ⇒ emit the FVS_Summary table          (ISUMARY)
     dbs_treelist::Bool                        # DATABASE TREELIDB ⇒ emit the FVS_TreeList table        (ITREELIST)
+    dbs_compute::Bool                         # DATABASE COMPUTDB ⇒ emit the FVS_Compute table         (ICOMPUTE)
     cycle_lengths::Vector{Int32}              # per-cycle period override (TIMEINT field-1); 0 = use uniform `year`  (IY pre-cumulation)
     cycleat_years::Vector{Int32}              # CYCLEAT-requested extra cycle-boundary years (calendar)              (IWORK1)
     ncycle_eff::Int32                         # effective cycle count after CYCLEAT insertions (build_cycle_schedule!) (NCYC)
@@ -297,7 +298,7 @@ function Control()
         false, 1f0, 1f0, CutRecord[],                           # lsprut, sprout_smult, sprout_hmult, cut_log
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
-        "", false, false,                                       # dbs_out_file, dbs_summary, dbs_treelist (DATABASE)
+        "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
         ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
         false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)

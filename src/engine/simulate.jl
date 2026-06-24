@@ -296,18 +296,24 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         has_db = !isempty(s.control.dbs_out_file)
         sum_on = s.control.dbs_summary && has_db
         tl_on = s.control.dbs_treelist && has_db
+        cp_on = s.control.dbs_compute && has_db && !isempty(s.control.compute_defs)
         rows = sum_on ? SummaryRow[] : nothing
         tl_cycles = tl_on ? Tuple[] : nothing
+        cp_rows = cp_on ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, date = date, time = time,
-                       collect_rows = rows, cycle_hook = hook)
-        if sum_on || tl_on
+                       collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows)
+        if sum_on || tl_on || cp_on
             case += 1
             caseid = string(sid, "-", case)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
             tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            if cp_on
+                var_names = String[nm for (_, nm, _) in s.control.compute_defs]
+                write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)
+            end
         end
     end
     return String(take!(out))

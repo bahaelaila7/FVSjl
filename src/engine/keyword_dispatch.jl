@@ -1134,6 +1134,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_summary = true
         elseif k == "TREELIDB"
             s.control.dbs_treelist = true
+        elseif k == "COMPUTDB"
+            s.control.dbs_compute = true
         end
     end
     return

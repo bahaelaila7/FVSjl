@@ -43,20 +43,18 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   TPA / cubic volume (`test_dbs_treelist.jl`). The exact per-tree row set differs from Fortran
   only by the tripling/COMCUP record PARTITION (same totals). Not-yet-filled cols (nullable):
   MortPA, TreeVal/SSCD/PtIndex, MistCD, MDefect/BDefect split, EstHt, ActPt.
-- ⛔ The remaining ~16 tables + the FVS_Cases full schema. Findings from attempts:
-  - **FVS_Compute** (dbscmpu.f): a working dynamic-schema writer was built (one REAL col per
-    COMPUTE var, `compute_snapshot`/`write_dbs_compute!`) but REVERTED — validation showed
-    Fortran writes only **1 row (cycle 0)**, not per-cycle, for a COMPUTE block with no IF.
-    The row-write trigger is tied to the event-monitor evaluation (FVSjl gates the COMPUTE eval
-    on `!isempty(conds)`, cuts.jl:132), so the table can't just snapshot every cycle. Resolve
-    the COMPUTE eval/write trigger vs Fortran before re-adding. (MYBA=BBA / MYCYC=CYCLE matched
-    Fortran exactly, so the writer + dynamic schema are correct — only the row cadence is wrong.)
-    ✅ **Fixed a real event-monitor bug** found doing this: `event_monitor.jl` returned
-    `stand_ba` for BOTH `BBA` and `BSDI` (copy-paste). `BSDI` = SDIBC = the **raw** Reineke
-    SDIC (`SPROB·A + B·SDSQ`, sdical.f:281-327) — a different SDI from the `.sum` Zeide column
-    (160) and the mortality SDImax. Reported RAW (no /GROSPC, unlike BBA/TPA — that 1.10× factor
-    was the whole 184.5-vs-203 gap). Now `_event_bsdi` = **202.9, bit-exact** vs live Fortran
-    `COMPUTE BSDI` (`test_event_monitor.jl`).
+- ✅ **FVS_Compute** (`write_dbs_compute!`, dbscmpu.f) — DONE. Dynamic schema (one REAL col per
+  COMPUTE var, declaration order); `snapshot_compute!` evaluates the active COMPUTE defs at each
+  GROWING cycle's start (`write_sum_file`'s `compute_collect`; the final inventory cycle gets no
+  row, matching Fortran — the event monitor runs only during growth). DATABASE `COMPUTDB` ⇒
+  `dbs_compute`. **Bit-exact (Float32) vs live Fortran FVSOut.db** (`test_dbs_compute.jl`):
+  MYBA=BBA and MYSDI=BSDI match every cycle. The earlier "Fortran writes only 1 row" finding was a
+  **misdiagnosis** — the cadence is date-gated by the COMPUTE date; `COMPUTE 0` (active every
+  cycle) writes every growing cycle. This also validated the **BSDI = raw Reineke SDIBC fix**
+  end-to-end through the DBS path (MYSDI 202.94, not the BA-77 of the old copy-paste bug). NOTE: a
+  bare `TPA` event var exists in FVSjl but not in stock Fortran (Fortran leaves `MYTPA=TPA` null),
+  so it is not a valid parity column.
+- ⛔ The remaining ~15 tables + the FVS_Cases full schema. Findings:
   - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
     compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 

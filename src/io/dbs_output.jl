@@ -105,6 +105,38 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
 end
 
 """
+    write_dbs_compute!(dbpath, caseid, standid, var_names, rows)
+
+Write the per-cycle COMPUTE variables to the FVS_Compute table (dbscmpu.f). The schema is
+DYNAMIC — one REAL column per COMPUTE variable (`var_names`, in declaration order) — created on
+first use. `rows` is `[(year, [(name,value),…]), …]` (the `compute_collect` from `write_sum_file`);
+a variable not yet active in a given cycle is written NULL. Only the growing cycles get a row.
+"""
+function write_dbs_compute!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, var_names::Vector{String}, rows)
+    isempty(var_names) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        cols = join(("\"$v\" real null" for v in var_names), ", ")
+        DBInterface.execute(db, "CREATE TABLE IF NOT EXISTS FVS_Compute(" *
+            "CaseID text not null, StandID text not null, Year int null, $cols);")
+        ins = "INSERT INTO FVS_Compute VALUES (" * join(fill("?", length(var_names) + 3), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (year, snap) in rows
+            vals = Dict{String,Float32}(snap)
+            row = Any[caseid, standid, Int(year)]
+            for v in var_names
+                push!(row, haskey(vals, v) ? Float64(vals[v]) : missing)
+            end
+            DBInterface.execute(stmt, row)
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"""
     write_dbs_treelist!(dbpath, caseid, standid, cycles)
 
 Write the per-cycle tree snapshots (`treelist_snapshot` tuples) to the FVS_TreeList table.
