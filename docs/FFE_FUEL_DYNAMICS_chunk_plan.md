@@ -108,3 +108,26 @@ Forest Floor every cycle, DDW at 1990/1995/2005, Stand-Dead populated** — see 
    finding; fire uses the evolved pools) — behind the `test_fire.jl` regression gate. ⚠ likely shifts the
    fire-stand fuels from initial→evolved, which may surface the known SIMFIRE fire-mortality residual.
 4. **The `.out` Stand-Carbon-Report WRITER** (byte-exact like write_structure_report) — last, once 1-3 land.
+
+## CWD2B crown-debris scheduling (FMSCRO) — the last reconciliation gap, fully specified
+Status after this session: the grown-cycle Stand Carbon Report reconciles **7 of 9 columns** bit-exact
+(above/merch/below-live, **below-dead**, forest floor, DDW@1990/95/2005, shrub) + Stand-Dead populated.
+The two remaining (DDW timing @2000: 2.1 vs 3.8; Stand-Dead exact split: 6.1 vs 5.2 @2000) both come
+from CWD2B. Everything needed to port it:
+
+- **State:** `cwd2b[decay 1:4, size 0:5, year 1:TFMAX]`, TFMAX=60 (FMPARM.F77) — debris scheduled to
+  fall N years out. Add to FireState (a `zeros(4,6,60)`); reset/persist per stand.
+- **At death (FMSCRO, fmsadd.f:306 / fmscro.f:119-170):** the BOLE stays the (slow) snag; each crown
+  component `CROWNW(SIZE)` (SIZE 0=foliage..5, from `crown_biomass`, now correctly scaled) is divided
+  EQUALLY across years `next..min(TSOFT, TFALL(sp,SIZE))` into `cwd2b[dkcl, SIZE, fallyr]`.
+- **TFALL (sn/fmvinit.f:1018-1058, keyed by `tfall_cls` ∈ 1..6, already a CSV column):**
+  foliage TFALL(·,0)=1 (3 for redcedar); TFALL(·,1)=TFALL(·,2)= {5,3,2,1,1,1}[cls]; TFALL(·,3)=
+  {10,6,5,4,3,2}[cls]; TFALL(·,4)=TFALL(·,5)= {25,12,10,8,6,4}[cls]. (cls6=pines fall fastest.)
+- **Annual flow (FMCADD, fmcadd.f:113-125):** each year add `cwd2b[·,SIZE,1]` to the matching
+  `fire.cwd` down-wood size class, then shift `cwd2b[·,·,k] = cwd2b[·,·,k+1]`. This is the fast
+  initial falldown the current whole-tree snag lacks → fixes DDW@2000.
+- **Snag = bole only:** with the crown moved to CWD2B, `standing_dead_carbon` should count the bole,
+  not the whole-tree Jenkins aboveground (currently over-counts by the crown ⇒ Stand-Dead 6.1 vs 5.2).
+
+After CWD2B: (2) grow_cycle! hot-path wiring (fuel update BEFORE growth, behind test_fire.jl); (3) the
+`.out` Stand-Carbon-Report writer. These finish the FFE Stand Carbon Report extension.
