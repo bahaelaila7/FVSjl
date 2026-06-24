@@ -4,21 +4,25 @@ Status snapshot (suite 4223). The natural-process core + most management/disturb
 ported and validated bit-exact vs live Fortran. What remains, grouped by the **nature of the blocker**
 (not just "todo") so the path for each is clear.
 
-## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (IN PROGRESS)
-Inventory-cycle report is bit-exact (every column). Grown-cycle progress this session:
-- ✅ `FMCWD` down-wood **decay** ported + unit-tested (`fire/fuel_decay.jl`, `fmcwd!`).
-- ✅ `FMCADD` **litterfall** ported (`fire/fuel_additions.jl`) — the grown-cycle **FOREST FLOOR
-  reconciles BIT-EXACT** (carbon_jenkins 1990→1995: 9.1→6.6 vs Fortran) via the annual fuel loop
-  (FMCWD+FMCADD each year, NYRS=1, fmmain.f:226). Implicitly validated crown_biomass FOLIAGE.
-- ⛔ **DDW (woody breakage) BLOCKED on FMCROWE woody-component units.** The FMCADD breakage logic is
-  right, but `crown_biomass`'s WOODY components (`xv[2..6]`) come out in absurd magnitudes (8″ loblolly:
-  8.7/545/14394/20484, not tons — the UMBTW bole-tip `×SG/P2T` cone weights). **Next concrete step:**
-  instrument `fmcrowe.f` to dump XV for the carbon_jenkins trees, rebuild, diff vs `crown_biomass`, fix
-  the FVSjl woody computation; then the breakage term drops in and DDW (2.1 decay-only vs Fortran 2.5)
-  closes. This is the F5/F6 crown-biomass validation.
-- ⛔ per-cycle **driver** (wire the annual loop into `grow_cycle!`, behind `test_fire.jl`) — after DDW.
-- **Blocker:** none external; the floor half is bit-exact, the remaining sub-steps are the FMCROWE
-  woody fix (needs a Fortran XV dump) + the driver. Most-upstream genuinely-remaining item.
+## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (7/9 COLUMNS BIT-EXACT)
+Inventory cycle bit-exact (all columns). **Grown-cycle: 7 of 9 report columns now reconcile bit-exact**
+vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported + validated this session:
+- ✅ `FMCWD` decay (fuel_decay.jl) · ✅ `FMCADD` litterfall + woody breakage (fuel_additions.jl) ·
+  ✅ per-cycle driver `ffe_fuel_update!` · ✅ periodic-mortality → snags (mortality.jl) · ✅ dead coarse-
+  root pool BIOROOT (Below-Dead column).
+- ✅ THE BUG FIX: `crown_biomass` missed the V2T/=2000 rescale (fmvinit.f:1094) → woody cone weights
+  ~2000× too large; root-caused via a Fortran XV dump (instrument fmcrow.f/fmcrowe.f, rebuild, dump,
+  revert — the `DEBUG` keyword segfaults the stripped binary). One-line fix `sg = v2t * _FM_P2T`.
+- ✅ RECONCILE: above/merch/below-live, **below-dead**, forest floor (every cycle), DDW (1990/95/2005),
+  shrub — all bit-exact; Stand-Dead populated.
+- ⛔ **REMAINING — CWD2B crown-debris scheduling (FMSCRO)**, fully specified in
+  FFE_FUEL_DYNAMICS_chunk_plan.md (the `cwd2b[4,6,60]` state, the TFALL table, the at-death crown
+  spread, the annual flow → DDW, and the snag = bole-only split). Closes the last two: DDW *timing*
+  at the first post-mortality cycle (2000: 2.1 vs 3.8) + the exact Stand-Dead split (6.1 vs 5.2). ⚠ a
+  coupled refactor that touches `add_snag!` (so the validated fire path via fmburn! too) — needs its
+  own focused effort behind test_fire.jl, not an end-of-session rush.
+- ⛔ then: `grow_cycle!` hot-path wiring of the driver + the `.out` Stand-Carbon-Report writer.
+- **Blocker:** none external; the most-upstream remaining item is now down to FMSCRO + 2 integration steps.
 
 ## B. Validation-blocked by the stripped ground-truth binary
 The rebuilt `/tmp/FVSsn_new` is a **stripped DBS build**: the DATABASE block accepts only
