@@ -307,7 +307,12 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         if has_db
             case += 1
             caseid = string(sid, "-", case)
-            # FVS_InvReference: the per-species reference dump accompanies any DBS output.
+            # FVS_Cases registry + FVS_InvReference reference dump accompany any DBS output.
+            kwfile = isempty(keypath) ? "" : first(splitext(basename(keypath)))
+            write_dbs_cases!(s.control.dbs_out_file, caseid, String(sid);
+                             mgmt_id = mid, variant = variant_code(s.variant),
+                             keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
+                             run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))

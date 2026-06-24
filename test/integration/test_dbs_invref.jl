@@ -61,6 +61,19 @@ STOP
             # the woodland/special species carry CFMinDBH = 6 (matched bit-exact vs Fortran)
             @test count(r -> r.CFMinDBH == 6.0, rows) == 9
             @test rows[2].SDIMax == 354 && strip(rows[2].SpeciesFVS) == "JU"   # 2nd species spot-check
+
+            # FVS_Cases registry (full schema) — the simulation fields match Fortran (build
+            # metadata Version/RV/RunDateTime/CaseID is environment-specific, not asserted).
+            cols = [r.name for r in DBInterface.execute(d, "PRAGMA table_info(FVS_Cases)")]
+            for c in ("Stand_CN", "KeywordFile", "SamplingWt", "Variant", "Version", "RunDateTime")
+                @test c in cols                                  # 12-column schema
+            end
+            cas = NamedTuple(first(DBInterface.execute(d, "SELECT * FROM FVS_Cases")))
+            @test strip(cas.StandID) == "REFDB" && strip(cas.MgmtID) == "NONE"
+            @test strip(cas.Variant) == "SN"
+            @test strip(cas.KeywordFile) == "ref"                # keyword-file basename, no extension
+            @test cas.SamplingWt == 11.0                         # DESIGN sample weight (SAMWT), bit-exact
+            @test length([r for r in DBInterface.execute(d, "SELECT CaseID FROM FVS_Cases")]) == 1
         finally
             SQLite.close(d)
         end

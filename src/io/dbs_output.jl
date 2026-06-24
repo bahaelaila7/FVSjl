@@ -23,11 +23,43 @@ CREATE TABLE IF NOT EXISTS FVS_Summary(
   ForTyp int, SizeCls int, StkCls int);
 """
 
-# FVS_Cases registry (dbscase.f) — minimal: identify the case + stand + variant.
+# FVS_Cases registry (dbscase.f) — full schema: the per-case run metadata that keys every other
+# DBS table. Build/run metadata (Version/RV/RunDateTime/CaseID) is environment-specific.
 const _FVS_CASES_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Cases(
-  CaseID text not null, StandID text not null, MgmtID text, RunTitle text, Variant text);
+  CaseID text primary key, Stand_CN text not null, StandID text not null, MgmtID text,
+  RunTitle text, KeywordFile text, SamplingWt real, Variant text, Version text, RV text,
+  Groups text, RunDateTime text);
 """
+
+# FVSjl build identifiers written into FVS_Cases (the FVS Version / revision strings).
+const FVSJL_VERSION = "FVSjl0.1"
+const FVSJL_RV = "20260401"
+
+"""
+    write_dbs_cases!(dbpath, caseid, standid; ...)
+
+Register a case in the FVS_Cases table (dbscase.f) — the run metadata (stand/mgmt id, sampling
+weight, variant, keyword-file, version, timestamp) that keys every other DBS table. Written once
+per stand. The build/run metadata (Version/RV/RunDateTime/CaseID) is FVSjl/environment-specific
+and not a Fortran-parity field; the simulation fields (StandID/MgmtID/SamplingWt/Variant) match.
+"""
+function write_dbs_cases!(dbpath::AbstractString, caseid::AbstractString, standid::AbstractString;
+                          mgmt_id::AbstractString = "NONE", variant::AbstractString = "SN",
+                          title::AbstractString = "", keyword_file::AbstractString = "",
+                          sampling_wt::Real = 1.0, stand_cn::AbstractString = "",
+                          groups::AbstractString = "", run_datetime::AbstractString = "")
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_CASES_CREATE)
+        DBInterface.execute(db, "INSERT OR REPLACE INTO FVS_Cases VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (caseid, stand_cn, standid, mgmt_id, title, keyword_file, Float64(sampling_wt),
+             variant, FVSJL_VERSION, FVSJL_RV, groups, run_datetime))
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
 
 "The DBS column names, in FVS_Summary order (for the `.sum`-row mapping below)."
 const FVS_SUMMARY_COLS = (:Year, :Age, :Tpa, :BA, :SDI, :CCF, :TopHt, :QMD, :TCuFt, :MCuFt,
@@ -53,10 +85,7 @@ function write_dbs_summary!(dbpath::AbstractString, caseid::AbstractString,
                             title::AbstractString = "")
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_CASES_CREATE)
-        DBInterface.execute(db, _FVS_SUMMARY_CREATE)
-        DBInterface.execute(db, "INSERT INTO FVS_Cases VALUES (?,?,?,?,?)",
-                            (caseid, standid, mgmt_id, title, variant))
+        DBInterface.execute(db, _FVS_SUMMARY_CREATE)     # FVS_Cases is registered by write_dbs_cases!
         ins = "INSERT INTO FVS_Summary VALUES (" * join(fill("?", 31), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for r in rows

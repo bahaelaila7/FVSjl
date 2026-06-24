@@ -61,7 +61,14 @@ existing FVSjulia sndb table set as the parity target. (Fire/econ DBS tables are
   emitted whenever the DSNOUT db is active. **Bit-exact vs live Fortran FVSOut.db — 0 mismatches
   across 90 species × 19 columns** (`test_dbs_invref.jl`); incl. the 9 woodland species' CFMinDBH=6.
   One fix: SiteIndex/SDIMax use FVS `trunc(x+0.5)` (round-half-up), not Julia `round` (half-even).
-- ⛔ The remaining ~14 tables + the FVS_Cases full schema. Findings:
+- ✅ **FVS_Cases** full schema (`write_dbs_cases!`, dbscase.f) — DONE. The 12-column case registry
+  (Stand_CN/StandID/MgmtID/RunTitle/KeywordFile/SamplingWt/Variant/Version/RV/Groups/RunDateTime)
+  that keys every other DBS table, written once per stand whenever the DSNOUT db is active (replaces
+  the old 5-col inline version in `write_dbs_summary!`). **Simulation fields bit-exact vs Fortran**
+  (`test_dbs_invref.jl`): StandID/MgmtID/Variant/KeywordFile (basename, no ext)/SamplingWt match —
+  SamplingWt is the DESIGN sample weight `plot.sample_weight` (SAMWT=11), NOT gross_space (1.1).
+  Version/RV/RunDateTime/CaseID are FVSjl/environment build metadata (not Fortran-parity fields).
+- ⛔ The remaining ~14 tables. Findings:
   - **FVS_Carbon** needs belowground / forest-floor / shrub-herb carbon pools FVSjl doesn't
     compute (only aboveground-live via Jenkins + the FFE dead pools) — the G2 biomass chunk.
 
