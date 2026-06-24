@@ -542,8 +542,10 @@ mutable struct SnagList
     den_soft::Vector{Float32}     # DENIS — soft (decayed) snags still standing
     origden::Vector{Float32}      # DEND  — original density at creation
     year::Vector{Int32}           # YRDEAD
+    bolevol::Vector{Float32}      # per-tree death-time STEM-volume bole biomass, tons (cuft·V2T) — the
+                                  # FFE snag basis (SNVIS·V2T), distinct from whole-tree Jenkins; 0 = unset
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Float32[])
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)

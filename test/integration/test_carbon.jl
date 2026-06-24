@@ -110,6 +110,13 @@ end
             # Stand-Dead (snag) carbon: 0 before mortality, populated after (periodic-mortality snags)
             f[1] in ("1990",) && @test r.standing_dead == 0f0
             f[1] in ("2000", "2005") && @test parse(Float64, f[6]) - 2f0 <= r.standing_dead <= parse(Float64, f[6]) + 2f0
+            # The FFE snag STEM-VOLUME bole (cuft·V2T, the faithful Stand-Dead basis vs whole-tree
+            # Jenkins) reconciles BIT-EXACT vs an instrumented-Fortran dump (fmdout.f SNGBOLE): the bole
+            # half of Stand-Dead is 3.72/3.26 mt/ha at 2000/2005 (the crown half is the pending CWD2B).
+            TO = 0.90718474 / 0.40468564
+            bole = FVSjl.snag_bole_carbon(s) * TO
+            f[1] == "2000" && @test abs(bole - 3.72) <= 0.05
+            f[1] == "2005" && @test abs(bole - 3.28) <= 0.05
             if c < length(ft)
                 # evolve the fuels with the START-of-cycle crown (FVS records the crown at the END of
                 # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.

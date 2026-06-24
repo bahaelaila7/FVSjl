@@ -57,13 +57,36 @@ Create a standing-dead snag cohort (FMSADD) for `density` stems/acre of species 
 DBH `dbh`, that died in `year`. New snags start fully hard. No-op for non-positive
 density.
 """
-function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer)
+function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer;
+                   bolevol::Float32 = 0f0)
     density > 0f0 || return
     sn = fs.snags
     push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
     push!(sn.den_hard, density); push!(sn.den_soft, 0f0)
-    push!(sn.origden, density);  push!(sn.year, Int32(year))
+    push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.bolevol, bolevol)
     return
+end
+
+"""
+    snag_bole_carbon(s) -> Float32
+
+Snag STEM-VOLUME bole carbon in tons C/acre — the faithful FFE Stand-Dead snag basis
+(`TOTSNG = (SNVIS+SNVIH)·V2T`, fmdout.f:153): each cohort's death-time stem-volume biomass
+(`bolevol`, cuft·V2T) × its still-standing density, × 0.5. This is the bole half of Stand-Dead;
+the crown half is CWD2B. (Static here — the snag height-loss that shrinks the bole over time is the
+next refinement.) Falls back to Jenkins aboveground for cohorts with `bolevol` unset (e.g. fire snags).
+"""
+function snag_bole_carbon(s::StandState)::Float32
+    fs = s.fire; fs === nothing && return 0f0
+    sn = fs.snags; coef = s.coef; c = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        den = sn.den_hard[i] + sn.den_soft[i]
+        den > 0f0 || continue
+        b = sn.bolevol[i]
+        b <= 0f0 && (b = let (a, _, _) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
+        c += b * den
+    end
+    return c * 0.5f0
 end
 
 # CWD down-wood size class (1–9) from a stem diameter, matching the FUINI breakpoints
