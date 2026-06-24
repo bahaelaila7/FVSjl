@@ -26,8 +26,10 @@ function fmcba!(s::StandState)
     t = s.trees; coef = s.coef
     nsp = length(coef_col(coef, :dbh_min))            # MAXSP
 
-    # live herb/shrub fuels are re-set every year from the FFE forest type
-    fs.flive = ffe_live_fuel_loading(coef, ffe_forest_type(s))
+    # live herb/shrub fuels are re-set every year: from the coastal-plain/piedmont/mountain
+    # rough-age × site-index override (FULIV2) where it applies, else the flat FFE-forest-type table.
+    ovr = ffe_live_fuel_override(s)
+    fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
 
     # per-species basal area, total crown area (for percent cover), and the big DBH
     tba = zeros(Float32, nsp)

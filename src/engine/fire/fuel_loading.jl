@@ -100,3 +100,56 @@ an understory-age/site-index curve (FULIV2) — not yet ported.
     ft = ffe_live_fuel_type(iffeft)
     return (coef.ffe_fuel_live[ft, 1], coef.ffe_fuel_live[ft, 2])
 end
+
+# FULIV2 (sn/fmcba.f:82-89): the coastal-plain / piedmont / mountain SHRUB-load override. For
+# ecological units 232* / 231* / M221* the herb/shrub live fuel is read from a understory-rough-age
+# × site-index-class curve (Southern Forestry Smoke Management Guidebook, GTR-SE-10 p118) instead of
+# the flat FULIV table — all biomass goes to SHRUB, herbs are 0. Rows = the 8 rough ages in `_FULIV2_Y`;
+# columns = 6 site-index classes (<50, 50-65, 65-80, 80-95, 95-110, ≥110). (Small fixed table — a
+# distinct override, kept inline rather than in the live-fuel CSV.)
+const _FULIV2_Y = (1f0, 2f0, 3f0, 5f0, 7f0, 10f0, 15f0, 20f0)          # rough age (years)
+const _FULIV2 = Float32[                                                # [age 1:8, si-class 1:6]
+    0.4 1.2 2.6 4.5 7.0 10.0
+    0.4 1.3 2.6 4.5 7.0 10.0
+    0.5 1.3 2.7 4.6 7.0 10.0
+    0.6 1.5 2.8 4.7 7.2 10.2
+    0.9 1.7 3.1 5.0 7.4 10.4
+    1.4 2.2 3.5 5.5 7.9 10.9
+    2.6 3.4 4.7 6.6 9.1 12.1
+    4.2 5.1 6.4 8.3 10.8 13.8]
+
+"ALGSLP (algslp.f): segmented-linear interpolation of `y` at `x` over ascending knots `xs`, clamped flat beyond the ends."
+@inline function _ffe_algslp(x::Float32, xs::NTuple{8,Float32}, y::AbstractVector{Float32})
+    x <= xs[1] && return y[1]
+    x >= xs[8] && return y[8]
+    @inbounds for k in 2:8
+        if x <= xs[k]
+            f = (x - xs[k-1]) / (xs[k] - xs[k-1])
+            return y[k-1] + f * (y[k] - y[k-1])
+        end
+    end
+    return y[8]
+end
+
+"""
+    ffe_live_fuel_override(s) -> (herb, shrub) | nothing
+
+The FULIV2 coastal-plain/piedmont/mountain shrub-load override (sn/fmcba.f:122-154). Returns the
+(herb, shrub) live-fuel loading (tons/ac) for ecological units 232*/231*/M221* — herb is always 0,
+shrub from the rough-age × site-index curve, ×0.40 for piedmont/mountain (231*/M221*). `nothing` for
+other units (use the flat `ffe_live_fuel_loading`). Rough age = years since the last burn, or
+(current − inventory year + 5) when unburned, clamped to [1, 20].
+"""
+function ffe_live_fuel_override(s::StandState)
+    eu = s.plot.eco_unit
+    (startswith(eu, "232") || startswith(eu, "231") || startswith(eu, "M221")) || return nothing
+    si = s.plot.sp_site_index[s.plot.site_species]
+    j = si < 50f0 ? 1 : si < 65f0 ? 2 : si < 80f0 ? 3 : si < 95f0 ? 4 : si < 110f0 ? 5 : 6
+    burnyr = s.fire !== nothing && s.fire.fire_year > 0 ? Int(s.fire.fire_year) : 0
+    iyr = current_cycle_year(s); iy1 = Int(s.control.cycle_year[1])
+    age = burnyr > 0 ? iyr - burnyr : iyr - iy1 + 5
+    age = clamp(Float32(trunc(age)), 1f0, 20f0)
+    shrub = _ffe_algslp(age, _FULIV2_Y, @view _FULIV2[:, j])
+    (startswith(eu, "231") || startswith(eu, "M221")) && (shrub *= 0.40f0)
+    return (0f0, shrub)
+end

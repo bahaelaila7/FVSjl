@@ -47,19 +47,20 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
             c < length(ft) && FVSjl.grow_cycle!(s; fint = 5f0)
         end
 
-        # FFE surface-fuel pools (down dead wood + forest floor) at the inventory cycle, once the
-        # FFE fuel model (fmcba!) has populated fire.cwd. DDW (0.5 carbon fraction) and FOREST FLOOR
-        # (0.37 — the Smith & Heath litter/duff fraction, fmcrbout.f:90) reconcile BIT-EXACT vs the
-        # report. (SHRUB/HERB = FLIVE tracks the FFE live-fuel loading, which is low here — a
-        # pre-existing FFE live-fuel residual, not a carbon-model issue — so it is not asserted tight.)
+        # FULL Stand Carbon Report at the inventory cycle, once the FFE fuel model (fmcba!) has
+        # populated fire.cwd / fire.flive. Every column reconciles BIT-EXACT vs the Fortran report:
+        # DDW (×0.5), FOREST FLOOR (×0.37, the Smith & Heath litter/duff fraction, fmcrbout.f:90),
+        # SHRUB/HERB (FULIV2 coastal-plain/piedmont override → FLIVE=0.6 here ⇒ 0.67), and the TOTAL.
         s2 = first(FVSjl.each_stand(key))
         FVSjl.notre!(s2); FVSjl.setup_growth!(s2); FVSjl.compute_volumes!(s2); FVSjl.compute_density!(s2)
         if s2.fire !== nothing && s2.fire.active
             FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
             r = FVSjl.stand_carbon_report(s2)
             f = ft[1]
-            @test abs(r.down_wood    - parse(Float64, f[7])) <= 0.1     # DDW  bit-exact (3.8)
-            @test abs(r.forest_floor - parse(Float64, f[8])) <= 0.1     # Floor bit-exact via ×0.37 (9.1)
+            @test abs(r.down_wood    - parse(Float64, f[7]))  <= 0.1    # DDW  (3.8)
+            @test abs(r.forest_floor - parse(Float64, f[8]))  <= 0.1    # Forest floor (9.1, via ×0.37)
+            @test abs(r.shrub_herb   - parse(Float64, f[9]))  <= 0.1    # Shrub/herb (0.7, via FULIV2)
+            @test abs(r.total        - parse(Float64, f[10])) <= 0.2    # Total stand carbon (90.1)
         end
     end
 end
