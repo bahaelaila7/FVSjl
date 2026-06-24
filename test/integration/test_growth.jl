@@ -12,6 +12,14 @@
 
 using Test, FVSjl
 
+const _GDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
+
+# Split a `.sum` text into per-cycle data rows (the lines beginning with a 4-digit year),
+# each as a vector of whitespace-separated column strings: [year, age, TPA, BA, SDI, CCF,
+# TopHt, QMD, TCuFt, MCuFt, SCuFt, BdFt, …].
+_g_rows(sumtext::AbstractString) =
+    [split(strip(l)) for l in split(sumtext, "\n") if occursin(r"^(19|20)\d\d\s", strip(l))]
+
 @testset "GROWTH keyword — recognition + parameter capture" begin
     mkrec(vals, present) = FVSjl.KeywordRecord("GROWTH", "",
         [v == 0 ? "" : string(v) for v in vals], Float32.(vals), present, 12, FVSjl.KW_OK, 0)
@@ -42,31 +50,40 @@ using Test, FVSjl
     end
 end
 
-@testset "GROWTH IDG=1/3 — past-DBH field reconstructs the increment (vs Fortran)" begin
-    # Live-Fortran cross-check (purpose-built wide-DG-field stand): GROWTH IDG=1 reading the PAST DBH
-    # produced a byte-identical `.sum` to IDG=0 reading the increment. Here we reproduce that exact
-    # equivalence in-memory on snt01: rewriting each tree's DG field to its past DBH (current − incr)
-    # under IDG=1 must, after `apply_growth_input_types!`, recover the identical IDG=0 projection.
-    snt = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
-    if !isfile(snt)
-        @test_skip "snt01.key not available"
+@testset "GROWTH IDG=1 — past-DBH field + BRATIO bark correction vs live Fortran" begin
+    # IDG=1: the DG field is the PAST DBH. sn/cratet.f converts it to the OUTSIDE-bark increment
+    # DBH−past (fed to DENSE backdating), then dgdriv.f:333 multiplies by BRATIO → the inside-bark
+    # increment used by the calibration. ⚠ The BRATIO step is NOT a no-op: IDG=1 reading a past DBH
+    # gives a MATERIALLY different projection than IDG=0 reading the raw DBH−past as the increment
+    # (Fortran: at 2000 BA 167 vs 174). The committed baseline `growth_idg1.sum.save` is live Fortran
+    # `GROWTH IDG=1` on a wide-DG-field stand (≥5 LP trees so the calibration actually fires — a
+    # 3-tree stand would skip calibration and make the DG field irrelevant, the trap of the earlier
+    # vacuous test). FVSjl must match its structural columns; the ~1.3% volume gap is the known LP
+    # growth-calibration tail, present identically under IDG=0 (orthogonal to the IDG path).
+    sc1 = joinpath(_GDIR, "growth_idg1.key"); sav = joinpath(_GDIR, "growth_idg1.sum.save")
+    if !isfile(sc1) || !isfile(sav)
+        @test_skip "growth_idg1 scenario not available"
     else
-        # A: baseline IDG=0 — the DG field is the measured increment.
-        sa = first(FVSjl.each_stand(snt)); FVSjl.notre!(sa)
-        # B: IDG=1 — rewrite the DG field to the PAST DBH (current dbh − increment).
-        sb = first(FVSjl.each_stand(snt)); FVSjl.notre!(sb)
-        sb.control.growth_idg = Int32(1)
-        @inbounds for i in 1:sb.trees.n
-            g = sb.trees.diam_growth[i]
-            sb.trees.diam_growth[i] = g > 0f0 ? sb.trees.dbh[i] - g : 0f0
+        jl = _g_rows(FVSjl.run_keyfile(sc1; faithful = true))
+        ft = _g_rows(read(sav, String))
+        @test length(jl) == length(ft) >= 3
+        for (j, f) in zip(jl, ft)
+            @test j[1] == f[1]                                              # YEAR
+            for c in (3, 5, 7); @test j[c] == f[c]; end                     # TPA / SDI / TopHt exact
+            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  (±1, LP-tail rounding)
+            @test abs(parse(Int, j[6]) - parse(Int, f[6])) <= 1            # CCF (±1)
+            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
+            for c in (9, 10, 11)                                            # cuft within the LP tail
+                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.03 * parse(Int, f[c]) + 2
+            end
         end
-        # setup_growth! runs apply_growth_input_types! (B's past-DBH ⇒ increment), then calibrates both.
-        for s in (sa, sb); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s); end
-        n = sa.trees.n
-        @test sb.trees.n == n
-        @test sa.trees.diam_growth[1:n] ≈ sb.trees.diam_growth[1:n]   # same calibrated increment
-        for _ in 1:5; FVSjl.grow_cycle!(sa); FVSjl.grow_cycle!(sb); end
-        @test FVSjl.stand_qmd(sa) ≈ FVSjl.stand_qmd(sb)               # identical 5-cycle projection
-        @test sa.trees.dbh[1:n] ≈ sb.trees.dbh[1:n]
+        # BRATIO is ACTIVE: IDG=1 (past DBH) ≠ IDG=0 reading the same raw DBH−past as the increment.
+        sc0 = joinpath(_GDIR, "growth_idg0.key")
+        if isfile(sc0)
+            j0 = _g_rows(FVSjl.run_keyfile(sc0; faithful = true))
+            i2000 = findfirst(r -> r[1] == "2000", jl); k2000 = findfirst(r -> r[1] == "2000", j0)
+            @test i2000 !== nothing && k2000 !== nothing
+            @test parse(Int, jl[i2000][4]) != parse(Int, j0[k2000][4])     # BA differs (167 vs 174)
+        end
     end
 end

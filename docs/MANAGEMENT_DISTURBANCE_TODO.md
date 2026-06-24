@@ -184,15 +184,22 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   `FINT`/`FINTH`/`FINTM`. FVSjl stores all 5 (`control.growth_*`); the **default (IDG/IHTG=0,
   periods=5) is bit-exact** (the DG field is the 5-yr increment) — verified a bare GROWTH is a no-op
   in live Fortran too (snt01 + GROWTH ⇒ byte-identical `.sum`). ✅ The **IDG/IHTG=1/3 past-DBH/HT
-  interpretation** (intree.f:531-537) is now wired: `apply_growth_input_types!` (diameter_growth.jl)
-  converts the past-DBH/HT field to the increment (current − past) before calibration, after which
-  the bit-exact IDG=0 path runs unchanged. **VALIDATED vs live Fortran** on a purpose-built wide-DG-
-  field stand (the stock F2.1 DG fields are too narrow to carry a past DBH): Fortran `GROWTH IDG=1`
-  reading the past DBH ⇒ byte-identical `.sum` to `IDG=0` reading the increment; FVSjl reproduces the
-  same exact equivalence (test_growth.jl, the in-memory snt01 reconstruction). ⛔ **Still deferred:**
-  the non-default `FINT` measurement-period scaling of the calibration (FINT≠5) — **WK3 past-DBH
-  calibration territory** (sp33/65); it changes the calibration weights, so it stays unwired until a
-  non-5-yr-FINT scenario validates it bit-exact.
+  interpretation** is now wired faithfully to the Fortran flow: `apply_growth_input_types!`
+  (diameter_growth.jl) does the **cratet** step — `DG = Q·(DBH − field)`, Q=+1 (code 1, field=past) /
+  −1 (code 3, field=current), with a **−1 sentinel** for a missing (≤0) field — yielding the
+  OUTSIDE-bark increment that DENSE backdates from; then `calibrate_diameter_growth!` applies the
+  **BRATIO** outside→inside bark correction (sn/dgdriv.f:330-333) before the calibration term.
+  ⚠ The BRATIO step is NOT a no-op: IDG=1 reading a past DBH gives a materially different projection
+  than IDG=0 reading the raw DBH−past as the increment (Fortran: 2000 BA 167 vs 174). **VALIDATED vs
+  live Fortran** on a purpose-built wide-DG-field stand with **≥5 LP trees so the calibration actually
+  fires** (test/harness/scenarios/growth_idg1 + the committed `growth_idg1.sum.save` baseline;
+  test_growth.jl): FVSjl matches the Fortran TPA/SDI/TopHt/QMD/CCF every cycle (BA ±1), the ~1.3%
+  cuft gap being the known LP growth-calibration tail (identical under IDG=0, orthogonal to IDG).
+  *(NOTE: an earlier pass shipped this with a vacuous 3-tree check — calibration never fired, so the
+  DG field was ignored — AND omitted BRATIO. Corrected here: faithful cratet+dgdriv semantics +
+  a calibration-firing Fortran baseline.)* ⛔ **Still deferred:** the non-default `FINT` measurement-
+  period scaling of the calibration (FINT≠5) — **WK3 past-DBH calibration territory** (sp33/65); it
+  changes the calibration weights, so it stays unwired until a non-5-yr-FINT scenario validates it.
 - `CYCLEAT` — ✅ **DONE** (see the keyword table above): explicit cycle-boundary years built on the
   new non-uniform IY schedule; bit-exact YEAR/PrdLen vs Fortran, stand within the TIMEINT residual.
   `SDICALC` — SDI

@@ -221,23 +221,31 @@ fill the rest by regression, and uncalibrated species draw from BACHLO — and t
 per-species `calib.vardg` (VARDG). Consumes the RNG, so trees are walked in FVS's
 species-sorted order. `scale = YR/FINT` (1 for snt01). Run before `diameter_growth!`.
 """
-# GROWTH IDG=1/3 (intree.f:536): the input DG field is the PAST DBH (`PDBH`), not the growth
-# increment. Convert it to the increment (current DBH − past DBH) so the calibration — which treats
-# `diam_growth` as the measured outside-bark increment — works unchanged. A past DBH that is ≤0 or
-# ≥ the current DBH means no usable measured growth (the tree falls back to the stand-average
-# backdating). Likewise IHTG=1/3 for the height field (PHT). Gated: a no-op for the default IDG=0.
+# GROWTH IDG/IHTG=1/3 (sn/cratet.f:169-180): the input DG/HTG field is a PAST (code 1) or CURRENT
+# (code 3) DBH/HT measurement, not the growth increment. Convert it to the increment
+# `DG = Q·(DBH − field)` with Q=+1 for code 1 (field = past, current in DBH) and Q=−1 for code 3
+# (field = current, past in DBH). A field ≤0 is a MISSING measurement → −1 sentinel (every measured-
+# DG consumer filters `≤0`, so the tree falls back to the stand-average backdating); the sentinel is
+# essential — without it field=0 would yield the bogus increment DBH−0 = DBH. The diameter
+# increment here is OUTSIDE-bark (matching cratet feeding DENSE); the outside→inside BRATIO bark
+# correction is applied later, in `calibrate_diameter_growth!` (dgdriv.f:330-333). Height has no
+# bark, so the HTG increment is final. Gated: a no-op for the default IDG/IHTG=0.
 function apply_growth_input_types!(s::StandState)
     t = s.trees
-    if s.control.growth_idg == 1 || s.control.growth_idg == 3
+    idg = s.control.growth_idg
+    if idg == 1 || idg == 3
+        q = idg == 1 ? 1f0 : -1f0
         @inbounds for i in 1:t.n
-            p = t.diam_growth[i]
-            t.diam_growth[i] = (p > 0f0 && p < t.dbh[i]) ? t.dbh[i] - p : 0f0
+            f = t.diam_growth[i]
+            t.diam_growth[i] = f <= 0f0 ? -1f0 : q * (t.dbh[i] - f)
         end
     end
-    if s.control.growth_ihtg == 1 || s.control.growth_ihtg == 3
+    ihtg = s.control.growth_ihtg
+    if ihtg == 1 || ihtg == 3
+        q = ihtg == 1 ? 1f0 : -1f0
         @inbounds for i in 1:t.n
-            p = t.ht_growth[i]
-            t.ht_growth[i] = (p > 0f0 && p < t.height[i]) ? t.height[i] - p : 0f0
+            f = t.ht_growth[i]
+            t.ht_growth[i] = f <= 0f0 ? -1f0 : q * (t.height[i] - f)
         end
     end
     return
@@ -324,6 +332,17 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             end
         end
     end
+    # GROWTH IDG=1/3 bark correction (dgdriv.f:330-333): the measured increment is now the
+    # OUTSIDE-bark DBH difference (DBH−past), which DENSE used to backdast above. Convert it to
+    # the INSIDE-bark increment with BRATIO at the CURRENT dbh (`saved_dbh`) before the calibration
+    # term, so it matches the IDG=0 inside-bark basis. IDG=0/2 supply the inside increment directly.
+    if s.control.growth_idg == 1 || s.control.growth_idg == 3
+        @inbounds for i in 1:t.n
+            t.diam_growth[i] > 0f0 &&
+                (t.diam_growth[i] *= bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i]))
+        end
+    end
+
     # FORTYP is computed in the GROW path (per cycle), AFTER the LSTART calibration,
     # so the calibration prediction must NOT include the forest-type term (kuphd etc.
     # are all 0 at LSTART). Zero it for this dgf!, restore after. (dgf.f:453 reads
