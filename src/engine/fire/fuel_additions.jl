@@ -12,6 +12,29 @@ const _FM_LIMBRK = 0.01f0   # woody-crown limb-breakage fraction per year (sn/fm
 const _FM_P2T = 1f0 / 2000f0
 
 """
+    crown_lift_rate(oldht, oldcrl, ht, crown_pct, cyclen) -> Float32
+
+The annual crown-base-rise fraction **X** of the FFE crown-LIFT term (FMSDIT, fmsdit.f:103-117). As a
+tree's crown base rises over `cyclen` years from the previous-cycle base `OLDBOT = oldht − oldcrl` to the
+current base `NEWBOT = ht − ht·crown_pct/100`, the fraction `X = (NEWBOT − OLDBOT)/oldcrl/cyclen` of the
+OLD crown is shed (dies) into down wood EACH year — the dominant post-mortality down-wood addition
+(`X·CROWNW·TPA·P2T`, validated at ~0.39 t/ac/yr vs an instrumented FMCADD dump; see
+FFE_FUEL_DYNAMICS_chunk_plan.md). Returns 0 if the old crown length is ~0 or the base did not rise.
+
+This is the standalone, faithful semantic of the crown-lift rate; wiring it into `fmcadd_woody!` needs
+the PREVIOUS-cycle per-tree `oldht`/`oldcrl`, which require tree-record tracking across the
+regen/mortality-changing tree list (the remaining plumbing — kept separate so the formula is locked and
+tested independently).
+"""
+@inline function crown_lift_rate(oldht::Real, oldcrl::Real, ht::Real, crown_pct::Real, cyclen::Real)::Float32
+    (oldcrl > 0.001f0 && cyclen > 0) || return 0f0
+    newbot = Float32(ht) - Float32(ht) * Float32(crown_pct) / 100f0
+    oldbot = Float32(oldht) - Float32(oldcrl)
+    rise = newbot - oldbot
+    return rise > 0f0 ? rise / Float32(oldcrl) / Float32(cyclen) : 0f0
+end
+
+"""
     ffe_fuel_update!(s, nyrs) -> StandState
 
 The per-cycle FFE surface-fuel update (the deterministic core of fmmain.f:226-259): refresh the

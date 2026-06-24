@@ -301,3 +301,14 @@ fs.oldht/oldcrl through regen/mortality/tripling. THEN: snapshot at cycle end (w
 add `X·CROWNW·TPA·P2T` alongside breakage in fmcadd_woody!. Magnitude target: +0.39 t/ac/yr (validated).
 This supersedes all earlier DDW hypotheses (crown-lift-negligible [buggy dump], ordering, magnitude) —
 the source and formula are now PINNED and the only open part is the tree-record plumbing.
+
+### Crown-lift rate X — IMPLEMENTED + tested (the upstream piece); plumbing remains
+Landed `crown_lift_rate(oldht, oldcrl, ht, crown_pct, cyclen)` (fuel_additions.jl) — the pure FMSDIT
+formula X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN with the fmsdit.f:106 guards — plus test_crown_lift.jl (7
+assertions: worked example X=0.075, the no-rise/degenerate-OLDCRL → 0 guards, cyclen inverse-scaling,
+and the OLDCRL-couples-OLDBOT subtlety). So the crown-lift SEMANTIC is now locked and validated
+independently (principle 1+2: most-upstream least-dependent piece first, tested to the semantics). The
+ONLY remaining part of the crown-lift (hence the last DDW column) is the tree-record PLUMBING: feed it
+the previous-cycle per-tree oldht/oldcrl, maintained across the regen/mortality/tripling tree-list
+mutations (compact_live!/tredel_compact!/establishment/tripling/sprout — the FVSjl analogues of FVS's
+FMTDEL/FMTRIP/FMCMPR OLDCRW maintenance). Suite 4273.
