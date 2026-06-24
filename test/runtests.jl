@@ -67,6 +67,7 @@ using FVSjl
     include("integration/test_ccadj.jl")       # CCADJ crown-competition adj: recognized .sum-inert no-op (SN)
     include("integration/test_cycleat.jl")      # CYCLEAT extra cycle boundary (non-uniform IY schedule) vs Fortran
     include("integration/test_readcor.jl")      # READCOR/REUSCOR growth-constant corrections (COR2/HCOR2/RCOR2) vs Fortran
+    include("integration/test_setsite.jl")      # SETSITE scheduled mid-run site-index change (act 120) vs Fortran
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

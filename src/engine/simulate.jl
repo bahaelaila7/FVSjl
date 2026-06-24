@@ -185,6 +185,7 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     compute_density!(s)
+    apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)

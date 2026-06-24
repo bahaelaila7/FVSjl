@@ -86,7 +86,7 @@ Legend: ✅ done · 🟡 partial · ⛔ unported · ⚪ N/A in SN · 🧊 C7/C8 
 | COMPRESS | record compression to a target (comprs.f act=250) | 🟡 **keyword DONE, algorithm tracked** (`kw_compress!` recognizes + schedules act 250 with target/PN1/date — no longer silently dropped; `cuts!` skips icflag 250 so records pass through uncompressed). The 1010-line IBM-SSP-eigen PCA clustering is scoped in [`COMPRESS_chunk_plan.md`](COMPRESS_chunk_plan.md) (helpers → EIGEN → classify → merge); a COMPRESS stand still diverges by the compression until that lands. `test_compress.jl` covers keyword recognition/scheduling only |
 | ADDFILE | (option 22) redirect input to another unit | ⚪ NOT a tree-add — it just switches IREAD to a Fortran file UNIT (an include-file mechanism); no clean FVSjl mapping (FVSjl uses filenames, not units). 'ADDTREES' is not an SN keyword |
 | MANAGED | managed-stand flag (DGF kplant term) | ✅ **DONE** (was a FALSE ✅ — found 2026-06-24: the keyword was in `KNOWN_NOOP` and `plot.managed` was never set, so the DGF planted term `dg_planted[sp]·kplant` (dgf.f:179/328) never fired). Now `kw_managed!` sets `plot.managed` per initre.f:10000 (immediate path: bare card / field-2≠0 ⇒ managed=1, field-2==0 ⇒ 0; dated OPNEW-act-82 path deferred). **Bit-exact vs live Fortran** on a loblolly-pine stand for BOTH managed and unmanaged (`test_managed.jl`, `managed.key`; the planted-pine boost self-thins the stand slightly more, matching Fortran). Non-planted species have `dg_planted=0` so MANAGED is correctly inert for them (which is why snt01 never exposed the gap) |
-| MGMTID / RESETAGE / SETSITE | mgmt id / reset age / set site mid-run | 🟡 (MGMTID read) |
+| MGMTID / RESETAGE / SETSITE | mgmt id / reset age / set site mid-run | 🟡 MGMTID read; ✅ RESETAGE; ✅ SETSITE (scheduled per-species site index + BAMAX/SDImax + dgcons! recompute, bit-exact vs Fortran; habitat param not wired) |
 
 ## 6. Volume / defect keywords (C5 — **.sum-affecting**, keyword-settable)
 
@@ -212,7 +212,7 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   ALSO route the mortality SDImax through the method (and resolve how the FVSjl `zeide_sdi`
   mortality flag — `false` for the SN Zeide default — maps to LZEIDE). Report-only is NOT enough;
   do both together + validate the multi-cycle TPA, not just the cycle-0 SDI column.
-  `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`GROWTH` is **OPNEW-scheduled** (act
+  `MGMTID` is read; `RESETAGE` ✅; `SETSITE` ✅ (below); `GROWTH` is **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
   - `RESETAGE` (resage.f, act 443): ✅ **DONE** (audit find #8). Turned out NOT to need the
@@ -221,8 +221,15 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
     age_reset_age + (Y − reset_year)` for `Y > reset_year` (the reset row keeps the old age,
     matching RESAGE running after DISPLY). Bit-exact vs live Fortran (`test_resetage.jl`,
     RESETAGE 2000 30 → AGE rebases 70→35→40…, MAI recomputed; snt01 unaffected).
-  - `SETSITE` (act 120): habitat (HABTYP) + species (SPDECD) decode + per-species site index — a
-    multi-param scheduled site change feeding height growth.
+  - `SETSITE` (act 120): ✅ **DONE** — scheduled mid-run site change. `kw_setsite!` schedules an
+    act-120 `ScheduledActivity` (date + 6 params); `apply_setsite!` (called at the top of
+    `grow_cycle!`, the RCON position) resets per-species `sp_site_index` (SITEAR, direct or % change,
+    clamped ≥ 1) + optional BAMAX (→ `ba_max` + bamax-derived `sp_sdi_def`) + SDImax, then recomputes
+    the DG constants via `dgcons!` (= RCON); the new site index also feeds HTG/small-tree growth
+    directly. `species_selector` decodes field 4 (0/all, −group, index). vs live Fortran (SI 60→80 @
+    2000): every structural column bit-exact, volume within ±1 cuft Float32 noise; confirmed it
+    changes the projection. `test_setsite.jl`. ⚠ Habitat (param 1) not wired — SN growth keys off
+    forest type, not the habitat code (documented gap; a non-zero habitat is ignored).
   (`BMIN` is NOT a simple gap — it is the WWPB insect-model input (exbm.f), an *extension*,
   belongs with insects below.)
 

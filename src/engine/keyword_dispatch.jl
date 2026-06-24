@@ -433,6 +433,71 @@ function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     return
 end
 
+# Decode a species keyword field into the `sp_field_matches` selector: 0 = all, −g = SPGROUP
+# group g, or the resolved 1-based species index. (Mirrors SPDECD's IS for a single field.)
+function species_selector(s::StandState, spfield::AbstractString)::Int
+    f = strip(spfield)
+    (isempty(f) || f == "0") && return 0
+    n = tryparse(Int, f)
+    (n !== nothing && n < 0) && return n
+    idx, _ = resolve_species(f, s.variant, s.species, s.coef)
+    return idx > 0 ? idx : 0
+end
+
+# OPTION 138 — SETSITE (initre.f:13800, act 120): schedule a mid-run site change. Field 1 = date
+# (calendar year, or cycle number < 1000), 2 = habitat type, 3 = BAMAX, 4 = species (SPDECD), 5 =
+# site index, 6 = site-index flag (0 = direct value, else % change), 7 = SDImax. OPNEW stores
+# ARRAY(2..7) as the 6 activity params; `apply_setsite!` enacts them at the matching cycle.
+function kw_setsite!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    date   = pr[1] ? nint(v[1]) : Int32(1)
+    ihab   = pr[2] ? Float32(v[2]) : 0f0
+    bamax  = pr[3] ? Float32(v[3]) : 0f0
+    isp    = Float32(species_selector(s, length(rec.fields) >= 4 ? rec.fields[4] : ""))
+    si     = pr[5] ? Float32(v[5]) : 0f0
+    siflag = pr[6] ? Float32(v[6]) : 0f0
+    sdimax = pr[7] ? Float32(v[7]) : 0f0
+    push!(s.control.schedule, ScheduledActivity(date, Int32(120), (ihab, bamax, isp, si, siflag, sdimax)))
+    return
+end
+
+"""
+    apply_setsite!(s) -> Bool
+
+Enact any SETSITE (act 120) scheduled for the current cycle (grincr.f:89-200): set the per-species
+site index `sp_site_index` (SITEAR) directly or as a % change (clamped ≥ 1), and optionally BAMAX
+(→ `ba_max` + the bamax-derived `sp_sdi_def`) and SDImax (`sp_sdi_def`). Then recompute the
+site-dependent DG constants (`dgcons!` = the FVS RCON). Returns whether anything fired. Habitat
+(param 1) is not yet wired — SN growth keys off forest type, not the habitat code; a non-zero
+habitat is ignored (documented gap). No-op unless a SETSITE is due.
+"""
+function apply_setsite!(s::StandState)::Bool
+    isempty(s.control.schedule) && return false
+    p = s.plot; yr = current_cycle_year(s); fvscyc = Int(s.control.cycle) + 1
+    applied = false
+    for a in s.control.schedule
+        a.icflag == Int32(120) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        prm = a.params
+        bamax = prm[2]; isp = round(Int, prm[3]); si = prm[4]; siflag = prm[5]; sdimax = prm[6]
+        bamax > 0f0 && (s.control.ba_max = bamax)
+        @inbounds for sp in 1:MAXSP
+            sp_field_matches(s.control, isp, sp) || continue
+            if siflag == 0f0
+                si > 0f0 && (p.sp_site_index[sp] = si)
+            else
+                si != 0f0 && (p.sp_site_index[sp] += p.sp_site_index[sp] * si / 100f0)
+            end
+            p.sp_site_index[sp] < 1f0 && (p.sp_site_index[sp] = 1f0)
+            bamax > 0f0 && (p.sp_sdi_def[sp] = bamax / (0.5454154f0 * (p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0)))
+            sdimax > 0f0 && (p.sp_sdi_def[sp] = sdimax)
+        end
+        applied = true
+    end
+    applied && dgcons!(s)
+    return applied
+end
+
 # Growth/mortality multipliers (BAIMULT/HTGMULT/MORTMULT/REGHMULT/REGDMULT — MULTS,
 # base/mults.f). Field 1 = date, field 2 = species (0 = all), field 3 = multiplier.
 function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
@@ -1323,6 +1388,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BFFDLN";   kw_bffdln!(s, rec)        # board form-model coefs BFLA0/BFLA1 (sdefln.f)
         elseif kw == "CRNMULT";  kw_mult!(s, rec, :crn)    # crown-ratio-change multiplier (crown.f:319)
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
+        elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant
