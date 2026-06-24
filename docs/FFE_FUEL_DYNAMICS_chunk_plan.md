@@ -191,3 +191,16 @@ To reconcile bit-exact, the FFE snag model must additionally:
 3. add the CWD2B crown-still-in-waiting to Stand-Dead (and move it to DDW as it falls).
 ⇒ The Stand-Dead + DDW-timing remainder is a focused FFE snag-volume sub-port (height-loss + FMSVOL +
 CWD2B), not a line fix. The 7 reconciled columns (live, below-dead, floor, DDW@95/2005, shrub) stand.
+
+### Stand-Dead validation targets (from an instrumented Fortran dump — fmdout.f SNGBOLE/SNGTOT)
+Dumped TOTSNG split into the snag BOLE (stem-volume part) vs the BOLE+CWD2B total for carbon_jenkins
+(biomass tons/ac; carbon metric t/ha = value·0.5·2.2417):
+| year | bole (t/ac) | total (t/ac) | crown=total−bole | bole C (mt/ha) | total C (mt/ha) |
+|------|-------------|--------------|------------------|----------------|------------------|
+| 1995 | 0.031       | 0.044        | 0.013            | 0.03           | 0.05             |
+| 2000 | 3.315       | 4.619        | 1.304            | **3.72**       | **5.18 ≈ 5.2** ✓ |
+| 2005 | 2.925       | 3.989        | 1.064            | 3.28           | 4.47 ≈ 4.5 ✓     |
+⇒ The faithful snag BOLE (3.72 mt/ha @2000) is FAR below FVSjl's whole-tree Jenkins snag (6.1) — it is
+a small STEM VOLUME × V2T (with height loss), confirming the Jenkins basis is wrong. The CWD2B crown
+(1.46 mt/ha @2000) is the separate piece. A future port now has independent targets: validate the
+snag-volume bole vs 3.72/3.28 and the CWD2B crown vs 1.46/1.19, then the sum vs the 5.2/4.5 report.
