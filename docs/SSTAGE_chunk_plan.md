@@ -53,7 +53,15 @@ against ground truth. **Validate every chunk against this report**, not just the
   NOT per-acre (`t.tpa/GROSPC`) → cover 82 (was 79.4). Validated: snt01 stand-1 Tot-Cov 10/11 cycles
   bit-exact (±1 ULP round); fire_early pre-fire 82/87/90 exact (post-fire = the known fire residual).
   ⚠ Still open: the per-stratum **DBH** column (`_ss_dbhnom`/strdbh) tracks but runs ~1-5" low vs the
-  SSTGHP DBHNOM — needs an SSTGHP DEBUG dump to pin the I3-cutoff / PCTILE / window detail.
+  SSTGHP DBHNOM (snt01 stand-1: FVSjl 8.9/10.0/… vs Fortran 10.3/9.8/…). **Investigated
+  (2026-06-24):** the cohort (I3 cutoff at 41382 sq ft crown) + the PROB-weighted ±4-tree window are
+  ported, but my 70th-crown-PERCENTILE `i70` lands mid-cohort (pct decreasing 100→8: 70 is hit at
+  position ~6 of 14), giving the cohort-average DBH ≈ 8.5; the report's 10.3 corresponds to the
+  bigger-crown trees (cohort positions ~10-13). So the PCTILE direction or the window placement
+  differs from how I read it. SSTGHP has NO debug WRITEs for I70/the window, so the ground-truth
+  intermediate values aren't available via the `DEBUG` keyword — finishing this needs an instrumented
+  rebuild of sstage.f (a separate binary; don't touch the ground-truth oracle). The CLASS + Tot-Cov
+  are unaffected (bit-exact); only this report column + the `BSTRDBH` event var carry the imprecision.
 - **B — stratification:** ✅ DONE (`structure_stage.jl`). The HT-sort + two-largest-gap finder →
   strata boundaries + NSTR, plus the SSTGHP dominant-cohort DBH (`_ss_dbhnom`: canopy cohort = top
   trees until cumulative crown area > 41382 sq ft, then the PROB-wtd mean DBH of the ±4-tree window
