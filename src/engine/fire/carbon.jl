@@ -53,50 +53,84 @@ end
 """
     down_wood_carbon(s) -> Float32
 
-Down dead wood + forest-floor carbon pool in tons C/acre: the FFE surface fuel pools
-(`fire.cwd`, the dead down-wood/litter/duff loadings in tons/ac, F3) converted to carbon
-at 0.5. Zero when FFE is off.
+Down dead wood carbon pool in tons C/acre: the 9 woody surface-fuel size classes of `fire.cwd`
+(the down-wood loadings in tons/ac, F3) converted to carbon at 0.5 (fmcrbout.f BIODDW). Litter
+and duff are the SEPARATE forest-floor pool (`forest_floor_carbon`). Zero when FFE is off.
 """
 function down_wood_carbon(s::StandState)::Float32
     fs = s.fire; fs === nothing && return 0f0
-    return sum(fs.cwd) * 0.5f0
+    return sum(@view fs.cwd[1:9, :, :]) * 0.5f0
 end
 
 """
-    stand_carbon(s) -> (; live_above, live_below, standing_dead, down_wood, total)
+    forest_floor_carbon(s) -> Float32
 
-All the main stand carbon pools (tons C/acre): live aboveground + belowground (trees),
-standing dead (snags), and down dead wood / forest floor (FFE Stand Carbon Report).
+Forest-floor carbon pool in tons C/acre: litter + duff (the last two `fire.cwd` size classes)
+converted to carbon at **0.37** (Smith & Heath, NE-722; fmcrbout.f:90/160 — the litter/duff
+carbon fraction differs from the 0.5 used for all woody/live pools). Zero when FFE is off.
+"""
+function forest_floor_carbon(s::StandState)::Float32
+    fs = s.fire; fs === nothing && return 0f0
+    return sum(@view fs.cwd[10:11, :, :]) * 0.37f0
+end
+
+"""
+    shrub_herb_carbon(s) -> Float32
+
+Live shrub + herb carbon pool in tons C/acre: `BIOSHRB = FLIVE(1) + FLIVE(2)` (the FFE live
+surface-fuel loadings, fmdout.f:283) converted to carbon at 0.5. Zero when FFE is off.
+"""
+function shrub_herb_carbon(s::StandState)::Float32
+    fs = s.fire; fs === nothing && return 0f0
+    return (fs.flive[1] + fs.flive[2]) * 0.5f0
+end
+
+"""
+    stand_carbon(s) -> (; live_above, live_below, standing_dead, down_wood, forest_floor, shrub_herb, total)
+
+All the main stand carbon pools (tons C/acre): live aboveground + belowground (trees), standing
+dead (snags), down dead wood, forest floor (litter+duff, at the 0.37 fraction), and live shrub+herb
+(FFE Stand Carbon Report, fmcrbout.f). The FFE pools are zero unless `fmcba!` has run this cycle.
 """
 function stand_carbon(s::StandState)
     lc = stand_live_carbon(s)
     sd = standing_dead_carbon(s)
     dw = down_wood_carbon(s)
+    ff = forest_floor_carbon(s)
+    sh = shrub_herb_carbon(s)
     return (; live_above = lc.aboveground, live_below = lc.belowground,
-            standing_dead = sd, down_wood = dw,
-            total = lc.aboveground + lc.belowground + sd + dw)
+            standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh,
+            total = lc.aboveground + lc.belowground + sd + dw + ff + sh)
 end
 
 # short tons/acre → metric tons/hectare (the Stand Carbon Report's units, fmcrbout.f METRIC.F77).
 const _TONAC_TO_MTHA = 0.90718474f0 / 0.40468564f0
 
 """
-    stand_carbon_report(s) -> (; aboveground, merch, belowground, standing_dead, down_wood, total)
+    stand_carbon_report(s) -> (; aboveground, merch, belowground, standing_dead,
+                                 down_wood, forest_floor, shrub_herb, total)
 
-The live-tree Stand Carbon Report pools in **metric tons C / hectare** (CARBREPT, CARBCALC method 1
-= Jenkins; fmcrbout.f). The aboveground / merchantable / belowground (root) live pools come from
-`stand_live_carbon` (Jenkins biomass × 0.5 carbon fraction × TPA) and are unit-converted; these are
-bit-exact vs the Fortran report. The standing-dead / down-wood pools are populated only when the FFE
-fuel model is active (`fire_on`) — the down-dead-wood / forest-floor / shrub-herb columns of the full
-report still need that FFE surface-fuel chunk, so `total` here is the live-tree subtotal.
+The Stand Carbon Report pools in **metric tons C / hectare** (CARBREPT, CARBCALC method 1 = Jenkins;
+fmcrbout.f), matching the report columns. The live aboveground / merchantable / belowground (root)
+pools come from `stand_live_carbon` (Jenkins biomass × 0.5 × TPA) — bit-exact vs the Fortran report.
+The standing-dead / down-wood / forest-floor / shrub-herb pools come from the FFE surface-fuel model
+(`fmcba!`) and are zero unless it has populated `fire.cwd`/`fire.flive`; down-wood and forest floor
+(at the 0.5 / 0.37 carbon fractions) reconcile bit-exact, while shrub-herb tracks `FLIVE`, which
+carries the FFE live-fuel-loading residual. `total` = above + below + snag + ddw + floor + shrub
+(fmcrbout.f:178). NB the FFE pools require `fmcba!` to have run this cycle (the per-cycle FFE fuel
+update — only triggered on a fire event in the current main path; that lifecycle wiring is the
+remaining increment).
 """
 function stand_carbon_report(s::StandState)
     lc = stand_live_carbon(s)
     above = lc.aboveground * _TONAC_TO_MTHA
     merch = lc.merch       * _TONAC_TO_MTHA
     below = lc.belowground * _TONAC_TO_MTHA
-    sd = standing_dead_carbon(s) * _TONAC_TO_MTHA
-    dw = down_wood_carbon(s)     * _TONAC_TO_MTHA
-    return (; aboveground = above, merch = merch, belowground = below,
-            standing_dead = sd, down_wood = dw, total = above + below + sd + dw)
+    sd  = standing_dead_carbon(s) * _TONAC_TO_MTHA
+    dw  = down_wood_carbon(s)     * _TONAC_TO_MTHA
+    ff  = forest_floor_carbon(s)  * _TONAC_TO_MTHA
+    sh  = shrub_herb_carbon(s)    * _TONAC_TO_MTHA
+    return (; aboveground = above, merch = merch, belowground = below, standing_dead = sd,
+            down_wood = dw, forest_floor = ff, shrub_herb = sh,
+            total = above + below + sd + dw + ff + sh)
 end

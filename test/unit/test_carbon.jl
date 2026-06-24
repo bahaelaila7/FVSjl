@@ -1,6 +1,7 @@
 # Tests for the standing live-tree carbon pools (FFE F8, fmcrbout.f).
 # Carbon = Jenkins biomass × TPA × 0.5, summed over the tree list.
-using FVSjl: stand_live_carbon, standing_dead_carbon, down_wood_carbon, stand_carbon,
+using FVSjl: stand_live_carbon, standing_dead_carbon, down_wood_carbon, forest_floor_carbon,
+             shrub_herb_carbon, stand_carbon,
              jenkins_biomass, StandState, init_blockdata!, init_merch_standards!,
              coefficients, Southern, FireState, add_snag!, fmcba!
 
@@ -53,19 +54,24 @@ end
     @test standing_dead_carbon(s) == 0f0 && down_wood_carbon(s) == 0f0
 
     s.fire = FireState(); s.fire.active = true
-    fmcba!(s)                                         # populate the down-wood (cwd) pools
-    @test down_wood_carbon(s) > 0f0                   # surface fuels → down-wood carbon
-    @test down_wood_carbon(s) ≈ sum(s.fire.cwd) * 0.5f0
+    fmcba!(s)                                         # populate the cwd / flive surface-fuel pools
+    @test down_wood_carbon(s) > 0f0                   # down-wood (woody size classes 1–9) carbon
+    # fmcrbout.f carbon fractions: down wood (classes 1–9) at 0.5, forest floor (litter+duff,
+    # classes 10–11) at 0.37 (Smith & Heath), shrub/herb (FLIVE) at 0.5 — NOT a flat 0.5.
+    @test down_wood_carbon(s)    ≈ sum(@view s.fire.cwd[1:9, :, :]) * 0.5f0
+    @test forest_floor_carbon(s) ≈ sum(@view s.fire.cwd[10:11, :, :]) * 0.37f0
+    @test shrub_herb_carbon(s)   ≈ (s.fire.flive[1] + s.fire.flive[2]) * 0.5f0
 
     # snag carbon = Jenkins aboveground × standing density × 0.5
     add_snag!(s.fire, 65, 14f0, 40f0, 2003)
     a, _, _ = jenkins_biomass(coef, 65, 14f0)
     @test standing_dead_carbon(s) ≈ a * 40f0 * 0.5f0
 
-    # the combined report: total = live(above+below) + standing dead + down wood
+    # the combined report: total = live(above+below) + snag + down wood + forest floor + shrub/herb
     c = stand_carbon(s)
     @test c.standing_dead ≈ standing_dead_carbon(s)
     @test c.down_wood ≈ down_wood_carbon(s)
-    @test c.total ≈ c.live_above + c.live_below + c.standing_dead + c.down_wood
+    @test c.forest_floor ≈ forest_floor_carbon(s) && c.shrub_herb ≈ shrub_herb_carbon(s)
+    @test c.total ≈ c.live_above + c.live_below + c.standing_dead + c.down_wood + c.forest_floor + c.shrub_herb
     @test c.total > 0f0
 end
