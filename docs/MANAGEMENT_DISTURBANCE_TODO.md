@@ -171,8 +171,14 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   method (Zeide vs the Reineke `SDIC=SPROB*A+B*SDSQ` Taylor form, sdical.f:281-327) + the
   `dbh_zeide`/`dbh_stage` threshold (not the always-0 `dbh_sdi`), defaulting to today's Zeide/0
   behavior; `kw_sdicalc!` sets a *report* method flag + the thresholds. Validate the reported
-  SDI column for both methods + a non-zero threshold vs Fortran, without disturbing the QMD
-  mortality (snt01 must stay bit-exact).
+  SDI column for both methods + a non-zero threshold vs Fortran. ⚠ **EMPIRICAL FINDING
+  (2026-06-24, tried + reverted a report-only port):** SDICALC's method drives BOTH the
+  reported SDI column AND the SDImax **mortality** — a `SDICALC`→Reineke stand matches Fortran's
+  SDI column at cycle 0 but its **TPA diverges from cycle 1** (FT 486 vs report-only 507),
+  because Fortran's SDImax self-thinning uses the SDICALC SDI method too. So the full port must
+  ALSO route the mortality SDImax through the method (and resolve how the FVSjl `zeide_sdi`
+  mortality flag — `false` for the SN Zeide default — maps to LZEIDE). Report-only is NOT enough;
+  do both together + validate the multi-cycle TPA, not just the cycle-0 SDI column.
   `MGMTID` is read; `RESETAGE` ✅; `SETSITE`/`CCADJ`/`GROWTH` are **OPNEW-scheduled** (act
   443 / 120 / 444 / —) needing a per-cycle scheduled-activity handler (FVSjl has no non-cut
   activity dispatch in `grow_cycle!` yet — build it once, then plug each in):
