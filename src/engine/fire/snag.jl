@@ -111,7 +111,10 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
     fallen = 0f0
     @inbounds for i in eachindex(sn.sp)
         sp = sn.sp[i]
-        a, _, _ = jenkins_biomass(coef, sp, sn.dbh[i])     # aboveground biomass per tree (tons)
+        # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B
+        # path (so don't double-count it). Fall back to Jenkins for cohorts with bolevol unset.
+        a = sn.bolevol[i]
+        a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
         isz = _cwd_size_class(sn.dbh[i])
         idc = Int(coef_col(coef, :dkr_cls)[sp])             # decay-rate class
         for _ in 1:nyears

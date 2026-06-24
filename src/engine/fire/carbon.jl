@@ -38,16 +38,8 @@ snag cohort (`fire.snags`, F7) weighted by its still-standing density (hard + so
 converted to carbon at 0.5 (fmcrbout.f). Zero when FFE is off / no snags.
 """
 function standing_dead_carbon(s::StandState)::Float32
-    fs = s.fire; fs === nothing && return 0f0
-    sn = fs.snags; coef = s.coef
-    c = 0f0
-    @inbounds for i in eachindex(sn.sp)
-        den = sn.den_hard[i] + sn.den_soft[i]
-        den > 0f0 || continue
-        a, _, _ = jenkins_biomass(coef, sn.sp[i], sn.dbh[i])
-        c += a * den
-    end
-    return c * 0.5f0
+    # Stand-Dead = snag stem-volume BOLE (SNVIS·V2T) + the crown debris still in CWD2B (fmdout.f:153/173).
+    return snag_bole_carbon(s) + snag_crown_carbon(s)
 end
 
 """

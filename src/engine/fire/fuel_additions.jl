@@ -23,11 +23,76 @@ grown cycles (validated bit-exact on carbon_jenkins). Snag-debris falldown (CWD2
 """
 const _FM_CRDCAY = 0.0425f0   # dead coarse-root decay rate per year (fminit.f:918)
 
+# TFALL — years for a crown component to fall, by `tfall_cls` (1..6) and crown size 0..5
+# (sn/fmvinit.f:1018-1058). Foliage(0)=1; branch(1,2)=row1; size 3=row3; size 4,5=row4.
+const _FM_TFALL1 = (5f0, 3f0, 2f0, 1f0, 1f0, 1f0)
+const _FM_TFALL3 = (10f0, 6f0, 5f0, 4f0, 3f0, 2f0)
+const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
+@inline function _fm_tfall(cls::Int, sz::Int)::Float32
+    sz == 0 && return 1f0
+    (sz == 1 || sz == 2) && return _FM_TFALL1[cls]
+    sz == 3 && return _FM_TFALL3[cls]
+    return _FM_TFALL4[cls]
+end
+
+"""
+    fmscro!(s, sp, dbh, xv, density, dkcl)
+
+Schedule a dying tree's crown debris into the CWD2B debris-in-waiting pool (FMSCRO, fmscro.f): each
+crown component `xv[size]·density` is spread EQUALLY over years 1..min(TSOFT, TFALL(sp,size)), where
+TSOFT = `(1.24·dbh + 13.82)·DECAYX` (FMSNGDK). The un-fallen CWD2B is the Stand-Dead crown; it flows
+to the down-wood pool as it falls. `xv` is the `crown_biomass` tuple (foliage, woody1-5), in lb.
+"""
+function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32, dkcl::Integer)
+    fs = s.fire; coef = s.coef
+    cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
+    tsoft = (1.24f0 * dbh + 13.82f0) * coef_col(coef, :snag_decayx)[sp]
+    @inbounds for sz in 0:5
+        amt = xv[sz + 1] * density
+        amt > 0f0 || continue
+        ilife = clamp(round(Int, min(tsoft, _fm_tfall(cls, sz))), 1, 60)
+        annual = amt / ilife
+        for yr in 1:ilife
+            fs.cwd2b[dkcl, sz + 1, yr] += annual
+        end
+    end
+    return s
+end
+
+"""
+    snag_crown_carbon(s) -> Float32
+
+The Stand-Dead CROWN carbon (tons C/acre): the crown debris still in the CWD2B waiting pool
+(not yet fallen to down wood), summed × P2T × 0.5 (fmdout.f:173). The other half of Stand-Dead
+is `snag_bole_carbon`.
+"""
+snag_crown_carbon(s::StandState)::Float32 =
+    (s.fire === nothing ? 0f0 : sum(s.fire.cwd2b) * _FM_P2T) * 0.5f0
+
+# One year of CWD2B falldown → the down-wood pools (FMCADD, fmcadd.f:122-135): the year-1 pool of each
+# crown size flows to cwd (foliage size-0 → litter cwd[10]; woody 1-5 → cwd[1-5]) at P2T, then shift.
+function _cwd2b_fall!(fs::FireState)
+    c2 = fs.cwd2b
+    @inbounds for dkcl in 1:4, sz in 0:5
+        down = c2[dkcl, sz + 1, 1]
+        down > 0f0 || continue
+        fs.cwd[sz == 0 ? 10 : sz, 2, dkcl] += down * _FM_P2T
+    end
+    @inbounds for dkcl in 1:4, sz in 1:6
+        for yr in 1:59
+            c2[dkcl, sz, yr] = c2[dkcl, sz, yr + 1]
+        end
+        c2[dkcl, sz, 60] = 0f0
+    end
+    return fs
+end
+
 function ffe_fuel_update!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     fmcba!(s)
     @inbounds for _ in 1:nyrs
+        _cwd2b_fall!(fs)                       # FMCADD: CWD2B crown debris → down wood
         fmcwd!(s, 1); fmcadd_litterfall!(s); fmcadd_woody!(s)
     end
     fs.bioroot *= (1f0 - _FM_CRDCAY)^nyrs    # dead-root decay (fmcrbout.f:273)

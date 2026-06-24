@@ -568,9 +568,13 @@ mutable struct FireState
     snags::SnagList                    # standing-dead snag cohorts
     bioroot::Float32                   # dead coarse-root biomass pool, tons/ac (BIOROOT) — accrues at
                                        # tree death, decays at CRDCAY each cycle; → the Below-Dead column
+    cwd2b::Array{Float32,3}            # crown debris-in-waiting [decay 1:4, crown size 0:5→idx 1:6,
+                                       # year-to-fall 1:60] (CWD2B); the un-fallen part is the Stand-Dead
+                                       # crown, it flows to `cwd` (down wood) as it falls (FMSCRO)
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
-                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0)
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
+                        zeros(Float32, 4, 6, 60))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
