@@ -14,20 +14,32 @@ subsystem**, not part of the carbon report itself — this plan scopes it from t
 - `fuel_model.jl` (FMCFMD3 dynamic fuel model), `fmburn.jl` (the fire-event behavior), `snag.jl`
   (FMSFALL snag falldown + hard→soft decay). These run **only on a fire event**.
 
-## What's missing (the subsystem to port), most-upstream first
-1. **Per-cycle down-wood decay** — the `fire.cwd` woody/litter/duff pools decay by size-class- and
-   decay-class-specific annual rates each cycle (fire/base: trace where CWD is multiplied down between
-   cycles — start at `fmcfir.f` (373 ln) and `fmsadd.f` (447 ln); confirm the decay-rate source/table
-   and whether it is in `fmcblk`/`fmvinit`). Validation: the report's DDW + Floor columns at 1995/2000.
-2. **Mortality → dead-wood accumulation** — trees that die each cycle add to the down-wood pools
-   (FMSADD). Couples to the existing periodic-mortality + snag path. Validation: DDW growth offsets the
-   decay in mixed cycles; snag→DDW transfer on falldown (`snag.jl` already has falldown timing).
-3. **Per-cycle FFE driver** — call the fuel update (`fmcba!` for live/cover + the new decay/accum) every
-   cycle for FFE-active stands, from `grow_cycle!` (currently only `fmburn!` runs, and only on a fire
-   year). Order vs growth/mortality must match the Fortran FFE main (`fmmain.f`) sequence.
+## What's missing (the subsystem to port) — ⚠ DECAY + ADDITIONS ARE COUPLED, not separable
+A first instinct is "just port the decay" — but the constants show that fails on its own (see below).
+The grown-cycle DDW/Floor is `decay − additions` and BOTH must land together to validate.
+
+1. **Per-cycle down-wood decay — `FMCWD` (fire/base/fmcwd.f:78-134).** For decay class L=1..4, size J:
+   - duff (size 11): `cwd[11,1,L] *= (1−DKR[11,L]·1.1)^NYRS` (soft); `cwd[11,2,L] *= (1−DKR[11,L])^NYRS` (hard).
+   - woody J=1..10: decayed amount `AMT = cwd[J,k,L]·(1−(1−DKR·{1.1 soft})^NYRS)`; `cwd[11,2,L] += AMT·PRDUFF[J,L]`
+     (a fraction to duff); then `cwd[J,k,L] *= (1−DKR·{1.1 soft})^NYRS`; then hard→soft transfer (J<10)
+     `TOSOFT = clamp(NYRS·ln(1−DKR[J,L])/ln(0.64),0,1)·cwd[J,2,L]` moved 2→1.
+   - **DKR / PRDUFF constants (sn/fmvinit.f:70-115, → a CSV):** DKR[1:9,1]=0.11; DKR[·,2]= (0.11,0.11,0.09,
+     then 0.07 for 4:9); DKR[1:9,3:4]=DKR[1:9,2]; **DKR[10,·]=0.65 (litter), DKR[11,·]=0.002 (duff)**;
+     PRDUFF[·,·]=0.02. NYRS = cycle length.
+   - ⚠ **Why decay alone DOESN'T reconcile:** litter (size 10) at DKR=0.65/yr ⇒ `(1−0.65)^5 ≈ 0.005` — it
+     crashes to ~0 in one 5-yr cycle. Yet the Fortran report's Floor only goes 9.1→6.6. So litter MUST be
+     replenished by annual **litterfall** (chunk 2). Porting FMCWD without it makes Floor far too low ⇒
+     NOT independently validatable against the report. (Initial split for carbon_jenkins: FUINI 160s =
+     litter 4.90 + duff 6.03 = 10.93 t/ac ⇒ ×0.37×2.2417 = 9.1; duff barely decays at 0.002/yr.)
+2. **Additions — litterfall + mortality → dead wood (`FMSADD` fire/base/fmsadd.f, 447 ln).** Annual canopy
+   litterfall replenishes size-10 litter (the missing term above); dying trees + falling snags add to the
+   woody pools. Must land WITH chunk 1 for the net DDW/Floor to validate at 1995/2000.
+3. **Per-cycle FFE driver** — call the fuel update (`fmcba!` live/cover + `fmcwd!` decay + `fmsadd!` adds)
+   every cycle for FFE-active stands from `grow_cycle!` (today only `fmburn!` runs, only on a fire year).
+   Order vs growth/mortality must follow the FFE main (`fmmain.f`). ⚠ Fire-path regression gate is now in
+   place (`test_fire.jl`) — fire_early/snt01 stand-4 post-fire `.sum` must stay within its residual.
 4. **`stand_carbon_report` per-cycle emission + the `.out` report WRITER** — byte-exact like
-   `write_structure_report` (SSTAGE): FORMAT headers + the per-cycle rows. Only do this AFTER 1-3 so
-   the grown-cycle rows are correct; the inventory row is already bit-exact.
+   `write_structure_report` (SSTAGE). Only after 1-3; the inventory row is already bit-exact.
 
 ## ⚠ Mandatory regression gate (the lesson)
 Wiring the fuel update into `grow_cycle!` changes `fire.cwd`/`fire.flive` at **fire time**, which
