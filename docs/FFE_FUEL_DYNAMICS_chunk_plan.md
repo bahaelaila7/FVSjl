@@ -204,3 +204,14 @@ Dumped TOTSNG split into the snag BOLE (stem-volume part) vs the BOLE+CWD2B tota
 a small STEM VOLUME × V2T (with height loss), confirming the Jenkins basis is wrong. The CWD2B crown
 (1.46 mt/ha @2000) is the separate piece. A future port now has independent targets: validate the
 snag-volume bole vs 3.72/3.28 and the CWD2B crown vs 1.46/1.19, then the sum vs the 5.2/4.5 report.
+
+### DDW residual — crown-lift RULED OUT (instrumented Fortran)
+Instrumented fmcadd.f to dump the per-year DDW additions: the **crown-lift** (FMPROB·OLDCRW·P2T) and
+the live-crown **breakage** (LIMBRK·CROWNW) are both NEGLIGIBLE — ~0.0007 and ~0.0005 t/ac/yr — not
+the ~1.7 t/ac gap. So my crown-lift hypothesis was WRONG (good that the dump caught it). The DDW
+addition must come from the snag-related path: the CWD2B woody-crown FALLDOWN to down wood (fmcadd.f:
+122-135) and/or the snag-bole falldown timing. The next step is to fix the CFALL (cwd2b→DDW) dump
+(the instrumentation had a match glitch) and the snag-falldown dump, to pin which one carries the ~1.7
+— same instrument-then-port method that landed bole/crown/Stand-Dead. NB the Stand-Dead crown
+reconciles (un-fallen cwd2b = 1.46), so the DDW gap is specifically the FALLEN crown/bole timing, not
+the scheduled amount.
