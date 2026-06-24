@@ -152,6 +152,29 @@ function kw_bamax!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_compress!(s, rec)
+
+COMPRESS (initre.f:8000, option 78): schedule tree-record compression (act 250) — reduce
+the record list to `target` classes (field 2, default MAXTRE/2 = 1500), finding `pn1`%
+(field 3, default 50) of the classes by Method-1 attribute breaks and the rest by Method-2
+principal-component splitting (comprs.f). Field 1 is the date/cycle (default 1).
+
+⚠ The compression *algorithm* (comprs.f, a 1010-line IBM-SSP-eigen PCA clustering) is NOT
+yet ported — see `docs/COMPRESS_chunk_plan.md`. This handler RECOGNIZES + schedules the
+keyword (icflag 250) so it is no longer silently dropped; `cuts!` currently skips icflag
+250 (records pass through uncompressed) until the algorithm lands. A stand using COMPRESS
+therefore still diverges from Fortran by the compression — a *tracked*, visible gap.
+"""
+function kw_compress!(s::StandState, rec::KeywordRecord)
+    v = rec.values; p = rec.present
+    yr = p[1] ? nint(v[1]) : Int32(1)                  # date/cycle (default 1)
+    target = p[2] ? v[2] : Float32(MAXTRE ÷ 2)         # target records (default MAXTRE/2)
+    pn1 = p[3] ? v[3] : 50f0                            # % via Method 1 (default 50)
+    push!(s.control.schedule, ScheduledActivity(yr, Int32(250), (target, pn1, 0f0, 0f0, 0f0, 0f0)))
+    return
+end
+
+"""
     kw_rannseed!(s, rec)
 
 RANNSEED (initre.f:6300, option 61): reseed the main random-number stream (RANSED). A
@@ -1062,6 +1085,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
+        elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
