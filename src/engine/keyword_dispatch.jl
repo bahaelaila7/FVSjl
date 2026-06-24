@@ -201,6 +201,20 @@ function kw_nocalib!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_serlcorr!(s, rec)
+
+SERLCORR (initre.f:9300, option 91): set the ARMA(1,1) serial-correlation parameters of the
+stochastic diameter growth — field 1 = BJPHI (AR, default 0.74), field 2 = BJTHET (MA,
+default 0.42). They define the DGSCOR autocorrelation series `BJRHO` (`autcor`), so a
+non-default value changes the per-cycle DG variance/covariance multipliers.
+"""
+function kw_serlcorr!(s::StandState, rec::KeywordRecord)
+    rec.present[1] && (s.control.dg_bjphi = Float32(rec.values[1]))
+    rec.present[2] && (s.control.dg_bjthet = Float32(rec.values[2]))
+    return
+end
+
+"""
     kw_dgstdev!(s, rec)
 
 DGSTDEV (initre.f:5900, option 57): set DGSD, the number of standard deviations the
@@ -1126,6 +1140,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
         elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
         elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
+        elseif kw == "SERLCORR"; kw_serlcorr!(s, rec)      # ARMA(1,1) DGSCOR phi/theta (initre.f:9300)
         elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)

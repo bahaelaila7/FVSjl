@@ -139,8 +139,14 @@ SDIMAX hid — so the unrecognized list is triaged here so each is a *visible* d
   `diameter_growth!`/`small_tree_growth!` (was a hardcoded const). Bit-exact vs live Fortran
   (`test_dgstdev.jl`, DGSTDEV 0 ⇒ deterministic DG matches exactly; default 2.0 keeps snt01
   bit-exact).
-- `SERLCORR` (opt 91) + `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` —
-  serial-correlation / calibration-correlation read & reuse (the DGSCOR machinery).
+- `SERLCORR` (opt 91) — ✅ **DONE** (audit find #7). `kw_serlcorr!` sets the new per-stand
+  `control.dg_bjphi`/`dg_bjthet` (ARMA(1,1) AR/MA, defaults 0.74/0.42); `_stand_bjrho` recomputes
+  the BJRHO autocorrelation series only when overridden (default path keeps the precomputed const
+  ⇒ zero overhead + snt01 bit-exact), threaded into both `autcor` calls. Bit-exact vs live Fortran
+  (`test_serlcorr.jl`, phi 0.50 / theta 0.30).
+- `READCORD/READCORH/READCORR` + `REUSCORD/REUSCORH/REUSCORR` — calibration-correlation **read &
+  reuse** across stands/runs (persist the COR state to a file and reload). The DGSCOR machinery's
+  cross-run persistence — a distinct chunk (file I/O of the calibration state), not a value-setter.
 - `NOCALIB` (opt 56) — ✅ **DONE** (audit find #6). Disables DG self-calibration per species
   (0/all, −N group, code). `control.dg_calib_sp` (LDGCAL) was declared-but-DEAD (defaulted
   all-`false`, never read) — flipped to all-`true` and now gates the COR fit in

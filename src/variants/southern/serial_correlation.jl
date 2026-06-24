@@ -18,30 +18,39 @@ const DG_BJPHI  = 0.74f0      # Box–Jenkins AR parameter   (BJPHI, sn/grinit.f
 const DG_BJTHET = 0.42f0      # Box–Jenkins MA parameter   (BJTHET)
 const DG_DGSD   = 2.0f0       # std-dev bound on DG variance (DGSD, sn/grinit.f)
 
-# ARMA(1,1) autocorrelation series BJRHO[1..40] (autcor.f LSTART init).
-function _dg_bjrho()
+# ARMA(1,1) autocorrelation series BJRHO[1..40] (autcor.f LSTART init) for AR `phi`, MA
+# `theta`. Default (DG_BJPHI/DG_BJTHET) is precomputed as the const `DG_BJRHO`; the SERLCORR
+# keyword recomputes it per-stand only when it overrides phi/theta.
+function dg_bjrho_series(phi::Real = DG_BJPHI, theta::Real = DG_BJTHET)
+    p = Float32(phi); th = Float32(theta)
     r = zeros(Float32, 40)
-    r[1] = (1f0 - DG_BJPHI * DG_BJTHET) * (DG_BJPHI - DG_BJTHET) /
-           (1f0 + DG_BJTHET * (DG_BJTHET - 2f0 * DG_BJPHI))
+    r[1] = (1f0 - p * th) * (p - th) / (1f0 + th * (th - 2f0 * p))
     @inbounds for i in 2:40
-        r[i] = r[i-1] * DG_BJPHI
+        r[i] = r[i-1] * p
     end
     return r
 end
-const DG_BJRHO = _dg_bjrho()
+const DG_BJRHO = dg_bjrho_series()
+
+"The stand's ARMA(1,1) autocorrelation series — the precomputed default const unless SERLCORR
+overrode phi/theta (`control.dg_bjphi`/`dg_bjthet`), in which case it is recomputed."
+@inline _stand_bjrho(s::StandState) =
+    (s.control.dg_bjphi == DG_BJPHI && s.control.dg_bjthet == DG_BJTHET) ?
+        DG_BJRHO : dg_bjrho_series(s.control.dg_bjphi, s.control.dg_bjthet)
 
 """
     autcor(new_period, old_period) -> (cov, vrnext)
 
 ARMA(1,1) variance (`vrnext`=VMLT) and covariance (`cov`=COVMLT) multipliers for
 the random DG component across a growth cycle of length `new_period`, preceded by
-one of length `old_period` (years). autcor.f.
+one of length `old_period` (years). autcor.f. `bjrho` is the ARMA(1,1) autocorrelation
+series (default `DG_BJRHO`; SERLCORR passes a per-stand series).
 """
-function autcor(newv::Integer, oldv::Integer)
+function autcor(newv::Integer, oldv::Integer, bjrho::AbstractVector{Float32} = DG_BJRHO)
     nv = Int(newv); ov = Int(oldv)
     var = 0f0
     @inbounds for i in 1:(nv - 1)
-        var += DG_BJRHO[i] * Float32(nv - i)
+        var += bjrho[i] * Float32(nv - i)
     end
     vrnext = Float32(nv) + 2f0 * var
 
@@ -50,7 +59,7 @@ function autcor(newv::Integer, oldv::Integer)
     t = 0f0; dt = 1f0; covar = 0f0
     @inbounds for i in 1:l
         t += dt
-        covar += DG_BJRHO[i] * t
+        covar += bjrho[i] * t
         i == nsml && (dt = 0f0)
         i == nbig && (dt = -1f0)
     end

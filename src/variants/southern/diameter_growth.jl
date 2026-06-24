@@ -301,7 +301,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
 
     # calibration VMLT (autcor LSTART: new=old=YR, the measurement base period = 5 for SN —
     # NOT the cycle length FINT, which TIMEINT can change; the projection VMLT below uses FINT).
-    _, vmlt = autcor(5, 5); c.vmlt = vmlt
+    # SERLCORR can override the ARMA(1,1) phi/theta; recompute BJRHO only when it does.
+    bjrho = _stand_bjrho(s)
+    _, vmlt = autcor(5, 5, bjrho); c.vmlt = vmlt
 
     # per-species DBH range + endpoint predictions over measured trees
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
@@ -515,7 +517,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
 
     # per-cycle ARMA multipliers (cyc1: new=old=floor(YR); multi-cycle TODO)
     yr = Int(floor(s.control.year)); yr < 1 && (yr = 1)
-    covmlt, vmlt = autcor(yr, yr)
+    covmlt, vmlt = autcor(yr, yr, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
     # BAIMULT (MULTS kind 1): per-species diameter-growth multiplier scaling DDS
