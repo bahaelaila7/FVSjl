@@ -49,3 +49,39 @@ a fuller (non-stripped) DBS validation binary.
 KNOWN systemic note: unrecognized keywords currently fall through to a silent no-op (keyword_dispatch.jl
 final else). YARDLOSS shows the risk; surfacing unrecognized keywords (collect + warn) would convert future
 silent gaps into visible ones — the recommended next safeguard.
+
+## Quality-standards audit (no globals / CSVs / pure / no hot-path allocation)
+
+1. **No globals for state** ✅ — all per-stand state is in `StandState`, passed explicitly. The only
+   mutable module-level binding is `_COEF_CACHE` (a load-once memoization of the IMMUTABLE species
+   coefficients via `get!`); it is not simulation state. All other module-level `const` are immutable
+   lookup/dispatch tables (never mutated).
+
+2. **Bulky params in CSVs** ✅ — the big inline blobs were extracted this pass (verbatim from the loaded
+   values → zero transcription risk; suite bit-exact):
+   - R8 Clark volume coefficients (~5,800 values: _R8CF/_R8CFO/_SCRBNR/_DIBMEN/_TOTAL/_OTOTAL) →
+     `data/southern/volume/*.csv` (r8clark_vol.jl: ~1012 → 545 lines).
+   - VARMRT shade-adjust, REGENT min-diam, establishment min-height (90 each) → `species_coefficients.csv`
+     columns (varmrt_shade_adj / regent_min_diam / estab_min_ht).
+   - (earlier) the FAPROP HWP decay table → `data/southern/fire_hwp_fate.csv`.
+   Remaining inline numeric constants are SMALL structured model matrices judged acceptable in-code (not
+   codebase-inflating blobs): `_FM_MOIS` (4 scenarios × 7), `_FM_DKR` (11 sizes × 4 classes, mostly
+   repeated), `_FM_BARK_B1` (39 bark-equation coefficients). Move them too if a stricter line is wanted.
+
+3. **Pure functions where possible** ✅ — the computational kernels (`crown_lift_rate`, `_normal_cdf`,
+   `_fm_cuft`, `snag_fall_density`, `rothermel_surface_fire`, `_R8CLARK_VOL`, …) are pure; state mutators
+   consistently carry the `!` suffix and take the state explicitly.
+
+4. **No ad-hoc allocation in the hot path** ✅ (per-tree) / ✅-improved (per-cycle):
+   - The per-TREE inner loops (growth/mortality/density/volume) are allocation-free — they read/write
+     preallocated tree-vector fields and scratch.
+   - The biggest per-call allocator (`calibrate_diameter_growth!`, ~15 MAXSP work arrays) runs ONCE at
+     setup, not per cycle.
+   - The every-cycle VARMRT mortality buffers (killed/efftr/temwk2) now use preallocated `Scratch.mort_*`
+     (sliced to the live count) → `mortality!` allocates nothing.
+   - Measured report-path FFE functions are mostly 0 B (built on `@view` sums): `ffe_fuel_loadings`,
+     `snag_summary`, `ffe_down_wood`, `potential_fire`, `update_snags!` = 0 B.
+   - REMAINING (modest, transient): the `diameter_growth!` tripling buffers (dgU/dgL/rnU/rnL/htgU/htgL +
+     is_small) allocate during the tripling cycles (1-2 only), as they escape via the return tuple and are
+     filled across height/small-tree growth — a more delicate preallocation, left as a noted follow-up.
+     `torching_probability` (POTFIRE report path) allocates ~10 KB (Monte-Carlo growing vectors).
