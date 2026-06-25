@@ -27,3 +27,6 @@ variant_code(::Northeast) = "NE"
 # NE coefficient/data directory (mirrors data/southern/). Built up chunk by chunk:
 # species_translation.csv (the 108-species roster) is the first, most-upstream piece.
 const NE_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "northeast"))
+
+"Cached Northeast coefficient load (first call reads `data/northeast/*.csv`)."
+coefficients(::Northeast) = get!(() -> load_species_coefficients(NE_DATADIR), _COEF_CACHE, "NE")
