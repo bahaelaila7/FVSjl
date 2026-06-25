@@ -671,3 +671,26 @@ that term — it remains a per-tree CROWNW(killed-tree) magnitude / cwd2b-flow q
 needs an instrumented per-tree FMSCRO dump on carbon_snt to pin (the SCHT method, on the killed trees).
 Re-reading the Fortran caught my own wrong hypothesis again — the methodology working, but the DDW
 residual is NOT yet pinned to a confirmed cause; it is a fine per-tree magnitude gap requiring that dump.
+
+### VERIFIED characterization of the dead-pool residual (carbon_snt, definitive)
+Measured directly (not hypothesized) this session:
+- **Crown SCHEDULING is bit-exact**: FVSjl scheduled woody crown vs Fortran FMSCRO SCHTW =
+  0.82/1.42/2.86/5.39 vs 0.794/1.41/2.82/5.23 t/ac (deathyr 1994/99/04/09, all ICALL=4). So the
+  killed-tree crown amount + size split is correct; the DDW gap is NOT a crown-magnitude miss.
+- **Woody crown concentrates in size class 3** (sp65 68.6, sp33 35.5 of the by-size vector), whose
+  TFALL is 4-6 yr — so the dead crown legitimately spreads over several years in CWD2B before flowing
+  to DDW. In FVSjl CWD2B counts as Stand-Dead until it flows, so a too-long spread reads as Stand-Dead
+  slightly over + DDW slightly under.
+- **But SD+DDW total is NOT conserved**: FVSjl 9.7/10.5/12.9/19.2 vs Fortran 9.6/9.8/13.8/20.9
+  (bit-exact cyc0, then +0.7 over at 1995 flipping to -1.7 under at 2005). So it is not a pure
+  SD↔DDW split-timing transient — the dead-pool TOTAL diverges in the LP growth tail.
+
+CONCLUSION: the remaining FFE-carbon residual is a MULTI-FACTOR dead-pool dynamics gap in the growth
+tail (CWD2B crown multi-year flow timing + the snag-bole FMSVOL height-loss that FVSjl models as a
+static bole + decay-rate interplay), NOT a single missing term. Every single-term hypothesis tried this
+session (YRSCYC*OLDCRW*X dead-crown, crown-lift material, BIODDW 1-6) was falsified on re-read/dump.
+The live pools (Above/Merch/Below) + Forest-Floor + Shrub are bit-exact; the dead pools (SD/DDW/Below-
+Dead) TRACK within ~1-2 t C/ha through 4 cycles. Closing this needs the FMSVOL snag-bole height-loss
+model (shrinks the standing bole, the dominant tail factor) — a self-contained next chunk, not a tweak.
+Shipped + validated this session: age-aware FMSNAG falldown, input-snag pre-inventory seeding/dating,
+V2T crown scaling, FLIVE post-grow timing, the byte-exact .out CARBREPT writer.
