@@ -20,8 +20,13 @@ const _KC_SNFMT = "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,
 
 # --- non-ULP divergences vs FVSsn, with the tracked reason (see DIVERGENCES.md) ---
 const _KC_FT_BROKEN = Dict(
-    "s5_cycle"     => "10-yr cycle calibrated-species volume tail (mortality fix landed; DGBND 5-yr ordering pending)",
-    "s9_uniform10" => "10-yr uniform cycle volume tail (same class as s5_cycle)",
+    # 10-yr cycle: TPA now within 3 of FVSsn (mortality FINT-extrap fix landed); residual
+    # is the board-foot column (col 12, ~4%) — a downstream amplification of a ~1.5% DG-over
+    # (BA 129 vs 127) + ~1ft HTG-under (TopHt 59 vs 60) at the long cycle, i.e. the
+    # calibrated-species HTCALC/AGET + tripling-variance growth precision under a non-5
+    # period. Verified NOT mortality (TPA matches) and NOT DGBND (live differential: no-op).
+    "s5_cycle"     => "10-yr board-foot tail: calibrated-species DG/HTG precision (non-5 period); see fvsjl-10yr-cycle-mortality",
+    "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
     "s14_fixdghtg" => "FP merch-split board-foot noise (rel ~0.15%)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     "s26_estab"    => "establishment cohort volume residual (~2.4%)",
