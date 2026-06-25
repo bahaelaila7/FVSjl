@@ -30,8 +30,24 @@ bdft 1633. The cycle-0 row needs only **tree parse + density + volume** (no grow
    `site_setup!(::Northeast)` is a genuine port, not a CSV reshape. (NE uses Zeide SDI like SN —
    `ne/grinit.f:129 LZEIDE=.TRUE.`; RNG seed 55329, same as SN.)
 
-## ★ FIRST net01 ORACLE VALIDATION — cycle-0 stand state BIT-EXACT
-`net01` cycle-0 now matches `net01.sum.save` exactly: **TPA 536, BA 77, QMD 5.1, TopHt 63**
+## ★ net01 ORACLE VALIDATION — cycle-0 stand state BIT-EXACT (6 columns)
+`net01` cycle-0 now matches `net01.sum.save` exactly on **TPA 536, BA 77, SDI 160, CCF 176, QMD 5.1,
+TopHt 63** (test/integration/test_net01.jl, 8 asserts). **CCF landed this pass** via two faithful fixes:
+(1) the per-species crown-width equation map (`data/northeast/crown_width_species.csv`) was re-extracted
+**mechanically from `bin/FVSne_buildDir/cwcalc.f`** (`SELECT CASE(NSP(ISPC,1)(1:2))` → forest/open CWEQ;
+165 species codes, zero transcription) — the prior heuristic (default=01/open=03) was wrong (e.g. YB open
+is 37101 not 37102; HI was unmapped). (2) The **NE FORKOD default location** (`ne_forkod_defaults!`,
+ne/forkod.f): net01 carries no STDINFO/LOCATION, so the variant default `IFOR=2` → lat=43.53/long=71.47/
+elev=20 must be applied; without it lat/long=0 drove the Hopkins bioclimatic index to −250 (vs +13.28),
+inflating every Bechtold crown (CCF 227). The reused national `crown_width_equations.csv` was verified
+correct against the NE source (eqn 01201 etc. match: linear-D Bechtold Model 2, no D²/HI). NOTE: the
+`crown_width_equations` are shared-national and confirmed identical for NE — only the species→equation
+**selection** is variant-specific. CANONICAL TEST RUNNER: `julia --project=. test/runtests.jl`
+(**4400 pass + 10 broken**); `Pkg.test()` reports spurious `NTuple{9} index[0]` errors from a
+stale-sandbox-manifest artifact, NOT a code bug (runtests.jl is green).
+
+### (historical) FIRST net01 validation — TPA/BA/QMD/TopHt
+`net01` cycle-0 matched `net01.sum.save`: **TPA 536, BA 77, QMD 5.1, TopHt 63**
 (test/integration/test_net01.jl). This validates the whole chain landed: CR-tolerant IO + roster +
 translation + init + MAXSP generalization + SICOEF site model + the shared density. The breakthrough was
 an IO bug: net01.key uses **old-Mac CR-only line endings** (133 CR, 0 LF) → `readline` read it as one

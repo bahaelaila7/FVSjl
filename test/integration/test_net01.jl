@@ -18,6 +18,7 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         @test di(stand_tpa(n) / g) == 536               # TPA   — BIT-EXACT
         @test di(stand_ba(n) / g) == 77                 # BA    — BIT-EXACT
         @test di(stand_sdi(n) / g) == 160               # SDI   — BIT-EXACT (Reineke, no per-species data)
+        @test di(stand_ccf(n) / g) == 176               # CCF   — BIT-EXACT (NE cwcalc map + FORKOD lat/long → Hopkins)
         @test round(stand_qmd(n); digits = 1) == 5.1f0  # QMD   — BIT-EXACT
         @test di(stand_top_height(n)) == 63             # TopHt — BIT-EXACT
         # NE-specific parse correctness: first tree is Jack Pine (JP=19), dbh 11.5
