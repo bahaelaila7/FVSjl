@@ -3,6 +3,7 @@
 keywords:
   - STDIDENT:
       id: "STAND 1 — UNTHINNED CONTROL"
+  - NOAUTOES: {}  # (no schema)
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -19,13 +20,15 @@ keywords:
   - INVYEAR:
       year: 1990
   - NUMCYCLE:
-      cycles: 5
+      cycles: 6
+  - ECHOSUM: {}  # (no schema)
   - TREEFMT:
       format: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
   - TREEDATA: {}
   - PROCESS: {}
   - STDIDENT:
       id: "STAND 2 — THINBBA TO BA 80 IN 2010"
+  - NOAUTOES: {}  # (no schema)
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -42,7 +45,8 @@ keywords:
   - INVYEAR:
       year: 1990
   - NUMCYCLE:
-      cycles: 5
+      cycles: 6
+  - ECHOSUM: {}  # (no schema)
   - THINBBA:
       year: 2010
       residual_basal_area: 80
@@ -50,6 +54,7 @@ keywords:
   - PROCESS: {}
   - STDIDENT:
       id: "STAND 3 — THINSDI TO SDI 200 IN 2010"
+  - NOAUTOES: {}  # (no schema)
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -66,7 +71,8 @@ keywords:
   - INVYEAR:
       year: 1990
   - NUMCYCLE:
-      cycles: 5
+      cycles: 6
+  - ECHOSUM: {}  # (no schema)
   - THINSDI:
       year: 2010
       residual_sdi: 200

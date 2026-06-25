@@ -18,6 +18,20 @@ function strip_key_ext(keypath::AbstractString)
     return lk === nothing ? keypath : keypath[1:first(lk)-1]
 end
 
+# Open a keyword source as a `KeywordReader` + the run's base path. A `.yaml`/`.yml`
+# input (positional OR structured form) is parsed to records and rendered to `.key`
+# text so the engine reads it through the same KEYRDR path; `.key`/anything else is
+# read verbatim. The base path (used to locate the companion `.tre`/`.csv`) is the
+# input minus its extension.
+function _keyword_reader(keypath::AbstractString)
+    ext = lowercase(splitext(keypath)[2])
+    if ext == ".yaml" || ext == ".yml"
+        text = keyfile_string(read_keywords_yaml(keypath))
+        return KeywordReader(IOBuffer(text)), first(splitext(keypath))
+    end
+    return open(io -> KeywordReader(io), keypath), strip_key_ext(keypath)
+end
+
 """
     initialize!(state, kr, base_path) -> Symbol
 
@@ -54,10 +68,8 @@ Convenience: open `keypath`, build a fresh state, and initialize the FIRST stand
 function initialize(keypath::AbstractString; variant::AbstractVariant = Southern(),
                     faithful::Bool = true)
     s = StandState(variant; faithful = faithful)
-    base = strip_key_ext(keypath)
-    reason = open(keypath) do io
-        initialize!(s, KeywordReader(io), base)
-    end
+    kr, base = _keyword_reader(keypath)            # accepts .key OR .yaml/.yml (structured or positional)
+    reason = initialize!(s, kr, base)
     return s, reason
 end
 
@@ -73,21 +85,18 @@ inside a later stand still overrides it. Returns the per-stand initialized state
 """
 function each_stand(keypath::AbstractString; variant::AbstractVariant = Southern(),
                     faithful::Bool = true)
-    base = strip_key_ext(keypath)
+    kr, base = _keyword_reader(keypath)
     stands = StandState[]
-    open(keypath) do io
-        kr = KeywordReader(io)
-        fmt = ""                                   # TREFMT carried across stands
-        while true
-            s = StandState(variant; faithful = faithful)
-            reason = initialize!(s, kr, base; inherited_format = fmt)
-            fmt = s.control.tree_format            # may have been set by a TREEFMT keyword
-            # A bare STOP/EOF after the last stand's PROCESS is the run terminator, not a
-            # stand: no STDINFO ran, no trees, no establishment. Don't emit a phantom stand.
-            real = s.plot.user_forest_code != 0 || s.trees.n > 0 || s.estab.active
-            real && push!(stands, s)
-            reason in (:stop, :eof) && break
-        end
+    fmt = ""                                       # TREFMT carried across stands
+    while true
+        s = StandState(variant; faithful = faithful)
+        reason = initialize!(s, kr, base; inherited_format = fmt)
+        fmt = s.control.tree_format                # may have been set by a TREEFMT keyword
+        # A bare STOP/EOF after the last stand's PROCESS is the run terminator, not a
+        # stand: no STDINFO ran, no trees, no establishment. Don't emit a phantom stand.
+        real = s.plot.user_forest_code != 0 || s.trees.n > 0 || s.estab.active
+        real && push!(stands, s)
+        reason in (:stop, :eof) && break
     end
     return stands
 end

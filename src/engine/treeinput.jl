@@ -19,25 +19,37 @@ Read tree records from `trepath` using `state.control.tree_format`, appending th
 to `state.trees`. Returns the number of trees loaded. Mirrors intree.f.
 """
 function load_trees!(s::StandState, trepath::AbstractString)
-    path = isfile(trepath) ? trepath :
-           (isfile(uppercase(trepath)) ? uppercase(trepath) : trepath)
-    isfile(path) || return 0
-
-    fields = parse_tree_format(s.control.tree_format)
-    isempty(fields) && return 0
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
     dead = Tuple{Any,Int32,Int32}[]  # (record, species idx, subplot) for dead trees
     n0 = t.n
 
-    for line in eachline(path)
-        isempty(strip(line)) && continue
-        startswith(strip(line), "*") && continue
-        occursin("-999", line) && break
-        rec = parse_tree_record(fields, line)
-        rec === nothing && break
+    # Source the records from the modern self-describing `.csv` when one sits beside
+    # the `.tre` (named columns → no TREEFMT needed), else parse the fixed-column `.tre`
+    # with the current TREEFMT. Both yield the same `Vector{TreeRecord}`.
+    csvpath = first(splitext(trepath)) * ".csv"
+    local records::Vector{TreeRecord}
+    if isfile(csvpath)
+        records = read_trees_csv(csvpath)
+    else
+        path = isfile(trepath) ? trepath :
+               (isfile(uppercase(trepath)) ? uppercase(trepath) : trepath)
+        isfile(path) || return 0
+        fields = parse_tree_format(s.control.tree_format)
+        isempty(fields) && return 0
+        records = TreeRecord[]
+        for line in eachline(path)
+            isempty(strip(line)) && continue
+            startswith(strip(line), "*") && continue
+            occursin("-999", line) && break
+            rec = parse_tree_record(fields, line)
+            rec === nothing && break
+            push!(records, rec)
+        end
+    end
 
+    for rec in records
         # Subplot index (IPVEC/ITRE) is assigned to EVERY record before the dead /
         # non-stockable exclusions (intree.f: plot counting precedes those checks),
         # so the numbering matches FVS even when some records aren't kept.

@@ -194,21 +194,30 @@ matching the YAML form). Lets a modern YAML keyword file be converted back for l
 _is_plain_keyword(rec::KeywordRecord) =
     occursin(r"^[A-Za-z][A-Za-z0-9]*$", strip(rec.name)) || isempty(strip(rec.name))
 
+# Render keyword records to fixed-column `.key` text (the inverse of KEYRDR decode).
+function _render_keyfile(io::IO, records::AbstractVector{KeywordRecord})
+    for rec in records
+        if !_is_plain_keyword(rec) && !isempty(rec.raw)
+            println(io, rstrip(rec.raw))                # free-form line: emit verbatim
+            continue
+        end
+        name = strip(rec.name)
+        np = _last_present_field(rec)
+        line = rpad(name, 10)                           # cols 1-8 name (+ blank 9-10)
+        for i in 1:np
+            line *= rpad(strip(rec.fields[i]), 10)      # field i at cols 10i+1 .. 10i+10
+        end
+        println(io, rstrip(line))
+    end
+end
+
+"Render keyword records to a `.key`-format string (so a record list can feed `KeywordReader`)."
+keyfile_string(records::AbstractVector{KeywordRecord}) =
+    (io = IOBuffer(); _render_keyfile(io, records); String(take!(io)))
+
 function write_keyfile(records::AbstractVector{KeywordRecord}, path::AbstractString)
     open(path, "w") do io
-        for rec in records
-            if !_is_plain_keyword(rec) && !isempty(rec.raw)
-                println(io, rstrip(rec.raw))            # free-form line: emit verbatim
-                continue
-            end
-            name = strip(rec.name)
-            np = _last_present_field(rec)
-            line = rpad(name, 10)                       # cols 1-8 name (+ blank 9-10)
-            for i in 1:np
-                line *= rpad(strip(rec.fields[i]), 10)  # field i at cols 10i+1 .. 10i+10
-            end
-            println(io, rstrip(line))
-        end
+        _render_keyfile(io, records)
     end
     return path
 end

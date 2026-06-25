@@ -82,13 +82,122 @@ function _record_from_yaml(entry::AbstractDict)
     return KeywordRecord(name, "", fields, values, present, N_KEY_FIELDS, status, Int(pf))
 end
 
+# =============================================================================
+# STRUCTURED keyword form: each list entry is a single-key map `{KEYWORD: {named
+# params}}`, parameters are NAMED, and values keep their YAML type (numbers stay
+# numbers). The schema below maps each keyword's param names to its 1-based field
+# position (FVS fields are positional, so e.g. STDINFO's stand_origin is field 9).
+# A keyword not in the schema still works via the positional/`raw` forms.
+# =============================================================================
+const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
+    "DESIGN"   => ["basal_area_factor"=>1, "fixed_plot_area_inverse"=>2, "break_dbh"=>3,
+                   "number_of_plots"=>4, "nonstockable_code"=>5, "sample_weight"=>6,
+                   "stockable_proportion"=>7],
+    "STDINFO"  => ["forest_code"=>1, "habitat"=>2, "stand_age"=>3, "aspect"=>4,
+                   "slope"=>5, "elevation"=>6, "stand_origin"=>9],
+    "SITECODE" => ["site_species"=>1, "site_index"=>2],
+    "INVYEAR"  => ["year"=>1],
+    "NUMCYCLE" => ["cycles"=>1],
+    "THINBBA"  => ["year"=>1, "residual_basal_area"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINABA"  => ["year"=>1, "residual_basal_area"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINSDI"  => ["year"=>1, "residual_sdi"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINDBH"  => ["year"=>1, "dbh_min"=>2, "dbh_max"=>3, "cut_efficiency"=>4,
+                   "residual_tpa"=>6, "species"=>7],
+)
+# Keywords whose single named value is carried on the NEXT (free-form) line in a
+# .key file, so the structured block expands to TWO records: the keyword + a raw line.
+const _KW_TRAILING = Dict("STDIDENT" => "id", "TREEFMT" => "format")
+
+# Build a positional KeywordRecord from a name + a field-index→text map.
+function _kw_record_from_fields(name::AbstractString, fld::AbstractDict{Int,String})
+    nm = uppercase(rpad(strip(name), 8))
+    fields = fill(" "^10, N_KEY_FIELDS); values = zeros(Float32, N_KEY_FIELDS)
+    present = falses(N_KEY_FIELDS)
+    for (i, txt) in fld
+        (i < 1 || i > N_KEY_FIELDS) && continue
+        fields[i] = rpad(txt, 10); present[i] = !isempty(strip(txt))
+        if _looks_numeric(rpad(txt, 10))
+            v = tryparse(Float32, strip(txt)); v === nothing || (values[i] = v)
+        end
+    end
+    status = strip(nm) == "STOP" ? KW_STOP : KW_OK
+    return KeywordRecord(nm, "", fields, values, present, N_KEY_FIELDS, status, 0)
+end
+
+# A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines
+# that trail STDIDENT/TREEFMT.
+_raw_record(text) = _decode_keyword(rpad(string(text), 130))
+
+# A YAML scalar → the 10-col field text. Integers print without a trailing ".0".
+_yaml_field_text(v) = v isa Integer ? string(v) :
+                      v isa AbstractFloat ? (v == floor(v) ? string(Int(v)) : string(v)) :
+                      string(v)
+
+# Is this entry the STRUCTURED form? A single-key map whose key is not one of the
+# positional/raw reserved keys, with a map (or empty) value.
+function _is_structured(entry)
+    entry isa AbstractDict || return false
+    ks = collect(keys(entry)); length(ks) == 1 || return false
+    k = string(ks[1])
+    return !(k in ("keyword", "raw", "params", "parms_field"))
+end
+
+# Expand ONE structured entry `{KEYWORD: {named params}}` into 1–2 KeywordRecords.
+function _records_from_structured(entry::AbstractDict)
+    name = string(first(keys(entry)))
+    body = first(values(entry))
+    body === nothing && (body = Dict{Any,Any}())
+    out = KeywordRecord[]
+    # keyword carrying its value on the next line(s) (STDIDENT id / TREEFMT format)
+    if haskey(_KW_TRAILING, uppercase(strip(name)))
+        key = _KW_TRAILING[uppercase(strip(name))]
+        push!(out, _kw_record_from_fields(name, Dict{Int,String}()))
+        val = string(body isa AbstractDict ? get(body, key, "") : "")
+        if uppercase(strip(name)) == "TREEFMT"
+            # kw_treefmt! reads EXACTLY two ≤80-col lines and concatenates them, so a
+            # FORMAT longer than 80 chars must be split. Break at a comma ≤72 in.
+            cut = length(val) <= 72 ? length(val) :
+                  (something(findlast(==(','), val[1:72]), 72))
+            push!(out, _raw_record(val[1:cut]))
+            push!(out, _raw_record(cut < length(val) ? val[cut+1:end] : ""))
+        else
+            push!(out, _raw_record(val))
+        end
+        return out
+    end
+    fld = Dict{Int,String}()
+    if body isa AbstractDict
+        schema = get(_KW_SCHEMA, uppercase(strip(name)), Pair{String,Int}[])
+        pos = Dict(p.first => p.second for p in schema)
+        for (pname, pval) in body
+            idx = get(pos, string(pname), 0)
+            idx > 0 && (fld[idx] = _yaml_field_text(pval))
+        end
+    end
+    push!(out, _kw_record_from_fields(name, fld))
+    return out
+end
+
 """
     read_keywords_yaml(path) -> Vector{KeywordRecord}
 
-Read keyword records from a YAML file produced by `write_keywords_yaml`.
+Read keyword records from a YAML keyword file. Supports both the positional form
+(`keyword:`/`params:`) and the **structured** form (`{KEYWORD: {named params}}`),
+and `raw:` free-form lines; the two forms may be mixed.
 """
 function read_keywords_yaml(path::AbstractString)
     doc = YAML.load_file(path)
     entries = get(doc, "keywords", Any[])
-    return KeywordRecord[_record_from_yaml(e) for e in entries]
+    recs = KeywordRecord[]
+    for e in entries
+        if _is_structured(e)
+            append!(recs, _records_from_structured(e))
+        else
+            push!(recs, _record_from_yaml(e))
+        end
+    end
+    return recs
 end
