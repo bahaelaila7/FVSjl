@@ -609,3 +609,19 @@ Two fixes this turn got the carbon_snt Stand-Dead from collapsing/overshooting t
 So the Stand-Dead (snag bole + crown) now tracks within ~0.7 on carbon_snt; the carbon_snt age-aware
 test asserts the increasing/tracking trajectory (no double-fall, with ffe_fuel_update!). The remaining
 DDW residual (under at 2000/2005) is the crown-lift — verified bit-exact but E-gated for carbon_jenkins.
+
+### CORRECTION: crown-lift is NEGLIGIBLE on carbon_snt — the DDW residual is the snag falldown, not crown-lift
+Instrumented the Fortran FMCADD crown-lift accumulator (CLIFT) on carbon_snt: it is TINY —
+0 / 0.00047 / 0.00062 / 0.00069 t/ac/yr (vs 0.392/yr on carbon_jenkins). The per-tree threshold
+(fmcadd.f:95, `FMPROB·OLDCRW < 0.0000625 oz ⇒ AMT=0`) zeroes the crown-lift for carbon_snt's
+species/records, whereas carbon_jenkins (LP pine, big crowns, high per-record FMPROB) clears it. ⇒ TWO
+corrections:
+  1. **`apply_crown_lift!` overshoots ~800× on carbon_snt** because it omits the per-tree threshold — the
+     restructure's DDW overshoot (7.9 vs 5.4) was the un-thresholded crown-lift, not the decay window.
+     The threshold is the missing piece (and explains why the closed-form always overshot).
+  2. **The carbon_snt post-mortality DDW residual is NOT the crown-lift** (which is ~0 there) — it is the
+     SNAG-BOLE falldown feeding down wood (and/or the cwd2b crown). I had mis-attributed it. The
+     crown-lift only matters on big-crown stands like carbon_jenkins, which are E-gated anyway.
+So the FFE-after-grow RESTRUCTURE is structurally sound (Floor stayed bit-exact), but the crown-lift
+needs the per-tree threshold; and the carbon_snt DDW gap should be re-investigated as the snag-bole
+falldown → down-wood path, not crown-lift. Reverted the restructure; the snag/Stand-Dead fixes stand.
