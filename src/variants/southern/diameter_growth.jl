@@ -548,10 +548,14 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
 
     # Attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79).
-    # The attenuation clock is the cumulative time SINCE the inventory (calibration),
-    # so the first projection cycle uses the FULL COR (cormlt=1 at 0 elapsed years);
-    # it decays in later cycles. (Was wrongly using one period's length every cycle.)
-    cormlt = exp(-0.02773f0 * sfint * Float32(s.control.cycle))
+    # The attenuation clock is the cumulative elapsed time SINCE the inventory (FVS
+    # SFINT = IY(icyc)−IY(1)), so the first projection cycle uses the FULL COR
+    # (cormlt=1 at 0 elapsed years) and it decays thereafter. Use the actual elapsed
+    # years from the IY schedule (= current_cycle_year − inventory), NOT `sfint·cycle`
+    # — the two are equal only for UNIFORM cycles; a TIMEINT/CYCLEAT non-uniform
+    # schedule (e.g. a 10-yr cycle 2) needs the true cumulative time (5, not 10).
+    elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
+    cormlt = exp(-0.02773f0 * elapsed)
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
     # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
     # HCOR = WCI + cormlt_h·DIFH, DIFH = HCOR_init − WCI (set at ICYC=1). This runs for LDGCAL
@@ -562,7 +566,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     # the WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
-    cormlt_h = exp(-0.02773f0 * sfint * Float32(s.control.cycle + 1))
+    cormlt_h = exp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
         c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
@@ -572,9 +576,14 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     dgf!(s)
     wk2 = view(s.scratch.wk, 2, :)
 
-    # per-cycle ARMA multipliers (cyc1: new=old=floor(YR); multi-cycle TODO)
-    yr = Int(floor(s.control.year)); yr < 1 && (yr = 1)
-    covmlt, vmlt = autcor(yr, yr, _stand_bjrho(s))
+    # per-cycle ARMA multipliers: AUTCOR(new, old) where `new` = THIS cycle's period and
+    # `old` = the PREVIOUS cycle's period (dgdriv.f). For uniform 5-yr cycles both are 5
+    # (unchanged); a non-uniform TIMEINT/CYCLEAT schedule (e.g. a 10-yr cycle following a
+    # 5-yr one) needs new=10, old=5 — using the base YR for both under-grows the long cycle.
+    cyc = Int(s.control.cycle)
+    newp = max(1, cycle_period_at(s.control, cyc))
+    oldp = cyc == 0 ? newp : max(1, cycle_period_at(s.control, cyc - 1))
+    covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
     # BAIMULT (MULTS kind 1): per-species diameter-growth multiplier scaling DDS
