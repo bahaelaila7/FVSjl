@@ -114,6 +114,170 @@ const _FM_SMOKE_DEAD = 19.0f0          # representative dead-fuel PM2.5 factor (
 const _FM_SMOKE_LIVE = 21.3f0          # live herb/shrub PM2.5 factor (EMFACL)
 
 """
+    potential_fire_report(s) -> NamedTuple
+
+Bundle the FVS_PotFire report row (FMPOFL): the dual-scenario surface fire (`potential_fire`), the canopy
+bulk density (`canopy_bulk_density`), and torching probabilities (`torching_probability`). In SN total
+flame = surface flame and the crown-fire Torch/Crown indices are −1 (FMCFIR is skipped). Returns `nothing`
+without an active fire state.
+"""
+function potential_fire_report(s::StandState)
+    pf = potential_fire(s); pf === nothing && return nothing
+    cbd = canopy_bulk_density(s)
+    pt = torching_probability(s, pf.severe.flame, pf.moderate.flame)
+    return (; surf_flame_sev = pf.severe.flame, surf_flame_mod = pf.moderate.flame,
+            tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
+            ptorch_sev = pt.severe, ptorch_mod = pt.moderate,
+            torch_index = -1f0, crown_index = -1f0,                                # FMCFIR skipped in SN
+            canopy_ht = cbd.canopy_ht, canopy_density = cbd.cbd,
+            mort_ba_sev = pf.severe.ba_kill, mort_ba_mod = pf.moderate.ba_kill,
+            mort_vol_sev = pf.severe.vol_kill, mort_vol_mod = pf.moderate.vol_kill,
+            smoke_sev = pf.severe.smoke, smoke_mod = pf.moderate.smoke,
+            models = pf.severe.models)                                            # severe-case fuel models (fmpofl.f:230)
+end
+
+"""
+    canopy_bulk_density(s) -> (; cbd, actcbh, canopy_ht, tcload)
+
+Canopy crown-fuel profile for the FVS_PotFire report (FMPOCR, fmpocr.f, SN uniform-distribution path).
+Builds a 1-ft-resolution vertical crown-fuel array `CRFILL` (lbs/ac-ft): each live tree spreads its canopy
+fuel `(foliage + ½ finest-woody)·TPA` uniformly over its crown (base `HT·(1−ICR/100)` to top `HT`), with
+partial top/bottom layers. Returns: `cbd` = the max 13-ft running mean of CRFILL converted to kg/m³ and
+capped at 0.35; `actcbh` = the actual crown base height (ft, lowest layer whose 3-ft running mean ≥ 30
+lbs/ac-ft, −1 if none); `canopy_ht` = effective canopy top (ft); `tcload` = total canopy fuel (lbs/ft²).
+"""
+function canopy_bulk_density(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
+    t = s.trees
+    NH = 400
+    crfill = zeros(Float32, NH)                         # crown fuel by 1-ft height layer (lbs/ac-ft)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        h = t.height[i]; h > 0f0 || continue
+        icr = Float32(t.crown_pct[i])
+        crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
+        xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(round(icr)))
+        crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
+        crbio > 0f0 || continue
+        len = h - crbot; len > 0f0 || continue
+        adcrwn = crbio / len                            # uniform density over the crown length (lbs/ac-ft)
+        i1 = Int(floor(crbot)) + 1; i2 = Int(floor(h)) + 1
+        i1 > NH && (i1 = NH); i2 > NH && (i2 = NH)
+        i1 <= i2 || continue
+        for j in i1:i2
+            adj = j == i1 ? clamp(Float32(i1) - crbot, 0f0, 1f0) :
+                  j == i2 ? clamp(1f0 - (Float32(i2) - h), 0f0, 1f0) : 1f0  # partial top/bottom layers
+            crfill[j] += adcrwn * adj
+        end
+    end
+    tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
+    # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
+    j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)
+    j2 = findlast(>(5f0), crfill)
+    cbd_lb = 0f0; actcbh = -1; abotmx = 0f0; mxj = -1
+    if j1 == j2
+        cbd_lb = crfill[j1]; actcbh = j1
+    else
+        @inbounds for j in j1:j2                         # 13-ft running mean (6 below … 6 above) → max = CBD
+            a = 0f0; n = 0
+            for k in max(j - 6, j1):min(j + 6, j2); a += crfill[k]; n += 1; end
+            a /= n; a > cbd_lb && (cbd_lb = a)
+            b = 0f0; nb = 0                              # 3-ft running mean → crown base height (≥ 30)
+            for k in max(j - 1, j1):min(j + 1, j2); b += crfill[k]; nb += 1; end
+            b /= nb
+            b > abotmx + 0.1f0 && (abotmx = b; mxj = j)
+            b >= 30f0 && actcbh == -1 && (actcbh = j)
+        end
+        actcbh == -1 && abotmx > 5f0 && (actcbh = mxj)
+    end
+    cbd = cbd_lb * 0.45359237f0 / (4046.856422f0 * 0.3048f0)   # lbs/ac-ft → kg/m³
+    cbd > 0.35f0 && (cbd = 0.35f0)                              # cap (S. Rebain 2005)
+    return (cbd = cbd, actcbh = actcbh, canopy_ht = Int(j2), tcload = tcload)
+end
+
+# Standard normal lower-tail CDF (FMPOFL_NPROB) — Abramowitz & Stegun 26.2.17 rational approximation.
+@inline function _normal_cdf(z::Float64)::Float64
+    s = z < 0 ? -1.0 : 1.0; x = abs(z) / sqrt(2.0)
+    tt = 1.0 / (1.0 + 0.3275911 * x)
+    y = 1.0 - (((((1.061405429tt - 1.453152027) * tt) + 1.421413741) * tt - 0.284496736) * tt + 0.254829592) * tt * exp(-x * x)
+    return 0.5 * (1.0 + s * y)
+end
+
+"""
+    torching_probability(s, flame_sev, flame_mod; reps=30) -> (; severe, moderate)
+
+Probability of crown torching under the severe / moderate flame lengths (FMPOFL_FMPTRH, fmpofl.f). A
+`reps`-rep Monte Carlo: each rep draws a virtual plot (trees present with Poisson probability
+`1−exp(−TPA·PSIZE)`, PSIZE=0.025), finds the lowest crown base height that must ignite for the plot to
+torch given the ladder-fuel rule (a tree carries fire up if the running max height ×1.25 exceeds the next
+crown base, until a tree reaches the critical height `CRIT = clamp(0.5·avg-height-of-top-40-TPA, 5, 50)`).
+Torching probability for a flame length is the mean over reps of the normal CDF that the required crown
+base ≤ the flame's max-needle-torch height `log((FL/0.0775)^1.45 / 30.5)` (log scale, σ=0.25). Uses the
+stand RNG (`rann!`), matching FVS's RANN-based stochastic torching. Returns 0 when a flame length is ~0.
+"""
+function torching_probability(s::StandState, flame_sev::Float32, flame_mod::Float32; reps::Int = 30)
+    t = s.trees; psize = 0.025f0
+    n = 0; prb = Float32[]; cbh = Float32[]; ht = Float32[]
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 && t.height[i] > 0f0 || continue
+        push!(prb, t.tpa[i]); push!(ht, t.height[i])
+        push!(cbh, t.height[i] * (1f0 - Float32(t.crown_pct[i]) * 0.01f0)); n += 1
+    end
+    n == 0 && return (; severe = 0f0, moderate = 0f0)
+    ord = sortperm(cbh)                                  # trees by crown base height ascending (RDPSRT)
+    # CRIT: half the avg height of the top-40-TPA cohort (in list order), clamped [5, 50]
+    avht = 0f0; ssum = 0f0
+    @inbounds for i in 1:n
+        p = prb[i]; ssum + p > 40f0 && (p = 40f0 - ssum)
+        ssum += p; avht += ht[i] * p; ssum >= 40f0 && break
+    end
+    ssum > 0f0 && (avht /= ssum)
+    crit = clamp(0.5f0 * avht, 5f0, 50f0)
+    mincb = Float32[]                                    # required ignition crown base per torching rep
+    yes = Int[]
+    for _ in 1:reps
+        empty!(yes); itop = false
+        @inbounds for ii in 1:n
+            i = ord[ii]
+            (prb[i] > 1000f0 || rann!(s.rng) > exp(-prb[i] * psize)) || continue
+            push!(yes, i); ht[i] >= crit && (itop = true)
+        end
+        itop || continue
+        mc = -1f0
+        @inbounds for jj in length(yes):-1:1            # scan present trees from the top down
+            i = yes[jj]
+            if ht[i] >= crit
+                mc = cbh[i]; break
+            elseif jj > 1                                # can this tree ladder fire up to CRIT?
+                mxht = ht[i]
+                for kk in (jj - 1):-1:1
+                    j = yes[kk]
+                    if mxht * 1.25f0 > cbh[j]
+                        mxht < ht[j] && (mxht = ht[j])
+                        if mxht >= crit; mc = cbh[i]; break; end
+                    end
+                end
+                mc > -1f0 && break
+            end
+        end
+        mc > 0f0 && push!(mincb, mc)
+    end
+    isempty(mincb) && return (; severe = 0f0, moderate = 0f0)
+    p = 1.0 / reps
+    function ptorch(fl::Float32)
+        fl > 1f-4 || return 0f0
+        mxnt = log(((Float64(fl) / 0.0775)^1.45) / 30.5)
+        acc = 0.0
+        # PT1 = the RIGHT tail (fmpofl.f calls NPROB(Z,Q,PT1,…): PT1 receives Q = 1−CDF), so torching is
+        # likelier when the flame's reach MXNT exceeds the required crown base log(MINCB) (Z more negative).
+        for mc in mincb; acc += (1.0 - _normal_cdf((log(Float64(mc)) - mxnt) / 0.25)) * p; end
+        return Float32(acc)
+    end
+    return (; severe = ptorch(flame_sev), moderate = ptorch(flame_mod))
+end
+
+"""
     potential_fire(s) -> (; severe, moderate)
 
 Potential SURFACE-fire behavior under the two FFE fixed weather scenarios (FMPOFL, fmpofl.f:103),

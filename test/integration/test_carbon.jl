@@ -407,6 +407,38 @@ end
     @test t.tpa[1] == 30f0 && t.tpa[2] == 30f0
 end
 
+@testset "FVS_PotFire DBS table — potential fire report + writer (fmpofl.f / dbsfmpf.f)" begin
+    # potential_fire_report bundles the dual-scenario surface fire + canopy bulk density + torching
+    # probability; write_dbs_potfire! writes the 27-col FVS_PotFire. SN: Tot_Flame = Surf_Flame, indices −1.
+    s = FVSjl.StandState(FVSjl.Southern())
+    FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
+    s.plot.forest_type = Int32(520); s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+    t = s.trees; t.n = 3
+    t.species[1] = Int32(65); t.dbh[1] = 14f0; t.height[1] = 72f0; t.tpa[1] = 80f0;  t.crown_pct[1] = Int32(30)
+    t.species[2] = Int32(22); t.dbh[2] = 4f0;  t.height[2] = 18f0; t.tpa[2] = 200f0; t.crown_pct[2] = Int32(60)
+    t.species[3] = Int32(65); t.dbh[3] = 8f0;  t.height[3] = 40f0; t.tpa[3] = 120f0; t.crown_pct[3] = Int32(45)
+    s.fire = FVSjl.FireState(); s.fire.active = true
+    FVSjl.fmcba!(s)
+    r = FVSjl.potential_fire_report(s)
+    @test r !== nothing
+    @test r.tot_flame_sev == r.surf_flame_sev                 # SN: no crown fire → total = surface
+    @test r.torch_index == -1f0 && r.crown_index == -1f0      # FMCFIR skipped in SN
+    @test 0f0 <= r.canopy_density <= 0.35f0                   # CBD capped at 0.35
+    @test r.surf_flame_sev >= r.surf_flame_mod                # severe weather → larger fire
+    @test 0f0 <= r.ptorch_sev <= 1f0 && 0f0 <= r.ptorch_mod <= 1f0
+    dbpath = joinpath(mktempdir(), "pf.db")
+    FVSjl.write_dbs_potfire!(dbpath, "C1", "S1", [(2003, r)])
+    db = SQLite.DB(dbpath)
+    res = [(; Year = x.Year, SF = x.Surf_Flame_Sev, CH = x.Canopy_Ht, CD = x.Canopy_Density,
+            TI = x.Torch_Index, FM1 = x.Fuel_Mod1)
+           for x in DBInterface.execute(db, "SELECT * FROM FVS_PotFire")]
+    SQLite.close(db)
+    @test length(res) == 1 && res[1].Year == 2003
+    @test res[1].SF ≈ Float64(r.surf_flame_sev)
+    @test res[1].CD ≈ Float64(r.canopy_density)
+    @test res[1].TI == -1.0
+end
+
 @testset "FVS_BurnReport DBS table — captured from a SIMFIRE event (dbsfmburn.f)" begin
     # fmburn! captures a burn-event record (moistures, wind, flame, scorch, weighted fuel models) into
     # fire.burn_reports; write_dbs_burnreport! writes the FVS_BurnReport row. Validate capture + round-trip.

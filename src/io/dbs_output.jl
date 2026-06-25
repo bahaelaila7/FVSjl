@@ -362,6 +362,49 @@ function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::Abstrac
     return dbpath
 end
 
+# FVS_PotFire schema (dbsfmpf.f:168-195) — potential fire behavior under severe/moderate weather.
+const _FVS_POTFIRE_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_PotFire(
+  CaseID text not null, StandID text not null, Year int null,
+  Surf_Flame_Sev real null, Surf_Flame_Mod real null, Tot_Flame_Sev real null, Tot_Flame_Mod real null,
+  PTorch_Sev real null, PTorch_Mod real null, Torch_Index real null, Crown_Index real null,
+  Canopy_Ht int null, Canopy_Density real null,
+  Mortality_BA_Sev real null, Mortality_BA_Mod real null, Mortality_VOL_Sev real null, Mortality_VOL_Mod real null,
+  Pot_Smoke_Sev real null, Pot_Smoke_Mod real null,
+  Fuel_Mod1 int null, Fuel_Mod2 int null, Fuel_Mod3 int null, Fuel_Mod4 int null,
+  Fuel_Wt1 real null, Fuel_Wt2 real null, Fuel_Wt3 real null, Fuel_Wt4 real null)"""
+
+"""
+    write_dbs_potfire!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the Potential Fire report to the `FVS_PotFire` DBS table (dbsfmpf.f). `rows` is the `(year, report)`
+collection where `report` is a `potential_fire_report` named tuple (severe/moderate surface fire behavior,
+canopy bulk density, torching probabilities, and the severe-case weighted fuel models).
+"""
+function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+    isempty(rows) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_POTFIRE_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire VALUES (" * join(fill("?", 27), ",") * ")")
+        for (yr, r) in rows
+            fm = r.models
+            mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
+            ww(i) = i <= length(fm) ? Float64(fm[i][2]) : 0.0
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(r.surf_flame_sev), Float64(r.surf_flame_mod), Float64(r.tot_flame_sev), Float64(r.tot_flame_mod),
+                Float64(r.ptorch_sev), Float64(r.ptorch_mod), Float64(r.torch_index), Float64(r.crown_index),
+                Int(r.canopy_ht), Float64(r.canopy_density),
+                Float64(r.mort_ba_sev), Float64(r.mort_ba_mod), Float64(r.mort_vol_sev), Float64(r.mort_vol_mod),
+                Float64(r.smoke_sev), Float64(r.smoke_mod),
+                mw(1), mw(2), mw(3), mw(4), ww(1), ww(2), ww(3), ww(4)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """

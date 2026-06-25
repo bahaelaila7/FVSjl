@@ -263,6 +263,7 @@ mutable struct Control
     regh_cor2_on::Bool                        # LRCOR2: small-tree con multiplied by RHCON=RCOR2                     (LRCOR2)
     carbon_report_on::Bool                    # CARBREPT: emit the Stand Carbon Report                              (LCARBON)
     carbon_method::Int32                      # CARBCALC method: 0 = FFE, 1 = JENKINS                               (ICTYPE)
+    potfire_report_on::Bool                   # POTFIRE: emit the Potential Fire (FMPOFL) report                    (IPFLMB/E)
 end
 
 function Control()
@@ -317,6 +318,7 @@ function Control()
         ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
         false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)
         false, Int32(1),                                         # carbon_report_on, carbon_method (CARBREPT/CARBCALC, default JENKINS)
+        false,                                                   # potfire_report_on (POTFIRE)
     )
 end
 

@@ -79,7 +79,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
                         compute_collect::Union{Nothing,Vector} = nothing,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
-                        carbon_collect::Union{Nothing,Vector} = nothing)
+                        carbon_collect::Union{Nothing,Vector} = nothing,
+                        potfire_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
@@ -112,6 +113,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
             push!(carbon_collect, (r.year, stand_carbon_report(s), ffe_fuel_loadings(s),
                                    snag_summary(s), ffe_down_wood(s)))
+        end
+        # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
+        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active
+            compute_density!(s)
+            pfr = potential_fire_report(s)
+            pfr !== nothing && push!(potfire_collect, (r.year, pfr))
         end
         if !last
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's

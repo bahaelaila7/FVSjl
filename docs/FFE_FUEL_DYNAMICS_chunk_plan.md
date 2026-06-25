@@ -987,3 +987,20 @@ Per-column source for SN:
 So PotFire = dual-scenario surface fire (HAVE) + FMPOCR canopy bulk density + FMCONS smoke + FMPTRH
 torching. Three real sub-pieces, all SN-applicable (no crown-fire spread). A focused multi-part port —
 fully scoped here, most-upstream piece = the non-mutating dual-scenario potential_fire helper.
+
+### LANDED: FVS_PotFire (fmpofl.f) — the 8th FFE DBS table, all three sub-models ported
+Three pieces, all SN-faithful:
+  - potential_fire (done earlier): dual-scenario surface flame/scorch/mortality-BA/VOL/smoke + fuel models.
+  - canopy_bulk_density (FMPOCR, SN uniform-crown path): 1-ft CRFILL crown-fuel profile (foliage + ½ finest
+    woody, uniform over crown, partial top/bottom layers) → max 13-ft running mean → CBD in kg/m³ capped
+    0.35; ACTCBH = lowest 3-ft-mean ≥30 layer; canopy_ht = effective top. Validated: ACTCBH=45ft matches
+    the dominant oak's crown base 43.2ft.
+  - torching_probability (FMPOFL_FMPTRH): 30-rep Monte Carlo — Poisson virtual plot, ladder-fuel chain to
+    CRIT=clamp(0.5·top-40-TPA-avg-ht,5,50), PTorch = mean over reps of the RIGHT-tail normal prob that the
+    required crown base ≤ flame max-needle-torch height log((FL/.0775)^1.45/30.5) (σ=0.25 log). Key fix:
+    fmpofl.f calls NPROB(Z,Q,PT1,…) so PT1 = the RIGHT tail (1−CDF) → PTorch rises with flame (verified
+    severe 0.90 > moderate 0.0001, monotonic, zero-flame→0).
+potential_fire_report bundles them (Tot_Flame=Surf_Flame, Torch/Crown index=−1 since SN skips FMCFIR);
+write_dbs_potfire! (27 col) + POTFIRE/POTFLAME keyword (kw_fmin!) + potfire_report_on flag + per-cycle
+collection in write_sum_file, wired into run_keyfile. 4413 green. EIGHT of 9 FFE DBS tables now emit; only
+FVS_Hrv_Carbon (FAPROP harvested-wood-products carbon-fate) remains.
