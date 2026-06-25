@@ -547,3 +547,19 @@ the suspects are: the mortality-snag bolevol, or the new snags falling within th
 the Fortran's timing. NEXT: instrument the Fortran (fmdout TOTSNG / the snag list) to dump the per-cycle
 Stand-Dead bole DECOMPOSITION (input-snag remainder vs new-mortality snags) on carbon_snt — pins whether
 my mortality creation is under or the falldown timing is off. The rate is ruled out.
+
+### Snag dynamics ROOT CAUSE — deaths-spreading (snag over-aging), not rate or creation
+Decisive checks on carbon_snt:
+  - Mortality snag CREATION is correct: with NO falldown the snag bole accumulates 1.08/2.37/5.44/11.37
+    mt/ha (1995-2010); +input 3.9 ⇒ ~9.34 at 2005 ≈ Fortran Stand-Dead 9.5. So creation + bolevol are right.
+  - Falldown RATE is correct (FMSFALL `MODRATE*ORIGDEN`, matched).
+  ⇒ The collapse (with falldown, 3.9→1.9) is `update_snags!(nyrs)` OVER-AGING: it falls EVERY snag the
+    full `nyrs`=5 years per cycle, but a cycle's mortality is spread THROUGHOUT the cycle (deaths-spread),
+    so those snags average ~2.5 yr old, not 5 — and the FRESH cycle-boundary mortality should be reported
+    FULL (age ~0), not 51%-fallen. So I over-fall the young snags ⇒ Stand-Dead collapses + DDW overshoots.
+This is the **deaths-spreading** timing (mortality applied gradually over the cycle), the SAME root that
+gates the cwd2b crown debris and the earlier DDW within-cycle analysis. FVSjl books mortality at the
+cycle boundary; FVS spreads it. So the FFE dead-pool dynamics (snag falldown + cwd2b flow) are gated on
+modeling the within-cycle death age — either spread the mortality, or age the cycle's new snags by the
+within-cycle average (~nyrs/2) while older snags age the full nyrs. THAT is the precise remaining fix for
+the snag/DDW dynamics; the rate, creation, and bolevol are all confirmed correct.
