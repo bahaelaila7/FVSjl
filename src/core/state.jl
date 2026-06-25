@@ -204,6 +204,9 @@ mutable struct Control
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
     years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
+    yardloss_prlost::Float32             # YARDLOSS PRLOST (cuts.f:1461): proportion of harvested merch/saw/
+                                         # board volume lost in yarding (0 = inactive). The reported removed
+                                         # merch/saw/bdft are scaled by (1−PRLOST); total cubic + BA are not.
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
     multipliers::Vector{GrowthMultiplier} # keyword growth/mortality multipliers (MULTS)
     htgstp_events::Vector{ScheduledActivity} # HTGSTOP/TOPKILL top-damage events (htgstp.f);
@@ -297,6 +300,7 @@ function Control()
         zeros(Float32,MAXSP), ones(Float32,MAXSP),              # sp_cf_form0/1 (MCFDLN): CFLA0=0, CFLA1=1
         zeros(Float32,MAXSP), ones(Float32,MAXSP),              # sp_bf_form0/1 (BFFDLN): BFLA0=0, BFLA1=1
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
+        0f0,                                                    # yardloss_prlost (YARDLOSS, inactive)
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)

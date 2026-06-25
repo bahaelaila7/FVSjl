@@ -1418,6 +1418,11 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SPLEAVE";  kw_thin!(s, rec, Int32(206))   # cut modifier: leave named species
         elseif kw == "TCONDMLT"; kw_thin!(s, rec, Int32(202))   # cut modifier: tree-condition weight (TCWT)
         elseif kw == "LEAVESP";  kw_thin!(s, rec, Int32(206))   # alias for SPLEAVE
+        elseif kw == "YARDLOSS"                                 # yarding loss (cuts.f:1461): PRLOST of the
+            rec.present[1] && (s.control.yardloss_prlost = clamp(Float32(rec.values[1]), 0f0, 1f0))  # harvested
+                                                                # merch/saw/board volume is left on site
+        elseif kw == "SALVAGE"                                  # ABANDONED in Fortran (cuts.f:103) — recognized
+                                                                # no-op so the keyword doesn't fall through silently
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)
         elseif kw == "THINPT";   kw_thin!(s, rec, Int32(15))    # point thin (residual + class + dir)
         elseif kw == "BAIMULT";  kw_mult!(s, rec, :bai)   # diameter-growth (BA-increment) multiplier

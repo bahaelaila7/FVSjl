@@ -36,13 +36,17 @@ const _SNT01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test r0.stockcls == 2
         @test isapprox(r0.mai, 19.1; atol = 0.05)
 
-        # Advance one cycle; 1995 row should track the baseline (507/103/6.1) closely.
+        # Advance one cycle; the 1995 row matches the baseline BIT-EXACTLY at the .sum print resolution.
+        # The .sum truncates via di(x)=trunc(x+0.5); asserting the printed integer/1-decimal matches the
+        # baseline is the tightest (float-ULP-equivalent) check — a sub-ULP float diff could only flip the
+        # truncation, which it does not here (507.44→507, 103.19→103, 6.11→6.1, 63.41→63).
         FVSjl.grow_cycle!(s)
         FVSjl.compute_forest_type!(s)
         g = s.plot.gross_space
-        @test isapprox(stand_tpa(s) / g, 507; atol = 3)        # baseline 507
-        @test isapprox(stand_ba(s)  / g, 103; atol = 4)        # baseline 103
-        @test isapprox(stand_qmd(s), 6.1; atol = 0.15)         # baseline 6.1
-        @test isapprox(stand_top_height(s), 63; atol = 1)      # baseline 63
+        di(x) = trunc(Int, x + 0.5)
+        @test di(stand_tpa(s) / g) == 507                      # baseline 507 — BIT-EXACT (.sum print)
+        @test di(stand_ba(s)  / g) == 103                      # baseline 103 — BIT-EXACT
+        @test round(stand_qmd(s); digits = 1) == 6.1f0         # baseline 6.1 — BIT-EXACT (F.1)
+        @test di(stand_top_height(s)) == 63                    # baseline 63  — BIT-EXACT
     end
 end

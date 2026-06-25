@@ -71,6 +71,24 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         @testset "YARDLOSS affects removed-volume accounting (col24 2000 == 124)" begin
             @test isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)
         end
+        @testset "YARDLOSS scales removed MERCH/SAW/BOARD by (1−PRLOST), not cubic/TPA (cuts.f:1387)" begin
+            # YARDLOSS (PRLOST=0.5) leaves half the harvested merch on site: the reported removed
+            # merch/saw/board volumes are halved, while total cubic + TPA reflect the full physical
+            # removal. Verified on a merch-removing thin (cut_specpref) — control vs PRLOST=0.5.
+            function run_specpref(prlost)
+                s = first(FVSjl.each_stand(joinpath(_HARNESS, "cut_specpref.key")))
+                FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+                s.control.yardloss_prlost = Float32(prlost)
+                io = IOBuffer(); rows = FVSjl.SummaryRow[]
+                FVSjl.write_sum_file(io, s; period = 5, collect_rows = rows)
+                reduce((a, b) -> b.rem_mcuft > a.rem_mcuft ? b : a, rows)
+            end
+            c0 = run_specpref(0.0); c5 = run_specpref(0.5)
+            @test c0.rem_mcuft > 0                       # the thin removes merchantable volume
+            @test c5.rem_mcuft == c0.rem_mcuft ÷ 2       # merch halved (272 → 136)
+            @test c5.rem_cuft == c0.rem_cuft             # total cubic UNCHANGED (full physical removal)
+            @test c5.rem_tpa  == c0.rem_tpa              # removed TPA UNCHANGED
+        end
         @testset "THINSDI thins to target SDI (rem_tpa 2000 == 20)" begin
             @test isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)   # ported (Zeide SDI + proportional)
         end
