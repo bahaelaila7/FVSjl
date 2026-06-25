@@ -647,3 +647,17 @@ a regression for Stand-Dead. The remaining DDW residual is a per-tree FMCADD-add
 (likely the mortality-crown cwd2b scheduling vs the Fortran's larger crown weight for these trees, or
 the snag-bole cone-taper falldown in fmcwd.f vs FVSjl's single-size-class bole) — fine-grained, needs a
 per-tree FMCADD/cwd2b dump. Reverted the restructure. The shipped pre-grow Stand-Dead-tracking stands.
+
+### DDW residual PINNED to a specific missing term: fmscro! omits YRSCYC·OLDCRW·X
+The carbon_snt DDW under-run is the cwd2b crown debris (~5× under: my restructure flowed +0.2 vs the
+Fortran's FMCADD +0.94 at the 1995 boundary). Reading fmscro.f:144-149, the FVS scheduled dead-crown per
+size is `(CROWNW(I,SIZE) + YRSCYC·OLDCRW(I,SIZE)·X)·DSNAGS/RLIFE` — i.e. the current crown PLUS the
+accumulated crown-lift material (YRSCYC=cycle years × OLDCRW × the FMSDIT rise X) that died with the
+tree. FVSjl's `fmscro!` schedules only `CROWNW` (`crown_biomass`), OMITTING the `YRSCYC·OLDCRW·X` term.
+So the cwd2b crown is under by that term ⇒ the post-mortality DDW under-runs. This is concrete and
+actionable BUT couples to the crown-lift OLDCRW·X (the same fine-grained term that's negligible-on-some
+/E-gated-on-others and which I could not land bit-exact): on carbon_jenkins the term is ~0 (SCHT=CRWO,
+confirmed), on carbon_snt it is the ~0.74/cycle gap. Implementing it needs the previous-cycle crown
+(prev_* fields) + X + the per-tree threshold — the crown-lift plumbing. So the LAST DDW residual is the
+crown-lift material entering the dead-crown cwd2b (fmscro), pinned to one term, coupled to the crown-lift
+work documented above. Verified by the 3-point dump + the restructure test, not assumed.
