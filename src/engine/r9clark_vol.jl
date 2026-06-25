@@ -13,20 +13,21 @@
 # needs the R9LOGS/r9bdft Scribner path (separate follow-up).
 #
 # ── VALIDATION STATE (WIP — NOT yet wired into compute_volumes!) ────────────
-# Against the live FVSne_new net01 cycle-0 aggregate (per acre, ×0.909):
-#   TCF  1551 / 1558  (99.6%)   ← total cubic — effectively there
-#   SCF   294 /  292  (100.7%)  ← sawtimber cubic — effectively there
-#   MCF  1262 / 1347  (93.7%)   ← MERCH cubic — ~6% low, the open gap
-# PER-TREE DIAGNOSIS (via the live oracle treelist — see recipe below): comparing
-# on identical (dbh,ht,species), CONIFERS and SHORT trees match closely (JP d=11.5
-# h=73: 20.8 vs 20.8), but BIG TALL HARDWOODS over-predict ~26% (SM d=18.2 h=102:
-# 66.4 raw vs oracle 52.6; QA d=20.9 h=95.9: high too). Root cause localised to the
-# upper-bole term: for tall trees `dib17 = dbhIb·(a17 + b17·(17.3/topHt)²)` goes fat
-# (15.4" at 17.3' for an 18" stem) because (17.3/topHt)²→0 at large topHt, so the
-# r9cuft V3 segment (∝ dib17²) is oversized. JP (shorter) is unaffected. The fix is
-# NOT a coef/formula transcription error (both verified vs r9coeff.inc); it is some
-# tall-tree handling the port is still missing (totHt/topHt reference or a coef-class
-# selection). THIS is the open bug — chase it next, then re-check the aggregate.
+# Validated PER-TREE against the live FVSne_new cycle-0 COMPLETE TREE LIST (.trl),
+# computing on the oracle's OWN (dbh,ht,species) — apples to apples:
+#   per-tree CLOSE: SM d=18.1 h=91.9: 65.8 vs 66.0; JP d=11.5: 20.8 vs 20.8;
+#   max per-tree total-cuft diff 1.65 (after the d<1 guard).
+# Aggregated over the oracle's cyc0 trees (Σ vol·tpa, with the d<1→0 guard that
+# compute_volumes! already applies):
+#   TOT 1546.5 / 1558.8    MCH 1338.0 / 1346.7    SAW 294.1 / 292.5   — ALL <1%.
+# (The earlier "6% / 26%" gaps were ARTIFACTS — a whitespace-split column
+# misalignment in the diff harness, and the missing small-tree guard: one YB d=0.1
+# seedling gave 2.5 cuft × 27 tpa ≈ the whole apparent total-cuft gap.) The kernels
+# (r9dia417/r9totHt/r9cuft/r9ht) + r9Prep group-fallback + MRULES R9 + r9cor are
+# faithful. Remaining <1% is per-tree Float32 rounding (Fortran nint vs round) + a
+# few medium-tree residuals (e.g. SM d=10.4: 13.8 vs 15.4) + the exact small-tree
+# cutoff — refinements, not structural. NEXT: wire into compute_volumes! (variant-
+# dispatch + d<1 guard), close the <1% residual, then add board feet (vol[2]).
 #
 # PER-TREE ORACLE RECIPE (this unblocked the diagnosis): build a clean SINGLE-stand
 # keyfile (CR→LF; take lines up to the first PROCESS), insert a `DATABASE/DSNOUT/
