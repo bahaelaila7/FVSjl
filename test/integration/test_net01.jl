@@ -17,6 +17,7 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         # net01.sum.save stand-1 (UNTHINNED) 1990 row: 536 77 160 176 63 5.1 ...
         @test di(stand_tpa(n) / g) == 536               # TPA   — BIT-EXACT
         @test di(stand_ba(n) / g) == 77                 # BA    — BIT-EXACT
+        @test di(stand_sdi(n) / g) == 160               # SDI   — BIT-EXACT (Reineke, no per-species data)
         @test round(stand_qmd(n); digits = 1) == 5.1f0  # QMD   — BIT-EXACT
         @test di(stand_top_height(n)) == 63             # TopHt — BIT-EXACT
         # NE-specific parse correctness: first tree is Jack Pine (JP=19), dbh 11.5
