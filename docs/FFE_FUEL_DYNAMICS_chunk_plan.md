@@ -900,3 +900,24 @@ snag class1 = total). Collected in the write_sum_file per-cycle tuple (now 5 ele
 run_keyfile. With FVS_Carbon + FVS_Fuels, ALL FIVE per-cycle FFE DBS tables now emit in a live run.
 Remaining DBS: the fire-EVENT tables (BurnReport/Consumption/Mortality/PotFire — need a SIMFIRE
 collection point in fmburn!) + FVS_Hrv_Carbon (harvest-carbon accounting on cuts).
+
+### Remaining fire DBS tables: TWO categories (value-grounded reuse vs new sub-model)
+The five per-cycle POOL tables (Carbon/Fuels/SnagSum/DWD_Vol/DWD_Cov) are DONE because their values are
+reuses of already-validated FFE pools (cwd/snags/live biomass). The remaining DBS tables are NOT reuses —
+they need new model infrastructure, so they are distinct larger chunks (scoped here, not rushed blind):
+
+- FVS_PotFire (dbsfmpf.f): requires porting FMPOFL — the potential-fire-behavior model under fixed
+  severe/moderate weather (SWIND 20/10/5/0). ~26 cols: surface/total flame (FLB=0.45·FINTEN^.46,
+  FLT=0.2·FINTEN^.667), torching probability + Torch_Index/Crown_Index (Scott & Reinhardt crown-fire
+  initiation/spread), canopy bulk density profile, dual-scenario mortality BA/VOL, potential smoke, and
+  the per-scenario fuel models/weights. FVSjl has the surface-fire core (fmburn! flame/byram/scorch) but
+  NOT the crown-fire indices / canopy-bulk-density / dual-scenario effects — a real sub-model port.
+- FVS_BurnReport / FVS_Consumption / FVS_Mortality (dbsfmburn/fmfuel/fmmort.f): fire-EVENT tables, valued
+  only when a SIMFIRE fires. FVSjl's fmburn! computes the behavior + kill; needs (a) a fuel-consumption
+  accounting (FMBURN consumes fuel by size class) and (b) a collection point in the SIMFIRE path + a
+  fire+CARBREPT scenario to validate.
+- FVS_Hrv_Carbon (dbsfmhrpt.f): harvested-tree carbon on cuts — needs a cut+CARBREPT scenario.
+
+So the boundary is principled: all value-grounded (validated-reuse) DBS tables are ported; the rest need
+a new sub-model (FMPOFL crown fire) or an event/harvest collection point + scenario, which is the next
+distinct chunk — to be done faithfully-from-source with its own validation, not blind.
