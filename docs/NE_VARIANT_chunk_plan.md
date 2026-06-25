@@ -72,9 +72,32 @@ rewrite.
   profile params `a17,b17,r,c,e,p,a/b/q` (coef0/coef4/coef79). net01 species 105/129/318/371/746 present.
 - Merch standards: NE defaults in `ne/sitset.f:506-560` — softwood DBHMIN 5/TOPD 4/BFTOPD 7.6/SCFTOPD 7.6,
   hardwood DBHMIN 6/TOPD 4-5/BFTOPD 9.6/SCFTOPD 9.6, stump 0.5; → `data/northeast/volume/merch_specs.csv`.
-- TODO (the volume MATH port, a focused bit-exact chunk): port `r9Prep`/`r9dia417`/`r9totHt` + the merch
-  rules + Scribner board-ft, wire `compute_volumes!`/`setup_volume_equations!` variant-dispatch to the R9
-  path for NE, validate per-tree then net01 cuft 1558/mcuft 1347/scuft 292/bdft 1633 bit-exact.
+- Merch standards are **IFOR-dependent RULES** (ne/sitset.f:505-560), NOT a static per-species CSV.
+  Softwood = species index **≤25**. Defaults (the `<=0` fall-through): softwood DBHMIN 5 / TOPD 4 /
+  BFMIND 9 / BFTOPD 7.6 / SCFMIND 9 / SCFTOPD 7.6; hardwood DBHMIN {IFOR 1,3→6; 4→8; **2,5→5**} /
+  TOPD {IFOR 3→5; else 4} / BFMIND 11 / BFTOPD 9.6 / SCFMIND 11 / SCFTOPD 9.6; stump STMP/BFSTMP/SCFSTMP
+  = 0.5 (CONTRL default). net01 is IFOR=2 → softwood 5/4, hardwood 5/4, bf/scf 9·7.6 / 11·9.6. Port as a
+  per-species code rule keyed on (IFOR, ispc≤25), into `init_merch_standards!`/a NE variant hook.
+- The r9clark MATH (read & mapped — `volume/r9clark_fvsMod.f`): `r9Prep` (parse volEq + species lookup vs
+  coef0 + <300 conifer/90-99 spruce/100-199 pine/hardwood-group fallback + MRULES); `r9dia417`
+  (dbhIb=a4+b4·dbhOb; dib17=dbhIb·(a17+b17·(17.3/topHt)²), :856-906 — CLEAN); `r9totHt` (quadratic
+  inversion, :920-958 — CLEAN); `r9cuft` (3-segment cubic profile integral ×0.005454154, :1010-1099 —
+  CLEAN, self-contained); `r9ht` (height-to-diameter); `r9dib`; `R9LOGS`+`r9bdft` (Scribner board-ft —
+  needed only for vol(2)/bdft); `r9cor` (R9 per-species/product correction factors — MUST port, applied
+  last). Driver fvsvol.f NATCRS: per tree call r9clark twice (cubic prod + board), assemble
+  MCF=vol(4)+vol(7), SCF=vol(4), TCF=vol(1), BBFV=vol(2); final `nint` rounding of vol().
+- ✅ **LIVE NE ORACLE BUILT** — `test/harness/ne_oracle.sh` relinks `/tmp/FVSne_new` from the 552 resolved
+  `.o` files in `bin/FVSne_buildDir` + the glibc shim (the shipped `bin/FVSne` needs GLIBC 2.38/2.43, absent
+  here — same as SN). Runs net01 and reproduces **cuft 1558 / mcuft 1347 / scuft 292 / bdft 1633 bit-exact**
+  at cycle-0. This removes the "no per-tree oracle" blocker for the WHOLE remaining NE port (volume +
+  growth + mortality + fire). ⚠️ **`tests/FVSne/net01.sum.save` is STALE** (source 20250930; current tree
+  20260401) — cycle-0 matches but cycle-1+ diverge from the .save due to model updates; **validate cycle-1+
+  against the live `FVSne_new`, not the committed .save** (regenerate the .save baseline before promoting any
+  cycle-1+ assertion).
+- TODO (the volume MATH port): now per-tree-validatable — port `r9Prep`/`r9dia417`/`r9totHt`/`r9cuft`/`r9ht`
+  + merch rules + `r9cor` + (for bdft) R9LOGS/r9bdft, wire `compute_volumes!`/`setup_volume_equations!`
+  variant-dispatch to the R9 path for NE, validate per-tree (DBS FVS_TreeList from FVSne_new) then net01
+  cyc0 cuft/mcuft/scuft/bdft bit-exact.
 
 ## Chunk status
 - [x] **C1 — skeleton + roster.** `struct Northeast`, `variant_code="NE"`, `NE_DATADIR`; the 108-species
