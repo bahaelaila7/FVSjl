@@ -27,6 +27,15 @@ SCHEMA = {
   'THINSDI': [(1,'year','i'),(2,'residual_sdi','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
   'THINCC':  [(1,'year','i'),(2,'residual_ccf','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
   'THINDBH': [(1,'year','i'),(2,'dbh_min','f'),(3,'dbh_max','f'),(4,'cut_efficiency','f'),(6,'residual_tpa','f'),(7,'species','i')],
+  'THINHT':  [(1,'year','i'),(2,'ht_min','f'),(3,'ht_max','f'),(4,'cut_efficiency','f'),(6,'residual_tpa','f'),(7,'species','i')],
+  'THINRDEN':[(1,'year','i'),(2,'residual_relsdi','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINAUTO':[(1,'year','i'),(2,'cut_efficiency','f')],
+  'SERLCORR':[(1,'phi','f'),(2,'theta','f')],
+  'RESETAGE':[(1,'year','i'),(2,'age','f')],
+  'VOLUME':  [(1,'year','i'),(2,'species','i'),(3,'dbh_min','f'),(4,'top_diam','f'),(5,'stump','f'),(6,'form_class','f'),(7,'method','i'),(8,'scf_min_dbh','f'),(9,'scf_top_dib','f'),(10,'scf_stump','f')],
+  'BFVOLUME':[(1,'year','i'),(2,'species','i'),(3,'bf_min_dbh','f'),(4,'bf_top_dib','f'),(5,'bf_stump','f')],
+  'MCDEFECT':[(1,'year','i'),(2,'species','i'),(3,'defect_5','f'),(4,'defect_10','f'),(5,'defect_15','f'),(6,'defect_20','f'),(7,'defect_25','f')],
+  'BFDEFECT':[(1,'year','i'),(2,'species','i'),(3,'defect_5','f'),(4,'defect_10','f'),(5,'defect_15','f'),(6,'defect_20','f'),(7,'defect_25','f')],
   'BAIMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
   'HTGMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
   'CRNMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f')],
@@ -87,16 +96,21 @@ def main(path):
         if name in NOPARAM:
             out.append('  - %s: {}' % name); i += 1; continue
         if name in SCHEMA:
-            params = []
-            for idx, pname, typ in SCHEMA[name]:
-                v = field(ln, idx)
-                if v == '': continue
-                if typ == 's': params.append('      %s: "%s"' % (pname, v))
-                else:          params.append('      %s: %s' % (pname, emit_num(v, typ)))
-            out.append('  - %s:' % name)
-            out += params if params else ['      {}']
-            i += 1; continue
-        out.append('  - %s: {}' % name); i += 1
+            try:
+                params = []
+                for idx, pname, typ in SCHEMA[name]:
+                    v = field(ln, idx)
+                    if v == '': continue
+                    if typ == 's': params.append('      %s: "%s"' % (pname, v))
+                    else:          params.append('      %s: %s' % (pname, emit_num(v, typ)))
+                out.append('  - %s:' % name)
+                out += params if params else ['      {}']
+                i += 1; continue
+            except ValueError:
+                pass   # misaligned/alpha field → fall through to a lossless raw passthrough
+        # Unknown keyword OR a schema parse failure: emit the whole card verbatim as a raw
+        # line so it ALWAYS round-trips (Task 8 adds named schemas / multi-record support).
+        out.append('  - raw: "%s"' % ln.rstrip().replace('"','\\"')); i += 1
     return '\n'.join(out) + '\n'
 
 print(main(sys.argv[1]), end='')

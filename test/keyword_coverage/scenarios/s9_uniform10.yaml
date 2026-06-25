@@ -3,7 +3,7 @@
 keywords:
   - STDIDENT:
       id: "S9 uniform 10-year cycles"
-  - NOAUTOES: {}
+  - raw: "NOAUTOES"
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -21,7 +21,7 @@ keywords:
       year: 1990
   - NUMCYCLE:
       cycles: 3
-  - ECHOSUM: {}
+  - raw: "ECHOSUM"
   - TIMEINT:
       cycle: 0
       length: 10

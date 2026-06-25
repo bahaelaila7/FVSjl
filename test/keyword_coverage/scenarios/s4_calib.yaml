@@ -3,7 +3,7 @@
 keywords:
   - STDIDENT:
       id: "S4 calibration/RNG"
-  - NOAUTOES: {}
+  - raw: "NOAUTOES"
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -21,7 +21,7 @@ keywords:
       year: 1990
   - NUMCYCLE:
       cycles: 5
-  - ECHOSUM: {}
+  - raw: "ECHOSUM"
   - RANNSEED:
       seed: 55329
   - NOCALIB:

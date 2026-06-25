@@ -3,7 +3,7 @@
 keywords:
   - STDIDENT:
       id: "S21 LEAVESP protect species"
-  - NOAUTOES: {}
+  - raw: "NOAUTOES"
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -21,8 +21,8 @@ keywords:
       year: 1990
   - NUMCYCLE:
       cycles: 5
-  - ECHOSUM: {}
-  - LEAVESP: {}
+  - raw: "ECHOSUM"
+  - raw: "LEAVESP   LP"
   - THINBBA:
       year: 2005
       residual_basal_area: 80

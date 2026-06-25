@@ -112,6 +112,11 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
                    "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
     "THINCC"   => ["year"=>1, "residual_ccf"=>2, "cut_efficiency"=>3,
                    "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINHT"   => ["year"=>1, "ht_min"=>2, "ht_max"=>3, "cut_efficiency"=>4,
+                   "residual_tpa"=>6, "species"=>7],
+    "THINRDEN" => ["year"=>1, "residual_relsdi"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINAUTO" => ["year"=>1, "cut_efficiency"=>2],
     # growth / mortality modifiers (date, species, value, dbh window)
     "BAIMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
     "HTGMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
@@ -133,14 +138,23 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
     "RANNSEED" => ["seed"=>1],
     "NOCALIB"  => ["species"=>1],
     "DGSTDEV"  => ["value"=>1],
+    "SERLCORR" => ["phi"=>1, "theta"=>2],
+    "RESETAGE" => ["year"=>1, "age"=>2],
     # establishment cards
     "PLANT"    => ["year"=>1, "species"=>2, "tpa"=>3, "survival_pct"=>4, "age"=>5,
                    "height"=>6, "shade"=>7],
     "NATURAL"  => ["year"=>1, "species"=>2, "tpa"=>3, "survival_pct"=>4, "age"=>5,
                    "height"=>6, "shade"=>7],
     "ESTAB"    => ["disturbance_date"=>1],
-    # volume
+    # volume / defect (merch standards; species 0=all, <0=group)
     "VOLEQNUM" => ["species"=>1, "equation"=>2],
+    "VOLUME"   => ["year"=>1, "species"=>2, "dbh_min"=>3, "top_diam"=>4, "stump"=>5,
+                   "form_class"=>6, "method"=>7, "scf_min_dbh"=>8, "scf_top_dib"=>9, "scf_stump"=>10],
+    "BFVOLUME" => ["year"=>1, "species"=>2, "bf_min_dbh"=>3, "bf_top_dib"=>4, "bf_stump"=>5],
+    "MCDEFECT" => ["year"=>1, "species"=>2, "defect_5"=>3, "defect_10"=>4, "defect_15"=>5,
+                   "defect_20"=>6, "defect_25"=>7],
+    "BFDEFECT" => ["year"=>1, "species"=>2, "defect_5"=>3, "defect_10"=>4, "defect_15"=>5,
+                   "defect_20"=>6, "defect_25"=>7],
     # cycle / setup extras
     "TIMEINT"  => ["cycle"=>1, "length"=>2],
     "CYCLEAT"  => ["year"=>1],

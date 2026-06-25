@@ -29,15 +29,19 @@ const _KC_FT_BROKEN = Dict(
     "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     "s26_estab"    => "establishment cohort volume residual (~2.4%)",
-    "s32_volume"   => "VOLUME card TOPD=4 override: CFTOPK Behre merch-cubic ~0.7% (default TOPD=0 path bit-exact)",
+    # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (past col 80) → all trees prod="01"
+    # with the zeroed-sawlog-standard NVEL fallback. The +19 is entirely in v[4] (sawtimber
+    # cubic, r8clark_vol.jl): FVS's scuft (1790) is LOWER than FVSjl's (1809) — needs a higher
+    # effective sawlog top than FVSjl's 7/9, contradicting mrules.f:173's 6.0 fallback (which
+    # made scuft worse). Mixed-species (SH/SM/SE). The DEFAULT (scftop>0) path is bit-exact;
+    # needs per-tree NVEL internals (stripped binary can't supply them) to localize further.
+    "s32_volume"   => "VOLUME zeroed-SCF sawtimber-cubic v[4] ~0.7% (default path bit-exact; needs per-tree NVEL trace)",
 )
-# yaml→engine result != key→engine result (structured-YAML writer/reader gap for the
-# keyword), or yaml fails to load. Tracked until the structured YAML is reworked (Task 8).
-const _KC_YAML_BROKEN = Set([
-    "s13_thinht", "s17_managed", "s20_spgroup", "s22_compress", "s25_thinrden",
-    "s31_mcdefect", "s32_volume", "s34_serlcorr", "s37_thinauto", "s26_estab",
-    "s30_thinqfa",
-])
+# yaml→engine result != key→engine result. Only the 2-record SPGROUP keyword remains
+# (group name + a following species-list record): the flat writer emits the two records
+# separately and the round-trip loses the grouping. The multi-record case is handled by
+# the hierarchical YAML redesign (Task 8). All single-record keywords now round-trip.
+const _KC_YAML_BROKEN = Set(["s20_spgroup"])
 # Ill-posed scenario layouts that produce no FVSsn .sum (no checked-in baseline).
 const _KC_NOBASE = Set(["s30_thinqfa", "s36_readcord"])
 

@@ -3,7 +3,7 @@
 keywords:
   - STDIDENT:
       id: "S28 SPECPREF + thin"
-  - NOAUTOES: {}
+  - raw: "NOAUTOES"
   - DESIGN:
       number_of_plots: 11
       nonstockable_code: 1
@@ -21,8 +21,8 @@ keywords:
       year: 1990
   - NUMCYCLE:
       cycles: 5
-  - ECHOSUM: {}
-  - SPECPREF: {}
+  - raw: "ECHOSUM"
+  - raw: "SPECPREF          22       5.0"
   - THINBBA:
       year: 2005
       residual_basal_area: 100

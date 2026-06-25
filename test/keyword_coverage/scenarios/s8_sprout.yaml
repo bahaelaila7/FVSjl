@@ -20,7 +20,7 @@ keywords:
       year: 1990
   - NUMCYCLE:
       cycles: 5
-  - ECHOSUM: {}
+  - raw: "ECHOSUM"
   - THINBBA:
       year: 2005
       residual_basal_area: 70
