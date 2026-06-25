@@ -386,6 +386,27 @@ end
     end
 end
 
+@testset "potential_fire — dual-scenario surface fire behavior (FVS_PotFire core, fmpofl.f)" begin
+    # potential_fire computes the SEVERE (fmois1/20mph/70F) + MODERATE (fmois3/8mph/60F) surface fire
+    # behavior WITHOUT applying mortality — the value-grounded core of FVS_PotFire (SN skips crown fire).
+    s = FVSjl.StandState(FVSjl.Southern())
+    FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
+    s.plot.forest_type = Int32(520); s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+    t = s.trees; t.n = 2
+    t.species[1] = Int32(65); t.dbh[1] = 14f0; t.height[1] = 72f0; t.tpa[1] = 30f0; t.crown_pct[1] = Int32(40)
+    t.species[2] = Int32(22); t.dbh[2] = 4f0;  t.height[2] = 18f0; t.tpa[2] = 30f0; t.crown_pct[2] = Int32(50)
+    s.fire = FVSjl.FireState(); s.fire.active = true
+    pf = FVSjl.potential_fire(s)
+    @test pf !== nothing
+    @test pf.severe.flame >= pf.moderate.flame                # severe weather → larger fire
+    @test pf.severe.scorch >= pf.moderate.scorch
+    @test pf.severe.ba_kill >= pf.moderate.ba_kill >= 0f0     # more mortality under severe
+    @test pf.severe.smoke > 0f0 && pf.moderate.smoke > 0f0
+    @test !isempty(pf.severe.models)
+    # non-mutating: the stand TPA is unchanged after a potential-fire computation
+    @test t.tpa[1] == 30f0 && t.tpa[2] == 30f0
+end
+
 @testset "FVS_BurnReport DBS table — captured from a SIMFIRE event (dbsfmburn.f)" begin
     # fmburn! captures a burn-event record (moistures, wind, flame, scorch, weighted fuel models) into
     # fire.burn_reports; write_dbs_burnreport! writes the FVS_BurnReport row. Validate capture + round-trip.
