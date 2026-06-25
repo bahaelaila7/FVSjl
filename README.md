@@ -35,7 +35,7 @@ FFE dead-pool one-cycle crown-lift timing lag).
 See `docs/DECISION_FLOW.md` (+ the interactive `docs/decision_flow*.html` call-graphs),
 `docs/REMAINING_WORK.md`, and `docs/TOLERANCE_AND_COVERAGE_AUDIT.md` for the per-subsystem status,
 `docs/FAITHFUL_ARTIFACTS.md` for the code kept verbatim for bit-exactness (RNG/sort/rounding/Float32),
-what remains, and the test-tolerance taxonomy. Each chunk is validated against the oracle before the next.
+what remains, and the test-tolerance taxonomy. Each chunk is validated against the oracle before the next. A scope for adding the **NE (Northeast)** variant is in `docs/NE_VARIANT_PORT_SCOPE.md`.
 
 ## Run
 
