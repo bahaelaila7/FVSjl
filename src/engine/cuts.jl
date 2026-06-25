@@ -337,7 +337,13 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - (ctpa + cba)
     remove <= 0f0 && return _NO_REMOVAL
-    cuteff = min(1f0, remove / cstock)
+    # FVS removes PROB·CUTEFF (cuts.f:1204, PRMS(3)=field 4) per record, accumulating to the
+    # REMOVE budget (=cstock−residual). With a residual target the budget binds, so the uniform
+    # `remove/cstock` reaches the same total (the partial last record lands on it). With NO
+    # residual (CTPA=CBA=0) the budget is all of cstock, so CUTEFF (< 1) is what bounds the cut —
+    # there the input efficiency caps it (blank field ⇒ the global CUTEFF, default 1.0).
+    eff_cap = (ctpa + cba) > 0f0 ? 1f0 : (_eff > 0f0 ? _eff : s.control.cut_eff)
+    cuteff = min(eff_cap, remove / cstock)
 
     # removed totals (per-acre, gross): Σ prem·{1, CFV, MCFV, SCFV, BFV}
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
