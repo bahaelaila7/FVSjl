@@ -101,3 +101,5 @@ function site_index_setup!(s::StandState)
     end
     return s
 end
+
+site_setup!(s::StandState, ::Southern) = site_index_setup!(s)
