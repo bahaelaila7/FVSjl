@@ -661,3 +661,13 @@ confirmed), on carbon_snt it is the ~0.74/cycle gap. Implementing it needs the p
 (prev_* fields) + X + the per-tree threshold — the crown-lift plumbing. So the LAST DDW residual is the
 crown-lift material entering the dead-crown cwd2b (fmscro), pinned to one term, coupled to the crown-lift
 work documented above. Verified by the 3-point dump + the restructure test, not assumed.
+
+### CORRECTION (re-read): the YRSCYC·OLDCRW·X term is SKIPPED for natural mortality (ICALL=4)
+fmscro.f:145 guards the OLDCRW term with `IF (ICALL .NE. 4)`. carbon_snt's deaths are PERIODIC/natural
+mortality (FMSADD ITYP=4), so that term does NOT apply — the scheduled dead-crown is `CROWNW` only,
+which is exactly what FVSjl's `fmscro!` does. So my previous-turn "missing YRSCYC·OLDCRW·X" diagnosis is
+WRONG for this stand (it applies only to fire/cut, ICALL=1/2). The cwd2b crown under-run therefore is NOT
+that term — it remains a per-tree CROWNW(killed-tree) magnitude / cwd2b-flow question that genuinely
+needs an instrumented per-tree FMSCRO dump on carbon_snt to pin (the SCHT method, on the killed trees).
+Re-reading the Fortran caught my own wrong hypothesis again — the methodology working, but the DDW
+residual is NOT yet pinned to a confirmed cause; it is a fine per-tree magnitude gap requiring that dump.
