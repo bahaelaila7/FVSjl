@@ -32,7 +32,6 @@ const _KC_FT_BROKEN = Dict(
     "s26_estab"    => "establishment cohort volume residual (~2.4%)",
     "s32_volume"   => "VOLUME merch-standard override (±19 mcuft; param re-test pending)",
     "s34_serlcorr" => "SERLCORR FP board-foot noise (rel ~0.2%)",
-    "s37_thinauto" => "THINAUTO MAI report column (harvest accumulation)",
 )
 # yaml→engine result != key→engine result (structured-YAML writer/reader gap for the
 # keyword), or yaml fails to load. Tracked until the structured YAML is reworked (Task 8).

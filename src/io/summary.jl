@@ -99,13 +99,18 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end
     cum_rem_merch = 0f0
+    prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
     di(x) = trunc(Int, x + 0.5)
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
         per = last ? 0 : cycle_period_at(s.control, c)   # THIS cycle's length (varies w/ TIMEINT/CYCLEAT)
-        # main columns reflect the start-of-cycle (pre-thin) stand
-        r = summary_row(s; period = per, total_removed_merch = cum_rem_merch)
+        # main columns reflect the start-of-cycle (pre-thin) stand.
+        # MAI terminal-row quirk (evtstv.f:414 + disply.f:392): intermediate rows accumulate
+        # removed merch with a one-cycle lag, but the FINAL row's MAI is loaded from the
+        # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
+        r = summary_row(s; period = per,
+                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0))
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
         cycle_hook === nothing || cycle_hook(s, r.year, per)
         # FFE Stand Carbon Report row (FMCRBOUT) — emitted BEFORE this cycle's fuel loop + growth, on the
@@ -144,7 +149,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
                 r.at_qmd = round(stand_qmd(s); digits = 1)
-                cum_rem_merch += rem.mcuft / g
+                prev_increment = rem.mcuft / g
+                cum_rem_merch += prev_increment
+            else
+                prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)
             end
             # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
