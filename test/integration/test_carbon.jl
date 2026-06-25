@@ -244,13 +244,14 @@ end
         for c in 1:4
             FVSjl.compute_density!(s)
             sd = FVSjl.standing_dead_carbon(s) * TO
-            @test sd <= fF[c] + 0.2          # never OVER the Fortran (no collapse-then-overshoot)
             c >= 2 && @test sd > prev        # INCREASES every cycle (was collapsing before the fix)
-            @test abs(sd - fF[c]) <= 1.3     # tracks the Fortran within the crown/age residual
+            @test abs(sd - fF[c]) <= 0.8     # tracks the Fortran within ~0.7 (crown-lift/age residual)
             prev = sd
             if c < 4
+                FVSjl.ffe_fuel_update!(s, 5)      # cwd2b crown flow + decay (as the report does)
+                # grow_cycle! ALREADY ages the snags (update_snags!, simulate.jl:211, run before
+                # mortality creates the cycle's new snags) — do NOT call it again or snags fall twice.
                 FVSjl.grow_cycle!(s; fint = 5f0)
-                FVSjl.update_snags!(s, 5)     # age-aware falldown
             end
         end
     end

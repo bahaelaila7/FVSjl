@@ -162,7 +162,13 @@ function ffe_seed_input_snags!(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active || s.trees.ndead <= 0) && return s
     t = s.trees; coef = s.coef; c = s.control; sd = coef.species
-    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx); yr = Int(current_cycle_year(s))
+    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
+    # Input snags PRE-EXIST the inventory: FVS books the input dead trees at IY(1)−FINTM (a measurement
+    # period before the start), so the FFE snag falldown (update_snags!, which ages by current−deathyr)
+    # ages them from the inventory rather than holding them frozen-full the first cycle. Use the cycle
+    # period as FINTM (the common no-GROWTH-keyword case).
+    per = round(Int, c.year); per < 1 && (per = 5)
+    yr = Int(current_cycle_year(s)) - per
     s.control.merch_init || init_merch_standards!(s)
     @inbounds for i in (t.n + 1):(t.n + t.ndead)
         den = t.tpa[i]; d = t.dbh[i]

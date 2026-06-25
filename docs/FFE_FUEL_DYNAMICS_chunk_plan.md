@@ -595,3 +595,17 @@ Two issues surfaced:
 So the snag-bole half is fixed; the DDW is within ~0.7; the remaining = the death-year dating (+ its
 bit-exact side-effect) and the cwd2b crown deaths-spreading. The component verifications + the
 snag-falldown fix stand; suite green.
+
+### Stand-Dead SOLVED (tracks the Fortran) — double-fall bug + input-snag dating
+Two fixes this turn got the carbon_snt Stand-Dead from collapsing/overshooting to TRACKING the Fortran
+(3.9/4.8/5.7/10.2 vs 3.8/4.4/5.4/9.5, within ~0.7):
+  1. **grow_cycle! ALREADY calls update_snags!** (simulate.jl:211, BEFORE mortality creates the cycle's
+     new snags — so the existing ordering is already correct). My earlier integration tests were calling
+     it AGAIN explicitly ⇒ snags fell twice ⇒ collapse. The fix is to NOT double-call it; grow_cycle!
+     handles the falldown.
+  2. **Input snags must be dated PRE-inventory** (IY(1)−FINTM): they pre-exist, so the age-aware
+     falldown must age them FROM the inventory, not hold them frozen-full the first cycle. Dating them at
+     `current − cycle_period` makes the input snags fall correctly. Shipped in ffe_seed_input_snags!.
+So the Stand-Dead (snag bole + crown) now tracks within ~0.7 on carbon_snt; the carbon_snt age-aware
+test asserts the increasing/tracking trajectory (no double-fall, with ffe_fuel_update!). The remaining
+DDW residual (under at 2000/2005) is the crown-lift — verified bit-exact but E-gated for carbon_jenkins.
