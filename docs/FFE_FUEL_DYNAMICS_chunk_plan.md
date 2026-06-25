@@ -890,3 +890,13 @@ This reframes the remaining fire DBS tables: their VALUES are all the same valid
 collected tuple), not blocked/blind work. Remaining: FVS_SnagSum / Down_Wood_Vol / Down_Wood_Cov
 (per-cycle, same pools) + the fire-event tables (BurnReport / Consumption / Mortality / PotFire, which
 need a SIMFIRE collection point). FVS_Hrv_Carbon needs harvest-carbon accounting on cuts.
+
+### LANDED: all PER-CYCLE fire DBS tables (SnagSum, Down_Wood_Vol, Down_Wood_Cov) — value-grounded
+FVS_SnagSum (snag density by hard/soft × cumulative DBH class SNPRCL 0/12/18/24/30/36; from den_hard/
+den_soft), FVS_Down_Wood_Vol (volume = cwd biomass·2000/CWDDEN, CWDDEN 18.72 soft/24.96 hard), FVS_Down_
+Wood_Cov (cover = a·vol^b per size, fmdout.f:362-376). All derived from the SAME validated cwd/snag
+pools — tests assert the reconciliations (vol total = down-wood biomass·2000/24.96; cover = power law;
+snag class1 = total). Collected in the write_sum_file per-cycle tuple (now 5 elements) and wired into
+run_keyfile. With FVS_Carbon + FVS_Fuels, ALL FIVE per-cycle FFE DBS tables now emit in a live run.
+Remaining DBS: the fire-EVENT tables (BurnReport/Consumption/Mortality/PotFire — need a SIMFIRE
+collection point in fmburn!) + FVS_Hrv_Carbon (harvest-carbon accounting on cuts).

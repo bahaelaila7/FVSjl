@@ -31,6 +31,35 @@ function stand_live_carbon(s::StandState)
 end
 
 """
+    ffe_down_wood(s) -> (; vol_hard, vol_soft, cov_hard, cov_soft)
+
+Down-wood VOLUME (cuft/ac) and percent COVER for the FVS_Down_Wood_Vol / FVS_Down_Wood_Cov DBS tables
+(fmdout.f:312-373). Volume = `cwd`(biomass tons/ac)·2000/CWDDEN, with CWDDEN = 18.72 (soft) / 24.96
+(hard) lbs/cuft (SG 0.3/0.4). `vol_*` are 8-tuples: the 7 DBH bins (0-3=sizes 1-3, then 3-6/6-12/12-20/
+20-35/35-50/≥50 = size classes 4-9) + total. Cover = `a·vol^b` per size (sizes 1-3 have 0 cover); `cov_*`
+are 7-tuples (6 bins 3-6…≥50 + total). All derived from the same validated `cwd` pools.
+"""
+function ffe_down_wood(s::StandState)
+    z8 = ntuple(_ -> 0f0, 8); z7 = ntuple(_ -> 0f0, 7)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return (vol_hard = z8, vol_soft = z8, cov_hard = z7, cov_soft = z7)
+    cw = fs.cwd; den = (18.72f0, 24.96f0)                    # CWDDEN by cwd hardness index (1=soft, 2=hard)
+    vol(sz, K) = (let v = 0f0; for L in 1:4; v += cw[sz, K, L]; end; v end) * 2000f0 / den[K]
+    function vbins(K)
+        b = (vol(1, K) + vol(2, K) + vol(3, K), vol(4, K), vol(5, K), vol(6, K), vol(7, K), vol(8, K), vol(9, K))
+        (b..., sum(b))
+    end
+    # cover power-law (a, b) for size classes 4-9 (3-6 … ≥50 in); sizes 1-3 contribute 0 (fmdout.f:362-376)
+    ccf = ((4, 0.0166f0, 0.8715f0), (5, 0.0092f0, 0.8795f0), (6, 0.0063f0, 0.8728f0),
+           (7, 0.0069f0, 0.8134f0), (8, 0.0033f0, 0.8617f0), (9, 0.0949f0, 0.5f0))
+    function cbins(K)
+        c = ntuple(i -> (let (sz, a, b) = ccf[i]; a * vol(sz, K)^b end), 6)
+        (c..., sum(c))
+    end
+    return (vol_hard = vbins(2), vol_soft = vbins(1), cov_hard = cbins(2), cov_soft = cbins(1))
+end
+
+"""
     ffe_fuel_loadings(s) -> NamedTuple
 
 The FFE fuel loadings (tons/ac **biomass**, NOT carbon — no ×0.5) that feed the FVS_Fuels DBS table

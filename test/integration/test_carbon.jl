@@ -355,6 +355,37 @@ end
     end
 end
 
+@testset "FVS_Down_Wood_Vol/Cov DBS tables — volume & cover from validated cwd (dbsfmdwvol/cov.f)" begin
+    # ffe_down_wood derives volume (cwd biomass·2000/density) + cover (a·vol^b) from the SAME validated cwd
+    # pools. Check: total volume reconciles with the down-wood biomass; cover follows the power law; round-trip.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
+        dw = FVSjl.ffe_down_wood(s)
+        @test dw.vol_hard[8] ≈ sum(dw.vol_hard[1:7]) rtol = 1f-4      # total = sum of bins
+        @test dw.cov_hard[7] ≈ sum(dw.cov_hard[1:6]) rtol = 1f-4
+        # hard total volume = hard down-wood biomass × 2000 / 24.96 (SG 0.4)
+        hard_bio = sum(@view s.fire.cwd[1:9, 2, :])
+        @test dw.vol_hard[8] ≈ hard_bio * 2000f0 / 24.96f0 rtol = 1f-3
+        # cover bin 1 (3-6", = size class 4 = volume bin 2) follows the power law
+        @test dw.cov_hard[1] ≈ 0.0166f0 * dw.vol_hard[2]^0.8715f0 rtol = 1f-4
+        rows = [(1990, FVSjl.stand_carbon_report(s), FVSjl.ffe_fuel_loadings(s), FVSjl.snag_summary(s), dw)]
+        dbpath = joinpath(mktempdir(), "dwd.db")
+        FVSjl.write_dbs_dwd_vol!(dbpath, "C1", "S1", rows)
+        FVSjl.write_dbs_dwd_cov!(dbpath, "C1", "S1", rows)
+        db = SQLite.DB(dbpath)
+        v = [(; T = r.DWD_Volume_Total_Hard) for r in DBInterface.execute(db, "SELECT * FROM FVS_Down_Wood_Vol")]
+        c = [(; T = r.DWD_Cover_Total_Hard) for r in DBInterface.execute(db, "SELECT * FROM FVS_Down_Wood_Cov")]
+        SQLite.close(db)
+        @test length(v) == 1 && v[1].T ≈ Float64(dw.vol_hard[8])
+        @test length(c) == 1 && c[1].T ≈ Float64(dw.cov_hard[7])
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,

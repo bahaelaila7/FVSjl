@@ -211,6 +211,62 @@ function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_Down_Wood_Vol schema (dbsfmdwvol.f:61-79) — down-wood volume (cuft/ac) by DBH bin × hard/soft.
+const _FVS_DWDVOL_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Vol(
+  CaseID text not null, StandID text not null, Year Int null,
+  DWD_Volume_0to3_Hard real null, DWD_Volume_3to6_Hard real null, DWD_Volume_6to12_Hard real null,
+  DWD_Volume_12to20_Hard real null, DWD_Volume_20to35_Hard real null, DWD_Volume_35to50_Hard real null,
+  DWD_Volume_ge_50_Hard real null, DWD_Volume_Total_Hard real null,
+  DWD_Volume_0to3_Soft real null, DWD_Volume_3to6_Soft real null, DWD_Volume_6to12_Soft real null,
+  DWD_Volume_12to20_Soft real null, DWD_Volume_20to35_Soft real null, DWD_Volume_35to50_Soft real null,
+  DWD_Volume_ge_50_Soft real null, DWD_Volume_Total_Soft real null)"""
+
+# FVS_Down_Wood_Cov schema (dbsfmdwcov.f:59-75) — down-wood percent cover by DBH bin × hard/soft.
+const _FVS_DWDCOV_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Cov(
+  CaseID text not null, StandID text not null, Year Int null,
+  DWD_Cover_3to6_Hard real null, DWD_Cover_6to12_Hard real null, DWD_Cover_12to20_Hard real null,
+  DWD_Cover_20to35_Hard real null, DWD_Cover_35to50_Hard real null, DWD_Cover_ge_50_Hard real null,
+  DWD_Cover_Total_Hard real null,
+  DWD_Cover_3to6_Soft real null, DWD_Cover_6to12_Soft real null, DWD_Cover_12to20_Soft real null,
+  DWD_Cover_20to35_Soft real null, DWD_Cover_35to50_Soft real null, DWD_Cover_ge_50_Soft real null,
+  DWD_Cover_Total_Soft real null)"""
+
+"Write the FFE down-wood VOLUME (cuft/ac) to FVS_Down_Wood_Vol (dbsfmdwvol.f). `rows[i][5]` = `ffe_down_wood`."
+function write_dbs_dwd_vol!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_DWDVOL_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Vol VALUES (" * join(fill("?", 19), ",") * ")")
+        for row in rows
+            dw = row[5]
+            DBInterface.execute(stmt, (caseid, standid, Int(row[1]),
+                Float64.(dw.vol_hard)..., Float64.(dw.vol_soft)...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"Write the FFE down-wood percent COVER to FVS_Down_Wood_Cov (dbsfmdwcov.f). `rows[i][5]` = `ffe_down_wood`."
+function write_dbs_dwd_cov!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_DWDCOV_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Cov VALUES (" * join(fill("?", 17), ",") * ")")
+        for row in rows
+            dw = row[5]
+            DBInterface.execute(stmt, (caseid, standid, Int(row[1]),
+                Float64.(dw.cov_hard)..., Float64.(dw.cov_soft)...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """
