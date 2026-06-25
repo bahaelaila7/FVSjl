@@ -518,3 +518,19 @@ edge cases must be handled (identified this session so the eventual integration 
   4. **input-snag age** for the falldown + the BIOROOT pre-inventory decay (Below-Dead 1.5 vs 1.0).
 So the FFE dead-pool finish is a careful multi-piece integration of verified parts + these four coupled
 edge cases — a focused effort, validatable bit-exact on carbon_snt, not a single-turn change.
+
+### Full restructure MEASURED on carbon_snt — the snag falldown over-corrects (key finding)
+Built ffe_carbon_cycle! (post-grow loop: snapshot-crown litterfall/breakage + in-loop crown-lift +
+cwd2b + decay + update_snags! + seeded input snags) and ran the full thing on carbon_snt:
+  DDW       5.8/9.9/12.9/18.1  vs Fortran 5.8/5.4/8.4/11.4  (WAY over)
+  Stand-Dead 3.9/1.9/1.5/1.9   vs Fortran 3.8/4.4/5.4/9.5   (COLLAPSES; Fortran INCREASES)
+  Floor/Shb  bit-exact.
+⇒ The pieces don't just assemble — the **snag falldown (update_snags!) is far too aggressive**: the
+Fortran's Stand-Dead INCREASES (mortality adds faster than snags fall), but mine collapses (snags fall
+out in one cycle), which also dumps too much into DDW (the 9.9 overshoot is the over-fallen snags +
+crown-lift). update_snags! was only ever exercised on fresh fire-killed snags; its per-cycle falldown
+RATE (snag_fall_density / the young-snag + last-5% logic) has NOT been validated against the Fortran's
+gradual snag accumulation. So the remaining FFE dead-pool work is now pinpointed: validate the snag
+falldown rate per-cycle vs an instrumented Fortran FMSNAG dump on carbon_snt (the same method that
+validated bole/crown/X), THEN the crown-lift decay-window, THEN assemble. Reverted (overshoots); the
+component verifications stand. The dynamics — not the components — are the unvalidated part.
