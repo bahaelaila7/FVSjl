@@ -954,3 +954,18 @@ These are distinct chunks to port faithfully-from-source with their own validati
 CONCLUSION: every value-grounded FFE DBS table (7/9) is ported + tested; the final two are distinct
 sub-models (HWP 101-yr decay table; crown-fire behavior) each warranting a focused port with parameter
 extraction + validation — explicitly NOT rushed blind to pad a table count (methodology principle 2).
+
+### CORRECTION: FVS_PotFire in SN is NOT the crown-fire sub-model (fmpofl.f:167 skips FMCFIR)
+fmpofl.f:167 — for VARACD 'SN'/'CS', the crown-fire SPREAD model FMCFIR is SKIPPED: CRBURN=0, and the
+Torch/Crown indices (OINIT1/OACT1) are set to -1. So SN PotFire = the SURFACE fire behavior under two
+fixed weather scenarios (FMOIS=1 severe, FMOIS=3 moderate), NOT the Scott-Reinhardt crown-fire science.
+That de-risks it substantially. Mapped against FVSjl:
+  VALUE-GROUNDED (FVSjl already has): Surf_Flame / Tot_Flame Sev+Mod (= surface flame, no crown fire) via
+    rothermel_surface_fire+FMFINT; Mortality_BA/VOL Sev+Mod via fire_tree_mortality (call non-mutating);
+    Fuel_Mod1-4 + weights via select_fuel_models; Torch_Index/Crown_Index = -1 (N/A SN); scorch.
+  STILL NEEDED (3 moderate sub-pieces, NOT the crown-fire model): Canopy_Ht + Canopy_Density (CBD = crown
+    bulk-density profile from crown_biomass/heights), Pot_Smoke Sev+Mod (FMCONS PM2.5 emission factor ×
+    consumption), PTorch Sev+Mod (FMPOFL_FMPTRH torching probability from flame length).
+So PotFire is "dual-scenario surface fire (have) + CBD + smoke + PTorch (3 small models)" — a focused
+chunk, much smaller than the crown-fire sub-model it was mis-scoped as. Next: a non-mutating dual-scenario
+potential_fire(s) helper reusing the surface-fire core, then CBD/smoke/PTorch, then the FVS_PotFire writer.
