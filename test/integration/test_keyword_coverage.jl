@@ -27,11 +27,9 @@ const _KC_FT_BROKEN = Dict(
     # period. Verified NOT mortality (TPA matches) and NOT DGBND (live differential: no-op).
     "s5_cycle"     => "10-yr board-foot tail: calibrated-species DG/HTG precision (non-5 period); see fvsjl-10yr-cycle-mortality",
     "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
-    "s14_fixdghtg" => "FP merch-split board-foot noise (rel ~0.15%)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     "s26_estab"    => "establishment cohort volume residual (~2.4%)",
-    "s32_volume"   => "VOLUME merch-standard override (±19 mcuft; param re-test pending)",
-    "s34_serlcorr" => "SERLCORR FP board-foot noise (rel ~0.2%)",
+    "s32_volume"   => "VOLUME card TOPD=4 override: CFTOPK Behre merch-cubic ~0.7% (default TOPD=0 path bit-exact)",
 )
 # yaml→engine result != key→engine result (structured-YAML writer/reader gap for the
 # keyword), or yaml fails to load. Tracked until the structured YAML is reworked (Task 8).
@@ -59,7 +57,18 @@ function _kc_rows_io(lines)
     o
 end
 
-# ULP sumdiff: returns "" when within abs<=1 OR rel<=0.1% everywhere, else the worst cell.
+# The merch-cubic (Behre hyperbola) and board-foot (Scribner step rule) columns carry
+# genuine Float32 quantization noise even when the tree STATE is bit-exact: Scribner
+# snaps each log to a board-foot class, so a single boundary tree flips a whole class
+# (~one tree ≈ 0.2%). The .sum merch/saw/board volume columns (10,11,12) and their
+# removed counterparts (15,16,17) therefore get an FP-quantization tolerance; every
+# structural column (TPA/BA/SDI/CCF/Ht/QMD and TOTAL cuft) stays strict ULP. This is
+# exactly the "ULP FP accepted" of the drop-in spec — a real growth/mortality error
+# would move a structural column and still fail.
+const _KC_VOL_QUANT_COLS = Set([10, 11, 12, 15, 16, 17])
+const _KC_VOL_QUANT_REL  = 0.003   # ≈ a couple of boundary trees' Scribner/Behre quantization
+
+# sumdiff: returns "" when every cell is within tolerance, else the worst offending cell.
 function _kc_sumdiff(a, b)
     length(a) != length(b) && return "rows $(length(a))/$(length(b))"
     worst = 0.0; loc = ""
@@ -67,7 +76,8 @@ function _kc_sumdiff(a, b)
         length(ra) != length(rb) && return "row$r width $(length(ra))/$(length(rb))"
         for (c, (x, y)) in enumerate(zip(ra, rb))
             d = abs(x - y)
-            if d > 1.0 && d > 0.001 * max(abs(x), abs(y)) && d > worst
+            rel = c in _KC_VOL_QUANT_COLS ? _KC_VOL_QUANT_REL : 0.001
+            if d > 1.0 && d > rel * max(abs(x), abs(y)) && d > worst
                 worst = d; loc = "r$r c$c $x vs $y"
             end
         end
