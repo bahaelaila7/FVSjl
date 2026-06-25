@@ -206,7 +206,16 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         d < dthresh && continue
         pr = t.tpa[i]
         bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-        g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
+        # morts.f:225 — the SDI self-thinning trajectory uses the 5-yr DG *linearly*
+        # extrapolated to FINT years (G = DG_5/BARK · FINT/5), because MORTS runs
+        # before GRADD applies its concave sqrt rescaling. Recover DG_5 from the stored
+        # fint-year (sqrt-scaled) growth so longer cycles self-thin like FVS. For fint=5
+        # this is the identity (snt01 / all 5-yr scenarios unaffected, bit-exact).
+        dib  = d * bark
+        ddsf = (t.diam_growth[i] + dib)^2 - dib * dib   # fint-year inside-bark DDS
+        dds5 = ddsf * (5f0 / fint)                      # back to the 5-yr DDS
+        dg5  = sqrt(dib * dib + dds5) - dib             # 5-yr inside-bark DG
+        g    = (dg5 / bark) * (fint / 5f0)              # outside-bark, linear FINT extrapolation
         sd2sq += pr * (d * d + 2f0 * d * g + g * g)
         sdq0  += pr * d * d
         sumdr0  += pr * d^1.605f0
