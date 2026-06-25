@@ -575,10 +575,13 @@ mutable struct FireState
                                        # computed once per cycle (FMSDIT OLDCRW) and added each year in the
                                        # fuel loop (FMCADD crown-lift term); zero unless compute_crown_lift!
                                        # has run this cycle (so the non-carbon-report path is unaffected)
+    burn_reports::Vector{Any}          # one record per SIMFIRE event (year + moistures + wind + flame +
+                                       # scorch + fuel models/weights + consumption) for the FVS_BurnReport /
+                                       # FVS_Consumption / FVS_Mortality DBS tables (pushed by fmburn!)
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
-                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4))
+                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

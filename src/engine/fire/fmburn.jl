@@ -56,7 +56,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # scorch height (Van Wagner) from the (weighted) Byram intensity
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
-    killed = 0f0
+    killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     if mortcode != 0
         @inbounds for i in 1:t.n
             t.tpa[i] > 0f0 || continue
@@ -72,10 +72,16 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             killed += curkil
+            killed_ba += curkil * 0.0054542f0 * d * d     # fire-killed basal area (ft²/ac)
+            killed_vol += curkil * t.cuft_vol[i]          # fire-killed total cubic volume (ft³/ac)
             add_snag!(fs, sp, d, curkil, year)         # fire-killed trees become standing snags
         end
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest
     carbon_released = apply_fire_consumption!(fs, mois)
+    # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
+    push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
+          scorch = sch, models = collect(models), killed = killed, killed_ba = killed_ba,
+          killed_vol = killed_vol, released = carbon_released))
     return FireResult(killed, flame, byram, sch, carbon_released)
 end

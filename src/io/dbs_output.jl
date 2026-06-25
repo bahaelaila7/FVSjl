@@ -267,6 +267,48 @@ function write_dbs_dwd_cov!(dbpath, caseid::AbstractString, standid::AbstractStr
     return dbpath
 end
 
+# FVS_BurnReport schema (dbsfmburn.f:105-127) — the actual SIMFIRE event's behavior + conditions.
+const _FVS_BURNREPORT_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_BurnReport(
+  CaseID text not null, StandID text not null, Year int null,
+  One_Hr_Moisture real null, Ten_Hr_Moisture real null, Hundred_Hr_Moisture real null,
+  Thousand_Hr_Moisture real null, Duff_Moisture real null, Live_Woody_Moisture real null,
+  Live_Herb_Moisture real null, Midflame_Wind real null, Slope int null,
+  Flame_length real null, Scorch_height real null,
+  FuelModl1 int null, Weight1 real null, FuelModl2 int null, Weight2 real null,
+  FuelModl3 int null, Weight3 real null, FuelModl4 int null, Weight4 real null)"""
+
+"""
+    write_dbs_burnreport!(dbpath, caseid, standid, burns) -> dbpath
+
+Write the SIMFIRE burn events to the `FVS_BurnReport` DBS table (dbsfmburn.f). `burns` is the
+`fire.burn_reports` collection (one record per fire) captured by `fmburn!`: dead/live fuel moistures
+(×100 = %), midflame wind, flame length, scorch height, and up to four weighted standard fuel models.
+Slope is 0 (the SN surface-fire path does not apply a slope term).
+"""
+function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
+    isempty(burns) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_BURNREPORT_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_BurnReport VALUES (" * join(fill("?", 22), ",") * ")")
+        for b in burns
+            m = b.mois                                   # 2×5: dead 1/10/100/1000hr+duff, live woody/herb
+            fm = b.models                                # vector of (model, weight); pad to 4
+            mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
+            ww(i) = i <= length(fm) ? Float64(fm[i][2]) : 0.0
+            DBInterface.execute(stmt, (caseid, standid, Int(b.year),
+                Float64(m[1,1])*100, Float64(m[1,2])*100, Float64(m[1,3])*100, Float64(m[1,4])*100,
+                Float64(m[1,5])*100, Float64(m[2,1])*100, Float64(m[2,2])*100,
+                Float64(b.wind), 0, Float64(b.flame), Float64(b.scorch),
+                mw(1), ww(1), mw(2), ww(2), mw(3), ww(3), mw(4), ww(4)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """

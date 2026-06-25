@@ -386,6 +386,36 @@ end
     end
 end
 
+@testset "FVS_BurnReport DBS table — captured from a SIMFIRE event (dbsfmburn.f)" begin
+    # fmburn! captures a burn-event record (moistures, wind, flame, scorch, weighted fuel models) into
+    # fire.burn_reports; write_dbs_burnreport! writes the FVS_BurnReport row. Validate capture + round-trip.
+    s = FVSjl.StandState(FVSjl.Southern())
+    FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
+    s.plot.forest_type = Int32(520); s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
+    t = s.trees; t.n = 2
+    t.species[1] = Int32(65); t.dbh[1] = 14f0; t.height[1] = 72f0; t.tpa[1] = 30f0; t.crown_pct[1] = Int32(40)
+    t.species[2] = Int32(22); t.dbh[2] = 4f0;  t.height[2] = 18f0; t.tpa[2] = 30f0; t.crown_pct[2] = Int32(50)
+    s.fire = FVSjl.FireState(); s.fire.active = true
+    res = FVSjl.fmburn!(s; wind = 20f0, fmois = 1, year = 2003)
+    @test length(s.fire.burn_reports) == 1                    # one fire event captured
+    b = s.fire.burn_reports[1]
+    @test b.year == 2003
+    @test b.flame ≈ res.flame && b.scorch ≈ res.scorch         # matches the FireResult
+    @test b.killed ≈ res.killed
+    @test !isempty(b.models)                                   # at least one weighted fuel model
+    dbpath = joinpath(mktempdir(), "burn.db")
+    FVSjl.write_dbs_burnreport!(dbpath, "C1", "S1", s.fire.burn_reports)
+    db = SQLite.DB(dbpath)
+    rows = [(; Year = r.Year, Flame = r.Flame_length, Scorch = r.Scorch_height,
+             M1 = r.One_Hr_Moisture, FM1 = r.FuelModl1, Slope = r.Slope)
+            for r in DBInterface.execute(db, "SELECT * FROM FVS_BurnReport")]
+    SQLite.close(db)
+    @test length(rows) == 1 && rows[1].Year == 2003
+    @test rows[1].Flame ≈ Float64(b.flame)
+    @test rows[1].M1 ≈ Float64(b.mois[1,1]) * 100              # moisture reported as percent
+    @test rows[1].Slope == 0                                   # SN surface-fire path: no slope term
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,
