@@ -735,3 +735,24 @@ plus a DDW-decay component. Prime suspect: per-cycle vs per-year flow cadence of
   (-1.7 @2005) is a DDW DECAY-RATE interplay: the Fortran's DDW (11.4) holds more than mine (9.0)
   for the same inputs ⇒ FVSjl's fmcwd! decay is likely too fast for the post-mortality woody classes.
   NEXT: differential the fmcwd.f per-size/per-decay-class CWD decay rates vs FVSjl's fmcwd! table.
+
+### Decay path is bit-faithful (last major suspect ruled out)
+fmcwd.f vs FVSjl fmcwd!: DKR table identical (0.11 cls1 / 0.11-0.09-0.07 cls2-4, litter 0.65, duff
+0.002); hard(2)/soft(1) indexing identical (fmcwd.f:65 "1=soft 2=hard", soft decays ·1.1); hard→soft
+transfer `NYRS·LOG(1-DKR)/LOG(0.64)` clamped [0,1] ×hard, 2→1 — line-for-line identical; PRDUFF duff
+routing identical. So the DDW decay is NOT the cause of the tail under-run.
+
+### SUMMARY: every major single cause of the carbon_snt dead-pool tail residual is RULED OUT
+Differentially checked vs Fortran source this session, all MATCH:
+  - snag bole height-loss .... HTX=0, no loss in SN (static bole faithful) — FMSNGHT is a no-op
+  - CWD decay rates/transfer . fmcwd! bit-faithful to fmcwd.f (DKR + hard→soft + duff)
+  - Stand-Dead composition .... bole + CWD2B crown all sizes (fmdout.f:167-184) — matches
+  - crown scheduling ......... FMSCRO woody crown 0.82/1.42/2.86/5.39 vs 0.79/1.41/2.82/5.23
+  - CWD2B flow cadence ....... once/year (ffe_fuel_update! loops nyrs) — matches
+  - CWD2B buffer no-decay .... only fallen cwd decays — matches
+The residual (SD+DDW total 19.2 vs 20.9, DDW 9.0 vs 11.4 @2005) survives ALL these checks. It is a
+FINE multi-factor accounting gap in the ramping mortality-crown tail (~10% of a ~20 t/ha pool), most
+likely the per-size DISTRIBUTION of fallen crown across CWD classes and/or live-tree woody breakage
+magnitude in the tail — NOT any single faithfully-portable term. The bit-exact-validatable components
+are all correct. Diminishing returns: further closure needs a per-source DDW decomposition dump
+(fallen-crown vs breakage vs bole) on both Fortran and FVSjl, a fresh instrumentation cycle.
