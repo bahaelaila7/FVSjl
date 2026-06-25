@@ -88,24 +88,29 @@ function load_species_coefficients(datadir::AbstractString)
     _, trows = _read_csv(joinpath(datadir, "species_translation.csv"))
     translation = NTuple{7,String}[(r[1], r[2], r[3], r[4], r[5], r[6], r[7]) for r in trows]
 
-    _, ss = _read_csv(joinpath(datadir, "site_species.csv"))
+    # A variant under incremental port may not have every CSV yet: optional reads return empty (the
+    # corresponding subsystem just isn't usable until its data lands). A fully-ported variant (SN) has
+    # all files present, so this is behavior-identical there.
+    _opt(name) = isfile(joinpath(datadir, name)) ? _read_csv(joinpath(datadir, name)) : (Symbol[], Vector{String}[])
+
+    _, ss = _opt("site_species.csv")
     site_idx = Int32[parse(Int32, r[1]) for r in ss]
     site_grp = Int32[parse(Int32, r[2]) for r in ss]
-    _, mg = _read_csv(joinpath(datadir, "site_master_group.csv"))
+    _, mg = _opt("site_master_group.csv")
     grp_rep = Int32[parse(Int32, r[2]) for r in mg]
 
-    _, fl = _read_csv(joinpath(datadir, "forest_locations.csv"))
+    _, fl = _opt("forest_locations.csv")
     forests = Dict{Int,NTuple{3,Float32}}(
         parse(Int, r[1]) => (parse(Float32, r[2]), parse(Float32, r[3]), parse(Float32, r[4]))
         for r in fl)
 
-    _, hc = _read_csv(joinpath(datadir, "valid_habitat_codes.csv"))
+    _, hc = _opt("valid_habitat_codes.csv")
     habitat = zeros(Int32, 122)
     for (k, r) in enumerate(hc); k <= 122 && (habitat[k] = parse(Int32, r[1])); end
 
-    _, cws = _read_csv(joinpath(datadir, "crown_width_species.csv"))
+    _, cws = _opt("crown_width_species.csv")
     crown_species = Dict{String,Tuple{String,String}}(r[1] => (r[2], r[3]) for r in cws)
-    ceh, cwe = _read_csv(joinpath(datadir, "crown_width_equations.csv"))
+    ceh, cwe = _opt("crown_width_equations.csv")
     cidx = Dict(h => i for (i, h) in enumerate(ceh))
     g(r, name) = parse(Float32, r[cidx[name]])
     crown_eqs = Dict{String,CrownWidthEq}(
@@ -114,30 +119,30 @@ function load_species_coefficients(datadir::AbstractString)
             g(r, :power), g(r, :dbh_cap), g(r, :max_cw))
         for r in cwe)
 
-    _, sc = _read_csv(joinpath(datadir, "stocking_coeffs.csv"))
+    _, sc = _opt("stocking_coeffs.csv")
     stock_b0 = zeros(Float32, 36); stock_b1 = zeros(Float32, 36)
     for r in sc; e = parse(Int, r[1]); stock_b0[e] = parse(Float32, r[2]); stock_b1[e] = parse(Float32, r[3]); end
-    _, fm = _read_csv(joinpath(datadir, "fia_stocking_map.csv"))
+    _, fm = _opt("fia_stocking_map.csv")
     fia_group = Dict{Int,Int}(parse(Int, r[1]) => parse(Int, r[2]) for r in fm)
     fia_stock_eq = Dict{Int,Int}(parse(Int, r[1]) => parse(Int, r[3]) for r in fm)
-    _, ftc = _read_csv(joinpath(datadir, "forest_type_codes.csv"))
+    _, ftc = _opt("forest_type_codes.csv")
     forest_type_codes = Int32[parse(Int32, r[1]) for r in ftc]
 
     # FFE surface fuel-loading tables (FMCBA): dead fuels by forest type × size class,
     # live herb/shrub by live-fuel type. Numeric columns only (skip the id + name columns).
-    hd, dr = _read_csv(joinpath(datadir, "fire_fuel_dead.csv"))
-    ffe_fuel_dead = Float32[parse(Float32, dr[i][j]) for i in 1:length(dr), j in 3:length(hd)]
-    hl, lr = _read_csv(joinpath(datadir, "fire_fuel_live.csv"))
-    ffe_fuel_live = Float32[parse(Float32, lr[i][j]) for i in 1:length(lr), j in 3:length(hl)]
-    # standard fire-behavior fuel models (Anderson 13): numeric columns (skip model id + name)
-    hm, mr = _read_csv(joinpath(datadir, "fire_fuel_models.csv"))
-    ffe_fuel_models = Float32[parse(Float32, mr[i][j]) for i in 1:length(mr), j in 3:length(hm)]
+    hd, dr = _opt("fire_fuel_dead.csv")
+    ffe_fuel_dead = isempty(dr) ? zeros(Float32,0,0) : Float32[parse(Float32, dr[i][j]) for i in 1:length(dr), j in 3:length(hd)]
+    hl, lr = _opt("fire_fuel_live.csv")
+    ffe_fuel_live = isempty(lr) ? zeros(Float32,0,0) : Float32[parse(Float32, lr[i][j]) for i in 1:length(lr), j in 3:length(hl)]
+    hm, mr = _opt("fire_fuel_models.csv")
+    ffe_fuel_models = isempty(mr) ? zeros(Float32,0,0) : Float32[parse(Float32, mr[i][j]) for i in 1:length(mr), j in 3:length(hm)]
 
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
                   "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv",
                   "fire_species_props.csv")
-        h2, rows2 = _read_csv(joinpath(datadir, fname))
+        h2, rows2 = _opt(fname)
+        isempty(rows2) && continue
         for (j, h) in enumerate(h2)
             h == :species_index && continue
             species[h] = Float32[parse(Float32, rows2[i][j]) for i in 1:length(rows2)]
