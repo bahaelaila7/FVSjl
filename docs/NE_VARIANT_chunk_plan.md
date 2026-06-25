@@ -14,7 +14,15 @@ bdft 1633. The cycle-0 row needs only **tree parse + density + volume** (no grow
   roster `data/northeast/species_translation.csv` (alpha/FIA/PLANTS from ne/blkdat.f JSP/FIAJSP/PLNJSP).
 - [~] **C2 — NE data foundation (in progress).** `data/northeast/species_coefficients.csv` started with the
   per-species blkdat blocks: `estab_min_ht` (XMIN), `estab_hht_max` (HHTMAX), `dg_resid_sd` (SIGMAR).
-  Remaining columns accumulate per subsystem (the data-extraction map below).
+  **Reused the 5 genuinely-national CSVs verbatim** (faithful — not variant-specific): `species_translation`
+  (the 563-species master crosswalk), `crown_width_equations` (equation FORMS keyed by name),
+  `stocking_coeffs`, `fia_stocking_map`, `forest_locations`. **Still NE-specific & pending** (the C3–C7
+  per-subsystem extractions): `site_species`, `site_master_group`, `valid_habitat_codes`,
+  `forest_type_codes`, `crown_width_species`, `crown_ratio_coeffs`, `htdbh_coeffs`, `merch_specs`, plus the
+  growth/mortality/volume coefficient COLUMNS of `species_coefficients`. The loader needs ALL present, so
+  net01 won't LOAD until each subsystem's data lands — there is no shortcut to a cycle-0 validation that
+  bypasses the crown/site/volume coefficients. This is why C3–C7 are genuine per-subsystem porting, not a
+  data-copy.
 - [ ] **C3 — site + height + diameter growth (incl. BAL competition badist/balmod).** net01 cyc-1 DG.
 - [ ] **C4 — mortality + crown + small-tree/establishment.** net01 density columns.
 - [ ] **C5 — volume** (cubrds/nbolt/logs/gvrvol + ie/vols.f NE branch). net01 cuft/mcuft/scuft/bdft.
