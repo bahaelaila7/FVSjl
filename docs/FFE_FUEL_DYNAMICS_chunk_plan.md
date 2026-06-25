@@ -793,3 +793,22 @@ OLDHT/OLDCRL/OLDCRW that travel through grow_cycle!'s tripling/mortality (FVS FM
 the child records inherit the parent's OLD values; regen records get OLD=current (no lift). Also TBD: the
 SD/DDW split timing — crown-lift is a SAME-cycle live-tree term while the mortality cwd2b crown lags one
 cycle (deaths dated cycle_end-1); the loop must apply them with their different cadences.
+
+### LANDED: crown-lift via per-record prev-state (carbon_snt DDW now tracks, 2005 bit-exact)
+Plumbed OLDHT/OLDCRL/OLDCRW as per-RECORD tree fields (ffe_oldht/olddbh/oldcr in TreeList +
+_TREE_VEC_FIELDS), so copy_tree! carries them through the DG tripling (27→243) and compaction — the
+faithful FMOLDC/FMTRIP behavior. snapshot_ffe_oldcrown! (FMOLDC) stores them at cycle end;
+compute_crown_lift! reads them (per-tree ffe_oldht>0 gate = FVS ICYC>1 + regen-record guard, both 0.0000625
+thresholds). Wired into write_carbon_report (after grow → compute → snapshot; applied in next cycle's
+ffe_fuel_update! annual loop WITH decay interleaving — magnitude-correct). Result on carbon_snt (metric
+t/ha, Fortran in parens):
+  DDW:  5.8(5.8) 5.7(5.4) 7.2(8.4) 11.4(11.4)   ← 2005 BIT-EXACT (was 9.0); was the dominant gap
+  SD:   3.9(3.8) 4.8(4.4) 5.7(5.4) 10.2(9.5)     ← within ~0.7
+Remaining DDW residual is the ONE-CYCLE LAG: crown-lift is applied in the next cycle's fuel loop while
+FVS applies it same-cycle. Same-cycle-without-decay overshoots (tested), and the decay interleaving is
+what makes the lagged magnitude right; getting BOTH same-cycle AND decay-correct needs growfuel order +
+scheduling the mortality cwd2b crown into late buckets (deaths dated cycle_end-1) so it doesn't drain SD
+same-cycle — the next refinement. carbon_jenkins (synthetic LP growth tail) amplifies the lag (2000 under
+~1.7, 2005 over ~0.7); bounds relaxed there, tightened on the bit-exact carbon_snt. 4331 tests green.
+Still TODO: wire crown-lift into the MAIN simulate FFE path (carbon report validated; main path's DBS
+carbon is binary-blocked anyway).

@@ -124,22 +124,22 @@ the current tree list; if the list changed (regen/compaction) the term is skippe
 only while records are stable (the general case needs OLDHT to travel with the record, FMOLDC). This is
 the DOMINANT post-mortality down-wood source (~2.5 t/ac/cycle on carbon_snt, instrumented vs Fortran).
 """
-function compute_crown_lift!(s::StandState, old_ht::AbstractVector, old_dbh::AbstractVector,
-                             old_cr::AbstractVector, cyclen::Real)
+function compute_crown_lift!(s::StandState, cyclen::Real)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     cl = fs.crown_lift_annual; fill!(cl, 0f0)
     t = s.trees; coef = s.coef; dkrcls = coef_col(coef, :dkr_cls)
-    # record-stability guard: the snapshot must align 1:1 with the current list (no regen/compaction)
-    length(old_ht) >= t.n || return s
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
+        oldht = t.ffe_oldht[i]
+        oldht > 0f0 || continue                            # prev-cycle state not set (1st cycle / regen)
         sp = Int(t.species[i])
-        oldcrl = old_ht[i] * old_cr[i] / 100f0
-        x = crown_lift_rate(old_ht[i], oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
+        oldcr = t.ffe_oldcr[i]
+        oldcrl = oldht * oldcr / 100f0
+        x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
-        xvold = crown_biomass(s, sp, old_dbh[i], old_ht[i], Int(round(old_cr[i])))
+        xvold = crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
             ocw = xvold[sz + 1]
@@ -148,6 +148,26 @@ function compute_crown_lift!(s::StandState, old_ht::AbstractVector, old_dbh::Abs
             t.tpa[i] * lift < 0.0000625f0 && continue      # FMCADD FMPROB·OLDCRW threshold
             cl[sz, dkcl] += t.tpa[i] * lift * _FM_P2T
         end
+    end
+    return s
+end
+
+"""
+    snapshot_ffe_oldcrown!(s) -> StandState
+
+Store each live record's current height / DBH / crown-% into its `ffe_old*` fields (FMOLDC): the
+previous-cycle crown state that next cycle's `compute_crown_lift!` reads to size the crown-base rise.
+Called at the END of a cycle's fuel processing; the values then travel through the next grow's record
+tripling/compaction (`copy_tree!`), keeping the crown-lift aligned. No-op without FFE.
+"""
+function snapshot_ffe_oldcrown!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees
+    @inbounds for i in 1:t.n
+        t.ffe_oldht[i]  = t.height[i]
+        t.ffe_olddbh[i] = t.dbh[i]
+        t.ffe_oldcr[i]  = Float32(t.crown_pct[i])
     end
     return s
 end

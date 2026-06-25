@@ -82,6 +82,13 @@ mutable struct TreeList
     old_random   ::Vector{Float32} # tree's saved random deviate           (OLDRN)
     tree_random  ::Vector{Float32} # per-tree random draw                  (ZRAND)
     sort_key     ::Vector{Float64} # species-sort lineage key (FVS LNKCHN/TRIPLE order)
+    # FFE crown-lift previous-cycle state (FMOLDC): height/DBH/crown-% at the END of the previous
+    # cycle, used by `compute_crown_lift!` to find how far the crown base rose (OLDHT/OLDCRL/OLDCRW).
+    # Carried through record tripling/compaction by `copy_tree!` (children inherit the parent's), so
+    # the crown-lift stays aligned across the DG-tripling list growth. 0 ⇒ not yet set (no lift).
+    ffe_oldht ::Vector{Float32}    # tree height previous cycle             (OLDHT)
+    ffe_olddbh::Vector{Float32}    # DBH previous cycle
+    ffe_oldcr ::Vector{Float32}    # crown ratio % previous cycle           (→ OLDCRL, OLDCRW)
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -99,7 +106,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(), zeros(Bool, maxtre), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(),
-        fz(), fz(), fz(), dz(),
+        fz(), fz(), fz(), dz(), fz(), fz(), fz(),
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
     )
 end
@@ -115,7 +122,8 @@ const _TREE_VEC_FIELDS = (
     :bdft_vol, :cuft_vol, :merch_cuft_vol, :saw_cuft_vol, :merch_top_bf,
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
-    :old_crown_pct, :old_random, :tree_random, :sort_key)
+    :old_crown_pct, :old_random, :tree_random, :sort_key,
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr)
 
 """
     copy_tree!(t, dst, src)

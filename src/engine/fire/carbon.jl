@@ -207,6 +207,14 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
         if c < ncyc
             fs !== nothing && fs.active && ffe_fuel_update!(stand, period)
             grow_cycle!(stand; fint = Float32(period))
+            # crown-lift: the lower crown shed as the base rises during THIS cycle's growth (FMSDIT);
+            # the per-year input is applied in the NEXT cycle's fuel loop (FMCADD), then snapshot the
+            # post-growth crown as next cycle's OLD state (FMOLDC). Both no-op on the first grow
+            # (ffe_old* unset ⇒ zero), matching FVS's ICYC>1 gate.
+            if fs !== nothing && fs.active
+                compute_crown_lift!(stand, period)
+                snapshot_ffe_oldcrown!(stand)
+            end
         end
     end
     return io
