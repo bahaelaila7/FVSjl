@@ -27,8 +27,17 @@
     return p2, p3, p4, db
 end
 
+# NE htdbh has a per-species choice (IWYKCA) of WYKOFF vs CURTIS-ARNEY (htdbh.f:452):
+# Wykoff H = exp(HT1 + HT2/(D+1)) + 4.5. SN is Curtis-Arney only (no :htdbh_iwykca
+# column → `_uses_wykoff` is false), so this is inert for SN.
+@inline _uses_wykoff(sd, sp::Integer) =
+    haskey(sd, :htdbh_iwykca) && sd[:htdbh_iwykca][sp] == 0f0
+
 "HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
 @inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0)
+    if _uses_wykoff(sd, sp)
+        return exp(sd[:htdbh_ht1][sp] + sd[:htdbh_ht2][sp] / (d + 1f0)) + 4.5f0
+    end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     if d >= 3f0
         return 4.5f0 + p2 * exp(-p3 * d ^ p4)
@@ -40,6 +49,9 @@ end
 
 "HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1)."
 @inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0)
+    if _uses_wykoff(sd, sp)
+        return sd[:htdbh_ht2][sp] / (log(h - 4.5f0) - sd[:htdbh_ht1][sp]) - 1f0   # htdbh.f:463
+    end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
     if h >= hat3
