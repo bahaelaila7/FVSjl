@@ -49,6 +49,7 @@ include("variants/southern/mortality.jl")
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
 include("variants/northeast/site_index.jl")
+include("variants/northeast/diameter_growth.jl")    # NE large-tree DG (B1/B2/B3 + BAL competition)
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

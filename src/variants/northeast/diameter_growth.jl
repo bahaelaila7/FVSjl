@@ -1,0 +1,73 @@
+# =============================================================================
+# diameter_growth.jl (northeast) — NE large-tree diameter increment (ne/dgf.f)
+#
+# Structurally different from SN: a Monserud-style potential basal-area growth
+# modulated by BAL (basal-area-in-larger-trees) competition — the one genuinely
+# new NE growth mechanism.
+#
+#   POTBAG = B1·SITEAR·(1 − exp(−B2·D))·0.7        (ne/dgf.f:131-132)
+#   GMOD   = exp(−B3·BAL),  clamped ≥ 0.5           (ne/balmod.f)
+#   one cycle = 10 ANNUAL steps; each step recomputes POTBAG & GMOD at the
+#   current (growing) D, grows basal area: QTRBA = DELD + D²·0.0054542,
+#   D ← √(QTRBA/0.0054542)                          (ne/dgf.f:127-151)
+#   DIAGR = (Dfinal − D0)·bark ; DDS = DIAGR·(2·D0·bark + DIAGR)
+#   WK2   = ln(DDS) + COR[sp]                        (COR = DG calibration)
+#
+# SITEAR(ISPC) is the per-species site index — already produced by the SICOEF
+# fan-out (`ne_site_index_setup!` → plot.sp_site_index). BAL comes from BADIST.
+# B1/B2/B3 are loaded from data/northeast/dg_coeffs.csv.
+# =============================================================================
+
+"""
+    ne_badist!(ebau, s)
+
+BADIST (ne/badist.f): basal-area-in-larger-trees by 1-inch DBH class. Fills the
+50-element `ebau`: bin each tree's per-acre basal area into class `min(⌊D+1⌋,50)`,
+then cumulate from the top so `ebau[c]` = Σ BA in classes ≥ c.
+"""
+function ne_badist!(ebau::Vector{Float32}, s::StandState)
+    fill!(ebau, 0f0)
+    t = s.plot.gross_space; tr = s.trees
+    @inbounds for i in 1:tr.n
+        d = tr.dbh[i]; d <= 0f0 && continue
+        icls = min(floor(Int, d + 1f0), 50); icls < 1 && (icls = 1)
+        ebau[icls] += 0.0054542f0 * d * d * tr.tpa[i] / t   # per-acre basal area
+    end
+    @inbounds for i in 49:-1:1
+        ebau[i] += ebau[i + 1]
+    end
+    return ebau
+end
+
+"BALMOD (ne/balmod.f): BAL competition modifier for species `sp`, DBH `d`."
+@inline function ne_balmod(b3::Float32, ebau::Vector{Float32}, d::Float32)::Float32
+    icls = floor(Int, d + 1f0) - 2          # competition from same-or-larger neighbours
+    icls < 1 && (icls = 1); icls > 50 && (icls = 50)
+    bal = @inbounds ebau[icls]
+    bal <= 0f0 && return 1f0
+    g = exp(-b3 * bal)
+    return g < 0.5f0 ? 0.5f0 : g
+end
+
+"""
+    ne_diameter_increment(s, i, ebau) -> Float32
+
+Outside-bark DBH increment (in) for tree `i` over one cycle — the 10 annual
+DGF steps. Pure (no calibration COR / bark here; the caller applies those).
+"""
+function ne_diameter_increment(s::StandState, i::Integer, ebau::Vector{Float32})::Float32
+    tr = s.trees; sp = Int(tr.species[i])
+    sd = s.coef.species
+    b1 = sd[:dg_b1][sp]; b2 = sd[:dg_b2][sp]; b3 = sd[:dg_b3][sp]
+    sitear = s.plot.sp_site_index[sp]
+    d0 = tr.dbh[i]; d0 <= 0f0 && return 0f0
+    d = d0
+    @inbounds for _ in 1:10
+        potbag = b1 * sitear * (1f0 - exp(-(b2 * d))) * 0.7f0
+        gmod = ne_balmod(b3, ebau, d)
+        deld = potbag * gmod
+        qtrba = deld + d * d * 0.0054542f0
+        d = sqrt(qtrba / 0.0054542f0)
+    end
+    return d - d0
+end
