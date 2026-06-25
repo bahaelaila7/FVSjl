@@ -55,18 +55,26 @@ an IO bug: net01.key uses **old-Mac CR-only line endings** (133 CR, 0 LF) → `r
 4398+10). Remaining cycle-0 columns (SDI 160, CCF 176, cuft 1558/mcuft 1347/scuft 292/bdft 1633) need the
 density-SDImax/crown + volume subsystems; cycle-1+ needs growth.
 
-### Next: the VOLUME subsystem (cycle-0 cuft/mcuft/scuft/bdft) — CORRECTED scope (a real NE port)
-INVESTIGATED: NE volume is NOT a shared-engine data swap. Two findings from the code:
-- `setup_volume_equations!` (volume_equations.jl) is **Region-8-specific**:
-  `vol_eq = (iregn==8 && ifia>0) ? _r8_ceqn(...) : blank`. So for NE (Region 9) it assigns NO equation —
-  **NE does not use R8 Clark.** R8 Clark is shared *infrastructure* but NE uses the **Region-9 / eastern
-  volume model**: `ne/cubrds.f` (cubic) + `ne/nbolt.f`/`ne/logs.f` (board/log bucking) + `ls/gvrvol.f`
-  (gross-volume ratio), via the `ie/vols.f` NE branch. This is a genuine subsystem port, not a CSV.
-- Merch specs vary by softwood/hardwood (4 distinct rows in SN); NE needs its own grouping from the
-  eastern merch defaults (`ls/vols.f` / MRULES).
-So the volume chunk = port the NE cubic/board volume equations (cubrds/nbolt/gvrvol) + the eastern merch
-specs + the `ie/vols.f` NE branch + a `compute_volumes!`/`setup_volume_equations!` variant-dispatch.
-Substantial — the "reuse R8 Clark" shortcut does NOT apply to NE.
+### Next: the VOLUME subsystem (cycle-0 cuft/mcuft/scuft/bdft) — CORRECTED AGAIN (NVEL R9 Clark)
+RE-INVESTIGATED against the live build (bin/FVSne_buildDir): the earlier "cubrds/nbolt/gvrvol" guess was
+WRONG. NE sets **METHB=METHC=6** (ne/grinit.f:95-96) → the **National Volume Estimator Library (NVEL)
+Region-9 Clark Profile Model** (`volume/r9clark_fvsMod.f`, 1678 ln; entry NATCRS→VOLINITNVB→`r9clark`).
+The `.sum` cols come from one `r9clark` call per tree: vol(1)=total cuft, vol(4)+vol(7)=merch cuft,
+vol(4)=saw cuft (SCF), vol(2)=board ft.
+KEY REUSE: FVSjl's `r8clark_vol.jl` header says it was translated *from r9clark.f* — the **taper-
+integration core (the Clark profile math) is shared between R8 and R9**; r9clark dispatches on
+`volEq(1:1)=='9'/'8'`. So the R9 port = (a) R9 coefficient tables + (b) `r9Prep` (species lookup + the
+<300 conifer / spruce 90-99 / pine 100-199 / hardwood-group fallback, r9clark_fvsMod.f:592-620) +
+(c) `r9dia417` (DIB at 4.5'/17.3') + `r9totHt`, **reusing the existing taper core** — NOT a 1678-ln
+rewrite.
+- ✅ **R9 coefficient tables EXTRACTED** (mechanically from `volume/NVEL/r9coeff.inc`, 47 species):
+  `data/northeast/volume/r9clark_coef.csv` — per-species `dib4in,a4,b4` (coefA) + the height-0/4/7-9
+  profile params `a17,b17,r,c,e,p,a/b/q` (coef0/coef4/coef79). net01 species 105/129/318/371/746 present.
+- Merch standards: NE defaults in `ne/sitset.f:506-560` — softwood DBHMIN 5/TOPD 4/BFTOPD 7.6/SCFTOPD 7.6,
+  hardwood DBHMIN 6/TOPD 4-5/BFTOPD 9.6/SCFTOPD 9.6, stump 0.5; → `data/northeast/volume/merch_specs.csv`.
+- TODO (the volume MATH port, a focused bit-exact chunk): port `r9Prep`/`r9dia417`/`r9totHt` + the merch
+  rules + Scribner board-ft, wire `compute_volumes!`/`setup_volume_equations!` variant-dispatch to the R9
+  path for NE, validate per-tree then net01 cuft 1558/mcuft 1347/scuft 292/bdft 1633 bit-exact.
 
 ## Chunk status
 - [x] **C1 — skeleton + roster.** `struct Northeast`, `variant_code="NE"`, `NE_DATADIR`; the 108-species
