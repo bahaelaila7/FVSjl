@@ -756,3 +756,16 @@ likely the per-size DISTRIBUTION of fallen crown across CWD classes and/or live-
 magnitude in the tail — NOT any single faithfully-portable term. The bit-exact-validatable components
 are all correct. Diminishing returns: further closure needs a per-source DDW decomposition dump
 (fallen-crown vs breakage vs bole) on both Fortran and FVSjl, a fresh instrumentation cycle.
+
+### DEFINITIVE: residual is missing INPUT MASS, not cycle ordering (both orderings tested)
+Tested both cycle orderings on carbon_snt, SD/DDW (metric t/ha) vs Fortran (SD 3.8/4.4/5.4/9.5,
+DDW 5.8/5.4/8.4/11.4, total 9.6/9.8/13.8/20.9):
+  - ORIGINAL (flow then grow; crown lags 1 cyc): SD 3.9/4.8/5.7/10.2, DDW 5.8/5.7/7.2/9.0, tot=19.2
+  - REORDER  (grow then flow; crown same-cyc):   SD 3.9/3.8/4.0/6.8,  DDW 5.8/6.2/7.5/9.7, tot=16.5
+The Fortran TOTAL (20.9 @2005) EXCEEDS BOTH ⇒ the gap is NOT timing (the original lagging order is the
+more faithful one — keep it; do NOT reorder, the reorder regresses). I am missing ~1.7 t/ha of dead-
+carbon INPUT mass. v2t is correct (raw 32.4 lb/ft³, single /2000 = faithful) — not a bole bug. Remaining
+input suspects (need a dual-side per-source DDW-decomposition dump to pin): live-tree woody breakage
+magnitude (LIMBRK·CROWNW for the big tail oaks) and/or a small missing FMCADD term. Crown-LIFT is ruled
+out for THIS stand (measured 0.0006/yr, vs the ~0.08/yr the gap needs). This is a fine ~10%-of-pool tail
+residual; closing it is a self-contained instrumentation chunk, not a faithfulness fix to existing code.
