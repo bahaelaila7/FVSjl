@@ -326,6 +326,35 @@ end
     end
 end
 
+@testset "FVS_SnagSum DBS table — snag density by hard/soft × DBH class (dbsfmssnag.f)" begin
+    # snag_summary maps FVSjl's per-record den_hard/den_soft into the FMSSUM cumulative DBH classes
+    # (SNPRCL 0/12/18/24/30/36). class1 (≥0) equals the total; the DBS round-trip preserves it.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.ffe_seed_input_snags!(s)
+        sg = FVSjl.snag_summary(s)
+        @test sg.hard[1] ≈ sg.hard[7]                         # class 1 (≥0") == hard total
+        @test sg.soft[1] ≈ sg.soft[7]                         # class 1 == soft total
+        @test sg.hard[7] + sg.soft[7] ≈ FVSjl.snag_standing_density(s.fire) rtol = 1f-4
+        @test sg.hard[2] <= sg.hard[1]                        # cumulative: ≥12" ⊆ ≥0"
+        rows = [(1990, FVSjl.stand_carbon_report(s), FVSjl.ffe_fuel_loadings(s), sg)]
+        dbpath = joinpath(mktempdir(), "snag.db")
+        FVSjl.write_dbs_snagsum!(dbpath, "C1", "S1", rows)
+        db = SQLite.DB(dbpath)
+        res = [(; Year = r.Year, H1 = r.Hard_snags_class1, HT = r.Hard_snags_total,
+                Tot = r.Hard_soft_snags_total)
+               for r in DBInterface.execute(db, "SELECT * FROM FVS_SnagSum")]
+        SQLite.close(db)
+        @test length(res) == 1 && res[1].Year == 1990
+        @test res[1].H1 ≈ Float64(sg.hard[1])
+        @test res[1].Tot ≈ Float64(sg.hard[7] + sg.soft[7])
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,

@@ -145,6 +145,33 @@ end
 "Total standing snag density (stems/ac) currently in the snag list."
 snag_standing_density(fs::FireState) = sum(fs.snags.den_hard) + sum(fs.snags.den_soft)
 
+# Snag-summary DBH class lower bounds (SNPRCL, fmvinit.f:46-51): cumulative thresholds — class i counts
+# every snag with DBH ≥ SNPRCL[i], so class 1 (≥0) equals the total.
+const _FM_SNPRCL = (0f0, 12f0, 18f0, 24f0, 30f0, 36f0)
+
+"""
+    snag_summary(s) -> (; hard, soft)
+
+The FFE snag-summary densities (stems/ac) for the FVS_SnagSum table (FMSSUM, fmssum.f:28-53): `hard`
+and `soft` are each a 7-tuple — the standing HARD (`den_hard`) and SOFT (`den_soft`) snag density in the
+six cumulative DBH classes (≥0/12/18/24/30/36 in) plus the total in slot 7. FVSjl's per-record
+hard/soft split is the current-state equivalent of the Fortran's DENIH/DENIS + HARD flag.
+"""
+function snag_summary(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return (hard = ntuple(_ -> 0f0, 7), soft = ntuple(_ -> 0f0, 7))
+    sn = fs.snags; thd = zeros(Float32, 7); tsf = zeros(Float32, 7)
+    @inbounds for i in eachindex(sn.sp)
+        dh = sn.den_hard[i]; ds = sn.den_soft[i]; d = sn.dbh[i]
+        thd[7] += dh; tsf[7] += ds                          # slot 7 = total (all snags)
+        for c in 1:6
+            d >= _FM_SNPRCL[c] || continue
+            thd[c] += dh; tsf[c] += ds
+        end
+    end
+    return (hard = Tuple(thd), soft = Tuple(tsf))
+end
+
 
 """
     ffe_seed_input_snags!(s) -> StandState

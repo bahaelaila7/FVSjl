@@ -333,6 +333,7 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
             if carb_rows !== nothing
                 write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+                write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]

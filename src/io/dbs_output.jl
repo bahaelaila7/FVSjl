@@ -174,6 +174,43 @@ function write_dbs_fuels!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_SnagSum schema (dbsfmssnag.f:103-121) — standing-snag density (stems/ac) by hard/soft × DBH class.
+const _FVS_SNAGSUM_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_SnagSum(
+  CaseID text not null, StandID text not null, Year Int null,
+  Hard_snags_class1 real null, Hard_snags_class2 real null, Hard_snags_class3 real null,
+  Hard_snags_class4 real null, Hard_snags_class5 real null, Hard_snags_class6 real null,
+  Hard_snags_total real null,
+  Soft_snags_class1 real null, Soft_snags_class2 real null, Soft_snags_class3 real null,
+  Soft_snags_class4 real null, Soft_snags_class5 real null, Soft_snags_class6 real null,
+  Soft_snags_total real null, Hard_soft_snags_total real null)"""
+
+"""
+    write_dbs_snagsum!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the FFE snag-summary densities to the `FVS_SnagSum` DBS table (dbsfmssnag.f). `rows` is the
+`(year, …, snags)` collection from the main simulation, where `snags` is a `snag_summary` named tuple.
+"""
+function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_SNAGSUM_CREATE)
+        ins = "INSERT INTO FVS_SnagSum VALUES (" * join(fill("?", 18), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for row in rows
+            yr = row[1]; sg = row[4]
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64.(sg.hard[1:6])..., Float64(sg.hard[7]),
+                Float64.(sg.soft[1:6])..., Float64(sg.soft[7]),
+                Float64(sg.hard[7] + sg.soft[7])))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """

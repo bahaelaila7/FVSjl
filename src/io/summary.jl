@@ -110,7 +110,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # post-growth/pre-fuel stand (matching FVS: FMCRBOUT runs before the annual FMSNAG/FMCWD/FMCADD loop).
         if carbon_on
             compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
-            push!(carbon_collect, (r.year, stand_carbon_report(s), ffe_fuel_loadings(s)))
+            push!(carbon_collect, (r.year, stand_carbon_report(s), ffe_fuel_loadings(s), snag_summary(s)))
         end
         if !last
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
