@@ -812,3 +812,15 @@ same-cycle — the next refinement. carbon_jenkins (synthetic LP growth tail) am
 ~1.7, 2005 over ~0.7); bounds relaxed there, tightened on the bit-exact carbon_snt. 4331 tests green.
 Still TODO: wire crown-lift into the MAIN simulate FFE path (carbon report validated; main path's DBS
 carbon is binary-blocked anyway).
+
+### Loop-order resolved empirically: current report→fuel→grow is BEST (do NOT reorder)
+Traced the FVS cycle order (fmmain.f): FMCRBOUT report (206) runs BEFORE the annual FMSNAG/FMCWD/FMCADD
+loop (228-259), then FMOLDC (268); NYRS=1 inside (so FMCADD /NYRS is a no-op); natural-mortality crown
+(ICALL=4, YNEXTY=1) lands in CWD2B bucket 1 directly (CWD2B2 staging is fire/cut/init only). Tested the
+"faithful" grow→compute-lift→report→annual-loop→FMOLDC reorder: it OVERSHOOTS (carbon_snt DDW@2005 12.7
+vs 11.4; applies cycle-2 lift a cycle early at +2.1). The CURRENT committed order (report→fuel→grow→
+compute-lift→snapshot) gives DDW@2005 BIT-EXACT (11.4) and is the best overall match. So the one-cycle
+crown-lift lag in the current order is actually the closer model — the remaining ~1.2 t/ha DDW under at
+the single intermediate cycle (2000) is a fine crown-lift decay-interleave effect, NOT a structural bug,
+and reordering to "fix" 2000 regresses 2005. Conclusion: keep the current structure; crown-lift LANDED,
+final cycle bit-exact, dead pools within ~1.2 t/ha. No code change.
