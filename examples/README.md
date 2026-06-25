@@ -61,6 +61,10 @@ python3 examples/key_to_structured_yaml.py examples/thinba/thinba.key > examples
 
 ### Parameter schema (the keywords used here)
 
+A full reference for **every** supported keyword (purpose + named parameters) is in
+[`../docs/KEYWORDS.md`](../docs/KEYWORDS.md).
+
+
 | keyword | named parameters (in order) |
 |---------|------------------------------|
 | `STDIDENT` | `id` (the stand label on the following line) |
