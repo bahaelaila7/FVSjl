@@ -855,3 +855,13 @@ oracle here and joins the binary-blocked bucket (like the DBS tables) — implem
   V(2) Merch       = Σ FMPROB·VT·V2T  (FMSVL2 stem cubic × V2T; FVSjl _fm_cuft already provides VT)
   roots + all dead pools = identical to JENKINS (already implemented).
 The DEFAULT + validatable method (CARBCALC=1 JENKINS) is fully ported, validated, and live-integrated.
+
+### UPDATE: CARBCALC=0 now PORTED from source (semantic-validated; live differential still binary-blocked)
+Following methodology principle 2 (port faithfully from the Fortran source, design semantic tests — a
+LIVE differential is the gold standard but not the only acceptable validation), CARBCALC=0 is now
+implemented: ffe_live_carbon (fmcrbout.f:120-141 + fmdout.f:225-258) — Above = crown(foliage+woody,
+crown_biomass) + stem(_fm_cuft·v2t), Merch = stem; ×0.5 carbon; roots+dead pools stay JENKINS.
+stand_carbon_report branches on s.control.carbon_method. Validated by SEMANTICS (Above=crown+stem >
+Merch=stem > 0, Jenkins ballpark, method switches only Above/Merch). Bit-exact live differential remains
+unavailable (the stripped binary's FFE live pools are degenerate-zero) — documented, not blindly trusted.
+OLDCRW crown-lift term in BIOLIVE omitted (X·crown ≈ 7e-4·crown, <0.1%).

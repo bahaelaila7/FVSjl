@@ -233,6 +233,33 @@ end
     end
 end
 
+@testset "CARBCALC=0 FFE-fuel live carbon method (semantic; live oracle binary-blocked)" begin
+    # The FFE carbon method (CARBCALC=0) computes Above = crown(foliage+woody) + stem, Merch = stem
+    # (fmcrbout.f:120-141 + fmdout.f:225-258), vs JENKINS national biomass. The live FFE oracle is
+    # degenerate in the stripped validation binary (zero live pools), so this is a SOURCE-FAITHFUL port
+    # validated by its semantics: Above = crown+stem > Merch = stem > 0, in the Jenkins ballpark, and the
+    # method only changes Above/Merch (roots + all dead pools are identical to JENKINS, fmcrbout.f:144).
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
+        ffe = FVSjl.ffe_live_carbon(s); jen = FVSjl.stand_live_carbon(s)
+        @test ffe.merch > 0f0                                  # stem biomass present
+        @test ffe.aboveground > ffe.merch                     # Above = crown + stem  >  Merch = stem
+        @test 0.5 < ffe.aboveground / jen.aboveground < 2.0   # same order of magnitude as Jenkins
+        # the report branch: method 0 changes Above/Merch but NOT belowground / dead pools
+        s.control.carbon_method = Int32(0); r0 = FVSjl.stand_carbon_report(s)
+        s.control.carbon_method = Int32(1); r1 = FVSjl.stand_carbon_report(s)
+        @test r0.aboveground != r1.aboveground                # method actually switches the basis
+        @test r0.belowground ≈ r1.belowground                 # roots unchanged (Jenkins in both)
+        @test r0.standing_dead ≈ r1.standing_dead             # dead pools unchanged
+        @test r0.down_wood ≈ r1.down_wood
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,

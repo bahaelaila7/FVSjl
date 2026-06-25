@@ -31,6 +31,34 @@ function stand_live_carbon(s::StandState)
 end
 
 """
+    ffe_live_carbon(s) -> (; aboveground, merch)
+
+Live aboveground / merchantable carbon by the **FFE-fuel** method (CARBCALC=0; fmcrbout.f:120-141 +
+fmdout.f:225-258), in tons C/acre. Aboveground `BIOLIVE` = the FFE crown biomass (foliage + woody sizes
+1-5, `crown_biomass`, lb→tons via P2T) **plus** the stem biomass (`_fm_cuft` cubic volume × `v2t`);
+merch = the stem biomass alone. Both × 0.5 for carbon. Belowground (roots) stays the Jenkins value in
+both methods (fmcrbout.f:144-146), so it is not recomputed here.
+
+NB the OLDCRW crown-lift term that fmdout.f adds to BIOLIVE is `X·CROWNW` with `X` the per-year crown-
+base-rise fraction (~7e-4/yr) — i.e. <0.1% of the crown — so it is omitted here (negligible, and the
+live FFE oracle is unavailable in the stripped validation binary; see FFE_FUEL_DYNAMICS_chunk_plan.md).
+"""
+function ffe_live_carbon(s::StandState)
+    t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
+    above = 0f0; merch = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
+        crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
+        stem = _fm_cuft(s, sp, d, h) * v2t[sp]                         # stem biomass (lb; v2t is raw lb/ft³)
+        above += t.tpa[i] * (crown + stem) * _FM_P2T                   # BIOLIVE = crown + stem, lb→tons
+        merch += t.tpa[i] * stem * _FM_P2T                             # merch = stem only (FMSVL2·V2T/2000)
+    end
+    return (aboveground = above * 0.5f0, merch = merch * 0.5f0)        # biomass → carbon (×0.5)
+end
+
+"""
     standing_dead_carbon(s) -> Float32
 
 Standing-dead (snag) carbon pool in tons C/acre: the Jenkins aboveground biomass of each
@@ -125,8 +153,16 @@ remaining increment).
 """
 function stand_carbon_report(s::StandState)
     lc = stand_live_carbon(s)
-    above = lc.aboveground * _TONAC_TO_MTHA
-    merch = lc.merch       * _TONAC_TO_MTHA
+    # CARBCALC method: 1 = JENKINS national biomass (default), 0 = FFE crown+stem biomass. Belowground
+    # (roots) is the Jenkins value in BOTH methods (fmcrbout.f:144-146); only Above/Merch differ.
+    if s.control.carbon_method == 0
+        fc = ffe_live_carbon(s)
+        above = fc.aboveground * _TONAC_TO_MTHA
+        merch = fc.merch       * _TONAC_TO_MTHA
+    else
+        above = lc.aboveground * _TONAC_TO_MTHA
+        merch = lc.merch       * _TONAC_TO_MTHA
+    end
     below = lc.belowground * _TONAC_TO_MTHA
     sd  = standing_dead_carbon(s) * _TONAC_TO_MTHA
     bd  = belowground_dead_carbon(s) * _TONAC_TO_MTHA
