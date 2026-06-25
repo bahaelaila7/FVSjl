@@ -265,8 +265,8 @@ function compute_forest_type!(st::StandState)
     ift = Int32(0)
 
     if totstk / pcond < Float32(10)
-        ift = Int32(999)   # NONSTOCKED
-        @goto label_999
+        st.plot.forest_type = Int32(999)   # NONSTOCKED — skip the decision tree
+        return Int32(999)
     end
 
 
@@ -824,7 +824,6 @@ function compute_forest_type!(st::StandState)
     end
 
     # --- California special case
-    @label label_999
     st.plot.forest_type = Int32(ift)
     return Int32(ift)
 end
