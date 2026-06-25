@@ -63,7 +63,13 @@ mutable struct KeywordReader
     record_count::Int
     heading_done::Bool
 end
-KeywordReader(io::IO) = KeywordReader(io, 0, false)
+function KeywordReader(io::IO)
+    # Normalize line endings to LF so `readline` works for every style FVS accepts: LF (Unix),
+    # CRLF (DOS, e.g. snt01.key), AND CR-only (old Mac, e.g. net01.key — 0 newlines, all CR). Without
+    # this a CR-only keyfile reads as one giant line and the whole parse desyncs.
+    content = replace(read(io, String), "\r\n" => "\n", "\r" => "\n")
+    KeywordReader(IOBuffer(content), 0, false)
+end
 
 @inline _looks_numeric(field::AbstractString) =
     all(c -> isspace(c) || occursin(c, " .+-eE0123456789"), field)
