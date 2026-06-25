@@ -17,12 +17,24 @@
 #   TCF  1551 / 1558  (99.6%)   ← total cubic — effectively there
 #   SCF   294 /  292  (100.7%)  ← sawtimber cubic — effectively there
 #   MCF  1262 / 1347  (93.7%)   ← MERCH cubic — ~6% low, the open gap
-# The kernels (r9dia417/r9totHt/r9cuft/r9ht) + r9Prep group-fallback + MRULES R9 +
-# r9cor are ported faithfully; total & sawtimber cubic match closely. The residual
-# is in the merch/topwood path (vol[7] / the prod-02 pulp height) — needs a per-tree
-# oracle to localise (the FVSne DBS FVS_TreeList_East table; TREELIDB plumbing TBD).
-# Board feet (vol[2]) is unported. So this is NOT bit-exact yet and stays a
-# standalone module until it is. Board ft + the merch close-out are the next steps.
+# PER-TREE DIAGNOSIS (via the live oracle treelist — see recipe below): comparing
+# on identical (dbh,ht,species), CONIFERS and SHORT trees match closely (JP d=11.5
+# h=73: 20.8 vs 20.8), but BIG TALL HARDWOODS over-predict ~26% (SM d=18.2 h=102:
+# 66.4 raw vs oracle 52.6; QA d=20.9 h=95.9: high too). Root cause localised to the
+# upper-bole term: for tall trees `dib17 = dbhIb·(a17 + b17·(17.3/topHt)²)` goes fat
+# (15.4" at 17.3' for an 18" stem) because (17.3/topHt)²→0 at large topHt, so the
+# r9cuft V3 segment (∝ dib17²) is oversized. JP (shorter) is unaffected. The fix is
+# NOT a coef/formula transcription error (both verified vs r9coeff.inc); it is some
+# tall-tree handling the port is still missing (totHt/topHt reference or a coef-class
+# selection). THIS is the open bug — chase it next, then re-check the aggregate.
+#
+# PER-TREE ORACLE RECIPE (this unblocked the diagnosis): build a clean SINGLE-stand
+# keyfile (CR→LF; take lines up to the first PROCESS), insert a `DATABASE/DSNOUT/
+# <db>/SUMMARY/TREELIDB/END` block BEFORE `TREEDATA`, and NAME THE TREE FILE TO MATCH
+# THE KEYFILE STEM (TREEDATA reads <stem>.tre). Run /tmp/FVSne_new → the `.trl`
+# COMPLETE TREE LIST has per-tree TOT CU / MCH CU / SAW CU / SAW BD columns.
+#
+# Board feet (vol[2]) is also unported. NOT bit-exact → standalone module, not wired.
 # =============================================================================
 
 # --- R9 Clark coefficients (volume/NVEL/r9coeff.inc → CSV) -------------------
