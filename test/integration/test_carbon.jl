@@ -407,6 +407,37 @@ end
     @test t.tpa[1] == 30f0 && t.tpa[2] == 30f0
 end
 
+@testset "FVS_Hrv_Carbon — harvested-wood-products carbon fate (fmscut.f/fmchrvout.f, FAPROP)" begin
+    # accrue_harvest_carbon! buckets cut merch biomass by product (DBH vs CDBRK) × group (biogrp>5);
+    # harvested_carbon_report distributes it by the FAPROP year-since-harvest decay curves into
+    # Products/Landfill/Energy/Emissions. The live oracle is binary-blocked, so validate the model semantics.
+    s = FVSjl.StandState(FVSjl.Southern())
+    FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
+    s.fire = FVSjl.FireState(); s.fire.active = true
+    FVSjl.accrue_harvest_carbon!(s, 11, 14f0, 2.0f0, 2000)   # pine 14" > 9 → sawtimber softwood
+    FVSjl.accrue_harvest_carbon!(s, 65, 6f0, 1.0f0, 2000)    # oak 6" < 11 → pulpwood hardwood
+    @test haskey(s.fire.hwp_fate, (2000, 2, 1))              # saw-softwood bucket
+    @test haskey(s.fire.hwp_fate, (2000, 1, 2))              # pulp-hardwood bucket
+    r0 = FVSjl.harvested_carbon_report(s, 2000, 1)
+    r30 = FVSjl.harvested_carbon_report(s, 2030, 1)
+    @test r0.products > 0f0
+    @test r0.stored ≈ r0.products + r0.landfill              # stored = in-use + landfill
+    @test r0.removed ≈ r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
+    @test r30.removed ≈ r0.removed rtol = 1f-4               # total removed is fixed at harvest
+    @test r30.products < r0.products                         # in-use wood decays over time
+    @test r30.landfill >= r0.landfill                        # landfill accumulates
+    # DBS round-trip
+    dbpath = joinpath(mktempdir(), "hrv.db")
+    FVSjl.write_dbs_hrvcarbon!(dbpath, "C1", "S1", [(2000, r0), (2030, r30)])
+    db = SQLite.DB(dbpath)
+    res = [(; Year = x.Year, P = x.Products, St = x.Merch_Carbon_Stored, Rm = x.Merch_Carbon_Removed)
+           for x in DBInterface.execute(db, "SELECT * FROM FVS_Hrv_Carbon ORDER BY Year")]
+    SQLite.close(db)
+    @test length(res) == 2 && res[1].Year == 2000
+    @test res[1].P ≈ Float64(r0.products)
+    @test res[1].Rm ≈ Float64(r0.removed)
+end
+
 @testset "FVS_PotFire DBS table — potential fire report + writer (fmpofl.f / dbsfmpf.f)" begin
     # potential_fire_report bundles the dual-scenario surface fire + canopy bulk density + torching
     # probability; write_dbs_potfire! writes the 27-col FVS_PotFire. SN: Tot_Flame = Surf_Flame, indices −1.

@@ -310,11 +310,13 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
         carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
-                       cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows)
+                       cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
+                       hrvcarbon_collect = hc_rows)
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
         if has_db
@@ -347,6 +349,9 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
             end
             pf_rows === nothing ||
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+            if hc_rows !== nothing && any(r -> r[2].removed != 0f0, hc_rows)
+                write_dbs_hrvcarbon!(s.control.dbs_out_file, caseid, String(sid), hc_rows)
+            end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)

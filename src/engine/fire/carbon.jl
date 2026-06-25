@@ -214,6 +214,77 @@ end
 # short tons/acre → metric tons/hectare (the Stand Carbon Report's units, fmcrbout.f METRIC.F77).
 const _TONAC_TO_MTHA = 0.90718474f0 / 0.40468564f0
 
+# FAPROP — harvested-wood-products fate fractions [habitat 1:2, year-since-harvest 1:101, fate 1:3
+# (in-use/landfill/energy), product 1:2 (pulp/saw), group 1:2 (sw/hw)] (fmcblk.f, Smith et al.). Loaded
+# once from data/southern/fire_hwp_fate.csv. Const lookup table (not mutable state).
+const _FAPROP = let
+    path = joinpath(@__DIR__, "..", "..", "..", "data", "southern", "fire_hwp_fate.csv")
+    a = zeros(Float32, 2, 101, 3, 2, 2)
+    fate_i = Dict("in_use" => 1, "landfill" => 2, "energy" => 3)
+    prod_i = Dict("pulpwood" => 1, "sawtimber" => 2)
+    grp_i  = Dict("softwood" => 1, "hardwood" => 2)
+    for (k, line) in enumerate(eachline(path))
+        k == 1 && continue                          # header
+        f = split(strip(line), ',')
+        isempty(f[1]) && continue
+        a[parse(Int, f[1]), parse(Int, f[5]), fate_i[f[2]], prod_i[f[3]], grp_i[f[4]]] = parse(Float32, f[6])
+    end
+    a
+end
+
+"""
+    accrue_harvest_carbon!(s, sp, dbh, removed_tpa, merch_biomass, year)
+
+Bucket one cut tree's harvested merch biomass into the FFE harvested-wood-products FATE accumulator
+(FMSCUT, fmscut.f:147-151): product = pulpwood if DBH ≤ `CDBRK` else sawtimber (CDBRK = 9″ softwood /
+11″ hardwood), group = softwood if `biogrp ≤ 5` else hardwood. `merch_biomass` is the per-acre harvested
+merch biomass (tons/ac, merch-cuft × V2T × removed TPA, or Jenkins merch × TPA). No-op without FFE.
+"""
+function accrue_harvest_carbon!(s::StandState, sp::Integer, dbh::Float32,
+                                merch_biomass::Float32, year::Integer)
+    fs = s.fire
+    (fs === nothing || !fs.active || merch_biomass <= 0f0) && return
+    grp = Int(coef_col(s.coef, :biogrp)[sp]) > 5 ? 2 : 1     # 1 = softwood, 2 = hardwood
+    cdbrk = grp == 1 ? 9f0 : 11f0                            # pulp/saw DBH break (fminit.f:919-920)
+    prod = dbh > cdbrk ? 2 : 1                               # 1 = pulpwood, 2 = sawtimber
+    key = (Int(year), prod, grp)
+    fs.hwp_fate[key] = get(fs.hwp_fate, key, 0f0) + merch_biomass
+    return
+end
+
+"""
+    harvested_carbon_report(s, year, habitat) -> (; products, landfill, energy, emissions, stored, removed)
+
+The harvested-wood-products carbon pools (metric tons C/ha) at report `year` (FMCHRVOUT, fmchrvout.f:83-103).
+For each past cut, the harvested merch biomass is distributed by the FAPROP year-since-harvest fate curves
+into In-use (`products`), Landfill, Energy, and Emissions (= the residual `1 − Σ fate`). `stored` = products
++ landfill; `removed` = energy + emissions + stored. All × 0.5 carbon, × the tons/ac→t/ha factor.
+"""
+function harvested_carbon_report(s::StandState, year::Integer, habitat::Integer)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return (; products = 0f0, landfill = 0f0, energy = 0f0,
+                                              emissions = 0f0, stored = 0f0, removed = 0f0)
+    h = clamp(Int(habitat), 1, 2)
+    v = zeros(Float64, 4)                                    # in-use, landfill, energy, emissions
+    for ((cyr, prod, grp), bio) in fs.hwp_fate
+        kyr = year - cyr + 1; kyr < 1 && continue
+        kyr > 101 && (kyr = 101)
+        xtmp = 0.0
+        for fate in 1:3
+            f = _FAPROP[h, kyr, fate, prod, grp]
+            xtmp += f
+            v[fate] += bio * f
+        end
+        v[4] += bio * (1.0 - xtmp)                           # emissions = the un-accounted residual
+    end
+    k = 0.5f0 * _TONAC_TO_MTHA                               # biomass → carbon → metric t/ha
+    products = Float32(v[1]) * k; landfill = Float32(v[2]) * k
+    energy = Float32(v[3]) * k; emissions = Float32(v[4]) * k
+    stored = products + landfill                             # V(5) = in-use + landfill
+    removed = energy + emissions + stored                   # V(6) = energy + emissions + stored
+    return (; products, landfill, energy, emissions, stored, removed)
+end
+
 """
     stand_carbon_report(s) -> (; aboveground, merch, belowground, standing_dead,
                                  down_wood, forest_floor, shrub_herb, total)

@@ -102,6 +102,12 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
     end
+    # FFE harvested-wood-products: bucket this removed tree's merch biomass into the FATE accumulator
+    # (FMSCUT) for the FVS_Hrv_Carbon report. Merch biomass = merch cuft × V2T × removed TPA (FFE method).
+    if s.fire !== nothing && s.fire.active
+        mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
+        accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+    end
     # ESTUMP cut log (sprouting species only, when sprouting is on)
     (s.control.lsprut && coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
     push!(s.control.cut_log,

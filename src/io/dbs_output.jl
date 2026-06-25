@@ -405,6 +405,37 @@ function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractStr
     return dbpath
 end
 
+# FVS_Hrv_Carbon schema (dbsfmhrpt.f:94-100) — harvested-wood-products carbon fate (metric tons C/ha).
+const _FVS_HRVCARBON_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Hrv_Carbon(
+  CaseID text not null, StandID text not null, Year int null,
+  Products real null, Landfill real null, Energy real null, Emissions real null,
+  Merch_Carbon_Stored real null, Merch_Carbon_Removed real null)"""
+
+"""
+    write_dbs_hrvcarbon!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the harvested-wood-products carbon report to the `FVS_Hrv_Carbon` DBS table (dbsfmhrpt.f). `rows` is
+the `(year, report)` collection where `report` is a `harvested_carbon_report` named tuple (Products /
+Landfill / Energy / Emissions / Stored / Removed, metric tons C/ha).
+"""
+function write_dbs_hrvcarbon!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+    isempty(rows) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_HRVCARBON_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Hrv_Carbon VALUES (" * join(fill("?", 9), ",") * ")")
+        for (yr, r) in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(r.products), Float64(r.landfill), Float64(r.energy), Float64(r.emissions),
+                Float64(r.stored), Float64(r.removed)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """

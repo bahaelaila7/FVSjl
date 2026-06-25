@@ -1004,3 +1004,26 @@ potential_fire_report bundles them (Tot_Flame=Surf_Flame, Torch/Crown index=−1
 write_dbs_potfire! (27 col) + POTFIRE/POTFLAME keyword (kw_fmin!) + potfire_report_on flag + per-cycle
 collection in write_sum_file, wired into run_keyfile. 4413 green. EIGHT of 9 FFE DBS tables now emit; only
 FVS_Hrv_Carbon (FAPROP harvested-wood-products carbon-fate) remains.
+
+### LANDED: FVS_Hrv_Carbon (fmscut.f/fmchrvout.f) — the 9th & FINAL FFE DBS table. ALL 9 NOW PORTED.
+The harvested-wood-products carbon-FATE model:
+  - FAPROP 5-D decay table (habitat 1:2 × year-since-harvest 1:101 × fate 1:3 × product 1:2 × group 1:2)
+    EXTRACTED from fmcblk.f to data/southern/fire_hwp_fate.csv (2424 rows, long format, semantic headers
+    in_use/landfill/energy × pulpwood/sawtimber × softwood/hardwood). BIOGRP (species→group) added as a
+    `biogrp` column to fire_species_props.csv.
+  - accrue_harvest_carbon! (FMSCUT): each cut tree's merch biomass → FATE[(cut_year, product, group)],
+    product = pulp if DBH≤CDBRK(9 sw/11 hw) else saw, group = sw if biogrp≤5 else hw. Hooked in _log_cut!.
+    State lives in FireState.hwp_fate (no globals).
+  - harvested_carbon_report (FMCHRVOUT): distributes each cut's biomass by FAPROP[habitat, KYR=year−cut+1,
+    fate,product,group] into Products/Landfill/Energy/Emissions(=residual 1−Σfate); Stored=Products+
+    Landfill, Removed=Energy+Emissions+Stored; ×0.5 carbon ×tons/ac→t/ha. Collected after each cycle's cut
+    (KYR=1 for the current year). write_dbs_hrvcarbon! + wired into run_keyfile (gated on carbon_report_on).
+  Validated by semantics (live oracle binary-blocked): Stored=Products+Landfill, Removed=sum, removed is
+  constant over time (total harvest fixed), products decay while landfill accumulates, round-trip.
+
+### ★ ALL 9 FFE DBS TABLES PORTED ★
+Per-cycle: Carbon, Fuels, SnagSum, Down_Wood_Vol, Down_Wood_Cov. Fire-event: BurnReport, Mortality,
+Consumption. Potential-fire: PotFire. Harvest: Hrv_Carbon. Every one emits in a live run_keyfile run and
+is covered by a reconciliation/semantic test. The only non-validatable-vs-oracle pieces are inherent
+(stripped DBS binary); all are faithfully ported from source. Out of scope (verified): Western-only insect
+models (dfb/lpmpb/wsbwe); FMSNGHT no-op in SN (HTX=0).

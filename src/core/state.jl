@@ -580,10 +580,14 @@ mutable struct FireState
     burn_reports::Vector{Any}          # one record per SIMFIRE event (year + moistures + wind + flame +
                                        # scorch + fuel models/weights + consumption) for the FVS_BurnReport /
                                        # FVS_Consumption / FVS_Mortality DBS tables (pushed by fmburn!)
+    hwp_fate::Dict{NTuple{3,Int},Float32}  # harvested-wood-products carbon FATE accumulator (fmscut.f:151):
+                                       # key (cut_year, product 1=pulp/2=saw, group 1=sw/2=hw) → harvested
+                                       # merch BIOMASS (tons/ac). Drives the FVS_Hrv_Carbon table via the
+                                       # FAPROP year-since-harvest decay curves. State per stand (no globals).
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
-                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[])
+                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}())
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

@@ -80,7 +80,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         compute_collect::Union{Nothing,Vector} = nothing,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
                         carbon_collect::Union{Nothing,Vector} = nothing,
-                        potfire_collect::Union{Nothing,Vector} = nothing)
+                        potfire_collect::Union{Nothing,Vector} = nothing,
+                        hrvcarbon_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
@@ -145,6 +146,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_qmd = round(stand_qmd(s); digits = 1)
                 cum_rem_merch += rem.mcuft / g
             end
+            # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
+            # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
+            hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
+                push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
             carbon_on && ffe_fuel_update!(s, per)      # FFE annual fuel loop BEFORE growth (report→fuel→grow)
             gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
@@ -152,6 +157,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             if carbon_on                                # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
             end
+        elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
+            push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
         write_sum_row(io, r)
         collect_rows === nothing || push!(collect_rows, r)
