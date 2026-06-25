@@ -9,6 +9,21 @@ from the Fortran, validate bit-exact per chunk). Sole oracle: live `bin/FVSne_bu
 = year, age, **TPA 536, BA 77, SDI 160, CCF 176, TopHt 63, QMD 5.1**, cuft 1558, mcuft 1347, scuft 292,
 bdft 1633. The cycle-0 row needs only **tree parse + density + volume** (no growth) — the first gate.
 
+## Architectural findings (uncovered by driving net01 through the load path)
+1. **Tolerant loader — DONE.** `load_species_coefficients` now treats per-subsystem/FFE CSVs as optional
+   (empty if absent) so a variant-in-progress loads with what it has; SN unaffected (all files present,
+   suite 4392+10). **NE now loads its 108 species.**
+2. **`MAXSP=90` is Southern-baked (NEXT architectural blocker).** Every per-species array (`plot.sp_*`,
+   the coefficient vectors) is sized `MAXSP=90`; NE has **108**. The `for sp in 1:MAXSP` loops index the
+   coefficient vectors, so simply bumping `MAXSP=108` would `BoundsError` on SN (its vectors are length 90)
+   unless SN's per-species data is padded to 108 — OR `MAXSP` becomes per-variant (dynamic). Either is
+   SN-bit-exactness-critical (the `1:MAXSP` calibration/crown/site loops must still skip the empty
+   91-108 slots for SN). Needs a careful, suite-validated design pass before any NE growth can run.
+3. **NE site model is structurally different** — `ne/sitset.f` converts SI between species via a 28×28
+   `SICOEF` matrix + the `IPOINT` group map (extracted), not SN's `site_species`/`master_group`. So
+   `site_setup!(::Northeast)` is a genuine port, not a CSV reshape. (NE uses Zeide SDI like SN —
+   `ne/grinit.f:129 LZEIDE=.TRUE.`; RNG seed 55329, same as SN.)
+
 ## Chunk status
 - [x] **C1 — skeleton + roster.** `struct Northeast`, `variant_code="NE"`, `NE_DATADIR`; the 108-species
   roster `data/northeast/species_translation.csv` (alpha/FIA/PLANTS from ne/blkdat.f JSP/FIAJSP/PLNJSP).
