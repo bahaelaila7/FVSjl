@@ -304,6 +304,7 @@ overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
 `species.vol_eq`.
 """
 function compute_volumes!(s::StandState)
+    s.variant isa Northeast && return compute_volumes_ne!(s)   # NVEL R9 Clark cubic (WIP: no board ft)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     scfmin = c.sp_scf_dbhmin; scftop = c.sp_scf_topd; topd = c.sp_top_diam

@@ -86,6 +86,7 @@ function ne_forkod_defaults!(s::StandState)
     p.latitude  == 0f0 && (p.latitude  = lat0)
     p.longitude == 0f0 && (p.longitude = long0)
     p.elevation == 0f0 && (p.elevation = elev0)
+    p.forest_idx = Int32(ifor)     # NE: stash IFOR for the IFOR-dependent merch rules (ne/sitset.f)
     return s
 end
 

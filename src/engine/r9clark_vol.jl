@@ -356,3 +356,49 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     _r9_cor!(vol, spp, iProd)
     return vol
 end
+
+# --- NE merch standards (ne/sitset.f:505-560) + the per-tree volume driver -----
+# IFOR-dependent merch rules. Softwood = species index ≤ 25. Stumps from grinit.f
+# (STMP 0.5 / SCFSTMP 1.0). Returns the per-tree (dbhmin, topd, scfmind, scftopd,
+# stmp, scfstmp) used by the cubic columns. Board-foot mins are bf-equal here.
+@inline function _ne_merch(spi::Integer, ifor::Integer)
+    if spi <= 25                          # softwoods
+        return (5f0, 4f0, 9f0, 7.6f0, 0.5f0, 1f0)
+    else                                  # hardwoods
+        dbhmin = (ifor == 1 || ifor == 3) ? 6f0 : (ifor == 4 ? 8f0 : 5f0)
+        topd   = ifor == 3 ? 5f0 : 4f0
+        return (dbhmin, topd, 11f0, 9.6f0, 0.5f0, 1f0)
+    end
+end
+
+"""
+    compute_volumes_ne!(s)
+
+NE per-tree volume driver (the Region-9 analogue of the SN `compute_volumes!`
+body): NVEL R9 Clark cubic via `r9clark_cubic`, with the NE IFOR-dependent merch
+standards. Loads cuft/merch-cuft/saw-cuft per tree. Board feet (Scribner R9LOGS/
+r9bdft) is not yet ported → `bdft_vol = 0`. Broken-top (CFTOPK) reuse is TODO.
+"""
+function compute_volumes_ne!(s::StandState)
+    t = s.trees; co = s.coef
+    ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = _NE_DEFAULT_IFOR)
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        if d < 1f0
+            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
+            continue
+        end
+        fias = strip(string(co.code_fia[sp]))
+        fia = isempty(fias) ? 0 : parse(Int, fias)
+        dbhmin, topd, scfmind, scftopd, _stmp, _scfstmp = _ne_merch(sp, ifor)
+        prod = d >= scfmind ? "01" : "02"
+        mtopp = d >= scfmind ? scftopd : topd
+        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+        t.cuft_vol[i]      = v[1]
+        t.merch_cuft_vol[i] = d >= dbhmin  ? v[4] + v[7] : 0f0
+        t.saw_cuft_vol[i]   = d >= scfmind ? v[4] : 0f0
+        t.bdft_vol[i]       = 0f0                       # board feet: R9LOGS/r9bdft TODO
+    end
+    return s
+end
