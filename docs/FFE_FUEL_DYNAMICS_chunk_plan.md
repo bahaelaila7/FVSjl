@@ -769,3 +769,27 @@ input suspects (need a dual-side per-source DDW-decomposition dump to pin): live
 magnitude (LIMBRK·CROWNW for the big tail oaks) and/or a small missing FMCADD term. Crown-LIFT is ruled
 out for THIS stand (measured 0.0006/yr, vs the ~0.08/yr the gap needs). This is a fine ~10%-of-pool tail
 residual; closing it is a self-contained instrumentation chunk, not a faithfulness fix to existing code.
+
+### BREAKTHROUGH: crown-LIFT is the DOMINANT missing DDW source (instrumented, corrects "negligible")
+Instrumented the Fortran FMCADD (per-source accumulators BRKSUM/LIFTSUM/C2BSUM) on carbon_snt:
+  cycle 1: breakage 0.837  crownlift 0.000  cwd2bflow 0.000   (ICYC=1: no OLDHT yet)
+  cycle 2: breakage 1.120  crownlift 2.195  cwd2bflow 0.781
+  cycle 3: breakage 1.375  crownlift 2.549  cwd2bflow 1.383
+  cycle 4: breakage 1.546  crownlift 2.696  cwd2bflow 2.744
+So crown-lift (~2.2-2.7 t/ac/cycle) is the LARGEST down-wood input — bigger than breakage AND cwd2b
+flow. The old "negligible 0.0006/yr on carbon_snt" note was a SINGLE-TREE X, not the aggregate; it is
+WRONG at the stand level. Also confirmed NYRS=1 in FMCADD (5 calls/cycle) — the /NYRS is a no-op and the
+cwd2b flow logic matches.
+
+IMPLEMENTED (inert until wired, 4331 tests still green): FireState.crown_lift_annual[cwd-size,decay];
+compute_crown_lift!(s, old_ht,old_dbh,old_cr, cyclen) = faithful FMSDIT/FMCADD (X=crown_lift_rate,
+OLDCRW=prev woody crown sizes 1-5, both 0.0000625 thresholds, FMPROB·OLDCRW·P2T/yr); ffe_fuel_update!
+adds crown_lift_annual each year. Validated direction: grow→crownlift→fuel raised DDW@2005 9.0→12.3
+(Fortran 11.4).
+
+BLOCKER to landing bit-exact: carbon_snt TRIPLES (27→243 records, deterministic DG tripling cyc1-2), so
+an index snapshot of prev-state misaligns (the stability guard then skips → cl=0). Needs per-RECORD
+OLDHT/OLDCRL/OLDCRW that travel through grow_cycle!'s tripling/mortality (FVS FMOLDC + FMTRIP/FMTDEL):
+the child records inherit the parent's OLD values; regen records get OLD=current (no lift). Also TBD: the
+SD/DDW split timing — crown-lift is a SAME-cycle live-tree term while the mortality cwd2b crown lags one
+cycle (deaths dated cycle_end-1); the loop must apply them with their different cadences.

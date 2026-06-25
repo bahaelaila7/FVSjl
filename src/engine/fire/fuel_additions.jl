@@ -110,13 +110,59 @@ function _cwd2b_fall!(fs::FireState)
     return fs
 end
 
+"""
+    compute_crown_lift!(s, old_ht, old_dbh, old_cr, cyclen) -> StandState
+
+Compute this cycle's crown-LIFT down-wood input (FMSDIT/FMCADD, fmsdit.f:103-119 + fmcadd.f:86-102) into
+`fire.crown_lift_annual` (the per-YEAR addition, added each year by `ffe_fuel_update!`). As a live tree
+grows its crown base rises; the lower woody crown left below the new base dies and falls to down wood at
+`FMPROB · X · OLDCRW(size) · P2T` per year, where `X = crown_lift_rate(oldht, oldcrl, ht, ICR, cyclen)`
+and `OLDCRW(size)` is the PREVIOUS cycle's woody crown weight (sizes 1-5; foliage size-0 is excluded —
+leaf-lifespan already books it). Both FVS thresholds (raw OLDCRW and FMPROB·OLDCRW < 0.0000625) are
+applied. `old_*` are the per-tree previous-cycle height / DBH / crown-% snapshots, aligned by record to
+the current tree list; if the list changed (regen/compaction) the term is skipped (left zero) — faithful
+only while records are stable (the general case needs OLDHT to travel with the record, FMOLDC). This is
+the DOMINANT post-mortality down-wood source (~2.5 t/ac/cycle on carbon_snt, instrumented vs Fortran).
+"""
+function compute_crown_lift!(s::StandState, old_ht::AbstractVector, old_dbh::AbstractVector,
+                             old_cr::AbstractVector, cyclen::Real)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    cl = fs.crown_lift_annual; fill!(cl, 0f0)
+    t = s.trees; coef = s.coef; dkrcls = coef_col(coef, :dkr_cls)
+    # record-stability guard: the snapshot must align 1:1 with the current list (no regen/compaction)
+    length(old_ht) >= t.n || return s
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i])
+        oldcrl = old_ht[i] * old_cr[i] / 100f0
+        x = crown_lift_rate(old_ht[i], oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
+        x > 0f0 || continue
+        # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
+        xvold = crown_biomass(s, sp, old_dbh[i], old_ht[i], Int(round(old_cr[i])))
+        dkcl = clamp(Int(dkrcls[sp]), 1, 4)
+        for sz in 1:5
+            ocw = xvold[sz + 1]
+            ocw < 0.0000625f0 && continue                  # FMSDIT raw-OLDCRW threshold
+            lift = x * ocw                                 # OLDCRW after the X scaling
+            t.tpa[i] * lift < 0.0000625f0 && continue      # FMCADD FMPROB·OLDCRW threshold
+            cl[sz, dkcl] += t.tpa[i] * lift * _FM_P2T
+        end
+    end
+    return s
+end
+
 function ffe_fuel_update!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     fmcba!(s)
+    cl = fs.crown_lift_annual
     @inbounds for _ in 1:nyrs
         _cwd2b_fall!(fs)                       # FMCADD: CWD2B crown debris → down wood
         fmcwd!(s, 1); fmcadd_litterfall!(s); fmcadd_woody!(s)
+        for dkcl in 1:4, sz in 1:9             # FMCADD crown-lift term (precomputed per cycle)
+            cl[sz, dkcl] > 0f0 && (fs.cwd[sz, 2, dkcl] += cl[sz, dkcl])
+        end
     end
     fs.bioroot *= (1f0 - _FM_CRDCAY)^nyrs    # dead-root decay (fmcrbout.f:273)
     return s

@@ -571,10 +571,14 @@ mutable struct FireState
     cwd2b::Array{Float32,3}            # crown debris-in-waiting [decay 1:4, crown size 0:5→idx 1:6,
                                        # year-to-fall 1:60] (CWD2B); the un-fallen part is the Stand-Dead
                                        # crown, it flows to `cwd` (down wood) as it falls (FMSCRO)
+    crown_lift_annual::Matrix{Float32} # per-YEAR crown-lift down-wood input [cwd size 1:9, decay 1:4],
+                                       # computed once per cycle (FMSDIT OLDCRW) and added each year in the
+                                       # fuel loop (FMCADD crown-lift term); zero unless compute_crown_lift!
+                                       # has run this cycle (so the non-carbon-report path is unaffected)
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
-                        zeros(Float32, 4, 6, 60))
+                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
