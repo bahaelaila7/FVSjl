@@ -39,14 +39,18 @@ an IO bug: net01.key uses **old-Mac CR-only line endings** (133 CR, 0 LF) → `r
 4398+10). Remaining cycle-0 columns (SDI 160, CCF 176, cuft 1558/mcuft 1347/scuft 292/bdft 1633) need the
 density-SDImax/crown + volume subsystems; cycle-1+ needs growth.
 
-### Next: the VOLUME subsystem (cycle-0 cuft/mcuft/scuft/bdft) — precisely scoped
-`compute_volumes!` blocks on `:scf_min_dbh` (merch specs). NE volume = the shared NVEL library + the
-NE/Region-9 selection. Needs: (a) `data/northeast/merch_specs.csv` — the NE default merch limits (min
-DBH / top dib / stump for cubic/saw/board); `ne/cubrds.f` zeros its blocks, so the defaults come from
-`ls/vols.f` (the sitset.f:179 note "DEFAULT MERCH LIMITS ARE SET IN LS/VOLS") — extract those. (b) Each
-species' NVEL **CFVolEq** equation id (the per-species volume-equation column SN has) — from the NE
-species/volume tables, so `setup_volume_equations!` assigns the right NVEL equation. Then `compute_volumes!`
-(shared R8/NVEL engine, already bit-exact for SN) should give the 4 volume columns; validate vs net01.
+### Next: the VOLUME subsystem (cycle-0 cuft/mcuft/scuft/bdft) — CORRECTED scope (a real NE port)
+INVESTIGATED: NE volume is NOT a shared-engine data swap. Two findings from the code:
+- `setup_volume_equations!` (volume_equations.jl) is **Region-8-specific**:
+  `vol_eq = (iregn==8 && ifia>0) ? _r8_ceqn(...) : blank`. So for NE (Region 9) it assigns NO equation —
+  **NE does not use R8 Clark.** R8 Clark is shared *infrastructure* but NE uses the **Region-9 / eastern
+  volume model**: `ne/cubrds.f` (cubic) + `ne/nbolt.f`/`ne/logs.f` (board/log bucking) + `ls/gvrvol.f`
+  (gross-volume ratio), via the `ie/vols.f` NE branch. This is a genuine subsystem port, not a CSV.
+- Merch specs vary by softwood/hardwood (4 distinct rows in SN); NE needs its own grouping from the
+  eastern merch defaults (`ls/vols.f` / MRULES).
+So the volume chunk = port the NE cubic/board volume equations (cubrds/nbolt/gvrvol) + the eastern merch
+specs + the `ie/vols.f` NE branch + a `compute_volumes!`/`setup_volume_equations!` variant-dispatch.
+Substantial — the "reuse R8 Clark" shortcut does NOT apply to NE.
 
 ## Chunk status
 - [x] **C1 — skeleton + roster.** `struct Northeast`, `variant_code="NE"`, `NE_DATADIR`; the 108-species
