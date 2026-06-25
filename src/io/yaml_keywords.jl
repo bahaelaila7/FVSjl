@@ -106,6 +106,47 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
                    "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
     "THINDBH"  => ["year"=>1, "dbh_min"=>2, "dbh_max"=>3, "cut_efficiency"=>4,
                    "residual_tpa"=>6, "species"=>7],
+    "THINBTA"  => ["year"=>1, "residual_tpa"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINATA"  => ["year"=>1, "residual_tpa"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    "THINCC"   => ["year"=>1, "residual_ccf"=>2, "cut_efficiency"=>3,
+                   "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
+    # growth / mortality modifiers (date, species, value, dbh window)
+    "BAIMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
+    "HTGMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
+    "CRNMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3],
+    "REGDMULT" => ["year"=>1, "species"=>2, "multiplier"=>3],
+    "REGHMULT" => ["year"=>1, "species"=>2, "multiplier"=>3],
+    "MORTMULT" => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
+    "FIXMORT"  => ["year"=>1, "species"=>2, "rate"=>3, "dbh_min"=>4, "dbh_max"=>5, "option"=>6],
+    "FIXDG"    => ["year"=>1, "species"=>2, "value"=>3, "dbh_min"=>4, "dbh_max"=>5],
+    "FIXHTG"   => ["year"=>1, "species"=>2, "value"=>3, "dbh_min"=>4, "dbh_max"=>5],
+    # density / site
+    "BAMAX"    => ["bamax"=>1],
+    "SDIMAX"   => ["species"=>1, "sdimax"=>2, "pct_lo"=>5, "pct_hi"=>6],
+    "SDICALC"  => ["method"=>1],
+    "FERTILIZ" => ["year"=>1, "nitrogen"=>2],
+    "SETSITE"  => ["year"=>1, "habitat"=>2, "bamax"=>3, "species"=>4, "site_index"=>5,
+                   "si_flag"=>6, "sdimax"=>7],
+    # calibration / RNG
+    "RANNSEED" => ["seed"=>1],
+    "NOCALIB"  => ["species"=>1],
+    "DGSTDEV"  => ["value"=>1],
+    # establishment cards
+    "PLANT"    => ["year"=>1, "species"=>2, "tpa"=>3, "survival_pct"=>4, "age"=>5,
+                   "height"=>6, "shade"=>7],
+    "NATURAL"  => ["year"=>1, "species"=>2, "tpa"=>3, "survival_pct"=>4, "age"=>5,
+                   "height"=>6, "shade"=>7],
+    "ESTAB"    => ["disturbance_date"=>1],
+    # volume
+    "VOLEQNUM" => ["species"=>1, "equation"=>2],
+    # cycle / setup extras
+    "TIMEINT"  => ["cycle"=>1, "length"=>2],
+    "CYCLEAT"  => ["year"=>1],
+    "MANAGED"  => ["year"=>1],
+    "TFIXAREA" => ["area"=>1],
+    "NUMTRIP"  => ["count"=>1],
 )
 # Keywords whose single named value is carried on the NEXT (free-form) line in a
 # .key file, so the structured block expands to TWO records: the keyword + a raw line.

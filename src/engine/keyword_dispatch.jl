@@ -1407,6 +1407,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
+        elseif kw == "NOAUTOES"; s.control.lsprut = false  # disable automatic establishment (incl. auto stump-sprouting); estab.f LFLAG
+        elseif kw == "NOSPROUT"; s.control.lsprut = false  # disable stump sprouting (esin.f opt 27), standalone form
         elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword
         elseif kw == "SPGROUP"; kw_spgroup!(s, rec, kr)   # species group: name + next-record species list
         elseif kw == "COMPUTE"; kw_compute!(s, rec, kr)   # event-monitor variable block (NAME = expr … END)

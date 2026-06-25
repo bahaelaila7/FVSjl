@@ -313,7 +313,7 @@ function Control()
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
         ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
-        false, 1f0, 1f0, CutRecord[],                           # lsprut, sprout_smult, sprout_hmult, cut_log
+        true, 1f0, 1f0, CutRecord[],                            # lsprut (FVS esinit.f:50 default ON; NOAUTOES/NOSPROUT turn it off), sprout_smult, sprout_hmult, cut_log
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)

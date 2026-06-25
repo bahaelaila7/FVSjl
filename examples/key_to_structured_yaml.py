@@ -15,10 +15,39 @@ SCHEMA = {
   'SITECODE':[(1,'site_species','i'),(2,'site_index','f')],
   'INVYEAR': [(1,'year','i')],
   'NUMCYCLE':[(1,'cycles','i')],
-  'THINBBA': [(1,'year','i'),(2,'residual_basal_area','f'),(3,'cut_efficiency','f'),
-              (4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
-  'THINSDI': [(1,'year','i'),(2,'residual_sdi','f'),(3,'cut_efficiency','f'),
-              (4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'TIMEINT': [(1,'cycle','i'),(2,'length','i')],
+  'CYCLEAT': [(1,'year','i')],
+  'MANAGED': [(1,'year','i')],
+  'TFIXAREA':[(1,'area','f')],
+  'NUMTRIP': [(1,'count','i')],
+  'THINBBA': [(1,'year','i'),(2,'residual_basal_area','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINABA': [(1,'year','i'),(2,'residual_basal_area','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINBTA': [(1,'year','i'),(2,'residual_tpa','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINATA': [(1,'year','i'),(2,'residual_tpa','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINSDI': [(1,'year','i'),(2,'residual_sdi','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINCC':  [(1,'year','i'),(2,'residual_ccf','f'),(3,'cut_efficiency','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'species','i'),(7,'plot','i')],
+  'THINDBH': [(1,'year','i'),(2,'dbh_min','f'),(3,'dbh_max','f'),(4,'cut_efficiency','f'),(6,'residual_tpa','f'),(7,'species','i')],
+  'BAIMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
+  'HTGMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
+  'CRNMULT': [(1,'year','i'),(2,'species','i'),(3,'multiplier','f')],
+  'REGDMULT':[(1,'year','i'),(2,'species','i'),(3,'multiplier','f')],
+  'REGHMULT':[(1,'year','i'),(2,'species','i'),(3,'multiplier','f')],
+  'MORTMULT':[(1,'year','i'),(2,'species','i'),(3,'multiplier','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
+  'FIXMORT': [(1,'year','i'),(2,'species','i'),(3,'rate','f'),(4,'dbh_min','f'),(5,'dbh_max','f'),(6,'option','i')],
+  'FIXDG':   [(1,'year','i'),(2,'species','i'),(3,'value','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
+  'FIXHTG':  [(1,'year','i'),(2,'species','i'),(3,'value','f'),(4,'dbh_min','f'),(5,'dbh_max','f')],
+  'BAMAX':   [(1,'bamax','f')],
+  'SDIMAX':  [(1,'species','i'),(2,'sdimax','f'),(5,'pct_lo','f'),(6,'pct_hi','f')],
+  'SDICALC': [(1,'method','i')],
+  'FERTILIZ':[(1,'year','i'),(2,'nitrogen','f')],
+  'SETSITE': [(1,'year','i'),(2,'habitat','s'),(3,'bamax','f'),(4,'species','i'),(5,'site_index','f'),(6,'si_flag','i'),(7,'sdimax','f')],
+  'RANNSEED':[(1,'seed','i')],
+  'NOCALIB': [(1,'species','i')],
+  'DGSTDEV': [(1,'value','f')],
+  'PLANT':   [(1,'year','i'),(2,'species','i'),(3,'tpa','f'),(4,'survival_pct','f'),(5,'age','i'),(6,'height','f'),(7,'shade','f')],
+  'NATURAL': [(1,'year','i'),(2,'species','i'),(3,'tpa','f'),(4,'survival_pct','f'),(5,'age','i'),(6,'height','f'),(7,'shade','f')],
+  'ESTAB':   [(1,'disturbance_date','i')],
+  'VOLEQNUM':[(1,'species','i'),(2,'equation','i')],
 }
 NOPARAM = {'TREEDATA','PROCESS','STOP'}
 
@@ -42,6 +71,9 @@ def main(path):
         ln = lines[i]; name = ln[:8].strip().upper()
         if not name:
             i += 1; continue
+        stripped = ln.strip()
+        if stripped and not stripped[0].isalpha():   # free-form line (e.g. an IF condition)
+            out.append('  - raw: "%s"' % stripped.replace('"','\\"')); i += 1; continue
         if name == 'STDIDENT':
             ident = lines[i+1].strip() if i+1 < len(lines) else ''
             out.append('  - STDIDENT:'); out.append('      id: "%s"' % ident); i += 2; continue
@@ -64,7 +96,7 @@ def main(path):
             out.append('  - %s:' % name)
             out += params if params else ['      {}']
             i += 1; continue
-        out.append('  - %s: {}  # (no schema)' % name); i += 1
+        out.append('  - %s: {}' % name); i += 1
     return '\n'.join(out) + '\n'
 
 print(main(sys.argv[1]), end='')
