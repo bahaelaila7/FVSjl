@@ -45,6 +45,9 @@ include("variants/southern/small_tree_growth.jl")
 include("variants/southern/crown_ratio.jl")
 include("variants/southern/mortality.jl")
 
+# --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
+include("variants/northeast/northeast.jl")
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
@@ -93,7 +96,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, AbstractVariant, variant_code
+export StandState, Southern, Northeast, AbstractVariant, variant_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
