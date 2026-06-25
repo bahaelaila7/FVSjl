@@ -490,3 +490,12 @@ carbon_jenkins DDW bound):
 So the FFE DDW crown-lift model is correct (every piece verified); making it bit-exact in the report
 needs (a) the decay-window D pinned via a carbon_snt FMCADD dump, and (b) per-stand growth bit-exactness
 (carbon_jenkins is gated on E). Reverted the wiring; the X-verification stands.
+
+### Semantic note: carbon-report DDW = CWD sizes 1-6 (not 1-9)
+Confirmed in the Fortran: the carbon report's V(6)=BIODDW (fmcrbout.f:148) = SMALL2+LARGE2 (fmdout.f:
+281), and SMALL2 = Σ CWD(3,ISZ,·,5) ISZ 1-3, LARGE2 = Σ CWD(3,JSZ,·,5) JSZ 4-6 — i.e. woody size classes
+1-6 only (≤20"). The >20" classes (7-9) are NOT in the carbon-report DDW. FVSjl's `down_wood_carbon`
+sums `cwd[1:9,:,:]` — equal on the test stands (7-9 are empty there) but a latent over-count for stands
+with large down logs. FIX (when a large-wood validating stand exists): sum `cwd[1:6,:,:]`. Left unchanged
+for now because it is unvalidatable on the available bit-exact-growth stands (carbon_snt/carbon_jenkins
+have no >20" wood), per "design tests to the semantics; don't change what a test can't exercise."
