@@ -13,12 +13,18 @@ bdft 1633. The cycle-0 row needs only **tree parse + density + volume** (no grow
 1. **Tolerant loader — DONE.** `load_species_coefficients` now treats per-subsystem/FFE CSVs as optional
    (empty if absent) so a variant-in-progress loads with what it has; SN unaffected (all files present,
    suite 4392+10). **NE now loads its 108 species.**
-2. **`MAXSP=90` is Southern-baked (NEXT architectural blocker).** Every per-species array (`plot.sp_*`,
-   the coefficient vectors) is sized `MAXSP=90`; NE has **108**. The `for sp in 1:MAXSP` loops index the
-   coefficient vectors, so simply bumping `MAXSP=108` would `BoundsError` on SN (its vectors are length 90)
-   unless SN's per-species data is padded to 108 — OR `MAXSP` becomes per-variant (dynamic). Either is
-   SN-bit-exactness-critical (the `1:MAXSP` calibration/crown/site loops must still skip the empty
-   91-108 slots for SN). Needs a careful, suite-validated design pass before any NE growth can run.
+2. **`MAXSP=90` is Southern-baked (NEXT architectural blocker — ATTEMPTED, harder than it looks).**
+   Every per-species array (`plot.sp_*`, the coefficient vectors) is sized `MAXSP=90`; NE has **108**.
+   **Attempted the obvious fix** (bump `MAXSP=108` + zero-pad SN's coefficient/code vectors to 108) and
+   it **broke SN in 57 tests** — and not subtly: a `.sum` row came out TPA `0` (vs 536) while SDI was
+   `189` (vs 160) in the SAME row, i.e. a structural/column/count coupling shifted, not just an
+   out-of-bounds. So `MAXSP` is wired into SN behavior more deeply than array capacity (some `1:MAXSP`
+   loop's iteration count or a MAXSP-derived quantity feeds an SN result). **Reverted** to keep SN green
+   (4392+10). CONCLUSION: the generalization is a genuine, careful refactor — each of the 57 couplings
+   must be traced, and the right design is almost certainly **per-variant species count** (a `nspecies(v)`
+   the shared loops iterate, with arrays sized to the MAXSP capacity) rather than a blanket bump. This is
+   its own validated chunk and the hard gate before any NE growth (`site_setup!`/DG/mortality) can run on
+   net01 — they all touch per-species arrays.
 3. **NE site model is structurally different** — `ne/sitset.f` converts SI between species via a 28×28
    `SICOEF` matrix + the `IPOINT` group map (extracted), not SN's `site_species`/`master_group`. So
    `site_setup!(::Northeast)` is a genuine port, not a CSV reshape. (NE uses Zeide SDI like SN —
