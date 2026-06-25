@@ -50,3 +50,19 @@ const _SNT01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test di(stand_top_height(s)) == 63                    # baseline 63  — BIT-EXACT
     end
 end
+
+@testset "no silently-ignored keywords in the canonical SN scenarios (anti-silent-gap guard)" begin
+    # Every keyword in snt01.key / sn.key must be either dispatched or a recognized KNOWN_NOOP — never
+    # silently ignored. This guard caught YARDLOSS (an active gap that scaled removed merch volume).
+    for key in (_SNT01_KEY, "/workspace/ForestVegetationSimulator/tests/FVSsn/sn.key")
+        if !isfile(key)
+            @test_skip "$(basename(key)) not available"
+        else
+            unrec = Set{String}()
+            for s in FVSjl.each_stand(key)
+                union!(unrec, s.control.unrecognized_keywords)
+            end
+            @test isempty(unrec)            # no SN-relevant keyword is silently dropped
+        end
+    end
+end

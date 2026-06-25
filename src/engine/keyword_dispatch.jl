@@ -1455,7 +1455,10 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant
         else
-            # unrecognized keyword — ignored for now (handlers added per chunk)
+            # unrecognized keyword — record it so it can't hide as a SILENT gap (YARDLOSS was one such
+            # gap in snt01.key/sn.key). Surfaced via s.control.unrecognized_keywords for tests/diagnostics.
+            # Only plausible keyword NAMES (alphabetic first char) — not stray numeric data-record tokens.
+            (!isempty(kw) && isletter(first(kw))) && push!(s.control.unrecognized_keywords, kw)
         end
     end
 end
