@@ -633,3 +633,17 @@ KSZ term). So FVSjl's `down_wood_carbon` summing `cwd[1:9]` is ALREADY correct �
 nearly made a wrong "fix"). The carbon_snt DDW residual (under at 2000/2005) is therefore purely the
 snag-bole falldown → down-wood detail, not a size-range issue. Verified by re-reading the Fortran before
 changing — the methodology catching a wrong assumption.
+
+### DDW residual DEFINITIVELY characterized (3-point dump + restructure test) — it's FMCADD additions, NOT timing
+The carbon_snt 3-point DDW(1-9) dump (instrumented fmmain.f) shows the Fortran's FMCADD ADDITIONS are
+large at the mortality boundaries (+1.11/+1.53/+2.25 t/ac at 1995/2000/2005) while FMCWD net DECAYS
+(Δfall −0.45 to −0.99 — the snag-bole falldown to CWD is SMALL, decay dominates). The report reads the
+year-(boundary−1) value (carbon DDW 8.4 mt/ha @2000 = 7.5 t/ac = the year-1999 dump).
+TESTED the FFE-after-grow restructure (cwd2b in-cycle, no crown-lift): DDW stayed UNDER (7.0/9.1 vs
+8.4/11.4) AND Stand-Dead DROPPED (the crown moved standing→down). So the cwd2b crown is SMALL in FVSjl
+and the timing was NOT the issue — the FMCADD additions are genuinely UNDER-magnitude. ⇒ The pre-grow
+version already shipped (Stand-Dead tracking, DDW bounded under) is strictly BETTER; the restructure is
+a regression for Stand-Dead. The remaining DDW residual is a per-tree FMCADD-addition magnitude gap
+(likely the mortality-crown cwd2b scheduling vs the Fortran's larger crown weight for these trees, or
+the snag-bole cone-taper falldown in fmcwd.f vs FVSjl's single-size-class bole) — fine-grained, needs a
+per-tree FMCADD/cwd2b dump. Reverted the restructure. The shipped pre-grow Stand-Dead-tracking stands.
