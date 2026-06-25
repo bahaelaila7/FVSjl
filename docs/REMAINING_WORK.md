@@ -100,3 +100,12 @@ remainder. That is exactly the `grow_cycle!` hot-path wiring of `ffe_fuel_update
 crown snapshot) — the integration step already on the list, now with the exact target behavior pinned.
 A coupled refactor (touches the validated fire snag path via fmburn!); do it behind test_fire.jl, not
 an end-of-session rush. Then the `.out` Stand-Carbon-Report writer.
+
+### Update — Stand-Dead column now TRACKS the Fortran (input snags wired into the report)
+The FFE carbon report's Stand-Dead now reconciles within ~0.7 on carbon_snt (3.9/4.8/5.7/10.2 vs Fortran
+3.8/4.4/5.4/9.5) via three landed fixes: (1) age-aware snag falldown (update_snags! ages each snag by
+current−deathyr, FMSNAG); (2) mortality/input-snag death-dating (grow_cycle! already runs update_snags!
+before mortality; input snags dated IY(1)−FINTM so they fall from inventory); (3) ffe_seed_input_snags!
+wired into write_carbon_report (no-op without input dead records). So on a bit-exact-growth stand the
+carbon report is now bit-exact in 6/9 columns + Stand-Dead TRACKING; the ONE remaining is the
+post-mortality DDW crown-lift (verified bit-exact, E-gated for the LP growth-tail stands).

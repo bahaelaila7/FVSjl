@@ -192,6 +192,9 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
     fs = stand.fire
+    # seed the inventory snags from the input dead-tree records (no-op when there are none); the
+    # per-cycle snag falldown then runs inside grow_cycle! (update_snags!, simulate.jl:211).
+    fs !== nothing && fs.active && ffe_seed_input_snags!(stand)
     for c in 0:ncyc
         compute_density!(stand)
         # Refresh cover type + live herb/shrub fuels (FLIVE) from the CURRENT (post-growth) stand at
