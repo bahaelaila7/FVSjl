@@ -841,3 +841,17 @@ standalone path (DDW@2005 bit-exact 11.4, Aboveground/Below-Live bit-exact). 434
 run integration test). So the FFE carbon extension is now a true drop-in: a CARBREPT key produces the
 report in a normal run. Remaining: the fine one-cycle crown-lift decay-lag at intermediate cycles; the
 FFE-fuel CARBCALC=0 method (only JENKINS=1 implemented); DBS FVS_Carbon table (binary-blocked).
+
+### CARBCALC=0 (FFE-fuel carbon method): BINARY-BLOCKED (oracle is degenerate)
+Per the methodology, built the oracle FIRST (CARBCALC 0.0 1.0 variant of carbon_snt, ran the Fortran)
+before implementing. Result: the FFE method produces ZERO live pools (Aboveground/Merch/Below-Live/
+Below-Dead/Stand-Dead all 0.0) and an altered decay-only DDW (5.8/3.7/2.3/1.5) in the available stripped
+binary — BIOLIVE/FMSVL2 are not producing values. Field check confirms it's not a keyword error
+(ARRAY(1)=ICMETH=0 FFE, ARRAY(2)=ICMETRC=1 metric, fmin.f:2098-2099). So CARBCALC=0 has NO faithful
+oracle here and joins the binary-blocked bucket (like the DBS tables) — implementing it would violate
+"never rely on tests alone". The semantics ARE scoped for when a fuller binary is available:
+  V(1) Aboveground = BIOLIVE = Σ[foliage CROWNW(0) + woody CROWNW(1-5) + OLDCRW(1-5)]·P2T·FMPROB
+                              + Σ stem(VT·V2T)·FMPROB        (fmdout.f:225-258, BIOLIVE=fmdout.f:279)
+  V(2) Merch       = Σ FMPROB·VT·V2T  (FMSVL2 stem cubic × V2T; FVSjl _fm_cuft already provides VT)
+  roots + all dead pools = identical to JENKINS (already implemented).
+The DEFAULT + validatable method (CARBCALC=1 JENKINS) is fully ported, validated, and live-integrated.
