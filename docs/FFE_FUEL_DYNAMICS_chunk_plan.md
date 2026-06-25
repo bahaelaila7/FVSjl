@@ -931,3 +931,13 @@ writers + wired into run_keyfile for any SIMFIRE stand with DBS (no CARBREPT nee
 and assert: capture matches FireResult, Σ clskil = killed, total≥killed per class, 14" tree → class 3,
 round-trips. 4396 green. So SEVEN of the FFE DBS tables now emit (5 per-cycle + BurnReport/Mortality/
 Consumption). Remaining: FVS_PotFire (FMPOFL crown-fire sub-model) + FVS_Hrv_Carbon (cut+CARBREPT).
+
+### DBS boundary reached: 7/9 FFE tables ported (all value-grounded); 2 need distinct sub-models
+PORTED (value-grounded reuses of validated FFE quantities): FVS_Carbon, FVS_Fuels, FVS_SnagSum,
+FVS_Down_Wood_Vol, FVS_Down_Wood_Cov (per-cycle) + FVS_BurnReport, FVS_Mortality, FVS_Consumption
+(fire-event, from the fmburn! capture). REMAINING TWO each require a NEW sub-model (not a reuse):
+  - FVS_PotFire — the FMPOFL potential-fire-behavior model (crown-fire Torch/Crown indices, canopy bulk
+    density, dual severe/moderate scenarios, mortality + smoke).
+  - FVS_Hrv_Carbon — the harvested-wood-products carbon-FATE model (Products/Landfill/Energy/Emissions
+    decay pools, Smith et al.); only Merch_Carbon_Removed is a direct reuse, the product pools are the model.
+These are distinct chunks to port faithfully-from-source with their own validation, not blind stubs.
