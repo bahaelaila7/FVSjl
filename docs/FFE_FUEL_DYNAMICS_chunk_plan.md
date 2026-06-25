@@ -499,3 +499,22 @@ sums `cwd[1:9,:,:]` — equal on the test stands (7-9 are empty there) but a lat
 with large down logs. FIX (when a large-wood validating stand exists): sum `cwd[1:6,:,:]`. Left unchanged
 for now because it is unvalidatable on the available bit-exact-growth stands (carbon_snt/carbon_jenkins
 have no >20" wood), per "design tests to the semantics; don't change what a test can't exercise."
+
+### FFE-update-after-grow restructure — edge cases identified (the remaining integration's hazards)
+The restructure (move the FFE annual loop post-grow so the crown-lift gets natural in-loop decay + the
+post-grow X) is the documented remaining DDW integration. Beyond the verified components, these coupled
+edge cases must be handled (identified this session so the eventual integration is de-risked):
+  1. **Regen-tree crown in the snapshot loop** — litterfall/breakage use the cycle-START crown (FVS
+     records crown at previous cycle end). A naive "use prev_* snapshot" gates on prev_height>0 and so
+     would SKIP trees regenerated this cycle, dropping their litterfall ⇒ Floor regresses. The loop must
+     use the snapshot crown for established trees but the current (birth) crown for new regen.
+  2. **cwd2b / Stand-Dead death-dating** — moving the loop post-grow flows THIS cycle's mortality crown
+     within the cycle (the Fortran does too: GRINCR→FMSADD→annual loop), so Stand-Dead becomes the
+     un-fallen remainder. That only reconciles if the deaths are dated as FVS does (cycle_end−1, crown
+     flows from YNEXTY) — else the crown over- or under-flows (the earlier grow_flow Stand-Dead break).
+  3. **carbon_jenkins E-tail** — globally wiring the restructure overshoots the carbon_jenkins DDW
+     (LP growth tail amplifies the crown-lift 1.45×), so its DDW test must move to an E-tail tolerance
+     while carbon_snt asserts bit-exact.
+  4. **input-snag age** for the falldown + the BIOROOT pre-inventory decay (Below-Dead 1.5 vs 1.0).
+So the FFE dead-pool finish is a careful multi-piece integration of verified parts + these four coupled
+edge cases — a focused effort, validatable bit-exact on carbon_snt, not a single-turn change.
