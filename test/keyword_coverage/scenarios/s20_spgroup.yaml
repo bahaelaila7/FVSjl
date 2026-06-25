@@ -2,7 +2,7 @@
 # Numbers are numbers; strings are quoted. See README for the schema.
 keywords:
   - STDIDENT:
-      id: "S20 SPGROUP + species thin"
+      id: "S20 SPGROUP group thin (THINDBH on SM+HI)"
   - NOAUTOES: {}
   - DESIGN:
       number_of_plots: 11
@@ -23,14 +23,13 @@ keywords:
       cycles: 5
   - ECHOSUM: {}
   - SPGROUP: {}
-  - WO RO BO: {}
-  - THINBBA:
+  - SM HI: {}
+  - THINDBH:
       year: 2005
-      residual_basal_area: 90
-      cut_efficiency: 1
       dbh_min: 0
       dbh_max: 99
-      species: -1
+      cut_efficiency: 1
+      residual_tpa: 100
   - TREEFMT:
       format: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
   - TREEDATA: {}

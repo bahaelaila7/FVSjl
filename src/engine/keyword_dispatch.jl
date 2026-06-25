@@ -786,15 +786,23 @@ end
 _defect_vals(v) = (Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[6]), Float32(v[7]))
 
 # MCDEFECT (sdefet.f, IACTK 215) — per-species CUBIC defect curve (CFDEFT). Fields: 1=date,
-# 2=species, 3..7 = defect fractions at DBH 5/10/15/20/25". Applied immediately (undated path,
-# the common case — affects cycle 0 like sdefet.f's "date not defined" branch; dated deferred).
-kw_mcdefect!(s::StandState, rec::KeywordRecord) =
-    _set_defect!(s.control, s.control.sp_cf_defect, nint(rec.values[2]), _defect_vals(rec.values))
-
-# BFDEFECT (sdefet.f, IACTK 216) — per-species BOARD-FOOT defect curve (BFDEFT). Same fields;
-# reduces board feet AND sawtimber cubic by IBDF% in the volume path.
-kw_bfdefect!(s::StandState, rec::KeywordRecord) =
-    _set_defect!(s.control, s.control.sp_bf_defect, nint(rec.values[2]), _defect_vals(rec.values))
+# 2=species, 3..7 = defect fractions at DBH 5/10/15/20/25". sdefet.f:84-120: a DATED card is
+# scheduled (OPNEW) to take effect at that cycle; an UNDATED card changes the terms now.
+# `_sched_defect!` shares that gate with BFDEFECT (IACTK 216).
+function _sched_defect!(s::StandState, rec::KeywordRecord, icflag::Int32, immediate_mat)
+    vals = _defect_vals(rec.values); isp = nint(rec.values[2])
+    if rec.present[1] && rec.values[1] > 0f0          # dated → defer to the cycle (sdefet.f OPNEW)
+        push!(s.control.volume_events,
+              ScheduledActivity(Int32(nint(rec.values[1])), icflag,
+                  (Float32(isp), vals[1], vals[2], vals[3], vals[4], vals[5]), 0f0))
+    else                                               # undated → change the terms now
+        _set_defect!(s.control, immediate_mat, isp, vals)
+    end
+end
+kw_mcdefect!(s::StandState, rec::KeywordRecord) = _sched_defect!(s, rec, Int32(215), s.control.sp_cf_defect)
+# BFDEFECT (sdefet.f, IACTK 216) — per-species BOARD-FOOT defect curve (BFDEFT); reduces board
+# feet AND sawtimber cubic by IBDF% in the volume path.
+kw_bfdefect!(s::StandState, rec::KeywordRecord) = _sched_defect!(s, rec, Int32(216), s.control.sp_bf_defect)
 
 # Set the log-linear form-model coefficients B0/B1 (CFLA/BFLA) for a species (sdefln.f): field 1 =
 # species (alpha/FIA/−group), field 2 = B0 (intercept), field 3 = B1 (slope). `b0`/`b1` are the

@@ -298,10 +298,16 @@ function apply_volume_overrides!(s::StandState; fint::Float32 = 5f0)
             _set_merch_sp!(c, c.sp_scf_dbhmin, isp, ev.params[5])
             _set_merch_sp!(c, c.sp_scf_topd,   isp, ev.params[6])
             _set_merch_sp!(c, c.sp_scf_stump,  isp, ev.aux)
-        else                               # BFVOLUME — board-foot merch standards
+        elseif ev.icflag == Int32(218)    # BFVOLUME — board-foot merch standards
             _set_merch_sp!(c, c.sp_bf_dbhmin,  isp, ev.params[2])
             _set_merch_sp!(c, c.sp_bf_topd,    isp, ev.params[3])
             _set_merch_sp!(c, c.sp_bf_stump,   isp, ev.params[4])
+        elseif ev.icflag == Int32(215)    # MCDEFECT — dated cubic defect curve (sdefet.f)
+            _set_defect!(c, c.sp_cf_defect, isp,
+                         (ev.params[2], ev.params[3], ev.params[4], ev.params[5], ev.params[6]))
+        elseif ev.icflag == Int32(216)    # BFDEFECT — dated board-foot defect curve
+            _set_defect!(c, c.sp_bf_defect, isp,
+                         (ev.params[2], ev.params[3], ev.params[4], ev.params[5], ev.params[6]))
         end
     end
     return s
