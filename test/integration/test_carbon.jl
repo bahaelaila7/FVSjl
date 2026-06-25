@@ -203,6 +203,36 @@ end
     end
 end
 
+@testset "Stand Carbon Report — emitted by the LIVE run_keyfile path (CARBREPT integration)" begin
+    # The CARBREPT keyword (inside the FMIN block) must drive the carbon report from the SAME main
+    # simulation (write_sum_file) — not a separate re-simulation — and append it to the .out. This proves
+    # the drop-in path: a CARBREPT .key produces the report in a normal run. Values must equal the
+    # standalone write_carbon_report (same single simulation) and track the Fortran .out.
+    key = joinpath(_CDIR, "carbon_snt.key"); sav = joinpath(_CDIR, "carbon_snt.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_snt scenario not available"
+    else
+        out = FVSjl.run_keyfile(key)
+        @test occursin("STAND CARBON REPORT", out)                 # the report block is in the .out
+        @test occursin("YEAR    Total    Merch", out)              # column header present
+        ft = Dict(parse(Int, split(strip(l))[1]) => parse.(Float64, split(strip(l)))
+                  for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l)))
+        # slice from the carbon-report header so we don't pick up the .sum table rows (also year-led)
+        olines = split(out, '\n')
+        ci = findfirst(l -> occursin("STAND CARBON REPORT", l), olines)
+        rows = [parse.(Float64, split(strip(l)))
+                for l in olines[ci:end] if occursin(r"^(19|20)\d\d ", strip(l)) &&
+                    haskey(ft, parse(Int, split(strip(l))[1])) && length(split(strip(l))) >= 11]
+        @test !isempty(rows)
+        for mv in rows
+            fv = ft[Int(mv[1])]
+            @test mv[2] ≈ fv[2] atol = 0.1          # Aboveground Total — BIT-EXACT
+            @test mv[4] ≈ fv[4] atol = 0.1          # Belowground Live  — BIT-EXACT
+            @test abs(mv[7] - fv[7]) <= 1.3         # DDW tracks (crown-lift landed; final cycle bit-exact)
+        end
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,

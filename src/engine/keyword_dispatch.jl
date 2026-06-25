@@ -1217,6 +1217,10 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             v = r.values
             r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
             r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : 0f0)  # CRBURN = FPRMS(3)·.01
+        elseif k == "CARBREPT"                             # request the FFE Stand Carbon Report (fmcrbout.f)
+            s.control.carbon_report_on = true
+        elseif k == "CARBCALC"                             # carbon method 0=FFE-fuel / 1=JENKINS (default)
+            r.present[1] && (s.control.carbon_method = Int32(nint(r.values[1])))
         end
     end
     return

@@ -219,3 +219,22 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
     end
     return io
 end
+
+"""
+    write_carbon_report_block(io, rows; stand_id="", mgmt_id="NONE") -> IO
+
+Write the Stand Carbon Report header block + the already-formatted per-cycle `rows` (each a
+`carbon_report_row` string) to `io`, byte-for-byte as the Fortran `.out`. Used when the rows were
+collected during the main simulation loop (`write_sum_file`'s `carbon_collect`) rather than re-simulated.
+"""
+function write_carbon_report_block(io::IO, rows::AbstractVector;
+                                   stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE")
+    println(io, _CARBON_SEP)
+    for h in _CARBON_HEADER; println(io, h); end
+    println(io, "STAND ID: ", rpad(strip(stand_id), 26), "    MGMT ID: ", strip(mgmt_id))
+    println(io, _CARBON_SEP)
+    for h in _CARBON_COLHDR; println(io, h); end
+    println(io, _CARBON_SEP)
+    for r in rows; println(io, r); end
+    return io
+end

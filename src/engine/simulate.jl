@@ -307,11 +307,15 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         tl_cycles = tl_on ? Tuple[] : nothing
         cp_rows = cp_on ? Tuple[] : nothing
         cl_cycles = cl_on ? Tuple[] : nothing
+        # FFE Stand Carbon Report (CARBREPT): collect a row per cycle from this same simulation.
+        carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? String[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
-                       cutlist_collect = cl_cycles)
+                       cutlist_collect = cl_cycles, carbon_collect = carb_rows)
+        carb_rows === nothing ||
+            write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
         if has_db
             case += 1
             caseid = string(sid, "-", case)

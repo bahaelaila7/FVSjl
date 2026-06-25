@@ -78,10 +78,19 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         date::AbstractString = "", time::AbstractString = "", header::Bool = true,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
                         compute_collect::Union{Nothing,Vector} = nothing,
-                        cutlist_collect::Union{Nothing,Vector} = nothing)
+                        cutlist_collect::Union{Nothing,Vector} = nothing,
+                        carbon_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
+    # FFE Stand Carbon Report (CARBREPT): drive the per-cycle fuel dynamics on THIS same simulation and
+    # collect a report row each cycle. Gated on an active FireState so non-FFE / fire-only stands are
+    # untouched (the carbon report's fuel accumulation must not perturb a SIMFIRE stand's fuels).
+    carbon_on = carbon_collect !== nothing && s.fire !== nothing && s.fire.active
+    if carbon_on
+        ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
+        fill!(s.fire.crown_lift_annual, 0f0)
+    end
     g = s.plot.gross_space
     sw = sample_wt === nothing ? g : sample_wt
     if header
@@ -97,6 +106,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         r = summary_row(s; period = per, total_removed_merch = cum_rem_merch)
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
         cycle_hook === nothing || cycle_hook(s, r.year, per)
+        # FFE Stand Carbon Report row (FMCRBOUT) — emitted BEFORE this cycle's fuel loop + growth, on the
+        # post-growth/pre-fuel stand (matching FVS: FMCRBOUT runs before the annual FMSNAG/FMCWD/FMCADD loop).
+        if carbon_on
+            compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
+            push!(carbon_collect, carbon_report_row(s, r.year))
+        end
         if !last
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
@@ -122,9 +137,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_qmd = round(stand_qmd(s); digits = 1)
                 cum_rem_merch += rem.mcuft / g
             end
+            carbon_on && ffe_fuel_update!(s, per)      # FFE annual fuel loop BEFORE growth (report→fuel→grow)
             gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)
+            if carbon_on                                # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
+                compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
+            end
         end
         write_sum_row(io, r)
         collect_rows === nothing || push!(collect_rows, r)

@@ -824,3 +824,20 @@ crown-lift lag in the current order is actually the closer model — the remaini
 the single intermediate cycle (2000) is a fine crown-lift decay-interleave effect, NOT a structural bug,
 and reordering to "fix" 2000 regresses 2005. Conclusion: keep the current structure; crown-lift LANDED,
 final cycle bit-exact, dead pools within ~1.2 t/ha. No code change.
+
+### LANDED: CARBREPT now emitted by the LIVE run_keyfile path (drop-in completeness)
+The Stand Carbon Report is now produced during a normal simulation run (not just the standalone
+write_carbon_report test path). Three pieces:
+  1. kw_fmin! now handles CARBREPT/CARBCALC INSIDE the FMIN block (they were being read-to-END and
+     dropped, so carbon_report_on stayed false) → sets s.control.carbon_report_on / carbon_method.
+  2. write_sum_file drives the per-cycle FFE fuel dynamics (ffe_seed_input_snags! + ffe_fuel_update! +
+     compute_crown_lift! + snapshot_ffe_oldcrown!) on the SAME single simulation, gated on an active
+     FireState + carbon_collect, in the faithful report→fuel→grow order; collects a carbon_report_row
+     each cycle. NO double-simulation; non-FFE / fire-only (SIMFIRE, no CARBREPT) stands are untouched.
+  3. run_keyfile passes carbon_collect when carbon_report_on and appends write_carbon_report_block to
+     the .out (byte-exact header + the collected rows).
+Validated: run_keyfile("carbon_snt.key") .out now contains the carbon report with values equal to the
+standalone path (DDW@2005 bit-exact 11.4, Aboveground/Below-Live bit-exact). 4346 tests green (new live-
+run integration test). So the FFE carbon extension is now a true drop-in: a CARBREPT key produces the
+report in a normal run. Remaining: the fine one-cycle crown-lift decay-lag at intermediate cycles; the
+FFE-fuel CARBCALC=0 method (only JENKINS=1 implemented); DBS FVS_Carbon table (binary-blocked).
