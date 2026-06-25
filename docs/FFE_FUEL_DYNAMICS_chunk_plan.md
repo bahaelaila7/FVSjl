@@ -711,3 +711,27 @@ This moves carbon in exactly the measured-residual direction (my SD is +0.7 over
 divergence (-1.7), which also has a decay-interplay component — but it is the largest single piece and
 the right next upstream step. Estimated 1-2 focused sessions (height state + FMSNGHT first, validate SD
 shrink vs Fortran; then CWD2 routing, validate DDW).
+
+### CRITICAL CORRECTION: SN snags do NOT lose height (HTX=0) — do NOT implement FMSNGHT/FMSVOL
+fmvinit.f:1089 sets `HTX(I,J) = 0.0` for EVERY species and all 4 indices ("no height loss"); HTR1/HTR2
+=0.01 only as the can't-be-zero floor. So FMSNGHT's rate = HTR·HTX·SFTMULT = 0 ⇒ `HTSNEW=HTCURR` always
+(snags keep their death height; FMSVOL at fmdout.f:141/146 is always called at the constant death
+height). FVSjl's STATIC snag bole is therefore FAITHFUL for SN — the previously-"scoped next chunk"
+(FMSNGHT/FMSVOL/CWD2 height-loss) is a NO-OP here and MUST NOT be implemented. (Reading fmvinit.f before
+coding saved 1-2 wasted sessions — the methodology working.)
+
+### CONFIRMED: the Fortran Stand-Dead DOES include the CWD2B crown (fmdout.f:167-184)
+TOTSNG (Stand-Dead) = snag bole (SNVIS+SNVIH)·V2T  +  P2T·CWD2B over ALL sizes 0-5 (ISZ 0-3 into
+TOTSNG1, ISZ+3=4,5 into TOTSNG2). So FVSjl including snag_crown_carbon (=cwd2b) in Stand-Dead is
+correct, and the SD composition matches. The dead-pool residual is therefore NOT the bole and NOT the
+SD composition — it is purely the CWD2B→CWD (DDW) FLOW TIMING (crown sits in cwd2b=SD until it flows)
+plus a DDW-decay component. Prime suspect: per-cycle vs per-year flow cadence of the cwd2b buckets.
+
+### Residual further narrowed to DDW DECAY (not cadence, not ordering-conserved)
+- cwd2b flow cadence is CORRECT: ffe_fuel_update! runs _cwd2b_fall! nyrs times (once/year).
+- cwd2b does NOT decay while waiting (only fmcwd! decays the fallen cwd) — no buffer mass loss.
+- The earlier in-cycle restructure "dropped Stand-Dead but did NOT fix DDW" ⇒ when the crown DOES
+  reach cwd faster, it then DECAYS away before the report point. So the SD+DDW TOTAL under-run
+  (-1.7 @2005) is a DDW DECAY-RATE interplay: the Fortran's DDW (11.4) holds more than mine (9.0)
+  for the same inputs ⇒ FVSjl's fmcwd! decay is likely too fast for the post-mortality woody classes.
+  NEXT: differential the fmcwd.f per-size/per-decay-class CWD decay rates vs FVSjl's fmcwd! table.
