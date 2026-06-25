@@ -941,3 +941,16 @@ FVS_Down_Wood_Vol, FVS_Down_Wood_Cov (per-cycle) + FVS_BurnReport, FVS_Mortality
   - FVS_Hrv_Carbon — the harvested-wood-products carbon-FATE model (Products/Landfill/Energy/Emissions
     decay pools, Smith et al.); only Merch_Carbon_Removed is a direct reuse, the product pools are the model.
 These are distinct chunks to port faithfully-from-source with their own validation, not blind stubs.
+
+### Both remaining DBS tables CONFIRMED as substantial sub-models with large parameter tables
+- FVS_Hrv_Carbon (fmscut.f:151 + fmchrvout.f:83-103): the harvested-wood-products carbon-FATE model.
+  At each cut, harvested merch carbon is bucketed FATE(product[pulp/saw], group[sw/hw], cut-cycle); each
+  report year it is distributed into In-Use/Landfill/Energy/Emissions by FAPROP(habitat, years-since-cut
+  1..101, fate 1..3, product, hw/sw) — a 5-D ~101-year decay-curve table (Smith et al.). Needs extracting
+  FAPROP into a CSV + the multi-cycle FATE accumulation across cuts. A real sub-model port.
+- FVS_PotFire (fmpofl.f): the potential-fire-behavior model — dual severe/moderate weather, crown-fire
+  Torch/Crown indices (canopy bulk-density profile + Van Wagner/Scott-Reinhardt), dual-scenario mortality
+  + smoke. A real fire-science sub-model.
+CONCLUSION: every value-grounded FFE DBS table (7/9) is ported + tested; the final two are distinct
+sub-models (HWP 101-yr decay table; crown-fire behavior) each warranting a focused port with parameter
+extraction + validation — explicitly NOT rushed blind to pad a table count (methodology principle 2).
