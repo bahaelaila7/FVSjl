@@ -14,6 +14,20 @@
 
 const SDI_EXP = -1.605f0
 const PRETZSCH_SDIK = 0.02483133f0
+
+# Mortality self-thinning trajectory growth (morts.f:225/583/690). FVS runs MORTS
+# *before* GRADD's concave sqrt rescaling, so every SDI/size-cap diameter trajectory
+# uses the 5-yr DG *linearly* extrapolated to FINT years: G = DG_5/BARK · FINT/5.
+# We only retain the sqrt-scaled fint-year growth, so recover DG_5 from it first.
+# Identity at fint=5 ⇒ snt01 and all 5-yr scenarios stay bit-exact.
+@inline function _mort_traj_g(dg_ib_fint::Float32, dbh::Float32, bark::Float32, fint::Float32)
+    fint == 5f0 && return dg_ib_fint / bark   # exact identity — avoid the sqrt roundtrip's 1-ULP noise
+    dib  = dbh * bark
+    ddsf = (dg_ib_fint + dib)^2 - dib * dib   # fint-year inside-bark DDS
+    dds5 = ddsf * (5f0 / fint)                # back to 5-yr DDS
+    dg5  = sqrt(dib * dib + dds5) - dib       # 5-yr inside-bark DG
+    return (dg5 / bark) * (fint / 5f0)        # outside-bark, linear FINT extrapolation
+end
 # Background-mortality coefficients (PMSC/PMD) and SDIMAX defaults live in
 # data/southern/species_coefficients.csv (mort_bkgd_intercept/mort_bkgd_dbh).
 
@@ -206,16 +220,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
         d < dthresh && continue
         pr = t.tpa[i]
         bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-        # morts.f:225 — the SDI self-thinning trajectory uses the 5-yr DG *linearly*
-        # extrapolated to FINT years (G = DG_5/BARK · FINT/5), because MORTS runs
-        # before GRADD applies its concave sqrt rescaling. Recover DG_5 from the stored
-        # fint-year (sqrt-scaled) growth so longer cycles self-thin like FVS. For fint=5
-        # this is the identity (snt01 / all 5-yr scenarios unaffected, bit-exact).
-        dib  = d * bark
-        ddsf = (t.diam_growth[i] + dib)^2 - dib * dib   # fint-year inside-bark DDS
-        dds5 = ddsf * (5f0 / fint)                      # back to the 5-yr DDS
-        dg5  = sqrt(dib * dib + dds5) - dib             # 5-yr inside-bark DG
-        g    = (dg5 / bark) * (fint / 5f0)              # outside-bark, linear FINT extrapolation
+        g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:225 (linear FINT extrap)
         sd2sq += pr * (d * d + 2f0 * d * g + g * g)
         sdq0  += pr * d * d
         sumdr0  += pr * d^1.605f0
@@ -282,7 +287,12 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
                 d = t.dbh[i]; d < dthresh && continue
                 pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
+                # morts.f:583 — FVS uses the linear FINT-extrapolated 5-yr G here too,
+                # but in this *iterative* d10n recompute the linear form amplifies the
+                # DGBND-ordering gap (FVSjl bounds DG at the fint-year, FVS at 5-yr) and
+                # over-thins fast cycles. Kept sqrt until DG is bounded at 5-yr in
+                # diameter_growth.jl; identical at fint=5. See DIVERGENCES.md / line 223.
+                g = t.diam_growth[i] / bark
                 if zeide
                     sdr += pr * (d + g)^1.605f0
                 else
@@ -305,9 +315,9 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             sp = t.species[i]
             (sc[sp, 1] >= 999f0 || trunc(Int, sc[sp, 3]) == 1) && continue
             d = t.dbh[i]
-            # G is the OUTSIDE-bark, period-scaled increment (sn/morts.f:690), same as
-            # the BAMAX BA reconstruction below — NOT the raw inside-bark diam_growth.
-            g = t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)   # cycle growth (already fint-scaled)
+            # G is the OUTSIDE-bark, linearly FINT-extrapolated 5-yr increment
+            # (sn/morts.f:690), same trajectory as the SDI self-thinning calc above.
+            g = t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)
             if (d + g) >= sc[sp, 1]
                 kc = min(t.tpa[i] * sc[sp, 2] * fint / 5f0, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
@@ -326,7 +336,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             for i in 1:n
                 d = t.dbh[i]
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = t.diam_growth[i] / bark   # cycle growth (already fint-scaled in DDS)
+                g = t.diam_growth[i] / bark   # morts.f:714
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]
