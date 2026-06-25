@@ -921,3 +921,13 @@ they need new model infrastructure, so they are distinct larger chunks (scoped h
 So the boundary is principled: all value-grounded (validated-reuse) DBS tables are ported; the rest need
 a new sub-model (FMPOFL crown fire) or an event/harvest collection point + scenario, which is the next
 distinct chunk — to be done faithfully-from-source with its own validation, not blind.
+
+### LANDED: fire-EVENT DBS tables (BurnReport, Mortality, Consumption) from the captured SIMFIRE event
+fmburn! now captures a full burn-event record into FireState.burn_reports: moistures/wind/flame/scorch +
+weighted fuel models (BurnReport), per-DBH-class killed + pre-fire total TPA (LOWDBH 0/5/10/20/30/40/50,
+7 non-cumulative bins) + Bakill (BA, fmfout.f:303) + Volkill (SN merch cubic, fmfout.f:306) (Mortality),
+and the before−after fuel-loadings difference (Consumption, same 22-col layout as FVS_Fuels). Three
+writers + wired into run_keyfile for any SIMFIRE stand with DBS (no CARBREPT needed). Tests run a fire
+and assert: capture matches FireResult, Σ clskil = killed, total≥killed per class, 14" tree → class 3,
+round-trips. 4396 green. So SEVEN of the FFE DBS tables now emit (5 per-cycle + BurnReport/Mortality/
+Consumption). Remaining: FVS_PotFire (FMPOFL crown-fire sub-model) + FVS_Hrv_Carbon (cut+CARBREPT).

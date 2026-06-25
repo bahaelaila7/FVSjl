@@ -337,9 +337,12 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
                 write_dbs_dwd_vol!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_dwd_cov!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             end
-            # FVS_BurnReport: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
+            # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
-                write_dbs_burnreport!(s.control.dbs_out_file, caseid, String(sid), s.fire.burn_reports)
+                br = s.fire.burn_reports
+                write_dbs_burnreport!(s.control.dbs_out_file, caseid, String(sid), br)
+                write_dbs_mortality!(s.control.dbs_out_file, caseid, String(sid), br)
+                write_dbs_consumption!(s.control.dbs_out_file, caseid, String(sid), br)
             end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]

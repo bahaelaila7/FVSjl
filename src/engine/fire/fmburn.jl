@@ -33,6 +33,16 @@ dryness model (1–4), `psburn` percent of the stand burned, `mortcode` 1=FFE mo
 record is in the burned portion; burned records lose `PMORT·TPA` (plus the crown-fire
 share). No-op unless FFE is active.
 """
+# FVS_Mortality DBH class lower bounds (LOWDBH, fmvinit.f:53-59): 7 NON-cumulative bins
+# [0,5) [5,10) [10,20) [20,30) [30,40) [40,50) [50,∞). A tree falls in the class whose lower bound it meets.
+const _FM_LOWDBH = (0f0, 5f0, 10f0, 20f0, 30f0, 40f0, 50f0)
+@inline function _fm_mort_class(d::Float32)::Int
+    @inbounds for c in 1:7
+        d < _FM_LOWDBH[c] && return c - 1
+    end
+    return 7
+end
+
 function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmois::Integer = 1,
                  psburn::Float32 = 100f0, mortcode::Integer = 1, burnseas::Integer = 1,
                  flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0)::FireResult
@@ -56,6 +66,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # scorch height (Van Wagner) from the (weighted) Byram intensity
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
+    # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes)
+    totcls = zeros(Float32, 7); clskil = zeros(Float32, 7)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        c = _fm_mort_class(t.dbh[i]); c >= 1 && (totcls[c] += t.tpa[i])
+    end
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     if mortcode != 0
         @inbounds for i in 1:t.n
@@ -72,16 +88,22 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             killed += curkil
-            killed_ba += curkil * 0.0054542f0 * d * d     # fire-killed basal area (ft²/ac)
-            killed_vol += curkil * t.cuft_vol[i]          # fire-killed total cubic volume (ft³/ac)
+            killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
+            killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
+            c = _fm_mort_class(d); c >= 1 && (clskil[c] += curkil)
             add_snag!(fs, sp, d, curkil, year)         # fire-killed trees become standing snags
         end
     end
-    # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest
+    # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
+    # loadings (FVS_Consumption) are the before−after difference in the FFE fuel pools.
+    fuel_before = ffe_fuel_loadings(s)
     carbon_released = apply_fire_consumption!(fs, mois)
+    fuel_after = ffe_fuel_loadings(s)
+    consumed = NamedTuple{keys(fuel_before)}(map(-, values(fuel_before), values(fuel_after)))
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
           scorch = sch, models = collect(models), killed = killed, killed_ba = killed_ba,
-          killed_vol = killed_vol, released = carbon_released))
+          killed_vol = killed_vol, released = carbon_released,
+          clskil = Tuple(clskil), totcls = Tuple(totcls), consumed = consumed))
     return FireResult(killed, flame, byram, sch, carbon_released)
 end

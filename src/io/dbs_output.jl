@@ -309,6 +309,59 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
     return dbpath
 end
 
+# FVS_Mortality schema (dbsfmmort.f:101-122) — fire-killed vs total TPA by DBH class + BA/vol killed.
+const _FVS_MORTALITY_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Mortality(
+  CaseID text not null, StandID text not null, Year Int null,
+  Killed_class1 real null, Total_class1 real null, Killed_class2 real null, Total_class2 real null,
+  Killed_class3 real null, Total_class3 real null, Killed_class4 real null, Total_class4 real null,
+  Killed_class5 real null, Total_class5 real null, Killed_class6 real null, Total_class6 real null,
+  Killed_class7 real null, Total_class7 real null, Bakill real null, Volkill real null)"""
+
+"Write fire mortality (killed vs total TPA by DBH class + BA/vol killed) to FVS_Mortality (dbsfmmort.f)."
+function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
+    isempty(burns) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_MORTALITY_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 19), ",") * ")")
+        for b in burns
+            vals = Float64[]
+            for c in 1:7; push!(vals, Float64(b.clskil[c]), Float64(b.totcls[c])); end
+            DBInterface.execute(stmt, (caseid, standid, Int(b.year), vals..., Float64(b.killed_ba), Float64(b.killed_vol)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_Consumption schema (dbsfuels.f:58, same 22 cols as FVS_Fuels) — fuel CONSUMED by the fire (tons/ac).
+const _FVS_CONSUMPTION_CREATE = replace(_FVS_FUELS_CREATE, "FVS_Fuels(" => "FVS_Consumption(")
+
+"Write fuel consumed by the fire (before−after loadings) to FVS_Consumption (dbsfuels.f)."
+function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
+    isempty(burns) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_CONSUMPTION_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Consumption VALUES (" * join(fill("?", 22), ",") * ")")
+        for b in burns
+            f = b.consumed
+            DBInterface.execute(stmt, (caseid, standid, Int(b.year),
+                Float64(f.litter), Float64(f.duff), Float64(f.lt3), Float64(f.ge3),
+                Float64(f.s3to6), Float64(f.s6to12), Float64(f.ge12),
+                Float64(f.herb), Float64(f.shrub), Float64(f.surf_total),
+                Float64(f.snag_lt3), Float64(f.snag_ge3), Float64(f.foliage),
+                Float64(f.live_lt3), Float64(f.live_ge3), Float64(f.stand_total),
+                round(Int, f.total_biomass), round(Int, f.consumed), round(Int, f.removed)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """
