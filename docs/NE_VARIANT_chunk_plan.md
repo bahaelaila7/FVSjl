@@ -30,6 +30,24 @@ bdft 1633. The cycle-0 row needs only **tree parse + density + volume** (no grow
    `site_setup!(::Northeast)` is a genuine port, not a CSV reshape. (NE uses Zeide SDI like SN —
    `ne/grinit.f:129 LZEIDE=.TRUE.`; RNG seed 55329, same as SN.)
 
+## ★ FIRST net01 ORACLE VALIDATION — cycle-0 stand state BIT-EXACT
+`net01` cycle-0 now matches `net01.sum.save` exactly: **TPA 536, BA 77, QMD 5.1, TopHt 63**
+(test/integration/test_net01.jl). This validates the whole chain landed: CR-tolerant IO + roster +
+translation + init + MAXSP generalization + SICOEF site model + the shared density. The breakthrough was
+an IO bug: net01.key uses **old-Mac CR-only line endings** (133 CR, 0 LF) → `readline` read it as one
+4192-byte line → total desync; fixed `KeywordReader` to normalize CR/CRLF/LF→LF (SN unaffected, suite
+4398+10). Remaining cycle-0 columns (SDI 160, CCF 176, cuft 1558/mcuft 1347/scuft 292/bdft 1633) need the
+density-SDImax/crown + volume subsystems; cycle-1+ needs growth.
+
+### Next: the VOLUME subsystem (cycle-0 cuft/mcuft/scuft/bdft) — precisely scoped
+`compute_volumes!` blocks on `:scf_min_dbh` (merch specs). NE volume = the shared NVEL library + the
+NE/Region-9 selection. Needs: (a) `data/northeast/merch_specs.csv` — the NE default merch limits (min
+DBH / top dib / stump for cubic/saw/board); `ne/cubrds.f` zeros its blocks, so the defaults come from
+`ls/vols.f` (the sitset.f:179 note "DEFAULT MERCH LIMITS ARE SET IN LS/VOLS") — extract those. (b) Each
+species' NVEL **CFVolEq** equation id (the per-species volume-equation column SN has) — from the NE
+species/volume tables, so `setup_volume_equations!` assigns the right NVEL equation. Then `compute_volumes!`
+(shared R8/NVEL engine, already bit-exact for SN) should give the 4 volume columns; validate vs net01.
+
 ## Chunk status
 - [x] **C1 — skeleton + roster.** `struct Northeast`, `variant_code="NE"`, `NE_DATADIR`; the 108-species
   roster `data/northeast/species_translation.csv` (alpha/FIA/PLANTS from ne/blkdat.f JSP/FIAJSP/PLNJSP).
