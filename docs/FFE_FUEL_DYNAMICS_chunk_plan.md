@@ -534,3 +534,16 @@ gradual snag accumulation. So the remaining FFE dead-pool work is now pinpointed
 falldown rate per-cycle vs an instrumented Fortran FMSNAG dump on carbon_snt (the same method that
 validated bole/crown/X), THEN the crown-lift decay-window, THEN assemble. Reverted (overshoots); the
 component verifications stand. The dynamics — not the components — are the unvalidated part.
+
+### Snag falldown RATE confirmed correct — collapse is mortality-creation/timing, not the rate
+Checked the rate: FVSjl modrate for the input-snag species (sp27 d7.2: snag_fallx 1.96 → modrate
+0.1024/yr ⇒ 51% of ORIGDEN falls in 5 yr; sp65 d34.6: modrate 0.031). The Fortran FMSFALL
+(fire/sn/fmsfall.f:139) is `DFALLN = MODRATE * ORIGDEN` — IDENTICAL to my port. So the falldown rate is
+NOT the bug. ⇒ The Stand-Dead collapse (mine 3.9→1.9 vs Fortran's INCREASING 3.8→4.4→5.4→9.5, esp the
++4.1 at 2005) is a mortality-CREATION or timing issue: the Fortran's per-cycle mortality creates enough
+new snags to OUTPACE the (same) falldown, but in my restructure the Stand-Dead doesn't grow. Since the
+live carbon is bit-exact (same survivors ⇒ same killed trees), the per-cycle mortality SHOULD match, so
+the suspects are: the mortality-snag bolevol, or the new snags falling within their creation cycle vs
+the Fortran's timing. NEXT: instrument the Fortran (fmdout TOTSNG / the snag list) to dump the per-cycle
+Stand-Dead bole DECOMPOSITION (input-snag remainder vs new-mortality snags) on carbon_snt — pins whether
+my mortality creation is under or the falldown timing is off. The rate is ruled out.
