@@ -1,111 +1,75 @@
 # FVSjl — remaining work and blockers
 
-Status snapshot (suite 4223). The natural-process core + most management/disturbance keywords are
-ported and validated bit-exact vs live Fortran. What remains, grouped by the **nature of the blocker**
-(not just "todo") so the path for each is clear.
+Status snapshot (suite **4392 pass + 10 @test_broken**). The natural-process core, the management /
+disturbance keywords, AND the full FFE fire/fuels/carbon extension are ported and validated. What remains,
+grouped by the **nature of the blocker** (not just "todo") so the path for each is clear.
 
-## A. FFE surface-fuel dynamics → grown-cycle Stand Carbon Report (8/9 COLUMNS BIT-EXACT)
-Inventory cycle bit-exact (all columns). **Grown-cycle: 8 of 9 report columns now reconcile bit-exact**
-vs the 4-cycle Fortran baseline (carbon_jenkins) — see test_carbon.jl. Ported + validated this session:
-- ✅ `FMCWD` decay (fuel_decay.jl) · ✅ `FMCADD` litterfall + woody breakage (fuel_additions.jl) ·
-  ✅ per-cycle driver `ffe_fuel_update!` · ✅ periodic-mortality → snags (mortality.jl) · ✅ dead coarse-
-  root pool BIOROOT (Below-Dead column).
-- ✅ THE BUG FIX: `crown_biomass` missed the V2T/=2000 rescale (fmvinit.f:1094) → woody cone weights
-  ~2000× too large; root-caused via a Fortran XV dump (instrument fmcrow.f/fmcrowe.f, rebuild, dump,
-  revert — the `DEBUG` keyword segfaults the stripped binary). One-line fix `sg = v2t * _FM_P2T`.
-- ✅ RECONCILE: above/merch/below-live, **below-dead**, forest floor (every cycle), DDW (1990/95/2005),
-  shrub — all bit-exact; Stand-Dead populated.
-- ✅ **CWD2B crown-debris scheduling (FMSCRO) — DONE & bit-exact for Stand-Dead** (`cwd2b[4,6,60]`
-  state, the TFALL table, the at-death crown spread, the snag = bole-only split). Landed the STAND-DEAD
-  column bit-exact (5.2/4.5 = bole 3.72 + crown 1.46), validated vs an instrumented Fortran dump.
-- ⛔ **REMAINING — DDW post-mortality column = the crown-LIFT term, FULLY CHARACTERIZED this session**
-  (every piece validated; only the in-loop integration remains):
-  - ✅ SOURCE: the crown-LIFT (`X·CROWNW·TPA·P2T`, fmcadd.f:95-102) — the lower crown shed as the crown
-    base rises — is the dominant post-mortality down-wood addition (~0.39 t/ac/yr, instrumented FMCADD
-    dump); breakage/cwd2b are minor. (Ruled out: crown-lift-negligible [buggy dump], CWD I/L structure,
-    ordering swap, crown magnitude — all via dumps.)
-  - ✅ FORMULA: `crown_lift_rate` (X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN, FMSDIT) — implemented + unit-tested
-    (test_crown_lift.jl, 7 assertions).
-  - ✅ PLUMBING: previous-cycle per-tree crown via `prev_height`/`prev_crown_len`/`prev_dbh` TreeList
-    fields in `_TREE_VEC_FIELDS` (ride through compaction/tripling via `copy_tree!` — clean, no parallel
-    arrays); cycle-start snapshot via `fmoldc!`. Validated to fire.
-  - ✅ PLACEMENT: POST-grow (after `grow_cycle!`) — fires the lift at the right cycles (DDW jumps at
-    2000 AND 2005), using this cycle's crown-base rise + the cycle-START crown (OLDCRW, from `prev_dbh`).
-  - ⛔ ONLY REMAINING: apply it PER-YEAR inside a post-grow annual loop so each year's lift DECAYS over
-    the rest of the cycle (a lump-sum `cyclen·X·CROWNW` overshoots ~1.5×; the per-year-with-decay
-    magnitude hand-checks to the exact gap, ~1.76 mt/ha). = the FFE-update-AFTER-grow restructure: one
-    post-grow annual loop carrying decay + litterfall + breakage + cwd2b-flow + crown-lift together
-    (cycle-start crown for live terms, post-grow X for the lift), coupling to the cwd2b/Stand-Dead
-    death-dating. A focused integration behind test_fire.jl, not an end-of-session rush. See
-    FFE_FUEL_DYNAMICS_chunk_plan.md for the full validated trail.
-- ✅ **the `.out` Stand-Carbon-Report writer — DONE** (`write_carbon_report`, carbon.jl): header block +
-  per-row FORMAT byte-for-byte vs the Fortran `.out` (CARBREPT); inventory row bit-exact in every column,
-  grown rows track within the LP growth tail. test_carbon.jl (18 assertions).
-- **Blocker:** none external; the ONE remaining A item is the post-mortality DDW crown-lift in-loop
-  integration (gated upstream on crown-ratio bit-exactness — see chunk plan). The `.out` writer is done.
+## ✅ DONE this body of work (was the bulk of "remaining")
+- **FFE Stand Carbon Report** — both CARBCALC methods (1 = Jenkins, 0 = FFE), the `.out` CARBREPT report
+  integrated into the live `run_keyfile` path, live pools (Aboveground/Merch/Below-Live/Floor/Shrub)
+  BIT-EXACT on the bit-exact-growth stand (carbon_snt).
+- **Crown-lift** (FMSDIT/FMCADD) — the dominant post-mortality down-wood source — PORTED via per-record
+  prev-state carried through DG tripling (`ffe_oldht/olddbh/oldcr` in `_TREE_VEC_FIELDS`); carbon_snt
+  DDW final cycle bit-exact.
+- **All 9 FFE DBS tables** emit in a live run: per-cycle `FVS_Carbon`/`FVS_Fuels`/`FVS_SnagSum`/
+  `FVS_Down_Wood_Vol`/`FVS_Down_Wood_Cov`; fire-event `FVS_BurnReport`/`FVS_Mortality`/`FVS_Consumption`;
+  potential-fire `FVS_PotFire` (FMPOFL: canopy bulk density + torching Monte-Carlo + dual-scenario surface
+  fire); harvest `FVS_Hrv_Carbon` (FMSCUT/FMCHRVOUT FATE accrual + the FAPROP decay table, extracted to
+  `data/southern/fire_hwp_fate.csv`). Each validated by a reconciliation/semantic test (the live-oracle
+  diff is binary-blocked — see B — so they are validated by their value-grounding in already-bit-exact
+  FFE pools + source-faithful semantics).
+- **FFE input-snag seeding** (`ffe_seed_input_snags!`, FMSDIT→FMSADD ITYP=3) — input dead-tree records →
+  inventory Stand-Dead/Below-Dead. (Supersedes the old "FMSSEE unported" note.)
+- **YARDLOSS** — was a SILENT gap (active in snt01.key/sn.key, unrecognized → ignored). Ported: removed
+  merch/saw/board scaled by (1−PRLOST); total cubic + TPA unchanged. Fuel-pool routing of the loss = C7.
+- **Unrecognized-keyword surfacing** — `control.unrecognized_keywords`; a test asserts snt01.key/sn.key
+  have zero (the guard that caught YARDLOSS).
+
+## A. The one FFE-carbon residual (a timing lag, not a missing extension)
+The carbon report's **dead pools** (Below-Dead / Stand-Dead / DDW) are NOT yet bit-exact at the
+intermediate cycles — a ~0.5/0.7/1.2 t/ha residual tracked honestly as **10 `@test_broken`** (the
+inventory + final cycles ARE bit-exact). ROOT CAUSE: the crown-lift is applied in the NEXT cycle's annual
+fuel loop (with decay interleaving, magnitude-correct) while FVS applies it same-cycle. Both loop orders
+were tested: the current order is the closer match (the "faithful" reorder overshoots the final cycle).
+Closing it fully needs the same-cycle crown-lift + late-bucket mortality-crown scheduling in a single
+post-grow annual loop — a coupled refactor of the shared `fmscro!`/death-dating, deferred as the last fine
+increment. The input-snag bole also carries a small 3.92-vs-3.8 height-dub residual (heightless dead
+records re-estimate height for the R8 Clark stem volume).
 
 ## B. Validation-blocked by the stripped ground-truth binary
 The rebuilt `/tmp/FVSsn_new` is a **stripped DBS build**: the DATABASE block accepts only
-`DSNOUT/SUMMARY/COMPUTDB/TREELIDB`; every other DBS sub-keyword errors. So there is no ground-truth
-SQLite to diff against (see `fvsjl-ground-truth-binary-limits`).
-- **~13–14 DBS output tables** — `FVS_Carbon`, `FVS_StrClass`, `FVS_Fuels`, `FVS_PotFire`,
-  `FVS_Mortality`, `FVS_Consumption`, `FVS_SnagSum`, `FVS_DWD`, `FVS_BurnReport`, `FVS_Hrv_Carbon`,
-  `FVS_Summary2`, the 2 econ tables, … **Blocker:** need a fuller SN binary compiled with all DBS
-  modules. NB the UNDERLYING data of several is validatable via the `.out` **text** reports (carbon via
-  `CARBREPT` is done; `FUELREPT`/`POTFIRE`/`MORTREPT` text reports likely work too) — only the SQLite
-  *table emission* is unverifiable here.
+`DSNOUT/SUMMARY/COMPUTDB/TREELIDB`; every FFE/carbon DBS sub-keyword errors. So there is no ground-truth
+SQLite to diff the 9 FFE DBS tables against (see `fvsjl-ground-truth-binary-limits`). They are therefore
+validated by **value-grounding** (every column is a reuse of an already-bit-exact FFE pool — e.g. DWD
+volume = cwd biomass·2000/CWDDEN, fuel lt3+ge3 = the validated DDW) + **source-faithful semantics**, not a
+live table diff. A fuller SN binary (compiled with all DBS modules) would let the SQLite emission itself be
+diffed; until then the underlying values are the validation surface (and the `.out` CARBREPT text report IS
+bit-exact-diffable, and is).
 
 ## C. `.sum`-inert + FFE-coupled (low value, hard to validate)
-- **FINTM** (GROWTH mortality measurement period) — its only effect (cratet.f:486) scales INPUT
-  dead-tree PROB into the FFE snag model. `.sum`-inert; needs the unported input-mortality→snag path
-  (`FMSSEE`; FVSjl's `add_snag!` only fires from fire-kills); validatable only via FFE snag DBS (B).
-- **FFE snag-input path (`FMSSEE`)** — seeds the initial snag list from input dead-tree records. Same
-  snag-DBS validation blocker.
+- **FINTM** (GROWTH mortality measurement period) — scales INPUT dead-tree PROB into the FFE snag model
+  (cratet.f:486). `.sum`-inert; now reachable via `ffe_seed_input_snags!` but the exact FINTM scaling on
+  the seeded snags is validatable only via the FFE snag DBS (B).
+- **YARDLOSS fuel-pool routing (C7)** — the loss fraction routes to the FFE down-wood/snag/crown pools
+  (DSNG/SSNG/CTCRWN). The `.sum` volume scaling is ported; the fuel-pool side is FFE-coupled (matters only
+  with active FFE + a merch-removing thin, which the SN scenarios don't combine).
 
-## D. Out-of-scope for the SN variant
+## D. Out-of-scope for the SN variant (verified, not gaps)
 - **8 insect/disease models** (MPB/DFB/DFTM/WSBW/BRUST/MISTOE/RDIN/ANIN/RRIN) — linked into SN as
-  **`ex*.f` NO-OP stubs**; the real models (mpbmza/dfbmza/…) are **absent** from the SN build. Keyword-
-  recognized but inert without infected/host input. **Blocker:** there is nothing to port for SN; a
-  faithful port/validation would need a different variant binary + infected-stand scenarios.
+  **`ex*.f` NO-OP stubs**; the real models are **absent** from the SN build. Nothing to port for SN.
+- **FMSNGHT snag height-loss** — `HTX=0` for every SN species (fmvinit.f:1089) ⇒ a no-op; the static snag
+  bole is faithful.
+- **MORTMSB / MATUREW** extra mortality — keyword-gated, default-inert (QMDMSB=999).
+- **COMPRESS** PCA clustering — recognized; the eigensolver partition is not bit-identical (documented),
+  the per-cycle aggregate is conserved.
 
 ## E. Long-tail accuracy (a residual, not a missing extension)
 - **38-species single-species DG-calibration tail** (~1–2% TPA for non-snt01 species). snt01's species
   (22/27/33/65/89) are bit-exact; single-species stands exercise each species' calibration regression
-  harder, exposing per-species COR/OLDRN residuals. **Blocker:** a long tail — each species needs a
-  per-tree calib decomposition (ran/HTCALC/COR) vs oracle; partly transcendental-ulp. snt01 is the gate.
+  harder, exposing per-species COR/OLDRN residuals. A long tail — each species needs a per-tree calib
+  decomposition vs oracle; partly transcendental-ulp. snt01 is the gate.
 - **DGSCOR per-record cubic-volume ±0.03% drift** — documented as **irreducible** (transcendental-ulp
   through the bounded redraw), not a bug. See `DIVERGENCES.md`.
-
-### Update — Stand-Dead bit-exact (8/9); DDW root cause = within-cycle deaths-timing
-The snag stem-volume bole + CWD2B crown model landed the STAND-DEAD column bit-exact (5.2/4.5 =
-bole 3.72 + crown 1.46), validated piece-by-piece against an instrumented Fortran dump. So 8 of 9
-report columns now reconcile bit-exact. The ONE remaining: **post-mortality DDW** (Fortran 3.8/8.0
-@2000/2005 vs FVSjl 2.1/6.1).
-
-**ROOT CAUSE (pinned via a per-year Fortran dump of fmmain.f — supersedes the earlier crown-lift
-guess, which an instrumented dump RULED OUT as negligible, ~0.0007 t/ac/yr).** The Fortran down-wood
-grows GRADUALLY within each cycle — over 1995→2000 the per-year DDW is 2.56, 2.82, 3.04, 3.23, 3.40 —
-because FVS spreads the cycle's mortality across the annual fuel loop, so EARLY-period deaths' crown
-debris (CWD2B) flows into DDW *within that same cycle* (+0.84), while the still-in-waiting crown at the
-boundary is the 1.46 already validated for Stand-Dead. FVSjl books ALL the cycle's mortality at the
-boundary and runs the fuel flow UPD-before-GROW, so its crown debris flows a cycle LATE (the addition
-lands at 2005, not 2000) — even though the TOTAL snags (Stand-Dead) reconcile. The report reads the
-boundary value BEFORE the next mortality booking (carbon DDW 3.8 mt/ha @2000 = 3.39 t/ac = the year-
-1999 dump value 3.40), confirming the read point.
-
-So DDW bit-exact is NOT a missing addition term — it's the **FFE main-loop ordering**: the cycle's
-mortality must be scheduled into CWD2B and then flowed through the annual loop WITHIN the same cycle
-(FVS: GRINCR → FMSADD → annual FMSNAG/FMCWD/FMCADD), with the Stand-Dead crown then being the un-fallen
-remainder. That is exactly the `grow_cycle!` hot-path wiring of `ffe_fuel_update!` (with the at-death
-crown snapshot) — the integration step already on the list, now with the exact target behavior pinned.
-A coupled refactor (touches the validated fire snag path via fmburn!); do it behind test_fire.jl, not
-an end-of-session rush. Then the `.out` Stand-Carbon-Report writer.
-
-### Update — Stand-Dead column now TRACKS the Fortran (input snags wired into the report)
-The FFE carbon report's Stand-Dead now reconciles within ~0.7 on carbon_snt (3.9/4.8/5.7/10.2 vs Fortran
-3.8/4.4/5.4/9.5) via three landed fixes: (1) age-aware snag falldown (update_snags! ages each snag by
-current−deathyr, FMSNAG); (2) mortality/input-snag death-dating (grow_cycle! already runs update_snags!
-before mortality; input snags dated IY(1)−FINTM so they fall from inventory); (3) ffe_seed_input_snags!
-wired into write_carbon_report (no-op without input dead records). So on a bit-exact-growth stand the
-carbon report is now bit-exact in 6/9 columns + Stand-Dead TRACKING; the ONE remaining is the
-post-mortality DDW crown-lift (verified bit-exact, E-gated for the LP growth-tail stands).
+- The multi-cycle volume-sum `.sum` comparisons carry an accumulated Float32-vs-REAL*4 "ULP tail"
+  (±1 truncation / ±N cuft on compounding sums) — floating-point in origin, documented in
+  `TOLERANCE_AND_COVERAGE_AUDIT.md`.

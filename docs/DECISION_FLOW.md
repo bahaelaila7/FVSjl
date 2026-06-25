@@ -10,8 +10,9 @@
 > - [`decision_flow.html`](decision_flow.html) — the **FVS** (Fortran oracle) graph,
 >   588 routines. The source-of-truth semantics.
 > - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
->   126 routines (idiomatic, compressed). Put side by side with the FVS graph to see
->   where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD).
+>   336 routines (idiomatic, compressed; now includes the full FFE carbon/fuels/fire
+>   path + the 9 FFE DBS-table writers + YARDLOSS). Put side by side with the FVS graph
+>   to see where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD).
 >
 > Regenerate either with `tools/gen_callgraph.js <srcRoot> <outHtml> <rootsCSV>`.
 
@@ -49,12 +50,12 @@ MPSDLP/DFBINV pest inventory                                              🧊
 ── PER-CYCLE LOOP (icyc = 1 … NCYC) ───────────────────────────────────
  A. REPORT current stand (before growing it)
     CRATET    dub missing heights, resolve broken-top NORMHT             ✅ dub_missing_heights! (at setup)
-    ESFLTR    establishment filter                                        ⛔ C4 regen
+    ESFLTR    establishment filter                                        ⚪ no-op in SN (ESTAB regen ✅ — see §4)
     CWIDTH    crown width                                                 ✅ crown width (CSV-driven)
     VOLS      per-tree volume (cuft/merch/sawtimber/bdft)                 ✅ compute_volumes! (R8 Clark etc.)
     PCTILE/DIST/COMP  percentile + distribution + composition stats       🟡 stand_pct!/stats partial
     STATS / DISPLY / SUMOUT  stand tables + the .sum row                  ✅ io/summary.jl (summary_row/write_sum_file)
-    DBSREFERENCE / DISPLY    SQLite + .out tables                         🟡 C6 (sndb tables ported separately)
+    DBSREFERENCE / DISPLY    SQLite + .out tables                         ✅ DBS: Cases/Summary/TreeList/Compute/InvReference/CutList + all 9 FFE fire/carbon tables emit in a live run_keyfile run (io/dbs_output.jl). Non-FFE C6 report detail (SSTAGE/canopy tables) still 🟡
     EXTREE / MISPRT / RDPR / BRPR / SVSTART   tree list, mistletoe,       🧊 / ⛔ (reports & SVS)
               down-wood, snag, SVS reports
     CVGO / CVBROW / CVCNOP    canopy cover                                🧊
@@ -84,32 +85,32 @@ FMSDIT               FFE stand SDI for fire                              ✅ com
 SILFTY               silviculture forest type                           🟡 compute_forest_type!
 SDICAL → BTSDIX      stand max SDI                                       ✅ stand_sdimax / sdical path
 SDICLS → SDIBC       SDI class                                          🟡
-SSTAGE               stand structure stage                              ⛔ (stand-class only; not in .sum math)
-EVMON(1)             event monitor (pre-thin)                           🟡
+SSTAGE               stand structure stage                              ✅ structure_stage.jl (class+cover+per-stratum, STRCLASS + REPORT writer bit-exact; not in .sum math)
+EVMON(1)             event monitor (pre-thin)                           ✅ event_monitor.jl (IF/THEN conditional scheduling, bit-exact)
 save OLD* density (OLDTPA/OLDBA/OLDAVH/ORMSQD/…)                          ✅ implicit in compute_density!
-CUTS                 scheduled thinning / harvest                       🟡 5/17 methods (THINDBH+B/A·TA/BA); 0/6 modifiers. ⛔ test-critical gaps: SPECPREF, THINPRSC, SALVAGE, YARDLOSS (snt01/sn stands 3-4). Destructured audit → DECISION_FLOW_DETAILED.md §CUTS
+CUTS                 scheduled thinning / harvest                       ✅ cuts! — all SN thin methods (THIN B/A·TA/BA, DBH, AUTO, PRSC, SDI, CC, HT, RDEN, PT, QFA) + modifiers (SPECPREF, SPLEAVE, TCONDMLT, MINHARV, CUTEFF) bit-exact. YARDLOSS ✅ (removed merch/saw/bdft ×(1−PRLOST); fuel-pool routing = C7). SALVAGE ⚪ (abandoned in Fortran). THINRDSL/THINMIST ⚪ N/A in SN
 CVGO + DENSE(if cut) recompute density post-thin                        ✅ compute_density!
 ATSDIX = SDICAL; SDICLS → SDIAC   after-treatment SDI                    🟡
 save per-tree vol history (PTOCFV/PDBH/PHT/NCFDEF/NBFDEF)                 ✅ old_cfv/old_tpa snapshots
-COMCUP               record compression                                 ⛔ (COMPRS — not the snt blocker)
+COMCUP               record compression                                 ✅ comcup! (zero-PROB delete) · COMPRESS PCA 🟡 (eigensolver partition not bit-identical; aggregate conserved)
 DFTMGO/MPBGO/DFBGO/BWEGO   insect/disease "go" flags + TMBMAS            🧊
 ─ growth core ─
 DGDRIV               diameter growth (DGF + serial-corr / tripling)     ✅ diameter_growth!
 HTGF                 height growth (HTGF/HTCALC/HTDBH)                   ✅ height_growth!
 REGENT(false,1)      small-tree (<3") height-driven growth              ✅ small_tree_growth!  (establishment mode ⛔)
-FIXDG / FIXHTG       keyword DG/HTG multipliers                         ⛔ (keyword option)
+FIXDG / FIXHTG       keyword DG/HTG multipliers                         ✅ apply_fix_scalers! (FIXDG/FIXHTG/BAIMULT/HTGMULT bit-exact)
 MORTS                periodic mortality                                 ✅ mortality!  (see §3 for branch map)
 TRIPLE + REASS       record tripling (cyc1-2), ITRN*=3                  ✅ triple_records! (interleaved append ITRN+2i-1/+2i — match FVS layout for post-thin TREDEL)
-FFERT                fertilizer response                                ⛔ (keyword option)
+FFERT                fertilizer response                                ✅ fertilizer_growth! (FFERT bit-exact)
 ```
 
 ### 2b. `GRADD` — apply growth & update records
 
 ```
 MPBCUP/DFBWIN/MISTOE/TMCOUP/BWECUP   insect/disease record updates       🧊
-FMMAIN               FFE fire effects + fire-caused mortality            ✅ fmburn! (FMCFMD/FMDYN/FMFINT fuel models → Rothermel → FMEFF kill, booked as periodic mortality). snt01 stand-4 post-fire TPA/MORT bit-exact; small self-correcting BA transient from per-tree kill distribution remains.
+FMMAIN               FFE fire effects + fire-caused mortality            ✅ fmburn! (FMCFMD/FMDYN/FMFINT fuel models → Rothermel → FMEFF kill, booked as periodic mortality). snt01 stand-4 post-fire TPA/MORT bit-exact. FULL FFE carbon/fuels now ported: crown-lift (FMSDIT/FMCADD, final cycle bit-exact), both CARBCALC methods, the .out CARBREPT report, + ALL 9 FFE DBS tables (Carbon/Fuels/SnagSum/DWD_Vol/DWD_Cov/BurnReport/Mortality/Consumption/PotFire/Hrv_Carbon). Remaining: the dead-pool one-cycle crown-lift lag (10 @test_broken).
 BRTREG / RDTREG      sprout / planted regeneration                       ✅ esuckr! (stump sprout, ESUCKR — bit-exact vs Fortran) + establish! (planted/natural)
-HTGSTP               HTGSTOP / TOPKILL keyword height edits              ⛔ (keyword option; no-op otherwise)
+HTGSTP               HTGSTOP / TOPKILL keyword height edits              ✅ htgstp! (deterministic + stochastic, bit-exact)
 UPDATE               apply DG/HTG → DBH/HT (+ bark, NORMHT for topkill)  ✅ inline in grow_cycle!
 RDPSRT / DENSE       sort + recompute density                           ✅ compute_density!
 CVGO                 canopy cover                                        🧊
@@ -174,11 +175,14 @@ than something discovered by accident mid-debug:
 1. **Insect/disease models** (mountain pine beetle, DF beetle, tussock moth,
    western budworm, mistletoe): `MPB*/DFB*/TM*/BWE*/MISTOE`. 🧊 No test scenario
    activates them; not in the C0–C9 plan.
-2. **FFE fire** (`FMSDIT`, `FMMAIN`): ✅ **ported** — the full surface-fire path
-   (FMCFMD/FMDYN/FMFINT weighted standard fuel models → Rothermel → FMEFF kill,
-   booked as periodic mortality). snt01 stand-4 post-fire TPA and MORT volume are
-   bit-exact vs Fortran; flame/scorch match. Remaining: a small self-correcting
-   per-tree kill-distribution BA transient, and the FFE DBS **report** tables (C6/C7).
+2. **FFE fire + fuels + carbon** (`FMSDIT`, `FMMAIN`, `FMCRBOUT`, `FMPOFL`): ✅ **ported** —
+   the full surface-fire path (FMCFMD/FMDYN/FMFINT → Rothermel → FMEFF kill, periodic
+   mortality; snt01 stand-4 bit-exact), PLUS the complete carbon/fuels model: crown-lift
+   (FMSDIT/FMCADD, final cycle bit-exact), both CARBCALC methods, the `.out` CARBREPT
+   report, and **all 9 FFE DBS tables** (Carbon/Fuels/SnagSum/DWD_Vol/DWD_Cov/BurnReport/
+   Mortality/Consumption/PotFire/Hrv_Carbon) emitting in a live run. Remaining: the dead-pool
+   one-cycle crown-lift timing lag (10 `@test_broken`); a small per-tree kill-distribution
+   BA transient. FMSNGHT snag height-loss is a no-op in SN (HTX=0).
 3. **Regeneration / establishment**: ✅ **ported & validated** — natural/planted
    establishment (`establish!`, ESTAB chunks A–D, bare-stand bit-exact for the first
    cycles) and stump-sprout regen (`esuckr!`, ESUCKR — bit-exact vs live Fortran on
@@ -187,9 +191,11 @@ than something discovered by accident mid-debug:
    is complete.
 4. **Economics** (`ECSETP/ECSTATUS`, `eccalc`): 🧊 **C8** (a minimal ANNUCST
    path exists for the econ test only).
-5. **Keyword option paths** not yet wired: `FIXDG`, `FIXHTG`, `FFERT`, `HTGSTP`
-   (HTGSTOP/TOPKILL), `MORTMULT`, `FIXMORT`, MSB/SIZECAP mortality. ⛔ All are
-   no-ops at default settings, so they do not affect current tests.
+5. **Keyword option paths**: ✅ now wired & bit-exact — `FIXDG`, `FIXHTG`, `FFERT`,
+   `HTGSTP` (HTGSTOP/TOPKILL), `MORTMULT`, `CRNMULT`, `FIXMORT`, growth multipliers, SIZECAP.
+   `YARDLOSS` ✅ (volume scaling). `SALVAGE` ⚪ (abandoned in Fortran). Unrecognized keywords
+   are now SURFACED (`control.unrecognized_keywords`) — snt01.key/sn.key have zero, guarded by a
+   test. Remaining keyword-gated & default-inert: `MORTMSB`/`MATUREW` (QMDMSB=999). COMPRESS PCA 🟡.
 6. **Canopy cover & misc reports** (`CVGO/CVBROW/CVCNOP/CVOUT`, `EXTREE`,
    `RDPR/BRPR`, `SVS`): 🧊 output-only extensions.
 

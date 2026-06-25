@@ -1,5 +1,12 @@
 # C7 — Fire & Fuels Extension (FFE) — chunk plan
 
+> **STATUS (current): FFE is ported.** Surface fire + effects (FMBURN/FMCFMD/FMDYN/FMFINT/FMEFF, snt01
+> stand-4 bit-exact), snag dynamics, the surface-fuel model (FMCWD/FMCADD), crown-lift (FMSDIT/FMCADD),
+> both CARBCALC carbon methods, the `.out` CARBREPT report, and **all 9 FFE DBS tables** (Carbon/Fuels/
+> SnagSum/DWD_Vol/DWD_Cov/BurnReport/Mortality/Consumption/PotFire/Hrv_Carbon) are done and emit in a live
+> run. The one open item is the dead-pool one-cycle crown-lift timing lag (10 `@test_broken`); see
+> `FFE_FUEL_DYNAMICS_chunk_plan.md` and `REMAINING_WORK.md` §A. The plan below is the historical scoping.
+
 The FFE is the largest SN extension (~100k Fortran LOC across ~50 `fm*.f` files; `fmphotoval.f`
 alone is 152 KB). It is the fire-behavior / fuels / snag / carbon model exercised by **snt01 stand 4**
 (the "FFE TEST"). Like ESUCKR, it is ported in validated chunks driven by the decision flow, not in one

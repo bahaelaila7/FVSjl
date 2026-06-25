@@ -4,6 +4,18 @@ Items deferred to C6 because they are consumed by the DBS database I/O + output
 tables, not the natural-process `.sum`. Carried here so they are not forgotten when
 C6 is built. Each is fully scoped in its source tracker.
 
+## ✅ UPDATE — all 9 FFE fire/carbon DBS tables now PORTED & emitting in a live run
+`FVS_Carbon`, `FVS_Fuels`, `FVS_SnagSum`, `FVS_Down_Wood_Vol`, `FVS_Down_Wood_Cov` (per-cycle) +
+`FVS_BurnReport`, `FVS_Mortality`, `FVS_Consumption` (fire-event) + `FVS_PotFire` (FMPOFL) +
+`FVS_Hrv_Carbon` (FMSCUT/FMCHRVOUT FATE + the FAPROP decay table → `data/southern/fire_hwp_fate.csv`)
+all write via `io/dbs_output.jl` from a live `run_keyfile` run (gated on an active FireState). Because
+the stripped binary can't emit these tables to diff (the validation-limit note below), each is validated
+by **value-grounding** (every column is a reuse of an already-bit-exact FFE pool — e.g. DWD volume = cwd
+biomass·2000/CWDDEN, fuel lt3+ge3 = the validated DDW) + **source-faithful semantics**, with a
+reconciliation/round-trip test. So the DBS surface is no longer "blocked"; only the SQLite *emission diff*
+(not the underlying values) awaits a fuller binary. Still genuinely deferred: the 2 econ tables, the
+SSTAGE/canopy C6 report-detail tables, and the insect/RD tables (no SN models).
+
 ## ⚠ VALIDATION LIMIT (2026-06-24): the ground-truth SN binary is a STRIPPED DBS build
 The rebuilt `/tmp/FVSsn_new` only accepts a LIMITED DBS keyword set — `SUMMARY`, `COMPUTDB`,
 `TREELIDB` (+ `DSNOUT`). `CARBRPTS`, `STRCLASS`, `CUTLIST`-in-DATABASE-block, the FFE reports

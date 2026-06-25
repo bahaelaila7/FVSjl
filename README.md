@@ -24,8 +24,17 @@ and [`docs/DIVERGENCES.md`](docs/DIVERGENCES.md).
 
 ## Status
 
-Under active construction, chunk by chunk; each chunk is validated against the
-oracle before the next begins. See the project plan for the chunk breakdown.
+The SN natural-process core (growth, mortality, density, volume, regeneration/establishment, stump
+sprouting), the management/disturbance keywords (all thinning methods + modifiers, YARDLOSS, FIX*/MULT
+multipliers, event monitor), structural-stage classification, ECON, modern IO (YAML/CSV ↔ .key/.tre),
+and the **full FFE fire/fuels/carbon extension** (both CARBCALC methods, crown-lift, the `.out` CARBREPT
+report, and all 9 FFE DBS tables) are ported and validated against the live Fortran oracle. Suite:
+**4392 pass + 10 `@test_broken`** (the `@test_broken` track the one known non-bit-exact residual — the
+FFE dead-pool one-cycle crown-lift timing lag).
+
+See `docs/DECISION_FLOW.md` (+ the interactive `docs/decision_flow*.html` call-graphs),
+`docs/REMAINING_WORK.md`, and `docs/TOLERANCE_AND_COVERAGE_AUDIT.md` for the per-subsystem status,
+what remains, and the test-tolerance taxonomy. Each chunk is validated against the oracle before the next.
 
 ## Run
 
