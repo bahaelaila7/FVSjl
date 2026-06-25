@@ -694,3 +694,20 @@ Dead) TRACK within ~1-2 t C/ha through 4 cycles. Closing this needs the FMSVOL s
 model (shrinks the standing bole, the dominant tail factor) — a self-contained next chunk, not a tweak.
 Shipped + validated this session: age-aware FMSNAG falldown, input-snag pre-inventory seeding/dating,
 V2T crown scaling, FLIVE post-grow timing, the byte-exact .out CARBREPT writer.
+
+### NEXT CHUNK precisely scoped: snag-bole height-loss (FMSNGHT → FMSVOL → CWD2)
+The dominant dead-pool tail factor. Self-contained, multi-subroutine (NOT a tweak):
+1. **Per-snag height state**: track HTDEAD + HTIH/HTIS (hard/soft standing height) per cohort
+   (FVSjl snags currently carry only dbh + bolevol, no height).
+2. **FMSNGHT** (fmsnght.f, ~165 ln): geometric per-year height decay
+   `HTSNEW = HTCURR·(1 - X2)^NYRS` (hard/soft variants, species HTX coeffs + HTR1/HTR2 rates +
+   soft multiplier SFTMULT); snag is gone when HTSNEW < 1.5 ft.
+3. **FMSVOL** revolume: recompute the standing bole volume up to the shrunk height via the taper
+   (CFVOL/OCFVOL + CFTOPK) — replaces FVSjl's STATIC bolevol so Stand-Dead shrinks over time.
+4. **CWD2** (fmsnag.f:255): route the lost bole segment (OLDHT→NEWHT) into DDW by the cone-taper
+   size distribution — this is the SD-down / DDW-up transfer the carbon_snt tail needs.
+This moves carbon in exactly the measured-residual direction (my SD is +0.7 over, DDW -2.4 under at
+2005 because my bole is static + never sheds its top). It will NOT by itself close the SD+DDW TOTAL
+divergence (-1.7), which also has a decay-interplay component — but it is the largest single piece and
+the right next upstream step. Estimated 1-2 focused sessions (height state + FMSNGHT first, validate SD
+shrink vs Fortran; then CWD2 routing, validate DDW).
