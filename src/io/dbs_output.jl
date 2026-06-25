@@ -97,6 +97,42 @@ function write_dbs_summary!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_Carbon schema (dbsfmcrpt.f:106-120) — the FFE Stand Carbon Report pools in metric tons/ha.
+const _FVS_CARBON_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Carbon(
+  CaseID text not null, StandID text not null, Year Int null,
+  Aboveground_Total_Live real null, Aboveground_Merch_Live real null,
+  Belowground_Live real null, Belowground_Dead real null, Standing_Dead real null,
+  Forest_Down_Dead_Wood real null, Forest_Floor real null, Forest_Shrub_Herb real null,
+  Total_Stand_Carbon real null, Total_Removed_Carbon real null, Carbon_Released_From_Fire real null)"""
+
+"""
+    write_dbs_carbon!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the FFE Stand Carbon Report to the `FVS_Carbon` DBS table (dbsfmcrpt.f, DBSFMCRPT). `rows` is the
+`(year, report)` collection from the main simulation (`stand_carbon_report` named tuples) — the same
+metric-tons/ha pools as the `.out` carbon report. Total-Removed / Released-from-Fire are 0 (no harvest
+/ fire carbon accounting on the carbon-report path yet).
+"""
+function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_CARBON_CREATE)
+        ins = "INSERT INTO FVS_Carbon VALUES (" * join(fill("?", 14), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, r) in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(r.aboveground), Float64(r.merch), Float64(r.belowground),
+                Float64(r.belowground_dead), Float64(r.standing_dead), Float64(r.down_wood),
+                Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total), 0.0, 0.0))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_TreeList schema (dbstrls.f). The columns FVSjl fills directly; the few not yet
 # computed (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are nullable.
 const _FVS_TREELIST_CREATE = """

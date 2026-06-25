@@ -865,3 +865,13 @@ stand_carbon_report branches on s.control.carbon_method. Validated by SEMANTICS 
 Merch=stem > 0, Jenkins ballpark, method switches only Above/Merch). Bit-exact live differential remains
 unavailable (the stripped binary's FFE live pools are degenerate-zero) — documented, not blindly trusted.
 OLDCRW crown-lift term in BIOLIVE omitted (X·crown ≈ 7e-4·crown, <0.1%).
+
+### LANDED: FVS_Carbon DBS table (dbsfmcrpt.f) — the carbon report now also goes to the SQLite DB
+write_dbs_carbon! (src/io/dbs_output.jl) writes the 14-column FVS_Carbon table (dbsfmcrpt.f:106-120)
+from the same per-cycle (year, stand_carbon_report) tuples collected in write_sum_file; run_keyfile wires
+it into the DBS block (alongside FVS_Summary/TreeList/CutList). Refactored carbon_report_row → reusable
+_format_carbon_row(year, report) so the .out block and the DBS table share one collection (no double
+work). Validated by schema + report→column round-trip (Year/CaseID/Above/SD/DDW/Total). So the FFE carbon
+report now emits to BOTH the .out (CARBREPT block) and the FVS_Carbon DBS table — the full drop-in carbon
+output. 4360 tests green. (FVS_Hrv_Carbon + the fire DBS tables remain; their report values exist in FVSjl
+but those writers + a fuller-binary differential are the next DBS increment.)

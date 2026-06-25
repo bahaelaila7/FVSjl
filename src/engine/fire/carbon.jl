@@ -198,8 +198,7 @@ from `stand_carbon_report`: Aboveground Total / Merch, Belowground Live / Dead, 
 Floor, Shrub-Herb, Total Stand Carbon, then Total Removed and Carbon Released-from-Fire (`removed` /
 `released`, 0 without a harvest/fire this cycle).
 """
-function carbon_report_row(s::StandState, year::Integer; removed::Real = 0f0, released::Real = 0f0)
-    r = stand_carbon_report(s)
+function _format_carbon_row(year::Integer, r; removed::Real = 0f0, released::Real = 0f0)
     vals = (r.aboveground, r.merch, r.belowground, r.belowground_dead, r.standing_dead,
             r.down_wood, r.forest_floor, r.shrub_herb, r.total, Float32(removed))
     io = IOBuffer()
@@ -208,6 +207,9 @@ function carbon_report_row(s::StandState, year::Integer; removed::Real = 0f0, re
     @printf(io, "    %7.1f", Float32(released))          # final 4X, F7.1
     return String(take!(io))
 end
+
+carbon_report_row(s::StandState, year::Integer; removed::Real = 0f0, released::Real = 0f0) =
+    _format_carbon_row(year, stand_carbon_report(s); removed = removed, released = released)
 
 """
     write_carbon_report(io, stand, ncyc; period=5, stand_id="", mgmt_id="NONE") -> IO
@@ -259,9 +261,9 @@ end
 """
     write_carbon_report_block(io, rows; stand_id="", mgmt_id="NONE") -> IO
 
-Write the Stand Carbon Report header block + the already-formatted per-cycle `rows` (each a
-`carbon_report_row` string) to `io`, byte-for-byte as the Fortran `.out`. Used when the rows were
-collected during the main simulation loop (`write_sum_file`'s `carbon_collect`) rather than re-simulated.
+Write the Stand Carbon Report header block + the per-cycle `rows` to `io`, byte-for-byte as the Fortran
+`.out`. Each element of `rows` is a `(year, report)` tuple (`report` = a `stand_carbon_report` named
+tuple) collected during the main simulation loop (`write_sum_file`'s `carbon_collect`).
 """
 function write_carbon_report_block(io::IO, rows::AbstractVector;
                                    stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE")
@@ -271,6 +273,6 @@ function write_carbon_report_block(io::IO, rows::AbstractVector;
     println(io, _CARBON_SEP)
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
-    for r in rows; println(io, r); end
+    for (yr, r) in rows; println(io, _format_carbon_row(yr, r)); end
     return io
 end

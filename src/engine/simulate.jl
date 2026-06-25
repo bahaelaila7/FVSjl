@@ -308,7 +308,7 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
         cp_rows = cp_on ? Tuple[] : nothing
         cl_cycles = cl_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT): collect a row per cycle from this same simulation.
-        carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? String[] : nothing
+        carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, date = date, time = time,
@@ -330,6 +330,8 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
                                          mgmt_id = mid, variant = variant_code(s.variant))
             tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
             cl_on && write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+            carb_rows === nothing ||
+                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)

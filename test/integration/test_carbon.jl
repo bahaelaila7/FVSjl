@@ -260,6 +260,38 @@ end
     end
 end
 
+using SQLite, DBInterface
+
+@testset "FVS_Carbon DBS table writer (dbsfmcrpt.f schema + round-trip)" begin
+    # write_dbs_carbon! writes the FFE Stand Carbon Report pools to the FVS_Carbon SQLite table (the same
+    # metric-tons/ha values as the .out report). Validate the schema + the report→column mapping round-trip.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
+        rep = FVSjl.stand_carbon_report(s)
+        rows = [(1990, rep), (1995, rep)]
+        dbpath = joinpath(mktempdir(), "carb.db")
+        FVSjl.write_dbs_carbon!(dbpath, "CASE1", "STAND1", rows)
+        db = SQLite.DB(dbpath)
+        res = [(; Year = r.Year, CaseID = r.CaseID, StandID = r.StandID,
+                Above = r.Aboveground_Total_Live, SD = r.Standing_Dead,
+                DDW = r.Forest_Down_Dead_Wood, Total = r.Total_Stand_Carbon)
+               for r in DBInterface.execute(db, "SELECT * FROM FVS_Carbon ORDER BY Year")]
+        SQLite.close(db)
+        @test length(res) == 2                                            # two cycles inserted
+        @test res[1].Year == 1990 && res[2].Year == 1995
+        @test res[1].CaseID == "CASE1" && res[1].StandID == "STAND1"
+        @test res[1].Above ≈ Float64(rep.aboveground)                     # report→column mapping
+        @test res[1].SD ≈ Float64(rep.standing_dead)
+        @test res[1].DDW ≈ Float64(rep.down_wood)
+        @test res[1].Total ≈ Float64(rep.total)
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,
