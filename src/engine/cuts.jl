@@ -430,8 +430,11 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     # A blank upper bound (parsed as 0) means "no upper limit" — guard with ≤ so the
     # common sparse form (e.g. `THINBTA <yr> <tpa>`, blank dbhhi/hthi) selects all
     # trees, not an empty [0,0) class. (Only an explicit dbhhi>dbhlo restricts.)
-    valmax = dbhhi_p <= dbhlo ? 9999f0 : dbhhi_p
-    hthi   = hthi_p  <= htlo  ? 9999f0 : hthi_p
+    # A blank (≤0) upper bound is "no limit", independent of the lower bound — so a negative
+    # lower bound (e.g. HTLO=−1, FVS's effective "no lower limit") with a blank upper still
+    # selects all trees, not the empty [−1,0) class.
+    valmax = (dbhhi_p <= 0f0 || dbhhi_p <= dbhlo) ? 9999f0 : dbhhi_p
+    hthi   = (hthi_p  <= 0f0 || hthi_p  <= htlo)  ? 9999f0 : hthi_p
 
     wk4 = Float32[t.tpa[i] for i in 1:n]
     cstock = _clsstk(s, wk4, n, jtyp, 0, dbhlo, valmax, htlo, hthi)
