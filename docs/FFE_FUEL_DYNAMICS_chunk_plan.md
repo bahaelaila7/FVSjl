@@ -625,3 +625,11 @@ corrections:
 So the FFE-after-grow RESTRUCTURE is structurally sound (Floor stayed bit-exact), but the crown-lift
 needs the per-tree threshold; and the carbon_snt DDW gap should be re-investigated as the snag-bole
 falldown → down-wood path, not crown-lift. Reverted the restructure; the snag/Stand-Dead fixes stand.
+
+### CORRECTION (again, by re-reading): BIODDW = CWD sizes 1-9, NOT 1-6 — down_wood is already correct
+Re-read fmdout.f:116-122: LARGE2 sums BOTH JSZ=ISZ+3 (4-6) AND KSZ=ISZ+6 (7-9) over ISZ=1..3, so
+SMALL2(1-3)+LARGE2(4-9) = sizes 1-9. The earlier "BIODDW = sizes 1-6" note was a MISREAD (I missed the
+KSZ term). So FVSjl's `down_wood_carbon` summing `cwd[1:9]` is ALREADY correct — no change needed (I
+nearly made a wrong "fix"). The carbon_snt DDW residual (under at 2000/2005) is therefore purely the
+snag-bole falldown → down-wood detail, not a size-range issue. Verified by re-reading the Fortran before
+changing — the methodology catching a wrong assumption.
