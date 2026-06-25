@@ -969,3 +969,21 @@ That de-risks it substantially. Mapped against FVSjl:
 So PotFire is "dual-scenario surface fire (have) + CBD + smoke + PTorch (3 small models)" — a focused
 chunk, much smaller than the crown-fire sub-model it was mis-scoped as. Next: a non-mutating dual-scenario
 potential_fire(s) helper reusing the surface-fire core, then CBD/smoke/PTorch, then the FVS_PotFire writer.
+
+### FVS_PotFire fully decomposed (SN) — exact remaining components
+Scenario weather (fmvinit.f:63-66 / fminit.f:139): SEVERE = fmois 1, wind 20 mph, temp 70°F, season 1;
+MODERATE = fmois 3, wind 8 mph, temp 60°F, season 1 (PRESVL(*,1)=0 ⇒ no moisture override).
+Per-column source for SN:
+  - Surf/Tot flame Sev+Mod: dual-scenario surface fire — FVSjl HAS (rothermel + select_fuel_models).
+  - Mortality BA/VOL Sev+Mod: FVSjl fire_tree_mortality, run NON-mutating — HAS.
+  - Fuel_Mod1-4 + weights: select_fuel_models — HAS.  Scorch: scorch_height with POTEMP — HAS.
+  - Torch_Index/Crown_Index: -1 (FMCFIR skipped in SN) — trivial.
+  - Canopy_Ht + Canopy_Density (CBD): FMPOCR (fmpocr.f:252-360) — crown-fuel profile: crown weight by
+    height layer (CRFILL), running max density, ×0.45359/(4046.86·0.3048), cap 0.35. A real port (FVSjl
+    has crown_biomass + the SSTAGE height-layer machinery to build on). FMPOCR IS run for SN (not FMCFIR).
+  - Pot_Smoke Sev+Mod: FMCONS — Σ consumed_by_class × EMFAC (dead 22.5/18.3/16.2 by moisture; live
+    21.3/25.1; fmcons.f:60-70). Tractable (FVSjl has the consumption).
+  - PTorch Sev+Mod: FMPOFL_FMPTRH (contained in fmpofl.f) — per-tree torching probability from flame.
+So PotFire = dual-scenario surface fire (HAVE) + FMPOCR canopy bulk density + FMCONS smoke + FMPTRH
+torching. Three real sub-pieces, all SN-applicable (no crown-fire spread). A focused multi-part port —
+fully scoped here, most-upstream piece = the non-mutating dual-scenario potential_fire helper.
