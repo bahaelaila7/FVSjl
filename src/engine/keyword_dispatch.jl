@@ -1125,7 +1125,16 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             ic = k == "PLANT" ? Int32(430) : Int32(431)
             v = r.values
             yr   = r.present[1] ? nint(v[1]) : Int32(1)
-            sp   = Float32(v[2])
+            # species (field 2) is SPDECD-decoded: a numeric species index is used directly,
+            # but a 2-letter ALPHA code (e.g. LP) must be resolved to its index — the old
+            # numeric-only `Float32(v[2])` left alpha codes as 0, so the planting silently
+            # created no trees.
+            spfld = length(r.fields) >= 2 ? strip(r.fields[2]) : ""
+            sp = if isempty(spfld) || tryparse(Int, spfld) !== nothing
+                Float32(v[2])                                  # numeric index (or blank → 0)
+            else
+                Float32(species_selector(s, spfld))            # alpha code → species index
+            end
             tpa  = Float32(v[3])
             tpa <= 0f0 && continue                                # esin.f:143 (TPA must be >0)
             surv = (v[4] < 0.001f0 || v[4] > 100f0) ? 100f0 : Float32(v[4])  # esin.f:149
