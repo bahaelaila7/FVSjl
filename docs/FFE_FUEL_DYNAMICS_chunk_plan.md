@@ -471,3 +471,22 @@ crown-lift X ✓, CROWNW (breakage reconciles) ✓, the cwd2b crown debris ✓, 
 ONLY remaining DDW work is the mechanical in-loop integration: a post-grow annual loop applying
 X·CROWNW per year with decay, the age-correct snag-bole falldown (update_snags!), and the input snags —
 all together on carbon_snt where each piece is now individually verified bit-exact.
+
+### Crown-lift in-loop — IMPLEMENTED + measured; two findings (reverted, not globally shippable yet)
+Implemented the post-grow closed-form-decay crown-lift (`apply_crown_lift!`: per size,
+`X·CROWNW·TPA·P2T·(1−(1−DKR)^nyrs)/DKR`, cycle-start crown from the snapshot) and wired it into
+write_carbon_report. On carbon_snt it moved DDW from way-UNDER (5.8/4.5/5.2/7.3) to CLOSE-but-slightly-
+over (5.8/6.6/8.9/12.1) vs Fortran 5.8/5.4/8.4/11.4 — confirming the crown-lift IS the dominant DDW
+addition and the mechanism works (X already verified bit-exact). Two findings ⇒ reverted (it broke the
+carbon_jenkins DDW bound):
+  1. **carbon_jenkins regresses** — its LP growth tail amplifies X by 1.45×, so the crown-lift can't be
+     GLOBALLY wired; the DDW is bit-exact only where the stand's GROWTH is bit-exact (an E-category
+     concern, not the FFE). The carbon_jenkins post-mortality DDW residual is inherently the growth tail.
+  2. **carbon_snt overshoots ~1.2** even on bit-exact growth — the closed-form decay sum D is too large.
+     The FVS report reads the cycle's year-(nyrs−1) value, so D should be the (nyrs−1)-year decay sum,
+     and the FUINI-decay baseline + the snag-bole falldown also feed the same DDW. Needs an instrumented
+     Fortran FMCADD per-source DDW dump on carbon_snt to pin D exactly (the same dump method that landed
+     bole/crown/Stand-Dead).
+So the FFE DDW crown-lift model is correct (every piece verified); making it bit-exact in the report
+needs (a) the decay-window D pinned via a carbon_snt FMCADD dump, and (b) per-stand growth bit-exactness
+(carbon_jenkins is gated on E). Reverted the wiring; the X-verification stands.
