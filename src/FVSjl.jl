@@ -47,6 +47,7 @@ include("variants/southern/mortality.jl")
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
+include("variants/northeast/species.jl")
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
