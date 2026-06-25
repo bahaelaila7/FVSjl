@@ -113,36 +113,24 @@ function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
     return min(exp(dens.mort_intercept + dens.mort_slope * log(d10)), t85d10)
 end
 
-# Per-species shade-tolerance scalar for the VARMRT mortality distribution (VARADJ,
-# varmrt.f). Higher = more tolerant (survives suppression). (TODO: move to a CSV.)
-const VARMRT_SHADE_ADJ = Float32[
-    0.1, 0.7, 0.3, 0.7, 0.7, 0.7, 0.1, 0.7, 0.7, 0.7,
-    0.7, 0.5, 0.7, 0.7, 0.5, 0.5, 0.1, 0.3, 0.3, 0.3,
-    0.3, 0.1, 0.3, 0.7, 0.7, 0.1, 0.5, 0.7, 0.5, 0.3,
-    0.1, 0.1, 0.1, 0.3, 0.7, 0.7, 0.3, 0.7, 0.3, 0.3,
-    0.1, 0.7, 0.7, 0.7, 0.7, 0.3, 0.5, 0.3, 0.5, 0.3,
-    0.7, 0.3, 0.7, 0.3, 0.7, 0.3, 0.3, 0.3, 0.5, 0.9,
-    0.9, 0.7, 0.5, 0.9, 0.5, 0.7, 0.7, 0.3, 0.5, 0.7,
-    0.7, 0.7, 0.7, 0.5, 0.5, 0.7, 0.7, 0.5, 0.5, 0.9,
-    0.9, 0.7, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5, 0.5, 0.5]
-
 """
-    _varmrt!(killed, t, n, tokill) -> sumkil
+    _varmrt!(killed, efftr, temwk2, shade_adj, t, n, tokill) -> sumkil
 
 VARMRT (varmrt.f): distribute `tokill` TPA of mortality across the `n` live records
 by a geometric progression weighted toward suppressed trees. Per-tree efficiency
 `efftr = peff(PCT)·shade_adj·0.1`, where `peff = 0.84525 − 0.01074·PCT +
 2e-7·PCT³` (low percentile ⇒ high mortality). Fills `killed[i]`; returns the total.
 """
-function _varmrt!(killed::Vector{Float32}, t::TreeList, n::Int, tokill::Float32)
+function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32},
+                  temwk2::AbstractVector{Float32}, shade_adj::AbstractVector{Float32},
+                  t::TreeList, n::Int, tokill::Float32)
     fill!(view(killed, 1:n), 0f0)
     tokill <= 0f0 && return 0f0
     pct = t.crown_ratio; tpa = t.tpa; sp = t.species
-    efftr = Vector{Float32}(undef, n); temwk2 = zeros(Float32, n)
     pass1 = 0f0
     @inbounds for i in 1:n
         pe = clamp(0.84525f0 - 0.01074f0 * pct[i] + 0.0000002f0 * pct[i]^3f0, 0.01f0, 1f0)
-        efftr[i] = pe * VARMRT_SHADE_ADJ[sp[i]] * 0.1f0
+        efftr[i] = pe * shade_adj[sp[i]] * 0.1f0
         pass1 += tpa[i] * efftr[i]
     end
     pass1 <= 0f0 && return 0f0
@@ -211,6 +199,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     dthresh = zeide ? s.control.dbh_zeide : dbhstage
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
+    shade_adj = s.coef.species[:varmrt_shade_adj]   # VARMRT per-species shade-tolerance scalar (CSV)
     tt = 0f0; sdq0 = 0f0; sd2sq = 0f0; sumdr0 = 0f0; sumdr10 = 0f0
     @inbounds for i in 1:t.n
         d = t.dbh[i]
@@ -239,7 +228,10 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
 
     sdimax = stand_sdimax(s)
     n = t.n
-    killed = zeros(Float32, n)
+    # preallocated VARMRT work buffers (sliced to the live count; no per-cycle allocation in the hot path)
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    efftr  = @view s.scratch.mort_efftr[1:n]
+    temwk2 = @view s.scratch.mort_temwk2[1:n]
 
     # Background (Hamilton) mortality total — used when density mortality is off; it
     # depends only on the start-of-cycle TPA, so it is computed once.
@@ -257,7 +249,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     end
 
     if sdimax < 5f0
-        _varmrt!(killed, t, n, bg_tokill)
+        _varmrt!(killed, efftr, temwk2, shade_adj, t, n, bg_tokill)
     else
         # MORTS QMD-convergence iteration (morts.f:184-481): solve tn10 for the
         # assumed end-of-cycle QMD d10, distribute the excess (t − tn10) by VARMRT,
@@ -273,7 +265,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             tem_v2 = min(const_v * d10cur^SDI_EXP, 35000f0) * pmsdil
             density_on = !(tt <= tem_v2 || rn <= 0f0)
             tokill = density_on ? max(tt - tn10, 0f0) : bg_tokill
-            _varmrt!(killed, t, n, tokill)
+            _varmrt!(killed, efftr, temwk2, shade_adj, t, n, tokill)
             density_on || break              # background ⇒ no d10 dependence, one pass
             # recompute the post-mortality QMD (d10n) from the surviving TPA
             ttn = 0f0; sdr = 0f0

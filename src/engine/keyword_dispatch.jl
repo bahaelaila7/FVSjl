@@ -887,7 +887,7 @@ mortality (morts.f:838): KBIG by size (10 bottom-up, 20 top-down), KPOINT onto p
 (11/21). Concentration pools the window's kill into XMORE and re-imposes it whole-record at a time
 in the chosen order (size-ranked / point-by-point / size-within-point) until XMORE is spent.
 """
-function apply_fixmort!(s::StandState, killed::Vector{Float32}, n::Int, fint::Float32)
+function apply_fixmort!(s::StandState, killed::AbstractVector{Float32}, n::Int, fint::Float32)
     isempty(s.control.fixmort_events) && return
     # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
     cyc_start = current_cycle_year(s)

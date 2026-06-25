@@ -515,8 +515,15 @@ mutable struct Scratch
     idx::Vector{Int32}           # sort index                            (IND)
     idx1::Vector{Int32}          #                                       (IND1)
     idx2::Vector{Int32}          #                                       (IND2)
+    # Per-cycle mortality work buffers (VARMRT) — preallocated to MAXTRE and reused each cycle (sliced to
+    # the live count), so the hot mortality path allocates nothing. `killed` is zeroed per call, `efftr`
+    # is fully rewritten, `temwk2` is written-before-read per index, so reuse is value-safe.
+    mort_killed::Vector{Float32}
+    mort_efftr::Vector{Float32}
+    mort_temwk2::Vector{Float32}
 end
-Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE))
+Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
+                    zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
