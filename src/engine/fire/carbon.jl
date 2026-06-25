@@ -31,6 +31,55 @@ function stand_live_carbon(s::StandState)
 end
 
 """
+    ffe_fuel_loadings(s) -> NamedTuple
+
+The FFE fuel loadings (tons/ac **biomass**, NOT carbon — no ×0.5) that feed the FVS_Fuels DBS table
+(DBSFUELS, fmdout.f:399). Surface pools come from `fire.cwd` (litter=10, duff=11, woody by size class
+1-9) and `fire.flive` (herb/shrub) — the same pools that give the validated DDW / Forest-Floor. Standing
+pools: snag biomass split by DBH ≤3/>3 (bole `bolevol·density` + the CWD2B crown, as in `standing_dead`)
+and live biomass (foliage + woody crown + stem `_fm_cuft·v2t`, split by tree DBH ≤3/>3, = the CARBCALC=0
+`BIOLIVE` components, fmdout.f:218-258). Consumed / removed are 0 without a fire / harvest this cycle.
+"""
+function ffe_fuel_loadings(s::StandState)
+    fs = s.fire
+    z = (litter=0f0, duff=0f0, lt3=0f0, ge3=0f0, s3to6=0f0, s6to12=0f0, ge12=0f0, herb=0f0, shrub=0f0,
+         surf_total=0f0, snag_lt3=0f0, snag_ge3=0f0, foliage=0f0, live_lt3=0f0, live_ge3=0f0,
+         stand_total=0f0, total_biomass=0f0, consumed=0f0, removed=0f0)
+    (fs === nothing || !fs.active) && return z
+    cw = fs.cwd
+    sumc(rng) = sum(@view cw[rng, :, :])
+    litter = sumc(10:10); duff = sumc(11:11)
+    lt3 = sumc(1:3); s3to6 = sumc(4:4); s6to12 = sumc(5:5); ge12 = sumc(6:9); ge3 = s3to6 + s6to12 + ge12
+    herb = fs.flive[1]; shrub = fs.flive[2]
+    surf_total = litter + duff + lt3 + ge3 + herb + shrub
+    # standing snags: bole biomass by DBH + the CWD2B crown (sizes 0-3 → ≤3, 4-5 → >3), tons/ac
+    coef = s.coef; sn = fs.snags; snag_lt3 = 0f0; snag_ge3 = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        den = sn.den_hard[i] + sn.den_soft[i]; den > 0f0 || continue
+        b = sn.bolevol[i]; b <= 0f0 && (b = let (a,_,_) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
+        (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
+    end
+    snag_lt3 += sum(@view fs.cwd2b[:, 1:4, :]) * _FM_P2T     # CWD2B crown sizes 0-3 (idx 1-4)
+    snag_ge3 += sum(@view fs.cwd2b[:, 5:6, :]) * _FM_P2T     # CWD2B crown sizes 4-5 (idx 5-6)
+    # standing live: foliage + woody crown + stem, split by tree DBH (fmdout.f:218-258)
+    t = s.trees; v2t = coef_col(coef, :v2t); foliage = 0f0; live_lt3 = 0f0; live_ge3 = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        xv = crown_biomass(s, sp, d, t.height[i], Int(round(t.crown_pct[i])))
+        foliage += xv[1] * t.tpa[i] * _FM_P2T
+        woody = 0f0; for sz in 1:5; woody += xv[sz+1]; end
+        stem = _fm_cuft(s, sp, d, t.height[i]) * v2t[sp]
+        (d <= 3f0 ? (live_lt3 += (woody + stem) * t.tpa[i] * _FM_P2T) :
+                    (live_ge3 += (woody + stem) * t.tpa[i] * _FM_P2T))
+    end
+    stand_total = snag_lt3 + snag_ge3 + foliage + live_lt3 + live_ge3
+    return (; litter, duff, lt3, ge3, s3to6, s6to12, ge12, herb, shrub, surf_total,
+            snag_lt3, snag_ge3, foliage, live_lt3, live_ge3, stand_total,
+            total_biomass = surf_total + stand_total, consumed = 0f0, removed = 0f0)
+end
+
+"""
     ffe_live_carbon(s) -> (; aboveground, merch)
 
 Live aboveground / merchantable carbon by the **FFE-fuel** method (CARBCALC=0; fmcrbout.f:120-141 +
@@ -273,6 +322,6 @@ function write_carbon_report_block(io::IO, rows::AbstractVector;
     println(io, _CARBON_SEP)
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
-    for (yr, r) in rows; println(io, _format_carbon_row(yr, r)); end
+    for row in rows; println(io, _format_carbon_row(row[1], row[2])); end
     return io
 end

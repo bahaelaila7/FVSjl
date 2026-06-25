@@ -330,8 +330,10 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
                                          mgmt_id = mid, variant = variant_code(s.variant))
             tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
             cl_on && write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
-            carb_rows === nothing ||
+            if carb_rows !== nothing
                 write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+                write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)

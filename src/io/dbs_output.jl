@@ -121,11 +121,52 @@ function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
         DBInterface.execute(db, _FVS_CARBON_CREATE)
         ins = "INSERT INTO FVS_Carbon VALUES (" * join(fill("?", 14), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        for (yr, r) in rows
+        for row in rows
+            yr = row[1]; r = row[2]
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
                 Float64(r.aboveground), Float64(r.merch), Float64(r.belowground),
                 Float64(r.belowground_dead), Float64(r.standing_dead), Float64(r.down_wood),
                 Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total), 0.0, 0.0))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_Fuels schema (dbsfuels.f:64-86) — FFE surface + standing fuel loadings (tons/ac biomass).
+const _FVS_FUELS_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Fuels(
+  CaseID text not null, StandID text not null, Year Int null,
+  Surface_Litter real null, Surface_Duff real null, Surface_lt3 real null, Surface_ge3 real null,
+  Surface_3to6 real null, Surface_6to12 real null, Surface_ge12 real null,
+  Surface_Herb real null, Surface_Shrub real null, Surface_Total real null,
+  Standing_Snag_lt3 real null, Standing_Snag_ge3 real null, Standing_Foliage real null,
+  Standing_Live_lt3 real null, Standing_Live_ge3 real null, Standing_Total real null,
+  Total_Biomass Int null, Total_Consumed Int null, Biomass_Removed Int null)"""
+
+"""
+    write_dbs_fuels!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the FFE fuel loadings to the `FVS_Fuels` DBS table (dbsfuels.f). `rows` is the `(year, …, fuel)`
+collection from the main simulation, where `fuel` is an `ffe_fuel_loadings` named tuple (tons/ac biomass).
+"""
+function write_dbs_fuels!(dbpath::AbstractString, caseid::AbstractString,
+                          standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_FUELS_CREATE)
+        ins = "INSERT INTO FVS_Fuels VALUES (" * join(fill("?", 22), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for row in rows
+            yr = row[1]; f = row[3]
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(f.litter), Float64(f.duff), Float64(f.lt3), Float64(f.ge3),
+                Float64(f.s3to6), Float64(f.s6to12), Float64(f.ge12),
+                Float64(f.herb), Float64(f.shrub), Float64(f.surf_total),
+                Float64(f.snag_lt3), Float64(f.snag_ge3), Float64(f.foliage),
+                Float64(f.live_lt3), Float64(f.live_ge3), Float64(f.stand_total),
+                round(Int, f.total_biomass), round(Int, f.consumed), round(Int, f.removed)))
         end
     finally
         SQLite.close(db)

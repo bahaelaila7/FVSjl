@@ -875,3 +875,18 @@ work). Validated by schema + report→column round-trip (Year/CaseID/Above/SD/DD
 report now emits to BOTH the .out (CARBREPT block) and the FVS_Carbon DBS table — the full drop-in carbon
 output. 4360 tests green. (FVS_Hrv_Carbon + the fire DBS tables remain; their report values exist in FVSjl
 but those writers + a fuller-binary differential are the next DBS increment.)
+
+### LANDED: FVS_Fuels DBS table (dbsfuels.f) — value-grounded in the validated carbon pools
+ffe_fuel_loadings (the DBSFUELS inputs, fmdout.f:399, tons/ac biomass) + write_dbs_fuels! (22-col
+FVS_Fuels). KEY: every column is composed of FFE pools FVSjl already validates — surface woody lt3+ge3 =
+the down-wood biomass (= down_wood_carbon/0.5, the validated DDW), litter+duff = forest-floor biomass,
+standing snag = the Stand-Dead snag bole+CWD2B crown, standing live = the CARBCALC=0 BIOLIVE components
+(foliage+woody crown+stem, split by DBH ≤3/>3). So it is NOT a blind port — the test asserts the
+reconciliation (lt3+ge3 ≈ DDW/0.5, litter+duff ≈ Floor/0.37, ge3 size-split consistent) + the schema
+round-trip. Collected once per cycle in write_sum_file (the carbon_collect 3-tuple now carries the fuel
+loadings too) and wired into run_keyfile's DBS block. 4367 tests green.
+This reframes the remaining fire DBS tables: their VALUES are all the same validated FFE quantities
+(cwd, snags, FFE live biomass), so they are confident pattern-application ports (write_dbs_X! + the
+collected tuple), not blocked/blind work. Remaining: FVS_SnagSum / Down_Wood_Vol / Down_Wood_Cov
+(per-cycle, same pools) + the fire-event tables (BurnReport / Consumption / Mortality / PotFire, which
+need a SIMFIRE collection point). FVS_Hrv_Carbon needs harvest-carbon accounting on cuts.

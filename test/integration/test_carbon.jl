@@ -292,6 +292,40 @@ using SQLite, DBInterface
     end
 end
 
+@testset "FVS_Fuels DBS table — loadings grounded in validated DDW/Floor + round-trip (dbsfuels.f)" begin
+    # ffe_fuel_loadings (DBSFUELS inputs, tons/ac biomass) is composed of the SAME FFE pools that give the
+    # validated carbon report: surface woody lt3+ge3 = the down-wood biomass (= down_wood_carbon/0.5),
+    # litter+duff = the forest-floor biomass. So the loadings are value-grounded; here we check that
+    # relationship + the FVS_Fuels schema/round-trip.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
+        f = FVSjl.ffe_fuel_loadings(s)
+        # down-wood biomass (lt3+ge3) reconciles with the validated DDW carbon pool (DDW = biomass × 0.5)
+        @test (f.lt3 + f.ge3) ≈ FVSjl.down_wood_carbon(s) / 0.5f0 rtol = 1f-4
+        # litter+duff reconcile with the forest-floor pool (floor carbon = biomass × 0.37)
+        @test (f.litter + f.duff) ≈ FVSjl.forest_floor_carbon(s) / 0.37f0 rtol = 1f-4
+        @test f.s3to6 + f.s6to12 + f.ge12 ≈ f.ge3 rtol = 1f-4      # ge3 size split is consistent
+        @test f.surf_total > 0f0
+        # DBS round-trip (collection is (year, carbon_report, fuel) 3-tuples)
+        rows = [(1990, FVSjl.stand_carbon_report(s), f)]
+        dbpath = joinpath(mktempdir(), "fuels.db")
+        FVSjl.write_dbs_fuels!(dbpath, "C1", "S1", rows)
+        db = SQLite.DB(dbpath)
+        res = [(; Year = r.Year, Litter = r.Surface_Litter, lt3 = r.Surface_lt3,
+                ST = r.Surface_Total, Tot = r.Total_Biomass)
+               for r in DBInterface.execute(db, "SELECT * FROM FVS_Fuels")]
+        SQLite.close(db)
+        @test length(res) == 1 && res[1].Year == 1990
+        @test res[1].lt3 ≈ Float64(f.lt3)
+        @test res[1].ST ≈ Float64(f.surf_total)
+    end
+end
+
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin
     # ffe_seed_input_snags! seeds FFE snags from the input dead-tree records (carbon_snt has sp65 d34.6
     # hist=8 and sp27 d7.2 hist=6). The snag STEM-volume bole (local height-dub + R8 Clark volume × V2T,
