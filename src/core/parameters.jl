@@ -16,7 +16,7 @@
 const MAXTRE  = 3000          # max tree records per stand          (PRGPRM)
 const MAXTP1  = MAXTRE + 1    # MAXTRE + 1 (slot for the "new" tree)
 const MAXPLT  = 500           # max individual plots / point ids
-const MAXSP   = 90            # max species (Southern variant)
+const MAXSP   = 108           # max species capacity across variants; nspecies(v) is the variant count
 const MAXCYC  = 40            # max projection cycles
 const MAXCY1  = MAXCYC + 1    # cycle-boundary years array length
 const MAXSTR  = 20            # max site trees

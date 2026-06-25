@@ -17,6 +17,7 @@ the type parameter of `StandState` so all variant dispatch is devirtualized.
 struct Southern <: AbstractVariant end
 
 variant_code(::Southern) = "SN"
+nspecies(::Southern) = 90
 
 # Keywords inert *for SN specifically* — verified against SN code, NOT guaranteed for other
 # variants (re-check the effect variable when porting one). Treated as no-ops by the keyword

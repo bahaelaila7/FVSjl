@@ -149,6 +149,19 @@ function load_species_coefficients(datadir::AbstractString)
         end
     end
 
+    # Pad every per-species vector to the MAXSP capacity so the shared `1:MAXSP` loops stay in-bounds for
+    # a variant with fewer species (SN=90). Empty 91-108 slots are zero/blank — inert for SN (no trees of
+    # those species). Parse-time line counts use the per-variant nspecies(v), not this capacity.
+    # Pad every per-species vector to the MAXSP capacity so the shared `1:MAXSP` loops stay in-bounds for a
+    # variant with fewer species (SN=90). Empty 91-108 slots are zero/blank — inert for SN (no trees of
+    # those species). Per-species OUTPUT (e.g. the InvReference table) iterates `nspecies(variant)`, not the
+    # padded capacity, so it emits exactly the variant's species. Parse line-counts use nspecies(v) too.
+    for (h, v) in species
+        length(v) < MAXSP && (species[h] = vcat(v, zeros(Float32, MAXSP - length(v))))
+    end
+    padstr(v, w) = length(v) < MAXSP ? vcat(v, fill(" "^w, MAXSP - length(v))) : v
+    alpha = padstr(alpha, 4); fia = padstr(fia, 3); plants = padstr(plants, 6)
+
     return SpeciesCoefficients(species, alpha, fia, plants, translation,
                                site_idx, site_grp, grp_rep, forests, habitat,
                                crown_species, crown_eqs,

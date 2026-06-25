@@ -7,7 +7,7 @@ using FVSjl: Control, PlotData, FVSRng, rann!, esrann!, ranseed!, bachlo,
 
 @testset "parameters" begin
     @test MAXTRE == 3000
-    @test MAXSP  == 90
+    @test MAXSP  == 108                  # capacity across variants (SN uses 90)
     @test MAXCYC == 40
     @test nint(2.5) == 3      # Fortran NINT rounds half away from zero (not banker's)
     @test nint(-2.5) == -3

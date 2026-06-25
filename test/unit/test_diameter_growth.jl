@@ -8,8 +8,8 @@ using FVSjl: _dgf_phys_group, _dgf_forest_group, dgcons!, dgf!, coefficients, So
 
 @testset "DGF coefficient tables (loaded from CSV)" begin
     sd = coefficients(Southern()).species
-    @test length(sd[:dg_intercept]) == 90
-    @test length(sd[:dg_phys_p411]) == 90
+    @test length(sd[:dg_intercept]) == MAXSP
+    @test length(sd[:dg_phys_p411]) == MAXSP
     @test sd[:dg_intercept][13] == 0.222214f0    # loblolly pine intercept
 end
 

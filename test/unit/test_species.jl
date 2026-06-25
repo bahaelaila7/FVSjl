@@ -9,10 +9,10 @@ using FVSjl: SN_NSPECIES, init_blockdata!, DEFAULT_TREE_FORMAT, coefficients
 @testset "species table shapes & anchors (loaded from CSV)" begin
     c = coefficients(Southern())
     @test SN_NSPECIES == 90
-    @test length(c.code_alpha) == 90
-    @test length(c.code_fia) == 90
-    @test length(c.code_plants) == 90
-    @test length(c.species[:dg_resid_sd]) == 90
+    @test length(c.code_alpha) == MAXSP
+    @test length(c.code_fia) == MAXSP
+    @test length(c.code_plants) == MAXSP
+    @test length(c.species[:dg_resid_sd]) == MAXSP   # numeric coeff vectors padded to capacity
     @test length(c.valid_habitat) == 122
     # anchors (first / mid / last species)
     @test strip(c.code_alpha[1]) == "FR"  && c.code_fia[1] == "010" && strip(c.code_plants[1]) == "ABIES"

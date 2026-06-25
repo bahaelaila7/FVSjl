@@ -495,7 +495,7 @@ diameter / stump for total, sawtimber, and board). All data the engine already h
 function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)
     c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
-    nsp = length(co.code_alpha)
+    nsp = nspecies(s.variant)   # the variant's real species count (code arrays are padded to MAXSP capacity)
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try

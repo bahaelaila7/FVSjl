@@ -22,6 +22,9 @@ abstract type AbstractVariant end
 """Two-letter FVS variant code (e.g. \"SN\"). Each variant must define this."""
 function variant_code end
 
+"""Number of species in the variant (SN=90, NE=108). Array capacity is MAXSP (the max)."""
+function nspecies end
+
 # ---------------------------------------------------------------------------
 # Variant hooks. These are the generic functions the base engine calls; each
 # variant supplies methods. Declared here (no methods yet) so the engine can

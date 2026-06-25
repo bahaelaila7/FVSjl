@@ -322,13 +322,13 @@ end
 # READCOR{D,H,R} read a continuation block of MAXSP per-species correction terms (Fortran 8F10.0,
 # initre.f:5650). A blank field reads as 0.0 (Fortran F10.0), and the apply guards `> 0`, so an
 # unspecified species gets no correction. Returns the freshly-read array (replacing the default 1s).
-function read_species_corr!(kr::KeywordReader)
+function read_species_corr!(kr::KeywordReader, nsp::Integer)
     vals = zeros(Float32, MAXSP)
-    @inbounds for ln in 1:cld(MAXSP, 8)
+    @inbounds for ln in 1:cld(nsp, 8)
         line = rpad(read_raw_line!(kr), 80)
         for f in 1:8
             i = (ln - 1) * 8 + f
-            i > MAXSP && break
+            i > nsp && break
             field = strip(line[(f-1)*10+1 : f*10])
             isempty(field) || (vals[i] = something(tryparse(Float32, field), 0f0))
         end
@@ -340,21 +340,21 @@ end
 # COR2 (added as ln(COR2) to DGCON before calibration, dgf.f:1168). READ reloads the terms; REUSE
 # re-enables the previously-read terms without reading (multi-stand carry-over).
 function kw_readcord!(s::StandState, kr::KeywordReader)
-    s.control.dg_cor2 = read_species_corr!(kr); s.control.dg_cor2_on = true; return
+    s.control.dg_cor2 = read_species_corr!(kr, nspecies(s.variant)); s.control.dg_cor2_on = true; return
 end
 kw_reuscord!(s::StandState) = (s.control.dg_cor2_on = true; return)
 
 # OPTIONS 67/68 — READCORH/REUSCORH (initre.f:6900/7000): large-tree HEIGHT-growth correction
 # HCOR2 (added as ln(HCOR2) to HTCON before calibration, htgf.f:332).
 function kw_readcorh!(s::StandState, kr::KeywordReader)
-    s.control.htg_cor2 = read_species_corr!(kr); s.control.htg_cor2_on = true; return
+    s.control.htg_cor2 = read_species_corr!(kr, nspecies(s.variant)); s.control.htg_cor2_on = true; return
 end
 kw_reuscorh!(s::StandState) = (s.control.htg_cor2_on = true; return)
 
 # OPTIONS 73/74 — READCORR/REUSCORR (initre.f:7500/7600): small-tree HEIGHT-growth correction
 # RCOR2 (the small-tree height constant RHCON = RCOR2, a multiplier on the REGENT con, regent.f:585).
 function kw_readcorr!(s::StandState, kr::KeywordReader)
-    s.control.regh_cor2 = read_species_corr!(kr); s.control.regh_cor2_on = true; return
+    s.control.regh_cor2 = read_species_corr!(kr, nspecies(s.variant)); s.control.regh_cor2_on = true; return
 end
 kw_reuscorr!(s::StandState) = (s.control.regh_cor2_on = true; return)
 

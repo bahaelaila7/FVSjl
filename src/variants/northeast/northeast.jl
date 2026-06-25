@@ -23,6 +23,7 @@ interface method is implemented, dispatching it on `Northeast` errors loudly.
 struct Northeast <: AbstractVariant end
 
 variant_code(::Northeast) = "NE"
+nspecies(::Northeast) = 108
 
 # NE coefficient/data directory (mirrors data/southern/). Built up chunk by chunk:
 # species_translation.csv (the 108-species roster) is the first, most-upstream piece.
