@@ -16,16 +16,8 @@
 
 const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f)
 
-# XMIN: per-species establishment min height (blkdat.f; sp 73-90 default 0).
-const _ES_XMIN = Float32[
-    0.50,2.08,0.50,1.00,1.32,2.51,0.50,2.53,2.75,0.50,
-    5.05,0.50,4.70,0.50,1.33,1.33,0.66,2.40,1.35,1.35,
-    2.03,0.50,0.50,0.50,0.50,2.08,0.51,0.63,2.08,2.08,
-    2.08,2.08,0.50,0.50,0.50,0.92,0.50,5.98,0.94,2.08,
-    0.50,3.28,3.28,1.33,0.89,1.53,1.38,3.59,3.59,3.59,
-    2.08,2.08,4.15,3.59,3.59,2.08,2.08,2.08,0.89,0.50,
-    0.50,0.50,1.38,1.38,1.38,0.50,2.75,2.75,0.50,2.75,
-    0.50,1.38, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0]
+# XMIN: per-species establishment min height (blkdat.f) lives in
+# data/southern/species_coefficients.csv as the `estab_min_ht` column.
 # HHTMAX: per-species max establishment height (blkdat.f).
 const _ES_HHTMAX = Float32[23.0,27.0,21.0,21.0,22.0,20.0,24.0,18.0,18.0,17.0,22.0,
     (20.0 for _ in 12:90)...]
@@ -48,6 +40,7 @@ tree was created. No-op unless an ESTAB packet is active.
 function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
+    es_xmin = sd[:estab_min_ht]   # per-species establishment min height (CSV)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
@@ -99,7 +92,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0f0 <= ran <= 1.5f0) && (hht += ran; break)
                 end
             end
-            hht < _ES_XMIN[sp]   && (hht = _ES_XMIN[sp])           # HTADJ=0, floor, cap
+            hht < es_xmin[sp]   && (hht = es_xmin[sp])           # HTADJ=0, floor, cap
             hht > _ES_HHTMAX[sp] && (hht = _ES_HHTMAX[sp])
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
             dbh = _htdbh_dbh(sd, sp, hht, ifor); dbh < 0.1f0 && (dbh = 0.1f0)

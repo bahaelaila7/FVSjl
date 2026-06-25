@@ -23,17 +23,8 @@ const REGENT_XMAX = 3f0
 const REGENT_REGYR = 5f0
 const REGENT_DGMAX = 5f0
 
-# Budwidth floor DIAM (in) by species (regent.f DATA / htdbh SNDBAL).
-const REGENT_DIAM = Float32[
-    0.1,0.3,0.2,0.5,0.5,0.5,0.5,0.5,0.5,0.5,
-    0.5,0.4,0.5,0.5,0.2,0.2,0.1,0.2,0.2,0.2,
-    0.2,0.2,0.3,0.1,0.1,0.2,0.3,0.3,0.1,0.2,
-    0.1,0.2,0.1,0.2,0.2,0.2,0.2,0.1,0.2,0.2,
-    0.1,0.3,0.4,0.2,0.2,0.2,0.2,0.2,0.2,0.2,
-    0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.1,0.1,
-    0.2,0.1,0.2,0.2,0.1,0.1,0.2,0.1,0.2,0.2,
-    0.2,0.1,0.1,0.2,0.2,0.1,0.1,0.2,0.2,0.1,
-    0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.3,0.2,0.2]
+# Budwidth floor DIAM (in) by species (regent.f DATA / htdbh SNDBAL) lives in
+# data/southern/species_coefficients.csv as the `regent_min_diam` column.
 
 # Diameter increment for one small-tree record from its height increment `htg`
 # (regent.f:195-275, HTDBH-inverse branch). `d`,`h` are the record's pre-growth
@@ -65,6 +56,7 @@ after `height_growth!` (it blends with and reads `trees.ht_growth`).
 """
 function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
+    regent_diam = sd[:regent_min_diam]   # budwidth floor DIAM by species (CSV)
     bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(p.eco_unit) && p.eco_unit[1] == 'M'
     sizcap = s.control.sp_size_cap
@@ -117,7 +109,7 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx), xrdgro)
-                (d + dg) < REGENT_DIAM[sp] && (dg = REGENT_DIAM[sp] - d)
+                (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)
                 dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
