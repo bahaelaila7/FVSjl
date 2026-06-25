@@ -64,7 +64,10 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         @test snag_standing_density(s.fire) ≈ 65f0
         @test all(s.fire.snags.den_soft .== 0f0)       # new snags start hard
 
-        # age 5 years: some fall (transfer to CWD), some hard→soft
+        # age 5 years: some fall (transfer to CWD), some hard→soft. update_snags! advances each snag by
+        # its OWN age (current cycle year − death year, capped at nyears) — FMSNAG ages by death year, so
+        # set the current year 5 yrs past the 2003 deaths.
+        s.control.cycle_year[1] = Int32(2008)
         fell = update_snags!(s, 5)
         @test fell > 0f0
         @test snag_standing_density(s.fire) < 65f0
@@ -81,7 +84,8 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         # a 14" oak snag → the 12–20" down-wood size class (6)
         @test sum(@view s.fire.cwd[6, :, :]) > 0f0
 
-        # eventually nearly all fall
+        # eventually nearly all fall (advance to 25 yrs past death)
+        s.control.cycle_year[1] = Int32(2028)
         update_snags!(s, 20)
         @test snag_standing_density(s.fire) < 1f0
     end

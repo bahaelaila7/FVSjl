@@ -108,16 +108,24 @@ class. Returns the total density (stems/ac) that fell.
 function update_snags!(s::StandState, nyears::Integer)::Float32
     fs = s.fire; (fs === nothing) && return 0f0
     sn = fs.snags; coef = s.coef
+    cur = Int(current_cycle_year(s))
     fallen = 0f0
     @inbounds for i in eachindex(sn.sp)
         sp = sn.sp[i]
+        # Advance the snag only by the years it has actually STOOD since death, capped at the cycle
+        # length: a snag that died this cycle (deaths are dated at/near the cycle boundary, not the
+        # cycle start) has stood only ~0-1 years, so it must not fall a full cycle's worth — otherwise
+        # the cycle's fresh mortality over-falls and Stand-Dead collapses (FMSNAG ages each snag by its
+        # own (year − deathyr), not a blanket nyears). Older cohorts fall the full nyears each cycle.
+        yrs = clamp(cur - Int(sn.year[i]), 0, Int(nyears))
+        yrs > 0 || continue
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B
         # path (so don't double-count it). Fall back to Jenkins for cohorts with bolevol unset.
         a = sn.bolevol[i]
         a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
         isz = _cwd_size_class(sn.dbh[i])
         idc = Int(coef_col(coef, :dkr_cls)[sp])             # decay-rate class
-        for _ in 1:nyears
+        for _ in 1:yrs
             denttl = sn.den_hard[i] + sn.den_soft[i]
             denttl > 0f0 || break
             shift = min(sn.den_hard[i], sn.den_hard[i] * snag_decay_fraction(coef, sp))

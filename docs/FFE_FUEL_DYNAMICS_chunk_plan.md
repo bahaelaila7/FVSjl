@@ -563,3 +563,15 @@ cycle boundary; FVS spreads it. So the FFE dead-pool dynamics (snag falldown + c
 modeling the within-cycle death age — either spread the mortality, or age the cycle's new snags by the
 within-cycle average (~nyrs/2) while older snags age the full nyrs. THAT is the precise remaining fix for
 the snag/DDW dynamics; the rate, creation, and bolevol are all confirmed correct.
+
+### Snag falldown FIXED — age-aware update_snags! (deaths-spreading), validated + shipped
+Made update_snags! advance each snag by min(nyears, current_cycle_year − death_year) instead of a
+blanket nyears (FMSNAG ages each snag by its own death year; the cycle's fresh mortality is dated ~at
+the boundary so it must not fall a full cycle). On carbon_snt this turns the Stand-Dead COLLAPSE
+(3.9→1.9) into the correct INCREASING trajectory 3.9/4.0/4.5/8.3 vs Fortran 3.8/4.4/5.4/9.5 — tracks
+within ~1.2 (residual = un-flowed mortality crown cwd2b + pre-inventory input-snag age). SHIPPED:
+suite stays green (the snag unit test updated to set the year for the age-aware semantic; fire
+integration unaffected — fire snags are dated at the fire year), + a carbon_snt integration test asserts
+the increasing/tracking Stand-Dead. This is the FIRST clean fix of an FFE dead-pool DYNAMIC and also
+corrects the fire-path snag aging. Remaining for the full DDW: the cwd2b crown debris has the SAME
+deaths-spreading timing (apply it there too), then the crown-lift decay window, then wire into the report.

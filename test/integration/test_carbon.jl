@@ -222,3 +222,36 @@ end
         @test FVSjl.snag_standing_density(s.fire) > 0f0            # snags actually created
     end
 end
+
+@testset "Snag falldown — age-aware Stand-Dead tracks the Fortran (carbon_snt, deaths-spreading fix)" begin
+    # update_snags! ages each snag by its OWN (current year − death year), not a blanket nyears (FMSNAG):
+    # a cycle's fresh mortality is dated ~at the boundary, so it must not fall a full cycle. With the
+    # blanket-nyears falldown the Stand-Dead COLLAPSED (3.9→1.9); age-aware it INCREASES and tracks the
+    # Fortran (3.8→4.4→5.4→9.5). This drives the snag-bole half of Stand-Dead; the small residual is the
+    # un-flowed mortality crown (cwd2b) + the pre-inventory input-snag age. Demonstrates the dynamics fix.
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.compute_forest_type!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.fmcba!(s)
+        FVSjl.ffe_seed_input_snags!(s)
+        TO = 0.90718474 / 0.40468564
+        fF = [3.8, 4.4, 5.4, 9.5]
+        prev = 0.0
+        for c in 1:4
+            FVSjl.compute_density!(s)
+            sd = FVSjl.standing_dead_carbon(s) * TO
+            @test sd <= fF[c] + 0.2          # never OVER the Fortran (no collapse-then-overshoot)
+            c >= 2 && @test sd > prev        # INCREASES every cycle (was collapsing before the fix)
+            @test abs(sd - fF[c]) <= 1.3     # tracks the Fortran within the crown/age residual
+            prev = sd
+            if c < 4
+                FVSjl.grow_cycle!(s; fint = 5f0)
+                FVSjl.update_snags!(s, 5)     # age-aware falldown
+            end
+        end
+    end
+end
