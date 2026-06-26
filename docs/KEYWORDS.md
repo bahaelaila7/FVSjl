@@ -1,18 +1,82 @@
 # FVSjl keyword reference
 
-Every keyword FVSjl recognizes, grouped by purpose, with its **named parameters**
-(the names used by the structured-YAML form — see `examples/`). In a legacy `.key`
-file parameters are positional fixed-column fields; the *field number* in parentheses
-is the 1-based parameter slot (cols `10·n+1 … 10·n+10`). A blank date field defaults
-to **cycle 1**; a date ≥ 1000 is a calendar year, < 1000 a cycle number.
+Every keyword FVSjl recognizes, grouped by purpose, with its **named parameters**.
+A keyword can be written in **two equivalent forms** — FVSjl reads either and runs
+them identically:
 
-Structured-YAML form:
+1. **Legacy `.key`** — fixed-column Fortran cards. The keyword name is in cols 1–8;
+   each parameter is a 10-column field (field `n` at cols `10·n+1 … 10·n+10`). The
+   *field number* in parentheses below is that 1-based slot.
+2. **Modern `.yaml`** — an **order-aware, hierarchical** document (see next section).
+   Parameters are **named** and keep their natural type (numbers unquoted, codes quoted).
+
+A blank date field defaults to **cycle 1**; a date ≥ 1000 is a calendar year, < 1000 a
+cycle number. Convert between the forms with `bin/fvsjl-translate.jl` (or
+`examples/key_to_structured_yaml.py`); the round-trip is lossless.
+
+---
+
+## The YAML form — order-aware hierarchy
+
+> **Order matters in FVS.** The keyword stream is an *ordered sequence*: activities
+> schedule in input order, later keywords override earlier ones, and several keywords
+> depend on the state a *prior* keyword established. The YAML form therefore stays an
+> ordered list end-to-end — the hierarchy only **groups** that ordered stream into
+> named, readable sections; it never reorders it.
+
+The default (hierarchical) shape is a `stand:` map whose value is an **ordered list of
+section blocks**, each block an **ordered list of keyword entries**:
 
 ```yaml
-- THINBBA:
-    year: 2010
-    residual_basal_area: 80
+stand:
+  - setup:               # ── stand setup & inventory ──
+      - STDIDENT: { id: "my stand" }
+      - STDINFO:  { forest_code: 80106, habitat: "231Dd", stand_age: 60 }
+      - NUMCYCLE: { cycles: 5 }
+  - species_groups:      # ── define groups BEFORE the THIN that names them ──
+      - SPGROUP: { group: "MAPHIC" }
+      - raw: "SM HI"     # the member-species list (carried verbatim)
+  - treatments:          # ── ORDER MATTERS: same-cycle activities run top-to-bottom ──
+      - THINBBA: { year: 2005, residual_basal_area: 90 }
+      - THINDBH: { year: 2015, dbh_min: 0, dbh_max: 12, cut_efficiency: 0.8 }
+  - setup:
+      - TREEDATA: {}
+      - PROCESS:  {}
+      - STOP:     {}
 ```
+
+**Flattening the blocks top-to-bottom reproduces the exact keyword order** — grouping
+is strictly order-preserving (a section may appear more than once, e.g. `setup` above,
+precisely so the original interleaving is kept). Section names are *labels only* on
+read; the list order is the source of truth.
+
+Each entry is one of:
+
+| entry form | when used | example |
+|---|---|---|
+| `KEYWORD: { named: …, params: … }` | keyword is in the schema and every present field maps to a name | `THINBBA: { year: 2005, residual_basal_area: 90 }` |
+| `keyword: "NAME"` + `params: [ … ]` | no schema, or a field has no name (positional, still lossless) | `keyword: "VOLEQNUM"`, `params: ["0", "203.0"]` |
+| `raw: "…"` | a free-form continuation line (an `IF` condition, a `COMPUTE` body line, SPGROUP members, the `TREEFMT` format) | `raw: "(FRAC(CYCLE/2.0) EQ 0.0)"` |
+
+A legacy **flat** form is also accepted (and emitted with `--flat`): a single ordered
+`keywords:` list of those same entries — no `stand:`/sections.
+
+### Order-significant relationships you must preserve
+
+These are the places where *relative order changes the result*. The hierarchical form
+keeps each in a single contiguous, ordered block:
+
+| relationship | rule | section |
+|---|---|---|
+| **SPGROUP → THIN** | a `SPGROUP` must come **before** any thinning that references the group (via a negative species code). | `species_groups` then `treatments` |
+| **same-cycle activities** | two activities scheduled in the **same cycle/year** are applied in **input order** (e.g. a `THINBBA` then a `THINDBH` in 2005). | `treatments` |
+| **COMPUTE def-before-use** | a `COMPUTE` variable must be **defined before** any later keyword or condition that uses it; variables defined in an earlier cycle persist. | `event_monitor` |
+| **IF … THEN … ENDIF** | the condition and its guarded activities form one ordered block; the activities fire in order when the condition holds. | `event_monitor` |
+| **ESTAB … END** | `PLANT` / `NATURAL` / `SPROUT` cards live **inside** the `ESTAB … END` packet, in order. | `regeneration` |
+| **override keywords** | a later `SETSITE`, multiplier, or merch-standard card **overrides** an earlier one for the overlapping date/species window. | various |
+
+Everything else is grouped purely for readability; reordering *across* unrelated
+sections has no effect, but the converter never does so — it preserves the input order.
 
 ---
 
@@ -181,13 +245,247 @@ All `THIN*` keywords share the layout: `year`(1), then a residual/target(2),
 
 ---
 
+## Worked examples (`.key` ↔ `.yaml`, side by side)
+
+Each example shows the legacy card(s) and the equivalent hierarchical-YAML entry.
+All are drawn from `test/keyword_coverage/scenarios/`.
+
+### Thinning — `THINABA` (from above to a residual basal area)
+
+```text                                  # .key
+THINABA       2005.0     100.0
+```
+```yaml                                  # .yaml  (in the `treatments` section)
+- THINABA:
+    year: 2005
+    residual_basal_area: 100
+```
+Thin **from above** in 2005 down to a residual 100 sq ft/ac of basal area. (`THINBBA`
+is the same card "from below"; `THINBTA`/`THINATA` target trees-per-acre, `THINSDI`
+an SDI, `THINCC` a CCF.)
+
+### `THINDBH` — remove within a DBH window, by efficiency
+
+```text
+THINDBH       2015.0       0.0      12.0      0.80
+```
+```yaml
+- THINDBH:
+    year: 2015
+    dbh_min: 0
+    dbh_max: 12
+    cut_efficiency: 0.8
+```
+Remove 80 % (`cut_efficiency`) of trees with DBH in [0, 12) in 2015.
+
+### `SPGROUP` + group thin — **order-significant**
+
+```text
+SPGROUP   MAPHIC
+SM HI
+THINDBH       2005.0       0.0      99.0      1.00        -1     100.0
+```
+```yaml
+- species_groups:
+    - SPGROUP:
+        group: "MAPHIC"
+    - raw: "SM HI"            # member species (SM + HI), carried verbatim
+- treatments:
+    - keyword: "THINDBH"      # species = -1 references the group above
+      params: ["2005.0", "0.0", "99.0", "1.00", "-1", "100.0"]
+```
+The `SPGROUP` block **must precede** the `THINDBH` whose species code `-1` references
+the group. (Here `THINDBH` keeps the positional form because its field-5 species code
+has no schema name — still lossless.)
+
+### `SPECPREF` / `LEAVESP` — removal preference & protected species
+
+```text
+LEAVESP           63
+```
+```yaml
+- LEAVESP:
+    species: 63
+```
+Protect species 63 (white oak) from cutting during thins. `SPECPREF` similarly sets a
+removal-preference order. These come **before** the thin they modify.
+
+### Establishment — `ESTAB … PLANT … END` packet (order-significant)
+
+```text
+ESTAB         2000.0
+PLANT         2000.0      LP       300.0      90.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB:
+        disturbance_date: 2000
+    - PLANT:
+        year: 2000
+        species: "LP"          # alpha species code → quoted
+        tpa: 300
+        survival_pct: 90
+    - END: {}
+```
+Open an establishment packet for the 2000 disturbance, plant 300 loblolly-pine TPA at
+90 % survival, then close with `END`. `PLANT`/`NATURAL`/`SPROUT` cards live **inside**
+the packet, in order.
+
+### `VOLEQNUM` — override the cubic volume equation
+
+```text
+VOLEQNUM           0     203.0
+```
+```yaml
+- VOLEQNUM:
+    species: 0               # 0 = all species
+    equation: 203
+```
+
+### `VOLUME` — cubic merchandising standards
+
+```text
+VOLUME        2000.0       0.0       1.0       4.0       8.0
+```
+```yaml
+- VOLUME:
+    date: 2000
+    species: 0
+    cf_stump: 1
+    cf_top: 4
+    cf_min_dbh: 8
+```
+
+### `MCDEFECT` — cubic defect curve by DBH class
+
+```text
+MCDEFECT      2000.0      22.0       5.0      10.0      15.0      20.0
+```
+```yaml
+- keyword: "MCDEFECT"
+  params: ["2000.0", "22.0", "5.0", "10.0", "15.0", "20.0"]
+```
+`date`(1), `species`(2), then the per-DBH-class defect percentages.
+
+### `COMPUTE … END` — Event-Monitor user variable (**def-before-use**)
+
+```text
+COMPUTE       0
+MYBA = BBA
+END
+```
+```yaml
+- event_monitor:
+    - keyword: "COMPUTE"
+      params: ["0"]
+    - raw: "MYBA = BBA"      # the assignment body, carried verbatim
+    - END: {}
+```
+Define `MYBA` = the before-thin basal area each cycle. The definition **must appear
+before** any later keyword/condition that reads `MYBA`.
+
+### `IF … THEN … ENDIF` — conditional scheduling (**ordered block**)
+
+```text
+IF
+(FRAC(CYCLE/2.0) EQ 0.0)
+THEN
+THINBBA          0.0     110.0
+ENDIF
+```
+```yaml
+- event_monitor:
+    - IF: {}
+    - raw: "(FRAC(CYCLE/2.0) EQ 0.0)"   # the condition expression
+    - THEN: {}
+    - THINBBA:
+        year: 0                          # 0 = current cycle
+        residual_basal_area: 110
+    - ENDIF: {}
+```
+Every even cycle, thin to 110 sq ft/ac. The condition and its guarded activities are
+one contiguous ordered block.
+
+### `SERLCORR` — serial-correlation parameters
+
+```text
+SERLCORR
+```
+```yaml
+- SERLCORR: {}
+```
+
+### `TIMEINT` — cycle length
+
+```text
+TIMEINT          0      10.
+```
+```yaml
+- TIMEINT:
+    cycle: 0           # 0 = all cycles
+    length: 10
+```
+Set every cycle to 10 years.
+
+### `COMPRESS` — cluster records to speed projection
+
+```text
+COMPRESS      2000.0
+```
+```yaml
+- COMPRESS:
+    date: 2000
+```
+
+### `THINAUTO` — automatic thinning
+
+```text
+THINAUTO      2000.0
+```
+```yaml
+- THINAUTO:
+    year: 2000
+```
+
+### Database output — `DATABASE … SUMMARY/CUTLIST … END`
+
+```text
+DATABASE
+SUMMARY            2
+CUTLIST            2
+END
+```
+```yaml
+- output:
+    - DATABASE: {}
+    - SUMMARY:
+        level: 2
+    - CUTLIST:
+        level: 2
+    - END: {}
+```
+Open the SQLite-output block and request the `FVS_Summary` and `FVS_CutList` tables,
+then close with `END`.
+
+---
+
 ### Notes
 
 - Parameter **field positions** come from the FVSjl keyword handlers
   (`src/engine/keyword_dispatch.jl`); the `# OPTION n — NAME (initre.f:…)` comment
   on each handler is the authoritative field-by-field source.
-- The structured-YAML schema (`src/io/yaml_keywords.jl` `_KW_SCHEMA`) gives the
-  machine-readable named parameters for the keywords most used in stand setup and
-  thinning; extend it to add named params for more keywords.
+- The named-parameter schema (`src/io/yaml_keywords.jl` `_KW_SCHEMA`) and the
+  section grouping (`_KW_SECTION` in the same file) are the machine-readable source
+  for the YAML form; extend them to add named params / a section for more keywords.
+  A keyword without a schema entry still round-trips via the positional
+  `keyword:`/`params:` form, and an unrecognized section falls into `other`.
+- The hierarchical grouping is **order-preserving by construction**: the writer emits
+  consecutive same-section records as one block and never reorders, so flattening the
+  blocks reproduces the exact `.key` keyword sequence. The reader treats section names
+  as labels only — list order is authoritative. Both directions are lossless w.r.t.
+  the dispatch-relevant record (name, values, presence, field text); the original
+  card's exact column padding is intentionally not preserved (it carries no meaning
+  the handlers use).
 - Keywords accepted but treated as `.sum`-inert no-ops in some variants (e.g.
   certain calibration cards) still parse without error.

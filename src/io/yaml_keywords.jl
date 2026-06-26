@@ -298,6 +298,9 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
     "ESTAB"    => ["disturbance_date"=>1],
     # volume
     "VOLEQNUM" => ["species"=>1, "equation"=>2],
+    # species groups — the group NAME is field 1 of the SPGROUP card; the member
+    # species are carried as a `raw:` line that follows (handled as a free-form line).
+    "SPGROUP"  => ["group"=>1],
     # cycle / setup extras
     "TIMEINT"  => ["cycle"=>1, "length"=>2],
     "CYCLEAT"  => ["year"=>1],
