@@ -98,6 +98,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
+        snapshot_ffe_oldcrown!(s)            # FMOLDC at inventory: gives the 1st cycle's crown-lift a valid
+                                             # OLDCRW (else the 1st cycle's fine down-wood is lost; DDW gap)
     end
     g = s.plot.gross_space
     sw = sample_wt === nothing ? g : sample_wt

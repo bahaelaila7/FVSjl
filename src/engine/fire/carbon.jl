@@ -382,6 +382,10 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
     # seed the inventory snags from the input dead-tree records (no-op when there are none); the
     # per-cycle snag falldown then runs inside grow_cycle! (update_snags!, simulate.jl:211).
     fs !== nothing && fs.active && ffe_seed_input_snags!(stand)
+    # Snapshot the INVENTORY crown as the OLD state (FVS calls FMOLDC in the inventory FMMAIN, before the
+    # first grow), so the FIRST cycle's crown-lift has a valid OLDCRW. Without this the 1st cycle's
+    # crown-lift is skipped (ffe_oldht=0), losing ~1.9 t/ac of fine down-wood — the DDW sizes-1-3 gap.
+    fs !== nothing && fs.active && snapshot_ffe_oldcrown!(stand)
     for c in 0:ncyc
         compute_density!(stand)
         # Refresh cover type + live herb/shrub fuels (FLIVE) from the CURRENT (post-growth) stand at
