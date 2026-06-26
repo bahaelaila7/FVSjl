@@ -274,3 +274,18 @@ over-accumulation (my earlier 13.0 was a column misparse that also invalidated t
 1995 is HIGH). The endpoints being exact means the SOURCES are right; only the per-cycle phasing of the
 additions vs FVS's annual GRADD→FMCADD interleaving is off. Closing it needs per-term timing alignment
 (crown-lift same-cycle, CWD2B flow phase, falldown phase) validated together — a careful FFE-carbon refactor.
+
+#### Carbon dead-pool residual — THREE concrete terms identified (each small, compounding).
+Instrumented each contributor for carbon_snt:
+1. **Input-snag bole VOLUME** (test #548): FVSjl snag_bole_carbon·TO = 3.924 vs FVS 3.8 (+3.3%). Both
+   input dead records have NO height (ht=0 in the .tre) → FVSjl estimates via _htdbh_height (dbh 34.6→
+   92.7 ft, dbh 7.2→53.7 ft); FVS's HTDEAD/FMSVL2 estimate differs. Drives part of the 1995 over-add.
+2. **Crown-lift application cycle**: FVSjl applies it the NEXT cycle's fuel loop (computed post-grow);
+   FVS applies same-cycle (FMCADD after GRADD). Drives the 2000 under-add (~cl_1 missing).
+3. **CWD2B crown-flow phasing**: the mortality crown sits as Stand-Dead until TFALL drops it to DDW;
+   committed flows it one cycle late (SD high/DDW low), the after-grow reorder flows too fast (SD low/
+   DDW high), FVS is between. Drives the SD↔DDW split.
+The committed timing balances #2/#3 so BOTH endpoints (1990, 2005) and all live pools are bit-exact;
+every single-term change regresses an endpoint (verified vs live oracle, col-7). Closing all 10 needs:
+fix the input-snag HTDEAD estimate to match FVS (#1, instrument FMSVL2), then jointly re-phase #2+#3 to
+FVS's annual order while preserving the endpoints. Multi-step, multi-term FFE-carbon calibration.
