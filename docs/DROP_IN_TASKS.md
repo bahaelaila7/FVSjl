@@ -289,3 +289,23 @@ differently from the key path despite identical records — a converter/reader-p
 or ordering bug (verified: rpad->lpad justification change did NOT fix it). Committed scenario yamls for
 s30/s36 are the OLD form and round-trip correctly, so the suite is unaffected. Fix is a focused follow-up
 on the yaml reader-path handling of stateful calibration/thinning keywords.
+
+
+## s32 ROOT REFINED (attempt made scuft bit-exact; mcuft coupling pins the real gap)
+Attempted the Region-8 <10ft rule (fvsvol.f:499-502: zero sawtimber cubic when the sawtimber sawlog
+HT1PRD<10) on the PRIMARY sawtimber call in volume.jl. RESULT: scuft went BIT-EXACT (1990-2015 all
+match: 68/68, 227/227, 545/545, 1790/1790, 2273-4, 2709/2709) — CONFIRMING the <10ft rule is the right
+mechanism for the sawtimber leak. BUT it over-zeroed mcuft (1990: 84 vs FVS 1149) and broke 219 DEFAULT
+tests. Two coupled reasons, now pinned:
+  1. NOT GATED TO THE SAWTIMBER PRODUCT. fvsvol.f:499's rule lives in the board-feet section, which runs
+     only for prod='01' (sawtimber). My rule fired unconditionally, so DEFAULT small trees (which use
+     prod='02' pulpwood because scfmin>0) wrongly got zeroed. Fix: gate the rule on prod=='01'.
+  2. prod='01'-WITH-NO-SAWLOG MERCH FALLBACK. For s32 the card zeroes SCFMIND=0, so ALL trees (even
+     dbh~5) take prod='01'. When a small tree has no sawlog, FVS's MCF falls back to the full pulpwood
+     merch (stump→4in), but FVSjl's mcf=v[7] (topwood 7in→4in) is ~0 for such a tree → mcuft collapses.
+     The _R8CLARK_VOL prod='01' path does not produce the pulpwood-merch fallback that FVS's NVEL R8 does.
+SO s32 = (a) gate the <10ft sawtimber-cubic zero to prod='01' (fixes scuft, safe for defaults) + (b) make
+the prod='01'/no-sawlog merch cubic fall back to the pulpwood volume (fixes mcuft) — matching FVS's NVEL
+R8 Clark. Both are deterministic and now precisely scoped; the scuft half is verified working. (Third
+blind attempt avoided — the mcuft fallback needs the r8clark_vol prod-01 topwood/pulpwood path, not a
+caller-side patch.)
