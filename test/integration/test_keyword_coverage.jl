@@ -28,16 +28,16 @@ const _KC_FT_BROKEN = Dict(
     "s5_cycle"     => "10-yr board-foot tail: calibrated-species DG/HTG precision (non-5 period); see fvsjl-10yr-cycle-mortality",
     "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
-    # s26: PLANT 300 LP@90%. Per-cycle LP cohort dump (FVSjl write_sum_file hook) vs FVS .trl:
-    #   FVSjl LP: 2005=270.0  2010=63.3  2015=7.3   (270 = 300×0.90 exactly)
-    #   FVS   LP: 2005=245.4  2010=54.8  2015=8.0
-    # The INITIAL established TPA differs (270 vs 245.4 ≈ ×0.909); after 2005 the self-thin
-    # RATE matches. So the root is the establishment-cycle treatment of the planted cohort —
-    # candidates: FVS's density-dependent ESA stocking logistic (estab.f:320, 1/(1+exp(-(-5.174
-    # +0.851·ln TPACRE)))) and/or the planted trees taking the planting-cycle mortality (FVSjl
-    # enters them fresh AFTER mortality). Bit-exact for BARE stands; only stocked-stand PLANT
-    # diverges. Fix needs estab-timing/ESA reconciliation without regressing the BARE validation.
-    "s26_estab"    => "planted-cohort initial TPA 270 (=300×0.90) vs FVS 245.4 — establishment-cycle ESA/mortality (BARE bit-exact)",
+    # s26: PLANT 300 LP@90%. CORRECTED via a targeted GRADD-end LP-sum print in a recompiled
+    # FVS (the earlier "245.4" was a .trl column-parse error). Real per-cycle LP TPA:
+    #   FVSjl LP: 2005=270.0  2010=63.31  2015=7.27
+    #   FVS   LP: 2005=270.0  2010=60.31  2015=8.75
+    # ESTABLISHMENT IS BIT-EXACT (270 both at 2005). The divergence is the DENSE small-tree
+    # cohort's SELF-THINNING MORTALITY 2005→2010 (FVS kills 270→60.31, FVSjl 270→63.31, ~5%).
+    # The LP are dbh 2.6→3.2 (near the dbh_zeide≈3 SDI threshold) — likely the small-tree
+    # SDI-inclusion or VARMRT distribution for a dense sub-merch cohort. NOT establishment,
+    # NOT the linear-G fix (5-yr cycle = identity). Same mortality kernel as the broader work.
+    "s26_estab"    => "dense LP-cohort self-thinning mortality 2005→2010 (FVS 270→60.31 vs FVSjl 270→63.31); establishment bit-exact",
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,
