@@ -311,3 +311,16 @@ crown-lift cycle (#2) + CWD2B phasing (#3).
 - **Remaining 2000 DDW −1.3 = CWD2B/decay phasing** (not crown-lift): the 1995-2000 cycle's down-wood
   additions (CWD2B mortality-crown flow + snag falldown) under-accumulate mid-run, recovering by 2005
   (endpoints bit-exact). This + the Stand-Dead CWD2B-crown residual (~0.3-0.6) are the last carbon terms.
+
+#### PROGRESS update: 11→9 broken (two more faithful carbon fixes this turn).
+- **Below-Dead roots FIXED & committed** (test #205): FVS decays input-snag dead roots assuming 10 yrs
+  since death (XDCAY=(1-CRDCAY)^10, fmsadd.f:313-320); FVSjl booked the full Jenkins root. Now Below-Dead
+  is BIT-EXACT every cycle (1.0/1.3/2.0/3.7 = FVS).
+- **Mortality-snag bole = MERCH: tested, REVERTED.** Switching book_mortality_snags to merch_cuft_vol
+  made Stand-Dead WORSE (Δ 0.3→0.9). So FVS uses MERCH for the dead-input seed path (FMSVOL) but the
+  mortality-created snag bole behaves like total cubic — keep cuft_vol there. (Fire stayed green either way.)
+- **Remaining 8 carbon = CWD2B crown-flow phasing only.** Below-Dead + snag bole + all live pools +
+  endpoints now bit-exact. The residual is Stand-Dead +0.3-0.6 / DDW -0.8 to -1.3 on intermediate cycles:
+  the mortality CROWN (CWD2B) flows from Stand-Dead to DDW too slowly (TFALL/TSOFT fall schedule, fmscro.f).
+  Session total: 21 → 9 broken. Method that's working: find the FVS semantic (FMSVOL merch, XDCAY root
+  decay), verify vs the live oracle, land only fixes that improve without regressing the exact pools.
