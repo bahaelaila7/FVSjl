@@ -38,11 +38,12 @@ const _TR_SCEN = ["s1_thinning", "s13_thinht", "s25_thinrden", "s31_mcdefect", "
                     # (2) .tre → .csv preserves the TreeRecords (the engine reads the .csv)
                     FVSjl.convert_tre_to_csv(a_tre, a_csv; fmt = _TR_SNFMT)
                     @test FVSjl.read_trees_csv(a_csv) == recs
-                    # (3) legacy re-emission .csv → .tre — write_tree_file T-specifier-overlap
-                    # bug drops an F-field that shares a column with a packed nI1 field.
+                    # (3) legacy re-emission .csv → .tre round-trips. write_tree_file now right-justifies
+                    # an F-field that overflows a column it shares with a packed nI1 field to its own col2
+                    # (was spilling left under the I1 — _TR_SNFMT's T54,7I1 / T60,F3.1 boundary at col 60).
                     c_tre = joinpath(d, "c.tre")
                     FVSjl.convert_csv_to_tre(a_csv, c_tre; fmt = _TR_SNFMT)
-                    @test_broken FVSjl.read_tree_records(c_tre; fmt = _TR_SNFMT) == recs
+                    @test FVSjl.read_tree_records(c_tre; fmt = _TR_SNFMT) == recs
                 end
             end
         end

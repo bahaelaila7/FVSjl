@@ -239,8 +239,14 @@ function write_tree_file(records::AbstractVector{TreeRecord}, path::AbstractStri
                 if f.kind == :string
                     start = f.col1                                    # left-justified
                 else
-                    # right edge = narrowest-overlap end, grown to fit the value, capped at col2
-                    redge = clamp(f.col1 + length(txt) - 1, minc2[n], f.col2)
+                    # right-justify (FVS Iw/Fw). A small value nested in a wider overlapping field
+                    # anchors to the narrowest-overlap end (minc2 — the id-in-plot convention); a value
+                    # that OVERFLOWS that narrow span right-justifies to the field's OWN end (col2)
+                    # instead of spilling left. The latter fixes an F-field that shares a start column
+                    # with a packed nI1 field (e.g. _TR_SNFMT's T54,7I1 / T60,F3.1 boundary at col 60):
+                    # the F3.1 must sit in its own cols, not be pulled under the I1.
+                    narrow = minc2[n] - f.col1 + 1
+                    redge = length(txt) <= narrow ? minc2[n] : f.col2
                     start = redge - length(txt) + 1
                 end
                 for (k, c) in enumerate(txt)
