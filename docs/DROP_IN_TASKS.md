@@ -388,3 +388,21 @@ different species => different DDS, so it did NOT confirm the route). The candid
 NEXT: read DGF + the backdated-WK3/SCALE path in dgdriv.f around 320-343 to find where FINT enters the
 tripling DDS, then either implement that exact route (faithful) or, if it is genuinely a ×-vs-+exp Float32
 ordering with no FVS-side equivalent, classify as irreducible ULP-FP.
+
+
+## s5/s9 — wk2 BIT-EXACT; residual is the tripling-DG FP structure (verified, matched tree)
+DECISIVE: for a species+DBH-matched tree (sp22, dbh 13.040092) at the 1995 10-yr cycle,
+  FVSjl wk2 = 2.7237742 = FVS WK2 = 2.723774  (BIT-EXACT) -> the DDS regression (DGF) is FAITHFUL.
+The only difference is the FINT-scaling ROUTE in the TRIPLING DG:
+  FVS (dgdriv.f:241): DDS = EXP(WK2) = 15.237724 (NO x2), DG = SQRT(DSQ+DDS*EXP(FRMT))-D.
+  FVSjl: dds = exp(wk2)*(sfint/5) = 15.2377*2 = 30.475, DG = sqrt(d_ib²+dds*frm)-d_ib.
+Yet the stand MATCHES (s5 .sum 2005 BA 152/152, TPA 441, cuft 3111 all bit-exact) — so FVS's FRM
+construction (the tripling FM/FU/FL middle/upper/lower factors) must absorb the x2 that FVSjl puts in
+dds. So both compute the SAME DG via DIFFERENT Float32 operation sequences (FVSjl: exp(wk2)*2.0*exp(frmt);
+FVS: exp(WK2)*exp(FRMT) with a compensating FRM). The ~80-ULP SUMDR10 gap is the last-bit difference of
+these two sequences in the mortality's d10-projection.
+CLASSIFICATION (leaning ULP-FP, not yet final): the deterministic model is bit-exact (wk2); the residual
+is irreducible-looking Float32 rounding in the tripling-DG construction. To FINALIZE: read the FVS
+tripling FM/FU/FL factors (dgdriv.f ~88-92, DG_FM/FU/FL) and confirm FVSjl's frmbase=DG_FM*ssigma*rhocp
+matches FVS's, AND that the only residual is the x2-placement Float32 ordering (then it is ULP-FP) vs a
+real FM/structure mismatch (then fixable). Either way the regression (wk2) is proven faithful.
