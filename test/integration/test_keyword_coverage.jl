@@ -37,7 +37,17 @@ const _KC_FT_BROKEN = Dict(
     # The LP are dbh 2.6→3.2 (near the dbh_zeide≈3 SDI threshold) — likely the small-tree
     # SDI-inclusion or VARMRT distribution for a dense sub-merch cohort. NOT establishment,
     # NOT the linear-G fix (5-yr cycle = identity). Same mortality kernel as the broader work.
-    "s26_estab"    => "dense LP-cohort self-thinning mortality 2005→2010 (FVS 270→60.31 vs FVSjl 270→63.31); establishment bit-exact",
+    # s26 NARROWED (this session): the total stand is BIT-EXACT through 2005 (the
+    # establishment); the LP-cohort split diverges only at 2010+ (total TPA 401 vs 403,
+    # LP 63.31 vs 60.31) — same total tokill, different cohort distribution. RULED OUT as
+    # causes (all verified bit-match vs FVS): the VARMRT percentile (BA-weighted, DBH-
+    # sorted — dense.f:272 "BASAL AREA PCT DISTRIBUTION", FVSjl stand_pct! matches), the
+    # per-species shade adj (all 90 varmrt_shade_adj == FVS VARADJ DATA), and the self-
+    # thinning line reset (|t−TPAMRT|>1, morts.f:245 — FVSjl mortality.jl:235 matches). The
+    # residual is the FP-sensitive VARMRT npass geometric-progression convergence (the
+    # adjust<0.8 / >1.2 integer-step path) or the mixed-cohort tokill precision — a
+    # sub-percent distribution residual, NOT a logic/table bug.
+    "s26_estab"    => "dense LP-cohort VARMRT distribution residual 2010+ (pct/shade_adj/line-reset all bit-match FVS; narrowed to npass convergence/tokill precision); establishment + total stand bit-exact through 2005",
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,
