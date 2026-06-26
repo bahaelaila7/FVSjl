@@ -287,12 +287,14 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
                 d = t.dbh[i]; d < dthresh && continue
                 pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                # morts.f:583 — FVS uses the linear FINT-extrapolated 5-yr G here too,
-                # but in this *iterative* d10n recompute the linear form amplifies the
-                # DGBND-ordering gap (FVSjl bounds DG at the fint-year, FVS at 5-yr) and
-                # over-thins fast cycles. Kept sqrt until DG is bounded at 5-yr in
-                # diameter_growth.jl; identical at fint=5. See DIVERGENCES.md / line 223.
-                g = t.diam_growth[i] / bark
+                # morts.f:583 — the post-mortality QMD recompute uses the SAME linear
+                # FINT-extrapolated 5-yr G as the entry d10 (line 223). Using the raw
+                # sqrt fint-year growth here instead understates d10n on a 10-yr cycle
+                # (d10n drops below d10), forcing a spurious extra QMD iteration that FVS
+                # does not do (verified vs an instrumented morts.f: FVS cycle-1 = ONE pass,
+                # tn10=516.50). Identical to the old form at fint=5 (both = dg/bark), so
+                # snt01 and every 5-yr scenario stay bit-exact.
+                g = _mort_traj_g(t.diam_growth[i], d, bark, fint)
                 if zeide
                     sdr += pr * (d + g)^1.605f0
                 else

@@ -582,10 +582,11 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     # 5-yr one) needs new=10, old=5 — using the base YR for both under-grows the long cycle.
     cyc = Int(s.control.cycle)
     newp = max(1, cycle_period_at(s.control, cyc))
-    oldp = cyc == 0 ? newp : max(1, cycle_period_at(s.control, cyc - 1))
+    oldp = cyc == 0 ? 5 : max(1, cycle_period_at(s.control, cyc - 1))   # first cycle: 5-yr measurement base (dgdriv AUTCOR)
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
+    c.vmlt = vmlt   # FVS dgdriv.f:116 PVMLT=VMLT carry (uniform 5-yr unaffected)
     # BAIMULT (MULTS kind 1): per-species diameter-growth multiplier scaling DDS
     # (dgdriv.f XDGROW=ln(XDMULT) added to ln(DDS) ⇒ DDS·XDMULT).
     cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
