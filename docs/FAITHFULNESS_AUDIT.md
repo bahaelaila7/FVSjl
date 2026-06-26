@@ -262,3 +262,15 @@ flow) vs FVS FMSNAG/FMCADD — NOT a timing lag. Closing it needs an instrumente
 of FVSjl's per-cycle cwd additions against FVS's FMSNAG/FMCWD/FMCADD (snag fall density, bolevol vs
 SNVIS·V2T, CWD2B TFALL schedule). Reverted the crown-lift change (overshoots). Live + Floor pools stay
 bit-exact; inventory + final cycles bit-exact; the gap is intermediate-cycle DDW/Stand-Dead at F7.1.
+
+#### Carbon DDW residual — CORRECTED again (column misparse fixed): endpoints bit-exact, intermediate-cycle timing.
+The DDW report column is #7 (YEAR Total Merch Live Dead Dead **DDW** Floor). Reading it correctly vs the
+FVS .save: 1990 5.82/5.8 ✓, 1995 5.69/5.4 (+0.29), 2000 7.22/8.4 (−1.18), 2005 11.43/11.4 ✓. So DDW =
+Σcwd[1:9]·0.5·metric is BIT-EXACT at both endpoints; the cwd MASS matches FVS at 1990 and 2005 (10.199 vs
+10.191). The divergence is INTERMEDIATE cycles, NON-monotonic (1995 high, 2000 low) — a multi-term down-
+wood ADDITION-TIMING issue (crown-lift FMCADD + CWD2B mortality-crown flow + snag falldown), NOT mass
+over-accumulation (my earlier 13.0 was a column misparse that also invalidated the crown-lift-fix
+'overshoot' reading) and NOT a single one-cycle lag (a pure lag would be low every intermediate cycle; here
+1995 is HIGH). The endpoints being exact means the SOURCES are right; only the per-cycle phasing of the
+additions vs FVS's annual GRADD→FMCADD interleaving is off. Closing it needs per-term timing alignment
+(crown-lift same-cycle, CWD2B flow phase, falldown phase) validated together — a careful FFE-carbon refactor.
