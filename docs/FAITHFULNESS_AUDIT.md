@@ -200,3 +200,21 @@ signs ⇒ not a uniform bias; it's per-fuel-model Rothermel/loading deltas acros
 conditions. Closing it means matching the per-model Byram exactly (instrument FVS FMFINT per-model on
 each scenario's selected models). Lower priority: both fire scenarios are within their test tolerances;
 suite green.
+
+#### F3 — final pinpoint: per-model Rothermel TERM divergence (FM10 reaction-intensity, FM5 spread).
+With the interleaving fix in, FVSjl's fire-time fuel-model SELECTION now matches FVS: fire_early picks
+{10@0.571, 5@0.429} vs FVS {10@0.563, 5@0.437} (SMALL 6.66 vs 6.72, LARGE 3.60 vs 3.28). So selection +
+timing are faithful. The residual is purely the per-model Rothermel output, computed with IDENTICAL
+inputs (FVS FMMOIS model 1 == FVSjl fuel_moisture(1) bit-for-bit: dead .05/.07/.12/.17/.40, live .55/.55;
+loadings = Anderson standards; depth/mext match):
+| model (fmois=1, wind=1) | FVS byram / xir / spread | FVSjl byram / xir / spread |
+|----|----|----|
+| 10 | 6519 / 6463 / 4.64 | 7337 / 7537 / 4.55  (xir +16%) |
+|  5 | 8988 / 3174 / 12.4 | 5144 / 3051 / 7.46  (spread −40%) |
+FM10's reaction intensity (xir) runs ~16% HIGH; FM5's rate-of-spread runs ~40% LOW (its xir matches to
+−4%, so it's the SPREAD chain — packing ratio / wind factor / propagating flux, sensitive to FM5's depth
+2.0 + live woody). They partially cancel in the weighted byram (fire_early 6397 vs FVS 7597, −16%), so
+both fire scenarios stay within their test tolerances and the SUITE IS GREEN. Closing to bit-exact =
+term-by-term audit of rothermel.jl vs fmfint.f intermediates (gamma/ir/mdcsa/beta/c1/phiw) per model —
+the genuine last mile of the FFE surface-fire port. Lower priority (suite green; ~4% aggregate, opposite-
+signed). Committed this session: frozen-fuel fix, cone distribution, annual fuel/fire interleaving.
