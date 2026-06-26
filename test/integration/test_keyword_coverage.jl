@@ -71,7 +71,7 @@ const _KC_FT_BROKEN = Dict(
 # (group name + a following species-list record): the flat writer emits the two records
 # separately and the round-trip loses the grouping. The multi-record case is handled by
 # the hierarchical YAML redesign (Task 8). All single-record keywords now round-trip.
-const _KC_YAML_BROKEN = Set(["s20_spgroup"])
+const _KC_YAML_BROKEN = Set(String[])   # s20_spgroup FIXED by the hierarchical YAML redesign (Task 8)
 # Ill-posed scenario layouts that produce no FVSsn .sum (no checked-in baseline).
 const _KC_NOBASE = Set(["s30_thinqfa", "s36_readcord"])
 
