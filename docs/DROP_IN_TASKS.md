@@ -68,3 +68,15 @@ The three remaining non-ULP divergences reduce to TWO roots:
 
 Closing the DG-precision root (the YR-vs-FINT calibration split for DGSCOR/COR) would close BOTH
 s5/s9 AND s26. Closing s32 needs the R8 taper sawtimber-boundary work.
+
+
+## s26 DG-root REFINED (cohort split, this session)
+Splitting the s26 2005 dense-cohort SDI by DBH (D<5 vs D>=5), inside-bark, vs an instrumented
+morts.f confirms the stand STATE is bit-exact (n=105/524.41 TPA small, n=188/228.68 large — both
+match FVS exactly) and the DG difference is CONCENTRATED in the D>=5 (large, original) cohort:
+  small (D<5):  FVSjl DGib 0.577 / d10c 3.1969  vs FVS 0.5778 / 3.1973  (0.14% — matches)
+  large (D>=5): FVSjl DGib 0.95  / d10c 11.8849 vs FVS 0.9626 / 11.8885 (~1% — the gap)
+The large trees are the ORIGINAL (WK3-calibrated sp33/65) stand. So s26's seed is the COR-
+calibration DG precision on the calibrated species — the SAME root as s5/s9 — NOT establishment
+DG-init, NOT a competition table, NOT the LP cohort. (A prior split that omitted the bark
+division falsely suggested an 8-16% DG gap; the bark-corrected split is the correct comparison.)
