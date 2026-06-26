@@ -274,3 +274,18 @@ dgscor! to log, for the 2005 cycle, each tree's (dbh, sp, #bachlo draws) and con
 regrown by small_tree_growth!) closes the +6 while keeping snt01/BARE bit-exact (they have no dbh<3
 trees, so a skip would be a no-op there). That is a falsifiable, bounded experiment — but it must be
 RUN and checked against the count, not assumed.
+
+
+## YAML round-trip: s20 FIXED (broken 29->28); s30/s36 converter limitation noted
+The hierarchical YAML redesign (merged) FIXED s20_spgroup's engine round-trip (run_keyfile(yaml)==
+run_keyfile(key)) — the SPGROUP group + member-species list is now a contiguous species_groups block.
+Regenerated s20_spgroup.yaml and removed it from _KC_YAML_BROKEN: suite 4486+29 -> 4487+28.
+KNOWN LIMITATION (follow-up, NOT blocking — these scenarios still PASS with their committed yamls):
+regenerating ALL 37 scenario yamls with the merged converter fixes s20 but REGRESSES s30_thinqfa and
+s36_readcord (35/37). Diagnosis: their KeywordRecords reconstruct identically (name/fields/status all
+match key) and the TREEFMT region is byte-identical to a passing scenario, yet run_keyfile(yaml) yields
+garbage tree TPA. So READCORD/THINQFA are STATEFUL keyword handlers that the engine's yaml path invokes
+differently from the key path despite identical records — a converter/reader-path subtlety, not a field
+or ordering bug (verified: rpad->lpad justification change did NOT fix it). Committed scenario yamls for
+s30/s36 are the OLD form and round-trip correctly, so the suite is unaffected. Fix is a focused follow-up
+on the yaml reader-path handling of stateful calibration/thinning keywords.
