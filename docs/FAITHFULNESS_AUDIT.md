@@ -164,3 +164,24 @@ Traced the fire_fuel9 byram divergence op-by-op against live FVSsn (instrumented
    unchanged (carbon_jenkins DDW unaffected — de-risked); only the per-class split differs, and that
    split is exactly the FMDYN (SMALL,LARGE) input. NEXT: port the FMCWD cone distribution into
    update_snags! (and the CWD2 broken-top / CWD3 cut-tree paths) so class 5 splits correctly.
+
+#### F3 — COMPLETE diagnosis of the remaining fire residual (timing/interleaving). [fix designed, not landed]
+Tested the timing hypothesis directly (stash start-of-cycle SMALL/LARGE, fire on it) — DECISIVE result
+that pins the exact mechanism, then reverted because it traded one scenario for another:
+- **fire_fuel9** (fire 2005): post-`ffe_fuel_update!` cwd (11.0/6.03 → byram 5372, 28% high) over-kills
+  → TPA 120 vs FVS 143. Start-of-cycle cwd (8.22/4.92 → byram 3912) → TPA 139 vs 143 (within 3%).
+- **fire_early** (fire 2000): start-of-cycle made it WORSE (TPA 127 vs FVS 104; was ~114 within its
+  loose ±12 tol). fire_early's fire is ALWAYS too weak (under-kill); the old full-period-advanced fuel
+  was STRONGER and accidentally masked that under-kill. So the timing change exposed a pre-existing gap.
+- **Unified root cause:** FVS does the surface-fuel loop ANNUALLY interleaved with FMBURN, so a fire at
+  year Y burns on `S(cycle-start) + accumulation through year Y` — for a cycle-START fire that's
+  start-of-cycle + ONE annual step. FVSjl batches the whole `per`-year `ffe_fuel_update!` BEFORE
+  grow_cycle, so the fire sees the PERIOD-END fuel (≈5 yrs too much). FVS's fire-time value (fire_fuel9
+  9.19) sits BETWEEN FVSjl's start-of-cycle (8.22) and period-end (11.0) — consistent with "+1 annual
+  step". Pure start-of-cycle under-shoots (8.22 < 9.19) ⇒ fires a touch weak; pure period-end over-shoots.
+- **THE FIX (designed):** split the per-cycle fuel loop around the fire — advance the annual fuel steps
+  up to the fire year, fire (FMBURN on that fuel), then advance the remaining years. This is the FVS
+  interleaving and should land BOTH fire_fuel9 (→~143) and fire_early (stronger ⇒ closer to 104) green.
+  It's an architectural change to the FFE cycle (ffe_fuel_update! / grow_cycle ordering) needing
+  validation vs both fire scenarios + carbon — deferred (not a one-liner; risk of perturbing carbon).
+  Committed so far: the two prerequisites (per-cycle fuel runs at all + cone distribution). Suite 4494+21.
