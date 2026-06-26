@@ -118,3 +118,28 @@ DGib' at the mortality point is inconsistent with the 0.06% cuft and is a post-D
 nuance, not a deterministic-input gap.) NET: s26 folds back to the DGSCOR-precision family with s5/s9
 — deterministic path fully excluded. Lesson logged: always measure Fortran intermediates at the FINAL
 assignment point (FT terms are appended after the base DDS).
+
+
+## s26 FINAL MECHANISM (the stochastic path identified)
+At cycle 2005 tripling is long finished, so the large-tree frm comes from `dgscor!`
+(diameter_growth.jl:632) — the STOCHASTIC serial-correlation rejection-loop RNG draw
+(frm=exp(frmbase+corr*oldrn) with a bounded bachlo redraw). snt01 runs this identical
+`dgscor!` path every cycle and is BIT-EXACT, so the kernel + main-RNG are correctly aligned
+there. s26 differs because the ESTABLISHMENT consumes main-RNG draws (the LP crown-ratio
+bachlo draws, establishment.jl:133-143) that OFFSET the subsequent `dgscor!` draw sequence for
+the existing trees. Net: s26's residual is an RNG-DRAW-ALIGNMENT difference introduced by the
+establishment, surfacing in the bounded dgscor! draws — sub-0.5% at the stand level because the
+draws are bounded/averaged. HONESTLY: this is NOT ULP-FP (it is a different RNG sequence, just
+small). The fix is to match FVS's exact main-RNG consumption order through ESTAB crown assignment
+so the dgscor! sequence stays phase-locked (cf. the establishment ESRANN/main-RNG split already
+done for heights). Scoped to establishment.jl crown draws x dgscor! ordering.
+
+## HONEST CLASSIFICATION OF ALL THREE (re the drop-in spec)
+None of the three remaining residuals is honestly 'ULP FP':
+  - s5/s9 : COR/AUTCOR calibration evolution under a non-5 period (1st 10-yr cycle now bit-exact).
+  - s26   : establishment main-RNG offset of the dgscor! serial-correlation draw sequence.
+  - s32   : NVEL R8 Clark taper geometry at the sawtimber-top boundary (~0.7%).
+They are small (sub-1%) and precisely scoped, with all logic/coefficient/table causes excluded,
+but they are GENUINE divergences requiring real fixes (RNG phase-locking, the COR YR/FINT split,
+the taper boundary) — NOT ULP-FP. The drop-in spec is not yet met; claiming ULP-FP for these
+would be inaccurate.
