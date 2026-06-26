@@ -300,3 +300,14 @@ merch (prod,stump,mtopp) spec, which over-estimates small-tree cubic by ~8%. The
 the input snag with the full-stem CFVOL (FMSVOL), not the merch R8Clark path. (Large trees already agree,
 so live-tree .sum cuft stays bit-exact.) This is term #1 of the 3; the DDW tests additionally need the
 crown-lift cycle (#2) + CWD2B phasing (#3).
+
+#### PROGRESS: snag-bole fix landed (11→10 broken); crown-lift timing confirmed CORRECT.
+- **Term #1 FIXED & committed:** input-snag bole now uses the merch cubic v[4] (= FVS FMSVOL), not gross
+  v[1]. snag_bole_carbon 3.92→3.77 (FVS 3.8) — closed test #548. Also made 1990 Stand-Dead bit-exact and
+  improved 1995 DDW (+0.29→+0.2). Suite 4505 pass + 10 broken, 0 fail.
+- **Term #2 (crown-lift timing) is NOT a bug:** tested applying crown-lift same-cycle (post-grow) — it
+  OVERSHOOTS (2000 DDW +1.1, 2005 +1.6), proving FVS ALSO lags the crown-lift one cycle (the 2000-2005
+  crown is NOT in the 2005 report; the committed pre-grow timing already matches FVS). Reverted.
+- **Remaining 2000 DDW −1.3 = CWD2B/decay phasing** (not crown-lift): the 1995-2000 cycle's down-wood
+  additions (CWD2B mortality-crown flow + snag falldown) under-accumulate mid-run, recovering by 2005
+  (endpoints bit-exact). This + the Stand-Dead CWD2B-crown residual (~0.3-0.6) are the last carbon terms.
