@@ -66,7 +66,7 @@ PROB, run the fire → fk, set survivors = pre − max(mk,fk), and book the FMSD
 fire_fuel9 2010 TPA 155→151 (FVSsn 143); the residual ~8 TPA is now isolated to the SEPARATE
 FMEFF per-tree fire-kill distribution (F3 below). Suite 4494+21 (carbon/snag tests still pass).
 
-### F3 — Rothermel fire-behavior (byram/flame/spread) divergence (FFE). OPEN, characterized.
+### F3 — FFE fire behavior. PARTLY FIXED (moisture-code handling); FMEFF kill-distribution residual remains.
 After F1, fire_fuel9 reads 2010 TPA 151 vs FVSsn 143; the residual is the fire BEHAVIOR, not
 the ordering. Traced (fire cycle, vs live FVSsn FMFINT) — fuel-model SELECTION matches (10 wt
 0.567, 5 wt 0.433), but the per-model Rothermel diverges:
@@ -101,3 +101,17 @@ divergence beyond the eigensolver. Low priority (COMPRESS is explicitly accepted
 Core per-cycle sequence: traced and faithful. F1 (fire/MORTS MAX-combine) FIXED. Open: F3 (FMEFF per-tree fire-kill distribution) and
 F2 (COMPRESS timing, accepted-adjacent). Continue the audit into: volume (fvsvol op order), thinning selection (RDPSRT/cut
 order), and the height-growth (HTGF) internals — each traced directly against live FVSsn.
+
+#### F3 update — moisture-code handling FIXED; root re-identified (the FWIND=2.0 was a red herring).
+Re-traced the ACTUAL fire (not the PotFire report, whose FWIND=2.0 misled the first pass): the
+actual fire's FWIND=1.2 MATCHES FVSjl, and FVSjl's `crown_width` matches FVS `CWCALC` BIT-EXACT
+— so neither wind nor crown width diverges. The byram gap (FVS 4194 / FVSjl 1405) was the FUEL
+MOISTURE: FVS used dryness model 3 (dead .07/.09/.14, live 1.0) but FVSjl used model 4 (.16/.16/
+.18, live 1.75). Root: the SIMFIRE moisture code in fire_fuel9 is **9** (out of FVS's 1..4 range);
+FVS's FMMOIS is a NO-OP for invalid codes, leaving the moisture at the per-cycle PotFire MODERATE
+value (model 3), whereas FVSjl **clamped 9→4** (very wet). FIX: invalid SIMFIRE moisture resolves
+to model 3 (matching FVS's leftover), not clamp-to-4 (keyword_dispatch.jl). For VALID codes 1..4
+the FMMOIS tables were already identical, so this only touches the invalid-code edge case. Result:
+fire_fuel9 2010 TPA 155→148 (FVSsn 143); suite 4494+21 unchanged. REMAINING (still open): the ~5
+TPA / BA 87-vs-85 gap is now purely the FMEFF per-tree fire-kill distribution (flame/scorch/bark
+mortality), the long-known BA 81-vs-78 residual — independent of moisture/wind/crown-width/order.

@@ -1225,7 +1225,12 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             v = r.values
             r.present[1] && (fs.fire_year = nint(v[1]))
             r.present[2] && (fs.swind    = Float32(v[2]))                          # SWIND  = PRMS(1)
-            r.present[3] && (fs.fmois    = clamp(Int32(nint(v[3])), Int32(1), Int32(4)))   # FMOIS = PRMS(2)
+            # FMOIS = INT(PRMS(2)). FVS's FMMOIS only sets the moisture for codes 1..4; for any
+            # other code (0, or out-of-range like the 9 in fire_fuel9) it is a NO-OP, leaving the
+            # moisture at its last value — which, after the per-cycle PotFire MODERATE pass (FMOIS=3,
+            # fmvinit.f:63-66), is dryness model 3. So an invalid code resolves to model 3, NOT a
+            # clamp to the very-wet model 4. (Codes 1..4 use the matching FMMOIS table directly.)
+            r.present[3] && (local fc = Int32(nint(v[3])); fs.fmois = (Int32(1) <= fc <= Int32(4)) ? fc : Int32(3))
             r.present[4] && (fs.atemp    = Float32(trunc(v[4])))                   # ATEMP  = INT(PRMS(3))
             r.present[5] && (fs.mortcode = clamp(Int32(nint(v[5])), Int32(0), Int32(1)))   # MKODE = PRMS(4)
             r.present[6] && (fs.psburn   = clamp(Float32(v[6]), 0f0, 100f0))       # PSBURN = PRMS(5)
