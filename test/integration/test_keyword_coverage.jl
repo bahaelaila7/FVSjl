@@ -25,8 +25,24 @@ const _KC_FT_BROKEN = Dict(
     # (BA 129 vs 127) + ~1ft HTG-under (TopHt 59 vs 60) at the long cycle, i.e. the
     # calibrated-species HTCALC/AGET + tripling-variance growth precision under a non-5
     # period. Verified NOT mortality (TPA matches) and NOT DGBND (live differential: no-op).
-    "s5_cycle"     => "odd-period (CYCLEAT 3/2-yr) MORTALITY realization: QMD + AUTCOR bit-exact, TPA off by 1 -> cuft 0.15%/bdft 0.10%. NOT DG/HTG (autcor+d10n resolved that); same class as timeint10 @test_broken",
-    "s9_uniform10" => "uniform 10-yr: same odd-period mortality-realization class as s5_cycle",
+    # s5/s9 RIGOROUSLY TRACED this session to an irreducible ULP-FP root (verify-from-code,
+    # 5 levels via RANN-counter + per-tree DGSCOR/wk2/crown instrumentation vs live FVS):
+    #   TPA off-by-1  <-  mortality SDI sums  <-  DGF wk2 differs ~1e-3 per tree (at 2005)
+    #   <-  crown ratio ICR differs by +/-1 (INTEGER)  <-  CRNEW = A+B*((-ln(1-X))^(1/C))
+    #       (crown.f:299) lands near INT(CRNEW+0.5) boundary  <-  Weibull transcendental
+    #       (log / ^(1/C)) differs by cross-language Float32 ULP, only at the 10-yr cycle
+    #       where predictions happen to sit near x.5.
+    # RULED OUT (all bit-exact / match vs instrumented FVS): RNG alignment (DGDRIV draw
+    # counts identical 60/120/309/1359/2388/3336), serial-correlation oldrn/ssigma/rho/rhocp
+    # (match to ~1e-8), COR attenuation (cormlt clock IY(N)-IY(1) matches), SDI sum order,
+    # dbh + height (bit-exact at 2005), the crown ±1%/yr change-limit (crown.f:311-322 ==
+    # crown_ratio.jl:69-75), and _mort_traj_g reconstruction (cancellation-free rewrite had
+    # ZERO effect). NOT WK3-calibration (sp22 — not WK3-calibrated — has the largest wk2
+    # offset). No logic/order/formula gap exists; FVS itself stores crown as integer percent,
+    # so matching requires bit-identical transcendentals => irreducible ULP-FP. Net: TPA off
+    # by 1 -> cuft 0.15% (just over the 0.1% structural gate) at odd-period cycles only.
+    "s5_cycle"     => "irreducible ULP-FP: crown-ratio INT(CRNEW+0.5) rounding flips on a cross-language Weibull-transcendental ULP at the 10-yr cycle -> wk2 ~1e-3 -> mortality -> TPA off by 1. All formulas verified faithful; RNG aligned; serial-corr/COR/sort-order bit-exact. See header comment.",
+    "s9_uniform10" => "uniform 10-yr: same crown-rounding ULP-FP root as s5_cycle (traced this session)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     # s26 FIXED (this session) — was a REAL bug (now bit-exact, moved out of broken):
     # the post-establishment species-sort order. FVS's ESGENT calls SPESRT to re-establish

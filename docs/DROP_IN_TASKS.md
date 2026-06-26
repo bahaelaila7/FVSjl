@@ -473,3 +473,32 @@ TWO PRIOR DIAGNOSES DISPROVEN (both were inferred, not verified from code):
    There is no dbh~3 threshold for s26.
 2. "DGSCOR/DDS stochastic precision (with s5/s9)" — WRONG: the seed was tree-ordering; once
    the order matched FVS the DGSCOR frm values matched bit-for-bit.
+
+
+## s5/s9 — RIGOROUSLY TRACED to irreducible ULP-FP (crown-ratio integer-rounding boundary)
+Applied the s26 verify-from-code method (RANN draw-counter + per-tree instrumentation vs
+live FVS) to the s5/s9 odd-period residual. Result: NOT a hidden bug (unlike s26) — a true
+irreducible ULP-FP. The 5-level chain:
+  TPA off-by-1
+   <- mortality SDI sums (sumdr10/sd2sq differ ~0.002% at the 2005 cycle)
+   <- DGF wk2 differs ~1e-3 per tree
+   <- crown ratio ICR differs by +/-1 (INTEGER percent)
+   <- CRNEW = A + B*((-ln(1-X))^(1/C))  (crown.f:299) sits near the INT(CRNEW+0.5) boundary
+   <- the Weibull transcendental (log / ^(1/C)) differs by cross-language Float32 ULP,
+      and ONLY at the 10-yr cycle do enough predictions land near x.5 to flip the rounding.
+Everything else verified bit-exact / faithful vs instrumented FVS:
+  - RNG alignment: DGDRIV draw counts identical (60,120,309,1359,2388,3336) — NOT an
+    s26-style stream desync.
+  - serial-correlation oldrn / ssigma / rho / rhocp: match to ~1e-8.
+  - COR attenuation: cormlt = exp(-0.02773*(IY(N)-IY(1))); cyc1 cormlt=1 -> COR_init. Matches.
+  - SDI sum order, dbh, height: bit-exact at 2005.
+  - crown +/-1%/yr change-limit: crown.f:311-322 == crown_ratio.jl:69-75 (identical).
+  - _mort_traj_g reconstruction: rewriting (dg+dib)^2-dib^2 cancellation-free as dg*(dg+2*dib)
+    had ZERO effect -> the reconstruction is not the source.
+DISPROVEN priors (all were inferred, not code-verified): "board-foot ~4% from calibrated-
+species DG precision", "WK3-calibration (sp33/65)" (sp22 — un-calibrated — has the LARGEST
+wk2 offset), and "DGSCOR stochastic precision". FVS itself stores crown as an integer
+percent and rounds every cycle, so bit-exactness would require bit-identical libm
+transcendentals across Julia/gfortran => irreducible. Net: TPA off by 1 -> cuft 0.15% (just
+over the 0.1% structural gate) at odd-period cycles only. Classified ULP-FP; stays
+@test_broken with this trace. s9_uniform10 shares the identical root.
