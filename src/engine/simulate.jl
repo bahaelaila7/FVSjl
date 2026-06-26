@@ -226,6 +226,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
     trip = !compressed && Int(s.control.cycle) < Int(s.control.icl4)   # COMPRESS suppresses tripling (NOTRIP)
+    crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     height_growth!(s, s.variant; scale = fint / 5f0)         # HTG scaled to the cycle length
     small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
@@ -272,7 +273,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
-    crown_ratio_update!(s; fint = fint)     # CROWN — crown ratio for ALL trees incl. new regen
+    crown_ratio_update!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted
     # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first

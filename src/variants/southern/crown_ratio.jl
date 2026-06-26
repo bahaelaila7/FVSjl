@@ -20,12 +20,12 @@
 CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-growth
 stand. No-op for an empty stand. Call once per cycle after growth + density.
 """
-function crown_ratio_update!(s::StandState; fint::Float32 = 5f0)
+function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
     cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
-    sdiac = stand_sdi(s)                 # SDIAC — post-growth stand SDI
+    sdiac = crown_sdi >= 0f0 ? crown_sdi : stand_sdi_reineke(s)  # pre-growth Reineke SDIBC (grincr.f:241)
     relden = stand_ccf(s)                # RELDEN — crown competition factor
     sdidef = s.plot.sp_sdi_def
     # Ascending diameter rank: isort[i] = 1 (smallest) … n (largest); x = rank/n.

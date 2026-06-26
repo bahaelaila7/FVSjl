@@ -211,6 +211,12 @@ function stand_sdi(s::StandState)
         end
         return sdi
     end
+    return stand_sdi_reineke(s)
+end
+
+"Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."
+function stand_sdi_reineke(s::StandState)
+    t = s.trees
     thr = s.control.dbh_stage; sprob = 0f0; sdsq = 0f0
     @inbounds for i in 1:t.n
         if t.dbh[i] >= thr
