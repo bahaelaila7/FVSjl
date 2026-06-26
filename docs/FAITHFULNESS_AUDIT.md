@@ -44,16 +44,26 @@ the wk2/frmbase/COR/AUTCOR growth internals were all independently traced to liv
 
 ## Findings
 
-### F1 — Fire vs regular MORTS ordering (FFE only). STRUCTURAL MISMATCH; immaterial on tested stands.
+### F1 — Fire vs regular MORTS ordering (FFE). CONFIRMED real on a dense burn; needs a compute-then-apply restructure (NOT a simple reorder).
 FVS: GRINCR's **MORTS computes the regular (density+background) kill on the FULL pre-fire
-stand**, then GRADD's FMKILL adds the fire kill; UPDATE applies both. FVSjl runs `_maybe_burn!`
-(reduces TPA + recomputes density) BEFORE `mortality!`, so the regular density mortality sees
-the REDUCED post-fire stand → less density mortality than FVS. Immaterial where density
-mortality is inactive (snt01 stand-4 post-fire TPA matches bit-exact 240→107→104, so the
-background-dominated regime is order-insensitive), but it WOULD diverge on a dense stand that
-burns while above SDImax. To be fully faithful, regular MORTS should be computed on the
-pre-fire stand (compute the kill, then apply fire, then apply the regular kill) — matching the
-GRINCR(MORTS)→GRADD(FMKILL) split. NOT yet fixed (FFE-only; needs a dense-burn test to drive).
+stand** into WK2, then GRADD's FMKILL **adds** the fire kill to WK2 (capped at PROB); UPDATE
+applies the sum. FVSjl runs `_maybe_burn!` (reduces TPA + recomputes density) BEFORE
+`mortality!`, so the density mortality sees the thinned post-fire stand.
+**Confirmed by a dense-burn trace** (fire_fuel9: SIMFIRE 2005, SDI 267) vs LIVE FVSsn:
+| order                                            | 2010 TPA | |err| vs FVSsn 143 |
+|--------------------------------------------------|----------|--------------------|
+| fire→MORTS (current; density on post-fire stand) | 155      | 12 (under-kill)    |
+| MORTS→fire (sequential/multiplicative)           | 125      | 18 (over-kill)     |
+| additive MORTS_kill+fire_kill on full PROB, cap  | 83       | 60 (way over)      |
+| **FVS (truth)**                                  | **143**  | —                  |
+So none of the simple reorders is faithful: FVS's exact result sits between, because its WK2
+is the additive sum of the pre-fire density kill and the fire kill **per record, capped**, and
+that interacts with the (separately known) fire-kill-distribution residual (FMEFF, BA 81 vs 78
+on snt01 stand-4). The faithful fix is to replicate the GRINCR(compute WK2)→GRADD(add fire to
+WK2)→UPDATE(apply) compute-then-apply split exactly, matching FVS's fire-kill per record — a
+larger FFE change. The current fire-first order is the closest available approximation and is
+LEFT AS-IS (reverted the reorder, which regressed it). Immaterial on the non-dense fire test
+(snt01 stand-4 background-dominated, matches). Tracked as the next FFE fidelity item.
 
 ### F2 — COMPRESS (COMCUP) timing. Accepted-divergence-adjacent.
 FVS runs COMCUP in GRINCR AFTER cuts+density+SDIAC (grincr.f:391); FVSjl's `apply_compress!`
