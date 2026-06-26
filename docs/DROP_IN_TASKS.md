@@ -97,3 +97,24 @@ DG ordering difference). This is s26-SPECIFIC (establishment x DG-competition), 
 s5/s9 COR/AUTCOR root. Net: the three divergences are THREE roots, not two — correcting the prior
 consolidation. Next probe: the DG competition terms (CCF, RELDEN, PCT, BAL) for a large tree at
 the 2005 cycle with vs without the LP present, to pin which term over-counts the small cohort.
+
+
+## s26 ROOT RE-CORRECTED (DDS-matches evidence is conclusive)
+The 'establishment x DG-COMPETITION' claim above was based on a measurement artifact and is WRONG.
+Re-measuring the FVS DDS *after* its forest-type terms (it adds FTUPHD*KUPHD at dgf.f:321-328, which
+my first dump captured before) shows the FULL deterministic ln-DDS MATCHES:
+   FVSjl meanDDS = 2.54193   vs   FVS meanDDS = 2.54182   (0.004%, D>=5 cohort, 2005)
+Every deterministic DG input for the s26 large trees at 2005 matches FVS:
+   - calibration  CONSPP (dg_const+dg_cor): 0.33673 both
+   - competition  BA 171.875 both; AVH 64.39 both; PCT 49.5596 both; PBA 193.89 vs 194.36 (0.24%);
+                  PBAL 96.62 vs 96.81 (0.19%, and PNTBL=-0.004 so its DDS effect is ~1e-3, negligible)
+   - forest type  IFORTP 520 -> KUPHD=1 (FVSjl ftgrp=uphd) both
+   - FULL ln-DDS  2.54193 vs 2.54182
+So s26 is NOT a competition/forest-type/calibration bug. With DDS matching, the residual is the
+STOCHASTIC DGSCOR (frm=exp(frmbase+corr*oldrn) serial-correlation: corr/oldrn) — the SAME family as
+s5/s9 — surfacing when the LP cohort is added. The stand-level impact is sub-0.5% (.sum 2010: TPA 401
+vs 403, BA 151/151, cuft 3294 vs 3292 = 0.06%), i.e. ULP-FP-level accumulation. (The apparent '1.3%
+DGib' at the mortality point is inconsistent with the 0.06% cuft and is a post-DDS/measurement
+nuance, not a deterministic-input gap.) NET: s26 folds back to the DGSCOR-precision family with s5/s9
+— deterministic path fully excluded. Lesson logged: always measure Fortran intermediates at the FINAL
+assignment point (FT terms are appended after the base DDS).

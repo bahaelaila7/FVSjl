@@ -47,7 +47,7 @@ const _KC_FT_BROKEN = Dict(
     # residual is the FP-sensitive VARMRT npass geometric-progression convergence (the
     # adjust<0.8 / >1.2 integer-step path) or the mixed-cohort tokill precision — a
     # sub-percent distribution residual, NOT a logic/table bug.
-    "s26_estab"    => "establishment x DG-competition (NOT the s5/s9 COR root): large-tree DG bit-exact through 2000, diverges ~1.3% exactly at 2005 when the LP enter (FVSjl 0.95005 vs FVS 0.96263) — FVSjl over-suppresses the large-tree DG with the small LP present (CCF/RELDEN or estab-ordering); mortality logic proven bit-correct",
+    "s26_estab"    => "DGSCOR-precision family (with s5/s9): ALL deterministic DG inputs match FVS at 2005 — calibration CONSPP 0.33673, competition BA/AVH/PCT/PBAL, forest type 520->uphd, and FULL ln-DDS 2.54193 vs 2.54182. Residual is the stochastic frm/oldrn serial-correlation; stand impact sub-0.5% (TPA 401 vs 403, cuft 0.06%). NOT competition (earlier claim was a DDS measurement artifact)",
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,
