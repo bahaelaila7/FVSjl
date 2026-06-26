@@ -24,9 +24,9 @@ then GRADD applies them (UPDATE) plus fire/establishment/crown. FVSjl fuses both
 | 9 | HTGF (compute HTG)                               | height_growth! (230)                      | ✓ |
 | 10| REGENT (small-tree DG/HTG)                       | small_tree_growth! (231)                  | ✓ |
 | 11| FIXDG/FIXHTG opts                                | apply_fix_scalers! (232/234)              | ✓ |
-| 12| **MORTS** (compute kill, pre-growth + pre-fire)  | mortality! (235)                          | ⚠ see F1 |
+| 12| **MORTS** (compute kill, pre-growth + pre-fire)  | mortality! (in MORTS/fire block)          | ✓ (F1 fixed) |
 | 13| TRIPLE + REASS (if LTRIP)                         | triple_records! (243)                     | ✓ |
-| 14| GRADD: FMMAIN/FMKILL (fire)                       | _maybe_burn! (215) — **BEFORE growth**    | ⚠ see F1 |
+| 14| GRADD: FMMAIN/FMKILL (fire) = MAX(MORTS,fire)    | _maybe_burn! after MORTS, MAX-combine     | ✓ (F1) / F3 distrib |
 | 15| HTGSTP (HTGSTOP/topkill)                          | htgstp! (245)                             | ✓ |
 | 16| **UPDATE** (apply DG/HTG + kill to dbh/ht)       | inline dbh+=DG/bark, ht+=HTG (251-261)    | ✓ |
 | 17| DENSE (post-growth)                              | compute_volumes!/density                  | ✓ |
@@ -79,7 +79,6 @@ before/after-cuts timing changes which records exist when the thin runs — a po
 divergence beyond the eigensolver. Low priority (COMPRESS is explicitly accepted), flagged.
 
 ## Status
-Core per-cycle sequence: traced and faithful. Two ordering items flagged (F1 fire/MORTS,
-F2 COMPRESS), both currently immaterial to the passing tests but real faithfulness gaps to
-close. Continue the audit into: volume (fvsvol op order), thinning selection (RDPSRT/cut
+Core per-cycle sequence: traced and faithful. F1 (fire/MORTS MAX-combine) FIXED. Open: F3 (FMEFF per-tree fire-kill distribution) and
+F2 (COMPRESS timing, accepted-adjacent). Continue the audit into: volume (fvsvol op order), thinning selection (RDPSRT/cut
 order), and the height-growth (HTGF) internals — each traced directly against live FVSsn.
