@@ -80,3 +80,20 @@ The large trees are the ORIGINAL (WK3-calibrated sp33/65) stand. So s26's seed i
 calibration DG precision on the calibrated species — the SAME root as s5/s9 — NOT establishment
 DG-init, NOT a competition table, NOT the LP cohort. (A prior split that omitted the bark
 division falsely suggested an 8-16% DG gap; the bark-corrected split is the correct comparison.)
+
+
+## s26 ROOT CORRECTED (all-cycle DG evidence — supersedes the 'COR root' claim above)
+Dumping the D>=5 (large/original) cohort mean inside-bark DG for EVERY cycle, FVSjl vs an
+instrumented morts.f, REFUTES the earlier 'same COR root as s5/s9' consolidation:
+  cycle:   1990     1995     2000     2005      2010
+  FVS:     1.23468  1.03142  0.99915  0.96263   0.97731
+  FVSjl:   1.23468  1.03142  0.99914  0.95005   1.00811
+The large-tree DG is BIT-EXACT through 2000 and diverges ~1.3% EXACTLY at 2005 — the cycle the
+LP cohort is established. A COR-calibration root would diverge from cycle 1; this does not. So
+s26's seed is the ESTABLISHMENT cohort's effect on the EXISTING trees' diameter-growth COMPETITION
+(FVSjl OVER-suppresses the large-tree DG when the 270-TPA small LP are present — consistent with
+including the small LP crowns in CCF/RELDEN where FVS effectively does not, OR an establishment-vs-
+DG ordering difference). This is s26-SPECIFIC (establishment x DG-competition), DISTINCT from the
+s5/s9 COR/AUTCOR root. Net: the three divergences are THREE roots, not two — correcting the prior
+consolidation. Next probe: the DG competition terms (CCF, RELDEN, PCT, BAL) for a large tree at
+the 2005 cycle with vs without the LP present, to pin which term over-counts the small cohort.
