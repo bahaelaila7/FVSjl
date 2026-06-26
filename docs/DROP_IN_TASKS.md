@@ -24,8 +24,8 @@ Keyword-coverage harness: `test/integration/test_keyword_coverage.jl` over
 
 ## OPEN — engine divergences (must reach ULP/compression-only)
 - [ ] **s5/s9** — 10-yr board-foot tail (~4%): calibrated-species HTCALC/AGET + tripling-variance DG/HTG precision under a non-5 period. (TPA already within 3.) [memory: fvsjl-10yr-cycle-mortality]
-- [ ] **s26_estab** — planted LP cohort small-tree growth/mortality 2005-2010 (TopHt 63/65, TPA 407/403); initial planting matches.
-- [ ] **s32_volume** — VOLUME card zeroes SCF → sawtimber-cubic v[4] ~0.7% (default path bit-exact; needs per-tree NVEL trace).
+- [ ] **s26_estab** — planted-cohort INITIAL TPA: FVSjl 270 (=300×0.90 exactly) vs FVS 245.4 (×0.909); after 2005 the self-thin rate matches. Root = establishment-cycle treatment — FVS density-dependent ESA stocking logistic (estab.f:320) and/or planting-cycle mortality timing (FVSjl enters trees fresh after mortality). BARE stays bit-exact.
+- [ ] **s32_volume** — VOLUME zeroes SCF (cols past 80) → all trees prod=01. Per-tree .trl: FVS scuft=0 below dbh 10, mcuft=0 below ~6; FVSjl leaks small-tree merch (+19 each). mrules.f fixes DON'T apply (sawDib=6 overshoots; merchL=10 BREAKS 3 bit-exact defaults) → SN R8 uses merchL=8/sawDib=7-9; multi-threshold. Default path bit-exact.
 - [ ] **s22_compress** — COMPRESS different eigensolver — **ACCEPTED per spec** (keep as documented-broken).
 
 ## OPEN — yaml / conversion (user-requested)
