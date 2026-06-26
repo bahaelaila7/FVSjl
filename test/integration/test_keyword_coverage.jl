@@ -28,12 +28,16 @@ const _KC_FT_BROKEN = Dict(
     "s5_cycle"     => "10-yr board-foot tail: calibrated-species DG/HTG precision (non-5 period); see fvsjl-10yr-cycle-mortality",
     "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
-    # s26: PLANT 300 LP@90% → a DENSE planted-pine cohort (245 tpa @2005, meanDbh 2.6")
-    # that self-thins hard. Per-tree .trl: FVS LP 245→54.8→8 tpa (2005/10/15); FVSjl
-    # under-thins (~+4 LP at 2010 → stand TPA 407 vs 403), which feeds back into competition
-    # (TopHt 63 vs 65). Root = the small-tree/dense-cohort self-thinning mortality rate for
-    # the planted seedlings (initial planting 2000/2005 matches; diverges as the cohort thins).
-    "s26_estab"    => "planted LP cohort self-thinning mortality (245→55 FVS vs ~59 FVSjl @2010)",
+    # s26: PLANT 300 LP@90%. Per-cycle LP cohort dump (FVSjl write_sum_file hook) vs FVS .trl:
+    #   FVSjl LP: 2005=270.0  2010=63.3  2015=7.3   (270 = 300×0.90 exactly)
+    #   FVS   LP: 2005=245.4  2010=54.8  2015=8.0
+    # The INITIAL established TPA differs (270 vs 245.4 ≈ ×0.909); after 2005 the self-thin
+    # RATE matches. So the root is the establishment-cycle treatment of the planted cohort —
+    # candidates: FVS's density-dependent ESA stocking logistic (estab.f:320, 1/(1+exp(-(-5.174
+    # +0.851·ln TPACRE)))) and/or the planted trees taking the planting-cycle mortality (FVSjl
+    # enters them fresh AFTER mortality). Bit-exact for BARE stands; only stocked-stand PLANT
+    # diverges. Fix needs estab-timing/ESA reconciliation without regressing the BARE validation.
+    "s26_estab"    => "planted-cohort initial TPA 270 (=300×0.90) vs FVS 245.4 — establishment-cycle ESA/mortality (BARE bit-exact)",
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,
