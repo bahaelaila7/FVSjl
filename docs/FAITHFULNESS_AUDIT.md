@@ -185,3 +185,18 @@ that pins the exact mechanism, then reverted because it traded one scenario for 
   It's an architectural change to the FFE cycle (ffe_fuel_update! / grow_cycle ordering) needing
   validation vs both fire scenarios + carbon — deferred (not a one-liner; risk of perturbing carbon).
   Committed so far: the two prerequisites (per-cycle fuel runs at all + cone distribution). Suite 4494+21.
+
+#### F3 — interleaving fix LANDED (committed); residual now a small ~4% per-model Byram calibration.
+The annual fuel/fire interleaving fix landed green: when a SIMFIRE burns this cycle, the fuel loop is
+split (advance 1 yr → stash the fire's (SMALL,LARGE) → advance per-1), so the fire burns on cycle-start
++ 1 annual step (FVS's FMBURN timing), not the period-end fuel. Non-fire/carbon stands keep the single
+full-period call ⇒ carbon_jenkins bit-exact. Results: fire_fuel9 post-fire TPA 120→130 (FVS 143);
+fire_early 114 vs 104 (within its ±12 tol; pure start-of-cycle had broken it at 127). Suite 4494+21, 0 fail.
+**Remaining = small, opposite-signed, scenario-dependent fire residual** (NOT timing): fire_fuel9 slightly
+OVER-kills (130 vs 143), fire_early slightly UNDER-kills (114 vs 104). The fire-effects chain is faithful
+to ~3-4%: fire_early byram 7313 vs FVS 7597 (-4%), flame 4.10 vs 4.17, scorch 17.14 vs 17.58 — the TPA
+gaps track the scorch deficit, so they're fuel/Byram-driven, not an FMEFF mortality-model bug. Opposite
+signs ⇒ not a uniform bias; it's per-fuel-model Rothermel/loading deltas across different stand fuel
+conditions. Closing it means matching the per-model Byram exactly (instrument FVS FMFINT per-model on
+each scenario's selected models). Lower priority: both fire scenarios are within their test tolerances;
+suite green.
