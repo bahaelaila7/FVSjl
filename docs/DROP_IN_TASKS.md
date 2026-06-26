@@ -352,3 +352,21 @@ g)^1.605, g=_mort_traj_g/bark) differing at the ~1e-5 level, accumulating throug
 to the 1-TPA/0.15%-cuft drift at 2013. Next (still verify-from-code): trace the d10-projection terms
 (diam_growth, bark_ratio, the (d+g)^1.605 order) vs morts.f to see if the 100-ULP is another order/formula
 faithfulness gap or irreducible Float32 transcendental rounding.
+
+
+## s5/s9 — d10-projection seed PINNED (full-precision vs instrumented morts.f)
+Rebuilt the FVS instrumentation (container restart wiped /tmp; shim persists at FVSjl/tmp). Full-precision
+ZF dump (D10,T,TN10,SUMDR10) for s5 vs FVSjl (with the species-order SDI fix):
+  2005: tt 484.7236633 = FVS exactly (sum-order fix worked); but SUMDR10 14052.352 vs FVS 14052.6914
+        (~0.0024%); the GROWTH part (sumdr10-sumdr0) differs ~0.019%; dia0/sumdr0 differ ~80 ULP too.
+So with tt bit-exact, the residual is the per-tree (d+g)^1.605 — i.e. the DBH DISTRIBUTION + g for the
+2005->2010 cycle differ at ~80 ULP, INVISIBLE in the aggregate BA (152/152, 148/148) but visible in the
+density-sensitive SUMDR/d10, which feeds tn10 (415.297 vs FVS 415.287, ~250 ULP) and accumulates through
+the odd-period mortality to the 1-TPA/0.15%-cuft drift. SOURCE = the DG under the 10-yr cycle (the
+calibrated-species DGSCOR/DDS x2 precision), carried into the 2005 dbh + the 2005->2010 oldrn.
+CANDIDATE faithfulness gap found (NOT patched — unverified as the seed, and ULP-scale): FVS dgdriv.f:738
+computes EXP(WK2+OLDRN) (one exp of the sum); FVSjl computes exp(wk2)*exp(frmt) (two exps multiplied) —
+differs ~1 ULP/tree, amplified x2 by the 10-yr SCALE. Too small to be the ~80-ULP seed on its own.
+NEXT (verify-from-code): per-tree DG trace at the 1995->2005 10-yr cycle vs dgdriv.f — find whether the
+~80 ULP is a DDS/SCALE/frm order gap (fixable, like the SDI sum order) or irreducible Float32 sqrt/exp/pow
+rounding under the x2 scaling (ULP-FP). Only then classify or fix.
