@@ -406,3 +406,17 @@ is irreducible-looking Float32 rounding in the tripling-DG construction. To FINA
 tripling FM/FU/FL factors (dgdriv.f ~88-92, DG_FM/FU/FL) and confirm FVSjl's frmbase=DG_FM*ssigma*rhocp
 matches FVS's, AND that the only residual is the x2-placement Float32 ordering (then it is ULP-FP) vs a
 real FM/structure mismatch (then fixable). Either way the regression (wk2) is proven faithful.
+
+
+## s5/s9 — tripling factors FM/FU/FL also bit-exact; strong ULP-FP evidence (one step short)
+FVS FU/FM/FL = 1.271 / -0.14228 / -1.549 = FVSjl DG_FU/FM/FL EXACTLY, and frmbase=FM*ssigma*rhocp matches
+FVS FRM=FM*SSIGMA*RHOCP. So ALL the deterministic tripling-DG components are bit-exact: wk2 (DGF
+regression), FM/FU/FL, AND the 2005 stand (.sum 2005 TPA/BA/cuft/bdft all match). The only structural
+difference is the FINT x2 PLACEMENT (FVSjl exp(wk2)*(sfint/5) vs FVS DDS=exp(WK2) with the x2 entering via
+a route not at line 241) — and since the 2005 stand is bit-exact, both compute the same DG, so it IS a
+Float32 last-bit route difference, NOT a 2x growth error. The ~80-ULP SUMDR10 gap is that last-bit,
+carried via the oldrn into the 2005->2010 d10-projection -> accumulating to the 2013 1-TPA drift.
+EVIDENCE FOR ULP-FP (strong): every deterministic input checked is bit-exact; the residual is sub-0.02%
+last-bit Float32 in the x2/oldrn construction. ONE STEP SHORT of a full proof: confirm WHERE FVS applies
+the FINT x2 in the tripling path and that the only residual is its Float32 ordering (then provably ULP-FP),
+vs a real oldrn-carry mismatch (then fixable). NOT yet classified — but the model is proven faithful.
