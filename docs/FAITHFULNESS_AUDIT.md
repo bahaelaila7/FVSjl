@@ -324,3 +324,20 @@ crown-lift cycle (#2) + CWD2B phasing (#3).
   the mortality CROWN (CWD2B) flows from Stand-Dead to DDW too slowly (TFALL/TSOFT fall schedule, fmscro.f).
   Session total: 21 → 9 broken. Method that's working: find the FVS semantic (FMSVOL merch, XDCAY root
   decay), verify vs the live oracle, land only fixes that improve without regressing the exact pools.
+
+#### Carbon Stand-Dead/DDW — final localization (2 coupled deep terms remain).
+Decomposed Stand-Dead into bole + crown vs the live oracle:
+- **CROWN (CWD2B) MATCHES FVS** — FVSjl 0.44/0.77/1.56 vs FVS 0.42/0.76/1.54 t-C/ac. So the crown
+  amount + TFALL flow are CORRECT. Not the bug.
+- **Mortality snag BOLE +0.13-0.25** (FVSjl 2.97 vs FVS 2.72 @2005). BUT switching it to the merch cubic
+  (merch_cuft_vol OR fresh R8Clark v[4]) makes it WORSE (1.67→1.93) — because the dying record is a TRIPLED
+  record whose volume ≠ the full-tree volume; cuft_vol is the closest available. So the merch fix that
+  worked for INPUT snags does NOT transfer to mortality snags (tripling interaction). Reverted.
+- **DDW deficit (−0.8 to −1.3 @intermediate) = new-mortality falldown LAGS one report-cycle.** update_snags!
+  runs at the cycle start (before that cycle's mortality is created) and ages by (current−deathyr), so a
+  snag created this cycle (deathyr=cycle yr) falls 0 this cycle and a full cycle next — it stands through
+  the current report (Stand-Dead high) and reaches DDW a cycle late (DDW low). FVS spreads deaths over the
+  cycle so they fall ~per/2 in the death cycle. The fix is a partial (~half-cycle) falldown of fresh
+  mortality, but the prior FULL-falldown attempt collapsed Stand-Dead (memory), so it needs the spread.
+Both remaining terms are genuinely coupled to TRIPLING and the death-spread — deeper than the input-snag
+fixes that closed #548/#205. Session: 21 → 9 broken. Growth + cuts audited & bit-exact (not in the 9).
