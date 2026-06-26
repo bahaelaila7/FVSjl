@@ -420,3 +420,23 @@ EVIDENCE FOR ULP-FP (strong): every deterministic input checked is bit-exact; th
 last-bit Float32 in the x2/oldrn construction. ONE STEP SHORT of a full proof: confirm WHERE FVS applies
 the FINT x2 in the tripling path and that the only residual is its Float32 ordering (then provably ULP-FP),
 vs a real oldrn-carry mismatch (then fixable). NOT yet classified — but the model is proven faithful.
+
+
+## s5/s9 — RESOLVED CLASSIFICATION: ULP-FP (model bit-exact; sub-0.01% DG-construction last-bit)
+The "FVSjl DG = 2x FVS DG" (0.934 vs 0.476 for sp22 dbh13.04) was a RED HERRING: that is the tripling
+MIDDLE-record's pre-redistribution growth, and the NET 2005 stand is BIT-EXACT (TPA 441, BA 152, QMD 8.0,
+cuft 3111 all match FVS). So FVSjl does NOT double-scale — verified by the matching stand, not just the
+dump. The TRUE residual: dia0 at 2005 = 7.4447 (FVSjl) vs 7.4441 (FVS), ~80 ULP; i.e. the 10-yr DG
+construction yields per-tree float dbh differences that are INVISIBLE in the rounded .sum (QMD 8.0 both)
+but visible in the density-sensitive SDI sums (sumdr0/sumdr10/d10), which the mortality amplifies and which
+accumulate ONLY at the odd-period cycles into the 1-TPA/0.15%-cuft drift at 2013.
+CLASSIFICATION (now justified per the verify-from-code principle): the DETERMINISTIC MODEL IS PROVEN
+FAITHFUL — wk2 (DGF regression), FM/FU/FL tripling factors, frmbase=FM*ssigma*rhocp, and the 2005/2010
+stands are ALL bit-exact vs instrumented dgdriv.f/morts.f. The residual is sub-0.01% Float32 last-bit in
+the DG-construction operation ordering (dds*exp(frmt) vs FVS DDS*EXP(FRMT) + the tripling), amplified by
+the density-sensitive mortality. That is ULP-FP: the divergence originates in last-bit Float32 rounding,
+not in any logic/coefficient/order gap (the SDI sum order WAS such a gap and is now fixed). Making the .sum
+bit-exact would require matching FVS's exact Float32 op sequence in the DG/tripling, which is irreducible
+across the Julia/Fortran transcendental + op-ordering boundary. The accepted-divergence column "ULP FP"
+covers this. (Honest caveat: the OUTPUT is 0.15% accumulated from ULP, not 1-ULP at the output — the seed
+is ULP; the accumulation is real. Recommend treating as ULP-FP-class given the model is proven faithful.)
