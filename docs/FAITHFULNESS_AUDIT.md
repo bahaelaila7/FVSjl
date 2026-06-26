@@ -121,3 +121,20 @@ and sums per-model byram with the post-wind weights; FVSjl selects once. Next FF
 second FMCFMD fuel-model selection + the per-model reaction-intensity (fuel loadings FWG) on
 model 10/5. The FMEFF mortality formula + MORTB0/1/2 + Regelbrugge groups are confirmed bit-exact
 vs fmeff.f, so the residual is upstream in the fire-behavior (byram/flame), not the kill logistic.
+
+#### F3 further narrowing — the residual is the Rothermel REACTION INTENSITY (rothermel.jl vs FMFINT).
+With moisture forced to model 3 (= FVS's) and the standard-fuel-model loadings matching, the
+per-model Rothermel STILL diverges, in OPPOSITE directions:
+| model | FVS xir / R / byram | FVSjl xir / R / byram |
+|-------|---------------------|------------------------|
+| 10 (mostly dead) | 5654 / 2.749 / 3382 | 6579 / 3.377 / 4758  (FVSjl HIGH) |
+| 5  (live fuel)   | 2170 / 5.174 / 2562 | 1029 / 2.044 /  475  (FVSjl 2× LOW) |
+Loadings + SAV + depth + moisture all match, so the divergence is in the reaction-intensity /
+spread FORMULA. The opposite signs (dead-heavy model high, live-fuel model low) implicate the
+LIVE-FUEL terms (live moisture-of-extinction / live-fuel reaction-velocity damping) as the main
+differentiator, plus a smaller dead-fuel reaction offset. (Also unresolved: FVS's reported actual-
+fire byram 4194 exceeds its own per-model weighted 3027 — the multiple FMFINT calls (actual /
+potential / CFB ICALL=2) need disentangling to compare like-for-like.) This is a multi-term
+Rothermel re-verification of `rothermel.jl` against `fmfint.f` — a real, bounded FFE task, not a
+one-liner. snt01 stand-4 (the in-suite fire test) matches because its fuel models hit the terms
+that already agree; fire_fuel9 (models 5/10) exposes the live-fuel + dead-reaction terms.
