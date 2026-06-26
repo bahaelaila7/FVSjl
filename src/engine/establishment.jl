@@ -95,7 +95,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             hht < es_xmin[sp]   && (hht = es_xmin[sp])           # HTADJ=0, floor, cap
             hht > _ES_HHTMAX[sp] && (hht = _ES_HHTMAX[sp])
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
+            # REGENT establishment dbh (regent.f:331-334, LESTB branch): DBH = HTDBH⁻¹(HK),
+            # floored to the species min DIAM, then a small height-proportional add 0.001·HK.
             dbh = _htdbh_dbh(sd, sp, hht, ifor); dbh < 0.1f0 && (dbh = 0.1f0)
+            dbh += 0.001f0 * hht
             for _ in 1:ibrkup
                 n = t.n + 1; n > length(t.dbh) && break
                 t.n = n
