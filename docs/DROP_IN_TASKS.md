@@ -159,3 +159,19 @@ divergence at the dbh-3 growth boundary, NOT a precision residual. NEXT: dump th
 the 2005 growth on both sides; if a tree is within ~1 ULP of dbh 3.0 and classified oppositely, the
 offset is ULP-rooted (acceptable per spec); else it is a small/large-classification or REGENT-draw-
 count logic gap to align. This is the most actionable of the three and is well-scoped.
+
+
+## s26 +6 SPLIT across the growth boundary (DGDRIV vs REGENT)
+Instrumenting the RANN counter at FVS's growth-call boundaries (grincr.f DGDRIV@437 / REGENT@449)
+vs FVSjl's phase counts at 2005:
+                 entry   afterDGF/DGDRIV   afterSMALL/REGENT
+   FVSjl :       1710        2811               3267
+   FVS   :       1710        2802               3261
+   delta :         0          +9                 +6 (i.e. -3 within REGENT)
+So the +6 net = +9 in dgf (large-tree DGDRIV: dgscor + new-tree oldrn-init) and -3 in REGENT
+(small-tree). The -3/+3 is ~3 trees shifting across the dbh-3 small/large boundary (FVSjl classifies
+~3 as large where FVS keeps them small, so they leave REGENT and enter dgf's dgscor); the remaining
++6 in dgf is extra serial-correlation/oldrn-init draws (the new LP cohort's oldrn initialization or
+dgscor rejection redraws). NEXT: split FVSjl's dgf draws into oldrn-init vs dgscor! to attribute the
++6, and dump the ~3 boundary trees' dbh (within ULP of 3.0 => ULP-rooted classification flip; else a
+small/large-threshold comparison difference to align with REGENT XMAX handling).
