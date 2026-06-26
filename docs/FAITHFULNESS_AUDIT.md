@@ -430,3 +430,17 @@ Remaining: DDW @2000 8.6 vs 8.4 (+0.2), concentrated in size class 5 (6-12": jl 
 vs 1.55 @2005) — a small, distributed fallen-bole-taper / decay residual in the medium-bole class, growing
 with bole falls. Sizes 1-4 + 6-9 match within ~0.03. Suite: 4512 pass / 7 broken / 0 fail (no regression).
 The 6 DDW tests are still @test_broken (the +0.2 print-rounds past 0.05) but the column is now ~5x closer.
+
+#### DDW size-5 residual — ruled out normalization + hard/soft pool; still open
+Two more candidates for the size-5 (+0.05..0.12) residual were tested and RULED OUT:
+- Cone-taper normalization: removing jl's `f[j]/=total` had NO effect (the raw conic fractions already
+  sum to ~1.0 for these snags), so the taper distribution is not the cause.
+- Hard/soft pool assignment: FVS splits the fallen bole into the soft pool (K=1, DIS, decays ×1.1
+  faster) vs the hard pool (K=2, DIH); jl had dumped all fallen bole into the hard pool (index 2).
+  Splitting it (addS=a·dfis·0.80→cwd[:,1,:], addH=a·dfih→cwd[:,2,:]) is MORE faithful (kept) but had no
+  measurable effect on carbon_snt — its snags stay mostly HARD over the 4 cycles, so dfis≈0.
+Confirmed: ALL species' crown weight in size 5 = 0 (jl crown_biomass == FVS CROWNW), so size 5 is fed
+ONLY by fallen boles; input-decay matches (size-6 input 1.01→0.73 bit-matches FVS). The residual is jl's
+medium-snag (d 6-12") boles contributing ~10%/bole more to size 5 than FVS, growing with bole falls.
+Next probe: instrument FVS CWD1/CWD2 (fmcwd.f) per-snag ADD to size 5 vs jl, to find whether it's the
+medium-snag merch bolevol or a taper edge. DDW now +0.2 (was -1.57); 6 DDW tests still @test_broken.

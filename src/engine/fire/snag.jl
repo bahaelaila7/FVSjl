@@ -185,13 +185,20 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
-            # Fallen-bole biomass with the FMCWD soft/hard density conversion SCNV = (0.80 soft, 1.00 hard;
-            # fmcwd.f:61 DATA SCNV / 0.80, 1.00 /, applied as DIF·V2T·SCNV(K)): a SOFT (decayed) snag's bole
-            # contributes only 0.80× its volume's biomass to down wood. Omitting it over-counted fallen soft
-            # boles by 1.25× → the size-4/5 DDW overshoot that grew as snags softened.
-            add = a * (dfis * 0.80f0 + dfih)                # fallen biomass this step (tons/ac)
+            # Fallen-bole biomass into the down-wood pools, SPLIT by the snag's hard/soft state into the
+            # matching CWD pool (FMCWD CWD1, fmcwd.f:K=1 soft DIS → cwd[:,1,:]; K=2 hard DIH → cwd[:,2,:]),
+            # with the SCNV density conversion (fmcwd.f:61 SCNV=(0.80 soft,1.00 hard)): a SOFT (decayed)
+            # snag's bole contributes 0.80× its volume. The pools decay at DIFFERENT rates (soft/index-1
+            # faster ×1.1, hard/index-2 slower; fmcwd.f), so dumping all fallen bole into the hard pool
+            # (as before) decayed the soft-snag boles too slowly → they accumulated as the size-5 DDW
+            # overshoot. addS → soft pool, addH → hard pool.
+            addS = a * dfis * 0.80f0                        # soft-snag fall → soft down-wood (index 1)
+            addH = a * dfih                                 # hard-snag fall → hard down-wood (index 2)
             for j in 1:9
-                frac[j] > 0f0 && (fs.cwd[j, 2, idc] += add * frac[j])  # spread across CWD size classes
+                if frac[j] > 0f0
+                    fs.cwd[j, 1, idc] += addS * frac[j]
+                    fs.cwd[j, 2, idc] += addH * frac[j]
+                end
             end
             fallen += dfall
         end
