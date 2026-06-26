@@ -1,3 +1,14 @@
+## s32 CLOSED (gated R8 <10ft rule)
+FIXED: applied the Region-8 <10ft-sawlog rule (fvsvol.f:499-502) on the primary sawtimber call,
+GATED to prod=='01'. The gate was the missing piece — default small trees use prod=='02' (pulpwood)
+and are untouched, so the bit-exact default path is preserved; s32's SCFMIND=0 forces all trees to
+prod=='01' so the rule fires there. RESULT: s32 .sum mcuft/scuft/bdft ALL bit-exact every cycle
+except a single 1-unit scuft rounding at 2010 (2274 vs 2273 = 0.04%, Scribner/Behre FP quantization,
+within the accepted ULP-FP envelope). Suite 4487+28 -> 4488+27; s32 flipped from @test_broken to a
+passing assertion. volume.jl: capture ht1prd from the main _R8CLARK_VOL call; if prod=='01' &&
+ht1prd<10 then scf=0 and mcf=v[7]. Two FALSE STARTS first taught the gate (ungated broke 219 default
+tests because prod=='02' small trees have v[7]=0).
+
 # FVSjl Southern Drop-In — Task Tracker
 
 Persistent progress tracker for the SN drop-in-replacement effort (survives container

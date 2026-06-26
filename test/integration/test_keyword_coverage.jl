@@ -65,7 +65,6 @@ const _KC_FT_BROKEN = Dict(
     # ~7-9" top. So FVSjl's leak (scuft>0 at dbh 8-10) is a TAPER-GEOMETRY precision residual at
     # the small-tree sawtimber-top boundary, coupled across several NVEL conditions — not a
     # card-threshold or DBHMIN fix (mrules sawDib=6 overshoots, merchL=10 breaks 3 scenarios).
-    "s32_volume"   => "VOLUME zeroed-SCF small-tree merch leak ~0.7% — NVEL R8 Clark taper geometry at the hard-wired sawtimber-top boundary (volkey/fvsvol verified; default scftop>0 path bit-exact)",
 )
 # yaml→engine result != key→engine result. Only the 2-record SPGROUP keyword remains
 # (group name + a following species-list record): the flat writer emits the two records

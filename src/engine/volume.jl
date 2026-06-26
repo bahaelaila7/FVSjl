@@ -359,10 +359,20 @@ function compute_volumes!(s::StandState)
             prod = "02"; stump = stmp[sp]; mtopp = topd[sp]
         end
         mtops = topd[sp]
-        v, _, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod)
+        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
+        # Region-8 (fvsvol.f:499-502): a sawtimber sawlog with < 10 ft of product has no sawtimber —
+        # zero the sawtimber cubic (TVOL(4)) and the saw part of merch cubic. GATED to the sawtimber
+        # product (prod="01"): the rule lives in FVS's board-feet section, which runs only for the
+        # sawtimber call. Default small trees use prod="02" (pulpwood) and keep their full merch, so
+        # this is a no-op for the bit-exact default path; it fixes only the zeroed-SCF case (s32),
+        # where SCFMIND=0 forces every tree to prod="01".
+        if prod == "01" && ht1prd < 10f0
+            scf = 0f0
+            mcf = d >= dbhmin[sp] ? v[7] : 0f0
+        end
         # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default. When
         # BFVOLUME/VOLEQNUM make the board equation or standards differ from the sawtimber ones
         # (BFPFLG=0), recompute board feet from a separate board call (BFTOPD/BFSTMP + board eq),
