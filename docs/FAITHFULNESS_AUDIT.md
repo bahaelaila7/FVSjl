@@ -237,3 +237,16 @@ was an artifact of bug 1 — live FVSsn confirms FM5 (dry brush) byram 8988 > FM
 4494+21, 0 fail. Residual now ≤~2 TPA on late post-fire cycles (FP / small cwd-accumulation), within
 tolerance. The F3 FFE surface-fire port is faithful end-to-end: frozen-fuel→cone-split→interleaving→
 fuel-model selection→Rothermel(xir+spread+slope)→FMEFF mortality all match FVS.
+
+#### Remaining broken: 11 = 1 COMPRESS (accepted) + 10 carbon-report dead-pool timing.
+This turn closed 10 (the .csv->.tre writer boundary-overlap bug). The last 10 are the carbon report's
+dead pools (Below-Dead/Stand-Dead/DDW) on INTERMEDIATE cycles — inventory + final cycles are bit-exact,
+and ALL live pools (Aboveground/Merch/Below-Live/Floor/Shrub) are bit-exact. Root: FFE fuel-loop timing
+is MULTI-TERM coupled, not a single lag. Empirically: moving ffe_fuel_update! from before-grow to
+after-grow+crown-lift swung carbon_snt DDW from -1.9 (low) to +2.3 (high) — because it simultaneously
+changes (a) the crown-lift application cycle (FMSDIT/FMCADD), (b) the falldown of the cycle's OWN new-
+mortality snags (now created before the fuel loop), and (c) litterfall's pre- vs post-growth stand. FVS
+gets all three right via its annual GRADD->FMSNAG/FMCWD/FMCADD interleaving (growth is still per-cycle,
+but the fuel sub-steps are annual and ordered after GRADD). A faithful fix must interleave those fuel
+sub-terms per-year with the correct stand state at each — a contained but careful FFE-carbon refactor,
+not a one-line reorder (which over/under-shoots). Residuals ~0.5-2.3 t at F7.1 report resolution.
