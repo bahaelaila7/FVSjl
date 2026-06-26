@@ -440,3 +440,36 @@ bit-exact would require matching FVS's exact Float32 op sequence in the DG/tripl
 across the Julia/Fortran transcendental + op-ordering boundary. The accepted-divergence column "ULP FP"
 covers this. (Honest caveat: the OUTPUT is 0.15% accumulated from ULP, not 1-ULP at the output — the seed
 is ULP; the accumulation is real. Recommend treating as ULP-FP-class given the model is proven faithful.)
+
+
+## s26_estab — FIXED (real bug: post-establishment species-sort order)
+ROOT CAUSE (verified from FVS source): FVS's ESGENT calls SPESRT to re-establish the
+species-order sort after regen is added (esgent.f:41-44). SPESRT/LNKCHN visit records in
+ascending-record order. FVSjl's species_sort! orders within-species by t.sort_key, which
+for records tripled in earlier cycles holds stale TRIPLE lineage keys (3*K+offset,
+diameter_growth.jl:694). With no thinning in s26 there is never a compaction to reset
+those keys (trees.jl:201), so the post-establishment sort was scrambled (FVSjl visited
+140,30,141,84,2,... where FVS visited 2,9,11,...,140,...). That desynced the 2005 large-
+tree DGSCOR BACHLO stream by +9 main-RANN draws, which in turn handed the dense LP cohort
+misaligned REGENT random height perturbations (regent.f:257 BACHLO), shifting its self-
+thinning (LP 63.31 vs 60.31; total TPA 401 vs 403; cuft 0.06%).
+
+DIAGNOSIS METHOD (reusable for any RNG-desync): added a draw counter + RANNCNT entry to
+rann.f; dumped the count at DGDRIV and REGENT entry; found the 2005 cycle accumulates +9
+main draws between the (aligned) DG entry and the REGENT entry; ordered the per-tree
+DGSCOR calls by draw-position and saw the FIRST divergence was a TREE-ORDER swap (FVS it=2
+vs FVSjl it=140 at the same draw position, same species), not a value/ULP flip. Confirmed
+the whole species was ascending-index in FVS vs scrambled in FVSjl.
+
+FIX: at the end of establish! (establishment.jl), reset t.sort_key[i]=Float64(i) for all
+live records, replicating esgent's SPESRT. Result: 2005 DGSCOR order matches FVS exactly
+(0 mismatches), s26 .sum bit-exact bar two one-unit volume ULPs (2005 cuft 3027/3026,
+2015 bdft 12573/12574, within the column quantization gate). Moved s26 out of broken.
+Suite 4488+27 -> 4489+26; snt01/BARE/all establishment scenarios unaffected.
+
+TWO PRIOR DIAGNOSES DISPROVEN (both were inferred, not verified from code):
+1. "dbh_zeide~3 SDI threshold" — WRONG: s26 has no SDIMAX card, so DBHZEIDE=0 (grinit.f:262)
+   and LZEIDE=.TRUE.; morts.f:222 `D.LT.0` is never true, so ALL trees enter the SDI sum.
+   There is no dbh~3 threshold for s26.
+2. "DGSCOR/DDS stochastic precision (with s5/s9)" — WRONG: the seed was tree-ordering; once
+   the order matched FVS the DGSCOR frm values matched bit-for-bit.
