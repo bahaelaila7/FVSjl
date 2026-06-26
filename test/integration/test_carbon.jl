@@ -202,9 +202,9 @@ end
         # applies it same-cycle; the inventory + final cycles ARE bit-exact). These @test_broken will flip
         # to a (passing) failure if the dead pools ever reconcile — see docs/FFE_FUEL_DYNAMICS_chunk_plan.md.
         maxd(c) = maximum(abs(rows[i][c] - ft[i][c]) for i in 1:length(ft))
-        @test_broken maxd(5) <= 0.05       # Belowground Dead (max Δ ≈ 0.5)
-        @test_broken maxd(6) <= 0.05       # Stand Dead       (max Δ ≈ 0.7)
-        @test_broken maxd(7) <= 0.05       # DDW              (max Δ ≈ 1.2)
+        @test maxd(5) <= 0.05              # Belowground Dead — BIT-EXACT (input-snag root XDCAY = (1−CRDCAY)^10)
+        @test_broken maxd(6) <= 0.05       # Stand Dead       (max Δ ≈ 0.6, CWD2B crown-flow phasing)
+        @test_broken maxd(7) <= 0.05       # DDW              (max Δ ≈ 1.3, CWD2B/decay phasing)
     end
 end
 

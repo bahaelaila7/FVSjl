@@ -265,7 +265,9 @@ function ffe_seed_input_snags!(s::StandState)
         bolevol = v[4] * v2t[sp] / 2000f0
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
         _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den
+        # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
+        # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
+        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
     end
     return s
 end
