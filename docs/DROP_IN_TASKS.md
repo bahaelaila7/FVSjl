@@ -502,3 +502,20 @@ percent and rounds every cycle, so bit-exactness would require bit-identical lib
 transcendentals across Julia/gfortran => irreducible. Net: TPA off by 1 -> cuft 0.15% (just
 over the 0.1% structural gate) at odd-period cycles only. Classified ULP-FP; stays
 @test_broken with this trace. s9_uniform10 shares the identical root.
+
+
+## s5/s9 — CORRECTION: earlier "irreducible ULP-FP" claim was premature
+Deeper instrumentation (per-tree crown CRNEW + SDI dump vs live FVS) found a PARTLY-REAL bug,
+not pure ULP: FVS's CROWN RELSDI uses SDIBC = SDICLS = the Reineke `SDIC` (sdical.f:105) taken
+at the START of the cycle (pre-growth, grincr.f:241); FVSjl's crown uses the POST-growth Zeide
+stand_sdi. A pre-growth Reineke SDI (stand_sdi_reineke, threaded grow_cycle! -> crown_ratio_
+update!) matches FVS's SDIAC BIT-EXACT (202.939/252.89/335.60/312.67 on s5). HOWEVER:
+  - feeding the correct SDIAC does NOT change the .sum (the +/-1%/yr crown change-cap absorbs it),
+  - and a FULL-SUITE run of that change REGRESSED one other bit-exact scenario (4489 -> 4488).
+So the post-growth-Zeide crown SDI is load-bearing/compensating somewhere; the isolated faithful
+fix is net-negative and was REVERTED. The residual crown ICR +/-1 is then the INT(CRNEW+0.5)
+transcendental-rounding ULP. SEPARATELY, s9 (uniform 10-yr) is a LARGER, distinct divergence:
+TPA 360/350 at 2010 (~3% under-kill), a real 10-yr self-thinning-mortality gap not yet isolated.
+Net: s5/s9 stays @test_broken; baseline 4489+26 preserved (no regression shipped). Next attempt
+should find WHY the faithful pre-growth-Reineke SDIAC regresses the other scenario (probably a
+compensating crown error there) before re-landing it, and isolate the s9 10-yr mortality gap.
