@@ -175,3 +175,24 @@ So the +6 net = +9 in dgf (large-tree DGDRIV: dgscor + new-tree oldrn-init) and 
 dgscor rejection redraws). NEXT: split FVSjl's dgf draws into oldrn-init vs dgscor! to attribute the
 +6, and dump the ~3 boundary trees' dbh (within ULP of 3.0 => ULP-rooted classification flip; else a
 small/large-threshold comparison difference to align with REGENT XMAX handling).
+
+
+## s26 ROOT MECHANISM (dgscor! rejection depends on per-tree oldrn)
+dgscor! (diameter_growth.jl:632) rejection loop: `frm = bachlo*rhocp + rho*oldrn[it]; reject if
+abs(frm) > bound`. CRUCIAL: the reject test depends on oldrn[it] — the TREE's persisted serial-
+correlation residual — not only on the drawn bachlo value. So the number of redraws (and thus the
+RANN draw count) is a function of WHICH tree sits at each draw position. Consequences for s26's +9
+in dgf at 2005:
+  - bachlo is bit-exact (snt01) and the stream is phase-locked at the 2005 dgf entry (1710 both),
+    so a pure value-only rejection could NOT diverge.
+  - It diverges because, AFTER the LP cohort is inserted, FVSjl's per-species tree PROCESSING ORDER
+    (species_sort! / IND1) and/or the new LP's oldrn INITIALIZATION differ from FVS's, so a different
+    tree (different oldrn) lands at some draw positions -> a few extra rejection redraws -> +9.
+  - The -3 in REGENT is the ~3-tree dbh-3 small/large split (operator d>=3 matches FVS; so it is the
+    dbh values of a few near-3 trees, or the same order/oldrn perturbation feeding which trees REGENT
+    sees). 
+FIX DIRECTION: phase-lock the post-establishment tree order (IND1 after regen insertion) and the LP
+oldrn init to FVS, so dgscor!'s oldrn-dependent rejection sequence stays aligned. This is the precise,
+well-scoped root; it is an RNG-ORDER alignment after regen, not ULP and not a coefficient error.
+NEXT PROBE: dump FVSjl species_sort! order vs FVS IND1 for the 2005 stand (and the LP oldrn values)
+to confirm the order/oldrn mismatch and align it.
