@@ -542,10 +542,10 @@ end
         TO = 0.90718474 / 0.40468564
         # input snags carry no crown (history ≥7 ⇒ crown fallen), so Stand-Dead = the stem bole
         @test FVSjl.snag_crown_carbon(s) == 0f0
-        # input-snag bole is 3.92 vs the Fortran inventory Stand-Dead 3.8 — a ~0.12 residual from the local
-        # height-dub (the input dead records arrive with height 0, so we re-estimate ht for the R8 Clark
-        # stem volume). NOT bit-exact → @test_broken (honest), not hidden behind a 0.2 tolerance.
-        @test_broken abs(FVSjl.snag_bole_carbon(s) * TO - 3.8) <= 0.05
+        # input-snag bole = 3.77 vs the Fortran inventory Stand-Dead 3.8 (within print resolution): FVS's
+        # snag bole is the MERCHANTABLE cubic (FMDOUT→FMSVOL→CFVOL, v[4]), not the gross total stem (v[1]);
+        # the <top-dia tip is a large fraction for small snags (sp27 d7.2: v[1]=5.2 vs v[4]=4.8 = FVS).
+        @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.8) <= 0.05
         @test FVSjl.snag_standing_density(s.fire) > 0f0            # snags actually created
     end
 end

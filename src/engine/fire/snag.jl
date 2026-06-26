@@ -258,7 +258,11 @@ function ffe_seed_input_snags!(s::StandState)
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
         v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-        bolevol = v[1] * v2t[sp] / 2000f0
+        # FVS's snag bole (FMDOUT→FMSVOL→CFVOL, fmdout.f:146) is the MERCHANTABLE cubic to the top
+        # diameter (v[4]), NOT the gross total-stem cubic (v[1]). For small snags the <top-dia tip is a
+        # large fraction (sp27 d7.2: v[1]=5.2 vs v[4]=4.8 = FVS); for large stems v[1]≈v[4]. Using v[4]
+        # makes snag_bole_carbon match FVS (3.92→3.77 vs 3.8) and lowers the small-snag falldown into DDW.
+        bolevol = v[4] * v2t[sp] / 2000f0
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den
