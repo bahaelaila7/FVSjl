@@ -22,7 +22,8 @@ keywords:
   - NUMCYCLE:
       cycles: 5
   - raw: "ECHOSUM"
-  - raw: "MINHARV        500.0"
+  - MINHARV:
+      min_volume: 500
   - THINBBA:
       year: 2005
       residual_basal_area: 120

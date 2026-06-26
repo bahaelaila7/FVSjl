@@ -6,13 +6,31 @@ file parameters are positional fixed-column fields; the *field number* in parent
 is the 1-based parameter slot (cols `10·n+1 … 10·n+10`). A blank date field defaults
 to **cycle 1**; a date ≥ 1000 is a calendar year, < 1000 a cycle number.
 
-Structured-YAML form:
+## How a keyword translates between `.key` and YAML
 
+A legacy `.key` card is the keyword in columns 1–10 followed by fixed 10-column
+parameter fields. The structured-YAML form is the same keyword as a one-entry block
+whose keys are the **named parameters** (the field *number* maps to the column slot).
+Numbers stay numbers (unquoted); strings (species codes, ids, formats) are quoted.
+The two forms are equivalent — the engine reads either directly, and
+`bin/fvsjl-translate.jl <src> <dst>` converts between them (`.key`↔`.yaml`,
+`.tre`↔`.csv`), inferring direction from the extensions.
+
+```text
+.key   THINBBA       2010.0      80.0                          (field 1 = 2010, field 2 = 80)
+```
 ```yaml
+# YAML
 - THINBBA:
     year: 2010
     residual_basal_area: 80
 ```
+
+A blank date field defaults to **cycle 1**; a date ≥ 1000 is a calendar year, < 1000 a
+cycle number. Only the fields you need have to be present (omit trailing blanks). The
+top-level document is an ordered `keywords:` **list** — order is preserved, which matters
+when one card refers to state set by an earlier one (e.g. a `SPGROUP` before a thin that
+cuts that group, or a `COMPUTE` variable used later).
 
 ---
 
@@ -178,6 +196,129 @@ All `THIN*` keywords share the layout: `year`(1), then a residual/target(2),
 | **COMPRESS** | Cluster tree records (PC-score) to speed projection. | `date`(1), … |
 | **NOTRIPLE** | Disable record tripling. | *(none)* |
 | **NUMTRIP** | Number of tripled records. | `count`(1). |
+
+---
+
+## Worked examples (`.key` ↔ YAML)
+
+Each example shows the legacy card(s), the equivalent YAML block, and what it does.
+
+### Thin from below to a residual basal area
+```text
+THINBBA       2010.0      80.0       1.0
+```
+```yaml
+- THINBBA:
+    year: 2010              # cut in 2010
+    residual_basal_area: 80 # leave 80 ft²/ac
+    cut_efficiency: 1.0     # remove 100% of the selected trees
+```
+Removes the smallest trees first until the stand basal area falls to 80 ft²/ac.
+
+### Thin a DBH window by proportion (and protect a species)
+```text
+THINDBH       2015.0       0.0      10.0       0.5
+LEAVESP         131.0
+```
+```yaml
+- THINDBH:
+    year: 2015
+    dbh_min: 0.0            # window low bound (in)
+    dbh_max: 10.0           # window high bound
+    cut_efficiency: 0.5     # remove 50% of the trees in the window
+- LEAVESP:
+    species: 131            # never cut species 131 (loblolly pine)
+```
+
+### Diameter-growth multiplier over a DBH window
+```text
+BAIMULT       2010.0       131       1.2        5.0       20.0
+```
+```yaml
+- BAIMULT:
+    year: 2010
+    species: 131
+    multiplier: 1.2         # +20% diameter increment …
+    dbh_min: 5.0            # … for 5–20" trees
+    dbh_max: 20.0
+```
+
+### Cubic merch standards (VOLUME)
+```text
+VOLUME        2000.0       0.0       4.0       4.0       1.0
+```
+```yaml
+- VOLUME:
+    year: 2000
+    species: 0              # all species
+    dbh_min: 4.0            # min merch DBH
+    top_diam: 4.0           # merch top diameter (in)
+    stump: 1.0              # stump height (ft)
+```
+> The cubic VOLUME card is 80 columns, so the sawlog-cubic fields (`scf_min_dbh`,
+> `scf_top_dib`, `scf_stump`, fields 8–10) cannot fit and default to 0/the model fallback.
+
+### Per-species cubic defect curve (MCDEFECT)
+```text
+MCDEFECT      2000.0      22.0       5.0      10.0      15.0      20.0
+```
+```yaml
+- MCDEFECT:
+    year: 2000
+    species: 22
+    defect_5: 5.0           # % cull at DBH 5, 10, 15, 20" (25" extends flat)
+    defect_10: 10.0
+    defect_15: 15.0
+    defect_20: 20.0
+```
+
+### Plant a regeneration cohort (establishment packet)
+```text
+ESTAB         2000.0
+PLANT         2000.0      LP       300.0      90.0
+END
+```
+```yaml
+- ESTAB:
+    disturbance_date: 2000
+- PLANT:
+    year: 2000
+    species: LP             # alpha code or numeric index
+    tpa: 300                # planted trees/acre
+    survival_pct: 90        # 90% survive establishment
+- raw: "END"               # close the establishment packet
+```
+
+### Serial-correlation calibration (no date field)
+```text
+SERLCORR         0.80       0.45
+```
+```yaml
+- SERLCORR:
+    phi: 0.80               # AR(1) term
+    theta: 0.45             # MA(1) term
+```
+
+### A complete minimal stand
+```yaml
+keywords:
+  - STDIDENT:
+      id: "EXAMPLE  a 2-cycle loblolly thin"
+  - INVYEAR: { year: 1990 }
+  - NUMCYCLE: { cycles: 2 }
+  - NOAUTOES: {}            # disable auto-establishment (match stock FVS exactly)
+  - ECHOSUM: {}             # write the .sum file
+  - THINBBA:
+      year: 1995
+      residual_basal_area: 90
+  - TREEDATA: {}            # read EXAMPLE.tre / EXAMPLE.csv
+  - PROCESS: {}
+  - STOP: {}
+```
+
+Keywords with no parameters are written `NAME: {}`. A card the writer has no named
+schema for (or a free-form line such as an `IF` condition or `END`) round-trips as
+`- raw: "<verbatim card>"`.
 
 ---
 

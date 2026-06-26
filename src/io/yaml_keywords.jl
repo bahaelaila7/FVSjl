@@ -117,6 +117,11 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
     "THINRDEN" => ["year"=>1, "residual_relsdi"=>2, "cut_efficiency"=>3,
                    "dbh_min"=>4, "dbh_max"=>5, "species"=>6, "plot"=>7],
     "THINAUTO" => ["year"=>1, "cut_efficiency"=>2],
+    "LEAVESP"  => ["species"=>1],
+    "SPLEAVE"  => ["species"=>1],
+    "SPECPREF" => ["species"=>1, "preference"=>2],
+    "CUTEFF"   => ["proportion"=>1],
+    "MINHARV"  => ["min_volume"=>1],
     # growth / mortality modifiers (date, species, value, dbh window)
     "BAIMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
     "HTGMULT"  => ["year"=>1, "species"=>2, "multiplier"=>3, "dbh_min"=>4, "dbh_max"=>5],
