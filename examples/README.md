@@ -12,7 +12,7 @@ multistand/  multistand.key  …  .tre  …  .yaml  …  .csv
 |------|------------|
 | `*.key` | legacy fixed-column keyword file (**the runnable form**) |
 | `*.tre` | legacy fixed-column tree records |
-| `*.yaml` | **structured** keyword file — one block per keyword, *named* parameters |
+| `*.yaml` | **order-aware hierarchical** keyword file — sections of *named*-parameter blocks |
 | `*.csv` | tree records as a named-column table |
 
 ## Running an example
@@ -32,30 +32,40 @@ julia --project=. -e 'using FVSjl; write("examples/thinba/thinba.sum", run_keyfi
 `multistand/` holds three stands (control / THINBBA / THINSDI) in one keyword file,
 separated by `PROCESS` — running it produces three stand blocks in the `.sum`.
 
-## The structured YAML form
+## The structured YAML form — order-aware hierarchy
 
-Unlike a flat positional dump, each keyword is a block whose parameters are **named**,
-and values keep their natural type — **numbers are numbers (unquoted); only genuine
-strings are quoted**. Keyword order is preserved (it is significant in FVS), so the
-file is a YAML *list*:
+Each keyword is a block whose parameters are **named**, and values keep their natural
+type (**numbers unquoted; code strings quoted**). The whole keyword stream stays an
+**ordered sequence** (order is significant in FVS); the YAML only *groups* it into
+named sections for readability. The shape is a `stand:` map → an ordered list of
+section blocks → ordered keyword entries:
 
 ```yaml
-keywords:
-  - STDINFO:
-      forest_code: 80106
-      habitat: "231Dd"      # a code string → quoted
-      stand_age: 60         # numbers → unquoted
-      aspect: 315
-      slope: 30
-      elevation: 7
-  - THINBBA:
-      year: 2010
-      residual_basal_area: 80
+stand:
+  - setup:                       # ── grouped, but still in input order ──
+      - STDINFO:
+          forest_code: 80106
+          habitat: "231Dd"       # a code string → quoted
+          stand_age: 60          # numbers → unquoted
+      - NUMCYCLE: { cycles: 6 }
+  - treatments:                  # ── ORDER MATTERS within a section ──
+      - THINBBA:
+          year: 2010
+          residual_basal_area: 80
 ```
 
-Regenerate the structured YAML from any `.key` with the bundled tool:
+Flattening the blocks top-to-bottom reproduces the **exact** keyword order — the
+grouping never reorders. A keyword with no schema, or a free-form continuation line,
+falls back to `keyword:`/`params:` or a verbatim `raw:` entry (still lossless). See
+[`../docs/KEYWORDS.md`](../docs/KEYWORDS.md) for the section list, the order-significant
+relationships (SPGROUP→THIN, same-cycle order, COMPUTE def-before-use), and worked
+side-by-side examples.
+
+Regenerate the YAML from any `.key` with either tool (both emit the hierarchical form;
+add `--flat` for the legacy single `keywords:` list):
 
 ```bash
+julia --project=. bin/fvsjl-translate.jl examples/thinba/thinba.key examples/thinba/thinba.yaml
 python3 examples/key_to_structured_yaml.py examples/thinba/thinba.key > examples/thinba/thinba.yaml
 ```
 

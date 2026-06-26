@@ -2,16 +2,38 @@
 # yaml_keywords.jl — keywords as YAML (the readable native form of a .key file)
 #
 # A `.key` file is fixed-column Fortran text (8-col keyword + 12 ten-col fields).
-# Its modern equivalent is an ordered YAML sequence — order is preserved because
-# FVS keyword order is significant (activities schedule, later keywords override).
-# Both produce the same `Vector{KeywordRecord}` the engine dispatches on.
+# Its modern equivalent is an ORDER-AWARE, HIERARCHICAL YAML document. The whole
+# keyword stream stays an ordered SEQUENCE because FVS keyword order is significant
+# (activities schedule in input order, SPGROUP must precede a THIN that names it,
+# COMPUTE variables must be defined before use, same-cycle activities run in input
+# order, later keywords override earlier). The hierarchy only *groups* that ordered
+# stream into named, readable sections — it never reorders it.
 #
-# We store each record's keyword name and its non-empty trailing parameters as
-# readable strings. The dispatch-relevant content (name, numeric values, presence
-# flags, stripped field text) round-trips losslessly; the exact 10-column padding
-# of the original card is intentionally not preserved (it carries no meaning the
-# keyword handlers use — see PORTING.md). Reading uses YAML.jl; writing is emitted
-# by hand for clean, stable formatting.
+# Two on-disk forms are read (the engine consumes the same `Vector{KeywordRecord}`
+# from either, and from a legacy `.key`):
+#
+#   stand:                      # HIERARCHICAL form (default emitted form). Ordered
+#     - <section>:              # list of section blocks; each block is an ordered
+#         - <KEYWORD>: {...}    # list of keyword entries. Blocks appear in original
+#         - ...                 # order, so the flattened stream is byte-for-byte the
+#     - <section>:              # original keyword order — grouping is order-PRESERVING.
+#         - ...
+#
+#   keywords:                   # FLAT form (still accepted for back-compat). A single
+#     - <KEYWORD>: {...}        # ordered list of keyword entries.
+#     - ...
+#
+# Each keyword entry keeps NAMED, typed parameters (numbers stay numbers); a keyword
+# not in the schema falls back to a positional `params:` list or a verbatim `raw:`
+# line. The dispatch-relevant content (name, values, presence, stripped field text)
+# round-trips losslessly; the exact 10-column padding of the original card is not
+# preserved (it carries no meaning the handlers use — see PORTING.md). Reading uses
+# YAML.jl; writing is emitted by hand for clean, stable, ordered formatting.
+#
+# ORDER-SIGNIFICANT sections (see `_SECTION_ORDER_NOTE`): every section is an ordered
+# list, but `treatments` (thinning/harvest/salvage by cycle) and `event_monitor`
+# (COMPUTE/IF def-before-use) are the ones whose *relative* order changes results,
+# so they are emitted as a single contiguous, clearly-labelled ordered block.
 # =============================================================================
 
 using YAML
@@ -19,37 +41,172 @@ using YAML
 # number of trailing params to keep = index of the last present field
 _last_present(rec::KeywordRecord) = (i = findlast(rec.present); i === nothing ? 0 : i)
 
-"""
-    write_keywords_yaml(records, path)
+# =============================================================================
+# Section grouping. Each keyword belongs to ONE named section (purpose-grouped for
+# readability). Grouping is ORDER-PRESERVING: when emitting, consecutive records of
+# the same section are gathered into one block, and blocks appear in their original
+# order, so flattening the hierarchy reproduces the exact keyword sequence — no
+# reordering, ever. A keyword not listed here falls into `other` (still ordered).
+# =============================================================================
+const _KW_SECTION = Dict{String,String}(
+    # stand identification & run setup
+    "STDIDENT"=>"setup", "STDINFO"=>"setup", "DESIGN"=>"setup", "SITECODE"=>"setup",
+    "INVYEAR"=>"setup", "NUMCYCLE"=>"setup", "TIMEINT"=>"setup", "CYCLEAT"=>"setup",
+    "MANAGED"=>"setup", "RESETAGE"=>"setup", "TFIXAREA"=>"setup", "TREEFMT"=>"setup",
+    "TREEDATA"=>"setup", "NOTREES"=>"setup", "NOAUTOES"=>"setup", "PROCESS"=>"setup",
+    "STOP"=>"setup", "DESIGN"=>"setup",
+    # density limits
+    "SDIMAX"=>"density", "SDICALC"=>"density", "BAMAX"=>"density",
+    # growth calibration & modifiers
+    "GROWTH"=>"growth", "NOCALIB"=>"growth", "READCORD"=>"growth", "REUSCORD"=>"growth",
+    "READCORH"=>"growth", "REUSCORH"=>"growth", "READCORR"=>"growth", "REUSCORR"=>"growth",
+    "BAIMULT"=>"growth", "HTGMULT"=>"growth", "CRNMULT"=>"growth", "REGDMULT"=>"growth",
+    "REGHMULT"=>"growth", "DGSTDEV"=>"growth", "SERLCORR"=>"growth", "RANNSEED"=>"growth",
+    "FIXDG"=>"growth", "FIXHTG"=>"growth", "FIXMORT"=>"growth", "MORTMULT"=>"growth",
+    "TREESZCP"=>"growth", "SIZCAP"=>"growth",
+    # thinning / harvest (ORDER-SIGNIFICANT — same-cycle activities run in input order)
+    "THINBBA"=>"treatments", "THINABA"=>"treatments", "THINBTA"=>"treatments",
+    "THINATA"=>"treatments", "THINSDI"=>"treatments", "THINCC"=>"treatments",
+    "THINHT"=>"treatments", "THINQFA"=>"treatments", "THINRDEN"=>"treatments",
+    "THINDBH"=>"treatments", "THINPT"=>"treatments", "SETPTHIN"=>"treatments",
+    "THINPRSC"=>"treatments", "THINAUTO"=>"treatments", "SPECPREF"=>"treatments",
+    "LEAVESP"=>"treatments", "SPLEAVE"=>"treatments", "CUTEFF"=>"treatments",
+    "MINHARV"=>"treatments", "SALVAGE"=>"treatments", "YARDLOSS"=>"treatments",
+    # establishment & regeneration
+    "ESTAB"=>"regeneration", "PLANT"=>"regeneration", "NATURAL"=>"regeneration",
+    "SPROUT"=>"regeneration", "NOSPROUT"=>"regeneration",
+    # volume & merchandising
+    "VOLUME"=>"volume", "BFVOLUME"=>"volume", "VOLEQNUM"=>"volume", "MCDEFECT"=>"volume",
+    "BFDEFECT"=>"volume", "MCFDLN"=>"volume", "BFFDLN"=>"volume",
+    # species groups (ORDER-SIGNIFICANT — SPGROUP must precede a THIN that names it)
+    "SPGROUP"=>"species_groups",
+    # site & treatments
+    "SETSITE"=>"site", "FERTILIZ"=>"site",
+    # output & database
+    "ECHOSUM"=>"output", "DATABASE"=>"output", "DSNOUT"=>"output", "SUMMARY"=>"output",
+    "TREELIDB"=>"output", "CUTLIST"=>"output", "STRCLASS"=>"output", "COMPUTDB"=>"output",
+    # event monitor (ORDER-SIGNIFICANT — COMPUTE vars must be defined before use)
+    "COMPUTE"=>"event_monitor", "IF"=>"event_monitor",
+    # compression & tripling
+    "COMPRESS"=>"control", "NOTRIPLE"=>"control", "NUMTRIP"=>"control",
+)
+# Canonical section ordering, used only as a stable tie-break for documentation; the
+# emitter preserves the ORIGINAL keyword order regardless of this list.
+const _SECTION_LABEL = Dict(
+    "setup"=>"stand setup & inventory", "density"=>"density limits",
+    "growth"=>"growth calibration & modifiers", "treatments"=>"treatments (ORDER MATTERS)",
+    "regeneration"=>"establishment & regeneration", "volume"=>"volume & merchandising",
+    "species_groups"=>"species groups (define before use)", "site"=>"site & fertilization",
+    "output"=>"output & database", "event_monitor"=>"event monitor (define before use)",
+    "control"=>"compression & tripling", "other"=>"other",
+)
 
-Write keyword records as an ordered YAML `keywords:` sequence.
+# Which section a record belongs to. Free-form / unnamed lines (raw continuation
+# lines, an IF condition, a COMPUTE body line, SPGROUP members) inherit the section
+# of the record they follow so the block stays contiguous (handled by the emitter).
+_section_of(name::AbstractString) = get(_KW_SECTION, uppercase(strip(name)), "other")
+
 """
-function write_keywords_yaml(records::AbstractVector{KeywordRecord}, path::AbstractString)
+    write_keywords_yaml(records, path; flat=false)
+
+Write keyword records as an ORDER-AWARE, HIERARCHICAL YAML document. The default
+`stand:` form groups the (still fully ordered) keyword stream into named sections;
+`flat=true` emits the legacy single `keywords:` list. Both round-trip losslessly.
+"""
+function write_keywords_yaml(records::AbstractVector{KeywordRecord}, path::AbstractString;
+                             flat::Bool=false)
     open(path, "w") do io
-        println(io, "# FVS keywords — order is significant. `params` are the keyword's")
-        println(io, "# fields (left to right); omitted = no parameters.")
-        println(io, "keywords:")
-        for rec in records
-            # Free-form supplemental lines (a TREEFMT FORMAT string, inline tree data) are
-            # not keyword+params; carry them verbatim so the form stays lossless.
-            if !_is_plain_keyword(rec) && !isempty(rec.raw)
-                println(io, "  - raw: ", _yq(rstrip(rec.raw)))
-                continue
-            end
-            name = strip(rec.name)
-            np = _last_present(rec)
-            print(io, "  - keyword: ", _yq(name))
-            if np > 0
-                params = (strip(rec.fields[i]) for i in 1:np)
-                print(io, "\n    params: [", join((_yq(p) for p in params), ", "), "]")
-            end
-            if rec.status == KW_PARMS
-                print(io, "\n    parms_field: ", rec.parms_field)
-            end
-            println(io)
-        end
+        flat ? _write_flat_yaml(io, records) : _write_hierarchical_yaml(io, records)
     end
     return path
+end
+
+# ---- entry emitter: one keyword record → its YAML block (named params if possible) ----
+# `indent` is the leading whitespace before the `- `; emits to `io`.
+function _emit_entry(io::IO, rec::KeywordRecord, indent::AbstractString)
+    # Free-form supplemental lines (TREEFMT FORMAT, an IF condition, a COMPUTE body
+    # line, SPGROUP member list, inline tree data) carry verbatim so the form is lossless.
+    if !_is_plain_keyword(rec) && !isempty(rec.raw)
+        println(io, indent, "- raw: ", _yq(rstrip(rec.raw)))
+        return
+    end
+    name = strip(rec.name)
+    np = _last_present(rec)
+    schema = get(_KW_SCHEMA, uppercase(name), Pair{String,Int}[])
+    # Use the NAMED structured form when (a) the keyword has a schema, (b) no PARMS
+    # continuation, and (c) every present field maps to a named slot (otherwise we'd
+    # silently drop a positional field). Else fall back to the positional form.
+    named_ok = !isempty(schema) && rec.status != KW_PARMS &&
+               all(any(p.second == i for p in schema) for i in 1:np if rec.present[i])
+    if named_ok && np > 0
+        println(io, indent, "- ", name, ":")
+        for (pname, pos) in schema
+            pos <= np && rec.present[pos] || continue
+            println(io, indent, "    ", pname, ": ", _yaml_scalar(strip(rec.fields[pos])))
+        end
+        return
+    end
+    # positional / no-schema form
+    print(io, indent, "- keyword: ", _yq(name))
+    if np > 0
+        params = (strip(rec.fields[i]) for i in 1:np)
+        print(io, "\n", indent, "  params: [", join((_yq(p) for p in params), ", "), "]")
+    end
+    if rec.status == KW_PARMS
+        print(io, "\n", indent, "  parms_field: ", rec.parms_field)
+    end
+    println(io)
+end
+
+# Render a stripped field string as a YAML scalar. A number stays UNQUOTED (readable,
+# natural type) ONLY when it survives the YAML→number→text round-trip byte-for-byte —
+# i.e. `_yaml_field_text(YAML.parse(s)) == s`. Forms that lose their exact text under
+# that trip (e.g. "60." → 60.0 → "60.0", "1.00" → 1.0) are QUOTED so the field text is
+# preserved exactly; that keeps the conversion lossless while most numbers read clean.
+function _yaml_scalar(s::AbstractString)
+    isempty(s) && return "\"\""
+    if tryparse(Int, s) !== nothing
+        return s                               # integer text always round-trips
+    end
+    if _looks_numeric(rpad(s, 1)) && tryparse(Float64, s) !== nothing
+        f = parse(Float64, s)
+        return _yaml_field_text(f) == s ? s : _yq(s)   # unquoted iff text-stable
+    end
+    return _yq(s)                              # genuine string code (e.g. "231Dd")
+end
+
+# ---- FLAT form (legacy, back-compat) ----
+function _write_flat_yaml(io::IO, records::AbstractVector{KeywordRecord})
+    println(io, "# FVS keywords — order is significant. Flat ordered list.")
+    println(io, "keywords:")
+    for rec in records
+        _emit_entry(io, rec, "  ")
+    end
+end
+
+# ---- HIERARCHICAL form (default) ----
+# Group consecutive records into section blocks (ORDER-PRESERVING) and emit
+# `stand:` as an ordered list of `{section: [entries]}` blocks. A free-form/unnamed
+# record (no section) extends the CURRENT block so multi-line keywords (SPGROUP +
+# members, IF + condition, COMPUTE + body, TREEFMT + format) stay contiguous.
+function _write_hierarchical_yaml(io::IO, records::AbstractVector{KeywordRecord})
+    println(io, "# FVS keywords — ORDER-AWARE hierarchical form. The keyword stream is")
+    println(io, "# an ordered sequence; sections only GROUP it (flattening top-to-bottom")
+    println(io, "# reproduces the exact order). `treatments`, `species_groups` and")
+    println(io, "# `event_monitor` are order-significant (define-before-use, same-cycle")
+    println(io, "# activities run in input order). See docs/KEYWORDS.md.")
+    println(io, "stand:")
+    cur = ""           # current section name
+    started = false
+    for rec in records
+        sec = (_is_plain_keyword(rec) && !isempty(strip(rec.name))) ?
+              _section_of(rec.name) : cur     # unnamed/raw lines stay in the current block
+        if !started || sec != cur
+            println(io, "  - ", sec, ":")
+            cur = sec; started = true
+        end
+        _emit_entry(io, rec, "      ")
+    end
 end
 
 # YAML-quote a string (always quote → unambiguous for codes like "60." or "9999").
@@ -160,6 +317,9 @@ const _KW_SCHEMA = Dict{String,Vector{Pair{String,Int}}}(
                    "defect_20"=>6, "defect_25"=>7],
     "BFDEFECT" => ["year"=>1, "species"=>2, "defect_5"=>3, "defect_10"=>4, "defect_15"=>5,
                    "defect_20"=>6, "defect_25"=>7],
+    # species groups — the group NAME is field 1 of the SPGROUP card; the member
+    # species are carried as a `raw:` line that follows (handled as a free-form line).
+    "SPGROUP"  => ["group"=>1],
     # cycle / setup extras
     "TIMEINT"  => ["cycle"=>1, "length"=>2],
     "CYCLEAT"  => ["year"=>1],
@@ -191,10 +351,14 @@ end
 # that trail STDIDENT/TREEFMT.
 _raw_record(text) = _decode_keyword(rpad(string(text), 130))
 
-# A YAML scalar → the 10-col field text. Integers print without a trailing ".0".
-_yaml_field_text(v) = v isa Integer ? string(v) :
-                      v isa AbstractFloat ? (v == floor(v) ? string(Int(v)) : string(v)) :
-                      string(v)
+# A YAML scalar → the 10-col field text. The YAML number TYPE carries the original
+# field's form: an integer scalar (`60`) → "60"; a float scalar (`60.0`) → "60.0"
+# (Julia's `string(60.0)` keeps the trailing ".0"). This makes the named structured
+# form preserve the exact field text — e.g. ".key" `60.0` round-trips as `60.0`, not
+# `60` — so the dispatch-relevant text round-trips losslessly while staying readable.
+_yaml_field_text(v::Integer) = string(v)
+_yaml_field_text(v::AbstractFloat) = string(v)
+_yaml_field_text(v) = string(v)
 
 # Is this entry the STRUCTURED form? A single-key map whose key is not one of the
 # positional/raw reserved keys, with a map (or empty) value.
@@ -241,23 +405,52 @@ function _records_from_structured(entry::AbstractDict)
     return out
 end
 
+# Turn one keyword/structured/raw entry into its KeywordRecords, appending in order.
+function _append_entry!(recs::Vector{KeywordRecord}, e)
+    if _is_structured(e)
+        append!(recs, _records_from_structured(e))
+    else
+        push!(recs, _record_from_yaml(e))
+    end
+end
+
+# Flatten the hierarchical `stand:` form (an ordered list of `{section: [entries]}`
+# blocks) into the ordered keyword stream. Section *names* are ignored on read — they
+# are only a grouping label; the list order IS the keyword order, so this is exact.
+function _read_hierarchical(stand)
+    recs = KeywordRecord[]
+    blocks = stand isa AbstractVector ? stand :          # list-of-blocks (canonical)
+             stand isa AbstractDict   ? [Dict(k=>v) for (k,v) in stand] : Any[]
+    for block in blocks
+        block isa AbstractDict || continue
+        for (_sec, entries) in block
+            entries === nothing && continue
+            for e in (entries isa AbstractVector ? entries : Any[entries])
+                _append_entry!(recs, e)
+            end
+        end
+    end
+    return recs
+end
+
 """
     read_keywords_yaml(path) -> Vector{KeywordRecord}
 
-Read keyword records from a YAML keyword file. Supports both the positional form
-(`keyword:`/`params:`) and the **structured** form (`{KEYWORD: {named params}}`),
-and `raw:` free-form lines; the two forms may be mixed.
+Read keyword records from a YAML keyword file. Accepts the ORDER-AWARE hierarchical
+form (`stand:` → ordered section blocks) AND the flat form (`keywords:` list); within
+either, each entry may be the **structured** `{KEYWORD: {named params}}` map, the
+positional `keyword:`/`params:` map, or a verbatim `raw:` line. The list order is the
+keyword order in every case, so reading is a lossless inverse of the writer.
 """
 function read_keywords_yaml(path::AbstractString)
     doc = YAML.load_file(path)
-    entries = get(doc, "keywords", Any[])
+    if doc isa AbstractDict && haskey(doc, "stand")          # hierarchical form
+        return _read_hierarchical(doc["stand"])
+    end
+    entries = doc isa AbstractDict ? get(doc, "keywords", Any[]) : Any[]
     recs = KeywordRecord[]
     for e in entries
-        if _is_structured(e)
-            append!(recs, _records_from_structured(e))
-        else
-            push!(recs, _record_from_yaml(e))
-        end
+        _append_entry!(recs, e)
     end
     return recs
 end
