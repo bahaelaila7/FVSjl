@@ -138,3 +138,29 @@ potential / CFB ICALL=2) need disentangling to compare like-for-like.) This is a
 Rothermel re-verification of `rothermel.jl` against `fmfint.f` — a real, bounded FFE task, not a
 one-liner. snt01 stand-4 (the in-suite fire test) matches because its fuel models hit the terms
 that already agree; fire_fuel9 (models 5/10) exposes the live-fuel + dead-reaction terms.
+
+#### F3 RESOLVED (root cause) + residual localized to ONE size class.
+Traced the fire_fuel9 byram divergence op-by-op against live FVSsn (instrumented FMFINT/FMCFMD/FMTRET):
+1. **The Rothermel + fuel-model SELECTION are faithful.** FVSjl `_fmdyn(9.19,3.99)` returns
+   {10@0.9716, 12@0.0284}, bit-identical to FVS; FMCFMD candidate logic == fmcfmd.f; live
+   moisture-of-extinction (rothermel.jl:86 == fmfint.f:352) matches. The earlier "per-model
+   byram" numbers were captured from the WRONG FMFINT call (potential-fire FWIND=2.0, not the
+   actual fire FWIND=1.2) — they don't reconcile with the reported byram 4194; once instrumented
+   correctly, the actual fire is FM10@0.972 + FM12@0.028 (= 0.972·3951 + 0.028·12514 = 4195).
+2. **ROOT CAUSE — frozen FFE fuel. FIXED (committed).** The per-cycle FFE fuel loop
+   (`ffe_fuel_update!` = decay + snag falldown + crown-lift→down-wood, + the inventory snag seed +
+   crown-lift snapshot) was gated on the *Carbon report* (`carbon_on`). FVS fmmain.f runs it every
+   cycle for any FFE-active stand. So a SIMFIRE-only stand's down-wood (FireState.cwd) stayed at the
+   inventory value: fire_fuel9 sm=7.02 (==1990) at the 2005 fire vs FVS's accumulated 9.19, shifting
+   FMDYN to pick FM5 over FM12 → byram 2905 vs 4194. Fix: gate on `ffe_on` (FFE active). carbon_on ⊆
+   ffe_on, so carbon_jenkins stays bit-exact. fire_fuel9 1990-2005 now BIT-EXACT vs FVS; suite 4494+21.
+3. **RESIDUAL — snag-bole cwd deposition is single-class, not cone-distributed.** Per-class dump at
+   the 2005 fire: every class matches FVS within ~0.6 EXCEPT class 5 (6-12" logs): FVSjl 3.52 vs FVS
+   1.46 (2.4×). `update_snags!` (snag.jl:138) dumps a fallen snag's WHOLE bole into the single size
+   class of its DBH (`_cwd_size_class(dbh)`). FVS's FMCWD/CWD1 (fmcwd.f label 1000) distributes the
+   bole down a CONE taper model across classes 5→4→3→2→1 (finds the heights where each diameter
+   breakpoint lies, integrates volume per segment). So FVSjl overloads class 5 → sm/lg overshoot
+   (10.87/6.19 vs 9.19/3.99) → post-fire TPA 121 vs FVS 143 (mild over-kill). The bole TOTAL is
+   unchanged (carbon_jenkins DDW unaffected — de-risked); only the per-class split differs, and that
+   split is exactly the FMDYN (SMALL,LARGE) input. NEXT: port the FMCWD cone distribution into
+   update_snags! (and the CWD2 broken-top / CWD3 cut-tree paths) so class 5 splits correctly.
