@@ -28,26 +28,20 @@ const _KC_FT_BROKEN = Dict(
     "s5_cycle"     => "odd-period (CYCLEAT 3/2-yr) MORTALITY realization: QMD + AUTCOR bit-exact, TPA off by 1 -> cuft 0.15%/bdft 0.10%. NOT DG/HTG (autcor+d10n resolved that); same class as timeint10 @test_broken",
     "s9_uniform10" => "uniform 10-yr: same odd-period mortality-realization class as s5_cycle",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
-    # s26: PLANT 300 LP@90%. CORRECTED via a targeted GRADD-end LP-sum print in a recompiled
-    # FVS (the earlier "245.4" was a .trl column-parse error). Real per-cycle LP TPA:
-    #   FVSjl LP: 2005=270.0  2010=63.31  2015=7.27
-    #   FVS   LP: 2005=270.0  2010=60.31  2015=8.75
-    # ESTABLISHMENT IS BIT-EXACT (270 both at 2005). The divergence is the DENSE small-tree
-    # cohort's SELF-THINNING MORTALITY 2005→2010 (FVS kills 270→60.31, FVSjl 270→63.31, ~5%).
-    # The LP are dbh 2.6→3.2 (near the dbh_zeide≈3 SDI threshold) — likely the small-tree
-    # SDI-inclusion or VARMRT distribution for a dense sub-merch cohort. NOT establishment,
-    # NOT the linear-G fix (5-yr cycle = identity). Same mortality kernel as the broader work.
-    # s26 NARROWED (this session): the total stand is BIT-EXACT through 2005 (the
-    # establishment); the LP-cohort split diverges only at 2010+ (total TPA 401 vs 403,
-    # LP 63.31 vs 60.31) — same total tokill, different cohort distribution. RULED OUT as
-    # causes (all verified bit-match vs FVS): the VARMRT percentile (BA-weighted, DBH-
-    # sorted — dense.f:272 "BASAL AREA PCT DISTRIBUTION", FVSjl stand_pct! matches), the
-    # per-species shade adj (all 90 varmrt_shade_adj == FVS VARADJ DATA), and the self-
-    # thinning line reset (|t−TPAMRT|>1, morts.f:245 — FVSjl mortality.jl:235 matches). The
-    # residual is the FP-sensitive VARMRT npass geometric-progression convergence (the
-    # adjust<0.8 / >1.2 integer-step path) or the mixed-cohort tokill precision — a
-    # sub-percent distribution residual, NOT a logic/table bug.
-    "s26_estab"    => "DGSCOR-precision family (with s5/s9): ALL deterministic DG inputs match FVS at 2005 — calibration CONSPP 0.33673, competition BA/AVH/PCT/PBAL, forest type 520->uphd, and FULL ln-DDS 2.54193 vs 2.54182. Residual is the stochastic frm/oldrn serial-correlation; stand impact sub-0.5% (TPA 401 vs 403, cuft 0.06%). NOT competition (earlier claim was a DDS measurement artifact)",
+    # s26 FIXED (this session) — was a REAL bug (now bit-exact, moved out of broken):
+    # the post-establishment species-sort order. FVS's ESGENT calls SPESRT to re-establish
+    # the species-order sort after adding regen (esgent.f:41-44), so the DGSCOR/REGENT RNG
+    # stream is consumed in ascending-record order. FVSjl carried stale TRIPLE lineage keys
+    # (3·K+offset, diameter_growth.jl) that, without a thinning compaction (s26 never thins),
+    # scrambled the within-species order — desyncing the per-tree DGSCOR BACHLO stream from
+    # FVS at the 2005 cycle, which fed misaligned REGENT random height perturbations into the
+    # dense LP cohort and shifted its self-thinning (LP 63.31 vs 60.31, TPA 401 vs 403). Fix:
+    # reset sort_key to physical record position at the end of establish! (establishment.jl),
+    # replicating esgent's SPESRT. Diagnosis was verified from the FVS source (RANN draw-count
+    # instrumentation localized the +9-draw desync to the 2005 DGSCOR tree order; the order
+    # then matched FVS exactly). The prior "DGSCOR-precision/dbh_zeide-threshold" notes were
+    # BOTH wrong: DBHZEIDE=0 for s26 (no SDIMAX card) so there is no dbh≈3 threshold, and the
+    # seed was tree-ordering, not DDS precision. Now bit-exact bar 2 one-unit volume ULPs.
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,

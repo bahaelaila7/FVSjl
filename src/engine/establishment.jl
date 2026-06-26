@@ -141,6 +141,15 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             t.crown_pct[i]   = icr0
             t.crown_ratio[i] = Float32(icr0)
         end
+        # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding
+        # regen (esgent.f:41-44). SPESRT/LNKCHN visit records in ascending-record
+        # order, so reset the lineage key to the physical record position: otherwise
+        # stale TRIPLE lineage keys (3·K+offset) from earlier cycles, which are never
+        # reconciled without a thinning compaction, scramble the post-establishment
+        # species_sort! order and desync the per-tree DGSCOR RNG stream from FVS.
+        @inbounds for i in 1:t.n
+            t.sort_key[i] = Float64(i)
+        end
         compute_density!(s)
     end
     push!(s.estab.years_done, yr)

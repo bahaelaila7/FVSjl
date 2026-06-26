@@ -19,3 +19,4 @@ LocalPreferences.toml
 *.swp
 test/harness/scenarios/*.tre
 tmp/
+.claude/worktrees/
