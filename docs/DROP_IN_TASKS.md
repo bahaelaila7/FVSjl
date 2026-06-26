@@ -143,3 +143,19 @@ They are small (sub-1%) and precisely scoped, with all logic/coefficient/table c
 but they are GENUINE divergences requiring real fixes (RNG phase-locking, the COR YR/FINT split,
 the taper boundary) — NOT ULP-FP. The drop-in spec is not yet met; claiming ULP-FP for these
 would be inaccurate.
+
+
+## s26 PINPOINTED to a discrete +6 RNG-draw offset (RANN-count instrumentation)
+Counting main-RNG (RANN) draws per cycle, FVSjl vs an instrumented rann.f, the streams are
+PHASE-LOCKED bit-for-bit THROUGH 2005 (cum count 60/120/309/1710 identical at every cycle's dgf
+entry — so the establishment draws matched exactly), then FVSjl makes EXACTLY 6 MORE draws during
+2005->2010 (3267 vs FVS 3261). Per-phase counting (gated on 2005) localizes all of it to the GROWTH:
+   after dgf=2811, after small_tree_growth=3267 (+456); htg/mort/esuckr/estab/crown add 0.
+So the +6 is in the 2005->2010 dgf (dgscor!) + small-tree (REGENT) growth. The LP cohort sits right
+at the dbh~=3 small/large boundary (2.6->3.2 over the cycle), so 1-2 LP trees are classified small-
+vs-large differently (REGENT vs dgf path) — or a dgscor!/REGENT rejection redraw fires once — costing
+the 6 extra draws and offsetting the remainder of the stream. NET: s26 is a DISCRETE RNG-count
+divergence at the dbh-3 growth boundary, NOT a precision residual. NEXT: dump the LP dbh near 3.0 at
+the 2005 growth on both sides; if a tree is within ~1 ULP of dbh 3.0 and classified oppositely, the
+offset is ULP-rooted (acceptable per spec); else it is a small/large-classification or REGENT-draw-
+count logic gap to align. This is the most actionable of the three and is well-scoped.
