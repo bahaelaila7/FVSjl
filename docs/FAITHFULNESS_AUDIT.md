@@ -381,3 +381,34 @@ Stand-Dead @test_broken/@test flipped to PASSING (carbon_snt LIVE pools, age-awa
 standing_dead). Full suite 9 → **7 broken, 0 fail**. The remaining 6 non-COMPRESS broken are ALL the one
 DDW (down-wood) gap: jl DDW 6.84 vs FVS 8.41 at 2000 — the snag→down-wood falldown/decay phasing, the sole
 remaining FFE dead-pool divergence. StandDead, live pools, growth, cuts: bit-exact.
+
+#### DDW (down-wood) — the sole remaining FFE dead-pool gap: crown-lift PHASING
+After the snag-bole fix, the 6 remaining non-COMPRESS broken tests are ALL the DDW column. Localized via
+an instrumented FMDOUT dump of `CWD(3,k,1,5)+CWD(3,k,2,5)` per size class on carbon_snt:
+```
+size:     1      2      3   |  4      5      6     7     8    9     (biomass t/ac @2000)
+FVS:    0.368  1.426  2.358 | 1.245  1.219  0.527 ...               Σ1-3 = 4.15
+FVSjl:  0.194  0.762  1.622 | 1.138  1.409  0.540 ...               Σ1-3 = 2.58
+```
+The gap is ENTIRELY in the FINE classes (1-3, <3"); the bole/large classes (4-9) match. At 1995 the small
+classes match exactly — the gap opens at 2000. Per-cycle additions to sizes 1-3: 1995→2000 FVS +1.94 vs
+FVSjl +0.34; 2000→2005 FVSjl +2.56 vs FVS +1.88 — FVSjl's fine-material additions are shifted ~ONE CYCLE
+LATE. Source = the live-tree crown-lift (FMCADD fmcadd.f:95-101: shed lower crown OLDCRW→down-wood, sizes
+1-5), the dominant fine-fuel term.
+
+LOGIC (FMMAIN): FVS grows (base GRINCR) → FMDOUT report → year-loop {FMSNAG, FMCWD decay, FMCADD
+(litterfall+LIMBRK+crown-lift from post-grow crown vs OLDCRW + CWD2B fall)} → FMOLDC. The crown-lift is
+applied WITHIN the cycle's year-loop, per-year, with decay interleaved. FVSjl's loop is report →
+ffe_fuel_update (applies the PREVIOUS cycle's crown_lift_annual) → grow → compute_crown_lift → snapshot:
+the crown-lift computed in cycle c is applied in c+1's fuel_update → an extra cycle of lag.
+
+Two experiments (carbon_snt, scripts only — no code changed):
+- Apply crown-lift 1 cycle earlier as a LUMP at end-of-cycle: StandD preserved but DDW OVERSHOOTS
+  (9.77 vs 8.41 @2000) — the lump skips the per-year decay the lagged path applies.
+- Move the whole ffe_fuel_update after grow: DDW overshoots AND StandD collapses (snag/CWD2B double-proc).
+So the fix is NOT a simple reorder: the crown-lift must be applied in its OWN cycle's year-loop WITH the
+per-year decay interleaved — i.e. align FVSjl's loop to FVS's FMMAIN phasing (grow→report→year-loop→oldcrw)
+so compute_crown_lift feeds the same cycle's fuel loop. Risk: the main path (snt01) has REGEN that grows
+the tree list each cycle, so the OLDCRW per-tree state must survive record tripling/compaction (FVS does
+this in FMTDEL/FMTRIP/FMCMPR) — a stable record id, not an index snapshot. That is the focused next step
+for the DDW column (the last FFE dead-pool item). StandD/live/growth/cuts are bit-exact.
