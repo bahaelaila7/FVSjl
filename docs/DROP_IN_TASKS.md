@@ -253,3 +253,24 @@ draws rebound differently) is still unpinned. The next correct probe is a per-dr
 dgscor! sequence (tree index, bachlo value, accept/reject) FVSjl vs an instrumented dgdriv, to find
 the FIRST divergent draw — not another bulk-init guess. Lesson: validate a draw-count hypothesis with
 the actual count before claiming a root.
+
+
+## s26 — DRAW-SITE MAP (refined) + honest impasse
+Located every FVS growth random draw: dgdriv.f:603 BACHLO (uncalibrated OLDRN init — 13 draws TOTAL,
+one-time, does NOT fire for the LP) and regent.f:180/257 BACHLO (per SMALL tree, every cycle). So:
+  - FVS's per-cycle stochastic draws are dominated by REGENT (small-tree growth), NOT DGDRIV.
+  - FVSjl draws the serial-correlation frm for ALL trees in dgscor! inside diameter_growth!, AND
+    separately draws for small trees in small_tree_growth! (regent equivalent, bachlo at line 105).
+  - The +6 lives in the SMALL-tree draw attribution: FVSjl's dgscor! (diameter_growth!) appears to
+    draw for the small LP cohort (dbh 2.56<3) that FVS handles only in REGENT — a possible REDUNDANT
+    per-small-tree dgscor! draw in FVSjl. But the magnitude is +6, NOT the ~50-100 a wholesale small-
+    tree double-draw would give, so it is a PARTIAL/subtle effect, not a clean wholesale skip.
+HONEST IMPASSE: pinning the exact +6 requires a per-tree-SITE diff (which FVSjl dgscor! draws have no
+FVS counterpart, and which REGENT draws differ), and I do not have a clean enough model of the FVSjl-
+dgscor!-vs-FVS-REGENT small-tree draw correspondence to fix it without risking another overshoot (one
+bulk-init guess already overshot +177). NEXT CORRECT STEP (no more bulk guesses): instrument FVSjl's
+dgscor! to log, for the 2005 cycle, each tree's (dbh, sp, #bachlo draws) and confirm whether the small
+(dbh<3) LP are being dgscor!-drawn at all; if so, test whether SKIPPING dbh<3 in dgscor! (they are
+regrown by small_tree_growth!) closes the +6 while keeping snt01/BARE bit-exact (they have no dbh<3
+trees, so a skip would be a no-op there). That is a falsifiable, bounded experiment — but it must be
+RUN and checked against the count, not assumed.
