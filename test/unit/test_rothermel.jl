@@ -74,12 +74,14 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
         l5, _, d5, m5 = standard_fuel_model(coef, 5)         # brush
         @test l5[1, 1] ≈ 0.04591f0 && d5 == 2.0f0 && m5 ≈ 0.20f0
 
-        # model 10 carries a stronger fire than the sparse model-5 brush at equal conditions
+        # Under the very-dry FMMOIS model 1, the brush model 5 (live woody, drying out) carries a HOTTER
+        # fire than timber-litter model 10 — verified vs live FVSsn FMFINT at fmois=1: FM5 byram 8988 >
+        # FM10 6519 (FWIND=1); at wind 2, FVSjl FM5 10021 > FM10 6608. Both carry fire.
         mois = fuel_moisture(1)
         r10 = rothermel_surface_fire(l10, s10, d10, m10, mois; wind = 2f0)
         r5  = rothermel_surface_fire(l5, standard_fuel_model(coef, 5)[2], d5, m5, mois; wind = 2f0)
         @test r10.byram > 0f0 && r10.flame > 0f0
-        @test r10.byram > r5.byram
+        @test r5.byram > r10.byram > 0f0
 
         # the weighted 10(96%)+5(4%) blend under a canopy-reduced wind reproduces the
         # Fortran PotFire flame magnitude (~3–5 ft), not the dynamic model's low ~2 ft.

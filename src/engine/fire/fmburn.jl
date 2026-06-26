@@ -58,7 +58,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     flame_raw = 0f0; byram = 0f0
     for (fm, w) in models
         load, sav, depth, mext = standard_fuel_model(coef, fm)
-        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind)
+        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
         flame_raw += r.flame * w
         byram += r.byram * w
     end
@@ -299,7 +299,7 @@ function potential_fire(s::StandState)
         flame = 0f0; byram = 0f0
         for (fm, w) in models
             load, sav, depth, mext = standard_fuel_model(coef, fm)
-            r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind)
+            r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
             flame += r.flame * w; byram += r.byram * w
         end
         sch = byram > 0f0 ? scorch_height(byram, temp, fwind) : 0f0

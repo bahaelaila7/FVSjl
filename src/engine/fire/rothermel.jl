@@ -44,7 +44,7 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     ifines = (1, 1)
 
     # order each category's classes finest-first (descending SAV); drop classes SAV<16
-    isize = [sortperm([sav[i, j] for j in 1:4]; rev = true) for i in 1:2]
+    isize = [sortperm([load[i, j] > 0f0 ? sav[i, j] : -1f0 for j in 1:4]; rev = true) for i in 1:2]
     mext = Float32[mext_dead, 0f0]
     for i in 1:2
         k = noclas[i]
