@@ -85,11 +85,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
-    # FFE Stand Carbon Report (CARBREPT): drive the per-cycle fuel dynamics on THIS same simulation and
-    # collect a report row each cycle. Gated on an active FireState so non-FFE / fire-only stands are
-    # untouched (the carbon report's fuel accumulation must not perturb a SIMFIRE stand's fuels).
+    # FFE Stand Carbon Report (CARBREPT): carbon_on gates only the REPORT-row collection. The per-cycle
+    # fuel DYNAMICS (below) run for any FFE-active stand.
     carbon_on = carbon_collect !== nothing && s.fire !== nothing && s.fire.active
-    if carbon_on
+    # FFE surface-fuel dynamics (decay + snag falldown + crown-lift → down wood) run EVERY cycle for any
+    # FFE-active stand, exactly as FVS fmmain.f does — NOT only when the Carbon report is on. The down-
+    # wood pools (FireState.cwd) feed FMCFMD's (SMALL,LARGE) fuel-model selection, so a SIMFIRE stand's
+    # fire behavior depends on them having evolved since inventory. The prior carbon-only gate froze cwd
+    # at the inventory value (fire_fuel9 2005 sm=7.02 == 1990, vs FVS's accumulated 9.19), which selected
+    # fuel model 5 over 12 and gave byram 2905 vs FVS's 4194 (~6× low on the FM5 component).
+    ffe_on = s.fire !== nothing && s.fire.active
+    if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
     end
@@ -158,11 +164,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
             hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
                 push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
-            carbon_on && ffe_fuel_update!(s, per)      # FFE annual fuel loop BEFORE growth (report→fuel→grow)
+            ffe_on && ffe_fuel_update!(s, per)         # FFE annual fuel loop BEFORE growth (report→fuel→grow)
             gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)
-            if carbon_on                                # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
+            if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
             end
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
