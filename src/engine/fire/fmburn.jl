@@ -91,7 +91,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
             killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
             c = _fm_mort_class(d); c >= 1 && (clskil[c] += curkil)
-            add_snag!(fs, sp, d, curkil, year)         # fire-killed trees become standing snags
+            add_snag!(fs, sp, d, curkil, year; height = t.height[i])  # fire-killed trees become standing snags
         end
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED

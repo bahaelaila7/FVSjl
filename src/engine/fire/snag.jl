@@ -58,12 +58,13 @@ DBH `dbh`, that died in `year`. New snags start fully hard. No-op for non-positi
 density.
 """
 function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer;
-                   bolevol::Float32 = 0f0)
+                   bolevol::Float32 = 0f0, height::Float32 = 0f0)
     density > 0f0 || return
     sn = fs.snags
     push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
     push!(sn.den_hard, density); push!(sn.den_soft, 0f0)
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.bolevol, bolevol)
+    push!(sn.height, height)
     return
 end
 
@@ -95,6 +96,52 @@ end
     d < 0.25f0 ? 1 : d < 1f0 ? 2 : d < 3f0 ? 3 : d < 6f0 ? 4 :
     d < 12f0 ? 5 : d < 20f0 ? 6 : d < 35f0 ? 7 : d < 50f0 ? 8 : 9
 
+# Diameter-class breakpoints BP(0:9), inches (fmcwd.f:56). Index j+1 ↔ BP(j).
+const _CWD_BP = (0f0, 0.25f0, 1f0, 3f0, 6f0, 12f0, 20f0, 35f0, 50f0, 9999f0)
+
+"""
+    _cwd_cone_fractions(d, ht) -> NTuple{9,Float32}
+
+Fraction of a fallen bole's volume in each CWD size class 1..9, summing to 1 — the cone-taper
+distribution of FVS's FMCWD/CWD1 (fmcwd.f label 1000). The standing stem is modeled as a cone
+(DBH `d` in at 4.5 ft, total height `ht` ft); each diameter-class breakpoint BP falls at a height
+BPH, and the normalized conic volume `P(h)=r(h)²·(ht−h)/(R1²·ht)` between successive breakpoints
+(clipped to the [0.1 ft, ht] bole) is that class's share. Replaces the prior single-class dump
+(whole bole into the DBH class), which overloaded the 6–12" class. Normalized to sum 1 so the bole
+TOTAL is unchanged (carbon DDW preserved); only the per-class split — FMCFMD's (SMALL,LARGE) input —
+is corrected. A bole too short to taper (`ht ≤ 4.6`) or with no taperable volume falls back to its
+DBH class.
+"""
+function _cwd_cone_fractions(d::Float32, ht::Float32)
+    f = zeros(Float32, 9)
+    d <= 0.1f0 && (d = 0.1f0)
+    if ht <= 4.6f0
+        f[_cwd_size_class(d)] = 1f0
+        return f
+    end
+    htd = ht
+    rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
+    # BPH(j) = height (ft) where stem diameter = BP(j); index j+1
+    bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), 10)
+    loht = 0.10f0; hiht = htd
+    r1 = d * 0.0416666667f0                       # radius (ft) at DBH (= d/12 * 0.5)
+    r1 = r1 + loht * ((r1 * htd) / (htd - 4.5f0)) # extend cone to the stem base
+    r1sq = r1 * r1
+    total = 0f0
+    @inbounds for j in 1:9
+        bphj = bph[j + 1]; bphjm1 = bph[j]        # BPH(j), BPH(j-1)
+        (hiht <= bphj || loht > bphjm1) && continue
+        hicut = min(hiht, bphjm1); locut = max(loht, bphj)
+        locut == hicut && continue
+        r2 = r1 * (1f0 - hicut / htd); p1 = (r2 * r2 * (htd - hicut)) / (r1sq * htd)
+        r2 = r1 * (1f0 - locut / htd); p2 = (r2 * r2 * (htd - locut)) / (r1sq * htd)
+        dif = max(0f0, p2 - p1); f[j] = dif; total += dif
+    end
+    total <= 0f0 && (f[_cwd_size_class(d)] = 1f0; total = 1f0)
+    @inbounds for j in 1:9; f[j] /= total; end
+    return f
+end
+
 """
     update_snags!(s, nyears) -> Float32
 
@@ -123,8 +170,11 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
         # path (so don't double-count it). Fall back to Jenkins for cohorts with bolevol unset.
         a = sn.bolevol[i]
         a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
-        isz = _cwd_size_class(sn.dbh[i])
         idc = Int(coef_col(coef, :dkr_cls)[sp])             # decay-rate class
+        # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
+        # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
+        # once per cohort. Height unset (0) ⇒ single-class fallback (no behavior change).
+        frac = _cwd_cone_fractions(sn.dbh[i], sn.height[i])
         for _ in 1:yrs
             denttl = sn.den_hard[i] + sn.den_soft[i]
             denttl > 0f0 || break
@@ -135,7 +185,10 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
-            fs.cwd[isz, 2, idc] += a * dfall                # fallen biomass → down-wood pool
+            add = a * dfall                                 # fallen biomass this step (tons/ac)
+            for j in 1:9
+                frac[j] > 0f0 && (fs.cwd[j, 2, idc] += add * frac[j])  # spread across CWD size classes
+            end
             fallen += dfall
         end
     end
@@ -206,7 +259,7 @@ function ffe_seed_input_snags!(s::StandState)
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
         v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
         bolevol = v[1] * v2t[sp] / 2000f0
-        add_snag!(fs, sp, d, den, yr; bolevol = bolevol)
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den
     end

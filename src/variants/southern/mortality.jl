@@ -404,7 +404,7 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
         sp = Int(t.species[i])
         bolevol = t.cuft_vol[i] * v2t[sp] / 2000f0
-        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol)
+        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol, height = t.height[i])
         xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         fmscro!(s, sp, t.dbh[i], xv, basis[i], clamp(Int(dkr[sp]), 1, 4))
         _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])

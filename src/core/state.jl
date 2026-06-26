@@ -560,8 +560,10 @@ mutable struct SnagList
     year::Vector{Int32}           # YRDEAD
     bolevol::Vector{Float32}      # per-tree death-time STEM-volume bole biomass, tons (cuft·V2T) — the
                                   # FFE snag basis (SNVIS·V2T), distinct from whole-tree Jenkins; 0 = unset
+    height::Vector{Float32}       # HTDEAD — snag height at death (ft); drives the cone-taper split of a
+                                  # fallen bole across CWD size classes (FMCWD/CWD1). 0 = unset (single-class)
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Float32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Float32[], Float32[])
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
