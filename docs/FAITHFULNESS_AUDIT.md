@@ -250,3 +250,15 @@ gets all three right via its annual GRADD->FMSNAG/FMCWD/FMCADD interleaving (gro
 but the fuel sub-steps are annual and ordered after GRADD). A faithful fix must interleave those fuel
 sub-terms per-year with the correct stand state at each — a contained but careful FFE-carbon refactor,
 not a one-line reorder (which over/under-shoots). Residuals ~0.5-2.3 t at F7.1 report resolution.
+
+#### Carbon dead-pool residual CORRECTED: it's a down-wood MASS over-accumulation, not crown-lift timing.
+Tested the targeted crown-lift fix (apply this cycle's crown-lift post-grow with intra-cycle decay, non-
+fire stands only): it made carbon_snt DDW WORSE (Δ 1.2 → 1.6), proving the residual is NOT the crown-lift
+lag. The DDW is already HIGH and COMPOUNDS over cycles (carbon_snt run_keyfile Δ = 0.0/0.3/1.2/1.6 at
+1990/95/00/05) — FVSjl accumulates ~15-20% too much down wood, the SAME overshoot seen on fire_fuel9
+(cwd 10.87 vs FVS 9.19, +18%). Stand-Dead Δ is small (0.1/0.4/0.3/0.7). So the 10 carbon @test_broken are
+a down-wood-MASS calibration in the per-cycle additions (snag-bole falldown density/biomass + CWD2B crown
+flow) vs FVS FMSNAG/FMCADD — NOT a timing lag. Closing it needs an instrumented term-by-term comparison
+of FVSjl's per-cycle cwd additions against FVS's FMSNAG/FMCWD/FMCADD (snag fall density, bolevol vs
+SNVIS·V2T, CWD2B TFALL schedule). Reverted the crown-lift change (overshoots). Live + Floor pools stay
+bit-exact; inventory + final cycles bit-exact; the gap is intermediate-cycle DDW/Stand-Dead at F7.1.
