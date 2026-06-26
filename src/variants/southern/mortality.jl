@@ -403,7 +403,16 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     @inbounds for i in 1:n
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
         sp = Int(t.species[i])
-        bolevol = t.cuft_vol[i] * v2t[sp] / 2000f0
+        # Snag bole biomass uses the MERCHANTABLE cubic volume (FMSVOL → NATCRS MCF for SN,
+        # fmsvol.f: VOL2HT = MAX(X,MCF)), NOT the gross-cubic cuft_vol — verified per-snag against
+        # the live FVS oracle (carbon_snt: gross v[1] runs 2-8% high on mid/large snags → StandDead
+        # over-production). MCF is the tree's own merch_cuft_vol (= v[4]+v[7] with the DBHMIN gate and
+        # the Region-8 <10ft-product rule), already bit-exact for live trees; v[4] alone undershoots
+        # loblolly (carbon_jenkins) where v[7]≠0. Floor at the tiny-tree cone volume X=0.005454154·H
+        # (fmsvol.f) so sub-merch snags keep a small positive bole. Frozen at death-time dbh/height
+        # (HTIH=HTDEAD in SN, FMSNGHT height-loss is a no-op), weighted by the falling density.
+        mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+        bolevol = mcf * v2t[sp] / 2000f0
         add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol, height = t.height[i])
         xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         fmscro!(s, sp, t.dbh[i], xv, basis[i], clamp(Int(dkr[sp]), 1, 4))

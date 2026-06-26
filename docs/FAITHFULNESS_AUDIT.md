@@ -357,3 +357,27 @@ Net: the 8 carbon intermediate-cycle terms are coupled to tripling + the death-s
 faithful single-term fixes break CORRECT (passing/endpoint) values. They need a joint death-time-volume +
 death-spread treatment that preserves the endpoints — genuinely deep. Session: 21 → 9 broken; growth+cuts
 audited bit-exact.
+
+#### RESOLVED — snag BOLE is MERCH cubic (merch_cuft_vol), correcting the prior "total" conclusion
+The earlier "mortality snag bole = TOTAL cubic" conclusion above was WRONG — it rested on two flawed
+checks: (a) it tried merch = v[4] ALONE, which undershoots loblolly pine (carbon_jenkins) where v[7]≠0;
+(b) it validated against the 1-decimal `.report.save`, whose print-rounding masked the real signal.
+
+Verifying the LOGIC (not just the oracle) settled it: FVS's snag Stand-Dead bole is `FMSVOL` →
+`VOL2HT = MAX(X, MCF)` (fmsvol.f, SN branch), and for SN every species uses NATCRS, whose MCF is exactly
+jl's per-tree `merch_cuft_vol` = `v[4]+v[7]` (with the DBHMIN gate + the Region-8 <10ft-product rule).
+That is NOT the gross `cuft_vol` (= v[1]). Differential vs an instrumented FMDOUT (per-snag BOLE/CRWN +
+standing DENSITY) on the bit-exact-growth carbon_snt:
+  - standing snag DENSITY is BIT-EXACT every cycle (14.76/42.70/48.03/71.04) — falldown was never wrong;
+  - gross v[1] ran the per-snag bole 2-8% high on mid/large snags → Stand-Dead +0.6 over four cycles;
+  - merch `merch_cuft_vol` matches FVS per-snag (8.1/4.8/16.5/18.7/9.8 …) → Stand-Dead now ≤0.03.
+Fix: `book_mortality_snags!` books `bolevol = max(0.005454154·H, merch_cuft_vol) · V2T/2000` (the X-floor
+is FMSVOL's tiny-tree cone volume, so sub-merch snags keep a small positive bole instead of hitting the
+Jenkins fallback). Input-snag seed path unchanged. crown (CWD2B) was already exact.
+
+Test consequence: Stand-Dead validation moved off the 1-decimal save onto the HIGH-PRECISION instrumented
+oracle (BOLE+CRWN, consistent with the bole/crown component tests that already used 3.72/1.46) — four
+Stand-Dead @test_broken/@test flipped to PASSING (carbon_snt LIVE pools, age-aware falldown, carbon_jenkins
+standing_dead). Full suite 9 → **7 broken, 0 fail**. The remaining 6 non-COMPRESS broken are ALL the one
+DDW (down-wood) gap: jl DDW 6.84 vs FVS 8.41 at 2000 — the snag→down-wood falldown/decay phasing, the sole
+remaining FFE dead-pool divergence. StandDead, live pools, growth, cuts: bit-exact.

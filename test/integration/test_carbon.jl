@@ -108,14 +108,20 @@ end
             # known crown-lift-timing gap as carbon_snt (~1.9) — tracked honestly as @test_broken, not hidden.
             f[1] in ("1990", "1995") && @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05
             f[1] in ("2000", "2005") && @test_broken abs(r.down_wood - parse(Float64, f[7])) <= 0.05
-            # STAND-DEAD: 0 before mortality; BIT-EXACT after, via the faithful snag STEM-VOLUME bole
-            # (cuft·V2T) + the CWD2B crown-in-waiting — validated vs the instrumented Fortran SNGBOLE/SNGTOT.
-            f[1] in ("1990",) && @test r.standing_dead == 0f0
-            f[1] in ("2000", "2005") && @test abs(r.standing_dead - parse(Float64, f[6])) <= 0.05
+            # STAND-DEAD: 0 before mortality; after, validated against the HIGH-PRECISION instrumented
+            # Fortran oracle (BOLE+CRWN from FMDOUT TOTSNG), NOT the 1-decimal .report.save column — the
+            # save's print rounding (e.g. 5.18→5.2) double-rounds against jl's own rounded report and would
+            # spuriously read 0.07 on a model that is bit-exact to ~0.02. Stand-Dead = snag merch BOLE
+            # (FMSVOL = NATCRS MCF = merch_cuft_vol, NOT gross cuft_vol — verified per-snag vs the live
+            # oracle) + the CWD2B crown-in-waiting. Targets: 2000 = 3.72+1.46 = 5.18, 2005 = 3.28+1.19.
             TO = 0.90718474 / 0.40468564
+            f[1] in ("1990",) && @test r.standing_dead == 0f0
+            f[1] == "2000" && @test abs(r.standing_dead - 5.18) <= 0.05
+            f[1] == "2005" && @test abs(r.standing_dead - 4.47) <= 0.05
             f[1] == "2000" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.72) <= 0.05
             f[1] == "2005" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.28) <= 0.05
             f[1] == "2000" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.46) <= 0.05
+            f[1] == "2005" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.19) <= 0.05
             if c < length(ft)
                 # evolve the fuels with the START-of-cycle crown (FVS records the crown at the END of
                 # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.
@@ -203,8 +209,32 @@ end
         # to a (passing) failure if the dead pools ever reconcile — see docs/FFE_FUEL_DYNAMICS_chunk_plan.md.
         maxd(c) = maximum(abs(rows[i][c] - ft[i][c]) for i in 1:length(ft))
         @test maxd(5) <= 0.05              # Belowground Dead — BIT-EXACT (input-snag root XDCAY = (1−CRDCAY)^10)
-        @test_broken maxd(6) <= 0.05       # Stand Dead       (max Δ ≈ 0.6, CWD2B crown-flow phasing)
-        @test_broken maxd(7) <= 0.05       # DDW              (max Δ ≈ 1.3, CWD2B/decay phasing)
+        # STAND-DEAD is now bit-exact: validated against the HIGH-PRECISION instrumented Fortran oracle
+        # (FMDOUT BOLE+CRWN, 4 decimals) rather than the 1-decimal .report.save column — the printed
+        # maxd(6) reads 0.1 only because jl's 5.337 and FVS's 5.354 straddle the 5.35 print boundary
+        # (5.3 vs 5.4); the underlying values match to ≤0.03. The fix was the snag BOLE volume basis:
+        # FMSVOL uses the merch cubic (NATCRS MCF = merch_cuft_vol = v[4]+v[7]), not gross cuft_vol —
+        # gross ran 2-8% high on mid/large snags (StandDead was +0.6). Per-cycle FVS StandDead carbon:
+        fvs_standdead = [3.796, 4.393, 5.354, 9.535]   # 1990(inv)/1995/2000/2005, = (BOLE+CRWN)·0.5·TItoTM
+        s2 = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s2); FVSjl.setup_growth!(s2); FVSjl.compute_volumes!(s2)
+        s2.fire !== nothing && s2.fire.active && FVSjl.ffe_seed_input_snags!(s2)
+        for (k, fsd) in enumerate(fvs_standdead)
+            FVSjl.compute_density!(s2)
+            if s2.fire !== nothing && s2.fire.active
+                FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
+            end
+            @test abs(FVSjl.stand_carbon_report(s2).standing_dead - fsd) <= 0.05   # Stand Dead — BIT-EXACT
+            if k < length(fvs_standdead)
+                s2.fire !== nothing && s2.fire.active && FVSjl.ffe_fuel_update!(s2, 5)
+                FVSjl.grow_cycle!(s2; fint = 5f0)
+                if s2.fire !== nothing && s2.fire.active
+                    FVSjl.compute_crown_lift!(s2, 5); FVSjl.snapshot_ffe_oldcrown!(s2)
+                end
+            end
+        end
+        @test_broken maxd(7) <= 0.05       # DDW — still off (max Δ ≈ 1.6 at 2000): the down-wood falldown/
+                                           # decay phasing, the one remaining FFE dead-pool gap (snag→DDW).
     end
 end
 
@@ -566,7 +596,10 @@ end
         s.fire !== nothing && s.fire.active && FVSjl.fmcba!(s)
         FVSjl.ffe_seed_input_snags!(s)
         TO = 0.90718474 / 0.40468564
-        fF = [3.8, 4.4, 5.4, 9.5]
+        # High-precision instrumented-Fortran Stand-Dead (FMDOUT BOLE+CRWN, 4 decimals), NOT the 1-decimal
+        # save [3.8,4.4,5.4,9.5] — see the carbon_snt LIVE-pools testset for why the printed save double-
+        # rounds (5.354 prints 5.4 but is 0.06 from jl's 5.337, which is itself only 0.017 from FVS).
+        fF = [3.796, 4.393, 5.354, 9.535]
         prev = 0.0; maxresid = 0.0
         for c in 1:4
             FVSjl.compute_density!(s)
@@ -582,8 +615,8 @@ end
                 FVSjl.grow_cycle!(s; fint = 5f0)
             end
         end
-        # Stand-Dead tracks the Fortran but is NOT bit-exact (the ~0.7 dead-pool / height-dub residual) —
-        # @test_broken on the max, honest rather than hidden behind a 0.8 tolerance.
-        @test_broken maxresid <= 0.05
+        # Stand-Dead is now bit-exact vs the high-precision oracle (the snag merch-BOLE fix: NATCRS MCF =
+        # merch_cuft_vol, not gross cuft_vol). The remaining FFE dead-pool gap is DDW, not Stand-Dead.
+        @test maxresid <= 0.05
     end
 end
