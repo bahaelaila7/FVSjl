@@ -214,3 +214,20 @@ regen trees when they first enter growth, leaving existing trees' persisted oldr
 verify (a) it drives the s26 dgf draw count to FVS's (closing the +9) and (b) snt01/BARE stay
 bit-exact (no oldrn=0 large trees there). The -3 REGENT piece likely follows once the order/oldrn is
 aligned. This is the concrete fix for s26 and is well-scoped.
+
+
+## s26 ROOT — CORRECTED PATH (LP species is UNCALIBRATED -> bachlo init, which DRAWS)
+Refinement: sp13 (loblolly) is NOT present at setup (the plant is at 2005), so calibrate_diameter_
+growth! never sees it and it has NO growth samples -> calibrated[13]=false. So FVS's per-cycle new-
+tree oldrn init takes the <5-GST BACHLO path (dgdriv.f:599-605: Z=BACHLO(0,SIGMA); reject Z>DGSD*SIGMA;
+OLDRN(I)=Z), which CONSUMES random draws for each new LP record. FVSjl runs its oldrn init ONLY once at
+setup (simulate.jl:42), so the LP are never inited (oldrn=0) and FVSjl skips those bachlo draws. The
+net 2005->2010 bookkeeping (+9 dgf / -3 REGENT) is the combination of (a) FVSjl skipping FVS's LP
+oldrn-init bachlo draws and (b) the resulting oldrn=0 changing the dgscor! rejection sequence.
+THE FIX (concrete, scoped): replicate FVS DGDRIV's per-cycle new-tree (oldrn==0) oldrn initialization
+for trees ESTABLISHED mid-run — for an uncalibrated species that is the bachlo rejection path
+(bachlo(0,sigma); reject z>DGSD*sigma; oldrn=z), drawing in the SAME order FVS does (species-sorted,
+after the calibration but before the per-tree dgscor!). For a calibrated regen species it is the
+deterministic regression path. Must match FVS's draw count/order exactly and keep snt01/BARE bit-exact
+(they have no mid-run regen, so the once-at-setup init still covers them). This is the precise close
+for s26's RNG offset.
