@@ -341,3 +341,19 @@ Decomposed Stand-Dead into bole + crown vs the live oracle:
   mortality, but the prior FULL-falldown attempt collapsed Stand-Dead (memory), so it needs the spread.
 Both remaining terms are genuinely coupled to TRIPLING and the death-spread — deeper than the input-snag
 fixes that closed #548/#205. Session: 21 → 9 broken. Growth + cuts audited & bit-exact (not in the 9).
+
+#### Verified-before-revert (per the regression-may-unmask guidance):
+- **Mortality snag bole = TOTAL cubic (cuft_vol), NOT merch.** Re-applied the merch-v[4] fix (faithful per
+  fmdout→FMSVOL) to mortality snags; it broke carbon_jenkins's snag_bole @test (3.72/3.28) which were
+  PASSING and bit-correct with cuft_vol, AND it over-counted carbon_snt DDW. Per-record v[4] IS lower than
+  cuft for big trees yet the aggregate rose — confirming the dying-record volume state interacts with
+  tripling. The passing tests were CORRECT (not masking), so the merch fix is wrong for MORTALITY snags
+  (only the INPUT-snag seed path uses merch, #548). Reverted with that verification.
+- **Death-spread falldown (force_yrs≈per/2) breaks the bit-exact 2005 ENDPOINT** (DDW Δ0→+1.4). The
+  committed one-cycle lag is correct at the endpoints (the lag washes out); the death-spread, while
+  conceptually faithful (FVS dates deaths across the cycle), over-adds to DDW cumulatively. So it trades
+  the exact endpoint for the intermediate cycle — not a net win. Reverted with verification.
+Net: the 8 carbon intermediate-cycle terms are coupled to tripling + the death-spread in ways where the
+faithful single-term fixes break CORRECT (passing/endpoint) values. They need a joint death-time-volume +
+death-spread treatment that preserves the endpoints — genuinely deep. Session: 21 → 9 broken; growth+cuts
+audited bit-exact.
