@@ -214,18 +214,29 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
     shade_adj = s.coef.species[:varmrt_shade_adj]   # VARMRT per-species shade-tolerance scalar (CSV)
+    # The SDI sums accumulate in FVS's SPECIES-SORTED IND1 order (morts.f:212-235: DO 20 ISPC,
+    # DO 12 I3=I1,I2, I=IND1(I3)), NOT raw record order — Float32 addition is non-associative, so the
+    # order is part of the bit-exact contract. Summing in raw 1:t.n order leaves a ~1-ULP residual in
+    # `tt` (558.1847 vs FVS 558.1846) that accumulates through the mortality across cycles (the s5/s9
+    # odd-period drift). `idx1`/`sp_count_tab` are the species-sorted index/range set by species_sort!.
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     tt = 0f0; sdq0 = 0f0; sd2sq = 0f0; sumdr0 = 0f0; sumdr10 = 0f0
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]
-        d < dthresh && continue
-        pr = t.tpa[i]
-        bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-        g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:225 (linear FINT extrap)
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g)
-        sdq0  += pr * d * d
-        sumdr0  += pr * d^1.605f0
-        sumdr10 += pr * (d + g)^1.605f0
-        tt += pr
+    @inbounds for sp in 1:MAXSP
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        for k in i1:i2
+            i = ind1[k]
+            d = t.dbh[i]
+            d < dthresh && continue
+            pr = t.tpa[i]
+            bark = bark_ratio(bark_a, bark_b, t.species[i], d)
+            g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:225 (linear FINT extrap)
+            sd2sq += pr * (d * d + 2f0 * d * g + g * g)
+            sdq0  += pr * d * d
+            sumdr0  += pr * d^1.605f0
+            sumdr10 += pr * (d + g)^1.605f0
+            tt += pr
+        end
     end
     tt < 1f0 && return s
     # Reset the persisted self-thinning line when the stand TPA changed materially

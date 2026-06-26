@@ -337,3 +337,18 @@ SAME small class as the timeint10 @test_broken (mortality under non-5 periods), 
 species DG/HTG precision the original comment described (that was resolved by autcor+d10n). The board-
 foot column is now ~0.1%, down from the ~4% the old note cited. Tiny, deterministic, well-scoped: the
 FINT=3/2 mortality realization (rate^FINT + VARMRT distribution) vs FVS.
+
+
+## s5/s9 — SDI sum ORDER fixed faithfully (morts.f:212); residual is d10-projection FP
+Per the verify-from-FVS-code principle: read morts.f:212-235 — the SDI sums accumulate in SPECIES-SORTED
+IND1 order (DO 20 ISPC, DO 12 I3=I1,I2, I=IND1(I3)), but FVSjl summed in raw 1:t.n order. Float32 add is
+non-associative, so raw order left a 1-ULP residual: tt(1995)=558.1847 vs FVS 558.1846. VERIFIED both
+ways: (a) the code (species order), (b) measurement — species-order tt = 558.1846 = FVS exactly.
+Implemented the species/IND1-order sum (mortality.jl); suite 4488+27, 0 fail (no regression).
+BUT this is a MINOR contributor — it did not change the s5 .sum. The DOMINANT s5/s9 seed is the mortality
+d10 QMD-PROJECTION: at 2005, d10=8.148209 vs FVS 8.1483 (~100 ULP) even though the actual BA is bit-exact
+(152/152) — so it is NOT the realized growth (which matches) but the mortality's projected QMD (Σ pr·(d+
+g)^1.605, g=_mort_traj_g/bark) differing at the ~1e-5 level, accumulating through the odd-period cycles
+to the 1-TPA/0.15%-cuft drift at 2013. Next (still verify-from-code): trace the d10-projection terms
+(diam_growth, bark_ratio, the (d+g)^1.605 order) vs morts.f to see if the 100-ULP is another order/formula
+faithfulness gap or irreducible Float32 transcendental rounding.
