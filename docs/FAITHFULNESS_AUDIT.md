@@ -112,6 +112,12 @@ FVS's FMMOIS is a NO-OP for invalid codes, leaving the moisture at the per-cycle
 value (model 3), whereas FVSjl **clamped 9→4** (very wet). FIX: invalid SIMFIRE moisture resolves
 to model 3 (matching FVS's leftover), not clamp-to-4 (keyword_dispatch.jl). For VALID codes 1..4
 the FMMOIS tables were already identical, so this only touches the invalid-code edge case. Result:
-fire_fuel9 2010 TPA 155→148 (FVSsn 143); suite 4494+21 unchanged. REMAINING (still open): the ~5
-TPA / BA 87-vs-85 gap is now purely the FMEFF per-tree fire-kill distribution (flame/scorch/bark
-mortality), the long-known BA 81-vs-78 residual — independent of moisture/wind/crown-width/order.
+fire_fuel9 2010 TPA 155→148 (FVSsn 143); suite 4494+21 unchanged. REMAINING (open): with the
+moisture now model-3, FVSjl byram=2905 / flame=2.41 vs FVS 4194 / 3.17 — still ~1.4× low, so a
+DEEPER Rothermel/fuel divergence remains (NOT moisture, wind, crown-width, ordering, the FMEFF
+coefficients or the Regelbrugge-Smith mortality — all verified to match). Prime lead: FVS RE-
+SELECTS the fuel model AFTER the wind/moisture are known (fmburn.f:393 `FIND FUEL MODEL AGAIN`)
+and sums per-model byram with the post-wind weights; FVSjl selects once. Next FFE trace: the
+second FMCFMD fuel-model selection + the per-model reaction-intensity (fuel loadings FWG) on
+model 10/5. The FMEFF mortality formula + MORTB0/1/2 + Regelbrugge groups are confirmed bit-exact
+vs fmeff.f, so the residual is upstream in the fire-behavior (byram/flame), not the kill logistic.
