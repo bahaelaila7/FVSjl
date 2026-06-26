@@ -164,7 +164,20 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
             hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
                 push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
-            ffe_on && ffe_fuel_update!(s, per)         # FFE annual fuel loop BEFORE growth (report→fuel→grow)
+            # FFE annual fuel loop BEFORE growth (report→fuel→grow). FVS interleaves the annual fuel steps
+            # with FMBURN, so a fire fires on the cycle-start + fire-year's single annual step — NOT the
+            # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
+            # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
+            if ffe_on
+                fire_this_cycle = s.fire.fire_year != 0 && r.year == Int(s.fire.fire_year) && per > 1
+                if fire_this_cycle
+                    ffe_fuel_update!(s, 1)
+                    s.fire.fire_smlg = _small_large_fuel(s.fire)
+                    ffe_fuel_update!(s, per - 1)
+                else
+                    ffe_fuel_update!(s, per)
+                end
+            end
             gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)

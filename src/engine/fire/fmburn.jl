@@ -54,7 +54,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     fwind = wind * fire_wind_reduction(fs.percov)        # 20-ft wind → midflame
     # SN surface fire (FMCFMD + FMDYN + FMFINT): select the weighted standard fuel models
     # for the stand and integrate Rothermel over them, summing the weighted flame & Byram.
-    models = select_fuel_models(s, mois)
+    models = select_fuel_models(s, mois; fire_basis = true)   # burn on start-of-cycle + 1-annual-step down wood
     flame_raw = 0f0; byram = 0f0
     for (fm, w) in models
         load, sav, depth, mext = standard_fuel_model(coef, fm)

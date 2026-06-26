@@ -600,10 +600,15 @@ mutable struct FireState
                                        # key (cut_year, product 1=pulp/2=saw, group 1=sw/2=hw) → harvested
                                        # merch BIOMASS (tons/ac). Drives the FVS_Hrv_Carbon table via the
                                        # FAPROP year-since-harvest decay curves. State per stand (no globals).
+    fire_smlg::NTuple{2,Float32}       # the (SMALL,LARGE) down-wood an actual SIMFIRE burns on this cycle:
+                                       # start-of-cycle + the fire-year's single annual fuel step (FVS runs the
+                                       # surface-fuel loop ANNUALLY interleaved with FMBURN, so the fire sees
+                                       # cycle-start + 1 yr, not the period-end left by ffe_fuel_update!). (-1,-1)=unset.
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
-                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}())
+                        zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
+                        (-1f0, -1f0))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

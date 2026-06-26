@@ -80,10 +80,12 @@ moisture `mois[1,4]`, then weighted by the (SMALL, LARGE) down-wood point's inve
 distance to each model's iso-line. Returns up to `MXFMOD` (model, weight) pairs whose
 weights sum to 1. This is the input FMFINT integrates over for the surface fire.
 """
-function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32})
+function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
     eqwt = zeros(Float32, _FMD_ICLSS)
     iffeft = ffe_forest_type(s)
-    sm, lg = _small_large_fuel(s.fire)
+    # An actual SIMFIRE burns on the start-of-cycle + 1-annual-step down wood (FVS interleaves the annual
+    # fuel loop with FMBURN); the PotFire report and the no-stash case use the live (period-end) cwd.
+    sm, lg = (fire_basis && s.fire.fire_smlg[1] >= 0f0) ? s.fire.fire_smlg : _small_large_fuel(s.fire)
     m14 = mois[1, 4]                                   # dead 100-hr (3+") moisture
 
     # --- candidate-model selection (fmcfmd.f:131) ---
