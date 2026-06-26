@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-# key_to_structured_yaml.py — render an FVS .key as a STRUCTURED yaml: every
-# keyword becomes a block with NAMED, typed parameters (numbers stay numbers,
-# strings are quoted). Schema for the supported keywords is the SCHEMA dict below.
-#   usage:  python3 key_to_structured_yaml.py <stand.key>  > stand.yaml
-import sys, re
+# key_to_structured_yaml.py — render an FVS .key as an ORDER-AWARE, HIERARCHICAL
+# yaml. The keyword stream stays an ordered sequence (FVS order is significant);
+# the hierarchy only GROUPS it into named sections for readability, and the grouping
+# is order-PRESERVING (consecutive same-section keywords form a block; blocks appear
+# in the ORIGINAL order, so flattening top-to-bottom reproduces the exact sequence).
+# Each keyword becomes a block with NAMED, typed params (numbers stay numbers,
+# strings are quoted). Mirrors src/io/yaml_keywords.jl.
+#   usage:  python3 key_to_structured_yaml.py <stand.key> [--flat] > stand.yaml
+import sys
 
 # keyword -> ordered (field_index_1based, name, type) ; STDIDENT/TREEFMT take following raw line
 SCHEMA = {
@@ -48,55 +52,162 @@ SCHEMA = {
   'NATURAL': [(1,'year','i'),(2,'species','i'),(3,'tpa','f'),(4,'survival_pct','f'),(5,'age','i'),(6,'height','f'),(7,'shade','f')],
   'ESTAB':   [(1,'disturbance_date','i')],
   'VOLEQNUM':[(1,'species','i'),(2,'equation','i')],
+  'SPGROUP': [(1,'group','s')],
 }
 NOPARAM = {'TREEDATA','PROCESS','STOP'}
+
+# keyword -> section (order-preserving grouping; mirrors _KW_SECTION in yaml_keywords.jl)
+SECTION = {}
+def _sec(names, s):
+    for n in names.split(): SECTION[n] = s
+_sec('STDIDENT STDINFO DESIGN SITECODE INVYEAR NUMCYCLE TIMEINT CYCLEAT MANAGED '
+     'RESETAGE TFIXAREA TREEFMT TREEDATA NOTREES NOAUTOES PROCESS STOP', 'setup')
+_sec('SDIMAX SDICALC BAMAX', 'density')
+_sec('GROWTH NOCALIB READCORD REUSCORD READCORH REUSCORH READCORR REUSCORR BAIMULT '
+     'HTGMULT CRNMULT REGDMULT REGHMULT DGSTDEV SERLCORR RANNSEED FIXDG FIXHTG FIXMORT '
+     'MORTMULT TREESZCP SIZCAP', 'growth')
+_sec('THINBBA THINABA THINBTA THINATA THINSDI THINCC THINHT THINQFA THINRDEN THINDBH '
+     'THINPT SETPTHIN THINPRSC THINAUTO SPECPREF LEAVESP SPLEAVE CUTEFF MINHARV SALVAGE '
+     'YARDLOSS', 'treatments')
+_sec('ESTAB PLANT NATURAL SPROUT NOSPROUT', 'regeneration')
+_sec('VOLUME BFVOLUME VOLEQNUM MCDEFECT BFDEFECT MCFDLN BFFDLN', 'volume')
+_sec('SPGROUP', 'species_groups')
+_sec('SETSITE FERTILIZ', 'site')
+_sec('ECHOSUM DATABASE DSNOUT SUMMARY TREELIDB CUTLIST STRCLASS COMPUTDB', 'output')
+_sec('COMPUTE IF', 'event_monitor')
+_sec('COMPRESS NOTRIPLE NUMTRIP', 'control')
+
+def section_of(name):
+    return SECTION.get(name, 'other')
 
 def field(rec, i):                       # 10-col field i (1-based), cols 10*i+1..10*i+10
     s = rec[10*i:10*i+10] if len(rec) > 10*i else ''
     return s.strip()
 
-def emit_num(v, typ):
-    f = float(v)
+def emit_scalar(v, typ):
+    # a non-numeric field (e.g. an alpha species code "LP" in PLANT) is quoted as a
+    # string even where the schema expects a number, so the form stays lossless.
+    if typ == 's':
+        return '"%s"' % v
+    try:
+        f = float(v)
+    except ValueError:
+        return '"%s"' % v
     if typ == 'i' or f == int(f):
         return str(int(f))
     return ('%g' % f)
 
-def main(path):
-    lines = open(path).read().replace('\r\n','\n').replace('\r','\n').split('\n')
-    out = ['# FVS keywords — structured form. Order is significant (list).',
-           '# Numbers are numbers; strings are quoted. See README for the schema.',
-           'keywords:']
+def is_plain(name):                      # name is a bare keyword (letters/digits)?
+    return name != '' and name[0].isalpha() and name.replace(' ', '') == name and name.isalnum()
+
+def parse_entries(path):
+    """Parse the .key into a list of (kind, payload) entries in order.
+       kind: 'raw' -> verbatim line ; 'kw' -> (NAME, [(pname,val_yaml)]) ; 'plain' -> NAME"""
+    lines = open(path).read().replace('\r\n', '\n').replace('\r', '\n').split('\n')
+    ents = []
     i = 0
     while i < len(lines):
         ln = lines[i]; name = ln[:8].strip().upper()
         if not name:
             i += 1; continue
         stripped = ln.strip()
-        if stripped and not stripped[0].isalpha():   # free-form line (e.g. an IF condition)
-            out.append('  - raw: "%s"' % stripped.replace('"','\\"')); i += 1; continue
+        if stripped and not stripped[0].isalpha():   # free-form line (IF cond, etc.)
+            ents.append(('raw', stripped)); i += 1; continue
+        # a "name" with embedded spaces (e.g. the SPGROUP member list "SM HI") is not a
+        # bare keyword — carry it verbatim, matching _is_plain_keyword in yaml_keywords.jl
+        if not is_plain(name) and name not in SCHEMA and name not in NOPARAM:
+            ents.append(('raw', stripped)); i += 1; continue
         if name == 'STDIDENT':
             ident = lines[i+1].strip() if i+1 < len(lines) else ''
-            out.append('  - STDIDENT:'); out.append('      id: "%s"' % ident); i += 2; continue
+            ents.append(('trail', ('STDIDENT', 'id', ident))); i += 2; continue
         if name == 'TREEFMT':
-            fmt=''; j=i+1
+            fmt = ''; j = i + 1
             while j < len(lines):
                 fmt += lines[j].strip()
-                if fmt.endswith(')'): j+=1; break
-                j+=1
-            out.append('  - TREEFMT:'); out.append('      format: "%s"' % fmt); i=j; continue
+                if fmt.endswith(')'): j += 1; break
+                j += 1
+            ents.append(('trail', ('TREEFMT', 'format', fmt))); i = j; continue
         if name in NOPARAM:
-            out.append('  - %s: {}' % name); i += 1; continue
+            ents.append(('plain', name)); i += 1; continue
         if name in SCHEMA:
-            params = []
-            for idx, pname, typ in SCHEMA[name]:
-                v = field(ln, idx)
-                if v == '': continue
-                if typ == 's': params.append('      %s: "%s"' % (pname, v))
-                else:          params.append('      %s: %s' % (pname, emit_num(v, typ)))
-            out.append('  - %s:' % name)
-            out += params if params else ['      {}']
+            mapped = {idx for idx, _, _ in SCHEMA[name]}
+            present = [k for k in range(1, 13) if field(ln, k) != '']
+            # named form only if EVERY present field maps to a slot — else fall back to
+            # the positional `params:` list so no field is silently dropped (lossless),
+            # mirroring `named_ok` in src/io/yaml_keywords.jl.
+            if all(k in mapped for k in present):
+                params = []
+                for idx, pname, typ in SCHEMA[name]:
+                    v = field(ln, idx)
+                    if v == '': continue
+                    params.append((pname, emit_scalar(v, typ)))
+                ents.append(('kw', (name, params))); i += 1; continue
+            last = present[-1] if present else 0
+            ents.append(('pos', (name, [field(ln, k) for k in range(1, last + 1)])))
             i += 1; continue
-        out.append('  - %s: {}' % name); i += 1
+        # unknown keyword: keep any present fields positionally (lossless)
+        present = [k for k in range(1, 13) if field(ln, k) != '']
+        if present:
+            ents.append(('pos', (name, [field(ln, k) for k in range(1, present[-1] + 1)])))
+        else:
+            ents.append(('plain', name))
+        i += 1
+    return ents
+
+def render_entry(kind, payload, ind):
+    out = []
+    if kind == 'raw':
+        out.append('%s- raw: "%s"' % (ind, payload.replace('"', '\\"')))
+    elif kind == 'plain':
+        out.append('%s- %s: {}' % (ind, payload))
+    elif kind == 'trail':
+        name, key, val = payload
+        out.append('%s- %s:' % (ind, name))
+        out.append('%s    %s: "%s"' % (ind, key, val.replace('"', '\\"')))
+    elif kind == 'kw':
+        name, params = payload
+        out.append('%s- %s:' % (ind, name))
+        if params:
+            for pname, val in params:
+                out.append('%s    %s: %s' % (ind, pname, val))
+        else:
+            out.append('%s    {}' % ind)
+    elif kind == 'pos':                     # positional fallback (unmapped fields)
+        name, vals = payload
+        out.append('%s- keyword: "%s"' % (ind, name))
+        out.append('%s  params: [%s]' % (ind, ', '.join('"%s"' % v for v in vals)))
+    return out
+
+def entry_section(kind, payload, cur):
+    # named keyword -> its section; raw/continuation lines stay in the current block
+    if kind in ('kw', 'trail', 'pos'):
+        return section_of(payload[0])
+    if kind == 'plain':
+        return section_of(payload)
+    return cur            # 'raw'
+
+def main(path, flat):
+    ents = parse_entries(path)
+    if flat:
+        out = ['# FVS keywords — order is significant. Flat ordered list.', 'keywords:']
+        for kind, payload in ents:
+            out += render_entry(kind, payload, '  ')
+        return '\n'.join(out) + '\n'
+    out = ['# FVS keywords — ORDER-AWARE hierarchical form. The keyword stream is',
+           '# an ordered sequence; sections only GROUP it (flattening top-to-bottom',
+           '# reproduces the exact order). `treatments`, `species_groups` and',
+           '# `event_monitor` are order-significant (define-before-use, same-cycle',
+           '# activities run in input order). See docs/KEYWORDS.md.',
+           'stand:']
+    cur = None
+    for kind, payload in ents:
+        sec = entry_section(kind, payload, cur)
+        if sec != cur:
+            out.append('  - %s:' % sec); cur = sec
+        out += render_entry(kind, payload, '      ')
     return '\n'.join(out) + '\n'
 
-print(main(sys.argv[1]), end='')
+if __name__ == '__main__':
+    args = [a for a in sys.argv[1:] if not a.startswith('-')]
+    flat = '--flat' in sys.argv
+    print(main(args[0], flat), end='')
