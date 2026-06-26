@@ -363,23 +363,28 @@ function compute_volumes!(s::StandState)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
-        # Region-8 (fvsvol.f:499-502): a sawtimber sawlog with < 10 ft of product has no sawtimber —
-        # zero the sawtimber cubic (TVOL(4)) and the saw part of merch cubic. GATED to the sawtimber
-        # product (prod="01"): the rule lives in FVS's board-feet section, which runs only for the
-        # sawtimber call. Default small trees use prod="02" (pulpwood) and keep their full merch, so
-        # this is a no-op for the bit-exact default path; it fixes only the zeroed-SCF case (s32),
-        # where SCFMIND=0 forces every tree to prod="01".
-        if prod == "01" && ht1prd < 10f0
+        bf = v[10]
+        # Region-8 "≥10 ft of product" rule on the PRIMARY cubic call (fvsvol.f:337-347, the CF
+        # section). FVS, inside `IF(IT>0 .AND. D≥DBHMIN)`, runs:
+        #   IF(IREGN==8 .AND. PROD=='01' .AND. HT1PRD<10) THEN TVOL(4)=0; TVOL(2)=0; ENDIF
+        # i.e. a sawtimber (prod="01") tree whose sawtimber sawlog has < 10 ft of product yields no
+        # sawtimber: zero the sawtimber cubic TVOL(4) and the board feet TVOL(2). SCF=TVOL(4)→0,
+        # MCF=TVOL(4)+TVOL(7) drops to TVOL(7), BF=TVOL(2)→0. Region 8 is implicit for SN; HT1PRD is
+        # this primary call's value. The PROD=='01' gate is FVS's own — default small trees take
+        # prod="02" and are untouched. (The BFPFLG=0 board-section copy at fvsvol.f:499 is handled by
+        # the board recompute below.)
+        if d >= dbhmin[sp] && prod == "01" && ht1prd < 10f0
             scf = 0f0
-            mcf = d >= dbhmin[sp] ? v[7] : 0f0
+            mcf = v[7]
+            bf  = 0f0
         end
         # Board feet rides the sawtimber call (BFPFLG=1, fvsvol.f:257) — exact by default. When
         # BFVOLUME/VOLEQNUM make the board equation or standards differ from the sawtimber ones
         # (BFPFLG=0), recompute board feet from a separate board call (BFTOPD/BFSTMP + board eq),
         # gated by BFMIND (fvsvol.f:362). That call's Region-8 "≥10 ft of product" rule
         # (fvsvol.f:499) ALSO zeros the sawtimber cubic when the board-top sawlog is < 10 ft, which
-        # drops the reported sawtimber + the sawtimber part of merch cubic.
-        bf = v[10]
+        # drops the reported sawtimber + the sawtimber part of merch cubic. (`bf` was set above and
+        # may already have been zeroed by the primary-call ≥10-ft rule.)
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
