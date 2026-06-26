@@ -66,11 +66,23 @@ PROB, run the fire → fk, set survivors = pre − max(mk,fk), and book the FMSD
 fire_fuel9 2010 TPA 155→151 (FVSsn 143); the residual ~8 TPA is now isolated to the SEPARATE
 FMEFF per-tree fire-kill distribution (F3 below). Suite 4494+21 (carbon/snag tests still pass).
 
-### F3 — FMEFF per-tree fire-kill distribution (FFE). OPEN.
-After F1, fire_fuel9 still reads 2010 TPA 151 vs FVSsn 143 (BA 90 vs 85): FVSjl's fire kills
-slightly fewer/larger trees than FVS. This is the FMEFF flame/scorch/bark per-tree mortality
-(the long-known BA 81 vs 78 residual on snt01 stand-4), independent of the F1 ordering. Next
-FFE trace: instrument FVS fmeff.f/FIRKIL vs FVSjl fmburn! per tree on fire_fuel9.
+### F3 — Rothermel fire-behavior (byram/flame/spread) divergence (FFE). OPEN, characterized.
+After F1, fire_fuel9 reads 2010 TPA 151 vs FVSsn 143; the residual is the fire BEHAVIOR, not
+the ordering. Traced (fire cycle, vs live FVSsn FMFINT) — fuel-model SELECTION matches (10 wt
+0.567, 5 wt 0.433), but the per-model Rothermel diverges:
+| model | byramt FVS / FVSjl | xir FVS / FVSjl | spread R FVS / FVSjl |
+|-------|--------------------|------------------|----------------------|
+| 10    | 9531 / 2355        | 6463 / 5425      | 6.78 / 2.03 (3.3×)   |
+| 5     | 14276 / 160        | 3174 / 706 (4.5×)| 19.71 / 1.01 (20×)   |
+weighted byram FVS 4194 / FVSjl 1405, flame 3.17 / 1.69. Two factors: (a) MIDFLAME WIND —
+FVS FWIND=2.0 vs FVSjl fwind=1.2 (the 20-ft→midflame wind-reduction factor differs); the
+spread rate `R = XIO·(1+PHIS+PHIW)/RHOBQIG` scales with the wind factor PHIW=C1·(FWIND·88)^XM1.
+(b) MODEL-5 LIVE-FUEL reaction intensity 4.5× low (xir 706 vs 3174) — the live-fuel-load /
+moisture-of-extinction / reaction-velocity damping. The TPA impact is muted by mortality
+SATURATION (flame is well above the kill threshold either way → only ~8 TPA / saturating BA),
+which is why snt01 stand-4 (in the suite) still passes. Next: trace FVSjl `rothermel_surface_fire`
+vs FVS FMFINT for (a) `fire_wind_reduction`/midflame wind and (b) the live-fuel reaction-intensity
+terms, on model 5.
 
 ### F2 — COMPRESS (COMCUP) timing. Accepted-divergence-adjacent.
 FVS runs COMCUP in GRINCR AFTER cuts+density+SDIAC (grincr.f:391); FVSjl's `apply_compress!`
