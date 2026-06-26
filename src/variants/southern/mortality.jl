@@ -328,9 +328,10 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             sp = t.species[i]
             (sc[sp, 1] >= 999f0 || trunc(Int, sc[sp, 3]) == 1) && continue
             d = t.dbh[i]
-            # G is the OUTSIDE-bark, linearly FINT-extrapolated 5-yr increment
-            # (sn/morts.f:690), same trajectory as the SDI self-thinning calc above.
-            g = t.diam_growth[i] / bark_ratio(bark_a, bark_b, sp, d)
+            # G is the OUTSIDE-bark, LINEARLY FINT-extrapolated 5-yr increment
+            # (sn/morts.f:692 — `(DG/BARK)·(FINT/5)`), same trajectory as the SDI
+            # self-thinning calc above. NOT the raw sqrt fint-year diam_growth.
+            g = _mort_traj_g(t.diam_growth[i], d, bark_ratio(bark_a, bark_b, sp, d), fint)
             if (d + g) >= sc[sp, 1]
                 kc = min(t.tpa[i] * sc[sp, 2] * fint / 5f0, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
@@ -349,7 +350,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
             for i in 1:n
                 d = t.dbh[i]
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = t.diam_growth[i] / bark   # morts.f:714
+                g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:721 `(DG/BARK)·(FINT/5)` (linear)
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]

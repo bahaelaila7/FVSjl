@@ -20,25 +20,19 @@ const _KC_SNFMT = "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,
 
 # --- non-ULP divergences vs FVSsn, with the tracked reason (see DIVERGENCES.md) ---
 const _KC_FT_BROKEN = Dict(
-    # s5/s9 STATUS (this session, verify-from-code). A REAL crown-SDI bug was found & FIXED
-    # (landed, NOT reverted): FVS's crown RELSDI uses SDIBC = SDICLS = the Reineke `SDIC`
-    # (sdical.f:105) captured at the START of the cycle (pre-growth, grincr.f:241); FVSjl was
-    # using the POST-growth Zeide stand_sdi. The pre-growth Reineke SDI matches FVS's SDIAC
-    # BIT-EXACT (202.94/252.89/335.60/312.67 on s5) — now threaded grow_cycle! -> crown_ratio_
-    # update! (stand_sdi_reineke). When this regressed the s05_ecounit_m221 multicycle test, we
-    # examined it (per the user) rather than reverting: FVSjl-with-fix MATCHES LIVE FVSsn
-    # (TPA 171/cuft 4084 at 2030) while the OLD golden was the stale FVSjulia/Oracle-A value
-    # (169/4098) — so the golden was regenerated from live FVSsn and the fix kept. The crown
-    # fix is a real faithfulness gain over many cycles, but the ±1%/yr crown change-cap absorbs
-    # it within a single 10-yr step, so it does NOT move s5/s9's .sum. Remaining (still broken):
-    #  (1) s5 = TPA off-by-1 -> cuft 0.15%: the residual crown ICR ±1 is now purely the
-    #      INT(CRNEW+0.5) Weibull-transcendental rounding boundary (SDIAC is correct) -> wk2
-    #      ~1e-3 -> mortality. ULP-class. RULED OUT bit-exact vs FVS: RNG alignment, serial-corr
-    #      oldrn/ssigma/rho/rhocp (~1e-8), COR attenuation, SDI sum order, dbh+height, change-limit.
-    #  (2) s9 (uniform 10-yr) LARGER & SEPARATE: TPA 360/350 at 2010 (~3% under-kill), a real
-    #      10-yr self-thinning-mortality divergence, NOT crown rounding, not yet isolated.
-    "s5_cycle"     => "10-yr odd-period: TPA off-by-1 -> cuft 0.15%. Crown-SDI bug FIXED this session (pre-growth Reineke SDIAC, matches live FVSsn); residual is the crown ICR ±1 INT(CRNEW+0.5) transcendental-rounding ULP -> wk2 ~1e-3 -> mortality. RNG/serial-corr/COR/sort-order bit-exact. See header.",
-    "s9_uniform10" => "uniform 10-yr: LARGER & SEPARATE — TPA 360/350 at 2010 (~3% under-kill), a real 10-yr self-thinning-mortality divergence not yet isolated (NOT crown rounding). See header.",
+    # s5_cycle / s9_uniform10 FIXED this session (moved out of broken, now bit-exact bar 1 ULP):
+    # the 10-yr self-thinning-mortality under-kill was the BAMAX/size-cap kill using the SQRT
+    # fint-year diam_growth instead of FVS's LINEAR FINT-extrapolated G = (DG/BARK)·(FINT/5)
+    # (morts.f:692/714/721). At fint=10 the sqrt G is ~30% small, so residual BA was under, the
+    # BAMAX cap under-fired, and the stand under-killed (s9 TPA 360 vs 350; s5 TPA off-by-1). Fix:
+    # use _mort_traj_g (identity at fint=5, so snt01 + all 5-yr scenarios stay bit-exact) for the
+    # size-cap (morts.f:692) and BAMAX (morts.f:721) increments — matching the SDI-sum/d10n spots
+    # that already used it. s9 now BIT-EXACT; s5 TPA exact, only a 1-unit cuft ULP (3386/3385).
+    # En route a REAL crown-SDI bug was ALSO found & fixed (separate commit): FVS's crown RELSDI
+    # uses the pre-growth Reineke SDICLS (sdical.f:105), not the post-growth Zeide stand_sdi —
+    # verified vs live FVSsn (the s05_ecounit_m221 multicycle "regression" was a stale FVSjulia
+    # golden, regenerated from live FVS). The earlier "crown-rounding ULP" diagnosis for s5 was a
+    # RED HERRING; the real root was the BAMAX sqrt/linear-G bug.
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     # s26 FIXED (this session) — was a REAL bug (now bit-exact, moved out of broken):
     # the post-establishment species-sort order. FVS's ESGENT calls SPESRT to re-establish
