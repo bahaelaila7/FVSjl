@@ -218,3 +218,22 @@ both fire scenarios stay within their test tolerances and the SUITE IS GREEN. Cl
 term-by-term audit of rothermel.jl vs fmfint.f intermediates (gamma/ir/mdcsa/beta/c1/phiw) per model —
 the genuine last mile of the FFE surface-fire port. Lower priority (suite green; ~4% aggregate, opposite-
 signed). Committed this session: frozen-fuel fix, cone distribution, annual fuel/fire interleaving.
+
+#### F3 — RESOLVED. Two per-model Rothermel bugs fixed; fire now bit-close to FVS.
+Term-by-term dump of FMFINT intermediates vs live FVSsn isolated the per-model byram divergence to TWO
+compensating bugs (each regressed in isolation; together they make the fire bit-close):
+1. **Zero-load class sort (xir).** Classes were sorted purely by SAV desc, so the zero-load dead-herb
+   (SAV 1500) outranked the loaded 10-/100-hr (109/30) and the noclas cutoff dropped the REAL loaded
+   classes. FM10 lost its 100-hr load (sum1 0.32 vs FVS 0.55) → beta1 0.010 vs 0.017 → rat 1.39 vs 2.35
+   → gamma inflated → xir +16%. FIX: key the sort load>0 first (= FVS ISIZE swaps, fmfint.f:221-240).
+   xir/sigma now match FVS to the digit (FM10 6463/1765, FM5 3174/1683).
+2. **Missing slope (phis).** The fire Rothermel ran with slope_tan=0. FVS sets FMSLOP=SLOPE (fmsdit.f:72)
+   → PHIS=5.275·tan²/beta1^0.3. fire_early's stand has a 30% slope (STDINFO field 5, already parsed to
+   plot.slope=0.30) → phis=1.60, a large spread term FVSjl dropped. FIX: pass slope_tan=plot.slope to
+   the actual-fire AND PotFire Rothermel calls.
+RESULT: fire_early 2005 BIT-EXACT vs FVS (104/70/121/133), 2010 within 1-2 TPA; fire_fuel9 2010 141 vs
+FVS 143 (was 120 over-kill pre-fixes). Updated the rothermel unit test whose 'FM10>FM5 byram' assertion
+was an artifact of bug 1 — live FVSsn confirms FM5 (dry brush) byram 8988 > FM10 6519 at fmois=1. Suite
+4494+21, 0 fail. Residual now ≤~2 TPA on late post-fire cycles (FP / small cwd-accumulation), within
+tolerance. The F3 FFE surface-fire port is faithful end-to-end: frozen-fuel→cone-split→interleaving→
+fuel-model selection→Rothermel(xir+spread+slope)→FMEFF mortality all match FVS.
