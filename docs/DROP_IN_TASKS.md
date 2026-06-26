@@ -196,3 +196,21 @@ oldrn init to FVS, so dgscor!'s oldrn-dependent rejection sequence stays aligned
 well-scoped root; it is an RNG-ORDER alignment after regen, not ULP and not a coefficient error.
 NEXT PROBE: dump FVSjl species_sort! order vs FVS IND1 for the 2005 stand (and the LP oldrn values)
 to confirm the order/oldrn mismatch and align it.
+
+
+## s26 ROOT CONFIRMED — regen trees never get oldrn initialized (LP oldrn=0)
+Direct dump at the 2005 dgscor!: the LP cohort enters with oldrn=0.0 (dbh 2.561, all 0). FVSjl
+initializes the serial-correlation residual (old_random) ONLY ONCE, in calibrate_diameter_growth!
+called at setup (simulate.jl:42). Trees ESTABLISHED mid-run (the LP, added 2005) are therefore never
+oldrn-initialized and enter dgscor! with oldrn=0. FVS re-initializes new-tree OLDRN each cycle in
+DGDRIV (dgdriv.f:402-433/534-605: regression OLDRN=BNY+(EDDS-BNX)*SLOP, or the <5-GST bachlo path).
+Because dgscor!'s rejection (abs(bachlo*rhocp + rho*oldrn) > bound) DEPENDS on oldrn, the LP's wrong
+oldrn=0 shifts the rejection sequence -> the +9 dgf draws. snt01 has NO regen (all trees present at
+setup, inited once), so it is bit-exact and never exercises this -- s26 is the first regen scenario in
+the suite to hit it. THIS IS A REAL, REGEN-SPECIFIC BUG, not ULP.
+FIX: initialize new (established) trees' old_random the way FVS does -- the deterministic regression
+path (calibrate's bny+(exp(wk2)-bnx)*slop, already implemented at diameter_growth.jl:444) applied to
+regen trees when they first enter growth, leaving existing trees' persisted oldrn untouched. Must
+verify (a) it drives the s26 dgf draw count to FVS's (closing the +9) and (b) snt01/BARE stay
+bit-exact (no oldrn=0 large trees there). The -3 REGENT piece likely follows once the order/oldrn is
+aligned. This is the concrete fix for s26 and is well-scoped.
