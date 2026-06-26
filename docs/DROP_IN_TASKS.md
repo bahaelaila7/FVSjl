@@ -231,3 +231,25 @@ after the calibration but before the per-tree dgscor!). For a calibrated regen s
 deterministic regression path. Must match FVS's draw count/order exactly and keep snt01/BARE bit-exact
 (they have no mid-run regen, so the once-at-setup init still covers them). This is the precise close
 for s26's RNG offset.
+
+
+## s26 FIX ATTEMPT — DISPROVED my own 'bachlo-init the LP' hypothesis (CORRECTION)
+I implemented the proposed fix (per-cycle bachlo OLDRN init for new/uncalibrated trees, before
+dgscor!) and TESTED it: it OVERSHOT badly — 2010 RANN went 3267 -> 3444 (FVS target 3261), i.e. my
+init drew ~177 times where FVS's net difference is only -6. So 'FVS bachlo-initializes the LP each
+cycle' is FALSE. Reverted; suite back to 4486+29.
+What the data actually says:
+  - RANN is phase-locked bit-for-bit through 2005 (60/120/309/1710 identical), INCLUDING the
+    cycle>=icl4 cycles (2000, 2005) where the path is the stochastic dgscor!. So FVS DOES draw
+    per-cycle exactly like FVSjl's dgscor! — they match through 2005.
+  - The divergence is a SUBTLE +6 net (not a wholesale ~177-draw LP init). FVSjl's LP enter with
+    oldrn=0 (confirmed), and FVS's LP oldrn is most likely also ~0 (or set without draws) — the
+    +6 is a handful of dgscor! rejection / dbh-3-classification differences once the LP are present,
+    NOT a missing bulk initialization.
+  - CORRECTION to the earlier 'ROOT CONFIRMED — regen oldrn-init' entries: the oldrn=0 observation
+    is real, but the inferred fix (bulk bachlo-init) is WRONG and was disproved by experiment.
+OPEN: the exact source of the subtle +6 (which 3 trees flip the dbh-3 split, and which ~6 dgscor!
+draws rebound differently) is still unpinned. The next correct probe is a per-draw diff of the 2005
+dgscor! sequence (tree index, bachlo value, accept/reject) FVSjl vs an instrumented dgdriv, to find
+the FIRST divergent draw — not another bulk-init guess. Lesson: validate a draw-count hypothesis with
+the actual count before claiming a root.
