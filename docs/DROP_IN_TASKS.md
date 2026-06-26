@@ -370,3 +370,21 @@ differs ~1 ULP/tree, amplified x2 by the 10-yr SCALE. Too small to be the ~80-UL
 NEXT (verify-from-code): per-tree DG trace at the 1995->2005 10-yr cycle vs dgdriv.f — find whether the
 ~80 ULP is a DDS/SCALE/frm order gap (fixable, like the SDI sum order) or irreducible Float32 sqrt/exp/pow
 rounding under the x2 scaling (ULP-FP). Only then classify or fix.
+
+
+## s5/s9 — DG period-scaling control flow (partial; FINT-route UNRESOLVED, not patched)
+Verified from dgdriv.f for the 1995 10-yr cycle: it takes the TRIPLING path (instrumented, line 241):
+  DG = SQRT(DSQ + DDS*EXP(FRMT)) - D,  DDS = EXP(WK2(I)+XDGROW),  with NO explicit FINT/5 SCALE.
+(The non-tripling path at 738 is the one with EXP(WK2+OLDRN)*SCALE; it is NOT used for s5's 10-yr cycle.)
+FVSjl instead computes dds = exp(wk2)*xbai*(sfint/5) — applying the FINT/5 as a multiply AFTER the exp.
+OPEN QUESTION (the crux, unresolved): dgf.f does NOT use FINT, and the tripling DG has no explicit SCALE
+— so WHERE does FVS apply the 10-yr scaling for the tripling path? Candidates: (a) baked into WK2 via the
+backdated WK3 input to DGF, (b) the tripling record construction, (c) somewhere between DGF and line 241.
+Until that is read and confirmed, I will NOT change FVSjl's (sfint/5) route — patching the scaling on
+suspicion is exactly what the verify-from-code principle forbids (and my tree-matching probe was flawed:
+different species => different DDS, so it did NOT confirm the route). The candidate is that FVS's route
+(scaling inside the exp/WK2) vs FVSjl's (×(sfint/5) after exp) differ at the Float32 last-bit, giving the
+~80-ULP SUMDR10 gap that accumulates to the s5/s9 1-TPA drift — but this is UNCONFIRMED.
+NEXT: read DGF + the backdated-WK3/SCALE path in dgdriv.f around 320-343 to find where FINT enters the
+tripling DDS, then either implement that exact route (faithful) or, if it is genuinely a ×-vs-+exp Float32
+ordering with no FVS-side equivalent, classify as irreducible ULP-FP.
