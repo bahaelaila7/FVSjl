@@ -45,3 +45,26 @@ Keyword-coverage harness: `test/integration/test_keyword_coverage.jl` over
 
 ## Deferred
 - NE variant port (explicitly deferred while the SN drop-in is in progress).
+
+
+## CONSOLIDATION (root-cause analysis, this session)
+The three remaining non-ULP divergences reduce to TWO roots:
+
+1. **DG PRECISION** (DGSCOR serial-correlation + WK3 calibrated-species COR evolution under a
+   non-5 period) — drives BOTH:
+   - **s5/s9**: the 10-yr board-foot/volume tail (first 10-yr cycle now bit-exact after the
+     AUTCOR + d10n fixes; the tail is the COR evolution).
+   - **s26**: PROVEN this session to be the SAME root, NOT a mortality bug. The 2005 dense-cohort
+     mortality iterates 4x and matches FVS step-for-step (tn10 595.78/534.90/508.14/496.51 vs FVS
+     595.52/534.84/508.30/496.83; d10 within 0.003). Every mortality intermediate (tt=753.09,
+     dia0=5.916, sdimax, tn10, tokill, the line-reset) matches FVS to <0.07%. The ONLY seed is a
+     ~0.03% iter-1 d10 difference, which (since the 2005 stand state is .sum-bit-exact) can only
+     come from `g`=diam_growth. So s26 is the DG-precision root propagating through d10, amplified
+     by the nonlinear self-thinning iteration + VARMRT distribution. RULED OUT as causes: SDI
+     dbh-inclusion (DBHZEIDE=0 in BOTH, T=753.09 both), BA-percentile, all 90 shade_adj, the
+     line-reset — all bit-match FVS.
+
+2. **NVEL R8 CLARK TAPER GEOMETRY** (s32) — independent: emergent small-tree sawtimber-top floor.
+
+Closing the DG-precision root (the YR-vs-FINT calibration split for DGSCOR/COR) would close BOTH
+s5/s9 AND s26. Closing s32 needs the R8 taper sawtimber-boundary work.

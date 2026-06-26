@@ -47,7 +47,7 @@ const _KC_FT_BROKEN = Dict(
     # residual is the FP-sensitive VARMRT npass geometric-progression convergence (the
     # adjust<0.8 / >1.2 integer-step path) or the mixed-cohort tokill precision — a
     # sub-percent distribution residual, NOT a logic/table bug.
-    "s26_estab"    => "dense LP-cohort VARMRT distribution residual 2010+ (pct/shade_adj/line-reset all bit-match FVS; narrowed to npass convergence/tokill precision); establishment + total stand bit-exact through 2005",
+    "s26_estab"    => "DG-precision root (SAME as s5/s9), NOT a mortality bug: the 2005 tn10 iteration matches FVS step-for-step (d10 6.59/7.05/7.28/7.385, tn10 595.78/534.90/508.14/496.51 vs FVS 496.83); seed is a ~0.03% iter-1 d10 diff from diam_growth (stand state bit-exact through 2005). Mortality logic proven bit-correct",
     # s32: VOLUME card zeroes SCFMIND/SCFTOP/SCFSTMP (cols past 80) → all trees prod="01".
     # Per-tree .trl differential (TREELIST) shows FVS gives scuft=0 for ALL dbh<10 and
     # mcuft=0 below dbh~6; FVSjl leaks small-tree sawtimber/merch (scuft>0 at dbh 8-10,
