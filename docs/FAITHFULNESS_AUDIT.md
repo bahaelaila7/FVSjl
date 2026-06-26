@@ -289,3 +289,14 @@ The committed timing balances #2/#3 so BOTH endpoints (1990, 2005) and all live 
 every single-term change regresses an endpoint (verified vs live oracle, col-7). Closing all 10 needs:
 fix the input-snag HTDEAD estimate to match FVS (#1, instrument FMSVL2), then jointly re-phase #2+#3 to
 FVS's annual order while preserving the endpoints. Multi-step, multi-term FFE-carbon calibration.
+
+#### Term #1 (snag bole volume) localized to ONE snag — small-tree R8Clark vs FVS FMSVOL.
+Instrumented FVS FMSVOL per snag (carbon_snt): the BIG oak (sp65 dbh34.6 ht92.7) MATCHES — FVSjl bole
+2.033 vs FVS 2.032 t/ac. The residual is entirely the SMALL tree (sp27 dbh7.2 ht53.7, ht matches 53.738):
+FVSjl R8Clark cubic = 5.2 cuft vs FVS FMSVOL/CFVOL = 4.8 cuft (+8%), so FVSjl bole 1.471 vs FVS 1.358 t/ac.
+Fixing just this one snag → snag_bole_carbon 3.924 → 3.80 = FVS 3.8 (closes test #548). FVS's snag bole is
+FMSVOL = CFVOL integrated to HTIS (full dubbed stem); FVSjl's seed path uses _R8CLARK_VOL with the SCF/
+merch (prod,stump,mtopp) spec, which over-estimates small-tree cubic by ~8%. The faithful fix is to volume
+the input snag with the full-stem CFVOL (FMSVOL), not the merch R8Clark path. (Large trees already agree,
+so live-tree .sum cuft stays bit-exact.) This is term #1 of the 3; the DDW tests additionally need the
+crown-lift cycle (#2) + CWD2B phasing (#3).
