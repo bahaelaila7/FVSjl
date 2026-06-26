@@ -56,7 +56,16 @@ const _KC_FT_BROKEN = Dict(
     # bit-exact default scenarios — so SN R8's real merch internals use merchL=8/sawDib=7-9
     # (FVSjl's current values), and the zeroed-SCF small-tree thresholds differ by a coupled
     # ~1% across several NVEL conditions. Default (scftop>0) path bit-exact. Multi-threshold.
-    "s32_volume"   => "VOLUME zeroed-SCF small-tree merch leak ~0.7% (multi-threshold NVEL; default path bit-exact)",
+    # s32 MECHANISM PINNED (this session): VOLUME card fields decode (volkey.f:113-147) as
+    # schedule-year 2000, ISPC=0(all), DBHMIN=1.0, TOPD=4.0, STMP=8.0, and SCFMIND/SCFTOPD/
+    # SCFSTMP all UNSET(=0). FVS still yields scuft=0 below dbh~10 / mcuft=0 below dbh~6 — NOT
+    # from a DBHMIN floor (the card set DBHMIN=1.0) but because Region 8 IGNORES the card top
+    # diameters (fvsvol.f:168 "REGION 8 ... TOP DIAMETERS ARE HARD WIRED") and the NVEL R8
+    # Clark taper returns ~0 sawtimber for a small tree that has no sawlog above the hard-wired
+    # ~7-9" top. So FVSjl's leak (scuft>0 at dbh 8-10) is a TAPER-GEOMETRY precision residual at
+    # the small-tree sawtimber-top boundary, coupled across several NVEL conditions — not a
+    # card-threshold or DBHMIN fix (mrules sawDib=6 overshoots, merchL=10 breaks 3 scenarios).
+    "s32_volume"   => "VOLUME zeroed-SCF small-tree merch leak ~0.7% — NVEL R8 Clark taper geometry at the hard-wired sawtimber-top boundary (volkey/fvsvol verified; default scftop>0 path bit-exact)",
 )
 # yaml→engine result != key→engine result. Only the 2-record SPGROUP keyword remains
 # (group name + a following species-list record): the flat writer emits the two records
