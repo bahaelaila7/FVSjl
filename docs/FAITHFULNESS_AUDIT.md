@@ -44,7 +44,7 @@ the wk2/frmbase/COR/AUTCOR growth internals were all independently traced to liv
 
 ## Findings
 
-### F1 — Fire vs regular MORTS ordering (FFE). CONFIRMED real on a dense burn; needs a compute-then-apply restructure (NOT a simple reorder).
+### F1 — Fire vs regular MORTS ordering (FFE). FIXED (faithful MAX-combine per fmkill.f:86).
 FVS: GRINCR's **MORTS computes the regular (density+background) kill on the FULL pre-fire
 stand** into WK2, then GRADD's FMKILL **adds** the fire kill to WK2 (capped at PROB); UPDATE
 applies the sum. FVSjl runs `_maybe_burn!` (reduces TPA + recomputes density) BEFORE
@@ -56,14 +56,21 @@ applies the sum. FVSjl runs `_maybe_burn!` (reduces TPA + recomputes density) BE
 | MORTS→fire (sequential/multiplicative)           | 125      | 18 (over-kill)     |
 | additive MORTS_kill+fire_kill on full PROB, cap  | 83       | 60 (way over)      |
 | **FVS (truth)**                                  | **143**  | —                  |
-So none of the simple reorders is faithful: FVS's exact result sits between, because its WK2
-is the additive sum of the pre-fire density kill and the fire kill **per record, capped**, and
-that interacts with the (separately known) fire-kill-distribution residual (FMEFF, BA 81 vs 78
-on snt01 stand-4). The faithful fix is to replicate the GRINCR(compute WK2)→GRADD(add fire to
-WK2)→UPDATE(apply) compute-then-apply split exactly, matching FVS's fire-kill per record — a
-larger FFE change. The current fire-first order is the closest available approximation and is
-LEFT AS-IS (reverted the reorder, which regressed it). Immaterial on the non-dense fire test
-(snt01 stand-4 background-dominated, matches). Tracked as the next FFE fidelity item.
+ROOT (traced from FVS): fmkill.f:86 is `IF(FIRKIL(I).GT.WK2(I)) WK2(I)=FIRKIL(I)` — the per-
+record kill is **MAX(MORTS_kill, fire_kill)**, NOT the sum (a tree dies once, from whichever is
+larger), both measured on the FULL pre-fire stand; the regular-mortality snags come from only
+the EXCESS `WK2−FIRKIL = max(0, MORTS−fire)` (fmkill.f:135/FMSSEE) so fire+regular snags don't
+double-count. FIX (grow_cycle!): on a fire cycle, run MORTS on the pre-fire stand → mk, restore
+PROB, run the fire → fk, set survivors = pre − max(mk,fk), and book the FMSDIT snags from
+`max(0,mk−fk)` only (mortality! `book_snags=false`). Non-fire path is byte-identical. Result:
+fire_fuel9 2010 TPA 155→151 (FVSsn 143); the residual ~8 TPA is now isolated to the SEPARATE
+FMEFF per-tree fire-kill distribution (F3 below). Suite 4494+21 (carbon/snag tests still pass).
+
+### F3 — FMEFF per-tree fire-kill distribution (FFE). OPEN.
+After F1, fire_fuel9 still reads 2010 TPA 151 vs FVSsn 143 (BA 90 vs 85): FVSjl's fire kills
+slightly fewer/larger trees than FVS. This is the FMEFF flame/scorch/bark per-tree mortality
+(the long-known BA 81 vs 78 residual on snt01 stand-4), independent of the F1 ordering. Next
+FFE trace: instrument FVS fmeff.f/FIRKIL vs FVSjl fmburn! per tree on fire_fuel9.
 
 ### F2 — COMPRESS (COMCUP) timing. Accepted-divergence-adjacent.
 FVS runs COMCUP in GRINCR AFTER cuts+density+SDIAC (grincr.f:391); FVSjl's `apply_compress!`

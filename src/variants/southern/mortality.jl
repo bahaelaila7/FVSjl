@@ -201,7 +201,7 @@ Compute and apply periodic mortality, reducing `trees.tpa`. Combines background
 (Hamilton) and density (Pretzsch self-thinning) rates. Runs after diameter growth
 (uses `trees.diam_growth` for the projected end-of-cycle QMD).
 """
-function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
+function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
@@ -375,30 +375,40 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0)
     # FIXMORT (morts.f:781): forced-mortality override, applied AFTER the BA-check and TPAMRT.
     apply_fixmort!(s, killed, n, fint)
 
-    # FFE: trees killed by ordinary mortality become standing snags (FMSDIT, the FFE counterpart of
-    # the fire-kill snags in fmburn!). The snags feed the Stand-Dead carbon pool and, as they fall
-    # (update_snags!), the down-wood pool. No-op unless FFE is active.
-    if s.fire !== nothing && s.fire.active
-        yr = current_cycle_year(s); coef = s.coef
-        v2t = coef_col(coef, :v2t); dkr = coef_col(coef, :dkr_cls)
-        @inbounds for i in 1:n
-            (killed[i] > 0f0 && t.dbh[i] > 0f0) || continue
-            sp = Int(t.species[i])
-            # FFE snag basis = death-time STEM-volume biomass (cuft·V2T), not whole-tree Jenkins
-            # (fmdout.f SNVIS·V2T). V2T is the /2000-rescaled value, so multiply by P2T=1/2000.
-            bolevol = t.cuft_vol[i] * v2t[sp] / 2000f0
-            add_snag!(s.fire, sp, t.dbh[i], killed[i], yr; bolevol = bolevol)
-            # the CROWN goes to CWD2B, scheduled to fall over TFALL years (FMSCRO)
-            xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
-            fmscro!(s, sp, t.dbh[i], xv, killed[i], clamp(Int(dkr[sp]), 1, 4))
-            # dead coarse roots accrue to the BIOROOT pool (FMSADD/FMCBIO RBIO, fmsadd.f:320)
-            _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])
-            s.fire.bioroot += rbio * killed[i]
-        end
-    end
+    # FFE: trees killed by ordinary mortality become standing snags (FMSDIT). When a fire also
+    # burns this cycle the caller suppresses this (book_snags=false) and books the regular snags
+    # itself from only the EXCESS MORTS (WK2−FIRKIL, fmkill.f:135) so fire+regular snags don't
+    # double-count — see grow_cycle!.
+    book_snags && book_mortality_snags!(s, killed, n)
 
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
+    end
+    return s
+end
+
+"""
+    book_mortality_snags!(s, basis, n)
+
+FFE FMSDIT: turn `basis[i]` TPA of ordinary-mortality deaths (per live record) into standing
+snags + crown CWD + dead coarse roots. No-op unless FFE is active. Used by `mortality!` (basis =
+the full MORTS kill) and, on a fire cycle, by `grow_cycle!` (basis = the MORTS kill in EXCESS of
+the fire kill, so the two snag sources don't overlap — FVS WK2=MAX(MORTS,fire), snags split as
+fire=FIRKIL + regular=WK2−FIRKIL).
+"""
+function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int)
+    (s.fire === nothing || !s.fire.active) && return s
+    t = s.trees; coef = s.coef; yr = current_cycle_year(s)
+    v2t = coef_col(coef, :v2t); dkr = coef_col(coef, :dkr_cls)
+    @inbounds for i in 1:n
+        (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
+        sp = Int(t.species[i])
+        bolevol = t.cuft_vol[i] * v2t[sp] / 2000f0
+        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol)
+        xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        fmscro!(s, sp, t.dbh[i], xv, basis[i], clamp(Int(dkr[sp]), 1, 4))
+        _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])
+        s.fire.bioroot += rbio * basis[i]
     end
     return s
 end
