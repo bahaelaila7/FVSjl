@@ -93,6 +93,7 @@ include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tr
     include("integration/test_longrun.jl")# C4: COMCUP zero-PROB record deletion (long unthinned run)
     include("integration/test_event_monitor.jl")# C4: event monitor (IF/THEN/ENDIF) evaluator + firing
     include("integration/test_keyword_coverage.jl")# C8: SN keyword-coverage drop-in (37 scenarios) vs live FVSsn + yaml==key
+    include("integration/test_translate.jl")# C8: YML/CSV<->.key/.tre conversion tool round-trips (translate_io)
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end
