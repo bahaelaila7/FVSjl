@@ -25,8 +25,8 @@ const _KC_FT_BROKEN = Dict(
     # (BA 129 vs 127) + ~1ft HTG-under (TopHt 59 vs 60) at the long cycle, i.e. the
     # calibrated-species HTCALC/AGET + tripling-variance growth precision under a non-5
     # period. Verified NOT mortality (TPA matches) and NOT DGBND (live differential: no-op).
-    "s5_cycle"     => "10-yr board-foot tail: calibrated-species DG/HTG precision (non-5 period); see fvsjl-10yr-cycle-mortality",
-    "s9_uniform10" => "10-yr board-foot tail (same class as s5_cycle)",
+    "s5_cycle"     => "odd-period (CYCLEAT 3/2-yr) MORTALITY realization: QMD + AUTCOR bit-exact, TPA off by 1 -> cuft 0.15%/bdft 0.10%. NOT DG/HTG (autcor+d10n resolved that); same class as timeint10 @test_broken",
+    "s9_uniform10" => "uniform 10-yr: same odd-period mortality-realization class as s5_cycle",
     "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
     # s26: PLANT 300 LP@90%. CORRECTED via a targeted GRADD-end LP-sum print in a recompiled
     # FVS (the earlier "245.4" was a .trl column-parse error). Real per-cycle LP TPA:

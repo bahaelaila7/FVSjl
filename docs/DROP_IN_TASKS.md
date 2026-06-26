@@ -320,3 +320,20 @@ the prod='01'/no-sawlog merch cubic fall back to the pulpwood volume (fixes mcuf
 R8 Clark. Both are deterministic and now precisely scoped; the scuft half is verified working. (Third
 blind attempt avoided — the mcuft fallback needs the r8clark_vol prod-01 topwood/pulpwood path, not a
 caller-side patch.)
+
+
+## s5/s9 ROOT CORRECTED (post autcor+d10n): it is MORTALITY under odd periods, not DG/HTG
+With the AUTCOR + d10n fixes landed, s5 is now BIT-EXACT through 2010 and diverges only at the
+CYCLEAT-induced odd-period cycles (TIMEINT 10 + CYCLEAT 2013 -> 5,10,5,3,2,5-yr periods). Full 2013
+.sum row diff: TPA 304 vs 305 and BA 149 vs 150 differ by 1, but QMD (col8 = 9.5) is BIT-EXACT and so
+are cols 5/6/7. A QMD-exact, TPA-off-by-1 signature = MORTALITY, not diameter/height growth. Confirmed:
+  - AUTCOR/CORR bit-exact EVERY cycle incl the odd 3/2-yr ones (0.31965, 0.24042, 0.35834, 0.41591,
+    0.371 — all match an instrumented dgdriv.f).
+  - Mortality tn10/d10 match closely (2010: d10 8.794 both, tn10 370.315 vs 370.311); the drift is in
+    the REALIZED kill — FVSjl tt 334.22 vs FVS 335.02 by 2013 (~0.8 TPA) -> the 1-TPA .sum gap ->
+    cuft off 5 (0.15%), bdft off 11 (0.10%).
+So s5/s9's remaining residual is the realized VARMRT/rate mortality under the odd FINT=3/2 periods — the
+SAME small class as the timeint10 @test_broken (mortality under non-5 periods), NOT the calibrated-
+species DG/HTG precision the original comment described (that was resolved by autcor+d10n). The board-
+foot column is now ~0.1%, down from the ~4% the old note cited. Tiny, deterministic, well-scoped: the
+FINT=3/2 mortality realization (rate^FINT + VARMRT distribution) vs FVS.
