@@ -412,3 +412,21 @@ so compute_crown_lift feeds the same cycle's fuel loop. Risk: the main path (snt
 the tree list each cycle, so the OLDCRW per-tree state must survive record tripling/compaction (FVS does
 this in FMTDEL/FMTRIP/FMCMPR) — a stable record id, not an index snapshot. That is the focused next step
 for the DDW column (the last FFE dead-pool item). StandD/live/growth/cuts are bit-exact.
+
+#### DDW progress — three verified fixes (crown-lift snapshot + SCNV); residual now ~0.2 in size 5
+The DDW gap (jl 6.84 vs FVS 8.41 @2000, i.e. -1.57) was closed to +0.2 by two further logic-verified fixes
+after the snag-bole merch fix:
+1. **Inventory crown snapshot (FMOLDC).** FVS calls FMOLDC in the inventory FMMAIN before the first grow,
+   so cycle 1's crown-lift has a valid OLDCRW. FVSjl only snapshotted at cycle END → the 1st cycle's
+   crown-lift was skipped (ffe_oldht=0), losing ~1.9 t/ac of fine down-wood. Fix: snapshot at inventory in
+   write_carbon_report + write_sum_file. Result: down-wood size classes 1-3 now BIT-MATCH FVS (jl
+   0.38/1.46/2.36 vs 0.37/1.43/2.36 @2000). Verified jl crown_biomass == FVS CROWNW bit-exactly (so the
+   crown weight model is right; the gap was purely the missing 1st-cycle term).
+2. **FMCWD SCNV soft/hard factor.** A falling snag's bole biomass is DIF·V2T·SCNV(K), SCNV=(0.80 soft,
+   1.00 hard) (fmcwd.f:61) — a SOFT (decayed) snag contributes only 0.80× its volume. update_snags! used
+   `a·dfall` with no soft/hard split, over-counting fallen soft boles 1.25× (the size-4/5 overshoot that
+   grew as snags softened). Fix: `add = a·(dfis·0.80 + dfih)`. Overshoot +0.5 → +0.2.
+Remaining: DDW @2000 8.6 vs 8.4 (+0.2), concentrated in size class 5 (6-12": jl 1.27 vs 1.22 @2000, 1.67
+vs 1.55 @2005) — a small, distributed fallen-bole-taper / decay residual in the medium-bole class, growing
+with bole falls. Sizes 1-4 + 6-9 match within ~0.03. Suite: 4512 pass / 7 broken / 0 fail (no regression).
+The 6 DDW tests are still @test_broken (the +0.2 print-rounds past 0.05) but the column is now ~5x closer.

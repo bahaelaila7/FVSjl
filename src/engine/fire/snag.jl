@@ -185,7 +185,11 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
-            add = a * dfall                                 # fallen biomass this step (tons/ac)
+            # Fallen-bole biomass with the FMCWD soft/hard density conversion SCNV = (0.80 soft, 1.00 hard;
+            # fmcwd.f:61 DATA SCNV / 0.80, 1.00 /, applied as DIF·V2T·SCNV(K)): a SOFT (decayed) snag's bole
+            # contributes only 0.80× its volume's biomass to down wood. Omitting it over-counted fallen soft
+            # boles by 1.25× → the size-4/5 DDW overshoot that grew as snags softened.
+            add = a * (dfis * 0.80f0 + dfih)                # fallen biomass this step (tons/ac)
             for j in 1:9
                 frac[j] > 0f0 && (fs.cwd[j, 2, idc] += add * frac[j])  # spread across CWD size classes
             end
