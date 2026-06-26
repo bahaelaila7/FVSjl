@@ -49,7 +49,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     isempty(due) && return false
 
     idsdat = _es_idsdat(s)
-    nptids = max(1, Int(s.plot.points_inv))
+    # NPTIDS = IPTINV − NONSTK (esplt2.f:74): the STOCKABLE inventory points, not the raw
+    # plot count. Driving DUPNPT/IDUP and so the regen record count + its per-record RNG draws.
+    nptids = max(1, Int(s.plot.points_inv) - Int(s.plot.nonstockable))
     idup   = max(1, fld(_ES_MINREP, nptids))
     dupnpt = Float32(nptids * idup)
     bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
