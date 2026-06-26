@@ -71,8 +71,10 @@ const _KC_FT_BROKEN = Dict(
 # separately and the round-trip loses the grouping. The multi-record case is handled by
 # the hierarchical YAML redesign (Task 8). All single-record keywords now round-trip.
 const _KC_YAML_BROKEN = Set(String[])   # s20_spgroup FIXED by the hierarchical YAML redesign (Task 8)
-# Ill-posed scenario layouts that produce no FVSsn .sum (no checked-in baseline).
-const _KC_NOBASE = Set(["s30_thinqfa", "s36_readcord"])
+# All 37 scenarios now have a live-FVSsn .sum baseline. (s30_thinqfa/s36_readcord
+# were previously malformed — THINQFA was missing its required 2nd units record and
+# READCORD its 90-species COR2 table; both fixed + baselined from live FVSsn this session.)
+const _KC_NOBASE = Set(String[])
 
 _kc_rows(p::AbstractString) = _kc_rows_io(eachline(p))
 _kc_rows_str(s::AbstractString) = _kc_rows_io(split(s, '\n'))
