@@ -75,8 +75,15 @@ the ordering. Traced (fire cycle, vs live FVSsn FMFINT) — fuel-model SELECTION
 | 10    | 9531 / 2355        | 6463 / 5425      | 6.78 / 2.03 (3.3×)   |
 | 5     | 14276 / 160        | 3174 / 706 (4.5×)| 19.71 / 1.01 (20×)   |
 weighted byram FVS 4194 / FVSjl 1405, flame 3.17 / 1.69. Two factors: (a) MIDFLAME WIND —
-FVS FWIND=2.0 vs FVSjl fwind=1.2 (the 20-ft→midflame wind-reduction factor differs); the
-spread rate `R = XIO·(1+PHIS+PHIW)/RHOBQIG` scales with the wind factor PHIW=C1·(FWIND·88)^XM1.
+FVS FWIND=2.0 vs FVSjl fwind=1.2. Narrowed: `FWIND = SWIND·WMULT`, `WMULT=ALGSLP(PERCOV,
+CANCLS=[5,17.5,37.5,75], CORFAC=[0.5,0.3,0.2,0.1])` (fmburn.f:390) — tables + the PERCOV
+formula `100·(1−exp(−TOTCRA/43560))` (fmcba.f) are IDENTICAL in FVSjl, so the divergence is
+TOTCRA (Σ π·CW²/4·TPA): FVSjl's per-tree crown width CW is ~1.4× FVS's CRWDTH, pushing PERCOV
+≥75 (WMULT 0.10) vs FVS ~50 (WMULT 0.167). The pre-fire stand TPA/BA match at 2005 (439/147),
+LSPCWE=false for SN (so both take the CWCALC(iwho=0) branch, NOT the CWDS polynomial) — so the
+root is the CWCALC crown-width value (or its CR/HT inputs) at iwho=0 for these SN species. The
+spread rate `R = XIO·(1+PHIS+PHIW)/RHOBQIG` scales with PHIW=C1·(FWIND·88)^XM1, so the low wind
+suppresses spread/byram.
 (b) MODEL-5 LIVE-FUEL reaction intensity 4.5× low (xir 706 vs 3174) — the live-fuel-load /
 moisture-of-extinction / reaction-velocity damping. The TPA impact is muted by mortality
 SATURATION (flame is well above the kill threshold either way → only ~8 TPA / saturating BA),
