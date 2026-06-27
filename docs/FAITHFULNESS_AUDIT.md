@@ -468,3 +468,20 @@ This is a structural rewrite of the snag representation (FireState.snags), touch
 carbon — a scoped multi-session port, NOT a quick fix. DDW currently 8.3 vs 8.4 (was 6.84); the 6 DDW tests
 remain @test_broken pending this. Everything else (StandD, live pools, floor, growth, cuts, DDW sizes
 1-3/6-9) is bit-exact.
+
+#### CORRECTION to the snag-aggregation claim above
+Tested empirically: the FMSADD class-aggregation effect is only ~0.3-1%, NOT the ~13% bole-fall gap. A
+2-inch DBH class averages to nearly the same vol·rate (over [8,10]": jl per-record Σvol·rate ≈ 7.96 vs
+class-averaged 7.94, ~0.3%; within-class vol convexity ~0.6%). carbon_snt has 109 records → 25 classes,
+20 multi-DBH, but the spread is ≤2" per class so averaging barely moves it. So aggregation is a real FVS/
+FVSjl difference but does NOT explain the residual — the earlier "ROOT CAUSE" claim is RETRACTED.
+
+HONEST state: the ~13% bole-fall under on new-mortality snags (cycles 2-3) is NOT root-caused. The
+measurements are mutually inconsistent under conservation: standing snag DENSITY matches FVS bit-exact
+(SDEN 14.76/42.70/48.03/71.04), Stand-Dead BOLE matches (so per-snag merch bolevol matches), yet the
+measured bole-FALL is 13% under (jl 1.27/1.43 vs FVS-instrumented CWD1 1.46/1.63). Fallen density jl
+7.3/38.4/41.5. If standing density + bolevol both match, conservation says bole-fall should match — so
+either a measurement artifact remains or a subtle interaction (e.g. WHICH snags fall by size, the
+hard/soft split timing vs CWD1's DFIH/DFIS) not yet isolated. DDW is 8.3 vs 8.4. This is the honest
+open question; the 6 verified fixes (merch bole, FMOLDC snapshot, SCNV, hard/soft pools, decay-timing,
+step-softening) all stand and took DDW from -1.57 to -0.1/-0.2.
