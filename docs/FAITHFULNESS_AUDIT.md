@@ -540,3 +540,14 @@ snt01 bit-exact via the limit, but the raw init Weibull is ~5% low). This ~5% in
 slightly non-bit-exact LP growth → carbon_jenkins DDW Δ0.1 (still > 0.05). The 4 carbon_jenkins DDW
 @test_broken track this init-crown precision. Likely the init CCF/SDI (computed with crown_pct=0) feeding
 the Weibull `scale`/`relsdi`. The DDW CARBON MODEL itself is bit-exact (carbon_snt).
+
+#### carbon_jenkins residual — init-crown ~5% = CCFCAL formula + DENSE calibration BACKDATING (deep)
+The carbon_jenkins init-crown ~5% (jl ICR 21 vs FVS 22) traces to RELDEN (the CCF feeding CROWN's percentile
+SCALE): jl stand_ccf=241 vs FVS RELDEN=178. Instrumenting FVS DENSE/CCFCAL showed TWO causes, NOT the crown
+ratio (sp13's CW is CR-independent): (1) FVS's CCFCAL returns CCFT directly with CW=0 — a different CCF
+formula than jl's 0.001803·crown_width²·tpa (which matches FVS for carbon_snt's hardwoods but not sp13/LP);
+(2) at CRATET, DENSE runs with calibration BACKDATING — FVS's dbh is the PAST dbh (6.24 vs the current 8.0),
+so the CCF is computed on smaller trees → RELDEN 178 < 241 → SCALE 0.869 > 0.764 → higher init crown. Both
+need porting CCFCAL's per-species CCF + DENSE's calibration-time dbh backdating to bit-match the CRATET init
+crown. That ~5% init crown feeds cycle-1 DGF → slightly non-bit-exact LP growth → carbon_jenkins DDW Δ0.1.
+A deep, multi-routine calibration on ONE synthetic LP fixture; the DDW CARBON MODEL is bit-exact (carbon_snt).
