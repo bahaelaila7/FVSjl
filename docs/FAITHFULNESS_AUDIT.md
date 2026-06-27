@@ -444,3 +444,27 @@ ONLY by fallen boles; input-decay matches (size-6 input 1.01→0.73 bit-matches 
 medium-snag (d 6-12") boles contributing ~10%/bole more to size 5 than FVS, growing with bole falls.
 Next probe: instrument FVS CWD1/CWD2 (fmcwd.f) per-snag ADD to size 5 vs jl, to find whether it's the
 medium-snag merch bolevol or a taper edge. DDW now +0.2 (was -1.57); 6 DDW tests still @test_broken.
+
+#### DDW residual ROOT CAUSE — snag CLASS-AGGREGATION (FMSADD) vs jl per-record snags
+After six verified fixes took DDW from -1.57 to -0.1/-0.2, the residual is now traced to a STRUCTURAL
+difference, not a tunable sub-term: FVS aggregates snags into discrete CLASSES and jl keeps per-record.
+FMSADD (fmsadd.f:255-340) bins every new dead-tree record into a (SPCL, DBHCL, HTCL) class — DBHCL =
+INT(DBH/2 + 1) (2-inch DBH classes, 19 for ≥36"), HTCL = 1/2 by MIDHT, SPCL = species class — and
+DENSITY-WEIGHT-AVERAGES the new deaths into that class's aggregated record: DBHS(X) = (DBHS(X)·DEND(X) +
+DBH(I)·SNGNEW(I))/TOTDEN, likewise HTDEAD(X). So FVS carries ~43 aggregated class-records with averaged
+DBH/HT; FVSjl carries ~109 per-tree records (incl. tripling).
+
+Why it shows ONLY in bole-fall: the bole-fall biomass = Σ vol(DBH)·fallrate(DBH)·density is NON-LINEAR in
+DBH (vol≈DBH², fallrate linear-decreasing), so falling N per-record snags ≠ falling their density-averaged
+class. Stand-Dead (a near-linear Σ vol·density of STANDING snags) is insensitive to the averaging → it
+matches bit-exact; the DBH-rate-weighted FALL is not → bole-fall diverges ~13% on the new-mortality snags
+(cycles 2-3; cycle-1 input snags, already one class each, match exactly). Verified every other sub-term
+(cone fractions ≤1%, crown-lift per-tree EXACT, decay rates, soft fraction 6%, merch bolevol cycle-start,
+fall density linear-in-origden) matches FVS — none is the cause.
+
+To CLOSE bit-exact: replicate FMSADD's snag classification (bin into SPCL/DBHCL/HTCL, density-weight-average
+DBH/HTDEAD/bolevol per class) so the snag list IS the aggregated class set, then fall/decay the classes.
+This is a structural rewrite of the snag representation (FireState.snags), touching StandD/SnagSum/fire/
+carbon — a scoped multi-session port, NOT a quick fix. DDW currently 8.3 vs 8.4 (was 6.84); the 6 DDW tests
+remain @test_broken pending this. Everything else (StandD, live pools, floor, growth, cuts, DDW sizes
+1-3/6-9) is bit-exact.
