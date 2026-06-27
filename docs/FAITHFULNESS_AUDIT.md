@@ -563,3 +563,15 @@ To close: init_crown_ratios! must compute its CCF on the backdated dbh — a cir
 (crown→CCF→backdated dbh→projected DG→crown) FVS resolves in CRATET; jl HAS the backdating pass
 (diameter_growth.jl:295-313) but it only recomputes the DG's PCT, not the crown ICR. Wiring the crown-ICR
 estimate into the backdated-dbh pass is the close. The DDW CARBON MODEL is bit-exact (carbon_snt).
+
+#### ★ SPEC MET — carbon_jenkins DDW closed; only broken test is the accepted COMPRESS
+The carbon_jenkins init-crown was closed: init_crown_ratios! now computes the CCF on the DENSE-backdated dbh
+(past dbh = sqrt(d²·r), r from the measured DG via diam_growth + bark_ratio; stand-average for unmeasured),
+and passes it to crown_ratio_update! as relden_override (current dbh/SDI/rank for everything else, exactly as
+FVS CROWN). Init crown is now [22,27,32,36,40,47], BIT-EXACT vs FVS, so cycle-1 LP DGF is bit-exact and
+carbon_jenkins DDW matches FVS to ULP every cycle (3.8/2.5/3.8/8.0). The carbon_jenkins driver + .out-writer
+DDW @test_broken flipped to passing.
+
+FINAL SUITE: 4519 pass / 0 fail / 1 broken — the one broken is s22_compress (the accepted different-
+eigensolver divergence). The drop-in spec is met: the only divergences are ULP FP and the COMPRESS
+eigensolver. The full FFE carbon down-wood model + the CRATET init-crown are bit-exact drop-ins.
