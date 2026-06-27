@@ -506,3 +506,21 @@ pool 0.438 vs FVS 0.429); the over is the live-tree CROWN-LIFT to size 2 (~+5%: 
 is likely the tripling × crown-lift interaction (ffe_old* per-record state across record tripling — the
 known OLDCRW-survives-tripling concern). DDW 8.5 vs 8.4. The 6 DDW tests remain @test_broken on this last
 ~+5% crown over; bole, Stand-Dead, live pools, floor all bit-exact.
+
+#### DDW CLOSED on bit-exact growth — crown small-tree bole = MERCH (FMSVL2), not gross
+The +5% crown-lift-to-size-2 over (the last DDW residual) was the crown_biomass SMALL-TREE BOLE. For
+D<DBHMIN, FVS FMCROWE adds an estimate of the whole-tree bole to the crown weight (TTOPW) using FMSVL2
+(= MAX(X, MCF), the MERCH cubic with the tiny-tree cone floor X=0.005454154·H; fmcrowe.f:256-285). FVSjl
+used `_fm_cuft` = GROSS cubic (v[1]) → the small-tree bole over by 1.5-2× → crown size-2 over (sp33 d1.5:
+jl 2.643 vs FVS 1.759; d2.2: 7.82 vs 3.953) → fed the crown-lift/LIMBRK size-2 → DDW +0.1/+0.2. (Found by
+checking crown_biomass per-SPECIES vs instrumented FVS CROWNW: sp22/27 matched, sp33 d≥1 was 1.5-2× over.)
+Fix (crown_biomass.jl): `vt = max(0.005454154·hmin, _fm_cuft(...; merch=true))`. Result: sp33 crown
+bit-exact (1.761 vs 1.759), and **carbon_snt DDW BIT-EXACT: Δ 0.002/0.007/0.001** (was -1.57).
+
+Eight FFE-carbon fixes this session took DDW from -1.57 to bit-exact on the bit-exact-growth fixture. The
+carbon_snt DDW + the live run_keyfile DDW @test_broken FLIPPED to passing @test. Suite 4515 pass / 5 broken
+/ 0 fail. Remaining 5 broken = 1 COMPRESS + 4 carbon_jenkins DDW (2000/2005, in the driver + .out-writer
+tests): carbon_jenkins is the SYNTHETIC non-bit-exact-GROWTH LP fixture (diameter-growth calibration tail),
+so its mortality diverges (jl DDW DROPS 2.5→2.0 @2000 where FVS grows to 3.8 — fewer deaths) → its DDW
+can't match FVS's save. That is the LP growth/mortality subsystem (WK3 past-dbh calib), NOT the carbon
+model, which is now bit-exact. The carbon_jenkins DDW @test_broken honestly tracks that growth tail.

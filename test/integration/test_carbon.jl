@@ -233,8 +233,8 @@ end
                 end
             end
         end
-        @test_broken maxd(7) <= 0.05       # DDW — still off (max Δ ≈ 1.6 at 2000): the down-wood falldown/
-                                           # decay phasing, the one remaining FFE dead-pool gap (snag→DDW).
+        @test maxd(7) <= 0.05              # DDW — BIT-EXACT (Δ≤0.007). Closed by the FFE snag-dynamics +
+                                           # crown small-tree merch-bole fixes (see FAITHFULNESS_AUDIT.md).
     end
 end
 
@@ -264,8 +264,8 @@ end
             @test mv[2] ≈ fv[2] atol = 0.05         # Aboveground Total — BIT-EXACT
             @test mv[4] ≈ fv[4] atol = 0.05         # Belowground Live  — BIT-EXACT
         end
-        # DDW post-mortality dead-pool flow gap (same as the writer test) — broken, not hidden behind slack.
-        @test_broken maximum(abs(mv[7] - ft[Int(mv[1])][7]) for mv in rows) <= 0.05
+        # DDW now BIT-EXACT through the live run_keyfile path (Δ≤0.007) — the FFE snag-dynamics fixes.
+        @test maximum(abs(mv[7] - ft[Int(mv[1])][7]) for mv in rows) <= 0.05
     end
 end
 

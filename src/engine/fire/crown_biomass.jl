@@ -25,7 +25,8 @@ const _FM_P2T = 0.0005f0           # FMPARM P2T: pounds → tons
 # Standalone total cubic-foot volume of one (species, dbh, height) tree — FMSVL2's
 # `TCF` (fmsvol.f), which is just the SN volume model FVSjl uses in compute_volumes!.
 # Mirrors the per-tree cubic block of compute_volumes! (volume.jl:337-344).
-@inline function _fm_cuft(s::StandState, sp::Integer, d::Float32, h::Float32)::Float32
+@inline function _fm_cuft(s::StandState, sp::Integer, d::Float32, h::Float32;
+                          merch::Bool = false)::Float32
     s.control.merch_init || init_merch_standards!(s)
     c = s.control
     if d >= c.sp_scf_dbhmin[sp]
@@ -34,7 +35,8 @@ const _FM_P2T = 0.0005f0           # FMPARM P2T: pounds → tons
         prod = "02"; stump = c.sp_stump_ht[sp]; mtopp = c.sp_top_diam[sp]
     end
     v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-    return v[1]
+    # `merch=true` returns merch cubic v[4] — FMSVL2's MAX(X,MCF) for SN. v[1] is gross (TCF).
+    return merch ? v[4] : v[1]
 end
 
 # Jenkins total-aboveground (kg) coefficient pair (b0, b1) selected by the tree's
@@ -111,7 +113,9 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     if dx < dbhmin
         dmin = dbhmin
         hmin = _htdbh_height(coef.species, sp, dmin, ifor)
-        vt  = _fm_cuft(s, sp, dmin, hmin)
+        # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
+        # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
+        vt  = max(0.005454154f0 * hmin, _fm_cuft(s, sp, dmin, hmin; merch = true))
         vt1 = 0.0015f0 * dx * dx * hx                 # cone vol of the actual tree
         vt2 = 0.0015f0 * dmin * dmin * hmin           # cone vol of the DBHMIN tree
         vt  = (vt / vt2) * vt1
