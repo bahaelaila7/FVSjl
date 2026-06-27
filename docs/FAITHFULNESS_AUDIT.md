@@ -485,3 +485,24 @@ either a measurement artifact remains or a subtle interaction (e.g. WHICH snags 
 hard/soft split timing vs CWD1's DFIH/DFIS) not yet isolated. DDW is 8.3 vs 8.4. This is the honest
 open question; the 6 verified fixes (merch bole, FMOLDC snapshot, SCNV, hard/soft pools, decay-timing,
 step-softening) all stand and took DDW from -1.57 to -0.1/-0.2.
+
+#### DDW BREAKTHROUGH — soft-transition was the bole-fall bug; bole now BIT-EXACT
+The retracted "aggregation" guess was wrong; the real bug was found by instrumenting FVS's per-cycle
+hard/soft FALLEN density (FMSNAG DFIH/DFIS): FVS's fallen snags are 100% HARD (DFIS=0.000 EVERY cycle on
+carbon_snt). FVS's DENIH/DENIS are the snag's INITIAL hard/soft state at CREATION (mortality snags are
+created hard → DENIH); the per-snag HARD flag that flips at DKTIME is a separate decay/reporting state and
+does NOT move the fall density. FVSjl wrongly moved den_hard→den_soft at DKTIME, so it applied the SCNV
+0.80 soft factor to ~13% of fallen bole that FVS treats as hard → the bole-fall under-count.
+
+Fix: removed the hard→soft density transition (snags fall hard; SCNV 0.80 applies only to snags SEEDED
+soft). Result: down-wood size classes 4-9 (the BOLE-fed classes) are now BIT-EXACT vs FVS (jl 1.248/1.222/
+0.526/0.305/0.045 vs FVS 1.245/1.219/0.527/0.307/0.045 @2000, within 0.003). SnagSum still passes (it
+reports the initial hard/soft state). DDW -1.57 → +0.1/+0.2.
+
+REMAINING (small, localized): DDW now +0.1/+0.2 OVER, entirely in the FINE crown classes 1-2 (size 2 +0.05/
++0.08). Instrumented FVS FMCADD per-source: the snag-crown (CWD2B) fall MATCHES at the report (jl year-1
+pool 0.438 vs FVS 0.429); the over is the live-tree CROWN-LIFT to size 2 (~+5%: jl 0.174 vs FVS 0.166/yr)
++ LIMBRK (~+5%). Crown-lift matches PER-TREE (tree-1 size-2 lift 0.0942 = FVS exact), so the aggregate +5%
+is likely the tripling × crown-lift interaction (ffe_old* per-record state across record tripling — the
+known OLDCRW-survives-tripling concern). DDW 8.5 vs 8.4. The 6 DDW tests remain @test_broken on this last
+~+5% crown over; bole, Stand-Dead, live pools, floor all bit-exact.
