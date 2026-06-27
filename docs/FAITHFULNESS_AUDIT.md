@@ -551,3 +551,15 @@ so the CCF is computed on smaller trees → RELDEN 178 < 241 → SCALE 0.869 > 0
 need porting CCFCAL's per-species CCF + DENSE's calibration-time dbh backdating to bit-match the CRATET init
 crown. That ~5% init crown feeds cycle-1 DGF → slightly non-bit-exact LP growth → carbon_jenkins DDW Δ0.1.
 A deep, multi-routine calibration on ONE synthetic LP fixture; the DDW CARBON MODEL is bit-exact (carbon_snt).
+
+#### carbon_jenkins — CONFIRMED: jl crown_width matches FVS exactly; residual is ONLY the backdated dbh
+Definitive: computing jl's stand_ccf on FVS's calibration-backdated dbh (6.24/8.27/… from the CCFDBG dump)
+gives 178.32 — matching FVS RELDEN=178.39 to ULP. So jl's crown_width + the 0.001803·CW²·TPA CCF formula
+are CORRECT (the earlier "CCFCAL formula" note was wrong; CW=0 in the dump was just an unused output arg).
+The ENTIRE carbon_jenkins init-crown error is that FVS computes the CRATET crown's CCF on the BACKDATED dbh
+(DENSE's calibration backdating, ~1.7" younger), while jl's init_crown_ratios! uses the current dbh →
+CCF 241 vs 178 → SCALE 0.764 vs 0.869 → init crown ~5% low → cycle-1 LP growth slightly off → DDW Δ0.1.
+To close: init_crown_ratios! must compute its CCF on the backdated dbh — a circular dependency
+(crown→CCF→backdated dbh→projected DG→crown) FVS resolves in CRATET; jl HAS the backdating pass
+(diameter_growth.jl:295-313) but it only recomputes the DG's PCT, not the crown ICR. Wiring the crown-ICR
+estimate into the backdated-dbh pass is the close. The DDW CARBON MODEL is bit-exact (carbon_snt).
