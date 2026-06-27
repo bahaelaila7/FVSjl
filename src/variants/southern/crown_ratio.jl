@@ -26,11 +26,39 @@ has a crown. Idempotent; safe to call once before the first grow.
 function init_crown_ratios!(s::StandState)
     t = s.trees
     t.n == 0 && return s
-    any(@views t.crown_pct[1:t.n] .== 0) || return s   # all crowns already set
+    n = t.n
+    any(@views t.crown_pct[1:n] .== 0) || return s   # all crowns already set
     compute_density!(s)
-    saved = copy(@view t.crown_pct[1:t.n])
-    crown_ratio_update!(s; fint = 5f0)
-    @inbounds for i in 1:t.n
+    # FVS's CRATET dubs missing crowns with CROWN using DENSE's CCF computed on the BACKDATED dbh
+    # (DENSE/LBKDEN: past dbh = sqrt(d²·r), r from the measured DG; unmeasured trees use the stand-average
+    # ratio). Replicate that backdated CCF (RELDEN) so the init crown matches — the percentile SCALE depends
+    # on it, and using the current (denser) dbh gives a ~5% low crown.
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    bagr = 0f0; nb = 0f0
+    @inbounds for i in 1:n
+        g = t.diam_growth[i]; g <= 0f0 && continue
+        d = t.dbh[i]; gadj = g / bark_ratio(bark_a, bark_b, t.species[i], d)
+        gadj > d && continue
+        bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
+    end
+    nb > 0f0 && (bagr /= nb)
+    saved_dbh = copy(@view t.dbh[1:n])
+    @inbounds for i in 1:n
+        d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
+        if g > 0f0
+            gadj = min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
+            rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
+            rr > 0f0 && (r = rr)
+        end
+        r > 0f0 && (t.dbh[i] = sqrt(d * d * r))        # backdated dbh
+    end
+    compute_density!(s)
+    bd_relden = stand_ccf(s)                            # CCF on the backdated stand
+    @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh
+    compute_density!(s)                                 # rank/SDI use current dbh (as FVS CROWN)
+    saved = copy(@view t.crown_pct[1:n])
+    crown_ratio_update!(s; fint = 5f0, relden_override = bd_relden)
+    @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end
     return s
@@ -42,13 +70,15 @@ end
 CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-growth
 stand. No-op for an empty stand. Call once per cycle after growth + density.
 """
-function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0)
+function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0,
+                             relden_override::Float32 = -1f0)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
     cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     sdiac = crown_sdi >= 0f0 ? crown_sdi : stand_sdi_reineke(s)  # pre-growth Reineke SDIBC (grincr.f:241)
-    relden = stand_ccf(s)                # RELDEN — crown competition factor
+    relden = relden_override >= 0f0 ? relden_override : stand_ccf(s)  # RELDEN — crown competition factor
+                                         # (override = the DENSE-backdated CCF, used by CRATET init crown)
     sdidef = s.plot.sp_sdi_def
     # Ascending diameter rank: isort[i] = 1 (smallest) … n (largest); x = rank/n.
     ord = sortperm(view(t.dbh, 1:n))

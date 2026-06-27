@@ -92,7 +92,10 @@ end
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         s.fire !== nothing && s.fire.active && FVSjl.compute_forest_type!(s)
         s.fire !== nothing && s.fire.active && FVSjl.fmcba!(s)
-        # NB carbon_jenkins is a NON-bit-exact-GROWTH fixture (a synthetic LP stand with a diameter-growth
+        s.fire !== nothing && s.fire.active && FVSjl.ffe_seed_input_snags!(s)
+        s.fire !== nothing && s.fire.active && FVSjl.snapshot_ffe_oldcrown!(s)  # FMOLDC at inventory
+        # NB carbon_jenkins's growth is now BIT-EXACT too (the CRATET backdated init-crown fix); its DDW
+        # matches FVS to ULP through the full FFE sequence (crown-lift + snapshot), like carbon_snt.
         # calibration tail). The bit-exact carbon validation is owned by carbon_snt (bit-exact growth, all
         # live pools Δ=0); here the LIVE pools track only within the growth tail, so the live-pool agreement
         # is NOT asserted numerically (it would not be ULP — the divergence is the growth, not the carbon).
@@ -106,8 +109,7 @@ end
             @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.05   # BIT-EXACT
             # DDW: BIT-EXACT before mortality (1990/1995); the post-mortality dead-pool flow has the same
             # known crown-lift-timing gap as carbon_snt (~1.9) — tracked honestly as @test_broken, not hidden.
-            f[1] in ("1990", "1995") && @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05
-            f[1] in ("2000", "2005") && @test_broken abs(r.down_wood - parse(Float64, f[7])) <= 0.05
+            @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05   # DDW — now BIT-EXACT all cycles
             # STAND-DEAD: 0 before mortality; after, validated against the HIGH-PRECISION instrumented
             # Fortran oracle (BOLE+CRWN from FMDOUT TOTSNG), NOT the 1-decimal .report.save column — the
             # save's print rounding (e.g. 5.18→5.2) double-rounds against jl's own rounded report and would
@@ -127,6 +129,7 @@ end
                 # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.
                 FVSjl.ffe_fuel_update!(s, 5)
                 FVSjl.grow_cycle!(s; fint = 5f0)
+                FVSjl.compute_crown_lift!(s, 5); FVSjl.snapshot_ffe_oldcrown!(s)  # FMSDIT + FMOLDC
             end
         end
     end
@@ -165,11 +168,7 @@ end
         for (i, r) in enumerate(rows)
             i == 1 && continue
             mv = parse.(Float64, split(strip(r))); fv = parse.(Float64, split(ft[i]))
-            if mv[1] < 2000                                 # pre-mortality: DDW is BIT-EXACT
-                @test abs(mv[7] - fv[7]) <= 0.05
-            else                                            # post-mortality: known dead-pool flow gap
-                @test_broken abs(mv[7] - fv[7]) <= 0.05
-            end
+            @test abs(mv[7] - fv[7]) <= 0.05                # DDW — now BIT-EXACT all cycles
         end
     end
 end

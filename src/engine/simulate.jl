@@ -26,15 +26,15 @@ function setup_growth!(s::StandState)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
-    s.variant isa Southern && init_crown_ratios!(s)   # CRATET — estimate inventory crown for trees with
-                                          # no input crown (crown_pct=0), so cycle-1 DGF + the FFE inventory
-                                          # crown use a real crown, not 0 (else: no first-cycle crown-lift)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
     # calibration (which needs SN-only coefficient columns) is skipped for NE.
     if s.variant isa Southern
-        dgcons!(s)
+        dgcons!(s)                        # sets bark_a/bark_b (needed by the backdated-CCF below)
+        init_crown_ratios!(s)             # CRATET — dub inventory crown for trees with no input crown,
+                                          # using DENSE's backdated-dbh CCF (so cycle-1 DGF + the FFE
+                                          # inventory crown match FVS; runs before calibrate which reads ICR)
         # LSTART calibration uses the input measured DG. SCALE = YR/FINT (dgdriv.f:325): YR = 5 (the
         # SN base measurement period), FINT = the GROWTH keyword's DIAMETER measurement period
         # (default 5 → SCALE = 1). A FINT≠5 means the input DG increment spans FINT years, so the
