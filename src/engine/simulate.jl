@@ -26,6 +26,9 @@ function setup_growth!(s::StandState)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
+    s.variant isa Southern && init_crown_ratios!(s)   # CRATET — estimate inventory crown for trees with
+                                          # no input crown (crown_pct=0), so cycle-1 DGF + the FFE inventory
+                                          # crown use a real crown, not 0 (else: no first-cycle crown-lift)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART

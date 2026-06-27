@@ -15,6 +15,28 @@
 # =============================================================================
 
 """
+    init_crown_ratios!(s)
+
+CRATET: estimate the INITIAL crown ratio for inventory trees that have no input crown
+(`crown_pct == 0`), using the CROWN model on the inventory stand (FVS does this in
+INITRE/CRATET so the first cycle's DGF and the FFE inventory crown are based on a real
+crown, not 0). Trees WITH an input crown are left untouched. No-op if every tree already
+has a crown. Idempotent; safe to call once before the first grow.
+"""
+function init_crown_ratios!(s::StandState)
+    t = s.trees
+    t.n == 0 && return s
+    any(@views t.crown_pct[1:t.n] .== 0) || return s   # all crowns already set
+    compute_density!(s)
+    saved = copy(@view t.crown_pct[1:t.n])
+    crown_ratio_update!(s; fint = 5f0)
+    @inbounds for i in 1:t.n
+        saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
+    end
+    return s
+end
+
+"""
     crown_ratio_update!(state; fint=5f0)
 
 CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-growth
