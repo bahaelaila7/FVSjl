@@ -524,3 +524,19 @@ tests): carbon_jenkins is the SYNTHETIC non-bit-exact-GROWTH LP fixture (diamete
 so its mortality diverges (jl DDW DROPS 2.5→2.0 @2000 where FVS grows to 3.8 — fewer deaths) → its DDW
 can't match FVS's save. That is the LP growth/mortality subsystem (WK3 past-dbh calib), NOT the carbon
 model, which is now bit-exact. The carbon_jenkins DDW @test_broken honestly tracks that growth tail.
+
+#### carbon_jenkins DDW — CRATET init crown closed most of it; residual is init-crown ~5% precision
+carbon_jenkins's DDW was NOT a growth tail per se — its StandD + snag bole MATCH FVS (5.13 vs 5.2; bole
+3.67 vs 3.72), so the snags are right; the DDW dropped because the down-wood ADDITIONS (crown-lift) were 0.
+Cause: carbon_jenkins's .tre has NO input crown (crown_pct=0), and FVSjl never estimated it at init (FVS
+does, in CRATET/INITRE, which calls CROWN for missing crowns). Fix: init_crown_ratios! runs the CROWN model
+on inventory trees with crown_pct=0 (input crowns untouched), wired into setup_growth!. carbon_jenkins DDW
+Δ 1.75→0.1 @2000; carbon_snt byte-identical. The carbon_snt + run_keyfile DDW tests PASS; suite 7→5 broken.
+
+Residual: jl's init crown is ~5% low vs FVS's CRATET ICR (jl [21,26,30,34,38,42] vs FVS [22,27,32,36,40,47]
+for the 6 inventory trees). Both call CROWN, so it's the CROWN model's INIT context (the Weibull crnew at
+init, before the ±1%/yr limit which only applies once a prior crown exists — so the per-cycle crown matches
+snt01 bit-exact via the limit, but the raw init Weibull is ~5% low). This ~5% init-crown feeds cycle-1 DGF →
+slightly non-bit-exact LP growth → carbon_jenkins DDW Δ0.1 (still > 0.05). The 4 carbon_jenkins DDW
+@test_broken track this init-crown precision. Likely the init CCF/SDI (computed with crown_pct=0) feeding
+the Weibull `scale`/`relsdi`. The DDW CARBON MODEL itself is bit-exact (carbon_snt).
