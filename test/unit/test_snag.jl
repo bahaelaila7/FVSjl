@@ -72,8 +72,10 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         @test fell > 0f0
         @test snag_standing_density(s.fire) < 65f0
         @test snag_standing_density(s.fire) ≈ 65f0 - fell
-        # Hard→soft is a STEP at DKTIME = (1.24·D+13.82)·DECAYX (FMSNGDK, fmsnag.f:282-285), NOT gradual:
-        # at 5 yrs both cohorts (DKTIME ≈ 15-30 yr for d10/d14) are still fully HARD.
+        # Snags created HARD stay in the HARD pool for the FALL — FVS's DENIH/DENIS are the snag's INITIAL
+        # state at creation (these were created hard via add_snag!), and the per-snag HARD decay flag that
+        # flips at DKTIME does NOT move the fall density (verified vs instrumented FMSNAG: DFIS=0). So the
+        # SCNV 0.80 soft factor applies only to snags SEEDED soft, never to softened mortality snags.
         @test all(s.fire.snags.den_soft .== 0f0)
         # the fast-falling pine cohort loses a larger fraction than the oak
         sn = s.fire.snags
@@ -81,11 +83,10 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         pine_left = (sn.den_hard[2] + sn.den_soft[2]) / sn.origden[2]
         @test pine_left < oak_left
 
-        # age well past DKTIME → the snags flip fully SOFT (the step transition)
+        # age well past DKTIME: still HARD (no density transition) — the bole keeps falling to the hard pool
         s.control.cycle_year[1] = Int32(2050)
         update_snags!(s, 5)
-        @test sum(s.fire.snags.den_hard) == 0f0
-        @test sum(s.fire.snags.den_soft) > 0f0 || snag_standing_density(s.fire) == 0f0
+        @test all(s.fire.snags.den_soft .== 0f0)
 
         # the fallen snags transferred biomass into the down-wood (CWD) pools
         @test sum(s.fire.cwd) > 0f0
