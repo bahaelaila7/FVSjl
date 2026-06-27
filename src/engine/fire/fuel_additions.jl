@@ -177,10 +177,17 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
     (fs === nothing || !fs.active) && return s
     fmcba!(s)
     cl = fs.crown_lift_annual
+    # FVS FMMAIN year-loop ORDER: FMSNAG (snag fall → bole into down wood) → FMCWD (decay) → FMCADD
+    # (cwd2b crown fall + litterfall + woody breakage + crown-lift). The snag falldown MUST precede the
+    # decay so the freshly-fallen bole is decayed in the same year it falls (else it over-accumulates by
+    # ~a cycle's worth of decay — the DDW size-4/5 overshoot). The snag DENSITY falldown is identical
+    # whether stepped 1yr×nyrs here or nyrs at once (it compounds the same), so Stand-Dead is unchanged.
     @inbounds for _ in 1:nyrs
-        _cwd2b_fall!(fs)                       # FMCADD: CWD2B crown debris → down wood
-        fmcwd!(s, 1); fmcadd_litterfall!(s); fmcadd_woody!(s)
-        for dkcl in 1:4, sz in 1:9             # FMCADD crown-lift term (precomputed per cycle)
+        isempty(fs.snags.sp) || update_snags!(s, 1)   # FMSNAG: snag bole → down wood (this year)
+        fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
+        _cwd2b_fall!(fs)                               # FMCADD: CWD2B crown debris → down wood
+        fmcadd_litterfall!(s); fmcadd_woody!(s)        # FMCADD: litterfall + woody breakage
+        for dkcl in 1:4, sz in 1:9                     # FMCADD: crown-lift term (precomputed per cycle)
             cl[sz, dkcl] > 0f0 && (fs.cwd[sz, 2, dkcl] += cl[sz, dkcl])
         end
     end

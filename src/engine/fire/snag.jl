@@ -175,12 +175,18 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
         # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
         # once per cohort. Height unset (0) ⇒ single-class fallback (no behavior change).
         frac = _cwd_cone_fractions(sn.dbh[i], sn.height[i])
+        # Hard→soft is a STEP at DKTIME, not a gradual per-year shift: FVS keeps a snag fully HARD until
+        # (year − deathyr) ≥ DKTIME = (1.24·D + 13.82)·DECAYX, then flips it fully SOFT (fmsnag.f:282-285,
+        # FMSNGDK). A gradual shift gave the snag a soft fraction from the start, so the SCNV 0.80 over-
+        # applied to fallen boles → DDW under-count. DKTIME uses the same DECAYX as snag_decay_fraction.
+        age = cur - Int(sn.year[i])
+        dktime = (1.24f0 * sn.dbh[i] + 13.82f0) * snag_decay_fraction(coef, sp)
+        if Float32(age) >= dktime && sn.den_hard[i] > 0f0
+            sn.den_soft[i] += sn.den_hard[i]; sn.den_hard[i] = 0f0
+        end
         for _ in 1:yrs
             denttl = sn.den_hard[i] + sn.den_soft[i]
             denttl > 0f0 || break
-            shift = min(sn.den_hard[i], sn.den_hard[i] * snag_decay_fraction(coef, sp))
-            sn.den_hard[i] -= shift; sn.den_soft[i] += shift
-            denttl = sn.den_hard[i] + sn.den_soft[i]
             dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0

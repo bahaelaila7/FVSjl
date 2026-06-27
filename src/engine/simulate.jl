@@ -210,12 +210,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
         (s.econ.cycle_cost > 0f0 || s.econ.cycle_rev > 0f0) &&
             push!(s.econ.harvests, (Float32(yr), s.econ.cycle_cost, s.econ.cycle_rev))
     end
-    # FFE: age the standing snag cohorts (falldown + decay) over the cycle — EVERY cycle for an
-    # FFE-active stand, independent of whether a fire burns (the fire kill itself is handled in
-    # the MORTS section below). Must run before the new snags this cycle are booked.
-    if s.fire !== nothing && s.fire.active && !isempty(s.fire.snags.sp)
-        update_snags!(s, round(Int, fint))
-    end
+    # FFE: the standing-snag falldown (update_snags!) now runs in ffe_fuel_update!'s annual loop
+    # INTERLEAVED with the FMCWD decay (FVS FMMAIN order FMSNAG→FMCWD→FMCADD), so the freshly-fallen
+    # bole decays in the year it falls. ffe_fuel_update! is called every cycle before grow_cycle! with
+    # the same current_cycle_year, so the snag year-accounting is unchanged. (Was here as a single
+    # nyrs-at-once call, which let the fresh bole skip its cycle's decay → the DDW size-4/5 overshoot.)
     apply_volume_overrides!(s; fint = fint)  # VOLUME/BFVOLUME merch-standard overrides (volkey.f)
     t = s.trees
     nlive = t.n                              # ORIGINAL live records (pre-tripling)
