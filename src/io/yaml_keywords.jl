@@ -348,18 +348,9 @@ function _kw_record_from_fields(name::AbstractString, fld::AbstractDict{Int,Stri
 end
 
 # A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines that
-# trail STDIDENT/TREEFMT, inline tree data, SPGROUP members. ASCII text takes the exact
-# prior path (the fixed-column card decoder). Non-ASCII text (e.g. an em-dash in a stand
-# id) would crash that decoder, which byte-indexes its column slices and can land
-# mid-character; build a verbatim-only record directly instead. `name` (first ≤8 chars)
-# only drives the non-plain test, so `_render_keyfile` emits `.raw` verbatim either way.
-function _raw_record(text)
-    s = rstrip(string(text))
-    isascii(s) && return _decode_keyword(rpad(s, 130))
-    name = upkey(rpad(String(first(s, 8)), 8))
-    return KeywordRecord(name, s, fill(" "^10, N_KEY_FIELDS), zeros(Float32, N_KEY_FIELDS),
-                         falses(N_KEY_FIELDS), N_KEY_FIELDS, KW_OK, 0)
-end
+# trail STDIDENT/TREEFMT, inline tree data, SPGROUP members. `_decode_keyword` carries a
+# non-ASCII line (e.g. an em-dash in a stand id) verbatim without byte-crashing.
+_raw_record(text) = _decode_keyword(rpad(string(text), 130))
 
 # A YAML scalar → the 10-col field text. The YAML number TYPE carries the original
 # field's form: an integer scalar (`60`) → "60"; a float scalar (`60.0`) → "60.0"

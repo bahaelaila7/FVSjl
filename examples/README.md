@@ -6,9 +6,17 @@ Each example lives in its **own folder** and is provided in several equivalent f
 thinba/      thinba.key   thinba.tre   thinba.yaml   thinba.csv
 thinsdi/     thinsdi.key  thinsdi.tre  thinsdi.yaml  thinsdi.csv
 multistand/  multistand.key  …  .tre  …  .yaml  …  .csv
-semantic/    thinsdi.yaml  multistand.yaml   (+ .tre/.csv)   ← the SEMANTIC form
+semantic/      thinsdi.yaml  multistand.yaml   (+ .tre/.csv)   ← the SEMANTIC form
+multiscenario/ stand.yaml    (+ stand.tre/.csv)              ← N scenarios, one stand
 convert_and_run.sh                            ← run + convert every form
 ```
+
+> **Multi-scenario runs.** `multiscenario/stand.yaml` projects one stand under four
+> treatments (control / light thin / heavy thin / thin-twice) — every scenario reads the
+> same `stand.csv`/`stand.tre`. The semantic converter emits a `REWIND 2` before each
+> scenario after the first so stock FVS re-reads that inventory; FVSjl re-reads implicitly.
+> Verified: the converted `.key` reproduces **live FVSsn** within the ±1-cuft single-precision
+> tail, and all input forms give byte-identical FVSjl output.
 
 | file | what it is |
 |------|------------|
@@ -16,6 +24,14 @@ convert_and_run.sh                            ← run + convert every form
 | `*.tre` | legacy fixed-column tree records |
 | `*.yaml` | keyword file — **two flavors**: order-aware *keyword-stream* (here) and *semantic* (`semantic/`) |
 | `*.csv` | tree records as a named-column table |
+| `*.fvsjl.sum` | the `.sum` summary from **FVSjl**, run from the `.yaml` + `.csv` |
+| `*.fvssn.sum` | the `.sum` summary from **live FVSsn**, run from the equivalent `.key` + `.tre` |
+
+> The two `.sum` files in each folder are committed side by side so you can see FVSjl and
+> the original Fortran produce the **same output** — they agree to within the ±1-cuft
+> single-precision tail (compare the data rows; the `-999` header timestamp differs per
+> run). The column-by-column `.sum` format is documented in
+> [`../docs/FORMATS.md`](../docs/FORMATS.md#4-the-sum-summary-output).
 
 > **Two YAML flavors.** The `thinba/thinsdi/multistand` folders hold the **keyword-stream**
 > YAML (an order-preserving image of the `.key`, documented below). The `semantic/` folder

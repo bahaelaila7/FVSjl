@@ -178,7 +178,11 @@ function _stand_records!(recs::Vector{KeywordRecord}, st::AbstractDict)
             _append_entry!(recs, e)
         end
     end
-    # 17. tree list (TREEFMT [+ format] / TREEDATA [+ inline records])
+    # 17. tree list: TREEFMT (the .tre column layout, optional) + TREEDATA. The inventory is
+    # NOT inline — it is the companion file resolved by the keyfile's base name (`<key>.csv`
+    # preferred, else `<key>.tre`); every stand reads that same file (see read_stand_yaml_doc's
+    # REWIND). `treelist.format` only sets the .tre layout (ignored when a .csv companion exists);
+    # `treelist:` may be `{}` to just emit TREEDATA.
     tl = g("treelist")
     if tl !== nothing
         fmt = tl isa AbstractDict ? get(tl, "format", nothing) : nothing
@@ -190,10 +194,6 @@ function _stand_records!(recs::Vector{KeywordRecord}, st::AbstractDict)
             cut < length(s) && push!(recs, _raw_record(s[cut+1:end]))
         end
         push!(recs, _sem_card("TREEDATA", Dict{Int,String}()))
-        data = tl isa AbstractDict ? get(tl, "data", nothing) : nothing
-        data !== nothing && for ln in (data isa AbstractVector ? data : Any[data])
-            push!(recs, _raw_record(string(ln)))
-        end
     end
     # 18. PROCESS this stand
     push!(recs, _sem_card("PROCESS", Dict{Int,String}()))
@@ -206,16 +206,42 @@ end
 Unravel a parsed `format: fvs-stand/*` document (`stand:` map, or `stands:` list of
 maps) into the canonical ordered keyword-record stream. A terminating `STOP` is
 appended after the last stand.
+
+Multiple stands describe **N scenarios on the same stand** — every stand reads the SAME
+companion tree file (`<keyfile>.csv`/`.tre`, resolved by base name). Stock FVS reads that
+file sequentially, so without intervention only the first stand would get trees; a
+`REWIND 2` is therefore emitted before every stand after the first to re-read the
+tree-data unit (snt01's pattern). FVSjl re-reads implicitly (REWIND is a no-op for it),
+so the same stream is correct for both — the converted `.key` runs identically in stock FVS.
 """
 function read_stand_yaml_doc(doc::AbstractDict)
     recs = KeywordRecord[]
     stands = haskey(doc, "stands") ? doc["stands"] :
              haskey(doc, "stand")  ? Any[doc["stand"]] : Any[]
+    first = true
     for st in (stands isa AbstractVector ? stands : Any[stands])
-        st isa AbstractDict && _stand_records!(recs, st)
+        st isa AbstractDict || continue
+        first || push!(recs, _sem_card("REWIND", Dict(1 => "2")))   # re-read the shared tree file
+        first = false
+        _stand_records!(recs, st)
     end
     push!(recs, _sem_card("STOP", Dict{Int,String}()))
     return recs
+end
+
+"""
+    yaml_variant_code(path) -> Union{String,Nothing}
+
+Peek a keyword YAML file's top-level `variant:` field (e.g. `variant: SN`) — works for
+both YAML flavors. `nothing` when the file has no `variant:` (or isn't a mapping). The
+entry points map this through `variant_from_code` so a YAML stand file selects its own
+model; a `.key` has no variant (it's the binary choice), so this is YAML-only.
+"""
+function yaml_variant_code(path::AbstractString)
+    doc = YAML.load_file(path)
+    doc isa AbstractDict || return nothing
+    v = get(doc, "variant", nothing)
+    v === nothing ? nothing : string(v)
 end
 
 "Is this a semantic (`format: fvs-stand/*`) document?"

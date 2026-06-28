@@ -23,3 +23,7 @@ tmp/
 
 # stray FFE DSNOUT database (default name, no extension)
 __DSNOUT__
+
+# committed reference outputs in examples/ (override the *.sum ignore above)
+!examples/**/*.fvsjl.sum
+!examples/**/*.fvssn.sum

@@ -7,6 +7,7 @@
 #
 # Trees load from the companion multistand.csv (preferred) or multistand.tre.
 format: fvs-stand/v1
+variant: SN          # SN = Southern (FVSsn); NE = Northeast
 stands:
   # ── Stand 1: unthinned control. Only this stand sets treelist.format → TREEFMT;
   #    later stands inherit the tree format (as in stock FVS), so they omit it.

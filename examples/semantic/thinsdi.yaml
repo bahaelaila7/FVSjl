@@ -8,6 +8,7 @@
 # The inventory is loaded from the companion `thinsdi.tre` (same base name); a
 # `thinsdi.csv` beside it would be used instead, with no TREEFMT needed.
 format: fvs-stand/v1
+variant: SN          # SN = Southern (FVSsn); NE = Northeast
 stand:
   stdident: "SN THINSDI — thin to residual SDI 200 in 2010"
   noautoes: true

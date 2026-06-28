@@ -138,6 +138,15 @@ end
 
 # Decode a non-comment record into name + fields (keywd.f:133-208).
 function _decode_keyword(record::AbstractString)
+    # Non-ASCII free-text lines (an em-dash in a STDIDENT id, a Unicode comment, …) carry no
+    # fixed-column keyword fields; the byte-indexed column slicing below would land mid-character
+    # and throw. Carry them verbatim as a raw record (name = first ≤8 chars, char-safe — only used
+    # for the plain/non-plain test, so `.raw` is re-emitted verbatim). Keyword CARDS are ASCII.
+    if !isascii(record)
+        nm = upkey(rpad(String(first(record, 8)), 8))
+        return KeywordRecord(nm, record, fill(" "^10, N_KEY_FIELDS), zeros(Float32, N_KEY_FIELDS),
+                             falses(N_KEY_FIELDS), N_KEY_FIELDS, KW_OK, 0)
+    end
     rec = rpad(record, 130)
     nf, found_parms = _scan_parms(rec)
 

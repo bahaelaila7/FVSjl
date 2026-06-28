@@ -135,6 +135,7 @@ sections has no effect, but the converter never does so — it preserves the inp
 | **MANAGED** | Mark the stand as managed (affects some defaults). | `date`(1, optional). |
 | **RESETAGE** | Reset stand age. | `date`(1), `age`(2). |
 | **PROCESS** | End this stand's keywords; project it. | *(none)* |
+| **REWIND** | Rewind an input unit so the next stand re-reads it — `REWIND 2` re-reads the tree-data unit, the way to give several stands (scenarios) the same inventory. Auto-emitted between stands by the semantic converter; a no-op in FVSjl (it re-reads implicitly). | `unit`(1). |
 | **STOP** | End the run. | *(none)* |
 
 ## Density limits

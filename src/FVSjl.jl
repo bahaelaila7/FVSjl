@@ -102,7 +102,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, AbstractVariant, variant_code
+export StandState, Southern, Northeast, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees

@@ -22,6 +22,22 @@ abstract type AbstractVariant end
 """Two-letter FVS variant code (e.g. \"SN\"). Each variant must define this."""
 function variant_code end
 
+"""
+    variant_from_code(code) -> AbstractVariant
+
+Resolve an FVS variant designator to its singleton — the inverse of `variant_code`.
+Accepts the 2-letter code or the full name (case-insensitive): `SN`/`Southern`,
+`NE`/`Northeast`. This is what a YAML stand file's `variant:` field maps through, so a
+config selects its own model. (`Southern`/`Northeast` are defined later in the load order;
+this resolves them at call time.)
+"""
+function variant_from_code(code::AbstractString)
+    c = uppercase(strip(String(code)))
+    (c == "SN" || c == "SOUTHERN")  && return Southern()
+    (c == "NE" || c == "NORTHEAST") && return Northeast()
+    error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast)")
+end
+
 """Number of species in the variant (SN=90, NE=108). Array capacity is MAXSP (the max)."""
 function nspecies end
 

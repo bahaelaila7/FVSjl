@@ -37,6 +37,7 @@ Both are read by the same entry points (`read_keyword_records`, `each_stand`,
 - [2. Tree input — `.tre` and `.csv`](#2-tree-input--tre-and-csv)
   - [Tree CSV schema](#tree-csv-schema) · [The TREEFMT FORMAT string](#the-treefmt-format-string)
 - [3. Species codes (Southern variant)](#3-species-codes-southern-variant)
+- [4. The `.sum` summary output](#4-the-sum-summary-output)
 - [Running & converting — commands](#running--converting--commands)
 
 For the **keywords** themselves (every keyword + every parameter), see
@@ -55,6 +56,7 @@ maps them at a glance).
 
 ```yaml
 format: fvs-stand/v1     # REQUIRED discriminator (anything starting `fvs-stand`)
+variant: SN              # which FVS model — SN = Southern (FVSsn), NE = Northeast. Default SN.
 
 stand:                   # ONE stand …
   invyr: 1990
@@ -69,10 +71,19 @@ stands:                  # … or MANY (each map is one self-contained stand)
 
 A single `STOP` is appended after the last stand; each stand gets its own `PROCESS`.
 
+**`variant:`** names the FVS geographic model to run the file as — `SN` (Southern, the
+`FVSsn` binary) or `NE` (Northeast). In stock FVS the variant is *which binary you run*,
+not a keyword; making the config carry it keeps a YAML file self-describing (the engine
+reads it and dispatches to that variant). It is **not** written into a converted `.key`
+(stock FVS has no variant keyword — you pick the `FVSsn`/`FVSne` binary). Resolution
+order: an explicit `run_keyfile(...; variant=…)` argument wins; else the file's `variant:`;
+else `SN`. The keyword-stream YAML accepts the same top-level `variant:` key.
+
 ### Worked example
 
 ```yaml
 format: fvs-stand/v1
+variant: SN
 stand:
   stdident: "SN THINSDI — thin to residual SDI 200 in 2010"
   noautoes: true
@@ -220,14 +231,30 @@ should use the modeled `spgroup:` key or the keyword-stream YAML form instead.)
 
 ```yaml
 treelist:
-  format: "(I4,T1,I7,F6.0,...)"   # → TREEFMT + the FORMAT line(s); for a .tre companion
-  data:                           # optional INLINE records (each string → one line)
-    - "   1 0010   12.3 ..."
+  format: "(I4,T1,I7,F6.0,...)"   # optional: → TREEFMT + the FORMAT line(s), for a .tre companion
+# treelist: {}                    # just emit TREEDATA (inherit the format / use a .csv companion)
 ```
 
 `format:` emits `TREEFMT` and the FORMAT string (auto-split if > 72 cols, since
-`kw_treefmt!` reads two ≤80-col lines); `TREEDATA` is always emitted. Where the records
-come from is covered next.
+`kw_treefmt!` reads two ≤80-col lines); `treelist:` then emits `TREEDATA`. The inventory
+itself is **not** inline — it always comes from the companion file resolved by the
+keyfile's base name (covered next). So `treelist.format` selects only the `.tre` *layout*,
+never the *file*. (Tree records are never embedded in the YAML; there is no `data:`/`file:`
+key — every stand reads the one companion, which is what makes a multi-scenario run work.)
+
+### Multi-scenario runs (several stands, one inventory)
+
+A `stands:` list describes **N scenarios of the same stand** — each entry is the same
+inventory under a different treatment. They all read the **one** companion tree file
+(`<keyfile>.csv`/`.tre`, by base name). Stock FVS reads that file sequentially, so on its
+own only the first scenario would get trees; the converter therefore emits a **`REWIND 2`**
+before every scenario after the first (this rewinds the tree-data unit so the next stand
+re-reads it — exactly the pattern in FVS's own `snt01.key`). FVSjl re-reads the file for
+every stand implicitly, so `REWIND` is a no-op there and the stream is correct for both —
+**the converted `.key` reproduces live FVSsn** (verified: `examples/multiscenario/`, all
+scenarios start from the identical 536-TPA inventory, FVSjl vs FVSsn within the ±1-cuft
+single-precision tail). To give scenarios *different* inventories you'd use separate
+keyfiles, each with its own companion.
 
 ---
 
@@ -429,6 +456,70 @@ The **FIA** column is the standard USDA-FS Forest Inventory & Analysis species c
 **PLANTS** column is the USDA PLANTS symbol (the scientific-name identifier). The common
 names are a convenience gloss — the codes are authoritative. (Common-name spelling is not
 parsed; only the FVS/FIA/PLANTS codes are accepted in the `species` field.)
+
+---
+
+## 4. The `.sum` summary output
+
+Running a stand (`run_keyfile`, or stock FVS) produces the **`.sum`** summary — one block
+per stand (scenario), each a `-999` header line followed by **one row per cycle**. FVSjl
+emits the identical SUMOUT/IOSUM layout as FVSsn, so the two are directly comparable; each
+example folder ships both for reference:
+
+| file | produced by |
+|------|-------------|
+| `<name>.fvsjl.sum` | **FVSjl**, run from the `.yaml` + `.csv` (`run_keyfile`) |
+| `<name>.fvssn.sum` | **live FVSsn** (the Fortran binary), run from the equivalent `.key` + `.tre` |
+
+They match to within the **±1-cuft single-precision tail** (volume columns may differ by 1
+from Float32 rounding; the data otherwise agrees). The `-999` header timestamp differs per
+run — compare the data rows.
+
+**Header line** — `-999  <#periods>  <StandID>  <MgmtID>  <SampleWt>  <Variant>  <Date>  <Time>  …  <#plots>`
+(`SampleWt` in Fortran `E15.7`, e.g. `0.1100000E+02` = 11.0).
+
+**Data row** — one per cycle, 29 fields in four groups (a field is `0` when not applicable,
+e.g. the removal columns outside a thinning cycle):
+
+| # | field | meaning |
+|---|-------|---------|
+| | | **Identity + start-of-period stand** (live, *before* any thinning this cycle) |
+| 1 | Year | calendar year of the cycle boundary |
+| 2 | Age | stand age (yrs) |
+| 3 | Tpa | live trees per acre |
+| 4 | BA | basal area (ft²/ac) |
+| 5 | SDI | stand density index |
+| 6 | CCF | crown competition factor |
+| 7 | TopHt | top height (ft) |
+| 8 | QMD | quadratic mean diameter (in) |
+| 9 | TCuFt | total cubic-foot volume / ac |
+| 10 | MCuFt | merchantable cubic ft / ac |
+| 11 | SCuFt | sawtimber cubic ft / ac |
+| 12 | BdFt | board feet / ac (Scribner) |
+| | | **Removed by treatment this period** (0 if no cut) |
+| 13 | RTpa | removed trees / acre |
+| 14 | RTCuFt | removed total cubic ft |
+| 15 | RMCuFt | removed merch cubic ft |
+| 16 | RSCuFt | removed sawtimber cubic ft |
+| 17 | RBdFt | removed board feet |
+| | | **After-treatment stand** (= the start columns when no cut occurred) |
+| 18 | ATBA | basal area after treatment |
+| 19 | ATSDI | SDI after treatment |
+| 20 | ATCCF | CCF after treatment |
+| 21 | ATTopHt | top height after treatment |
+| 22 | ATQMD | QMD after treatment |
+| | | **Growth (this period) + classification** |
+| 23 | PrdLen | period length (yrs) |
+| 24 | Accret | periodic annual accretion (cuft/ac/yr) |
+| 25 | Mort | periodic annual mortality (cuft/ac/yr) |
+| 26 | MAI | mean annual increment (cuft/ac/yr) |
+| 27 | ForType | forest-type code |
+| 28 | SizeCls | size class |
+| 29 | StkCls | stocking class |
+
+For a multi-scenario file the blocks appear in scenario order; e.g.
+`examples/multiscenario/stand.fvsjl.sum` has four blocks, all starting from the identical
+inventory (row 1 of each), then diverging by treatment.
 
 ---
 

@@ -32,6 +32,20 @@ function _keyword_reader(keypath::AbstractString)
     return open(io -> KeywordReader(io), keypath), strip_key_ext(keypath)
 end
 
+# Resolve the variant to run a stand file as: an explicit caller argument always wins;
+# otherwise a YAML's top-level `variant:` field selects it; otherwise default to Southern
+# (a `.key` has no variant — it's the stock-FVS binary choice). Keeps `.key` runs and
+# explicit-variant callers behaving exactly as before.
+function _resolve_variant(keypath::AbstractString, variant::Union{AbstractVariant,Nothing})
+    variant === nothing || return variant
+    ext = lowercase(splitext(keypath)[2])
+    if ext == ".yaml" || ext == ".yml"
+        vc = yaml_variant_code(keypath)
+        vc === nothing || return variant_from_code(vc)
+    end
+    return Southern()
+end
+
 """
     initialize!(state, kr, base_path) -> Symbol
 
@@ -83,8 +97,10 @@ persists in COMMON across stands, so it is carried forward here; a `TREEFMT` key
 inside a later stand still overrides it. Returns the per-stand initialized states
 (cyc0-ready; run `notre!`/`setup_growth!`/`compute_volumes!` to project each).
 """
-function each_stand(keypath::AbstractString; variant::AbstractVariant = Southern(),
+function each_stand(keypath::AbstractString;
+                    variant::Union{AbstractVariant,Nothing} = nothing,
                     faithful::Bool = true)
+    variant = _resolve_variant(keypath, variant)   # explicit arg wins; else YAML `variant:`; else SN
     kr, base = _keyword_reader(keypath)
     stands = StandState[]
     fmt = ""                                       # TREFMT carried across stands

@@ -1,0 +1,68 @@
+# MULTI-SCENARIO run — one stand, several management scenarios compared side by side.
+#
+# Every entry in `stands:` is the SAME physical stand (same inventory) under a different
+# treatment. They ALL read the one companion tree file resolved by THIS file's base name:
+# `stand.csv` (preferred) or `stand.tre`. To make stock FVS re-read that one file for each
+# scenario, the converter automatically emits a `REWIND 2` before every scenario after the
+# first (FVSjl re-reads implicitly, so it's a no-op there) — that's why the converted .key
+# matches live FVSsn. See ../../docs/FORMATS.md (§ "Multi-scenario runs").
+#
+# Run all four scenarios (→ four blocks in the .sum, one per scenario):
+#   julia --project=. -e 'using FVSjl; print(run_keyfile("examples/multiscenario/stand.yaml"))'
+# Convert to legacy form for stock FVS (REWIND 2 is emitted between scenarios):
+#   julia --project=. bin/fvsjl-translate.jl examples/multiscenario/stand.yaml stand.key
+format: fvs-stand/v1
+variant: SN          # SN = Southern (FVSsn); NE = Northeast
+stands:
+  # ── Scenario 1: no action (control). Only the first scenario sets treelist.format
+  #    (TREEFMT); later scenarios inherit the tree format and just re-read via TREEDATA.
+  - stdident: "SCENARIO 1 — no action (control)"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treelist:
+      format: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
+
+  # ── Scenario 2: light thin from below to basal area 90 in 2010.
+  - stdident: "SCENARIO 2 — light thin (BA 90 @ 2010)"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treatments:
+      - thinbba: { year: 2010, ba: 90 }
+    treelist: {}
+
+  # ── Scenario 3: heavy thin from below to basal area 60 in 2010.
+  - stdident: "SCENARIO 3 — heavy thin (BA 60 @ 2010)"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treatments:
+      - thinbba: { year: 2010, ba: 60 }
+    treelist: {}
+
+  # ── Scenario 4: two entries — thin to SDI 250 in 2005, then again in 2020.
+  - stdident: "SCENARIO 4 — thin twice (SDI 250 @ 2005 & 2020)"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treatments:
+      - thinsdi: { year: 2005, sdi: 250 }
+      - thinsdi: { year: 2020, sdi: 250 }
+    treelist: {}

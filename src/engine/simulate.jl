@@ -362,7 +362,8 @@ by `write_sum_file`, which runs the per-cycle loop including scheduled managemen
 (CUTS/ESTAB/fire). Stands are independent (`each_stand` gives each a fresh state with
 the tree format carried across), so this is also the unit of thread-parallelism.
 """
-function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Southern(),
+function run_keyfile(keypath::AbstractString;
+                     variant::Union{AbstractVariant,Nothing} = nothing,
                      faithful::Bool = true, period::Integer = 5,
                      date::AbstractString = "", time::AbstractString = "")
     out = IOBuffer()

@@ -200,5 +200,54 @@ end
     @test "FMIN" in names && "THINBBA" in names # escape-hatch keyword rode along
     # FMIN (raw) emits before the modeled THINBBA in the same stand (documented order)
     @test findfirst(==("FMIN"), names) < findlast(==("THINBBA"), names)
+    # multi-scenario: a REWIND 2 is emitted before every stand after the first, so stock
+    # FVS re-reads the shared tree file (snt01's pattern). One fewer than the stand count.
+    rw = [r for r in recs if strip(r.name) == "REWIND"]
+    @test length(rw) == 1                       # 2 stands → 1 REWIND
+    @test rw[1].values[1] ≈ 2                    # rewinds the tree-data unit (2)
+    # the REWIND sits between the two stands (after stand 1's PROCESS, before stand 2)
+    @test findfirst(==("PROCESS"), names) < findfirst(==("REWIND"), names) <
+          findlast(==("STDIDENT"), names)
     rm(yml; force=true)
+end
+
+@testset "multi-scenario example: FVSjl form-invariant + .key conversion has REWIND" begin
+    # the committed dedicated example: 4 scenarios (control / 2 thins / thin-twice) on one
+    # stand. The converted .key must carry a REWIND 2 before scenarios 2-4 so stock FVS
+    # re-reads the shared inventory; FVSjl is invariant to the input form.
+    yml = joinpath(@__DIR__, "..", "..", "examples", "multiscenario", "stand.yaml")
+    if isfile(yml)
+        recs = FVSjl.read_keyword_records(yml)
+        names = [strip(r.name) for r in recs if !isempty(strip(r.name))]
+        @test count(==("STDIDENT"), names) == 4
+        @test count(==("REWIND"),   names) == 3      # before scenarios 2,3,4
+        @test count(==("STOP"),     names) == 1
+        # FVSjl form-invariance: semantic YAML == its converted .key (every .sum row)
+        key = tempname() * ".key"
+        FVSjl.write_keyfile(recs, key)
+        cp(joinpath(@__DIR__, "..", "..", "examples", "multiscenario", "stand.tre"),
+           first(splitext(key)) * ".tre"; force = true)
+        rows(t) = [split(l) for l in split(t, "\n") if !occursin("-999", l) && length(split(l)) >= 11]
+        a = rows(FVSjl.run_keyfile(yml)); b = rows(FVSjl.run_keyfile(key))
+        @test length(a) == 28 && a == b             # 4 scenarios × 7 cycles, identical
+        rm(key; force = true); rm(first(splitext(key)) * ".tre"; force = true)
+    else
+        @test_skip "multiscenario example not available"
+    end
+end
+
+@testset "YAML `variant:` field selects the model (explicit arg overrides)" begin
+    mk(v) = (p = tempname() * ".yaml";
+             write(p, "format: fvs-stand/v1\n" * v * "stand:\n  invyr: 1990\n  numcycle: 1\n"); p)
+    sn = mk("variant: SN\n"); ne = mk("variant: NE\n"); none = mk("")
+    @test FVSjl.yaml_variant_code(sn) == "SN"
+    @test FVSjl.yaml_variant_code(none) === nothing
+    @test FVSjl.variant_code(FVSjl._resolve_variant(sn, nothing))   == "SN"
+    @test FVSjl.variant_code(FVSjl._resolve_variant(ne, nothing))   == "NE"   # NE → Northeast
+    @test FVSjl.variant_code(FVSjl._resolve_variant(none, nothing)) == "SN"   # absent → default SN
+    @test FVSjl.variant_code(FVSjl._resolve_variant(ne, Southern())) == "SN"  # explicit arg wins
+    @test FVSjl.variant_code(FVSjl._resolve_variant("x.key", nothing)) == "SN" # .key has no variant
+    @test FVSjl.variant_from_code("ne") isa Northeast                          # case-insensitive
+    @test_throws ErrorException FVSjl.variant_from_code("ZZ")
+    rm.([sn, ne, none]; force = true)
 end
