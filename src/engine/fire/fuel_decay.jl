@@ -29,6 +29,57 @@ const _FM_DKR = Float32[
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """
+    apply_fuelmove!(s) -> Bool
+
+FUELMOVE (act 2530, fmtret.f:203-368): transfer surface fuel between size categories at a scheduled cycle.
+Each due activity moves XGET = max(amount, proportion·source, source−leave, target−current) tons/ac (capped
+at the available source) from size class FROM to TO; size class 0 is the import (FROM=0) / export (TO=0)
+sink. The per-size-class totals are then written back by scaling each class's cwd sub-pools (soft/hard ×
+decay) by new/old, or dumping into the hard/fast pool if the class was empty. No-op without a due FUELMOVE.
+"""
+function apply_fuelmove!(s::StandState)::Bool
+    fs = s.fire
+    (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+    cwd = fs.cwd
+    # FORG/FSRC/FTRG by size class 0:11 (0 = outside sink); +1 offset so idx 1 = class 0, idx j+1 = class j.
+    forg = zeros(Float32, 12)
+    @inbounds for j in 1:11; forg[j+1] = sum(@view cwd[j, :, :]); end
+    fsrc = copy(forg); ftrg = zeros(Float32, 12); altered = false
+    for a in s.control.schedule
+        a.icflag == Int32(2530) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        ifrm = Int(round(a.params[1])); ito = Int(round(a.params[2]))
+        x = a.params[3]; y = a.params[4]; z = a.params[5]; q = a.params[6]
+        (0 <= ifrm <= 11 && 0 <= ito <= 11 && ifrm != ito && x >= 0f0 && 0f0 <= y <= 1f0 && z >= 0f0) || continue
+        fi = ifrm + 1; ti = ito + 1
+        xget = 0f0
+        if ifrm > 0
+            fsrc[fi] <= 0f0 && continue
+            xget = q >= 0f0 ? max(x, y * fsrc[fi], fsrc[fi] - z, q - fsrc[ti]) : max(x, y * fsrc[fi], fsrc[fi] - z)
+            xget > fsrc[fi] && (xget = fsrc[fi])
+            fsrc[fi] -= xget
+        else
+            xget = q >= 0f0 ? max(x, q - fsrc[ti]) : x
+        end
+        ftrg[ti] += xget
+        xget > 0f0 && (altered = true)
+    end
+    altered || return false
+    @inbounds for j in 1:11
+        ft = fsrc[j+1] + ftrg[j+1]
+        abs(forg[j+1] - ft) >= 1f-6 || continue
+        if forg[j+1] <= 1f-6
+            cwd[j, 2, 3] = ft                              # empty class → all to hard/fast (CWD(1,J1,2,3))
+        else
+            sc = ft / forg[j+1]
+            for k in 1:2, l in 1:4; cwd[j, k, l] *= sc; end
+        end
+    end
+    return true
+end
+
+"""
     fmcwd!(s, nyrs) -> StandState
 
 Apply `nyrs` years of FFE surface-fuel decay to `fire.cwd` (FMCWD, fmcwd.f:78-134). Duff is decayed
@@ -41,19 +92,24 @@ function fmcwd!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     cwd = fs.cwd; n = Float32(nyrs)
+    # FUELMULT/FUELDCAY override the DKR matrix; DUFFPROD overrides PRDUFF — both fall back to defaults
+    # when unset (size 0×0).
+    dkr = size(fs.params.dkr, 1) == 11 ? fs.params.dkr : _FM_DKR
+    has_pd = size(fs.params.prduff, 1) == 11; pdm = fs.params.prduff
     @inbounds for L in 1:4
         # duff (size 11) first, so woody decay can add to it below
-        cwd[11, 1, L] *= (1f0 - _FM_DKR[11, L] * 1.1f0)^n
-        cwd[11, 2, L] *= (1f0 - _FM_DKR[11, L])^n
+        cwd[11, 1, L] *= (1f0 - dkr[11, L] * 1.1f0)^n
+        cwd[11, 2, L] *= (1f0 - dkr[11, L])^n
         cwd[11, 1, L] < 0f0 && (cwd[11, 1, L] = 0f0)
         cwd[11, 2, L] < 0f0 && (cwd[11, 2, L] = 0f0)
         for J in 1:10
-            dk = _FM_DKR[J, L]
+            dk = dkr[J, L]
+            pd = has_pd ? pdm[J, L] : _FM_PRDUFF       # DUFFPROD-overridable proportion-to-duff
             # amount decayed this cycle → a PRDUFF fraction becomes duff (added to the hard duff pool)
             amt = cwd[J, 1, L] - cwd[J, 1, L] * (1f0 - dk * 1.1f0)^n
-            amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * _FM_PRDUFF
+            amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * pd
             amt = cwd[J, 2, L] - cwd[J, 2, L] * (1f0 - dk)^n
-            amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * _FM_PRDUFF
+            amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * pd
             # decrease the pools
             cwd[J, 1, L] *= (1f0 - dk * 1.1f0)^n; cwd[J, 1, L] < 1f-9 && (cwd[J, 1, L] = 0f0)
             cwd[J, 2, L] *= (1f0 - dk)^n;        cwd[J, 2, L] < 1f-9 && (cwd[J, 2, L] = 0f0)

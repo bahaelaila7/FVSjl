@@ -89,6 +89,12 @@ function load_trees!(s::StandState, trepath::AbstractString)
     end
 
     s.control.ntrees_active = Int32(t.n)
+    # Save the IPVEC (internal point index → inventory point number) so outputs that report the actual
+    # inventory point can map it (FVS_TreeList ActPt = IPVEC(ITRE), dbstrls.f:292). plot_id holds the
+    # internal index (1..NPTS); plot_ids[plot_id] is the original .tre point number.
+    @inbounds for k in 1:min(length(plot_ids), length(p.point_ids))
+        p.point_ids[k] = plot_ids[k]
+    end
     return t.n - n0
 end
 

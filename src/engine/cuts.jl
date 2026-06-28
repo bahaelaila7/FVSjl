@@ -101,6 +101,22 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     if s.econ !== nothing && s.econ.active
         s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
+        # Log-graded revenue (HRVRVN unit 4): bucket this tree's per-log BF (stashed by compute_volumes!)
+        # into DIB-class records for the FVS_EconHarvestValue report (echarv.f). harvTpa = PREM2/GROSPC.
+        bd = isempty(s.econ.tree_log_bf) ? nothing : get(s.econ.tree_log_bf, Int(i), nothing)
+        if bd !== nothing
+            g = s.plot.gross_space; g <= 0f0 && (g = 1f0)
+            accrue_log_grade!(s.econ, sp, Int32(current_cycle_year(s)), prem / g, t.bdft_vol[i], bd)
+        end
+        # Cubic (HRVRVN unit 5): bucket this tree's per-log cuft (R9LGCFT) by DIB. netTreeFt3 = ECHARV's
+        # `ft3PerTree` = CFVOLI, which for the EASTERN variants (SN/CS/LS/NE, cuts.f:1667-1669) is the
+        # SAWTIMBER cubic SCFV (=saw_cuft_vol, v[4]), NOT the merch MCFV — this sets defProp = treeVol/SCFV
+        # (>1, since treeVol=gross v4+v7). Western variants would use MCFV; gate when they're added.
+        ft = isempty(s.econ.tree_log_ft3) ? nothing : get(s.econ.tree_log_ft3, Int(i), nothing)
+        if ft !== nothing
+            g = s.plot.gross_space; g <= 0f0 && (g = 1f0)
+            accrue_log_grade_cuft!(s.econ, sp, Int32(current_cycle_year(s)), prem / g, t.saw_cuft_vol[i], ft)
+        end
     end
     # FFE harvested-wood-products: bucket this removed tree's merch biomass into the FATE accumulator
     # (FMSCUT) for the FVS_Hrv_Carbon report. Merch biomass = merch cuft × V2T × removed TPA (FFE method).
@@ -160,8 +176,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     @inbounds for act in acts
         act.icflag == Int32(201) && _apply_specpref!(s, act)
         act.icflag == Int32(206) && _apply_spleave!(s, act)   # SPLEAVE: per-species leave flag
-        if act.icflag == Int32(202)        # TCONDMLT (cuts.f:1424): TCWT·IMC + SPCLWT·ISPECL weights
+        if act.icflag == Int32(202)        # TCONDMLT (cuts.f:1424-1428): TCWT·IMC + SPCLWT·ISPECL + point weights
             cc.total_wt = act.params[1]; cc.special_wt = act.params[2]
+            length(act.params) >= 5 && (cc.thin_ba_wt  = act.params[3];   # PBAWT·PTBAA(ip)
+                                        cc.thin_ccf_wt = act.params[4];    # PCCFWT·PCCF(ip)
+                                        cc.thin_tpa_wt = act.params[5])    # PTPAWT·PTPA(ip)
         end
         if act.icflag == Int32(200)        # MINHARV (cuts.f:400): set the harvest-minimum thresholds
             cc.ba_min = act.params[1]; cc.tcf_min = act.params[2]; cc.cf_min = act.params[3]
@@ -408,6 +427,12 @@ end
 @inline function _cut_pref_wt(s::StandState, i::Integer)
     c = s.control; t = s.trees
     imc = Int(t.mort_code[i]); imc = imc <= 0 ? 1 : imc > 3 ? 3 : imc
+    # NOTE: the TCONDMLT point-density terms (cuts.f:1075 `+PBAWT·PTBAA(IP)+PCCFWT·PCCF(IP)+PTPAWT·PTPA(IP)`)
+    # are DELIBERATELY NOT added here. They are EMPIRICALLY INERT in live FVSsn: a multi-point THINBBA with
+    # PTPAWT (or PBAWT) set to 9999 produces a .sum byte-identical to no weight — FVS's cuts.f PTPA(IP)/PTBAA(IP)
+    # is uniform/zero across points at thin time (a point-thinning-only path that plain TCONDMLT doesn't arm).
+    # Adding the term (with jl's per-point point_tpa, which *does* vary) made jl diverge from live; matching live
+    # = leaving it out. The weights are still parsed into Control (thin_ba_wt/…) but unused. See docs/audit.
     return Float32(c.cut_pref[t.species[i]]) + c.total_wt * Float32(imc) +
            c.special_wt * Float32(t.special[i])
 end

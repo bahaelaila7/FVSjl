@@ -32,7 +32,9 @@ const REGENT_DGMAX = 5f0
 @inline function _regent_dg(sd, bark_a, bark_b, sp::Integer, d::Float32, h::Float32, htg::Float32,
                             scale2::Float32, dgmx::Float32, ifor::Integer = 0, xrdgro::Float32 = 1f0)
     hk = h + htg
-    hk <= 4.5f0 && return 0f0                         # (DBH bump path; not hit for snt01)
+    # regent.f:285-287: for HK≤4.5 FVS sets DG=0 but nudges DBH=D+0.001·HK. jl applies dbh+=dg, so
+    # return 0.001·HK to match the net dbh. Dead branch for live trees (dbh>0 ⇒ height>4.5 ⇒ HK>4.5).
+    hk <= 4.5f0 && return 0.001f0 * hk
     dkk = _htdbh_dbh(sd, sp, hk, ifor)
     dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, ifor)
     bark = bark_ratio(bark_a, bark_b, sp, d)          # per-stand bark (Fort Bragg override)
@@ -65,8 +67,9 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
     species_sort!(s)
     trip = stash !== nothing
     nrec = trip ? 3 : 1
-    scale = fint / REGENT_REGYR                       # fnt/REGYR
-    scale2 = 1f0                                       # YR/fnt (normal cycle)
+    scale = fint / REGENT_REGYR                       # fnt/REGYR (gradd re-expand)
+    scale2 = REGENT_REGYR / fint                      # YR/fnt — shrink DG to the 5-yr basis before DIAM/DGBND
+                                                       # (regent.f:359-360); =1 at FINT=5. Re-expanded by `scale`.
     random_on = s.control.dg_stddev_bound >= 1f0   # DGSD (DGSTDEV; default 2, grinit.f) ⇒ random effect on
     # REGHMULT/REGDMULT (MULTS kinds 3/6): per-species regen height/diameter multipliers
     # (regent.f:233 HTGR·XRHGRO, :347/:350 DG·XRDGRO). cur_year = inventory + cycle·period.
@@ -109,8 +112,15 @@ function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx), xrdgro)
-                (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)
-                dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)
+                (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)   # DIAM budwidth floor at the 5-yr basis
+                dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)             # DGBND at the 5-yr basis (regent.f:359-371)
+                # GRADD re-expands the bounded 5-yr DG to the FINT cycle (gradd.f:79-90), as for large trees.
+                # No-op for FINT=5; a pure shrink/expand identity unless the floor/cap bound above.
+                if fint != 5f0 && dg > 0f0
+                    bk = bark_ratio(c.bark_a, c.bark_b, sp, d); dib = d * bk
+                    dds_e = dg * (2f0 * dib + dg) * (fint / 5f0)
+                    dg = sqrt(dib * dib + dds_e) - dib
+                end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
                 elseif l == 1

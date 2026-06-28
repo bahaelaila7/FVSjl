@@ -123,10 +123,46 @@ function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
         stmt = DBInterface.prepare(db, ins)
         for row in rows
             yr = row[1]; r = row[2]
+            rel = length(row) >= 6 ? Float64(row[6]) : 0.0   # Carbon_Released_From_Fire (fmburn! consumed C)
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
                 Float64(r.aboveground), Float64(r.merch), Float64(r.belowground),
                 Float64(r.belowground_dead), Float64(r.standing_dead), Float64(r.down_wood),
-                Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total), 0.0, 0.0))
+                Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total), 0.0, rel))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_EconHarvestValue schema (dbsecharv.f) — per-species per-DIB-grade log-graded harvest value.
+# The BF_1000_LOG (unit 4) and FT3_100_LOG (unit 5) columns are populated by jl per row; the unused
+# unit's volume columns + the TPA/Tons/DBH columns are null (FVS's null-when-unset itoc/-1 convention).
+const _FVS_ECONHARVEST_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_EconHarvestValue(
+  CaseID text, Year int, SpeciesFVS text, SpeciesPLANTS text, SpeciesFIA text,
+  Min_DIB real, Max_DIB real, Min_DBH real, Max_DBH real,
+  TPA_Removed int, TPA_Value int, Tons_Per_Acre int, Ft3_Removed int, Ft3_Value int,
+  Board_Ft_Removed int, Board_Ft_Value int, Total_Value int)"""
+
+"""
+    write_dbs_econharvest!(dbpath, caseid, rows) -> dbpath
+
+Write the log-graded harvest-value detail (`FVS_EconHarvestValue`, dbsecharv.f) — one row per
+(year, species, unit, DIB grade) from `econ_harvest_value_rows`. Board-foot (unit 4) and cubic-foot
+(unit 5) removed/value/total are filled per row; the TPA/Tons/DBH columns are null.
+"""
+function write_dbs_econharvest!(dbpath::AbstractString, caseid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        DBInterface.execute(db, _FVS_ECONHARVEST_CREATE)
+        ins = "INSERT INTO FVS_EconHarvestValue VALUES (" * join(fill("?", 17), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for r in rows
+            DBInterface.execute(stmt, (caseid, r.year, r.sp_fvs, r.sp_plants, r.sp_fia,
+                r.min_dib, r.max_dib, missing, missing,
+                missing, missing, missing, r.ft3_removed, r.ft3_value,
+                r.bf_removed, r.bf_value, r.total_value))
         end
     finally
         SQLite.close(db)
@@ -441,10 +477,11 @@ end
 const _FVS_TREELIST_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_TreeList(
   CaseID text not null, StandID text not null, Year int, PrdLen int, TreeId text,
-  TreeIndex int, SpeciesFVS text, SpeciesPLANTS text, SpeciesFIA text, TPA real,
-  DBH real, DG real, Ht real, HtG real, PctCr int, CrWidth real, BAPctile real,
-  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, TruncHt int,
-  Ht2TDCF real, Ht2TDBF real, TreeAge real);
+  TreeIndex int, SpeciesFVS text, SpeciesPLANTS text, SpeciesFIA text,
+  TreeVal int, SSCD int, PtIndex int, TPA real, MortPA real,
+  DBH real, DG real, Ht real, HtG real, PctCr int, CrWidth real, MistCD int, BAPctile real,
+  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, MDefect int, BDefect int, TruncHt int,
+  EstHt real, ActPt int, Ht2TDCF real, Ht2TDBF real, TreeAge real);
 """
 
 """
@@ -460,14 +497,32 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
     rows = Vector{Any}[]
     @inbounds for i in 1:t.n
         sp = Int(t.species[i])
+        # FVS's treelist CrWidth = CRWDTH(I), the OPEN-GROWN crown width populated in CCFCAL (iwho=1,
+        # CR=90 — same convention as `stand_ccf`), NOT the per-tree stored `crown_width` (which jl only
+        # sets for sprouts/compress, leaving overstory at 0). Compute it here so the DBS treelist matches
+        # live (overstory dbh-8 ≈ 20 ft, was 0). Falls back to 0 for species without crown coefficients.
+        cw = crown_width(c, s.species.class_codes[sp, 1][1:2], t.dbh[i], t.height[i], 90, 1,
+                         s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
+        # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT
+        # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
+        # (dbstrls.f:200-202), ActPt=IPVEC(ITRE) (point id). All sourced from jl state.
+        df = Int(t.defect[i]); pid = Int(t.plot_id[i])
+        mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
+        estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
+        actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
         push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
-            strip(c.code_plants[sp]), strip(c.code_fia[sp]), Float64(t.tpa[i] / g),
+            strip(c.code_plants[sp]), strip(c.code_fia[sp]),
+            Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
+            Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g),      # TPA, MortPA
             Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
-            Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(t.crown_width[i]),
+            Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
+            0,                                                     # MistCD
             Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
             Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
-            Float64(t.bdft_vol[i]), Int(t.trunc[i]), Float64(t.merch_top_cf[i]),
-            Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+            Float64(t.bdft_vol[i]), mdef, bdef, Int(t.trunc[i]),   # BdFt, MDefect, BDefect, TruncHt
+            estht, actpt,                                          # EstHt, ActPt
+            Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
     end
     return (Int(year), Int(prdlen), rows)
 end
@@ -617,10 +672,10 @@ function write_dbs_treelist!(dbpath::AbstractString, caseid::AbstractString,
     db = SQLite.DB(dbpath)
     try
         DBInterface.execute(db, _FVS_TREELIST_CREATE)
-        ins = "INSERT INTO FVS_TreeList VALUES (" * join(fill("?", 26), ",") * ")"
+        ins = "INSERT INTO FVS_TreeList VALUES (" * join(fill("?", 35), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for (year, prdlen, rows) in cycles, r in rows
-            # r = [TreeId,TreeIndex,SpFVS,SpPLANTS,SpFIA,TPA,DBH,DG,Ht,HtG,PctCr,CrWidth,
+            # r = [TreeId,TreeIndex,SpFVS,SpPLANTS,SpFIA,TPA,MortPA,DBH,DG,Ht,HtG,PctCr,CrWidth,
             #      BAPctile,PtBAL,TCuFt,MCuFt,SCuFt,BdFt,TruncHt,Ht2TDCF,Ht2TDBF,TreeAge]
             DBInterface.execute(stmt, (caseid, standid, year, prdlen, r...))
         end

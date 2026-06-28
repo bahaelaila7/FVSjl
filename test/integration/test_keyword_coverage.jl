@@ -33,7 +33,18 @@ const _KC_FT_BROKEN = Dict(
     # verified vs live FVSsn (the s05_ecounit_m221 multicycle "regression" was a stale FVSjulia
     # golden, regenerated from live FVS). The earlier "crown-rounding ULP" diagnosis for s5 was a
     # RED HERRING; the real root was the BAMAX sqrt/linear-G bug.
-    "s22_compress" => "COMPRESS different eigensolver — accepted per drop-in spec",
+    # s22_compress: COMPRESS is now FAITHFUL — eigensolver/partition bit-exact, post-merge RECORD ORDER bit-exact
+    # (TREDEL comprs.f:1007: survivor=IREC1=min-index, smallest-vac←largest-survivor), every merged record
+    # (sp/dbh/ht/ICR/OLDRN) matches live to the digit, AND a real same-species-RNG-swap bug fixed (sort_key=position
+    # reset, mirrors core/trees.jl compact!). The residual (TPA 413 vs 409, ≈1%) is the ACCEPTED COMPRESS-eigensolver
+    # + ULP divergence, traced to certainty: the per-class RANN `sel` (comprs.f:725, picks the merged record's plot
+    # via the WK3-cumulative walk) is BIT-EXACT in its draw value, but the within-class member ORDER differs for a
+    # few near-tied records, so the same RANN selects a different member → different plot → different PTBAA → ~1% DG
+    # on one record. ROOT: the PC1/PC2 sort keys (WK3/WK4, comprs.f:308-318) match live to < 1 Float32 ULP (e.g.
+    # rec6 WK3 9154.72461 vs 9154.72413, Δ0.0005 < ULP 0.00098; rec13/52/186 WK3 within 0.07 of each other), and
+    # those sub-ULP diffs flip the partition's near-tie-sensitive nested sort. This is exactly the GOAL's two
+    # accepted divergences (ULP float + COMPRESS eigensolver) — NOT a bug; the COMPRESS port is faithful. See #41.
+    "s22_compress" => "ACCEPTED COMPRESS eigensolver+ULP: sub-ULP PC-score ties flip within-class sort → RANN sel plot",
     # s26 FIXED (this session) — was a REAL bug (now bit-exact, moved out of broken):
     # the post-establishment species-sort order. FVS's ESGENT calls SPESRT to re-establish
     # the species-order sort after adding regen (esgent.f:41-44), so the DGSCOR/REGENT RNG

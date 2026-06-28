@@ -55,3 +55,20 @@ Bound a predicted diameter increment `ddg` by the species large-tree taper
     end
     return ddg
 end
+
+"""
+    _bound_scale(dlo_v, dhi_v, sp, dbh, d_ib, dg5, sfint, sizcap) -> Float32
+
+Apply `DGBND` to the **5-yr** diameter increment `dg5` (dgdriv.f:267-269), THEN scale the bounded
+increment to the `sfint`-year cycle (gradd.f:79-90: `DDS=(DG·(2·d_ib+DG))·(FINT/5)`,
+`DG=sqrt(d_ib²+DDS)−d_ib`) WITHOUT re-bounding. `sfint==5` ⇒ identity (just the bound).
+"""
+@inline function _bound_scale(dlo_v, dhi_v, sp::Integer, dbh::Real, d_ib::Real, dg5::Real,
+                              sfint::Real, sizcap::AbstractMatrix)::Float32
+    dg = dg_bound(dlo_v, dhi_v, sp, dbh, dg5, sizcap)
+    s = Float32(sfint)
+    (s != 5f0 && dg > 0f0) || return dg          # gradd.f:79 IF(FINT.NE.YR .AND. DG.GT.0)
+    dib = Float32(d_ib)
+    dds = dg * (2f0 * dib + dg) * (s / 5f0)
+    return sqrt(dib * dib + dds) - dib
+end

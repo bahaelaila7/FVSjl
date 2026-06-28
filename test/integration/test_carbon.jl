@@ -17,7 +17,7 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
 @testset "Stand Carbon Report — Jenkins live pools vs live Fortran" begin
     # CARBREPT / CARBCALC are recognized and set the report flag + method.
     s0 = FVSjl.StandState(FVSjl.Southern())
-    @test !s0.control.carbon_report_on && s0.control.carbon_method == 1   # default Jenkins
+    @test !s0.control.carbon_report_on && s0.control.carbon_method == 0   # FVS default = FFE (fminit.f:909 ICMETH=0)
     FVSjl.kw_carbrept!(s0, FVSjl.KeywordRecord("CARBREPT", "", String[], Float32[], Bool[], 0, FVSjl.KW_OK, 0))
     @test s0.control.carbon_report_on
     FVSjl.kw_carbcalc!(s0, FVSjl.KeywordRecord("CARBCALC", "", ["0"], Float32[0], [true], 1, FVSjl.KW_OK, 0))
@@ -200,6 +200,9 @@ end
             @test mv[4] ≈ fv[4] atol = 0.05    # Belowground Live  — BIT-EXACT
             @test mv[8] ≈ fv[8] atol = 0.05    # Forest Floor      — BIT-EXACT
             @test mv[9] ≈ fv[9] atol = 0.05    # Shrub/Herb (FLIVE) — BIT-EXACT (post-grow FLIVE refresh)
+            # Total Stand Carbon — BIT-EXACT. Includes the belowground-DEAD root pool V(4) because SN's default
+            # CRDCAY=0.0425>0 ⇒ LDCAY true (fmcrbout.f:179-180); jl previously omitted it from the total.
+            @test mv[10] ≈ fv[10] atol = 0.05  # Total Stand Carbon — BIT-EXACT (incl. below-dead via LDCAY)
         end
         # DEAD POOLS (BelowD/StandD/DDW) are NOT yet bit-exact — tracked honestly as @test_broken on the
         # max residual across cycles (not hidden behind a loose passing tolerance). The dead-pool flow has a
@@ -268,30 +271,39 @@ end
     end
 end
 
-@testset "CARBCALC=0 FFE-fuel live carbon method (semantic; live oracle binary-blocked)" begin
-    # The FFE carbon method (CARBCALC=0) computes Above = crown(foliage+woody) + stem, Merch = stem
-    # (fmcrbout.f:120-141 + fmdout.f:225-258), vs JENKINS national biomass. The live FFE oracle is
-    # degenerate in the stripped validation binary (zero live pools), so this is a SOURCE-FAITHFUL port
-    # validated by its semantics: Above = crown+stem > Merch = stem > 0, in the Jenkins ballpark, and the
-    # method only changes Above/Merch (roots + all dead pools are identical to JENKINS, fmcrbout.f:144).
-    key = joinpath(_CDIR, "carbon_snt.key")
-    if !isfile(key)
-        @test_skip "carbon_snt scenario not available"
+@testset "CARBCALC=0 FFE-fuel live carbon method (live-validated)" begin
+    # The FFE carbon method (CARBCALC=0) computes Above = crown(foliage+woody) + stem, Merch = stem, where the
+    # STEM volume is FMSVL2(LMERCH=.FALSE.) = MAX(X,MCF) = the MERCH cubic (v[4]+v[7]) for SN, NOT gross/TCF
+    # (fmsvol.f:148-151). jl previously used gross v[1] ⇒ FFE Above/Merch ran ~9% high; now `merch_cuft_vol`.
+    # Validated vs the live FFE oracle (FVSjl/tmp/FVSsn_full) report carbon_ffe.report.save (carbon_snt+CARBCALC 0).
+    key = joinpath(_CDIR, "carbon_ffe.key"); sav = joinpath(_CDIR, "carbon_ffe.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_ffe scenario not available"
     else
+        ft = [parse.(Float64, split(strip(l))) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
         s = first(FVSjl.each_stand(key))
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        io = IOBuffer()
+        FVSjl.write_carbon_report(io, s, length(ft) - 1; stand_id = "S248112", mgmt_id = "NONE")
+        rows = [parse.(Float64, split(strip(l)))
+                for l in split(String(take!(io)), '\n') if occursin(r"^(19|20)\d\d ", l)]
+        @test length(rows) == length(ft)
+        for (mv, fv) in zip(rows, ft)
+            # Above (crown+stem) and Merch (stem) — the gross→merch fix brings them from ~9% high to ≤1% of
+            # live. A small ≤1.0/≤0.5-ton residual remains (crown-biomass FMCROWE + NATCRS-MCF detail) — a
+            # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
+            @test abs(mv[2] - fv[2]) <= 1.0    # Aboveground Total (was ~+4 with gross v[1])
+            @test abs(mv[3] - fv[3]) <= 0.5    # Merch
+            @test mv[4] ≈ fv[4] atol = 0.05    # Belowground Live  — bit-exact (method-independent)
+            @test mv[8] ≈ fv[8] atol = 0.05    # Forest Floor      — bit-exact
+        end
+        # the method switches the live basis but leaves roots / dead pools alone (fmcrbout.f:144)
         FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
-        ffe = FVSjl.ffe_live_carbon(s); jen = FVSjl.stand_live_carbon(s)
-        @test ffe.merch > 0f0                                  # stem biomass present
-        @test ffe.aboveground > ffe.merch                     # Above = crown + stem  >  Merch = stem
-        @test 0.5 < ffe.aboveground / jen.aboveground < 2.0   # same order of magnitude as Jenkins
-        # the report branch: method 0 changes Above/Merch but NOT belowground / dead pools
         s.control.carbon_method = Int32(0); r0 = FVSjl.stand_carbon_report(s)
         s.control.carbon_method = Int32(1); r1 = FVSjl.stand_carbon_report(s)
-        @test r0.aboveground != r1.aboveground                # method actually switches the basis
-        @test r0.belowground ≈ r1.belowground                 # roots unchanged (Jenkins in both)
-        @test r0.standing_dead ≈ r1.standing_dead             # dead pools unchanged
-        @test r0.down_wood ≈ r1.down_wood
+        @test r0.aboveground != r1.aboveground
+        @test r0.belowground ≈ r1.belowground
+        @test r0.standing_dead ≈ r1.standing_dead
     end
 end
 
@@ -617,5 +629,155 @@ end
         # Stand-Dead is now bit-exact vs the high-precision oracle (the snag merch-BOLE fix: NATCRS MCF =
         # merch_cuft_vol, not gross cuft_vol). The remaining FFE dead-pool gap is DDW, not Stand-Dead.
         @test maxresid <= 0.05
+    end
+end
+
+@testset "SNAGBRK keyword — snag height-loss reduces the bole (fmin.f:504, opt 10; FMSNGHT)" begin
+    # SNAGBRK sets per-species HTX (snag height-loss); FMSNGHT (SN = fmsnght.f:153-164) shrinks each snag's
+    # height each year, and the bole volume is recomputed from it ⇒ StandDead DECREASES vs baseline. The SN
+    # default (HTX=0) is a no-op (snags keep full height, frozen bole) — so the keyword-free path stays bit-
+    # exact (covered by the falldown test). Here: with `SNAGBRK 0 10 20 15 30` the carbon_snt StandDead drops,
+    # LIVE-VALIDATED to display resolution (live base 5.4/9.5 → SNAGBRK 5.1/9.0 at 2000/2005; jl 5.06/9.04),
+    # after the two fixes: the height-loss rate comes from the snag's INITIAL hard/soft state (FMSNGHT IHRD,
+    # not the DKTIME report transition — verified bit-exact vs live HTIH), and the shortened bole is the CFTOPK
+    # truncation of the ORIGINAL stem (fmsvol.f), NOT a normal short tree. Default HTX=0 stays a no-op (bit-exact).
+    base = joinpath(_CDIR, "carbon_snt.key"); tre = joinpath(_CDIR, "carbon_snt.tre")
+    if !isfile(base) || !isfile(tre)
+        @test_skip "carbon_snt scenario not available"
+    else
+        dir = mktempdir()
+        bkey = joinpath(dir, "carbon_brk.key")
+        write(bkey, replace(read(base, String),
+              "CARBREPT" => "CARBREPT\nSNAGBRK          0      10.      20.      15.      30."))
+        cp(tre, joinpath(dir, "carbon_brk.tre"))
+        TO = 0.90718474 / 0.40468564
+        runsd(key) = begin
+            s = first(FVSjl.each_stand(key))
+            FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s); FVSjl.ffe_seed_input_snags!(s)
+            v = Float64[]
+            for c in 1:4
+                FVSjl.compute_density!(s); push!(v, FVSjl.standing_dead_carbon(s) * TO)
+                c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
+            end; v
+        end
+        b = runsd(base); brk = runsd(bkey)
+        @test brk[1] == b[1]                  # 1990: no snags lost height yet → identical
+        @test isapprox(brk[2], 4.3; atol = 0.1)   # 1995 vs live 4.3
+        @test isapprox(brk[3], 5.1; atol = 0.1)   # 2000 vs live 5.1 (was 4.57 before the CFTOPK fix)
+        @test isapprox(brk[4], 9.0; atol = 0.1)   # 2005 vs live 9.0 (was 8.71)
+    end
+end
+
+@testset "SnagSum hard→soft split — true-YRDEAD classification tracks live (carbon_snt, #28/3b)" begin
+    # FVS dates ordinary-mortality snags at YRDEAD = IY(ICYC+1)−1 (cycle-END−1, fmkill.f:140) and classifies
+    # hard→soft by `IYR−YRDEAD ≥ DKTIME`. jl's `sn.year` is the cycle-START fall-clock (tuned to the bit-exact
+    # StandDead falldown), so using it for the split OVER-aged ordinary-mortality snags by ~(cyclen−1) → jl
+    # over-softened (2000: jl 6.5h/41.6s vs live 44.8h/3.3s). FIX: carry the TRUE death year in `SnagList.yrdead`
+    # (= cycle-end−1 for ordinary mortality, = year for input/fire) and classify on it; the fall stays on `sn.year`
+    # so StandDead is untouched (it uses den_hard+den_soft TOTAL, split-independent). Live-validated vs FVSsn
+    # SNAG SUMMARY: 1995 35.79h/6.91s BIT-EXACT, 2000 ≈44.8h/3.3s, 2005 ≈66.8h/4.3s (was wildly inverted).
+    key = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(key)
+        @test_skip "carbon_snt scenario not available"
+    else
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.ffe_seed_input_snags!(s)
+        live = Dict(2 => (35.79, 6.91, 0.1), 3 => (44.8, 3.3, 0.5), 4 => (66.8, 4.3, 0.5))  # (hard, soft, atol)
+        for c in 1:4
+            FVSjl.compute_density!(s)
+            ss = FVSjl.snag_summary(s)
+            if haskey(live, c)
+                lh, ls, at = live[c]
+                @test isapprox(ss.hard[7], lh; atol = at)
+                @test isapprox(ss.soft[7], ls; atol = at)
+            end
+            c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
+        end
+    end
+end
+
+@testset "SNAGDCAY keyword — per-species DECAYX override (fmin.f:633, opt 11; live-validated)" begin
+    # SNAGDCAY overrides DECAYX, the snag decay-rate multiplier in DKTIME = DECAYX·(1.24·D+13.82) (the
+    # hard→soft transition). With DECAYX=2.0 (vs SN defaults 0.07/0.21/0.35) DKTIME is so large that no
+    # snag reaches the threshold within the run, so ALL snags stay HARD (soft=0). VALIDATED bit-exact vs
+    # live FVSsn (`SNAGDCAY 0 2.0`, which live echoes "RATE-OF-DECAY CORRECTION MULTIPLIER IS:2.000"):
+    # the SNAG SUMMARY hard total is 48.0 (2000) / 71.0 (2005) with soft=0 both — jl matches. (WITHOUT
+    # SNAGDCAY the hard/soft SPLIT carries the known #28 snag-dating residual — jl over-softens — but the
+    # TOTAL matches live and SNAGDCAY suppresses the transition, so the keyword itself validates cleanly.
+    # This redeems the audit's stale "blocked" label: SNAGDCAY is a small, portable, faithful override.)
+    base = joinpath(_CDIR, "carbon_snt.key")
+    if !isfile(base) || !isfile(joinpath(_CDIR, "carbon_snt.tre"))
+        @test_skip "carbon_snt scenario not available"
+    else
+        dir = mktempdir()
+        key = joinpath(dir, "snag_dcay.key")
+        write(key, replace(read(base, String), "CARBREPT" => "CARBREPT\nSNAGDCAY         0       2.0"))
+        cp(joinpath(_CDIR, "carbon_snt.tre"), joinpath(dir, "snag_dcay.tre"))
+        s = first(FVSjl.each_stand(key))
+        # the override reached FFEParams (all species → 2.0)
+        @test s.fire !== nothing && get(s.fire.params.snag_decayx_ovr, Int32(13), 0f0) == 2f0
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        FVSjl.ffe_seed_input_snags!(s)
+        live = Dict(3 => 48.0, 4 => 71.0)            # live FVSsn SNAG SUMMARY hard total: cyc3=2000, cyc4=2005
+        for c in 1:4
+            FVSjl.compute_density!(s)
+            ss = FVSjl.snag_summary(s)
+            if haskey(live, c)
+                @test isapprox(ss.hard[7], live[c]; atol = 0.1)   # hard total bit-exact vs live
+                @test ss.soft[7] == 0f0                            # DECAYX=2 ⇒ no hard→soft transition
+            end
+            c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
+        end
+    end
+end
+
+@testset "FFE fire-cycle carbon report — POST-fire phase + released (FMCRBOUT/FMBURN order, #28)" begin
+    # FVS fmmain.f order: FMBURN (fire kill + snags + fuel consumption, :170) → FMCRBOUT carbon report
+    # (:206) → annual fuel loop (:228) → FMKILL — all BEFORE UPDATE grows the stand (gradd.f:180). jl now
+    # mirrors this: grow_cycle!'s `mortality_and_fire!` runs the fire, then `post_fire` does the carbon
+    # sample (carbon_hook) + the DEFERRED FFE annual fuel update (fuel_period) on the START-of-cycle-
+    # consumed pools, then the WK2 combine. So the SIMFIRE's effects land in the FIRE-YEAR row (were one
+    # cycle late), the fire consumes start-of-cycle down wood, and the freshly-created snags fall this cycle.
+    # VALIDATED vs live FVSsn (fire_carbon.key, SIMFIRE 2000) — the 2000 row tracks live across the board:
+    #   AGL 19.2 (live 19.1; pre-fix 36.2), StandDead 19.5 (live 20.2; pre-fix 2.2), DDW 1.1 (live 1.1;
+    #   pre-reorder 1.3), Released 5.1 (live 5.5; pre-reorder 0). Residuals (Released ~7%, the slower snag
+    #   fall, the unported fire-killed Belowground-Dead) are documented in BACKLOG #28.
+    key = joinpath(_CDIR, "fire_carbon.key")
+    if !isfile(key)
+        @test_skip "fire_carbon.key not available"
+    else
+        out = FVSjl.run_keyfile(key)
+        incarb = false; rows = Dict{String,Vector{SubString{String}}}()
+        for ln in split(out, '\n')
+            occursin("STAND CARBON REPORT", ln) && (incarb = true)
+            if incarb
+                m = match(r"^\s*(20[01][05])\s", ln)
+                m !== nothing && (rows[m.captures[1]] = split(strip(ln)))
+            end
+        end
+        @test haskey(rows, "2000") && haskey(rows, "2005")
+        if haskey(rows, "2000")
+            r = rows["2000"]
+            agl = parse(Float64, r[2]); bgd = parse(Float64, r[5]); sd = parse(Float64, r[6])
+            ddw = parse(Float64, r[7]); rel = parse(Float64, r[12])
+            @test isapprox(agl, 19.1; atol = 1.5) # post-fire survivors (live 19.1; pre-fix 36.2)
+            @test isapprox(bgd, 5.6;  atol = 0.5) # fire-killed coarse ROOTS booked to Below-Dead (live 5.6; pre-fix 0.9)
+            @test isapprox(sd,  20.2; atol = 0.3) # snags: crown-lift-at-death + FMEFF fine-crown consumption (live 20.2; jl 20.1, was 19.5→20.4)
+            @test isapprox(ddw, 1.1;  atol = 0.4) # start-of-cycle-consumed down wood (live 1.1)
+            @test isapprox(rel, 5.5;  atol = 0.3) # released = surface + live-fuel burn (live 5.5; was 0, then 5.13)
+        end
+        if haskey(rows, "2005")
+            # The snag-fall TIMING fix (update_snags! incrementing annual year): the fire snags now fall in
+            # their CREATION cycle (FVS FMBURN→annual loop), so by 2005 Standing-Dead has dropped and the
+            # fallen boles are in Down-Wood — matching live (SD 2.8, DDW 14.8; pre-fix jl SD 10.9 / DDW 8.1).
+            r = rows["2005"]
+            sd05 = parse(Float64, r[6]); ddw05 = parse(Float64, r[7])
+            # The fire snags fall in their CREATION year too (FMSNAG runs after FMBURN) — jl now adds that
+            # year (update_snags! `born_now`), so the small-snag pool clears like live (DENIH 74→15) instead
+            # of leaving ~5× too many (the small-snag fall is a CONSTANT modrate·origden/yr). SD drops to live.
+            @test isapprox(sd05,  2.8; atol = 0.4)    # fire snags cleared (jl 2.6; was 10.9, then 4.0)
+            @test isapprox(ddw05, 14.8; atol = 0.6)   # fallen boles in down wood (jl 15.2; was 8.1)
+        end
     end
 end

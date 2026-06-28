@@ -1,0 +1,48 @@
+# Semantic stand format — MANY stands in one file (`stands:` list) + the raw_keywords
+# escape hatch. Each list entry is one self-contained stand; the converter emits one
+# PROCESS per stand and a single STOP at the end. Full reference: ../../docs/FORMATS.md
+#
+# Run all three stands (→ three blocks in the .sum):
+#   julia --project=. -e 'using FVSjl; print(run_keyfile("examples/semantic/multistand.yaml"))'
+#
+# Trees load from the companion multistand.csv (preferred) or multistand.tre.
+format: fvs-stand/v1
+stands:
+  # ── Stand 1: unthinned control. Only this stand sets treelist.format → TREEFMT;
+  #    later stands inherit the tree format (as in stock FVS), so they omit it.
+  - stdident: "STAND 1 — UNTHINNED CONTROL"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treelist:
+      format: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
+
+  # ── Stand 2: thin from below to basal area 80 in 2010.
+  - stdident: "STAND 2 — THINBBA TO BA 80 IN 2010"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treatments:
+      - thinbba: { year: 2010, ba: 80 }
+    treelist: {}            # inherits stand 1's TREEFMT → just TREEDATA
+
+  # ── Stand 3: thin to SDI 200 in 2010.
+  - stdident: "STAND 3 — THINSDI TO SDI 200 IN 2010"
+    noautoes: true
+    design:   { plots: 11, nsc: 1 }
+    stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+    sitecode: { species: 63, index: 60.0 }
+    invyr:    1990
+    numcycle: 6
+    echosum:  true
+    treatments:
+      - thinsdi: { year: 2010, sdi: 200 }
+    treelist: {}

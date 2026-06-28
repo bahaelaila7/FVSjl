@@ -14,6 +14,42 @@ A blank date field defaults to **cycle 1**; a date ≥ 1000 is a calendar year, 
 cycle number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 `examples/key_to_structured_yaml.py`); the round-trip is lossless.
 
+> There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that
+> describes a stand by intent (`invyr`, `numcycle`, `treatments`, `treelist`…) rather
+> than mirroring the keyword stream, and is unraveled into the canonical keyword order
+> for you. That flavor — plus the tree **`.csv`** format and how the keyword and tree
+> files pair up — is documented in **[FORMATS.md](FORMATS.md)**. The form described
+> below is the order-preserving image of a `.key`.
+
+---
+
+## Contents
+
+- [The YAML form — order-aware hierarchy](#the-yaml-form--order-aware-hierarchy)
+- [Order-significant relationships](#order-significant-relationships-you-must-preserve)
+- **Keyword groups** (every keyword + its parameters):
+  - [Stand identification & run setup](#stand-identification--run-setup) — STDIDENT · STDINFO · DESIGN · SITECODE · INVYEAR · NUMCYCLE · TIMEINT · CYCLEAT · TREEFMT · TREEDATA · NOTREES · TFIXAREA · MANAGED · RESETAGE · PROCESS · STOP
+  - [Density limits](#density-limits) — SDIMAX · SDICALC · BAMAX
+  - [Growth calibration & modifiers](#growth-calibration--modifiers) — GROWTH · NOCALIB · READCORD/H/R · REUSCORD/H/R · BAIMULT · HTGMULT · CRNMULT · REGDMULT · REGHMULT · DGSTDEV · SERLCORR · RANNSEED · FIXDG · FIXHTG · FIXMORT · MORTMULT · MORTMSB · TREESZCP · NOHTDREG · HTGSTOP · TOPKILL
+  - [Thinning & harvest](#thinning--harvest) — THINBBA · THINABA · THINBTA · THINATA · THINSDI · THINCC · THINHT · THINQFA · THINRDEN · THINDBH · THINPT · SETPTHIN · THINAUTO · SPECPREF · LEAVESP · SPLEAVE · CUTEFF · MINHARV · SALVAGE · YARDLOSS
+  - [Establishment & regeneration](#establishment--regeneration) — ESTAB · PLANT · NATURAL · SPROUT · NOSPROUT
+  - [Volume & merchandising](#volume--merchandising) — VOLUME · BFVOLUME · VOLEQNUM · MCDEFECT · BFDEFECT · MCFDLN · BFFDLN
+  - [Species groups](#species-groups) — SPGROUP
+  - [Site & treatments](#site--treatments) — SETSITE · FERTILIZ
+  - [Output & database](#output--database) — ECHOSUM · DATABASE · DSNOUT · SUMMARY · TREELIDB · CUTLIST · COMPUTDB · STRCLASS
+  - [Event monitor](#event-monitor) — IF · COMPUTE
+  - [Fire & fuels (FFE)](#fire--fuels-ffe) — FMIN · SIMFIRE · FLAMEADJ · MOISTURE · DROUGHT · the FUEL\* · the SNAG\* · the POTF\* · SALVAGE/SALVSP · PILEBURN · FUELMOVE · FUELTRET · FUELMODL · DEFULMOD · FIRECALC · CARBREPT · CARBCALC · CANCALC · SOILHEAT
+  - [Economics (ECON)](#economics-econ) — ECON · STRTECON · ANNUCST · HRVVRCST · HRVRVN · TCONDMLT
+  - [Compression & tripling](#compression--tripling) — COMPRESS · NOTRIPLE · NUMTRIP
+- [Worked examples (`.key` ↔ `.yaml`)](#worked-examples-key--yaml-side-by-side)
+
+> **Conventions.** In each table the number in `(n)` after a parameter is its 1-based
+> **field position** on the `.key` card (field `n` at cols `10·n+1 … 10·n+10`); the same
+> name is the YAML key. `date`(1) blank ⇒ cycle 1; ≥ 1000 = calendar year, < 1000 = cycle.
+> `species` accepts an alpha/FIA/PLANTS code, `0`/`ALL`, or `−N` for [SPGROUP](#species-groups) *N*.
+> A keyword absent from these tables but recognized by FVSjl is listed in its group's notes.
+> The **structures** (the two YAML flavors, the tree `.tre`/`.csv`) are in [FORMATS.md](FORMATS.md).
+
 ---
 
 ## The YAML form — order-aware hierarchy
@@ -129,7 +165,11 @@ sections has no effect, but the converter never does so — it preserves the inp
 | **FIXHTG** | One-shot fixed height increment. | `date`(1), `species`(2), `value`(3), `dbh_min`(4), `dbh_max`(5). |
 | **FIXMORT** | One-shot forced mortality rate. | `date`(1), `species`(2), `rate`(3), `dbh_min`(4), `dbh_max`(5), `option`(5/6). |
 | **MORTMULT** | Mortality-rate multiplier (with DBH window). | `date`(1), `species`(2), `multiplier`(3), `dbh_min`(4), `dbh_max`(5). |
+| **MORTMSB** | Alternate "mature-stand breakup" mortality (a DBH-range kill, `msbmrt.f`). | `date`(1), `species`(2), `mort_rate`(3), `dbh_min`(4), `dbh_max`(5). |
 | **TREESZCP** / **SIZCAP** | Per-species size cap (max DBH/height). | `species`(1), `dbh_cap`(2). |
+| **NOHTDREG** | Control the HT-DBH (`LHTDRG`) calibration: field 1 = `0` suppress / `1` invoke. | `mode`(1). |
+| **HTGSTOP** | Top-damage that **scales height growth** (`htgstp.f`). | `date`(1), `species`(2), `dbh_min`(4), `dbh_max`(5), `severity`. |
+| **TOPKILL** | Top-damage that **top-kills** a fraction of height (broken top). | `date`(1), `species`(2), `dbh_min`(4), `dbh_max`(5), `severity`. |
 
 ## Thinning & harvest
 
@@ -216,24 +256,86 @@ All `THIN*` keywords share the layout: `year`(1), then a residual/target(2),
 
 ## Fire & fuels (FFE)
 
+The FFE keywords live **inside an `FMIN … END` block** (open FFE with `FMIN`, close with
+`END`). They configure the fire-and-fuels extension: a scheduled fire, fuel loadings and
+dynamics, the snag (standing-dead) sub-model, and the potential-fire report. (`date`(1)
+follows the usual rule; `species` accepts a code / `0`=all / `−N`=group.)
+
+**Fire event & behavior**
+
 | keyword | purpose | named parameters |
 |---|---|---|
-| **FMIN … END** | Open the Fire-and-Fuels (FFE) keyword block. | *(block)* |
-| **SIMFIRE** | Schedule a simulated fire. | `date`(1), … |
-| **POTFIRE / POTFLAME / FLAMEADJ** | Potential-fire / flame outputs & adjustments. | per field |
-| **CARBREPT / CARBCALC** | Stand carbon report / carbon-calc method. | `date`(1) / `method`(1). |
-| **TOPKILL** | Top-kill (broken-top) damage event. | `date`(1), `species`(2), … |
-| **HTGSTOP** | Stop height growth (top damage). | `date`(1), `species`(2), … |
+| **FMIN … END** | Open / close the FFE keyword block. | *(block)* |
+| **SIMFIRE** | Schedule a simulated fire + its weather. | `date`(1), `wind`(2, mph), `moisture_code`(3, 1–4), `temp`(4, °F), `mort_code`(5, 0/1), `pct_burn`(6, %), `season`(7, 1–4). |
+| **FLAMEADJ** | Adjust flame length & crown burn. | `flame_mult`(2), `crown_burn`(4, %). |
+| **FIRECALC** | Fire-behavior method. | `method`(1) — `0` old-FM-logic (the SN default & only ported path; 1/2 warn). |
+| **MOISTURE** | Override the 7 fuel-moisture values for a date. | `date`(1), then `1hr`(2), `10hr`(3), `100hr`(4), `3in+`(5), `duff`(6), `live_woody`(7), `live_herb`(8, blank ⇒ live-woody) — all %. |
+| **DROUGHT** | Drought years (UT/CR/LS only). | *(recognized; **no-op in SN**)* |
+| **CANCALC** | Canopy base-ht / bulk-density for the crown-fire model. | *(recognized; **no-op in SN** — no crown fire)* |
+
+**Fuel loadings & dynamics**
+
+| keyword | purpose | named parameters |
+|---|---|---|
+| **FUELINIT** | Set initial **hard** fuel loadings (tons/ac by size class). | size-class loadings (`<.25`, `.25–1`, `1–3`, `3–6`, `6–12`, `>12`, litter, duff). |
+| **FUELSOFT** | Set initial **soft** (decayed) fuel loadings. | same size classes as FUELINIT. |
+| **FUELMODL** | Force standard fire-behavior fuel model(s). | `date`(1), then up to **3** `(model#, weight)` pairs (fields 2–7; weights normalized). |
+| **DEFULMOD** | Define / alter a custom fuel model. | model number + the model's fuel-load / depth parameters (on following lines). |
+| **FUELDCAY** | Set per-pool fuel **decay rates**. | per size-class decay rate. |
+| **FUELMULT** | Multiply the fuel decay rates. | per size-class multiplier. |
+| **FUELPOOL** | Assign a species to a fuel **decay class**. | `species`(1), `decay_class`(2, 1–4). |
+| **FUELMOVE** | Move fuel between size pools. | `date`(1), `from`(2, 0–11), `to`(3), `amount`(4), `proportion`(5), `leave`(6), `target_final`(7). |
+| **FUELTRET** | Fuel-treatment depth adjustment. | `date`(1), `treatment`(2, 0–2), `harvest`(3, 1–3), `depth_mult`(4, −1 ⇒ table). |
+| **DUFFPROD** | Proportion of decayed wood that becomes **duff**. | `proportion`(per pool). |
+| **PILEBURN** | Jackpot / pile burn. | `date`(1), `type`(2), `affect`(3, %), `treat`(4, %), `consumption`(5, %), `mortality`(6, %). |
+
+**Snags (standing dead) & salvage**
+
+| keyword | purpose | named parameters |
+|---|---|---|
+| **SNAGINIT** | Add user snags. | `species`(1), `dbh`(2), `ht_at_death`(3), `cur_ht`(4), `age`(5), `density`(6, stems/ac). |
+| **SNAGFALL** | Per-species snag **fall** rates. | `species`(1), then the fall-rate parameters. |
+| **SNAGDCAY** | Per-species snag **decay rate** `DECAYX` (hard→soft). | `species`(1), `decayx`(2). |
+| **SNAGBRK** | Per-species snag **height-loss** (`YRS50`/`YRS30` → HTX). | `species`(1), `yrs_to_50pct`(2), `yrs_to_30pct`(3). |
+| **SNAGPSFT** | Per-species fraction **soft at creation**. | `species`(1), `prop_soft`(2, 0–1). |
+| **SNAGPBN** | Post-burn snag-fall parameters. | `pb_soft`(1), `pb_small`(2), `pb_time`(3, yrs), `pb_size`(4), `pb_scorch`(5). |
+| **SALVAGE** | Remove (salvage) snags. | `date`(1), `dbh_min`(2), `dbh_max`(3), `max_age`(4), `ok_soft`(5, 0=all/1=hard/2=soft), `prop_removed`(6), `prop_left`(7). |
+| **SALVSP** | Salvage species cut/leave list. | `date`(1), `species`(2), `flag`(3, <1 cut-list / ≥1 leave-list). |
+| **FMORTMLT** | Fire-caused mortality multiplier. | `date`(1), `species`(2), `multiplier`(3), `dbh_min`(4), `dbh_max`(5). |
+
+**Reports & potential fire**
+
+| keyword | purpose | named parameters |
+|---|---|---|
+| **CARBREPT** | Request the FFE Stand **Carbon** report. | *(flag)* |
+| **CARBCALC** | Carbon method & units. | `method`(1, 0=FFE/1=Jenkins), `units`(2, 0=US-t/ac / 1=t/ha / 2=t/ac). |
+| **POTFIRE** / **POTFLAME** | Request the **Potential Fire** report. | *(flag)* |
+| **POTFMOIS** | Potential-fire moisture by scenario. | `scenario`(1, 1=severe/2=moderate), then 7 moisture % (2–8). |
+| **POTFWIND / POTFTEMP / POTFSEAS / POTFPAB** | Potential-fire wind / temp / season / % area burned. | `severe`(1), `moderate`(2). |
+| **SOILHEAT** | Request the soil-heating report. | *(recognized; report not emitted)* |
+
+> Report-only FFE keywords (`BURNREPT`, `FUELOUT`, `SNAGSUM`, `MORTREPT`, …) are
+> **recognized no-ops** — the equivalent data is available via the [DBS](#output--database)
+> tables. Any FFE keyword *not* listed here warns at parse time (it may change results).
 
 ## Economics (ECON)
 
+The ECON keywords live **inside an `ECON … END` block**. They drive the discounted
+cost/revenue analysis (`FVS_EconSummary`) and the log-graded harvest value
+(`FVS_EconHarvestValue`).
+
 | keyword | purpose | named parameters |
 |---|---|---|
-| **ECON … END** | Open the economic-analysis block. | *(block)* |
-| **ANNUCST** | Annual cost. | `date`(1), `amount`(2), … |
-| **HRVRVN** | Harvest revenue (per unit volume). | `species`(1), `value`(2), … |
-| **HRVVRCST** | Variable harvest cost. | per field |
-| **TCONDMLT** | Tree-condition multiplier. | per field |
+| **ECON … END** | Open / close the economic-analysis block. | *(block)* |
+| **STRTECON** | Analysis start + discount rate. | `start`(1, year/delay), `discount_rate`(2, **%**), `known_sev`(3), `compute_sev`(4, flag). |
+| **ANNUCST** | Annual management cost. | `amount`(1, $/ac/yr). |
+| **HRVVRCST** | Variable harvest **cost** by DBH class. | `amount`(1), `dbh_class`(2), `dbh_min`(3), `dbh_max`(4). |
+| **HRVRVN** | Harvest **revenue** by species + DBH. | `amount`(1, $/unit), `unit`(2, 1=TPA / 2=BF·1000 / 3=Ft³·100 / 4=BF·1000 per **log** / 5=Ft³·100 per **log**), `dbh_min`(3), `species`(4). |
+| **TCONDMLT** | Tree-condition (point-weight) multiplier. | per field *(faithful single-point)*. |
+
+> The log-graded units (`HRVRVN … 4`/`5`) feed the per-DIB-class `FVS_EconHarvestValue`
+> detail table; the per-tree units (1/2/3) feed the discounted summary. See
+> [docs/FORMATS.md](FORMATS.md) for how a harvest is valued.
 
 ## Compression & tripling
 

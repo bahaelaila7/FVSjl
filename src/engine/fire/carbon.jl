@@ -129,7 +129,11 @@ function ffe_live_carbon(s::StandState)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
-        stem = _fm_cuft(s, sp, d, h) * v2t[sp]                         # stem biomass (lb; v2t is raw lb/ft³)
+        # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF) with the
+        # carbon-path X=-1 ⇒ MCF, the MERCH cubic volume (fmsvol.f:123/148-151) — NOT gross/TCF. SN's MCF is the
+        # NATCRS merch cubic = the tree's `merch_cuft_vol` (v[4]+v[7], the same basis fmburn/fmsadd use), not just
+        # v[4]. jl previously used v[1] (gross) ⇒ FFE live carbon ~9% high on Above AND Merch (they share the stem).
+        stem = t.merch_cuft_vol[i] * v2t[sp]                          # MCF (v4+v7) × V2T = stem biomass (lb)
         above += t.tpa[i] * (crown + stem) * _FM_P2T                   # BIOLIVE = crown + stem, lb→tons
         merch += t.tpa[i] * stem * _FM_P2T                             # merch = stem only (FMSVL2·V2T/2000)
     end
@@ -302,25 +306,34 @@ remaining increment).
 """
 function stand_carbon_report(s::StandState)
     lc = stand_live_carbon(s)
-    # CARBCALC method: 1 = JENKINS national biomass (default), 0 = FFE crown+stem biomass. Belowground
+    # CARBCALC FLD1 method: 0 = FFE crown+stem biomass (FVS default), 1 = JENKINS national biomass. Belowground
     # (roots) is the Jenkins value in BOTH methods (fmcrbout.f:144-146); only Above/Merch differ.
+    # CARBCALC FLD2 units (fminit.f:909-914): 0 = US tons/acre (default for the USA SN variant — NO conversion),
+    # 1 = metric tons/ha (× _TONAC_TO_MTHA), 2 = metric tons/acre (× 0.90718474, mass only). The validated
+    # carbon_{ffe,jenkins,snt} scenarios all set FLD2=1 ⇒ unchanged; a stand with no CARBCALC now reports US t/ac.
+    uf = s.control.carbon_units == 1 ? _TONAC_TO_MTHA :
+         s.control.carbon_units == 2 ? 0.90718474f0 : 1f0
     if s.control.carbon_method == 0
         fc = ffe_live_carbon(s)
-        above = fc.aboveground * _TONAC_TO_MTHA
-        merch = fc.merch       * _TONAC_TO_MTHA
+        above = fc.aboveground * uf
+        merch = fc.merch       * uf
     else
-        above = lc.aboveground * _TONAC_TO_MTHA
-        merch = lc.merch       * _TONAC_TO_MTHA
+        above = lc.aboveground * uf
+        merch = lc.merch       * uf
     end
-    below = lc.belowground * _TONAC_TO_MTHA
-    sd  = standing_dead_carbon(s) * _TONAC_TO_MTHA
-    bd  = belowground_dead_carbon(s) * _TONAC_TO_MTHA
-    dw  = down_wood_carbon(s)     * _TONAC_TO_MTHA
-    ff  = forest_floor_carbon(s)  * _TONAC_TO_MTHA
-    sh  = shrub_herb_carbon(s)    * _TONAC_TO_MTHA
+    below = lc.belowground * uf
+    sd  = standing_dead_carbon(s) * uf
+    bd  = belowground_dead_carbon(s) * uf
+    dw  = down_wood_carbon(s)     * uf
+    ff  = forest_floor_carbon(s)  * uf
+    sh  = shrub_herb_carbon(s)    * uf
+    # Total stand carbon (fmcrbout.f:178-180): V(9)=V(1)+V(3)+V(5)+V(6)+V(7)+V(8), PLUS the belowground-DEAD
+    # root pool V(4) only when LDCAY (the dead-root decay model is active, i.e. CRDCAY>0). SN defaults
+    # CRDCAY=0.0425>0 (fminit.f:918 / _FM_CRDCAY), so LDCAY is true and below-dead IS part of the total — jl
+    # previously omitted it (the carbon_snt test validates the below-dead column but not the total, so it hid).
+    total = above + below + sd + dw + ff + sh + (_FM_CRDCAY > 0f0 ? bd : 0f0)
     return (; aboveground = above, merch = merch, belowground = below, belowground_dead = bd,
-            standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh,
-            total = above + below + sd + dw + ff + sh)
+            standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh, total = total)
 end
 
 # The fixed header block of the Stand Carbon Report exactly as the Fortran prints it to the `.out`
@@ -381,7 +394,7 @@ function write_carbon_report(io::IO, stand::StandState, ncyc::Integer;
     fs = stand.fire
     # seed the inventory snags from the input dead-tree records (no-op when there are none); the
     # per-cycle snag falldown then runs inside grow_cycle! (update_snags!, simulate.jl:211).
-    fs !== nothing && fs.active && ffe_seed_input_snags!(stand)
+    fs !== nothing && fs.active && (ffe_seed_input_snags!(stand); ffe_add_snaginit!(stand))
     # Snapshot the INVENTORY crown as the OLD state (FVS calls FMOLDC in the inventory FMMAIN, before the
     # first grow), so the FIRST cycle's crown-lift has a valid OLDCRW. Without this the 1st cycle's
     # crown-lift is skipped (ffe_oldht=0), losing ~1.9 t/ac of fine down-wood — the DDW sizes-1-3 gap.
@@ -426,6 +439,8 @@ function write_carbon_report_block(io::IO, rows::AbstractVector;
     println(io, _CARBON_SEP)
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
-    for row in rows; println(io, _format_carbon_row(row[1], row[2])); end
+    for row in rows
+        println(io, _format_carbon_row(row[1], row[2]; released = length(row) >= 6 ? row[6] : 0f0))
+    end
     return io
 end

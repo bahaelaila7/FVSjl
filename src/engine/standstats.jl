@@ -97,6 +97,24 @@ function stand_qmd(s::StandState)
 end
 
 """
+    stand_sdimax(s) -> Float32
+
+BA-weighted stand maximum SDI (`SDICAL`, base/sdical.f, pre-CLMAXDEN). General across variants —
+the per-species SDImax (`plot.sp_sdi_def`) is variant coefficient data; the averaging is the same
+base algorithm. Used by the mortality SDImax cap and the structure-stage PCTSMX demotion (BTSDIX).
+"""
+function stand_sdimax(s::StandState)
+    t = s.trees; p = s.plot
+    num = 0f0; totba = 0f0
+    @inbounds for i in 1:t.n
+        tb = 0.0054542f0 * t.dbh[i]^2 * t.tpa[i]
+        num   += p.sp_sdi_def[t.species[i]] * tb
+        totba += tb
+    end
+    return totba <= 0f0 ? 1f0 : num / totba
+end
+
+"""
     stand_top_height(state)
 
 Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
@@ -142,6 +160,34 @@ function point_basal_area!(s::StandState)
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
         pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+    end
+    return s
+end
+
+"""
+    point_density!(state)
+
+Fill `density.point_ccf[ip]` (PCCF) and `density.point_tpa[ip]` (PTPA) — the per-point crown
+competition factor and trees-per-acre (dense.f:210-211). Each tree contributes its open-grown crown
+area (the same CCFT as `stand_ccf`) and TPA to its OWN subplot, scaled by PI/GROSPC (`p.pi/p.gross_space`,
+the same scale `point_basal_area!` uses) so the point value is the gross per-acre density on that point.
+Consumed by the multi-point regen crown ratio (regent.f:178 `CR=0.89722−0.0000461·PCCF`) and the
+TCONDMLT point weights (cuts.f:1074 `+PBAWT·PTBAA+PCCFWT·PCCF+PTPAWT·PTPA`). (Once per cycle, not hotpath.)
+"""
+function point_density!(s::StandState)
+    p, t = s.plot, s.trees
+    pccf = s.density.point_ccf; ptpa = s.density.point_tpa
+    fill!(pccf, 0f0); fill!(ptpa, 0f0)
+    scale = p.pi / p.gross_space
+    @inbounds for i in 1:t.n
+        ip = Int(t.plot_id[i])
+        (1 <= ip <= length(pccf)) || continue
+        sp2 = s.species.class_codes[t.species[i], 1][1:2]
+        cw  = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
+                          p.latitude, p.longitude, p.elevation)
+        ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
+        pccf[ip] += ccft * scale
+        ptpa[ip] += t.tpa[i] * scale
     end
     return s
 end

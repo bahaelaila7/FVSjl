@@ -93,8 +93,8 @@ end
     ffe_live_fuel_loading(coef, iffeft) -> (herb, shrub)
 
 Initial live herb and shrub fuel loading (tons/acre) for FFE forest type `iffeft`
-(FULIV, fmcba.f). Coastal-plain/piedmont stands later override the shrub load from
-an understory-age/site-index curve (FULIV2) — not yet ported.
+(FULIV, fmcba.f). Coastal-plain/piedmont stands override the shrub load from an
+understory-age/site-index curve (FULIV2) — see `ffe_live_fuel_override` (ported).
 """
 @inline function ffe_live_fuel_loading(coef::SpeciesCoefficients, iffeft::Integer)
     ft = ffe_live_fuel_type(iffeft)
@@ -145,7 +145,13 @@ function ffe_live_fuel_override(s::StandState)
     (startswith(eu, "232") || startswith(eu, "231") || startswith(eu, "M221")) || return nothing
     si = s.plot.sp_site_index[s.plot.site_species]
     j = si < 50f0 ? 1 : si < 65f0 ? 2 : si < 80f0 ? 3 : si < 95f0 ? 4 : si < 110f0 ? 5 : 6
-    burnyr = s.fire !== nothing && s.fire.fire_year > 0 ? Int(s.fire.fire_year) : 0
+    # Rough age = years since the LAST ACTUAL burn (FULIV2 resets the understory rough age after a fire),
+    # or inventory-based when nothing has burned yet. `fire.fire_year` is the SCHEDULED fire year — using
+    # it pre-burn makes (iyr − fire_year) negative → clamps the age to 1 → wrong (too-young) shrub load
+    # (231Dd: jl 0.48 vs live 0.60/0.88). Derive the actual last-burn from the accumulated burn_reports
+    # (0 before any fire), the same fix as the fire-basis (sm,lg) timing.
+    burnyr = (s.fire !== nothing && !isempty(s.fire.burn_reports)) ?
+             maximum(Int(br.year) for br in s.fire.burn_reports) : 0
     iyr = current_cycle_year(s); iy1 = Int(s.control.cycle_year[1])
     age = burnyr > 0 ? iyr - burnyr : iyr - iy1 + 5
     age = clamp(Float32(trunc(age)), 1f0, 20f0)

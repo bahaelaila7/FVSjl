@@ -22,13 +22,14 @@ the density still standing. Small snags (< 12" and not redcedar) fall at a linea
 zero by the species' `ALLDWN` year.
 """
 function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
-                           origden::Float32, denttl::Float32)::Float32
+                           origden::Float32, denttl::Float32;
+                           fallx::Float32 = coef_col(coef, :snag_fallx)[ksp],
+                           alldwn::Float32 = coef_col(coef, :snag_alldwn)[ksp])::Float32
     base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
-    modrate = min(1f0, base * coef_col(coef, :snag_fallx)[ksp])
+    modrate = min(1f0, base * fallx)                   # FALLX: SNAGFALL-overridable rate correction
     if d < 12f0 && ksp != 2                            # small snag (redcedar=2 keeps last-5% logic)
         return modrate * origden
     end
-    alldwn = coef_col(coef, :snag_alldwn)[ksp]
     x = (0.05f0 - 1f0) / (-modrate)                    # year at which 5% remain
     fallm2 = alldwn <= x ? 2f0 : 0.05f0 / (alldwn - x) # final fall rate (last 5%)
     if denttl <= 0.05f0 * origden
@@ -51,20 +52,40 @@ Annual fraction of standing-hard snags of species `ksp` that transition to soft 
     coef_col(coef, :snag_decayx)[ksp]
 
 """
+    ffe_dkr_cls(s, sp) -> Int
+
+The fuel decay-rate class (DKRCLS, 1-4) for species `sp` — which decay-class column its dead fuel / snag
+bole flows into. Prefers the FUELPOOL keyword's per-species override (FireState) over the
+`fire_species_props.csv` default.
+"""
+@inline function ffe_dkr_cls(s::StandState, sp::Integer)::Int
+    fs = s.fire
+    if fs !== nothing && !isempty(fs.params.dkrcls_ovr)
+        ov = get(fs.params.dkrcls_ovr, Int32(sp), Int32(0))
+        ov > 0 && return Int(ov)
+    end
+    return Int(coef_col(s.coef, :dkr_cls)[sp])
+end
+
+"""
     add_snag!(fs, sp, dbh, density, year)
 
 Create a standing-dead snag cohort (FMSADD) for `density` stems/acre of species `sp`,
-DBH `dbh`, that died in `year`. New snags start fully hard. No-op for non-positive
-density.
+DBH `dbh`, that died in `year`. New snags start fully hard unless the SNAGPSFT keyword set
+a per-species initial-soft fraction (PSOFT), in which case that share starts soft. No-op for
+non-positive density.
 """
 function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer;
-                   bolevol::Float32 = 0f0, height::Float32 = 0f0)
+                   bolevol::Float32 = 0f0, height::Float32 = 0f0, yrdead::Integer = year)
     density > 0f0 || return
     sn = fs.snags
+    # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
+    psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
+    soft = density * psoft; hard = density - soft
     push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
-    push!(sn.den_hard, density); push!(sn.den_soft, 0f0)
-    push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.bolevol, bolevol)
-    push!(sn.height, height)
+    push!(sn.den_hard, hard);  push!(sn.den_soft, soft)
+    push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
+    push!(sn.bolevol, bolevol);  push!(sn.height, height); push!(sn.htcur, height)
     return
 end
 
@@ -85,6 +106,24 @@ function snag_bole_carbon(s::StandState)::Float32
         den > 0f0 || continue
         b = sn.bolevol[i]
         b <= 0f0 && (b = let (a, _, _) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
+        # SNAGBRK: a snag that lost height (htcur < HTDEAD) has a smaller bole. FVS's FMSVOL computes the
+        # ORIGINAL tree (dbh, HTDEAD) TRUNCATED at htcur via CFTOPK (the Behre top-kill reduction, fmsvol.f:
+        # 101-142), i.e. the fat LOWER bole — NOT a normal short tree of (dbh, htcur). Scale the stored bole by
+        # the CFTOPK merch ratio. No-op at the default HTX=0 (htcur ≡ height ⇒ frozen bole, bit-exact).
+        if !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+            sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
+            mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
+            if mcf_full > 0f0
+                vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
+                cc = s.control
+                merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
+                             scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
+                bk = bark_ratio(coef, sp, d)
+                _, mcf_t, _ = cftopk(merch_std, sp, d, htd, vmax, mcf_full, 0f0, vmax, bk,
+                                     round(Int, sn.htcur[i] * 100f0))   # CFTOPK: merch reduced for the broken top
+                b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
+            end
+        end
         c += b * den
     end
     return c * 0.5f0
@@ -98,6 +137,12 @@ end
 
 # Diameter-class breakpoints BP(0:9), inches (fmcwd.f:56). Index j+1 ↔ BP(j).
 const _CWD_BP = (0f0, 0.25f0, 1f0, 3f0, 6f0, 12f0, 20f0, 35f0, 50f0, 9999f0)
+
+# Post-burn accelerated snag-fall (FMSNAG/FMSFALL). After a fire, snags present at the burn fall faster
+# for PBTIME years: small (<PBSIZE in) snags lose fraction PBSMAL, soft-at-fire snags lose PBSOFT, over
+# PBTIME yrs. The PB* params are SNAGPBN-overridable and live on `FireState.params` (FFEParams; SN
+# defaults fmvinit.f:1100-1104). update_snags! reads them via `fs.params`.
+const _FM_NZERO = 0.01f0    # NZERO: snag density treated as zero; DZERO = NZERO/50 (fmvinit.f:125)
 
 """
     _cwd_cone_fractions(d, ht) -> NTuple{9,Float32}
@@ -152,25 +197,38 @@ coarse-woody-debris pools (`fire.cwd`, CWD1): the fallen aboveground biomass (Je
 fallen density) is added to the down-wood class for the stem DBH and the species' decay
 class. Returns the total density (stems/ac) that fell.
 """
-function update_snags!(s::StandState, nyears::Integer)::Float32
+function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,Integer} = nothing)::Float32
     fs = s.fire; (fs === nothing) && return 0f0
     sn = fs.snags; coef = s.coef
-    cur = Int(current_cycle_year(s))
+    cur = Int(current_cycle_year(s))            # cycle-start year — for the post-burn PBTIME window
+    # `eff` is the ACTUAL annual year being stepped. The FFE annual loop (ffe_fuel_update!) advances it
+    # year-by-year (at_year = cur, cur+1, …), so a snag CREATED in this cycle but BEFORE the loop — i.e. a
+    # FIRE snag (fmburn! runs before ffe_fuel_update!, FVS FMBURN→annual loop) — ages 0,1,2,… across the
+    # loop and falls in the years after its death, matching FVS's FMSNAG(IYR−deathyr). Ordinary-mortality
+    # snags are created AFTER the loop, so they are never in it this cycle (don't fall) regardless. Default
+    # (no at_year) = cur, so all other callers are unchanged.
+    eff = at_year === nothing ? cur : Int(at_year)
     fallen = 0f0
     @inbounds for i in eachindex(sn.sp)
         sp = sn.sp[i]
-        # Advance the snag only by the years it has actually STOOD since death, capped at the cycle
-        # length: a snag that died this cycle (deaths are dated at/near the cycle boundary, not the
-        # cycle start) has stood only ~0-1 years, so it must not fall a full cycle's worth — otherwise
-        # the cycle's fresh mortality over-falls and Stand-Dead collapses (FMSNAG ages each snag by its
-        # own (year − deathyr), not a blanket nyears). Older cohorts fall the full nyears each cycle.
-        yrs = clamp(cur - Int(sn.year[i]), 0, Int(nyears))
+        # Advance the snag only by the years it has actually STOOD since death (capped at this step's
+        # nyears): a snag dead `eff − deathyr` years has stood that long (FMSNAG ages each snag by its own
+        # (year − deathyr), not a blanket nyears). EXCEPTION — a FIRE snag is created in fmburn! BEFORE this
+        # annual loop (its deathyr == this cycle's start `cur`), and FVS's FMSNAG runs AFTER FMBURN in the
+        # SAME FMMAIN year, so the fire snag DOES fall in its creation year. Plain `eff−sn.year` gives yrs=0
+        # at eff==sn.year and would SKIP that fall — leaving ~5× too many, since the small-snag fall is a
+        # CONSTANT modrate·origden/yr (a missing final year matters hugely; fire_carbon 2005 DENIH 74 vs live
+        # 15). Add the creation-year step for snags born this cycle (sn.year==cur). SAFE for carbon_snt:
+        # ordinary-mortality snags are created AFTER this loop ⇒ never reach here with sn.year==cur ⇒ their
+        # falldown stays bit-exact.
+        born_now = Int(sn.year[i]) == cur ? 1 : 0
+        yrs = clamp(eff - Int(sn.year[i]) + born_now, 0, Int(nyears))
         yrs > 0 || continue
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B
         # path (so don't double-count it). Fall back to Jenkins for cohorts with bolevol unset.
         a = sn.bolevol[i]
         a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
-        idc = Int(coef_col(coef, :dkr_cls)[sp])             # decay-rate class
+        idc = ffe_dkr_cls(s, sp)                            # decay-rate class (FUELPOOL-overridable)
         # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
         # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
         # once per cohort. Height unset (0) ⇒ single-class fallback (no behavior change).
@@ -185,9 +243,43 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
         for _ in 1:yrs
             denttl = sn.den_hard[i] + sn.den_soft[i]
             denttl > 0f0 || break
-            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl))
+            # SNAGFALL per-species overrides of FALLX / ALLDWN (default = CSV value when not overridden).
+            fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
+            ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
+            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
+                                                  fallx = fx, alldwn = ad))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
+            # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
+            # that existed at a fire (died at/before BURNYR) fall faster for PBTIME years — a FLOOR (MAX)
+            # on the normal fall. Small (<PBSIZE) snags fall RSMAL≈1−0.1^(1/PBTIME)≈28%/yr; soft-at-fire
+            # snags fall RSOFT (PBSOFT=1 ⇒ ~all over PBTIME, via DZERO=NZERO/50); large hard snags are NOT
+            # accelerated. Fire-killed snags are hard & mostly small, so the RSMAL·den_hard term drives the
+            # post-fire fine down-wood pulse that was missing (fire_early 2005 lt3 1.4 vs live 13.4).
+            # BURNYR is the PERSISTENT last actual burn year (FVS keeps it across cycles for the PBTIME
+            # window); jl's `fire_year` is the SCHEDULED year and is cleared after firing, so derive the
+            # last burn from the accumulated burn_reports instead.
+            # Post-burn fall params (SNAGPBN-overridable; defaults = SN fmvinit.f:1100-1104). BURNYR is set
+            # at a fire only when the scorch height exceeds PBSCOR (fmburn.f:414) — derive the last qualifying
+            # burn from the accumulated burn_reports' scorch (fire_year is the scheduled year, cleared after firing).
+            p = fs.params
+            byr = 0
+            @inbounds for br in fs.burn_reports
+                br.scorch > p.pb_scor && Int(br.year) > byr && (byr = Int(br.year))
+            end
+            if byr > 0 && Int(sn.yrdead[i]) <= byr && 0 <= (cur - byr) <= Int(p.pb_time)
+                dzr = (_FM_NZERO / 50f0) / denttl
+                rsoft = p.pb_soft < 1f0 ? 1f0 - exp(log(1f0 - p.pb_soft) / p.pb_time) :
+                                          1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
+                pbfris = rsoft; pbfrih = 0f0
+                if sn.dbh[i] < p.pb_size                         # small snags accelerate (large hard do not)
+                    pbfrih = p.pb_smal < 1f0 ? 1f0 - exp(log(1f0 - p.pb_smal) / p.pb_time) :
+                                               1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
+                    pbfrih > pbfris && (pbfris = pbfrih)         # fmsnag.f:186-187: bump soft rate to the max
+                end
+                xs = pbfris * sn.den_soft[i]; xh = pbfrih * sn.den_hard[i]
+                dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+            end
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
             # Fallen-bole biomass into the down-wood pools, SPLIT by the snag's hard/soft state into the
             # matching CWD pool (FMCWD CWD1, fmcwd.f:K=1 soft DIS → cwd[:,1,:]; K=2 hard DIH → cwd[:,2,:]),
@@ -210,6 +302,43 @@ function update_snags!(s::StandState, nyears::Integer)::Float32
     return fallen
 end
 
+"""
+    ffe_snag_height_loss!(s, nyears) -> nothing
+
+SNAGBRK snag bole-breakage (FMSNGHT, SN = CASE DEFAULT fmsnght.f:153-164): shrink each snag's CURRENT
+height `htcur` toward 0 over `nyears`. No-op unless SNAGBRK set per-species HTX (`snag_htx`) — at the SN
+default (HTX=0) snags keep full height and the frozen `bolevol` is used (bit-exact). Per-year loss fraction
+= `HTR·HTX[idx]·SFTMULT` (the HTR/HTXSFT scaling cancels the keyword's calibration), so
+`htcur ← htcur·(1−lossfrac)^nyears`; the regime index is 1/3 above 0.5·HTD else 2/4, hard (SFTMULT=1) vs
+soft (SFTMULT=HTXSFT, once a snag has passed DKTIME). A snag dropping below 1.5 ft becomes fuel (removed).
+"""
+function ffe_snag_height_loss!(s::StandState, nyears::Integer;
+                               at_year::Union{Nothing,Integer} = nothing)
+    fs = s.fire; (fs === nothing || isempty(fs.params.snag_htx)) && return
+    sn = fs.snags; htxmap = fs.params.snag_htx
+    iyr = at_year === nothing ? Int(current_cycle_year(s)) : Int(at_year)
+    HTR = 0.01f0; HTXSFT = 2f0
+    @inbounds for i in eachindex(sn.sp)
+        (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
+        htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
+        htd = sn.height[i]; htc = sn.htcur[i]
+        (htd > 0f0 && htc > 0f0) || continue
+        # FMSNGHT picks the hard/soft rate from the snag's INITIAL state (FMSNAG calls it with IHRD=1 for the
+        # DENIH/hard portion, IHRD=0 for DENIS/soft) — NOT the DKTIME report transition. jl carries one htcur,
+        # so use the dominant initial pool: hard rate while den_hard ≥ den_soft (the common all-hard snag).
+        soft = sn.den_soft[i] > sn.den_hard[i]
+        above = htc > 0.5f0 * htd                       # height regime (>0.5·HTD uses the 50%-loss rate)
+        idx = soft ? (above ? 3 : 4) : (above ? 1 : 2)
+        sftmult = soft ? HTXSFT : 1f0
+        lossfrac = clamp(HTR * htx[idx] * sftmult, 0f0, 1f0)
+        htnew = htc * (1f0 - lossfrac)^Float32(nyears)
+        htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
+        sn.htcur[i] = htnew
+        htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
+    end
+    return
+end
+
 "Total standing snag density (stems/ac) currently in the snag list."
 snag_standing_density(fs::FireState) = sum(fs.snags.den_hard) + sum(fs.snags.den_soft)
 
@@ -229,8 +358,27 @@ function snag_summary(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active) && return (hard = ntuple(_ -> 0f0, 7), soft = ntuple(_ -> 0f0, 7))
     sn = fs.snags; thd = zeros(Float32, 7); tsf = zeros(Float32, 7)
+    decayx = coef_col(s.coef, :snag_decayx); iyr = Int(current_cycle_year(s))
+    dcovr = fs.params.snag_decayx_ovr                       # SNAGDCAY per-species override (empty ⇒ defaults)
     @inbounds for i in eachindex(sn.sp)
         dh = sn.den_hard[i]; ds = sn.den_soft[i]; d = sn.dbh[i]
+        # HARD→SOFT decay transition (fmsnag.f:282-284): once a snag has been dead ≥ DKTIME its HARD flag flips,
+        # and fmssum.f:9-22 then counts its initially-hard density (DENIH) into the SOFT column. DKTIME = FMSNGDK
+        # = DECAYX·(1.24·D + 13.82) for SN (fmsngdk.f DEFAULT, XMOD=1) — the same formula as the falldown TSOFT.
+        # The flip is monotonic in (IYR−YRDEAD), so recomputing it at report time matches the persisted flag.
+        # KNOWN UPSTREAM BUG (NOT this transition): jl dates periodic-mortality snags at the cycle-START year
+        # (mortality.jl `current_cycle_year`), so at the next report they read age≈one full cycle too OLD and
+        # over-trip DKTIME vs live (carbon_snag.key 1995: jl 2.9h/39.8s vs live 35.79h/6.91s; totals bit-exact).
+        # Live's small/stable soft pool = only the OLD input snags aging past DKTIME. The fix is the snag YRDEAD
+        # timing (FVS's annual-loop accounting), coupled to #28 — see docs/audit/BACKLOG.md item 3.
+        # Use age = iyr−1−YRDEAD, NOT iyr−YRDEAD: the carbon report (FMCRBOUT, fmmain.f:206) runs BEFORE the
+        # annual FMSNAG hard→soft flip (fmsnag.f:282-284), so it reflects the HARD flag as of the PREVIOUS
+        # cycle's last FMSNAG year (IY(ICYC)−1). Without the −1 jl over-soften by one year on near-DKTIME snags
+        # (verified vs live HARD-flag dump: dbh8.09 dkt5.01 → live age-5<5.01 HARD, jl age-6≥5.01 soft).
+        dktime = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]]) * (1.24f0 * d + 13.82f0)
+        if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
+            ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
+        end
         thd[7] += dh; tsf[7] += ds                          # slot 7 = total (all snags)
         for c in 1:6
             d >= _FM_SNPRCL[c] || continue
@@ -283,6 +431,105 @@ function ffe_seed_input_snags!(s::StandState)
         # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
         # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+    end
+    return s
+end
+
+"""
+    apply_salvage!(s) -> Bool
+
+SALVAGE (act 2520, fmsalv.f): at a scheduled cycle, remove a `PROP` fraction of standing snags within the
+DBH/age bounds (and OKSOFT class), reducing den_hard/den_soft. The `PROPLV` proportion of the cut is LEFT
+behind and routed to the coarse-woody-debris pools (CWD1 cone taper); the `(1−PROPLV)` remainder is removed
+(harvested — its HWP-carbon FATE is a later refinement). All-species (the no-SALVSP default). Returns whether
+any salvage fired this cycle. No-op without FFE / a due SALVAGE.
+"""
+# A snag species `sp` is in the SALVSP list (`isalvs`: 0=all, >0 single, <0 −SPGROUP).
+@inline function _salv_included(s::StandState, sp::Int, isalvs::Int)::Bool
+    isalvs == 0 && return true
+    isalvs > 0 && return sp == isalvs
+    g = -isalvs
+    return 1 <= g <= length(s.control.sp_groups) && sp in s.control.sp_groups[g]
+end
+
+function apply_salvage!(s::StandState)::Bool
+    fs = s.fire
+    (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+    sn = fs.snags; coef = s.coef; fired = false
+    # SALVSP (act 2501): update the PERSISTENT species cut/leave filter when one is due this cycle.
+    for a in s.control.schedule
+        a.icflag == Int32(2501) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        fs.salv_isalvs = Int32(round(a.params[1])); fs.salv_isalvc = Int32(round(a.params[2]))
+    end
+    isalvs = Int(fs.salv_isalvs); isalvc = Int(fs.salv_isalvc)
+    for a in s.control.schedule
+        a.icflag == Int32(2520) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        mindb, maxdb, maxag, oksft, prop, proplv = a.params
+        oksoft = Int(oksft)
+        @inbounds for i in eachindex(sn.sp)
+            (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
+            # SALVSP filter: cut-list (isalvc=0) cuts only listed species; leave-list (1) leaves them.
+            linc = _salv_included(s, Int(sn.sp[i]), isalvs)
+            (isalvc == 0 && !linc) && continue
+            (isalvc == 1 && linc)  && continue
+            d = sn.dbh[i]
+            (d >= mindb && d < maxdb) || continue
+            (yr - Int(sn.yrdead[i])) <= maxag || continue   # salvage age uses TRUE YRDEAD
+            cuth = oksoft != 2 ? prop * sn.den_hard[i] : 0f0   # hard pool cut unless soft-only
+            cuts = oksoft != 1 ? prop * sn.den_soft[i] : 0f0   # soft pool cut unless hard-only
+            (cuth > 0f0 || cuts > 0f0) || continue
+            sn.den_hard[i] = max(0f0, sn.den_hard[i] - cuth)
+            sn.den_soft[i] = max(0f0, sn.den_soft[i] - cuts)
+            if proplv > 0f0                                    # the left-behind share → down wood (CWD1)
+                bole = sn.bolevol[i]
+                bole <= 0f0 && (bole = let (j, _, _) = jenkins_biomass(coef, sn.sp[i], d); j end)
+                idc = ffe_dkr_cls(s, sn.sp[i]); frac = _cwd_cone_fractions(d, sn.height[i])
+                addH = bole * cuth * proplv; addS = bole * cuts * proplv * 0.80f0
+                for jz in 1:9
+                    frac[jz] > 0f0 || continue
+                    fs.cwd[jz, 2, idc] += addH * frac[jz]
+                    fs.cwd[jz, 1, idc] += addS * frac[jz]
+                end
+            end
+            fired = true
+        end
+    end
+    return fired
+end
+
+"""
+    ffe_add_snaginit!(s) -> StandState
+
+Add the user's SNAGINIT snags to the snag list at the first FFE year (fmsnag.f:90-105, act 2522). Each
+request is `(species, DBH-at-death, ht-at-death, age, density)`: a standing-dead cohort that died `age`
+years before the inventory (death year = inventory year − age), with the merchantable-cubic stem bole
+(same basis as `ffe_seed_input_snags!`) and its coarse roots decayed for `age` years into the Below-Dead
+BIOROOT pool. Height-at-death drives the bole + the cone taper of any later falldown. No-op without
+requests / FFE.
+"""
+function ffe_add_snaginit!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active || isempty(fs.snaginit)) && return s
+    coef = s.coef; c = s.control; sd = coef.species
+    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
+    invyr = Int(current_cycle_year(s))
+    s.control.merch_init || init_merch_standards!(s)
+    @inbounds for (spf, df, htdf, agef, denf) in fs.snaginit
+        sp = Int(spf); d = df; den = denf
+        (sp >= 1 && d >= 1f0 && den > 0f0) || continue
+        age = max(0, round(Int, agef))
+        yr = invyr - age                                     # death year = inventory − AGE (fmsnag.f:99)
+        h = htdf > 0f0 ? htdf : max(4.5f0, _htdbh_height(sd, sp, d, ifor))
+        prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
+            ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
+        v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+        bolevol = v[4] * v2t[sp] / 2000f0
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
+        _, _, rbio = jenkins_biomass(coef, sp, d)
+        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age
     end
     return s
 end

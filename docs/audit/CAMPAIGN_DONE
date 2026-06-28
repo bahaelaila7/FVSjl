@@ -1,0 +1,12 @@
+Campaign 2 (deferred structural backlog) — COMPLETE 2026-06-28.
+
+All 8 backlog items resolved + every #28 sub-fix landed. Final item closed:
+#7 log-graded HRVRVN — unit 5 (FT3_100_LOG) cubic now BIT-EXACT vs live FVSsn
+(econ_u5.key SM3/HI2/AB8/SK1 ft3). Key fix: ECHARV ft3PerTree = SAWTIMBER cubic
+SCFV (cuts.f:1667 eastern variants), not merch MCFV ⇒ defProp=treeVol/SCFV≈1.24;
+cuts.jl now passes saw_cuft_vol. Per-log Smalian split (R9LGCFT) also bit-exact.
+
+Suite 5142 pass / 2 broken. The 2 broken are the ONLY accepted divergences:
+  - s22 COMPRESS (IBM eigensolver / Float32 ULP near-tie — faithful, GOAL-permitted)
+  - WK3/DGSCOR NOHTDREG calibration tail (ULP)
+Both documented in docs/audit/BACKLOG.md.

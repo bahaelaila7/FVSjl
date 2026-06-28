@@ -56,6 +56,7 @@ include("io/treedata.jl")
 include("io/keyword.jl")
 include("io/csv_trees.jl")
 include("io/yaml_keywords.jl")
+include("io/yaml_stand.jl")
 include("io/input.jl")
 
 # --- engine -----------------------------------------------------------------
@@ -72,6 +73,7 @@ include("engine/volume.jl")
 include("engine/standstats.jl")
 include("engine/event_monitor.jl")
 include("engine/cuts.jl")
+include("engine/quickersort.jl")        # RDPSRT/IQRSRT (Scowen 1965) — faithful sorts for COMPRESS
 include("engine/compress.jl")            # COMPRESS (act 250) — PC-score tree-record clustering
 include("engine/structure_stage.jl")    # SSTAGE — stand structural-stage class (1-6)
 include("engine/establishment.jl")

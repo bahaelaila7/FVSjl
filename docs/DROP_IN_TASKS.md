@@ -1,3 +1,10 @@
+> ## ⚠ SUPERSEDED / HISTORICAL (2026) — verify against the canonical state, not this doc
+> This is a historical planning/analysis doc from the multi-session port. Many residuals it describes
+> were RESOLVED by later work (e.g. s5/s9/timeint10 now bit-exact; carbon dead pools / DDW bit-exact;
+> the fire under-kill + F3 fire-byram fixed). The CANONICAL current state is: the test suite (4530 pass /
+> 1 broken = accepted COMPRESS), the campaign ledger `docs/audit/INDEX.md`, and the 226-scenario live-FVS
+> validation sweep. Do NOT treat items here as open without first checking INDEX.md + a live differential.
+
 ## s32 CLOSED (gated R8 <10ft rule)
 FIXED: applied the Region-8 <10ft-sawlog rule (fvsvol.f:499-502) on the primary sawtimber call,
 GATED to prod=='01'. The gate was the missing piece — default small trees use prod=='02' (pulpwood)

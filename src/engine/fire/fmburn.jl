@@ -33,6 +33,46 @@ dryness model (1–4), `psburn` percent of the stand burned, `mortcode` 1=FFE mo
 record is in the burned portion; burned records lose `PMORT·TPA` (plus the crown-fire
 share). No-op unless FFE is active.
 """
+# MOISTURE keyword (fmin.f opt 5): the (date, 7-%) override active for a fire in calendar `year`.
+# Date semantics match the activity schedule (apply_compress!): a date ≥ 1000 is a calendar year, a
+# date < 1000 is a 1-based cycle number (cycle index + 1). The most-recently-listed match wins (FVS
+# OPGET loops the due activities; the last sets MOIS). Returns the 7-tuple of % or nothing.
+function _active_moisture_override(s::StandState, year::Int)
+    fs = s.fire
+    (fs === nothing || isempty(fs.moisture_ovr)) && return nothing
+    fvscyc = Int(s.control.cycle) + 1
+    hit = nothing
+    @inbounds for (date, pr) in fs.moisture_ovr
+        d = Int(date)
+        (d == year || (0 < d < 1000 && d == fvscyc)) && (hit = pr)
+    end
+    return hit
+end
+
+# FUELTRET (fmusrfm.f): the fuel-bed DEPTH multiplier active for calendar `year` — applied for 5 years after
+# the treatment date (date ≥ 1000 = year; < 1000 = cycle, resolved via the cycle length). 1.0 when none.
+function _fueltret_dpmod(s::StandState, year::Int)::Float32
+    fs = s.fire
+    (fs === nothing || isempty(fs.fueltret)) && return 1f0
+    dp = 1f0
+    @inbounds for (date, d) in fs.fueltret
+        dy = Int(date) >= 1000 ? Int(date) :
+             Int(s.control.cycle_year[1]) + (Int(date) - 1) * max(1, round(Int, s.control.year))
+        (dy <= year <= dy + 5) && (dp = d)
+    end
+    return dp
+end
+
+# Build the 2×5 fuel-moisture matrix (dead 1hr/10hr/100hr/1000hr/duff in row 1; live woody/herb in row 2)
+# from the 7 MOISTURE % values, converting % → fraction (fmburn.f:373-380 MOIS(i,j)=MPRMS·.01).
+function _moisture_matrix(pr::NTuple{7,Float32})::Matrix{Float32}
+    m = zeros(Float32, 2, 5)
+    m[1, 1] = pr[1] * 0.01f0; m[1, 2] = pr[2] * 0.01f0; m[1, 3] = pr[3] * 0.01f0
+    m[1, 4] = pr[4] * 0.01f0; m[1, 5] = pr[5] * 0.01f0
+    m[2, 1] = pr[6] * 0.01f0; m[2, 2] = pr[7] * 0.01f0
+    return m
+end
+
 # FVS_Mortality DBH class lower bounds (LOWDBH, fmvinit.f:53-59): 7 NON-cumulative bins
 # [0,5) [5,10) [10,20) [20,30) [30,40) [40,50) [50,∞). A tree falls in the class whose lower bound it meets.
 const _FM_LOWDBH = (0f0, 5f0, 10f0, 20f0, 30f0, 40f0, 50f0)
@@ -45,25 +85,42 @@ end
 
 function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmois::Integer = 1,
                  psburn::Float32 = 100f0, mortcode::Integer = 1, burnseas::Integer = 1,
-                 flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0)::FireResult
+                 flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0,
+                 cyclen::Real = 5f0)::FireResult
     fs = s.fire
     (fs === nothing || !fs.active) && return FireResult(0f0, 0f0, 0f0, 0f0, 0f0)
     fmcba!(s)                                            # fuel pools, cover, percent cover
     t = s.trees; coef = s.coef
-    mois = fuel_moisture(fmois)
+    # MOISTURE keyword (fmburn.f:367): a fire in the cycle a MOISTURE activity is scheduled for uses the
+    # user's explicit fuel moistures (FMOIS=0 path) instead of the FMMOIS dryness-model table.
+    movr = _active_moisture_override(s, Int(year))
+    mois = movr === nothing ? fuel_moisture(fmois) : _moisture_matrix(movr)
     fwind = wind * fire_wind_reduction(fs.percov)        # 20-ft wind → midflame
     # SN surface fire (FMCFMD + FMDYN + FMFINT): select the weighted standard fuel models
     # for the stand and integrate Rothermel over them, summing the weighted flame & Byram.
     models = select_fuel_models(s, mois; fire_basis = true)   # burn on start-of-cycle + 1-annual-step down wood
-    flame_raw = 0f0; byram = 0f0
+    byram = 0f0
+    # FVS's FMFINT loops over the selected fuel models and sets FLAG(1)=1 if ANY model's DEAD-fuel moisture
+    # damping MDCSA(1) ≤ 0 (dead moisture ≥ that model's moisture of extinction); fmburn.f:473 then SKIPS the
+    # entire FMEFF tree-mortality path (the flame/scorch are still reported). rothermel_surface_fire returns
+    # byram=0 exactly when a model's mdcsa1 ≤ 0, so `fire_carries` mirrors NOT(FLAG(1)). Confirmed bit-exact
+    # vs live: a wet fire (one model at extinction) reports flame but applies zero mortality.
+    fire_carries = true
+    dpmod = _fueltret_dpmod(s, Int(year))                # FUELTRET fuel-bed depth multiplier (1.0 if none)
     for (fm, w) in models
-        load, sav, depth, mext = standard_fuel_model(coef, fm)
+        load, sav, depth, mext = fuel_model_resolved(s, fm)
+        depth *= dpmod
         r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
-        flame_raw += r.flame * w
+        r.byram <= 0f0 && (fire_carries = false)          # this model does not carry → FVS FLAG(1)=1
         byram += r.byram * w
     end
-    flame = flame_raw * flmult
-    # scorch height (Van Wagner) from the (weighted) Byram intensity
+    # FVS recomputes flame from the WEIGHTED Byram (fmfint.f:541, NLC 2003) — NOT the Σ of per-model
+    # flames (x^0.46 is concave, so the per-model sum biases low). fmburn.f:439-464: apply the FLAMEADJ
+    # multiplier to flame, then back-compute Byram from the modified flame so scorch tracks it.
+    flame = byram > 0f0 ? 0.45f0 * (byram / 60f0)^0.46f0 : 0f0
+    oldfl = flame
+    flmult != 1f0 && (flame = oldfl * flmult)
+    flame != oldfl && (byram = 60f0 * (flame / 0.45f0)^(1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
     # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes)
@@ -73,7 +130,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         c = _fm_mort_class(t.dbh[i]); c >= 1 && (totcls[c] += t.tpa[i])
     end
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
-    if mortcode != 0
+    v2t = coef_col(coef, :v2t)
+    if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
         @inbounds for i in 1:t.n
             t.tpa[i] > 0f0 || continue
             (rann!(s.rng) * 100f0 > psburn) && continue  # this record is in the unburned portion
@@ -82,6 +140,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             pmort = fire_tree_mortality(coef, sp, d, flame, csv)
             pmort = fire_mortality_adjust(pmort, sp, d, burnseas)
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)     # fmeff.f:330
+            pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
             pmort = clamp(pmort, 0f0, 1f0)
             curkil = pmort * t.tpa[i]
             crburn > 0f0 && (curkil += crburn * (t.tpa[i] - curkil))  # crown-fire share
@@ -91,7 +150,38 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
             killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
             c = _fm_mort_class(d); c >= 1 && (clskil[c] += curkil)
-            add_snag!(fs, sp, d, curkil, year; height = t.height[i])  # fire-killed trees become standing snags
+            # Fire-killed trees become standing snags. Carry the MERCH bole (mcf·v2t/2000) — the same basis
+            # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
+            # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
+            # double-counts the crown that belongs in the separate CWD2B path) (fmsvol.f merch MCF).
+            mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+            add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+            # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead
+            # trees. But FIRST consume the fire-REACHED fine crown the way FMEFF does (fmeff.f:457-460)
+            # BEFORE it is booked as snags: in the scorched crown zone the fire burns 100% of the foliage
+            # (size 0) and 50% of the 0-0.25" branches (size 1, incl. its OLDCRW crown-lift) — those go to
+            # the atmosphere (BCROWN released), NOT to down-wood. PROPCR = the scorched fraction of the
+            # crown LENGTH (fmeff.f:435 = sl/CRL; the parabolic `csv` used for mortality is a DIFFERENT,
+            # volume measure). Tall trees whose crown sits above the scorch height get PROPCR=0 (crown
+            # intact — the prior "above the flame" assumption, correct only for them); small trees get
+            # PROPCR=1 (foliage gone, size-1 halved). Live-validated per-tree vs FVSsn CROWNW at the fire:
+            # sugar-maple d1.28 size-1 0.2725→0.136 (PROPCR 1), beech d6.9 ×0.822 (PROPCR≈0.36). Sizes 2-5
+            # are above the flames / too coarse to burn ⇒ unchanged, so the fine down-wood path is intact.
+            xc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
+            ol = crown_lift_at_death(t, i, cyclen)             # YRSCYC·OLDCRW (fmscro.f:147)
+            crl = t.height[i] * Float32(t.crown_pct[i]) / 100f0
+            sl  = crl > 0f0 ? clamp(sch - (t.height[i] - crl), 0f0, crl) : 0f0
+            propcr = crl > 0f0 ? sl / crl : 0f0
+            ol2 = propcr > 0f0 ? 0.5f0 * ol[2] : ol[2]         # fmeff.f:460 halves OLDCRW(1) in the scorch zone
+            xvc = (xc[1] * (1f0 - propcr),                     # foliage burned over the scorched length
+                   xc[2] * (1f0 - 0.5f0 * propcr) + ol2,       # half the scorched 0-0.25" branches burned
+                   xc[3] + ol[3], xc[4] + ol[4], xc[5] + ol[5], xc[6] + ol[6])
+            fmscro!(s, sp, d, xvc, curkil, clamp(ffe_dkr_cls(s, sp), 1, 4))  # FUELPOOL-overridable
+            # Fire-killed coarse ROOTS → the dead-root pool (BIOROOT, fmsadd.f:320 BIOROOT+=RBIO·SNGNEW·XDCAY).
+            # Freshly killed ⇒ XDCAY=(1−CRDCAY)^0=1, same age-0 basis as ordinary mortality (mortality.jl). The
+            # snag-FALL path transfers only the BOLE (not roots), so this is the sole root booking (no double-count).
+            _, _, rbio = jenkins_biomass(coef, sp, d)
+            fs.bioroot += rbio * curkil
         end
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
@@ -292,16 +382,24 @@ function potential_fire(s::StandState)
     (fs === nothing || !fs.active) && return nothing
     fmcba!(s)
     coef = s.coef; t = s.trees
-    function scenario(fmois::Int, wind::Float32, temp::Float32, season::Int)
-        mois = fuel_moisture(fmois)
+    function scenario(sev::Int, fmois::Int, wind::Float32, temp::Float32, season::Int)
+        # POTF* keyword overrides for this severity (sev 1=SEVERE, 2=MODERATE); −1/0 ⇒ scenario default.
+        pc = fs.params.potf[sev]
+        mois = pc.mois[1] >= 0f0 ? _moisture_matrix(pc.mois) : fuel_moisture(fmois)
+        pc.wind >= 0f0   && (wind = pc.wind)
+        pc.temp >= 0f0   && (temp = pc.temp)
+        pc.season > 0    && (season = Int(pc.season))
         fwind = wind * fire_wind_reduction(fs.percov)
         models = select_fuel_models(s, mois)
-        flame = 0f0; byram = 0f0
+        dpmod = _fueltret_dpmod(s, Int(current_cycle_year(s)))   # FUELTRET depth multiplier
+        byram = 0f0
         for (fm, w) in models
-            load, sav, depth, mext = standard_fuel_model(coef, fm)
+            load, sav, depth, mext = fuel_model_resolved(s, fm)
+            depth *= dpmod
             r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
-            flame += r.flame * w; byram += r.byram * w
+            byram += r.byram * w
         end
+        flame = byram > 0f0 ? 0.45f0 * (byram / 60f0)^0.46f0 : 0f0   # fmfint.f:541 — flame from weighted Byram
         sch = byram > 0f0 ? scorch_height(byram, temp, fwind) : 0f0
         ba_kill = 0f0; vol_kill = 0f0
         @inbounds for i in 1:t.n
@@ -321,7 +419,12 @@ function potential_fire(s::StandState)
         consumed = 0f0
         @inbounds for sz in 1:11; consumed += sum(@view fs.cwd[sz, :, :]) * fr[sz]; end
         smoke = consumed * _FM_SMOKE_DEAD + (fs.flive[1] + fs.flive[2]) * _FM_SMOKE_LIVE
+        # POTFPAB: % area burned scales the potential kill + smoke (FMEFF/FMCONS take POTPAB, default 100 =
+        # full, which equals jl's unscaled values; an override < 100 reduces them).
+        if pc.pab >= 0f0
+            f = pc.pab * 0.01f0; ba_kill *= f; vol_kill *= f; smoke *= f
+        end
         return (; flame, scorch = sch, ba_kill, vol_kill, smoke, models = collect(models))
     end
-    return (; severe = scenario(1, 20f0, 70f0, 1), moderate = scenario(3, 8f0, 60f0, 1))
+    return (; severe = scenario(1, 1, 20f0, 70f0, 1), moderate = scenario(2, 3, 8f0, 60f0, 1))
 end

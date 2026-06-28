@@ -69,3 +69,36 @@ end
         @test isapprox(bsdi, 202.9; atol = 0.2)             # bit-exact vs live Fortran COMPUTE BSDI
     end
 end
+
+@testset "event monitor — NO/YES constants + TIME step function (algkey/algevl/evtstv)" begin
+    _val(expr, cycle) = FVSjl.eval_event(FVSjl.parse_event_condition(expr), _ctx(cycle))
+    # B8: NO/ALL = constant 0.0 (evtstv.f:82,281), YES = 1.0 (evtstv.f:81) — NOT a logical-NOT operator.
+    @test _val("NO", 1) == 0f0
+    @test _val("ALL", 1) == 0f0
+    @test _val("YES", 1) == 1f0
+    @test _evalcond("YES", 1) && !_evalcond("NO", 1)         # used as truth values
+    @test _evalcond("NOT CYCLE EQ 3", 2)                     # NOT is still the negation operator
+    # B7: TIME(v0,y1,v1,…) year-indexed step fn (algevl.f:303), NOT the current year (that is YEAR).
+    @test _val("TIME(5)", 1) == 5f0                          # ≤2 args ⇒ v0
+    # _ctx years: cycle1=1990, cycle3=2000, cycle5=2010, cycle7=2020
+    step = "TIME(1, 2000, 2, 2010, 3)"
+    @test _val(step, 1) == 1f0                               # 1990 < 2000 ⇒ v0
+    @test _val(step, 3) == 2f0                               # 2000 ≤ yr < 2010 ⇒ v1
+    @test _val(step, 5) == 3f0                               # yr ≥ 2010 ⇒ v2
+    @test _val(step, 7) == 3f0                               # stays at last
+    @test _val("YEAR", 3) == 2000f0                          # current year is YEAR, not TIME
+end
+
+@testset "event monitor — ** exponentiation (algcmp.f:103, algevl.f:339)" begin
+    _val(expr) = FVSjl.eval_event(FVSjl.parse_event_condition(expr), _ctx(1))
+    # FVS supports `**` (precedence 8 — higher than unary minus 7, higher than * / 6; RIGHT-associative like
+    # Fortran). jl previously lacked it (tokenized `**` as two `*` ⇒ wrong). The prior "FVS has no **" audit
+    # verdict was a misread of algcmp.f.
+    @test _val("2 ** 3")      == 8f0
+    @test _val("3 ** 2")      == 9f0
+    @test _val("-2 ** 2")     == -4f0       # ** binds tighter than unary minus ⇒ −(2²)
+    @test _val("2 ** -1")     == 0.5f0      # exponent may carry a unary sign
+    @test _val("2 ** 3 ** 2") == 512f0      # right-associative ⇒ 2^(3^2) = 2^9
+    @test _val("10 ** 2 + 1") == 101f0      # ** > +
+    @test _val("2 * 3 ** 2")  == 18f0       # ** > *
+end

@@ -20,3 +20,6 @@ LocalPreferences.toml
 test/harness/scenarios/*.tre
 tmp/
 .claude/worktrees/
+
+# stray FFE DSNOUT database (default name, no extension)
+__DSNOUT__

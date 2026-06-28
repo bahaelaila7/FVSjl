@@ -33,31 +33,14 @@ function init_crown_ratios!(s::StandState)
     # (DENSE/LBKDEN: past dbh = sqrt(d²·r), r from the measured DG; unmeasured trees use the stand-average
     # ratio). Replicate that backdated CCF (RELDEN) so the init crown matches — the percentile SCALE depends
     # on it, and using the current (denser) dbh gives a ~5% low crown.
-    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    bagr = 0f0; nb = 0f0
-    @inbounds for i in 1:n
-        g = t.diam_growth[i]; g <= 0f0 && continue
-        d = t.dbh[i]; gadj = g / bark_ratio(bark_a, bark_b, t.species[i], d)
-        gadj > d && continue
-        bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
-    end
-    nb > 0f0 && (bagr /= nb)
     saved_dbh = copy(@view t.dbh[1:n])
-    @inbounds for i in 1:n
-        d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
-        if g > 0f0
-            gadj = min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
-            rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
-            rr > 0f0 && (r = rr)
-        end
-        r > 0f0 && (t.dbh[i] = sqrt(d * d * r))        # backdated dbh
-    end
+    _backdate_dbh!(s)                                   # dense.f:70-128 backdating (shared w/ DG calibration)
     compute_density!(s)
     bd_relden = stand_ccf(s)                            # CCF on the backdated stand
     @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh
     compute_density!(s)                                 # rank/SDI use current dbh (as FVS CROWN)
     saved = copy(@view t.crown_pct[1:n])
-    crown_ratio_update!(s; fint = 5f0, relden_override = bd_relden)
+    crown_ratio_update!(s; fint = 5f0, relden_override = bd_relden, lstart = true)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end
@@ -71,7 +54,7 @@ CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-gro
 stand. No-op for an empty stand. Call once per cycle after growth + density.
 """
 function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0,
-                             relden_override::Float32 = -1f0)
+                             relden_override::Float32 = -1f0, lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
@@ -113,7 +96,11 @@ function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Floa
             continue
         end
         d = t.dbh[i]
-        x = d > 0f0 ? Float32(isort[i]) / Float32(n) * scale : 0.5f0 * scale
+        # Relative crown position: DBH-rank fraction for live stems, but a RANN draw for dbh ≤ 0 (regen
+        # with no DBH) — crown.f:287-292 `IF(DBH>0) X=ISORT/ITRN*SCALE ELSE CALL RANN(RNUMB); X=RNUMB*SCALE`.
+        # jl previously used a fixed 0.5, which both mis-set the regen crown AND skipped FVS's RANN draw
+        # (desyncing the per-tree DGSCOR RNG stream on the regen path). Drawing in tree-loop order matches FVS.
+        x = d > 0f0 ? Float32(isort[i]) / Float32(n) * scale : rann!(s.rng) * scale
         x = clamp(x, 0.05f0, 0.95f0)
         crnew = Aw[sp] + Bw[sp] * ((-log(1f0 - x))^(1f0 / Cw[sp]))
         # Limit change to ±1%/yr of the prior crown (crown.f:442-459).
@@ -132,6 +119,17 @@ function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Floa
             crln = t.height[i] * Float32(icr_old) / 100f0
             crmax = (crln + t.ht_growth[i]) / (t.height[i] + t.ht_growth[i]) * 100f0
             (Float32(icri) > crmax || icri < 10) && (icri = trunc(Int32, crmax + 0.5f0))
+        end
+        # crown.f:55 — at LSTART (init), reduce the dubbed crown of an inventory TOP-KILLED tree:
+        # the dead-top portion (NORMHT−ITRUNC) is removed from the crown length, re-expressed over NORMHT.
+        # Auto-scoped to dubbed trees: init_crown_ratios! restores input crowns after this call.
+        if lstart && t.trunc[i] != 0
+            hn = Float32(t.norm_ht[i]) / 100f0
+            if hn > 0f0
+                hd = hn - Float32(t.trunc[i]) / 100f0
+                cl = (Float32(icri) / 100f0) * hn - hd
+                icri = trunc(Int32, cl * 100f0 / hn + 0.5f0)
+            end
         end
         icri > 95 && (icri = Int32(95))
         icri < 10 && (icri = Int32(10))

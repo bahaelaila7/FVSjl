@@ -111,6 +111,7 @@ function compute_density!(s::StandState)
     s.plot.basal_area = stand_ba(s)
     s.plot.avg_height = stand_top_height(s)
     point_basal_area!(s)
+    point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)
     return s
 end
@@ -178,7 +179,7 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
             psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
             burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
-            year = yr)
+            year = yr, cyclen = fint)
     fm = 0f0
     @inbounds for i in 1:length(pre_tpa)
         fm += (pre_tpa[i] - t.tpa[i]) * pre_cfv[i]
@@ -186,6 +187,50 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     s.fire.fire_year = Int32(0)            # one-shot
     compute_density!(s)
     return fm
+end
+
+"""
+    mortality_and_fire!(s; fint) -> StandState
+
+Apply this cycle's MORTS background/density mortality and, if a SIMFIRE is scheduled for the
+current year, the fire kill — on the cycle-start (pre-growth) stand, mirroring FVS GRINCR(MORTS→WK2)
+→ GRADD/FMKILL(WK2=MAX(WK2,FIRKIL)). A tree dies from whichever is LARGER (density MORTS or fire),
+not both summed (fmkill.f:86); the EXCESS density kill over the fire kill is booked to snags
+(fmkill.f:135). Non-fire cycles are byte-identical to a plain `mortality!` (fk≡0 ⇒ kill = mk).
+
+Factored out of `grow_cycle!` so the fire half can also be driven from the report path at the FVS
+sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md item 8 (#28).
+"""
+function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
+                             post_fire::Union{Nothing,Function} = nothing)
+    t = s.trees
+    fire_now = s.fire !== nothing && s.fire.active && s.fire.fire_year != 0 &&
+               current_cycle_year(s) == Int(s.fire.fire_year)
+    if fire_now
+        nrec = t.n
+        pre  = Float32[t.tpa[i] for i in 1:nrec]
+        mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the full pre-fire stand
+        mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]      # per-record density+bkgd+cap kill
+        @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end      # restore PROB for the fire pass
+        _maybe_burn!(s, fint)                                  # FMKILL/FIRKIL on the full pre-fire stand
+        # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
+        # FMCADD) — all BEFORE FMKILL applies the WK2 combine below. `post_fire` runs the carbon sample +
+        # the FFE annual fuel update here so they see the post-fire, start-of-cycle-consumed fuel pools and
+        # the freshly-created fire snags (so the snags fall THIS cycle and the released value is computed on
+        # the start-of-cycle down wood). See docs/audit/BACKLOG.md item 8 (#28).
+        post_fire === nothing || post_fire(s)
+        extra = Vector{Float32}(undef, nrec)
+        @inbounds for i in 1:min(nrec, t.n)
+            fk = pre[i] - t.tpa[i]                             # fire kill (FIRKIL) on this record
+            t.tpa[i] = pre[i] - max(mk[i], fk)                 # WK2 = MAX(MORTS, fire), per fmkill.f:86
+            extra[i] = max(0f0, mk[i] - fk)                    # regular snags = WK2 − FIRKIL (fmkill.f:135)
+        end
+        book_mortality_snags!(s, extra, nrec, fint)            # FMSDIT snags for the EXCESS MORTS only (post-report, FMKILL)
+        compute_density!(s)
+    else
+        mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
+    end
+    return s
 end
 
 """
@@ -198,7 +243,9 @@ vols.f:190 / update.f:60): accretion = Σ(newCFV−oldCFV)·survivingTPA / fint,
 mortality = Σ killedTPA·oldCFV / fint, both ÷ gross area. Requires the cycle-start
 volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup).
 """
-function grow_cycle!(s::StandState; fint::Float32 = 5f0)
+function grow_cycle!(s::StandState; fint::Float32 = 5f0,
+                     carbon_hook::Union{Nothing,Function} = nothing,
+                     fuel_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
     compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (suppresses tripling)
@@ -207,6 +254,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
+    if s.fire !== nothing && s.fire.active
+        apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
+        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMTRET)
+        apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET)
+    end
     if econ_on
         yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
         s.econ.base_year < 0 && (s.econ.base_year = Int32(yr))
@@ -239,32 +291,23 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0)
     # fire FIRST (density mortality then saw the thinned post-fire stand → under-kill on a dense
     # burn, fire_fuel9 2010 TPA 155 vs FVSsn 143). Replicate the MAX combine, each kill measured
     # on the same pre-fire stand. Non-fire path is byte-identical (fk≡0 ⇒ kill = mk).
-    fire_now = s.fire !== nothing && s.fire.active && s.fire.fire_year != 0 &&
-               current_cycle_year(s) == Int(s.fire.fire_year)
-    if fire_now
-        nrec = t.n
-        pre  = Float32[t.tpa[i] for i in 1:nrec]
-        mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the full pre-fire stand
-        mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]      # per-record density+bkgd+cap kill
-        @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end      # restore PROB for the fire pass
-        _maybe_burn!(s, fint)                                  # FMKILL/FIRKIL on the full pre-fire stand
-        extra = Vector{Float32}(undef, nrec)
-        @inbounds for i in 1:min(nrec, t.n)
-            fk = pre[i] - t.tpa[i]                             # fire kill (FIRKIL) on this record
-            t.tpa[i] = pre[i] - max(mk[i], fk)                 # WK2 = MAX(MORTS, fire), per fmkill.f:86
-            extra[i] = max(0f0, mk[i] - fk)                    # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        end
-        book_mortality_snags!(s, extra, nrec)                  # FMSDIT snags for the EXCESS MORTS only
-        compute_density!(s)
-    else
-        mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
-    end
+    # FFE fire cycle: the carbon report (carbon_hook, FVS FMCRBOUT) and the deferred FFE annual fuel update
+    # (fuel_period, the FMSNAG/FMCWD/FMCADD loop) run inside mortality_and_fire! right after FMBURN and
+    # before the WK2 combine — the FVS fmmain.f order (FMBURN:170 → FMCRBOUT:206 → annual loop:228 → FMKILL).
+    # So the fire consumes/snags the START-of-cycle fuels (the report driver withholds the pre-grow
+    # ffe_fuel_update! for the fire cycle and hands its period here). Non-fire cycles pass neither ⇒ no-op.
+    pf = (carbon_hook !== nothing || fuel_period !== nothing) ?
+         (st -> (carbon_hook === nothing || carbon_hook(st);
+                 fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
+    mortality_and_fire!(s; fint = fint, post_fire = pf)
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), on the
     # originals — both reduced t.tpa from the cycle-start old_tpa at the same cycle-start CFV.
     mort = 0f0
     @inbounds for i in 1:nlive
-        mort += (old_tpa[i] - t.tpa[i]) * old_cfv[i]
+        m = old_tpa[i] - t.tpa[i]
+        mort += m * old_cfv[i]
+        t.mort_pa[i] = m                       # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
     end
     triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
@@ -389,6 +432,13 @@ function run_keyfile(keypath::AbstractString; variant::AbstractVariant = Souther
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)
+            end
+            # FVS_EconHarvestValue: log-graded HRVRVN harvest-value detail (echarv.f). Emit when an
+            # active ECON run has accumulated log-graded (unit-4) revenue over the projection's cuts.
+            if s.econ !== nothing && s.econ.active &&
+               (!isempty(s.econ.log_grade_rev) || !isempty(s.econ.log_grade_ft3))
+                ehv = econ_harvest_value_rows(s.econ, s.coef)
+                isempty(ehv) || write_dbs_econharvest!(s.control.dbs_out_file, caseid, ehv)
             end
         end
     end

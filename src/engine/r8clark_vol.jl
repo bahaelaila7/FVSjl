@@ -326,7 +326,13 @@ end
 # ---------------------------------------------------------------------------
 function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
                       mTopp::Float32, mTopS::Float32, stump::Float32,
-                      prod::AbstractString)
+                      prod::AbstractString; log_dib::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing,
+                      log_cuft::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing)
+    # `log_dib` (a Ref) is the opt-in per-log-DIB Scribner BF breakdown for the log-graded HRVRVN report
+    # (#38): when supplied, the board-feet block below ALSO fills it via `_r8_scribner_bf_by_dib` with the
+    # SAME merch params. nothing (the default for all non-econ callers) ⇒ no extra work; return arity unchanged.
+    # `log_cuft` is the cubic (HRVRVN unit 5, FT3_100_LOG) analog — per-log gross cuft via `_r8_cuft_by_dib`
+    # (R9LGCFT), renormalized to VOL(4)+VOL(7); filled in the same sawtimber block.
 
     vol = zeros(Float32, 15)
     # Returns (vol, sawHt, plpHt): the merch heights to the sawtimber and pulpwood
@@ -423,17 +429,21 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
     if isProd1 && sawHt > stump
         vol[10] = _r8_scribner_bf(R,C,E,P,B,A, totHt,dbhIb,dib17,
                                    sawHt, plpHt, stump, minLen, maxLen, trim)
+        log_dib !== nothing && (log_dib[] = _r8_scribner_bf_by_dib(R,C,E,P,B,A, totHt,dbhIb,dib17,
+                                   sawHt, plpHt, stump, minLen, maxLen, trim))
+        log_cuft !== nothing && (log_cuft[] = _r8_cuft_by_dib(R,C,E,P,B,A, totHt,dbhIb,dib17,
+                                   sawHt, plpHt, stump, minLen, maxLen, trim, vol[4] + vol[7]))
     end
 
     # 7. Stump volume (vol[14]) and tip volume (vol[15])
     vol[14] = _r9cuft(R,C,E,P,B,A, totHt,dbhIb,dib17, 0.0f0, stump)
     vol[15] = max(vol[1] - vol[4] - vol[7], 0.0f0)
 
-    # Round to match Fortran nint()
-    vol[1]  = Float32(round(vol[1]*10)/10)
-    vol[4]  = Float32(round(vol[4]*10)/10)
-    vol[7]  = Float32(round(vol[7]*10)/10)
-    vol[10] = Float32(round(vol[10]))
+    # Round to match Fortran NINT() = round-half-AWAY-from-zero (NOT Julia round()'s ties-to-even).
+    vol[1]  = Float32(round(vol[1]*10, RoundNearestTiesAway)/10)
+    vol[4]  = Float32(round(vol[4]*10, RoundNearestTiesAway)/10)
+    vol[7]  = Float32(round(vol[7]*10, RoundNearestTiesAway)/10)
+    vol[10] = Float32(round(vol[10], RoundNearestTiesAway))
 
     return vol, rawSawHt, plpHt
 end
@@ -497,6 +507,160 @@ function _r8_scribner_bf(R, C, E, P, B, A, totHt, dbhIb, dib17,
         ht = ht_top
     end
     return bf_total
+end
+
+# R9LOGLEN (r9logs.f:207) — assign even-foot log lengths for one stem segment. Fills `logLen[ilog..]`
+# (maxLen logs + a rounded leftover) and returns the last index used. `numseg` is the segment's log
+# count (NOLOGP for sawtimber, NOLOGS for topwood); `leftov` the residual merch length past the full logs.
+function _r9loglen!(logLen::Vector{Float32}, ilog::Int, jlog::Int, numseg::Int,
+                    minLen::Float32, maxLen::Float32, trim::Float32, leftov::Float32)::Int
+    if jlog > 0
+        for i in ilog:jlog; logLen[i] = maxLen; end
+    end
+    if leftov >= minLen + trim
+        numseg += 1; jlog += 1; logLen[jlog] = leftov
+    end
+    if numseg == 1                                                   # single log → whole even feet
+        logLen[ilog] = Float32(trunc(Int, trunc(Int, logLen[ilog]) / 2) * 2)
+    elseif leftov < minLen                                          # short leftover folded into last log
+        logLen[jlog] = Float32(trunc(Int, trunc(Int, logLen[jlog]) / 2) * 2)
+    else                                                            # resegment top two logs to even feet
+        logLen[jlog]   = Float32(trunc(Int, (maxLen + leftov) / 2))
+        logLen[jlog]   = Float32(trunc(Int, logLen[jlog] / 2) * 2)
+        logLen[jlog-1] = Float32(trunc(Int, maxLen + leftov - logLen[jlog]))
+        logLen[jlog-1] = Float32(trunc(Int, logLen[jlog-1] / 2) * 2)
+    end
+    return jlog
+end
+
+# Full-stem per-LOG-DIB GROSS Scribner board feet — ports R9LOGS (sawtimber + topwood segmentation,
+# r9logs.f) → R9LOGDIB → R9BDFT (r9clark.f:1433). Returns Dict{idib => Σ gross bf of all logs (saw AND
+# pulp, to the pulpwood top) whose rounded end-DIB == idib}. UNLIKE `_r8_scribner_bf` (which sums only
+# the sawtimber logs = the net board feet vol[10]), this includes the small topwood logs, so
+# `sum(values)` = FVS's ECHARV `treeVol` — the denominator of the log-grade defect proportion
+# (defProp = treeVol / netBF). This is what ECHARV (echarv.f) needs to price each log by its DIB grade.
+function _r8_scribner_bf_by_dib(R, C, E, P, B, A, totHt, dbhIb, dib17,
+                                sawHt, plpHt, stump, minLen, maxLen, trim)::Dict{Int,Float32}
+    out = Dict{Int,Float32}()
+    sawHt > 0f0 || return out
+    logLen = zeros(Float32, 40)
+    # --- Sawtimber segmentation (r9logs.f:74-102) ---
+    lmerch = sawHt - stump
+    nologp = clamp(trunc(Int, lmerch / (maxLen + trim)), 0, 39)
+    leftov = lmerch - (maxLen + trim) * nologp - trim
+    if !(lmerch < minLen + trim || (nologp == 0 && leftov < minLen + trim))
+        nologp = _r9loglen!(logLen, 1, nologp, nologp, minLen, maxLen, trim, leftov)
+    else
+        nologp = 0
+    end
+    # --- Topwood (pulpwood) segmentation (r9logs.f:107-145) ---
+    nologs = 0
+    if plpHt > 0f0 && plpHt > sawHt
+        sawTop = stump
+        for i in 1:nologp; sawTop += logLen[i] + trim; end
+        lmerchp = plpHt - sawTop
+        nologs = trunc(Int, lmerchp / (maxLen + trim))
+        leftovp = lmerchp - (maxLen + trim) * nologs - trim
+        if lmerchp < minLen + trim || (nologs == 0 && leftovp < minLen + trim)
+            nologs = 0
+        end
+        if nologs > 0 || leftovp > minLen + trim
+            ilog = nologp + 1
+            jlog = ilog + nologs - 1
+            if jlog <= 39
+                jlog = _r9loglen!(logLen, ilog, jlog, nologs, minLen, maxLen, trim, leftovp)
+                nologs = jlog - nologp
+            else
+                nologs = 0
+            end
+        end
+    end
+    tlogs = nologp + nologs
+    tlogs == 0 && return out
+    # --- R9LOGDIB + R9BDFT: DIB at each log top, round, gross Scribner per log ---
+    ht = stump
+    for i in 1:tlogs
+        len = logLen[i]
+        ht_top = ht + trim + len
+        ht = ht_top
+        len > 0f0 || continue
+        dib = Float32(trunc(Int, _r9dib_clark(R,C,E,P,B,A, totHt,dbhIb,dib17, ht_top) + 0.499f0))  # LOGDIA(.,1)
+        idib = trunc(Int, dib)                                       # R9BDFT iDib = int(dib)
+        if idib >= 1 && idib <= 120
+            out[idib] = get(out, idib, 0f0) + round(len * Float32(_SCRBNR[idib]), RoundNearestTiesAway)
+        end
+    end
+    return out
+end
+
+# Full-stem per-LOG-DIB GROSS cubic feet — ports R9LOGS (segmentation, shared with the board path) →
+# R9LOGDIB (boundary DIBs) → R9LGCFT (r9logs.f:364). Each log's cubic is the Smalian estimate
+# 0.00272708·(Dbot²+Dtop²)·len over the predicted (index-2) boundary DIBs, then ALL logs are renormalized
+# so Σ = `cfvol` (= VOL(4)+VOL(7), the gross merch cubic; r9clark.f:428). Returns Dict{idib => Σ gross
+# cuft of logs whose rounded top scaling-DIB == idib}; `sum(values)` = ECHARV `treeVol` (= cfvol), the
+# defProp denominator's numerator. Mirrors `_r8_scribner_bf_by_dib` exactly except for the per-log measure.
+function _r8_cuft_by_dib(R, C, E, P, B, A, totHt, dbhIb, dib17,
+                         sawHt, plpHt, stump, minLen, maxLen, trim, cfvol)::Dict{Int,Float32}
+    out = Dict{Int,Float32}()
+    (sawHt > 0f0 && cfvol > 0f0) || return out
+    logLen = zeros(Float32, 40)
+    # --- segmentation identical to _r8_scribner_bf_by_dib (R9LOGS sawtimber + topwood) ---
+    lmerch = sawHt - stump
+    nologp = clamp(trunc(Int, lmerch / (maxLen + trim)), 0, 39)
+    leftov = lmerch - (maxLen + trim) * nologp - trim
+    if !(lmerch < minLen + trim || (nologp == 0 && leftov < minLen + trim))
+        nologp = _r9loglen!(logLen, 1, nologp, nologp, minLen, maxLen, trim, leftov)
+    else
+        nologp = 0
+    end
+    nologs = 0
+    if plpHt > 0f0 && plpHt > sawHt
+        sawTop = stump
+        for i in 1:nologp; sawTop += logLen[i] + trim; end
+        lmerchp = plpHt - sawTop
+        nologs = trunc(Int, lmerchp / (maxLen + trim))
+        leftovp = lmerchp - (maxLen + trim) * nologs - trim
+        if lmerchp < minLen + trim || (nologs == 0 && leftovp < minLen + trim)
+            nologs = 0
+        end
+        if nologs > 0 || leftovp > minLen + trim
+            ilog = nologp + 1
+            jlog = ilog + nologs - 1
+            if jlog <= 39
+                jlog = _r9loglen!(logLen, ilog, jlog, nologs, minLen, maxLen, trim, leftovp)
+                nologs = jlog - nologp
+            else
+                nologs = 0
+            end
+        end
+    end
+    tlogs = nologp + nologs
+    tlogs == 0 && return out
+    # --- R9LOGDIB boundary DIBs (index-2 predicted) + R9LGCFT Smalian, then renormalize to cfvol ---
+    # boundary 1's DIB is at 4.5 ft (R9LOGDIB:24-26), NOT the stump; boundary I+1 at the cumulative log top.
+    dib_bot = _r9dib_clark(R,C,E,P,B,A, totHt,dbhIb,dib17, 4.5f0)            # LOGDIA(1,2)
+    sm = zeros(Float32, tlogs); idibs = zeros(Int, tlogs)
+    tlogvol = 0f0
+    ht = stump
+    for i in 1:tlogs
+        len = logLen[i]
+        ht += trim + len                                                    # R9LOGDIB:33 HT=HT+TRIM+LOGLEN(I)
+        dib_top = _r9dib_clark(R,C,E,P,B,A, totHt,dbhIb,dib17, ht)           # LOGDIA(I+1,2)
+        if len > 0f0
+            sm[i] = 0.00272708f0 * (dib_bot^2 + dib_top^2) * len            # R9LGCFT:392
+            tlogvol += sm[i]
+            idibs[i] = trunc(Int, dib_top + 0.499f0)                        # LOGDIA(I+1,1) = grading scaling-DIB
+        end
+        dib_bot = dib_top
+    end
+    tlogvol > 0f0 || return out
+    for i in 1:tlogs
+        sm[i] > 0f0 || continue
+        idib = idibs[i]
+        (idib >= 1 && idib <= 120) || continue
+        out[idib] = get(out, idib, 0f0) + sm[i] / tlogvol * cfvol           # R9LGCFT:407 renormalize to cfvol
+    end
+    return out
 end
 
 # ---------------------------------------------------------------------------

@@ -166,6 +166,13 @@ mutable struct Control
     dbh_sdi::Float32             # DBH breakpoint for SDI mortality      (DBHSDI)
     dbh_stage::Float32           # min DBH for Reineke/Curtis SDI        (DBHSTAGE)
     dbh_zeide::Float32           # min DBH for Zeide SDI                 (DBHZEIDE)
+    # MORTMSB alternate-mortality (mature-stand breakup): inert by default (QMDMSB=999 ⇒ D10>QMDMSB never).
+    msb_qmd::Float32             # QMD threshold above which MSB fires    (QMDMSB; default 999)
+    msb_slope::Float32           # self-thin slope (≤−1.605, ≥−10)        (SLPMSB; default 0 = MSB off)
+    msb_eff::Float32             # mortality efficiency per pass          (EFFMSB; default 0.90)
+    msb_dlo::Float32             # lower DBH (≥) of the kill range        (DLOMSB; default 0)
+    msb_dhi::Float32             # upper DBH (<) of the kill range        (DHIMSB; default 999)
+    msb_flag::Int32              # 1=from above, 2=from below, 3=throughout (MFLMSB; default 1)
     dg_sd::Float32               # DG variance bound (std dev)           (DGSD)
     zeide_dr016::Float32         #                                       (DR016)
     zeide_dr016_at::Float32      #                                       (ATDR016)
@@ -236,6 +243,10 @@ mutable struct Control
     lsprut::Bool                             # stump-sprouting enabled (LSPRUT; SPROUT/NOSPROUT)
     sprout_smult::Float32                    # sprout NUMBER multiplier (SMULT; SPROUT), default 1
     sprout_hmult::Float32                    # sprout HEIGHT multiplier (HMULT; SPROUT), default 1
+    # Per-species SPROUT keyword table (esuckr.f activity 450): each entry = (species_code, smult, hmult,
+    # dmin, dmax). species_code follows SPDECD: >0 single, 0 all-sproutable, <0 group −code. A parent stump
+    # of species s with stump DBH in [dmin,dmax) takes that entry's smult/hmult (last match wins; default 1/1).
+    sprout_overrides::Vector{NTuple{5,Float32}}
     cut_log::Vector{CutRecord}               # ESTUMP cut record per removed sprouting tree, fed to ESUCKR
     dg_stddev_bound::Float32                  # DGSD: std-dev bound on stochastic DG variation (DGSTDEV; <1 ⇒ off)
     dg_bjphi::Float32                         # ARMA(1,1) AR parameter for DGSCOR (BJPHI; SERLCORR), default 0.74
@@ -265,7 +276,9 @@ mutable struct Control
     htg_cor2_on::Bool                         # LHCOR2: apply ln(HCOR2) to HTCON before calibration                  (LHCOR2)
     regh_cor2_on::Bool                        # LRCOR2: small-tree con multiplied by RHCON=RCOR2                     (LRCOR2)
     carbon_report_on::Bool                    # CARBREPT: emit the Stand Carbon Report                              (LCARBON)
-    carbon_method::Int32                      # CARBCALC method: 0 = FFE, 1 = JENKINS                               (ICTYPE)
+    carbon_method::Int32                      # CARBCALC field 1: 0 = FFE (default), 1 = JENKINS                    (ICMETH)
+    carbon_units::Int32                       # CARBCALC field 2: 0 = US tons/acre (default, USA), 1 = metric t/ha,
+                                              #                   2 = metric tons/acre (fminit.f:909-914 ICMETRC)
     potfire_report_on::Bool                   # POTFIRE: emit the Potential Fire (FMPOFL) report                    (IPFLMB/E)
     unrecognized_keywords::Set{String}        # keywords seen but neither dispatched nor a KNOWN_NOOP — surfaced
                                               # so a silently-ignored SN semantic (e.g. YARDLOSS) can't hide
@@ -292,7 +305,9 @@ function Control()
         zeros(Int32,6), zeros(Int32,30,52), zeros(Int32,30,92),
         zeros(Int32,MAXCY1), zeros(Int32,7),
         0.0f0,60.0f0,45.0f0,0.0f0,0.0f0,0.0f0,1.0f0,1.0f0,0.0f0,  # …,cc_coef(CCCOEF)=1, cc_coef2(CCCOEF2)=1 (grinit.f:269-270)
-        0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,1.0f0,5.0f0,  # …,cut_eff(EFF)=1.0,mort_period=5
+        0.0f0,0.0f0,0.0f0,                                      # dbh_sdi, dbh_stage, dbh_zeide
+        999f0, 0f0, 0.90f0, 0f0, 999f0, Int32(1),               # MORTMSB: msb_qmd/slope/eff/dlo/dhi/flag (off by default)
+        0.0f0,0.0f0,0.0f0,0.0f0,1.0f0,5.0f0,                    # dg_sd, zeide_dr016/at/old, cut_eff(EFF)=1.0, mort_period=5
         0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP,4), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -313,7 +328,7 @@ function Control()
         Tuple{Int32,String}[],                                  # voleqnum_overrides (VOLEQNUM)
         String[],                                               # sp_bf_vol_eq (board equation snapshot)
         ScheduledActivity[], Int32(-1), 0f0,                    # fertilize_events, ifert_date, ifert_eff
-        true, 1f0, 1f0, CutRecord[],                            # lsprut (FVS esinit.f:50 default ON; NOAUTOES/NOSPROUT turn it off), sprout_smult, sprout_hmult, cut_log
+        true, 1f0, 1f0, NTuple{5,Float32}[], CutRecord[],       # lsprut (FVS esinit.f:50 default ON; NOAUTOES/NOSPROUT turn it off), sprout_smult, sprout_hmult, sprout_overrides, cut_log
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
@@ -323,7 +338,7 @@ function Control()
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
         ones(Float32, MAXSP), ones(Float32, MAXSP), ones(Float32, MAXSP),  # dg_cor2/htg_cor2/regh_cor2 (COR2/HCOR2/RCOR2 = 1)
         false, false, false,                                     # dg_cor2_on/htg_cor2_on/regh_cor2_on (LDCOR2/LHCOR2/LRCOR2)
-        false, Int32(1),                                         # carbon_report_on, carbon_method (CARBREPT/CARBCALC, default JENKINS)
+        false, Int32(0), Int32(0),                               # carbon_report_on, carbon_method=FFE, carbon_units=US-t/ac (FVS fminit.f defaults)
         false,                                                   # potfire_report_on (POTFIRE)
         Set{String}(),                                           # unrecognized_keywords
     )
@@ -477,13 +492,16 @@ mutable struct Calibration
     htg_cor_init::Vector{Float32}  # initial small-tree HCOR from the regent calibration regression (HCOR @ ICYC=1)
     bark_a::Vector{Float32}      # per-stand bark intercept (BRATIO; Fort Bragg override)
     bark_b::Vector{Float32}      # per-stand bark slope     (BRATIO; Fort Bragg override)
+    ht_dbh_aa::Vector{Float32}   # calibrated Wykoff HT-DBH intercept per sp (NOHTDREG/LHTDRG, cratet.f:329) (AA)
+    ht_dbh_iabflg::Vector{Int32} # 0=use calibrated AA (Wykoff), 1=use inventory Curtis-Arney HTDBH (cratet.f) (IABFLG)
     vmlt::Float32                # ARMA variance multiplier (calibration)  (VMLT)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP), 0f0)
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP),
+    zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0)            # ht_dbh_aa=0, ht_dbh_iabflg=1 (Curtis-Arney default)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -492,11 +510,14 @@ mutable struct Density
     sdi_sum::Float32
     point_ba::Vector{Float32}    # per-point basal area (PTBAA), indexed by subplot
     point_bal::Vector{Float32}   # per-tree BA in larger trees on its point (PTBALT)
+    point_ccf::Vector{Float32}   # per-point crown competition factor (PCCF), indexed by subplot (dense.f:210)
+    point_tpa::Vector{Float32}   # per-point trees-per-acre (PTPA), indexed by subplot           (dense.f:211)
     mort_slope::Float32          # Pretzsch self-thinning line slope             (SLPMRT)
     mort_intercept::Float32      # Pretzsch self-thinning line intercept         (CEPMRT)
     tpa_mort::Float32            # last cycle's surviving over-threshold TPA      (TPAMRT)
 end
-Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE), 0.0f0, 0.0f0, 0.0f0)
+Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE),
+                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0)
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls
@@ -557,13 +578,89 @@ mutable struct SnagList
     den_hard::Vector{Float32}     # DENIH — initially-hard snags still standing
     den_soft::Vector{Float32}     # DENIS — soft (decayed) snags still standing
     origden::Vector{Float32}      # DEND  — original density at creation
-    year::Vector{Int32}           # YRDEAD
+    year::Vector{Int32}           # the FALL-clock start (jl's age-based update_snags! basis); for ordinary
+                                  # mortality this is the cycle-START year (tuned so the bit-exact StandDead
+                                  # falldown holds), which is NOT FVS's YRDEAD — see `yrdead`.
+    yrdead::Vector{Int32}         # the TRUE death year = FVS YRDEAD (input: dead-10yr; fire: fire year; ordinary
+                                  # mortality: cycle-END−1, fmkill.f:140 IY(ICYC+1)−1). Used for the hard→soft
+                                  # DKTIME classification (snag_summary) + the post-burn window — NOT the fall.
     bolevol::Vector{Float32}      # per-tree death-time STEM-volume bole biomass, tons (cuft·V2T) — the
                                   # FFE snag basis (SNVIS·V2T), distinct from whole-tree Jenkins; 0 = unset
     height::Vector{Float32}       # HTDEAD — snag height at death (ft); drives the cone-taper split of a
                                   # fallen bole across CWD size classes (FMCWD/CWD1). 0 = unset (single-class)
+    htcur::Vector{Float32}        # HTIH/HTIS — CURRENT snag height (ft), = `height` at creation; only shrinks
+                                  # when SNAGBRK sets HTX>0 (FMSNGHT). Drives the recomputed bole then. At
+                                  # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Float32[], Float32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[])
+
+"""
+PotFire-report weather-scenario conditions, overridable by the POTF* keywords (POTFMOIS/POTFWIND/
+POTFTEMP/POTFSEAS/POTFPAB) for the SEVERE and MODERATE scenarios of the FVS_PotFire report (fmpofl.f).
+A field of −1 (moisture/wind/temp/pab) or 0 (season) means "use the hardcoded scenario default".
+"""
+mutable struct PotFireCond
+    mois::NTuple{7,Float32}   # 7 fuel-moisture fractions (1hr/10hr/100hr/3+/duff/woody/herb); −1 = default
+    wind::Float32             # 20-ft wind (mi/h); −1 = default
+    temp::Float32             # air temperature (°F); −1 = default
+    season::Int32             # burn season 1-4; 0 = default
+    pab::Float32              # percent area burned; −1 = default
+end
+PotFireCond() = PotFireCond(ntuple(_ -> -1f0, 7), -1f0, -1f0, Int32(0), -1f0)
+
+"""
+Overridable FFE (Fire & Fuels Extension) model parameters — the scalar coefficients that
+FMIN-block keywords change from their variant defaults. Defaults are the SN values (fmvinit.f).
+Each keyword that tunes a model coefficient (SNAGPBN, FUELMULT, MOISTURE, …) sets the matching
+field here; the apply sites read these instead of hardcoded constants. Grows as more FFE keywords
+are ported. Kept on FireState (per-stand, no globals).
+"""
+mutable struct FFEParams
+    # post-burn accelerated snag fall (SNAGPBN; fmvinit.f:1100-1104, applied in FMSNAG/FMSFALL)
+    pb_soft::Float32   # PBSOFT: total fraction of soft-at-fire snags fallen after PBTIME (1.0)
+    pb_smal::Float32   # PBSMAL: total fraction of small (<PBSIZE) snags fallen after PBTIME (0.9)
+    pb_size::Float32   # PBSIZE: small-snag DBH breakpoint, in (12.0)
+    pb_time::Float32   # PBTIME: post-burn accelerated-fall window, yr (7.0)
+    pb_scor::Float32   # PBSCOR: scorch-height threshold (ft) to trigger post-burn fall (fmburn.f:414) (0.0)
+    # SNAGFALL (opt 9): per-species overrides of the snag fall-rate correction (FALLX) and the snag age by
+    # which the last 5% fall (ALLDWN). Sparse — only overridden species; snag_fall_density prefers these
+    # over the fire_species_props.csv defaults. Keyed by species index.
+    snag_fallx_ovr::Dict{Int32,Float32}
+    snag_alldwn_ovr::Dict{Int32,Float32}
+    # FUELMULT (opt 29) / FUELDCAY (opt 16): override of the [11 size, 4 decay-class] fuel decay-rate matrix
+    # DKR. Empty (0×0) ⇒ use the `_FM_DKR` default; the keywords lazily copy _FM_DKR then modify it, and
+    # fmcwd! reads this when populated.
+    dkr::Matrix{Float32}
+    # FUELINIT (opt 21) / FUELSOFT (opt 53): per-size-class (1:11) overrides of the initial hard / soft
+    # surface-fuel loading (STFUEL, tons/ac). Empty ⇒ defaults (hard = ffe_dead_fuel_loading, soft = 0);
+    # a value ≥ 0 in a slot overrides that size class. fmcba! applies these at the first-FFE-year fuel load.
+    stfuel_hard::Vector{Float32}
+    stfuel_soft::Vector{Float32}
+    # DUFFPROD (opt 17): override of the [11 size, 4 decay-class] proportion-of-decay-to-duff matrix PRDUFF.
+    # Empty (0×0) ⇒ the uniform 0.02 default (`_FM_PRDUFF`); fmcwd! reads this when populated.
+    prduff::Matrix{Float32}
+    # FUELPOOL (opt 19): per-species override of the fuel decay-rate class DKRCLS (1-4) — which decay-class
+    # column a species' dead fuel / snag bole flows into. Sparse; `ffe_dkr_cls` prefers it over the CSV.
+    dkrcls_ovr::Dict{Int32,Int32}
+    # POTF* (opt 30/35/36/41/42): PotFire-report SEVERE (idx 1) and MODERATE (idx 2) scenario conditions.
+    potf::NTuple{2,PotFireCond}
+    # SNAGPSFT (opt 37): per-species proportion of snags that are SOFT at creation (PSOFT, default 0 = all
+    # hard). Sparse; add_snag! splits new density into hard/soft by this fraction.
+    psoft_ovr::Dict{Int32,Float32}
+    # SNAGDCAY (opt 11): per-species DECAYX override (snag decay-rate multiplier; DKTIME/TSOFT =
+    # DECAYX·(1.24·D+13.82)). Sparse — only overridden species; the snag soft-decay transition + the
+    # crown-fall TSOFT prefer these over the fire_species_props.csv defaults (0.07/0.21/0.35).
+    snag_decayx_ovr::Dict{Int32,Float32}
+    # SNAGBRK (opt 10): per-species snag height-LOSS coefficients HTX(1..4) = (hard>0.5HTD, hard<0.5HTD,
+    # soft>0.5HTD, soft<0.5HTD), calibrated from the keyword's YRS50/YRS30 (fmin.f:538/546/557/566). Sparse;
+    # EMPTY ⇒ HTX=0 = no height loss (the SN default, fmvinit.f:1089) ⇒ snag bole stays frozen at death height.
+    # When set, FMSNGHT shrinks the snag height each year (snag.jl) and the bole volume is recomputed from it.
+    snag_htx::Dict{Int32,NTuple{4,Float32}}
+end
+FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(), Dict{Int32,Float32}(),
+                        Matrix{Float32}(undef, 0, 0), Float32[], Float32[], Matrix{Float32}(undef, 0, 0),
+                        Dict{Int32,Int32}(), (PotFireCond(), PotFireCond()), Dict{Int32,Float32}(),
+                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}())
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
@@ -604,11 +701,28 @@ mutable struct FireState
                                        # start-of-cycle + the fire-year's single annual fuel step (FVS runs the
                                        # surface-fuel loop ANNUALLY interleaved with FMBURN, so the fire sees
                                        # cycle-start + 1 yr, not the period-end left by ffe_fuel_update!). (-1,-1)=unset.
+    params::FFEParams                  # overridable FFE model coefficients (SNAGPBN/FUELMULT/… keyword tuning)
+    moisture_ovr::Vector{Tuple{Int32,NTuple{7,Float32}}}  # MOISTURE keyword: (date, 7 fuel-moisture % —
+                                       # 1hr/10hr/100hr/3+/duff/live-woody/live-herb). A fire in the matching
+                                       # cycle uses these instead of the FMMOIS dryness-model table (fmburn.f:367).
+    snaginit::Vector{NTuple{5,Float32}}  # SNAGINIT keyword: user-added snags (species, DBH-at-death, ht-at-death,
+                                       # age, density stems/ac). Seeded at the first FFE year (fmsnag.f:90-105).
+    salv_isalvs::Int32                 # SALVSP: salvage species selector (0=all, >0 species, <0 −SPGROUP); persists
+    salv_isalvc::Int32                 # SALVSP: 0=cut-list (cut only ISALVS) / 1=leave-list (leave ISALVS, cut rest)
+    fuelmodl::Vector{Tuple{Int32,Vector{Tuple{Int32,Float32}}}}  # FUELMODL: (date, [(standard-model#, weight)])
+                                       # forced fuel models — used in place of FMCFMD auto-selection at the matching cycle
+    fueltret::Vector{Tuple{Int32,Float32}}  # FUELTRET: (date, DPMOD) — fuel-bed DEPTH multiplier from the harvest/
+                                       # treatment type, applied to the selected fuel model for ~5 yr after the date (fmusrfm.f)
+    defulmod::Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}  # DEFULMOD: model# → overridden
+                                       # (load[2,4], sav[2,4], depth, mext); standard_fuel_model returns this in place of the table
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
                         zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
-                        (-1f0, -1f0))
+                        (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{5,Float32}[],
+                        Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
+                        Tuple{Int32,Float32}[],
+                        Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}())
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
@@ -627,7 +741,7 @@ EconCostRev(amount, unit, lo, hi) = EconCostRev(Float32(amount), Int32(unit), Fl
 "ECON economic-analysis state (no globals): discount rate, cost/revenue keyword tables, accumulated streams."
 mutable struct EconState
     active::Bool
-    discount_rate::Float32                # discount/interest rate (fraction)
+    discount_rate::Float32                # discount/interest rate (fraction); STRTECON field 2 / 100 (default 0, ecinit.f:15)
     ann_cost::Float32                     # ANNUCST total annual management cost ($/ac/yr)
     hrv_cost::Vector{EconCostRev}         # HRVVRCST variable harvest costs
     hrv_rev::Vector{EconCostRev}          # HRVRVN harvest revenues (per species)
@@ -635,9 +749,20 @@ mutable struct EconState
     harvests::Vector{NTuple{3,Float32}}   # accumulated (year, cost, revenue) per harvest
     cycle_cost::Float32                   # this cycle's harvest cost so far (accrued per cut tree)
     cycle_rev::Float32                    # this cycle's harvest revenue so far
+    # log-graded HRVRVN (units 4/5) — FVS_EconHarvestValue report (echarv.f). REPORT-ONLY (does not feed PNV).
+    tree_log_bf::Dict{Int,Dict{Int,Float32}}        # per-tree per-log-DIB-class BF (idib=>bf), refreshed each
+                                                    # compute_volumes! when a unit-4/5 HRVRVN record exists; else empty
+    log_grade_rev::Dict{NTuple{3,Int32},Float32}    # (year, speciesIdx, dibClass_x10) => Σ removed board feet
+                                                    # (×price/1000 at emit time = the FVS_EconHarvestValue rows)
+    tree_log_ft3::Dict{Int,Dict{Int,Float32}}       # unit-5 (FT3_100_LOG) analog of tree_log_bf: per-tree per-log-DIB
+                                                    # gross cubic feet (R9LGCFT Smalian, renormalized to VOL(4)+VOL(7))
+    log_grade_ft3::Dict{NTuple{3,Int32},Float32}    # (year, speciesIdx, dibClass_x10) => Σ removed cubic feet
+                                                    # (×price/100 at emit time = the cubic FVS_EconHarvestValue rows)
 end
-EconState() = EconState(false, 0.04f0, 0f0, EconCostRev[], EconCostRev[], Int32(-1),
-                        NTuple{3,Float32}[], 0f0, 0f0)
+EconState() = EconState(false, 0.0f0, 0f0, EconCostRev[], EconCostRev[], Int32(-1),
+                        NTuple{3,Float32}[], 0f0, 0f0,
+                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}(),
+                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}())
 
 # ---------------------------------------------------------------------------
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the

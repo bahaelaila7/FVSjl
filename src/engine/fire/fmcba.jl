@@ -56,22 +56,29 @@ function fmcba!(s::StandState)
     fs.covtyp = covtyp
     fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
 
-    # dead fuels: loaded once (first FFE year), distributed into decay classes by the
-    # species BA share (fmcba.f:375-393). STFUEL's "soft" column is 0 here, so only the
-    # dead (J=2) pool is populated. IDC = each species' decay-rate class (DKRCLS).
+    # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
+    # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
+    # is 0 by default. FUELINIT (hard) / FUELSOFT (soft) override per-size-class values (STFUEL, fmcba.f:320-371).
+    # IDC = each species' decay-rate class (DKRCLS).
     if !fs.fuels_init
-        stfuel = ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
+        deffuel = ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
+        ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
         fill!(fs.cwd, 0f0)
         @inbounds for isz in 1:11
+            sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : deffuel[isz]   # FUELINIT hard
+            ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : 0f0            # FUELSOFT soft
             if totba > 0f0
                 for ksp in 1:nsp
                     tba[ksp] > 0f0 || continue
-                    idc = Int(coef_col(coef, :dkr_cls)[ksp])
-                    fs.cwd[isz, 2, idc] += (tba[ksp] / totba) * stfuel[isz]
+                    idc = ffe_dkr_cls(s, ksp)               # FUELPOOL-overridable decay-rate class
+                    prcl = tba[ksp] / totba
+                    fs.cwd[isz, 2, idc] += prcl * sh
+                    ss > 0f0 && (fs.cwd[isz, 1, idc] += prcl * ss)
                 end
             else
-                idc = Int(coef_col(coef, :dkr_cls)[covtyp])
-                fs.cwd[isz, 2, idc] += stfuel[isz]
+                idc = ffe_dkr_cls(s, covtyp)               # FUELPOOL-overridable decay-rate class
+                fs.cwd[isz, 2, idc] += sh
+                ss > 0f0 && (fs.cwd[isz, 1, idc] += ss)
             end
         end
         fs.fuels_init = true

@@ -199,23 +199,60 @@ a break point `trunc` (80% of standing height when none was supplied).
 """
 function dub_missing_heights!(s::StandState)
     t = s.trees; sd = s.coef.species; ifor = Int(s.plot.forest_idx)
-    @inbounds for i in 1:t.n
+    # NOHTDREG/LHTDRG (cratet.f:292-335): for each invoked species, fit the Wykoff HT-DBH INTERCEPT from its
+    # measured-height trees — `AA = mean(log(H−4.5) − HT2/(D+1))` over trees with H>4.5, NORMHT≥0, D≥3; if ≥3 such
+    # trees and AA≥0, set IABFLG=0 so the dub below uses the calibrated Wykoff curve instead of Curtis-Arney.
+    # Gated on any LHTDRG species ⇒ fully inert for the default stand (the common path is untouched).
+    lhtdrg = s.control.ht_drag_sp; aa = s.calib.ht_dbh_aa; iabflg = s.calib.ht_dbh_iabflg
+    ht2 = coef_col(s.coef, :wykoff_ht2)
+    if any(lhtdrg)
+        nmax = length(lhtdrg)
+        # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
+        sumx = zeros(Float32, nmax); k1 = zeros(Int, nmax)
+        @inbounds for i in 1:t.n
+            sp = Int(t.species[i]); (1 <= sp <= nmax && lhtdrg[sp]) || continue
+            h = t.height[i]; d = t.dbh[i]
+            (h > 4.5f0 && t.norm_ht[i] >= 0 && d >= 3f0) || continue       # measured, sound, ≥3" (cratet.f:301)
+            sumx[sp] += log(h - 4.5f0) - ht2[sp] / (d + 1f0)               # REAL (Float32), as FVS
+            k1[sp]   += 1
+        end
+        @inbounds for sp in 1:nmax
+            (lhtdrg[sp] && k1[sp] >= 3) || continue
+            a = sumx[sp] / Float32(k1[sp]); aa[sp] = a
+            a >= 0f0 && (iabflg[sp] = Int32(0))                            # IABFLG=0 ⇒ calibrated Wykoff
+        end
+    end
+    # cratet.f dubs missing heights for the LIVE trees (DO loop @337) AND, identically, for the DEAD records
+    # (DO 145 @417, II=IREC2..MAXTRE — same AA/HTDBH formula + top-kill handling). jl stores the dead block at
+    # t.n+1 : t.n+t.ndead, so dub over BOTH partitions. The AA fit above stays live-only (FVS fits AA from live
+    # measured trees, DO 15). The dead-tree heights don't enter the live .sum aggregate but DO feed the DG-
+    # calibration backdating (which exposes the dead partition), so dubbing them keeps that calibration faithful.
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0
         if t.height[i] > 0f0 && !tkill
             continue
         end
-        h_v = d <= 0.1f0 ? 1.01f0 : _htdbh_height(sd, sp, d, ifor)
+        # cratet.f:342-372: calibrated-Wykoff dub when LHTDRG[sp] & IABFLG==0, else the Curtis-Arney HTDBH dub.
+        h_v = if d <= 0.1f0
+            1.01f0
+        elseif lhtdrg[sp] && iabflg[sp] == 0
+            exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
+        else
+            _htdbh_height(sd, sp, d, ifor)
+        end
         h_v < 4.5f0 && (h_v = 4.5f0)
         if !tkill
             t.height[i] = h_v
         else
-            t.norm_ht[i] = round(Int32, h_v * 100f0 + 0.5f0)
+            # cratet.f:381-397: NORMHT/ITRUNC use Fortran INT() = truncate-toward-zero (round-half-UP via +0.5),
+            # NOT Julia round() (round-half-to-EVEN) — they diverge by 1 when x is an odd integer.
+            t.norm_ht[i] = trunc(Int32, h_v * 100f0 + 0.5f0)
             if t.trunc[i] == 0
                 if t.height[i] > 0f0
-                    t.trunc[i] = round(Int32, 80f0 * t.height[i] + 0.5f0)
+                    t.trunc[i] = trunc(Int32, 80f0 * t.height[i] + 0.5f0)
                 else
-                    t.trunc[i] = round(Int32, 80f0 * h_v + 0.5f0)
+                    t.trunc[i] = trunc(Int32, 80f0 * h_v + 0.5f0)
                     t.height[i] = h_v
                 end
             else
@@ -227,7 +264,7 @@ function dub_missing_heights!(s::StandState)
                 end
             end
             Float32(t.norm_ht[i]) * 0.01f0 < t.height[i] &&
-                (t.norm_ht[i] = round(Int32, t.height[i] * 100f0))
+                (t.norm_ht[i] = trunc(Int32, t.height[i] * 100f0))
         end
     end
     return s
@@ -325,6 +362,15 @@ function compute_volumes!(s::StandState)
     s.variant isa Northeast && return compute_volumes_ne!(s)   # NVEL R9 Clark cubic (WIP: no board ft)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
+    # Log-graded HRVRVN (unit 4 = BF_1000_LOG): capture each tree's per-log-DIB gross Scribner BF so
+    # the cut path (echarv.f) can bucket it into DIB-class records for the FVS_EconHarvestValue report.
+    # Gated on an active ECON with a unit-4 revenue record; otherwise a no-op (the common path).
+    log_grade = s.econ !== nothing && s.econ.active && any(r -> r.unit == 4, s.econ.hrv_rev)
+    log_grade && empty!(s.econ.tree_log_bf)
+    # Cubic log-graded HRVRVN (unit 5 = FT3_100_LOG): the parallel per-log gross-cuft capture (R9LGCFT),
+    # bucketed by DIB into FVS_EconHarvestValue cubic columns. Independent of unit 4 — both may be active.
+    log_grade_cuft = s.econ !== nothing && s.econ.active && any(r -> r.unit == 5, s.econ.hrv_rev)
+    log_grade_cuft && empty!(s.econ.tree_log_ft3)
     scfmin = c.sp_scf_dbhmin; scftop = c.sp_scf_topd; topd = c.sp_top_diam
     stmp = c.sp_stump_ht; scfstmp = c.sp_scf_stump; dbhmin = c.sp_dbh_min
     merch = (stmp = stmp, topd = topd, scfstmp = scfstmp, scftop = scftop,
@@ -359,7 +405,9 @@ function compute_volumes!(s::StandState)
             prod = "02"; stump = stmp[sp]; mtopp = topd[sp]
         end
         mtops = topd[sp]
-        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod)
+        ldref = log_grade ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
+        lcref = log_grade_cuft ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
+        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
@@ -388,7 +436,7 @@ function compute_volumes!(s::StandState)
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
-                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01")
+                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref)
                 bf = vb[10]
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))
@@ -418,30 +466,32 @@ function compute_volumes!(s::StandState)
             dpack = Int(t.defect[i])
             # ICDF = max(per-tree CF defect, CFDEFT curve, cubic form model on the pulpwood MCFV−SCFV).
             icdf = dpack ÷ 1000000
-            (anydef_cf && mcf > scf) &&
-                (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0), 0, 99)))
+            (anydef_cf && mcf > scf) &&     # NINT (vols.f:13,21), not Julia ties-to-even
+                (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
             temvol = mcf - scf
             if temvol > 0f0 && (cff0[sp] != 0f0 || cff1[sp] != 1f0)
                 volcor = exp(cff0[sp] + cff1[sp] * log(temvol))
-                icdf = max(icdf, round(Int, (temvol - volcor) / temvol * 100f0))
+                icdf = max(icdf, round(Int, (temvol - volcor) / temvol * 100f0, RoundNearestTiesAway))
             end
             icdf = clamp(icdf, 0, 99)
             pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
+            # vols.f:352,415-420: the INPUT board-defect is applied to BFV *and* SCFV even when BFV=0 — a
+            # too-small-for-boardfeet tree (BFV=0, SCFV>0) still loses sawtimber cubic to its input BF defect.
+            # ONLY the curve/form IBDF updates (BFDEFT, log-linear) are gated on BFV>0 (vols.f:393); NINT throughout.
+            ibdf = (dpack ÷ 10000) % 100
             if bf > 0f0
-                # IBDF = max(per-tree BF defect, BFDEFT curve, board form model on BFV).
-                ibdf = (dpack ÷ 10000) % 100
                 anydef_bf &&
-                    (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0), 0, 99)))
+                    (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
                 if bff0[sp] != 0f0 || bff1[sp] != 1f0
                     volcorb = exp(bff0[sp] + bff1[sp] * log(bf))
-                    ibdf = max(ibdf, round(Int, (bf - volcorb) / bf * 100f0))
+                    ibdf = max(ibdf, round(Int, (bf - volcorb) / bf * 100f0, RoundNearestTiesAway))
                 end
-                ibdf = clamp(ibdf, 0, 99)
-                if ibdf >= 99
-                    bf = 0f0; scf = 0f0
-                elseif ibdf > 0
-                    f = 1f0 - ibdf * 0.01f0; bf *= f; scf *= f
-                end
+            end
+            ibdf = clamp(ibdf, 0, 99)
+            if ibdf >= 99
+                bf = 0f0; scf = 0f0
+            elseif ibdf > 0
+                f = 1f0 - ibdf * 0.01f0; bf *= f; scf *= f
             end
             mcf = pulpv + scf
         end
@@ -449,6 +499,11 @@ function compute_volumes!(s::StandState)
         t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i]   = scf
         t.bdft_vol[i]       = bf
+        # Stash this tree's per-log-DIB gross BF for the cut path's log-graded revenue accumulation.
+        # Only when board feet survived (defect/Region-8 zeroing) so empties don't pollute the lookup.
+        log_grade && bf > 0f0 && ldref !== nothing && !isempty(ldref[]) && (s.econ.tree_log_bf[i] = ldref[])
+        # Cubic stash: gate on merch cubic surviving (mcf>0), so defect/Region-8-zeroed trees don't pollute.
+        log_grade_cuft && mcf > 0f0 && lcref !== nothing && !isempty(lcref[]) && (s.econ.tree_log_ft3[i] = lcref[])
     end
     return s
 end

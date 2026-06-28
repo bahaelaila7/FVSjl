@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "6558661804bbfc17fbac0ef88305353c3700de8f"
+project_hash = "23048d1c6eb8ee0192e5bcd8ca88baab110c10e3"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -38,7 +38,7 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 version = "1.11.0"
 
 [[deps.FVSjl]]
-deps = ["DBInterface", "LinearAlgebra", "Printf", "SQLite", "YAML"]
+deps = ["DBInterface", "LinearAlgebra", "Parsers", "Printf", "SQLite", "WeakRefStrings", "YAML"]
 path = "."
 uuid = "f5d3a1c2-9b4e-4a7d-8c61-2e0f7b9a4d33"
 version = "0.1.0"

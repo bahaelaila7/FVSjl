@@ -29,6 +29,17 @@ area-to-volume by [1=dead/2=live, class]; the 10-hr / 100-hr / dead-herb / live-
 take the FFE constant defaults (109 / 30 / 1500 / 1500). `depth` is bed depth (ft), `mext`
 the dead moisture of extinction.
 """
+# The fuel model for `model`, honoring a DEFULMOD custom override (FireState.defulmod) if one was defined,
+# else the standard table (standard_fuel_model). Returns (load[2,4], sav[2,4], depth, mext).
+@inline function fuel_model_resolved(s::StandState, model::Integer)
+    fs = s.fire
+    if fs !== nothing && !isempty(fs.defulmod)
+        ov = get(fs.defulmod, Int32(model), nothing)
+        ov !== nothing && return ov
+    end
+    return standard_fuel_model(s.coef, model)
+end
+
 function standard_fuel_model(coef::SpeciesCoefficients, model::Integer)
     m = @view coef.ffe_fuel_models[model, :]   # [sav_1hr, sav_lwoody, l_1hr,l_10,l_100,l_lwoody,l_lherb, depth, mext]
     load = zeros(Float32, 2, 4); sav = zeros(Float32, 2, 4)
@@ -81,6 +92,15 @@ distance to each model's iso-line. Returns up to `MXFMOD` (model, weight) pairs 
 weights sum to 1. This is the input FMFINT integrates over for the surface fire.
 """
 function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
+    # FUELMODL (fmusrfm.f → fmcfmd.f:113 IF(LUSRFM)RETURN): a forced fuel-model list for this cycle skips
+    # the FMCFMD auto-selection entirely.
+    if s.fire !== nothing && !isempty(s.fire.fuelmodl)
+        yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+        for (date, pairs) in s.fire.fuelmodl
+            (Int(date) == yr || (0 < Int(date) < 1000 && Int(date) == fvscyc)) || continue
+            return [(Int(m), w) for (m, w) in pairs]
+        end
+    end
     eqwt = zeros(Float32, _FMD_ICLSS)
     iffeft = ffe_forest_type(s)
     # An actual SIMFIRE burns on the start-of-cycle + 1-annual-step down wood (FVS interleaves the annual

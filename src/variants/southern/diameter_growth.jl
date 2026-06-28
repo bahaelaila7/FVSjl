@@ -251,6 +251,40 @@ function apply_growth_input_types!(s::StandState)
     return
 end
 
+# Backdate live diameters to the start of the measured-growth period, IN PLACE
+# (DENSE/LBKDEN, dense.f:70-128). WK3 = sqrt(d²·r): for a measured-DG tree,
+# r = 1−(2·d·gadj − gadj²)/d² (the past inside-bark dbh); unmeasured trees fall back to
+# the stand-average BA-growth ratio BAGR. IDG-faithful (dense.f:100-127): exclude only
+# MISSING growth (IDG=1/3 missing is already −1 → a genuine 0 is KEPT; IDG=0/2 keep
+# input-0 as missing); bark-divide the increment for IDG∈{0,2,3}, SKIP for IDG==1
+# (dense.f:101,122). Shared by calibrate_diameter_growth! and init_crown_ratios! so the
+# crown's backdated CCF and the DG calibration read ONE backdating — as FVS runs one DENSE.
+function _backdate_dbh!(s::StandState)
+    t = s.trees; n = t.n
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    idg = s.control.growth_idg
+    ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
+    bagr = 0f0; nb = 0f0
+    @inbounds for i in 1:n
+        g = t.diam_growth[i]; ismiss(g) && continue
+        d = t.dbh[i]
+        gadj = idg == 1 ? g : g / bark_ratio(bark_a, bark_b, t.species[i], d)
+        gadj > d && continue
+        bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
+    end
+    nb > 0f0 && (bagr /= nb)
+    @inbounds for i in 1:n
+        d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
+        if !ismiss(g)
+            gadj = idg == 1 ? g : min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
+            rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
+            rr > 0f0 && (r = rr)
+        end
+        r > 0f0 && (t.dbh[i] = sqrt(d * d * r))
+    end
+    return s
+end
+
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
     t, c = s.trees, s.calib
     sd = s.coef.species
@@ -264,6 +298,18 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # ratio bagr. The calibration DGF must predict from this PAST stand state (past
     # dbh + past BA/AVH/PCT), which is what makes COR/OLDRN bit-exact.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
+    # recent dead are added back at the right rate to recover the BACKDATED density (notre.f:122-124). FVS keeps
+    # that inflation live through calibration and "undoes" it for treelist/FFE uses (FMSSEE/PRTRLS); jl carries
+    # the TRUE dead TPA everywhere, so it applies the inflation ONLY here, scoped to the two calibration density
+    # passes below, and restores it before returning. Inert when FINTM=FINT (the default).
+    _fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+    _livec = t.n
+    _saved_dead_tpa = (_fintr != 1f0 && t.ndead > 0) ?
+        Float32[t.tpa[j] for j in (_livec + 1):(_livec + t.ndead)] : Float32[]
+    if _fintr != 1f0
+        @inbounds for j in (_livec + 1):(_livec + t.ndead); t.tpa[j] *= _fintr; end
+    end
     # PTBAA (point basal area) in the calibration prediction uses the CURRENT-DBH
     # point BA (dgf.f:493 reads the live PTBAA the last DENSE pass filled at current
     # diameters). The percentile population is the full ITRN, so recently-dead trees
@@ -279,24 +325,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.n = nlive0
     end
     cur_point_ba = copy(s.density.point_ba)
-    bagr = 0f0; nb = 0f0
-    @inbounds for i in 1:t.n
-        g = t.diam_growth[i]; g <= 0f0 && continue
-        d = t.dbh[i]; gadj = g / bark_ratio(bark_a, bark_b, t.species[i], d)
-        gadj > d && continue
-        bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
-    end
-    nb > 0f0 && (bagr /= nb)
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]; g = t.diam_growth[i]
-        r = bagr
-        if g > 0f0
-            gadj = min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
-            rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
-            (gadj >= 0f0 && rr > 0f0) && (r = rr)
-        end
-        t.dbh[i] = sqrt(d * d * r)
-    end
+    _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
     # overridden below with the live-only current point_ba; only BA/AVH/PCT use this.)
@@ -332,6 +361,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             end
         end
     end
+    if _fintr != 1f0                          # restore TRUE dead TPA (the FINT/FINTM inflation was calibration-
+        @inbounds for (k, j) in enumerate((_livec + 1):(_livec + t.ndead)); t.tpa[j] = _saved_dead_tpa[k]; end
+    end                                       # only — covers both density passes AND the PCTILE percentile)
     # GROWTH IDG=1/3 bark correction (dgdriv.f:330-333): the measured increment is now the
     # OUTSIDE-bark DBH difference (DBH−past), which DENSE used to backdast above. Convert it to
     # the INSIDE-bark increment with BRATIO at the CURRENT dbh (`saved_dbh`) before the calibration
@@ -554,6 +586,11 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     # years from the IY schedule (= current_cycle_year − inventory), NOT `sfint·cycle`
     # — the two are equal only for UNIFORM cycles; a TIMEINT/CYCLEAT non-uniform
     # schedule (e.g. a 10-yr cycle 2) needs the true cumulative time (5, not 10).
+    # NB (verified the hard way, -1823 tests): a debug-FVS dgdriv COR dump shows COR
+    # ONE CYCLE AHEAD (1.0221 at cyc1) because that WRITE fires AFTER dgdriv updates COR
+    # for the NEXT cycle, while dgf already baked the CURRENT (pre-update) COR into WK2.
+    # jl's dg_cor at cycle N = the value FVS USES for cycle N's DG (the pre-update one) —
+    # the START clock here is correct; do NOT "fix" it to elapsed+sfint.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
     cormlt = exp(-0.02773f0 * elapsed)
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
@@ -610,19 +647,19 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
             i = ind1[k]
             bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
-            # DDS is scaled to the cycle length: SCALE = FINT/YR (dgdriv.f:325/715), where
-            # FINT = the cycle period (`sfint`) and YR = the SN measurement base period (5yr).
-            # snt01 (period 5) ⇒ 5/5 = 1 (unchanged); a 10-yr cycle ⇒ ×2 the DDS (≈2× DG).
-            dds  = exp(wk2[i]) * xbai * (sfint / 5f0)       # BAIMULT: DDS·XDMULT
-            bnd(x) = dg_bound(dlo_v, dhi_v, sp, t.dbh[i], x, s.control.sp_size_cap)
+            # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
+            # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
+            # only); `bsc` bounds the 5-yr DG and then scales by sfint/5. FINT=5 ⇒ identity (no scale).
+            dds5 = exp(wk2[i]) * xbai                       # 5-yr DDS (BAIMULT: DDS·XDMULT)
+            bsc(dg5) = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, s.control.sp_size_cap)
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
-                t.diam_growth[i] = bnd(sqrt(d_ib * d_ib + dds * exp(frmt)) - d_ib)
+                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(frmt)) - d_ib)
                 ru = fru + corr * rnpar; rnU[i] = ru
-                dgU[i] = bnd(sqrt(d_ib * d_ib + dds * exp(ru)) - d_ib)
+                dgU[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(ru)) - d_ib)
                 rl = frl + corr * rnpar; rnL[i] = rl
-                dgL[i] = bnd(sqrt(d_ib * d_ib + dds * exp(rl)) - d_ib)
+                dgL[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(rl)) - d_ib)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -632,7 +669,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
                     frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i];
                                   dgsd = s.control.dg_stddev_bound)
                 end
-                t.diam_growth[i] = bnd(sqrt(d_ib * d_ib + dds * frm) - d_ib)
+                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * frm) - d_ib)
             end
         end
     end
@@ -677,11 +714,13 @@ function triple_records!(s::StandState, stash)
         copy_tree!(t, u, i); copy_tree!(t, l, i)
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+        # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
+        t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0
         # small-tree records carry per-record height increments (REGENT random effect)
         if is_small[i]
             t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
         end
-        t.tpa[i] *= 0.60f0
+        t.tpa[i] *= 0.60f0; t.mort_pa[i] *= 0.60f0
         # lineage keys: upper=3K, central=3K+1, lower=3K+2 → species-sort then visits
         # records in the oracle's LNKCHN order (upper,central,lower depth-first), so the
         # untripled DGSCOR consumes the BACHLO stream in the same sequence (RNG-exact).

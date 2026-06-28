@@ -78,6 +78,7 @@ mutable struct TreeList
     carbon_frac::Vector{Float32} # carbon fraction by species              (CARB_FRAC)
 
     # --- per-tree state used by calibration / RNG ---
+    mort_pa      ::Vector{Float32} # this period's mortality (trees/ac·GROSPC) for the record (FVS_TreeList MortPA)
     old_crown_pct::Vector{Float32} # crown % previous cycle                (OLDPCT)
     old_random   ::Vector{Float32} # tree's saved random deviate           (OLDRN)
     tree_random  ::Vector{Float32} # per-tree random draw                  (ZRAND)
@@ -93,6 +94,10 @@ mutable struct TreeList
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
     pest_vars::Matrix{Int32}     # 5 pest extension variables              (IPVARS)
+    # FFE per-year crown-lift OLDCRW(size 1-5) carried from the cycle it was computed (compute_crown_lift!)
+    # so a tree DYING next cycle can add its YRSCYC·OLDCRW to the snag crown (FMSCRO, fmscro.f:147). idx 1=
+    # size-1 … 5=size-5 (foliage excluded). 0 ⇒ no lift. Carried through tripling/compaction by copy_tree!.
+    ffe_oldcrw::Matrix{Float32}  # 5 woody crown-lift sizes                (OLDCRW)
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -106,8 +111,10 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(), zeros(Bool, maxtre), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(),
+        fz(),                                  # mort_pa
         fz(), fz(), fz(), dz(), fz(), fz(), fz(),
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
+        zeros(Float32, 5, maxtre),              # ffe_oldcrw
     )
 end
 
@@ -122,7 +129,7 @@ const _TREE_VEC_FIELDS = (
     :bdft_vol, :cuft_vol, :merch_cuft_vol, :saw_cuft_vol, :merch_top_bf,
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
-    :old_crown_pct, :old_random, :tree_random, :sort_key,
+    :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
     :ffe_oldht, :ffe_olddbh, :ffe_oldcr)
 
 """
@@ -138,6 +145,7 @@ fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
         end
         for k in 1:6; t.damage[k, dst]    = t.damage[k, src];    end
         for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
+        for k in 1:5; t.ffe_oldcrw[k, dst] = t.ffe_oldcrw[k, src]; end
     end
     return t
 end

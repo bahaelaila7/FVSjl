@@ -1,5 +1,20 @@
 # FVSsn → FVSjl faithfulness audit (operation-sequence trace)
 
+> ## ⚠ STATUS RECONCILIATION (2026) — all open items below are now CLOSED; this doc was stale
+> The open items flagged in this op-sequence audit were resolved by subsequent work but the doc was not
+> updated (which is misleading — fixed here). Each re-verified vs live FVS:
+> - **KNOWN GAPS (IDG==1, G==0)** — RESOLVED. `_backdate_dbh!` gates on IDG; growth_idg1 init crown +
+>   .sum bit-exact vs live. (See the corrected KNOWN-GAPS entry below.)
+> - **F1 (fire/MORTS MAX-combine)** — FIXED (in this doc).
+> - **F3 (fire_fuel9 per-model Rothermel byram / fire mortality)** — RESOLVED by the 2026 fire-basis
+>   (sm,lg) start-of-cycle fix (docs/audit/INDEX.md "FIRE UNDER-KILL"): fire_fuel9 is now BIT-EXACT vs
+>   live every cycle (2010 TPA 143 = live; was 148-155).
+> - **DDW size-5 / carbon_jenkins** — RESOLVED by the CRATET init-crown backdating (4519/0/1 spec met).
+> - **F2 (COMPRESS timing)** — accepted-adjacent (the accepted COMPRESS eigensolver divergence).
+> The live current state: suite 4530 pass / 1 broken (= accepted COMPRESS); the campaign ledger is
+> docs/audit/INDEX.md. No open op-sequence divergence remains beyond the accepted COMPRESS + the
+> documented FFE fuel-phasing intermediate-snapshot residual (INDEX.md #22).
+
 Re-verifying the port by tracing FVS source op-by-op (NOT trusting tests, especially
 FVSjulia-derived ones). Methodology: read the FVS call sequence, map each operation to
 its FVSjl counterpart, verify the order + the stand state each op reads (pre/post thin,
@@ -575,3 +590,58 @@ DDW @test_broken flipped to passing.
 FINAL SUITE: 4519 pass / 0 fail / 1 broken — the one broken is s22_compress (the accepted different-
 eigensolver divergence). The drop-in spec is met: the only divergences are ULP FP and the COMPRESS
 eigensolver. The full FFE carbon down-wood model + the CRATET init-crown are bit-exact drop-ins.
+
+## init_crown_ratios! — post-hoc source verification (honest re-audit)
+
+Verified the CRATET init-crown backdating against FVS source (not just test match):
+- dense.f:257-264: LBKDEN=TRUE DENSE ends with RELDEN=RELDM1 = first-pass BACKDATED RELDT (dense.f:239).
+- cratet.f:186 backdated DENSE → :532 CALL CROWN → :613 non-backdated DENSE. CROWN reads backdated RELDEN. ✓
+- Backdating algo (dense.f:89-132: BAGR + WK3=SQRT(D²·R), R=BAGR fallback) matches the jl replica. ✓ FAITHFUL.
+
+KNOWN GAPS — ✅ BOTH RESOLVED (this entry was STALE; written before the #14 cleanup extracted the shared
+`_backdate_dbh!`, which gates on IDG). Verified 2026 vs live FVS:
+1. IDG==1 (past-dbh input): RESOLVED. `init_crown_ratios!` now delegates to `_backdate_dbh!`
+   (diameter_growth.jl), which does `gadj = idg==1 ? g : g/bark_ratio(...)` — skipping the bark division for
+   IDG==1 exactly as dense.f:101,122. VALIDATED vs live on growth_idg1 (IDG=1, 6 trees all with missing
+   crowns ⇒ init_crown fires, all 6 with measured DG ⇒ the idg==1 backdating runs): init crown
+   [22,27,31,36,40] and the .sum TPA/BA/TopHt are BIT-EXACT vs live (a wrong init crown would diverge the
+   crown→growth path; it doesn't).
+2. G==0 exactly: NON-ISSUE. CRATET sets input-zero DG to −1.0 BEFORE DENSE (dense.f:95 comment), so G==0
+   never reaches the BAGR loop; jl's `g<=0` exclusion gives the SAME outcome as FVS's convert-to-−1-then-
+   `g<0`. (`_backdate_dbh!` also uses `g<0` for IDG==1/3 to match dense.f:100 exactly.)
+
+## CONFIRMED BANDAID: fix #6 snapshot_ffe_oldcrown! at inventory (instrumented)
+
+Source: fmsdit.f:93 `IF (ICYC.GT.1) THEN` guards the ENTIRE crown-lift OLDCRW scaling — cycle 1 is
+explicitly skipped ("If we are on the first cycle, then the old crown is not known"). fminit.f:971
+sets OLDCRL=0. fvs.f never calls TREGRO at ICYC=0.
+Instrumented live FVSsn (carbon_snt), per-cycle annual crown-lift material per acre:
+  ICYC=1 (1990): 0.00   ICYC=2 (1995): 947.2   ICYC=3 (2000): 1103.7   ICYC=4 (2005): 1166.2
+=> FVS crown-lift down-wood is ZERO in cycle 1. FVSjl's summary.jl:101 inventory snapshot makes the
+first compute_crown_lift! (end of loop c=0) nonzero (inventory→cycle1 rise), which FVS does NOT do.
+MECHANISM UNFAITHFUL. The code comment "else the 1st cycle's fine down-wood is lost" describes
+down-wood FVS deliberately never creates. PENDING DECISION: replicate the ICYC>1 guard (gate the first
+crown-lift to cycle≥2 / drop the inventory snapshot) and find what real gap, if any, it was masking.
+
+## LEDGER (this session's DDW fixes) — 6/7 cited-faithful, 1 confirmed bandaid
+1 fall keyed on initial state — fmcwd.f:149-150 ✓
+2 snag bole=MAX(X,MCF) merch — fmsvol.f:146-150 (SN) ✓
+3 SCNV 0.80/1.00 by pool — fmcwd.f:61,404-414 ✓
+4 decay order FMSNAG→FMCWD→FMCADD — fmmain.f:228-241 ✓
+5 crown small-tree bole=merch — fmsvol.f:80,146-150 ✓
+6 inventory crown snapshot — CONTRADICTED by fmsdit.f:93 + instrumented cyc1=0 ✗ BANDAID
+7 init crown backdated CCF + IDG gating — cratet.f:186/532, dense.f:100-127,257-264 ✓
+
+## RETRACTION: fix #6 (inventory crown snapshot) is FAITHFUL, not a bandaid
+
+The earlier "CONFIRMED BANDAID: fix #6" section above is WRONG and is retracted. Corrected trace:
+FVS applies growth in UPDATE (update.f:65 HT=HT+HTG, :115 DBH=DBH+DG/BRATIO), called at gradd.f:180 AFTER
+FMMAIN (gradd.f:118). So FMOLDC (fmmain.f:268, every cycle, ungated) snapshots the PRE-growth crown; cyc1's
+FMOLDC captures the INVENTORY crown. jl's inventory snapshot_ffe_oldcrown! is the faithful analog of FMOLDC(cyc1).
+The fmsdit.f:93 IF(ICYC.GT.1) gate only suppresses cyc1's FMSDIT (lift computation), NOT cyc1's FMOLDC (state
+capture). jl mirrors this exactly: cyc1 fuel loop adds the zero-init array (no cyc1 lift), and the inventory-based
+lift(inv→postcyc1) is computed at end of loop c=0 and ADDED during cyc2 — matching FVS's ICYC=2 FMSDIT lift(947).
+My earlier instrumentation correctly showed FVS FMSDIT cyc1=0 but I mis-mapped it onto the jl loop. Corroboration:
+carbon_snt DDW is bit-exact vs the LIVE-FVS golden WITH #6; removing #6 would zero the cyc2 lift and break that
+live-FVS match. CONCLUSION: keep #6. Lesson: bit-exact-vs-LIVE-FVS + a correct both-sides trace = faithful; a
+static timing argument alone misled both me and the confirm agent.

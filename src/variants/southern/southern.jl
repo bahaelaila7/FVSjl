@@ -27,11 +27,14 @@ nspecies(::Southern) = 90
 #          width into cover/growth.
 #   FIAVBC: switches volume/biomass to the FIA National Volume Library — FVSjl has only the R8
 #          Clark equations (SN default LFIANVB=.FALSE.). A variant on the NVB path would diverge.
-#   NOAUTOES / AUTOES / NOHTDREG: establishment-control flags — establishment is variant-specific;
-#          their inertness is a current-state assumption (AUTOES would need the auto-establishment
-#          trigger ported — a latent gap of the MANAGED kind).
+#   NOAUTOES / AUTOES: establishment-control flags — establishment is variant-specific; their inertness
+#          is a current-state assumption (AUTOES would need the auto-establishment trigger ported — a
+#          latent gap of the MANAGED kind).
+#   NOHTDREG is NOT in this set: it controls the HT-DBH (LHTDRG) regression calibration, and its INVOKE
+#          form (field 2 > 0) is a real gap, so it gets a dedicated handler (kw_nohtdreg!) that no-ops the
+#          faithful suppress/default form but @warns on the unported invoke form — not a silent no-op.
 const KNOWN_NOOP_SN = Set([
-    "FIXCW", "FIAVBC", "NOAUTOES", "AUTOES", "NOHTDREG",
+    "FIXCW", "FIAVBC", "NOAUTOES", "AUTOES",
 ])
 
 # Insect/disease EXTENSIONS that FVS itself STUBS OUT of the SN variant — the SN build links only the

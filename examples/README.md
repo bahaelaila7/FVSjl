@@ -6,14 +6,30 @@ Each example lives in its **own folder** and is provided in several equivalent f
 thinba/      thinba.key   thinba.tre   thinba.yaml   thinba.csv
 thinsdi/     thinsdi.key  thinsdi.tre  thinsdi.yaml  thinsdi.csv
 multistand/  multistand.key  …  .tre  …  .yaml  …  .csv
+semantic/    thinsdi.yaml  multistand.yaml   (+ .tre/.csv)   ← the SEMANTIC form
+convert_and_run.sh                            ← run + convert every form
 ```
 
 | file | what it is |
 |------|------------|
 | `*.key` | legacy fixed-column keyword file (**the runnable form**) |
 | `*.tre` | legacy fixed-column tree records |
-| `*.yaml` | **order-aware hierarchical** keyword file — sections of *named*-parameter blocks |
+| `*.yaml` | keyword file — **two flavors**: order-aware *keyword-stream* (here) and *semantic* (`semantic/`) |
 | `*.csv` | tree records as a named-column table |
+
+> **Two YAML flavors.** The `thinba/thinsdi/multistand` folders hold the **keyword-stream**
+> YAML (an order-preserving image of the `.key`, documented below). The `semantic/` folder
+> holds the **semantic** YAML (`format: fvs-stand/v1`) — a stand described by *intent*
+> (`invyr`, `numcycle`, `treatments`, `treelist`) that the converter unravels into keyword
+> order. Full reference for both, the tree CSV/TREEFMT, and the species codes:
+> [`../docs/FORMATS.md`](../docs/FORMATS.md); every keyword + parameter:
+> [`../docs/KEYWORDS.md`](../docs/KEYWORDS.md).
+
+## Run & convert in one go
+
+```bash
+bash examples/convert_and_run.sh      # runs the examples + converts .key↔.yaml and .tre↔.csv
+```
 
 ## Running an example
 

@@ -22,14 +22,6 @@ const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f)
 const _ES_HHTMAX = Float32[23.0,27.0,21.0,21.0,22.0,20.0,24.0,18.0,18.0,17.0,22.0,
     (20.0 for _ in 12:90)...]
 
-"Establishment-tree disturbance date (TALLY=427 trigger), else inventory − 20 (esnutr.f:63)."
-function _es_idsdat(s::StandState)
-    for a in s.control.schedule
-        a.icflag == Int32(427) && return Int(a.params[1])
-    end
-    return Int(s.control.cycle_year[1]) - 20
-end
-
 """
     establish!(state; fint=5f0) -> Bool
 
@@ -48,18 +40,25 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
            if (a.icflag == Int32(430) || a.icflag == Int32(431)) && yr <= a.year < yr + per]
     isempty(due) && return false
 
-    idsdat = _es_idsdat(s)
     # NPTIDS = IPTINV − NONSTK (esplt2.f:74): the STOCKABLE inventory points, not the raw
     # plot count. Driving DUPNPT/IDUP and so the regen record count + its per-record RNG draws.
     nptids = max(1, Int(s.plot.points_inv) - Int(s.plot.nonstockable))
-    idup   = max(1, fld(_ES_MINREP, nptids))
+    # estab.f:199-207: IDUP = smallest I with NPTIDS·I ≥ MINREP = CEIL(MINREP/NPTIDS) (not floor); the
+    # MAXPLT cap doesn't bind for the divergent 1<NPTIDS<MINREP cases. NPTIDS=1 ⇒ ceil=floor=50 (BARE stand).
+    idup   = max(1, cld(_ES_MINREP, nptids))
     dupnpt = Float32(nptids * idup)
     bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
-    gentim = (Int(yr) + per - idsdat) - per; gentim < 0 && (gentim = 0)
-    pccf = 0f0          # point crown competition factor (≈0 for the sparse established plots)
+    # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
+    # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
+    gentim = max(per - 5, 0)
+    # Each new regen tree's crown ratio uses the per-point CCF computed by DENSE from the EXISTING (pre-regen)
+    # overstory: regent.f:178 `CR=0.89722−0.0000461·PCCF(IPCCF)` with `IPCCF=ITRE(I)` (the tree's point). We now
+    # carry that exact per-point value (`density.point_ccf`, filled by `point_density!` at start-of-cycle) and
+    # index it by each record's point below — replacing the prior whole-stand `stand_ccf` approximation. The
+    # coefficient is tiny (4.6e-5), so a bare/sparse stand (CCF≈0) is unchanged to print resolution.
     created = false
     nstart = t.n        # tree count before establishment (phase-2 crown pass starts here)
     # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
@@ -88,13 +87,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
+                hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
             else                                                   # default ±N(0.5,0.25)
                 while true
                     ran = bachlo(s.rng, 0.5f0, 0.25f0; stream = :estab)
                     (0f0 <= ran <= 1.5f0) && (hht += ran; break)
                 end
+                hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
-            hht < es_xmin[sp]   && (hht = es_xmin[sp])           # HTADJ=0, floor, cap
             hht > _ES_HHTMAX[sp] && (hht = _ES_HHTMAX[sp])
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
             # REGENT establishment dbh (regent.f:331-334, LESTB branch): DBH = HTDBH⁻¹(HK),
@@ -136,6 +136,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 ran_cr = bachlo(s.rng, 0f0, 1f0)
                 -1f0 <= ran_cr <= 1f0 && break
             end
+            pccf = s.density.point_ccf[Int(t.plot_id[i])]      # PCCF(IPCCF), IPCCF=ITRE(I) (regent.f:160,178)
             cr = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0

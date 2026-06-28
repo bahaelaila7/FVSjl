@@ -138,11 +138,12 @@ to all sprouting species).
 """
 function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     (s.control.lsprut && !isempty(s.control.cut_log)) || return false
-    smult = s.control.sprout_smult
-    smult <= 0f0 && return false                       # esuckr.f:211
-    hmult = s.control.sprout_hmult
+    ovr = s.control.sprout_overrides                   # per-species SPROUT activity-450 table (esuckr.f:96-205)
     t = s.trees; coef = s.coef
-    isefor = Int(s.plot.user_forest_code)
+    # IFORDI = KODFOR÷100 (forkod.f:183) — the 3-digit district index the special-forest gate (809/810/905/908)
+    # keys on, NOT the 5-digit KODFOR. (forkod's SELECT CASE remaps a few non-canonical aliases, e.g. 7207→809;
+    # those rare cases would need the full forkod port — see INDEX.) snt01=80106 ⇒ IFORDI=801 (not special).
+    isefor = Int(s.plot.user_forest_code) ÷ 100
     icyc = Int(s.control.cycle)
     created = false
     @inbounds for rec in s.control.cut_log
@@ -150,6 +151,16 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         prem < 0.001f0 && continue                     # esuckr.f:170
         issp = Int(rec.species); dstmp = rec.dstmp
         ishag = Int(rec.ishag); iplot = Int(rec.plot)
+        # SPROUT keyword multipliers, looked up by the PARENT species + stump DBH (esuckr.f:197-205, DO 450):
+        # default 1/1, then each matching activity (species match AND DSTMP ∈ [dmin,dmax)) overwrites; last wins.
+        smult = 1f0; hmult = 1f0
+        @inbounds for (code, sm, hm, dmn, dmx) in ovr
+            matched = code > 0f0 ? (Int(code) == issp) :
+                      code == 0f0 ? true :
+                      (let g = -Int(code); 1 <= g <= length(s.control.sp_groups) && (Int32(issp) in s.control.sp_groups[g]) end)
+            (matched && dstmp >= dmn && dstmp < dmx) && (smult = sm; hmult = hm)
+        end
+        smult <= 0f0 && continue                       # esuckr.f:211 — SMULT≤0 ⇒ no sprouts for this stump
         numspr = nsprec_sn(issp, dstmp)                # number of sprout records
         prem = essprt_sn(coef, issp, prem, dstmp, isefor)  # per-record survival multiplier
         prem < 0.001f0 && continue                     # esuckr.f:244
@@ -168,7 +179,9 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             end
             ht += randev * ht / 5.5f0
             dbh = sprout_dbh(coef, issp, ht)
-            cw = crown_width(coef, sp2, dbh, ht, 70f0, 0,
+            # CWCALC's CR arg is the dummy CRDUM=1.0 (esuckr.f:317), NOT the record's ICR=70 (that is the
+            # discarded 6th arg IICR, cwcalc.f). Passing 70 inflated sprout CrWidth by cr_coef·69 for Bechtold spp.
+            cw = crown_width(coef, sp2, dbh, ht, 1f0, 0,
                              s.plot.latitude, s.plot.longitude, s.plot.elevation)
             # tree-record initialization (esuckr.f:258-343)
             t.mort_code[n]   = Int32(2)                # IMC = 2 (sprout regeneration)

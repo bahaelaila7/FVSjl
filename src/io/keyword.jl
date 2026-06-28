@@ -114,7 +114,9 @@ function read_keyword!(r::KeywordReader)
         !r.heading_done && strip(record) == "" && continue
 
         head8 = upkey(rpad(length(record) >= 8 ? record[1:8] : record, 8))
-        head8[1:4] == "STOP" && return _record("STOP", record, N_KEY_FIELDS, false, 0, KW_STOP, 0)
+        # keyrdr.f:55-59: STOP is matched on the FULL 8-char field (TMP=RECORD(1:8), TMP.EQ.'STOP'), NOT a
+        # 4-char prefix (that's END, keyrdr.f:92 TMP(1:4)). So "STOPPED"/"STOPxxx" must NOT trigger STOP.
+        head8 == "STOP    " && return _record("STOP", record, N_KEY_FIELDS, false, 0, KW_STOP, 0)
 
         # first non-comment, non-heading-blank record prints the heading (keywd.f:76)
         r.heading_done = true

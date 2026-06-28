@@ -31,17 +31,7 @@ end
 # Background-mortality coefficients (PMSC/PMD) and SDIMAX defaults live in
 # data/southern/species_coefficients.csv (mort_bkgd_intercept/mort_bkgd_dbh).
 
-"BA-weighted stand maximum SDI (SDICAL, pre-CLMAXDEN)."
-function stand_sdimax(s::StandState)
-    t = s.trees; p = s.plot
-    num = 0f0; totba = 0f0
-    @inbounds for i in 1:t.n
-        tb = 0.0054542f0 * t.dbh[i]^2 * t.tpa[i]
-        num   += p.sp_sdi_def[t.species[i]] * tb
-        totba += tb
-    end
-    return totba <= 0f0 ? 1f0 : num / totba
-end
+# stand_sdimax (general SDICAL) lives in engine/standstats.jl — shared across variants.
 
 """
     sdi_max_check!(state)
@@ -68,8 +58,11 @@ function sdi_max_check!(s::StandState)
         sumdr += pr * d^1.605f0; sumd2 += pr * d * d; tprob += pr
     end
     tprob < 1f0 && return s
+    # sdichk.f:78-81 — the over-density DECISION (TEMMAX) and the SDImax RESET use the UNFLOORED
+    # RMSQD/DR016 (TEMD0). The 0.3 floor (DQ0, sdichk.f:59-61) feeds ONLY TMD0→UPLIM, a cosmetic
+    # warning jl doesn't emit. So dq0 here (decision + reset) must NOT be floored. (Was floored — a GAP
+    # that diverged for dense sub-inch stands, QMD<0.3.)
     dq0 = zeide ? (sumdr / tprob)^(1f0 / 1.605f0) : sqrt(sumd2 / tprob)
-    dq0 < 0.3f0 && (dq0 = 0.3f0)
     const_v = sdimax / PRETZSCH_SDIK
     upmax = min(pmsdiu + 0.05f0, 1f0)
     temmax = const_v * dq0^SDI_EXP
@@ -195,6 +188,39 @@ function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32
 end
 
 """
+    _msbmrt!(killed, t, order, n, eff, t2kill, dlo, dhi, mflag, bark_a, bark_b, fint) -> sumkil
+
+MSBMRT (base/msbmrt.f): "mature-stand breakup" — inflict `t2kill` TPA of EXTRA mortality on records whose
+projected DBH falls in `[dlo, dhi)`, sweeping the DBH-`order` (descending) from above (mflag 1/3) or below
+(mflag 2), killing a proportion `eff` of each record's surviving TPA until the target is met. Accumulates into
+`killed[]` (FVS WK2). NOTE: msbmrt.f:72/93 projects DBH with `(DG/BARK)·(FINT/10)` — a different scaling from
+the morts.f TPACLS pre-check (FINT/5); both are ported verbatim.
+"""
+@inline function _msbmrt!(killed::AbstractVector{Float32}, t::TreeList, order::AbstractVector{<:Integer},
+                          n::Int, eff::Float32, t2kill::Float32, dlo::Float32, dhi::Float32, mflag::Integer,
+                          bark_a, bark_b, fint::Float32)
+    sumkil = 0f0
+    # mflag 1/3 ⇒ from above (largest DBH first = order[1..n]); mflag 2 ⇒ from below (smallest first).
+    ks = (mflag == 1 || mflag == 3) ? (1:1:n) : (n:-1:1)
+    @inbounds for k in ks
+        ij = order[k]
+        d = t.dbh[ij]
+        bark = bark_ratio(bark_a, bark_b, t.species[ij], d)
+        dbhend = d + (t.diam_growth[ij] / bark) * (fint / 10f0)   # msbmrt.f:72/93 — FINT/10, not FINT/5
+        (dbhend >= dlo && dbhend < dhi) || continue
+        avail = t.tpa[ij] - killed[ij]
+        xkill = avail * eff
+        (avail - xkill < 0.00001f0) && (xkill = avail)            # take all if the remainder would be ~0
+        xkill < 0f0 && (xkill = 0f0)
+        (sumkil + xkill > t2kill) && (xkill = t2kill - sumkil)    # don't overshoot the target
+        sumkil += xkill
+        killed[ij] += xkill
+        sumkil >= t2kill && break
+    end
+    return sumkil
+end
+
+"""
     mortality!(state, ::Southern; fint=5f0)
 
 Compute and apply periodic mortality, reducing `trees.tpa`. Combines background
@@ -273,6 +299,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
         bg_tokill += min(pr * (1f0 - (1f0 - ri)^fint) * xmort, pr)
     end
 
+    msb_d10 = d10   # the converged self-thinning QMD the MSB block reads as FVS's D10 (morts.f:618)
     if sdimax < 5f0
         _varmrt!(killed, efftr, temwk2, shade_adj, t, n, bg_tokill)
     else
@@ -316,6 +343,51 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
             d10n = ttn <= 0f0 ? 0f0 : (zeide ? (sdr / ttn)^(1f0 / 1.605f0) : sqrt(sdr / ttn))
             (abs(d10cur - d10n) <= 0.1f0 || d10n <= dia0) && break
             d10cur = d10n
+        end
+        msb_d10 = d10cur                # FVS keeps D10 = the converged input (not the survivor D10N)
+    end
+
+    # MORTMSB alternate "mature-stand breakup" mortality (morts.f:374-375 + 618-681 + msbmrt.f). Inert unless
+    # the MORTMSB keyword set a non-zero self-thinning slope (msb_slope). It concentrates EXTRA kills in a DBH
+    # range to break up overmature stands; FVS then forces a self-thinning-line recalibration next cycle
+    # (IPATH=0) — here that happens naturally because the MSB kills lower s.density.tpa_mort (locked below), so
+    # next cycle's |T−TPAMRT|>1 reset test fires. Skipped when sdimax<5 (whole-stand-kill case, morts.f:343-345).
+    if s.control.msb_slope != 0f0 && sdimax >= 5f0
+        # TN = post-mortality survivor total over the threshold-filtered trees (morts.f:567-585). D10 is the
+        # CONVERGED self-thinning QMD (msb_d10 = FVS's loop variable D10), NOT a fresh survivor-QMD recompute —
+        # with a steep SLPMSB the TMMSB curve is ~|SLPMSB|× sensitive to D10, so the ≤0.1 convergence gap matters.
+        msb_tn = 0f0
+        @inbounds for i in 1:n
+            d = t.dbh[i]; d < dthresh && continue
+            pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
+            msb_tn += pr
+        end
+        if msb_d10 > s.control.msb_qmd && msb_tn > 0f0
+            qmd = s.control.msb_qmd; slp = s.control.msb_slope
+            const_v = sdimax / PRETZSCH_SDIK
+            cepmsb = log(const_v * qmd^(-1.605f0)) - slp * log(qmd)     # morts.f:375 (CEPMSB anchors the curve at QMDMSB)
+            tmmsb  = exp(cepmsb + slp * log(msb_d10))                   # morts.f:622
+            tmore  = max(msb_tn - tmmsb * pmsdiu, 0f0)                  # morts.f:623-625 (T85MSB = TMMSB·PMSDIU)
+            dlo = s.control.msb_dlo; dhi = s.control.msb_dhi
+            # TPA available in the kill DBH range — morts.f:642-649 projects DBH with FINT/5 (≠ msbmrt's FINT/10).
+            tpacls = 0f0
+            @inbounds for i in 1:n
+                d = t.dbh[i]
+                bark = bark_ratio(bark_a, bark_b, t.species[i], d)
+                dbhend = d + (t.diam_growth[i] / bark) * (fint / 5f0)
+                (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
+            end
+            if tmore > tpacls
+                @warn "MORTMSB: additional mortality target ($(round(tmore; digits=1)) TPA) exceeds the TPA in " *
+                      "the DBH class ($(round(tpacls; digits=1))); alternate mortality cancelled this cycle."
+            elseif tpacls > 0f0
+                mflag = Int(s.control.msb_flag)
+                # MFLMSB=3 ⇒ exact efficiency; else use EFFMSB but bump it if too low to reach the target (morts.f:663-677).
+                temeff = mflag == 3 ? tmore / tpacls :
+                         (tpacls * s.control.msb_eff < tmore ? tmore / tpacls : s.control.msb_eff)
+                order = sortperm(view(t.dbh, 1:n); rev = true)         # IND: diameter-sorted, largest first
+                _msbmrt!(killed, t, order, n, temeff, tmore, dlo, dhi, mflag, bark_a, bark_b, fint)
+            end
         end
     end
 
@@ -366,9 +438,14 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
     # TPAMRT (morts.f:772): the surviving over-threshold TPA used for next cycle's self-thinning
     # line-reset test — locked HERE, from the BA-check survivors, BEFORE FIXMORT overrides the
     # kill (the forced FIXMORT mortality must NOT move the self-thinning line).
+    # TPAMRT = TNEW = Σ(PROB−WK2) over ALL trees, NO DBHSTAGE/DBHZEIDE guard (morts.f:706-712,772). The
+    # reset test (morts.f:245) deliberately compares the THRESHOLD-FILTERED T (the dthresh-guarded `tt` above,
+    # morts.f:233) against this UNFILTERED TPAMRT — so a stand carrying sub-threshold stems resets the
+    # self-thinning line every cycle. (Was dthresh-filtered — a GAP; no-op for snt01 which has no sub-threshold
+    # trees.) CAVEAT: relies on killed[i] matching FVS WK2 for sub-threshold trees — verify on a regen scenario.
     surv = 0f0
     @inbounds for i in 1:n
-        t.dbh[i] >= dthresh && (surv += t.tpa[i] - killed[i])
+        surv += t.tpa[i] - killed[i]
     end
     s.density.tpa_mort = surv
 
@@ -379,7 +456,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
     # burns this cycle the caller suppresses this (book_snags=false) and books the regular snags
     # itself from only the EXCESS MORTS (WK2−FIRKIL, fmkill.f:135) so fire+regular snags don't
     # double-count — see grow_cycle!.
-    book_snags && book_mortality_snags!(s, killed, n)
+    book_snags && book_mortality_snags!(s, killed, n, fint)
 
     @inbounds for i in 1:n
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
@@ -396,9 +473,13 @@ the full MORTS kill) and, on a fire cycle, by `grow_cycle!` (basis = the MORTS k
 the fire kill, so the two snag sources don't overlap — FVS WK2=MAX(MORTS,fire), snags split as
 fire=FIRKIL + regular=WK2−FIRKIL).
 """
-function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int)
+function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0)
     (s.fire === nothing || !s.fire.active) && return s
     t = s.trees; coef = s.coef; yr = current_cycle_year(s)
+    # FVS dates ordinary-mortality snags at YRDEAD = IY(ICYC+1)−1 = cycle-END−1 (fmkill.f:140), used for the
+    # hard→soft DKTIME classification. jl's `year` (the fall-clock) stays cycle-START (tuned to the bit-exact
+    # StandDead falldown); `yrdead` carries the true death year for snag_summary's split only.
+    yrdead = yr + Int(fint) - 1
     v2t = coef_col(coef, :v2t); dkr = coef_col(coef, :dkr_cls)
     @inbounds for i in 1:n
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
@@ -413,7 +494,12 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # (HTIH=HTDEAD in SN, FMSNGHT height-loss is a no-op), weighted by the falling density.
         mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
         bolevol = mcf * v2t[sp] / 2000f0
-        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol, height = t.height[i])
+        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol, height = t.height[i], yrdead = yrdead)
+        # FVS fmscro.f:144-147 dead-tree crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift
+        # term is GATED by `IF (ICALL .NE. 4)`. Ordinary mortality reaches FMSCRO via FMKILL→FMSADD
+        # with ITYP=4 (fmkill.f:143), so it gets CROWNW ONLY — no crown-lift-at-death. (Only FIRE
+        # ICALL=1 (fmburn!) and CUT ICALL=2 add the YRSCYC·OLDCRW term.) Verified vs live: adding the
+        # term here overshoots carbon_snt StandDead [3.796,4.393,5.354,9.535]; CROWNW-only is exact.
         xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         fmscro!(s, sp, t.dbh[i], xv, basis[i], clamp(Int(dkr[sp]), 1, 4))
         _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])

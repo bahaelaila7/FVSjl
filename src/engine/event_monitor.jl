@@ -20,6 +20,7 @@ struct EvVar <: EvNode; name::String; end
 struct EvUn  <: EvNode; op::Symbol; a::EvNode; end
 struct EvBin <: EvNode; op::Symbol; a::EvNode; b::EvNode; end
 struct EvFun <: EvNode; name::Symbol; a::EvNode; b::EvNode; end   # b unused for 1-arg
+struct EvTime <: EvNode; args::Vector{EvNode}; end                # TIME(v0,y1,v1,…) variadic year-step fn
 
 "Per-cycle context the condition reads (extend as variables are needed)."
 struct EventCtx
@@ -45,9 +46,21 @@ function eval_event(n::EvNode, ctx::EventCtx)::Float32
         n.name === :EXP  && return exp(x)
         n.name === :SQRT && return sqrt(x)
         n.name === :ALOG && return log(x)
-        n.name === :TIME && return Float32(ctx.year)
         n.name === :MOD  && (y = eval_event(n.b, ctx); return x - trunc(x / y) * y)
         return x   # RANN etc.: not yet exercised
+    elseif n isa EvTime
+        # algevl.f:303 — TIME(v0,y1,v1,y2,v2,…): result v0 while year<y1, else the value vk for the
+        # largest critical year yk ≤ year (years assumed increasing; stop at the first yk>year).
+        # ≤2 args ⇒ v0 (IF(J.LE.2)). NOT the current year — that is the YEAR variable (evtstv.f:101).
+        a = n.args
+        result = eval_event(a[1], ctx)
+        k = 2
+        while k + 1 <= length(a)
+            ctx.year >= trunc(Int, eval_event(a[k], ctx)) || break   # IYRCUR.GE.IFIX(year)
+            result = eval_event(a[k + 1], ctx)
+            k += 2
+        end
+        return result
     else  # EvBin
         b = n::EvBin
         a = eval_event(b.a, ctx); c = eval_event(b.b, ctx)
@@ -55,7 +68,12 @@ function eval_event(n::EvNode, ctx::EventCtx)::Float32
         op === :add && return a + c
         op === :sub && return a - c
         op === :mul && return a * c
-        op === :div && return a / c
+        # Divide by zero: FVS flags the result UNDEFINED (algevl.f:332-333 LREG=.TRUE.), not ±Inf — an
+        # undefined operand makes the enclosing IF condition false (action skipped). jl has no undefined-flag
+        # stack, so return NaN: a NaN comparison is false, approximating FVS's "condition does not fire" for the
+        # common `IF a/0 > k` case. (Full LREG propagation — e.g. NOT(undefined) — is not modeled; niche.)
+        op === :div && return c == 0f0 ? NaN32 : a / c
+        op === :pow && return a ^ c                          # ** (algevl.f:339 XREG**XREG)
         op === :and && return (a != 0f0 && c != 0f0) ? 1f0 : 0f0
         op === :or  && return (a != 0f0 || c != 0f0) ? 1f0 : 0f0
         r = op === :gt ? a >  c : op === :ge ? a >= c :
@@ -96,6 +114,8 @@ function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     end
     name == "CYCLE" ? Float32(ctx.cycle) :
     name == "YEAR"  ? Float32(ctx.year) :
+    (name == "NO" || name == "ALL") ? 0f0 :    # constant 0.0 (evtstv.f:82,281, code 112)
+    name == "YES" ? 1f0 :                       # constant 1.0 (evtstv.f:81, code 111)
     name == "BBA"  ? stand_ba(ctx.state) / ctx.state.plot.gross_space :
     name == "BSDI" ? _event_bsdi(ctx.state) :                       # SDIBC (Reineke SDI, evtstv.f:116)
     # SSTAGE structural-stage event vars (evtstv.f:203-229; need STRCLASS on). The conditions
@@ -104,7 +124,10 @@ function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     (name == "BSTRDBH" || name == "ASTRDBH") ? Float32(structure_class(ctx.state).strdbh) :
     (name == "BCANCOV" || name == "ACANCOV") ? Float32(structure_class(ctx.state).cover) :
     name == "TPA"  ? stand_tpa(ctx.state) / ctx.state.plot.gross_space :
-    name == "AGE"  ? Float32(ctx.state.plot.stand_age) :
+    # AGE = initial stand age + ELAPSED years (evtstv.f:260 TSTV1(2)=IAGE+IY(ICYC)−IY(1)); `stand_age` is
+    # the fixed inventory age, so add (current year − inventory year), exactly as the .sum age does
+    # (summary.jl). Was the bare `stand_age` — it omitted the elapsed term (a GAP; untested keyword path).
+    name == "AGE"  ? Float32(Int(ctx.state.plot.stand_age) + (ctx.year - Int(ctx.state.control.cycle_year[1]))) :
     error("event-monitor variable not yet ported: $name")
 end
 
@@ -134,6 +157,8 @@ function _ev_tokens(s::AbstractString)
         c = s[i]
         if isspace(c)
             i = nextind(s, i)
+        elseif c == '*' && i < n && s[nextind(s, i)] == '*'   # ** exponentiation (algcmp.f:103, precedence 8)
+            push!(toks, "**"); i = nextind(s, nextind(s, i))
         elseif c in ('(', ')', ',', '+', '-', '*', '/')
             push!(toks, string(c)); i = nextind(s, i)
         elseif isdigit(c) || c == '.'
@@ -152,7 +177,7 @@ end
 
 const _EV_CMP = Dict("GT"=>:gt, "GE"=>:ge, "LT"=>:lt, "LE"=>:le, "EQ"=>:eq, "NE"=>:ne)
 const _EV_FUN = Dict("FRAC"=>:FRAC, "INT"=>:INT, "MOD"=>:MOD, "EXP"=>:EXP,
-                     "SQRT"=>:SQRT, "ALOG"=>:ALOG, "ABS"=>:ABS, "TIME"=>:TIME, "RANN"=>:RANN)
+                     "SQRT"=>:SQRT, "ALOG"=>:ALOG, "ABS"=>:ABS, "RANN"=>:RANN)
 
 # --- recursive-descent parser → AST -----------------------------------------
 mutable struct _EvP; toks::Vector{String}; pos::Int; end
@@ -170,7 +195,9 @@ function _ev_and(p)
     return a
 end
 function _ev_not(p)
-    (_peek(p) == "NOT" || _peek(p) == "NO") && (_next!(p); return EvUn(:not, _ev_not(p)))
+    # Only NOT is the negation operator (algkey.f CTAB3). `NO`/`ALL` are NOT operators — they are the
+    # constant 0.0 (test-var code 112, evtstv.f:82,281), resolved as a variable below.
+    _peek(p) == "NOT" && (_next!(p); return EvUn(:not, _ev_not(p)))
     return _ev_cmp(p)
 end
 function _ev_cmp(p)
@@ -191,12 +218,25 @@ end
 function _ev_unary(p)
     _peek(p) == "-" && (_next!(p); return EvUn(:neg, _ev_unary(p)))
     _peek(p) == "+" && (_next!(p); return _ev_unary(p))
-    return _ev_atom(p)
+    return _ev_pow(p)
+end
+# Exponentiation `**` (algcmp.f:103 precedence 8 — binds TIGHTER than unary minus `7`, so `-a**b` = `-(a**b)`;
+# RIGHT-associative like Fortran, and the exponent may carry a unary sign, e.g. `a**-2`). algevl.f:339.
+function _ev_pow(p)
+    a = _ev_atom(p)
+    _peek(p) == "**" && (_next!(p); return EvBin(:pow, a, _ev_unary(p)))
+    return a
 end
 function _ev_atom(p)
     t = _next!(p)
     if t == "("
         a = _ev_or(p); _peek(p) == ")" && _next!(p); return a
+    elseif t == "TIME"                       # variadic year-step fn (algevl.f:303) — keep ALL args
+        _peek(p) == "(" && _next!(p)
+        args = EvNode[_ev_or(p)]
+        while _peek(p) == ","; _next!(p); push!(args, _ev_or(p)); end
+        _peek(p) == ")" && _next!(p)
+        return EvTime(args)
     elseif haskey(_EV_FUN, t)
         _peek(p) == "(" && _next!(p)
         a = _ev_or(p); b = EvNum(0f0)

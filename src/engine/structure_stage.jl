@@ -154,6 +154,28 @@ function structure_class(s::StandState; iba::Int = 1)
     ssdbh = Float64(th[2]); sawdbh = Float64(th[3]); pctsmx = Float64(th[6])
     st = _ss_strata(s)
     st.n == 0 && return (class = 0, nstr = 0, cover = 0.0, strdbh = 0.0)
+    # Single-canopy-tree path (sstage.f:234-268): a stand with only ONE canopy tree is classified by its
+    # CROWN-AREA cover (WK6 = CW²·TPA·π/4, already = `st.crarea`), NOT the stratum DBHNOM. Checked BEFORE the
+    # stratification (so it fires even when the lone tree forms no OK stratum). Cover < CCMIN% of an acre
+    # (435.6 = 0.01·43560 sq ft) ⇒ class 0 (or SI=1 if TPA≥TPAMIN); else SSD→1, SAW→2 (SE→SI demote when the
+    # stand SDI < 0.01·PCTSMX·MaxSDI), else 5. (FVS uses SDIAC here; for a lone-tree no-cut stand SDIAC=SDIBC,
+    # so the same _event_bsdi as the nstr==1 path.)
+    if st.n == 1
+        wk6 = st.crarea[1]; tpa1 = st.tpa[1]; dbh1 = st.dbh[1]
+        ccmin = Float64(th[4]); tpamin = Float64(th[5])
+        cls = if wk6 < 435.6 * ccmin
+            tpa1 >= tpamin ? 1 : 0
+        elseif dbh1 < ssdbh
+            1
+        elseif dbh1 < sawdbh
+            (_event_bsdi(s) < 0.01 * pctsmx * Float64(stand_sdimax(s))) ? 1 : 2
+        else
+            5
+        end
+        # NSTR stays 0 here: the single-canopy branch GOTO-80s before the stratification sets NSTR≥1
+        # (sstage.f:235 jumps past :388-478), so the report's N column is 0 for a lone canopy tree.
+        return (class = cls, nstr = 0, cover = st.cover, strdbh = dbh1)
+    end
     st.nstr == 0 && return (class = 0, nstr = 0, cover = st.cover, strdbh = 0.0)
     # dominant stratum = the first OK one; its SSTGHP 70th-percentile DBH (sstage.f:487-576)
     di = findfirst(st.oks)
@@ -166,8 +188,10 @@ function structure_class(s::StandState; iba::Int = 1)
             cls = 1
         elseif tmpdbh < sawdbh
             cls = 2
-            xbamax = Float64(s.control.ba_max)
-            (xbamax > 0 && _event_bsdi(s) < 0.01 * pctsmx * xbamax) && (cls = 1)   # PCTSMX demotion
+            # PCTSMX SE→SI demotion (sstage.f:154,544-550): XBAMAX = BTSDIX = the per-cycle SDICAL stand
+            # MaxSDI (grincr.f:240), NOT the user BAMAX keyword. SDIBC < 0.01·PCTSMX·MaxSDI → demote to SI.
+            xbamax = Float64(stand_sdimax(s))
+            (_event_bsdi(s) < 0.01 * pctsmx * xbamax) && (cls = 1)
         else
             cls = dmind < 3.0 ? 6 : 5
         end
@@ -261,9 +285,14 @@ function write_structure_report(io::IO, stand::StandState, ncyc::Integer;
     for c in 0:ncyc
         compute_density!(stand)
         yr = Int(current_cycle_year(stand))
-        row = structure_report_row(stand, yr, 0)            # before-thin (Rm=0)
-        println(io, row)
-        println(io, structure_report_row(stand, yr, 1))     # after-thin (Rm=1) — same w/o a thin
+        println(io, structure_report_row(stand, yr, 0))     # before-thin (Rm=0): the pre-thin stand
+        # Apply this cycle's scheduled thin so the after-thin row reflects the POST-thin stand — its cover,
+        # strata, and the after-thin MaxSDI (ATSDIX), per sstage.f:145-155 (IBA≠1 + ONTREM>0). When nothing is
+        # cut the stand is unchanged, so the after-thin row equals the before-thin row (sstage.f:146). cuts! is
+        # idempotent per year (cuts.jl years_cut guard), so grow_cycle!'s own cut below becomes a no-op.
+        cuts!(stand; fint = Float32(period))
+        compute_density!(stand)
+        println(io, structure_report_row(stand, yr, 1))     # after-thin (Rm=1): the post-thin stand
         c < ncyc && grow_cycle!(stand; fint = Float32(period))
     end
     return io

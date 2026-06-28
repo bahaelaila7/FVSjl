@@ -108,3 +108,97 @@ end
     @test_throws ErrorException translate_io("a.key", "b.csv")   # unsupported cross-kind
     rm.([yml, key2, csv, tre2]; force=true)
 end
+
+# Semantic equivalence ignores field-TEXT formatting (the semantic form emits "11", a
+# .key may carry "11.0") — same keyword, numeric value and presence is the contract.
+sig2(r) = (strip(r.name), round.(r.values; digits=4), r.present)
+
+@testset "semantic stand YAML (format: fvs-stand) unravels to canonical keyword order" begin
+    yml = tempname() * ".yaml"
+    open(yml, "w") do io
+        write(io, """
+        format: fvs-stand/v1
+        stand:
+          stdident: "SN SEMANTIC TEST — em-dash id"
+          noautoes: true
+          design: { plots: 11, nsc: 1 }
+          stdinfo: { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
+          sitecode: { species: 63, index: 60.0 }
+          invyr: 1990
+          numcycle: 6
+          echosum: true
+          treatments:
+            - thinsdi: { year: 2010, sdi: 200 }
+          treelist:
+            format: "(I4,T1,I7,F6.0,I1,A3,F4.1)"
+        """)
+    end
+    recs  = FVSjl.read_keyword_records(yml)
+    names = [strip(r.name) for r in recs if !isempty(strip(r.name))]
+    # canonical order: STDIDENT(+id) → NOAUTOES → DESIGN → STDINFO → SITECODE → INVYEAR →
+    # NUMCYCLE → ECHOSUM → THINSDI → TREEFMT(+fmt) → TREEDATA → PROCESS → STOP
+    @test "STDIDENT" in names && names[end] == "STOP"
+    @test findfirst(==("NOAUTOES"), names) < findfirst(==("DESIGN"), names)
+    @test findfirst(==("DESIGN"),   names) < findfirst(==("THINSDI"), names)
+    @test findfirst(==("THINSDI"),  names) < findfirst(==("TREEDATA"), names)
+    @test findfirst(==("TREEDATA"), names) < findfirst(==("PROCESS"),  names)
+    # the em-dash id rides verbatim (multi-byte UTF-8 must not crash the decoder)
+    @test any(r -> occursin("em-dash id", r.raw), recs)
+    # the THINSDI card maps year→field1, residual SDI→field2 (FVS-term keys)
+    thin = recs[findfirst(r -> strip(r.name) == "THINSDI", recs)]
+    @test thin.values[1] ≈ 2010 && thin.values[2] ≈ 200
+    # field positions match a hand-written equivalent .key (numeric value + presence)
+    key = tempname() * ".key"
+    open(key, "w") do io
+        write(io, """
+        STDIDENT
+        SN SEMANTIC TEST
+        NOAUTOES
+        DESIGN                                        11.0       1.0
+        STDINFO        80106   231Dd        60.0     315.0      30.0       7.0
+        SITECODE          63      60.
+        INVYEAR       1990.0
+        NUMCYCLE         6.0
+        ECHOSUM
+        THINSDI       2010.0     200.0
+        TREEFMT
+        (I4,T1,I7,F6.0,I1,A3,F4.1)
+        TREEDATA
+        PROCESS
+        STOP
+        """)
+    end
+    kr = FVSjl.read_keyfile_records(key)
+    # compare the keyword cards (bare-token names) — drop the free-text id/FORMAT lines,
+    # which are emitted verbatim and differ by content (the semantic id has an em-dash).
+    cards(rs) = [sig2(r) for r in rs if occursin(r"^[A-Z][A-Z0-9]*$", strip(r.name))]
+    @test cards(recs) == cards(kr)
+    rm.([yml, key]; force=true)
+end
+
+@testset "semantic multi-stand + raw_keywords escape hatch" begin
+    yml = tempname() * ".yaml"
+    open(yml, "w") do io
+        write(io, """
+        format: fvs-stand/v1
+        stands:
+          - { stdident: "S1", invyr: 1990, numcycle: 6, treelist: { format: "(I4)" } }
+          - stdident: "S2"
+            invyr: 1990
+            numcycle: 6
+            treatments: [ { thinbba: { year: 2010, ba: 80 } } ]
+            raw_keywords: [ { FMIN: {} }, { END: {} } ]
+            treelist: { format: "(I4)" }
+        """)
+    end
+    recs  = FVSjl.read_keyword_records(yml)
+    names = [strip(r.name) for r in recs if !isempty(strip(r.name))]
+    @test count(==("STDIDENT"), names) == 2     # two stands
+    @test count(==("PROCESS"),  names) == 2     # one PROCESS each
+    @test count(==("STOP"),     names) == 1     # single terminating STOP, last
+    @test names[end] == "STOP"
+    @test "FMIN" in names && "THINBBA" in names # escape-hatch keyword rode along
+    # FMIN (raw) emits before the modeled THINBBA in the same stand (documented order)
+    @test findfirst(==("FMIN"), names) < findlast(==("THINBBA"), names)
+    rm(yml; force=true)
+end

@@ -76,6 +76,10 @@ include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tr
     include("integration/test_cycleat.jl")      # CYCLEAT extra cycle boundary (non-uniform IY schedule) vs Fortran
     include("integration/test_readcor.jl")      # READCOR/REUSCOR growth-constant corrections (COR2/HCOR2/RCOR2) vs Fortran
     include("integration/test_setsite.jl")      # SETSITE scheduled mid-run site-index change (act 120) vs Fortran
+    include("integration/test_nohtdreg.jl")     # NOHTDREG HT-DBH (LHTDRG) calibration control: suppress no-op / invoke warn
+    include("integration/test_mortmsb.jl")       # MORTMSB/MSBMRT alternate mature-stand-breakup mortality vs live FVS
+    include("integration/test_sprout_table.jl")  # SPROUT per-species/DBH-range multiplier table (esuckr act 450) vs live FVS
+    include("integration/test_estab_pccf.jl")     # regen crown ratio uses stand CCF (PCCF), not 0 — vs live FVS
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

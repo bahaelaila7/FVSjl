@@ -347,9 +347,19 @@ function _kw_record_from_fields(name::AbstractString, fld::AbstractDict{Int,Stri
     return KeywordRecord(nm, "", fields, values, present, N_KEY_FIELDS, status, 0)
 end
 
-# A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines
-# that trail STDIDENT/TREEFMT.
-_raw_record(text) = _decode_keyword(rpad(string(text), 130))
+# A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines that
+# trail STDIDENT/TREEFMT, inline tree data, SPGROUP members. ASCII text takes the exact
+# prior path (the fixed-column card decoder). Non-ASCII text (e.g. an em-dash in a stand
+# id) would crash that decoder, which byte-indexes its column slices and can land
+# mid-character; build a verbatim-only record directly instead. `name` (first ≤8 chars)
+# only drives the non-plain test, so `_render_keyfile` emits `.raw` verbatim either way.
+function _raw_record(text)
+    s = rstrip(string(text))
+    isascii(s) && return _decode_keyword(rpad(s, 130))
+    name = upkey(rpad(String(first(s, 8)), 8))
+    return KeywordRecord(name, s, fill(" "^10, N_KEY_FIELDS), zeros(Float32, N_KEY_FIELDS),
+                         falses(N_KEY_FIELDS), N_KEY_FIELDS, KW_OK, 0)
+end
 
 # A YAML scalar → the 10-col field text. The YAML number TYPE carries the original
 # field's form: an integer scalar (`60`) → "60"; a float scalar (`60.0`) → "60.0"
@@ -444,6 +454,7 @@ keyword order in every case, so reading is a lossless inverse of the writer.
 """
 function read_keywords_yaml(path::AbstractString)
     doc = YAML.load_file(path)
+    _is_stand_doc(doc) && return read_stand_yaml_doc(doc)    # SEMANTIC form (format: fvs-stand/*)
     if doc isa AbstractDict && haskey(doc, "stand")          # hierarchical form
         return _read_hierarchical(doc["stand"])
     end

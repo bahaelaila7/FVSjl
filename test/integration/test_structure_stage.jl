@@ -109,3 +109,31 @@ end
         @test FVSjl.eval_event(cond, FVSjl.EventCtx(2, 1995, st)) == 0f0   # not at 1995 (SE)
     end
 end
+
+@testset "single-canopy-tree structure-stage (NTREES≤1 cover branch) vs live FVS" begin
+    # sstage.f:235-256 — a stand with only ONE canopy tree is classified by its CROWN-AREA cover
+    # (WK6 = CW²·TPA·π/4), NOT the stratum DBHNOM, and BEFORE stratification (so it fires even when the lone
+    # tree forms no OK stratum → reported N=0). Each scenario below is a single SM record whose class was read
+    # off live FVSsn (fort.16 "Structural statistics") — they pin the four reachable sub-branches:
+    #   bg     cover<CCMIN, TPA<TPAMIN   → 0=BG
+    #   si_tpa cover<CCMIN, TPA≥TPAMIN   → 1=SI   (the TPA-override; the OLD DBHNOM path gave 0=BG here)
+    #   si_dbh cover≥CCMIN, DBH<SAWDBH   → 1=SI
+    #   os     cover≥CCMIN, DBH≥SAWDBH   → 5=OS
+    # (Standalone class-2/SE is unreachable for a lone tree: its tiny SDI always trips the SE→SI demote —
+    # itself faithful to FVS.)
+    sdir = joinpath(@__DIR__, "..", "harness", "scenarios")
+    for (name, want) in [("struct_1canopy_bg", 0), ("struct_1canopy_si_tpa", 1),
+                         ("struct_1canopy_si_dbh", 1), ("struct_1canopy_os", 5)]
+        key = joinpath(sdir, name * ".key")
+        if !isfile(key)
+            @test_skip "$name scenario not available"
+        else
+            s = first(FVSjl.each_stand(key))
+            FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+            r = FVSjl.structure_class(s)
+            @test s.trees.n == 1                # single canopy tree
+            @test r.nstr == 0                   # NSTR untouched by the GOTO-80 branch (live reports N=0)
+            @test r.class == want               # class matches live FVSsn
+        end
+    end
+end

@@ -32,20 +32,31 @@ end
     apply_fire_consumption!(fs, mois) -> Float32
 
 Consume the surface fuel pools `fs.cwd` by the natural-fuels consumption fractions
-(FMCONS) and return the fire carbon release (tons C/acre = consumed biomass × 0.5).
-Mutates `fs.cwd` (the unburned remainder stays for the down-wood pools).
+(FMCONS) and return the fire carbon release (tons C/acre). Mutates `fs.cwd` (the unburned
+remainder stays for the down-wood pools).
+
+The consumed biomass→carbon conversion splits by pool, mirroring the FVS Carbon Report's
+"Carbon Released From Fire" (fmcrbout.f:151 `V(11)=BIOCON(1)·0.37 + BIOCON(2)·0.50`, with
+fmdout.f:286-287 `BIOCON(1)=BURNED(litter)+BURNED(duff)`, `BIOCON(2)=rest`): the consumed
+FOREST-FLOOR (litter=class 10, duff=class 11) converts at 0.37 (Smith & Heath NE-722) and
+all consumed WOODY classes (1–9) at 0.50 — the same split as the standing carbon pools.
 """
 function apply_fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32})::Float32
     pr = fire_consumption_fractions(mois)
-    released = 0f0
+    woody = 0f0; forest_floor = 0f0
     @inbounds for isz in 1:11
         f = pr[isz]
         f > 0f0 || continue
         for k in 1:2, l in 1:4
             consumed = fs.cwd[isz, k, l] * f
             fs.cwd[isz, k, l] -= consumed
-            released += consumed
+            isz >= 10 ? (forest_floor += consumed) : (woody += consumed)   # 10=litter, 11=duff
         end
     end
-    return released * 0.5f0
+    # Live herb/shrub surface fuels also burn (FMCONS BURNLV, fmcons.f:310-311: herb PLVBRN=1.0, shrub 0.6)
+    # and release at 0.5 (they're in BIOCON(2), fmdout.f:283/287). FLIVE is recomputed each cycle by fmcba!
+    # (the live fuels regrow), so this is RELEASE-ONLY — no pool to mutate. Without it the Carbon-Released
+    # under-counts by the live-fuel share (fire_carbon 5.13 vs live 5.5).
+    live_burned = fs.flive[1] + 0.6f0 * fs.flive[2]
+    return woody * 0.5f0 + forest_floor * 0.37f0 + live_burned * 0.5f0
 end

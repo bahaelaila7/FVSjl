@@ -158,3 +158,28 @@ end
         end
     end
 end
+
+@testset "NOTRE FINT/FINTM dead-record inflation (notre.f:122-124) vs Fortran" begin
+    # When the growth (FINT) and mortality-observation (FINTM) periods differ, NOTRE inflates DEAD-record PROB
+    # by FINT/FINTM so the recent dead are added back at the right rate to recover the BACKDATED density the DG
+    # calibration reads. jl now applies that inflation, scoped to the calibration density + PCTILE passes
+    # (diameter_growth.jl `calibrate_diameter_growth!`). dead_fint = carbon_snt (10 input dead trees, history
+    # 6-9) + `GROWTH 0 10 0 0 5` (FINT=10, FINTM=5 ⇒ 2× inflation). Without the fix the missing inflation
+    # under-counts backdated density → the COR drifts (2000 was TCuFt −8 / MCuFt −9 vs live); with it the .sum
+    # tracks live to ≤4 cuft. The small residual = the dead trees' contribution to the crown-init backdated CCF,
+    # which jl computes live-only. (The default FINT=FINTM case stays bit-exact — the fix is gated on FINT≠FINTM.)
+    key = joinpath(_GDIR, "dead_fint.key"); sav = joinpath(_GDIR, "dead_fint.sum.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "dead_fint scenario not available"
+    else
+        jl = _g_rows(FVSjl.run_keyfile(key; faithful = true))
+        ft = _g_rows(read(sav, String))
+        @test length(jl) == length(ft) >= 4
+        for (j, f) in zip(jl, ft)
+            @test j[1] == f[1]                                              # YEAR
+            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA
+            @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 4           # TCuFt (pre-fix gap was 8)
+            @test abs(parse(Int, j[10]) - parse(Int, f[10])) <= 4         # MCuFt (pre-fix gap was 9)
+        end
+    end
+end

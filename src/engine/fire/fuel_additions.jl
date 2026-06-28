@@ -47,12 +47,14 @@ grown cycles (validated bit-exact on carbon_jenkins). Snag-debris falldown (CWD2
 const _FM_CRDCAY = 0.0425f0   # dead coarse-root decay rate per year (fminit.f:918)
 
 # TFALL — years for a crown component to fall, by `tfall_cls` (1..6) and crown size 0..5
-# (sn/fmvinit.f:1018-1058). Foliage(0)=1; branch(1,2)=row1; size 3=row3; size 4,5=row4.
+# (sn/fmvinit.f:1017-1058). Foliage(0)=1 EXCEPT redcedar=3; branch(1,2)=row1; size 3=row3; size 4,5=row4.
 const _FM_TFALL1 = (5f0, 3f0, 2f0, 1f0, 1f0, 1f0)
 const _FM_TFALL3 = (10f0, 6f0, 5f0, 4f0, 3f0, 2f0)
 const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
-@inline function _fm_tfall(cls::Int, sz::Int)::Float32
-    sz == 0 && return 1f0
+# `sp` is the SN species index; fmvinit.f:1017 `IF(I.EQ.2)` gives eastern redcedar a 3-yr foliage fall vs 1 for
+# all others. (SN-scoped, like the _FM_TFALL tables themselves — a variant porting NE would re-source these.)
+@inline function _fm_tfall(cls::Int, sz::Int, sp::Integer)::Float32
+    sz == 0 && return sp == 2 ? 3f0 : 1f0          # foliage (redcedar = 3, fmvinit.f:1018)
     (sz == 1 || sz == 2) && return _FM_TFALL1[cls]
     sz == 3 && return _FM_TFALL3[cls]
     return _FM_TFALL4[cls]
@@ -69,11 +71,13 @@ to the down-wood pool as it falls. `xv` is the `crown_biomass` tuple (foliage, w
 function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32, dkcl::Integer)
     fs = s.fire; coef = s.coef
     cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
-    tsoft = (1.24f0 * dbh + 13.82f0) * coef_col(coef, :snag_decayx)[sp]
+    tsoft = (1.24f0 * dbh + 13.82f0) *
+            get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
-        ilife = clamp(round(Int, min(tsoft, _fm_tfall(cls, sz))), 1, 60)
+        # ILIFE = ceil(RLIFE), floor 1 (fmscro.f:126-131: INT(RLIFE) then +1 if truncated or ≤0) — NOT round.
+        ilife = clamp(ceil(Int, min(tsoft, _fm_tfall(cls, sz, sp))), 1, 60)
         annual = amt / ilife
         for yr in 1:ilife
             fs.cwd2b[dkcl, sz + 1, yr] += annual
@@ -129,7 +133,9 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
     (fs === nothing || !fs.active) && return s
     cl = fs.crown_lift_annual; fill!(cl, 0f0)
     t = s.trees; coef = s.coef; dkrcls = coef_col(coef, :dkr_cls)
+    ocrw = t.ffe_oldcrw
     @inbounds for i in 1:t.n
+        for k in 1:5; ocrw[k, i] = 0f0; end                # reset this record's OLDCRW (recomputed below)
         t.tpa[i] > 0f0 || continue
         oldht = t.ffe_oldht[i]
         oldht > 0f0 || continue                            # prev-cycle state not set (1st cycle / regen)
@@ -145,11 +151,25 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
             ocw = xvold[sz + 1]
             ocw < 0.0000625f0 && continue                  # FMSDIT raw-OLDCRW threshold
             lift = x * ocw                                 # OLDCRW after the X scaling
-            t.tpa[i] * lift < 0.0000625f0 && continue      # FMCADD FMPROB·OLDCRW threshold
+            ocrw[sz, i] = lift                             # store per-tree OLDCRW (for the at-death FMSCRO term)
+            t.tpa[i] * lift < 0.0000625f0 && continue      # FMCADD FMPROB·OLDCRW threshold (down-wood only)
             cl[sz, dkcl] += t.tpa[i] * lift * _FM_P2T
         end
     end
     return s
+end
+
+"""
+    crown_lift_at_death(t, i, cyclen) -> NTuple{6,Float32}
+
+The crown-lift the dying record `i` would have shed this cycle, that instead joins its snag crown at death
+(FVS FMSCRO, fmscro.f:147: `ANNUAL += YRSCYC·OLDCRW(SIZE)·X`, X=1 for a kill) — `YRSCYC · OLDCRW(size)`,
+read from the per-tree `ffe_oldcrw` (the X-scaled crown-lift stored by `compute_crown_lift!` last cycle).
+Sizes 1–5 only (foliage size-0 excluded). Returns the per-size addition to the dying record's `crown_biomass`.
+"""
+@inline function crown_lift_at_death(t::TreeList, i::Integer, cyclen::Real)::NTuple{6,Float32}
+    yrs = Float32(cyclen)
+    @inbounds ntuple(sz -> sz == 1 ? 0f0 : yrs * t.ffe_oldcrw[sz - 1, i], 6)
 end
 
 """
@@ -182,8 +202,13 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
     # decay so the freshly-fallen bole is decayed in the same year it falls (else it over-accumulates by
     # ~a cycle's worth of decay — the DDW size-4/5 overshoot). The snag DENSITY falldown is identical
     # whether stepped 1yr×nyrs here or nyrs at once (it compounds the same), so Stand-Dead is unchanged.
-    @inbounds for _ in 1:nyrs
-        isempty(fs.snags.sp) || update_snags!(s, 1)   # FMSNAG: snag bole → down wood (this year)
+    cur0 = Int(current_cycle_year(s))
+    @inbounds for k in 1:nyrs
+        # FMSNAG: snag bole → down wood (this year). Pass the ACTUAL annual year so a fire snag created
+        # this cycle (before this loop) ages across the loop and falls in the years after the burn —
+        # ordinary-mortality snags are created after the loop, so they're absent this cycle regardless.
+        isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
+        ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
         _cwd2b_fall!(fs)                               # FMCADD: CWD2B crown debris → down wood
         fmcadd_litterfall!(s); fmcadd_woody!(s)        # FMCADD: litterfall + woody breakage
@@ -254,3 +279,50 @@ function fmcadd_woody!(s::StandState)
 end
 
 
+
+"""
+    apply_pileburn!(s) -> Bool
+
+PILEBURN (act 2523, fmtret.f): a scheduled jackpot/pile burn. The NET effect on the down-wood pools (jl
+does not model FVS's transient piled/unpiled CWD dimension) is to CONSUME the staged fraction of each fuel
+size class — size 1-9: AFFECT·FULCON, litter/duff (10-11): AFFECT·ATREAT — times the FMCONS consumption
+fraction at medium moisture (FMOIS=3). Optionally kills TRMORT of every tree's TPA (→ snags + crown debris,
+the same booking as a fire kill). Params: type / AFFECT% / ATREAT% / FULCON% / TRMORT%. No-op without a due
+PILEBURN.
+"""
+function apply_pileburn!(s::StandState)::Bool
+    fs = s.fire
+    (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+    fired = false
+    for a in s.control.schedule
+        a.icflag == Int32(2523) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        affect = a.params[2] / 100f0; atreat = a.params[3] / 100f0
+        fulcon = a.params[4] / 100f0; trmort = clamp(a.params[5] / 100f0, 0f0, 1f0)
+        # consume the staged (piled) fraction of each fuel size class (FMCONS net, FMOIS=3 medium)
+        mois = fuel_moisture(3); fr = fire_consumption_fractions(mois); cwd = fs.cwd
+        @inbounds for sz in 1:11
+            stage = sz <= 9 ? affect * fulcon : affect * atreat
+            cf = stage * fr[sz]
+            cf > 0f0 || continue
+            for k in 1:2, l in 1:4; cwd[sz, k, l] *= (1f0 - cf); end
+        end
+        # optional uniform tree mortality → snags + crown debris (mirrors the fmburn! fire kill→snag path)
+        if trmort > 0f0
+            t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
+            @inbounds for i in 1:t.n
+                t.tpa[i] > 0f0 || continue
+                trkil = t.tpa[i] * trmort; t.tpa[i] -= trkil
+                sp = Int(t.species[i]); d = t.dbh[i]
+                mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+                add_snag!(fs, sp, d, trkil, yr; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+                xvc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
+                fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))
+            end
+            compute_density!(s)
+        end
+        fired = true
+    end
+    return fired
+end

@@ -50,3 +50,28 @@ _tccol(r, c) = parse(Float64, r[c])
         end
     end
 end
+
+@testset "TCONDMLT point weights (PBAWT/PCCFWT/PTPAWT) are inert — matches live FVS" begin
+    # The TCONDMLT point-density terms (cuts.f:1075 +PBAWT·PTBAA+PCCFWT·PCCF+PTPAWT·PTPA) are EMPIRICALLY
+    # INERT in live FVSsn: a multi-point (11-point) THINBBA with PTPAWT set produces a .sum byte-identical to
+    # the same thin without any TCONDMLT, even at PTPAWT=9999. FVS's cuts.f PTPA(IP)/PTBAA(IP) is uniform/zero
+    # across points at thin time (a point-thinning-only path plain TCONDMLT does not arm). jl therefore does NOT
+    # add the point term (`_cut_pref_wt`); doing so diverged from live. This guards against re-introducing it:
+    # tcond_pw (PTPAWT=1) must equal tcond_base (no TCONDMLT) AND match the committed live oracle.
+    base = joinpath(_TC_DIR, "tcond_base.key"); pw = joinpath(_TC_DIR, "tcond_pw.key")
+    sav  = joinpath(_TC_DIR, "tcond_pw.sum.save")
+    if !isfile(pw) || !isfile(base) || !isfile(sav)
+        @test_skip "tcond point-weight scenarios not available"
+    else
+        jl_pw   = _tc_rows(FVSjl.run_keyfile(pw;   faithful = true))
+        jl_base = _tc_rows(FVSjl.run_keyfile(base; faithful = true))
+        @test jl_pw == jl_base                      # point weight changes nothing (inert, as in live)
+        ft = _tc_base(sav)
+        @test length(jl_pw) == length(ft)
+        for (j, f) in zip(jl_pw, ft)
+            for c in (3, 4)                          # TPA, BA bit-exact vs the live point-weighted run
+                @test _tccol(j, c) == _tccol(f, c)
+            end
+        end
+    end
+end

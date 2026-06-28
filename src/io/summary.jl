@@ -52,11 +52,24 @@ end
 
 Write the per-stand `-999` header line that precedes the period rows.
 """
+# Fortran E15.7 edit descriptor: value = 0.DDDDDDD·10^p (0.1≤|m|<1), 7 mantissa digits, 2-digit exponent,
+# right-justified in width 15. FVS's .sum header sample-weight uses this — NOT C %15.7E (which prints
+# D.DDDDDDD·10^(p-1), 8 sig digits): 11.0 → Fortran "0.1100000E+02" vs C "1.1000000E+01". (io-serialization #2)
+function _fortran_e15_7(x::Real)
+    x = Float64(x)
+    x == 0.0 && return "  0.0000000E+00"
+    neg = x < 0; a = abs(x)
+    p = floor(Int, log10(a)) + 1
+    mi = round(Int, a / 10.0^p * 1.0e7)
+    mi >= 10_000_000 && (mi = 1_000_000; p += 1)
+    lpad(@sprintf("%s0.%07dE%s%02d", neg ? "-" : "", mi, p < 0 ? "-" : "+", abs(p)), 15)
+end
+
 function write_sum_header(io::IO, nperiods::Integer, stand_id::AbstractString,
                           mgmt_id::AbstractString, sample_wt::Real, variant::AbstractString,
                           date::AbstractString, time::AbstractString, nplots::Integer)
-    @printf(io, "-999%5d %-26s %-4s%15.7E %-2s %-10s %-8s %-10s %-11s%3d\n",
-        nperiods, stand_id, mgmt_id, Float32(sample_wt), variant, date, time,
+    @printf(io, "-999%5d %-26s %-4s%s %-2s %-10s %-8s %-10s %-11s%3d\n",
+        nperiods, stand_id, mgmt_id, _fortran_e15_7(Float32(sample_wt)), variant, date, time,
         "          ", "           ", nplots)
     return io
 end
@@ -97,6 +110,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     ffe_on = s.fire !== nothing && s.fire.active
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
+        ffe_add_snaginit!(s)                 # user-added snags (SNAGINIT, act 2522)
         fill!(s.fire.crown_lift_annual, 0f0)
         snapshot_ffe_oldcrown!(s)            # FMOLDC at inventory: gives the 1st cycle's crown-lift a valid
                                              # OLDCRW (else the 1st cycle's fine down-wood is lost; DDW gap)
@@ -121,12 +135,35 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0))
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
         cycle_hook === nothing || cycle_hook(s, r.year, per)
-        # FFE Stand Carbon Report row (FMCRBOUT) — emitted BEFORE this cycle's fuel loop + growth, on the
-        # post-growth/pre-fuel stand (matching FVS: FMCRBOUT runs before the annual FMSNAG/FMCWD/FMCADD loop).
-        if carbon_on
+        # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
+        # (fire kill + snag booking + consumption) but BEFORE UPDATE grows the stand. For a non-fire cycle
+        # that phase equals the cycle-top, pre-growth stand (sampled here). For a SIMFIRE cycle the row
+        # must be POST-fire, so defer it to grow_cycle!'s `carbon_hook` (fired right after the fire, on the
+        # post-fire cycle-start-size stand) — else the fire's snag/AGL/Released effects surface one row late.
+        # Carbon-Released-from-Fire: 0 unless a SIMFIRE burned in r.year (fmburn! records it in burn_reports);
+        # convert tons-C/ac → the report units (same factor as stand_carbon_report's pools, carbon.jl).
+        _carb_push(st) = begin
+            rel = 0f0
+            if st.fire !== nothing
+                @inbounds for br in st.fire.burn_reports
+                    br.year == Int(r.year) && (rel = br.released)
+                end
+            end
+            uf = st.control.carbon_units == 1 ? 0.90718474f0 / 0.40468564f0 :
+                 st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
+            push!(carbon_collect, (r.year, stand_carbon_report(st), ffe_fuel_loadings(st),
+                                   snag_summary(st), ffe_down_wood(st), rel * uf))
+        end
+        # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
+        # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed
+        # to grow_cycle! (run post-fire, FVS FMBURN→annual-loop order). The carbon row is likewise deferred
+        # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
+        fire_this_cycle = s.fire !== nothing && s.fire.active && !last &&
+                          s.fire.fire_year != 0 && r.year == Int(s.fire.fire_year) && per > 1
+        fire_cycle = carbon_on && fire_this_cycle
+        if carbon_on && !fire_cycle
             compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
-            push!(carbon_collect, (r.year, stand_carbon_report(s), ffe_fuel_loadings(s),
-                                   snag_summary(s), ffe_down_wood(s)))
+            _carb_push(s)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active
@@ -171,16 +208,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
             # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
             if ffe_on
-                fire_this_cycle = s.fire.fire_year != 0 && r.year == Int(s.fire.fire_year) && per > 1
-                if fire_this_cycle
-                    ffe_fuel_update!(s, 1)
-                    s.fire.fire_smlg = _small_large_fuel(s.fire)
-                    ffe_fuel_update!(s, per - 1)
-                else
-                    ffe_fuel_update!(s, per)
-                end
+                # FMMAIN runs FMBURN (the fire, fmmain.f:170) BEFORE the annual fuel loop (FMSNAG/FMCWD/
+                # FMCADD, fmmain.f:228), so the fire samples the START-OF-CYCLE down wood. Stash (SMALL,LARGE)
+                # for the fire basis here. For a fire cycle the annual loop is DEFERRED into grow_cycle!
+                # (run post-fire); non-fire cycles advance the pools the full period now (report→fuel→grow).
+                fire_this_cycle && (s.fire.fire_smlg = _small_large_fuel(s.fire))
+                fire_this_cycle || ffe_fuel_update!(s, per)
             end
-            gr = grow_cycle!(s; fint = Float32(per))   # advances cycle, returns period accr/mort
+            chook = fire_cycle ? (st -> (compute_density!(st); fmcba!(st); _carb_push(st))) : nothing
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
+                             fuel_period = fire_this_cycle ? per : nothing)   # advances cycle
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot

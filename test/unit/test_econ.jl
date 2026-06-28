@@ -32,6 +32,12 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
     @testset "B/C ratio + rate of return" begin
         @test econ_bc_ratio(150f0, 100f0) ≈ 1.5f0
         @test econ_bc_ratio(100f0, 0f0) == 0f0          # no cost → 0 (guard)
+        # NEAR_ZERO guard (eccalc.f:58/681 NEAR_ZERO=0.01): a tiny disc cost ≤ 0.01 is left uncomputed (→0),
+        # NOT a blown-up ratio — was guarded only on > 0.
+        @test econ_bc_ratio(100f0, 0.005f0) == 0f0      # cost ≤ NEAR_ZERO ⇒ B/C not computed
+        @test econ_bc_ratio(100f0, 0.02f0) ≈ 100f0 / 0.02f0   # cost > NEAR_ZERO ⇒ computed
+        @test econ_rate_of_return(100f0, 0.005f0, 10, 0.04f0) == 0f0   # cost ≤ NEAR_ZERO ⇒ RRR not computed
+        @test econ_rate_of_return(0.005f0, 100f0, 10, 0.04f0) == 0f0   # rev ≤ NEAR_ZERO ⇒ RRR not computed
         # rrr = 100·((rev/cost)^(1/endTime)·(1+rate) − 1)
         @test econ_rate_of_return(200f0, 100f0, 10, 0.04f0) ≈
               100f0 * ((200f0/100f0)^(1f0/10) * 1.04f0 - 1f0)
@@ -136,6 +142,7 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
             t.bdft_vol[i]=200f0; t.cuft_vol[i]=40f0
         end
         s.econ = EconState(); s.econ.active = true; s.econ.base_year = Int32(1990)
+        s.econ.discount_rate = 0.04f0      # STRTECON rate (the default is now 0 = no discounting, ecinit.f:15)
         push!(s.econ.hrv_cost, EconCostRev(70f0, ECON_BF_1000, 6f0, 999f0))
         push!(s.econ.hrv_rev,  EconCostRev(300f0, ECON_BF_1000, 10f0, 999f0, Int32(0)))
         push!(s.control.schedule, ScheduledActivity(Int32(2000), Int32(3), (40f0,1f0,0f0,0f0,0f0,0f0)))
@@ -150,10 +157,105 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         @test yr == 2000f0 && cost > 0f0 && rev > 0f0
         @test rev > cost                                   # revenue ($300/MBF) exceeds cost ($70/MBF)
 
-        # stand PNV discounts the harvest (rev at year-end 10, cost at year-start 9) back to 1990
+        # stand PNV discounts the harvest back to base 1990 (eccalc.f:114-117): cost accrues at year START
+        # → 2000-1990 = 10 yrs; revenue accrues at year END → 2000-1990+1 = 11 yrs.
         pnv = econ_stand_pnv(s.econ, 2020)
-        @test pnv.disc_rev ≈ econ_present_value(rev, 2000 - 1990, 0.04f0)
+        @test pnv.disc_rev ≈ econ_present_value(rev, 2000 - 1990 + 1, 0.04f0)
         @test pnv.pnv ≈ pnv.disc_rev - pnv.disc_cost
         @test pnv.pnv > 0f0                                # a profitable harvest
+    end
+
+    @testset "STRTECON discount rate (keyword)" begin
+        # The discount rate is STRTECON field 2 (a PERCENT; eccalc.f:91 rate=rate/100), defaulting to 0 when no
+        # STRTECON is given (ecinit.f:15) — NOT a hardcoded 4%. Validated vs live FVSsn: econ_strtecon.key sets
+        # STRTECON ... 5.0 ⇒ the FVS_EconSummary Discount_Rate column reads 5.0; jl parses it to 0.05. sn.key
+        # (no STRTECON) reads Discount_Rate = 0.0 in live FVS.
+        @test FVSjl.EconState().discount_rate == 0f0       # default = no discounting (ecinit.f:15), not 4%
+        key = joinpath(@__DIR__, "..", "harness", "scenarios", "econ_strtecon.key")
+        if isfile(key)
+            s = first(FVSjl.each_stand(key))
+            @test s.econ !== nothing && s.econ.active
+            @test s.econ.discount_rate ≈ 0.05f0            # STRTECON 5.0% → 0.05 (live FVS Discount_Rate=5.0)
+        else
+            @test_skip "econ_strtecon.key not available"
+        end
+        # B6 follow-up CLOSED: the discounted ANNUCST ($3/yr) cost stream at the 5% rate is BIT-EXACT vs the live
+        # FVS_EconSummary Discounted_Cost (13.6379 / 24.3235 / 32.6959 for the 5/10/15-yr cumulative horizons;
+        # econ_strtecon.key). At the old hardcoded 4% jl gave 13.8897 — would NOT have matched.
+        ec = FVSjl.EconState(); ec.active = true; ec.base_year = Int32(1990); ec.ann_cost = 3f0
+        ec.discount_rate = 0.05f0
+        @test FVSjl.econ_stand_pnv(ec, 1995).disc_cost ≈ 13.6379f0 atol = 1f-3
+        @test FVSjl.econ_stand_pnv(ec, 2000).disc_cost ≈ 24.3235f0 atol = 1f-3
+        @test FVSjl.econ_stand_pnv(ec, 2005).disc_cost ≈ 32.6959f0 atol = 1f-3
+    end
+
+    @testset "log-graded HRVRVN revenue → FVS_EconHarvestValue (echarv.f)" begin
+        # HRVRVN unit 4 (BF_1000_LOG): the R9LOGS full-stem log-bucking + DIB-grading (echarv.f /
+        # _r8_scribner_bf_by_dib → accrue_log_grade!) priced per log by inside-bark DIB class. The
+        # critical mechanism is the defect proportion defProp = treeVol(Σ all logs incl. small topwood) /
+        # netBF(saw board feet) — without the topwood logs in treeVol, the ≥10" logs are over-credited.
+        # VALIDATED BIT-EXACT vs live FVSsn FVS_EconHarvestValue (econ_strtecon.key: HRVRVN 300 4 10.0 ALL,
+        # THINSDI to SDI 250 @ 2000): SM=16bf/$5, HI=9/$3, AB=41/$12, SK=5/$1; all class [10.0, 999.9).
+        key = joinpath(@__DIR__, "..", "harness", "scenarios", "econ_strtecon.key")
+        if isfile(key)
+            local s
+            for st in FVSjl.each_stand(key)
+                FVSjl.notre!(st); FVSjl.setup_growth!(st); FVSjl.compute_volumes!(st)
+                FVSjl.write_sum_file(IOBuffer(), st; period = 5,
+                                     stand_id = strip(st.plot.stand_id), mgmt_id = "NONE")
+                s = st
+            end
+            rows = FVSjl.econ_harvest_value_rows(s.econ, s.coef)
+            byfvs = Dict(r.sp_fvs => r for r in rows)
+            @test length(rows) == 4
+            for (sp, bf, val) in (("SM", 16, 5), ("HI", 9, 3), ("AB", 41, 12), ("SK", 5, 1))
+                @test haskey(byfvs, sp)
+                r = byfvs[sp]
+                @test r.year == 2000
+                @test r.bf_removed == bf
+                @test r.bf_value == val
+                @test r.min_dib ≈ 10.0
+                @test r.max_dib ≈ 999.9 atol = 0.1
+            end
+        else
+            @test_skip "econ_strtecon.key not available"
+        end
+    end
+
+    @testset "log-graded CUBIC HRVRVN revenue → FVS_EconHarvestValue (FT3_100_LOG, unit 5)" begin
+        # HRVRVN unit 5 (FT3_100_LOG): the cubic analog of unit 4. Per-log gross cuft via R9LGCFT
+        # (r8clark_vol.jl `_r8_cuft_by_dib`: Smalian 0.00272708·(Dbot²+Dtop²)·len over the predicted
+        # boundary DIBs, renormalized to VOL(4)+VOL(7)), graded by the rounded log-top scaling-DIB, then
+        # defProp = treeVol / SCFV — the EASTERN-variant ft3PerTree is the SAWTIMBER cubic SCFV (cuts.f:
+        # 1667-1669), NOT merch MCFV. VALIDATED BIT-EXACT vs live FVSsn FVS_EconHarvestValue (econ_u5.key:
+        # HRVRVN 300 5 10.0 ALL + THINSDI 2000): SM=3ft3/$10, HI=2/$5, AB=8/$23, SK=1/$3; class [10.0, 999.9).
+        # Per-log split also bit-exact (tree-1 sp27 logs 0.684/1.620/2.631/2.669/4.257 + two DIB-10 logs
+        # summing 10.158, of which only the DIB≥10 pair qualifies — verified against an echarv.f debug dump).
+        key = joinpath(@__DIR__, "..", "harness", "scenarios", "econ_u5.key")
+        if isfile(key)
+            local s
+            for st in FVSjl.each_stand(key)
+                FVSjl.notre!(st); FVSjl.setup_growth!(st); FVSjl.compute_volumes!(st)
+                FVSjl.write_sum_file(IOBuffer(), st; period = 5,
+                                     stand_id = strip(st.plot.stand_id), mgmt_id = "NONE")
+                s = st
+            end
+            rows = FVSjl.econ_harvest_value_rows(s.econ, s.coef)
+            byfvs = Dict(r.sp_fvs => r for r in rows)
+            @test length(rows) == 4
+            for (sp, ft3, val) in (("SM", 3, 10), ("HI", 2, 5), ("AB", 8, 23), ("SK", 1, 3))
+                @test haskey(byfvs, sp)
+                r = byfvs[sp]
+                @test r.year == 2000
+                @test r.ft3_removed == ft3        # Ft3_Removed = nint(Σ qualifying-log cuft)
+                @test r.ft3_value == val          # Ft3_Value = Total_Value = nint(Σft3/100 · price)
+                @test r.total_value == val
+                @test r.bf_removed === missing     # the board columns are null on a cubic row
+                @test r.min_dib ≈ 10.0
+                @test r.max_dib ≈ 999.9 atol = 0.1
+            end
+        else
+            @test_skip "econ_u5.key not available"
+        end
     end
 end
