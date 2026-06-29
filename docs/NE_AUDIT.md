@@ -59,9 +59,28 @@ through the serial-correlation `dgscor!` (AR1/BACHLO) path, where FVS keeps them
 back to 165 records. Suspects: (a) jl not pruning/merging emptied tripled records the way FVS does over many
 cycles; (b) the dgscor! AR1 persistence on the seeded rnU diverging from FVS's RNG stream.
 
-**Next.** Compare jl vs live per-class DBH histogram at cyc3 (2020, first thin, right after tripling) — if
-the tails already differ there it's the tripling spread itself; if they match at cyc3 and diverge later it's
-the post-tripling stochastic evolution. Then trace dgscor!/record-pruning vs FVS. Task #50.
+**Localized further (16–20″ CSTOCK per thin cycle, live debug dump vs jl histogram):**
+
+| thin yr (cyc) | LIVE | jl |
+|---|---|---|
+| 2020 (3)  | 0.0  | 1.3  |
+| 2050 (6)  | 7.1  | 10.0 |
+| 2080 (9)  | 7.9  | 21.8 |
+| 2110 (12) | 35.2 | 15.7 |
+| 2130 (15) | 9.5  | 27.0 |
+
+They MATCH at cyc3 (2020), right after tripling — so the initial tripling spread is fine. They diverge from
+cyc6+ and OSCILLATE OUT OF PHASE (the 16–20″ class fills then is thinned to 15 each cycle; jl's fill/empty
+timing leads/lags live), with jl averaging ~28% higher (15.2 vs 11.9 over the 5 thins). ⇒ the bug is the
+**post-tripling stochastic DG evolution of the 9× tripled records** (dgscor! AR1 on the seeded upper/lower
+`old_random`, walking the BACHLO RNG stream), NOT the tripling spread and NOT per-record DG (NOTRIPLE matches).
+The 9× record count makes the NE dgscor!/BACHLO RNG stream draw 9× and drift from live FVSne's stream across
+15 cycles — SN aligned this via the Oracle-A transliteration; NE has no such reference, so the multi-cycle
+tripled-record RNG stream was never bit-aligned. Mild systematic over-dispersion (+28% avg) rides on the
+phase noise, so it is not purely RNG-phase.
+
+**Next.** Trace the NE dgscor!/BACHLO draw order + count per cycle against ne/dgdriv.f for the tripled-record
+set; check whether record pruning (live 165 vs jl 230 records at cyc15) changes the draw stream. Task #50.
 
 **Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
 correctly rejected. Re-opened.
