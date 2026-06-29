@@ -74,9 +74,18 @@ has NO such reference, so its multi-cycle stochastic stream was never aligned. R
 over/under-cut), which is why the `.sum` divergence surfaces there and not in aggregates. This is the SAME
 class as the accepted SN COMPRESS eigensolver divergence — but the user has (rightly) asked it be closed.
 
-**Next (task #50).** Build a per-cycle record-level reference from live FVSne TREELISTs; find the FIRST cycle
-where jl's per-record state diverges (upstream-first); bit-align jl's NE dgscor/BACHLO draw order + per-record
-mortality allocation to it. Large, careful effort on shared stochastic code — must keep SN bit-exact.
+**Seed is aligned — it's the DRAW SEQUENCE.** jl's NE main-stream seed = 55329 (= `ne/blkdat.f` DATA
+S0/SS; net01 has no RANNSEED override), identical to FVSne. So the two LCG streams START identically; they
+diverge because jl makes a different NUMBER/ORDER of `rann!`/`bachlo` draws than FVSne somewhere across setup
++ cyc0-2 (deterministic tripling) before the first stochastic cycle (cyc3, 2020) — a single extra/missing
+draw offsets the whole downstream stream. Cyc1-2 aggregates match (deterministic, no RNG), so the offset is
+either in cyc0 setup, the mortality (VARMRT draws), or the cyc3 dgscor draw order.
+
+**Next (task #50).** Instrument both jl `rann!`/`bachlo` and FVSne `rann.f` with a per-cycle DRAW COUNTER;
+run net01 stand-2 and find the FIRST cycle where the cumulative draw count diverges (upstream-first) — that
+localizes the extra/missing draw. Then align that call site, keeping SN bit-exact. This is the SN-class
+RNG draw-sequence alignment campaign (SN had Oracle-A as a per-draw reference; NE must use instrumented
+FVSne draw counts + per-cycle TREELISTs). Large, careful effort on shared stochastic code.
 
 **Status: OPEN** (model faithful, stochastic stream not yet aligned). Previously mis-closed as "faithful
 within drift" — a lax verdict the user correctly rejected; re-opened.
