@@ -201,3 +201,22 @@ ne_fixtures/divspp_f{914,920,921}.* + test_net01.jl. Suite 5318/2.
 ⇒ BROADENING TALLY so far: coefficient tables (108 spp, 8 tables) all faithful; 2 real bugs found+fixed+live-
 validated (IFOR=3 HT-DBH override, R9 merch-topwood); growth spine bit-exact on 15 diverse spp × 3 cycles ×
 4 forests (IFOR 1/2/3/4/5 merch rules + site defaults). NE port is faithful well beyond net01's envelope.
+
+
+## net01 LAST volume residual ROOT-CAUSED — top-kill (NORMHT + CFTOPK) gap (shared SN+NE)
+After the rounding-order fix made every DUBBED-height stand (divspp/dense/cross-forest, 5 forests) BIT-EXACT,
+net01 retained a ~0.7% TCuFt/MCuFt gap (1549/1558, 1335/1347). Localized per-tree (net01 stand-1 .trl) to a
+SINGLE tree: record 22, sugar maple (SM, sp27) d=10.4, measured ht=55 — jl TOT 13.8 vs live 15.4 (~10%). All 4
+other SM trees bit-exact. Root cause: record 22 is the ONLY TOP-KILLED tree (.tre cols 63-65 HTTOPK=49,
+col 52-53 damage code 97). FVS vols.f:146 `IF(TKILL) H=NORMHT(I)/100` — for a top-killed tree it computes the
+cubic on the NORMAL (undamaged) height NORMHT (=the HTDBH prediction, cratet.f:437), NOT the broken measured
+height; then vols.f:193 `CALL CFTOPK` applies the Behre top-kill correction. VERIFIED in jl: HTDBH(SM,10.4)=
+63.93; r9clark @63.9 = 15.9; CFTOPK reduces the missing-top fraction 15.9→15.4 = live. jl uses the measured 55
+→ 13.8. This single tree ≈ the ENTIRE net01 TCuFt/MCuFt residual (1.6 cuft × ~6 TPA ≈ 10 cuft/ac).
+PORT CHECKLIST (shared driver, keep SN bit-exact — note SN snt01 has the SAME ~11 cuft/ac residual, see
+[[fvsjl-volume-topkill-gap]]): (1) read ITRUNC/HTTOPK from the .tre (cols 63-65) into the tree state; (2) set
+NORMHT = normal HTDBH height for top-killed trees (cratet.f:365/437 — NORMHT=INT(H·100), H=HTDBH when
+top-killed); (3) in the volume driver use H=NORMHT/100 when TKILL=(H≥4.5 ∧ ITRUNC>0); (4) port CFTOPK +
+BEHPRM (Behre AHAT/BHAT params) + BEHRE (Behre profile integral) and apply to TCF/MCF/SCF. The R9 cubic KERNEL
+is already proven bit-exact (all dubbed stands) — this is purely the top-kill WRAPPER. This is the clear next
+port item; it closes net01 to fully bit-exact AND the parallel SN snt01 residual.
