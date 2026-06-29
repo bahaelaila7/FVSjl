@@ -456,3 +456,20 @@ in DIFFERENT dirs), `bash test/harness/ne_oracle.sh <key> <outdir>` → `<stem>.
 blocks; tree rows: token[2]=TREE INDX (1..n = jl tree order, match on THIS), token[9]=CURR DIAM,
 token[11]=CURR HT, token[21]=SAW BD. Applied DG = d(cyc1)−d(cyc0). jl side: each_stand+notre!+
 setup_growth!+compute_volumes!+diameter_growth!(tripling=false,sfint=10)+height_growth!+small_tree_growth!.
+
+## Scenario-breadth validation — THINBBA (#51, first increment)
+
+net01 exercises THINDBH/THINBTA but not the basal-area-from-below thin. Built a differential
+scenario (net01 stand-1 + `THINBBA <2000> <residBA 60>`, injected before the first PROCESS) and
+ran BOTH jl and live FVSne. VERDICT: FAITHFUL. The 2000 thin-from-below matches live closely —
+removed TPA 440/439, after-cut BA 55/55, SDI 96/97, QMD 10.9/10.8 (Δ within the documented cyc-1
+DG/volume ULP drift #50, not a thin bug). Pinned as an integration test (test_net01.jl).
+
+Found+fixed a real cosmetic bug along the way: the `.sum` -999 header stamped the variant code
+"SN" for ALL variants (write_sum_file's `variant="SN"` default was never overridden by run_keyfile).
+FIX: simulate.jl threads `variant = variant_code(s.variant)` → NE runs now stamp "NE". SN unaffected
+(variant_code(Southern())=="SN"). Suite 5197/2.
+
+NE keyword paths still un-cross-validated vs live (net01 doesn't hit them): THINABA/THINATA (BA/TPA
+from above), THINSDI, THINCC, THINHT, FIXMORT, plus species/volume-equation variants. Next breadth
+increments. This breadth (vs SN's 37 scenarios) is the remaining gate before docs/NE_COMPLETE.

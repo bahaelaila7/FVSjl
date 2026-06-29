@@ -401,7 +401,7 @@ function run_keyfile(keypath::AbstractString;
         hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
-                       mgmt_id = mid, date = date, time = time,
+                       mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
                        cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows)

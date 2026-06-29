@@ -51,3 +51,42 @@ end
         @test di(stand_top_height(n)) ≈ 72 atol = 2             # TopHt — live 72 (jl 71)
     end
 end
+
+# THINBBA (thin-from-below to a residual basal area) — a thinning path net01 itself does NOT
+# exercise (net01 uses THINDBH/THINBTA). Built by injecting a THINBBA into net01 stand-1 and
+# validated vs the live FVSne oracle: at 2000 the thin takes the UNTHINNED-CONTROL stand
+# (TPA 524 / BA 107 / QMD 6.1) down to residual BA ~55 (target 60), removing the small trees
+# so TPA→83 and QMD→10.8. Also pins the .sum -999 header variant code = "NE" (was defaulting
+# to "SN" — run_keyfile now threads variant_code(s.variant)). See docs/NE_PORT_STATUS.md.
+@testset "net01 (NE) THINBBA thin-from-below — vs live FVSne + header variant" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        # Inject a THINBBA (residual BA 60) before stand-1's PROCESS; run through run_keyfile.
+        raw = read(_NET01_KEY)                       # net01.key is CR-delimited
+        recs = split(String(raw), '\r')
+        thin = rpad("THINBBA", 10) * lpad("2000.0", 10) * lpad("60.0", 10)   # 10-col FVS fields
+        pidx = findfirst(r -> strip(r) == "PROCESS", recs)
+        insert!(recs, pidx, thin)
+        dir = mktempdir()
+        kp = joinpath(dir, "thinbba.key")
+        write(kp, join(recs, '\r'))
+        cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "thinbba.tre"))
+        out = FVSjl.run_keyfile(kp; variant = Northeast())
+        # Header variant must read NE (the fix), not the SN default.
+        @test occursin(r"-999.*\bNE\b", first(split(out, '\n')))
+        # Parse stand-1's 2000 row (2nd data row of the 1st -999 block).
+        lines = split(out, '\n')
+        b1 = findfirst(l -> startswith(l, "-999"), lines)
+        row2000 = split(lines[b1 + 2])                # 1990 = b1+1, 2000 = b1+2 (thin year)
+        row2010 = split(lines[b1 + 3])                # post-thin stand shows at the next period
+        @test parse(Int, row2000[1]) == 2000
+        # 2000 col3/col4 = start-of-period (pre-thin) TPA/BA. Live: 524 / 107.
+        @test parse(Int, row2000[3]) == 524           # pre-thin TPA (live 524)
+        @test parse(Int, row2000[4]) == 107           # pre-thin BA  (live 107)
+        # 2010 col3/col4 = the THINNED residual grown one cycle. Live: TPA 83 / BA 67.
+        # Confirms the thin-from-below removed the small trees (524→83) to residual BA ~55.
+        @test parse(Int, row2010[3]) ≈ 83 atol = 2    # post-thin residual TPA (live 83)
+        @test parse(Int, row2010[4]) ≈ 67 atol = 2    # post-thin residual BA  (live 67)
+    end
+end
