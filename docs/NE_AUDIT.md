@@ -16,6 +16,18 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
+## A1 — REFINED: the cyc3+ residual is PURELY small-tree REGENT (dgscor DG now bit-exact)
+
+Phase counter (cyc3, after all 3 fixes): DG (dgscor) = 948 draws = FVS 948 EXACTLY — the three fixes aligned
+the STOCHASTIC dgscor draw stream too, not just cyc0. The entire cyc3 Δ-18 is in REGENT (small-tree): jl 165
+vs FVS 183 (~6 small records / bachlo rejections differ at the 5″ boundary). HTG/MORT draw 0. So A1's last
+residual is ENTIRELY the small-tree REGENT growth at cyc3+ — the small-tree DBH near the 5″ boundary (REGENT's
+own growth over cyc0-2, which determines the cyc3 small-tree set + the ±10% random rejection counts) — which
+perturbs OLDRN and feeds the height (TopHt -2) + volume (+1.8%) divergences. NEXT: per-record REGENT dump at
+cyc3 (small-tree DBH + draw count) jl vs FVS to find the ~6 boundary records and whether REGENT's small-tree
+DBH is bit-exact through cyc0-2. The deterministic DG core (large + dgscor) is bit-exact; small-tree REGENT
+is the last layer.
+
 ## A1 — UNIFIED: remaining height+volume residual is ONE thing — the cyc3+ multi-cycle RNG stream
 
 The height residual and the volume residual are NOT separate subsystem bugs. NE height growth uses
