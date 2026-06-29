@@ -16,7 +16,7 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
-## A1 — Tripled-record DBH over-dispersion under REPEATED thinning (OPEN, bounded) ★ flagged by user "−40 vs −22 BA not acceptable"
+## A1 — NE stochastic RNG stream not bit-aligned to FVSne (OPEN; model faithful, realization not) ★ flagged by user "−40 vs −22 BA not acceptable"
 
 **Symptom.** net01 stand-2 (repeated THINDBH every 3 cycles) `.sum`: through ~2110 jl tracks live within
 ~Δ4 BA, then at the **2130 thin (cycle 15)** jl removes ~2× the wood — after-cut BA **83 (jl) vs 99 (live)**,
@@ -91,20 +91,33 @@ live's 165 — jl does not prune emptied records the way FVS record-management d
 count, guaranteeing stream divergence. SN bit-aligned this against the Oracle-A transliteration; NE has no such
 reference, so the multi-cycle tripled-record RNG stream was never aligned.
 
-**Scope NARROWED — it's the tripling × repeated-thinning interaction, not pure growth.** The UNTHINNED
-stand-1 tracks live faithfully through all 10 cycles (2090: TPA 110/111, BA 192/194, SDI 274/279, QMD 17.9
-exact, TCuFt 7538/7456 = 1.1%, BdFt 42978/43258 = 0.6%). So the tripled-record growth is fine in isolation;
-the over-dispersion only appears in stand-2, which thins to per-DBH-class targets EVERY 3 cycles (5 thins over
-16 cycles). Mechanism: each THINDBH removes a slightly different set of records in jl vs live (post-thin TREDEL
-compaction order + which partial-cut records survive → a different surviving-record RNG stream), and over 5
-repeated thins this compounds into the 16–20″ class divergence. Same class as the SN COMPRESS work (TREDEL
-compaction + RDPSRT order, already done for SN). **Practical severity is bounded**: it requires repeated
-class-target thinning of one stand; normal NE projection (stand-1 unthinned, single thins A3) is faithful.
+**TRUE ROOT CAUSE — the NE stochastic RNG stream is not bit-aligned to FVSne (the model IS faithful).**
+Per-class DBH histograms (live TREELIST vs jl) reveal the distribution is mean-preservingly OVER-SPREAD in
+BOTH stands, hidden under matching aggregates:
 
-**Next (task #50).** Trace the post-thin record survival + compaction order (cuts.jl TREDEL path) for the
-THINDBH class-target case against FVS cuts.f/TREDEL, and bit-align which records survive a partial cut + their
-order, so the surviving-record RNG stream tracks FVSne across repeated thins. Focused multi-step effort; the
-one substantive OPEN item, now bounded to the repeated-thinning scenario.
+| @2090 unthinned stand-1 | 8–12 | 12–16 | 16–20 | 20+ | (BA agg) |
+|---|---|---|---|---|---|
+| LIVE | 17.6 | 6.1 | **63.5** | **23.8** | 194 |
+| jl   | 21.4 | 7.9 | **49.4** | **31.0** | 192 |
+
+The decisive tell: the per-class difference is **stand-specific and OPPOSITE in direction** — in unthinned
+stand-1 jl's 16–20″ is LOW (49 vs 63) and 20+″ HIGH (31 vs 24); in thinned stand-2 jl's 16–20″ is HIGH (27 vs
+9.5). A systematic growth/mortality bias would push the SAME way in both. Opposite-direction per-class diffs
+with faithful aggregates = different-but-valid stochastic REALIZATIONS, i.e. the NE BACHLO/dgscor draw stream
+is not bit-aligned to live FVSne. SN bit-aligned its RNG against the Oracle-A 1:1 transliteration; NE has NO
+such reference, so its multi-cycle stochastic stream was never aligned. The repeated class-target thinning in
+stand-2 merely AMPLIFIES the realization difference at the THINDBH class boundaries (a mean-preserving spread
+becomes a discrete over/under-cut), which is why the `.sum` divergence shows up there and not in aggregates.
+
+**Implication for severity.** The NE growth/mortality/volume MODEL is faithful (aggregates, NOTRIPLE, every
+coefficient, cyc1-2 growth, A2/A3/A4 all match). What is NOT bit-exact is the per-tree stochastic realization
+under tripling. This is the SAME class as the accepted SN COMPRESS eigensolver divergence — except the user
+has (rightly) asked for it to be closed, which for NE means aligning the BACHLO/dgscor stream to FVSne.
+
+**Next (task #50).** Build a per-cycle record-level reference from live FVSne TREELISTs and bit-align jl's NE
+dgscor/BACHLO draw order + per-record mortality allocation to it (the SN-class RNG-alignment effort). Large,
+careful, no-NE-reference effort touching shared stochastic code — must keep SN bit-exact. The one substantive
+OPEN item; the model is faithful, the stochastic stream is not yet aligned.
 
 **Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
 correctly rejected. Re-opened.
