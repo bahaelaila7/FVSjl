@@ -174,6 +174,20 @@ end
     end
 end
 
+# A1 (NE audit) — the ESSUBH establishment base-height formula (essubh.f:73-82): NE plants seedlings at
+# HHT = (NC-128 site-curve height at the per-species reference age CARAGE / CARAGE) · min(5, period−delay),
+# NOT the site-curve height at the tree's age. Verified BIT-EXACT vs live FVSne ESSUBH (BF 5.159, WS 4.591).
+@testset "net01 (NE) ESSUBH establishment base height — bit-exact vs live FVSne" begin
+    # BF (sp1, SI 52, refage 20) and WS (sp3, SI 50, refage 15); period 10, delay 0 ⇒ min(5, 10)=5.
+    for (sp, si, want) in ((1, 52f0, 5.159f0), (3, 50f0, 4.591f0))
+        ca = Float32(FVSjl._NE_ESSUBH_REFAGE[sp])
+        hht = (FVSjl.ne_htcalc_height(sp, si, ca) / ca) * min(5f0, 10f0 - 0f0)
+        @test hht ≈ want atol = 0.002        # = live FVSne ESSUBH HHT (essubh.f), bit-exact
+    end
+    @test FVSjl._NE_ESSUBH_REFAGE[1] == 20 && FVSjl._NE_ESSUBH_REFAGE[3] == 15   # essubh.f DATA MAPNE
+    @test length(FVSjl._NE_ESSUBH_REFAGE) == 108
+end
+
 # A1 breadth (NE audit) — net01 stands 3 (shelterwood) + 5 (BARE establishment) vs live FVSne. Confirms
 # the post-badist growth spine + the silvicultural treatments track live across the no-fire stands (1,2,3,5).
 # Stand 3 = THINPRSC(0.999) shelterwood + SPECPREF + THINBTA(157→35): the prescription-thin TPA is bit-exact

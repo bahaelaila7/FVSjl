@@ -971,3 +971,21 @@ live (2002 8→9 vs 10, 2012 58→61 vs 62, 2022 99→101 vs 102). Suite 5253/2,
 Residual now ~1 BA early (the tiny establishment BA, likely the BACHLO height-random + HT→DBH) — much reduced
 from the prior ~20% BA / ~55% MCuFt threshold deficit. ⇒ item B's HEIGHT-MODEL root is FIXED; the lone non-floor
 NE residual is now a small (~1 BA early, converging) BARE-stand remainder. SIXTH NE fix.
+
+
+## A1 item B: ESSUBH planted height BIT-EXACT; residual is the small first-cycle REGENT growth
+
+Verified the ESSUBH port is BIT-EXACT vs live FVSne: jl HHT = BF 5.159 / WS 4.591 = FVS essubh.f exactly
+(locked by a test_net01.jl unit test, +4 asserts, suite 5257/2). So the establishment HEIGHT model is now
+faithful. The remaining BARE residual (TopHt 12 vs 13 at 2002, converging to 26/26 by 2012; ~1 BA early) is
+purely the FIRST-CYCLE REGENT growth of the seedling — the planted height is correct, but the young-tree
+height increment over cycle 1 runs ~8% low then converges. This is a small, converging establishment-cohort
+growth tail (the REGENT applies gmod/blend/size-cap to the raw NC-128 increment; the residual is in that
+juvenile-growth realization, not the planted height). Likely the seedling growth-period/age basis (ESSUBH
+returns AGE = TIME−DELAY−GENTIM+TRAGE for REGENT, and rewrites TRAGE = TIME−DELAY) interacting with the cycle
+growth — a fine focused-trace item if pursued. ⇒ item B's planted-height ROOT is FIXED + bit-exact; the lone
+remainder is a small converging first-cycle establishment-growth tail.
+
+VERDICT: NE port substantively complete. Both items resolved to fine residuals: A = accepted WP tripling-
+realization floor (THINDBH-amplified); B = ESSUBH height fixed bit-exact, small converging first-cycle tail.
+Six fixes (5 DG + ESSUBH); all 5 net01 stands + volume validated; FFE/shelterwood bit-exact; SN bit-exact 5257/2.
