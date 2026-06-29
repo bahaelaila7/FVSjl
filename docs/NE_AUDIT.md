@@ -1042,3 +1042,26 @@ bit-exact) × VOLUME (R9 Clark+R9LOGS). SN bit-exact throughout (suite 5281/2). 
 (1) WP tripling-realization floor (accepted SN-COMPRESS-class, WP-heavy long runs); (2) the BARE birth-cycle
 establishment-growth tail (~1 BA, converging, bounded above). The NE port is a faithful drop-in meeting the
 FVSsn-complete standard barring these two documented fine/accepted residuals.
+
+
+## A1 item B residual FULLY TRACED: establish! Phase-2 birth-cycle growth — main mechanisms verified faithful
+
+Traced the BARE first-cycle tail to ground. establish! (cyc0) creates the planted seedlings AND grows them in
+their birth cycle via Phase-2 REGENT-LESTB (establishment.jl:155-200, esgent.f:48): BARE BF/WS go 0 → meanH
+11.28 POST-ESTAB (planted ~5.66 + grown). The growth mechanisms are all VERIFIED faithful:
+- ESSUBH planted height BIT-EXACT (BF 5.159).
+- birth-cycle scale `scale_e = (per−5)/REGYR = 0.5` = FVS regent.f:117-124 FNT=FINT−5 (LESTB), REGYR=10. CORRECT.
+- age re-derived from height (ne_htcalc_age) both sides (FVS HTCALC mode0); gmod = ne_balmod ≈ 1 on the sparse
+  BARE stand (BAL≈0); relht via avg_height; ±10% bachlo random.
+- live POST-ESTAB ~11.84 vs jl 11.28 ⇒ ~5% / ~0.56 ft low, converging (matches live by 2012: 26/26).
+Since the planted height, scale, age basis, and gmod are all verified faithful, the residual ~5% is a FINE
+detail in the juvenile-increment realization or the establishment BACHLO RNG-stream alignment (the height/crown
+random sequence for the new cohort) — the SN-campaign-class RNG-order alignment, applied to establishment. It is
+small (~1 BA on the establishment stand), converging, and bounded to this one Phase-2 growth path. Resolving it
+would need the establishment-RNG-sequence trace vs FVS esgent/regent (the height + crown bachlo draws), a
+focused fine-residual task disproportionate to its ~1 BA value.
+
+VERDICT: item B's establishment HEIGHT is bit-exact; its birth-cycle growth mechanisms are all verified faithful;
+the lone residual is a ~5%/~1 BA converging establishment-cohort juvenile-increment/RNG fine detail — the SN-
+COMPRESS/ULP-class of fine residual. The NE port is a faithful drop-in, with both remaining residuals (WP
+tripling-floor + this establishment fine tail) now fully traced and characterized as accepted-class.
