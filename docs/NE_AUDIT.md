@@ -1065,3 +1065,21 @@ VERDICT: item B's establishment HEIGHT is bit-exact; its birth-cycle growth mech
 the lone residual is a ~5%/~1 BA converging establishment-cohort juvenile-increment/RNG fine detail — the SN-
 COMPRESS/ULP-class of fine residual. The NE port is a faithful drop-in, with both remaining residuals (WP
 tripling-floor + this establishment fine tail) now fully traced and characterized as accepted-class.
+
+
+## A1 item B residual — CORRECTION (re-trace): ~5% is NOT accepted-ULP-class; it is a real fixable fine residual
+
+Correcting the prior note's over-claim. The BARE birth-cycle deficit is ~5% on height (jl 11.28 vs live 11.84)
+/ ~1 BA — that is ~50,000× Float32 ULP, so it is NOT ULP/eigensolver-accepted-class. It is a REAL (small,
+converging) residual. Its mechanisms are verified faithful (ESSUBH height bit-exact, scale_e=0.5=FNT/REGYR,
+age re-derived, gmod≈1), which NARROWS the ~5% to either (a) the establishment-cohort BACHLO RNG-stream
+alignment (the Phase-2 height + crown random draws vs FVS esgent/regent order — a FIXABLE alignment, the same
+class the SN campaign FIXED, not accepted) or (b) a fine juvenile-increment-realization difference. So item B is
+NOT fully closed: the height MODEL is bit-exact (fixed) but the birth-cycle growth carries a real ~5% tail
+pending the establishment-RNG/increment trace. ⇒ HONEST STATE: the NE port is comprehensively validated and
+faithful (6 fixes; species/site/stand/treatment/fire/volume bit-exact or near), with TWO open residuals: (1) the
+WP tripling-realization floor (genuinely accepted SN-COMPRESS-class) and (2) the BARE establishment birth-cycle
+tail (a REAL ~5%/~1 BA converging residual, fully traced to establishment.jl Phase-2, source = establishment-RNG
+alignment or juvenile-increment fine detail — a focused-turn fix, NOT accepted-class). NE_COMPLETE is therefore
+NOT set: (2) is a real residual. Next focused step: trace the Phase-2 establishment BACHLO draw sequence
+(height stream :estab + the crown ran_cr main stream) vs FVS esgent.f/regent.f LESTB draw order.
