@@ -24,5 +24,30 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         # NE-specific parse correctness: first tree is Jack Pine (JP=19), dbh 11.5
         @test n.trees.species[1] == 19
         @test n.trees.dbh[1] ≈ 11.5f0
+        # Volume columns (R9 Clark cubic + International-¼" board feet). Live 1990 row:
+        # TCuFt 1558 MCuFt 1347 SCuFt 292 BdFt 1633.
+        FVSjl.setup_growth!(n); FVSjl.compute_volumes!(n)
+        bdft = sum(n.trees.bdft_vol[i] * n.trees.tpa[i] for i in 1:n.trees.n) / g
+        @test di(bdft) ≈ 1633 atol = 8       # International ¼" board feet (R9LOGS + r9bdft)
+    end
+end
+
+@testset "net01 (NE) cycle-1 growth — vs live FVSne (stand 1, unthinned)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        # Exercises the full NE growth spine end-to-end: diameter growth (BAL + the YR=10
+        # gradd FINT/YR scale), height growth (NC-128 curve + BAL modifier), mortality
+        # (background ·0.5 + SDI density), the TWIGS crown model, and REGENT small-tree
+        # growth (dbh<5). Live FVSne stand-1 2000 row: TPA 524 BA 107 SDI 213 CCF 229 TopHt 72 QMD 6.1.
+        n = first(FVSjl.each_stand(_NET01_KEY; variant = Northeast()))
+        FVSjl.notre!(n); FVSjl.setup_growth!(n); FVSjl.compute_volumes!(n)
+        g = n.plot.gross_space; di(x) = trunc(Int, x + 0.5)
+        FVSjl.grow_cycle!(n; fint = 10f0)
+        @test di(stand_tpa(n) / g) == 524                       # TPA — EXACT vs live (background-mortality fix)
+        @test di(stand_ba(n) / g) ≈ 107 atol = 2                # BA  — live 107 (jl 106, post-REGENT)
+        @test di(stand_sdi(n) / g) ≈ 213 atol = 4               # SDI — live 213 (jl 211)
+        @test round(stand_qmd(n); digits = 1) ≈ 6.1 atol = 0.1  # live 6.1 (jl 6.1)
+        @test di(stand_top_height(n)) ≈ 72 atol = 2             # TopHt — live 72 (jl 71)
     end
 end

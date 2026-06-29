@@ -47,7 +47,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # MAXPLT cap doesn't bind for the divergent 1<NPTIDS<MINREP cases. NPTIDS=1 ⇒ ceil=floor=50 (BARE stand).
     idup   = max(1, cld(_ES_MINREP, nptids))
     dupnpt = Float32(nptids * idup)
-    bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
+    # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
+    # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).
+    bc = s.variant isa Northeast ? nothing :
+         (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
@@ -79,7 +82,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             trage  = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
             age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
             si  = s.plot.sp_site_index[sp]
-            hht = htcalc_height(bc, sp, si, age, montane)          # ESSUBH base height
+            hht = s.variant isa Northeast ? ne_htcalc_height(sp, si, age) :
+                  htcalc_height(bc, sp, si, age, montane)          # ESSUBH base height
             treeht = a.params[5]
             if treeht >= 0.1f0                                      # PLANT specified a height
                 hht = treeht; xh = log(hht)
@@ -130,6 +134,19 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # (crown_ratio_update!, run after) then applies its ±1%/yr change limit (~85).
     if created
         newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))
+        # NE only: REGENT(LESTB) also GROWS each new seedling its creation cycle (esgent.f:48). SN's
+        # essubh assigns the full height-at-age directly, so SN needs no growth here; NE's essubh gives
+        # a BASE height that this grows to the cycle-end height (the BARE-stand TopHt fix). XWT=0 for LESTB.
+        ne_estab = s.variant isa Northeast
+        local ebau_e, b3_e, avh_e, scale_e, rdiam_e, rnd_e
+        if ne_estab
+            ebau_e = zeros(Float32, 50); ne_badist!(ebau_e, s)
+            b3_e = sd[:dg_b3]; avh_e = s.plot.avg_height
+            # REGENT LESTB period: FNT = FINT−5 (regent.f:118-124; LSKIPH ⇒ no ht growth when FINT≤5).
+            scale_e = per > 5 ? Float32(per - 5) / NE_REGENT_REGYR : 0f0   # CON=HGADJ=XRHGRO=1
+            rdiam_e = sd[:regent_min_diam]
+            rnd_e = s.control.dg_stddev_bound >= 1f0        # DGSD random ±10%
+        end
         @inbounds for i in newidx
             ran_cr = 0f0
             while true
@@ -141,6 +158,26 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0
             t.crown_ratio[i] = Float32(icr0)
+            if ne_estab                                        # REGENT(LESTB) height growth + new DBH
+                sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
+                if ne_htcalc_htmax(sp, si) - h <= 1f0
+                    htgr = 0.1f0
+                else
+                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) * scale_e
+                end
+                gmod = ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
+                relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
+                htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
+                if rnd_e
+                    rh = 0f0
+                    while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
+                    htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
+                end
+                hk = h + htgr; t.height[i] = hk
+                dnew = _htdbh_dbh(sd, sp, hk, ifor); dnew < 0.1f0 && (dnew = 0.1f0)
+                dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
+                t.dbh[i] = dnew + 0.001f0 * hk
+            end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding
         # regen (esgent.f:41-44). SPESRT/LNKCHN visit records in ascending-record

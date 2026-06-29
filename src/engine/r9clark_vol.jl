@@ -268,6 +268,77 @@ end
     return vol
 end
 
+# r9dib (r9clark.f:1116): inside-bark diameter at height `h` along the 3-segment Clark profile.
+function _r9_dib(st::_R9State, h::Float32)::Float32
+    r = st.r; c = st.c; e = st.e; p = st.p; b = st.b; a = st.a
+    totHt = st.totHt; dbhIb = st.dbhIb; dib17 = st.dib17
+    (r < 0f0 && abs(h - totHt) < 0.00001f0) && (h = h - 0.1f0)
+    sttot = h / totHt
+    log(1f0 - sttot) < (-20f0 / abs(r)) && (sttot = 1f0)
+    ds = 0f0; db = 0f0; dt = 0f0
+    if h < 4.5f0
+        ds = dbhIb^2 * (1f0 + (c + e / dbhIb^3) *
+             ((1f0 - sttot)^r - (1f0 - 4.5f0 / totHt)^r) / (1f0 - (1f0 - 4.5f0 / totHt)^r))
+    elseif h <= 17.3f0
+        db = dbhIb^2 - (dbhIb^2 - dib17^2) *
+             ((1f0 - 4.5f0 / totHt)^p - (1f0 - h / totHt)^p) /
+             ((1f0 - 4.5f0 / totHt)^p - (1f0 - 17.3f0 / totHt)^p)
+    else
+        im = h < (17.3f0 + a * (totHt - 17.3f0))
+        dt = dib17^2 * (b * (((h - 17.3f0) / (totHt - 17.3f0)) - 1f0)^2 +
+             (im ? ((1f0 - b) / a^2) * (a - (h - 17.3f0) / (totHt - 17.3f0))^2 : 0f0))
+    end
+    s = ds + db + dt
+    return s > 0f0 ? sqrt(s) : 0f0
+end
+
+# International ¼-inch board feet per log (r9bdft, r9clark.f:1482) — the NE `.sum` BdFt is FVS's
+# vol(10) (International), NOT vol(2) (Scribner). Log-end (small) DIB is the rounded INT(dib+0.499).
+@inline function _r9_intl_log(len::Float32, idib::Int)::Float32
+    idib < 4 && return 0f0
+    d = Float32(idib)
+    bd = 0.04976191f0 * len * d^2 + 0.006220239f0 * len^2 * d - 0.1854762f0 * len * d +
+         0.0002591767f0 * len^3 + 0.01159226f0 * len^2 + 0.04222222f0 * len
+    return round(bd / 5f0, RoundNearestTiesAway) * 5f0
+end
+
+# r9bdft (r9clark.f:1380) + R9LOGS bucking (r9logs.f R9LOGLEN/R9LOGDIB): board feet of the sawtimber
+# section [stump, sawHt]. Bucks even-foot logs (shared R9LOGLEN rule, identical to `_r8_scribner_bf`),
+# takes each log's small-end (top) DIB from the R9 taper `_r9_dib`. Returns vol(10) = International ¼"
+# board feet (`nint` of the per-log sum), the value the NE `.sum` BdFt column reports.
+function _r9_intlqtr_bf(st::_R9State, sawHt::Float32, stump::Float32,
+                        minLen::Float32, maxLen::Float32, trim::Float32)::Float32
+    lmerch = sawHt - stump
+    nlogp = clamp(floor(Int, lmerch / (maxLen + trim)), 0, 39)
+    leftov = lmerch - (maxLen + trim) * nlogp - trim
+    logLen = zeros(Float32, 40); tlogs = 0
+    if !(lmerch < minLen + trim || (nlogp == 0 && leftov < minLen + trim))
+        for i in 1:nlogp; logLen[i] = maxLen; end
+        if leftov >= minLen + trim
+            nlogp += 1; logLen[nlogp] = leftov
+        end
+        if nlogp == 1
+            logLen[1] = Float32(floor(Int, logLen[1]) ÷ 2 * 2)
+        elseif leftov < minLen
+            logLen[nlogp] = Float32(floor(Int, logLen[nlogp]) ÷ 2 * 2)
+        else
+            combined = maxLen + leftov
+            logLen[nlogp]   = Float32(floor(Int, combined / 2) ÷ 2 * 2)
+            logLen[nlogp-1] = Float32((floor(Int, combined - logLen[nlogp]) ÷ 2) * 2)
+        end
+        tlogs = nlogp
+    end
+    tlogs == 0 && return 0f0
+    bf = 0f0; ht = stump
+    for i in 1:tlogs
+        len = logLen[i]
+        ht += trim + len                        # top (small end) of log i
+        idib = trunc(Int, _r9_dib(st, ht) + 0.499f0)   # r9logdib: LOGDIA = INT(DIB+0.499)
+        bf += _r9_intl_log(len, idib)
+    end
+    return round(bf)                            # r9bdft:1499 vol(10)=NINT(vol(10))
+end
+
 """
     r9clark_cubic(spp, dbhOb, htTot, prod, mTopP, mTopS, stump) -> vol::Vector{Float32}
 
@@ -346,6 +417,9 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
             short && (scfVol *= shrtHt / 17.3f0)
             vol[4] = scfVol
             spFlg && (vol[7] = max(tcfVol - scfVol, 0f0))     # topwood
+            # Board feet of the saw section (r9bdft International ¼"); cf correction by _r9_cor!
+            # (vol(10)*=cf4, and cf4≡cf3 — so storing it in vol[2] gets the right factor).
+            vol[2] = _r9_intlqtr_bf(st, sawHt, stump, minLen, maxLen, trim)
         end
     end
 
@@ -376,8 +450,8 @@ end
 
 NE per-tree volume driver (the Region-9 analogue of the SN `compute_volumes!`
 body): NVEL R9 Clark cubic via `r9clark_cubic`, with the NE IFOR-dependent merch
-standards. Loads cuft/merch-cuft/saw-cuft per tree. Board feet (Scribner R9LOGS/
-r9bdft) is not yet ported → `bdft_vol = 0`. Broken-top (CFTOPK) reuse is TODO.
+standards. Loads cuft/merch-cuft/saw-cuft/board-feet per tree (board feet = Scribner
+via R9LOGS bucking + r9bdft). Broken-top (CFTOPK) reuse is TODO.
 """
 function compute_volumes_ne!(s::StandState)
     t = s.trees; co = s.coef
@@ -398,7 +472,7 @@ function compute_volumes_ne!(s::StandState)
         t.cuft_vol[i]      = v[1]
         t.merch_cuft_vol[i] = d >= dbhmin  ? v[4] + v[7] : 0f0
         t.saw_cuft_vol[i]   = d >= scfmind ? v[4] : 0f0
-        t.bdft_vol[i]       = 0f0                       # board feet: R9LOGS/r9bdft TODO
+        t.bdft_vol[i]       = d >= scfmind ? v[2] : 0f0   # Scribner board feet (R9LOGS/r9bdft)
     end
     return s
 end

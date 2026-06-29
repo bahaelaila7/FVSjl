@@ -56,7 +56,7 @@ records with dbh < `REGENT_XMAX`. Writes the central record into
 tripled upper/lower DG+HTG (`stash.dgU/dgL/htgU/htgL`, `stash.is_small`). Must run
 after `height_growth!` (it blends with and reads `trees.ht_growth`).
 """
-function small_tree_growth!(s::StandState, stash; fint::Float32 = 5f0)
+function small_tree_growth!(s::StandState, stash, ::Southern; fint::Float32 = 5f0)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     regent_diam = sd[:regent_min_diam]   # budwidth floor DIAM by species (CSV)
     bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])

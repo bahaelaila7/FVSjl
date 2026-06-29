@@ -39,17 +39,19 @@ Bound a predicted diameter increment `ddg` by the species large-tree taper
 (`sizcap` = MAXSP×4 SIZCAP matrix). dgbnd.f.
 """
 @inline function dg_bound(dlo_v, dhi_v, sp::Integer, dbh::Real, ddg_in::Real, sizcap::AbstractMatrix)::Float32
-    dlo = dlo_v[sp]; dhi = dhi_v[sp]
     ddg = Float32(ddg_in); d = Float32(dbh)
-    if d <= dlo
-        # no adjustment
-    elseif d > dhi
-        ddg = 0.048f0
-    else
-        ddg = ddg * (1f0 + 0.90f0 * ((d - dlo) / (dlo - dhi)))
-        ddg < 0.048f0 && (ddg = 0.048f0)
+    if dlo_v !== nothing                          # SN DGBND: the dlo/dhi DBH-range adjustment (NE has none)
+        dlo = dlo_v[sp]; dhi = dhi_v[sp]
+        if d <= dlo
+            # no adjustment
+        elseif d > dhi
+            ddg = 0.048f0
+        else
+            ddg = ddg * (1f0 + 0.90f0 * ((d - dlo) / (dlo - dhi)))
+            ddg < 0.048f0 && (ddg = 0.048f0)
+        end
     end
-    if (d + ddg) > sizcap[sp, 1] && sizcap[sp, 3] < 1.5f0
+    if (d + ddg) > sizcap[sp, 1] && sizcap[sp, 3] < 1.5f0   # both variants: the SIZCAP cap (ne/dgbnd.f)
         ddg = sizcap[sp, 1] - d
         ddg < 0.01f0 && (ddg = 0.01f0)
     end
@@ -64,11 +66,11 @@ increment to the `sfint`-year cycle (gradd.f:79-90: `DDS=(DG·(2·d_ib+DG))·(FI
 `DG=sqrt(d_ib²+DDS)−d_ib`) WITHOUT re-bounding. `sfint==5` ⇒ identity (just the bound).
 """
 @inline function _bound_scale(dlo_v, dhi_v, sp::Integer, dbh::Real, d_ib::Real, dg5::Real,
-                              sfint::Real, sizcap::AbstractMatrix)::Float32
+                              sfint::Real, sizcap::AbstractMatrix, yr::Real = 5f0)::Float32
     dg = dg_bound(dlo_v, dhi_v, sp, dbh, dg5, sizcap)
-    s = Float32(sfint)
-    (s != 5f0 && dg > 0f0) || return dg          # gradd.f:79 IF(FINT.NE.YR .AND. DG.GT.0)
+    s = Float32(sfint); y = Float32(yr)             # YR = the DG model's native period (SN 5, NE 10)
+    (s != y && dg > 0f0) || return dg               # gradd.f:79 IF(FINT.NE.YR .AND. DG.GT.0)
     dib = Float32(d_ib)
-    dds = dg * (2f0 * dib + dg) * (s / 5f0)
+    dds = dg * (2f0 * dib + dg) * (s / y)
     return sqrt(dib * dib + dds) - dib
 end

@@ -26,10 +26,15 @@ function fmcba!(s::StandState)
     t = s.trees; coef = s.coef
     nsp = length(coef_col(coef, :dbh_min))            # MAXSP
 
-    # live herb/shrub fuels are re-set every year: from the coastal-plain/piedmont/mountain
-    # rough-age × site-index override (FULIV2) where it applies, else the flat FFE-forest-type table.
-    ovr = ffe_live_fuel_override(s)
-    fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
+    # live herb/shrub fuels are re-set every year. NE (ne/fmcba.f:68) uses a flat constant
+    # FULIV=(0.31,0.31) for all forest types; SN uses the FFE-forest-type table with a
+    # coastal-plain/piedmont/mountain rough-age × site-index override (FULIV2) where it applies.
+    if s.variant isa Northeast
+        fs.flive = (0.31f0, 0.31f0)
+    else
+        ovr = ffe_live_fuel_override(s)
+        fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
+    end
 
     # per-species basal area, total crown area (for percent cover), and the big DBH
     tba = zeros(Float32, nsp)
@@ -61,7 +66,8 @@ function fmcba!(s::StandState)
     # is 0 by default. FUELINIT (hard) / FUELSOFT (soft) override per-size-class values (STFUEL, fmcba.f:320-371).
     # IDC = each species' decay-rate class (DKRCLS).
     if !fs.fuels_init
-        deffuel = ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
+        deffuel = s.variant isa Northeast ? ne_dead_fuel_loading(s) :
+                  ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
         fill!(fs.cwd, 0f0)
         @inbounds for isz in 1:11

@@ -553,12 +553,16 @@ end
     FVSjl.write_dbs_mortality!(dbpath, "C1", "S1", s.fire.burn_reports)
     FVSjl.write_dbs_consumption!(dbpath, "C1", "S1", s.fire.burn_reports)
     db2 = SQLite.DB(dbpath)
-    mort = [(; K3 = r.Killed_class3, T3 = r.Total_class3, BA = r.Bakill)
+    mort = [(; SP = strip(r.SpeciesFVS), K3 = r.Killed_class3, T3 = r.Total_class3, BA = r.Bakill)
             for r in DBInterface.execute(db2, "SELECT * FROM FVS_Mortality")]
     cons = [(; ST = r.Surface_Total) for r in DBInterface.execute(db2, "SELECT * FROM FVS_Consumption")]
     SQLite.close(db2)
-    @test length(mort) == 1 && mort[1].BA ≈ Float64(b.killed_ba)
-    @test mort[1].K3 ≈ Float64(b.clskil[3])                   # 14" tree → class 3 (10-20")
+    # FVS_Mortality emits one row per present species + an 'ALL' aggregate row (dbsfmmort.f) — assert on ALL.
+    allrow = only(filter(m -> m.SP == "ALL", mort))
+    @test length(mort) >= 2 && allrow.BA ≈ Float64(b.killed_ba)
+    @test allrow.K3 ≈ Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
+    # per-species class-3 kills sum to the ALL aggregate
+    @test sum(m.K3 for m in mort if m.SP != "ALL") ≈ Float64(b.clskil[3]) rtol = 1f-4
     @test length(cons) == 1 && cons[1].ST ≈ Float64(b.consumed.surf_total)
     @test b.consumed.surf_total >= 0f0                        # fire consumes (≥0) surface fuel
 end

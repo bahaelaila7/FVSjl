@@ -123,11 +123,16 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     flame != oldfl && (byram = 60f0 * (flame / 0.45f0)^(1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
-    # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes)
+    # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes), both the
+    # stand aggregate (the ALL row) and PER-SPECIES (FVS_Mortality emits one row per species + an ALL row).
     totcls = zeros(Float32, 7); clskil = zeros(Float32, 7)
+    sp_tot = Dict{Int,Vector{Float32}}(); sp_kil = Dict{Int,Vector{Float32}}()
+    sp_bak = Dict{Int,Float32}(); sp_vol = Dict{Int,Float32}()
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        c = _fm_mort_class(t.dbh[i]); c >= 1 && (totcls[c] += t.tpa[i])
+        c = _fm_mort_class(t.dbh[i]); c >= 1 || continue
+        totcls[c] += t.tpa[i]
+        get!(() -> zeros(Float32, 7), sp_tot, Int(t.species[i]))[c] += t.tpa[i]
     end
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     v2t = coef_col(coef, :v2t)
@@ -137,8 +142,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             (rann!(s.rng) * 100f0 > psburn) && continue  # this record is in the unburned portion
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
-            pmort = fire_tree_mortality(coef, sp, d, flame, csv)
-            pmort = fire_mortality_adjust(pmort, sp, d, burnseas)
+            pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
+            pmort = fire_mortality_adjust(pmort, sp, d, burnseas, s.variant)
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)     # fmeff.f:330
             pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
             pmort = clamp(pmort, 0f0, 1f0)
@@ -149,7 +154,13 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             killed += curkil
             killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
             killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
-            c = _fm_mort_class(d); c >= 1 && (clskil[c] += curkil)
+            c = _fm_mort_class(d)
+            if c >= 1
+                clskil[c] += curkil
+                get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += curkil
+                sp_bak[sp] = get(sp_bak, sp, 0f0) + curkil * 0.005454154f0 * d * d
+                sp_vol[sp] = get(sp_vol, sp, 0f0) + curkil * t.merch_cuft_vol[i]
+            end
             # Fire-killed trees become standing snags. Carry the MERCH bole (mcf·v2t/2000) — the same basis
             # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
             # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
@@ -190,11 +201,20 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     carbon_released = apply_fire_consumption!(fs, mois)
     fuel_after = ffe_fuel_loadings(s)
     consumed = NamedTuple{keys(fuel_before)}(map(-, values(fuel_before), values(fuel_after)))
+    # per-species mortality rows (FVS_Mortality emits one row per present species + the ALL aggregate),
+    # sorted by species index for determinism (FMFOUT/dbsfmmort.f).
+    species_mort = NamedTuple[]
+    @inbounds for sp in sort!(collect(keys(sp_tot)))
+        kil = get(sp_kil, sp, zeros(Float32, 7))
+        push!(species_mort, (; fvs = strip(coef.code_alpha[sp]), plants = strip(coef.code_plants[sp]),
+              fia = strip(coef.code_fia[sp]), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
+              bakill = get(sp_bak, sp, 0f0), volkill = get(sp_vol, sp, 0f0)))
+    end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
-          scorch = sch, models = collect(models), killed = killed, killed_ba = killed_ba,
+          slope = s.plot.slope, scorch = sch, models = collect(models), killed = killed, killed_ba = killed_ba,
           killed_vol = killed_vol, released = carbon_released,
-          clskil = Tuple(clskil), totcls = Tuple(totcls), consumed = consumed))
+          clskil = Tuple(clskil), totcls = Tuple(totcls), species_mort = species_mort, consumed = consumed))
     return FireResult(killed, flame, byram, sch, carbon_released)
 end
 
@@ -219,12 +239,23 @@ function potential_fire_report(s::StandState)
             tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
             ptorch_sev = pt.severe, ptorch_mod = pt.moderate,
             torch_index = -1f0, crown_index = -1f0,                                # FMCFIR skipped in SN
-            canopy_ht = cbd.canopy_ht, canopy_density = cbd.cbd,
+            canopy_ht = cbd.actcbh, canopy_density = cbd.cbd,   # FVS_PotFire Canopy_Ht = ACTCBH (fmpofl.f:302), the crown base
             mort_ba_sev = pf.severe.ba_kill, mort_ba_mod = pf.moderate.ba_kill,
             mort_vol_sev = pf.severe.vol_kill, mort_vol_mod = pf.moderate.vol_kill,
             smoke_sev = pf.severe.smoke, smoke_mod = pf.moderate.smoke,
             models = pf.severe.models)                                            # severe-case fuel models (fmpofl.f:230)
 end
+
+# Canopy minimum height (fminit.f:147 CANMHT=6.0): a tree must be taller than this to enter the canopy
+# crown-fuel profile (fmpocr.f:80).
+const _FM_CANMHT = 6f0
+
+# LSW (fmvinit.f): the "canopy softwood" species that contribute crown fuel to the canopy bulk-density
+# profile — HARDWOODS do NOT (fmpocr.f:19,78). The classification is per-variant BLOCK DATA: NE = species
+# 1:25 (ne/fmvinit.f:1151-1156); SN = species 1:17 + 88 (sn/fmvinit.f:1011-1014).
+fm_canopy_lsw(sp::Integer, ::Southern)  = sp <= 17 || sp == 88
+fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
+fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 """
     canopy_bulk_density(s) -> (; cbd, actcbh, canopy_ht, tcload)
@@ -244,8 +275,12 @@ function canopy_bulk_density(s::StandState)
     crfill = zeros(Float32, NH)                         # crown fuel by 1-ft height layer (lbs/ac-ft)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        h = t.height[i]; h > 0f0 || continue
-        icr = Float32(t.crown_pct[i])
+        # Tree-inclusion filter (fmpocr.f:78-80): canopy-softwood species (LSW; hardwoods excluded), crown
+        # ratio > 0 (FMICR), and height > CANMHT. Without it the profile picks up hardwood + understory crown
+        # ⇒ CBD too high / crown base too low (the FVS_PotFire Canopy_Density + crown-fire index error).
+        h = t.height[i]; h > _FM_CANMHT || continue
+        fm_canopy_lsw(Int(t.species[i]), s.variant) || continue
+        icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
         xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
@@ -406,8 +441,8 @@ function potential_fire(s::StandState)
             t.tpa[i] > 0f0 || continue
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
-            pm = fire_tree_mortality(coef, sp, d, flame, csv)
-            pm = fire_mortality_adjust(pm, sp, d, season)
+            pm = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
+            pm = fire_mortality_adjust(pm, sp, d, season, s.variant)
             (d <= 1f0 && csv > 50f0) && (pm = 1f0)
             pm = clamp(pm, 0f0, 1f0); kil = pm * t.tpa[i]
             ba_kill += kil * 0.005454154f0 * d * d

@@ -51,9 +51,16 @@ function nspecies end
 function load_species_coefficients! end   # blkdat.f  — fill Coefficients for the variant
 function diameter_growth! end             # dgf.f / dgdriv.f
 function height_growth! end               # htgf.f
+"Period length (yr) the height-growth equations were fit to (FVS `YR`): SN=5, NE=10."
+htg_period(::AbstractVariant) = 5f0       # /CONTRL/ YR (blkdat.f)
 function height_from_dbh end              # htcalc.f / htdbh.f
 function crown_ratio! end                 # crown.f
 function mortality! end                   # morts.f
+"Background-mortality rate scale (morts.f): SN=1, NE halves the rate (`RI=0.5·RI`)."
+mort_ri_scale(::AbstractVariant) = 1f0
+"DBH below which a tree is excluded from the SDI density-mortality sums (morts.f)."
+mort_dbh_threshold(s, ::AbstractVariant) =
+    s.control.zeide_sdi ? s.control.dbh_zeide : s.control.dbh_stage   # SN: LZEIDE ? DBHZEIDE : DBHSTAGE
 function regenerate! end                  # cratet.f / regent.f
 function site_setup! end                  # sitset.f
 function form_class end                   # formcl.f

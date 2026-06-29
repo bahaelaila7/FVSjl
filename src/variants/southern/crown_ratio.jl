@@ -40,7 +40,7 @@ function init_crown_ratios!(s::StandState)
     @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh
     compute_density!(s)                                 # rank/SDI use current dbh (as FVS CROWN)
     saved = copy(@view t.crown_pct[1:n])
-    crown_ratio_update!(s; fint = 5f0, relden_override = bd_relden, lstart = true)
+    crown_ratio_update!(s, Southern(); fint = 5f0, relden_override = bd_relden, lstart = true)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end
@@ -53,7 +53,7 @@ end
 CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-growth
 stand. No-op for an empty stand. Call once per cycle after growth + density.
 """
-function crown_ratio_update!(s::StandState; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0,
+function crown_ratio_update!(s::StandState, ::Southern; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0,
                              relden_override::Float32 = -1f0, lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s

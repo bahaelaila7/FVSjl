@@ -30,18 +30,17 @@ function setup_growth!(s::StandState)
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
     # calibration (which needs SN-only coefficient columns) is skipped for NE.
+    # NOTE: the LSTART calibration is the SHARED dgdriv.f framework — BOTH variants calibrate DG/HT to
+    # the stand's measured past growth (ne/dgdriv.f:8-11), only the `dgf!(s, s.variant)` DDS prediction
+    # differs — so it runs for NE too (it was wrongly skipped: net01 HAS measured DG ⇒ COR≠0). NE's DGCONS
+    # is just the bark copy (ne/dgf.f:188 zeros DGCON/ATTEN); init_crown_ratios! is SN CRATET (NE DG uses BAL).
+    dfint = s.control.growth_fint
     if s.variant isa Southern
-        dgcons!(s)                        # sets bark_a/bark_b (needed by the backdated-CCF below)
-        init_crown_ratios!(s)             # CRATET — dub inventory crown for trees with no input crown,
-                                          # using DENSE's backdated-dbh CCF (so cycle-1 DGF + the FFE
-                                          # inventory crown match FVS; runs before calibrate which reads ICR)
-        # LSTART calibration uses the input measured DG. SCALE = YR/FINT (dgdriv.f:325): YR = 5 (the
-        # SN base measurement period), FINT = the GROWTH keyword's DIAMETER measurement period
-        # (default 5 → SCALE = 1). A FINT≠5 means the input DG increment spans FINT years, so the
-        # measured DDS is rescaled to the 5-yr basis the model predicts. (The projection-cycle length
-        # is a SEPARATE FINT, threaded into diameter_growth! by TIMEINT; this scale is the
-        # input-measurement period only.)
-        dfint = s.control.growth_fint
+        dgcons!(s)                        # sets bark_a/bark_b + the SN DGCON
+        init_crown_ratios!(s)             # CRATET — dub inventory crown (DENSE backdated-dbh CCF) before calibrate
+        calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+    elseif s.variant isa Northeast
+        ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
         calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
     end
     return s
@@ -281,8 +280,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     trip = !compressed && Int(s.control.cycle) < Int(s.control.icl4)   # COMPRESS suppresses tripling (NOTRIP)
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
-    height_growth!(s, s.variant; scale = fint / 5f0)         # HTG scaled to the cycle length
-    small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
+    height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
+    small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
@@ -342,7 +341,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
-    crown_ratio_update!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
+    crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted
     # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first

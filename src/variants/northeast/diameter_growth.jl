@@ -71,3 +71,54 @@ function ne_diameter_increment(s::StandState, i::Integer, ebau::Vector{Float32})
     end
     return d - d0
 end
+
+"""
+    ne_dgf!(s)
+
+NE variant fill of `scratch.wk[2, i] = ln(DDS) + COR` — the `ne/dgf.f` analog of SN's `dgf!`,
+i.e. the only variant-specific part of the (otherwise shared) DGDRIV pipeline. DDS is the
+inside-bark Δ(d²) implied by the BAL model: `diagr = ne_diameter_increment · bark` (inside-bark
+increment), `dib = d·bark`, `DDS = diagr·(2·dib + diagr)`. COR = `calib.dg_cor[sp]` (the DG
+calibration adjustment). Clamped `≥ −9.21` exactly like `dgf!`. BADIST (the BAL array) is the
+cycle-start basis — computed once. Bark = the constant `BKRAT` via the shared `bark_ratio`
+(NE coefs: intercept 0, slope BKRAT).
+"""
+function ne_dgf!(s::StandState)
+    t = s.trees; c = s.calib; sd = s.coef.species
+    wk2 = view(s.scratch.wk, 2, :)
+    ba = sd[:bark_intercept]; bb = sd[:bark_slope]
+    ebau = zeros(Float32, 50); ne_badist!(ebau, s)
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]; d <= 0f0 && continue
+        sp = Int(t.species[i])
+        bark  = bark_ratio(ba, bb, sp, d)
+        dib   = d * bark
+        diagr = ne_diameter_increment(s, i, ebau) * bark
+        dds   = diagr * (2f0 * dib + diagr)
+        wk2[i] = dds > 0f0 ? max(log(dds) + c.dg_cor[sp], -9.21f0) : -9.21f0
+    end
+    return s
+end
+
+# Variant `dgf!` hook (the only variant-specific step of the shared DGDRIV pipeline): NE fills
+# wk2 from the BAL model. SN's `dgf!(s, ::Southern)` is the linear ln(DDS) model. Both are called
+# as `dgf!(s, s.variant)` by the (to-be-generic) calibrate / diameter_growth! driver.
+dgf!(s::StandState, ::Northeast) = ne_dgf!(s)
+
+"""
+    ne_dgcons!(s)
+
+NE per-stand DG setup (the `dgcons!` analog). ne/dgf.f:188 zeros DGCON/ATTEN/SMCON — NE's DDS comes
+straight from B1/B2/B3 + SITEAR + BAL, with no SN-style site/slope/forest-type linear constant. So
+the only state this needs to populate is the per-stand bark copy (`calib.bark_a/b` ← the constant
+`BKRAT`, encoded as intercept 0 / slope BKRAT) that the shared calibrate / DGDRIV downstream reads.
+"""
+function ne_dgcons!(s::StandState)
+    c = s.calib; sd = s.coef.species
+    ba = sd[:bark_intercept]; bb = sd[:bark_slope]
+    @inbounds for sp in 1:MAXSP
+        c.bark_a[sp] = ba[sp]; c.bark_b[sp] = bb[sp]
+        c.dg_const[sp] = 0f0; c.atten[sp] = 0f0
+    end
+    return s
+end

@@ -137,7 +137,7 @@ Evaluate ln(DDS) for every tree into `scratch.wk[2, i]` (DGF, dgf.f:436), using
 the current diameters. `cor` is the per-species calibration correction (0 until
 calibration runs). Requires `dgcons!` and AVH/BA already set.
 """
-function dgf!(s::StandState)
+function dgf!(s::StandState, ::Southern)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     wk2 = view(s.scratch.wk, 2, :)
     intercept = sd[:dg_intercept]; ln_dbh = sd[:dg_ln_dbh]; dbh_sq = sd[:dg_dbh_squared]
@@ -381,7 +381,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # IFORTP, which is 0 until the first STKVAL/FORTYP call in the cycle loop.)
     saved_fortype = s.plot.forest_type
     s.plot.forest_type = 0
-    dgf!(s)                                   # WK2 = DGF prediction at the PAST stand
+    dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
     s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)
 
@@ -511,7 +511,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # initial value seeds DIFH = HCOR_init − WCI; the per-cycle attenuation (diameter_growth!)
     # rides it like COR. Uses the CURRENT diameters (saved_dbh) for the dbh<5 filter, since
     # the regent calibration is independent of the large-tree diameter backdating.
-    let bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5]),
+    # SN-only: the small-tree height calibration uses the SN ht_curve (HTCALC) coefs + the REGENT
+    # model. NE's height-dbh/growth model differs (htdbh + the NE htgf), so its small-tree height
+    # calibration is a separate NE piece — skip this block for NE (htg_cor_init stays 0).
+    s.variant isa Southern && let bc = (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5]),
         montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
         ncalht = 5
         scale3 = s.control.growth_finth > 0f0 ? 5f0 / s.control.growth_finth : 1f0  # REGYR/FINTH
@@ -563,12 +566,16 @@ const DG_FM = -0.14228f0      # tripling mid-record variance factor (dgdriv.f FM
 const DG_FU =  1.271f0        # tripling upper-record factor (dgdriv.f FU)
 const DG_FL = -1.549f0        # tripling lower-record factor (dgdriv.f FL)
 
-function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
+function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0,
                           tripling::Bool = true)
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    dlo_v = sd[:dg_bound_dbh_lo]; dhi_v = sd[:dg_bound_dbh_hi]
+    yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
+    # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
+    # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
+    dlo_v = haskey(sd, :dg_bound_dbh_lo) ? sd[:dg_bound_dbh_lo] : nothing
+    dhi_v = haskey(sd, :dg_bound_dbh_hi) ? sd[:dg_bound_dbh_hi] : nothing
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     oldrn = t.old_random
     nlive = t.n
@@ -610,7 +617,7 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
     end
 
     species_sort!(s)
-    dgf!(s)
+    dgf!(s, s.variant)
     wk2 = view(s.scratch.wk, 2, :)
 
     # per-cycle ARMA multipliers: AUTCOR(new, old) where `new` = THIS cycle's period and
@@ -650,8 +657,8 @@ function diameter_growth!(s::StandState, ::Southern; sfint::Float32 = 5f0,
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
             # only); `bsc` bounds the 5-yr DG and then scales by sfint/5. FINT=5 ⇒ identity (no scale).
-            dds5 = exp(wk2[i]) * xbai                       # 5-yr DDS (BAIMULT: DDS·XDMULT)
-            bsc(dg5) = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, s.control.sp_size_cap)
+            dds5 = exp(wk2[i]) * xbai                       # YR-yr DDS (BAIMULT: DDS·XDMULT); YR=5 SN / 10 NE
+            bsc(dg5) = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, s.control.sp_size_cap, yr)
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt

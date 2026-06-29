@@ -332,11 +332,12 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
             m = b.mois                                   # 2×5: dead 1/10/100/1000hr+duff, live woody/herb
             fm = b.models                                # vector of (model, weight); pad to 4
             mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
-            ww(i) = i <= length(fm) ? Float64(fm[i][2]) : 0.0
+            ww(i) = i <= length(fm) ? Float64(fm[i][2])*100 : 0.0   # fraction → % (live BurnReport weights are %)
+            slp = hasproperty(b, :slope) ? Float64(b.slope)*100 : 0.0  # stand slope 0..1 → % (dbsfmburn.f Slope col)
             DBInterface.execute(stmt, (caseid, standid, Int(b.year),
                 Float64(m[1,1])*100, Float64(m[1,2])*100, Float64(m[1,3])*100, Float64(m[1,4])*100,
                 Float64(m[1,5])*100, Float64(m[2,1])*100, Float64(m[2,2])*100,
-                Float64(b.wind), 0, Float64(b.flame), Float64(b.scorch),
+                Float64(b.wind), slp, Float64(b.flame), Float64(b.scorch),
                 mw(1), ww(1), mw(2), ww(2), mw(3), ww(3), mw(4), ww(4)))
         end
     finally
@@ -345,26 +346,33 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
     return dbpath
 end
 
-# FVS_Mortality schema (dbsfmmort.f:101-122) — fire-killed vs total TPA by DBH class + BA/vol killed.
+# FVS_Mortality schema (dbsfmmort.f:101-122) — fire-killed vs total TPA by DBH class + BA/vol killed, one row
+# PER SPECIES (SpeciesFVS/PLANTS/FIA) plus an 'ALL' aggregate row, matching the live FVSne table.
 const _FVS_MORTALITY_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Mortality(
   CaseID text not null, StandID text not null, Year Int null,
+  SpeciesFVS text null, SpeciesPLANTS text null, SpeciesFIA text null,
   Killed_class1 real null, Total_class1 real null, Killed_class2 real null, Total_class2 real null,
   Killed_class3 real null, Total_class3 real null, Killed_class4 real null, Total_class4 real null,
   Killed_class5 real null, Total_class5 real null, Killed_class6 real null, Total_class6 real null,
   Killed_class7 real null, Total_class7 real null, Bakill real null, Volkill real null)"""
 
-"Write fire mortality (killed vs total TPA by DBH class + BA/vol killed) to FVS_Mortality (dbsfmmort.f)."
+"Write fire mortality (killed vs total TPA by DBH class + BA/vol killed) to FVS_Mortality (dbsfmmort.f): one row
+per species (from `b.species_mort`) plus the stand 'ALL' aggregate row."
 function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
         DBInterface.execute(db, _FVS_MORTALITY_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 19), ",") * ")")
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 22), ",") * ")")
+        clsvals(kil, tot) = (v = Float64[]; for c in 1:7; push!(v, Float64(kil[c]), Float64(tot[c])); end; v)
         for b in burns
-            vals = Float64[]
-            for c in 1:7; push!(vals, Float64(b.clskil[c]), Float64(b.totcls[c])); end
-            DBInterface.execute(stmt, (caseid, standid, Int(b.year), vals..., Float64(b.killed_ba), Float64(b.killed_vol)))
+            for sm in (hasproperty(b, :species_mort) ? b.species_mort : ())
+                DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
+                    clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
+            end
+            DBInterface.execute(stmt, (caseid, standid, Int(b.year), "ALL", "ALL", "ALL",
+                clsvals(b.clskil, b.totcls)..., Float64(b.killed_ba), Float64(b.killed_vol)))
         end
     finally
         SQLite.close(db)
@@ -426,13 +434,14 @@ function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractStr
         for (yr, r) in rows
             fm = r.models
             mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
-            ww(i) = i <= length(fm) ? Float64(fm[i][2]) : 0.0
+            ww(i) = i <= length(fm) ? Float64(fm[i][2])*100 : 0.0   # fraction → % (live weights are %)
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
                 Float64(r.surf_flame_sev), Float64(r.surf_flame_mod), Float64(r.tot_flame_sev), Float64(r.tot_flame_mod),
                 Float64(r.ptorch_sev), Float64(r.ptorch_mod), Float64(r.torch_index), Float64(r.crown_index),
                 Int(r.canopy_ht), Float64(r.canopy_density),
                 Float64(r.mort_ba_sev), Float64(r.mort_ba_mod), Float64(r.mort_vol_sev), Float64(r.mort_vol_mod),
-                Float64(r.smoke_sev), Float64(r.smoke_mod),
+                # potential smoke is lb/ac in the FFE model; live writes tons/ac (PSMOKE·P2T, fmpofl.f:303)
+                Float64(r.smoke_sev) * _FM_P2T, Float64(r.smoke_mod) * _FM_P2T,
                 mw(1), mw(2), mw(3), mw(4), ww(1), ww(2), ww(3), ww(4)))
         end
     finally
