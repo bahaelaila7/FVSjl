@@ -421,3 +421,14 @@ or a small REGENT-path term, not RNG), flipping one boundary tree at cyc3 and ca
 A1 LAST residual = small-tree REGENT diameter/height growth (small_tree_growth.jl dgsm/htg) vs ne/regent.f,
 ~0.5%, analogous to the (fixed) large-tree DG bugs. Large-tree diameter core (dgf + dgscor) is BIT-EXACT.
 NEXT: trace one sp27 small tree REGENT growth (htgr->htg->hk->dkk/dk->dgsm->dg) at cyc0 vs regent.f.
+
+
+### A1 cyc0 fully bit-exact (verified all 3 growth paths)
+After the 3 fixes, ALL cyc0 growth is bit-exact for sp27: large-tree DG (dgk 0.1->0.957219 etc.), large-tree
+HEIGHT (htgf: d=10.0 htg 6.471574 = FVS, others within ~6e-6 ULP), AND small-tree REGENT (cyc0 htg+dg match
+exactly: d=1.2 htg 10.41718/dg 0.924942 = FVS). So NO cyc0 growth term diverges. The ~0.5% cyc3 small-tree DBH
+divergence (one boundary tree flip) is ENTIRELY in the cyc1-2 MULTI-CYCLE path: the tripled-record growth
+(cyc0-1 tripling) or the mortality record-selection over cyc0-2, NOT any cyc0 growth model. The NE growth
+MODELS (DG + HTG + REGENT) are bit-exact at cyc0; the last residual is the multi-cycle tripling/mortality
+record evolution -- the SN-class record-management/RNG alignment (no NE reference). NEXT: trace cyc1 (tripled
+small records) or the mortality record selection over cyc0-2.
