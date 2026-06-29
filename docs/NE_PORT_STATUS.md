@@ -122,10 +122,15 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      FVS runs the SNAGINIT activity (act 2522, no explicit year) DURING cycle 1 (FMMAIN), AFTER the inventory carbon
      report. The breakdown confirms it: jl 1993 SD 6.34 = SEEDED input snags (~1.2 == live's 1.22) + SNAGINIT sp10
      (~5.1, the part live defers). jl adds SNAGINIT at inventory setup (summary.jl:157, before the cycle loop) so it
-     lands in the 1993 sample. FIX (deferred — SN-risk): move `ffe_add_snaginit!` from pre-loop setup into the START of
+     lands in the 1993 sample. ★★ ✓ FIXED (2026-06-29, suite 5191/2, SN-SAFE): moved `ffe_add_snaginit!` from the pre-loop
+     setup into the START of the first growing cycle (the `if !last` block, after the inventory carbon push, before the
+     cycle-1 cuts/fuel/fire), gated by `snaginit_pending`. RESULT: NE net01 1993 Standing_Dead 1.2 == live 1.22 (was 6.34),
+     Total 33.92 == live 34.10; 2003+ unchanged. SN-safety confirmed: carbon_snt/carbon_jenkins don't use SNAGINIT, and
+     snt01_alpha (SNAGINIT + SIMFIRE, via test_compute) did NOT regress (activity scheduling is variant-agnostic base FVS).
+     The 1993 SNAGINIT-timing residual is CLOSED. [Superseded plan below was: move it to the START of
      cycle 1 (after the inventory carbon sample, before cycle-1 fire/fuel dynamics). NOTE SN snt01_alpha/compute_cycle
      ALSO use SNAGINIT, so the deferral needs an SN snt01_alpha snag/carbon differential first (it may be a shared
-     masked bug — SN currently front-loads too — or an SN test may pin the inventory timing; check before moving).
+     masked bug — SN currently front-loads too — or an SN test may pin the inventory timing; check before moving).]
   2. **Slope not read — ✓ FIXED (2026-06-29, suite 5190/2 SN bit-exact).** `write_dbs_burnreport!` hardcoded the Slope
      column to 0; `fmburn!` already used `s.plot.slope` for the Rothermel slope_tan, so the fix was to carry `slope =
      s.plot.slope` onto the `burn_reports` record and write `slope·100`. BurnReport `Slope` now = 30 == live (exact).
