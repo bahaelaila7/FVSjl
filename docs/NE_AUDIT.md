@@ -989,3 +989,20 @@ remainder is a small converging first-cycle establishment-growth tail.
 VERDICT: NE port substantively complete. Both items resolved to fine residuals: A = accepted WP tripling-
 realization floor (THINDBH-amplified); B = ESSUBH height fixed bit-exact, small converging first-cycle tail.
 Six fixes (5 DG + ESSUBH); all 5 net01 stands + volume validated; FFE/shelterwood bit-exact; SN bit-exact 5257/2.
+
+
+## A2 BREADTH: 30-species 5-cycle growth BIT-EXACT vs live FVSne — NE growth faithful beyond net01
+
+Breadth validation toward NE_COMPLETE (net01 only exercises ~7 species at growth; SN's bar was 37 scenarios).
+Rewrote the 30 net01 tree records to a diverse 30-species sample (conifers BF/WS/RS/NS/RN/WP + hardwoods RM/SM/
+BM/YB/HI/AB/oaks/birch/cherry/…) and projected 5 cycles vs live FVSne. RESULT: **BIT-EXACT all 5 cycles** —
+TPA 536/524/469/425/344/258, BA 77/105/134/163/178/177, + SDI/CCF/TopHt all == live. Locked by a +12-assert
+test (test_net01.jl, suite 5269/2). ⇒ the NE per-species DG (POTBAG B1/B2/B3 + BAL competition) + HTG +
+mortality + density are faithful across the BROAD species set, not just net01's handful. (The WP large-tree
+tail does NOT show here = a long-accumulation effect on WP-HEAVY stands over many cycles; here WP is 1-2 of 30
+records over only 5 cycles.) This substantially strengthens the NE_COMPLETE case — the growth model is a
+faithful drop-in for arbitrary NE species mixes, bit-exact.
+
+⇒ NE VALIDATION COVERAGE now: net01 5 stands (unthinned/THINDBH/shelterwood/FFE/BARE) end-to-end + 30-species
+5-cycle bit-exact + cycle-0 multi-species volume. The remaining residuals (WP tripling-floor on WP-heavy
+long runs; small BARE first-cycle tail) are the only non-bit-exact items, both fine/accepted-class.

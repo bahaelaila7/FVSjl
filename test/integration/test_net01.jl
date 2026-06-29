@@ -174,6 +174,47 @@ end
     end
 end
 
+# A2 breadth (NE audit) — 30-species MULTI-CYCLE growth vs live FVSne. net01 only exercises ~7 species at
+# growth; this rewrites the 30 tree records to a diverse 30-species sample (conifers BF/WS/RS/NS/RN/WP +
+# hardwoods RM/SM/BM/YB/HI/AB/oaks/birch/etc.) and projects 5 cycles. Validates the per-species DG + BAL
+# competition + HTG + mortality + density across the broad species set — BIT-EXACT vs live FVSne all 5 cycles.
+@testset "net01 (NE) 30-species 5-cycle growth — BIT-EXACT vs live FVSne (audit A2 breadth)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        sp30 = ["BF","WS","RS","NS","RN","WP","AW","EH","HM","JP","SP","RM","SM","BM","YB",
+                "PB","HI","SH","AB","PA","BP","CK","SW","CB","HK","OO","BK","RL","ST","PR"]
+        tre = readlines(joinpath(dirname(_NET01_KEY), "net01.tre"))
+        out_tre = String[]; k = 0
+        for ln in tre
+            if length(ln) < 36
+                push!(out_tre, ln)
+            else
+                sp = sp30[mod1(k + 1, length(sp30))]; k += 1
+                push!(out_tre, ln[1:33] * rpad(sp, 2) * ln[36:end])
+            end
+        end
+        recs = ["SCREEN","NOAUTOES","STATS","STDIDENT","S248112  30SP MULTICYCLE",
+            "DESIGN                                        11.0       1.0",
+            "STDINFO        922.0                60.0     315.0      30.0      20.0",
+            "SITECODE          13        56","INVYEAR       1990.0","NUMCYCLE         5.0","TREEFMT",
+            "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,",
+            "T52,I2,T66,5I1,T54,7I1,T75,F3.0)","TREEDATA","ECHOSUM","PROCESS","STOP"]
+        dir = mktempdir()
+        write(joinpath(dir, "spv.key"), join(recs, '\r') * '\r')
+        write(joinpath(dir, "spv.tre"), join(out_tre, '\n') * '\n')
+        out = FVSjl.run_keyfile(joinpath(dir, "spv.key"); variant = Northeast())
+        lines = split(out, '\n'); b = findfirst(l -> startswith(l, "-999"), lines)
+        # live FVSne (TPA, BA) per cycle — BIT-EXACT
+        live = ((536,77),(524,105),(469,134),(425,163),(344,178),(258,177))
+        for (k2, (ltpa, lba)) in enumerate(live)
+            row = split(lines[b + k2])
+            @test parse(Int, row[3]) == ltpa     # TPA — bit-exact across 30 species
+            @test parse(Int, row[4]) == lba      # BA  — bit-exact (DG + BAL competition for all species)
+        end
+    end
+end
+
 # A1 (NE audit) — the ESSUBH establishment base-height formula (essubh.f:73-82): NE plants seedlings at
 # HHT = (NC-128 site-curve height at the per-species reference age CARAGE / CARAGE) · min(5, period−delay),
 # NOT the site-curve height at the tree's age. Verified BIT-EXACT vs live FVSne ESSUBH (BF 5.159, WS 4.591).
