@@ -1083,3 +1083,24 @@ tail (a REAL ~5%/~1 BA converging residual, fully traced to establishment.jl Pha
 alignment or juvenile-increment fine detail — a focused-turn fix, NOT accepted-class). NE_COMPLETE is therefore
 NOT set: (2) is a real residual. Next focused step: trace the Phase-2 establishment BACHLO draw sequence
 (height stream :estab + the crown ran_cr main stream) vs FVS esgent.f/regent.f LESTB draw order.
+
+
+## A1 item B — SEMANTIC AUDIT (read-the-code, not runtime) of the establishment growth path
+
+Per the directive to verify SEMANTICS by reading both sides (not runtime), audited establishment.jl vs FVS
+estab.f/esgent.f/regent.f/htcalc.f/essubh.f:
+- relht=0 is CORRECT: esgent.f:44-48 calls REGENT(LESTB) with NO DENSE recompute first; the pre-establishment
+  BARE stand has no trees ⇒ AVH=0 ⇒ RELHTA=0 in FVS too. (My runtime-inferred "relht should be 1" was WRONG —
+  reading the code prevented a wrong fix.)
+- scale_e CORRECT: regent.f:99/116-134 REGYR=10, FNT=FINT−5 (LESTB), SCALE=FNT/REGYR=0.5 = jl scale_e.
+- increment CORRECT (bit-exact semantics): jl ne_htcalc_incr `hp5−h0` = FVS htcalc.f:412-415 `HTGP5−HTG0`
+  (hmax=B1·SI^B2, ex=B4·SI^B5, +10=YRS); ne_htcalc_age = HTCALC mode-0 (line 394). gmod = BALMOD. HGADJ/CON/
+  XRHGRO=1. ESSUBH height bit-exact. So the establishment GROWTH semantics are FAITHFUL.
+- FIXED one real semantic divergence: the planted-height random REJECTION BOUND. jl had `0 ≤ ran ≤ 1.5`; FVS
+  estab.f:489 is `RAN.GE.−2.5 .AND. RAN.LE.2.5` (BACHLO(0.5,0.25,ESRANN)). jl was truncating the lower tail
+  (no ran<0) ⇒ a slightly different planted-height distribution. Fixed to [−2.5, 2.5]. Suite 5281/2 (no regress).
+  HTADJ confirmed 0 (esinit.f:40 default, no HTADJ keyword in net01) so jl's HTADJ=0 omission is moot here.
+⇒ the ~5% BARE deficit is NOT an establishment-growth-semantics bug (all verified faithful by reading); it is an
+RNG-REALIZATION difference (the establishment BACHLO :estab + main-stream draw sequence vs FVS ESRANN/RANN order)
+— the SN-class RNG-stream alignment, a real fine residual, now isolated to the draw-sequence alignment (the one
+non-semantic establishment item).

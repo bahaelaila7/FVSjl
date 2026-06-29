@@ -111,10 +111,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
-            else                                                   # default ±N(0.5,0.25)
+            else                                                   # default N(0.5,0.25), reject |ran|>2.5
                 while true
                     ran = bachlo(s.rng, 0.5f0, 0.25f0; stream = :estab)
-                    (0f0 <= ran <= 1.5f0) && (hht += ran; break)
+                    (-2.5f0 <= ran <= 2.5f0) && (hht += ran; break)   # estab.f:489 IF(RAN.LT.-2.5.OR.RAN.GT.2.5)
                 end
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
