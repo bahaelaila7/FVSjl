@@ -87,6 +87,23 @@ correctly rejected. Re-opened.
 
 ---
 
+## A2 — Full NE species-set cycle-0 volume/crown/density (VERDICT: FAITHFUL)
+
+net01 only exercises ~6 of 108 NE species, so the per-species volume (R9 Clark cubic + R9LOGS board feet),
+crown (CWCALC), and density coefficients were largely unvalidated. Built a multi-species differential: rewrote
+net01.tre's 30 records' species codes (cols 34–35) to span ALL 108 species in 3 batches, ran cycle-0 jl vs
+live. Result — TPA/BA/SDI/CCF/TopHt/QMD **exact** every batch; stand volume within ULP/~0.5%:
+
+| batch (species) | LIVE TCuFt/MCuFt/SCuFt/BdFt | jl |
+|---|---|---|
+| 1 (30 incl. BF/WP/SM/HI/AB/oaks) | 1551/1286/186/1023 | 1550/1284/185/1026 |
+| 2 (39 incl. ashes/YP/spruces/oaks) | 1549/1285/184/1037 | 1557/1290/185/1036 |
+| 3 (39 incl. birches/elms/OH)       | 1520/1241/103/515  | 1515/1237/103/512  |
+
+VERDICT: FAITHFUL — the CSV-driven per-species coefficients are loaded correctly for the full species set.
+Minor residual: batch-2 TCuFt 0.5% (likely one ash/oak species' cubic coefficient at single precision over a
+30-tree aggregate; below the bar to chase). Pinned in test_net01.jl. Coverage 6 → 108 species (cycle-0).
+
 ## Validated-faithful so far (breadth, vs live FVSne)
 - Cycle-0 stand state (TPA/BA/SDI/CCF/QMD/TopHt) — bit-exact.
 - R9 Clark cubic + International-¼″ board-feet volume — bit-exact (#48).

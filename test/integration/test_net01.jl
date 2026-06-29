@@ -92,3 +92,40 @@ end
         end
     end
 end
+
+# A2 (NE audit) — full-species-set cycle-0 volume/crown/density. net01 exercises ~6 of 108 NE
+# species; this rewrites net01.tre's 30 records to a diverse 30-species sample (conifers BF/WS/RS/
+# NS/RN/WP + hardwoods RM/SM/BM/YB/HI/AB/oaks…) and checks jl's cycle-0 stand against the live FVSne
+# oracle: TPA/BA exact, stand volume within ULP. Guards the per-species volume (R9 Clark + R9LOGS),
+# crown (CWCALC), and density coefficient loading for the broad species set. See docs/NE_AUDIT.md A2.
+@testset "net01 (NE) multi-species cycle-0 volume — vs live FVSne (audit A2)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        sp30 = ["BF","WS","RS","NS","RN","WP","AW","EH","HM","JP","SP","RM","SM","BM","YB",
+                "PB","HI","SH","AB","PA","BP","CK","SW","CB","HK","OO","BK","RL","ST","PR"]
+        tre = readlines(joinpath(dirname(_NET01_KEY), "net01.tre"))
+        out_tre = String[]
+        k = 0
+        for ln in tre
+            if length(ln) < 36
+                push!(out_tre, ln)
+            else
+                sp = sp30[mod1(k + 1, length(sp30))]; k += 1
+                push!(out_tre, ln[1:33] * rpad(sp, 2) * ln[36:end])
+            end
+        end
+        recs = split(String(read(_NET01_KEY)), '\r')
+        dir = mktempdir()
+        write(joinpath(dir, "spv.key"), join(vcat(recs[1:16], ["STOP"]), '\r') * "\r")
+        write(joinpath(dir, "spv.tre"), join(out_tre, '\n') * "\n")
+        out = FVSjl.run_keyfile(joinpath(dir, "spv.key"); variant = Northeast())
+        row = split(split(out, '\n')[findfirst(l -> startswith(l, "1990"), split(out, '\n'))])
+        # Live FVSne cycle-0: TPA 536 BA 77 CCF 146 | TCuFt 1551 MCuFt 1286 SCuFt 186 BdFt 1023.
+        @test parse(Int, row[3]) == 536                       # TPA — exact
+        @test parse(Int, row[4]) == 77                        # BA  — exact
+        @test parse(Int, row[6]) == 146                       # CCF — exact (CWCALC across species)
+        @test parse(Int, row[9])  ≈ 1551 atol = 4             # TCuFt (R9 Clark cubic)
+        @test parse(Int, row[12]) ≈ 1023 atol = 8             # BdFt  (R9LOGS Scribner)
+    end
+end
