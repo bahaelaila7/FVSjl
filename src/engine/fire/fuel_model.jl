@@ -62,11 +62,18 @@ end
 # is only used when FUELMODL/IFLOGIC forces a static/custom model — not for snt01 stand 4.
 # ----------------------------------------------------------------------------
 
-# XPTS (fmcfmd.f:79): per-model iso-line as (SMALL-intercept, LARGE-intercept), tons/ac.
+# XPTS (fmcfmd.f:79): per-model iso-line as (SMALL-intercept, LARGE-intercept), tons/ac. PER-VARIANT (the
+# model-10 intercept + candidate-set differ): SN has 14 models w/ model-10 (10,30); NE has 13 w/ model-10 (15,30).
 const _FMD_XPTS = Float32[
     5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7
     5  15;  5  15;                                          # models 8–9
    10  30; 15  30; 30  60; 45 100; 30  60]                  # models 10–14
+const _FMD_XPTS_NE = Float32[                               # ne/fmcfmd.f:78-91 (model 10 = (15,30); no model 14)
+    5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7
+    5  15;  5  15;                                          # models 8–9
+   15  30; 15  30; 30  60; 45 100;  0   0]                  # models 10–13 (14 = degenerate/unused)
+fmd_xpts(::Northeast) = _FMD_XPTS_NE
+fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 const _FMD_MXFMOD = 5     # MXFMOD (FMPARM.F77)
 
@@ -108,7 +115,15 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     sm, lg = (fire_basis && s.fire.fire_smlg[1] >= 0f0) ? s.fire.fire_smlg : _small_large_fuel(s.fire)
     m14 = mois[1, 4]                                   # dead 100-hr (3+") moisture
 
-    # --- candidate-model selection (fmcfmd.f:131) ---
+    # NE FMCFMD (ne/fmcfmd.f:120-148) is a stripped-down selection (NO forest-type/moisture logic): base
+    # model 9 + the natural-fuel candidates 10/12/13, resolved by the (SMALL,LARGE) point. (Model 11 = the
+    # 5-yr post-activity fuel-jump candidate, AFWT/SLCHNG — deferred; net01 takes the natural-fuel path.)
+    if s.variant isa Northeast
+        eqwt[9] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+    end
+
+    # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
             eqwt[5] = 1f0
@@ -164,7 +179,7 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # models 10 & 12 are always candidates for natural fuels (fmcfmd.f:202)
     eqwt[10] = 1f0; eqwt[12] = 1f0
 
-    return _fmdyn(sm, lg, eqwt)
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
 """
@@ -176,8 +191,8 @@ All SN iso-lines are sloped (ITYP≡0), so only the sloped-line geometry is port
 Collinear candidates (identical XPTS — e.g. the litter models 1–9) share their bracket's
 weight in proportion to `eqwt`. Returns up to `MXFMOD` (model, weight) pairs summing to 1.
 """
-function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32})
-    ic = _FMD_ICLSS; mx = _FMD_MXFMOD; xpts = _FMD_XPTS
+function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractMatrix{Float32} = _FMD_XPTS)
+    ic = _FMD_ICLSS; mx = _FMD_MXFMOD
     out = Tuple{Int,Float32}[]
     (sm < 0f0 || lg < 0f0) && return out
 
