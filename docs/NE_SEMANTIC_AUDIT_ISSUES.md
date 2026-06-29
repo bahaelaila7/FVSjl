@@ -52,3 +52,17 @@ Status key: `SUSPECTED` (agent-reported, unverified) · `CONFIRMED` (verified vs
 - **CONFIRMED-MISSING — WK4=HTIMLT per-period scaling** (esgent.f:52 HTG=HTG*WK4; HTIMLT=FTEMP/(GENTIM+0.0001), estab.f:520). jl omits it entirely. The agent's value (0.40 from min(TRAGE,GENTIM)) is a MISREAD — FTEMP=BAA (estab.f:451, floored 1.0), GENTIM=FINT−5. The BARE-stand WK4 value needs the BAA basis at estab.f:520 determined before applying (likely the BARE first-cycle deficit cause). [HIGH, value-TBD] + the coupled esgent.f:54-62 WK4<1 DBH re-derivation.
 - CONFIRMED-MISSING: establishment.jl phase-2 lacks the **hk≤4.5 → DBH=0.1+0.001·hk** guard (regent.f:290-293) — the Wykoff inverse log(hk−4.5) NaNs for hk≤4.5 (reachable: NE base heights 2.5–4 ft). [MED-HIGH]
 - gated/RNG: pre-replicate ESRANN/WK6 draw seed-shift (masked by XMIN floor); FINT≤5 LSKIPH extra draw; CON·HGADJ·XRHGRO omitted (HCOR/keyword); HTADJ add (=0). Verified faithful: ESSUBH formula+REFAGE table, reject bounds (my fix), crown draw, age, TRAGE clamp.
+
+
+## RESULT — semantic audit RESOLVED the WP tail (it was REAL bugs, not accepted-floor)
+After 4 confirmed fixes (ATTEN=1000, DIAGR≥.0001 floor + drop −9.21, DG_PSIGSQ NE=0.0898, REGENT per-triple
+U/L blend), full net01 per-stand all-column maxΔ vs live FVSne:
+- stand 1 unthinned: TPA0 BA0 SDI0 CCF0 Ht0 — **BIT-EXACT**
+- stand 2 THINDBH:   TPA0 BA0 SDI0 CCF0 Ht0 — **BIT-EXACT** (was BA ±13 post-COR — the worst "WP tail")
+- stand 3 shelterwd: TPA0 BA0 SDI0 CCF0 Ht0 — **BIT-EXACT**
+- stand 4 FFE:       TPA0 BA0 SDI1 CCF0 Ht0 — bit-exact (SDI ±1 rounding)
+- stand 5 BARE:      TPA3 BA1 SDI4 CCF3 Ht1 — the establishment WK4=HTIMLT residual (TO FIX, finding #7)
+⇒ The WP large-tree "tail" I had characterized as accepted tripling-realization floor (SN-COMPRESS-class) was
+WRONG — it was four real semantic bugs in the DG calibration constants + the REGENT tripling blend, all found by
+READING the code (not runtime). The user's directive was decisive. SN bit-exact throughout (suite 5281/2).
+The ONLY remaining net01 residual is stand-5 BARE establishment (the WK4 scaling, finding #7).
