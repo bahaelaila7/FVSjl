@@ -747,3 +747,18 @@ above), (B) the establishment-cohort REGENT regen-DBH deficit (TPA bit-exact but
 
 VERDICT: net01 stand+volume columns validated end-to-end; no separate volume bug. Remaining = the two growth-
 side residuals (WP tail + regen-DBH), both characterized, each amplified at volume thresholds.
+
+
+## A1 regen-DBH deficit (item B): candidate lead = jl REGENT missing the LESTB XWT=0 establishment case
+
+The stand-5 BARE establishment-cohort DBH deficit (TPA bit-exact but DBH ~1.6% low early → BA ~20% / MCuFt ~55%
+low at the merch threshold, converging late). Candidate root (UNVERIFIED): ne/regent.f:248 sets
+`IF(D.LE.XMN .OR. LESTB) XWT=0.0` — for newly-ESTABLISHED trees (LESTB) the small-tree/large-tree blend weight
+is forced to 0 (PURE small-tree prediction), whereas jl small_tree_growth.jl:69 computes XWT=(d−1.5)/3.5 with NO
+LESTB case, so jl blends in the large-tree DG for establishment trees. If the establishment cohort is grown with
+LESTB semantics in FVS, jl's blend (which mixes a slower large-tree DG for d<5) would under-grow them → the
+deficit. ALSO regent.f:163-175 (LESTB) assigns a fresh crown-ratio via a BACHLO draw for new trees (CR=0.89722
+−0.0000461·PCCF+0.07985·RAN) — jl may not replicate this for the establishment path. NEXT: confirm whether the
+net01 BARE cohort hits the REGENT LESTB branch (ESTAB→ESTPLT→REGENT with LESTB), and if so add the LESTB→XWT=0
+(+ the CR draw) to small_tree_growth! (NE-gated). Verify vs live BARE per-tree. This is item B (distinct from the
+WP tail A); both are the last growth-side residuals on net01, each amplified in the volume columns.
