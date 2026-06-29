@@ -935,3 +935,26 @@ Both-sides trace of the BARE BF/WS planted cohort (~9% cyc1 height deficit):
 VERDICT: item B = TWO components — (1) planted TRAGE/age default (jl 2 vs FVS 10, ~3%, concrete) + (2) the
 first-cycle REGENT establishment HTG (~6%, the LESTB/age path). Both establishment-only (BARE stand); converge
 by mid-rotation. The one remaining NON-floor NE item; partially diagnosed, focused-turn fix.
+
+
+## A1 item B ROOT: jl establishment height uses the WRONG model — FVS ESSUBH is (H/CARAGE)·min(5,TIME−DELAY)
+
+Re-trace catch (the memory's "NE establishment height DONE" validated TPA, not the precise planted height).
+The BF/WS ~9% cyc1 deficit roots in the ESTABLISHMENT HEIGHT MODEL:
+- jl `establishment.jl:85` → `ne_htcalc_height(sp,si,age)` = bh + b1·si^b2·(1−exp(b3·age))^(b4·si^b5), the NC-128
+  site-curve height AT the seedling's age (age = per−delay−gentim+trage, =7 for net01).
+- FVS `essubh.f:73-82` → a DIFFERENT model: IAGE=MAPNE(I) (a reference age), CARAGE=IAGE, H=HTCALC site-curve
+  height at age CARAGE, then **HHT = (H/CARAGE)·min(5, TIME−DELAY)** — the AVERAGE juvenile growth RATE (H/CARAGE)
+  times the available time (≤5 yr). FVS also returns AGE (tree age when REGENT begins) + rewrites TRAGE to the
+  remaining-cycle years (that's why my earlier dump saw TRAGE=10 = the OUTPUT, not the input 2 — PRMS(4)=0).
+- These give CLOSE values (jl 5.0 vs FVS 5.16, ~3%) but by different formulas; the gap then propagates through
+  the juvenile growth (a taller/older seedling grows MORE in the accelerating phase) to the ~9% at 2002.
+
+FIX (focused turn): port ESSUBH faithfully into the NE establishment path — HHT=(ne_htcalc_height-at-CARAGE /
+CARAGE)·min(5, TIME−DELAY) with CARAGE=MAPNE/reference-age, + the AGE-when-REGENT-begins it returns. Needs:
+confirm essubh.f's MAPNE/IAGE (curve-index vs a reference-age array) + TIME/DELAY definitions; then validate the
+BARE-stand 2002 height → ~11.84 (jl currently 10.8) and the MCuFt threshold. SN unaffected (NE establishment
+path). This is the LONE remaining real (non-floor) NE residual, now rooted to a single concrete formula.
+
+VERDICT: item B = the NE establishment HEIGHT model (jl site-curve-at-age vs FVS ESSUBH avg-rate×time). Concrete
+root, focused port. Everything else in the NE port is faithful or accepted-floor.
