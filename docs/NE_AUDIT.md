@@ -156,6 +156,16 @@ FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cy
 FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
 is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
 
+NEXT-ITERATION DATA (cyc4 = jl cyc3, the new first divergence after the fix): phase-counter breakdown
+shows jl cyc3 = DG(dgscor) 948 draws + REGENT 171 = 1119, vs FVS ICYC4 1131 (Δ-12). It's now in a STOCHASTIC
+cycle (post-tripling), so the -12 is likely downstream of a VALUE divergence in cyc0-2 (matching draw COUNT
+cyc0-3 does NOT guarantee matching draw VALUES — a coefficient that shifts a value without changing the draw
+count would drift the state, surfacing as a cyc3 rejection-count difference). Stand-1 .sum @2090 after the fix:
+TPA 105 vs live 111, QMD 18.4 vs 17.9, TCuFt 7605 vs 7456 (+2%) — the .sum is slightly WORSE than pre-fix
+(110/17.9/7456→...) because the now-correct coefficients removed the wrong-coefficient coincidence; the cyc4+
+residuals dominate. Per doctrine #3 the faithful fix STAYS; iterate the draw-counter method on cyc4+ (find the
+phase, then the term — dgscor value-divergence or another REGENT/coefficient table) to drive the residual to 0.
+
 REMAINING (A1 not fully closed): stand-1 draw counts re-diverge by smaller amounts at cyc4+ (Δ-12 at cyc4,
 wobbling to ~Δ40 by stand-1 end) — SEPARATE, smaller bugs to fix the SAME iterative way (find first draw
 divergence → trace the term → fix). The stand-2 .sum 2130 thin has NOT yet converged (it's downstream of the
