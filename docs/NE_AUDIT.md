@@ -156,6 +156,16 @@ FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cy
 FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
 is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
 
+CYC4 LOCALIZED (FVS phase-split counter, both sides): FVS ICYC4 DG = 2553-1605 = 948 = jl's 948 EXACTLY ✓;
+REGENT+post FVS 183 vs jl 171 → the -12 is in REGENT again (4 small-tree records), NOT dgscor. The sitset.f
+IFOR=3 block overrides ONLY HT1/HT2 (20 each) and is the ONLY IFOR-conditional block — so it was the single
+SYSTEMIC coefficient bug (fixed), not a class. The cyc4 REGENT -12 is therefore a subtler VALUE-DRIFT boundary
+effect: a few records near the 5" REGENT threshold shifted by accumulated per-tree value differences from
+cyc0-2 (draw COUNT matches cyc0-3, but per-tree VALUES can still differ from a coefficient that doesn't change
+the draw count). Pinning it needs a per-record DBH dump at cyc3-REGENT-entry (jl vs FVS) to find the 4 records
++ their species + the diverging coefficient (NC-128 height curve / regent DIAM budwidth / BALMOD / another
+HT-DBH species). Next iteration.
+
 NEXT-ITERATION DATA (cyc4 = jl cyc3, the new first divergence after the fix): phase-counter breakdown
 shows jl cyc3 = DG(dgscor) 948 draws + REGENT 171 = 1119, vs FVS ICYC4 1131 (Δ-12). It's now in a STOCHASTIC
 cycle (post-tripling), so the -12 is likely downstream of a VALUE divergence in cyc0-2 (matching draw COUNT
