@@ -913,3 +913,25 @@ BA near-bit-exact, FFE/shelterwood bit-exact. The lone residual is a sub-BA DBH-
 tripling-realization floor, visible only through THINDBH per-class thinning (stand 2) — accepted-class, like the
 SN COMPRESS eigensolver/ULP divergence. item B (BF/WS establishment height ~9% cyc1) is the one remaining
 NON-floor item (a real establishment-path gap to trace). The 5 DG fixes + this characterization close item A.
+
+
+## A1 item B PARTIAL DIAGNOSIS: planted age (TRAGE) + first-cycle REGENT HTG (BF/WS establishment)
+
+Both-sides trace of the BARE BF/WS planted cohort (~9% cyc1 height deficit):
+- PLANT PRMS mapping (FVS estab.f:438-446): PRMS(1)=species, PRMS(2)=trees, PRMS(3)=%survival, PRMS(4)=age
+  (TRAGE), PRMS(5)=height. For net01's `PLANT 1992 1 400` the age field is blank.
+- **FVS resolves TRAGE=10** (ESSUBH HHT: BF 5.159 @ si52, WS 4.591 @ si50; DELAY=0 GENTIM=5); **jl uses
+  trage=2** (establishment.jl:82 default) → jl plants BF at ~5.0. So a real ~3% planted-height gap from the
+  TRAGE/age handling (jl's blank-age default 2 vs FVS's 10; verify the exact FVS blank-PRMS(4) default/mapping).
+- BUT the planted heights are CLOSE (5.0 vs 5.16, 3%) while the 2002 grown deficit is ~9% (jl h10.8 vs live
+  11.84) ⇒ the MAJORITY (~6%) is the FIRST-CYCLE REGENT height growth: jl grows +5.8 ft, live +6.68 ft. The
+  REGENT small-tree HTG for the establishment cohort under-grows ~0.9 ft cyc1. Since ABIRTH/trage does NOT feed
+  the REGENT HTG (it re-derives age from current height via ne_htcalc_age), this is a SEPARATE establishment-
+  path effect — likely the LESTB branch (regent.f:163-281, newly-established trees) doing something jl's normal
+  small_tree_growth! path doesn't (fresh CR, or an HTCALC mode/age difference), since the NATURAL small trees
+  (stands 1-3) grow faithfully. NEXT: per-tree first-cycle HTG for one BF seedling jl vs the live .trl, and
+  check whether the establishment cohort hits a distinct REGENT-LESTB path in FVS.
+
+VERDICT: item B = TWO components — (1) planted TRAGE/age default (jl 2 vs FVS 10, ~3%, concrete) + (2) the
+first-cycle REGENT establishment HTG (~6%, the LESTB/age path). Both establishment-only (BARE stand); converge
+by mid-rotation. The one remaining NON-floor NE item; partially diagnosed, focused-turn fix.
