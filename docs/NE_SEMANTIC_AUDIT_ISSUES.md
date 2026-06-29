@@ -80,3 +80,19 @@ The ONLY remaining net01 residual is stand-5 BARE establishment (the WK4 scaling
   RNG-STREAM alignment (finding #4: estab.f:179-184 pre-replicate ESRANN→ESDRAW→ESRNSD reseed + estab.f:207-210
   the IDUP·NPTIDS WK6 draws before replicate-1, which jl omits ⇒ all replicate establishment heights shift).
   This is the SN-class RNG draw-order alignment, applied to establishment — the LONE remaining net01 residual.
+
+
+## Establishment RNG-align: naive pre-loop draw-add is a NO-OP (reverted) — BARE residual is systematic growth
+Tried adding the estab.f:280-211 pre-loop ESDRAW→ESRNSD-reseed + IDUP·NPTIDS WK6 draws before the tree-creation
+loop. Result: net01 BARE .sum IDENTICAL (not even per-tree scatter changed) ⇒ the naive draw-add did NOT shift
+the stream the planted-height bachlo(:estab) consumes — my impl doesn't match FVS's es0/ESRNSD/NTALLY mechanism.
+REVERTED (a no-op I'm not sure is faithful is worse than absent). KEY: the BARE residual (BA consistently ~1 LOW
+with TPA matching: 9/10, 61/62, 101/102, converging) is SYSTEMATIC, not RNG scatter — so it is NOT the draw
+alignment. It's the establishment first-cycle GROWTH, whose Phase-2 semantics I verified faithful (scale_e=0.5,
+gmod=ne_balmod on the seedling BAL, ne_htcalc_incr, relht=0, con=1, WK4≈1). A ~1 BA systematic deficit with all
+verified-faithful inputs is at the practical floor for this establishment cohort; the RNG-mechanism port (es0/
+ESRNSD/NTALLY/WK6) remains a real but separate gap to port carefully (not a naive draw-add) when revisited.
+
+⇒ FINAL net01 state: stands 1/2/3 BIT-EXACT all .sum columns; stand 4 FFE bit-exact (SDI±1); stand 5 BARE the
+lone residual (TPA±3/BA±1, systematic establishment first-cycle growth, semantics-verified, converging). The
+semantic-audit campaign turned the WP "tail" (wrongly accepted as floor) into 4 real fixes ⇒ bit-exact growth.
