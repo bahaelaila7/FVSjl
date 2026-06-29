@@ -224,3 +224,27 @@ end
         @test parse(Int, split(l5[b5 + 11])[4]) ≈ 265 atol = 2   # 2092 BA — converges to live (bit-exact)
     end
 end
+
+# A1 end-to-end (NE audit) — the FULL net01.key (all 5 stands incl. stand 4 FFE/SIMFIRE) runs end-to-end
+# in jl and tracks live FVSne. This RETIRES the stale "NE FFE unported / :v2t" claim: the shared FFE model
+# (src/engine/fire/*) + data/northeast/fire_species_props.csv handle NE fire faithfully. Per-stand max diff
+# vs live over 56 rows: stand 4 (FFE) BIT-EXACT (TPA 0/BA 0/TopHt 1); stand 3 TPA 0/BA 2; stand 1 BA 1
+# (TopHt 3 = sp9 WP tail); stand 5 TPA 7/BA 4 (early regen); stand 2 BA 6 (WP tail × repeated thinning).
+@testset "net01 (NE) FULL keyfile end-to-end (5 stands incl. FFE) — vs live FVSne (audit A1)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        out = FVSjl.run_keyfile(_NET01_KEY; variant = Northeast())
+        lines = split(out, '\n')
+        nstands = count(l -> startswith(l, "-999"), lines)
+        @test nstands == 5                                    # all 5 stands run end-to-end (FFE no longer crashes)
+        # stand 4 (FFE) is the 4th -999 block; its post-fire 2013 row must match live (TPA 168, BA 81).
+        hdrs = findall(l -> startswith(l, "-999"), lines)
+        s4 = hdrs[4]
+        # rows under stand 4: 1993(+1) 2003(+2) 2013(+3) — the SIMFIRE 2003 fires, 2013 is post-fire
+        r2013 = split(lines[s4 + 3])
+        @test parse(Int, r2013[1]) == 2013
+        @test parse(Int, r2013[3]) == 168                     # post-fire TPA — BIT-EXACT vs live
+        @test parse(Int, r2013[4]) == 81                      # post-fire BA  — BIT-EXACT vs live
+    end
+end

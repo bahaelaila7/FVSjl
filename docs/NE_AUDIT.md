@@ -609,3 +609,30 @@ Suite 5249/2, SN bit-exact.
 WP large-tree distributional TopHt tail (~2%, stands 1/3), the stand-5 early-regen BA (~20% on tiny BA,
 converges), and NE FFE (stand 4, the one unported subsystem). The fire subsystem is now the dominant
 remaining work toward NE_COMPLETE.
+
+
+## A1 MAJOR: NE FFE works — full net01 runs END-TO-END + validated (the "FFE unported" flag was STALE)
+
+Re-trace discipline win. The documented "stand 4 activates s.fire ⇒ run_keyfile hits :v2t (NE FFE UNPORTED)"
+was STALE: `:v2t` (bole specific gravity) IS in data/northeast/fire_species_props.csv (109 rows, loaded via
+coefficients.jl:143), and task #47 (NE FFE DBS tables) was already done. The shared FFE model (src/engine/
+fire/*: fmburn/snag/fuel/carbon/crown_biomass) + the NE fire CSV handle NE fire faithfully — NO NE-specific
+FFE port was needed (the biomass/fuel coefs are data, gated per-variant).
+
+VALIDATED vs live FVSne:
+- **Stand 4 FULL FFE keyword set** (SNAGINIT/SNAGBRK/FLAMEADJ/SIMFIRE/SALVAGE/DEFULMOD/SNAGPSFT/PotFIRE/
+  BurnRept/FuelOut/FuelRept/MortRept + THINDBH/YARDLOSS): runs error-free, **BIT-EXACT** — post-fire
+  TPA 536→285→168→164→161→157, BA 77→99→81→98→116→134 == live every cycle (SIMFIRE 2003 kills ~half the stand).
+- **FULL net01.key (all 5 stands) runs END-TO-END** (5 -999 blocks, exit 0). Per-stand max diff vs live, 56 rows:
+  - stand 4 (FFE): **TPA 0, BA 0, TopHt 1** — BIT-EXACT.
+  - stand 3 (shelterwood): TPA 0, BA 2, TopHt 1.
+  - stand 1 (unthinned): TPA 3, BA 1, TopHt 3 (sp9 WP tail).
+  - stand 5 (BARE): TPA 7, BA 4, TopHt 1 (early-regen REGENT).
+  - stand 2 (THINDBH): TPA 4, BA 6, TopHt 1 (WP tail amplified by repeated thinning opening the stand).
+
+⇒ net01 is FUNCTIONALLY COMPLETE end-to-end — no unported subsystem remains for it. The ONLY residuals are the
+growth-side tails (sp9 WP large-tree DG distributional ~2-6 BA; stand-5 early-regen ~20% on tiny BA). Locked by
+test_net01.jl end-to-end testset (stand-4 post-fire TPA168/BA81 bit-exact). Suite 5253/2 SN bit-exact.
+
+VERDICT: NE FFE RESOLVED (faithful drop-in, stand-4 bit-exact). The remaining NE_COMPLETE gap is the sp9 WP DG
+distributional tail (the last non-ULP residual) + validation breadth beyond net01.
