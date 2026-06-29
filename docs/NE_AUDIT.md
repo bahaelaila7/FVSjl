@@ -784,3 +784,22 @@ BF/WS NC-128 coefficients first (cheap), then the LESTB HTG path. Small (~9% cyc
 VERDICT: item B localized to the BF/WS planted-cohort REGENT height increment (species-curve or LESTB-age). Both
 remaining net01 residuals now localized to a specific mechanism: A = WP calib-BADIST-backdating + tripling; B =
 BF/WS establishment height. Both need focused per-tree turns; net01 otherwise functionally complete + validated.
+
+
+## A1 item B: BF/WS NC-128 coefficients EXONERATED — it's the establishment height PATH, not data
+
+Re-trace: jl's BF(sp1)→MAPNE 55→LTBHEC[55]=(2.077,0.9303,-0.0285,2.8937,-0.1414,0.0) and WS(sp3)→MAPNE 68 match
+FVS bin/FVSne_buildDir/htcalc.f BIT-EXACT (MAPNE array identical; LTBHEC[55] line 197 = 2.0770,0.9303,-0.0285,
+2.8937,-0.1414,0.0, BH=0 included). So the species height-curve DATA is correct — item B is NOT a coefficient
+gap (unlike the IFOR=3 HT-DBH data bug). The ~9% cyc1 deficit is therefore in the establishment height-growth
+PATH for newly-planted trees: candidates narrowed to (1) the REGENT LESTB branch (regent.f:163-281 — newly-
+established trees get XWT=0 + a fresh CR BACHLO draw + possibly a different HTCALC age/mode basis) and (2) the
+PLANT seedling initial height/age setup feeding the first ne_htcalc_age→ne_htcalc_incr. NEXT: dump jl's planted
+BF/WS seedling initial height+age right after ESTAB/PLANT (pre-first-grow) vs the FVS PLANT default, and trace
+the REGENT call's LESTB flag for the establishment cohort. Algorithm-level, not data; BARE-stand only; ~9%
+cyc1 converging.
+
+⇒ BOTH net01 residuals now localized to a MECHANISM with DATA RULED OUT: A = WP DG calibration BADIST-basis
+(backdating, algorithm) + tripling; B = BF/WS establishment height-growth PATH (LESTB/PLANT-age, algorithm).
+Each is a focused algorithm fix needing per-tree live verification + (for A) SN-regression guarding. net01 is
+functionally complete + validated end-to-end on stand AND volume columns; these are the last two fine residuals.
