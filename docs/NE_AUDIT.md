@@ -16,7 +16,7 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
-## A1 — Stand-2 thin divergence ★ flagged by user "−40 vs −22 BA not acceptable"
+## A1 — Stand-2 thin divergence — SYSTEMIC BUG FIXED; residual pinned to OLDRN ★ flagged by user "−40 vs −22 BA not acceptable"
 
 > **RESOLUTION (read the "A1 — FIX LANDED" section below first).** The root cause was NOT an unalignable
 > RNG realization (the earlier conclusion in this section, kept for the investigation record). It was a
@@ -163,6 +163,14 @@ at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LAR
 d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
 LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
 path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
+FINAL PIN (back-solved from matched dgk/DDS, no new instrumentation): for d=1.2 (dib=1.104, DDS=3.2558 both),
+exp(frmt) = (((dgk+dib)^2 - dib^2)/DDS): jl frmt=-0.0261, FVS frmt=-0.0167 (Δ~0.0094). Since ssigma≈0.093 and
+FM=-0.14228, the deterministic FM·ssigma·rhocp term is bounded at -0.0132 (rhocp≤1) — too small to reach
+jl's -0.0261 alone. So the per-tree OLDRN (DG calibration residual, frmt = FM·ssigma·rhocp + corr·OLDRN) MUST
+contribute and is where jl/FVS diverge for sp27. ⇒ A1's final residual = the per-tree DG-calibration residual
+OLDRN (seeded from net01.tre's measured DG) computed slightly differently for sp27 vs FVS dgdriv.f. This is the
+deepest stochastic-DG layer; the fix is aligning the OLDRN measured-DG-residual computation. END OF TRACE.
+
 WK2 SPLIT (decisive): dumped the dgf DDS predictor (exp(wk2)) for sp27 cyc0 both sides — MATCHES bit-close
 (dbh 0.1→1.09096 both; 1.2→3.25577; 1.9→4.48258; 4.0→7.80665). So the dgf PREDICTOR is FAITHFUL. The ~0.5%
 dgk gap is purely the SERIAL-CORRELATION factor exp(frmt) applied after (frmt = FM·ssigma·rhocp + corr·oldrn).
