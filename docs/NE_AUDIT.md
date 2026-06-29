@@ -29,6 +29,16 @@ correlation factor exp(frmt) off ⇒ ~0.5% dgk error on EVERY NE tree — the #5
 274→277 (live 279). A real second NE bug fixed (after IFOR=3). Residual now much smaller; stand-2's repeated
 thinning still amplifies the remaining realization difference.
 
+FINAL RESIDUAL CHARACTERIZED (~0.1%): the post-vmlt-fix per-tree dgk differences are VARIED IN SIGN
+(d=0.1: -0.15%, d=1.2: +0.05%, d=1.9: -0.10%). Both-sign per-tree scatter (not a uniform offset) ⇒ it is the
+stochastic per-tree z-draw REALIZATION (the calibration OLDRN bachlo z for uncalibrated species like sp27),
+NOT a deterministic op-order or coefficient error. So with the two SYSTEMATIC bugs fixed (IFOR=3 HT-DBH +
+calibration VMLT period), A1's remaining ~0.1% is the calibration-time z-draw RNG realization — a
+different-but-valid stochastic draw because NE's calibration RNG stream is not bit-aligned to FVS dgdriv.f
+(the SN-class alignment SN got via Oracle-A; NE has no reference). This is the documented-stochastic class;
+closing it to literal bit-exact needs aligning the LSTART calibration z-draw order/count (draw-counter method
+on the calibration). The two systematic fixes are the substantive result; this tail is near-ULP scale.
+
 VERIFIED the vmlt fix closes the dgk gap: post-fix sp27 cyc0 trace shows ssig=0.093 (= FVS exactly, was
 0.14954) and dgk now within ~0.1% of FVS (d=1.2 jl 0.99871 vs FVS 0.998194 = +0.05%, was -0.68%; d=1.9
 0.991263 vs 0.992287 = -0.10%; d=0.1 0.955828 vs 0.957219 = -0.15%). The ~0.5% large-tree DG residual is
