@@ -873,3 +873,23 @@ TRIPLING over-grow of the WP upper-satellite on sparse/opened stands (stand2 pos
 the COR no longer compensating, the tripling is cleanly visible for the next focused trace (dgdriv FRMT=FRU+
 CORR·OLDRN spread; the OLDRN seeds are now from the correct current-stand calibration, so the residual is the
 FU=1.271σ spread application itself). KEEP (faithful, per doctrine #3); do NOT revert to re-mask the tripling.
+
+
+## A1 post-COR-fix: the unmasked stand-2 residual is the WP DBH-distribution tail × THINDBH (per-class thin)
+
+Narrowed the stand-2 regression the COR fix unmasked. At 2100 (pre-thin) jl==live (TPA 226/228, BA 130/130);
+the 2110 THINDBH thin removes FEWER trees in jl (jl 226→194 = −32 vs live 228→187 = −41) → jl +7 TPA / +12 BA
+post-thin, persisting 2110-2130 then re-converging at the 2140 thin. THINDBH thins to target densities PER DBH
+CLASS, so it's sensitive to the DBH DISTRIBUTION — jl's WP large-tree tail (the satellites/d28) sits in different
+classes than live, so the per-class thin removes different amounts. ⇒ the residual is NOT new: it's the SAME WP
+DBH-distribution tail, now (a) un-masked by the faithful COR and (b) amplified by per-class thinning. It's a
+subtle MULTI-CYCLIC feedback (over-grow → different DBH class → different thin → different competition → ...),
+not a single per-cycle bug; SIGMAR/ssigma/rhocp/COR/BADIST are all now correct, so the WP satellite over-grow is
+the residual realization effect (live's largest tree is SM d22.4; jl's WP reaches d28). On the UNTHINNED stand 1
+the same tail is only ~1-3 BA / ~3 ft TopHt (no per-class-thin amplifier).
+
+⇒ STATE after the 5th DG fix (current-stand calibration COR): the NE DG model's DATA + CALIBRATION + BADIST are
+all faithful/verified. The lone remaining DG residual is the WP large-tree distributional tail (a subtle
+multi-cyclic tripling-realization + BAL-feedback effect, ~1-3 BA unthinned, amplified by THINDBH per-class thin),
+near the practical floor for a tripling stand. item B (BF/WS establishment height) is the other open item. Both
+are fine/subtle; the COR fix is faithful (displays 0.66 = FVS) and KEPT per doctrine.
