@@ -636,3 +636,27 @@ test_net01.jl end-to-end testset (stand-4 post-fire TPA168/BA81 bit-exact). Suit
 
 VERDICT: NE FFE RESOLVED (faithful drop-in, stand-4 bit-exact). The remaining NE_COMPLETE gap is the sp9 WP DG
 distributional tail (the last non-ULP residual) + validation breadth beyond net01.
+
+
+## A1 WP-tail trace: localized to the DG CALIBRATION-pass BAL for sp9 WP (the last non-ULP residual)
+
+Traced the sp9 WP large-tree DG distributional tail with the sorted-DBH + per-iteration BAL method.
+- sp9 WP cyc1-entry sorted DBHs diverge ±0.1-0.5 with a SLOPE pattern (jl under-grows small-mid WP, over-grows
+  large WP — errors cancel in total BA, leaving a distribution/TopHt residual).
+- sp9 cyc0 GROWTH-pass dds is BIT-EXACT for every WP tree; the divergent dump (d9.8130: jl dds 45.34 vs FVS
+  33.15) is the **DG CALIBRATION pass** (its ebau[8]=37.37 = the pre-badist calib value 33.97 × 1.1, i.e.
+  the past-DBH stand).
+- Per-iteration BAL for the d9.813 WP (calibration pass): **FVS keeps GMOD floored at 0.50 through iter 7**
+  (BAL > 44.7 at icls 8-9), then 0.609; **jl reads BAL 37.37 (icls8)→22.67 (icls9)→16.40 (icls10)** so GMOD
+  rises 0.56→0.70→0.78 and the tree over-grows. jl's CALIBRATION-pass ebau at the higher DBH classes is ~½ of
+  FVS's (ebau[9]: jl 22.67 vs FVS >44.7).
+- ⇒ ROOT LEAD: jl's DG calibration computes BADIST on a SMALLER stand than FVS at the upper DBH classes — i.e.
+  the calibration's past-DBH reconstruction (current DBH − measured DG) removes too much from the large trees,
+  or FVS's NE calibration uses the CURRENT-stand BADIST (not past) while jl uses past. This mis-fits the WP COR
+  → propagates to the WP DG distributional tail. The growth-pass DG itself is bit-exact (badist fixed); ONLY
+  the calibration BAL basis diverges. NEXT: instrument FVS dgdriv calibration section to confirm whether its
+  BADIST runs on the past-DBH or current-DBH stand, then align jl's calibrate_diameter_growth! BADIST basis.
+  Magnitude: BA ±6 worst case (stand 2), TopHt ±3 (stand 1) — the LAST non-ULP residual on net01.
+
+VERDICT: WP tail localized to the DG calibration-pass BAL basis (not the growth model, which is bit-exact).
+Deferred with the concrete FVS-dgdriv-calibration next-check. net01 otherwise functionally complete + validated.
