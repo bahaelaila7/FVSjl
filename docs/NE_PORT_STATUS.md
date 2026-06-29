@@ -250,11 +250,16 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      TOO (2026-06-29, cwidth.f unit-89 dump): jl's `crown_width(iwho=0)` MATCHES FVS's CRWDTH BIT-EXACT per tree —
      sp19 d11.5 cr35 jl 13.962/FVS 13.9621; sp35 16.689/16.6889; sp49 13.559/13.5587; and LSPCWE=F for ALL net01 species
      (so FVS uses CWCALC iwho=0, exactly as jl). ⇒ the percov gap is NOT the crown width at all — it is a fine TPA /
-     stand-state difference in the `TOTCRA = Σ(π·CW²/4 · FMPROB)` sum (jl `t.tpa` vs FVS `FMPROB`, or the stand state at
-     the FMCBA-percov sample point). cyc-0 total TPA matched (536), so it is sub-tree or a fmcba-timing nuance. STILL a
-     fine-accumulation residual (flame-robust; the bit-exact crowning index + SIMFIRE are unaffected); NEXT debug step =
-     dump FVS `FMPROB`/`TOTCRA` for the FFE stand at the PotFire-percov point vs jl. Re-trace lesson: TWO successive
-     percov verdicts (cr/Bechtold, then crown-width-coeff) were both wrong — the crown width matches; it's the TPA sum.
+     stand-state difference in the `TOTCRA = Σ(π·CW²/4 · FMPROB)` sum. ★★★ ROOT CAUSE FOUND (2026-06-29, fmcba.f unit-89
+     PERCOV/TOTCRA/ITRN dump): FVS computes the FFE-stand PotFire percov on **ITRN = 66 tree records** (TOTCRA 46721,
+     PERCOV 65.7877 == the back-solved value), but jl's FFE stand has **27** records. The 66 vs 27 is the DIAMETER-GROWTH
+     TRIPLING: FVS samples the percov on the tripled tree list (each tree → ~3 records, TPA preserved but DBH spread, so
+     Σ(CW²·TPA) shifts by Jensen's inequality), jl on the untripled inventory list (the PotFire push is at the cycle TOP,
+     before grow_cycle!'s tripling). So the percov→WMULT→torch/flame residual is a TRIPLING-TIMING difference on the
+     PotFire-report path — NOT crown width (matches bit-exact), NOT a TPA-coeff. Fixing = sample the PotFire percov on the
+     tripled stand (a cycle-order change, report-only); deep + low-value (flame-robust, bit-exact crowning index + SIMFIRE
+     unaffected). ★ RE-TRACE LESSON: FOUR successive percov verdicts (cr/Bechtold → crown-width-coeff → "it's the TPA sum"
+     → TRIPLING tree-count) — each debug-FVS dump refuted the prior. The crown widths match; it's the tripled record set.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
