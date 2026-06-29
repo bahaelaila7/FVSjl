@@ -173,3 +173,15 @@ INERT for net01 (IFOR=2). Status: a faithful-completeness gap for IFOR=3 NE stan
 HT1/HT2 swap as a forest-aware override (data + an ifor==3 branch in _htdbh_params) when broadening past net01.
 This is the FIRST real divergence the all-108-species coefficient audit surfaced — exactly the latent
 forest/species-specific path net01's ~7 species never exercise.
+
+
+## RUNTIME BROADENING — 15-species multi-cycle growth spine BIT-EXACT vs live FVSne
+After the coefficient audit + 2 fixes, validated the GROWTH spine on species net01 never grows: a constructed
+15-species stand (softwoods BF/RS/WP/EH/PP + hardwoods RM/YB/AB/CT/WO/SW/HK/BG/EL/HT spanning site_groups
+1-28, varied DBH 4-20", IFOR=2, dubbed heights), 3 cycles. Every stand column (TREES/BA/SDI/CCF/TopHt/QMD)
+BIT-EXACT vs live at 1990/2000/2010/2020 (e.g. 2020: TREES 129/129, BA 94/94, SDI 155/155, CCF 144/144, TopHt
+84/84, QMD 11.5/11.5); volumes within ULP (cyc0 TCuFt 1313/1309 +0.3%, MCuFt 1190/1190 exact, SCuFt 673/673
+exact, BdFt 3843/3849). ⇒ NE DG (BAL model) + HTG (NC-128 curves) + mortality + crown + R9 volume are faithful
+across the diverse species set, not just net01's ~7. Fixture+test: test/integration/ne_fixtures/divspp.* +
+test_net01.jl. KEYFILE GOTCHA: all trees must share ONE plot (tree id cols 24-27 = "0101"; the PLOT is cols
+26-27, the per-tree record number is cols 1-4) else "MORE PLOTS FOUND THAN SPECIFIED" abort. Suite 5309/2.

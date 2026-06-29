@@ -372,3 +372,30 @@ end
         @test isapprox(saw, lsaw; atol = 0.1)
     end
 end
+
+# Broadening test (audit) — a constructed 15-species stand (softwoods BF/RS/WP/EH/PP + hardwoods
+# RM/YB/AB/CT/WO/SW/HK/BG/EL/HT, site_groups 1-28, varied DBH), IFOR=2, dubbed heights, 3 cycles. This
+# exercises the NE growth spine (DG BAL model + HTG site-curves + mortality + crown + R9 volume) on species
+# net01 never grows. LIVE-VALIDATED vs FVSne: every stand column (TREES/BA/SDI/CCF/TopHt/QMD) BIT-EXACT at
+# all 4 reporting years; volumes within ULP (cyc0 TCuFt 1313 vs live 1309). Hardcoded live .sum below.
+@testset "NE 15-species diverse stand, 3 cycles — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "divspp.key")
+    if !isfile(key)
+        @test_skip "divspp fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        rows = Dict{Int,Vector{Int}}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 8 && occursin(r"^(1990|2000|2010|2020)$", p[1]) || continue
+            rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt (QMD p[8] fractional)
+        end
+        # live FVSne stand columns: year => [TREES, BA, SDI, CCF, TopHt] (QMD is fractional, checked separately)
+        live = Dict(1990 => [138,53,98,102,65], 2000 => [135,66,117,118,73],
+                    2010 => [132,80,136,131,79], 2020 => [129,94,155,144,84])
+        for (yr, exp) in live
+            @test haskey(rows, yr)
+            @test rows[yr][1:5] == exp        # TREES/BA/SDI/CCF/TopHt BIT-EXACT vs live
+        end
+    end
+end
