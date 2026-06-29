@@ -444,3 +444,14 @@ to one tree flipping 5 in at cyc3, cascading the draw stream. NEXT: dump the cyc
 high-xwt (d~3-4) sp27 tree vs regent.f -- check the dgk blend / the small tree crossing 5 in mid-cycle.
 The three systematic DG fixes made cyc0 bit-exact; this last layer is the higher-xwt small-tree blend over
 the tripling cycles.
+
+
+### A1 cyc1 finding (NOT uniformly bit-exact at cyc1)
+cyc1 sp27 dgk (large-tree DG blended into small trees): the d~4.98 tree MATCHES (FVS 0.90038/jl 0.90038), but
+the d~3.0 tree DIVERGES ~4% (FVS dgk 0.976285 vs jl 0.93751). Same tree (~3.0), real ~4% gap. So the cyc1
+large-tree DG diverges for SOME small trees, while cyc0 was fully bit-exact. dgk = bsc(sqrt(dib^2 +
+DDS*exp(frmt)) - dib); DDS depends on the dgf COMPETITION term (point-BAL pbal = pba*(1-crown_ratio/100) +
+stand BA), frmt on OLDRN. So the cyc1 divergence is the dgf competition (point density PTBAA / crown ratio PCT)
+or OLDRN at cyc1 - downstream of the cyc0 stand state (mortality record selection / crown / tripling).
+NEXT: dump cyc1 dgf inputs for the d~3.0 sp27 tree (pba/PTBAA, crown_ratio/PCT, oldrn, DDS, ba_v) jl vs
+ne/dgf.f. cyc0 is bit-exact; cyc1 dgf competition for small trees is the next layer.
