@@ -408,19 +408,25 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     end
 
     # Sawtimber section (r9clark:286-367): iProd==1 → saw cubic + topwood.
+    # FVS books vol(4)=cfVol and vol(7)=max(tcfVol−cfVol,0) inside `if(cupFlg.eq.1 .or. spFlg.eq.1)` —
+    # NOT gated on sawHt>0. When the saw bole is too short (sawHt→0) FVS's r9cuft(stump,0)=0, so vol(4)
+    # (saw cubic)=0 BUT vol(7) (topwood) = tcfVol−0 = the FULL merch cubic. Gating the whole block on
+    # sawHt>0 (the old bug) dropped the merch bole for a sawtimber-SIZED tree with no valid sawlog — e.g.
+    # a hardwood right at SCFMIND whose saw top (9.6") sits just below DBH so the sawlog can't make MERCHL.
     if iProd == 1
         sawHt = _r9_ht(st, sawDib)
         (topDib <= sawDib && topHt < sawHt) && (sawHt = topHt)
         sawHt < merchL + trim + stump && (sawHt = 0f0)
+        scfVol = 0f0
         if sawHt > 0f0
             scfVol = _r9_cuft(st, stump, sawHt)
             short && (scfVol *= shrtHt / 17.3f0)
-            vol[4] = scfVol
-            spFlg && (vol[7] = max(tcfVol - scfVol, 0f0))     # topwood
             # Board feet of the saw section (r9bdft International ¼"); cf correction by _r9_cor!
             # (vol(10)*=cf4, and cf4≡cf3 — so storing it in vol[2] gets the right factor).
             vol[2] = _r9_intlqtr_bf(st, sawHt, stump, minLen, maxLen, trim)
         end
+        vol[4] = scfVol                                     # saw cubic (0 when no valid sawlog)
+        spFlg && (vol[7] = max(tcfVol - scfVol, 0f0))       # topwood = merch − saw (= full merch when sawHt=0)
     end
 
     # rounding (r9clark:456-461) then r9cor corrections

@@ -349,3 +349,26 @@ end
         @test !isapprox(h3, h2; atol = 0.05)           # override actually changes the value (not a no-op)
     end
 end
+
+# R9 merch-cubic topwood booking (audit finding, found by broadening to hardwoods @ IFOR=3) — for a
+# sawtimber-SIZED tree (d≥SCFMIND) whose saw bole is too short for a sawlog (sawHt→0), FVS r9clark.f still
+# books the full merch cubic as topwood (vol7 = tcfVol − 0). The old code gated the whole saw block on
+# sawHt>0 and dropped it. LIVE-VALIDATED per-tree (Allegheny stand, .trl) — merch cubic MCH:
+@testset "NE R9 merch-cubic topwood (sawtimber-sized, no sawlog) — vs live FVSne .trl" begin
+    co = FVSjl.coefficients(Northeast())
+    ifor = 3
+    # (species_index, DBH, dubbed HT, live MCH cuft, live SAW cuft)
+    live = [(26, 10f0, 73.4f0, 14.0, 0.0), (30, 11f0, 68.6f0, 15.7, 0.0), (40, 8f0, 60.8f0, 7.7, 0.0),
+            (55, 12f0, 81.9f0, 23.4, 12.5), (67, 14f0, 87.9f0, 35.7, 26.7)]
+    for (sp, d, h, lmch, lsaw) in live
+        fia = parse(Int, strip(string(co.code_fia[sp])))
+        dbhmin, topd, scfmind, scftopd, _, _ = FVSjl._ne_merch(sp, ifor)
+        prod = d >= scfmind ? "01" : "02"
+        mtopp = d >= scfmind ? scftopd : topd
+        v = FVSjl.r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+        mch = d >= dbhmin  ? v[4] + v[7] : 0f0
+        saw = d >= scfmind ? v[4] : 0f0
+        @test isapprox(mch, lmch; atol = 0.1)      # YB d=11: 15.7 (was 0.0 before the fix)
+        @test isapprox(saw, lsaw; atol = 0.1)
+    end
+end

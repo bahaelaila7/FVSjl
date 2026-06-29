@@ -140,6 +140,23 @@ underlying data is correct across the entire species set. Two NON-table follow-u
 1. **IFOR=3 (Allegheny NF) HT1/HT2 override — PORTED this session** (volume.jl `_htdbh_wykoff`, gated on the
    NE-only Wykoff path so SN is untouched; suite 5281/2 no regression). Still needs a live-FVSne IFOR=3
    differential to promote a test (net01 is IFOR=2).
+### SECOND real divergence — R9 merch-cubic topwood dropped for sawtimber-sized trees with no sawlog (FIXED)
+Found by RUNTIME broadening: ran a 5-hardwood Allegheny stand (RM/WO/AB/RO/YB) end-to-end through BOTH engines.
+cyc-0 stand cols + TCuFt + SCuFt + BdFt matched, but stand MCuFt = 403 (jl) vs 490 (live). Localized per-tree
+(live .trl): ONLY YB sp30 d=11 diverged — jl merch cubic 0.0 vs live 15.7 (all 4 others bit-exact). ROOT: YB
+d=11 sits exactly at SCFMIND=11 ⇒ prod="01" (sawtimber), saw top 9.6"; the saw bole (11→9.6") is too short to
+make a MERCHL=8 sawlog ⇒ sawHt→0 ⇒ SAW=0 (correct, matches live). BUG: `r9clark_cubic` gated the ENTIRE saw
+block (vol[4] saw cubic AND vol[7] topwood) on `if sawHt>0`, so when sawHt=0 BOTH were left 0 and the merch
+reconstruction v[4]+v[7] lost the whole stump→9.6 bole (the tcfVol pulp-top cubic, already computed at line
+404, was discarded). FVS r9clark.f:286-367 books `vol(7)=max(tcfVol−cfVol,0)` inside `if(cupFlg.eq.1 .or.
+spFlg.eq.1)` — NOT gated on sawHt>0; cfVol=r9cuft(stump,0)=0 when sawHt=0, so vol(7)=tcfVol = the FULL merch.
+FIX (r9clark_vol.jl): hoisted `vol[4]=scfVol` (=0 when no sawlog) and `spFlg && vol[7]=max(tcfVol−scfVol,0)`
+OUT of the `if sawHt>0` block (board feet stays gated — a 0-length sawlog has 0 bd ft). RESULT: Allegheny
+MCuFt 403→490 == live; YB d=11 merch 0→15.7. net01 UNCHANGED (its prod-01 trees all have valid sawlogs ⇒
+sawHt>0 path identical) — .sum still TCuFt1546/MCuFt1338/SCuFt294/BdFt1637 bit-exact. +10 tests. Suite 5301/2.
+This is the SECOND latent bug broadening surfaced (after the IFOR=3 override) — both invisible to net01's
+species/forest, both real, both faithfully fixed from the FVS source.
+
 2. **R9 q_4/q_7 unloaded — RESOLVED, not a bug.** r9clark.f:770-789 reads COEFFS C/E/P/A/B/R ALWAYS from
    coef0 (cols 4-9); only A17/B17 are topDib-selected (cols 2,3 of coef0/coef4/coef79). So coef4/coef79
    cols 4-8 (incl q_4/q_7) are NEVER read by the volume algorithm — the port's `_R9Coef` correctly omits
