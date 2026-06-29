@@ -104,11 +104,30 @@ membership ⇒ different REGENT draw count ⇒ rejection-sampling cascade. If tr
 bit-exact" — the boundary flip is a symptom; the upstream cause is per-tree DG/HTG precision. NEEDS the
 per-record dump (below) to confirm the mechanism before any fix.
 
-**Next (task #50).** Pin the ~3 boundary records: instrument jl small_tree_growth! + FVS regent.f to dump
-(record, dbh, is-small, n-draws) at cycle-2 entry; find the records where small-membership disagrees; reconcile
-the NE small-tree DBH threshold / which records REGENT draws for (vs the grincr small-tree subset that calls
-regent). Then re-run the draw-counter to confirm cycle-2 Δ→0, and walk forward. Keep SN bit-exact (the SN
-small-tree path is `<3″` and already aligned).
+**CONFIRMED (per-record dump, both sides) — A1's upstream root is a SPECIES-SPECIFIC REGENT small-tree DG
+discrepancy.** Dumped every record REGENT draws for at the year-2000 entry (jl cyc1 / FVS regent.f:158 ICYC2;
+both skip `D ≥ XMX=5″`, same threshold). The year-2000 small-tree DBHs differ BY SPECIES:
+
+| species | jl DBHs | FVS DBHs | verdict |
+|---|---|---|---|
+| 9 (WP, conifer) | 1.354, 1.297, 1.323 | 1.357, 1.300, 1.326 | **MATCH (~0.3%)** |
+| 27 (SM) | 2.100, 2.103, 2.144 | 2.202, 2.205, 2.253 | **jl ~4.7% LOW** |
+| 27 (SM) near 5″ | 4.94, 4.94, 4.97 (3 recs <5) | 4.90, 4.99 (2 recs <5) | **boundary FLIP** |
+| 30 (YB) | similar ~4-5% low | — | jl low |
+
+So white pine (sp 9) matches bit-close but sugar maple (27) / yellow birch (30) are ~4-5% LOW in jl. This is a
+real per-species REGENT (small-tree) growth error in CYCLE 0 (1990→2000) — NOT RNG phase, NOT ULP. It shifts
+the year-2000 hardwood small-tree DBHs down, so ~1 hardwood parent's tripled set keeps 3 records < 5″ in jl
+where FVS has only 2 (the upper crossed 5″) → jl draws for the extra record → the +9 bachlo / +27 rann → the
+RNG stream cascade → the per-tree distribution divergence → the THINDBH over-cut. The whole A1 chain reduces to
+this. (Aggregates hid it: small hardwoods are a small BA fraction; A2/A4 matched within ~1%.)
+
+**Next (task #50).** Find the per-species REGENT DG error for sp 27/30 (hardwoods). Candidates in
+small_tree_growth.jl (NE): the Wykoff HT→DBH inverse `_htdbh_dbh` coefficients, the `regent_min_diam` (FVS
+DIAM budwidth floor, regent.f:103), the NC-128 height curve (`ne_htcalc_*`), or BALMOD `b3_dg`. Instrument one
+sp-27 small tree's cycle-0 DG step-by-step (htgr → hk → dkk/dk → dgsm → dg) vs FVS regent.f and find the
+diverging term. Fix it (NE small-tree path only — keep SN `<3″` bit-exact), then re-run the draw counter to
+confirm cyc-2 Δ→0 and the stand-2 .sum 2130 thin converges. This is the head of the A1 chain.
 
 **Status: OPEN** (model faithful, stochastic stream not yet aligned). Previously mis-closed as "faithful
 within drift" — a lax verdict the user correctly rejected; re-opened.
