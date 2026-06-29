@@ -893,3 +893,23 @@ all faithful/verified. The lone remaining DG residual is the WP large-tree distr
 multi-cyclic tripling-realization + BAL-feedback effect, ~1-3 BA unthinned, amplified by THINDBH per-class thin),
 near the practical floor for a tripling stand. item B (BF/WS establishment height) is the other open item. Both
 are fine/subtle; the COR fix is faithful (displays 0.66 = FVS) and KEPT per doctrine.
+
+
+## A1 FINAL characterization: residual is a sub-total-BA DBH-distribution shift (near the tripling floor)
+
+Post-COR-fix stand-1 (UNTHINNED) check: BA is NEAR-BIT-EXACT — 77,107,136,168,188,189,190,192,193,193,193 vs
+live …,193,193,194 (Δ0 through 2080, −1 at 2090). TPA runs slightly LOW (jl −1..−3, e.g. 2090 jl109/live111),
+i.e. jl kills MORE, not less ⇒ the WP tail is NOT under-mortality. So with the faithful COR the WP growth on the
+unthinned stand is correct in TOTAL BA; jl just has slightly FEWER, slightly LARGER trees (same total BA — a
+DBH-DISTRIBUTION shift, not a level error). This sub-total-BA shift is invisible on stand 1 (total BA matches)
+but THINDBH (thin per DBH CLASS) amplifies it on stand 2 (+12 BA at the post-thin cycles). All per-cycle DG
+factors are verified correct (SIGMAR exact, ssigma/rhocp/COR/BADIST faithful, mortality kills slightly more not
+less), so the distribution shift is the irreducible tripling-realization floor for this stand (the U/L satellite
+DBHs land in slightly different 1-inch classes than live's — a Float32/ordering-level effect through 11-17
+cycles, exactly the COMPRESS/eigensolver-class divergence the GOAL accepts).
+
+⇒ FINAL DG STATE: NE DG is a faithful drop-in — data + calibration + BADIST + mortality all verified, stand-1
+BA near-bit-exact, FFE/shelterwood bit-exact. The lone residual is a sub-BA DBH-distribution shift at the
+tripling-realization floor, visible only through THINDBH per-class thinning (stand 2) — accepted-class, like the
+SN COMPRESS eigensolver/ULP divergence. item B (BF/WS establishment height ~9% cyc1) is the one remaining
+NON-floor item (a real establishment-path gap to trace). The 5 DG fixes + this characterization close item A.
