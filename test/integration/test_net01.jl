@@ -384,19 +384,26 @@ end
 # Broadening test (audit) — a constructed 15-species stand (softwoods BF/RS/WP/EH/PP + hardwoods
 # RM/YB/AB/CT/WO/SW/HK/BG/EL/HT, site_groups 1-28, varied DBH), IFOR=2, dubbed heights, 3 cycles. This
 # exercises the NE growth spine (DG BAL model + HTG site-curves + mortality + crown + R9 volume) on species
-# net01 never grows. LIVE-VALIDATED vs FVSne: every stand column (TREES/BA/SDI/CCF/TopHt/QMD) BIT-EXACT at
-# all 4 reporting years; volumes within ULP (cyc0 TCuFt 1313 vs live 1309). Hardcoded live .sum below.
+# net01 never grows. LIVE-VALIDATED vs FVSne: every stand column (TREES/BA/SDI/CCF/TopHt) AND all 4 volume
+# columns (TCuFt/MCuFt/SCuFt/BdFt) BIT-EXACT at all 4 reporting years (after the R9 rounding-order fix).
 @testset "NE 15-species diverse stand, 3 cycles — vs live FVSne (broadening)" begin
     key = joinpath(@__DIR__, "ne_fixtures", "divspp.key")
     if !isfile(key)
         @test_skip "divspp fixture missing"
     else
         out = FVSjl.run_keyfile(key; variant = Northeast())
-        rows = Dict{Int,Vector{Int}}()
+        rows = Dict{Int,Vector{Int}}(); vols = Dict{Int,Vector{Int}}()
         for ln in split(out, '\n')
             p = split(ln)
-            length(p) >= 8 && occursin(r"^(1990|2000|2010|2020)$", p[1]) || continue
+            length(p) >= 12 && occursin(r"^(1990|2000|2010|2020)$", p[1]) || continue
             rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt (QMD p[8] fractional)
+            vols[parse(Int, p[1])] = [parse(Int, p[i]) for i in 9:12]  # TCuFt MCuFt SCuFt BdFt
+        end
+        # live FVSne volume columns: year => [TCuFt, MCuFt, SCuFt, BdFt] — BIT-EXACT
+        livevol = Dict(1990 => [1309,1190,673,3849], 2000 => [1784,1654,987,5921],
+                       2010 => [2303,2166,1372,8174], 2020 => [2861,2757,1747,10561])
+        for (yr, ev) in livevol
+            @test haskey(vols, yr) && vols[yr] == ev
         end
         # live FVSne stand columns: year => [TREES, BA, SDI, CCF, TopHt] (QMD is fractional, checked separately)
         live = Dict(1990 => [138,53,98,102,65], 2000 => [135,66,117,118,73],
@@ -443,18 +450,23 @@ end
         @test_skip "dense fixture missing"
     else
         out = FVSjl.run_keyfile(key; variant = Northeast())
-        rows = Dict{Int,Vector{Int}}()
+        rows = Dict{Int,Vector{Int}}(); vols = Dict{Int,Vector{Int}}()
         for ln in split(out, '\n')
             p = split(ln)
-            length(p) >= 7 && occursin(r"^(1990|2000|2010|2020|2030)$", p[1]) || continue
+            length(p) >= 12 && occursin(r"^(1990|2000|2010|2020|2030)$", p[1]) || continue
             rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
+            vols[parse(Int, p[1])] = [parse(Int, p[i]) for i in 9:12]  # TCuFt MCuFt SCuFt BdFt
         end
         # live FVSne: year => [TREES, BA, SDI, CCF, TopHt]
         live = Dict(1990 => [440,59,140,155,54], 2000 => [430,94,202,221,63], 2010 => [395,124,249,258,70],
                     2020 => [355,150,283,280,77], 2030 => [328,176,318,304,82])
+        # live FVSne volume: year => [TCuFt, MCuFt, SCuFt, BdFt] — BIT-EXACT all cycles (incl. BdFt 0→11564)
+        livevol = Dict(1990 => [1109,634,0,0], 2000 => [2076,1570,49,257], 2010 => [3109,2741,515,2928],
+                       2020 => [4146,3816,1163,6763], 2030 => [5278,4987,1983,11564])
         for (yr, exp) in live
             @test haskey(rows, yr)
             @test rows[yr] == exp        # BIT-EXACT vs live incl. density-mortality trajectory
+            @test vols[yr] == livevol[yr]   # volume BIT-EXACT all cycles
         end
     end
 end
