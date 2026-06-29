@@ -66,3 +66,17 @@ U/L blend), full net01 per-stand all-column maxΔ vs live FVSne:
 WRONG — it was four real semantic bugs in the DG calibration constants + the REGENT tripling blend, all found by
 READING the code (not runtime). The user's directive was decisive. SN bit-exact throughout (suite 5281/2).
 The ONLY remaining net01 residual is stand-5 BARE establishment (the WK4 scaling, finding #7).
+
+
+## Establishment residual (stand-5 BARE) — WK4 ruled out; narrowed to RNG-stream alignment
+- WK4=HTIMLT is a FALSE-POSITIVE for net01: estab.f:518-520 `FTEMP=TRAGE; IF(FTEMP>GENTIM)FTEMP=GENTIM;
+  HTIMLT=FTEMP/(GENTIM+.0001)`. TRAGE there is the ESSUBH-REWRITTEN value (TIME−DELAY=10, HTIMLT computed AFTER
+  the essubh call estab.f:476), so FTEMP=min(10,5)=5, GENTIM=FINT−5=5 ⇒ WK4=5/5≈1.0 (no effect). The agent's
+  0.40 used the pre-essubh TRAGE=2. (WK4 IS a real feature for FINT≠10 / DELAY>0 / TRAGE<GENTIM — port for
+  completeness later, but it does NOT cause the net01 residual.)
+- FIXED: the hk≤4.5 DBH guard (regent.f:290-293, DBH=D+0.001·HK, no Wykoff inverse) — confirmed NaN-safety,
+  no net01 change (seedlings' hk>4.5) but correct for low-random WS / other scenarios. Suite 5281/2.
+- ⇒ the stand-5 BARE residual (TPA±3 BA±1 SDI±4 CCF±3 Ht±1, converging) is now isolated to the establishment
+  RNG-STREAM alignment (finding #4: estab.f:179-184 pre-replicate ESRANN→ESDRAW→ESRNSD reseed + estab.f:207-210
+  the IDUP·NPTIDS WK6 draws before replicate-1, which jl omits ⇒ all replicate establishment heights shift).
+  This is the SN-class RNG draw-order alignment, applied to establishment — the LONE remaining net01 residual.

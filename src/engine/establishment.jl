@@ -193,9 +193,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
                 end
                 hk = h + htgr; t.height[i] = hk
-                dnew = _htdbh_dbh(sd, sp, hk, ifor); dnew < 0.1f0 && (dnew = 0.1f0)
-                dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
-                t.dbh[i] = dnew + 0.001f0 * hk
+                if hk <= 4.5f0                       # regent.f:290-293: DG=0, DBH=D+0.001·HK (no Wykoff inverse)
+                    t.dbh[i] = t.dbh[i] + 0.001f0 * hk
+                else
+                    dnew = _htdbh_dbh(sd, sp, hk, ifor); dnew < 0.1f0 && (dnew = 0.1f0)
+                    dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
+                    t.dbh[i] = dnew + 0.001f0 * hk
+                end
             end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding
