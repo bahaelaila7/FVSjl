@@ -429,11 +429,17 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
         spFlg && (vol[7] = max(tcfVol - scfVol, 0f0))       # topwood = merch − saw (= full merch when sawHt=0)
     end
 
-    # rounding (r9clark:456-461) then r9cor corrections
-    vol[1] > 0f0 && (vol[1] = round(vol[1] * 10f0) / 10f0)
-    vol[4] > 0f0 && (vol[4] = round(vol[4] * 10f0) / 10f0)
-    vol[7] > 0f0 && (vol[7] = round(vol[7] * 10f0) / 10f0)
+    # FVS r9clark.f:454-462 applies the correction (r9cor) FIRST, THEN nint-rounds. The port had these
+    # REVERSED (round-half-even then cor), so each printed value was cor×(0.1-multiple) instead of the clean
+    # nint(cor×raw) FVS emits — a consistent ~0.3% high bias on TCuFt/BdFt (per-tree within .trl print
+    # precision, but it accumulated ×TPA). nint = round-half-AWAY-from-zero (Fortran NINT), not Julia's
+    # default round-half-to-even. Board feet (vol[2]) rounds to a whole number (r9clark.f:457).
     _r9_cor!(vol, spp, iProd)
+    rnd(x) = round(x, RoundNearestTiesAway)
+    vol[1] > 0f0 && (vol[1] = rnd(vol[1] * 10f0) / 10f0)
+    vol[2] > 0f0 && (vol[2] = rnd(vol[2]))
+    vol[4] > 0f0 && (vol[4] = rnd(vol[4] * 10f0) / 10f0)
+    vol[7] > 0f0 && (vol[7] = rnd(vol[7] * 10f0) / 10f0)
     return vol
 end
 
