@@ -470,6 +470,12 @@ Found+fixed a real cosmetic bug along the way: the `.sum` -999 header stamped th
 FIX: simulate.jl threads `variant = variant_code(s.variant)` → NE runs now stamp "NE". SN unaffected
 (variant_code(Southern())=="SN"). Suite 5197/2.
 
-NE keyword paths still un-cross-validated vs live (net01 doesn't hit them): THINABA/THINATA (BA/TPA
-from above), THINSDI, THINCC, THINHT, FIXMORT, plus species/volume-equation variants. Next breadth
-increments. This breadth (vs SN's 37 scenarios) is the remaining gate before docs/NE_COMPLETE.
+THINABA (thin from ABOVE to resid BA 60) and THINSDI (resid SDI 120) ALSO validated FAITHFUL vs live
+the same way: THINABA removes the large trees (QMD 6.1→4.7, removed 80/81 TPA, 2010 resid TPA 435/434
+BA 82/81); THINSDI removes 254/255 TPA to after-cut SDI 109/109 (2010 resid TPA 265/263 BA 75/75) — all
+within the cyc-1 DG/vol drift. ⇒ the variant-agnostic cut-selection subsystem (cuts.f) drives correctly
+off the NE growth/volume. All three pinned as a parameterized net01 integration test (18 assertions).
+
+NE keyword paths still un-cross-validated vs live (net01 doesn't hit them): THINATA (TPA from above),
+THINCC, THINHT, FIXMORT, plus species/volume-equation variants. Next breadth increments. This breadth
+(vs SN's 37 scenarios) is the remaining gate before docs/NE_COMPLETE.

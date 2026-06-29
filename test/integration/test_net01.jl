@@ -52,41 +52,43 @@ end
     end
 end
 
-# THINBBA (thin-from-below to a residual basal area) — a thinning path net01 itself does NOT
-# exercise (net01 uses THINDBH/THINBTA). Built by injecting a THINBBA into net01 stand-1 and
-# validated vs the live FVSne oracle: at 2000 the thin takes the UNTHINNED-CONTROL stand
-# (TPA 524 / BA 107 / QMD 6.1) down to residual BA ~55 (target 60), removing the small trees
-# so TPA→83 and QMD→10.8. Also pins the .sum -999 header variant code = "NE" (was defaulting
-# to "SN" — run_keyfile now threads variant_code(s.variant)). See docs/NE_PORT_STATUS.md.
-@testset "net01 (NE) THINBBA thin-from-below — vs live FVSne + header variant" begin
+# NE thinning-keyword breadth — three cut-selection paths net01 itself does NOT exercise (it
+# uses THINDBH/THINBTA). Each injects one THIN* before stand-1's PROCESS and is validated vs the
+# live FVSne oracle. The cut-selection (cuts.f) is variant-agnostic shared code; these confirm it
+# drives correctly off the NE growth/volume that feeds it. The UNTHINNED-CONTROL stand at 2000 is
+# TPA 524 / BA 107 / QMD 6.1; each row is (target, live-2010-resid-TPA, live-2010-resid-BA):
+#   THINBBA 60  (resid BA, thin from BELOW — removes small trees, QMD↑) → 2010  83 / 67
+#   THINABA 60  (resid BA, thin from ABOVE — removes large trees, QMD↓) → 2010 434 / 81
+#   THINSDI 120 (resid SDI target)                                      → 2010 263 / 75
+# jl tracks live within the documented cyc-1 DG/volume ULP drift (#50). Also pins the .sum -999
+# header variant code = "NE" (was defaulting to "SN"; run_keyfile now threads variant_code).
+@testset "net01 (NE) thinning-keyword breadth — vs live FVSne + header variant" begin
     if !isfile(_NET01_KEY)
         @test_skip "net01.key not available"
     else
-        # Inject a THINBBA (residual BA 60) before stand-1's PROCESS; run through run_keyfile.
-        raw = read(_NET01_KEY)                       # net01.key is CR-delimited
-        recs = split(String(raw), '\r')
-        thin = rpad("THINBBA", 10) * lpad("2000.0", 10) * lpad("60.0", 10)   # 10-col FVS fields
-        pidx = findfirst(r -> strip(r) == "PROCESS", recs)
-        insert!(recs, pidx, thin)
-        dir = mktempdir()
-        kp = joinpath(dir, "thinbba.key")
-        write(kp, join(recs, '\r'))
-        cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "thinbba.tre"))
-        out = FVSjl.run_keyfile(kp; variant = Northeast())
-        # Header variant must read NE (the fix), not the SN default.
-        @test occursin(r"-999.*\bNE\b", first(split(out, '\n')))
-        # Parse stand-1's 2000 row (2nd data row of the 1st -999 block).
-        lines = split(out, '\n')
-        b1 = findfirst(l -> startswith(l, "-999"), lines)
-        row2000 = split(lines[b1 + 2])                # 1990 = b1+1, 2000 = b1+2 (thin year)
-        row2010 = split(lines[b1 + 3])                # post-thin stand shows at the next period
-        @test parse(Int, row2000[1]) == 2000
-        # 2000 col3/col4 = start-of-period (pre-thin) TPA/BA. Live: 524 / 107.
-        @test parse(Int, row2000[3]) == 524           # pre-thin TPA (live 524)
-        @test parse(Int, row2000[4]) == 107           # pre-thin BA  (live 107)
-        # 2010 col3/col4 = the THINNED residual grown one cycle. Live: TPA 83 / BA 67.
-        # Confirms the thin-from-below removed the small trees (524→83) to residual BA ~55.
-        @test parse(Int, row2010[3]) ≈ 83 atol = 2    # post-thin residual TPA (live 83)
-        @test parse(Int, row2010[4]) ≈ 67 atol = 2    # post-thin residual BA  (live 67)
+        function run_thin(kw, val)
+            recs = split(String(read(_NET01_KEY)), '\r')   # net01.key is CR-delimited
+            thin = rpad(kw, 10) * lpad("2000.0", 10) * lpad(val, 10)   # 10-col FVS fields
+            insert!(recs, findfirst(r -> strip(r) == "PROCESS", recs), thin)
+            dir = mktempdir()
+            kp = joinpath(dir, "$(lowercase(kw)).key")
+            write(kp, join(recs, '\r'))
+            cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "$(lowercase(kw)).tre"))
+            FVSjl.run_keyfile(kp; variant = Northeast())
+        end
+        for (kw, val, resid_tpa, resid_ba) in
+            (("THINBBA", "60.0", 83, 67), ("THINABA", "60.0", 434, 81), ("THINSDI", "120.0", 263, 75))
+            out = run_thin(kw, val)
+            lines = split(out, '\n')
+            @test occursin(r"-999.*\bNE\b", lines[1])     # header variant = NE (the fix)
+            b1 = findfirst(l -> startswith(l, "-999"), lines)
+            row2000 = split(lines[b1 + 2])                # 1990=b1+1, 2000=b1+2 (thin year)
+            row2010 = split(lines[b1 + 3])                # post-thin residual shows next period
+            @test parse(Int, row2000[1]) == 2000
+            @test parse(Int, row2000[3]) == 524           # pre-thin TPA (live 524)
+            @test parse(Int, row2000[4]) == 107           # pre-thin BA  (live 107)
+            @test parse(Int, row2010[3]) ≈ resid_tpa atol = 3   # post-thin residual TPA vs live
+            @test parse(Int, row2010[4]) ≈ resid_ba  atol = 2   # post-thin residual BA  vs live
+        end
     end
 end
