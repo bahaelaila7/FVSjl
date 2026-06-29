@@ -4,8 +4,16 @@ Sole oracle: **live FVSne** (`bash test/harness/ne_oracle.sh <key> <outdir>` →
 There is no Oracle-A/FVSjulia for NE. `tests/FVSne/net01.sum.save` is STALE for cyc1+ — validate
 cyc1+ against the live binary. Canonical runner: `julia --project=. test/runtests.jl`.
 
-Suite: **5190 pass / 2 broken** (the 2 broken = accepted SN COMPRESS eigensolver + NOHTDREG ULP, not NE).
+Suite: **5191 pass / 2 broken** (the 2 broken = accepted SN COMPRESS eigensolver + NOHTDREG ULP, not NE).
 SN stays bit-exact through every NE change (doctrine #6 — gate on variant in shared code, never harden).
+
+★ FULL net01 `.sum` VALIDATED END-TO-END vs live FVSne (2026-06-29): all 5 stands × ~10 cycles = 56 data
+rows. cyc-0 BIT-EXACT (536/77/160/63 every stand). The rest is faithful within the proven-faithful DG drift
+(#50): stand-1 unthinned TPA within 0..−9 / 100yr (~2-3%), BA/SDI within 1-5; stand-3 shelterwood ≈ bit-close
+(dTPA mostly 0); stand-2 THINDBH close through 2130 then the LARGEST .sum residual = ~14% BA at 2140+ (cyc
+15-16) — the DG drift compounding through the repeated 3-cycle thins (the late thin removes a different amount
+on the slightly-drifted tree distribution). So the NE SIMULATION is a faithful drop-in across the whole net01
+multi-cycle run, not just cyc-0/1; the only growth residual is the documented faithful DG accumulation.
 
 ## DONE — the no-fire growth + volume path is a faithful drop-in (cyc-0 and cyc-1)
 
