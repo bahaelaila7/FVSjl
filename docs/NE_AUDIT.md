@@ -482,3 +482,36 @@ draw-ORDER vs ne/regent.f -- a real (small) RNG-sequence misalignment for the U/
 yet fixed. VERDICT: OPEN, ~0.1% per-U/L-record, the SN-class RNG-order alignment for the small-tree tripling.
 NEXT: instrument the REGENT bachlo draw sequence (which sub-record consumes which draw) jl vs regent.f for one
 sp27 small tree at cyc0.
+
+
+## A1 ROOT CAUSE FOUND + FIXED: ne_badist! /gross_space (the BA divergence)
+
+The user-flagged stand-2 "-40 vs -22 BA" divergence (and the net01 stand-1 cyc1+ BA drift) traces to a
+SINGLE bug in `ne_badist!` (the BAL competition array, ne/badist.f analog): it divided each tree's basal-area
+contribution by `gross_space` (=1.1 for net01), scaling the ENTIRE `ebau` array by 10/11 (0.9091x) vs live FVS.
+
+### How it was found (term-by-term, not by test behaviour)
+1. cyc1 wk2 split: d=2.9095 sp27 BIT-EXACT, d~3.0 off -> entry DBH differs -> cyc0 growth diverged for SOME trees.
+2. Sorted cyc1-entry DBH (all 24 sp27): ~14 bit-exact, ~10 diverge 0.003-0.09, growing with size (large trees too).
+3. cyc0 tripling C/U/L dump: the CENTRAL diverges for d=10.4/12.7 (not a tripling-spread issue) -> the dgf DDS.
+4. cyc0 wk2/dds dump: jl `diagr` HIGHER for the diverging trees -> jl BAL too LOW (less competition).
+5. ebau full-array dump vs live FVS BADIST: jl[class] == FVS[class] * 10/11 at EVERY class (52->47.273, 32->29.091,
+   20->18.182, 8->7.273 ...). Exactly 10/11 = 1/gross_space.
+
+### Why it was MASKED for most trees (and the cyc0 stand summary was bit-exact)
+BALMOD floors `GMOD = exp(-B3*BAL)` at 0.5. High-competition trees (small/dense, the majority) have GMOD<0.5 ->
+clamped to 0.5 in BOTH jl and FVS, so the 10/11 BAL error is invisible. Only large/low-competition trees
+(GMOD>0.5, reading the BAL directly) expose it -> they over-grow -> BA accumulates high over cycles. So cyc0
+TPA/BA/SDI matched (all trees GMOD-floored at cyc0 density) but the error compounded as the stand opened up.
+
+### The fix (ne_badist!, faithful to ne/badist.f)
+- REMOVE the `/gross_space`: PROB(I) is already per-acre; FVS BADIST sums `0.0054542*TDBH^2*PROB` with NO area
+  division (matches the bit-exact `stand_ba`, which uses tpa directly).
+- ADD the TDBH floor: BADIST floors DBH at 1.0 for the BA contribution (`IF(TDBH.LT.1.0)TDBH=1.0`), binning by
+  the ACTUAL DBH. jl was using raw d^2 (under-counted sub-1" trees in class 1).
+
+### Live-validated result (net01 stand 1, jl vs live FVSne, year/age/TPA/BA/SDI/CCF/Ht)
+BA now tracks live FVS bit-exact ALL cycles: 77,107,136,168,188,189,190,192,193,193,193 (jl) vs
+77,107,136,168,188,189,190,192,193,193,194 (FVS). Was diverging ~-20 BA before. Residuals now tiny (TPA +-1-3,
+SDI +-1-2, CCF +-1, TopHt +-2 late) = the next layer (mortality record selection / height-growth tail), NOT BA.
+Suite 5214/2 (SN bit-exact, no regression). VERDICT: A1 BA divergence RESOLVED.

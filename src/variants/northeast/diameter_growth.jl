@@ -27,11 +27,17 @@ then cumulate from the top so `ebau[c]` = Σ BA in classes ≥ c.
 """
 function ne_badist!(ebau::Vector{Float32}, s::StandState)
     fill!(ebau, 0f0)
-    t = s.plot.gross_space; tr = s.trees
+    tr = s.trees
     @inbounds for i in 1:tr.n
         d = tr.dbh[i]; d <= 0f0 && continue
-        icls = min(floor(Int, d + 1f0), 50); icls < 1 && (icls = 1)
-        ebau[icls] += 0.0054542f0 * d * d * tr.tpa[i] / t   # per-acre basal area
+        icls = min(floor(Int, d + 1f0), 50)
+        # BADIST (ne/badist.f:45-47) floors DBH at 1.0 for the BA contribution (TDBH), but bins
+        # by the ACTUAL DBH; PROB is already per-acre, so NO gross_space division (matching the
+        # bit-exact `stand_ba`). The earlier `/gross_space` scaled every class by 10/11 — masked
+        # for high-BAL trees by the GMOD≥0.5 floor, but it under-grew the large/low-competition
+        # trees whose GMOD>0.5 reads the BAL directly.
+        tdbh = d < 1f0 ? 1f0 : d
+        ebau[icls] += 0.0054542f0 * tdbh * tdbh * tr.tpa[i]   # per-acre basal area (PROB·BA/tree)
     end
     @inbounds for i in 49:-1:1
         ebau[i] += ebau[i + 1]
