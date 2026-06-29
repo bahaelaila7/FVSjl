@@ -762,3 +762,25 @@ deficit. ALSO regent.f:163-175 (LESTB) assigns a fresh crown-ratio via a BACHLO 
 net01 BARE cohort hits the REGENT LESTB branch (ESTAB→ESTPLT→REGENT with LESTB), and if so add the LESTB→XWT=0
 (+ the CR draw) to small_tree_growth! (NE-gated). Verify vs live BARE per-tree. This is item B (distinct from the
 WP tail A); both are the last growth-side residuals on net01, each amplified in the volume columns.
+
+
+## A1 item B LOCALIZED: BARE planted-cohort (BF/WS) per-cycle HEIGHT-growth deficit (~9% cyc1)
+
+Traced the stand-5 BARE establishment deficit per-cycle (jl median DBH/HT vs live .out sample table, matched by
+DBH since the report/grow order offsets the year label):
+- cyc1: jl d1.337/h10.819 vs live d1.49/h11.84 — BOTH ~9-10% low.
+- cyc2: jl d3.682/h23.547 vs live d3.86/h24.47.  cyc3: jl d4.908/h33.437 vs live d5.04/h35.10.
+- The absolute HEIGHT offset is ~1.0-1.7 ft (1.02→0.92→1.66) — NOT a fixed initial-planted-height offset (which
+  would stay constant in absolute terms while % shrinks); it's a per-cycle HTG deficit. DBH follows height (the
+  REGENT Wykoff HT→DBH inverse), so the DBH/BA/MCuFt deficit is DOWNSTREAM of the height deficit.
+⇒ item B = the planted BF (sp1) / WS (sp3) cohort's small-tree (REGENT) HEIGHT increment runs ~9% slow cyc1,
+the deficit accumulating modestly in absolute height but converging in % (and in the DBH merch-fraction) as the
+trees leave the small-tree regime. ROOT CANDIDATES (next): (1) the NC-128 ne_htcalc site-curve increment for
+BF/WS specifically (net01 stands 1-3 have no BF/WS, so this is the first BF/WS exercise — a species-coef check
+vs ne/htcalc.f LTBHEC/B-coefs); (2) the establishment-cohort age/LESTB height path (regent.f LESTB: fresh CR
+draw + XWT=0 + possibly a different HTCALC age basis for newly-established trees). Distinguish by checking the
+BF/WS NC-128 coefficients first (cheap), then the LESTB HTG path. Small (~9% cyc1, converging); BARE-stand only.
+
+VERDICT: item B localized to the BF/WS planted-cohort REGENT height increment (species-curve or LESTB-age). Both
+remaining net01 residuals now localized to a specific mechanism: A = WP calib-BADIST-backdating + tripling; B =
+BF/WS establishment height. Both need focused per-tree turns; net01 otherwise functionally complete + validated.
