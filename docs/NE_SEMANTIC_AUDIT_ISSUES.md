@@ -220,3 +220,17 @@ top-killed); (3) in the volume driver use H=NORMHT/100 when TKILL=(H≥4.5 ∧ I
 BEHPRM (Behre AHAT/BHAT params) + BEHRE (Behre profile integral) and apply to TCF/MCF/SCF. The R9 cubic KERNEL
 is already proven bit-exact (all dubbed stands) — this is purely the top-kill WRAPPER. This is the clear next
 port item; it closes net01 to fully bit-exact AND the parallel SN snt01 residual.
+
+
+## TOP-KILL PORT DONE — net01 now FULLY bit-exact on volume (NORMHT + CFTOPK wired into compute_volumes_ne!)
+The top-kill machinery already existed (treeinput reads damage96/97+HTTOPK→trunc/norm_ht=-1; dub_missing_heights!
+resolves norm_ht=predicted HTDBH height; behre/behre_params/cftopk/bftopk ported in volume.jl; SN compute_volumes!
+already applies them). Only compute_volumes_ne! (the early-dispatch NE path, volume.jl:405) didn't. FIXED: added
+the same block — `tkill=h≥4.5 ∧ trunc>0`; `h=norm_ht/100` (the NORMAL predicted height); after r9clark_cubic,
+`cftopk`+`bftopk` truncate back to the break. NE _ne_merch returns scalars so the merch standards are wrapped as
+1-tuples indexed by sp=1. RESULT: net01 stand-1 cyc0 BIT-EXACT all 4 vol cols (TCuFt 1558, MCuFt 1347, SCuFt 292,
+BdFt 1633 = live); the broken-top SM d10.4 tree 13.8→15.4 (=live .trl), sp49 d8.0 tree likewise. net01 had 2
+top-killed trees. Dubbed stands UNCHANGED (no tkill ⇒ identical path); SN unaffected (NE-only fn). Test
+strengthened to assert all 4 vol cols + the per-tree top-kill TOT. Suite 5333/2. ⇒ net01 volume is now fully
+faithful — the last net01 residual is CLOSED. (SN snt01's parallel top-kill residual remains; the SN path already
+has cftopk so it may already be handled — verify separately if revisiting SN.)

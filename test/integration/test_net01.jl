@@ -25,10 +25,18 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         @test n.trees.species[1] == 19
         @test n.trees.dbh[1] ≈ 11.5f0
         # Volume columns (R9 Clark cubic + International-¼" board feet). Live 1990 row:
-        # TCuFt 1558 MCuFt 1347 SCuFt 292 BdFt 1633.
+        # TCuFt 1558 MCuFt 1347 SCuFt 292 BdFt 1633 — now BIT-EXACT after the rounding-order fix
+        # (cor→nint) and the top-kill port (NORMHT + CFTOPK for the broken-top SM d10.4 / sp49 trees).
         FVSjl.setup_growth!(n); FVSjl.compute_volumes!(n)
-        bdft = sum(n.trees.bdft_vol[i] * n.trees.tpa[i] for i in 1:n.trees.n) / g
-        @test di(bdft) ≈ 1633 atol = 8       # International ¼" board feet (R9LOGS + r9bdft)
+        tv(f) = di(sum(getfield(n.trees, f)[i] * n.trees.tpa[i] for i in 1:n.trees.n) / g)
+        @test tv(:cuft_vol)       == 1558    # total cubic — BIT-EXACT
+        @test tv(:merch_cuft_vol) == 1347    # merch cubic — BIT-EXACT (top-kill NORMHT/CFTOPK)
+        @test tv(:saw_cuft_vol)   == 292     # sawtimber cubic — BIT-EXACT
+        @test tv(:bdft_vol)       == 1633    # International ¼" board feet — BIT-EXACT
+        # the top-killed SM (sp27) d=10.4 tree: built on NORMHT=63.9 (not the broken 55) then CFTOPK
+        ti = findfirst(i -> n.trees.trunc[i] > 0 && Int(n.trees.species[i]) == 27, 1:n.trees.n)
+        @test ti !== nothing
+        @test round(n.trees.cuft_vol[ti]; digits = 1) ≈ 15.4 atol = 0.1   # live .trl per-tree TOT
     end
 end
 

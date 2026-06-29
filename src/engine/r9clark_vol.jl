@@ -475,16 +475,35 @@ function compute_volumes_ne!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
             continue
         end
+        # Broken-top trees (FVS vols.f:146 `IF(TKILL) H=NORMHT/100`): build the volume profile from the
+        # NORMAL (predicted full) height — `norm_ht`, resolved by dub_missing_heights! — then truncate it
+        # back to the break with CFTOPK/BFTOPK (vols.f:193). Without this a top-killed tree's cubic was
+        # built on the SHORT broken height (net01 SM d10.4 HTTOPK49: jl TOT 13.8 vs live 15.4).
+        tkill = h >= 4.5f0 && t.trunc[i] > 0
+        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, _stmp, _scfstmp = _ne_merch(sp, ifor)
+        dbhmin, topd, scfmind, scftopd, stmp, scfstmp = _ne_merch(sp, ifor)
         prod = d >= scfmind ? "01" : "02"
         mtopp = d >= scfmind ? scftopd : topd
         v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
-        t.cuft_vol[i]      = v[1]
-        t.merch_cuft_vol[i] = d >= dbhmin  ? v[4] + v[7] : 0f0
-        t.saw_cuft_vol[i]   = d >= scfmind ? v[4] : 0f0
-        t.bdft_vol[i]       = d >= scfmind ? v[2] : 0f0   # Scribner board feet (R9LOGS/r9bdft)
+        tcf = v[1]
+        mcf = d >= dbhmin  ? v[4] + v[7] : 0f0
+        scf = d >= scfmind ? v[4] : 0f0
+        bf  = d >= scfmind ? v[2] : 0f0                   # International ¼" board feet (R9LOGS/r9bdft)
+        if tkill && tcf > 0f0
+            bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
+            # _ne_merch returns per-species SCALARS; wrap as 1-tuples so cftopk/bftopk's `merch.x[sp]`
+            # works with sp=1. NE board-foot tops == sawtimber tops (bf-equal); bftopk only acts when bf>0.
+            mk = (stmp = (stmp,), topd = (topd,), scfstmp = (scfstmp,), scftop = (scftopd,),
+                  bftopd = (scftopd,), bfstmp = (scfstmp,))
+            tcf, mcf, scf = cftopk(mk, 1, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
+            bf = bftopk(mk, 1, d, h, bf, v[1], bark, Int(t.trunc[i]))
+        end
+        t.cuft_vol[i]      = tcf
+        t.merch_cuft_vol[i] = mcf
+        t.saw_cuft_vol[i]   = scf
+        t.bdft_vol[i]       = bf
     end
     return s
 end
