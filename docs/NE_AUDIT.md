@@ -16,7 +16,15 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
-## A1 — NE stochastic RNG stream not bit-aligned to FVSne (OPEN; model faithful, realization not) ★ flagged by user "−40 vs −22 BA not acceptable"
+## A1 — Stand-2 thin divergence ★ flagged by user "−40 vs −22 BA not acceptable"
+
+> **RESOLUTION (read the "A1 — FIX LANDED" section below first).** The root cause was NOT an unalignable
+> RNG realization (the earlier conclusion in this section, kept for the investigation record). It was a
+> CONCRETE coefficient bug: 20 species had the IFOR=3 Allegheny HT-DBH override values instead of the
+> defaults. Fixing it closed the first/largest draw divergence (cyc2 +27→0). The "RNG not alignable" framing
+> below was WRONG — the draw sequence WAS alignable once the upstream coefficient was corrected; this is why
+> the draw-counter method (find first divergence → trace the term → fix) is the right approach, not accepting
+> the divergence. Smaller cyc4+ divergences remain (same method).
 
 **Symptom.** net01 stand-2 (repeated THINDBH every 3 cycles) `.sum`: through ~2110 jl tracks live within
 ~Δ4 BA, then at the **2130 thin (cycle 15)** jl removes ~2× the wood — after-cut BA **83 (jl) vs 99 (live)**,
