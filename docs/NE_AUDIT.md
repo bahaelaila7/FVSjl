@@ -539,3 +539,27 @@ REMAINING net01 stand-1 residual (post-badist) is now ISOLATED to HEIGHT GROWTH:
 
 OPEN ITEMS toward NE_COMPLETE: (1) the sp9 height-growth tail (~2-3 ft TopHt late, this residual);
 (2) NE FFE (stand 4, fire — the one unported subsystem; run_keyfile on full net01 still hits :v2t).
+
+
+## A1 height-tail follow-up: cycle-0 heights BIT-EXACT; residual is growth-side HTG on large SM/JP
+
+Investigated the post-badist TopHt residual (jl 2-3 ft low by late cycles). Findings:
+- **Cycle-0 per-tree heights are BIT-EXACT vs live** (each_stand+notre!+setup_growth!, by DBH):
+  sp27/SM d12.7→h67.0 (=live SM1 67.00), sp9/WP d6.1→h38.0 (=live WP1 38.00), sp19/JP d8.5→h52.71
+  (=live JP1 52.71), sp9/WP d10.9→h65, sp19/JP d11.5→h73. Species map confirmed: sp27=SM (sugar
+  maple), sp19=JP (jack pine), sp9=WP (white pine), sp49=the broken-top record (d8.4 h5.0).
+- So the residual is PURELY growth-side height accumulation, NOT a cycle-0 height-dub or HT-DBH bug,
+  and NOT calibration (height increment model 1.00 all species). The DG half is bit-exact (BA matches).
+- The TopHt-driving trees are the large-DBH SM/JP; their HTG runs a hair slow, compounding to ~2-3 ft
+  (≈2%) by 2080-2090 after being 0 for the first 6 cycles. Candidate: ne/htgf.f site-curve tail or the
+  BAL/relht height modifier (GMOD=(1−(1−bal)(1−relht))·0.8) for tall trees (relht→1). Partly OLDRN scatter.
+- ★ USEFUL ORACLE: the live FVSne `.out` "ATTRIBUTES OF SELECTED SAMPLE TREES" table prints, per cycle,
+  the DBH-percentile trees' DBH + HEIGHT + CROWN — a ready per-tree HTG oracle WITHOUT needing the
+  TREELIDB DB (TREELIST keyword writes only to .out; DATABASE/TREELIDB did not emit FVS_TreeList_East
+  here). Build a clean stand key with `TREELIST 0`, parse the per-cycle %tile blocks (cols: %tile, sp,
+  DBH, HEIGHT, CROWN, PastDBHgrowth, BA, TPA). NEXT trace = align jl's percentile trees to these and
+  diff HEIGHT per cycle for the SM/JP large trees to localize the htgf tail (systematic vs OLDRN).
+
+VERDICT: A1 BA divergence FULLY RESOLVED + validated (stands 1 & 2). The TopHt ~2% late-cycle tail is a
+SEPARATE, smaller htgf-side residual, now precisely characterized (cycle-0 exact; growth-side; large
+SM/JP) and deferred with a concrete next-trace recipe. NE FFE (stand 4) remains the one unported subsystem.
