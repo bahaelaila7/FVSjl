@@ -198,8 +198,13 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      models **9/10 == live** (was 8/9/10); the net01 SIMFIRE post-fire .sum TPA STAYS BIT-EXACT (536/285/168/164/161/157).
      ⇒ OINIT1 torching now uses the right models (HPA 891→577): OINIT1 76→106 vs live 90.6 — the RESIDUAL is now the HPA
      WEIGHTING (jl per-model `Σxir·w/Σsigma·w` vs FVS combined-model SXIR/SSIGMA from a merged fuel model). So OINIT1's
-     last gap is the per-model-vs-combined-model HPA (the flame's `Σbyram·w` weighting matched, so try HPA =
-     `Σbyram·w / Σspread·w` ≈ combined byram/spread). Still not wired until that lands.
+     last gap is the per-model-vs-combined-model HPA. Tested 3 weightings (severe, models 9/10): HPA_A `Σxir·w/Σsigma·w`
+     = 577 → OINIT1 106; HPA_B `Σbyram·w/Σspread·w` = 654 → 96.9; HPA_C `Σ(hpa_model·w)` = 634 → 99.1. Live OINIT1 = 90.6
+     ⇒ live's HPA must be > 654, HIGHER than any per-model weighting — confirming FVS uses the FMFINT COMBINED model
+     (merges the 9/10 loadings/SAV/depth into ONE effective model, then computes xir/sigma/HPA); jl weights per-model
+     OUTPUTS (Σbyram·w matched the flame but underestimates HPA). So OINIT1 is gated on porting the FMFINT combined-model
+     merge. NOT wired (96.9 vs 90.6 ≈ 7%, not ULP). The one remaining structural FFE item; the crowning index OACT1
+     (bit-exact) used the FIXED FM10 so it was unaffected.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
