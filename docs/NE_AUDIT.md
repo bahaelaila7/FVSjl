@@ -16,7 +16,7 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
-## A1 — Tripled-record DBH over-dispersion (OPEN, HIGH) ★ flagged by user "−40 vs −22 BA not acceptable"
+## A1 — Tripled-record DBH over-dispersion under REPEATED thinning (OPEN, bounded) ★ flagged by user "−40 vs −22 BA not acceptable"
 
 **Symptom.** net01 stand-2 (repeated THINDBH every 3 cycles) `.sum`: through ~2110 jl tracks live within
 ~Δ4 BA, then at the **2130 thin (cycle 15)** jl removes ~2× the wood — after-cut BA **83 (jl) vs 99 (live)**,
@@ -91,9 +91,20 @@ live's 165 — jl does not prune emptied records the way FVS record-management d
 count, guaranteeing stream divergence. SN bit-aligned this against the Oracle-A transliteration; NE has no such
 reference, so the multi-cycle tripled-record RNG stream was never aligned.
 
-**Next (task #50).** (a) Port FVS's mid-run record pruning so jl's live-record count tracks FVSne (re-aligns
-the draw count); (b) trace ne/dgdriv.f's BACHLO draw ORDER (species-sorted, per tripled record) against jl's
-and bit-align. This is a focused multi-step effort — the one substantive OPEN item blocking NE_COMPLETE.
+**Scope NARROWED — it's the tripling × repeated-thinning interaction, not pure growth.** The UNTHINNED
+stand-1 tracks live faithfully through all 10 cycles (2090: TPA 110/111, BA 192/194, SDI 274/279, QMD 17.9
+exact, TCuFt 7538/7456 = 1.1%, BdFt 42978/43258 = 0.6%). So the tripled-record growth is fine in isolation;
+the over-dispersion only appears in stand-2, which thins to per-DBH-class targets EVERY 3 cycles (5 thins over
+16 cycles). Mechanism: each THINDBH removes a slightly different set of records in jl vs live (post-thin TREDEL
+compaction order + which partial-cut records survive → a different surviving-record RNG stream), and over 5
+repeated thins this compounds into the 16–20″ class divergence. Same class as the SN COMPRESS work (TREDEL
+compaction + RDPSRT order, already done for SN). **Practical severity is bounded**: it requires repeated
+class-target thinning of one stand; normal NE projection (stand-1 unthinned, single thins A3) is faithful.
+
+**Next (task #50).** Trace the post-thin record survival + compaction order (cuts.jl TREDEL path) for the
+THINDBH class-target case against FVS cuts.f/TREDEL, and bit-align which records survive a partial cut + their
+order, so the surviving-record RNG stream tracks FVSne across repeated thins. Focused multi-step effort; the
+one substantive OPEN item, now bounded to the repeated-thinning scenario.
 
 **Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
 correctly rejected. Re-opened.
