@@ -79,8 +79,21 @@ The 9× record count makes the NE dgscor!/BACHLO RNG stream draw 9× and drift f
 tripled-record RNG stream was never bit-aligned. Mild systematic over-dispersion (+28% avg) rides on the
 phase noise, so it is not purely RNG-phase.
 
-**Next.** Trace the NE dgscor!/BACHLO draw order + count per cycle against ne/dgdriv.f for the tripled-record
-set; check whether record pruning (live 165 vs jl 230 records at cyc15) changes the draw stream. Task #50.
+**Candidate fixes ruled out (all faithful):** the tripling factors FU/FM/FL (= ne/dgdriv.f:626-628), the
+tripling cadence ICL4=2 (= ne/grinit.f:183), per-record DG+mortality (NOTRIPLE matches), the dgscor! per-cycle
+bound (jl replicates dgscor.f's `|frm|>DGSD·SIGMA` redraw + the dds>4 taper), and DGSD=2 (= NE grinit). The
+OLDRN init clamp (dgdriv.f:634, ±DGSD·SIGMA) is a one-time calibration step, and an unclamped tripled-record
+seed self-bounds after one dgscor cycle — not the systematic lever.
+
+**Remaining cause = RNG-stream misalignment of the tripled records.** With 9× records jl's NE BACHLO/dgscor
+draw stream diverges from live FVSne over 15 cycles; the count mismatch (jl carries 230 records at cyc15 vs
+live's 165 — jl does not prune emptied records the way FVS record-management does) changes the per-cycle draw
+count, guaranteeing stream divergence. SN bit-aligned this against the Oracle-A transliteration; NE has no such
+reference, so the multi-cycle tripled-record RNG stream was never aligned.
+
+**Next (task #50).** (a) Port FVS's mid-run record pruning so jl's live-record count tracks FVSne (re-aligns
+the draw count); (b) trace ne/dgdriv.f's BACHLO draw ORDER (species-sorted, per tripled record) against jl's
+and bit-align. This is a focused multi-step effort — the one substantive OPEN item blocking NE_COMPLETE.
 
 **Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
 correctly rejected. Re-opened.
