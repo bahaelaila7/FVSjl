@@ -251,3 +251,19 @@ is_sprouting column for NE = ISPSPE (blkdat.f:109) = {20, 26-70, 72-97, 99-108} 
 + SPRTHT(NE) + Wykoff-inverse DBH + BACHLO random, NO nsprec/essprt; (3) port NE SPRTHT (sprtht.f VARACD=NE
 branch). VALIDATE vs live: thinned dense stand (THINBBA 2010 resid-BA 100) → live 2020 TREES 301 / BA 119
 (incl. sprouts). KEEP SN bit-exact (variant-gate the esuckr! sprout-creation; sprout.key SN validation must hold).
+
+
+## NE SPROUTING — crash FIXED + partial port (BA/vol exact; count approximate, tables TODO)
+Fixed the NE-thinning-AUTOES crash: (1) created data/northeast/sprout_essprt.csv with is_sprouting = ISPSPE
+{20,26-70,72-97,99-108} (82 spp) ⇒ cuts.jl:128 guard works; (2) added sprtht_ne (essprt.f SPRTHT CASE('NE'):
+spp {26-70,72-97,99-108} use (0.1+SI/50)·age, else 0.5+0.5·age) + ne_sprout_dbh (esuckr.f:294-301 Wykoff inverse
+HT2/(ln(HT−4.5)−HT1)−1 reading NE :htdbh_ht1/ht2 — the IABFLG=1 path, the default since LHTDRG/AA re-fit needs
+≥3 measured heights, cratet.f:311); (3) made esuckr! variant-aware (ne flag). RESULT on the dense-thin test
+(THINBBA 2010 resid-BA 100): BA 119/119, SDI 217/219, CCF 199/200, TopHt 76/76, TCuFt 3380/3380, MCuFt 3201/3201
+ALL match live — only TREES 345(jl)/301(live) off (+44 small-sprout TPA). ROOT of the count gap: NE ESUCKR uses
+NSPREC (sprout-count) + ESSPRT (survival), BOTH variant-branched — I initially mis-read NE as "1 record/no
+survival"; it actually has its OWN NSPREC CASE('NE') (essprt.f ~1010+, ISPC/DSTMP table) + ESSPRT CASE('NE')
+(essprt.f:362-460, ~40 cases incl. logistic e.g. sp55/58/64 + poly sp59-70) + ESASID(NE)=49 aspen → ASSPTN.
+CURRENTLY the SN nsprec_sn/essprt_sn stand in (documented NE-TODO) ⇒ count approximate. NEXT: port nsprec_ne +
+essprt_ne (transliterate the two CASE('NE') tables) + aspen; validate dense-thin TREES→301. SN bit-exact (ne
+branch false for SN; suite 5342/2). net01 unaffected (NOAUTOES).

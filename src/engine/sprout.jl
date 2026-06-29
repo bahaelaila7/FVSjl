@@ -80,6 +80,36 @@ per-stand AA fit never runs and the Wykoff defaults `HT1`/`HT2` (sitset.f, in
     return d < 0.1f0 ? 0.1f0 : d
 end
 
+"""
+    sprtht_ne(ispc, si, iag) -> Float32
+
+NE sprout height (essprt.f ENTRY SPRTHT, `CASE('NE')`, lines 1302-1308): the sprouting
+hardwoods {26-70, 72-97, 99-108} use the site-driven curve `(0.1 + SI/50)·age`; every
+other (sproutable) species uses the flat `0.5 + 0.5·age`. (Same formula as SN's branch,
+different species set.) `iag` = sprout age (ISHAG).
+"""
+@inline function sprtht_ne(ispc::Integer, si::Float32, iag::Real)::Float32
+    a = Float32(iag)
+    tall = (26 <= ispc <= 70) || (72 <= ispc <= 97) || (99 <= ispc <= 108)
+    return tall ? (0.1f0 + si / 50f0) * a : 0.5f0 + 0.5f0 * a
+end
+
+"""
+    ne_sprout_dbh(coef, ispc, ht) -> Float32
+
+NE sprout DBH (esuckr.f:294-301) — the same Wykoff-form inverse as `sprout_dbh` but reading
+NE's `:htdbh_ht1`/`:htdbh_ht2` columns: `DBH = HT2/(ln(HT−4.5) − HT1) − 1`, floored 0.1, with
+HT≤4.5 ⇒ 0.1. This is the IABFLG=1 path (the default; the IABFLG=0/AA branch needs the LHTDRG
+per-stand HT-DBH re-fit, which a no-measured-height SPROUT stand never triggers — cratet.f:311).
+"""
+@inline function ne_sprout_dbh(coef::SpeciesCoefficients, ispc::Integer, ht::Float32)::Float32
+    ht > 4.5f0 || return 0.1f0
+    ax = coef_col(coef, :htdbh_ht1)[ispc]
+    bx = coef_col(coef, :htdbh_ht2)[ispc]
+    d = bx / (log(ht - 4.5f0) - ax) - 1f0
+    return d < 0.1f0 ? 0.1f0 : d
+end
+
 "Special-establishment forests (R8/R9 NFs) that trigger the ESSPRT overrides."
 @inline _es_special_forest(isefor::Integer) =
     isefor == 809 || isefor == 810 || isefor == 905 || isefor == 908
@@ -145,6 +175,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # those rare cases would need the full forkod port — see INDEX.) snt01=80106 ⇒ IFORDI=801 (not special).
     isefor = Int(s.plot.user_forest_code) ÷ 100
     icyc = Int(s.control.cycle)
+    ne = s.variant isa Northeast     # NE ESUCKR (1 record/stump, SPRTHT/Wykoff DBH) vs SN ESSPRT model
     created = false
     @inbounds for rec in s.control.cut_log
         prem = rec.prem
@@ -161,24 +192,31 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             (matched && dstmp >= dmn && dstmp < dmx) && (smult = sm; hmult = hm)
         end
         smult <= 0f0 && continue                       # esuckr.f:211 — SMULT≤0 ⇒ no sprouts for this stump
-        numspr = nsprec_sn(issp, dstmp)                # number of sprout records
-        prem = essprt_sn(coef, issp, prem, dstmp, isefor)  # per-record survival multiplier
-        prem < 0.001f0 && continue                     # esuckr.f:244
+        # NE and SN share the ESUCKR structure: NUMSPR=NSPREC records, each PREM reduced by ESSPRT survival
+        # (both VARACD-branched in essprt.f). ⚠ NE-TODO: the NE branches of NSPREC (CASE('NE'), essprt.f
+        # ~1010+, ISPC/DSTMP table) and ESSPRT (CASE('NE'), essprt.f:362-460, ~40 cases incl. logistic/poly)
+        # + ESASID(NE)=49/ASSPTN aspen are NOT yet ported — the SN nsprec_sn/essprt_sn stand in here, so the
+        # NE sprout COUNT is APPROXIMATE (the dense-thin test: BA/SDI/CCF/TopHt/volume already match live, only
+        # the small-sprout TREES count is off, 345 vs 301). sprtht_ne + ne_sprout_dbh ARE the faithful NE forms.
+        numspr = nsprec_sn(issp, dstmp)                # NE-TODO: nsprec_ne (essprt.f CASE('NE'))
+        prem = essprt_sn(coef, issp, prem, dstmp, isefor)  # NE-TODO: essprt_ne (essprt.f:362 CASE('NE'))
+        prem < 0.001f0 && continue                     # esuckr.f:170/244
         si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)
         sp2 = s.species.class_codes[issp, 1][1:2]      # 2-char alpha code (for CWCALC)
         prob = prem * smult                            # PROB(ITRN)
         for _ in 1:numspr
             n = t.n + 1; n > length(t.dbh) && break    # no ESCPRS compression — list-overflow guard
             t.n = n
-            # height: SPRTHT × HMULT + clamped BACHLO(0,0.5,ESRANN) deviation (× HT/5.5)
-            ht = sprtht_sn(issp, si, ishag) * hmult
+            # height: SPRTHT × HMULT + clamped BACHLO(0,0.5,ESRANN) deviation (× HT/5.5). NE & SN share the
+            # SPRTHT formula but differ in the per-variant sprouting-species set (and the DBH coef columns).
+            ht = (ne ? sprtht_ne(issp, si, ishag) : sprtht_sn(issp, si, ishag)) * hmult
             randev = 0f0
             while true
                 randev = bachlo(s.rng, 0f0, 0.5f0; stream = :estab)
                 -1f0 <= randev <= 1f0 && break
             end
             ht += randev * ht / 5.5f0
-            dbh = sprout_dbh(coef, issp, ht)
+            dbh = ne ? ne_sprout_dbh(coef, issp, ht) : sprout_dbh(coef, issp, ht)
             # CWCALC's CR arg is the dummy CRDUM=1.0 (esuckr.f:317), NOT the record's ICR=70 (that is the
             # discarded 6th arg IICR, cwcalc.f). Passing 70 inflated sprout CrWidth by cr_coef·69 for Bechtold spp.
             cw = crown_width(coef, sp2, dbh, ht, 1f0, 0,
