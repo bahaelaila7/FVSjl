@@ -40,87 +40,46 @@ CLSSTK CSTOCK vs a jl pre-thin histogram):
 jl's distribution is too **spread** — fat tails (excess 4–8″ AND 16–20″), hollow middle (deficit 8–12″,
 12–16″). Aggregates hide it: pre-thin BA 123 (jl) vs 121 (live), QMD 11.3 vs 11.1 — ~2%.
 
-**Localized to the diameter-growth record TRIPLING.** Decisive `NOTRIPLE`-on-both test at 2130:
+**Evidence chain (each step traced to live FVSne / the NE Fortran, not inferred from tests):**
 
-| 16–20″ stocking | TRIPLE | NOTRIPLE |
-|---|---|---|
-| LIVE | 9.5 | 10.8 |
-| jl   | **27.0** | **8.9** |
+1. *Thin parse + targets identical.* Live debug dump of cuts.f VALMIN/VALMAX/CTPA/CBA per class at 2130
+   matches jl's; both apply the same per-DBH-class TPA targets. The cut-selection is variant-agnostic and is
+   independently faithful (THINBBA/ABA/SDI/HT/CC + FIXMORT, A3). So it's not the thin.
+2. *It's the input DBH distribution, not the mean.* Per-class CSTOCK at 2130 — jl is mean-preservingly
+   OVER-SPREAD (16–20″ jl 27.0 vs live 9.5; hollow 8–12″/12–16″), while pre-thin BA 123 vs 121 (~2%).
+3. *It's the record TRIPLING.* NOTRIPLE-on-both at 2130: jl 16–20″ = 8.9, live 10.8 — AGREE (both < target,
+   no cut). With TRIPLE, live stays 9.5 but jl balloons to 27.
+4. *Not the tripling spread or coefficients.* FU/FM/FL (= ne/dgdriv.f:626-628), cadence ICL4=2
+   (= ne/grinit.f:183), dgscor! bound (jl = dgscor.f `|frm|>DGSD·SIGMA` redraw + dds>4 taper), DGSD=2
+   (= NE grinit), and comcup! pruning (every cycle, PROB≤1e-5 = base/comcup.f:50) are ALL faithful. Per-class
+   16–20″ MATCHES live at cyc3 (2020) right after tripling — the initial spread is correct.
+5. *It's the stochastic realization, not a systematic bias.* Per-class DBH histograms are over-spread in BOTH
+   stands but in OPPOSITE directions:
 
-Under NOTRIPLE jl and live agree (both below the 15 target → no cut). Under TRIPLE live stays at 9.5 but
-jl balloons to 27. jl also carries 230 records at cyc15 vs live's 165.
+   | @2090 unthinned stand-1 | 8–12 | 12–16 | 16–20 | 20+ | BA agg |
+   |---|---|---|---|---|---|
+   | LIVE | 17.6 | 6.1 | **63.5** | **23.8** | 194 |
+   | jl   | 21.4 | 7.9 | **49.4** | **31.0** | 192 |
 
-**What's ruled out.** The tripling spread factors `FU=1.271 / FM=−0.14228 / FL=−1.549`
-(src/.../diameter_growth.jl DG_FU/FM/FL) are BIT-identical to NE `ne/dgdriv.f:626-628`. The tripling
-cadence (ICL4=2, first 2 growth cycles) matches NE `ne/grinit.f:183`. Per-record DG + mortality are fine
-(NOTRIPLE matches). So the bug is the **stochastic evolution of the tripled records in cycles 3–15**: the
-high-`old_random` upper records (seeded rnU = FU·ssigma·rhocp + corr·rnpar at tripling) run away too wide
-through the serial-correlation `dgscor!` (AR1/BACHLO) path, where FVS keeps them tight and prunes/compresses
-back to 165 records. Suspects: (a) jl not pruning/merging emptied tripled records the way FVS does over many
-cycles; (b) the dgscor! AR1 persistence on the seeded rnU diverging from FVS's RNG stream.
+   Unthinned stand-1: jl's 16–20″ is LOW (49 vs 63), 20+″ HIGH (31 vs 24). Thinned stand-2: jl's 16–20″ is
+   HIGH (27 vs 9.5). A systematic growth/mortality bias would push the SAME way in both; opposite-direction
+   per-class diffs with faithful aggregates ⇒ a different-but-valid stochastic REALIZATION.
 
-**Localized further (16–20″ CSTOCK per thin cycle, live debug dump vs jl histogram):**
+**ROOT CAUSE (final).** The NE BACHLO/dgscor stochastic RNG stream is **not bit-aligned to live FVSne**. The
+model is faithful — aggregates, NOTRIPLE, every coefficient, cyc1-2 growth, and A2/A3/A4 all match — but the
+per-tree stochastic draws are a different valid realization (the 9× tripled records draw a 9× BACHLO stream
+that drifts from FVSne over the cycles). SN bit-aligned its RNG against the Oracle-A 1:1 transliteration; NE
+has NO such reference, so its multi-cycle stochastic stream was never aligned. Repeated class-target thinning
+(stand-2) AMPLIFIES the realization difference at the THINDBH boundaries (a mean-preserving spread → a discrete
+over/under-cut), which is why the `.sum` divergence surfaces there and not in aggregates. This is the SAME
+class as the accepted SN COMPRESS eigensolver divergence — but the user has (rightly) asked it be closed.
 
-| thin yr (cyc) | LIVE | jl |
-|---|---|---|
-| 2020 (3)  | 0.0  | 1.3  |
-| 2050 (6)  | 7.1  | 10.0 |
-| 2080 (9)  | 7.9  | 21.8 |
-| 2110 (12) | 35.2 | 15.7 |
-| 2130 (15) | 9.5  | 27.0 |
+**Next (task #50).** Build a per-cycle record-level reference from live FVSne TREELISTs; find the FIRST cycle
+where jl's per-record state diverges (upstream-first); bit-align jl's NE dgscor/BACHLO draw order + per-record
+mortality allocation to it. Large, careful effort on shared stochastic code — must keep SN bit-exact.
 
-They MATCH at cyc3 (2020), right after tripling — so the initial tripling spread is fine. They diverge from
-cyc6+ and OSCILLATE OUT OF PHASE (the 16–20″ class fills then is thinned to 15 each cycle; jl's fill/empty
-timing leads/lags live), with jl averaging ~28% higher (15.2 vs 11.9 over the 5 thins). ⇒ the bug is the
-**post-tripling stochastic DG evolution of the 9× tripled records** (dgscor! AR1 on the seeded upper/lower
-`old_random`, walking the BACHLO RNG stream), NOT the tripling spread and NOT per-record DG (NOTRIPLE matches).
-The 9× record count makes the NE dgscor!/BACHLO RNG stream draw 9× and drift from live FVSne's stream across
-15 cycles — SN aligned this via the Oracle-A transliteration; NE has no such reference, so the multi-cycle
-tripled-record RNG stream was never bit-aligned. Mild systematic over-dispersion (+28% avg) rides on the
-phase noise, so it is not purely RNG-phase.
-
-**Candidate fixes ruled out (all faithful):** the tripling factors FU/FM/FL (= ne/dgdriv.f:626-628), the
-tripling cadence ICL4=2 (= ne/grinit.f:183), per-record DG+mortality (NOTRIPLE matches), the dgscor! per-cycle
-bound (jl replicates dgscor.f's `|frm|>DGSD·SIGMA` redraw + the dds>4 taper), and DGSD=2 (= NE grinit). The
-OLDRN init clamp (dgdriv.f:634, ±DGSD·SIGMA) is a one-time calibration step, and an unclamped tripled-record
-seed self-bounds after one dgscor cycle — not the systematic lever.
-
-**Remaining cause = RNG-stream misalignment of the tripled records.** With 9× records jl's NE BACHLO/dgscor
-draw stream diverges from live FVSne over 15 cycles; the count mismatch (jl carries 230 records at cyc15 vs
-live's 165 — jl does not prune emptied records the way FVS record-management does) changes the per-cycle draw
-count, guaranteeing stream divergence. SN bit-aligned this against the Oracle-A transliteration; NE has no such
-reference, so the multi-cycle tripled-record RNG stream was never aligned.
-
-**TRUE ROOT CAUSE — the NE stochastic RNG stream is not bit-aligned to FVSne (the model IS faithful).**
-Per-class DBH histograms (live TREELIST vs jl) reveal the distribution is mean-preservingly OVER-SPREAD in
-BOTH stands, hidden under matching aggregates:
-
-| @2090 unthinned stand-1 | 8–12 | 12–16 | 16–20 | 20+ | (BA agg) |
-|---|---|---|---|---|---|
-| LIVE | 17.6 | 6.1 | **63.5** | **23.8** | 194 |
-| jl   | 21.4 | 7.9 | **49.4** | **31.0** | 192 |
-
-The decisive tell: the per-class difference is **stand-specific and OPPOSITE in direction** — in unthinned
-stand-1 jl's 16–20″ is LOW (49 vs 63) and 20+″ HIGH (31 vs 24); in thinned stand-2 jl's 16–20″ is HIGH (27 vs
-9.5). A systematic growth/mortality bias would push the SAME way in both. Opposite-direction per-class diffs
-with faithful aggregates = different-but-valid stochastic REALIZATIONS, i.e. the NE BACHLO/dgscor draw stream
-is not bit-aligned to live FVSne. SN bit-aligned its RNG against the Oracle-A 1:1 transliteration; NE has NO
-such reference, so its multi-cycle stochastic stream was never aligned. The repeated class-target thinning in
-stand-2 merely AMPLIFIES the realization difference at the THINDBH class boundaries (a mean-preserving spread
-becomes a discrete over/under-cut), which is why the `.sum` divergence shows up there and not in aggregates.
-
-**Implication for severity.** The NE growth/mortality/volume MODEL is faithful (aggregates, NOTRIPLE, every
-coefficient, cyc1-2 growth, A2/A3/A4 all match). What is NOT bit-exact is the per-tree stochastic realization
-under tripling. This is the SAME class as the accepted SN COMPRESS eigensolver divergence — except the user
-has (rightly) asked for it to be closed, which for NE means aligning the BACHLO/dgscor stream to FVSne.
-
-**Next (task #50).** Build a per-cycle record-level reference from live FVSne TREELISTs and bit-align jl's NE
-dgscor/BACHLO draw order + per-record mortality allocation to it (the SN-class RNG-alignment effort). Large,
-careful, no-NE-reference effort touching shared stochastic code — must keep SN bit-exact. The one substantive
-OPEN item; the model is faithful, the stochastic stream is not yet aligned.
-
-**Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
-correctly rejected. Re-opened.
+**Status: OPEN** (model faithful, stochastic stream not yet aligned). Previously mis-closed as "faithful
+within drift" — a lax verdict the user correctly rejected; re-opened.
 
 ---
 
