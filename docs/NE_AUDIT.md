@@ -163,7 +163,17 @@ at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LAR
 d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
 LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
 path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
-BOTTOM REACHED — A1 residual = calibration-time RNG draws for sp27's OLDRN seed. jl dump: sp27 has
+⚠ CORRECTION (re-trace discipline): the "residual = OLDRN" verdict is NOT confirmed and may be wrong. Dumped
+FVS OLDRN(I) for sp27 at cyc0 — for the matched d=1.2 tree, FVS OLDRN = -0.0229 = jl's -0.02289 EXACTLY (OLDRN
+MATCHES). The sp27 dgf-dump DBHs also don't cleanly line up jl-vs-FVS (multi-stand/order mixing: FVS shows
+d=1.002/1.587, jl shows 0.1/4.0/1.9), so the dgk comparison that drove the ~0.5% claim may have conflated
+different trees/stands. So A1's residual source is UNRESOLVED: OLDRN matches for at least one tree; the apparent
+dgk gap needs a CLEAN per-tree comparison (isolate stand-1, match trees by record index, dump dgk+OLDRN+ssigma
+for the SAME tree both sides). It may be smaller than the ~0.5% the conflated comparison suggested. The
+SYSTEMIC IFOR=3 fix stands (draw count exact cyc0-3, independently verified); only the fine residual's
+attribution is now open. NEXT: clean stand-1-isolated per-record dgk comparison before any further claim.
+
+BOTTOM-REACHED HYPOTHESIS (now under review): A1 residual = calibration-time RNG draws for sp27's OLDRN seed. jl dump: sp27 has
 dg_cor[27]=0 (UNcalibrated) and varied per-tree oldrn (0.079/0.020/-0.023/0.036/...) ⇒ these are the random
 BACHLO z draws (the `else` branch, diameter_growth.jl:487 `z = bachlo(s.rng, 0, sigma[sp])` with the DGSD·sigma
 rejection bound), NOT a regression line. So sp27's serial-correlation seed OLDRN is a stochastic z drawn at
