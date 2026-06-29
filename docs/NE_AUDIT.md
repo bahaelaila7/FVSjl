@@ -144,6 +144,21 @@ Injected each into net01 stand-1 (unthinned control) at 2000, diffed jl vs live:
 VERDICT: FAITHFUL — the cut-selection (cuts.f) and mortality-override paths drive correctly off the NE
 growth/volume. The one cut-related divergence (A1) is upstream in the DG distribution, not in these paths.
 
+## A4 — Establishment / regen over the full projection (VERDICT: FAITHFUL)
+
+net01 stand-5 (BARE + ESTAB/PLANT) over 9 cycles (1992→2082), jl vs live: TPA EXACT (800/777/755/…),
+BA within Δ2, TCuFt 6% early (2012, the planted seedlings' tiny-DBH volume) converging to <1% by 2082
+(6481 vs 6462). The PLANT path, regen growth, and density all track live end-to-end. #49 had validated
+only cycle-0; this extends it to the full run. VERDICT: FAITHFUL.
+
+## A1 supporting verification (record pruning is faithful — ruled out as the lever)
+jl's per-cycle record pruning matches FVS: `comcup!` is called every cycle at simulate.jl:336 (= FVS
+grincr.f:391) with the PROB ≤ 1e-5 threshold (= base/comcup.f:50), and `tredel_compact!` runs after each
+thin (= TREDEL swap-from-end). So the 230-vs-165 record-count gap at cyc15 is NOT a missing-prune bug; it
+is the per-record MORTALITY ALLOCATION differing (matching total TPA, but FVS fully empties more records
+→ removed, jl leaves more at low-but->1e-5 TPA), which feeds back into the A1 RNG-stream drift. Every
+discrete component of A1 is faithful; the residual is the COMPOUND stochastic evolution under repeated thins.
+
 ## Validated-faithful so far (breadth, vs live FVSne)
 - Cycle-0 stand state (TPA/BA/SDI/CCF/QMD/TopHt) — bit-exact.
 - R9 Clark cubic + International-¼″ board-feet volume — bit-exact (#48).
