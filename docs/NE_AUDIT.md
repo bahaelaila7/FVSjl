@@ -16,6 +16,18 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
+## A1 — LARGE-TREE DG NOW BIT-EXACT (3 fixes); residual is NOT DG ★ re-trace caught the z-draw over-claim
+
+After all THREE fixes (IFOR=3 HT-DBH + calibration VMLT + cyc0 ARMA oldp), the sp27 large-tree dgk is
+BIT-EXACT for EVERY tree (stand-1 isolated, cyc0): d=0.1→0.957219, 1.2→0.998194, 1.9→0.992287, 4.0→0.932551,
+12.7→1.19269 — all = FVS exactly. So the "calibration z-draw realization" verdict was WRONG (re-trace
+discipline, 6th catch): there is NO z-draw residual — the per-tree dgk scatter was the corr/oldp bug, now
+fixed, and OLDRN matches everywhere (the fixes are GLOBAL across all species, not just sp27). ⇒ the NE large-
+tree diameter growth is bit-exact per-tree at cyc0. The remaining stand-1 .sum Δ (2030 TPA 352 vs 356; 2090
+109 vs 111, BA 193/194) is therefore a DIFFERENT subsystem — MORTALITY (morts, ordered-work #3) and/or the
+small-tree/regen path — NOT the large-tree DG. Next: trace the mortality (which trees die / the mortality RNG)
+or the REGENT small-tree growth for the Δ-TPA; the large-tree DG is DONE.
+
 ## A1 — THIRD FIX LANDED: cyc0 ARMA `oldp` also hardcoded the SN 5-yr period
 
 After the VMLT fix, ssig/vmlt matched FVS but CORR still differed (jl 0.14799 vs FVS 0.18082). Root: the
