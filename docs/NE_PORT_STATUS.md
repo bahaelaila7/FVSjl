@@ -182,8 +182,16 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      moisture also corrects the BurnReport/SIMFIRE moistures AND keeps the net01 SIMFIRE post-fire .sum TPA BIT-EXACT vs
      live (536/285/168/164/161/157). ★ ALSO FIXED: PotFire SCENARIO wind/temp were SN-hardcoded (20/70°F) — NE
      fmvinit.f:63-66 = 25/80°F severe, 15/50 moderate (`potfire_env(variant)`); NE Mortality_BA_Sev 43 vs live 44.
-     REMAINING for the crown indices: only the OINIT1 TORCHING index (the 1000-iter bisection + HPA = stand xir·384/sigma
-     + SWIND). Surf_Flame 5.6 vs live 3.3 stays gated on the FMCFMD fuel-model-selection diff (jl 8/9/10 vs live 9/10).
+     REMAINING for the crown indices: only the OINIT1 TORCHING index. ★ IMPLEMENTED + TESTED (2026-06-29): INIT1 =
+     ((460+25.9·FOLMC[100])·0.001333·ACTCBH)^1.5 = 384.25; HPA = stand weighted xir·384/sigma = 891.6; RINIT1 =
+     60·INIT1/HPA = 25.86; bisect the 20-ft wind (×WMULT = canopy wind reduction) until the FM10 spread == RINIT1 ⇒
+     OINIT1 = **76.4 vs live 90.6**. The ~16% gap is GATED ON FMCFMD: HPA uses the STAND's weighted fuel models (jl
+     selects 8/9/10 vs live 9/10 — wind-independent, so it's purely the model-selection diff, NOT the bisection). So
+     OINIT1 is NOT wired yet (it would emit an off value); it becomes bit-exact once the FMCFMD weighted-model selection
+     is fixed (the same upstream item the Surf_Flame 5.6-vs-3.3 gap waits on). The bisection + HPA + INIT1 formulas are
+     verified-correct offline; wiring is a 1-liner (`torching_index(s, actcbh, fmois, hpa)`) once FMCFMD lands.
+     ⇒ **NEXT upstream item = FMCFMD2 weighted-model selection** (jl per-model output-weighting + 8/9/10 vs FVS
+     combined-model + 9/10) — closes BOTH the PotFire Surf_Flame and the OINIT1 torching index.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
