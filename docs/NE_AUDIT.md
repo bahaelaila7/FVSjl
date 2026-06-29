@@ -169,7 +169,9 @@ BACHLO z draws (the `else` branch, diameter_growth.jl:487 `z = bachlo(s.rng, 0, 
 rejection bound), NOT a regression line. So sp27's serial-correlation seed OLDRN is a stochastic z drawn at
 CALIBRATION (LSTART, before the cycle loop). It diverges from FVS because the calibration-time RNG stream —
 consumed BEFORE the cyc0-3 window the IFOR=3 fix aligned — is not yet matched to FVS dgdriv.f (the species-sorted
-order/count/bound of the OLDRN z draws). FIX PATH: apply the same draw-counter method to the LSTART calibration
+order/count/bound of the OLDRN z draws). CONFIRMED sp27 is UNcalibrated on BOTH sides (jl dg_cor[27]=0 via the fn[sp]>=fnmin gate; FVS COR(27)=0) ⇒
+OLDRN=random z on both, so it is NOT a calibrated-flag bug — it is genuinely the calibration-time z-draw
+RNG alignment. FIX PATH: apply the same draw-counter method to the LSTART calibration
 (instrument the bachlo z draws in calibrate_diameter_growth! vs ne/dgdriv.f), align the per-species draw
 order/count, so sp27's OLDRN seed matches. This is the FULL A1 chain end-to-end: user-flagged thin → RNG
 divergence → IFOR=3 HT-DBH (FIXED) → residual large-tree DG ~0.5% (sp27) → dgf predictor faithful → serial-corr
