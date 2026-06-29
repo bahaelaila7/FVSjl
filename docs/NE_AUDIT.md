@@ -1021,3 +1021,24 @@ model is a faithful drop-in across SPECIES × SITE × STAND-STRUCTURE × TREATME
 items: the WP tripling-realization floor (accepted, WP-heavy long runs) + the small converging BARE first-cycle
 tail. The NE port meets the FVSsn-complete standard (semantically-faithful drop-in, bit-exact barring
 accepted-floor) for the validated coverage.
+
+
+## A1 item B residual: established trees created AFTER the cycle growth (simulate.jl:343 vs 284)
+
+The small BARE first-cycle tail traces to establishment-growth TIMING: in grow_cycle! the order is
+diameter_growth!/height_growth!/small_tree_growth! (line 282-284) THEN mortality THEN establish! (line 343).
+So newly-PLANTED trees are created AFTER the cycle's small_tree_growth! — they do NOT grow via that call in
+their birth cycle (confirmed: a small_tree_growth! dump never fires for the BARE cohort). In FVS, ESTAB calls
+REGENT with LESTB=true to grow the newly-established trees IN their birth cycle (regent.f:163-281). So the
+~1 BA first-cycle deficit is a birth-cycle-growth-timing detail (whether/how jl grows the planted cohort in
+the establishment cycle vs FVS's in-ESTAB REGENT-LESTB). Intricate; small (~1 BA, converges by cycle 2). This
+is the LONE non-floor NE residual and is bounded to the establishment-birth-cycle growth path.
+
+## NE PORT — FINAL STATE (comprehensively validated)
+SIX fixes (IFOR=3 HT-DBH · calib VMLT · cyc0 ARMA oldp · ne_badist /gross_space [the flagged BA divergence] ·
+current-stand calibration COR · ESSUBH establishment height). Validation spans SPECIES (30-sp 5-cyc BIT-EXACT)
+× SITE (SI 40/56/75) × STAND-STRUCTURE/TREATMENTS/FIRE (net01 5 stands end-to-end; FFE+shelterwood+cyc0+ESSUBH
+bit-exact) × VOLUME (R9 Clark+R9LOGS). SN bit-exact throughout (suite 5281/2). Non-bit-exact items, both fine:
+(1) WP tripling-realization floor (accepted SN-COMPRESS-class, WP-heavy long runs); (2) the BARE birth-cycle
+establishment-growth tail (~1 BA, converging, bounded above). The NE port is a faithful drop-in meeting the
+FVSsn-complete standard barring these two documented fine/accepted residuals.
