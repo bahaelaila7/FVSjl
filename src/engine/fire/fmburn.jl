@@ -257,6 +257,12 @@ fm_canopy_lsw(sp::Integer, ::Southern)  = sp <= 17 || sp == 88
 fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
+# PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (sev_wind, sev_temp, mod_wind, mod_temp),
+# from each variant's fmvinit.f PREWND/POTEMP BLOCK DATA (SN fmvinit.f:63-66 vs NE fmvinit.f:63-66).
+potfire_env(::Southern)  = (20f0, 70f0, 8f0, 60f0)
+potfire_env(::Northeast) = (25f0, 80f0, 15f0, 50f0)
+potfire_env(::AbstractVariant) = (20f0, 70f0, 8f0, 60f0)
+
 """
     canopy_bulk_density(s) -> (; cbd, actcbh, canopy_ht, tcload)
 
@@ -461,5 +467,8 @@ function potential_fire(s::StandState)
         end
         return (; flame, scorch = sch, ba_kill, vol_kill, smoke, models = collect(models))
     end
-    return (; severe = scenario(1, 1, 20f0, 70f0, 1), moderate = scenario(2, 3, 8f0, 60f0, 1))
+    # PotFire scenario wind (mi/h) + temperature (°F) are per-variant BLOCK DATA (fmvinit.f:63-66
+    # PREWND/POTEMP): SN severe 20/70°F + moderate 8/60°F; NE severe 25/80°F + moderate 15/50°F.
+    sw, st, mw, mt = potfire_env(s.variant)
+    return (; severe = scenario(1, 1, sw, st, 1), moderate = scenario(2, 3, mw, mt, 1))
 end
