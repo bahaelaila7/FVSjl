@@ -14,9 +14,10 @@
 format: fvs-stand/v1
 variant: SN          # SN = Southern (FVSsn); NE = Northeast
 stands:
-  # ── Scenario 1: no action (control). Only the first scenario sets treelist.format
-  #    (TREEFMT); later scenarios inherit the tree format and just re-read via TREEDATA.
-  - stdident: "SCENARIO 1 — no action (control)"
+  # ── Scenario 1: no action (control). No treelist.format is given anywhere — the
+  #    companion stand.csv is self-describing, and yml→key auto-places the canonical
+  #    TREEFMT on the first stand (later stands inherit it + just re-read via TREEDATA).
+  - stdident: "SCENARIO1  control - no action"
     noautoes: true
     design:   { plots: 11, nsc: 1 }
     stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
@@ -24,11 +25,11 @@ stands:
     invyr:    1990
     numcycle: 6
     echosum:  true
-    treelist:
-      format: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
+    treelist: {}            # no format needed — the companion stand.csv is self-describing, and the
+                            # converter places the canonical TREEFMT (DEFAULT_TREE_FORMAT) on the .key
 
   # ── Scenario 2: light thin from below to basal area 90 in 2010.
-  - stdident: "SCENARIO 2 — light thin (BA 90 @ 2010)"
+  - stdident: "SCENARIO2  light thin to BA 90 in 2010"
     noautoes: true
     design:   { plots: 11, nsc: 1 }
     stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
@@ -41,7 +42,7 @@ stands:
     treelist: {}
 
   # ── Scenario 3: heavy thin from below to basal area 60 in 2010.
-  - stdident: "SCENARIO 3 — heavy thin (BA 60 @ 2010)"
+  - stdident: "SCENARIO3  heavy thin to BA 60 in 2010"
     noautoes: true
     design:   { plots: 11, nsc: 1 }
     stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }
@@ -54,7 +55,7 @@ stands:
     treelist: {}
 
   # ── Scenario 4: two entries — thin to SDI 250 in 2005, then again in 2020.
-  - stdident: "SCENARIO 4 — thin twice (SDI 250 @ 2005 & 2020)"
+  - stdident: "SCENARIO4  thin twice to SDI 250 in 2005 and 2020"
     noautoes: true
     design:   { plots: 11, nsc: 1 }
     stdinfo:  { forest: 80106, habitat: "231Dd", age: 60, aspect: 315, slope: 30, elev: 7 }

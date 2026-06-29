@@ -57,6 +57,7 @@ maps them at a glance).
 ```yaml
 format: fvs-stand/v1     # REQUIRED discriminator (anything starting `fvs-stand`)
 variant: SN              # which FVS model — SN = Southern (FVSsn), NE = Northeast. Default SN.
+output_format: sum       # summary format — sum (legacy fixed-column) or csv. Default sum.
 
 stand:                   # ONE stand …
   invyr: 1990
@@ -78,6 +79,11 @@ reads it and dispatches to that variant). It is **not** written into a converted
 (stock FVS has no variant keyword — you pick the `FVSsn`/`FVSne` binary). Resolution
 order: an explicit `run_keyfile(...; variant=…)` argument wins; else the file's `variant:`;
 else `SN`. The keyword-stream YAML accepts the same top-level `variant:` key.
+
+**`output_format:`** selects the summary format — `sum` (the legacy fixed-column `.sum`, the
+default) or `csv` (the modern named-column form, see [§4](#4-the-sum-summary-output)). Same
+explicit-argument > file > default precedence as `variant`, via `run_keyfile(...; output=:csv)`.
+Both are run-level (not per-stand) keys, like `variant:`.
 
 ### Worked example
 
@@ -235,12 +241,16 @@ treelist:
 # treelist: {}                    # just emit TREEDATA (inherit the format / use a .csv companion)
 ```
 
-`format:` emits `TREEFMT` and the FORMAT string (auto-split if > 72 cols, since
-`kw_treefmt!` reads two ≤80-col lines); `treelist:` then emits `TREEDATA`. The inventory
-itself is **not** inline — it always comes from the companion file resolved by the
-keyfile's base name (covered next). So `treelist.format` selects only the `.tre` *layout*,
-never the *file*. (Tree records are never embedded in the YAML; there is no `data:`/`file:`
-key — every stand reads the one companion, which is what makes a multi-scenario run work.)
+`format:` is **optional** — it's the `.tre` column *layout*, not something to hand-write.
+Omit it (`treelist: {}`) and: a `.csv` companion is self-describing so nothing is needed to
+*run*; and when converting to a `.key`, the tool **places the canonical `DEFAULT_TREE_FORMAT`**
+TREEFMT on the first stand automatically (later stands inherit it), and a `.csv→.tre`
+conversion writes that same layout — so a round-trip is consistent with no manual format.
+Give `format:` only to pin a *non-default* `.tre` layout. `treelist:` always emits `TREEDATA`;
+the inventory itself is **not** inline — it comes from the companion file resolved by the
+keyfile's base name (covered next), so `treelist.format` never selects the *file*. (There is
+no `data:`/`file:` key — every stand reads the one companion, which is what makes a
+multi-scenario run work.)
 
 ### Multi-scenario runs (several stands, one inventory)
 
@@ -520,6 +530,39 @@ e.g. the removal columns outside a thinning cycle):
 For a multi-scenario file the blocks appear in scenario order; e.g.
 `examples/multiscenario/stand.fvsjl.sum` has four blocks, all starting from the identical
 inventory (row 1 of each), then diverging by treatment.
+
+### The modern CSV summary (`output_format: csv`)
+
+The same data is also produced as a **named-column CSV** — the output analog of the
+`.tre→.csv` / `.key→.yaml` input modernization. One header row, then one row per
+**stand-cycle**, with a leading `StandID`/`MgmtID` so multiple stands/scenarios flatten
+into a single table that loads straight into pandas / R / a spreadsheet:
+
+```
+StandID,MgmtID,Year,Age,Tpa,BA,SDI,CCF,TopHt,QMD,TCuFt,MCuFt,SCuFt,BdFt,RTpa,RTCuFt,RMCuFt,RSCuFt,RBdFt,ATBA,ATSDI,ATCCF,ATTopHt,ATQMD,PrdLen,Accret,Mort,MAI,ForType,SizeCls,StkCls
+SCENARIO,NONE,1990,60,536,77,160,218,63,5.1,1368,1149,68,285,0,0,0,0,0,77,160,218,63,5.1,5,112,9,19.1,520,2,2
+```
+
+The columns are exactly the 29 above (so the table is identical to the `.sum`, just tidy and
+named). Select it with the YAML's `output_format: csv`, the `run_keyfile(...; output=:csv)`
+argument, or the CLI's `--output csv`. Example: `examples/multiscenario/stand.fvsjl.sum.csv`.
+
+### Running a stand from the command line
+
+A `.key`/`.tre` carries neither a variant nor an output preference, so the run CLI takes
+both as flags (a YAML's `variant:`/`output_format:` are used when the flag is omitted; a flag
+overrides):
+
+```bash
+julia --project bin/fvsjl-run.jl <key.{key,yaml}> [--variant SN|NE] [--output sum|csv] [-o out]
+
+# legacy .key run as Southern, .sum to stdout (the defaults):
+julia --project bin/fvsjl-run.jl examples/multistand/multistand.key
+# same stand, modern CSV to a file:
+julia --project bin/fvsjl-run.jl examples/multistand/multistand.key --output csv -o out.csv
+# a .key with no variant marker, run as Northeast:
+julia --project bin/fvsjl-run.jl net01.key --variant NE
+```
 
 ---
 

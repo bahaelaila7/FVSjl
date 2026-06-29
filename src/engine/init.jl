@@ -46,6 +46,21 @@ function _resolve_variant(keypath::AbstractString, variant::Union{AbstractVarian
     return Southern()
 end
 
+# Resolve the output format (:sum or :csv) for a run: an explicit `output=` argument wins;
+# else a YAML's `output_format:`; else :sum (the legacy fixed-column default). A `.key` carries
+# no output preference, so for it the format comes only from the argument (else :sum).
+function _resolve_output(keypath::AbstractString, output::Union{Symbol,AbstractString,Nothing})
+    norm(x) = (s = lowercase(strip(String(x)));
+               s in ("sum", "csv") ? Symbol(s) : error("unknown output format '$x' (use :sum or :csv)"))
+    output === nothing || return norm(output)
+    ext = lowercase(splitext(keypath)[2])
+    if ext == ".yaml" || ext == ".yml"
+        of = yaml_output_format(keypath)
+        of === nothing || return norm(of)
+    end
+    return :sum
+end
+
 """
     initialize!(state, kr, base_path) -> Symbol
 

@@ -47,6 +47,50 @@ function write_sum_row(io::IO, r::SummaryRow)
     return io
 end
 
+# =============================================================================
+# CSV form of the .sum — the modern, named-column, machine-readable summary (the
+# output analog of the input .tre→.csv / .key→.yaml modernization). Same data as the
+# fixed-column .sum (columns documented in docs/FORMATS.md §4), flattened across stands
+# with a leading StandID/MgmtID so it loads straight into pandas/R/a spreadsheet.
+# =============================================================================
+"Named-column header for the summary CSV (StandID/MgmtID/Title + the SUMOUT columns)."
+const SUM_CSV_HEADER = [
+    "StandID", "MgmtID", "Title", "Year", "Age", "Tpa", "BA", "SDI", "CCF", "TopHt", "QMD",
+    "TCuFt", "MCuFt", "SCuFt", "BdFt", "RTpa", "RTCuFt", "RMCuFt", "RSCuFt", "RBdFt",
+    "ATBA", "ATSDI", "ATCCF", "ATTopHt", "ATQMD", "PrdLen", "Accret", "Mort", "MAI",
+    "ForType", "SizeCls", "StkCls"]
+
+_sumf1(x) = @sprintf("%.1f", Float64(x))   # the float columns (QMD/ATQMD/MAI) print like the .sum
+# Minimal CSV quoting: wrap in double-quotes (and double any embedded quote) iff the field
+# carries a comma / quote / newline. The Title (the STDIDENT description) can contain commas.
+_csvq(s) = (t = String(s); occursin(r"[\",\n]", t) ? '"' * replace(t, '"' => "\"\"") * '"' : t)
+
+"Render one `SummaryRow` as a CSV row (SUM_CSV_HEADER order) for stand `sid`/`mid`/`title`."
+function sum_csv_row(sid::AbstractString, mid::AbstractString, title::AbstractString, r::SummaryRow)
+    join((_csvq(sid), _csvq(mid), _csvq(title),
+          r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, _sumf1(r.qmd),
+          r.cuft, r.mcuft, r.scuft, r.bdft, r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_scuft, r.rem_bdft,
+          r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, _sumf1(r.at_qmd),
+          r.period, r.accretion, r.mortality, _sumf1(r.mai), r.fortype, r.sizecls, r.stockcls), ',')
+end
+
+"""
+    write_sum_csv(io, stands)
+
+Write the summary CSV: the header then, for each `(stand_id, mgmt_id, title, rows)` in `stands`,
+one line per `SummaryRow`. `stands` is a vector of such 4-tuples (one per projected stand). The
+`Title` (the STDIDENT description that the fixed-column .sum drops) is carried as its own column.
+"""
+function write_sum_csv(io::IO, stands)
+    println(io, join(SUM_CSV_HEADER, ','))
+    for (sid, mid, title, rows) in stands
+        for r in rows
+            println(io, sum_csv_row(String(sid), String(mid), String(title), r))
+        end
+    end
+    return io
+end
+
 """
     write_sum_header(io, nperiods, stand_id, mgmt_id, sample_wt, variant, date, time, nplots)
 
@@ -116,7 +160,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                                              # OLDCRW (else the 1st cycle's fine down-wood is lost; DDW gap)
     end
     g = s.plot.gross_space
-    sw = sample_wt === nothing ? g : sample_wt
+    # .sum header sample weight = SAMWT (s.plot.sample_weight), NOT gross_space. (gross_space
+    # is the non-stockable expansion used for per-acre normalization below; SAMWT is the
+    # stand's sampling weight, which FVS prints in the -999 header — e.g. 11, not 1.1.)
+    sw = sample_wt === nothing ? s.plot.sample_weight : sample_wt
     if header
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end

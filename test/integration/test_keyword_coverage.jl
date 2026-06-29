@@ -172,7 +172,8 @@ end
                     FVSjl.convert_tre_to_csv(tre, csvf; fmt = _KC_SNFMT)
                 if isfile(yamlf)
                     yeq = try
-                        FVSjl.run_keyfile(yamlf) == ksum
+                        # compare data rows — the -999 header carries a wall-clock timestamp
+                        _kc_rows_str(FVSjl.run_keyfile(yamlf)) == _kc_rows_str(ksum)
                     catch
                         false
                     end

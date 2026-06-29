@@ -347,10 +347,21 @@ function _kw_record_from_fields(name::AbstractString, fld::AbstractDict{Int,Stri
     return KeywordRecord(nm, "", fields, values, present, N_KEY_FIELDS, status, 0)
 end
 
-# A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines that
-# trail STDIDENT/TREEFMT, inline tree data, SPGROUP members. `_decode_keyword` carries a
-# non-ASCII line (e.g. an em-dash in a stand id) verbatim without byte-crashing.
-_raw_record(text) = _decode_keyword(rpad(string(text), 130))
+# A free-form line record (rendered verbatim by `_render_keyfile`) — for the lines that trail
+# STDIDENT/TREEFMT, inline tree data, SPGROUP members. A MULTI-WORD line (a STDIDENT id+title,
+# a FORMAT string, a tree-data row) must round-trip byte-for-byte, NOT be re-parsed into 10-col
+# fields: `_decode_keyword` would set name=cols-1-8 — if that is a bare token (e.g. "SCENARIO"
+# from "SCENARIO1  control"), `_is_plain_keyword` reads it as a keyword card and the re-render
+# drops col 9-10 + reflows the rest (mangling it). So force a verbatim record whose name keeps
+# a space ⇒ non-plain ⇒ emitted via `.raw`. A bare single token has no space and round-trips as
+# a plain card whose render IS the token, so keep using `_decode_keyword` for it (also handles
+# non-ASCII without byte-crashing).
+function _raw_record(text)
+    s = rstrip(string(text))
+    occursin(' ', s) || return _decode_keyword(rpad(s, 130))
+    return KeywordRecord(s, s, fill(" "^10, N_KEY_FIELDS), zeros(Float32, N_KEY_FIELDS),
+                         falses(N_KEY_FIELDS), N_KEY_FIELDS, KW_OK, 0)
+end
 
 # A YAML scalar → the 10-col field text. The YAML number TYPE carries the original
 # field's form: an integer scalar (`60`) → "60"; a float scalar (`60.0`) → "60.0"

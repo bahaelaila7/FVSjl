@@ -30,7 +30,9 @@ const _TR_SCEN = ["s1_thinning", "s13_thinht", "s25_thinrden", "s31_mcdefect", "
                 FVSjl.translate_io(joinpath(d, "a.yaml"), joinpath(d, "b.key"))
                 isfile(tre) && cp(tre, joinpath(d, "b.tre"); force = true)
                 cd(d) do
-                    @test FVSjl.run_keyfile("a.key") == FVSjl.run_keyfile("b.key")
+                    # compare data rows — the -999 header now carries a wall-clock timestamp
+                    nohdr(t) = join([l for l in split(t, "\n") if !startswith(l, "-999")], "\n")
+                    @test nohdr(FVSjl.run_keyfile("a.key")) == nohdr(FVSjl.run_keyfile("b.key"))
                 end
                 if isfile(tre)
                     a_tre = joinpath(d, "a.tre"); a_csv = joinpath(d, "a.csv")

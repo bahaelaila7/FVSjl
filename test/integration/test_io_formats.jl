@@ -251,3 +251,36 @@ end
     @test_throws ErrorException FVSjl.variant_from_code("ZZ")
     rm.([sn, ne, none]; force = true)
 end
+
+@testset "output format: .sum (default) vs CSV — flag + YAML `output_format:`" begin
+    yml = joinpath(@__DIR__, "..", "..", "examples", "multiscenario", "stand.yaml")
+    if isfile(yml)
+        sumtxt = FVSjl.run_keyfile(yml)                        # default → .sum
+        csvtxt = FVSjl.run_keyfile(yml; output = :csv)         # explicit flag → CSV
+        @test startswith(sumtxt, "-999")                       # legacy fixed-column
+        csvls = split(strip(csvtxt), "\n")
+        @test split(csvls[1], ',') == FVSjl.SUM_CSV_HEADER     # named header (incl. StandID/Title)
+        @test length(csvls) - 1 == 28                          # 4 scenarios × 7 cycles
+        # multi-scenario: the StandID column distinguishes scenarios (the .sum truncates the
+        # STDIDENT id to its first token; the description is carried in the Title column).
+        ids = unique([split(l, ',')[1] for l in csvls[2:end]])
+        @test length(ids) == 4 && all(startswith.(ids, "SCENARIO"))
+        @test split(csvls[2], ',')[3] == "control - no action"   # Title column
+        # the CSV carries the same numbers as the .sum data rows (Year col 4, Tpa col 6, TCuFt col 12)
+        srow = split(strip(split(sumtxt, "\n")[2]))            # first .sum data row (after -999)
+        crow = split(csvls[2], ',')                            # first CSV data row
+        @test crow[4] == srow[1] && crow[6] == srow[3]         # Year, Tpa match
+        @test crow[12] == srow[9]                              # TCuFt matches
+    else
+        @test_skip "multiscenario example not available"
+    end
+    # YAML `output_format:` field, with explicit-flag override precedence
+    p = tempname() * ".yaml"
+    write(p, "format: fvs-stand/v1\noutput_format: csv\nstand:\n  invyr: 1990\n  numcycle: 1\n")
+    @test FVSjl.yaml_output_format(p) == "csv"
+    @test FVSjl._resolve_output(p, nothing) == :csv            # YAML selects it
+    @test FVSjl._resolve_output(p, :sum) == :sum               # explicit flag overrides
+    @test FVSjl._resolve_output("x.key", nothing) == :sum      # .key → default sum
+    @test_throws ErrorException FVSjl._resolve_output("x.key", "tsv")
+    rm(p; force = true)
+end

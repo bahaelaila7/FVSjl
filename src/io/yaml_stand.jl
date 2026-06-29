@@ -102,7 +102,7 @@ end
 # constraint (STDIDENT first; species groups before the treatments that name them;
 # COMPUTE before IF; tree list + PROCESS last). raw_keywords ride just before the
 # tree list (good for extension blocks: ECON, FFE/FMIN, COMPUTE — all pre-PROCESS).
-function _stand_records!(recs::Vector{KeywordRecord}, st::AbstractDict)
+function _stand_records!(recs::Vector{KeywordRecord}, st::AbstractDict; is_first::Bool = true)
     g(k) = get(st, k, nothing)
     # 1. STDIDENT (+ its id line)
     if g("stdident") !== nothing
@@ -185,7 +185,13 @@ function _stand_records!(recs::Vector{KeywordRecord}, st::AbstractDict)
     # `treelist:` may be `{}` to just emit TREEDATA.
     tl = g("treelist")
     if tl !== nothing
+        # `format` is OPTIONAL: it's a property of the .tre column layout, not something to
+        # hand-write. When omitted, the FIRST stand emits the canonical DEFAULT_TREE_FORMAT (so a
+        # converted .key is valid for a default-layout .tre, and a `.tre→.csv` round-trip uses the
+        # same layout); later stands inherit it (no TREEFMT). A `.csv` companion ignores TREEFMT
+        # entirely (it is self-describing), so nothing is needed when running from yml+csv.
         fmt = tl isa AbstractDict ? get(tl, "format", nothing) : nothing
+        fmt === nothing && is_first && (fmt = DEFAULT_TREE_FORMAT)
         if fmt !== nothing
             push!(recs, _sem_card("TREEFMT", Dict{Int,String}()))
             s = string(fmt)                          # kw_treefmt! reads two ≤80-col lines
@@ -222,8 +228,8 @@ function read_stand_yaml_doc(doc::AbstractDict)
     for st in (stands isa AbstractVector ? stands : Any[stands])
         st isa AbstractDict || continue
         first || push!(recs, _sem_card("REWIND", Dict(1 => "2")))   # re-read the shared tree file
+        _stand_records!(recs, st; is_first = first)
         first = false
-        _stand_records!(recs, st)
     end
     push!(recs, _sem_card("STOP", Dict{Int,String}()))
     return recs
@@ -241,6 +247,21 @@ function yaml_variant_code(path::AbstractString)
     doc = YAML.load_file(path)
     doc isa AbstractDict || return nothing
     v = get(doc, "variant", nothing)
+    v === nothing ? nothing : string(v)
+end
+
+"""
+    yaml_output_format(path) -> Union{String,Nothing}
+
+Peek a keyword YAML file's top-level `output_format:` field (`sum` or `csv`) — the modern
+output-format selector, both flavors. `nothing` when absent (the entry point then defaults
+to `:sum`). Like `variant:`, this is YAML-only — a `.key` carries no output preference, so
+its format must come from the `output=` argument / a CLI flag.
+"""
+function yaml_output_format(path::AbstractString)
+    doc = YAML.load_file(path)
+    doc isa AbstractDict || return nothing
+    v = get(doc, "output_format", nothing)
     v === nothing ? nothing : string(v)
 end
 

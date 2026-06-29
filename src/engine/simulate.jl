@@ -364,9 +364,20 @@ the tree format carried across), so this is also the unit of thread-parallelism.
 """
 function run_keyfile(keypath::AbstractString;
                      variant::Union{AbstractVariant,Nothing} = nothing,
+                     output::Union{Symbol,AbstractString,Nothing} = nothing,
                      faithful::Bool = true, period::Integer = 5,
                      date::AbstractString = "", time::AbstractString = "")
+    # Output format: :sum (legacy fixed-column, the default) or :csv (named columns). Resolution
+    # mirrors `variant` — an explicit `output=` wins; else the YAML's `output_format:`; else :sum.
+    outfmt = _resolve_output(keypath, output)
+    # FVS stamps the run date/time into the .sum -999 header (MM-DD-YYYY / HH:MM:SS); mirror
+    # that when the caller didn't supply them, so the header carries a timestamp like FVSsn's
+    # (its value is wall-clock and so won't byte-match a separate run — the data rows do).
+    # `Base.Libc.strftime`/`Base.time` avoid a Dates stdlib dependency. (`time` is the kwarg.)
+    isempty(date) && (date = Base.Libc.strftime("%m-%d-%Y", Base.time()))
+    isempty(time) && (time = Base.Libc.strftime("%H:%M:%S", Base.time()))
     out = IOBuffer()
+    csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
     for s in each_stand(keypath; variant = variant, faithful = faithful)
         notre!(s)
@@ -381,7 +392,7 @@ function run_keyfile(keypath::AbstractString;
         tl_on = s.control.dbs_treelist && has_db
         cp_on = s.control.dbs_compute && has_db && !isempty(s.control.compute_defs)
         cl_on = s.control.dbs_cutlist && has_db
-        rows = sum_on ? SummaryRow[] : nothing
+        rows = (sum_on || outfmt === :csv) ? SummaryRow[] : nothing   # also collected for CSV output
         tl_cycles = tl_on ? Tuple[] : nothing
         cp_rows = cp_on ? Tuple[] : nothing
         cl_cycles = cl_on ? Tuple[] : nothing
@@ -397,6 +408,7 @@ function run_keyfile(keypath::AbstractString;
                        hrvcarbon_collect = hc_rows)
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
+        csv_stands === nothing || push!(csv_stands, (String(sid), mid, strip(s.control.title), rows))
         if has_db
             case += 1
             caseid = string(sid, "-", case)
@@ -442,6 +454,9 @@ function run_keyfile(keypath::AbstractString;
                 isempty(ehv) || write_dbs_econharvest!(s.control.dbs_out_file, caseid, ehv)
             end
         end
+    end
+    if outfmt === :csv
+        cio = IOBuffer(); write_sum_csv(cio, csv_stands); return String(take!(cio))
     end
     return String(take!(out))
 end

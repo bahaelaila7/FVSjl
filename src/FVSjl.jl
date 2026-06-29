@@ -111,6 +111,7 @@ export KeywordReader, read_keyword!, KeywordRecord, KeywordStatus, KW_OK, KW_EOF
 export read_tree_records, read_trees_csv, write_trees_csv, convert_tre_to_csv, TREE_CSV_HEADER
 export read_keyword_records, read_keywords_yaml, write_keywords_yaml, convert_key_to_yaml, read_keyfile_records
 export write_keyfile, write_tree_file, convert_yaml_to_key, convert_csv_to_tre, translate_io
+export write_sum_csv, SUM_CSV_HEADER, yaml_variant_code, yaml_output_format
 export initialize, initialize!, each_stand, run_keyfile, process_keywords!, load_trees!, strip_key_ext
 export dgcons!, dgf!, notre!, stand_tpa, stand_ba, stand_qmd, stand_sdi, stand_ccf, stand_top_height
 
