@@ -29,6 +29,13 @@ correlation factor exp(frmt) off ⇒ ~0.5% dgk error on EVERY NE tree — the #5
 274→277 (live 279). A real second NE bug fixed (after IFOR=3). Residual now much smaller; stand-2's repeated
 thinning still amplifies the remaining realization difference.
 
+VERIFIED the vmlt fix closes the dgk gap: post-fix sp27 cyc0 trace shows ssig=0.093 (= FVS exactly, was
+0.14954) and dgk now within ~0.1% of FVS (d=1.2 jl 0.99871 vs FVS 0.998194 = +0.05%, was -0.68%; d=1.9
+0.991263 vs 0.992287 = -0.10%; d=0.1 0.955828 vs 0.957219 = -0.15%). The ~0.5% large-tree DG residual is
+CLOSED to near-ULP (~0.1%, Float32 op-order). Stand-1 .sum tracks live (2090 TPA 109/111). Remaining: the
+near-ULP large-tree tail + the small-tree REGENT boundary (cyc4 draw Δ-18) + stand-2 repeated-thinning
+amplification — all much smaller than the two fixed systemic bugs.
+
 VERDICT TRAIL (for the record): "ULP" (wrong) → "OLDRN" (wrong, OLDRN matches) → ARMA ssigma/vmlt (RIGHT,
 confirmed by direct FVS SSIGMA/VMLT dump). Two re-trace corrections; the doctrine's re-trace discipline caught
 both before they stuck.
