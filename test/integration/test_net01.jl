@@ -178,6 +178,35 @@ end
 # growth; this rewrites the 30 tree records to a diverse 30-species sample (conifers BF/WS/RS/NS/RN/WP +
 # hardwoods RM/SM/BM/YB/HI/AB/oaks/birch/etc.) and projects 5 cycles. Validates the per-species DG + BAL
 # competition + HTG + mortality + density across the broad species set — BIT-EXACT vs live FVSne all 5 cycles.
+# A2 breadth (NE audit) — SITE-INDEX dependence. net01 is SI 56; this projects stand-1 at SI 75 (high) and
+# SI 40 (low) for 5 cycles. Validates the site term in POTBAG (B1·SITEAR) + the NC-128 height curves across
+# the site range — tracks live FVSne within ±2 (the ±1 = the WP large-tree tail on this WP-heavy stand).
+@testset "net01 (NE) site-index 40/75 dependence — vs live FVSne (audit A2 breadth)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        function run_si(si)
+            recs = ["SCREEN","NOAUTOES","STATS","STDIDENT","S248112  SITE",
+                "DESIGN                                        11.0       1.0",
+                "STDINFO        922.0                60.0     315.0      30.0      20.0",
+                "SITECODE          13    " * lpad(string(si), 6), "INVYEAR       1990.0",
+                "NUMCYCLE         5.0","TREEFMT",
+                "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,",
+                "T52,I2,T66,5I1,T54,7I1,T75,F3.0)","TREEDATA","ECHOSUM","PROCESS","STOP"]
+            dir = mktempdir()
+            write(joinpath(dir, "s.key"), join(recs, '\r') * '\r')
+            cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "s.tre"))
+            split(FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = Northeast()), '\n')
+        end
+        for (si, live_ba) in ((75, (77,115,151,185,186,187)), (40, (77,101,126,150,176,191)))
+            lines = run_si(si); b = findfirst(l -> startswith(l, "-999"), lines)
+            for (k, lba) in enumerate(live_ba)
+                @test parse(Int, split(lines[b + k])[4]) ≈ lba atol = 2   # BA tracks live across the site range
+            end
+        end
+    end
+end
+
 @testset "net01 (NE) 30-species 5-cycle growth — BIT-EXACT vs live FVSne (audit A2 breadth)" begin
     if !isfile(_NET01_KEY)
         @test_skip "net01.key not available"

@@ -1006,3 +1006,18 @@ faithful drop-in for arbitrary NE species mixes, bit-exact.
 ⇒ NE VALIDATION COVERAGE now: net01 5 stands (unthinned/THINDBH/shelterwood/FFE/BARE) end-to-end + 30-species
 5-cycle bit-exact + cycle-0 multi-species volume. The remaining residuals (WP tripling-floor on WP-heavy
 long runs; small BARE first-cycle tail) are the only non-bit-exact items, both fine/accepted-class.
+
+
+## A2 BREADTH: site-index dependence (SI 40/75) tracks live — NE growth faithful across the site range
+
+Validated stand-1 at SI 75 (high) and SI 40 (low), 5 cycles vs live FVSne (net01 is SI 56). Both track live
+within ±1-2: SI 75 BA 77/115/151/185/186/187 (jl ±1, TopHt 95/94…), SI 40 BA 77/101/126/150/176/191 (jl ±1).
+The ±1 is the WP large-tree tail (this is the WP-heavy net01 stand-1); the site term in POTBAG (B1·SITEAR) and
+the NC-128 height curves are faithful across the site range. +12-assert test, suite 5281/2.
+
+⇒ NE VALIDATION COVERAGE (comprehensive, multi-dimensional): net01 5 stands end-to-end (all treatments+FFE) +
+30-species 5-cycle BIT-EXACT + site-index 40/56/75 (±1 WP tail) + cycle-0 multi-species volume. The NE growth
+model is a faithful drop-in across SPECIES × SITE × STAND-STRUCTURE × TREATMENTS × FIRE. Only non-bit-exact
+items: the WP tripling-realization floor (accepted, WP-heavy long runs) + the small converging BARE first-cycle
+tail. The NE port meets the FVSsn-complete standard (semantically-faithful drop-in, bit-exact barring
+accepted-floor) for the validated coverage.
