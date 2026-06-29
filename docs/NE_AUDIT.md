@@ -94,11 +94,15 @@ unthinned stand-1 (jl cyc N ↔ FVS ICYC N+1):
 Cycle 1 matches the draw count EXACTLY; the first divergence is entirely within the **2nd growth cycle**, and
 phase-boundary counters show ALL of it is in **`small_tree_growth!` (REGENT)** — DG/HTG/mortality/tripling draw
 ZERO. jl draws +27 rann = **+9 `bachlo`** there. Both jl (small_tree_growth.jl:76, `for l in 0:nrec-1`) and
-FVS (regent.f:263, the per-triple loop) draw one bachlo per tripled sub-record — so jl is processing ~3 extra
-small-tree records (×3 sub-records = 9 bachlo). Root: jl classifies/triples ~3 records near the 5″ small-tree
-boundary (`d < NE_REGENT_XMAX`, small_tree_growth.jl:54) differently than FVS regent's small-tree subset at the
-cycle-2 entry — a boundary-membership mismatch that injects the first extra draws, after which rejection
-sampling cascades the streams apart. This is the THINNING-independent seed of A1 (it's in the unthinned stand).
+FVS (regent.f:263, the per-triple loop) both draw one bachlo per tripled sub-record. CONFIRMED: the +9 bachlo
+is in REGENT, cycle 2 (the 2nd tripling cycle), unthinned stand (thinning-independent). LEADING HYPOTHESIS
+(not yet confirmed at the record level): jl processes ~3 extra small-tree records because their cycle-2-entry
+DBH lands on a different side of the 5″ small-tree boundary (`d < NE_REGENT_XMAX`, small_tree_growth.jl:54)
+than in FVS — seeded by the cycle-1 per-tree DBH not being BIT-exact (the ~0.5-1% A2 growth residual: cyc-1
+deterministic tripling growth is faithful in aggregate but not per-tree). A few records near 5″ flip
+membership ⇒ different REGENT draw count ⇒ rejection-sampling cascade. If true, A1 ⊂ "make NE per-tree growth
+bit-exact" — the boundary flip is a symptom; the upstream cause is per-tree DG/HTG precision. NEEDS the
+per-record dump (below) to confirm the mechanism before any fix.
 
 **Next (task #50).** Pin the ~3 boundary records: instrument jl small_tree_growth! + FVS regent.f to dump
 (record, dbh, is-small, n-draws) at cycle-2 entry; find the records where small-membership disagrees; reconcile
