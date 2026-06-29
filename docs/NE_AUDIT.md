@@ -832,3 +832,24 @@ IMPLEMENTATION PLAN (focused turn, SN-guarded):
 
 ⇒ item A is now the clear #1 NE-COMPLETE task with a concrete, SN-safe plan + the OLDRN insight. item B (BF/WS
 establishment height path) is #2. Both are focused-turn implementations; net01 functionally complete + validated.
+
+
+## A1 item A — EXPERIMENT: full-skip-backdate REGRESSES → the fix is the HYBRID (current BADIST + backdated pred)
+
+Tried the candidate fix `s.variant isa Northeast || _backdate_dbh!(s)` (NE skips backdating entirely → predicts
+AND computes BADIST on the current stand). Result (measured, then REVERTED):
+- WP COR 0.6434 → **0.7033** (FVS displays 0.66) — OVERSHOOT past FVS in the other direction.
+- net01 per-stand BA maxΔ vs live: stand1 1→2, stand2 6→5, **stand3 2→7**, **stand4 0→3 (was bit-exact!)**,
+  stand5 4→4. NET REGRESSION (stands 3+4 worse; stand 4 lost bit-exact). SN suite stayed bit-exact (NE-gated).
+⇒ CONCLUSION: full-skip is WRONG. The backdating of the per-tree PREDICTION dbh must STAY (predict each measured
+tree at its PAST dbh, like SN and the validated state); ONLY the BADIST (the BAL competition array) should use
+the CURRENT stand (verified EBAU=52). The COR sits BETWEEN the two extremes (0.6434 backdated-both ↔ 0.7033
+current-both), and FVS's 0.66 ⇒ the HYBRID (past pred dbh + current BADIST) is the faithful target.
+
+REFINED FIX (the hybrid stash, SN-safe): keep `_backdate_dbh!`; add a transient current-dbh stash (= `saved_dbh`,
+already computed) on the StandState that `ne_badist!` reads INSTEAD of the backdated `t.dbh` — set it around the
+calibration `dgf!(s,variant)` call (line 384), clear after. ne_diameter_increment still predicts at the backdated
+`t.dbh[i]` (per-tree, past), but the ebau BAL array is built from current dbh. SN-safe (only ne_badist! reads the
+stash; SN doesn't call it). VALIDATE: WP COR → ~0.66, net01 stand2/BdFt improves WITHOUT regressing stand3/4,
+SN stays 5253/2. This experiment de-risked the implementation (ruled out the simpler full-skip). Item A remains
+the #1 task; the hybrid stash is now the precise, evidence-backed plan. The validated state is fully restored.
