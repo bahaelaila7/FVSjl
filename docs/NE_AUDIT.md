@@ -163,6 +163,16 @@ at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LAR
 d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
 LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
 path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
+WK2 SPLIT (decisive): dumped the dgf DDS predictor (exp(wk2)) for sp27 cyc0 both sides — MATCHES bit-close
+(dbh 0.1→1.09096 both; 1.2→3.25577; 1.9→4.48258; 4.0→7.80665). So the dgf PREDICTOR is FAITHFUL. The ~0.5%
+dgk gap is purely the SERIAL-CORRELATION factor exp(frmt) applied after (frmt = FM·ssigma·rhocp + corr·oldrn).
+Further ruled out: SIGMAR(27)=.093 = jl dg_resid_sd; jl DOES have the SIGMA sample-variance calibration (line
+455 = dgdriv.f:552); FVS COR(27)=0.0 ⇒ no calibration fired for sp27 ⇒ SIGMA=SIGMAR=.093 on both ⇒ ssigma
+matches. So the residual is in the REMAINING serial-correlation components for sp27: the per-tree residual OLDRN
+(the calibration residual seeded from measured DG) or the ARMA multipliers (vmlt/corr/rhocp from autcor). This
+is the deepest stochastic-DG layer (dgdriv.f serial correlation), ordered-work #2/#3. EXHAUSTIVE TRACE COMPLETE:
+DDS predictor + B1/B2/B3/SITEAR/COR/BKRAT/SIGMAR all match; residual isolated to exp(frmt)'s oldrn/ARMA terms.
+
 DEEPER TRACE (all flat coefficients now ruled out): for sp27 cyc0, term-by-term — B1(27)=.0007439, B2(27)=
 .0706905 (= jl), B3(27)=.016240 (= jl dg_b3, BALMOD), SITEAR(27)=71.456 (= jl), COR(27)=0.0 (= jl), BKRAT(27)=
 .920 (= jl bark; NE BRATIO ignores D/H and returns the per-species constant BKRAT). ALL MATCH. Yet jl's dgk
