@@ -11,8 +11,11 @@ SN stays bit-exact through every NE change (doctrine #6 — gate on variant in s
 rows. cyc-0 BIT-EXACT (536/77/160/63 every stand). The rest is faithful within the proven-faithful DG drift
 (#50): stand-1 unthinned TPA within 0..−9 / 100yr (~2-3%), BA/SDI within 1-5; stand-3 shelterwood ≈ bit-close
 (dTPA mostly 0); stand-2 THINDBH close through 2130 then the LARGEST .sum residual = ~14% BA at 2140+ (cyc
-15-16) — the DG drift compounding through the repeated 3-cycle thins (the late thin removes a different amount
-on the slightly-drifted tree distribution). So the NE SIMULATION is a faithful drop-in across the whole net01
+15-16). RE-VERIFIED (not assumed): the 2130 THIN removed BA 123→83 (−40, 20 TPA) in jl vs 121→99 (−22, 14 TPA)
+live — jl OVER-thins because the accumulated ~2-3% DG drift pushed trees across a THINDBH DBH-class BOUNDARY
+(the block targets 8-12″→60 TPA, 12-16″→35 TPA, …; a tree drifting 11.9→12.1″ flips its target 60→35 ⇒ a
+discretely larger removal). Faithful THINDBH mechanism (earlier thins matched bit-close) + a threshold effect
+of the continuous DG drift — not a thin-logic bug. So the NE SIMULATION is a faithful drop-in across the whole net01
 multi-cycle run, not just cyc-0/1; the only growth residual is the documented faithful DG accumulation.
 
 ## DONE — the no-fire growth + volume path is a faithful drop-in (cyc-0 and cyc-1)
