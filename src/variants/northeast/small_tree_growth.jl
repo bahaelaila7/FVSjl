@@ -69,7 +69,13 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
             xwt = d <= NE_REGENT_XMIN ? 0f0 : (d - NE_REGENT_XMIN) / (NE_REGENT_XMAX - NE_REGENT_XMIN)
             htgr = max(htgr_s * (1f0 - xwt) + xwt * t.ht_growth[i], 0.1f0)
             dgk = t.diam_growth[i]   # large-tree DG (inside-bark) to blend toward
+            # regent.f:373 blends the small-tree DG with the PER-TRIPLE large-tree DG: central uses DG(I),
+            # upper uses DG(ITRIPU)=stash.dgU, lower uses DG(ITRIPL)=stash.dgL (the FRU/FRL serial-corr
+            # records DGDRIV set). Capture them before the l-loop overwrites the stash slots.
+            dgkU = trip ? stash.dgU[i] : dgk
+            dgkL = trip ? stash.dgL[i] : dgk
             for l in 0:(nrec - 1)
+                dgk_l = l == 0 ? dgk : (l == 1 ? dgkU : dgkL)
                 ran = 0f0
                 if random_on
                     while true
@@ -97,7 +103,7 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                         dgsm = sqrt((d * bark)^2 + dds) - bark * d
                         dgsm < 0f0 && (dgsm = 0f0)
                     end
-                    dggr = dgsm * (1f0 - xwt) + xwt * dgk     # blend with large-tree DG (regent.f:373)
+                    dggr = dgsm * (1f0 - xwt) + xwt * dgk_l   # blend with PER-TRIPLE large-tree DG (regent.f:373)
                     dg = max(dggr, 0.1f0)
                     dg > dgmx && (dg = dgmx)
                     (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)   # DIAM budwidth floor

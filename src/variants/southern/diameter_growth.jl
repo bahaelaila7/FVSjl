@@ -452,8 +452,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          bnyv * (dist / 2f0) + regcor * (1f0 - dist / 2f0)
                 svar = devsq[sp] - dev[sp]^2 / fn[sp]
                 svar_v = (svar / (fn[sp] - 1f0)) / fn[sp]
-                temp = min(cornew * cornew / DG_PSIGSQ, 72f0)
-                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / DG_PSIGSQ))
+                psigsq = s.variant isa Northeast ? 0.0898f0 : DG_PSIGSQ   # NE dgdriv.f:95 PSIGSQ=0.0898
+                temp = min(cornew * cornew / psigsq, 72f0)
+                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
                 corv = wc * cornew
                 # out-of-range trap (cortem = exp(COR))
                 if exp(corv) < 0.0821f0 || exp(corv) > 12.1825f0
