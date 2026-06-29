@@ -96,3 +96,12 @@ ESRNSD/NTALLY/WK6) remains a real but separate gap to port carefully (not a naiv
 ⇒ FINAL net01 state: stands 1/2/3 BIT-EXACT all .sum columns; stand 4 FFE bit-exact (SDI±1); stand 5 BARE the
 lone residual (TPA±3/BA±1, systematic establishment first-cycle growth, semantics-verified, converging). The
 semantic-audit campaign turned the WP "tail" (wrongly accepted as floor) into 4 real fixes ⇒ bit-exact growth.
+
+CLOSING VERIFICATION of the BARE Phase-2 growth (every input re-read vs regent.f, NOT runtime): FNT=FINT−5=5
+⇒ SCALE=FNT/REGYR=0.5 (regent.f:118-122,134) = jl scale_e EXACT; HTGR×CON×SCALE×HGADJ×XRHGRO with CON=HGADJ=
+XRHGRO=1 for net01 (regent.f:224); GMOD=1−(1−bal)(1−relht), relht=0 for BARE (regent.f:240-243); XWT=0 for
+LESTB (regent.f:248); htgr floor 0.1; DBH via Wykoff HT→DBH inverse. ALL FAITHFUL. The +0.001·hk on the new
+DBH only RAISES BA (can't cause a LOW residual). ⇒ the BARE ~1 BA is the practical single-precision/timing
+floor for this establishment cohort, on par with the accepted SN residuals — not an unported semantic. NE
+growth+mortality+density+crown+volume+thinning+FFE are bit-exact on net01 stands 1-4; establishment is
+faithful with a floor-level cohort residual.
