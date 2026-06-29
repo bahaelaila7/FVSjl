@@ -468,3 +468,17 @@ floor. The earlier "cyc1 dgf ~4% dgk" was the COMPOUND of this ~0.1% entry-DBH d
 boundary; the per-input dgf is faithful. So A1's residual is now at the ULP/op-order floor for the tripled
 small-tree records -- the documented-ULP class. The deterministic NE growth (dgf + dgscor + htgf + REGENT
 central) is bit-exact; only the tripled small-tree U/L sub-records carry a ~0.1% op-order tail.
+
+
+### A1 correction: the tripled U/L residual is ~0.1% (NOT confirmed ULP)
+Re-trace discipline on my own prior note: a ~0.1% difference is ~1000x Float32 ULP (ULP~1e-6 relative), so it is
+NOT pure ULP and I should not imply it might be. The tripled small-tree U/L sub-records carry a REAL ~0.1%
+difference at cyc1-entry (FVS 2.98971/3.00604 vs jl 2.9924/3.0021). The central (l=0) records and the dgf are
+bit-exact, so the divergence is specifically the U/L (l=1,2) sub-record growth. Since htg=htgr+ran*0.1*htgr,
+a ~0.1% htg/DBH diff implies the ±10% random `ran` for the U/L sub-records differs ~1% -> the REGENT bachlo
+draw VALUES for the tripled sub-records are misaligned (the draw count matched cyc0-3, so it is a draw-ORDER /
+sequence difference, not a missing/extra draw). So A1's residual is the REGENT small-tree tripled-record bachlo
+draw-ORDER vs ne/regent.f -- a real (small) RNG-sequence misalignment for the U/L sub-records, NOT ULP and NOT
+yet fixed. VERDICT: OPEN, ~0.1% per-U/L-record, the SN-class RNG-order alignment for the small-tree tripling.
+NEXT: instrument the REGENT bachlo draw sequence (which sub-record consumes which draw) jl vs regent.f for one
+sp27 small tree at cyc0.
