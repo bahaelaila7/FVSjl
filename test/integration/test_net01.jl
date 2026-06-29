@@ -93,6 +93,50 @@ end
     end
 end
 
+# A1 (NE audit) — net01 stand 2 (the THINDBH "TEST EXPANDED THINDBH OPTION", 16 cycles, repeated
+# every-3-cycle multi-class thin). This is the scenario whose BA diverged ~−20 (the "−40 vs −22 BA"
+# flag) until the ne_badist! /gross_space bug was fixed (it scaled the BAL competition array 10/11,
+# over-growing low-competition trees as the thinned stand opened up). BA now tracks live FVSne within
+# ±1 across all 16 cycles. Live FVSne s2.sum BA by year: 77,65,80,96,114,133,149,165,183,195,196,198…
+@testset "net01 (NE) stand-2 THINDBH multi-cycle BA — vs live FVSne (audit A1, badist fix)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        thindbh = [
+            "IF(FRAC(CYCLE/3.0) EQ 0.0)THEN",
+            "THINDBH                              4.0      1.00       5.0",
+            "THINDBH                              2.0      0.01               300.0",
+            "THINDBH                    2.0       4.0      0.01               200.0",
+            "THINDBH                    4.0       8.0      0.01               125.0",
+            "THINDBH                    8.0      12.0      0.01                60.0",
+            "THINDBH                   12.0      16.0      0.01                35.0",
+            "THINDBH                   16.0      20.0      0.01                15.0",
+            "THINDBH                   20.0                1.00", "ENDIF"]
+        recs = ["SCREEN", "NOAUTOES", "STATS", "STDIDENT", "S248112  THINDBH ISOLATED",
+            "DESIGN                                        11.0       1.0",
+            "STDINFO        922.0                60.0     315.0      30.0      20.0",
+            "SITECODE          13        26", "INVYEAR       1990.0", "NUMCYCLE        16.0", "TREEFMT",
+            "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,",
+            "T52,I2,T66,5I1,T54,7I1,T75,F3.0)", thindbh...,
+            "TREEDATA", "ECHOSUM", "PROCESS", "STOP"]
+        dir = mktempdir()
+        kp = joinpath(dir, "s2.key")
+        write(kp, join(recs, '\r') * '\r')
+        cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "s2.tre"))
+        out = FVSjl.run_keyfile(kp; variant = Northeast())
+        lines = split(out, '\n')
+        b1 = findfirst(l -> startswith(l, "-999"), lines)
+        # live FVSne BA at each cycle row (1990=b1+1 … 2150=b1+17)
+        live_ba = (77, 65, 80, 96, 114, 133, 149, 165, 183, 195, 196, 198, 199, 200, 200, 201, 201)
+        for (k, lba) in enumerate(live_ba)
+            row = split(lines[b1 + k])
+            @test parse(Int, row[4]) ≈ lba atol = 2     # BA tracks live within ±1 (was ~−20 pre-fix)
+        end
+        # cycle-0 is the bit-exact anchor; the deep cycles are where the badist bug used to compound
+        @test parse(Int, split(lines[b1 + 1])[4]) == 77   # 1990 BA — bit-exact
+    end
+end
+
 # A2 (NE audit) — full-species-set cycle-0 volume/crown/density. net01 exercises ~6 of 108 NE
 # species; this rewrites net01.tre's 30 records to a diverse 30-species sample (conifers BF/WS/RS/
 # NS/RN/WP + hardwoods RM/SM/BM/YB/HI/AB/oaks…) and checks jl's cycle-0 stand against the live FVSne
