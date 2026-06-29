@@ -803,3 +803,32 @@ cyc1 converging.
 (backdating, algorithm) + tripling; B = BF/WS establishment height-growth PATH (LESTB/PLANT-age, algorithm).
 Each is a focused algorithm fix needing per-tree live verification + (for A) SN-regression guarding. net01 is
 functionally complete + validated end-to-end on stand AND volume columns; these are the last two fine residuals.
+
+
+## A1 item A — KEY INSIGHT + implementation plan: calibration drives BOTH COR and OLDRN (one fix may close it)
+
+Important realization: the DG calibration (calibrate_diameter_growth!) produces NOT ONLY the per-species COR but
+ALSO the per-tree OLDRN serial-correlation SEED (residual = measured−predicted DG), and OLDRN drives the TRIPLING
+spread (the U/L satellites' growth, dgdriv.f FRMT=FRU+CORR·OLDRN). So jl's wrong NE calibration BADIST (backdated
+→ low BAL → over-predicted DG) corrupts BOTH: (a) the COR (central, 0.6434 vs 0.66) AND (b) the OLDRN seeds →
+the tripling over-grow (the d28 WP satellite). ⇒ the SINGLE fix (NE calibration uses the CURRENT-stand BADIST,
+verified EBAU=52) may close the WHOLE WP tail, not just the 2.5% COR — flipping it from "regresses" to "the fix".
+This supersedes the earlier "two offsetting effects, A regresses" framing.
+
+IMPLEMENTATION PLAN (focused turn, SN-guarded):
+- jl calibrate_diameter_growth! backdates t.dbh (_backdate_dbh!, line 328) for SN's point_bal/PCT/PTBAA. NE's
+  competition is ne_badist! which reads t.dbh → sees the backdated stand. FVS NE calibration uses the CURRENT
+  stand (BADIST=52, verified 3× ICYC=1).
+- LEAST-INVASIVE fix: stash `saved_dbh` (already kept, line 300) into the StandState (e.g. a `calib.calib_cur_dbh`
+  field or s.scratch), and have `ne_badist!` use it WHEN SET (calibration phase) instead of t.dbh. Clears after
+  calibration. SN untouched (SN doesn't call ne_badist!). NE-gated, no SN risk.
+- OPEN sub-question to verify first (one measured-WP instrument): does FVS NE also predict each MEASURED tree's
+  DG at CURRENT dbh (not backdated)? BADIST=current implies the whole stand is current ⇒ likely also the
+  prediction dbh. If so, NE should not backdate the prediction dbh either (a bigger gate); if only BADIST matters,
+  the stash fix above suffices. Resolve with a measured-WP dbh dump (calib dgf DIAM vs current) before coding.
+- VALIDATE: after the fix, WP COR → 0.66 (exp), net01 BA (esp. stand 2) and the d28 WP satellite vs live; SN
+  suite stays 5253/2 bit-exact (the hard gate). If the tail closes, item A is DONE; if only the COR moves and the
+  tripling persists, the OLDRN insight was incomplete — note + continue per doctrine #3.
+
+⇒ item A is now the clear #1 NE-COMPLETE task with a concrete, SN-safe plan + the OLDRN insight. item B (BF/WS
+establishment height path) is #2. Both are focused-turn implementations; net01 functionally complete + validated.
