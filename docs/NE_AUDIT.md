@@ -698,3 +698,28 @@ identifiable bug. The one actionable sub-item is the ~2.5% WP COR (jl 0.6434 vs 
 calibration BADIST stand basis (past-vs-current DBH) — worth aligning, but it makes WP slower (helps the
 distribution only marginally). Otherwise the residual is near the practical floor for a tripling stand. The
 NE no-fire + FFE growth is a validated faithful drop-in across net01; this is the last, fine, multi-causal tail.
+
+
+## A1 WP-COR sub-item CONFIRMED + scoped: FVS NE calibration uses CURRENT-stand BADIST (jl backdates)
+
+Verified via instrumented FVS ne/badist.f (dump EBAU[8]/[9] per call): at ICYC=1 BADIST fires 3× and EVERY call
+has **EBAU[8]=52.0 / EBAU[9]=48.0 — the CURRENT stand**. So FVS's NE DG calibration evaluates the BAL competition
+on the CURRENT-DBH stand (no backdating). jl's `calibrate_diameter_growth!` (southern/diameter_growth.jl:300/338/384)
+backdates t.dbh to the PAST stand (validated for SN's point_bal/PCT competition) before the variant `dgf!`, so
+`ne_badist!` sees the past stand (EBAU[8]≈37 = 52×... the backdated value) → lower BAL → over-predicted calib DG
+→ over-corrected COR. Measured: jl dg_cor[9]=−0.44095 (exp 0.6434) vs FVS effective 0.66 — the ~2.5% gap.
+
+FIX (scoped, NE-only — SN-safe because `ne_badist!`/BADIST competition is NE-specific; SN uses point_bal which
+is correctly backdated): the NE calibration BADIST must use the CURRENT-stand dbh, not the backdated dbh. Plumb
+the saved current dbh (calibrate_diameter_growth! already keeps `saved_dbh`) into `ne_badist!` for the
+calibration `dgf!` only (a variant/calibration-phase flag), OR compute the NE calibration ebau on the current
+stand before backdating. ⚠ DELICATE: (1) the shared calibrate fn backdates t.dbh for SN — the change must be
+NE-gated and not perturb SN (keep suite bit-exact); (2) per doctrine #3 this faithful fix will likely REGRESS
+net01 BA UP (less-suppressive WP COR → WP faster), UNMASKING the separate tripling over-grow tail — expected,
+not a reason to revert. Worth doing for faithfulness (COR→0.66) then tackling the tripling tail with the COR no
+longer compensating. Deferred to a focused turn (shared-calibration refactor + SN-regression guard).
+
+⇒ The WP tail's two effects are now BOTH root-caused: (a) COR 2.5% over-suppressive = jl backdates the NE
+calibration BADIST (FVS uses current stand) — CONFIRMED, fix scoped above; (b) tripling upper-satellite
+over-grow = the residual after (a), SIGMAR-exact so a subtle multi-cycle realization effect. (a) and (b)
+partially offset, netting the ~2-6 BA distributional tail. net01 otherwise functionally complete + validated.
