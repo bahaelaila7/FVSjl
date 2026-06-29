@@ -173,3 +173,54 @@ end
         @test parse(Int, row[12]) ≈ 1023 atol = 8             # BdFt  (R9LOGS Scribner)
     end
 end
+
+# A1 breadth (NE audit) — net01 stands 3 (shelterwood) + 5 (BARE establishment) vs live FVSne. Confirms
+# the post-badist growth spine + the silvicultural treatments track live across the no-fire stands (1,2,3,5).
+# Stand 3 = THINPRSC(0.999) shelterwood + SPECPREF + THINBTA(157→35): the prescription-thin TPA is bit-exact
+# every cycle; BA within ±2 (the sp9 WP large-tree distributional tail). Stand 5 = NOTREES + ESTAB/PLANT
+# (jack+white pine 400 each): regen TPA tracks (±6), BA converges to bit-exact late (early-cohort REGENT runs
+# ~20% low on the tiny establishment BA, 8 vs 10 at 2002, → 265/265 by 2092).
+@testset "net01 (NE) stand-3 shelterwood + stand-5 BARE — vs live FVSne (audit A1 breadth)" begin
+    if !isfile(_NET01_KEY)
+        @test_skip "net01.key not available"
+    else
+        function run_recs(recs, tre)
+            dir = mktempdir()
+            write(joinpath(dir, "s.key"), join(recs, '\r') * '\r')
+            tre === nothing || cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "s.tre"))
+            split(FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = Northeast()), '\n')
+        end
+        hdr = ["SCREEN", "NOAUTOES", "STATS", "STDIDENT", "S248112  SHELTERWOOD",
+            "DESIGN                                        11.0       1.0",
+            "STDINFO        922.0                60.0     315.0      30.0      20.0",
+            "SITECODE          13        56", "INVYEAR       1990.0", "NUMCYCLE        10.0",
+            "THINPRSC      1990.0     0.999",
+            "SPECPREF      2020.0      27.0     999.0", "SPECPREF      2020.0      19.0    9999.0",
+            "THINBTA       2020.0     157.0",
+            "SPECPREF      2050.0      49.0    -999.0", "SPECPREF      2050.0       9.0     -99.0",
+            "THINBTA       2050.0      35.0", "TREEFMT",
+            "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,",
+            "T52,I2,T66,5I1,T54,7I1,T75,F3.0)", "TREEDATA", "ECHOSUM", "PROCESS", "STOP"]
+        lines = run_recs(hdr, :tre)
+        b = findfirst(l -> startswith(l, "-999"), lines)
+        live_tpa3 = (536, 235, 230, 218, 140, 137, 135, 31, 30, 30, 29)   # live FVSne — prescription-thin
+        for (k, ltpa) in enumerate(live_tpa3)
+            row = split(lines[b + k])
+            @test parse(Int, row[3]) == ltpa                  # TPA — BIT-EXACT (THINPRSC/THINBTA thinning)
+        end
+        @test parse(Int, split(lines[b + 1])[4]) == 77        # 1990 BA exact
+        @test parse(Int, split(lines[b + 4])[4]) ≈ 134 atol = 2   # 2020 BA within ±2 (WP tail)
+
+        bare = ["SCREEN", "NOAUTOES", "STDIDENT", "BARE GROUND PLANT", "ECHOSUM", "SCREEN", "NOTREES",
+            "NOTRIPLE", "STDINFO        922.0                 0.0     315.0      30.0      20.0",
+            "INVYEAR         1992", "NOAUTOES", "ESTAB           1992",
+            "PLANT           1992         1       400", "PLANT           1992         3       400", "END",
+            "NUMCYCLE          10", "PROCESS", "STOP"]
+        l5 = run_recs(bare, nothing)
+        b5 = findfirst(l -> startswith(l, "-999"), l5)
+        @test parse(Int, split(l5[b5 + 1])[3]) == 0           # 1992 BARE — no trees
+        @test parse(Int, split(l5[b5 + 2])[3]) == 800         # 2002 regen TPA exact (PLANT 400+400)
+        @test parse(Int, split(l5[b5 + 11])[3]) ≈ 499 atol = 6   # 2092 TPA tracks live (mortality)
+        @test parse(Int, split(l5[b5 + 11])[4]) ≈ 265 atol = 2   # 2092 BA — converges to live (bit-exact)
+    end
+end

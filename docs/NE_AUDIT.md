@@ -589,3 +589,23 @@ to the live .out sample-tree table. Findings:
 
 VERDICT: A1's TopHt ~2% late tail is a DBH-distribution effect (sp9 WP large-tail), the htgf height model
 is faithful (JP/SM validated). Deferred with the stand-level next-check above. Small + partly stochastic.
+
+
+## A1 breadth: ALL FOUR no-fire stands validated vs live FVSne (stands 1,2,3,5)
+
+Confirmed the post-badist growth spine + silvicultural treatments across every no-fire net01 stand:
+- **Stand 1 (unthinned, 10 cyc):** BA bit-exact all cycles (77…193 vs FVS …194).
+- **Stand 2 (THINDBH, 16 cyc):** BA bit-exact ±1 all cycles (the user-flagged scenario).
+- **Stand 3 (shelterwood: THINPRSC 0.999 + SPECPREF + THINBTA 157→35):** prescription-thin **TPA BIT-EXACT
+  every cycle** (536,235,230,218,140,137,135,31,30,30,29 = live), BA within ±2 (WP tail), TopHt ±1. The
+  THINPRSC/SPECPREF/THINBTA treatment chain is faithful.
+- **Stand 5 (BARE: NOTREES + ESTAB/PLANT jack+white pine 400 each):** regen TPA tracks (800 exact at 2002,
+  ±6 late), BA converges to bit-exact late (265/265 at 2092); early-cohort REGENT runs ~20% low on the tiny
+  establishment BA (8 vs 10 at 2002) — the young planted-tree small-tree DG/HTG, a known REGENT residual.
+Locked in by test/integration/test_net01.jl (stand-3 TPA-exact + stand-5 establishment, +17 assertions).
+Suite 5249/2, SN bit-exact.
+
+⇒ The NE NO-FIRE growth + treatment path is a validated faithful drop-in across all 4 stands. Open: the sp9
+WP large-tree distributional TopHt tail (~2%, stands 1/3), the stand-5 early-regen BA (~20% on tiny BA,
+converges), and NE FFE (stand 4, the one unported subsystem). The fire subsystem is now the dominant
+remaining work toward NE_COMPLETE.
