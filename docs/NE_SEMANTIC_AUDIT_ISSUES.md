@@ -234,3 +234,20 @@ top-killed trees. Dubbed stands UNCHANGED (no tkill ⇒ identical path); SN unaf
 strengthened to assert all 4 vol cols + the per-tree top-kill TOT. Suite 5333/2. ⇒ net01 volume is now fully
 faithful — the last net01 residual is CLOSED. (SN snt01's parallel top-kill residual remains; the SN path already
 has cftopk so it may already be handled — verify separately if revisiting SN.)
+
+
+## REAL BUG (broadening) — NE thinning + AUTOES crashes (missing is_sprouting + NE-specific ESUCKR model)
+Thinning a diverse stand (THINBBA) WITHOUT NOAUTOES crashes jl: `KeyError: :is_sprouting`. ROOT: FVS NE LSPRUT
+defaults TRUE (esinit.f:50); a cut with sprouting-on triggers the stump-sprout path, and cuts.jl:128
+`coef_col(:is_sprouting)[sp]` KeyErrors because NE has no is_sprouting column. net01 MASKS this — all 5 stands
+carry NOAUTOES (⇒ lsprut=false). So net01 stays bit-exact; this only bites a general AUTOES-default NE stand
+that gets cut. CONFIRMED the NE sprout model is DIFFERENT from SN: jl's esuckr! (sprout.jl:139) uses SN-only
+essprt.f funcs (nsprec_sn / essprt_sn / sprtht_sn), but NE esuckr.f does: 1 sprout record per stump
+(PROB=PREM·SMULT, esuckr.f:284 — NOT nsprec_sn's multiple), height=SPRTHT(VARACD,ISSP,SITEAR,ISHAG) (esuckr.f:
+286, variant-aware), then BACHLO(0,0.5,ESRANN)·HT/5.5 deviation, DBH=Wykoff inverse `HT2/(ln(HT−4.5)−AX)−1`
+with AX=HT1(IABFLG=1) else AA (esuckr.f:294-301), ICR=70, NO essprt survival. NEXT-PORT CHECKLIST: (1) add
+is_sprouting column for NE = ISPSPE (blkdat.f:109) = {20, 26-70, 72-97, 99-108} (82 species, ⇒ most hardwoods
++ sp20; softwoods 1-19/21-25 + 71/98 don't sprout); (2) make esuckr! variant-aware — NE branch = 1 record/stump
++ SPRTHT(NE) + Wykoff-inverse DBH + BACHLO random, NO nsprec/essprt; (3) port NE SPRTHT (sprtht.f VARACD=NE
+branch). VALIDATE vs live: thinned dense stand (THINBBA 2010 resid-BA 100) → live 2020 TREES 301 / BA 119
+(incl. sprouts). KEEP SN bit-exact (variant-gate the esuckr! sprout-creation; sprout.key SN validation must hold).
