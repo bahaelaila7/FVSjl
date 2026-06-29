@@ -222,8 +222,18 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      models 9/10 match (flame bit-close), so it is FM10-SPECIFIC — the distinguishing feature is FM10's LIVE fuel class
      (FWG(2,1)=.092 woody; model 9 has none). ⇒ NEXT: trace jl `rothermel_surface_fire` LIVE-fuel branch (live MEXT, the
      live reaction-intensity / wind-factor contribution) for a dead+live model vs FVS FMFINT at fmois-1 NE moisture (live
-     woody .89). That single fix closes OINIT1 (and any dead+live fuel-model fire). All inputs verified; localized
-     rothermel-live-fuel residual, NOT wired.
+     woody .89).
+     ★★★ OINIT1 SOLVED + WIRED (2026-06-29, suite 5191/2). The "FM10 spread" gap was a MISREAD of which model the bisection
+     uses: fmfint.f:120-134 shows `IF (FTYP.EQ.2 .AND. ICALL.EQ.1)` uses the PURE FM10 (that path = the CROWNING index
+     OACT1, ICALL=1) — but the ELSE branch (ICALL=2, the TORCHING bisection) loops the FMCFMD-WEIGHTED STAND models
+     (9/10), NOT FM10. The debug-FVS FMFINT component dump confirmed it (FTYP=2 ICALL=2 emits TWO models: sigma 2484=FM9 +
+     1764.8=FM10). jl's weighted 9/10 spread @ midflame 11.29 = 39.09 == FVS's RINIT1 target 38.95 (pure FM10 gave 33.1).
+     FIX: `torching_index(s, cbd, actcbh, fmois, ::Northeast)` — INIT1 (FOLMC=100 ladder) → RINIT1 = 60·INIT1/HPA (HPA =
+     stand `Σxir·w·384/Σsigma·w`) → BISECT the 20-ft wind (×WMULT) until the WEIGHTED-model spread = RINIT1; wired into
+     `potential_fire_report` (−1 for SN). RESULT: PotFire Torch_Index 1993 = 93.5 vs live 90.6 (bit-close; the ~3% is the
+     fine HPA/weights/WMULT residuals the flame is robust to); later cycles track within the DG-driven CBD drift. ⇒ BOTH
+     crown-fire indices (OACT1 crowning + OINIT1 torching) now emit and match live. The METHOD that cracked it: debug-FVS
+     `OPEN(89,FILE=...)` file dumps (JOSTND is redirected in the PotFire path; unit 89 + file surfaces).
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);

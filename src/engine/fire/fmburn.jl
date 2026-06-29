@@ -238,7 +238,7 @@ function potential_fire_report(s::StandState)
     return (; surf_flame_sev = pf.severe.flame, surf_flame_mod = pf.moderate.flame,
             tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
             ptorch_sev = pt.severe, ptorch_mod = pt.moderate,
-            torch_index = -1f0,                                                   # OINIT1 (torching) not yet ported
+            torch_index = torching_index(s, cbd.cbd, cbd.actcbh, 1, s.variant),   # OINIT1 (torching, severe fmois=1); −1 for SN
             crown_index = crowning_index(s, cbd.cbd, 1, s.variant),               # OACT1 (crowning, severe fmois=1); −1 for SN
             canopy_ht = cbd.actcbh, canopy_density = cbd.cbd,   # FVS_PotFire Canopy_Ht = ACTCBH (fmpofl.f:302), the crown base
             mort_ba_sev = pf.severe.ba_kill, mort_ba_mod = pf.moderate.ba_kill,
@@ -285,6 +285,46 @@ function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Northeast)::F
     r.xio < 1f-5 && return -1f0
     o = ((2.95f0 * r.rhobqig / (r.xio * cbd)) - r.phis - 1f0) / 0.001612f0
     return o > 0f0 ? o^0.7f0 * 0.01137f0 / 0.4f0 : 0f0
+end
+
+"""
+    torching_index(s, cbd, actcbh, fmois, variant) -> Float32
+
+The Scott & Reinhardt torching index O'init — the 20-ft wind (mi/h) at which crown fire INITIATES
+(FMCFIR, fmcfir.f:197-271). NE only; SN/CS ⇒ −1. The critical surface spread rate for torching
+RINIT1 = 60·INIT1/HPA (INIT1 from the foliar-moisture/crown-base-height ladder rule, HPA = the stand's
+heat-per-area = `Σxir·w·384/Σsigma·w`); then BISECT the 20-ft wind (× the canopy reduction WMULT) until
+the stand's WEIGHTED surface-fuel-model spread = RINIT1. NB the torching bisection uses the FMCFMD weighted
+STAND models (fmfint.f:120-134, the ICALL=2 ELSE branch) — NOT the fixed FM10 the crowning index uses.
+"""
+torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant) = -1f0
+function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Northeast)::Float32
+    (cbd > 0f0 && actcbh >= 0) || return -1f0
+    mois = fuel_moisture(fmois, s.variant)
+    models = select_fuel_models(s, mois)
+    # HPA = stand heat-per-area = Σxir·w·384/Σsigma·w (fmfint.f:550, wind-independent intermediates)
+    sxir = 0f0; ssig = 0f0
+    for (fm, w) in models
+        r = rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois; slope_tan = s.plot.slope)
+        sxir += r.xir * w; ssig += r.sigma * w
+    end
+    (ssig > 0f0 && sxir > 0f0) || return -1f0
+    hpa = sxir * 384f0 / ssig
+    folmc = 100f0                                     # foliar moisture content (fminit.f:150 default)
+    init1 = ((460f0 + 25.9f0 * folmc) * 0.001333f0 * Float32(actcbh))^1.5f0
+    rinit1 = 60f0 * init1 / hpa
+    wmult = fire_wind_reduction(s.fire.percov)
+    # weighted-model surface spread (ft/min) at a 20-ft wind `oi` (canopy-reduced to midflame `oi·wmult`)
+    spr(oi) = sum(rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois;
+                  wind = oi * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
+    spr(999f0) < rinit1 && return 999f0               # never reaches the critical rate ⇒ cap at 999
+    lo = 0f0; hi = 999f0; o = 0f0
+    for _ in 1:1000                                   # bisection (fmcfir.f:237 DO 200)
+        o = (lo + hi) / 2f0; d = spr(o) - rinit1
+        abs(d) <= 0.001f0 && break
+        d > 0.001f0 ? (hi = o) : (lo = o)
+    end
+    return min(o, 999f0)
 end
 
 """
