@@ -172,14 +172,18 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      live (bit-exact)**, actcbh **13 == live**. ALSO fixed the `Canopy_Ht` column to report ACTCBH (the crown base,
      fmpofl.f:302 passes ACTCBH), not the j2 top — now 13/17/23/30/36 vs live 13/28/24/31/37. SN-safe (round-trip test;
      suite green). ⇒ With CBD now correct, the crowning index OACT1 = ((2.95·SRHOBQ₂/(SIRXI₂·CBD))−SPHIS₂−1)/0.001612 →
-     ^0.7·0.01137/0.4 computes to OACT1 = 67 (severe) — closer but not yet live's 81.9. The residual is the FM10
-     rothermel intermediates: FVS needs SRHOBQ₂/SIRXI₂ ≈ 1.025, jl gets 241.4/312.2 = 0.773 ⇒ jl's severe FM10 moisture
-     is too DRY (wetter fuel → higher qig→SRHOBQ, lower xir→SIRXI). NEXT: align jl's severe-scenario fuel moisture to
-     FVS's, then wire OACT1 into `potential_fire_report` for `::Northeast`; then OINIT1 torching bisection (needs HPA =
-     stand xir·384/sigma + SWIND). ★ ALSO FIXED (2026-06-29, suite 5191/2): the PotFire SCENARIO wind/temp were
-     SN-hardcoded (20mph/70°F severe, 8/60 moderate) — NE's fmvinit.f:63-66 sets PREWND/POTEMP = 25/80°F severe, 15/50
-     moderate. Added `potfire_env(variant)`; NE PotFire Mortality_BA_Sev now 43 vs live 44. (Surf_Flame 5.6 vs live 3.3
-     stays gated on the FMCFMD fuel-model-selection diff jl 8/9/10 vs live 9/10.)
+     ^0.7·0.01137/0.4. ★★ CROWNING INDEX OACT1 ✓ DONE + WIRED (2026-06-29, suite 5191/2 SN bit-exact): with the CBD fix
+     the residual was the FM10 severe MOISTURE — jl used the SN fmmois.f table for NE. NE has its OWN table (ne/fmmois.f,
+     LS-FFE values; notably WETTER live fuels: fmois1 live-woody .89 vs SN .55). FIXED: `fuel_moisture(fmois, variant)`
+     with `_FM_MOIS_NE` (all 4 rows) + variant threaded through fmburn!/potential_fire/fuel_additions. ⇒ OACT1 67→**82.04
+     vs live 81.9 (bit-exact)**. Wired via `crowning_index(s, cbd, fmois, variant)` (FM10 rothermel intermediates; −1 for
+     SN) into `potential_fire_report`; Crown_Index now 82.04/74/74/56/45 vs live 81.9/88.9/71.7/53.5/43.1 (1993 bit-exact;
+     later cycles within the DG-driven CBD drift — the 2003 gap is jl CBD 0.0242 vs live 0.0187, not the formula). ★ The NE
+     moisture also corrects the BurnReport/SIMFIRE moistures AND keeps the net01 SIMFIRE post-fire .sum TPA BIT-EXACT vs
+     live (536/285/168/164/161/157). ★ ALSO FIXED: PotFire SCENARIO wind/temp were SN-hardcoded (20/70°F) — NE
+     fmvinit.f:63-66 = 25/80°F severe, 15/50 moderate (`potfire_env(variant)`); NE Mortality_BA_Sev 43 vs live 44.
+     REMAINING for the crown indices: only the OINIT1 TORCHING index (the 1000-iter bisection + HPA = stand xir·384/sigma
+     + SWIND). Surf_Flame 5.6 vs live 3.3 stays gated on the FMCFMD fuel-model-selection diff (jl 8/9/10 vs live 9/10).
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);

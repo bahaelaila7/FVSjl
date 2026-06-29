@@ -94,7 +94,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # MOISTURE keyword (fmburn.f:367): a fire in the cycle a MOISTURE activity is scheduled for uses the
     # user's explicit fuel moistures (FMOIS=0 path) instead of the FMMOIS dryness-model table.
     movr = _active_moisture_override(s, Int(year))
-    mois = movr === nothing ? fuel_moisture(fmois) : _moisture_matrix(movr)
+    mois = movr === nothing ? fuel_moisture(fmois, s.variant) : _moisture_matrix(movr)
     fwind = wind * fire_wind_reduction(fs.percov)        # 20-ft wind → midflame
     # SN surface fire (FMCFMD + FMDYN + FMFINT): select the weighted standard fuel models
     # for the stand and integrate Rothermel over them, summing the weighted flame & Byram.
@@ -238,7 +238,8 @@ function potential_fire_report(s::StandState)
     return (; surf_flame_sev = pf.severe.flame, surf_flame_mod = pf.moderate.flame,
             tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
             ptorch_sev = pt.severe, ptorch_mod = pt.moderate,
-            torch_index = -1f0, crown_index = -1f0,                                # FMCFIR skipped in SN
+            torch_index = -1f0,                                                   # OINIT1 (torching) not yet ported
+            crown_index = crowning_index(s, cbd.cbd, 1, s.variant),               # OACT1 (crowning, severe fmois=1); −1 for SN
             canopy_ht = cbd.actcbh, canopy_density = cbd.cbd,   # FVS_PotFire Canopy_Ht = ACTCBH (fmpofl.f:302), the crown base
             mort_ba_sev = pf.severe.ba_kill, mort_ba_mod = pf.moderate.ba_kill,
             mort_vol_sev = pf.severe.vol_kill, mort_vol_mod = pf.moderate.vol_kill,
@@ -262,6 +263,29 @@ fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 potfire_env(::Southern)  = (20f0, 70f0, 8f0, 60f0)
 potfire_env(::Northeast) = (25f0, 80f0, 15f0, 50f0)
 potfire_env(::AbstractVariant) = (20f0, 70f0, 8f0, 60f0)
+
+# Fuel model 10 (timber litter + understory) — the fixed crown fuel model FMCFIR overlays for the crown-fire
+# indices (fmcfir.f:122-133): 3 dead classes + 1 live, loads (lb/ft²) / SAV (1/ft), depth 1, dead MEXT .25.
+const _FM10_LOAD = Float32[0.138 0.092 0.23 0.0; 0.092 0.0 0.0 0.0]
+const _FM10_SAV  = Float32[2000.0 109.0 30.0 0.0; 1500.0 0.0 0.0 0.0]
+
+"""
+    crowning_index(s, cbd, fmois, variant) -> Float32
+
+The Scott & Reinhardt crowning index O'active — the 20-ft wind (mi/h) at which an active crown fire is
+sustained (FMCFIR, fmcfir.f:162-168). NE runs FMCFIR (fmpofl.f:167 ELSE branch); SN/CS skip it ⇒ −1.
+Computed from the FM10 crown-fuel-model intermediates at the scenario moisture (propagating flux SIRXI =
+`xio`, heat sink SRHOBQ = `rhobqig`, slope factor SPHIS = `phis`) and the canopy bulk density `cbd`.
+"""
+crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
+function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Northeast)::Float32
+    cbd > 0f0 || return -1f0
+    r = rothermel_surface_fire(_FM10_LOAD, _FM10_SAV, 1f0, 0.25f0,
+                               fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
+    r.xio < 1f-5 && return -1f0
+    o = ((2.95f0 * r.rhobqig / (r.xio * cbd)) - r.phis - 1f0) / 0.001612f0
+    return o > 0f0 ? o^0.7f0 * 0.01137f0 / 0.4f0 : 0f0
+end
 
 """
     canopy_bulk_density(s) -> (; cbd, actcbh, canopy_ht, tcload)
@@ -426,7 +450,7 @@ function potential_fire(s::StandState)
     function scenario(sev::Int, fmois::Int, wind::Float32, temp::Float32, season::Int)
         # POTF* keyword overrides for this severity (sev 1=SEVERE, 2=MODERATE); −1/0 ⇒ scenario default.
         pc = fs.params.potf[sev]
-        mois = pc.mois[1] >= 0f0 ? _moisture_matrix(pc.mois) : fuel_moisture(fmois)
+        mois = pc.mois[1] >= 0f0 ? _moisture_matrix(pc.mois) : fuel_moisture(fmois, s.variant)
         pc.wind >= 0f0   && (wind = pc.wind)
         pc.temp >= 0f0   && (temp = pc.temp)
         pc.season > 0    && (season = Int(pc.season))
