@@ -424,3 +424,29 @@ end
         end
     end
 end
+
+# Dense-stand stress (broadening) — 20-tree / 17-species stand at 440 TPA, 4 cycles. Pushes SDI 140→318
+# (density-driven self-thinning) and high BAL competition (GMOD clamps at 0.5). Exercises the NE mortality
+# path (background ·0.5 + SDI density) + the BAL DG model under stress, on species net01 never grows.
+# LIVE-VALIDATED: every stand column BIT-EXACT at all 5 years incl. the mortality trajectory 440→328.
+@testset "NE dense 20-tree stand, 4 cycles (SDI mortality + BAL) — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "dense.key")
+    if !isfile(key)
+        @test_skip "dense fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        rows = Dict{Int,Vector{Int}}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 7 && occursin(r"^(1990|2000|2010|2020|2030)$", p[1]) || continue
+            rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
+        end
+        # live FVSne: year => [TREES, BA, SDI, CCF, TopHt]
+        live = Dict(1990 => [440,59,140,155,54], 2000 => [430,94,202,221,63], 2010 => [395,124,249,258,70],
+                    2020 => [355,150,283,280,77], 2030 => [328,176,318,304,82])
+        for (yr, exp) in live
+            @test haskey(rows, yr)
+            @test rows[yr] == exp        # BIT-EXACT vs live incl. density-mortality trajectory
+        end
+    end
+end
