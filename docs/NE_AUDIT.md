@@ -660,3 +660,22 @@ Traced the sp9 WP large-tree DG distributional tail with the sorted-DBH + per-it
 
 VERDICT: WP tail localized to the DG calibration-pass BAL basis (not the growth model, which is bit-exact).
 Deferred with the concrete FVS-dgdriv-calibration next-check. net01 otherwise functionally complete + validated.
+
+
+## A1 WP-tail CORRECTION (re-trace): COR direction contradicts over-growth ⇒ tail is TRIPLING-spread, not calib
+
+Re-trace discipline on the prior "ROOT LEAD". Checked jl's actual WP COR: **dg_cor[9] = −0.44095 (exp 0.6434)**
+vs FVS's effective WP DBH-increment scale **0.66** (.out). So jl is ~2.5% MORE suppressive ⇒ the calibration-BAL
+discrepancy makes the WP CENTRAL grow slightly SLOWER — the OPPOSITE direction to the observed d28 WP
+over-growth. So the calibration finding (jl calib-pass BAL ~½ FVS at upper classes) is a REAL but small (~2.5%)
+COR error that does NOT explain the tail. The d28 WP over-growth is therefore the **TRIPLING SPREAD** (the
+upper-triple FU=1.271σ satellite over-grows), a SEPARATE mechanism — likely jl's WP tripling variance (ssigma
+from vardg←SIGMAR=dg_resid_sd[9]) vs FVS SIGMAR(9). So the WP tail is a COMBINATION of two small, partially-
+OFFSETTING effects: (a) COR ~2.5% too suppressive (central slightly slow, from the calib-BAL basis) and (b)
+tripling upper-satellite over-grows (distribution heavy tail). Net = the ~2-6 BA / ~2% TopHt distributional
+residual. NEXT (two independent threads): (a) align the calibration BADIST stand basis (past vs current DBH)
+to fix the 2.5% COR; (b) compare jl WP ssigma/SIGMAR vs FVS blkdat SIGMAR(9) + the cyc1-2 WP tripling C/U/L for
+the satellite over-grow. BOTH are small/fine; this is the last non-ULP net01 residual and is multi-causal.
+
+⇒ CORRECTED VERDICT: the WP tail is NOT a single bug — two small offsetting DG effects (calib COR + tripling
+variance). Each ~2-3%. Documented for continuation; net01 functionally complete + validated otherwise.
