@@ -202,9 +202,15 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      = 577 → OINIT1 106; HPA_B `Σbyram·w/Σspread·w` = 654 → 96.9; HPA_C `Σ(hpa_model·w)` = 634 → 99.1. Live OINIT1 = 90.6
      ⇒ live's HPA must be > 654, HIGHER than any per-model weighting — confirming FVS uses the FMFINT COMBINED model
      (merges the 9/10 loadings/SAV/depth into ONE effective model, then computes xir/sigma/HPA); jl weights per-model
-     OUTPUTS (Σbyram·w matched the flame but underestimates HPA). So OINIT1 is gated on porting the FMFINT combined-model
-     merge. NOT wired (96.9 vs 90.6 ≈ 7%, not ULP). The one remaining structural FFE item; the crowning index OACT1
-     (bit-exact) used the FIXED FM10 so it was unaffected.
+     OUTPUTS. ★ REFINED (2026-06-29): fmfint.f:513-550 CONFIRMS HPA = SXIR·384/SSIGMA with SXIR=Σxir·FWT, SSIGMA=Σsigma·FWT
+     (line 515/513) — i.e. exactly jl's HPA_A weighting. And WMULT (the bisection wind reduction, fmcfir.f:248) =
+     ALGSLP(PERCOV,CANCLS,CORFAC) = jl's `fire_wind_reduction(percov)` (matches). So the formulas all match; the residual
+     is the FMDYN WEIGHTS: jl 9/10 = 74.1/25.9% vs live 72.0/28.0% (the flame is robust to this, the HPA is not). BUT a
+     2% weight shift can't move HPA 577→~700 (the value live's OINIT1=90.6 implies), so there is ALSO a per-model xir/sigma
+     or down-wood (SMALL,LARGE)-point difference feeding FMDYN. PINNING the final gap needs the debug-FVS HPA + per-model
+     xir/sigma/FWT from fmcfir/fmpofl — but those writes don't surface (the PotFire path redirects output; try the DBS or
+     an EVSET4 event-monitor var, NOT a fmcfir WRITE). OINIT1 NOT wired (96.9 vs 90.6 ≈ 7%). Everything else in the crown-
+     fire chain (CBD, OACT1 crowning index, surface flame, fuel-model selection) is bit-exact/live-matching + committed.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
