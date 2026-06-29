@@ -246,10 +246,15 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      for LSPCWE species ELSE CWCALC iwho=0), jl recomputes `crown_width(…, iwho=0)`. ★ HYPOTHESIS REFUTED BY MAGNITUDE
      (2026-06-29): jl's forest-grown crown width is STRONGLY cr-dependent (sp19 d11.5: 13.96@cr35 vs 18.98@cr90), so if
      FVS's CRWDTH were DBH-only (no cr) for these species the percov would differ ~30%, not 1.3% ⇒ FVS uses the SAME
-     cr-dependent CWCALC(iwho=0) (the net01 species are NOT LSPCWE). The 1.3% is therefore a fine COEFFICIENT-level
-     forest-grown-crown-width residual (the CCF, which uses the OPEN-grown iwho=1 eqn, matched live cyc-0; the iwho=0
-     forest-grown eqn is ~1.3% off). Fine-accumulation residual (flame-robust), same class as the accepted divergences;
-     both crown-fire indices are live-matching bit-close. Very-low-priority.
+     cr-dependent CWCALC(iwho=0) (the net01 species are NOT LSPCWE). ★★ THEN DEBUG-FVS REFUTED THE CROWN-WIDTH VERDICT
+     TOO (2026-06-29, cwidth.f unit-89 dump): jl's `crown_width(iwho=0)` MATCHES FVS's CRWDTH BIT-EXACT per tree —
+     sp19 d11.5 cr35 jl 13.962/FVS 13.9621; sp35 16.689/16.6889; sp49 13.559/13.5587; and LSPCWE=F for ALL net01 species
+     (so FVS uses CWCALC iwho=0, exactly as jl). ⇒ the percov gap is NOT the crown width at all — it is a fine TPA /
+     stand-state difference in the `TOTCRA = Σ(π·CW²/4 · FMPROB)` sum (jl `t.tpa` vs FVS `FMPROB`, or the stand state at
+     the FMCBA-percov sample point). cyc-0 total TPA matched (536), so it is sub-tree or a fmcba-timing nuance. STILL a
+     fine-accumulation residual (flame-robust; the bit-exact crowning index + SIMFIRE are unaffected); NEXT debug step =
+     dump FVS `FMPROB`/`TOTCRA` for the FFE stand at the PotFire-percov point vs jl. Re-trace lesson: TWO successive
+     percov verdicts (cr/Bechtold, then crown-width-coeff) were both wrong — the crown width matches; it's the TPA sum.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
