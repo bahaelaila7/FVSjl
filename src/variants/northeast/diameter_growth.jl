@@ -94,7 +94,7 @@ cycle-start basis — computed once. Bark = the constant `BKRAT` via the shared 
 (NE coefs: intercept 0, slope BKRAT).
 """
 function ne_dgf!(s::StandState)
-    t = s.trees; c = s.calib; sd = s.coef.species
+    t = s.trees; c = s.calib; sd = s.coef.species; ctl = s.control
     wk2 = view(s.scratch.wk, 2, :)
     ba = sd[:bark_intercept]; bb = sd[:bark_slope]
     ebau = zeros(Float32, 50); ne_badist!(ebau, s)
@@ -104,8 +104,13 @@ function ne_dgf!(s::StandState)
         bark  = bark_ratio(ba, bb, sp, d)
         dib   = d * bark
         diagr = ne_diameter_increment(s, i, ebau) * bark
+        # COR2 bark-growth compensation (dgf.f:158, LDCOR2-gated) THEN the DIAGR≥.0001 floor (dgf.f:159) —
+        # the floor is NOT calibration-gated and guarantees DDS>0, so NE dgf has NO −9.21 clamp (dgf.f:169),
+        # unlike SN's dgf!. (Was wrongly carrying the SN −9.21 isms; the floor bottoms WK2 near −8.6.)
+        ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (diagr *= ctl.dg_cor2[sp])
+        diagr < 0.0001f0 && (diagr = 0.0001f0)
         dds   = diagr * (2f0 * dib + diagr)
-        wk2[i] = dds > 0f0 ? max(log(dds) + c.dg_cor[sp], -9.21f0) : -9.21f0
+        wk2[i] = log(dds) + c.dg_cor[sp]
     end
     return s
 end
@@ -128,7 +133,7 @@ function ne_dgcons!(s::StandState)
     ba = sd[:bark_intercept]; bb = sd[:bark_slope]
     @inbounds for sp in 1:MAXSP
         c.bark_a[sp] = ba[sp]; c.bark_b[sp] = bb[sp]
-        c.dg_const[sp] = 0f0; c.atten[sp] = 0f0
+        c.dg_const[sp] = 0f0; c.atten[sp] = 1000f0   # DGCONS ATTEN=1000 (dgf.f:195) — prior-obs weight
     end
     return s
 end
