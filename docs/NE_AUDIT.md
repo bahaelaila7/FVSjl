@@ -432,3 +432,15 @@ divergence (one boundary tree flip) is ENTIRELY in the cyc1-2 MULTI-CYCLE path: 
 MODELS (DG + HTG + REGENT) are bit-exact at cyc0; the last residual is the multi-cycle tripling/mortality
 record evolution -- the SN-class record-management/RNG alignment (no NE reference). NEXT: trace cyc1 (tripled
 small records) or the mortality record selection over cyc0-2.
+
+
+### A1 cyc2-entry refinement (cyc0-1 result)
+cyc2-entry DBHs (cyc0+cyc1 growth): the 1.9-2.2 in small-trees MATCH FVS to 4 digits (FVS 1.94516/jl 1.9457,
+2.09953/2.1001) but the 3.2+ in small-trees diverge ~0.7% (FVS 3.20675/jl 3.2294). The larger small-trees blend
+MORE with the large-tree dgk (xwt=(d-1.5)/3.5: 0.49 at d=3.2 vs 0.14 at d=2.0), so the residual is the
+dgk-blend at cyc1-2 for HIGHER-xwt small-trees (or trees crossing 5 in mid-projection). cyc0 growth is fully
+bit-exact (all models); this is a fine-grained cyc1-2 multi-cycle small-tree-blend residual that accumulates
+to one tree flipping 5 in at cyc3, cascading the draw stream. NEXT: dump the cyc1 small-tree dg for a
+high-xwt (d~3-4) sp27 tree vs regent.f -- check the dgk blend / the small tree crossing 5 in mid-cycle.
+The three systematic DG fixes made cyc0 bit-exact; this last layer is the higher-xwt small-tree blend over
+the tripling cycles.
