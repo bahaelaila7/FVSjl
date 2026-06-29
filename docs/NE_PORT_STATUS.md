@@ -211,6 +211,13 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      xir/sigma/FWT from fmcfir/fmpofl — but those writes don't surface (the PotFire path redirects output; try the DBS or
      an EVSET4 event-monitor var, NOT a fmcfir WRITE). OINIT1 NOT wired (96.9 vs 90.6 ≈ 7%). Everything else in the crown-
      fire chain (CBD, OACT1 crowning index, surface flame, fuel-model selection) is bit-exact/live-matching + committed.
+     ★ FINAL pinning (2026-06-29): per-model HPA — FM9 = 390, FM10 = 1331 (xir 2526/sigma 2484, 6118/1765). OINIT1 vs the
+     two-model weight: 72/28→104, 50/50→85, 40/60→~90.6. So live's HPA implies an effective ~40/60, but live REPORTS the
+     flame weights 72/28 ⇒ either the HPA's FWT ≠ the surface flame's FWT, OR jl's per-model FM9/FM10 xir/sigma differ from
+     FVS (the SURFACE flame's Σbyram·w matched at 72/28, but byram=xir·spread·384/sigma is a different combination than
+     HPA=xir·384/sigma, so xir/sigma can be off while byram matches). ⇒ OINIT1's residual is the per-model rothermel
+     xir/sigma precision for the standard FM9/FM10 — verify jl's standard fuel-model defs (load/SAV/depth) + the rothermel
+     xir/sigma vs FVS for models 9/10 (the flame won't catch a compensating xir/sigma error). Deep precision; deferred.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
