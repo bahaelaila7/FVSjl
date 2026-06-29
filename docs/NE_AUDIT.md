@@ -134,6 +134,28 @@ within drift" — a lax verdict the user correctly rejected; re-opened.
 
 ---
 
+## A1 — FIX LANDED (partial): IFOR=3 Allegheny HT-DBH overrides were applied unconditionally
+
+ROOT CAUSE FOUND + FIXED. `data/northeast/htdbh_coeffs.csv` carried the FVS **IFOR=3 (Allegheny) HT-DBH
+override** values (ne/sitset.f:428-490, `IF(IFOR.EQ.3)`) for **20 species** (26,27,30,31,33,40,41,42,44,54,
+55,60,64,67,69,71,93,102,106,108) instead of the DEFAULT values (sitset.f:207-423). net01 is IFOR=2, so FVS
+uses the defaults; jl used the Allegheny values → the small-tree (REGENT) HT→DBH inverse `HT2/(ln(H-4.5)-HT1)-1`
+was wrong for these hardwoods (e.g. sp27 DK 0.7068 vs FVS 0.7396) → ~4-5% low small-tree DBH → boundary flip
+→ +9 REGENT bachlo at cyc2 → RNG cascade → the stand-2 2130 thin over-cut. CONFIRMED by step-trace: HTGR
+(height) matched; DK (HT→DBH) was low; back-solved FVS AX=4.5832 = default HT1=4.4834-path, not jl's 4.6354.
+
+FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cycle RANN draw count now matches
+FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
+is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
+
+REMAINING (A1 not fully closed): stand-1 draw counts re-diverge by smaller amounts at cyc4+ (Δ-12 at cyc4,
+wobbling to ~Δ40 by stand-1 end) — SEPARATE, smaller bugs to fix the SAME iterative way (find first draw
+divergence → trace the term → fix). The stand-2 .sum 2130 thin has NOT yet converged (it's downstream of the
+accumulated cyc4+ residuals + the thinning record-survival question). FOLLOW-UPS: (a) the IFOR=3 Allegheny
+override must be re-added as a CONDITIONAL (forest_idx==3) so Allegheny stands stay faithful — currently jl
+uses defaults for ALL IFOR (right for IFOR≠3, now wrong for IFOR=3; no IFOR=3 test exists so no regression);
+(b) iterate the draw-counter method on the cyc4+ divergences.
+
 ## A2 — Full NE species-set cycle-0 volume/crown/density (VERDICT: FAITHFUL)
 
 net01 only exercises ~6 of 108 NE species, so the per-species volume (R9 Clark cubic + R9LOGS board feet),
