@@ -411,3 +411,13 @@ discrete component of A1 is faithful; the residual is the COMPOUND stochastic ev
 - Volume across the full NE species set (only net01's species are validated).
 - Establishment / regen (net01 stand-5 BARE; #49 cycle-0 only).
 - Mid-run keyword paths not in net01: THINATA/THINCC/THINHT, FIXMORT, SETSITE, FERTILIZE, species multipliers.
+
+
+### A1 final localization (per-record, cyc3 stand-1 isolated)
+FVS has 19 sp27 small REGENT records, jl has 18 - FVS keeps one at 4.979 in (just under 5 in) that jl grew PAST 5.
+Shared DBHs ~0.5% off with VARIED sign (FVS 4.31481/jl 4.2942 low; FVS 4.46957/jl 4.4932 high; FVS 3.14229/jl
+3.1442 high). Draw count matched cyc0-3 => the small-tree REGENT growth is ~0.5% off DETERMINISTICALLY (op-order
+or a small REGENT-path term, not RNG), flipping one boundary tree at cyc3 and cascading the draw stream (-18).
+A1 LAST residual = small-tree REGENT diameter/height growth (small_tree_growth.jl dgsm/htg) vs ne/regent.f,
+~0.5%, analogous to the (fixed) large-tree DG bugs. Large-tree diameter core (dgf + dgscor) is BIT-EXACT.
+NEXT: trace one sp27 small tree REGENT growth (htgr->htg->hk->dkk/dk->dgsm->dg) at cyc0 vs regent.f.
