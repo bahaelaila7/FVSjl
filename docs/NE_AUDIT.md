@@ -723,3 +723,27 @@ longer compensating. Deferred to a focused turn (shared-calibration refactor + S
 calibration BADIST (FVS uses current stand) — CONFIRMED, fix scoped above; (b) tripling upper-satellite
 over-grow = the residual after (a), SIGMAR-exact so a subtle multi-cycle realization effect. (a) and (b)
 partially offset, netting the ~2-6 BA distributional tail. net01 otherwise functionally complete + validated.
+
+
+## A1 volume-column validation (full net01): divergences = the two growth residuals × threshold amplification
+
+Validated the .sum VOLUME columns (TCuFt/MCuFt/BdFt) across the full net01 (56 rows, 5 stands) vs live FVSne.
+Per-stand max %diff:
+- stand 1 (unthinned): TCuFt 1.8 / MCuFt 1.8 / BdFt 2.2 — tight.
+- stand 3 (shelterwood): TCuFt 2.5 / BdFt 2.9 — tight.
+- stand 4 (FFE): TCuFt 0.8 / MCuFt 3.7 / BdFt 6.5 — good (fire volume faithful).
+- stand 2 (THINDBH): TCuFt 6.6 / MCuFt 7.3 / **BdFt 12.5** — the sp9 WP large-tree tail; BdFt (Intl ¼") is
+  highly diameter-sensitive so the WP DBH-distribution tail amplifies ~2× vs BA.
+- stand 5 (BARE): TCuFt 10.8 / **MCuFt 55.1** (yr2022 live532/jl239) / BdFt 14.1 — the early-regen DBH deficit
+  at the 5" MERCH THRESHOLD: QMD live 4.98 vs jl 4.90 (1.6% low) straddles 5", so the merch-eligible fraction
+  (and MCuFt) halves. A growth residual, threshold-amplified — NOT a volume bug (cyc0 volume is validated A2).
+
+⇒ The volume columns are FAITHFUL given the growth: every volume divergence traces to a known growth residual
+(WP large-tree tail on stand 2; small-tree REGENT regen-DBH deficit on stand 5) amplified by volume's diameter/
+threshold sensitivity. So the two growth residuals matter MORE for volume than for BA — raising the value of
+fixing them. Two distinct growth items remain: (A) sp9 WP large-tree tail (COR-backdating + tripling, root-caused
+above), (B) the establishment-cohort REGENT regen-DBH deficit (TPA bit-exact but DBH ~1.6% low → BA ~20% / MCuFt
+~55% low early on the BARE stand) — a NEW distinct item to trace (the planted-cohort small-tree DG running slow).
+
+VERDICT: net01 stand+volume columns validated end-to-end; no separate volume bug. Remaining = the two growth-
+side residuals (WP tail + regen-DBH), both characterized, each amplified at volume thresholds.
