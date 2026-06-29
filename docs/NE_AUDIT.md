@@ -156,14 +156,17 @@ FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cy
 FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
 is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
 
-CYC4 RESIDUAL VERDICT (coefficients ruled out): checked the OTHER sp27 small-tree-path coefficients vs FVS —
-HTGR/NC-128 height increment MATCHED bit-close even pre-fix (D=1.2→11.1389 both); REGENT DIAM budwidth
-(regent.f:610) sp9/27/30 = 0.4/0.2/0.1 = jl regent_min_diam EXACTLY; HT-DBH now fixed. So all three sp27
-small-tree coefficients match FVS → the ~0.5-1% residual is NOT another data bug. It is a Float32 op-order /
-single-precision accumulation in the small-tree DG over cyc0-2 that nudges ~2 sp27 boundary trees just below
-5″ where FVS has them just above — the ULP-single-precision class the GOAL explicitly accepts ("bit-exact
-barring only ULP single-precision"). To drive it to literal bit-exact would need per-op order matching of the
-DDS/sqrt/blend sequence vs regent.f (deep, ULP-level); it's within the documented-ULP tolerance now.
+CYC4 RESIDUAL — CORRECTED VERDICT (re-trace discipline; the earlier "ULP-class" call was WRONG). A ~0.5-1%
+DBH difference is NOT ULP (Float32 ULP is ~1e-7). Traced the sp27 cyc0 small-tree DG term-by-term (RNG aligned
+at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LARGE-tree DG blended in) is
+~0.2-0.7% LOW in jl for every sp27 tree** (d=1.2: jl 0.99137 vs FVS 0.99819; d=4.0: 0.92715 vs 0.93255;
+d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
+LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
+path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
+REMAINING source (the NE DG predictor `POTBAG=B1·SITEAR·(1-exp(-B2·D))·0.7` → BALMOD → 10x annual iterate → DDS
+→ `WK2=log(DDS)+COR`): SITEAR (site index), COR (DG calibration), BALMOD (B3), or the iteration. This is the
+central NE DG model (ordered-work #2) not yet bit-exact for sp27. Next: trace the dgf predictor terms (SITEAR
+/COR/BALMOD) for one sp27 tree vs ne/dgf.f.
 
 CYC4 PER-RECORD (REGENT records dumped both sides, stand-1 cyc3): both have 45 records but different
 per-species survival — jl sp9=15/sp27=21/sp30=9 vs FVS sp9=17/sp27=19/sp30=9. The 2 extra jl sp27 records sit
