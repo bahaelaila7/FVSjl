@@ -81,11 +81,30 @@ diverge because jl makes a different NUMBER/ORDER of `rann!`/`bachlo` draws than
 draw offsets the whole downstream stream. Cyc1-2 aggregates match (deterministic, no RNG), so the offset is
 either in cyc0 setup, the mortality (VARMRT draws), or the cyc3 dgscor draw order.
 
-**Next (task #50).** Instrument both jl `rann!`/`bachlo` and FVSne `rann.f` with a per-cycle DRAW COUNTER;
-run net01 stand-2 and find the FIRST cycle where the cumulative draw count diverges (upstream-first) — that
-localizes the extra/missing draw. Then align that call site, keeping SN bit-exact. This is the SN-class
-RNG draw-sequence alignment campaign (SN had Oracle-A as a per-draw reference; NE must use instrumented
-FVSne draw counts + per-cycle TREELISTs). Large, careful effort on shared stochastic code.
+**FIRST DIVERGENCE LOCALIZED (draw-counter instrumentation, both sides).** Added a RANN draw counter to jl
+`rann!` and to FVSne `rann.f` (COMMON /RNDBG/, dumped per cycle from grincr.f). Cumulative main-stream draws,
+unthinned stand-1 (jl cyc N ↔ FVS ICYC N+1):
+
+| cycle | jl draws | FVS draws | Δ |
+|---|---|---|---|
+| 1 (1990→2000) | 87 | 87 | **0 — exact** |
+| 2 (2000→2010) | 321 | 294 | **+27 (jl)** ← first divergence |
+| 3 (2010→2020) | 1131 | 1131 | 0 (then cascades) |
+
+Cycle 1 matches the draw count EXACTLY; the first divergence is entirely within the **2nd growth cycle**, and
+phase-boundary counters show ALL of it is in **`small_tree_growth!` (REGENT)** — DG/HTG/mortality/tripling draw
+ZERO. jl draws +27 rann = **+9 `bachlo`** there. Both jl (small_tree_growth.jl:76, `for l in 0:nrec-1`) and
+FVS (regent.f:263, the per-triple loop) draw one bachlo per tripled sub-record — so jl is processing ~3 extra
+small-tree records (×3 sub-records = 9 bachlo). Root: jl classifies/triples ~3 records near the 5″ small-tree
+boundary (`d < NE_REGENT_XMAX`, small_tree_growth.jl:54) differently than FVS regent's small-tree subset at the
+cycle-2 entry — a boundary-membership mismatch that injects the first extra draws, after which rejection
+sampling cascades the streams apart. This is the THINNING-independent seed of A1 (it's in the unthinned stand).
+
+**Next (task #50).** Pin the ~3 boundary records: instrument jl small_tree_growth! + FVS regent.f to dump
+(record, dbh, is-small, n-draws) at cycle-2 entry; find the records where small-membership disagrees; reconcile
+the NE small-tree DBH threshold / which records REGENT draws for (vs the grincr small-tree subset that calls
+regent). Then re-run the draw-counter to confirm cycle-2 Δ→0, and walk forward. Keep SN bit-exact (the SN
+small-tree path is `<3″` and already aligned).
 
 **Status: OPEN** (model faithful, stochastic stream not yet aligned). Previously mis-closed as "faithful
 within drift" — a lax verdict the user correctly rejected; re-opened.
