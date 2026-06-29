@@ -163,6 +163,16 @@ at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LAR
 d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
 LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
 path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
+DEEPER TRACE (all flat coefficients now ruled out): for sp27 cyc0, term-by-term — B1(27)=.0007439, B2(27)=
+.0706905 (= jl), B3(27)=.016240 (= jl dg_b3, BALMOD), SITEAR(27)=71.456 (= jl), COR(27)=0.0 (= jl), BKRAT(27)=
+.920 (= jl bark; NE BRATIO ignores D/H and returns the per-species constant BKRAT). ALL MATCH. Yet jl's dgk
+(large-tree DG) is ~0.2-0.7% low. So the residual is NOT a flat coefficient — it's in the value dgk CARRIES
+beyond the dgf predictor: jl's tripling-deterministic serial-correlation factor exp(frmt) (frmt = FM·ssigma·
+rhocp + corr·oldrn; FM=-0.14228 matches; ssigma from VARDG; oldrn the per-tree calibration residual) and/or the
+10x annual iteration arithmetic (Float32 op-order). This is the central NE DG variance/serial-correlation
+(dgdriv.f), the deepest layer of ordered-work #2. Next: dump jl's wk2 (dgf DDS predictor) vs FVS WK2 at cyc0 —
+if wk2 matches, the gap is purely the serial-correlation/iteration factor; trace VARDG(27)/ssigma there.
+
 REMAINING source (the NE DG predictor `POTBAG=B1·SITEAR·(1-exp(-B2·D))·0.7` → BALMOD → 10x annual iterate → DDS
 → `WK2=log(DDS)+COR`): SITEAR (site index), COR (DG calibration), BALMOD (B3), or the iteration. This is the
 central NE DG model (ordered-work #2) not yet bit-exact for sp27. Next: trace the dgf predictor terms (SITEAR
