@@ -185,3 +185,19 @@ exact, BdFt 3843/3849). ⇒ NE DG (BAL model) + HTG (NC-128 curves) + mortality 
 across the diverse species set, not just net01's ~7. Fixture+test: test/integration/ne_fixtures/divspp.* +
 test_net01.jl. KEYFILE GOTCHA: all trees must share ONE plot (tree id cols 24-27 = "0101"; the PLOT is cols
 26-27, the per-tree record number is cols 1-4) else "MORE PLOTS FOUND THAN SPECIFIED" abort. Suite 5309/2.
+
+
+## CROSS-FOREST broadening — IFOR-dependent merch rules BIT-EXACT vs live FVSne
+Ran the 15-species stand under IFOR=1 (forest 914), IFOR=4 (920), IFOR=5 (921) — exercising _ne_merch's
+IFOR-branched hardwood DBHMIN (1/3→6, 4→8, else→5) + the per-forest site defaults (lat/long→Hopkins→CCF).
+Live-validated: cyc0 MCuFt tracks the merch rule EXACTLY — IFOR1 1158, IFOR4 1083, IFOR5 1190 (all jl=live);
+CCF tracks the site default 103/102/104 (jl=live); all other stand cols bit-exact. Residual = the same
+consistent TCuFt +4/BdFt −6 (~0.3%) as IFOR=2: per-tree TOTAL cubic matches live to .trl print precision (0.1)
+on all 15 trees (BF 3.22/3.2 … SW 60.61/60.6, max|Δ|0.09) ⇒ sub-print Float32/Clark-tip-integration rounding
+accumulated ×TPA, NOT a localizable bug (same class as net01 volume ULP). MCuFt/SCuFt bit-exact everywhere ⇒
+the tip-only nature confirms it is the total-to-tip integration, not a merch error. Fixtures+test:
+ne_fixtures/divspp_f{914,920,921}.* + test_net01.jl. Suite 5318/2.
+
+⇒ BROADENING TALLY so far: coefficient tables (108 spp, 8 tables) all faithful; 2 real bugs found+fixed+live-
+validated (IFOR=3 HT-DBH override, R9 merch-topwood); growth spine bit-exact on 15 diverse spp × 3 cycles ×
+4 forests (IFOR 1/2/3/4/5 merch rules + site defaults). NE port is faithful well beyond net01's envelope.

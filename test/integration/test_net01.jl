@@ -399,3 +399,28 @@ end
         end
     end
 end
+
+# Cross-forest merch rules (broadening) — the same 15-species stand under IFOR=1 (forest 914), IFOR=4 (920),
+# IFOR=5 (921). _ne_merch's IFOR-dependent hardwood dbhmin (1/3→6, 4→8, else→5) changes which trees are
+# merchantable ⇒ MCuFt shifts per forest. LIVE-VALIDATED: jl cyc0 MCuFt = live EXACTLY for each forest
+# (IFOR1 1158, IFOR4 1083, IFOR5 1190); stand cols + CCF (per-forest site defaults: 103/102/104) also match.
+@testset "NE cross-forest merch rules (IFOR 1/4/5) — vs live FVSne (broadening)" begin
+    # forest code => (live MCuFt, live CCF) at cyc0 1990
+    cases = [("divspp_f914.key", 1158, 103), ("divspp_f920.key", 1083, 102), ("divspp_f921.key", 1190, 104)]
+    for (kf, lmcuft, lccf) in cases
+        key = joinpath(@__DIR__, "ne_fixtures", kf)
+        if !isfile(key)
+            @test_skip "$kf missing"
+        else
+            out = FVSjl.run_keyfile(key; variant = Northeast())
+            row = nothing
+            for ln in split(out, '\n')
+                p = split(ln)
+                length(p) >= 12 && p[1] == "1990" && (row = p; break)
+            end
+            @test row !== nothing
+            @test parse(Int, row[6]) == lccf            # CCF (per-forest site default)
+            @test parse(Int, row[10]) == lmcuft         # MCuFt (IFOR-dependent merch rule) BIT-EXACT
+        end
+    end
+end
