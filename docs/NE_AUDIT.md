@@ -163,6 +163,18 @@ at cyc0): dk now MATCHES FVS (0.7396, the HT-DBH fix worked); but **dgk (the LAR
 d=1.9: 0.98785 vs 0.99229; d=0.1: 0.9557 vs 0.95722). So the residual is a REAL systematic error in the NE
 LARGE-TREE diameter growth (ne/dgf.f) for sp27 — the actual #50/A2 "drift" root, NOT ULP and NOT the small-tree
 path. RULED OUT: the DG coefficients B1/B2 (FVS B1(27)=.0007439 / B2(27)=.0706905 = jl's dg_b1/dg_b2 EXACTLY).
+BOTTOM REACHED — A1 residual = calibration-time RNG draws for sp27's OLDRN seed. jl dump: sp27 has
+dg_cor[27]=0 (UNcalibrated) and varied per-tree oldrn (0.079/0.020/-0.023/0.036/...) ⇒ these are the random
+BACHLO z draws (the `else` branch, diameter_growth.jl:487 `z = bachlo(s.rng, 0, sigma[sp])` with the DGSD·sigma
+rejection bound), NOT a regression line. So sp27's serial-correlation seed OLDRN is a stochastic z drawn at
+CALIBRATION (LSTART, before the cycle loop). It diverges from FVS because the calibration-time RNG stream —
+consumed BEFORE the cyc0-3 window the IFOR=3 fix aligned — is not yet matched to FVS dgdriv.f (the species-sorted
+order/count/bound of the OLDRN z draws). FIX PATH: apply the same draw-counter method to the LSTART calibration
+(instrument the bachlo z draws in calibrate_diameter_growth! vs ne/dgdriv.f), align the per-species draw
+order/count, so sp27's OLDRN seed matches. This is the FULL A1 chain end-to-end: user-flagged thin → RNG
+divergence → IFOR=3 HT-DBH (FIXED) → residual large-tree DG ~0.5% (sp27) → dgf predictor faithful → serial-corr
+exp(frmt) → OLDRN seed → calibration-time bachlo z RNG alignment. Deepest layer; well-scoped.
+
 FINAL PIN (back-solved from matched dgk/DDS, no new instrumentation): for d=1.2 (dib=1.104, DDS=3.2558 both),
 exp(frmt) = (((dgk+dib)^2 - dib^2)/DDS): jl frmt=-0.0261, FVS frmt=-0.0167 (Δ~0.0094). Since ssigma≈0.093 and
 FM=-0.14228, the deterministic FM·ssigma·rhocp term is bounded at -0.0132 (rhocp≤1) — too small to reach
