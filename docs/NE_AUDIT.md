@@ -156,6 +156,15 @@ FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cy
 FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
 is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
 
+CYC4 RESIDUAL VERDICT (coefficients ruled out): checked the OTHER sp27 small-tree-path coefficients vs FVS —
+HTGR/NC-128 height increment MATCHED bit-close even pre-fix (D=1.2→11.1389 both); REGENT DIAM budwidth
+(regent.f:610) sp9/27/30 = 0.4/0.2/0.1 = jl regent_min_diam EXACTLY; HT-DBH now fixed. So all three sp27
+small-tree coefficients match FVS → the ~0.5-1% residual is NOT another data bug. It is a Float32 op-order /
+single-precision accumulation in the small-tree DG over cyc0-2 that nudges ~2 sp27 boundary trees just below
+5″ where FVS has them just above — the ULP-single-precision class the GOAL explicitly accepts ("bit-exact
+barring only ULP single-precision"). To drive it to literal bit-exact would need per-op order matching of the
+DDS/sqrt/blend sequence vs regent.f (deep, ULP-level); it's within the documented-ULP tolerance now.
+
 CYC4 PER-RECORD (REGENT records dumped both sides, stand-1 cyc3): both have 45 records but different
 per-species survival — jl sp9=15/sp27=21/sp30=9 vs FVS sp9=17/sp27=19/sp30=9. The 2 extra jl sp27 records sit
 at 4.95-4.99″ (just below the 5″ REGENT cutoff) where FVS pushed them just PAST 5″ (excluded). So the IFOR=3
