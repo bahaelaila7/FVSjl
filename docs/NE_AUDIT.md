@@ -515,3 +515,27 @@ BA now tracks live FVS bit-exact ALL cycles: 77,107,136,168,188,189,190,192,193,
 77,107,136,168,188,189,190,192,193,193,194 (FVS). Was diverging ~-20 BA before. Residuals now tiny (TPA +-1-3,
 SDI +-1-2, CCF +-1, TopHt +-2 late) = the next layer (mortality record selection / height-growth tail), NOT BA.
 Suite 5214/2 (SN bit-exact, no regression). VERDICT: A1 BA divergence RESOLVED.
+
+
+## A1 follow-up: stand-2 VALIDATED + remaining residual now isolated to height growth
+
+After the ne_badist! fix, BOTH validated stands track live FVSne on BA:
+- Stand 1 (unthinned, 10 cyc): BA 77,107,136,168,188,189,190,192,193,193,193 vs FVS ...194 (±1).
+- Stand 2 (THINDBH, 16 cyc, the USER-FLAGGED scenario): BA 77,65,80,96,114,133,149,165,183,195,196,
+  198,199,200,200,201,201 vs live FVSne IDENTICAL within ±1 every cycle (was the "-40 vs -22 BA").
+Locked in by `test/integration/test_net01.jl` (stand-2 THINDBH multi-cycle, 18 assertions). Suite 5232/2.
+
+REMAINING net01 stand-1 residual (post-badist) is now ISOLATED to HEIGHT GROWTH:
+- TopHt: jl 63,72,72,82,90,94,96,98,100,102,104 vs FVS 63,72,73,82,90,94,96,99,102,105,106.
+  Δ = 0 for the first 6 cycles, drifting to +2-3 ft low by 2080-2090 (~5% HTG deficit on the top sp9
+  white-pine trees). TPA within ±1-3 (mortality-record timing).
+- NOT a calibration issue: the live .out per-species table shows HEIGHT INCREMENT MODEL = 1.00 for all
+  species (only DBH has a COR: sp9 0.66 scale = the −0.44 COR jl already applies, now BA-bit-exact).
+- So the DG half is faithful (BA bit-exact); the residual is the htgf HEIGHT increment for tall sp9
+  (ne/htgf.f site-curve tail / BAL-height-modifier / OLDRN). NEXT: per-tree HTG vs live for the tall
+  sp9 trees to classify systematic-vs-OLDRN-scatter — needs the TREELIDB/.trl per-tree oracle (TREELIST
+  keyword writes to .out not a DB table; the DATABASE/TREELIDB block did not emit FVS_TreeList_East here
+  — revisit the exact DSNOUT tree-list keyword/field before the next per-tree HTG trace).
+
+OPEN ITEMS toward NE_COMPLETE: (1) the sp9 height-growth tail (~2-3 ft TopHt late, this residual);
+(2) NE FFE (stand 4, fire — the one unported subsystem; run_keyfile on full net01 still hits :v2t).
