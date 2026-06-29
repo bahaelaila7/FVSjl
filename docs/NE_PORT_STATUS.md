@@ -234,6 +234,13 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      fine HPA/weights/WMULT residuals the flame is robust to); later cycles track within the DG-driven CBD drift. ⇒ BOTH
      crown-fire indices (OACT1 crowning + OINIT1 torching) now emit and match live. The METHOD that cracked it: debug-FVS
      `OPEN(89,FILE=...)` file dumps (JOSTND is redirected in the PotFire path; unit 89 + file surfaces).
+     ★ The ~3% 1993-torch residual (93.5 vs 90.6) decomposes: WMULT jl 0.1223 vs FVS 0.12457 (~1.9%, the LARGEST) +
+     HPA 594 vs 592 + FMDYN weights 74/26 vs 72/28. The WMULT diff = PERCOV: jl 66.64 vs FVS 65.8 (back-solved from
+     WMULT). FVS PERCOV formula = jl's exactly (fmcba.f:182 `100·(1−exp(−TOTCRA/43560))`), so the diff is the crown
+     WIDTH: FVS sums the per-tree stored `CRWDTH(I)` (fmcba.f:154), jl RECOMPUTES `crown_width(…, iwho=0)` per tree. The
+     CCF matched live at cyc-0, so jl's crown widths are right for CCF — but the FFE percov should reuse the SAME stored
+     per-tree crown width rather than recompute (a 1.3% nuance). Fine-accumulation residual (flame-robust), same class as
+     the accepted divergences; both indices are live-matching bit-close. Lower-priority crown-width-source cleanup.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
