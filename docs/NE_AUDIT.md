@@ -16,6 +16,20 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
+## A1 — UNIFIED: remaining height+volume residual is ONE thing — the cyc3+ multi-cycle RNG stream
+
+The height residual and the volume residual are NOT separate subsystem bugs. NE height growth uses
+`htg = htg1·(1+OLDRN)·gmod` (height_growth.jl:26) and the DG uses `exp(frmt)` with frmt = FM·ssigma·rhocp +
+corr·OLDRN — BOTH driven by the SAME per-tree serial-correlation residual OLDRN. OLDRN is bit-exact at cyc0
+(dgk bit-exact) but EVOLVES each cycle via dgscor (cyc3+ stochastic). The draw counter (after all 3 fixes)
+still shows cyc0-3 EXACT then cyc3 Δ-18 (jl 2718 vs FVS 2736) — a small multi-cycle RNG-stream offset (~6
+bachlo / ~2 records) at the first stochastic cycle. That offset perturbs OLDRN at cyc3+, which then feeds BOTH
+the diameter (volume +1.8%) AND the height (TopHt -2) divergences. So A1's entire remaining residual = the
+cyc3+ dgscor/REGENT multi-cycle RNG stream not bit-aligned to FVSne (the small-tree-boundary or mortality-
+record-selection draw-count offset at cyc3). This is the SN-class multi-cycle RNG alignment (SN had Oracle-A;
+NE needs the draw-counter method extended through the stochastic cycles). The three SYSTEMATIC DG fixes
+(IFOR=3 + VMLT + oldp) made the deterministic core bit-exact; this stochastic stream is the last layer.
+
 ## A1 — LARGE-TREE DG NOW BIT-EXACT (3 fixes); residual is NOT DG ★ re-trace caught the z-draw over-claim
 
 After all THREE fixes (IFOR=3 HT-DBH + calibration VMLT + cyc0 ARMA oldp), the sp27 large-tree dgk is
