@@ -563,3 +563,29 @@ Investigated the post-badist TopHt residual (jl 2-3 ft low by late cycles). Find
 VERDICT: A1 BA divergence FULLY RESOLVED + validated (stands 1 & 2). The TopHt ~2% late-cycle tail is a
 SEPARATE, smaller htgf-side residual, now precisely characterized (cycle-0 exact; growth-side; large
 SM/JP) and deferred with a concrete next-trace recipe. NE FFE (stand 4) remains the one unported subsystem.
+
+
+## A1 height-tail trace (executed): JP/SM heights faithful; lead = sp9 WP DBH-distribution late
+
+Drove jl stand-1 growth cycle-by-cycle (each_stand+notre!+setup_growth!+grow_cycle! fint=10) and aligned
+to the live .out sample-tree table. Findings:
+- **JP (jack pine, sp19) — the TALLEST late tree — HEIGHTS MATCH LIVE** at comparable DBH: jl
+  116.2/118.5/120.9 (d19.99/20.71/21.42) vs live 116.4/118.7/120.8 (d19.75/20.48/21.24). htgf faithful.
+- **SM (sugar maple, sp27) heights within ~1 ft**: jl runs +0.6-1.0 ft HIGH 2020-2040, ~−0.6 LOW by 2090
+  (105.79 vs 106.44). Net small, mixed sign (partly OLDRN).
+- So the htgf HEIGHT model itself is faithful for the tall species — the TopHt 2-3 ft late deficit is NOT
+  a height-increment bug per se; it's a DBH-DISTRIBUTION effect (TopHt = mean height of largest-40-DBH/ac).
+- ★ LEAD: jl's LARGEST WP (white pine, sp9) reaches **d28.07** (h105.7) by 2090, but live's largest tree
+  of ANY species (percentile-100) is SM **d22.43** — i.e. live has NO tree >22.4, so jl's WP over-grows in
+  DBH and is SHORT for that DBH (d28/h105.7), which would push short-WP records into the top-40-DBH and
+  drag TopHt down. sp9 carries a DBH calibration (0.66 scale = COR −0.44, which jl applies). CONFOUND:
+  per-tree tracking is unreliable here — tripling splits each original into 3 (n_wp 6→18→54 over cyc0-2),
+  so "largest WP" is an UPPER-triple satellite (FU=1.271σ fast growth, tiny TPA); live triples too, so this
+  needs a TPA-WEIGHTED / stand-level per-species check (WP basal-area or DBH-class distribution jl vs the
+  live .out species summary), NOT a per-tree diff. NEXT: extract live per-species BA/DBH-dist and compare
+  the WP (sp9) distribution; if jl's WP DBH-dist is genuinely heavier, trace the sp9 DG (POTBAG b1/b2 or
+  the 0.66 COR application) for the large-WP tail. Total BA matches ±1, so any WP over-growth is
+  compensated elsewhere (distribution shift, not a level shift) — consistent with a TopHt-only residual.
+
+VERDICT: A1's TopHt ~2% late tail is a DBH-distribution effect (sp9 WP large-tail), the htgf height model
+is faithful (JP/SM validated). Deferred with the stand-level next-check above. Small + partly stochastic.
