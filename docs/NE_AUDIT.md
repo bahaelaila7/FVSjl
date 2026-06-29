@@ -25,7 +25,12 @@ discipline, 6th catch): there is NO z-draw residual — the per-tree dgk scatter
 fixed, and OLDRN matches everywhere (the fixes are GLOBAL across all species, not just sp27). ⇒ the NE large-
 tree diameter growth is bit-exact per-tree at cyc0. The remaining stand-1 .sum Δ (2030 TPA 352 vs 356; 2090
 109 vs 111, BA 193/194) is therefore a DIFFERENT subsystem — MORTALITY (morts, ordered-work #3) and/or the
-small-tree/regen path — NOT the large-tree DG. Next: trace the mortality (which trees die / the mortality RNG)
+small-tree/regen path — NOT the large-tree DG. Per-cycle decomposition (stand-1, accret/mort): mortality Δ is small (2010 14/15, 2020 37/40, 2030 77/78,
+2040 75/77), but ACCRETION (volume growth) diverges MORE (2010 134/139, 2020 140/145, 2040 116/121 — Δ~5).
+Since cyc0 DIAMETER growth is bit-exact, the accretion Δ is HEIGHT growth (htgf) and/or the VOLUME computation
+and/or cyc1+ DG — the other growth subsystems (ordered-work #3), NOT the cyc0 diameter. So the NE residual has
+moved DOWNSTREAM of the (now bit-exact) large-tree diameter growth into height/volume + a small mortality tail.
+Next: trace the mortality (which trees die / the mortality RNG)
 or the REGENT small-tree growth for the Δ-TPA; the large-tree DG is DONE.
 
 ## A1 — THIRD FIX LANDED: cyc0 ARMA `oldp` also hardcoded the SN 5-yr period
