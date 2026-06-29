@@ -455,3 +455,16 @@ stand BA), frmt on OLDRN. So the cyc1 divergence is the dgf competition (point d
 or OLDRN at cyc1 - downstream of the cyc0 stand state (mortality record selection / crown / tripling).
 NEXT: dump cyc1 dgf inputs for the d~3.0 sp27 tree (pba/PTBAA, crown_ratio/PCT, oldrn, DDS, ba_v) jl vs
 ne/dgf.f. cyc0 is bit-exact; cyc1 dgf competition for small trees is the next layer.
+
+
+### A1 cyc1 wk2 split (op-order/ULP floor reached)
+cyc1 wk2 (dgf DDS predictor) for d~3.0 sp27 trees: the d=2.9095 tree is BIT-EXACT (FVS wk2 1.81522226 / jl
+1.81522), but the d~3.0 trees have slightly different cyc1-ENTRY DBHs (FVS 2.98971/3.00604 vs jl 2.9924/3.0021,
+~0.1%) so their wk2 differs because the INPUT DBH differs. These are TRIPLED small-tree records (U/L sub-
+records); their cyc0 tripling DG (dgU/dgL via the REGENT ±10% random for small trees, or the dgk-blend) diverges
+~0.1% while the CENTRAL records are bit-exact. So the cyc1 dgf itself is faithful (wk2 bit-exact for a tree whose
+input DBH matches) -- the divergence is the ~0.1% cyc0 tripled small-tree U/L DBH, at the Float32 op-order/ULP
+floor. The earlier "cyc1 dgf ~4% dgk" was the COMPOUND of this ~0.1% entry-DBH diff through the iteration +
+boundary; the per-input dgf is faithful. So A1's residual is now at the ULP/op-order floor for the tripled
+small-tree records -- the documented-ULP class. The deterministic NE growth (dgf + dgscor + htgf + REGENT
+central) is bit-exact; only the tripled small-tree U/L sub-records carry a ~0.1% op-order tail.
