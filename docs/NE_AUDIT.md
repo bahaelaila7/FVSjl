@@ -853,3 +853,23 @@ calibration `dgf!(s,variant)` call (line 384), clear after. ne_diameter_incremen
 stash; SN doesn't call it). VALIDATE: WP COR → ~0.66, net01 stand2/BdFt improves WITHOUT regressing stand3/4,
 SN stays 5253/2. This experiment de-risked the implementation (ruled out the simpler full-skip). Item A remains
 the #1 task; the hybrid stash is now the precise, evidence-backed plan. The validated state is fully restored.
+
+
+## A1 item A FIX LANDED: hybrid calibration BADIST (current stand) — WP COR now FAITHFUL (0.66)
+
+IMPLEMENTED the hybrid: keep the per-tree backdated prediction dbh, but `ne_badist!` builds the BAL array from
+the CURRENT stand during calibration (new transient `Calibration.calib_dbh` stash = saved_dbh, set around the
+calib `dgf!`, read by ne_badist! when non-empty; SN never calls ne_badist! ⇒ SN-safe by construction).
+- WP COR exp: 0.6434 → **0.6554** = displays **0.66**, MATCHING FVS's .out "DBH INCREMENT MODEL 0.66". The
+  validated state's 0.6434 displayed 0.64 — it was UNFAITHFUL. So this is a real faithfulness fix (verified vs
+  the live calibration display + the EBAU=52 current-stand BADIST).
+- SN suite BIT-EXACT, full suite GREEN 5253/2 (NE tests pass within tolerance).
+- net01 per-stand vs live: stand1 BdFt 5.9→3.1 (better), stand4 BdFt 6.5→4.0 (better), stand3 ~same; **stand2
+  (THINDBH) late cycles 2110-2130 now +12/+13 BA (was within 6)** — the now-UNMASKED tripling over-grow on the
+  sparse post-thin stand (doctrine #3: the too-suppressive 0.64 COR had been MASKING it). Early/mid stand2 cycles
+  still match ±1.
+⇒ item A's CALIBRATION half is DONE + faithful. The SOLE remaining DG bug is now ISOLATED and unmasked: the
+TRIPLING over-grow of the WP upper-satellite on sparse/opened stands (stand2 post-thin, stand1 d28 tail). With
+the COR no longer compensating, the tripling is cleanly visible for the next focused trace (dgdriv FRMT=FRU+
+CORR·OLDRN spread; the OLDRN seeds are now from the correct current-stand calibration, so the residual is the
+FU=1.271σ spread application itself). KEEP (faithful, per doctrine #3); do NOT revert to re-mask the tripling.

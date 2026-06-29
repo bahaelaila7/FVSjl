@@ -381,7 +381,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # IFORTP, which is 0 until the first STKVAL/FORTYP call in the cycle loop.)
     saved_fortype = s.plot.forest_type
     s.plot.forest_type = 0
+    # NE: the BAL competition (ne_badist!) uses the CURRENT stand even though the per-tree prediction is at the
+    # backdated dbh — FVS NE calib computes BADIST on the current stand (verified EBAU=52). Stash the current dbh
+    # for ne_badist! to read; SN ignores it (point_bal-based, never calls ne_badist!). Cleared right after.
+    s.variant isa Northeast && (c.calib_dbh = saved_dbh)
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
+    c.calib_dbh = Float32[]
     s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)
 

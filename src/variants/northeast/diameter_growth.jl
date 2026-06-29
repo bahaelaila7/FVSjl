@@ -28,8 +28,12 @@ then cumulate from the top so `ebau[c]` = Σ BA in classes ≥ c.
 function ne_badist!(ebau::Vector{Float32}, s::StandState)
     fill!(ebau, 0f0)
     tr = s.trees
+    # During DG calibration the stand dbh is backdated for the per-tree PREDICTION, but FVS NE computes the
+    # BAL competition on the CURRENT stand (verified live: badist.f EBAU=52 on every ICYC=1 call). So when the
+    # calibration stash is set, build the BAL array from the current dbh; otherwise use the live tree dbh.
+    dbh = isempty(s.calib.calib_dbh) ? tr.dbh : s.calib.calib_dbh
     @inbounds for i in 1:tr.n
-        d = tr.dbh[i]; d <= 0f0 && continue
+        d = dbh[i]; d <= 0f0 && continue
         icls = min(floor(Int, d + 1f0), 50)
         # BADIST (ne/badist.f:45-47) floors DBH at 1.0 for the BA contribution (TDBH), but bins
         # by the ACTUAL DBH; PROB is already per-acre, so NO gross_space division (matching the
