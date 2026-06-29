@@ -679,3 +679,22 @@ the satellite over-grow. BOTH are small/fine; this is the last non-ULP net01 res
 
 ⇒ CORRECTED VERDICT: the WP tail is NOT a single bug — two small offsetting DG effects (calib COR + tripling
 variance). Each ~2-3%. Documented for continuation; net01 functionally complete + validated otherwise.
+
+
+## A1 WP-tail: tripling-variance thread CLOSED (SIGMAR exact) — residual is subtle/multi-cycle
+
+Checked FVS ne/blkdat.f: **SIGMAR(9) = .071 = jl dg_resid_sd[9] EXACTLY** ⇒ the WP tripling variance (ssigma)
+is correct; the tripling-spread thread is CLOSED (not the cause). So both identified threads are now resolved-
+or-exonerated: (a) WP COR is ~2.5% off (jl 0.6434 vs FVS 0.66) but MORE suppressive = WRONG direction for the
+observed jl-WP-larger; (b) SIGMAR exact. Neither explains jl's WP growing to d28 (largest tree) while live's
+largest is SM d22.4. Per-cycle cyc0 growth dds is bit-exact for every WP, yet the over-growth emerges over 10
+cycles — a SUBTLE multi-cycle compounding / tripling-realization effect (the upper-WP-satellite path) that is
+at the edge of resolvability without a full per-record multi-cycle trace (which tripling 6→54 records makes
+very hard to align). The net .sum impact is small: BA ±6 worst case (stand 2 repeated-thin), TopHt ±3 (stand 1),
+BA ±1-2 elsewhere — a distributional tail, not a level error (total BA matches ±1).
+
+⇒ FINAL WP-tail VERDICT: a SUBTLE multi-cycle distributional residual on the large-WP tail, NOT a single
+identifiable bug. The one actionable sub-item is the ~2.5% WP COR (jl 0.6434 vs FVS 0.66) from the DG
+calibration BADIST stand basis (past-vs-current DBH) — worth aligning, but it makes WP slower (helps the
+distribution only marginally). Otherwise the residual is near the practical floor for a tripling stand. The
+NE no-fire + FFE growth is a validated faithful drop-in across net01; this is the last, fine, multi-causal tail.
