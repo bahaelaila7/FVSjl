@@ -958,3 +958,16 @@ path). This is the LONE remaining real (non-floor) NE residual, now rooted to a 
 
 VERDICT: item B = the NE establishment HEIGHT model (jl site-curve-at-age vs FVS ESSUBH avg-rate×time). Concrete
 root, focused port. Everything else in the NE port is faithful or accepted-floor.
+
+
+## A1 item B FIX LANDED: ESSUBH establishment-height formula ported — BARE stand improved
+
+Ported the FVS ESSUBH base-height formula into the NE establishment path (establishment.jl): a per-species
+reference age CARAGE (essubh.f own MAPNE array, BF=20/WS=15, added as _NE_ESSUBH_REFAGE[108]), H = NC-128
+site-curve height at CARAGE, then **HHT = (H/CARAGE)·min(5, per−delay)** — replacing the wrong
+ne_htcalc_height(age) (site curve at the seedling age). SN keeps Curtis-Arney htcalc_height (NE-gated, SN-safe).
+RESULT (BARE stand vs live): TopHt now MATCHES live from 2012 (26/26, 36/36; was 25/26 low); BA moved toward
+live (2002 8→9 vs 10, 2012 58→61 vs 62, 2022 99→101 vs 102). Suite 5253/2, SN bit-exact, NE tests pass.
+Residual now ~1 BA early (the tiny establishment BA, likely the BACHLO height-random + HT→DBH) — much reduced
+from the prior ~20% BA / ~55% MCuFt threshold deficit. ⇒ item B's HEIGHT-MODEL root is FIXED; the lone non-floor
+NE residual is now a small (~1 BA early, converging) BARE-stand remainder. SIXTH NE fix.

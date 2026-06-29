@@ -22,6 +22,16 @@ const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f)
 const _ES_HHTMAX = Float32[23.0,27.0,21.0,21.0,22.0,20.0,24.0,18.0,18.0,17.0,22.0,
     (20.0 for _ in 12:90)...]
 
+# NE ESSUBH per-species reference age CARAGE (essubh.f DATA MAPNE/, 108 values — DISTINCT from the htcalc
+# curve-index MAPNE). The planted base height is (NC-128 height at this age / this age) · min(5, TIME−DELAY).
+const _NE_ESSUBH_REFAGE = Int[
+    20,10,15,20,15,20,20,20, 5,20, 15,20,20,10,20,20,20,20,20,10,
+    10,15,20,15,10,20,20,20,20,20, 20,20,20,20,20,20,20,20,20,20,
+    20,20,20,35,35,20,10,20,20,20, 10,20,15,20,10,10,10,10,10,10,
+    10,30,10,10,30,30,20,10,10,20, 10,10,10,20,10,10,10,20,20,10,
+    25,25,10,25,25,10,10,20,10,10, 10,10,20,20,20,20,20,10,10,10,
+    10,10,10,10,10,10,10,10]
+
 """
     establish!(state; fint=5f0) -> Bool
 
@@ -82,8 +92,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             trage  = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
             age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
             si  = s.plot.sp_site_index[sp]
-            hht = s.variant isa Northeast ? ne_htcalc_height(sp, si, age) :
-                  htcalc_height(bc, sp, si, age, montane)          # ESSUBH base height
+            # ESSUBH base height (essubh.f:73-82). NE uses its OWN formula — NOT the site-curve height at the
+            # tree age: a per-species reference age CARAGE (essubh.f MAPNE, distinct from the htcalc curve map),
+            # H = NC-128 site-curve height at CARAGE, then HHT = (H/CARAGE)·min(5, TIME−DELAY) (avg juvenile rate
+            # × available time). The `age` above is FVS's REGENT-start AGE (essubh.f:93), used by growth, not the
+            # planted height. SN keeps the Curtis-Arney htcalc_height(age).
+            hht = if s.variant isa Northeast
+                carage = Float32(_NE_ESSUBH_REFAGE[sp])
+                (ne_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
+            else
+                htcalc_height(bc, sp, si, age, montane)
+            end
             treeht = a.params[5]
             if treeht >= 0.1f0                                      # PLANT specified a height
                 hht = treeht; xh = log(hht)
