@@ -16,7 +16,24 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
-## A1 — Stand-2 thin divergence — SYSTEMIC BUG FIXED; residual pinned to OLDRN ★ flagged by user "−40 vs −22 BA not acceptable"
+## A1 — SECOND FIX LANDED: NE DG calibration VMLT used the SN 5-yr measurement period
+
+ROOT of the ~0.5% large-tree DG residual FOUND + FIXED (the re-traced verdict, after OLDRN was cleared).
+calibrate_diameter_growth! hardcoded `autcor(5,5)` for the calibration VMLT — the SN measurement base period
+YR=5. But NE's YR=10 (blkdat DATA YR/10.0/; SIGMAR is on a 10-yr basis; FVS dgdriv.f VMLT=VMLTYR from the
+YR-period autcor). Direct FVS dump (sp27): SSIGMA=0.0930 (=SIGMA), VMLT=29.40; jl had SSIGMA=0.14954 because
+its vardg used vrnext(5)≈11.15 instead of vrnext(10)=29.40 (vardg 2.6x high ⇒ ssigma 84% high ⇒ the serial-
+correlation factor exp(frmt) off ⇒ ~0.5% dgk error on EVERY NE tree — the #50/A2 drift root). FIX: use
+`autcor(htg_period(s.variant), htg_period(s.variant))` (5 SN, 10 NE). VARIANT-AWARE, SN bit-exact (suite
+5214/2). RESULT: NE stand-1 moved toward live — 2090 TPA 105→109 (live 111), QMD 18.4→18.0 (live 17.9), SDI
+274→277 (live 279). A real second NE bug fixed (after IFOR=3). Residual now much smaller; stand-2's repeated
+thinning still amplifies the remaining realization difference.
+
+VERDICT TRAIL (for the record): "ULP" (wrong) → "OLDRN" (wrong, OLDRN matches) → ARMA ssigma/vmlt (RIGHT,
+confirmed by direct FVS SSIGMA/VMLT dump). Two re-trace corrections; the doctrine's re-trace discipline caught
+both before they stuck.
+
+## A1 — Stand-2 thin divergence (investigation history) ★ flagged by user "−40 vs −22 BA not acceptable"
 
 > **RESOLUTION (read the "A1 — FIX LANDED" section below first).** The root cause was NOT an unalignable
 > RNG realization (the earlier conclusion in this section, kept for the investigation record). It was a

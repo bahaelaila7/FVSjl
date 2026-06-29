@@ -385,11 +385,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)
 
-    # calibration VMLT (autcor LSTART: new=old=YR, the measurement base period = 5 for SN —
-    # NOT the cycle length FINT, which TIMEINT can change; the projection VMLT below uses FINT).
+    # calibration VMLT (autcor LSTART: new=old=YR, the measurement base period — 5 for SN, 10 for NE,
+    # NOT the cycle length FINT, which TIMEINT can change; the projection VMLT below uses FINT). YR is
+    # the variant's DG model native period (dgdriv.f VMLTYR; NE's YR=10, blkdat DATA YR/10.0/ — SIGMAR
+    # is on a 10-yr basis). Hardcoding 5 over-counts NE's vardg (vrnext(5)≈11 vs vrnext(10)≈29.4 ⇒ ssigma
+    # 84% high ⇒ a ~0.5% serial-correlation DG error). SN unchanged (htg_period(Southern)=5).
     # SERLCORR can override the ARMA(1,1) phi/theta; recompute BJRHO only when it does.
     bjrho = _stand_bjrho(s)
-    _, vmlt = autcor(5, 5, bjrho); c.vmlt = vmlt
+    yrcal = Int(htg_period(s.variant))
+    _, vmlt = autcor(yrcal, yrcal, bjrho); c.vmlt = vmlt
 
     # per-species DBH range + endpoint predictions over measured trees
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
