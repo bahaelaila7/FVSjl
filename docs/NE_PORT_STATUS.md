@@ -211,13 +211,19 @@ the real comparison emerged — **the live-tree pools are NOT broken**.
      xir/sigma/FWT from fmcfir/fmpofl — but those writes don't surface (the PotFire path redirects output; try the DBS or
      an EVSET4 event-monitor var, NOT a fmcfir WRITE). OINIT1 NOT wired (96.9 vs 90.6 ≈ 7%). Everything else in the crown-
      fire chain (CBD, OACT1 crowning index, surface flame, fuel-model selection) is bit-exact/live-matching + committed.
-     ★ FINAL pinning (2026-06-29): per-model HPA — FM9 = 390, FM10 = 1331 (xir 2526/sigma 2484, 6118/1765). OINIT1 vs the
-     two-model weight: 72/28→104, 50/50→85, 40/60→~90.6. So live's HPA implies an effective ~40/60, but live REPORTS the
-     flame weights 72/28 ⇒ either the HPA's FWT ≠ the surface flame's FWT, OR jl's per-model FM9/FM10 xir/sigma differ from
-     FVS (the SURFACE flame's Σbyram·w matched at 72/28, but byram=xir·spread·384/sigma is a different combination than
-     HPA=xir·384/sigma, so xir/sigma can be off while byram matches). ⇒ OINIT1's residual is the per-model rothermel
-     xir/sigma precision for the standard FM9/FM10 — verify jl's standard fuel-model defs (load/SAV/depth) + the rothermel
-     xir/sigma vs FVS for models 9/10 (the flame won't catch a compensating xir/sigma error). Deep precision; deferred.
+     ★★★ OINIT1 DEFINITIVELY PINNED (2026-06-29) — debug-FVS file dumps (the WORKING method: `OPEN(89,FILE='/tmp/..',
+     POSITION='APPEND')` in fmfint.f at the HPA calc + fmcfir.f at the bisection; the earlier JOSTND / unit-87 attempts
+     failed because the PotFire path redirects JOSTND — unit 89 + an explicit file works for the fire path). FVS net01
+     1993-severe fmcfir: INIT1=384.25, RINIT1=38.95, HPA=591.97, ACTCBH=13, WMULT=0.12457, OINIT1=90.63, OACT1=81.93 —
+     and the FM10 SXIR=6117.79/SSIGMA=1764.77. EVERY one matches jl (INIT1 384.25, HPA 594, ACTCBH 13, WMULT 0.1223,
+     OACT1 82.04, FM10 6118/1765). So the earlier HPA hypothesis was FALSE. The SOLE gap is jl's FM10 ROTHERMEL SPREAD:
+     at midflame 11.29 mi/h FVS's FM10 spread = RINIT1 = 38.95, but jl's = 33.1 (jl reaches 38.95 only at 12.72) ⇒ jl's
+     spread is ~13% LOW for the FM10 at a given wind, so the bisection overshoots OINIT1 to ≈104 vs 90.6. The surface
+     models 9/10 match (flame bit-close), so it is FM10-SPECIFIC — the distinguishing feature is FM10's LIVE fuel class
+     (FWG(2,1)=.092 woody; model 9 has none). ⇒ NEXT: trace jl `rothermel_surface_fire` LIVE-fuel branch (live MEXT, the
+     live reaction-intensity / wind-factor contribution) for a dead+live model vs FVS FMFINT at fmois-1 NE moisture (live
+     woody .89). That single fix closes OINIT1 (and any dead+live fuel-model fire). All inputs verified; localized
+     rothermel-live-fuel residual, NOT wired.
   5. **FVS_Mortality per-species rows — ✓ FIXED (2026-06-29, suite 5191/2).** Live (dbsfmmort.f, shared SN/NE) emits one
      row PER SPECIES (SpeciesFVS/PLANTS/FIA columns) + an 'ALL' aggregate; jl emitted only the aggregate and lacked the
      species columns. Fixed: `fmburn!` now accumulates killed/total TPA + BA/vol by species×DBH-class (`species_mort`);
