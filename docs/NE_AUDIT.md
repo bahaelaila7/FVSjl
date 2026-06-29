@@ -16,6 +16,21 @@ aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred f
 
 ---
 
+## A1 — THIRD FIX LANDED: cyc0 ARMA `oldp` also hardcoded the SN 5-yr period
+
+After the VMLT fix, ssig/vmlt matched FVS but CORR still differed (jl 0.14799 vs FVS 0.18082). Root: the
+per-cycle ARMA multiplier (diameter_growth.jl) set the FIRST cycle's `oldp` (AUTCOR old period) to a hardcoded
+5 — the SN measurement base — but NE's is YR=10. covmlt=AUTCOR(YR,YR).covar drives CORR; oldp=5 under-counts it
+for NE. FIX: `oldp = cyc==0 ? htg_period(s.variant) : ...` (5 SN, 10 NE). RESULT: CORR=0.18082 and RHOCP=0.9834
+now MATCH FVS EXACTLY, and dgk is BIT-EXACT where oldrn matches (sp27 d=4.0: jl 0.932551 = FVS 0.932551).
+Variant-aware, SN bit-exact (5214/2). This is the THIRD instance of the same root (SN 5-yr measurement period
+hardcoded in shared DG code; NE needs the variant YR) — alongside IFOR=3 HT-DBH and the calibration VMLT.
+
+With ssigma/corr/rhocp now ALL bit-exact, A1's only remaining per-tree residual is the calibration OLDRN z-draw
+realization (uncalibrated species), ~the stand-1 Δ2 TPA — the documented-stochastic class (NE calib RNG stream
+not bit-aligned to dgdriv.f). The THREE systematic DG bugs are fixed; the model's large-tree DG is now
+bit-exact per-tree wherever the stochastic z seed matches.
+
 ## A1 — SECOND FIX LANDED: NE DG calibration VMLT used the SN 5-yr measurement period
 
 ROOT of the ~0.5% large-tree DG residual FOUND + FIXED (the re-traced verdict, after OLDRN was cleared).

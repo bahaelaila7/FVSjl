@@ -628,9 +628,12 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # `old` = the PREVIOUS cycle's period (dgdriv.f). For uniform 5-yr cycles both are 5
     # (unchanged); a non-uniform TIMEINT/CYCLEAT schedule (e.g. a 10-yr cycle following a
     # 5-yr one) needs new=10, old=5 — using the base YR for both under-grows the long cycle.
+    # The FIRST cycle's `old` is the MEASUREMENT base period = the variant's YR (5 SN, 10 NE),
+    # NOT a hardcoded 5 — covmlt=AUTCOR(YR,YR).covar drives CORR; using 5 for NE under-counts it
+    # (corr 0.148 vs FVS 0.181 ⇒ a residual serial-correlation DG error). SN unchanged (YR=5).
     cyc = Int(s.control.cycle)
     newp = max(1, cycle_period_at(s.control, cyc))
-    oldp = cyc == 0 ? 5 : max(1, cycle_period_at(s.control, cyc - 1))   # first cycle: 5-yr measurement base (dgdriv AUTCOR)
+    oldp = cyc == 0 ? Int(htg_period(s.variant)) : max(1, cycle_period_at(s.control, cyc - 1))
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
