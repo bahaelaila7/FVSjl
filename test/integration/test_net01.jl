@@ -332,3 +332,20 @@ end
         @test parse(Int, r2013[4]) == 81                      # post-fire BA  — BIT-EXACT vs live
     end
 end
+
+# IFOR=3 (Allegheny NF) HT-DBH override (audit finding) — sitset.f:428-489 replaces the Wykoff HT1/HT2 for
+# 20 hardwood species when forest=919 (IFOR=3). net01 is IFOR=2 so never exercised it; LIVE-VALIDATED via a
+# constructed Allegheny stand (forest 919, override species with missing heights → dubbed). All 5 dubbed
+# heights match live FVSne to print precision. Confirms (a) override fires only for IFOR=3, (b) exact values,
+# (c) SN untouched (override is inside the NE-only `_uses_wykoff` path).
+@testset "NE IFOR=3 Allegheny HT-DBH override — vs live FVSne" begin
+    sd = FVSjl.coefficients(Northeast()).species
+    # (species_index, DBH, live FVSne dubbed height @ IFOR=3)
+    live = [(26, 10f0, 73.4f0), (30, 11f0, 68.6f0), (40, 8f0, 60.8f0), (55, 12f0, 81.9f0), (67, 14f0, 87.9f0)]
+    for (sp, d, lh) in live
+        h3 = FVSjl._htdbh_height(sd, sp, d, 3)        # Allegheny (IFOR=3)
+        h2 = FVSjl._htdbh_height(sd, sp, d, 2)        # base (IFOR=2)
+        @test isapprox(h3, lh; atol = 0.05)            # bit-exact to print precision vs live
+        @test !isapprox(h3, h2; atol = 0.05)           # override actually changes the value (not a no-op)
+    end
+end

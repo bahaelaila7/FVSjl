@@ -105,3 +105,54 @@ DBH only RAISES BA (can't cause a LOW residual). ⇒ the BARE ~1 BA is the pract
 floor for this establishment cohort, on par with the accepted SN residuals — not an unported semantic. NE
 growth+mortality+density+crown+volume+thinning+FFE are bit-exact on net01 stands 1-4; establishment is
 faithful with a floor-level cohort residual.
+
+
+## COEFFICIENT-TABLE AUDIT (all 108 species) — broadening beyond net01's ~7 exercised species
+net01 only exercises ~7 of 108 NE species at runtime (SM/WP/YB/QA/JP/WH), so 101 rows of every per-species
+coefficient table are runtime-UNVALIDATED. Parallel agents compared each extracted CSV row-by-row against the
+FVS Fortran DATA statement (semantic, NOT runtime), expanding repeat-counts/continuations, species_index N =
+FVS NSP species N (blkdat.f:184). Verdicts:
+- DG B1/B2/B3 (dg_coeffs.csv vs dgf.f:80-93 + balmod.f:28-33): **FAITHFUL** — all 108×3 match.
+- Bark BKRAT (species_coefficients.csv bark_slope vs blkdat.f:60-63; bark_intercept=0): **FAITHFUL** — all 108.
+- Crown BCR1-4 (species_coefficients.csv vs crown.f:59-78): **FAITHFUL** — all 108×4, no column transposition.
+- Mortality PMSC/PMD (via IMAPNE archetype map) + VARADJ + SDICON (morts.f:99-122 / varmrt.f:46-56 /
+  sitset.f:43-53): **FAITHFUL** — all 108×4; IMAPNE indirection correctly resolved (archetype 2 lands only
+  on its one species idx25). Agent also did a full alpha-code diff: CSV code_alpha = FVS NSP 1:1.
+- HTCALC site curves: MAPNE 108 (htcalc.f:64-75) + LTBHEC 127×6 (htcalc.f:77-355): **FAITHFUL** — every row,
+  sign-sensitive small coeffs exact (row62 B3=+0.0179, row96 B3=−0.00081, BH offsets). (site_coef.csv is a
+  DIFFERENT 28×28 dataset, not LTBHEC — no conflict.)
+- ESSUBH establishment ref-age MAPNE (essubh.f:48-59, distinct from htcalc MAPNE): **FAITHFUL** — the .jl
+  const `_NE_ESSUBH_REFAGE`, estab_ref_age.csv, and FVS all agree element-for-element (108).
+- Species ordering FOUNDATION: CSV code_alpha matches FVS NSP order for all 108; the only "diff" is index 71 =
+  a mutually-BLANK placeholder slot ('__' in FVS NSP / '' in CSV) — consistent, an unused species index.
+- HT-DBH: P2/P3/P4 (htdbh.f SNALL), DB (SNDBAL), IWYKCA selector (htdbh.f:420-426), HT1/HT2 (sitset.f base):
+  **FAITHFUL** — all 7 cols × 108; the Curtis-Arney (IWYKCA=1) species set {1-9,16,22,28,29,46,48,75,85,90,
+  92,103} matches exactly ⇒ no silent Wykoff↔Curtis-Arney model swaps.
+- R9 Clark volume coefficients (r9coeff.inc, 47 groups × coefA/coef0/coef4/coef79) + species→group fallback
+  (r9clark.f:605-651): **FAITHFUL** — every cell bit-for-bit, all 14 group codes present, exact-species-then-
+  group priority matches. NOTE (algorithm, not table): CSV cols `q_4`/`q_7` are present but NOT loaded into the
+  port's `_R9Coef` struct — to check whether R9 volume uses `q` for the 4"/7-9" top-DIB classes (see below).
+
+## ALL 8 COEFFICIENT TABLES FAITHFUL (108 species) — extraction is sound; 2 algorithm/override follow-ups
+The full per-species coefficient extraction (DG, bark, crown, mortality+SDI, site-curves, ESSUBH ref-age,
+HT-DBH, R9 volume) is verified FAITHFUL for all 108 species — the port is not merely net01-tuned; the
+underlying data is correct across the entire species set. Two NON-table follow-ups surfaced:
+1. **IFOR=3 (Allegheny NF) HT1/HT2 override — PORTED this session** (volume.jl `_htdbh_wykoff`, gated on the
+   NE-only Wykoff path so SN is untouched; suite 5281/2 no regression). Still needs a live-FVSne IFOR=3
+   differential to promote a test (net01 is IFOR=2).
+2. **R9 q_4/q_7 unloaded — RESOLVED, not a bug.** r9clark.f:770-789 reads COEFFS C/E/P/A/B/R ALWAYS from
+   coef0 (cols 4-9); only A17/B17 are topDib-selected (cols 2,3 of coef0/coef4/coef79). So coef4/coef79
+   cols 4-8 (incl q_4/q_7) are NEVER read by the volume algorithm — the port's `_R9Coef` correctly omits
+   them. (Confirmed by the <1% per-tree volume match too.) The R9 table is FULLY faithful.
+
+### CONFIRMED-MISSING (found by the HT-DBH audit) — IFOR=3 (Allegheny NF) HT1/HT2 override NOT ported
+sitset.f:428-489 has an `IF(IFOR.EQ.3)` block that REPLACES the base HT1/HT2 (Wykoff HT-DBH intercept/slope)
+for **20 species** {26,27,30,31,33,40,41,42,44,54,55,60,64,67,69,71,93,102,106,108} (e.g. sp26 HT1 4.3379→
+4.6839, HT2 −3.8214→−4.9622). The extracted CSV correctly holds the BASE (IFOR≠3) values, but the NE port's
+HT-DBH path (`_htdbh_params`, volume.jl:18) only branches on the SOUTHERN Fort-Bragg ifor==20 P2/P3/P4
+override — there is NO ifor==3 HT1/HT2 path. So an Allegheny-NF (forest code 3) NE stand would silently use
+base Wykoff coefficients for those 20 species ⇒ wrong dub heights/diameters → wrong volume/HTG-calib.
+INERT for net01 (IFOR=2). Status: a faithful-completeness gap for IFOR=3 NE stands — port the 20-species
+HT1/HT2 swap as a forest-aware override (data + an ifor==3 branch in _htdbh_params) when broadening past net01.
+This is the FIRST real divergence the all-108-species coefficient audit surfaced — exactly the latent
+forest/species-specific path net01's ~7 species never exercise.
