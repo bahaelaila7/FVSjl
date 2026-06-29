@@ -104,6 +104,22 @@ VERDICT: FAITHFUL — the CSV-driven per-species coefficients are loaded correct
 Minor residual: batch-2 TCuFt 0.5% (likely one ash/oak species' cubic coefficient at single precision over a
 30-tree aggregate; below the bar to chase). Pinned in test_net01.jl. Coverage 6 → 108 species (cycle-0).
 
+Multi-species GROWTH also checked (batch-1, 30 species, cyc1-2): 2000 TPA/BA/SDI/QMD exact (524/105/209/6.1),
+TopHt Δ1 (70 vs 71), TCuFt 2368 vs 2362 (0.25%); 2010 within ~1% (TPA 471/469, BA 133/134, TCuFt 3328/3293).
+⇒ the per-species diameter/height-growth coefficients track live for the early cycles; the 2010 +1% TCuFt is
+the earliest trace of A1 (tripling over-dispersion) beginning to bite. Per-species DG/HTG = FAITHFUL.
+
+## A3 — Mid-run keyword paths net01 omits (VERDICT: FAITHFUL)
+
+Injected each into net01 stand-1 (unthinned control) at 2000, diffed jl vs live:
+- THINBBA (resid BA, from below), THINABA (from above), THINSDI (resid SDI) — within cyc-1 drift (test).
+- THINHT (thin by height < 40 ft): 2010 TPA 136 EXACT, BA Δ1, QMD Δ0.1 — faithful.
+- THINCC (resid CCF): jl tracks live (2010 TPA 479 vs 475 = cyc-1 drift).
+- FIXMORT (mortality override, all-species rate 0.20): 2010 TPA 420 / BA 116 **BIT-EXACT** vs live.
+
+VERDICT: FAITHFUL — the cut-selection (cuts.f) and mortality-override paths drive correctly off the NE
+growth/volume. The one cut-related divergence (A1) is upstream in the DG distribution, not in these paths.
+
 ## Validated-faithful so far (breadth, vs live FVSne)
 - Cycle-0 stand state (TPA/BA/SDI/CCF/QMD/TopHt) — bit-exact.
 - R9 Clark cubic + International-¼″ board-feet volume — bit-exact (#48).
