@@ -476,6 +476,11 @@ BA 82/81); THINSDI removes 254/255 TPA to after-cut SDI 109/109 (2010 resid TPA 
 within the cyc-1 DG/vol drift. ⇒ the variant-agnostic cut-selection subsystem (cuts.f) drives correctly
 off the NE growth/volume. All three pinned as a parameterized net01 integration test (18 assertions).
 
+★ CORRECTION (user-flagged, not lax): the stand-2 2130 .sum residual is NOT acceptable drift. Root-caused
+to the diameter-growth TRIPLING over-dispersing the DBH distribution by cyc15 (jl 16-20" class 27 TPA vs
+live 9.5 ⇒ spurious 12-TPA THINDBH over-cut). NOTRIPLE matches live; factors+cadence match FVS. The
+divergence is the tripled records' stochastic evolution cyc3-15. See docs/NE_AUDIT.md A1; task #50 REOPENED.
+
 NE keyword paths still un-cross-validated vs live (net01 doesn't hit them): THINATA (TPA from above),
 THINCC, THINHT, FIXMORT, plus species/volume-equation variants. Next breadth increments. This breadth
 (vs SN's 37 scenarios) is the remaining gate before docs/NE_COMPLETE.

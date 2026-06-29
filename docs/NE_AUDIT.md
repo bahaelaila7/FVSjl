@@ -1,0 +1,84 @@
+# FVS Northeast (NE) port — audit ledger
+
+Analogue of the SN audit campaign (`docs/audit/INDEX.md`). Doctrine: TRACE LOGIC NOT RUNTIME;
+UPSTREAM-FIRST; REGRESSION = MASKED-BUG SIGNAL; PORT FAITHFULLY + validate vs LIVE FVSne THEN test;
+DOCUMENT EVERY verdict; VARIANT-AWARE (keep SN bit-exact). Every flag below records both-sides logic
+and a verdict (OPEN / FAITHFUL / FALSE-POSITIVE / FIXED).
+
+Oracle: `bash test/harness/ne_oracle.sh <key> <outdir>` (relinks live FVSne). net01.sum.save is stale
+for cyc1+ — validate against the live binary.
+
+## Methodology
+Sweep the NE port subsystem-by-subsystem; for each, run a scenario that EXERCISES it, diff jl vs live,
+and root-cause every divergence to either a real bug (FIX) or a documented faithful/ULP class. Do NOT
+accept an aggregate match (BA/QMD within a few %) as proof — distribution-level errors hide under matching
+aggregates (see A1). Flag with debug dumps from the live Fortran, not inferred from test pass/fail.
+
+---
+
+## A1 — Tripled-record DBH over-dispersion (OPEN, HIGH) ★ flagged by user "−40 vs −22 BA not acceptable"
+
+**Symptom.** net01 stand-2 (repeated THINDBH every 3 cycles) `.sum`: through ~2110 jl tracks live within
+~Δ4 BA, then at the **2130 thin (cycle 15)** jl removes ~2× the wood — after-cut BA **83 (jl) vs 99 (live)**,
+removed TPA 20 vs 14, removed BdFt 6658 vs 3238. ~14% BA divergence that propagates to 2140+.
+
+**Not the thin logic.** The cut-selection (cuts.f) is variant-agnostic and validated faithful in isolation
+(THINBBA/THINABA/THINSDI on net01 stand-1 all match live within cyc-1 drift — test_net01.jl). At 2130 both
+sides parse the THINDBH specs identically (live debug-dump of VALMIN/VALMAX/CTPA/CBA confirmed) and apply
+the same per-class TPA targets.
+
+**Root cause = the input DBH DISTRIBUTION, not the mean.** Per-class stocking at 2130 (live debug dump of
+CLSSTK CSTOCK vs a jl pre-thin histogram):
+
+| DBH class | LIVE CSTOCK | jl cstock | THINDBH target | consequence |
+|---|---|---|---|---|
+| 4–8″  | 75.5 | 94.0 | 125 | both < target, no cut |
+| 8–12″ | 66.0 | 44.6 | 60  | live cuts 6, jl cuts 0 |
+| 12–16″| 35.7 | 17.5 | 35  | ~at target |
+| 16–20″| **9.5** | **27.0** | 15 | **live no-cut; jl cuts 12** |
+
+jl's distribution is too **spread** — fat tails (excess 4–8″ AND 16–20″), hollow middle (deficit 8–12″,
+12–16″). Aggregates hide it: pre-thin BA 123 (jl) vs 121 (live), QMD 11.3 vs 11.1 — ~2%.
+
+**Localized to the diameter-growth record TRIPLING.** Decisive `NOTRIPLE`-on-both test at 2130:
+
+| 16–20″ stocking | TRIPLE | NOTRIPLE |
+|---|---|---|
+| LIVE | 9.5 | 10.8 |
+| jl   | **27.0** | **8.9** |
+
+Under NOTRIPLE jl and live agree (both below the 15 target → no cut). Under TRIPLE live stays at 9.5 but
+jl balloons to 27. jl also carries 230 records at cyc15 vs live's 165.
+
+**What's ruled out.** The tripling spread factors `FU=1.271 / FM=−0.14228 / FL=−1.549`
+(src/.../diameter_growth.jl DG_FU/FM/FL) are BIT-identical to NE `ne/dgdriv.f:626-628`. The tripling
+cadence (ICL4=2, first 2 growth cycles) matches NE `ne/grinit.f:183`. Per-record DG + mortality are fine
+(NOTRIPLE matches). So the bug is the **stochastic evolution of the tripled records in cycles 3–15**: the
+high-`old_random` upper records (seeded rnU = FU·ssigma·rhocp + corr·rnpar at tripling) run away too wide
+through the serial-correlation `dgscor!` (AR1/BACHLO) path, where FVS keeps them tight and prunes/compresses
+back to 165 records. Suspects: (a) jl not pruning/merging emptied tripled records the way FVS does over many
+cycles; (b) the dgscor! AR1 persistence on the seeded rnU diverging from FVS's RNG stream.
+
+**Next.** Compare jl vs live per-class DBH histogram at cyc3 (2020, first thin, right after tripling) — if
+the tails already differ there it's the tripling spread itself; if they match at cyc3 and diverge later it's
+the post-tripling stochastic evolution. Then trace dgscor!/record-pruning vs FVS. Task #50.
+
+**Status: OPEN.** This was previously (wrongly) closed as "faithful within drift" — a lax verdict the user
+correctly rejected. Re-opened.
+
+---
+
+## Validated-faithful so far (breadth, vs live FVSne)
+- Cycle-0 stand state (TPA/BA/SDI/CCF/QMD/TopHt) — bit-exact.
+- R9 Clark cubic + International-¼″ board-feet volume — bit-exact (#48).
+- THINBBA / THINABA / THINSDI thin-selection — within cyc-1 drift (test_net01.jl).
+- FFE crown-fire subsystem (CBD, fuel moisture, FMCFMD, crowning/torching, SNAGINIT) — bit-close (#47).
+- `.sum` -999 header variant code — FIXED (was stamping "SN" for all variants).
+
+## Audit queue (subsystems to sweep, exercised by a live differential)
+- Diameter growth distribution (A1) — IN PROGRESS.
+- Mortality per-DBH-class distribution (does the A1 over-dispersion also implicate mortality skew?).
+- Height growth / crown ratio across the full NE species set (net01 has ~6 of 108 species).
+- Volume across the full NE species set (only net01's species are validated).
+- Establishment / regen (net01 stand-5 BARE; #49 cycle-0 only).
+- Mid-run keyword paths not in net01: THINATA/THINCC/THINHT, FIXMORT, SETSITE, FERTILIZE, species multipliers.
