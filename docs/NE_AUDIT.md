@@ -156,6 +156,15 @@ FIX: CSV ht1/ht2 for the 20 species set to the FVS defaults. RESULT: jl's per-cy
 FVS **EXACTLY cyc0-3** (cyc2 474=474, was 501 / +27; cyc3 1605=1605, was 1632) — the first/largest divergence
 is CLOSED. Suite 5214/2 (no regression; SN uses a different CSV).
 
+CYC4 PER-RECORD (REGENT records dumped both sides, stand-1 cyc3): both have 45 records but different
+per-species survival — jl sp9=15/sp27=21/sp30=9 vs FVS sp9=17/sp27=19/sp30=9. The 2 extra jl sp27 records sit
+at 4.95-4.99″ (just below the 5″ REGENT cutoff) where FVS pushed them just PAST 5″ (excluded). So the IFOR=3
+fix reduced sp27's small-tree DBH error from ~4-5% to a small ~0.5-1% RESIDUAL at the boundary — flipping 2
+boundary trees, which changes the bachlo rejection count (the -12). This residual is approaching ULP / minor-
+coefficient territory (a remaining sp27 term in the small-tree path: NC-128 height curve `ne_htcalc`, BALMOD
+b3, bark_ratio, or regent_min_diam). Much smaller than the systemic IFOR=3 bug. Continue the method if pushing
+to bit-exact; the per-tree small-tree DG is now within the ~1% general NE growth tolerance (A2).
+
 CYC4 LOCALIZED (FVS phase-split counter, both sides): FVS ICYC4 DG = 2553-1605 = 948 = jl's 948 EXACTLY ✓;
 REGENT+post FVS 183 vs jl 171 → the -12 is in REGENT again (4 small-tree records), NOT dgscor. The sitset.f
 IFOR=3 block overrides ONLY HT1/HT2 (20 each) and is the ONLY IFOR-conditional block — so it was the single
