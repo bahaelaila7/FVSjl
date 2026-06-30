@@ -185,3 +185,19 @@ species below the COR threshold. The jl divergence is therefore in the OLDRN see
 measured trees in UNCALIBRATED species (snt01/net01 don't exercise this: their measured species
 clear fnmin). NEXT: confirm vs a live dgdriv OLDRN stamp, then ensure measured trees in <fnmin
 species carry their residual (not a BACHLO draw) so cycle-1 DG = measured input.
+
+#### COR diagnosis CORRECTED (scale is fine; OLDRN residual is the locus)
+Live DGDRIV calibration stamp (DEBUG) gives, for the HI ISPC=19 measured trees:
+I=4 OBS.DG=0.6 TERM=8.4564, I=5 OBS.DG=0.7 TERM=9.926, I=10 OBS.DG=1.2 TERM=16.862.
+TERM = DG·(2·BARK·WK3+DG)·SCALE. Back-solving I=4 with WK3≈7.25 (sensible backdated dbh of the
+d7.9 tree) ⇒ SCALE=1.0. And jl's growth_fint=5 (the MEASUREMENT period, not the 10-yr cycle), so
+jl's `5/dfint = 5/5 = 1.0` already equals live's YR/FINT = 10/10 = 1.0. ⇒ the SCALE is CORRECT;
+the earlier "halved-scale" theory was WRONG (forcing 10/dfint=2.0 overshot the calibrated WO from
+2.09→3.92). REVERTED — no change to simulate.jl.
+True locus: OLDRN = RESLOG = ln(TERM) − WK2(backdated) is ~2× too small in jl (HI d6.5 OLDRN 0.587
+vs the ~1.3 needed to reproduce the measured 2.3 via DGSCOR FRM). cs/dgdriv.f:412-422: a measured
+tree gets OLDRN(I)=RESLOG when DGSD≥1.0 (met for HI's 4-5 trees); DGSCOR then folds OLDRN into FRM,
+and DG=√(DSQ+DDS·FRM)−D. NEXT: instrument jl's calibrate_diameter_growth! to dump per-tree TERM +
+backdated WK2 and diff vs live (I=4 HI TERM=8.4564) — that isolates whether the gap is the measured
+DDS (TERM/WK3 backdating) or the backdated prediction WK2. The CS bark-in-dgf conversion (cs_dgf!
+bark-converts WK2, unlike SN) is the prime suspect for a WK2 mismatch the shared calibration assumes.
