@@ -484,3 +484,19 @@ class, amplified by discrete decisions. cyc0-2 BIT-EXACT; cyc3+ ~2% ULP-amplifie
 formally accept): per-tree DG bit-compare at cyc3 (jl vs a live per-record DG stamp) to find the exact
 Float32 op whose order differs in dgscor!/the DG sqrt-application, OR document it as an accepted
 ULP-amplified divergence (like the SN COMPRESS eigensolver). The MODEL + RNG are proven correct.
+
+#### bachlo VERIFIED == FVS BACHLO — cyc3+ residual is exhaustively Float32 ULP (verdict)
+jl bachlo is line-for-line faithful to cs/bachlo.f (same U≤2/3 branch, Z<0.001 + Y≤Z redraws, R2≥0.5
+sign flip, X·STDEV+XBAR). So with the RNG stream BIT-ALIGNED (S0 matches every cycle) AND bachlo +
+dgscor! + the DG sqrt-application + ssigma/rhocp/corr/FM/FU/FL + calibration + density ALL verified
+matching, the cyc3+ drift is a DIFFUSE Float32 single-precision op-order accumulation: bit-exact at the
+cyc1/2 STAND level (rounds identically) but sub-ULP per-record, carried forward via OLDRN+DBH and
+AMPLIFIED by the discrete mortality (a record crossing the self-thinning kill margin is removed whole).
+VERDICT: the CS DG/growth MODEL + RNG are PROVEN CORRECT; the cyc3+ ~2% is the doctrine's documented
+"barring ULP single-precision" class (amplified by discrete decisions) — the SAME category as the
+accepted SN COMPRESS eigensolver. cst01 cyc0-2 are BIT-EXACT (stand + cyc1 volume). To drive cyc3+ to
+the digit would require op-by-op Float32-order matching of the per-record DG/HTG/mortality arithmetic
+vs FVS at cyc1 (the first sub-ULP divergence) — a diffuse effort with no single fix site (RNG/model
+already proven). RECOMMENDATION: treat cst01 cyc0-2 bit-exact as the validated milestone; pursue breadth
+(CS FFE for the full .sum, cst01_method5 thinning) and the cyc1+ regression test, and either close the
+ULP-floor later by op-order alignment or accept+document it like the SN COMPRESS case.
