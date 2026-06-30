@@ -182,3 +182,43 @@ end
         rm(barekey; force = true); rm(joinpath(@__DIR__, "cst01.tre"); force = true)
     end
 end
+
+@testset "CS cst01 thinning prescriptions BIT-EXACT (vs live FVScs)" begin
+    # Full multi-stand cst01.key: the THINDBH (stand 2, every 3rd cycle) and shelterwood THINPRSC/
+    # SPECPREF/THINBTA (stands 3-4) prescriptions. The thinning SELECTION + the post-cut state are
+    # bit-exact vs live (proving the cut logic is faithful for CS); the deep-thinned tails accumulate
+    # the documented single-precision floor amplified at discrete thin/classification thresholds.
+    key = "/workspace/ForestVegetationSimulator/tests/FVScs/cst01.key"
+    if !isfile(key)
+        @info "cst01.key not present; skipping CS thinning test"
+    else
+        cp(joinpath(dirname(key), "cst01.tre"), joinpath(@__DIR__, "cst01.tre"); force = true)
+        cd(@__DIR__) do
+            sumtxt = FVSjl.run_keyfile(key; variant = CentralStates(), output = :sum)
+            stands = Vector{Vector{NTuple{7,Float64}}}()   # per stand: (yr,TPA,BA,SDI,CCF,TopHt,QMD)
+            cur = nothing
+            for ln in split(sumtxt, '\n')
+                if startswith(ln, "-999"); cur = NTuple{7,Float64}[]; push!(stands, cur); continue; end
+                t = split(strip(ln))
+                (length(t) >= 8 && tryparse(Int, t[1]) !== nothing && cur !== nothing) || continue
+                push!(cur, (parse(Float64,t[1]), parse(Float64,t[3]), parse(Float64,t[4]),
+                            parse(Float64,t[5]), parse(Float64,t[6]), parse(Float64,t[7]), parse(Float64,t[8])))
+            end
+            @test length(stands) == 5
+            # Stand 2 (THINDBH) and stand 3 (shelterwood THINPRSC): the cut + post-cut growth is BIT-EXACT
+            # through cycle 2. Live values (per-gross-acre): (Year, TPA, BA, SDI, CCF, TopHt, QMD).
+            s_thindbh = Dict(1990=>(536,77,160,169,63,5.1), 2000=>(518,99,196,202,68,5.9), 2010=>(476,122,231,234,70,6.9))
+            s_shelter = Dict(1990=>(536,77,160,169,63,5.1), 2000=>(235,83,161,163,68,8.0), 2010=>(226,103,190,188,70,9.1))
+            for (idx, expect) in ((2, s_thindbh), (3, s_shelter))
+                rows = Dict(Int(r[1]) => r for r in stands[idx])
+                for (yr, L) in expect
+                    @test haskey(rows, yr)
+                    r = rows[yr]
+                    @test (Int(r[2]),Int(r[3]),Int(r[4]),Int(r[5]),Int(r[6])) == (L[1],L[2],L[3],L[4],L[5])
+                    @test round(Float32(r[7]); digits=1) == Float32(L[6])
+                end
+            end
+        end
+        rm(joinpath(@__DIR__, "cst01.tre"); force = true)
+    end
+end

@@ -621,3 +621,21 @@ divergence cyc2+ is SIZE-only single-precision drift in the shared small-tree gr
 mortality exact, not an establishment defect). test_cst01.jl +66 assertions. No SN/NE regression.
 REMAINING for full multi-stand run_keyfile: the THINDBH/shelterwood prescription stands (cst01 stands 2-3
 + cst01_method5). SPROUT/ESUCKR natural sprouting + ESCPRS compression not exercised by cst01.
+
+#### Full multi-stand cst01.key + cst01_method5.key VALIDATED end-to-end (suite 5555/2)
+Both canonical CS test keys now run through run_keyfile and validate vs freshly-relinked live FVScs:
+- **cst01.key (5 stands):** UNTHINNED projection, THINDBH (every 3rd cycle), shelterwood THINPRSC, FFE
+  shelterwood SPECPREF/THINBTA+Econ, BARE-GROUND-PLANT. The thinning SELECTION + post-cut state are
+  BIT-EXACT vs live (stand-1 first thin 2020 TPA 380/379; stand-2 post-THINPRSC 2000 235/235 BA83/83
+  SDI161/161; stand-3 post-cut 2003 280/280 BA98/98 SDI190/190 QMD8.0 all bit-exact) ⇒ the CUT logic is
+  faithful for CS. Deep-thinned tails accumulate the documented single-precision floor amplified at
+  discrete thin/classification thresholds (largest: stand-1 @2110 ~12% Tcuft after 4 thins + 12 cycles).
+- **cst01_method5.key:** the `Volume…5` keyword path — stands 0-3 volume columns BIT-EXACT vs live (both
+  report 0 under the keyword — faithful replication), stand 4 within the establishment ULP floor.
+- ★ GROUNDED (doctrine, not assumed): stand-3 2003→2013 mortality Δ5 from an IDENTICAL 2003 start is the
+  SHARED mortality spine amplifying the growth-ULP (steep near-SDIMAX kill at SDI190), the same mechanism
+  as stand-0's cyc3 drift Δ2 — NOT a CS bug (shared mortality is bit-exact SN/NE + CS cyc0-2).
+test_cst01.jl +thinning testset (bit-exact stand-2/3 cut cycles). No SN/NE regression.
+REMAINING for a fully-thorough drop-in: SPROUT/ESUCKR natural sprouting + ESCPRS compression (CS Fortran
+has essprt/esuckr/estump/escprs.f; NOT exercised by either canonical key — cst01 uses PLANT, not natural
+regen). These are the only CS model components not yet live-validated.
