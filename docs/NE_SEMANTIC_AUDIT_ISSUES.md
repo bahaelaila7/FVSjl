@@ -350,3 +350,21 @@ is ~7% below what live HTCALC returns, despite LTBHEC/MAPNE being audited bit-ex
 SITEAR(IPNSPE) to HTCALC MODE0 — maybe a different SI than jl's sp_site_index, or a HTCALC-mode detail diff at
 that age. DEFINITIVE FOLLOW-UP: instrument live essubh.f to dump SI + H@CARAGE for RM, diff vs jl
 ne_htcalc_height(26,SI,20). Small (0.6 ft), converging — the last NE residual.
+
+
+## Establishment GROWTH is FAITHFUL (corrected) — residual is a minor crown-width/CCF effect, not growth
+DEEP-TRACED via FVS DEBUG keyword (no rebuild — essubh.f:44 + regent.f:271 debug WRITEs). FINDINGS that CORRECT
+the earlier "establishment first-cycle growth residual":
+- ESSUBH base height: live debug HHT=8.446 (SI=71.456, CARAGE=20) — jl MATCHES exactly. CARAGE[26]=20 confirmed
+  (essubh.f MAPNE = jl _NE_ESSUBH_REFAGE).
+- The +0.5 planted-height random IS applied (estab.f:490 RAN=BACHLO(0.5,0.25) mean 0.5): live tree-record
+  height ~9.0, jl debug hht ~8.9 — MATCH. (My earlier "base 8.446" was a manual-grow_cycle! RNG artifact.)
+- Phase-2 growth: live regent debug GMOD=1.0, AVH=0 (relht=0), pre-random HTGR=8.517 (base 9.055). jl analytic
+  ne_htcalc_incr(age(9.055))·0.5 = 8.517 — BIT-MATCHES live. The jl per-tree htgr "8.04 mean" was just the ±10%
+  random (regent.f:266, applied by BOTH) over 6 samples.
+⇒ The NE ESTABLISHMENT GROWTH (ESSUBH base + planted random + REGENT-LESTB Phase-2 + the ±10% + GMOD) is
+FAITHFUL — base, height-increment, crown ratio (79.6/79) and BA (10/10) all match live. The lone residual is a
+small (~10%) first-cycle CCF deficit (hard PLANT CCF 36/40) with BA matching ⇒ a CROWN-WIDTH-of-tiny-established-
+trees effect, NOT growth. Converges by cycle ~3. FOLLOW-UP (minor): diff the established-tree crown WIDTH (CCF
+input) jl vs live at cyc1 — crown ratio + dbh + height already match, so it is the cwcalc crown-width eval for
+small regen trees. The establishment cluster is otherwise CLOSED/faithful.
