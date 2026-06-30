@@ -350,3 +350,20 @@ projection dims. NEXT: (a) get the live WO WCI/COR via a proper dgdriv DEBUG (DB
 jl's WCI=0.2666 matches; (b) trace whether live's cs/dgf.f genuinely over-grows WO too (then jl is
 faithful and the .sum.save is the discrepancy) OR live's calibration/COR-space differs — i.e. verify
 the OUTSIDE-bark-COR is what live does at the PROJECTION (not just calibration). This is THE cyc1 gap.
+
+### ★★★ CYCLE-1 BIT-EXACT — the WO over-growth was jl OVER-CALIBRATING (GST DBH floor 3 vs CS's 5)
+ROOT CAUSE (pinned by live debug-stamps on cs/dgf.f + cs/dgdriv.f): the DG self-calibration's
+growth-sample-tree (GST) backdated-DBH floor is VARIANT-specific — SN/NE exclude DBH<3.0
+(sn/ne dgdriv.f:392-396), but CS excludes DBH<5.0 (cs/dgdriv.f:380 `IF(WK3.LT.5.0...)`). jl used 3.0
+for all variants, so it OVER-COUNTED the CS calibration sample (FN): live FN per species (debug-stamp)
+= 3/3/4/2/0 for sp8/19/43/47/60 — ALL < FNMIN=5 ⇒ live calibrates NOTHING ⇒ COR=0/WCI=0 for every CS
+species (confirmed by stamping CONSPP=0 and WCI=0 at every cycle). jl counted FN[47]=5 ⇒ spuriously
+calibrated WO (COR=0.533) ⇒ WO over-grew +0.5-0.7/tree ⇒ inflated BA/SDI ⇒ density mortality over-killed.
+FIX (CS-gated, src/variants/southern/diameter_growth.jl): `gst_min = variant isa CentralStates ? 5 : 3`.
+RESULT: CS cst01 cycle-1 ALL SIX stand columns BIT-EXACT vs live — TPA 518/BA 99/SDI 196/CCF 202/
+TopHt 68/QMD 5.9 (was 512/103/202/207/68/6.1). sp47 dg_cor now 0.0 == live. test_cst01.jl cyc1 testset
+(6/6) added; suite 5406/2, no SN/NE regression (CS-gated). The mortality over-kill was DOWNSTREAM of
+the DG over-grow, exactly as localized. The debug-stamp method (CONSPP/WCI/FN dumps from the relinked
+live binary) was decisive — eyeballed comparisons had repeatedly misled.
+NEXT: multi-cycle (cyc2+) validation + the .sum growth columns (period/accretion/mortality) + cst01
+the full multi-cycle .sum, then cst01_method5 (thinning) and a regression test vs a fresh live .sum.

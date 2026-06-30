@@ -49,3 +49,26 @@ using FVSjl
         @test r.stockcls == 2
     end
 end
+
+@testset "CS cst01 cycle-1 growth (vs live FVScs)" begin
+    key = "/workspace/ForestVegetationSimulator/tests/FVScs/cst01.key"
+    if !isfile(key)
+        @info "cst01.key not present; skipping CS cycle-1 test"
+    else
+        # Full growth spine end-to-end: cs_dgf! DG + calibration, cs htgf height growth, cs regent
+        # small-tree growth, TWIGS crown, varmrt + background mortality, R9 volume. The DG calibration
+        # uses the CS GST DBH≥5 floor (cs/dgdriv.f:380) — with the SN/NE ≥3 floor, WO would spuriously
+        # calibrate (debug-stamped: live FN<5 ⇒ COR=0 for all species) and over-grow, inflating BA/SDI.
+        s = first(FVSjl.each_stand(key; variant = CentralStates()))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s); FVSjl.compute_forest_type!(s)
+        g = s.plot.gross_space; di(x) = trunc(Int, x + 0.5)
+        FVSjl.grow_cycle!(s; fint = 10f0)
+        # Live FVScs cst01.sum 2000 row — all six stand columns BIT-EXACT:
+        @test di(FVSjl.stand_tpa(s) / g)        == 518
+        @test di(FVSjl.stand_ba(s) / g)         == 99
+        @test di(FVSjl.stand_sdi(s) / g)        == 196
+        @test di(FVSjl.stand_ccf(s) / g)        == 202
+        @test di(FVSjl.stand_top_height(s))     == 68
+        @test round(FVSjl.stand_qmd(s); digits = 1) == 5.9f0
+    end
+end

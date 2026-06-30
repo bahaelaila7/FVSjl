@@ -400,11 +400,16 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     yrcal = Int(htg_period(s.variant))
     _, vmlt = autcor(yrcal, yrcal, bjrho); c.vmlt = vmlt
 
-    # per-species DBH range + endpoint predictions over measured trees
+    # per-species DBH range + endpoint predictions over measured trees. The GST (growth-sample-tree)
+    # backdated-DBH floor is VARIANT-specific: SN/NE exclude DBH < 3.0 (sn/ne dgdriv.f:392-396), CS
+    # excludes DBH < 5.0 (cs/dgdriv.f:380 `IF(WK3.LT.5.0...)`). A too-low floor over-counts the
+    # calibration sample (FN) so a species that FVS leaves uncalibrated (FN < FNMIN=5 ⇒ COR=0) gets a
+    # spurious COR — exactly the cst01 WO over-growth (debug-stamped: live FN[WO]=2, COR=0).
+    gst_min = s.variant isa CentralStates ? 5f0 : 3f0
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
-        (t.dbh[i] < 3f0 || t.diam_growth[i] <= 0f0) && continue
+        (t.dbh[i] < gst_min || t.diam_growth[i] <= 0f0) && continue
         sp = t.species[i]
         if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
         if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
