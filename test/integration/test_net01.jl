@@ -574,3 +574,29 @@ end
         end
     end
 end
+
+# NE establishment (PLANT) on 8 diverse species — softwoods (BF/WS/WP/EH) + hardwoods (RM/YB/WO/RO), ESTAB+
+# PLANT ×200 each. Confirms the two establishment fixes (pre-establishment BAL + HHTMAX clamp) hold across the
+# full softwood+hardwood mix. LIVE-VALIDATED bit-exact (was BA 21/25, CCF 67/80 before the fixes).
+@testset "NE establishment PLANT 8 diverse species (soft+hard) — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "plant_div.key")
+    if !isfile(key)
+        @test_skip "plant_div fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        rows = Dict{Int,Vector{Int}}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 7 && occursin(r"^(2002|2012|2022)$", p[1]) || continue
+            rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
+        end
+        # live FVSne — bit-exact (±1 ULP floor): TREES/BA/SDI/CCF/TopHt
+        for (yr, ex) in (2002 => [1600, 25, 90, 80, 16], 2012 => [1390, 117, 307, 316, 33],
+                         2022 => [1071, 172, 401, 418, 49])
+            r = rows[yr]
+            for k in 1:5
+                @test abs(r[k] - ex[k]) <= 1
+            end
+        end
+    end
+end
