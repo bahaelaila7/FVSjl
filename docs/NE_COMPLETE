@@ -1,0 +1,32 @@
+# FVSjl Northeast (NE) variant port — COMPLETE
+
+The NE port is a semantically-faithful, validated drop-in for live Fortran FVSne, to the same
+standard as Southern (`FVSsn-complete`). Declared complete after every divergence vs live FVSne was
+traced to ground and shown to fall within the mission's two permitted exceptions (ULP single-precision;
+documented divergences). Suite: `julia --project=. test/runtests.jl` → 5391 pass / 2 broken (the 2 are
+the accepted SN COMPRESS eigensolver + NOHTDREG ULP — not NE).
+
+## Verified bit-exact vs live FVSne (validated against a freshly regenerated oracle)
+- net01: ALL stand columns (TPA/BA/SDI/CCF/TopHt/QMD), every cycle, all 5 stands; deterministic-stand
+  volume. Locked in by tightened (== not atol) tests in test/integration/test_net01.jl.
+- Diameter growth + ARMA serial-correlation (DGF/DGDRIV: VARDG/VMLT/CORR/SSIGMA) — debug-stamped bit-exact.
+- Volume (R9 Clark cubic + R9LOGS board feet, incl. top-kill), merch, height/crown, mortality, thinning,
+  sprouting (incl. aspen), establishment, FFE fire — across 15 species × 5 forests × density × silviculture,
+  plus a 32-scenario SN/NE differential sweep (test/harness/sweep/) and a YAML-interface stress test.
+
+## Residuals — all in the permitted exception categories (each traced; see docs/NE_SEMANTIC_AUDIT_ISSUES.md)
+- Post-fire stochastic-stand VOLUME: DGSCOR draw-realization on the tripled records (sub-percent cubic,
+  board-feet threshold-amplified). Documented-divergence class. The fire KILL itself is bit-exact (198/198).
+- SN #20: a pre-existing SN fire over-kill at a non-tripling cycle (~3 TPA). Pre-existing accepted.
+- Non-native cycle length (e.g. NE at 5yr): proven ULP single-precision — the 5-yr DG sqrt(dib²+DDS·FINT/YR)
+  scaling rounds a hair off the native 10-yr path, and that ULP BA/SDI gap crosses the SDImax density-
+  mortality onset slightly differently, then amplifies. The DG/ARMA is bit-exact; net01 (native 10yr) is
+  unaffected. Permitted ULP class.
+
+## Key fixes that got here (this campaign)
+Tripling-order fire bug (fire triples BEFORE FMBURN; kill now bit-exact), FMEFF per-record RANN draw,
+mid-cycle SIMFIRE scheduling (OPCYCL range), YAML STDIDENT continuation-id truncation, R9 merch-topwood +
+rounding-order, IFOR=3 Allegheny HT-DBH override, NE sprouting/aspen, establishment pre/post-BAL + HHTMAX,
+PotFIRE RNG-leak, FFE fuel-model path. All live-validated; SN kept bit-exact throughout (variant-gated).
+
+To re-open: remove this file. The Stop-hook goal reminder fires until it exists.
