@@ -82,3 +82,13 @@ SICOEF 28×28 group-matrix (`site_group`) model — confirming the scope's `sits
 `centralstates/site_index.jl` must be CS-specific (ASITE/BSITE), NOT a copy of `ne_site_index_setup!`.
 Extracted ASITE/BSITE (96, real) → `site_coef.csv`. The doctrine's re-trace discipline caught this:
 "reuses NE" was a wrong assumption for site. (Crown/htgf/varmrt remain NE-shaped per BCR/curve form.)
+
+### CORRECTION — extraction parser under-collects some DATA blocks (must fix before assembly)
+The ad-hoc DATA-block collector returns short on several arrays: XMIN/HHTMAX → 86 (not 96),
+ASITE/BSITE → 93/95 (not 96). So `site_coef.csv` was NOT written this round (the verdict that CS site is
+ASITE/BSITE-based stands — that was read from the equation, not the count). ROOT: the collector's
+break heuristics (stop on a line starting `C`/`DATA`) cut blocks that span comment-interrupted
+continuations or have unusual spacing. FIX before any further extraction: replace it with a proper
+Fortran fixed-form continuation parser (column-6 continuation, strip `Cxxx` full-line comments only,
+accumulate until the matching closing `/`), then re-extract XMIN/HHTMAX/ASITE/BSITE to the full 96 and
+RE-VERIFY the already-written files (BKRAT/SIGMAR/HT1/HT2/BCR/VARADJ/SDICON) are complete 96-counts too.
