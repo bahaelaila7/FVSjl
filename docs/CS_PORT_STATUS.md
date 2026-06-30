@@ -239,3 +239,18 @@ the central record vs a live growth-mode stamp, OR proceed to chunk 4 (height/mo
 validate the full cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9), where the small
 DG residual surfaces aggregately. The earlier "halved-scale", "wrong-coefficient", "wrong-direction
 RESLOG", and "2x-low DG" diagnoses are all SUPERSEDED — model+calibration verified correct.
+
+#### Honest refinement — residual is the DGSCOR serial-correlation (not model/calibration)
+Don't overclaim "DG bit-exact": the MODEL + CALIBRATION are bit-exact, but the projected cycle-1
+DG still has a real residual in the DGSCOR serial-correlation/tripling step. Live's d6.5 HI tree
+triples to 8.2/7.2/6.8 (TPA 3.82/9.17/2.29), TPA-weighted mean DG = 0.89 — ABOVE the base model
+0.697 (the multiplicative OLDRN spread boosts the mean). jl's central/base DG = 0.654 (slightly
+BELOW base 0.697 — a stronger FRM bias-correction than live's central 0.7≈base). So jl's mean will
+land below live's 0.89. Locus = the DGSCOR FRM (SSIGMA/RHO + the central-vs-triple OLDRN partition)
+for CS: the YR=10 AUTCOR variance multiplier (VMLT) and SIGMAR feed it, and the CS bark-converted
+WK2 may interact. This is shared code (SN/NE bit-exact at YR=5/10), so suspect the CS YR=10 VMLT or
+the uncalibrated-species BACHLO/RNG alignment. NEXT (two options): (a) a live growth-mode DGSCOR
+stamp (DG/FRM per tree) to pin the central FRM + tripled spread, or (b) implement chunk 4 (height/
+crown/mortality) and validate the full cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/
+QMD 5.9) — the aggregate where the DG residual surfaces. Recommend (b): the .sum is the real target
+and exercises DG+HTG+mort together; isolated per-tree DGSCOR tracing is high-effort/low-signal.
