@@ -512,3 +512,28 @@ end
         @test [parse(Int, row[i]) for i in 3:7] == [740, 41, 80, 87, 56]
     end
 end
+
+# NE FFE/SIMFIRE on diverse species (broadening) — the 15-species stand + the full FFE keyword set (SNAGINIT/
+# SNAGBRK/FLAMEADJ/SIMFIRE 2010/SALVAGE/DEFULMOD/SNAGPSFT/PotFIRE/BurnRept/FuelRept/MortRept). The 2010 fire
+# kills ~half the stand. LIVE-VALIDATED: pre-fire (1990/2010) and POST-FIRE (2020) rows BIT-EXACT — the fire
+# mortality on the diverse per-species bark/crown props is faithful. (Known minor residual: CCF at 2000 is
+# jl 117 / live 118 — an FFE-init-specific 1-unit blip the no-FFE divspp doesn't have; pre-fire, self-corrects
+# by 2010. Documented as an FFE-crown/density follow-up in docs/NE_SEMANTIC_AUDIT_ISSUES.md.)
+@testset "NE FFE/SIMFIRE on 15 species — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "ffe.key")
+    if !isfile(key)
+        @test_skip "ffe fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        rows = Dict{Int,Vector{Int}}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 7 && occursin(r"^(1990|2010|2020)$", p[1]) || continue
+            rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
+        end
+        # live FVSne: pre-fire 1990/2010 + POST-FIRE 2020 (SIMFIRE 2010 kills ~half: TREES 132→74)
+        @test rows[1990] == [138, 53, 98, 102, 65]
+        @test rows[2010] == [132, 80, 136, 131, 79]
+        @test rows[2020] == [74, 65, 103, 93, 82]      # post-fire BIT-EXACT
+    end
+end

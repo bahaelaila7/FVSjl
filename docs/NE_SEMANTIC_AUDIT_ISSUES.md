@@ -291,3 +291,16 @@ aspen-dominated stand heavily thinned (THINBBA 2010 resid-BA 30): post-thin 2020
 massive sucker flush 146→740), BA 41, SDI 80, CCF 87, TopHt 56 all = live. Fixture+test ne_fixtures/aspen.key.
 ⇒ NE STUMP-SPROUTING IS NOW FULLY FAITHFUL (all species incl. aspen) — the sprouting cluster is CLOSED. Suite
 5347/2; SN bit-exact (ne branch false for SN); net01 unaffected (NOAUTOES).
+
+
+## FFE/SIMFIRE on diverse species — fire mortality BIT-EXACT; minor pre-fire 1-CCF blip noted
+Ran the 15-species stand + the full FFE keyword set (SNAGINIT/SNAGBRK/FLAMEADJ/SIMFIRE 2010/SALVAGE/DEFULMOD/
+SNAGPSFT/PotFIRE/+reports). The 2010 SIMFIRE kills ~half. LIVE-VALIDATED: pre-fire 1990/2010 + POST-FIRE 2020
+all BIT-EXACT (2020 TREES 74/74, BA 65/65, SDI 103/103, CCF 93/93, TopHt 82/82) ⇒ the fire mortality on the
+diverse per-species bark/crown fire props (fire_species_props.csv) is FAITHFUL. ★ ONE minor residual: CCF at
+2000 = jl 117 / live 118 (the no-FFE divspp has 118, so it's FFE-init-SPECIFIC, a real ~0.5-1 shift not pure
+rounding — jl-noFFE ≥117.5 → jl-FFE <117.5). NOT the crown-lift directly modifying the live crown (fuel_
+additions.jl reads crown_pct, stores into ffe_oldcr — doesn't write crown_pct). Pre-fire, self-corrects by
+2010 (CCF 131/131). Suspect an FFE-init density/crown side effect (SNAGINIT snag handling or an FFE per-cycle
+crown/RNG interaction). FOLLOW-UP: trace why the FFE block lowers the 2000 live-tree CCF by ~1 vs live.
+Locked: ne_fixtures/ffe.key test asserts the bit-exact pre/post-fire rows. Suite 5350/2.
