@@ -202,8 +202,14 @@ matching the YAML form). Lets a modern YAML keyword file be converted back for l
 # A "plain" keyword record reconstructs faithfully from name + 10-col fields. Free-form
 # supplemental lines (a TREEFMT FORMAT string, inline tree data) do not — they carry
 # punctuation in the keyword columns — so those are round-tripped by their raw text.
+# A BLANK-name continuation line (e.g. a STDIDENT id / title on its own record) is plain
+# ONLY when its content begins in the field region (col 11+). If anything sits in cols 1-10
+# (e.g. "         BARE GROUND PLANT" — the 'B' is at col 10), the positional 10-col render
+# would DROP it, so it must be carried verbatim as raw. (Was: any blank-name ⇒ plain, which
+# silently truncated such ids through the .key→.yaml / .key→.key field round-trip.)
 _is_plain_keyword(rec::KeywordRecord) =
-    occursin(r"^[A-Za-z][A-Za-z0-9]*$", strip(rec.name)) || isempty(strip(rec.name))
+    occursin(r"^[A-Za-z][A-Za-z0-9]*$", strip(rec.name)) ||
+    (isempty(strip(rec.name)) && strip(first(rec.raw, 10)) == "")
 
 # Render keyword records to fixed-column `.key` text (the inverse of KEYRDR decode).
 function _render_keyfile(io::IO, records::AbstractVector{KeywordRecord})
