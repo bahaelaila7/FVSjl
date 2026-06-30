@@ -316,3 +316,18 @@ dumping per-tree (D, RI, RN, RIP, XKILL) and diff vs jl's per-record mort_pa; an
 grow_cycle! to expose the PRE-mortality grown BA/SDI (compare to the live MORTS 'OLDBA/RELDEN' = 84.35/
 169.71) to settle DG-aggregate vs mortality-distribution. This is the final cyc1 gap — multi-session
 per-tree work, as the SN/NE campaigns were.
+
+#### cyc1 residual — needs a RECORD-TAGGED FVS stamp for 1:1 per-tree mapping (re-trace lesson)
+Repeated per-tree comparisons this pass produced MIS-reads (the doctrine's exact warning), because:
+(a) the live treelist "CURR DIAM INCR" is the NEXT-cycle increment / measured-input echo, not the
+projection; (b) the MORTS RMSQD=5.145 is the cycle-START arithmetic QMD (DQ0=4.70 = Zeide-start),
+NOT the grown QMD — so "jl grownQMD 5.798 vs 5.145" was start-vs-grown; (c) tripling explodes each
+record into 3 (central/upper/lower) so jl record i ≠ live tree i without IDs — the WO/HI per-tree DG
+comparisons couldn't be mapped reliably. VALIDATED FACTS (stand): DG model + calibration bit-exact;
+density params (SDImax 345.45, sp_sdi_def, SDI, dia0 4.701, ssigma=SIGMAR) all match live; cyc1 .sum
+within ~4% (TopHt exact). The ~4% (QMD 6.1/5.9, BA 103/99, TPA 512/518) is a real coupled DG/mortality
+residual but is NOT cleanly isolable from the stock DEBUG output. NEXT (proper tooling, fresh session):
+add a custom FVS stamp that tags each record with its STABLE id and dumps per-record (sp, dbh, DG, HTG,
+XKILL) at the SAME phase jl reads (post-DG pre-triple AND post-mortality), so jl's records map 1:1 to
+live's — then the per-tree DG vs mortality contribution is unambiguous. Until then, do NOT trust
+eyeballed treelist comparisons. cyc1 .sum (TPA518/BA99/SDI196/CCF202/TopHt68/QMD5.9) is the oracle.
