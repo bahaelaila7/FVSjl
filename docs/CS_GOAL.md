@@ -37,9 +37,17 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   Zeide SDI, RNG 55329); species.jl, site_index.jl (ASITE/BSITE SITSET + CS FORKOD), diameter_growth.jl
   (cs_dgcons! bark copy stub). CS HT-DBH = shared Southern Curtis-Arney/Wykoff; CS crown + crown-width =
   shared NE TWIGS/cwcalc; CS volume = shared eastern R9 Clark + `_cs_merch`. Data via fortran_data_extract.py.
-- **NEXT — chunk 3: `cs/dgf.f`** (the one genuinely-new CS model: SN-family ln(DDS) from DBH/site/crown/
-  BA-percentile/QMD, ≥5") + the full cs_dgcons! site constant ⇒ cycle-1 DG. Plus the trailing cyc0
-  .sum forest-type field (FORTYP 503, currently 999 — a classification field, not stand/volume).
+- **CHUNK 3 (DG) — model+calibration BIT-EXACT** (validated vs live DEBUG/DGF + DGDRIV stamps;
+  cs_dgf! + cs_dgcons! + dg_coeffs.csv). Remaining DG residual = the DGSCOR serial-correlation /
+  tripling step (live tripled-mean DG 0.89 vs jl central 0.654 — the OLDRN/FRM partition for
+  uncalibrated species); best validated aggregately via the cycle-1 .sum. See docs/CS_PORT_STATUS.md.
+- **CHUNK 4 (part 1) — height growth DONE** (cs/htgf.f: NC-128 HTCALC IVAR=2 via MAPCS + shared
+  LTBHEC, + cs_balmod B1/B2/B3, + GMOD/RELHTA/OLDRN). height_growth!(::CentralStates) loads/runs.
+- **NEXT — chunk 4 rest:** `small_tree_growth!(::CentralStates)` (cs/regent.f — REGENT, the grow_cycle!
+  blocker at d<5); verify the GENERIC `mortality!` works for CS (varmrt_varadj is in the CSV; cs/varmrt.f
+  DIFFERS from NE — re-check); crown_ratio_update! already serves CS (Union). Then run full grow_cycle!
+  and validate the cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9) — the aggregate
+  where the DG DGSCOR residual + HTG/mortality all surface. Then the cyc0 FORTYP field is already 503.
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)
