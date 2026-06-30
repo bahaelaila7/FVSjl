@@ -285,3 +285,16 @@ raises mean DBH/QMD and leaves BA high. So the prime cyc1 suspect is the MORTALI
 records lose TPA) vs the live 2000 treelist MORTAL-PER-ACRE column; check the CS SDImax (sp_sdi_def
 from SDICON) and the density-mortality DR/D10 basis — a too-low CS SDImax over-thins. (DG per-tree
 DBH validated against the live treelist; revisit DGSCOR only if mortality alone doesn't close it.)
+
+#### cyc1 closure lead — jl over-kills ~6 TPA (24 vs live 18); per-tree mortality is the next probe
+1990→2000 mortality: jl kills ~24 TPA (536→512), live ~18 (536→518). Live's per-tree MORTAL-PER-ACRE
+(from the 2000 treelist) concentrates in a few records (3.4, 1.6, 1.4, 1.1) + many tiny; jl's total is
+higher. The CS mortality path is: background RI=0.5/(1+exp(PMSC[g]+PMD[g]·D)) (g=IMAPCS, supplied) +
+the SDI-density kill (shared SN/NE-validated code; CS SDImax from SDICON, sp_sdi_def). jl's stand
+sp_sdi_def max = 726 (one species); the composition-weighted stand SDImax that the density kill uses
+needs checking — the cyc0 SDI 160 vs SDImax drives how hard density mortality fires. NEXT (better
+tooling than awk-on-treelist): (a) a live MORTS DEBUG stamp (per-tree RI/RN/RIP) to verify the CS
+background RI + density rate per tree, and (b) dump jl's per-tree mort_pa vs the live treelist MORTAL
+column (use FVSOut.db FVS_TreeList if a TREELIST DB run is set up, not the fixed-width .trl). The DG
+per-tree DBH is validated (d6.5 HI triples match live), so isolate mortality first. This is the last
+gap to cyc1 bit-exact; then multi-cycle + the .sum.save regression test.
