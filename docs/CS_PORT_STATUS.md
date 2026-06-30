@@ -254,3 +254,23 @@ stamp (DG/FRM per tree) to pin the central FRM + tripled spread, or (b) implemen
 crown/mortality) and validate the full cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/
 QMD 5.9) — the aggregate where the DG residual surfaces. Recommend (b): the .sum is the real target
 and exercises DG+HTG+mort together; isolated per-tree DGSCOR tracing is high-effort/low-signal.
+
+### ★ CHUNK 4 — full grow_cycle! RUNS for CS; cycle-1 .sum within ~4% of live
+Ported the remaining growth-spine hooks; grow_cycle!(CentralStates) now runs end-to-end.
+CS cyc1 (2000): TPA 512/BA 103/SDI 202/CCF 207/TopHt 68/QMD 6.1 vs live 518/99/196/202/68/5.9.
+TopHt is BIT-EXACT (height growth correct); the rest is within ~3-4%.
+- small_tree_growth!(::CentralStates): cs/regent.f — NE shape, XMIN=3.0, cs_balmod, MAPCS curve,
+  DIAM floor = htdbh_db (budwidth/SNDBAL).
+- mortality!: the generic AbstractVariant method serves CS. Supplied the background-mortality
+  coeffs: RI=0.5/(1+exp(PMSC[g]+PMD[g]·D)) with g=IMAPCS[sp] (4 mortality groups, morts.f
+  byte-identical CS/NE) → mort_bkgd_coeffs.csv. VARMRT efficiency: cs/varmrt.f ≡ ne/varmrt.f
+  (only VARADJ DATA differs, CS supplies varmrt_varadj) ⇒ _varmrt_efftr! now dispatches
+  Union{Northeast,CentralStates}.
+- REMAINING cyc1 gaps (all small, to close for bit-exact): BA 103 vs 99 + QMD 6.1 vs 5.9 (~4%
+  HIGH) = the DG over-growing — the DGSCOR serial-correlation/tripling residual (jl's tripled-mean
+  DG runs above live's; the multiplicative OLDRN-spread for uncalibrated-species BACHLO draws is the
+  prime suspect — validate the per-tree cyc1 DG/BACHLO RNG alignment vs a live growth-mode stamp).
+  TPA 512 vs 518 (~1% over-kill) = mortality, likely downstream of the BA/DG diff (SDI-density kill).
+  Suite 5406/2, no SN/NE regression.
+NEXT: pin the DGSCOR/BACHLO cyc1-DG residual (now validatable aggregately via the .sum); then the
+TopHt-exact spine + the bit-exact DG should bring BA/SDI/CCF/QMD/TPA to live. Then multi-cycle.

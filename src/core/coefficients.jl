@@ -141,7 +141,8 @@ function load_species_coefficients(datadir::AbstractString)
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
                   "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv",
                   "fire_species_props.csv", "dg_coeffs.csv",     # NE: B1/B2/B3 diameter-growth coeffs
-                  "balmod_coeffs.csv")                            # CS: balmod_b1/b2/b3 height-BAL modifier
+                  "balmod_coeffs.csv",                            # CS: balmod_b1/b2/b3 height-BAL modifier
+                  "mort_bkgd_coeffs.csv")                         # CS: PMSC/PMD background mortality (via IMAPCS)
         h2, rows2 = _opt(fname)
         isempty(rows2) && continue
         for (j, h) in enumerate(h2)

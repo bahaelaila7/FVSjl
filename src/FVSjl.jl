@@ -66,6 +66,7 @@ include("variants/centralstates/species.jl")        # CS blkdat init (codes/RNG/
 include("variants/centralstates/site_index.jl")     # CS SITSET (per-species ASITE/BSITE linear)
 include("variants/centralstates/diameter_growth.jl")# CS DG: cs_dgf! ln(DDS) regression + cs_dgcons!
 include("variants/centralstates/height_growth.jl")  # CS HTGF: NC-128 (MAPCS) + cs_balmod (reuses LTBHEC)
+include("variants/centralstates/small_tree_growth.jl") # CS REGENT (d<5): NE shape, XMIN=3, cs_balmod
 # CS HT-DBH rides the Southern Curtis-Arney+Wykoff path (cs/htdbh.f ≡ sn/htdbh.f); CS crown
 # rides NE's TWIGS method (see northeast/crown_ratio.jl) — both are coefficient-driven, no CS code.
 
