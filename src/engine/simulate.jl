@@ -161,17 +161,36 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
 end
 
 """
+    _fire_due(s) -> Bool
+
+A scheduled SIMFIRE is due THIS cycle iff the cycle's year range [cycle_start, cycle_end)
+CONTAINS `fire.fire_year` — FVS OPCYCL (opcycl.f:58-64): an activity at date D is assigned to
+the cycle with IY(i) ≤ D < IY(i+1), NOT only when D is a cycle boundary. So a SIMFIRE scheduled
+at a non-boundary year fires in its containing cycle (on the cycle-start stand, the FMBURN basis).
+For a boundary fire year this reduces EXACTLY to current_cycle_year == fire_year (boundary fires —
+net01/snt01 — are unchanged), so it only ADDS mid-cycle support.
+"""
+function _fire_due(s::StandState)::Bool
+    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return false
+    fy = Int(s.fire.fire_year)
+    cyc = Int(s.control.cycle)
+    cs = current_cycle_year(s)
+    ce = cycle_year_at(s.control, cyc + 1)
+    ce <= cs && (ce = cs + 1)              # last/degenerate cycle ⇒ exact-match only
+    return cs <= fy < ce
+end
+
+"""
     _maybe_burn!(s, fint) -> fire_mort
 
-Run a scheduled SIMFIRE if this cycle's year matches `fire.fire_year` (FMMAIN). Operates
-on the current (post-MORTS, post-TRIPLE) records at cycle-start dimensions, and returns
-the periodic mortality VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-
-start cubic volume), for the caller to add to OMORT. No-op (returns 0) otherwise.
+Run a scheduled SIMFIRE if it is due this cycle (`_fire_due`, FMMAIN). Operates on the current
+(post-MORTS, post-TRIPLE) records at cycle-start dimensions, and returns the periodic mortality
+VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-start cubic volume), for the
+caller to add to OMORT. No-op (returns 0) otherwise.
 """
 function _maybe_burn!(s::StandState, fint::Float32)::Float32
-    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return 0f0
-    yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
-    yr == Int(s.fire.fire_year) || return 0f0
+    _fire_due(s) || return 0f0
+    yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware); fire fires on this cycle's stand
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
     pre_cfv = Float32[t.cuft_vol[i] for i in 1:t.n]
@@ -204,8 +223,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
                              stash = nothing,
                              post_fire::Union{Nothing,Function} = nothing)
     t = s.trees
-    fire_now = s.fire !== nothing && s.fire.active && s.fire.fire_year != 0 &&
-               current_cycle_year(s) == Int(s.fire.fire_year)
+    fire_now = _fire_due(s)   # OPCYCL: fires in the cycle whose range contains fire_year (incl. mid-cycle)
     if !fire_now
         mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
         return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)

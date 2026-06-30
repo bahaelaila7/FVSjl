@@ -600,3 +600,30 @@ end
         end
     end
 end
+
+# Mid-cycle SIMFIRE (OPCYCL): a fire scheduled at a NON-boundary year (1995, with NE's default
+# 10-yr cycles 1990/2000/...) must fire in its CONTAINING cycle (1990→2000) on the cycle-start
+# stand — FVS opcycl.f assigns an activity at date D to the cycle IY(i)≤D<IY(i+1), not only when D
+# is a boundary. Pre-fix jl required an exact boundary match and SILENTLY SKIPPED the fire. Live
+# FVSne TPA is BIT-EXACT here; volume tracks within the post-fire DGSCOR floor.
+@testset "NE mid-cycle SIMFIRE fires in its containing cycle — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "midcycle_fire.key")
+    if !isfile(key)
+        @test_skip "midcycle_fire fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        tpa = Dict{Int,Int}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 3 && occursin(r"^(1990|2000|2010|2020|2030|2040|2050)$", p[1]) || continue
+            tpa[parse(Int, p[1])] = parse(Int, p[3])
+        end
+        # live FVSne TPA — the 1990→2000 cycle's fire kills 536→172 (a no-fire run stays ~524).
+        livetpa = Dict(1990 => 536, 2000 => 172, 2010 => 168, 2020 => 164,
+                       2030 => 160, 2040 => 157, 2050 => 144)
+        for (yr, ev) in livetpa
+            @test haskey(tpa, yr) && tpa[yr] == ev
+        end
+        @test tpa[2000] < 300   # the fire fired (no-fire would be ~524) — guards against silent skip
+    end
+end

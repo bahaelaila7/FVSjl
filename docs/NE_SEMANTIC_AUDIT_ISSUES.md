@@ -621,3 +621,16 @@ VERDICT: a KNOWN, documented serial-correlation-at-non-native-period residual, n
 bug. The mission stand (net01, native 10yr) is unaffected. Fully closing it means bit-matching FVS's
 dgdriv ARMA VARDG/VMLT lognormal correction across mixed periods — deep, and risk to the bit-exact native
 path. Deferred unless non-native-cycle accuracy is required; documented for the record.
+
+
+## ★ FIXED — sweep finding #3: mid-cycle SIMFIRE now fires in its containing cycle
+Ported the FVS OPCYCL rule (opcycl.f:58-64): a scheduled activity at date D is assigned to the cycle
+with IY(i)≤D<IY(i+1), NOT only when D is a cycle boundary. Added `_fire_due(s)` (simulate.jl) = the cycle
+range [cycle_start, cycle_end) contains fire_year, and wired it into all three fire gates (_maybe_burn!,
+mortality_and_fire!, summary.jl fire_this_cycle). For a BOUNDARY fire year this reduces EXACTLY to the old
+current_cycle_year==fire_year (boundary fires — net01/snt01 — byte-unchanged, suite 5382→5390/2 no
+regression). The fire fires on the cycle-start stand (FMBURN basis). VALIDATED vs live FVSne
+(midcycle_fire fixture: SIMFIRE 1995, NE default 10yr cycles): TPA now BIT-EXACT every cycle
+(1990→2000 fire kills 536→172 == live; pre-fix jl SILENTLY skipped the fire, TPA stayed ~524); volume
+within the post-fire DGSCOR floor. +8 test assertions. So of the sweep's findings: #1 (YAML) FIXED, #3
+(mid-cycle fire) FIXED, #2 (non-native cycle DGSCOR) = documented known residual (deferred).

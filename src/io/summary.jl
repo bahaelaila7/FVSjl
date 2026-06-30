@@ -209,8 +209,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed
         # to grow_cycle! (run post-fire, FVS FMBURN→annual-loop order). The carbon row is likewise deferred
         # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
-        fire_this_cycle = s.fire !== nothing && s.fire.active && !last &&
-                          s.fire.fire_year != 0 && r.year == Int(s.fire.fire_year) && per > 1
+        fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
         if carbon_on && !fire_cycle
             compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
