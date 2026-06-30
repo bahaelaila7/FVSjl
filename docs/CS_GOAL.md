@@ -47,9 +47,17 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   SIX stand columns BIT-EXACT vs live (TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9; test_cst01.jl
   cyc1 6/6). KEY FIX: the DG-calibration GST DBH floor is CS=5 (cs/dgdriv.f:380), not SN/NE's 3 —
   jl was over-calibrating WO (debug-stamped live FN<5 ⇒ COR=0 for all CS species).
-- **NEXT:** multi-cycle (cyc2-10) .sum validation; the .sum growth columns (period/accretion/mortality);
-  then cst01_method5 (thinning) + a .sum regression test vs a freshly-relinked live binary. Cyc0 FORTYP
-  already 503. CS-active shared branches + FFE (fire/cs/) remain (chunk 5).
+- **CHUNK 5 (FFE) STARTED — full 10-cycle .sum VALIDATED for the projection stand.** Wired the CS FFE
+  fuel/fire-effects/crown-biomass path (FMCBA FUINI/FULIV fuel loading, Anderson-13 fuel models, cs/fmeff
+  + cs/fmbrkt bark/mortality groups, cs/fmcrowe crown biomass via ISPMAP=ls_spi, fmcblk BIOGRP). Ran the
+  first stand (UNTHINNED CONTROL, NOAUTOES) 10 cycles vs freshly-relinked live FVScs: **cyc0-2 ALL SIX
+  stand columns BIT-EXACT** (1990/2000/2010), **cyc3-10 within the Float32 ULP floor** (TPA ±1-3, SDI ±1,
+  QMD ±0.1, vol ≤1.5%; one FORTYP 503→801 flip-timing diff = accepted SN-COMPRESS class). test_cst01.jl
+  +54 assertions (79 CS total). Suite 5416/2, no SN/NE regression. See docs/CS_PORT_STATUS.md.
+- **NEXT:** full multi-STAND run_keyfile needs CS establishment (ESSUBH ht_curve_b* — the BARE-GROUND-PLANT
+  stand) + the THINDBH/shelterwood prescription stands (cst01 stands 2-3 + cst01_method5). The primary
+  projection stand is fully validated. FFE fire-EVENT behavior (an actual SIMFIRE) not yet exercised by
+  cst01 — only the potential-fire report path is wired.
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)
