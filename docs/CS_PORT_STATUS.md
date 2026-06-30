@@ -153,3 +153,24 @@ cs/stkval.f are BYTE-IDENTICAL to ne's, and the stocking map is FIA-keyed (natio
 reuses NE's stocking_coeffs.csv + fia_stocking_map.csv verbatim. The only cyc0 .sum fields
 not matching are the growth columns (period/accretion/mortality), which inherently need the
 cycle 0→1 DG projection (cs/dgf.f, chunk 3). test_cst01.jl: 15/15. Cycle-0 is COMPLETE.
+
+### CHUNK 3 IN PROGRESS — cs/dgf.f MODEL ported + validated bit-exact per-term; calibration COR open
+The CS diameter-growth MODEL is done and PROVEN correct against a live debug stamp:
+- Extracted the 12 DDS coefficient arrays (INTERC/VDBHC/DBHC/DBH2C/RDBHC/RDBHSQC/CRWNC/CRSQC/
+  SBAC/BALC/SITEC + OBSERV) → data/centralstates/dg_coeffs.csv. Wrote `dgf!(s, ::CentralStates)`
+  (src/variants/centralstates/diameter_growth.jl): the SN-family ln(DDS) regression + the QMD≥5/CR
+  species caps + BAGE5/QMDGE5/BAL competition + the OB→IB bark conversion (WK2 = ln(IB DDS)).
+- Updated cs_dgcons!: DGCON=0, ATTEN=OBSERV(ISPC), SMCON=0, bark copy. Wired diameter_growth!
+  (the generic AbstractVariant application already dispatches dgf!) + calibration into setup_growth!.
+- LIVE DEBUG STAMP (DEBUG/DGF keyword on cst01) confirms cs_dgf! is BIT-EXACT per-term: for the HI
+  (ISPC=19) tree the live D1..D11 = (-0.647, 0, 1.084, -0.055, 0.250, -0.077, 2.005, -1.181, -0.098,
+  0, 0.446) match jl's coefficients×inputs exactly; CR/PCT/SITE/BAGE5/QMDGE5/BAL all match.
+- OPEN — the DG CALIBRATION (COR): cst01 trees carry MEASURED past DBH growth (read into diam_growth:
+  WN d11.5→1.0, HI d6.5→2.3, …). FVS calibrates the per-species COR so the model reproduces the
+  measured growth (hence live "CURR DIAM INCR" = the measured input, NOT the bare model). jl's
+  calibrate_diameter_growth! currently yields COR only for sp47 (WO, goal 0.267) and 0 for sp8/19/43,
+  so uncalibrated species predict ~0.7 where measured/live is ~2.3. NEXT: trace why the shared SN
+  calibration doesn't accumulate COR for the other measured CS species (suspects: the measured-DG IDG
+  conversion / GROWTH code for the CS .tre growth field; per-species obs threshold fnmin=5; or a
+  cs/dgdriv.f specific the shared path misses). Validate per-species COR vs a live dgdriv debug stamp.
+- Suite 5406/2 (no SN/NE regression, no cyc1 test added until the COR is bit-exact).
