@@ -92,3 +92,14 @@ continuations or have unusual spacing. FIX before any further extraction: replac
 Fortran fixed-form continuation parser (column-6 continuation, strip `Cxxx` full-line comments only,
 accumulate until the matching closing `/`), then re-extract XMIN/HHTMAX/ASITE/BSITE to the full 96 and
 RE-VERIFY the already-written files (BKRAT/SIGMAR/HT1/HT2/BCR/VARADJ/SDICON) are complete 96-counts too.
+
+### RESOLVED — proper fixed-form parser; all CS coefficient data re-extracted + verified
+Replaced the ad-hoc collector with `tools/fortran_data_extract.py` (proper Fortran fixed-form:
+col-6 continuation, full-line C/*/! comments, N*v repeat expansion). RE-EXTRACTED every CS array and
+OVERWROTE the data files — the old parser had CORRUPTED HHTMAX/XMIN/ASITE/BSITE (dropped the leading
+value → mis-ordered; HHTMAX[1] read 27 instead of the raw 16). All now 96-count and spot-checked vs the
+raw Fortran (HHTMAX[1]=16, ASITE[3]=-5.1489, BCR1[1]=4.0862, SDICON[1]=354, HT1[1]=4.4718 — all ✓).
+Real CS species data complete for cycle-0: roster, bark, dg_resid_sd, estab(hhtmax/xmin), HT-DBH(HT1/HT2),
+crown BCR1-4, site(ASITE/BSITE + sdi_max), varadj. Remaining (cycle-1+ only): mort_bkgd, regent_min_diam,
+dbh_min(=5.0). NEXT: assemble species_coefficients.csv + centralstates/{species.jl, site_index.jl (CS
+ASITE/BSITE), crown_ratio.jl (NE-shape + CS BCR)} → cst01 cycle-0.
