@@ -765,11 +765,14 @@ end
             r = rows["2000"]
             agl = parse(Float64, r[2]); bgd = parse(Float64, r[5]); sd = parse(Float64, r[6])
             ddw = parse(Float64, r[7]); rel = parse(Float64, r[12])
-            @test isapprox(agl, 19.1; atol = 1.5) # post-fire survivors (live 19.1; pre-fix 36.2)
-            @test isapprox(bgd, 5.6;  atol = 0.5) # fire-killed coarse ROOTS booked to Below-Dead (live 5.6; pre-fix 0.9)
-            @test isapprox(sd,  20.2; atol = 0.3) # snags: crown-lift-at-death + FMEFF fine-crown consumption (live 20.2; jl 20.1, was 19.5→20.4)
-            @test isapprox(ddw, 1.1;  atol = 0.4) # start-of-cycle-consumed down wood (live 1.1)
-            @test isapprox(rel, 5.5;  atol = 0.3) # released = surface + live-fuel burn (live 5.5; was 0, then 5.13)
+            # Tolerances tightened to the MEASURED jl-vs-live floor (was 1.5/0.5/0.3/0.4/0.3 — up to 15× loose):
+            # carbon prints F7.1 so 0.1 is one print unit. jl: agl 19.2 (Δ0.1), bgd 5.6 (Δ0), sd 20.1 (Δ0.1),
+            # ddw 1.1 (Δ0), rel 5.5 (Δ0) vs live 19.1/5.6/20.2/1.1/5.5.
+            @test isapprox(agl, 19.1; atol = 0.2) # post-fire survivors (jl 19.2; pre-fix 36.2)
+            @test isapprox(bgd, 5.6;  atol = 0.1) # fire-killed coarse ROOTS booked to Below-Dead (jl 5.6; pre-fix 0.9)
+            @test isapprox(sd,  20.2; atol = 0.15)# snags: crown-lift-at-death + FMEFF fine-crown consumption (jl 20.1)
+            @test isapprox(ddw, 1.1;  atol = 0.1) # start-of-cycle-consumed down wood (jl 1.1)
+            @test isapprox(rel, 5.5;  atol = 0.1) # released = surface + live-fuel burn (jl 5.5; was 0, then 5.13)
         end
         if haskey(rows, "2005")
             # The snag-fall TIMING fix (update_snags! incrementing annual year): the fire snags now fall in
@@ -780,8 +783,9 @@ end
             # The fire snags fall in their CREATION year too (FMSNAG runs after FMBURN) — jl now adds that
             # year (update_snags! `born_now`), so the small-snag pool clears like live (DENIH 74→15) instead
             # of leaving ~5× too many (the small-snag fall is a CONSTANT modrate·origden/yr). SD drops to live.
-            @test isapprox(sd05,  2.8; atol = 0.4)    # fire snags cleared (jl 2.6; was 10.9, then 4.0)
-            @test isapprox(ddw05, 14.8; atol = 0.6)   # fallen boles in down wood (jl 15.2; was 8.1)
+            # #28 snag-fall-timing residual (accepted, low-%): jl 2.6 (Δ0.2) / 15.2 (Δ0.4) vs live 2.8 / 14.8.
+            @test isapprox(sd05,  2.8; atol = 0.25)   # fire snags cleared (jl 2.6; was 10.9, then 4.0)
+            @test isapprox(ddw05, 14.8; atol = 0.5)   # fallen boles in down wood (jl 15.2; was 8.1)
         end
     end
 end

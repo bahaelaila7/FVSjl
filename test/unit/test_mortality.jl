@@ -38,6 +38,7 @@ end
     mortality!(s, s.variant)
     after = stand_tpa(s) / g
     @test after < before                                  # trees died
-    # oracle cycle-1 loses ~29 TPA (536→507); we lose less (inherited DG gap) but >10
-    @test 10f0 < (before - after) < 35f0
+    # jl loses 26.0 TPA (536→510), deterministic; Oracle A loses ~29 — the ~3-TPA gap is the inherited
+    # DG-calibration residual (tracked in memory). Pinned tight (was 10<Δ<35, a ±45% band masking regressions).
+    @test isapprox(before - after, 26.0f0; atol = 1.5f0)
 end

@@ -37,10 +37,11 @@ const _LR_TRE = _LR_KEY[1:end-4] * ".tre"
         @test peak_n == 243
         @test s.trees.n < 200                       # records deleted by comcup (else stuck at 243)
 
-        # (2) tracks Oracle A's long-run .sum (±2 TPA) — the per-cycle zero-PROB delete
-        # keeps the RNG aligned so the dense stand doesn't structurally drift.
-        @test haskey(checks, 2040) && isapprox(checks[2040], 120.0; atol = 2)
-        @test haskey(checks, 2090) && isapprox(checks[2090],  35.0; atol = 2)
-        @test haskey(checks, 2140) && isapprox(checks[2140],  19.0; atol = 2)
+        # (2) tracks Oracle A's long-run .sum — jl lands within ~0.5 TPA (2040 120.4, 2090 35.5), so the
+        # per-cycle zero-PROB delete keeps the RNG aligned. Tightened atol 2→1 (was up to 10% on the small
+        # late-run TPA; the real floor is ~0.5).
+        @test haskey(checks, 2040) && isapprox(checks[2040], 120.0; atol = 1)
+        @test haskey(checks, 2090) && isapprox(checks[2090],  35.0; atol = 1)
+        @test haskey(checks, 2140) && isapprox(checks[2140],  19.0; atol = 1)
     end
 end

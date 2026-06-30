@@ -38,26 +38,23 @@ end
             notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_forest_type!(s)
             FVSjl.compute_volumes!(s)
             g = s.plot.gross_space
-            # TIGHT tolerances — the DGSCOR record-order fix made the multi-cycle path
-            # RNG-bit-exact, so only Float32 transcendental noise remains (≤0.6 TPA,
-            # ≤0.06% cuft across 11 cycles). No slack: a real regression now fails.
-            # EXCEPTION: from-below/above thins (THINBTA/ATA/BBA/ABA) still carry a
-            # ~1% post-cut ordering residual (RDPSRT cut-selection not yet bit-exact);
-            # that single known issue gets a wider, explicitly-labelled bound.
-            fromabove = occursin("thinbta", scn) || occursin("thinata", scn) ||
-                        occursin("thinbba", scn) || occursin("thinaba", scn)
-            tT, rT = fromabove ? (10.0, 0.06) : (2.0, 0.012)
-            tQ     = fromabove ? 0.8 : 0.2
-            tC, rC = fromabove ? (40.0, 0.06) : (12.0, 0.015)
+            # Tolerances set to the MEASURED jl-vs-golden floor across ALL scenarios (incl. the
+            # THINBTA/ATA/BBA/ABA thins, whose RDPSRT residual is now ≤0.6 TPA — the prior 6%/atol=10
+            # carve-out was stale, and the "≤0.6 TPA / ≤0.06% cuft" claim under-stated the real cuft 0.4%).
+            # Measured maxima: TPA 1.02 (0.74%), BA 0.69, SDI 0.56, QMD 0.09, cuft 18 (0.4%). Bounds ≈1.5×
+            # that — single-precision floor; a real regression now fails.
+            tT, rT = 1.6, 0.011
+            tQ     = 0.13
+            tC, rC = 27.0, 0.007
             @testset "$scn" begin
                 for (cyc, tpa, ba, sdi, qmd, tcuft) in rows
                     FVSjl.compute_forest_type!(s)
                     mtpa = stand_tpa(s) / g; mba = stand_ba(s) / g
                     msdi = stand_sdi(s) / g; mqmd = stand_qmd(s)
                     mtcuft = FVSjl.summary_row(s; period = 0).cuft
-                    @test isapprox(mba,  ba;  atol = 2.0, rtol = 0.012)
+                    @test isapprox(mba,  ba;  atol = 1.1, rtol = 0.011)
                     @test isapprox(mtpa, tpa; atol = tT, rtol = rT)
-                    @test isapprox(msdi, sdi; atol = 3.0, rtol = 0.012)
+                    @test isapprox(msdi, sdi; atol = 1.0, rtol = 0.009)
                     @test isapprox(mqmd, qmd; atol = tQ)
                     @test isapprox(mtcuft, tcuft; atol = tC, rtol = rC)
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
