@@ -664,3 +664,18 @@ first cycle's own ssigma spread, so it never explained the first-cycle BA 91/92 
 non-native cycle residual has no clear gateable fix in the autcor period args; it is the deep VARDG·VMLT
 ssigma scaling at a non-native period — genuinely the documented-divergence (hard) class, off the native
 net01 mission. Closed as deferred; do not re-attempt the oldp angle.
+
+
+## Finding #2 — CORRECTED via debug-stamp: the ARMA scaling is BIT-EXACT (earlier ssigma diagnosis WRONG)
+Debug-stamped FVS dgdriv.f (dumped per-species VARDG/VMLT/PVMLT/CORR/SSIGMA/RHOCP at the NE-5yr first
+cycle) and compared to a matching jl dump. They are BIT-EXACT: e.g. sp9 jl(vardg 0.00018694, vmlt 11.13804,
+pvmlt 29.39662, corr 0.24042, ssigma 0.045559, rhocp 0.970585) == FVS(0.00019, 11.1380, 29.3966, 0.24042,
+0.04556, 0.97059). So the non-native-cycle ssigma/VARDG/VMLT serial-correlation scaling is FAITHFUL — my
+prior "deep VARDG·VMLT ssigma residual" diagnosis was WRONG. The deterministic DG scaling (dgf 10-iter +
+gradd DDS·FINT/YR) is also faithful (verified separately). So the residual is NOT in the DG/ARMA at all;
+it must be downstream — most likely the MORTALITY rate scaling at a non-native cycle length (the sweep
+showed BOTH TPA and BA drift at NE-5yr, and morts has its own fint scaling — cf. the prior "10-yr cycle
+mortality" fix) or a sub-rounding/RNG-realization accumulation. NOT YET pinpointed to a single line.
+Status: the DG/ARMA is exonerated (bit-exact); the non-native-cycle residual is elsewhere, OFF the native
+net01 mission, deferred. Lesson (doctrine re-trace): the debug-stamp overturned two successive WRONG
+diagnoses (oldp; ssigma) — trace with REAL both-sides values, never assume.
