@@ -142,8 +142,8 @@ end
         live_ba = (77, 65, 80, 96, 114, 133, 149, 165, 183, 195, 196, 198, 199, 200, 200, 201, 201)
         for (k, lba) in enumerate(live_ba)
             row = split(lines[b1 + k])
-            @test parse(Int, row[4]) ≈ lba atol = 2     # BA tracks live within ±1 (was ~−20 pre-fix)
-        end
+            @test parse(Int, row[4]) == lba             # BA BIT-EXACT vs live (17/17 cycles; was ~−20 pre-fix,
+        end                                             # then ±1, now exact — verified vs fresh live FVSne)
         # cycle-0 is the bit-exact anchor; the deep cycles are where the badist bug used to compound
         @test parse(Int, split(lines[b1 + 1])[4]) == 77   # 1990 BA — bit-exact
     end
