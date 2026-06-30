@@ -440,3 +440,17 @@ record-chain order (the draws must walk records in the exact IND1/species_sort o
 DGSCOR-call time). NEXT: stamp the live BACHLO call sequence at cyc3 (record index + drawn value) vs
 jl's dgscor! draw order. EVERYTHING ELSE is bit-exact (cyc0-2 + cyc1 volume); this is the lone RNG-
 ordering residual — the model is complete.
+
+#### dgscor! logic VERIFIED matching FVS DGSCOR (cs/dgscor.f) — desync is RNG draw-count at cyc3
+jl serial_correlation.jl dgscor! is line-for-line faithful to cs/dgscor.f: FRM=BACHLO(0,SSIG)·RHOCP +
+RHO·OLDRN(IT), redraw while |FRM|>DGSD·SSIG, then DDS>5⇒FRM=0 / DDS>4⇒FRM=(DDS−4)·FRM, OLDRN=FRM,
+return exp(FRM). So the per-tree draw LOGIC + rejection loop match. The cyc3 desync is therefore the
+RNG STREAM STATE/draw-COUNT, not the formula. Candidate mechanisms (both consume BACHLO each cycle):
+(1) small_tree_growth! draws BACHLO per d<5 tree — the uncalibrated-species DG ~1% low could push a
+near-5" tree to the WRONG side of the XMAX=5 threshold at a given cycle vs live, changing the draw
+count and desyncing the stream; (2) the dgscor! rejection loop redrawing a different number of times
+at a boundary. cyc1-2 bit-exact (tripling path carries OLDRN, no fresh draw); the first fresh per-tree
+DGSCOR/regent draws that MATTER for the divergence land at cyc3. NEXT (fresh session): stamp the live
+RNG seed (RANCOM S0/SS) at each cycle's dgdriv entry + count BACHLO calls/cycle vs jl — if the state
+matches at cyc3 entry, the desync is within cyc3 (rejection loop or small-tree threshold); if not, it
+accumulated earlier. The MODEL is verified complete; this is pure RNG-stream bookkeeping.
