@@ -634,3 +634,19 @@ regression). The fire fires on the cycle-start stand (FMBURN basis). VALIDATED v
 (1990→2000 fire kills 536→172 == live; pre-fix jl SILENTLY skipped the fire, TPA stayed ~524); volume
 within the post-fire DGSCOR floor. +8 test assertions. So of the sweep's findings: #1 (YAML) FIXED, #3
 (mid-cycle fire) FIXED, #2 (non-native cycle DGSCOR) = documented known residual (deferred).
+
+
+## Finding #2 refined — it is the EARLY-CYCLE tripling spread (deterministic), via ssigma at non-native period
+Confirmed the non-native cycle drift is SYSTEMATIC (monotonic under-growth, e.g. ne00 5yr BA consistently
+LOW 91/92, 107/108, 122/123, 136/138 — not sign-fluctuating realization noise), so it is a deterministic
+effect, not the accepted RNG-realization class. Mechanism: in the early (cycle<ICL4) tripling cycles the
+tripled upper/lower records' DG offsets frmbase/fru/frl (DG_FM/FU/FL·ssigma·rhocp, diameter_growth.jl:663-665)
+derive from ssigma = sqrt(log(evarp2)), evarp2 from VARDG·VMLT with VMLT=autcor(newp,oldp). At a non-native
+period (NE-at-5yr: newp=oldp=5 from cycle 2 on, while SIGMAR/VARDG are on NE's 10-yr basis) that variance
+scaling is only PARTIALLY faithful — exactly the residual the code comments at :393-397 / :637-639 already
+document (the calibration VMLT and first-cycle oldp were fixed to YR=10, leaving the per-cycle 5-yr ssigma
+residual). So #2 is FIXABLE in principle (deterministic) but means bit-matching FVS dgdriv's ssigma/rho
+ARMA variance scaling across mixed periods — a deep change to SHARED dgdriv (SN-regression risk; the
+native path newp==oldp==YR must stay bit-exact). DEFERRED: off the core mission (net01 = native 10yr,
+bit-exact); warrants an explicit dgdriv-ARMA work item, not an incidental fix. Magnitude ~0.5%/cycle
+(accumulating to ~3% over 8 cycles for NE-at-5yr; SN-at-10yr milder).
