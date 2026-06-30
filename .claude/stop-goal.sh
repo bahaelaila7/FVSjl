@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
-# This session loaded THIS path as its Stop hook at startup. The active campaign is the NE port;
-# delegate to stop-ne.sh (reads docs/NE_GOAL.md + doctrine; off-switch: touch docs/NE_COMPLETE).
-exec /workspace/FVSjl/.claude/stop-ne.sh "$@"
+# This session's Stop hook. The active campaign is the CS (Central States) variant port;
+# delegate to stop-cs.sh (reads docs/CS_GOAL.md + doctrine; off-switch: touch docs/CS_COMPLETE).
+# (NE port is complete — docs/NE_COMPLETE exists, so stop-ne.sh would no-op anyway.)
+exec /workspace/FVSjl/.claude/stop-cs.sh "$@"

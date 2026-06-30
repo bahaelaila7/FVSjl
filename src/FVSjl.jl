@@ -2,9 +2,10 @@
     FVSjl
 
 An idiomatic, maintainable, thread-safe Julia reimplementation of the USFS Forest
-Vegetation Simulator (Southern variant to start). It is a drop-in replacement for
-the Fortran `FVSsn`: same `.key`/`.tre` inputs, same SQLite / `.sum` outputs, and
-(in the default `faithful=true` mode) bit-exact results.
+Vegetation Simulator. It is a drop-in replacement for the live Fortran FVS — Southern
+(`FVSsn`) and Northeast (`FVSne`) are complete and validated, Central States (`FVScs`)
+in progress — same `.key`/`.tre` inputs, same SQLite / `.sum` outputs, and (in the
+default `faithful=true` mode) bit-exact results.
 
 Design (see docs/ARCHITECTURE.md):
   * all simulation state lives on an explicit `StandState` — no globals;
@@ -13,7 +14,8 @@ Design (see docs/ARCHITECTURE.md):
   * variants are dispatched via `AbstractVariant` singletons.
 
 Ported from the Fortran sources under /workspace/ForestVegetationSimulator and
-validated against the faithful port at /workspace/FVSjulia (see test/).
+validated against the live Fortran builds (SN additionally vs the faithful port at
+/workspace/FVSjulia; NE/CS have no faithful port — live binary is the sole oracle).
 """
 module FVSjl
 
@@ -54,6 +56,9 @@ include("variants/northeast/height_growth.jl")      # NE height growth (NC-128 c
 include("variants/northeast/mortality.jl")          # NE VARMRT efficiency (relative-height + VARADJ)
 include("variants/northeast/crown_ratio.jl")        # NE crown ratio (TWIGS BA-based model)
 include("variants/northeast/small_tree_growth.jl")  # NE small-tree growth (REGENT, dbh<5)
+
+# --- centralstates (CS) — variant skeleton; equations/data land chunk by chunk (docs/CS_GOAL.md)
+include("variants/centralstates/centralstates.jl")  # CS singleton + registration (MAXSP 96)
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
@@ -106,7 +111,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
