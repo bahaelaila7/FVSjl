@@ -425,3 +425,18 @@ the drift: DG model, calibration (COR), GST floor, tripling FM/FU/FL, ssigma/rho
 NEXT: compare the BACHLO draw COUNT+ORDER per cycle jl vs a live RANN/BACHLO-call debug-stamp; check the
 per-cycle record tripling/compaction order matches FVS (the draw order is keyed on the species-sorted
 record chain). The MODEL is done — this is RNG bookkeeping.
+
+#### cyc3+ drift — desync point is the cyc3 DGSCOR BACHLO (record counts pin it)
+Per-cycle record counts (live treelist vs jl): cyc0 29/29, cyc1 81/81, cyc2 243/243, cyc3 243/243 —
+MATCH through cyc3. cyc4: jl 237 vs live 243 (jl removes 6 records). But TPA already diverges at cyc3
+(439.41 vs 440) with IDENTICAL record counts ⇒ the per-RECORD values diverge at cyc3, then cyc4 jl
+kills 6 records to zero that live keeps. cyc1-2 (deterministic tripling 27→81→243) are BIT-EXACT;
+cyc3 is the FIRST non-tripling growth cycle, where dgscor! draws a FRESH per-record BACHLO random for
+the AR(1) serial correlation (vs cyc1-2 which carry the tripling/calibration OLDRN, no fresh draw). So
+the cyc3 DGSCOR BACHLO draw order/count is the desync: jl's per-record random ≠ live's ⇒ per-record DG
+diverges ⇒ VARMRT (deterministic) distributes mortality differently ⇒ record over-kill at cyc4. FIX
+DIRECTION: align the dgscor! BACHLO draw ORDER for the non-tripling cycles to FVS's species-sorted
+record-chain order (the draws must walk records in the exact IND1/species_sort order FVS uses at
+DGSCOR-call time). NEXT: stamp the live BACHLO call sequence at cyc3 (record index + drawn value) vs
+jl's dgscor! draw order. EVERYTHING ELSE is bit-exact (cyc0-2 + cyc1 volume); this is the lone RNG-
+ordering residual — the model is complete.
