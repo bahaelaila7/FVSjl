@@ -650,3 +650,17 @@ ARMA variance scaling across mixed periods — a deep change to SHARED dgdriv (S
 native path newp==oldp==YR must stay bit-exact). DEFERRED: off the core mission (net01 = native 10yr,
 bit-exact); warrants an explicit dgdriv-ARMA work item, not an incidental fix. Magnitude ~0.5%/cycle
 (accumulating to ~3% over 8 cycles for NE-at-5yr; SN-at-10yr milder).
+
+
+## Finding #2 — attempted fix (oldp) was a MISREADING; residual confirmed deep/documented
+Re-traced the non-native ARMA per the doctrine (don't accept a floor without tracing). Tried the one
+plausible gateable cause: the first-cycle autcor `old` period. FVS grincr.f:61-63 sets the first cycle's
+OLDFNT = FINT — but FINT there is the PRE-line-66 value (line 66 `FINT=IFINT` runs AFTER line 63), i.e.
+FINT's carried/initial value = the measurement period YR, NOT the current IFINT. So the existing
+`oldp = YR` is CORRECT. Changing it to `oldp = FINT(=newp)` REGRESSED s9_uniform10 (an SN 10yr non-native
+scenario validated vs live FVSsn) — the doctrine's regression-signal caught the misreading immediately;
+reverted. The first-cycle `oldp` only drives CORR (serial correlation with the prior cycle), not the
+first cycle's own ssigma spread, so it never explained the first-cycle BA 91/92 anyway. CONCLUSION: the
+non-native cycle residual has no clear gateable fix in the autcor period args; it is the deep VARDG·VMLT
+ssigma scaling at a non-native period — genuinely the documented-divergence (hard) class, off the native
+net01 mission. Closed as deferred; do not re-attempt the oldp angle.
