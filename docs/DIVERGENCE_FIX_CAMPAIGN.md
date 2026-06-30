@@ -16,7 +16,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ⬜ |
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ⬜ |
 | D6 | CS ESCPRS regen-compression not ported | regen | feature gap | ⬜ |
-| D7 | Per-species merch/saw/board volume standards (GA/PC/BY…) | volume | cyc0 ~28% Bdft | 🔬 NEW |
+| D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (REGDMULT/MORTMULT/REGHMULT/BAIMULT) | growth | large | ⬜ NEW |
 | D9 | Mid-cycle SIMFIRE timing (s10_fire, fire_repeat) | fire | TPA huge | ⬜ NEW (verify) |
 | D10 | bare_* regen volume (Scuft) | regen | ~50% Scuft | ⬜ NEW |
@@ -55,6 +55,17 @@ live r9clark/r9clarkdib for a single GA tree (dump DIB-at-height + the merch-cut
 vs jl's `compute_volumes!` for the same tree; the merch-cut height or a profile-segment term differs for
 this Clark-equation family. (Note: this is volume-extraction, downstream of growth — but a real cyc0
 divergence, so high-value: deterministic, no RNG/timing confound.)
+
+**✅ FIXED (bit-exact).** Root cause = `COEFFSO%DIB17` (the secondary-coefficient inside-bark diameter at
+17.3 ft). Live r8prep.f gates the whole fcmin block on `IF(SPEC.NE.221.AND..NE.222.AND..NE.544)`: for
+those three species the `(FCLSS−AFI)/BFI` line (r8prep.f:366) is SKIPPED, COEFFSO%DIB17 stays 0, and the
+unconditional `:507` floor `IF(COEFFSO%DIB17 < COEFFS%DIB17) COEFFSO%DIB17 = COEFFS%DIB17` then sets it =
+COEFFS%DIB17 (= the raw dib17). jl's `_r8_clark` computed `dob17 = (dib17−AFI)/BFI` for ALL species
+(missing both the special-case and the :507 floor) ⇒ a too-large dob17 (BFI<1) ⇒ over-extracted
+merch/saw/board. Fix (r8clark_vol.jl): `dob17 = (spec∈221/222/544) ? dib17 : (dib17−AFI)/BFI; dob17 =
+max(dob17, dib17)`. The :507 floor is a no-op for every other species (proven: all_WO/LP + snt01 stands
+1-4 stay bit-exact) and yields dib17 for the three. all_GA/PC/BY cyc0 now BIT-EXACT (1253/900/47/174 ==
+live). Suite 6234/2. (snt01 stand-5 BARE residual that remains = D10 regen volume, separate.)
 
 ## Verdict log
 

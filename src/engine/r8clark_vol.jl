@@ -367,9 +367,14 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
     # Form class minimum adjustment
     dib17 = _r8_fcmin_adj(dib17, dbhOb, totHt, spgrp, spec)
 
-    # Outside-bark DIB17: for r9ht (R8 uses ob for height computation)
-    dob17 = dbhOb*(A17o + B17o*(17.3f0/totHt)^2)
-    dob17 = max((dib17 - AFI)/BFI, 0.1f0)   # form-class-adjusted
+    # Secondary-coefficient DIB17 (COEFFSO%DIB17, r8prep.f:366 + the :507 floor). For 221/222/544
+    # (baldcypress/pondcypress/green-ash) live SKIPS the (FCLSS−AFI)/BFI step (r8prep.f:346) so
+    # COEFFSO%DIB17 stays 0 and the :507 floor sets it = COEFFS%DIB17 (=dib17); every other species
+    # uses (dib17−AFI)/BFI. Applying the :507 floor unconditionally is faithful — it's a no-op for the
+    # other species (BFI<1 ⇒ (dib17−AFI)/BFI > dib17) and yields dib17 for the special three.
+    dob17 = (spec == 221 || spec == 222 || spec == 544) ? dib17 : (dib17 - AFI)/BFI
+    dob17 = max(dob17, dib17)                # r8prep.f:507  COEFFSO%DIB17 = max(.., COEFFS%DIB17)
+    dob17 = max(dob17, 0.1f0)
 
     # Merch defaults from R8 MRULES (mrules.f line 337-369)
     stump  = stump > 0 ? stump : (prod == "01" ? 1.0f0 : 0.5f0)
