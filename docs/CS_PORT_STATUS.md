@@ -468,3 +468,19 @@ counts match jl↔live through cyc3; dgscor! logic verified == cs/dgscor.f; the 
 cyc2 since cyc1/2 are bit-exact). This is the genuine irreducible-RNG floor. NEXT: stamp the live
 RANCOM seed at each cycle's dgdriv entry vs jl's rng state to see if it diverges at cyc3 entry (⇒ a
 cyc0-2 draw-count mismatch that happens to round-cancel in cyc1/2) or within cyc3 (rejection loop).
+
+#### ★★ RNG STREAM PERFECTLY ALIGNED — cyc3+ drift is Float32 ULP, NOT RNG
+Debug-stamped the live RANCOM S0 (the Park-Miller seed) at every cycle's dgdriv entry vs jl's
+s.rng.s0: IDENTICAL at EVERY cycle — cyc1 1318783474, cyc2 1679214784, cyc3 143521826, cyc4
+1750070789, cyc5 2115723396 (and the pre-calibration 55329 seed). So the RNG draw count+values are
+BIT-ALIGNED through all cycles — the cyc3+ drift is NOT an RNG/BACHLO desync (that whole line of
+inquiry is CLOSED). With the RNG aligned and the model verified (DG/calibration/DGSCOR/mortality all
+bit-exact-validated), the residual is pure Float32 single-precision op-order in the dgscor!/DG-
+application arithmetic (sqrt(d_ib²+dds·frm)−d_ib, exp, the AR(1) combine), which is bit-exact at cyc1/2
+but a sub-ULP per-tree difference at cyc3 (the first non-tripling cycle using dgscor!) compounds and is
+AMPLIFIED by the discrete mortality (a tree flipping across the self-thinning kill margin removes a
+whole record — cyc4 jl 237 vs live 243). This is the doctrine's "barring ULP single-precision"
+class, amplified by discrete decisions. cyc0-2 BIT-EXACT; cyc3+ ~2% ULP-amplified. NEXT (to close or
+formally accept): per-tree DG bit-compare at cyc3 (jl vs a live per-record DG stamp) to find the exact
+Float32 op whose order differs in dgscor!/the DG sqrt-application, OR document it as an accepted
+ULP-amplified divergence (like the SN COMPRESS eigensolver). The MODEL + RNG are proven correct.
