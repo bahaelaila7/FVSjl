@@ -27,3 +27,5 @@ __DSNOUT__
 # committed reference outputs in examples/ (override the *.sum ignore above)
 !examples/**/*.fvsjl.sum
 !examples/**/*.fvssn.sum
+# committed live-oracle golden sums for the all-species coverage tests
+!test/fixtures/**/*.live.sum
