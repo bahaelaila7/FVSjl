@@ -54,3 +54,23 @@ and CS volume equations on the shared density/stat code.
 - Then ASSEMBLE `species_coefficients.csv` (roster + all the above) + crown_width_* + site_species,
   add `centralstates/species.jl`, and drive cst01 cycle-0 (geometric cols TPA/BA/SDI/QMD/TopHt first —
   those don't read the coefficients, so they validate honestly; then CCF via crown-width, then volume).
+
+### Remaining species-data extraction — finalized roadmap (per-species, from CS Fortran)
+Extracted so far (real): roster, bark(BKRAT), dg_resid_sd(SIGMAR), HT-DBH(HT1/HT2), crown
+BCR1-4(cs/crown.f), varmrt_varadj(VARADJ), sdi_max_default(SDICON). Remaining, with exact source:
+- **estab_min_ht / estab_hht_max** — `cs/blkdat.f` `XMIN` / `HHTMAX` (parser must collect the full 96;
+  it stopped at 86 on a comment/continuation split — fix the DATA-block collector to span comment lines).
+- **site_group + ASITE/BSITE site coefficients** — `cs/sitset.f` (`SDICON` already pulled there). Trace
+  the species→site-group mapping; CS site index may be per-species ASITE/BSITE (not the NE SICOEF-group
+  pointer) — confirm the model before reusing NE `site_index.jl`.
+- **mort_bkgd_intercept / mort_bkgd_dbh** — the background-mortality rate (NE had 4 groups). Trace
+  `cs/varmrt.f` / `cs/morts.f` (cs/morts.f is the background-kill driver; the rate coefficients/groups
+  are the per-species source).
+- **regent_min_diam** — `cs/regent.f` (NE had 5 distinct values). **dbh_min** — constant 5.0 (NE).
+
+ASSEMBLY: combine the per-species CSVs into `data/centralstates/species_coefficients.csv` (the loader's
+required file, same 20 columns as `data/northeast/`), then add `centralstates/{species.jl, site_index.jl,
+crown_ratio.jl}` reusing the NE structure with CS coefficients (htgf/crown/varmrt are 88-96% NE), and
+drive `cst01` **cycle-0**: TPA/BA/SDI/QMD/TopHt are geometric (validate first, honest — they don't read
+coefficients), then CCF via crown BCR, then volume via CS NVEL eq ids. CAUTION (re-trace discipline): a
+"reuses NE" label is a hint — verify each CS routine's source for a CS-specific coefficient/branch.
