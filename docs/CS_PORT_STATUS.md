@@ -23,3 +23,20 @@ NB the stand is S248112 (same inventory as net01/snt01) but with **CS species co
 (TPA/BA/SDI/TopHt/QMD) EXCEPT **CCF 169** (vs NE 176 — CS crown-width) and the **volume**
 (CS equations). So cycle-0 reduces to: read the CS species roster, CS crown width (CCF),
 and CS volume equations on the shared density/stat code.
+
+## Chunk 1b — species data extraction (IN PROGRESS)
+- [x] **Roster extracted** (real): 96 CS species from `cs/blkdat.f` `DATA JSP/FIAJSP/PLNJSP`
+      → `data/centralstates/species_roster.csv` (WN=8, SM=43 — matches cst01.tre). Shared
+      `species_translation.csv` copied (already carries the `target_cs` column).
+- [ ] Build `data/centralstates/species_coefficients.csv` (the loader's required roster+coef file).
+      Per-species coefficient sources located:
+      - `cs/blkdat.f`: `BKRAT` (bark_intercept=0/slope=BKRAT), `SIGMAR` (dg_resid_sd), `HHTMAX`
+        (estab_hht_max), `XMIN`, `HT1`/`HT2` (HT-DBH curve → htdbh_coeffs).
+      - `cs/grinit.f` / `sitset`: `SDIMAX`/`SDIDEF` (sdi_max_default), site_group / site index.
+      - `cs/crown.f` / `cratet`: crown_bcr1..4 (crown-ratio coefficients).
+      - `cs/varmrt.f` / mort tables: mort_bkgd_*, varmrt_varadj; `regent` min diam; dbh_min.
+- [ ] `data/centralstates/{crown_width_*,site_species,htdbh_coeffs,...}.csv` (mirror data/northeast/).
+- [ ] `centralstates/species.jl` (init_blockdata!: 96 sp, Zeide SDI, RNG 55329) + site/crown hooks.
+- NOTE for cycle-0 stand columns (TPA/BA/SDI/QMD/TopHt): these are geometric (DBH/HT/TPA) and need
+  only the roster to parse the .tre + the shared Zeide SDI; **CCF** needs CS crown-width; **volume**
+  needs CS NVEL eq ids. So the first testable milestone is TPA/BA/SDI/QMD/TopHt, then CCF, then volume.

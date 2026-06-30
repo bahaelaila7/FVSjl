@@ -30,8 +30,12 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   tables (`htdbh`/`sitset`/`forkod`), CS fire fuel models (`fire/cs/`, 8 files; CS reuses SN's
   `fmmois`), and the **96-species** coefficient CSVs (CS `MAXSP = 96`; NE 108, SN 90).
 
-## Current state
-- Variant infra: **NOT STARTED** (no `CentralStates<:AbstractVariant` yet).
+## Current state (continue from here — see docs/CS_PORT_STATUS.md for the live baseline)
+- Variant infra: **STARTED**. `CentralStates<:AbstractVariant` registered (code CS, MAXSP 96,
+  YR 10, Zeide SDI, RNG 55329) + `variant_from_code`/exports; `test/harness/cs_oracle.sh` relinks
+  live FVScs; suite holds 5391/2 (no SN/NE regression). cst01 cycle-0 target recorded.
+- NEXT: `data/centralstates/` coefficient CSVs (extract from `cs/blkdat.f`; mirror `data/northeast/`),
+  then `centralstates/species.jl`/`site_index.jl`/crown — drive cst01 cycle-0 stand columns bit-exact.
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)
