@@ -443,3 +443,17 @@ floor for the stochastic stands — a deep, uncertain RNG-state-machine port for
 amplified-bdft residual. Documented as the lone open NE residual (RNG-realization class), NOT a growth/coef/
 volume-kernel bug. Recommend accepting as a documented divergence (analogous to the SN COMPRESS-eigensolver
 class) unless the board-feet threshold sensitivity matters for a downstream use.
+
+
+## SHARED-CODE BUG #9 (FFE/fmburn): FMEFF burn-prob RANN drawn under a tpa guard
+While tracing the stochastic fire-stand (net01 stand-4) volume residual, found a latent faithfulness
+bug in SHARED FFE code (src/engine/fire/fmburn.jl burn loop, ~line 140). FVS FMEFF (fmeff.f:144/152)
+draws `CALL RANN(XRAN)` for EVERY record `DO 100 I=1,ITRN` — UNCONDITIONALLY, before any FMPROB(tpa)
+test (the `FMPROB(I) .GT. 0.0` guard is at fmeff.f:176, AFTER the draw). jl guarded `t.tpa[i] > 0 ||
+continue` BEFORE the `rann!` draw, so any zero-tpa record present during a fire would skip a draw and
+desync the main RNG stream (shifting all subsequent DG/crown draws). FIX: draw `rann!` first (then the
+`>psburn` skip = fmeff.f:159 GOTO 90, then the tpa>0 = fmeff.f:176 guard). Shared fix — SN uses the same
+burn loop. Verified: suite 5382/2, SN bit-exact, no regression. NO-OP for current net01/snt01 (those
+fire stands carry no zero-tpa records at the fire year), so it does NOT resolve the stand-4 residual
+(that remains the post-fire DG record-order/draw realization), but it removes a real latent desync that
+WOULD bite any fire run with fully-killed (tpa=0) records still in the list. Faithful port + documented.

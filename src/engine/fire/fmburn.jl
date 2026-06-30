@@ -138,8 +138,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     v2t = coef_col(coef, :v2t)
     if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
         @inbounds for i in 1:t.n
-            t.tpa[i] > 0f0 || continue
-            (rann!(s.rng) * 100f0 > psburn) && continue  # this record is in the unburned portion
+            # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
+            # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
+            # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
+            (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
+            t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
             pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
