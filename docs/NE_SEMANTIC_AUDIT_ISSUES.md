@@ -320,3 +320,20 @@ hypothetical and must not perturb the sim. FIX (fmburn.jl potential_fire_report)
 torching_probability, rannput! it back after. RESULT: diverse FFE stand now BIT-EXACT EVERY year incl
 CCF@2000 118/118. SHARED fix (SN uses it too) — SN bit-exact, no regression. ⇒ 6TH real bug of the campaign;
 the FFE-diverse residual is CLOSED. Suite 5350/2.
+
+
+## Establishment (PLANT) on diverse species — confirms the first-cycle growth residual (converging)
+Broadening: a BARE stand planting 8 diverse species (BF/WS/WP/EH softwoods + RM/YB/WO/RO hardwoods, ESTAB+PLANT
+×200 each). LIVE-DIFF: TREES BIT-EXACT every cycle (1600→...); but the FIRST cycle (2002) shows BA 21/25, CCF
+67/80, SDI 79/90 (~16% low), converging to bit-exact by 2022 (BA 172/172, SDI 401/401, CCF 418/417). LOCALIZED
+(plant_hard TREELIST @2002): jl RM DBH 1.12/live 1.2, HT 17.0/17.6, CR 79.6/~79 (crown ratio MATCHES). So the
+established trees are ~5-7% SMALLER in the first cycle ⇒ ~10% lower crown area ⇒ the CCF/BA/SDI deficit (BA
+rounds 10/10 hiding it; CCF shows it). NOT a crown bug — it is the establishment first-cycle GROWTH residual,
+the SAME class as net01 BARE (~5%, [[fvsjl-ne-port-state]] "BARE ~1 BA floor"), now confirmed across diverse
+species and slightly larger for some. The planted seedlings grow slightly less than live in their creation
+cycle (ESSUBH base + Phase-2 scale_e=0.5·ne_htcalc_incr·gmod, all previously semantics-verified). Converges by
+cycle ~3. STATUS: the establishment-cohort first-cycle growth is the one persistent (small, converging) NE
+residual — consistent across BF/WS (net01) and the diverse set. FOLLOW-UP: re-examine the established-tree
+first-cycle HT increment per species (the ~3% HT / ~7% DBH deficit) vs live — possibly the base-height/age or
+the half-cycle scale interaction; prior net01 analysis concluded floor-level but the diverse set shows it is
+species-dependent (above the BF/WS floor).
