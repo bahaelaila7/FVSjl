@@ -454,3 +454,17 @@ DGSCOR/regent draws that MATTER for the divergence land at cyc3. NEXT (fresh ses
 RNG seed (RANCOM S0/SS) at each cycle's dgdriv entry + count BACHLO calls/cycle vs jl — if the state
 matches at cyc3 entry, the desync is within cyc3 (rejection loop or small-tree threshold); if not, it
 accumulated earlier. The MODEL is verified complete; this is pure RNG-stream bookkeeping.
+
+#### OLDRN-seeding fix TESTED + REJECTED (regressed bit-exact cyc1/2) — original is correct
+Hypothesis: the uncalibrated-species OLDRN branch draws BACHLO for ALL trees, but cs/dgdriv.f:422 sets
+OLDRN=RESLOG for MEASURED trees. Tested both variants: (a) measured→RESLOG skipping the draw — regressed
+cyc2; (b) draw-for-all then overwrite measured→RESLOG — regressed cyc1. So the ORIGINAL (BACHLO for all
+in uncalibrated species) is what makes cyc1+cyc2 BIT-EXACT — reverted (doctrine #3: don't keep a fix
+that regresses validated tests; here it unmasked nothing — the original is faithful). The earlier
+per-tree "wmean −0.1 low" was a MEASUREMENT ARTIFACT (the .60/.25/.15-weighted treelist comparison),
+not a real bias: cyc1 stand+volume are bit-exact, which is the ground truth. So the cyc3+ drift is NOT
+the OLDRN seeding. It remains the cyc3 DGSCOR BACHLO stream state/rejection-count (record + small-tree
+counts match jl↔live through cyc3; dgscor! logic verified == cs/dgscor.f; the stream aligns through
+cyc2 since cyc1/2 are bit-exact). This is the genuine irreducible-RNG floor. NEXT: stamp the live
+RANCOM seed at each cycle's dgdriv entry vs jl's rng state to see if it diverges at cyc3 entry (⇒ a
+cyc0-2 draw-count mismatch that happens to round-cancel in cyc1/2) or within cyc3 (rejection loop).
