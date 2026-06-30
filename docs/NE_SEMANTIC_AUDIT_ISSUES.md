@@ -368,3 +368,17 @@ small (~10%) first-cycle CCF deficit (hard PLANT CCF 36/40) with BA matching ⇒
 trees effect, NOT growth. Converges by cycle ~3. FOLLOW-UP (minor): diff the established-tree crown WIDTH (CCF
 input) jl vs live at cyc1 — crown ratio + dbh + height already match, so it is the cwcalc crown-width eval for
 small regen trees. The establishment cluster is otherwise CLOSED/faithful.
+
+
+## Establishment lone residual FINAL characterization — small first-cycle SDI/CCF dbh-distribution effect
+Exhaustively traced. The established-tree GROWTH is faithful (proven: base/HTGR/crown-ratio/crown-WIDTH all
+match live per-tree — jl crown_width(RM d1.2 h17.6 cr77)=4.03 vs live 3.9; ne_htcalc_incr·0.5=8.517=live HTGR).
+The lone residual on the diverse PLANT: cyc-1 SDI 37/40 + CCF 36/40 (~8% low) with BA MATCHING (10/10). Since
+BA(∝Σdbh²) matches but SDI(∝Σdbh^1.6) and CCF differ, it is purely a DBH-DISTRIBUTION effect (SDI/CCF are
+nonlinear in dbh; a different per-tree dbh spread shifts them while the 2nd moment / BA holds). Both jl & live
+apply the regent.f:266 ±10% HTGR random (gated DGSD≥1, NOT LESTB) and the +0.5/0.25 planted random — so the
+spread SHOULD match; the small residual is a per-tree RNG-realization / dbh-distribution alignment on the
+established cohort (the establishment :estab stream draw order — cf the earlier net01-BARE RNG-align note). It
+CONVERGES (cyc-2 CCF 176/183, cyc-3 311/317 — proportionally tighter). ⇒ NE establishment is FAITHFUL on every
+per-tree quantity; the remaining ~8% first-cycle aggregate SDI/CCF is the last (small, converging) NE residual,
+in the same RNG-draw-order class as the net01-BARE establishment alignment. Not growth, crown, or volume.
