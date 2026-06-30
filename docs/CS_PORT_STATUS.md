@@ -40,3 +40,17 @@ and CS volume equations on the shared density/stat code.
 - NOTE for cycle-0 stand columns (TPA/BA/SDI/QMD/TopHt): these are geometric (DBH/HT/TPA) and need
   only the roster to parse the .tre + the shared Zeide SDI; **CCF** needs CS crown-width; **volume**
   needs CS NVEL eq ids. So the first testable milestone is TPA/BA/SDI/QMD/TopHt, then CCF, then volume.
+
+### Extraction progress (real values, from CS Fortran — no placeholders)
+- [x] roster → `species_roster.csv` (96, cs/blkdat.f JSP/FIAJSP/PLNJSP)
+- [x] HT-DBH curve → `htdbh_coeffs.csv` (96, cs/blkdat.f HT1/HT2; same curve form as NE)
+- [x] bark_slope + dg_resid_sd → `_blkdat_extract.csv` (96, cs/blkdat.f BKRAT/SIGMAR; bark_intercept=0)
+- [ ] estab_min_ht / estab_hht_max → cs/blkdat.f XMIN / HHTMAX (parser needs the full 96 — got 86,
+      a continuation-line/comment split; fix the DATA-block collector)
+- [ ] site_group + sdi_max_default → cs/grinit.f / cs/sitset.f (the species→site-group + SDImax tables)
+- [ ] crown_bcr1..4 → cs/crown.f (the TWIGS crown-ratio BCR coefficients)
+- [ ] mort_bkgd_intercept/dbh + varmrt_varadj → cs/varmrt.f (check if CS uses group constants like NE)
+- [ ] regent_min_diam, dbh_min → likely constants (NE: 0.1, 5.0) — confirm vs cs/regent.f
+- Then ASSEMBLE `species_coefficients.csv` (roster + all the above) + crown_width_* + site_species,
+  add `centralstates/species.jl`, and drive cst01 cycle-0 (geometric cols TPA/BA/SDI/QMD/TopHt first —
+  those don't read the coefficients, so they validate honestly; then CCF via crown-width, then volume).
