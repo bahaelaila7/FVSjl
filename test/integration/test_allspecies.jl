@@ -50,13 +50,20 @@ function _assert_allspecies(jl_text::AbstractString, golden_path::AbstractString
             for (i, name) in ((3,"TPA"),(4,"BA"),(5,"SDI"),(6,"CCF"),(7,"TopHt"),(8,"QMD"))
                 @test (label, name, yr, geti(j,i)) == (label, name, yr, geti(l,i))
             end
-        else                                            # grown cycles: single-precision floor
-            @test abs(geti(j,3) - geti(l,3)) <= max(4, 0.03*geti(l,3))   # TPA
-            @test abs(geti(j,4) - geti(l,4)) <= max(2, 0.02*geti(l,4))   # BA
-            @test abs(geti(j,5) - geti(l,5)) <= max(4, 0.02*geti(l,5))   # SDI
-            @test abs(geti(j,6) - geti(l,6)) <= max(10,0.04*geti(l,6))   # CCF
-            @test abs(geti(j,7) - geti(l,7)) <= 3                        # TopHt
-            @test abs(geti(j,8) - geti(l,8)) <= 0.3                      # QMD
+        else
+            # Grown cycles: tolerances set just above the MEASURED live-vs-jl floor across all 6 stands
+            # (all drift is from the CS dense stand — NE is bit-exact every cycle). The CS mix is far
+            # denser than cst01 (TPA 1732, SDI 539 near max), so its steep near-SDImax mortality amplifies
+            # the single-precision floor a touch earlier/larger than the canonical stand — the same
+            # mechanism, grounded (cyc0 bit-exact ⇒ coefficients exact). Measured maxima: TPA 6 (1.5%),
+            # BA 1, SDI 2, CCF 4, TopHt 1, QMD 0.2. These bounds (~1.3-1.7× the floor) catch any real
+            # ≥3% coefficient regression while not flaking on ULP.
+            @test abs(geti(j,3) - geti(l,3)) <= max(3, 0.025*geti(l,3))  # TPA
+            @test abs(geti(j,4) - geti(l,4)) <= max(2, 0.015*geti(l,4))  # BA
+            @test abs(geti(j,5) - geti(l,5)) <= max(3, 0.015*geti(l,5))  # SDI
+            @test abs(geti(j,6) - geti(l,6)) <= max(4, 0.020*geti(l,6))  # CCF
+            @test abs(geti(j,7) - geti(l,7)) <= 2                        # TopHt
+            @test abs(geti(j,8) - geti(l,8)) <= 0.25                     # QMD
         end
     end
 end
