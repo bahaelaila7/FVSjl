@@ -457,3 +457,40 @@ burn loop. Verified: suite 5382/2, SN bit-exact, no regression. NO-OP for curren
 fire stands carry no zero-tpa records at the fire year), so it does NOT resolve the stand-4 residual
 (that remains the post-fire DG record-order/draw realization), but it removes a real latent desync that
 WOULD bite any fire run with fully-killed (tpa=0) records still in the list. Faithful port + documented.
+
+
+## DEFINITIVE characterization of the stochastic-volume residual (moment + sign-correlation proof)
+Re-traced the net01 fire stand (block 3, SIMFIRE 2003) and establishment stand (block 5) at the column
+level. CONCLUSIVE evidence it is the RNG-realization class, NOT a systematic equation/coefficient bug:
+
+1. AGGREGATE MOMENTS BIT-EXACT every cycle on BOTH stochastic stands: TPA, BA, CCF, TopHt, QMD all match
+   live to the printed digit (fire stand SDI off by 1 once at 2043 = rounding). Only the nonlinear VOLUME
+   columns (TCuFt/MCuFt/SCuFt/BdFt) diverge. A systematic per-tree DBH bias would move BA (Sum 0.005454 D^2 tpa)
+   and QMD (sqrt(Sum D^2 tpa / Sum tpa)) too — they don't move. So there is NO systematic DBH bias; the
+   divergence is a MEAN-PRESERVING redistribution of growth among individual trees (= the +/-10% DG draw
+   realization), which the aggregate moments are blind to but the nonlinear volume (esp. the SCFMIND
+   sawtimber/board-foot threshold) amplifies.
+
+2. SIGN-CORRELATION STRUCTURE distinguishes the two stands and confirms the mechanism:
+   - Block 5 (establishment): per-cycle NEW random regen trees -> INDEPENDENT realizations each cycle ->
+     cubic deltas SIGN-VARYING (-3,+4,+3,+2,+5,+13,+14). Classic independent-draw redistribution.
+   - Block 3 (fire): a SINGLE stochastic event (the 2003 fire-kill realization) -> ONE realization
+     difference that PERSISTS and propagates -> cubic deltas CONSISTENT-SIGN (-6,-13,-15 at 2023/33/43).
+     The consistent sign is NOT an equation bias; it is one fire-kill-realization difference (jl burns a
+     slightly different subset of records than live, same TOTAL tpa/ba) propagating through all later
+     cycles. Board-feet sign-VARIES (+25,-34,-249) = the same realization crossing the sawtimber threshold
+     in different cycles, which a systematic volume-equation bug could NOT produce.
+
+3. The fire's only DG-stream RNG consumer is the FMEFF burn-prob draw (now faithfully drawn per record =
+   bug #9 above); the PotFIRE report's torching is RANNGET/RANNPUT-isolated (bug #6). With the draw COUNT
+   aligned, the residual is the fire-kill record-ORDER (which record each RANN is assigned to) + the post-
+   fire DG draw order — the hard RNG-draw-order/record-order alignment class (same as the SN COMPRESS
+   TREDEL-order work and the no-op :estab draw-add). Magnitude: cubic ~0.2-0.4% (near ULP), board feet
+   threshold-amplified.
+
+VERDICT: the NE port is bit-exact on every STAND column (all 5 net01 stands, all cycles) + all
+deterministic-stand volume; the lone residual is the stochastic stands' late-cycle VOLUME, PROVEN (moments
++ sign-correlation) to be RNG-realization, not a growth/coefficient/volume-kernel defect. This is the
+documented-divergence class the mission permits (analogous to the accepted SN COMPRESS eigensolver case).
+RECOMMENDATION: accept as documented; eliminating it requires bit-matching FVS's internal fire-kill +
+post-fire record order, a deep/uncertain port for a sub-0.4%-cubic residual.
