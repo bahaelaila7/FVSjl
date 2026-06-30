@@ -88,8 +88,10 @@ height logistic (char height = 0.7·flame); group 6 uses the Reinhardt bark-thic
 crown-scorch logistic.
 """
 function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
-                             flame::Float32, csv::Float32)::Float32
-    g = fire_mortality_group(sp)
+                             flame::Float32, csv::Float32, variant::AbstractVariant = Southern())::Float32
+    # The SN/CS Regelbrugge-Smith species groups (1-5) are gated `IF VARACD .EQ. 'SN'/'CS'`
+    # (fmeff.f:196); NE skips them and uses the base Reinhardt logistic for every species.
+    g = variant isa Northeast ? 6 : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
         xm = -(_FM_MORTB0[g] + _FM_MORTB1[g] * dbh * 2.54f0 + _FM_MORTB2[g] * charht / 3.28f0)
@@ -112,6 +114,20 @@ variant. The only universal SN rule is `dbh ≤ 1″ & csv > 50% ⇒ 1.0` (fmeff
 needs the scorch volume and is applied in `fmburn!`. This is a no-op kept as the seam
 where a future LS/NE/ON port would re-introduce those branches.
 """
-@inline function fire_mortality_adjust(pmort::Float32, sp::Integer, dbh::Float32, burnseas::Integer)::Float32
+@inline function fire_mortality_adjust(pmort::Float32, sp::Integer, dbh::Float32, burnseas::Integer,
+                                       variant::AbstractVariant = Southern())::Float32
+    variant isa Northeast || return pmort                # SN/CS: no post-logistic adjustment
+    # NE dormant-season (BURNSEAS≤2) reductions (ne/fmeff.f:304-326):
+    (burnseas <= 2 && sp <= 25) && (pmort /= 2f0)        # conifers ×½ before greenup
+    sp == 1 && (pmort = max(0.7f0, pmort))               # balsam fir floor 70%
+    ((26 <= sp <= 29) || (99 <= sp <= 100)) && dbh < 4f0 && (pmort = 1f0)   # small maples die
+    if burnseas <= 2 && sp > 25                          # hardwoods before greenup
+        if (55 <= sp <= 70) || sp == 89                  # oaks — especially resistant
+            pmort = dbh >= 2.5f0 ? pmort / 2f0 : pmort * 0.8f0
+        else
+            pmort *= 0.8f0
+        end
+    end
+    (sp > 25 && dbh <= 1f0) && (pmort = 1f0)             # hardwoods ≤1″ die
     return pmort
 end

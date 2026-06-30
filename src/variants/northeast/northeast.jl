@@ -24,6 +24,9 @@ struct Northeast <: AbstractVariant end
 
 variant_code(::Northeast) = "NE"
 nspecies(::Northeast) = 108
+htg_period(::Northeast) = 10f0    # /CONTRL/ YR = 10 for NE (blkdat.f:71); HTCALC increment is 10-yr
+mort_ri_scale(::Northeast) = 0.5f0                       # morts.f:504 — NE halves the background rate
+mort_dbh_threshold(s, ::Northeast) = s.control.dbh_sdi   # morts.f:203 — NE gates on DBHSDI (default 0)
 
 # NE coefficient/data directory (mirrors data/southern/). Built up chunk by chunk:
 # species_translation.csv (the 108-species roster) is the first, most-upstream piece.

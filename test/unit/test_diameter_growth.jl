@@ -31,7 +31,7 @@ end
     s.plot.avg_height = FVSjl.stand_top_height(s)
     s.plot.basal_area = stand_ba(s)
     dgcons!(s)
-    dgf!(s)
+    dgf!(s, s.variant)                       # dgf! is now variant-dispatched (SN method)
     wk2 = s.scratch.wk[2, 1:s.trees.n]
     @test all(isfinite, wk2)
     @test all(v -> -9.21f0 <= v <= 5f0, wk2)    # ln(DDS) physical range

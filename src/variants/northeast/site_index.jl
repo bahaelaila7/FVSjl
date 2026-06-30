@@ -49,6 +49,17 @@ function ne_site_index_setup!(s::StandState)
             sea[ispc] = c + 1.104f0 * base
         end
     end
+
+    # SDIDEF (sitset.f:491-498): per-species max SDI = SDICON unless BAMAX (or a keyword)
+    # set it. PMSDIU is the upper self-thinning fraction (0.85 default, a fraction).
+    bamax = s.control.ba_max
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
+    sdicon = s.coef.species[:sdi_max_default]
+    @inbounds for i in 1:nspecies(v)
+        if p.sp_sdi_def[i] <= 0f0
+            p.sp_sdi_def[i] = bamax > 0f0 ? bamax / (0.5454154f0 * pmsdiu) : sdicon[i]
+        end
+    end
     return s
 end
 

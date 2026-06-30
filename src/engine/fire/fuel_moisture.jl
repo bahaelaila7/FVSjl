@@ -10,27 +10,36 @@
 # reduced by canopy cover).
 # =============================================================================
 
-# FMMOIS preset fuel moistures by dryness model 1..4 (fmmois.f), fraction dry weight.
+# FMMOIS preset fuel moistures by dryness model 1..4 (fmmois.f), fraction dry weight. PER-VARIANT BLOCK DATA:
 # Columns: dead 1hr(0–.25"), 10hr(.25–1"), 100hr(1–3"), 3+", duff; then live woody, herb.
-const _FM_MOIS = Float32[
+const _FM_MOIS = Float32[              # SN (sn/fmmois.f)
 #   1hr   10hr  100hr 3+    duff  Lwoody Lherb
     0.05  0.07  0.12  0.17  0.40  0.55   0.55    # 1 very dry
     0.06  0.08  0.13  0.18  0.75  0.80   0.80    # 2 dry
     0.07  0.09  0.14  0.20  1.00  1.00   1.00    # 3 wet
     0.16  0.16  0.18  0.50  1.75  1.50   1.50]   # 4 very wet
+const _FM_MOIS_NE = Float32[           # NE (ne/fmmois.f — LS-FFE values, notably wetter live fuels)
+    0.05  0.08  0.12  0.15  0.40  0.89   0.60    # 1 very dry
+    0.07  0.09  0.14  0.17  0.75  1.05   0.82    # 2 dry
+    0.10  0.13  0.17  0.21  1.00  1.35   1.16    # 3 moist
+    0.19  0.29  0.22  0.25  1.75  1.40   1.20]   # 4 wet
+
+fm_mois_table(::Northeast) = _FM_MOIS_NE
+fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """
-    fuel_moisture(fmois) -> Matrix{Float32}
+    fuel_moisture(fmois, variant=Southern()) -> Matrix{Float32}
 
 Preset fuel-moisture values (fraction) for dryness model `fmois` (1 very dry … 4 very
 wet) as a 2×5 matrix indexed `[1=dead/2=live, class]` (FMMOIS, fmmois.f). Dead classes
-are 0–.25"/.25–1"/1–3"/3+"/duff; live are woody/herb in columns 1–2. The matrix is laid
+are 0–.25"/.25–1"/1–3"/3+"/duff; live are woody/herb in columns 1–2. The preset table is
+per-variant BLOCK DATA (NE uses the LS-FFE values, distinct from SN). The matrix is laid
 out for direct use by `rothermel_surface_fire` (which reads dead 1–3 + dead-herb→1hr and
 live 1–2).
 """
-function fuel_moisture(fmois::Integer)::Matrix{Float32}
+function fuel_moisture(fmois::Integer, variant::AbstractVariant = Southern())::Matrix{Float32}
     @assert 1 <= fmois <= 4 "moisture model must be 1..4"
-    r = @view _FM_MOIS[fmois, :]
+    r = @view fm_mois_table(variant)[fmois, :]
     m = zeros(Float32, 2, 5)
     m[1, 1] = r[1]; m[1, 2] = r[2]; m[1, 3] = r[3]; m[1, 4] = r[4]; m[1, 5] = r[5]
     m[2, 1] = r[6]; m[2, 2] = r[7]

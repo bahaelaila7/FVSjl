@@ -30,18 +30,17 @@ function setup_growth!(s::StandState)
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
     # calibration (which needs SN-only coefficient columns) is skipped for NE.
+    # NOTE: the LSTART calibration is the SHARED dgdriv.f framework — BOTH variants calibrate DG/HT to
+    # the stand's measured past growth (ne/dgdriv.f:8-11), only the `dgf!(s, s.variant)` DDS prediction
+    # differs — so it runs for NE too (it was wrongly skipped: net01 HAS measured DG ⇒ COR≠0). NE's DGCONS
+    # is just the bark copy (ne/dgf.f:188 zeros DGCON/ATTEN); init_crown_ratios! is SN CRATET (NE DG uses BAL).
+    dfint = s.control.growth_fint
     if s.variant isa Southern
-        dgcons!(s)                        # sets bark_a/bark_b (needed by the backdated-CCF below)
-        init_crown_ratios!(s)             # CRATET — dub inventory crown for trees with no input crown,
-                                          # using DENSE's backdated-dbh CCF (so cycle-1 DGF + the FFE
-                                          # inventory crown match FVS; runs before calibrate which reads ICR)
-        # LSTART calibration uses the input measured DG. SCALE = YR/FINT (dgdriv.f:325): YR = 5 (the
-        # SN base measurement period), FINT = the GROWTH keyword's DIAMETER measurement period
-        # (default 5 → SCALE = 1). A FINT≠5 means the input DG increment spans FINT years, so the
-        # measured DDS is rescaled to the 5-yr basis the model predicts. (The projection-cycle length
-        # is a SEPARATE FINT, threaded into diameter_growth! by TIMEINT; this scale is the
-        # input-measurement period only.)
-        dfint = s.control.growth_fint
+        dgcons!(s)                        # sets bark_a/bark_b + the SN DGCON
+        init_crown_ratios!(s)             # CRATET — dub inventory crown (DENSE backdated-dbh CCF) before calibrate
+        calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+    elseif s.variant isa Northeast
+        ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
         calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
     end
     return s
@@ -162,17 +161,36 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
 end
 
 """
+    _fire_due(s) -> Bool
+
+A scheduled SIMFIRE is due THIS cycle iff the cycle's year range [cycle_start, cycle_end)
+CONTAINS `fire.fire_year` — FVS OPCYCL (opcycl.f:58-64): an activity at date D is assigned to
+the cycle with IY(i) ≤ D < IY(i+1), NOT only when D is a cycle boundary. So a SIMFIRE scheduled
+at a non-boundary year fires in its containing cycle (on the cycle-start stand, the FMBURN basis).
+For a boundary fire year this reduces EXACTLY to current_cycle_year == fire_year (boundary fires —
+net01/snt01 — are unchanged), so it only ADDS mid-cycle support.
+"""
+function _fire_due(s::StandState)::Bool
+    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return false
+    fy = Int(s.fire.fire_year)
+    cyc = Int(s.control.cycle)
+    cs = current_cycle_year(s)
+    ce = cycle_year_at(s.control, cyc + 1)
+    ce <= cs && (ce = cs + 1)              # last/degenerate cycle ⇒ exact-match only
+    return cs <= fy < ce
+end
+
+"""
     _maybe_burn!(s, fint) -> fire_mort
 
-Run a scheduled SIMFIRE if this cycle's year matches `fire.fire_year` (FMMAIN). Operates
-on the current (post-MORTS, post-TRIPLE) records at cycle-start dimensions, and returns
-the periodic mortality VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-
-start cubic volume), for the caller to add to OMORT. No-op (returns 0) otherwise.
+Run a scheduled SIMFIRE if it is due this cycle (`_fire_due`, FMMAIN). Operates on the current
+(post-MORTS, post-TRIPLE) records at cycle-start dimensions, and returns the periodic mortality
+VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-start cubic volume), for the
+caller to add to OMORT. No-op (returns 0) otherwise.
 """
 function _maybe_burn!(s::StandState, fint::Float32)::Float32
-    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return 0f0
-    yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
-    yr == Int(s.fire.fire_year) || return 0f0
+    _fire_due(s) || return 0f0
+    yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware); fire fires on this cycle's stand
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
     pre_cfv = Float32[t.cuft_vol[i] for i in 1:t.n]
@@ -202,35 +220,53 @@ Factored out of `grow_cycle!` so the fire half can also be driven from the repor
 sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md item 8 (#28).
 """
 function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
+                             stash = nothing,
                              post_fire::Union{Nothing,Function} = nothing)
     t = s.trees
-    fire_now = s.fire !== nothing && s.fire.active && s.fire.fire_year != 0 &&
-               current_cycle_year(s) == Int(s.fire.fire_year)
-    if fire_now
-        nrec = t.n
-        pre  = Float32[t.tpa[i] for i in 1:nrec]
-        mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the full pre-fire stand
-        mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]      # per-record density+bkgd+cap kill
-        @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end      # restore PROB for the fire pass
-        _maybe_burn!(s, fint)                                  # FMKILL/FIRKIL on the full pre-fire stand
-        # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
-        # FMCADD) — all BEFORE FMKILL applies the WK2 combine below. `post_fire` runs the carbon sample +
-        # the FFE annual fuel update here so they see the post-fire, start-of-cycle-consumed fuel pools and
-        # the freshly-created fire snags (so the snags fall THIS cycle and the released value is computed on
-        # the start-of-cycle down wood). See docs/audit/BACKLOG.md item 8 (#28).
-        post_fire === nothing || post_fire(s)
-        extra = Vector{Float32}(undef, nrec)
-        @inbounds for i in 1:min(nrec, t.n)
-            fk = pre[i] - t.tpa[i]                             # fire kill (FIRKIL) on this record
-            t.tpa[i] = pre[i] - max(mk[i], fk)                 # WK2 = MAX(MORTS, fire), per fmkill.f:86
-            extra[i] = max(0f0, mk[i] - fk)                    # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        end
-        book_mortality_snags!(s, extra, nrec, fint)            # FMSDIT snags for the EXCESS MORTS only (post-report, FMKILL)
-        compute_density!(s)
-    else
+    fire_now = _fire_due(s)   # OPCYCL: fires in the cycle whose range contains fire_year (incl. mid-cycle)
+    if !fire_now
         mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
+        return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)
     end
-    return s
+    # FIRE CYCLE — FVS order: MORTS (GRINCR, on the ORIGINAL ITRN records — VARMRT distributes a stand
+    # total over records, so it MUST see the UN-tripled set) → TRIPLE (triple.f, splits TPA+WK2 .60/.25/
+    # .15) → FMBURN (GRADD fire draws an independent XRAN per TRIPLED record) → FMKILL WK2=MAX(MORTS,FIRKIL).
+    nrec = t.n
+    pre  = Float32[t.tpa[i] for i in 1:nrec]
+    mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
+    mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]          # per-ORIGINAL density+bkgd+cap kill (WK2)
+    @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
+    tripled = stash !== nothing
+    if tripled                                                 # split TPA + the MORTS kill onto the 3 records
+        triple_records!(s, stash)                              # central=i, upper=nrec+2i-1, lower=nrec+2i
+        mks = zeros(Float32, t.n)
+        @inbounds for i in 1:nrec
+            mks[i]         = mk[i] * 0.60f0
+            mks[nrec+2i-1] = mk[i] * 0.25f0
+            mks[nrec+2i]   = mk[i] * 0.15f0
+        end
+        mk = mks
+    end
+    n   = t.n
+    pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
+    _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
+    # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
+    # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
+    # fuel update here so they see the post-fire, start-of-cycle fuel pools + fresh fire snags (#28).
+    post_fire === nothing || post_fire(s)
+    extra = Vector{Float32}(undef, n)
+    mort  = 0f0
+    @inbounds for j in 1:min(n, t.n)
+        fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
+        t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
+        extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
+        m = pre[j] - t.tpa[j]
+        mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
+        t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
+    end
+    book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
+    compute_density!(s)
+    return (mort, tripled)
 end
 
 """
@@ -281,8 +317,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     trip = !compressed && Int(s.control.cycle) < Int(s.control.icl4)   # COMPRESS suppresses tripling (NOTRIP)
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
-    height_growth!(s, s.variant; scale = fint / 5f0)         # HTG scaled to the cycle length
-    small_tree_growth!(s, stash; fint = fint)  # REGENT overrides DG/HTG for dbh < 3"
+    height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
+    small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
@@ -299,17 +335,23 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     pf = (carbon_hook !== nothing || fuel_period !== nothing) ?
          (st -> (carbon_hook === nothing || carbon_hook(st);
                  fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
-    mortality_and_fire!(s; fint = fint, post_fire = pf)
+    # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
+    # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
+    # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
+    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf)
     g = s.plot.gross_space
-    # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), on the
-    # originals — both reduced t.tpa from the cycle-start old_tpa at the same cycle-start CFV.
-    mort = 0f0
-    @inbounds for i in 1:nlive
-        m = old_tpa[i] - t.tpa[i]
-        mort += m * old_cfv[i]
-        t.mort_pa[i] = m                       # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
+    # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
+    # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
+    mort = mortf
+    if !tripled
+        mort = 0f0
+        @inbounds for i in 1:nlive
+            m = old_tpa[i] - t.tpa[i]
+            mort += m * old_cfv[i]
+            t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
+        end
+        triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
     end
-    triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
@@ -342,7 +384,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
-    crown_ratio_update!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
+    crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted
     # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first
@@ -402,7 +444,7 @@ function run_keyfile(keypath::AbstractString;
         hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl) -> push!(tl_cycles, treelist_snapshot(st, yr, pl)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
-                       mgmt_id = mid, date = date, time = time,
+                       mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
                        cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows)

@@ -495,13 +495,16 @@ mutable struct Calibration
     ht_dbh_aa::Vector{Float32}   # calibrated Wykoff HT-DBH intercept per sp (NOHTDREG/LHTDRG, cratet.f:329) (AA)
     ht_dbh_iabflg::Vector{Int32} # 0=use calibrated AA (Wykoff), 1=use inventory Curtis-Arney HTDBH (cratet.f) (IABFLG)
     vmlt::Float32                # ARMA variance multiplier (calibration)  (VMLT)
+    calib_dbh::Vector{Float32}   # transient: CURRENT-stand dbh for the NE calibration BADIST (empty except
+                                 # during calibrate's dgf! — FVS NE calib computes BAL on the current stand while
+                                 # predicting at the backdated per-tree dbh; ne_badist! reads this when non-empty)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0)            # ht_dbh_aa=0, ht_dbh_iabflg=1 (Curtis-Arney default)
+    zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[])  # ht_dbh_aa=0, iabflg=1, calib_dbh empty
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

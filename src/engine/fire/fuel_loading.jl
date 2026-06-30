@@ -76,6 +76,38 @@ end
     end
 end
 
+# FMNEFT (ne/fmneft.f): NE FFE forest type (IFFEFT, 1–11) from the FIA forest type.
+@inline function _ne_iffeft(ifortp::Integer)::Int
+    if     101 <= ifortp <= 105   1   # white/red/jack pine (+ hemlock)
+    elseif 121 <= ifortp <= 127   2   # spruce-fir
+    elseif 161 <= ifortp <= 168   3   # loblolly-shortleaf
+    elseif 381 <= ifortp <= 383   4   # exotic softwoods
+    elseif 401 <= ifortp <= 409   5   # oak-pine
+    elseif 501 <= ifortp <= 520   6   # oak-hickory
+    elseif 601 <= ifortp <= 608   7   # oak-gum-cypress
+    elseif 701 <= ifortp <= 709   8   # elm-ash-cottonwood
+    elseif 801 <= ifortp <= 809   9   # maple-beech-birch
+    elseif 901 <= ifortp <= 904   10  # aspen-birch
+    elseif ifortp == 999          11  # nonstocked
+    else                          2   # default → spruce-fir
+    end
+end
+
+"""
+    ne_dead_fuel_loading(s) -> NTuple{11,Float32}
+
+NE initial dead surface fuel loading (FUINI, ne/fmcba.f:214): row `FTDEADFU = (IFFEFT−1)·3 + ISZCL`
+of the 31-group `fire_fuel_dead.csv` (IFFEFT=11 nonstocked → 31). IFFEFT from FMNEFT; ISZCL is the
+STKVAL stand size class (`plot.size_class`, 1=saw/2=pole/3=seedling). NE live fuel is constant (0.31,0.31).
+"""
+@inline function ne_dead_fuel_loading(s::StandState)
+    iffeft = _ne_iffeft(Int(s.plot.forest_type))
+    iszcl = clamp(Int(s.plot.size_class), 1, 3)
+    ft = iffeft == 11 ? 31 : (iffeft - 1) * 3 + iszcl
+    row = @view s.coef.ffe_fuel_dead[ft, :]
+    return ntuple(i -> row[i], 11)
+end
+
 """
     ffe_dead_fuel_loading(coef, ifortp) -> NTuple{11,Float32}
 

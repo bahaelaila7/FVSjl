@@ -35,7 +35,8 @@ reaction intensity. A fuel bed too moist to carry fire returns zeros.
 function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatrix{Float32},
                                 depth::Float32, mext_dead::Float32, mois::AbstractMatrix{Float32};
                                 lhv::Float32 = 8000f0, wind::Float32 = 0f0, slope_tan::Float32 = 0f0)
-    zero_out = (; byram = 0f0, flame = 0f0, spread = 0f0, sigma = 0f0, xir = 0f0)
+    zero_out = (; byram = 0f0, flame = 0f0, spread = 0f0, sigma = 0f0, xir = 0f0,
+                rhobqig = 0f0, xio = 0f0, phis = 0f0, scbe = 0f0, bwind = 0f0)
     # per-category class counts (a class is present when it carries load)
     noclas = [count(j -> load[i, j] > 0f0, 1:4) for i in 1:2]
     (noclas[1] == 0 && noclas[2] == 0) && return zero_out
@@ -141,5 +142,9 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     spread = xio * (1f0 + phis + phiw) / (rhobqig + 1f-9)
     byramt = xir * spread * 384f0 / sigma
     flame = 0.45f0 * (byramt / 60f0)^0.46f0
-    return (; byram = byramt, flame = flame, spread = spread, sigma = sigma, xir = xir)
+    # FMCFIR crown-fire intermediates (fmfint.f:514-530): `xio` IS SIRXI (the propagating flux, NOT the reaction
+    # intensity xir), `rhobqig` = SRHOBQ (heat sink), `phis` = SPHIS (slope factor), `scbe` = C1 (wind coeff),
+    # `bwind` = the wind exponent B (xm1). These feed the NE crowning/torching-index formulas.
+    return (; byram = byramt, flame = flame, spread = spread, sigma = sigma, xir = xir,
+            rhobqig = rhobqig, xio = xio, phis = phis, scbe = c1, bwind = xm1)
 end

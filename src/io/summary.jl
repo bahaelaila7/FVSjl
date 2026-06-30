@@ -154,11 +154,15 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     ffe_on = s.fire !== nothing && s.fire.active
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
-        ffe_add_snaginit!(s)                 # user-added snags (SNAGINIT, act 2522)
         fill!(s.fire.crown_lift_annual, 0f0)
         snapshot_ffe_oldcrown!(s)            # FMOLDC at inventory: gives the 1st cycle's crown-lift a valid
                                              # OLDCRW (else the 1st cycle's fine down-wood is lost; DDW gap)
     end
+    # SNAGINIT (act 2522, FMSADD) is a SCHEDULED activity that FVS runs in FMMAIN DURING cycle 1, AFTER the
+    # inventory carbon report — NOT at inventory like the input dead-tree snags. So the user snags first appear
+    # in cycle-1's report (live net01 SnagDet is empty at the inventory year; the SNAGINIT cohort shows up the
+    # next cycle). Defer the add to the start of the first growing cycle.
+    snaginit_pending = ffe_on
     g = s.plot.gross_space
     # .sum header sample weight = SAMWT (s.plot.sample_weight), NOT gross_space. (gross_space
     # is the non-stockable expansion used for per-acre normalization below; SAMWT is the
@@ -205,8 +209,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed
         # to grow_cycle! (run post-fire, FVS FMBURN→annual-loop order). The carbon row is likewise deferred
         # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
-        fire_this_cycle = s.fire !== nothing && s.fire.active && !last &&
-                          s.fire.fire_year != 0 && r.year == Int(s.fire.fire_year) && per > 1
+        fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
         if carbon_on && !fire_cycle
             compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
@@ -219,6 +222,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             pfr !== nothing && push!(potfire_collect, (r.year, pfr))
         end
         if !last
+            # Add the deferred SNAGINIT snags at the start of the first growing cycle (FMMAIN, post-inventory-
+            # report). They are then present for this cycle's snag falldown + any SIMFIRE, and first surface in
+            # the NEXT cycle's carbon/snag report — matching live FVS.
+            if snaginit_pending
+                ffe_add_snaginit!(s); snaginit_pending = false
+            end
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||

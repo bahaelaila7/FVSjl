@@ -20,13 +20,16 @@ const PRETZSCH_SDIK = 0.02483133f0
 # uses the 5-yr DG *linearly* extrapolated to FINT years: G = DG_5/BARK · FINT/5.
 # We only retain the sqrt-scaled fint-year growth, so recover DG_5 from it first.
 # Identity at fint=5 ⇒ snt01 and all 5-yr scenarios stay bit-exact.
-@inline function _mort_traj_g(dg_ib_fint::Float32, dbh::Float32, bark::Float32, fint::Float32)
-    fint == 5f0 && return dg_ib_fint / bark   # exact identity — avoid the sqrt roundtrip's 1-ULP noise
+# `yr` = the growth-model native period (FVS /CONTRL/ YR): 5 for SN, 10 for NE. The
+# Fortran is `G = (DG/BARK)·(FINT/YR)`; this reconstructs the YR-year DG from the stored
+# fint-year increment, then linearly extrapolates by FINT/YR. Identity at fint==yr.
+@inline function _mort_traj_g(dg_ib_fint::Float32, dbh::Float32, bark::Float32, fint::Float32, yr::Float32 = 5f0)
+    fint == yr && return dg_ib_fint / bark    # exact identity — avoid the sqrt roundtrip's 1-ULP noise
     dib  = dbh * bark
     ddsf = (dg_ib_fint + dib)^2 - dib * dib   # fint-year inside-bark DDS
-    dds5 = ddsf * (5f0 / fint)                # back to 5-yr DDS
-    dg5  = sqrt(dib * dib + dds5) - dib       # 5-yr inside-bark DG
-    return (dg5 / bark) * (fint / 5f0)        # outside-bark, linear FINT extrapolation
+    ddsy = ddsf * (yr / fint)                 # back to YR-year DDS
+    dgy  = sqrt(dib * dib + ddsy) - dib       # YR-year inside-bark DG
+    return (dgy / bark) * (fint / yr)         # outside-bark, linear FINT extrapolation
 end
 # Background-mortality coefficients (PMSC/PMD) and SDIMAX defaults live in
 # data/southern/species_coefficients.csv (mort_bkgd_intercept/mort_bkgd_dbh).
@@ -121,25 +124,40 @@ function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
 end
 
 """
-    _varmrt!(killed, efftr, temwk2, shade_adj, t, n, tokill) -> sumkil
+    _varmrt_efftr!(efftr, s, v, t, n) -> pass1
 
-VARMRT (varmrt.f): distribute `tokill` TPA of mortality across the `n` live records
-by a geometric progression weighted toward suppressed trees. Per-tree efficiency
-`efftr = peff(PCT)·shade_adj·0.1`, where `peff = 0.84525 − 0.01074·PCT +
-2e-7·PCT³` (low percentile ⇒ high mortality). Fills `killed[i]`; returns the total.
+Fill the per-tree VARMRT mortality efficiency `efftr` and return PASS1 (=Σ tpa·efftr).
+SN (varmrt.f): `efftr = peff(PCT)·shade_adj·0.1`, peff from crown percentile.
+NE (ne/varmrt.f): `efftr = peff(RELHT)·(1−VARADJ)·0.1`, peff from relative height.
 """
-function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32},
-                  temwk2::AbstractVector{Float32}, shade_adj::AbstractVector{Float32},
-                  t::TreeList, n::Int, tokill::Float32)
-    fill!(view(killed, 1:n), 0f0)
-    tokill <= 0f0 && return 0f0
+function _varmrt_efftr!(efftr, s, ::Southern, t::TreeList, n::Int)
     pct = t.crown_ratio; tpa = t.tpa; sp = t.species
+    shade_adj = s.coef.species[:varmrt_shade_adj]
     pass1 = 0f0
     @inbounds for i in 1:n
         pe = clamp(0.84525f0 - 0.01074f0 * pct[i] + 0.0000002f0 * pct[i]^3f0, 0.01f0, 1f0)
         efftr[i] = pe * shade_adj[sp[i]] * 0.1f0
         pass1 += tpa[i] * efftr[i]
     end
+    return pass1
+end
+# NE `_varmrt_efftr!(::Northeast)` lives in variants/northeast/mortality.jl (loaded after the
+# Northeast singleton is defined). The shared `_varmrt!` driver below dispatches on it.
+
+"""
+    _varmrt!(killed, efftr, temwk2, s, v, t, n, tokill) -> sumkil
+
+VARMRT (varmrt.f): distribute `tokill` TPA of mortality across the `n` live records
+by a geometric progression weighted toward suppressed trees (efficiencies from
+`_varmrt_efftr!`, variant-specific). Fills `killed[i]`; returns the total.
+"""
+function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32},
+                  temwk2::AbstractVector{Float32}, s, v::AbstractVariant,
+                  t::TreeList, n::Int, tokill::Float32)
+    fill!(view(killed, 1:n), 0f0)
+    tokill <= 0f0 && return 0f0
+    tpa = t.tpa
+    pass1 = _varmrt_efftr!(efftr, s, v, t, n)
     pass1 <= 0f0 && return 0f0
     npass = floor(Int, tokill / pass1) + 1
     sumkil = 0f0; temkil = tokill; short_v = 0f0; jpass = 0
@@ -227,19 +245,19 @@ Compute and apply periodic mortality, reducing `trees.tpa`. Combines background
 (Hamilton) and density (Pretzsch self-thinning) rates. Runs after diameter growth
 (uses `trees.diam_growth` for the projected end-of-cycle QMD).
 """
-function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::Bool = true)
+function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
-    dbhstage = s.control.dbh_stage
+    yr = htg_period(v)                  # growth-model native period (FINT/YR in the G trajectory)
+    ri_scale = mort_ri_scale(v)         # background-rate scale (NE halves it)
 
     # SN uses the Zeide/Reineke mean diameter for density mortality (LZEIDE):
     #   dia0 = (Σ p·d^1.605 / Σ p)^(1/1.605), and d10 the same with grown diameters.
     zeide = s.control.zeide_sdi
-    dthresh = zeide ? s.control.dbh_zeide : dbhstage
+    dthresh = mort_dbh_threshold(s, v)  # SN: LZEIDE?DBHZEIDE:DBHSTAGE ; NE: DBHSDI
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
-    shade_adj = s.coef.species[:varmrt_shade_adj]   # VARMRT per-species shade-tolerance scalar (CSV)
     # The SDI sums accumulate in FVS's SPECIES-SORTED IND1 order (morts.f:212-235: DO 20 ISPC,
     # DO 12 I3=I1,I2, I=IND1(I3)), NOT raw record order — Float32 addition is non-associative, so the
     # order is part of the bit-exact contract. Summing in raw 1:t.n order leaves a ~1-ULP residual in
@@ -256,7 +274,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
             d < dthresh && continue
             pr = t.tpa[i]
             bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-            g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:225 (linear FINT extrap)
+            g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
             sd2sq += pr * (d * d + 2f0 * d * g + g * g)
             sdq0  += pr * d * d
             sumdr0  += pr * d^1.605f0
@@ -293,7 +311,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
     @inbounds for i in 1:n
         pr = t.tpa[i]; pr <= 0f0 && continue
         sp = t.species[i]
-        ri = 1f0 / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))
+        ri = ri_scale / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))   # NE halves the rate (morts.f:504)
         ri > 1f0 && (ri = 1f0)
         xmort = active_mort_mult(s.control, sp, cur_year, t.dbh[i])  # 1 outside the DBH window
         bg_tokill += min(pr * (1f0 - (1f0 - ri)^fint) * xmort, pr)
@@ -301,7 +319,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
 
     msb_d10 = d10   # the converged self-thinning QMD the MSB block reads as FVS's D10 (morts.f:618)
     if sdimax < 5f0
-        _varmrt!(killed, efftr, temwk2, shade_adj, t, n, bg_tokill)
+        _varmrt!(killed, efftr, temwk2, s, v, t, n, bg_tokill)
     else
         # MORTS QMD-convergence iteration (morts.f:184-481): solve tn10 for the
         # assumed end-of-cycle QMD d10, distribute the excess (t − tn10) by VARMRT,
@@ -317,7 +335,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
             tem_v2 = min(const_v * d10cur^SDI_EXP, 35000f0) * pmsdil
             density_on = !(tt <= tem_v2 || rn <= 0f0)
             tokill = density_on ? max(tt - tn10, 0f0) : bg_tokill
-            _varmrt!(killed, efftr, temwk2, shade_adj, t, n, tokill)
+            _varmrt!(killed, efftr, temwk2, s, v, t, n, tokill)
             density_on || break              # background ⇒ no d10 dependence, one pass
             # recompute the post-mortality QMD (d10n) from the surviving TPA
             ttn = 0f0; sdr = 0f0
@@ -332,7 +350,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
                 # does not do (verified vs an instrumented morts.f: FVS cycle-1 = ONE pass,
                 # tn10=516.50). Identical to the old form at fint=5 (both = dg/bark), so
                 # snt01 and every 5-yr scenario stay bit-exact.
-                g = _mort_traj_g(t.diam_growth[i], d, bark, fint)
+                g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
                 if zeide
                     sdr += pr * (d + g)^1.605f0
                 else
@@ -403,9 +421,9 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
             # G is the OUTSIDE-bark, LINEARLY FINT-extrapolated 5-yr increment
             # (sn/morts.f:692 — `(DG/BARK)·(FINT/5)`), same trajectory as the SDI
             # self-thinning calc above. NOT the raw sqrt fint-year diam_growth.
-            g = _mort_traj_g(t.diam_growth[i], d, bark_ratio(bark_a, bark_b, sp, d), fint)
+            g = _mort_traj_g(t.diam_growth[i], d, bark_ratio(bark_a, bark_b, sp, d), fint, yr)
             if (d + g) >= sc[sp, 1]
-                kc = min(t.tpa[i] * sc[sp, 2] * fint / 5f0, t.tpa[i])
+                kc = min(t.tpa[i] * sc[sp, 2] * fint / yr, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
             end
         end
@@ -422,7 +440,7 @@ function mortality!(s::StandState, ::Southern; fint::Float32 = 5f0, book_snags::
             for i in 1:n
                 d = t.dbh[i]
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                g = _mort_traj_g(t.diam_growth[i], d, bark, fint)   # morts.f:721 `(DG/BARK)·(FINT/5)` (linear)
+                g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]

@@ -33,10 +33,33 @@ end
 @inline _uses_wykoff(sd, sp::Integer) =
     haskey(sd, :htdbh_iwykca) && sd[:htdbh_iwykca][sp] == 0f0
 
+# Wykoff HT-DBH intercept/slope (HT1/HT2) for `sp`, applying the Allegheny NF (IFOR=3)
+# Tech-Note-6 (Hough) overrides for 20 hardwood species (sitset.f:428-489). All 20 are
+# Wykoff species (IWYKCA=0), so this only ever fires inside the `_uses_wykoff` path —
+# i.e. NE-only; SN never reaches it (no :htdbh_iwykca column). `ifor` defaults to 0.
+@inline function _htdbh_wykoff(sd, sp::Integer, ifor::Integer)
+    ht1 = sd[:htdbh_ht1][sp]; ht2 = sd[:htdbh_ht2][sp]
+    if ifor == 3
+        sp == 26  && (ht1 = 4.6839f0;  ht2 = -4.9622f0)   # red maple
+        sp == 27  && (ht1 = 4.6354f0;  ht2 = -4.7168f0)   # sugar maple
+        (sp == 30 || sp == 31 || sp == 33) && (ht1 = 4.4635f0; ht2 = -3.6456f0)  # yellow/sweet/paper birch
+        sp == 40  && (ht1 = 4.5497f0;  ht2 = -4.6727f0)   # american beech
+        (sp == 41 || sp == 42 || sp == 44) && (ht1 = 4.6804f0; ht2 = -4.5561f0)  # ash sp/white/green (=white ash)
+        sp == 54  && (ht1 = 4.7614f0;  ht2 = -5.3776f0)   # black cherry
+        (sp == 55 || sp == 60 || sp == 64 || sp == 67 || sp == 69) &&
+            (ht1 = 4.9100f0; ht2 = -7.2941f0)             # white/scarlet/chestnut/N.red/black oak (=white oak)
+        (sp == 71 || sp == 102 || sp == 106) && (ht1 = 4.4393f0; ht2 = -4.0711f0) # other-hw/serviceberry (=hophornbeam)
+        sp == 93  && (ht1 = 4.6855f0;  ht2 = -4.8690f0)   # american basswood
+        sp == 108 && (ht1 = 4.7614f0;  ht2 = -5.3776f0)   # pin cherry (=black cherry)
+    end
+    return ht1, ht2
+end
+
 "HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
 @inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0)
     if _uses_wykoff(sd, sp)
-        return exp(sd[:htdbh_ht1][sp] + sd[:htdbh_ht2][sp] / (d + 1f0)) + 4.5f0
+        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor)
+        return exp(ht1 + ht2 / (d + 1f0)) + 4.5f0
     end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     if d >= 3f0
@@ -50,7 +73,8 @@ end
 "HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1)."
 @inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0)
     if _uses_wykoff(sd, sp)
-        return sd[:htdbh_ht2][sp] / (log(h - 4.5f0) - sd[:htdbh_ht1][sp]) - 1f0   # htdbh.f:463
+        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor)
+        return ht2 / (log(h - 4.5f0) - ht1) - 1f0   # htdbh.f:463
     end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
     hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
@@ -204,7 +228,11 @@ function dub_missing_heights!(s::StandState)
     # trees and AA≥0, set IABFLG=0 so the dub below uses the calibrated Wykoff curve instead of Curtis-Arney.
     # Gated on any LHTDRG species ⇒ fully inert for the default stand (the common path is untouched).
     lhtdrg = s.control.ht_drag_sp; aa = s.calib.ht_dbh_aa; iabflg = s.calib.ht_dbh_iabflg
-    ht2 = coef_col(s.coef, :wykoff_ht2)
+    # `:wykoff_ht2` is the SN-only NOHTDREG/LHTDRG calibration column (its Wykoff HT2 intercept).
+    # Read it ONLY when some species invoked LHTDRG — otherwise it is never used (the calibrated-Wykoff
+    # branch below is gated on lhtdrg[sp]), and reading it would KeyError on a variant (NE) that has no
+    # such column. The per-tree dub itself uses the variant-generic `_htdbh_height` (htdbh_* coefs).
+    ht2 = any(lhtdrg) ? coef_col(s.coef, :wykoff_ht2) : nothing
     if any(lhtdrg)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
@@ -281,7 +309,22 @@ are bit-identical to the coef defaults, so an un-overridden stand is unchanged.
 """
 function init_merch_standards!(s::StandState)
     s.control.merch_init && return s
-    sd = s.coef.species; c = s.control
+    c = s.control
+    if s.variant isa Northeast
+        # NE merch standards are IFOR-dependent code rules (ne/sitset.f via `_ne_merch`), not a
+        # merch_specs.csv. Board-foot mins equal the sawtimber cubic mins (bf-equal, _ne_merch).
+        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = _NE_DEFAULT_IFOR)
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            dbhmin, topd, scfmind, scftopd, stmp, scfstmp = _ne_merch(j, ifor)
+            c.sp_dbh_min[j] = dbhmin; c.sp_top_diam[j] = topd
+            c.sp_scf_dbhmin[j] = scfmind; c.sp_scf_topd[j] = scftopd
+            c.sp_stump_ht[j] = stmp; c.sp_scf_stump[j] = scfstmp
+            c.sp_bf_dbhmin[j] = scfmind; c.sp_bf_topd[j] = scftopd; c.sp_bf_stump[j] = scfstmp
+        end
+        c.merch_init = true
+        return s
+    end
+    sd = s.coef.species
     @inbounds for j in 1:length(c.sp_dbh_min)
         c.sp_scf_dbhmin[j] = sd[:scf_min_dbh][j]
         c.sp_scf_topd[j]   = sd[:scf_top_dib][j]

@@ -301,7 +301,7 @@ function apply_pileburn!(s::StandState)::Bool
         affect = a.params[2] / 100f0; atreat = a.params[3] / 100f0
         fulcon = a.params[4] / 100f0; trmort = clamp(a.params[5] / 100f0, 0f0, 1f0)
         # consume the staged (piled) fraction of each fuel size class (FMCONS net, FMOIS=3 medium)
-        mois = fuel_moisture(3); fr = fire_consumption_fractions(mois); cwd = fs.cwd
+        mois = fuel_moisture(3, s.variant); fr = fire_consumption_fractions(mois); cwd = fs.cwd
         @inbounds for sz in 1:11
             stage = sz <= 9 ? affect * fulcon : affect * atreat
             cf = stage * fr[sz]

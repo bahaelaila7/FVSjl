@@ -528,9 +528,19 @@ end
 # group g, or the resolved 1-based species index. (Mirrors SPDECD's IS for a single field.)
 function species_selector(s::StandState, spfield::AbstractString)::Int
     f = strip(spfield)
-    (isempty(f) || f == "0") && return 0
-    n = tryparse(Int, f)
-    (n !== nothing && n < 0) && return n
+    isempty(f) && return 0
+    # SPDECD (spdecd.f:34-114): ISP = IFIX(ARRAY(IPOS)) — a NUMERIC species field is decoded by its
+    # numeric value, NOT by an alpha/FIA/PLANTS string match: negative = species GROUP code; 0 = ALL
+    # (or alpha code in KARD); a positive integer 1..MAXSP is the species SEQUENCE INDEX directly
+    # (ISP=IFIX(ARRAY); KARD=CNSP(ISP)); > MAXSP is an error (ignored here). Only a genuinely alpha
+    # field (non-numeric) falls through to the alpha/FIA/PLANTS decode.
+    x = tryparse(Float64, f)
+    if x !== nothing
+        isp = trunc(Int, x)
+        isp < 0 && return isp                       # species group code (handled by callers)
+        isp == 0 && return 0                        # ALL
+        return isp <= nspecies(s.variant) ? isp : 0 # positive = species index (SPDECD); > MAXSP ⇒ ignore
+    end
     idx, _ = resolve_species(f, s.variant, s.species, s.coef)
     return idx > 0 ? idx : 0
 end

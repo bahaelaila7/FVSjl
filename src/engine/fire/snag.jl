@@ -418,14 +418,23 @@ function ffe_seed_input_snags!(s::StandState)
         (den > 0f0 && d >= 1f0) || continue
         sp = Int(t.species[i])
         h = t.height[i] > 0f0 ? t.height[i] : max(4.5f0, _htdbh_height(sd, sp, d, ifor))
-        prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
-            ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
-        v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-        # FVS's snag bole (FMDOUT→FMSVOL→CFVOL, fmdout.f:146) is the MERCHANTABLE cubic to the top
-        # diameter (v[4]), NOT the gross total-stem cubic (v[1]). For small snags the <top-dia tip is a
-        # large fraction (sp27 d7.2: v[1]=5.2 vs v[4]=4.8 = FVS); for large stems v[1]≈v[4]. Using v[4]
-        # makes snag_bole_carbon match FVS (3.92→3.77 vs 3.8) and lowers the small-snag falldown into DDW.
-        bolevol = v[4] * v2t[sp] / 2000f0
+        # FVS's snag bole (FMDOUT→FMSVOL→CFVOL, fmdout.f:146) is the MERCHANTABLE cubic to the top diameter,
+        # NOT the gross total-stem cubic. SN = R8 Clark v[4]; NE = R9 Clark merch v4+v7 (the live-tree
+        # `merch_cuft_vol` basis). The SN R8 path returns 0 for NE (empty vol_eq) ⇒ a Jenkins-whole-tree
+        # fallback over-count, so NE must use its own R9 merch model (mirrors `ffe_add_snaginit!`).
+        if s.variant isa Northeast
+            fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+            dbhmin, topd, scfmind, scftopd, _, _ = _ne_merch(sp, ifor)
+            prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+            v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+            mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
+        else
+            prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
+                ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
+            vv, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+            mcuft = vv[4]
+        end
+        bolevol = mcuft * v2t[sp] / 2000f0
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
@@ -523,10 +532,23 @@ function ffe_add_snaginit!(s::StandState)
         age = max(0, round(Int, agef))
         yr = invyr - age                                     # death year = inventory − AGE (fmsnag.f:99)
         h = htdf > 0f0 ? htdf : max(4.5f0, _htdbh_height(sd, sp, d, ifor))
-        prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
-            ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
-        v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-        bolevol = v[4] * v2t[sp] / 2000f0
+        # Snag stem (bole) volume at death = the variant's MERCH cubic (FMSVOL), × V2T → biomass. NE uses the
+        # R9 Clark merch (v4+v7, the same basis as the live-tree `merch_cuft_vol`); SN uses R8 Clark v[4]. Using
+        # the SN R8 path for NE returns 0 (the NE vol_eq is not an R8 Clark string) ⇒ snag_bole_carbon then falls
+        # back to the full Jenkins ABOVEGROUND (crown+bole) ⇒ the snag carbon was ~8× too high.
+        if s.variant isa Northeast
+            fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+            dbhmin, topd, scfmind, scftopd, _, _ = _ne_merch(sp, ifor)
+            prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+            v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+            mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
+        else
+            prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
+                ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
+            vv, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+            mcuft = vv[4]
+        end
+        bolevol = mcuft * v2t[sp] / 2000f0
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age

@@ -50,6 +50,10 @@ include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
 include("variants/northeast/site_index.jl")
 include("variants/northeast/diameter_growth.jl")    # NE large-tree DG (B1/B2/B3 + BAL competition)
+include("variants/northeast/height_growth.jl")      # NE height growth (NC-128 curve + BAL modifier)
+include("variants/northeast/mortality.jl")          # NE VARMRT efficiency (relative-height + VARADJ)
+include("variants/northeast/crown_ratio.jl")        # NE crown ratio (TWIGS BA-based model)
+include("variants/northeast/small_tree_growth.jl")  # NE small-tree growth (REGENT, dbh<5)
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
