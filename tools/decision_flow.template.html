@@ -55,6 +55,7 @@
       <h3>scope (shape)</h3>
       <div><span class="shp">▭</span> generic (all variants)</div>
       <div><span class="shp">⬡</span> variant-only (Southern)</div>
+      <div><span class="shp">⬠</span> variant-only (Northeast)</div>
       <div><span class="shp">◆</span> extension (fire / econ)</div>
       <div><span class="shp">⬭</span> shared COMMON / utility</div>
     </div>
@@ -91,8 +92,8 @@ const STATUS = {
 };
 const COLOR={ ported:'#3fb950', partial:'#d29922', notported:'#f85149', ooscope:'#388bfd', noop:'#6e7681', unknown:'#30363d' };
 const SLABEL={ ported:'ported & validated', partial:'partial / simplified', notported:'not ported (in-scope)', ooscope:'out of scope', noop:'no-op in oracle', unknown:'not yet classified' };
-const SCOPELABEL={ base:'generic (all variants)', sn:'variant-only (Southern)', fire:'extension — fire (FFE)', econ:'extension — economics', ext:'extension', common:'shared COMMON / utility' };
-const SHAPE={ base:'round-rectangle', sn:'hexagon', fire:'diamond', econ:'diamond', ext:'diamond', common:'ellipse' };
+const SCOPELABEL={ base:'generic (all variants)', sn:'variant-only (Southern)', ne:'variant-only (Northeast)', fire:'extension — fire (FFE)', econ:'extension — economics', ext:'extension', common:'shared COMMON / utility' };
+const SHAPE={ base:'round-rectangle', sn:'hexagon', ne:'pentagon', fire:'diamond', econ:'diamond', ext:'diamond', common:'ellipse' };
 
 const statusOf=id=>STATUS[id]||STATUS[(GRAPH[id]||{}).label]||(['fire','econ','ext'].includes((GRAPH[id]||{}).scope)?'ooscope':'unknown');
 const childrenOf=id=>(GRAPH[id]?GRAPH[id].calls:[]).filter(c=>GRAPH[c]);

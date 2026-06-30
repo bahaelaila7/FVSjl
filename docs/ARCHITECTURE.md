@@ -1,8 +1,9 @@
 # FVSjl Architecture
 
 A from-scratch, idiomatic Julia reimplementation of the Forest Vegetation
-Simulator (Southern variant first). It is a drop-in replacement for the Fortran
-`FVSsn` and, in the default `faithful=true` mode, bit-exact to it.
+Simulator. It is a drop-in replacement for the live Fortran FVS — currently the
+**Southern (`FVSsn`)** and **Northeast (`FVSne`)** variants — and, in the default
+`faithful=true` mode, bit-exact to it.
 
 This document explains the *shape* of the code. For how to translate a new
 subroutine or variant see [PORTING.md](PORTING.md); for places where we knowingly
@@ -69,12 +70,16 @@ lives in `Scratch` so the cycle loop never allocates.
 
 ## Variants (requirement #10)
 
-`AbstractVariant` singletons (`Southern`, later `CentralStates`, `NewEngland`,
-`LakeStates`) are the type parameter of `StandState`, so variant hooks
-(`diameter_growth!`, `mortality!`, ...) dispatch at zero cost and devirtualize
+`AbstractVariant` singletons (`Southern`, `Northeast`, and later others such as
+`CentralStates` / `LakeStates`) are the type parameter of `StandState`, so variant
+hooks (`diameter_growth!`, `mortality!`, ...) dispatch at zero cost and devirtualize
 (trim-friendly). The base `engine/` is variant-agnostic and calls the generic
 hooks declared in `src/variants/variant.jl`; each variant supplies methods under
-`src/variants/<variant>/`. Adding a variant never edits the engine.
+`src/variants/<variant>/` (e.g. `southern/`, `northeast/`). Adding a variant never
+edits the engine. Two are complete and validated: SN (vs `FVSsn`) and NE (vs `FVSne`,
+which carries its own structurally-new pieces — R9 Clark volume + BAL competition).
+Shared `engine/io/core` code gates variant behavior on the variant/coefficients rather
+than hardening to either, so adding NE kept SN bit-exact.
 
 ## Faithful mode & divergences (requirements #8, #9)
 
@@ -93,8 +98,10 @@ verify the small-binary pass as later follow-up work, not a current gate.
 
 ## Testing
 
-`test/oracle/oracle.jl` runs any `.key` through **Oracle A** (the faithful port at
-`/workspace/FVSjulia`, always available) and through FVSjl, then diffs `.sum`/DB
-output with Float32 tolerance. **Oracle B** (live Fortran) is used for final
-confirmation. Per-kernel unit tests live in `test/unit/`, full-run parity in
-`test/integration/`.
+For **Southern**, `test/oracle/oracle.jl` runs any `.key` through **Oracle A** (the
+1:1 faithful port at `/workspace/FVSjulia`, always available) and through FVSjl, then
+diffs `.sum`/DB output with Float32 tolerance; **Oracle B** (live Fortran `FVSsn`) is
+the final confirmation. For **Northeast** there is *no* faithful-port oracle (no
+FVSjulia NE) — it is validated directly against **live `FVSne`** (relinked from the
+build objects; see `test/harness/ne_oracle.sh`). Per-kernel unit tests live in
+`test/unit/`, full-run parity in `test/integration/`.

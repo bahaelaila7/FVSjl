@@ -14,6 +14,14 @@ A blank date field defaults to **cycle 1**; a date ≥ 1000 is a calendar year, 
 cycle number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 `examples/key_to_structured_yaml.py`); the round-trip is lossless.
 
+> **Variants.** This reference applies to **both** the Southern (SN) and Northeast (NE)
+> variants — the keyword grammar is shared; the variants differ in the underlying model
+> coefficients (growth, volume, site, FORTYP), not in which keywords exist. Stock FVS has
+> no variant keyword (you pick the `FVSsn`/`FVSne` binary); in FVSjl the variant is a run
+> option (`--variant SN|NE`, the YAML `variant:` key, or `run_keyfile(...; variant=…)`) —
+> see [FORMATS.md](FORMATS.md). A handful of keywords are recognized but `.sum`-inert in a
+> given variant (noted inline below).
+
 > There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that
 > describes a stand by intent (`invyr`, `numcycle`, `treatments`, `treelist`…) rather
 > than mirroring the keyword stream, and is unraveled into the canonical keyword order

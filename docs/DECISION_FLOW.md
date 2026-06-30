@@ -6,15 +6,17 @@
 >
 > Interactive views (open in a browser; click a node to break it into the functions
 > it calls down to atomic math/intrinsics — hover/click shows the **code excerpt**;
-> fill = port status, shape = scope ▭ generic / ⬡ Southern-variant / ◆ extension):
+> fill = port status, shape = scope ▭ generic / ⬡ Southern / ⬠ Northeast / ◆ extension):
 > - [`decision_flow.html`](decision_flow.html) — the **FVS** (Fortran oracle) graph,
->   588 routines. The source-of-truth semantics.
+>   588 routines. The source-of-truth SN semantics.
 > - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
->   336 routines (idiomatic, compressed; now includes the full FFE carbon/fuels/fire
->   path + the 9 FFE DBS-table writers + YARDLOSS). Put side by side with the FVS graph
->   to see where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD).
+>   443 routines (idiomatic, compressed; covers **both variants** — Southern and Northeast,
+>   the latter scoped as pentagons — plus the full FFE carbon/fuels/fire path, the 9 FFE
+>   DBS-table writers, ECON, and YARDLOSS). Put side by side with the FVS graph to see
+>   where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD,
+>   `mortality_and_fire!` = MORTS+TRIPLE+FMBURN+FMKILL).
 >
-> Regenerate either with `tools/gen_callgraph.js <srcRoot> <outHtml> <rootsCSV>`.
+> Regenerate either with `node tools/gen_callgraph.js <srcRoot> <outHtml> <rootsCSV>`.
 
 A bird's-eye map of how a simulation flows from input to output in the original
 Fortran (`FVSsn`), with the corresponding **FVSjl** entry point and **port
@@ -23,11 +25,18 @@ major code snippets (subroutines) and the conditions that gate them, but does no
 expand their internals. Use it to (a) onboard, (b) see at a glance what is and is
 not ported, and (c) design test scenarios that exercise a specific branch.
 
+The **Northeast** variant shares this same input→output flow (the engine and keyword
+paths are variant-agnostic); it differs only in the variant-dispatched growth/volume
+kernels — NE diameter growth (`ne/dgf.f` with the structurally-new BAL competition),
+height growth, crown selection, and **R9 Clark** volume (vs SN's R8 Clark). Both
+variants are complete and validated bit-exact against their live Fortran builds.
+
 Legend: ✅ ported & validated · 🟡 partial · ⛔ not ported (in-scope, planned) ·
 🧊 out of scope by the plan (no test scenario exercises it) · 🔁 compressed
 (several Fortran routines fold into one FVSjl function).
 
-Oracle source roots: `/workspace/FVSjulia/src` (1:1 transliteration, "Oracle A").
+Oracle source roots: `/workspace/FVSjulia/src` (1:1 SN transliteration, "Oracle A" —
+SN only; NE is validated directly against live `FVSne`).
 FVSjl roots: `/workspace/FVSjl/src`.
 
 ---

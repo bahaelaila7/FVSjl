@@ -16,8 +16,10 @@ const TITLE = process.argv[5] || 'FVS-Southern — call graph (Fortran oracle)';
 const SUBT  = process.argv[6] || 'Auto-extracted from the faithful oracle. Click a node to break it into the functions it calls (dotted = enter, solid = execution order); hover/click shows the code excerpt. Leaves with no border are atomic.';
 const STOP=new Set(('DBCHK DBCHK_FVS DBSCAN GETLUN FVSGETRTNCODE FVSRESTART FVSSTOPPOINT FVSGETRESTARTCODE GETAMSTOPPING CLEARRESTARTCODE CLEARRTNCODE FVSGETRTNCD IF FLOAT MAX MIN ABS INT MOD SQRT EXP LOG LOG10 SIN COS TAN ATAN ASIN ACOS NINT REAL DBLE SIGN AMAX1 AMIN1 MAX0 MIN0 IFIX ANINT AINT SUM PROD ZEROS ONES FILL REF VIEW COPY PUSH TRIM RPAD LPAD TRUNC FLOOR CEIL ROUND LENGTH SPRINT STRING PRINTF FORMAT WRITE READ PI MAXSP MAXTRE MAXTP1 ICYC IY JOSTND ERROR ANY ALL MAP COLLECT SORT SORTPERM FINDFIRST FINDALL FINDNEXT ISNAN ISEMPTY PARSE TRYPARSE TYPEOF CONVERT UNSAFE_TRUNC SIGNBIT HYPOT CBRT EXPM1 LOG1P TANH SINH COSH').split(' '));
 let files=[]; (function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name); if(e.isDirectory())walk(p); else if(e.name.endsWith('.jl'))files.push(p);}})(SRC);
-const scopeOf=f=> (f.includes('/sn/')||f.includes('/variants/southern'))?'sn'
-  : f.includes('/extensions/fire')?'fire' : f.includes('/extensions/econ')?'econ'
+const scopeOf=f=> f.includes('/variants/northeast')?'ne'
+  : (f.includes('/sn/')||f.includes('/variants/southern'))?'sn'
+  : (f.includes('/fire/')||f.includes('/extensions/fire'))?'fire'
+  : (f.includes('/econ')||f.includes('/extensions/econ'))?'econ'
   : f.includes('/extensions')?'ext' : f.includes('/common/')?'common' : 'base';
 const norm=n=>n.replace(/!$/,'').toUpperCase().replace(/[^A-Z0-9_]/g,'_');
 
