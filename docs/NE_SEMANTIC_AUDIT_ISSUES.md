@@ -553,3 +553,16 @@ Full suite 5382/2 — no regression (SN incl. #28 carbon green). The remaining ~
 of the now-bit-exact fire kill (ULP-realization floor; board-feet is its threshold amplification).
 Cross-variant: SN snt01's SIMFIRE-2003 fire is the same early-cycle (tripling-active) setup, so this
 likely also closes the accepted SN fire StandDead Δ0.7 / TotC Δ0.6 residuals (TODO: confirm vs live FVSsn).
+
+
+## CORRECTION — the tripling-order fix is NE-SCOPED (cross-variant claim was wrong)
+Validated the cross-variant speculation directly: ran snt01_alpha through live FVSsn and through jl
+PRE-fix and POST-fix. Result: pre-fix == post-fix BYTE-IDENTICAL on every SN stand. The fix does NOT
+touch SN here. Reason: the SN FFE test fires land at NON-tripling cycles (fire_carbon/fire_early:
+SIMFIRE 2000 with 5-yr cycles ⇒ cycle 2 ≥ ICL4=2 ⇒ no triple; snt01_alpha blk3 unchanged), whereas
+net01's 2003 fire is cycle 1 (< ICL4 ⇒ tripling active). The tripling-order fix only changes a fire that
+lands in an early tripling cycle, so it is correctly NE-scoped and does NOT close the accepted SN
+StandDead Δ0.7 / TotC Δ0.6 residuals. Those are a SEPARATE, pre-existing non-tripling-cycle fire-kill
+divergence (snt01_alpha blk3: jl over-kills ~3 TPA at the fire year, 104 vs live 107 — unchanged by this
+fix, suite-tolerated, noted for a future SN investigation). Honest scope: this fix fixes the NE
+tripling-cycle fire; it neither helps nor harms SN's (non-tripling) test fires.
