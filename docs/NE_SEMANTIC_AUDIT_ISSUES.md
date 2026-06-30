@@ -597,3 +597,27 @@ FINDINGS:
 4. (KNOWN, not new) Fire at NATIVE cycle: NE 10yr fire = 1.7% = the documented post-fire DGSCOR-
    realization floor; SN 5yr fire = 5.6% = the known #20 SN fire over-kill (jl over-kills ~3 TPA at the
    fire, snt01_alpha blk3). Both pre-existing, consistent across the swept scenarios.
+
+
+## DIAGNOSIS — the non-native cycle-length divergence is the DGSCOR/VARDG serial-correlation scaling
+Traced the sweep's finding #2 (NE-at-5yr / SN-at-10yr growth drift). The DETERMINISTIC cycle scaling is
+CORRECT: NE dgf.f iterates the annual DG equation a hardcoded 10× (a 10-yr DDS), and jl matches
+(ne_diameter_increment loops 1:10); gradd.f then scales DDS·(FINT/YR) with YR=10 for NE, and jl's
+_bound_scale (bark_and_bounds.jl) does exactly that (bound the YR-yr DG, then DDS·(sfint/yr), recompute).
+yr = htg_period(variant) = 10 NE / 5 SN. So the mean DG scaling is faithful.
+
+The residual is the STOCHASTIC serial-correlation path: dgdriv's VMLT/CORR/VARDG ARMA terms use
+autcor(newp, oldp) where for NE-at-5yr the first cycle is autcor(newp=5, oldp=10). The lognormal
+mean-correction (evarp/ssigma/rho from VARDG·VMLT) shifts the per-tree DG mean, and at a NON-NATIVE
+period that correction is only partially faithful — EXACTLY the residual the existing code comments
+already flag (diameter_growth.jl:393-397 "Hardcoding 5 over-counts NE's vardg ⇒ ~0.5% serial-correlation
+DG error"; :637-639 "using 5 for NE under-counts it ⇒ a residual serial-correlation DG error"). Those
+comments document PARTIAL fixes (YR=10 for NE calibration + first-cycle oldp=YR) with an acknowledged
+sub-percent residual. The sweep shows it ACCUMULATES on a non-native cycle (NE-at-5yr ~1%/cycle → a few %
+over the run; SN-at-10yr milder). The native cycle (NE 10yr = net01 the mission stand; SN 5yr) is
+BIT-EXACT — both are at YR, where newp==oldp==YR and the correction is exact.
+
+VERDICT: a KNOWN, documented serial-correlation-at-non-native-period residual, not a new deterministic
+bug. The mission stand (net01, native 10yr) is unaffected. Fully closing it means bit-matching FVS's
+dgdriv ARMA VARDG/VMLT lognormal correction across mixed periods — deep, and risk to the bit-exact native
+path. Deferred unless non-native-cycle accuracy is required; documented for the record.
