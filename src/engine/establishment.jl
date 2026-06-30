@@ -54,6 +54,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
     es_xmin = sd[:estab_min_ht]   # per-species establishment min height (CSV)
+    es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
@@ -136,7 +137,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 end
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
-            hht > _ES_HHTMAX[sp] && (hht = _ES_HHTMAX[sp])
+            hht > es_hhtmax[sp] && (hht = es_hhtmax[sp])
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
             # REGENT establishment dbh (regent.f:331-334, LESTB branch): DBH = HTDBH⁻¹(HK),
             # floored to the species min DIAM, then a small height-proportional add 0.001·HK.
