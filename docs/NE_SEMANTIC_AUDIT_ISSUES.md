@@ -566,3 +566,34 @@ StandDead Δ0.7 / TotC Δ0.6 residuals. Those are a SEPARATE, pre-existing non-t
 divergence (snt01_alpha blk3: jl over-kills ~3 TPA at the fire year, 104 vs live 107 — unchanged by this
 fix, suite-tolerated, noted for a future SN investigation). Honest scope: this fix fixes the NE
 tripling-cycle fire; it neither helps nor harms SN's (non-tripling) test fires.
+
+
+## ★ SCENARIO SWEEP (32 varied SN+NE, YAML stress test) — surfaced 2 real bugs + a clean matrix
+Per the user's directive, generated 32 varied scenarios (both variants × {no-fire,fire@cyc1/2/3} ×
+{thin,none} × {5yr,10yr cycles}), ran each through jl on BOTH the .key AND the translated .yaml, and
+diffed jl vs live FVS. Harness: test/harness/sweep/gen_scenarios.py + run_jl.jl (uses ne_oracle.sh /
+FVSjulia fortran_baseline.sh as oracles). Two harness artifacts were found+fixed first (don't conclude
+from a faulty oracle): SN scenarios need the SN STDINFO forest code (80106/232BA, NOT net01's NE 922 —
+wrong forest ⇒ 0 volume); and a fire year must align to a cycle boundary (NE default cycle is 10yr, so a
+"clen5" fire at 1995 lands mid-cycle) — see the mid-cycle finding below.
+
+FINDINGS:
+1. ★ YAML round-trip bug — FOUND & FIXED (commit). _is_plain_keyword treated any blank-name continuation
+   line as plain, so a STDIDENT id on its own line with content starting at col 10 ("         BARE GROUND
+   PLANT") lost its leading char through .key→.yaml (id became "ARE"). Fix: blank-name records are plain
+   only if cols 1-10 are blank, else carried verbatim as raw. After the fix: 32/32 scenarios YAML
+   byte-identical (jl on .key == jl on .yaml).
+2. ★ NON-NATIVE CYCLE-LENGTH SCALING divergence (NEW, real, unfixed). The clean diagnostic matrix:
+   NE no-fire 10yr (native) = BIT-EXACT (0 / 0.0%); NE no-fire 5yr = DIVERGES (stand-Δ 25, vol 3.0%,
+   accumulating — ne00 BA 91/92 at the first 5yr cycle → TPA 378/353 by 2030). Symmetrically SN no-fire
+   5yr (native) = bit-exact (0 / 0.1%) but SN no-fire 10yr diverges (3 / 0.7%, milder). So BOTH variants
+   are bit-exact at their NATIVE cycle length and drift at the other — a growth-per-cycle scaling gap,
+   worst for NE-at-5yr. The mission stand (net01, NE 10yr) is unaffected (native). TODO: trace FVS's
+   DG/HTG cycle-length scaling (GRINCR) for a non-native period vs jl's fint scaling.
+3. ★ MID-CYCLE SIMFIRE not fired by jl (NEW, edge case). A SIMFIRE scheduled at a year that is not a
+   cycle boundary (e.g. 1995 with 10yr cycles 1990/2000) is fired by live FVS in the containing cycle
+   but SKIPPED by jl (its gate is current_cycle_year == fire_year, an exact boundary match). FVS activity
+   scheduling rounds the year into the cycle; jl does not. TODO: round the fire year to its cycle.
+4. (KNOWN, not new) Fire at NATIVE cycle: NE 10yr fire = 1.7% = the documented post-fire DGSCOR-
+   realization floor; SN 5yr fire = 5.6% = the known #20 SN fire over-kill (jl over-kills ~3 TPA at the
+   fire, snt01_alpha blk3). Both pre-existing, consistent across the swept scenarios.
