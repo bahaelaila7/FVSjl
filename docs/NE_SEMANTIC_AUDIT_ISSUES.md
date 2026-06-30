@@ -427,3 +427,19 @@ diverse stands). ⇒ COMPLETENESS: the NE port is bit-exact on all STAND columns
 the open residual is the STOCHASTIC-stand (fire/regen) VOLUME at late cycles, in the RNG-draw-order class
 (fire-kill + establishment :estab/main draw alignment). This is NOT yet ULP-floor — a real ~1-4% volume
 residual on the stochastic stands. Correcting the earlier "everything bit-exact" overstatement.
+
+
+## Stochastic-volume residual MAGNITUDE — cubic ~0.3% (near ULP), board-feet threshold-amplified
+Quantified on the full 8-species PLANT (establishment cohort): CUBIC volume (TCuFt/MCuFt) diverges only
+~0.2-0.5% at late cycles (2042 TCuFt 5278/5291, MCuFt 4687/4703); the BOARD FEET diverges more — 12% at 2032
+(117/103, when sawtimber is just emerging, tiny absolute) down to ~1.6% at 2042 (2667/2711). ⇒ the underlying
+per-tree dbh drift is SUB-1% (consistent with the bit-exact stand cols); the SAWTIMBER/MERCH THRESHOLD (a tree
+crossing SCFMIND flips its whole board-foot contribution in/out) amplifies it. So the residual is: per-tree
+dbh-distribution RNG-realization (~0.3% cubic, near-ULP) × threshold amplification (board feet). The systematic
+parts are ALL fixed (8 bugs incl. the establishment gmod + HHTMAX that made stand cols bit-exact); the remainder
+is the RNG-draw-order/record-order alignment after disturbances — the hard class (the naive :estab draw-add was
+a no-op; needs the es0/ESRNSD/NTALLY + post-fire FMKILL record-compaction order). ASSESSMENT: at the practical
+floor for the stochastic stands — a deep, uncertain RNG-state-machine port for a sub-1%-cubic / threshold-
+amplified-bdft residual. Documented as the lone open NE residual (RNG-realization class), NOT a growth/coef/
+volume-kernel bug. Recommend accepting as a documented divergence (analogous to the SN COMPRESS-eigensolver
+class) unless the board-feet threshold sensitivity matters for a downstream use.
