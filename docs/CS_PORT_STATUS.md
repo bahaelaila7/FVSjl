@@ -331,3 +331,22 @@ add a custom FVS stamp that tags each record with its STABLE id and dumps per-re
 XKILL) at the SAME phase jl reads (post-DG pre-triple AND post-mortality), so jl's records map 1:1 to
 live's — then the per-tree DG vs mortality contribution is unambiguous. Until then, do NOT trust
 eyeballed treelist comparisons. cyc1 .sum (TPA518/BA99/SDI196/CCF202/TopHt68/QMD5.9) is the oracle.
+
+#### ★ cyc1 ROOT LOCALIZED — the CALIBRATED WO (sp47) over-grows; uncalibrated species are fine
+Correct 1:1 per-tree mapping (via jl's original tree_id ↔ live treelist TREE NUMBER, TPA-weighted
+mean grown DBH over the .60/.25/.15 triples) shows a CLEAN split:
+- UNCALIBRATED species (WN/HI/SM/PN): jl wmean grown DBH is slightly LOW, Δ −0.04 to −0.12 (the small
+  DGSCOR central-FRM bias; near-negligible).
+- CALIBRATED WO (sp47, COR=0.533=2·WCI): jl OVER-grows EVERY tree +0.53..+0.70 (d5.3→+0.57,
+  d6.1→+0.53, d6.2→+0.62, d6.6→+0.67, d10.9→+0.70; scales with size). e.g. WO d6.2 jl DG 1.7 vs live 1.08.
+So the cyc1 .sum BA/QMD-high + mortality over-kill is DOWNSTREAM of WO over-growing (WO over-grows →
+higher SDI → more density kill). The COR formula is faithful (cs/dgdriv.f:190 COR=WCI·(1+CORMLT);
+jl matches, 2·WCI at cycle-1 cormlt=1, validated for NE). PRIME SUSPECT = the CS-specific COR SPACE:
+cs_dgf! adds COR to CONSPP in the OUTSIDE-bark DDS, THEN bark-converts (cs/dgf.f:445/510/547) — whereas
+the calibration computes WCI as a residual in the BARK-CONVERTED wk2 space (RESLOG=ln(TERM)−wk2). NE
+adds COR in the wk2 space directly (wk2=ln(DDS)+COR), so its WCI is space-consistent; CS's COR enters a
+DIFFERENT (outside-bark) space, making the effective boost dbh-dependent and too large at the larger
+projection dims. NEXT: (a) get the live WO WCI/COR via a proper dgdriv DEBUG (DBCHK name) to confirm
+jl's WCI=0.2666 matches; (b) trace whether live's cs/dgf.f genuinely over-grows WO too (then jl is
+faithful and the .sum.save is the discrepancy) OR live's calibration/COR-space differs — i.e. verify
+the OUTSIDE-bark-COR is what live does at the PROJECTION (not just calibration). This is THE cyc1 gap.
