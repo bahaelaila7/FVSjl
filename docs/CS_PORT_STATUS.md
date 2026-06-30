@@ -535,3 +535,13 @@ varmrt+bkgd mortality/R9 vol): DONE. cyc3+ ~2% drift = PROVEN single-precision f
 every cycle + all logic verified). REMAINING (each a fresh chunk): (1) close cyc3+ ULP via a clean
 once-per-cycle GRADD/fvs.f DBH stamp → first-differing-record op-order trace, or accept as documented
 divergence; (2) chunk 5 CS FFE (above) → full .sum; (3) cst01_method5 thinning + .sum regression test.
+
+#### Chunk-5 FFE DATA location pinned (refines the scoping above)
+The CS FFE per-species props are NOT a clean DATA block — they're assigned in fire/cs/fmvinit.f via
+per-species CONDITIONAL logic (e.g. `V2T(I)=27.4 / 29.3 / 28.1 ...` by species group, ~lines 120-300),
+NOT a single DATA array. The biomass-group species map IS a clean DATA array: fire/cs/fmcrow.f:51
+`DATA ISPMAP/14,14,5,5,5,...` (96 species → Jenkins biomass group). So chunk-5 data extraction = (a)
+transliterate fmvinit.f's V2T/TFALL/DKRCLS/snag-class per-species assignment block → fire_species_props.csv;
+(b) grab fmcrow.f ISPMAP → the biogrp column / fire_biomass mapping. Both via the live-stamp-validated
+approach. Then wire fire/cs/{fmcfmd,fmcrow,fmcba,fmsfall,...} (NE-shaped FMCFMD fuel-model path +
+fmcsft softwood-specific). This is the remaining substantial chunk; the growth model is COMPLETE.
