@@ -38,17 +38,16 @@ end
             notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_forest_type!(s)
             FVSjl.compute_volumes!(s)
             g = s.plot.gross_space
-            # Golden RE-GROUNDED to live FVSsn (sn_oracle.sh; was Oracle A, which was wrong by ~1 TPA on
-            # s12_phys_p221). jl now matches live to print-rounding (≤0.57 TPA) on EVERY scenario — so the
-            # bound is tight (atol 1 = one print unit; cuft 2/0.2%). The single exception is mix_lp_hi, a
-            # mixed-loblolly high-site stand carrying the documented LP-growth-CALIBRATION tail (jl & Oracle A
-            # both drift from live ~4.8 TPA / 0.8 QMD by late cycles); it gets an explicit wider, labelled bound.
-            lp_tail = scn == "mix_lp_hi"
-            tT, rT = lp_tail ? (5.0, 0.0) : (1.0, 0.0)
-            tB     = lp_tail ? 1.5 : 1.0
-            tS     = lp_tail ? 3.0 : 1.0
-            tQ     = lp_tail ? 0.85 : 0.1
-            tC, rC = lp_tail ? (10.0, 0.0) : (2.0, 0.002)
+            # Golden RE-GROUNDED to live FVSsn (sn_oracle.sh; was Oracle A, wrong by ~1 TPA on s12_phys_p221).
+            # jl matches live to print-rounding on EVERY scenario incl. mix_lp_hi (measured maxima with the
+            # per-cycle compute_forest_type!: TPA 0.57, BA 0.48, SDI 0.49, QMD 0.05, cuft 1.0). Uniform tight
+            # bound = one print unit. (The earlier "LP-calibration tail" was a measurement artifact — a
+            # tolerance-probe loop that omitted the per-cycle FORTYP recompute, which feeds diameter growth.)
+            tT, rT = 1.0, 0.0
+            tB     = 1.0
+            tS     = 1.0
+            tQ     = 0.1
+            tC, rC = 2.0, 0.002
             @testset "$scn" begin
                 for (cyc, tpa, ba, sdi, qmd, tcuft) in rows
                     FVSjl.compute_forest_type!(s)
