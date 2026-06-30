@@ -31,6 +31,9 @@ function fmcba!(s::StandState)
     # coastal-plain/piedmont/mountain rough-age × site-index override (FULIV2) where it applies.
     if s.variant isa Northeast
         fs.flive = (0.31f0, 0.31f0)
+    elseif s.variant isa CentralStates
+        # CS uses the flat FULIV table by FFE forest type (cs/fmcba.f:113); no SN FULIV2 override.
+        fs.flive = ffe_live_fuel_loading(coef, ffe_forest_type(s))
     else
         ovr = ffe_live_fuel_override(s)
         fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
@@ -67,6 +70,7 @@ function fmcba!(s::StandState)
     # IDC = each species' decay-rate class (DKRCLS).
     if !fs.fuels_init
         deffuel = s.variant isa Northeast ? ne_dead_fuel_loading(s) :
+                  s.variant isa CentralStates ? cs_dead_fuel_loading(coef, Int(s.plot.forest_type)) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
         fill!(fs.cwd, 0f0)

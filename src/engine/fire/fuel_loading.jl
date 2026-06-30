@@ -13,6 +13,23 @@
 # 6–12", 12–20", 20–35", 35–50", >50", litter, duff.
 # =============================================================================
 
+"""
+CS FFE dead-fuel forest-type group (1–7) from the FIA forest-type code (cs/fmcba.f:200-217).
+CS has its own coarser table (FUINI 11×7): pines / redcedar / pine-hardwood / oak-hickory /
+elm-ash-cottonwood / maple-beech-birch / nonstocked — distinct from the SN 9-group map below.
+"""
+@inline function cs_dead_fuel_type(ifortp::Integer)::Int
+    if     101 <= ifortp <= 168                        1   # pines
+    elseif ifortp == 181 || ifortp == 402              2   # eastern redcedar
+    elseif ifortp == 401 || (403 <= ifortp <= 409)     3   # pine-hardwood
+    elseif 501 <= ifortp <= 520                        4   # oak-hickory
+    elseif 701 <= ifortp <= 709                        5   # elm-ash-cottonwood
+    elseif 801 <= ifortp <= 809                        6   # maple-beech-birch
+    elseif ifortp == 999                               7   # nonstocked
+    else                                               4   # default → oak-hickory
+    end
+end
+
 "FFE dead-fuel forest-type group (1–9) from the FIA forest-type code (FMCBA, fmcba.f:260)."
 @inline function ffe_dead_fuel_type(ifortp::Integer)::Int
     if     101 <= ifortp <= 105                       1   # eastern white pine
@@ -46,9 +63,11 @@ function ffe_forest_type(s::StandState)::Int
     elseif ifortp in (103, 104, 141, 142, 996, 401, 409) ||
            (161 <= ifortp <= 168) || (403 <= ifortp <= 407)
         pineba = 0f0; npineba = 0f0                     # pine vs non-pine basal area
+        # pine species range: SN species 4–14, CS species 3–7 (cs/fmcsft.f:50)
+        plo, phi = s.variant isa CentralStates ? (3, 7) : (4, 14)
         @inbounds for i in 1:t.n
             x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
-            (4 <= t.species[i] <= 14) ? (pineba += x) : (npineba += x)
+            (plo <= t.species[i] <= phi) ? (pineba += x) : (npineba += x)
         end
         tot = pineba + npineba
         iffeft = tot > 0f0 ? (f = pineba / tot; f <= 0.50f0 ? 2 : f <= 0.70f0 ? 3 : 4) : 0
@@ -117,6 +136,18 @@ then litter and duff.
 """
 @inline function ffe_dead_fuel_loading(coef::SpeciesCoefficients, ifortp::Integer)
     ft = ffe_dead_fuel_type(ifortp)
+    row = @view coef.ffe_fuel_dead[ft, :]
+    return ntuple(i -> row[i], 11)
+end
+
+"""
+    cs_dead_fuel_loading(coef, ifortp) -> NTuple{11,Float32}
+
+CS initial dead surface fuel loading (FUINI 11×7, cs/fmcba.f:73-79), indexed by the CS
+7-group forest type (`cs_dead_fuel_type`). 11 FFE size classes (9 down-wood + litter + duff).
+"""
+@inline function cs_dead_fuel_loading(coef::SpeciesCoefficients, ifortp::Integer)
+    ft = cs_dead_fuel_type(ifortp)
     row = @view coef.ffe_fuel_dead[ft, :]
     return ntuple(i -> row[i], 11)
 end

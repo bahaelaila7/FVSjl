@@ -572,3 +572,33 @@ so NOT reusable — extract FUINI/FULIV → data/centralstates/fire_fuel_dead.cs
 fuel models) + the CS fire model code (fmcfmd/fmcrow/fmsfall/fmcsft). That completes the FFE → full
 multi-cycle .sum via run_keyfile (which then validates cyc2-10 + the growth columns + the carbon/fuel
 DBS tables). The growth model is COMPLETE + bit-exact cyc0-2; FFE is breadth for the .sum/carbon report.
+
+#### Chunk-5 FFE fuel/fire-effects/crown-biomass WIRED + full 10-cycle .sum VALIDATED (suite 5416/2)
+Resolved the FFE run_keyfile blockers for the projection stand and validated the FULL 11-row .sum
+(cyc0-10) of stand 1 (S248112 UNTHINNED CONTROL, NOAUTOES) vs a freshly-relinked live FVScs:
+- **FMCBA fuel loading** (cs/fmcba.f): extracted FUINI (dead, 11×7) → fire_fuel_dead.csv + FULIV
+  (live, 2×4) → fire_fuel_live.csv. Added `cs_dead_fuel_type` (7-group IFORTP map, distinct from the
+  SN 9-group) + `cs_dead_fuel_loading`; routed in fmcba.jl. CS live-fuel uses the flat FULIV table
+  (no SN FULIV2 coastal-plain override). `ffe_forest_type` gated for the CS pine-species range (3:7
+  vs SN 4:14, cs/fmcsft.f) — FMCSFT is otherwise identical to the ported SN FMSNFT.
+- **Standard fuel models** (FMINIT Anderson-13): CS fminit.f models 1-3 verified identical to NE/SN ⇒
+  copied fire_fuel_models.csv (universal Rothermel/Albini set).
+- **Fire effects** (cs/fmeff.f + cs/fmbrkt.f): extracted EQNUM (96, bark-thickness B1 index) → bark_eqnum;
+  added `cs_fire_mortality_group` (47/59 white+chestnut oak, 48:51 red oaks, 14:23 hickories, 29 red
+  maple, 11/13 tupelo) + CS shortleaf-pine Harmon bark (species 3, vs SN 5). `fire_mortality_adjust`
+  already a no-op for CS (no LS/ON/NE post-logistic branches).
+- **Crown biomass** (cs/fmcrowe.f via cs/fmcrow.f ISPMAP): extracted ISPMAP (96) → ls_spi; the shared
+  FMCROWE TOTABV/foliage forms (`_fm_totabv_coef`, spils≥15 split) are byte-identical CS↔SN ⇒ reused.
+- **BIOGRP** (fmcblk.f): the copied-from-SN fire_biomass.csv bio_group was WRONG for CS ordering —
+  re-extracted the CS BIOGRP (96, Jenkins national group) into fire_biomass.csv (bio_group, for the
+  Jenkins biomass eqs) AND fire_species_props.csv (biogrp, for the carbon softwood/hardwood >5 split).
+
+VALIDATION (stand 1, vs live, per-gross-acre): cyc0-2 (1990/2000/2010) ALL SIX stand columns BIT-EXACT;
+cyc3-10 within the Float32 ULP floor (TPA ±1-3, BA ±1, SDI ±1, CCF ±2, TopHt ±2, QMD ±0.1, volume
+≤1.5% — Bdft amplifies DBH steps via Scribner). One FORTYP flip (503→801) lands at 2040 live / 2060 jl
+— a classification threshold crossed at a slightly different cycle by the accumulated species-BA drift,
+not a logic defect (accepted SN-COMPRESS class). test_cst01.jl +54 assertions (79 CS total). FFE is a
+clean no-op on this non-fire stand (fmcba only feeds the potential-fire report).
+
+REMAINING for full multi-STAND run_keyfile: CS establishment (ESSUBH ht_curve_b* — the BARE-GROUND-PLANT
+stand) + the THINDBH/shelterwood prescription stands. The PRIMARY projection stand is fully validated.

@@ -33,8 +33,11 @@ const _FM_MORTB2 = Float32[2.6232, 3.4152, 6.0415, 8.4682, 2.8312]
 Single bark thickness (in) for fire mortality (FMBRKT, fmbrkt.f): `DBH · B1[EQNUM[sp]]`,
 with shortleaf pine (sp 5) using the Harmon (1984) quadratic.
 """
-@inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32)::Float32
-    if sp == 5                                          # shortleaf pine (Harmon 1984)
+@inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
+                                     variant::AbstractVariant = Southern())::Float32
+    # shortleaf pine uses the Harmon (1984) quadratic — species 5 in SN, species 3 in CS (cs/fmbrkt.f).
+    slpine = variant isa CentralStates ? 3 : 5
+    if sp == slpine
         b = (0.07f0 + 0.09f0 * dbh * 2.54f0 - 0.0001f0 * (dbh * 2.54f0)^2) / 2.54f0
         return max(0f0, b)
     end
@@ -48,6 +51,16 @@ end
     sp == 27                           ? 3 :   # hickory
     sp == 20                           ? 4 :   # red maple
     sp == 54                           ? 5 :   # black gum
+                                         6     # everything else (Reinhardt)
+end
+
+"CS fire-mortality group (1–6) for species `sp` (cs/fmeff.f:223-236)."
+@inline function cs_fire_mortality_group(sp::Integer)::Int
+    sp == 47 || sp == 59               ? 1 :   # white oak, chestnut oak
+    48 <= sp <= 51                     ? 2 :   # scarlet/black/northern+southern red oak
+    14 <= sp <= 23                     ? 3 :   # hickories
+    sp == 29                           ? 4 :   # red maple
+    sp == 11 || sp == 13               ? 5 :   # black & swamp tupelo
                                          6     # everything else (Reinhardt)
 end
 
@@ -91,14 +104,15 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
                              flame::Float32, csv::Float32, variant::AbstractVariant = Southern())::Float32
     # The SN/CS Regelbrugge-Smith species groups (1-5) are gated `IF VARACD .EQ. 'SN'/'CS'`
     # (fmeff.f:196); NE skips them and uses the base Reinhardt logistic for every species.
-    g = variant isa Northeast ? 6 : fire_mortality_group(sp)
+    g = variant isa Northeast ? 6 :
+        variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
         xm = -(_FM_MORTB0[g] + _FM_MORTB1[g] * dbh * 2.54f0 + _FM_MORTB2[g] * charht / 3.28f0)
         mnmort = log(1f0 / 0.000001f0 - 1f0)            # guard against exp() overflow
         return xm >= mnmort ? 0f0 : 1f0 / (1f0 + exp(xm))
     else                                                # Reinhardt crown-scorch + bark
-        bt = fire_bark_thickness(coef, sp, dbh)
+        bt = fire_bark_thickness(coef, sp, dbh, variant)
         xm = exp(-1.941f0 + 6.316f0 * (1f0 - exp(-bt)) - 0.000535f0 * csv * csv)
         return 1f0 / (1f0 + xm)
     end
