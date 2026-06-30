@@ -201,35 +201,54 @@ Factored out of `grow_cycle!` so the fire half can also be driven from the repor
 sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md item 8 (#28).
 """
 function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
+                             stash = nothing,
                              post_fire::Union{Nothing,Function} = nothing)
     t = s.trees
     fire_now = s.fire !== nothing && s.fire.active && s.fire.fire_year != 0 &&
                current_cycle_year(s) == Int(s.fire.fire_year)
-    if fire_now
-        nrec = t.n
-        pre  = Float32[t.tpa[i] for i in 1:nrec]
-        mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the full pre-fire stand
-        mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]      # per-record density+bkgd+cap kill
-        @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end      # restore PROB for the fire pass
-        _maybe_burn!(s, fint)                                  # FMKILL/FIRKIL on the full pre-fire stand
-        # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
-        # FMCADD) — all BEFORE FMKILL applies the WK2 combine below. `post_fire` runs the carbon sample +
-        # the FFE annual fuel update here so they see the post-fire, start-of-cycle-consumed fuel pools and
-        # the freshly-created fire snags (so the snags fall THIS cycle and the released value is computed on
-        # the start-of-cycle down wood). See docs/audit/BACKLOG.md item 8 (#28).
-        post_fire === nothing || post_fire(s)
-        extra = Vector{Float32}(undef, nrec)
-        @inbounds for i in 1:min(nrec, t.n)
-            fk = pre[i] - t.tpa[i]                             # fire kill (FIRKIL) on this record
-            t.tpa[i] = pre[i] - max(mk[i], fk)                 # WK2 = MAX(MORTS, fire), per fmkill.f:86
-            extra[i] = max(0f0, mk[i] - fk)                    # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        end
-        book_mortality_snags!(s, extra, nrec, fint)            # FMSDIT snags for the EXCESS MORTS only (post-report, FMKILL)
-        compute_density!(s)
-    else
+    if !fire_now
         mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
+        return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)
     end
-    return s
+    # FIRE CYCLE — FVS order: MORTS (GRINCR, on the ORIGINAL ITRN records — VARMRT distributes a stand
+    # total over records, so it MUST see the UN-tripled set) → TRIPLE (triple.f, splits TPA+WK2 .60/.25/
+    # .15) → FMBURN (GRADD fire draws an independent XRAN per TRIPLED record) → FMKILL WK2=MAX(MORTS,FIRKIL).
+    nrec = t.n
+    pre  = Float32[t.tpa[i] for i in 1:nrec]
+    mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
+    mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]          # per-ORIGINAL density+bkgd+cap kill (WK2)
+    @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
+    tripled = stash !== nothing
+    if tripled                                                 # split TPA + the MORTS kill onto the 3 records
+        triple_records!(s, stash)                              # central=i, upper=nrec+2i-1, lower=nrec+2i
+        mks = zeros(Float32, t.n)
+        @inbounds for i in 1:nrec
+            mks[i]         = mk[i] * 0.60f0
+            mks[nrec+2i-1] = mk[i] * 0.25f0
+            mks[nrec+2i]   = mk[i] * 0.15f0
+        end
+        mk = mks
+    end
+    n   = t.n
+    pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
+    _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
+    # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
+    # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
+    # fuel update here so they see the post-fire, start-of-cycle fuel pools + fresh fire snags (#28).
+    post_fire === nothing || post_fire(s)
+    extra = Vector{Float32}(undef, n)
+    mort  = 0f0
+    @inbounds for j in 1:min(n, t.n)
+        fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
+        t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
+        extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
+        m = pre[j] - t.tpa[j]
+        mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
+        t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
+    end
+    book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
+    compute_density!(s)
+    return (mort, tripled)
 end
 
 """
@@ -298,17 +317,23 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     pf = (carbon_hook !== nothing || fuel_period !== nothing) ?
          (st -> (carbon_hook === nothing || carbon_hook(st);
                  fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
-    mortality_and_fire!(s; fint = fint, post_fire = pf)
+    # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
+    # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
+    # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
+    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf)
     g = s.plot.gross_space
-    # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), on the
-    # originals — both reduced t.tpa from the cycle-start old_tpa at the same cycle-start CFV.
-    mort = 0f0
-    @inbounds for i in 1:nlive
-        m = old_tpa[i] - t.tpa[i]
-        mort += m * old_cfv[i]
-        t.mort_pa[i] = m                       # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
+    # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
+    # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
+    mort = mortf
+    if !tripled
+        mort = 0f0
+        @inbounds for i in 1:nlive
+            m = old_tpa[i] - t.tpa[i]
+            mort += m * old_cfv[i]
+            t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
+        end
+        triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
     end
-    triple_records!(s, stash)              # TRIPLE after mortality (splits surviving TPA)
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
