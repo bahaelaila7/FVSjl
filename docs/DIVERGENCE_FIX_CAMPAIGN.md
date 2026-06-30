@@ -41,11 +41,20 @@ divergence_sweep.jl sn`. SN run = 260 stands; the live-vs-jl inventory below is 
 - **Known/accepted:** compress (s22 eigensolver — but 50% needs a recheck vs the accepted ~1%),
   treeszcp_cap/htcap (declining-stand), dense_long/s09_cyc20 0.76% (long-run ULP).
 
-### D7 — per-species merch/saw/board volume standard — 🔬 evidence
-all_GA (homogeneous green ash) cyc0: TPA/BA/SDI/Tcuft BIT-EXACT, but Mcuft live 900/jl 977, Scuft 47/60,
-Bdft 174/223 (~28%). Total cubic exact ⇒ the merchandising cut (merch top diameter / min DBH / stump)
-for GA (and PC, BY) differs from live. Next: compare jl `init_merch_standards!` per-species topd/dbhmin
-vs the SN volume-standard source for these species.
+### D7 — per-species merch/saw/board volume — 🔬 NARROWED to the R9 Clark merch EXTRACTION
+all_GA (homogeneous green ash) cyc0: TPA/BA/SDI/**Tcuft BIT-EXACT**, but Mcuft live 900/jl 977, Scuft 47/60,
+Bdft 174/223 (~28%, jl HIGHER). Ruled out:
+- merch STANDARDS: GA(37) has the SAME top_dib=4/dbh_min=4/scf_top_dib=9/scf_min_dbh=12/bf_top_dib=9 as
+  the bit-exact snt01 species (HI 27, SO 64) ⇒ NOT a standards-data gap.
+- gross Clark equation: GA uses its own Clark eq `CLKE544` (FIA 544); Total cubic is bit-exact ⇒ the
+  profile coefficients are right for TOTAL volume.
+⇒ The divergence is in the **R9 Clark merch/saw EXTRACTION** — the DIB (diameter-inside-bark) profile
+integrated from stump to the merch-top-diameter height (vol[4]+vol[7], r9clarkdib.f). jl over-extracts
+merch (higher Mcuft/Scuft) for Clark eq 544 (and the PC/BY eqs) while matching total. NEXT: debug-stamp
+live r9clark/r9clarkdib for a single GA tree (dump DIB-at-height + the merch-cut height + vol[4]/vol[7])
+vs jl's `compute_volumes!` for the same tree; the merch-cut height or a profile-segment term differs for
+this Clark-equation family. (Note: this is volume-extraction, downstream of growth — but a real cyc0
+divergence, so high-value: deterministic, no RNG/timing confound.)
 
 ## Verdict log
 
