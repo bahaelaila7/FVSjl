@@ -382,3 +382,18 @@ established cohort (the establishment :estab stream draw order — cf the earlie
 CONVERGES (cyc-2 CCF 176/183, cyc-3 311/317 — proportionally tighter). ⇒ NE establishment is FAITHFUL on every
 per-tree quantity; the remaining ~8% first-cycle aggregate SDI/CCF is the last (small, converging) NE residual,
 in the same RNG-draw-order class as the net01-BARE establishment alignment. Not growth, crown, or volume.
+
+
+## FIXED (7th bug) — establishment BALMOD competition used POST-establishment BAL (should be PRE)
+The "established-cohort dbh-distribution residual" was a REAL bug, not RNG. jl computed ebau_e (the REGENT-LESTB
+BALMOD BAL) AFTER creating the seedlings ⇒ the cohort's own BA (~2.7 at the ~9 ft base heights) gave GMOD~0.966,
+under-growing the establishment HTGR ~4% (RM dbh 1.123 vs live 1.174). FVS uses the PRE-establishment density —
+live debug: GMOD=1.0 / AVH=0 for a BARE stand (the seedlings don't compete in their own creation cycle; the
+DENSE/BAL predates the regen). FIX (establishment.jl): snapshot ne_badist! over 1:nstart (the existing overstory)
+BEFORE the creation loop; Phase-2 uses that pre-establishment ebau_pre. RESULT (hardwood PLANT): SDI 40/40 +
+CCF 40/40 @2002 (were 37/36), 135/136 + 180/183 @2012, TREES 735/733 — the ~8% deficit CLOSED. net01 BARE + all
+establishment tests still pass (BF/WS unaffected to tolerance). LONE remaining: a small TopHt overshoot (24/22
+@2002, converging) — the fix unmasked it (doctrine #3): the established trees run a touch tall for their dbh, a
+height↔dbh effect on tiny regen (jl _htdbh_dbh gives slightly less dbh per height for small trees). Much smaller
+than the SDI/CCF deficit it replaced; converges by cyc-3 (49/49). ⇒ found via per-tree dbh-distribution dump
+(jl 1.123 vs live 1.174) — the doctrine's "trace to the per-tree quantity" caught the real bug the aggregate hid.

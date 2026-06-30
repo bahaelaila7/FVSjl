@@ -74,6 +74,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # coefficient is tiny (4.6e-5), so a bare/sparse stand (CCF≈0) is unchanged to print resolution.
     created = false
     nstart = t.n        # tree count before establishment (phase-2 crown pass starts here)
+    # REGENT-LESTB's BALMOD competition uses the PRE-establishment density — the new seedlings do NOT compete
+    # in their own creation cycle (live FVSne debug: GMOD=1.0 / AVH=0 for a BARE stand; the DENSE/BAL the cycle
+    # uses predates the regen). Snapshot the BAL over the existing overstory (1:nstart) NOW, before any seedling
+    # is added; computing it AFTER (over the cohort, the old code) over-counted the seedlings' own BA and
+    # under-grew the established cohort ~4% (dbh 1.12 vs live 1.17 ⇒ the cyc-1 SDI/CCF deficit).
+    ebau_pre = zeros(Float32, 50)
+    s.variant isa Northeast && ne_badist!(ebau_pre, s)
     # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
     # → NPTIDS·idup records total. For a BARE stand every point is identical (BAAA=0,
     # uniform slope/aspect/habitat), so the per-point variables don't vary; only the
@@ -159,7 +166,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         ne_estab = s.variant isa Northeast
         local ebau_e, b3_e, avh_e, scale_e, rdiam_e, rnd_e
         if ne_estab
-            ebau_e = zeros(Float32, 50); ne_badist!(ebau_e, s)
+            ebau_e = ebau_pre                              # PRE-establishment BAL (snapshot above), not the cohort's
             b3_e = sd[:dg_b3]; avh_e = s.plot.avg_height
             # REGENT LESTB period: FNT = FINT−5 (regent.f:118-124; LSKIPH ⇒ no ht growth when FINT≤5).
             scale_e = per > 5 ? Float32(per - 5) / NE_REGENT_REGYR : 0f0   # CON=HGADJ=XRHGRO=1
