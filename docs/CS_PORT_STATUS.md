@@ -514,3 +514,24 @@ point (e.g. guard the WRITE with `IF(ICYC.EQ.1 .AND. <first-entry-flag>)`, or st
 fvs.f cycle loop AFTER growth, once per cycle) for a clean 81-record cyc1 set, diff vs jl's post-cyc1
 DBH, and trace the first differing record's DG op-order (the sqrt/exp/bark sequence) — OR accept the
 ULP floor as a documented divergence (SN COMPRESS class). cst01 cyc0-2 BIT-EXACT remains the milestone.
+
+#### Chunk 5 (FFE) scoping — concrete starting point for the next session
+The full multi-cycle .sum via run_keyfile is blocked on CS FFE data: ffe_seed_input_snags! reads the
+per-species :v2t (+ snag classes) from fire_species_props.csv, which is per-VARIANT (NE 108 / SN 90 /
+CS needs 96) — NOT reusable from NE (unlike crown-width). Source: the 8 CS fire files under fire/cs/
+(fmbrkt fmcba fmcblk fmcfmd fmcrow fmcsft fmsfall fmvinit; CS reuses SN's fmmois). The per-species FFE
+props (V2T volume-to-tonnage, TFALL treefall class, leaf_life, DKRCLS decay class, snag_cls, bark_eqnum,
+snag decay/fall/alldwn, biogrp) live in the FFE init/blockdata (fmvinit.f / fmcblk.f) — extract with
+tools/fortran_data_extract.py like the other CS tables → data/centralstates/fire_species_props.csv +
+fire_biomass.csv. The FFE BASE (snag/CWD/carbon/consumption + 9 DBS tables) is already variant-agnostic
+and done; CS FFE = the fuel-model/crown-bulk/scenario surface (same shape as NE's FMCFMD path) + these
+species CSVs. This unblocks the full .sum + the cyc3-10 validation + cst01_method5.
+
+#### SESSION-END STATE SUMMARY (CS port)
+DONE + TESTED (test_cst01.jl, 27 asserts; suite 5416/2): cyc0 bit-exact (6 stand+4 vol+fortype); cyc1
+bit-exact end-to-end (6 stand+4 vol); cyc2 stand bit-exact. The genuinely-new cs/dgf.f model + its
+calibration: DONE, validated bit-exact (the GST-floor=5 fix). Full growth spine (DG/HTG/regent/crown/
+varmrt+bkgd mortality/R9 vol): DONE. cyc3+ ~2% drift = PROVEN single-precision floor (RNG S0 bit-aligned
+every cycle + all logic verified). REMAINING (each a fresh chunk): (1) close cyc3+ ULP via a clean
+once-per-cycle GRADD/fvs.f DBH stamp → first-differing-record op-order trace, or accept as documented
+divergence; (2) chunk 5 CS FFE (above) → full .sum; (3) cst01_method5 thinning + .sum regression test.
