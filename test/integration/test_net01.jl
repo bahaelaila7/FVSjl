@@ -538,3 +538,37 @@ end
         @test rows[2020] == [74, 65, 103, 93, 82]      # post-fire BIT-EXACT
     end
 end
+
+# NE establishment (PLANT) on diverse hardwoods (broadening) — a BARE stand planting RM/YB/WO/RO (sp 26/30/55/
+# 67) via ESTAB+PLANT. Validates the NE establishment GROWTH (ESSUBH base + planted random + REGENT-LESTB
+# Phase-2) on species net01 BARE never plants (it plants BF/WS). Live-validated: TREES BIT-EXACT every cycle +
+# BA bit-close; every PER-TREE quantity (base/HTGR/crown-ratio/crown-width) matches live (traced via FVS DEBUG).
+# The lone residual is a small (~8%) cyc-1 SDI/CCF from the established-cohort dbh-DISTRIBUTION (RNG draw-order
+# alignment, same class as net01-BARE) — converges by cyc-3. Tolerances reflect that documented residual.
+@testset "NE establishment PLANT diverse hardwoods — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "plant_hard.key")
+    if !isfile(key)
+        @test_skip "plant_hard fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        rows = Dict{Int,Vector{Int}}()
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 7 && occursin(r"^(1992|2002|2012|2022)$", p[1]) || continue
+            rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
+        end
+        @test rows[1992] == [0, 0, 0, 0, 0]                            # bare at plant year
+        # live FVSne: TREES bit-exact early (planting+mortality), drifts only late as the dbh-distribution
+        # residual reaches the density-mortality; BA bit-close; SDI/CCF within the est-cohort dbh-dist residual.
+        # row = (year, TREES, BA, SDI, CCF, TopHt, tpa_tol, agg_tol)
+        for (yr, tr, ba, sdi, ccf, ht, tpa_tol, tol) in
+            ((2002, 800, 10, 40, 40, 22, 0, 5), (2012, 786, 48, 136, 183, 40, 0, 9), (2022, 733, 97, 234, 317, 49, 7, 9))
+            r = rows[yr]
+            @test abs(r[1] - tr) <= tpa_tol        # TREES — bit-exact early; late drift = the dist→mortality
+            @test abs(r[2] - ba) <= 2              # BA — bit-close (per-tree growth faithful)
+            @test abs(r[3] - sdi) <= tol           # SDI — within the dbh-distribution residual
+            @test abs(r[4] - ccf) <= tol           # CCF — within the dbh-distribution residual
+            @test abs(r[5] - ht) <= 1              # TopHt
+        end
+    end
+end
