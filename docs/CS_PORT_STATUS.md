@@ -545,3 +545,19 @@ transliterate fmvinit.f's V2T/TFALL/DKRCLS/snag-class per-species assignment blo
 (b) grab fmcrow.f ISPMAP → the biogrp column / fire_biomass mapping. Both via the live-stamp-validated
 approach. Then wire fire/cs/{fmcfmd,fmcrow,fmcba,fmsfall,...} (NE-shaped FMCFMD fuel-model path +
 fmcsft softwood-specific). This is the remaining substantial chunk; the growth model is COMPLETE.
+
+#### ★ CHUNK 5 (FFE) STARTED — CS fire species data extracted; 3 .sum-blockers resolved
+Real progress unblocking the full multi-cycle .sum via run_keyfile (was: KeyError :v2t):
+- data/centralstates/fire_species_props.csv (96): extracted from fire/cs/fmvinit.f's SELECT CASE(I)
+  — V2T, tfall_cls (TFALLCLS), leaf_life (LEAFLF: sp1-2→5/sp3→4/sp4-5→3/sp6-7→2/default→1), dkr_cls
+  (DKRCLS), snag_cls (SNAGCLS); snag_decayx/fallx/alldwn from the SNAGCLS→class map (1:0.07/7.17/6,
+  2:0.21/3.07/15, 3:0.35/1.96/25); bio_group from fmcblk.f DATA BIOGRP (Jenkins group 1-10 per species,
+  NOT fmcrow.f ISPMAP which is the crown-biomass representative-species map).
+- fire_biomass.csv: reused NE's (national Jenkins B0A/B1A by group, fmcbio.f-identical).
+- FIX: init_merch_standards! (volume.jl) now routes CS through _cs_merch (was falling to the SN
+  :scf_min_dbh branch and erroring); CS-gated, no SN/NE regression. Suite 5416/2.
+NEXT FFE data/code: the fuel-model matrices (fire_fuel_dead/live/models.csv — FMCBA surface-fuel
+loading by forest type; the run now hits a 0×0-matrix BoundsError there) + the CS fire model code
+(fire/cs/{fmcfmd,fmcrow,fmcba,fmsfall,fmcsft} — the NE-shaped FMCFMD weighted-fuel-model path). Once
+the fuel tables land, run_keyfile produces the full .sum → cyc2-10 + the growth columns validate. The
+bark_eqnum/ls_spi columns (fire mortality bark + LS map) are not needed for the snag/carbon path.

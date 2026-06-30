@@ -310,12 +310,13 @@ are bit-identical to the coef defaults, so an un-overridden stand is unchanged.
 function init_merch_standards!(s::StandState)
     s.control.merch_init && return s
     c = s.control
-    if s.variant isa Northeast
-        # NE merch standards are IFOR-dependent code rules (ne/sitset.f via `_ne_merch`), not a
-        # merch_specs.csv. Board-foot mins equal the sawtimber cubic mins (bf-equal, _ne_merch).
-        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = _NE_DEFAULT_IFOR)
+    if s.variant isa Northeast || s.variant isa CentralStates
+        # Eastern (NE/CS) merch standards are IFOR-dependent code rules (ne/cs sitset.f via `_ne_merch`/
+        # `_cs_merch`), not a merch_specs.csv. Board-foot mins equal the sawtimber cubic mins (bf-equal).
+        cs = s.variant isa CentralStates
+        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
         @inbounds for j in 1:length(c.sp_dbh_min)
-            dbhmin, topd, scfmind, scftopd, stmp, scfstmp = _ne_merch(j, ifor)
+            dbhmin, topd, scfmind, scftopd, stmp, scfstmp = cs ? _cs_merch(j, ifor) : _ne_merch(j, ifor)
             c.sp_dbh_min[j] = dbhmin; c.sp_top_diam[j] = topd
             c.sp_scf_dbhmin[j] = scfmind; c.sp_scf_topd[j] = scftopd
             c.sp_stump_ht[j] = stmp; c.sp_scf_stump[j] = scfstmp
