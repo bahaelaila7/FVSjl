@@ -234,7 +234,12 @@ without an active fire state.
 function potential_fire_report(s::StandState)
     pf = potential_fire(s); pf === nothing && return nothing
     cbd = canopy_bulk_density(s)
+    # FMPOFL_FMPTRH (fmpofl.f:506/649) does RANNGET(SAVES0) … RANN draws … RANNPUT(SAVES0): the POTENTIAL-fire
+    # REPORT is a hypothetical and must NOT consume the simulation RNG (its stochastic torching draws would
+    # otherwise shift the crown-ratio stream — a 1-CCF perturbation seen on a diverse FFE stand). Save/restore.
+    saved_s0 = s.rng.s0
     pt = torching_probability(s, pf.severe.flame, pf.moderate.flame)
+    rannput!(s.rng, saved_s0)
     return (; surf_flame_sev = pf.severe.flame, surf_flame_mod = pf.moderate.flame,
             tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
             ptorch_sev = pt.severe, ptorch_mod = pt.moderate,

@@ -308,3 +308,15 @@ compute_density! is gated on trmort>0 (FuelTRT, absent here). Suspect SNAGINIT-c
 in the CCF sum, OR an FFE crown-width/gross_space difference. FOLLOW-UP: diff compute_density! CCF inputs
 (crown widths / record set) between the FFE and no-FFE runs at the 2000 boundary.
 Locked: ne_fixtures/ffe.key test asserts the bit-exact pre/post-fire rows. Suite 5350/2.
+
+
+## FFE PotFIRE RNG bug FIXED — the 1-CCF blip was the report consuming the simulation RNG
+Bisected the FFE 1-CCF blip (jl 117/live 118 @2000) to the PotFIRE keyword (the other FFE keywords each give
+118; only PotFIRE → 117). ROOT: jl's potential_fire_report → torching_probability draws rann!(s.rng) for the
+report's stochastic torching, CONSUMING the main RNG stream — which then shifts the crown-ratio draws ⇒ the
+1-CCF perturbation (TPA/BA/TopHt identical, only CCF moved, the crown-RNG signature). FVS FMPOFL_FMPTRH
+(fmpofl.f:506/649) wraps its RANN draws in RANNGET(SAVES0)…RANNPUT(SAVES0) — the POTENTIAL-fire REPORT is a
+hypothetical and must not perturb the sim. FIX (fmburn.jl potential_fire_report): save s.rng.s0 before
+torching_probability, rannput! it back after. RESULT: diverse FFE stand now BIT-EXACT EVERY year incl
+CCF@2000 118/118. SHARED fix (SN uses it too) — SN bit-exact, no regression. ⇒ 6TH real bug of the campaign;
+the FFE-diverse residual is CLOSED. Suite 5350/2.

@@ -528,11 +528,12 @@ end
         rows = Dict{Int,Vector{Int}}()
         for ln in split(out, '\n')
             p = split(ln)
-            length(p) >= 7 && occursin(r"^(1990|2010|2020)$", p[1]) || continue
+            length(p) >= 7 && occursin(r"^(1990|2000|2010|2020)$", p[1]) || continue
             rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
         end
-        # live FVSne: pre-fire 1990/2010 + POST-FIRE 2020 (SIMFIRE 2010 kills ~half: TREES 132→74)
+        # live FVSne — every year BIT-EXACT incl. CCF@2000=118 (the PotFIRE-RNG fix) + post-fire 2020 (132→74)
         @test rows[1990] == [138, 53, 98, 102, 65]
+        @test rows[2000] == [135, 66, 117, 118, 73]    # CCF 118 (was 117 before the PotFIRE-RNG save/restore)
         @test rows[2010] == [132, 80, 136, 131, 79]
         @test rows[2020] == [74, 65, 103, 93, 82]      # post-fire BIT-EXACT
     end
