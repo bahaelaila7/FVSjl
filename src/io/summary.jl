@@ -268,6 +268,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 # FMCADD, fmmain.f:228), so the fire samples the START-OF-CYCLE down wood. Stash (SMALL,LARGE)
                 # for the fire basis here. For a fire cycle the annual loop is DEFERRED into grow_cycle!
                 # (run post-fire); non-fire cycles advance the pools the full period now (report→fuel→grow).
+                # A fire in the FIRST FFE cycle (s10_fire SIMFIRE@cycle1) burns before any prior ffe_fuel_update!
+                # loaded the dead-fuel pools, so init them now (FVS FMCBA precedes the first FMBURN). Otherwise
+                # the stash would read zero cwd ⇒ low-fuel model ⇒ under-kill (jl 119 vs live 57 TPA). For
+                # cycle≥2 fires the pools are already loaded (fuels_init), so fire_carbon stays bit-exact.
+                fire_this_cycle && !s.fire.fuels_init && (compute_density!(s); fmcba!(s))
                 fire_this_cycle && (s.fire.fire_smlg = _small_large_fuel(s.fire))
                 fire_this_cycle || ffe_fuel_update!(s, per)
             end

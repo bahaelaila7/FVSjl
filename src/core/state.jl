@@ -718,6 +718,11 @@ mutable struct FireState
                                        # treatment type, applied to the selected fuel model for ~5 yr after the date (fmusrfm.f)
     defulmod::Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}  # DEFULMOD: model# → overridden
                                        # (load[2,4], sav[2,4], depth, mext); standard_fuel_model returns this in place of the table
+    fire_schedule::Vector{NTuple{7,Float32}}  # every scheduled SIMFIRE as a separate event (FVS OPNEW: one
+                                       # activity per keyword) — (year, swind, fmois, atemp, mortcode, psburn,
+                                       # burnseas), conditions resolved with FVS defaults at parse time. A fire is
+                                       # popped + its conditions loaded into the scalars above when its year falls in
+                                       # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
 end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
@@ -725,7 +730,8 @@ FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11
                         (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{5,Float32}[],
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
-                        Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}())
+                        Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
+                        NTuple{7,Float32}[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

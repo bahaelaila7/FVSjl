@@ -33,6 +33,7 @@ include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tr
 include("integration/test_cst01.jl")   # CS: cst01 cycle-0 stand columns bit-exact (GROSPC<1 path)
 include("integration/test_allspecies.jl")# CS+NE: all-species coverage vs live FVScs/FVSne (caught the BW crown-width gap)
 include("integration/test_r8clark_special.jl")# D7: R8 Clark COEFFSO%DIB17 cypress/green-ash merch volume vs live FVSsn
+include("integration/test_simfire_schedule.jl")# D9: SIMFIRE date/cycle default + multiple-fire scheduling vs live FVSsn
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)

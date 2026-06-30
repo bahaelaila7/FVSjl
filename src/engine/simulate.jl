@@ -174,13 +174,33 @@ For a boundary fire year this reduces EXACTLY to current_cycle_year == fire_year
 net01/snt01 — are unchanged), so it only ADDS mid-cycle support.
 """
 function _fire_due(s::StandState)::Bool
-    (s.fire === nothing || !s.fire.active || s.fire.fire_year == 0) && return false
-    fy = Int(s.fire.fire_year)
+    return _due_fire_index(s) != 0
+end
+
+"""
+    _due_fire_index(s) -> Int
+
+Index into `s.fire.fire_schedule` of the earliest scheduled SIMFIRE whose year falls in the current
+cycle's range [cycle_start, cycle_end) (FVS OPCYCL bucketing), or 0 if none. Multiple SIMFIRE keywords
+(fire_repeat) each schedule their own event; this picks the one due THIS cycle. Falls back to the legacy
+scalar `fire_year` when no schedule list is present (defensive — every SIMFIRE now populates the list).
+"""
+function _due_fire_index(s::StandState)::Int
+    (s.fire === nothing || !s.fire.active) && return 0
     cyc = Int(s.control.cycle)
     cs = current_cycle_year(s)
     ce = cycle_year_at(s.control, cyc + 1)
     ce <= cs && (ce = cs + 1)              # last/degenerate cycle ⇒ exact-match only
-    return cs <= fy < ce
+    sched = s.fire.fire_schedule
+    if isempty(sched)
+        fy = Int(s.fire.fire_year)
+        return (fy != 0 && cs <= fy < ce) ? -1 : 0   # -1 = legacy scalar path
+    end
+    @inbounds for i in 1:length(sched)
+        fy = Int(sched[i][1])
+        cs <= fy < ce && return i
+    end
+    return 0
 end
 
 """
@@ -192,7 +212,14 @@ VOLUME of the fire-killed TPA (each record's lost TPA × its cycle-start cubic v
 caller to add to OMORT. No-op (returns 0) otherwise.
 """
 function _maybe_burn!(s::StandState, fint::Float32)::Float32
-    _fire_due(s) || return 0f0
+    di = _due_fire_index(s)
+    di == 0 && return 0f0
+    if di > 0                                # load this scheduled event's conditions into the scalars
+        ev = s.fire.fire_schedule[di]
+        s.fire.fire_year = Int32(ev[1]); s.fire.swind = ev[2]; s.fire.fmois = Int32(ev[3])
+        s.fire.atemp = ev[4]; s.fire.mortcode = Int32(ev[5]); s.fire.psburn = ev[6]
+        s.fire.burnseas = Int32(ev[7])
+    end
     yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware); fire fires on this cycle's stand
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
@@ -205,7 +232,18 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     @inbounds for i in 1:length(pre_tpa)
         fm += (pre_tpa[i] - t.tpa[i]) * pre_cfv[i]
     end
-    s.fire.fire_year = Int32(0)            # one-shot
+    # One-shot: drop the just-fired event (index `di`, captured before firing — no deletions in between, so
+    # it is still valid) from the schedule; resync the scalars to the next pending fire so a later cycle's
+    # SIMFIRE (fire_repeat 2020 after 2000) still fires. Empty schedule ⇒ clear fire_year.
+    di > 0 && deleteat!(s.fire.fire_schedule, di)
+    if isempty(s.fire.fire_schedule)
+        s.fire.fire_year = Int32(0)
+    else
+        ev = s.fire.fire_schedule[1]
+        s.fire.fire_year = Int32(ev[1]); s.fire.swind = ev[2]; s.fire.fmois = Int32(ev[3])
+        s.fire.atemp = ev[4]; s.fire.mortcode = Int32(ev[5]); s.fire.psburn = ev[6]
+        s.fire.burnseas = Int32(ev[7])
+    end
     compute_density!(s)
     return fm
 end

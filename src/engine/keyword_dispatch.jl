@@ -1578,20 +1578,35 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         isempty(k) && continue
         if k == "END"
             break
-        elseif k == "SIMFIRE"                              # fire event + conditions (fmburn.f:284-289)
+        elseif k == "SIMFIRE"                              # fire event + conditions (fmin.f:292-360)
             v = r.values
-            r.present[1] && (fs.fire_year = nint(v[1]))
-            r.present[2] && (fs.swind    = Float32(v[2]))                          # SWIND  = PRMS(1)
+            # Field 1 = IDT (DATE or CYCLE), default 1 (fmin.f:309-310 IDT=1; LNOTBK(1)⇒ARRAY(1)). A value
+            # ≤ MAXCYC is a 1-based CYCLE number, converted to that cycle's start year (opexpn.f:40-44
+            # IY1.LE.MAXCYC ⇒ IY(IY1)); otherwise it is a calendar year. So a no-param SIMFIRE (s10_fire)
+            # fires in cycle 1 (= the inventory year), not "never". Each SIMFIRE is its own OPNEW activity,
+            # so >1 keyword schedules >1 fire (fire_repeat 2000+2020) — push each onto fire_schedule.
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            # FVS IDT cycle numbers are 1-based; jl `cycle_year_at` is 0-based ⇒ cycle IDT → index IDT-1.
+            fyear = (1 <= idt <= MAXCYC) ? Int(cycle_year_at(s.control, idt - 1)) : idt
+            # Resolve each condition with the FVS default (fmin.f:325-330 PRMS preset), overridden when present.
+            swind    = r.present[2] ? Float32(v[2]) : 20f0                          # SWIND  = PRMS(1)
             # FMOIS = INT(PRMS(2)). FVS's FMMOIS only sets the moisture for codes 1..4; for any
             # other code (0, or out-of-range like the 9 in fire_fuel9) it is a NO-OP, leaving the
             # moisture at its last value — which, after the per-cycle PotFire MODERATE pass (FMOIS=3,
             # fmvinit.f:63-66), is dryness model 3. So an invalid code resolves to model 3, NOT a
             # clamp to the very-wet model 4. (Codes 1..4 use the matching FMMOIS table directly.)
-            r.present[3] && (local fc = Int32(nint(v[3])); fs.fmois = (Int32(1) <= fc <= Int32(4)) ? fc : Int32(3))
-            r.present[4] && (fs.atemp    = Float32(trunc(v[4])))                   # ATEMP  = INT(PRMS(3))
-            r.present[5] && (fs.mortcode = clamp(Int32(nint(v[5])), Int32(0), Int32(1)))   # MKODE = PRMS(4)
-            r.present[6] && (fs.psburn   = clamp(Float32(v[6]), 0f0, 100f0))       # PSBURN = PRMS(5)
-            r.present[7] && (fs.burnseas = clamp(Int32(nint(v[7])), Int32(1), Int32(4)))   # BURNSEAS = PRMS(6)
+            fmois    = r.present[3] ? (local fc = Int32(nint(v[3])); (Int32(1) <= fc <= Int32(4)) ? fc : Int32(3)) : Int32(1)
+            atemp    = r.present[4] ? Float32(trunc(v[4])) : 70f0                   # ATEMP  = INT(PRMS(3))
+            mortcode = r.present[5] ? clamp(Int32(nint(v[5])), Int32(0), Int32(1)) : Int32(1)   # MKODE = PRMS(4)
+            psburn   = r.present[6] ? clamp(Float32(v[6]), 0f0, 100f0) : 100f0      # PSBURN = PRMS(5)
+            burnseas = r.present[7] ? clamp(Int32(nint(v[7])), Int32(1), Int32(4)) : Int32(1)   # BURNSEAS = PRMS(6)
+            push!(fs.fire_schedule, (Float32(fyear), swind, Float32(fmois), atemp,
+                                     Float32(mortcode), psburn, Float32(burnseas)))
+            # Keep the scalars in sync with the earliest pending fire for any legacy single-fire read.
+            sort!(fs.fire_schedule; by = first)
+            ev = fs.fire_schedule[1]
+            fs.fire_year = Int32(ev[1]); fs.swind = ev[2]; fs.fmois = Int32(ev[3])
+            fs.atemp = ev[4]; fs.mortcode = Int32(ev[5]); fs.psburn = ev[6]; fs.burnseas = Int32(ev[7])
         elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
             v = r.values
             r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
