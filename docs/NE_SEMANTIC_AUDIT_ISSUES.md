@@ -280,3 +280,14 @@ thin.key). SN bit-exact (ne branch false for SN; suite 5345/2). ⚠ REMAINING (s
 ESASID(NE)=49 → ASSPTN (a cut sp49 record resets PREM via the aspen sucker model before ESSPRT) is NOT yet
 ported — absent it, sp49 stumps use the plain PREM. Inert unless a stand cuts NE aspen (sp49); not in the dense
 stand. ⇒ NE stump-sprouting is faithful for non-aspen; the lone gap is the sp49 aspen ASSPTN path.
+
+
+## NE SPROUTING COMPLETE — aspen ESASID(49)/ASSPTN ported ⇒ ALL species bit-exact
+Ported the last sprout gap: NE aspen (sp49) suckering. esuckr! now (1) accumulates the cut-aspen ASBAR/ASTPAR
+over the cut_log (estump.f:110-111: ASTPAR+=PREM, ASBAR+=0.0054542·PREM·DBH², gated on ESASID(NE)=49), then
+(2) for each cut sp49 record runs ASSPTN (essprt.f:1228) BEFORE ESSPRT: SPA=40100.45−3574.02·a²+554.02·a³−
+3.5208·a⁵+0.011797·a⁷ (a=ISHAG) clamped [2608,30125], ×ASBAR/198; PREM=(PREM/(ASTPAR·2))·SPA. VALIDATED on an
+aspen-dominated stand heavily thinned (THINBBA 2010 resid-BA 30): post-thin 2020 BIT-EXACT — TREES 740/740 (the
+massive sucker flush 146→740), BA 41, SDI 80, CCF 87, TopHt 56 all = live. Fixture+test ne_fixtures/aspen.key.
+⇒ NE STUMP-SPROUTING IS NOW FULLY FAITHFUL (all species incl. aspen) — the sprouting cluster is CLOSED. Suite
+5347/2; SN bit-exact (ne branch false for SN); net01 unaffected (NOAUTOES).

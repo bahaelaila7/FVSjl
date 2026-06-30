@@ -260,7 +260,17 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # those rare cases would need the full forkod port — see INDEX.) snt01=80106 ⇒ IFORDI=801 (not special).
     isefor = Int(s.plot.user_forest_code) ÷ 100
     icyc = Int(s.control.cycle)
-    ne = s.variant isa Northeast     # NE ESUCKR (1 record/stump, SPRTHT/Wykoff DBH) vs SN ESSPRT model
+    ne = s.variant isa Northeast     # NE ESUCKR (NSPREC/ESSPRT NE tables + SPRTHT/Wykoff DBH) vs SN model
+    # NE aspen (sp49) suckering (ASSPTN, essprt.f:1228): each aspen sprout's TPA depends on the TOTAL cut-aspen
+    # BA/TPA (estump.f:110-111, summed over ALL cut aspen records). Accumulate them up front (ESASID(NE)=49).
+    asbar = 0f0; astpar = 0f0
+    if ne
+        @inbounds for rec in s.control.cut_log
+            Int(rec.species) == 49 || continue
+            astpar += rec.prem
+            asbar += 0.0054542f0 * rec.prem * rec.dstmp^2
+        end
+    end
     created = false
     @inbounds for rec in s.control.cut_log
         prem = rec.prem
@@ -282,6 +292,15 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         # uses nsprec_sn / essprt_sn. ⚠ NE aspen suckering (ESASID(NE)=49 → ASSPTN) is still TODO — for a cut
         # sp49 record NE would call ASSPTN to reset PREM before ESSPRT; absent it, sp49 uses the plain PREM.
         numspr = ne ? nsprec_ne(issp, dstmp) : nsprec_sn(issp, dstmp)
+        # NE aspen (sp49): ASSPTN replaces PREM with the Crouch-polynomial sucker TPA (per cut aspen) BEFORE
+        # ESSPRT (esuckr.f:225-228). SPA = poly(ISHAG) clamped [2608,30125], scaled by cut-aspen BA/198.
+        if ne && issp == 49 && astpar > 0f0
+            rshag = Float32(ishag)
+            spa = 40100.45f0 - 3574.02f0 * rshag^2 + 554.02f0 * rshag^3 -
+                  3.5208f0 * rshag^5 + 0.011797f0 * rshag^7
+            spa = clamp(spa, 2608f0, 30125f0) * asbar / 198f0
+            prem = (prem / (astpar * 2f0)) * spa
+        end
         prem = ne ? essprt_ne(issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
         prem < 0.001f0 && continue                     # esuckr.f:170/244
         si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)

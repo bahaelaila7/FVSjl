@@ -492,3 +492,23 @@ end
         @test [parse(Int, row[i]) for i in 9:10] == [3380, 3201]              # TCuFt MCuFt
     end
 end
+
+# NE aspen (sp49) suckering (broadening) — an aspen-dominated stand heavily thinned (THINBBA 2010 resid-BA 30)
+# ⇒ the cut quaking aspen sucker prolifically via the ESASID(NE)=49 → ASSPTN Crouch-polynomial model (sucker
+# TPA ∝ cut-aspen BA/TPA). LIVE-VALIDATED: post-thin 2020 BIT-EXACT incl. the dramatic sucker count (146→740).
+@testset "NE aspen (sp49) suckering — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "aspen.key")
+    if !isfile(key)
+        @test_skip "aspen fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        row = nothing
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 7 && p[1] == "2020" && (row = p; break)
+        end
+        @test row !== nothing
+        # live FVSne 2020 (post-thin, aspen suckers): TREES 740 BA 41 SDI 80 CCF 87 TopHt 56
+        @test [parse(Int, row[i]) for i in 3:7] == [740, 41, 80, 87, 56]
+    end
+end
