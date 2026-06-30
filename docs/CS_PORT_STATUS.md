@@ -218,3 +218,24 @@ WK3 backdating basis, or the SN affine bark vs CS constant BKRAT). NEXT: instrum
 growth! to dump per-tree (WK3, TERM, WK2) and match live (I=4 HI: WK3≈7.255, TERM=8.4564, WK2=2.066,
 RESLOG=0.069); fix the CS bark/backdate path. (Alternative path: proceed to chunk 4 height/mortality to
 get the full cycle-1 .sum, then revisit — but the wrong-sign RESLOG will bias cycle-1 DG, so fix first.)
+
+#### ★ CORRECTION — calibration + model are BIT-EXACT; the prior "2x wrong" was THREE misreads
+Instrumented cs_dgf! (during calibration) and the calibration TERM directly. Findings:
+1. cs_dgf! backdated WK2 matches live DGF stamp EXACTLY: i=3 d4.027 DDS 1.5808, i=4 d7.255 DDS
+   2.0657, i=5 d7.247 DDS 2.0641 (== live 1.58079/2.066/2.064).
+2. The calibration RESLOG matches live BIT-EXACT. jl per-tree RESLOG 0.0692/0.231/0.5931 ACCUMULATE
+   to 0.0692/0.300/0.893 = live's CUM.DEV column. The earlier "wrong-direction RESLOG" was comparing
+   jl's PER-TREE residual against live's CUMULATIVE-deviation column — a misread, not a bug.
+3. The t.old_random values (0.146/−0.17/−0.95) are the BACHLO draws for the UNCALIBRATED sp19 (4<5
+   trees), exactly as FVS does it (OLDRN=RESLOG only when DGSD≥1; else BACHLO) — not residuals.
+4. The live "CURR DIAM INCR" = 2.3 I'd chased is the MEASURED INPUT echoed in the inventory treelist,
+   NOT the cycle-1 projection. The live 2000 treelist shows the d6.5 HI tree TRIPLED: central DBH 7.2
+   (projected DG 0.7), upper 8.2, lower 6.8. With proper tripling=true, jl's central DG = 0.654 vs
+   live 0.7 (~7%); my earlier 1.26 used tripling=FALSE, which wrongly applies OLDRN to the lone record.
+VERDICT: the CS DG MODEL + CALIBRATION are bit-exact. The only residual is a ~7% gap on the tripled
+central DG (0.654 vs 0.7) = the DGSCOR serial-correlation / tripling-split detail (shared code; the
+CS bark-converted WK2 may interact with the central-vs-triple OLDRN partition). NEXT: trace DGSCOR for
+the central record vs a live growth-mode stamp, OR proceed to chunk 4 (height/mortality/crown) and
+validate the full cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9), where the small
+DG residual surfaces aggregately. The earlier "halved-scale", "wrong-coefficient", "wrong-direction
+RESLOG", and "2x-low DG" diagnoses are all SUPERSEDED — model+calibration verified correct.
