@@ -41,13 +41,15 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   cs_dgf! + cs_dgcons! + dg_coeffs.csv). Remaining DG residual = the DGSCOR serial-correlation /
   tripling step (live tripled-mean DG 0.89 vs jl central 0.654 — the OLDRN/FRM partition for
   uncalibrated species); best validated aggregately via the cycle-1 .sum. See docs/CS_PORT_STATUS.md.
-- **CHUNK 4 (part 1) — height growth DONE** (cs/htgf.f: NC-128 HTCALC IVAR=2 via MAPCS + shared
-  LTBHEC, + cs_balmod B1/B2/B3, + GMOD/RELHTA/OLDRN). height_growth!(::CentralStates) loads/runs.
-- **NEXT — chunk 4 rest:** `small_tree_growth!(::CentralStates)` (cs/regent.f — REGENT, the grow_cycle!
-  blocker at d<5); verify the GENERIC `mortality!` works for CS (varmrt_varadj is in the CSV; cs/varmrt.f
-  DIFFERS from NE — re-check); crown_ratio_update! already serves CS (Union). Then run full grow_cycle!
-  and validate the cycle-1 .sum (2000: TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9) — the aggregate
-  where the DG DGSCOR residual + HTG/mortality all surface. Then the cyc0 FORTYP field is already 503.
+- **CHUNK 4 DONE — full growth spine + CYCLE-1 BIT-EXACT.** Height growth (cs/htgf.f NC-128/MAPCS +
+  cs_balmod), small-tree (cs/regent.f REGENT, XMIN=3, cs_balmod), mortality (generic + CS background
+  PMSC/PMD via IMAPCS + varmrt Union). grow_cycle!(CentralStates) runs end-to-end; cst01 cycle-1 ALL
+  SIX stand columns BIT-EXACT vs live (TPA 518/BA 99/SDI 196/CCF 202/TopHt 68/QMD 5.9; test_cst01.jl
+  cyc1 6/6). KEY FIX: the DG-calibration GST DBH floor is CS=5 (cs/dgdriv.f:380), not SN/NE's 3 —
+  jl was over-calibrating WO (debug-stamped live FN<5 ⇒ COR=0 for all CS species).
+- **NEXT:** multi-cycle (cyc2-10) .sum validation; the .sum growth columns (period/accretion/mortality);
+  then cst01_method5 (thinning) + a .sum regression test vs a freshly-relinked live binary. Cyc0 FORTYP
+  already 503. CS-active shared branches + FFE (fire/cs/) remain (chunk 5).
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)

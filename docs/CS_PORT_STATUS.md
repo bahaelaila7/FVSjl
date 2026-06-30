@@ -367,3 +367,17 @@ the DG over-grow, exactly as localized. The debug-stamp method (CONSPP/WCI/FN du
 live binary) was decisive — eyeballed comparisons had repeatedly misled.
 NEXT: multi-cycle (cyc2+) validation + the .sum growth columns (period/accretion/mortality) + cst01
 the full multi-cycle .sum, then cst01_method5 (thinning) and a regression test vs a fresh live .sum.
+
+#### Multi-cycle: cyc1+cyc2 BIT-EXACT; small accumulating drift cyc3+ (next residual)
+After the GST-floor fix, looping grow_cycle! and comparing each cycle's stand columns to live:
+- 2000 (cyc1): 518/99/196/202/68/5.9 — BIT-EXACT ✓
+- 2010 (cyc2): 476/122/231/234/70/6.9 — BIT-EXACT ✓
+- 2020 (cyc3): jl 439/145/264/265/75/7.8 vs live 440/.../264/264/.../7.8 — TPA −1, CCF +1
+- 2030 (cyc4): jl 308/.../254/.../9.4 vs 310/.../255/.../9.3 — TPA −2, SDI −1, QMD +0.1
+- 2050 (cyc6): jl 176/.../226/221/87/12.2 vs 179/.../227/223/86/12.1 — TPA −3, CCF −2, TopHt +1
+Small (~1%) drift accumulates from cyc3. Likely the uncalibrated-species DGSCOR central-FRM bias
+(cyc1 per-tree wmean was −0.04..−0.12 LOW) compounding + the RNG/BACHLO stream over cycles. The full
+multi-cycle .sum via run_keyfile additionally needs CS FFE data (:v2t / fire_species_props.csv — the
+snag seeding is FFE-gated and cst01's input dead records activate it) = chunk 5. NEXT: trace the cyc3+
+drift (per-cycle DG/mortality vs live treelist at 2010/2020 with the tree_id↔TREE NUMBER mapping that
+worked) — the DGSCOR central FRM for uncalibrated species is the prime suspect; then CS FFE for the .sum.
