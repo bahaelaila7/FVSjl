@@ -74,3 +74,11 @@ crown_ratio.jl}` reusing the NE structure with CS coefficients (htgf/crown/varmr
 drive `cst01` **cycle-0**: TPA/BA/SDI/QMD/TopHt are geometric (validate first, honest — they don't read
 coefficients), then CCF via crown BCR, then volume via CS NVEL eq ids. CAUTION (re-trace discipline): a
 "reuses NE" label is a hint — verify each CS routine's source for a CS-specific coefficient/branch.
+
+### Re-trace verdict — CS site model is CS-SPECIFIC (do NOT reuse NE site_index)
+`cs/sitset.f` converts site index via a per-species LINEAR model: `SITEAR(j) = -ASITE(j)/BSITE(j) +
+(1/BSITE(j))·SITEAR(isisp)`, default site species ISISP=47, default SI 65. This is DIFFERENT from NE's
+SICOEF 28×28 group-matrix (`site_group`) model — confirming the scope's `sitset` 23-48% flag. So
+`centralstates/site_index.jl` must be CS-specific (ASITE/BSITE), NOT a copy of `ne_site_index_setup!`.
+Extracted ASITE/BSITE (96, real) → `site_coef.csv`. The doctrine's re-trace discipline caught this:
+"reuses NE" was a wrong assumption for site. (Crown/htgf/varmrt remain NE-shaped per BCR/curve form.)
