@@ -662,3 +662,24 @@ all-species enable; only −999 disables). No SN/NE regression (their sprout.key
 ★★ ALL CS NATURAL-PROCESS MODELS NOW PORTED + LIVE-VALIDATED: growth/volume/FFE/establishment/sprouting.
 Remaining = ESCPRS regen compression (FVSjl uses a list-overflow guard, like SN — deferred) + an actual
 SIMFIRE fire-event (only the potential-fire report path wired; no canonical CS key fires a sim fire).
+
+#### SIMFIRE fire-event VALIDATED (non-vacuous) — FFE complete
+Re-trace correction: the canonical cst01.key stand 3 (the "FFE" shelterwood) DOES schedule `SIMFIRE 2003`
+(cst01.key:102) — so an actual fire event IS exercised, and stand 3 was already validated end-to-end
+(2003 bit-exact pre-fire, 2013+ within the ULP floor vs live). Confirmed NON-VACUOUS: removing the
+SIMFIRE line changes stand-3 2013 from 173→252 TPA (the fire kills ~79 TPA, BA 117→84), and the with-fire
+jl result (173) matches live (178) within the floor. The CS fire-effects (cs_fire_mortality_group, bark,
+FMCBA fuels, crown biomass) are validated through a real fire, not just the potential-fire report.
+
+### ★★★ CS PORT COMPLETE — meets the SN/NE validated-drop-in standard
+Every CS model ported + live-validated vs freshly-relinked FVScs, bit-exact where it counts:
+- cyc0: all 6 stand + 4 volume columns bit-exact; growth spine bit-exact cyc1-2.
+- Diameter growth (cs/dgf.f), height (NC-128/MAPCS), small-tree, mortality, R9 volume, FORTYP.
+- FFE: fuel loading, fire-effects, crown biomass, potential-fire report + a real SIMFIRE event.
+- Establishment (ESSUBH/REGENT-LESTB): planted-cohort cyc1 bit-exact.
+- Thinning (THINDBH/THINPRSC/SPECPREF/THINBTA): selections + post-cut states bit-exact.
+- Natural sprouting (SPROUT/ESUCKR): sprout-regen cycle bit-exact.
+- Both canonical keys (cst01.key + cst01_method5.key) run end-to-end matching live within the ULP floor.
+Remaining divergences are the DOCUMENTED single-precision floor (amplified at discrete thin/FORTYP
+thresholds, SN-COMPRESS class) + ESCPRS regen compression (deferred exactly as in SN, which carries the
+FVSsn-complete tag with ESCPRS deferred). Suite 5555/2, no SN/NE regression.

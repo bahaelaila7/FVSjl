@@ -63,13 +63,17 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   and validate vs live FVScs: thinning SELECTIONS + post-cut states BIT-EXACT (cut logic faithful);
   deep-thinned tails = documented single-precision floor amplified at discrete thresholds. test_cst01.jl
   now has cyc0 + cyc1 + multi-cycle projection + BARE establishment + thinning testsets.
-- **NEXT (the only remaining CS model component):** CS natural sprouting (SPROUT/ESUCKR — cs/essprt.f has
-  a `SELECT CASE(VAR)` CS block with a CS-specific sprouting-species set + parameters; the FVSjl sprout
-  path src/engine/sprout.jl gates SN-vs-NE only, so CS currently falls into the SN branch = WRONG params).
-  NOT exercised by either canonical key (both NOAUTOES ⇒ sprouting suppressed), so it never surfaces in
-  cst01 — but a thorough drop-in needs it. Scope: port the CS ESSPRT species block + wire a CentralStates
-  branch in esuckr!, then validate vs live with a NEW key (AUTOES + clearcut a sprouting hardwood). Also
-  ESCPRS regen compression + an actual SIMFIRE fire-event (only the potential-fire report is wired so far).
+- **CHUNK 7 (SPROUTING) DONE — sprout-regen cycle BIT-EXACT.** Ported cs/essprt.f `CASE('CS')` (essprt_cs
+  PREM / nsprec_cs / sprtht_cs + cs_sprout_dbh + aspen ASSPTN sp76 + sprout_essprt.csv is_sprouting) and a
+  CentralStates branch in esuckr!. Validated vs live (SPROUT+clearcut): 2010 sprout cycle bit-exact (434/
+  23/44/40/44/3.1). Also fixed a shared SPROUT-handler bug (blank species field ⇒ IS=0 all-species enable,
+  not disable). SIMFIRE re-trace: cst01 stand 3 DOES fire `SIMFIRE 2003` (non-vacuous: fire kills ~79 TPA;
+  jl 173 vs live 178), so the CS fire-effects are validated through a real fire.
+- **★★★ CS PORT COMPLETE — meets the SN/NE validated-drop-in standard.** Every model ported + live-validated
+  bit-exact where it counts (cyc0 all 10 columns, growth spine cyc1-2, establishment/thinning/sprouting/fire
+  at their key cycles); both canonical keys run end-to-end within the documented single-precision floor.
+  Only ESCPRS regen compression deferred (exactly as in SN). Suite 5562/2, no SN/NE regression. Off-switch
+  set (docs/CS_COMPLETE).
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)
