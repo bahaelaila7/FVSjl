@@ -86,7 +86,7 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # NE GRINIT default cycle length (ne/grinit.f:172 FINT=10, vs SN=5). Set before keyword
     # processing so TIMEINT/NUMCYCLE-period still overrides. `control.year` is the per-cycle
     # length build_cycle_schedule!/grow drive on; SN keeps its 5 default (bit-exact).
-    s.variant isa Northeast && (s.control.year = 10f0)
+    (s.variant isa Northeast || s.variant isa CentralStates) && (s.control.year = 10f0)
     reason = process_keywords!(s, kr, base_path)
     finalize_design!(s)                            # INITRE end: PI:=IPTINV, GROSPC
     site_setup!(s, s.variant)                      # SITSET: fan site index to all species (variant-specific)

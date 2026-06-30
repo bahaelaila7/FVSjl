@@ -11,7 +11,10 @@
 # the 1/10/95 bounds are the SAME structure as SN's CROWN.
 # =============================================================================
 
-function crown_ratio_update!(s::StandState, ::Northeast; fint::Float32 = 10f0,
+# CS shares NE's TWIGS crown model (cs/crown.f ≡ ne/crown.f modulo the BCR4 sign, which CS
+# data folds in as a negated `crown_bcr4` so the same `exp(bcr4·d)` kernel reproduces CS's
+# `exp(-BCR4·d)`). One method serves both eastern variants.
+function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates}; fint::Float32 = 10f0,
                              crown_sdi::Float32 = -1f0, relden_override::Float32 = -1f0,
                              lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n

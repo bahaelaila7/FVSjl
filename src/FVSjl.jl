@@ -47,6 +47,10 @@ include("variants/southern/small_tree_growth.jl")
 include("variants/southern/crown_ratio.jl")
 include("variants/southern/mortality.jl")
 
+# CS singleton is registered BEFORE the NE methods because NE's shared TWIGS crown method
+# dispatches on `Union{Northeast,CentralStates}` (CS reuses it). The CS *methods* land after.
+include("variants/centralstates/centralstates.jl")  # CS singleton + registration (MAXSP 96)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -57,8 +61,11 @@ include("variants/northeast/mortality.jl")          # NE VARMRT efficiency (rela
 include("variants/northeast/crown_ratio.jl")        # NE crown ratio (TWIGS BA-based model)
 include("variants/northeast/small_tree_growth.jl")  # NE small-tree growth (REGENT, dbh<5)
 
-# --- centralstates (CS) — variant skeleton; equations/data land chunk by chunk (docs/CS_GOAL.md)
-include("variants/centralstates/centralstates.jl")  # CS singleton + registration (MAXSP 96)
+# --- centralstates (CS) methods (singleton already registered above, before NE) -------------
+include("variants/centralstates/species.jl")        # CS blkdat init (codes/RNG/YR=10/Zeide SDI)
+include("variants/centralstates/site_index.jl")     # CS SITSET (per-species ASITE/BSITE linear)
+# CS HT-DBH rides the Southern Curtis-Arney+Wykoff path (cs/htdbh.f ≡ sn/htdbh.f); CS crown
+# rides NE's TWIGS method (see northeast/crown_ratio.jl) — both are coefficient-driven, no CS code.
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
