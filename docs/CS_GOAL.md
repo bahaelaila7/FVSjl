@@ -54,10 +54,22 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   stand columns BIT-EXACT** (1990/2000/2010), **cyc3-10 within the Float32 ULP floor** (TPA ±1-3, SDI ±1,
   QMD ±0.1, vol ≤1.5%; one FORTYP 503→801 flip-timing diff = accepted SN-COMPRESS class). test_cst01.jl
   +54 assertions (79 CS total). Suite 5416/2, no SN/NE regression. See docs/CS_PORT_STATUS.md.
-- **NEXT:** full multi-STAND run_keyfile needs CS establishment (ESSUBH ht_curve_b* — the BARE-GROUND-PLANT
-  stand) + the THINDBH/shelterwood prescription stands (cst01 stands 2-3 + cst01_method5). The primary
-  projection stand is fully validated. FFE fire-EVENT behavior (an actual SIMFIRE) not yet exercised by
-  cst01 — only the potential-fire report path is wired.
+- **CHUNK 6 (ESTABLISHMENT) DONE — BARE-GROUND-PLANT stand cyc1 BIT-EXACT.** CS estab follows the NE
+  pattern (ESSUBH base height → REGENT-LESTB creation-cycle growth), NOT SN's. _CS_ESSUBH_REFAGE +
+  _CS_ES_HHTMAX + cs_htcalc_height + CS LESTB growth branch. Re-trace caught a real bug (the
+  cs/regent.f:341 +0.001·hk add I'd first omitted) ⇒ 2002 bit-exact (was BA 9/8).
+- **BOTH CANONICAL KEYS VALIDATED END-TO-END (suite 5555/2).** cst01.key (5 stands: projection, THINDBH,
+  THINPRSC shelterwood, SPECPREF/THINBTA+Econ, BARE-PLANT) + cst01_method5.key run through run_keyfile
+  and validate vs live FVScs: thinning SELECTIONS + post-cut states BIT-EXACT (cut logic faithful);
+  deep-thinned tails = documented single-precision floor amplified at discrete thresholds. test_cst01.jl
+  now has cyc0 + cyc1 + multi-cycle projection + BARE establishment + thinning testsets.
+- **NEXT (the only remaining CS model component):** CS natural sprouting (SPROUT/ESUCKR — cs/essprt.f has
+  a `SELECT CASE(VAR)` CS block with a CS-specific sprouting-species set + parameters; the FVSjl sprout
+  path src/engine/sprout.jl gates SN-vs-NE only, so CS currently falls into the SN branch = WRONG params).
+  NOT exercised by either canonical key (both NOAUTOES ⇒ sprouting suppressed), so it never surfaces in
+  cst01 — but a thorough drop-in needs it. Scope: port the CS ESSPRT species block + wire a CentralStates
+  branch in esuckr!, then validate vs live with a NEW key (AUTOES + clearcut a sprouting hardwood). Also
+  ESCPRS regen compression + an actual SIMFIRE fire-event (only the potential-fire report is wired so far).
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)
