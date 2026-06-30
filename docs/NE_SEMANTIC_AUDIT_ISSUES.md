@@ -337,3 +337,16 @@ residual — consistent across BF/WS (net01) and the diverse set. FOLLOW-UP: re-
 first-cycle HT increment per species (the ~3% HT / ~7% DBH deficit) vs live — possibly the base-height/age or
 the half-cycle scale interaction; prior net01 analysis concluded floor-level but the diverse set shows it is
 species-dependent (above the BF/WS floor).
+
+
+## Establishment residual LOCALIZED to the ESSUBH base height (not the increment)
+RM (sp26) analytical trace: ESSUBH HHT=(HTCALC(CARAGE)/CARAGE)·min(5,TIME−DELAY) (essubh.f:41-43). jl
+ne_htcalc_height(26, si=71.46, CARAGE=20)=33.78 ⇒ base=(33.78/20)·5=8.45, but live implies H≈36.4 ⇒ base≈9.1
+(.trl RM @2002: HT 17.6 − HT-INCR 8.5). The PHASE-2 INCREMENT MATCHES (jl ne_htcalc_incr(age(base))·0.5=8.55 vs
+live ~8.5). So jl's established RM is 0.6 ft short ENTIRELY from the base height. jl per-species site indices
+vary correctly (SICOEF applied: sp1=67.46…sp9=80.46…sp26=71.46) and the stand CONVERGES by 2022 (regular growth
+using the SAME ne_htcalc is right) ⇒ ESTABLISHMENT-SPECIFIC: ne_htcalc_height at the ESSUBH ref-age (20) for RM
+is ~7% below what live HTCALC returns, despite LTBHEC/MAPNE being audited bit-exact. SUSPECT: ESSUBH passes
+SITEAR(IPNSPE) to HTCALC MODE0 — maybe a different SI than jl's sp_site_index, or a HTCALC-mode detail diff at
+that age. DEFINITIVE FOLLOW-UP: instrument live essubh.f to dump SI + H@CARAGE for RM, diff vs jl
+ne_htcalc_height(26,SI,20). Small (0.6 ft), converging — the last NE residual.
