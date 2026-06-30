@@ -19,7 +19,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (REGDMULT/MORTMULT/REGHMULT/BAIMULT) | growth | large | ⬜ NEW |
 | D9 | Mid-cycle SIMFIRE timing (s10_fire, fire_repeat) | fire | TPA huge | ⬜ NEW (verify) |
-| D10 | bare_* regen volume (Scuft) | regen | ~50% Scuft | ⬜ NEW |
+| D10 | regen-cohort small-tree growth (saw amplified) | growth/regen | ~3% DBH→51% Scuft | 🔬 characterized |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -68,6 +68,19 @@ max(dob17, dib17)`. The :507 floor is a no-op for every other species (proven: a
 live). Suite 6234/2. (snt01 stand-5 BARE residual that remains = D10 regen volume, separate.)
 
 ## Verdict log
+
+### D10 — regen-cohort small-tree growth (saw-cubic amplified) — 🔬 CHARACTERIZED
+bare_natural (NATURAL regen, loblolly sp13 + sp3, NOTREES/NOTRIPLE). Sweep flagged Scuft ~50%. Traced:
+NOT extraction (all_LP homogeneous loblolly is bit-exact post-D7). The regen cohort TPA is BIT-EXACT
+through 2017 (25 yrs: 800/781/763/745/727) then drifts (2022 684/685, 2027 643/645). By 2027 the per-tree
+DBH distribution diverges ~0.2-0.5″ (live sorted 11.4/10.9/10.5/10.5/9.9… vs jl 10.9/10.7/10.5/10.5/10.1…
+— ~3% on individual trees, MORE than ULP). BA/Tcuft near-exact (158/159, 0.6%), Mcuft 1.5%, **Scuft
+391/590 (51%)** — the escalation BA<Tcuft<Mcuft<Scuft is a ~3% DBH/HT regen-growth diff AMPLIFIED in the
+hyper-sensitive sawtimber-cubic (trees just crossing the saw threshold; small saw portion). So D10 is a
+real regen small-tree/transition GROWTH divergence (the cohort grows bit-exact 25 yr then diverges ~3% by
+35 yr), exposed by the saw metric — NOT a volume bug. NEXT: per-cycle per-tree DBH/HT trace of the regen
+cohort 2017→2027 (where it first diverges) vs a live treelist; likely the REGENT→large-tree growth
+transition or the small-tree HT growth of the regen cohort. (Same class likely drives net01 BARE Mcuft 4%.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
