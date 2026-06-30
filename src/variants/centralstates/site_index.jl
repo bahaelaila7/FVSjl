@@ -60,6 +60,39 @@ function cs_site_index_setup!(s::StandState)
     return s
 end
 
+# CS forest codes (cs/forkod.f JFOR) → IFOR index, and per-IFOR default lat/long/elev.
+const _CS_JFOR = Int32[905, 908, 912, 911]              # Mark Twain, Shawnee, Hoosier, Wayne-Hoosier
+const _CS_FOR_DEFAULTS = Dict(                           # forkod.f:173-186 (IFOR 4 shares IFOR 3)
+    1 => (37.95f0, 91.77f0, 10f0),
+    2 => (37.74f0, 88.54f0,  4f0),
+    3 => (38.86f0, 86.49f0,  6f0),
+)
+
+"""
+    cs_forkod_defaults!(s)
+
+FORKOD (cs/forkod.f): map the user forest code to a CS forest index (`IFOR`) via `JFOR`,
+remap Wayne-Hoosier (IFOR 4 → Hoosier 3), then set the default TLAT/TLONG/ELEV for that
+forest when the stand has none (needed by the crown-width CCF Hopkins index). An
+unrecognized/absent code keeps the grinit default `IFOR=1` (Mark Twain — 37.95/91.77/10).
+Tribal pseudo-codes also map to IFOR=1, identical to the default fallthrough.
+"""
+function cs_forkod_defaults!(s::StandState)
+    p = s.plot
+    code = Int32(p.user_forest_code)
+    ifor = 1                                              # cs/grinit.f:186 default
+    idx = findfirst(==(code), _CS_JFOR)
+    idx !== nothing && (ifor = idx)
+    ifor == 4 && (ifor = 3)                               # Wayne-Hoosier (911) → Hoosier (912)
+    lat0, long0, elev0 = _CS_FOR_DEFAULTS[ifor]
+    p.latitude  == 0f0 && (p.latitude  = lat0)
+    p.longitude == 0f0 && (p.longitude = long0)
+    p.elevation == 0f0 && (p.elevation = elev0)
+    p.forest_idx = Int32(ifor)
+    return s
+end
+
 function site_setup!(s::StandState, ::CentralStates)
+    cs_forkod_defaults!(s)
     cs_site_index_setup!(s)
 end

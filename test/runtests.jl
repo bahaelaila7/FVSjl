@@ -30,6 +30,7 @@ using FVSjl
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")
 include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
+include("integration/test_cst01.jl")   # CS: cst01 cycle-0 stand columns bit-exact (GROSPC<1 path)
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)

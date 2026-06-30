@@ -103,3 +103,25 @@ Real CS species data complete for cycle-0: roster, bark, dg_resid_sd, estab(hhtm
 crown BCR1-4, site(ASITE/BSITE + sdi_max), varadj. Remaining (cycle-1+ only): mort_bkgd, regent_min_diam,
 dbh_min(=5.0). NEXT: assemble species_coefficients.csv + centralstates/{species.jl, site_index.jl (CS
 ASITE/BSITE), crown_ratio.jl (NE-shape + CS BCR)} → cst01 cycle-0.
+
+### CHUNK 1 COMPLETE — cst01 cycle-0 ALL 6 stand columns BIT-EXACT vs live FVScs
+TPA=536, BA=77, SDI=160, CCF=169, TopHt=63, QMD=5.1 (test/integration/test_cst01.jl;
+suite 5399/2, no SN/NE regression). What landed:
+- CS variant hooks: species.jl (blkdat init), site_index.jl (ASITE/BSITE SITSET + CS
+  FORKOD lat/long/elev by IFOR). CS HT-DBH reuses the Southern Curtis-Arney+Wykoff dub
+  (cs/htdbh.f ≡ sn/htdbh.f logic); CS crown reuses NE's TWIGS method (negated BCR4 in data).
+- CS crown-width: cs/cwcalc.f is BYTE-IDENTICAL to ne/cwcalc.f (selects on the 2-char alpha,
+  not species index) ⇒ CS reuses NE's crown_width_{equations,species}.csv verbatim. 92/96 CS
+  alphas covered; the 4 gaps (3 blank pads + 'BW') are inert for cst01.
+- SHARED BUG SURFACED (doctrine #3): the .sum ÷GROSPC scale-back (disply.f) — internal stats
+  are per-stockable-acre, the .sum reports per-gross = stockable·GROSPC. FVSjl's summary_row
+  ALREADY divides by gross_space, so it was correct; the apparent 10% gap was me comparing the
+  internal per-stockable value (590) against the per-gross .sum target (536). GROSPC<1 is the
+  first stand to exercise this (SN/NE test stands are GROSPC=1.0). Confirmed via the live .out
+  'BASED ON STOCKABLE AREA' table = FVSjl's internal 590/85/63.4.
+- Hopkins index needs lat/long ⇒ CS FORKOD (forest 905 → IFOR 1 → 37.95/91.77/10). Without it
+  CCF read 143; with it, 169 exact.
+
+NEXT (chunk 2): CS volume — wire CS NVEL equation ids into the R9 Clark + R9LOGS path so the
+cyc0 .sum volume columns (Tcuft/Mcuft/Bdft 1517/1300/497...) and forest-type (503) come in.
+Then chunk 3: cs/dgf.f (the one genuinely-new SN-family CS DG model) for cycle-1.
