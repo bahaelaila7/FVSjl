@@ -16,6 +16,36 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ⬜ |
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ⬜ |
 | D6 | CS ESCPRS regen-compression not ported | regen | feature gap | ⬜ |
+| D7 | Per-species merch/saw/board volume standards (GA/PC/BY…) | volume | cyc0 ~28% Bdft | 🔬 NEW |
+| D8 | Multiplier keywords (REGDMULT/MORTMULT/REGHMULT/BAIMULT) | growth | large | ⬜ NEW |
+| D9 | Mid-cycle SIMFIRE timing (s10_fire, fire_repeat) | fire | TPA huge | ⬜ NEW (verify) |
+| D10 | bare_* regen volume (Scuft) | regen | ~50% Scuft | ⬜ NEW |
+
+## Discovery tool — `test/harness/divergence_sweep.jl`
+The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
+live binary ({sn,ne,cs}_oracle.sh) + jl `run_keyfile`, aligns by (stand, year), and ranks scenarios by
+max NON-ULP relative diff (skips ≤1 print unit AND ≤0.2%). `julia --project=. test/harness/
+divergence_sweep.jl sn`. SN run = 260 stands; the live-vs-jl inventory below is its output.
+
+### SN sweep inventory (2026, ranked) — triaged
+- **Real, cycle-0 (deterministic) → D7:** all_PC/GA/BY/GA Bdft@1990 10-35% — Tcuft bit-exact but
+  Merch/Saw/Board off ⇒ per-species merchandising standard (top-dia / min-DBH) wrong for these species.
+  (all-species test gap: it asserts stand cols but NOT volume — extend it.)
+- **Real, growth → D2/D8:** growth_fint10 1.24% (FINT), timeint10 1.96% (non-native cycle), mult_*
+  (REGDMULT/MORTMULT/REGHMULT/BAIMULT) large — multiplier-keyword application.
+- **Real, regen → D10:** bare_natural/plant/multipoint/mp3 Scuft ~50% — regen small-tree volume.
+- **Fire — verify D9:** s10_fire 789% / fire_repeat 288% TPA (mid-cycle SIMFIRE timing?); fire_burn/early
+  4.38% Bdft (documented post-fire DG residual); fuelmodl/defulmod/salvage few-%.
+- **Carbon scenarios:** carbon_* Scuft jl=0.0 @2005 — likely a .sum-structure/Volume-keyword artifact
+  (the CARBON REPORT itself is validated bit-exact); verify not a real model diff.
+- **Known/accepted:** compress (s22 eigensolver — but 50% needs a recheck vs the accepted ~1%),
+  treeszcp_cap/htcap (declining-stand), dense_long/s09_cyc20 0.76% (long-run ULP).
+
+### D7 — per-species merch/saw/board volume standard — 🔬 evidence
+all_GA (homogeneous green ash) cyc0: TPA/BA/SDI/Tcuft BIT-EXACT, but Mcuft live 900/jl 977, Scuft 47/60,
+Bdft 174/223 (~28%). Total cubic exact ⇒ the merchandising cut (merch top diameter / min DBH / stump)
+for GA (and PC, BY) differs from live. Next: compare jl `init_merch_standards!` per-species topd/dbhmin
+vs the SN volume-standard source for these species.
 
 ## Verdict log
 
