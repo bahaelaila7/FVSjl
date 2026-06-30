@@ -70,5 +70,14 @@ end
         @test di(FVSjl.stand_ccf(s) / g)        == 202
         @test di(FVSjl.stand_top_height(s))     == 68
         @test round(FVSjl.stand_qmd(s); digits = 1) == 5.9f0
+
+        # cycle-1 grown-stand volume (live 2000: Tcuft 2110 / Mcuft 1887 / Scuft 886 / Bdft 5084).
+        # Tcuft + Scuft are bit-exact; Mcuft/Bdft land within 1 unit (~0.05% grown-stand rounding floor).
+        FVSjl.compute_volumes!(s)
+        v = FVSjl.summary_row(s; period = 0)
+        @test v.cuft  == 2110
+        @test v.scuft == 886
+        @test abs(v.mcuft - 1887) <= 1
+        @test abs(v.bdft  - 5084) <= 1
     end
 end

@@ -403,3 +403,11 @@ bit-exact, so the mortality is correct early; the drift is a per-cycle accumulat
 2010→2020 step (first divergence) — dump jl per-record mortality (mort_pa) vs a live morts.f XKILL
 debug-stamp (the proven method), and check the BACHLO RNG draw count per cycle vs live; rule out
 background (RI total) vs density (tn10/rn) by component. The DG is exonerated for this residual.
+
+#### cyc1 VOLUME also bit-exact (barring 1-unit ULP) — cycle-1 fully validated end-to-end
+jl cyc1 (2000) volume: Tcuft 2110 == live 2110 ✓; Scuft 886 == 886 ✓; Mcuft 1886 vs 1887 (Δ1);
+Bdft 5083 vs 5084 (Δ1) — the ~0.05% grown-stand rounding floor (Tcuft/Scuft exact, Mcuft/Bdft ±1).
+So CYCLE-1 is BIT-EXACT end-to-end: all 6 stand columns + volume. test_cst01.jl cyc1 testset extended
+(Tcuft/Scuft ==, Mcuft/Bdft ≤1). cyc2 stand columns also bit-exact. Only the cyc3+ ~2% mortality/RNG
+drift remains (DG exonerated). This is the cleanest possible validation state short of the .sum
+regression (which needs CS FFE for run_keyfile, chunk 5).
