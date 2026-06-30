@@ -201,3 +201,20 @@ and DG=√(DSQ+DDS·FRM)−D. NEXT: instrument jl's calibrate_diameter_growth! t
 backdated WK2 and diff vs live (I=4 HI TERM=8.4564) — that isolates whether the gap is the measured
 DDS (TERM/WK3 backdating) or the backdated prediction WK2. The CS bark-in-dgf conversion (cs_dgf!
 bark-converts WK2, unlike SN) is the prime suspect for a WK2 mismatch the shared calibration assumes.
+
+#### DEFINITIVE diagnosis — calibration RESLOG goes the WRONG DIRECTION for CS (bark bookkeeping)
+Per-tree OLDRN (=RESLOG=ln(TERM)−WK2_backdated), HI sp19, jl vs live (live = DGDRIV CUM.DEV stamp):
+  measDG 0.6 (d7.9): jl +0.146  live +0.069
+  measDG 0.7 (d8.0): jl −0.170  live +0.300
+  measDG 1.2 (d8.2): jl −0.949  live +0.893
+Live RESLOG INCREASES with measured DG (a faster-grown tree ⇒ larger positive residual = model
+under-predicts). jl's DECREASES (even flips sign) ⇒ jl's TERM/WK3/WK2 bark bookkeeping is wrong for CS.
+Analytic check (both-sides): cs/dgf.f WK2 = ln((D·BR+DIAGRI)²−(D·BR)²) = ln(inside-bark DDS). For the
+matching residual, cs/dgdriv.f converts DG→DG_ib (line 329 DG=DG·BRATIO) THEN TERM=DG_ib·(2·BR·WK3+DG_ib)
+= BR²·(2·WK3·DG+DG²) = inside-bark measured DDS — same bark space as WK2. So the shared FVSjl calibration
+must, for CS: (1) convert measured DG to inside-bark via BKRAT, (2) TERM=DG_ib·(2·BR·WK3+DG_ib) with WK3 =
+OUTSIDE backdated dbh, BR=BKRAT. The wrong-direction RESLOG means one of these is off (double bark, wrong
+WK3 backdating basis, or the SN affine bark vs CS constant BKRAT). NEXT: instrument calibrate_diameter_
+growth! to dump per-tree (WK3, TERM, WK2) and match live (I=4 HI: WK3≈7.255, TERM=8.4564, WK2=2.066,
+RESLOG=0.069); fix the CS bark/backdate path. (Alternative path: proceed to chunk 4 height/mortality to
+get the full cycle-1 .sum, then revisit — but the wrong-sign RESLOG will bias cycle-1 DG, so fix first.)
