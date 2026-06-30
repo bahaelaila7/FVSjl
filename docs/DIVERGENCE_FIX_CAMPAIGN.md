@@ -11,7 +11,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | # | Divergence | Layer (upstream→down) | Magnitude vs live | Status |
 |---|---|---|---|---|
 | D1 | ~~LP-growth-calibration tail~~ | growth | — | ✅ NOT REAL (artifact) |
-| D2 | FINT≠5 / non-native cycle-length calibration (volume) | growth | ~0.4% cuft | 🔬 |
+| D2 | FINT≠5 calibration volume | growth | ~0.4% cuft | 🔬 localized (deferred, low-impact) |
 | D3 | Multi-point density (PCCF/TCONDMLT/structure-stage) | density | per-point approx | ⬜ |
 | D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ⬜ |
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ⬜ |
@@ -81,5 +81,16 @@ carve-out removed). LESSON: re-trace a "tail" through the actual production path
 growth_fint10 (GROWTH diameter-measurement FINT=10, SCALE=YR/FINT=0.5, dgdriv.f:325): TPA/SDI/TopHt
 bit-exact, BA ±1, but Tcuft 1995 live 2848 / jl 2835 (Δ13, 0.46%), 2000 live 3308 / jl 3295. Committed
 growth_fint10.sum.save MATCHES live ⇒ not stale; genuine. growth_idg1 (FINT=5) is fully bit-exact ⇒
-FINT-specific. Next: debug-stamp the live dgdriv FINT-scale path; BA-exact-but-cuft-off ⇒ sub-integer DBH
-diff, likely the DDS→DBH back-calc under SCALE=0.5.
+FINT-specific.
+
+**Localized (live debug-stamp).** growth_fint10 = 6 loblolly (sp 13), measured DG=1.5"/10yr. Per-tree:
+jl central tree-1 DBH 8.824 vs live 8.9 (jl grows ~0.08" LESS). Stamped live dgdriv COR(13)=0.547359 vs
+jl 0.552651 (~1% high). The calibration term flow is BIT-EXACT-identical both sides: live dgdriv.f:423
+TERM=DG*(2*BARK*WK3+DG)*SCALE == jl term=dg*(2*bark*wk3+dg)*scale, then RESLOG=log(TERM)-WK2 ->
+DEV/DEVSQ/SNX/SNY/SNXX/SNXY -> the regcor/WC*cornew formula (jl matches dgdriv:520-590). Both use
+SCALE=0.5. SCALE only shifts cornew by log(scale); WC depends nonlinearly on cornew^2 (temp). Since the
+FORMULA matches and FINT=5 is bit-exact, the residual ~1% must be a SCALE-DEPENDENT INPUT differing: most
+likely the DENSE density-backdating (BAL/PCCF at start-of-period, feeding WK2=DGF) using a 5-yr vs the
+FINT=10 period. NEXT: debug-stamp live WK2/EDDS + DEV/DEVSQ/SNY for sp13 vs jl (one stamp = input-vs-
+formula). LOW IMPACT (0.4% volume, non-default GROWTH FINT!=5; default FINT=5 bit-exact) — characterized,
+deferred behind higher-impact items.
