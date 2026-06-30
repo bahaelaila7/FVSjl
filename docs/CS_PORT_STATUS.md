@@ -411,3 +411,17 @@ So CYCLE-1 is BIT-EXACT end-to-end: all 6 stand columns + volume. test_cst01.jl 
 (Tcuft/Scuft ==, Mcuft/Bdft ≤1). cyc2 stand columns also bit-exact. Only the cyc3+ ~2% mortality/RNG
 drift remains (DG exonerated). This is the cleanest possible validation state short of the .sum
 regression (which needs CS FFE for run_keyfile, chunk 5).
+
+#### cyc3+ drift — DGSCOR variance/correlation params ALL match live; residual = BACHLO/RNG over cycles
+Live debug-stamp (cs/dgdriv.f:155-158) for the uncalibrated HI (sp19): SSIGMA=0.68908, RHOCP=0.97559,
+CORR=0.18082 (constant all cycles) — jl matches ssigma=0.68908 exactly (FM/FU/FL also verified =
+1.271/−0.14228/−1.549). So the tripling/DGSCOR variance, correlation, and multipliers are all CORRECT.
+Since CS calibrates NOTHING (post-GST-fix: FN<5 all species ⇒ COR=0), the per-tree OLDRN for measured/
+uncalibrated species is a BACHLO draw, and the cyc3+ drift is the BACHLO/RNG-stream alignment over
+cycles (records triple+compact each cycle; cyc1+cyc2 align bit-exact, cyc3+ desyncs ~2% by cyc6) — OR
+Float32 accumulation near the ULP floor. This is the classic "irreducible-RNG" last-mile the doctrine
+says to trace to ground (the SN/NE campaigns did, via RNG-stream alignment). RULED OUT this session for
+the drift: DG model, calibration (COR), GST floor, tripling FM/FU/FL, ssigma/rhocp/corr, SDImax/sp_sdi_def.
+NEXT: compare the BACHLO draw COUNT+ORDER per cycle jl vs a live RANN/BACHLO-call debug-stamp; check the
+per-cycle record tripling/compaction order matches FVS (the draw order is keyed on the species-sorted
+record chain). The MODEL is done — this is RNG bookkeeping.
