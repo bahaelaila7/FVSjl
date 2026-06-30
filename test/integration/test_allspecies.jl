@@ -47,7 +47,11 @@ function _assert_allspecies(jl_text::AbstractString, golden_path::AbstractString
         l, j = L[yr], J[yr]
         geti(v, i) = parse(Float64, v[i])
         if yr == cyc0                                   # inventory cycle: BIT-EXACT (coefficient rows)
-            for (i, name) in ((3,"TPA"),(4,"BA"),(5,"SDI"),(6,"CCF"),(7,"TopHt"),(8,"QMD"))
+            # stand columns + ALL FOUR VOLUME columns (Tcuft/Mcuft/Scuft/Bdft) — the cyc0 volume is
+            # bit-exact for every species here, so this guards the per-species merch/saw/board standards
+            # (the SN sweep found green-ash/cypress merch divergences; CS+NE all-species are clean).
+            for (i, name) in ((3,"TPA"),(4,"BA"),(5,"SDI"),(6,"CCF"),(7,"TopHt"),(8,"QMD"),
+                              (9,"Tcuft"),(10,"Mcuft"),(11,"Scuft"),(12,"Bdft"))
                 @test (label, name, yr, geti(j,i)) == (label, name, yr, geti(l,i))
             end
         else
@@ -64,6 +68,11 @@ function _assert_allspecies(jl_text::AbstractString, golden_path::AbstractString
             @test abs(geti(j,6) - geti(l,6)) <= max(4, 0.020*geti(l,6))  # CCF
             @test abs(geti(j,7) - geti(l,7)) <= 2                        # TopHt
             @test abs(geti(j,8) - geti(l,8)) <= 0.25                     # QMD
+            # volume — measured later-cycle floor (CS dense stand): Tcuft 0.54%, Mcuft 0.61%, Scuft 1.1%.
+            @test abs(geti(j,9)  - geti(l,9))  <= max(2, 0.012*geti(l,9))   # Tcuft
+            @test abs(geti(j,10) - geti(l,10)) <= max(2, 0.012*geti(l,10))  # Mcuft
+            @test abs(geti(j,11) - geti(l,11)) <= max(2, 0.018*geti(l,11))  # Scuft
+            @test abs(geti(j,12) - geti(l,12)) <= max(5, 0.018*geti(l,12))  # Bdft
         end
     end
 end

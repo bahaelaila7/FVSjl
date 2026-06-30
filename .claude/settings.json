@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/workspace/FVSjl/.claude/stop-cs.sh"
+            "command": "/workspace/FVSjl/.claude/stop-goal.sh"
           }
         ]
       }
