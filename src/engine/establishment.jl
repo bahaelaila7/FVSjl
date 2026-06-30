@@ -22,6 +22,17 @@ const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f)
 const _ES_HHTMAX = Float32[23.0,27.0,21.0,21.0,22.0,20.0,24.0,18.0,18.0,17.0,22.0,
     (20.0 for _ in 12:90)...]
 
+# NE HHTMAX: per-species MAX established height (ne/blkdat.f DATA HHTMAX/, 108 values). A HARD cap on the
+# grown establishment height (not the soft site-curve HTMAX) — e.g. YB(30)=22, WO(55)=16 are reached exactly
+# by live (all trees clamped). The SN _ES_HHTMAX above is wrong for NE (it uses a 20-ft fill for sp≥12).
+const _NE_ES_HHTMAX = Float32[
+    20,24,18,16,18,16,16,18,20,14, 14,16,16,16,16,16,16,16,14,14,
+    16,18,12,20,16,20,16,16,18,22, 20,18,18,18,14,14,14,14,18,14,
+    24,24,18,24,28,24,18,20,20,24, 24,20,20,26,16,14,12,12,16,16,
+    14,16,14,16,16,12,20,16,16,14, 16,12,12,12,12,12,12,18,20,12,
+    20,20,20,20,16,16,16,24,14,24, 32,18,16,16,16,16,12,10,16,18,
+    30,20,20,18,16,20,20,30]
+
 # NE ESSUBH per-species reference age CARAGE (essubh.f DATA MAPNE/, 108 values — DISTINCT from the htcalc
 # curve-index MAPNE). The planted base height is (NC-128 height at this age / this age) · min(5, TIME−DELAY).
 const _NE_ESSUBH_REFAGE = Int[
@@ -199,7 +210,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
                     htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
                 end
-                hk = h + htgr; t.height[i] = hk
+                hk = h + htgr
+                # DBH is derived from the UNCAPPED grown height (the HHTMAX clamp below only bounds the
+                # REPORTED height, not the diameter — live YB: dbh from the grown ~23.5 ⇒ 1.8, height clamped
+                # to HHTMAX 22). Computing dbh from the clamped height under-sized it (SDI/CCF dropped).
                 if hk <= 4.5f0                       # regent.f:290-293: DG=0, DBH=D+0.001·HK (no Wykoff inverse)
                     t.dbh[i] = t.dbh[i] + 0.001f0 * hk
                 else
@@ -207,6 +221,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
                     t.dbh[i] = dnew + 0.001f0 * hk
                 end
+                hk > _NE_ES_HHTMAX[sp] && (hk = _NE_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
+                t.height[i] = hk
             end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding

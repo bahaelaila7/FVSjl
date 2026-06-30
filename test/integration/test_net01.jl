@@ -558,19 +558,19 @@ end
             rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
         end
         @test rows[1992] == [0, 0, 0, 0, 0]                            # bare at plant year
-        # live FVSne. After the pre-establishment-BAL fix (GMOD=1, matching live's empty-stand competition),
-        # SDI/CCF now MATCH (was ~8% low). BA bit-close; TREES bit-exact early. The lone residual is now a
-        # small TopHt overshoot (the established trees run a touch tall for their dbh — a height↔dbh effect on
-        # tiny regen), converging by cyc-3. row = (year, TREES, BA, SDI, CCF, TopHt, tpa_tol, agg_tol, ht_tol)
-        for (yr, tr, ba, sdi, ccf, ht, tpa_tol, tol, ht_tol) in
-            ((2002, 800, 10, 40, 40, 22, 0, 2, 3), (2012, 786, 48, 136, 183, 40, 0, 4, 2),
-             (2022, 733, 97, 234, 317, 49, 3, 5, 1))
+        # live FVSne — BIT-EXACT after two establishment fixes: (1) pre-establishment BAL (GMOD=1, matching
+        # live's empty-stand competition) → SDI/CCF; (2) the hard HHTMAX clamp on the reported height with the
+        # DBH derived from the uncapped grown height → TopHt (YB/WO clamp to 22/16). 2002/2012 fully match;
+        # only a ±1 drift by 2022. row = (year, TREES, BA, SDI, CCF, TopHt, tpa_tol, ht_tol)
+        for (yr, tr, ba, sdi, ccf, ht, tpa_tol, ht_tol) in
+            ((2002, 800, 10, 40, 40, 22, 0, 0), (2012, 786, 48, 136, 183, 40, 0, 0),
+             (2022, 733, 97, 234, 317, 49, 2, 1))
             r = rows[yr]
-            @test abs(r[1] - tr) <= tpa_tol        # TREES — bit-exact early; late drift = the converging residual
-            @test abs(r[2] - ba) <= 2              # BA — bit-close (per-tree growth faithful)
-            @test abs(r[3] - sdi) <= tol           # SDI — now matches (pre-establishment-BAL fix)
-            @test abs(r[4] - ccf) <= tol           # CCF — now matches
-            @test abs(r[5] - ht) <= ht_tol         # TopHt — small converging overshoot (height↔dbh on regen)
+            @test abs(r[1] - tr) <= tpa_tol        # TREES — bit-exact (planting + mortality), ±1 by 2022
+            @test abs(r[2] - ba) <= 1              # BA — bit-exact
+            @test abs(r[3] - sdi) <= 1             # SDI — bit-exact (pre-establishment-BAL fix)
+            @test abs(r[4] - ccf) <= 1             # CCF — bit-exact
+            @test abs(r[5] - ht) <= ht_tol         # TopHt — bit-exact (HHTMAX clamp), ±1 by 2022
         end
     end
 end

@@ -397,3 +397,15 @@ establishment tests still pass (BF/WS unaffected to tolerance). LONE remaining: 
 height↔dbh effect on tiny regen (jl _htdbh_dbh gives slightly less dbh per height for small trees). Much smaller
 than the SDI/CCF deficit it replaced; converges by cyc-3 (49/49). ⇒ found via per-tree dbh-distribution dump
 (jl 1.123 vs live 1.174) — the doctrine's "trace to the per-tree quantity" caught the real bug the aggregate hid.
+
+
+## FIXED (8th bug) — NE establishment HHTMAX height clamp (+ dbh-from-uncapped) ⇒ diverse PLANT BIT-EXACT
+The TopHt overshoot the gmod fix unmasked was a REAL 2nd bug: NE caps the grown establishment height at HHTMAX
+(ne/blkdat.f DATA HHTMAX/, 108 vals) — a HARD per-species ceiling (YB(30)=22, WO(55)=16; live clamps all YB to
+22.00, all WO to 16.00 exactly). jl used the SN _ES_HHTMAX (20-ft fill for sp≥12) and only the soft site-curve
+cap ⇒ YB grew to 23.49. KEY detail: the DBH is derived from the UNCAPPED grown height, only the REPORTED height
+is clamped (live YB dbh 1.8 = Wykoff(~23.5), height 22) — clamping before the dbh under-sized it (SDI/CCF
+dropped to 36). FIX: added _NE_ES_HHTMAX (108 NE vals) + clamp hk to it AFTER computing dbh. RESULT: hardwood
+PLANT now BIT-EXACT — 2002 800/10/40/40/22 + 2012 786/48/136/183/40 all = live (±1 by 2022). ⇒ with the gmod
+fix (7th) this CLOSES the establishment cluster: diverse-species PLANT bit-exact. net01 BARE + all est tests
+pass. Found by dumping the per-species established HEIGHT (jl YB 23.49 vs live 22.00 exactly = a hard clamp).
