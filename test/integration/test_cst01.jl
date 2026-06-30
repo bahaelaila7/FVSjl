@@ -124,3 +124,61 @@ end
         end
     end
 end
+
+@testset "CS cst01 BARE-GROUND-PLANT establishment (vs live FVScs)" begin
+    # Stand 4 of cst01: NOTREES + ESTAB 1992 + PLANT (sp 3 shortleaf 400 TPA, sp 21 bitternut 400 TPA),
+    # 10×10yr cycles. Exercises the CS establishment path: ESSUBH base height (cs/essubh.f MAPCS refage +
+    # CS NC-128 forward curve) → REGENT(LESTB) creation-cycle growth (cs_balmod + CS htcalc increment,
+    # DIAM=htdbh_db floor, HHTMAX cap). Validated vs freshly-relinked live FVScs (captured 2026-06-30).
+    # Establishment draws BACHLO heights/crowns, so single-precision diffs in the height curve compound
+    # immediately ⇒ no bit-exact cycle, but every column tracks live within the documented ULP-class floor.
+    key = "/workspace/ForestVegetationSimulator/tests/FVScs/cst01.key"
+    barekey = joinpath(@__DIR__, "cst01_bare.key")
+    if !isfile(key)
+        @info "cst01.key not present; skipping CS BARE establishment test"
+    else
+        # Build the single-stand BARE key (lines 117-132 of cst01.key) next to the test.
+        lines = readlines(key)
+        open(barekey, "w") do io
+            for l in lines[117:132]; println(io, l); end
+        end
+        cp(joinpath(dirname(key), "cst01.tre"), joinpath(@__DIR__, "cst01.tre"); force = true)
+        cd(@__DIR__) do
+            sumtxt = FVSjl.run_keyfile(barekey; variant = CentralStates(), output = :sum)
+            # Live FVScs BARE .sum: Year => (TPA, BA, SDI, CCF, TopHt, QMD)
+            live = Dict(
+                2002 => (800,   9,  33,  22, 14, 1.4), 2012 => (787,  42, 121, 106, 32, 3.1),
+                2022 => (774, 101, 243, 244, 47, 4.9), 2032 => (533, 183, 358, 387, 58, 7.9),
+                2042 => (405, 207, 373, 422, 66, 9.7), 2052 => (311, 208, 354, 417, 71, 11.1),
+                2062 => (254, 208, 339, 405, 75, 12.2), 2072 => (216, 207, 327, 382, 79, 13.2),
+                2082 => (191, 206, 318, 358, 81, 14.0), 2092 => (167, 204, 307, 327, 83, 15.0))
+            rows = Dict{Int,NTuple{6,Float64}}()
+            for ln in split(sumtxt, '\n')
+                t = split(strip(ln))
+                (length(t) >= 8 && tryparse(Int, t[1]) !== nothing && t[1] != "-999") || continue
+                yr = parse(Int, t[1]); yr == 1992 && continue
+                rows[yr] = (parse(Float64,t[3]), parse(Float64,t[4]), parse(Float64,t[5]),
+                            parse(Float64,t[6]), parse(Float64,t[7]), parse(Float64,t[8]))
+            end
+            for (yr, L) in sort(collect(live))
+                @test haskey(rows, yr)
+                r = rows[yr]
+                if yr == 2002                       # establishment + first-cycle growth: BIT-EXACT all 6
+                    @test (r[1],r[2],r[3],r[4],r[5]) == (L[1],L[2],L[3],L[4],L[5])
+                    @test round(Float32(r[6]); digits=1) == Float32(L[6])
+                    continue
+                end
+                # 2012+: TPA stays bit-exact two cycles (count/mortality logic exact); the drift is SIZE-only
+                # single-precision accumulation in the small-tree growth spine (SDI/CCF/TopHt ±1/cyc, peaking
+                # 2072 — CCF amplifies crown-width via dbh). GROUNDED: not an establishment defect (2002 exact).
+                @test abs(r[1] - L[1]) <= 4        # TPA (bit-exact through 2012)
+                @test abs(r[2] - L[2]) <= 2        # BA
+                @test abs(r[3] - L[3]) <= 4        # SDI
+                @test abs(r[4] - L[4]) <= 10       # CCF (crown-width amplified, compounds most)
+                @test abs(r[5] - L[5]) <= 2        # TopHt
+                @test abs(r[6] - L[6]) <= 0.2      # QMD
+            end
+        end
+        rm(barekey; force = true); rm(joinpath(@__DIR__, "cst01.tre"); force = true)
+    end
+end

@@ -602,3 +602,22 @@ clean no-op on this non-fire stand (fmcba only feeds the potential-fire report).
 
 REMAINING for full multi-STAND run_keyfile: CS establishment (ESSUBH ht_curve_b* — the BARE-GROUND-PLANT
 stand) + the THINDBH/shelterwood prescription stands. The PRIMARY projection stand is fully validated.
+
+#### Chunk-6 CS ESTABLISHMENT ported + BARE stand cyc1 BIT-EXACT (suite 5536/2)
+The cst01 BARE-GROUND-PLANT stand (NOTREES + ESTAB 1992 + PLANT sp3/sp21 400 TPA each) now runs and
+validates vs live FVScs. CS establishment follows the NE pattern (ESSUBH assigns a BASE height, REGENT
+LESTB grows it the creation cycle), NOT SN's full-height-at-age — a re-trace catch (the establish!
+`bc=ht_curve_b*` branch was SN-specific; CS uses HTCALC like NE).
+- ESSUBH base height (cs/essubh.f:72-81): _CS_ESSUBH_REFAGE (essubh.f MAPCS 96, DISTINCT from the htgf
+  curve map) + cs_htcalc_height (NC-128 forward curve); HHT = (H/CARAGE)·min(5, TIME−DELAY).
+- REGENT LESTB growth (cs/regent.f:118-341): cs_htcalc increment ×SCALE=(FINT−5)/10, cs_balmod temper
+  (bal=(1−cr/100)·BA), RELHTA, DGSD ±10%, _CS_ES_HHTMAX cap (blkdat.f), DIAM floor = htdbh_db.
+- ★ DOCTRINE re-trace caught a REAL BUG: I first read cs/regent.f only to line 340 and coded "no +0.001·hk
+  for CS LESTB". Line 341 `DBH(K)=DBH(K)+0.001*HK` DOES add it. Fixing it made 2002 BIT-EXACT (was BA 9/8).
+VALIDATION (vs freshly-relinked live): 2002 (cyc1, the planted cohort's first projection) ALL SIX stand
+columns BIT-EXACT (TPA800/BA9/SDI33/CCF22/TopHt14/QMD1.4). TPA stays bit-exact through 2012; the only
+divergence cyc2+ is SIZE-only single-precision drift in the shared small-tree growth spine (SDI/CCF/TopHt
+±1/cyc, peaking 2072 — CCF crown-width amplified, ≤2.3%), the documented ULP class — GROUNDED (count/
+mortality exact, not an establishment defect). test_cst01.jl +66 assertions. No SN/NE regression.
+REMAINING for full multi-stand run_keyfile: the THINDBH/shelterwood prescription stands (cst01 stands 2-3
++ cst01_method5). SPROUT/ESUCKR natural sprouting + ESCPRS compression not exercised by cst01.

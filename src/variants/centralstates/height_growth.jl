@@ -40,6 +40,13 @@ function cs_htcalc_age(sp::Integer, si::Real, h::Real)
     return (1f0 / b3) * log(1f0 - base^(1f0 / (b4 * sif^b5)))
 end
 
+"NC-128 site-curve height (ft) at age `aget` (HTCALC mode 1) — the forward curve used by ESSUBH."
+@inline function cs_htcalc_height(sp::Integer, si::Real, aget::Real)::Float32
+    b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si); a = Float32(aget)
+    hmax = b1 * sif^b2; ex = b4 * sif^b5
+    return bh + hmax * (1f0 - exp(b3 * a))^ex
+end
+
 "10-yr height increment from starting age `aget` (HTCALC mode 9)."
 function cs_htcalc_incr(sp::Integer, si::Real, aget::Real)
     b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si); a = Float32(aget)
