@@ -19,7 +19,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK; regen-saw) |
 | D9 | Mid-cycle SIMFIRE timing (s10_fire, fire_repeat) | fire | TPA huge | ⬜ NEW (verify) |
-| D10 | regen-stand sawtimber-cubic over-extraction (D7-class) | volume | ~51% Scuft | 🔬 re-traced (saw extraction) |
+| D10 | regen-stand sawtimber-cubic over-extraction | volume | ~51% Scuft | 🔬 real+systematic, mechanism open |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -77,9 +77,18 @@ jl DBH (10.009/9.894/9.288/9.264/9.144/9.055/8.989/8.658) matches live's 0.1-res
 9.0/8.6) to ±0.05 (ULP, RANDOM ±) — NOT a ~3% growth diff (my earlier read mistook print-rounding flips for
 real growth). YET the .sum **Scuft is SYSTEMATICALLY +51% (jl 590 / live 391)** — a systematic bias can't
 come from random ±0.05 DBH ⇒ it's the SAWTIMBER-CUBIC EXTRACTION for these trees, not growth/ULP. Specific
-to the regen geometry (tall-slender: HT~60 at DBH~9, just above the 9″ loblolly saw threshold ⇒ a tiny saw
-sliver that jl over-extracts); all_LP (snt01 geometry, bigger trees) is bit-exact, which is why it didn't
-show there. So this is a real D7-class volume-EXTRACTION bug, exposed only by small-saw-portion regen trees.
+to the regen geometry (tall-slender: HT~60 at DBH~9, just above the 9″ loblolly saw threshold); all_LP
+(snt01 geometry, bigger trees) is bit-exact, which is why it didn't show there. ⚠ MECHANISM NOT YET PINNED:
+the jl saw path (`vol[4]=_r9cuft(stump→sawHt)`, `sawHt=_r9ht(...sawDib...)` outside-bark) uses GENERAL
+formulas that are bit-exact for all_LP, so no obvious code-level divergence for tall trees — and a clean
+matched per-tree comparison is BLOCKED this turn by tooling friction (a synthetic ≤8-tree single-plot
+stand failed to load live-side; the fixed-format .trl saw-cuft column resisted parsing). So D10 is
+confirmed REAL + systematic (not growth/ULP) but the exact input/formula is still open. NEXT (tooling
+first): either (a) build a robust multi-plot synthetic stand from a real .tre template (not hand-typed),
+or (b) parse the live .trl saw-cuft by the header's fixed columns, to get matched per-tree TOT/MCH/SAW;
+then check whether the HEIGHT (not just DBH) of the regen cohort diverges (saw cubic is height-sensitive)
+vs a genuine saw-extraction formula diff. Candidate loci: `_r9ht` saw-top height or `dib17`/`dob17` for
+high HT/DBH.
 ★ D8 (REGDMULT/MORTMULT/REGHMULT/BAIMULT) FOLDS IN: mult_mortmult TPA is bit-exact through 2007 (the MORTMULT
 2.0 IS applied correctly) and its Bdft amplifies the same way ⇒ the mult_* scenarios are PLANT-regen stands
 hitting this same D10 saw-extraction, not multiplier bugs. NEXT: get a clean matched-geometry live saw cubic
