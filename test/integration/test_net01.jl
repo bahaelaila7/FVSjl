@@ -72,7 +72,8 @@ end
 #   THINBBA 60  (resid BA, thin from BELOW — removes small trees, QMD↑) → 2010  83 / 67
 #   THINABA 60  (resid BA, thin from ABOVE — removes large trees, QMD↓) → 2010 434 / 81
 #   THINSDI 120 (resid SDI target)                                      → 2010 263 / 75
-# jl tracks live within the documented cyc-1 DG/volume ULP drift (#50). Also pins the .sum -999
+# jl tracks live within ±2 TPA / ±1 BA — the post-thin cut-SELECTION ordering residual (RDPSRT,
+# tracked separately), not pure ULP; tolerances tightened from ±3/±2. Also pins the .sum -999
 # header variant code = "NE" (was defaulting to "SN"; run_keyfile now threads variant_code).
 @testset "net01 (NE) thinning-keyword breadth — vs live FVSne + header variant" begin
     if !isfile(_NET01_KEY)
@@ -99,8 +100,8 @@ end
             @test parse(Int, row2000[1]) == 2000
             @test parse(Int, row2000[3]) == 524           # pre-thin TPA (live 524)
             @test parse(Int, row2000[4]) == 107           # pre-thin BA  (live 107)
-            @test parse(Int, row2010[3]) ≈ resid_tpa atol = 3   # post-thin residual TPA vs live
-            @test parse(Int, row2010[4]) ≈ resid_ba  atol = 2   # post-thin residual BA  vs live
+            @test parse(Int, row2010[3]) ≈ resid_tpa atol = 2   # post-thin residual TPA vs live
+            @test parse(Int, row2010[4]) ≈ resid_ba  atol = 1   # post-thin residual BA  vs live
         end
     end
 end

@@ -293,7 +293,7 @@ end
             # live. A small ≤1.0/≤0.5-ton residual remains (crown-biomass FMCROWE + NATCRS-MCF detail) — a
             # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
             @test abs(mv[2] - fv[2]) <= 1.0    # Aboveground Total (was ~+4 with gross v[1])
-            @test abs(mv[3] - fv[3]) <= 0.5    # Merch
+            @test abs(mv[3] - fv[3]) <= 0.4    # Merch (measured max 0.3; crown-biomass FMCROWE residual)
             @test mv[4] ≈ fv[4] atol = 0.05    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] ≈ fv[8] atol = 0.05    # Forest Floor      — bit-exact
         end

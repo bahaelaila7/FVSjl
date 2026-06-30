@@ -49,8 +49,8 @@ _col(r, c) = parse(Float64, r[c])
     if have("treeszcp_cap")
         jl, ft = runjl("treeszcp_cap")
         @test _col(jl[end], 8) <= 8                 # QMD capped near the 10" DBH limit (base ≈ 15)
-        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 6   # endpoint TPA (regen-tail tolerance)
-        @test abs(_col(jl[end], 4) - _col(ft[end], 4)) <= 2   # endpoint BA
+        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 5   # endpoint TPA (jl 135 vs ft 139, Δ4 declining-stand regen-tail; was loose ≤6)
+        @test abs(_col(jl[end], 4) - _col(ft[end], 4)) <= 1   # endpoint BA
     end
     if have("treeszcp_htcap")
         jl, ft = runjl("treeszcp_htcap")

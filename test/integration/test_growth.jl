@@ -74,7 +74,7 @@ end
             @test abs(parse(Int, j[6]) - parse(Int, f[6])) <= 1            # CCF (±1)
             @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
             for c in (9, 10, 11)                                            # cuft within the LP tail
-                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.03 * parse(Int, f[c]) + 2
+                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.02 * parse(Int, f[c]) + 1
             end
         end
         # BRATIO is ACTIVE: IDG=1 (past DBH) ≠ IDG=0 reading the same raw DBH−past as the increment.
@@ -110,7 +110,7 @@ end
             @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI ±1
             @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
             for c in (9, 10, 11)                                            # cuft within the LP tail
-                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.03 * parse(Int, f[c]) + 2
+                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.02 * parse(Int, f[c]) + 1
             end
         end
         # The scaling is ACTIVE: FINT=10 grows materially slower than FINT=5 on the SAME tree data
@@ -144,7 +144,7 @@ end
             @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  (matched exactly)
             @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI
             @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
-            @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 0.015 * parse(Int, f[3]) + 5  # TPA (small-tree tail)
+            @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 0.015 * parse(Int, f[3]) + 3  # TPA (small-tree tail)
         end
         # SCALE3 is ACTIVE and matches Fortran: the FINTH5→FINTH10 delta is reproduced. At 1995 both
         # engines move BA 325→330 and TPA 4392/4419→4123/4150 (ΔTPA −269 in each).
