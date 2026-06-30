@@ -409,3 +409,21 @@ dropped to 36). FIX: added _NE_ES_HHTMAX (108 NE vals) + clamp hk to it AFTER co
 PLANT now BIT-EXACT — 2002 800/10/40/40/22 + 2012 786/48/136/183/40 all = live (±1 by 2022). ⇒ with the gmod
 fix (7th) this CLOSES the establishment cluster: diverse-species PLANT bit-exact. net01 BARE + all est tests
 pass. Found by dumping the per-species established HEIGHT (jl YB 23.49 vs live 22.00 exactly = a hard clamp).
+
+
+## HONEST COMPLETENESS CHECK — full net01 all-stands: stand cols bit-exact, but FFE/BARE VOLUME diverges late
+Final end-to-end diff of net01 (all 5 stands, every cycle) vs live FVSne:
+- TPA/BA/SDI/CCF/TopHt: BIT-EXACT (±1 ULP-floor) every stand, every cycle.
+- VOLUME: stands 1/2/3 BIT-EXACT; but STAND 4 (FFE) and STAND 5 (BARE/regen) volumes diverge ~0.4-4% at the
+  LATE cycles (stand4 2043 TCuFt 3943/3928, BdFt 17167/16918 ≈1.5%; stand5 2022 MCuFt 532/510 ≈4%, 2092 BdFt
+  22346/22584). Early cycles bit-exact; the divergence grows with time.
+DIAGNOSIS: TPA/BA MATCH every cycle ⇒ the right COUNT and total-BA, but the per-tree dbh DISTRIBUTION differs
+slightly — a RNG-REALIZATION difference (WHICH specific trees the SIMFIRE kills / the established cohort's
+per-tree growth draws), amplified by the threshold-sensitive + nonlinear board/merch volume (BdFt keys on the
+largest stems). This is the SAME RNG-draw-order/realization class as the net01-BARE establishment alignment —
+the aggregate matches, the per-tree realization (which tree, exact dbh) drifts, and volume (esp BdFt) magnifies
+it. NOT growth/coefficient/volume-kernel (those are bit-exact on the deterministic stands 1/2/3 + all dubbed
+diverse stands). ⇒ COMPLETENESS: the NE port is bit-exact on all STAND columns + deterministic-stand volume;
+the open residual is the STOCHASTIC-stand (fire/regen) VOLUME at late cycles, in the RNG-draw-order class
+(fire-kill + establishment :estab/main draw alignment). This is NOT yet ULP-floor — a real ~1-4% volume
+residual on the stochastic stands. Correcting the earlier "everything bit-exact" overstatement.
