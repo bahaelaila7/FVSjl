@@ -301,6 +301,10 @@ diverse per-species bark/crown fire props (fire_species_props.csv) is FAITHFUL. 
 2000 = jl 117 / live 118 (the no-FFE divspp has 118, so it's FFE-init-SPECIFIC, a real ~0.5-1 shift not pure
 rounding — jl-noFFE ≥117.5 → jl-FFE <117.5). NOT the crown-lift directly modifying the live crown (fuel_
 additions.jl reads crown_pct, stores into ffe_oldcr — doesn't write crown_pct). Pre-fire, self-corrects by
-2010 (CCF 131/131). Suspect an FFE-init density/crown side effect (SNAGINIT snag handling or an FFE per-cycle
-crown/RNG interaction). FOLLOW-UP: trace why the FFE block lowers the 2000 live-tree CCF by ~1 vs live.
+2010 (CCF 131/131). REFINED: at 2000 TPA/BA/SDI/TopHt ALL match (135/66/117/73) — only CCF differs, so the LIVE TREES are
+identical (not a growth/RNG shift) and it is purely a CCF/crown-computation interaction with the FFE path.
+Ruled out: FFE writes no crown_pct/crown_ratio (fuel_additions.jl only stores ffe_oldcr); the line-323
+compute_density! is gated on trmort>0 (FuelTRT, absent here). Suspect SNAGINIT-created snags being included
+in the CCF sum, OR an FFE crown-width/gross_space difference. FOLLOW-UP: diff compute_density! CCF inputs
+(crown widths / record set) between the FFE and no-FFE runs at the 2000 boundary.
 Locked: ne_fixtures/ffe.key test asserts the bit-exact pre/post-fire rows. Suite 5350/2.
