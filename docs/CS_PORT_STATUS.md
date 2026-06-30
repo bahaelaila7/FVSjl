@@ -125,3 +125,24 @@ suite 5399/2, no SN/NE regression). What landed:
 NEXT (chunk 2): CS volume — wire CS NVEL equation ids into the R9 Clark + R9LOGS path so the
 cyc0 .sum volume columns (Tcuft/Mcuft/Bdft 1517/1300/497...) and forest-type (503) come in.
 Then chunk 3: cs/dgf.f (the one genuinely-new SN-family CS DG model) for cycle-1.
+
+### CHUNK 2 DONE — cst01 cycle-0 VOLUME columns ALL BIT-EXACT vs live FVScs
+Tcuft=1517, Mcuft=1300, Scuft=497, Bdft=2903 (suite 5403/2). CS volume rides the eastern
+NVEL Region-9 Clark cubic + R9LOGS board path (shared with NE) — cs/vols.f is byte-identical
+to ne/vols.f; the R9 Clark cubic keys on FIA code (national). The CS-specific piece is the
+merch standards: ported `_cs_merch` (cs/sitset.f:130-227 — softwoods=sp 1-7, eastern redcedar
+sp 1 lower mins, IFOR rules; bf-equal). compute_volumes! + compute_volumes_ne! now route CS.
+- SHARED-PATH FIX (caught by the doctrine's per-tree trace): the two BROKEN-TOP trees (d8.0,
+  d10.4; live TRC HT 56/49) read ~4 cuft/acre low because CS never populated calib.bark_a/b
+  ⇒ CFTOPK's bark_ratio fell to the clamp 0.80 instead of BKRAT. Added minimal cs_dgcons!
+  (bark copy, mirrors ne_dgcons!) wired into setup_growth!; the full cs/dgf.f site-constant +
+  serial-correlation port is chunk 3. With the bark copy, both broken-top trees match exactly
+  (d8.0→8.6, d10.4→15.0) and all 4 volume columns close.
+- The canonical cyc0 path is notre! → setup_growth! → compute_volumes! (setup_growth! does the
+  CRATET dub + cs_dgcons!); the earlier manual dub+notre left bark=0.
+- KNOWN cyc0 GAP (follow-up, not a stand/volume column): the trailing .sum forest-type field
+  reads 999 vs live 503 — CS FORTYP classification (cs/fortyp* / forest_type.jl) is unported.
+
+NEXT — chunk 3: cs/dgf.f (the one genuinely-new SN-family CS diameter-growth model: ln(DDS)
+from DBH/site/crown/BA-percentile/QMD, ≥5") + the full cs_dgcons! site constant ⇒ cycle-1 DG.
+Then the CS FORTYP forest-type field.

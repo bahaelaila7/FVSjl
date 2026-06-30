@@ -31,11 +31,15 @@ single-precision and documented eigensolver-class divergences. Full scope: **`do
   `fmmois`), and the **96-species** coefficient CSVs (CS `MAXSP = 96`; NE 108, SN 90).
 
 ## Current state (continue from here — see docs/CS_PORT_STATUS.md for the live baseline)
-- Variant infra: **STARTED**. `CentralStates<:AbstractVariant` registered (code CS, MAXSP 96,
-  YR 10, Zeide SDI, RNG 55329) + `variant_from_code`/exports; `test/harness/cs_oracle.sh` relinks
-  live FVScs; suite holds 5391/2 (no SN/NE regression). cst01 cycle-0 target recorded.
-- NEXT: `data/centralstates/` coefficient CSVs (extract from `cs/blkdat.f`; mirror `data/northeast/`),
-  then `centralstates/species.jl`/`site_index.jl`/crown — drive cst01 cycle-0 stand columns bit-exact.
+- **CHUNK 1 DONE — cst01 cycle-0 all 6 stand columns BIT-EXACT** vs live FVScs (TPA=536, BA=77,
+  SDI=160, CCF=169, TopHt=63, QMD=5.1; suite 5399/2, no SN/NE regression; test_cst01.jl).
+  Variant infra + data + hooks landed: `CentralStates` (CS, MAXSP 96, YR 10, Zeide SDI, RNG 55329);
+  `species.jl` (blkdat init), `site_index.jl` (ASITE/BSITE SITSET + CS FORKOD). CS HT-DBH reuses the
+  Southern Curtis-Arney/Wykoff dub; CS crown + crown-width reuse the NE TWIGS/cwcalc paths (cwcalc.f
+  byte-identical, keys on 2-char alpha). Real CS data extracted via tools/fortran_data_extract.py.
+- **NEXT — chunk 2: CS volume.** Wire CS NVEL equation ids into the existing R9 Clark + R9LOGS path
+  (src/engine/r9clark_vol.jl + volume_equations.jl) so the cyc0 .sum volume columns (Tcuft 1517 /
+  Mcuft 1300 / Scuft 497 / Bdft 2903) + forest-type (503) come in. Then chunk 3: `cs/dgf.f`.
 - Scope + per-routine NE-reuse table + chunk order: `docs/CS_VARIANT_PORT_SCOPE.md`.
 
 ## Ordered work (most-upstream / least-dependent first — see scope §7)

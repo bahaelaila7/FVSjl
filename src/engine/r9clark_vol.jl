@@ -457,6 +457,25 @@ end
     end
 end
 
+# CS merch standards (cs/sitset.f:130-227). Softwoods = species 1-7 (RC/JU/SP/VP/LP/OS/WP);
+# eastern redcedar (sp 1) gets a lower sawtimber min, but only on forest IFOR=1 (Mark Twain).
+# Board-foot mins equal the sawtimber-cubic mins (BFMIND==SCFMIND, BFTOPD==SCFTOPD), so the
+# returned (scfmind, scftopd) cover both — bf-equal, like _ne_merch. Returns the 6-tuple
+# (dbhmin, topd, scfmind, scftopd, stmp, scfstmp) the eastern volume driver consumes.
+@inline function _cs_merch(spi::Integer, ifor::Integer)
+    if spi <= 7                           # softwoods
+        scfmind = (ifor == 1 && spi == 1) ? 6f0   : 9f0
+        scftopd = (ifor == 1 && spi == 1) ? 5f0   : 7.6f0
+        return (5f0, 4f0, scfmind, scftopd, 0.5f0, 1f0)
+    else                                  # hardwoods
+        dbhmin  = ifor == 1 ? 5f0   : 6f0
+        topd    = ifor == 2 ? 5f0   : 4f0
+        scfmind = ifor == 1 ? 9f0   : 11f0
+        scftopd = ifor == 1 ? 7.6f0 : 9.6f0
+        return (dbhmin, topd, scfmind, scftopd, 0.5f0, 1f0)
+    end
+end
+
 """
     compute_volumes_ne!(s)
 
@@ -467,7 +486,8 @@ via R9LOGS bucking + r9bdft). Broken-top (CFTOPK) reuse is TODO.
 """
 function compute_volumes_ne!(s::StandState)
     t = s.trees; co = s.coef
-    ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = _NE_DEFAULT_IFOR)
+    cs = s.variant isa CentralStates
+    ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -483,7 +503,7 @@ function compute_volumes_ne!(s::StandState)
         tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, stmp, scfstmp = _ne_merch(sp, ifor)
+        dbhmin, topd, scfmind, scftopd, stmp, scfstmp = cs ? _cs_merch(sp, ifor) : _ne_merch(sp, ifor)
         prod = d >= scfmind ? "01" : "02"
         mtopp = d >= scfmind ? scftopd : topd
         v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)

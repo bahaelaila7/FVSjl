@@ -402,7 +402,9 @@ overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
 `species.vol_eq`.
 """
 function compute_volumes!(s::StandState)
-    s.variant isa Northeast && return compute_volumes_ne!(s)   # NVEL R9 Clark cubic (WIP: no board ft)
+    # Eastern variants (NE + CS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
+    # differing only in the IFOR merch standards (_ne_merch / _cs_merch, dispatched inside).
+    (s.variant isa Northeast || s.variant isa CentralStates) && return compute_volumes_ne!(s)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     # Log-graded HRVRVN (unit 4 = BF_1000_LOG): capture each tree's per-log-DIB gross Scribner BF so

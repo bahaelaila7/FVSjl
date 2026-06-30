@@ -64,6 +64,7 @@ include("variants/northeast/small_tree_growth.jl")  # NE small-tree growth (REGE
 # --- centralstates (CS) methods (singleton already registered above, before NE) -------------
 include("variants/centralstates/species.jl")        # CS blkdat init (codes/RNG/YR=10/Zeide SDI)
 include("variants/centralstates/site_index.jl")     # CS SITSET (per-species ASITE/BSITE linear)
+include("variants/centralstates/diameter_growth.jl")# CS DG stub: cs_dgcons! bark copy (full dgf.f = chunk 3)
 # CS HT-DBH rides the Southern Curtis-Arney+Wykoff path (cs/htdbh.f ≡ sn/htdbh.f); CS crown
 # rides NE's TWIGS method (see northeast/crown_ratio.jl) — both are coefficient-driven, no CS code.
 

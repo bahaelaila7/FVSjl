@@ -42,6 +42,8 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
         calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+    elseif s.variant isa CentralStates
+        cs_dgcons!(s)                     # bark copy (BKRAT) for CFTOPK/calibration; CS DG = chunk 3
     end
     return s
 end
