@@ -561,3 +561,14 @@ loading by forest type; the run now hits a 0×0-matrix BoundsError there) + the 
 (fire/cs/{fmcfmd,fmcrow,fmcba,fmsfall,fmcsft} — the NE-shaped FMCFMD weighted-fuel-model path). Once
 the fuel tables land, run_keyfile produces the full .sum → cyc2-10 + the growth columns validate. The
 bark_eqnum/ls_spi columns (fire mortality bark + LS map) are not needed for the snag/carbon path.
+
+#### Chunk-5 next data piece located: FMCBA fuel tables (cs/fmcba.f FUINI/FULIV)
+The 0×0-matrix error is the FMCBA surface-fuel loading tables (ffe_fuel_dead/live). Source =
+fire/cs/fmcba.f DATA arrays: FUINI (initial DEAD surface fuel, by forest type × ~11 size classes,
+e.g. `DATA FUINI /0.18,0.93,1.77,...!pines 100s`) + FULIV (LIVE herb/shrub by forest type, e.g.
+`DATA FULIV /0.1,0.25,!pines`). CS fmcba.f DIFFERS from NE (CS-specific forest-type fuel loadings),
+so NOT reusable — extract FUINI/FULIV → data/centralstates/fire_fuel_dead.csv + fire_fuel_live.csv
+(forest-type-indexed, mirror data/northeast/ format). Then fire_fuel_models.csv (FMCFMD standard
+fuel models) + the CS fire model code (fmcfmd/fmcrow/fmsfall/fmcsft). That completes the FFE → full
+multi-cycle .sum via run_keyfile (which then validates cyc2-10 + the growth columns + the carbon/fuel
+DBS tables). The growth model is COMPLETE + bit-exact cyc0-2; FFE is breadth for the .sum/carbon report.
