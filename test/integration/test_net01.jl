@@ -470,3 +470,25 @@ end
         end
     end
 end
+
+# NE thinning + stump-sprouting (broadening) — the dense 20-tree stand with a THINBBA at 2010 (residual
+# BA 100) and AUTOES on (no NOAUTOES) ⇒ the cut hardwoods sprout (ESUCKR). This exercises the NE sprout
+# model: is_sprouting (ISPSPE), NSPREC CASE('NE') sprout count, ESSPRT CASE('NE') survival, SPRTHT NE
+# height, Wykoff-inverse DBH. LIVE-VALIDATED: the post-thin 2020 row BIT-EXACT incl. the sprout TREES count.
+@testset "NE thinning + sprouting (THINBBA + AUTOES) — vs live FVSne (broadening)" begin
+    key = joinpath(@__DIR__, "ne_fixtures", "thin.key")
+    if !isfile(key)
+        @test_skip "thin fixture missing"
+    else
+        out = FVSjl.run_keyfile(key; variant = Northeast())
+        row = nothing
+        for ln in split(out, '\n')
+            p = split(ln)
+            length(p) >= 12 && p[1] == "2020" && (row = p; break)
+        end
+        @test row !== nothing
+        # live FVSne 2020 (post-2010-thin, incl. sprouts): TREES 301 BA 119 SDI 217 CCF 199 TopHt 76 | TCuFt 3380 MCuFt 3201
+        @test [parse(Int, row[i]) for i in 3:7] == [301, 119, 217, 199, 76]   # stand cols incl. sprout count
+        @test [parse(Int, row[i]) for i in 9:10] == [3380, 3201]              # TCuFt MCuFt
+    end
+end

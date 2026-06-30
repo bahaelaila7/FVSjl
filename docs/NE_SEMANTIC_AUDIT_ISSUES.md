@@ -267,3 +267,16 @@ survival"; it actually has its OWN NSPREC CASE('NE') (essprt.f ~1010+, ISPC/DSTM
 CURRENTLY the SN nsprec_sn/essprt_sn stand in (documented NE-TODO) ⇒ count approximate. NEXT: port nsprec_ne +
 essprt_ne (transliterate the two CASE('NE') tables) + aspen; validate dense-thin TREES→301. SN bit-exact (ne
 branch false for SN; suite 5342/2). net01 unaffected (NOAUTOES).
+
+
+## NE SPROUTING — NSPREC(NE)+ESSPRT(NE) PORTED ⇒ thinning+sprouting now BIT-EXACT
+Ported the two NE sprout tables (transliterated the CASE('NE') SELECT blocks): nsprec_ne (essprt.f:1006 — the
+sprout-COUNT per stump by ISPC/DSTMP) and essprt_ne (essprt.f:362 — the per-stump survival multiplier on PREM,
+~25 species cases incl. the logistic forms sp55/58/64-66/69/81 + the sp59-70 cubic poly + the sp27/28 linear).
+Wired into esuckr! (ne branch). RESULT: the dense-thin stand (THINBBA 2010 resid-BA 100, AUTOES on) is now
+BIT-EXACT vs live at the post-thin 2020 row — TREES 301/301 (was 345, the +44 sprout over-count is GONE), BA
+119, SDI 217, CCF 199, TopHt 76, TCuFt 3380, MCuFt 3201, ALL = live. Locked by a fixture+test (ne_fixtures/
+thin.key). SN bit-exact (ne branch false for SN; suite 5345/2). ⚠ REMAINING (small): NE aspen suckering
+ESASID(NE)=49 → ASSPTN (a cut sp49 record resets PREM via the aspen sucker model before ESSPRT) is NOT yet
+ported — absent it, sp49 stumps use the plain PREM. Inert unless a stand cuts NE aspen (sp49); not in the dense
+stand. ⇒ NE stump-sprouting is faithful for non-aspen; the lone gap is the sp49 aspen ASSPTN path.
