@@ -381,3 +381,13 @@ multi-cycle .sum via run_keyfile additionally needs CS FFE data (:v2t / fire_spe
 snag seeding is FFE-gated and cst01's input dead records activate it) = chunk 5. NEXT: trace the cyc3+
 drift (per-cycle DG/mortality vs live treelist at 2010/2020 with the tree_id↔TREE NUMBER mapping that
 worked) — the DGSCOR central FRM for uncalibrated species is the prime suspect; then CS FFE for the .sum.
+
+#### cyc3+ drift — tripling multipliers FM/FU/FL RULED OUT (match SN/NE)
+CS dgdriv.f FU/FM/FL = 1.271/−0.14228/−1.549 == FVSjl DG_FU/DG_FM/DG_FL exactly. So the tripling
+variance multipliers are not the cyc3+ drift source. Remaining suspects for the ~1% accumulating drift
+(cyc1/cyc2 are BIT-EXACT, so it's small + compounding): the DGSCOR central-FRM bias for uncalibrated
+species (cyc1 per-tree wmean −0.04..−0.12 LOW), the ssigma/vmlt at YR=10, or BACHLO/RNG-stream
+alignment over cycles. NEXT: per-cycle trace at the 2010→2020 step using the now-working tree_id↔TREE
+NUMBER 1:1 mapping (dump jl per-tree grown DBH vs the live 2010/2020 treelist, weighted-mean over
+triples) to localize whether it's a uniform DG bias (→ central FRM / ssigma) or RNG drift (→ BACHLO
+order). Headline this session: cst01 cyc1 AND cyc2 BIT-EXACT after the GST-floor over-calibration fix.
