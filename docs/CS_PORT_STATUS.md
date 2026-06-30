@@ -500,3 +500,17 @@ vs FVS at cyc1 (the first sub-ULP divergence) — a diffuse effort with no singl
 already proven). RECOMMENDATION: treat cst01 cyc0-2 bit-exact as the validated milestone; pursue breadth
 (CS FFE for the full .sum, cst01_method5 thinning) and the cyc1+ regression test, and either close the
 ULP-floor later by op-order alignment or accept+document it like the SN COMPRESS case.
+
+#### per-record DBH trace CONFOUNDED (dgdriv dump fires multiple times/cycle) — RNG+logic evidence stands
+Attempted a full-precision per-record cyc1-grown DBH bit-compare (stamped DBH(I) at the cs/dgdriv.f
+DBCHK entry). The dump fired MULTIPLE times per cycle (live "C=2" = 409 records / 308 unique vs the
+stand's ~83), so the sorted-DBH sets are not directly comparable — the dgdriv entry is hit by the
+calibration iterations + the per-cycle growth, not once. So this trace did NOT cleanly confirm the
+per-record ULP. HOWEVER the conclusion is unchanged and conclusive on independent grounds: the RNG
+stream S0 BIT-MATCHES live at every cycle entry, and bachlo/dgscor!/the DG arithmetic/calibration/
+density ALL match — so the cyc3+ drift is necessarily Float32 op-order, not a model/RNG defect. To
+CLOSE it (drive cyc3+ to the digit), a fresh session should: stamp DBH(I) at a SINGLE well-defined
+point (e.g. guard the WRITE with `IF(ICYC.EQ.1 .AND. <first-entry-flag>)`, or stamp in GRADD/the main
+fvs.f cycle loop AFTER growth, once per cycle) for a clean 81-record cyc1 set, diff vs jl's post-cyc1
+DBH, and trace the first differing record's DG op-order (the sqrt/exp/bark sequence) — OR accept the
+ULP floor as a documented divergence (SN COMPRESS class). cst01 cyc0-2 BIT-EXACT remains the milestone.
