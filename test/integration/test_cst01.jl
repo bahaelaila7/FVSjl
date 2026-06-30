@@ -22,6 +22,7 @@ using FVSjl
         FVSjl.notre!(s)                    # NOTRE — BAF/fixed-plot expansion × GROSPC
         FVSjl.setup_growth!(s)             # CRATET dub + cs_dgcons! bark copy (CFTOPK broken-top)
         FVSjl.compute_volumes!(s)          # eastern R9 Clark cubic + R9LOGS board feet, CS merch
+        FVSjl.compute_forest_type!(s)      # FORTYP/STKVAL (shared, FIA-keyed; CS reuses NE stocking CSVs)
         r = FVSjl.summary_row(s; period = 0)
 
         # Live FVScs cst01.sum, 1990 inventory row (per-gross-acre):
@@ -39,5 +40,12 @@ using FVSjl
         @test r.mcuft == 1300
         @test r.scuft == 497
         @test r.bdft  == 2903
+
+        # Trailing classification fields (FORTYP/STKVAL): 503 = W.OAK-R.OAK-HICKORY, size/stock
+        # class 22. The .sum growth columns (period/accretion/mortality) need the cycle 0→1 DG
+        # projection (cs/dgf.f, chunk 3) and are intentionally not asserted here.
+        @test r.fortype  == 503
+        @test r.sizecls  == 2
+        @test r.stockcls == 2
     end
 end

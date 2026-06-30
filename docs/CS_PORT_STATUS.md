@@ -146,3 +146,10 @@ sp 1 lower mins, IFOR rules; bf-equal). compute_volumes! + compute_volumes_ne! n
 NEXT — chunk 3: cs/dgf.f (the one genuinely-new SN-family CS diameter-growth model: ln(DDS)
 from DBH/site/crown/BA-percentile/QMD, ≥5") + the full cs_dgcons! site constant ⇒ cycle-1 DG.
 Then the CS FORTYP forest-type field.
+
+### cyc0 FORTYP done — full cst01 inventory row now 100% bit-exact
+Forest type 503 (W.OAK-R.OAK-HICKORY) + size/stock class 2/2 match live. cs/fortyp.f and
+cs/stkval.f are BYTE-IDENTICAL to ne's, and the stocking map is FIA-keyed (national) ⇒ CS
+reuses NE's stocking_coeffs.csv + fia_stocking_map.csv verbatim. The only cyc0 .sum fields
+not matching are the growth columns (period/accretion/mortality), which inherently need the
+cycle 0→1 DG projection (cs/dgf.f, chunk 3). test_cst01.jl: 15/15. Cycle-0 is COMPLETE.
