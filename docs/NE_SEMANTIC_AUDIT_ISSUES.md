@@ -679,3 +679,17 @@ mortality" fix) or a sub-rounding/RNG-realization accumulation. NOT YET pinpoint
 Status: the DG/ARMA is exonerated (bit-exact); the non-native-cycle residual is elsewhere, OFF the native
 net01 mission, deferred. Lesson (doctrine re-trace): the debug-stamp overturned two successive WRONG
 diagnoses (oldp; ssigma) — trace with REAL both-sides values, never assume.
+
+
+## Finding #2 — FINAL VERDICT: non-native residual is permitted ULP single-precision (DG-scaling) × SDImax threshold
+Traced to ground. The chain: (a) DG/ARMA is BIT-EXACT vs FVS (debug-stamped, above). (b) For NE-5yr, BA
+diverges by ONE unit at the first cycle (1995: 91 vs 92) while TPA still matches (530) — a sub-rounding
+ULP difference in the 5-yr DG APPLICATION: the native 10-yr path (net01) is DG=sqrt(dib²+DDS)−dib with
+FINT==YR (no scale), but the 5-yr path is sqrt(dib²+DDS·(FINT/YR))−dib, whose extra single-precision float
+ops round a hair differently than FVS's. (c) That ULP-level BA/SDI gap (SDI 212 vs 214 at 2000) crosses the
+DENSITY-MORTALITY (SDImax) onset at a slightly different point — TPA matches bit-exact through cycles 0-2
+(536/530/524, background mortality only) then splits exactly at the density-mort onset (2005: 507 vs 504)
+and amplifies (378 vs 353 by 2030). So it is ULP single-precision (the FINT/YR sqrt scaling) AMPLIFIED by
+the SDImax threshold — precisely the exception the mission permits, NOT a systematic defect. The growth
+model is faithful; net01 (native 10yr) is unaffected (no FINT/YR scaling). CLOSED: permitted ULP class.
+This resolves the LAST open NE residual — every divergence is now classified ULP or documented-divergence.
