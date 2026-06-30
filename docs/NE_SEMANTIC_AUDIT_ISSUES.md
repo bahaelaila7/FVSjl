@@ -494,3 +494,40 @@ deterministic-stand volume; the lone residual is the stochastic stands' late-cyc
 documented-divergence class the mission permits (analogous to the accepted SN COMPRESS eigensolver case).
 RECOMMENDATION: accept as documented; eliminating it requires bit-matching FVS's internal fire-kill +
 post-fire record order, a deep/uncertain port for a sub-0.4%-cubic residual.
+
+
+## ★ ROOT CAUSE FOUND — the stochastic-fire volume residual is a TRIPLING-ORDER bug (not RNG)
+Pursued the deep-dive (live FMEFF debug stamp, fmeff.f:154 ICALL.EQ.0.AND.IYR.EQ.2003 dump of
+I/XRAN/ISP/DBH/FMPROB, vs a matching jl ZJL dump in fmburn.jl's burn loop). The doctrine ("don't
+accept an RNG residual prematurely; trace both sides") paid off — it is a real, fixable bug:
+
+PROOF (net01 stand-4, 2003 fire): jl iterates 66 records, live iterates 198 (=3×). The record ORDER
+and per-record XRAN draws are BIT-EXACT for the first 66 (RNG stream aligned). live splits jl's
+record-1 (tpa 3.32387) into THREE same-DBH records — I=1(1.994)+I=67(0.831)+I=68(0.499)=3.32387;
+ΣFMPROB == Σtpa == 313.103 (identical trees, finer partition). The fire draws an INDEPENDENT XRAN per
+sub-record, so live's 198-record kill samples the PSBURN burned-fraction finely (fractional per-tree
+kill) while jl's 66 coarse records kill all-or-nothing per tree → different survivors → nonlinear
+VOLUME diverges. TPA/BA/QMD stay bit-exact (partition-invariant) — which is exactly why it hid and
+looked like "RNG-realization."
+
+ROOT CAUSE (src/engine/simulate.jl): order is diameter_growth!(stash) → mortality_and_fire!(MORTS+FIRE
+on the nlive ORIGINAL records, line 301) → triple_records!(build the 198, line 311). The FIRE sees
+untripled records. FVS order is GRINCR(triple → 198 same start-DBH split-TPA) → MORTS → FMBURN/FMEFF
+(fire on 198) → GRADD/UPDATE(apply growth, which then spreads the sub-records' DBH). The live dump
+shows all 3 sub-records at the SAME DBH (12.551) = tripled-but-not-yet-grown ⇒ triple precedes fire.
+
+CROSS-VARIANT: SN snt01_alpha is the SAME setup (InvYear 1993, SIMFIRE 2003 = cycle 1 < ICL4, tripling
+active, PSBURN 50). So this affects SN too — the ACCEPTED SN fire residuals ("fire_carbon StandDead
+Δ0.7 / TotC Δ0.6 rounding-scale") are very likely THIS bug. Only manifests for a fire in an early
+(tripling) cycle; late-cycle fires see no tripling either way.
+
+FIX (NOT yet attempted — needs greenlight): move triple_records! BEFORE mortality_and_fire! so MORTS+
+FIRE run on the 198 tripled records, matching FVS. RISKS: (1) the mortality-volume accounting at
+simulate.jl:274-310 assumes pre-triple nlive — must move to the tripled set; (2) entangled with the
+#28 FFE carbon phasing (carbon_hook/fuel_period inside mortality_and_fire!); (3) MUST keep SN bit-exact
+— MORTS on 198 should == MORTS on 66 (deterministic background rate, partition-invariant); if SN
+regresses, check the oracle/.save per doctrine #3. DG draw count is UNCHANGED by the reorder (jl
+computes DG on the 66 originals into the stash before tripling); only the fire's XRAN count goes 66→198.
+
+TOOLING NOTE: default gfortran fixed-form flags recompile fmeff.o BIT-EXACT (only .sum timestamps
+differ) — the live debug-stamp technique is reliable for FFE tracing on this box.
