@@ -274,3 +274,14 @@ TopHt is BIT-EXACT (height growth correct); the rest is within ~3-4%.
   Suite 5406/2, no SN/NE regression.
 NEXT: pin the DGSCOR/BACHLO cyc1-DG residual (now validatable aggregately via the .sum); then the
 TopHt-exact spine + the bit-exact DG should bring BA/SDI/CCF/QMD/TPA to live. Then multi-cycle.
+
+#### cyc1 residual refinement — per-tree DG matches; the pattern points to MORTALITY
+Dumped jl's post-grow_cycle! tripled records for the d6.5 HI tree: jl 7.2/8.2/6.78 == live
+7.2/8.2/6.8 — the DG/tripling DBH is RIGHT for this tree (so the DGSCOR worry may be smaller than
+feared). The cyc1 .sum signature — QMD 6.1>5.9, BA 103>99, TPA 512<518 (FEWER trees but LARGER) —
+is the classic "mortality over-kills the SMALL/suppressed trees" pattern: killing small stems
+raises mean DBH/QMD and leaves BA high. So the prime cyc1 suspect is the MORTALITY distribution
+(SDI-density kill + varmrt efficiency), not (only) DG. NEXT: compare jl's per-tree mortality (which
+records lose TPA) vs the live 2000 treelist MORTAL-PER-ACRE column; check the CS SDImax (sp_sdi_def
+from SDICON) and the density-mortality DR/D10 basis — a too-low CS SDImax over-thins. (DG per-tree
+DBH validated against the live treelist; revisit DGSCOR only if mortality alone doesn't close it.)
