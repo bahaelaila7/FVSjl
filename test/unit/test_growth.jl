@@ -20,10 +20,12 @@ const KEY3 = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
     @test s.calib.dg_cor[27] == 0f0     # HI (3 obs)
     @test s.calib.dg_cor[22] == 0f0     # SM (4 obs)
     @test s.calib.dg_cor[89] == 0f0     # OH (1 obs)
-    # SK (6 obs), AB (5 obs) calibrate (within ~4% of oracle 0.656 / 1.016 —
-    # the small gap is fine BA tuning, tracked in DIVERGENCES/memory)
-    @test isapprox(s.calib.dg_cor[65], 0.656f0; atol=0.05)
-    @test isapprox(s.calib.dg_cor[33], 1.016f0; atol=0.08)
+    # SK (6 obs), AB (5 obs) calibrate. RE-GROUNDED vs LIVE FVSsn (debug-stamped dgdriv.f COR(ISPC) at
+    # the WC·CORI calibration point, snt01): live COR SK=0.700993, AB=1.085818 — jl matches BIT-EXACT
+    # (Float32). The old targets 0.656/1.016 were Oracle A's (FVSjulia) values, ~7% wrong; the loose
+    # atol 0.05/0.08 existed only to absorb that OA error. (jl's snt01.sum is bit-exact vs live all cycles.)
+    @test isapprox(s.calib.dg_cor[65], 0.700993f0; atol=1f-4)
+    @test isapprox(s.calib.dg_cor[33], 1.085818f0; atol=1f-4)
 end
 
 @testset "height growth (HTGF) matches Oracle A" begin

@@ -38,7 +38,9 @@ end
     mortality!(s, s.variant)
     after = stand_tpa(s) / g
     @test after < before                                  # trees died
-    # jl loses 26.0 TPA (536→510), deterministic; Oracle A loses ~29 — the ~3-TPA gap is the inherited
-    # DG-calibration residual (tracked in memory). Pinned tight (was 10<Δ<35, a ±45% band masking regressions).
+    # This isolated mortality! step loses 26.0 TPA (536→510), deterministic. The FULL cycle loses 29
+    # (536→507) — and jl's snt01.sum cyc1 is BIT-EXACT vs live FVSsn (507/103/202, verified via sn_oracle.sh),
+    # so jl is NOT behind live; the 3-TPA difference is the full cycle's tripling/regen ordering, not a DG gap.
+    # Pinned tight to the isolation value (was 10<Δ<35, a ±45% band masking regressions).
     @test isapprox(before - after, 26.0f0; atol = 1.5f0)
 end
