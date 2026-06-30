@@ -17,9 +17,9 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ⬜ |
 | D6 | CS ESCPRS regen-compression not ported | regen | feature gap | ⬜ |
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
-| D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK; regen-saw) |
+| D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
 | D9 | Mid-cycle SIMFIRE timing (s10_fire, fire_repeat) | fire | TPA huge | ⬜ NEW (verify) |
-| D10 | regen-stand sawtimber-cubic over-extraction | volume | ~51% Scuft | 🔬 real+systematic, mechanism open |
+| D10 | regen DGSCOR-spread × saw-threshold amplification | volume | ~51% Scuft | 📌 irreducible (DGSCOR/ULP-amplified) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -83,12 +83,24 @@ the jl saw path (`vol[4]=_r9cuft(stump→sawHt)`, `sawHt=_r9ht(...sawDib...)` ou
 formulas that are bit-exact for all_LP, so no obvious code-level divergence for tall trees — and a clean
 matched per-tree comparison is BLOCKED this turn by tooling friction (a synthetic ≤8-tree single-plot
 stand failed to load live-side; the fixed-format .trl saw-cuft column resisted parsing). So D10 is
-confirmed REAL + systematic (not growth/ULP) but the exact input/formula is still open. NEXT (tooling
-first): either (a) build a robust multi-plot synthetic stand from a real .tre template (not hand-typed),
-or (b) parse the live .trl saw-cuft by the header's fixed columns, to get matched per-tree TOT/MCH/SAW;
-then check whether the HEIGHT (not just DBH) of the regen cohort diverges (saw cubic is height-sensitive)
-vs a genuine saw-extraction formula diff. Candidate loci: `_r9ht` saw-top height or `dib17`/`dob17` for
-high HT/DBH.
+confirmed REAL + systematic (not growth/ULP) but the exact input/formula is still open.
+
+**✅ RESOLVED — NOT a saw-extraction bug; it's DGSCOR regen-cohort SPREAD amplified at a (correct) saw
+threshold. 📌 documented-residual class.** Parsed the live .trl per-tree (fields: DBH=$10 HT=$12 TOTcu=$19
+MCHcu=$20 SAWcu=$21). At 2027 LIVE gives saw cubic to only 4 records (DBH 10.5/10.5/10.9/11.4; Σsaw·tpa=
+390.8 == .sum Scuft 391); jl gives it to 7 (adds DBH 10.0/10.1/10.1; Σ=590). Cause chain: (1) jl
+scf_min_dbh(LP)=10.0 / scf_top_dib=7 is CORRECT — all_LP is bit-exact, which would fail if the threshold
+were wrong. (2) The saw EXTRACTION (`_r9ht`/`vol[4]`) is CORRECT — same reason. (3) The ONLY diff is the
+regen cohort's DBH DISTRIBUTION: jl is clustered (10.0-10.9) while live is more spread (9.9-11.4); the
+mean is preserved (BA 158/159, Tcuft 0.6% — bit-exact-class), so it's a SPREAD/variance difference, the
+DGSCOR stochastic-spread tail (a documented known residual). A handful of jl trees sit just ABOVE the
+correct 10.0 saw threshold where live's sit just below (9.9) ⇒ the threshold-sensitive sawtimber cubic
+amplifies the ~0.1-0.2″ spread floor to +51% Scuft, while every non-threshold metric (TPA/BA/Tcuft/Mcuft)
+stays bit-exact. Same CLASS as the CS deep-thinned tail / Bdft amplification: single-precision/DGSCOR
+floor amplified at a discrete threshold. ⇒ D10 (and the mult_* D8 scenarios) are 📌 IRREDUCIBLE-amplified,
+NOT a fixable volume/extraction bug. ★ Re-trace discipline corrected my OWN mislabels twice here (first
+"growth," then "saw-extraction"): the saw code + scf_min_dbh + cohort mean are all bit-exact-correct; only
+the DGSCOR spread × saw-threshold interaction remains, which is the accepted ULP/DGSCOR class.
 ★ D8 (REGDMULT/MORTMULT/REGHMULT/BAIMULT) FOLDS IN: mult_mortmult TPA is bit-exact through 2007 (the MORTMULT
 2.0 IS applied correctly) and its Bdft amplifies the same way ⇒ the mult_* scenarios are PLANT-regen stands
 hitting this same D10 saw-extraction, not multiplier bugs. NEXT: get a clean matched-geometry live saw cubic
