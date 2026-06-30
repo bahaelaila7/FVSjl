@@ -639,3 +639,26 @@ test_cst01.jl +thinning testset (bit-exact stand-2/3 cut cycles). No SN/NE regre
 REMAINING for a fully-thorough drop-in: SPROUT/ESUCKR natural sprouting + ESCPRS compression (CS Fortran
 has essprt/esuckr/estump/escprs.f; NOT exercised by either canonical key — cst01 uses PLANT, not natural
 regen). These are the only CS model components not yet live-validated.
+
+#### Chunk-7 CS NATURAL SPROUTING (SPROUT/ESUCKR) ported + sprout cycle BIT-EXACT (suite 5555/2)
+The last CS natural-process model. CS esuckr.f is structurally identical to NE's (same ASSPTN aspen
+path, at sp 76 not NE's 49); only the ESSPRT coefficient blocks differ. Ported the three CS `CASE('CS')`
+blocks from cs/essprt.f into Julia helpers + a CentralStates branch in esuckr!:
+- essprt_cs (PREM survival multiplier, essprt.f:120-237 — per-species constants/DBH-steps/logistics),
+- nsprec_cs (sprouts-per-record NMSPRC, essprt.f:862-908),
+- sprtht_cs (sprout height (0.1+SI/50)·age for the sprouting set {3,8:67,69:77,79:84,86:96}),
+- cs_sprout_dbh (Wykoff inverse HT2/(ln(HT−4.5)−HT1)−1; AX=HT1 default),
+- CS aspen ASSPTN at sp 76 (ESASID(CS)=76; shared Crouch polynomial),
+- data/centralstates/sprout_essprt.csv (is_sprouting flag = CS ISPSPE list from blkdat.f, for _log_cut!).
+VALIDATION (new key: ESTAB+SPROUT all-species + THINBTA→20 clearcut at 2000, vs live FVScs): the 2010
+sprout-regeneration cycle is BIT-EXACT — TPA 434/434, BA 23/23, SDI 44/44, CCF 40/40, TopHt 44/44, QMD
+3.1/3.1 (the clearcut leaves ~17 TPA, sprouts regrow to 434). Later cycles within the single-precision
+floor. test_cst01.jl + sprouting testset.
+★ DOCTRINE (validate vs live) caught a SHARED-handler bug: the SPROUT keyword's blank species field was
+disabling sprouting (lsprut=false), but live FVScs treats blank `SPROUT 2000.` IDENTICALLY to
+`SPROUT 2000. 0.0` (ALL species, lsprut stays true) — a blank numeric field reads ARRAY(2)=0 ⇒ SPDECD
+returns IS=0, NOT the −999 disable sentinel (esin.f:598/625). Fixed in keyword_dispatch.jl (blank ⇒ IS=0
+all-species enable; only −999 disables). No SN/NE regression (their sprout.key uses an explicit species).
+★★ ALL CS NATURAL-PROCESS MODELS NOW PORTED + LIVE-VALIDATED: growth/volume/FFE/establishment/sprouting.
+Remaining = ESCPRS regen compression (FVSjl uses a list-overflow guard, like SN — deferred) + an actual
+SIMFIRE fire-event (only the potential-fire report path wired; no canonical CS key fires a sim fire).

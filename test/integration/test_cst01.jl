@@ -222,3 +222,60 @@ end
         rm(joinpath(@__DIR__, "cst01.tre"); force = true)
     end
 end
+
+@testset "CS stump sprouting (SPROUT + clearcut, vs live FVScs)" begin
+    # CS natural sprouting (SPROUT/ESUCKR): clearcut (THINBTA→20 BA) at 2000 with all-species SPROUT,
+    # then ESUCKR creates stump sprouts the next cycle. The 2010 sprout-regeneration cycle is BIT-EXACT
+    # vs live FVScs (cs/essprt.f CASE('CS') PREM/NSPREC/SPRTHT + the Wykoff sprout DBH). Validates the
+    # last CS natural-process model. (cst01.tre = the CS inventory; site/forest as cst01.)
+    tre = "/workspace/ForestVegetationSimulator/tests/FVScs/cst01.tre"
+    if !isfile(tre)
+        @info "cst01.tre not present; skipping CS sprout test"
+    else
+        key = joinpath(@__DIR__, "cs_sprout.key")
+        cp(tre, joinpath(@__DIR__, "cs_sprout.tre"); force = true)   # TREEDATA reads <keystem>.tre
+        open(key, "w") do io
+            print(io, """
+SCREEN
+STATS
+STDIDENT
+CSSPROUT SPROUT TEST.
+DESIGN                                        11.0       1.0
+STDINFO          905                60.0     315.0      30.0      10.0       40.
+SITECODE          19        60
+INVYEAR       1990.0
+NUMCYCLE        10.0
+TREEFMT
+(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,
+T52,I2,T66,5I1,T54,7I1,T75,F3.0)
+TREEDATA
+ECHOSUM
+ESTAB          2000.
+SPROUT         2000.       0.0
+END
+THINBTA        2000.      20.0
+PROCESS
+STOP
+""")
+        end
+        cd(@__DIR__) do
+            sumtxt = FVSjl.run_keyfile(key; variant = CentralStates(), output = :sum)
+            row2010 = nothing
+            for ln in split(sumtxt, '\n')
+                t = split(strip(ln))
+                if length(t) >= 8 && t[1] == "2010"; row2010 = t; break; end
+            end
+            @test row2010 !== nothing
+            if row2010 !== nothing
+                # Live FVScs 2010 sprout-regen row: TPA 434, BA 23, SDI 44, CCF 40, TopHt 44, QMD 3.1 — bit-exact.
+                @test parse(Int, row2010[3]) == 434       # TPA (the sprout cohort)
+                @test parse(Int, row2010[4]) == 23        # BA
+                @test parse(Int, row2010[5]) == 44        # SDI
+                @test parse(Int, row2010[6]) == 40        # CCF
+                @test parse(Int, row2010[7]) == 44        # TopHt
+                @test round(parse(Float32, row2010[8]); digits = 1) == 3.1f0  # QMD
+            end
+        end
+        rm(key; force = true); rm(joinpath(@__DIR__, "cs_sprout.tre"); force = true)
+    end
+end

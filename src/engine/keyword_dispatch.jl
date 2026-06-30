@@ -1233,9 +1233,15 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # default 1), 4=HMULT (height mult, default 1), 5=lower DBH (default 0), 6=upper DBH (default 999).
             # Blank species ⇒ no valid sprouting species ⇒ LSPRUT=.FALSE. (esin.f:625). The per-species + stump-
             # DBH-range table is honored in esuckr! via s.control.sprout_overrides (esuckr.f:96-205 activity 450).
-            if r.present[2]
+            # esin.f sets LSPRUT=.TRUE. first; a BLANK species field reads ARRAY(2)=0 ⇒ SPDECD returns IS=0
+            # (ALL species), so a bare `SPROUT <date>` ENABLES all-species sprouting — it does NOT disable.
+            # Only the −999 "no species" sentinel (an unrecognized alpha code) flips LSPRUT off (esin.f:625);
+            # NOSPROUT is the explicit disable. (Live FVScs: blank `SPROUT 2000.` == `SPROUT 2000. 0.0`.)
+            isp = r.present[2] ? Float32(r.values[2]) : 0f0   # SPDECD selector (0/all, <0/group, >0/single)
+            if isp == -999f0
+                s.control.lsprut = false
+            else
                 s.control.lsprut = true
-                isp   = Float32(r.values[2])                  # SPDECD species selector (0/all, <0/group, >0/single)
                 smul  = r.present[3] ? Float32(r.values[3]) : 1f0
                 hmul  = r.present[4] ? Float32(r.values[4]) : 1f0
                 dmin  = r.present[5] ? Float32(r.values[5]) : 0f0
@@ -1244,8 +1250,6 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 # keep the legacy scalars in sync for any single-species/all default form (back-compat)
                 r.present[3] && (s.control.sprout_smult = smul)
                 r.present[4] && (s.control.sprout_hmult = hmul)
-            else
-                s.control.lsprut = false
             end
         elseif k == "NOSPROUT"                                # esin.f opt 27: disable sprouting
             s.control.lsprut = false
