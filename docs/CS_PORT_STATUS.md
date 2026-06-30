@@ -174,3 +174,14 @@ The CS diameter-growth MODEL is done and PROVEN correct against a live debug sta
   conversion / GROWTH code for the CS .tre growth field; per-species obs threshold fnmin=5; or a
   cs/dgdriv.f specific the shared path misses). Validate per-species COR vs a live dgdriv debug stamp.
 - Suite 5406/2 (no SN/NE regression, no cyc1 test added until the COR is bit-exact).
+
+#### Refined COR diagnosis (fnmin / OLDRN residual)
+Per-species valid measured-DG counts for cst01: sp47=5 (COR FIRES), sp8=3, sp19=4, sp43=4,
+sp60=3 (all <5 ⇒ COR=0). The shared calibration's fnmin=5 species threshold exactly explains
+which species calibrate. But live reproduces the measured growth for the <5 species too —
+because a MEASURED tree grows by (≈) its measured increment in cycle 1 via its per-tree OLDRN
+serial-correlation RESIDUAL (= ln(measured DDS) − ln(predicted DDS)), which is seeded even for
+species below the COR threshold. The jl divergence is therefore in the OLDRN seeding for
+measured trees in UNCALIBRATED species (snt01/net01 don't exercise this: their measured species
+clear fnmin). NEXT: confirm vs a live dgdriv OLDRN stamp, then ensure measured trees in <fnmin
+species carry their residual (not a BACHLO draw) so cycle-1 DG = measured input.
