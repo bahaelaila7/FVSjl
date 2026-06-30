@@ -531,3 +531,25 @@ computes DG on the 66 originals into the stash before tripling); only the fire's
 
 TOOLING NOTE: default gfortran fixed-form flags recompile fmeff.o BIT-EXACT (only .sum timestamps
 differ) — the live debug-stamp technique is reliable for FFE tracing on this box.
+
+
+## ★★ FIXED — tripling-order fire bug (commit) — fire kill now BIT-EXACT vs live
+Implemented the faithful fix. mortality_and_fire! (src/engine/simulate.jl) now reproduces the FVS
+fire-cycle order internally: MORTS on the ORIGINAL records → triple_records!(split TPA + the MORTS WK2
+kill .60/.25/.15) → _maybe_burn!(fire draws an independent XRAN per TRIPLED record) → FMKILL
+WK2=MAX(MORTS,FIRKIL); it returns (OMORT, tripled) and grow_cycle! skips the post-mortality triple on
+the fire cycle. The non-fire path is unchanged (MORTS-then-TRIPLE).
+
+KEY GOTCHA (doctrine #3 in action): the first attempt — simply moving triple_records! BEFORE
+mortality_and_fire! (so MORTS+fire both ran on 198) — REGRESSED the non-fire stands badly (net01 blk0
+2010 TPA 475→513). That unmasked that MORTS/VARMRT is NOT proportional: it distributes a stand-level
+mortality total over records, so it MUST see the un-tripled ITRN set (exactly as the diameter_growth.jl
+comment warned). The surgical MORTS-66 → triple → fire-198 split keeps non-fire bit-exact.
+
+VALIDATION vs live FVSne (net01): the 2003 fire now iterates 198 records and ALL 198 match live
+BIT-EXACT (XRAN, species, DBH, tpa — confirmed by a matching ZJL dump vs the FMEFF stamp). Non-fire
+stands stay bit-exact; the fire-stand cubic residual is cut 3× (2023 Δ6→2, 2033 Δ13→6, 2043 Δ15→2).
+Full suite 5382/2 — no regression (SN incl. #28 carbon green). The remaining ~0.08% cubic is downstream
+of the now-bit-exact fire kill (ULP-realization floor; board-feet is its threshold amplification).
+Cross-variant: SN snt01's SIMFIRE-2003 fire is the same early-cycle (tripling-active) setup, so this
+likely also closes the accepted SN fire StandDead Δ0.7 / TotC Δ0.6 residuals (TODO: confirm vs live FVSsn).
