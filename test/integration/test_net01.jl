@@ -52,11 +52,15 @@ end
         FVSjl.notre!(n); FVSjl.setup_growth!(n); FVSjl.compute_volumes!(n)
         g = n.plot.gross_space; di(x) = trunc(Int, x + 0.5)
         FVSjl.grow_cycle!(n; fint = 10f0)
-        @test di(stand_tpa(n) / g) == 524                       # TPA — EXACT vs live (background-mortality fix)
-        @test di(stand_ba(n) / g) ≈ 107 atol = 2                # BA  — live 107 (jl 106, post-REGENT)
-        @test di(stand_sdi(n) / g) ≈ 213 atol = 4               # SDI — live 213 (jl 211)
-        @test round(stand_qmd(n); digits = 1) ≈ 6.1 atol = 0.1  # live 6.1 (jl 6.1)
-        @test di(stand_top_height(n)) ≈ 72 atol = 2             # TopHt — live 72 (jl 71)
+        # BIT-EXACT vs current live FVSne (all stand columns), validated against a freshly
+        # regenerated oracle — the loose atol here was stale (from when jl was BA 106 / SDI 211 /
+        # TopHt 71, pre the tripling-order + growth fixes); jl now matches live to the digit.
+        @test di(stand_tpa(n) / g) == 524                       # TPA   — live 524
+        @test di(stand_ba(n) / g) == 107                        # BA    — live 107 (was ≈107 atol2)
+        @test di(stand_sdi(n) / g) == 213                       # SDI   — live 213 (was ≈213 atol4)
+        @test di(stand_ccf(n) / g) == 229                       # CCF   — live 229 (was untested)
+        @test round(stand_qmd(n); digits = 1) == 6.1f0          # QMD   — live 6.1
+        @test di(stand_top_height(n)) == 72                     # TopHt — live 72 (was ≈72 atol2)
     end
 end
 
