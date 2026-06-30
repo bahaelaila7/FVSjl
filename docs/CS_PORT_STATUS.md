@@ -391,3 +391,15 @@ alignment over cycles. NEXT: per-cycle trace at the 2010→2020 step using the n
 NUMBER 1:1 mapping (dump jl per-tree grown DBH vs the live 2010/2020 treelist, weighted-mean over
 triples) to localize whether it's a uniform DG bias (→ central FRM / ssigma) or RNG drift (→ BACHLO
 order). Headline this session: cst01 cyc1 AND cyc2 BIT-EXACT after the GST-floor over-calibration fix.
+
+#### cyc3+ drift characterized — REAL ~2% over-kill (NOT DG; mortality/RNG)
+Unrounded jl vs live TPA: 2020 439.41/440, 2030 307.62/310, 2040 231.86/233, 2050 175.56/179
+(SDI 264.24/264, 254.37/255, 239.41/240, 225.59/227). jl over-kills 0.6→3.4 TPA, growing (~2% by
+cyc6). KEY: jl's per-tree DG is slightly LOW (cyc1 wmean −0.04..−0.12), which would yield MORE trees
+(lower SDI → less density kill) — the OPPOSITE of the observed TPA-low. So the cyc3+ over-kill is NOT
+the DG; it is the MORTALITY itself (background or density) or BACHLO/RNG-stream drift over cycles
+(records triple+compact each cycle; a draw-count mismatch desyncs the per-tree OLDRN). cyc1+cyc2 are
+bit-exact, so the mortality is correct early; the drift is a per-cycle accumulation. NEXT: trace the
+2010→2020 step (first divergence) — dump jl per-record mortality (mort_pa) vs a live morts.f XKILL
+debug-stamp (the proven method), and check the BACHLO RNG draw count per cycle vs live; rule out
+background (RI total) vs density (tn10/rn) by component. The DG is exonerated for this residual.
