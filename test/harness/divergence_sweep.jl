@@ -23,7 +23,10 @@ function _blocks(s)
     for l in split(s, '\n')
         t = split(strip(l)); isempty(t) && continue
         if startswith(strip(l), "-999"); cur = Dict{Int,Vector{SubString{String}}}(); push!(blocks, cur); continue; end
-        (tryparse(Int, t[1]) !== nothing && cur !== nothing) && (cur[parse(Int,t[1])] = t)
+        # Only true .sum data rows (full ~28-column layout). An appended CARBREPT carbon-report block also
+        # starts each row with a year but has ~12 cols — without this guard it overwrote the real row at the
+        # same year key, making col 11 (Scuft) read 0.0 (the carbon-report false-positive on carbon_*).
+        (tryparse(Int, t[1]) !== nothing && cur !== nothing && length(t) >= 20) && (cur[parse(Int,t[1])] = t)
     end
     return blocks
 end
