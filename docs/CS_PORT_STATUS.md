@@ -298,3 +298,21 @@ background RI + density rate per tree, and (b) dump jl's per-tree mort_pa vs the
 column (use FVSOut.db FVS_TreeList if a TREELIST DB run is set up, not the fixed-width .trl). The DG
 per-tree DBH is validated (d6.5 HI triples match live), so isolate mortality first. This is the last
 gap to cyc1 bit-exact; then multi-cycle + the .sum.save regression test.
+
+#### cyc1 mortality — density PARAMETERS all match live (hypotheses ruled out)
+Live MORTS DEBUG stamp + jl dumps confirm the CS density-mortality inputs are CORRECT:
+- stand SDImax (SDICAL/CLMAXDEN, composition-weighted): jl 345.45 == live 345.449 (EXACT).
+- per-species sp_sdi_def (SDICON): jl sp8=283/sp19=302/sp43=371/sp47=361 == live SDI MAX list.
+- stand SDI cyc0: jl 175.57/gross = 159.6 ≈ live 160.
+- ssigma (DGSCOR BACHLO spread) = SIGMAR for uncalibrated species (faithful; vardg back-derived so
+  ssigma=SIGMAR exactly, vmlt=29.40 from autcor(10,10)).
+- fint=10 cycle handling: NE-validated (NE also YR=10, bit-exact), so not the over-kill source.
+RULED OUT: SDImax / sp_sdi_def / SDI / ssigma / fint-compounding. jl kills 23.8 TPA vs live ~18.
+Remaining = a subtle coupled effect: either a small AGGREGATE DG over-prediction (the DGSCOR upper-
+triple BACHLO mean for uncalibrated species pushing grown SDI up → more density kill — even though the
+sampled d6.5 tree's DBH matched) OR the per-tree mortality DISTRIBUTION. NEXT (needs better tooling
+than the stock DEBUG/MORTS, which dumps SDICAL but not per-tree XKILL): add a custom FVS morts.f stamp
+dumping per-tree (D, RI, RN, RIP, XKILL) and diff vs jl's per-record mort_pa; and instrument jl's
+grow_cycle! to expose the PRE-mortality grown BA/SDI (compare to the live MORTS 'OLDBA/RELDEN' = 84.35/
+169.71) to settle DG-aggregate vs mortality-distribution. This is the final cyc1 gap — multi-session
+per-tree work, as the SN/NE campaigns were.
