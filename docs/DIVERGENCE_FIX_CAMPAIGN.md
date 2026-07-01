@@ -682,6 +682,16 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   LIMBRK+crown-lift into sz1-3. NEXT (fresh session, same method that cracked LARGE): stamp live FMCADD CROWNW(I,
   1..3) per tree vs jl `crown_biomass` xv[2..4], or dump the live per-FMCADD sz1-3 ADD vs jl's, to pin whether
   the fine-crown biomass or a fine-fuel term is ~15% low. Closing it removes the last ~2 TPA of the fire over-kill.
+- **★ D16b-SMALL likely FOLDS INTO D4 (crown-biomass FMCROWE ~0.9 ton, an already-documented open residual).**
+  The remaining sz1-3 fine-down-wood gap derives ENTIRELY from crown biomass: FMCADD's three fine-wood sources —
+  LIMBRK live-crown breakage (fmcadd.f:81 `LIMBRK·CROWNW(SIZE)`), crown-lift (`X·CROWNW(SIZE)`), and CWD2B snag
+  crown debris — all scale with `CROWNW(I,SIZE)` (crown biomass by size). All three terms ARE ported in jl
+  (fmcadd_woody! LIMBRK + the `cl[]` crown-lift term + CWD2B) and structurally correct, so a uniform ~15% fine
+  shortfall points at the `crown_biomass`/CROWNW values themselves being low in the fine classes — the SAME
+  quantity as the D4 crown-biomass-carbon residual. ⇒ HYPOTHESIS (verify next session, live FMCADD CROWNW(I,1..3)
+  stamp vs jl `crown_biomass`): D16b's last SMALL/fine-wood piece and D4 are one crown-biomass residual; fixing
+  the crown-biomass fine-size fractions closes both. (Confirmed this session: fine-wood SOURCES all present +
+  structurally right; the gap is in the CROWNW magnitude/distribution, not a missing term.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
