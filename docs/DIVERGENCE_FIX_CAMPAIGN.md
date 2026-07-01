@@ -325,6 +325,16 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   falling / crown-lift coarse woody), pointing at snag-fall timing (D5) or FMCADD crown-lift, NOT the fine
   litter. NEXT SESSION: phase-MATCH jl's `fs.cwd` to live's fmtret point each cycle (or stamp both at the
   identical FFE annual-loop step) and diff the sz4-9 pools 1993→2003.
+- **INIT RULED OUT — the deficit is the ACCUMULATION, not the seed.** jl's initial dead-fuel loading
+  (`ffe_dead_fuel_loading`, forest_type 520) = SMALL 7.02 / LARGE 2.45, matching live's 1993 fmtret
+  (7.17 / 2.45 — LARGE EXACT, SMALL −2%). So fmcba!'s `!fuels_init` seed is ~correct; the ~10% deficit
+  DEVELOPS over 1993→2003: jl SMALL barely grows (7.02→7.08) while live SMALL grows to 7.96 (+0.8), and jl
+  LARGE 2.45→6.02 vs live 2.45→6.42. jl UNDER-ACCUMULATES down-wood each cycle. ⇒ the bug is in the
+  per-cycle down-wood PRODUCTION (FMSNAG snag-fall + FMCADD crown-lift add too little woody) or DECAY
+  (FMCWD removes too much) — NOT the inventory seed. This is the precise mechanism-space for the fix
+  (FFE down-wood accumulation, shared with D5 snag-fall + [[fvsjl-ffe-crown-lift-landed]]). D16 localized
+  to: init-correct, accumulation ~10% low, both pools, snag-fall/crown-lift/decay — one focused
+  FFE-annual-loop trace from the fix.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
