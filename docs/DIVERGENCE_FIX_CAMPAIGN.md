@@ -396,6 +396,19 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   per-class vs a live CWD1 per-class stamp — align jl's taper breakpoints/integration to CWD1. All other
   terms (bole volume, fall rate, decay matrix, snag count, litterfall) verified faithful. D16 is traced to
   ONE function's size-class split — the exact, final localization.
+- **★ CORRECTION — the "cone size-class split" verdict was an OVER-INFERENCE (re-trace on my own reasoning).**
+  Checked jl `_cwd_cone_fractions` vs FVS CWD1 (fmcwd.f:1000+) directly: `_CWD_BP`==FVS `BP` (0,.25,1,3,6,12,
+  20,35,50,9999) bit-for-bit; rhrat=((HTD·12)−54)/(.5·D), BPH, R1, and the P1/P2 taper integration ALL match.
+  FVS CWD1 `ADD=DIF·V2T·SCNV(K)` (DIF=cone·TVOLI·DIH; SCNV=/0.80 soft,1.00 hard/) — jl mortality snags fall
+  HARD (SCNV=1) ⇒ not it. So cone, BP, taper, SCNV, fall-rate, decay matrix, bole volume ALL match FVS's
+  FORMULAS — yet LARGE reads ~6% low. That CONTRADICTION means my "snag-fall bole/cone" attribution was
+  inferred from a JL-ONLY per-source decomposition (I assigned the net −0.55 LARGE to the dominant source
+  without measuring LIVE's per-source). HONEST STATE: every snag-fall→down-wood FORMULA is verified faithful;
+  the ~6% must be in the INPUTS (per-snag dbh/height/fall-DENSITY/fall-TIMING — aggregate TPA is bit-exact
+  but the per-record killed density or the fall-year-within-cycle may differ) or a term not decomposed on the
+  LIVE side. NEXT (correct method): a LIVE per-source stamp — dump live CWD1 `ADD` per size-class + per-snag
+  DIH/TVOLI each annual step and diff vs jl `update_snags!`; do NOT infer from jl-only decomposition again.
+  D16 stays localized to the snag-fall→down-wood step; the exact term needs the LIVE-side decomposition.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
