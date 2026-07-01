@@ -610,6 +610,17 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   ⇒ The ~10% shortfall is in the DENSITY/DECAY/TIMING of cut-snag fall, not bole volume. NEXT (fresh session):
   phase-MATCHED per-year stamp (same point in the annual loop, both engines) of the cut-snag fall density + the
   sz2-5 pool, 1993→2003, to separate fall-rate (SNAGFALL) from decay-rate (DKR) from a count diff.
+- **★ D16b MECHANISM NARROWED to a final-cycle-year snag-fall PULSE.** Phase-matched at the fire: live SMALL 7.96
+  vs jl 7.1. Live's raw-CWD (fmcwd.f stamp) jumps **+3.2 in the SINGLE 2003 step** (FMCWD@2002 4.77 → FMBURN@2003
+  sample 7.96) — a snag-fall+litterfall PULSE as a snag cohort reaches fall-age in the cycle's last year, sampled
+  by live's FMBURN. jl's fire basis (`fire_smlg`, stashed at the 2003-fire-cycle start via `_small_large_fuel`
+  AFTER the 1998→2003 `ffe_fuel_update!(per=5)` loop, summary.jl:276) ends that loop at 7.1, ~0.86 short: jl's
+  final-year pulse is smaller. ⇒ NOT a fire-basis PHASING bug (jl correctly includes the full pre-fire cycle loop,
+  matching live's FMBURN-before-next-loop sampling) — it's the **snag-fall DENSITY/TIMING in the last cycle year**
+  (the D5/#28 fire-downwood class): jl falls slightly fewer / a beat later than live's fmsfall cohort, under-
+  filling sz2-5 ~10%. FINAL NEXT-STEP (fresh session): stamp live FMSNAG/fmsfall per-year 1999→2003 for FALL
+  DENSITY by cohort (deathyr) vs jl `update_snags!` — pin fewer-snags vs off-by-a-year. ≤3% one-family FFE
+  residual, fully localized; upstream cut→snag PATH (D16) CLOSED; SN inventory at documented floor (219/260).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
