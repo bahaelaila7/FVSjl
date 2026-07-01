@@ -240,12 +240,24 @@ TPA), the signature of survivors growing too much, NOT an RNG drift.
   the mortality probability and (b) crown-biomass consumption→snags/carbon — it NEVER reduces the surviving
   tree's `crown_pct`/`crown_ratio`. So jl survivors keep full crowns ⇒ over-grow ⇒ +4.4% Bdft. (Consistent
   with the old memory note "fire per-tree kill BA 81 vs 78" — that was this crown-driven growth, not the kill.)
-- **PORT PLAN (substantial FFE change — next focused session):** in fmburn.jl, for each SURVIVOR with
-  scorch, compute burned crown length CRBNL and set the reduced crown ratio (FMICR), then feed it to the
-  crown-ratio state the DGF reads; implement the 2-cycle `GROW=-1` non-restoration (crown regrows over 2
-  cycles). CAUTION: crown_ratio also drives the already-ported crown-lift carbon (FMSDIT/FMCADD) and the
-  crown tests — validate fire_carbon/DDW stay bit-exact + no crown-test regression. Variant-aware (SN/CS
-  fmeff differ).
+- **PORT ATTEMPTED — hit an architectural obstacle (reverted, scoped for next session):** the computation
+  is simple (FMICR = trunc(100·(CRL−sl)/HT), sl = jl's already-computed burned crown length `crl−sl`), and
+  grow_cycle! order is favorable: growth (line 363, uses pre-fire crown ⇒ 2005 stays bit-exact) → fire (385)
+  → crown_ratio_update! (431). jl ALSO already has the exact GROW=−1 hold mechanism: a NEGATIVE crown_pct
+  makes crown_ratio_update! (crown.f:271) restore the sign + skip the recompute for one cycle, then it
+  regrows via the ±1%/yr limiter. **BUT** setting `crown_pct = -FMICR` in/after the fire loop CRASHES: the
+  fire cycle makes MANY crown_biomass reads between the fire and crown_ratio_update! — `ffe_fuel_loadings`
+  (in fmburn!) AND the post_fire crown-lift `ffe_fuel_update!` (fuel_additions.jl:214/240) — and
+  crown_biomass DomainErrors on a negative crown ratio (`(neg)^power`). Deferring the negative set to after
+  fmburn!'s fuel loadings still crashes in the post_fire crown-lift pass. ⇒ the negative-hold convention
+  collides with the fire/carbon crown pipeline.
+- **TWO viable designs (next session):** (A) add a dedicated `fire_crown` per-tree field (mirrors FVS's
+  SEPARATE FMICR array): set it in the fire, have crown_ratio_update! consume it (apply as the held crown)
+  AFTER tripling, leaving crown_pct positive for the fuel/carbon path all cycle — cleanest & most faithful,
+  but adds state + tripling propagation. (B) make crown_biomass tolerate a negative crown (use |ic|) —
+  1-line, but must confirm the crown-lift carbon should use the pre-fire vs fire-reduced crown (risks the
+  bit-exact fire_carbon/DDW). Recommend (A). CAUTION either way: validate fire_carbon/DDW stay bit-exact +
+  no crown-test regression; variant-aware (SN/CS fmeff differ).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
