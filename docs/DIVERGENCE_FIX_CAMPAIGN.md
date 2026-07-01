@@ -653,6 +653,24 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   vs jl's 8 — pin why jl splits the cut into more records (point structure? tripling? cut-record management), then
   match the granularity so the cone→sz5 split aligns. A ≤3% one-family FFE residual, exhaustively localized to
   per-snag-dbh cone granularity; NOT ULP; open. Upstream cut→snag PATH (D16) CLOSED.
+- **★★★★ D16b ROOT FOUND + FIXED (LARGE half) — SNAGINIT snags fall with the wrong VOLUME BASIS + dropped the
+  current-height field (commit cb824c9, suite green 6397/2).** The "record granularity" framing was a step short:
+  the decisive live stamp was FMSNAG per-record (fmsnag.f:227 CWD1) dumping each snag's dbh/den/ht. It showed the
+  SNAGINIT snag (`SNAGINIT 10 11 50 40 2 50`) at **HTIH=40, not 50** — jl used 50. Reading CWD1 (fmcwd.f:185,22,29):
+  the fall bole = FMSVL2 **'D' = TOTAL** volume of the ORIGINAL tree (taper from HTDEAD=50), integrated only up to
+  **HIHT(2)=HTIH=40** (the current top). jl's `ffe_add_snaginit!` (a) used **MERCH** (R8 Clark v[4]) for the fall
+  bolevol and (b) **dropped SNAGINIT field 4** (current height), using field 3 (HTDEAD) for the cone. FIX: (1) a new
+  `SnagList.fallvol` = TOTAL-volume bole for the fall (CWD1), kept DISTINCT from the merch `bolevol` the Stand-Dead
+  report uses (validated separately); `update_snags!`/salvage now deposit `fallvol`. (2) parse SNAGINIT field 4 →
+  snag `htcur`; `_cwd_cone_fractions` truncates the taper integration at `htcur` (normalized by the full cone).
+  RESULT: **LARGE cwd 6.015 → 6.397 == live 6.425 (was 6% off → ULP-class)**, flame 4.003→3.988 (live 3.90), 2008
+  TPA 104→105 (live 107) — 1 of the 3 over-killed TPA recovered. CRITICAL BOUND: applying TOTAL to ORDINARY/fire/
+  input snags too **regressed 10 live-validated carbon_snt tests** ⇒ live's ordinary-snag CWD1 ≈ MERCH there
+  (total≈merch for those trees, or a genuinely different basis), so ordinary stays merch (`fallvol` defaults to
+  `bolevol`). The SNAGINIT-total is validated against live independently (its snag has total≫merch). ⇒ D16b's
+  LARGE-cwd driver is FIXED; the **SMALL-cwd gap (jl 7.12 vs live 7.964) remains** and still tips ~2 TPA of the
+  fire over-kill — the last open piece, now isolated to the sz1-3 fine down-wood (litter sz10 already matches).
+  9 hypotheses explored: 8 refuted, the 9th (SNAGINIT volume/height) CONFIRMED + fixed for LARGE.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
