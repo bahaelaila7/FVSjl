@@ -409,6 +409,21 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   LIVE side. NEXT (correct method): a LIVE per-source stamp — dump live CWD1 `ADD` per size-class + per-snag
   DIH/TVOLI each annual step and diff vs jl `update_snags!`; do NOT infer from jl-only decomposition again.
   D16 stays localized to the snag-fall→down-wood step; the exact term needs the LIVE-side decomposition.
+- **✅ LIVE-SIDE MEASURED (the correct method): snag-fall IS the short term (~9%).** Stamped live CWD1 per
+  size-class ADD + a FMSNAG per-year marker: live snag-fall LARGE (sz4-9) over 1993→1998 = **9.636** vs jl
+  **8.752** (jl −9.2%). So snag-fall→down-wood genuinely under-produces LARGE (my earlier ATTRIBUTION was
+  right; only the "cone" mechanism was wrong — cone/BP/taper/SCNV all verified match). Since the fall-RATE,
+  cone SPLIT, and bolevol FORMULAS all match FVS, the ~9% is in the snag INPUTS: FVS's per-class bole =
+  cone·**TVOLI**(full FMSVL2 taper 0.10ft→height)·DIH·V2T·SCNV, jl's = cone·**bolevol**(=MCF·V2T/2000,
+  MCF=merch_cuft)·dfih. PRIME SUSPECT: **TVOLI (full-stem taper) vs jl MCF (MERCH cubic)** — the merch cubic
+  omits the stump + the top above merch-DIB, so jl's fallen bole is ~9% less coarse-wood than FVS's full-stem
+  volume. (jl MCF≈jl total-cuft in a spot check, but that wasn't MATCHED sp/dbh/ht — the ~9% is exactly the
+  merch-vs-full-stem gap for these ~10-12″ trees.) NEXT: matched per-snag stamp — for ONE snag (same sp/dbh/
+  ht) dump FVS FMSVL2 TVOLI vs jl bolevol·2000/V2T (=MCF) — if TVOLI ≈ MCF·1.09, switch jl's snag `bolevol`
+  from merch_cuft to the FULL-STEM taper volume (FMSVL2 equivalent). CAUTION: bolevol feeds carbon_snt DDW
+  (bit-exact-validated) — so either carbon_snt's trees have merch≈full (large clean boles) OR the fix needs
+  the full-stem volume + a re-validate. D16 measured to snag `bolevol` = merch-cubic-vs-full-taper; that is
+  the concrete fix candidate. (Correct method this time: LIVE per-source stamp, not jl-only inference.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
