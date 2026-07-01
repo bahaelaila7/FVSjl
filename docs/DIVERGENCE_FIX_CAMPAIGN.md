@@ -35,6 +35,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
 | D15 | Fire RANN draws not rolled back (fmeff.f RANNGET/RANNPUT) | fire→growth RNG | ~4.4% Bdft@2015 (fire stands) | ✅ FIXED-to-ULP (RANNGET/RANNPUT save-restore) |
+| D16 | snt01_alpha fire over-kill = FLAME ~2.8% high + per-tree crown diff | fire behavior→mort | ~3 TPA / 2.8% @fire | 🔬 NEW — RE-CHARACTERIZED (was "accepted kill tie"), 2 sub-causes traced |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -267,6 +268,24 @@ TPA), the signature of survivors growing too much, NOT an RNG drift.
   Meta-lesson (4th self-mis-diagnosis this campaign): I read fmeff.f and ASSUMED FMICR→growth without
   verifying the coupling DIRECTION — a probe (implement + measure) + tracing where the var is CONSUMED
   (fmmain.f:111) exposed it. Trace consumers, not just producers.
+
+### D16 — snt01_alpha fire over-kill — 🔬 NEW, RE-CHARACTERIZED (was the "accepted s4 fire-kill tie")
+Re-traced the `snt01_alpha` s4 SIMFIRE-2003 residual (jl over-kills ~3 TPA: 2008 TPA 104 vs live 107) with
+a live fmeff.f per-tree stamp (I, DBH, CSV, FMICR, FLAME, PMORT, CURKIL, IYR=2003 gate). It is NOT a
+single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for SMALL trees, from TWO inputs:
+- **(1) FLAME ~2.8% high: jl 4.0103 vs live 3.90055** (all trees). flame=0.45·(byram/60)^0.46 ⇒ jl's BYRAM
+  is high ⇒ higher CHARHT (=0.7·flame, drives the SN Regelbrugge-Smith groups 1-5) AND higher scorch height
+  ⇒ higher CSV (crown-volume-scorched, drives the group-6 FOFEM logistic). Both formula paths in jl's
+  `fire_tree_mortality` are bit-correct — the divergence is the fire-BEHAVIOR byram/flame (fuel-model /
+  Rothermel / the accumulated cwd fuel loading at 2003). Higher flame ⇒ higher pmort ⇒ over-kill.
+- **(2) Per-tree crown ratio differs at the fire** (e.g. rec-3 dbh 6.921: jl crown_pct 67 vs live FMICR 50;
+  recs 1-2 match at 39/59). Crown feeds CRL ⇒ CSV. Some trees' crown ratio at the fire moment differs
+  (FMICR=ICR captured in fmmain.f:111 vs jl's `crown_pct` at the burn) — a crown-timing/value question.
+- Pre-fire 2003 stand is BIT-EXACT (TPA/BA/Bdft), so both are IN-FIRE input diffs, not upstream growth.
+  NEXT: (1) trace jl's byram vs live for this fire (stamp FMFINT/the fuel loading at 2003 — the cwd fuel
+  accumulation is the likely source of the 2.8% flame); (2) trace the per-tree crown at the fire (FMICR
+  capture timing). Memory [[fvsjl-fire-tripling-order-bug]] had labeled this an accepted kill tie — WRONG,
+  it's a fire-behavior + crown residual. Small (~3 TPA) but real and non-ULP.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
