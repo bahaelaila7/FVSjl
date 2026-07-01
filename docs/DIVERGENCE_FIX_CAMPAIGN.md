@@ -183,17 +183,23 @@ Mcuft@2035 (jl 872 / live 1130). Evidence gathered:
 - **First divergence seeds at 1995→2000** (1990/1995 bit-exact incl. full-precision; 2000 Mcuft 671 vs 670,
   ~0.01″ on a few trees; TPA/kill-COUNT bit-exact 476→389 both). Amplifies via the HARD 10″ cap threshold +
   tripling/DGSCOR + density feedback to 22% by 2035 (same amplification CLASS as D10-pre-fix / COMPRESS).
-- **Rejected hypothesis (live debug-stamp + tested fix):** DGBND runs in outside-bark in FVS but jl's
-  `diam_growth` is inside-bark (simulate.jl:410 `dbh += diam_growth/bark`), so I hypothesized jl OVERSHOOTS
-  the cap (caps inside-bark ddg to SIZCAP−DBH ⇒ DBH lands >SIZCAP after /bark). Implemented the outside-bark
-  SIZCAP branch (test `(d+ddg/bark)>cap`, cap `(SIZCAP−d)·bark`). **REGRESSED 1995** (bit-exact→1093 vs live
-  1098) and did NOT fix 2035 ⇒ REVERTED. The regression proves the ORIGINAL inside-bark cap TRIGGER matches
-  live at 1995 — so FVS's DGBND bark bookkeeping in this stand is subtler than "plain outside-bark" (DBH(I)
-  passed to DGBND stamped as 10.0/12.7/10.4 = outside-bark values, yet the inside-bark trigger matches). 
-- **NEXT (focused follow-up):** instrument jl's `dg_bound` per-tree I/O and match tree-by-tree against a
-  FVS DGBND stamp (ISPC,DBH,DDG-in,DDG-out) for the SAME record at 1995→2000 — pin the exact bark space +
-  the tripling-record ordering before touching the shared hot path. Contrived stress scenario (100% cap
-  mortality); real but narrow. Do NOT re-attempt the outside-bark fix (proven regressive).
+- **DGBND cap RULED OUT as the bug (3 rejected fixes, all reverted — do NOT re-attempt):**
+  (a) Full outside-bark DGBND (test `(d+ddg/bark)>cap`, cap `(SIZCAP−d)·bark`): REGRESSED 1995
+      (bit-exact→1093) — the trigger change fired the cap for too many trees.
+  (b) Value-only (keep the inside-bark trigger, cap value `(SIZCAP−d)·bark` so DBH lands exactly on the
+      cap like the FVS stamp): also REGRESSED 1995 (→1096), 2035 unchanged.
+  (c) ⇒ the ORIGINAL jl DGBND cap (inside-bark trigger `(d+ddg)>SIZCAP`, value `ddg=SIZCAP−d`, jl then
+      overshoots via `dbh+=ddg/bark`) is **FAITHFUL** — it matches live **BIT-EXACT at 1995** (BA 78 /
+      Mcuft 1098). So live ALSO "overshoots" (does NOT land on exactly 10 at the 1995 cap); the earlier
+      FVS stamp showing DBH=10.0000 was for trees capped/input in other states, not the 1995-cap landing.
+  So the bug is NOT the DGBND diameter cap, NOT the SIZCAP mortality formula, NOT parsing, NOT base growth —
+  it is the cap × **tripling × SIZCAP-mortality** INTERACTION during the 1995→2000 cycle (seeds the ~0.01″
+  redistribution; TPA/kill-count stay bit-exact, only surviving-tree DBH drifts).
+- **NEXT (focused follow-up):** stamp FVS per-RECORD through GRINCR→MORTS→TRIPLE for 1995→2000 (DG, DBH,
+  WK2 before/after each step) and match jl's per-record pipeline — the divergence is in how the cap-kill
+  (WK2) is distributed across the TRIPLED records vs how jl does it, or the tripled-record DG/cap ordering.
+  Contrived stress scenario (100% cap mortality); real but narrow. 3 DGBND-cap fixes already proven
+  regressive — the next attempt must target the tripling/mortality interaction, NOT dg_bound.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
