@@ -635,6 +635,24 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   fire-basis phasing (all now refuted vs live). FINAL NEXT-STEP (fresh session): phase-matched per-year cwd-by-
   size stamp BOTH engines 1998→2003 isolating the 1993-97-deposited cohort's decay ratio (DKR application count/
   order) vs the woody-breakage+crown-lift adds — the last unrefuted mechanism for the ~10% woody-DDW shortfall.
+- **★★★ D16b FINAL LOCALIZATION — sz4/5 CONE-DISTRIBUTION at deposition (bolevol & decay & density all ruled
+  out).** Phase-matched jl-vs-live cwd-by-size per year (jl dump after `fmcwd!` == live FMCWD post-decay phase):
+  the sz5 (6-12") gap is BORN at the FIRST fall year and stays ~constant — 1993 jl 3.005/live 3.231 (0.93), 1994
+  4.774/5.201, 1995 6.339/6.944, 1998 4.81/5.233, 2002 3.481/3.734 (ratio 0.91-0.93 throughout; ABSOLUTE gap
+  shrinks 0.60→0.25 as it decays). sz4 tracks CLOSER (ratio ~0.95). Since (a) snag-fall density is BIT-EXACT and
+  (b) bolevol merch-vs-total is negligible (tested BOTH cut-path SSNG and ordinary-mortality → sz5 moved <0.04),
+  the ~7% is NOT input magnitude and NOT decay (constant ratio) — it's **how the fallen bole is DISTRIBUTED across
+  size classes**: jl deposits relatively more in sz4 / less in sz5 than live's CWD1. The `_cwd_cone_fractions`
+  FORMULA is verified == CWD1 taper, so the driver is the **per-snag dbh/height feeding the cone** — and jl
+  carries **8 cut-snag records where live has 6** (density-preserving splits, same aggregate fall), so jl's snags
+  sit at a slightly different mean dbh ⇒ their cones reach sz5 less. ⇒ D16b's residual 3-TPA fire over-kill
+  traces, at the deepest level, to **cut-snag RECORD GRANULARITY** (jl 8 vs live 6) shifting the sz4/5 down-wood
+  split ~7%, feeding the non-monotonic FMCFMD3 fuel selection. SEVEN hypotheses now refuted vs live this campaign
+  (volume-basis, cut-residue, snag-fall density/timing, fire-basis phasing, cut-snag bolevol, ordinary bolevol,
+  decay-rate). FINAL NEXT-STEP (fresh session): stamp live FMSADD/FMSNAG per-record cut-snag dbh (the 6 records)
+  vs jl's 8 — pin why jl splits the cut into more records (point structure? tripling? cut-record management), then
+  match the granularity so the cone→sz5 split aligns. A ≤3% one-family FFE residual, exhaustively localized to
+  per-snag-dbh cone granularity; NOT ULP; open. Upstream cut→snag PATH (D16) CLOSED.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
