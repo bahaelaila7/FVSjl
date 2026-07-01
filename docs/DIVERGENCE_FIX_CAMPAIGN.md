@@ -12,10 +12,10 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 |---|---|---|---|---|
 | D1 | ~~LP-growth-calibration tail~~ | growth | — | ✅ NOT REAL (artifact) |
 | D2 | GROWTH FINT≠5 first-cycle serial-corr `old` | growth | ~0.4% cuft | ✅ FIXED (bit-exact) |
-| D3 | Multi-point density (PCCF/TCONDMLT/structure-stage) | density | per-point approx | ⬜ |
+| D3 | Multi-point density (PCCF/TCONDMLT/structure-stage) | density | multi-point only | 📌 faithful single-point; multi-point = unported feature |
 | D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ✅ RESOLVED (report bit-exact) |
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ✅ RESOLVED (report bit-exact) |
-| D6 | CS ESCPRS regen-compression not ported | regen | feature gap | ⬜ |
+| D6 | CS ESCPRS regen-compression not ported | regen | feature gap | 📌 unported feature (not a divergence in ported code) |
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
@@ -349,3 +349,21 @@ FIXED to bit-exact: **D2, D7, D9, D12, COMPRESS-tripling** + the sweep parser. I
 divergence in ported code) and **D11** (R8 board-foot — deep NVEL library, 7-layer trace + documented next
 step, narrow scope). All SN/NE/CS variants validated bit-exact vs live via their native scenarios, barring
 Float32-ULP + the accepted COMPRESS eigensolver + the two documented deep/feature items.
+
+### D3 — multi-point density — 📌 faithful single-point; multi-point is an unported FEATURE
+Per the prior audit (docs/audit): the point-density weights (PBAWT/PCCFWT/PTPAWT for TCONDMLT, PCCF, the
+structure-stage) are FAITHFUL for SINGLE-point stands — a per-point constant has no ranking effect, so
+single-point (every current test scenario + the overwhelmingly common inventory design) is bit-exact vs
+live. Only a MULTI-point stand (NPTIDS>1) needs true per-point density accumulation (like the per-point PCCF),
+which is an unported feature, NOT a divergence in ported code. 📌 deferred-by-design (documented); no
+single-point scenario diverges.
+
+### Ledger status — all items now ✅ or 📌 (documented)
+✅ FIXED-to-bit-exact: D1(not-real), D2, D4, D5, D7, D8(→D10), D9, D12 + COMPRESS-tripling + sweep parser.
+📌 documented-deferred: D3 (faithful single-point; multi-point unported), D6 (unported CS feature), D10
+(irreducible DGSCOR-spread × saw threshold, + the mult_*/bare_*/htgstop_stoch family), D11 (deep R8 NVEL
+board — 7-layer trace + next step, narrow non-default-NF-code scope). Accepted (goal-permitted): the SN
+COMPRESS eigensolver + Float32 ULP. NOTE: DIVERGENCE_COMPLETE is intentionally NOT set — D11 is a real
+non-ULP divergence that is deferred (deep), not proven irreducible, so the "faithful bit-exact drop-in barring
+ULP+eigensolver" end-state is met for every DEFAULT scenario but D11 (non-default NF codes 808/809 board-foot)
+remains genuinely fixable. That call is the user's.
