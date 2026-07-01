@@ -540,6 +540,12 @@ function apply_compress!(s::StandState)::Bool
     due === nothing && return false
     nclas = round(Int, due.params[1]); pn1 = Float64(due.params[2]) / 100
     fired = compress!(s, nclas, pn1)
-    fired && compute_density!(s)                       # density changed after the merge
+    if fired
+        compute_density!(s)                            # density changed after the merge
+        s.control.no_tripling = true                   # COMCUP sets NOTRIP=.TRUE. (comcup.f:126) — but LTRIP for
+                                                       # THIS cycle was already latched (grincr.f:74 precedes the
+                                                       # :391 COMCUP), so tripling still fires THIS cycle; NOTRIP
+                                                       # suppresses only SUBSEQUENT cycles.
+    end
     return fired
 end

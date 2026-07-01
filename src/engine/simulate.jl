@@ -325,7 +325,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
-    compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (suppresses tripling)
+    # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
+    # NOTRIP=.TRUE. So capture NOTRIP here: a COMPRESS this cycle suppresses tripling only from NEXT cycle.
+    notrip_start = s.control.no_tripling
+    compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (sets NOTRIP for later cycles)
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
@@ -355,7 +358,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     old_tpa = Float32[t.tpa[i]      for i in 1:nlive]
     # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
-    trip = !compressed && Int(s.control.cycle) < Int(s.control.icl4)   # COMPRESS suppresses tripling (NOTRIP)
+    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4)   # NOTRIP (set by a PRIOR-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
