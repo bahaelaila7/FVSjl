@@ -503,3 +503,17 @@ SMALL in jl (a SEPARATE small-tree-growth residual, in the HK>4.5 / DBH<3″ sub
 lets the large trees grow more, and amplifies at the 10″ saw threshold. NEXT: trace the HK>4.5 small-tree DBH
 growth (the DIAM-floor + _htdbh_dbh(hk) path in _regent_dg) for the 0.5-3″ regen jl-vs-live. D10 REAL, not ULP,
 still open; two real regen sub-bugs identified (seedling DIAM-floor FIXED; 0.5-3″ under-growth OPEN).
+
+### D10 — traced to the regen small-tree height RANN realization (formula matches; spread realization differs)
+The 0.5-3″ regen at 2012 is systematically smaller in jl (top DBH 2.15/2.07/2.00 vs live 2.32/2.12/2.12) with
+the SAME count (50) + TPA (372.5) — and the top regen is BIGGER in jl. So jl's regen DBH distribution is WIDER
+(bigger top + smaller bottom, mean preserved ⇒ Tcuft matches). The small-tree height-growth random FORMULA is
+IDENTICAL to FVS (regent.f:252-260: `HTGR = HTGR + RAN·0.1·HTGR`, RAN=BACHLO(0,1) clamped [-1,1] — matches
+small_tree_growth.jl:112), VARDG/SSIGMA match, and the mean matches. So the spread difference is the REALIZED
+RANN draws: jl and live draw different random height deviates for the regen small trees (a draw-order / RANN-
+stream alignment difference for dynamically-created regen), producing a different spread realization that the
+10″ saw threshold amplifies to +51% Scuft. ⇒ D10 is a regen-cohort RANN-REALIZATION spread difference — REAL,
+NOT ULP, NOT a formula/coefficient bug. Whether fixable (align the regen small-tree RANN draw order/count to
+FVS's ESRANN/RANN sequence) or irreducible (the dynamically-created regen tree order can't be bit-replicated)
+needs a focused RNG-alignment trace: stamp the RAN draw SEQUENCE (regent.f:257) vs jl's bachlo for the regen
+at one cycle. Two real sub-bugs closed en route (seedling DIAM-floor; the BA chain characterized). D10 OPEN.
