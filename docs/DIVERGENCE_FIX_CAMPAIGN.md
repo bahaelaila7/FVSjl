@@ -372,6 +372,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   fmcadd_litterfall / fmcadd_woody / crown-lift) 1993→1998 vs a live FMCWD/FMCADD stamp — pin the short
   term. D16 traced from a 3-TPA fire over-kill down to `update_snags!`'s bole→cwd conversion — the exact
   function, one source-decomposition from the fix.
+- **✅ PER-SOURCE DECOMPOSITION done (jl-side, seeding cycle 1993→1998; sums verified: LG Δ = net cwd change).**
+  LARGE flux: snag-fall +8.75 (DOMINANT) · decay −3.91 · litwoody +0.14 ⇒ net +4.99 (jl) vs live +5.54 (short
+  ~0.55). SMALL flux: litterfall(litwoody) +6.80 (dominant) · decay −9.80 · snag-fall +0.16 ⇒ net −2.84.
+  So the LARGE deficit is entirely in the SNAG-FALL bole contribution (~6% short of live), NOT decay/crown-
+  lift/litter. RULED OUT: decay rate (`_FM_DKR` == FVS DKR matrix bit-for-bit: L1 all .11, L2 .11/.11/.09/.07…),
+  snag-fall RATE formula (== fmsfall.f), snag COUNT (pre-fire 2003 TPA bit-exact ⇒ mortality→snag booking
+  matches). REMAINING: the snag BOLE VOLUME `bolevol=MCF·V2T/2000` (MCF=merch_cuft_vol, carbon_snt-validated
+  for down-wood) OR the `_cwd_cone_fractions(dbh,ht)` size-class split (both pools low argues bole-volume, but
+  cone with a bad height could shift the sz4-9 share). NEXT (the fix step): stamp live's per-year snag-fall
+  bole added to CWD sz4-9 (fmcwd.f CWD1) vs jl's `update_snags!` per snag — a ~6% gap in the bole volume or
+  the cone LARGE-fraction is the bug. D16 is traced to a SINGLE conversion (snag bolevol/cone) — the final
+  live-stamp confirms bolevol-vs-cone, then the fix. This is the last SN model-fidelity residual.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
