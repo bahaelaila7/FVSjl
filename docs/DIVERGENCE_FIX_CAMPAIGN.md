@@ -883,6 +883,19 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   is bit-exact, the divergence is purely the boundary-mortality crown-debris timing. Bounded, #28-adjacent,
   low-value (≤2 TPA/one stand) — documented hard residual. NINE independent live checks now converge on: jl's
   terms are all correct; the residual is cycle-boundary crown-debris accumulation timing.
+- **★ PHASE-CORRECTED (10th refinement) — the locus is the BOUNDARY-YEAR CWD2B RELEASE, one cycle late in jl.**
+  The earlier "jl==live through 2002" was itself a phase-mismatch (JLDECAY was post-decay-PRE-adds). Re-instrumented
+  jl at true phases: post-decay-pre-adds@2002 jl 3.541 / live 3.537 (match), then loop-end/2003-cycle-start jl
+  **4.117** / live **4.820**. So the −0.70 opens in the BOUNDARY-YEAR ADDS (last FMCADD of the 1998→2003 cycle):
+  live +1.283 vs jl +0.576 (~2× the ~0.69/yr steady add). crown-lift/LIMBRK/CWD2B per-year all measure equal, so
+  the extra is live releasing MORE CWD2B crown-debris in the boundary year: the 1998→2003 END mortality crown
+  (FMKILL→FMSCRO→CWD2B) is released to sz2+3 PROMPTLY in live's boundary-year FMCADD, but jl books it to CWD2B and
+  DEFERS the release to the next cycle. Same TOTAL crown-debris (CWD2B whole-run 0.635 both) — only the boundary
+  release is one cycle late in jl, so at the fire-basis it's already in sz2+3 (live) vs still waiting (jl). Squarely
+  the D5/#28 crown-debris-timing family. Bounded, #28-adjacent, ≤2 TPA/one stand. TEN refinements, every one keeping
+  jl's TERMS correct and refining the locus to a finer timing detail; the honest floor is "the boundary mortality's
+  CWD2B crown is released one cycle late in jl." Documented hard residual; the fix (release the boundary-mortality
+  CWD2B crown in the boundary year) is #28-co-ordering + regression-risky (fire_carbon/#20/DDW), a fresh task.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
