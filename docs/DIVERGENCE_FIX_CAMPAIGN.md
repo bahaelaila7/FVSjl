@@ -854,6 +854,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   no regression. This supersedes "unattributable accumulation-order": it IS the fire-basis-vs-boundary-mortality
   PHASE, localized to one step by the per-year matched trace. The 8 term-checks (all equal) + this localization
   make it a well-understood phase bug, not a mystery — a bounded fix for a fresh session.
+- **★ FIX HYPOTHESIS TESTED (advance 1 fuel step before stashing `fire_smlg`, defer per−1) — OVERSHOOTS,
+  bracketing the answer.** Implemented the code's own documented intent (summary.jl:264 "advance 1 year, stash,
+  advance the rest") and measured: fire-basis SMALL 7.12 → **8.783** (live 7.964 — now OVER by 0.8), over-kill
+  slightly worse (2008 TPA 105→104). So the CURRENT phase (0 steps) UNDERSHOOTS (7.12) and a FULL 2003 step
+  OVERSHOOTS (8.783) — live's FMBURN samples at a state BETWEEN them (7.964). This CONFIRMS the 2003 cycle-
+  boundary step is the exact locus, and that jl's full 2003 step adds MORE than live's (esp. to SMALL/litter
+  sz10) — i.e., live's fire samples cwd AFTER only PART of the 2003 boundary processing (e.g. after the boundary
+  mortality's crown→CWD2B + snag-fall pulse but BEFORE that year's litterfall, or a specific FMSNAG/FMCWD/FMCADD
+  sub-order). ⇒ the fix is a PARTIAL-sub-step fire-basis phase alignment, not a whole-step advance — it needs the
+  exact FVS FMMAIN intra-2003 order (FMBURN vs FMSNAG vs FMCADD vs FMKILL) reproduced, which is the intricate #28
+  co-ordering (regression-risky: fire_carbon bit-exact + #20/DDW). Reverted the test (clean). NET: D16b-SMALL is
+  now localized to the exact step AND bracketed (0-step under / 1-step over), with the fix identified as an
+  intra-cycle-boundary sub-step phase alignment — a precise, bounded, but #28-adjacent fresh-session task. This is
+  the campaign's last SN item; LARGE half stays a real validated fix.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
