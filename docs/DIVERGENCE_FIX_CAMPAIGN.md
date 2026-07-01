@@ -762,6 +762,19 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   only where merch=0). NEXT: stamp live CWD1 TVOLI for a sub-merch snag vs jl fallvol; port the small-tree fall
   volume. (Meta: THREE inferences on this item — crown-lift, CWD2B-2×, D4 — each REFUTED once measured; only the
   direct live stamp held. Re-trace discipline earned its keep repeatedly this session.)
+- **★★★★ D16b-SMALL ROOT — FORMULA-EXACT (measured; the "small-tree" guess was the 4th refutation): the ordinary
+  snag fall uses MCF, must use TCF.** Stamped live CWD1 TVOLI (FMSVL2 'D') per snag: for SMALL/sub-merch trees
+  TVOLI = `0.005454154·H` EXACTLY (DBH0.10/H2 →0.0109, DBH4/H20 →0.1091) = jl's floor ⇒ small-tree fall is ALREADY
+  correct (refutes "small-tree bole-fall"). For a LARGE snag (DBH15/H72.8) TVOLI = **34.1**, but jl merch ≈ 31.6
+  and jl `cuft_vol` ≈ 32 — **both undershoot FMSVL2 'D'.** Source: FMSVL2 'D' (fmsvol.f:153) = `VOL2HT =
+  MAX(0.005454154·H, TCF)`, TCF = total cubic from CFVOL; jl's `mortality.jl` fall uses `MAX(X, MCF)` = MERCH
+  (fmsvol.f:150 branch). So the large-tree bole's <4″ fine TOP (in TCF, absent from MCF) never reaches sz1-3 →
+  the −0.70 sz2+3 gap; sz4-5 (the MCF >4″ portion) match. carbon_snt stays merch-valid because its snags are
+  small (X=floor=TCF). ⇒ **FIX: snag fall `fallvol` = MAX(0.005454154·H, TCF), TCF = the FFE CFVOL total cubic —
+  NOT MCF, NOT jl `cuft_vol`** (both ≠ TCF; that's why naive cuft_vol-for-all regressed carbon_snt). Requires
+  locating/porting the FFE CFVOL total cubic. Measured, formula-exact root of D16b-SMALL after FOUR refuted
+  inferences (D4, crown-lift, CWD2B, small-bole). NEXT: get TCF (port CFVOL or find jl equivalent), set snag fall
+  = MAX(X,TCF), validate snt01_alpha sz1-3 → live + no carbon_snt regression. Closes the last ~2 TPA of D16b.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
