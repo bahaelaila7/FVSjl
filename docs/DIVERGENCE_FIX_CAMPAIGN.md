@@ -34,6 +34,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
+| D15 | Post-fire survivor crown-scorch not applied (fmeff.f:494-511) | fire→growth | ~4.4% Bdft@2015 (fire stands) | 🔬 NEW — ROOT-CAUSED (missing FMICR crown-ratio reduction), port pending |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -224,6 +225,27 @@ Mcuft@2035 (jl 872 / live 1130). Evidence gathered:
   arithmetic, most untouched: the hard-threshold Float32 signature (like the COMPRESS tie-flip). ⇒
   Float32-origin, all code faithful, amplified by the hard cap threshold. Do NOT re-attempt any dg_bound /
   tripling / SIZCAP-formula fix (all proven faithful/regressive).
+
+### D15 — post-fire survivor crown-scorch (growth) — 🔬 NEW, ROOT-CAUSED (port pending)
+Surfaced by the SN sweep: the fire scenarios (`fire_burn`/`fire_carbon`/`fire_early`/`snagpbn`/`salvage`/…)
+sit ~4.4% Bdft high @2015. RE-TRACED (the "fire kill-distribution residual" label was PARTLY wrong): the
+FIRE KILL itself is BIT-EXACT — fire_burn 2005 (post-fire) is TPA 104 / BA 70 / Bdft 3127 == live, record
+count 243 == live all cycles. The divergence is entirely in the POST-FIRE SURVIVOR GROWTH (2005→2010: jl BA
+85/QMD 12.4 vs live 84/12.3; grows to 4.4% Bdft@2015) — a UNIFORM ~1%/cycle growth EXCESS (higher QMD, same
+TPA), the signature of survivors growing too much, NOT an RNG drift.
+- **Root:** FVS fmeff.f:494-511 REDUCES each fire-survivor's crown ratio to the scorched value
+  `FMICR = 100·(CRL−CRBNL)/HT` (crown length minus burned length) and sets `GROW(I) = -1` so the full crown
+  is NOT restored until 2 FVS cycles later. Crown ratio is a DGF input ⇒ a scorched (smaller) crown grows
+  LESS. jl's fire path (`fire/fmburn.jl` + `fire/fire_effects.jl`) uses crown-volume-scorched ONLY for (a)
+  the mortality probability and (b) crown-biomass consumption→snags/carbon — it NEVER reduces the surviving
+  tree's `crown_pct`/`crown_ratio`. So jl survivors keep full crowns ⇒ over-grow ⇒ +4.4% Bdft. (Consistent
+  with the old memory note "fire per-tree kill BA 81 vs 78" — that was this crown-driven growth, not the kill.)
+- **PORT PLAN (substantial FFE change — next focused session):** in fmburn.jl, for each SURVIVOR with
+  scorch, compute burned crown length CRBNL and set the reduced crown ratio (FMICR), then feed it to the
+  crown-ratio state the DGF reads; implement the 2-cycle `GROW=-1` non-restoration (crown regrows over 2
+  cycles). CAUTION: crown_ratio also drives the already-ported crown-lift carbon (FMSDIT/FMCADD) and the
+  crown tests — validate fire_carbon/DDW stay bit-exact + no crown-test regression. Variant-aware (SN/CS
+  fmeff differ).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
