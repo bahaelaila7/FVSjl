@@ -286,6 +286,27 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   accumulation is the likely source of the 2.8% flame); (2) trace the per-tree crown at the fire (FMICR
   capture timing). Memory [[fvsjl-fire-tripling-order-bug]] had labeled this an accepted kill tie — WRONG,
   it's a fire-behavior + crown residual. Small (~3 TPA) but real and non-ULP.
+- **FLAME sub-cause PINPOINTED (live FMFINT stamp, IYR=2003): the FUEL-MODEL SELECTION differs.**
+  jl selects {fm5 w=0.183, fm10 w=0.817}; live selects {fm10 w=0.994, fm12 w=0.006}. fm10's Rothermel BYRAMT
+  is BIT-EXACT (6518.9 both) ⇒ the Rothermel + per-model byram are correct; the divergence is FMCFMD/FMDYN
+  MODEL SELECTION + weighting. jl wrongly includes the heavy fm5 (byram 8987) at weight 0.183, inflating the
+  weighted byram to 6972 vs live's 6562 (fm10·0.994 + fm12·0.006) ⇒ flame 4.01 vs 3.90. So D16(1) = a
+  fuel-model-selection bug: jl picks fm5 where live picks fm12, and the fm10 weight (0.817 vs 0.994) is off.
+  Traces to the cwd/fuel LOADING that FMCFMD keys the selection on (the down-wood at 2003) OR the FMCFMD
+  selection logic itself. NEXT: stamp jl vs live's FMCFMD inputs (the small/large fuel-class loadings) at
+  2003 — if the loadings match but the picked models differ, it's the FMCFMD selection logic; if the
+  loadings differ, it's the cwd accumulation. (memory notes FMCFMD was validated bit-exact on snt01 stand-4,
+  so this scenario's fuel state or a selection edge crosses a different threshold.)
+- **✅ FULLY LOCALIZED (live fmcfmd.f SMALL/LARGE stamp @IYR=2003): the DOWN-WOOD (cwd) LOADING is ~10% LOW
+  in jl.** live SMALL=7.9638 / LARGE=6.4249; jl sm=7.0789 / lg=6.0153 (small −11%, large −6%). Both >6 so both
+  flag fm5 as a candidate, but FMDYN resolves the (SMALL,LARGE) POINT to different final models: live's higher
+  point → {fm10 0.994, fm12 0.006}; jl's lower point → {fm5 0.183, fm10 0.817} (heavy fm5 pulls byram up). So
+  D16(1) is NOT the fuel-model selection LOGIC (matches) — it's the SMALL/LARGE down-wood loading ~10% low at
+  2003, i.e. a CWD (down-wood) ACCUMULATION residual over cycles (snag-fall / decay / crown-lift — SAME
+  subsystem as D4/D5 carbon down-wood + [[fvsjl-ffe-crown-lift-landed]] "one-cycle lag"). NEXT: trace jl vs
+  live cwd (FMCBA small/large pools) cycle-by-cycle to the fire. This is the TRUE upstream root of the fire
+  over-kill (flame path); fixing the cwd accumulation fixes model-selection → flame → the small-tree
+  over-kill. (D16(2), the per-tree crown-at-fire diff, is separate/secondary.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
