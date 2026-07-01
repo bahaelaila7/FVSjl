@@ -461,6 +461,21 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   mortality-distribution bug. D16 = snag-fall −9% from a subtle dead-tree-dbh difference; ULP-vs-real is the
   final question. (Method: caught the 3× as a unit artifact by the 9%≠3× logic — measure the dead-tree dbh
   at full precision next, don't infer.)
+- **ULP-vs-real SETTLED by magnitude logic: D16 is REAL, not ULP-amplification.** The clean measured
+  divergence is −9% at the CWD1 down-wood output (live 9.636/jl 8.752) — WAY above ULP. The cone LARGE
+  fraction varies ~LINEARLY with snag dbh, so a sub-print (ULP-scale, <0.01″) dead-tree dbh difference could
+  produce at most a fraction of a percent — it CANNOT amplify to 9%. So D16 is a REAL snag-input difference,
+  not the D13/COMPRESS ULP-threshold class. The most likely REAL mechanism given all formulas match: the
+  ANNUAL-vs-CYCLE snag BOOKING — FVS FMSADD books snags EACH YEAR at that year's (growing) dbh (so a tree
+  contributes 5 annual snag cohorts across the cycle, at 5 slightly different dbhs), while jl books ONE snag
+  per record per cycle at the cycle dbh. Different dbh cohorts ⇒ different cone LARGE fractions ⇒ the ~9%.
+  (This also explains the raw 62.3-vs-21.8: live ≈5 annual cohorts per tree, jl 1.) FIX DIRECTION: book jl
+  ordinary-mortality snags ANNUALLY across the cycle (like FVS FMMAIN's year loop) at each year's dbh, not
+  once at cycle end — OR verify the cycle-dbh vs annual-dbh cone difference is the 9%. CAUTION: the snag
+  BOOKING feeds carbon_snt StandDead (bit-exact-validated) — an annual-booking change must keep that green.
+  D16 = REAL (non-ULP) snag-fall −9%, mechanism = annual-vs-cycle snag booking (per-year dbh cohorts). This
+  is the last SN model-fidelity divergence, root direction identified; the fix is an FFE snag-booking change
+  + carbon_snt re-validate.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
