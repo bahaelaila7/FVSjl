@@ -335,6 +335,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   (FFE down-wood accumulation, shared with D5 snag-fall + [[fvsjl-ffe-crown-lift-landed]]). D16 localized
   to: init-correct, accumulation ~10% low, both pools, snag-fall/crown-lift/decay — one focused
   FFE-annual-loop trace from the fix.
+- **Snag-pool discriminator STARTED (needs phase-matching):** stamped live FMSNAG total standing-snag
+  density per annual step + dumped jl `fire.snags`. Findings: (a) BOTH jl and live have snag_soft(DENIS)=0
+  — standing snags stay hard, so no soft-snag diff. (b) jl NEVER removes fallen snag RECORDS (N grows
+  6→91→325→…1513) while live compacts to a steady N≈62 — a record-management diff (harmless to density if
+  fallen records carry 0 density, but confirms jl's snag list isn't compacted like FVS TREDEL). (c) the
+  standing DENSITY comparison is confounded by the FFE ANNUAL-loop phase: FMSNAG runs every year and density
+  swings within a cycle (live H: 1993 79→1998 24→2003 107, non-monotonic annual snapshots) vs jl's
+  cycle-start hook — NOT directly comparable. NEXT (dedicated): stamp BOTH engines at the IDENTICAL FFE
+  annual step (e.g. end of each year's FMSNAG→FMCWD→FMCADD) and diff standing-snag density + the cwd
+  size-class pools year-by-year 1993→2003 — that pins whether it's the fall RATE (snag_fallx), the
+  crown-lift woody add (FMCADD), or the decay (snag_decayx/FMCWD). This is the deep FFE-annual-loop task;
+  D16 is localized to init-correct + accumulation-low + this 3-way mechanism choice.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
