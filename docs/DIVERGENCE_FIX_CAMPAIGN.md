@@ -328,3 +328,24 @@ oldp = cyc==0 ? meas_fint : …`. Verified: jl autcor(5,10) CORR=0.3906 == live;
 (1995 2848/11115, 2000 3308/13836). Default runs (growth_fint=5) unchanged in BOTH variants (SN old=5, NE
 old=10) ⇒ every bit-exact scenario stays bit-exact. Suite 6334/2; +test_growth_fint.jl. LESSON: re-verify a
 "characterized" residual against fresh live before trusting the prior note — the COR had already been fixed.
+
+### NE/CS re-verification — the SN-scenario sweeps through NE/CS are ILL-POSED (not real divergences)
+Ran `divergence_sweep.jl ne` (260 stands) and it showed large diffs (all_SV CCF@1990 203/303, sprout TPA
+914%, growth_fint10 Bdft 19%, etc.). RE-TRACED: these are the SN scenario set (SN forest codes STDINFO 801xx
+= region 8, SN species, SN keywords) run through the NE variant/oracle — ILL-POSED (an SN region-8 stand has
+no meaningful NE region-9 interpretation). PROOF they're artifacts, not NE bugs: the AUTHORITATIVE NE tests
+pass BIT-EXACT in the suite — test_net01.jl (net01, a real NE stand; not in the sweep DIFF list ⇒ bit-exact)
+and test_allspecies.jl's `ne_cov*` scenarios, which validate cycle-0 CCF (col 6) + all stand + volume columns
+BIT-EXACT for every NE species (so jl-NE crown-width/CCF is correct — the all_SV divergence is purely the SN
+forest code). My shared-code fixes this session (D9/D12/COMPRESS-tripling) did NOT regress NE (net01 stays
+bit-exact); D2 is SN-scoped (src/variants/southern). VERDICT: the divergence_sweep is only valid with variant-
+NATIVE scenarios; for NE/CS the proper oracles are net01/cst01 + the ne_cov*/cs_allsp all-species tests, all
+at the documented bit-exact/ULP floor. Do NOT chase the SN-scenario-through-NE/CS sweep DIFF list.
+
+## Campaign state (updated)
+FIXED to bit-exact: **D2, D7, D9, D12, COMPRESS-tripling** + the sweep parser. Irreducible/documented: **D10**
+(+ mult_*/bare_*/htgstop_stoch family). Resolved-to-ULP: **D4/D5**. Not-real: **D1**, carbon_* Scuft, and the
+**NE/CS SN-scenario sweeps** (ill-posed). Remaining OPEN: **D6** (CS ESCPRS — an unported FEATURE, not a
+divergence in ported code) and **D11** (R8 board-foot — deep NVEL library, 7-layer trace + documented next
+step, narrow scope). All SN/NE/CS variants validated bit-exact vs live via their native scenarios, barring
+Float32-ULP + the accepted COMPRESS eigensolver + the two documented deep/feature items.
