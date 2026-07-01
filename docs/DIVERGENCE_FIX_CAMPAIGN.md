@@ -307,6 +307,15 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   live cwd (FMCBA small/large pools) cycle-by-cycle to the fire. This is the TRUE upstream root of the fire
   over-kill (flame path); fixing the cwd accumulation fixes model-selection → flame → the small-tree
   over-kill. (D16(2), the per-tree crown-at-fire diff, is separate/secondary.)
+- **BOTH size classes are low, ~11-12% (not one pool):** jl s4 cwd trajectory (period-end small/large):
+  1993 0/0 · 1998 4.18/7.44 · 2003 7.06/5.67 · 2008 14.5/16.4 …; the 2003 fire-basis point (7.079/6.015) vs
+  live (7.964/6.425) is small −11% / large −6%. So the whole down-wood pool under-accumulates by 2003 — a
+  systemic cwd deficit, not a single size-class bug. It's in the FFE fuel accumulation (FMCBA→CWD via
+  FMSNAG snag-fall + FMCWD decay + FMCADD crown-lift); the crown-lift "one-cycle lag"
+  [[fvsjl-ffe-crown-lift-landed]] is a prime suspect. NEXT SESSION: stamp the live CWD size-class pools each
+  cycle (fmcba/the FFE annual loop) 1993→2003 vs jl's `fs.cwd` — find the cycle + mechanism where the ~10%
+  is lost. Deep FFE down-wood subsystem; D16 is localized to the exact pool (the hard part), the mechanism
+  trace remains.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
