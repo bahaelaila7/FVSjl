@@ -298,3 +298,17 @@ Scribner params — and the 831-vs-841 coefficient set shifts the DIB profile en
 log DIBs (hence board) for geoa=3 but not geoa=4. ACTIONABLE NEXT STEP: stamp the fvsvol NVEL call's LOGLEN/
 LOGDIA (the TVOL(2) segmentation) for the 831 SM tree and match jl's `_r8_scribner_bf` stump/sawHt/log-DIB to
 it. This is a bounded NVEL-merch-param fix, not the earlier (disproven) full-stem or source-move theories.
+
+### D11 — FINAL for this pass: 📌 deferred (deep NVEL-library board; fully traced, narrow scope)
+Traced one layer further: the board `TVOL(2)=85` does NOT come from fvsvol.f's SECOND VOLINITNVB (the
+board-flag call at :466 — a stamp there never fired for the SM tree, so BFPFLG routes it away); it is set by
+the FIRST VOLINITNVB (:304) or the NVEL library internals. So the R8-CLK board foot originates inside the NVEL
+volume library (VOLINITNVB → vollibfia), with region-8 merch params, and jl's `_r8_scribner_bf` (69) is a
+faithful port of the STANDALONE r9bdft but NOT of the NVEL library's board path (85). VERDICT: 📌 DEFERRED —
+a real but NARROW divergence (one species FIA 318, non-default National-Forest codes 808/809; cubic + all
+other volumes bit-exact), requiring a dedicated NVEL-library board-foot port (match jl's board segmentation
+to VOLINITNVB's, guarding the many already-bit-exact R8 cases via the full sweep). Fully characterized across
+7 layers (mrules→r9clark→vols.f METHB/METHC→NATCRS→fvsvol→VOLINITNVB→NVEL); three wrong hypotheses disproven
+en route (live-source-moved, full-stem, saw+topwood). This is the documented reason, not an irreducibility
+claim — a focused NVEL session can close it. Not attempted inline: a wrong board change silently shifts every
+SN board-foot number, so it must be full-sweep-validated, not shipped at the tail of a broad session.
