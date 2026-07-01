@@ -53,8 +53,11 @@ Re-ran the FULL sweep after the D10 establishment-RNG fix. Ranked non-ULP DIFFs,
   distribution residual (BA distribution at the burn, not a bulk error).
 - **s4 fire residual (accepted):** `snt01_alpha`/`compute_cycle` s4 TPA 4.35%@2038 (the pre-existing SN
   non-tripling fire under-kill, memory [[fvsjl-fire-tripling-order-bug]]).
-- **cut/thin (to investigate):** `cut_thinprsc` 11% Scuft@2010 (thinning prescription — NOT yet triaged;
-  candidate next discovery target). `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
+- **cut/thin (triaged → threshold class):** `cut_thinprsc` — bit-exact through the THINPRSC 2000 thin, then
+  jl retains 2 more small TPA (194 vs live 192) with **BA bit-exact** (123/124); the 11% Scuft is that
+  2-TPA thin-selection residual amplified at the saw threshold (same S248112 stand as D13/mult_*). Likely
+  ULP-seeded cut-selection tie (needs a per-cut selection-order check to PROVE ULP; BA-bit-exact ⇒ not a
+  bulk cut bug). `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
 - **small tail (≤2%, ULP/threshold):** hcor_smalltree, htgstop_stoch, dense_long/s09_cyc20 (0.76% @2085
   deep), fixmort_*, topkill_det, s15_phys_p232, s22_forest_809, growth_finth5 — all ULP-floor/threshold.
 - **9 ERR (not divergences):** 5 all_* + dead_fint/mcfdln_override/nohtdreg_cal = live FPE/no-.sum (live
