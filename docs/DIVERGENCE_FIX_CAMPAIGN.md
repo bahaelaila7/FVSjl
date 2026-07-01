@@ -316,6 +316,15 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   cycle (fmcba/the FFE annual loop) 1993→2003 vs jl's `fs.cwd` — find the cycle + mechanism where the ~10%
   is lost. Deep FFE down-wood subsystem; D16 is localized to the exact pool (the hard part), the mechanism
   trace remains.
+- **LIVE per-cycle SMALL/LARGE captured (fmtret.f:374-390 stamp, SMALL=Σcwd sz1-3+10, LARGE=Σsz4-9):**
+  live 1993 7.17/2.45 · 1998 4.26/7.99 · 2003 7.96/6.42 · 2008 13.74/15.61 · 2013 10.35/14.42 …
+  jl period-end: 1993 0/0 · 1998 4.18/7.44 · 2003 7.06/5.67 · 2008 14.5/16.4. CAVEAT: jl dump is period-END,
+  live fmtret is its own mid-cycle phase — NOT phase-aligned, so only the FIRE-basis 2003 point (jl 7.079/
+  6.015 vs live 7.964/6.425) is a clean compare. Signal: the LARGE pool (big woody, sz4-9) reads low as
+  early as 1998 (jl 7.44 vs live 7.99), so the deficit is in the LARGE down-wood accumulation (bigger snags
+  falling / crown-lift coarse woody), pointing at snag-fall timing (D5) or FMCADD crown-lift, NOT the fine
+  litter. NEXT SESSION: phase-MATCH jl's `fs.cwd` to live's fmtret point each cycle (or stamp both at the
+  identical FFE annual-loop step) and diff the sz4-9 pools 1993→2003.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
