@@ -747,6 +747,21 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   ILIFE + CWD2B(IYR) per size vs jl `_fm_tfall`/`ilife` — pin whether jl's crown-fall lifespan is too long, then
   align it. This closes the last ~2 TPA of the D16b fire over-kill. FIVE fine-wood sources now resolved: crown-
   biomass / crown-lift / LIMBRK MATCH; CWD2B is 2× low (timing); bole-top ruled out (sz4-5 match).
+- **★★★ CWD2B "2× low" RETRACTED (was inference); ALL crown sources MATCH; the sz1-3 gap IS the SMALL-TREE
+  BOLE-FALL (measured).** Per doctrine #4 I stopped inferring and STAMPED live FMCADD per-source (CRLF-aware):
+  live CWD2B sz2+3 (1993-2002) = 0.024+0.611 = **0.635 vs jl 0.611** (~4%, MATCHES — the "2× low" was my bad
+  subtraction); live LIMBRK = 0.1229×5 + 0.1640×5 = **1.4345 vs jl 1.434 BIT-EXACT**; live crown-lift 2.049 ==
+  jl. So EVERY crown-derived source matches. But the crown adds Σ ≈ 4.12 while the sz2+3 CWD the fire samples =
+  jl 4.118 / **live 4.820** ⇒ live has **~0.70 MORE from the ONE non-crown source: the ordinary-snag BOLE-FALL
+  fine top.** It's SMALL-tree-specific (sz4-5 large-tree classes match): jl's `mortality.jl` fall uses `fallvol =
+  max(0.005454154·h, merch)` = the tiny CONE FLOOR for sub-merch trees (merch=0 below DBHMIN), but live's CWD1
+  uses FMSVL2 'D' = TOTAL — a small tree's whole bole (all < 3") lands in sz1-3. ⇒ **D16b-SMALL = the sub-merch
+  snag fall-volume**, NOT crown biomass (D4), crown-lift, LIMBRK, or CWD2B (all measured equal). FIX (careful):
+  give the ordinary `fallvol` the FMSVL2 'D' TOTAL for sub-merch/small trees — the naive cuft_vol-for-ALL regressed
+  carbon_snt via LARGE-tree DDW inflation (jl `cuft_vol` ≠ FVS FMSVL2 'D'; use an FMSVL2 'D' analog, or apply total
+  only where merch=0). NEXT: stamp live CWD1 TVOLI for a sub-merch snag vs jl fallvol; port the small-tree fall
+  volume. (Meta: THREE inferences on this item — crown-lift, CWD2B-2×, D4 — each REFUTED once measured; only the
+  direct live stamp held. Re-trace discipline earned its keep repeatedly this session.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
