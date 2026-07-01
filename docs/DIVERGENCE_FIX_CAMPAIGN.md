@@ -20,6 +20,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
 | D10 | regen DGSCOR-spread × saw-threshold amplification | volume | ~51% Scuft | 📌 irreducible (DGSCOR/ULP-amplified) |
+| D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -210,3 +211,21 @@ New ranked items, triaged:
   event-monitor stand emission (likely a sweep-alignment artifact, possibly a spurious extra stand) — flagged, not
   yet a confirmed model diff.
 - **htgstop_stoch 77% (Bdft):** stochastic HTGSTOP stand, Bdft-only — same threshold-amplified D10 signature (defer).
+
+### D12 — COMPUTE evaluated every cycle instead of at its scheduled date — ✅ FIXED (bit-exact)
+compute_cycle (a multi-stand key) stand-2 = "TEST EXPANDED THINDBH": `COMPUTE  MYCYC = CYCLE / END`, then
+`IF (FRAC(MYCYC/3.0) EQ 0.0) THEN THINDBH…`. Sweep flagged it 92% (TPA@2040) — actually a stand-2 divergence:
+LIVE never thins (remTPA≡0, stand-2 == the unthinned control); jl thinned at cycles 3/6/9 (remTPA 77/24/62).
+★ Debug-stamp of live evmon.f (dumped LREG1 + XREG1 per cycle) was DECISIVE: `FRAC(MYCYC/3.0)` = **0.333 at
+EVERY cycle** ⇒ MYCYC ≡ 1 forever ⇒ the THEN never fires. Root cause (evusrv.f:42): a COMPUTE block is a
+scheduled activity (OPNEW act 33) with IDT default 1 — it fires ONCE at cycle 1, freezing MYCYC=1; IDT=0 =
+all cycles. jl's snapshot_compute! / cuts.jl re-evaluated EVERY def every cycle (`year >= cd`, and cd=1 was
+a cycle number wrongly compared to a calendar year ⇒ always true), so MYCYC tracked the live cycle and the
+thin fired. FIX: a `_compute_due(cd, s, yr, fvscyc)` gate (cd==0 → all cycles; 0<cd<1000 → fire only when the
+1-based cycle == cd; else fire in the cycle whose range contains the year) applied at BOTH eval sites; the
+Dict then persists the value. VALIDATED vs live: compute_cycle stand-2 now never thins (TPA tracks live to
+±1 ULP); snt01_alpha (the SAME scenario but reading the built-in `CYCLE`, re-evaluated each cycle) still
+thins at 3/6/9 BIT-EXACT — the two are correctly NON-equivalent. Rewrote test_compute.jl (its old
+"compute_cycle ≡ snt01_alpha" assertion had encoded the bug; the golden was already correct but the test
+only checked the lead stand). Suite 6334/2. NOTE: the sweep's 92% was partly a stand-index artifact, but the
+underlying stand-2 divergence was a REAL COMPUTE-timing bug.

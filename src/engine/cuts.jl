@@ -160,7 +160,9 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         # COMPUTE: evaluate event-monitor user variables this cycle BEFORE the IF conditions
         # read them (defs are in declaration order, so a later one may use an earlier one).
         @inbounds for (cd, nm, ast) in s.control.compute_defs
-            yr >= cd && (s.control.compute_vars[nm] = eval_event(ast, ctx))
+            # COMPUTE fires only at its scheduled date (default cycle 1; 0 = all cycles), then persists —
+            # NOT every cycle from the date. See snapshot_compute! / _compute_due.
+            _compute_due(Int(cd), s, Int(yr), fvscyc) && (s.control.compute_vars[nm] = eval_event(ast, ctx))
         end
         for c in conds
             eval_event(c.cond, ctx) != 0f0 || continue

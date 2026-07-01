@@ -96,14 +96,36 @@ function snapshot_compute!(s::StandState, year::Integer, cycle::Integer)
     defs = s.control.compute_defs
     isempty(defs) && return Tuple{String,Float32}[]
     ctx = EventCtx(Int(cycle) + 1, Int(year), s)
+    fvscyc = Int(cycle) + 1
     snap = Tuple{String,Float32}[]
     for (cd, nm, ast) in defs
-        Int(year) >= Int(cd) || continue
+        # A COMPUTE block is a scheduled activity (EVUSRV → OPNEW act 33) that fires ONLY at its
+        # date (IDT default 1 = cycle 1; IDT=0 = all cycles), NOT every cycle. So a default
+        # `COMPUTE  MYCYC = CYCLE` evaluates once (MYCYC frozen at 1), it does NOT track the cycle.
+        # The variable then persists in compute_vars for later IF conditions. (Debug-stamp of live
+        # evmon proved MYCYC stays 1 ⇒ FRAC(MYCYC/3)=0.333 ⇒ its THEN thin never fires.)
+        _compute_due(Int(cd), s, Int(year), fvscyc) || continue
         v = eval_event(ast, ctx)
         s.control.compute_vars[nm] = v
         push!(snap, (nm, v))
     end
     return snap
+end
+
+"""
+    _compute_due(cd, s, yr, fvscyc) -> Bool
+
+Whether a COMPUTE def scheduled for date `cd` fires this cycle (mirrors OPNEW/OPCYCL): `cd == 0`
+= all cycles; `0 < cd < 1000` = a 1-based CYCLE number (fire when the current cycle == cd); else a
+calendar year (fire in the cycle whose [start,end) range contains it).
+"""
+function _compute_due(cd::Integer, s::StandState, yr::Integer, fvscyc::Integer)::Bool
+    cd == 0 && return true
+    (0 < cd < 1000) && return Int(cd) == Int(fvscyc)
+    cyc0 = Int(s.control.cycle)
+    cs = cycle_year_at(s.control, cyc0); ce = cycle_year_at(s.control, cyc0 + 1)
+    ce <= cs && (ce = cs + 1)
+    return cs <= Int(cd) < ce
 end
 
 "Resolve an event-monitor variable to its current value. Extend as scenarios need."
