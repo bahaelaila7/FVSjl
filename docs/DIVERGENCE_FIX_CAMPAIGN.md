@@ -360,6 +360,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   LARGE cwd addition by source (snag-fall bole vs _cwd2b_fall vs fmcadd_woody) for 1993→1998 and diff the
   snag-fall bole density vs a live FMSNAG per-year stamp — pin the fall-rate/timing bug. D16 is now one
   source-decomposition from the fix.
+- **Snag-fall RATE FORMULA RULED OUT (reads identical):** jl `snag_fall_density` (snag.jl:24) == FVS
+  fmsfall.f:128-175 bit-for-bit (BASE=−0.001679·D+0.064311 clamp≥0.01; MODRATE=BASE·FALLX clamp≤1; D<12
+  linear; else the 5%/ALLDWN FALLM2 ramp). So the fall rate is faithful ⇒ the ~10% LARGE deficit is
+  DOWNSTREAM of the fall: the fallen-bole→down-wood conversion in `update_snags!` (snag.jl:200) — either the
+  bole VOLUME `sn.bolevol` (mcf·v2t/2000 at creation) or the cone-taper SIZE-CLASS split
+  `_cwd_cone_fractions(dbh,ht)` (snag.jl:160, port of FMCWD/CWD1). Since BOTH pools read low (SMALL −11% >
+  LARGE −6% @2003) it's likely the total bole VOLUME low (both drop) rather than a small↔large mis-split
+  (that would raise one / lower the other); the extra SMALL deficit points to litterfall/crown-lift-fine
+  also short. NEXT (concrete): instrument jl per-source cwd ADD each cycle (snag-fall bole / _cwd2b_fall /
+  fmcadd_litterfall / fmcadd_woody / crown-lift) 1993→1998 vs a live FMCWD/FMCADD stamp — pin the short
+  term. D16 traced from a 3-TPA fire over-kill down to `update_snags!`'s bole→cwd conversion — the exact
+  function, one source-decomposition from the fix.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
