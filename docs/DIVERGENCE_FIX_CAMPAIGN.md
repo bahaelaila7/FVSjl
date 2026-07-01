@@ -822,6 +822,22 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   phase residual; closing it needs a full cycle-1 down-wood ORDERING reconciliation (FMCBA vs SNAGINIT vs initial
   mortality vs the annual loop), not any term fix — a scope disproportionate to ≤2 TPA on one stand. DONE for this
   campaign pass; recorded as a hard residual with the phase root identified.
+- **★ DECAY (DKR) also BIT-EXACT (8th check) + phase-matched trajectory localizes the divergence to CYCLE 2
+  (1998→2003).** Verified FVS DKR (fmvinit.f:70-97): sz2 = 0.11 all classes, sz3 = [0.11,0.09,0.09,0.09] (classes
+  3,4 ← class 2 via the DO I=1,9/J=3,4 copy) — jl `_FM_DKR` is IDENTICAL. Phase-matched jl-vs-live at the FMCBA
+  cycle-start: 1993 jl 0.687/2.015 vs live 0.761/1.970 (jl sz3 HIGHER), 1998 jl 0.589/1.623 vs live 0.642/1.580
+  (jl sz3 still HIGHER), 2003 jl 1.497/2.621 vs live 1.819/3.001 (jl both LOW). ⇒ jl and live are CLOSE through
+  1998 (jl sz3 even higher); the −0.69 opens ENTIRELY in the 1998→2003 cycle (live gains +2.60 there, jl +1.91).
+  Since crown-lift/LIMBRK/CWD2B/bole-fall/decay ALL measure equal for that cycle, the cycle-2 aggregate divergence
+  is UNATTRIBUTABLE by decomposition — the components sum-match but the total doesn't, which can only be a subtle
+  ORDER-of-operations / accumulation-basis interaction (e.g. what state each per-year add/decay is applied to)
+  that per-source sums cannot capture. ⇒ **DEFINITIVE CLOSE: D16b-SMALL is a ≤3% one-stand cycle-2 down-wood
+  accumulation-ORDER residual; EIGHT independent live checks (D4, crown-lift, CWD2B, small-bole, MCF/TCF, STFUEL-
+  cycle, FUINI-table, DKR-decay) all confirm jl's terms are correct.** The only remaining path is a per-year
+  MATCHED cwd-sz2/3 stamp of BOTH engines through the 1998→2003 cycle (live FMCWD/FMCADD year-by-year vs jl), to
+  catch the one year the totals split — a fresh, bounded, but low-value trace (≤2 TPA / one stand). Recorded as a
+  documented hard residual; the LARGE half stays a real validated fix. This is the campaign's final SN item and it
+  is bounded to bedrock: all inputs proven equal, divergence isolated to cycle-2 accumulation order.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
