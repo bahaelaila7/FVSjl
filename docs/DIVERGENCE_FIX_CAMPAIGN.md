@@ -439,3 +439,14 @@ random-sign), NOT a spread/SSIGMA issue (VARDG matches). The "2017 bit-exact" cl
 stand ⇒ COR=0). NEXT: trace the DGF term-by-term (DGCONS coefs · density BAL/PCCF/CCF · bark/DIB · the DGSCOR
 mean) for one ~8″ regen loblolly, jl-vs-live, to find the ~0.1% systematic source. (Correcting my own two
 prior mislabels: it is neither "irreducible ULP-amplified" nor "draw-order realization".)
+
+### D10 — ROOT LOCALIZED: a real ~0.03% DGF DDS-prediction difference (NOT float-order), for regen trees
+Stamped BOTH sides' deterministic DG components at the exact bit-exact tree (dbh=4.1694 @2002, cycle 3):
+  live: D(ib)=3.33550  DDS=6.519903  WKI=0.865150
+  jl:   D(ib)=3.33550  DDS=6.517950  WKI=0.864917   (jl DDS −0.03%, D IDENTICAL, cr=100.0)
+So the inside-bark diameter matches bit-exact, but jl's DGF basal-area-increment prediction DDS is ~0.03%
+LOW — ~300× the Float32 floor ⇒ a REAL formula/input difference, DEFINITIVELY not float-order/ULP. (2002
+bit-exact ⇒ inputs are identical, so the miss is in a DGF TERM.) jl reports crown ratio cr=100.0 (a boundary
+value) for this tree — the prime suspect DGF input. This SEALS D10 as a fixable DGF-term divergence for regen
+trees (uncalibrated loblolly), amplified downstream at the 10″ saw threshold; NOT irreducible, NOT ULP.
+NEXT: stamp the DGF INPUTS (CR/BAL/PCCF/CCF/site) for this tree jl-vs-live to find the ~0.03% term.
