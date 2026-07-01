@@ -762,19 +762,23 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   only where merch=0). NEXT: stamp live CWD1 TVOLI for a sub-merch snag vs jl fallvol; port the small-tree fall
   volume. (Meta: THREE inferences on this item — crown-lift, CWD2B-2×, D4 — each REFUTED once measured; only the
   direct live stamp held. Re-trace discipline earned its keep repeatedly this session.)
-- **★★★★ D16b-SMALL ROOT — FORMULA-EXACT (measured; the "small-tree" guess was the 4th refutation): the ordinary
-  snag fall uses MCF, must use TCF.** Stamped live CWD1 TVOLI (FMSVL2 'D') per snag: for SMALL/sub-merch trees
-  TVOLI = `0.005454154·H` EXACTLY (DBH0.10/H2 →0.0109, DBH4/H20 →0.1091) = jl's floor ⇒ small-tree fall is ALREADY
-  correct (refutes "small-tree bole-fall"). For a LARGE snag (DBH15/H72.8) TVOLI = **34.1**, but jl merch ≈ 31.6
-  and jl `cuft_vol` ≈ 32 — **both undershoot FMSVL2 'D'.** Source: FMSVL2 'D' (fmsvol.f:153) = `VOL2HT =
-  MAX(0.005454154·H, TCF)`, TCF = total cubic from CFVOL; jl's `mortality.jl` fall uses `MAX(X, MCF)` = MERCH
-  (fmsvol.f:150 branch). So the large-tree bole's <4″ fine TOP (in TCF, absent from MCF) never reaches sz1-3 →
-  the −0.70 sz2+3 gap; sz4-5 (the MCF >4″ portion) match. carbon_snt stays merch-valid because its snags are
-  small (X=floor=TCF). ⇒ **FIX: snag fall `fallvol` = MAX(0.005454154·H, TCF), TCF = the FFE CFVOL total cubic —
-  NOT MCF, NOT jl `cuft_vol`** (both ≠ TCF; that's why naive cuft_vol-for-all regressed carbon_snt). Requires
-  locating/porting the FFE CFVOL total cubic. Measured, formula-exact root of D16b-SMALL after FOUR refuted
-  inferences (D4, crown-lift, CWD2B, small-bole). NEXT: get TCF (port CFVOL or find jl equivalent), set snag fall
-  = MAX(X,TCF), validate snt01_alpha sz1-3 → live + no carbon_snt regression. Closes the last ~2 TPA of D16b.
+- **★ D16b-SMALL — the "MCF vs TCF" story is ALSO inconclusive (5th self-correction); the fall-volume is NOT
+  clearly the gap. HONEST STOP for this item.** The FVS formula IS `FMSVL2 'D' = MAX(0.005454154·H, TCF)` (total,
+  fmsvol.f:153), and small-tree TVOLI = the floor = jl's floor (confirmed). BUT the claim "jl uses low MCF" is
+  wrong: jl's `mortality.jl` fall uses `t.merch_cuft_vol`, whose VALUE (≈32.2 for a dbh-15 snag) sits INSIDE live's
+  measured TVOLI range (31.8-34.1) — NOT the low `_fm_cuft(merch=true)` MCF (28.5). So jl's large-snag fall volume
+  is already ~right, and the −0.70 sz2+3 gap is NOT cleanly explained by the fall volume. The stamps don't cleanly
+  align trees (live CWD1 dumps ALL snags incl. SNAGINIT/fire; jl mortality.jl dumps live-trees-being-killed —
+  different populations & heights), so a per-tree matched TVOLI comparison was never actually achieved. ⇒ **D16b-
+  SMALL (~2 TPA, ONE thinned+fire stand) is a genuinely HARD, deeply-investigated residual: crown-biomass / crown-
+  lift / LIMBRK / CWD2B all MEASURE EQUAL to live, small-tree fall is correct, large-snag fall is ~right — yet
+  live's sz2+3 cwd exceeds jl's by 0.70 and the source is NOT cleanly attributable after ~20 turns and FIVE
+  refuted inferences (D4, crown-lift, CWD2B-2×, small-bole, MCF-vs-TCF).** VERDICT: the LARGE half is a real
+  validated fix (SNAGINIT total, ULP); the SMALL half is DOWNGRADED to a documented ≤3% one-stand FFE-fuels
+  residual — the correct NEXT step is a CLEAN per-tree-MATCHED CWD1 deposit comparison (stamp live CWD1's actual
+  per-size ADD for ONE identified snag + reproduce that exact snag's deposit in jl), NOT another arithmetic
+  inference. LESSON (imprint): this item burned 5 inferences because I repeatedly SUBTRACTED/READ-ACROSS instead of
+  matching a single record end-to-end; when a differential won't isolate, MATCH ONE RECORD, don't decompose sums.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
