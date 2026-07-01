@@ -2026,9 +2026,12 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SPLEAVE";  kw_thin!(s, rec, Int32(206))   # cut modifier: leave named species
         elseif kw == "TCONDMLT"; kw_thin!(s, rec, Int32(202))   # cut modifier: tree-condition weight (TCWT)
         elseif kw == "LEAVESP";  kw_thin!(s, rec, Int32(206))   # alias for SPLEAVE
-        elseif kw == "YARDLOSS"                                 # yarding loss (cuts.f:1461): PRLOST of the
-            rec.present[1] && (s.control.yardloss_prlost = clamp(Float32(rec.values[1]), 0f0, 1f0))  # harvested
-                                                                # merch/saw/board volume is left on site
+        elseif kw == "YARDLOSS"                                 # yarding loss. FVS fields (initre.f:3637-45):
+            # field1 = DATE, field2 = PRLOST, field3 = PRDSNG, field4 = PRCRWN. jl previously read PRLOST from
+            # field1 (the DATE!) ⇒ YARDLOSS was silently INACTIVE (prlost=0). PRLOST = proportion of the
+            # harvest lost in yarding (left on site); of that LOSS, PRDSNG is downed + (1−PRDSNG) standing snags.
+            rec.present[2] && (s.control.yardloss_prlost = clamp(Float32(rec.values[2]), 0f0, 1f0))
+            rec.present[3] && (s.control.yardloss_prdsng = clamp(Float32(rec.values[3]), 0f0, 1f0))
         elseif kw == "SALVAGE"                                  # ABANDONED in Fortran (cuts.f:103) — recognized
                                                                 # no-op so the keyword doesn't fall through silently
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)

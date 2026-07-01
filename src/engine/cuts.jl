@@ -123,6 +123,21 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     if s.fire !== nothing && s.fire.active
         mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
         accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+        # YARDLOSS cut-snags (cuts.f:1382-1386 + fmscut→FMSADD ITYP=2): of the yarding LOSS = prem·PRLOST,
+        # a (1−PRDSNG) fraction becomes STANDING FFE snags (fs.snags → fall→down-wood via update_snags!) and
+        # PRDSNG becomes DOWNED. jl's cut path previously modelled SSNG=0, so cut trees never entered the FFE
+        # down-wood ⇒ the cwd fuel ran ~10% low ⇒ wrong dynamic fuel model ⇒ over-hot fire (D16). Book the
+        # standing portion here (the ITYP=2 analog); gated on YARDLOSS (pl>0) so non-yarding cuts are untouched.
+        pl = s.control.yardloss_prlost
+        if pl > 0f0
+            ssng = prem * pl * (1f0 - s.control.yardloss_prdsng)
+            if ssng > 0f0
+                v2t = coef_col(s.coef, :v2t)[sp]
+                mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+                add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
+                          bolevol = mcf * v2t / 2000f0, height = t.height[i])
+            end
+        end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on)
     (s.control.lsprut && coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
