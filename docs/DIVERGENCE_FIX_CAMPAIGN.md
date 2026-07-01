@@ -477,3 +477,17 @@ floored ⇒ the effective 0.225 is written during a GROWTH sub-step, not creatio
 hk>4.5 branch (no seedling has hk>4.5), regent_min_diam floor (=0.5, not 0.225), _htdbh_dbh(3.5)=0.367.
 NEXT: pinpoint the exact SN small-tree DBH write that produces 0.225 for a HT~3.6 seedling and apply the
 HT<4.5 → 0.1+0.001·HT rule there. D10 is REAL/deterministic/fixable — NOT ULP (proven across ~8 live stamps).
+
+### D10 — seedling DIAM-floor bug FIXED (faithful, BA now matches) — but NOT the Scuft cause
+Root of the below-breast-height seedling over-sizing FOUND + FIXED: small_tree_growth.jl applied the DIAM
+budwidth floor (`(d+dg)<regent_diam ⇒ dg=regent_diam−d`) to seedlings with HK=H+HTG ≤ 4.5, forcing DBH toward
+the species DIAM (0.5) ⇒ 0.225. FVS (regent.f:284-287) sets `DG=0, DBH=D+0.001·HK` for HK≤4.5 and SKIPS the
+DIAM floor + DGBND (they live in the HK>4.5 branch). FIX: gate the DIAM floor + DGBND + FINT-reexpand on
+`(h+htg) > 4.5`. RESULT: bare_natural seedling DBH 0.225 → 0.103 (== live 0.104); stand BA 34.3689 → 34.2843
+(== live 34.2811). Full suite 6348/2, no regression — a real, faithful fix.
+⚠ HOWEVER it does NOT resolve D10's Scuft (still jl 590 / live 391 @2027): the large-tree DBH @2022 is
+UNCHANGED (jl +0.007″), so the 0.26% BA difference was only a MINOR contributor. The DGF DDS I stamped (jl
+LOWER @cycle 3) was the cycle-3 "jl grows less" perturbation (now fixed) — a DIFFERENT sign from the 2022+
+"jl grows MORE" that drives Scuft. So D10's Scuft has a SEPARATE, persistent large-tree-growth cause in
+cycles 4-6 (2012-2022). RE-TRACE lesson: a deep chain can find a REAL bug that is NOT the target divergence —
+verify the fix moves the target metric, not just an intermediate. D10 still OPEN (Scuft); seedling bug closed.

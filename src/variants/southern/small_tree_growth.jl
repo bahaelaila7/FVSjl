@@ -112,14 +112,22 @@ function small_tree_growth!(s::StandState, stash, ::Southern; fint::Float32 = 5f
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx), xrdgro)
-                (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)   # DIAM budwidth floor at the 5-yr basis
-                dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)             # DGBND at the 5-yr basis (regent.f:359-371)
-                # GRADD re-expands the bounded 5-yr DG to the FINT cycle (gradd.f:79-90), as for large trees.
-                # No-op for FINT=5; a pure shrink/expand identity unless the floor/cap bound above.
-                if fint != 5f0 && dg > 0f0
-                    bk = bark_ratio(c.bark_a, c.bark_b, sp, d); dib = d * bk
-                    dds_e = dg * (2f0 * dib + dg) * (fint / 5f0)
-                    dg = sqrt(dib * dib + dds_e) - dib
+                # A seedling still BELOW breast height (HK = H+HTG ≤ 4.5) takes FVS's nominal DBH nudge only —
+                # regent.f:284-287 sets DG=0, DBH=D+0.001·HK and SKIPS the DIAM budwidth floor + DGBND (those
+                # live in the HK>4.5 branch). jl previously applied the DIAM floor to sub-breast-height regen,
+                # forcing DBH toward the species DIAM (0.5) ⇒ 0.225 vs live 0.104, inflating stand BA ~0.26%
+                # and biasing large-tree DGF growth (D10, amplified at the 10″ saw threshold). `_regent_dg`
+                # already returns 0.001·HK for HK≤4.5, so only gate the post-processing.
+                if (h + htg) > 4.5f0
+                    (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)   # DIAM budwidth floor at the 5-yr basis
+                    dg = dg_bound(dlo_v, dhi_v, sp, d, dg, sizcap)             # DGBND at the 5-yr basis (regent.f:359-371)
+                    # GRADD re-expands the bounded 5-yr DG to the FINT cycle (gradd.f:79-90), as for large trees.
+                    # No-op for FINT=5; a pure shrink/expand identity unless the floor/cap bound above.
+                    if fint != 5f0 && dg > 0f0
+                        bk = bark_ratio(c.bark_a, c.bark_b, sp, d); dib = d * bk
+                        dds_e = dg * (2f0 * dib + dg) * (fint / 5f0)
+                        dg = sqrt(dib * dib + dds_e) - dib
+                    end
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
