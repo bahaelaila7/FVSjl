@@ -671,6 +671,17 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   LARGE-cwd driver is FIXED; the **SMALL-cwd gap (jl 7.12 vs live 7.964) remains** and still tips ~2 TPA of the
   fire over-kill — the last open piece, now isolated to the sz1-3 fine down-wood (litter sz10 already matches).
   9 hypotheses explored: 8 refuted, the 9th (SNAGINIT volume/height) CONFIRMED + fixed for LARGE.
+- **★ D16b post-fix per-size (2003 fire) — LARGE closed, gap now PURELY sz1-3 fine wood.** jl vs live: sz4
+  1.654/1.763, **sz5 3.815/3.734 (matched, jl slightly over)**, sz6 0.574/0.573, sz7 0.305/0.307, sz8-9 exact,
+  sz10-litter 2.619/2.685 — all LARGE + coarse + litter now match. The ONLY remaining gap is the fine wood:
+  **sz1 0.383/0.458 (0.84), sz2 1.497/1.819 (0.82), sz3 2.621/3.001 (0.87)** — a uniform ~15% shortfall in the
+  <3″ classes (Σ ≈ 0.78, ≈ the SMALL gap). This is PRE-EXISTING (unchanged by the SNAGINIT fix; sz2 1.496→1.497)
+  and a SEPARATE D5-class fine-down-wood residual. The fine-wood SOURCES are all present in jl (FMCADD LIMBRK
+  live-crown breakage fmcadd.f:81, crown-lift `cl[]` term, CWD2B, bole-fall fine top) — so it is a
+  DISTRIBUTION/magnitude gap, most likely the per-size `crown_biomass`/CROWNW fine-class fractions feeding
+  LIMBRK+crown-lift into sz1-3. NEXT (fresh session, same method that cracked LARGE): stamp live FMCADD CROWNW(I,
+  1..3) per tree vs jl `crown_biomass` xv[2..4], or dump the live per-FMCADD sz1-3 ADD vs jl's, to pin whether
+  the fine-crown biomass or a fine-fuel term is ~15% low. Closing it removes the last ~2 TPA of the fire over-kill.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
