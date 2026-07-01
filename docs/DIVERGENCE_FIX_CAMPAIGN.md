@@ -550,6 +550,27 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   vs a live per-year stamp — this is shared with D4/D5 (carbon down-wood) and is why carbon_snt stays bit-exact
   on its natural stand while snt01_alpha's thinned+fire fine-fuel runs low. The 3 cut-residue sub-fixes are all
   faithful FVS ports and stay (they improve LARGE-cwd fidelity 5.67→6.015 even though they don't close D16b).
+- **★ D16b LOCALIZED per-size (live fmcfmd.f CWD-array stamp @2003 vs jl, both on the fire path):** the 0.86
+  SMALL + 0.41 LARGE gap is a PROPORTIONAL ~10-18% shortfall concentrated in mid-size DOWN-WOOD, NOT litter:
+
+  | size (span)     | jl    | live  | gap    | jl/live | pool  |
+  |-----------------|-------|-------|--------|---------|-------|
+  | 2 (0.25-1")     | 1.496 | 1.819 | +0.323 | 82%     | SMALL |
+  | 3 (1-3")        | 2.602 | 3.001 | +0.399 | 87%     | SMALL |
+  | 4 (3-6")        | 1.613 | 1.763 | +0.150 | 91%     | LARGE |
+  | 5 (6-12")       | 3.481 | 3.734 | +0.253 | 93%     | LARGE |
+  | 10 (litter)     | 2.619 | 2.685 | +0.066 | 98%     | SMALL |
+  | 1 (0-0.25")     | 0.383 | 0.458 | +0.075 | 84%     | SMALL |
+
+  ⇒ litter (sz10) and coarse (sz6-9) MATCH; the deficit is the fine-to-medium woody down-wood (sz1-5), jl
+  uniformly 82-93% of live. This is the SAME "snag-fall bole ~10% low" signature as D5 / [[fvsjl-ffe-fire-downwood-3fixes]]
+  — but it survives even WITH the cut-residue booked, so it's a base down-wood BOLE-accumulation shortfall on this
+  thinned stand (candidate mechanisms, to test vs a live FMSNAG/FMCWD per-YEAR stamp: snag-fall bole→cwd conversion
+  ~10% low, or the cut-snag fall TIMING, or a decay-rate tick). carbon_snt stays bit-exact because its natural
+  stand's snag population differs. **NEXT (fresh session, measured): stamp live FMSNAG/CWD1 per-year 1993→2003 to
+  watch the sz2-5 pools accumulate vs jl, pin the ~10% bole shortfall to its source (input vs decay vs timing).**
+  This is a downstream FFE-fuels residual (3 TPA / 2.8% on ONE thinned+fire stand); the upstream cut→FFE-snag PATH
+  (the original D16) is CLOSED. NOT ULP (proportional 10-18%, not sub-print), so D16b stays 🔬 OPEN, fully localized.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
