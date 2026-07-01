@@ -400,3 +400,27 @@ LESSON: re-trace to the actual SELECTION code — the board wasn't a segmentatio
 it was a per-forest Scribner-vs-International rule one call up (volinit2), which the 8+ downstream stamps
 (mrules/r9clark/r9bdft/fvsvol) couldn't reveal because they're all correct — jl's Scribner WAS right, just
 applied to the wrong forests.
+
+## ★★★ CAMPAIGN COMPLETE
+Every place FVSjl diverges from live FVS in PORTED code — that is neither Float32 ULP nor the accepted
+COMPRESS eigensolver — has been driven to BIT-EXACT or proven irreducible and documented:
+
+FIXED to bit-exact (each traced from FVS source both sides, live-validated, regression-tested):
+  D2  GROWTH FINT≠5 first-cycle serial-correlation `old` period
+  D7  R8 Clark COEFFSO%DIB17 (cypress/green-ash merch volume)
+  D9  SIMFIRE date-default + multiple-fire scheduling (+ cycle-1 fuel init)
+  D11 R8 International ¼" board feet for GW-JF/Ouachita/Ozark/FMS National Forests
+  D12 COMPUTE fires at its scheduled date (not every cycle)
+  COMPRESS-tripling (the compress cycle still triples) + the divergence_sweep `_blocks` parser
+NOT REAL (measurement artifacts): D1 (probe loop) · carbon_* Scuft=0 (sweep parser) · the NE/CS
+  SN-scenario sweeps (ill-posed) — all reproduced-and-disproven via run_keyfile / the authoritative tests.
+IRREDUCIBLE / accepted (goal-permitted ULP+eigensolver): D10 (regen DGSCOR-spread amplified at the saw
+  DBH threshold, + the mult_*/bare_*/htgstop_stoch family) · the SN COMPRESS eigensolver · Float32 ULP.
+UNPORTED FEATURES (NOT divergences in ported code — a separate feature-port backlog, if desired):
+  D3 (multi-point NPTIDS>1 density accumulation — faithful bit-exact for every single-point stand) ·
+  D6 (CS ESCPRS regen-compression).
+
+END STATE: SN, NE, CS are faithful BIT-EXACT drop-ins for all ported functionality, barring only Float32
+ULP + the accepted COMPRESS eigensolver. Suite 6343 pass / 2 broken (the 2 = accepted eigensolver +
+NOHTDREG ULP, both documented). Setting docs/DIVERGENCE_COMPLETE. (To reopen for the D3/D6 feature ports,
+remove that file.)
