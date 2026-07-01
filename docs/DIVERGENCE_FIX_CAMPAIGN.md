@@ -34,7 +34,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
-| D15 | Post-fire survivor crown-scorch not applied (fmeff.f:494-511) | fire→growth | ~4.4% Bdft@2015 (fire stands) | 🔬 NEW — ROOT-CAUSED (missing FMICR crown-ratio reduction), port pending |
+| D15 | Fire RANN draws not rolled back (fmeff.f RANNGET/RANNPUT) | fire→growth RNG | ~4.4% Bdft@2015 (fire stands) | ✅ FIXED-to-ULP (RANNGET/RANNPUT save-restore) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -251,13 +251,22 @@ TPA), the signature of survivors growing too much, NOT an RNG drift.
   crown_biomass DomainErrors on a negative crown ratio (`(neg)^power`). Deferring the negative set to after
   fmburn!'s fuel loadings still crashes in the post_fire crown-lift pass. ⇒ the negative-hold convention
   collides with the fire/carbon crown pipeline.
-- **TWO viable designs (next session):** (A) add a dedicated `fire_crown` per-tree field (mirrors FVS's
-  SEPARATE FMICR array): set it in the fire, have crown_ratio_update! consume it (apply as the held crown)
-  AFTER tripling, leaving crown_pct positive for the fuel/carbon path all cycle — cleanest & most faithful,
-  but adds state + tripling propagation. (B) make crown_biomass tolerate a negative crown (use |ic|) —
-  1-line, but must confirm the crown-lift carbon should use the pre-fire vs fire-reduced crown (risks the
-  bit-exact fire_carbon/DDW). Recommend (A). CAUTION either way: validate fire_carbon/DDW stay bit-exact +
-  no crown-test regression; variant-aware (SN/CS fmeff differ).
+- **✅ FIXED — but the crown-scorch diagnosis above was WRONG; the real root is an RNG save-restore.**
+  The FMICR crown-scorch was a red herring: fmmain.f:111 `FMICR(I)=ICR(I)` shows FMICR is initialized FROM
+  the growth crown each cycle (one-way) and is FFE-INTERNAL (fuel / potential-fire, fmpocr.f); it does NOT
+  feed back into the growth crown ICR (implementing it via a `fire_crown` field moved the .sum only ~8%).
+  The re-trace found the actual cause: **fmeff.f brackets its per-tree fire-mortality RANN draws with
+  RANNGET(SAVESO) (:143) … RANNPUT(SAVESO) (:569) — the fire's ~ITRN draws are ROLLED BACK, so a fire
+  consumes ZERO net main-stream RNG.** jl drew `rann!` per record WITHOUT restoring, advancing the stream
+  ~ITRN draws ⇒ the POST-fire DGSCOR serial-correlation deviates desynced (the KILL stayed bit-exact — same
+  draws — but the survivors then grew wrong). Fix: fmburn! saves `rannget` before the fire loop + restores
+  `rannput!` after (3 lines). RESULT: fire_burn/fire_carbon/fire_early/snagpbn/fuelmodl all BIT-EXACT (were
+  ~4.4% Bdft), defulmod 4.36%→0.59%; post-fire BA/QMD bit-exact, only 1-13u ULP Bdft tail. Suite 6357→6381/2
+  (+test_fire_rng_restore_d15.jl), no regression. The `snt01_alpha` s4 2.8% TPA@2008 is a SEPARATE, still-
+  accepted fire-KILL-distribution residual (over-kills ~3 TPA at the fire; memory [[fvsjl-fire-tripling-order-bug]]).
+  Meta-lesson (4th self-mis-diagnosis this campaign): I read fmeff.f and ASSUMED FMICR→growth without
+  verifying the coupling DIRECTION — a probe (implement + measure) + tracing where the var is CONSUMED
+  (fmmain.f:111) exposed it. Trace consumers, not just producers.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs

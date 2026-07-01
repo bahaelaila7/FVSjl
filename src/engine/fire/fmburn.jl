@@ -137,6 +137,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     v2t = coef_col(coef, :v2t)
     if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
+        # FMEFF brackets its per-tree RANN draws with RANNGET(SAVESO) (fmeff.f:143) … RANNPUT(SAVESO)
+        # (fmeff.f:569): the fire's draws are ROLLED BACK, so the fire consumes ZERO NET main-stream RNG.
+        # jl must restore too — else the ~ITRN fire draws ADVANCE the stream and desync the POST-fire DGSCOR
+        # serial-correlation deviates, making the survivors grow wrong (the kill stays bit-exact — same draws
+        # — but the next cycle's growth drifts, ~4.4% Bdft by the 3rd post-fire cycle). D15.
+        _fire_rng_save = rannget(s.rng)                   # RANNGET(SAVESO)
         @inbounds for i in 1:t.n
             # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
             # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
@@ -197,6 +203,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             _, _, rbio = jenkins_biomass(coef, sp, d)
             fs.bioroot += rbio * curkil
         end
+        rannput!(s.rng, _fire_rng_save)                   # RANNPUT(SAVESO): roll back the fire's RANN draws
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
     # loadings (FVS_Consumption) are the before−after difference in the FFE fuel pools.
