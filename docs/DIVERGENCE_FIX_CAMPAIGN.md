@@ -267,3 +267,22 @@ PC/BY + the base snt01 Bdft validated bit-exact with sawtimber-only — must con
 zero (or already-accounted) topwood board, or re-validate them, so the change stays bit-exact there. Scoped
 as its own focused item (a core R8 board change ripples across every SN board-foot number → needs the full
 sweep to validate, not just D7). Deterministic + fully mechanized ⇒ high-confidence next fix.
+
+### D11 — REFINED (full-stem hypothesis DISPROVEN; the .sum board method is cubic-call-internal + geoa-dependent)
+Continued the trace and TESTED the "full-stem" fix — it is WRONG (reverted). Findings:
+- **Re-verified D7 goldens vs FRESH live:** all_GA/PC/BY fresh live = 1253/900/47/**174**, 1600/1026/287/**861**,
+  1466/1129/377/**1362** — BIT-EXACT with jl. (The committed all_*.sum files are STALE pre-D7-fix values,
+  977/60/223 etc.; the test_r8clark_special.jl goldens are the correct current-live ones.)
+- **Same SM tree, forest-code-dependent board:** forest 801 → eq **841**CLKE318 → live BBFV=**69** (== jl
+  saw-only); forest 808 → eq **831**CLKE318 → live BBFV=**85**. Both METHB=6/METHC=6 (stamped). So the geoa
+  digit (3 vs 4) changes the board, NOT the method flag.
+- **Full-stem is NOT the answer:** setting jl vol[10] = Σ full-stem (saw+topwood) OVERSHOOTS live — all_GA
+  174→310, s07 285→364 (live 174 / 351). So live's board is NEITHER saw-only NOR full-stem; for 831 it lands
+  BETWEEN (351), for 841/all_GA it's saw-only (69/174). ⇒ my "saw+topwood" decomposition of the 85 was
+  coincidental; the cubic-call BBFV=85 comes from a DIFFERENT board routine than the standalone r9bdft
+  (whose Scribner vol(2)=69 == jl).
+- **Open question (next step):** stamp the CUBIC section of vols.f (where BBFV is SET for METHC=6, before the
+  board section's `GO TO 100`) to identify which routine computes BBFV=85 for the 831 coefficients and why it
+  differs from 841. It is geoa/coefficient-specific and per-tree (s07 total 351 = a mix of saw-only + this
+  method across species), so NOT a global switch. Two hypotheses now disproven (live-source-moved, full-stem)
+  — genuinely intricate FVS volume-library routing; deferred to a focused deep-dive with the cubic-section stamp.
