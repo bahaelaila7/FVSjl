@@ -35,7 +35,8 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
 | D15 | Fire RANN draws not rolled back (fmeff.f RANNGET/RANNPUT) | fire→growth RNG | ~4.4% Bdft@2015 (fire stands) | ✅ FIXED-to-ULP (RANNGET/RANNPUT save-restore) |
-| D16 | snt01_alpha fire over-kill = FLAME ~2.8% high + per-tree crown diff | fire behavior→mort | ~3 TPA / 2.8% @fire | 🔬 NEW — RE-CHARACTERIZED (was "accepted kill tie"), 2 sub-causes traced |
+| D16 | cut→FFE-snag path MISSING (YARDLOSS SSNG/DSNG/CTCRWN not booked) | thinning→FFE fuels | snag density 21.8 vs 62.3 | ✅ CLOSED (faithful port: YARDLOSS parse-bug fixed + SSNG snag density bit-exact + DSNG cwd + CTCRWN measured negligible) |
+| D16b | snt01_alpha residual fire over-kill = base fine-down-wood/litter accumulation low | FFE fuels→fire→mort | ~3 TPA / 2.8% @fire | 🔬 NEW (split from D16) — cut-residue DISPROVEN as cause; jl SMALL 7.1 vs live 7.964 feeds non-monotonic FMCFMD3; next=localize litter(sz10) vs fines(sz1-3) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -520,6 +521,35 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   validated (snag density bit-exact, no regression); PART 2 = the DSNG→cwd path + a live-CWD1 per-cut-snag
   check. CAUTION (self): I attributed the cwd deficit to the missing cut-snags — booking the STANDING ones
   did NOT move cwd, so PART 2 must MEASURE live's cut-snag CWD1 LARGE output before claiming the cause.
+- **★★★ PART 2 LANDED + D16 CUT-SNAG THEORY DISPROVEN BY MEASUREMENT (commit d69c53f, suite green 6397/2).**
+  Ported the DSNG downed portion (cuts.f:1384 `DSNG = LOSS·PRDSNG`) straight to HARD cwd at cut time via the
+  CWD3 analog (fmscut.f:98 → fmcwd.f:258 ENTRY CWD3: bole cone-split into `cwd[:,2,idc]`, all hard SCNV=1.0),
+  mirroring jl's carbon_snt-validated bolevol/cone machinery. This moved jl LARGE cwd 5.67→6.015 (toward live
+  6.425) — a real fidelity gain, kept. **BUT the fire over-kill is STILL 104/107 unchanged, and per-source
+  live/jl stamps now PROVE the cut-residue is NOT the driver:** (a) DSNG cone-split → **0.0 into LARGE**
+  (CUTDBG: 5 records, Σdsng-density 94.5, ΣaddH-into-LARGE **exactly 0** — the THINDBH-cut trees are small-dbh,
+  their whole bole lands in SMALL 1-3, never LARGE 4-9); (b) SSNG standing-snag fall → ~0 into LARGE (measured:
+  snag-fall LARGE 8.752 at cycle 1993 UNCHANGED by the SSNG booking); (c) live CTCRWN crown→cwd (fmscut.f:89-96,
+  stamped) = **0.128 SMALL / 0.0 LARGE** (tiny — cut-tree crowns are small). ⇒ ALL THREE cut-residue paths are
+  now faithfully ported (SSNG snag density bit-exact, DSNG bole, CTCRWN measured negligible) yet contribute ~0
+  to the LARGE pool. **The −0.4 LARGE / −0.86 SMALL cwd gap that drives the fire is a SEPARATE base down-wood
+  accumulation difference, not the cut path.** Ground-truthed live fuel basis via fmcfmd.f stamp: **live
+  SMALL=7.964 LARGE=6.425 FMD=10** @2003; jl SMALL=7.1 LARGE=6.015 (per-size jl: sz1-3 {0.383,1.496,2.602},
+  sz10-litter 2.619; sz4-9 {1.613,3.481,0.567,0.305,0.045,0.004}). **Basis definitions MATCH** (fmtret.f:378-390
+  FMFMOV: SMALL=Σsz{1,2,3}+sz10-litter, LARGE=Σsz{4-9}, over I=1,2 piled/unpiled × hard/soft × 4 decay) — jl uses
+  the identical size grouping, so the gap is REAL accumulation, not a basis bug. **Also discovered:** the SN
+  fire's authoritative fuel-model selector is **FMCFMD3** (fmcfmd2.f, fmburn.f:246), which builds fuel from
+  `CURRCWD` with a **0.04591 tons/acre unit conversion** + `XFML` — a NON-monotonic map (live has MORE cwd yet a
+  COOLER fire: flame 3.90 vs jl 4.008), so raising jl's fine down-wood should shift the model toward the lighter
+  fire. ⇒ **D16 RECLASSIFIED**: the cut→FFE-snag-PATH gap (the original D16 root) is CLOSED (faithful port, snag
+  density bit-exact, no regression). The residual **3-TPA fire over-kill is a distinct item — call it D16b:** a
+  base fine-down-wood/litter accumulation shortfall (jl SMALL 0.86 low, mostly litter sz10 + fines sz1-3) on a
+  thinned+fire stand, feeding the non-monotonic FMCFMD3 CURRCWD selection. NEXT (measured, not inferred): stamp
+  live FMCFMD3 `CURRCWD(1),CURRCWD(2),CURRCWD(3),CURRCWD(10)` @2003 to localize the 0.86 SMALL gap to a specific
+  size class (litter vs fines), then trace that pool's accumulation (FMCADD litterfall / snag-fall fines / decay)
+  vs a live per-year stamp — this is shared with D4/D5 (carbon down-wood) and is why carbon_snt stays bit-exact
+  on its natural stand while snt01_alpha's thinned+fire fine-fuel runs low. The 3 cut-residue sub-fixes are all
+  faithful FVS ports and stay (they improve LARGE-cwd fidelity 5.67→6.015 even though they don't close D16b).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
