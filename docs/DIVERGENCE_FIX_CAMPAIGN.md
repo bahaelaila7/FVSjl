@@ -716,6 +716,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   **crown-lift (cl[]) residual**, NOT crown-biomass D4 (crown biomass bit-exact) and NOT bole-fall. NEXT: stamp
   live FMCADD crown-lift sz2+3 ADD (fmcadd.f:95-102 OLDCRW term) per cycle vs jl `cl[]` — pin the lag/magnitude,
   then fix the OLDCRW crown-base tracking. This is the last ~2 TPA of D16b's over-kill, localized to crown-lift-lag.
+- **★ CROWN-LIFT ALSO REFUTED — gap narrowed to CWD2B / bole-fall fine top.** Stamped live FMCADD crown-lift
+  (fmcadd.f:95-102 OLDCRW term, XCLIFT per-call accumulator for sz2+3): live FFE-stand crown-lift = 0 (cycle 1,
+  no OLDCRW yet) + 0.4097×5 = **2.0485 over 1993-2002 == jl's 2.049 BIT-EXACT** (and all CLIFT23 rows identical ⇒
+  only the FFE stand runs FMCADD, clean isolation). ⇒ the crown-lift-lag is NOT the sz1-3 gap either. Now THREE
+  fine-wood sources proven to MATCH live: crown biomass (bit-exact XV), crown-lift (2.049 both), and LIMBRK (=0.01·
+  bit-exact CROWNW·bit-exact TPA). Arithmetic: jl sz2+3 = crownlift 2.049 + limbrk 1.434 + cwd2b 0.611 ≈ 4.09 vs
+  live 4.82 ⇒ the **−0.70 gap is entirely in CWD2B (snag-crown debris release) and/or the ordinary-snag BOLE-FALL
+  fine top** — the two sources I did NOT prove equal. Bole-fall is the prime suspect: ordinary snags fall on MERCH
+  bolevol (top cut at the 4″ merch top), but CWD1's total (FMSVL2 'D') integrates the whole cone to the 0″ tip,
+  depositing that thin <4″ top into sz1-2 — which jl omits. (I kept ordinary on merch because a naive total-for-
+  ordinary regressed 10 carbon_snt tests — but that changed the MAGNITUDE; the correct fix likely distributes the
+  merch bole over the FULL-height cone so the fine top lands in sz1-2 without inflating the total.) NEXT: stamp
+  live CWD2B sz2+3 release + the ordinary-snag CWD1 sz1-2 ADD vs jl, to split CWD2B-vs-bole-top. FOUR fine-wood
+  candidates now measured: crown-biomass/crown-lift/LIMBRK all MATCH; CWD2B + bole-top are the last two.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
