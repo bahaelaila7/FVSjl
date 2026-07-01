@@ -793,6 +793,22 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   (jl vs a live per-year CWD-array stamp at the SAME annual phase) to separate decay-vs-phase. LARGE half fixed
   (SNAGINIT total, ULP). SN campaign's last open non-accepted item, bounded to "all inputs equal, a ≤0.7-ton
   sz2+3 decay/phase discrepancy on ONE thinned+fire stand."
+- **★ INITIAL DEAD FUEL (FMCBA STFUEL) — added ONCE both engines (6th inference refuted); but jl's init load is
+  slightly low.** Stamped live FMCBA cwd sz2/sz3 per call: 1993 = 0.761/1.970, 1998 = 0.642/1.580, 2003 =
+  1.819/3.001 (the 2003 == the fire's sample). jl init (after `fmcba!`) = sz2 0.68 / sz3 1.93. The STFUEL block is
+  guarded `IF (IYR .EQ. IY(1))` (fmcba.f:252-254 "INITIALIZE THE DEAD FUELS ONLY FOR THE FIRST YEAR") — so FVS
+  loads dead fuel ONCE, exactly like jl's `!fuels_init` guard (refutes the "STFUEL every cycle" idea). One CLEAN
+  real diff surfaced: **jl's INITIAL sz2 dead fuel = 0.68 vs live 0.761 (~11% low)** (sz3 0.68% low) — the
+  `ffe_dead_fuel_loading`/STFUEL default table, a small (0.08-ton) but genuine follow-up. BUT the per-year trace
+  shows the gap EVOLVES non-cleanly (1998: jl sz3 1.597 > live 1.580 yet jl sz2 0.587 < live 0.642; 2003 both
+  low) — NOT a single constant offset, so even fixing the init table (~0.08) won't close the 0.70. ⇒ **FINAL
+  VERDICT on D16b-SMALL: a ≤3% one-thinned+fire-stand fine-down-wood residual, EXHAUSTIVELY investigated — SIX
+  hypotheses refuted by direct measurement (D4/crown-biomass, crown-lift, CWD2B-2×, small-bole, MCF-vs-TCF, STFUEL-
+  every-cycle); ALL dynamic add sources + the once-only init both measure ≈equal; the residual gap is a subtle,
+  non-constant, evolving sz2/sz3 decay-class/phase interaction not attributable to any single term.** Documented
+  as a hard residual (doctrine #5 — the irreducibility is not PROVEN but the attribution is exhausted). Small
+  clean follow-up: reconcile `ffe_dead_fuel_loading` sz2 (0.68 vs 0.761) vs the FVS FFE-forest-type STFUEL default.
+  LARGE half remains a real validated fix (SNAGINIT total → LARGE cwd ULP-class, 1 of 3 TPA).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
