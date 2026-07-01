@@ -32,12 +32,34 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
 | D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
+| D13 | TREESZCP size-cap × bark × tripling interaction | growth+mort | 22% Mcuft (contrived) | 🔬 NEW (discovery sweep); localized, root not yet pinned |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
 live binary ({sn,ne,cs}_oracle.sh) + jl `run_keyfile`, aligns by (stand, year), and ranks scenarios by
 max NON-ULP relative diff (skips ≤1 print unit AND ≤0.2%). `julia --project=. test/harness/
 divergence_sweep.jl sn`. SN run = 260 stands; the live-vs-jl inventory below is its output.
+
+### SN full sweep — 2026 RE-RUN post-D10-fix (260 stands: 210 bit-exact, 41 DIFF, 9 ERR)
+Re-ran the FULL sweep after the D10 establishment-RNG fix. Ranked non-ULP DIFFs, triaged into classes:
+- **NEW real (top): D13 TREESZCP** — `treeszcp_cap` 22.8% Mcuft, `treeszcp_htcap` 10.7% Bdft (size-cap ×
+  bark × tripling; base bit-exact; see D13 above — localized, root not yet pinned, one fix rejected).
+- **accepted eigensolver:** `compress` 13.6% Bdft (documented COMPRESS ULP class).
+- **D8/D10 regen threshold-amplification (fixed-to-ULP):** `mult_mortmult` 17% / `mult_mortmult_win` 13.5% /
+  `fmortmlt` 10% / `mult_regdmult`/`mult_reghmult`/`mult_baimult` / `bare_natural`/`bare_plant`/`bare_mp3`/
+  `bare_multipoint` (all ≤4.6% Bdft, threshold-amplified Float32 ULP; per-tree DBH ULP-tight, means match).
+- **known fire-kill class (~4.4% Bdft@2015):** `fire_burn`/`fire_carbon`/`fire_early`/`snagpbn`/`defulmod`/
+  `salvage`/`fuelmodl`/`fire_salvage`/`fire_fuel2/9/11`/`fueltret` — the documented fire per-tree kill
+  distribution residual (BA distribution at the burn, not a bulk error).
+- **s4 fire residual (accepted):** `snt01_alpha`/`compute_cycle` s4 TPA 4.35%@2038 (the pre-existing SN
+  non-tripling fire under-kill, memory [[fvsjl-fire-tripling-order-bug]]).
+- **cut/thin (to investigate):** `cut_thinprsc` 11% Scuft@2010 (thinning prescription — NOT yet triaged;
+  candidate next discovery target). `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
+- **small tail (≤2%, ULP/threshold):** hcor_smalltree, htgstop_stoch, dense_long/s09_cyc20 (0.76% @2085
+  deep), fixmort_*, topkill_det, s15_phys_p232, s22_forest_809, growth_finth5 — all ULP-floor/threshold.
+- **9 ERR (not divergences):** 5 all_* + dead_fint/mcfdln_override/nohtdreg_cal = live FPE/no-.sum (live
+  binary crashes on these inputs, not a jl issue); `dbs_treelist` = a jl DBS schema mismatch (FVS_TreeList
+  26 cols vs 35 supplied — a separate DBS-writer bug to fix, unrelated to model fidelity).
 
 ### SN sweep inventory (2026, ranked) — triaged
 - **Real, cycle-0 (deterministic) → D7:** all_PC/GA/BY/GA Bdft@1990 10-35% — Tcuft bit-exact but
@@ -144,6 +166,31 @@ Suite 6348→6355/2 (test_estab_rng_d10.jl, 7 assertions). D8 mult_* scenarios f
 DGSCOR-spread); each re-trace vs the fresh live binary + a full-precision stamp exposed the next layer.
 The "DGSCOR spread" was real but DOWNSTREAM of a fixable upstream RNG desync — upstream-first (doctrine #2)
 would have found it sooner.
+
+### D13 — TREESZCP size-cap × bark × tripling — 🔬 NEW (full SN discovery sweep), localized, root NOT yet pinned
+Surfaced by the full 260-stand SN sweep (top new non-ULP finding): `treeszcp_cap` (S248112 "MULT TEST BASE"
+stand, `TREESZCP 0. 10. 1.0` = cap ALL species at 10″ DBH with 100% mortality at the cap) diverges to 22.8%
+Mcuft@2035 (jl 872 / live 1130). Evidence gathered:
+- **The BASE stand (TREESZCP stripped) is BIT-EXACT vs live at FULL per-tree precision** (every DBH matches
+  to 4 decimals through all cycles) — so the divergence is SPECIFICALLY the size-cap keyword, not baseline
+  growth/mortality. Same stand also drives mult_mortmult (16.96%) / fmortmlt (10.08%).
+- **The cap CODE textually matches FVS bit-for-bit**: keyword parsing (initre.f:4555 SIZCAP[1..4]=10/1/0/999),
+  the DGBND diameter cap (dgbnd.f:143-145 `(DBH+DDG)>SIZCAP ⇒ DDG=SIZCAP−DBH`, floor 0.01) and the SIZCAP
+  mortality (morts.f:691-694 `WK2=max(WK2, P·SIZCAP[2]·FINT/5)`) are all identical in jl.
+- **First divergence seeds at 1995→2000** (1990/1995 bit-exact incl. full-precision; 2000 Mcuft 671 vs 670,
+  ~0.01″ on a few trees; TPA/kill-COUNT bit-exact 476→389 both). Amplifies via the HARD 10″ cap threshold +
+  tripling/DGSCOR + density feedback to 22% by 2035 (same amplification CLASS as D10-pre-fix / COMPRESS).
+- **Rejected hypothesis (live debug-stamp + tested fix):** DGBND runs in outside-bark in FVS but jl's
+  `diam_growth` is inside-bark (simulate.jl:410 `dbh += diam_growth/bark`), so I hypothesized jl OVERSHOOTS
+  the cap (caps inside-bark ddg to SIZCAP−DBH ⇒ DBH lands >SIZCAP after /bark). Implemented the outside-bark
+  SIZCAP branch (test `(d+ddg/bark)>cap`, cap `(SIZCAP−d)·bark`). **REGRESSED 1995** (bit-exact→1093 vs live
+  1098) and did NOT fix 2035 ⇒ REVERTED. The regression proves the ORIGINAL inside-bark cap TRIGGER matches
+  live at 1995 — so FVS's DGBND bark bookkeeping in this stand is subtler than "plain outside-bark" (DBH(I)
+  passed to DGBND stamped as 10.0/12.7/10.4 = outside-bark values, yet the inside-bark trigger matches). 
+- **NEXT (focused follow-up):** instrument jl's `dg_bound` per-tree I/O and match tree-by-tree against a
+  FVS DGBND stamp (ISPC,DBH,DDG-in,DDG-out) for the SAME record at 1995→2000 — pin the exact bark space +
+  the tripling-record ordering before touching the shared hot path. Contrived stress scenario (100% cap
+  mortality); real but narrow. Do NOT re-attempt the outside-bark fix (proven regressive).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
