@@ -163,10 +163,18 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             end
             hht > es_hhtmax[sp] && (hht = es_hhtmax[sp])
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
-            # REGENT establishment dbh (regent.f:331-334, LESTB branch): DBH = HTDBH⁻¹(HK),
-            # floored to the species min DIAM, then a small height-proportional add 0.001·HK.
-            dbh = _htdbh_dbh(sd, sp, hht, ifor); dbh < 0.1f0 && (dbh = 0.1f0)
-            dbh += 0.001f0 * hht
+            # Establishment DBH from the grown seedling height (esgent.f:55-62). A seedling still BELOW
+            # breast height (HT < 4.5 ft) has no real DBH — FVS assigns the nominal `DBH = 0.1 + 0.001·HT`
+            # (esgent.f:56), NOT the HTDBH⁻¹ inverse. jl previously ran HTDBH⁻¹ for every seedling, which
+            # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
+            # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
+            # inverse, floored to the species min DIAM + the height-proportional add.
+            if hht < 4.5f0
+                dbh = 0.1f0 + 0.001f0 * hht
+            else
+                dbh = _htdbh_dbh(sd, sp, hht, ifor); dbh < 0.1f0 && (dbh = 0.1f0)
+                dbh += 0.001f0 * hht
+            end
             for _ in 1:ibrkup
                 n = t.n + 1; n > length(t.dbh) && break
                 t.n = n

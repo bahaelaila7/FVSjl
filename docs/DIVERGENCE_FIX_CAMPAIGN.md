@@ -464,3 +464,16 @@ on the small regen trees in jl, inflating stand BA ~0.26%, which feeds back thro
 systematically bias large-tree growth, and finally amplifies at the 10″ saw threshold to the ~51% Scuft.
 A real, deterministic, fixable chain — NOT ULP. NEXT: trace the small-tree (REGENT) DBH derivation for the
 regen trees jl-vs-live (the ~0.26% BA source).
+
+### D10 — ROOT = below-breast-height seedling DBH over-sized (0.225 jl vs 0.104 live); fix in progress
+Traced the 0.26% stand-BA difference to the SEEDLING DBH: at 2002 bare_natural's 50 newest regen records
+(PROB~7.81, ~390 TPA) are live seedlings BELOW breast height. Live assigns DBH via esgent.f:55-56 — for
+HT<4.5, `DBH = 0.1 + 0.001·HT` (≈0.104 at HT~4.2). jl assigns ~0.225 for the same seedling (HT~3.6) via the
+HTDBH-inverse small-tree path, over-sizing sub-breast-height DBH ⇒ +0.086 BA ⇒ the exact 0.26% stand-BA that
+biases every large-tree's DGF growth (the D10 chain, amplified at the 10″ saw threshold to +51% Scuft).
+FIXED the CREATION path (establishment.jl:172-177: HT<4.5 ⇒ 0.1+0.001·HT, per esgent.f:56) — correct + regen
+tests green (137/137) but INERT for bare_natural (its seedlings are created at HT~0.5 where HTDBH is already
+floored ⇒ the effective 0.225 is written during a GROWTH sub-step, not creation). Ruled out: the _regent_dg
+hk>4.5 branch (no seedling has hk>4.5), regent_min_diam floor (=0.5, not 0.225), _htdbh_dbh(3.5)=0.367.
+NEXT: pinpoint the exact SN small-tree DBH write that produces 0.225 for a HT~3.6 seedling and apply the
+HT<4.5 → 0.1+0.001·HT rule there. D10 is REAL/deterministic/fixable — NOT ULP (proven across ~8 live stamps).
