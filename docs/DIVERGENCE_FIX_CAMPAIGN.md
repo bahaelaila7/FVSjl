@@ -8,6 +8,17 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
+**★ Ledger state (all D1–D12 catalogued items resolved):** D1 not-real · D2/D7/D9/D12 fixed-bit-exact ·
+D4/D5 carbon-report bit-exact · **D8/D10 fixed-to-ULP** (the ~51% regen sawtimber divergence — the campaign's
+biggest — traced to two real establishment `:estab` RNG bugs, live-validated, see D10 below) · D3 & D6
+📌 evidence-backed deferrals (NOT hand-waved): D3 is empirically ULP-class for EVERY corpus scenario
+(bare_natural/plant/multipoint/mp3 all ≤4.6% Bdft = threshold-amplified Float32 ULP; per-tree DBH ≤0.012″),
+its genuine gap (per-point density on HETEROGENEOUS multi-point stands) has no validating oracle scenario;
+D6 (CS ESCPRS regen-compression) only fires on establishment list-overflow — no corpus scenario triggers it.
+Remaining residuals are all ULP/threshold-amplification (accepted class) or edge-case feature gaps with no
+oracle. NOT auto-closing (`DIVERGENCE_COMPLETE`) — next productive work is a broad 260-stand SN discovery
+sweep to hunt any UN-catalogued divergence beyond this ledger.
+
 | # | Divergence | Layer (upstream→down) | Magnitude vs live | Status |
 |---|---|---|---|---|
 | D1 | ~~LP-growth-calibration tail~~ | growth | — | ✅ NOT REAL (artifact) |
