@@ -517,3 +517,17 @@ NOT ULP, NOT a formula/coefficient bug. Whether fixable (align the regen small-t
 FVS's ESRANN/RANN sequence) or irreducible (the dynamically-created regen tree order can't be bit-replicated)
 needs a focused RNG-alignment trace: stamp the RAN draw SEQUENCE (regent.f:257) vs jl's bachlo for the regen
 at one cycle. Two real sub-bugs closed en route (seedling DIAM-floor; the BA chain characterized). D10 OPEN.
+
+### D10 — DEFINITIVE ROOT: regen small-tree RECORD/PROCESSING ORDER differs (draws identical, mapping differs)
+Stamped the height-random RAN draws in MADE-ORDER (regent.f:260) + the tree DBH each applies to, both sides,
+cycle 5: the RAN SEQUENCE is BIT-IDENTICAL (0.80298, −0.25383, 0.87286, −0.75785, 0.69340, −0.80184 …) — so
+the RNG is perfectly aligned — but each draw lands on a DIFFERENT tree: draw 0.80298 → live DBH 1.868 / jl
+1.512; draw 0.87286 → live 1.608 / jl 1.996; draw 0.69340 → live 2.124 / jl 1.876 (a few coincide: −0.75785
+→1.579 both). ⇒ jl processes the regen small trees in a DIFFERENT ORDER than FVS, so the identical height
+deviates map to different trees ⇒ different per-tree growth ⇒ the WIDER DBH spread ⇒ +51% Scuft at the 10″
+saw threshold. FVS's order is SPESRT/IND1 (spesrt.f: species-grouped, LNKCHN ascending record-order within
+species). So the regen RECORD/insertion order (ESTAB) differs between jl and FVS. ROOT PINNED: NOT ULP, NOT
+RNG-desync, NOT a formula/coefficient bug, NOT variance — a regen small-tree PROCESSING-ORDER (record/insertion)
+difference. FIX: align jl's regen ESTAB insertion/record order (⇒ the SPESRT/species_sort! order) to FVS's, so
+the aligned RANN draws map to the same trees. Deep but bounded + deterministic. D10 fully diagnosed; fix is
+an ESTAB-record-order alignment.
