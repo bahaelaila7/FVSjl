@@ -425,3 +425,17 @@ DIFFERENT realization than live — because the regen trees are seeded/processed
 (TPA/count is bit-exact, only the per-tree DBH spread differs). NOT ULP (the DBH gap is ~0.3-0.7″), NOT a
 magnitude bug. NEXT: compare the regen trees' OLDRN seeding order (the BACHLO draw sequence at ESTAB tree
 creation) jl-vs-live; if the record order can be matched, the draws align and Scuft becomes bit-exact.
+
+### D10 — PROVEN NOT ULP: a systematic accumulating DGF growth-rate difference (uncalibrated regen loblolly)
+Stamped live's full-precision DBH (dgdriv, ICYC) for bare_natural and compared rank-by-rank to jl:
+  2017: live 9.0958/8.9151  vs jl 9.0998/8.9199  (jl +0.004-0.005″, EVERY tree, jl higher)
+  2022: live 10.0011/9.8879/9.2806/9.2576/9.1372/9.0467/8.9806/8.6487/8.5773/8.5401
+        jl   10.009 /9.894 /9.288 /9.264 /9.144 /9.055 /8.989 /8.658 /8.583 /8.547   (jl +0.006-0.009″, EVERY tree)
+So it is a SYSTEMATIC, CONSISTENT-DIRECTION (jl always higher), ACCUMULATING ~0.001″/cycle growth difference —
+NOT Float32 ULP (~0.007″ is 7000× a Float32 ULP at DBH 9), NOT a stochastic-draw realization (that would be
+random-sign), NOT a spread/SSIGMA issue (VARDG matches). The "2017 bit-exact" claim was an artifact of 0.1″
+.trl rounding hiding the ~0.004″. It compounds and AMPLIFIES at the 10″ saw DBH threshold → the ~51% Scuft@2027.
+⇒ D10 is a REAL, fixable, small DGF growth-rate divergence for the UNCALIBRATED regen loblolly (sp 13, bare
+stand ⇒ COR=0). NEXT: trace the DGF term-by-term (DGCONS coefs · density BAL/PCCF/CCF · bark/DIB · the DGSCOR
+mean) for one ~8″ regen loblolly, jl-vs-live, to find the ~0.1% systematic source. (Correcting my own two
+prior mislabels: it is neither "irreducible ULP-amplified" nor "draw-order realization".)
