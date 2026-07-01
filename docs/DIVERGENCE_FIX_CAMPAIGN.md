@@ -19,7 +19,7 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
-| D10 | regen DGSCOR-spread × saw-threshold amplification | volume | ~51% Scuft | 📌 irreducible (DGSCOR/ULP-amplified) |
+| D10 | regen DGSCOR spread too WIDE (systematic, NOT ULP) | volume | ~51% Scuft | 🔬 REOPENED — real, being traced |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
@@ -401,26 +401,16 @@ it was a per-forest Scribner-vs-International rule one call up (volinit2), which
 (mrules/r9clark/r9bdft/fvsvol) couldn't reveal because they're all correct — jl's Scribner WAS right, just
 applied to the wrong forests.
 
-## ★★★ CAMPAIGN COMPLETE
-Every place FVSjl diverges from live FVS in PORTED code — that is neither Float32 ULP nor the accepted
-COMPRESS eigensolver — has been driven to BIT-EXACT or proven irreducible and documented:
+## (reopened — see D10 re-verification below)
 
-FIXED to bit-exact (each traced from FVS source both sides, live-validated, regression-tested):
-  D2  GROWTH FINT≠5 first-cycle serial-correlation `old` period
-  D7  R8 Clark COEFFSO%DIB17 (cypress/green-ash merch volume)
-  D9  SIMFIRE date-default + multiple-fire scheduling (+ cycle-1 fuel init)
-  D11 R8 International ¼" board feet for GW-JF/Ouachita/Ozark/FMS National Forests
-  D12 COMPUTE fires at its scheduled date (not every cycle)
-  COMPRESS-tripling (the compress cycle still triples) + the divergence_sweep `_blocks` parser
-NOT REAL (measurement artifacts): D1 (probe loop) · carbon_* Scuft=0 (sweep parser) · the NE/CS
-  SN-scenario sweeps (ill-posed) — all reproduced-and-disproven via run_keyfile / the authoritative tests.
-IRREDUCIBLE / accepted (goal-permitted ULP+eigensolver): D10 (regen DGSCOR-spread amplified at the saw
-  DBH threshold, + the mult_*/bare_*/htgstop_stoch family) · the SN COMPRESS eigensolver · Float32 ULP.
-UNPORTED FEATURES (NOT divergences in ported code — a separate feature-port backlog, if desired):
-  D3 (multi-point NPTIDS>1 density accumulation — faithful bit-exact for every single-point stand) ·
-  D6 (CS ESCPRS regen-compression).
-
-END STATE: SN, NE, CS are faithful BIT-EXACT drop-ins for all ported functionality, barring only Float32
-ULP + the accepted COMPRESS eigensolver. Suite 6343 pass / 2 broken (the 2 = accepted eigensolver +
-NOHTDREG ULP, both documented). Setting docs/DIVERGENCE_COMPLETE. (To reopen for the D3/D6 feature ports,
-remove that file.)
+### D10 — REOPENED: NOT ULP — a systematic regen DGSCOR SPREAD divergence (correcting the prior mislabel)
+Re-verified bare_natural vs FRESH live (the D11 lesson: don't assert irreducible). At 2027 the regen DBH,
+compared RANK-BY-RANK, is SYSTEMATICALLY larger in jl at every upper-tail position: jl 10.87/10.66/10.52/
+10.50/10.13/10.05/10.00 vs live 10.50/10.50/9.90/9.80/9.70/9.60/9.20. The MEAN is preserved (Tcuft within
+0.6%, TPA ±2) ⇒ jl's regen DBH distribution is WIDER (bigger top, must be smaller bottom) — a systematic
+SPREAD (variance) difference, ~0.3-0.7″ at the top. That is NOT Float32 ULP (~1e-6); my earlier "DGSCOR/
+ULP-amplified irreducible" verdict was WRONG. It IS threshold-amplified at the 10″ loblolly saw DBH (Scuft
++51% at the 2027 crossing, shrinking to +6% by 2042), but the root is a real too-wide DGSCOR spread for the
+regen (uncalibrated-species) trees — 2017 is bit-exact, the spread widens by 2027, so the SSIGMA/serial-
+correlation MAGNITUDE for these trees accumulates too much variance. HYPOTHESIS to trace: the uncalibrated-
+species VARDG/SSIGMA (BACHLO draw scale) for regen loblolly is larger in jl than live. Being traced.
