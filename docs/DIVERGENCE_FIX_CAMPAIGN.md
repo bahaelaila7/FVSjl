@@ -838,6 +838,22 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   catch the one year the totals split — a fresh, bounded, but low-value trace (≤2 TPA / one stand). Recorded as a
   documented hard residual; the LARGE half stays a real validated fix. This is the campaign's final SN item and it
   is bounded to bedrock: all inputs proven equal, divergence isolated to cycle-2 accumulation order.
+- **★★ PRECISE LOCALIZATION (per-year matched trajectory — the lesson paid off): the ENTIRE gap opens in the
+  SINGLE 2003 cycle-boundary step.** Compared jl `JLDECAY` vs live `FMCWD` post-decay PER YEAR: 1998 jl 0.522/1.489
+  vs live 0.567/1.440, ... 2002 jl 1.247/2.294 (Σ3.541) vs live 1.274/2.263 (Σ3.537) — **MATCH within 0.004 through
+  2002** (jl sz3 even slightly HIGHER all along). Then 2002→2003-cycle-start: jl 3.541→4.118 (+0.577), live
+  3.537→4.820 (**+1.283**). ⇒ the whole −0.70 is the 2003 STEP, and live's +1.283 is ANOMALOUS vs the normal
+  ~0.25/yr — a one-time CYCLE-BOUNDARY addition. Mechanism: the 1998→2003 cycle's END-of-cycle mortality creates
+  snags whose crown → CWD2B → down-wood, and live's FMBURN/FMCBA at 2003 samples the cwd AFTER that boundary
+  addition; **jl's `fire_smlg` is stashed at the 2003-cycle START (summary.jl:276), BEFORE jl books its 2003
+  boundary mortality's crown debris** (that runs later inside grow_cycle!). So jl's fire fuel basis is one cycle-
+  boundary-crown-debris increment short (~0.7 sz2+3) → lighter cwd → the non-monotonic FMCFMD3 picks a hotter
+  model → the +3-TPA over-kill. ⇒ **D16b-SMALL FIX HYPOTHESIS (precise, testable): advance jl's 2003 boundary
+  mortality-crown → CWD2B → fine-down-wood addition BEFORE stashing `fire_smlg`, so the fire samples the same
+  post-boundary cwd live does.** CAUTION: fire_carbon (2000 SIMFIRE) is bit-exact with the current phase — validate
+  no regression. This supersedes "unattributable accumulation-order": it IS the fire-basis-vs-boundary-mortality
+  PHASE, localized to one step by the per-year matched trace. The 8 term-checks (all equal) + this localization
+  make it a well-understood phase bug, not a mystery — a bounded fix for a fresh session.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
