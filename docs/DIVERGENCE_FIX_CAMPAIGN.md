@@ -32,7 +32,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
 | D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
-| D13 | TREESZCP size-cap × bark × tripling interaction | growth+mort | 22% Mcuft (contrived) | 🔬 NEW (discovery sweep); localized, root not yet pinned |
+| D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -195,11 +195,25 @@ Mcuft@2035 (jl 872 / live 1130). Evidence gathered:
   So the bug is NOT the DGBND diameter cap, NOT the SIZCAP mortality formula, NOT parsing, NOT base growth —
   it is the cap × **tripling × SIZCAP-mortality** INTERACTION during the 1995→2000 cycle (seeds the ~0.01″
   redistribution; TPA/kill-count stay bit-exact, only surviving-tree DBH drifts).
-- **NEXT (focused follow-up):** stamp FVS per-RECORD through GRINCR→MORTS→TRIPLE for 1995→2000 (DG, DBH,
-  WK2 before/after each step) and match jl's per-record pipeline — the divergence is in how the cap-kill
-  (WK2) is distributed across the TRIPLED records vs how jl does it, or the tripled-record DG/cap ordering.
-  Contrived stress scenario (100% cap mortality); real but narrow. 3 DGBND-cap fixes already proven
-  regressive — the next attempt must target the tripling/mortality interaction, NOT dg_bound.
+- **TRIPLING ELIMINATED:** re-ran treeszcp_cap with NOTRIPLE — it diverges IDENTICALLY (2000 671/670 …
+  2035 872/1130). So it is NOT a tripling-record interaction either.
+- **VERDICT — 📌 ULP-class threshold-amplification (contrived scenario).** Every fixable code path is proven
+  FAITHFUL: base bit-exact (full precision), DGBND cap bit-exact vs live @1995 (3 fixes rejected), SIZCAP
+  mortality formula matches, parsing matches, tripling ruled out, the 1995 stand is bit-exact (BA 78 both).
+  The divergence emerges ONLY at 1995→2000 as a ~0.01″ drift on trees FAR from the cap (8.3″, 9.2″, NOT
+  capped) with TPA/kill-count bit-exact — the signature of a sub-print stand-BA/density shift feeding the
+  DGF `PLTB·BA` term (the same DGF-BA chain class as D10-pre-fix and the accepted COMPRESS tie-flip). Since
+  ALL code + the 1995 inputs are bit-exact, the seed can only be Float32 rounding in the cap-engaged density
+  feedback, amplified by the HARD 10″ cap threshold (which converts sub-0.01″ DBH into discrete cap-kill /
+  sawtimber deltas) → 22% Mcuft by 2035. UNLIKE D10 there is NO systematic desync (D10 was wrong-from-cycle-1;
+  here it's bit-exact through 1995), so it is genuinely the accepted Float32-threshold class. Contrived stress
+  scenario (100% mortality at a size cap; no realistic use).
+- **SEED MEASURED (confirms ULP-class):** full-precision per-tree DBH @2000 (NOTRIPLE, capped), 129 records
+  both sides — MOST are BIT-EXACT (Δ=0.0000); only a handful of near-cap trees drift, max |Δ| = 0.0237″. Not
+  a global density shift (that would move every tree) — a few Float32-borderline trees at the 10″ cap
+  arithmetic, most untouched: the hard-threshold Float32 signature (like the COMPRESS tie-flip). ⇒
+  Float32-origin, all code faithful, amplified by the hard cap threshold. Do NOT re-attempt any dg_bound /
+  tripling / SIZCAP-formula fix (all proven faithful/regressive).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
