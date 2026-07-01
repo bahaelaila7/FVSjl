@@ -621,6 +621,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   filling sz2-5 ~10%. FINAL NEXT-STEP (fresh session): stamp live FMSNAG/fmsfall per-year 1999→2003 for FALL
   DENSITY by cohort (deathyr) vs jl `update_snags!` — pin fewer-snags vs off-by-a-year. ≤3% one-family FFE
   residual, fully localized; upstream cut→snag PATH (D16) CLOSED; SN inventory at documented floor (219/260).
+- **★★ D16b — SNAG-FALL DEFINITIVELY RULED OUT (bit-exact), gap REDIRECTED to decay/accumulation-over-window.**
+  Stamped live FMSNAG (fmsnag.f:227 CALL CWD1, summed DFIH+DFIS/yr) vs jl `update_snags!` per-year fall density,
+  snt01_alpha FFE stand: **BIT-EXACT every pre-fire year** — 1993/94/95 = 25.8092, 1996 = 10.0717, 1997 = 9.3748,
+  1998 = 6.0587, 1999-2001 = 5.0986, 2002 = 4.7653 (jl == live to 4 dp); 2003 fire-year jl 44.83 vs live 43.96.
+  So jl's snag-fall DENSITY/TIMING is correct — my prior-turn "final-cycle-year pulse" hypothesis is REFUTED by
+  measurement. (jl carries more snag RECORDS — 8 vs 6, 30 vs 20 — but identical aggregate fall density, so the
+  extra records are density-preserving splits.) Phase-matched cwd: at 1998 jl ≈ live (jl sz2/sz3 even slightly
+  HIGHER: 0.587/1.597 vs 0.567/1.440; sz4/sz5 0.02 apart) but by the 2003 fire jl is ~10% LOW (sz2 1.496 vs
+  1.819, sz3 2.602 vs 3.001). ⇒ the down-wood INPUT matches (fall bit-exact + 1998 pools ≈) and the divergence
+  ACCUMULATES over 1998→2003 — a DECAY-rate application or a minor accumulation-source (FMCADD woody-breakage /
+  FMSDIT crown-lift) difference over the window, NOT fall, NOT bolevol, NOT volume-basis, NOT cut-residue, NOT
+  fire-basis phasing (all now refuted vs live). FINAL NEXT-STEP (fresh session): phase-matched per-year cwd-by-
+  size stamp BOTH engines 1998→2003 isolating the 1993-97-deposited cohort's decay ratio (DKR application count/
+  order) vs the woody-breakage+crown-lift adds — the last unrefuted mechanism for the ~10% woody-DDW shortfall.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
