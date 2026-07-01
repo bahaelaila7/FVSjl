@@ -408,6 +408,15 @@ function compute_volumes!(s::StandState)
     (s.variant isa Northeast || s.variant isa CentralStates) && return compute_volumes_ne!(s)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
+    # R8 board-foot rule: the R8-CLK path reports INTERNATIONAL ¼" board feet (volinit2.f:269-272 VOL(2)=
+    # VOL(10)) for GW/JF (IFORST 8), Ouachita (9), Ozark-St Francis (10), and Francis Marion & Sumter (12)
+    # except the Andrew Pickens district (IDIST 2); every other R8 forest keeps Scribner. IFORST/IDIST from
+    # the KODFOR location code. (D11: s07_forest_808 IFORST=8 & s22_forest_809 IFORST=9 ⇒ Intl (351); snt01/
+    # all_GA IFORST=1 ⇒ Scribner (285/174), unchanged.)
+    _kodfor = Int(s.plot.user_forest_code)
+    _iforst = (_kodfor ÷ 100) - (_kodfor ÷ 10000) * 100
+    _idist  = _kodfor - (_kodfor ÷ 100) * 100
+    _r8_intl = _iforst in (8, 9, 10) || (_iforst == 12 && _idist != 2)
     # Log-graded HRVRVN (unit 4 = BF_1000_LOG): capture each tree's per-log-DIB gross Scribner BF so
     # the cut path (echarv.f) can bucket it into DIB-class records for the FVS_EconHarvestValue report.
     # Gated on an active ECON with a unit-4 revenue record; otherwise a no-op (the common path).
@@ -453,7 +462,7 @@ function compute_volumes!(s::StandState)
         mtops = topd[sp]
         ldref = log_grade ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
         lcref = log_grade_cuft ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
-        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref)
+        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
@@ -482,7 +491,7 @@ function compute_volumes!(s::StandState)
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
-                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref)
+                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl)
                 bf = vb[10]
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))

@@ -327,7 +327,11 @@ end
 function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
                       mTopp::Float32, mTopS::Float32, stump::Float32,
                       prod::AbstractString; log_dib::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing,
-                      log_cuft::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing)
+                      log_cuft::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing,
+                      intl_bf::Bool = false)
+    # `intl_bf`: report vol[10] as INTERNATIONAL ¼" board feet instead of Scribner. FVS volinit2.f:291-297
+    # replaces vol(2) with vol(10) (International) for R8 National Forests IFORST∈{4,5,8,11,12,14,19,20,21,
+    # 22,24,30}; other R8 forests keep Scribner. Same even-foot sawtimber bucking, different per-log rule.
     # `log_dib` (a Ref) is the opt-in per-log-DIB Scribner BF breakdown for the log-graded HRVRVN report
     # (#38): when supplied, the board-feet block below ALSO fills it via `_r8_scribner_bf_by_dib` with the
     # SAME merch params. nothing (the default for all non-econ callers) ⇒ no extra work; return arity unchanged.
@@ -430,9 +434,11 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
         end
     end
 
-    # 6. Board feet via Scribner table
+    # 6. Board feet — Scribner by default, or International ¼" (vol(10)) for the R8 forests that use it.
     if isProd1 && sawHt > stump
-        vol[10] = _r8_scribner_bf(R,C,E,P,B,A, totHt,dbhIb,dib17,
+        vol[10] = intl_bf ?
+            _r8_intlqtr_bf(R,C,E,P,B,A, totHt,dbhIb,dib17, sawHt, stump, minLen, maxLen, trim) :
+            _r8_scribner_bf(R,C,E,P,B,A, totHt,dbhIb,dib17,
                                    sawHt, plpHt, stump, minLen, maxLen, trim)
         log_dib !== nothing && (log_dib[] = _r8_scribner_bf_by_dib(R,C,E,P,B,A, totHt,dbhIb,dib17,
                                    sawHt, plpHt, stump, minLen, maxLen, trim))
@@ -451,6 +457,45 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
     vol[10] = Float32(round(vol[10], RoundNearestTiesAway))
 
     return vol, rawSawHt, plpHt
+end
+
+# ---------------------------------------------------------------------------
+# International ¼" board feet (r9bdft vol(10), r9clark.f:1482) over the SAWTIMBER section [stump, sawHt].
+# Same even-foot bucking as `_r8_scribner_bf` (R9LOGLEN) + the R8 Clark log-top DIB, but the per-log board
+# is the International rule (`_r9_intl_log`, shared with the R9/NE path) instead of the Scribner table.
+# FVS uses this (volinit2.f:296 VOL(2)=VOL(10)) for R8 National Forests {4,5,8,11,12,14,19,20,21,22,24,30}.
+# ---------------------------------------------------------------------------
+function _r8_intlqtr_bf(R, C, E, P, B, A, totHt, dbhIb, dib17,
+                        sawHt, stump, minLen, maxLen, trim)
+    lmerch = sawHt - stump
+    nlogp  = clamp(floor(Int, lmerch / (maxLen + trim)), 0, 39)
+    leftov = lmerch - (maxLen + trim) * nlogp - trim
+    logLen = zeros(Float32, 40); tlogs = 0
+    if !(lmerch < minLen + trim || (nlogp == 0 && leftov < minLen + trim))
+        for i in 1:nlogp; logLen[i] = maxLen; end
+        if leftov >= minLen + trim
+            nlogp += 1; logLen[nlogp] = leftov
+        end
+        if nlogp == 1
+            logLen[1] = Float32(floor(Int, logLen[1]) ÷ 2 * 2)
+        elseif leftov < minLen
+            logLen[nlogp] = Float32(floor(Int, logLen[nlogp]) ÷ 2 * 2)
+        else
+            combined = maxLen + leftov
+            logLen[nlogp]   = Float32(floor(Int, combined / 2) ÷ 2 * 2)
+            logLen[nlogp-1] = Float32((floor(Int, combined - logLen[nlogp]) ÷ 2) * 2)
+        end
+        tlogs = nlogp
+    end
+    tlogs == 0 && return 0f0
+    bf = 0f0; ht = stump
+    for i in 1:tlogs
+        len = logLen[i]
+        ht += trim + len                                            # top (small end) of log i
+        idib = trunc(Int, _r9dib_clark(R,C,E,P,B,A, totHt,dbhIb,dib17, ht) + 0.499f0)  # r9logdib INT(DIB+0.499)
+        bf += _r9_intl_log(len, idib)
+    end
+    return round(bf, RoundNearestTiesAway)                          # r9bdft:1499 vol(10)=NINT
 end
 
 # ---------------------------------------------------------------------------
