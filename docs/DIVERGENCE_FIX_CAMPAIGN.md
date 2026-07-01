@@ -492,6 +492,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   FEATURE (cut→FFE-snag SSNG path), definitively verified — NOT ULP, NOT a formula bug, NOT annual-vs-cycle.
   Ordinary mortality is bit-exact; only the cut-snag path is absent. (Method: the ITYP filter caught my 3rd
   D16 mechanism over-inference; EVERY non-cut snag source matches, so the gap is precisely the cut path.)
+- **FIX FULLY SPECIFIED (cuts.f:1382-1386):** per cut RECORD, when YARDLOSS is active (LYARD): `LOSS =
+  PREM·PRLOST` (PREM = removed density this record), then `DSNG = LOSS·PRDSNG` (DOWNED snags → straight to
+  down-wood cwd) and `SSNG = LOSS·(1−PRDSNG)` (STANDING snags → `fs.snags`, later fall→down-wood via
+  update_snags!); the actually-removed density becomes `PREM − LOSS`. YARDLOSS fields = (PRLOST, PRDSNG,
+  PRCRWN, …); jl currently parses only `yardloss_prlost` and applies it at the AGGREGATE .sum level
+  (cuts.jl:247, scales reported merch/saw/bdft by 1−PRLOST) — it does NOT book the per-record SSNG/DSNG into
+  the FFE pools. IMPLEMENTATION (bounded, YARDLOSS-gated so non-YARDLOSS tests are untouched): (1) parse
+  PRDSNG/PRCRWN into Control; (2) in the cut functions (`_thin_sorted!`/`_thinprsc!`), capture the per-record
+  removed density + dbh/height (the cutlist already logs removed records via `_log_cut!`); (3) `add_snag!`
+  the SSNG standing density (cut tree's dbh/height) into `fs.snags`, and add the DSNG downed density's bole
+  to `fs.cwd` (via the same cone-taper split); (4) re-validate carbon_snt StandDead/DDW + the fire tests +
+  the many thinning tests. This closes the D16 chain (cut-snags → cwd → fuel model → flame → over-kill). A
+  real FFE feature port (harvest-residue SSNG/DSNG), the last SN model-fidelity item — root VERIFIED, fix
+  formula EXACT, implementation multi-part (fresh focused session).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
