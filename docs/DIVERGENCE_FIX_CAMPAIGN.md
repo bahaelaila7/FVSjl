@@ -30,7 +30,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (fixed-to-ULP; mults OK) |
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
-| D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
+| D10 | regen :estab order + sawtimber spread | volume | ~3-4% Scuft (was 51%) | ✅ ULP-CLASS: order now BIT-EXACT vs live (re-verified); residual = accepted saw-threshold ULP-amplification |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
@@ -1323,6 +1323,20 @@ NOT ULP, NOT a formula/coefficient bug. Whether fixable (align the regen small-t
 FVS's ESRANN/RANN sequence) or irreducible (the dynamically-created regen tree order can't be bit-replicated)
 needs a focused RNG-alignment trace: stamp the RAN draw SEQUENCE (regent.f:257) vs jl's bachlo for the regen
 at one cycle. Two real sub-bugs closed en route (seedling DIAM-floor; the BA chain characterized). D10 OPEN.
+
+### D10 — ✅ RE-VERIFIED to ULP-CLASS: regen ORDER now BIT-EXACT vs live; residual = accepted saw-threshold ULP-amplification
+**★ RE-TRACE (fresh live, this pass) — the "record-order differs / 51%" below is STALE.** Re-stamped live regent.f:257
+(the small-tree height RAN loop, IND1/SPESRT order) dumping per-tree DBH, and diffed vs jl's `small_tree_growth`
+k3-order for bare_natural: live ICYC=5 = `1.8678 1.7597 1.6081 1.5785 2.1241 1.6662 1.6214 1.9357 2.0480 2.0178
+1.8694 1.5987 1.5463 2.0455 2.3245 …` — **BIT-IDENTICAL to jl's 2012 order.** So jl's regen record/processing
+order now MATCHES FVS's SPESRT/LNKCHN exactly (a prior `sort_key`/`species_sort!` fix aligned it; the ~51%
+below is pre-fix). Current bare_natural vs fresh live: **TPA BIT-EXACT (781/763/745/727/684/643/612/586), TCuft
+bit-exact (Δ1 ULP)** ⇒ per-tree DBHs are ULP-close; only **SCuft/Bdft differ ~3-4%** (2022 SCuft 71/74, Bdft
+272/285; shrinks to ~1% late). With order bit-exact + DBHs ULP-close, that residual is a ULP-scale DBH
+difference flipping a few trees across the **10″ sawtimber threshold** — the SAME accepted ULP-THRESHOLD-
+AMPLIFICATION class as D13/COMPRESS/D8. ⇒ **D10 is RESOLVED to ULP-class (accepted): order fixed + bit-exact,
+saw/board residual is threshold-amplified ULP, not a real order/formula divergence.** (Verdict upgraded from the
+stale "open record-order" below via the re-trace discipline — re-verify documented residuals vs the live binary.)
 
 ### D10 — DEFINITIVE ROOT: regen small-tree RECORD/PROCESSING ORDER differs (draws identical, mapping differs)
 Stamped the height-random RAN draws in MADE-ORDER (regent.f:260) + the tree DBH each applies to, both sides,
