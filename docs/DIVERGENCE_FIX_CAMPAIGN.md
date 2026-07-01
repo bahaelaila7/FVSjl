@@ -491,3 +491,15 @@ LOWER @cycle 3) was the cycle-3 "jl grows less" perturbation (now fixed) — a D
 "jl grows MORE" that drives Scuft. So D10's Scuft has a SEPARATE, persistent large-tree-growth cause in
 cycles 4-6 (2012-2022). RE-TRACE lesson: a deep chain can find a REAL bug that is NOT the target divergence —
 verify the fix moves the target metric, not just an intermediate. D10 still OPEN (Scuft); seedling bug closed.
+
+### D10 — Scuft cause localized to the 0.5-3″ regen small-tree BA (separate from the seedling fix)
+Stamped the DGF at cycle 5 (2012→2017, where the large-tree divergence appears): every input matches EXCEPT
+STAND BA — jl 80.1651 / live 80.7462 (jl 0.7% LOWER ⇒ jl's DDS higher ⇒ grows MORE, the Scuft direction). The
+BA difference FLIPPED sign (jl higher@cyc3, lower@cyc5). Band breakdown @2012: the gap is the <3″ band —
+live 6.754 / jl 6.232 (jl −0.52 BA); the 3-6″ and ≥6″ bands nearly match. Since live's seedlings are DBH~0.10
+(≈0 BA), this is the 0.5-3″ REGEN small trees (grown above breast height): jl's are under-sized there after
+the (faithful) seedling DIAM-floor fix. ⇒ D10's Scuft is driven by the 0.5-3″ regen small-tree DBH being too
+SMALL in jl (a SEPARATE small-tree-growth residual, in the HK>4.5 / DBH<3″ sub-case), which lowers stand BA,
+lets the large trees grow more, and amplifies at the 10″ saw threshold. NEXT: trace the HK>4.5 small-tree DBH
+growth (the DIAM-floor + _htdbh_dbh(hk) path in _regent_dg) for the 0.5-3″ regen jl-vs-live. D10 REAL, not ULP,
+still open; two real regen sub-bugs identified (seedling DIAM-floor FIXED; 0.5-3″ under-growth OPEN).
