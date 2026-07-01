@@ -571,6 +571,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   watch the sz2-5 pools accumulate vs jl, pin the ~10% bole shortfall to its source (input vs decay vs timing).**
   This is a downstream FFE-fuels residual (3 TPA / 2.8% on ONE thinned+fire stand); the upstream cut→FFE-snag PATH
   (the original D16) is CLOSED. NOT ULP (proportional 10-18%, not sub-print), so D16b stays 🔬 OPEN, fully localized.
+- **★ D16b — volume-basis hypothesis REFUTED by measurement; trajectory captured.** Hypothesis: my cut-DSNG/SSNG
+  bolevol used MERCH cuft but CWD3 (fmcwd.f:283-286) uses TVOLI = FMSVL2 'D' = TOTAL — a ~10-15% under-count that
+  would match the proportional shortfall. Switched DSNG to `cuft_vol` (total CFV, the faithful CWD3 choice, kept +
+  suite-green) and re-measured: effect NEGLIGIBLE (sz2 1.496→1.497, SMALL 7.1→7.124) — for these cut trees total ≈
+  merch, so the volume basis is NOT the gap. Live down-wood per-year trajectory (fmcwd.f FMCWD stamp, FFE stand):
+  the pool is CUT-SNAG-FALL dominated — sz5 (6-12") climbs 3.23(1993)→**6.94(1995)** as the 1993-cut boles fall,
+  then decays; jl sz5 @2003 = 3.481 vs live 3.734. The within-cycle PHASING differs (FMCWD dumps post-decay each
+  year; the fire's FMCFMD reads a later-in-2003 state after that year's snag-fall/litterfall pulse — FMCWD@2002
+  SMALL 4.77 vs FMCFMD@2003 pre-fire 7.96), so the two engines' per-year dumps are NOT directly phase-comparable.
+  ⇒ The ~10% shortfall is in the DENSITY/DECAY/TIMING of cut-snag fall, not bole volume. NEXT (fresh session):
+  phase-MATCHED per-year stamp (same point in the annual loop, both engines) of the cut-snag fall density + the
+  sz2-5 pool, 1993→2003, to separate fall-rate (SNAGFALL) from decay-rate (DKR) from a count diff.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
