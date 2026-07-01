@@ -133,22 +133,22 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             v2t = coef_col(s.coef, :v2t)[sp]
             mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
             bolevol = mcf * v2t / 2000f0
+            tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
+            fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
             if ssng > 0f0
                 add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                          bolevol = bolevol, height = t.height[i])
+                          bolevol = bolevol, fallvol = fallvol, height = t.height[i])
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
-            # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch — so the downed
-            # material uses total cuft (cuft_vol/CFV), unlike the ordinary snag-fall path (merch, CWD1).
+            # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
             if dsng > 0f0
                 idc = ffe_dkr_cls(s, sp)
                 frac = _cwd_cone_fractions(t.dbh[i], t.height[i])
-                tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
-                addH = tcf * v2t / 2000f0 * dsng
+                addH = fallvol * dsng
                 @inbounds for j in 1:9
                     frac[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac[j])
                 end

@@ -591,15 +591,18 @@ mutable struct SnagList
     yrdead::Vector{Int32}         # the TRUE death year = FVS YRDEAD (input: dead-10yr; fire: fire year; ordinary
                                   # mortality: cycle-END−1, fmkill.f:140 IY(ICYC+1)−1). Used for the hard→soft
                                   # DKTIME classification (snag_summary) + the post-burn window — NOT the fall.
-    bolevol::Vector{Float32}      # per-tree death-time STEM-volume bole biomass, tons (cuft·V2T) — the
-                                  # FFE snag basis (SNVIS·V2T), distinct from whole-tree Jenkins; 0 = unset
+    bolevol::Vector{Float32}      # per-tree death-time MERCH STEM-volume bole biomass, tons (MCF·V2T) — the
+                                  # FFE Stand-Dead snag basis (SNVIS·V2T, fmdout.f); 0 = unset
+    fallvol::Vector{Float32}      # per-tree TOTAL STEM-volume bole biomass, tons (total-cuft·V2T) — the FALL→
+                                  # down-wood basis (FVS CWD1 uses TVOLI=FMSVL2 'D'=TOTAL, fmcwd.f:185), distinct
+                                  # from the merch `bolevol` the standing-snag Stand-Dead report uses. 0 ⇒ use bolevol.
     height::Vector{Float32}       # HTDEAD — snag height at death (ft); drives the cone-taper split of a
                                   # fallen bole across CWD size classes (FMCWD/CWD1). 0 = unset (single-class)
     htcur::Vector{Float32}        # HTIH/HTIS — CURRENT snag height (ft), = `height` at creation; only shrinks
                                   # when SNAGBRK sets HTX>0 (FMSNGHT). Drives the recomputed bole then. At
                                   # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[])
 
 """
 PotFire-report weather-scenario conditions, overridable by the POTF* keywords (POTFMOIS/POTFWIND/
@@ -712,8 +715,8 @@ mutable struct FireState
     moisture_ovr::Vector{Tuple{Int32,NTuple{7,Float32}}}  # MOISTURE keyword: (date, 7 fuel-moisture % —
                                        # 1hr/10hr/100hr/3+/duff/live-woody/live-herb). A fire in the matching
                                        # cycle uses these instead of the FMMOIS dryness-model table (fmburn.f:367).
-    snaginit::Vector{NTuple{5,Float32}}  # SNAGINIT keyword: user-added snags (species, DBH-at-death, ht-at-death,
-                                       # age, density stems/ac). Seeded at the first FFE year (fmsnag.f:90-105).
+    snaginit::Vector{NTuple{6,Float32}}  # SNAGINIT keyword: user-added snags (species, DBH-at-death, ht-at-death,
+                                       # CURRENT-ht, age, density stems/ac). Seeded at the first FFE year (fmsnag.f:90-105).
     salv_isalvs::Int32                 # SALVSP: salvage species selector (0=all, >0 species, <0 −SPGROUP); persists
     salv_isalvc::Int32                 # SALVSP: 0=cut-list (cut only ISALVS) / 1=leave-list (leave ISALVS, cut rest)
     fuelmodl::Vector{Tuple{Int32,Vector{Tuple{Int32,Float32}}}}  # FUELMODL: (date, [(standard-model#, weight)])
@@ -731,7 +734,7 @@ end
 FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
                         zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
-                        (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{5,Float32}[],
+                        (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{6,Float32}[],
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),

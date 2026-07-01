@@ -76,16 +76,22 @@ a per-species initial-soft fraction (PSOFT), in which case that share starts sof
 non-positive density.
 """
 function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer;
-                   bolevol::Float32 = 0f0, height::Float32 = 0f0, yrdead::Integer = year)
+                   bolevol::Float32 = 0f0, height::Float32 = 0f0, yrdead::Integer = year,
+                   htcur::Float32 = -1f0, fallvol::Float32 = -1f0)
     density > 0f0 || return
     sn = fs.snags
     # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
     psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
     soft = density * psoft; hard = density - soft
+    # `height` = HTDEAD (taper reference); `htcur` = current top (< HTDEAD only for pre-broken SNAGINIT snags
+    # or SNAGBRK height-loss). Default htcur = height ⇒ no truncation (ordinary snags).
+    hc = htcur > 0f0 ? min(htcur, height) : height
+    # `fallvol` = TOTAL-volume bole for the fall→down-wood (CWD1 TVOLI='D'); default (−1) ⇒ reuse `bolevol`.
+    fv = fallvol >= 0f0 ? fallvol : bolevol
     push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
     push!(sn.den_hard, hard);  push!(sn.den_soft, soft)
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
-    push!(sn.bolevol, bolevol);  push!(sn.height, height); push!(sn.htcur, height)
+    push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc)
     return
 end
 
@@ -157,7 +163,7 @@ TOTAL is unchanged (carbon DDW preserved); only the per-class split — FMCFMD's
 is corrected. A bole too short to taper (`ht ≤ 4.6`) or with no taperable volume falls back to its
 DBH class.
 """
-function _cwd_cone_fractions(d::Float32, ht::Float32)
+function _cwd_cone_fractions(d::Float32, ht::Float32, htcur::Float32 = ht)
     f = zeros(Float32, 9)
     d <= 0.1f0 && (d = 0.1f0)
     if ht <= 4.6f0
@@ -168,22 +174,27 @@ function _cwd_cone_fractions(d::Float32, ht::Float32)
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
     # BPH(j) = height (ft) where stem diameter = BP(j); index j+1
     bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), 10)
-    loht = 0.10f0; hiht = htd
     r1 = d * 0.0416666667f0                       # radius (ft) at DBH (= d/12 * 0.5)
-    r1 = r1 + loht * ((r1 * htd) / (htd - 4.5f0)) # extend cone to the stem base
+    r1 = r1 + 0.10f0 * ((r1 * htd) / (htd - 4.5f0)) # extend cone to the stem base
     r1sq = r1 * r1
-    total = 0f0
+    pat(h) = let r2 = r1 * (1f0 - h / htd); (r2 * r2 * (htd - h)) / (r1sq * htd) end
+    # FVS CWD1 (fmcwd.f:22,29): the taper is the ORIGINAL tree (HTDEAD = `ht`), but the integration TOP is
+    # HIHT(2) = HTIH = the snag's CURRENT height (`htcur`) — a broken/short snag is the fat LOWER bole of the
+    # full cone, so its thin top is excluded ⇒ MORE of the bole lands in the large size classes. Normalize by
+    # the FULL-cone total (pat(0.10)) NOT the truncated sum, so a truncated snag deposits only its lower
+    # fraction (Σf<1) while the bolevol stays the full-tree volume. htcur == ht (default / ordinary snags,
+    # SN HTX=0) ⇒ hiht = htd ⇒ Σf = 1 exactly as before (no behavior change).
+    loht = 0.10f0; hiht = min(max(htcur, loht), htd)
     @inbounds for j in 1:9
         bphj = bph[j + 1]; bphjm1 = bph[j]        # BPH(j), BPH(j-1)
         (hiht <= bphj || loht > bphjm1) && continue
         hicut = min(hiht, bphjm1); locut = max(loht, bphj)
         locut == hicut && continue
-        r2 = r1 * (1f0 - hicut / htd); p1 = (r2 * r2 * (htd - hicut)) / (r1sq * htd)
-        r2 = r1 * (1f0 - locut / htd); p2 = (r2 * r2 * (htd - locut)) / (r1sq * htd)
-        dif = max(0f0, p2 - p1); f[j] = dif; total += dif
+        f[j] = max(0f0, pat(locut) - pat(hicut))
     end
-    total <= 0f0 && (f[_cwd_size_class(d)] = 1f0; total = 1f0)
-    @inbounds for j in 1:9; f[j] /= total; end
+    total_full = pat(loht)                        # P(0.10) − P(htd)=0: the whole-cone volume (normalizer)
+    total_full <= 0f0 && (fill!(f, 0f0); f[_cwd_size_class(d)] = 1f0; return f)
+    @inbounds for j in 1:9; f[j] /= total_full; end
     return f
 end
 
@@ -224,15 +235,17 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         born_now = Int(sn.year[i]) == cur ? 1 : 0
         yrs = clamp(eff - Int(sn.year[i]) + born_now, 0, Int(nyears))
         yrs > 0 || continue
-        # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B
-        # path (so don't double-count it). Fall back to Jenkins for cohorts with bolevol unset.
-        a = sn.bolevol[i]
+        # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
+        # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
+        # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
+        a = sn.fallvol[i]
+        a <= 0f0 && (a = sn.bolevol[i])
         a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
         idc = ffe_dkr_cls(s, sp)                            # decay-rate class (FUELPOOL-overridable)
         # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
         # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
         # once per cohort. Height unset (0) ⇒ single-class fallback (no behavior change).
-        frac = _cwd_cone_fractions(sn.dbh[i], sn.height[i])
+        frac = _cwd_cone_fractions(sn.dbh[i], sn.height[i], sn.htcur[i])
         # NO hard→soft density transition for the FALL. FVS's DENIH/DENIS are the snag's INITIAL hard/soft
         # state at CREATION (all ordinary-mortality snags are created HARD → DENIH); the per-snag HARD flag
         # that flips at DKTIME (fmsnag.f:282-285) is a separate DECAY/REPORTING state and does NOT move the
@@ -493,9 +506,10 @@ function apply_salvage!(s::StandState)::Bool
             sn.den_hard[i] = max(0f0, sn.den_hard[i] - cuth)
             sn.den_soft[i] = max(0f0, sn.den_soft[i] - cuts)
             if proplv > 0f0                                    # the left-behind share → down wood (CWD1)
-                bole = sn.bolevol[i]
+                bole = sn.fallvol[i]
+                bole <= 0f0 && (bole = sn.bolevol[i])
                 bole <= 0f0 && (bole = let (j, _, _) = jenkins_biomass(coef, sn.sp[i], d); j end)
-                idc = ffe_dkr_cls(s, sn.sp[i]); frac = _cwd_cone_fractions(d, sn.height[i])
+                idc = ffe_dkr_cls(s, sn.sp[i]); frac = _cwd_cone_fractions(d, sn.height[i], sn.htcur[i])
                 addH = bole * cuth * proplv; addS = bole * cuts * proplv * 0.80f0
                 for jz in 1:9
                     frac[jz] > 0f0 || continue
@@ -526,12 +540,13 @@ function ffe_add_snaginit!(s::StandState)
     v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
     invyr = Int(current_cycle_year(s))
     s.control.merch_init || init_merch_standards!(s)
-    @inbounds for (spf, df, htdf, agef, denf) in fs.snaginit
+    @inbounds for (spf, df, htdf, htcf, agef, denf) in fs.snaginit
         sp = Int(spf); d = df; den = denf
         (sp >= 1 && d >= 1f0 && den > 0f0) || continue
         age = max(0, round(Int, agef))
         yr = invyr - age                                     # death year = inventory − AGE (fmsnag.f:99)
         h = htdf > 0f0 ? htdf : max(4.5f0, _htdbh_height(sd, sp, d, ifor))
+        htc = htcf > 0f0 ? htcf : h                          # HTIH (current top) → fall-cone truncation
         # Snag stem (bole) volume at death = the variant's MERCH cubic (FMSVOL), × V2T → biomass. NE uses the
         # R9 Clark merch (v4+v7, the same basis as the live-tree `merch_cuft_vol`); SN uses R8 Clark v[4]. Using
         # the SN R8 path for NE returns 0 (the NE vol_eq is not an R8 Clark string) ⇒ snag_bole_carbon then falls
@@ -542,14 +557,16 @@ function ffe_add_snaginit!(s::StandState)
             prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
             v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
+            tcuft = v[1]                                         # total cubic (fall→CWD1 basis)
         else
             prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
                 ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
             vv, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-            mcuft = vv[4]
+            mcuft = vv[4]; tcuft = vv[1]                         # merch (Stand-Dead) / total (fall→CWD1)
         end
         bolevol = mcuft * v2t[sp] / 2000f0
-        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
+        fallvol = tcuft * v2t[sp] / 2000f0
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age
     end

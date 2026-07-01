@@ -1759,16 +1759,19 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "FUELSOFT"                             # initial soft fuel loadings (fmin.f:2459, opt 53)
             _fuelsoft!(s, r)
         elseif k == "SNAGINIT"                             # add user snags (fmin.f:1119, opt 22)
-            # field 1 = species (SPDECD), 2 = DBH at death, 3 = ht at death, 4 = current ht (unused in the
-            # FMSNAG add path), 5 = age, 6 = density stems/ac. 0/−999 species ⇒ ignored (fmin.f:1142).
+            # field 1 = species (SPDECD), 2 = DBH at death, 3 = ht at death (HTDEAD, taper+death-vol),
+            # 4 = CURRENT ht (HTIH — the snag's present top that truncates the fall cone in CWD1), 5 = age,
+            # 6 = density stems/ac. 0/−999 species ⇒ ignored (fmin.f:1142). A pre-broken SNAGINIT snag
+            # (`… 50 40 …` ⇒ HTDEAD 50 / HTIH 40) falls as the fat LOWER 40ft of a 50ft cone ⇒ more sz5.
             sp = species_selector(s, r.fields[1])
             if sp > 0
                 v = r.values
                 d   = r.present[2] ? Float32(v[2]) : -1f0
                 htd = r.present[3] ? Float32(v[3]) : -1f0
+                htc = r.present[4] ? Float32(v[4]) : -1f0
                 age = r.present[5] ? Float32(v[5]) : -1f0
                 den = r.present[6] ? Float32(v[6]) : -1f0
-                push!(fs.snaginit, (Float32(sp), d, htd, age, den))
+                push!(fs.snaginit, (Float32(sp), d, htd, htc, age, den))
             end
         elseif k == "POTFMOIS"                             # PotFire moisture (fmin.f:1391, opt 30)
             # field 1 = IFIRE (1=severe/2=moderate), fields 2-8 = 7 moisture % for that scenario; a blank
