@@ -33,6 +33,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
+| D14 | THINPRSC proportional-thin × tripling residual fragments | thinning | 11% Scuft; +13 tree records | 🔬 NEW (measured; real non-ULP, not yet root-caused) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -53,11 +54,15 @@ Re-ran the FULL sweep after the D10 establishment-RNG fix. Ranked non-ULP DIFFs,
   distribution residual (BA distribution at the burn, not a bulk error).
 - **s4 fire residual (accepted):** `snt01_alpha`/`compute_cycle` s4 TPA 4.35%@2038 (the pre-existing SN
   non-tripling fire under-kill, memory [[fvsjl-fire-tripling-order-bug]]).
-- **cut/thin (triaged → threshold class):** `cut_thinprsc` — bit-exact through the THINPRSC 2000 thin, then
-  jl retains 2 more small TPA (194 vs live 192) with **BA bit-exact** (123/124); the 11% Scuft is that
-  2-TPA thin-selection residual amplified at the saw threshold (same S248112 stand as D13/mult_*). Likely
-  ULP-seeded cut-selection tie (needs a per-cut selection-order check to PROVE ULP; BA-bit-exact ⇒ not a
-  bulk cut bug). `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
+- **cut/thin — D14 (RE-TRIAGED, my "2-tree ULP-tie" call was WRONG):** `cut_thinprsc` (THINPRSC 2000 0.999,
+  S248112 w/ tripling). Full-precision 2005 measurement REFUTED the quick triage: jl has **243 tree records
+  vs live 230** (13 EXTRA tiny fragments, DBH 1.9-2.9″ / TPA 0.001-0.028), even though normalized TPA (194 vs
+  192) and BA are ~bit-exact. So it is NOT a clean 2-tiny-tree cut tie — it's a THINPRSC residual-FRAGMENT
+  STRUCTURE difference (how the proportional thin × TRIPLING leaves fragments), growing to 11% Scuft@2010 via
+  the saw threshold. REAL non-ULP, NOT yet root-caused → logged as **D14**. NEXT: trace THINPRSC's proportional
+  removal across tripled records (does jl leave 0.999-proportion fragments that FVS removes/merges?).
+  Meta-lesson: the measurement caught my own over-optimistic "likely ULP" triage — re-trace before trusting a
+  triage. `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
 - **small tail (≤2%, ULP/threshold):** hcor_smalltree, htgstop_stoch, dense_long/s09_cyc20 (0.76% @2085
   deep), fixmort_*, topkill_det, s15_phys_p232, s22_forest_809, growth_finth5 — all ULP-floor/threshold.
 - **9 ERR (not divergences):** 5 all_* + dead_fint/mcfdln_override/nohtdreg_cal = live FPE/no-.sum (live
