@@ -506,6 +506,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   the many thinning tests. This closes the D16 chain (cut-snags → cwd → fuel model → flame → over-kill). A
   real FFE feature port (harvest-residue SSNG/DSNG), the last SN model-fidelity item — root VERIFIED, fix
   formula EXACT, implementation multi-part (fresh focused session).
+- **FIX PART 1/2 LANDED (suite green 6397/2), PART 2 open:** (1) FIXED a real YARDLOSS PARSING BUG — FVS
+  fields = field1=DATE/field2=PRLOST/field3=PRDSNG (initre.f:3637-45); jl read PRLOST from field1 (the DATE)
+  ⇒ YARDLOSS was silently INACTIVE. Now field2/3 (+ Control.yardloss_prdsng). (2) Booked the SSNG standing
+  cut-snags in `cuts.jl _log_cut!` (SSNG=prem·PRLOST·(1−PRDSNG), the fmscut→FMSADD ITYP=2 analog) ⇒ jl snag
+  origden 1993-1997 = 62.307 == live BIT-EXACT (was 21.8). BUT the FIRE over-kill is UNCHANGED (2008 TPA
+  104/107): the booked cut-snags fall (den_hard 3.65 of 62.3, 94% fell) yet add ~0 to cwd — their bolevol is
+  TINY (Σbolevol·den 0.079) ⇒ small-dbh, bole lands in SMALL not the LARGE pool. So booking the STANDING
+  portion alone does NOT close the −0.88 LARGE snag-fall gap. PART 2 (the actual cwd/fire fix): (a) book the
+  DSNG DOWNED portion (prem·PRLOST·PRDSNG) STRAIGHT to cwd (already-down, the bigger immediate contribution
+  jl omits), and/or (b) MEASURE live's per-cut-snag CWD1 output (dbh/bolevol) — live's cut-snags contribute
+  +0.88 to LARGE, so verify whether it's the downed path or bigger boles. The 2 landed fixes are correct +
+  validated (snag density bit-exact, no regression); PART 2 = the DSNG→cwd path + a live-CWD1 per-cut-snag
+  check. CAUTION (self): I attributed the cwd deficit to the missing cut-snags — booking the STANDING ones
+  did NOT move cwd, so PART 2 must MEASURE live's cut-snag CWD1 LARGE output before claiming the cause.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
