@@ -286,3 +286,15 @@ Continued the trace and TESTED the "full-stem" fix — it is WRONG (reverted). F
   differs from 841. It is geoa/coefficient-specific and per-tree (s07 total 351 = a mix of saw-only + this
   method across species), so NOT a global switch. Two hypotheses now disproven (live-source-moved, full-stem)
   — genuinely intricate FVS volume-library routing; deferred to a focused deep-dive with the cubic-section stamp.
+
+### D11 — deepest layer (traced to the NVEL library board-foot; actionable next step identified)
+Traced BBFV through NATCRS → fvsvol.f: BBFV = (METHB==9 ? TVOL(10)_Intl : TVOL(2)_Scribner). SM is METHB=6
+⇒ BBFV = TVOL(2) = SCRIBNER — yet TVOL(2)=85 while the STANDALONE r9clark r9bdft I stamped = 69. So the NVEL
+library call inside fvsvol computes a DIFFERENT Scribner than the standalone r9clark: fvsvol sets region-8
+merch params `STUMP=SCFSTMP(ISPC)`, `TOPDIAM=MTOPP`, `PROD='01'` (fvsvol.f:202-206), and the live board
+segmentation reports sawHt=**29.0** vs jl's `_r8_scribner_bf` sawHt=**30.53**. ⇒ the divergence is the NVEL
+board-foot MERCH PARAMS / segmentation (SCFSTMP stump + MTOPP saw top + PROD='01'), which differ from jl's
+Scribner params — and the 831-vs-841 coefficient set shifts the DIB profile enough to change the rounded
+log DIBs (hence board) for geoa=3 but not geoa=4. ACTIONABLE NEXT STEP: stamp the fvsvol NVEL call's LOGLEN/
+LOGDIA (the TVOL(2) segmentation) for the 831 SM tree and match jl's `_r8_scribner_bf` stump/sawHt/log-DIB to
+it. This is a bounded NVEL-merch-param fix, not the earlier (disproven) full-stem or source-move theories.
