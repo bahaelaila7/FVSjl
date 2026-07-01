@@ -384,6 +384,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   bole added to CWD sz4-9 (fmcwd.f CWD1) vs jl's `update_snags!` per snag — a ~6% gap in the bole volume or
   the cone LARGE-fraction is the bug. D16 is traced to a SINGLE conversion (snag bolevol/cone) — the final
   live-stamp confirms bolevol-vs-cone, then the fix. This is the last SN model-fidelity residual.
+- **BOLE-VOLUME RULED OUT (live CWD1 stamp): it's the SIZE-CLASS distribution (cone), not the volume.**
+  FVS CWD1 computes the snag volume FRESH via FMSVL2 (TVOLI = full taper 0.10ft→HTIH): sp22 d10.15/ht61.4
+  →11.9, d11.06/ht64.8→15.1. jl's `bolevol` uses MCF (=merch_cuft_vol ≈ jl total cuft): sp22 d10.13/ht64.5
+  →12.5, d11.12/ht60.1→16.2. jl's bole is COMPARABLE-to-slightly-HIGHER than FVS's — so a low bole can't
+  cause the LOW LARGE. ⇒ the ~6% LARGE deficit is the CONE SIZE-CLASS SPLIT: `_cwd_cone_fractions(dbh,ht)`
+  (snag.jl:160) allocates too little of the fallen bole to sz4-9 vs FVS CWD1's taper integration (BP
+  breakpoints over LOHT=0.10→HIHT, per-class volume via the FMSVL2 taper). Both jl's cone and FVS's CWD1 are
+  taper-based but their size-class BOUNDARIES / integration differ enough to shift ~6% out of the coarse
+  classes. FINAL STEP (the fix): match ONE snag (identical sp/dbh/ht) and diff jl `_cwd_cone_fractions`
+  per-class vs a live CWD1 per-class stamp — align jl's taper breakpoints/integration to CWD1. All other
+  terms (bole volume, fall rate, decay matrix, snag count, litterfall) verified faithful. D16 is traced to
+  ONE function's size-class split — the exact, final localization.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
