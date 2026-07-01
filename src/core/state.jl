@@ -557,9 +557,10 @@ mutable struct Establishment
     active::Bool
     idsdat::Int32       # date of disturbance (ESTAB keyword); -9999 = unset (ESNUTR defaults it)
     ntally::Int32       # regen-tally counter (NTALLY)
+    es_seed::Float32    # persisted ESDRAW establishment reseed value (estab.f ESDRAW, SAVEd across tallies)
     years_done::Set{Int32}  # establishment years already applied (idempotent ESNUTR)
 end
-Establishment() = Establishment(false, Int32(-9999), Int32(0), Set{Int32}())
+Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}())
 
 mutable struct DbsState
     enabled::Bool

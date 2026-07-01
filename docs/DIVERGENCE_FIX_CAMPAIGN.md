@@ -17,9 +17,9 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ✅ RESOLVED (report bit-exact) |
 | D6 | CS ESCPRS regen-compression not ported | regen | feature gap | 📌 unported feature (not a divergence in ported code) |
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
-| D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
+| D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (fixed-to-ULP; mults OK) |
 | D9 | SIMFIRE date-default + multi-fire scheduling | fire | TPA huge | ✅ FIXED (fire-year rows bit-exact) |
-| D10 | regen DGSCOR spread too WIDE (systematic, NOT ULP) | volume | ~51% Scuft | 🔬 REOPENED — real, being traced |
+| D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
@@ -107,6 +107,32 @@ the DGSCOR spread × saw-threshold interaction remains, which is the accepted UL
 hitting this same D10 saw-extraction, not multiplier bugs. NEXT: get a clean matched-geometry live saw cubic
 (1 LP tree, DBH 9 / HT 60 vs HT 52) vs jl `compute_volumes!` — isolate the saw-sliver extraction for high
 HT/DBH near the saw threshold (my synthetic-stand attempt hit a TREEFMT/single-plot snag; use a ≥6-tree stand).
+
+**★★★ ✅ ACTUALLY FIXED-to-ULP — the "irreducible DGSCOR spread" verdict above was a THIRD mislabel.**
+The re-trace discipline caught it again: the spread was NOT irreducible — it was CAUSED by an establishment
+:estab RNG-stream desync, and it is a fixable-to-ULP bug. Full-precision live proof (widened prtrls.f DBH
+to F8.4 via debug-stamp): bare_natural LP DBH is BIT-IDENTICAL through 2012 (max |Δ| 0.0016″), still ULP at
+2017 (0.0048″), then EXPLODES to 0.55″ by 2027 — a chaotic 100× amplification, NOT linear accumulation. Root
+mechanism: when an sp3 seedling crosses 3″ DBH it enters the large-tree DGF and consumes a DGSCOR draw
+BEFORE sp13 (lower species #), shifting sp13's serial-correlation stream. Since the sp3 seedling heights
+were wrong, sp3 crossed 3″ at the wrong cycles → sp13 DGSCOR desync at ~2017 → the spread. TWO real estab.f
+RNG bugs behind the wrong sp3 heights, both now fixed:
+  (1) the natural-height random-draw acceptance window was HARDCODED to NE's [-2.5,2.5]; SN/CS use [0.0,1.5]
+      (estab.f:483 vs :490) — VARIANT-specific reject-and-redraw. Gated on `s.variant` (doctrine #6).
+  (2) jl SKIPPED the two pre-replicate :estab draws FVS does before any height draw — the NTALLY==1
+      fresh-ESDRAW reseed (estab.f:175-180) + the IDUP·NPTIDS WK6 site-prep fill (estab.f:202-205, =50 draws
+      for a BARE stand). Missing them desynced the whole establishment stream from replicate 1. Ported both
+      (new `Establishment.es_seed` persists ESDRAW; NE & CS estab.f confirmed to have the identical pre-loop
+      draws ⇒ faithful shared-path). Live debug-stamp proof: jl per-replicate RAN now == live BIT-EXACT
+      (HHT = base 0.13442 + live RAN; sp3 @1997 rounded histogram == live 0.5×16 … 1.2×1, was 0.5×20 max 1.0).
+RESULT: LP@2027 per-tree max |Δ| 0.55″→0.0064″ (#≥10 saw trees 7→4 == live; max 11.42 == live); @2042
+0.012″, mean bit-tight (9.812/9.806). .sum Scuft spike 51%→2.8% at 2027, shrinking to 0.3% by 2042 (pure
+threshold-amplified Float32 ULP now — the accepted class). bare_plant same (TPA/BA now bit-exact vs live).
+Suite 6348→6355/2 (test_estab_rng_d10.jl, 7 assertions). D8 mult_* scenarios fold in (same regen path).
+★ Meta-lesson reinforced: "irreducible/ULP" was wrong THREE times on D10 (growth → saw-extraction →
+DGSCOR-spread); each re-trace vs the fresh live binary + a full-precision stamp exposed the next layer.
+The "DGSCOR spread" was real but DOWNSTREAM of a fixable upstream RNG desync — upstream-first (doctrine #2)
+would have found it sooner.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs

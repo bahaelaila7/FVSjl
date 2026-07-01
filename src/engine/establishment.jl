@@ -94,6 +94,15 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
+    # Natural-height random-draw acceptance window (estab.f:482-483 SN/CS vs :489-490 NE). FVS draws
+    # RAN~N(0.5,0.25) and REDRAWS until RAN falls in the window; the window is VARIANT-SPECIFIC:
+    # NE accepts [-2.5, 2.5]; SN and CS accept [0.0, 1.5]. The narrower SN/CS window truncates the
+    # tails (no negative RAN ⇒ fewer trees pinned to the XMIN floor, a longer upper tail) AND rejects
+    # more draws, so it also changes how many :estab draws each replicate consumes — a different window
+    # desyncs the whole establishment RNG stream (and, downstream, the shared small-tree growth RANN
+    # stream), which is the bare_natural sawtimber-tail divergence (D10). jl previously hardcoded the
+    # NE window on the shared path.
+    ran_lo, ran_hi = s.variant isa Northeast ? (-2.5f0, 2.5f0) : (0f0, 1.5f0)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -112,6 +121,23 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # under-grew the established cohort ~4% (dbh 1.12 vs live 1.17 ⇒ the cyc-1 SDI/CCF deficit).
     ebau_pre = zeros(Float32, 50)
     s.variant isa Northeast && ne_badist!(ebau_pre, s)
+    # estab.f:175-205 — pre-replicate :estab RNG setup, consumed BEFORE any per-replicate height draw.
+    # On the FIRST tally (NTALLY==1) FVS draws once to derive ESDRAW = INT(DRAW·1e5+0.5) and SAVEs it;
+    # every tally then reseeds the establishment stream with ESRNSD(.TRUE.,ESDRAW) (odd-forced) and
+    # consumes IDUP·NPTIDS draws filling the WK6 site-prep vector. Both advance the :estab stream ahead
+    # of the height draws, so jl MUST consume them or every replicate's BACHLO height is off — which
+    # (D10) shifts the sp3 seedling sizes, hence the cycle each crosses 3" DBH into the large-tree DGF,
+    # which desyncs the sp13 DGSCOR serial-correlation stream and spreads the sawtimber tail.
+    s.estab.ntally += Int32(1)
+    if s.estab.ntally == Int32(1)
+        s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0)   # fresh ESDRAW (NTALLY==1)
+    end
+    esd = s.estab.es_seed
+    (esd % 2f0 == 0f0) && (esd += 1f0)                               # ESRNSD odd-force (esrann.f:56)
+    s.rng.es0 = Float64(esd)
+    for _ in 1:(nptids * idup)                                       # WK6 site-prep fill (estab.f:202-205)
+        esrann!(s.rng)
+    end
     # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
     # → NPTIDS·idup records total. For a BARE stand every point is identical (BAAA=0,
     # uniform slope/aspect/habitat), so the per-point variables don't vary; only the
@@ -154,10 +180,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
-            else                                                   # default N(0.5,0.25), reject |ran|>2.5
+            else                                                   # default: RAN~N(0.5,0.25), accept RAN∈[ran_lo,ran_hi]
                 while true
                     ran = bachlo(s.rng, 0.5f0, 0.25f0; stream = :estab)
-                    (-2.5f0 <= ran <= 2.5f0) && (hht += ran; break)   # estab.f:489 IF(RAN.LT.-2.5.OR.RAN.GT.2.5)
+                    (ran_lo <= ran <= ran_hi) && (hht += ran; break)  # estab.f:483/490 (variant-specific window)
                 end
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
