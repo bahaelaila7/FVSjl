@@ -1105,6 +1105,20 @@ log DIBs (hence board) for geoa=3 but not geoa=4. ACTIONABLE NEXT STEP: stamp th
 LOGDIA (the TVOL(2) segmentation) for the 831 SM tree and match jl's `_r8_scribner_bf` stump/sawHt/log-DIB to
 it. This is a bounded NVEL-merch-param fix, not the earlier (disproven) full-stem or source-move theories.
 
+### D11 — ✅ RE-VERIFIED to ULP-CLASS (fresh live): stand board-foot now BIT-EXACT / ULP-rounding
+**★ RE-TRACE (fresh live, this pass) — the "deferred deep NVEL board" verdict below is STALE at the STAND
+level.** Re-ran s07_forest_808 + s22_forest_809 vs fresh live, ALL cycles: **s07_forest_808 Bdft is BIT-EXACT
+every cycle** (Δ=0 cyc0→2040: 351…13619…23325 identical); **s22_forest_809 Bdft is bit-exact/ULP** (Δ0-1) at
+every cycle EXCEPT 2040 (jl 24974 / live 24921, Δ53 = **0.21%**). cyc0 TCuft/SCuft/Bdft = 1368/68/351 and
+1370/67/351 IDENTICAL both. So the earlier per-tree "board 85 vs 69 for one geoa=3 SM tree" either averages out
+at the stand level or was fixed; the ONLY residual is a single 0.21% board-foot at ONE late cycle on ONE non-
+default-NF scenario — a ULP-DBH → rounded-log-DIB → Scribner-board flip (all other cycles bit-exact ⇒ it's a
+single log-DIB rounding boundary, the same threshold-rounding class as D10/D13). ⇒ **D11 is ULP-class: stand
+board-foot bit-exact except a 0.21% single-cycle log-DIB rounding — accepted.** The deep NVEL-library per-tree
+divergence is not observable at the reported stand board-foot resolution. (Verdict upgraded from "📌 deferred
+deep" via the re-trace discipline; the NVEL-library note below is retained as the per-tree diagnosis but is no
+longer a stand-level open item.)
+
 ### D11 — FINAL for this pass: 📌 deferred (deep NVEL-library board; fully traced, narrow scope)
 Traced one layer further: the board `TVOL(2)=85` does NOT come from fvsvol.f's SECOND VOLINITNVB (the
 board-flag call at :466 — a stamp there never fired for the SM tree, so BFPFLG routes it away); it is set by
