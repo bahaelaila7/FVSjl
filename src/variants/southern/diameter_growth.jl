@@ -644,7 +644,14 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (corr 0.148 vs FVS 0.181 ⇒ a residual serial-correlation DG error). SN unchanged (YR=5).
     cyc = Int(s.control.cycle)
     newp = max(1, cycle_period_at(s.control, cyc))
-    oldp = cyc == 0 ? Int(htg_period(s.variant)) : max(1, cycle_period_at(s.control, cyc - 1))
+    # The FIRST projection cycle's `old` period is the DG MEASUREMENT period (dgdriv PVMLT basis) — the GROWTH
+    # keyword FINT when overridden from its universal 5-yr default, else the variant native YR (htg_period:
+    # 5 SN / 10 NE). Live-stamped: growth_fint10 (GROWTH 10) ⇒ AUTCOR(new=5, old=10) CORR=0.3906, not
+    # AUTCOR(5,5)=0.3196 — the ~0.4% cuft growth_fint residual (D2). Default (growth_fint=5) is unchanged for
+    # both variants (SN old=5, NE old=10), so every bit-exact scenario stays bit-exact.
+    meas_fint = (s.control.growth_fint > 0f0 && s.control.growth_fint != 5f0) ?
+                Int(round(s.control.growth_fint)) : Int(htg_period(s.variant))
+    oldp = cyc == 0 ? meas_fint : max(1, cycle_period_at(s.control, cyc - 1))
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
