@@ -23,6 +23,15 @@ exact; the campaign is at its floor.** Applying the re-trace discipline to the s
 fire-phase residual, non-native-cycle DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text
 is STALE — all resolved. Only genuinely-open non-ULP items: D16b-SMALL (≤2 TPA one fire stand, phase-only, all
 terms bit-exact-verified), non-native-cycle DGSCOR (≤0.3%, non-default cycle), D3/D6 (unported feature gaps).
+- **NE `net01` (fresh live): BIT-EXACT — including the BARE-regen stand** (2032→2092 TCuft/MCuft 2490/1871 …
+  6917/6521 all identical). The stop-hook "net01 BARE-regen ~4% Mcuft late" is STALE (resolved — same regen-order
+  class as D10). ✅
+- **CS `cst01` (fresh live): TPA BIT-EXACT every cycle; TCuft ≤0.18%** (ULP-floor accumulation, jl slightly high).
+  ✅ ULP. (cs_allsp all-species stress = the documented ~1.5% ULP-floor tail, separate.)
+⇒ **ALL THREE VARIANTS re-verified at their floor this session: SN every-item ✅/📌, NE net01 bit-exact, CS cst01
+TPA-bit-exact/ULP.** The off-switch criterion ("every ledger item ✅ or 📌 with a documented reason") is MET;
+the remaining non-ULP items (D16b-SMALL phase, non-native-cycle DGSCOR, unported D3/D6) are all 📌-documented with
+live-verified roots. Setting DIVERGENCE_COMPLETE is the user's reserved call (not touched — prior correction).
 
 **★ Ledger state (all D1–D12 catalogued items resolved):** D1 not-real · D2/D7/D9/D12 fixed-bit-exact ·
 D4/D5 carbon-report bit-exact · **D8/D10 fixed-to-ULP** (the ~51% regen sawtimber divergence — the campaign's
