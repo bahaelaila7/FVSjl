@@ -444,6 +444,23 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   3.89, dbh7 0.33 vs live 2.15) — a shift of density from dbh7→dbh6 in jl — become the likely LARGE-cone
   signal. D16 = snag-fall −9% (clean), snag-input diff (needs unit reconciliation). The mechanism is the
   mortality→snag booking's per-record dbh/density, not any formula. This is the last SN residual.
+- **UNIT RECONCILED (the 3× was a measurement artifact) ⇒ the real signal is a SUBTLE dbh shift.** jl
+  gross_space=1.1 / 11 points; jl origden 21.81 (×gross_space 23.99) vs live raw-sum 62.31 — NO clean factor
+  (2.6-2.9×). Decisive LOGIC: the down-wood LARGE is only −9%, and snag-fall is proportional to snag density
+  ⇒ if the snag inputs really differed 3× the down-wood would be ~3× off, NOT 9%. So the raw 62.3-vs-21.8 is
+  APPLES-TO-ORANGES (live FMSADD is called ANNUALLY and I summed all calls / a per-plot vs per-acre basis) —
+  the true snag inputs are CLOSE (consistent with −9%). The real per-tree signal is the dbh6/7 bin SHIFT: jl
+  dbh6 5.71 / dbh7 0.33 vs live 3.89 / 2.15 — SAME dbh6+7 total (6.04 both) but ~1.82 density moved dbh7→dbh6
+  in jl (dead trees ~0.2″ SMALLER at death). Smaller dead-tree dbh ⇒ the cone puts less in sz4-9 ⇒ the −9%
+  LARGE. **OPEN VERDICT (do not over-infer):** the .sum stand is BIT-EXACT through the 2003 fire, so the
+  dead-tree dbh differ only BELOW print resolution / by which record VARMRT kills — this could be (a) a
+  ULP-amplification (sub-print dbh differences amplified through cone→fuel→flame→saw threshold, = the
+  accepted D13/COMPRESS class) OR (b) a small real mortality-distribution diff (VARMRT per-record killed
+  density). NEXT: full-precision compare the DEAD-tree dbh (not binned) jl vs live at the 1993→1998 mortality
+  — if sub-print/ULP ⇒ D16 is ULP-amplification-class (ACCEPTED); if a systematic ~0.2″ shift ⇒ a real
+  mortality-distribution bug. D16 = snag-fall −9% from a subtle dead-tree-dbh difference; ULP-vs-real is the
+  final question. (Method: caught the 3× as a unit artifact by the 9%≠3× logic — measure the dead-tree dbh
+  at full precision next, don't infer.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
