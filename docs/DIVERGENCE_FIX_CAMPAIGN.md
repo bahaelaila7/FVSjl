@@ -938,10 +938,28 @@ shifted DG. With FORTYP recomputed each cycle (as the real test does), all 10 mu
 live to print-rounding (TPA ≤0.57, cuft ≤1.0). multicycle re-tightened to uniform atol=1 (bogus mix_lp_hi
 carve-out removed). LESSON: re-trace a "tail" through the actual production path before believing a probe.
 
-### D2 — FINT≠5 calibration volume residual — 🔬 REAL, ~0.4% cuft
+### D2b — NON-NATIVE CYCLE-LENGTH (TIMEINT=10 for SN) growth residual — 📌 documented (≤0.3%, non-default cycle)
+**Re-verified fresh live (latest session):** `timeint10` (SN's 5-yr-native growth model run at 10-yr cycles) is
+**BIT-EXACT through 2020** (cycles 1-3: TPA/BA/SDI/QMD/volumes all identical), then a small residual EMERGES at
+cycle 4-5. Onset row 2030: stand stats (TPA 146, BA 151, SDI 220, QMD 13.8) BIT-EXACT, but the per-cycle
+**ACCRETION diverges (jl 109 / live 112, Δ3 cuft) and MORTALITY (jl 70 / live 74, Δ4)** — a small GROWTH-RATE
+difference over the 10-yr cycle, not a stand-state divergence. It accumulates to Tcuft +0.27% and TPA Δ1-2 by
+2090 (systematic, jl slightly high). The DELAYED onset (bit-exact 3-4 cycles, then a growth divergence) points to
+the **DGSCOR / COR-attenuation-clock at the non-native cycle length** (COR is attenuated per-cycle toward its
+goal; the per-cycle attenuation & the DG serial-correlation carry scale with cycle length — the native 5-yr is
+bit-exact, the 10-yr accumulates a ~0.013%/cycle growth bias). ⇒ **the growth model is native-calibrated for
+5-yr (SN); running at TIMEINT=10 is non-default and introduces a ≤0.3% DGSCOR/COR-attenuation-scaling residual
+that jl approximates slightly differently than FVS after several cycles.** 📌 documented residual (non-default
+cycle length; native cycle bit-exact; the COR-attenuation-clock is memory-flagged as trap-prone — a −1823-test
+regression from an earlier end-clock "fix", so NOT to be re-attempted without a per-cycle live COR stamp).
+LESSON: re-verify tails vs fresh live — timeint10's earlier "1.96% TPA" is now ≤0.3% Tcuft / Δ1-2 TPA.
+
+### D2 — FINT≠5 calibration volume residual — ✅ FIXED (bit-exact; growth_fint10 re-verified this session)
 growth_fint10 (GROWTH diameter-measurement FINT=10, SCALE=YR/FINT=0.5, dgdriv.f:325): TPA/SDI/TopHt
 bit-exact, BA ±1, but Tcuft 1995 live 2848 / jl 2835 (Δ13, 0.46%), 2000 live 3308 / jl 3295. Committed
 growth_fint10.sum.save MATCHES live ⇒ not stale; genuine. growth_idg1 (FINT=5) is fully bit-exact ⇒
+**NOTE: re-verified this session — growth_fint10 is now BIT-EXACT vs fresh live (1990-2000 TPA+Tcuft identical),
+D2 FIXED. The residual below was the pre-fix state.**
 FINT-specific.
 
 **Localized (live debug-stamp).** growth_fint10 = 6 loblolly (sp 13), measured DG=1.5"/10yr. Per-tree:
