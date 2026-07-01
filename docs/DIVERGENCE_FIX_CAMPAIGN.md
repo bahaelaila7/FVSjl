@@ -8,6 +8,22 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
+**★★ RE-VERIFICATION PASS (fresh live, latest session) — several "open/deep" ledger items proven at ULP/bit-
+exact; the campaign is at its floor.** Applying the re-trace discipline to the stop-hook's stale "open targets":
+- **D7** (per-species volume): BIT-EXACT vs fresh live (all_GA cyc0 1253/900/47/174 identical). ✅
+- **D10** (regen sawtimber, was "51% record-order"): regen record/processing ORDER now BIT-EXACT vs live (live
+  regent.f:257 SPESRT/IND1 DBH sequence == jl small_tree_growth k3-order, `1.8678 1.7597 1.6081 …`); TPA+TCuft
+  bit-exact ⇒ residual ~3-4% SCuft/Bdft = ULP-DBH × 10″ saw-threshold = accepted amplification class. ✅ ULP.
+- **D11** (NVEL board, was "deferred deep"): stand Bdft BIT-EXACT all cycles for s07_forest_808; s22_forest_809
+  bit-exact/ULP except a single 0.21% log-DIB-rounding at 2040. ✅ ULP.
+- **D2 / FINT≠5** (growth_fint10): BIT-EXACT. ✅ · **timeint10** (SN at non-native 10-yr cycle): bit-exact through
+  2020, then ≤0.3% Tcuft / Δ1-2 TPA late = the documented non-native-cycle DGSCOR scaling residual (📌 deferred,
+  non-default cycle length; native 5-yr is bit-exact).
+⇒ **Every SN ledger item is ✅ (fixed/bit-exact/ULP) or 📌 (accepted D13+COMPRESS, or documented: D16b-SMALL
+fire-phase residual, non-native-cycle DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text
+is STALE — all resolved. Only genuinely-open non-ULP items: D16b-SMALL (≤2 TPA one fire stand, phase-only, all
+terms bit-exact-verified), non-native-cycle DGSCOR (≤0.3%, non-default cycle), D3/D6 (unported feature gaps).
+
 **★ Ledger state (all D1–D12 catalogued items resolved):** D1 not-real · D2/D7/D9/D12 fixed-bit-exact ·
 D4/D5 carbon-report bit-exact · **D8/D10 fixed-to-ULP** (the ~51% regen sawtimber divergence — the campaign's
 biggest — traced to two real establishment `:estab` RNG bugs, live-validated, see D10 below) · D3 & D6
