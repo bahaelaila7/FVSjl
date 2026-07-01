@@ -450,3 +450,17 @@ bit-exact ⇒ inputs are identical, so the miss is in a DGF TERM.) jl reports cr
 value) for this tree — the prime suspect DGF input. This SEALS D10 as a fixable DGF-term divergence for regen
 trees (uncalibrated loblolly), amplified downstream at the 10″ saw threshold; NOT irreducible, NOT ULP.
 NEXT: stamp the DGF INPUTS (CR/BAL/PCCF/CCF/site) for this tree jl-vs-live to find the ~0.03% term.
+
+### D10 — the differing DGF input is STAND BASAL AREA (~0.26%), traced to the small regen trees
+Stamped both sides' DGF inputs for the bit-exact dbh=4.1694 tree (cycle 3). ALL match — icr=82, RELHT (live
+1.00267/jl 1.00263), PBAL=0, PCT=100, CONSPP=-0.00854 — EXCEPT the STAND BASAL AREA term:
+  live BA = 34.2811   jl BA = 34.3689   (jl +0.088 = +0.26%)
+The DGF term PLTB(ISPC)·BA (BA has a negative coef) is what shifts every tree's DDS systematically. The BA
+difference is hidden by .sum rounding (both print 34). ★ ROOT CHAIN: at cycle-3 start (2002) the TOP trees +
+TPA (781) + Tcuft (436) are all bit-exact, yet the stand BA differs 0.26% ⇒ the difference is in the SMALL
+regen trees: same total cuft but different DBH (bigger DBH / matching HT-volume) ⇒ more BA. So the regen
+SMALL-TREE model's DBH-vs-height allocation (REGENT height growth → derived DBH) puts slightly more diameter
+on the small regen trees in jl, inflating stand BA ~0.26%, which feeds back through the DGF (BA term) to
+systematically bias large-tree growth, and finally amplifies at the 10″ saw threshold to the ~51% Scuft.
+A real, deterministic, fixable chain — NOT ULP. NEXT: trace the small-tree (REGENT) DBH derivation for the
+regen trees jl-vs-live (the ~0.26% BA source).
