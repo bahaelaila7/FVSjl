@@ -730,6 +730,23 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   merch bole over the FULL-height cone so the fine top lands in sz1-2 without inflating the total.) NEXT: stamp
   live CWD2B sz2+3 release + the ordinary-snag CWD1 sz1-2 ADD vs jl, to split CWD2B-vs-bole-top. FOUR fine-wood
   candidates now measured: crown-biomass/crown-lift/LIMBRK all MATCH; CWD2B + bole-top are the last two.
+  ★ REFINEMENT: the gap is FINE-SPECIFIC (sz1 0.84 / sz2 0.82 / sz3 0.87 low, but sz4 0.94 / sz5 matched) — a
+  uniform bole-fall merch-vs-total would lower sz4-5 too, so bole-top is UNLIKELY; the fine-only signature points
+  at **CWD2B (snag-crown debris release)**, the remaining fine-specific source (jl 0.611). CWD2B is the prime
+  suspect; NEXT stamp = live CWD2B sz2+3 per-year release vs jl `_cwd2b_fall!`.
+- **★★ CWD2B PINNED as the sz1-3 gap (arithmetic + code trace): jl ~2× LOW.** With crown-lift (2.049) and LIMBRK
+  (bit-exact crown·TPA) both matching live, live's CWD2B sz2+3 ≈ 4.820 − 2.049 − 1.434 = **1.337 vs jl's 0.611**.
+  jl's ordinary mortality DOES book crown into CWD2B (mortality.jl:522 `fmscro!`), and the intake `amt = xv[sz]·
+  density` uses BIT-EXACT crown biomass, so the ~2× shortfall is NOT the intake magnitude — it's the RELEASE
+  TIMING: `fmscro!` spreads each crown component over `ILIFE = ceil(min(tsoft, _fm_tfall(cls,sz)))` years, and
+  `_cwd2b_fall!` releases the year-1 pool annually. If jl's ILIFE (from `tfall_cls`/`_fm_tfall` crown-fall
+  lifespan, or TSOFT=`(1.24·dbh+13.82)·DECAYX`) runs LONGER than FVS's FMSCRO, the crown debris releases too
+  SLOWLY → too little in the fine down-wood by 2002 (and too much left "in waiting," i.e. Stand-Dead crown). This
+  is the D5-class crown-fall-TIMING residual ([[fvsjl-fire-downwood-3fixes]]). ⇒ **D16b-SMALL == the CWD2B/FMSCRO
+  crown-fall-timing (D5-adjacent), NOT crown biomass (D4) and NOT crown-lift.** NEXT (measured): stamp live FMSCRO
+  ILIFE + CWD2B(IYR) per size vs jl `_fm_tfall`/`ilife` — pin whether jl's crown-fall lifespan is too long, then
+  align it. This closes the last ~2 TPA of the D16b fire over-kill. FIVE fine-wood sources now resolved: crown-
+  biomass / crown-lift / LIMBRK MATCH; CWD2B is 2× low (timing); bole-top ruled out (sz4-5 match).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
