@@ -868,6 +868,21 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   now localized to the exact step AND bracketed (0-step under / 1-step over), with the fix identified as an
   intra-cycle-boundary sub-step phase alignment — a precise, bounded, but #28-adjacent fresh-session task. This is
   the campaign's last SN item; LARGE half stays a real validated fix.
+- **★ FVS FMMAIN ORDER TRACED — corrects the "fire-basis phase" framing (9th refinement): FVS fires at cycle
+  START, like jl.** fmmain.f order: FMCBA@139 → **FMBURN@170 (fire)** → FMCFMD3@190 → THEN the annual loop
+  FMSNAG/FMCWD/FMCADD @228. So the fire samples the cycle-START cwd, BEFORE the fire-year annual loop — EXACTLY
+  jl's `fire_smlg` phase. ⇒ it is NOT a fire-basis sampling-phase bug; both engines sample the 2003-cycle-START
+  cwd, and jl's per-year annual loop 1998→2002 already MATCHES live. The −0.70 is therefore a real difference in
+  the **2003-cycle-START cwd itself** = the 1998→2003 cycle's END-of-cycle (FMKILL) MORTALITY crown-debris
+  contribution to sz2+3 that lands by the 2003 boundary: live's is ~0.70 higher. (The advance-1-step test
+  overshot precisely because it also injected a full YEAR of litter into sz10 — the wrong knob.) So D16b-SMALL is
+  the **cycle-boundary mortality-crown → sz2+3 down-wood accumulation** (an FMKILL→FMSCRO→CWD2B intake/release
+  timing at the 1998→2003 boundary), NOT a fire-sample phase and NOT any of the 8 verified-equal terms. This is
+  the D5/#28 snag-&-crown-debris-timing family at the cycle boundary. FINAL localization: the 2003 boundary
+  mortality crown-debris to sz2+3 (~0.70) is booked/released differently in jl vs live; every steady-state term
+  is bit-exact, the divergence is purely the boundary-mortality crown-debris timing. Bounded, #28-adjacent,
+  low-value (≤2 TPA/one stand) — documented hard residual. NINE independent live checks now converge on: jl's
+  terms are all correct; the residual is cycle-boundary crown-debris accumulation timing.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
