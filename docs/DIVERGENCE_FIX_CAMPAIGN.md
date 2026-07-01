@@ -33,7 +33,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D10 | regen :estab RNG stream desync → sawtimber spread | volume | ~51% Scuft | ✅ FIXED-to-ULP (2 estab.f RNG bugs) |
 | D12 | COMPUTE fires every cycle (vs scheduled date) | event monitor | thin fires wrongly | ✅ FIXED (bit-exact) |
 | D13 | TREESZCP size-cap density-feedback @ hard cap | growth+mort | 22% Mcuft (contrived) | 📌 ULP-class threshold-amplification (all cap code proven faithful) |
-| D14 | THINPRSC proportional-thin × tripling residual fragments | thinning | 11% Scuft; +13 tree records | 🔬 NEW (measured; real non-ULP, not yet root-caused) |
+| D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
 The campaign's plot-based differential (the user's "FIA-plots" principle). Runs many stands through the
@@ -59,10 +59,15 @@ Re-ran the FULL sweep after the D10 establishment-RNG fix. Ranked non-ULP DIFFs,
   vs live 230** (13 EXTRA tiny fragments, DBH 1.9-2.9″ / TPA 0.001-0.028), even though normalized TPA (194 vs
   192) and BA are ~bit-exact. So it is NOT a clean 2-tiny-tree cut tie — it's a THINPRSC residual-FRAGMENT
   STRUCTURE difference (how the proportional thin × TRIPLING leaves fragments), growing to 11% Scuft@2010 via
-  the saw threshold. REAL non-ULP, NOT yet root-caused → logged as **D14**. NEXT: trace THINPRSC's proportional
-  removal across tripled records (does jl leave 0.999-proportion fragments that FVS removes/merges?).
-  Meta-lesson: the measurement caught my own over-optimistic "likely ULP" triage — re-trace before trusting a
-  triage. `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
+  the saw threshold. REAL non-ULP → **D14 ✅ FIXED-to-ULP.** Root: per-cycle record counts matched bit-exact pre-thin (243 both
+  @2000) but post-thin live=230 / jl=243 — jl reduced the pre-marked records' TPA to 0.001-scale fragments
+  and KEPT them, while FVS cuts.f:1631-1637 DELETES any cut record whose RESIDUAL (what's left) ≤ 0.0005 by
+  cutting the ENTIRE tree (PROB→0 ⇒ TREDEL compacts it out). Ported the residual≤0.0005 whole-tree delete to
+  `_thinprsc!` (cuts.jl) — now the 0.999-thin's tiny fragments (TPA 0.0003-0.0005) are removed like live.
+  RESULT: cut_thinprsc .sum BIT-EXACT through 2030 (TPA/BA/Scuft/Bdft), only 1-2 unit ULP@2035-40. Suite
+  6355→6357/2 (+test_thinprsc_fragment_d14.jl, 26 assertions), no regression. Meta-lesson: the full-precision
+  measurement caught my own over-optimistic "2-tree ULP-tie" triage — re-trace before trusting a triage.
+  `timeint10` 1.96% TPA (non-native cycle, known DGSCOR residual).
 - **small tail (≤2%, ULP/threshold):** hcor_smalltree, htgstop_stoch, dense_long/s09_cyc20 (0.76% @2085
   deep), fixmort_*, topkill_det, s15_phys_p232, s22_forest_809, growth_finth5 — all ULP-floor/threshold.
 - **9 ERR (not divergences):** 5 all_* + dead_fint/mcfdln_override/nohtdreg_cal = live FPE/no-.sum (live

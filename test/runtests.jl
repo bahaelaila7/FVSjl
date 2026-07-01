@@ -88,6 +88,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_sprout_table.jl")  # SPROUT per-species/DBH-range multiplier table (esuckr act 450) vs live FVS
     include("integration/test_estab_pccf.jl")     # regen crown ratio uses stand CCF (PCCF), not 0 — vs live FVS
     include("integration/test_estab_rng_d10.jl")  # D10: establishment :estab RNG stream (RAN window + WK6/NTALLY draws) vs live FVS
+    include("integration/test_thinprsc_fragment_d14.jl")  # D14: THINPRSC residual≤0.0005 whole-tree deletion (cuts.f:1632) vs live FVS
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran

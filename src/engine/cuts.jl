@@ -412,6 +412,12 @@ function _thinprsc!(s::StandState, act::ScheduledActivity)
         t.cut_code[i] < Int32(2) && continue        # only pre-marked (KUTKOD≥2) records
         prem = t.tpa[i] * cuteff
         prem <= 0f0 && continue
+        # cuts.f:1631-1637: if the RESIDUAL (what's left after the cut) is ≤ 0.0005 (and something WAS
+        # removed), delete the whole record — cut the ENTIRE tree (PROB→0), so TREDEL compacts it out.
+        # Without this jl kept 0.001-scale fragment records that FVS removes (D14: proportional THINPRSC ×
+        # tripling left ~13 tiny fragments jl retained vs live's TREDEL-compacted list ⇒ divergent record
+        # structure amplified at the saw threshold).
+        (t.tpa[i] - prem) <= 0.0005f0 && (prem = t.tpa[i])
         t.tpa[i] -= prem
         _log_cut!(s, t, i, prem)             # ESTUMP
         rtpa  += prem;                  rcuft  += prem * t.cuft_vol[i]
