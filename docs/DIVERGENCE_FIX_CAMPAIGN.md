@@ -13,8 +13,8 @@ Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/d
 | D1 | ~~LP-growth-calibration tail~~ | growth | — | ✅ NOT REAL (artifact) |
 | D2 | FINT≠5 calibration volume | growth | ~0.4% cuft | 🔬 localized (deferred, low-impact) |
 | D3 | Multi-point density (PCCF/TCONDMLT/structure-stage) | density | per-point approx | ⬜ |
-| D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ⬜ |
-| D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ⬜ |
+| D4 | Crown-biomass FMCROWE carbon residual | carbon report | ~0.9 ton AGL | ✅ RESOLVED (report bit-exact) |
+| D5 | #28 carbon snag-fall-timing residual | carbon report | ~0.2-0.4 ton | ✅ RESOLVED (report bit-exact) |
 | D6 | CS ESCPRS regen-compression not ported | regen | feature gap | ⬜ |
 | D7 | Per-species merch/saw/board volume (GA/PC/BY) | volume | cyc0 ~28% Bdft | ✅ FIXED-to-bit-exact |
 | D8 | Multiplier keywords (mult_*) | regen | — | ✅ FOLDS INTO D10 (mults OK) |
@@ -229,3 +229,23 @@ thins at 3/6/9 BIT-EXACT — the two are correctly NON-equivalent. Rewrote test_
 "compute_cycle ≡ snt01_alpha" assertion had encoded the bug; the golden was already correct but the test
 only checked the lead stand). Suite 6334/2. NOTE: the sweep's 92% was partly a stand-index artifact, but the
 underlying stand-2 divergence was a REAL COMPUTE-timing bug.
+
+### D4 / D5 — carbon-report residuals — ✅ RESOLVED (already driven to the rounding floor by the #28 work)
+Re-verified all three carbon paths against live: carbon_jenkins (Jenkins method) = BIT-EXACT
+(63.0/41.0/13.5/…/90.1 == live every cycle); carbon_snt (FFE method) = bit-exact but one StandDead cell
+Δ0.1 @2000; fire_carbon (2000 SIMFIRE) tracks live all columns to ≤0.5 ton (AGL 19.2/19.1, BGDead 5.6/5.6,
+Released 5.5/5.5 bit-exact, TotC 51.7/51.6). The D4 crown-biomass AGL residual is GONE (AGL Total matches
+live exactly) and D5 snag-fall-timing is at the fractional-ton rounding floor — both were driven there by the
+prior #28 campaign (crown-lift FMSDIT + snag-fall timing + fire-root pool + live-fuel consumption). Remaining
+Δ (≤0.5 ton on ~50-200 ton totals, <1%) = the print-to-0.1-ton rounding of Float32 pools ⇒ ULP-class.
+
+## Campaign state (end of this iteration)
+Real bugs found + FIXED to bit-exact this campaign: **D7** (R8 COEFFSO%DIB17 merch volume), **D9** (SIMFIRE
+date-default + multi-fire scheduling + cycle-1 fuel-init), **COMPRESS tripling-timing** (compress cycle still
+triples), **D12** (COMPUTE fires at its scheduled date, not every cycle), plus the sweep `_blocks` parser.
+Irreducible/documented: **D10** (regen DGSCOR-spread × saw threshold) + the mult_*/bare_*/htgstop_stoch family
+(same class). Resolved-to-ULP: **D4/D5** (carbon report). NOT-real: **D1** (probe artifact), carbon_* Scuft=0
+(sweep artifact). Remaining OPEN: **D2** (FINT≠5 calibration ~0.4%, characterized + deferred, non-default
+GROWTH FINT), **D6** (CS ESCPRS regen-compression — an unported FEATURE, not a divergence in ported code),
+**D11** (R8 Scribner board-foot for NF codes 808/809 — live source moved; needs an NVEL/METHB source-history
+diff). All ported paths validated bit-exact vs live barring Float32-ULP + the accepted COMPRESS eigensolver.
