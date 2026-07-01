@@ -418,12 +418,18 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   MCF=merch_cuft)·dfih. PRIME SUSPECT: **TVOLI (full-stem taper) vs jl MCF (MERCH cubic)** — the merch cubic
   omits the stump + the top above merch-DIB, so jl's fallen bole is ~9% less coarse-wood than FVS's full-stem
   volume. (jl MCF≈jl total-cuft in a spot check, but that wasn't MATCHED sp/dbh/ht — the ~9% is exactly the
-  merch-vs-full-stem gap for these ~10-12″ trees.) NEXT: matched per-snag stamp — for ONE snag (same sp/dbh/
-  ht) dump FVS FMSVL2 TVOLI vs jl bolevol·2000/V2T (=MCF) — if TVOLI ≈ MCF·1.09, switch jl's snag `bolevol`
-  from merch_cuft to the FULL-STEM taper volume (FMSVL2 equivalent). CAUTION: bolevol feeds carbon_snt DDW
-  (bit-exact-validated) — so either carbon_snt's trees have merch≈full (large clean boles) OR the fix needs
-  the full-stem volume + a re-validate. D16 measured to snag `bolevol` = merch-cubic-vs-full-taper; that is
-  the concrete fix candidate. (Correct method this time: LIVE per-source stamp, not jl-only inference.)
+  merch-vs-full-stem gap for these ~10-12″ trees.)
+- **★ bolevol=merch-short ALSO looks WRONG (do not over-infer again):** spot-check has jl total-cuft (≈jl MCF)
+  COMPARABLE-to-slightly-HIGHER than FVS TVOLI (jl d11.12/ht60.1 tcuft 16.2 vs FVS d11.06/ht64.8 TVOLI 15.1 —
+  jl higher despite a SHORTER tree). If jl's per-snag bole is ≥ FVS's, a low bole can't cause the 9% short.
+  So with cone MATCHED and bole ≥, the ~9% is most likely the FALL DENSITY (dfih) or the snag DBH ⇒ the
+  MORTALITY→SNAG booking: aggregate killed TPA is bit-exact, but the PER-RECORD killed density + dbh (which
+  set origden and the cone LARGE fraction) may differ from live. NEXT (measure, don't infer): stamp live
+  FMSADD snag-creation (dbh, density) 1993→1998 vs jl `fs.snags` same span — diff per-snag dbh + density;
+  then a matched per-snag total-bole (Σbolevol·dfall vs ΣTVOLI·V2T·SCNV·DIH). MEASURED FACT: snag-fall LARGE
+  −9% (live 9.636/jl 8.752); the exact term (fall-density vs snag-dbh vs bole) needs the snag-INPUT
+  measurement. (Method note: this turn re-caught TWO of my own over-inferences — "cone", then "bolevol=merch"
+  — via live/matched data. Measure the snag inputs next; stop hypothesizing the mechanism.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
