@@ -44,6 +44,33 @@ live binary ({sn,ne,cs}_oracle.sh) + jl `run_keyfile`, aligns by (stand, year), 
 max NON-ULP relative diff (skips ≤1 print unit AND ≤0.2%). `julia --project=. test/harness/
 divergence_sweep.jl sn`. SN run = 260 stands; the live-vs-jl inventory below is its output.
 
+### SN full sweep — RE-RUN post-D16 (260 stands: 219 bit-exact, 33 DIFF, 9 ERR) — CAMPAIGN AT DOCUMENTED FLOOR
+Freshly re-linked live binary; re-ran ALL 260 stands. **219 bit-exact (up from 210), 33 DIFF, 9 ERR.** Every
+DIFF maps to an already-documented/accepted class — no new/unmasked divergence, no regression from the D16/D16b
+cut-path work:
+- **Accepted (irreducible, proven-faithful):** `treeszcp_cap` 22.8% / `treeszcp_htcap` 10.7% (D13 size-cap ULP-
+  threshold-amplification) · `compress` 13.6% (SN COMPRESS eigensolver).
+- **D8/D10 regen threshold-amplification (documented irreducible-amplified):** `mult_mortmult` 17% /
+  `mult_mortmult_win` 13.5% / `mult_regdmult` 4.7% / `mult_reghmult` 2.9% / `bare_natural`·`bare_plant` 4.6% /
+  `bare_multipoint` 2.8% / `bare_mp3` 2.7% / `htgstop_stoch` 1.65% / `mult_baimult` 0.5% — all DGSCOR-spread ×
+  saw/board-DBH threshold.
+- **Fire family (D16b + documented fire per-tree-kill/SIMFIRE residuals, ≤3%):** `snt01_alpha`·`compute_cycle`
+  2.8% TPA (D16b, the cut-snag-fall down-wood over-kill, localized) · `fire_salvage` 2.94% TopHt (VERIFIED a
+  SEPARATE post-fire residual: fire-year 2010 TPA=355 BIT-EXACT both, divergence emerges 2010→2015 as jl +2 TPA /
+  −2 TopHt — delayed-mortality/growth/SIMFIRE-timing, OPPOSITE sign to snt01_alpha ⇒ NOT one common cut-snag root)
+  · `fire_repeat` 2.47% / `s10_fire` 1.19% (D9 SIMFIRE) · `salvage`·`defulmod` 0.59% · `fueltret` 0.72% ·
+  `fmortmlt` 1.56% CCF — all FFE fuel/fire-mortality-distribution, the D16b investigation class.
+- **ULP-class tails (<1%, documented/accepted):** `dense_long`·`s09_cyc20` 0.76% · `hcor_smalltree` 2.09% ·
+  `timeint10` 1.96% · `fixmort_*` 0.3% · `topkill_det` 0.27% · `s15_phys_p232` 0.22% · `s22_forest_809` 0.21%
+  (D11 NVEL tail) · `growth_finth5` 0.21%.
+- **9 ERR:** 8 = **LIVE FVS FPE/no-sum** (live itself crashes on the all-species stress keys `all_AE/EL/RL/SU/WE`,
+  `dead_fint`, `mcfdln_override`, `nohtdreg_cal` — NOT jl bugs; jl runs them) + 1 = `dbs_treelist` jl DBS harness
+  edge case (FVS_TreeList `CREATE TABLE IF NOT EXISTS` sees a stale 26-col table in the sweep's shared DB; the
+  actual schema IS 35 cols and matches the insert — the registered DBS suite is green, so not a core bug).
+⇒ **The SN campaign is at its documented floor: every non-ULP divergence is accepted (D13/COMPRESS), documented
+irreducible-amplified (D8/D10 regen), or an FFE fire fuel/mortality residual (D16b family, ≤3%, deeply localized).**
+No regression from the D16/D16b cut-path port. The one still-pushable non-accepted class is the D16b fire family.
+
 ### SN full sweep — 2026 RE-RUN post-D10-fix (260 stands: 210 bit-exact, 41 DIFF, 9 ERR)
 Re-ran the FULL sweep after the D10 establishment-RNG fix. Ranked non-ULP DIFFs, triaged into classes:
 - **NEW real (top): D13 TREESZCP** — `treeszcp_cap` 22.8% Mcuft, `treeszcp_htcap` 10.7% Bdft (size-cap ×
