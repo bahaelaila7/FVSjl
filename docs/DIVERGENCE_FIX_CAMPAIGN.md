@@ -430,6 +430,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   −9% (live 9.636/jl 8.752); the exact term (fall-density vs snag-dbh vs bole) needs the snag-INPUT
   measurement. (Method note: this turn re-caught TWO of my own over-inferences — "cone", then "bolevol=merch"
   — via live/matched data. Measure the snag inputs next; stop hypothesizing the mechanism.)
+- **SNAG INPUTS MEASURED (live FMSADD stamp vs jl `fs.snags`, 1993-1997):** live total new-snag density
+  62.31 vs jl 21.81 (~3×!) — BUT the small-dbh bins MATCH (dbh3 5.091/5.091, dbh4 1.044/1.044, dbh5
+  5.301/5.301) while jl is MISSING dbh~2 (jl 0 vs live 4.5) and the totals diverge ~3×. A 3× snag-density
+  gap can NOT cleanly produce a mere 9% down-wood LARGE deficit ⇒ there is a NORMALIZATION / PHASE CONFOUND
+  in the measurement: FVS FMSADD is called ANNUALLY (5× per cycle), and SNGNEW may be a per-PLOT (pre-GROSPC)
+  density while jl's `origden` is per-acre, and/or the tripling (cyc1-2 active) books 3 records. So the
+  raw 62.3-vs-21.8 is NOT apples-to-apples — do NOT conclude "jl under-books snags 3×" without reconciling
+  the GROSPC/plot normalization + the annual-vs-cycle call count + tripling. HONEST STATE: the ONE clean,
+  phase-matched number is snag-fall LARGE −9% (live 9.636 / jl 8.752, measured at the CWD1 output). NEXT:
+  reconcile the snag-density units (stamp live SNGNEW WITH the GROSPC/plot factor + count the FMSADD calls
+  per cycle) so jl and live snag densities are comparable, THEN the dbh6/7 bin diffs (jl dbh6 5.71 vs live
+  3.89, dbh7 0.33 vs live 2.15) — a shift of density from dbh7→dbh6 in jl — become the likely LARGE-cone
+  signal. D16 = snag-fall −9% (clean), snag-input diff (needs unit reconciliation). The mechanism is the
+  mortality→snag booking's per-record dbh/density, not any formula. This is the last SN residual.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
