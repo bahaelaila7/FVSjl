@@ -347,6 +347,19 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   size-class pools year-by-year 1993→2003 — that pins whether it's the fall RATE (snag_fallx), the
   crown-lift woody add (FMCADD), or the decay (snag_decayx/FMCWD). This is the deep FFE-annual-loop task;
   D16 is localized to init-correct + accumulation-low + this 3-way mechanism choice.
+- **✅ CLEAN PHASE-MATCHED per-cycle comparison (POTFIRE is ON ⇒ FMCFMD runs every cycle; stamp live fmcfmd
+  SMALL/LARGE + jl select_fuel_models sm/lg, both at the identical PotFire phase):**
+  yr | jl sm/lg | live sm/lg — 1993 7.02/2.45 | 7.17/2.45 (LARGE exact) · 1998 4.18/7.44 | 4.26/7.99
+  (large −6.9%) · 2003 7.08/6.02 | 7.96/6.43 (small −11% large −6.4%) · 2008 14.51/16.57 | 13.74/15.61
+  (jl +6%!) · 2013 10.86/14.86 | 10.35/14.43 (jl +3%). SIGNATURE: jl runs LOW before/at the fire (1998-2003)
+  then HIGH after (2008+). The 2008+ EXCESS is a CONSEQUENCE of the 2003 over-kill (more fire snags →
+  more down-wood by 2008) — so the ROOT is the PRE-fire deficit. jl adds ~10% LESS large woody per cycle
+  (1993→1998: jl LARGE +4.99 vs live +5.54). Cross-check: jl retains MORE standing snags (~29 vs 24 @1998)
+  ⇒ jl's snags FALL SLOWER → less bole into down-wood. **PRIME SUSPECT = the snag-FALL rate/timing**
+  (`snag_fallx`/`update_snags!`, the D5 subsystem), NOT crown-lift or decay. NEXT: decompose the per-cycle
+  LARGE cwd addition by source (snag-fall bole vs _cwd2b_fall vs fmcadd_woody) for 1993→1998 and diff the
+  snag-fall bole density vs a live FMSNAG per-year stamp — pin the fall-rate/timing bug. D16 is now one
+  source-decomposition from the fix.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
