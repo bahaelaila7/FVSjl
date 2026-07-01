@@ -692,19 +692,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   stamp vs jl `crown_biomass`): D16b's last SMALL/fine-wood piece and D4 are one crown-biomass residual; fixing
   the crown-biomass fine-size fractions closes both. (Confirmed this session: fine-wood SOURCES all present +
   structurally right; the gap is in the CROWNW magnitude/distribution, not a missing term.)
-- **★★ CONNECTION VERIFIED (code-read, not just hypothesized): D16b-SMALL == D4.** jl's `crown_biomass`
-  (src/engine/fire/crown_biomass.jl) is a detailed FMCROWE port — the Jenkins TOTABV, fol/bark/wood/branch split
-  (fmcrowe.f:218-232), the P1/P2/P3 (oak/pine/aspen) + maple F1-F4 size-class proportions (fmcrowe.f:320-352,
-  jl:128-148), and the UMBTW bole-tip cone/LILPCE terms — BUT its own header (crown_biomass.jl:72-80) states it
-  is "**NOT absolute bit-exactness**": the bole-tip cone/frustum weights are scaled by SG/P2T (≈×2000) while the
-  sub-breast-height cylinder is added as RAW volume, a known FMCROWE discrepancy. So the uniform ~15% fine-class
-  (sz1-3) shortfall = jl's crown-biomass fine-size values running low vs FMCROWE = **the documented D4 residual
-  (crown-biomass FMCROWE carbon ~0.9 ton)**. ⇒ **D16b-SMALL and D4 are ONE item.** The unified fix = complete the
-  FMCROWE port to bit-exact (the ~500-line fmcrowe.f, per-term vs jl:86-160+), which closes D4's crown-carbon AND
-  the last ~2 TPA of D16b's fire over-kill (fine down-wood → FMCFMD3 SMALL → flame). Upstream-first (doctrine #2):
-  D4/crown-biomass is the shared upstream root; work it next. The D16b LARGE half stays fixed (SNAGINIT total,
-  ULP-class); D16b is now "LARGE fixed + SMALL folded into D4," and the SN open frontier collapses to D4/crown-
-  biomass (+ the accepted D13/COMPRESS + the documented D10 regen family).
+- **★★ D16b-SMALL == D4 — HYPOTHESIS RETRACTED, REFUTED by direct measurement (re-trace discipline).** Last
+  turn I claimed this "verified by code-read," but that only READ the crown_biomass.jl:72-80 header comment ("not
+  absolute bit-exactness") — NOT a live differential. Stamping live FMCROWE (fmcrowe.f:562, dump D/H/IC/XV(0..4)
+  for dbh 10-12) vs an identical jl `crown_biomass` dump PROVES jl's crown biomass is **BIT-EXACT / ULP** per tree:
+  D=10.04/H66.2/IC27 → fol/x1/x2/x3/x4 = 16.6257/12.805/63.5056/117.2094/18.7887 IDENTICAL both; D=10.06/72.2/28
+  bit-exact; D=10.06/70.9/29 within 0.03%. So the crown-biomass fine-size values are NOT ~15% low — **D16b-SMALL is
+  NOT the crown-biomass magnitude, and NOT D4.** (The header's "not bit-exact" caveat concerns small-tree/bole-tip
+  edge cases, not these trees.) ⇒ the sz1-3 fine-down-wood shortfall must come from a fine-wood APPLICATION step,
+  not the CROWNW source: candidates now are (a) the crown-LIFT `cl[]` term (OLDCRW × crown-base-rise, known one-
+  cycle-lag residual, [[fvsjl-ffe-crown-lift-landed]]), (b) CWD2B snag-crown release timing, or (c) the ordinary
+  snag bole-fall FINE TOP (kept on merch — total regressed carbon_snt, but snt01_alpha's larger snags may need it).
+  NEXT (measured, not inferred): decompose jl's sz2/sz3 cwd at the fire by SOURCE (LIMBRK vs crown-lift vs CWD2B vs
+  bole-fall) and stamp the matching live per-source ADD. LESSON (logged): "verified by code-read" of a COMMENT is
+  NOT verification — only a live differential is (doctrine #4). D16b LARGE half stays fixed (SNAGINIT total, ULP).
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
