@@ -476,6 +476,22 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   D16 = REAL (non-ULP) snag-fall −9%, mechanism = annual-vs-cycle snag booking (per-year dbh cohorts). This
   is the last SN model-fidelity divergence, root direction identified; the fix is an FFE snag-booking change
   + carbon_snt re-validate.
+- **★★★ D16 ROOT FOUND & VERIFIED (the "annual-vs-cycle" hypothesis was ALSO wrong — verified by ITYP filter
+  BEFORE concluding): jl's CUT path does not book cut trees as FFE standing-snags.** Re-stamped FMSADD with
+  its ITYP source tag: ordinary mortality (ITYP=4) = **21.807 BOTH** (jl==live BIT-EXACT ⇒ mortality→snag is
+  FAITHFUL). The ENTIRE 62.3−21.8 gap = **live ITYP=2 = 40.5** = the THINDBH cut + YARDLOSS standing-snags
+  (fmscut.f:157 `FMSADD(IY(ICYC),2)`). jl has NO `add_snag!` in `cuts.jl` (grep: only fire/mortality/SNAGINIT
+  call it); cuts.jl:87 EXPLICITLY: "standing snags, which FVSjl's basic cut path does NOT model ⇒ SSNG=0".
+  So THINDBH-cut trees never become FFE snags→down-wood in jl ⇒ jl cwd runs ~10% low by 2003 ⇒ FMDYN picks
+  the heavier fm5 ⇒ flame 4.01 vs 3.90 ⇒ the systematic small-tree fire over-kill. FULL CHAIN NOW VERIFIED
+  END-TO-END: cut-snag gap → cwd −10% → fuel models {5,10} vs {10,12} → byram +6% → flame +2.8% → CHARHT/CSV
+  up → pmort up → +3 TPA over-kill. THE FIX: book the cut trees' standing-snag portion as FFE snags in
+  `cuts.jl` (mirror fmscut→FMSADD ITYP=2 — the non-removed/yarding-loss standing fraction becomes snags with
+  the cut tree's dbh/height, into `fs.snags`, so they fall→down-wood). CAUTION: keep carbon_snt + fire tests
+  green (this ADDS a snag source; validate StandDead/DDW vs live on a thinned+FFE stand). ⇒ D16 = a MISSING
+  FEATURE (cut→FFE-snag SSNG path), definitively verified — NOT ULP, NOT a formula bug, NOT annual-vs-cycle.
+  Ordinary mortality is bit-exact; only the cut-snag path is absent. (Method: the ITYP filter caught my 3rd
+  D16 mechanism over-inference; EVERY non-cut snag source matches, so the gap is precisely the cut path.)
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
