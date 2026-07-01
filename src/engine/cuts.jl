@@ -130,12 +130,25 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # standing portion here (the ITYP=2 analog); gated on YARDLOSS (pl>0) so non-yarding cuts are untouched.
         pl = s.control.yardloss_prlost
         if pl > 0f0
-            ssng = prem * pl * (1f0 - s.control.yardloss_prdsng)
+            v2t = coef_col(s.coef, :v2t)[sp]
+            mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+            bolevol = mcf * v2t / 2000f0
+            loss = prem * pl
+            ssng = loss * (1f0 - s.control.yardloss_prdsng)
             if ssng > 0f0
-                v2t = coef_col(s.coef, :v2t)[sp]
-                mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
                 add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                          bolevol = mcf * v2t / 2000f0, height = t.height[i])
+                          bolevol = bolevol, height = t.height[i])
+            end
+            # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
+            # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
+            dsng = loss * s.control.yardloss_prdsng
+            if dsng > 0f0
+                idc = ffe_dkr_cls(s, sp)
+                frac = _cwd_cone_fractions(t.dbh[i], t.height[i])
+                addH = bolevol * dsng
+                @inbounds for j in 1:9
+                    frac[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac[j])
+                end
             end
         end
     end
