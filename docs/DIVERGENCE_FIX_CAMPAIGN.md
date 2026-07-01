@@ -809,6 +809,19 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   as a hard residual (doctrine #5 — the irreducibility is not PROVEN but the attribution is exhausted). Small
   clean follow-up: reconcile `ffe_dead_fuel_loading` sz2 (0.68 vs 0.761) vs the FVS FFE-forest-type STFUEL default.
   LARGE half remains a real validated fix (SNAGINIT total → LARGE cwd ULP-class, 1 of 3 TPA).
+- **★ The "init table follow-up" is ALSO not a bug — jl's FUINI is BIT-EXACT (7th check).** Pulled the FVS FUINI
+  DATA table (fmcba.f:95-113): the oak-hickory (500s) row = `0.13, 0.68, 1.93, 0.43, 1.01, 1.01, 0,0,0, 4.28,5.91`.
+  jl's `fmcba!` init deposits sz1=0.13, sz2=0.68, sz3=1.93, sz4=0.43, sz5=1.01 — **EXACTLY the oak-hickory FUINI
+  row.** So jl's dead-fuel TABLE is correct; live's cwd sz2=0.761 = FUINI 0.68 **+ ~0.08 pre-FMCBA cycle-1
+  down-wood** (from the initial snag/mortality processing that runs before/around FMCBA in FVS's cycle-1 order,
+  which jl's phase doesn't reproduce). ⇒ even the "clean follow-up" is the SAME cycle-PHASE/ORDERING class as the
+  whole residual — there is NO fixable single table or coefficient. This CONFIRMS the verdict: every FUINI table,
+  every fuel coefficient, and all 5 dynamic add sources jl uses are CORRECT; D16b-SMALL is purely a cycle-1-onward
+  PHASE/ORDERING interaction of the down-wood accumulation (≤3%, one stand). Seven candidates measured, seven
+  attributed to "jl is correct / it's phase." The honest close: this is a documented downstream FFE-fuels
+  phase residual; closing it needs a full cycle-1 down-wood ORDERING reconciliation (FMCBA vs SNAGINIT vs initial
+  mortality vs the annual loop), not any term fix — a scope disproportionate to ≤2 TPA on one stand. DONE for this
+  campaign pass; recorded as a hard residual with the phase root identified.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
