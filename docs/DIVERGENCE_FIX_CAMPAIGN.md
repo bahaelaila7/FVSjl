@@ -779,6 +779,20 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   per-size ADD for ONE identified snag + reproduce that exact snag's deposit in jl), NOT another arithmetic
   inference. LESSON (imprint): this item burned 5 inferences because I repeatedly SUBTRACTED/READ-ACROSS instead of
   matching a single record end-to-end; when a differential won't isolate, MATCH ONE RECORD, don't decompose sums.
+- **★ BOLE-FALL DIRECTLY MEASURED both sides (applied the lesson): also MATCHES ⇒ the gap is NOT any ADD source.**
+  Instrumented jl `update_snags!` sz1-3 deposit = **0.215** (1993-2002); stamped live CWD1 sz1-3 ADD (snags dead
+  <2003) = **0.194**. They match — bole-fall is NOT the 0.70 gap (refuted DIRECTLY, not by subtraction). So ALL
+  FIVE fine-wood ADD sources now measure ≈EQUAL live-vs-jl: crown-biomass (bit-exact), crown-lift (2.049), LIMBRK
+  (1.434), CWD2B (0.635/0.611), bole-fall (0.194/0.215). **YET the sz2+3 cwd the fire samples differs (jl 4.118 /
+  live 4.820), AND the measured adds (Σ≈4.3) do NOT reconcile UP to live's 4.820** — a cwd that exceeds its own
+  add sources is impossible under decay, so the residual is a DECAY-or-SAMPLING-PHASE effect, not a missing/low
+  source. (DKR is bit-for-bit + carbon_snt decay is bit-exact per memory, so likely the fire-basis samples a
+  different annual phase than my 1993-2002 add-window.) ⇒ **D16b-SMALL is a ≤3% one-stand DECAY/PHASE residual
+  with every ADD source proven equal** — not attributable to any fuel-input term after exhaustive DIRECT
+  measurement. HONEST STATUS: documented hard residual; the only remaining handle is a per-YEAR cwd-sz2+3 trace
+  (jl vs a live per-year CWD-array stamp at the SAME annual phase) to separate decay-vs-phase. LARGE half fixed
+  (SNAGINIT total, ULP). SN campaign's last open non-accepted item, bounded to "all inputs equal, a ≤0.7-ton
+  sz2+3 decay/phase discrepancy on ONE thinned+fire stand."
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
