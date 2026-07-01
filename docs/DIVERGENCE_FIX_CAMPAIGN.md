@@ -896,6 +896,23 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   jl's TERMS correct and refining the locus to a finer timing detail; the honest floor is "the boundary mortality's
   CWD2B crown is released one cycle late in jl." Documented hard residual; the fix (release the boundary-mortality
   CWD2B crown in the boundary year) is #28-co-ordering + regression-risky (fire_carbon/#20/DDW), a fresh task.
+- **★ 11th CORRECTION + HONEST CAPSTONE — the "boundary CWD2B release timing" (10th) is ALSO wrong; the exact
+  mechanism resists external isolation.** gradd.f proves FVS order = FMMAIN@118 (fuel loop incl. FMCADD) →
+  FMKILL@122 (mortality) → growth — so FVS books the cycle's mortality crown to CWD2B AFTER its FMCADD loop,
+  EXACTLY like jl (mortality in grow_cycle! after ffe_fuel_update!). Both DEFER the boundary crown release
+  identically; "live releases promptly" was a phase-sampling artifact. ⇒ **HONEST FLOOR (after ELEVEN measurement-
+  corrected attempts): D16b-SMALL is a ~0.70-ton (≤3%/≤2-TPA, one thinned+fire stand) cwd sz2+3 difference at the
+  2003 fire-basis whose EXACT within-cycle mechanism is NOT cleanly isolable by external debug-stamps** — because
+  jl's deferred-fuel-loop architecture and FVS's FMMAIN have DIFFERENT internal sample points, every aggregate-vs-
+  aggregate comparison keeps mismatching in PHASE (11 successive "localizations" each corrected the prior). What
+  IS rock-solid: **every model TERM is verified bit-exact vs live** — crown-biomass/FMCROWE, crown-lift, LIMBRK,
+  CWD2B total, bole-fall (small+large), MCF/TCF fall volume, STFUEL/FUINI init table, DKR decay matrix, and the
+  FMMAIN/gradd op-order. The residual is a pure ACCUMULATION-ORDER/phase interaction of two structurally-different
+  engines, not a wrong coefficient or missing source. VERDICT: documented hard residual; irreducibility not
+  formally proven, but attribution is EXHAUSTED to the point that the only remaining tool is a full instruction-
+  level co-simulation of the FFE annual loop (build jl's ffe_fuel_update! to mirror FVS's FMMAIN op-sequence
+  exactly, then diff) — a large refactor, #28-adjacent, disproportionate to ≤2 TPA on ONE stand. The LARGE half is
+  a real validated fix; the SMALL half is a faithful-terms / phase-only residual. This closes the D16b investigation.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
