@@ -706,6 +706,16 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   NEXT (measured, not inferred): decompose jl's sz2/sz3 cwd at the fire by SOURCE (LIMBRK vs crown-lift vs CWD2B vs
   bole-fall) and stamp the matching live per-source ADD. LESSON (logged): "verified by code-read" of a COMMENT is
   NOT verification — only a live differential is (doctrine #4). D16b LARGE half stays fixed (SNAGINIT total, ULP).
+- **★ FINE-WOOD SOURCE DECOMPOSED (jl sz2+sz3 hard-pool adds, 1993→2002, instrumented per-source):** crown-lift
+  `cl[]` = **2.049** (DOMINANT), LIMBRK woody-breakage = 1.434, CWD2B snag-crown = 0.611 (bole-fall not cleanly
+  isolated — decay interleaves). The sz2+sz3 gap at the fire is jl 4.118 vs live 4.820 = **−0.70**. Since LIMBRK
+  scales with the crown biomass now proven BIT-EXACT (and TPA is bit-exact), the LIMBRK contribution should match
+  → the −0.70 gap is most likely in the **crown-LIFT term**, the dominant source, which already carries a KNOWN
+  one-cycle-LAG residual (memory [[fvsjl-ffe-crown-lift-landed]]: OLDCRW crown-base-rise needs the previous-cycle
+  per-tree crown base, tracked across a regen/mortality-changing tree list). ⇒ D16b-SMALL redirects to the
+  **crown-lift (cl[]) residual**, NOT crown-biomass D4 (crown biomass bit-exact) and NOT bole-fall. NEXT: stamp
+  live FMCADD crown-lift sz2+3 ADD (fmcadd.f:95-102 OLDCRW term) per cycle vs jl `cl[]` — pin the lag/magnitude,
+  then fix the OLDCRW crown-base tracking. This is the last ~2 TPA of D16b's over-kill, localized to crown-lift-lag.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
