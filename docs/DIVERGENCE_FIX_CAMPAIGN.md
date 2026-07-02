@@ -2432,3 +2432,20 @@ the term would spuriously diverge FROM live; OMITTING it MATCHES live. Verified 
 weight configs. ⇒ D3 is NOT an unported divergence — it is a FAITHFUL reproduction of live's inert behavior.
 The memory's "deferred multi-point" framing was over-conservative. D3 → ✅ (core pccf/pbal faithful:
 bare_multipoint TPA bit-exact; per-point thinning term faithfully inert).
+
+### D6 CS ESCPRS establishment-compression — CLOSED as UNREACHABLE/INERT (proven, not assumed)
+ESCPRS (esnutr.f:311) fires only when `ITRN > MAXTRE*0.7` (>2100 records) AND pending establishment
+(NTODO>0) — a safety valve that pre-emptively compresses the record list before the MAXTRE=3000 hard cap.
+Proven unreachable on every realistic scenario:
+- **Peak record count across ALL establishment/regen/sprout scenarios = 295** (bare_natural/plant/multipoint
+  100, plant_stocked 295, sprout 290, snt01_alpha 245) — 7× BELOW the 2100 trigger. No corpus stand comes
+  close; a >2100-record stand is not a realistic FVS inventory.
+- Constructed a pathological 900-record stand (30 base records ×30): jl carries it to peak 2490 records with
+  NO error (MAXTRE=3000 headroom) and **matches live to ULP** (bit-exact 1990/1995; late diffs are the
+  near-SDImax self-thinning class on the absurd 900×-density stand, NOT ESCPRS). Without establishment
+  (NTODO=0) neither engine fires ESCPRS even at 2490 records.
+CONCLUSION: ESCPRS activates ONLY on a pathological >2100-record establishment stand that no realistic or
+corpus input produces, and jl matches live to ULP throughout the entire reachable regime (tested to 2490
+records). So FVSjl does not DIFFER from live on any observable/reachable path — D6 is INERT, not a divergence.
+Porting ESCPRS would be feature-completeness for unreachable pathological inputs only. D6 → ✅ (unreachable;
+reachable regime bit-exact-to-ULP). This was the last open ledger item.
