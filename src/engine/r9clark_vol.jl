@@ -349,7 +349,8 @@ branch + the NATCRS flags (CUTFLG=CUPFLG=SPFLG=1); board feet (vol[2]) is not ye
 computed here (needs R9LOGS/r9bdft). NaN/short-tree guards follow the Fortran.
 """
 function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
-                       mTopP::Float32, mTopS::Float32, stump::Float32)::Vector{Float32}
+                       mTopP::Float32, mTopS::Float32, stump::Float32,
+                       bfTopP::Float32 = -1f0, bfStmp::Float32 = -1f0)::Vector{Float32}
     vol = zeros(Float32, 15)
     iProd = prod == "01" ? 1 : 2
     co = _r9_coef(spp)
@@ -421,13 +422,24 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
         if sawHt > 0f0
             scfVol = _r9_cuft(st, stump, sawHt)
             short && (scfVol *= shrtHt / 17.3f0)
-            # Board feet of the saw section (r9bdft International ¼"); cf correction by _r9_cor!
-            # (vol(10)*=cf4, and cf4≡cf3 — so storing it in vol[2] gets the right factor).
-            vol[2] = _r9_intlqtr_bf(st, sawHt, stump, minLen, maxLen, trim)
         end
         vol[4] = scfVol                                     # saw cubic (0 when no valid sawlog)
         spFlg && (vol[7] = max(tcfVol - scfVol, 0f0))       # topwood = merch − saw (= full merch when sawHt=0)
     end
+
+    # Board feet (r9bdft International ¼") — computed for ANY board-eligible tree, INDEPENDENT of the sawtimber
+    # prod class. FVS vols.f:354 books BFV whenever `D ≥ BFMIND .AND. D > BFTOPD` (the caller applies that gate),
+    # NOT gated on SCFMIND/prod — so a tree with a raised SCFMIND (VOLUME) that is prod-02 for the cubic still
+    # gets board feet if it clears BFMIND (the volume_override case). The board bole runs to the BOARD merch top
+    # + stump (BFVOLUME sp_bf_topd/sp_bf_stump); when those equal the sawtimber values `bfHt≡sawHt`, so a prod-01
+    # bf==saw tree is BIT-EXACT (same _r9_ht + topHt-cap + short-log checks). cf correction (_r9_cor! vol(10),
+    # cf4≡cf3) applies via vol[2].
+    bfDib = bfTopP > 0f0 ? bfTopP : sawDib
+    bfSt  = bfStmp > 0.01f0 ? bfStmp : stump
+    bfHt = _r9_ht(st, bfDib)
+    (topDib <= bfDib && topHt < bfHt) && (bfHt = topHt)
+    bfHt < merchL + trim + bfSt && (bfHt = 0f0)
+    bfHt > 0f0 && (vol[2] = _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim))
 
     # FVS r9clark.f:454-462 applies the correction (r9cor) FIRST, THEN nint-rounds. The port had these
     # REVERSED (round-half-even then cor), so each printed value was cor×(0.1-multiple) instead of the clean
@@ -488,6 +500,21 @@ function compute_volumes_ne!(s::StandState)
     t = s.trees; co = s.coef
     cs = s.variant isa CentralStates
     ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
+    # Merch standards live in Control.sp_* (init_merch_standards! seeds them from _ne_merch/_cs_merch, the
+    # IFOR code rules — so values are IDENTICAL for a stand with no override), and VOLUME/BFVOLUME override
+    # those same fields (apply_volume_overrides!). Read them here (not a fresh _ne_merch call) so the R9 path
+    # honors VOLUME/BFVOLUME just like the SN Clark path — FVS's merch standards are one overridable common.
+    init_merch_standards!(s)
+    md = s.control
+    # Volume defect (FVS vols.f:285-432) — the SAME ICDF/IBDF block the SN path uses; vols.f is the shared
+    # driver, so the R9 (NE/CS) volumes get defect-corrected too. Gated on any defect source being present.
+    ctl = s.control
+    cfdef = ctl.sp_cf_defect; bfdef = ctl.sp_bf_defect        # MCDEFECT / BFDEFECT DBH curves
+    cff0 = ctl.sp_cf_form0; cff1 = ctl.sp_cf_form1            # MCFDLN cubic log-linear form coefs
+    bff0 = ctl.sp_bf_form0; bff1 = ctl.sp_bf_form1            # BFFDLN board log-linear form coefs
+    anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
+    anyform = any(!iszero, cff0) || any(!=(1f0), cff1) || any(!iszero, bff0) || any(!=(1f0), bff1)
+    anydef = anydef_cf || anydef_bf || anyform || any(!iszero, t.defect)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -503,14 +530,17 @@ function compute_volumes_ne!(s::StandState)
         tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, stmp, scfstmp = cs ? _cs_merch(sp, ifor) : _ne_merch(sp, ifor)
+        dbhmin = md.sp_dbh_min[sp]; topd = md.sp_top_diam[sp]
+        scfmind = md.sp_scf_dbhmin[sp]; scftopd = md.sp_scf_topd[sp]
+        stmp = md.sp_stump_ht[sp]; scfstmp = md.sp_scf_stump[sp]
+        bfmind = md.sp_bf_dbhmin[sp]                           # BFVOLUME board-foot min DBH (bf-equal by default)
         prod = d >= scfmind ? "01" : "02"
         mtopp = d >= scfmind ? scftopd : topd
-        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp])
         tcf = v[1]
         mcf = d >= dbhmin  ? v[4] + v[7] : 0f0
         scf = d >= scfmind ? v[4] : 0f0
-        bf  = d >= scfmind ? v[2] : 0f0                   # International ¼" board feet (R9LOGS/r9bdft)
+        bf  = (d >= bfmind && d > md.sp_bf_topd[sp]) ? v[2] : 0f0   # board feet: FVS vols.f:354 D≥BFMIND & D>BFTOPD
         if tkill && tcf > 0f0
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
             # _ne_merch returns per-species SCALARS; wrap as 1-tuples so cftopk/bftopk's `merch.x[sp]`
@@ -519,6 +549,10 @@ function compute_volumes_ne!(s::StandState)
                   bftopd = (scftopd,), bfstmp = (scfstmp,))
             tcf, mcf, scf = cftopk(mk, 1, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(mk, 1, d, h, bf, v[1], bark, Int(t.trunc[i]))
+        end
+        if anydef
+            mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
+                                              cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)
         end
         t.cuft_vol[i]      = tcf
         t.merch_cuft_vol[i] = mcf

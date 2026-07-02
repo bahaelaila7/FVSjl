@@ -170,7 +170,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     (isempty(sched) && isempty(conds)) && return _NO_REMOVAL
     # Year of the current cycle (matches summary_row): inventory year + cycle·period.
     # (cycle_year only stores the inventory year; later years are derived.)
-    yr = Int32(current_cycle_year(s))   # IY schedule (TIMEINT/CYCLEAT-aware)
+    yr = Int32(current_cycle_year(s))   # IY schedule (TIMEINT/CYCLEAT-aware) = cycle START
+    # Cycle END (next boundary) for OPCYCL containing-cycle bucketing: a DATED activity fires in the cycle
+    # with IY(i) ≤ D < IY(i+1) (opcycl.f:58-64), NOT only when D is a cycle boundary. So a mid-cycle thin
+    # (e.g. THINBBA 1995 in a 10-yr NE cycle 1990→2000) fires THIS cycle instead of never. Same gate as the
+    # SIMFIRE `_fire_due` + the VOLUME-override timing. Boundary dates (SN 5-yr, D=cycle start) are unchanged.
+    ce = Int32(cycle_year_at(s.control, Int(s.control.cycle) + 1))
+    ce <= yr && (ce = yr + Int32(1))    # degenerate/last cycle ⇒ exact-match only
     yr in s.control.years_cut && return _NO_REMOVAL   # idempotent: already cut this year
     # Fresh ESTUMP cut log for this cycle (for ESUCKR). Cleared HERE — after the
     # idempotency guard — so the second (summary) cuts! call of the cycle, which
@@ -184,7 +190,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # cycle whose 1-based index equals the date (OPNEW/OPFIND date convention).
     fvscyc = Int(s.control.cycle) + 1
     acts = ScheduledActivity[a for a in sched
-                             if a.year == yr || (a.icflag == Int32(1) && yr >= a.year) ||
+                             if (yr <= a.year < ce) || (a.icflag == Int32(1) && yr >= a.year) ||
                                 (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)]
     if !isempty(conds)
         ctx = EventCtx(Int(s.control.cycle) + 1, Int(yr), s)   # FVS CYCLE is 1-based
@@ -764,6 +770,38 @@ end
     return 1f0 / (0.02483133f0 / tmpmax * q^1.605f0)
 end
 
+# CS AUTSTK (cs/cutstk.f:59-93) — a DIFFERENT normal-stocking model than the SN/NE Reineke `_autstk`: each
+# species maps to 1 of 5 STOCKING GROUPS (JJSP), each group has a quadratic normal-yield TPA at the stand QMD
+# `TPRED = (A1·RMSQD² + A2·RMSQD + A3)/(0.0054542·RMSQD²)`, and FSTOCK = the BA-weighted mean TPRED over the
+# groups present. Empty groups get TPRED=1 but contribute 0 BA (so they drop out). Coefficients + JJSP verbatim
+# from cs/cutstk.f:31-43.
+const _CS_AUTSTK_A1 = Float32[-0.5779, -0.5373, -0.3430, -0.1433, -0.1879]
+const _CS_AUTSTK_A2 = Float32[16.9246, 23.1713, 10.7172,  7.1389,  9.0272]
+const _CS_AUTSTK_A3 = Float32[45.7353, 60.8299, 43.0417, 34.3018, 46.7800]
+# JJSP (cs/cutstk.f:43): 5*1,2*2,2*3,18*4,3,3*4,3,8*4,3,5,4*4,21*3,10*4,19*3  (MAXSP=96 for CS)
+const _CS_AUTSTK_JJSP = Int32[fill(1,5); fill(2,2); fill(3,2); fill(4,18); 3; fill(4,3); 3; fill(4,8); 3; 5;
+                              fill(4,4); fill(3,21); fill(4,10); fill(3,19)]
+@inline function _autstk_cs(t::TreeList, wk4, n)
+    basp = zeros(Float32, 5); sdsq = 0f0; stpa = 0f0
+    @inbounds for i in 1:n
+        d = t.dbh[i]; sp = Int(t.species[i])
+        g = 1 <= sp <= length(_CS_AUTSTK_JJSP) ? Int(_CS_AUTSTK_JJSP[sp]) : 4
+        basp[g] += 0.0054542f0 * d * d * wk4[i]
+        sdsq += d * d * wk4[i]; stpa += wk4[i]
+    end
+    rmsqd = stpa > 0f0 ? sqrt(sdsq / stpa) : 0f0        # stand QMD (RMSQD)
+    rmsqd <= 0f0 && return 0f0
+    r2 = rmsqd * rmsqd
+    totba = 0f0; sttpa = 0f0
+    @inbounds for g in 1:5
+        basp[g] == 0f0 && continue                      # empty group ⇒ TPRED=1 but 0 BA ⇒ no contribution
+        tpred = (_CS_AUTSTK_A1[g] * r2 + _CS_AUTSTK_A2[g] * rmsqd + _CS_AUTSTK_A3[g]) / (0.0054542f0 * r2)
+        totba += basp[g]; sttpa += basp[g] * tpred
+    end
+    totba <= 0f0 && return 0f0
+    return sttpa / totba
+end
+
 function _thin_auto!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
@@ -772,7 +810,8 @@ function _thin_auto!(s::StandState, act::ScheduledActivity)
     autmax = p[2] > 0f0 ? p[2] : 60f0
     eff    = p[3] > 0f0 ? p[3] : s.control.cut_eff   # blank ⇒ EFF (CUTEFF default)
     wk4 = Float32[t.tpa[i] for i in 1:n]
-    fulstk = _autstk(t, wk4, n, s.plot.sp_sdi_def)
+    # CS uses a per-species-group quadratic normal-yield stocking (cs/cutstk.f); SN/NE use the Reineke SDIMAX form.
+    fulstk = s.variant isa CentralStates ? _autstk_cs(t, wk4, n) : _autstk(t, wk4, n, s.plot.sp_sdi_def)
     fulstk <= 0f0 && return _NO_REMOVAL
     stock = 0f0
     @inbounds for i in 1:n; stock += wk4[i]; end

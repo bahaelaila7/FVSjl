@@ -486,6 +486,15 @@ function apply_salvage!(s::StandState)::Bool
         fs.salv_isalvs = Int32(round(a.params[1])); fs.salv_isalvc = Int32(round(a.params[2]))
     end
     isalvs = Int(fs.salv_isalvs); isalvc = Int(fs.salv_isalvc)
+    # TOTVOL: total volume of ALL snags before any salvage (fmsalv.f:104-121). Snapshot up front so
+    # cutting doesn't shrink the denominator and multiple SALVAGE acts share it. CWDCUT = CUTVOL/TOTVOL.
+    totvol = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        dens = sn.den_hard[i] + sn.den_soft[i]
+        dens > 0f0 || continue
+        totvol += dens * _salv_snag_vol(coef, sn, i)
+    end
+    cutvol = 0f0
     for a in s.control.schedule
         a.icflag == Int32(2520) || continue
         (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
@@ -503,6 +512,7 @@ function apply_salvage!(s::StandState)::Bool
             cuth = oksoft != 2 ? prop * sn.den_hard[i] : 0f0   # hard pool cut unless soft-only
             cuts = oksoft != 1 ? prop * sn.den_soft[i] : 0f0   # soft pool cut unless hard-only
             (cuth > 0f0 || cuts > 0f0) || continue
+            cutvol += (cuth + cuts) * _salv_snag_vol(coef, sn, i)   # CUTVOL (fmsalv.f:253)
             sn.den_hard[i] = max(0f0, sn.den_hard[i] - cuth)
             sn.den_soft[i] = max(0f0, sn.den_soft[i] - cuts)
             if proplv > 0f0                                    # the left-behind share → down wood (CWD1)
@@ -520,7 +530,33 @@ function apply_salvage!(s::StandState)::Bool
             fired = true
         end
     end
+    # Salvaged snags' crown debris-in-waiting → down wood (fmsalv.f:301-340). Because their boles are
+    # removed, a CWDCUT = CUTVOL/TOTVOL proportion of EVERY CWD2B year-pool is released to the down-wood
+    # pools (P2T; foliage size-0 → litter cwd[10], woody 1-5 → cwd[1-5]) and removed from CWD2B. No /NYRS
+    # here (unlike FMCADD's year-1 falldown): the whole pool releases at once when the snag is salvaged.
+    if fired && totvol > 0f0 && cutvol > 0f0
+        cwdcut = cutvol / totvol
+        c2 = fs.cwd2b
+        @inbounds for kyr in axes(c2, 3), dkcl in 1:4, sz in 0:5
+            pool = c2[dkcl, sz + 1, kyr]
+            pool > 0f0 || continue
+            down = cwdcut * pool
+            fs.cwd[sz == 0 ? 10 : sz, 2, dkcl] += down * _FM_P2T
+            c2[dkcl, sz + 1, kyr] = pool - down
+        end
+    end
     return fired
+end
+
+# Per-record snag volume for the SALVAGE CWDCUT ratio (fmsalv.f FMSVOL total volume). Same fallback chain
+# as the proplv left-behind bole: total-stem fall volume, then merch bole, then Jenkins stem biomass.
+@inline function _salv_snag_vol(coef, sn, i::Int)::Float32
+    v = sn.fallvol[i]
+    v > 0f0 && return v
+    v = sn.bolevol[i]
+    v > 0f0 && return v
+    j, _, _ = jenkins_biomass(coef, sn.sp[i], sn.dbh[i])
+    return j
 end
 
 """

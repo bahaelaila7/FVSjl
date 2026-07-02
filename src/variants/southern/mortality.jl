@@ -387,12 +387,15 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             tmmsb  = exp(cepmsb + slp * log(msb_d10))                   # morts.f:622
             tmore  = max(msb_tn - tmmsb * pmsdiu, 0f0)                  # morts.f:623-625 (T85MSB = TMMSB·PMSDIU)
             dlo = s.control.msb_dlo; dhi = s.control.msb_dhi
-            # TPA available in the kill DBH range — morts.f:642-649 projects DBH with FINT/5 (≠ msbmrt's FINT/10).
+            # TPA available in the kill DBH range — DBH projected with FINT/YR, the VARIANT-NATIVE period:
+            # SN morts.f:645 = FINT/5, NE/CS morts.f:639 = FINT/10 (YR = htg_period). The old hardcoded FINT/5
+            # was right for SN but over-projected DBH 2× for NE/CS ⇒ wrong tpacls ⇒ wrong MSB cancel/efficiency
+            # (latent for SN, real for NE mortmsb). `_msbmrt!` separately keeps FINT/10 (base msbmrt.f:72, all variants).
             tpacls = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]
                 bark = bark_ratio(bark_a, bark_b, t.species[i], d)
-                dbhend = d + (t.diam_growth[i] / bark) * (fint / 5f0)
+                dbhend = d + (t.diam_growth[i] / bark) * (fint / yr)
                 (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
             end
             if tmore > tpacls

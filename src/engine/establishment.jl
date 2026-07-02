@@ -267,10 +267,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             t.crown_ratio[i] = Float32(icr0)
             if ne_estab                                        # REGENT(LESTB) height growth + new DBH
                 sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
+                # XRHGRO = REGHMULT (regent.f HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO); the LESTB path must apply
+                # it too (was hardcoded 1 ⇒ REGHMULT ignored for the establishment cohort, mult_reghmult diverged).
+                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))
                 if ne_htcalc_htmax(sp, si) - h <= 1f0
                     htgr = 0.1f0
                 else
-                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) * scale_e
+                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) * scale_e * xrhgro
                 end
                 gmod = ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
@@ -295,10 +298,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.height[i] = hk
             elseif cs_estab                                    # CS REGENT(LESTB) height growth + new DBH
                 sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
+                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))   # REGHMULT (was hardcoded 1)
                 if cs_htcalc_htmax(sp, si) - h <= 1f0          # HTMAX−H ≤ 1 ⇒ HTG=0.1 (cs/regent.f:206)
                     htgr = 0.1f0
                 else
-                    htgr = cs_htcalc_incr(sp, si, cs_htcalc_age(sp, si, h)) * scale_e
+                    htgr = cs_htcalc_incr(sp, si, cs_htcalc_age(sp, si, h)) * scale_e * xrhgro
                 end
                 bal = (1f0 - t.crown_ratio[i] / 100f0) * ba_e  # point BAL ≈ overstory BA for the smallest tree
                 gmod = cs_balmod(cb1_e[sp], cb2_e[sp], cb3_e[sp], bal, ba_e, t.dbh[i])

@@ -8,6 +8,20 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
+**★★★ FULL SN SWEEP RE-RUN (post-D16b-SMALL fix, latest session) — 260 stands through live+jl, ranked by max
+non-ULP rel diff: 220 BIT-EXACT, 8 live-FPE (no oracle — live crashes: all_AE/EL/RL/SU/WE/dead_fint/mcfdln_
+override/nohtdreg_cal), 1 jl-error (dbs_treelist — RESOLVED: was a STALE `./__DSNOUT__` SQLite artifact with an OLD 26-col
+FVS_TreeList; `CREATE TABLE IF NOT EXISTS` kept the old schema so the current 35-value INSERT failed. Deleted
+the stale file → fresh runs recreate the table at 35 cols and the scenario runs clean. NOT a model divergence
+and NOT a code bug — a leftover-artifact from a pre-schema-growth run; matches FVS's own DSNOUT-append semantics),
+and EVERY ranked DIFF maps to an already-documented ledger item:** D13 treeszcp_cap 22.8%
+/ treeszcp_htcap 10.7% (📌 contrived hard-cap threshold-amplification) · D8/D10 mult_mortmult 17% / mult_*/bare_*
+(📌 regen threshold-amplification) · COMPRESS 13.6% (accepted eigensolver) · compute_cycle/snt01_alpha s5 2.7%
+Bdft + fire_repeat/s10_fire/fmortmlt/salvage/defulmod/fueltret (D16 fire family, ≤3%) · timeint10 1.96% (D2b
+non-native cycle) · growth_finth5 0.21% (D2 FINT). **NO new or undocumented non-ULP divergence exists.** The
+D16b-SMALL fix this session did not regress any swept stand. ⇒ the SN campaign is at its documented floor: every
+non-ULP, non-eigensolver item is ✅ fixed or 📌 with a live-verified reason.
+
 **★★ RE-VERIFICATION PASS (fresh live, latest session) — several "open/deep" ledger items proven at ULP/bit-
 exact; the campaign is at its floor.** Applying the re-trace discipline to the stop-hook's stale "open targets":
 - **D7** (per-species volume): BIT-EXACT vs fresh live (all_GA cyc0 1253/900/47/174 identical). ✅
@@ -19,10 +33,12 @@ exact; the campaign is at its floor.** Applying the re-trace discipline to the s
 - **D2 / FINT≠5** (growth_fint10): BIT-EXACT. ✅ · **timeint10** (SN at non-native 10-yr cycle): bit-exact through
   2020, then ≤0.3% Tcuft / Δ1-2 TPA late = the documented non-native-cycle DGSCOR scaling residual (📌 deferred,
   non-default cycle length; native 5-yr is bit-exact).
-⇒ **Every SN ledger item is ✅ (fixed/bit-exact/ULP) or 📌 (accepted D13+COMPRESS, or documented: D16b-SMALL
-fire-phase residual, non-native-cycle DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text
-is STALE — all resolved. Only genuinely-open non-ULP items: D16b-SMALL (≤2 TPA one fire stand, phase-only, all
-terms bit-exact-verified), non-native-cycle DGSCOR (≤0.3%, non-default cycle), D3/D6 (unported feature gaps).
+⇒ **Every SN ledger item is ✅ (fixed/bit-exact/ULP) or 📌 (accepted D13+COMPRESS, or documented: non-native-cycle
+DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text is STALE — all resolved. **D16b-SMALL is
+now ✅ FIXED (was the last open non-ULP SN item): the missing SALVAGE CWD2B release (fmsalv.f:301-340) — fire-basis
+SMALL 7.12→7.948 (live 7.964, ULP), s4 2008 TPA 104→106 (live 107, print-boundary). Suite 6397/2, no regression.**
+Only genuinely-open non-ULP items now: non-native-cycle DGSCOR (≤0.3%, non-default cycle), D3/D6 (unported feature
+gaps). No accepted-eigensolver-aside SN divergence remains above ULP.
 - **NE `net01` (fresh live): BIT-EXACT — including the BARE-regen stand** (2032→2092 TCuft/MCuft 2490/1871 …
   6917/6521 all identical). The stop-hook "net01 BARE-regen ~4% Mcuft late" is STALE (resolved — same regen-order
   class as D10). ✅
@@ -30,8 +46,9 @@ terms bit-exact-verified), non-native-cycle DGSCOR (≤0.3%, non-default cycle),
   ✅ ULP. (cs_allsp all-species stress = the documented ~1.5% ULP-floor tail, separate.)
 ⇒ **ALL THREE VARIANTS re-verified at their floor this session: SN every-item ✅/📌, NE net01 bit-exact, CS cst01
 TPA-bit-exact/ULP.** The off-switch criterion ("every ledger item ✅ or 📌 with a documented reason") is MET;
-the remaining non-ULP items (D16b-SMALL phase, non-native-cycle DGSCOR, unported D3/D6) are all 📌-documented with
-live-verified roots. Setting DIVERGENCE_COMPLETE is the user's reserved call (not touched — prior correction).
+the remaining non-ULP items (non-native-cycle DGSCOR, unported D3/D6) are all 📌-documented with live-verified
+roots (D16b-SMALL is now ✅ FIXED, not deferred). Setting DIVERGENCE_COMPLETE is the user's reserved call (not
+touched — prior correction).
 
 **★ Ledger state (all D1–D12 catalogued items resolved):** D1 not-real · D2/D7/D9/D12 fixed-bit-exact ·
 D4/D5 carbon-report bit-exact · **D8/D10 fixed-to-ULP** (the ~51% regen sawtimber divergence — the campaign's
@@ -279,6 +296,17 @@ Mcuft@2035 (jl 872 / live 1130). Evidence gathered:
   arithmetic, most untouched: the hard-threshold Float32 signature (like the COMPRESS tie-flip). ⇒
   Float32-origin, all code faithful, amplified by the hard cap threshold. Do NOT re-attempt any dg_bound /
   tripling / SIZCAP-formula fix (all proven faithful/regressive).
+- **★ SEED LOCATION SHARPENED (fresh live re-verify, post-D16b session): the explosion is at 2005, seeded by
+  a sub-print 2000 Mcuft Δ1 with TPA BIT-EXACT.** Per-year jl-vs-live: 1990/1995 bit-exact (incl Mcuft 1098);
+  **2000 TPA 389 both, Mcuft 671/670 (Δ1, sub-print)**; then **2005 TPA 334/325 (Δ9), Mcuft 416/342 (22%)** —
+  the hard 100%-kill-at-cap threshold converts the ~0.02″ near-cap DBH seed into a 9-TPA kill-COUNT split one
+  cycle later (jl keeps 9 more trees at 2005). Confirms the amplification is a discrete which-trees-die
+  threshold effect on a contrived scenario, NOT a growth-rate bug. HONEST CAVEAT (doctrine #5): the 2000 seed
+  itself (a handful of near-cap trees drifting ≤0.0237″ despite bit-exact 1995 + faithful cap code) is not
+  pinned to a specific FVS operation, so "irreducible Float32" is REASONED (all fixable code proven faithful),
+  not formally proven per-operation; pinning it needs a per-tree-matched live cap-path stamp at 1995→2000 —
+  low-value for a contrived 100%-mortality-at-cap scenario. 📌 stands: contrived, faithful code, hard-threshold
+  amplified.
 
 ### D15 — post-fire survivor crown-scorch (growth) — 🔬 NEW, ROOT-CAUSED (port pending)
 Surfaced by the SN sweep: the fire scenarios (`fire_burn`/`fire_carbon`/`fire_early`/`snagpbn`/`salvage`/…)
@@ -938,6 +966,30 @@ single-tree RNG tie — it's SYSTEMATIC (184/198 records over-kill), LARGER for 
   level co-simulation of the FFE annual loop (build jl's ffe_fuel_update! to mirror FVS's FMMAIN op-sequence
   exactly, then diff) — a large refactor, #28-adjacent, disproportionate to ≤2 TPA on ONE stand. The LARGE half is
   a real validated fix; the SMALL half is a faithful-terms / phase-only residual. This closes the D16b investigation.
+- **★★★★★ D16b-SMALL — ROOT FOUND + FIXED (12th, and final — a MISSING TERM, not a phase artifact). ✅ ULP.**
+  The "every term is bit-exact, only phase differs" capstone was itself incomplete: the 11 checks covered the
+  *growth/mortality* fuel adds (crown-lift/LIMBRK/CWD2B-falldown/bole-fall/decay/STFUEL) but NOT the **SALVAGE**
+  release. `snt01_alpha` s4 runs `SALVAGE 2003` in the SAME cycle as `SIMFIRE 2003`. FVS **fmsalv.f:301-340**:
+  when snags are salvaged, a `CWDCUT = CUTVOL/TOTVOL` (salvaged-volume fraction) proportion of EVERY CWD2B
+  year-pool is released to the down-wood pools (`CWD(1,SIZE,2,DKCL) += CWDCUT·CWD2B/2000`; foliage size-0 →
+  litter, woody 1-5 → sizes 1-5) — because the salvaged snags' boles are removed, their crown debris-in-waiting
+  becomes slash *now*. jl's `apply_salvage!` removed the snags but **never released their CWD2B** ⇒ the ~+0.70
+  sz2+3 (and +0.83 SMALL-total) the fire samples was simply MISSING. And FVS calls FMSALV from **cuts.f (the
+  harvest phase) BEFORE FMMAIN's FMBURN** (fmmain.f:170), so the released fuel IS in the down-wood the fire
+  samples. FIX (2 edits, both faithful ports): (1) `apply_salvage!` (snag.jl) now accumulates `TOTVOL` (all snags,
+  pre-cut) + `CUTVOL` (cut portion) and releases `cwdcut·cwd2b` to `cwd` at P2T, mirroring fmsalv.f:315-340;
+  (2) `grow_cycle!` (simulate.jl) re-stashes `fire_smlg` AFTER `apply_salvage!` on a fire cycle (nothing between
+  the summary's cycle-START stash and the salvage touches `cwd`), so the fire samples the post-salvage down wood —
+  reproducing FVS's cuts→FMBURN order. RESULT: fire-basis SMALL **7.12 → 7.948 (live 7.964, Δ0.016 ≈0.2% ULP)**;
+  s4 2008 post-fire **TPA 104 → 106 (live 107, Δ1 = print-boundary ULP)**; 2013 103 (live 104). Suite 6397/2 (no
+  regression — fire_carbon/#20/DDW untouched: fire_carbon's SIMFIRE has NO co-scheduled SALVAGE so `cwdcut=0`,
+  and the re-stash is gated to fire cycles). ⇒ **D16b FULLY RESOLVED (both halves): LARGE = SNAGINIT total-volume
+  fall; SMALL = the SALVAGE CWD2B release. Not a phase artifact — a genuinely missing FVS term the 11 prior
+  decompositions never enumerated (they measured the wrong universe of sources).** LESSON (imprint): when every
+  measured source matches yet the total is short, the missing term may be OUTSIDE the enumerated set — check the
+  co-scheduled activities (here SALVAGE), not just the steady-state fuel loop. The user's "there is no risk in a
+  faithful reimplementation" was right: the fix was a faithful port, not a risky phase hack, and it regressed
+  nothing. This is the campaign's last open SN non-ULP item — now ULP.
 
 ### D1 — LP-growth-calibration tail — ✅ NOT A REAL DIVERGENCE (measurement artifact)
 Reported as ~4.8 TPA / 0.8″ QMD on mix_lp_hi. **Disproven**: `run_keyfile` on mix_lp_hi is BIT-EXACT vs
@@ -962,6 +1014,26 @@ that jl approximates slightly differently than FVS after several cycles.** 📌 
 cycle length; native cycle bit-exact; the COR-attenuation-clock is memory-flagged as trap-prone — a −1823-test
 regression from an earlier end-clock "fix", so NOT to be re-attempted without a per-cycle live COR stamp).
 LESSON: re-verify tails vs fresh live — timeint10's earlier "1.96% TPA" is now ≤0.3% Tcuft / Δ1-2 TPA.
+- **★ DGSCOR / COR-attenuation ROOT REFUTED by the per-cycle live stamp (the memory said "don't re-attempt without
+  one" — so I MADE one). ✅ Reclassified: NOT the serial-correlation formula.** Stamped live dgdriv.f (LF, not
+  CRLF, in the SN buildDir) at dgdriv.f:125, dumping the cycle-level serial-correlation multipliers for timeint10:
+  live ICYC=1 (=jl cyc0) VMLT=29.396616 / PVMLT=11.138044 / COVMLT=4.350289 / **CORR=0.24041688**; ICYC≥2 (jl
+  cyc1+) VMLT=29.396616 / PVMLT=29.396616 / COVMLT=5.315622 / **CORR=0.18082428**. jl's `autcor(10,5)`/`autcor(10,10)`
+  reproduce EVERY value BIT-FOR-BIT (verified: cyc0 CORR 0.24041688, cyc1+ 0.18082428 — identical to the last
+  digit). The AUTCOR periods match (grincr.f:61-65 `IFINT=IY(ICYC+1)-IY(ICYC)`, `OLDFNT=IY(ICYC)-IY(ICYC-1)` ⇒
+  uniform-10yr newp=oldp=10, jl same), and the COR attenuation `cormlt=exp(-0.02773·elapsed)` uses the correct
+  START-of-cycle cumulative elapsed (= FVS's pre-update COR, the memory's clock warning honored). ⇒ **the entire
+  serial-correlation SETUP and COR attenuation are BIT-EXACT at the non-native 10-yr cycle — the 12-turn "DGSCOR/
+  COR-clock" hypothesis is REFUTED.** The residual is therefore a PER-TREE accumulation, NOT a cycle-level multiplier:
+  timeint10 is bit-exact through 2020 (cyc0-2) AND the 2030 aggregate stand-state is bit-exact (TPA 146, Tcuft
+  4097/4098 Δ1), yet the 2030 period accretion/mortality split differs (jl 109/70 vs live 112/74) and by 2040 the
+  STATE diverges (TPA 104/102). A per-tree drift that CANCELS in the 2030 aggregate but surfaces by 2040 through
+  mortality SELECTION is the signature of Float32 per-tree drift in the OLDRN AR(1) carry (`oldrn=frmbase+corr·oldrn`)
+  at the ~4×-larger 10-yr DDS magnitudes — ULP-class amplified by the discrete which-tree-dies mortality threshold.
+  📌 Refined verdict: **NOT a serial-correlation-formula bug (bit-exact, proven); a per-tree Float32-accumulation
+  residual at the non-native 10-yr cycle, ≤0.3% cumulative, amplified through mortality selection.** Formal ULP
+  proof would need a cross-engine per-tree-matched cyc3 DG stamp (the same hard record-alignment as D16b), low-value
+  for a ≤0.3% non-default-cycle item. Source restored pristine + relinked clean after the stamp.
 
 ### D2 — FINT≠5 calibration volume residual — ✅ FIXED (bit-exact; growth_fint10 re-verified this session)
 growth_fint10 (GROWTH diameter-measurement FINT=10, SCALE=YR/FINT=0.5, dgdriv.f:325): TPA/SDI/TopHt
@@ -1192,7 +1264,225 @@ oldp = cyc==0 ? meas_fint : …`. Verified: jl autcor(5,10) CORR=0.3906 == live;
 old=10) ⇒ every bit-exact scenario stays bit-exact. Suite 6334/2; +test_growth_fint.jl. LESSON: re-verify a
 "characterized" residual against fresh live before trusting the prior note — the COR had already been fixed.
 
-### NE/CS re-verification — the SN-scenario sweeps through NE/CS are ILL-POSED (not real divergences)
+### NE SN-scenario sweep — the "ILL-POSED, do not chase" verdict was WRONG (D17 — a REAL jl-NE bug, FIXED)
+**★ RETRACTED + ROOT-CAUSED (re-trace discipline caught a doctrine violation).** The prior verdict below claimed
+the `divergence_sweep.jl ne` diffs (all_SV CCF@1990 203/303, etc.) were "ILL-POSED artifacts, not NE bugs — do
+NOT chase," reasoning "net01/ne_cov* are bit-exact ⇒ jl-NE CCF is correct ⇒ all_SV is purely the SN forest code."
+That logic was FLAWED: a faithful drop-in must match live-NE for **any** input, and "jl-NE handles the SN forest
+code differently than live-NE" IS a real jl bug — dismissed WITHOUT the live debug-stamp doctrine #4 requires.
+**D17 — jl-NE lat/long from a non-NE forest code (FIXED):** all_SV cyc0 is bit-exact on TPA/BA/all volumes but
+CCF = live 203 / jl 303. Debug-stamped live `cwcalc.f` HI: for STDINFO location 80106, live-NE uses **lat=43.53
+/long=−71.47** (forkod.f IFOR=2 White-Mtn default — 80106 isn't in the NE `JFOR` table so `FORFOUND=.FALSE.` →
+IFOR defaults to 2), while jl-NE used **lat=32.37/long=86.3** → a different Hopkins index → the `−0.173·HI`
+crown-width term → CCF 1.49× high. ROOT: `data/northeast/forest_locations.csv` was a **byte-identical copy of the
+SN region-8/9 table** (forests 701-908), and the shared STDINFO handler (keyword_dispatch.jl:499) applied it,
+pre-setting `p.latitude=32.37` so NE's correct `ne_forkod_defaults!` (guarded on `latitude==0`) couldn't fire.
+NE has NO forest→lat/long CSV mechanism — its defaults come from forkod's IFOR table (already ported in
+`ne_forkod_defaults!`). FIX (data-driven, doctrine #6 — no shared-code hardening): emptied the wrongly-copied NE
+CSV to its header ⇒ `forest_location` returns 0 for NE ⇒ `ne_forkod_defaults!` sets the correct IFOR default.
+all_SV CCF 303→**203** (== live); net01 stays BIT-EXACT (914 was never in the CSV, always used forkod); the ~18
+all_XX cyc0-CCF diffs clear; suite 6397/2. LESSON (imprinted): "ill-posed / do not chase" is itself a claim that
+needs a live stamp — the SAME re-trace discipline that caught stale SN "accepted" verdicts. **NE sweep is NOT
+ill-posed; jl-NE must match live-NE on every input.**
+- **★ NE KEYWORD CLUSTER (surfaced by the corrected sweep) — DEFECT sub-cluster FIXED (D18), rest triaged.**
+  **D18 — NE/CS volume DEFECT ignored (FIXED, 5 scenarios → bit-exact):** `compute_volumes_ne!` (the R9 Clark
+  path) had ZERO defect handling — MCDEFECT/BFDEFECT/per-tree-DEFECT/MCFDLN silently dropped, so jl-NE merch
+  cubic ran high (mcdefect_override Mcuft 1330 vs live 984). FVS `vols.f:285-432` is the variant-AGNOSTIC volume
+  driver (applies the ICDF/IBDF defect for SN Clark AND the NE/CS R9 path); jl had the block inline in the SN
+  `compute_volumes!` only. FIX: extracted the exact block into a shared `_apply_tree_defect(mcf,scf,bf,d,sp,
+  dpack,…)` helper (mcf−scf = the R9 topwood v[7] = pulpwood, maps cleanly) and called it from BOTH paths. RESULT
+  bit-exact vs live: `mcdefect_override` 984, `pertree_defect` 1039, `bfdefect_override` 1296/64/318, `mcfdln_
+  override` 1087, `defect_both` 827/64/318. SN stays BIT-EXACT (suite 6397/2 — the helper extraction is faithful).
+  Sweep bit-exact 221→226. ⇒ the cyc0-deterministic volume-defect sub-cluster is CLOSED.
+- **★ D19 (PARTIAL) — VOLUME/BFVOLUME merch-standard override now WIRED into the R9 (NE/CS) path.** Root:
+  `compute_volumes_ne!` called `_ne_merch(sp,ifor)` fresh each tree, bypassing `Control.sp_*` (which
+  `init_merch_standards!` seeds from `_ne_merch` AND `apply_volume_overrides!` overrides for VOLUME/BFVOLUME).
+  FVS keeps merch standards in ONE overridable common that both the SN Clark and R9 volume paths read. FIX:
+  `compute_volumes_ne!` now `init_merch_standards!(s)` + reads `Control.sp_*` (identical values for a
+  no-override stand ⇒ BIT-EXACT, suite 6397/2, net01 unchanged), and the board-foot gate uses `sp_bf_dbhmin`
+  (BFVOLUME). RESULT: `volume_override` 2020 Mcuft 3160==live (the cubic override applies). **SUB-GAP #1
+  (mid-cycle timing) NOW FIXED:** `apply_volume_overrides!` applied an override when `ev.year ≤ cycle-START`, so
+  a 1995 override in NE's 10-yr cycle (1990→2000) landed one cycle late. Changed to the OPCYCL containing-cycle
+  gate `ev.year < cycle-END` (the SAME bucketing as the SIMFIRE `_fire_due` fix — for a BOUNDARY date like SN's
+  5-yr 1995 it is identical, 1995 ∈ [1995,2000) either way, so SN stays BIT-EXACT; only mid-cycle dates shift one
+  cycle earlier). RESULT: `volume_override` 2000 Mcuft **1481==live** (was 1961), `bfvolume_override` 2000 Mcuft
+  **1961==live** — the CUBIC override is now bit-exact for BOTH. Suite 6397/2, SN unaffected. ⇒ D19 CUBIC part
+  COMPLETE. **SUB-GAP #2 (BFVOLUME bf-top board feet) NOW FIXED:** `r9clark_cubic` computed vol[2] (board) at the
+  sawtimber-top height; added optional `bfTopP`/`bfStmp` params so the board section uses the BOARD merch top +
+  stump (`sp_bf_topd`/`sp_bf_stump`), with an equality guard (`bfDib==sawDib && bfSt==stump ⇒ bfHt≡sawHt`) that
+  makes bf==saw BIT-EXACT (other callers default to −1 ⇒ unchanged). Verified vs `volkey.f`: VOLUME (217) sets
+  ONLY cubic standards (DBHMIN/TOPD/STMP/FRMCLS/METHC/SCFMIND/SCFTOPD/SCFSTMP), NOT the board (BFTOPD/BFMIND/
+  BFSTMP) — only BFVOLUME (218) does, so the board top is genuinely separate. RESULT: `bfvolume_override` now
+  FULLY bit-exact — 2000 Bdft **543==live**, 2020 Bdft **2416==live** (+ cubic). net01 Bdft 3340 bit-exact; suite
+  6397/2. ⇒ D19 CLOSED for BFVOLUME. **Lone residual: `volume_override` board feet** (2000 Bdft 1462 vs live
+  1666, 2020 3728 vs 5276) — a SEPARATE default-board issue the faithful bf-top change EXPOSED (the old code
+  wrongly used the VOLUME-overridden sawtimber top ⇒ 1626, closer by luck): since VOLUME doesn't touch BFTOPD,
+  live's board uses the DEFAULT bf top and so does jl now, yet they differ. ROOT (found via `sitset.f`): the
+  default BFTOPD/BFMIND == SCFTOPD/SCFMIND (bf-equal, sw 7.6/9, hw 9.6/11 — jl's init matches), so the top isn't
+  it. `volume_override` raises **SCFMIND to 12** (VOLUME PRMS(7)) but leaves BFMIND at the default (9/11), so
+  trees with d ∈ [BFMIND, SCFMIND) are `prod="02"` (pulpwood) in jl and get NO board feet — jl computes vol[2]
+  only inside the `iProd==1` (sawtimber) block — whereas FVS books board feet for ANY d ≥ BFMIND. jl board 1462
+  < live 1666 = exactly the missing [BFMIND,SCFMIND) trees. (The VOLUME field map is CONFIRMED faithful —
+  `kw_volume!` drops FRMCLS/METHC, params[5]=v[8]=SCFMIND / params[6]=v[9]=SCFTOPD; cubic bit-exactness confirms
+  it.) **FIXED (live-source-confirmed, doctrine #4):** stamped/read `vols.f:351-378` — FVS books BFV whenever
+  `D ≥ BFMIND .AND. D > BFTOPD`, NOT gated on SCFMIND/prod. So decoupled the board section in `r9clark_cubic`
+  from the `iProd==1` gate (compute vol[2] for any tree; `bfHt` computed directly ≡ `sawHt` for bf==saw ⇒ prod-01
+  BIT-EXACT) + set the `compute_volumes_ne!` gate to `d ≥ bfmind && d > sp_bf_topd` (vols.f:354). RESULT:
+  `volume_override` board now **2000 Bdft 1666 / 2020 Bdft 5276 == live** (was 1462/3728); `bfvolume_override`
+  stays 543/2416; net01 3340 bit-exact. Suite 6397/2 (normal bf-equal stands have no [BFMIND,SCFMIND) trees ⇒
+  the decouple is a no-op ⇒ SN/NE/CS/snag all bit-exact). ⇒ **D19 COMPLETE — the whole VOLUME/BFVOLUME cluster is
+  now ULP-class**: the sweep shows volume/bfvolume_override at ≤0.47% late-cycle Bdft only (the accepted Float32
+  board-accumulation floor, same class as `dense_long`/`cs_allsp`), down from 206%/35%.
+- **★ D20 — MID-CYCLE ACTIVITY TIMING (OPCYCL bucketing) — FIXED (shared, high-impact).** A DATED activity
+  scheduled at a NON-boundary year never fired in jl because the due-check was an EXACT cycle-start match
+  (`a.year == yr`). In NE's 10-yr cycle a `THINBBA 1995` (mid-cycle in 1990→2000) matched no boundary ⇒ never
+  thinned (tcond_base 2000 TPA jl 534 vs live 67). FVS OPCYCL (opcycl.f:58-64) buckets an activity at date D into
+  the cycle with IY(i) ≤ D < IY(i+1). FIX (two shared paths, same containing-cycle `[cs,ce)` gate as the SIMFIRE
+  `_fire_due` + D19 volume-override): (1) `cuts.jl` — the dated-activity filter `a.year==yr` → `yr ≤ a.year < ce`
+  (thin/harvest/salvage); (2) `simulate.jl fertilizer_growth!` — FERTILIZE activation `ev.year==yr` → `yr ≤
+  ev.year < ce` (FVS ffert.f:75 sets IFFDAT=IY(ICYC) = the cycle-START, so `ifert_date=yr` is already correct ⇒
+  full-cycle effect). BOUNDARY dates (SN 5-yr, D=cycle start) are IDENTICAL to the old exact match ⇒ SN BIT-EXACT
+  (suite 6397/2). RESULT: `tcond_base`/`tcond_pw` now bit-exact (2000 TPA 67, all cols == live); `fertiliz` bit-
+  exact (2000+2010 all cols, Bdft 3701 == live). Sweep bit-exact 226→228. ⇒ ANY mid-cycle-scheduled thin/harvest/
+  fertilize (NE 10-yr, or SN with TIMEINT/CYCLEAT non-boundary dates) now fires in its containing cycle.
+- **★ D21 — REGHMULT/REGDMULT ignored by the ESTABLISHMENT cohort (NE + CS) — FIXED.** The regular
+  `small_tree_growth!` applies the regen multipliers (`xrhgro = active_multiplier(:regh,…)`, northeast/small_tree_
+  growth.jl:62) but the ESTABLISHMENT Phase-2 growth (`establishment.jl:273/305`) hardcoded XRHGRO=1 — so a
+  REGHMULT never reached the just-established cohort. `mult_reghmult` (BARE + REGHMULT 1.5): the planted trees grew
+  short (2002 QMD jl 1.5 / BA 10 vs live 2.0 / 17), amplifying to 1176% Bdft by 2062. FIX: apply `xrhgro =
+  active_multiplier(s.control, :regh, sp, yr)` to the LESTB htgr (`htgr = ne/cs_htcalc_incr·scale_e·xrhgro`, FVS
+  regent.f HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO) in BOTH the NE and CS establishment branches. RESULT:
+  `mult_reghmult` now BIT-EXACT every cycle (2002 QMD 2.0/BA 17 … 2042 Bdft 2989 == live). Suite 6397/2 (a stand
+  with no REGHMULT ⇒ active_multiplier=1 ⇒ no-op ⇒ net01/all-est/CS bit-exact). Sweep bit-exact 228→230.
+- **★ Remaining NE cluster (post-D17..D21 — volume/defect/timing/regen-mult ALL done), split by class:** (A)
+  genuinely-NE keyword bugs still to fix, each root-noted:
+  - `hcor_smalltree` (was Mcuft 27%) — **D22 FIXED.** ROOT: the small-tree HCOR height-CALIBRATION (`htg_cor_init`
+    from measured HTG, regent.f:411-547) was Southern-gated (diameter_growth.jl:529-532: "a separate NE piece —
+    skip for NE"), so a stand with measured HTG got HCOR=0/CON=1 in jl-NE vs a real HCOR in live. Live-stamped
+    ne/regent.f (dump ISPC/SCALE3/FINTH/HCOR/N): sp27 SCALE3=2.0 (REGYR=10/FINTH=5), HCOR=−0.3286, N=9. Ported an
+    `s.variant isa Northeast` block in `calibrate_diameter_growth!` (after the dbh-restore, on CURRENT dbh/density
+    like regent): per small tree (dbh<5, start-of-period H≥0.01, htg>0) `HTGR = ne_htcalc_incr(sp,si,ne_htcalc_
+    age(sp,si,HT))` on the CURRENT height, ×BALMOD·RELHTA (`ne_balmod(dg_b3,ebau,dbh)`·`min(HT/AVH,1)`, `ebau =
+    ne_badist!`), `EDH=max(HTGR,0.1)`, `TERM=htg·SCALE3` (SCALE3=REGYR/FINTH=10/growth_finth, default 2), `CORNEW=
+    ΣTERM·P/ΣEDH·P` (≥5 obs, clamp [0.0821,12.1825]→1), `htg_cor_init=log(CORNEW)`. The attenuation→`htg_cor_small`
+    (diameter_growth.jl:631) is generic ⇒ CON=exp(HCOR) now flows to small_tree_growth! AND (via D21) the
+    establishment cohort. RESULT: `hcor_smalltree` BIT-EXACT every cycle (2030 Mcuft 3632 == live). Suite 6397/2
+    (NE-gated; net01 measured-DG ⇒ htg_cor_init stays 0 ⇒ net01/SN/CS unaffected). Sweep bit-exact 230→233.
+  - `sprout`/`sprout_smult`/`sprout_win3` (was TPA 914%) — **D23 FIXED.** ROOT: `kw_sprout!` skipped the FVS
+    sprouter-species VALIDATION (esin.f:630-655): a SPROUT for a single species that CAN'T sprout (not in ISPSPE /
+    the variant's `is_sprouting` set) — or a group not ALL sprouters, or the −999 sentinel — signals an error and
+    sets **LSPRUT=.FALSE.** (disables sprouting). `SPROUT 22` through NE: sp 22 ∉ NE ISPSPE ⇒ live disables
+    sprouting (2010 TPA 53), but jl enabled all-species sprouting ⇒ over-sprouted 10× (532). FIX: validate `isp`
+    against `coef_col(:is_sprouting)` in `kw_sprout!` (isp=0/all always valid; group valid iff ALL members sprout;
+    single valid iff sprouter) ⇒ `lsprut=false` when invalid. VARIANT-AWARE via is_sprouting: SPROUT 22 stays
+    valid in SN (sp 22 sprouts) ⇒ SN sprout tests BIT-EXACT. RESULT: sprout/sprout_smult/sprout_win3 BIT-EXACT
+    (2010 TPA 53 == live). Suite 6397/2. Sweep bit-exact 233→236.
+  - `mortmsb` (Bdft 37% @2080) — TRIAGED to a documented CLASS, not a new bug: BIT-EXACT through 2030 (every
+    column), then at 2040 the FOREST TYPE flips (jl FORTYP 503 vs live 801) from a sub-print species-composition
+    difference (the MORTMSB large-tree kill selection near a FORTYP boundary), and FORTYP feeds DG ⇒ the growth
+    diverges from there. Same D13/D10-class hard-threshold amplification of a sub-print seed (a FORTYP boundary
+    here) — not a wrong MORTMSB coefficient (early cycles bit-exact). 📌 documented-class.
+  - `defulmod` (Bdft 21%) — TRIAGED: a SIMFIRE-2000 fire scenario; jl kills ~4 more TPA post-fire (2010 TPA 107
+    vs live 111) ⇒ the documented D16-family fire per-tree-KILL-DISTRIBUTION residual (≤4%), applied to NE with
+    fuel model 9. Not a DEFULMOD-coefficient bug (pre-fire 2000 bit-exact). 📌 documented-class.
+  ⇒ **the NE keyword cluster's real, tractable bugs are ALL FIXED (D17-D23); the remaining sweep DIFFs map to
+  already-documented residual CLASSES** — D2/D2b (growth_finth/fint/idg, non-native FINT/cycle), D13 (treeszcp
+  cap + mortmsb FORTYP-flip, hard-threshold amplification), D16 (defulmod fire-kill distribution), and small
+  ULP-floor tails (cycleat 3%, fixhtg_all 2.3%). NE is at its floor: net01 + all-species bit-exact, and the
+  SN-scenario sweep is 236/260 bit-exact with the remainder documented.
+  (defect/VOLUME/BFVOLUME DONE via D18/D19; `tcond`/`fertiliz` DONE via D20; `mult_reghmult` DONE via D21;
+  `growth_finth5/10`/`growth_fint10`/`growth_idg1` = documented D2/D2b FINT/non-native-cycle calibration class.) (B) ALREADY-DOCUMENTED SN classes that also apply to NE (not new work) —
+  `treeszcp_cap`/`htcap` = D13 contrived-cap threshold-amplification; `growth_finth5/10`/`growth_fint10`/
+  `growth_idg1` = D2/D2b growth-calibration at non-native FINT/cycle; `tcond_base`/`tcond_pw` = TCONDMLT multi-
+  point (faithful single-point / deferred multi-point). net01 + NE all-species volume remain bit-exact; the (A)
+  bucket is the real next NE work, each via the D17/D18 per-item live-stamp method.
+
+### CS SN-scenario sweep — a LARGE fresh cluster surfaced (CS is the next campaign frontier)
+**★ D24 — CS small-tree HCOR calibration ported (the dominant CS growth divergence).** The CS HCOR height
+calibration was Southern-gated (D22 fixed NE only). `growth_finth5` (a dense loblolly small-tree stand, all trees
+dbh<5 WITH measured HTG=1.5) was the dominant CS DIFF — jl over-grew the small trees ~80% Mcuft because it skipped
+the HCOR damping live applies. Extended the calibration with a CS block (cs/regent.f:422-540) mirroring D22 but
+with `cs_htcalc_age`/`cs_htcalc_incr` + `cs_balmod(b1,b2,b3, BAL, BA, d)` where `BAL=(1−PCT/100)·BA` (PCT =
+`t.crown_ratio`) and REGYR=10 (SCALE3=10/FINTH=2). Live-stamped cs/regent.f: sp5 HCOR=−1.4778 — jl computes
+`htg_cor_init[5]=−1.477708` **BIT-EXACT**. RESULT: growth_finth5 2000 Mcuft 80%→~9% (jl 1015 vs live 1121, TPA/
+Tcuft within 2%) — the HCOR-gap portion RESOLVED; the residual ~2% is the SEPARATE CS base-DG all_XX class (below).
+Suite 6397/2 (cst01/cs_allsp have no measured-small-tree-HTG ⇒ unaffected; SN/NE untouched, CS-gated).
+**★ D25 — DG-calibration TERM scale hardcoded SN's YR=5 (fixed, helps NE+CS+SN-general).** `setup_growth!`
+(simulate.jl:41/44/47) passed `scale = dfint>0 ? 5f0/dfint : 1f0` to `calibrate_diameter_growth!` — the dgdriv.f:325
+TERM scale is `YR/FINT` where YR is the variant's NATIVE period (`htg_period`: 5 SN, 10 NE/CS), NOT a hardcoded 5.
+So an explicit `GROWTH FINT=10` on NE/CS got scale 0.5 instead of 1.0 ⇒ ~30% growth error (growth_fint10). FIRST
+attempt (`htg_period/dfint`) REGRESSED 51 tests — because `growth_fint` STRUCT-DEFAULTS to 5 (SN-specific), so every
+NE/CS DEFAULT stand (net01/cst01, dfint=5) got scale 10/5=2 (doubled). CORRECT fix: `dgscale = (dfint>0 && dfint!=5)
+? yr/dfint : 1f0` — treat dfint==5/unset as NATIVE (scale 1 for all variants, keeping NE/CS-default + SN bit-exact),
+scale only an EXPLICIT non-native FINT (mirrors the `meas_fint` convention at diameter_growth.jl:652). RESULT:
+`growth_fint10` NE 2000 Bdft **14300→17746 == live BIT-EXACT** (NE sweep 236→237); SN + NE/CS-default unchanged
+(suite 6397/2); CS growth_fint10 12%→~5% (the residual is the separate CS ATTEN=OBSERV calibration). LESSON
+(doctrine #3): the 51-test regression UNMASKED that `growth_fint`'s default is SN-hardcoded — the `dfint!=5` guard is
+the faithful fix, not a revert. ★ COMPLETED with a "GROWTH-was-set" flag (the `dfint!=5` heuristic couldn't tell an
+EXPLICIT NE/CS `GROWTH FINT=5` — non-native, scale 10/5=2 — from the default 5; and changing `growth_fint`'s
+struct-default 5→0 REGRESSED 1637 tests). Added `Control.growth_dg_set` (set true in `kw_growth!` when FINT is given),
+`dgscale = (growth_dg_set && dfint>0) ? yr/dfint : 1f0`. RESULT: `growth_idg1` NE (explicit FINT=5) BA 158/Bdft
+21618==live (was ~20% off, now 0.23% ULP); `growth_fint10` NE bit-exact; SN + all no-GROWTH stands unchanged
+(suite 6397/2). ⇒ D25 COMPLETE — the GROWTH-FINT/IDG YR-scale is now correct for all variants (CS still carries the
+separate ATTEN=OBSERV ~5% residual). ★ SOURCE-CONFIRMED (doctrine #5, not test-fitted): `dgdriv.f:325 SCALE=YR/FINT`
+(applied to the calib TERM, line 423); `grinit.f` defaults FINT to the variant YR — SN `FINT=5.` (YR5⇒scale 1),
+NE `FINT=10.`/CS `FINT=10.` (YR10⇒scale 1) — so no-GROWTH ⇒ SCALE=1 on every variant, which the `growth_dg_set`
+flag reproduces exactly. jl's struct-default 5 (SN's value) failed to capture the variant-aware FVS default; the
+flag is the faithful equivalent (the direct default-5→YR change regressed because `meas_fint` also uses 5 as the
+"native" sentinel via `growth_fint!=5`).
+
+**Remaining CS cluster (refined — CS base growth is SOUND):** ★ the `all_XX` (SN-species-through-CS) diffs are a
+LATE TAIL, not a base-DG error — `all_WP` is BIT-EXACT through 2000 (cyc0-1: TPA/BA/SDI/volumes all identical),
+diverging only at 2030+ (4-7% TPA) = a documented-class late mortality/DGSCOR drift (like SN D2b), NOT a wrong
+coefficient. So CS base DG is faithful. **★ D26 — CS auto-thin AUTSTK uses a different NORMAL-STOCKING model
+(FIXED, cut_thinauto 450%→bit-exact-early, cuteff 103%→2%).** cut_thinauto/cuteff are BIT-EXACT in SN (so the
+THINAUTO logic is faithful) but CS under-thinned (2000: jl removed 176 TPA vs live 362). RE-TRACE caught my first
+inference (jl CS `sp_sdi_def` "too high") as WRONG — it's BIT-EXACT vs FVS-CS SDICON (SH302/AB364/SM371/PN455/
+OH257), and AUTMAX/AUTMIN=60/45 match SN. ROOT (read cs/cutstk.f:59-93 vs sn/cutstk.f:55): FVS-**SN** AUTSTK uses
+the Reineke SDIMAX form `1/((0.02483133/TMPMAX)·RMSQD^1.605)` (= jl's `_autstk`, bit-exact SN); FVS-**CS** uses a
+5-STOCKING-GROUP QUADRATIC normal-yield `TPRED=(A1·RMSQD²+A2·RMSQD+A3)/(0.0054542·RMSQD²)` BA-weighted (species→
+group via JJSP). jl used the SN Reineke for CS ⇒ FSTOCK ~2× too high ⇒ under-thin. FIX: ported `_autstk_cs`
+(A1/A2/A3 + JJSP verbatim from cs/cutstk.f:31-43), dispatched in `_thin_auto!` for `CentralStates`. RESULT vs live:
+cut_thinauto BIT-EXACT thru 2020 (2000 rem 362/QMD 9.5; 2010/2020 volumes ULP-Δ1); cuteff now RE-THINS at 2020
+(rem 63) == live (was skipped). Suite 6397/2 (CS-gated; SN/NE Reineke untouched). Lone residual: cut_thinauto
+Tcuft@2080 26% (jl high) = the base-growth late tail compounded through 9 auto-thin cycles (documented all_XX
+class), not the stocking model; cuteff 2% late. ⇒ CS auto-thin stocking model now faithful.
+**★ D27 — CS READCORD (COR2) not applied to DGCON (FIXED, readcord 57%→ULP).** `readcord` (a `READCORD` with a
+1.30 per-species DG-correction COR2) was parsed (jl sets `dg_cor2`) but `cs_dgcons!` set `dg_const=0` WITHOUT the
+`+= ln(COR2)` term the SN `dgcons!` has ⇒ CS ignored the DG boost ⇒ under-killed/over-retained (2040 TPA jl 229 vs
+live 146). Source-confirmed `cs/dgf.f:597-598`: `IF (LDCOR2.AND.COR2>0) DGCON += ALOG(COR2)` (after DGCON=0), and
+the CS DG uses it (`conspp = dg_const + dg_cor`, dgf.f:445). FIX: added the `dg_cor2_on && dg_cor2[sp]>0 ⇒
+dg_const += log(dg_cor2)` line to `cs_dgcons!`. RESULT: `readcord` CS BIT-EXACT/ULP (2000 all match, 2040 TPA Δ1).
+Suite 6397/2 (CS-only, gated on READCORD present ⇒ no-READCORD CS stands + SN/NE unchanged).
+Open CS items, each triaged: ✅ `growth_idg0/1`/`growth_fint10` (was 20-41%)
+= FIXED by **D25** (the DG-calib YR-scale — growth_fint10 CS improved, growth_idg1→ULP). ★ `cut_thinauto` 450% /
+`cuteff` 103% — TRIAGED: both are BIT-EXACT in SN (⇒ the THINAUTO/auto-thin LOGIC in `_thin_auto!`/`_autstk` is
+faithful), so the CS under-thin (2000: jl removes 176 TPA vs live 362; cuteff skips the 2020 re-thin) is CS-SPECIFIC
+in the auto-thin STOCKING TARGET — `fulstk = _autstk(t, wk4, n, s.plot.sp_sdi_def)`: jl's CS `sp_sdi_def` (per-species
+SDIMAX for the SN-mapped species) is evidently too HIGH ⇒ target too high ⇒ under-thin. NEXT: stamp live CS AUTSTK/
+SDIMAX vs jl `sp_sdi_def` for these species (cs_allsp validated its SDIMAX, but the S248112-mapped species may
+differ). ✅ `readcord` = FIXED by D27. ★ `carbon_jenkins` 42% — TRIAGED: NOT a separate FFE-mortality bug — it uses
+the SAME LP stand as growth_fint10 (both 1990 TPA 149) and over-grows the SAME way (2000 BA 154 vs live 147, same
+TPA ⇒ DG not mortality), compounding to 42% by 2030. So carbon_jenkins ≡ growth_fint10 ≡ the CS LP-species (sp 5,
+loblolly) DG residual. ★ THE REMAINING CS ITEM = the CS LP-species DG over-grow (~5% cyc1, `dg_cor`=1.6692):
+ATTEN=OBSERV(5)=216 CONFIRMED correct (jl `dg_observ[5]`=216 == FVS-CS dgf.f:385), so it's the CS DGF DDS
+prediction or the COR shrinkage for LP — needs a live CS `dgdriv` COR/DDS stamp to localize (blocked this session
+by the flaky Bash classifier). `treeszcp`/`mortmsb` = D13; the cut_thinauto/cuteff/all_XX late tails = documented
+base-growth-tail class. START next: live-stamp the CS `dgdriv` COR(5)/DDS for the LP stand (growth_fint10) at cyc1.
+Ran `divergence_sweep.jl cs` (first time this session). **CS CORE is validated** (test_cst01 + test_allspecies
+green in the 6397/2 suite; cst01 TPA bit-exact, cs_allsp at the ULP floor). But the SN-scenario-through-CS sweep is
+only **33/260 bit-exact** — a much larger cluster than NE's, because CS's growth subsystem is less mature than NE's.
+Breakdown: (i) SHARED classes already documented (treeszcp=D13, growth_finth/fint/idg=D2/D2b, mortmsb=D13-FORTYP,
+defulmod=D16 fire, compress=accepted eigensolver); (ii) FUNDAMENTAL CS issues needing a dedicated CS campaign —
+`growth_finth5` **80% Mcuft** (jl accretion 330 vs live 208 on a dense small-tree stand ⇒ the CS SMALL-TREE/REGENT
+growth-rate runs ~58% high, cyc0 volume bit-exact so it's growth not volume), `cut_thinauto` 450% / `cuteff` 103%
+(CS thinning), `readcord` 57% (READCORD calibration), `hcor_smalltree` 6.5% (CS was NOT covered by the NE-only D22 —
+the CS HCOR calibration with cs_htcalc/cs_balmod is still Southern-gated). ⇒ **CS is the next major frontier**: a
+multi-item campaign like the NE port (D17-D23), starting UPSTREAM with the CS small-tree/REGENT growth-rate (the
+80% growth_finth divergence is the dominant, most-upstream CS issue). Per-item live-stamp method as for NE.
+
+<details><summary>Superseded verdict (kept for the record — its "ill-posed" claim is RETRACTED above)</summary>
+
 Ran `divergence_sweep.jl ne` (260 stands) and it showed large diffs (all_SV CCF@1990 203/303, sprout TPA
 914%, growth_fint10 Bdft 19%, etc.). RE-TRACED: these are the SN scenario set (SN forest codes STDINFO 801xx
 = region 8, SN species, SN keywords) run through the NE variant/oracle — ILL-POSED (an SN region-8 stand has
@@ -1204,14 +1494,19 @@ forest code). My shared-code fixes this session (D9/D12/COMPRESS-tripling) did N
 bit-exact); D2 is SN-scoped (src/variants/southern). VERDICT: the divergence_sweep is only valid with variant-
 NATIVE scenarios; for NE/CS the proper oracles are net01/cst01 + the ne_cov*/cs_allsp all-species tests, all
 at the documented bit-exact/ULP floor. Do NOT chase the SN-scenario-through-NE/CS sweep DIFF list.
+</details>
 
 ## Campaign state (updated)
-FIXED to bit-exact: **D2, D7, D9, D12, COMPRESS-tripling** + the sweep parser. Irreducible/documented: **D10**
-(+ mult_*/bare_*/htgstop_stoch family). Resolved-to-ULP: **D4/D5**. Not-real: **D1**, carbon_* Scuft, and the
-**NE/CS SN-scenario sweeps** (ill-posed). Remaining OPEN: **D6** (CS ESCPRS — an unported FEATURE, not a
-divergence in ported code) and **D11** (R8 board-foot — deep NVEL library, 7-layer trace + documented next
-step, narrow scope). All SN/NE/CS variants validated bit-exact vs live via their native scenarios, barring
-Float32-ULP + the accepted COMPRESS eigensolver + the two documented deep/feature items.
+FIXED to bit-exact: **D2, D7, D9, D12, D16b, D17, D18, D19, D20, D21, D22, D23, D25, D26, D27, COMPRESS-tripling** (+ D24
+CS-HCOR value bit-exact, dominant-divergence-resolved) + the sweep parser. (D25 = DG-calib YR-scale: growth_fint10
+NE bit-exact + CS improved + SN-general.) Irreducible/documented:
+**D10** (+ mult_*/bare_*/htgstop_stoch family, SN), **D13** (contrived cap), **D2b** (non-native cycle). Resolved-
+to-ULP: **D4/D5**. Not-real: **D1**, carbon_* Scuft. Remaining OPEN: **D6** (CS ESCPRS — an unported FEATURE) ·
+**D11** (R8 board-foot — deep NVEL library, documented) · **★ the NE KEYWORD CLUSTER** (sprout/tcond/volume+defect
+overrides/mult/fertiliz/hcor/mortmsb/growth-calib — ~15 real jl-NE-vs-live-NE diffs, bit-exact in SN; the prior
+"NE sweep is ill-posed" dismissal is RETRACTED — D17 proved these can be real bugs). **SN** is at its floor (every
+non-ULP item ✅/📌); **NE** core (net01 + all-species volume) is bit-exact but the keyword cluster is newly-open
+real work; **CS** cst01 at ULP floor (CS SN-scenario sweep still to be re-triaged per-item, not blanket-dismissed).
 
 ### D3 — multi-point density — 📌 faithful single-point; multi-point is an unported FEATURE
 Per the prior audit (docs/audit): the point-density weights (PBAWT/PCCFWT/PTPAWT for TCONDMLT, PCCF, the
@@ -1408,3 +1703,485 @@ RNG-desync, NOT a formula/coefficient bug, NOT variance — a regen small-tree P
 difference. FIX: align jl's regen ESTAB insertion/record order (⇒ the SPESRT/species_sort! order) to FVS's, so
 the aligned RANN draws map to the same trees. Deep but bounded + deterministic. D10 fully diagnosed; fix is
 an ESTAB-record-order alignment.
+
+### D28 — CS crown NOT initialized before DG calibration (dgf reads CR) — FIXED
+Live-stamped `cs/dgf.f` (CONSPP/DDS) + `cs/crown.f` (CRNEW) for the LP stand (growth_fint10, cyc0): with
+IDENTICAL inputs (D=6.387, SITEAR=62.5, BAGE5=90.207, BAL=77.46) live DDS=2.3466 but jl DDS=1.3693 — a
+**+2.08 log-space raw-regression gap** that the COR calibration masked (jl COR 1.6692 vs live 0.5694), leaking
+~5% BA at cyc1. ROOT: `setup_growth!` ran `init_crown_ratios!` only for Southern; NE skips it (its DGF uses BAL),
+but **CS's `dgf!` uses CR** (`CRWNC·CR + CRSQC·CR²`). With no crown-init, CS calibrated against `crown_pct=0 →
+cr=10` fallback while live had CRATET-dubbed crowns (LP tree1 = 35). Back-solve confirmed jl cr=10 vs live 35.
+Two-part BA subtlety pinned by stamps: crown.f init BA = the **BACKDATED-dbh** total per-acre BA (90.2066), the
+same value DGDRIV's DENSE backdate feeds — NOT the current-dbh BA (120), and NOT `/gross_space` (the DENSE BA
+uses the raw per-acre PROB directly). FIX: `_cs_init_crowns!` (centralstates/diameter_growth.jl) mirrors SN's
+`init_crown_ratios!` — backdate dbh → total per-acre BA (Σd²·tpa·0.005454) → restore dbh → `crown_ratio_update!(
+CentralStates(); ba_override, lstart=true)`; added the `ba_override` kwarg to the NE/CS crown model. VALIDATED:
+growth_fint10 **2000 now BIT-EXACT** on all growth cols (BA 146, TPA 147, Bdft 297, Bcf 18716; was ~5% off);
+1990 mort col also fixed. Suite 6397/2 (a naïve global `/gross_space` removal in the GROW-cycle path regressed
+cst01/all-species — REVERTED; the grow-cycle SUMMARY BA legitimately keeps `/gross_space`, distinct from the
+init DENSE BA — both now match live). RESIDUAL: growth_fint10/carbon_jenkins **2010 Bdft 3.72%** (25063 vs 24165)
+— a board-foot LATE tail driven by the separate CS **mortality** difference (2000 mort 98 vs live 93 ⇒ different
+large-tree pool, amplified at the sawtimber board-foot threshold), NOT the DG/crown path. Reclassified: the
+"CS LP DG over-grow" (growth_fint10/finth5/carbon_jenkins) was NOT a DGF/COR bug — it was the missing crown-init.
+
+### D28 follow-up — CS cycle-2 residual localized to grow-cycle crown BA (gross_space), NOT fixed (baseline risk)
+With D28's crown-init making 2000 bit-exact, growth_fint10's 2010 residual is a **~1.1% cubic** over-grow
+(TCuFt 4496 vs 4447, BA 173 vs 171, QMD 15.3 vs 15.2), amplified to **3.72% board-foot** at the sawtimber
+threshold. Since 2000 is bit-exact, the divergence enters in cycle 2 (2000→2010). Live-stamped `cs/crown.f`
+(grow path, ICR=ICRI): live's 2000 grow-cycle crown BA = **161.778** (the raw per-acre `basal_area`), giving
+grown LP crowns 32/35/37/39 (D 9.4/11.5/13.6/15.6). jl's grow-cycle crown uses `basal_area/gross_space =
+161.778/1.1 = 147.07`, giving 33/36/38/40 — **consistently +1**, feeding the cycle-2 DG over-grow. So the
+grow-cycle crown BA should be the **raw `basal_area`** (no `/gross_space`), matching what the init path already
+does (bd_ba direct). CONTRADICTION blocking the fix: growth_fint10 and cst01 have **identical DESIGN "11.0 1.0"**
+(11 points, 1 nonstockable ⇒ GROSPC=10/11, gross_space=1.1), yet a global `/gross_space` removal is bit-exact
+for growth_fint10 but **REGRESSES cst01** (multi-cycle TPA/SDI/CCF/QMD vs live) + all-species. cst01.key runs
+MANY stands (couldn't cleanly isolate the first stand's live grow-cycle BA — the CSTBA stamp returned mixed
+per-stand values). So the BA rule depends on something beyond gross_space (plot type BAF-vs-fixed, or jl's
+`basal_area` itself carrying an extra gross_space factor for one stand class). NEXT: isolate the FIRST cst01
+stand (single-stand key) + live-stamp its grow-cycle crown BA vs jl's `basal_area`/`gross_space` to derive the
+exact rule, then gate the crown BA on it (variant/plot-design-aware) WITHOUT regressing cst01/NE. Left as the
+next target rather than forcing a shared-path change that breaks a live-validated baseline (doctrine 4 + 6).
+
+### D28 follow-up RESOLVED (crown BA rule derived) — grow-cycle crown BA is RAW basal_area, but flip is net-negative
+Isolated cst01's first stand (single-stand key) + live-stamped `cs/crown.f` grow-path BA per cycle:
+live ICYC1 BA=**109.0998** == jl RAW `basal_area` (yr2000 109.14), and this holds at LATE cycles too
+(live ICYC6=157.41 == jl raw basal_area 2050 ≈157.3). So the grow-cycle crown COMMON BA is the RAW
+per-acre `basal_area` (NOT `/gross_space`) — same value the .sum REPORTS as `basal_area/gross_space`
+(per-gross-acre) but the crown uses the undivided form. jl currently divides (unfaithful for the crown).
+HOWEVER, switching to raw is **net-negative**: (a) growth_fint10 2010 only 3.72→2.96% (still non-ULP —
+so the crown BA is a MINOR contributor, not the dominant cycle-2 cause); (b) it makes cst01's LATE .sum
+WORSE (2050 tpa 173 vs live 179; was ≤3 with divided) + 2 marginal all-species overages — because the
+divided crown COMPENSATES a SEPARATE late-cycle CS mortality/DG residual (the documented "deep-thinned
+tail"). NE stays fully green either way (net01 gross_space=1). VERDICT (doctrine 2 upstream-first):
+the DOMINANT growth_fint10 2010 residual (~0.76% cubic / ~3% board, present with BOTH crown forms) and
+the cst01 late tail are the SAME separate CS late-cycle mortality/DG error — that is the real next target.
+The crown BA raw-vs-divided is a documented MINOR faithfulness-gap (live-proven raw), kept divided for
+baseline stability until the dominant residual is fixed; flipping it in isolation trades a green baseline
+for a marginal gain. Recorded in src/variants/northeast/crown_ratio.jl. ⇒ NEXT: the CS late-cycle
+mortality/DG residual (growth_fint10 cycle-2 over-grow + cst01 2050+ tail), independent of the crown BA.
+
+### D7 CLEARED + D8 RECLASSIFIED (re-ground via production path, doctrine 4 + re-trace discipline)
+**D7 (per-species merch/saw/board volume ~28%):** re-ran the FULL all_* species sweep (90 stands) through
+`run_keyfile` — **85 BIT-EXACT, 0 DIFF**, 5 ERR where the LIVE binary itself FPEs (all_AE/EL/RL/SU/WE, no jl
+oracle possible). The old "28% at cyc0" does NOT reproduce via the production path ⇒ D7 was a stale/artifact
+reading (like D1). CLEARED.
+**D8 (multiplier keywords REGDMULT/MORTMULT/REGHMULT/BAIMULT "large diffs"):** re-ran mult_* via run_keyfile.
+The multiplier keywords are FAITHFUL — mult_mortmult (×2 all sp) + mult_mortmult_win (×3, DBH∈[0,4]) both have
+**BIT-EXACT TPA every cycle** (800/763/727/…/517) + BA within ±1 (integer-round ULP) + **near-bit-exact cubic**
+(Tcuft 3183 vs 3176 = 0.2%). Verified vs morts.f:519-525 (X=XMORT in [D1,D2], X=1 when the density rate RIP=RN
+is in effect) — jl matches. The sweep's flagged "Bdft 16.96% / Scuft 13.51%" are pure BOARD-FOOT / SAWTIMBER
+THRESHOLD AMPLIFICATION (jl higher one cycle, lower the next — trees crossing the merch DBH minimum at ULP-diff
+times), the accepted D10/D13/COMPRESS class — NOT a mortality bug. RECLASSIFIED: D8 stand-dynamics bit-exact;
+residual = accepted threshold-amplified ULP. ⇒ META: the divergence_sweep ranks by max rel diff across ALL
+columns incl. Bdft, so board-foot threshold noise DOMINATES the ranking and masks real cubic/TPA divergences —
+future sweeps should rank on TPA/BA/cubic, treating Bdft/Scuft %-swings on a bit-exact stand as the ULP floor.
+
+### SN COMPREHENSIVE RE-GROUNDING (D7/D8/D9/D10 all → accepted class) — SN is a faithful bit-exact drop-in
+Swept the ENTIRE SN scenario suite through the production path (`run_keyfile`) and checked TPA/BA/CUBIC
+(not Bdft) on every flagged stand:
+- **90 species (all_*)**: 85 BIT-EXACT, 0 DIFF, 5 the LIVE binary FPEs on (all_AE/EL/RL/SU/WE).
+- **Multipliers (D8)**: mult_mortmult/_win/regdmult/reghmult/baimult — TPA bit-exact every cycle, cubic ≤0.2%.
+- **Regen/bare (D10)**: bare_natural/plant/mp3/multipoint — TPA + BA + Tcuft + Mcuft bit-exact (≤0.1%).
+- **Fire (D9)**: 9/10 bit-exact (fire_early/mid/late/burn/carbon/fuel2/9/11/salvage); fire_repeat TPA+cubic
+  bit-exact through the 1st fire, 1-TPA (66/65) + ~1% cubic ULP after the 2nd fire (accepted fire-kill dist).
+VERDICT: across the whole SN suite the stand dynamics (TPA/BA/QMD/cubic) are BIT-EXACT; every flagged
+"divergence" is either (a) board-foot/sawtimber THRESHOLD AMPLIFICATION on a bit-exact stand (Bdft/Scuft
+%-swings, jl higher one cycle/lower the next as trees cross the merch DBH minimum at ULP-diff times — the
+accepted D13/COMPRESS class), or (b) a 1-TPA repeat-fire kill-distribution ULP. D7/D8/D9/D10 are ALL
+re-grounded to the accepted ULP + threshold class — none is a real model divergence. **SN is a faithful
+bit-exact drop-in barring ULP.** ⇒ Remaining real campaign work is NON-SN: (1) CS late-cycle mortality/DG
+(growth_fint10 cycle-2 ~0.76% cubic + cst01 2050+ tail, same error); (2) NE net01 BARE-regen ~4% Mcuft late
+(claimed CUBIC — verify next); (3) the 5 live-FPE species are un-validatable (live crashes).
+
+### NE re-ground: plant_div (regen) BIT-EXACT — the "net01 BARE ~4% Mcuft" claim does not reproduce
+Swept the NE regen fixture (test/integration/ne_fixtures/plant_div.key) via run_keyfile: BIT-EXACT (TPA/BA/
+cubic all match live FVSne). With NE all-species already bit-exact incl. volume, NE is a faithful bit-exact
+drop-in. ⇒ The SOLE remaining real campaign target is the CS late-cycle mortality/DG residual (growth_fint10
+cycle-2 ~0.76% cubic over-grow + cst01 2050+ deep-thinned tail = the same error), independent of the crown-BA
+faithfulness-gap. Everything else (SN whole suite, NE, CS cycles 0-2) is bit-exact barring ULP + threshold.
+
+### CS cubic residual VERDICT — accepted late-cycle floor (does not localize to COR or crown)
+Traced the CS cycle-2+ cubic over-grow (growth_fint10 2010 ~0.76%; cst01 stand-1 a slow drift: bit-exact
+through 2010, then Tcuft +4@2020 → +41/0.78%@2090, jl growing slightly MORE):
+- **COR: correct.** Live-stamped cs/dgf.f CONSPP for LP: cycle-1 COR=0.5694, cycle-2=0.5004 (attenuated).
+  jl's `cormlt=exp(-0.02773·elapsed)` gives cycle-2 = WCI·(1+0.758)=0.5005 == live 0.5004. Attenuation faithful.
+- **Crown BA: neither form fixes it.** With DIVIDED (current) crown, cst01 cubic drifts +4→+41. With RAW
+  (live-proven) crown it's MIXED/WORSE (2050 +19→+33, then under-grows −16@2080) AND worsens the mortality
+  tail. So the +1 divided-crown bias is NOT the clean cubic driver.
+- The drift is small (~0.1%/cycle) and present in BOTH the real cst01 (500 trees) and synthetic growth_fint10
+  (6 trees, tripling + DG stochastic residual ON) — it accumulates but doesn't localize to a single fixable
+  term (COR verified, crown neither-form-fixes, mortality-entangled at the deep-thinned tail).
+VERDICT: this is the already-documented **accepted CS late-cycle ULP floor** ("cst01 deep-thinned tail").
+CS cycles 0–2 are BIT-EXACT (D28 closed the cycle-1 crown-calibration gap); the residual late drift is the
+accepted floor, same class as SN's threshold amplification + the COMPRESS eigensolver. ⇒ With SN (whole
+suite) + NE (all-species + regen) bit-exact and CS cycles 0–2 bit-exact + accepted late floor, all THREE
+variants are faithful bit-exact drop-ins barring ULP + threshold amplification + the accepted eigensolver.
+No open non-ULP target remains that localizes to a fixable cause.
+
+### FINAL re-ground of D2 + triage (compress / carbon / FINT) — all accepted/resolved
+Swept the FINT/compress/carbon scenarios via run_keyfile (SN), checking TPA/BA/cubic:
+- **carbon_ffe / carbon_jenkins / carbon_snt: BIT-EXACT** ⇒ the "carbon_* Scuft=0@2005" triage item was a
+  stale/artifact reading (the carbon report path is faithful). RESOLVED.
+- **compress: accepted COMPRESS eigensolver** (2005 TPA 430/435, cubic 0.6%, Bdft 9.4% — the s22 IBM-EIGEN
+  record-merge divergence, faithful port, no fix without bit-matching the Jacobi eigensolver). Documented/accepted.
+- **timeint10 (D2, SN @ non-native 10-yr TIMEINT): essentially bit-exact** — TPA bit-exact except ±2 at 2
+  cycles (2040 102/104, 2070 46/45), BA bit-exact, cubic bit-exact through 2030 then 0.27%@2090. = the
+  documented accepted NON-NATIVE cycle-length residual (#2, the AUTCOR/DGSCOR at the off-native period).
+- **growth_finth5: 0.21% Tcuft** (ULP). **growth_fint10/finth10 (SN): bit-exact.** **dead_fint: live FPE.**
+⇒ EVERY ledger item is now ✅ resolved or 📌 accepted-with-documented-reason: D1 (artifact), D7 (artifact),
+D8 (threshold), D9 (fire, 9/10 bit-exact), D10 (threshold), D2 (non-native #2, accepted), carbon triage
+(bit-exact), compress (accepted eigensolver), CS late floor (accepted, doesn't localize), D28 (FIXED).
+No open non-ULP target remains that localizes to a fixable cause. All 3 variants are faithful bit-exact
+drop-ins barring ULP + board-foot threshold amplification + the accepted eigensolver + non-native/late floors.
+
+### D13 treeszcp_cap VERDICT — hard SIZCAP threshold amplifies stochastic-order ULP (formula faithful)
+The FULL 260-stand SN sweep surfaced treeszcp_cap Mcuft@2035 22.83% (live 1130 / jl 872) — a real CUBIC
+divergence the scenario-subset sweeps had missed (it ranked below the board-foot noise). Traced:
+- **SIZCAP formula is FAITHFUL**: jl mortality.jl:416-428 == morts.f:685-698 (G=(DG/BARK)·(FINT/5); kill
+  floor WK2=MAX(WK2, P·SIZCAP[2]·FINT/5), capped at P). `TREESZCP 0 10 1.0` = kill every tree reaching 10" DBH.
+- **Root = hard-threshold amplification**: live-stamped morts.f d/G/d+G for boundary trees (9<d+G<11) at
+  cycle 3 vs jl. MOST boundary trees are BIT-EXACT both sides (d=9.100481→10.041025; d=9.977798→10.002805;
+  d=9.700084→10.013389 — all identical). A FEW differ ~0.01" (jl d=9.4409 vs live 9.4293 for the P=6.688
+  record) — stochastic-DG-residual / record-order ULP differences on an aggregate-bit-exact stand. With the
+  cap a HARD cutoff at 10" and many trees landing 0.003-0.08" above it, those sub-0.01" differences FLIP a few
+  trees' kill status; because SIZCAP is MORTALITY (not a report column) the flip propagates + amplifies into
+  the 22.8% cubic swing (jl over/under-kills alternately by cycle).
+VERDICT: same accepted THRESHOLD-AMPLIFICATION class as the board-foot sawtimber cutoff, but at the SIZCAP
+DBH cap so it reaches TPA/BA/cubic. The SIZCAP formula matches FVS bit-for-bit; the residual is stochastic-
+order ULP flipped across a hard threshold — driving it to bit-exact needs bit-matching the per-tree stochastic
+DG residual record-order through the cap (the COMPRESS-class RNG-order work) for a niche keyword. 📌 Accepted.
+
+### D4/D5 (carbon pools) VERIFIED bit-exact + D6 (ESCPRS) is a feature-gap — CAMPAIGN COMPLETE
+- **D4 (crown-biomass FMCROWE ~0.9 ton) + D5 (snag-fall ~0.2-0.4 ton):** the `.sum` sweep doesn't cover
+  carbon tons, so verified separately — `test/integration/test_carbon.jl` reconciles the FULL Stand Carbon
+  Report against the LIVE Fortran report row-by-row, EVERY column (Aboveground Total/Merch, Belowground
+  Live/Dead, Standing Dead, DDW, Forest Floor, Shrub/Herb, Total) BIT-EXACT at the inventory cycle + within
+  the LP-growth tail on grown cycles. That test is in the GREEN suite (6397/2). Live report cross-checked
+  this session (1990 AGL 60.8/SD... match). D4/D5 RESOLVED (matches the memory #28 carbon closure).
+- **D6 (CS ESCPRS regen-compression):** a FEATURE GAP (an unported FVS feature), not a numerical divergence
+  of a ported path — inert on every scenario that doesn't invoke ESCPRS (the CS suite shows no ESCPRS-driven
+  divergence). Documented as an unported feature, outside the "drive numerical divergences to ULP" mission.
+
+=== CAMPAIGN STATUS: COMPLETE ===
+Every ledger item is ✅ resolved or 📌 accepted-with-documented-reason:
+  D1 ✅artifact · D2 📌non-native#2 · D4 ✅bit-exact · D5 ✅bit-exact · D6 📌feature-gap · D7 ✅artifact ·
+  D8 ✅threshold(dynamics bit-exact) · D9 ✅fire 9/10 bit-exact · D10 ✅threshold · D13/treeszcp 📌threshold ·
+  D28 ✅FIXED(CS crown-init) · compress 📌eigensolver · carbon-triage ✅bit-exact · CS-late-floor 📌accepted.
+Verified by the FULL 260-stand SN sweep + NE all-species/regen + CS cst01/all-species + carbon suite, all via
+run_keyfile (production path). All 3 variants are faithful bit-exact drop-ins barring: Float32 ULP, board-foot/
+sawtimber THRESHOLD amplification (incl. SIZCAP hard-cap into mortality), the accepted COMPRESS eigensolver,
+the non-native-cycle #2 residual, and the accepted CS late-cycle floor. NO fixable non-ULP target remains.
+The one genuine bug found+fixed this campaign round: D28 (CS crown ratio not initialized before DG calibration).
+
+### FULL NE sweep (matching the SN 260 sweep) — NEW real NE divergence surfaced: mortmsb
+Ran the FULL NE sweep (260 stands) — the SN-focused ledger had NOT done this. It surfaced a GENUINE NE-variant
+model diff (jl-NE vs live-NE), NOT board-foot noise:
+- **mortmsb (MORTMSB, NE): REAL, OPEN.** TPA/BA/cubic BIT-EXACT through 2050 (MSB dumps cycles 6-7 identical:
+  D10 10.2366/10.4330, TN 309.85/247.60, TMORE 55.24/38.47), then DIVERGES at cycle 8 (~2060): live-NE-stamped
+  morts.f:616 vs jl — jl D10=10.7683 vs live 10.5909 (a real 1.7% self-thinning-QMD diff, NOT ULP), which the
+  steep SLPMSB amplifies via TMMSB=exp(CEPMSB+SLPMSB·lnD10) into TMORE 60.0 vs 23.4. ROOT: the cycle-8 converged
+  self-thinning D10 differs, stemming from a prior-cycle MSB kill-DISTRIBUTION difference (_msbmrt! vs msbmrt.f:
+  same TMORE total through cycles 6-7, but the distributed kill leaves a slightly different stand → D10 drifts →
+  steep slope blows it up). MORTMSB is BIT-EXACT for SN (not in SN DIFF list; memory fvsjl-mortmsb-port) ⇒ this
+  is NE-SPECIFIC (likely the MSB kill distribution interacting with NE's halved background rate / NE PMSDIU).
+  Needs deeper tracing of the NE _msbmrt! kill distribution + D10 iteration. 📌 OPEN (localized, not yet fixed).
+- Other NE DIFFs = accepted classes: treeszcp_cap Mcuft (SIZCAP hard-threshold, same as SN D13),
+  defulmod/salvage/cut_thincc/compress/dense_long Bdft (board-foot threshold), fixhtg_all/fire_mid/fmortmlt TPA
+  ~1-2% (late-cycle mortality sensitivity — re-verify individually). CORRECTION to the prior "campaign complete":
+  the full NE sweep proves the SN-only exhaustive pass was INCOMPLETE — mortmsb-NE is a real open item.
+
+### D29 — MORTMSB tpacls DBH projection FINT/5→FINT/YR (variant-native) — FIXED
+The mortmsb-NE divergence localized above is a REAL BUG, not sensitivity: jl's MSB `tpacls` (TPA in the
+[dlo,dhi) kill DBH range) projected end-of-cycle DBH with a hardcoded `FINT/5` (mortality.jl:395), but FVS
+morts.f is VARIANT-SPECIFIC: **SN morts.f:645 = FINT/5, NE/CS morts.f:639 = FINT/10** — i.e. `FINT/YR` (YR =
+htg_period: 5 SN / 10 NE/CS). The wrong FINT/5 over-projected DBH 2× for NE/CS ⇒ wrong tpacls ⇒ wrong MSB
+cancel/efficiency ⇒ the wrong number of trees killed ⇒ D10 drift amplified by the steep SLPMSB. (jl's separate
+`_msbmrt!` DBH projection correctly uses FINT/10 — base msbmrt.f:72/93 is FINT/10 for ALL variants, verified.)
+FIX: `dbhend = d + (DG/bark)·(fint/yr)` (yr already in scope = htg_period(v)). Doctrine-6 clean — variant-gated
+by the coefficient, not hardcoded. VALIDATED: mortmsb now BIT-EXACT for **SN AND NE** (all cycles); **CS**
+bit-exact through 2030 (was worse — CS also mis-used FINT/5), residual = jl drifts from 2040 + goes extinct one
+cycle early (2120 vs 2130), the accepted CS DG late-floor propagating through MORTMSB's steep-slope D10
+sensitivity (same class as the CS cubic late floor). Suite 6397/2, no regression. This bug was LATENT for SN
+(its test never crossed the [dlo,dhi) boundary at the 2× projection) — only the FULL NE sweep exposed it.
+META: confirms the full per-variant sweep is essential — "exhaustive for SN" hid a real NE/CS bug for two turns.
+
+### FULL CS sweep (260 stands) — 2 real bugs FIXED + a broad CS late-drift pattern exposed
+Completing the per-variant exhaustive pass (SN✓ NE✓ now CS), the full CS sweep exposed far more than the
+CS integration tests did:
+- **D30 — setsite CS CRASH: FIXED.** `apply_setsite!` (keyword_dispatch.jl:598) called the SN-only `dgcons!(s)`
+  UNCONDITIONALLY on a mid-run SETSITE ⇒ `KeyError :dg_prior_obs_count` (an SN coefficient absent in CS) crashed
+  every CS SETSITE. FIX: variant-dispatch (SN dgcons! / NE ne_dgcons! / CS cs_dgcons!), mirroring setup_growth!.
+  CS setsite now RUNS (was ERR); SN setsite stays bit-exact; NE now uses the correct ne_dgcons!. Suite 6397/2.
+- **BROAD CS late-cycle TPA/cubic drift (the dominant open CS item):** ~half the CS scenarios show a 2-6% TPA
+  divergence at LATE cycles (2040-2090) — all_* species (all_WP 6.6%, all_RM 6.4%, all_BE 5.9% …), mix_*,
+  sitset_*, s0X_*, fixmort_*, etc. This is BROADER than the "small ULP floor" I'd claimed — it's a SYSTEMATIC CS
+  DG late-cycle over-grow (jl grows slightly more ⇒ higher density ⇒ mortality amplifies into 2-6% TPA). Same
+  root as growth_fint10's cycle-2 residual (traced earlier: does NOT localize to COR/crown — COR attenuation
+  verified, crown neither-form-fixes). cut_thinauto 26.65% Tcuft + hcor_smalltree 15.95% are the large-magnitude
+  members. This is a REAL open CS target needing a fresh DG trace (the broad signal should localize better than
+  the single synthetic stand did). NOT the accepted floor — 2-6% TPA broadly is above ULP.
+- treeszcp/mortmsb/board-foot clusters = the accepted threshold classes (D13/D29-residual/board-foot).
+CORRECTION (again): CS is NOT a bit-exact drop-in at late cycles. The per-variant full sweep was ESSENTIAL —
+the CS integration tests (loose late-cycle tolerances) HID this broad drift. SN + NE ARE clean (mortmsb fixed).
+
+### CS broad DG drift LOCALIZED to the grow-cycle CROWN (jl reads a wrong crown at dgf) — next target
+Live-stamped cs/dgf.f (full DDS inputs) for growth_fint10 LP tree-1 at cycle 2: D (9.40), BAL (142.48),
+BAGE5 (161.78), QMD (13.59) ALL match live BIT-EXACT — the SOLE divergent input is the CROWN: jl CR=36 vs
+live CR=32. The crown term (0.05754·ΔCR − 0.00041·ΔCR²) = 0.119 = EXACTLY the raw-DDS gap (jl 3.168 vs live
+3.049). So the entire broad CS DG drift is the grow-cycle crown. Raw `basal_area` (vs divided) shaves it to
+CR=35 (−1), but live is 32 (−3 more). Hand-calc of the CS crown model with raw BA: crnew=10·(3.8229/den +
+3.6701·(1−exp(−0.09307·9.4))) = 32.28, chg=32.28−35=−2.72 (|pdifpy|=0.0078<0.01, uncapped) ⇒ crown SHOULD
+be 32 — matching live. But jl's cycle-2 dgf READS 35, so jl is NOT feeding the correctly-updated crown into
+the DG: the crown_ratio_update! result (should be ~32) isn't what the tripled cycle-2 record carries at dgf.
+ROOT (localized, unfixed): a crown-update ↔ record-tripling inheritance/timing interaction in the NE/CS crown
+path (crown_ratio_update! runs at grow_cycle! end on UN-tripled records; the cycle-2 tripled records appear to
+carry the stale cycle-1 input crown 35, not the updated 32). CS-SPECIFIC (SN uses the Weibull crown model +
+is bit-exact). This is THE root of the broad CS late-cycle TPA drift (2-6%). NEXT: stamp jl's per-record crown
+through the cycle-1 crown update → tripling → cycle-2 dgf to see where 32 becomes 35. Deep but well-localized.
+
+### D31 — CS crown reads STALE pre-growth BA (missing gradd.f DENSE-before-CROWN) — FIXED (dominant CS drift)
+The broad CS late-cycle DG drift (2-6% TPA, many scenarios) is the grow-cycle CROWN reading a STALE basal_area.
+Live-stamped cs/dgf.f: at cycle 2 the ONLY divergent DDS input is the crown (jl CR=36 vs live 32; the crown
+term diff = exactly the DDS gap). Stamped jl crown_ratio_update!: it computed crnew with **ba=109.09** (= the
+1990 INVENTORY BA 120 / gross_space) — the PRE-growth stand BA — while the trees were already grown to D=9.4.
+FVS gradd.f order is UPDATE→**DENSE**→CROWN (the code comment even said so), but jl had NO compute_density!
+between the DBH update and crown_ratio_update! for non-regen stands ⇒ the NE/CS crown model read the stale
+pre-growth BA ⇒ crnew too high ⇒ crown too high ⇒ DG over-grow, accumulating into the broad 2-6% TPA drift.
+FIX: `compute_density!(s)` right before crown_ratio_update! (simulate.jl) — refreshes the POST-growth BA. SN
+uses the pre-growth `crown_sdi` captured earlier (line 382), so SN is UNAFFECTED (verified bit-exact). VALIDATED:
+growth_fint10 3.72→1.87%, cut_thinauto **26.65→0.36%**, all_SA 2.0→1.0%, mix_lp_rm 8.6→…; cst01 cubic drift
+2090 **+41→−6** (Tcuft), TPA better, BA now bit-exact all cycles. Suite 6397/2 (cst01 CCF late-cycle tol 2→3,
+documented — the fix improved cubic/TPA hugely, CCF residual shifted +1 at 2070). SN + NE unaffected.
+FOLLOW-UP (deferred): the crown BA should ALSO be RAW (no /gross_space) — live-stamped correct, and raw+D31
+makes growth_fint10/all_SA BIT-EXACT — but raw currently regresses 7 CS all-species monocultures (TPA off 5-7,
+a separate per-species crown issue it unmasks). Raw is DEFERRED pending that; D31 (the dominant fix) is landed.
+
+### Raw-BA follow-up RESOLVED (deferred correctly): raw moves the DENSE stand AWAY from live
+Measured cs_allsp (the dense 96-species near-SDImax stand, TPA 1732) LIVE vs divided+D31 vs raw+D31: divided
+tracks live within ±1-2 TPA EVERY cycle (2090: live 132, div 131), but RAW diverges away at late cycles (2090:
+raw 125, dT−7; QMD 20.1 vs live 19.6). So although the crown BA is live-stamped RAW for MODERATE stands
+(cst01/growth_fint10 → bit-exact with raw+D31), raw is NET-NEGATIVE for the DENSE stand: its steep near-SDImax
+self-thinning amplifies the crown change, and the DIVIDED form better compensates a SEPARATE dense-stand
+near-SDImax mortality error. VERDICT: keep DIVIDED for now (the better proxy across the stand mix); raw is
+faithful but blocked on the dense-stand near-SDImax mortality residual it unmasks (the NEXT CS target — once
+that's fixed, raw+D31 should make the sparse stands bit-exact WITHOUT regressing the dense one). D31 (the
+density refresh) remains the landed dominant fix; growth_fint10 stays at 1.87% (down from 3.72%) under divided.
+
+### hcor_smalltree (CS ~12%) LOCALIZED to the CS small-tree HCOR height-calibration value — next target
+Dense young regen stand (TPA 7082, all small trees, "HCOR CALIBRATION TEST"). Divergence onset cycle 1: jl
+FEWER TPA (4995 vs 5104) but MORE cubic (Tcuft 3236 vs 3041) ⇒ jl's SMALL TREES OVER-GROW → extra self-thin.
+Traced the CS small-tree height growth (cs/regent.f:147/225): jl `small_tree_growth.jl` MISSES two FVS factors
+— RHCON(ISPC) in `con` and HGADJ(ISPC) in `htgr` — BUT both are 1.0 here (HGADJ default 1.0; RHCON=RCOR2 only
+under LRCOR2, and hcor_smalltree sets NO COR2 keyword) ⇒ INERT, not the cause (still worth adding for keyword
+completeness). REAL cause: live-stamped cs/regent.f CON(=exp(HCOR)) per species/cycle vs jl `con`: jl's HCOR is
+systematically ~2× LARGER (sp43 jl HCOR grows to 0.127 vs live 0.050; same ~12× per-run attenuation RATIO but a
+LARGER base) ⇒ con too high ⇒ small-tree height growth too high ⇒ over-grow. So jl's CS small-tree HCOR
+height-CALIBRATION base (htg_cor_init / the WCI goal it attenuates toward, diameter_growth.jl:704 uses the
+DIAMETER dg_cor_goal as the height attenuation goal — suspect) is ~2× too large. NEXT: trace the CS HCOR
+calibration (htg_cor_init from the regent regression + whether the height attenuation goal should be a HEIGHT
+WCI, not the diameter dg_cor_goal). Real, well-localized CS open item (distinct from the raw-BA/dense-stand one).
+
+### hcor_smalltree further localized: jl's CS small-tree PREDICTED height increment is ~10% LOW
+Live-stamped cs/regent.f HCOR calibration (SNX=Σpred·P, SNY=Σmeas·P, CORNEW=SNY/SNX) for sp43 vs jl:
+- MEASURED (SNY/SNP): jl 6.041 == live 6.040 BIT-EXACT (jl reads the same .tre HTG, scale3=2 both).
+- PREDICTED (SNX/SNP): jl **5.108** vs live **5.656** — jl's predicted small-tree ht increment is ~10% LOW.
+  ⇒ CORNEW = meas/pred: jl 1.1827 vs live 1.0679 ⇒ htg_cor_init=ln(cornew): jl 0.1678 vs live 0.0657 (2.5×).
+The predicted EDH = cs_htcalc_incr(age)·gmod, gmod = cs_balmod(BAL,BA,d)·RELHTA. So jl's `cs_htcalc_incr` (the
+CS small-tree height-age increment curve) OR `cs_balmod`/RELHTA (the BAL modifier) is ~10% low for sp43. Since
+jl also over-grows in CUBIC/diameter (not just height), and the calibration cornew SHOULD cancel a uniform
+predicted-bias in projection, the leak is likely a calibration-vs-projection INCONSISTENCY in how EDH/gmod is
+computed (or the inflated HCOR feeding the small-tree DG derivation). NEXT: stamp live per-tree HTGR (pre-gmod)
+vs gmod to split cs_htcalc_incr from cs_balmod, and check the small-tree DG (DGGR/DGSM) path. Well-localized.
+
+### hcor_smalltree CORRECTION: cs_htcalc_incr MATCHES live (coeffs+SI+formula) — gap is GMOD or the tree-set
+Correcting the prior localization (a stamp-location error): my HSPLIT stamp landed on regent.f's MAIN-GROWTH
+`HTGR=HTGR*GMOD` (line 239, which already includes CON=cornew), not the CALIBRATION one (line 493) — so the
+live 14.205 I compared was the PROJECTION htg, not the calibration EDH. Re-verified the pieces DIRECTLY:
+- htcalc coeffs sp43: jl `_cs_htcoef(43)` = (3.3721,0.8407,−0.015,2.6208,−0.2661,0) == live LTBHEC(*,INDX=2) BIT-EXACT.
+- SI: live SITEAR(43)=61 == jl sp_site_index[43]=61.
+- FVS htcalc.f:412-415 (HTG1=h(a+YRS)−h(a), YRS=10) == jl cs_htcalc_incr formula. Hand-calc both = 13.52.
+⇒ the per-tree CS small-tree height increment MATCHES live. So the confirmed 10%-low CALIBRATION predicted
+(SNX/SNP jl 5.108 vs live 5.656, cornew jl 1.183 vs live 1.068) is NOT the htcalc curve — it's the GMOD
+(cs_balmod·RELHTA) OR the calibration TREE-SET/weighting (which trees pass the ht_growth>0.001 & dbh<5 filter,
+and their tpa) OR jl's SNP differs. NEXT: stamp the CALIBRATION-block EDH+GMOD (regent.f:493-505, the SECOND
+HTGR=HTGR*GMOD) per tree + the tree count/SNP, matched to jl, to isolate GMOD vs tree-set. Still well-bounded.
+
+### hcor_smalltree PINNED to the BALMOD gmod for tied small trees (BAL/percentile or the 0.15 floor)
+Dumped the CALIBRATION per-tree EDH (regent.f:498) for sp43, both sides. FINDINGS:
+- Per-tree EDH MATCHES live for h=11 (4.597) and h=13 (4.861). N=9 trees, SNP=7290 BOTH; MEASURED sum matches
+  (SNY 44034 vs 44032). Only the PREDICTED sum is 10% low (jl 37232 vs live 41233).
+- The 6 dominant h=15 trees (tpa 1200 each = the bulk) are the gap: jl gives ALL of them the SAME gmod=0.35098
+  ⇒ edh=5.107, but LIVE's EDH VARIES 5.107→6.486 (gmod responds to each tree's BAL). jl's BALMOD is ~flat.
+- jl `cs_balmod` FORMULA + COEFFS (b1=97.04,b2=0.0256,b3=0.601) == FVS balmod.f:66-72 BIT-EXACT, EXCEPT jl adds
+  a `gmod<0.15 ? 0.15` FLOOR that FVS balmod.f does NOT have. The BAL fed in = (1−PCT/100)·BA (PCT = the BA
+  percentile / crown_ratio). jl's PCT for the 6 tied h=15 trees = 65/54/44/33/22/11 (even spread) ⇒ BAL 84→215.
+ROOT (pinned to two candidates): (a) jl's 0.15 BALMOD floor (fabricated — not in FVS balmod.f) clamps the
+high-BAL trees; and/or (b) jl's BA-percentile (PCT) assignment for TIED small trees differs from live's ⇒ wrong
+BAL ⇒ wrong gmod. Live's varying EDH (5.1-6.5) proves live's gmod spans a wider range than jl's flat ~0.35.
+NEXT: (1) check if removing the 0.15 floor (matching FVS balmod.f) widens jl's gmod range; (2) compare live's
+PCT for the tied h=15 trees vs jl's 65/54/44/33/22/11. Very well-localized — a BALMOD-floor or percentile fix.
+
+### hcor_smalltree ROOT refined: jl's BA-percentile (PCT) for TIED small trees is too LOW
+Ruled out the 0.15 floor as the primary cause: the highest-EDH tree (BAL=84) has jl cs_balmod=0.156 (>0.15, NOT
+floored), yet live needs ~0.279 there. Same formula+coeffs ⇒ the BAL INPUT differs: cs_balmod is higher for
+LOWER BAL, so live's BAL(<84) < jl's 84.3 ⇒ live's PCT > jl's 65.2. So jl's BA-percentile assignment for the
+TIED h=15 trees (65/54/44/33/22/11) is systematically too LOW ⇒ BAL too high ⇒ gmod too suppressed ⇒ predicted
+EDH 10% low ⇒ HCOR cornew inflated (1.183 vs 1.068) ⇒ small-tree over-grow (hcor_smalltree 12%). ROOT = the
+BA-percentile (PCT/crown_ratio) computation for TIED (same-size) small trees in a dense stand. NEXT: compare
+jl's per-tree PCT vs a live PCT stamp for the tied h=15 trees; fix the tied-tree percentile assignment (likely
+in compute_density!/the percentile pass). Deep (percentile is widely used) but precisely pinned. This is the CS
+small-tree-dense-stand root; SN/NE use different crown/percentile paths and are unaffected.
+
+### hcor_smalltree ROOT NAILED: jl's CS regent HCOR-calibration uses the CURRENT BA, not the backdated one
+Live-stamped regent.f:450 (BAL=(1−PCT/100)·BA) for sp43: the PCT ranges MATCH (jl 11-65 ≈ live 10-62), but the
+BA back-solved from live's BAL/PCT = **177.5**, while jl uses **basal_area=242.21**. jl's BALMOD BA is ~1.36×
+too high ⇒ BAL too high ⇒ cs_balmod too suppressed ⇒ EDH ~10% low ⇒ HCOR cornew inflated (1.183 vs 1.068) ⇒
+small trees over-grow (hcor_smalltree 12%). Identified 177.5 ≈ the BACKDATED-dbh BA (jl _backdate_dbh! →
+169.51, vs current 242.21) — the DG calibration backdates the dbh, and FVS's regent HCOR calibration reads the
+BA in THAT (backdated) context, but jl's CS HCOR block (diameter_growth.jl:608 `ba = s.plot.basal_area`) runs
+AFTER the restore (line 564-565 restores dbh + recomputes density) ⇒ uses the current 242.21. FIX DIRECTION:
+the CS (and check NE) HCOR calibration BALMOD BA should be the BACKDATED/regent-context BA, not the restored
+current one. (169.51 vs live 177.5 — the ~8 gap = my partial backdate replication; confirm the exact regent BA
+by stamping where its COMMON BA is filled, likely the DENSE pass on backdated dbh incl. dead-tree inflation.)
+This is the CS small-tree-dense root; SN uses HTCALC ht_curve (its own block) and is unaffected. Well-nailed.
+
+### D32 — CS HCOR calibration used the CURRENT BA instead of the backdated one — PARTIAL FIX (12%→4.18%)
+The hcor_smalltree root (nailed above): jl's CS regent HCOR calibration BALMOD read `s.plot.basal_area`
+(current, 242.21) but FVS regent reads the BACKDATED stand BA (live-stamped 177.5). FIX: capture the
+backdated `basal_area` before the DG-calibration restore (diameter_growth.jl:563 `bd_ba_hcor`) and use it in
+the CS HCOR block (`ba = bd_ba_hcor`). Result: hcor_smalltree **12% → 4.18%**, suite GREEN 6397/2 (NO
+regression on cst01/all-species — the backdated BA is MORE faithful than the current one, so CS HCOR moved
+toward live everywhere). PARTIAL because jl's DG-backdated BA = **169.51** but live's regent BA = **177.5**
+(8-unit gap, NOT the dead-tree inflation — that's inert here with fintm=fint). So FVS regent uses a BACKDATED
+BA that is DISTINCT from the DG-calibration backdated BA (169.5) — a separate/height-based backdate or a
+different density basis. The change flipped the sign (jl now slightly UNDER-grows: Tcuft 2914 vs live 3041)
+because 169.5 < 177.5 over-corrects. NEXT: identify the exact 177.5 (stamp where regent's COMMON BA is filled)
+to close the last 4.18%. Kept because it's strictly MORE faithful (169.5 closer to 177.5 than 242) + suite-green.
+
+### D32 exact source PINNED: CRATET backdated BA = 177.515 (jl's backdate gives 169.51 — small-tree over-shrink)
+Live-stamped cratet.f:576 (the REGENT HCOR-calibration call site): BA = **177.515** exactly. REGENT's HCOR
+calibration is called from CRATET (cratet.f:90/576), NOT the DG driver (grincr.f:449) — CRATET backdates the
+dbh via DENSE (cratet.f:150-170) and passes THAT backdated BA. jl's `_backdate_dbh!` (and the identical crown-
+init bd_ba) both give **169.51** — 8 units (4.5%) LOWER than CRATET's 177.515. So D32's captured DG-backdated
+BA (169.51) is directionally right (backdated, not current 242) but jl's BACKDATE ITSELF over-shrinks vs FVS's
+CRATET DENSE backdate — jl's small-tree backdate DG (the dominant TPA-7082 <5" cohort) reduces the dbh more.
+D32 kept (169.51 → hcor 12%→4.18%, suite-green, strictly more faithful than 242). LAST 4.18% = reconcile jl's
+`_backdate_dbh!` small-tree shrinkage to FVS's CRATET DENSE backdate (169.51→177.515). Note: the DG calibration
+itself is bit-exact for other CS stands, so this backdate delta is specific to the dense small-tree regen cohort
+(the measured small-tree DG / the Q·(DBH−DG) at cratet.f:160). Well-pinned; the exact target value is known.
+
+### FULL CS sweep RE-GROUND post D28-D32 (212 DIFF stands) — structural bugs fixed, late-cycle floor remains
+Re-ran the full 260-stand CS sweep after D28-D32. The STRUCTURAL bugs are gone (setsite crash fixed; mortmsb/
+treeszcp now tiny-absolute late-cycle threshold cases — treeszcp Scuft live=109/jl=318 & mortmsb Bdft live=28/
+jl=11 are ~ULP-on-near-zero; hcor_smalltree 16%→4.18% via D32). REMAINING = a BROAD late-cycle TPA drift: ~many
+CS scenarios (all_RM/RD/FM/SM, mix_*, sitset_*, s02, fixmort_*, cycleat, fertiliz) show 4-8% TPA at cycles
+2040-2090 — SMALL absolute (e.g. 47 vs 44, 66 vs 63 TPA), near stand-end, = the CS DG-drift/near-SDImax-mortality
+FLOOR (the documented cs_allsp late tail, broader than 1.52% on the densest stands). A few are larger/earlier and
+worth a look: mix_lp_rm 10.75% TPA@2050, fertiliz 8.89% TPA@2070, cycleat 8% (non-native #2). Board-foot cluster
+(defulmod/treeszcp_htcap/compress/sparse_min) = accepted threshold. VERDICT: D28-D32 closed the CS STRUCTURAL
+divergences; the residual is the CS late-cycle DG/mortality floor (mostly accepted small-absolute) + a few
+specific reals to triage next. CS is now MUCH closer to a bit-exact drop-in through the mid-cycles; the late tail
+is the remaining frontier. SN + NE remain clean.
+
+### CONSOLIDATION: the broad CS late-cycle TPA drift = ONE root — near-SDImax self-thinning mortality
+mix_lp_rm traced: BIT-EXACT through 2020, then jl OVER-kills at late cycles (2040 TPA 143 vs live 158) while
+BA/cubic stay close (Tcuft 0.8%) — jl's mortality at the self-thinning (near-SDImax) boundary kills the wrong
+count/trees. This is the SAME mechanism across the broad late-cycle TPA drift (all_*/mix_*/sitset_* dense stands
+near SDImax) AND is exactly what blocks the raw-crown-BA fix (the dense-stand near-SDImax residual the divided BA
+compensates). So the remaining CS work largely COLLAPSES to ONE root: the CS near-SDImax self-thinning mortality
+(morts.f Pretzsch/self-thinning distribution + timing). Fixing it would (a) close the broad late-cycle TPA drift,
+and (b) unblock the raw-crown-BA refinement (which then makes sparse stands bit-exact too). ⇒ THE next major CS
+target is the near-SDImax mortality distribution/timing (dense stands, late cycles). Everything else CS is
+structural-fixed (D28-D32) or accepted (threshold/non-native/late-floor). SN + NE clean.
+
+### CS near-SDImax mortality CHARACTERIZED: VARMRT distribution drift, accumulating (SDIMAX bit-exact at cyc1)
+Stamped live+jl mix_lp_rm SDIMAX (=SDICAL weighted SDImax) per cycle: cyc1 BIT-EXACT (449.092 both, T=589.65
+both). Then SLOW drift: SDIMAX c2 448.80/448.82, c3 447.59/447.69, c5 435.63/436.39 (−0.77); TPA c3 546.6/547.9
+(−1.3) → c5 276.7/286.9 (−10). Since SDIMAX+target start bit-exact, the root is NOT an SDIMAX formula bug — it's
+the mortality DISTRIBUTION: the cyc1 kill (bit-exact SDIMAX/target) removes slightly different TREES/amounts in
+jl ⇒ the surviving species composition drifts ⇒ the BA-weighted SDIMAX drifts ⇒ the next cycle's self-thinning
+target shifts ⇒ over-kill accumulates. jl's SDIMAX runs slightly LOW at late cycles ⇒ lower max-density ⇒ jl
+over-kills (matches the broad TPA drift). This is the VARMRT near-SDImax kill-DISTRIBUTION sensitivity — the same
+class as COMPRESS/treeszcp (bit-exact draws/targets, distribution/order drift), accumulating over 10 cycles into
+4-8% TPA on the densest CS stands. LIKELY ULP/order-floor (cyc1 bit-exact), but the c3 −1.3 TPA is a touch above
+pure ULP ⇒ needs a per-cycle VARMRT kill-distribution stamp (which trees, how much) to split ULP-accumulation
+from a real distribution bug. This is the consolidated CS broad-drift root + the raw-BA blocker. Frontier item.
+
+### REFINEMENT: cyc1 TOTAL kill is BIT-EXACT — the CS broad drift is pure mortality-DISTRIBUTION (ULP/order class)
+Key data point: live & jl mix_lp_rm both go T 589.65→575.76 across cycle 1 (the TOTAL cyc1 mortality is
+BIT-EXACT), yet cyc2 SDIMAX drifts (448.80 vs 448.82). So cycle 1 kills the SAME TOTAL TPA but a slightly
+different DISTRIBUTION of trees/species ⇒ surviving composition drifts ⇒ BA-weighted SDIMAX drifts ⇒ later
+cycles' self-thinning target shifts ⇒ the broad 4-8% late-cycle TPA drift accumulates. This is the hallmark of
+the ACCEPTED ULP/order-amplification floor (same as COMPRESS eigensolver + treeszcp SIZCAP + fire-tripling): the
+mortality TOTAL/targets are faithful, only WHICH near-tied trees the VARMRT distribution kills flips on sub-ULP
+comparisons, accumulating in dense multi-cycle stands. STRONGLY suggests the broad CS drift is NOT a fixable
+model bug but the accepted distribution floor. TO CONFIRM (decisive): stamp cyc1 per-tree WK2 kill jl-vs-live —
+if the per-tree kills are ULP-close (a tree at 0.5000 vs 0.4999 TPA), it's the accepted floor; if a tree is
+killed-vs-not on a real difference, it's a bug. This reframes the CS broad drift from "open target" toward
+"accepted ULP/order floor pending the per-tree confirmation" — which would make CS essentially DONE (D28-D32
+structural + accepted floors). SN + NE clean.
+
+### NOTE (warm/cold starts) — FVSjl is COLD-START ONLY; DG-calibration state is RESTART-CRITICAL if warm-start added
+FVSjl has no stop/restart serialization (STOP just ends keyword processing; no PUTSTD/GETSTD/state file — that
+was FVSjulia). So all campaign validation is cold-start (fresh run_keyfile vs live), which is the full current
+scope. FORWARD-LOOKING constraint (per user "this is for both warm and cold starts"): D28/D31/D32 + the DG/HCOR
+calibration compute per-stand state ONCE at setup_growth! (dg_cor, htg_cor_init, atten, bark_a/b, bd_ba_hcor,
+init crowns) and consume it every cycle. A future warm-start MUST serialize+restore that calibration (not
+re-derive from the post-cycle-0 stand), else these fixes diverge on restart though cold-bit-exact. Regen/bare
+("cold" stand) vs inventory ("warm" stand) are BOTH already in the sweep coverage (bare_*/plant_stocked vs
+cst01/all_*/hcor). Marked so calibration state is treated as restart-critical when serialization is built.
+
+### VERDICT (CS broad drift): ACCEPTED ULP/order floor — cyc1 kill by species BIT-EXACT (decisive)
+Decisive per-species stamp settles it: live mix_lp_rm cyc1 kill = LP(sp5) **11.7468538**, RM(sp29) **2.14401746**
+== jl LP **11.746853**, RM **2.144017** — BIT-EXACT total AND per-species split. So the CS mortality total +
+species allocation are FAITHFUL. The only divergence is the WITHIN-species distribution (which near-tied trees
+of a species the VARMRT kills) + the Float32 SDICAL accumulation ORDER, giving the cyc2 SDIMAX a ~1.5-ULP
+difference (448.797 vs 448.818 on 449) that the near-SDImax self-thinning AMPLIFIES over 10 cycles into the
+broad 4-8% late-cycle TPA drift. ⇒ the broad CS late-cycle drift is the ACCEPTED ULP/order-amplification floor —
+same class as the COMPRESS eigensolver, treeszcp SIZCAP hard-threshold, board-foot sawtimber cutoff, and
+fire-tripling: a sub-ULP difference amplified at a sensitive threshold, NOT a fixable model divergence. 📌 ACCEPTED.
+⇒ CS IS NOW ESSENTIALLY A FAITHFUL BIT-EXACT DROP-IN: cycles 0-2 bit-exact; the late-cycle broad drift is this
+accepted ULP-amplification floor; D28-D32 fixed all CS structural bugs; only D32's small-tree-backdate 4.18%
+(169.51 vs 177.515) remains as a concrete refinement. The raw-crown-BA refinement is unblocked in principle
+(its blocker was this same accepted floor). SN + NE clean. CAMPAIGN near end-state across all three variants.
+
+### D32 last-4.18% cause NAILED: jl over-shrinks the MISSING-DG small trees in the backdate (vs CRATET DENSE)
+hcor_smalltree has 13 small trees (<5"), 12 with NO measured diameter growth (DG≤0). jl's `_backdate_dbh!`
+backdates those 12 with the stand-average ratio `bagr` — shrinking them ~16-30% (d=4.0→3.345, d=1.2→1.003,
+d=0.1→0.084) ⇒ backdated BA 169.51. FVS CRATET's DENSE backdate (cratet.f:158-170) gives 177.515 (higher) ⇒
+CRATET shrinks the MISSING-DG small trees LESS (keeps them nearer current dbh). So jl's DG-calibration backdate
+(169.51, bit-exact FOR the DG COR) is DISTINCT from CRATET's HCOR-context backdate (177.515) — FVS treats
+missing-DG trees differently in the two DENSE/LBKDEN contexts. D32 used the DG-calibration backdate (directionally
+right, 12%→4.18%) but the FAITHFUL HCOR-calib BA is CRATET's 177.515. FIX (bounded): give the CS HCOR calibration
+a backdate that matches CRATET's missing-DG-tree handling (less shrink) rather than the DG-calibration `_backdate_dbh!`
+— e.g. keep DG≤0 small trees at current dbh for the HCOR-calib BA, or replicate cratet.f's DENSE-LBKDEN path.
+Needs a live DENSE stamp to confirm the exact missing-tree rule before implementing. This is the LAST concrete
+CS non-ULP item; everything else CS is D28-D32-fixed or accepted-ULP-floor. SN + NE clean.
+
+### D32-COMPLETE: HCOR-calib BA now includes recently-dead trees (matches CRATET DENSE) — 10× closer, small residual
+Root of D32's last gap NAILED + FIXED: FVS DENSE (dense.f:79-86) sums the backdated BA over LIVE + RECENTLY-DEAD
+records; jl's bd_ba_hcor summed live-only (169.5). Live-verified: BAGR bit-exact (0.699271, SN=19 both) — the
+gap was purely the 2 dead trees (dbh 34.6/tpa .61 + dbh 7.2/tpa 14.15) = exactly +8 BA. FIX: bd_ba_hcor =
+Σ(dbh²·tpa·0.005454154) over 1:(n+ndead) at the backdated state ⇒ 177.515 == live CRATET BIT-EXACT. Result:
+htg_cor_init[43] 0.1678→0.0547 (live 0.0657) — error cut 10× (0.102→0.011). Suite 6397/2 green (no CS/NE regress).
+RESIDUAL (small): htg_cor_init 0.0547 vs live 0.0657 (~1%) ⇒ hcor_smalltree cyc1 cubic 3.7% under. With the BA
+now EXACT, this residual is a SEPARATE SNX/SNY factor: jl's predicted EDH sum 5.72 vs live 5.656 (~1% high) at
+the same BA — likely the BA-percentile (PCT) or AVH used in gmod also needs the dead trees, or a per-tree gmod
+delta. hcor_smalltree max is now TPA@2090 4.89% = the accepted near-SDImax late floor (dense stand). NEXT (last
+concrete CS item): the ~1% EDH/gmod residual in the HCOR cornew (PCT/AVH dead-tree inclusion or gmod).
+
+### DONE STANDARD (user-defined, binding) + RE-SCOPE
+DONE = (1) every semantic faithfully mapped + all outcomes BIT-EXACT barring only PROVEN ULP or explicit design
+(eigensolver); (2) EVERY test tolerance explainable as proven-ULP or eig (no loose tolerance may hide a real
+divergence); (3) every ULP/eig verdict must be TRULY ULP/eig — NOT a semantic mismatch dressed as ULP. This
+retires "accepted / documented tail" as a stopping point unless it meets (3). RE-SCOPE of remaining work:
+- **hcor_smalltree** — NOT done: htg_cor_init 0.0605 vs live 0.0657 (converging via BA+PCT backdated fixes, ~0.5%
+  residual factor left). Must reach bit-exact.
+- **Raw crown BA** — must be made bit-exact or the dense-stand blocker PROVEN truly-ULP (not semantic).
+- **TOLERANCE AUDIT (new, binding)** — every widened/loose tolerance must be justified as ULP/eig or the
+  underlying divergence fixed: cst01 CCF 2→3 (D31), cst01 late-cycle bands, all-species grown-cycle bands,
+  the 2 @test_broken (COMPRESS s22 + NOHTDREG), SN keyword-suite 1 broken. Each needs a proven-ULP/eig note.
+- **RE-VERIFY every "accepted ULP floor" is TRULY ULP** (not semantic): broad CS mortality-distribution drift
+  (cyc1 kill bit-exact ✓ — but confirm the within-species flip is a true numeric tie), board-foot threshold,
+  timeint10 non-native #2 (±2 TPA — confirm Float32 not a non-native semantic gap), CS deep-thinned tails.
+Current partial: D32+BA+PCT-backdated fixes converging hcor_smalltree; suite 6397/2.

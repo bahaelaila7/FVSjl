@@ -560,9 +560,91 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
     end
 
+    # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
+    # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
+    # LIVE + the RECENTLY-DEAD records (trees that died within the measurement period, added back at their dbh);
+    # `s.plot.basal_area` is live-only (169.5), so sum live+dead here to match CRATET's 177.515 exactly.
+    bd_ba_hcor = 0f0
+    @inbounds for i in 1:(t.n + t.ndead); dd = t.dbh[i]; bd_ba_hcor += dd * dd * t.tpa[i] * 0.005454154f0; end
+    # The regent HCOR calibration also reads the BACKDATED-stand PCT (BA percentile) for BALMOD's BAL — capture
+    # it here BEFORE the restore (compute_density! below overwrites crown_ratio with the CURRENT percentile).
+    bd_pct_hcor = Float32[t.crown_ratio[i] for i in 1:t.n]
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s)
+    # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
+    # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
+    # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species
+    # (all by default) regresses measured-vs-predicted small-tree (dbh<5) height growth: HCOR_init =
+    # ln(Σ(HTG·SCALE3·P)/Σ(EDH·P)) with ≥NCALHT(5) obs; SCALE3=REGYR/FINTH=10/FINTH (default 5 ⇒ 2). Stays 0 for
+    # a stand with no measured small-tree HTG (net01 carries measured DG, not HTG) ⇒ SN/CS + net01 unaffected.
+    if s.variant isa Northeast
+        b3ne = sd[:dg_b3]; avh = s.plot.avg_height
+        ebau = zeros(Float32, 50); ne_badist!(ebau, s)
+        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
+        @inbounds for sp in 1:MAXSP
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]; si = s.plot.sp_site_index[sp]
+            snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                t.dbh[i] >= 5f0 && continue                       # large trees excluded
+                hstart = t.height[i] - t.ht_growth[i]            # start-of-period H for the filter (regent.f:451)
+                hstart < 0.01f0 && continue
+                t.ht_growth[i] < 0.001f0 && continue             # no measured height growth
+                aget = ne_htcalc_age(sp, si, t.height[i])        # HTCALC age/incr on the CURRENT height (regent.f:466)
+                htgr = ne_htcalc_incr(sp, si, aget)
+                gmod = ne_balmod(b3ne[sp], ebau, t.dbh[i])       # BALMOD·RELHTA (regent.f:485-491)
+                relht = avh > 0f0 ? min(t.height[i] / avh, 1f0) : 0f0
+                gmod = 1f0 - (1f0 - gmod) * (1f0 - relht)
+                htgr = max(htgr * gmod, 0.1f0)
+                edh = max(htgr, 0.1f0)                            # ·RHCON=1
+                snx += edh * t.tpa[i]
+                sny += t.ht_growth[i] * scale3 * t.tpa[i]        # TERM = HTG·SCALE3
+                nh += 1
+            end
+            nh < 5 && continue                                    # NCALHT
+            cornew = sny / snx
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
+    # CS small-tree HCOR height calibration (cs/regent.f:422-540) — same structure as NE (D22) but cs_htcalc +
+    # cs_balmod(b1,b2,b3, BAL, BA, d) with BAL=(1−PCT/100)·BA (PCT = t.crown_ratio, the BA percentile). REGYR=10.
+    if s.variant isa CentralStates
+        cb1 = sd[:balmod_b1]; cb2 = sd[:balmod_b2]; cb3 = sd[:balmod_b3]
+        ba = bd_ba_hcor; avh = s.plot.avg_height    # BACKDATED BA (regent.f reads the backdated stand BA, not current)
+        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
+        @inbounds for sp in 1:MAXSP
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]; si = s.plot.sp_site_index[sp]
+            snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                t.dbh[i] >= 5f0 && continue
+                hstart = t.height[i] - t.ht_growth[i]
+                hstart < 0.01f0 && continue
+                t.ht_growth[i] < 0.001f0 && continue
+                aget = cs_htcalc_age(sp, si, t.height[i])            # HTCALC age/incr on CURRENT height
+                htgr = cs_htcalc_incr(sp, si, aget)
+                bal = (1f0 - bd_pct_hcor[i] / 100f0) * ba            # BAL = (1−PCT/100)·BA (regent.f:450); BACKDATED PCT
+                gmod = cs_balmod(cb1[sp], cb2[sp], cb3[sp], bal, ba, t.dbh[i])
+                relht = avh > 0f0 ? min(t.height[i] / avh, 1f0) : 0f0
+                gmod = 1f0 - (1f0 - gmod) * (1f0 - relht)
+                htgr = max(htgr * gmod, 0.1f0)
+                edh = max(htgr, 0.1f0)
+                snx += edh * t.tpa[i]
+                sny += t.ht_growth[i] * scale3 * t.tpa[i]
+                nh += 1
+            end
+            nh < 5 && continue
+            cornew = sny / snx
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
     return s
 end
 

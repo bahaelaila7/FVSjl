@@ -368,9 +368,16 @@ function apply_volume_overrides!(s::StandState; fint::Float32 = 5f0)
     isempty(s.control.volume_events) && return s
     s.control.merch_init || init_merch_standards!(s)
     c = s.control
-    yr = cycle_year_at(c, Int(c.cycle))   # IY schedule (TIMEINT/CYCLEAT-aware)
+    # OPCYCL containing-cycle bucketing (opcycl.f:58-64, same as the SIMFIRE _fire_due gate): a VOLUME/
+    # BFVOLUME/MC-BFDEFECT at date D takes effect in the cycle with IY(i) ≤ D < IY(i+1) and stays applied
+    # after — so a mid-cycle date (e.g. 1995 in a 10-yr NE cycle 1990→2000) applies THIS cycle, not one late.
+    # The condition is `D < cycle_END`: for D in [cs,ce) it's this (containing) cycle, for D<cs a past cycle
+    # already applied. For a BOUNDARY date (SN 5-yr, D=cycle start) this is identical to the old `D ≤ cs` —
+    # 1995 ∈ [1995,2000) either way — so SN stays bit-exact; only mid-cycle dates shift one cycle earlier.
+    cyc = Int(c.cycle); cs = cycle_year_at(c, cyc)
+    ce = cycle_year_at(c, cyc + 1); ce <= cs && (ce = cs + 1)   # degenerate/last cycle ⇒ exact-match
     for ev in c.volume_events
-        Int(ev.year) <= yr || continue
+        Int(ev.year) < ce || continue
         isp = round(Int, ev.params[1])
         if ev.icflag == Int32(217)        # VOLUME — cubic merch standards
             _set_merch_sp!(c, c.sp_dbh_min,    isp, ev.params[2])
@@ -402,6 +409,45 @@ from the R8 Clark taper model and the per-stand merch standards (Control.sp_*,
 overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
 `species.vol_eq`.
 """
+# Shared per-tree volume-defect correction (FVS vols.f:285-432, the same ICDF/IBDF block for SN Clark AND
+# the NE/CS R9 path — vols.f is the variant-agnostic driver). Cuts the pulpwood part (mcf−scf) by ICDF%
+# and board feet + sawtimber cubic by IBDF%, each the MAX of: the per-tree DEFECT input (packed decimal),
+# the MCDEFECT/BFDEFECT DBH curve (ALGSLP), and the MCFDLN/BFFDLN log-linear form model. Returns the
+# corrected (mcf, scf, bf) with mcf = pulpv + post-board-defect scf. NINT throughout (ties away from zero).
+@inline function _apply_tree_defect(mcf::Float32, scf::Float32, bf::Float32, d::Float32, sp::Integer,
+                                    dpack::Integer, cfdef, bfdef, cff0, cff1, bff0, bff1,
+                                    anydef_cf::Bool, anydef_bf::Bool)
+    icdf = dpack ÷ 1000000
+    (anydef_cf && mcf > scf) &&     # NINT (vols.f:13,21), not Julia ties-to-even
+        (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
+    temvol = mcf - scf
+    if temvol > 0f0 && (cff0[sp] != 0f0 || cff1[sp] != 1f0)
+        volcor = exp(cff0[sp] + cff1[sp] * log(temvol))
+        icdf = max(icdf, round(Int, (temvol - volcor) / temvol * 100f0, RoundNearestTiesAway))
+    end
+    icdf = clamp(icdf, 0, 99)
+    pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
+    # vols.f:352,415-420: the INPUT board-defect is applied to BFV *and* SCFV even when BFV=0 — a
+    # too-small-for-boardfeet tree (BFV=0, SCFV>0) still loses sawtimber cubic to its input BF defect.
+    # ONLY the curve/form IBDF updates (BFDEFT, log-linear) are gated on BFV>0 (vols.f:393); NINT throughout.
+    ibdf = (dpack ÷ 10000) % 100
+    if bf > 0f0
+        anydef_bf &&
+            (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
+        if bff0[sp] != 0f0 || bff1[sp] != 1f0
+            volcorb = exp(bff0[sp] + bff1[sp] * log(bf))
+            ibdf = max(ibdf, round(Int, (bf - volcorb) / bf * 100f0, RoundNearestTiesAway))
+        end
+    end
+    ibdf = clamp(ibdf, 0, 99)
+    if ibdf >= 99
+        bf = 0f0; scf = 0f0
+    elseif ibdf > 0
+        f = 1f0 - ibdf * 0.01f0; bf *= f; scf *= f
+    end
+    return pulpv + scf, scf, bf
+end
+
 function compute_volumes!(s::StandState)
     # Eastern variants (NE + CS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
     # differing only in the IFOR merch standards (_ne_merch / _cs_merch, dispatched inside).
@@ -518,37 +564,8 @@ function compute_volumes!(s::StandState)
         # CFDEFT/BFDEFT DBH curve, and the MCFDLN/BFFDLN log-linear form model VOLCOR=exp(B0+B1·ln(V))
         # (the implied % reduction (V−VOLCOR)/V); the form coefs default to 0/1 ⇒ no-op.
         if anydef
-            dpack = Int(t.defect[i])
-            # ICDF = max(per-tree CF defect, CFDEFT curve, cubic form model on the pulpwood MCFV−SCFV).
-            icdf = dpack ÷ 1000000
-            (anydef_cf && mcf > scf) &&     # NINT (vols.f:13,21), not Julia ties-to-even
-                (icdf = max(icdf, clamp(round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
-            temvol = mcf - scf
-            if temvol > 0f0 && (cff0[sp] != 0f0 || cff1[sp] != 1f0)
-                volcor = exp(cff0[sp] + cff1[sp] * log(temvol))
-                icdf = max(icdf, round(Int, (temvol - volcor) / temvol * 100f0, RoundNearestTiesAway))
-            end
-            icdf = clamp(icdf, 0, 99)
-            pulpv = icdf >= 99 ? 0f0 : (mcf - scf) * (1f0 - icdf * 0.01f0)
-            # vols.f:352,415-420: the INPUT board-defect is applied to BFV *and* SCFV even when BFV=0 — a
-            # too-small-for-boardfeet tree (BFV=0, SCFV>0) still loses sawtimber cubic to its input BF defect.
-            # ONLY the curve/form IBDF updates (BFDEFT, log-linear) are gated on BFV>0 (vols.f:393); NINT throughout.
-            ibdf = (dpack ÷ 10000) % 100
-            if bf > 0f0
-                anydef_bf &&
-                    (ibdf = max(ibdf, clamp(round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0, RoundNearestTiesAway), 0, 99)))
-                if bff0[sp] != 0f0 || bff1[sp] != 1f0
-                    volcorb = exp(bff0[sp] + bff1[sp] * log(bf))
-                    ibdf = max(ibdf, round(Int, (bf - volcorb) / bf * 100f0, RoundNearestTiesAway))
-                end
-            end
-            ibdf = clamp(ibdf, 0, 99)
-            if ibdf >= 99
-                bf = 0f0; scf = 0f0
-            elseif ibdf > 0
-                f = 1f0 - ibdf * 0.01f0; bf *= f; scf *= f
-            end
-            mcf = pulpv + scf
+            mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
+                                              cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)
         end
         t.cuft_vol[i]       = tcf
         t.merch_cuft_vol[i] = mcf

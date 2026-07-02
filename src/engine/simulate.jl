@@ -35,16 +35,27 @@ function setup_growth!(s::StandState)
     # differs — so it runs for NE too (it was wrongly skipped: net01 HAS measured DG ⇒ COR≠0). NE's DGCONS
     # is just the bark copy (ne/dgf.f:188 zeros DGCON/ATTEN); init_crown_ratios! is SN CRATET (NE DG uses BAL).
     dfint = s.control.growth_fint
+    # DG-calibration TERM scale = YR/FINT (dgdriv.f:325). YR = the variant's NATIVE measurement period
+    # (htg_period: 5 SN, 10 NE/CS), NOT a hardcoded 5 — the old `5f0/dfint` under/over-scaled NE/CS explicit
+    # GROWTH FINT (growth_fint10: NE 14300→17746 bit-exact). The GROWTH FINT struct-default is 5 ("native"), so
+    # treat dfint==5 (or unset) as YR ⇒ scale 1 for ALL variants (keeps NE/CS DEFAULT stands bit-exact —
+    # net01/cst01 have no GROWTH keyword); only an EXPLICIT non-native FINT scales. Mirrors the `meas_fint`
+    # convention in diameter_growth!. `growth_dg_set` (set in kw_growth! when the GROWTH keyword gives FINT)
+    # distinguishes an EXPLICIT NE/CS `GROWTH FINT=5` (non-native ⇒ scale 10/5=2, growth_idg1) from the struct
+    # default 5 — a plain default of 0 was tried and regressed ~1637 tests (the 5 default is relied on elsewhere).
+    yr = htg_period(s.variant)
+    dgscale = (s.control.growth_dg_set && dfint > 0f0) ? yr / dfint : 1f0
     if s.variant isa Southern
         dgcons!(s)                        # sets bark_a/bark_b + the SN DGCON
         init_crown_ratios!(s)             # CRATET — dub inventory crown (DENSE backdated-dbh CCF) before calibrate
-        calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+        calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
-        calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+        calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralStates
         cs_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT)
-        calibrate_diameter_growth!(s; scale = dfint > 0f0 ? 5f0 / dfint : 1f0)
+        _cs_init_crowns!(s)               # CRATET: dub missing crowns (backdated-dbh BA) before calibrate — cs/dgf.f reads CR
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -134,9 +145,13 @@ warns but still applies the (species-agnostic) factor, so we match.
 function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
     c = s.control
     (isempty(c.fertilize_events) && c.ifert_date < 0) && return s
-    yr = cycle_year_at(c, Int(c.cycle))   # IY schedule (TIMEINT/CYCLEAT-aware)
+    yr = cycle_year_at(c, Int(c.cycle))   # IY schedule (TIMEINT/CYCLEAT-aware) = cycle START
+    # OPCYCL containing-cycle bucketing: a FERTILIZE at a mid-cycle date (1995 in a 10-yr NE cycle 1990→2000)
+    # activates THIS cycle, and FVS sets IFFDAT=IY(ICYC) — the cycle-START year, NOT the keyword date (ffert.f:75)
+    # — so `ifert_date = yr` here is correct (full-cycle effect from the cycle start). Boundary dates unchanged.
+    ce = cycle_year_at(c, Int(c.cycle) + 1); ce <= yr && (ce = yr + 1)
     @inbounds for ev in c.fertilize_events           # a fert scheduled this cycle becomes active (OPDONE)
-        Int(ev.year) == yr && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
+        (yr <= Int(ev.year) < ce) && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
     end
     c.ifert_date < 0 && return s
     ifint  = round(Int, fint)
@@ -338,6 +353,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
         apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMTRET)
         apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET)
+        # FVS runs the cut-phase FFE activities (FMSALV/FMTRET, in cuts.f) BEFORE FMMAIN's FMBURN, so the
+        # salvaged snags' released CWD2B crown debris (and any fuel moved) is part of the down-wood the fire
+        # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between
+        # then and here touches `cwd`, so on a fire cycle re-stash it to reflect the post-salvage down wood.
+        fuel_period !== nothing && (s.fire.fire_smlg = _small_large_fuel(s.fire))
     end
     if econ_on
         yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
@@ -428,6 +448,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
+    compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
+                                            # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
+                                            # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
     crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted

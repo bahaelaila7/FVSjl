@@ -204,7 +204,7 @@ end
 function kw_growth!(s::StandState, rec::KeywordRecord)
     v = rec.values; pr = rec.present
     pr[1] && (s.control.growth_idg = nint(v[1]))
-    pr[2] && v[2] > 0f0 && (s.control.growth_fint = Float32(v[2]))
+    pr[2] && v[2] > 0f0 && (s.control.growth_fint = Float32(v[2]); s.control.growth_dg_set = true)
     pr[3] && (s.control.growth_ihtg = nint(v[3]))
     pr[4] && v[4] > 0f0 && (s.control.growth_finth = Float32(v[4]))
     pr[5] && v[5] > 0f0 && (s.control.growth_fintm = Float32(v[5]))
@@ -595,7 +595,18 @@ function apply_setsite!(s::StandState)::Bool
         end
         applied = true
     end
-    applied && dgcons!(s)
+    # Re-seed the per-stand DG constants for the NEW site — variant-dispatched exactly like setup_growth!
+    # (SN dgcons! recomputes DGCON from site_coef·site_index; NE/CS zero DGCON and read site in the DDS
+    # term, so their hooks avoid the SN-only :dg_prior_obs_count coefficient that crashed CS SETSITE).
+    if applied
+        if s.variant isa Southern
+            dgcons!(s)
+        elseif s.variant isa Northeast
+            ne_dgcons!(s)
+        elseif s.variant isa CentralStates
+            cs_dgcons!(s)
+        end
+    end
     return applied
 end
 
@@ -1238,7 +1249,25 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # Only the −999 "no species" sentinel (an unrecognized alpha code) flips LSPRUT off (esin.f:625);
             # NOSPROUT is the explicit disable. (Live FVScs: blank `SPROUT 2000.` == `SPROUT 2000. 0.0`.)
             isp = r.present[2] ? Float32(r.values[2]) : 0f0   # SPDECD selector (0/all, <0/group, >0/single)
-            if isp == -999f0
+            # esin.f:630-655 VALIDATES the species is a valid SPROUTER (in ISPSPE / the variant's is_sprouting
+            # set). A single species that can't sprout — or a group where NOT ALL members sprout, or the −999
+            # no-species sentinel — signals an error and sets LSPRUT=.FALSE. (disables sprouting). isp=0 (all
+            # species) is always valid. This is VARIANT-AWARE via is_sprouting: SPROUT 22 is valid in SN (sp 22
+            # sprouts) but disables sprouting in NE (sp 22 ∉ ISPSPE) — the sprout.key-through-NE over-sprout.
+            ispi = Int(round(isp)); issp = coef_col(s.coef, :is_sprouting)
+            _sprouter(sp) = 1 <= sp <= length(issp) && issp[sp] == 1f0
+            valid_sprout = if ispi == -999
+                false
+            elseif ispi == 0
+                true
+            elseif ispi < 0
+                g = -ispi
+                grp = (1 <= g <= length(s.control.sp_groups)) ? s.control.sp_groups[g] : Int32[]
+                !isempty(grp) && all(sp -> _sprouter(Int(sp)), grp)
+            else
+                _sprouter(ispi)
+            end
+            if !valid_sprout
                 s.control.lsprut = false
             else
                 s.control.lsprut = true

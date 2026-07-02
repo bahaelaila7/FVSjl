@@ -284,6 +284,8 @@ mutable struct Control
     potfire_report_on::Bool                   # POTFIRE: emit the Potential Fire (FMPOFL) report                    (IPFLMB/E)
     unrecognized_keywords::Set{String}        # keywords seen but neither dispatched nor a KNOWN_NOOP — surfaced
                                               # so a silently-ignored SN semantic (e.g. YARDLOSS) can't hide
+    growth_dg_set::Bool                       # GROWTH: was the DG measurement period (FINT) set by a GROWTH keyword?
+                                              # (distinguishes an EXPLICIT FINT=5 — non-native on NE/CS — from the default)
 end
 
 function Control()
@@ -344,6 +346,7 @@ function Control()
         false, Int32(0), Int32(0),                               # carbon_report_on, carbon_method=FFE, carbon_units=US-t/ac (FVS fminit.f defaults)
         false,                                                   # potfire_report_on (POTFIRE)
         Set{String}(),                                           # unrecognized_keywords
+        false,                                                   # growth_dg_set (GROWTH FINT explicitly set?)
     )
 end
 

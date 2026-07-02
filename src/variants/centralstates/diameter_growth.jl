@@ -119,12 +119,38 @@ OBSERV (per-species observation count, the DGDRIV calibration prior weight), SMC
 per-stand bark copy (`calib.bark_a/b` ← intercept 0 / slope BKRAT) the CFTOPK + DGDRIV read.
 """
 function cs_dgcons!(s::StandState)
-    c = s.calib; sd = s.coef.species
+    c = s.calib; sd = s.coef.species; ctl = s.control
     ba = sd[:bark_intercept]; bb = sd[:bark_slope]; obs = sd[:dg_observ]
     @inbounds for sp in 1:MAXSP
         c.bark_a[sp] = ba[sp]; c.bark_b[sp] = bb[sp]
         c.dg_const[sp] = 0f0
         c.atten[sp] = obs[sp]              # ATTEN = OBSERV(ISPC) — cs/dgf.f:590
+        # READCORD/REUSCORD (LDCOR2): add ln(COR2) to DGCON (cs/dgf.f:597-598), same as the SN dgcons! path.
+        ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (c.dg_const[sp] += log(ctl.dg_cor2[sp]))
     end
+    return s
+end
+
+"""
+    _cs_init_crowns!(s)
+
+CS CRATET: dub the INITIAL crown ratio for inventory trees with no input crown (`crown_pct==0`),
+using the eastern (TWIGS) crown model, so the calibration `dgf!` sees a real crown (its `CRWNC·CR +
+CRSQC·CR²` terms) rather than the 0→10 fallback. FVS runs this dub AFTER DGDRIV's DENSE backdate, so
+the stand BA the crown model reads is the BACKDATED-dbh total per-acre BA (crown.f COMMON `BA`) —
+computed here on the backdated diameters, then the current dbh is restored (the crown formula's own D
+stays the current dbh, matching crown.f). No-op if every tree already has a crown. (SN's analogue is
+`init_crown_ratios!`; NE's DGF uses BAL not crown, so NE needs no crown at calibration.)
+"""
+function _cs_init_crowns!(s::StandState)
+    t = s.trees; n = t.n
+    n == 0 && return s
+    any(@views t.crown_pct[1:n] .== 0) || return s
+    saved_dbh = Float32[t.dbh[i] for i in 1:n]
+    _backdate_dbh!(s)
+    bd_ba = 0f0
+    @inbounds for i in 1:n; d = t.dbh[i]; bd_ba += d * d * t.tpa[i] * 0.005454154f0; end
+    @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end
+    crown_ratio_update!(s, s.variant; ba_override = bd_ba, lstart = true)
     return s
 end
