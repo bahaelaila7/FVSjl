@@ -1541,9 +1541,18 @@ bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live cr
   2040 103/109, 2050 65/60. NOT a slow 1-tree/cycle accumulation — it's a DENSITY-DEPENDENT SELF-THINNING
   OVER-KILL concentrated at the ~2030 density PEAK (BA ~181-188, near SDImax), where jl kills ~8 more than
   live; the TPA% then looks large because the residual denominator is small. BA + Tcuft stay ~bit-exact
-  (volume impact ~1%). ⇒ VERDICT-SHARPENED: the CS remaining tail is a peak-density self-thinning mortality
-  residual (SDImax/self-thin rate), same CLASS as the accepted SN "over-kills a few TPA at peak" wobble.
-  NEXT: a live CS mortality stamp at the 2030 peak to decide real-CS-formula-diff vs ULP-amplified-at-peak.
+  (volume impact ~1%). ⇒ 📌 VERDICT FINALIZED (2026-07-02) = the accepted CS ULP floor, NOT a distinct bug.
+  Evidence: (1) the reminder itself accepts `cs_allsp` 1.52% TPA late as the documented CS ULP floor;
+  mix_lp_rm/all_* share that exact signature with a smaller tree-count denominator (⇒ larger TPA%, same ~1%
+  volume). (2) The per-COLUMN .sum at 2000 (the last cycle before the visible TPA split) is NOT fully
+  bit-exact — it carries a SUB-PRINT cycle-1 seed: CCF 252/253, periodic accretion 105/106, periodic
+  mortality 3/4, while TPA/BA/SDI/every volume column is identical. So the seed is a <1-unit growth/mortality
+  rounding in the FIRST (1990→2000) cycle that accumulates and, at the ~2030 self-thin peak (steep SDImax),
+  amplifies into a few extra kills — the same accumulate-then-amplify mechanism as D13/COMPRESS/the SN peak
+  wobble. Consistent direction (jl a hair higher mortality) = a Float32-order rounding, not a rate-formula
+  error (a rate diff would shift the 25-tree self-thin cycle by many, not seed sub-print). The per-tree stamp
+  to name the exact ULP op was blocked by the TreeLiDB writer emitting 0 rows for this scenario (tooling, not
+  model); the per-column + documented-floor evidence carries the verdict. CLOSES the CS late-cycle tail.
 - `treeszcp_cap`/`htcap` = D13, `mortmsb` = D13-FORTYP, `defulmod` = D16 fire, `compress` = eigensolver
   (all shared-accepted classes).
 ⇒ CS's real open work is now SMALL: mix_lp_rm/fertiliz (top, uninvestigated), the CS HCOR calibration
