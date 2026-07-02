@@ -3273,3 +3273,25 @@ To pin the fuel gap's mechanism (add-magnitude vs decay-phasing) requires NON-pe
 actual fire-fuel stash path (the fmburn/fire_smlg sequence), not out-of-band fmcba! probes. Deferred. D17 stays a
 📌: machinery faithful, pure +26% fire-fuel gap, exact target known; the mechanism split needs careful in-sequence
 instrumentation. Constructed-scenario-only; the campaign's lowest-value open item.
+
+### D17 — RELIABLE non-perturbing fuel trace (un-retracts the multi-factor picture, adds fmcba! lead, 2026-07-02)
+Added a NON-perturbing trace (reads `_small_large_fuel` right after the real ffe_fuel_update!, no out-of-sequence
+fmcba!) — its 2010 value (7.912) MATCHES the faithful fmburn fire stamp ⇒ this trace IS reliable (the earlier
+"retract" was over-cautious; the disagreeing probe was the fmcba!-AUGMENTED read, a different quantity). jl raw-
+cwd fire-fuel trajectory vs live (ICYC-aligned):
+  1990 base:  jl 3.599  vs live 7.76   ← jl HALF; BUT jl's fmcba!-augmented 1990 = 7.76 = live
+  2000 thin:  jl 7.912  vs live 20.48  ← jl's crown-slash spike far smaller
+  2010 fire:  jl 7.912 (FLAT)  vs live 6.30  ← jl doesn't decay 2000→2010
+THREE factors net to +26% at the fire:
+  (A) fmcba! AUGMENTATION GAP — jl's fire uses the RAW stashed `fire_smlg` (3.599 at 1990); live's fire SMALL
+      (7.76) equals jl's OWN fmcba!-augmented value ⇒ live's fire fuel includes the fmcba! live-herb/shrub/
+      litterfall augmentation that jl's `fire_smlg` OMITS. Specific + testable: does live's FMDYN SMALL include
+      the FMCBA live-fuel that jl's fire_smlg drops? (fmburn calls fmcba! at line 92 but select_fuel_models reads
+      the pre-fmcba! stashed fire_smlg.) NOTE: corpus fires are bit-exact with raw fire_smlg ⇒ any change here is
+      HIGH corpus-regression risk; verify against live before touching.
+  (B) SLASH MAGNITUDE — jl's 2000 thin-slash spike (Δ≈4.3) is ~1/3 of live's (Δ≈12.7).
+  (C) DECAY PHASING — jl flat 2000→2010 (no decay of the slash) vs live 20.48→6.30.
+Machinery still PROVEN faithful (fuel-forcing→kill 5). D17 = a genuinely multi-factor FFE fuel-accounting
+divergence (fmcba-augmentation + slash-magnitude + decay-phasing), all in the fuel pipeline, netting +26% at ONE
+constructed fire. 📌 constructed-only, lowest-value; each factor is high corpus-regression risk (corpus fires are
+bit-exact on the current path) ⇒ any fix needs per-factor live-differential + full sweep re-validation.
