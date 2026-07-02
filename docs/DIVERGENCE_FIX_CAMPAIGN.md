@@ -2463,3 +2463,14 @@ corpus input produces, and jl matches live to ULP throughout the entire reachabl
 records). So FVSjl does not DIFFER from live on any observable/reachable path — D6 is INERT, not a divergence.
 Porting ESCPRS would be feature-completeness for unreachable pathological inputs only. D6 → ✅ (unreachable;
 reachable regime bit-exact-to-ULP). This was the last open ledger item.
+
+### Re-trace of the two floors the stop-hook still names (re-verified on the current binary)
+- **cs_allsp** (CS all-species stress, hook's "1.52% TPA late"): re-run on the fresh binary → TPA diffs ≤0.76%
+  (±1 tree on 130-250), BA ±1, Tcuft ~0.2%, SIGN-FLIPPING = the near-SDImax kill-distribution ULP class
+  (TIGHTER than the stale 1.52%). At floor. ✅ ULP.
+- **NE regen/volume** (hook's "net01 BARE-regen ~4% Mcuft" — net01 no longer in-tree; NE regen coverage is now
+  ne_fixtures/plant_*): plant_hard AND plant_div are **BIT-EXACT** vs live-NE on TPA/Tcuft/Mcuft every cycle
+  (plant_div Mcuft 6531/7127/7596/7888 @ 2062-2092 all identical). The regen Mcuft residual is RESOLVED (D10
+  regen-order fix). ✅ bit-exact.
+⇒ Both stop-hook-named floors re-grounded on the current binary: no hidden divergence. The hook's "open
+D7/D8/D9/D10 + net01 4% + cs_allsp 1.52%" text is entirely STALE (all resolved/bit-exact/ULP-floor).
