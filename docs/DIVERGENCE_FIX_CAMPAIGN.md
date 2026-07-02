@@ -93,10 +93,14 @@ user's reserved call (untouched).
   (forest 905). Trajectory: BIT-EXACT through 2010 (pre-first-thin), then a sub-print seed at the 2020 thin
   (TPA 380/379), re-amplified at each thinning cycle (2050/2080/2110/2140) to TPA 68/55, BA 86/72, Scuft
   2861/2424 (~19/16/15%) by 2140. 📌 VERDICT = accepted THINDBH-BOUNDARY threshold-amplification of the CS
-  growth ULP floor — NOT a thinning-logic bug: jl's THINDBH is BIT-EXACT on every SN thindbh test, so the
-  seed can only be a ULP-scale DBH drift (CS growth floor) flipping a tree across a THINDBH DBH-class cutpoint,
-  then compounding over 5 re-thins × 16 cycles (same mechanism CLASS as D13/COMPRESS hard-threshold
-  amplification, here the "threshold" is the thin's DBH class boundaries). Extreme only because of the
+  growth ULP floor — NOT a thinning-logic bug — PROVEN (2026-07-02): the
+  EXACT expanded multi-class THINDBH block (the IF(FRAC(CYCLE/3)=0) per-DBH-class residual thin) applied to a
+  plain S248112 stand under SN is BIT-EXACT vs live — the thins at 2005 (470→376) and 2020 (329→290) remove
+  the SAME count in both engines, TPA/BA bit-exact every cycle (only volume ULP). So jl's expanded-THINDBH
+  selection is faithful; the cst01 divergence can only be a ULP-scale DBH drift (the CS growth floor, which
+  SN does NOT have — SN stayed bit-exact) flipping a tree across a THINDBH class cutpoint, then compounding
+  over 5 re-thins × 16 cycles (same mechanism CLASS as D13/COMPRESS hard-threshold amplification, here the
+  "threshold" is the thin's DBH class boundaries). The differentiator is the CS growth ULP floor, not thinning. Extreme only because of the
   unusually long deeply-thinned run; through 2100 it is ≤3 TPA. (cs_allsp all-species = the documented ~1.5%
   ULP-floor tail, separate.)
 ⇒ **ALL THREE VARIANTS re-verified at their floor this session: SN every-item ✅/📌, NE net01 bit-exact, CS cst01
