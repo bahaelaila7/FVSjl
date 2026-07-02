@@ -2492,3 +2492,18 @@ mult_reghmult/mult_mortmult_win (all BARE-regen + a multiplier):
   TopHt bit-exact-to-print, 1-3 cuft) places it at the ULP-accumulation floor = the documented D10 class.
 VERDICT: D8 multiplier keywords FAITHFUL (TPA/BA bit-exact); D10 regen-cubic residual confirmed at the ULP-floor
 (1-3 cuft, DBH/height bit-exact to print resolution). Consistent with the ledger's D8→D10 folding.
+
+### Honest nuance on the D10 SN-regen-cubic residual (not over-claimed as pure ULP)
+Being precise per the strict bar (don't label a semantic micro-diff as "ULP"): the SN-regen Tcuft residual is a
+MIX, not cleanly pure-ULP:
+- Much of the printed 1-3 cuft is INTEGER-print-rounding (the .sum Tcuft column is an integer; true values
+  straddle the boundary, e.g. 1516.x).
+- BUT TopHt shows a REAL ±1 ft difference at 2 cycles (178/177, 322/321) with QMD/DBH BIT-EXACT ⇒ a genuine,
+  tiny (~0.1%) SN-regen-tree HEIGHT micro-residual exists, most plausibly the known regen crown-ratio residual
+  ([[fvsjl-natural-process-congruence]]: plant_stocked crown mean 82.44 vs live 82.46) propagating height→volume.
+- It is SN-regen-SPECIFIC (NE regen plant_hard/plant_div bit-exact incl Mcuft; non-regen SN snt01_alpha Tcuft
+  bit-exact). Magnitude ≤0.2% Tcuft, below practical significance, but NOT bit-exact and NOT cleanly pure-ULP.
+CLASSIFICATION: a documented sub-0.2% SN-regen small-tree height→cubic micro-residual (crown-ratio-tied), the
+single remaining non-bit-exact / non-clean-ULP item — well within the accepted-residual magnitude but honestly
+labeled as a tiny real diff, not "ULP." Driving it to bit-exact needs the SN regen crown-ratio/small-tree-height
+micro-residual chased to ground (per-tree stamp blocked on bare scenarios by .trl routing). Tracked 📌.
