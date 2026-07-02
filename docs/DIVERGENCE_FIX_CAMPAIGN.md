@@ -46,7 +46,13 @@ bit-exact vs live every cycle; native bit-exact; suite 6397/2. See the "★★ N
 - non-native-cycle DGSCOR SPLIT BY DIRECTION: SN-at-10 (timeint10, 5→10 UPscale) → ✅ PROVEN-ULP (4 consecutive
   bit-exact non-native cycles prove the semantics; drift onset cyc4 = accumulation). NE-at-5 (10→5 DOWNscale) →
   ✅ FIXED to BIT-EXACT (small-tree blend DG-basis double-scale; un-scaled to 10-yr). ⇒ non-native-cycle class
-  FULLY resolved (SN proven-ULP, NE fixed). Real-divergence count back to ZERO.
+  FULLY resolved (SN proven-ULP, NE fixed).
+★ CAMPAIGN NOT COMPLETE — 1 OPEN REAL ITEM (found later this session by the thin+fire completeness check):
+ordinary-cut CROWN-SLASH → FFE surface/activity fuel is MISSING (jl books cut→fuel only under YARDLOSS, bole
+only) ⇒ post-thin fires are under-fueled ⇒ jl UNDER-KILLS severe post-thin fires (cst01+THIN+SIMFIRE: live
+255→5 vs jl 255→56, native cycle). Root-caused (cuts.jl:123-157); fix scoped + deferred as a substantial FFE
+addition (add THINDBH/harvest crown+unmerch to the surface-fuel classes at cut time, fire-gated). Real, native-
+cycle, but edge-case (mild corpus fires bit-exact — never triggered it). This is the campaign's live open target.
 - D3 (multi-point TCONDMLT per-point weighting) → ✅ CLOSED: jl's omission of the cuts.f:1075 term is FAITHFUL
   (term empirically inert in live across all weight configs + thin intensities; jl bit-exact); core pccf/pbal
   faithful (bare_multipoint TPA bit-exact).
