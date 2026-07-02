@@ -64,6 +64,17 @@ function small_tree_growth!(s::StandState, stash, ::CentralStates; fint::Float32
             dgk = t.diam_growth[i]
             dgkU = trip ? stash.dgU[i] : dgk
             dgkL = trip ? stash.dgL[i] : dgk
+            # diameter_growth! already FINT-scaled the large-tree DG (_bound_scale ×sfint/YR), but regent.f
+            # blends the 10-YR large-tree DG and converts the RESULT to FINT in GRADD. Un-scale back to 10-yr
+            # before the blend (inverse of the sfint/YR DDS transform = the scale2 transform used for dgsm) so
+            # the blend is 10-yr-consistent and the FINT re-conversion below applies ONCE. No-op at native
+            # (FINT=YR ⇒ scale2=1) ⇒ native CS bit-exact; fixes the ~3-5" cohort double-scale that under-grew
+            # CS at non-native FINT (same bug as NE, fixed identically). See NE small_tree_growth.jl.
+            if fint != CS_REGENT_YR
+                bk0 = bark_ratio(c.bark_a, c.bark_b, sp, d); dib0 = d * bk0
+                un10(g) = g > 0f0 ? sqrt(dib0 * dib0 + g * (2f0 * dib0 + g) * scale2) - dib0 : g
+                dgk = un10(dgk); dgkU = un10(dgkU); dgkL = un10(dgkL)
+            end
             for l in 0:(nrec - 1)
                 dgk_l = l == 0 ? dgk : (l == 1 ? dgkU : dgkL)
                 ran = 0f0

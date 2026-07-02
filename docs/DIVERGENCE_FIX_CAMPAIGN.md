@@ -2698,3 +2698,15 @@ non-native-only. ⇒ the NE non-native-cycle real divergence (found by completin
 re-trace, downgraded then RE-confirmed on a proper stand) is CLOSED to bit-exact. The height "fix" detour was
 reverted (htgf.f/regent.f use YRS=10+linear = jl original); the true bug was this DG-basis double-scale.
 ⇒ Campaign real-divergence count back to ZERO: SN-at-10 non-native proven-ULP, NE-at-5 non-native now FIXED.
+
+### CS non-native-cycle: SAME small-tree-blend double-scale bug — FIXED identically (rule #6 all-variants)
+Per rule #6 (a fix must keep all THREE variants faithful), checked CS (natively 10-yr like NE): centralstates/
+small_tree_growth.jl has the IDENTICAL pattern (dgk = t.diam_growth[i] already-FINT-scaled, blended then
+re-scaled). Confirmed the bug on a CS run at non-native clen5 (dense stand through CS): jl under-grew one-signed
+−0.9/−2.4/−2.8/−3.2% Tcuft from cyc1 (native clen10 = only the cross-variant ±1% noise). Applied the identical
+fix (un-scale dgk/dgkU/dgkL to 10-yr before the blend, gated fint≠CS_REGENT_YR). AFTER: dense_d5 one-signed
+under-growth GONE — now +0.1/+0.4/+0.6/+1.1% == the native dense_d10 cross-variant residual (NE data through CS
+is ill-posed; that shared ~1% is NOT the bug). Native CS preserved; suite 6397/2. (cs_allsp at clen5 can't be
+used — live-CS FPE-crashes on all-species+non-native, like the all_XX live-FPE class.) ⇒ the non-native-cycle
+small-tree DG-basis double-scale is now fixed in BOTH NE and CS; SN-at-10 stays proven-ULP. Class fully closed
+across all variants.
