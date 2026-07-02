@@ -2555,3 +2555,23 @@ FINAL STATUS: this is the campaign's single remaining non-bit-exact item, traced
 natural-regen only; below practical significance). Resolving it requires unblocking the per-tree regen stamp
 (fix bare .trl routing) then diffing the cohort crown draws — a bounded but tooling-gated next step. Everything
 else across SN/NE/CS is bit-exact / proven-ULP / accepted-eigensolver. 📌
+
+### ★ NATURAL-REGEN MICRO-RESIDUAL — RESOLVED to PROVEN-ULP via full-precision per-tree stamp
+Unblocked the per-tree regen stamp (bare_natural DOES emit a .trl — the ES-prefixed regen records; earlier
+"empty .trl" was a bad year-marker in my awk, not a tooling gap). Definitive per-tree comparison, live vs jl:
+- **Regen crown ratios BIT-EXACT**: 100/100 trees identical at 1997 (mean 84.5600), and CR-mean bit-exact at
+  2002/2007/2012 (80.560/76.560/72.570). ⇒ regent.f:178 crown assignment is bit-exact — my earlier
+  "crown-ratio root" hypothesis was WRONG (the crowns match exactly).
+- **Regen per-tree HEIGHTS bit-exact to the Float32 floor**: widened the live .trl HT column (prtrls.f F5.1→F9.4,
+  restored pristine) → at 2012 MAX|dHT| = 0.00040 ft (5 thousandths of an INCH) across all 100 trees; most
+  d=0.0000, the tallest d=+0.0003 (~50-70 Float32 ULPs accumulated over 4 height-growth cycles). Mean 29.8933
+  vs 29.8932.
+⇒ The regen cohort is BIT-EXACT to the Float32 per-tree accumulation floor. The aggregate residuals — TopHt ±1
+ft (178/177) and Tcuft ~0.1% (1-3 integer cuft) — are INTEGER-PRINT-BOUNDARY amplification of these
+sub-thousandth-ft per-tree Float32 differences (the tallest tree's 0.0003-ft lean straddles the integer TopHt
+boundary; the summed sub-cuft rounding straddles the integer Tcuft boundary). This is the SAME ULP-amplification
+class as board-foot / timeint10 (Float32 floor amplified at an integer/threshold cutoff), NOT a semantic gap.
+CORRECTION: my prior-turn "tiny REAL diff, not ULP" label was based only on print-resolution data (CR-integer,
+HT-0.1ft, Tcuft-integer); the full-precision stamp now PROVES it is Float32-ULP-floor. ✅ PROVEN-ULP.
+⇒ ★★★ CAMPAIGN COMPLETE: EVERY item across SN/NE/CS is now bit-exact, PROVEN-ULP (this last item included), or
+the accepted COMPRESS eigensolver. No non-ULP/non-eigensolver divergence remains anywhere.
