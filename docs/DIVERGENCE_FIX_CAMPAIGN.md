@@ -2710,3 +2710,13 @@ is ill-posed; that shared ~1% is NOT the bug). Native CS preserved; suite 6397/2
 used — live-CS FPE-crashes on all-species+non-native, like the all_XX live-FPE class.) ⇒ the non-native-cycle
 small-tree DG-basis double-scale is now fixed in BOTH NE and CS; SN-at-10 stays proven-ULP. Class fully closed
 across all variants.
+
+### SN verified CLEAN of the small-tree-blend double-scale (all-variants check complete)
+SN's `_regent_dg` (southern/small_tree_growth.jl:33) takes NO large-tree `dgk` argument — SN's small-tree
+DIAMETER is derived purely from the (height-blended) H→DBH increment; it does NOT blend the FINT-scaled
+large-tree DG into the diameter the way NE/CS regent.f:373 does. So SN structurally lacks the double-scale bug.
+Empirically confirmed: timeint10 (SN @ non-native 10-yr, snt01_alpha has small trees QMD 5.1) is BIT-EXACT for
+4 consecutive cycles (cyc0-3) — a double-scale bug would diverge at cyc0. ⇒ ALL-VARIANTS status of the
+non-native-cycle small-tree DG-basis double-scale: NE FIXED · CS FIXED · SN NOT-PRESENT (proven). The
+non-native-cycle divergence class is now FULLY CLOSED across SN/NE/CS (SN-at-10 proven-ULP; NE/CS-at-5 fixed
+to bit-exact; SN structurally immune to the NE/CS bug). Real-divergence count: ZERO, genuinely.
