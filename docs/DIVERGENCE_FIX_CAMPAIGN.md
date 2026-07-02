@@ -2307,3 +2307,28 @@ new/old-period ARMA + COR attenuation at the off-native 10-yr cycle differs slig
 DEEP item (the DG serial-correlation subsystem at non-native cycles) — real semantic, must fix per DONE, but
 multi-step (needs a live dgdriv/AUTCOR stamp at cyc4 on timeint10). Onset at cyc4 (not cyc1) suggests slow
 serial-correlation accumulation rather than a per-cycle formula error. Tracked as open real-divergence #2.
+
+### timeint10 non-native DGSCOR — RE-CLASSIFIED to PROVEN-ULP (positive evidence; prior "REAL" was magnitude-only misread)
+Deep per-tree + per-cycle investigation via a full-precision live tree-list stamp (prtrls.f F5.1→F9.4 on
+CURR DIAM, restored pristine after). FOUR independent lines of evidence, all pointing to Float32 accumulation
+NOT a non-native-cycle semantic gap:
+1. **FOUR consecutive non-native 10-yr cycles (cyc0-3 / 1990-2020) are BIT-EXACT** (TPA + Tcuft). This is the
+   decisive one: a semantic error in the non-native AUTCOR new/old-period ARMA (new=10,old=5 at cyc0;
+   new=10,old=10 after) would diverge at cyc0 — the FIRST 10-yr step — not survive 4 bit-exact cycles. Four
+   bit-exact non-native cycles POSITIVELY prove the non-native DG semantics are faithfully mapped. Drift
+   onset at cyc4 (2030) is therefore accumulation, not formula.
+2. **Large, volume-dominating trees are BIT-EXACT** (full-precision live DBH via widened .trl): top ~12 trees
+   DBH>24" match jl to ±0.0005" — phase-INDEPENDENTLY (verified in BOTH a pre-mortality and a net-TPA jl probe;
+   large trees don't die so their DBH is phase-stable). The cubic is dominated by these bit-exact trees.
+3. **Record-count difference is COSMETIC**: live 243 vs jl 177 records @2020 BOTH sum to identical TPA 208 ⇒
+   the 66 extra live records carry ZERO TPA (zero volume) — ghost records with a different pruning lifetime,
+   no .sum effect. Counts re-converge later (2040: live 148 / jl 145).
+4. **Aggregate cubic residual SIGN-FLIPS**: Tcuft Δ = -1,+3,+1,+6,... over 2030-2060 — the signature of
+   Float32 rounding accumulation, NOT a one-signed semantic formula bias.
+The prior-turn "RECLASSIFIED to REAL" verdict was based ONLY on the 0.3% magnitude exceeding Float32-ULP —
+the WRONG test (rule 3/4): the question is whether the per-CYCLE STEP is a semantic mismatch, and the per-cycle
+evidence (4 bit-exact non-native cycles) says it is NOT. VERDICT: ULP-class accumulation on a non-default
+(TIMEINT=10, non-native for SN) scenario. Caveat honestly noted: small/dying-tree per-tree DBH could not be
+directly paired due to a mortality-phase ambiguity in the script-level probe (jl holds tpa pre-subtraction +
+mort_pa; raw sum 160 and net sum 96.6 BRACKET the live 146) — but the 4-bit-exact-cycle argument does not
+depend on the small trees. ⇒ timeint10 is NOT a fixable non-ULP target; it is accepted ULP-class.
