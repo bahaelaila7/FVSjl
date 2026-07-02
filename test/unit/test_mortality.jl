@@ -1,7 +1,9 @@
-# C4 — mortality model (MORTS) validation against Oracle A (snt01 cycle 1).
-# The density (Pretzsch) inputs SDIMAX, t, and the Zeide/Reineke dia0 are pinned to
-# the exact Oracle A values; the post-mortality TPA carries the inherited diameter-
-# growth residual (~4%), so it is checked with tolerance.
+# C4 — mortality model (MORTS), snt01 cycle 1. RE-GROUNDED 2026-07-02 (forget Oracle-A):
+# these pin jl's DETERMINISTIC internal density-model intermediates (SDIMAX, Zeide dia0,
+# Pretzsch t, isolated mortality! TPA loss). They are NOT .sum columns; their LIVE grounding
+# is that snt01.sum cyc1 = 507/103/202 BIT-EXACT vs live FVSsn (verified via sn_oracle.sh),
+# which these intermediates produce. Tolerances below are DISPLAY-ROUNDING of the pinned
+# Float32 value (e.g. SDIMAX 348.43875 → shown 348.44), not live-divergence slack.
 
 using Test
 using FVSjl
@@ -10,9 +12,9 @@ using FVSjl: notre!, setup_growth!, diameter_growth!, mortality!, stand_sdimax,
 
 const KEYM = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
 
-@testset "SDIMAX (SDICAL) matches Oracle A" begin
+@testset "SDIMAX (SDICAL) — exact internal pin (live via .sum)" begin
     s, _ = initialize(KEYM); notre!(s)
-    @test isapprox(stand_sdimax(s), 348.44f0; atol=0.1)   # BA-weighted SDIDEF
+    @test stand_sdimax(s) == 348.43875f0                  # BA-weighted SDIDEF — exact Float32 (was atol=0.1 display-round)
 end
 
 @testset "density mortality (Pretzsch) — Zeide dia0 + activation" begin

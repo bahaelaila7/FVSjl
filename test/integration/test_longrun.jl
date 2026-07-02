@@ -37,11 +37,13 @@ const _LR_TRE = _LR_KEY[1:end-4] * ".tre"
         @test peak_n == 243
         @test s.trees.n < 200                       # records deleted by comcup (else stuck at 243)
 
-        # (2) tracks Oracle A's long-run .sum — jl lands within ~0.5 TPA (2040 120.4, 2090 35.5), so the
-        # per-cycle zero-PROB delete keeps the RNG aligned. Tightened atol 2→1 (was up to 10% on the small
-        # late-run TPA; the real floor is ~0.5).
-        @test haskey(checks, 2040) && isapprox(checks[2040], 120.0; atol = 1)
-        @test haskey(checks, 2090) && isapprox(checks[2090],  35.0; atol = 1)
-        @test haskey(checks, 2140) && isapprox(checks[2140],  19.0; atol = 1)
+        # (2) RE-GROUNDED vs LIVE FVSsn (2026-07-02, forget Oracle-A). dense_long TPA is BIT-EXACT vs live
+        # through ~2085; 2040 (.sum 120) and 2140 (.sum 19) are bit-exact. 2090 is the sole residual: jl .sum
+        # 36 vs live .sum 35 — a ±1-tree late-run near-SDImax kill-distribution flip on the heavily-thinned
+        # tail (TPA ~35), the accepted per-tree-bit-exact ULP class (cf. mix_lp_rm). Two exact `==` vs the live
+        # .sum integer, one ±1 ULP-justified.
+        @test haskey(checks, 2040) && trunc(Int, checks[2040] + 0.5) == 120   # BIT-EXACT vs live .sum
+        @test haskey(checks, 2140) && trunc(Int, checks[2140] + 0.5) ==  19   # BIT-EXACT vs live .sum
+        @test haskey(checks, 2090) && abs(trunc(Int, checks[2090] + 0.5) - 35) <= 1  # ULP: late near-SDImax ±1 (jl36/live35)
     end
 end
