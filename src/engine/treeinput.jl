@@ -18,7 +18,7 @@
 Read tree records from `trepath` using `state.control.tree_format`, appending them
 to `state.trees`. Returns the number of trees loaded. Mirrors intree.f.
 """
-function load_trees!(s::StandState, trepath::AbstractString)
+function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
@@ -35,11 +35,27 @@ function load_trees!(s::StandState, trepath::AbstractString)
     else
         path = isfile(trepath) ? trepath :
                (isfile(uppercase(trepath)) ? uppercase(trepath) : trepath)
-        isfile(path) || return 0
         fields = parse_tree_format(s.control.tree_format)
         isempty(fields) && return 0
+        # Line source: the external `.tre` file if present, else INLINE records that follow
+        # TREEDATA in the .key itself (initre.f: TREEDATA with no separate file ⇒ records embedded
+        # in the keyword stream, read until -999). `kr` is the keyword reader; consuming its `io`
+        # here advances it past the records + terminator so the outer keyword loop resumes correctly.
+        lines = if isfile(path)
+            eachline(path)
+        elseif kr !== nothing
+            ls = String[]
+            while !eof(kr.io)
+                l = readline(kr.io)
+                occursin("-999", l) && break
+                push!(ls, l)
+            end
+            ls
+        else
+            return 0
+        end
         records = TreeRecord[]
-        for line in eachline(path)
+        for line in lines
             isempty(strip(line)) && continue
             startswith(strip(line), "*") && continue
             occursin("-999", line) && break

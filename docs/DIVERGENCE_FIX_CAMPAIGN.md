@@ -3476,3 +3476,14 @@ tree-source. CLASS: real input-format feature gap — jl supports external .tre 
 Affects any key with inline tree data (sn.key is the only bundled one; snt01/cst01/net01 use external .tre).
 NEXT (fix): jl's TREEDATA handler must, when inline records follow (raw lines until -999, not a keyword), read
 them via the TREEFMT (read_tree_records adapted to the kr stream) instead of / before the external-file load.
+
+### D19 — FIXED: jl now reads INLINE tree data (2026-07-02)
+Fixed: load_trees!(s, trepath; kr=nothing) — when no external .tre (nor .csv) exists, it reads the INLINE tree
+records from the keyword stream kr.io (until -999) and parses them with the current TREEFMT; the TREEDATA handler
+passes kr. Gated (kr defaults nothing; inline path only when no .tre file) => external-.tre keys (snt01/cst01/
+net01/all harness scenarios) are UNTOUCHED. VALIDATED: sn.key now parses all 4 stands x 27 trees (was 1 stand);
+full suite 6436/2 (no regression). jl supports both external-file and inline TREEDATA.
+RESIDUAL (new, separate = D20): with 4 stands now processed, sn.key FVS_Summary has jl 44 rows (4 stands) vs live
+33 (3 stands) — jl emits one stand's DBS summary that live does not. A per-stand Summary/DataBase-emission detail
+(which of the 4 stands write to DBS across REWIND). The inline-tree ROOT is FIXED; the DBS-emission count is a
+downstream follow-up to trace.
