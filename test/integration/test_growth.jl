@@ -68,14 +68,10 @@ end
         ft = _g_rows(read(sav, String))
         @test length(jl) == length(ft) >= 3
         for (j, f) in zip(jl, ft)
-            @test j[1] == f[1]                                              # YEAR
-            for c in (3, 5, 7); @test j[c] == f[c]; end                     # TPA / SDI / TopHt exact
-            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  (±1, LP-tail rounding)
-            @test abs(parse(Int, j[6]) - parse(Int, f[6])) <= 1            # CCF (±1)
-            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
-            for c in (9, 10, 11)                                            # cuft within the LP tail
-                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.02 * parse(Int, f[c]) + 1
-            end
+            # BIT-EXACT vs live (re-grounded 2026-07-02): all 12 .sum columns match the live golden exactly.
+            # The "LP-calibration tail ~1.3%" tolerance was STALE — that residual appears on LP-heavy stands
+            # (nohtdreg_cal), NOT this scenario. All exact `==`, no atol/relative slack.
+            for c in 1:12; @test j[c] == f[c]; end   # YEAR/TPA/BA/SDI/CCF/TopHt/QMD/Tcf/Mcf/Scf/Bdft
         end
         # BRATIO is ACTIVE: IDG=1 (past DBH) ≠ IDG=0 reading the same raw DBH−past as the increment.
         sc0 = joinpath(_GDIR, "growth_idg0.key")
@@ -104,14 +100,9 @@ end
         ft = _g_rows(read(sav, String))
         @test length(jl) == length(ft) >= 3
         for (j, f) in zip(jl, ft)
-            @test j[1] == f[1]                                              # YEAR
-            @test j[3] == f[3]                                              # TPA exact
-            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  ±1
-            @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI ±1
-            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
-            for c in (9, 10, 11)                                            # cuft within the LP tail
-                @test abs(parse(Int, j[c]) - parse(Int, f[c])) <= 0.02 * parse(Int, f[c]) + 1
-            end
+            # BIT-EXACT vs live (re-grounded 2026-07-02): all 12 .sum columns match exactly. The FINT=10
+            # "LP-calibration tail ~1.5%" tolerance was STALE — this scenario matches live bit-exactly.
+            for c in 1:12; @test j[c] == f[c]; end   # YEAR/TPA/BA/SDI/CCF/TopHt/QMD/Tcf/Mcf/Scf/Bdft
         end
         # The scaling is ACTIVE: FINT=10 grows materially slower than FINT=5 on the SAME tree data
         # (growth_idg0 = the identical .tre with the default FINT=5). BA at 1995: ≈128 vs ≈158.
@@ -140,11 +131,9 @@ end
         ft = _g_rows(read(sav, String))
         @test length(jl) == length(ft) >= 3
         for (j, f) in zip(jl, ft)
-            @test j[1] == f[1]                                              # YEAR
-            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 1            # BA  (matched exactly)
-            @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 1            # SDI
-            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.1  # QMD
-            @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 0.015 * parse(Int, f[3]) + 3  # TPA (small-tree tail)
+            # BIT-EXACT vs live (re-grounded 2026-07-02): all 12 .sum columns match exactly. The FINTH=10
+            # "small-tree REGENT tail" TPA tolerance (1.5%+3) was STALE — this scenario matches live bit-exactly.
+            for c in 1:12; @test j[c] == f[c]; end   # YEAR/TPA/BA/SDI/CCF/TopHt/QMD/Tcf/Mcf/Scf/Bdft
         end
         # SCALE3 is ACTIVE and matches Fortran: the FINTH5→FINTH10 delta is reproduced. At 1995 both
         # engines move BA 325→330 and TPA 4392/4419→4123/4150 (ΔTPA −269 in each).

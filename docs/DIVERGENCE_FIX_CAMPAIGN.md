@@ -2853,3 +2853,20 @@ integer-print column — Tcuft(9)/Bdft(12)/removed-TPA(15)/MAI(26), ±1 = print-
 margin, ULP). The `@test_broken`/`atol=1,2` "unported vs Oracle-A" framing was STALE — the features match live.
 Changed all 11 to exact `_at(...) == V`; suite 17/17 green. Doctrine confirmed: Oracle-A goldens were masking
 that ported cut features already match live. (Category-3 audit progress: cut cluster DONE.)
+
+### test_growth.jl — DONE: 8 loose LP/small-tree-tail tolerances → EXACT `==` vs LIVE (all 12 cols bit-exact)
+Re-grounded the three GROWTH scenarios (growth_idg1 GROWTH-IDG=1, growth_fint10 FINT=10, growth_finth10 FINTH=10)
+vs their LIVE Fortran .sum.save goldens. ALL THREE are ALL-12-COLUMNS BIT-EXACT vs live (TPA/BA/SDI/CCF/TopHt/
+QMD/Tcuft/Mcuft/Scuft/Bdft, every row). The `<= 0.02·f+1` (cuft), `<= 0.015·f+3` (TPA), `<=0.1` (QMD) and `±1`
+(BA/CCF/SDI) tolerances + the "known LP-calibration tail ~1.3-1.5%" / "small-tree REGENT tail" comments were ALL
+STALE slack masking bit-exact matches. Tightened to exact `for c in 1:12; @test j[c]==f[c]`. 39+40+17 green.
+(The LP-calibration tail DOES appear on LP-heavy stands like nohtdreg_cal — a SEPARATE ~1% residual, not these
+GROWTH scenarios.) Confirms again: loose tolerances masked bit-exact results.
+
+### Tolerance audit running tally (re-grounded vs LIVE, Oracle-A abandoned):
+cut_cluster 11→bit-exact · regen_coverage 6→bit-exact · multistand 2→bit-exact · longrun 3→(2 bit-exact +1 ULP)
+· mortality SDIMAX→exact +3 internal-pins noted · growth 8→bit-exact. ~30 tolerances done. REMAINING: test_carbon
+~38 (`<=0.05`, live-Fortran carbon pools, print-rounding — need per-line confirm), test_net01 ~14, scattered
+singles, and the Float32-ULP cluster (rtol 1f-4/1f-6). Verdict so far: the loose/Oracle-A tolerances were almost
+all masking BIT-EXACT-vs-live results; genuine non-ULP residuals found are the 2 real divergences (non-native
+FIXED, activity-fuels OPEN) + the LP-calibration/WK3-DGSCOR tail (nohtdreg_cal ~1%, separate).
