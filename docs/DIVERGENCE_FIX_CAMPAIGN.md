@@ -3419,3 +3419,19 @@ real (40% Scuft on cst01_method5 regen) but confined to stands explicitly reques
 Porting = implement NATCRS/OCFVOL + thread METHC/METHB through kw_volume!→volume dispatch (a bounded but real
 volume-model port). Lesson: found by BROADENING the sweep to a missed real test — the hunting mandate (rule #2 /
 FIA-plots) surfaces real divergences that drilling one synthetic item (D17) does not.
+
+### Unported keyword-OPTION feature-gap inventory (completeness sweep, 2026-07-02)
+Systematically scanned jl's keyword handlers for silently-dropped fields / unported options (the D18 pattern —
+jl ignores a keyword's method/option field, diverging IF a stand uses it). Classified each vs the faithful-no-op
+set. REAL feature gaps (jl differs from live only when the option is explicitly requested; the DEFAULT path — every
+bundled real test except cst01_method5 — is faithful):
+- **D18 VOLUME/BFVOLUME METHC/METHB alt volume method (NATCRS/OCFVOL)** — CONFIRMED real (40% Scuft, cst01_method5).
+- **FIRECALC method 1/2** (keyword_dispatch.jl:1755-57) — "alternative fire-behavior models (new FM logic /
+  modelled loads) not ported"; jl warns + defaults to the faithful old-FM method-0 path. Gap only if method 1/2 used.
+- **SETSITE habitat field** (:573) — habitat code ignored ("documented gap"). Gap only if a SETSITE sets habitat.
+- **FERTILIZ P/K** (:930) — P (field 3) / K (field 4) ignored; only N (representable amount) + efficacy used. Gap
+  only for a FERTILIZ specifying P/K.
+All are jl-CODE-DOCUMENTED known gaps (not hidden), bounded, and exercised by NO bundled real test but cst01_method5.
+VERDICT: 📌 documented feature-gap class — each is a faithful DEFAULT with an unported non-default OPTION; magnitude
+confirmed only for D18 (the others have no bundled-test oracle; a constructed scenario would confirm but be synthetic
+like D17). The campaign's DEFAULT-configuration behavior is faithful on every real stand; these are opt-in feature gaps.
