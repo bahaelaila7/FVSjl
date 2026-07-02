@@ -52,13 +52,16 @@ end
         FVSjl.notre!(s1c); FVSjl.setup_growth!(s1c); FVSjl.compute_volumes!(s1c)
         ftcov = [82, 87, 90, 92, 91, 90, 89, 89, 87, 86, 85]
         # uppermost-stratum DBH (SSTGHP DBHNOM, 70th crown-percentile of the canopy cohort).
-        # Fortran snt01 stand-1 stratum-1 DBH; most cycles exact, max diff 0.543 at a cohort/window-edge.
-        # ⚠ TOLERANCE AUDIT VERDICT (2026-07-02): this 0.55 is NOT ULP — it is a REAL ~0.5-DBH residual in the
-        # SSTAGE structure-stage per-cohort stratum-mean classification at window boundaries (a boundary tree
-        # assigned to a different stratum than live ⇒ the stratum-mean DBH shifts ~0.5). It belongs to the
-        # DEFERRED structure-stage / per-point-density item (D3 family, DIVERGENCE_FIX_CAMPAIGN.md) — faithful
-        # single-point, the multi-cohort window assignment not yet bit-exact. Honestly a documented non-ULP
-        # residual in a deferred feature, NOT print-rounding/ULP. Bound 0.55 = just above the measured floor.
+        # Fortran snt01 stand-1 stratum-1 DBH; residual isolated to cyc2 (Δ0.543) + cyc7 (Δ0.168), the other
+        # 9/11 bit-exact. TOLERANCE AUDIT VERDICT (2026-07-02, TRACED): this 0.55 is ULP-CLASS — a NEAR-TIE
+        # sort-ordering flip, NOT a real algorithm gap. The per-tree DBH is BIT-EXACT (snt01 grown), and strdbh
+        # = the 70th-pct DBH of the dominant stratum's cohort, cut at a HARD `csum(crownArea) > 41382` (0.95-ac)
+        # boundary (_ss_dbhnom). At cyc2 there are MASSIVE exact height TIES from tripling (9 records @75.77,
+        # 9@73.03, 18@64.48, …); when the 0.95-ac cutoff lands inside a tied-height group, jl's `sortperm`
+        # tie-break vs Fortran's RDPSRT picks a different cutoff tree ⇒ the ±4 70th-pct window shifts ~0.5.
+        # This is the ACCEPTED near-tie-ordering family (cf. COMPRESS eigensolver / RDPSRT ties), = ULP-class
+        # on bit-exact input. (Reclassified from an earlier "real non-ULP" mislabel — rule #4.) Bound 0.55 =
+        # just above the tied-cutoff floor. A future exact match needs jl's cohort-cutoff tie-break = RDPSRT's.
         ftdbh = [10.3, 9.8, 11.5, 12.3, 15.1, 17.0, 18.2, 20.7, 22.6, 23.8, 24.1]
         for c in 0:10
             FVSjl.compute_density!(s1c)

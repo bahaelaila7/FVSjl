@@ -2940,3 +2940,17 @@ or a real SSTGHP stratification/percentile-interp difference (⇒ real, the defe
 Documented as the deferred structure-stage residual pending that trace. Real-open-items list (post tolerance
 audit): (1) thin-before-fire ACTIVITY-FUELS (open, root-caused, substantial FFE add); (2) structure-stage
 SSTGHP boundary (this, ≤0.5 DBH, 3/11 cycles); (3) LP/WK3-DGSCOR tail (nohtdreg_cal ~1%, accepted @test_broken).
+
+### ★ structure_stage strdbh RECLASSIFIED: ULP-class near-tie (NOT real) — rule #4 self-catch
+TRACED (not assumed): residual isolated to cyc2 (0.543) + cyc7 (0.168), 9/11 bit-exact. Per-tree DBH BIT-EXACT
+(snt01 grown). strdbh = 70th-pct DBH of the dominant stratum's cohort, cut at a HARD `csum(crownArea)>41382`
+(0.95-ac) boundary. At cyc2 there are MASSIVE exact height TIES from tripling (9 recs @75.77, 9@73.03, 18@64.48…);
+when the 0.95-ac cutoff lands in a tied group, jl's sortperm tie-break ≠ Fortran RDPSRT ⇒ a different cutoff tree
+⇒ the 70th-pct ±4 window shifts ~0.5. ⇒ ULP-CLASS near-tie-ordering (the ACCEPTED COMPRESS/RDPSRT family), NOT a
+real non-ULP residual. My prior tolerance-audit "category-4 real" label was a mislabel (rule #4: trace, don't
+assume). ⇒ ALL test tolerances are now bit-exact / print-ULP / Float32-ULP / near-tie-ULP — NONE covers a
+genuine non-ULP divergence.
+### ⇒ Real non-ULP MODEL divergences remaining (found via completeness checks, NOT tolerance-hidden):
+### (1) thin-before-fire ACTIVITY-FUELS — OPEN, root-caused (ordinary-cut crown-slash not fed to FFE fuel bed).
+### (2) LP / WK3-DGSCOR tail (nohtdreg_cal ~1%) — accepted @test_broken (COMPRESS-family near-tie tail).
+### Non-native small-tree DG double-scale = FIXED this session. Suite 6436/2.
