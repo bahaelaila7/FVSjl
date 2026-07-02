@@ -2271,3 +2271,15 @@ one-cycle TIMING lag = a real ported-semantic mismatch ⇒ under DONE it MUST be
 memory fvsjl-ffe-crown-lift-landed "remaining: one-cycle lag"). Live-verifiable (carbon_snt/ffe run on live).
 ⇒ THE next concrete bit-exactness fix. Distinct from the near-SDImax ULP floor (that's proven-ULP); this is a
 deterministic timing bug. cuts/keyword/regen-coverage @test_broken still to be classified (feature-gap vs diff).
+
+### CORRECTION (re-trace) — carbon dead-pool residual: crown-lift RULED OUT; real cause is a deep FFE DDW-timing item
+Re-traced the carbon dead-pool @test_broken against docs/FFE_FUEL_DYNAMICS_chunk_plan.md: the crown-lift
+attribution (in test_carbon.jl's comment AND my prior audit note) is a MISREAD — the plan (line 208-227)
+RULED OUT crown-lift via instrumented Fortran (fmcadd.f per-year dump: crown-lift = ~0.0007 t/ac/yr, negligible,
+NOT the ~1.7 t/ac DDW gap). The real dead-pool residual is a one-cycle-late DDW ADDITION (plan line 242: the
+UPDATE-before-GROW ordering lands a fuel addition at 2005 not 2000) — a genuine deterministic timing SEMANTIC
+divergence (must fix to bit-exact per DONE), but a DEEP FFE fuel-dynamics item with a dedicated multi-attempt
+chunk plan (prior reorder attempts regressed #20/DDW). ⇒ STATUS: real open bit-exactness item, deep, live-
+verifiable, tracked in FFE_FUEL_DYNAMICS_chunk_plan.md. NOT crown-lift. The DONE bar requires closing it, but it
+is the hardest remaining CS/FFE item (whole chunk plan), not a quick fix. Prioritize after the cheaper audit
+items (all-species bands, cuts/keyword/regen feature-gap classification, board-foot/timeint10/treeszcp ULP proofs).
