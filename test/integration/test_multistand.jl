@@ -26,8 +26,11 @@ const _MS_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
             notre!(s)
             g = s.plot.gross_space
             @test s.trees.n == 27
-            @test isapprox(stand_tpa(s) / g, 536.0; atol = 0.5)
-            @test isapprox(stand_ba(s)  / g,  77.0; atol = 1.0)
+            # BIT-EXACT vs live: the .sum prints trunc(perAcre+0.5); snt01 cyc0 = TPA 536 / BA 77 (live).
+            # (Internal per-acre stand_tpa/g=536.048, stand_ba/g=77.39 → the .sum integers 536/77.) Was
+            # atol=0.5/1.0 slack covering the pre-rounding value; now assert the live .sum integer exactly.
+            @test trunc(Int, stand_tpa(s) / g + 0.5) == 536   # .sum TPA == live
+            @test trunc(Int, stand_ba(s)  / g + 0.5) ==  77   # .sum BA == live
         end
         # Stand 4 (FFE) has its own inventory year 1993 and NO TREEDATA keyword.
         @test Int(stands[4].control.cycle_year[1]) == 1993
