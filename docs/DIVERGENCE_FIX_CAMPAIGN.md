@@ -2809,3 +2809,16 @@ STATUS: NEW real divergence (native cycle, severe post-thin fire, jl under-books
 NOT ULP, NOT cross-variant. Needs FFE scorch/post-fire-mortality trace (fmeff.f / the crown-scorch → periodic
 mortality path) vs live. The campaign is NOT complete — this is a real open item found by the thin+fire+cycle
 completeness check. (Found via constructed cst01 scenarios; reproducible + consistent live-vs-jl.)
+
+### thin-before-fire divergence — REFINED: the FIRE KILL itself diverges (thinning-slash→fuel→severity), not delayed mort
+Correction to the entry above: the 2010 TPA (255) is the PRE-fire start-of-cycle stand (bit-exact post-thin);
+the FIRE KILL happens during 2010→2020 and DIVERGES — live 255→5 (kills 250), jl 255→56 (kills 199), jl
+under-kills the fire by ~50 TPA. Without the thin the fire kill MATCHES (476→182 vs 475→184). ⇒ the THIN makes
+jl's fire LESS SEVERE than live's. MECHANISM: FVS FFE adds thinning SLASH (the unmerch parts of THINDBH-cut
+trees) to the surface fuel bed (activity fuels, fmcwd/fmpocr), raising the fuel load ⇒ higher flame length ⇒
+higher scorch ⇒ higher fire mortality. jl appears to UNDER-ADD the THINDBH cut-slash to the fuel ⇒ milder fire
+⇒ under-kill. Scales with fire severity (mild corpus fires bit-exact; this severe post-thin fire diverges 20%).
+LOCALIZATION TARGET: jl cuts!/apply_salvage! + the FFE fuel bed — does a THINDBH (non-salvage) cut route its
+slash/CWD to the fire's fuel loading like FVS fmcwd/FMSALV? Corpus scenarios (snt01 SIMFIRE, fire_carbon) have
+no big thin-before-fire so never exercised the activity-fuel→severity path. NEW real open item (native cycle),
+needs the cut-slash→fuel FFE path traced vs live. Campaign has a genuine open divergence — NOT complete.
