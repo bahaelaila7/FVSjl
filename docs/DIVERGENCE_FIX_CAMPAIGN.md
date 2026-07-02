@@ -3229,3 +3229,16 @@ way ⇒ weaker fire. The correct fix must reproduce FVS's EXACT 2000→2010 slas
 live's (6.30, 3.89) — i.e. faithful FMSCUT-add-then-annual-FMCWD phasing (approach 3, the reorder), NOT the
 lossy per-increment single-shot. 📌 constructed-scenario-only; now FULLY characterized (initial✓, source=coupled
 thin-slash 2000→2010 evolution, exact target (6.30,3.89), fix=faithful add-then-decay phasing).
+
+### D17 — DECISIVE: fire machinery PROVEN faithful; D17 is purely a +26% fuel-accounting gap (2026-07-02)
+Ran a clean fuel-forcing test (temporary hack, reverted): forced jl's 2010 CS fire fuel from its (7.91,4.91) to
+LIVE's exact (SMALL,LARGE)=(6.30,3.89). Result: jl kill → cst_ft10 2020 TPA = 5 = LIVE EXACTLY (was jl 12).
+⇒ PROVEN: jl's _fmdyn model-weighting + rothermel byram + FMEFF mortality are ALL FAITHFUL. D17 is ENTIRELY a
+fuel-amount problem — get jl's 2010 fire fuel to (6.30,3.89) and the kill matches live bit-for-bit. No machinery
+bug. This DE-RISKS the fix: it lives solely in the FFE fuel pipeline (the 2000-thin slash's 2000→2010 evolution),
+not in fire behavior/mortality. Refines the decay story: jl's 2010 fuel is 7.91 (NOT the ~20 t 2000 slash spike),
+so jl DOES decay the slash — just ~26% LESS than live (live 20.48→6.30; jl →7.91). ⇒ the earlier single-shot
+per-increment decay DOUBLE-decayed (jl already decays it) and overshot (kill 29). The correct fix is to close the
+SPECIFIC 26% under-decay in jl's existing slash-decay path (find where jl's 2000-slash decays to 7.91 vs live's
+6.30 over 2000→2010 — a decay-years/phasing gap), NOT to add blanket decay. 📌 constructed-only; machinery proven
+faithful; fix isolated to the fuel-decay accounting (target (6.30,3.89) → exact kill 5).
