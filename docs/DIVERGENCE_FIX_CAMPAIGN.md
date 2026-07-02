@@ -3443,3 +3443,15 @@ the METHC=1 default path, faithful everywhere). VOLUME method 5 selects OTHER NV
 requires porting the broader NVEL library — a massive external dependency, out of scope. ⇒ D18 is a 📌 ACCEPTED
 FEATURE GAP (like D6): the default volume method is faithful on every real stand; the non-default NVEL-method option
 is unported and impractical to port. This is the strongest form of "documented irreducibility" for a feature gap.
+
+### sn.key re-verify (2026-07-02): NOT a divergence — recurring stale-DB harness artifact
+Re-swept the last unchecked real SN test (tests/FVSsn/sn.key, the ECON example). jl ERRORED with SQLite
+"FVS_Mortality has 19 columns but 22 values" — but jl's CREATE TABLE (dbs_output.jl:352) is correctly 22 cols
+matching the 22-value INSERT. The error was a STALE shared DBS file (an OLD 19-col FVS_Mortality table; `CREATE
+TABLE IF NOT EXISTS` keeps the stale schema) — the SAME artifact class as the earlier dbs_treelist stale-26-col
+FVS_TreeList. Clearing ./FVSOut.db → sn.key runs OK (sum len 3828). sn.key emits DBS (Summary 2 → snout.db), not
+a .sum, and is already validated by the registered sndb DBS suite (21/21 incl. econ). ⇒ NOT a real divergence.
+NOTE (harness robustness, not a campaign target): jl's DBS uses `CREATE TABLE IF NOT EXISTS`, so a stale shared
+FVSOut.db with an older schema throws on insert; sweeps should delete the DSN DB first (or jl could version/DROP
+the schema). Cleared the stale DBs. ⇒ ALL 5 bundled SN/NE/CS real tests now accounted for: snt01/net01/cst01
+bit-exact/ULP, cst01_method5 = D18 (NVEL feature gap), sn.key = DBS-validated (stale-DB artifact cleared).
