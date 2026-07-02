@@ -2790,3 +2790,22 @@ forced through NE), NOT a real NE-FFE bug. This closes the defulmod re-scrutiny:
 fire bit-exact, only the ill-posed SN-through-NE run diverges (expected). Campaign floor holds: real paths
 bit-exact/proven-ULP across SN/NE/CS; the one real divergence (non-native small-tree) fixed; cross-variant
 sweep flags are artifacts.
+
+### ★ NEW REAL DIVERGENCE FOUND: thin-before-fire → post-fire delayed mortality under-booked (native cycle)
+Completeness check (CS non-native + fire + thin, cst01) surfaced a REAL divergence — and it reproduces at the
+NATIVE cycle, so it is a genuine use-case bug, NOT non-native/cross-variant:
+- cst01 + SIMFIRE alone (no thin), native clen10: post-fire kill 476→178 BIT-EXACT through 2020 (then ~1.5% ULP).
+- cst01 + THINDBH(2000) + SIMFIRE(2010), native clen10: fire kill BIT-EXACT @2010 (518→255 both), but POST-fire
+  (2010→2020) live collapses 255→5 while jl keeps 255→56 — jl UNDER-BOOKS the post-fire delayed mortality by
+  ~50 TPA (~20% of the stand). Diverges hugely 2020-2060 (live ~5 TPA, jl ~50).
+- Same pattern at non-native clen5 (cst_ft5: live 2 vs jl 41) — so it's the THIN+FIRE interaction, not the cycle.
+MECHANISM (hypothesis, to trace): a THINDBH before the SIMFIRE creates slash that raises the fuel load ⇒ a more
+SEVERE fire (higher scorch). The immediate fire kill matches (255 both), but the SEVERE fire's POST-fire delayed
+mortality (crown-scorch trees dying over the next cycle, FFE FMEFF/scorch → periodic mortality) is under-booked
+in jl. Without the thin the fire is mild and post-fire is bit-exact ⇒ the divergence scales with fire severity /
+scorch. Corpus fires (snt01 SIMFIRE, fire_carbon, midcycle_fire, ffe) are MILD ⇒ bit-exact ⇒ this severe-fire
+post-fire-mortality gap was never triggered by the corpus.
+STATUS: NEW real divergence (native cycle, severe post-thin fire, jl under-books post-fire delayed mortality).
+NOT ULP, NOT cross-variant. Needs FFE scorch/post-fire-mortality trace (fmeff.f / the crown-scorch → periodic
+mortality path) vs live. The campaign is NOT complete — this is a real open item found by the thin+fire+cycle
+completeness check. (Found via constructed cst01 scenarios; reproducible + consistent live-vs-jl.)
