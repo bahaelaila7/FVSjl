@@ -3461,3 +3461,18 @@ The stale-shared-DBS crash (CREATE TABLE IF NOT EXISTS keeps an old-schema table
 on dbs_treelist + sn.key FVS_Mortality) is now FIXED, not just worked-around: `_ensure_table!` (dbs_output.jl)
 drops a table whose live column count disagrees with the CREATE, then recreates it — applied at all 16 DBS-writer
 sites. jl now tolerates a pre-existing DB like live FVS (was: crash where live succeeds). Verified + suite 6436/2.
+
+## ★ D19 — INLINE tree data not supported → sn.key's 4 stands parsed as 1 (REAL, found 2026-07-02)
+Found by re-sweeping tests/FVSsn/sn.key (the last unchecked real SN test; it emits DBS not .sum). jl processes
+sn.key as ONE stand; live processes 4. ROOT (fully traced): sn.key embeds its tree records INLINE in the .key
+(after `TREEDATA  15.`), with NO external sn.tre file. jl's TREEDATA handler (keyword_dispatch.jl:2046) does
+`load_trees!(s, base_path*".tre")` — it ONLY reads the external `<base>.tre` file, never the inline records. So
+jl reads 0 trees for EVERY sn.key stand (each_stand: all 4 show ntrees=0). Then each_stand's "real" filter
+(fcode≠0 || trees.n>0 || estab) drops the 3 stands whose STDINFO has NO forest code (fcode=0; their "9999" is a
+location field) — only stand 4 (its own STDINFO fcode=118) survives. Net: 4 stands → 1. NOT caught by any test:
+the econ suite uses CONSTRUCTED econ_*.key scenarios (external .tre), not the literal sn.key — a rule-#4 case
+(the "sn.key econ test" validates a different key). TREEFMT is identical to snt01's ⇒ purely the inline-vs-external
+tree-source. CLASS: real input-format feature gap — jl supports external .tre only, not inline TREEDATA records.
+Affects any key with inline tree data (sn.key is the only bundled one; snt01/cst01/net01 use external .tre).
+NEXT (fix): jl's TREEDATA handler must, when inline records follow (raw lines until -999, not a keyword), read
+them via the TREEFMT (read_tree_records adapted to the kr stream) instead of / before the external-file load.
