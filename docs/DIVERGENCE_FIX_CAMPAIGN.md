@@ -15,7 +15,10 @@ crashed jl → reader stops at next keyword). **Sweep floors:** SN 221 bit-exact
 remaining DIFF re-traced to a documented-accepted class: D13 hard-cap threshold-amplification, D8/D10
 regen saw-threshold amplification (bare_natural re-verified: TPA bit-exact, only sawtimber-threshold ULP),
 D16 fire-kill distribution, COMPRESS eigensolver, D2/D2b non-native FINT/cycle, live-FPE (no oracle), and
-the CS ULP floor. **Stale-verdict corrections this session (re-trace discipline):** the ledger's "CS
+the CS ULP floor. **Fresh re-verification of EVERY still-listed reminder target (2026-07-02):** D7 all_GA
+cyc0 volume BIT-EXACT (1253/900/47/174); D10 SN bare_natural TPA bit-exact + saw-threshold ULP; **NE
+bare_natural FULLY BIT-EXACT all columns/cycles** (the reminder's "net01 BARE-regen ~4% Mcuft late" is
+STALE/resolved); CS finth/thinauto/cuteff/readcord resolved. **Stale-verdict corrections this session (re-trace discipline):** the ledger's "CS
 dedicated campaign" was stale — growth_finth5 80%→0.5%, cut_thinauto 450%→0.36%, cuteff 103%→1.33%,
 readcord 57%→bit-exact all RESOLVED; the CS late-cycle all_*/mix_*/fertiliz tail = accepted CS ULP floor
 (sub-print cycle-1 seed → SDImax-peak amplification, ~1% vol); hcor_smalltree = FALSE POSITIVE (bit-exact
