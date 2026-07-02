@@ -3109,3 +3109,25 @@ FIX DIRECTION (delicate, deferred to a fresh session w/ full re-validation): dec
 cycles between the cut and a later fire — e.g. apply the cut cycle's fuel decay AFTER the cut (reorder for cut
 cycles) or decay the newly-added crown-slash by the remaining cycle span — GATED so the same-cycle cut+fire
 corpus stays bit-exact. Root now PINNED (was: "fuel dynamics" → "decay rate" → THIS specific ordering bug).
+
+### D17 — FIX DESIGN (three approaches traced; correct one identified, pitfalls documented)
+The bug (pinned above): cut crown-slash added AFTER its cycle's fuel decay ⇒ burns undecayed at a later-cycle
+fire. FVS order = FMSCUT (add cut fuel at cycle boundary) THEN annual FMCWD loop (decay). jl order = ffe_fuel_
+update! (decay) THEN grow_cycle!/cuts.jl (add). Three candidate fixes, traced BOTH sides:
+1. Move ffe_fuel_update! AFTER grow_cycle! for cut cycles — ✗ REGRESSES: ffe_fuel_update! also does FMCADD
+   litterfall off the STANDING crowns; running it post-growth changes the litterfall basis for EVERY non-fire
+   cycle ⇒ breaks the bit-exact corpus base fuel. Do NOT do this.
+2. Pre-decay the crown-slash increment in cuts.jl (multiply by the cycle's fmcwd decay factor before adding)
+   — ✗ INCOMPLETE: FMCWD moves a PRDUFF fraction of decayed woody INTO duff; jl/live duff is currently
+   bit-exact (5.17/5.13), so a naive increment-multiply that drops the respired mass would still need to route
+   the duff-transfer or it desyncs duff. Must replicate fmcwd's woody→duff transfer for the increment.
+3. Hoist ONLY the cut's FFE-fuel-addition (the crown-slash → cwd) to BEFORE ffe_fuel_update! in the cut cycle,
+   so the cycle's decay loop ages it (= FVS FMSCUT-then-FMCWD) — ✓ CORRECT in principle, but a real restructure:
+   the cut/crown-slash is computed inside grow_cycle! (depends on which trees are thinned), so it must be split
+   out (compute cut removals + crown-slash → cwd) and run before the fuel decay, with grow_cycle! doing the rest.
+   GATE: same-cycle cut+fire (corpus salvage/fueltret/defulmod) must stay bit-exact — those re-stash fire_smlg
+   POST-cut and burn the crown-slash FRESH (FVS same-year cut+fire = no annual decay between), which is already
+   correct; the hoist must not disturb that (only the cross-cycle cut→fire path needs the pre-decay).
+RECOMMENDED: approach 3, implemented in a fresh session, validated by re-running the authoritative 260-stand SN
+sweep (baseline 221/31/8) + the cst_ft10 fire (target: jl woody→~10.06, byram→~14585, kill→~5 TPA) + the CS/NE
+sweeps, confirming the same-cycle-cut+fire corpus stays bit-exact. Root PINNED, fix SCOPED, pitfalls MAPPED.
