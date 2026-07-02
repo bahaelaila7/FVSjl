@@ -3656,14 +3656,27 @@ PREDICTED, not measured) or the small-tree volume path — i.e. the CS regen sma
 height-prediction for these species. The direction FLIPS (jl low at 2012, high at 2022+), consistent with a
 height-GROWTH-RATE trajectory difference (slower then faster), not a flat scale. **SPECIES-SPECIFIC:** the
 scenario `bare_plant` (CS, different planted species) diverges only 4.12% Scuft, but sp3+sp21 give ~40% —
-localizes to CS species 3 and/or 21's small-tree (REGENT/cs_htcalc) height growth. This is the D10 "regen
-small-tree volume" class the STOP-HOOK still flags as open (`bare_* Scuft ~50%`); the ledger's earlier "D10
-fixed-to-ULP" verdict covered the estab-ORDER + sawtimber-spread but NOT this CS planted-regen height/volume
-magnitude. NOT ULP (40%, reproduced via run_keyfile production path, TPA/BA bit-exact rules out a count
-artifact). **NEXT (upstream-first):** isolate sp3 vs sp21 (a valid single-species CS PLANT keyfile — my
-hand-written minimal key hit an INVALID-KEYWORD in live, so copy a working PLANT block), then live-stamp the
-CS small-tree HTG (cs_htcalc/regent) for the driving species at cyc1-2 vs jl `small_tree_growth!`
-(cs/small_tree_growth.jl) — compare predicted HT of the planted stems. Keep SN/NE bit-exact (variant-gated).
+localizes to CS species 3 and/or 21. This is the D10 "regen small-tree volume" class the STOP-HOOK still
+flags as open (`bare_* Scuft ~50%`); the ledger's earlier "D10 fixed-to-ULP" verdict covered the estab-ORDER
++ sawtimber-spread but NOT this CS planted-regen magnitude. NOT ULP (40%, reproduced via run_keyfile
+production path, TPA/BA bit-exact rules out a count artifact).
+
+**ISOLATED (2026-07-02) — single-species CS PLANT keyfiles** (working format: NOTREES + INVYEAR + Volume +
+ESTAB…PLANT…END; my first minimal key failed live with INVALID-KEYWORD because it omitted NOTREES/the
+ESTAB…END block — copy the real stand-5 block verbatim). PLANT species number = CS variant index:
+- **sp3 = SP shortleaf pine (fia 110): jl volume +13% Tcuft / +28% Mcuft** (jl HIGHER).
+- **sp21 = BH bitternut hickory (fia 402): jl volume −11..−24% Tcuft** (jl LOWER).
+Per-species AND opposite-signed ⇒ a per-species coefficient effect, not a uniform scale. **Crucially TPA, BA,
+QMD (0.1") AND integer TopHt are ALL bit-exact** for each — same stem count, same basal area, same mean
+diameter, same top height — yet cubic/board volume diverges. ⇒ the divergence is in the VOLUME COMPUTATION
+for fia 110 / 402 (R9 Clark '900CLKE110'/'900CLKE402' via compute_volumes_ne!), NOT the stand projection —
+either the r9clark coefficients/merch standards for these two FIA codes, OR a sub-INTEGER per-tree height
+diff the rounded TopHt hides (r9clark_cubic is HT-sensitive). Parallel in spirit to D33 (a per-species volume-
+equation gap), but here the stand grows identically and only the reported volume differs. **NEXT:** dump one
+planted stem's DBH+HT+TCuFt (fix the TreeLiDB-emits-0-rows issue or parse the .trl), then either (a) find a
+<1ft HT diff ⇒ trace CS regen HT-prediction for SP/BH, or (b) HT bit-exact ⇒ compare jl `r9clark_cubic(110,
+dbh,ht)` / `(402,…)` against a hand-run live '900CLKE' value ⇒ fix the coefficient/merch. Keep SN/NE
+bit-exact (variant-gated). This is the campaign's one confirmed OPEN non-ULP item.
 
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
