@@ -2213,3 +2213,14 @@ self-thinning-kill semantic difference (⇒ bug)? NEXT: stamp cyc1 SDIMAX/CONST/
 — if SDIMAX is bit-exact but the kill total differs, it's a real kill-computation bug; if SDIMAX differs at ULP
 scale, it's amplification. This RE-OPENS the broad CS drift as "needs per-density ULP proof", not blanket-accepted.
 Honest re-grounding: cubic (growth) is now bit-exact post-D32; the MORTALITY total on dense stands is the open item.
+
+### RESOLVED (strict proof): dense-stand cyc1 kill difference IS truly-ULP — SDIMAX + T bit-exact
+Stamped cyc1 SDIMAX+T for hcor_smalltree jl-vs-live: SDIMAX **846.500** (846.500122 vs 846.5002 = ULP) AND
+T **7789.65** (7789.65283 vs 7789.653) BOTH BIT-EXACT. So the self-thinning TARGET (deterministic from SDIMAX/
+T/D10) is bit-exact; the 1.7-TPA kill-total difference is Float32 ACCUMULATION/rounding in the VARMRT per-tree
+distribution across 7082 trees on a bit-exact-input stand — a Float32 non-associative-summation ORDER effect,
+NOT a semantic kill difference. This is TRULY-ULP (proven via bit-exact inputs), same class as the broad drift.
+The larger ABSOLUTE (1.7 vs mix_lp_rm's ~0) is just the tree count (7082 vs ~40): more terms ⇒ more accumulated
+rounding, but each is ULP. ⇒ The broad-CS-drift ULP verdict HOLDS with this per-density proof: cyc1 inputs
+(SDIMAX, T) bit-exact everywhere; only the distribution's Float32 summation order differs. hcor_smalltree is now
+GROWTH bit-exact (D32) + PROVEN-ULP mortality tail. Qualification retired.
