@@ -2224,3 +2224,15 @@ The larger ABSOLUTE (1.7 vs mix_lp_rm's ~0) is just the tree count (7082 vs ~40)
 rounding, but each is ULP. ⇒ The broad-CS-drift ULP verdict HOLDS with this per-density proof: cyc1 inputs
 (SDIMAX, T) bit-exact everywhere; only the distribution's Float32 summation order differs. hcor_smalltree is now
 GROWTH bit-exact (D32) + PROVEN-ULP mortality tail. Qualification retired.
+
+### TOLERANCE AUDIT (per DONE standard) — item 1: cst01 CCF <=3 (D31) = PROVEN-ULP (downstream of mortality floor)
+The cst01 late-cycle CCF tolerance (widened 2->3 at D31) is justified as truly-ULP, not a masked semantic diff:
+- CCF is BIT-EXACT through 2040 (dCCF=0, cycles 0-6) ⇒ the crown-width + CCF computation is FAITHFUL (bit-exact
+  whenever the tree list matches).
+- The CCF drift appears ONLY at 2050+ (−1/−1/−3/−1/0), exactly where TPA drifts ±1 — i.e. DOWNSTREAM of the
+  near-SDImax mortality-distribution floor (proven-ULP: each cycle's SDIMAX+T bit-exact, the VARMRT distributes
+  the bit-exact target with Float32 summation-order/rounding across ~500 trees ⇒ ±1 survivor ⇒ ±3 CCF via crown
+  competition). The crown-width function itself adds no divergence (bit-exact when trees match).
+VERDICT: cst01 CCF <=3 = the accumulated near-SDImax distribution ULP propagated into the CCF report. TRULY-ULP.
+Remaining tolerance-audit items: cst01 TPA/SDI/QMD late bands, all-species grown bands, 2 @test_broken
+(COMPRESS s22 + NOHTDREG), SN keyword-suite 1 broken.
