@@ -37,8 +37,9 @@ end
             @test tcuft !== nothing
             # the headline guard: NONZERO volume (was 0 before the KODFOR remap)
             tcuft !== nothing && @test tcuft > 0.0
-            # and close to Oracle A's cycle-0 TCuFt (R8 Clark cubic)
-            tcuft !== nothing && @test isapprox(tcuft, want; atol = 5)
+            # cycle-0 TCuFt BIT-EXACT vs LIVE FVSsn (re-grounded 2026-07-02: live s30=1421, s31=1401 == jl;
+            # was Oracle-A + atol=5 slack). R8 Clark cubic.
+            tcuft !== nothing && @test tcuft == want
         end
     end
 end
