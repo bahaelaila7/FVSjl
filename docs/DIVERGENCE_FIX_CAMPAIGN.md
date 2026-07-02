@@ -3131,3 +3131,14 @@ update! (decay) THEN grow_cycle!/cuts.jl (add). Three candidate fixes, traced BO
 RECOMMENDED: approach 3, implemented in a fresh session, validated by re-running the authoritative 260-stand SN
 sweep (baseline 221/31/8) + the cst_ft10 fire (target: jl woody→~10.06, byram→~14585, kill→~5 TPA) + the CS/NE
 sweeps, confirming the same-cycle-cut+fire corpus stays bit-exact. Root PINNED, fix SCOPED, pitfalls MAPPED.
+
+### D17 — duff-paradox reconciled (root-cause pin CONFIRMED, 2026-07-02)
+Checked an apparent contradiction: if jl leaves the crown-slash undecayed, jl duff should LACK the crown-slash
+decay products and read LOW — but jl/live duff match (5.17/5.13). Reconciled: the crown-slash woody decay
+(0-3" 17.1→1.6 = ~15.5 t over 10yr) mostly RESPIRES OUT (leaves the system); live duff is actually slightly
+LOWER than jl, so the crown-slash→duff routing is negligible. ⇒ "jl retains undecayed crown-slash (+26% woody),
+duff ≈ unaffected" is fully self-consistent. Root cause (cut crown-slash misses its cycle's decay) CONFIRMED.
+Code-read confirms approach 3 is a real reorder (cuts! is INSIDE grow_cycle! at simulate.jl:~350; the pre-grow
+ffe_fuel_update! is in summary.jl BEFORE grow_cycle!) — and the local alternative (decay just the increment) must
+replicate fmcwd's exact per-year respire/duff split for bit-exactness. Both delicate; deferral is evidence-based,
+not reflexive. D17 = fully characterized 📌 (root pinned+confirmed, fix scoped, pitfalls mapped, validation plan set).
