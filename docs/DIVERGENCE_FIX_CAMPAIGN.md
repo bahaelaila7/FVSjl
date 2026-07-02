@@ -3518,3 +3518,15 @@ condition in dbsdriver.f) is unresolved and needs deep FVS DBS-driver tracing. C
 detail — jl's 4-stand SIMULATION is correct (D19); only whether stand 3's summary reaches the DB differs. 📌
 minor documented follow-up (DBS output completeness, not model correctness). The substantive sn.key model bug
 (D19 inline tree data) is FIXED + confirmed; D20 is the residual output-config tail.
+
+### D20 — refined verdict: ISUMARY level NOT the discriminator; stand-3-specific (shelterwood); ACCEPTED narrow follow-up
+FVS dbssumry.f has two FVS_Summary write paths gated on ISUMARY (line 40 `IF(ISUMARY.NE.1)RETURN`, line 261
+`IF(ISUMARY.NE.2)RETURN`) — the Summary keyword's LEVEL field. But stands 2 (THINDBH) and 3 (SHELTERWOOD) BOTH
+have a bare `Summary` (blank field = same ISUMARY), yet live writes stand 2's FVS_Summary and DROPS stand 3's.
+⇒ the ISUMARY level is NOT the discriminator. The cause is stand-3-SPECIFIC: the SHELTERWOOD stand (THINPRSC
+1990 0.999 = remove 99.9% ⇒ near-clearcut, + ECONRPTS in its DATABASE block). Live omits the near-emptied
+shelterwood stand's summary (an FVS DBS/empty-stand/ECON-interaction condition); jl writes it. VERDICT: 📌
+ACCEPTED narrow DBS-output-emission follow-up — the MODEL projection of all 4 stands is correct (D19); resolving
+the exact one-stand DBS-presence rule needs deep dbssumry.f/opsum.f + shelterwood-stand-state tracing for a
+single stand's DBS-output presence, which is disproportionate to the value (DBS output completeness, not model
+correctness, on one stand of one test). D19 (the real model bug) is FIXED+tested; D20 is the residual output tail.
