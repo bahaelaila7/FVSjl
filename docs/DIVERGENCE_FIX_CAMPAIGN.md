@@ -3142,3 +3142,20 @@ Code-read confirms approach 3 is a real reorder (cuts! is INSIDE grow_cycle! at 
 ffe_fuel_update! is in summary.jl BEFORE grow_cycle!) — and the local alternative (decay just the increment) must
 replicate fmcwd's exact per-year respire/duff split for bit-exactness. Both delicate; deferral is evidence-based,
 not reflexive. D17 = fully characterized 📌 (root pinned+confirmed, fix scoped, pitfalls mapped, validation plan set).
+
+### D17 — crown-slash-decay hypothesis TESTED and REFUTED; root redirected to FMCFMD/FMFINT (2026-07-02)
+IMPLEMENTED the "age the cut crown-slash by the cut cycle's decay" fix (gated non-fire cut cycles, _book_cut_fuel!
+mirroring one fmcwd pass) and TESTED on cst_ft10 (rule #4 — validate the hypothesis vs live BEFORE trusting it).
+RESULT: it made the fire WEAKER — cst_ft10 2020 TPA 12 (pre-fix) → 29 (with decay), i.e. AWAY from live's 5.
+⇒ REFUTED the "jl over-accumulates woody ⇒ under-kill" causal chain. Reverted the fix.
+KEY INSIGHT the experiment forces: reducing jl's woody LOWERS its byram/kill, yet LIVE has LESS woody (10.06 vs
+jl 12.69) and a STRONGER fire (byram 14585 vs 11847, kill 5 vs 12). So jl and live produce DIFFERENT byram for
+essentially the SAME (or even less) fuel ⇒ the divergence is in the FMCFMD dynamic-fuel-model SELECTION / FMFINT
+byram computation, NOT the fuel amount or its decay. The earlier "+26% woody → non-monotonic FMCFMD → under-kill"
+framing had the causality backwards: the woody excess is real but is NOT what drives the under-kill (removing it
+worsens the kill). The 80%-closing crown-slash ADD fix likely helped by nudging the fuel into a range where jl's
+(divergent) FMCFMD happens to run hotter — coincidental, not the mechanism.
+NEW ROOT DIRECTION (for closure): differential jl vs live FMCFMD3/FMFINT — for identical cwd loading, compare the
+selected standard fuel model(s) + weights + the resulting reaction-intensity/byram. Prime suspects: the small/large
+fuel partition (_small_large_fuel vs FVS FMCFMD3), the weighted-model interpolation, or a rothermel-input term.
+D17 stays 📌 — but the crown-slash-decay lead is CLOSED (refuted by experiment); root redirected to FMCFMD/FMFINT.
