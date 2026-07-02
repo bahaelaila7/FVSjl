@@ -107,9 +107,9 @@ end
             # forest floor + below-dead (dead coarse roots, BIOROOT) reconcile at print resolution
             @test abs(r.forest_floor     - parse(Float64, f[8])) <= 0.06   # tiny litterfall growth-tail effect
             @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.05   # BIT-EXACT
-            # DDW: BIT-EXACT before mortality (1990/1995); the post-mortality dead-pool flow has the same
-            # known crown-lift-timing gap as carbon_snt (~1.9) — tracked honestly as @test_broken, not hidden.
-            @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05   # DDW — now BIT-EXACT all cycles
+            # DDW: BIT-EXACT all cycles (before AND after mortality). The former post-mortality dead-pool
+            # crown-lift-timing gap is CLOSED (FFE snag-dynamics + crown small-tree merch-bole fixes).
+            @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05   # DDW — BIT-EXACT all cycles
             # STAND-DEAD: 0 before mortality; after, validated against the HIGH-PRECISION instrumented
             # Fortran oracle (BOLE+CRWN from FMDOUT TOTSNG), NOT the 1-decimal .report.save column — the
             # save's print rounding (e.g. 5.18→5.2) double-rounds against jl's own rounded report and would
@@ -164,11 +164,11 @@ end
         @test strip(rows[1]) == ft[1]                       # INVENTORY row byte-exact — BIT-EXACT
         # Grown rows: the live aboveground/merch agreement is the GROWTH tail of this synthetic fixture
         # (NOT a carbon property — carbon_snt validates those bit-exact), so it is not asserted at ULP here.
-        # DDW carries the same known post-mortality dead-pool gap as carbon_snt → @test_broken, not hidden.
+        # DDW is BIT-EXACT all cycles here too (the former post-mortality dead-pool gap is closed).
         for (i, r) in enumerate(rows)
             i == 1 && continue
             mv = parse.(Float64, split(strip(r))); fv = parse.(Float64, split(ft[i]))
-            @test abs(mv[7] - fv[7]) <= 0.05                # DDW — now BIT-EXACT all cycles
+            @test abs(mv[7] - fv[7]) <= 0.05                # DDW — BIT-EXACT all cycles
         end
     end
 end
@@ -204,11 +204,10 @@ end
             # CRDCAY=0.0425>0 ⇒ LDCAY true (fmcrbout.f:179-180); jl previously omitted it from the total.
             @test mv[10] ≈ fv[10] atol = 0.05  # Total Stand Carbon — BIT-EXACT (incl. below-dead via LDCAY)
         end
-        # DEAD POOLS (BelowD/StandD/DDW) are NOT yet bit-exact — tracked honestly as @test_broken on the
-        # max residual across cycles (not hidden behind a loose passing tolerance). The dead-pool flow has a
-        # known intermediate-cycle gap (the crown-lift is applied in the next cycle's fuel loop while FVS
-        # applies it same-cycle; the inventory + final cycles ARE bit-exact). These @test_broken will flip
-        # to a (passing) failure if the dead pools ever reconcile — see docs/FFE_FUEL_DYNAMICS_chunk_plan.md.
+        # DEAD POOLS (BelowD/StandD/DDW) are BIT-EXACT across all cycles, asserted at print resolution on the
+        # max residual (not hidden behind a loose tolerance). The former intermediate-cycle gap (crown-lift
+        # applied one cycle late vs FVS same-cycle) is CLOSED by the FFE snag-dynamics + crown small-tree
+        # merch-bole fixes (see docs/FFE_FUEL_DYNAMICS_chunk_plan.md + FAITHFULNESS_AUDIT.md).
         maxd(c) = maximum(abs(rows[i][c] - ft[i][c]) for i in 1:length(ft))
         @test maxd(5) <= 0.05              # Belowground Dead — BIT-EXACT (input-snag root XDCAY = (1−CRDCAY)^10)
         # STAND-DEAD is now bit-exact: validated against the HIGH-PRECISION instrumented Fortran oracle
