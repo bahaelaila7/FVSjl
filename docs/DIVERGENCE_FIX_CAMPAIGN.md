@@ -2521,3 +2521,19 @@ micro-residual, honestly classified as a tiny REAL diff (not ULP), below practic
 to bit-exact = chasing the natural-establishment crown-ratio/small-tree-height calc (0.02 crown units) to ground
 — a prior fix already landed at 82.44 vs live 82.46; the last 0.02 needs the ESGENT/CRATET regen crown path
 per-tree-diffed vs a live stamp. Everything else across SN/NE/CS is bit-exact / proven-ULP / accepted-eigensolver.
+
+### Natural-regen crown micro-residual — ROOT localized to per-point-CCF value at regen-assignment time
+Traced the 82.44-vs-82.46 natural-regen crown residual to its root:
+- The FORMULA is BIT-IDENTICAL to FVS regent.f:178-184: `CR=0.89722−0.0000461·PCCF(IPCCF)`; `RAN=BACHLO` in a
+  `-1≤RAN≤1` rejection loop; `CR += 0.07985·RAN`; clamp .20/.90; `ICR=INT(CR·100+0.5)`. jl (establishment.jl:264)
+  matches every constant, the rejection loop, and the round.
+- jl uses PER-POINT CCF (`point_ccf[plot_id]`, = FVS `PCCF(IPCCF)`), NOT a stand-CCF approximation.
+- ⇒ the only remaining input that can differ is the per-point CCF VALUE captured at regen-crown-assignment time.
+  A 0.02 crown-mean diff = ~4 CCF units of per-point-CCF difference (0.02/0.0000461). This is a per-point-density
+  TIMING subtlety (which DENSE phase populates point_ccf relative to REGENT/ESGENT) — the D3 per-point-density
+  family, on the natural-establishment cohort. STAND CCF is bit-exact (.sum CCF column matches), so it is a
+  per-POINT (not stand) CCF phase/value difference.
+STATUS: campaign's single remaining non-bit-exact item, now root-localized: a <0.1%-cubic natural-regen crown
+micro-residual = a ~4-CCF per-point-CCF phase difference at regen-crown assignment (D3-family, natural-regen
+cohort). Formula/RNG/rounding all proven faithful. Driving to bit-exact needs the point_ccf capture phase
+per-point-diffed vs a live DENSE/REGENT stamp — below practical significance (<0.1% Tcuft, ±1ft TopHt). 📌
