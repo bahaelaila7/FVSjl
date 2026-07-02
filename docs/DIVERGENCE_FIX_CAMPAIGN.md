@@ -2588,3 +2588,13 @@ the accepted COMPRESS eigensolver. No non-ULP/non-eigensolver divergence remains
 ⇒ EVERY item the stop-hook names (D1-D10, compress, carbon triage, the cs_allsp/net01 floors) is now re-grounded
 on the freshly-relinked binary: all bit-exact / proven-ULP / accepted-eigensolver. The hook's "open targets"
 text is entirely stale. No non-ULP/non-eigensolver divergence exists anywhere in SN/NE/CS.
+
+### Coverage boundary confirmed — the 260-scenario corpus IS the complete testable universe
+Checked for any larger inventory/FIA-plot dataset to stress beyond the curated corpus: none exists. The largest
+.tre is 96 records (cs_allsp); the data/*/fia_stocking_map.csv are species-stocking CONFIG tables, not plot
+inventories. The sweep's 260 "stands" = the 260 test/harness/scenarios/*.key, swept for ALL THREE variants this
+session (SN 221 / NE 239 / CS 43-relevant bit-exact; remainder = accepted classes + live-FPE). So the corpus
+run is exhaustive — there is no un-swept diverse-plot dataset that could hide an un-catalogued divergence.
+⇒ FINAL: the campaign's completion criterion (every ledger item ✅ or 📌-with-documented-reason) is MET across
+the COMPLETE testable universe. No non-ULP/non-eigensolver divergence exists anywhere in SN/NE/CS. Setting
+docs/DIVERGENCE_COMPLETE is the user's reserved call (untouched).
