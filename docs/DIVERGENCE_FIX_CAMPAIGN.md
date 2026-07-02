@@ -3392,3 +3392,20 @@ small faithful-component fuel-evolution residual blown up by a discrete downstre
 scenario with no oracle. All fixable components are proven faithful; the residual is measurement-confounded,
 oracle-less, and its fix trades bit-exact-corpus risk for synthetic-scenario gain. This is the campaign's lone
 open item and is complete-with-reason per the off-switch criterion.
+
+## ★ D18 — VOLUME/BFVOLUME method selector (METHC/METHB) NOT honored — REAL CS stand (2026-07-02)
+FOUND by sweeping a REAL FVS test I had missed: `tests/FVScs/cst01_method5.key` (the `Volume 0 All … 5` keyword
+= cubic volume METHOD 5). jl vs fresh live: stands 1-4 bit-exact/ULP, but **stand 5 (BARE GROUND PLANT regen)
+Scuft diverges 40%** (live 1277 vs jl 1794 @2032); TPA/BA/QMD bit-exact ⇒ the TREE LIST matches, only the VOLUME
+computation diverges. Plain cst01 stand-5 (no method5) is BIT-EXACT ⇒ the cause is the METHC=5 volume method.
+ROOT: jl's `kw_volume!` (keyword_dispatch.jl:835) explicitly DROPS the METHC field ("not used by the SN R8 Clark
+taper path") — it carries only DBHMIN/TOPD/STMP/SCFMIND/SCFTOPD, never the method selector. FVS volkey.f:123 sets
+`METHC(sp)=IFIX(PRMS(6))` and cfvol.f/bfvol.f DISPATCH on it (METHC=1 regression-model default; `IF(METHB.EQ.5)
+GO TO 300` etc. = distinct equation branches). So jl always computes method-1 (default) volume; a stand requesting
+method 5 diverges (here 40% on the regen population — the main S248112 stand happens to match under both methods).
+CLASS: real feature-gap divergence (like D6 ESCPRS) — jl implements only the default cubic/board volume method,
+not the METHC/METHB alternate-method dispatch (cfvol.f/bfvol.f methods 2-5). Affects any SN/NE/CS stand using a
+VOLUME/BFVOLUME method ≠ 1 (uncommon; no other bundled test uses it). VERDICT: 📌 documented feature gap — the
+VOLUME-keyword volume-METHOD selector (cfvol.f/bfvol.f alt methods) is unported; jl honors the merch STANDARDS
+(DBHMIN/TOPD/STMP) but not the METHOD. NEXT (if pursued): port the cfvol.f METHC / bfvol.f METHB method-2..5
+branches + thread METHC/METHB through kw_volume!/kw_bfvolume! → the r9clark/r8clark volume dispatch.
