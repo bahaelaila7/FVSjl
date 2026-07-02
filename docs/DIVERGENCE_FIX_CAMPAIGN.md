@@ -3487,3 +3487,13 @@ RESIDUAL (new, separate = D20): with 4 stands now processed, sn.key FVS_Summary 
 33 (3 stands) — jl emits one stand's DBS summary that live does not. A per-stand Summary/DataBase-emission detail
 (which of the 4 stands write to DBS across REWIND). The inline-tree ROOT is FIXED; the DBS-emission count is a
 downstream follow-up to trace.
+
+### D20 — sn.key DBS FVS_Summary emission count (jl 4 vs live 3 stands) — CHARACTERIZED follow-up
+After the D19 inline-tree fix, jl processes sn.key's 4 stands and writes 4 FVS_Summary case-groups (44 rows);
+live writes 3 (33 rows): live = 2×S248112 + FFE, jl = 3×S248112 + FFE. All of stands 1-3 (S248112) carry a
+DATABASE>Summary block, but with different fields: stand 1 `Summary 2`, stands 2 & 3 bare `Summary` (blank). jl's
+kw_database! sets dbs_summary=true for ANY Summary (ignores the field). The simple "field=2 ⇒ DBS" rule is
+REFUTED (live emits 3, not 1), so the exact per-stand DBS-emission rule needs the FVS dbsdriver semantics (which
+stand live drops and why — Summary field level, or a stand-specific condition). CLASS: DBS-output-config detail,
+NOT a model divergence — jl's SIMULATION of all 4 stands is now correct (the D19 fix); this is only which stands'
+summaries get written to the DB. Documented as a follow-up; the substantive fix (D19, model correctness) is done.
