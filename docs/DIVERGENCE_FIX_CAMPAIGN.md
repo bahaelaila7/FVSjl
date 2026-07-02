@@ -2261,3 +2261,13 @@ LIVE-FPE CATEGORY (8 scenarios): live crashes ⇒ unvalidatable vs the oracle; j
 class — not bit-exact-provable against live; flag as "no live oracle" (candidate: is the live FPE a live bug jl
 correctly avoids?). Audit remaining: all-species grown bands; the DGSCOR-tail truly-ULP proof on a live scenario;
 carbon/cuts/keyword/regen @test_broken (feature-gap vs divergence).
+
+### TOLERANCE AUDIT item 6: carbon dead-pool @test_broken = REAL crown-lift one-cycle-lag (must fix, NOT ULP/gap)
+Confirmed the carbon dead-pool (BelowD/StandD/DDW) @test_broken is a genuine SEMANTIC divergence, not ULP and
+not a feature gap: jl applies the FFE crown-lift (FMSDIT/FMCADD) in the NEXT cycle's fuel loop, but FVS applies
+it SAME-cycle ⇒ the intermediate cycles' dead pools diverge (inventory + final cycles ARE bit-exact). This is a
+one-cycle TIMING lag = a real ported-semantic mismatch ⇒ under DONE it MUST be driven to bit-exact (can't be
+"accepted"). Localized to the FFE fuel-loop crown-lift application cycle (docs/FFE_FUEL_DYNAMICS_chunk_plan.md;
+memory fvsjl-ffe-crown-lift-landed "remaining: one-cycle lag"). Live-verifiable (carbon_snt/ffe run on live).
+⇒ THE next concrete bit-exactness fix. Distinct from the near-SDImax ULP floor (that's proven-ULP); this is a
+deterministic timing bug. cuts/keyword/regen-coverage @test_broken still to be classified (feature-gap vs diff).
