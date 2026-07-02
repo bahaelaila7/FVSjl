@@ -74,6 +74,18 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
             # records DGDRIV set). Capture them before the l-loop overwrites the stash slots.
             dgkU = trip ? stash.dgU[i] : dgk
             dgkL = trip ? stash.dgL[i] : dgk
+            # jl's diameter_growth! already FINT-scaled the large-tree DG (_bound_scale ×sfint/YR), but
+            # regent.f:352-354 blends the 10-YR large-tree DG and converts the RESULT to FINT in GRADD.
+            # Un-scale these back to the 10-yr basis (inverse of the sfint/YR DDS transform, = the same
+            # scale2 transform used for dgsm at line ~104) so the blend is on a consistent 10-yr basis and
+            # the FINT re-conversion below applies ONCE. No-op at the native cycle (FINT=YR ⇒ scale2=1),
+            # so native NE (regen + all fixtures) stays BIT-EXACT; fixes the ~5" cohort double-scaling that
+            # under-grew NE at non-native FINT (dense_d5: small-tree DIB-incr 0.5 vs live 0.81).
+            if fint != NE_REGENT_YR
+                bk0 = bark_ratio(c.bark_a, c.bark_b, sp, d); dib0 = d * bk0
+                un10(g) = g > 0f0 ? sqrt(dib0 * dib0 + g * (2f0 * dib0 + g) * scale2) - dib0 : g
+                dgk = un10(dgk); dgkU = un10(dgkU); dgkL = un10(dgkL)
+            end
             for l in 0:(nrec - 1)
                 dgk_l = l == 0 ? dgk : (l == 1 ? dgkU : dgkL)
                 ran = 0f0

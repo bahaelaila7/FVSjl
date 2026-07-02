@@ -2680,3 +2680,20 @@ I read htcalc.f:413's YRS param but failed to check that the NE callers hardcode
 height. Its reality must be RE-VALIDATED on a proper NE stand (ne00 uses SN snt-species through NE — possibly a
 cross-variant/synthetic-scenario artifact, not a jl bug). Re-validation pending; the "NE non-native = real
 divergence" claim is DOWNGRADED to UNVERIFIED until reproduced on a genuine NE inventory at FINT≠10.
+
+### ★★ NE non-native-cycle divergence FIXED to BIT-EXACT — small-tree blend used FINT-scaled large-tree DG
+ROOT CAUSE (traced through regent.f, after reverting the wrong height "fix"): regent.f:352-354 blends the
+10-YR large-tree DG (DG(K)) with the small-tree DGSM and converts the RESULT to FINT in GRADD. But jl's
+`diameter_growth!` FINT-scales the large-tree DG EARLY (`_bound_scale` ×sfint/YR into `t.diam_growth`), so
+`small_tree_growth!` read an ALREADY-FINT-scaled DG, blended it with the 10-yr dgsm, then re-scaled to FINT
+(dds_e) — DOUBLE-scaling the large-tree part. On the ~5" cohort (xwt≈1, blend ≈ large-tree DG) this ~halved the
+increment (dense_d5 small-tree DIB-incr 0.5 vs live 0.81), under-growing NE by 2-4% at every non-native cycle.
+FIX (small_tree_growth.jl, NE): un-scale dgk/dgkU/dgkL from FINT back to the 10-yr basis (inverse of the
+sfint/YR DDS transform = the same scale2 transform used for dgsm) before the blend, so the blend is 10-yr-
+consistent and the FINT re-conversion applies ONCE. Gated `fint != NE_REGENT_YR` ⇒ NO-OP at the native cycle.
+VALIDATED on a PROPER NE stand (dense.tre): dense_d5 (non-native clen5) now BIT-EXACT vs live-NE every column,
+every cycle (BA 171/171, Tcuft 1557/2066/2598…); native dense_d10 stays BIT-EXACT; suite 6397/2. NE-only,
+non-native-only. ⇒ the NE non-native-cycle real divergence (found by completing the varied-sweep coverage +
+re-trace, downgraded then RE-confirmed on a proper stand) is CLOSED to bit-exact. The height "fix" detour was
+reverted (htgf.f/regent.f use YRS=10+linear = jl original); the true bug was this DG-basis double-scale.
+⇒ Campaign real-divergence count back to ZERO: SN-at-10 non-native proven-ULP, NE-at-5 non-native now FIXED.
