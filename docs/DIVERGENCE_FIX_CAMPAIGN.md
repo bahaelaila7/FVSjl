@@ -3672,11 +3672,18 @@ diameter, same top height — yet cubic/board volume diverges. ⇒ the divergenc
 for fia 110 / 402 (R9 Clark '900CLKE110'/'900CLKE402' via compute_volumes_ne!), NOT the stand projection —
 either the r9clark coefficients/merch standards for these two FIA codes, OR a sub-INTEGER per-tree height
 diff the rounded TopHt hides (r9clark_cubic is HT-sensitive). Parallel in spirit to D33 (a per-species volume-
-equation gap), but here the stand grows identically and only the reported volume differs. **NEXT:** dump one
-planted stem's DBH+HT+TCuFt (fix the TreeLiDB-emits-0-rows issue or parse the .trl), then either (a) find a
-<1ft HT diff ⇒ trace CS regen HT-prediction for SP/BH, or (b) HT bit-exact ⇒ compare jl `r9clark_cubic(110,
-dbh,ht)` / `(402,…)` against a hand-run live '900CLKE' value ⇒ fix the coefficient/merch. Keep SN/NE
-bit-exact (variant-gated). This is the campaign's one confirmed OPEN non-ULP item.
+equation gap), but here the stand grows identically and only the reported volume differs. **DECISIVE NARROWING (2026-07-02): NOT the R9 Clark equation — it's the REGEN height-prediction / small-tree
+path.** Ran `all_SP` (the same fia-110 shortleaf pine, but the S248112 stand with MEASURED heights in the
+.tre) through CS: **BIT-EXACT vs live** (1728/1548 → 2420/2273 → 3984/3837, all ULP). So r9clark
+'900CLKE110' with a MEASURED height is faithful; the base equation + merch are correct. The ONLY thing that
+differs between all_SP (bit-exact) and the planted stand (+13%) is that planted/regen stems carry a
+PREDICTED height (dub_missing_heights / CS regen HT). ⇒ **D35 root = the CS regen small-tree HEIGHT
+prediction (or the small-tree volume method applied to regen stems), species-specific (SP over-tall in jl,
+BH under-tall).** This also matches the STOP-HOOK D10 framing exactly (`bare_* regen small-tree volume`).
+**NEXT:** dump one planted stem's predicted DBH+HT vs live (TreeLiDB emits 0 rows for these — parse the
+`.trl` or add a jl debug print in `dub_missing_heights!`/CS `small_tree_growth!`), find the HT gap for SP
+(fia110)/BH(fia402), and trace it to the CS regen HT curve (cs_htcalc / htdbh_coeffs) vs live regent.f. Keep
+SN/NE bit-exact (variant-gated). This is the campaign's one confirmed OPEN non-ULP item.
 
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
