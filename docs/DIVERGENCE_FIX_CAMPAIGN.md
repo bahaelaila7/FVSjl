@@ -3003,3 +3003,15 @@ after the cycle's decay step, so the 3-yr-old slash reads full at 2003. FIX DIRE
 crown slash enters the ANNUAL fmcwd decay from the cut year (so it's partially decayed at a mid-cycle fire),
 matching FVS. This is a fuel-timing refinement on the (correct-amount) crown-slash add; the 80%-closing fix
 stands. Non-corpus scenario; corpus fires bit-exact (suite 6436/2). LAST real divergence, now precisely diagnosed.
+
+### activity-fuels — CORRECTION + crown-slash port VERIFIED FAITHFUL (fmscut.f read in full)
+CORRECTION: the prior "2003-over/2010-under two-fire interaction" note was WRONG — the 2003 FMFINT was a
+DIFFERENT stand (stand 4 "FFE TEST", InvYear 1993, SALVAGE+DEFULMOD). The activity-fuels stand is stand 1
+(THIN 2000 + SIMFIRE 2010) = a SINGLE fire: live byram 14585 / flame 5.63 vs jl 11847 / 5.12 (19% under).
+Read fmscut.f in full: the crown→CWD port is FAITHFUL to lines 89-97 exactly (foliage→CWD size10, branches→
+size1-5, ×CTCRWN·P2T); for an ordinary thin DSNG=0 ⇒ CWD3 (bole) adds nothing (boles hauled) ⇒ NO missing
+component. So the 19% is NOT the slash amount — it's the 10-yr DECAY/stash of the fine crown-slash between the
+2000 cut and the 2010 fire (the corpus no-cut fuel-decay is bit-exact). VERDICT: crown-slash port faithful;
+residual = a small multi-year cut-fuel-decay-granularity / near-threshold-kill effect on a constructed non-
+corpus scenario. Closing it needs a dedicated FFE cut-fuel-decay study; not worth destabilizing the bit-exact
+corpus decay at this depth. 80%-closing fix stands (255→12 vs live 5; was 255→56). Sources pristine.
