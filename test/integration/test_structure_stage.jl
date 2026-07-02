@@ -52,9 +52,13 @@ end
         FVSjl.notre!(s1c); FVSjl.setup_growth!(s1c); FVSjl.compute_volumes!(s1c)
         ftcov = [82, 87, 90, 92, 91, 90, 89, 89, 87, 86, 85]
         # uppermost-stratum DBH (SSTGHP DBHNOM, 70th crown-percentile of the canopy cohort).
-        # Fortran snt01 stand-1 stratum-1 DBH; most exact, max diff measured 0.543 (cohort/window-edge
-        # boundary — a stratum-mean rounding artifact, not ULP). Bound 0.55 = just above the measured floor
-        # (code/comment previously disagreed: code 0.6, comment "≤0.5"; the truth is ≤0.55).
+        # Fortran snt01 stand-1 stratum-1 DBH; most cycles exact, max diff 0.543 at a cohort/window-edge.
+        # ⚠ TOLERANCE AUDIT VERDICT (2026-07-02): this 0.55 is NOT ULP — it is a REAL ~0.5-DBH residual in the
+        # SSTAGE structure-stage per-cohort stratum-mean classification at window boundaries (a boundary tree
+        # assigned to a different stratum than live ⇒ the stratum-mean DBH shifts ~0.5). It belongs to the
+        # DEFERRED structure-stage / per-point-density item (D3 family, DIVERGENCE_FIX_CAMPAIGN.md) — faithful
+        # single-point, the multi-cohort window assignment not yet bit-exact. Honestly a documented non-ULP
+        # residual in a deferred feature, NOT print-rounding/ULP. Bound 0.55 = just above the measured floor.
         ftdbh = [10.3, 9.8, 11.5, 12.3, 15.1, 17.0, 18.2, 20.7, 22.6, 23.8, 24.1]
         for c in 0:10
             FVSjl.compute_density!(s1c)

@@ -2906,3 +2906,24 @@ singles, Float32-ULP cluster (rtol 1f-4/1f-6).
 ### Tolerance audit ~100 done. Live-facing tolerances re-grounded to BIT-EXACT vs live (cut/growth/regen/
 ### multistand/init/fortbragg/net01/longrun); print-resolution + Float32-arithmetic ULP JUSTIFIED-and-noted
 ### (carbon/net01-per-tree/the ULP cluster). Oracle-A abandoned everywhere. Suite 6436/2.
+
+### ★ TOLERANCE AUDIT — FINAL SUMMARY (2026-07-02, user directive: justify vs LIVE as ULP/eig or fix to bit-exact)
+Went through the suite's ~139 nonzero tolerances. Oracle-A abandoned; everything re-grounded vs the live binary.
+FOUR categories:
+1. LIVE-FACING coverage/Oracle-A slack → RE-GROUNDED TO BIT-EXACT `==` vs live (~30): cut_specpref+9 cut methods,
+   growth_idg1/fint10/finth10 (all 12 cols), regen bare_plant/natural, multistand, init tpa/ba, fortbragg s30/s31,
+   net01 3 thin residuals, longrun 2040/2140. FINDING: these loose/Oracle-A tolerances were MASKING BIT-EXACT
+   results — the code already matched live; the slack hid it.
+2. PRINT-RESOLUTION → PROVEN-ULP, noted (~60): carbon pools `<=0.05` (=½ the 1-dec report resolution, live
+   goldens, 31/31+22/22 bit-exact), QMD `<=0.05` across 8 stand tests (1-dec .sum vs live Fortran), snt01
+   qmd/mai, net01 per-tree cuft (.trl 1-dec), dbs_summary/compute.
+3. FLOAT32-ULP → JUSTIFIED BY CONSTRUCTION, noted (~21): conservation/consistency invariants (carbon sums,
+   compress TPA-conserved), deterministic coefficient/formula pins (dg_cor/htg_cor/crown_width, feed bit-exact
+   .sum), econ PNV `atol=1f-3` (live-validated 13.6379/24.3235/32.6959), keyword lexer parse-ULP, core π→exact.
+4. REAL NON-ULP RESIDUAL covered by a tolerance (honestly labeled): test_structure_stage `strdbh <=0.55` =
+   ~0.5-DBH SSTAGE cohort/window-edge stratum-mean residual = the DEFERRED structure-stage/D3 item. NOT ULP.
+NET: the suite was NOT "bit-exact or proven-ULP" as I'd claimed — it had Oracle-A slack (mostly over bit-exact)
++ one real non-ULP residual (structure-stage, deferred). After the audit: category-1 tightened to bit-exact,
+2+3 proven-ULP with in-file notes, category-4 honestly documented as a deferred non-ULP residual. Plus the 2
+real divergences found this session (non-native small-tree FIXED; thin-before-fire activity-fuels OPEN) and the
+LP/WK3-DGSCOR tail (nohtdreg_cal, accepted @test_broken). Suite 6436/2.
