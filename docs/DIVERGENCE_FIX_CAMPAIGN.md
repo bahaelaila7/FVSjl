@@ -2954,3 +2954,26 @@ genuine non-ULP divergence.
 ### (1) thin-before-fire ACTIVITY-FUELS — OPEN, root-caused (ordinary-cut crown-slash not fed to FFE fuel bed).
 ### (2) LP / WK3-DGSCOR tail (nohtdreg_cal ~1%) — accepted @test_broken (COMPRESS-family near-tie tail).
 ### Non-native small-tree DG double-scale = FIXED this session. Suite 6436/2.
+
+### activity-fuels fix — PRECISE IMPLEMENTATION PLAN (root-cause + FVS routing traced; unit-convention to resolve)
+ROOT (confirmed): jl's cut→fuel (cuts.jl:123-157) books cut material to the FFE fuel bed ONLY under YARDLOSS,
+bole only. FVS FMSCUT (fmscut.f:61-98) adds EVERY cut tree's CROWN to the debris pool:
+  IDC = DKRCLS(sp);  X = CTCRWN(i)·P2T                     # CTCRWN = removed TPA of the tree
+  CWD(1,10,2,IDC) += CROWNW(i,0)·X                          # foliage → CWD size-class 10 (= jl litter)
+  DO ISZ=1,5:  CWD(1,ISZ,2,IDC) += CROWNW(i,ISZ)·X          # branch classes 1-5 → CWD woody sizes 1-5
+  CALL CWD3(...)                                            # downed-snag bole (jl already does the YARDLOSS analog)
+jl BUILDING BLOCKS present: `crown_biomass(s,sp,d,h,icr)`→XV(0:5) (fmcrowe, faithful), `ffe_dkr_cls`(=DKRCLS),
+`_FM_P2T`, `s.fire.cwd[size,2,idc]` (cwd size 10=litter/11=duff/1-9 woody; the YARDLOSS path already writes
+cwd[j,2,idc]).
+IMPLEMENT: in the cut loop (cut_one!, gated `s.fire!==nothing && s.fire.active`, for each cut tree with removed
+TPA `prem`): xv=crown_biomass(...); idc=ffe_dkr_cls(s,sp); add xv[1]·prem·SCALE → cwd[10,2,idc]; xv[isz+1]·prem·
+SCALE → cwd[isz,2,idc] for isz 1:5.
+⚠ UNIT-CONVENTION TO RESOLVE FIRST (else it regresses the bit-exact corpus fires): what units does `s.fire.cwd`
+store? The YARDLOSS path adds TONS (`fallvol=tcf·v2t/2000`), but `fmscro!` adds crown_biomass in LB to `cwd2b`
+(×P2T deferred to the carbon report). Determine whether SCALE = `_FM_P2T` (if cwd is tons, matching YARDLOSS) or
+1 (if cwd is lb like cwd2b) by checking a bit-exact fire scenario's cwd magnitude vs FMCONS. Then apply the
+matching scale. VALIDATION target: cst01+THINDBH(2000)+SIMFIRE(2010) → live 255→5 (jl currently 255→56); the
+corpus mild fires (snt01 SIMFIRE, fire_carbon, midcycle_fire, ffe) must stay bit-exact (they have no big
+thin-before-fire so the crown-slash add is ~0 ⇒ should be untouched, but VERIFY). This is the LAST real model
+divergence; all else is bit-exact / proven-ULP / accepted-eigensolver. Deferred as a careful FFE port, not
+rushed at depth.
