@@ -495,6 +495,17 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         p.forest_idx = Int32(20)
         p.user_forest_code = Int32(81110)
     end
+    # FORKOD default trap (forkod.f:521-533): a KODFOR that resolves to no recognized SN forest
+    # falls through the SELECT CASE to `CASE DEFAULT`; when the 3-digit forest (IFORDI=KODFOR÷100)
+    # isn't in JFOR, `FORFOUND=.FALSE.` ⇒ ERRGRO(3) + KODFOR = Talladega NF Alabama = 80106. So a
+    # blank/foreign forest code (e.g. sn.key's KODFOR=0 or 118) is simulated as region-8 Talladega:
+    # IREGN=8, VOLEQ=841CLKE (live-stamp-confirmed), same as snt01. Without this, jl left IREGN=0 ⇒
+    # VOLEQDEF assigned no R8 Clark equation ⇒ zero volume. The legit region-9 SN forests (905/908
+    # ⇒ ISEFOR=0, R9 Clark) are the only non-region-8 codes FVS keeps, so preserve those.
+    if s.variant isa Southern && div(p.user_forest_code, 10000) != 8 &&
+       !(div(p.user_forest_code, 100) in (905, 908))
+        p.user_forest_code = Int32(80106)
+    end
     # FORKOD phase 3: default lat/long/elev from the forest code (forkod.f:193).
     lat0, long0, elev0 = forest_location(s.coef, div(p.user_forest_code, 100))
     p.latitude  == 0f0 && (p.latitude  = lat0)

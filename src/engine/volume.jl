@@ -452,12 +452,6 @@ function compute_volumes!(s::StandState)
     # Eastern variants (NE + CS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
     # differing only in the IFOR merch standards (_ne_merch / _cs_merch, dispatched inside).
     (s.variant isa Northeast || s.variant isa CentralStates) && return compute_volumes_ne!(s)
-    # D21: an SN stand whose KODFOR is NOT a valid Southeast (region-8) forest (ISEFOR=0 in FVS sitset.f:376-386,
-    # e.g. KODFOR=0 or 118) defaults to the R9 Clark '900CLKE' equation (IREGN=9), NOT R8 Clark. jl's R8 path
-    # assigns no equation for iregn≠8 ⇒ 0 volume. Route these to the R9 Clark model (same as NE/CS) with the SN
-    # merch standards. Region-8 SN stands (snt01 80106, the 260-stand sweep) keep the R8 path — untouched.
-    s.variant isa Southern && (Int(s.plot.user_forest_code) ÷ 10000 != 8) &&
-        return compute_volumes_ne!(s)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     # R8 board-foot rule: the R8-CLK path reports INTERNATIONAL ¼" board feet (volinit2.f:269-272 VOL(2)=

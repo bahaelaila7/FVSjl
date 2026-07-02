@@ -299,6 +299,10 @@ end
         @test length(stands) == 4                     # 4 STDIDENT stands (was 1 before the fix)
         for s in stands
             @test s.trees.n == 27                     # each stand reads its 27 inline tree records
+            # D21: sn.key's stands carry a blank/foreign forest code (KODFOR 0 or 118); FVS forkod.f's
+            # DEFAULT trap maps any unrecognized SN forest to Talladega NF 80106 (region 8) so it gets
+            # the R8 Clark 841CLKE equation. Without the trap jl left IREGN=0 ⇒ zero volume.
+            @test s.plot.user_forest_code == 80106
         end
     end
 end
