@@ -3542,3 +3542,21 @@ a live-side DBS-emission condition (SQL-path or an FFE/global-DataBase interacti
 not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithful-to-semantics; D20 is a live-side
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
+
+## ★ D21 — non-SE-forest SN stand gets 0 volume (missing R9-Clark '900CLKE' default) — REAL (found 2026-07-02)
+Found by verifying sn.key's per-stand FVS_Summary vs live (after the D19 4-stand fix): jl's FFE stand (sn.key
+stand 4, KODFOR=118) has TPA/BA MATCHING live (536/77, 273/101, 245/120, 106/71 …) but TCuFt = **0 for every
+year** vs live's real volumes (1368, 1883, 2415, 1674 …). ROOT (traced both sides): the FFE stand's KODFOR=118 is
+NOT a valid Southeast (region-8) forest — FVS sitset.f:376-386 branches on ISEFOR: a valid SE forest ⇒ R8 Clark
+from KODFOR; ELSE (ISEFOR=0, e.g. KODFOR=118) ⇒ `IREGN=9; VOLEQ='900CLKE'; IFORST=KODFOR-900` = the **R9 Clark
+default**. So live computes the FFE stand's volume with R9 Clark. jl's `setup_volume_equations!`
+(volume_equations.jl:92) assigns an equation ONLY when `iregn==8`, else blank ⇒ `_R8CLARK_VOL("",…)=0`. And jl's
+SN compute_volumes! path (volume.jl:511) hardcodes `_R8CLARK_VOL` (only NE/CS route to R9 via compute_volumes_ne!).
+⇒ jl gives 0 volume for any SN stand whose KODFOR isn't a region-8 forest. jl already detects it (forest_idx=0 ==
+ISEFOR=0) and HAS R9 Clark (r9clark_vol.jl, used by NE/CS) — so it's FIXABLE, not an NVEL gap. FIX PATH: (1)
+setup_volume_equations! — for SN with iregn≠8/forest_idx=0, assign the R9 Clark '900CLKE' equation (IFORST=
+KODFOR-900); (2) SN compute_volumes! — route '900CLKE'-equation species to the R9 Clark model (reuse the NE/CS
+R9 path) instead of _R8CLARK_VOL. Validate vs live FFE volumes (1368/1883/…). CLASS: real volume divergence (0 vs
+live), edge-case trigger (non-SE-forest KODFOR in an SN run — sn.key stand 4), bounded fix (R9 Clark already in
+jl). 📌 pending the R8/R9 cross-path volume integration + live validation. TPA/BA (the model projection) already
+matches live — only the volume EQUATION selection for non-SE forests diverges.
