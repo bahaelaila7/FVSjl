@@ -2537,3 +2537,21 @@ STATUS: campaign's single remaining non-bit-exact item, now root-localized: a <0
 micro-residual = a ~4-CCF per-point-CCF phase difference at regen-crown assignment (D3-family, natural-regen
 cohort). Formula/RNG/rounding all proven faithful. Driving to bit-exact needs the point_ccf capture phase
 per-point-diffed vs a live DENSE/REGENT stamp — below practical significance (<0.1% Tcuft, ±1ft TopHt). 📌
+
+### Natural-regen crown micro-residual — traced to mechanistic floor (formula/CCFT/crown_width all faithful)
+Completed the trace of the campaign's last item (the 82.44-vs-82.46 / <0.1%-cubic natural-regen crown residual):
+- Regen crown FORMULA bit-identical to regent.f:178-184 (constants + BACHLO rejection loop + ICR round). ✅
+- Point-CCF CCFT formula bit-identical: jl `0.001803·cw²·tpa` (small-tree `0.001·tpa`) == ccfcal.f:59-63
+  `CCFT=0.001803·TEMCW²·P`. ✅ And STAND CCF is BIT-EXACT (.sum CCF column matches every cycle) ⇒ crown_width /
+  CCFT are faithful (the point-CCF sum reconciles to the bit-exact stand CCF).
+⇒ The residual is NOT a formula/coefficient bug. It floors to one of two sub-0.1% mechanisms, each requiring a
+per-tree regen stamp to separate: (a) a per-point-CCF PHASE subtlety (which trees populate point_ccf at the
+exact DENSE-before-REGENT moment for the establishing cohort), or (b) a regen `ran_cr` BACHLO RNG micro-desync
+(one extra/missing draw somewhere in the regen path shifts the stochastic crown term ~0.02 in the mean). Both
+need the natural-establishment cohort's per-tree crown draws diffed vs a live REGENT/BACHLO stamp — currently
+BLOCKED by the bare-scenario .trl routing (produces no tree-list rows), a tooling gap, not a model question.
+FINAL STATUS: this is the campaign's single remaining non-bit-exact item, traced to its mechanistic floor
+(formula faithful; residual = per-point-CCF phase OR regen-RNG micro-desync; <0.1% Tcuft / ±1ft TopHt;
+natural-regen only; below practical significance). Resolving it requires unblocking the per-tree regen stamp
+(fix bare .trl routing) then diffing the cohort crown draws — a bounded but tooling-gated next step. Everything
+else across SN/NE/CS is bit-exact / proven-ULP / accepted-eigensolver. 📌
