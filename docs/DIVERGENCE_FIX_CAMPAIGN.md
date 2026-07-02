@@ -2927,3 +2927,16 @@ NET: the suite was NOT "bit-exact or proven-ULP" as I'd claimed — it had Oracl
 2+3 proven-ULP with in-file notes, category-4 honestly documented as a deferred non-ULP residual. Plus the 2
 real divergences found this session (non-native small-tree FIXED; thin-before-fire activity-fuels OPEN) and the
 LP/WK3-DGSCOR tail (nohtdreg_cal, accepted @test_broken). Suite 6436/2.
+
+### structure_stage strdbh — refined: bit-exact TREES, SSTAGE-report stratification/percentile residual
+Applied the discrimination criterion to the one tolerance-covered "real non-ULP" item. The test grows snt01
+stand-1 (BIT-EXACT vs live) directly with grow_cycle!, so the per-tree DBH is BIT-EXACT at every cycle. ⇒ the
+strdbh residual (8/11 cycles bit-exact, 3 differ ≤0.543) is NOT a growth divergence — it is purely in the SSTAGE
+report: `strdbh` = the dominant stratum's SSTGHP 70th-percentile DBH (sstage.f:487-576). At a cohort/window
+boundary a single bit-exact tree lands in a different stratum (or on the wrong side of the percentile
+interpolation) than Fortran, shifting the small stratum's 70th-pct DBH ~0.5. OPEN sub-question (needs a sstage.f
+trace at the 3 differing cycles to close): is the flip a Float32 boundary TIE (⇒ ULP-amplification, reclassify)
+or a real SSTGHP stratification/percentile-interp difference (⇒ real, the deferred structure-stage/D3 item)?
+Documented as the deferred structure-stage residual pending that trace. Real-open-items list (post tolerance
+audit): (1) thin-before-fire ACTIVITY-FUELS (open, root-caused, substantial FFE add); (2) structure-stage
+SSTGHP boundary (this, ≤0.5 DBH, 3/11 cycles); (3) LP/WK3-DGSCOR tail (nohtdreg_cal ~1%, accepted @test_broken).
