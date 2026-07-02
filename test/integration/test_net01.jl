@@ -36,7 +36,9 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         # the top-killed SM (sp27) d=10.4 tree: built on NORMHT=63.9 (not the broken 55) then CFTOPK
         ti = findfirst(i -> n.trees.trunc[i] > 0 && Int(n.trees.species[i]) == 27, 1:n.trees.n)
         @test ti !== nothing
-        @test round(n.trees.cuft_vol[ti]; digits = 1) ≈ 15.4 atol = 0.1   # live .trl per-tree TOT
+        # per-tree TOT cuft vs the live FVSne .trl value 15.4: atol=0.1 is PROVEN-ULP = the .trl's 1-decimal
+        # print resolution (jl's internal Float32 cuft vs the live 1-dec .trl ⇒ |Δ| ≤ 0.1). Not slack over a gap.
+        @test isapprox(n.trees.cuft_vol[ti], 15.4f0; atol = 0.1)   # PROVEN-ULP (1-dec .trl print resolution)
     end
 end
 
@@ -100,8 +102,8 @@ end
             @test parse(Int, row2000[1]) == 2000
             @test parse(Int, row2000[3]) == 524           # pre-thin TPA (live 524)
             @test parse(Int, row2000[4]) == 107           # pre-thin BA  (live 107)
-            @test parse(Int, row2010[3]) ≈ resid_tpa atol = 2   # post-thin residual TPA vs live
-            @test parse(Int, row2010[4]) ≈ resid_ba  atol = 1   # post-thin residual BA  vs live
+            @test parse(Int, row2010[3]) == resid_tpa   # post-thin residual TPA — BIT-EXACT vs live (re-grounded 2026-07-02)
+            @test parse(Int, row2010[4]) == resid_ba    # post-thin residual BA  — BIT-EXACT vs live
         end
     end
 end
