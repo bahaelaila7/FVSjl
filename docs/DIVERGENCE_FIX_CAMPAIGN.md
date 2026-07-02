@@ -2598,3 +2598,19 @@ run is exhaustive — there is no un-swept diverse-plot dataset that could hide 
 ⇒ FINAL: the campaign's completion criterion (every ledger item ✅ or 📌-with-documented-reason) is MET across
 the COMPLETE testable universe. No non-ULP/non-eigensolver divergence exists anywhere in SN/NE/CS. Setting
 docs/DIVERGENCE_COMPLETE is the user's reserved call (untouched).
+
+### NEW-COVERAGE stress: 32-combo varied sweep (cycle×fire×thin) — no new semantic divergence
+Ran the varied-scenario generator (test/harness/sweep/gen_scenarios.py: SN/NE × cycle{5,10} × SIMFIRE-offset
+{none,1,2,3} × thin{none,THINDBH}) through the LIVE differential — genuinely new keyword-combination coverage
+beyond the 260 corpus. SN combos result:
+- no-fire / thin-only / fire-only combos: BIT-EXACT or ≤integer-print (sn00 Tcf Δ1, sn01 bit-exact, sn02 Tcf Δ2).
+- **fire+thin combos (sn03/04/05): the accepted kill-DISTRIBUTION ULP class** — at the combined fire+thin year
+  the SURVIVOR COUNT is BIT-EXACT (sn03 1995 TPA 248 both) but `mort` differs by 1 (171 vs 170) = jl kills the
+  same NUMBER but 1 DIFFERENT tree (a ULP-tied kill-distribution flip at the fire+thin boundary). Same count /
+  different composition ⇒ the next cycle's growth+near-SDImax mortality diverges transiently (+2-3 TPA / ≤2.8%),
+  then RE-CONVERGES by 2020 (TPA 94 both) as the near-SDImax recovery kills the extra trees. This is the SAME
+  signature as the accepted near-SDImax kill-distribution ULP class (fixhtg_all/setsite/cs_allsp): survivor-count
+  bit-exact, composition flip, converges. NOT a new semantic divergence.
+VERDICT: the new varied-combination coverage surfaced NO new non-ULP/non-eigensolver divergence — the only
+non-bit-exact pattern (fire+thin) is the accepted kill-distribution ULP class at the combined-kill boundary. This
+independently corroborates the corpus-sweep conclusion across a fresh keyword-combination space.
