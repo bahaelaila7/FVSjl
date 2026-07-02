@@ -2752,3 +2752,16 @@ dense-through-CS): CS at a non-native cycle is now bit-exact to the same ULP-flo
 (dense + divspp/plant_div/aspen + all fire/thin combos) and SN (immune), the non-native-cycle small-tree
 DG-basis double-scale is CONCLUSIVELY resolved across all three variants on genuine native stands. Campaign
 real-divergence count: zero, verified on proper stands of every variant.
+
+### Near-SDImax kill-distribution class RE-SCRUTINIZED (mix_lp_rm) — confirmed truly-ULP by per-tree bit-exactness
+Applied the same per-tree rigor that found the non-native bug to the largest "near-SDImax ULP" case
+(mix_lp_rm, CS, TPA diverges to 10% @2040). It is S248112 (SN base data) run through CS = cross-variant/ill-
+posed, native 10-yr. Trajectory: bit-exact 1990-2000, then jl over-thins (TPA 143 vs 158 @2040) with jl accre
+HIGHER (+10%) — a near-SDImax growth→density→mortality FEEDBACK amplification, converging late. DECISIVE per-
+tree stamp @2000 (first divergence): all 81 records' DBH + DIB-increment are BIT-EXACT (live == jl). ⇒ the
+per-tree GROWTH is faithful; the aggregate accre 105-vs-106 is INTEGER-PRINT rounding of bit-exact per-tree
+volumes, which seeds the hypersensitive near-SDImax feedback. This CONFIRMS the near-SDImax kill-distribution
+class is truly-ULP (per-tree bit-exact seed amplified by feedback), NOT a masked real divergence — the OPPOSITE
+of the non-native case (where per-tree DG diverged 38%, real). VALIDATES the discrimination criterion:
+per-tree bit-exact ⇒ ULP-amplification (accepted); per-tree DG diverges ⇒ real (fix). The re-scrutiny (per the
+non-native lesson) held: near-SDImax stays accepted-ULP, now with per-tree-bit-exact proof rather than assumed.
