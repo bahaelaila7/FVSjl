@@ -3295,3 +3295,19 @@ Machinery still PROVEN faithful (fuel-forcing→kill 5). D17 = a genuinely multi
 divergence (fmcba-augmentation + slash-magnitude + decay-phasing), all in the fuel pipeline, netting +26% at ONE
 constructed fire. 📌 constructed-only, lowest-value; each factor is high corpus-regression risk (corpus fires are
 bit-exact on the current path) ⇒ any fix needs per-factor live-differential + full sweep re-validation.
+
+### D17 — two clean ELIMINATIONS: initial FUINI verified correct + fmcba-aug is a red herring (2026-07-02)
+Two hypotheses KILLED this pass, narrowing D17 unambiguously:
+1. INITIAL FUEL TABLE ✓ CORRECT: jl's CS fire_fuel_dead.csv oak-hickory row = live cs/fmcba.f FUINI oak-hickory
+   row BYTE-FOR-BYTE (0.15,0.74,1.70,0.38,0.97,2.68,0,0,0,5.17,4.52) ⇒ SMALL=7.76/LARGE=4.03 = live's 1990 FMDYN
+   exactly. The trace's "jl 1990=3.599" was POST-first-cycle-decay (sampled after ffe_fuel_update!), not the raw
+   initial — NOT a table bug. Initial loading is faithful.
+2. fmcba AUGMENTATION = RED HERRING: live's fire SMALL (6.30) = the RAW cwd sum (live 2010 sizes 1-3+litter =
+   4.093+1.683+0.393+0.129 = 6.30 EXACTLY) ⇒ live's fire uses raw cwd, same quantity as jl's fire_smlg; the
+   "jl-augmented 1990=7.76=live" was a coincidence (jl-raw 3.599 + ~4 herb/shrub ≈ 7.76). No augmentation gap.
+NOW RULED OUT for D17: fire machinery (fuel-forcing→kill 5), initial FUINI table, forest-type (FMCSFT), model
+selection, XPTS, small/large partition, fmcba-augmentation. ⇒ D17 is DEFINITIVELY the thin-slash fuel EVOLUTION
+over 1990→2010 (the 2000-thin crown-slash's add magnitude + its 2000→2010 decay/phasing), sampled at the fire:
+jl fire fuel 7.912 vs live 6.30 (+26%), both from the same correct FUINI. Fix = faithful FMSCUT-add-then-annual-
+FMCWD phasing (approach 3), the ONLY remaining candidate. 📌 constructed-only; machinery+inputs all verified
+faithful; the residual is isolated to the cut-slash fuel-evolution phasing (delicate reorder, high corpus risk).
