@@ -8,6 +8,20 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
+**★★★★ ALL-THREE-VARIANTS-AT-FLOOR (2026-07-02 session).** Fresh tri-variant sweep + per-item re-trace vs
+current live binaries. **2 real bugs found & FIXED:** D33 (SN blank/foreign forest code → 0 volume; ported
+forkod.f default-trap → Talladega 80106 R8 Clark; live-stamp-proven) and D34 (inline TREEDATA w/o -999
+crashed jl → reader stops at next keyword). **Sweep floors:** SN 221 bit-exact, NE 240, CS 44 — every
+remaining DIFF re-traced to a documented-accepted class: D13 hard-cap threshold-amplification, D8/D10
+regen saw-threshold amplification (bare_natural re-verified: TPA bit-exact, only sawtimber-threshold ULP),
+D16 fire-kill distribution, COMPRESS eigensolver, D2/D2b non-native FINT/cycle, live-FPE (no oracle), and
+the CS ULP floor. **Stale-verdict corrections this session (re-trace discipline):** the ledger's "CS
+dedicated campaign" was stale — growth_finth5 80%→0.5%, cut_thinauto 450%→0.36%, cuteff 103%→1.33%,
+readcord 57%→bit-exact all RESOLVED; the CS late-cycle all_*/mix_*/fertiliz tail = accepted CS ULP floor
+(sub-print cycle-1 seed → SDImax-peak amplification, ~1% vol); hcor_smalltree = FALSE POSITIVE (bit-exact
+early, HCOR=0 matches live). ⇒ every swept-corpus non-ULP divergence is now fixed or 📌-documented. The
+DIVERGENCE_COMPLETE off-switch is the user's call (left untouched).
+
 **★★★ FULL SN SWEEP RE-RUN (post-D16b-SMALL fix, latest session) — 260 stands through live+jl, ranked by max
 non-ULP rel diff: 220 BIT-EXACT, 8 live-FPE (no oracle — live crashes: all_AE/EL/RL/SU/WE/dead_fint/mcfdln_
 override/nohtdreg_cal), 1 jl-error (dbs_treelist — RESOLVED: was a STALE `./__DSNOUT__` SQLite artifact with an OLD 26-col
