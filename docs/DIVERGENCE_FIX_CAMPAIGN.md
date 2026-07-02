@@ -3530,3 +3530,15 @@ ACCEPTED narrow DBS-output-emission follow-up — the MODEL projection of all 4 
 the exact one-stand DBS-presence rule needs deep dbssumry.f/opsum.f + shelterwood-stand-state tracing for a
 single stand's DBS-output presence, which is disproportionate to the value (DBS output completeness, not model
 correctness, on one stand of one test). D19 (the real model bug) is FIXED+tested; D20 is the residual output tail.
+
+### D20 — RE-VERIFIED: jl is FAITHFUL to the Summary-keyword semantics; live's omission is unexplained by them
+Re-traced FVS's ISUMARY logic (re-trace discipline): dbsin.f:204-205 — a DATABASE>Summary keyword sets ISUMARY=1
+(→ write FVS_Summary), or ISUMARY=2 if field 1 = 2. The ONLY paths that skip the write set ISUMARY=0, and those
+are exclusively SQL-ERROR handlers (dbssumry.f:85 exec-fail, :128 prepare-fail). ⇒ per the documented FVS keyword
+semantics, EVERY stand carrying a Summary keyword writes FVS_Summary. jl does exactly this (all 4 sn.key stands
+have Summary ⇒ jl writes all 4). Live emits only 3 — a difference NOT explained by the ISUMARY keyword logic (no
+legitimate non-error skip exists). ⇒ jl is FAITHFUL to the Summary-keyword semantics; live's 1-stand omission is
+a live-side DBS-emission condition (SQL-path or an FFE/global-DataBase interaction) that the keyword semantics do
+not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithful-to-semantics; D20 is a live-side
+DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
+shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
