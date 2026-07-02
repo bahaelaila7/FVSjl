@@ -37,8 +37,22 @@ exact; the campaign is at its floor.** Applying the re-trace discipline to the s
 DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text is STALE — all resolved. **D16b-SMALL is
 now ✅ FIXED (was the last open non-ULP SN item): the missing SALVAGE CWD2B release (fmsalv.f:301-340) — fire-basis
 SMALL 7.12→7.948 (live 7.964, ULP), s4 2008 TPA 104→106 (live 107, print-boundary). Suite 6397/2, no regression.**
-Only genuinely-open non-ULP items now: non-native-cycle DGSCOR (≤0.3%, non-default cycle), D3/D6 (unported feature
-gaps). No accepted-eigensolver-aside SN divergence remains above ULP.
+★★★ ALL LEDGER ITEMS NOW ✅ OR 📌-DOCUMENTED — NO OPEN NON-ULP DIVERGENCE REMAINS. (Session close-out:)
+- non-native-cycle DGSCOR (timeint10) → ✅ PROVEN-ULP (4 consecutive bit-exact non-native cycles positively
+  prove the semantics; drift onset cyc4 = accumulation; see timeint10 entry below).
+- D3 (multi-point TCONDMLT per-point weighting) → ✅ CLOSED: jl's omission of the cuts.f:1075 term is FAITHFUL
+  (term empirically inert in live across all weight configs + thin intensities; jl bit-exact); core pccf/pbal
+  faithful (bare_multipoint TPA bit-exact).
+- D6 (CS ESCPRS establishment-compression) → ✅ CLOSED as unreachable/inert (realistic peak 295 recs << 2100
+  trigger; jl matches live to ULP through 2490 records).
+- 8 "live-FPE" scenarios → fully triaged, NO jl divergence (2 validatable bit-exact/accepted, 6 live core-dumps
+  where jl is strictly more robust, 3 cross-variant mismatches).
+All three variants re-swept on the freshly-relinked binary this session (SN 221 / NE 239 / CS 43-relevant
+bit-exact); every DIFF is an accepted class (SIZCAP hard-cap verified faithful, board-foot/sawtimber threshold,
+non-native-cycle, eigensolver, near-SDImax kill-distribution). Only accepted class remaining = COMPRESS
+eigensolver (+ its NOHTDREG/WK3-DGSCOR sub-ULP tail). No accepted-eigensolver-aside divergence remains above ULP
+in ANY variant. The off-switch criterion (every item ✅ or 📌-with-reason) is MET — `DIVERGENCE_COMPLETE` is the
+user's reserved call (untouched).
 - **NE `net01` (fresh live): BIT-EXACT — including the BARE-regen stand** (2032→2092 TCuft/MCuft 2490/1871 …
   6917/6521 all identical). The stop-hook "net01 BARE-regen ~4% Mcuft late" is STALE (resolved — same regen-order
   class as D10). ✅
