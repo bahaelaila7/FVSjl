@@ -2297,3 +2297,13 @@ non-native-cycle DGSCOR serial-correlation SEMANTIC gap (memory: up to 3% NE-at-
 real semantic mismatch in the off-native-cycle DG/AUTCOR handling ⇒ under DONE must be FIXED to bit-exact, not
 accepted. ⇒ MOVES to the open real-divergence list (with carbon-DDW-timing + raw-BA + CS re-sweep DIFFs).
 The strict bar keeps re-classifying "accepted" floors: board-foot IS ULP; timeint10 is NOT (semantic).
+
+### timeint10 non-native DGSCOR — localized: DG drifts at cyc4 (2030), NOT mortality (real, deep #2 item)
+Localized the non-native (SN@10yr TIMEINT) divergence: BIT-EXACT through 2020 (cyc0-3, TPA+Tcuft), first drift
+at 2030 (cyc4): Tcuft −1 while TPA is BIT-EXACT (146 both) ⇒ the difference is per-tree VOLUME with the same
+tree count ⇒ a small DIAMETER-GROWTH difference, NOT mortality. It then accumulates (+3/+6/+16 Tcuft, ±2 TPA
+by 2080). This is the non-native-cycle DGSCOR serial-correlation / DG-prediction gap (memory #2): jl's AUTCOR
+new/old-period ARMA + COR attenuation at the off-native 10-yr cycle differs slightly from live, accumulating.
+DEEP item (the DG serial-correlation subsystem at non-native cycles) — real semantic, must fix per DONE, but
+multi-step (needs a live dgdriv/AUTCOR stamp at cyc4 on timeint10). Onset at cyc4 (not cyc1) suggests slow
+serial-correlation accumulation rather than a per-cycle formula error. Tracked as open real-divergence #2.
