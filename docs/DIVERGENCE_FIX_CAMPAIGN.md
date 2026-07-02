@@ -1527,15 +1527,17 @@ bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live cr
   6120/6199 = 1.3%). The big TPA% is a SMALL-COUNT ratio artifact (10 stems of ~90). ⇒ NOT distinct bugs — they
   FOLD INTO the CS late-cycle small-tree mortality tail below (same signature as all_*). Volume/BA impact is ULP-
   to-~1%. So there is no separate mix/fertiliz CS bug.
-- `hcor_smalltree` 4.72% Scuft@2080 — the CS small-tree HCOR calibration. LOCALIZED (2026-07-02):
-  cs/small_tree_growth.jl:41 applies `con=exp(htg_cor_small[sp])`, but BOTH inputs are SN-only:
-  (1) `htg_cor_init` (HCOR_init, the regent height-ratio regression) is set only at
-  southern/diameter_growth.jl:559/623/658; (2) the per-cycle attenuation `htg_cor_small = WCI +
-  cormlt_h·(htg_cor_init−WCI)` is only at southern/diameter_growth.jl:726. CS's own `dgf!(::CentralStates)`
-  / `cs_dgcons!` flow computes NEITHER ⇒ htg_cor_small stays 0 ⇒ con=1 (no calibration). This is a scoped
-  CS PORT (the CS regent height-ratio estimator + attenuation into the CS DG flow), NOT a share of the SN
-  line — SN's regression uses SN coefficients, so calling it for CS would violate rule #6. Needs a live CS
-  dgdriv/regent stamp to get the target CS HCOR_init. Most-diagnosed remaining CS item; modest (Scuft only).
+- `hcor_smalltree` 4.72% Scuft@2080 — 📌 FALSE POSITIVE (re-traced 2026-07-02), NOT an HCOR gap. Full-column
+  .sum: BIT-EXACT through 2010 in EVERY column incl. small-tree cubic (Scuft 529/529, 980/980, 1612/1612;
+  Mcuft 1312/1312, 1705/1705); the only drift is late-cycle TPA (2000 5104/5102, volume still bit-exact),
+  accumulating to the 4.72% Scuft ONLY by 2080. If the missing `htg_cor_small` (CS leaves it 0) actually
+  mattered, small-tree HEIGHT growth — hence Scuft — would diverge from cycle 1; it does NOT. ⇒ HCOR is
+  effectively 0 for this stand and jl's 0 MATCHES live (the S248112 .tre carries measured DIAMETER growth,
+  not measured height growth, so the regent height-ratio estimator never accumulates ⇒ HCOR_init=0 — same as
+  net01/NE). So there is NO CS HCOR bug here; the late Scuft% is the accepted CS ULP-floor tail above. (The
+  cs/small_tree_growth.jl `con=exp(htg_cor_small)` path is present and correct; it would matter only for a CS
+  stand with MEASURED height growth in its .tre — none in the corpus. If such a stand appears, THEN port the
+  CS regent height-ratio estimator + attenuation, variant-gated per rule #6.)
 - `all_*`/`mix_*` 4–7% TPA late-cycle tails (all_RL 7.4%, all_RM 6.4%, all_FM/SM 4.9%) — CHARACTERIZED
   (2026-07-02, mix_lp_rm per-cycle kills L/J): 2000 13/13, 2010 25/26, 2020 70/70, **2030 167/175 (+8)**,
   2040 103/109, 2050 65/60. NOT a slow 1-tree/cycle accumulation — it's a DENSITY-DEPENDENT SELF-THINNING
@@ -1555,8 +1557,13 @@ bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live cr
   model); the per-column + documented-floor evidence carries the verdict. CLOSES the CS late-cycle tail.
 - `treeszcp_cap`/`htcap` = D13, `mortmsb` = D13-FORTYP, `defulmod` = D16 fire, `compress` = eigensolver
   (all shared-accepted classes).
-⇒ CS's real open work is now SMALL: mix_lp_rm/fertiliz (top, uninvestigated), the CS HCOR calibration
-(diagnosed), and the all_* base-growth tail (needs ULP-vs-real verdict). NOT a multi-item from-scratch port.
+⇒ FINAL CS VERDICT (2026-07-02, all items re-traced): CS has NO genuinely-open non-ULP item. mix_lp_rm/
+fertiliz fold into the tail; the all_*/mix_* late tail is the accepted CS ULP floor (sub-print cycle-1 seed
+→ SDImax-peak amplification, ~1% volume); hcor_smalltree is a FALSE POSITIVE (bit-exact early, HCOR=0 matches
+live); treeszcp/mortmsb = D13, defulmod = D16, compress = eigensolver. So all three variants (SN via
+D33/D34 + NE + CS) are now at the accepted floor: every non-ULP divergence in the swept corpus is fixed or
+documented-accepted (ULP-amplification / eigensolver / live-FPE-no-oracle / feature-gap). NOT a from-scratch
+CS port — CS is done to floor.
 
 <details><summary>Superseded verdict (kept for the record — its "ill-posed" claim is RETRACTED above)</summary>
 
