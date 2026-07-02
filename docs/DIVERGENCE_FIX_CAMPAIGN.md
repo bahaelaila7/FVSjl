@@ -3455,3 +3455,9 @@ NOTE (harness robustness, not a campaign target): jl's DBS uses `CREATE TABLE IF
 FVSOut.db with an older schema throws on insert; sweeps should delete the DSN DB first (or jl could version/DROP
 the schema). Cleared the stale DBs. ⇒ ALL 5 bundled SN/NE/CS real tests now accounted for: snt01/net01/cst01
 bit-exact/ULP, cst01_method5 = D18 (NVEL feature gap), sn.key = DBS-validated (stale-DB artifact cleared).
+
+### FIXED (harness robustness): recurring stale-DB DBS crash (2026-07-02)
+The stale-shared-DBS crash (CREATE TABLE IF NOT EXISTS keeps an old-schema table → INSERT column-count throw; hit
+on dbs_treelist + sn.key FVS_Mortality) is now FIXED, not just worked-around: `_ensure_table!` (dbs_output.jl)
+drops a table whose live column count disagrees with the CREATE, then recreates it — applied at all 16 DBS-writer
+sites. jl now tolerates a pre-existing DB like live FVS (was: crash where live succeeds). Verified + suite 6436/2.
