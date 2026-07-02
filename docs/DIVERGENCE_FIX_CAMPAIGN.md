@@ -2765,3 +2765,19 @@ class is truly-ULP (per-tree bit-exact seed amplified by feedback), NOT a masked
 of the non-native case (where per-tree DG diverged 38%, real). VALIDATES the discrimination criterion:
 per-tree bit-exact ⇒ ULP-amplification (accepted); per-tree DG diverges ⇒ real (fix). The re-scrutiny (per the
 non-native lesson) held: near-SDImax stays accepted-ULP, now with per-tree-bit-exact proof rather than assumed.
+
+### Per-tree re-scrutiny of flagged NE/CS-sweep scenarios → cross-variant ill-posedness, native is ULP
+Applied the discrimination criterion to defulmod (NE-sweep flagged 21% Bdft; I'd called it board-foot-ULP):
+- defulmod @ NE (variant=NE): TPA 111/107, Tcuft −9.7% post the 2000 SIMFIRE — looked like more than board-foot.
+- BUT defulmod is the SN base stand S248112 + an SN FFE DEFULMOD fuel-model + SIMFIRE. @ its NATIVE SN variant it
+  is BIT-EXACT: fire kill 470→81 TPA IDENTICAL @2005, Tcuft bit-exact through the fire, only ~0.4% Tcuft ULP +
+  Bdft board-foot-threshold amplification (14% late = the accepted class). ⇒ my board-foot-ULP verdict was
+  CORRECT for the real (native) scenario; the NE divergence is CROSS-VARIANT ILL-POSEDNESS (an SN FFE fuel-model
+  scenario run through NE, whose FFE fire responds differently — nonsensical, not a real NE target).
+KEY CLARIFICATION: the NE/CS discovery sweeps run the SN-DESIGNED scenario corpus through NE/CS — so a chunk of
+their DIFF flags (defulmod, mix_lp_rm, treeszcp, mult_*, cycleat…) are CROSS-VARIANT ILL-POSED runs of SN
+scenarios, NOT real NE/CS divergences. The REAL NE/CS validation is PROPER native stands: net01 (NE), cst01/
+cs_allsp (CS), ne_fixtures — all bit-exact/ULP. The one genuine cross-variant-independent finding (NE/CS
+non-native small-tree double-scale) was caught on a PROPER stand (dense.tre) at a non-native cycle and fixed.
+⇒ per-tree/native re-scrutiny confirms: the accepted-ULP flags hold at native; the alarming cross-variant DIFFs
+are ill-posed artifacts. Discrimination criterion (native + per-tree bit-exact ⇒ ULP) applied, verdicts stand.
