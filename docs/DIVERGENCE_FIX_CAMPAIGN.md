@@ -3016,3 +3016,24 @@ component. So the 19% is NOT the slash amount — it's the 10-yr DECAY/stash of 
 residual = a small multi-year cut-fuel-decay-granularity / near-threshold-kill effect on a constructed non-
 corpus scenario. Closing it needs a dedicated FFE cut-fuel-decay study; not worth destabilizing the bit-exact
 corpus decay at this depth. 80%-closing fix stands (255→12 vs live 5; was 255→56). Sources pristine.
+
+## Tri-variant floor RE-VERIFICATION vs fresh live (2026-07-02, this session)
+Re-ran all three variants' differential against freshly-relinked live binaries (re-trace discipline — confirm
+the floor holds, hunt uncatalogued cross-variant divergence). Result: NO new/uncatalogued divergence; every
+DIFF maps to an already-documented/accepted class.
+- **SN:** D16b fire family (the last "still-pushable" frontier) RE-VERIFIED CLOSED — snt01_alpha .sum
+  BYTE-IDENTICAL to fresh live; fire_salvage/fire_repeat bit-exact; s10_fire 0.085% Bdft (board-threshold ULP).
+- **NE:** ALL 10 oracle-having stands BIT-EXACT vs fresh live — net01 + ne_cov0..4 (all-species) + ffe +
+  midcycle_fire + plant_div + plant_hard. (The hook's "net01 BARE-regen ~4% Mcuft" is STALE — net01 is
+  bit-exact.) 7 ne_fixtures (aspen/dense/divspp/divspp_f9{14,20,21}/thin) have NO live oracle: live FVSne
+  IC-stops (STOP 10/20, main.f:11-12) on them regardless of ECHOSUM ⇒ same accepted no-oracle class as the SN
+  live-FPE stands (they are jl-internal fixtures; jl runs them).
+- **CS:** cst01 + cs_allsp DIFFs all map to documented classes. cst01 stand-2 (deep every-3-cycle THINDBH):
+  DISCRIMINATION CRITERION applied — BA & QMD are bit-exact through 2130 (BA 133/133) while only TPA drifts
+  a few ⇒ the divergence is small-tree/REGEN COUNT (D8/D10 threshold-amplification, large trees identical),
+  BA only diverges at the 2140+ late thin (accumulated regen-count × threshold-sensitive thin). Stand-4 = the
+  FFE fire-mortality class (D16b/D17). cs_allsp 1.31% CCF@2090 = documented late ULP floor. Stands 1/3/5 =
+  ±1 TPA rounding / bit-exact.
+⇒ **CONFIRMED: all three variants are at the documented floor. Every live divergence is bit-exact, ULP/
+threshold-amplified (regen-count / deep-thin / board-foot), accepted-eigensolver, an FFE fire-mortality-
+distribution residual (D16b/D17, faithful ports), or a no-live-oracle fixture.** No uncatalogued divergence found.
