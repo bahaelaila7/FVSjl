@@ -3552,11 +3552,26 @@ from KODFOR; ELSE (ISEFOR=0, e.g. KODFOR=118) ⇒ `IREGN=9; VOLEQ='900CLKE'; IFO
 default**. So live computes the FFE stand's volume with R9 Clark. jl's `setup_volume_equations!`
 (volume_equations.jl:92) assigns an equation ONLY when `iregn==8`, else blank ⇒ `_R8CLARK_VOL("",…)=0`. And jl's
 SN compute_volumes! path (volume.jl:511) hardcodes `_R8CLARK_VOL` (only NE/CS route to R9 via compute_volumes_ne!).
-⇒ jl gives 0 volume for any SN stand whose KODFOR isn't a region-8 forest. jl already detects it (forest_idx=0 ==
-ISEFOR=0) and HAS R9 Clark (r9clark_vol.jl, used by NE/CS) — so it's FIXABLE, not an NVEL gap. FIX PATH: (1)
-setup_volume_equations! — for SN with iregn≠8/forest_idx=0, assign the R9 Clark '900CLKE' equation (IFORST=
-KODFOR-900); (2) SN compute_volumes! — route '900CLKE'-equation species to the R9 Clark model (reuse the NE/CS
-R9 path) instead of _R8CLARK_VOL. Validate vs live FFE volumes (1368/1883/…). CLASS: real volume divergence (0 vs
-live), edge-case trigger (non-SE-forest KODFOR in an SN run — sn.key stand 4), bounded fix (R9 Clark already in
-jl). 📌 pending the R8/R9 cross-path volume integration + live validation. TPA/BA (the model projection) already
-matches live — only the volume EQUATION selection for non-SE forests diverges.
+⇒ jl gives 0 volume for any SN stand whose KODFOR isn't a region-8 forest.
+
+**✅ FIXED (2026-07-02) — and the sitset.f '900CLKE' hypothesis above was WRONG.** A live `fvsvol.f`
+debug-stamp (dump VOLEQ/IREGN/TCUF per tree, keyed on DBH) proved live simulates BOTH sn.key stands
+(FFE KODFOR=118 and S248112 blank/9999) as **IREGN=8, FORST=01, VOLEQ=`841CLKE`+FIA — R8 Clark**, with
+ZERO IREGN=9 lines. The sitset.f ISEFOR=0 → R9 branch is NOT reached, because **forkod.f runs FIRST and
+never lets a foreign code through as ISEFOR=0**: its `CASE DEFAULT` loops the JFOR table of valid SN
+forests and, on no match (`FORFOUND=.FALSE.`), fires the **DEFAULT ERROR TRAP → KODFOR = Talladega NF
+Alabama = 80106** (forkod.f:521-533) — the exact forest snt01 uses. jl never ported this trap, so
+KODFOR=0/118 kept IREGN=0 ⇒ VOLEQDEF assigned no equation ⇒ zero volume. (The only codes forkod keeps
+as ISEFOR=0/region-9 are 905/908 — genuine R9 SN forests, not in the test corpus.)
+
+REAL FIX (keyword_dispatch.jl kw_stdinfo!, after the Fort Bragg 701 remap): `s.variant isa Southern &&
+KODFOR÷10000 != 8 && KODFOR÷100 ∉ (905,908) ⇒ KODFOR=80106`, before the location/forest-type/volume
+phases — faithful to live. Reverted the wrong R9-routing edit in volume.jl. LIVE-VALIDATED (fresh
+binary): FFE + S248112 first 3 cycles BIT-EXACT across all volume cols (TCuFt/MCuFt/BdFt
+1368/1149/285, 1883/1757/1018, 2415/2305/2522). Bonus: the correct forest code also tightened GROWTH
+(2008 TPA 105→107 matches live; TPA re-converges bit-exact from 2018 on). Residual = a transient
+1-tree mortality wobble at 2013 (jl 104 vs live 105 — ULP/accepted mortality class, same as other SN
+stands). Volume: **0 → bit-exact**. Suite 6442/2 (no regression). +D21 regression assertion
+(each_stand(sn.key) ⇒ kodfor==80106). META (rule #4): the test-inferred '900CLKE' theory looked right
+on paper (sitset.f really does have that branch) but a source-level stamp of the LIVE run refuted it —
+verify the divergence's actual mechanism against live, don't trust a plausible upstream code path.
