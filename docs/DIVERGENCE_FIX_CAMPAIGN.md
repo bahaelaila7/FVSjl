@@ -3543,7 +3543,8 @@ not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithf
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
 
-## ★ D22 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
+## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
+(labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
 Surfaced by the fresh 260-stand SN discovery sweep: `_tmp_ntr.key` (a committed scratch scenario: empty
 TREEDATA immediately followed by ECHOSUM/PROCESS/STOP, NO -999) is the one **jl-error** row —
 `InexactError: round(Int32, NaN32)` in `crown_ratio_update!`. Live runs it clean as an **empty stand**
@@ -3557,7 +3558,8 @@ keyword loop. Only triggers when `-999` is absent (valid keyfiles: `-999` breaks
 Result: `_tmp_ntr` now BIT-EXACT vs live (empty stand, 0 TPA), no crash; sn.key D19 still 4×27; suite
 6446/2. +regression test (inline TREEDATA without -999 ⇒ 0 trees, runs to completion).
 
-## ★ D21 — non-SE-forest SN stand gets 0 volume (missing R9-Clark '900CLKE' default) — REAL (found 2026-07-02)
+## ★ D33 — non-SE-forest SN stand gets 0 volume (forkod.f default trap → Talladega 80106) — REAL, FIXED (2026-07-02)
+(labeled D21 in commits 865624b/15a9f65 before the D-numbering was reconciled; D21 is the REGHMULT item — renumbered D33.)
 Found by verifying sn.key's per-stand FVS_Summary vs live (after the D19 4-stand fix): jl's FFE stand (sn.key
 stand 4, KODFOR=118) has TPA/BA MATCHING live (536/77, 273/101, 245/120, 106/71 …) but TCuFt = **0 for every
 year** vs live's real volumes (1368, 1883, 2415, 1674 …). ROOT (traced both sides): the FFE stand's KODFOR=118 is
