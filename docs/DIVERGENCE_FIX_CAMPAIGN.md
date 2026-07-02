@@ -2989,3 +2989,17 @@ fire still slightly under-severe — candidates: (a) CTCRWN in cuts.f may carry 
 jl only does it under YARDLOSS) — an ordinary THINDBH leaves the top+unmerch as slash too; (c) a size-class or
 decay-class mapping ULP. NEXT: stamp live FMSCUT CTCRWN + the cut-bole CWD3 contribution for this scenario to
 close the last ~1%. The LAST real divergence is now 80% fixed + validated + regression-free; residual scoped.
+
+### activity-fuels residual DIAGNOSED (live fmburn stamp): fuel-DECAY-TIMING, not crown-slash amount
+Stamped live FVScs fmburn.f (FMFINT: IYR,BYRAM,FLAME,HPA; restored pristine) + jl fmburn.jl (temp) for
+cst01+THINDBH(2000)+SIMFIRE(2010) — which ALSO has a base mid-cycle fire ~2003. Byram (fireline intensity ∝ fuel):
+  2010 fire: live 14585 / flame 5.63  vs  jl 11847 / flame 5.12  → jl UNDER-fuels 19%
+  2003 fire: live 2831  / flame 2.65  vs  jl 4931  / flame 3.42  → jl OVER-fuels
+OPPOSITE directions ⇒ the crown-slash AMOUNT is ~right (my FMSCUT port); the residual is fuel-DECAY TIMING/
+GRANULARITY: jl's 2000-thin crown-slash has NOT decayed enough by the 2003 mid-cycle fire (jl over-fuels ⇒
+the 2003 fire OVER-consumes) ⇒ jl is left UNDER-fueled for the 2010 fire ⇒ under-kills (255→12 vs live 5). FVS
+FMCWD decays the slash ANNUALLY between the 2000 cut and each fire; jl likely decays per-cycle or adds the slash
+after the cycle's decay step, so the 3-yr-old slash reads full at 2003. FIX DIRECTION (next): ensure the cut-
+crown slash enters the ANNUAL fmcwd decay from the cut year (so it's partially decayed at a mid-cycle fire),
+matching FVS. This is a fuel-timing refinement on the (correct-amount) crown-slash add; the 80%-closing fix
+stands. Non-corpus scenario; corpus fires bit-exact (suite 6436/2). LAST real divergence, now precisely diagnosed.
