@@ -3074,3 +3074,19 @@ SN; cuts.jl cut-crown→FFE-fuel). Result: **221 bit-exact (up 1 from 220), 31 D
 - CONFIRMS the "byte-identical" correction: the sweep independently ranks snt01_alpha at 2.72% Bdft (NOT zero) —
   vindicating the corrected ULP-class-threshold assessment over the earlier committed-golden measurement error.
 ⇒ The SN floor holds authoritatively after this session's changes; no uncatalogued or regressed divergence.
+
+### D17 — root NARROWED to cut-crown decay-rate/decay-class (live ALL-FUELS report evidence, 2026-07-02)
+Pulled live's ALL FUELS REPORT (FuelOut/FuelRept on a single-stand thin+fire key — NO source stamping) for the
+cst_ft10 stand-1 (THIN 2000 + SIMFIRE 2010). Live surface-fuel decay of the thin's crown-slash:
+  YEAR  LITT  DUFF  0-3"  >3"  ...  TOTAL
+  2000  3.33  4.8  17.1   7.4 ...  32.8   ← post-thin spike: 0-3"=17.1 t (crown-slash)
+  2010  0.00  1.7   1.6   1.0 ...   4.4   ← pre-fire: crown-slash 0-3" decayed 17.1→1.6 (~90% in 10yr)
+Identical raw-cwd stamps (apples-to-apples) gave jl woody 12.69 vs live 10.06 at the fire (+26%, uniform across
+size classes); litter/duff bit-exact. Combined ⇒ HYPOTHESIS: jl decays the CUT-CROWN material slower than FVS's
+fast 17.1→1.6, so jl retains ~26% more woody by 2010 → the non-monotonic FMCFMD picks a lower-intensity model →
+under-kill (12 vs 5 TPA). Prime suspect = the decay-CLASS (IDC=DKRCLS(sp)) or DKR rate applied to cut-crown CWD
+in cuts.jl vs fmscut.f/fmcwd.f (litter/duff bit-exact means the fine-litter path is right, but the woody 0-3"/>3"
+crown-slash decay class may differ). NEXT (for whoever closes it): compare jl's DBS Fuels table (0-3"/>3" by year)
+to live's ALL-FUELS report at 2000/2005/2010 to confirm the decay-rate gap, then reconcile the cut-crown decay
+class. Still 📌 (constructed-scenario-only; add-formula faithful; corpus fires bit-exact/ULP per the authoritative
+sweep) — but root now narrowed from "fuel dynamics" to a specific cut-crown decay-class/rate check.
