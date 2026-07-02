@@ -2396,3 +2396,21 @@ against the freshly-relinked live binary:
   model is bit-exact (113 sprout tests, [[fvsjl-sprout-esuckr]] cluster CLOSED).
 VERDICT: the entire live-FPE category holds NO jl divergence. 2 are validatable (bit-exact / accepted-ULP
 family), 6 are live crashes where jl is strictly more robust (no oracle), 3 are cross-variant mismatches.
+
+### SN discovery sweep (re-run on current binary) + D3 multi-point verification
+Ran `divergence_sweep.jl sn` (260 stands) on the freshly-relinked live binary — completes "all 3 variants
+re-swept this session" (SN 221 bit-exact, NE 239, CS 43-relevant-bit-exact). 8 live-FPE (triaged above), 31
+DIFF — ALL in already-catalogued accepted classes, NO un-catalogued divergence:
+- SIZCAP hard-cap (treeszcp_cap/htcap — verified faithful), board-foot/sawtimber threshold (mult_*, bare_*,
+  compute_cycle, snt01_alpha, hcor_smalltree, htgstop_stoch — PROVEN-ULP hard-cutoff), non-native-cycle
+  (timeint10 TPA 1.96% — PROVEN-ULP this session), COMPRESS eigensolver (accepted), near-SDImax (fmortmlt
+  CCF 1.56%), fire threshold (fire_repeat Bdft 2.47%).
+- **D3 multi-point (bare_multipoint, bare_mp3): VERIFIED ULP-class on the current binary.** bare_multipoint has
+  **BIT-EXACT TPA every cycle** (0/800/781/763/745/727/684/643/612/586/533) and BA bit-exact (±1 at one cycle)
+  ⇒ the core per-point density (pccf/pbal driving mortality) is FAITHFUL, not a single-point approximation (a
+  per-point-density gap would diverge TPA — it does not). Only Tcuft (~0.1%, ULP cubic) and Scuft (sawtimber
+  threshold amplification, ≤2.8%) differ. So D3's genuinely-open piece is narrowed to the DEFERRED per-point
+  TCONDMLT/structure-stage density WEIGHTING (not pccf/pbal), which is inert on all 260 SN + NE + CS corpus
+  scenarios and has no oracle that exercises heterogeneous per-point weighting. Legitimate 📌 (unported
+  sub-feature, no trigger), NOT a divergence in ported code.
+VERDICT: all three variants re-verified at floor on the current binary; no un-catalogued divergence anywhere.
