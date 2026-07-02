@@ -3090,3 +3090,22 @@ crown-slash decay class may differ). NEXT (for whoever closes it): compare jl's 
 to live's ALL-FUELS report at 2000/2005/2010 to confirm the decay-rate gap, then reconcile the cut-crown decay
 class. Still 📌 (constructed-scenario-only; add-formula faithful; corpus fires bit-exact/ULP per the authoritative
 sweep) — but root now narrowed from "fuel dynamics" to a specific cut-crown decay-class/rate check.
+
+### D17 — ROOT CAUSE PINNED (code-verified ordering bug, 2026-07-02)
+Traced the jl per-cycle order in summary.jl for a cut-in-cycle-N / fire-in-later-cycle-M case (cst_ft10: THIN
+2000, SIMFIRE 2010):
+- 2000 (non-fire) cycle: `ffe_fuel_update!` (10-yr DECAY) runs at summary.jl:277 BEFORE `grow_cycle!` (:280);
+  the THIN's crown-slash is added INSIDE grow_cycle! (cuts.jl) — i.e. AFTER that cycle's decay. And non-fire
+  grow_cycle! is called with `fuel_period=nothing` (:281) ⇒ no in-grow decay. So the 2000 crown-slash gets
+  ZERO decay in its own cycle.
+- 2010 (fire) cycle: `fire_smlg` is stashed at :276 (start of cycle, before any 2010 decay) and the 2010
+  ffe_fuel_update! is DEFERRED to post-fire (fire cycle). ⇒ the 2010 fire burns the 2000 crown-slash with
+  ZERO decay ever applied. FVS instead decays it annually via FMCWD (live report: 0-3" 17.1t@2000 → 1.6@2010).
+This is exactly why jl retains +26% woody at the fire ⇒ non-monotonic FMCFMD picks a lower-intensity model ⇒
+under-kill (12 vs 5 TPA). WHY THE CORPUS IS UNAFFECTED: corpus fire stands cut+fire in the SAME cycle (salvage/
+fueltret/defulmod), so the crown-slash is correctly fresh/undecayed at the fire — bit-exact/ULP per the
+authoritative sweep. The bug ONLY fires when a cut precedes a fire by ≥1 cycle (the constructed cst_ft10).
+FIX DIRECTION (delicate, deferred to a fresh session w/ full re-validation): decay cut-added crown-slash over the
+cycles between the cut and a later fire — e.g. apply the cut cycle's fuel decay AFTER the cut (reorder for cut
+cycles) or decay the newly-added crown-slash by the remaining cycle span — GATED so the same-cycle cut+fire
+corpus stays bit-exact. Root now PINNED (was: "fuel dynamics" → "decay rate" → THIS specific ordering bug).
