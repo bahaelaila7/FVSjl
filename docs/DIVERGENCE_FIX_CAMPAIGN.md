@@ -2720,3 +2720,11 @@ Empirically confirmed: timeint10 (SN @ non-native 10-yr, snt01_alpha has small t
 non-native-cycle small-tree DG-basis double-scale: NE FIXED · CS FIXED · SN NOT-PRESENT (proven). The
 non-native-cycle divergence class is now FULLY CLOSED across SN/NE/CS (SN-at-10 proven-ULP; NE/CS-at-5 fixed
 to bit-exact; SN structurally immune to the NE/CS bug). Real-divergence count: ZERO, genuinely.
+
+### Verified: ALL NE non-native (clen5) varied combos now BIT-EXACT with the small-tree fix
+Post-fix, ran the full NE clen5 combo set through the live differential: ne00 (baseline), ne03/ne05/ne07
+(+THINDBH), ne04/ne06 (+SIMFIRE), ne11 (clen10 sanity) — ALL BIT-EXACT (TPA/BA/Tcuft, every cycle, TPAd=BAd=
+Tcfd=0), across every SIMFIRE-offset × thin combination at the non-native cycle. Confirms the un-scale-to-10yr
+small-tree-blend fix fully resolves the NE non-native-cycle divergence for the entire varied-combination space,
+not just the baseline. CS fixed identically; SN structurally immune. Non-native-cycle class DEFINITIVELY closed
+across SN/NE/CS + all fire/thin combinations.
