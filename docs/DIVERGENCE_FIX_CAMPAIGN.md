@@ -3159,3 +3159,23 @@ NEW ROOT DIRECTION (for closure): differential jl vs live FMCFMD3/FMFINT — for
 selected standard fuel model(s) + weights + the resulting reaction-intensity/byram. Prime suspects: the small/large
 fuel partition (_small_large_fuel vs FVS FMCFMD3), the weighted-model interpolation, or a rothermel-input term.
 D17 stays 📌 — but the crown-slash-decay lead is CLOSED (refuted by experiment); root redirected to FMCFMD/FMFINT.
+
+### D17 — FMCFMD path systematically narrowed: 5 selection layers VERIFIED MATCH; divergence is in _fmdyn/rothermel math
+Followed the redirected FMCFMD/FMFINT root (cst_ft10 CS: jl byram 11847 vs live 14585) by verifying each layer
+of the CS fuel-model selection against jl (source-read, no live stamp):
+1. FOREST-TYPE (FMCSFT vs SN FMSNFT): the ONLY logic diff is the pine species range CASE(3:7) vs CASE(4:14) —
+   and jl ALREADY handles it (fuel_loading.jl:66 `s.variant isa CentralStates ? (3,7) : (4,14)`). ✓ MATCH.
+2. SELECTION LOGIC (fmcfmd.f iffeft branches): identical to jl's SN path modulo the redcedar CASE(1,2) vs (2)
+   [redcedar-only, N/A to cst_ft10's hardwood type]. ✓ MATCH for cst_ft10.
+3. XPTS breakpoint table: CS fmcfmd.f XPTS == SN's (fmcfmd.f diff = a COMMENT only); jl uses _FMD_XPTS. ✓ MATCH.
+4. SMALL/LARGE partition (fmtret.f:377-388): sizes 1-3+litter(10)=small, 4-9=large, over pools I=1,2 (piled+
+   dispersed). jl _small_large_fuel matches; cst_ft10 has no piling so I=2=0. ✓ MATCH.
+5. IFLOGIC = 0 by default (fminit.f:824) ⇒ the weighted-standard-models path (fmcfmd2.f:653), NOT the custom-
+   model-89 dynamic path (IFLOGIC=2) — i.e. jl's exact path. ✓ MATCH (custom-89 not active for cst_ft10).
+⇒ ALL selection INPUTS match. The byram divergence is downstream in the MATH: either jl's `_fmdyn` inverse-
+distance interpolation vs FVS fmdyn.f, or the resolved standard-model params (load/sav/depth) + the rothermel/
+FMFINT byram computation. Note the woody-amount confound: jl's cwd woody is +26% (higher SMALL/LARGE), but
+DECAYING it moved byram DOWN (refuted fix) while live has LOWER woody + HIGHER byram ⇒ jl and live have different
+byram(SMALL,LARGE) curves ⇒ the interpolation/rothermel math diverges, not just the inputs. NEXT: stamp live
+FMFINT (SMALL,LARGE, selected FMD list+weights, resolved load/sav/depth, BYRAM) at the cst_ft10 2010 fire and
+diff jl's `_fmdyn` + `rothermel_surface_fire` at the identical (SMALL,LARGE). D17 root narrowed 5 layers deep.
