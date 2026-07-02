@@ -2247,3 +2247,17 @@ Remaining tolerance-audit items: cst01 TPA/SDI/QMD late bands, all-species grown
 STILL OPEN in the audit: all-species grown bands (dense-stand floor — confirm), NOHTDREG truly-ULP proof, and
 the OTHER @test_broken in test_carbon/test_cuts_coverage/test_keyword_coverage/test_regen_coverage — must
 confirm each is a genuine UNPORTED-FEATURE gap (documented) or a real divergence, NOT a masked ported-semantic diff.
+
+### TOLERANCE AUDIT item 5 + LIVE-FPE category: NOHTDREG @test_broken constrained by a live crash
+The NOHTDREG @test_broken (test_nohtdreg.jl:87, grown-cycle Tcuft): the NOHTDREG SEMANTIC is proven FAITHFUL
+(1990 dub BIT-EXACT incl. every volume column; per-tree projected DG 27/27 == live; dead-tree dub match). The
+grown-cycle residual is the downstream DGSCOR serial-correlation + SDI tail (the COMPRESS-family sp33/65 WK3).
+CONSTRAINT (new): the LIVE SN binary produces NO .sum for nohtdreg_cal — it FPEs/no-sum (same as all_AE/EL/RL/
+SU/WE, dead_fint, mcfdln_override). So this scenario CANNOT be re-grounded vs live; the test uses a .sum.save
+golden by necessity. ⇒ Under DONE: NOHTDREG maps faithfully (proven on the live-verifiable init cycle); the
+grown tail is the DGSCOR/COMPRESS-family ULP/order class but must be PROVEN truly-ULP on a DIFFERENT,
+live-runnable scenario that exercises the sp33/65 DGSCOR tail (nohtdreg_cal itself can't, live crashes).
+LIVE-FPE CATEGORY (8 scenarios): live crashes ⇒ unvalidatable vs the oracle; jl runs them. These are a distinct
+class — not bit-exact-provable against live; flag as "no live oracle" (candidate: is the live FPE a live bug jl
+correctly avoids?). Audit remaining: all-species grown bands; the DGSCOR-tail truly-ULP proof on a live scenario;
+carbon/cuts/keyword/regen @test_broken (feature-gap vs divergence).
