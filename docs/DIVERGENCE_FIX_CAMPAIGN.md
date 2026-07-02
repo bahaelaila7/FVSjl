@@ -3213,3 +3213,19 @@ CWD1 cone-split (how a fallen large bole's volume distributes across sizes 7-8).
 2005 & 2010) + the CWD1 cone-split fractions for a ~20"+ bole — find why jl's sizes 7-8 run ~1.87×. That is the
 terminal D17 root (feeds LARGE → FMDYN weight → under-kill). 📌 constructed-scenario-only; localized 5 layers deep
 (FMDYN weight → LARGE +26% → sizes 7-8 1.87× → snag-fall/cone-split, standing-TPA-matched).
+
+### D17 — FULLY CHARACTERIZED: initial fuel matches; +26% is the 2000→2010 thin-slash evolution (2026-07-02)
+ICYC-aligned live FMDYN stamp (restored pristine) + jl fire_smlg give the authoritative (SMALL,LARGE) trajectory:
+  cyc1 1990:  live (7.76, 4.03)  ==  jl (7.76, 4.03)   ← INITIAL FUEL MATCHES EXACTLY (not a loading bug)
+  cyc2 2000:  live (20.48, 7.41) post-thin crown-slash SPIKE
+  cyc3 2010:  live (6.30, 3.89)  vs  jl fire_smlg (7.91, 4.91)  ← +26% in BOTH small & large
+Live's 2000 crown-slash spike (20.48) DECAYS to 6.30 by the 2010 fire (~(1-0.11)^10 woody decay). jl's 2010 fire
+fuel is +26% high in BOTH SMALL and LARGE. Since the cut crown-slash spans cwd sizes 1-5, it feeds BOTH the SMALL
+(1-3+litter) and LARGE (4-5) partitions ⇒ the +26% is one coupled source: the 2000-thin slash's evolution to the
+2010 fire (add-timing + annual decay), NOT a separate coarse-woody bug and NOT an initial-loading bug. THIS
+RECONCILES THE REFUTED DECAY FIX: the naive per-increment decay reduced the slash too far (litter dk=0.65→~0,
+woody dk=0.11→0.31 over 10yr) and shifted the SMALL/LARGE point past live's, moving the FMDYN weight the wrong
+way ⇒ weaker fire. The correct fix must reproduce FVS's EXACT 2000→2010 slash evolution so (SMALL,LARGE) lands on
+live's (6.30, 3.89) — i.e. faithful FMSCUT-add-then-annual-FMCWD phasing (approach 3, the reorder), NOT the
+lossy per-increment single-shot. 📌 constructed-scenario-only; now FULLY characterized (initial✓, source=coupled
+thin-slash 2000→2010 evolution, exact target (6.30,3.89), fix=faithful add-then-decay phasing).
