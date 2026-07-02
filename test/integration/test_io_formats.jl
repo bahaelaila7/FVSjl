@@ -284,3 +284,21 @@ end
     @test_throws ErrorException FVSjl._resolve_output("x.key", "tsv")
     rm(p; force = true)
 end
+
+# D19: INLINE tree data (records embedded in the .key after TREEDATA, no external .tre).
+# sn.key (the ECON example) has no sn.tre — its 30 tree records follow TREEDATA inline in each of
+# its 4 stands. jl's TREEDATA handler must read them from the keyword stream, not just <base>.tre.
+# Regression for the fix where jl silently parsed sn.key's 4 stands as 1 (0 trees ⇒ real-filter drop).
+@testset "D19 — inline TREEDATA records (sn.key, no external .tre)" begin
+    snkey = "/workspace/ForestVegetationSimulator/tests/FVSsn/sn.key"
+    if !isfile(snkey)
+        @test_skip "sn.key not available"
+    else
+        @test !isfile("/workspace/ForestVegetationSimulator/tests/FVSsn/sn.tre")  # data IS inline
+        stands = collect(FVSjl.each_stand(snkey; variant = FVSjl.Southern()))
+        @test length(stands) == 4                     # 4 STDIDENT stands (was 1 before the fix)
+        for s in stands
+            @test s.trees.n == 27                     # each stand reads its 27 inline tree records
+        end
+    end
+end
