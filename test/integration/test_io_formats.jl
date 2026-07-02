@@ -306,3 +306,22 @@ end
         end
     end
 end
+
+# D-robustness: an inline TREEDATA block with NO tree records and NO -999 terminator (a malformed
+# keyfile, e.g. `TREEDATA` immediately followed by ECHOSUM/PROCESS/STOP). intree.f ends tree data on
+# -999/EOF only, so jl used to swallow the following keyword lines as species-90/DBH-0 phantom trees →
+# a NaN crash in crown_ratio. The reader now stops at the next keyword (first char a letter) without
+# consuming it ⇒ empty stand + keywords still processed, matching live (0 TPA all cycles).
+@testset "inline TREEDATA without -999 stops at next keyword" begin
+    ntr = "/workspace/FVSjl/test/harness/scenarios/_tmp_ntr.key"
+    if !isfile(ntr)
+        @test_skip "_tmp_ntr.key not available"
+    else
+        stands = collect(FVSjl.each_stand(ntr; variant = FVSjl.Southern()))
+        @test length(stands) == 1
+        @test stands[1].trees.n == 0                  # no phantom trees (was 3 garbage records → crash)
+        # runs to completion (empty stand) instead of crashing
+        sum = FVSjl.run_keyfile(ntr; variant = FVSjl.Southern(), output = :sum)
+        @test occursin("1990", sum)
+    end
+end

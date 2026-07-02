@@ -46,8 +46,21 @@ function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
         elseif kr !== nothing
             ls = String[]
             while !eof(kr.io)
+                pos = position(kr.io)
                 l = readline(kr.io)
                 occursin("-999", l) && break
+                # intree.f:181-184 ends inline tree data on -999/EOF only, so a well-formed block
+                # always carries -999. But a malformed block that omits it (e.g. an empty TREEDATA
+                # followed straight by keywords) would otherwise swallow the following ECHOSUM/PROCESS/
+                # STOP as garbage records (species-90, DBH-0 phantoms → a NaN crash in crown_ratio).
+                # A valid tree record begins with a numeric tree id (col 1 is I-format); an FVS keyword
+                # begins with a letter. Stop at the next keyword WITHOUT consuming it — leave it for the
+                # keyword loop, matching live's net behavior (empty stand + keywords still processed).
+                st = lstrip(l)
+                if !isempty(st) && isletter(first(st))
+                    seek(kr.io, pos)
+                    break
+                end
                 push!(ls, l)
             end
             ls
