@@ -2332,3 +2332,28 @@ evidence (4 bit-exact non-native cycles) says it is NOT. VERDICT: ULP-class accu
 directly paired due to a mortality-phase ambiguity in the script-level probe (jl holds tpa pre-subtraction +
 mort_pa; raw sum 160 and net sum 96.6 BRACKET the live 146) — but the 4-bit-exact-cycle argument does not
 depend on the small trees. ⇒ timeint10 is NOT a fixable non-ULP target; it is accepted ULP-class.
+
+### CS discovery sweep (260 scenarios through CS variant) — NO un-catalogued CS divergence; DIFFs triaged
+Ran `divergence_sweep.jl cs` (the ledger's "next productive work"). Result: jl's CS variant is FAITHFUL.
+- **43 bit-exact**: every genuine-CS + variant-agnostic scenario — all CS-species (all_OT/PS/RA…), cst01,
+  carbon_ffe/carbon_snt, all DBS tables, sdimax, sdicalc, serlcorr, bamax, salvage, fmortmlt, fuelmodl,
+  nocalib, readcord, resetage, struct_*, tcond_*, treeszcp_nomort, s08/s29 …
+- **5 live-FPE** (live Fortran CRASHES ⇒ unvalidatable, NOT jl bugs): dead_fint, nohtdreg_cal, sprout,
+  sprout_smult, sprout_win3.
+- **~9 DIFF — ALL are SN-designed scenarios (SN fortype-520 goldens) CROSS-RUN through the CS variant**, each
+  diverging ONLY via an already-catalogued hard-threshold/accepted mechanism (verified, not assumed):
+  * `treeszcp_cap`/`treeszcp_htcap` (Scuft 191% / Bdft 11%): the TREESZCP **SIZCAP** path. Verified FAITHFUL
+    vs CS dgbnd.f (D=DBH·BRATIO inside-bark, `CALL DGBND(DBH_ob, DG_ib)`, `(DBH+DDG)>SIZCAP(1)` cap) and CS
+    morts.f:686-688 (`G=(DG/BARK)·FINT/10`, `WK2=AMAX1(WK2,P·SIZCAP2·FINT/10)`, P-cap). The scenario is
+    DEGENERATE (mrate=1.0 ⇒ WK2=P ⇒ **100% kill at DBH 10** — a maximally hard threshold). Bit-exact through
+    cyc2 (2010), then boundary trees straddling DBH 10 flip life/death on Float32-ULP DG ⇒ amplified (board-foot
+    precedent, but 100%-kill makes one flip = a whole tree). The DESIGNED SN test (test_treeszcp.jl) passes
+    **106/106 BIT-EXACT** ⇒ the SIZCAP model is faithful in its home variant.
+  * `mortmsb` (Bdft 28→11), `defulmod` (Bdft 14%): board-foot-threshold amplification (PROVEN-ULP class,
+    Audit 7-8 — hard bf eligibility cutoff on ULP-close DBH; near-zero absolute bdft on mortmsb).
+  * `cycleat` (TPA 8%): non-native-cycle DGSCOR = the **timeint10 PROVEN-ULP class** (this session).
+  * `fertiliz`, `mix_lp_rm` (TPA 8-10%): near-SDImax self-thinning ULP accumulation (mix_lp_rm previously
+    proven cyc1-kill BIT-EXACT; the hypersensitive VARMRT kill-distribution amplifies Float32 across cycles).
+  * `compress` (TopHt 10%): the ACCEPTED COMPRESS eigensolver (design choice).
+VERDICT: the sweep surfaced NO new genuine CS-model faithfulness bug. All DIFFs = cross-variant hard-threshold
+ULP-amplification (accepted classes) + the accepted eigensolver + live-FPE (unvalidatable). CS is at floor.
