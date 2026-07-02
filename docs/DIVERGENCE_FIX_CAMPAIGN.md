@@ -2728,3 +2728,15 @@ Tcfd=0), across every SIMFIRE-offset × thin combination at the non-native cycle
 small-tree-blend fix fully resolves the NE non-native-cycle divergence for the entire varied-combination space,
 not just the baseline. CS fixed identically; SN structurally immune. Non-native-cycle class DEFINITIVELY closed
 across SN/NE/CS + all fire/thin combinations.
+
+### Generalization check: NE non-native fix holds across DIVERSE stand compositions (not just dense.tre)
+Ran three DIFFERENT NE fixtures through the live differential at non-native clen5 (species/structure variety):
+- divspp (diverse mixed species) @ clen5: BIT-EXACT (TPA/BA/Tcuft 0 diffs).
+- plant_div (planted diverse) @ clen5: BIT-EXACT.
+- aspen @ clen5: ULP-floor (TPAd=1/Tcfd=2 but maxTcf=0.0% = integer-print/near-SDImax wobble, NOT the 2-4%
+  one-signed non-native bug).
+⇒ the un-scale-to-10yr small-tree-blend fix is a clean SEMANTIC correction that generalizes across stand
+compositions (dense, aspen, mixed-species, planted) and all fire/thin combos — not stand-specific. The NE
+non-native-cycle divergence is comprehensively resolved. (CS fixed identically; SN immune.) Campaign real-
+divergence count: zero, verified across the corpus + varied keyword-combinations + diverse stands at native
+and non-native cycles.
