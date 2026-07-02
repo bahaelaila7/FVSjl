@@ -2614,3 +2614,18 @@ beyond the 260 corpus. SN combos result:
 VERDICT: the new varied-combination coverage surfaced NO new non-ULP/non-eigensolver divergence — the only
 non-bit-exact pattern (fire+thin) is the accepted kill-distribution ULP class at the combined-kill boundary. This
 independently corroborates the corpus-sweep conclusion across a fresh keyword-combination space.
+
+### Fire+thin order VERIFIED faithful — confirms sn03 is kill-distribution ULP, not an ordering bug (rule #4)
+Applied rule #4 to my own sn03 "ULP" verdict (don't assume ULP — trace it). Traced the cut-vs-fire ordering in
+BOTH engines:
+- FVS: cuts.f thinning (+ FMSALV/FMTRET cut-phase FFE) run BEFORE FMMAIN's FMBURN; GRINCR computes MORTS on the
+  full pre-fire stand into WK2, then GRADD/FMKILL sets `WK2(I)=MAX(WK2(I),FIRKIL(I))` (fmkill.f:86) — a tree
+  dies from whichever is LARGER (density mort OR fire), NOT both summed.
+- jl grow_cycle! (simulate.jl:350→384→388): `cuts!` (thin) → salvage/fuelmove/pileburn → growth → MORTS+fire
+  via `mortality_and_fire!` with the SAME MAX-combine (simulate.jl:388-392 explicitly replicates
+  WK2=MAX(MORTS,FIRKIL); an earlier fire-first version that under-killed dense burns was already corrected).
+⇒ The fire+thin ordering + MORTS/fire MAX-combine are FAITHFUL. So sn03's 1-tree kill difference (mort 171 vs
+170 at the 1995 fire+thin year, survivor count 248 BIT-EXACT) is genuinely a ULP-tied kill-DISTRIBUTION flip at
+the MAX-combine boundary (one marginal tree whose density-mort vs fire-kill comparison straddles a Float32 tie),
+NOT a masked ordering/interaction bug. Confirms the accepted kill-distribution ULP class — now traced, not
+assumed. (Re-trace discipline caught me about to accept my own verdict without proof; the trace CONFIRMED it.)
