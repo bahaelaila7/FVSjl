@@ -3507,3 +3507,14 @@ inline-tree fix is CONFIRMED CORRECT: jl now processes sn.key's 4 stands, MATCHI
 4. NOT a simulation/model divergence — the 4-stand PROJECTION matches; only which stands' summaries reach the DB
 differs (a per-stand DATABASE>Summary field/level detail, dbsdriver.f semantics). D19 (model correctness) DONE
 and validated; D20 (DBS output-config over-emission of one stand summary) = minor documented follow-up.
+
+### D20 — precise: live drops the SHELTERWOOD stand (stand 3) from FVS_Summary; jl writes it
+Identified by TPA trajectory: live's FVS_Summary = stand 1 UNTHINNED (536→154), stand 2 THINDBH (536→100),
+stand 4 FFE (536→72) — it DROPS stand 3 SHELTERWOOD. jl writes all 4. Stand 3's DATABASE block is identical to
+stand 2's (both `Summary` blank field) EXCEPT stand 3 adds `ECONRPTS 2 3` before End (stand 2 has none). So the
+discriminator is NOT the Summary field (2 vs 3 both blank) — it correlates with stand 3's ECON reporting. WHY
+live suppresses stand 3's FVS_Summary DBS write (ECON-block interaction, or a shelterwood/THINPRSC-specific
+condition in dbsdriver.f) is unresolved and needs deep FVS DBS-driver tracing. CLASS: narrow DBS-OUTPUT-emission
+detail — jl's 4-stand SIMULATION is correct (D19); only whether stand 3's summary reaches the DB differs. 📌
+minor documented follow-up (DBS output completeness, not model correctness). The substantive sn.key model bug
+(D19 inline tree data) is FIXED + confirmed; D20 is the residual output-config tail.
