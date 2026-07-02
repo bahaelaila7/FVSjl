@@ -35,12 +35,13 @@ end
                 @test row !== nothing                       # PREREQUISITE: bare stand runs (no crash)
                 if row !== nothing
                     tpa, ba, qmd, tcuft = row
-                    # ESTAB regenerates to Oracle A's cycle-1 stand BIT-EXACT (established
-                    # heights via ESSUBH + ESRANN, dbh from height). Later cycles drift on
-                    # the cyc3+ stochastic-DGSCOR tail (a separate residual class).
-                    @test isapprox(tpa, 800.0; atol = 2)
-                    @test isapprox(ba,   14.0; atol = 1)
-                    @test isapprox(qmd,   1.8; atol = 0.1)
+                    # ESTAB regenerates to the LIVE FVSsn cycle-1 stand BIT-EXACT (re-grounded
+                    # 2026-07-02; verified bare_natural TPA 800 @1997 == live). Established heights
+                    # via ESSUBH+ESRANN, dbh from height. .sum columns are exact vs live ⇒ exact `==`
+                    # (was Oracle-A + atol slack). Later cycles drift on the cyc3+ DGSCOR tail (separate).
+                    @test tpa == 800.0                       # BIT-EXACT vs live
+                    @test ba  ==  14.0                       # BIT-EXACT vs live
+                    @test qmd ==   1.8                       # BIT-EXACT vs live (.sum 1-dec)
                     # birth-cycle regen carries NO volume — the oracle's establishment-cycle
                     # VOLS runs before the records exist, so cyc1 TCuFt=0 (the trees first
                     # get volume from the next cycle). Regression guard for that fix.
