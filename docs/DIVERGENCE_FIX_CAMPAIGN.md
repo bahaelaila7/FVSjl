@@ -3179,3 +3179,21 @@ DECAYING it moved byram DOWN (refuted fix) while live has LOWER woody + HIGHER b
 byram(SMALL,LARGE) curves ⇒ the interpolation/rothermel math diverges, not just the inputs. NEXT: stamp live
 FMFINT (SMALL,LARGE, selected FMD list+weights, resolved load/sav/depth, BYRAM) at the cst_ft10 2010 fire and
 diff jl's `_fmdyn` + `rothermel_surface_fire` at the identical (SMALL,LARGE). D17 root narrowed 5 layers deep.
+
+### D17 — LOCALIZED to FMDYN model-WEIGHTING driven by jl's coarse-woody (LARGE) over-accumulation (2026-07-02)
+Stamped live CS FMFINT (per-model FMOD/FWT/BYRAMT, IYR-tagged) + FMDYN (SM,LG) [both restored pristine, verified]
+and jl's fmburn model loop, for cst_ft10's 2010 fire. Result — the models MATCH, the per-model byram nearly
+matches, but the WEIGHTS diverge hugely:
+  live 2010: fm10 w=0.519 byram=11584  +  fm5 w=0.481 byram=17826  → 14586  (fm5 = the HOT model, ~half weight)
+  jl   2010: fm10 w=0.910 byram=11304  +  fm5 w=0.090 byram=17344  → 11848  (fm5 nearly ignored ⇒ cool fire)
+⇒ D17's under-kill is the FMDYN inverse-distance WEIGHTING, not the selection/rothermel. FMDYN weights the
+(SMALL,LARGE) point vs each model's XPTS iso-line (fm5 (5,15), fm10 (10,30)). SM/LG: jl fire_smlg=(7.91,4.91)
+vs live≈(7.76,4.03) [SMALL ~matches; jl LARGE +22%]. A higher LARGE pulls the point toward fm10's iso-line
+(LARGE-intercept 30 » fm5's 15) ⇒ jl over-weights the weak fm10. ROOT: jl's LARGE fuel (coarse woody, cwd sizes
+4-9, esp. 6-9 which the per-size stamp showed at ~1.85× live) is OVER-accumulated. This is NOT the crown-slash
+(that lands in sizes 1-5+litter = mostly SMALL, which ~matches) — it's the COARSE down-wood (sizes 6-9), i.e.
+SNAG-FALL / base coarse-CWD dynamics. RECONCILES the refuted decay fix: decaying the crown-slash cut SMALL (not
+the LARGE 6-9 excess) and dropped SMALL below the sm>6 candidate threshold ⇒ wrong target, made it worse.
+NEXT: differential jl vs live coarse-CWD (sizes 6-9) accumulation at the fire — trace snag-fall (update_snags!/
+FMSNAG bole→cwd) + base FMCWD coarse pools; find why jl sizes 6-9 run ~1.85× live. That over-accumulation is the
+true D17 root. 📌 (constructed-scenario-only; now localized to a specific fuel pool + mechanism).
