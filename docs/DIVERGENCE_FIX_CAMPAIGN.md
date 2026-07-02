@@ -37,9 +37,15 @@ exact; the campaign is at its floor.** Applying the re-trace discipline to the s
 DGSCOR, D3/D6 unported features).** The stop-hook "open D7/D8/D9/D10" text is STALE — all resolved. **D16b-SMALL is
 now ✅ FIXED (was the last open non-ULP SN item): the missing SALVAGE CWD2B release (fmsalv.f:301-340) — fire-basis
 SMALL 7.12→7.948 (live 7.964, ULP), s4 2008 TPA 104→106 (live 107, print-boundary). Suite 6397/2, no regression.**
-★★★ ALL LEDGER ITEMS NOW ✅ OR 📌-DOCUMENTED — NO OPEN NON-ULP DIVERGENCE REMAINS. (Session close-out:)
-- non-native-cycle DGSCOR (timeint10) → ✅ PROVEN-ULP (4 consecutive bit-exact non-native cycles positively
-  prove the semantics; drift onset cyc4 = accumulation; see timeint10 entry below).
+★ CORRECTION (re-trace via completed varied-sweep NE combos): the earlier "NO OPEN DIVERGENCE" close-out was
+PREMATURE. Completing the NE combos surfaced ONE REAL open divergence — NE NON-NATIVE-CYCLE (10→5) GROWTH — that
+the "non-native = uniformly ULP" framing had masked. HEIGHT half now FIXED (faithful, htcalc.f:413, native
+bit-exact); DIAMETER half OPEN (NE non-native DG/DGSCOR scaling, ~2-3% first-cycle under-growth). See the
+"REAL DIVERGENCE FOUND" + "Fix NE non-native HEIGHT" entries below. So NOT all items are closed — this is the
+one confirmed real target. (Non-standard use case — NE is natively 10-yr — but FVS supports it.)
+- non-native-cycle DGSCOR SPLIT BY DIRECTION: SN-at-10 (timeint10, 5→10 UPscale) → ✅ PROVEN-ULP (4 consecutive
+  bit-exact non-native cycles prove the semantics; drift onset cyc4 = accumulation). NE-at-5 (10→5 DOWNscale) →
+  ⚠ REAL (diverges at cyc1): height FIXED, diameter OPEN.
 - D3 (multi-point TCONDMLT per-point weighting) → ✅ CLOSED: jl's omission of the cuts.f:1075 term is FAITHFUL
   (term empirically inert in live across all weight configs + thin intensities; jl bit-exact); core pccf/pbal
   faithful (bare_multipoint TPA bit-exact).
