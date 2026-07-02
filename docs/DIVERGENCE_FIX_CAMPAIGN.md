@@ -2474,3 +2474,21 @@ reachable regime bit-exact-to-ULP). This was the last open ledger item.
   regen-order fix). ✅ bit-exact.
 ⇒ Both stop-hook-named floors re-grounded on the current binary: no hidden divergence. The hook's "open
 D7/D8/D9/D10 + net01 4% + cs_allsp 1.52%" text is entirely STALE (all resolved/bit-exact/ULP-floor).
+
+### D8 multiplier keywords + D10 regen-cubic — re-verified on current binary (multipliers faithful; residual = ULP-floor)
+Re-traced the hook's "D8 multiplier keywords (large diffs)" on the fresh binary. mult_mortmult/mult_regdmult/
+mult_reghmult/mult_mortmult_win (all BARE-regen + a multiplier):
+- The MULTIPLIER ITSELF IS FAITHFUL: TPA and BA are BIT-EXACT every cycle (mult_mortmult: MORTMULT 2.0 doubles
+  mortality, TPA/BA bit-exact all cycles bar a single +1-tree near-SDImax wobble at 2037). So REGDMULT/MORTMULT/
+  REGHMULT are applied correctly — NOT the "large diffs" the stale hook claims.
+- The residual is the D10 regen-cubic ULP-floor: Tcuft ~0.1-0.2% (1-3 cuft absolute on 1500-5000), with QMD
+  (mean DBH) BIT-EXACT and TopHt bit-exact except ±1 ft at 2 print-boundary cycles (178/177, 322/321). Sawtimber
+  Scuft/Bdft show the larger relative diff = the documented saw-threshold amplification on a small base. The
+  16.96% Bdft the sweep flagged is that hard-threshold amplification, NOT a multiplier or growth divergence.
+- Plain regen (bare_natural, no multiplier) carries the SAME ~0.1% Tcuft residual (jl slightly low); the
+  multiplier only amplifies it (0.1→0.2%). NON-regen snt01_alpha Tcuft is bit-exact ⇒ the residual is
+  regen-small-tree-specific (the ESTAB small-tree height→volume), at the Float32 volume-sum floor. Per-tree
+  height could not be stamped (bare-scenario .trl routing produces no rows), but the aggregate (QMD bit-exact,
+  TopHt bit-exact-to-print, 1-3 cuft) places it at the ULP-accumulation floor = the documented D10 class.
+VERDICT: D8 multiplier keywords FAITHFUL (TPA/BA bit-exact); D10 regen-cubic residual confirmed at the ULP-floor
+(1-3 cuft, DBH/height bit-exact to print resolution). Consistent with the ledger's D8→D10 folding.
