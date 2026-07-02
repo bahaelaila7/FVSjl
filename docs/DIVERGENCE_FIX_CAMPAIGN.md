@@ -3327,3 +3327,20 @@ crown_biomass TOTAL is bit-exact (carbon-validated), its split across the 5 bran
 differential jl crown_biomass(xv[2:6]) vs live FMCROWE CROWNW(I,1:5) for a representative cut tree — match the
 per-size-class branch split. Then the decay phasing (validated) + correct branch split ⇒ (6.30,3.89) ⇒ kill 5.
 📌 constructed-only; decay approach validated, residual isolated to the crown branch-size distribution.
+
+### D17 — crown-split hypothesis REFUTED (jl crown_biomass == live CROWNW); residual = base-SMALL too low (2026-07-02)
+Terminal differential (live FMSCUT CROWNW stamp, restored pristine, vs jl crown_biomass) for the first cut tree
+(DBH 12.5, HT 74.6, CR 36): live CROWNW br1-5 = [27.31, 67.65, 116.1, 24.73, 0] vs jl crown_biomass br1-5 =
+[27.32, 67.68, 116.19, 24.75, 0] — BIT-CLOSE MATCH. ⇒ the crown BRANCH-SPLIT is FAITHFUL; the "jl over-loads
+fine sizes 1-3" hypothesis is REFUTED (rule #4). Re-deriving the SMALL overshoot with a faithful slash:
+  jl SMALL undecayed 7.91 = base_jl + slash_undecayed
+  jl SMALL decayed   4.579 = base_jl + slash_decayed   ⇒ decay removed 3.33 (slash_undecayed−slash_decayed)
+  live SMALL         6.30  = base_live + slash_decayed
+  ⇒ base_live − base_jl = 6.30 − 4.579 = 1.72  ⇒ jl's BASE (non-slash) SMALL is ~1.72 LOWER than live's.
+Pre-fix check: (base_jl−base_live)=−1.72 + (slash_undecayed−slash_decayed)=+3.33 = +1.61 = the pre-fix jl−live
+SMALL gap. CONSISTENT. So D17's SMALL residual is TWO effects: (i) slash undecayed [FIXED by the validated decay
+phasing]; (ii) jl's BASE SMALL fuel ~1.72 too low. Base LARGE is right (decay landed LARGE exact). Initial FUINI
+table is byte-identical, litter matches (0.134/0.129) ⇒ the base-SMALL-low is in the fine-woody (sizes 1-3) base
+EVOLUTION 1990→2010 (fmcadd_woody breakage / fmcwd fine decay), not the initial table or litter. NEXT: differential
+jl vs live base fine-woody (sizes 1-3, NO thin — cst_fire10) over 1990→2010. Crown port + decay phasing + machinery
+all VALIDATED faithful; residual is the base fine-woody evolution. 📌 constructed-only.
