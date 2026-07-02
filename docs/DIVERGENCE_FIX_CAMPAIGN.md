@@ -2414,3 +2414,21 @@ DIFF — ALL in already-catalogued accepted classes, NO un-catalogued divergence
   scenarios and has no oracle that exercises heterogeneous per-point weighting. Legitimate 📌 (unported
   sub-feature, no trigger), NOT a divergence in ported code.
 VERDICT: all three variants re-verified at floor on the current binary; no un-catalogued divergence anywhere.
+
+### D3 multi-point TCONDMLT per-point weighting — DEFINITIVELY CLOSED (jl's omission is FAITHFUL, not a gap)
+Drove D3's last piece to ground on the current live binary. jl deliberately OMITS the cuts.f:1075 per-point
+thinning-priority term (`WK2 += PBAWT·PTBAA(IP)+PCCFWT·PCCF(IP)+PTPAWT·PTPA(IP)`). PROOF that this omission is
+faithful (the term is empirically INERT in live FVS, so jl reproducing "no term" IS matching live):
+- **tcond_pw** (multi-point, 10+ heterogeneous points 0101-0110+, PTPAWT=1.0) — BIT-EXACT vs live-CS all
+  columns/cycles; and **tcond_base (no TCONDMLT) == tcond_pw (PTPAWT=1.0) byte-identical in live** ⇒ PTPAWT=1.0
+  provably inert.
+- **Light selective thin** (constructed THINBBA→150, ~20% removal, PTPAWT=10): live IDENTICAL to no-weight.
+- **All three weights** (PBAWT=PCCFWT=PTPAWT=5, light thin): live IDENTICAL to no-weight ⇒ the ENTIRE per-point
+  term family is inert in live. And **jl == live BIT-EXACT** on that same all-weights scenario.
+MECHANISM: dense.f:207-208 / ptbal.f:153 populate PTPA/PCCF/PTBAA(IP) per-point, but at THIN time (cuts.f) they
+are uniform/zero (a phasing artifact — the point arrays aren't armed at the cuts.f phase for the plain-TCONDMLT
+path), so PTPAWT·PTPA(IP) is constant across trees ⇒ zero ranking effect. jl's per-point values vary, so ADDING
+the term would spuriously diverge FROM live; OMITTING it MATCHES live. Verified across heavy/light thins and 3
+weight configs. ⇒ D3 is NOT an unported divergence — it is a FAITHFUL reproduction of live's inert behavior.
+The memory's "deferred multi-point" framing was over-conservative. D3 → ✅ (core pccf/pbal faithful:
+bare_multipoint TPA bit-exact; per-point thinning term faithfully inert).
