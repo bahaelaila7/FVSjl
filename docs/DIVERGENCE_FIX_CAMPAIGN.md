@@ -2888,3 +2888,21 @@ only genuine NON-ULP tolerance-covered residual found = test_growth's former LP-
 the real LP/WK3-DGSCOR tail lives on nohtdreg_cal ~1%). REMAINING: test_net01 ~14, test_multicycle 5,
 test_keyword (lexer Float32-parse), test_fortbragg_coverage (atol=5, still Oracle-A → re-ground), scattered
 singles, Float32-ULP cluster (rtol 1f-4/1f-6).
+
+### net01 + Float32-ULP cluster + keyword lexer — DONE (2026-07-02 audit)
+- test_net01: post-thin residual TPA/BA for THINBBA/THINABA/THINSDI → EXACT `==` vs live (verified THINBBA
+  jl==live bit-exact; the rest tightened with it, suite green). Per-tree cuft vs live .trl 15.4: atol=0.1 =
+  PROVEN-ULP (the .trl's 1-decimal print resolution). The stand-state/volume assertions were already exact `==`.
+- Float32-ULP cluster (~21 sites, rtol/atol 1f-4…1f-6): JUSTIFIED BY CONSTRUCTION, two classes —
+  (a) internal CONSERVATION/consistency invariants (test_carbon `sum(bins)≈total`, `size-split≈parent`;
+      test_compress `tpa0≈tpa1` merge-conserved; test_fuel_decay decay identity) = Float32 SUMMATION ULP
+      (a sum is not bit-equal to its parts in Float32) — these are not live comparisons at all;
+  (b) deterministic Float32 COEFFICIENT/formula pins (test_growth dg_cor[65]=0.700993/[33]=1.085818,
+      test_hcor htg_cor_init[22]=−0.893823, test_crown_width vs the hand-coded coefficient formula) =
+      Float32 ARITHMETIC ULP on a deterministic value that FEEDS the bit-exact-vs-live .sum. Not slack.
+- test_keyword (lexer vs KEYRDR, atol=1f-6/rtol=1f-5): the compared values are PARSED keyword-field numbers
+  (variant-agnostic input, e.g. "60.0"→60.0f0); atol=1f-6 = Float32 PARSE ULP. Oracle-A is only a proxy for
+  FVS KEYRDR, which parses the identical input numbers ⇒ the ULP justification is oracle-independent.
+### Tolerance audit ~100 done. Live-facing tolerances re-grounded to BIT-EXACT vs live (cut/growth/regen/
+### multistand/init/fortbragg/net01/longrun); print-resolution + Float32-arithmetic ULP JUSTIFIED-and-noted
+### (carbon/net01-per-tree/the ULP cluster). Oracle-A abandoned everywhere. Suite 6436/2.
