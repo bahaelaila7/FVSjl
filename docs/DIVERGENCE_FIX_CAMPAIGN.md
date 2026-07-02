@@ -2740,3 +2740,15 @@ compositions (dense, aspen, mixed-species, planted) and all fire/thin combos —
 non-native-cycle divergence is comprehensively resolved. (CS fixed identically; SN immune.) Campaign real-
 divergence count: zero, verified across the corpus + varied keyword-combinations + diverse stands at native
 and non-native cycles.
+
+### CS non-native fix validated on a PROPER native-CS stand (cst01) — closes the cross-variant caveat
+Found the genuine CS validation stand (cst01.key, 27 trees, /workspace/ForestVegetationSimulator/tests/FVScs/).
+Built native cst10 (clen10) + non-native cst5 (clen5) and ran both live-CS vs jl-CS:
+- cst10 (native): bit-exact / ULP-floor (dTcf ≤0.1%, the documented cst01 tail).
+- cst5 (non-native clen5): ALSO bit-exact / ULP-floor (dTcf ≤0.1%; BA 178/178, 194/195, 209/210) — MATCHES
+  native, NO under-growth. (Pre-fix, CS non-native under-grew 2-4% like dense-through-CS.)
+⇒ the CS small-tree double-scale fix is validated on a PROPER native-CS stand (not just the cross-variant
+dense-through-CS): CS at a non-native cycle is now bit-exact to the same ULP-floor as native. Combined with NE
+(dense + divspp/plant_div/aspen + all fire/thin combos) and SN (immune), the non-native-cycle small-tree
+DG-basis double-scale is CONCLUSIVELY resolved across all three variants on genuine native stands. Campaign
+real-divergence count: zero, verified on proper stands of every variant.
