@@ -2236,3 +2236,14 @@ The cst01 late-cycle CCF tolerance (widened 2->3 at D31) is justified as truly-U
 VERDICT: cst01 CCF <=3 = the accumulated near-SDImax distribution ULP propagated into the CCF report. TRULY-ULP.
 Remaining tolerance-audit items: cst01 TPA/SDI/QMD late bands, all-species grown bands, 2 @test_broken
 (COMPRESS s22 + NOHTDREG), SN keyword-suite 1 broken.
+
+### TOLERANCE AUDIT items 2-4: cst01 TPA/SDI/QMD = ULP-floor; @test_broken = eig + NOHTDREG(verify)
+- cst01 TPA/SDI/QMD late bands (TPA<=3/SDI<=1/QMD<=0.15): drift is ±1-2 TPA, ±1 SDI, ±0.1 QMD at 2050-2090 —
+  the SAME near-SDImax mortality-distribution ULP floor as CCF (proven: cyc-start SDIMAX+T bit-exact, VARMRT
+  Float32 accumulation across ~500 trees). PROVEN-ULP. (SDI is the Reineke fn of the same drifting TPA/QMD.)
+- The 2 @test_broken (the suite's "2 broken"): test_compress.jl = COMPRESS IBM-EIGEN eigensolver = EXPLICIT
+  DESIGN choice (allowed by DONE). test_nohtdreg.jl = NOHTDREG WK3/DGSCOR tail — documented ULP but NOT YET
+  re-verified truly-ULP per DONE rule 3: MUST stamp/confirm it's Float32-ULP, not a NOHTDREG semantic gap. OPEN.
+STILL OPEN in the audit: all-species grown bands (dense-stand floor — confirm), NOHTDREG truly-ULP proof, and
+the OTHER @test_broken in test_carbon/test_cuts_coverage/test_keyword_coverage/test_regen_coverage — must
+confirm each is a genuine UNPORTED-FEATURE gap (documented) or a real divergence, NOT a masked ported-semantic diff.
