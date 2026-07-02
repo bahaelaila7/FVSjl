@@ -3409,3 +3409,13 @@ VOLUME/BFVOLUME method ≠ 1 (uncommon; no other bundled test uses it). VERDICT:
 VOLUME-keyword volume-METHOD selector (cfvol.f/bfvol.f alt methods) is unported; jl honors the merch STANDARDS
 (DBHMIN/TOPD/STMP) but not the METHOD. NEXT (if pursued): port the cfvol.f METHC / bfvol.f METHB method-2..5
 branches + thread METHC/METHB through kw_volume!/kw_bfvolume! → the r9clark/r8clark volume dispatch.
+
+**D18 refinement:** method 5 routes to `NATCRS` (national cubic estimator, vols.f:21) / `OCFVOL` (fmsvol.f:134),
+NOT the default `CFVOL` (regression model = METHC 1, jl's only implemented path). Methods {5,6,8,10} each route to
+distinct estimators (NATCRS/OCFVOL) that jl does not implement. So D18 = an unported ALTERNATE-cubic-volume-model
+feature (the NATCRS/OCFVOL national estimators), selected by VOLUME METHC. VERDICT: 📌 documented feature gap —
+real (40% Scuft on cst01_method5 regen) but confined to stands explicitly requesting a non-default volume method
+(only cst01_method5 among bundled tests; the default METHC=1 path — every other SN/NE/CS stand — is faithful).
+Porting = implement NATCRS/OCFVOL + thread METHC/METHB through kw_volume!→volume dispatch (a bounded but real
+volume-model port). Lesson: found by BROADENING the sweep to a missed real test — the hunting mandate (rule #2 /
+FIA-plots) surfaces real divergences that drilling one synthetic item (D17) does not.
