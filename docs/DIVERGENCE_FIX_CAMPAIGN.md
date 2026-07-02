@@ -3435,3 +3435,11 @@ All are jl-CODE-DOCUMENTED known gaps (not hidden), bounded, and exercised by NO
 VERDICT: 📌 documented feature-gap class — each is a faithful DEFAULT with an unported non-default OPTION; magnitude
 confirmed only for D18 (the others have no bundled-test oracle; a constructed scenario would confirm but be synthetic
 like D17). The campaign's DEFAULT-configuration behavior is faithful on every real stand; these are opt-in feature gaps.
+
+**D18 FINALIZED — port is IMPRACTICAL (external NVEL library):** traced method 5 → NATCRS/OCFVOL, which live in the
+National Volume Estimator Library (`ForestVegetationSimulator/volume/NVEL/` — dozens of .f + VOLLIB.dll: bia_behres,
+blmtap/blmvol, brown, calcbiomass, r9clark, vollib09, …). jl already ported the R9 Clark SUBSET (r9clark_vol.jl =
+the METHC=1 default path, faithful everywhere). VOLUME method 5 selects OTHER NVEL national estimators; matching it
+requires porting the broader NVEL library — a massive external dependency, out of scope. ⇒ D18 is a 📌 ACCEPTED
+FEATURE GAP (like D6): the default volume method is faithful on every real stand; the non-default NVEL-method option
+is unported and impractical to port. This is the strongest form of "documented irreducibility" for a feature gap.
