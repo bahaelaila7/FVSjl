@@ -2200,3 +2200,16 @@ Tcuft 3041 both, was 2.2% low). Suite 6397/2 green (scoped to bd_pct_hcor — dg
 untouched). RESIDUAL: hcor_smalltree TPA ±2-4 (cyc1 mortality 1980 vs 1978) = the near-SDImax distribution
 floor (dense TPA-7082 stand) — same accepted ULP/order class as the broad CS drift; needs the same cyc1-kill
 proof to confirm truly-ULP per the DONE standard. ⇒ D32 HCOR growth DONE (bit-exact); the tail is mortality-floor.
+
+### CORRECTION (strict DONE audit): densest-stand cyc1 kill is NOT bit-exact — broad-drift ULP verdict QUALIFIED
+Per the DONE standard (prove ULP truly, not semantic), re-tested the near-SDImax mortality on the DENSEST stand
+(hcor_smalltree, BA 241/TPA 5104 at 2000, vs mix_lp_rm's moderate BA 107). Live cyc1 kill total=2175.50/sp43
+=1947.52 vs jl 2177.2/1949.05 — OFF ~1.7 TPA (~0.08%). This is DIFFERENT from mix_lp_rm (cyc1 kill BIT-EXACT).
+⇒ The broad-CS-drift "accepted ULP/order floor" verdict was proven on a MODERATE stand and does NOT
+automatically extend to the DENSEST stands: near SDImax the self-thinning is hyper-sensitive and the cyc1 kill
+TOTAL itself diverges (not just the within-species distribution). OPEN QUESTION (must resolve per DONE): is the
+1.7-TPA a ULP SDIMAX/CONST difference amplified by the near-SDImax sensitivity (⇒ truly-ULP), or a real
+self-thinning-kill semantic difference (⇒ bug)? NEXT: stamp cyc1 SDIMAX/CONST/TN10 for hcor_smalltree jl-vs-live
+— if SDIMAX is bit-exact but the kill total differs, it's a real kill-computation bug; if SDIMAX differs at ULP
+scale, it's amplification. This RE-OPENS the broad CS drift as "needs per-density ULP proof", not blanket-accepted.
+Honest re-grounding: cubic (growth) is now bit-exact post-D32; the MORTALITY total on dense stands is the open item.
