@@ -105,7 +105,7 @@ sweep to hunt any UN-catalogued divergence beyond this ledger.
 | D14 | THINPRSC residual-fragment not deleted (cuts.f:1632) | thinning | 11% Scuft; +13 tree records | ✅ FIXED-to-ULP (residual≤0.0005 whole-tree delete) |
 | D15 | Fire RANN draws not rolled back (fmeff.f RANNGET/RANNPUT) | fire→growth RNG | ~4.4% Bdft@2015 (fire stands) | ✅ FIXED-to-ULP (RANNGET/RANNPUT save-restore) |
 | D16 | cut→FFE-snag path MISSING (YARDLOSS SSNG/DSNG/CTCRWN not booked) | thinning→FFE fuels | snag density 21.8 vs 62.3 | ✅ CLOSED (faithful port: YARDLOSS parse-bug fixed + SSNG snag density bit-exact + DSNG cwd + CTCRWN measured negligible) |
-| D16b | snt01_alpha residual fire over-kill = base fine-down-wood/litter accumulation low | FFE fuels→fire→mort | was ~3 TPA / 2.8% @fire | ✅ CLOSED (SALVAGE CWD2B crown-debris release, fmsalv.f; SMALL 7.12→7.948 vs live 7.964; RE-VERIFIED 2026-07-02 snt01_alpha .sum BYTE-IDENTICAL to fresh live; fire_salvage/fire_repeat bit-exact; s10_fire 0.085% Bdft = board-threshold ULP) |
+| D16b | snt01_alpha residual fire over-kill = base fine-down-wood/litter accumulation low | FFE fuels→fire→mort | was ~3 TPA / 2.8% @fire | ✅ FIXED-to-ULP (SALVAGE CWD2B crown-debris release, fmsalv.f; SMALL 7.12→7.948 vs live 7.964). RE-VERIFIED 2026-07-02 via run_keyfile-vs-fresh-live (the AUTHORITATIVE path): snt01_alpha TPA ±1, Bdft ~1% (218/~14000); improved from 2.8% by D16b-SMALL. NOT byte-identical — my first re-verify compared a committed LIVE-golden vs fresh live (live-vs-live, meaningless); corrected here. TPA bit-exact/±1 across the fire family (fire_salvage Bdft±1, fire_repeat Bdft~1%, s10_fire Bdft±7) = documented board-foot threshold-amplification ULP class) |
 | D17 | thin-before-fire activity-fuels (cut-crown slash → FFE surface fuel) | thinning→FFE fuels→fire | was 255→56 (live 5) | ✅ 80% FIXED + port VERIFIED FAITHFUL vs fmscut.f (crown→CWD lines 89-97; ordinary-thin bole hauled DSNG=0); residual jl 12 vs 5 on a CONSTRUCTED single-fire stand = 19% byram-under from 10-yr fine-slash decay (corpus no-cut fuel-decay bit-exact) — 📌 multi-year cut-fuel-decay-granularity, not worth destabilizing corpus decay |
 
 ## Discovery tool — `test/harness/divergence_sweep.jl`
@@ -3021,8 +3021,12 @@ corpus decay at this depth. 80%-closing fix stands (255→12 vs live 5; was 255�
 Re-ran all three variants' differential against freshly-relinked live binaries (re-trace discipline — confirm
 the floor holds, hunt uncatalogued cross-variant divergence). Result: NO new/uncatalogued divergence; every
 DIFF maps to an already-documented/accepted class.
-- **SN:** D16b fire family (the last "still-pushable" frontier) RE-VERIFIED CLOSED — snt01_alpha .sum
-  BYTE-IDENTICAL to fresh live; fire_salvage/fire_repeat bit-exact; s10_fire 0.085% Bdft (board-threshold ULP).
+- **SN:** D16b fire family RE-VERIFIED at ULP floor via run_keyfile-vs-fresh-live (authoritative). CORRECTION:
+  the "byte-identical" first pass was a measurement error (committed LIVE-golden vs fresh live = live-vs-live).
+  True jl-vs-live: TPA bit-exact or ±1 across the family; Bdft ±1 to ~1% (snt01_alpha 218/~14000, fire_repeat 50,
+  s10_fire 7, fire_salvage 1) = the documented board-foot threshold-amplification ULP class. Fire-kill (TPA) is
+  at the floor; volumes are ULP-threshold. LESSON: always diff run_keyfile(output=:sum) vs a FRESH live run —
+  committed .sum goldens can be live saves (comparing them to live proves nothing).
 - **NE:** ALL 10 oracle-having stands BIT-EXACT vs fresh live — net01 + ne_cov0..4 (all-species) + ffe +
   midcycle_fire + plant_div + plant_hard. (The hook's "net01 BARE-regen ~4% Mcuft" is STALE — net01 is
   bit-exact.) 7 ne_fixtures (aspen/dense/divspp/divspp_f9{14,20,21}/thin) have NO live oracle: live FVSne
@@ -3037,3 +3041,19 @@ DIFF maps to an already-documented/accepted class.
 ⇒ **CONFIRMED: all three variants are at the documented floor. Every live divergence is bit-exact, ULP/
 threshold-amplified (regen-count / deep-thin / board-foot), accepted-eigensolver, an FFE fire-mortality-
 distribution residual (D16b/D17, faithful ports), or a no-live-oracle fixture.** No uncatalogued divergence found.
+
+### D17 activity-fuels — EVIDENCE-CORRECTED via live+jl fuel stamps (2026-07-02)
+Stamped BOTH live FVScs fmburn.f (per-size-class CWD dump; restored pristine + byte-identical output verified)
+and jl fmburn.jl at the cst_ft10 stand-1 2010 fire. Hard data corrects the diagnosis TWICE:
+- NOT "jl under-fuels 19%": jl actually has MORE woody (12.69 vs live 10.06 tons), uniformly ~1.2-1.3× in
+  EVERY size class 1-9 (sz7-8 ~1.85×). Litter (0.134 vs 0.129) and duff (5.17 vs 5.13) are ~bit-exact.
+- Yet jl byram is LOWER (11847 vs 14585). More fuel + lower intensity ⇒ the byram swing is the NON-MONOTONIC
+  FMCFMD dynamic fuel-model selection (the D16b "non-monotonic FMCFMD3" note) responding to jl's higher loading
+  — a discrete model/interp choice, not a raw-load monotone effect.
+- The crown-slash ADD formula stays VERIFIED FAITHFUL (fmscut.f); the excess is BROADER woody over-accumulation
+  in the thinned stand (incl. sz7-8 where crown-slash doesn't reach) over 2000→2010, i.e. an FFE base fuel-
+  accumulation/decay-dynamics difference in the post-thin stand, feeding the sensitive FMCFMD.
+VERDICT: 📌 real but constructed-scenario-only (THIN-then-SIMFIRE-at-cycle-boundaries; no corpus/real-test stand
+hits it), well-characterized, add-formula faithful. Full close = trace the ~26% post-thin woody over-accumulation
++ the FMCFMD non-monotone response; deferred (deep FFE fuel-dynamics, not worth destabilizing the bit-exact
+corpus fuel-decay). Documented with live+jl per-size-class evidence above.
