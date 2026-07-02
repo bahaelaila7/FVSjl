@@ -1509,6 +1509,32 @@ the CS HCOR calibration with cs_htcalc/cs_balmod is still Southern-gated). ⇒ *
 multi-item campaign like the NE port (D17-D23), starting UPSTREAM with the CS small-tree/REGENT growth-rate (the
 80% growth_finth divergence is the dominant, most-upstream CS issue). Per-item live-stamp method as for NE.
 
+### ★ CS RE-TRACE (2026-07-02) — the "dedicated CS campaign" above is LARGELY STALE/DONE
+Fresh `divergence_sweep.jl cs` re-run against the current live CS binary + engine. **Every "FUNDAMENTAL CS
+issue" named above has since been RESOLVED** (the entry predates a wave of CS growth/thinning fixes):
+- `growth_finth5`: **80% Mcuft → 0.5%** (2010 Mcuft 3213/3229) — RESOLVED (ULP-class). Full-column bit-exact
+  through 2000; 2010 TPA 2739/2735 (0.15%).
+- `cut_thinauto`: **450% → 0.36%** (Bdft@2060) — RESOLVED.
+- `cuteff`: **103% → 1.33%** (Scuft@2090) — RESOLVED.
+- `readcord`: **57% → BIT-EXACT** — RESOLVED.
+- `growth_finth10`: 1.15% (Mcuft@2010) — ULP-class.
+So CS is NOT a from-scratch frontier; its core + most keyword scenarios now match live. Fresh CS sweep = 44
+bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live crashes, no oracle).
+**Actual remaining CS DIFFs (real, ranked):**
+- `mix_lp_rm` 10.75% TPA@2050, `fertiliz` 8.89% TPA@2070 — species-mix / FERTILIZ CS stands (UNINVESTIGATED —
+  next CS targets; verify growth-vs-keyword-gap via full-column + live-stamp).
+- `hcor_smalltree` 4.72% Scuft@2080 — the CS small-tree HCOR calibration: `con=exp(htg_cor_small[sp])` IS
+  applied in cs/small_tree_growth.jl:41, but `htg_cor_small` is only SET by the calibration at
+  southern/diameter_growth.jl:726 (SN path) ⇒ CS leaves it 0. Bounded fix = run the small-tree HCOR
+  calibration for CS (needs the CS regent.f ratio-estimator flow). Most-diagnosed remaining CS item.
+- `all_*`/`mix_*` 4–7% TPA late-cycle tails (all_RL 7.4%, all_RM 6.4%, all_FM/SM 4.9%) — the documented
+  CS base-growth-tail class (late-cycle mortality/density accumulation); recheck whether ULP-floor or a real
+  per-species CS growth/mortality residual.
+- `treeszcp_cap`/`htcap` = D13, `mortmsb` = D13-FORTYP, `defulmod` = D16 fire, `compress` = eigensolver
+  (all shared-accepted classes).
+⇒ CS's real open work is now SMALL: mix_lp_rm/fertiliz (top, uninvestigated), the CS HCOR calibration
+(diagnosed), and the all_* base-growth tail (needs ULP-vs-real verdict). NOT a multi-item from-scratch port.
+
 <details><summary>Superseded verdict (kept for the record — its "ill-posed" claim is RETRACTED above)</summary>
 
 Ran `divergence_sweep.jl ne` (260 stands) and it showed large diffs (all_SV CCF@1990 203/303, sprout TPA
