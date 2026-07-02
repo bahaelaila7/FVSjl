@@ -1521,8 +1521,12 @@ issue" named above has since been RESOLVED** (the entry predates a wave of CS gr
 So CS is NOT a from-scratch frontier; its core + most keyword scenarios now match live. Fresh CS sweep = 44
 bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live crashes, no oracle).
 **Actual remaining CS DIFFs (real, ranked):**
-- `mix_lp_rm` 10.75% TPA@2050, `fertiliz` 8.89% TPA@2070 — species-mix / FERTILIZ CS stands (UNINVESTIGATED —
-  next CS targets; verify growth-vs-keyword-gap via full-column + live-stamp).
+- `mix_lp_rm` 10.75% TPA@2050, `fertiliz` 8.89% TPA@2070 — INVESTIGATED (full-column, both variants): both are
+  BIT-EXACT early (1990-2020), diverging only in LATE-cycle TPA where jl over-kills a few small stems (mix_lp_rm
+  2050 TPA 93/83; fertiliz 2050 148/143) while BA + Tcuft stay ~bit-exact (mix_lp_rm 2050 BA 181/181, Tcuft
+  6120/6199 = 1.3%). The big TPA% is a SMALL-COUNT ratio artifact (10 stems of ~90). ⇒ NOT distinct bugs — they
+  FOLD INTO the CS late-cycle small-tree mortality tail below (same signature as all_*). Volume/BA impact is ULP-
+  to-~1%. So there is no separate mix/fertiliz CS bug.
 - `hcor_smalltree` 4.72% Scuft@2080 — the CS small-tree HCOR calibration: `con=exp(htg_cor_small[sp])` IS
   applied in cs/small_tree_growth.jl:41, but `htg_cor_small` is only SET by the calibration at
   southern/diameter_growth.jl:726 (SN path) ⇒ CS leaves it 0. Bounded fix = run the small-tree HCOR
