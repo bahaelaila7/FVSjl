@@ -3260,3 +3260,16 @@ exact kill). D17 fix now needs BOTH: (a) match live's 2000 slash spike magnitude
 📌 constructed-only; a genuinely tangled two-error FFE fuel-accounting divergence; machinery faithful; exact
 target (6.30,3.89)→kill 5. Given no corpus/real stand exercises it and the fix is a coupled two-part fuel-pipeline
 correction, this is the campaign's lowest-value open item — recommended acceptance as a documented 📌.
+
+### D17 — CORRECTION: jl intermediate-fuel probes are UNRELIABLE; only machinery-faithful + net-gap are solid
+Rule #4 check: my two jl-side fuel probes DISAGREE (one _small_large_fuel probe read jl 1990 SMALL=7.76, the
+grow_cycle! post-cut probe read 3.599) — both call fmcba! OUT OF THE FIRE SEQUENCE and perturb the FFE state, so
+the jl 1990/2000 intermediate trajectory (and the "under-adds slash to 1/3" breakdown in the prior entry) is NOT
+trustworthy. RETRACT the specific under-add/under-decay split. The SOLID, reproducible facts remain:
+  • jl's 2010 FIRE fuel = (7.91, 4.91) [from the in-sequence fmburn stamp] vs live (6.30, 3.89) — +26% net.
+  • Forcing jl's fire fuel to live's (6.30,3.89) ⇒ kill 5 = live EXACTLY ⇒ fire MACHINERY proven faithful.
+  • Exact target: land jl's 2010 fire fuel on (6.30,3.89).
+To pin the fuel gap's mechanism (add-magnitude vs decay-phasing) requires NON-perturbing instrumentation of the
+actual fire-fuel stash path (the fmburn/fire_smlg sequence), not out-of-band fmcba! probes. Deferred. D17 stays a
+📌: machinery faithful, pure +26% fire-fuel gap, exact target known; the mechanism split needs careful in-sequence
+instrumentation. Constructed-scenario-only; the campaign's lowest-value open item.
