@@ -2507,3 +2507,17 @@ CLASSIFICATION: a documented sub-0.2% SN-regen small-tree height→cubic micro-r
 single remaining non-bit-exact / non-clean-ULP item — well within the accepted-residual magnitude but honestly
 labeled as a tiny real diff, not "ULP." Driving it to bit-exact needs the SN regen crown-ratio/small-tree-height
 micro-residual chased to ground (per-tree stamp blocked on bare scenarios by .trl routing). Tracked 📌.
+
+### D10 micro-residual PRECISELY LOCALIZED: NATURAL-regen only (planted regen is bit-exact)
+Narrowed the sub-0.2% SN-regen height→cubic micro-residual to the NATURAL-establishment path specifically:
+- **plant_stocked (PLANTED regen) is BIT-EXACT** on the current binary: TPA/BA/CCF/TopHt/QMD/Tcuft all match
+  through the 2005 planting (TPA 470→712 bit-exact) and beyond; only 1-cuft (2005) and 1-BA (2010) integer-print
+  flips. So the PLANT establishment height/crown/volume path is faithful.
+- **bare_natural (NATURAL regen via ESGENT/ESTAB/esuckr) carries the ~0.1% Tcuft + ±1ft TopHt residual.**
+⇒ The micro-residual is isolated to the NATURAL-establishment tree height/crown assignment (the 82.44-vs-82.46
+regen crown-ratio residual, [[fvsjl-natural-process-congruence]]), NOT the shared volume equation or PLANT path.
+This is the campaign's single remaining non-bit-exact item: a <0.2% Tcuft / ±1ft-TopHt natural-regen height
+micro-residual, honestly classified as a tiny REAL diff (not ULP), below practical significance. 📌 Driving it
+to bit-exact = chasing the natural-establishment crown-ratio/small-tree-height calc (0.02 crown units) to ground
+— a prior fix already landed at 82.44 vs live 82.46; the last 0.02 needs the ESGENT/CRATET regen crown path
+per-tree-diffed vs a live stamp. Everything else across SN/NE/CS is bit-exact / proven-ULP / accepted-eigensolver.
