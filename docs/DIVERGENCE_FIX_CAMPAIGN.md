@@ -3361,3 +3361,34 @@ early D17 per-size stamp (sizes 7-8 ~1.85×), now CLEANLY isolated in the no-thi
 coarse-cwd (sizes 6-9) deposit over 1990→2010 for cst_fire10. Crown port + SMALL base + machinery + decay all
 faithful; the residual is the coarse-woody snag-fall base evolution. 📌 constructed-only (no real CS stand runs an
 auto-FMCFMD fire); could touch CS carbon DDW.
+
+## ★ D17 — CONSOLIDATED TERMINAL VERDICT (2026-07-02, after ~15 turns of live-differential diagnosis)
+**Scenario:** cst_ft10 = cst01 stand-1 (oak-hickory) + THINDBH(2000) + SIMFIRE(2010), CentralStates. Constructed;
+NO corpus stand and NO real FVS test runs an auto-FMCFMD CS fire (cst01's own fire is stand-4 w/ DEFULMOD custom
+model). The authoritative SN(260)/NE/CS sweeps are all at the ULP floor — D17 is the sole non-ULP item and it is
+SYNTHETIC.
+
+**SOLID, unconfounded findings (each a direct live differential):**
+- Fire MACHINERY faithful: forcing jl's fire fuel to live's (6.30,3.89) ⇒ kill = 5 = live EXACTLY. `_fmdyn`
+  weighting + rothermel byram + FMEFF mortality all correct.
+- crown_biomass branch-split faithful: == live FMSCUT CROWNW ([27.3,67.7,116.1,24.7] both) for the 12.5" tree.
+- Initial FUINI table byte-identical (jl CS fire_fuel_dead.csv == cs/fmcba.f FUINI).
+- forest-type (FMCSFT), model selection, XPTS, small/large partition, litter — all verified matching.
+- The ONLY divergence: jl's 2010 fire fuel (7.912,4.915) is +26% vs live (6.30,3.89); this fuel gap ALONE
+  produces the kill gap (jl 12 vs live 5), amplified by the threshold-sensitive FMDYN model-weighting.
+
+**CONFOUNDED / oracle-less (why not driven to bit-exact):** the +26% is in the multi-year FFE fuel EVOLUTION
+1990→2010 (thin-slash add-then-decay phasing + coarse-woody snag-fall base accumulation). Every attempt to cleanly
+decompose it hits (a) cycle-sampling-timing confounds (fmcba! probes perturb state; the reliable in-sequence trace
++ fire stamp only give the fire-year value), (b) the FMDYN two-call ambiguity (fire-basis vs period-end fuel,
+differing ~4× in LARGE), and (c) NO clean real-stand oracle (no CS carbon/DDW test; jl doesn't emit text FuelRept).
+A single-shot slash-decay fix landed LARGE exact but overshot SMALL and REGRESSED the kill (12→29) — proving the
+residual is multi-factor and that naive fixes fail. The correct fix = faithful FMSCUT-add-then-annual-FMCWD
+phasing (a grow_cycle!/fuel-update REORDER), which is HIGH corpus-regression risk (every real CS/SN fire is
+bit-exact on the current path) and not guaranteed to land, for ZERO real-stand benefit.
+
+**VERDICT: 📌 accepted / deferred with documented reason.** Class = threshold-amplification (like D8/D10/D13): a
+small faithful-component fuel-evolution residual blown up by a discrete downstream weighting, on a synthetic
+scenario with no oracle. All fixable components are proven faithful; the residual is measurement-confounded,
+oracle-less, and its fix trades bit-exact-corpus risk for synthetic-scenario gain. This is the campaign's lone
+open item and is complete-with-reason per the off-switch criterion.
