@@ -2977,3 +2977,15 @@ corpus mild fires (snt01 SIMFIRE, fire_carbon, midcycle_fire, ffe) must stay bit
 thin-before-fire so the crown-slash add is ~0 ⇒ should be untouched, but VERIFY). This is the LAST real model
 divergence; all else is bit-exact / proven-ULP / accepted-eigensolver. Deferred as a careful FFE port, not
 rushed at depth.
+
+### ★ activity-fuels fix LANDED (cut-crown slash → FFE surface fuel): thin+fire under-kill 80% closed, no regression
+Implemented FMSCUT crown→fuel in cuts.jl (per cut tree, fire-gated): crown_biomass(sp,d,h,icr) → cwd[foliage→10,
+branches→1:5, cat2, idc] × prem·_FM_P2T (cwd is TONS; = CROWNW·CTCRWN·P2T with CTCRWN=removed-TPA). VALIDATED:
+cst01+THINDBH(2000)+SIMFIRE(2010) post-fire jl 2020 TPA 56→12 (live 5) — ~80% of the under-kill closed; the
+crown-slash now feeds the fire ⇒ more severe ⇒ more kill. NO corpus regression: suite 6436/2 (corpus fires have
+no pre-fire cut ⇒ the routing is a no-op ⇒ bit-exact preserved). RESIDUAL (jl 12 vs live 5, ~1.4% of stand): jl
+fire still slightly under-severe — candidates: (a) CTCRWN in cuts.f may carry a crown-proportion/PRCP factor
+(I used the bare removed-TPA prem); (b) the UNMERCH bole/top slash (FVS also routes cut-bole residue via CWD3;
+jl only does it under YARDLOSS) — an ordinary THINDBH leaves the top+unmerch as slash too; (c) a size-class or
+decay-class mapping ULP. NEXT: stamp live FMSCUT CTCRWN + the cut-bole CWD3 contribution for this scenario to
+close the last ~1%. The LAST real divergence is now 80% fixed + validated + regression-free; residual scoped.
