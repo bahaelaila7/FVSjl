@@ -6,6 +6,13 @@
 # `stand_carbon_report` (Jenkins biomass × 0.5 carbon fraction × TPA, converted to metric tons/ha).
 # The committed baseline `carbon_jenkins.report.save` is the live Fortran report's data rows.
 #
+# TOLERANCE JUSTIFICATION (2026-07-02 audit): every `<= 0.05` below is PROVEN-ULP = half the carbon report's
+# 1-DECIMAL print resolution (the Fortran .out/.report.save prints carbon pools to 0.1 t; jl's internal
+# 2-decimal value vs the 1-decimal golden ⇒ |Δ| ≤ 0.05 = the print-rounding half-width). The goldens are LIVE
+# FORTRAN (not Oracle-A), and carbon_snt LIVE-pools + carbon_jenkins are BIT-EXACT vs live (31/31 + 22/22).
+# So `<= 0.05` here is print-rounding-ULP vs live, NOT slack over a real gap. (The `0.06` at one litterfall
+# growth-tail line is the same class, one ULP wider.) Not re-litigated.
+#
 # Scope: the LIVE columns (Aboveground Total / Merch / Belowground Live) are validated here. The
 # dead / down-wood / forest-floor / shrub-herb columns need the FFE surface-fuel model active
 # (fire_on) — that is the remaining Stand-Carbon-Report increment; see carbon.jl.

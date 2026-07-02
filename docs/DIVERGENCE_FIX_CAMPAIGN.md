@@ -2870,3 +2870,21 @@ cut_cluster 11→bit-exact · regen_coverage 6→bit-exact · multistand 2→bit
 singles, and the Float32-ULP cluster (rtol 1f-4/1f-6). Verdict so far: the loose/Oracle-A tolerances were almost
 all masking BIT-EXACT-vs-live results; genuine non-ULP residuals found are the 2 real divergences (non-native
 FIXED, activity-fuels OPEN) + the LP-calibration/WK3-DGSCOR tail (nohtdreg_cal ~1%, separate).
+
+### test_init/test_core/test_carbon — DONE (2026-07-02 tolerance audit)
+- test_init: internal per-acre density pins → BIT-EXACT .sum integers (tpa 536.05→trunc==536, ba 77.39→77;
+  sdi round==160); qmd 5.14 noted (internal deterministic; .sum QMD 5.1 bit-exact; atol=cruise-2dec-vs-internal).
+- test_core: plot.pi → exact Float32(π)==3.1415927f0 (was atol=1f-6); RNG testset was already exact `==`
+  (RANN LCG = FVS's own algorithm, mis-labeled "Oracle A").
+- test_carbon: the 38× `<=0.05` (+ one 0.06) are PROVEN-ULP = half the carbon report's 1-decimal print
+  resolution; goldens are LIVE Fortran; carbon_snt/carbon_jenkins BIT-EXACT vs live (31/31 + 22/22). Header note
+  added; not re-litigated.
+
+### Tolerance-audit tally (~75 done): cut 11 · regen 6 · multistand 2 · longrun 3 · mortality 4 · growth 8 ·
+init 3 · core 1(+RNG) · carbon 40 — all re-grounded vs LIVE (Oracle-A abandoned): tightened to bit-exact OR
+proven print-rounding/Float32-ULP with in-file notes. FINDING: the loose/Oracle-A tolerances ALMOST ALL masked
+BIT-EXACT-vs-live results (cut/growth/regen were fully bit-exact under stale "tail"/"unported" tolerances). The
+only genuine NON-ULP tolerance-covered residual found = test_growth's former LP-tail (turned out bit-exact here;
+the real LP/WK3-DGSCOR tail lives on nohtdreg_cal ~1%). REMAINING: test_net01 ~14, test_multicycle 5,
+test_keyword (lexer Float32-parse), test_fortbragg_coverage (atol=5, still Oracle-A → re-ground), scattered
+singles, Float32-ULP cluster (rtol 1f-4/1f-6).
