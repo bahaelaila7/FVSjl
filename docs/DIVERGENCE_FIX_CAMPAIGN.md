@@ -2843,3 +2843,13 @@ bole, but NOT ordinary-thin crown-slash. FIX SCOPE (deferred, substantial): add 
 (fmcwd/fmpocr cut-residue path), gated so no-fire stands are untouched. Edge-case (severe post-thin fires; mild
 corpus fires unaffected, all bit-exact) but a REAL native-cycle divergence. ⇒ CAMPAIGN HAS 1 OPEN REAL ITEM:
 ordinary-cut activity-fuels (crown-slash→surface-fuel) missing ⇒ under-severe post-thin fires.
+
+## TOLERANCE AUDIT (user directive: justify every test tolerance vs LIVE FVS as ULP/eig, or fix to bit-exact; forget Oracle-A)
+### test_cuts_coverage.jl — DONE: 11 Oracle-A/atol tolerances → EXACT `==` vs LIVE (bit-exact)
+Re-grounded all cut_* coverage assertions vs the live FVSsn binary (row-by-row). ALL 10 cut methods
+(SPECPREF/THINPRSC/YARDLOSS/THINSDI/THINHT/THINCC/THINRDEN/THINAUTO/THINQFA/THINPT) are BIT-EXACT to live on the
+asserted column (cut_specpref + cut_thinrden fully bit-exact; the rest differ from live ONLY in one unrelated
+integer-print column — Tcuft(9)/Bdft(12)/removed-TPA(15)/MAI(26), ±1 = print-rounding or 1-tree cut-selection
+margin, ULP). The `@test_broken`/`atol=1,2` "unported vs Oracle-A" framing was STALE — the features match live.
+Changed all 11 to exact `_at(...) == V`; suite 17/17 green. Doctrine confirmed: Oracle-A goldens were masking
+that ported cut features already match live. (Category-3 audit progress: cut cluster DONE.)

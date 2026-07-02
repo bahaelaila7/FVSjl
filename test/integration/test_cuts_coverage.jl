@@ -4,11 +4,14 @@
 # which the suite never validated. These single-stand scenarios isolate each semantic.
 #
 # Scenario keys are committed (test/harness/scenarios/cut_*.key); the .tre is a copy
-# of snt01.tre (gitignored, so we materialise it here). Golden numbers are inline —
-# the values Oracle A (FVSjulia) produces for the affected .sum column at the cut year
-# (verified 2026-06-22). Each unported semantic is a `@test_broken`: it documents the
-# gap, keeps the suite green, and FLIPS to a failure when the feature starts matching
-# the oracle (i.e. when it gets ported). The THINBTA blank-dbhhi fix is a hard `@test`.
+# of snt01.tre (gitignored, so we materialise it here). Golden numbers are inline and
+# RE-GROUNDED vs LIVE FVSsn (2026-07-02) — Oracle A is abandoned. Each asserted column is
+# BIT-EXACT to the live binary (verified row-by-row); the cut methods (SPECPREF/THINPRSC/
+# YARDLOSS/THINSDI/THINHT/THINCC/THINRDEN/THINAUTO/THINQFA/THINPT) are all PORTED and match
+# live exactly on the asserted column. The only live residuals are a single ±1 in an
+# unrelated integer-print column (Tcuft/Bdft/MAI) or a 1-tree cut-selection margin = ULP.
+# All assertions are therefore exact `==` (no atol slack); the earlier Oracle-A/atol form
+# was masking that these features already match live.
 
 using Test, FVSjl
 
@@ -52,24 +55,24 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
         qf = _sum_rows("cut_thinqfa")
         pt = _sum_rows("cut_thinpt")
 
-        # PORTED + validated: THINBTA blank-dbhhi fires, and SPECPREF reorders the cut
-        # so the year-2000 removal is bit-exact to Oracle A (rem_tpa 327, at_BA 96).
+        # RE-GROUNDED vs LIVE FVSsn (2026-07-02, forget Oracle-A): every column asserted below is
+        # BIT-EXACT to the live binary (verified row-by-row: cut_specpref fully bit-exact; the other
+        # cut_* differ from live only in a SINGLE integer-print column NOT asserted here — Tcuft(9)/
+        # Bdft(12)/removed-TPA(15)/MAI(26), each ±1 = print-rounding or a 1-tree cut-selection margin,
+        # ULP-class). So these are exact `==` now, not atol slack; the "ported" features MATCH live.
         @testset "SPECPREF cut is bit-exact at the cut year (cut_specpref)" begin
-            @test _at(sp, 2000.0, 13) > 0                          # THINBTA fires
-            @test isapprox(_at(sp, 2000.0, 13), 327.0; atol = 1)   # rem_tpa
-            @test isapprox(_at(sp, 2000.0, 18),  96.0; atol = 1)   # at-treatment BA
+            @test _at(sp, 2000.0, 13) > 0                # THINBTA fires
+            @test _at(sp, 2000.0, 13) == 327.0           # rem_tpa — BIT-EXACT vs live
+            @test _at(sp, 2000.0, 18) ==  96.0           # at-treatment BA — BIT-EXACT vs live
         end
-        # Post-thin DGSCOR growth — the 2005 top height / sawtimber volume of a thinned
-        # stand. Fixed by resetting sort_key to compacted physical order after tredel_compact!
-        # (Fortran's post-removal spesrt rebuild drops the REASS U,C,L interleave).
         @testset "post-thin growth matches (cut_specpref TopHt 2005 == 59)" begin
-            @test isapprox(_at(sp, 2005.0, 7), 59.0; atol = 1)
+            @test _at(sp, 2005.0, 7) == 59.0             # BIT-EXACT vs live (full cut_specpref .sum bit-exact)
         end
         @testset "THINPRSC removes the prescribed TPA (rem_tpa 2000 == 259)" begin
-            @test isapprox(_at(pr, 2000.0, 13), 259.0; atol = 2)   # ported (cut-code marked)
+            @test _at(pr, 2000.0, 13) == 259.0           # BIT-EXACT vs live (col13; live diff is only col15 ±1)
         end
         @testset "YARDLOSS affects removed-volume accounting (col24 2000 == 124)" begin
-            @test isapprox(_at(yl, 2000.0, 24), 124.0; atol = 1)
+            @test _at(yl, 2000.0, 24) == 124.0           # BIT-EXACT vs live (col24; live diff is only col9 Tcuft ±1)
         end
         @testset "YARDLOSS scales removed MERCH/SAW/BOARD by (1−PRLOST), not cubic/TPA (cuts.f:1387)" begin
             # YARDLOSS (PRLOST=0.5) leaves half the harvested merch on site: the reported removed
@@ -90,28 +93,29 @@ _at(rows, yr, col) = (r = findfirst(x -> x[1] == yr, rows); r === nothing ? NaN 
             @test c5.rem_tpa  == c0.rem_tpa              # removed TPA UNCHANGED
         end
         @testset "THINSDI thins to target SDI (rem_tpa 2000 == 20)" begin
-            @test isapprox(_at(sd, 2000.0, 13), 20.0; atol = 2)   # ported (Zeide SDI + proportional)
+            @test _at(sd, 2000.0, 13) == 20.0            # BIT-EXACT vs live (col13; live diff only col26 MAI ±0.1)
         end
-        # ── remaining label_325/400 thins: live-Fortran ground truth (TPA @2005). Each
-        #    is ⛔ until ported; the expected value is the Fortran result so the test
-        #    validates the port (flip @test_broken→@test when it lands). NOT tuned to FVSjl.
+        # ── label_325/400 thins: all BIT-EXACT vs LIVE FVSsn on the asserted TPA@2005 column (re-grounded
+        #    2026-07-02). Each cut method (THINHT/CC/RDEN/AUTO/QFA/PT) is PORTED and matches live exactly on
+        #    TPA; the only live residuals are in a single unrelated integer-print column (Tcuft/Bdft/MAI),
+        #    ±1 ULP. Was Oracle-A + atol=2 slack; now exact `==` vs live.
         @testset "THINHT thins a height class (TPA 2005 == 133)" begin
-            @test isapprox(_at(ht, 2005.0, 3), 133.0; atol = 2)   # ported (label_325 on height)
+            @test _at(ht, 2005.0, 3) == 133.0            # BIT-EXACT vs live (live diff only col9 Tcuft ±1)
         end
         @testset "THINCC thins to residual crown cover (TPA 2005 == 71)" begin
-            @test isapprox(_at(cc, 2005.0, 3), 71.0; atol = 2)         # ported (CCCLS crown cover)
+            @test _at(cc, 2005.0, 3) == 71.0             # BIT-EXACT vs live (live diff only col15 ±1)
         end
         @testset "THINRDEN thins to Curtis RD (TPA 2005 == 418)" begin
-            @test isapprox(_at(rd, 2005.0, 3), 418.0; atol = 2)        # ported (Curtis RD + proportional)
+            @test _at(rd, 2005.0, 3) == 418.0            # BIT-EXACT vs live (cut_thinrden fully bit-exact)
         end
         @testset "THINAUTO auto-thins on stocking (TPA 2005 == 231)" begin
-            @test isapprox(_at(au, 2005.0, 3), 231.0; atol = 2)        # ported (AUTSTK + recurring from-below)
+            @test _at(au, 2005.0, 3) == 231.0            # BIT-EXACT vs live (live diff only col9 Tcuft ±1)
         end
         @testset "THINQFA thins to a Q-factor distribution (TPA 2005 == 89)" begin
-            @test isapprox(_at(qf, 2005.0, 3), 89.0; atol = 2)         # ported (CUTQFA Q-factor + 2-record)
+            @test _at(qf, 2005.0, 3) == 89.0             # BIT-EXACT vs live (live diff only col26 MAI ±1)
         end
         @testset "THINPT point thin (SETPTHIN all-points TPA; TPA 2005 == 18)" begin
-            @test isapprox(_at(pt, 2005.0, 3), 18.0; atol = 2)         # ported (per-point + PI/NONSTK)
+            @test _at(pt, 2005.0, 3) == 18.0             # BIT-EXACT vs live (live diff only col12 Bdft ±1)
         end
     end
 end
