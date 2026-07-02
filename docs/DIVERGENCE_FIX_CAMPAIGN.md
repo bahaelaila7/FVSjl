@@ -3311,3 +3311,19 @@ over 1990→2010 (the 2000-thin crown-slash's add magnitude + its 2000→2010 de
 jl fire fuel 7.912 vs live 6.30 (+26%), both from the same correct FUINI. Fix = faithful FMSCUT-add-then-annual-
 FMCWD phasing (approach 3), the ONLY remaining candidate. 📌 constructed-only; machinery+inputs all verified
 faithful; the residual is isolated to the cut-slash fuel-evolution phasing (delicate reorder, high corpus risk).
+
+### D17 — decay approach VALIDATED (LARGE lands exact); residual = crown-slash FINE-size over-loading (2026-07-02)
+Re-ran the cut-slash decay fix WITH a fire_smlg measurement (temp, reverted). Decaying the slash by the cut→fire
+period (s.control.year) moved jl's 2010 fire fuel:
+  SMALL: 7.91 → 4.579  (target 6.30)  — OVERSHOT by ~1.7
+  LARGE: 4.91 → 3.851  (target 3.89)  — LANDED EXACTLY ✓
+⇒ the decay PHASING approach is CORRECT (LARGE, the coarse branches sizes 4-5, lands bit-close to live). The
+residual is confined to SMALL. Disabling the foliage→litter(size10) decay changed nothing ⇒ NOT litter. So the
+SMALL overshoot is the FINE branches (sizes 1-3): the decay removes 3.33 from SMALL but only 1.61 should go ⇒
+jl's crown-slash ADD over-loads fine sizes 1-3 by ~2× (undecayed, that surplus is the pre-fix +1.61 SMALL excess;
+decayed, it over-removes). Sizes 4-5 add is right (LARGE exact). ROOT (refined, terminal): jl's crown_biomass
+(FMCROWE) BRANCH-SIZE distribution puts too much mass in the fine classes (1-3) vs FVS CROWNW — even though the
+crown_biomass TOTAL is bit-exact (carbon-validated), its split across the 5 branch size-classes diverges. NEXT:
+differential jl crown_biomass(xv[2:6]) vs live FMCROWE CROWNW(I,1:5) for a representative cut tree — match the
+per-size-class branch split. Then the decay phasing (validated) + correct branch split ⇒ (6.30,3.89) ⇒ kill 5.
+📌 constructed-only; decay approach validated, residual isolated to the crown branch-size distribution.
