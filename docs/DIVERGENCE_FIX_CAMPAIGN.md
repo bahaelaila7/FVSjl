@@ -2781,3 +2781,12 @@ cs_allsp (CS), ne_fixtures — all bit-exact/ULP. The one genuine cross-variant-
 non-native small-tree double-scale) was caught on a PROPER stand (dense.tre) at a non-native cycle and fixed.
 ⇒ per-tree/native re-scrutiny confirms: the accepted-ULP flags hold at native; the alarming cross-variant DIFFs
 are ill-posed artifacts. Discrimination criterion (native + per-tree bit-exact ⇒ ULP) applied, verdicts stand.
+
+### Confirmed: NE FFE fire is BIT-EXACT on proper NE stands (defulmod-through-NE was purely cross-variant)
+midcycle_fire + ffe (proper NE fire fixtures, ne_fixtures) run through live-NE vs jl-NE: BOTH fully BIT-EXACT
+(TPA/BA/Tcuft, TPAd=BAd=Tcfd=0). ⇒ jl's NE FFE fire is faithful on genuine NE stands; the defulmod NE-sweep
+divergence (TPA/Tcuft ~10% post-fire) was entirely cross-variant ill-posedness (an SN FFE fuel-model scenario
+forced through NE), NOT a real NE-FFE bug. This closes the defulmod re-scrutiny: native SN bit-exact, proper NE
+fire bit-exact, only the ill-posed SN-through-NE run diverges (expected). Campaign floor holds: real paths
+bit-exact/proven-ULP across SN/NE/CS; the one real divergence (non-native small-tree) fixed; cross-variant
+sweep flags are artifacts.
