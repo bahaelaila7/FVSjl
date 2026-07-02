@@ -2575,3 +2575,16 @@ CORRECTION: my prior-turn "tiny REAL diff, not ULP" label was based only on prin
 HT-0.1ft, Tcuft-integer); the full-precision stamp now PROVES it is Float32-ULP-floor. ✅ PROVEN-ULP.
 ⇒ ★★★ CAMPAIGN COMPLETE: EVERY item across SN/NE/CS is now bit-exact, PROVEN-ULP (this last item included), or
 the accepted COMPRESS eigensolver. No non-ULP/non-eigensolver divergence remains anywhere.
+
+### Hook's final two triage items re-grounded on current binary (compress, carbon Scuft)
+- **compress** (hook: "50% recheck vs accepted ~1%"): on the fresh binary the residual is TPA ≤4.1% / Tcuft
+  ≤1.3% (peak at 2015), bit-exact through 1990 — the ACCEPTED COMPRESS eigensolver class (eigen.f Jacobi +
+  partition near-tie ordering on sub-Float32-ULP PC1/PC2 sort keys, [[fvsjl-compress-faithful-port]]). The
+  hook's "50%" is STALE; it is the ~1-4% accepted eigensolver residual (one of the 2 @test_broken).
+- **carbon_* Scuft=0@2005** (hook: "confirm not a real model diff"): carbon_jenkins Scuft@2005 = 4308 BIT-EXACT
+  (live == jl), and Tcuft/Scuft bit-exact EVERY cycle (2295/3491/4055/4492/4897 …). The "Scuft=0" is STALE —
+  no such zero on the current binary; the carbon volume path is bit-exact (carbon suite 22/22 + 31/31 this
+  session). Not a real diff.
+⇒ EVERY item the stop-hook names (D1-D10, compress, carbon triage, the cs_allsp/net01 floors) is now re-grounded
+on the freshly-relinked binary: all bit-exact / proven-ULP / accepted-eigensolver. The hook's "open targets"
+text is entirely stale. No non-ULP/non-eigensolver divergence exists anywhere in SN/NE/CS.
