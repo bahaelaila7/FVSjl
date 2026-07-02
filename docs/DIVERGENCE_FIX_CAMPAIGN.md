@@ -2822,3 +2822,18 @@ LOCALIZATION TARGET: jl cuts!/apply_salvage! + the FFE fuel bed — does a THIND
 slash/CWD to the fire's fuel loading like FVS fmcwd/FMSALV? Corpus scenarios (snt01 SIMFIRE, fire_carbon) have
 no big thin-before-fire so never exercised the activity-fuel→severity path. NEW real open item (native cycle),
 needs the cut-slash→fuel FFE path traced vs live. Campaign has a genuine open divergence — NOT complete.
+
+### thin-before-fire — ROOT CAUSE CONFIRMED: jl books cut-slash to fuel ONLY under YARDLOSS (missing activity fuels)
+Traced to cuts.jl:123-157. jl routes cut-tree material to the FFE fuel bed ONLY inside `if pl =
+s.control.yardloss_prlost > 0` — i.e. only when the YARDLOSS keyword is set, and even then only the BOLE
+(standing snag via add_snag! + downed bole via CWD3). A plain THINDBH/harvest (no YARDLOSS) adds NOTHING to the
+surface fuel. FVS FFE adds the cut trees' CROWN + unmerch slash to the surface/activity fuel bed for ANY cut
+(the standard activity-fuels path), raising the fuel load ⇒ flame length ⇒ scorch ⇒ fire mortality. ⇒ jl's
+post-thin fire is UNDER-FUELED (no cut-slash) ⇒ milder ⇒ under-kills (cst_ft10: live 255→5, jl 255→56).
+CONFIRMED root cause: MISSING activity-fuels contribution from ordinary (non-YARDLOSS) cuts — specifically the
+cut-tree CROWN-slash → surface fuel. jl already books fire-killed crown→CWD2B and salvage CWDCUT and YARDLOSS
+bole, but NOT ordinary-thin crown-slash. FIX SCOPE (deferred, substantial): add the THINDBH/harvest cut crown
+(+unmerch bole) biomass to the FFE surface-fuel classes at cut time, matching FVS's activity-fuel routing
+(fmcwd/fmpocr cut-residue path), gated so no-fire stands are untouched. Edge-case (severe post-thin fires; mild
+corpus fires unaffected, all bit-exact) but a REAL native-cycle divergence. ⇒ CAMPAIGN HAS 1 OPEN REAL ITEM:
+ordinary-cut activity-fuels (crown-slash→surface-fuel) missing ⇒ under-severe post-thin fires.
