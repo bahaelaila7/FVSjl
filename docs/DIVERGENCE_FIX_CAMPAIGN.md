@@ -3497,3 +3497,13 @@ REFUTED (live emits 3, not 1), so the exact per-stand DBS-emission rule needs th
 stand live drops and why — Summary field level, or a stand-specific condition). CLASS: DBS-output-config detail,
 NOT a model divergence — jl's SIMULATION of all 4 stands is now correct (the D19 fix); this is only which stands'
 summaries get written to the DB. Documented as a follow-up; the substantive fix (D19, model correctness) is done.
+
+### D19/D20 clarification: live SIMULATES 4 stands (D19 fix CONFIRMED correct); D20 is DBS-emission-only
+Live's sn.out simulates all 4 stands (UNTHINNED CONTROL / TEST EXPANDED THINDBH / SHELTERWOOD PRESCRIPTION in
+the .out, + the FFE TEST stand which has a Screen keyword ⇒ suppressed from .out but written to DBS). ⇒ jl's D19
+inline-tree fix is CONFIRMED CORRECT: jl now processes sn.key's 4 stands, MATCHING live's 4-stand simulation
+(was 1). D20 is therefore purely a DBS-EMISSION-count detail: live writes 3 of the 4 stands' FVS_Summary
+(2×S248112 + FFE — one S248112 stand's DATABASE>Summary block doesn't trigger a DBS write in live), jl writes all
+4. NOT a simulation/model divergence — the 4-stand PROJECTION matches; only which stands' summaries reach the DB
+differs (a per-stand DATABASE>Summary field/level detail, dbsdriver.f semantics). D19 (model correctness) DONE
+and validated; D20 (DBS output-config over-emission of one stand summary) = minor documented follow-up.
