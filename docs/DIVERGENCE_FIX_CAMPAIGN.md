@@ -2629,3 +2629,21 @@ BOTH engines:
 the MAX-combine boundary (one marginal tree whose density-mort vs fire-kill comparison straddles a Float32 tie),
 NOT a masked ordering/interaction bug. Confirms the accepted kill-distribution ULP class — now traced, not
 assumed. (Re-trace discipline caught me about to accept my own verdict without proof; the trace CONFIRMED it.)
+
+### ★ REAL DIVERGENCE FOUND (re-trace via completed varied-sweep): NE non-native-cycle (10→5) growth downscaling
+Completing the varied sweep's NE combos + applying the timeint10 re-trace method surfaced a REAL semantic gap
+the "#2 non-native DGSCOR — deferred/ULP" label had MASKED:
+- **ne08 (NE @ NATIVE clen10, no fire/thin): BIT-EXACT every cycle** (TPA/BA/Tcuft all identical 1990-2070).
+- **ne00 (SAME stand @ NON-NATIVE clen5): diverges at CYC1** — 1995 BA 167 vs 171, Tcuft −2.18%; jl UNDER-grows,
+  one-signed, accumulating to ~3% (Tcuft −3.78% @2000; TPA +9-10 later as the under-grown stand self-thins less).
+- By the timeint10 proof logic (a faithful non-native scaling stays bit-exact for early cycles; a SEMANTIC
+  scaling error diverges at cyc1), ne00 diverging AT CYC1 ⇒ this is a REAL semantic growth-scaling gap, NOT the
+  ULP-accumulation class. It is the OPPOSITE-DIRECTION scaling from SN-at-10: SN native=5 upscales 5→10 (timeint10,
+  PROVEN-ULP, bit-exact 4 cycles); NE native=10 DOWNscales 10→5 (ne00, REAL, diverges cyc1). The 10→5 downscale
+  is where jl under-grows.
+- CORRECTION to the campaign's prior framing: the non-native-cycle residual is NOT uniformly ULP. SN-at-10 = ULP
+  (proven); NE-at-5 = REAL semantic under-growth (this entry). The memory's "NE-at-5yr worst 3% accumulating,
+  deferred" was under-classified — it is a fixable growth-scaling divergence, isolated (native clen10 bit-exact).
+STATUS: the one CONFIRMED real (non-ULP, non-eigensolver) divergence remaining = NE non-native-cycle (10→5)
+growth downscaling. Next: localize DG-scaling vs HTG-scaling (both feed the under-growth) vs live NE stamp, then
+fix per gradd.f/htcalc FINT/YR. Non-standard use case (NE is natively 10-yr) but FVS supports it ⇒ campaign target.
