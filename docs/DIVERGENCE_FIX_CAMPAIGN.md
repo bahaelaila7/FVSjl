@@ -2283,3 +2283,17 @@ chunk plan (prior reorder attempts regressed #20/DDW). ⇒ STATUS: real open bit
 verifiable, tracked in FFE_FUEL_DYNAMICS_chunk_plan.md. NOT crown-lift. The DONE bar requires closing it, but it
 is the hardest remaining CS/FFE item (whole chunk plan), not a quick fix. Prioritize after the cheaper audit
 items (all-species bands, cuts/keyword/regen feature-gap classification, board-foot/timeint10/treeszcp ULP proofs).
+
+### AUDIT items 7-8: board-foot threshold = PROVEN-ULP; timeint10 non-native = RECLASSIFIED to REAL (not ULP)
+board-foot/sawtimber threshold (Bdft/Scuft swings on bit-exact-cubic stands): PROVEN-ULP. Mechanism verified in
+code — board eligibility is a HARD cutoff `bf = (d>=bfmind && d>bf_topd) ? v[2] : 0` (r9clark_vol.jl:543 ==
+vols.f:354). On the flagged stands the CUBIC (Tcuft/Mcuft) is bit-exact ⇒ per-tree DBHs are ULP-close ⇒ a tree
+at d=bfmind±ULP flips board-eligibility ⇒ the Bdft swing is hard-cutoff amplification of a ULP DBH diff, NOT a
+semantic volume difference. (growth_fint10 SN is fully bit-exact incl. Bdft — confirming the swing only occurs
+when a tree sits AT the cutoff.) TRULY-ULP.
+timeint10 (SN @ non-native 10-yr TIMEINT): RECLASSIFIED from "accepted non-native #2" to REAL DIVERGENCE per
+DONE rule 3. Re-measured: Tcuft drifts +3/+6/+16 (0.29%) and TPA ±2 at 2040-2090 — NOT Float32-ULP but the
+non-native-cycle DGSCOR serial-correlation SEMANTIC gap (memory: up to 3% NE-at-5yr, accumulating). This is a
+real semantic mismatch in the off-native-cycle DG/AUTCOR handling ⇒ under DONE must be FIXED to bit-exact, not
+accepted. ⇒ MOVES to the open real-divergence list (with carbon-DDW-timing + raw-BA + CS re-sweep DIFFs).
+The strict bar keeps re-classifying "accepted" floors: board-foot IS ULP; timeint10 is NOT (semantic).
