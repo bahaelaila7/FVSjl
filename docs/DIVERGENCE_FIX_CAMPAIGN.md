@@ -2185,3 +2185,18 @@ retires "accepted / documented tail" as a stopping point unless it meets (3). RE
   (cyc1 kill bit-exact ✓ — but confirm the within-species flip is a true numeric tie), board-foot threshold,
   timeint10 non-native #2 (±2 TPA — confirm Float32 not a non-native semantic gap), CS deep-thinned tails.
 Current partial: D32+BA+PCT-backdated fixes converging hcor_smalltree; suite 6397/2.
+
+### D32 HCOR calibration now BIT-EXACT (htg_cor_init 0.06574 == live 0.0657) — 3 backdated-state fixes
+The HCOR-calib gap was that the CS regent calibration (run from CRATET on the backdated stand) reads THREE
+backdated-state quantities, but jl read the CURRENT (post-restore) ones. Fixed all three:
+1. BALMOD BA: backdated, incl. ALL recently-dead records (dense.f:79-86) ⇒ 177.515 == live CRATET (was 242).
+2. BALMOD PCT (percentile): backdated, and INCLUDING history-8 dead (CRATET DENSE keeps them; only the dgf
+   percentile zeroes history-8) — recomputed separately as bd_pct_hcor. This was the final ~0.5%: the dbh-34.6
+   history-8 dead tree, zeroed in jl's dgf percentile, is in live's CRATET percentile ⇒ total 173.5→177.5 ⇒
+   the small trees' PCT drop 2.3% to match live (10.64 not 10.888).
+3. AVH (already bit-exact, 63.44).
+RESULT: htg_cor_init[43] 0.1678→0.06574 == live 0.0657 BIT-EXACT; hcor_smalltree CUBIC now BIT-EXACT (2000
+Tcuft 3041 both, was 2.2% low). Suite 6397/2 green (scoped to bd_pct_hcor — dgf percentile + DG calibration
+untouched). RESIDUAL: hcor_smalltree TPA ±2-4 (cyc1 mortality 1980 vs 1978) = the near-SDImax distribution
+floor (dense TPA-7082 stand) — same accepted ULP/order class as the broad CS drift; needs the same cyc1-kill
+proof to confirm truly-ULP per the DONE standard. ⇒ D32 HCOR growth DONE (bit-exact); the tail is mortality-floor.

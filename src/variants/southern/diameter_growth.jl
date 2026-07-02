@@ -566,9 +566,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # `s.plot.basal_area` is live-only (169.5), so sum live+dead here to match CRATET's 177.515 exactly.
     bd_ba_hcor = 0f0
     @inbounds for i in 1:(t.n + t.ndead); dd = t.dbh[i]; bd_ba_hcor += dd * dd * t.tpa[i] * 0.005454154f0; end
-    # The regent HCOR calibration also reads the BACKDATED-stand PCT (BA percentile) for BALMOD's BAL — capture
-    # it here BEFORE the restore (compute_density! below overwrites crown_ratio with the CURRENT percentile).
-    bd_pct_hcor = Float32[t.crown_ratio[i] for i in 1:t.n]
+    # The regent HCOR calibration reads the BACKDATED-stand PCT for BALMOD's BAL. It uses the CRATET DENSE
+    # percentile, which INCLUDES ALL recently-dead records incl. history-8 (dense.f keeps WK3=dbh; only IMC=9 is
+    # zeroed) — UNLIKE the dgf percentile above (which zeroes history-8). So recompute the percentile here over
+    # live + ALL dead (backdated dbh), total incl. the history-8 tree, matching CRATET's 177.5 BA basis exactly.
+    bd_pct_hcor = zeros(Float32, t.n)
+    let nlive2 = t.n, ntot = t.n + t.ndead
+        rankd = Float32[i <= nlive2 ? saved_dbh[i] : t.dbh[i] for i in 1:ntot]   # current-dbh rank order
+        wk5h  = Float32[t.dbh[i]^2 * t.tpa[i] for i in 1:ntot]                    # backdated BA, ALL dead incl hist-8
+        ordh = sortperm(rankd; rev = true); toth = sum(wk5h); cumh = 0f0
+        if toth > 0f0
+            @inbounds for k in ntot:-1:1
+                ii = ordh[k]; cumh += wk5h[ii]
+                ii <= nlive2 && (bd_pct_hcor[ii] = cumh / toth * 100f0)
+            end
+        end
+    end
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s)
