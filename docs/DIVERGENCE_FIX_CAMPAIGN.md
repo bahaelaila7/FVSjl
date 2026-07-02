@@ -2357,3 +2357,18 @@ Ran `divergence_sweep.jl cs` (the ledger's "next productive work"). Result: jl's
   * `compress` (TopHt 10%): the ACCEPTED COMPRESS eigensolver (design choice).
 VERDICT: the sweep surfaced NO new genuine CS-model faithfulness bug. All DIFFs = cross-variant hard-threshold
 ULP-amplification (accepted classes) + the accepted eigensolver + live-FPE (unvalidatable). CS is at floor.
+
+### NE discovery sweep (260 scenarios through NE variant) — at floor; D28-D32 no regression
+Ran `divergence_sweep.jl ne`. 239 bit-exact, 5 live-FPE (unvalidatable), 16 DIFF — same triage as CS, all
+accepted classes (SN-designed scenarios cross-run through NE):
+- board-foot threshold (defulmod 21% Bdft, bfvolume/volume_override, dense_long, s09_cyc20 — all Bdft/near-
+  zero) = PROVEN-ULP hard-cutoff class.
+- SIZCAP hard-cap (treeszcp_cap/htcap) = verified-faithful, degenerate 100%-kill amplification (see CS entry).
+- non-native-cycle (cycleat 3% Scuft) = timeint10 PROVEN-ULP class.
+- near-SDImax VARMRT kill-DISTRIBUTION wobble (fixhtg_all, setsite, fmortmlt, fire_mid, salvage): all bit-exact
+  cyc0-1, then a few-TREE count wobble at the dense cyc2 (TPA ±2-6 of ~480) that RE-CONVERGES, with the
+  aggregate (Tcuft) staying <0.5% — the discrete kill-distribution flip on ULP-tied trees (documented class).
+- compress (0.62%) = accepted eigensolver; fueltret/growth_idg1 (<0.5%) = near-ULP volume tail.
+CRITICAL: **setsite** (which D30 touched — variant-dispatched dgcons!) and **fixhtg_all** are BIT-EXACT cyc0-1
+⇒ D30/D28-D32 did NOT regress NE growth (a regression would diverge at cyc0/cyc1, not wobble at the dense
+cyc2). VERDICT: NE variant at floor; no un-catalogued divergence; the D28-D32 fixes are regression-free.
