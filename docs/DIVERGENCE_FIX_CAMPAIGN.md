@@ -3197,3 +3197,19 @@ the LARGE 6-9 excess) and dropped SMALL below the sm>6 candidate threshold ⇒ w
 NEXT: differential jl vs live coarse-CWD (sizes 6-9) accumulation at the fire — trace snag-fall (update_snags!/
 FMSNAG bole→cwd) + base FMCWD coarse pools; find why jl sizes 6-9 run ~1.85× live. That over-accumulation is the
 true D17 root. 📌 (constructed-scenario-only; now localized to a specific fuel pool + mechanism).
+
+### D17 — coarse-CWD source narrowed to snag-fall/cone-split (standing TPA matches; 2026-07-02)
+Per-size-class cwd at the cst_ft10 2010 fire (both from identical raw-cwd stamps):
+  size:   4      5      6      7      8      9
+  live: 2.401  0.441  0.630  0.361  0.061  0.000   (LARGE=Σ4-9 = 3.894)
+  jl:   2.900  0.542  0.686  0.674  0.113  0.000   (LARGE = 4.915, +26%)
+The excess concentrates in sizes 7-8 (20-50" down-wood): jl 0.674/0.113 vs live 0.361/0.061 (~1.87×/1.85×).
+Both are NONZERO ⇒ cst_ft10 legitimately has 20"+ boles (not a spurious-index bug) — it's the AMOUNT.
+KEY CONSTRAINT: standing TPA MATCHES at 2010 (255 both) ⇒ the same trees survive, so the mortality COUNT over
+2000→2010 is ~equal ⇒ the coarse-CWD excess is NOT "jl kills more big trees". It must be the snag→down-wood
+conversion: snag-FALL timing (how many of the 2000-2010 mortality snags have fallen by the 2010 fire) or the
+CWD1 cone-split (how a fallen large bole's volume distributes across sizes 7-8). jl deposits ~1.87× the coarse
+(20"+) down-wood for the SAME standing stand. NEXT: jl-vs-live differential of the snag cohort (density/size at
+2005 & 2010) + the CWD1 cone-split fractions for a ~20"+ bole — find why jl's sizes 7-8 run ~1.87×. That is the
+terminal D17 root (feeds LARGE → FMDYN weight → under-kill). 📌 constructed-scenario-only; localized 5 layers deep
+(FMDYN weight → LARGE +26% → sizes 7-8 1.87× → snag-fall/cone-split, standing-TPA-matched).
