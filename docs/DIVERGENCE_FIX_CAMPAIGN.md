@@ -2667,3 +2667,16 @@ DG (proven bit-exact) and NOT height (fixed). Narrowed from "NE non-native DG" t
 scaling." Next: trace small_tree_growth!'s DG scaling (dds_e = dg·(2dib+dg)·(FINT/REGYR), DGMAX·scale, and the
 xwt blend toward the large-tree DG) vs regent.f at FINT≠10. Height half FIXED + validated; this small-tree
 diameter half is the precisely-localized open remainder of the one real divergence.
+
+### ★ CORRECTION: the "NE non-native HEIGHT fix" was UNFAITHFUL — REVERTED (rule #4 self-catch)
+Verified the FVS CALLERS (not just htcalc.f): both htgf.f:77 (large-tree) and regent.f:197 (small-tree) pass
+`YRS=10.` HARDCODED to HTCALC, then scale by `SCALE=FINT/YR` (htgf.f:54) — i.e. FVS NE uses the 10-yr height
+increment × LINEAR (FINT/YR), for BOTH paths. That is EXACTLY what jl's ORIGINAL code did (ne_htcalc_incr a+10,
+then htg=scale·…). My "fix" (evaluate the curve over period=FINT, drop scale) made jl UNFAITHFUL to FVS while a
+test number (ne00 Tcuft) happened to move toward live — the classic chase-test-behavior trap (rule #4 / verify
+from FVS code not test pass/fail). REVERTED all three edits; suite back to 6397/2, native NE bit-exact. Lesson:
+I read htcalc.f:413's YRS param but failed to check that the NE callers hardcode YRS=10 — must trace the CALLER.
+⇒ jl's NE HEIGHT is FAITHFUL (matches htgf.f/regent.f). So the ne00 non-native divergence, IF real, is NOT the
+height. Its reality must be RE-VALIDATED on a proper NE stand (ne00 uses SN snt-species through NE — possibly a
+cross-variant/synthetic-scenario artifact, not a jl bug). Re-validation pending; the "NE non-native = real
+divergence" claim is DOWNGRADED to UNVERIFIED until reproduced on a genuine NE inventory at FINT≠10.

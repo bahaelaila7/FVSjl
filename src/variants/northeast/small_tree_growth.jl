@@ -58,10 +58,8 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                 htgr_s = 0.1f0
             else
                 aget = ne_htcalc_age(sp, si, h)
-                # evaluate the curve over the actual cycle length (period=FINT, htcalc.f:413 AGET+YRS);
-                # `scale`=FINT/REGYR(10) is therefore dropped — native (FINT=10) stays bit-exact (scale was 1).
-                htg1 = ne_htcalc_incr(sp, si, aget, fint)
-                htgr_s = htg1 * con * xrhgro
+                htg1 = ne_htcalc_incr(sp, si, aget)
+                htgr_s = htg1 * con * scale * xrhgro
             end
             # BAL + relative-height modifier (regent.f:232-238; NO ·0.8, unlike large-tree HTGF)
             gmod = ne_balmod(b3_dg[sp], ebau, d)

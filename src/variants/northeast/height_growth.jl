@@ -47,14 +47,11 @@ function ne_htcalc_height(sp::Integer, si::Real, age::Real)
 end
 
 "10-yr height increment from starting age `aget` (HTCALC mode 9)."
-function ne_htcalc_incr(sp::Integer, si::Real, aget::Real, period::Real = 10f0)
+function ne_htcalc_incr(sp::Integer, si::Real, aget::Real)
     b1,b2,b3,b4,b5,bh = _ne_htcoef(sp); sif = Float32(si); a = Float32(aget)
     hmax = b1 * sif^b2; ex = b4 * sif^b5
     h0  = bh + hmax * (1f0 - exp(b3 * a))^ex
-    # htcalc.f:413 evaluates the curve at AGET+YRS (the ACTUAL cycle length), NOT a fixed 10-yr
-    # increment linearly scaled — the curve decelerates, so a 5-yr step is MORE than half a decade.
-    # `period` defaults to 10 (the NE native cycle) so every existing caller is unchanged.
-    hp5 = bh + hmax * (1f0 - exp(b3 * (a + Float32(period))))^ex
+    hp5 = bh + hmax * (1f0 - exp(b3 * (a + 10f0)))^ex
     return hp5 - h0
 end
 
@@ -86,19 +83,14 @@ function height_growth!(s::StandState, ::Northeast; scale::Float32 = 1f0)
             htg1 = 0f0; aget = 0f0
         else
             aget = ne_htcalc_age(sp, si, hti)
-            # Evaluate the NC-128 curve over the ACTUAL cycle length (period = scale·YR = FINT),
-            # per htcalc.f:413 (AGET+YRS). At the native 10-yr cycle scale=1 ⇒ period=10 (unchanged);
-            # at a non-native 5-yr cycle this gives the true decelerated 5-yr step instead of ½·(10-yr),
-            # which jl previously under-grew. The linear `scale` below is therefore dropped (the period
-            # is now baked into the curve evaluation) — native stays bit-exact (scale was 1.0).
-            htg1 = ne_htcalc_incr(sp, si, aget, scale * 10f0)
+            htg1 = ne_htcalc_incr(sp, si, aget)
         end
         gmod = ne_balmod(b3_dg[sp], ebau, t.dbh[i])
         relht = avh > 0f0 ? min(hti / avh, 1f0) : 0f0
         gmod = (1f0 - (1f0 - gmod) * (1f0 - relht)) * 0.8f0
         htg = htg1 * (1f0 + oldrn[i]) * gmod
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = xht * htg * exp(htcon)
+        htg = scale * xht * htg * exp(htcon)
         # size cap (SIZCAP[sp,4], default 999 for NE — TREESZCP keyword only)
         sc4 = s.control.sp_size_cap[sp, 4]
         (hti + htg) > sc4 && (htg = max(sc4 - hti, 0.1f0))
