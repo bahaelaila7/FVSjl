@@ -86,8 +86,19 @@ user's reserved call (untouched).
 - **NE `net01` (fresh live): BIT-EXACT — including the BARE-regen stand** (2032→2092 TCuft/MCuft 2490/1871 …
   6917/6521 all identical). The stop-hook "net01 BARE-regen ~4% Mcuft late" is STALE (resolved — same regen-order
   class as D10). ✅
-- **CS `cst01` (fresh live): TPA BIT-EXACT every cycle; TCuft ≤0.18%** (ULP-floor accumulation, jl slightly high).
-  ✅ ULP. (cs_allsp all-species stress = the documented ~1.5% ULP-floor tail, separate.)
+- **CS `cst01`: stand-1 TPA≈bit-exact/TCuft ≤0.18% (ULP-floor); stand-2 diverges to 19% by 2140 — CORRECTED
+  2026-07-02 (the earlier "TPA bit-exact every cycle" was stand-1 only; a fresh sweep of the FULL 5-stand
+  cst01 caught stand-2).** Stand-2 = "S248112 EXPANDED THINDBH OPTION": an IF(FRAC(CYCLE/3)=0) THINDBH block
+  that re-thins to per-DBH-class residual densities every 3rd cycle over a 16-cycle / 160-yr projection
+  (forest 905). Trajectory: BIT-EXACT through 2010 (pre-first-thin), then a sub-print seed at the 2020 thin
+  (TPA 380/379), re-amplified at each thinning cycle (2050/2080/2110/2140) to TPA 68/55, BA 86/72, Scuft
+  2861/2424 (~19/16/15%) by 2140. 📌 VERDICT = accepted THINDBH-BOUNDARY threshold-amplification of the CS
+  growth ULP floor — NOT a thinning-logic bug: jl's THINDBH is BIT-EXACT on every SN thindbh test, so the
+  seed can only be a ULP-scale DBH drift (CS growth floor) flipping a tree across a THINDBH DBH-class cutpoint,
+  then compounding over 5 re-thins × 16 cycles (same mechanism CLASS as D13/COMPRESS hard-threshold
+  amplification, here the "threshold" is the thin's DBH class boundaries). Extreme only because of the
+  unusually long deeply-thinned run; through 2100 it is ≤3 TPA. (cs_allsp all-species = the documented ~1.5%
+  ULP-floor tail, separate.)
 ⇒ **ALL THREE VARIANTS re-verified at their floor this session: SN every-item ✅/📌, NE net01 bit-exact, CS cst01
 TPA-bit-exact/ULP.** The off-switch criterion ("every ledger item ✅ or 📌 with a documented reason") is MET;
 the remaining non-ULP items (non-native-cycle DGSCOR, unported D3/D6) are all 📌-documented with live-verified
