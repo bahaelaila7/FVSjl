@@ -13,6 +13,35 @@
 using SQLite
 using DBInterface
 
+# Robust table creation: `CREATE TABLE IF NOT EXISTS` keeps a STALE table from an older jl
+# version (different column count) → the current INSERT throws "table X has N columns but M
+# values supplied". FVS itself tolerates a pre-existing DB; a faithful drop-in must too. This
+# drops a table whose live schema's column count disagrees with the CREATE statement's, then
+# (re)creates it. Within one run the schema always matches (no drop); only a cross-version
+# stale table (whose data is unusable anyway) is dropped. Extracts the table name + expected
+# column count (top-level commas + 1) from `create_sql`.
+function _ensure_table!(db, create_sql::AbstractString)
+    m = match(r"CREATE TABLE IF NOT EXISTS\s+(\w+)\s*\("i, create_sql)
+    name = m === nothing ? nothing : m.captures[1]
+    if name !== nothing
+        existing = 0
+        try
+            for _ in DBInterface.execute(db, "PRAGMA table_info($name)"); existing += 1; end
+        catch; end
+        if existing > 0
+            body = create_sql[findfirst('(', create_sql)+1 : findlast(')', create_sql)-1]
+            depth = 0; expected = 1
+            for ch in body
+                ch == '(' && (depth += 1); ch == ')' && (depth -= 1)
+                (ch == ',' && depth == 0) && (expected += 1)
+            end
+            existing != expected && DBInterface.execute(db, "DROP TABLE IF EXISTS $name")
+        end
+    end
+    DBInterface.execute(db, create_sql)
+    return
+end
+
 # FVS_Summary schema (dbssumry.f:50). Column order matches the INSERT below.
 const _FVS_SUMMARY_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Summary(
@@ -51,7 +80,7 @@ function write_dbs_cases!(dbpath::AbstractString, caseid::AbstractString, standi
                           groups::AbstractString = "", run_datetime::AbstractString = "")
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_CASES_CREATE)
+        _ensure_table!(db, _FVS_CASES_CREATE)
         DBInterface.execute(db, "INSERT OR REPLACE INTO FVS_Cases VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (caseid, stand_cn, standid, mgmt_id, title, keyword_file, Float64(sampling_wt),
              variant, FVSJL_VERSION, FVSJL_RV, groups, run_datetime))
@@ -85,7 +114,7 @@ function write_dbs_summary!(dbpath::AbstractString, caseid::AbstractString,
                             title::AbstractString = "")
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_SUMMARY_CREATE)     # FVS_Cases is registered by write_dbs_cases!
+        _ensure_table!(db, _FVS_SUMMARY_CREATE)     # FVS_Cases is registered by write_dbs_cases!
         ins = "INSERT INTO FVS_Summary VALUES (" * join(fill("?", 31), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for r in rows
@@ -118,7 +147,7 @@ function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_CARBON_CREATE)
+        _ensure_table!(db, _FVS_CARBON_CREATE)
         ins = "INSERT INTO FVS_Carbon VALUES (" * join(fill("?", 14), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for row in rows
@@ -155,7 +184,7 @@ Write the log-graded harvest-value detail (`FVS_EconHarvestValue`, dbsecharv.f) 
 function write_dbs_econharvest!(dbpath::AbstractString, caseid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_ECONHARVEST_CREATE)
+        _ensure_table!(db, _FVS_ECONHARVEST_CREATE)
         ins = "INSERT INTO FVS_EconHarvestValue VALUES (" * join(fill("?", 17), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for r in rows
@@ -191,7 +220,7 @@ function write_dbs_fuels!(dbpath::AbstractString, caseid::AbstractString,
                           standid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_FUELS_CREATE)
+        _ensure_table!(db, _FVS_FUELS_CREATE)
         ins = "INSERT INTO FVS_Fuels VALUES (" * join(fill("?", 22), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for row in rows
@@ -231,7 +260,7 @@ function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
                             standid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_SNAGSUM_CREATE)
+        _ensure_table!(db, _FVS_SNAGSUM_CREATE)
         ins = "INSERT INTO FVS_SnagSum VALUES (" * join(fill("?", 18), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for row in rows
@@ -273,7 +302,7 @@ CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Cov(
 function write_dbs_dwd_vol!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_DWDVOL_CREATE)
+        _ensure_table!(db, _FVS_DWDVOL_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Vol VALUES (" * join(fill("?", 19), ",") * ")")
         for row in rows
             dw = row[5]
@@ -290,7 +319,7 @@ end
 function write_dbs_dwd_cov!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_DWDCOV_CREATE)
+        _ensure_table!(db, _FVS_DWDCOV_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Cov VALUES (" * join(fill("?", 17), ",") * ")")
         for row in rows
             dw = row[5]
@@ -326,7 +355,7 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_BURNREPORT_CREATE)
+        _ensure_table!(db, _FVS_BURNREPORT_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_BurnReport VALUES (" * join(fill("?", 22), ",") * ")")
         for b in burns
             m = b.mois                                   # 2×5: dead 1/10/100/1000hr+duff, live woody/herb
@@ -363,7 +392,7 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_MORTALITY_CREATE)
+        _ensure_table!(db, _FVS_MORTALITY_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 22), ",") * ")")
         clsvals(kil, tot) = (v = Float64[]; for c in 1:7; push!(v, Float64(kil[c]), Float64(tot[c])); end; v)
         for b in burns
@@ -388,7 +417,7 @@ function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::Abstrac
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_CONSUMPTION_CREATE)
+        _ensure_table!(db, _FVS_CONSUMPTION_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Consumption VALUES (" * join(fill("?", 22), ",") * ")")
         for b in burns
             f = b.consumed
@@ -429,7 +458,7 @@ function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractStr
     isempty(rows) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_POTFIRE_CREATE)
+        _ensure_table!(db, _FVS_POTFIRE_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire VALUES (" * join(fill("?", 27), ",") * ")")
         for (yr, r) in rows
             fm = r.models
@@ -468,7 +497,7 @@ function write_dbs_hrvcarbon!(dbpath, caseid::AbstractString, standid::AbstractS
     isempty(rows) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_HRVCARBON_CREATE)
+        _ensure_table!(db, _FVS_HRVCARBON_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Hrv_Carbon VALUES (" * join(fill("?", 9), ",") * ")")
         for (yr, r) in rows
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
@@ -563,7 +592,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_INVREF_CREATE)
+        _ensure_table!(db, _FVS_INVREF_CREATE)
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for sp in 1:nsp
@@ -623,7 +652,7 @@ function write_dbs_cutlist!(dbpath::AbstractString, caseid::AbstractString,
                             standid::AbstractString, cycles)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_CUTLIST_CREATE)
+        _ensure_table!(db, _FVS_CUTLIST_CREATE)
         ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 33), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for (year, prdlen, recs) in cycles, r in recs
@@ -680,7 +709,7 @@ function write_dbs_treelist!(dbpath::AbstractString, caseid::AbstractString,
                              standid::AbstractString, cycles)
     db = SQLite.DB(dbpath)
     try
-        DBInterface.execute(db, _FVS_TREELIST_CREATE)
+        _ensure_table!(db, _FVS_TREELIST_CREATE)
         ins = "INSERT INTO FVS_TreeList VALUES (" * join(fill("?", 35), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for (year, prdlen, rows) in cycles, r in rows
