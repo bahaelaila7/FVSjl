@@ -3344,3 +3344,20 @@ table is byte-identical, litter matches (0.134/0.129) ⇒ the base-SMALL-low is 
 EVOLUTION 1990→2010 (fmcadd_woody breakage / fmcwd fine decay), not the initial table or litter. NEXT: differential
 jl vs live base fine-woody (sizes 1-3, NO thin — cst_fire10) over 1990→2010. Crown port + decay phasing + machinery
 all VALIDATED faithful; residual is the base fine-woody evolution. 📌 constructed-only.
+
+### D17 — CLEAN no-thin measurement: SMALL base faithful, LARGE base +22% (snag-fall), NOT the crown-slash (2026-07-02)
+Measured cst_fire10 (fire-only, NO thin ⇒ NO crown-slash confound; FMDYN ICYC stamp + jl fire_smlg, both
+restored pristine). jl 2010 fire fuel (6.061, 3.236) vs live fire-basis (6.198, 2.646):
+  SMALL: jl 6.061 vs live 6.198  — MATCHES (~2%)  ⇒ the "base SMALL 1.72 too low" was a DECAY-APPROXIMATION
+         ARTIFACT of the thinned-case single-shot; base SMALL is FAITHFUL. (rule #4 correction.)
+  LARGE: jl 3.236 vs live 2.646  — jl +22%  ⇒ REAL base coarse-woody over-accumulation, present WITHOUT a thin.
+⇒ D17's LARGE excess is NOT the crown-slash (no thin here) — it's the BASE coarse-woody (cwd sizes 6-9) EVOLUTION
+1990→2010, i.e. SNAG-FALL (natural-mortality snags → fall → coarse cwd) over-depositing ~22% vs live. This also
+re-explains the thinned case: the decay-fix "landing LARGE exact" was partly coincidental (slash-decay offsetting
+the base coarse excess). TERMINAL LOCALIZATION: jl's CS snag-fall / coarse-CWD base accumulation deposits ~22%
+too much in sizes 6-9 over a decade (standing TPA matches ⇒ same mortality count ⇒ it's the snag→down-wood
+conversion: fall-timing or CWD1 cone-split for the coarse boles). This is the SAME coarse-woody thread from the
+early D17 per-size stamp (sizes 7-8 ~1.85×), now CLEANLY isolated in the no-thin case. NEXT: jl-vs-live snag-fall
+coarse-cwd (sizes 6-9) deposit over 1990→2010 for cst_fire10. Crown port + SMALL base + machinery + decay all
+faithful; the residual is the coarse-woody snag-fall base evolution. 📌 constructed-only (no real CS stand runs an
+auto-FMCFMD fire); could touch CS carbon DDW.
