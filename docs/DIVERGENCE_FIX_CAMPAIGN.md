@@ -1527,13 +1527,23 @@ bit-exact + 5 live-FPE (nohtdreg_cal/sprout/sprout_smult/sprout_win3 — live cr
   6120/6199 = 1.3%). The big TPA% is a SMALL-COUNT ratio artifact (10 stems of ~90). ⇒ NOT distinct bugs — they
   FOLD INTO the CS late-cycle small-tree mortality tail below (same signature as all_*). Volume/BA impact is ULP-
   to-~1%. So there is no separate mix/fertiliz CS bug.
-- `hcor_smalltree` 4.72% Scuft@2080 — the CS small-tree HCOR calibration: `con=exp(htg_cor_small[sp])` IS
-  applied in cs/small_tree_growth.jl:41, but `htg_cor_small` is only SET by the calibration at
-  southern/diameter_growth.jl:726 (SN path) ⇒ CS leaves it 0. Bounded fix = run the small-tree HCOR
-  calibration for CS (needs the CS regent.f ratio-estimator flow). Most-diagnosed remaining CS item.
-- `all_*`/`mix_*` 4–7% TPA late-cycle tails (all_RL 7.4%, all_RM 6.4%, all_FM/SM 4.9%) — the documented
-  CS base-growth-tail class (late-cycle mortality/density accumulation); recheck whether ULP-floor or a real
-  per-species CS growth/mortality residual.
+- `hcor_smalltree` 4.72% Scuft@2080 — the CS small-tree HCOR calibration. LOCALIZED (2026-07-02):
+  cs/small_tree_growth.jl:41 applies `con=exp(htg_cor_small[sp])`, but BOTH inputs are SN-only:
+  (1) `htg_cor_init` (HCOR_init, the regent height-ratio regression) is set only at
+  southern/diameter_growth.jl:559/623/658; (2) the per-cycle attenuation `htg_cor_small = WCI +
+  cormlt_h·(htg_cor_init−WCI)` is only at southern/diameter_growth.jl:726. CS's own `dgf!(::CentralStates)`
+  / `cs_dgcons!` flow computes NEITHER ⇒ htg_cor_small stays 0 ⇒ con=1 (no calibration). This is a scoped
+  CS PORT (the CS regent height-ratio estimator + attenuation into the CS DG flow), NOT a share of the SN
+  line — SN's regression uses SN coefficients, so calling it for CS would violate rule #6. Needs a live CS
+  dgdriv/regent stamp to get the target CS HCOR_init. Most-diagnosed remaining CS item; modest (Scuft only).
+- `all_*`/`mix_*` 4–7% TPA late-cycle tails (all_RL 7.4%, all_RM 6.4%, all_FM/SM 4.9%) — CHARACTERIZED
+  (2026-07-02, mix_lp_rm per-cycle kills L/J): 2000 13/13, 2010 25/26, 2020 70/70, **2030 167/175 (+8)**,
+  2040 103/109, 2050 65/60. NOT a slow 1-tree/cycle accumulation — it's a DENSITY-DEPENDENT SELF-THINNING
+  OVER-KILL concentrated at the ~2030 density PEAK (BA ~181-188, near SDImax), where jl kills ~8 more than
+  live; the TPA% then looks large because the residual denominator is small. BA + Tcuft stay ~bit-exact
+  (volume impact ~1%). ⇒ VERDICT-SHARPENED: the CS remaining tail is a peak-density self-thinning mortality
+  residual (SDImax/self-thin rate), same CLASS as the accepted SN "over-kills a few TPA at peak" wobble.
+  NEXT: a live CS mortality stamp at the 2030 peak to decide real-CS-formula-diff vs ULP-amplified-at-peak.
 - `treeszcp_cap`/`htcap` = D13, `mortmsb` = D13-FORTYP, `defulmod` = D16 fire, `compress` = eigensolver
   (all shared-accepted classes).
 ⇒ CS's real open work is now SMALL: mix_lp_rm/fertiliz (top, uninvestigated), the CS HCOR calibration
