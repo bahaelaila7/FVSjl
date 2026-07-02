@@ -8,7 +8,14 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
-**★★★★ ALL-THREE-VARIANTS-AT-FLOOR (2026-07-02 session).** Fresh tri-variant sweep + per-item re-trace vs
+**⚠️ CORRECTION (2026-07-02, later): NOT fully at floor — D35 found.** Sweeping the previously-UNSWEPT native
+multi-stand key `cst01_method5.key` (the cst01-lesson: non-first stands hide divergences) surfaced a REAL open
+non-ULP divergence — **D35: CS planted-regen volume, up to 40% Mcuft (jl HIGHER), TPA/BA bit-exact.** See the
+D35 entry below. So the "all-three-at-floor" claim was premature (it was built on the scenario corpus, which
+omits cst01_method5's `BARE GROUND PLANT` stand of CS species 3+21). SN/NE remain at floor; CS has one real
+open regen-volume item. The re-trace discipline caught it — keep sweeping unswept native keys.
+
+**★★★★ TRI-VARIANT SWEEP + per-item re-trace (2026-07-02 session).** Fresh sweep vs
 current live binaries. **2 real bugs found & FIXED:** D33 (SN blank/foreign forest code → 0 volume; ported
 forkod.f default-trap → Talladega 80106 R8 Clark; live-stamp-proven) and D34 (inline TREEDATA w/o -999
 crashed jl → reader stops at next keyword). **Sweep floors:** SN 221 bit-exact, NE 240, CS 44 — every
@@ -3630,6 +3637,33 @@ a live-side DBS-emission condition (SQL-path or an FFE/global-DataBase interacti
 not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithful-to-semantics; D20 is a live-side
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
+
+## ⬜ D35 — CS planted-regen volume diverges up to 40% Mcuft (jl HIGHER) — REAL, OPEN (found 2026-07-02)
+Found by sweeping the previously-unswept native key `cst01_method5.key` (5 stands). Stand-5 = "BARE GROUND
+PLANT" (ESTAB 1992 + PLANT sp3 400 TPA + PLANT sp21 400 TPA = 800 planted stems, forest 905, CS variant).
+**TPA and BA are BIT-EXACT vs live every cycle** (planted count + basal area match — so the regen
+establishment + DBH are faithful), but VOLUME diverges progressively and LARGELY:
+```
+ Year  TPA/BA(both)   Tcuft L/J     Mcuft L/J     Scuft L/J
+ 2012   787 / 42       511 / 487      0 / 0         0 / 0        (Tcuft −4.7%, jl LOW)
+ 2022   774 / 101     1763 / 1800   541 / 760       0 / 0        (Mcuft +40%, jl HIGH)
+ 2032   533 / 183     4039 / 4361  3090 / 3864   1277 / 1794     (Scuft +40%, Mcuft +25%)
+ 2042   405 / 207     5392 / 5794  4619 / 5482   2829 / 3839
+ 2092   167 / 204     7539 / 7786  6668 / 7649   5357 / 5962
+```
+Since DBH (BA) matches but volume doesn't, the driver is per-tree HEIGHT (volume = f(DBH,HT); regen HT is
+PREDICTED, not measured) or the small-tree volume path — i.e. the CS regen small-tree HEIGHT-GROWTH /
+height-prediction for these species. The direction FLIPS (jl low at 2012, high at 2022+), consistent with a
+height-GROWTH-RATE trajectory difference (slower then faster), not a flat scale. **SPECIES-SPECIFIC:** the
+scenario `bare_plant` (CS, different planted species) diverges only 4.12% Scuft, but sp3+sp21 give ~40% —
+localizes to CS species 3 and/or 21's small-tree (REGENT/cs_htcalc) height growth. This is the D10 "regen
+small-tree volume" class the STOP-HOOK still flags as open (`bare_* Scuft ~50%`); the ledger's earlier "D10
+fixed-to-ULP" verdict covered the estab-ORDER + sawtimber-spread but NOT this CS planted-regen height/volume
+magnitude. NOT ULP (40%, reproduced via run_keyfile production path, TPA/BA bit-exact rules out a count
+artifact). **NEXT (upstream-first):** isolate sp3 vs sp21 (a valid single-species CS PLANT keyfile — my
+hand-written minimal key hit an INVALID-KEYWORD in live, so copy a working PLANT block), then live-stamp the
+CS small-tree HTG (cs_htcalc/regent) for the driving species at cyc1-2 vs jl `small_tree_growth!`
+(cs/small_tree_growth.jl) — compare predicted HT of the planted stems. Keep SN/NE bit-exact (variant-gated).
 
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
