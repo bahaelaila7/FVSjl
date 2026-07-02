@@ -2653,3 +2653,17 @@ the "#2 non-native DGSCOR — deferred/ULP" label had MASKED:
 STATUS: the one CONFIRMED real (non-ULP, non-eigensolver) divergence remaining = NE non-native-cycle (10→5)
 growth downscaling. Next: localize DG-scaling vs HTG-scaling (both feed the under-growth) vs live NE stamp, then
 fix per gradd.f/htcalc FINT/YR. Non-standard use case (NE is natively 10-yr) but FVS supports it ⇒ campaign target.
+
+### NE non-native DG residual PRECISELY localized: large-tree DG bit-exact; residual in SMALL-TREE (REGENT) path
+Per-tree stamp of ne00 @1995 (live .trl DIB-incr vs jl diam_growth):
+- **Large-tree per-tree diameter increments are BIT-EXACT** (top-12 identical: 0.85/0.80/0.76/1.16/1.00/…) ⇒
+  the main NE DG model + its DDS×(FINT/YR) scaling are FAITHFUL at the non-native cycle. The DG is NOT the bug.
+- Record counts match (60/60). The DBH divergence is confined to the MID/SMALL trees near the 5″ small-tree
+  threshold (rows 34-41: live 5.3/5.1/5.0 vs jl 5.0/4.9/4.8) — the REGENT small-tree growth path, where jl
+  under-grows the ~5″ cohort at the 5-yr cycle. (Large-tree ΣDBH² actually jl-slightly-high; the .sum BA 167 vs
+  171 is driven by this mid-cohort redistribution.)
+⇒ The remaining NE non-native residual is the SMALL-TREE (REGENT) diameter/blend non-native scaling, NOT the main
+DG (proven bit-exact) and NOT height (fixed). Narrowed from "NE non-native DG" to "NE REGENT small-tree non-native
+scaling." Next: trace small_tree_growth!'s DG scaling (dds_e = dg·(2dib+dg)·(FINT/REGYR), DGMAX·scale, and the
+xwt blend toward the large-tree DG) vs regent.f at FINT≠10. Height half FIXED + validated; this small-tree
+diameter half is the precisely-localized open remainder of the one real divergence.
