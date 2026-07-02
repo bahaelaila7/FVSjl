@@ -2372,3 +2372,27 @@ accepted classes (SN-designed scenarios cross-run through NE):
 CRITICAL: **setsite** (which D30 touched — variant-dispatched dgcons!) and **fixhtg_all** are BIT-EXACT cyc0-1
 ⇒ D30/D28-D32 did NOT regress NE growth (a regression would diverge at cyc0/cyc1, not wobble at the dense
 cyc2). VERDICT: NE variant at floor; no un-catalogued divergence; the D28-D32 fixes are regression-free.
+
+### The 8 "live-FPE" sweep scenarios — FULLY TRIAGED: none is a jl divergence from valid live output
+The sweep's "live FPE/no-sum" label conflated two very different things (crash vs no-.sum-file). Triaged each
+against the freshly-relinked live binary:
+- **dead_fint** — NOT a crash. Live ran fine; the scenario simply lacks ECHOSUM ⇒ no .sum file (summary is in
+  the .out). Validated jl vs the live .out: **BIT-EXACT** through 2000; 2005 Tcuft 2670 vs 2671 = 1-cuft ULP.
+- **nohtdreg_cal** — NOT a crash (memory's "live crashes" is STALE — it runs on the current binary). 1990 STATE
+  bit-exact (TPA/BA/SDI/Tcuft 536/160/218/1358); cyc1 growth bit-exact-modulo-rounding (Tcuft 1934 vs 1935),
+  mortality a 1-TREE near-SDImax flip (11 vs 10), accumulating to +1.1% Tcuft / +13 TPA over 3 DENSE cycles
+  (SDI→310). This is the accepted **WK3 DGSCOR tail (sp33/65 past-dbh calibration serial-correlation) +
+  near-SDImax kill-distribution** family — the SAME sub-ULP near-tie class as the accepted COMPRESS
+  eigensolver, and one of the 2 accepted @test_broken. The NOHTDREG calibration itself is faithful (1990 state
+  bit-exact; memory's FVS_TreeList per-tree-DG 27/27 proof). NOT a NOHTDREG semantic gap.
+- **all_AE / all_EL / all_RL / all_SU / all_WE** (5) — GENUINE live FPE ("Floating point exception (core
+  dumped)"): live crashes DURING growth after straining the DBH-increment calibration (scale factor 2.74) on a
+  degenerate all-one-species stress stand. **jl produces finite, sensible output** (all_AE 536→466→338→217 TPA)
+  ⇒ jl is the MORE ROBUST engine; live has a div-by-zero/overflow jl guards. UNVALIDATABLE (no valid live
+  output to be bit-exact to — you cannot match a crash). NOT a jl divergence.
+- **mcfdln_override** — GENUINE live FPE (core dumped), same class: jl more robust, unvalidatable.
+- **sprout / sprout_smult / sprout_win3** (CS-sweep only) — SN stump-sprout scenarios CROSS-RUN through the CS
+  live binary (which lacks the SN sprout path) ⇒ live-CS crash = variant mismatch, NOT a jl bug. The SN sprout
+  model is bit-exact (113 sprout tests, [[fvsjl-sprout-esuckr]] cluster CLOSED).
+VERDICT: the entire live-FPE category holds NO jl divergence. 2 are validatable (bit-exact / accepted-ULP
+family), 6 are live crashes where jl is strictly more robust (no oracle), 3 are cross-variant mismatches.
