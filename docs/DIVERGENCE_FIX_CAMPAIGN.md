@@ -3057,3 +3057,20 @@ VERDICT: 📌 real but constructed-scenario-only (THIN-then-SIMFIRE-at-cycle-bou
 hits it), well-characterized, add-formula faithful. Full close = trace the ~26% post-thin woody over-accumulation
 + the FMCFMD non-monotone response; deferred (deep FFE fuel-dynamics, not worth destabilizing the bit-exact
 corpus fuel-decay). Documented with live+jl per-size-class evidence above.
+
+### SN full sweep — AUTHORITATIVE RE-RUN (2026-07-02, post non-native + activity-fuels changes) — 221/31/8
+Ran the FULL 260-stand SN sweep via divergence_sweep.jl (run_keyfile-vs-fresh-live, the AUTHORITATIVE path)
+as a regression check after this session's code changes (NE/CS non-native small_tree_growth fix — gated off for
+SN; cuts.jl cut-crown→FFE-fuel). Result: **221 bit-exact (up 1 from 220), 31 DIFF, 8 live-FPE (no oracle).**
+- NO REGRESSION: no new stand in the DIFF list; the cut-crown fuel change added no SN divergence (fire stands
+  salvage/defulmod/fueltret/fire_repeat/snt01_alpha all at their prior documented levels, not worse).
+- Every DIFF maps to an already-documented/accepted class: D13 treeszcp_cap 22.8%/htcap 10.7% (size-cap ULP) ·
+  COMPRESS compress 13.6% (eigensolver) · D8/D10 regen mult_mortmult 17%/mortmult_win 13.5%/regdmult 4.7%/
+  reghmult 2.9%/baimult 0.5% + bare_natural/plant 4.6%/multipoint 2.8%/mp3 2.7% (regen threshold-amp) · D16b/D17
+  fire family snt01_alpha=compute_cycle 2.72% Bdft / fire_repeat 2.47% / fmortmlt 1.56% / s10_fire 1.19% /
+  fueltret 0.72% / defulmod=salvage 0.59% (board-foot threshold + fire-mort distribution) · documented ULP tails
+  hcor_smalltree 2.09% / timeint10 1.96% (non-native SN@10) / htgstop_stoch 1.65% / dense_long=s09_cyc20 0.76% /
+  fixmort_* 0.3% / topkill_det 0.27% / s15_phys 0.22% / s22_forest_809 0.21% (NVEL) / growth_finth5 0.21%.
+- CONFIRMS the "byte-identical" correction: the sweep independently ranks snt01_alpha at 2.72% Bdft (NOT zero) —
+  vindicating the corrected ULP-class-threshold assessment over the earlier committed-golden measurement error.
+⇒ The SN floor holds authoritatively after this session's changes; no uncatalogued or regressed divergence.
