@@ -3242,3 +3242,21 @@ per-increment decay DOUBLE-decayed (jl already decays it) and overshot (kill 29)
 SPECIFIC 26% under-decay in jl's existing slash-decay path (find where jl's 2000-slash decays to 7.91 vs live's
 6.30 over 2000→2010 — a decay-years/phasing gap), NOT to add blanket decay. 📌 constructed-only; machinery proven
 faithful; fix isolated to the fuel-decay accounting (target (6.30,3.89) → exact kill 5).
+
+### D17 — fuel trajectory: jl FLAT vs live SPIKE-AND-DECAY (compensating under-add + under-decay, 2026-07-02)
+jl grow_cycle! probe (post-cut _small_large_fuel; jl's 2010 value matches the faithful fire stamp ⇒ reliable):
+  jl:   1990 SMALL 3.60 → 2000 7.91 → 2010 7.91 (FLAT 2000→2010)
+  live: 1990 SMALL 7.76 → 2000 20.48 (big thin-slash SPIKE) → 2010 6.30 (decays hard)
+⇒ jl has TWO compensating fuel errors, not simple over-accumulation:
+  (1) UNDER-ADDS the crown-slash at the 2000 thin (jl ~7.9 vs live ~20.5) — jl's slash spike is ~1/3 of live's;
+  (2) UNDER-DECAYS 2000→2010 (jl flat 7.9 vs live 20.5→6.3) — the phasing gap (slash added after the cycle's
+      pre-grow ffe_fuel_update!, fire cycle defers the next update ⇒ ~no decay before the fire).
+Net at the 2010 fire: jl 7.91 vs live 6.30 (+26%). The two errors partially cancel. THIS is why prior single-
+factor fixes failed: fixing only the decay (removing fuel) ignored the under-add and overshot; the crown-slash
+ADD looked "faithful" per-tree vs fmscut.f but the STAND-level 2000 spike is 1/3 of live's (⇒ likely a
+CTCRWN/prem or per-record-vs-total accounting gap in the slash magnitude, OR the 2000 spike is mostly the base
++litterfall not the slash and jl's litterfall/base differs). MACHINERY REMAINS PROVEN FAITHFUL (fuel-forcing →
+exact kill). D17 fix now needs BOTH: (a) match live's 2000 slash spike magnitude, (b) faithful 2000→2010 decay.
+📌 constructed-only; a genuinely tangled two-error FFE fuel-accounting divergence; machinery faithful; exact
+target (6.30,3.89)→kill 5. Given no corpus/real stand exercises it and the fix is a coupled two-part fuel-pipeline
+correction, this is the campaign's lowest-value open item — recommended acceptance as a documented 📌.
