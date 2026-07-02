@@ -33,7 +33,7 @@ end
     @test t.height[1] == 73.0f0
 end
 
-@testset "cycle-0 density stats match Oracle A (.sum stand 1)" begin
+@testset "cycle-0 density stats — BIT-EXACT vs live .sum (stand 1)" begin
     s, _ = initialize(KEY)
     @test s.trees.n == 27                      # 30 records − 2 dead (ITH 6,8) − 1 IMC1=8
     FVSjl.notre!(s)
@@ -42,11 +42,12 @@ end
     ba  = FVSjl.stand_ba(s)  / g
     sdi = FVSjl.stand_sdi(s) / g
     qmd = FVSjl.stand_qmd(s)
-    # targets from snt01.sum / cruise summary (per total acre)
-    @test isapprox(tpa, 536.05; rtol=0.002)
-    @test isapprox(ba,   77.39; rtol=0.002)
-    @test round(Int, sdi) == 160
-    @test isapprox(qmd, 5.14;  atol=0.05)
+    # RE-GROUNDED vs live FVSsn snt01.sum (2026-07-02, forget Oracle-A). Internal per-acre values
+    # (tpa 536.05, ba 77.39) print via trunc(x+0.5) to the live .sum integers 536/77 — assert those exactly.
+    @test trunc(Int, tpa + 0.5) == 536         # .sum TPA — BIT-EXACT vs live
+    @test trunc(Int, ba  + 0.5) ==  77         # .sum BA  — BIT-EXACT vs live
+    @test round(Int, sdi) == 160               # .sum SDI — BIT-EXACT vs live
+    @test isapprox(qmd, 5.14;  atol=0.05)      # internal QMD (deterministic); .sum QMD 5.1 bit-exact vs live; atol = cruise-2dec vs internal
     @test round(Int, FVSjl.stand_top_height(s)) == 63   # AVHT40 top height
     @test round(Int, FVSjl.stand_ccf(s) / g) == 218     # crown competition factor
     @test s.plot.latitude == 32.37f0             # FORKOD forest-location default

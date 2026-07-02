@@ -33,7 +33,7 @@ end
     @test s.plot.fixed_plot_inv == 300f0
     @test s.plot.min_dbh_var_plot == 5f0
     @test s.plot.gross_space == 1f0
-    @test isapprox(s.plot.pi, 3.14159265f0; atol=1f-6)
+    @test s.plot.pi == 3.1415927f0             # Float32(π) — exact constant (was atol=1f-6 Float32-ULP slack)
     # extensions inactive until their keywords fire
     @test s.fire === nothing
     @test s.econ === nothing
@@ -42,7 +42,7 @@ end
     @test s2.control.faithful == false
 end
 
-@testset "RNG bit-exactness vs Oracle A" begin
+@testset "RNG bit-exactness (RANN LCG = FVS algorithm)" begin
     r = FVSRng()
     # establishment stream seeded 55329 (ESBLKD)
     @test r.es0 == 55329.0
