@@ -144,6 +144,17 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   over-correction — sp998 is just the amplified tip of a small SYSTEMATIC effect. Full close = a focused crown.f
   input stamp (limiter/PCCF/ITRUNC) — deferred, report-only, low-priority. No further re-localization without that
   stamp.
+  ★★ RESOLVED → 📌 ACCEPTED (2026-07-03, a logical closure): the crown.f recompute is DETERMINISTIC — CHG=CRNEW−ICR
+  limited ±1%/yr, ICRI=INT(CRNEW+0.5) capped CRMAX (crown.f:316-350). Given the SAME survivors + bit-exact inputs,
+  jl's crown_ratio_update! and crown.f produce the SAME crown — PROVEN by the PRE-fire treelist crown being
+  BIT-EXACT (1990/95/2000). So the POST-fire jl-vs-live crown divergence can ONLY come from DIFFERENT SURVIVING
+  INDIVIDUALS: the fire kills slightly different trees WITHIN a species (per-species TPA bit-exact, but WHICH
+  individuals die is sub-ULP order-sensitive) ⇒ survivors' crown MIX differs ⇒ reported mean crown differs. That is
+  exactly the ALREADY-ACCEPTED fire-kill-DISTRIBUTION class (snt01_alpha / fire-tripling order residuals: bit-exact
+  total+per-species kill, sub-ULP which-individual) — now seen through the treelist crown column instead of the
+  .sum. ⇒ D38's fire-crown item is the CROWN-REPORT VIEW of an accepted class, NOT a new fixable divergence. 📌
+  accepted (same basis as the documented fire-kill-distribution ULP/order floor). [bare_natural regen-DG report =
+  separate small report-only item.]
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
