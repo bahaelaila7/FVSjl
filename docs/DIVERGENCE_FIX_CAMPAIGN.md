@@ -3659,6 +3659,20 @@ shelterwood overlap — but immaterial: the keyword semantics enable all of them
   bit-exact; the residual is the sawtimber-size regime (+ its ULP boundary). Hard parts (model ID, total cubic,
   pulp merch, all coefficients, full wiring, no-regression) COMPLETE.
 
+  **SAWTIMBER V4 branch DERIVED & VALIDATED (2026-07-03) — ready to transcribe.** A 3rd R9VOL stamp (PROD='01'
+  sp110 stems) gave ground truth D=9.004/H1=1→V4=2.9400. HAND-VALIDATED the formula:
+  `VOL(4)_saw = (term1+term2+term3)·CF`,
+  `term1 = -1.70774 + 0.051321·D + 0.58857·H1 + 0.0193547·D² + 0.0237324·H1·D²`,
+  `term2 = -0.04821·H1² - 0.0002174·D²·H1² - 0.0000239·D²·H1³ + 0.00000795·D³·H1²`,
+  `term3 = -0.00000057·D³·H1³ - 0.000000035·D⁴·H1²`  ⇒ 2.77323·CF(1.06) = 2.9396 ≈ 2.9400 ✔.
+  H1 = HT1PRD from R9_MHTS SAW path (verified =1): `FACTOR=BFTOPD/D` (BFTOPD=MTOPP, softwood 7.6); `ESTSHT =
+  4.5 + b1·(1−e^(−b2·D))^b3·SI^b4·(1.00001−FACTOR)^b5·BA^b6`; `SAWBOL=ESTSHT·(HTTOT/ESTTHT)`;
+  `HT1PRD=INT(SAWBOL/8.333333)` (+ the `HT1PRD≤0 & HT2PRD>1 ⇒ HT1PRD=1` fixup). PROD='01' when DBH≥BFMIND
+  (softwood<300: 9; hardwood: 11). CF = a per-species·DBH-range IF-ELSE (r9vol.f: sp110 ⇒ 1.06 for DBH<13
+  else default 1.0; sp402 ⇒ 1.0; full ~60-line table captured in the source, transcribe faithfully). ⇒ D35's
+  LAST step is a pure transcription of {R9_MHTS saw path + this validated polynomial + the CF IF-ELSE} into
+  r9vol_gevorkiantz (add the DBH≥BFMIND branch), gated methc==5 — every formula already validated vs live.
+
 ### (history) ⬜ D35 — CS planted-regen volume diverges up to 40% Mcuft (jl HIGHER) — found 2026-07-02
 Found by sweeping the previously-unswept native key `cst01_method5.key` (5 stands). Stand-5 = "BARE GROUND
 PLANT" (ESTAB 1992 + PLANT sp3 400 TPA + PLANT sp21 400 TPA = 800 planted stems, forest 905, CS variant).
