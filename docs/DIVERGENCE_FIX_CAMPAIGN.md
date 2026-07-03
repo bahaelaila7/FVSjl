@@ -3738,6 +3738,19 @@ merch heights) — to transcribe for the port. **So the D35 fix is now well-scop
 (3) validate bit-exact vs the live stamp (0.957290) + planted SP/BH stands + cst01_method5; SN/NE untouched.
 This supersedes BOTH the Honer lead AND the "R9VOL == CLKE" confusion — the total-cubic core is now proven.
 
+**SCOPE of the board/merch (read 2026-07-03): substantial.** R9VOL's board-foot section (VOL(2)/VOL(10)) is
+NOT one formula — it's SEVERAL distinct polynomials selected by FOREST-REGION group (Table A/B/C… keyed on
+`IFORST`/`VOLEQ(1:3)=='901'`), each multiplied by a per-species correction factor `CF` (dozens of hard-coded
+species CFs, some further forest-specific). Merch cubic (VOL(4)/VOL(7)) + `R9_MHTS` (merch heights from total
+height) add more. So the full DVEE port is a faithful transcription of R9VOL's ~200 lines of per-forest/
+per-species polynomials + CF tables — bounded and mechanical, but NOT small, and magic-number-dense (high
+transcription-error risk ⇒ do it fresh with a live-stamp check per column, not at deep context). GOOD NEWS
+for the D35 stand specifically: planted stems start at DBH<merch-top (Mcuft=0 early), so the PROVEN total-
+cubic `0.42π·D²·H/576` is the dominant early driver (Tcuft +4.5%@2012); board/merch only bite once stems
+grow past ~5-7" (2022+). A staged fix (total cubic first, validate Tcuft; then board/merch) is viable.
+STATE: D35 root + total-cubic formula PROVEN & committed; the R9VOL board/merch transcription is the
+remaining implementation work. This is the campaign's sole open item.
+
 **[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
   ⇒ '900DVEE'` (Honer), `METHC∈{6,9} ⇒ '900CLKE'` (Clark, jl's current r9clark), `METHC==10 ⇒ NVB`. Board
