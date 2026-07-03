@@ -126,6 +126,55 @@ function _dvee_saw_cf(fia::Int, dbh::Float32)::Float32
     return 1f0
 end
 
+"Per-species·IFORST correction factor for the R9VOL board-foot TABLE B (r9vol.f; IFORST∈{4,5,8,11,12,14,24})."
+function _dvee_bf_cf_tableB(fia::Int, iforst::Int)::Float32
+    fia == 400 && return 1.06f0
+    fia == 602 && return 0.90f0
+    fia == 621 && return 1.10f0
+    fia == 694 && return 1.15f0
+    fia == 731 && return 0.93f0
+    fia == 742 && return 0.97f0
+    fia == 824 && return 0.80f0
+    fia == 830 && return 0.96f0
+    fia == 832 && return 1.03f0
+    (fia == 68 && iforst != 4) && return 0.80f0
+    (fia == 110 && (iforst == 8 || iforst == 5)) && return 0.95f0
+    (fia == 125 && iforst == 4) && return 0.96f0
+    if fia == 129
+        iforst in (11, 14, 12) && return 0.95f0
+        iforst == 4 && return 0.96f0
+    end
+    (fia == 241 && iforst == 4) && return 0.80f0
+    if fia == 802
+        iforst == 8 && return 1.08f0
+        iforst == 5 && return 0.96f0
+    end
+    fia == 806 && return iforst == 5 ? 1.03f0 : 1.10f0
+    fia == 833 && return iforst == 8 ? 1.11f0 : 1.06f0
+    fia == 835 && return iforst == 5 ? 0.94f0 : 0.98f0
+    if fia == 837
+        iforst == 8 && return 1.05f0
+        iforst == 5 && return 0.96f0
+        iforst == 4 && return 0.95f0
+    end
+    return 1f0
+end
+
+"R9VOL board feet (Scribner, VOL(2)) — TABLE B (IFORST∈{4,5,8,11,12,14,24}, incl. the CS 905 forests).
+ Returns 0 for other IFORST (TABLE A/C not ported — no DVEE stand in the corpus uses them)."
+function _dvee_boardft(fia::Int, dbh::Float32, h1::Int, iforst::Int)::Float32
+    (h1 <= 0) && return 0f0
+    (iforst in (4, 5, 8, 11, 12, 14, 24)) || return 0f0
+    h1f = Float32(h1); d2 = dbh * dbh; d4 = d2 * d2
+    r = (h1f * dbh - 3.75f0) / (24f0 * h1f - 10.5f0)
+    vc = h1f * (1.0757f0 + 3.002f0 * r + 8.3776f0 * r * r)
+    v2 = -0.092685f0 - 5.98f0 * vc - 2.9715f0 * dbh + 16.7022f0 * h1f +
+         0.2471f0 * d2 * h1f - 0.91751f0 * h1f * h1f - 0.00876f0 * vc * vc +
+         0.351046f0 * d2 + 0.00451f0 * d2 * h1f * h1f -
+         0.00030183475f0 * d2 * h1f^3 + 0.0000019222413f0 * d4 * h1f * h1f
+    return v2 * _dvee_bf_cf_tableB(fia, iforst)
+end
+
 """
     r9vol_gevorkiantz(fia, dbh, httot, iforst) -> (tcf, mcf, scf, bf)
 
@@ -156,8 +205,10 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
     end
     mcf = gcb
     scf = 0f0                                  # sawtimber cubic (VOL(4)_saw), gated on D≥SCFMIND by the caller
+    bf = 0f0                                   # board feet (VOL(2), Scribner), gated on D≥BFMIND by the caller
     if dbh >= bfmind && h2 > 0                 # sawtimber: MCF = VOL(4)_saw + VOL(7)=PT·GCB, SCF = VOL(4)_saw
         h1 = _r9_mhts_ht1prd(fia, dbh, httot, si, ba, region, bftopd, h2)
+        bf = _dvee_boardft(fia, dbh, h1, iforst)
         if h1 > 0
             h2f = Float32(h2)
             h1f = Float32(h1); d2 = dbh * dbh; d3 = d2 * dbh; d4 = d2 * d2
@@ -173,5 +224,5 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
             scf = v4saw
         end
     end
-    return (tcf, mcf, scf, 0f0)
+    return (tcf, mcf, scf, bf)
 end
