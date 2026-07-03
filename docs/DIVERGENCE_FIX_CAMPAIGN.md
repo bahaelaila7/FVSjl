@@ -193,6 +193,24 @@ treelist — are differentially validated against live; no unchecked surface rem
 per-cycle summaries already covered per-item + the carbon .sum bit-exact).
 
 ---
+**D39 — ⬜ OPEN (report-only, FIXABLE): jl skips NE INVENTORY crown init ⇒ NE treelist crown=0 at cycle 0.**
+Found 2026-07-03 by extending the per-tree treelist differential to NE/CS (the SN-only treelist validation was
+incomplete — re-trace discipline; my "campaign complete" was premature). `treelist_diff.sh ne thin`: jl's NE
+FVS_TreeList PctCr is **0 for EVERY species at the initial cycle 1990** (live 38–55); 2000+ is populated and
+within ~1 pt (accepted thinning/recompute). ROOT (simulate.jl:48-58): SN calls `init_crown_ratios!` (CRATET) and
+CS calls `_cs_init_crowns!`, but the **NE branch calls NO inventory crown dubbing** — NE DG uses BAL not crown, so
+jl skips it. live's NE CRATET computes the inventory crown for the report regardless. ⇒ jl's `crown_pct` is 0 at
+inventory; `crown_ratio_update!` populates it from cycle 1 on. REPORT-ONLY: the NE `.sum` is BIT-EXACT WITH the
+cycle-0 crown=0 (proof NE growth/mortality/volume don't consume the inventory crown), so the model is unaffected;
+only the treelist PctCr column at cycle 0 is wrong. FIXABLE (not accepted): add an NE inventory-crown dub (port
+the NE CRATET crown model) at setup so cycle 0 is populated — MUST verify it keeps the NE `.sum` bit-exact (the
+cycle-1 crown limiter basis changes from 0→real, which is fine iff NE truly ignores crown, per the bit-exact
+evidence). CS cst01 treelist was checked too: stand-total BIT-EXACT (ΣTCuFt·TPA ≤0.24%/cycle); the per-species
+late-cycle diffs = the accepted CS near-SDImax mortality-distribution floor (which individuals survive). net01
+treelist needs a single-stand key (multi-stand injection breaks the harness). ⇒ CAMPAIGN REOPENED with D39 (one
+open fixable report-level item); model-level remains comprehensively faithful.
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
