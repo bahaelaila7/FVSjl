@@ -533,13 +533,20 @@ function compute_volumes_ne!(s::StandState)
         # D35: VOLUME field-7 METHC==5 selects the CS DVEE/Gevorkiantz model ('900DVEE', r9vol.f R9VOL)
         # instead of the Clark taper. iforst = KODFOR−900 (the R9 forest number → LS/CS/NE region in R9_MHTS).
         if md.sp_methc[sp] == 5
-            tcf, mcf, scf, bf = r9vol_gevorkiantz(fia, d, h, Int(s.plot.user_forest_code) - 900)
+            tcf, mcf, scf, _bf = r9vol_gevorkiantz(fia, d, h, Int(s.plot.user_forest_code) - 900)
             # DVEE merch DBHMIN gate (fvsvol.f:512). CS default (sitset.f:130-141) = 5 for softwoods AND, for
             # the region-9 DVEE forests (905/908 ⇒ IFOR=1 case), hardwoods too — a stamp of live's DBHMIN(ISPC)
             # gave 5 for SP, and DBHMIN=6 for BH REGRESSED Mcuft (3093→2881 vs live 3090), confirming 5. Fall
             # back to 5 when unset (the planted DVEE species carry sp_dbh_min=0).
             _dv_dbhmin = md.sp_dbh_min[sp] > 0f0 ? md.sp_dbh_min[sp] : 5f0
             d < _dv_dbhmin && (mcf = 0f0)
+            # BOARD feet: `VOLUME …5` sets only METHC=5 (cubic); METHB stays 6 ⇒ VEQNNB='900CLKE' (sitset.f:260-
+            # 270). So the board is the CLARK model, NOT DVEE — compute it via r9clark like the CLKE path below.
+            _scfm = md.sp_scf_dbhmin[sp]; _topd = md.sp_top_diam[sp]
+            _prod = d >= _scfm ? "01" : "02"
+            _mtopp = d >= _scfm ? md.sp_scf_topd[sp] : _topd
+            _vc = r9clark_cubic(fia, d, h, _prod, _mtopp, _topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp])
+            bf = (d >= md.sp_bf_dbhmin[sp] && d > md.sp_bf_topd[sp]) ? _vc[2] : 0f0
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
                                                   cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)

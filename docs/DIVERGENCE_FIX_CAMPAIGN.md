@@ -3710,6 +3710,22 @@ volume bit-exact); the exact saw-merch closure is a bounded fresh-pass step (one
 helpers are live-validated + retained as reference, but NOT needed for Mcuft since VOL4+VOL7=GCB.)
 
 
+**★★ BOARD-FEET (Bdft) CLOSED (2026-07-03) — confirmed from SOURCE, not inferred from the numeric match.** The
+DVEE stand's Bdft was −32% low because jl routed the BOARD through DVEE. The board equation is chosen by METHB,
+NOT METHC — full source chain: (1) `grinit.f:92-93` — `METHB(I)=6` AND `METHC(I)=6` both default to 6; (2)
+`initre.f:1804/1836` — the `VOLUME` keyword handler sets **only METHC** from field 7 (`IF(LNOTBK(7)) METHC(IS)=
+INT(ARRAY(7))`); it never touches METHB (that is the SEPARATE `BFVOLUME` keyword, initre.f:2097); (3)
+`cst01_method5.key` contains only `Volume … 5` (⇒ METHC=5), no `BFVOLUME` ⇒ METHB stays 6; (4) `sitset.f:245-266`
+— METHC=5 ⇒ VEQNNC='900DVEE' (cubic), but METHB=6 ⇒ VEQNNB='900CLKE' (board Clark). So for this stand the CUBIC
+is DVEE and the BOARD is CLARK — a fact of the source. FIX: `compute_volumes_ne!` methc==5 branch now computes
+tcf/mcf/scf via `r9vol_gevorkiantz` (DVEE) but `bf` via `r9clark_cubic` (the CLKE path, prod/mtop/bf-gate exactly
+like the non-DVEE branch). RESULT on cst01_method5: Bdft 10237/23236/29524/34141/37686/40655/43339 vs live
+10586/23033/29409/34031/37462/40528/43241 = −3.3% first cycle converging to +0.2% (was −32%) — ULP/threshold
+class (same H2-boundary amplification as the cubic tail). Suite 6462/2, no regression. r9vol_gevorkiantz's own
+DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored via `_bf`). ⇒ **All four volume
+columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
+CLOSED.**
+
 **FIX LANDED (2026-07-03).** Implemented the R9 Gevorkiantz '900DVEE' model + the METHC plumbing and wired it:
 - `src/engine/r9vol_gevorkiantz.jl` — total cubic `0.42π·D²·H/576` + pulp merch cubic + R9_MHTS HT2PRD (reads
   the extracted `data/centralstates/dvee_r9_height_coef.csv`); unit-tested vs the live stamp (test_dvee_volume.jl).
