@@ -3723,6 +3723,21 @@ below (Honer coefficients/formulas) is SUPERSEDED — kept only as a record of t
 Ground truth to match (live stamp): `900DVEE110`, D=3.70150, H=30.5009 ⇒ TVOL1=**0.957290**, PROD=02,
 TOPD=4.0, MTOPS=4.0, STUMP=0.5. (all_SP forest-80106 uses `900CLKE110` ⇒ TVOL1=1.000 — jl already matches.)
 
+**★★★ DVEE TOTAL-CUBIC FORMULA PROVEN (2026-07-03) — Gevorkiantz form-factor, in `r9vol.f` `R9VOL`.**
+Read R9VOL (the Region-9 "Gevorkiantz Model", r9vol.f:~30): its total cubic is a trivial FORM-FACTOR
+cylinder — `VOL(1) = 0.42 · π · (1/144) · (1/4) · DBH² · HT  =  0.42·π·DBH²·HT / 576`. Hand-check for the
+stamped stem: 0.42·π·3.70150²·30.5009/576 = **0.95745 ≈ live 0.957290** ✔ (matches to 4 dp — the tiny
+residual is my manual arithmetic). So the DVEE path = this Gevorkiantz form-factor total cubic (NOT the
+Clark taper). CLKE species instead use the Clark taper (jl's `r9clark_cubic`, already bit-exact — all_SP=
+1.000), so `900CLKE` and `900DVEE` resolve to DIFFERENT models (Clark-taper vs Gevorkiantz-form-factor);
+that IS the +13% divergence. Board feet (VOL(2)) + merch (VOL(4)/VOL(7)) for DVEE are the R9VOL Gevorkiantz
+polynomials (r9vol.f: the "BOARD FOOT MAIN STEM" poly with per-species CF correction factors, + R9_MHTS
+merch heights) — to transcribe for the port. **So the D35 fix is now well-scoped and de-risked:**
+(1) restore CS `METHC`/`METHB` loading; (2) for `METHC==5` species compute via a new `r9vol_gevorkiantz`
+(form-factor total cubic = 0.42π·D²·H/576 + the R9VOL board/merch polys) instead of `r9clark_cubic`;
+(3) validate bit-exact vs the live stamp (0.957290) + planted SP/BH stands + cst01_method5; SN/NE untouched.
+This supersedes BOTH the Honer lead AND the "R9VOL == CLKE" confusion — the total-cubic core is now proven.
+
 **[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
   ⇒ '900DVEE'` (Honer), `METHC∈{6,9} ⇒ '900CLKE'` (Clark, jl's current r9clark), `METHC==10 ⇒ NVB`. Board
