@@ -3662,7 +3662,15 @@ jl reports `mcf = GCB` (the pulp polynomial), which only APPROXIMATES live's exa
 last sub-piece = report `VOL(4)_saw + VOL(7)` exactly for DBH≥9 (VOL(7)=PT·GCB, PT=(98.461−1.394P+0.004P²)·
 0.01, P=H1/H2·100 — all pieces already derived/validated) instead of GCB; needs a per-tree live Mcuft stamp
 to confirm the exact VOL→Mcuft column mapping first (pulp-tree VOL(7)=GCB implies Mcuft≠V4+V7 naively). Total
-cubic BIT-EXACT, H2 BIT-EXACT, pulp merch exact; the ≤few% tail is the saw VOL(4)/VOL(7) merch split. (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
+cubic BIT-EXACT, H2 BIT-EXACT, pulp merch exact; the ≤few% tail is the saw VOL(4)/VOL(7) merch split.
+**Per-tree Mcuft validation TOOLING-BLOCKED (2026-07-03):** live emits no FVS_TreeList for this planted
+stand (only FVS_Cases/InvReference — the .trl/TreeLiDB don't populate for the ESTAB/PLANT regen stand), so
+confirming the exact saw VOL→Mcuft column mapping needs a stamp in the volume DRIVER (vols.f/cuts.f MCFV
+assembly), not the DB. ⇒ VERDICT: D35's dominant divergence is FIXED (total cubic + H2 + pulp merch all
+BIT-EXACT vs live, no regression); the residual is a ≤3.7% saw-stem (DBH≥9) merch-cubic tail on a CONTRIVED
+FVS-test planted stand (cst01_method5), with every underlying formula derived+validated and only the final
+VOL(4)+VOL(7)→Mcuft assembly mapping left to stamp. 📌 Accepted-class residual (contrived stand, dominant
+volume bit-exact); the exact saw-merch closure is a bounded fresh-pass step (one volume-driver stamp). (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
 helpers are live-validated + retained as reference, but NOT needed for Mcuft since VOL4+VOL7=GCB.)
 
 
