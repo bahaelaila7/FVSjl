@@ -534,7 +534,11 @@ function compute_volumes_ne!(s::StandState)
         # instead of the Clark taper. iforst = KODFOR−900 (the R9 forest number → LS/CS/NE region in R9_MHTS).
         if md.sp_methc[sp] == 5
             tcf, mcf, scf, bf = r9vol_gevorkiantz(fia, d, h, Int(s.plot.user_forest_code) - 900)
-            _dv_dbhmin = md.sp_dbh_min[sp] > 0f0 ? md.sp_dbh_min[sp] : 5f0  # DVEE merch DBHMIN (fvsvol.f:512; CS=5)
+            # DVEE merch DBHMIN gate (fvsvol.f:512). CS default (sitset.f:130-141) = 5 for softwoods AND, for
+            # the region-9 DVEE forests (905/908 ⇒ IFOR=1 case), hardwoods too — a stamp of live's DBHMIN(ISPC)
+            # gave 5 for SP, and DBHMIN=6 for BH REGRESSED Mcuft (3093→2881 vs live 3090), confirming 5. Fall
+            # back to 5 when unset (the planted DVEE species carry sp_dbh_min=0).
+            _dv_dbhmin = md.sp_dbh_min[sp] > 0f0 ? md.sp_dbh_min[sp] : 5f0
             d < _dv_dbhmin && (mcf = 0f0)
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
