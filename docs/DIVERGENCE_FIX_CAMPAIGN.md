@@ -253,6 +253,13 @@ where live does NOT for that species ⇒ a candidate per-species CS crown-CAP / 
 not apply the 10-min, or cm≠1 for CS). NEXT: stamp live cs/crown.f ICRI + the 10-min branch for a CS monoculture
 (e.g. the sp552 species) to see if CS omits/alters the 10-floor, then reconcile with the raw BA. D40 stays a
 focused CS-crown-model investigation (same class as D28-D32); not a one-liner.
+10-MIN-CAP HYPOTHESIS RULED OUT (2026-07-03): CS crown.f:248-250 (`ICRI>95→95; ICRI<10 & CRNMLT==1→10; <1→1`) is
+IDENTICAL to jl crown_ratio.jl:76-78 — the cap is faithfully ported. So live's sp552 crown 2.70 (<10) implies live
+has `CRNMLT(sp552)≠1` (which bypasses the 10-floor) while jl's `active_crn_mult` returns 1 ⇒ the lead is a
+per-species CS **CRNMLT default ≠ 1** (a data/blockdata table, not the keyword — cs_allsp has no CRNMULT), possibly
+entangled with the raw-BA crown→DG feedback. NEXT: stamp live cs/crown.f `CRNMLT(ISPC)` per species (is the CS
+default 1.0, or per-species?) — if CS seeds CRNMLT from a table, that's the unmasked per-species bug. D40 is a
+multi-session CS-crown investigation; baseline (/gross_space) is kept meanwhile (suite 6462/2).
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
