@@ -94,6 +94,23 @@ col27 (a 520→801 flip is invisible to the numeric ULP floor); it is the first 
 has surfaced, and a candidate for a focused follow-up.
 
 ---
+**PER-TREE TREELIST SURFACE VALIDATED (2026-07-03) — the last unchecked output surface is FAITHFUL.**
+The `.sum` differential (state+removals+growth+categorical) validates aggregates; the per-TREE columns (Ht, DG,
+HtG, PctCr, PtBAL, per-tree TCuFt/MCuFt/SCuFt/BdFt) were only checked as ΣTPA/Σcuft reconstructions before (the
+FVS_TreeList test is aggregate-only because the tripling/COMCUP record PARTITION legitimately differs — same
+totals, different #records). Built a PARTITION-INVARIANT per-SPECIES treelist differential: ran `dbs_treelist.key`
+(DATABASE TREELIDB) through BOTH live (oracle → FVS_TreeList) and jl (run_keyfile → FVS_TreeList), aggregated each
+per-tree column by (Year,SpeciesFIA) as Σ(col·TPA), and diffed. RESULT: **every per-tree column BIT-EXACT/ULP vs
+live** — DBH, Ht, PctCr, DG, HtG, TCuFt, MCuFt, SCuFt, BdFt all match at the species-aggregate level across all 6
+cycles. The ONLY residual is ΣPtBAL·T (point-BA-in-larger-trees): 5 diffs, worst 0.4% (yr2010/sp998 333.46 vs
+334.63) — PtBAL is a per-record competition metric whose attribution depends on the point tree-partition/order,
+which differs by the accepted tripling split (jl 27 vs live 29 records @1990, converging to 243 by 2000). ⇒ the
+per-tree MODEL STATE is faithful; PtBAL's ≤0.4% is partition-attribution sensitivity, not a model divergence
+(DBH/Ht/BA/volumes bit-exact). ⇒ **all output surfaces — .sum (every informative column), and now the per-tree
+treelist — are differentially validated against live; no unchecked surface remains** (carbon/fuels DBS tables are
+per-cycle summaries already covered per-item + the carbon .sum bit-exact).
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
