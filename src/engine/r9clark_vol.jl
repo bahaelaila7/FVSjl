@@ -530,6 +530,18 @@ function compute_volumes_ne!(s::StandState)
         tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
+        # D35: VOLUME field-7 METHC==5 selects the CS DVEE/Gevorkiantz model ('900DVEE', r9vol.f R9VOL)
+        # instead of the Clark taper. iforst = KODFOR−900 (the R9 forest number → LS/CS/NE region in R9_MHTS).
+        if md.sp_methc[sp] == 5
+            tcf, mcf, scf, bf = r9vol_gevorkiantz(fia, d, h, Int(s.plot.user_forest_code) - 900)
+            if anydef
+                mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
+                                                  cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)
+            end
+            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
+            t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
+            continue
+        end
         dbhmin = md.sp_dbh_min[sp]; topd = md.sp_top_diam[sp]
         scfmind = md.sp_scf_dbhmin[sp]; scftopd = md.sp_scf_topd[sp]
         stmp = md.sp_stump_ht[sp]; scfstmp = md.sp_scf_stump[sp]

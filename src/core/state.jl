@@ -286,6 +286,8 @@ mutable struct Control
                                               # so a silently-ignored SN semantic (e.g. YARDLOSS) can't hide
     growth_dg_set::Bool                       # GROWTH: was the DG measurement period (FINT) set by a GROWTH keyword?
                                               # (distinguishes an EXPLICIT FINT=5 — non-native on NE/CS — from the default)
+    sp_methc::Vector{Int32}                   # VOLUME field 7: cubic volume METHOD per species (default 6=Clark;
+                                              # 5 ⇒ CS DVEE/Gevorkiantz r9vol_gevorkiantz). initre.f:1804 METHC (D35)
 end
 
 function Control()
@@ -347,6 +349,7 @@ function Control()
         false,                                                   # potfire_report_on (POTFIRE)
         Set{String}(),                                           # unrecognized_keywords
         false,                                                   # growth_dg_set (GROWTH FINT explicitly set?)
+        fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
     )
 end
 

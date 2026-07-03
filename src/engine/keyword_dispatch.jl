@@ -852,10 +852,32 @@ end
 function kw_volume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
+    # D35: field 7 = METHC (cubic volume METHOD). FVS sets it once at keyword-read (initre.f:1804), not per
+    # cycle, so apply it now (not via the scheduled event). 5 ⇒ CS DVEE/Gevorkiantz (r9vol_gevorkiantz);
+    # default 6 = Clark. Only CS acts on it (SN R8 / NE default paths ignore sp_methc).
+    if length(rec.present) >= 7 && rec.present[7]
+        _set_methc!(s.control, nint(v[2]), round(Int32, v[7]))
+    end
     push!(s.control.volume_events,
           ScheduledActivity(Int32(nint(v[1])), Int32(217),
               (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9])),
               Float32(v[10])))
+    return
+end
+
+# Set the cubic-volume method per species from a VOLUME field-7 value (all=0 / species>0 / group<0),
+# mirroring _set_merch_sp! (volume.jl) but for the Int32 sp_methc vector. (D35)
+@inline function _set_methc!(c, isp::Integer, meth::Int32)
+    a = c.sp_methc
+    if isp == 0
+        @inbounds for j in 1:length(a); a[j] = meth; end
+    elseif isp > 0
+        isp <= length(a) && (a[isp] = meth)
+    else
+        g = -isp
+        (1 <= g <= length(c.sp_groups)) || return
+        @inbounds for sp in c.sp_groups[g]; a[sp] = meth; end
+    end
     return
 end
 
