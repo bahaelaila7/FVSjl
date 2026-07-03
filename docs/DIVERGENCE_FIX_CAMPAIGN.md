@@ -94,6 +94,24 @@ col27 (a 520→801 flip is invisible to the numeric ULP floor); it is the first 
 has surfaced, and a candidate for a focused follow-up.
 
 ---
+**D38 — 📌 treelist REPORT-column divergences (post-fire crown scorch + regen establishment DG); MODEL faithful.**
+Found 2026-07-03 by extending the treelist differential (new reusable harness `test/harness/treelist_diff.sh`) to
+diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two report-column findings, both with the
+`.sum` (growth/volume/mortality) BIT-EXACT ⇒ report-only, model unaffected:
+- **fire_carbon PctCr (crown ratio): post-fire only.** Mean crown 1990/1995/2000 BIT-EXACT (51.09/49.36/47.58);
+  2005/2010/2015 live LOWER (38.98/39.92/40.77) vs jl (40.62/41.27/41.69). This is the FMICR fire-crown-SCORCH:
+  live's treelist reports the scorched crown, jl reports the unscorched growth crown. Consistent with D15 (FMICR
+  is FFE-internal, does NOT feed the growth crown ⇒ .sum bit-exact); jl just doesn't mirror the scorch into the
+  REPORTED crown_pct. Fix = apply the FMICR scorch to the treelist crown column only (not growth). Report-only.
+- **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
+  cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
+  plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
+⇒ VERDICT: the per-tree MODEL STATE is faithful (DBH/Ht/volumes/mortality/DG-aggregate bit-exact across fire,
+thin, regen); the two residuals are treelist REPORT columns (fire-scorch crown mirror + regen establishment-cycle
+DG) that don't affect the model. 📌 documented report-only; scoped follow-ups (mirror FMICR into reported crown;
+regen first-cycle DG report). Neither is a growth/volume/mortality divergence.
+
+---
 **PER-TREE TREELIST SURFACE VALIDATED (2026-07-03) — the last unchecked output surface is FAITHFUL.**
 The `.sum` differential (state+removals+growth+categorical) validates aggregates; the per-TREE columns (Ht, DG,
 HtG, PctCr, PtBAL, per-tree TCuFt/MCuFt/SCuFt/BdFt) were only checked as ΣTPA/Σcuft reconstructions before (the
