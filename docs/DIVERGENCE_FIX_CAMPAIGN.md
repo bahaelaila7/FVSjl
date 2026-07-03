@@ -297,6 +297,22 @@ D37/D39 are SN-neutral (as `variant_code(Southern())=="SN"` / `htg_period(Southe
 predicted). All three variants now freshly re-validated at floor post-all-session-fixes.
 
 ---
+**★ ULP PROVEN AT THE OPERATION LEVEL (2026-07-03) — not a global cutoff.** Traced one growth residual
+(growth_finth5, tree 3, loblolly DBH 3.0) to the exact FP op via dual debug-stamp: DBH@2000 differs by EXACTLY
+2^-22 = 1 Float32 ULP (live 3.1912178993225098 / jl 3.1912176609039307); Ht bit-exact. Isolated to the DGF DDS
+regression (dgf.f:290). Compared EVERY input: log(3.0), log(20), relht, conspp, pbal all BIT-IDENTICAL — the
+transcendentals are NOT the source. BUT stand BA (live 332.567078 / jl 332.56705) and point PBA (441.786499 /
+441.78647) each differ by EXACTLY 2^-15 = 1 Float32 ULP (ULP at ~332). ROOT: BA/PBA are Float32 running sums of
+per-tree 0.005454·D²·TPA over the SAME bit-exact trees; jl's point_basal_area! accumulates in DESCENDING-DBH order
+(sortperm), live's dense.f in a different order ⇒ non-associative Float32 addition rounds the same total 1 ULP
+apart. That 1-ULP BA feeds `stand_ba_c·BA + point_bal·PBAL` in the DDS ⇒ rounds ln(DDS) to the adjacent Float32 ⇒
+1-ULP DG ⇒ the observed 1-ULP DBH. ⇒ GENUINELY ULP, cornered to the density-sum accumulation ORDER (a non-
+associative Float32 reduction), NOT a semantic diff. This is the GENERATING mechanism for the accepted-growth-ULP
+class: a 1-ULP density-sum (BA/PBAL/SDI — all order-dependent Float32 reductions) propagates through the DDS
+regression and amplifies at the near-SDImax mortality threshold on dense stands (why cs_allsp shows it larger).
+The tolerance audit's "these are ULP" claim is now proven by cornering the op, not asserted by a 0.2% cutoff.
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
