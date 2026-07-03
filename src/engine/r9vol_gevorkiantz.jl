@@ -140,7 +140,9 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
     tcf = httot > 0f0 ? 0.42f0 * Float32(pi) * dbh * dbh * httot / 576f0 : 0f0
     region = _dvee_region(iforst)
     bfmind = 9f0                              # R9_MHTS CS board-min DBH (softwood & hardwood); PROD='01' at ≥bfmind
-    bftopd = fia < 300 ? 7.6f0 : 9.6f0        # saw top (MTOPP default: softwood 7.6 / hardwood 9.6)
+    bftopd = 7.6f0                            # saw top (SCFTOPD): CS uses 7.6 for both softwood & hardwood
+                                              # (BH V4=SP_V4/1.06 ⇒ same H1 ⇒ same saw top; 9.6 hardwood default
+                                              # would exceed a 9" stem's DBH and drop H1 ⇒ Scuft low)
     h2 = _r9_mhts_ht2prd(fia, dbh, httot, si, ba, region)
     # R9VOL merch cubic MCF = VOL(4)+VOL(7) (fvsvol.f:512). GCB = the pulp polynomial. For a PULP stem
     # (DBH<BFMIND ⇒ HT1PRD=0) VOL(4)=GCB and VOL(7)=0 ⇒ MCF=GCB. For a SAWTIMBER stem VOL(4)=the '912' sawlog
