@@ -47,7 +47,24 @@ stands (carbon_ffe, carbon_jenkins, carbon_snt, fire_carbon) with broadened cols
 included. ⇒ confirmed a parsing artifact (now handled), NOT a real model divergence.
 
 ---
-**D37 — 📌 NE/CS `.sum` FOREST-TYPE report column uses the SN classification (jl lacks NE/CS FORTYP tables).**
+**D37 — ✅ FIXED (root = hardcoded VARACD): NE/CS forest-type mis-classified northern hardwoods as oak-hickory.**
+ROOT CAUSE (traced to source both sides): `compute_forest_type!` (forest_type.jl:105) hardcoded `VARACD = "SN"`.
+FVS `fortyp.f:841` has `SELECT CASE (VARACD): CASE('SN') SOUTH=1 (route upland beech/birch → OAK-HICKORY);
+CASE DEFAULT SOUTH=0 (route them → MAPLE-BEECH-BIRCH)`. With VARACD stuck at "SN", every NE/CS upland
+northern-hardwood stand took the SN branch and was typed oak-hickory (520) instead of 801 (maple-beech-yellow
+birch). FIX: `VARACD = variant_code(st.variant)` (doctrine-6 — was hardened to one variant). VALIDATED: NE thin
+520→**801** == live; all NE fixtures (thin/ffe/plant_hard/net01) BIT-EXACT; CS cst01 forest-type now == live; SN
+UNCHANGED (variant_code(Southern())=="SN", so the SN branch is preserved — 261-stand SN forest-type stays
+bit-exact); suite 6462/2, no regression. Found by the categorical-column sweep check (a 520↔801 flip is 0.19%,
+under the numeric ULP floor — invisible to every prior sweep). ⇒ the DG-driving forest type was already right for
+SN; this fixes the NE/CS report classification.
+RESIDUAL (separate, minor): `cs_allsp` ForTyp@2070 still 503(jl)/520(live) — a FINER oak sub-type decision
+(forest_type.jl:683-708, `worohk` W.OAK-R.OAK-HICKORY vs `mxdhwd` MIXED UPLAND HW; NO VARACD gating) on the
+ARTIFICIAL all-species CS stand; jl's oak-sub-group stocking edges out mixed where live picks mixed. Report-only,
+all-species-stand-specific (the real CS stand cst01 is now correct), likely a stocking near-tie; 📌 minor residual,
+candidate for a follow-up stkval sub-group stamp. The primary D37 bug is FIXED.
+
+**(history) D37 — 📌 NE/CS `.sum` FOREST-TYPE report column uses the SN classification (jl lacks NE/CS FORTYP tables).**
 Found 2026-07-03 by the new categorical-column check (col 27 forest-type), run on the CS+NE corpora. Real
 divergence: NE `thin`/`ffe`/`plant_hard` report ForTyp **801** live vs **520/503** jl; CS `cst01` 801 vs 503,
 `cs_allsp` 520 vs 503. Verified NOT a column-alignment artifact (MAI col26=34.3 and SizeCls col28=21 match both
