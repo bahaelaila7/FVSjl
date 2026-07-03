@@ -31,6 +31,28 @@ function _blocks(s)
     return blocks
 end
 
+# Fallback for ECHOSUM-less stands (the sweep blind spot found 2026-07-03): a key without the
+# ECHOSUM keyword writes NO .sum, but live still emits the SAME per-cycle "SUMMARY STATISTICS"
+# table to the .out (unit 6) — identical column layout to .sum. Parse it so these stands get
+# COMPARED (nohtdreg_cal, dead_fint) instead of silently dumped to the ERR bucket. New block per
+# "SUMMARY STATISTICS" header (one per stand, matching how _blocks splits .sum on -999).
+function _blocks_out(s)
+    blocks = Vector{Dict{Int,Vector{SubString{String}}}}()
+    cur = nothing
+    for l in split(s, '\n')
+        if occursin("SUMMARY STATISTICS", l)
+            cur = Dict{Int,Vector{SubString{String}}}(); push!(blocks, cur); continue
+        end
+        cur === nothing && continue
+        t = split(strip(l)); isempty(t) && continue
+        y = tryparse(Int, t[1])
+        # summary data rows: a 4-digit year (1000–3000) with the full ≥20-column layout (same
+        # guard as _blocks; excludes the STAND COMPOSITION bands, which start with a %tile not a year)
+        (y !== nothing && 1000 <= y <= 3000 && length(t) >= 20) && (cur[y] = t)
+    end
+    return filter(b -> !isempty(b), blocks)
+end
+
 function sweep(variant::AbstractString, keys::Vector{String})
     here = @__DIR__
     results = Tuple{String,Float64,String}[]   # (scenario, max_rel, detail)
@@ -43,8 +65,16 @@ function sweep(variant::AbstractString, keys::Vector{String})
             run(pipeline(`bash $(joinpath(here, ORACLE[variant])) $key $outdir`; stdout=devnull, stderr=devnull))
         catch; end
         livesum = filter(p->endswith(p,".sum"), readdir(outdir; join=true))
-        isempty(livesum) && (push!(results,(stem, NaN, "live FPE/no-sum")); continue)
-        LB = _blocks(read(first(livesum), String))
+        src = ""
+        if !isempty(livesum)
+            LB = _blocks(read(first(livesum), String))
+        else
+            # No .sum — try the .out SUMMARY STATISTICS fallback (ECHOSUM-less stand) before giving up.
+            liveout = filter(p->endswith(p,".out"), readdir(outdir; join=true))
+            LB = isempty(liveout) ? Vector{Dict{Int,Vector{SubString{String}}}}() : _blocks_out(read(first(liveout), String))
+            isempty(LB) && (push!(results,(stem, NaN, "live FPE/no-sum")); continue)
+            src = " [.out]"   # flag the fallback source for transparency
+        end
         # jl
         JB = try _blocks(FVSjl.run_keyfile(key; variant=VAR[variant], output=:sum)) catch e; push!(results,(stem,NaN,"jl error: $(sprint(showerror,e))")); continue end
         maxrel = 0.0; detail = "bit-exact"
@@ -62,7 +92,7 @@ function sweep(variant::AbstractString, keys::Vector{String})
                 end
             end
         end
-        push!(results, (stem, maxrel, detail))
+        push!(results, (stem, maxrel, detail * src))
     end
     sort!(results; by = x -> (isnan(x[2]) ? -1.0 : x[2]), rev=true)
     println("\n=== divergence sweep ($variant): $(length(results)) stands, ranked by max non-ULP rel diff ===")

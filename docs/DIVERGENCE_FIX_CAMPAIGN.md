@@ -3769,7 +3769,15 @@ directly through the SN oracle. Result: the sweep's "ERR live-FPE/no-sum" label 
     follow-up, since the verdict is not in serious doubt.
 ⇒ Net: the blind spot hid NO new divergence (1 ULP + 1 already-documented-accepted tail), but it corrected a
 factually-wrong "live crashes here" audit premise and re-grounded the NOHTDREG @test_broken tail directly against
-live for the first time. The sweep should grow a `.out`-summary fallback for ECHOSUM-less stands (tooling TODO).
+live for the first time.
+**TOOLING FIX LANDED (2026-07-03): the blind spot is now closed in divergence_sweep.jl.** Added `_blocks_out` — a
+`.out` SUMMARY STATISTICS fallback (identical column layout to `.sum`, one block per stand on the "SUMMARY
+STATISTICS" header). When a stand produces no `.sum`, the sweep now parses the `.out` summary instead of dumping to
+ERR. Verified: nohtdreg_cal now surfaces as a ranked `DIFF … [.out]` (3.31% TPA, was hidden in ERR), dead_fint reads
+`ok [.out]` (1-unit ULP floored), genuine live-FPEs (all_AE) correctly STAY ERR, and normal `.sum` stands
+(fire_carbon/treeszcp_cap/all_PI) are byte-for-byte unchanged (no `[.out]` tag). So the ECHOSUM class can no longer
+silently hide a divergence — any future ECHOSUM-less stand with a real diff will now rank. Remaining ERR = only the
+6 genuine live-FPEs (no oracle by definition).
 
 **AUTHORITATIVE FULL SN SWEEP (2026-07-03, post-D35) — 222 bit-exact / 31 DIFF / 8 live-FPE, ZERO uncatalogued.**
 Re-ran the complete 261-stand SN sweep via `divergence_sweep.jl sn` against the freshly-relinked live binary (the
