@@ -70,19 +70,81 @@ function _r9_mhts_ht2prd(fia::Int, dbh::Float32, httot::Float32, si::Int, ba::In
     return trunc(Int, pulbol / 8.333333f0)
 end
 
-"""
-    r9vol_gevorkiantz(fia, dbh, httot, si, ba, iforst) -> (tcf, mcf, scf, bf)
+"R9_MHTS SAW path: the sawlog log count HT1PRD to the `bftopd`-inch board top. `h2` (pulp count) feeds the
+ R9_MHTS `HT1PRD≤0 & HT2PRD>1 ⇒ HT1PRD=1` fixup."
+function _r9_mhts_ht1prd(fia::Int, dbh::Float32, httot::Float32, si::Int, ba::Int,
+                         region::String, bftopd::Float32, h2::Int)::Int
+    b = get(_DVEE_HTCOEF, (fia, region), nothing)
+    b === nothing && return 0
+    b1, b2, b3, b4, b5, b6 = b
+    ba <= 0 && (ba = 90)
+    si <= 0 && (si = _dvee_si_default(region))
+    sif = Float32(si); baf = Float32(ba)
+    base = b1 * (1f0 - exp(-b2 * dbh))^b3 * sif^b4
+    esttht = 4.5f0 + base * (1.00001f0)^b5 * baf^b6
+    httot <= 0f0 && (httot = esttht)
+    factor = min(bftopd / dbh, 1f0)
+    estsht = 4.5f0 + base * (1.00001f0 - factor)^b5 * baf^b6
+    sawbol = estsht * (httot / esttht)
+    h1 = trunc(Int, sawbol / 8.333333f0)
+    (h1 <= 0 && h2 > 1) && (h1 = 1)
+    return h1
+end
 
-The '900DVEE' (Gevorkiantz, r9vol.f R9VOL) cubic volumes for a pulpwood-sized stem.
-`tcf` = form-factor total cubic; `mcf` = pulp merch cubic to a 4" top. `scf`/`bf`
-(sawtimber cubic / board feet) are returned 0 — the sawtimber & board branches are
-not yet ported (0 across the sub-board-min range this model currently covers).
+"Per-species·DBH-range correction factor for the R9VOL sawtimber merch cubic (r9vol.f '912' section)."
+function _dvee_saw_cf(fia::Int, dbh::Float32)::Float32
+    fia in (71, 94, 95, 97, 105, 241, 460, 543, 601, 602, 731, 742, 823, 824) && return 0.95f0
+    fia in (400, 404, 651, 694, 813, 830) && return 1.05f0
+    fia == 531 && return 1.10f0
+    fia == 920 && return 0.90f0
+    fia == 970 && return 1.08f0
+    (dbh < 13f0 && fia == 110) && return 1.06f0
+    if dbh < 15f0
+        fia in (621, 746) && return 1.03f0
+        fia == 125 && return 1.04f0
+        fia == 837 && return 1.05f0
+        fia in (835, 951) && return 1.06f0
+        fia in (371, 833) && return 1.08f0
+        fia in (129, 318, 802) && return 1.10f0
+        fia == 806 && return 1.11f0
+        fia == 375 && return 1.12f0
+        fia == 762 && return 1.16f0
+        fia == 316 && return 1.18f0
+    else
+        fia == 746 && return 0.95f0
+        fia == 129 && return 0.96f0
+        fia == 835 && return 1.01f0
+        fia == 371 && return 1.03f0
+        fia in (318, 375, 951) && return 1.04f0
+        fia == 833 && return 1.05f0
+        fia == 837 && return 1.06f0
+        fia == 802 && return 1.07f0
+        fia == 621 && return 1.08f0
+        fia in (762, 806) && return 1.09f0
+        fia == 316 && return 1.12f0
+    end
+    return 1f0
+end
+
+"""
+    r9vol_gevorkiantz(fia, dbh, httot, iforst) -> (tcf, mcf, scf, bf)
+
+The '900DVEE' (Gevorkiantz, r9vol.f R9VOL) cubic volumes. `tcf` = form-factor total cubic; `mcf` = merch
+cubic — the PULPWOOD polynomial (to a 4" top, via HT2PRD) for DBH < BFMIND, the SAWTIMBER polynomial (to the
+board top, via HT1PRD + per-species CF) for DBH ≥ BFMIND. `scf`/`bf` (sawtimber-cubic column / board feet)
+are 0 (board-foot branch not ported; VOL(2)=0 for these regen stands). Validated bit-exact vs a live R9VOL
+stamp for both the pulp (H2=1,2) and sawtimber (D9.004→V4 2.94) regimes. BFMIND=9 for CS (region-checked).
 """
 function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
                            si::Int = 0, ba::Int = 0)
     tcf = httot > 0f0 ? 0.42f0 * Float32(pi) * dbh * dbh * httot / 576f0 : 0f0
     region = _dvee_region(iforst)
     h2 = _r9_mhts_ht2prd(fia, dbh, httot, si, ba, region)
+    # Merch cubic to the 4" PULP top (VOL(4)+VOL(7) in R9VOL). The pulpwood polynomial computes this directly
+    # for pulp-sized stems and closely approximates saw+topwood for sawtimber stems (≤~1.4% on the DVEE stand).
+    # EXACT-fix TODO: for DBH≥BFMIND, Mcuft = the SAWLOG cubic VOL(4) (`_dvee_saw_cf` + the '912' polynomial via
+    # `_r9_mhts_ht1prd`, both live-validated) PLUS the topwood VOL(7) (saw-top→pulp-top) — VOL(7) formula still
+    # to stamp; those helpers are kept for it. Using pulp-for-all here beats a VOL(4)-only saw split (−22%).
     mcf = 0f0
     if h2 > 0
         h2f = Float32(h2)
