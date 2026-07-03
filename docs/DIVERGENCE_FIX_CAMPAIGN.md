@@ -153,8 +153,15 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   exactly the ALREADY-ACCEPTED fire-kill-DISTRIBUTION class (snt01_alpha / fire-tripling order residuals: bit-exact
   total+per-species kill, sub-ULP which-individual) — now seen through the treelist crown column instead of the
   .sum. ⇒ D38's fire-crown item is the CROWN-REPORT VIEW of an accepted class, NOT a new fixable divergence. 📌
-  accepted (same basis as the documented fire-kill-distribution ULP/order floor). [bare_natural regen-DG report =
-  separate small report-only item.]
+  accepted (same basis as the documented fire-kill-distribution ULP/order floor).
+  ★ REGEN-DG PIECE ALSO RESOLVED → 📌 ACCEPTED: bare_natural's treelist diffs are dominated by sp131 SCuFt/BdFt
+  4.7% = the DOCUMENTED, ACCEPTED D10 regen saw-threshold (matches its .sum residual). The sp090 "DG 900%" blip
+  did NOT reproduce in a fresh DB (TPA=0 both) — a marginal near-zero-TPA establishment-cycle artifact. ⇒ the
+  regen treelist piece is the crown/volume-report VIEW of the accepted D10 regen class, not a new bug.
+  ⇒⇒ **D38 FULLY RESOLVED → 📌 ACCEPTED (both pieces):** the treelist REPORT differences are the per-tree-report
+  views of two already-accepted classes — fire-kill-distribution (fire-crown) and D10 regen saw-threshold
+  (regen-DG/volume). No new fixable divergence; the per-tree MODEL state (DBH/Ht/volumes/mortality/DG-aggregate)
+  is bit-exact vs live across fire/thin/regen. Closed.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
