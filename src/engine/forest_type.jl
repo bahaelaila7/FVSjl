@@ -102,7 +102,10 @@ hardwoods) from the per-group stocking array, and store it in `plot.forest_type`
 """
 function compute_forest_type!(st::StandState)
     KODFOR = Int(st.plot.user_forest_code)
-    VARACD = "SN"
+    # VARACD gates the FORTYP upland SN-vs-else split (fortyp.f:841 SELECT CASE(VARACD): CASE('SN') routes
+    # beech/birch to OAK-HICKORY; CASE DEFAULT routes them to MAPLE-BEECH-BIRCH). Was hardcoded "SN" ⇒ NE/CS
+    # northern-hardwood stands mis-typed as oak-hickory (D37). Use the actual variant (doctrine-6: don't harden).
+    VARACD = variant_code(st.variant)
     south  = 0f0
     species_sort!(st)
     s, iszcl, istcl = _stkval_stocking(st)
