@@ -2380,6 +2380,13 @@ SU/WE, dead_fint, mcfdln_override). So this scenario CANNOT be re-grounded vs li
 golden by necessity. ⇒ Under DONE: NOHTDREG maps faithfully (proven on the live-verifiable init cycle); the
 grown tail is the DGSCOR/COMPRESS-family ULP/order class but must be PROVEN truly-ULP on a DIFFERENT,
 live-runnable scenario that exercises the sp33/65 DGSCOR tail (nohtdreg_cal itself can't, live crashes).
+  ↑↑ **FACTUALLY WRONG — CORRECTED 2026-07-03 (see the RESOLVED entry below).** nohtdreg_cal does NOT live-FPE.
+  Live runs it cleanly and emits the full per-cycle summary to the `.out` (unit 6); the missing `.sum` is only
+  because the key lacks the `ECHOSUM` keyword (which is what writes the `.sum` unit) — NOT a crash. Verified by
+  running the SN oracle directly: exit 0, 121KB `.out` with SUMMARY STATISTICS, `.tre`, and FVSOut.db, no core
+  dump. So nohtdreg_cal CAN be re-grounded vs live, and the prior "must prove on a different scenario" constraint
+  is void. (Only 6 of the "8 ERR" — all_AE/EL/RL/SU/WE + mcfdln_override — are genuine live FPEs; dead_fint and
+  nohtdreg_cal are ECHOSUM-less-but-live-runnable.)
 LIVE-FPE CATEGORY (8 scenarios): live crashes ⇒ unvalidatable vs the oracle; jl runs them. These are a distinct
 class — not bit-exact-provable against live; flag as "no live oracle" (candidate: is the live FPE a live bug jl
 correctly avoids?). Audit remaining: all-species grown bands; the DGSCOR-tail truly-ULP proof on a live scenario;
@@ -3725,6 +3732,36 @@ class (same H2-boundary amplification as the cubic tail). Suite 6462/2, no regre
 DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored via `_bf`). ⇒ **All four volume
 columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
 CLOSED.**
+
+**SWEEP BLIND SPOT FOUND + CLOSED (2026-07-03): the "8 ERR" bucket is NOT homogeneous — 6 live-FPE + 2 ECHOSUM-less.**
+Applying the re-trace discipline to my OWN dismissal of the 8 ERR stands as "no oracle, unfixable," I ran each
+directly through the SN oracle. Result: the sweep's "ERR live-FPE/no-sum" label CONFLATES two distinct causes:
+- **6 genuine live FPEs** (all_AE/EL/RL/SU/WE + mcfdln_override): the live binary core-dumps ("Floating point
+  exception"); jl runs them clean (12-line .sum). No oracle — unvalidatable by definition (a crash has no output
+  to match). Candidate note: is the FPE a live bug jl correctly avoids? (Can't confirm without a reference.)
+- **2 ECHOSUM-less-but-live-runnable** (dead_fint, nohtdreg_cal): live does NOT crash — it runs to completion and
+  writes the per-cycle SUMMARY STATISTICS to the `.out` (unit 6). They produce no `.sum` ONLY because their keys
+  omit the `ECHOSUM` keyword (which writes the `.sum` unit; ~240 of 261 SN keys have it, these 2 don't). ⇒ the
+  divergence_sweep.jl `.sum`-only comparison is BLIND to ECHOSUM-less stands: they silently fall into ERR and are
+  never ranked. This is a real methodological hole (a stand with a genuine divergence could hide here). Only these
+  2 stands hit it corpus-wide; both now re-grounded vs live from the `.out` summary:
+  - **dead_fint** (CARBON FFE TEST): jl vs live BIT-EXACT across all 4 cycles except a 1-unit ULP on 2005 TotCuft
+    (jl 2671 vs live 2670). ✅ ULP-class.
+  - **nohtdreg_cal** (the NOHTDREG @test_broken stand): jl over-retains TPA — live/jl 1995 502/504, 2000 460/464,
+    2005 393/406 (mortality under-kill 2/2/9, accumulating to +3.31% TPA@2005; TotCuft +1.1%). This is the
+    NOHTDREG grown tail that the TOLERANCE AUDIT left OPEN ("prove truly-ULP, not a semantic gap") on the FALSE
+    premise that live crashes here. RE-GROUNDED VS LIVE (not the .sum.save golden): the NOHTDREG SEMANTIC is
+    bit-exact at init (1990 all columns + per-tree DG 27/27 == live, prior FVS_TreeList proof); the divergence is
+    cycle-1 ULP-scale (1995 TPA 0.4%, QMD IDENTICAL ≈6.2 both) that amplifies through 3 cycles of SDI self-thinning
+    mortality to 3.31% — the SAME sub-ULP-amplified-at-a-threshold class as the CS near-SDImax floor (decisively
+    proven ULP by per-species stamp) and COMPRESS. ⇒ **VERDICT: 📌 accepted ULP/order-amplification tail, now
+    confirmed against LIVE** (semantic faithful at init; grown tail is DGSCOR/SDI-mortality order, not a NOHTDREG
+    gap). The residual per-tree proof (which near-tied trees flip the cycle-1 mortality) is the same class already
+    settled decisively for the CS floor; a full per-tree stamp on nohtdreg_cal is the belt-and-suspenders step, now
+    UNBLOCKED (live runs it) — the DBS FVS_TreeList path needs the right DATABASE/TREELIST keyword structure.
+⇒ Net: the blind spot hid NO new divergence (1 ULP + 1 already-documented-accepted tail), but it corrected a
+factually-wrong "live crashes here" audit premise and re-grounded the NOHTDREG @test_broken tail directly against
+live for the first time. The sweep should grow a `.out`-summary fallback for ECHOSUM-less stands (tooling TODO).
 
 **AUTHORITATIVE FULL SN SWEEP (2026-07-03, post-D35) — 222 bit-exact / 31 DIFF / 8 live-FPE, ZERO uncatalogued.**
 Re-ran the complete 261-stand SN sweep via `divergence_sweep.jl sn` against the freshly-relinked live binary (the
