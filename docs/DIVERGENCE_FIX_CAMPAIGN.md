@@ -31,6 +31,14 @@ divergence_sweep.jl now also checks removals (13-17) + accretion/mortality-per-y
 surfaces (treeszcp Mort 3→20, compute_cycle Mort 5→3, etc.) are the growth-rate VIEW of already-accepted state
 classes (threshold-amp / fire-kill-distribution / near-SDImax / DGSCOR) on tiny-absolute counts — no NEW stand;
 only D36 (removals) was a genuine new find.
+**CATEGORICAL-CLASSIFICATION CHECK ADDED (2026-07-03):** further broadened divergence_sweep.jl to EXACT-match the
+categorical codes — col 27 forest-type + col 28 structure/size-stocking class (relative tolerance would mask a
+520→521 fortype flip at 0.19%, below the ULP floor; a wrong fortype drives wrong DG coefficients yet can round to
+similar short-term volumes). Full SN corpus result: **forest-type (col 27) BIT-EXACT on ALL 261 stands** (the
+classification feeding DG coefficients is faithful corpus-wide — never differentially verified before), and only
+ONE structure-class mismatch: `treeszcp_cap SizeCl@2035 live=22 jl=23` — same stand + same year as D13 (Mcuft@2035
+22.83%), a one-unit code flip downstream of the accepted SIZCAP threshold-amp TPA/BA divergence, NOT a new
+classification bug. ⇒ classification fidelity confirmed; no uncatalogued categorical divergence.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**

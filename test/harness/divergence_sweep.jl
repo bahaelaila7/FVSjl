@@ -18,6 +18,10 @@ const VAR    = Dict("sn"=>Southern(),"ne"=>Northeast(),"cs"=>CentralStates())
 # (Non-harvest stands carry 0 removals ⇒ skipped by the a==0 guard, so broadening is safe for every stand.)
 const COLS = Dict(3=>"TPA",4=>"BA",5=>"SDI",6=>"CCF",7=>"TopHt",8=>"QMD",9=>"Tcuft",10=>"Mcuft",11=>"Scuft",12=>"Bdft",
                   13=>"remTPA",14=>"remTcuft",15=>"remMcuft",16=>"remScuft",17=>"remBdft",24=>"Accr",25=>"Mort")
+# CATEGORICAL classification codes (27 forest-type, 28 structure/size-stocking class): a wrong code drives wrong
+# DG coefficients yet can round to similar short-term volumes ⇒ invisible to the numeric cols. EXACT-match (a
+# 520→521 fortype flip is only 0.19%, under the ULP floor), so any mismatch is surfaced (then triaged ULP-flip vs bug).
+const CATCOLS = Dict(27=>"ForTyp",28=>"SizeCl")
 
 # Parse a .sum into per-stand blocks (split on the -999 header), each a Dict(year => fields),
 # so the diff aligns by (stand index, year) instead of a naive row zip (multi-stand keys broke that).
@@ -93,6 +97,12 @@ function sweep(variant::AbstractString, keys::Vector{String})
                     r = abs(a-b)/abs(a)
                     (abs(a-b) <= 1 || r <= 0.002) && continue   # ULP floor: ≤1 print unit AND ≤0.2%
                     r > maxrel && (maxrel = r; detail = "s$si $nm@$yr live=$(l[i]) jl=$(j[i]) ($(round(r*100,digits=2))%)")
+                end
+                for (i,nm) in CATCOLS                    # categorical codes: exact-match, any mismatch surfaced
+                    (i<=length(l) && i<=length(j)) || continue
+                    l[i] == j[i] && continue
+                    maxrel < 9.99 && (maxrel = 9.99)     # rank categorical mismatches near the top for triage
+                    detail = "s$si $nm@$yr live=$(l[i]) jl=$(j[i]) (CAT-mismatch)"
                 end
             end
         end
