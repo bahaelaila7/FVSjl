@@ -3638,7 +3638,24 @@ not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithf
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
 
-## ✅ D35 — CS DVEE volume (VOLUME METHC=5) — FIXED TO ULP (2026-07-03): total cubic + merch both bit-exact
+## 🔬 D35 — CS DVEE volume (VOLUME METHC=5) — CUBIC bit-exact; BOARD feet residual (2026-07-03)
+**STATUS (corrected 2026-07-03, re-trace discipline): the CUBIC volumes are bit-exact, BOARD feet is not yet.**
+After the Mcuft fix, re-running `divergence_sweep.jl cs cst01_method5.key` surfaced (in order) two more columns
+jl was returning 0 for — the sweep's max-diff ranking exposed each as the previous one closed:
+- **Tcuft: BIT-EXACT.** **Mcuft: ±0.2% (ULP).** **Scuft (sawtimber cubic): BIT-EXACT** — was 0 (jl never set
+  `scf`); now `scf=VOL(4)_saw` (fvsvol.f `SCF=TVOL(4)`, gated D≥SCFMIND=9). A BH-only −7% tail was my hardwood
+  `bftopd=9.6` (exceeds a 9" stem ⇒ H1 dropped); CS uses SCFTOPD=7.6 for BOTH softwood & hardwood ⇒ fixed to
+  ±0.6% both species.
+- **Bdft (board feet): −32% (jl low), was 0.** Ported R9VOL board TABLE B (IFORST 4/5/8/11/12/14/24) — the
+  R/VC + VOL(2) polynomial + per-species·IFORST CF (`_dvee_bf_cf_tableB`). The polynomial matches the source
+  and h1 is validated (scf exact), yet Bdft is SYSTEMATICALLY −32% (jl 68% of live, SP AND BH). Likely cause:
+  fvsvol does a SECOND VOLINITNVB for board (BFPFLG) using BFTOPD (board top) — so the board's HT1PRD differs
+  from the saw HT1PRD; my board reuses the saw h1. NEXT: a board-column stamp (VOL(2)/HT1PRD via the BFTOPD
+  recompute) to nail it — DEFERRED (I corrupted fvsvol.f once via over-aggressive stamp removal, recovered
+  from the identical FVSne copy; be surgical). ⇒ D35: the CUBIC volume divergence (the original +40% Mcuft)
+  is FIXED to ULP; board feet is improved (0→−32%) with a documented, localized residual. Suite 6462/2.
+
+### (superseded) ✅ FIXED TO ULP (2026-07-03): total cubic + merch both bit-exact
 **★★★ COMPLETE (2026-07-03).** Both Tcuft AND Mcuft now bit-exact vs live (barring H2-boundary ULP). The
 merch was closed by two final pieces, both live-stamp-validated: (1) the EXACT saw split — fvsvol.f:512
 `MCF=TVOL(4)+TVOL(7)`; pulp stems have VOL(7)=0 so MCF=VOL(4)=GCB (the pulp poly, exact), saw stems have
