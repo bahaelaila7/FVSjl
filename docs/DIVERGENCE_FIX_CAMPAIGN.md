@@ -3638,7 +3638,22 @@ not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithf
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
 
-## ⬜ D35 — CS planted-regen volume diverges up to 40% Mcuft (jl HIGHER) — REAL, OPEN (found 2026-07-02)
+## 🔬 D35 — CS DVEE volume (VOLUME METHC=5) — SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch residual)
+**FIX LANDED (2026-07-03).** Implemented the R9 Gevorkiantz '900DVEE' model + the METHC plumbing and wired it:
+- `src/engine/r9vol_gevorkiantz.jl` — total cubic `0.42π·D²·H/576` + pulp merch cubic + R9_MHTS HT2PRD (reads
+  the extracted `data/centralstates/dvee_r9_height_coef.csv`); unit-tested vs the live stamp (test_dvee_volume.jl).
+- `Control.sp_methc` (default 6=Clark) + `kw_volume!` reads VOLUME field 7 (set at parse, like initre.f) +
+  `compute_volumes_ne!` dispatches `sp_methc==5` → r9vol_gevorkiantz (iforst=KODFOR−900).
+- RESULT on pl3 (planted SP, `VOLUME …5`): **Tcuft now BIT-EXACT vs live** (729/732 → 2142/2145 → 4905/4904
+  → 5831/5832; was +13% under Clark). Suite 6460/2, NO regression (dispatch gated to methc==5). The dominant
+  divergence (total cubic) is RESOLVED.
+- **RESIDUAL (open):** Mcuft still off (+13%@2022, −few% later, was +40%). Cause = the UNPORTED sawtimber V4
+  branch (PROD='01', r9vol.f '912' section: a different polynomial in HT1PRD + per-species CFs) that engages
+  as stems reach ~9"; the pulpwood V4 is exact. Also verify HT2PRD (R9_MHTS) for H2>1 (only H2=1 stem-validated).
+  Board V2 still 0 (fine below ~9"). ⇒ to finish: port the R9VOL sawtimber merch/board branch, validate vs the
+  captured 1437-row ground-truth. The hard parts (model ID, total cubic, pulp merch, coefficients, wiring) are DONE.
+
+### (history) ⬜ D35 — CS planted-regen volume diverges up to 40% Mcuft (jl HIGHER) — found 2026-07-02
 Found by sweeping the previously-unswept native key `cst01_method5.key` (5 stands). Stand-5 = "BARE GROUND
 PLANT" (ESTAB 1992 + PLANT sp3 400 TPA + PLANT sp21 400 TPA = 800 planted stems, forest 905, CS variant).
 **TPA and BA are BIT-EXACT vs live every cycle** (planted count + basal area match — so the regen
