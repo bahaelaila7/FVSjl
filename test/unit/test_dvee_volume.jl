@@ -9,7 +9,7 @@
              (110, 3.588f0, 29.41f0, 0.8674f0, 0.0f0),     # below merch top ⇒ V4=0
              (110, 4.670f0, 38.71f0, 1.9344f0, 0.7984f0))
     for (fia, d, h, v1, v4) in cases
-        tcf, mcf, scf, bf = FVSjl.r9vol_gevorkiantz(fia, d, h, 60, 90, 5)
+        tcf, mcf, scf, bf = FVSjl.r9vol_gevorkiantz(fia, d, h, 5)  # iforst=5 (CS); SI/BA default like fvsvol
         @test isapprox(tcf, v1; atol = 5f-3)     # form-factor total cubic 0.42π·D²·H/576
         @test isapprox(mcf, v4; atol = 5f-3)     # pulp merch cubic (0 when HT2PRD=0)
         @test scf == 0f0 && bf == 0f0            # sawtimber/board not ported (sub-9" range)

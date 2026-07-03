@@ -41,6 +41,10 @@ function _dvee_region(iforst::Int)::String
     return "NE"
 end
 
+# fvsvol.f passes SIDUM=0/BADUM=0 to the volume library, so R9_MHTS always falls back to
+# the per-region SI default (LS 60 / CS 65 / NE 55) and BA=90 — NOT the stand's SI/BA.
+_dvee_si_default(region::String) = region == "LS" ? 60 : region == "CS" ? 65 : 55
+
 """
     _r9_mhts_ht2prd(fia, dbh, httot, si, ba, region; topd=4) -> Int
 
@@ -54,7 +58,8 @@ function _r9_mhts_ht2prd(fia::Int, dbh::Float32, httot::Float32, si::Int, ba::In
     b = get(_DVEE_HTCOEF, (fia, region), nothing)
     b === nothing && return 0
     b1, b2, b3, b4, b5, b6 = b
-    ba <= 0 && (ba = 90)
+    ba <= 0 && (ba = 90)                       # R9_MHTS: BA≤0 ⇒ 90
+    si <= 0 && (si = _dvee_si_default(region)) # R9_MHTS: SI≤0 ⇒ per-region default
     sif = Float32(si); baf = Float32(ba)
     base = b1 * (1f0 - exp(-b2 * dbh))^b3 * sif^b4
     esttht = 4.5f0 + base * (1.00001f0)^b5 * baf^b6           # FACTOR=0
@@ -73,8 +78,8 @@ The '900DVEE' (Gevorkiantz, r9vol.f R9VOL) cubic volumes for a pulpwood-sized st
 (sawtimber cubic / board feet) are returned 0 — the sawtimber & board branches are
 not yet ported (0 across the sub-board-min range this model currently covers).
 """
-function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, si::Int, ba::Int,
-                           iforst::Int)
+function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
+                           si::Int = 0, ba::Int = 0)
     tcf = httot > 0f0 ? 0.42f0 * Float32(pi) * dbh * dbh * httot / 576f0 : 0f0
     region = _dvee_region(iforst)
     h2 = _r9_mhts_ht2prd(fia, dbh, httot, si, ba, region)
