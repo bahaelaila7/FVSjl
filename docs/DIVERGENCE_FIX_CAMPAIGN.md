@@ -3783,6 +3783,14 @@ SP(110)/BH(402) stems (1437 rows). Two of the three formulas now match live EXAC
   here). ⇒ The DVEE port is now: proven total-cubic + proven pulp-merch-cubic + R9_MHTS height (last trace)
   + board=0(small); plus the METHC plumbing (Control.sp_methc + kw_volume! v[7] + dispatch). Very tractable
   now — the two dominant formulas are proven-exact; only the merch-height helper remains to transcribe.
+  **R9_MHTS traced (r9init.f, 147 lines) — the HT2PRD source, last DVEE sub-component:** (1) per-region
+  DBHMIN/BFMIND/TOPD/MTOPP defaults by VFLAG (IFORST→LS1/CS2/NE3; CS SI-default 65); (2) Chapman-Richards
+  est. total height `ESTTHT = 4.5 + B(1)·(1−exp(−B(2)·DBH))^B(3)·SI^B(4)·(1.00001−FACTOR)^B(5)·BA^B(6)` with
+  per-species B(1..6) (a table by VFLAG+species — transcribe); (3) from ESTTHT + HTTOT/ESTTHT ratio →
+  saw/pulp bole heights (to MTOPP saw top / 4" pulp top) → LOG counts HT1PRD/HT2PRD. FULL DVEE port =
+  {proven total cubic} + {proven pulp V4} + {R9_MHTS height model + B-table + bole→log} + {board V2=0 small}
+  + {METHC plumbing}. Validate each column vs the captured R9VOL ground-truth (SP-110/BH-402). No unknowns
+  remain — the sole open campaign item is now a pure transcription+wiring task against proven/stamped values.
 
 **[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
