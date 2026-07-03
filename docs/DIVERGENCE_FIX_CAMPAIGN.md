@@ -316,7 +316,11 @@ The tolerance audit's "these are ULP" claim is now proven by cornering the op, n
 (1..n). Both pure non-associative Float32 on identical inputs. ⇒ match path to bit-exact = reorder jl's per-tree
 BA grouping to `c*(d*(d*tpa))` AND accumulate species-major in the ind1 order, for EVERY density reduction (stand
 BA, point BA, PBAL, SDI) — deep + high-risk vs the 260-stand bit-exact corpus (doctrine-3), a beyond-mission
-fidelity improvement (the mission ACCEPTS Float32 ULP). Cornered, not cut-off.
+fidelity improvement (the mission ACCEPTS Float32 ULP). Cornered, not cut-off. EXPERIMENT (2026-07-03, reverted): matched jl stand_ba per-tree grouping to live's
+c*(d*(d*tpa)) alone ⇒ growth_finth5 Tcuft UNCHANGED (5227 vs live 5216) ⇒ the grouping alone is INSUFFICIENT; the
+full order-match needs grouping + stand-BA accumulation order (species-major/IND1) + point-PBAL order, across ALL
+density reductions simultaneously — a deep multi-part change, empirically not a single-edit fix. Confirms the
+residual is a genuine multi-source Float32-order ULP; eliminating it is a scoped beyond-mission fidelity effort.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
