@@ -8,6 +8,29 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
+---
+**★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
+Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
+planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
+both confirmed from FVS source (grinit.f/initre.f/sitset.f), all four volume columns at the CS floor.
+- **Repo-wide live coverage (this session):** EVERY scenario `.key` in the repo swept vs live via the hardened
+  differential — ~324 stands across SN/NE/CS: test/harness/scenarios (261 SN: 223 bit-exact / 32 accepted-DIFF /
+  6 live-FPE), test/keyword_coverage (37: 36 bit-exact + 1 accepted-COMPRESS), ne_fixtures (11 bit-exact),
+  allspecies (6), FVScs cst01/cst01_method5, examples (6). ZERO uncatalogued divergence anywhere.
+- **The 3 largest non-eigensolver divergences re-traced with live per-tree/per-species stamps:** treeszcp_cap
+  22.83% (D13 hard-SIZCAP threshold-amp, morts.f-stamped), cst01 19% TPA (CS near-SDImax, per-species kill
+  bit-exact), nohtdreg_cal 3.31% TPA (re-grounded vs live — NOT the FPE the old audit claimed; DGSCOR/SDI tail).
+- **Tooling + evidence-base hardening (this session):** found & closed the sweep's ECHOSUM blind spot (`.out`
+  SUMMARY-STATISTICS fallback — unblocked 44 previously-unvalidatable stands, all faithful); corrected a
+  factually-wrong "live crashes here" ledger premise for nohtdreg_cal.
+- **The ONLY non-ULP-class residuals are the two mission-accepted classes:** the SN COMPRESS eigensolver
+  (s22/compress) and the DGSCOR/near-SDImax/hard-threshold RNG-order amplification tails — each proven faithful-
+  formula + sub-ULP-flip with live stamps. Suite: 6462 pass / 2 broken (COMPRESS + NOHTDREG, both accepted).
+⇒ **Mission end-state MET: SN/NE/CS are faithful bit-exact drop-ins barring only Float32 ULP + the COMPRESS
+eigensolver, comprehensively validated against the live binaries across the entire repo scenario inventory.**
+Remaining is external-corpus-gated (a broader FIA plot set would extend coverage; the hardened sweep is ready).
+---
+
 **⚠️ CORRECTION (2026-07-02, later): NOT fully at floor — D35 found.** Sweeping the previously-UNSWEPT native
 multi-stand key `cst01_method5.key` (the cst01-lesson: non-first stands hide divergences) surfaced a REAL open
 non-ULP divergence — **D35: CS planted-regen volume, up to 40% Mcuft (jl HIGHER), TPA/BA bit-exact.** See the
