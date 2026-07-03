@@ -3791,6 +3791,14 @@ SP(110)/BH(402) stems (1437 rows). Two of the three formulas now match live EXAC
   {proven total cubic} + {proven pulp V4} + {R9_MHTS height model + B-table + bole→log} + {board V2=0 small}
   + {METHC plumbing}. Validate each column vs the captured R9VOL ground-truth (SP-110/BH-402). No unknowns
   remain — the sole open campaign item is now a pure transcription+wiring task against proven/stamped values.
+  **R9_MHTS FULL body (r9init.f:4-151) captured** — pulp path: `ESTTHT = 4.5+B1·(1−exp(−B2·D))^B3·SI^B4·
+  (1.00001)^B5·BA^B6` (FACTOR=0); `FACTOR=TOPD/D` (TOPD=4"); `ESTCHT = 4.5+B1·(1−exp(−B2·D))^B3·SI^B4·
+  (1.00001−FACTOR)^B5·BA^B6`; `PULBOL=ESTCHT·(HTTOT/ESTTHT)`; **`HT2PRD=INT(PULBOL/8.333333)`**. (Saw path
+  same shape with FACTOR=BFTOPD/D → SAWBOL → HT1PRD; CS: DBHMIN=4, BFMIND=9, MTOPP default 7.6 softwood.)
+  The B(1..6) come from **`R9INIT` (r9init.f)** — per-region DATA tables `CS_B1..CS_B6` (VFLAG=2=CS),
+  indexed by species position in SPEC_LIST (`'012','043',…,'105','110'`=idx 13, …,'402',…). ⇒ EVERY constant
+  is now located: transcribe R9INIT's CS_B1..B6 (~60 species × 6) + R9_MHTS + the two proven volume formulas
+  + METHC plumbing. 100% specified; implementation is transcription+wiring with per-value live validation.
 
 **[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
