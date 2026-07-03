@@ -39,6 +39,12 @@ classification feeding DG coefficients is faithful corpus-wide — never differe
 ONE structure-class mismatch: `treeszcp_cap SizeCl@2035 live=22 jl=23` — same stand + same year as D13 (Mcuft@2035
 22.83%), a one-unit code flip downstream of the accepted SIZCAP threshold-amp TPA/BA divergence, NOT a new
 classification bug. ⇒ classification fidelity confirmed; no uncatalogued categorical divergence.
+**TRIAGE ITEM RESOLVED (2026-07-03): "carbon_* Scuft=0@2005" was a MEASUREMENT ARTIFACT, not a model diff.** The
+reminder's open triage flag (carbon stands reading Scuft=0 at 2005) was the appended CARBREPT carbon-report block
+starting each row with a year but carrying only ~12 cols, overwriting the real ~28-col .sum row at the same year
+key (⇒ col 11 Scuft read 0). The sweep's `_blocks` already guards this (requires ≥20 cols). Re-swept all carbon
+stands (carbon_ffe, carbon_jenkins, carbon_snt, fire_carbon) with broadened cols: ALL BIT-EXACT vs live, Scuft
+included. ⇒ confirmed a parsing artifact (now handled), NOT a real model divergence.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
