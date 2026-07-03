@@ -3812,6 +3812,13 @@ against freshly-relinked live binaries; every DIFF matches its documented accept
 regression, nothing uncatalogued:
 - **NE:** ne_cov0-4 (all-species) + net01 ALL BIT-EXACT. (The hook's "net01 ~4% Mcuft late" note is STALE — closed
   by the D10 regen work; net01 is bit-exact on the current binary.)
+  **NE COVERAGE EXTENDED (2026-07-03, via the hardened sweep): all 11 test/integration/ne_fixtures BIT-EXACT vs
+  live** — aspen, dense, divspp(+f914/f920/f921), ffe, midcycle_fire, plant_div, plant_hard, thin. Notably 7 of
+  these (aspen/dense/divspp×4/thin) are ECHOSUM-less and were only validatable BECAUSE of the new `.out` fallback —
+  under the old sweep they'd all have returned "ERR no-sum" (falsely reading as no-oracle). So the tooling fix
+  didn't just close a blind spot, it turned 7 previously-unvalidatable NE stands into confirmed bit-exact — the
+  prior "NE clean" claim rested on net01 + all-species only; it now covers diverse-species/planted/fire/thin
+  fixtures too. NE is a faithful bit-exact drop-in across a substantially wider stand set.
 - **CS:** cs_allsp 1.31% CCF@2090 (late-cycle ULP floor) · cst01 s2 TPA@2140 19% (deep-thinned mortality floor) ·
   cst01_method5 Bdft@2032 3.3% first-cycle-only (D35 board threshold-amp, converges to +0.2%). Volume columns on
   the DVEE stand bit-exact after cycle 1.
