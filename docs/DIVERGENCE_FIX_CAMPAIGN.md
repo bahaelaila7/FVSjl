@@ -288,6 +288,15 @@ that accepted floor; raw BA trades the crown-report fidelity for slightly-worse 
 ACCEPTED (near-SDImax floor); the crown half is proven faithful; closing the last ULP is the accepted-floor limit.
 
 ---
+**POST-D37/D39 FULL SN REGRESSION SWEEP (2026-07-03): 221 ok / 34 DIFF / 6 ERR — NO SN regression.** D37
+(forest_type.jl VARACD) and D39 (crown_ratio.jl init_crown_ratios! + ba_override) touched SN-SHARED files; per
+doctrine-4 (validate shared-code changes vs the live binary, don't assume), re-ran the full 261-stand SN sweep.
+Result = the exact broadened-column baseline (221/34/6): every DIFF is an already-documented accepted class (D13
+size-cap, D36 econ live-bug ×2, D8/D10 regen, fire-kill Mort, ULP tails), ZERO new/regressed stand. Confirms
+D37/D39 are SN-neutral (as `variant_code(Southern())=="SN"` / `htg_period(Southern())==5` / SN-ignores-ba_override
+predicted). All three variants now freshly re-validated at floor post-all-session-fixes.
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
