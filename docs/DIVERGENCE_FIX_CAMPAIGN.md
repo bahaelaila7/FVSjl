@@ -200,7 +200,11 @@ crown 0→dubbed, worst diff 100%→**4.6%** (sp129 1560/1631), count 69→64; N
 regression — confirms NE ignores the inventory crown). RESIDUAL: jl's NE crown-INIT branch (crown_ratio.jl icr_old==0
 dub) gives ~4.6%-HIGH crowns vs live's NE CRATET; the backdated CCF (init_crown_ratios!) did NOT change it, so it's
 the NE dub FORMULA (mean-crown-eqn / CRNMLT scale / Weibull at init), not the density basis. Report-only (NE .sum
-bit-exact). Net improvement (0→dubbed); the 4.6% is a scoped NE-crown-init-formula refinement. [original finding:]
+bit-exact). Net improvement (0→dubbed); the 4.6% is a scoped NE-crown-init-formula refinement. RESIDUAL IS
+PER-SPECIES (not a systematic scale): 5 species BIT-EXACT (sp012/318/500/651/804 x1.000), the rest 0.8–4.6% high
+(sp129 x1.046, sp097 x1.032, sp462 x1.028) ⇒ a per-species NE crown-init dub difference vs live's NE CRATET (some
+species' init dub matches, others don't), needing a focused per-species NE crown-model trace. Report-only, scoped
+follow-up; the crown=0 bug is FIXED. [original finding:]
 jl skips NE INVENTORY crown init ⇒ NE treelist crown=0 at cycle 0.
 Found 2026-07-03 by extending the per-tree treelist differential to NE/CS (the SN-only treelist validation was
 incomplete — re-trace discipline; my "campaign complete" was premature). `treelist_diff.sh ne thin`: jl's NE
