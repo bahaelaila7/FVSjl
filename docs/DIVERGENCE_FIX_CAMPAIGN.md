@@ -3710,7 +3710,20 @@ per-species `vol_eq`), variant-gated so SN/NE stay bit-exact. This is the campai
 non-ULP item; its root is now nailed. (Debug-stamp restored, `FVScs_buildDir` pristine; the CS `.mod` files
 had to be regenerated to compile fvsvol.f — they + 3 rebuilt module `.o` are from unchanged source.)
 
-**★ FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
+**⚠️ CORRECTION (2026-07-03): DVEE is NOT Honer.** The Honer spec below was a WRONG lead — `Voleq_Honer`
+(honer.f) is only reached for `VOLEQ(1:1)=='C'` (BIA/Canadian eqs), and `HAHN_NC250` only for `VOLEQ(2:3)=='25'`.
+Traced the real dispatch (dvest.f:98-108): `VOLEQ(1:1)=='9'` AND `VOLEQ(2:3)!='25'` ⇒ **`CALL R9VOL`** (r9vol.f).
+So **`900DVEE110` is computed by `R9VOL`** — the SAME subroutine that computes `900CLKE` (the Clark path jl
+already ports as `r9clark_cubic`). DVEE is a SIBLING equation branch INSIDE R9VOL, selected on `VOLEQ(4:7)`.
+⇒ **The real fix:** (1) restore CS `METHC`/`METHB` per-species loading (dropped per D18) and dispatch
+per-tree: `METHC==5 ⇒ DVEE`, else keep `r9clark` (CLKE); (2) port the R9VOL **DVEE** branch (r9vol.f
+`SUBROUTINE R9VOL`, the non-CLKE path) into `compute_volumes_ne!`, variant-gated. Confirm species 110/402
+resolve inside R9VOL's DVEE branch (HAHN errors for 110, but R9VOL is the '900' path, not HAHN). Everything
+below (Honer coefficients/formulas) is SUPERSEDED — kept only as a record of the ruled-out lead.
+Ground truth to match (live stamp): `900DVEE110`, D=3.70150, H=30.5009 ⇒ TVOL1=**0.957290**, PROD=02,
+TOPD=4.0, MTOPS=4.0, STUMP=0.5. (all_SP forest-80106 uses `900CLKE110` ⇒ TVOL1=1.000 — jl already matches.)
+
+**[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
   ⇒ '900DVEE'` (Honer), `METHC∈{6,9} ⇒ '900CLKE'` (Clark, jl's current r9clark), `METHC==10 ⇒ NVB`. Board
   side uses `METHB` the same way. So jl must LOAD METHC/METHB per CS species and dispatch per-tree in
