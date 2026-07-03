@@ -3733,6 +3733,23 @@ DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored vi
 columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
 CLOSED.**
 
+**REPO-WIDE COVERAGE AUDIT (2026-07-03) — every scenario .key swept vs live; ZERO uncatalogued across the whole repo.**
+Prompted by the ne_fixtures gap (see below), I enumerated ALL `.key` files in the repo (not just the SN scenarios
+dir) and swept every previously-unswept corpus through the hardened live differential. Complete inventory + result:
+- **test/harness/scenarios (261, SN):** 223 bit-exact / 32 accepted-class DIFF / 6 genuine live-FPE.
+- **test/keyword_coverage/scenarios (37, SN keyword suite — NEVER swept vs live before, only vs goldens):** 36
+  BIT-EXACT + 1 DIFF = s22_compress 6.02% TPA (the accepted COMPRESS eigensolver). ⇒ the keyword-coverage goldens
+  were masking NOTHING — every keyword path (thinning/modifiers/density/calib/cycle/volume/eventmon/sprout/notriple/
+  rann/estab/database/specpref/minharv/defect/strclass/serlcorr/compute/readcord/thinauto/…) is faithful vs LIVE.
+- **test/integration/ne_fixtures (11, NE):** all BIT-EXACT (7 ECHOSUM-less, validatable only via the new fallback).
+- **test/fixtures/allspecies (6):** cs_allsp at CCF floor; ne_cov0-4 bit-exact.
+- **FVScs tests (cst01, cst01_method5):** at CS floor (D35 + late-cycle mortality).
+- **examples/*/ (6, SN):** stand/multistand/thinba/thinsdi all BIT-EXACT.
+⇒ Across the ENTIRE repo scenario inventory (~324 stands over all three variants), EVERY result is bit-exact, at a
+documented ULP/threshold floor, the accepted COMPRESS eigensolver, or a genuine live-FPE (no oracle). There is no
+uncatalogued or unexplained divergence anywhere in the repo. The keyword-coverage + example + ne_fixtures corpora
+had never been through the live differential before this audit; all are now confirmed faithful.
+
 **SWEEP BLIND SPOT FOUND + CLOSED (2026-07-03): the "8 ERR" bucket is NOT homogeneous — 6 live-FPE + 2 ECHOSUM-less.**
 Applying the re-trace discipline to my OWN dismissal of the 8 ERR stands as "no oracle, unfixable," I ran each
 directly through the SN oracle. Result: the sweep's "ERR live-FPE/no-sum" label CONFLATES two distinct causes:
