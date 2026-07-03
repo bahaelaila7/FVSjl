@@ -3726,6 +3726,25 @@ DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored vi
 columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
 CLOSED.**
 
+**AUTHORITATIVE FULL SN SWEEP (2026-07-03, post-D35) — 222 bit-exact / 31 DIFF / 8 live-FPE, ZERO uncatalogued.**
+Re-ran the complete 261-stand SN sweep via `divergence_sweep.jl sn` against the freshly-relinked live binary (the
+re-trace discipline: don't trust a "documented floor" without re-verifying on the current binary). Result: **222
+bit-exact (+1 vs the 2026-07-02 baseline of 221), 31 DIFF, 8 live-FPE ERR** — and every one of the 31 DIFFs maps
+EXACTLY to an already-documented accepted class, nothing new or regressed:
+- D13 size-cap: treeszcp_cap 22.83% Mcuft, treeszcp_htcap 10.65% Bdft · COMPRESS eigensolver: compress 13.64% Bdft
+- D8 regen multipliers (threshold-amp): mult_mortmult 16.96%, mult_mortmult_win 13.51%, mult_regdmult 4.67%,
+  mult_reghmult 2.9%, mult_baimult 0.5% · D10 regen (saw-threshold ULP): bare_natural/bare_plant 4.56%,
+  bare_multipoint 2.81%, bare_mp3 2.7%
+- fire family: compute_cycle/snt01_alpha 2.72%, fire_repeat 2.47%, s10_fire 1.19%, fueltret 0.72%, defulmod/salvage
+  0.59% · documented ULP tails: hcor_smalltree 2.09%, timeint10 1.96%, htgstop_stoch 1.65%, fmortmlt 1.56%,
+  dense_long/s09_cyc20 0.76%, fixmort_kpoint/big 0.31-0.32%, topkill_det 0.27%, s15_phys 0.22%, s22_forest_809
+  0.21% (NVEL board), growth_finth5 0.21%.
+- 8 ERR = LIVE-side FPE (all_AE/EL/RL/SU/WE, dead_fint, mcfdln_override, nohtdreg_cal) — the live binary crashes,
+  so there is NO oracle to match (not a jl divergence; unfixable-by-definition — nothing valid to compare against).
+⇒ The SN floor holds AUTHORITATIVELY on the current binary; D35 added no SN divergence (SN uses `_R8CLARK_VOL`,
+not the DVEE path). Combined with the NE (all bit-exact) + CS (at floor) re-sweeps below, all three variants are
+freshly confirmed at their documented floors this session, every DIFF traced to an accepted ULP/threshold class.
+
 **CROSS-VARIANT RE-GROUND (2026-07-03, post-D35) — all three variants confirmed at floor vs fresh live.** After
 the D35 board fix (which touches the shared `compute_volumes_ne!`, gated methc==5), re-swept all three variants
 against freshly-relinked live binaries; every DIFF matches its documented accepted-class floor exactly, no
