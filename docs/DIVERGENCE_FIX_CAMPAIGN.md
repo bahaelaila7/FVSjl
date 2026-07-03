@@ -58,13 +58,18 @@ stands. Live NE/CS `fortyp.f` has its OWN code set (NE valid list 707…809; the
 SCOPE: **report-only** — all NE/CS state/volume/mortality columns are BIT-EXACT (the NE/CS diameter-growth model
 does not consume `plot.forest_type` the way SN DG does, so the wrong classification has NO model impact; only the
 `.sum` forest-type report column diverges). This is why every prior NE/CS sweep read "bit-exact" — the state-only
-columns ARE. VERDICT: genuine variant-fidelity gap (violates doctrine-6 "don't harden to one variant" for the
-report path), but report-only + requires porting the NE/CS FORTYP classification (variant code tables + any
-decision-tree deltas from SN). 📌 documented; fix = extract NE/CS `fortyp.f` code/group tables into
-`data/{northeast,centralstates}/forest_type_codes.csv` (+ stocking maps if they differ) so `forest_type.jl`
-emits variant-correct codes. Deferred as a scoped variant-report port (no model impact); the DG-driving forest
-type for SN remains bit-exact (unaffected). Found only because the categorical check exact-matches col27 (a
-520→801 flip is invisible to the numeric ULP floor).
+columns ARE. VERDICT: genuine variant-fidelity gap (report-only). **FIX PATH CORRECTED (deeper than first thought):** it is
+NOT a simple missing-CSV fix. `forest_type.jl` produces the code via a HARDCODED 827-line decision tree (ported
+from the identical `fortyp.f`); `forest_type_codes.csv` is only a validity list, and NE/CS DO have the stocking
+inputs (`fia_stocking_map.csv` + `stocking_coeffs.csv`). Crucially **net01's forest-type IS bit-exact** while
+thin/ffe/plant_hard diverge — same variant, same data files — so it is a COMPOSITION-SPECIFIC divergence (the
+disturbance/hardwood stands take a decision-tree branch, or feed a stkval stocking value, that differs from live),
+NOT a blanket data fallback. Fix = stamp live `fortyp.f`/`stkval` for one diverging NE stand (e.g. `thin`@2010)
+vs jl's `_stkval_stocking` + decision-tree path, find the branch/stocking delta, correct it. 📌 documented,
+DEFERRED: report-only (zero model impact — all state/volume/mortality bit-exact incl. net01), and the trace is a
+scoped per-branch debug rather than a quick data drop. Found only because the categorical check exact-matches
+col27 (a 520→801 flip is invisible to the numeric ULP floor); it is the first NE/CS-report divergence the campaign
+has surfaced, and a candidate for a focused follow-up.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
