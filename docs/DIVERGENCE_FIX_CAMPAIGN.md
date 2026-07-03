@@ -193,7 +193,15 @@ treelist — are differentially validated against live; no unchecked surface rem
 per-cycle summaries already covered per-item + the carbon .sum bit-exact).
 
 ---
-**D39 — ⬜ OPEN (report-only, FIXABLE): jl skips NE INVENTORY crown init ⇒ NE treelist crown=0 at cycle 0.**
+**D39 — 🔬 FIX LANDED (crown 0→dubbed, no regression); ~4.6% dub-formula residual remains (report-only).**
+FIX (2026-07-03): simulate.jl NE branch now calls `init_crown_ratios!(s)` (generalized from SN-only to
+`s.variant`/`htg_period` — SN identical since htg_period(Southern)==5, suite 6462/2). RESULT: NE thin 1990 treelist
+crown 0→dubbed, worst diff 100%→**4.6%** (sp129 1560/1631), count 69→64; NE net01 `.sum` still BIT-EXACT (no
+regression — confirms NE ignores the inventory crown). RESIDUAL: jl's NE crown-INIT branch (crown_ratio.jl icr_old==0
+dub) gives ~4.6%-HIGH crowns vs live's NE CRATET; the backdated CCF (init_crown_ratios!) did NOT change it, so it's
+the NE dub FORMULA (mean-crown-eqn / CRNMLT scale / Weibull at init), not the density basis. Report-only (NE .sum
+bit-exact). Net improvement (0→dubbed); the 4.6% is a scoped NE-crown-init-formula refinement. [original finding:]
+jl skips NE INVENTORY crown init ⇒ NE treelist crown=0 at cycle 0.
 Found 2026-07-03 by extending the per-tree treelist differential to NE/CS (the SN-only treelist validation was
 incomplete — re-trace discipline; my "campaign complete" was premature). `treelist_diff.sh ne thin`: jl's NE
 FVS_TreeList PctCr is **0 for EVERY species at the initial cycle 1990** (live 38–55); 2000+ is populated and

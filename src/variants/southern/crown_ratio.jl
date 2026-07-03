@@ -40,7 +40,7 @@ function init_crown_ratios!(s::StandState)
     @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh
     compute_density!(s)                                 # rank/SDI use current dbh (as FVS CROWN)
     saved = copy(@view t.crown_pct[1:n])
-    crown_ratio_update!(s, Southern(); fint = 5f0, relden_override = bd_relden, lstart = true)
+    crown_ratio_update!(s, s.variant; fint = htg_period(s.variant), relden_override = bd_relden, lstart = true)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end

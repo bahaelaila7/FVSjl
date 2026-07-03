@@ -52,6 +52,10 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
         calibrate_diameter_growth!(s; scale = dgscale)
+        # D39: NE DG uses BAL not crown, so the inventory crown was never dubbed ⇒ the cycle-0 FVS_TreeList
+        # reported PctCr=0 (live's NE CRATET dubs it). Dub it here (backdated-CCF CRATET, shared init_crown_ratios!)
+        # for the report; NE .sum is bit-exact with crown=0, so this must NOT regress it (verified).
+        init_crown_ratios!(s)
     elseif s.variant isa CentralStates
         cs_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT)
         _cs_init_crowns!(s)               # CRATET: dub missing crowns (backdated-dbh BA) before calibrate — cs/dgf.f reads CR
