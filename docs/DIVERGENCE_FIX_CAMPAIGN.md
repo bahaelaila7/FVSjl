@@ -123,6 +123,15 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   "crown.f ICR reflects the scorch" with "DG unaffected" IS the D15 crux (the campaign's hardest interaction —
   enormous prior effort, crashes/regressions). ⇒ the true gate is a live crown.f/FMICR/DG stamp to resolve that
   interaction before any implementation; this is a focused-session task, not a session-tail fix.
+  TRACE CORRECTED AGAIN (2026-07-03): crown.f does NOT reference FMICR/SCORCH/FIRE — the crown model recomputes ICR
+  purely from tree size / ITRUNC (truncation) / NORMHT / density. So the "live crown.f reads the scorch" framing is
+  WRONG; the post-fire treelist-crown divergence is crown.f's ICR RECOMPUTE differing between jl and live despite
+  bit-exact TPA/BA/HT/DBH — and per the per-species data it's CONCENTRATED in sp998 "other species" (49% there vs
+  only ~4% stand-mean). ⇒ likely a crown-recompute edge case (truncation/ITRUNC or the sub-3" dubbing path,
+  crown.f:59/78) for a small misc-species population, NOT a systematic fire mechanism. Report-only, narrow. The
+  remaining trace = stamp crown.f ITRUNC/NORMHT/ICRI for the sp998 trees post-fire; low-priority given it is
+  report-only + a small sub-population. This SUPERSEDES the "D15 crux / scorch-mirror" framings above (those were
+  successive mis-localizations — the honest current read is a narrow crown.f recompute edge case).
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
