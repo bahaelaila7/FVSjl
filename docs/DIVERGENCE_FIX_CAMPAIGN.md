@@ -21,8 +21,11 @@ explicitly re-zeroed every cycle (cratet.f:158, fvs.f:433) but there is NO match
 THE ECON HRVRVN PATH — `cut_thinsdi` (identical THINSDI, no econ) correctly zeroes remScuft at 2005; only stands
 with `HRVRVN` re-populate OSCREM(7) post-cut and leave it stale. ⇒ VERDICT: jl is FAITHFULLY CORRECT; the diff is
 a live-side bug (neither ULP nor eigensolver, but matching it would mean REPLICATING a confirmed live bug that
-emits physically-impossible output). Per the doctrine (the oracle can be WRONG — don't blindly match), jl is NOT
-changed to reproduce it. 📌 documented-irreducible (jl-correct/live-bug). The ECON revenue TABLES remain bit-exact
+emits physically-impossible output). Per the doctrine (the oracle can be WRONG — don't blindly match) AND the
+user's explicit decision (2026-07-03: "stay correct, document in the porting, and there is also a separate document
+to track source bugs"), jl is NOT changed to reproduce it. Logged in the new live-source-bug tracker
+**[FVS_SOURCE_BUGS.md](FVS_SOURCE_BUGS.md)** (distinct from ORACLE_A_BUGS.md, which is the FVSjulia transliteration).
+📌 documented-irreducible (jl-correct/live-bug). The ECON revenue TABLES remain bit-exact
 (that path is validated separately); this is only the .sum removal-column stale value. **Broadened-sweep note:**
 divergence_sweep.jl now also checks removals (13-17) + accretion/mortality-per-yr (24/25); the Accr/Mort DIFFs it
 surfaces (treeszcp Mort 3→20, compute_cycle Mort 5→3, etc.) are the growth-rate VIEW of already-accepted state
