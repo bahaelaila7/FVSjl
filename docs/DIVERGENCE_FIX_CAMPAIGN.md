@@ -3710,6 +3710,32 @@ per-species `vol_eq`), variant-gated so SN/NE stay bit-exact. This is the campai
 non-ULP item; its root is now nailed. (Debug-stamp restored, `FVScs_buildDir` pristine; the CS `.mod` files
 had to be regenerated to compile fvsvol.f — they + 3 rebuilt module `.o` are from unchanged source.)
 
+**★ FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
+- **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
+  ⇒ '900DVEE'` (Honer), `METHC∈{6,9} ⇒ '900CLKE'` (Clark, jl's current r9clark), `METHC==10 ⇒ NVB`. Board
+  side uses `METHB` the same way. So jl must LOAD METHC/METHB per CS species and dispatch per-tree in
+  compute_volumes_ne!: r9clark for CLKE species (today's path — keep), Honer for METHC==5 species. (jl's D18
+  note "kw_volume! drops METHC" means the plumbing to read METHC exists but is discarded — restore it.)
+- **Honer coefficients:** SELECT CASE(fia) sets `SpeciesIndex`; **fia 110 (SP) & 402 (BH) hit CASE DEFAULT ⇒
+  SpeciesIndex=15**. Then B(1..5) = HonerTotalCUFT1/2 + HonerMerchCUFT1/2/3 at [15] = **{1.046, 383.972,
+  0.9057, -0.0708, -0.8375}**. (Full 29-species FIA tables in honer.f:98-166; HonerIspecies list = 12,71,94,
+  95,97,105,125,129,241,261,315..330,371,375,379,531,541,543,742,743,746,762,833,951,990,999.) HonerBDFT =
+  {5.4332,-1.6281,-4.471}. Stump HARDCODED 0.5. Default MTOPP = 7.0 (fia<300) / 9.0 (≥300); MTOPS=4.0.
+- **Formulas (honer.f:333-410):**
+  - Total cubic: `Vtcf = D² / (B1 + B2/HT)`; `VOL(1)=Vtcf`.
+  - Merch cubic (if D>MTOPP): `X2=((MTOPP/D)²)(1+Stump/HT)`; `Vmcf = Vtcf·(B3 + B4·X2 + B5·X2²)`; topwood
+    `X3=((MTOPS/D)²)(1+Stump/HT)`, `Vtops=Vtcf·(B3+B4·X3+B5·X3²)`, `VOL(7)=Vtops−Vmcf`; then Vmcf is ROUNDED
+    `ANINT(Vmcf·100)/100` → `VOL(4)`. Board: separate Scribner via aCoeff/bCoeff (honer.f:410+, to read).
+- **⚠️ OPEN DISCREPANCY to resolve first:** hand-calc of the total cubic with these B for the stamped stem
+  (D=3.70150, HT=30.5009) gives `3.70150²/(1.046+383.972/30.5009)=1.005`, but the live stamp reported
+  **TVOL1=0.9573**. So either D is transformed before the formula (bark? DRC? a MinCUFTDBH gate), HT differs,
+  or VOL(1) gets a later adjustment — the port must reconcile this (re-stamp honer.f itself, dumping
+  SpeciesIndex, B(1..5), the D/HT actually used, and Vtcf, for a planted SP stem) BEFORE trusting the formula.
+- **Scope/risk:** ~a few-hundred-line volume port + METHC plumbing + validation (planted SP/BH bit-exact,
+  cst01/cst01_method5 all stands, all-species; SN/NE untouched). Best done fresh — the hand-calc mismatch
+  shows even the "simple" cubic term has a subtlety a rushed port would get wrong. This is the ONE remaining
+  campaign task; everything else is fixed or 📌-documented.
+
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
 Surfaced by the fresh 260-stand SN discovery sweep: `_tmp_ntr.key` (a committed scratch scenario: empty
