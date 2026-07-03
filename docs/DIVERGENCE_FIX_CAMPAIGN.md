@@ -3691,7 +3691,24 @@ finer from the DB. **NEXT (definitive):** live debug-stamp the CS volume call (f
 r9clark entry) to dump full-precision DBH, HT, VOLEQ, STUMP, MTOPP/TOPD, TVOL(1) for a planted SP (fia110)
 stem, and compare to jl `r9clark_cubic(110, dbh, ht, prod, mtopp, topd, stump…)` at the SAME DBH/HT — the gap
 must be one of {stump, merch tops, coef branch} in the regen-size regime. Keep SN/NE bit-exact (variant-
-gated). This is the campaign's one confirmed OPEN non-ULP item.
+gated).
+
+**★★ ROOT CAUSE FOUND & PROVEN (2026-07-03) — jl is MISSING the CS `DVEE` volume equation.** Live
+debug-stamp of `FVScs_buildDir/fvsvol.f` (dump VOLEQ per tree, gated fia=110 D≈3.8) shows:
+- forest-905 planted stand (pl3): **`VEQ=[900DVEE110]`** — the **DVEE** equation (TVOL1=0.957 @ D3.70/H30.5).
+- `all_SP` (forest 80106): **`VEQ=[900CLKE110]`** — Clark (TVOL1=1.000 @ D3.71/H28.4).
+So live's VOLEQDEF (`FVScs_buildDir/voleqdef.f`, DVEE branch at :1729/:1864/:2201/:2252) picks `900DVEE` vs
+`900CLKE` per FOREST × SPECIES, but jl's `compute_volumes_ne!` ALWAYS calls `r9clark_cubic` (CLKE). ⇒ jl is
+BIT-EXACT wherever live uses CLKE (all_SP forest-80106, cst01 stand-1's CLKE species) and DIVERGES wherever
+live uses DVEE — large only for a stand that is PURELY DVEE species (planted SP fia110 / BH fia402 in the
+region-9 forest 905). This fully explains D35: not height, not stump/merch, not amplification-only — a
+genuinely DIFFERENT volume equation jl doesn't implement. Also resolves the earlier puzzle (all_SP bit-exact
+vs planted diverges = CLKE vs DVEE, driven by forest 80106 vs 905). **FIX (scoped, the next session's work):**
+port the CS `900DVEE` equation (the NVEL DVEE volume routine) + the VOLEQDEF forest×species selection that
+chooses DVEE vs CLKE for CS, wire it into `compute_volumes_ne!` as a per-tree equation dispatch (like SN's
+per-species `vol_eq`), variant-gated so SN/NE stay bit-exact. This is the campaign's one confirmed OPEN
+non-ULP item; its root is now nailed. (Debug-stamp restored, `FVScs_buildDir` pristine; the CS `.mod` files
+had to be regenerated to compile fvsvol.f — they + 3 rebuilt module `.o` are from unchanged source.)
 
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
