@@ -202,6 +202,9 @@ suite 6462/2, NE net01 `.sum` bit-exact, SN/CS unaffected (CS uses `_cs_init_cro
 PRE-EXISTING accepted CS late-cycle floor, unchanged). ⇒ **D39 CLOSED** — the NE treelist inventory crown is now
 bit-exact vs live. The remaining NE thin ~1pt at 2010/2020 is the SEPARATE, pre-existing, DEFERRED per-cycle
 `/gross_space`-vs-raw-BA crown issue (crown_ratio.jl:22-28) + fire-kill class, report-only, NOT D39.
+VALIDATED BROADLY (2026-07-03): treelist-diff on the other NE fixtures — ffe PctCr 4.3% is at a GROWN cycle (2010)
+= the D40 per-cycle /gross_space class (init 1990 fixed); plant_hard DG/HtG=0 for a planted species at establishment
+(2002) = the D38/D10 regen-DG-report class (report-only). No new divergence; D39 fix is variant-wide.
 [history:] 🔬 FIX LANDED (crown 0→dubbed, no regression); ~4.6% dub-formula residual — later traced to the ba basis.
 FIX (2026-07-03): simulate.jl NE branch now calls `init_crown_ratios!(s)` (generalized from SN-only to
 `s.variant`/`htg_period` — SN identical since htg_period(Southern)==5, suite 6462/2). RESULT: NE thin 1990 treelist
