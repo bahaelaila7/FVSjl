@@ -3726,6 +3726,14 @@ DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored vi
 columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
 CLOSED.**
 
+**POST-FIX CS SWEEP (2026-07-03) — floor confirmed.** `divergence_sweep.jl cs cst01 cst01_method5` vs fresh live
+ranks only 2 DIFFs, both accepted-class: (1) `cst01 s2 TPA@2140 19%` = the documented CS deep-thinned late-cycle
+mortality floor; (2) `cst01_method5 s5 Bdft@2032 3.3%` = a SINGLE first-cycle point (jl 10237 vs live 10586) that
+converges to +0.2% by 2042+ — jl is LOW only at the first cycle, when planted stems first cross the ~9" board-DBH
+/ sawlog-log-count (HT1PRD) threshold; bit-exact after. That first-cycle-only, converging signature is the same
+H2/HT1PRD threshold-amplification (D13 class) as the cubic Mcuft tail — NOT a board-model error (the board model
+is now source-confirmed Clark). ⇒ the D35 stand is at the CS volume floor across ALL four columns.
+
 **FIX LANDED (2026-07-03).** Implemented the R9 Gevorkiantz '900DVEE' model + the METHC plumbing and wired it:
 - `src/engine/r9vol_gevorkiantz.jl` — total cubic `0.42π·D²·H/576` + pulp merch cubic + R9_MHTS HT2PRD (reads
   the extracted `data/centralstates/dvee_r9_height_coef.csv`); unit-tested vs the live stamp (test_dvee_volume.jl).
