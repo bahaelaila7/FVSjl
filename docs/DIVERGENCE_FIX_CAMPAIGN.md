@@ -193,7 +193,16 @@ treelist — are differentially validated against live; no unchecked surface rem
 per-cycle summaries already covered per-item + the carbon .sum bit-exact).
 
 ---
-**D39 — 🔬 FIX LANDED (crown 0→dubbed, no regression); ~4.6% dub-formula residual remains (report-only).**
+**D39 — ✅ FIXED: NE inventory crown 0 → BIT-EXACT (raw backdated BA to the init dub); no regression.**
+FINAL FIX (2026-07-03): the NE crown model uses raw COMMON BA (crown_ratio.jl:29), not the CCF — so the backdated
+CCF didn't help, but passing the raw BACKDATED basal area as `ba_override` to the init dub does. `init_crown_ratios!`
+now captures `bd_ba = s.plot.basal_area` on the backdated stand and passes `ba_override=bd_ba`; SN gains an ignored
+`ba_override` kwarg (SN crown uses relden). RESULT: NE thin 1990 mean crown **0 → 45.1 == live 45.1 (BIT-EXACT)**;
+suite 6462/2, NE net01 `.sum` bit-exact, SN/CS unaffected (CS uses `_cs_init_crowns!`; cst01's Mort@2110 is the
+PRE-EXISTING accepted CS late-cycle floor, unchanged). ⇒ **D39 CLOSED** — the NE treelist inventory crown is now
+bit-exact vs live. The remaining NE thin ~1pt at 2010/2020 is the SEPARATE, pre-existing, DEFERRED per-cycle
+`/gross_space`-vs-raw-BA crown issue (crown_ratio.jl:22-28) + fire-kill class, report-only, NOT D39.
+[history:] 🔬 FIX LANDED (crown 0→dubbed, no regression); ~4.6% dub-formula residual — later traced to the ba basis.
 FIX (2026-07-03): simulate.jl NE branch now calls `init_crown_ratios!(s)` (generalized from SN-only to
 `s.variant`/`htg_period` — SN identical since htg_period(Southern)==5, suite 6462/2). RESULT: NE thin 1990 treelist
 crown 0→dubbed, worst diff 100%→**4.6%** (sp129 1560/1631), count 69→64; NE net01 `.sum` still BIT-EXACT (no

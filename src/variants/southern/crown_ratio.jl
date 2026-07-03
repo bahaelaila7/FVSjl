@@ -37,10 +37,13 @@ function init_crown_ratios!(s::StandState)
     _backdate_dbh!(s)                                   # dense.f:70-128 backdating (shared w/ DG calibration)
     compute_density!(s)
     bd_relden = stand_ccf(s)                            # CCF on the backdated stand
+    bd_ba = s.plot.basal_area                           # RAW backdated BA — the NE/CS crown model's COMMON BA
+                                                        # (crown.f uses raw BA, not /gross_space); D39 init dub.
     @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh
     compute_density!(s)                                 # rank/SDI use current dbh (as FVS CROWN)
     saved = copy(@view t.crown_pct[1:n])
-    crown_ratio_update!(s, s.variant; fint = htg_period(s.variant), relden_override = bd_relden, lstart = true)
+    crown_ratio_update!(s, s.variant; fint = htg_period(s.variant), relden_override = bd_relden,
+                        ba_override = bd_ba, lstart = true)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end
@@ -54,7 +57,7 @@ CROWN: update `trees.crown_pct` (ICR, %) for every live record from the post-gro
 stand. No-op for an empty stand. Call once per cycle after growth + density.
 """
 function crown_ratio_update!(s::StandState, ::Southern; fint::Float32 = 5f0, crown_sdi::Float32 = -1f0,
-                             relden_override::Float32 = -1f0, lstart::Bool = false)
+                             relden_override::Float32 = -1f0, ba_override::Float32 = -1f0, lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # CRNMULT: cycle year for the persistent crown-ratio-change multiplier lookup.
