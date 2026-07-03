@@ -310,7 +310,13 @@ apart. That 1-ULP BA feeds `stand_ba_c·BA + point_bal·PBAL` in the DDS ⇒ rou
 associative Float32 reduction), NOT a semantic diff. This is the GENERATING mechanism for the accepted-growth-ULP
 class: a 1-ULP density-sum (BA/PBAL/SDI — all order-dependent Float32 reductions) propagates through the DDS
 regression and amplifies at the near-SDImax mortality threshold on dense stands (why cs_allsp shows it larger).
-The tolerance audit's "these are ULP" claim is now proven by cornering the op, not asserted by a 0.2% cutoff.
+The tolerance audit's "these are ULP" claim is now proven by cornering the op, not asserted by a 0.2% cutoff. EXACT OPS (refined): the stand-BA divergence has TWO Float32 order differences — (a) PER-TREE grouping: live
+`0.005454154*(D*(D*P))` (dense.f:187,190 WK5=D*DP then BATREE=c*WK5) vs jl `(tpa*BA_PER_TREE)*dbh^2`
+(standstats.jl:86); (b) ACCUMULATION order: live species-major/IND1-sorted (dense.f:168-191) vs jl record-order
+(1..n). Both pure non-associative Float32 on identical inputs. ⇒ match path to bit-exact = reorder jl's per-tree
+BA grouping to `c*(d*(d*tpa))` AND accumulate species-major in the ind1 order, for EVERY density reduction (stand
+BA, point BA, PBAL, SDI) — deep + high-risk vs the 260-stand bit-exact corpus (doctrine-3), a beyond-mission
+fidelity improvement (the mission ACCEPTS Float32 ULP). Cornered, not cut-off.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
