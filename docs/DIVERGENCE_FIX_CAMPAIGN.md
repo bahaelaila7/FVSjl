@@ -162,6 +162,11 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   views of two already-accepted classes — fire-kill-distribution (fire-crown) and D10 regen saw-threshold
   (regen-DG/volume). No new fixable divergence; the per-tree MODEL state (DBH/Ht/volumes/mortality/DG-aggregate)
   is bit-exact vs live across fire/thin/regen. Closed.
+  DATA CONFIRMATION of the accepted verdict (not logic alone): `cut_thinsdi` — DETERMINISTIC tree REMOVAL — is
+  FULLY BIT-EXACT in the treelist INCLUDING crown; only `fire_carbon` — STOCHASTIC fire KILL — diverges. Removing
+  trees deterministically causes no crown divergence; killing them stochastically does ⇒ the crown difference is
+  driven by WHICH individuals die (the RNG/order-sensitive fire-kill distribution), NOT a crown-model bug. This
+  fire-vs-thin contrast is direct data evidence for the fire-kill-distribution attribution.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
