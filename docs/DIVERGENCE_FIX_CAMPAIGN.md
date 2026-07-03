@@ -232,6 +232,21 @@ treelist needs a single-stand key (multi-stand injection breaks the harness). �
 open fixable report-level item); model-level remains comprehensively faithful.
 
 ---
+**D40 — ⬜ OPEN (model, upstream): NE/CS per-cycle crown uses `/gross_space` not raw BA; the faithful raw BA
+unmasks a jl CS per-species crown bug (doctrine-3).** The NE/CS crown model (crown_ratio.jl:29-30) uses
+`basal_area/gross_space` for the per-cycle crown; the FAITHFUL value is the raw COMMON BA (crown.f), which makes
+growth_fint10 bit-exact and the NE per-cycle crown match. VERIFIED the trade-off this session (applied raw BA,
+ran the suite): raw BA keeps NE bit-exact (net01, growth_finth5) BUT REGRESSES EXACTLY 7 CS all-species tests
+(test_allspecies.jl:65/68/70/75, live-validated) — CS DG READS crown (cs/dgf.f), so the raw-BA crown change
+perturbs CS DG for ~7 species. This is doctrine-3: raw BA is faithful on the BA term but UNMASKS a separate jl CS
+per-species crown bug that `/gross_space` accidentally compensates. ⇒ applying raw BA ALONE is net-worse (7 real
+CS-vs-live divergences), so it is REVERTED pending the CS-crown fix; the two must land together. NEXT STEP: identify
+the 7 CS species (test_allspecies.jl), stamp live CS crown.f per-species crown for a monoculture vs jl (with raw
+BA) to find the per-species crown-coefficient/formula bug, fix it, THEN apply raw BA everywhere (faithful for NE
++ CS). Report-affecting (NE ~1pt crown) + growth_fint10 1.87% + the CS crown accuracy. The D39 init-crown fix
+(ba_override, committed) is SEPARATE and intact. This is the concrete upstream model target.
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
