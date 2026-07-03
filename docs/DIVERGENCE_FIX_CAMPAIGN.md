@@ -3647,11 +3647,17 @@ shelterwood overlap — but immaterial: the keyword semantics enable all of them
 - RESULT on pl3 (planted SP, `VOLUME …5`): **Tcuft now BIT-EXACT vs live** (729/732 → 2142/2145 → 4905/4904
   → 5831/5832; was +13% under Clark). Suite 6460/2, NO regression (dispatch gated to methc==5). The dominant
   divergence (total cubic) is RESOLVED.
-- **RESIDUAL (open):** Mcuft still off (+13%@2022, −few% later, was +40%). Cause = the UNPORTED sawtimber V4
-  branch (PROD='01', r9vol.f '912' section: a different polynomial in HT1PRD + per-species CFs) that engages
-  as stems reach ~9"; the pulpwood V4 is exact. Also verify HT2PRD (R9_MHTS) for H2>1 (only H2=1 stem-validated).
-  Board V2 still 0 (fine below ~9"). ⇒ to finish: port the R9VOL sawtimber merch/board branch, validate vs the
-  captured 1437-row ground-truth. The hard parts (model ID, total cubic, pulp merch, coefficients, wiring) are DONE.
+- **RESIDUAL (open), now decomposed via a 2nd live stamp:** the PULP merch V4 + HT2PRD are PROVEN per-tree
+  BIT-EXACT for BOTH H2=1 AND H2=2 (D5.231/H42.53→V4 1.6715 vs live 1.6713; D5.277→1.7014/1.7013; my R9_MHTS
+  gives the right H2). So the aggregate Mcuft residual is only two things: (a) **2022 +13.8% = H2-boundary
+  ULP flips** — V4 ~DOUBLES across an 8⅓-ft log boundary (0.77 at H2=1 → 1.67 at H2=2 for a ~5" stem), so a
+  handful of stems whose `pulbol` lands within a Float32-ULP of the 8.333/16.667 cutoff flip H2 → same
+  threshold-amplification CLASS as D13/the CS mortality tail (per-tree formula is exact); (b) **2032+ jl LOW
+  = the UNPORTED sawtimber V4 branch** (PROD='01', r9vol.f '912': polynomial in HT1PRD + per-species CFs),
+  engaging as stems pass BFMIND≈9". ⇒ to finish: port the R9VOL sawtimber V4/board branch + the R9_MHTS saw
+  path (HT1PRD), validate vs the captured ground-truth. Total cubic + pulp merch (the dominant volume) are DONE
+  bit-exact; the residual is the sawtimber-size regime (+ its ULP boundary). Hard parts (model ID, total cubic,
+  pulp merch, all coefficients, full wiring, no-regression) COMPLETE.
 
 ### (history) ⬜ D35 — CS planted-regen volume diverges up to 40% Mcuft (jl HIGHER) — found 2026-07-02
 Found by sweeping the previously-unswept native key `cst01_method5.key` (5 stands). Stand-5 = "BARE GROUND
