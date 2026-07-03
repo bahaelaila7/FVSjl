@@ -9,6 +9,27 @@ verdict → variant-aware (gate, don't harden; keep all three variants bit-exact
 Status: ⬜ open · 🔬 investigating · ✅ fixed-to-ULP · 📌 irreducible/deferred (why documented)
 
 ---
+**D36 — 📌 LIVE FVS BUG (jl is CORRECT): econ HRVRVN carries removed-sawlog-cubic forward into a no-cut cycle.**
+Found 2026-07-03 by BROADENING the sweep to the REMOVALS columns (.sum cols 13-17), which the state-only sweep
+never checked. `econ_strtecon`/`econ_u5` show `remScuft@2005 live=23 jl=0`. Trace: the thin (THINSDI 2000) is
+BIT-EXACT both engines (2000 removals 20/106/97/23/106). At 2005 (NO cut) jl zeroes all five removal columns
+(correct); live zeroes four but reports remScuft=23 — the prior cut's removed-sawlog-cubic. This is **internally
+inconsistent** (23 sawlog-cuft "removed" with 0 removed-trees + 0 removed-total-cubic — physically impossible),
+i.e. a stale-accumulator bug. Source: `.sum` col16 = `IOSUM(22)` = `OSCREM(7)` (disply.f:342); `ONTREM(7)` is
+explicitly re-zeroed every cycle (cratet.f:158, fvs.f:433) but there is NO matching per-cycle `OSCREM(7)` reset
+(grep-confirmed) — the full O*REM arrays are zeroed only inside cuts.f during an actual cut. SCOPE: TRIGGERED BY
+THE ECON HRVRVN PATH — `cut_thinsdi` (identical THINSDI, no econ) correctly zeroes remScuft at 2005; only stands
+with `HRVRVN` re-populate OSCREM(7) post-cut and leave it stale. ⇒ VERDICT: jl is FAITHFULLY CORRECT; the diff is
+a live-side bug (neither ULP nor eigensolver, but matching it would mean REPLICATING a confirmed live bug that
+emits physically-impossible output). Per the doctrine (the oracle can be WRONG — don't blindly match), jl is NOT
+changed to reproduce it. 📌 documented-irreducible (jl-correct/live-bug). The ECON revenue TABLES remain bit-exact
+(that path is validated separately); this is only the .sum removal-column stale value. **Broadened-sweep note:**
+divergence_sweep.jl now also checks removals (13-17) + accretion/mortality-per-yr (24/25); the Accr/Mort DIFFs it
+surfaces (treeszcp Mort 3→20, compute_cycle Mort 5→3, etc.) are the growth-rate VIEW of already-accepted state
+classes (threshold-amp / fire-kill-distribution / near-SDImax / DGSCOR) on tiny-absolute counts — no NEW stand;
+only D36 (removals) was a genuine new find.
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),

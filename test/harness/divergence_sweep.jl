@@ -13,7 +13,11 @@ using FVSjl
 const ORACLE = Dict("sn"=>"sn_oracle.sh","ne"=>"ne_oracle.sh","cs"=>"cs_oracle.sh")
 const VAR    = Dict("sn"=>Southern(),"ne"=>Northeast(),"cs"=>CentralStates())
 # .sum data columns (1-based incl Year): 3 TPA 4 BA 5 SDI 6 CCF 7 TopHt 8 QMD 9 Tcuft 10 Mcuft 11 Scuft 12 Bdft
-const COLS = Dict(3=>"TPA",4=>"BA",5=>"SDI",6=>"CCF",7=>"TopHt",8=>"QMD",9=>"Tcuft",10=>"Mcuft",11=>"Scuft",12=>"Bdft")
+# 13-17 = REMOVALS (harvested: TPA/Tcuft/Mcuft/Scuft/Bdft) — independent of the state cols, so a bit-exact stand
+# summary can still hide a harvest-volume divergence; 24 accretion/yr, 25 mortality/yr = growth-rate surfaces.
+# (Non-harvest stands carry 0 removals ⇒ skipped by the a==0 guard, so broadening is safe for every stand.)
+const COLS = Dict(3=>"TPA",4=>"BA",5=>"SDI",6=>"CCF",7=>"TopHt",8=>"QMD",9=>"Tcuft",10=>"Mcuft",11=>"Scuft",12=>"Bdft",
+                  13=>"remTPA",14=>"remTcuft",15=>"remMcuft",16=>"remScuft",17=>"remBdft",24=>"Accr",25=>"Mort")
 
 # Parse a .sum into per-stand blocks (split on the -999 header), each a Dict(year => fields),
 # so the diff aligns by (stand index, year) instead of a naive row zip (multi-stand keys broke that).
