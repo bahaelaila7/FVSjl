@@ -87,6 +87,7 @@ include("engine/crown_width.jl")
 include("engine/forest_type.jl")
 include("engine/r8clark_vol.jl")
 include("engine/r9clark_vol.jl")        # NE: NVEL Region-9 Clark profile volume
+include("engine/r9vol_gevorkiantz.jl")  # CS: NVEL Region-9 Gevorkiantz '900DVEE' (VOLUME METHC=5)
 include("engine/volume_equations.jl")
 include("engine/volume.jl")
 include("engine/standstats.jl")
