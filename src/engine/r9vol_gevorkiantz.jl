@@ -153,9 +153,11 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
               (0.208f0 * h2f - 0.009984f0 * h2f * h2f + 0.04f0 / h2f) * 79f0
     end
     mcf = gcb
-    if dbh >= bfmind && h2 > 0                 # sawtimber: MCF = VOL(4)_saw + VOL(7)=PT·GCB
+    scf = 0f0                                  # sawtimber cubic (VOL(4)_saw), gated on D≥SCFMIND by the caller
+    if dbh >= bfmind && h2 > 0                 # sawtimber: MCF = VOL(4)_saw + VOL(7)=PT·GCB, SCF = VOL(4)_saw
         h1 = _r9_mhts_ht1prd(fia, dbh, httot, si, ba, region, bftopd, h2)
         if h1 > 0
+            h2f = Float32(h2)
             h1f = Float32(h1); d2 = dbh * dbh; d3 = d2 * dbh; d4 = d2 * d2
             term1 = -1.70774f0 + 0.051321f0 * dbh + 0.58857f0 * h1f +
                     0.0193547f0 * d2 + 0.0237324f0 * h1f * d2
@@ -166,7 +168,8 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
             p = h1f / h2f * 100f0
             pt = (98.461f0 - 1.394f0 * p + 0.004f0 * p * p) * 0.01f0
             mcf = v4saw + pt * gcb
+            scf = v4saw
         end
     end
-    return (tcf, mcf, 0f0, 0f0)
+    return (tcf, mcf, scf, 0f0)
 end
