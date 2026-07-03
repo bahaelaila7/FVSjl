@@ -102,7 +102,13 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   2005/2010/2015 live LOWER (38.98/39.92/40.77) vs jl (40.62/41.27/41.69). This is the FMICR fire-crown-SCORCH:
   live's treelist reports the scorched crown, jl reports the unscorched growth crown. Consistent with D15 (FMICR
   is FFE-internal, does NOT feed the growth crown ⇒ .sum bit-exact); jl just doesn't mirror the scorch into the
-  REPORTED crown_pct. Fix = apply the FMICR scorch to the treelist crown column only (not growth). Report-only.
+  REPORTED crown_pct. FIX MECHANISM TRACED: live treelist PctCr=ICR(I) (dbstrls.f:260,410); post-fire ICR is the
+  SCORCHED-with-RECOVERY crown (38.98→40.77) that does NOT feed the DG crown (.sum bit-exact). jl computes the
+  scorch FRACTION (fire_effects.jl:85) but no scorched crown RATIO. Faithful fix = a report-only per-tree
+  scorched-crown field (FMICR=100·(CRL−CRBNL)/HT) set at the fire + multi-cycle recovery, read by the treelist
+  snapshot ONLY (never t.crown_pct ⇒ growth/fire .sum untouched). DELICATE (D15 fire-crown pipeline; a naive
+  crown_pct scorch crashed/regressed before) + REPORT-ONLY ⇒ scoped follow-up, deliberately NOT attempted at this
+  session's tail to avoid risking the bit-exact fire .sum. Mechanism fully documented for a focused implementation.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
