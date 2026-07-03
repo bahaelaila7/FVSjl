@@ -47,6 +47,26 @@ stands (carbon_ffe, carbon_jenkins, carbon_snt, fire_carbon) with broadened cols
 included. ⇒ confirmed a parsing artifact (now handled), NOT a real model divergence.
 
 ---
+**D37 — 📌 NE/CS `.sum` FOREST-TYPE report column uses the SN classification (jl lacks NE/CS FORTYP tables).**
+Found 2026-07-03 by the new categorical-column check (col 27 forest-type), run on the CS+NE corpora. Real
+divergence: NE `thin`/`ffe`/`plant_hard` report ForTyp **801** live vs **520/503** jl; CS `cst01` 801 vs 503,
+`cs_allsp` 520 vs 503. Verified NOT a column-alignment artifact (MAI col26=34.3 and SizeCls col28=21 match both
+sides; only col27 differs). MECHANISM: jl `src/engine/forest_type.jl` is ported from the **base/SN** `fortyp.f`
+and reads `data/<variant>/forest_type_codes.csv` — but that CSV exists **only for `southern`**; NE and CS have
+none, so jl falls back to the SN code table and emits SN-scheme codes (500s: oak-hickory/oak-pine) for NE/CS
+stands. Live NE/CS `fortyp.f` has its OWN code set (NE valid list 707…809; the 800-group FIA types) → 801 etc.
+SCOPE: **report-only** — all NE/CS state/volume/mortality columns are BIT-EXACT (the NE/CS diameter-growth model
+does not consume `plot.forest_type` the way SN DG does, so the wrong classification has NO model impact; only the
+`.sum` forest-type report column diverges). This is why every prior NE/CS sweep read "bit-exact" — the state-only
+columns ARE. VERDICT: genuine variant-fidelity gap (violates doctrine-6 "don't harden to one variant" for the
+report path), but report-only + requires porting the NE/CS FORTYP classification (variant code tables + any
+decision-tree deltas from SN). 📌 documented; fix = extract NE/CS `fortyp.f` code/group tables into
+`data/{northeast,centralstates}/forest_type_codes.csv` (+ stocking maps if they differ) so `forest_type.jl`
+emits variant-correct codes. Deferred as a scoped variant-report port (no model impact); the DG-driving forest
+type for SN remains bit-exact (unaffected). Found only because the categorical check exact-matches col27 (a
+520→801 flip is invisible to the numeric ULP floor).
+
+---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
 Every ledger item D1–D35 is ✅ fixed-to-ULP or 📌 irreducible-with-live-evidence. D35 (the last open item, CS
 planted-regen DVEE volume) is CLOSED: cubic via the R9 Gevorkiantz '900DVEE' model + board via Clark (METHB=6),
