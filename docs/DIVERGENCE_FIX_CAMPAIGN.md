@@ -3778,6 +3778,14 @@ ERR. Verified: nohtdreg_cal now surfaces as a ranked `DIFF … [.out]` (3.31% TP
 (fire_carbon/treeszcp_cap/all_PI) are byte-for-byte unchanged (no `[.out]` tag). So the ECHOSUM class can no longer
 silently hide a divergence — any future ECHOSUM-less stand with a real diff will now rank. Remaining ERR = only the
 6 genuine live-FPEs (no oracle by definition).
+**AUTHORITATIVE POST-FIX FULL SN SWEEP (2026-07-03): 223 ok / 32 DIFF / 6 ERR — corrected baseline.** Re-ran all
+261 SN scenarios through the hardened sweep. vs the pre-fix 222/31/8: ok +1 (dead_fint now compared → ok [.out]),
+DIFF +1 (nohtdreg_cal now ranks → DIFF 3.31% [.out]), ERR −2 (the 2 ECHOSUM-less stands reclassified). The `.out`
+fallback surfaced EXACTLY those 2 stands and NOTHING ELSE — decisive proof the blind spot was hiding precisely
+nohtdreg_cal + dead_fint, with no third stand lurking. Remaining 6 ERR = the genuine live-FPEs (all_AE/EL/RL/SU/WE
++ mcfdln_override; live core-dumps, no oracle). Every one of the 32 DIFFs is a documented accepted class (the 31
+from the prior sweep + nohtdreg_cal's now-visible DGSCOR/SDI tail). ⇒ the SN corpus is fully accounted for: 223
+bit-exact, 32 accepted-ULP/threshold DIFFs, 6 unvalidatable live-crashes; ZERO uncatalogued or unexplained.
 
 **AUTHORITATIVE FULL SN SWEEP (2026-07-03, post-D35) — 222 bit-exact / 31 DIFF / 8 live-FPE, ZERO uncatalogued.**
 Re-ran the complete 261-stand SN sweep via `divergence_sweep.jl sn` against the freshly-relinked live binary (the
