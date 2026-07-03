@@ -3638,7 +3638,20 @@ not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithf
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
 
-## 🔬 D35 — CS DVEE volume (VOLUME METHC=5) — SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch residual)
+## 🔬 D35 — CS DVEE volume (VOLUME METHC=5) — SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch ≤few%)
+**★ MERCH RESOLVED to the pulp formula (2026-07-03): `Mcuft = VOL(4)+VOL(7) = GCB`, and GCB IS the pulp
+polynomial jl already computes.** Stamped R9VOL's VOL(7): `GCB = 0.001·D²·(1.9+0.01D)·(0.208·H2−0.009984·H2²
++0.04/H2)·79` (= jl's mcf); `VOL(7)=PT·GCB`, `PT=(98.461−1.394·P+0.004·P²)·0.01`, `P=HT1PRD/HT2PRD·100`. For
+a saw stem (D=9.004,H1=1,H2=4): VOL(4)_saw 2.940 + VOL(7) 0.661·8.68=5.738 = **8.678 ≈ GCB 8.68** — the
+sawlog/topwood split SUMS BACK to GCB. So jl's `mcf = pulp formula` is the FAITHFUL merch (the saw VOL(4)/
+VOL(7) split is internal to R9VOL and re-collapses); a VOL(4)-only saw branch was WRONG (−22%, reverted).
+Residual on the DVEE stand is now just Mcuft −1.4→−3.7% (jl low) = H2 (HT2PRD) computation/boundary
+sensitivity — V4~doubles across each 8⅓-ft log cutoff, so small ESTTHT/pulbol diffs flip a few stems' H2
+(threshold-amplification, D13 class). ⇒ D35 is effectively at the CS-volume floor: **total cubic BIT-EXACT,
+merch faithful-formula with a ≤few% H2-boundary residual.** (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
+helpers are live-validated + retained as reference, but NOT needed for Mcuft since VOL4+VOL7=GCB.)
+
+
 **FIX LANDED (2026-07-03).** Implemented the R9 Gevorkiantz '900DVEE' model + the METHC plumbing and wired it:
 - `src/engine/r9vol_gevorkiantz.jl` — total cubic `0.42π·D²·H/576` + pulp merch cubic + R9_MHTS HT2PRD (reads
   the extracted `data/centralstates/dvee_r9_height_coef.csv`); unit-tested vs the live stamp (test_dvee_volume.jl).
