@@ -3726,6 +3726,21 @@ DVEE board (`_dvee_boardft`) is now dead code (retained as reference, ignored vi
 columns — Tcuft, Mcuft, Scuft, Bdft — are now bit-exact vs live barring the ≤few% H2-boundary ULP tail. D35
 CLOSED.**
 
+**CROSS-VARIANT RE-GROUND (2026-07-03, post-D35) — all three variants confirmed at floor vs fresh live.** After
+the D35 board fix (which touches the shared `compute_volumes_ne!`, gated methc==5), re-swept all three variants
+against freshly-relinked live binaries; every DIFF matches its documented accepted-class floor exactly, no
+regression, nothing uncatalogued:
+- **NE:** ne_cov0-4 (all-species) + net01 ALL BIT-EXACT. (The hook's "net01 ~4% Mcuft late" note is STALE — closed
+  by the D10 regen work; net01 is bit-exact on the current binary.)
+- **CS:** cs_allsp 1.31% CCF@2090 (late-cycle ULP floor) · cst01 s2 TPA@2140 19% (deep-thinned mortality floor) ·
+  cst01_method5 Bdft@2032 3.3% first-cycle-only (D35 board threshold-amp, converges to +0.2%). Volume columns on
+  the DVEE stand bit-exact after cycle 1.
+- **SN:** fire_carbon + all_PI BIT-EXACT · bare_natural Bdft 4.56% (D10 natural-regen saw-threshold ULP) ·
+  timeint10 1.96% (non-native SN@10 DGSCOR floor) — all pre-documented, unchanged.
+⇒ D35 gated cleanly (no NE/CS non-DVEE regression, SN untouched — SN uses `_R8CLARK_VOL`, not this path). Every
+ledger item D1–D35 is now ✅ FIXED-to-ULP or 📌 documented-accepted; the mission end-state (SN/NE/CS faithful
+bit-exact drop-ins barring ULP + COMPRESS eigensolver) is met and freshly re-verified.
+
 **POST-FIX CS SWEEP (2026-07-03) — floor confirmed.** `divergence_sweep.jl cs cst01 cst01_method5` vs fresh live
 ranks only 2 DIFFs, both accepted-class: (1) `cst01 s2 TPA@2140 19%` = the documented CS deep-thinned late-cycle
 mortality floor; (2) `cst01_method5 s5 Bdft@2032 3.3%` = a SINGLE first-cycle point (jl 10237 vs live 10586) that
