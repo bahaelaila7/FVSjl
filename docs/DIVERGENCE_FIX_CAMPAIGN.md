@@ -3766,6 +3766,24 @@ grow past ~5-7" (2022+). A staged fix (total cubic first, validate Tcuft; then b
 STATE: D35 root + total-cubic formula PROVEN & committed; the R9VOL board/merch transcription is the
 remaining implementation work. This is the campaign's sole open item.
 
+**★★★★★ DVEE FORMULAS DERIVED & PROVEN vs live R9VOL stamp (2026-07-03) — port now near-complete.**
+Stamped r9vol.f R9VOL to dump per-tree {D,HTTOT,HT1PRD,HT2PRD,MTOPP,VOL1,VOL4,VOL7,VOL2} for the planted
+SP(110)/BH(402) stems (1437 rows). Two of the three formulas now match live EXACTLY:
+- **Total cubic** `VOL(1) = 0.42·π·DBH²·HTTOT / 576` — verified on many stems (D3.588/H29.41→0.8674;
+  D4.582/H38.40→1.8470; D4.670/H38.71→1.9344 — all exact).
+- **Merch cubic (pulpwood, PROD≠'01')** `VOL(4) = 0.001·DBH²·(1.9+0.01·DBH)·(0.208·H2 − 0.009984·H2² +
+  0.04/H2)·79`, where H2 = HT2PRD (pulp-log count). Verified: D=4.582, H2=1 → 0.020995·1.94582·0.238016·79
+  = **0.7682** = live exactly. (Board `VOL(2)` = 0 across the whole small-tree range — trees never reach the
+  ~9" board-min in this stand — so board is a non-issue here; the big Mcuft@2022 IS this VOL(4).)
+- **Remaining piece: HT2PRD (H2) = the pulp-log count from `R9_MHTS` (r9init.f)** — a merch-height sub-model
+  (given HTTOT, estimate the bole height to the 4" pulp top, → logs). NOT the naive INT((HTTOT-12)/8.25)
+  (that gives 3 for H38.40, but live H2=1). Trace R9_MHTS (r9init.f) for the H2 derivation; ground-truth H2
+  per stem is captured in the stamp table for validation. Sawtimber path (PROD=='01', VOL(4) via the '912'
+  branch + species CFs — 110 gets CF=1.06 for DBH<13) only matters once stems become sawtimber (late/none
+  here). ⇒ The DVEE port is now: proven total-cubic + proven pulp-merch-cubic + R9_MHTS height (last trace)
+  + board=0(small); plus the METHC plumbing (Control.sp_methc + kw_volume! v[7] + dispatch). Very tractable
+  now — the two dominant formulas are proven-exact; only the merch-height helper remains to transcribe.
+
 **[SUPERSEDED — ruled-out Honer lead] FULL DVEE=HONER IMPLEMENTATION SPEC (2026-07-03, from `FVScs_buildDir/honer.f` `Voleq_Honer` + sitset.f):**
 - **Selection (sitset.f:242-270, per species):** the CS cubic-method code `METHC(ISPC)` decides — `METHC==5
   ⇒ '900DVEE'` (Honer), `METHC∈{6,9} ⇒ '900CLKE'` (Clark, jl's current r9clark), `METHC==10 ⇒ NVB`. Board
