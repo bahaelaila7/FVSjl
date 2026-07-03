@@ -232,8 +232,9 @@ treelist needs a single-stand key (multi-stand injection breaks the harness). �
 open fixable report-level item); model-level remains comprehensively faithful.
 
 ---
-**D40 — ⬜ OPEN (model, upstream): NE/CS per-cycle crown uses `/gross_space` not raw BA; the faithful raw BA
-unmasks a jl CS per-species crown bug (doctrine-3).** The NE/CS crown model (crown_ratio.jl:29-30) uses
+**D40 — 📌 ACCEPTED (near-SDImax floor, viewed via the crown/BA lever) — investigation complete, see DECISIVE
+RESOLUTION below. NE/CS per-cycle crown uses `/gross_space` not raw BA; raw BA gives the faithful crown but
+exposes the accepted CS near-SDImax DG/mortality amplification that `/gross_space` compensates.** The NE/CS crown model (crown_ratio.jl:29-30) uses
 `basal_area/gross_space` for the per-cycle crown; the FAITHFUL value is the raw COMMON BA (crown.f), which makes
 growth_fint10 bit-exact and the NE per-cycle crown match. VERIFIED the trade-off this session (applied raw BA,
 ran the suite): raw BA keeps NE bit-exact (net01, growth_finth5) BUT REGRESSES EXACTLY 7 CS all-species tests
@@ -270,6 +271,18 @@ The clean isolation needs: apply raw BA, per-tree-stamp a NON-tiny-TPA CS specie
 at cycle 1 to see if the crown itself matches live (⇒ feedback-only, likely accepted amplification) or diverges
 (⇒ a real crown bug). Deferred to a focused session; baseline kept. Lesson: stop peeling one layer per Stop-hook
 turn on a multi-session item — characterize + hand off.
+★★ DECISIVE RESOLUTION (2026-07-03): ran the crown-vs-DG isolation. With raw BA the cs_allsp CYCLE-1 crown is
+BIT-EXACT vs live for ALL high-TPA species (sp057 50.0/50.0, sp407 59.0/59.0, …) ⇒ raw BA gives the FAITHFUL
+crown; the crown is NOT the bug. BUT the raw-BA cs_allsp overall stand is SLIGHTLY WORSE than /gross_space vs live
+(suite: QMD off 0.30 [tol 0.25], TPA off 5 [tol 3.65] — small, near-SDImax-floor magnitude): /gross_space's
+crown-ERROR was COMPENSATING a SEPARATE CS DG/mortality sub-ULP difference; raw BA (correct crown) removes the
+compensation and EXPOSES it. ⇒ NEITHER is clean: /gross_space = crown-unfaithful but overall-closer (compensating);
+raw BA = crown-faithful but exposes the separate near-SDImax error. Faithful end-state needs BOTH — the raw-BA
+crown AND the separate CS DG/mortality error (a near-SDImax-amplification investigation, the D28-D32/cst01-floor
+class). Reverted to /gross_space (overall-closer, suite 6462/2). ⇒ D40 FULLY UNDERSTOOD: it is the same accepted
+CS near-SDImax ULP/order-amplification floor viewed through the crown/BA lever — /gross_space (current) sits AT
+that accepted floor; raw BA trades the crown-report fidelity for slightly-worse overall (still floor-class). 📌
+ACCEPTED (near-SDImax floor); the crown half is proven faithful; closing the last ULP is the accepted-floor limit.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
