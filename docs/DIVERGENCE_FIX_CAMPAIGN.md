@@ -3648,7 +3648,12 @@ VOL(7) split is internal to R9VOL and re-collapses); a VOL(4)-only saw branch wa
 Residual on the DVEE stand is now just Mcuft −1.4→−3.7% (jl low) = H2 (HT2PRD) computation/boundary
 sensitivity — V4~doubles across each 8⅓-ft log cutoff, so small ESTTHT/pulbol diffs flip a few stems' H2
 (threshold-amplification, D13 class). ⇒ D35 is effectively at the CS-volume floor: **total cubic BIT-EXACT,
-merch faithful-formula with a ≤few% H2-boundary residual.** (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
+merch faithful-formula with a ≤few% H2-boundary residual.**
+**H2-SOURCE CONFIRMED (2026-07-03) = R9_MHTS** — an R9VOL entry stamp shows the planted sp110 stems arrive
+with CTYPE='F', HT1PRD=0, HT2PRD=0 ⇒ they hit the `CALL R9_MHTS` branch (r9vol.f:67-70), exactly the
+Chapman-Richards path jl's `_r9_mhts_ht2prd` ports (a transient earlier "R9_MHTS not called" reading was a
+stamp DBH-gate artifact — retracted). So jl's H2 source is faithful; the residual is genuinely the H2 8⅓-ft
+log-boundary ULP amplification, not a wrong-model H2. (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
 helpers are live-validated + retained as reference, but NOT needed for Mcuft since VOL4+VOL7=GCB.)
 
 
