@@ -58,11 +58,16 @@ UNCHANGED (variant_code(Southern())=="SN", so the SN branch is preserved — 261
 bit-exact); suite 6462/2, no regression. Found by the categorical-column sweep check (a 520↔801 flip is 0.19%,
 under the numeric ULP floor — invisible to every prior sweep). ⇒ the DG-driving forest type was already right for
 SN; this fixes the NE/CS report classification.
-RESIDUAL (separate, minor): `cs_allsp` ForTyp@2070 still 503(jl)/520(live) — a FINER oak sub-type decision
-(forest_type.jl:683-708, `worohk` W.OAK-R.OAK-HICKORY vs `mxdhwd` MIXED UPLAND HW; NO VARACD gating) on the
-ARTIFICIAL all-species CS stand; jl's oak-sub-group stocking edges out mixed where live picks mixed. Report-only,
-all-species-stand-specific (the real CS stand cst01 is now correct), likely a stocking near-tie; 📌 minor residual,
-candidate for a follow-up stkval sub-group stamp. The primary D37 bug is FIXED.
+RESIDUAL (separate, minor) — 📌 PROVEN NEAR-TIE (accepted categorical-flip class, NOT a bug): `cs_allsp`
+ForTyp@2070 503(jl)/520(live) is a FINER oak sub-type decision (forest_type.jl:683-708, `worohk` W.OAK-R.OAK-
+HICKORY vs `mxdhwd` MIXED UPLAND HW; no VARACD gating). Verified: the worohk/mxdhwd AGGREGATIONS are transcription-
+identical to fortyp.f:357/362 (ruled out a code bug); then a live CS fortyp.f debug-stamp (WOROHK/MXDHWD/OAKHCK
+per cycle, restored pristine) showed the two are NEAR-TIED and CROSS OVER repeatedly — cyc8/2070 WOROHK 33.29 vs
+MXDHWD 33.61 (0.9% gap), leads swap at cyc2/3/9/10. So a sub-1% stkval-sum stocking difference (the stand's
+TPA/BA/volumes are bit-exact) tips which oak sub-group leads ⇒ 503↔520 flip. Same accepted class as treeszcp's
+SizeCl@2035 flip and COMPRESS — a categorical boundary crossed by sub-ULP stocking accumulation on an ARTIFICIAL
+all-species stand. ⇒ **D37 FULLY RESOLVED**: the VARACD bug FIXED (all real stands correct); the lone residual is
+a proven near-tie, not a divergence to fix.
 
 **(history) D37 — 📌 NE/CS `.sum` FOREST-TYPE report column uses the SN classification (jl lacks NE/CS FORTYP tables).**
 Found 2026-07-03 by the new categorical-column check (col 27 forest-type), run on the CS+NE corpora. Real
