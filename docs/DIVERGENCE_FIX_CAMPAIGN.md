@@ -3710,6 +3710,21 @@ per-species `vol_eq`), variant-gated so SN/NE stay bit-exact. This is the campai
 non-ULP item; its root is now nailed. (Debug-stamp restored, `FVScs_buildDir` pristine; the CS `.mod` files
 had to be regenerated to compile fvsvol.f — they + 3 rebuilt module `.o` are from unchanged source.)
 
+**★★★★ DEFINITIVE ROOT (2026-07-03): D35 = jl drops the VOLUME-keyword method field (METHC), so `VOLUME …5`
+(DVEE) is ignored.** The trigger is NOT a per-species default — cst01_method5 stand-5 (and my pl3 repro)
+carries a `Volume  0  All … 5` keyword. FVS VOLUME field 7 = METHC (initre.f:1804 `IF(LNOTBK(7)) METHC=
+INT(ARRAY(7))`); METHC=5 ⇒ '900DVEE' (Gevorkiantz), METHC∈{6,9} ⇒ '900CLKE' (Clark, the CS default from
+grinit.f:93). **jl's `kw_volume!` (keyword_dispatch.jl:846) reads fields 1,2,3,4,5,8,9,10 but DROPS field 6
+(FRMCLS) and field 7 (METHC)** — so the `…5` is silently discarded and every species stays on the default
+Clark path (jl's r9clark). That is the entire D35 divergence, and it's why it's INVISIBLE except on a stand
+that explicitly requests `VOLUME …5` (all_SP/cst01-stand-1/all-species have no such keyword ⇒ bit-exact).
+SCOPE is therefore narrower than "all CS regen": it's the VOLUME-method-5 (DVEE) option specifically.
+**COMPLETE FIX PLAN (root + formula both nailed):** (1) `kw_volume!` — also read field 6→FRMCLS and field 7
+→a new per-species `methc` (default 6); (2) `compute_volumes_ne!` — for methc==5 species dispatch to a new
+`r9vol_gevorkiantz` (PROVEN total cubic `0.42π·D²·H/576` + the R9VOL board/merch polys) instead of
+`r9clark_cubic`; (3) validate vs the live stamp (0.957290) + pl3/cst01_method5; SN/NE untouched (they never
+set methc=5). The R9VOL board/merch transcription remains the bulk of the work; total cubic + trigger are done.
+
 **⚠️ CORRECTION (2026-07-03): DVEE is NOT Honer.** The Honer spec below was a WRONG lead — `Voleq_Honer`
 (honer.f) is only reached for `VOLEQ(1:1)=='C'` (BIA/Canadian eqs), and `HAHN_NC250` only for `VOLEQ(2:3)=='25'`.
 Traced the real dispatch (dvest.f:98-108): `VOLEQ(1:1)=='9'` AND `VOLEQ(2:3)!='25'` ⇒ **`CALL R9VOL`** (r9vol.f).
