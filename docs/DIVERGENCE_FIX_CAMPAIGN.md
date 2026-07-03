@@ -109,6 +109,13 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   snapshot ONLY (never t.crown_pct ⇒ growth/fire .sum untouched). DELICATE (D15 fire-crown pipeline; a naive
   crown_pct scorch crashed/regressed before) + REPORT-ONLY ⇒ scoped follow-up, deliberately NOT attempted at this
   session's tail to avoid risking the bit-exact fire .sum. Mechanism fully documented for a focused implementation.
+  DE-RISKED (2026-07-03): the SCORCH computation is already available in jl — `crown_volume_scorched`
+  (fire_effects.jl:88) computes SL (scorch length in crown) ⇒ FMICR = 100·(CRL−SL)/HT is one line. The REMAINING
+  prerequisite before implementing (per doctrine-1, don't code an un-traced mechanism): a live fmeff.f/dbstrls.f
+  debug-stamp of ICR per surviving fire tree across the fire cycle + next 2 cycles, to nail (a) exactly when ICR is
+  scorched vs when the DG crown is captured (why growth stays bit-exact), and (b) the recovery rule (38.98→39.92→
+  40.77). With that trace, the fix is: report-only scorched-crown field set at the fire + recovery via the same
+  crown-change limiter, read by the treelist snapshot only. Computation ready; the ICR/DG/recovery trace is the gate.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
