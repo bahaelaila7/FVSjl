@@ -17,4 +17,11 @@
     # HT2PRD (R9_MHTS) merch-height log count: 0 for the small stem, 1 for the merch one
     @test FVSjl._r9_mhts_ht2prd(110, 3.588f0, 29.41f0, 60, 90, "CS") == 0
     @test FVSjl._r9_mhts_ht2prd(110, 4.582f0, 38.40f0, 60, 90, "CS") == 1
+
+    # SAWTIMBER merch = VOL(4)_saw + VOL(7)=PT·GCB (fvsvol.f MCF=TVOL(4)+TVOL(7)); ground truth from the
+    # fvsvol.f MCF stamp. (fia 110, iforst=5). Both the '912' sawlog polynomial and the PT·GCB topwood.
+    for (d, h, mcf_live) in ((9.004f0, 50.98f0, 8.689f0), (9.006f0, 70.36f0, 10.395f0))
+        _, mcf, _, _ = FVSjl.r9vol_gevorkiantz(110, d, h, 5)
+        @test isapprox(mcf, mcf_live; atol = 5f-3)
+    end
 end

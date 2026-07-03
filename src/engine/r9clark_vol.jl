@@ -534,6 +534,8 @@ function compute_volumes_ne!(s::StandState)
         # instead of the Clark taper. iforst = KODFOR−900 (the R9 forest number → LS/CS/NE region in R9_MHTS).
         if md.sp_methc[sp] == 5
             tcf, mcf, scf, bf = r9vol_gevorkiantz(fia, d, h, Int(s.plot.user_forest_code) - 900)
+            _dv_dbhmin = md.sp_dbh_min[sp] > 0f0 ? md.sp_dbh_min[sp] : 5f0  # DVEE merch DBHMIN (fvsvol.f:512; CS=5)
+            d < _dv_dbhmin && (mcf = 0f0)
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
                                                   cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)

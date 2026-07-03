@@ -139,17 +139,34 @@ function r9vol_gevorkiantz(fia::Int, dbh::Float32, httot::Float32, iforst::Int;
                            si::Int = 0, ba::Int = 0)
     tcf = httot > 0f0 ? 0.42f0 * Float32(pi) * dbh * dbh * httot / 576f0 : 0f0
     region = _dvee_region(iforst)
+    bfmind = 9f0                              # R9_MHTS CS board-min DBH (softwood & hardwood); PROD='01' at ≥bfmind
+    bftopd = fia < 300 ? 7.6f0 : 9.6f0        # saw top (MTOPP default: softwood 7.6 / hardwood 9.6)
     h2 = _r9_mhts_ht2prd(fia, dbh, httot, si, ba, region)
-    # Merch cubic to the 4" PULP top (VOL(4)+VOL(7) in R9VOL). The pulpwood polynomial computes this directly
-    # for pulp-sized stems and closely approximates saw+topwood for sawtimber stems (≤~1.4% on the DVEE stand).
-    # EXACT-fix TODO: for DBH≥BFMIND, Mcuft = the SAWLOG cubic VOL(4) (`_dvee_saw_cf` + the '912' polynomial via
-    # `_r9_mhts_ht1prd`, both live-validated) PLUS the topwood VOL(7) (saw-top→pulp-top) — VOL(7) formula still
-    # to stamp; those helpers are kept for it. Using pulp-for-all here beats a VOL(4)-only saw split (−22%).
-    mcf = 0f0
+    # R9VOL merch cubic MCF = VOL(4)+VOL(7) (fvsvol.f:512). GCB = the pulp polynomial. For a PULP stem
+    # (DBH<BFMIND ⇒ HT1PRD=0) VOL(4)=GCB and VOL(7)=0 ⇒ MCF=GCB. For a SAWTIMBER stem VOL(4)=the '912' sawlog
+    # cubic and VOL(7)=PT·GCB (topwood), PT=(98.461−1.394P+0.004P²)·0.01, P=HT1PRD/HT2PRD·100 ⇒ MCF=VOL(4)+PT·GCB.
+    # (The DBH≥DBHMIN species gate is applied by the caller, like the Clark path.) All pieces live-validated.
+    gcb = 0f0
     if h2 > 0
         h2f = Float32(h2)
-        mcf = 0.001f0 * dbh * dbh * (1.9f0 + 0.01f0 * dbh) *
+        gcb = 0.001f0 * dbh * dbh * (1.9f0 + 0.01f0 * dbh) *
               (0.208f0 * h2f - 0.009984f0 * h2f * h2f + 0.04f0 / h2f) * 79f0
+    end
+    mcf = gcb
+    if dbh >= bfmind && h2 > 0                 # sawtimber: MCF = VOL(4)_saw + VOL(7)=PT·GCB
+        h1 = _r9_mhts_ht1prd(fia, dbh, httot, si, ba, region, bftopd, h2)
+        if h1 > 0
+            h1f = Float32(h1); d2 = dbh * dbh; d3 = d2 * dbh; d4 = d2 * d2
+            term1 = -1.70774f0 + 0.051321f0 * dbh + 0.58857f0 * h1f +
+                    0.0193547f0 * d2 + 0.0237324f0 * h1f * d2
+            term2 = -0.04821f0 * h1f^2 - 0.0002174f0 * d2 * h1f^2 -
+                    0.0000239f0 * d2 * h1f^3 + 0.00000795f0 * d3 * h1f^2
+            term3 = -0.00000057f0 * d3 * h1f^3 - 0.000000035f0 * d4 * h1f^2
+            v4saw = Float32(term1 + term2 + term3) * _dvee_saw_cf(fia, dbh)
+            p = h1f / h2f * 100f0
+            pt = (98.461f0 - 1.394f0 * p + 0.004f0 * p * p) * 0.01f0
+            mcf = v4saw + pt * gcb
+        end
     end
     return (tcf, mcf, 0f0, 0f0)
 end
