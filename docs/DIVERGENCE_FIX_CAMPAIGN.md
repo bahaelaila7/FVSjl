@@ -245,6 +245,14 @@ the 7 CS species (test_allspecies.jl), stamp live CS crown.f per-species crown f
 BA) to find the per-species crown-coefficient/formula bug, fix it, THEN apply raw BA everywhere (faithful for NE
 + CS). Report-affecting (NE ~1pt crown) + growth_fint10 1.87% + the CS crown accuracy. The D39 init-crown fix
 (ba_override, committed) is SEPARATE and intact. This is the concrete upstream model target.
+DIAGNOSTIC (2026-07-03, raw BA applied then reverted): with raw BA the cs_allsp treelist crown DIVERGES broadly
+from live (287 PctCr diffs), not converges — so it's NOT a clean "raw BA = faithful" swap for CS; the crown→DG
+feedback in the dense near-SDImax stand compounds a per-species crown difference. Concrete clue: sp552@2050 live
+crown **2.70 (BELOW the 10-minimum)** vs jl ≥10 — jl applies the `icri<10 && cm==1 ⇒ icri=10` floor (crown.f:77)
+where live does NOT for that species ⇒ a candidate per-species CS crown-CAP / CRNMLT-default difference (CS may
+not apply the 10-min, or cm≠1 for CS). NEXT: stamp live cs/crown.f ICRI + the 10-min branch for a CS monoculture
+(e.g. the sp552 species) to see if CS omits/alters the 10-floor, then reconcile with the raw BA. D40 stays a
+focused CS-crown-model investigation (same class as D28-D32); not a one-liner.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
