@@ -3652,8 +3652,17 @@ merch faithful-formula with a ≤few% H2-boundary residual.**
 **H2-SOURCE CONFIRMED (2026-07-03) = R9_MHTS** — an R9VOL entry stamp shows the planted sp110 stems arrive
 with CTYPE='F', HT1PRD=0, HT2PRD=0 ⇒ they hit the `CALL R9_MHTS` branch (r9vol.f:67-70), exactly the
 Chapman-Richards path jl's `_r9_mhts_ht2prd` ports (a transient earlier "R9_MHTS not called" reading was a
-stamp DBH-gate artifact — retracted). So jl's H2 source is faithful; the residual is genuinely the H2 8⅓-ft
-log-boundary ULP amplification, not a wrong-model H2. (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
+stamp DBH-gate artifact — retracted).
+**★ H2 PROVEN BIT-EXACT (2026-07-03): jl's `_r9_mhts_ht2prd` matches live for ALL 894 sp110 stems (0
+mismatches)** — stamped live's per-tree (DBH,HTTOT→HT2PRD), recomputed in jl, 894/894 identical. So the
+residual is NOT H2-boundary after all (that characterization is RETRACTED). With H2 exact + per-tree pulp V4
+exact + total cubic bit-exact, the −1.4→−3.7% Mcuft residual must be the **saw-stem (DBH≥9) merch mapping**:
+jl reports `mcf = GCB` (the pulp polynomial), which only APPROXIMATES live's exact `VOL(4)_saw + VOL(7)` split
+(8.696 vs 8.678 per D=9.004 stem — a ~0.2% per-saw-stem gap that accumulates late as stems pass 9"). ⇒ the
+last sub-piece = report `VOL(4)_saw + VOL(7)` exactly for DBH≥9 (VOL(7)=PT·GCB, PT=(98.461−1.394P+0.004P²)·
+0.01, P=H1/H2·100 — all pieces already derived/validated) instead of GCB; needs a per-tree live Mcuft stamp
+to confirm the exact VOL→Mcuft column mapping first (pulp-tree VOL(7)=GCB implies Mcuft≠V4+V7 naively). Total
+cubic BIT-EXACT, H2 BIT-EXACT, pulp merch exact; the ≤few% tail is the saw VOL(4)/VOL(7) merch split. (The `_r9_mhts_ht1prd`/`_dvee_saw_cf`/'912'
 helpers are live-validated + retained as reference, but NOT needed for Mcuft since VOL4+VOL7=GCB.)
 
 
