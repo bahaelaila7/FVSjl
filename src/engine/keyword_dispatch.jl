@@ -843,6 +843,12 @@ end
 # 8=SCFMIND, 9=SCFTOPD, 10=SCFSTMP. FRMCLS/METHC are not used by the SN R8 Clark taper path
 # (it has no form-class or method selector), so we carry only the 7 standards the model reads:
 # species + DBHMIN/TOPD/STMP/SCFMIND/SCFTOPD in params, SCFSTMP in aux.
+# ⚠️ D35 (OPEN): field 7 = METHC (cubic volume METHOD) IS dropped here. `VOLUME …5` ⇒ METHC=5 ⇒ the CS
+# DVEE/Gevorkiantz model (jl only has Clark) ⇒ up to 40% Mcuft on cst01_method5's planted stand. Wiring the
+# fix needs: (a) a per-species `Control.sp_methc` (default 6); (b) pack v[7] here — the ScheduledActivity
+# `params` tuple is already FULL (6 params + aux), so add a slot or a separate methc event; (c)
+# apply_volume_overrides! set sp_methc; (d) compute_volumes_ne! dispatch methc==5 → `r9vol_gevorkiantz`
+# (proven total cubic 0.42π·D²·H/576 + the r9vol.f board/merch polys). See DIVERGENCE_FIX_CAMPAIGN.md D35.
 function kw_volume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
