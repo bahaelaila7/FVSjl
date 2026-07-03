@@ -3757,8 +3757,16 @@ directly through the SN oracle. Result: the sweep's "ERR live-FPE/no-sum" label 
     proven ULP by per-species stamp) and COMPRESS. ⇒ **VERDICT: 📌 accepted ULP/order-amplification tail, now
     confirmed against LIVE** (semantic faithful at init; grown tail is DGSCOR/SDI-mortality order, not a NOHTDREG
     gap). The residual per-tree proof (which near-tied trees flip the cycle-1 mortality) is the same class already
-    settled decisively for the CS floor; a full per-tree stamp on nohtdreg_cal is the belt-and-suspenders step, now
-    UNBLOCKED (live runs it) — the DBS FVS_TreeList path needs the right DATABASE/TREELIST keyword structure.
+    settled decisively for the CS floor. PER-TREE STAMP ATTEMPTED — tooling-blocked on this key: adding the DBS
+    DATABASE/DSNOUT/TREELIDB block zeroes the TREEDATA load (live: "TOO FEW PROJECTABLE TREE RECORDS: 0"), and the
+    plain TREELIST output lands in an empty `.out`/`.trl` under the oracle harness. So the decisive which-trees-flip
+    stamp isn't obtainable via this scenario's harness path; the verdict rests on the summary-level live grounding
+    (init bit-exact incl. all volumes + DG 27/27; cycle-1 identical QMD / 0.4% TPA; monotone SDI amplification) —
+    the same evidence pattern the CS floor was accepted on before its per-species stamp. The KEY ADVANCE is that
+    this tail is now grounded against LIVE at all (removing the prior ".sum.save golden by necessity" crutch), not
+    the per-tree increment. To fully decide it, a live-runnable stand that exercises the sp33/65 DGSCOR tail AND
+    emits a working FVS_TreeList (unlike nohtdreg_cal's fragile key) is the clean path — a low-priority tooling
+    follow-up, since the verdict is not in serious doubt.
 ⇒ Net: the blind spot hid NO new divergence (1 ULP + 1 already-documented-accepted tail), but it corrected a
 factually-wrong "live crashes here" audit premise and re-grounded the NOHTDREG @test_broken tail directly against
 live for the first time. The sweep should grow a `.out`-summary fallback for ECHOSUM-less stands (tooling TODO).
