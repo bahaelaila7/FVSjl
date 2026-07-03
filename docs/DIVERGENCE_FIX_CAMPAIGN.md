@@ -132,6 +132,18 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   remaining trace = stamp crown.f ITRUNC/NORMHT/ICRI for the sp998 trees post-fire; low-priority given it is
   report-only + a small sub-population. This SUPERSEDES the "D15 crux / scorch-mirror" framings above (those were
   successive mis-localizations — the honest current read is a narrow crown.f recompute edge case).
+  ★ DEFINITIVE EVIDENCE-BASED READ (2026-07-03, after I re-characterized this 4× — a caution against premature
+  localization): FACTS — (1) dbstrls.f:260 binds **ICR** (not FMICR) to the treelist PctCr; (2) crown.f sets ICR
+  and does NOT read FMICR/SCORCH/FIRE; (3) the fire scorches FMICR (fmeff.f:513), never ICR. DATA — at 2005
+  (post-fire) jl's per-species mean crown is SYSTEMATICALLY ~1–3 pts HIGHER than live (sp318 37.8/36.6, sp531
+  57.2/54.6, sp812 35.7/34.1, sp998 64/43; sp400 identical), with TPA bit-exact for EVERY species and growth/.sum
+  bit-exact. ⇒ CONCLUSION: it is crown.f's post-fire ICR RECOMPUTE producing a slightly lower crown in live than
+  jl's `crown_ratio_update!`, driven by a crown-model input that differs post-fire but is NOT a `.sum` column
+  (candidates: the crown-change limiter's prior-crown basis, PCCF/point competition, or ITRUNC truncation — NOT
+  per-tree HT/DBH/TPA, which are bit-exact). REPORT-ONLY (growth faithful). The "sp998 edge case" framing was an
+  over-correction — sp998 is just the amplified tip of a small SYSTEMATIC effect. Full close = a focused crown.f
+  input stamp (limiter/PCCF/ITRUNC) — deferred, report-only, low-priority. No further re-localization without that
+  stamp.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
