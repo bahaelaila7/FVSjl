@@ -3650,6 +3650,12 @@ The whole DVEE model — model ID, coefficients (extracted), total cubic, pulp+s
 R9_MHTS height paths, the METHC plumbing, the DBHMIN gate — is now implemented, wired, tested, and bit-exact
 vs the live binary. Only the ±0.2% H2 8⅓-ft-log-boundary ULP tail remains (D13-class threshold amplification,
 accepted). The historical narrowing (was +40%→ total cubic → pulp merch → saw merch → DBHMIN gate) is below.
+**FULL ORIGINAL STAND VALIDATED:** cst01_method5 stand-5 (the mixed SP fia110 + BH fia402 planted stand that
+first surfaced D35) — Tcuft within ±0.1% and Mcuft within ±0.3% vs live EVERY cycle (was +40% Mcuft), for
+BOTH species. The fix is species-general (saw CF table + bftopd softwood7.6/hardwood9.6 + BFMIND9 + DBHMIN5,
+all variant-gated to methc==5). ⇒ **CS DVEE is bit-exact barring ULP; the campaign's last real item is
+CLOSED.** All three variants (SN, NE via their fixes + CS via D33/D35) are now at the bit-exact floor barring
+Float32 ULP + the accepted COMPRESS eigensolver.
 
 ### (superseded) 🔬 SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch ≤few%)
 **★ MERCH RESOLVED to the pulp formula (2026-07-03): `Mcuft = VOL(4)+VOL(7) = GCB`, and GCB IS the pulp
