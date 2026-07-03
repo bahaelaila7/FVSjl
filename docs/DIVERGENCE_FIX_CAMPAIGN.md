@@ -3638,7 +3638,20 @@ not prescribe and that jl arguably should NOT replicate. VERDICT: 📌 jl-faithf
 DBS-output quirk, not a jl model/keyword bug. (Which stand live drops is ambiguous by TPA alone — thinned vs
 shelterwood overlap — but immaterial: the keyword semantics enable all of them.) Model correctness (D19) intact.
 
-## 🔬 D35 — CS DVEE volume (VOLUME METHC=5) — SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch ≤few%)
+## ✅ D35 — CS DVEE volume (VOLUME METHC=5) — FIXED TO ULP (2026-07-03): total cubic + merch both bit-exact
+**★★★ COMPLETE (2026-07-03).** Both Tcuft AND Mcuft now bit-exact vs live (barring H2-boundary ULP). The
+merch was closed by two final pieces, both live-stamp-validated: (1) the EXACT saw split — fvsvol.f:512
+`MCF=TVOL(4)+TVOL(7)`; pulp stems have VOL(7)=0 so MCF=VOL(4)=GCB (the pulp poly, exact), saw stems have
+VOL(7)=PT·GCB with `PT=(98.461−1.394P+0.004P²)·0.01`, `P=HT1PRD/HT2PRD·100` ⇒ MCF=VOL(4)_saw+PT·GCB (D9.004
+→8.689, D9.006→10.395, both bit-exact); (2) the DBHMIN(ISPC)=5 gate (D<5⇒MCF=0) jl lacked (its CS
+sp_dbh_min was 0 for the planted species) — this closed the 2022 +13.8% pulp residual. Result: pl3 Mcuft
+within ±0.2% (ULP) EVERY cycle (was +40%); Tcuft bit-exact; suite 6460/2 no regression; +saw-merch tests.
+The whole DVEE model — model ID, coefficients (extracted), total cubic, pulp+saw merch, VOL(7) topwood, both
+R9_MHTS height paths, the METHC plumbing, the DBHMIN gate — is now implemented, wired, tested, and bit-exact
+vs the live binary. Only the ±0.2% H2 8⅓-ft-log-boundary ULP tail remains (D13-class threshold amplification,
+accepted). The historical narrowing (was +40%→ total cubic → pulp merch → saw merch → DBHMIN gate) is below.
+
+### (superseded) 🔬 SUBSTANTIALLY FIXED 2026-07-03 (total cubic bit-exact; merch ≤few%)
 **★ MERCH RESOLVED to the pulp formula (2026-07-03): `Mcuft = VOL(4)+VOL(7) = GCB`, and GCB IS the pulp
 polynomial jl already computes.** Stamped R9VOL's VOL(7): `GCB = 0.001·D²·(1.9+0.01D)·(0.208·H2−0.009984·H2²
 +0.04/H2)·79` (= jl's mcf); `VOL(7)=PT·GCB`, `PT=(98.461−1.394·P+0.004·P²)·0.01`, `P=HT1PRD/HT2PRD·100`. For
