@@ -116,6 +116,13 @@ diverse stands. `cut_thinsdi` (thinning): ALL per-tree columns BIT-EXACT. Two re
   scorched vs when the DG crown is captured (why growth stays bit-exact), and (b) the recovery rule (38.98→39.92→
   40.77). With that trace, the fix is: report-only scorched-crown field set at the fire + recovery via the same
   crown-change limiter, read by the treelist snapshot only. Computation ready; the ICR/DG/recovery trace is the gate.
+  TRACE REFINED (2026-07-03): the fire scorches **FMICR** (fmeff.f:513), NOT ICR (fmmain.f:111 `FMICR=ICR` is
+  one-way); ICR — what dbstrls.f reports as PctCr — is RECOMPUTED each cycle by crown.f (:374/400). So post-fire
+  live's crown.f yields a LOWER ICR than jl's crown recompute despite bit-exact TPA/BA/HT/DBH ⇒ crown.f consumes a
+  fire-affected input (FMICR/scorch) jl's recompute doesn't, yet WITHOUT perturbing DG (.sum bit-exact). Reconciling
+  "crown.f ICR reflects the scorch" with "DG unaffected" IS the D15 crux (the campaign's hardest interaction —
+  enormous prior effort, crashes/regressions). ⇒ the true gate is a live crown.f/FMICR/DG stamp to resolve that
+  interaction before any implementation; this is a focused-session task, not a session-tail fix.
 - **bare_natural DG (diameter growth) for a regen tree:** (2002, sp090) live DG=0.00 vs jl 1.16 — an establishment-
   cycle per-tree DG-report attribution difference (live reports 0 for the just-established tree's first cycle);
   plus SCuFt/BdFt 4.7% @sp131 = the DOCUMENTED D10 regen saw-threshold ULP (accepted). Report-only.
