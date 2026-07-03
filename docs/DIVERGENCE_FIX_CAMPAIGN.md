@@ -260,6 +260,16 @@ per-species CS **CRNMLT default ≠ 1** (a data/blockdata table, not the keyword
 entangled with the raw-BA crown→DG feedback. NEXT: stamp live cs/crown.f `CRNMLT(ISPC)` per species (is the CS
 default 1.0, or per-species?) — if CS seeds CRNMLT from a table, that's the unmasked per-species bug. D40 is a
 multi-session CS-crown investigation; baseline (/gross_space) is kept meanwhile (suite 6462/2).
+CONSOLIDATED (2026-07-03, after ruling out 3 hypotheses turn-by-turn — a caution against per-turn drilling): the
+10-min cap (crown.f:249==jl:77), CRNMLT default (crown.f:289 DATA/MAXSP*1.0 == jl active_crn_mult=1), and top-kill
+gating (crown.f:232 `.NOT.LSTART→59` == jl lstart-only line 68) are ALL faithfully ported — none is the bug. The
+sp552 "2.70<10" clue DISSOLVED: it's Σ(PctCr·TPA) aggregate NOISE on a near-zero-TPA species (amplified to 318%),
+not a real sub-10 crown. ⇒ D40's core is NOT a per-species cap/CRNMLT/top-kill bug; it is the raw-BA crown feeding
+CS DG (cs/dgf.f reads CR) and COMPOUNDING through the crown→DG→BA feedback in the dense near-SDImax cs_allsp stand.
+The clean isolation needs: apply raw BA, per-tree-stamp a NON-tiny-TPA CS species' crown (jl vs live cs/crown.f)
+at cycle 1 to see if the crown itself matches live (⇒ feedback-only, likely accepted amplification) or diverges
+(⇒ a real crown bug). Deferred to a focused session; baseline kept. Lesson: stop peeling one layer per Stop-hook
+turn on a multi-session item — characterize + hand off.
 
 ---
 **★★★★★ CURRENT STATE (2026-07-03) — CAMPAIGN AT END-STATE; supersedes the dated notes below.**
