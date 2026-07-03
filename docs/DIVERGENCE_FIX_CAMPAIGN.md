@@ -3672,18 +3672,26 @@ diameter, same top height — yet cubic/board volume diverges. ⇒ the divergenc
 for fia 110 / 402 (R9 Clark '900CLKE110'/'900CLKE402' via compute_volumes_ne!), NOT the stand projection —
 either the r9clark coefficients/merch standards for these two FIA codes, OR a sub-INTEGER per-tree height
 diff the rounded TopHt hides (r9clark_cubic is HT-sensitive). Parallel in spirit to D33 (a per-species volume-
-equation gap), but here the stand grows identically and only the reported volume differs. **DECISIVE NARROWING (2026-07-02): NOT the R9 Clark equation — it's the REGEN height-prediction / small-tree
-path.** Ran `all_SP` (the same fia-110 shortleaf pine, but the S248112 stand with MEASURED heights in the
-.tre) through CS: **BIT-EXACT vs live** (1728/1548 → 2420/2273 → 3984/3837, all ULP). So r9clark
-'900CLKE110' with a MEASURED height is faithful; the base equation + merch are correct. The ONLY thing that
-differs between all_SP (bit-exact) and the planted stand (+13%) is that planted/regen stems carry a
-PREDICTED height (dub_missing_heights / CS regen HT). ⇒ **D35 root = the CS regen small-tree HEIGHT
-prediction (or the small-tree volume method applied to regen stems), species-specific (SP over-tall in jl,
-BH under-tall).** This also matches the STOP-HOOK D10 framing exactly (`bare_* regen small-tree volume`).
-**NEXT:** dump one planted stem's predicted DBH+HT vs live (TreeLiDB emits 0 rows for these — parse the
-`.trl` or add a jl debug print in `dub_missing_heights!`/CS `small_tree_growth!`), find the HT gap for SP
-(fia110)/BH(fia402), and trace it to the CS regen HT curve (cs_htcalc / htdbh_coeffs) vs live regent.f. Keep
-SN/NE bit-exact (variant-gated). This is the campaign's one confirmed OPEN non-ULP item.
+equation gap), but here the stand grows identically and only the reported volume differs. **PROGRESSIVE NARROWING (2026-07-02):**
+(1) `all_SP` (same fia-110 shortleaf pine, but the S248112 stand with MEASURED heights) runs BIT-EXACT vs
+live through CS (1728/1548 → 2420/2273 → 3984/3837) — so r9clark '900CLKE110' with a measured HT is faithful;
+the equation is right for the measured/larger-stem regime. That first pointed at regen HEIGHT-prediction…
+(2) …but per-tree data REFUTES height. Got the planted stems via a DATABASE/TreeLiDB block on the single-
+species PLANT key: at 2012 DBH and Ht are **BIT-EXACT to 2 decimals vs the live .trl** (DBH 3.81 / Ht 31.38
+both; DBH 3.59 / Ht 29.41 both) — yet per-tree TCuFt differs a few % (live .trl TOT-CU 1.0 vs jl 1.1 on the
+larger stems; aggregate Tcuft +4.5%@2012 → +11%@2022 → +13%@2032). With DBH **and** Ht matched, the
+divergence is in the CUBIC COMPUTATION for these small REGEN stems, not their geometry. The headline 40% is
+Mcuft@2022 — it BLOOMS exactly when the stems cross the merch-DBH threshold (~5"), i.e. a THRESHOLD-
+amplification (D13-style) of the underlying few-% total-cubic gap.
+So: all_SP (measured, larger) bit-exact + planted (same fia, DBH+Ht matched) diverges few-% ⇒ the fault is
+SPECIFIC to the small/regen size regime — a per-species, per-size r9clark input (STUMP, merch tops MTOPP/TOPD,
+or the coef branch selected at small DBH), NOT height and NOT the base equation.
+**BLOCKER:** the DBS FVS_TreeList stores volume at 1-decimal, so the per-tree few-% gap can't be resolved
+finer from the DB. **NEXT (definitive):** live debug-stamp the CS volume call (fvsvol.f VOLINITNVB / the
+r9clark entry) to dump full-precision DBH, HT, VOLEQ, STUMP, MTOPP/TOPD, TVOL(1) for a planted SP (fia110)
+stem, and compare to jl `r9clark_cubic(110, dbh, ht, prod, mtopp, topd, stump…)` at the SAME DBH/HT — the gap
+must be one of {stump, merch tops, coef branch} in the regen-size regime. Keep SN/NE bit-exact (variant-
+gated). This is the campaign's one confirmed OPEN non-ULP item.
 
 ## ★ D34 — inline TREEDATA without -999 crashes jl (live = empty stand) — REAL, FIXED (2026-07-02)
 (labeled D22 in commit 332185a before the D-numbering was reconciled; D22 is the HCOR item — renumbered D34.)
