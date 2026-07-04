@@ -209,3 +209,24 @@ allow ~150 cuft) were wildly stale after the AUTCOR/PVMLT/BAMAX fixes:
   for the native 5-yr cycle; at 10 yr a sub-render per-tree DBH residual compounds into the nonlinear
   cuft sum — BA stays bit-exact because the DBH diffs are sub-render each cycle). Same accepted
   DGSCOR-tail family as the sp33/65 WK3 @test_broken. Bounds tightened to the observed envelope.
+
+## ✅ CLOSED — test_allspecies grown-cycle percentages → per-variant measured floor
+
+Re-measured the all-species coverage grown-cycle residual across EVERY stand/cycle/column vs the
+freshly-relinked live binaries. The four variants split sharply, so the single `_ALLSP_TOL_DEFAULT`
+(2.5%/1.5%/… percentages) was replaced with per-variant tolerances at the true floor:
+- **NE — 100% BIT-EXACT** (max|Δ|=0 all columns/cycles/species) → tol = 0 (`==`).
+- **LS — 100% BIT-EXACT** → tol = 0 (`==`).
+- **SN** — BA & TopHt bit-exact; TPA≤2, SDI/CCF≤1, QMD≤0.1, cuft≤3–4, Bdft≤54 (0.23%).
+- **CS** — BA & SDI bit-exact; TPA≤1, CCF≤4, TopHt≤1, cuft≤20–21 (0.23%), Bdft≤464 (0.95%).
+The SN/CS density/volume tails are the ACCEPTED aggregate DGSCOR + tripling-spread class (a 90/96-
+species synthetic stand compounds each species' sub-ULP per-cycle DBH-growth into the nonlinear
+density/volume sums; BA/SDI stay bit-exact because those diffs are sub-render each cycle). Bounds are
+now the observed ABSOLUTE envelope (deterministic runs), not percentages. Documented in-test.
+
+## ✅ CLOSED — cycleat/growth/multistand grown-cycle bounds
+
+- `test_cycleat.jl` — TPA/BA/SDI FULLY BIT-EXACT (`==`); the CYCLEAT-2003 3-yr+2-yr split reproduces
+  live exactly (old ≤8/≤3/≤6 "non-5-yr period residual" was stale over-caution).
+- `test_growth.jl` (dead_fint) — BA/MCuFt `==`; TCuFt `<=1` (print knife-edge).
+- `test_multistand.jl` (snt01 stand-1) — TPA/BA `==`; total cuft `<=1` (print knife-edge).

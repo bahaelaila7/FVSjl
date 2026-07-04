@@ -35,18 +35,27 @@ end
 
 # Compare a jl .sum string to a live golden .sum, asserting cyc0 bit-exact + later-cycle floor.
 # Columns: 3=TPA 4=BA 5=SDI 6=CCF 7=TopHt 8=QMD(×0.1) 9=Tcuft 12=Bdft.
-# Later-cycle tolerance set — set just above the MEASURED live-vs-jl floor. cyc0 is ALWAYS bit-exact
-# (the coefficient rows); the grown-cycle drift is the accepted tripling-spread single-precision floor,
-# amplified by dense near-SDImax mortality. Defaults fit CS/NE (dense CS mix); LS passes a slightly wider
-# set (its 10-yr cycle + denser mix drift the volume/CCF/QMD columns ~1-1.5%). Each `(abs, pct)` bound is
-# ~1.3-1.7× the measured floor: tight enough to catch a ≥3% coefficient regression, loose enough not to
-# flake on ULP. Columns: 3 TPA · 4 BA · 5 SDI · 6 CCF · 7 TopHt · 8 QMD · 9 Tcuft · 10 Mcuft · 11 Scuft · 12 Bdft.
-const _ALLSP_TOL_DEFAULT = (tpa=(3,0.025), ba=(2,0.015), sdi=(3,0.015), ccf=(4,0.020),
-                            topht=(2,0.0), qmd=(0.25,0.0), tcuft=(2,0.012), mcuft=(2,0.012),
-                            scuft=(2,0.018), bdft=(5,0.018))
-const _ALLSP_TOL_LS = (tpa=(3,0.030), ba=(2,0.015), sdi=(3,0.015), ccf=(5,0.025),
-                       topht=(2,0.0), qmd=(0.4,0.0), tcuft=(2,0.015), mcuft=(2,0.015),
-                       scuft=(3,0.020), bdft=(6,0.020))
+# Per-variant grown-cycle tolerances, re-measured to the TRUE observed floor across every coverage
+# stand / cycle / column (test/harness measurement, not guessed). The four variants split sharply:
+#
+#   • NE and LS coverage are 100% BIT-EXACT vs the live binary on EVERY column, cycle and species
+#     (max|Δ| = 0 everywhere) — so their grown-cycle bound is 0 = `==`, same as cyc0.
+#   • SN and CS are bit-exact on BA (and SN on TopHt) but carry a small multi-species growth tail on
+#     the density/volume columns. That tail is the ACCEPTED, DOCUMENTED aggregate DGSCOR + tripling
+#     class (the same family as test_timeint's cuft tail and the sp33/65 WK3 @test_broken): a 90/96-
+#     species synthetic stand accumulates each species' sub-ULP per-cycle DBH-growth + tripling-spread
+#     residual into the nonlinear density/volume sums. Bounds = the observed envelope (absolute; the
+#     runs are deterministic), NOT a loosened percentage. CS's board feet carry the largest envelope
+#     (0.95% of a large per-acre Scribner sum) because board is the most nonlinear column.
+const _ALLSP_TOL_BITEXACT = (tpa=(0,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(0,0.0), topht=(0,0.0),
+                             qmd=(0.0,0.0), tcuft=(0,0.0), mcuft=(0,0.0), scuft=(0,0.0), bdft=(0,0.0))
+const _ALLSP_TOL_NE = _ALLSP_TOL_BITEXACT
+const _ALLSP_TOL_LS = _ALLSP_TOL_BITEXACT
+const _ALLSP_TOL_SN = (tpa=(2,0.0), ba=(0,0.0), sdi=(1,0.0), ccf=(1,0.0), topht=(0,0.0),
+                       qmd=(0.1,0.0), tcuft=(3,0.0), mcuft=(3,0.0), scuft=(4,0.0), bdft=(54,0.0))
+const _ALLSP_TOL_CS = (tpa=(1,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(4,0.0), topht=(1,0.0),
+                       qmd=(0.1,0.0), tcuft=(21,0.0), mcuft=(20,0.0), scuft=(20,0.0), bdft=(464,0.0))
+const _ALLSP_TOL_DEFAULT = _ALLSP_TOL_CS   # CS is the widest-envelope variant (kept as the fallback)
 
 function _assert_allspecies(jl_text::AbstractString, golden_path::AbstractString;
                             label::AbstractString, tol = _ALLSP_TOL_DEFAULT)
@@ -86,7 +95,7 @@ const _ALLSP_DIR = joinpath(@__DIR__, "..", "fixtures", "allspecies")
     else
         cd(_ALLSP_DIR) do                              # TREEDATA reads <keystem>.tre from cwd
             jl = FVSjl.run_keyfile("cs_allsp.key"; variant = CentralStates(), output = :sum)
-            _assert_allspecies(jl, joinpath(_ALLSP_DIR, "cs_allsp.live.sum"); label = "CS")
+            _assert_allspecies(jl, joinpath(_ALLSP_DIR, "cs_allsp.live.sum"); label = "CS", tol = _ALLSP_TOL_CS)
         end
     end
 end
@@ -100,7 +109,7 @@ end
             for j in 0:4
                 isfile("ne_cov$(j).key") || continue
                 jl = FVSjl.run_keyfile("ne_cov$(j).key"; variant = Northeast(), output = :sum)
-                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "ne_cov$(j).live.sum"); label = "NE-cov$j")
+                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "ne_cov$(j).live.sum"); label = "NE-cov$j", tol = _ALLSP_TOL_NE)
             end
         end
     end
@@ -114,7 +123,7 @@ end
             for j in 0:9
                 isfile("sn_cov$(j).key") || continue
                 jl = FVSjl.run_keyfile("sn_cov$(j).key"; variant = Southern(), output = :sum)
-                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "sn_cov$(j).live.sum"); label = "SN-cov$j")
+                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "sn_cov$(j).live.sum"); label = "SN-cov$j", tol = _ALLSP_TOL_SN)
             end
         end
     end
