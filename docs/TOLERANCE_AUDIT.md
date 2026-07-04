@@ -178,3 +178,22 @@ FLAGGED as genuine deterministic residuals (NOT knife-edges — deep-trace class
   regen tail (real accumulating diff, needs a dedicated op trace like the VARMRT AVH one).
 - `test_treeszcp.jl` cap endpoint TPA Δ4 (declining-stand regen tail).
 - `test_multistand_sum.jl` cross-stand cuft `<=8` (single-precision cross-stand accumulation tail).
+
+## ✅ TRACED-TO-GROUND — treeszcp TopHt/TPA drift = accepted-irreducible tripling-UB artifact
+
+The `test_treeszcp.jl` htcap TopHt drift (≤3–4) and cap endpoint TPA Δ4 were labelled vaguely
+("declining-stand artifact"). Traced to ground per re-trace discipline:
+- **NOTRIPLE is BIT-EXACT** for BOTH htcap (TopHt all 0) and cap (TPA/BA all 0) vs freshly-relinked
+  live FVSsn. So the drift is ENTIRELY a tripling interaction with the TREESZCP size cap — not a
+  growth/mortality bug.
+- **Root:** FVS `htgf.f` caps the TRIPLED record's growth `HTG(ITFN)` against `HT(ITFN)`, but in
+  `grincr.f` HTGF (:265) runs BEFORE TRIPLE (:351), and TRIPLE's SVTRIP is what sets
+  `HT(ITFN)=HT(I)`. `RDTRP` (:151) is the Root-Disease reader, not tree setup. So at cap time
+  `HT(ITFN)` is STALE/uninitialized array memory left by prior compacted records ⇒ FVS's tripled
+  records escape the size cap by a memory-dependent amount. The live evidence is decisive: the top
+  trees sit at 72.0 AND 73.7 (only ~1.7 apart) — NEITHER a clean HT(ITFN)=0 full-escape (would be
+  +many ft) NOR a full cap (would be uniform). It is genuine uninitialized-memory behaviour.
+- **Verdict:** ACCEPTED-IRREDUCIBLE (like the COMPRESS s22 eigensolver) — jl caps each satellite
+  faithfully against its inherited parent height; matching FVS would require emulating uninitialized
+  memory, which is not deterministically reproducible. Bounds kept at the observed stale-memory
+  envelope (TopHt ≤4, TPA ≤5) with the full traced verdict documented in-test.

@@ -49,13 +49,29 @@ _col(r, c) = parse(Float64, r[c])
     if have("treeszcp_cap")
         jl, ft = runjl("treeszcp_cap")
         @test _col(jl[end], 8) <= 8                 # QMD capped near the 10" DBH limit (base ≈ 15)
-        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 5   # endpoint TPA (jl 135 vs ft 139, Δ4 declining-stand regen-tail; was loose ≤6)
+        # endpoint TPA Δ4 (jl 135 / ft 139): SAME accepted-irreducible tripling-UB class as htcap below —
+        # NOTRIPLE is BIT-EXACT (verified vs live), so the drift is the size-cap × tripling interaction on
+        # the tripled records (FVS caps them against STALE array memory set only later by TRIPLE/SVTRIP;
+        # grincr.f htgf/morts run before :351). Not deterministically replicable; bound = observed envelope.
+        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 5   # endpoint TPA — tripling-UB envelope
         @test abs(_col(jl[end], 4) - _col(ft[end], 4)) <= 1   # endpoint BA
     end
     if have("treeszcp_htcap")
         jl, ft = runjl("treeszcp_htcap")
         @test _col(jl[end], 7) <= 50                # TopHt held well below the uncapped ≈ 79
-        for i in 1:length(jl)                       # TopHt drift bounded (declining-stand artifact)
+        # TopHt drift ≤3–4 ft: TRACED to ground (NOTRIPLE is BIT-EXACT — verified vs live) as a
+        # genuinely-irreducible FVS UNINITIALIZED-MEMORY artifact in the height-cap × tripling path,
+        # NOT a growth/mortality bug. FVS htgf.f caps the TRIPLED record's height growth HTG(ITFN)
+        # against HT(ITFN), but HTGF (grincr.f:265) runs BEFORE TRIPLE (grincr.f:351) — and TRIPLE's
+        # SVTRIP is what sets HT(ITFN)=HT(I). At cap time HT(ITFN) is STALE array memory (RDTRP at :151
+        # is Root-Disease, not tree setup), so FVS's tripled records escape the height cap by an amount
+        # that depends on leftover memory from prior compacted records — the live spread (top trees at
+        # 72.0 AND 73.7, only ~1.7 apart) shows it is NEITHER a clean HT=0 full-escape NOR a full cap.
+        # jl caps each satellite faithfully against the parent height it inherits (copy_tree!), so its
+        # capped tall trees sit ~3 ft lower. Replicating FVS here means emulating uninitialized memory —
+        # not deterministically reproducible. ACCEPTED-IRREDUCIBLE class (like the COMPRESS eigensolver);
+        # bound = the observed stale-memory envelope (≤4 TopHt-ft). See docs/TOLERANCE_AUDIT.md.
+        for i in 1:length(jl)
             @test abs(_col(jl[i], 7) - _col(ft[i], 7)) <= 4
         end
     end
