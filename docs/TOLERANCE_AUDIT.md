@@ -35,7 +35,18 @@ through nonlinear board-feet. ⇒ the real targets are the deterministic GROWTH/
 (Δ1 control → Δ9 THINDBH), hidden by the tolerances — each an LS-QMDGE5-scale trace. The "Scribner Float32
 noise" (Item 2) and volume bounds (C2b) are mostly DOWNSTREAM of these; fix state first (doctrine #2 upstream-
 first). SCALE: this campaign is a bit-exactness effort across CS/NE/harder-SN scenarios, multi-session. START:
-the CS control-stand Δ1 (cleanest upstream) → trace like LS QMDGE5.
+the CS control-stand Δ1 (cleanest upstream) → trace like LS QMDGE5. **CS control Δ1 TRACED: BA/SDI/CCF/TopHt
+BIT-EXACT, only TPA off by 1 from 2020** ⇒ a BA-CONSERVING mortality-DISTRIBUTION difference (jl `_varmrt!`
+allocates the kill across records ~0.02 TPA differently than varmrt.f, crossing a round boundary). Same root
+as the all-species distributed over-kill. ⇒ **the CS (and the LS all-species) state residuals root to the
+SHARED VARMRT mortality DISTRIBUTION** (`_varmrt!` EFFTR=PEFF·(1−VARADJ)·0.1 / AVH / NPASS geometric-pass
+logic) diverging sub-integer from varmrt.f. NEXT (highest leverage, but SHARED-code → must keep SN/NE/LS
+bit-exact): trace `_varmrt!` vs varmrt.f op-by-op (AVH, PEFF, the NPASS `(1−EFFTR)^NPASS` progression, the
+SHORT re-pass) and match bit-exact, OR prove it's an irreducible operation-order accumulation. ⚠ SCALE HONESTY:
+many of these Δ1 residuals are downstream of sub-ULP operation-ORDER differences (idiomatic Julia vs Fortran's
+exact non-associative sequence) that accumulate + cross rounding boundaries — some may be genuinely irreducible
+(cornerable as "sub-ULP op-order accumulation") rather than fixable to bit-exact. Each needs a per-residual
+verdict. This is a multi-session bit-exactness campaign across CS/NE/harder-SN.
 
 ## C2b — multi-unit absolute bounds
 | ⬜ | file:line | bound | compares | plan |
