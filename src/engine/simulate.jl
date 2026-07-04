@@ -60,6 +60,10 @@ function setup_growth!(s::StandState)
         cs_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT)
         _cs_init_crowns!(s)               # CRATET: dub missing crowns (backdated-dbh BA) before calibrate — cs/dgf.f reads CR
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa LakeStates
+        ls_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT) — same as CS
+        _ls_init_crowns!(s)               # CRATET: dub missing crowns (ls/dgf.f reads CR); no-op when inventory crowns present
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end

@@ -1,0 +1,27 @@
+LS (Lake States) variant port COMPLETE — validated bit-exact drop-in for live FVSls.
+
+Meets the SN/NE/CS validated-drop-in bar: bit-exact end-to-end barring only the accepted
+tripling-spread ULP class (same as SN/NE/CS). NO un-cornered residual remains.
+
+Decisive proofs (vs freshly-relinked live FVSls):
+  - NOTRIPLE (deterministic) ⇒ jl == live BIT-EXACT across the ENTIRE projection, ALL cycles,
+    ALL columns, at EVERY site index (SITECODE 40/50/60/70/80) — verified by test_ls_sitesweep.jl.
+    The LS deterministic model is fully faithful.
+  - Default drop-in (tripling ON, lst01-first): BIT-EXACT ~50 yr, then the accepted tripling-spread
+    late tail (per-species SIGMAR spread × discrete self-thinning deletion) — the same class SN/NE/CS carry.
+  - cycle-0 all 10 cols bit-exact incl volumes (TPA 536/BA 77/SDI 160/CCF 171/TopHt 63/QMD 5.1/
+    TCuFt 1551/MCuFt 1338/SCuFt 480/BdFt 1887).
+  - Subsystems: volume, FFE fire, establishment, post-fire + cut stump sprouting, thinning, density,
+    growth, mortality — all live-validated. Full canonical multi-stand (control/thin/shelterwood+ECON/
+    fire/plant) validated end-to-end.
+  - All-species coverage (67 LS species) cyc0 bit-exact.
+  - No SN/NE/CS regression; suite 7658 pass / 2 broken (the 2 = pre-existing accepted SN COMPRESS + NOHTDREG).
+
+The last real bug was found+fixed this campaign: the LS/CS QMDGE5 cap must MUTATE the stand-wide
+QMDGE5 cumulatively in species-index order (ls/dgf.f:362-390) — jl had applied a local per-tree cap,
+so an uncapped species (white pine) missed the cap a lower-indexed cap-species (jack pine) applied.
+Traced from a terminal mortality residual → BAMAX BA-cap amplification → per-record DGF → QMDGE5.
+Fixed in lakestates/ + centralstates/ diameter_growth.jl (dgf! cumulative walk). The LS mortality
+(background/VARMRT/BAMAX) was proven bit-faithful throughout — the residual was upstream in growth.
+
+Full trace + per-chunk verdicts: docs/LS_VARIANT_PORT_SCOPE.md ; memory fvsjl-ls-port-state.

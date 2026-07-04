@@ -539,6 +539,11 @@ function apply_compress!(s::StandState)::Bool
     end
     due === nothing && return false
     nclas = round(Int, due.params[1]); pn1 = Float64(due.params[2]) / 100
+    # A non-positive target (blank/malformed field, or ≥ the record count) can't compress to fewer
+    # classes — no-op, matching live FVS (which produces output rather than crashing). Guards the
+    # compress! STEP5 `ind1[ncls1]=n` where ncls1 would clamp to nclas≤0 (comcup.f only fires when
+    # ITARG>0 and NCLAS>ITARG).
+    (nclas < 1 || nclas >= s.trees.n) && return false
     fired = compress!(s, nclas, pn1)
     if fired
         compute_density!(s)                            # density changed after the merge

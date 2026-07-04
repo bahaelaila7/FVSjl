@@ -61,6 +61,11 @@ const _CS_ES_HHTMAX = Float32[
     14,14,20,16,20,14,20,20,18,20, 20,12,20,24,20,20,24,20,24,20,
     18,18,20,32,10,20,20,18,16,20, 12,20,20,20,20,16]
 
+# LS planted/regen height cap HHTMAX (ls/blkdat.f DATA HHTMAX/, 68 species) + ESSUBH reference age CARAGE
+# (ls/essubh.f DATA MAPLS/, 68 species — DISTINCT from the htcalc MAPLS curve map).
+const _LS_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20]
+const _LS_ESSUBH_REFAGE = Int[20,15,20,20,5,15,15,20,20,10,20,20,10,10,20,35,15,15,20,20,20,20,20,20,20,20,20,20,20,10,30,10,10,20,10,10,20,20,20,20,20,20,20,20,20,20,10,10,10,10,10,10,10,20,10,10,10,10,25,20,10,10,10,10,10,10,10,10]
+
 """
     establish!(state; fint=5f0) -> Bool
 
@@ -73,7 +78,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     t = s.trees; sd = s.coef.species
     es_xmin = sd[:estab_min_ht]   # per-species establishment min height (CSV)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
-                s.variant isa CentralStates ? _CS_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
+                s.variant isa CentralStates ? _CS_ES_HHTMAX :
+                s.variant isa LakeStates ? _LS_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
@@ -90,7 +96,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     dupnpt = Float32(nptids * idup)
     # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
     # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).
-    bc = (s.variant isa Northeast || s.variant isa CentralStates) ? nothing :
+    bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates) ? nothing :
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -102,7 +108,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # desyncs the whole establishment RNG stream (and, downstream, the shared small-tree growth RANN
     # stream), which is the bare_natural sawtimber-tail divergence (D10). jl previously hardcoded the
     # NE window on the shared path.
-    ran_lo, ran_hi = s.variant isa Northeast ? (-2.5f0, 2.5f0) : (0f0, 1.5f0)
+    # Establishment default-height RAN acceptance window (estab.f:483/490): SN = [0,1.5] (sn/estab.f:486);
+    # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
+    # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
+    # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
+    ran_lo, ran_hi = s.variant isa Southern ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -121,6 +131,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # under-grew the established cohort ~4% (dbh 1.12 vs live 1.17 ⇒ the cyc-1 SDI/CCF deficit).
     ebau_pre = zeros(Float32, 50)
     s.variant isa Northeast && ne_badist!(ebau_pre, s)
+    # LS ls_balmod reads RMSQD from the DENSE common, which for the establishment cohort is the
+    # PRE-establishment stand QMD (live FMEFF stamp: BARE stand → RMSQD=0, so ls_balmod takes the
+    # rmsqd≤0 → omega=b4 branch, GM 0.745 for jack pine). Snapshot it BEFORE the seedlings are added;
+    # `stand_qmd(s)` recomputed after would include the cohort (0.626) and flip ls_balmod to the else
+    # branch (GM 1.0) ⇒ the cohort over-grows (the BARE-PLANT seedling over-sizing).
+    rmsqd_pre = stand_qmd(s)
     # estab.f:175-205 — pre-replicate :estab RNG setup, consumed BEFORE any per-replicate height draw.
     # On the FIRST tally (NTALLY==1) FVS draws once to derive ESDRAW = INT(DRAW·1e5+0.5) and SAVEs it;
     # every tally then reseeds the establishment stream with ESRNSD(.TRUE.,ESDRAW) (odd-forced) and
@@ -169,6 +185,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # the CS NC-128 forward curve — H at CARAGE, then (H/CARAGE)·min(5, TIME−DELAY).
                 carage = Float32(_CS_ESSUBH_REFAGE[sp])
                 (cs_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
+            elseif s.variant isa LakeStates
+                # LS ESSUBH (ls/essubh.f:68-77): identical NE/CS-style base height — carage from ls/essubh.f's
+                # own MAPLS map, H via the LS NC-128 curve (htcalc IVAR=1), then (H/CARAGE)·min(5, TIME−DELAY).
+                carage = Float32(_LS_ESSUBH_REFAGE[sp])
+                (ls_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -237,8 +258,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # height, with the CS NC-128 increment + CS balmod (cs/regent.f:118-340, FNT=FINT−5).
         ne_estab = s.variant isa Northeast
         cs_estab = s.variant isa CentralStates
+        ls_estab = s.variant isa LakeStates
         local ebau_e, b3_e, avh_e, scale_e, rdiam_e, rnd_e
         local cb1_e, cb2_e, cb3_e, ba_e
+        local lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e, rmsqd_e
         if ne_estab
             ebau_e = ebau_pre                              # PRE-establishment BAL (snapshot above), not the cohort's
             b3_e = sd[:dg_b3]; avh_e = s.plot.avg_height
@@ -253,6 +276,16 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             scale_e = per > 5 ? Float32(per - 5) / 10f0 : 0f0   # FNT/REGYR, REGYR=10 (CON=HGADJ=XRHGRO=1)
             rdiam_e = sd[:htdbh_db]                         # DIAM floor (= cs/regent.f DIAM == htdbh_db)
             rnd_e = s.control.dg_stddev_bound >= 1f0        # DGSD random ±10%
+        elseif ls_estab
+            # LS shares NE/CS's REGENT(LESTB) shape: ESSUBH gives a BASE height (5-yr) that this grows to the
+            # cycle-end height via the LS NC-128 increment (MAPLS) + ls_balmod (ls/regent.f). BARE stand: BA≈0,
+            # RMSQD≈0 ⇒ ls_balmod omega=b4/gm≈1 and AVH=0 ⇒ no competition suppression (live FVSls GMOD=1).
+            lcheck_e = sd[:balmod_check]; lb1_e = sd[:balmod_b1]; lb2_e = sd[:balmod_b2]; lb3_e = sd[:balmod_b3]
+            lb4_e = sd[:balmod_b4]; lc1_e = sd[:balmod_c1]; lc2_e = sd[:balmod_c2]; lbamax_e = sd[:balmod_bamax1]
+            avh_e = s.plot.avg_height; ba_e = s.plot.basal_area; rmsqd_e = rmsqd_pre  # pre-establishment RMSQD (DENSE)
+            scale_e = per > 5 ? Float32(per - 5) / 10f0 : 0f0   # FNT/REGYR, REGYR=10 (CON=HGADJ=XRHGRO=1)
+            rdiam_e = sd[:htdbh_db]
+            rnd_e = s.control.dg_stddev_bound >= 1f0
         end
         @inbounds for i in newidx
             ran_cr = 0f0
@@ -324,6 +357,32 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 end
                 t.dbh[i] = dbhk + 0.001f0 * hk
                 hk > _CS_ES_HHTMAX[sp] && (hk = _CS_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
+                t.height[i] = hk
+            elseif ls_estab                                    # LS REGENT(LESTB) height growth + new DBH
+                sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
+                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))
+                if ls_htcalc_htmax(sp, si) - h <= 1f0
+                    htgr = 0.1f0
+                else
+                    htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) * scale_e * xrhgro
+                end
+                gmod = ls_balmod(sp, t.dbh[i], ba_e, rmsqd_e, lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e)
+                relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
+                htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
+                if rnd_e
+                    rh = 0f0
+                    while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
+                    htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
+                end
+                hk = h + htgr
+                if hk < 4.5f0                       # ls/regent.f LESTB dbh: DIAM floor (or htdbh⁻¹), + 0.001·hk
+                    dbhk = rdiam_e[sp]
+                else
+                    dbhk = _htdbh_dbh(sd, sp, hk, ifor)
+                    dbhk < rdiam_e[sp] && (dbhk = rdiam_e[sp])
+                end
+                t.dbh[i] = dbhk + 0.001f0 * hk
+                hk > _LS_ES_HHTMAX[sp] && (hk = _LS_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
                 t.height[i] = hk
             end
         end

@@ -681,6 +681,8 @@ FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
     covtyp::Int32                      # cover type = species with the most basal area (COVTYP)
+    covtyp_ict::Int32                  # LS fuel-model cover-type metagroup (OLDICT, ls/fmcfmd.f); persists across
+                                       # cycles so a treeless cycle reuses the prior metagroup (FMVINIT default RPCT=3)
     percov::Float32                    # percent canopy cover (PERCOV)
     bigdbh::Float32                    # largest DBH seen in the stand (BIGDBH)
     flive::NTuple{2,Float32}           # live herb / shrub surface fuel, tons/ac (FLIVE)
@@ -737,7 +739,7 @@ mutable struct FireState
                                        # popped + its conditions loaded into the scalars above when its year falls in
                                        # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
 end
-FireState() = FireState(false, Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
+FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
                         zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
                         (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{6,Float32}[],

@@ -18,11 +18,11 @@
 # =============================================================================
 
 # Per-species QMD≥5 caps (cs/dgf.f:460-478) and crown-ratio caps (:482-494), by species index.
-# NOTE: in the Fortran the QMD cap mutates the stand-wide QMDGE5 IN PLACE inside the species loop,
-# so a capping species would lower it for every later species (an order-dependent latent quirk).
-# We apply the cap to a per-tree LOCAL copy instead — bit-identical whenever at most one capping
-# species is present (true for cst01, whose species 8/19/43/47/60 hit no QMD cap). Revisit if a
-# multi-capping-species stand ever diverges. (Crown caps are already per-tree-local in the Fortran.)
+# The QMD cap MUTATES the stand-wide QMDGE5 IN PLACE as the Fortran walks species in index order, so
+# a cap-species lowers it for every LATER species — dgf! replicates that cumulative walk (see below),
+# `_cs_qmd_cap` is the single-species cap kernel it folds. (Crown caps stay per-tree-local, as in the
+# Fortran.) The old per-tree-local QMD cap was bit-identical only with ≤1 capping species (cst01); the
+# LS site sweep proved it wrong for multi-cap-species stands, so both CS and LS now do the cumulative walk.
 @inline function _cs_qmd_cap(spc::Int, q::Float32)::Float32
     spc == 50 && return min(q, 12f0)
     (spc == 3 || (10 <= spc <= 13)) && return min(q, 13f0)
@@ -73,6 +73,24 @@ function dgf!(s::StandState, ::CentralStates)
     bage5 <= 0f0 && (bage5 = 10f0)
     ba_v = p.basal_area
 
+    # Per-species effective QMDGE5 — FVS mutates the stand-wide QMDGE5 IN PLACE as it walks species in
+    # INDEX order (cs/dgf.f:460-478, DO 200 ISPC=1,MAXSP), so a species sees the value capped by ALL
+    # LOWER-INDEXED present cap-species. Formerly a per-tree LOCAL cap (bit-identical only with ≤1 cap
+    # species, true for cst01) — the LS sweep proved it wrong for multi-cap-species stands (an uncapped
+    # species missed a lower-indexed cap-species' mutation). Replicate the cumulative walk. No-op for a
+    # single capping species; a no-op entirely for cst01.
+    nsp = nspecies(s.variant)
+    present = falses(nsp)
+    @inbounds for i in 1:t.n
+        (t.dbh[i] > 0f0 && t.tpa[i] > 0f0) && (present[Int(t.species[i])] = true)
+    end
+    qmd_eff = fill(qmdge5, nsp)
+    qcur = qmdge5
+    @inbounds for spc in 1:nsp
+        present[spc] && (qcur = _cs_qmd_cap(spc, qcur))
+        qmd_eff[spc] = qcur
+    end
+
     @inbounds for i in 1:t.n
         d = t.dbh[i]
         d <= 0f0 && continue
@@ -80,7 +98,7 @@ function dgf!(s::StandState, ::CentralStates)
         conspp = c.dg_const[sp] + c.dg_cor[sp]                 # DGCON + COR
         cr = Float32(t.crown_pct[i]);  cr <= 0f0 && (cr = 10f0)
         cr = _cs_cr_cap(sp, cr)
-        q  = _cs_qmd_cap(sp, qmdge5)
+        q  = qmd_eff[sp]                                       # cumulative species-order cap (see above)
         reldbh = q > 0f0 ? d / q : 0f0
         reldbhsq = q > 0f0 ? d * d / q : 0f0
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba_v          # PCT = BA percentile

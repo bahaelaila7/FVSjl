@@ -10,9 +10,12 @@
 > - [`decision_flow.html`](decision_flow.html) — the **FVS** (Fortran oracle) graph,
 >   588 routines. The source-of-truth SN semantics.
 > - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
->   443 routines (idiomatic, compressed; covers **both variants** — Southern and Northeast,
->   the latter scoped as pentagons — plus the full FFE carbon/fuels/fire path, the 9 FFE
->   DBS-table writers, ECON, and YARDLOSS). Put side by side with the FVS graph to see
+>   443 routines (idiomatic, compressed; the interactive graph is drawn for Southern +
+>   Northeast (pentagons), but all **four variants are validated** — Central States and
+>   Lake States reuse ~90% of this same shared engine, adding only their variant-specific
+>   surface (SN-family ln(DDS) `dgf!`, site/volume/FFE/sprout coefs) under
+>   `src/variants/centralstates|lakestates/`) — plus the full FFE carbon/fuels/fire path,
+>   the 9 FFE DBS-table writers, ECON, and YARDLOSS). Put side by side with the FVS graph to see
 >   where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD,
 >   `mortality_and_fire!` = MORTS+TRIPLE+FMBURN+FMKILL).
 >
@@ -25,11 +28,14 @@ major code snippets (subroutines) and the conditions that gate them, but does no
 expand their internals. Use it to (a) onboard, (b) see at a glance what is and is
 not ported, and (c) design test scenarios that exercise a specific branch.
 
-The **Northeast** variant shares this same input→output flow (the engine and keyword
-paths are variant-agnostic); it differs only in the variant-dispatched growth/volume
-kernels — NE diameter growth (`ne/dgf.f` with the structurally-new BAL competition),
-height growth, crown selection, and **R9 Clark** volume (vs SN's R8 Clark). Both
-variants are complete and validated bit-exact against their live Fortran builds.
+The **Northeast**, **Central States**, and **Lake States** variants share this same
+input→output flow (the engine and keyword paths are variant-agnostic); they differ only
+in the variant-dispatched growth/volume/mortality/crown kernels. NE uses diameter growth
+(`ne/dgf.f` with the structurally-new BAL-potential competition) and **R9 Clark** volume
+(vs SN's R8 Clark). CS and LS use an SN-family ln(DDS) `dgf!` (`cs/dgf.f` / `ls/dgf.f`);
+LS adds its own site-index (SICOEF), R9 Clark cubic + Scribner board volume, FFE fire, and
+stump-sprout coefficients. **All four variants are complete and validated bit-exact against
+their live Fortran builds** (barring only the accepted tripling-spread ULP class).
 
 Legend: ✅ ported & validated · 🟡 partial · ⛔ not ported (in-scope, planned) ·
 🧊 out of scope by the plan (no test scenario exercises it) · 🔁 compressed

@@ -103,8 +103,8 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                     dg = 0.001f0 * hk
                 else
                     bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
-                    dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx))
-                    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, Int(p.forest_idx))
+                    dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx); db_floor = true)
+                    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, Int(p.forest_idx); db_floor = true)
                     if dk < 0f0 || dkk < 0f0
                         dg = htg * 0.2f0 * bark * xrdgro      # regent.f:359 degenerate fallback
                         dgsm = dg

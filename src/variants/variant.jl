@@ -36,7 +36,8 @@ function variant_from_code(code::AbstractString)
     (c == "SN" || c == "SOUTHERN")  && return Southern()
     (c == "NE" || c == "NORTHEAST") && return Northeast()
     (c == "CS" || c == "CENTRALSTATES" || c == "CENTRAL STATES") && return CentralStates()
-    error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States)")
+    (c == "LS" || c == "LAKESTATES" || c == "LAKE STATES") && return LakeStates()
+    error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States)")
 end
 
 """Number of species in the variant (SN=90, NE=108). Array capacity is MAXSP (the max)."""

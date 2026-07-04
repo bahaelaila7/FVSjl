@@ -32,7 +32,13 @@ using FVSjl
     include("integration/test_snt01.jl")
 include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
 include("integration/test_cst01.jl")   # CS: cst01 cycle-0 stand columns bit-exact (GROSPC<1 path)
-include("integration/test_allspecies.jl")# CS+NE: all-species coverage vs live FVScs/FVSne (caught the BW crown-width gap)
+include("integration/test_lst01.jl")   # LS: lst01 cycle-0 stand columns bit-exact (all 6, vs live FVSls)
+include("integration/test_lst01_ffe.jl")  # LS: FFE fire behavior (fmcfmd model 10 + fmmois) + fire mortality vs live FVSls
+include("integration/test_lst01_estab.jl") # LS: BARE-plant establishment stand BIT-EXACT vs live FVSls (RAN-window fix)
+include("integration/test_lst01_fire_sprout.jl") # LS: post-fire stump sprouting (fmkill.f:80 fire-kill→ESTUMP→ESUCKR) vs live FVSls
+include("integration/test_allspecies.jl")# CS+NE+SN+LS: all-species coverage vs live (per-species coefficient rows; caught the BW crown-width gap)
+include("integration/test_canonical_multistand.jl")# SN/NE/CS/LS: full reference multi-stand scenarios (thin/shelterwood/fire/plant) vs live
+include("integration/test_ls_sitesweep.jl")# LS: site-productivity sweep — deterministic growth bit-exact across site indices vs live
 include("integration/test_r8clark_special.jl")# D7: R8 Clark COEFFSO%DIB17 cypress/green-ash merch volume vs live FVSsn
 include("integration/test_simfire_schedule.jl")# D9: SIMFIRE date/cycle default + multiple-fire scheduling vs live FVSsn
 include("integration/test_compress_tripling.jl")# COMPRESS still triples its own cycle (merch volume) vs live FVSsn

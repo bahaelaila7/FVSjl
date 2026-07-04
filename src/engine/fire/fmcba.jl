@@ -34,6 +34,9 @@ function fmcba!(s::StandState)
     elseif s.variant isa CentralStates
         # CS uses the flat FULIV table by FFE forest type (cs/fmcba.f:113); no SN FULIV2 override.
         fs.flive = ffe_live_fuel_loading(coef, ffe_forest_type(s))
+    elseif s.variant isa LakeStates
+        # LS uses the FULIV table indexed by (IFFEFT, ISZCL) — ls/fmcba.f:138; no SN FULIV2 override.
+        fs.flive = ls_live_fuel_loading(s)
     else
         ovr = ffe_live_fuel_override(s)
         fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
@@ -71,6 +74,7 @@ function fmcba!(s::StandState)
     if !fs.fuels_init
         deffuel = s.variant isa Northeast ? ne_dead_fuel_loading(s) :
                   s.variant isa CentralStates ? cs_dead_fuel_loading(coef, Int(s.plot.forest_type)) :
+                  s.variant isa LakeStates ? ls_dead_fuel_loading(s) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
         fill!(fs.cwd, 0f0)

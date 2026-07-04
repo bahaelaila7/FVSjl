@@ -302,12 +302,32 @@ end
     return round(bd / 5f0, RoundNearestTiesAway) * 5f0
 end
 
+# Scribner Decimal-C board feet per log (r9clark.f R9BDFT `nint(len·scrbnr(int(dib)))`, scrbnr = the
+# 120-entry FACTOR table in data/lakestates/scribner_factor.csv). The LS `.sum` BdFt is FVS's vol(2)
+# (Scribner), NOT vol(10) (International) — cf. ls/vols.f:348-387 "COMPUTE SCRIBNER BOARD FOOT VOLUME".
+# The r9cor correction (cf3 == cf4) and the DIB rounding (INT(dib+0.499)) are identical to International,
+# so Scribner differs ONLY in this per-log kernel (and each log is nint-rounded before the sum).
+const _R9_SCRBNR = let
+    path = joinpath(@__DIR__, "..", "..", "data", "lakestates", "scribner_factor.csv")
+    v = zeros(Float32, 120)
+    for (k, line) in enumerate(eachline(path))
+        k == 1 && continue
+        f = split(strip(line), ',')
+        v[parse(Int, f[1])] = parse(Float32, f[2])
+    end
+    v
+end
+@inline function _r9_scrib_log(len::Float32, idib::Int)::Float32
+    idib < 1 && return 0f0
+    round(len * _R9_SCRBNR[min(idib, 120)], RoundNearestTiesAway)   # nint(len·scrbnr(idib))
+end
+
 # r9bdft (r9clark.f:1380) + R9LOGS bucking (r9logs.f R9LOGLEN/R9LOGDIB): board feet of the sawtimber
 # section [stump, sawHt]. Bucks even-foot logs (shared R9LOGLEN rule, identical to `_r8_scribner_bf`),
-# takes each log's small-end (top) DIB from the R9 taper `_r9_dib`. Returns vol(10) = International ¼"
-# board feet (`nint` of the per-log sum), the value the NE `.sum` BdFt column reports.
-function _r9_intlqtr_bf(st::_R9State, sawHt::Float32, stump::Float32,
-                        minLen::Float32, maxLen::Float32, trim::Float32)::Float32
+# takes each log's small-end (top) DIB from the R9 taper `_r9_dib`. `logfn` maps (len, idib)→board feet:
+# `_r9_intl_log` = vol(10) International ¼" (NE/CS `.sum`), `_r9_scrib_log` = vol(2) Scribner (LS `.sum`).
+function _r9_bucked_bf(st::_R9State, sawHt::Float32, stump::Float32,
+                       minLen::Float32, maxLen::Float32, trim::Float32, logfn::F)::Float32 where {F}
     lmerch = sawHt - stump
     nlogp = clamp(floor(Int, lmerch / (maxLen + trim)), 0, 39)
     leftov = lmerch - (maxLen + trim) * nlogp - trim
@@ -334,10 +354,17 @@ function _r9_intlqtr_bf(st::_R9State, sawHt::Float32, stump::Float32,
         len = logLen[i]
         ht += trim + len                        # top (small end) of log i
         idib = trunc(Int, _r9_dib(st, ht) + 0.499f0)   # r9logdib: LOGDIA = INT(DIB+0.499)
-        bf += _r9_intl_log(len, idib)
+        bf += logfn(len, idib)
     end
-    return round(bf)                            # r9bdft:1499 vol(10)=NINT(vol(10))
+    return round(bf)                            # r9bdft:1499 vol(10)=NINT(vol(10)) / vol(2)=NINT(vol(2))
 end
+
+# International ¼" (vol10 — NE/CS) and Scribner Decimal-C (vol2 — LS) board-foot wrappers over the
+# shared R9LOGS bucking. Same log lengths + DIBs; only the per-log kernel differs.
+@inline _r9_intlqtr_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim) =
+    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_intl_log)
+@inline _r9_scribner_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim) =
+    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_scrib_log)
 
 """
     r9clark_cubic(spp, dbhOb, htTot, prod, mTopP, mTopS, stump) -> vol::Vector{Float32}
@@ -350,7 +377,8 @@ computed here (needs R9LOGS/r9bdft). NaN/short-tree guards follow the Fortran.
 """
 function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
                        mTopP::Float32, mTopS::Float32, stump::Float32,
-                       bfTopP::Float32 = -1f0, bfStmp::Float32 = -1f0)::Vector{Float32}
+                       bfTopP::Float32 = -1f0, bfStmp::Float32 = -1f0;
+                       board_scribner::Bool = false)::Vector{Float32}
     vol = zeros(Float32, 15)
     iProd = prod == "01" ? 1 : 2
     co = _r9_coef(spp)
@@ -439,7 +467,8 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     bfHt = _r9_ht(st, bfDib)
     (topDib <= bfDib && topHt < bfHt) && (bfHt = topHt)
     bfHt < merchL + trim + bfSt && (bfHt = 0f0)
-    bfHt > 0f0 && (vol[2] = _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim))
+    bfHt > 0f0 && (vol[2] = board_scribner ? _r9_scribner_bf(st, bfHt, bfSt, minLen, maxLen, trim) :
+                                             _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim))
 
     # FVS r9clark.f:454-462 applies the correction (r9cor) FIRST, THEN nint-rounds. The port had these
     # REVERSED (round-half-even then cor), so each printed value was cor×(0.1-multiple) instead of the clean
@@ -488,6 +517,24 @@ end
     end
 end
 
+# LS merch standards (ls/sitset.f:305-385). Softwoods = species index ≤ 14. Aspen/poplar
+# (species 40-42 = BT/QA/BP) get raised sawtimber mins on some forests. Board-foot mins equal
+# the sawtimber-cubic mins for LS in every IFOR case (BFMIND==SCFMIND, BFTOPD==SCFTOPD), so the
+# returned (scfmind, scftopd) cover both — bf-equal. Stumps from grinit.f (STMP 0.5 / SCFSTMP 1.0).
+# TOPD (merch-cubic top) is a flat 4 for LS (no IFOR dependence, unlike CS). Returns the 6-tuple
+# (dbhmin, topd, scfmind, scftopd, stmp, scfstmp) the eastern volume driver consumes.
+@inline function _ls_merch(spi::Integer, ifor::Integer)
+    if spi <= 14                          # softwoods
+        return (5f0, 4f0, 9f0, 7.6f0, 0.5f0, 1f0)
+    else                                  # hardwoods
+        aspen = (40 <= spi <= 42)
+        dbhmin  = ifor == 2 ? (aspen ?  6f0 :  5f0) : (ifor == 6 ? 6f0 : 5f0)
+        scfmind = ifor == 2 ? (aspen ? 11f0 :  9f0) : (ifor == 5 ? (aspen ? 9f0 : 11f0) : 11f0)
+        scftopd = ifor == 2 ? (aspen ? 9.6f0 : 7.6f0) : (ifor == 5 ? 7.6f0 : 9.6f0)
+        return (dbhmin, 4f0, scfmind, scftopd, 0.5f0, 1f0)
+    end
+end
+
 """
     compute_volumes_ne!(s)
 
@@ -497,6 +544,8 @@ standards. Loads cuft/merch-cuft/saw-cuft/board-feet per tree (board feet = Scri
 via R9LOGS bucking + r9bdft). Broken-top (CFTOPK) reuse is TODO.
 """
 function compute_volumes_ne!(s::StandState)
+    # LS `.sum` BdFt is Scribner (vol2); NE/CS report International ¼" (vol10). ls/vols.f:348-387.
+    board_scribner = s.variant isa LakeStates
     t = s.trees; co = s.coef
     cs = s.variant isa CentralStates
     ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
@@ -545,7 +594,8 @@ function compute_volumes_ne!(s::StandState)
             _scfm = md.sp_scf_dbhmin[sp]; _topd = md.sp_top_diam[sp]
             _prod = d >= _scfm ? "01" : "02"
             _mtopp = d >= _scfm ? md.sp_scf_topd[sp] : _topd
-            _vc = r9clark_cubic(fia, d, h, _prod, _mtopp, _topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp])
+            _vc = r9clark_cubic(fia, d, h, _prod, _mtopp, _topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
+                                board_scribner = board_scribner)
             bf = (d >= md.sp_bf_dbhmin[sp] && d > md.sp_bf_topd[sp]) ? _vc[2] : 0f0
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
@@ -561,7 +611,8 @@ function compute_volumes_ne!(s::StandState)
         bfmind = md.sp_bf_dbhmin[sp]                           # BFVOLUME board-foot min DBH (bf-equal by default)
         prod = d >= scfmind ? "01" : "02"
         mtopp = d >= scfmind ? scftopd : topd
-        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp])
+        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
+                          board_scribner = board_scribner)
         tcf = v[1]
         mcf = d >= dbhmin  ? v[4] + v[7] : 0f0
         scf = d >= scfmind ? v[4] : 0f0

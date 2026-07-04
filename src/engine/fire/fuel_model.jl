@@ -75,6 +75,19 @@ const _FMD_XPTS_NE = Float32[                               # ne/fmcfmd.f:78-91 
 fmd_xpts(::Northeast) = _FMD_XPTS_NE
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
+
+# LS (ls/fmcfmd.f) uses ICLSS=22 fuel-model classes: the standard 13 plus the extended
+# Minnesota models 105/142/143/146/161/162/164/186/189 (classes 14–22), mapped to their
+# printed model numbers by IPTR. XPTS (fmcfmd.f:104) iso-line intercepts (SMALL, LARGE):
+# model 10/11 = (15,30), 12 = (30,60), 13 = (45,100), everything else (5,15).
+const _FMD_IPTR_LS = Int[1,2,3,4,5,6,7,8,9,10,11,12,13,105,142,143,146,161,162,164,186,189]
+const _FMD_XPTS_LS = Float32[
+    5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7
+    5  15;  5  15;                                          # models 8–9
+   15  30; 15  30; 30  60; 45 100;                          # models 10–13
+    5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # 105,142,143,146,161,162,164
+    5  15;  5  15]                                          # 186,189
+const _FMD_ICLSS_LS = 22
 const _FMD_MXFMOD = 5     # MXFMOD (FMPARM.F77)
 
 "SMALL/LARGE down-wood loads (tons/ac): classes 1–3 + litter(10) are SMALL, 4–9 are LARGE (fmtret.f:382)."
@@ -121,6 +134,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     if s.variant isa Northeast
         eqwt[9] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
         return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+    end
+
+    # LS uses a full cover-type × PERCOV × season selection (ls/fmcfmd.f), NOT the SN forest-type path.
+    if s.variant isa LakeStates
+        return ls_select_fuel_models(s, mois, sm, lg)
     end
 
     # --- SN candidate-model selection (fmcfmd.f:131) ---
@@ -182,6 +200,263 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
+# FINDMOD (fmcfmd.f:641): the class index whose IPTR entry is model `jmod`; 8 if not found.
+@inline _ls_findmod(jmod::Integer) = (k = findfirst(==(jmod), _FMD_IPTR_LS); k === nothing ? 8 : k)
+
+"""
+    ls_select_fuel_models(s, mois, sm, lg) -> Vector{Tuple{Int,Float32}}
+
+The Lake States weighted standard fuel models (ls/fmcfmd.f + FMDYN). LS selects candidate
+models from the stand's COVER-TYPE metagroup (jack pine / northern hardwood / red-white
+pine / mixed wood / oak / aspen-birch, by basal area), then a per-cover-type branch keyed
+on percent cover, arithmetic mean height, burn season, understory composition, and midflame
+wind; a post-selection block adds the natural-fuel candidates 10/12/13 (cover-type-limited).
+`(sm, lg)` is the (SMALL, LARGE) down-wood point FMDYN resolves against.
+
+Activity-fuel (the 5-yr post-harvest model-11 fuel jump, SLCHNG/LATFUEL/AFWT) is DEFERRED
+— natural stands take LATFUEL=false ⇒ AFWT=0 (same deferral as the SN/NE model-11 path).
+"""
+function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    t = s.trees; coef = s.coef; fs = s.fire
+    eqwt = zeros(Float32, _FMD_ICLSS_LS)
+    percov  = fs.percov
+    burnseas = Int(fs.burnseas)
+    fwind   = fs.swind * fire_wind_reduction(percov)      # 20-ft → midflame wind
+    itype   = Int(s.plot.forest_idx)                      # ITYPE (/PLOT/) — FDc/FDn habitat checks
+    ldry    = false                                       # DROUGHT (IDRYB..IDRYE) — none in these stands
+    # ATAVH (arithmetic mean tree height) drives the jack-pine height thresholds
+    hsum = 0f0; hden = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        hsum += t.height[i] * t.tpa[i]; hden += t.tpa[i]
+    end
+    fmavh = hden > 0f0 ? hsum / hden : 0f0
+
+    # crown area (ft²/ac) helper for a record: forest-grown crown width (CWCALC iwho=0)
+    carea(i) = begin
+        sp2 = s.species.class_codes[Int(t.species[i]), 1][1:2]
+        cw = crown_width(coef, sp2, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
+                         s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
+    end
+
+    # understory flags (fmcfmd.f:167-190): balsam-fir (sp8) / small-tree / conifer (≤14) /
+    # balsam-fir-or-white-pine 1–3″ counts, each ≥500 TPA turns its flag on.
+    bfc = 0f0; smc = 0f0; cnc = 0f0; bfwp = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i]); d = t.dbh[i]; p = t.tpa[i]
+        (sp == 8 && 1f0 <= d <= 3f0) && (bfc += p)
+        (d <= 2f0) && (smc += p)
+        (sp <= 14 && 1f0 <= d <= 3f0) && (cnc += p)
+        ((sp == 8 || sp == 5) && 1f0 <= d <= 3f0) && (bfwp += p)
+    end
+    lbfunder = bfc >= 500f0; lsmtrees = smc >= 500f0
+    lcnunder = cnc >= 500f0; lbfwpund = bfwp >= 500f0
+
+    # LT3: dead surface fuel 0–3″ (down-wood size classes 1–3, tons/ac)
+    lt3 = 0f0
+    @inbounds for isz in 1:3, k in 1:2, l in 1:4
+        lt3 += fs.cwd[isz, k, l]
+    end
+
+    # ---- cover-type metagroup basal areas (fmcfmd.f:215-253) ----
+    JPCT=1; NHCT=2; RPCT=3; MWCT=4; OACT=5; ABCT=7
+    ctba = zeros(Float32, 7); stndba = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        x = t.tpa[i] * d * d * 0.0054542f0
+        if sp == 1
+            ctba[JPCT] += x; stndba += x
+        elseif sp in (12,18,19,25,26,27,28)
+            ctba[NHCT] += x; stndba += x
+        elseif sp in (3,4,5)
+            ctba[RPCT] += x; stndba += x
+        elseif sp in (24,40,41,43)
+            ctba[MWCT] += x; ctba[ABCT] += x; stndba += x
+        elseif sp in (6,7,8,9)
+            (d >= 5f0 ? ctba[MWCT] += x : ctba[ABCT] += x); stndba += x
+        elseif sp in (30,31,32,33,35,36)
+            ctba[OACT] += x; stndba += x
+        elseif sp == 34
+            ctba[NHCT] += x; ctba[OACT] += x; stndba += x
+        end
+    end
+
+    # dominant metagroup ICT; combined oak+pine can override to oak or pine (fmcfmd.f:261-278)
+    ict = 0
+    if t.n > 0 && stndba > 0.001f0
+        bamost = 0f0
+        for i in 1:7
+            ctba[i] > bamost && (bamost = ctba[i]; ict = i)
+        end
+        poct = ctba[OACT] + ctba[RPCT]
+        if poct > bamost
+            ict = ctba[RPCT] > ctba[OACT] ? RPCT : OACT
+        end
+    else
+        ict = fs.covtyp_ict > 0 ? Int(fs.covtyp_ict) : RPCT   # OLDICT, FMVINIT default RPCT
+    end
+    fs.covtyp_ict = Int32(ict)
+
+    # ---- detailed low-fuel-model selection per cover type (fmcfmd.f:280-537) ----
+    if ict == JPCT
+        if percov <= 70f0
+            if fmavh <= 25f0
+                eqwt[4] = 1f0
+            elseif lbfunder
+                burnseas <= 2 ? (eqwt[10] = 1f0) : (eqwt[_ls_findmod(162)] = 1f0)
+            elseif itype == 6 || itype == 7
+                eqwt[2] = 1f0
+            else
+                burnseas <= 2 ? (eqwt[10] = 1f0) : (eqwt[_ls_findmod(161)] = 1f0)
+            end
+        else
+            if fmavh <= 15f0
+                eqwt[4] = 1f0
+            elseif fwind <= 4f0
+                eqwt[8] = 1f0
+            else
+                eqwt[10] = 1f0
+            end
+        end
+    elseif ict == NHCT
+        mapbasba = 0f0; oakba = 0f0; asbiba = 0f0; hembary = 0f0; hemcra = 0f0; sba = 0f0
+        @inbounds for i in 1:t.n
+            t.tpa[i] > 0f0 || continue
+            sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
+            if sp in (18,19,25,26,27); mapbasba += x; sba += x
+            elseif sp in (30,31,32,33,34,35,36); oakba += x; sba += x
+            elseif sp in (24,40,41,43); asbiba += x; sba += x
+            elseif sp == 12; hembary += x; sba += x; hemcra += carea(i)
+            elseif sp == 28; sba += x
+            end
+        end
+        hemcov = (1f0 - exp(-hemcra/43560f0)) * 100f0
+        if hemcov >= 30f0 || asbiba > 0f0
+            eqwt[8] = 1f0
+        elseif sba > 0f0
+            if mapbasba/sba >= 0.5f0
+                eqwt[_ls_findmod(186)] = 1f0
+            else
+                burnseas == 4 ? (eqwt[9] = 1f0) : (eqwt[8] = 1f0)
+            end
+        else
+            eqwt[8] = 1f0
+        end
+    elseif ict == RPCT
+        sba = 0f0; rpba = 0f0; wpba = 0f0; pinecra = 0f0; hardba = 0f0
+        @inbounds for i in 1:t.n
+            t.tpa[i] > 0f0 || continue
+            sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
+            sba += x
+            (3 <= sp <= 5) && (pinecra += carea(i))
+            if sp in (3,4); rpba += x
+            elseif sp == 5; wpba += x
+            elseif sp >= 15; hardba += x
+            end
+        end
+        pinecov = (1f0 - exp(-pinecra/43560f0)) * 100f0
+        if lt3 >= 5f0
+            eqwt[10] = 1f0
+        elseif percov <= 0f0
+            eqwt[8] = 1f0
+        elseif pinecov/percov < 0.5f0 && hardba > 0f0
+            eqwt[8] = 1f0
+        elseif itype == 4 || itype == 10
+            ldry ? (eqwt[_ls_findmod(146)] = 1f0) : (eqwt[_ls_findmod(143)] = 1f0)
+        elseif lbfunder || lbfwpund
+            fwind <= 4f0 ? (eqwt[10] = 1f0) : (eqwt[_ls_findmod(146)] = 1f0)
+        elseif percov >= 50f0
+            eqwt[9] = 1f0
+        elseif percov <= 30f0 && rpba > wpba
+            eqwt[2] = 1f0
+        else
+            eqwt[9] = 1f0
+        end
+    elseif ict == MWCT
+        sba = 0f0; birba = 0f0; concra = 0f0; overcra = 0f0
+        @inbounds for i in 1:t.n
+            t.tpa[i] > 0f0 || continue
+            sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
+            (d >= 5f0) && (overcra += carea(i))
+            if sp in (24,43); birba += x; sba += x
+            elseif 1 <= sp <= 14; sba += x; (d >= 5f0) && (concra += carea(i))
+            elseif sp in (40,41); sba += x
+            end
+        end
+        overcov = (1f0 - exp(-overcra/43560f0)) * 100f0
+        concov  = (1f0 - exp(-concra/43560f0)) * 100f0
+        if sba <= 0f0
+            eqwt[8] = 1f0
+        elseif birba/sba >= 0.5f0
+            eqwt[9] = 1f0
+        elseif overcov > 0f0
+            concov/overcov >= 0.30f0 ? (eqwt[10] = 1f0) : (eqwt[8] = 1f0)
+        else
+            eqwt[8] = 1f0
+        end
+    elseif ict == OACT
+        sba = 0f0; oakba = 0f0; overcra = 0f0
+        @inbounds for i in 1:t.n
+            t.tpa[i] > 0f0 || continue
+            sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
+            sba += x
+            (d >= 5f0) && (overcra += carea(i))
+            (sp == 30 || sp == 35) && (oakba += x)
+        end
+        overcov = (1f0 - exp(-overcra/43560f0)) * 100f0
+        if overcov >= 45f0
+            if burnseas == 1
+                mois[1,1] < 0.08f0 ? (eqwt[_ls_findmod(186)] = 1f0) : (eqwt[8] = 1f0)
+            elseif sba <= 0f0
+                eqwt[9] = 1f0
+            elseif oakba/sba >= 0.30f0
+                eqwt[_ls_findmod(189)] = 1f0
+            else
+                eqwt[9] = 1f0
+            end
+        elseif overcov >= 15f0
+            lsmtrees ? (eqwt[_ls_findmod(142)] = 1f0) : (eqwt[2] = 1f0)
+        else
+            lsmtrees ? (eqwt[_ls_findmod(142)] = 1f0) : (eqwt[_ls_findmod(105)] = 1f0)
+        end
+    elseif ict == ABCT
+        aspba = 0f0; birba = 0f0
+        @inbounds for i in 1:t.n
+            t.tpa[i] > 0f0 || continue
+            sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
+            (sp == 40 || sp == 41) && (aspba += x)
+            (sp == 24 || sp == 43) && (birba += x)
+        end
+        if lt3 >= 5f0
+            eqwt[10] = 1f0
+        elseif !lcnunder
+            birba > aspba ? (eqwt[9] = 1f0) : (eqwt[8] = 1f0)
+        elseif fwind > 4f0
+            eqwt[_ls_findmod(164)] = 1f0
+        else
+            birba > aspba ? (eqwt[9] = 1f0) : (eqwt[8] = 1f0)
+        end
+    end
+
+    # ---- post-selection natural-fuel candidates (fmcfmd.f:541-620) ----
+    # Activity fuel (model 11) deferred: LATFUEL=false ⇒ AFWT=0 for all natural stands.
+    if ict in (JPCT, MWCT, OACT)
+        eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        ict == OACT && (eqwt[12] = 0f0; eqwt[13] = 0f0)   # oak never gets 12 or 13
+    elseif ict == NHCT
+        eqwt[10] = 0f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
+    elseif ict == RPCT
+        eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+    elseif ict == ABCT
+        eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
+    end
+
+    return _fmdyn(sm, lg, eqwt, _FMD_XPTS_LS; iptr = _FMD_IPTR_LS)
+end
+
 """
     _fmdyn(sm, lg, eqwt) -> Vector{Tuple{Int,Float32}}
 
@@ -191,8 +466,9 @@ All SN iso-lines are sloped (ITYP≡0), so only the sloped-line geometry is port
 Collinear candidates (identical XPTS — e.g. the litter models 1–9) share their bracket's
 weight in proportion to `eqwt`. Returns up to `MXFMOD` (model, weight) pairs summing to 1.
 """
-function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractMatrix{Float32} = _FMD_XPTS)
-    ic = _FMD_ICLSS; mx = _FMD_MXFMOD
+function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractMatrix{Float32} = _FMD_XPTS;
+               iptr::Union{Nothing,Vector{Int}} = nothing)
+    ic = length(eqwt); mx = _FMD_MXFMOD
     out = Tuple{Int,Float32}[]
     (sm < 0f0 || lg < 0f0) && return out
 
@@ -322,7 +598,7 @@ function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractM
         k <= mx && (fwt[k] += fwt2[i])
     end
     for i in 1:mx
-        fmod[i] != 0 && push!(out, (fmod[i], fwt[i]))
+        fmod[i] != 0 && push!(out, (iptr === nothing ? fmod[i] : iptr[fmod[i]], fwt[i]))
     end
     return out
 end

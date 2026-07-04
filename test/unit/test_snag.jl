@@ -114,3 +114,35 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         @test all(s.fire.snags.year .== 2003)
     end
 end
+
+# LS snag dynamics differ from SN/CS: FMSFALL uses the "new equation" BASE = −0.006·d+0.18 (fmsfall.f:128,
+# a MUCH faster fall than SN's −0.001679·d+0.064311), the small-snag linear-fall breakpoint is 18" (12" for
+# cedar/tamarack ksp 10,11,14), and snags LOSE HEIGHT over time via non-zero default HTX per snag class
+# (fmvinit.f:823-875) — SN/NE keep HTX=0. These drive the LS Stand-Dead snag pool.
+@testset "LS snag dynamics (FMSFALL new-equation + FMSNGHT height loss)" begin
+    using FVSjl: LakeStates, ffe_snag_height_loss!, snag_bole_carbon, KeywordReader,
+                 KeywordRecord, kw_fmin!, each_stand, notre!, setup_growth!, compute_volumes!
+    lc = coefficients(LakeStates())
+
+    @testset "LS FMSFALL base rate (−0.006·d+0.18) vs SN" begin
+        # sp 10 (snag class 6, FALLX 0.53), DBH 11 (small → linear): MODRATE = (−0.006·11+0.18)·0.53
+        modrate = (-0.006f0*11f0 + 0.18f0) * coef_col(lc, :snag_fallx)[10]
+        @test snag_fall_density(lc, 10, 11f0, 50f0, 50f0; variant = LakeStates()) ≈ modrate * 50f0
+        # the LS rate is far faster than the SN formula would give for the same snag
+        sn_modrate = min(1f0, max(0.01f0, -0.001679f0*11f0 + 0.064311f0) * coef_col(lc, :snag_fallx)[10])
+        @test snag_fall_density(lc, 10, 11f0, 50f0, 50f0; variant = LakeStates()) > 2f0 * sn_modrate * 50f0
+        # LS linear-fall breakpoint is 18" (a 15" non-cedar snag still falls linearly, unlike SN's 12")
+        @test snag_fall_density(lc, 15, 15f0, 50f0, 50f0; variant = LakeStates()) ≈
+              clamp((-0.006f0*15f0 + 0.18f0) * coef_col(lc, :snag_fallx)[15], 0.01f0, 1f0) * 50f0
+    end
+
+    @testset "LS default HTX seeded by FMIN (fmvinit height-loss classes)" begin
+        # LS default HTX by snag class (fmvinit.f:831-873): class1=3.0, 2=1.0, 3/4=0, 5=0.65, 6=0.45, hemlock=0
+        htx = coef_col(lc, :snag_htx)
+        @test htx[6] ≈ 3.0f0    # jack-pine group (class 1)
+        @test htx[1] ≈ 1.0f0    # class 2
+        @test htx[15] ≈ 0.65f0  # maple/ash group (class 5)
+        @test htx[10] ≈ 0.45f0  # cedar/oak group (class 6)
+        @test htx[12] ≈ 0.0f0   # hemlock exception (fmvinit.f:873)
+    end
+end

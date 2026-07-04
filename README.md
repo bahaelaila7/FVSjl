@@ -6,12 +6,18 @@ same `.key` / `.tre` inputs and writes the same `.sum` / SQLite outputs, and in 
 default `faithful = true` mode it is **bit-exact** to the Fortran (barring only
 single-precision ULP and a few documented numerical divergences).
 
-Two variants are validated, bit-exact drop-ins for their live Fortran counterparts:
+Four variants are validated, bit-exact drop-ins for their live Fortran counterparts:
 
-| Variant | Replaces | Tag |
-|---------|----------|-----|
-| **Southern (SN)** | `FVSsn` | `FVSsn-complete` |
-| **Northeast (NE)** | `FVSne` | `FVSne-complete` |
+| Variant | Replaces | Species | Tag |
+|---------|----------|---------|-----|
+| **Southern (SN)** | `FVSsn` | 90 | `FVSsn-complete` |
+| **Northeast (NE)** | `FVSne` | 108 | `FVSne-complete` |
+| **Central States (CS)** | `FVScs` | 96 | `FVSsn+ne+cs-done` |
+| **Lake States (LS)** | `FVSls` | 68 | `FVSsn+ne+cs+ls-done` |
+
+Every species of all four variants is exercised by an all-species coverage test, and each
+variant's full reference multi-stand scenarios (control · thinning · shelterwood + ECON ·
+FFE fire · bare-ground planting) are validated end-to-end against the live binary.
 
 The natural-process core (diameter/height growth, mortality, density, crown, volume,
 regeneration/establishment, stump sprouting), the management & disturbance keywords (all
@@ -28,9 +34,9 @@ julia --project -e 'using Pkg; Pkg.instantiate()'
 Run a stand from the command line (the CLI picks the output format and variant):
 
 ```bash
-# Southern is the default for a .key; pass --variant NE to run as Northeast.
+# Southern is the default for a .key; pass --variant {NE,CS,LS} for the others.
 julia --project bin/fvsjl-run.jl  stand.key                 # → stand.sum (SN)
-julia --project bin/fvsjl-run.jl  stand.key  --variant NE   # run as Northeast
+julia --project bin/fvsjl-run.jl  stand.key  --variant NE   # Northeast (also CS, LS)
 julia --project bin/fvsjl-run.jl  stand.yaml --output csv -o out.csv
 ```
 

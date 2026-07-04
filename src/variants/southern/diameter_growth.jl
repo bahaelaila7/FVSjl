@@ -405,7 +405,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # excludes DBH < 5.0 (cs/dgdriv.f:380 `IF(WK3.LT.5.0...)`). A too-low floor over-counts the
     # calibration sample (FN) so a species that FVS leaves uncalibrated (FN < FNMIN=5 ⇒ COR=0) gets a
     # spurious COR — exactly the cst01 WO over-growth (debug-stamped: live FN[WO]=2, COR=0).
-    gst_min = s.variant isa CentralStates ? 5f0 : 3f0
+    gst_min = (s.variant isa CentralStates || s.variant isa LakeStates) ? 5f0 : 3f0   # cs/ls dgdriv.f WK3<5.0
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n

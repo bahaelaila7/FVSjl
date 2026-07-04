@@ -142,6 +142,7 @@ function load_species_coefficients(datadir::AbstractString)
                   "sprout_essprt.csv", "sprout_htdbh_wykoff.csv", "fire_biomass.csv",
                   "fire_species_props.csv", "dg_coeffs.csv",     # NE: B1/B2/B3 diameter-growth coeffs
                   "balmod_coeffs.csv",                            # CS: balmod_b1/b2/b3 height-BAL modifier
+                  "htgf_coeffs.csv",                              # LS: htcalc_mapls + ls balmod (CHECK/B1-4/C1/C2/BAMAX1)
                   "mort_bkgd_coeffs.csv")                         # CS: PMSC/PMD background mortality (via IMAPCS)
         h2, rows2 = _opt(fname)
         isempty(rows2) && continue

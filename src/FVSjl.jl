@@ -50,6 +50,7 @@ include("variants/southern/mortality.jl")
 # CS singleton is registered BEFORE the NE methods because NE's shared TWIGS crown method
 # dispatches on `Union{Northeast,CentralStates}` (CS reuses it). The CS *methods* land after.
 include("variants/centralstates/centralstates.jl")  # CS singleton + registration (MAXSP 96)
+include("variants/lakestates/lakestates.jl")         # LS singleton + registration (MAXSP 68)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
@@ -69,6 +70,13 @@ include("variants/centralstates/height_growth.jl")  # CS HTGF: NC-128 (MAPCS) + 
 include("variants/centralstates/small_tree_growth.jl") # CS REGENT (d<5): NE shape, XMIN=3, cs_balmod
 # CS HT-DBH rides the Southern Curtis-Arney+Wykoff path (cs/htdbh.f ≡ sn/htdbh.f); CS crown
 # rides NE's TWIGS method (see northeast/crown_ratio.jl) — both are coefficient-driven, no CS code.
+
+# --- lakestates (LS) methods (singleton already registered above, before NE) -----------------
+include("variants/lakestates/species.jl")           # LS blkdat init (codes/RNG/YR=10/Zeide SDI) + spctrn col 5
+include("variants/lakestates/site_index.jl")         # LS SITSET (68×68 SICOEF fan-out + SDICON) + FORKOD
+include("variants/lakestates/diameter_growth.jl")    # LS DG: ls_dgf! ln(DDS) (== CS model, LS caps) + ls_dgcons!
+include("variants/lakestates/height_growth.jl")      # LS HTGF: NC-128 (MAPLS/IVAR=1) + ls_balmod competition
+include("variants/lakestates/small_tree_growth.jl")  # LS REGENT (d<5): NE/CS shape, XMIN=3, MAPLS + ls_balmod
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
@@ -122,7 +130,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees

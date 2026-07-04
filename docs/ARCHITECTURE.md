@@ -1,9 +1,9 @@
 # FVSjl Architecture
 
 A from-scratch, idiomatic Julia reimplementation of the Forest Vegetation
-Simulator. It is a drop-in replacement for the live Fortran FVS — currently the
-**Southern (`FVSsn`)** and **Northeast (`FVSne`)** variants — and, in the default
-`faithful=true` mode, bit-exact to it.
+Simulator. It is a drop-in replacement for the live Fortran FVS — the **Southern
+(`FVSsn`)**, **Northeast (`FVSne`)**, **Central States (`FVScs`)**, and **Lake States
+(`FVSls`)** variants — and, in the default `faithful=true` mode, bit-exact to it.
 
 This document explains the *shape* of the code. For how to translate a new
 subroutine or variant see [PORTING.md](PORTING.md); for places where we knowingly
@@ -76,10 +76,12 @@ hooks (`diameter_growth!`, `mortality!`, ...) dispatch at zero cost and devirtua
 (trim-friendly). The base `engine/` is variant-agnostic and calls the generic
 hooks declared in `src/variants/variant.jl`; each variant supplies methods under
 `src/variants/<variant>/` (e.g. `southern/`, `northeast/`). Adding a variant never
-edits the engine. Two are complete and validated: SN (vs `FVSsn`) and NE (vs `FVSne`,
-which carries its own structurally-new pieces — R9 Clark volume + BAL competition).
+edits the engine. **Four are complete and validated: SN (`FVSsn`), NE (`FVSne`), CS
+(`FVScs`), and LS (`FVSls`).** NE carries its own structurally-new pieces (R9 Clark
+volume + BAL-potential competition); CS and LS share an SN-family ln(DDS) diameter-growth
+model (`centralstates/` + `lakestates/`) plus LS-specific site/volume/FFE/sprout coefs.
 Shared `engine/io/core` code gates variant behavior on the variant/coefficients rather
-than hardening to either, so adding NE kept SN bit-exact.
+than hardening to any one, so each added variant kept the earlier ones bit-exact.
 
 ## Faithful mode & divergences (requirements #8, #9)
 

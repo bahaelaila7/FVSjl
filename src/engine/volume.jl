@@ -70,20 +70,29 @@ end
     end
 end
 
-"HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1)."
-@inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0)
-    if _uses_wykoff(sd, sp)
+"""
+HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode 1).
+
+`db_floor=true` applies the per-species DB (budwidth) floor `IF(MODE.NE.0 .AND. D.LT.DB)D=DB`
+(NE htdbh.f:475 / CS:436 / LS) — WITHOUT it a Wykoff species just above breast height returns a
+NEGATIVE dbh (e.g. LS sugar maple at H≈4.9 → −0.155), which the small-tree DG path then mis-handles
+as a fallback. SN's htdbh.f has NO such floor, so SN keeps the default `db_floor=false`.
+"""
+@inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0; db_floor::Bool = false)
+    p2, p3, p4, db = _htdbh_params(sd, sp, ifor)   # db (budwidth) is a per-species array, valid for Wykoff species too
+    d = if _uses_wykoff(sd, sp)
         ht1, ht2 = _htdbh_wykoff(sd, sp, ifor)
-        return ht2 / (log(h - 4.5f0) - ht1) - 1f0   # htdbh.f:463
-    end
-    p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
-    hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
-    if h >= hat3
-        ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
-        return ratio > 0f0 ? exp(log(ratio) * (1f0 / p4)) : 100f0
+        ht2 / (log(h - 4.5f0) - ht1) - 1f0          # htdbh.f:463 (:331)
     else
-        return ((h - 4.51f0) * (3f0 - db) / (hat3 - 4.51f0)) + db
+        hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+        if h >= hat3
+            ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
+            ratio > 0f0 ? exp(log(ratio) * (1f0 / p4)) : 100f0
+        else
+            ((h - 4.51f0) * (3f0 - db) / (hat3 - 4.51f0)) + db
+        end
     end
+    return (db_floor && d < db) ? db : d            # htdbh.f:343 IF(MODE.NE.0 .AND. D.LT.DB)D=DB
 end
 
 # (The duplicate volume-side bark_ratio + bark_coeffs.csv were removed: bark is now a
@@ -310,13 +319,16 @@ are bit-identical to the coef defaults, so an un-overridden stand is unchanged.
 function init_merch_standards!(s::StandState)
     s.control.merch_init && return s
     c = s.control
-    if s.variant isa Northeast || s.variant isa CentralStates
-        # Eastern (NE/CS) merch standards are IFOR-dependent code rules (ne/cs sitset.f via `_ne_merch`/
-        # `_cs_merch`), not a merch_specs.csv. Board-foot mins equal the sawtimber cubic mins (bf-equal).
+    if s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates
+        # Eastern (NE/CS/LS) merch standards are IFOR-dependent code rules (ne/cs/ls sitset.f via
+        # `_ne_merch`/`_cs_merch`/`_ls_merch`), not a merch_specs.csv. Board-foot mins equal the sawtimber
+        # cubic mins (bf-equal) in all three.
         cs = s.variant isa CentralStates
-        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
+        ls = s.variant isa LakeStates
+        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : (ls ? 5 : _NE_DEFAULT_IFOR))
         @inbounds for j in 1:length(c.sp_dbh_min)
-            dbhmin, topd, scfmind, scftopd, stmp, scfstmp = cs ? _cs_merch(j, ifor) : _ne_merch(j, ifor)
+            dbhmin, topd, scfmind, scftopd, stmp, scfstmp =
+                ls ? _ls_merch(j, ifor) : cs ? _cs_merch(j, ifor) : _ne_merch(j, ifor)
             c.sp_dbh_min[j] = dbhmin; c.sp_top_diam[j] = topd
             c.sp_scf_dbhmin[j] = scfmind; c.sp_scf_topd[j] = scftopd
             c.sp_stump_ht[j] = stmp; c.sp_scf_stump[j] = scfstmp
@@ -449,9 +461,11 @@ overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
 end
 
 function compute_volumes!(s::StandState)
-    # Eastern variants (NE + CS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
-    # differing only in the IFOR merch standards (_ne_merch / _cs_merch, dispatched inside).
-    (s.variant isa Northeast || s.variant isa CentralStates) && return compute_volumes_ne!(s)
+    # Eastern variants (NE + CS + LS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
+    # differing only in the IFOR merch standards (_ne_merch / _cs_merch / _ls_merch, dispatched inside)
+    # and the per-species METHC=5 DVEE/Gevorkiantz opt-in. LS lst01 defaults METHC=6 ⇒ pure Clark.
+    (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates) &&
+        return compute_volumes_ne!(s)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     # R8 board-foot rule: the R8-CLK path reports INTERNATIONAL ¼" board feet (volinit2.f:269-272 VOL(2)=

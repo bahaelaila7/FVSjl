@@ -24,12 +24,21 @@ zero by the species' `ALLDWN` year.
 function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
                            origden::Float32, denttl::Float32;
                            fallx::Float32 = coef_col(coef, :snag_fallx)[ksp],
-                           alldwn::Float32 = coef_col(coef, :snag_alldwn)[ksp])::Float32
-    base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
-    modrate = min(1f0, base * fallx)                   # FALLX: SNAGFALL-overridable rate correction
-    if d < 12f0 && ksp != 2                            # small snag (redcedar=2 keeps last-5% logic)
-        return modrate * origden
+                           alldwn::Float32 = coef_col(coef, :snag_alldwn)[ksp],
+                           variant = nothing)::Float32
+    # BASE fall rate (fmsfall.f:128/130) is VARIANT-SPECIFIC: SN/CS use −0.001679·d+0.064311; LS uses the
+    # "new equation" −0.006·d+0.18 (a much faster fall); NE uses an ALGSLP table (not yet ported — NE keeps
+    # the SN form here). The small-snag LINEAR-fall breakpoint also differs: SN/CS = 12" (redcedar ksp2 keeps
+    # the last-5% ramp); LS = 18", except cedar/tamarack (ksp 10,11,14) at 12" (fmsfall.f LS:139-145).
+    if variant isa LakeStates
+        modrate = clamp((-0.006f0 * d + 0.18f0) * fallx, 0.01f0, 1f0)   # FVS clamps MODRATE (not base)
+        linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
+    else
+        base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
+        modrate = min(1f0, base * fallx)               # FALLX: SNAGFALL-overridable rate correction
+        linear = d < 12f0 && ksp != 2                  # small snag (redcedar=2 keeps last-5% logic)
     end
+    linear && return modrate * origden
     x = (0.05f0 - 1f0) / (-modrate)                    # year at which 5% remain
     fallm2 = alldwn <= x ? 2f0 : 0.05f0 / (alldwn - x) # final fall rate (last 5%)
     if denttl <= 0.05f0 * origden
@@ -118,9 +127,23 @@ function snag_bole_carbon(s::StandState)::Float32
         # the CFTOPK merch ratio. No-op at the default HTX=0 (htcur ≡ height ⇒ frozen bole, bit-exact).
         if !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
-            mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
-            if mcf_full > 0f0
+            # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
+            # Clark volume (v4+v7 merch, v1 total — the same basis as their live-tree merch_cuft_vol / bolevol);
+            # SN uses _fm_cuft. (LS _fm_cuft returns 0 — the empty vol_eq path — which silently skipped this.)
+            local mcf_full, vmax
+            if s.variant isa LakeStates || s.variant isa Northeast
+                ifor = Int(s.plot.forest_idx)
+                fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+                dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
+                prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+                v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
+                mcf_full = d >= dbhmin ? v[4] + v[7] : 0f0
+                vmax = v[1]
+            else
+                mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
                 vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
+            end
+            if mcf_full > 0f0
                 cc = s.control
                 merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
                              scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
@@ -260,7 +283,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
             dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
-                                                  fallx = fx, alldwn = ad))
+                                                  fallx = fx, alldwn = ad, variant = s.variant))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -330,7 +353,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     fs = s.fire; (fs === nothing || isempty(fs.params.snag_htx)) && return
     sn = fs.snags; htxmap = fs.params.snag_htx
     iyr = at_year === nothing ? Int(current_cycle_year(s)) : Int(at_year)
-    HTR = 0.01f0; HTXSFT = 2f0
+    HTR1 = 0.1f0; HTR2 = 0.01f0; HTXSFT = 2f0    # fmvinit.f:114-115 (HTR1=first-50% rate, HTR2=after-50%)
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
@@ -341,9 +364,10 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         # so use the dominant initial pool: hard rate while den_hard ≥ den_soft (the common all-hard snag).
         soft = sn.den_soft[i] > sn.den_hard[i]
         above = htc > 0.5f0 * htd                       # height regime (>0.5·HTD uses the 50%-loss rate)
-        idx = soft ? (above ? 3 : 4) : (above ? 1 : 2)
+        idx = soft ? (above ? 3 : 4) : (above ? 1 : 2)   # HTINDX1/2 hard, 3/4 soft (fmsnght.f:52-59)
         sftmult = soft ? HTXSFT : 1f0
-        lossfrac = clamp(HTR * htx[idx] * sftmult, 0f0, 1f0)
+        htr = above ? HTR1 : HTR2                         # first-50% uses HTR1, after-50% uses HTR2 (fmsnght.f:154-159)
+        lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
         htnew = htc * (1f0 - lossfrac)^Float32(nyears)
         htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
         sn.htcur[i] = htnew
@@ -435,9 +459,9 @@ function ffe_seed_input_snags!(s::StandState)
         # NOT the gross total-stem cubic. SN = R8 Clark v[4]; NE = R9 Clark merch v4+v7 (the live-tree
         # `merch_cuft_vol` basis). The SN R8 path returns 0 for NE (empty vol_eq) ⇒ a Jenkins-whole-tree
         # fallback over-count, so NE must use its own R9 merch model (mirrors `ffe_add_snaginit!`).
-        if s.variant isa Northeast
+        if s.variant isa Northeast || s.variant isa LakeStates    # R9 Clark merch (LS vol_eq empty ⇒ R8 path = 0)
             fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-            dbhmin, topd, scfmind, scftopd, _, _ = _ne_merch(sp, ifor)
+            dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
             prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
             v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
@@ -587,9 +611,12 @@ function ffe_add_snaginit!(s::StandState)
         # R9 Clark merch (v4+v7, the same basis as the live-tree `merch_cuft_vol`); SN uses R8 Clark v[4]. Using
         # the SN R8 path for NE returns 0 (the NE vol_eq is not an R8 Clark string) ⇒ snag_bole_carbon then falls
         # back to the full Jenkins ABOVEGROUND (crown+bole) ⇒ the snag carbon was ~8× too high.
-        if s.variant isa Northeast
+        if s.variant isa Northeast || s.variant isa LakeStates
+            # LS + NE use the R9 Clark merch (v4+v7) — the same basis as their live-tree merch_cuft_vol; LS
+            # vol_eq is EMPTY (R9, not an R8 Clark string), so the R8 path below returns 0 ⇒ snag_bole_carbon
+            # falls back to the full Jenkins aboveground (~2× too high). LS reads its own IFOR merch standards.
             fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-            dbhmin, topd, scfmind, scftopd, _, _ = _ne_merch(sp, ifor)
+            dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
             prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
             v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0

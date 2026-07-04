@@ -1448,22 +1448,24 @@ end
 
 # SNAGBRK (fmin.f:504, opt 10): per-species snag height-LOSS rates. Field 1 = species (SPDECD), fields
 # 2/3 = YRS50 (years to lose 50% height) for HARD/SOFT snags, fields 4/5 = YRS30 (years to reach 30%)
-# for HARD/SOFT. Converted to the 4 HTX coefficients FMSNGHT uses (fmin.f:538/546/557/566), with the SN
-# constants HTR1=HTR2=0.01 and HTXSFT=2.0. Stored sparsely; empty ⇒ HTX=0 = no height loss (SN default).
+# for HARD/SOFT. Converted to the 4 HTX coefficients FMSNGHT uses (fmin.f:538/546/557/566), with the FVS
+# constants HTR1=0.1 (50%-loss calc), HTR2=0.01 (30%-loss calc) and HTXSFT=2.0 (fmvinit.f:114-115). The HTR
+# scaling cancels in ffe_snag_height_loss! (which re-applies the same HTR per regime), so the keyword's
+# YRS50/YRS30 semantics are preserved. Stored sparsely; empty ⇒ HTX=0 = no height loss (SN/NE default).
 function _snagbrk!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
     p = fs.params
-    HTR = 0.01f0; HTXSFT = 2f0
+    HTR1 = 0.1f0; HTR2 = 0.01f0; HTXSFT = 2f0
     yr(i) = rec.present[i] ? max(1, Int(trunc(Float64(rec.values[i])))) : 1   # INT, clamp ≥1 (fmin.f:526…)
     y50h = yr(2); y50s = yr(3); y30h = yr(4); y30s = yr(5)
-    # HTX1/3: 50%-loss rate (>0.5·HTD regime); HTX2/4: 30%-loss rate in the <0.5·HTD regime (the 0.3/0.5 step,
-    # over YRS30−YRS50 years, bumped to avoid div-0). Only fields actually given are written (else stay 0).
-    htx1 = rec.present[2] ? (1f0 - 0.5f0^(1f0 / y50h)) / HTR : 0f0
-    htx3 = rec.present[3] ? (1f0 - 0.5f0^(1f0 / y50s)) / (HTR * HTXSFT) : 0f0
+    # HTX1/3: 50%-loss rate (>0.5·HTD regime, /HTR1); HTX2/4: 30%-loss rate in the <0.5·HTD regime (the 0.3/0.5
+    # step, over YRS30−YRS50 years, bumped to avoid div-0, /HTR2). Only fields actually given are written.
+    htx1 = rec.present[2] ? (1f0 - 0.5f0^(1f0 / y50h)) / HTR1 : 0f0
+    htx3 = rec.present[3] ? (1f0 - 0.5f0^(1f0 / y50s)) / (HTR1 * HTXSFT) : 0f0
     dh = y30h > y50h ? Float32(y30h - y50h) : 0.001f0
     ds = y30s > y50s ? Float32(y30s - y50s) : 0.001f0
-    htx2 = rec.present[4] ? (1f0 - 0.6f0^(1f0 / dh)) / HTR : 0f0            # 0.3/0.5 = 0.6
-    htx4 = rec.present[5] ? (1f0 - 0.6f0^(1f0 / ds)) / (HTR * HTXSFT) : 0f0
+    htx2 = rec.present[4] ? (1f0 - 0.6f0^(1f0 / dh)) / HTR2 : 0f0            # 0.3/0.5 = 0.6
+    htx4 = rec.present[5] ? (1f0 - 0.6f0^(1f0 / ds)) / (HTR2 * HTXSFT) : 0f0
     htx = (htx1, htx2, htx3, htx4)
     spfield = strip(rec.fields[1])
     setone(sp) = @inbounds begin
@@ -1639,6 +1641,16 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     s.fire === nothing && (s.fire = FireState())
     fs = s.fire
     fs.active = true
+    # FMVINIT: LS snags LOSE HEIGHT over time — non-zero default HTX per snag class (fmvinit.f:823-875:
+    # class1=3.0, class2=1.0, class3/4=0, class5=0.65, class6=0.45, hemlock sp12=0). SN/NE keep HTX=0 (no
+    # height loss). Seed the per-species defaults so ffe_snag_height_loss! (FMSNGHT) AND the snag bole-volume
+    # truncation (FMSVOL at the current height) run for LS; a later SNAGBRK keyword overrides specific species.
+    if s.variant isa LakeStates && isempty(fs.params.snag_htx)
+        htxcol = coef_col(s.coef, :snag_htx)
+        @inbounds for sp in 1:min(nspecies(s.variant), length(htxcol))
+            h = htxcol[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)
+        end
+    end
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break

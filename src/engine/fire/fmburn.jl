@@ -136,6 +136,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     end
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     v2t = coef_col(coef, :v2t)
+    is_sprout = coef_col(coef, :is_sprouting)            # ESTUMP sprout-species filter (fmkill.f:80 → estump.f)
     if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
         # FMEFF brackets its per-tree RANN draws with RANNGET(SAVESO) (fmeff.f:143) … RANNPUT(SAVESO)
         # (fmeff.f:569): the fire's draws are ROLLED BACK, so the fire consumes ZERO NET main-stream RNG.
@@ -160,6 +161,19 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             crburn > 0f0 && (curkil += crburn * (t.tpa[i] - curkil))  # crown-fire share
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
+            # Fire-killed sprouting trees feed the ESUCKR stump-sprout pool exactly as cutting does: FVS
+            # fmkill.f:80 (ICALL=1, in GRADD after the fire) calls ESTUMP(ISP,DBH,FIRKIL,ITRE,ISHAG) for every
+            # record with FIRKIL>0.00001 — the SAME pool cuts.f:1713 fills. ISHAG = IY(ICYC+1)−BURNYR (yrs
+            # fire→cycle-end = sprout age); live stamp: SIMFIRE is booked at BURNYR=cycle-start ⇒ ISHAG = cyclen
+            # (=fint). Gated by LSPRUT (NOAUTOES/NOSPROUT turn it off) + the per-species is_sprouting flag, so
+            # NOAUTOES keeps the fire kill but suppresses the post-fire sprouts (the 456→177 TPA difference).
+            # esuckr! (simulate.jl, after the fire) then sprouts them. cut_log was freshly cleared by cuts! this
+            # cycle and cuts! runs BEFORE the fire, so these records append cleanly alongside any harvest cuts.
+            if s.control.lsprut && is_sprout[sp] == 1f0
+                push!(s.control.cut_log,
+                      (species = Int32(sp), dstmp = d, prem = curkil,
+                       plot = Int32(t.plot_id[i]), ishag = round(Int32, cyclen)))
+            end
             killed += curkil
             killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
             killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
@@ -192,7 +206,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             crl = t.height[i] * Float32(t.crown_pct[i]) / 100f0
             sl  = crl > 0f0 ? clamp(sch - (t.height[i] - crl), 0f0, crl) : 0f0
             propcr = crl > 0f0 ? sl / crl : 0f0
-            ol2 = propcr > 0f0 ? 0.5f0 * ol[2] : ol[2]         # fmeff.f:460 halves OLDCRW(1) in the scorch zone
+            ol2 = 0.5f0 * ol[2]                                # fmeff.f:460 ALWAYS halves OLDCRW(1) for fire-killed
+            #   trees (inside IF(ICALL.EQ.0), NOT gated on the scorch zone). The other half is burned (fmeff.f:448
+            #   BCROWN += 0.5·YRSCYC·OLDCRW(1)). The old `propcr>0 ? 0.5·ol[2] : ol[2]` over-booked the FULL crown-
+            #   lift into CWD2B for propcr=0 trees (bark-killed, crown above the scorch) ⇒ StandDead-high (SN/CS/NE
+            #   fire crowns are scorched, propcr>0, so were unaffected; LS bark-driven jack-pine kills expose it).
             xvc = (xc[1] * (1f0 - propcr),                     # foliage burned over the scorched length
                    xc[2] * (1f0 - 0.5f0 * propcr) + ol2,       # half the scorched 0-0.25" branches burned
                    xc[3] + ol[3], xc[4] + ol[4], xc[5] + ol[5], xc[6] + ol[6])

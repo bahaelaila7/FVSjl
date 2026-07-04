@@ -152,6 +152,51 @@ CS initial dead surface fuel loading (FUINI 11×7, cs/fmcba.f:73-79), indexed by
     return ntuple(i -> row[i], 11)
 end
 
+# FMLSFT (ls/fmlsft.f): LS FFE forest type IFFEFT (1–10) from the FIA forest type.
+@inline function _ls_iffeft(ifortp::Integer)::Int
+    if     (102 <= ifortp <= 105) || ifortp == 381   1   # white/red pine (+ hemlock)
+    elseif ifortp == 101                             2   # jack pine
+    elseif 121 <= ifortp <= 127                      3   # spruce-fir (+ tamarack, white cedar)
+    elseif ifortp == 181                             4   # eastern redcedar
+    elseif 401 <= ifortp <= 409                      5   # oak-pine
+    elseif 501 <= ifortp <= 520                      6   # oak-hickory
+    elseif 701 <= ifortp <= 709                      7   # elm-ash-cottonwood
+    elseif 801 <= ifortp <= 809                      8   # maple-beech-birch
+    elseif 901 <= ifortp <= 904                      9   # aspen-birch
+    elseif ifortp == 999                             10  # nonstocked
+    else                                             1   # default → white/red pine
+    end
+end
+
+# LS FTDEADFU (ls/fmcba.f:253): IFFEFT + ISZCL → the 26-row dead-fuel-type. IFFEFT=4 (redcedar) is a SINGLE
+# row (10, no size-class split); IFFEFT=10 (nonstocked)→26; the rest are (base)+ISZCL blocks of 3.
+@inline function _ls_dead_fuel_type(iffeft::Integer, iszcl::Integer)::Int
+    iffeft == 4  && return 10
+    iffeft == 10 && return 26
+    base = iffeft <= 3 ? (iffeft - 1) * 3 : 10 + (iffeft - 5) * 3
+    return base + iszcl
+end
+
+# LS FTLIVEFU (ls/fmcba.f:138): IFFEFT{1,3,4}→(ISZCL)1-3, {2}→4-6, default→7-9.
+@inline function _ls_live_fuel_type(iffeft::Integer, iszcl::Integer)::Int
+    base = (iffeft == 1 || iffeft == 3 || iffeft == 4) ? 0 : iffeft == 2 ? 3 : 6
+    return base + iszcl
+end
+
+"LS dead surface fuel loading (FUINI, ls/fmcba.f:253): row = _ls_dead_fuel_type(IFFEFT, ISZCL) of the 26-group table."
+@inline function ls_dead_fuel_loading(s::StandState)
+    iffeft = _ls_iffeft(Int(s.plot.forest_type)); iszcl = clamp(Int(s.plot.size_class), 1, 3)
+    row = @view s.coef.ffe_fuel_dead[_ls_dead_fuel_type(iffeft, iszcl), :]
+    return ntuple(i -> row[i], 11)
+end
+
+"LS live herb/shrub fuel loading (FULIV, ls/fmcba.f:138): row = _ls_live_fuel_type(IFFEFT, ISZCL) of the 9-group table."
+@inline function ls_live_fuel_loading(s::StandState)
+    iffeft = _ls_iffeft(Int(s.plot.forest_type)); iszcl = clamp(Int(s.plot.size_class), 1, 3)
+    ft = _ls_live_fuel_type(iffeft, iszcl)
+    return (s.coef.ffe_fuel_live[ft, 1], s.coef.ffe_fuel_live[ft, 2])
+end
+
 """
     ffe_live_fuel_loading(coef, iffeft) -> (herb, shrub)
 

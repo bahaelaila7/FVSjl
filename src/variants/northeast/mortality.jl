@@ -14,7 +14,7 @@
 
 # CS shares NE's VARMRT efficiency (cs/varmrt.f ≡ ne/varmrt.f modulo the VARADJ DATA, which CS
 # supplies via its own varmrt_varadj column). One method serves both eastern variants.
-function _varmrt_efftr!(efftr, s, ::Union{Northeast,CentralStates}, t::TreeList, n::Int)
+function _varmrt_efftr!(efftr, s, ::Union{Northeast,CentralStates,LakeStates}, t::TreeList, n::Int)
     tpa = t.tpa; sp = t.species; avh = s.plot.avg_height
     varadj = s.coef.species[:varmrt_varadj]
     pass1 = 0f0

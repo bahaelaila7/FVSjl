@@ -14,7 +14,7 @@
 # CS shares NE's TWIGS crown model (cs/crown.f ≡ ne/crown.f modulo the BCR4 sign, which CS
 # data folds in as a negated `crown_bcr4` so the same `exp(bcr4·d)` kernel reproduces CS's
 # `exp(-BCR4·d)`). One method serves both eastern variants.
-function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates}; fint::Float32 = 10f0,
+function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates,LakeStates}; fint::Float32 = 10f0,
                              crown_sdi::Float32 = -1f0, relden_override::Float32 = -1f0,
                              ba_override::Float32 = -1f0, lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n
@@ -27,7 +27,8 @@ function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates}; fi
     # that investigation; the POST-growth density refresh (the dominant fix) is landed, and `/gross_space` is
     # kept here for now (leaves growth_fint10 at 1.87%, down from 3.72%). ba_override bypasses this (CRATET init).
     ba = ba_override >= 0f0 ? ba_override :
-         (s.plot.gross_space > 0f0 ? s.plot.basal_area / s.plot.gross_space : s.plot.basal_area)
+         (s.variant isa LakeStates ? s.plot.basal_area :                       # LS: RAW per-acre BA (crown.f faithful)
+          (s.plot.gross_space > 0f0 ? s.plot.basal_area / s.plot.gross_space : s.plot.basal_area))
     bcr1 = sd[:crown_bcr1]; bcr2 = sd[:crown_bcr2]; bcr3 = sd[:crown_bcr3]; bcr4 = sd[:crown_bcr4]
     cur_year = current_cycle_year(s)
     @inbounds for i in 1:n

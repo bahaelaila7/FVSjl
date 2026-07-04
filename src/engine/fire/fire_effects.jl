@@ -35,8 +35,12 @@ with shortleaf pine (sp 5) using the Harmon (1984) quadratic.
 """
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
-    # shortleaf pine uses the Harmon (1984) quadratic — species 5 in SN, species 3 in CS (cs/fmbrkt.f).
-    slpine = variant isa CentralStates ? 3 : 5
+    # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
+    # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
+    # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
+    # (LS sp5 = eastern white pine, EQNUM 24 → B1 .045) — applying Harmon there over-thickens the bark ~2× and
+    # under-kills the tree in fire. (Was gated `: 5` for all non-CS, silently mis-barking NE sp5 too.)
+    slpine = variant isa Southern ? 5 : variant isa CentralStates ? 3 : 0
     if sp == slpine
         b = (0.07f0 + 0.09f0 * dbh * 2.54f0 - 0.0001f0 * (dbh * 2.54f0)^2) / 2.54f0
         return max(0f0, b)
@@ -104,7 +108,9 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
                              flame::Float32, csv::Float32, variant::AbstractVariant = Southern())::Float32
     # The SN/CS Regelbrugge-Smith species groups (1-5) are gated `IF VARACD .EQ. 'SN'/'CS'`
     # (fmeff.f:196); NE skips them and uses the base Reinhardt logistic for every species.
-    g = variant isa Northeast ? 6 :
+    # The Regelbrugge-Smith groups are gated `IF VARACD .EQ. 'SN'/'CS'` — NE and LS/ON skip them
+    # (ls/fmeff.f:196) and use the base Reinhardt logistic (group 6) for every species.
+    g = (variant isa Northeast || variant isa LakeStates) ? 6 :
         variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
@@ -130,6 +136,21 @@ where a future LS/NE/ON port would re-introduce those branches.
 """
 @inline function fire_mortality_adjust(pmort::Float32, sp::Integer, dbh::Float32, burnseas::Integer,
                                        variant::AbstractVariant = Southern())::Float32
+    if variant isa LakeStates
+        # LS/ON dormant-season reductions (ls/fmeff.f:278-300). BURNSEAS≤2 = before greenup.
+        (burnseas <= 2 && sp <= 14) && (pmort /= 2f0)            # conifers ×½ before greenup
+        sp == 8 && (pmort = max(0.7f0, pmort))                   # balsam fir floor 70%
+        (sp in (18,19,26,27,51,52) && dbh < 4f0) && (pmort = 1f0)  # certain maples <4″ die
+        if burnseas <= 2 && sp > 14                              # hardwoods before greenup
+            if 30 <= sp <= 36                                    # oaks — especially resistant
+                pmort = dbh >= 2.5f0 ? pmort / 2f0 : pmort * 0.8f0
+            else
+                pmort *= 0.8f0
+            end
+        end
+        (sp > 14 && dbh <= 1f0) && (pmort = 1f0)                 # hardwoods ≤1″ die
+        return pmort
+    end
     variant isa Northeast || return pmort                # SN/CS: no post-logistic adjustment
     # NE dormant-season (BURNSEAS≤2) reductions (ne/fmeff.f:304-326):
     (burnseas <= 2 && sp <= 25) && (pmort /= 2f0)        # conifers ×½ before greenup
