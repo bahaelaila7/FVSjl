@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# This session's Stop hook. SN/NE/CS ports + the non-ULP divergence campaign are complete
-# (docs/DIVERGENCE_COMPLETE). The active campaign is now the LS (Lake States) variant port.
-# Delegate to stop-ls.sh (reads docs/LS_GOAL.md + doctrine; off-switch: touch docs/LS_COMPLETE).
-exec /workspace/FVSjl/.claude/stop-ls.sh "$@"
+# This session's Stop hook. SN/NE/CS/LS ports are complete (tags through FVSsn+ne+cs+ls-done).
+# The active campaign is now test-tolerance closure: drive every test tolerance to BIT-EXACT or
+# PROVEN-IRREDUCIBLE-ULP. Delegate to stop-tolerance.sh (goal docs/TOLERANCE_GOAL.md + doctrine;
+# off-switch: touch docs/TOLERANCE_COMPLETE).
+exec /workspace/FVSjl/.claude/stop-tolerance.sh "$@"
