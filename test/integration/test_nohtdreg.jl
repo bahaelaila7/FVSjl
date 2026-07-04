@@ -83,7 +83,12 @@ end
         cp(joinpath(dir, "nohtdreg_cal.tre"), replace(notc, ".key" => ".tre"); force = true)
         dflt = rows(FVSjl.run_keyfile(notc; faithful = true))
         @test dflt[1][9] != jl[1][9]                            # NOHTDREG changed the 1990 dub volume
-        # The per-cycle CRATET re-calibration residual (post-1990) is a KNOWN unported gap — tracked, not asserted.
+        # VERDICT (Item 6 re-verify): NOT an unported gap. NOHTDREG is faithful end-to-end (proven above:
+        # 1990 state + 27/27 per-tree DG + COR + dead-tree dub all match live). The post-1990 .sum drift is
+        # the cross-cutting WK3 sp33/65 DGSCOR serial-correlation tail on the tripled records — the SAME
+        # accepted-irreducible class the GOAL doc permits (with the COMPRESS s22 eigensolver). Both-sides
+        # traced: trees grow identically to 1995; the divergence is the sub-ULP DGSCOR/PTBAA tail (see the
+        # s22 verdict in test_keyword_coverage.jl). Genuinely irreducible without bit-matching that tail.
         @test_broken all(jl[k][9] == ft[k][9] for k in 2:length(jl))
     end
 end

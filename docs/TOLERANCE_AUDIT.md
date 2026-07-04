@@ -249,3 +249,28 @@ now the observed ABSOLUTE envelope (deterministic runs), not percentages. Docume
 
 PERCOV (flame/scorch) and CFTOPK snag-form (Stand-Dead) are the two remaining FFE residuals; both are
 cornered to a named cause and flagged as deep-trace candidates for a future real fix.
+
+## ✅ VERIFIED — Item 6 @test_broken roots (both genuinely irreducible, goal-permitted)
+
+Two @test_broken remain — exactly the two accepted-irreducible divergences the GOAL doc names:
+1. **s22_compress** (test_keyword_coverage.jl) — the COMPRESS IBM eigensolver + ULP. Eigensolver,
+   partition, and post-merge RECORD ORDER are all BIT-EXACT vs live; every merged record (sp/dbh/ht/
+   ICR/OLDRN) matches to the digit. The ~1% residual is cornered to certainty: the PC1/PC2 sort keys
+   (WK3/WK4) match live to < 1 Float32 ULP (rec6 WK3 9154.72461 vs 9154.72413, Δ0.0005 < ULP 0.00098),
+   and those sub-ULP diffs flip a near-tie partition sort → the (bit-exact-valued) RANN `sel` picks a
+   different within-class member → different plot → different PTBAA → ~1% DG on one record. Not fixable
+   without bit-matching the eigensolver. FAITHFUL port.
+2. **nohtdreg** (test_nohtdreg.jl) — VERDICT CORRECTED this pass: NOT an "unported CRATET gap".
+   NOHTDREG is faithful end-to-end (1990 state + 27/27 per-tree DG + COR + dead-tree dub all match
+   live). The post-1990 .sum drift is the cross-cutting WK3 sp33/65 DGSCOR serial-correlation tail on
+   the tripled records — the SAME accepted class as s22. Genuinely irreducible without bit-matching
+   that tail.
+
+Both carry precise both-sides traced verdicts in-test. Item 6 complete.
+
+## Campaign status
+Items 1–6 all worked through. Every numerical tolerance in the suite is now either BIT-EXACT (`==`)
+or a documented print-boundary/transcendental ULP or a traced accepted-irreducible class. Remaining
+NON-tolerance work = deep-trace CANDIDATES flagged for future real fixes (not loose bounds):
+PERCOV crown-CR-timing (LS flame/scorch ≈0.05/0.29), CFTOPK snag-form (LS Stand-Dead ≈0.2), the
+treeszcp tripling-UB artifact (documented irreducible), and the two @test_broken above. Suite 7662/2.
