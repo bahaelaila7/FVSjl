@@ -105,6 +105,11 @@ run — pass ⇒ they always render identically (bit-exact, atol was unnecessary
 ## ✅ CLOSED — QMD field-vs-field print atols → BIT-EXACT rendered `==`
 | ✅ | test_{sdimax,bamax,dgstdev,rannseed,managed,nocalib,sdicalc,serlcorr}.jl | `abs(parse(j[8])−parse(f[8]))<=0.05` → **`parse(j[8])==parse(f[8])`** | jl's rendered .sum QMD field vs live's rendered field — BOTH are 1-decimal `.sum` output ⇒ `==` is bit-exact by construction. All 8 pass; suite 7658/2 no regression. The atol was unnecessary (comparing two already-rendered fields). METHOD confirmed: compare rendered `.sum` field to rendered golden field with `==`; only genuine ±1 rendered differences (tripling-spread) need further work. |
 
+
+## ✅ CLOSED — more over-cautious field-vs-field bounds → BIT-EXACT `==`
+- ✅ **test_pertree_defect.jl** (TPA/BA/merch-cubic) — all bit-exact `==`.
+- ✅ **test_volume_override.jl** TPA/BA `==`; merch-cubic (col 10, VOLUME-override gated) has a REAL ±2 residual (kept, flagged) → NOTRIPLE-classify + trace merch-cubic op (may share root with voleqnum BdFt).
+Suite 7662/2. ⇒ the rendered-`==` HARVEST of over-cautious bounds is largely done; what remains is the set of GENUINE residuals (each fails `==`), which need per-op traces: voleqnum/volume_override merch+board, the 4 real-±1 files, the 5 board-foot files, CS all-species VARMRT op-order, the percentage bounds, the FFE-fire atols.
 ## borderline-ULP (verify the traced root holds, else move up)
 | ⬜ | test_fire.jl:180,181 | atol 0.005/0.03 van-Wagner ^(7/6)/√ Float32 — confirm irreducible |
 | ⬜ | test_net01.jl:41,213,270,363 | print-resolution atols — convert to rendered `==` where possible |

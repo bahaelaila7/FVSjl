@@ -49,9 +49,9 @@ _vocol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                @test abs(_vocol(jl[i], 3) - _vocol(ft[i], 3)) <= 1     # TPA
-                @test abs(_vocol(jl[i], 4) - _vocol(ft[i], 4)) <= 1     # BA
-                @test abs(_vocol(jl[i], 10) - _vocol(ft[i], 10)) <= 2   # merch cubic (the gated column)
+                @test _vocol(jl[i], 3) == _vocol(ft[i], 3)     # TPA — BIT-EXACT
+                @test _vocol(jl[i], 4) == _vocol(ft[i], 4)     # BA  — BIT-EXACT
+                @test abs(_vocol(jl[i], 10) - _vocol(ft[i], 10)) <= 2   # merch cubic — REAL residual (VOLUME-override gated col); NOTRIPLE-classify + trace the merch-cubic op
             end
         end
     end

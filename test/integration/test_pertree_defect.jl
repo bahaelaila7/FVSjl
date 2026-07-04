@@ -51,9 +51,9 @@ _pdcol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                @test abs(_pdcol(jl[i], 3) - _pdcol(ft[i], 3)) <= 1     # TPA
-                @test abs(_pdcol(jl[i], 4) - _pdcol(ft[i], 4)) <= 1     # BA
-                @test abs(_pdcol(jl[i], 10) - _pdcol(ft[i], 10)) <= 2   # merch cubic (defect target)
+                @test _pdcol(jl[i], 3) == _pdcol(ft[i], 3)     # TPA
+                @test _pdcol(jl[i], 4) == _pdcol(ft[i], 4)     # BA
+                @test _pdcol(jl[i], 10) == _pdcol(ft[i], 10)   # merch cubic (defect target)
             end
         end
     end
