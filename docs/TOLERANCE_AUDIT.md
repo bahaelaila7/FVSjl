@@ -14,7 +14,7 @@ Baseline: suite 7658 pass / 2 broken. Doctrine + approach: docs/TOLERANCE_GOAL.m
 ## C1 — percentage / relative bounds (explicitly empirical)
 | ⬜ | file:line | bound | compares | plan |
 |----|-----------|-------|----------|------|
-| ⬜ | test_allspecies.jl:44-49,72 | max(abs, 1.2-3.0%) | grown .sum cols (4 variants) | re-measure post-QMDGE5; trace residual→op per column |
+| 🔎 | test_allspecies.jl:44-49,72 | max(abs, 1.2-3.0%) | grown .sum cols (4 variants) | **IN PROGRESS.** Post-QMDGE5: CS all-species BA now BIT-EXACT all cycles; SDI ≤5; TPA/CCF/TopHt/QMD tiny (1/4/1/0.1); volumes drift (Bdft to 464 tripling-on). Under NOTRIPLE CS is NOT bit-exact: **real deterministic residual** — BA bit-exact all cycles but TPA drifts −1@2000 → −16@2030 and BdFt +60 → +1298. So a DETERMINISTIC CS mortality-distribution + board-foot divergence in the dense 96-species near-SDImax stand (BA-conserving, kills 1 more tree/cyc than live, sawtimber-heavy survivors ⇒ high BdFt). NEXT: trace the cycle-1 ΔTPA=−1 (same method as LS QMDGE5 — a per-species growth/mortality input into the dense VARMRT/BAMAX distribution) + the BdFt Scribner op. Per-variant BA-bit-exactness (post-QMDGE5) may let the BA bound tighten to `==`. |
 | ⬜ | test_timeint.jl:47,48 | 0.03·ft+1 | BA, cuft | non-native-cycle DGSCOR? corner/fix |
 | ⬜ | test_carbon.jl:50-53 | 0.005·v+0.1 | grown carbon pools | trace |
 | ⬜ | test_multicycle.jl:57,59,60,61 | rtol=0.002, absN | TCuFt/BA/SDI/QMD | trace |
