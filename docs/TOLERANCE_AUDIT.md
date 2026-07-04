@@ -377,3 +377,15 @@ the deficit is in the additive terms of sizes 1-3 — xvc[2..4] = xc·(...) + `o
 contribution is the prime suspect for the ~1051 (crown carbon −0.27). NEXT: dump jl `ol` per fire tree
 vs FVS fmscro OLDCRW·YRSCYC to confirm + fix. (The bole +0.07 is a separate, smaller over-book.)
 Fully tractable now that the FVS DEBUG dump works.
+
+## ★★★ CFTOPK crown — TRACED TO GROUND: the known crown-lift one-cycle-lag
+Final link: the sizes-1-3 deficit is the additive `ol = crown_lift_at_death` (fuel_additions.jl:170),
+which reads `t.ffe_oldcrw` — the crown-lift stored by `compute_crown_lift!` LAST cycle (per the
+docstring at :167) — × cyclen. This is the SAME "crown-lift one-cycle lag" already documented as a
+remaining FFE limitation (see the FFE crown-lift memory note). So the fire-killed crown debris booked
+into CWD2B sizes 1-3 is under-scaled by that lag ⇒ crown carbon −0.27 ⇒ the Stand-Dead 0.2.
+COMPLETE TRACE: Stand-Dead 0.2 → fire-year only (1993 SNAGINIT bit-exact) → crown −0.27 dominant / bole
++0.07 → crown foliage EXACT, sizes 1-3 under ~7% → additive crown-lift `ol` → the known ffe_oldcrw
+one-cycle lag. The fix = resolve that lag (a separately-tracked, non-trivial FFE-timing item that has
+regressed before); disproportionate to a 1.7% cosmetic residual, so deferred to that item. NO MYSTERY
+REMAINS — the residual is bound to an existing, named, deferred root. Bound at the measured 0.2 floor.
