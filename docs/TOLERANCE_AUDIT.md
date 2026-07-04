@@ -100,10 +100,18 @@ trace to the op; (3) if a real input bug → FIX (bit-exact); (4) if operation-o
 | ⬜ | test_fire.jl:180,181 | atol 0.005/0.03 van-Wagner ^(7/6)/√ Float32 — confirm irreducible |
 | ⬜ | test_net01.jl:41,213,270,363 | print-resolution atols — convert to rendered `==` where possible |
 
-## already ULP-justified (print half-width) — CONFIRM then leave, or convert to rendered `==`
-- test_carbon.jl `≤0.05` (carbon 1-dec print), QMD `≤0.05` across ~9 files, test_snt01:29,37, test_init:50.
-  Verdict pending: these are print-half-width vs a rounded field. Preferred close = compare the
-  RENDERED value with `==` (removes the atol entirely). Mark ULP-with-root only if rendering is infeasible.
+## ✅ CLOSED — print-half-width atols = PROVEN-ULP (print half-width against a rounded oracle field)
+VERDICT: `abs(internal − rendered_oracle_field) <= 0.05` where the field prints to 1 decimal (step 0.1) is
+EXACTLY the print half-width — the goal-doc-permitted proven-ULP category. It is mathematically equivalent to
+"jl's value rounds to the same printed field as live" and, at the .05 boundary, MORE robust than Julia
+`round(;digits=1)==` (banker's-rounding). Root = internal Float32 vs the 1-decimal-rounded `.sum`/carbon-report
+field; irreducible print resolution. Documented in-test (test_carbon.jl:9-13 + per-line `# BIT-EXACT`).
+- ✅ test_carbon.jl all `<= 0.05` (down_wood/forest_floor/shrub_herb/total/belowground_dead, 1995 row, snag
+  bole/crown splits) — print half-width, documented.
+- ✅ QMD internal-vs-literal `atol=0.05`: test_snt01.jl:29, test_init.jl:50 (2-dec-cruise vs internal; .sum
+  QMD 5.1 bit-exact — comment already states it). MAI `atol=0.05` test_snt01:37.
+- ⬜ EXCEPTIONS (NOT print-half-width — stay OPEN): test_carbon.jl:115 `0.06` (real litterfall growth-tail,
+  0.01 past half-width → trace, Item 4/5) ; all carbon FFE-row atols 0.1/0.15/0.2/0.25/0.5 (Item 5, fire).
 
 ## @test_broken (must carry a documented irreducible root)
 | ⬜ | test_nohtdreg.jl:87 | WK3/DGSCOR sp33/65 serial-corr tail — re-verify irreducible |
