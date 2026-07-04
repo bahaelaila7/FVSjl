@@ -53,9 +53,14 @@ using FVSjl
         @test br.models[1][1] == 10           # standard fuel model 10 (was 6 before ls/fmcfmd.f port)
         @test br.models[1][2] == 1f0          # full weight
 
-        # fire BEHAVIOR: flame/scorch match live to within the known PERCOV residual
-        @test isapprox(br.flame,  3.4f0; atol = 0.15f0)   # live 3.4
-        @test isapprox(br.scorch, 13.0f0; atol = 0.5f0)   # live 13.0
+        # fire BEHAVIOR: flame/scorch vs the LIVE rendered values (3.4 / 13.0), atol = the MEASURED floor
+        # (jl internal 3.4543 / 13.289 → |Δ| vs live 0.054 / 0.289). That residual is the DOCUMENTED PERCOV
+        # crown-cover input to the LS fuel-model fire behaviour (FMCFMD): jl's forest-grown crown-ratio
+        # update timing yields a slightly different percent-cover than live, shifting the Rothermel/Byram
+        # transcendentals a fraction. Tightened from the old 0.15/0.5 (2–3× slack) to just above the floor.
+        # FLAGGED for a dedicated PERCOV crown-CR-timing trace (candidate real fix) — docs/TOLERANCE_AUDIT.md.
+        @test isapprox(br.flame,  3.4f0;  atol = 0.06f0)   # live 3.4 (jl 3.4543 — PERCOV residual)
+        @test isapprox(br.scorch, 13.0f0; atol = 0.30f0)   # live 13.0 (jl 13.289 — PERCOV residual)
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)
@@ -104,9 +109,11 @@ end
             carb[parse(Int, f[1])] = [parse(Float64, x) for x in f[2:10]]
         end
         @test haskey(carb, 2003)
-        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.9 (the current-height snag
-        # bole truncation + LS fast fall closed the prior ~14.5 over-book). Small CFTOPK-form residual only.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.6)
+        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. The ≈0.2 gap is the
+        # DOCUMENTED CFTOPK snag-bole-form residual (current-height snag bole truncation + LS fast fall
+        # closed the prior ~14.5 over-book, leaving this small form-factor tail). Bound tightened from the
+        # old 0.6 (3× slack) to just above the measured 0.2 floor. FLAGGED for a CFTOPK snag-form trace.
+        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — CFTOPK snag-form residual
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end

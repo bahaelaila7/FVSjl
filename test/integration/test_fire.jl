@@ -44,9 +44,9 @@ _f_rows(txt) = [split(strip(l)) for l in split(txt, "\n") if occursin(r"^(19|20)
                 # inflating SMALL → wrong FMDYN fuel-model weights → low flame/scorch → under-kill. Fix in
                 # io/summary.jl (stash fire_smlg at cycle start). See docs/audit/INDEX.md "FIRE UNDER-KILL".
                 @test j[3] == f[3]                          # TPA — bit-exact
-                # BA: bit-exact at the fire cycle, a small residual (≤3 by 2015) compounds in the surviving
-                # trees' post-fire diameter growth (a separate minor item, NOT the under-kill).
-                @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 3   # BA
+                # BA — now BIT-EXACT every cycle (the former ≤3 post-fire diameter-growth residual closed
+                # this campaign along with the volume/growth fixes; re-measured max|Δ|=0 all cycles).
+                @test j[4] == f[4]                          # BA — bit-exact
             end
         end
     end
@@ -94,8 +94,8 @@ end
                 # diameter-growth residual (present in fire_early too) compounds in the grass-fire's small
                 # surviving population — TPA within +/-2, BA within +/-4. The FUELMODL override is faithful
                 # (the fire-year row is bit-exact; flame/scorch matched live to the digit).
-                @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 2
-                @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 4
+                @test j[3] == f[3]   # TPA — BIT-EXACT (post-fire residual closed; re-measured max|Δ|=0)
+                @test j[4] == f[4]   # BA  — BIT-EXACT
             end
         end
     end
@@ -118,8 +118,8 @@ end
                 @test j[3] == f[3]; @test j[4] == f[4]
                 @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1
             else                                            # post-fire growth residual
-                @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 2
-                @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 4
+                @test j[3] == f[3]   # TPA — BIT-EXACT (post-fire residual closed; re-measured max|Δ|=0)
+                @test j[4] == f[4]   # BA  — BIT-EXACT
             end
         end
     end
@@ -142,8 +142,8 @@ end
                 @test j[3] == f[3]; @test j[4] == f[4]
                 @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1
             else
-                @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 2
-                @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 4
+                @test j[3] == f[3]   # TPA — BIT-EXACT (post-fire residual closed; re-measured max|Δ|=0)
+                @test j[4] == f[4]   # BA  — BIT-EXACT
             end
         end
     end

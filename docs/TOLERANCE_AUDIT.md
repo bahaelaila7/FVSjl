@@ -230,3 +230,22 @@ now the observed ABSOLUTE envelope (deterministic runs), not percentages. Docume
   live exactly (old ≤8/≤3/≤6 "non-5-yr period residual" was stale over-caution).
 - `test_growth.jl` (dead_fint) — BA/MCuFt `==`; TCuFt `<=1` (print knife-edge).
 - `test_multistand.jl` (snt01 stand-1) — TPA/BA `==`; total cuft `<=1` (print knife-edge).
+
+## ✅ CLOSED/TIGHTENED — Item 5 FFE fire/carbon
+
+- **test_fire.jl** — ALL fire scenarios (fire_early/moisture/fuelmodl/fueltret/defulmod) are now
+  FULLY BIT-EXACT on TPA and BA every cycle (re-measured max|Δ|=0). The old post-fire ≤3/≤4/≤2
+  "surviving-tree diameter-growth residual" bounds closed along with this campaign's volume/growth
+  fixes → all driven to `==`. (TCuFt keeps the ≤1 print knife-edge.)
+- **test_lst01_ffe.jl** flame/scorch — tightened from 0.15/0.5 (2–3× slack) to 0.06/0.30 = just above
+  the measured floor (jl 3.4543/13.289 vs live 3.4/13.0). Root CORNERED: the DOCUMENTED PERCOV
+  crown-cover input to the LS fuel model (FMCFMD) — jl's forest-grown crown-ratio update timing gives a
+  slightly different percent-cover, shifting the Rothermel/Byram transcendentals. FLAGGED for a
+  dedicated PERCOV crown-CR-timing trace (candidate real fix).
+- **test_lst01_ffe.jl** Stand-Dead carbon — tightened 0.6 → 0.25 (measured floor 0.2). Root: the CFTOPK
+  snag-bole form-factor tail (jl 11.8 / live 12.0). FLAGGED for a CFTOPK snag-form trace.
+- **test_fire.jl** flame (fire_early) atol 0.005 — already proven-ULP (Float32 transcendental Δ0.0024).
+- **test_carbon.jl** `<= 0.05` — already proven print-half-width ULP (report prints to 0.1).
+
+PERCOV (flame/scorch) and CFTOPK snag-form (Stand-Dead) are the two remaining FFE residuals; both are
+cornered to a named cause and flagged as deep-trace candidates for a future real fix.
