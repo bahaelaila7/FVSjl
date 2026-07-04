@@ -50,9 +50,10 @@ _ss_base(path) = [split(l) for l in eachline(path)
             for col in (3, 4, 5, 6, 7, 8)                        # TPA/BA/SDI/CCF/TopHt/QMD
                 @test j[col] == f[col]
             end
-            for col in (9, 10, 11, 12)                           # TCuFt/MCuFt/SCuFt/BdFt
-                @test abs(parse(Int, j[col]) - parse(Int, f[col])) <= 2
-            end
+            @test parse(Int, j[9])  == parse(Int, f[9])          # TCuFt — BIT-EXACT
+            @test parse(Int, j[11]) == parse(Int, f[11])         # SCuFt — BIT-EXACT
+            @test parse(Int, j[12]) == parse(Int, f[12])         # BdFt  — BIT-EXACT
+            @test abs(parse(Int, j[10]) - parse(Int, f[10])) <= 1  # MCuFt — BIT-EXACT bar a print-boundary ULP (≤1)
         end
         # the site boost actually changed the projection (vs the same key with SETSITE removed)
         offkey = joinpath(_SS_DIR, "_setsite_off.key")
