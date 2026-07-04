@@ -112,8 +112,14 @@ end
             if yr <= 2010                                   # cycles 0–2: BIT-EXACT
                 @test (tpa, ba, sdi, ccf, topht) == (L[1], L[2], L[3], L[4], L[5])
                 @test round(Float32(qmd); digits=1) == Float32(L[6])
-            else                                            # cycles 3–10: Float32 ULP floor
-                @test abs(tpa   - L[1]) <= 3
+            else                                            # cycles 3–10: the PROVEN height-transcendental floor
+                # ROOT (proven via DENSE DEBUG on the CS all-species stand, docs/TOLERANCE_AUDIT.md): DBH/BA
+                # growth is bit-exact (cycles 0-2 ==), but stand_top_height sums the largest-40 tree HEIGHTS,
+                # and the HTGF height model (transcendental exp/powers) leaves a few-ULP Float32 residual that
+                # is INERT in DBH/BA yet accumulates in the height sum → AVH → RELHTA=min(HT/AVH,1) → the
+                # VARMRT per-species kill → a ≤3-TPA drift late, amplified nonlinearly into ccf/cuft. Proven-ULP
+                # transcendental class (irreducible without bit-matching FVS's Float32 exp/power in HTGF).
+                @test abs(tpa   - L[1]) <= 3   # mortality drift from the height-transcendental AVH (proven)
                 @test abs(ba    - L[2]) <= 1
                 @test abs(sdi   - L[3]) <= 1
                 # CCF tol widened 2→3: the gradd.f DENSE-before-CROWN fix (post-growth BA into the NE/CS crown
