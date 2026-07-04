@@ -51,7 +51,16 @@ _vocol(r, c) = parse(Float64, r[c])
             for i in 1:length(jl)
                 @test _vocol(jl[i], 3) == _vocol(ft[i], 3)     # TPA — BIT-EXACT
                 @test _vocol(jl[i], 4) == _vocol(ft[i], 4)     # BA  — BIT-EXACT
-                @test abs(_vocol(jl[i], 10) - _vocol(ft[i], 10)) <= 2   # merch cubic — REAL residual (VOLUME-override gated col); NOTRIPLE-classify + trace the merch-cubic op
+                # merch cubic: BIT-EXACT on every cycle EXCEPT 2005, which is a PROVEN PRINT-BOUNDARY ULP.
+                # Cornered (FVSJL_PROBE_MCF): the 2005 raw stand merch sum = 2732.5193 (Float64 order-independent
+                # sum = 2732.5195 — so jl's Float32 accumulation is faithful to the true value). It sits 0.019
+                # ABOVE the .5 rounding knife-edge, so jl's `trunc(x+0.5)` gives the mathematically-correct 2733;
+                # live FVS's own Float32 accumulation order lands fractionally below 2732.5 → 2732. The sub-0.02
+                # gap is the accepted per-tree tripled Clark-taper Float32 volume ULP; on every other cycle the
+                # stand total is far from the knife-edge so the rendered integer is identical. Matching FVS here
+                # would require making jl LESS accurate by bit-replicating Fortran's summation loop over tripled
+                # records. IRREDUCIBLE print-boundary ULP; bound = exactly 1 = one integer print step (single crossing).
+                @test abs(_vocol(jl[i], 10) - _vocol(ft[i], 10)) <= 1
             end
         end
     end

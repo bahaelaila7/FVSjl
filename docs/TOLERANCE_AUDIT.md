@@ -131,3 +131,37 @@ field; irreducible print resolution. Documented in-test (test_carbon.jl:9-13 + p
 | ⬜ | test_nohtdreg.jl:87 | WK3/DGSCOR sp33/65 serial-corr tail — re-verify irreducible |
 | ⬜ | test_keyword_coverage.jl:160 | COMPRESS s22 eigensolver + s32 R8-VOLUME leak — re-verify |
 | ⬜ | test_keyword_coverage.jl:181 | dormant (empty broken-set) — confirm |
+
+## ✅ CLOSED — Board-foot cluster (Item 2): REAL BUG found (BFTOPK BFMAX) + faithful Float32
+
+The Scribner board-foot `1+0.00N·x` / `<=2` bounds across the board tests are now BIT-EXACT
+(bar single print-boundary ULPs). Root-caused via a per-tree `BFDUMP` trace on `vol_eqnum`
+(VOLEQNUM SM→black-oak, BFPFLG=0), which carried a systematic −16→−23 bf residual at the
+largest cycles.
+
+**The bug (upstream, doctrine-faithful — read from FVS source, not test behavior):**
+FVS `vols.f:391` calls `BFTOPK(...,BFMAX,...)` — the BROKEN-TOP board top-kill fits its Behre
+taper to `BFMAX`, the **board** equation's total cubic (set by `BFVOL`, vols.f:381), NOT the
+cubic-call `VMAX` (`CFVOL`, used by `CFTOPK` at :193). jl passed `v[1]` (the CUBIC call's total)
+to `bftopk` for both. When VOLEQNUM/BFVOLUME split the board equation (VEQNNB) from the cubic
+(VEQNNC) ⇒ BFPFLG=0, a broken-top tree's SM board was scaled by BLACK-OAK's taper → wrong bf.
+FIX (`volume.jl`): capture the board call's `vb[1]` as `bfmax` and pass it to `bftopk`; default
+`bfmax=v[1]` (board eq == cubic eq ⇒ BFMAX==VMAX, so the common path is unchanged → SN/NE/CS/LS
+stay bit-exact). Decisive proof: per-tree board matched live for EVERY tree except the one
+broken-top (TRC HT>0) tree (live 200 / jl 194.81).
+
+**Also landed (faithful, no-regression):** `_r9dib_clark` and `_r9ht` (r8clark_vol.jl) now compute
+in Float32 throughout, matching FVS R9DIB/R9HT `REAL*4` op sequences (real Clark powers via
+Float32 `^`, `**0.5` not `sqrt`). FVS is single-precision; computing in Float64 and rounding once
+makes the DIB/height *more* precise than FVS, which can tip the `INT(DIB+0.499)` Scribner bucket or
+the even-foot LOG segmentation at a knife-edge. (Did not by itself move vol_eqnum, but is the
+correct semantics and guards other knife-edges.)
+
+Tightened to `==` / documented print-boundary `<=1`:
+- `test_voleqnum.jl` — TPA/BA `==`; cubic + board `<=1` (single 2020/2030 render knife-edge each).
+- `test_volume_override.jl` — merch cubic `<=1` (2005 raw=2732.52, cornered print knife-edge).
+- `test_fertiliz.jl` / `test_cuteff.jl` / `test_minharv.jl` / `test_tcondmlt.jl` — board `1+0.00N·x`
+  → `<=1` (all now single-±1 print knife-edges, previously masked by the percentage bound).
+- `test_bfvolume.jl` — already `==`; the BFMAX fix keeps it bit-exact.
+
+Suite 7662/2 throughout. Board-foot cluster (Item 2) COMPLETE.

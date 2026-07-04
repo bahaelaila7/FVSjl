@@ -262,35 +262,43 @@ end
 # For R8 we call this with outside-bark coefficients (Ro,Co,Eo,Po,Bo,Ao,
 #   totHt, dbhOb, dob17) and stmDib = outside-bark top diameter.
 # ---------------------------------------------------------------------------
+# FVS R9HT (r9clark.f:1267-1360) — height to a given inside-bark diameter, Float32 (`REAL*4`) throughout
+# to match Fortran's op sequence (real Clark powers via Float32 `^`, `**(1/r)`/`**(1/p)`/`**0.5`, integer
+# exponents as exact multiplications). The `sawHt`/`plpHt` this returns drive the even-foot LOG segmentation
+# (LEFTOV → INT rounding in R9LOGLEN); computing in Float64 and rounding once makes sawHt 1 ULP off FVS's
+# Float32, which at large trees tips LEFTOV across an even-foot INT knife-edge → different log tops/DIBs →
+# a whole Scribner board-foot step. Faithful Float32 keeps the segmentation bit-exact.
 function _r9ht(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
                totHt::Real, dbhIb::Real, dib17::Real, stmDib::Real)
-    G = (1 - 4.5/totHt)^R
-    W = (C + E/dbhIb^3) / (1 - G)
-    X = (1 - 4.5/totHt)^P
-    Y = (1 - 17.3/totHt)^P
-    Z = (X - Y) > 1e-10 ? (dbhIb^2 - dib17^2) / (X - Y) : 0.0f0
+    R = Float32(R); C = Float32(C); E = Float32(E); P = Float32(P); B = Float32(B); A = Float32(A)
+    totHt = Float32(totHt); dbhIb = Float32(dbhIb); dib17 = Float32(dib17); stmDib = Float32(stmDib)
+    G = (1f0 - 4.5f0/totHt)^R
+    W = (C + E/dbhIb^3) / (1f0 - G)
+    X = (1f0 - 4.5f0/totHt)^P
+    Y = (1f0 - 17.3f0/totHt)^P
+    Z = (X - Y) > 1f-10 ? (dbhIb^2 - dib17^2) / (X - Y) : 0.0f0
 
-    Im = stmDib^2 > B*(A-1)^2*dib17^2 ? 1.0f0 : 0.0f0
-    Qa =  B + Im*(1-B)/A^2
-    Qb = -2B - Im*2*(1-B)/A
-    Qc =  B + (1-B)*Im - stmDib^2/dib17^2
+    Im = stmDib^2 > B*(A-1f0)^2*dib17^2 ? 1.0f0 : 0.0f0
+    Qa =  B + Im*(1f0-B)/A^2
+    Qb = -2f0*B - Im*2f0*(1f0-B)/A
+    Qc =  B + (1f0-B)*Im - stmDib^2/dib17^2
 
     Is = stmDib >= dbhIb ? 1.0f0 : 0.0f0
     Ib = (stmDib < dbhIb && stmDib >= dib17) ? 1.0f0 : 0.0f0
     It = stmDib < dib17 ? 1.0f0 : 0.0f0
 
     stemHt = 0.0f0
-    if Is > 0
-        xxx = (stmDib^2/dbhIb^2 - 1)/W + G
-        xxx > 0 && (stemHt = totHt*(1 - xxx^(1/R)))
-    elseif Ib > 0
+    if Is > 0f0
+        xxx = (stmDib^2/dbhIb^2 - 1f0)/W + G
+        xxx > 0f0 && (stemHt = totHt*(1f0 - xxx^(1f0/R)))
+    elseif Ib > 0f0
         xxx = X - (dbhIb^2 - stmDib^2)/Z
-        xxx > 0 && (stemHt = totHt*(1 - xxx^(1/P)))
+        xxx > 0f0 && (stemHt = totHt*(1f0 - xxx^(1f0/P)))
     else
-        xxx = Qb^2 - 4*Qa*Qc
-        xxx > 0 && (stemHt = 17.3 + (totHt - 17.3)*((-Qb - sqrt(xxx))/(2*Qa)))
+        xxx = Qb^2 - 4f0*Qa*Qc
+        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0)*((-Qb - xxx^0.5f0)/(2f0*Qa)))
     end
-    return Float32(max(stemHt, 0.0))
+    return max(stemHt, 0.0f0)
 end
 
 # ---------------------------------------------------------------------------
@@ -717,43 +725,53 @@ end
 # r9dib: inside-bark diameter at height stemHt.
 # Translated from r9clark.f lines 1116-1241.
 # ---------------------------------------------------------------------------
+# FVS R9DIB (r9clark.f:1155-1226) — the Clark stem inside-bark diameter at a height. Computed ENTIRELY
+# in Float32 (`REAL*4`), matching Fortran's op sequence: the real-exponent Clark powers (`**R`, `**P`,
+# `**0.5`) use Float32 `^`, the integer exponents (`**2`,`**3`) are exact Float32 multiplications, and the
+# final `(Ds+Db+Dt)**0.5` is `^0.5f0` (NOT `sqrt`) to match FVS's literal `**0.5`. Computing in Float64
+# and rounding once at the end (the earlier form) makes the DIB *more* precise than FVS, which tips the
+# `INT(DIB+0.499)` Scribner-bucket at log tops whose raw DIB sits ≈x.50 (the .499 knife-edge) → a whole
+# Scribner-row board-foot step (~16 bf on a large tree). Faithful Float32 keeps the bucket bit-exact.
 function _r9dib_clark(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
                        totHt::Real, dbhIb::Real, dib17::Real, stemHt::Real)
-    stemHt <= 0 && return 0.0f0
+    stemHt = Float32(stemHt)
+    stemHt <= 0f0 && return 0.0f0
+    R = Float32(R); C = Float32(C); E = Float32(E); P = Float32(P); B = Float32(B); A = Float32(A)
+    totHt = Float32(totHt); dbhIb = Float32(dbhIb); dib17 = Float32(dib17)
 
     # Trap near-tip math errors
-    if R < 0 && abs(stemHt - totHt) < 0.00001
-        stemHt = stemHt - 0.1
+    if R < 0f0 && abs(stemHt - totHt) < 0.00001f0
+        stemHt = stemHt - 0.1f0
     end
 
-    Is = stemHt < 4.5
-    Ib = stemHt >= 4.5 && stemHt <= 17.3
-    It = stemHt > 17.3
-    Im = stemHt < (17.3 + A*(totHt - 17.3))
+    Is = stemHt < 4.5f0
+    Ib = stemHt >= 4.5f0 && stemHt <= 17.3f0
+    It = stemHt > 17.3f0
+    Im = stemHt < (17.3f0 + A*(totHt - 17.3f0))
 
     StTot = stemHt/totHt
-    if log(max(1 - StTot, 1e-20)) < (-20/abs(R))
-        StTot = 1.0
+    if log(max(1f0 - StTot, 1f-20)) < (-20f0/abs(R))
+        StTot = 1.0f0
     end
 
-    Ds, Db, Dt = 0.0, 0.0, 0.0
+    Ds, Db, Dt = 0.0f0, 0.0f0, 0.0f0
 
     if Is
-        Ds = dbhIb^2 * (1 + (C + E/dbhIb^3)*
-             ((1-StTot)^R - (1-4.5/totHt)^R) /
-             (1 - (1-4.5/totHt)^R))
+        Ds = dbhIb^2 * (1f0 + (C + E/dbhIb^3)*
+             ((1f0-StTot)^R - (1f0-4.5f0/totHt)^R) /
+             (1f0 - (1f0-4.5f0/totHt)^R))
     end
     if Ib
         Db = dbhIb^2 - (dbhIb^2 - dib17^2)*
-             ((1-4.5/totHt)^P - (1-stemHt/totHt)^P) /
-             ((1-4.5/totHt)^P - (1-17.3/totHt)^P)
+             ((1f0-4.5f0/totHt)^P - (1f0-stemHt/totHt)^P) /
+             ((1f0-4.5f0/totHt)^P - (1f0-17.3f0/totHt)^P)
     end
     if It
-        Dt = dib17^2*(B*(((stemHt-17.3)/(totHt-17.3))-1)^2
-             + (Im ? ((1-B)/A^2)*(A-(stemHt-17.3)/(totHt-17.3))^2 : 0.0))
+        Dt = dib17^2*(B*(((stemHt-17.3f0)/(totHt-17.3f0))-1f0)^2
+             + (Im ? ((1f0-B)/A^2)*(A-(stemHt-17.3f0)/(totHt-17.3f0))^2 : 0.0f0))
     end
 
     val = Ds + Db + Dt
-    val > 0 || return 0.0f0
-    return Float32(sqrt(val))
+    val > 0f0 || return 0.0f0
+    return val^0.5f0
 end

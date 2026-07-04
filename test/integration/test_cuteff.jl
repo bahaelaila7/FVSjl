@@ -42,7 +42,9 @@ _cecol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 9, 10, 11)
                     @test abs(_cecol(jl[i], c) - _cecol(ft[i], c)) <= 2
                 end
-                @test abs(_cecol(jl[i], 12) - _cecol(ft[i], 12)) <= 1 + 0.005 * _cecol(ft[i], 12)
+                # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
+                # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).
+                @test abs(_cecol(jl[i], 12) - _cecol(ft[i], 12)) <= 1
             end
         end
     end

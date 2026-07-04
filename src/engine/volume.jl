@@ -548,11 +548,17 @@ function compute_volumes!(s::StandState)
         # (fvsvol.f:499) ALSO zeros the sawtimber cubic when the board-top sawlog is < 10 ft, which
         # drops the reported sawtimber + the sawtimber part of merch cubic. (`bf` was set above and
         # may already have been zeroed by the primary-call ≥10-ft rule.)
+        # `bfmax` is the BOARD equation's total cubic (VMAX-analog), which the broken-top BOARD top-kill
+        # (BFTOPK) uses to fit its Behre taper (FVS vols.f:391 passes BFMAX from BFVOL, NOT the cubic-call
+        # VMAX from CFVOL). With the default board (board eq == cubic eq) they're equal, so v[1] serves; when
+        # VOLEQNUM/BFVOLUME split the equations (BFPFLG=0), the board top-kill must use the BOARD call's own
+        # total (vb[1]), else a broken-top tree's board is scaled by the wrong (cubic) equation's taper.
+        bfmax = v[1]
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
                 vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl)
-                bf = vb[10]
+                bf = vb[10]; bfmax = vb[1]                # BFMAX = board-equation total (fvsvol.f BFVOL)
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))
                     scf = 0f0                             # and the sawtimber cubic (TVOL(4)), which
@@ -565,7 +571,7 @@ function compute_volumes!(s::StandState)
         if tkill && tcf > 0f0
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
-            bf = bftopk(merch, sp, d, h, bf, v[1], bark, Int(t.trunc[i]))
+            bf = bftopk(merch, sp, d, h, bf, bfmax, bark, Int(t.trunc[i]))
         end
         # Volume defect (FVSsn vols.f, SN branch). Two coupled corrections, both keyed off the
         # per-species DBH defect curves (MCDEFECT→CFDEFT, BFDEFECT→BFDEFT) via ALGSLP:

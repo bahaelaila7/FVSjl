@@ -50,7 +50,9 @@ _mhcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 9, 10, 11)
                     @test abs(_mhcol(jl[i], c) - _mhcol(ft[i], c)) <= 2
                 end
-                @test abs(_mhcol(jl[i], 12) - _mhcol(ft[i], 12)) <= 1 + 0.002 * _mhcol(ft[i], 12)
+                # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
+                # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).
+                @test abs(_mhcol(jl[i], 12) - _mhcol(ft[i], 12)) <= 1
             end
         end
     end

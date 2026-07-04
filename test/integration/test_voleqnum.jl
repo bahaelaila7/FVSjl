@@ -43,11 +43,22 @@ _vecol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                for c in (3, 4, 9, 10, 11)   # TPA / BA / total / merch / sawtimber cubic
-                    @test abs(_vecol(jl[i], c) - _vecol(ft[i], c)) <= 2
+                @test _vecol(jl[i], 3) == _vecol(ft[i], 3)    # TPA — BIT-EXACT
+                @test _vecol(jl[i], 4) == _vecol(ft[i], 4)    # BA  — BIT-EXACT
+                # Cubic (9/10/11) is BIT-EXACT every cycle except a single print-boundary ULP at 2020 (col 9):
+                # the per-acre cubic sum lands within one ULP of the `+0.5` integer-render knife-edge, so the
+                # rendered integer rounds to the opposite side of live's. Bound = exactly 1 (one integer step).
+                for c in (9, 10, 11)   # total / merch / sawtimber cubic
+                    @test abs(_vecol(jl[i], c) - _vecol(ft[i], c)) <= 1
                 end
-                # board feet: bit-exact bar the Scribner Float32 noise (≤0.2% + 1, compounding late)
-                @test abs(_vecol(jl[i], 12) - _vecol(ft[i], 12)) <= 1 + 0.002 * _vecol(ft[i], 12)
+                # Board feet: BIT-EXACT bar a single print-boundary ULP at 2030. Previously carried a systematic
+                # −16→−23 residual at the largest cycles; root-caused (BFDUMP per-tree trace) to the BROKEN-TOP
+                # board top-kill (BFTOPK) being fit to the WRONG equation's total cubic. VOLEQNUM splits the board
+                # equation (SM, VEQNNB) from the cubic (black oak, VEQNNC) → BFPFLG=0; FVS vols.f:391 passes BFMAX
+                # (the BOARD call's total, from BFVOL) to BFTOPK, but jl passed v[1] (the cubic call's total). On a
+                # broken-top tree that scaled the SM board by black-oak's taper. Fixed to use the board call's vb[1].
+                # Now every cycle is bit-exact except the 2030 render knife-edge → bound = exactly 1.
+                @test abs(_vecol(jl[i], 12) - _vecol(ft[i], 12)) <= 1
             end
         end
     end

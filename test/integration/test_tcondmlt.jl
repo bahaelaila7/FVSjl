@@ -44,7 +44,9 @@ _tccol(r, c) = parse(Float64, r[c])
                     for c in (3, 4, 9, 10, 11)
                         @test abs(_tccol(jl[i], c) - _tccol(ft[i], c)) <= 2
                     end
-                    @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1 + 0.005 * _tccol(ft[i], 12)
+                    # Board feet: BIT-EXACT (the per-acre Scribner sum matches live's rendered integer every
+                    # cycle for this scenario). Bound = exactly 1 to allow a print-boundary ULP if one arises.
+                    @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1
                 end
             end
         end

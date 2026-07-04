@@ -44,7 +44,9 @@ _fzcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 7, 8, 9, 10, 11)   # TPA/BA/TopHt/QMD/total/merch/sawtimber cubic
                     @test abs(_fzcol(jl[i], c) - _fzcol(ft[i], c)) <= 2
                 end
-                @test abs(_fzcol(jl[i], 12) - _fzcol(ft[i], 12)) <= 1 + 0.005 * _fzcol(ft[i], 12)
+                # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
+                # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).
+                @test abs(_fzcol(jl[i], 12) - _fzcol(ft[i], 12)) <= 1
             end
         end
     end
