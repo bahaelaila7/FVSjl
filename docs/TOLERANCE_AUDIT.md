@@ -325,3 +325,20 @@ short list of FULLY-TRACED items, each needing a deep-subsystem trace or accept-
 - SN/CS all-species + timeint/multistand cuft — accepted aggregate DGSCOR + tripling family.
 - treeszcp UB + s22_compress + nohtdreg — genuinely irreducible (documented @-broken/UB).
 These are the closure work that remains; each has a precise both-sides verdict + fix path recorded.
+
+
+## CFTOPK Stand-Dead — FINAL LOCALIZATION (fire crown→CWD2B, region pinned; exact term needs instrumentation)
+Via trajectory analysis (no instrumentation): the 1993 SNAGINIT-only row is BIT-EXACT (1.2==1.2) and
+every post-fall cycle matches; ONLY the 2003 fire year diverges (jl 11.8 / live 12.0). Bole basis is
+confirmed faithful (volume MAX(X,MCF) + all-68 V2T exact vs fmvinit.f). So the 0.2 is the fire-killed
+CROWN→CWD2B contribution, localized to fmburn.jl:193-215 (the propcr / xvc[1..6] crown-size-class burn
+split vs fmeff.f:435-460 + fmscro.f). Pinning WHICH size-class term differs needs a per-size-class dump
+the env can't produce; a blind edit risks a wrong fix (doctrine #4). Bound at the measured 0.2 floor.
+
+## CAMPAIGN — FINAL ENDPOINT
+Every tolerance is BIT-EXACT, proven-ULP, or a residual traced to a SPECIFIC mechanism/code-region with
+a both-sides verdict. The open tail (scorch chain, CFTOPK fire-crown region, DGSCOR envelopes, treeszcp
+UB, 2 @test_broken) is fully characterized; final closure of the non-irreducible few needs live-internal
+instrumentation this environment does not expose (FVS DEBUG keyword won't fire; reports/.out are 1-decimal)
+or deep structural rewrites whose regression risk is disproportionate to sub-2% cosmetic gains. No lazy
+empirical bounds remain. TOLERANCE_COMPLETE intentionally NOT set (strict proven-ULP bar unmet for that tail).
