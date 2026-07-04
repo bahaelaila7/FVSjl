@@ -166,20 +166,17 @@ end
             for (yr, L) in sort(collect(live))
                 @test haskey(rows, yr)
                 r = rows[yr]
-                if yr == 2002                       # establishment + first-cycle growth: BIT-EXACT all 6
-                    @test (r[1],r[2],r[3],r[4],r[5]) == (L[1],L[2],L[3],L[4],L[5])
-                    @test round(Float32(r[6]); digits=1) == Float32(L[6])
-                    continue
-                end
-                # 2012+: TPA stays bit-exact two cycles (count/mortality logic exact); the drift is SIZE-only
-                # single-precision accumulation in the small-tree growth spine (SDI/CCF/TopHt ±1/cyc, peaking
-                # 2072 — CCF amplifies crown-width via dbh). GROUNDED: not an establishment defect (2002 exact).
-                @test abs(r[1] - L[1]) <= 4        # TPA (bit-exact through 2012)
-                @test abs(r[2] - L[2]) <= 2        # BA
-                @test abs(r[3] - L[3]) <= 4        # SDI
-                @test abs(r[4] - L[4]) <= 10       # CCF (crown-width amplified, compounds most)
-                @test abs(r[5] - L[5]) <= 2        # TopHt
-                @test abs(r[6] - L[6]) <= 0.2      # QMD
+                # BIT-EXACT all cycles: the QMDGE5 cumulative-cap fix (this planted stand seeds species 3, a
+                # CS cap-13 species, so the earlier local-per-tree cap gave the wrong QMDGE5 → biased the small-
+                # tree RDBH/RDBHSQ growth terms). With the cumulative species-order cap, jl == live FVScs bit-
+                # exact across every cycle (integer cols by `==`; QMD by rendered 1-decimal `==`). The old
+                # "SIZE-only single-precision accumulation" comment was the QMDGE5 bug in disguise.
+                @test r[1] == L[1]        # TPA — BIT-EXACT
+                @test r[2] == L[2]        # BA
+                @test r[3] == L[3]        # SDI
+                @test r[4] == L[4]        # CCF
+                @test r[5] == L[5]        # TopHt
+                @test round(Float32(r[6]); digits=1) == Float32(L[6])   # QMD rendered to the .sum's 1 decimal
             end
         end
         rm(barekey; force = true); rm(joinpath(@__DIR__, "cst01.tre"); force = true)

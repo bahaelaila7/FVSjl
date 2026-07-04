@@ -67,7 +67,7 @@ trace to the op; (3) if a real input bug → FIX (bit-exact); (4) if operation-o
 ## C2b — multi-unit absolute bounds
 | ⬜ | file:line | bound | compares | plan |
 |----|-----------|-------|----------|------|
-| ⬜ | test_cst01.jl:177-182 | TPA4/SDI4/CCF10/TopHt2/QMD0.2 | grown | DOWNSTREAM of the state residuals above — fix CS deterministic state first |
+| ✅ | test_cst01.jl:177-182 | ~~TPA4/SDI4/CCF10/TopHt2/QMD0.2~~ → **BIT-EXACT `==`** | bare-ground grown | **CLOSED by the QMDGE5 fix.** This PLANTED stand seeds species 3 (CS cap-13) — the old local-per-tree QMD cap gave the wrong QMDGE5 → biased small-tree RDBH/RDBHSQ growth → the "CCF≤10 single-precision accumulation." With the cumulative species-order cap, jl == live bit-exact ALL cycles (integer cols `==`, QMD rendered `==`). Suite 7662/2. ★ re-trace win: "SIZE-only single-precision accumulation" label WAS the QMDGE5 bug. |
 | ⬜ | test_cst01.jl:80,81,116,122,123,124 | ≤1, TPA3/CCF3/TopHt2/QMD0.15 | cyc0-vol/2002 | re-measure |
 | ⬜ | test_growth.jl:169,170,171 | ≤4 | TCuFt/MCuFt | trace |
 | ⬜ | test_cycleat.jl:63,64,65 | TPA8/BA3/SDI6 | grown | trace |
