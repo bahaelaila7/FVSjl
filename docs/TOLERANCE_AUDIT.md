@@ -414,3 +414,15 @@ Traced the FVS fire-killed-crown→CWD2B path term-by-term (fmeff.f:434-475 + fm
 This is now a bounded per-tree diff, but it is the scope of the crown-lift-lag FFE item (fragile,
 regressed before). Cornered; bound stays at the measured 0.2 floor. The DEBUG method + these exact
 CROWNW targets are recorded so the fix can be finished without re-deriving anything.
+
+## CFTOPK crown — jl xc/ol split captured; deficit is in the OLDCRW/YRSCYC crown-lift accounting
+Instrumented jl's fire-crown split (Σ over killed trees): the crown-lift OL is SUBSTANTIAL, not small
+(sizes 1-3 = 635/1686/1597 vs base-crown xc 1178/3627/5121). So the ~7% sizes-1-3 deficit lives in the
+crown-lift term, which is exactly where FVS's OLDCRW/YRSCYC accounting is subtle: FVS's fire-killed
+FMSCRO booking uses YRSCYC=1 (annual) with a per-year OLDCRW, plus FMEFF halves OLDCRW(1) before
+booking; jl's crown_lift_at_death = cyclen·ffe_oldcrw where ffe_oldcrw is the compute_crown_lift!
+(x·OLDCRW) value from last cycle. Reconciling the per-year-vs-per-cycle OLDCRW scaling and the FMEFF
+size-1 halving is the exact remaining work — it needs careful both-sides matching of the FMSDIT/FMSCRO
+crown-lift accounting (the documented crown-lift-lag item), NOT a bound tweak or a guess. Cornered to
+this specific accounting; bound stays at the measured 0.2 floor. All FVS targets + the jl split are
+captured above so the fix can proceed directly.
