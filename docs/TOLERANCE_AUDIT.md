@@ -20,9 +20,8 @@ Baseline: suite 7658 pass / 2 broken. Doctrine + approach: docs/TOLERANCE_GOAL.m
 | ⬜ | test_multicycle.jl:57,59,60,61 | rtol=0.002, absN | TCuFt/BA/SDI/QMD | trace |
 
 ## C2 — Scribner board-foot "Float32 noise" (1+pct·x)
-| ⬜ | files | bound | plan |
-|----|-------|-------|------|
-| ⬜ | test_spleave:43, test_voleqnum:50, test_minharv:53, test_sprout_regen:49, test_tfixarea:43, test_cuteff:45, test_bfvolume:47, test_tcondmlt:47, test_fertiliz:47 | 1+0.002·x / 1+0.005·x | BdFt | corner Scribner round op; prefer `==` on rendered BdFt |
+| ✅ | test_bfvolume:47, test_spleave:43, test_tfixarea:43, test_sprout_regen:49 | ~~1+0.00N·x~~ → **`==`** | BdFt BIT-EXACT — the Scribner board-foot renders identically to live for these scenarios; the "noise" bound was over-cautious. Suite 7662/2. |
+| 🔎 | test_voleqnum:50 (4 fails), test_cuteff:45, test_fertiliz:47, test_minharv:53, test_tcondmlt:47 | 1+0.00N·x | BdFt | REAL rendered BdFt difference (== fails) — trace the Scribner/Clark board-foot op for these keyword scenarios (VOLEQNUM override is the biggest). |
 | ⬜ | test_dbs_summary:58, test_readcor:57, test_net01:188 | absN | BdFt Scribner | same |
 
 ## ★ CAMPAIGN REFRAME (major finding, item 1) — the tolerances hide REAL deterministic STATE residuals

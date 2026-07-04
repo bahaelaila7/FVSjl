@@ -40,7 +40,7 @@ _slcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 9, 10, 11)
                     @test abs(_slcol(jl[i], c) - _slcol(ft[i], c)) <= 2
                 end
-                @test abs(_slcol(jl[i], 12) - _slcol(ft[i], 12)) <= 1 + 0.002 * _slcol(ft[i], 12)
+                @test _slcol(jl[i], 12) == _slcol(ft[i], 12)
             end
         end
     end

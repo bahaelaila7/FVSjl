@@ -44,7 +44,7 @@ _bvcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 9, 10, 11)   # TPA / BA / total / merch / sawtimber cubic
                     @test abs(_bvcol(jl[i], c) - _bvcol(ft[i], c)) <= 2
                 end
-                @test abs(_bvcol(jl[i], 12) - _bvcol(ft[i], 12)) <= 1 + 0.005 * _bvcol(ft[i], 12)
+                @test _bvcol(jl[i], 12) == _bvcol(ft[i], 12)
             end
         end
     end

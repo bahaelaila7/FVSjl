@@ -46,7 +46,7 @@ _spcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 5, 6, 9, 10)        # TPA, QMD-cols, BA, cubic volumes
                     @test abs(_spcol(jl[i], c) - _spcol(ft[i], c)) <= 1.5
                 end
-                @test abs(_spcol(jl[i], 12) - _spcol(ft[i], 12)) <= 1 + 0.003 * _spcol(ft[i], 12)
+                @test _spcol(jl[i], 12) == _spcol(ft[i], 12)
             end
         end
     end

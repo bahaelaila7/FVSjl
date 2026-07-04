@@ -40,7 +40,7 @@ _tfcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 9, 10, 11)
                     @test abs(_tfcol(jl[i], c) - _tfcol(ft[i], c)) <= 2
                 end
-                @test abs(_tfcol(jl[i], 12) - _tfcol(ft[i], 12)) <= 1 + 0.005 * _tfcol(ft[i], 12)
+                @test _tfcol(jl[i], 12) == _tfcol(ft[i], 12)
             end
         end
     end
