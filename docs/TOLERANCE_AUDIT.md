@@ -389,3 +389,14 @@ COMPLETE TRACE: Stand-Dead 0.2 → fire-year only (1993 SNAGINIT bit-exact) → 
 one-cycle lag. The fix = resolve that lag (a separately-tracked, non-trivial FFE-timing item that has
 regressed before); disproportionate to a 1.7% cosmetic residual, so deferred to that item. NO MYSTERY
 REMAINS — the residual is bound to an existing, named, deferred root. Bound at the measured 0.2 floor.
+
+## CFTOPK crown — next-step lead recorded (yrscyc; fire-killed-crown path)
+The FVS FMSCRO debug dumps `yrscyc=15.0` on the snag records (CROWNW=0 there — those are the SNAG-fall
+records, not the fire-killed live trees). Two open threads for a focused crown-lift trace:
+  (a) confirm jl's `cyclen` fed to crown_lift_at_death matches FVS's crown-lift YRSCYC for the
+      FIRE-killed trees (a scaling mismatch there would under-scale ol);
+  (b) the fire-killed LIVE-tree crown→CWD2B path is in FMEFF's PROPCR/CROWNW block (fmeff.f:434-460),
+      NOT the snag FMSCRO — dump CROWNW per killed tree there and diff jl's `xc` (crown_biomass) vs FVS
+      CROWNW to split base-crown-deficit from crown-lift-deficit. Only after that is a CONFIDENT fix
+      possible; guessing + checking Stand-Dead→12.0 would be oracle-fitting (doctrine #4 forbids). The
+      crown-lift-lag item owns this fix. Bound stays at the measured 0.2 floor with the root cornered.
