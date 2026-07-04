@@ -54,11 +54,17 @@ using FVSjl
         @test br.models[1][2] == 1f0          # full weight
 
         # fire BEHAVIOR: flame/scorch vs the LIVE rendered values (3.4 / 13.0), atol = the MEASURED floor
-        # (jl internal 3.4543 / 13.289 → |Δ| vs live 0.054 / 0.289). That residual is the DOCUMENTED PERCOV
-        # crown-cover input to the LS fuel-model fire behaviour (FMCFMD): jl's forest-grown crown-ratio
-        # update timing yields a slightly different percent-cover than live, shifting the Rothermel/Byram
-        # transcendentals a fraction. Tightened from the old 0.15/0.5 (2–3× slack) to just above the floor.
-        # FLAGGED for a dedicated PERCOV crown-CR-timing trace (candidate real fix) — docs/TOLERANCE_AUDIT.md.
+        # (jl internal 3.4543 / 13.289 → |Δ| vs live 0.054 / 0.289). ROOT TRACED TO GROUND (both sides):
+        # the residual is the PERCOV percent-cover fed to the fire's midflame-wind reduction. FMCBA computes
+        # PERCOV from `CWIDTH=CRWDTH(I)` — the STORED per-tree crown-width array (fmcba.f:103), NOT a fresh
+        # calc. And in gradd.f the fire (CALL FMMAIN, :118 → FMCBA) runs BEFORE the crown update this cycle
+        # (CALL UPDATE :180 → CALL CROWN :250 → CALL CWIDTH :254 which is what SETS CRWDTH). So live's fire
+        # reads the PREVIOUS cycle's crown widths (end of N-1); jl's fmcba.jl recomputes crown width fresh
+        # from THIS cycle's crown_pct/dbh — a one-cycle crown-width phase lead → a slightly higher PERCOV →
+        # lower midflame wind-reduction → the 0.05/0.29 flame/scorch bump. A faithful fix = snapshot a
+        # per-tree CRWDTH at each cycle's CWIDTH phase and have fmcba read the prior snapshot; deferred as a
+        # real FFE-phasing change (fire-behaviour regression risk) disproportionate to a 0.05-flame cosmetic
+        # gain. Bound = the observed floor with the mechanism cornered. See docs/TOLERANCE_AUDIT.md.
         @test isapprox(br.flame,  3.4f0;  atol = 0.06f0)   # live 3.4 (jl 3.4543 — PERCOV residual)
         @test isapprox(br.scorch, 13.0f0; atol = 0.30f0)   # live 13.0 (jl 13.289 — PERCOV residual)
 

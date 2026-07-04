@@ -274,3 +274,17 @@ or a documented print-boundary/transcendental ULP or a traced accepted-irreducib
 NON-tolerance work = deep-trace CANDIDATES flagged for future real fixes (not loose bounds):
 PERCOV crown-CR-timing (LS flame/scorch ≈0.05/0.29), CFTOPK snag-form (LS Stand-Dead ≈0.2), the
 treeszcp tripling-UB artifact (documented irreducible), and the two @test_broken above. Suite 7662/2.
+
+## PERCOV flame/scorch — TRACED TO GROUND (fix deferred as disproportionate FFE-phasing risk)
+
+The LS flame/scorch residual (jl 3.4543/13.289 vs live 3.4/13.0, ≈0.05/0.29) is now cornered to the
+exact both-sides mechanism (upgraded from "cosmetic PERCOV" hand-wave):
+- FMCBA computes PERCOV from `CWIDTH=CRWDTH(I)` — the STORED per-tree crown-width array (fmcba.f:103).
+- In gradd.f the fire (`CALL FMMAIN` :118 → FMCBA :139) runs BEFORE this cycle's crown update
+  (`CALL UPDATE` :180 → `CALL CROWN` :250 → `CALL CWIDTH` :254, which SETS CRWDTH). So live's fire
+  reads the PREVIOUS cycle's crown widths.
+- jl's fmcba.jl recomputes crown width FRESH from this cycle's crown_pct/dbh → a one-cycle crown-width
+  phase LEAD → slightly higher PERCOV → lower midflame wind reduction → the flame/scorch bump.
+FIX PATH (documented): snapshot a per-tree CRWDTH at each cycle's CWIDTH phase; have fmcba read the
+prior snapshot. DEFERRED: FFE-phasing changes have regressed #28 twice; the risk is disproportionate
+to a 0.05-flame cosmetic gain. Bound kept at the measured floor with the mechanism fully cornered.
