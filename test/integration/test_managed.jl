@@ -61,7 +61,7 @@ _mg_base(path) = [split(l) for l in eachline(path)
             for c in (3, 4, 5, 6, 7)                    # TPA, BA, SDI, CCF, TopHt
                 @test parse(Int, j[c]) == parse(Int, f[c])
             end
-            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.05   # QMD
+            @test parse(Float64, j[8]) == parse(Float64, f[8])   # QMD
             @test abs(parse(Int, j[10]) - parse(Int, f[10])) <= 2            # MerchCuFt (±Float32)
         end
     end

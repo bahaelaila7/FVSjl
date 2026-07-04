@@ -49,7 +49,7 @@ _sc_base(path) = [split(l) for l in eachline(path)
         @test length(jl) == length(ft)
         for (j, f) in zip(jl, ft)
             for c in (3, 4, 5, 6, 7); @test parse(Int, j[c]) == parse(Int, f[c]); end
-            @test abs(parse(Float64, j[8]) - parse(Float64, f[8])) <= 0.05
+            @test parse(Float64, j[8]) == parse(Float64, f[8])
         end
     end
 end

@@ -93,6 +93,9 @@ trace to the op; (3) if a real input bug → FIX (bit-exact); (4) if operation-o
 |----|-------|------|
 | ⬜ | test_crnmult:30, test_fixmort:44, test_tripling:34, test_spgroup:34, test_htgstp:41, test_fix_scalers:35, test_hcor_calib:34,45, test_treeszcp:42,53, test_minharv:51, test_cuteff:43, test_bfvolume:45, test_voleqnum:47, test_tcondmlt:45, test_fertiliz:45, test_spleave:41, test_tfixarea:41, test_volume_override:52-54, test_pertree_defect:54-56, test_mcdefect:45, test_setsite:54, test_compute:57, test_estab_pccf:41,56,57, test_multistand:66,67, test_multistand_sum:42,43, test_bamax:66, test_dbs_cutlist:68-70, test_dbs_summary:57, test_growth:169, test_fire:38,71,92,119,143, test_net01:577-579,605, test_structure_stage:69 | for each: prove specific print/sum-order ULP → compare rendered `==`; OR fix op |
 
+## ✅ CLOSED — QMD field-vs-field print atols → BIT-EXACT rendered `==`
+| ✅ | test_{sdimax,bamax,dgstdev,rannseed,managed,nocalib,sdicalc,serlcorr}.jl | `abs(parse(j[8])−parse(f[8]))<=0.05` → **`parse(j[8])==parse(f[8])`** | jl's rendered .sum QMD field vs live's rendered field — BOTH are 1-decimal `.sum` output ⇒ `==` is bit-exact by construction. All 8 pass; suite 7658/2 no regression. The atol was unnecessary (comparing two already-rendered fields). METHOD confirmed: compare rendered `.sum` field to rendered golden field with `==`; only genuine ±1 rendered differences (tripling-spread) need further work. |
+
 ## borderline-ULP (verify the traced root holds, else move up)
 | ⬜ | test_fire.jl:180,181 | atol 0.005/0.03 van-Wagner ^(7/6)/√ Float32 — confirm irreducible |
 | ⬜ | test_net01.jl:41,213,270,363 | print-resolution atols — convert to rendered `==` where possible |
