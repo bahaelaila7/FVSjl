@@ -39,8 +39,10 @@ _cecol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                for c in (3, 4, 9, 10, 11)
-                    @test abs(_cecol(jl[i], c) - _cecol(ft[i], c)) <= 2
+                @test _cecol(jl[i], 3) == _cecol(ft[i], 3)   # TPA — BIT-EXACT
+                @test _cecol(jl[i], 4) == _cecol(ft[i], 4)   # BA  — BIT-EXACT
+                for c in (9, 10, 11)                         # cubic — BIT-EXACT bar a print-boundary ULP (≤1)
+                    @test abs(_cecol(jl[i], c) - _cecol(ft[i], c)) <= 1
                 end
                 # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
                 # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).

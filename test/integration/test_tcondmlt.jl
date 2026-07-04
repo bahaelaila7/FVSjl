@@ -41,8 +41,10 @@ _tccol(r, c) = parse(Float64, r[c])
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
                 for i in 1:length(jl)
-                    for c in (3, 4, 9, 10, 11)
-                        @test abs(_tccol(jl[i], c) - _tccol(ft[i], c)) <= 2
+                    @test _tccol(jl[i], 3) == _tccol(ft[i], 3)   # TPA — BIT-EXACT
+                    @test _tccol(jl[i], 4) == _tccol(ft[i], 4)   # BA  — BIT-EXACT
+                    for c in (9, 10, 11)                         # cubic — BIT-EXACT bar a print-boundary ULP (≤1)
+                        @test abs(_tccol(jl[i], c) - _tccol(ft[i], c)) <= 1
                     end
                     # Board feet: BIT-EXACT (the per-acre Scribner sum matches live's rendered integer every
                     # cycle for this scenario). Bound = exactly 1 to allow a print-boundary ULP if one arises.
