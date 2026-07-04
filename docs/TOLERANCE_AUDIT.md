@@ -484,3 +484,17 @@ VERDICT: cornered to the VARMRT AVH sort/sum operation-order (a named non-associ
 proven bit-exact. To drive to `==` needs matching FVS's exact avht40.f/dense.f AVH accumulation order
 (a real op-order match, like the board-foot fix) — the highest-value remaining CORNER-then-FIX lead.
 Bounds stay at the per-variant observed envelope. This REPLACES the vaguer "DGSCOR+tripling" label.
+
+## ★ CORRECTION (re-trace on my own verdict): AVH-sort-order is a HYPOTHESIS, not proven
+The prior entry overclaimed "cornered to the VARMRT AVH sort/sum order." Re-checking: BA renders
+bit-exact, and BA's point_bal uses the SAME DBH-descending sort — BUT rendered-BA-exact is ambiguous
+(consistent with either the sort matching OR the sort differing sub-ULP while BA rounds to the same
+integer). And FVS avht40.f accumulates in IND (pre-sorted) order identically to jl's structure, so IF
+the sort matched, AVH would be bit-exact — which would mean the residual is NOT the AVH at all but
+elsewhere in the mortality distribution (VARMRT species iteration / background RI / a per-species kill
+term). PROVEN facts: growth/DGF faithful (BA bit-exact both tripled+NOTRIPLE), NOT tripling-spread
+(NOTRIPLE worse), so the residual is the deterministic MORTALITY DISTRIBUTION amplified into volume.
+The exact locus (AVH sub-ULP vs a different VARMRT term) needs INTERNAL-AVH/point-density
+instrumentation per species — not resolvable from rendered .sum alone. Honest verdict: cornered to the
+multi-species mortality-distribution operation-order (growth proven faithful); exact op still a
+hypothesis. Bounds at the per-variant observed envelope.
