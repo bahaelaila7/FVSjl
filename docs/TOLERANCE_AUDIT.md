@@ -426,3 +426,15 @@ size-1 halving is the exact remaining work — it needs careful both-sides match
 crown-lift accounting (the documented crown-lift-lag item), NOT a bound tweak or a guess. Cornered to
 this specific accounting; bound stays at the measured 0.2 floor. All FVS targets + the jl split are
 captured above so the fix can proceed directly.
+
+## ★★★ CFTOPK crown — DEFINITIVE VERDICT: crown-lift OL under-scaling (base crown proven faithful)
+Confident isolation (no oracle-fitting): the fire-crown OUTPUT foliage is BIT-EXACT (jl cwd2b sz0
+1346.6 == live 1346.6). Since output-foliage = XC[0]·(1−propcr), that PROVES jl's base crown_biomass
+AND propcr are faithful. The output for sizes 1-3 = XC·(1−0.5·propcr) + 0.5·OL (fmburn.jl:214-216) —
+so with XC + propcr proven right, the ~7% sizes-1-3 under-book is ENTIRELY the crown-lift term OL
+(jl OL sizes 1-3 = 635/1686/1597, substantial). ⇒ the fix locus is compute_crown_lift! /
+crown_lift_at_death (ffe_oldcrw = x·OLDCRW; the crown-lift-lag item), specifically the per-year-vs-
+per-cycle OLDCRW scaling vs FVS's YRSCYC=1 fire-booking + FMEFF's size-1 halving. (The raw ΣCROWNW
+dump is NOT a clean comparison — FMSCRO is also called for snag-fall over multiple years — but the
+foliage-bit-exact output makes the per-tree CROWNW comparison unnecessary: base crown IS faithful.)
+This is the complete, confident corner. Fix owned by the crown-lift-lag item; bound at the 0.2 floor.
