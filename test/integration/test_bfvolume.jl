@@ -41,10 +41,12 @@ _bvcol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                for c in (3, 4, 9, 10, 11)   # TPA / BA / total / merch / sawtimber cubic
-                    @test abs(_bvcol(jl[i], c) - _bvcol(ft[i], c)) <= 2
-                end
-                @test _bvcol(jl[i], 12) == _bvcol(ft[i], 12)
+                @test _bvcol(jl[i], 3) == _bvcol(ft[i], 3)    # TPA — BIT-EXACT
+                @test _bvcol(jl[i], 4) == _bvcol(ft[i], 4)    # BA  — BIT-EXACT
+                @test _bvcol(jl[i], 10) == _bvcol(ft[i], 10)  # merch cubic — BIT-EXACT
+                @test _bvcol(jl[i], 11) == _bvcol(ft[i], 11)  # sawtimber cubic — BIT-EXACT
+                @test abs(_bvcol(jl[i], 9) - _bvcol(ft[i], 9)) <= 1  # total cubic — BIT-EXACT bar a print-boundary ULP (≤1)
+                @test _bvcol(jl[i], 12) == _bvcol(ft[i], 12)  # board feet — BIT-EXACT (BFMAX fix)
             end
         end
     end

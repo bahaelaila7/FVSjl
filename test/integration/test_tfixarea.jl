@@ -37,10 +37,9 @@ _tfcol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                for c in (3, 4, 9, 10, 11)
-                    @test abs(_tfcol(jl[i], c) - _tfcol(ft[i], c)) <= 2
+                for c in (3, 4, 9, 10, 11, 12)   # TPA/BA/cubic(3)/board — all BIT-EXACT
+                    @test _tfcol(jl[i], c) == _tfcol(ft[i], c)
                 end
-                @test _tfcol(jl[i], 12) == _tfcol(ft[i], 12)
             end
         end
     end

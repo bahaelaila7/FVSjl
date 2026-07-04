@@ -165,3 +165,16 @@ Tightened to `==` / documented print-boundary `<=1`:
 - `test_bfvolume.jl` — already `==`; the BFMAX fix keeps it bit-exact.
 
 Suite 7662/2 throughout. Board-foot cluster (Item 2) COMPLETE.
+
+## ✅ CLOSED — more keyword-test ≤2 structural/cubic bounds → == / <=1
+
+Post board-foot fix, swept the remaining `<=2` per-column bounds and drove to the true floor:
+- `test_spleave.jl` / `test_tfixarea.jl` — TPA/BA/cubic(3)/board ALL `==` (fully bit-exact).
+- `test_mcdefect.jl` (MCDEFECT/BFDEFECT/coupled) — structural + defect-gated cubic ALL `==` (bit-exact).
+- `test_bfvolume.jl` — TPA/BA/merch/saw cubic + board `==`; total cubic `<=1` (print knife-edge).
+
+FLAGGED as genuine deterministic residuals (NOT knife-edges — deep-trace class, left at their real floor):
+- `test_treeszcp.jl` htcap TopHt: systematic −3/−4 drift = the TREESZCP height-cap × declining-stand
+  regen tail (real accumulating diff, needs a dedicated op trace like the VARMRT AVH one).
+- `test_treeszcp.jl` cap endpoint TPA Δ4 (declining-stand regen tail).
+- `test_multistand_sum.jl` cross-stand cuft `<=8` (single-precision cross-stand accumulation tail).

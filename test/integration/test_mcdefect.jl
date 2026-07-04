@@ -41,8 +41,8 @@ function _check_defect(stem, kwprefix, firecol, drop, cols)
     ft = _md_base(sav)
     @test length(jl) == length(ft)
     if length(jl) == length(ft)
-        for i in 1:length(jl), c in cols
-            @test abs(_mdcol(jl[i], c) - _mdcol(ft[i], c)) <= 2
+        for i in 1:length(jl), c in cols   # structural + defect-gated cubic — all BIT-EXACT
+            @test _mdcol(jl[i], c) == _mdcol(ft[i], c)
         end
     end
 end
