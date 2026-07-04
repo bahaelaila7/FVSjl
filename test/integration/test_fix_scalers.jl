@@ -32,7 +32,7 @@ _fcol(r, c) = parse(Float64, r[c])
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
                 for i in 1:length(jl), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
-                    @test abs(_fcol(jl[i], c) - _fcol(ft[i], c)) <= 1
+                    @test _fcol(jl[i], c) == _fcol(ft[i], c)
                 end
             end
         end

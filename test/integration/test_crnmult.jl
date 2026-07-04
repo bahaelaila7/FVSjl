@@ -27,7 +27,7 @@ _cmcol(r, c) = parse(Float64, r[c])
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl), c in (3, 4, 7, 8, 9)   # TPA / BA / TopHt / QMD / cuft
-                @test abs(_cmcol(jl[i], c) - _cmcol(ft[i], c)) <= 1
+                @test _cmcol(jl[i], c) == _cmcol(ft[i], c)
             end
         end
         # This baseline is the CRNMULT run, whose cuft differs from the plain snt01 stand by

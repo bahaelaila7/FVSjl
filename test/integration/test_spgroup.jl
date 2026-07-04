@@ -31,7 +31,7 @@ _sgcol(r, c) = parse(Float64, r[c])
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
                 for i in 1:length(jl), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
-                    @test abs(_sgcol(jl[i], c) - _sgcol(ft[i], c)) <= 1
+                    @test _sgcol(jl[i], c) == _sgcol(ft[i], c)
                 end
             end
         end

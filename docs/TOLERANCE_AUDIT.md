@@ -88,6 +88,16 @@ trace to the op; (3) if a real input bug → FIX (bit-exact); (4) if operation-o
 | ⬜ | test_lst01_ffe.jl:57,58,72,109 | 0.15/0.5/1/0.6 | flame/scorch/BA/carbon | corner van-Wagner transcendental; fire kill |
 | ⬜ | test_fire.jl:38,49,71,92,97,98,119,121,122,143,145,146 | ≤2/3/4 | fire BA/TPA | trace FMEFF kill distribution |
 
+## ✅ CLOSED (C4 partial) — ±1 field-vs-field bounds that were OVER-CAUTIOUS → BIT-EXACT `==`
+Method: `abs(_col(jl[i],c) − _col(ft[i],c)) <= 1` compares two RENDERED `.sum` fields; convert to `==` and
+run — pass ⇒ they always render identically (bit-exact, atol was unnecessary); fail ⇒ a real ±1 rendered diff.
+- ✅ **test_fix_scalers.jl, test_htgstp.jl, test_crnmult.jl, test_spgroup.jl** — all `±1` → `==`, suite
+  7658/2 no regression. These keyword paths (FIXDG/FIXHTG, HTGSTOP, CRNMULT, SPGROUP) are bit-exact; the ±1
+  was over-cautious. (⚠ regex-gotcha: `<= 1\b` wrongly matches `<= 1.5`; test_sprout_regen had a real 1.5 bound.)
+- 🔎 REAL ±1 (== FAILED ⇒ genuine rendered difference, need trace): **test_compute.jl:57** (6, event-monitor
+  computed vars), **test_fixmort.jl:44** (1), **test_treeszcp.jl:42** (9, size-cap TPA), **test_tripling.jl:34**
+  (1). These carry a genuine ±1 — NOTRIPLE-diff each to see if tripling-spread (corner) or a real op (fix).
+
 ## C4 — ~69 `±1/±2` per-column bounds (labeled ULP, not cornered)
 | ⬜ | files | plan |
 |----|-------|------|

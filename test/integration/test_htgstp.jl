@@ -38,7 +38,7 @@ _hcol(r, c) = parse(Float64, r[c])
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
                 for i in 1:min(ncyc, length(jl)), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
-                    @test abs(_hcol(jl[i], c) - _hcol(ft[i], c)) <= 1
+                    @test _hcol(jl[i], c) == _hcol(ft[i], c)
                 end
             end
         end
