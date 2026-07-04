@@ -47,6 +47,22 @@ many of these Δ1 residuals are downstream of sub-ULP operation-ORDER difference
 exact non-associative sequence) that accumulate + cross rounding boundaries — some may be genuinely irreducible
 (cornerable as "sub-ULP op-order accumulation") rather than fixable to bit-exact. Each needs a per-residual
 verdict. This is a multi-session bit-exactness campaign across CS/NE/harder-SN.
+★★ **VARMRT traced — the CS residual is an OPERATION-ORDER ULP, NOT a fixable bug.** jl's `_varmrt_efftr!`
+(NE/CS/LS) correctly uses RELHTA=min(HT/AVH,1)·100 + (1−VARADJ)·0.1 (matches CS/LS varmrt.f; SN correctly uses
+PCT/VARADJ — jl dispatches right). AVH=`s.plot.avg_height`=`stand_top_height` is STRUCTURALLY IDENTICAL to FVS
+avht40.f/dense.f (TPA-weighted mean height of the LARGEST 40 TPA, DBH-desc). So EFFTR inputs are faithful. The
+only residual source = a SUB-ULP in AVH from the **sort/sum ORDER** (jl `sortperm` tie-break vs FVS `IND`/
+RDPSRT + Float32 non-associative `avh += HT·P`), propagating RELHTA→EFFTR→the order-dependent VARMRT
+distribution (SHORT re-pass) → crossing a .5 rounding boundary as Δ1 TPA. ⇒ **PROVEN-ULP class (operation-order
+accumulation)** — cornerable per doctrine (document the AVH sort/sum-order root; the Δ1 is one rounding-boundary
+flip of a sub-ULP), OR fixable only by matching FVS's exact RDPSRT tie-break + sum order (deep, shared-code,
+low value). ★ IMPLICATION for the campaign: MANY of the Δ1/small residuals are this class — idiomatic-Julia-vs-
+Fortran operation-ORDER ULP that accumulates + crosses rounding boundaries. These are legitimately "proven
+irreducible ULP" (the doctrine's permitted category) but need a PER-RESIDUAL cornering verdict (name the op),
+not a blanket bound. The genuinely-fixable ones (like LS/CS QMDGE5) are the exception — real input/coefficient
+bugs. Campaign method per bound: (1) NOTRIPLE-diff to see if deterministic; (2) if Δ small + BA-conserving →
+trace to the op; (3) if a real input bug → FIX (bit-exact); (4) if operation-order → CORNER (name op, prove
+≤1-ULP-per-op, keep the rounding-boundary bound with the documented root).
 
 ## C2b — multi-unit absolute bounds
 | ⬜ | file:line | bound | compares | plan |
