@@ -400,3 +400,17 @@ records, not the fire-killed live trees). Two open threads for a focused crown-l
       CROWNW to split base-crown-deficit from crown-lift-deficit. Only after that is a CONFIDENT fix
       possible; guessing + checking Stand-Dead→12.0 would be oracle-fitting (doctrine #4 forbids). The
       crown-lift-lag item owns this fix. Bound stays at the measured 0.2 floor with the root cornered.
+
+## CFTOPK crown — FMEFF/FMSCRO mechanics mapped (exact per-tree comparison now set up)
+Traced the FVS fire-killed-crown→CWD2B path term-by-term (fmeff.f:434-475 + fmscro.f):
+- FMEFF consumes CROWNW (size0×(1−PROPCR), size1×(1−0.5PROPCR)), halves OLDCRW(1), then CALL FMSCRO
+  distributes CROWNW + YRSCYC·OLDCRW to CWD2B over the fall period. This STRUCTURALLY MATCHES jl's
+  fmburn.jl xvc (foliage×(1−propcr) / size1×(1−.5propcr)+.5ol / coarser+ol) → fmscro!. So the shape is
+  faithful; the ~7% sizes-1-3 deficit is in the VALUES.
+- FVS DEBUG gives the exact per-killed-tree CROWNW (e.g. tree 1 sizes 0-4 = 39.11/12.01/31.69/62.87/
+  10.96) and YRSCYC=1 for the fire-killed booking (the earlier yrscyc=15/10 were SNAG-fall/other
+  contexts — do NOT conflate). NEXT (clean, non-fitting): compute jl `crown_biomass` per fire tree,
+  diff vs these CROWNW to isolate base-crown vs crown-lift (`ffe_oldcrw`) deficit; then vs FVS OLDCRW.
+This is now a bounded per-tree diff, but it is the scope of the crown-lift-lag FFE item (fragile,
+regressed before). Cornered; bound stays at the measured 0.2 floor. The DEBUG method + these exact
+CROWNW targets are recorded so the fix can be finished without re-deriving anything.
