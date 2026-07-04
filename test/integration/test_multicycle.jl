@@ -43,11 +43,15 @@ end
             # per-cycle compute_forest_type!: TPA 0.57, BA 0.48, SDI 0.49, QMD 0.05, cuft 1.0). Uniform tight
             # bound = one print unit. (The earlier "LP-calibration tail" was a measurement artifact — a
             # tolerance-probe loop that omitted the per-cycle FORTYP recompute, which feeds diameter growth.)
+            # atol = 1 print unit (golden fields are print-rounded integers; jl's internal float is exact,
+            # so the max faithful gap is the print half-width + sub-ULP — measured ≤0.57/0.48/0.49/0.05/1.0
+            # for TPA/BA/SDI/QMD/cuft). cuft tightened to 1 print unit (rtol dropped): the old 2.0+0.2% was
+            # over-caution — the measured cuft max is exactly 1.0 across every scenario.
             tT, rT = 1.0, 0.0
             tB     = 1.0
             tS     = 1.0
             tQ     = 0.1
-            tC, rC = 2.0, 0.002
+            tC, rC = 1.0, 0.0
             @testset "$scn" begin
                 for (cyc, tpa, ba, sdi, qmd, tcuft) in rows
                     FVSjl.compute_forest_type!(s)
