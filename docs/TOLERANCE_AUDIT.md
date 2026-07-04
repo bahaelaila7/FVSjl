@@ -21,7 +21,7 @@ Baseline: suite 7658 pass / 2 broken. Doctrine + approach: docs/TOLERANCE_GOAL.m
 
 ## C2 — Scribner board-foot "Float32 noise" (1+pct·x)
 | ✅ | test_bfvolume:47, test_spleave:43, test_tfixarea:43, test_sprout_regen:49 | ~~1+0.00N·x~~ → **`==`** | BdFt BIT-EXACT — the Scribner board-foot renders identically to live for these scenarios; the "noise" bound was over-cautious. Suite 7662/2. |
-| 🔎 | test_voleqnum:50 (4 fails), test_cuteff:45, test_fertiliz:47, test_minharv:53, test_tcondmlt:47 | 1+0.00N·x | BdFt | REAL rendered BdFt difference (== fails) — trace the Scribner/Clark board-foot op for these keyword scenarios (VOLEQNUM override is the biggest). |
+| 🔎 | test_voleqnum:50 (4 fails), test_cuteff:45, test_fertiliz:47, test_minharv:53, test_tcondmlt:47 | 1+0.00N·x | BdFt | REAL rendered BdFt difference (== fails). VOLEQNUM CLASSIFIED: golden fresh (not stale); NOTRIPLE per-column = state+cubic (Tcuft/Scuft) BIT-EXACT, **BdFt Δ16 + Mcuft Δ1** ⇒ a REAL DETERMINISTIC board-foot divergence (not tripling) in the VOLEQNUM cubic-override + default-board interaction (jl recomputes board on the overridden-cubic geometry via sp_bf_vol_eq/BFPFLG=0; a real op diff vs fvsvol.f). NEXT: trace the board-foot op (R8 Intl-¼ / Scribner per-log kernel) for the override case. The other 4 (cuteff/fertiliz/minharv/tcondmlt) likely the same board-foot op — trace once, fixes all. |
 | ⬜ | test_dbs_summary:58, test_readcor:57, test_net01:188 | absN | BdFt Scribner | same |
 
 ## ★ CAMPAIGN REFRAME (major finding, item 1) — the tolerances hide REAL deterministic STATE residuals
