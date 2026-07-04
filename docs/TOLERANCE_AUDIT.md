@@ -362,3 +362,18 @@ NEXT (now tractable): dump jl's cwd2b by size class, diff against the live ISZ d
 which term of the fire-crown xvc split (fmburn.jl:214-216: foliage·(1−propcr) / size1·(1−.5propcr)+ol2
 / coarser+ol) under-books — accounting for FVS fmdout's size-3 double-count (ISZ 0-3→TOTSNG(1),
 ISZ+3 3-6→TOTSNG(2)). The bole +0.07 is a separate, smaller over-book. This is the exact fix setup.
+
+## ★★ CFTOPK crown — PINNED to sizes 1-3 under-book (foliage exact; crown-lift `ol` suspect)
+Dumped jl's cwd2b by crown size vs the live fmdout ISZ dump (2003 fire):
+- sz0 (foliage): jl 1346.6 == live 1346.6  ← EXACT
+- sz1: jl 1452.8 / live 1642.0  (−189)
+- sz2: jl 5407.8 / live 6034.8  (−627)
+- sz3: jl 6828.6 / live 7063.1  (−235)   → jl under-books sizes 1-3 by ~1051 (~7%).
+RE-TRACE CORRECTION: fmdout only WRITES ISZ 0-3 (the WRITE is inside `DO ISZ=0,3`), so the earlier
+"jl size-4=2968 vs live 0" was a DUMP ARTIFACT, not a real over-book — retracted.
+Since foliage (xc[1]·(1−propcr)) matches EXACTLY, both `crown_biomass` (xc) and `propcr` are correct;
+the deficit is in the additive terms of sizes 1-3 — xvc[2..4] = xc·(...) + `ol[2..4]` (fmburn.jl:214-
+216), where `ol = crown_lift_at_death` (fmscro.f:147 YRSCYC·OLDCRW). So the fire-killed CROWN-LIFT
+contribution is the prime suspect for the ~1051 (crown carbon −0.27). NEXT: dump jl `ol` per fire tree
+vs FVS fmscro OLDCRW·YRSCYC to confirm + fix. (The bole +0.07 is a separate, smaller over-book.)
+Fully tractable now that the FVS DEBUG dump works.
