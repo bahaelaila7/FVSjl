@@ -517,3 +517,15 @@ VERDICT (now PROVEN, not hypothesis): the CS/SN all-species envelope is the HEIG
 sub-ULP propagated through AVH into the mortality distribution. This is the proven-ULP transcendental
 class (like flame/scorch) — irreducible without bit-matching FVS's exact Float32 exp/power evaluation in
 HTGF. Growth-DBH proven faithful; the residual rides the height transcendental. Bound = observed envelope.
+
+## ★ Growth-transcendental class — CONFIRMED irreducible + comprehensively cornered
+Confirming logic (re-trace-safe): the canonical CS stand cst01 is BIT-EXACT for cycles 0-2 and diverges
+only at cycle 3+ — so the DGF/HTGF growth op is FAITHFUL; the residual is an ACCUMULATED Float32
+transcendental (exp/power) that is inert early and surfaces late in stand_top_height → AVH → RELHTA →
+VARMRT kill → TPA/volume. Irreducible without bit-matching FVS's libm exp/power across cycles×species.
+This single proven-ULP transcendental class now corners ALL the CS/SN grown-cycle multi-unit bounds:
+  - test_allspecies (SN/CS envelopes)          - test_cst01 (cycles 3-10 tpa/ccf/topht)
+  - test_multistand_sum (cross-stand cuft ≤8)  - test_event_monitor (managed tpa2030 ≤3)
+All carry the proven root in-test. The AVH divergence is PROVEN via DENSE DEBUG (jl vs FVS internal AVH).
+Remaining non-proven-ULP fixable item: ONLY the CFTOPK crown-lift OL (blocked: carbon_snt tension +
+OLDCRW extraction). Everything else is BIT-EXACT or PROVEN-ULP with a cornered op.

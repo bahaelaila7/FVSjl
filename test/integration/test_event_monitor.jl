@@ -46,8 +46,12 @@ const _EM_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         for ln in eachline(IOBuffer(String(take!(io))))
             t = split(strip(ln)); length(t) >= 3 && t[1] == "2030" && (tpa2030 = parse(Float64, t[3]))
         end
-        # the IF/THEN THINDBH thins at cycles 3/6/9 → managed density 257 @2030 (vs the
-        # self-thinned unthinned control's 171), validated bit-exact for the 1st two thins
+        # the IF/THEN THINDBH thins at cycles 3/6/9 → managed density 257 @2030 (vs the self-thinned
+        # unthinned control's 171), validated bit-exact for the 1st two thins. The ≤3 @2030 (cycle 8, late)
+        # is the PROVEN accumulated-growth-transcendental floor (docs/TOLERANCE_AUDIT.md): DGF/HTGF is
+        # bit-exact for the early cycles but the Float32 exp/power leaves a sub-ULP residual that, over 8
+        # cycles + the thinning interactions, drifts the largest-40 AVH → RELHTA → VARMRT kill by ≤3 TPA.
+        # Proven-ULP transcendental class (inert early, accumulates late; irreducible vs FVS's libm).
         @test isapprox(tpa2030, 257.0; atol = 3)
     end
 end
