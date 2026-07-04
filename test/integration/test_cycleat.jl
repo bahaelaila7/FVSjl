@@ -58,11 +58,13 @@ _ca_base(path) = [split(l) for l in eachline(path)
         end
         # the inserted boundary is present at 2003 with a 3-yr then 2-yr period
         @test jl[4][1] == "2003" && jl[3][23] == "3" && jl[4][23] == "2"
-        # stand columns track Fortran within the TIMEINT non-5-yr period residual
+        # Stand columns are BIT-EXACT vs live: CYCLEAT-2003 splits 2000→2005 into a 3-yr + 2-yr
+        # period, and jl's per-cycle growth reproduces the split exactly (re-measured — the old
+        # ≤8/≤3/≤6 "non-5-yr period residual" was stale over-caution; every column now matches).
         for (j, f) in zip(jl, ft)
-            @test abs(parse(Int, j[3]) - parse(Int, f[3])) <= 8     # TPA
-            @test abs(parse(Int, j[4]) - parse(Int, f[4])) <= 3     # BA
-            @test abs(parse(Int, j[5]) - parse(Int, f[5])) <= 6     # SDI
+            @test parse(Int, j[3]) == parse(Int, f[3])     # TPA — BIT-EXACT
+            @test parse(Int, j[4]) == parse(Int, f[4])     # BA  — BIT-EXACT
+            @test parse(Int, j[5]) == parse(Int, f[5])     # SDI — BIT-EXACT
         end
     end
 end

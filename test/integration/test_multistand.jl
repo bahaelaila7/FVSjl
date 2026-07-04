@@ -63,9 +63,9 @@ end
         for (m, o) in zip(data, base)
             mf = split(m); of = split(o)
             @test mf[1] == of[1]                                       # year
-            @test abs(parse(Int, mf[3]) - parse(Int, of[3])) <= 2      # TPA
-            @test abs(parse(Int, mf[4]) - parse(Int, of[4])) <= 1      # BA
-            @test abs(parse(Int, mf[9]) - parse(Int, of[9])) <= 3      # total cuft
+            @test parse(Int, mf[3]) == parse(Int, of[3])               # TPA — BIT-EXACT
+            @test parse(Int, mf[4]) == parse(Int, of[4])               # BA  — BIT-EXACT
+            @test abs(parse(Int, mf[9]) - parse(Int, of[9])) <= 1      # total cuft — BIT-EXACT bar a print-boundary ULP (≤1)
         end
         # NOTE: stands 2 (THINDBH in IF/THEN event monitor), 3 (THINPRSC), and 4 (FFE
         # fire) require management subsystems still being ported — the driver runs them
