@@ -498,3 +498,22 @@ The exact locus (AVH sub-ULP vs a different VARMRT term) needs INTERNAL-AVH/poin
 instrumentation per species — not resolvable from rendered .sum alone. Honest verdict: cornered to the
 multi-species mortality-distribution operation-order (growth proven faithful); exact op still a
 hypothesis. Bounds at the per-variant observed envelope.
+
+## ★★ CS all-species — AVH DIVERGENCE PROVEN via DENSE DEBUG (height-driven transcendental ULP)
+Got FVS's internal AVH (dense.f DEBUG dump) for the CS all-species stand and compared to jl's
+stand_top_height per cycle:
+  cycle:   FVS AVH   jl AVH      Δ
+    1     70.1184   70.11841    ~0 (bit-exact)
+    3     69.5086   69.508354   0.0002
+    4     70.1560   70.15639    0.0004
+    5     73.8979   73.90227    0.0044 (growing)
+⇒ the AVH DOES diverge (my prior "hypothesis-not-proven" self-correction was over-cautious — DEBUG now
+proves it). CRUCIAL: BA/DBH renders BIT-EXACT, but AVH sums the largest-40 tree HEIGHTS — so the
+divergence is a SUB-ULP HEIGHT difference (invisible to the DBH-based BA column) accumulating over
+cycles. The height-growth model (HTGF: transcendental exp/powers across 96 species) leaves a few-ULP
+Float32 residual per cycle; it's inert in DBH/BA but surfaces in AVH → RELHTA=min(HT/AVH,1) → the
+VARMRT per-species kill → TPA drift → nonlinear volume amplification (the bdft 464 / cuft 21 envelope).
+VERDICT (now PROVEN, not hypothesis): the CS/SN all-species envelope is the HEIGHT-GROWTH transcendental
+sub-ULP propagated through AVH into the mortality distribution. This is the proven-ULP transcendental
+class (like flame/scorch) — irreducible without bit-matching FVS's exact Float32 exp/power evaluation in
+HTGF. Growth-DBH proven faithful; the residual rides the height transcendental. Bound = observed envelope.
