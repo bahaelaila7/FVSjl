@@ -342,3 +342,23 @@ UB, 2 @test_broken) is fully characterized; final closure of the non-irreducible
 instrumentation this environment does not expose (FVS DEBUG keyword won't fire; reports/.out are 1-decimal)
 or deep structural rewrites whose regression risk is disproportionate to sub-2% cosmetic gains. No lazy
 empirical bounds remain. TOLERANCE_COMPLETE intentionally NOT set (strict proven-ULP bar unmet for that tail).
+
+## ★ CFTOPK Stand-Dead — DECOMPOSED via a working FVS DEBUG dump (major advance)
+
+TOOLING UNBLOCKED: the FVS FFE DEBUG output CAN be enabled (this was the campaign's blocker). Format
+(main keyword section, NOT inside FMIN…END):
+    DEBUG             0.        1.      ← field-1 blank/0 = all cycles; field-2 NON-BLANK ⇒ DBPRSE
+    FMDOUT FMCBA                        ← supplemental record: space-separated routine names
+(bare `DEBUG` = DBALL = every routine, too verbose to reach the FFE). This dumps per-snag
+DENIH/HTIH/SNVIH + per-(size,decay,year) CWD2B/CWD2B2 + running TOTSNG(1&2).
+
+DECOMPOSED the 2003 fire-year Stand-Dead (jl 11.84 / live 12.04):
+- BOLE carbon: jl 7.34 / live 7.27  → jl +0.07 (bole biomass 14.68 vs 14.55).
+- CROWN carbon: jl 4.50 / live 4.77 → jl −0.27 (crown biomass 9.00 vs 9.54) — the DOMINANT term.
+- jl `_FM_P2T` = 1/2000 MATCHES live P2T. jl's single `cwd2b` sum (~18000) ≈ live `CWD2B+CWD2B2`
+  (~19072) — so jl captures the combined pool but UNDER-BOOKS the fire crown debris ~5.6% (NOT a
+  missing pool). Live crown-debris by size class (ISZ): 0=1347, 1=1642, 2=6035, 3=7063, 4-6=0.
+NEXT (now tractable): dump jl's cwd2b by size class, diff against the live ISZ distribution to pin
+which term of the fire-crown xvc split (fmburn.jl:214-216: foliage·(1−propcr) / size1·(1−.5propcr)+ol2
+/ coarser+ol) under-books — accounting for FVS fmdout's size-3 double-count (ISZ 0-3→TOTSNG(1),
+ISZ+3 3-6→TOTSNG(2)). The bole +0.07 is a separate, smaller over-book. This is the exact fix setup.
