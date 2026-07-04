@@ -308,8 +308,13 @@ without live-internal instrumentation. This is the honest endpoint for this resi
 The LS Stand-Dead 0.2 gap (jl 11.8 / live 12.0 at the 2003 fire year) is IDENTICAL under NOTRIPLE
 (verified vs live: both 12.0/11.8), so it is NOT tripling spread — a real deterministic difference in
 the snag-carbon op (CFTOPK snag-bole current-height truncation + the CWD2B crown split / Jenkins
-aboveground biomass). Narrowed but not yet pinned to the exact term; a focused FFE-carbon trace (like
-the #28 fire-carbon effort) is the closure path. Bound at the measured 0.2 floor. Deep-trace candidate.
+aboveground biomass). TRACE NARROWED (source comparison, fmdout.f:110-132 + fmsvol.f:130-140):
+- RULED OUT volume basis: FVS FMSVOL VOL2HT = MAX(0.005454154·H, MCF) for LS = EXACTLY jl's
+  `max(0.005454154·height, merch_cuft_vol)`. Fire-year full-height matches (fresh snags).
+- LEADING CANDIDATE: FVS builds the HARD and SOFT snag boles SEPARATELY (SNVIH at HTIH, SNVIS at HTIS,
+  each ×own density); jl uses ONE `bolevol × (den_hard+den_soft)`. A SNAGINIT snag with hard/soft at
+  different heights at 2003 diverges. Fix = split jl's snag bole into hard/soft with independent heights.
+  Deep FFE-snag change; deferred (bound at the measured 0.2 floor).
 
 ## CAMPAIGN ENDPOINT (honest accounting)
 Everything achievable by tightening/bit-exact-fixing is DONE (suite 7662/2). The residual tail is a

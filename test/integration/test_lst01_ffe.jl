@@ -118,14 +118,20 @@ end
             carb[parse(Int, f[1])] = [parse(Float64, x) for x in f[2:10]]
         end
         @test haskey(carb, 2003)
-        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. NOTRIPLE-CLASSIFIED
-        # (verified vs live): the 0.2 gap is IDENTICAL under NOTRIPLE (live 12.0 / jl 11.8 both), so it is
-        # a REAL DETERMINISTIC snag-carbon-op residual — NOT tripling spread. It lives in the CFTOPK
-        # snag-bole form (current-height bole truncation + the CWD2B crown split; the LS fast fall already
-        # closed the prior ~14.5 over-book, leaving this small form tail). Bound tightened from the old 0.6
-        # (3× slack) to just above the measured 0.2 floor. FLAGGED for a focused CFTOPK snag-bole/Jenkins-
-        # biomass trace (a deep FFE-carbon effort like #28) — see docs/TOLERANCE_AUDIT.md.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic CFTOPK snag-form residual
+        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. TRACE NARROWED by
+        # source comparison (fmdout.f:110-132 + fmsvol.f:130-140):
+        #  - NOTRIPLE-classified: the 0.2 gap is IDENTICAL under NOTRIPLE (verified vs live) → a REAL
+        #    DETERMINISTIC snag-bole-carbon residual, not tripling.
+        #  - RULED OUT the volume basis: FVS FMSVOL VOL2HT = MAX(0.005454154·H, MCF) for LS (merch cubic +
+        #    floor) — EXACTLY jl's `mcf = max(0.005454154·height, merch_cuft_vol)`. Fire-year full height
+        #    matches too (fresh snags, HTIH=HTIS=HTDEAD).
+        #  - LEADING CANDIDATE: FVS computes the HARD and SOFT snag boles SEPARATELY — SNVIH from FMSVOL at
+        #    the hard height HTIH(I), SNVIS at the soft height HTIS(I), each ×its own density (fmdout.f:116-
+        #    124) — whereas jl's snag_bole_carbon uses ONE `bolevol × (den_hard+den_soft)`. A SNAGINIT snag
+        #    whose hard/soft fractions already sit at different heights at 2003 would diverge. A faithful fix
+        #    = split the jl snag bole into hard/soft with independent heights. Deep FFE-snag change; deferred.
+        # Bound at the measured 0.2 floor. See docs/TOLERANCE_AUDIT.md.
+        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic snag-bole residual (hard/soft split)
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end
