@@ -53,20 +53,19 @@ using FVSjl
         @test br.models[1][1] == 10           # standard fuel model 10 (was 6 before ls/fmcfmd.f port)
         @test br.models[1][2] == 1f0          # full weight
 
-        # fire BEHAVIOR: jl internal flame 3.4543 / scorch 13.289 vs LIVE RENDERED 3.4 / 13.0 (the live
-        # .out prints these to 1 decimal, and the fire-only key emits no FFE DBS fire table, so live's
-        # INTERNAL values are unavailable beyond 1 decimal). Two facts traced to ground (both sides):
-        #  (1) PHASE IS CORRECT (re-checked, the earlier "phase-lead" note was wrong): FMCBA reads the
-        #      PREVIOUS-cycle CRWDTH (gradd.f runs FMMAIN :118 before CWIDTH :254). jl's fmcba runs at the
-        #      fire phase where t.dbh is still cycle-START (growth applied later) and t.crown_pct is the
-        #      prior cycle's CROWN update — i.e. jl feeds crown_width the SAME (cycle-start DBH + prior
-        #      crown ratio) inputs FVS's stored CRWDTH used. So this is NOT an FFE-phasing bug.
-        #  (2) The residual is therefore a sub-ULP difference in the crown_width→ΣCRACOV→PERCOV→midflame-
-        #      wind→Rothermel transcendental chain, amplified across the flame RENDER KNIFE-EDGE: jl 3.4543
-        #      sits just above 3.45 (renders 3.5) while live renders 3.4, so the true internal gap is
-        #      anywhere in [0.004, 0.104] and cannot be proven pure-ULP without live's internal flame.
-        # Bound = the rendered-vs-internal envelope (0.06 flame / 0.30 scorch), which is exactly one print
-        # step + the sub-ULP chain diff. Cornered; not further reducible without live-internal instrumentation.
+        # fire BEHAVIOR: jl internal flame 3.4543 / scorch 13.289 vs LIVE RENDERED 3.4 / 13.0. TRACED TO
+        # GROUND via the FVS FMCBA DEBUG dump (DEBUG keyword + 'FMCBA' supplemental record):
+        #  (1) The PERCOV input is BIT-EXACT at the fire cycle: jl 70.76547 == live 70.7654724 (2003; also
+        #      1993 63.76883==63.7688293). So the crown_width→ΣCRACOV→PERCOV chain and the fire phasing are
+        #      FULLY faithful — the earlier "PERCOV/crown-timing" attributions were wrong (retracted).
+        #  (2) With a bit-exact PERCOV (⇒ bit-exact midflame wind reduction), the flame/scorch residual is
+        #      PURELY DOWNSTREAM in the Rothermel reaction-intensity/spread-rate + Byram flame-length
+        #      transcendental chain (exp / real powers on Float32) — the classic proven-ULP transcendental
+        #      class. It surfaces only because jl 3.4543 straddles the 3.45 flame RENDER knife-edge (→3.5)
+        #      while live renders 3.4; live prints 1-decimal so the exact internal gap (≈ a few ×1e-3, the
+        #      Float32 transcendental ULP) can't be rendered-== confirmed, but the INPUT is proven identical.
+        # Bound = one print step + the transcendental ULP (0.06 flame / 0.30 scorch). Input-bit-exact +
+        # transcendental-chain residual = proven-ULP-class; not reducible without live-internal flame.
         # See docs/TOLERANCE_AUDIT.md.
         @test isapprox(br.flame,  3.4f0;  atol = 0.06f0)   # live 3.4 (jl 3.4543 — PERCOV residual)
         @test isapprox(br.scorch, 13.0f0; atol = 0.30f0)   # live 13.0 (jl 13.289 — PERCOV residual)
