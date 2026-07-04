@@ -197,3 +197,15 @@ The `test_treeszcp.jl` htcap TopHt drift (≤3–4) and cap endpoint TPA Δ4 wer
   faithfully against its inherited parent height; matching FVS would require emulating uninitialized
   memory, which is not deterministically reproducible. Bounds kept at the observed stale-memory
   envelope (TopHt ≤4, TPA ≤5) with the full traced verdict documented in-test.
+
+## ✅ CLOSED/TRACED — test_timeint (non-native 10-yr cycle): BA bit-exact, cuft = deferred DGSCOR
+
+Re-measured timeint10 (SN at a non-native 10-yr cycle) — the old `3%·x+1` BA/cuft bounds (would
+allow ~150 cuft) were wildly stale after the AUTCOR/PVMLT/BAMAX fixes:
+- **BA — BIT-EXACT** every cycle (`==`).
+- **TPA — ≤2** integer drift (mortality-timing at the non-native cycle).
+- **cuft — ≤16 (≈0.3%)**, accumulating late (2080/2090). Traced verdict: the KNOWN, DEFERRED
+  non-native cycle-length DGSCOR residual (SN's DBH-growth serial-correlation/PVMLT scaling is fit
+  for the native 5-yr cycle; at 10 yr a sub-render per-tree DBH residual compounds into the nonlinear
+  cuft sum — BA stays bit-exact because the DBH diffs are sub-render each cycle). Same accepted
+  DGSCOR-tail family as the sp33/65 WK3 @test_broken. Bounds tightened to the observed envelope.
