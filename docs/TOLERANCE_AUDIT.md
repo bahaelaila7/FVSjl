@@ -302,3 +302,21 @@ transcendental chain, amplified across the flame RENDER KNIFE-EDGE (jl 3.4543 re
 the fire-only key emits no FFE DBS fire table), so it cannot be proven pure-ULP by rendered-== either
 way. Bound = one print step + the sub-ULP chain diff (0.06/0.30). Cornered; not further reducible
 without live-internal instrumentation. This is the honest endpoint for this residual.
+
+## CFTOPK Stand-Dead — NOTRIPLE-classified as a REAL deterministic snag-carbon residual
+
+The LS Stand-Dead 0.2 gap (jl 11.8 / live 12.0 at the 2003 fire year) is IDENTICAL under NOTRIPLE
+(verified vs live: both 12.0/11.8), so it is NOT tripling spread — a real deterministic difference in
+the snag-carbon op (CFTOPK snag-bole current-height truncation + the CWD2B crown split / Jenkins
+aboveground biomass). Narrowed but not yet pinned to the exact term; a focused FFE-carbon trace (like
+the #28 fire-carbon effort) is the closure path. Bound at the measured 0.2 floor. Deep-trace candidate.
+
+## CAMPAIGN ENDPOINT (honest accounting)
+Everything achievable by tightening/bit-exact-fixing is DONE (suite 7662/2). The residual tail is a
+short list of FULLY-TRACED items, each needing a deep-subsystem trace or accept-as-named-class:
+- scorch/flame — fire-behaviour transcendental chain (crown_width→PERCOV→Rothermel); phase verified
+  correct; live-internal flame unavailable (.out 1-decimal, FFE DBS fire table absent) to prove ULP.
+- CFTOPK Stand-Dead 0.2 — real deterministic snag-carbon op (NOTRIPLE-classified); FFE-carbon trace.
+- SN/CS all-species + timeint/multistand cuft — accepted aggregate DGSCOR + tripling family.
+- treeszcp UB + s22_compress + nohtdreg — genuinely irreducible (documented @-broken/UB).
+These are the closure work that remains; each has a precise both-sides verdict + fix path recorded.

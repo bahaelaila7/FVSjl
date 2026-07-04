@@ -118,11 +118,14 @@ end
             carb[parse(Int, f[1])] = [parse(Float64, x) for x in f[2:10]]
         end
         @test haskey(carb, 2003)
-        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. The ≈0.2 gap is the
-        # DOCUMENTED CFTOPK snag-bole-form residual (current-height snag bole truncation + LS fast fall
-        # closed the prior ~14.5 over-book, leaving this small form-factor tail). Bound tightened from the
-        # old 0.6 (3× slack) to just above the measured 0.2 floor. FLAGGED for a CFTOPK snag-form trace.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — CFTOPK snag-form residual
+        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. NOTRIPLE-CLASSIFIED
+        # (verified vs live): the 0.2 gap is IDENTICAL under NOTRIPLE (live 12.0 / jl 11.8 both), so it is
+        # a REAL DETERMINISTIC snag-carbon-op residual — NOT tripling spread. It lives in the CFTOPK
+        # snag-bole form (current-height bole truncation + the CWD2B crown split; the LS fast fall already
+        # closed the prior ~14.5 over-book, leaving this small form tail). Bound tightened from the old 0.6
+        # (3× slack) to just above the measured 0.2 floor. FLAGGED for a focused CFTOPK snag-bole/Jenkins-
+        # biomass trace (a deep FFE-carbon effort like #28) — see docs/TOLERANCE_AUDIT.md.
+        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic CFTOPK snag-form residual
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end
