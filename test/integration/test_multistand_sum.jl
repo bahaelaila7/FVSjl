@@ -37,11 +37,15 @@ _mss_rows(txt) = [split(l) for l in split(txt, "\n")
             tpa(r) = parse(Float64, r[3]); ba(r) = parse(Float64, r[4]); cuft(r) = parse(Float64, r[9])
             # stands 1 (unthinned) and 3 (THINPRSC, inherits cross-stand state) must
             # track Fortran every cycle to within the single-precision tail.
+            # tpa/ba within 1; cuft ≤8 = the PROVEN height-transcendental floor amplified into volume over
+            # the full multi-cycle run (docs/TOLERANCE_AUDIT.md): DBH/BA growth faithful, but the HTGF height
+            # sub-ULP accumulates in stand_top_height → AVH → RELHTA → VARMRT kill → a small TPA drift whose
+            # nonlinear cuft amplification reaches ~8 by the final cycles. Proven-ULP transcendental class.
             for st in (1, 3), c in 1:11
                 i = (st - 1) * 11 + c
-                @test abs(tpa(jl[i])  - tpa(ft[i]))  <= 1
+                @test abs(tpa(jl[i])  - tpa(ft[i]))  <= 1   # height-transcendental mortality drift (proven)
                 @test abs(ba(jl[i])   - ba(ft[i]))   <= 1
-                @test abs(cuft(jl[i]) - cuft(ft[i])) <= 8
+                @test abs(cuft(jl[i]) - cuft(ft[i])) <= 8   # nonlinear volume amplification of the above
             end
             # stand 2 is thinned (IF/THEN THINDBH at 2000/2015/2030) — it must show a
             # sharp thinning drop (>20% in one cycle, far above ~5-15% self-mortality),
