@@ -467,3 +467,20 @@ under ~7%. Pinning the exact term now requires reverse-engineering FVS's full cr
 i.e. the whole crown subsystem, = the crown-lift-lag work item. That exceeds proportionate tolerance-
 campaign scope (1.7% residual, regression risk to bit-exact carbon_snt). CORNERED to the subsystem +
 mechanism fully mapped; bound at the measured 0.2 floor. All DEBUG methods + targets captured above.
+
+## ★ CS/SN all-species envelope — REFINED via NOTRIPLE re-trace: it's VARMRT mortality-order, not tripling
+Re-trace discipline on the "DGSCOR+tripling" label (with DEBUG-era rigor): NOTRIPLE-classified the CS
+all-species stand vs a freshly-relinked live NOTRIPLE golden. Findings:
+- BA is BIT-EXACT (maxabs=0) at BOTH tripled and NOTRIPLE ⇒ growth/DGF is FULLY FAITHFUL. The envelope
+  is NOT a growth residual.
+- NOTRIPLE makes it WORSE (Tcuft 95 / TPA 16 vs tripled 21 / 1), NOT bit-exact ⇒ it is NOT
+  tripling-spread. Tripling actually AVERAGES DOWN the underlying deterministic residual.
+- So the residual is purely the MORTALITY DISTRIBUTION (TPA drift) + its nonlinear amplification into
+  the volume/board columns — i.e. the shared VARMRT/AVH operation-order ULP (the AVH = TPA-weighted
+  mean height of the largest-40 sort/sum order; RELHTA=min(HT/AVH,1) shifts the per-species kill). With
+  96/90 species the sub-ULP AVH-order differences accumulate; the canonical few-species stands
+  (cst01/net01) are bit-exact because they don't stress the multi-species AVH ordering.
+VERDICT: cornered to the VARMRT AVH sort/sum operation-order (a named non-associative order), BA/growth
+proven bit-exact. To drive to `==` needs matching FVS's exact avht40.f/dense.f AVH accumulation order
+(a real op-order match, like the board-foot fix) — the highest-value remaining CORNER-then-FIX lead.
+Bounds stay at the per-variant observed envelope. This REPLACES the vaguer "DGSCOR+tripling" label.
