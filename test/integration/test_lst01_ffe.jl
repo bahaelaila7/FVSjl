@@ -125,12 +125,19 @@ end
         #  - RULED OUT the volume basis: FVS FMSVOL VOL2HT = MAX(0.005454154·H, MCF) for LS (merch cubic +
         #    floor) — EXACTLY jl's `mcf = max(0.005454154·height, merch_cuft_vol)`. Fire-year full height
         #    matches too (fresh snags, HTIH=HTIS=HTDEAD).
-        #  - LEADING CANDIDATE: FVS computes the HARD and SOFT snag boles SEPARATELY — SNVIH from FMSVOL at
-        #    the hard height HTIH(I), SNVIS at the soft height HTIS(I), each ×its own density (fmdout.f:116-
-        #    124) — whereas jl's snag_bole_carbon uses ONE `bolevol × (den_hard+den_soft)`. A SNAGINIT snag
-        #    whose hard/soft fractions already sit at different heights at 2003 would diverge. A faithful fix
-        #    = split the jl snag bole into hard/soft with independent heights. Deep FFE-snag change; deferred.
-        # Bound at the measured 0.2 floor. See docs/TOLERANCE_AUDIT.md.
+        #  - FVS structural difference NOTED but likely INERT here: FVS builds hard (SNVIH@HTIH) and soft
+        #    (SNVIS@HTIS) boles separately (fmdout.f:116-124); jl uses one `bolevol × (den_hard+den_soft)`.
+        #    At the 2003 FIRE year snags are freshly created (hard/soft at the SAME height), so this split is
+        #    almost certainly not the 0.2 cause — corrected from an earlier over-eager "leading candidate".
+        #  - RULED OUT V2T: all 68 LS species V2T wood-density values match FVS fmvinit.f EXACTLY
+        #    (data/lakestates/fire_species_props.csv col v2t == the fmvinit SELECT CASE values).
+        #  - So by elimination the 0.2 sits in EITHER the SNAGINIT initial-snag bole OR the CWD2B crown
+        #    component (Stand-Dead = snag_bole_carbon + snag_crown_carbon) — indistinguishable without a
+        #    per-component (bole vs crown) or per-snag (SNAGINIT vs fire) dump. The live carbon report gives
+        #    only the combined Stand-Dead column (12.0), and the FVS DEBUG keyword won't dump the split in
+        #    this env (parses the routine name as a keyword / segfaults). Pinning needs that instrumentation;
+        #    a blind fix risks shipping a wrong one (doctrine #4). Bound at the measured 0.2 floor.
+        # See docs/TOLERANCE_AUDIT.md.
         @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic snag-bole residual (hard/soft split)
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
