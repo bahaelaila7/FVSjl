@@ -454,3 +454,16 @@ not re-attempted blindly):
 ⇒ CFTOPK's crown-lift OL is CORNERED to the exact op but its fix requires the crown-lift-lag item's
 structural work (separate fire vs ordinary crown-lift scaling) + clean OLDCRW instrumentation. Bound
 stays at the measured 0.2 floor. This is the honest end of what tolerance-bound work can do here.
+
+## CFTOPK crown — full mechanism captured (fall-distribution over yrscyc=10); it's the crown subsystem
+Final DEBUG finding: the 2003 fire-crown FMSCRO uses yrscyc=10 (cycle length), with FVS Σ(CROWNW) per
+size = 3668/1929/6807/12159/5862 and `annual = CROWNW·dsnags` (dsnags = fire mortality DTHISC),
+distributed over the 10-yr fall period. This is a DIFFERENT crown structure than a direct compare to
+jl's XC (crown×curkil, 1438/1178/3627/5121/2508) — the raw CROWNW is per-tree pre-mortality and falls
+over yrscyc, so ΣCROWNW ≠ jl XC by construction. The already-established OUTPUT-level facts stand and
+are what matter: jl cwd2b OUTPUT foliage is BIT-EXACT vs live (base crown + propcr faithful), sizes 1-3
+under ~7%. Pinning the exact term now requires reverse-engineering FVS's full crown-fall scheduling
+(CROWNW·dsnags distributed over yrscyc, the OLDCRW crown-lift, FMEFF size-1 halving) to bit-exactness —
+i.e. the whole crown subsystem, = the crown-lift-lag work item. That exceeds proportionate tolerance-
+campaign scope (1.7% residual, regression risk to bit-exact carbon_snt). CORNERED to the subsystem +
+mechanism fully mapped; bound at the measured 0.2 floor. All DEBUG methods + targets captured above.
