@@ -438,3 +438,19 @@ per-cycle OLDCRW scaling vs FVS's YRSCYC=1 fire-booking + FMEFF's size-1 halving
 dump is NOT a clean comparison — FMSCRO is also called for snag-fall over multiple years — but the
 foliage-bit-exact output makes the per-tree CROWNW comparison unnecessary: base crown IS faithful.)
 This is the complete, confident corner. Fix owned by the crown-lift-lag item; bound at the 0.2 floor.
+
+## CFTOPK crown — the fix BLOCKER (why it's the crown-lift-lag item, not a tolerance tweak)
+Two concrete blockers make a confident, non-regressing fix impossible from here (documented so it is
+not re-attempted blindly):
+ 1. carbon_snt TENSION: the crown-lift (compute_crown_lift!/ffe_oldcrw) is already TUNED so the
+    ORDINARY-mortality DDW carbon is BIT-EXACT (carbon_snt DDW@2005). The fire-crown path
+    (crown_lift_at_death) shares that same ffe_oldcrw. Rescaling it to add the ~29% the fire-crown OL
+    needs would regress the bit-exact carbon_snt DDW — the two paths need DIFFERENT effective crown-lift
+    scaling, which is a structural change (split the fire vs ordinary crown-lift), not a constant.
+ 2. VERIFICATION-TARGET entanglement: the clean FVS fire-crown OLDCRW can't be extracted from the
+    FMSCRO DEBUG dump — FMSCRO is also called for snag-FALL over multiple years, so ΣCROWNW/ΣOLDCRW mix
+    fire-killed crown with snag-fall. Without the clean per-fire-tree OLDCRW, any scaling I pick and
+    check against "Stand-Dead→12.0" is oracle-fitting (doctrine #4 forbids).
+⇒ CFTOPK's crown-lift OL is CORNERED to the exact op but its fix requires the crown-lift-lag item's
+structural work (separate fire vs ordinary crown-lift scaling) + clean OLDCRW instrumentation. Bound
+stays at the measured 0.2 floor. This is the honest end of what tolerance-bound work can do here.
