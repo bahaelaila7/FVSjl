@@ -25,10 +25,22 @@ Baseline: suite 7658 pass / 2 broken. Doctrine + approach: docs/TOLERANCE_GOAL.m
 | ⬜ | test_spleave:43, test_voleqnum:50, test_minharv:53, test_sprout_regen:49, test_tfixarea:43, test_cuteff:45, test_bfvolume:47, test_tcondmlt:47, test_fertiliz:47 | 1+0.002·x / 1+0.005·x | BdFt | corner Scribner round op; prefer `==` on rendered BdFt |
 | ⬜ | test_dbs_summary:58, test_readcor:57, test_net01:188 | absN | BdFt Scribner | same |
 
+## ★ CAMPAIGN REFRAME (major finding, item 1) — the tolerances hide REAL deterministic STATE residuals
+NOTRIPLE (deterministic) is NOT bit-exact for the realistic CS canonical cst01 either: per-stand worst Δ
+(state=TPA/BA/SDI/CCF/TopHt, vol=cuft/bdft): stand1-control state 1 / vol 262 · stand2-THINDBH state 9 /
+vol 965 · stand3-shelterwood state 7 / vol 893 · stand4-fire state 5 / vol 210 · stand5-plant **state 0 /
+vol 1**. DECISIVE: stand 5 (bit-exact state) ⇒ near-bit-exact volume, so the CS VOLUME OPS ARE FAITHFUL
+given a bit-exact state; the big volume Δ (262-965) are DOWNSTREAM amplification of small STATE residuals
+through nonlinear board-feet. ⇒ the real targets are the deterministic GROWTH/MORTALITY/CROWN state residuals
+(Δ1 control → Δ9 THINDBH), hidden by the tolerances — each an LS-QMDGE5-scale trace. The "Scribner Float32
+noise" (Item 2) and volume bounds (C2b) are mostly DOWNSTREAM of these; fix state first (doctrine #2 upstream-
+first). SCALE: this campaign is a bit-exactness effort across CS/NE/harder-SN scenarios, multi-session. START:
+the CS control-stand Δ1 (cleanest upstream) → trace like LS QMDGE5.
+
 ## C2b — multi-unit absolute bounds
 | ⬜ | file:line | bound | compares | plan |
 |----|-----------|-------|----------|------|
-| ⬜ | test_cst01.jl:177-182 | TPA4/SDI4/CCF10/TopHt2/QMD0.2 | grown | re-measure post-QMDGE5 |
+| ⬜ | test_cst01.jl:177-182 | TPA4/SDI4/CCF10/TopHt2/QMD0.2 | grown | DOWNSTREAM of the state residuals above — fix CS deterministic state first |
 | ⬜ | test_cst01.jl:80,81,116,122,123,124 | ≤1, TPA3/CCF3/TopHt2/QMD0.15 | cyc0-vol/2002 | re-measure |
 | ⬜ | test_growth.jl:169,170,171 | ≤4 | TCuFt/MCuFt | trace |
 | ⬜ | test_cycleat.jl:63,64,65 | TPA8/BA3/SDI6 | grown | trace |
