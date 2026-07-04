@@ -288,3 +288,17 @@ exact both-sides mechanism (upgraded from "cosmetic PERCOV" hand-wave):
 FIX PATH (documented): snapshot a per-tree CRWDTH at each cycle's CWIDTH phase; have fmcba read the
 prior snapshot. DEFERRED: FFE-phasing changes have regressed #28 twice; the risk is disproportionate
 to a 0.05-flame cosmetic gain. Bound kept at the measured floor with the mechanism fully cornered.
+
+## PERCOV flame/scorch — CORRECTION (re-trace): phase is CORRECT; residual is render-knife-edge ULP
+
+Re-checked the earlier "one-cycle phase-lead" claim and it was WRONG (re-trace discipline). FVS FMCBA
+reads the PREVIOUS-cycle CRWDTH (gradd.f FMMAIN :118 before CWIDTH :254). jl's fmcba runs at the fire
+phase where t.dbh is still CYCLE-START (growth applied later in grow_cycle!) and t.crown_pct is the
+prior cycle's CROWN update — i.e. jl feeds crown_width the SAME inputs (cycle-start DBH + prior crown
+ratio) that FVS's stored CRWDTH used. So it is NOT an FFE-phasing bug; no snapshot-CRWDTH fix is needed.
+The residual is a sub-ULP difference in the crown_width→ΣCRACOV→PERCOV→midflame-wind→Rothermel
+transcendental chain, amplified across the flame RENDER KNIFE-EDGE (jl 3.4543 renders 3.5, live renders
+3.4; true internal gap ∈ [0.004, 0.104]). Live's internal flame is unavailable (.out prints 1 decimal,
+the fire-only key emits no FFE DBS fire table), so it cannot be proven pure-ULP by rendered-== either
+way. Bound = one print step + the sub-ULP chain diff (0.06/0.30). Cornered; not further reducible
+without live-internal instrumentation. This is the honest endpoint for this residual.
