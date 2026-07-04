@@ -131,12 +131,14 @@ end
         #    almost certainly not the 0.2 cause — corrected from an earlier over-eager "leading candidate".
         #  - RULED OUT V2T: all 68 LS species V2T wood-density values match FVS fmvinit.f EXACTLY
         #    (data/lakestates/fire_species_props.csv col v2t == the fmvinit SELECT CASE values).
-        #  - So by elimination the 0.2 sits in EITHER the SNAGINIT initial-snag bole OR the CWD2B crown
-        #    component (Stand-Dead = snag_bole_carbon + snag_crown_carbon) — indistinguishable without a
-        #    per-component (bole vs crown) or per-snag (SNAGINIT vs fire) dump. The live carbon report gives
-        #    only the combined Stand-Dead column (12.0), and the FVS DEBUG keyword won't dump the split in
-        #    this env (parses the routine name as a keyword / segfaults). Pinning needs that instrumentation;
-        #    a blind fix risks shipping a wrong one (doctrine #4). Bound at the measured 0.2 floor.
+        #  - LOCALIZED by the Stand-Dead TRAJECTORY (jl vs live, both binaries): the PRE-FIRE 1993 row
+        #    (SNAGINIT snags only, no fire) is BIT-EXACT (1.2 == 1.2), and every post-fall cycle matches
+        #    (2013 0.4/0.4, 2033 0.3/0.3). ONLY the 2003 fire year diverges (11.8/12.0). So the 0.2 is
+        #    entirely the FIRE-killed contribution — and since the snag BOLE basis is confirmed faithful
+        #    (volume MAX(X,MCF) + V2T both exact), the prime suspect is the fire-killed CROWN→CWD2B path
+        #    (snag_crown_carbon = Σ CWD2B·P2T·0.5). Pinning bole-vs-crown at 2003 needs a per-component dump
+        #    the env can't produce (FVS DEBUG won't fire; the report gives only the combined column). A blind
+        #    fix risks a wrong one (doctrine #4). Bound at the measured 0.2 floor.
         # See docs/TOLERANCE_AUDIT.md.
         @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic snag-bole residual (hard/soft split)
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
