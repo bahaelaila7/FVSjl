@@ -40,9 +40,10 @@ end
     mortality!(s, s.variant)
     after = stand_tpa(s) / g
     @test after < before                                  # trees died
-    # This isolated mortality! step loses 26.0 TPA (536→510), deterministic. The FULL cycle loses 29
-    # (536→507) — and jl's snt01.sum cyc1 is BIT-EXACT vs live FVSsn (507/103/202, verified via sn_oracle.sh),
-    # so jl is NOT behind live; the 3-TPA difference is the full cycle's tripling/regen ordering, not a DG gap.
-    # Pinned tight to the isolation value (was 10<Δ<35, a ±45% band masking regressions).
-    @test isapprox(before - after, 26.0f0; atol = 1.5f0)
+    # This isolated mortality! step loses 25.98935 TPA (536.048→510.05862), FULLY DETERMINISTIC. The FULL
+    # cycle loses 29 (536→507) — and jl's snt01.sum cyc1 is BIT-EXACT vs live FVSsn (507/103/202, verified
+    # via sn_oracle.sh), so jl is NOT behind live; the 3-TPA difference is the full cycle's tripling/regen
+    # ordering, not a DG gap. Pinned to the EXACT deterministic isolation value (measured 25.98935; the ±1.5
+    # band was padding a reproducible quantity — atol now = Float32-sum-order ULP only, was masking regressions).
+    @test isapprox(before - after, 25.98935f0; atol = 1f-3)
 end

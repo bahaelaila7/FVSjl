@@ -59,9 +59,12 @@ _msb_base(path) = [split(l) for l in eachline(path)
         @test g[3] == b[3]                      # TPA  — bit-exact (the MSB-killed count)
         @test g[5] == b[5]                      # BA   — bit-exact
         @test g[8] == b[8]                      # QMD  — bit-exact (breakup collapses it)
-        # volume columns: ±2 Float32 transcendental noise (a pre-existing dense_long characteristic)
+        # volume columns: rendered-integer PRINT KNIFE-EDGE (measured maxΔ=1 across all cycles:
+        # col9 2005 3027/3026, col10 2075 1143/1144, col11 Δ0). These are large cubic/board totals
+        # printed as whole integers; the internal Float32 value straddles the ±0.5 round boundary so
+        # jl and FVS round to adjacent integers. Proven print-knife-edge ≤1 (was padded ≤2).
         for c in (9, 10, 11)
-            @test abs(parse(Float32, g[c]) - parse(Float32, b[c])) <= 2f0
+            @test abs(parse(Float32, g[c]) - parse(Float32, b[c])) <= 1f0
         end
         # confirm the breakup actually fired (a year where TPA drops far more than ordinary self-thinning)
         parse(Int, b[1]) == 2025 && parse(Float32, b[3]) < 200f0 && (fired = true)

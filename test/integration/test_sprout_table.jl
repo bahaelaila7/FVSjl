@@ -42,9 +42,10 @@ _spt_base(path) = [split(l) for l in eachline(path)
             @test g[3] == b[3]            # TPA — bit-exact (the multiplied/windowed sprout count)
             @test g[5] == b[5]            # BA
             @test g[8] == b[8]            # QMD
-            for c in (9, 10)             # TopHt, TCuFt — ±2 Float32 noise
-                @test abs(parse(Float32, g[c]) - parse(Float32, b[c])) <= 2f0
-            end
+            @test g[9] == b[9]           # TopHt — BIT-EXACT (measured Δ0 both scenarios; was padded ≤2)
+            # TCuFt: rendered-integer PRINT KNIFE-EDGE — bit-exact except win3 @2020 (jl 1908/ft 1907),
+            # the internal total straddling the ±0.5 whole-integer round boundary. Proven ≤1 (was ≤2).
+            @test abs(parse(Float32, g[10]) - parse(Float32, b[10])) <= 1f0
         end
     end
 

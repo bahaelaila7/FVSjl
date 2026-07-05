@@ -38,15 +38,16 @@ _spcol(r, c) = parse(Float64, r[c])
         post(rows) = (i = findfirst(r -> r[1] == "2005", rows); i === nothing ? 0.0 : _spcol(rows[i], 3))
         @test post(jl) > post(nosprows) + 100      # sprouts add hundreds of TPA
 
-        # 2. matches live Fortran (TPA/BA/cubic bit-exact; board feet within Scribner noise).
+        # 2. matches live Fortran — BIT-EXACT on every structural + volume column (measured Δ=0
+        # across all 11 rows for TPA/BA/cubic AND board feet; the old `<=1.5` was pure padding —
+        # the sprout-regen cycle reproduces live's records exactly, so the .sum renders identically).
         ft = _sp_base(sav)
         @test length(jl) == length(ft)
         if length(jl) == length(ft)
             for i in 1:length(jl)
-                for c in (3, 4, 5, 6, 9, 10)        # TPA, QMD-cols, BA, cubic volumes
-                    @test abs(_spcol(jl[i], c) - _spcol(ft[i], c)) <= 1.5
+                for c in (3, 4, 5, 6, 9, 10, 12)    # TPA, QMD-cols, BA, cubic volumes, board feet
+                    @test _spcol(jl[i], c) == _spcol(ft[i], c)
                 end
-                @test _spcol(jl[i], 12) == _spcol(ft[i], 12)
             end
         end
     end
