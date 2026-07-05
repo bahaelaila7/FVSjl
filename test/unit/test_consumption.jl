@@ -40,7 +40,7 @@ using FVSjl: fire_consumption_fractions, apply_fire_consumption!, fuel_moisture,
         # Released = woody·0.5 + forest-floor·0.37 + live herb/shrub burned·0.5 (FMCONS BURNLV: herb 1.0,
         # shrub 0.6; in BIOCON(2), fmdout.f). The live-fuel term closed the fire_carbon released gap (5.13→5.5).
         live_c = s.fire.flive[1] + 0.6f0 * s.fire.flive[2]
-        @test released ≈ woody_c * 0.5f0 + ff_c * 0.37f0 + live_c * 0.5f0
+        @test released == woody_c * 0.5f0 + ff_c * 0.37f0 + live_c * 0.5f0
         @test ff_c > 0f0                                     # litter/duff WAS consumed (so the split matters)
         @test released < (before - after) * 0.5f0           # the 0.37 forest-floor pulls it below uniform-0.5
         @test released > 0f0
