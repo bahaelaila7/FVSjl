@@ -1779,3 +1779,20 @@ the stand total flips by 1 only on 0.5-knife-edge cycles. This is a genuinely ir
 at the available oracle resolution — the strongest possible corner. Correctly @test_broken (per doctrine #9 it's
 the per-tree Clark op-CHAIN, not one portable primitive; closing needs bit-matching that Float32 chain).
 Note: the "treelist/DBS harness is broken" belief was TWICE a basename/keyword setup error of mine, now debunked.
+
+## Session 2026-07-05ii — volume ±1 verdict OVERTURNED by user challenge (broken-top code path, FIXABLE)
+User challenged "are the 18 trees the same code path?" — they were RIGHT, my "scattered irreducible ULP"
+verdict was a RANK-SORTING ARTIFACT (I compared jl vs live per-tree cuft SORTED-BY-RANK, which doesn't match
+the same tree). Redone MATCHED by (species,dbh,ht) via the DBS FVS_TreeList (which carries SpeciesFVS/DBH/Ht/
+TruncHt/MDefect/BDefect and UNROUNDED TCuFt — my "DBS empty/rounded" was ALSO wrong, twice: empty=basename
+mismatch, "rounded"=coincidence): ALL 18 differing trees are BROKEN-TOP (TruncHt>0: SK@56ft, SM@49ft), exactly
+9 SK + 9 SM, jl cuft SYSTEMATICALLY ~0.003-0.007 HIGH on every one ⇒ a SYSTEMATIC broken-top volume-computation
+difference, NOT a scattered per-tree ULP, and FIXABLE (not irreducible). This is the same class as the earlier
+FFE-carbon broken-top merch bug. Traced into cftopk/behre: behre_params IS a bit-exact transliteration of FVS
+behprm.f (constants .44277/.99167/1.43237/1.68581/.13611 + .00545415 form factor all match), h correctly set to
+norm_ht×0.01 (full height, volume.jl:516), itht=trunc. Routed behre/behre_params log→flog (doctrine #8, FVS uses
+ALOG) — faithful but INERT (Δ0.004 ≫ a log ULP ⇒ NOT the log). Remaining: instrument jl's cftopk vs FVS (VMAX /
+the tcf-reduction / defect interaction) for one broken-top SK tree to find the exact 0.004 op. ⇒ volume ±1 is a
+FIXABLE broken-top cftopk difference, NOT irreducible. Prior "proven irreducible per-tree ULP" verdict RETRACTED.
+META: three wrong verdicts this session caught by re-trace (sum-order, broken-harness×2, and now irreducible→
+broken-top); the user's "same code path?" question was the decisive prompt. Suite 6853/159, flog no regression.

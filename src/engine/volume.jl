@@ -121,8 +121,8 @@ end
 @inline function behre_params(vmax::Float32, d::Float32, h::Float32, bark::Float32)
     bhat = vmax / (0.00545415f0 * d^2 * bark^2 * h)
     bhat > 0.95f0 && (bhat = 0.95f0)
-    ahat = 0.44277f0 - 0.99167f0 / bhat - 1.43237f0 * log(bhat) +
-           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat^2
+    ahat = 0.44277f0 - 0.99167f0 / bhat - 1.43237f0 * flog(bhat) +
+           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat^2   # gfortran-identical log (doctrine #8; broken-top vol)
     lcone = false
     if abs(ahat) < 0.05f0
         lcone = true
@@ -136,7 +136,7 @@ end
 @inline function behre(ahat::Float32, bhat::Float32, l1::Float32, l2::Float32)
     alb1 = ahat * l1 + bhat
     alb2 = ahat * l2 + bhat
-    return alb2 - alb1 - 2f0 * bhat * (log(alb2) - log(alb1)) -
+    return alb2 - alb1 - 2f0 * bhat * (flog(alb2) - flog(alb1)) -   # gfortran-identical log (doctrine #8)
            bhat * bhat / alb2 + bhat * bhat / alb1
 end
 
