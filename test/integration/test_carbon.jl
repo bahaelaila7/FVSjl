@@ -672,9 +672,11 @@ end
         end
         b = runsd(base); brk = runsd(bkey)
         @test brk[1] == b[1]                  # 1990: no snags lost height yet → identical
-        @test isapprox(brk[2], 4.3; atol = 0.1)   # 1995 vs live 4.3
-        @test isapprox(brk[3], 5.1; atol = 0.1)   # 2000 vs live 5.1 (was 4.57 before the CFTOPK fix)
-        @test isapprox(brk[4], 9.0; atol = 0.1)   # 2005 vs live 9.0 (was 8.71)
+        # PRINT-HALF-WIDTH (Stand-Dead carbon prints to 0.1; was padded 0.1 = full unit). jl 4.3029/5.0608/
+        # 9.037 all render to live's 4.3/5.1/9.0 (Δ ≤ 0.039 < 0.05 half-width) — SNAGBRK snag-break carbon.
+        @test isapprox(brk[2], 4.3; atol = 0.05)   # 1995 vs live 4.3 (jl 4.3029)
+        @test isapprox(brk[3], 5.1; atol = 0.05)   # 2000 vs live 5.1 (jl 5.0608; was 4.57 pre-CFTOPK-fix)
+        @test isapprox(brk[4], 9.0; atol = 0.05)   # 2005 vs live 9.0 (jl 9.037; was 8.71)
     end
 end
 
