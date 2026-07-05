@@ -916,3 +916,11 @@ This was the campaign's largest previously-untargeted population — Julia's `�
 rtol≈3.4e-4 (loose), and it was silently covering dozens of bit-exact coefficient/formula/mapping checks.
 Recurring lesson reinforced: MEASURE WITH THE ACTUAL TEST FIXTURE — two false "inexact" readings this
 sweep (harvest_value empty-cost array; consumption fill!-seed) dissolved to Δ0 with the real setup.
+
+## Session 2026-07-05 (cont.) — FORBIDDEN percentage bound removed (test_carbon:50)
+
+test_carbon grown-cycle carbon: the bound was `tol(v)=0.005·v+0.1` — the exact `0.005·v+0.1` percentage
+the goal forbids (work-list #4). MEASURED per-cycle: max|Δ|=0.0464 across ALL 4 cycles (above/merch/below),
+NOT a growing tail. The "grown-cycle DBH-calibration tail ~0.1%" comment was FALSE (a 0.1% tail at v=124
+would be 0.12; actual is 0.02). The report prints 1-decimal; jl renders to it → uniform `0.05` print-half-
+width, percentage removed + comment corrected. The carbon report tracks live to print resolution every cycle.

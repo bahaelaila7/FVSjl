@@ -44,13 +44,14 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
         for (c, f) in enumerate(ft)
             FVSjl.compute_density!(s)
             r = FVSjl.stand_carbon_report(s)
-            # The inventory cycle (no growth) is BIT-EXACT; grown cycles carry the LP DBH-calibration
-            # tail (~0.1% here) that the Jenkins biomass inherits via DBH — orthogonal to the carbon
-            # model, so the tolerance widens by a small relative term once the stand has grown.
-            tol(v) = c == 1 ? 0.1 : 0.005 * v + 0.1
-            @test abs(r.aboveground - parse(Float64, f[2])) <= tol(parse(Float64, f[2]))
-            @test abs(r.merch       - parse(Float64, f[3])) <= tol(parse(Float64, f[3]))
-            @test abs(r.belowground - parse(Float64, f[4])) <= tol(parse(Float64, f[4]))
+            # PRINT-HALF-WIDTH: the report prints carbon pools to 1 decimal; jl's internal Float64 renders to
+            # that field at EVERY cycle (measured max|Δ|=0.0464 < 0.05 across all 4 cycles, aboveground/merch/
+            # belowground). The prior `0.005·v+0.1` "grown-cycle DBH-calibration tail ~0.1%" was WRONG — a 0.1%
+            # tail at v=124 would be 0.12, but the measured grown-cycle Δ is ≤0.046 (no growing tail; jl tracks
+            # live to print resolution). Uniform 0.05 = the 1-decimal print half-width.
+            @test abs(r.aboveground - parse(Float64, f[2])) <= 0.05
+            @test abs(r.merch       - parse(Float64, f[3])) <= 0.05
+            @test abs(r.belowground - parse(Float64, f[4])) <= 0.05
             c < length(ft) && FVSjl.grow_cycle!(s; fint = 5f0)
         end
 
