@@ -1029,3 +1029,11 @@ Measured the jl-internal rtol=1f-4 self-consistency identities:
 - **net01 ESSUBH hht** (was atol 0.002): jl renders to the live 3-dec HHT (5.159/4.591; measured Δ≤3.7e-4 <
   5e-4 half-width) → atol 5f-4 print-half-width. NOTE: rendered-== failed here (want is a Float32 literal;
   Float64(5.159f0)≠5.159) — the print-half-width isapprox is the correct form for a Float32-literal reference.
+
+## Session 2026-07-05 (cont.) — removed loosened-multiple padding on 2 accepted-class bounds
+
+- **estab_pccf mean crown** (≤0.5 → ≤0.2): measured Δ0.14 (deferred crown-ratio class, same as LS PERCOV/CS
+  CCF — regen crown_pct integers a few off, NOT ULP). 0.5 was a 3.5× loosening; 0.2 = the crown-ratio
+  envelope (covers the version-range 0.02–0.14).
+- **estab_rng_d10 mean lp42** (atol 0.01 → 0.007): measured Δ0.00581 (accumulated DGF/HTGF Float32 tail over
+  50 trees × 9 cycles, same class as cst01 late). 0.01 was ~1.7× loosened; 0.007 = the exact accumulated floor.
