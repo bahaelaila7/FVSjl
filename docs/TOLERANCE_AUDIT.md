@@ -1825,3 +1825,18 @@ NOT irreducible. Verdict chain for this residual (all via re-trace): sum-order �
 broken-top code path → 2005 normal-height → ht_dbh_aa intercept → SETUP NORMHT resolution. The mechanism keeps
 refining as instrumentation improves; each prior label was superseded, none were loosened. Correctly @test_broken;
 next concrete step = dump jl vs live norm_ht at the 1990 inventory for these SK/SM broken-top records.
+
+## Session 2026-07-05ll — volume ±1 ROOT NAILED: topkill NORMHT tracking (jl conflates normal w/ standing)
+DECISIVE unrounded compare (DBS FVS_TreeList, SK broken-top 2005): standing height is BIT-EXACT (live Ht
+67.6998 == jl height 67.69981) — so NOT the HTGF growth tail (my prior "SN HTGF" guess was wrong too). But the
+NORMAL height diverges: live EstHt=67.7500 vs jl norm_ht=67.70. ROOT: jl sets norm_ht = round(standing·100)
+(=6770, volume.jl:303-304 caps norm_ht to ≥ standing) ⇒ jl's normal height COLLAPSES to the standing height.
+FVS maintains a SEPARATE NORMHT for topkill trees that grew ~0.05 ft ABOVE the standing (broken) height via the
+full-tree HTGF (the normal/unbroken height grows unrestricted while the standing/broken height is what's carried).
+So cftopk gets H=67.70 (jl, =standing) vs 67.75 (FVS, =separate normal) ⇒ different PHT ⇒ the 0.003-0.007/tree
+cuft ⇒ the ±1. This is a REAL FIXABLE topkill-height-tracking model gap (jl doesn't carry FVS's separate growing
+NORMHT), NOT an irreducible ULP. FIX: maintain a separate normal (full) height for topkill trees, grown via the
+full HTGF, distinct from the standing/broken height — feed THAT to cftopk. Definitive verdict (8 re-traces to
+ground: sum-order→irreducible-ULP→broken-top→2005-height→ht_dbh_aa→setup-NORMHT→SN-HTGF→topkill-NORMHT-tracking).
+The residual was NEVER irreducible; each label was a layer peeled by better instrumentation (the working per-tree
+DBS was the key). Correctly @test_broken until the separate-NORMHT fix lands.
