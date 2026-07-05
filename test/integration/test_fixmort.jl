@@ -40,8 +40,13 @@ _fmcol(r, c) = parse(Float64, r[c])
             jl, ft = runjl(nm)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for i in 1:length(jl), c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD
-                    @test abs(_fmcol(jl[i], c) - _fmcol(ft[i], c)) <= 1
+                for i in 1:length(jl)
+                    for c in (4, 7, 8)                      # BA / TopHt / QMD — BIT-EXACT (measured 0 all scenarios)
+                        @test _fmcol(jl[i], c) == _fmcol(ft[i], c)
+                    end
+                    # TPA — BIT-EXACT bar a single print-boundary ULP (fixmort_kpoint c3=1 at one cycle);
+                    # the kill·rate lands the per-acre TPA on the +0.5 render knife-edge. Bound = 1 print step.
+                    @test abs(_fmcol(jl[i], 3) - _fmcol(ft[i], 3)) <= 1
                 end
             end
         end

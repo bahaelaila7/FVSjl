@@ -53,8 +53,12 @@ end
             ft = _cp_base(sav)
             @test length(comp) == length(ft)
             ndet = 33                                    # stands 1-3 × 11 rows — all deterministic (no fire/regen)
-            for i in 1:min(ndet, length(comp), length(ft)), c in (3, 4, 8)
-                @test abs(parse(Float64, comp[i][c]) - parse(Float64, ft[i][c])) <= 1
+            for i in 1:min(ndet, length(comp), length(ft))
+                @test parse(Float64, comp[i][4]) == parse(Float64, ft[i][4])   # BA  — BIT-EXACT
+                @test parse(Float64, comp[i][8]) == parse(Float64, ft[i][8])   # (col 8) — BIT-EXACT
+                # TPA — BIT-EXACT bar a single print-boundary ULP (c3=1 at one cycle; per-acre TPA on the
+                # +0.5 render knife-edge). Bound = 1 print step.
+                @test abs(parse(Float64, comp[i][3]) - parse(Float64, ft[i][3])) <= 1
             end
         end
         # 2. The COMPUTE stand (MYCYC frozen at 1) NEVER thins — its FRAC(MYCYC/3)=0.333 condition is
