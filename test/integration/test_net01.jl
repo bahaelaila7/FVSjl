@@ -588,9 +588,12 @@ end
         # DBH derived from the uncapped grown height → TopHt (YB/WO clamp to 22/16). ALL FIVE columns (TREES/
         # BA/SDI/CCF/TopHt) are BIT-EXACT at ALL THREE cycles — re-measured 2026-07-05: max|Δ|=0 everywhere.
         # The prior "±1 drift by 2022" + "~8% cyc-1 SDI/CCF residual" were STALE (a growth fix closed them).
-        for (yr, tr, ba, sdi, ccf, ht) in
-            ((2002, 800, 10, 40, 40, 22), (2012, 786, 48, 136, 183, 40), (2022, 733, 97, 234, 317, 49))
-            @test rows[yr] == [tr, ba, sdi, ccf, ht]   # TREES/BA/SDI/CCF/TopHt — BIT-EXACT (was ≤1 / ±tol padding)
+        for (yr, ex) in ((2002, [800, 10, 40, 40, 22]), (2012, [786, 48, 136, 183, 40]),
+                         (2022, [733, 97, 234, 317, 49]))
+            r = rows[yr]
+            for k in 1:5
+                @test r[k] == ex[k]                # TREES/BA/SDI/CCF/TopHt — BIT-EXACT (was ≤1 / ±tol padding)
+            end
         end
     end
 end
@@ -614,7 +617,10 @@ end
         # prior "±1 ULP floor" was stale — this establishment scenario reproduces live exactly).
         for (yr, ex) in (2002 => [1600, 25, 90, 80, 16], 2012 => [1390, 117, 307, 316, 33],
                          2022 => [1071, 172, 401, 418, 49])
-            @test rows[yr] == ex   # BIT-EXACT (was ≤1 padding)
+            r = rows[yr]
+            for k in 1:5
+                @test r[k] == ex[k]   # BIT-EXACT (was ≤1 padding)
+            end
         end
     end
 end
