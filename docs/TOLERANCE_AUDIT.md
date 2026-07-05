@@ -1183,3 +1183,17 @@ REMAINING non-== in test_carbon (all traced): agl/sd one-unit boundary-flip (0.1
 2/4-tenth (exact), c3/c4 snag-split vs APPROXIMATE eyeball oracle (0.25/0.12 — TODO: get exact FMDOUT SNAG
 SUMMARY to corner), belowground/floor growth-tail (0.04/0.048 measured floors), emergent-snag-phasing 0.033.
 Suite 7664/2, no regression.
+
+## Session 2026-07-05d — net01 / multicycle / mortality: 3 more (2 rendered-== + 1 padded-floor)
+- **test_net01.jl:280** ESSUBH HHT — was atol 5f-4 (3-dec half-width) with a Float32 `want` literal. Changed
+  `want` to the Float64 3-dec literal (5.159/4.591) → `round(jl,3)==want` RENDERED-== (measured Δ≤3.7e-4 rounds
+  exactly). :379 Allegheny HT-DBH — Float32 lh literals → Float64 1-dec → `round(jl,1)==lh` RENDERED-==.
+  (:380 kept — a `!isapprox` "override is not a no-op" difference-guard, not a tolerance.)
+- **test_multicycle.jl:66** TPA — `tT=1.0` was a 1.76× pad; MEASURED max is 0.5678 @ s15_phys_p232 cyc9 (jl
+  102.57 vs golden 102 — a real deep-cycle DGSCOR/untripled-tail growth divergence, di flips one unit) → tT=0.57
+  (1.004×, deterministic). cuft tC=1.0 confirmed EXACT (measured max 1.0 @ all_LP cyc4, jl 4095 vs 4094).
+  Removed dead tB/tS/tQ (BA/SDI/QMD are rendered-==). BA/SDI di-== and QMD round-== unchanged.
+- **test_mortality.jl:51** isolated-mortality TPA loss — atol 1f-3 self-labeled "sum-order ULP only" but was
+  ~300× a real ULP at 26. MEASURED before-after == 25.98935f0 BIT-FOR-BIT (Δ=0.0) → plain `==` (BIT-EXACT).
+Suite 7664/2, no regression. Unit-test sweep otherwise clean (fire_effects 1.2f-7=1 ULP, snag 2f-6≈1.05×
+measured, rothermel/fire_biomass 5f-8/2f-7 sum-order, econ 5f-5 4-dec-half, dvee 6f-4 stamp — all cornered).

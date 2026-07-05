@@ -46,7 +46,8 @@ end
     # This isolated mortality! step loses 25.98935 TPA (536.048→510.05862), FULLY DETERMINISTIC. The FULL
     # cycle loses 29 (536→507) — and jl's snt01.sum cyc1 is BIT-EXACT vs live FVSsn (507/103/202, verified
     # via sn_oracle.sh), so jl is NOT behind live; the 3-TPA difference is the full cycle's tripling/regen
-    # ordering, not a DG gap. Pinned to the EXACT deterministic isolation value (measured 25.98935; the ±1.5
-    # band was padding a reproducible quantity — atol now = Float32-sum-order ULP only, was masking regressions).
-    @test isapprox(before - after, 25.98935f0; atol = 1f-3)
+    # ordering, not a DG gap. before-after == 25.98935f0 BIT-FOR-BIT (Float32, measured Δ=0.0 — both are
+    # stand_tpa/g Float32). Was atol 1f-3 (~300× a real ULP at 26) then ±1.5 — both padding a bit-exact
+    # reproducible quantity that masked regressions.
+    @test before - after == 25.98935f0
 end

@@ -274,11 +274,11 @@ end
 # NOT the site-curve height at the tree's age. Verified BIT-EXACT vs live FVSne ESSUBH (BF 5.159, WS 4.591).
 @testset "net01 (NE) ESSUBH establishment base height — bit-exact vs live FVSne" begin
     # BF (sp1, SI 52, refage 20) and WS (sp3, SI 50, refage 15); period 10, delay 0 ⇒ min(5, 10)=5.
-    for (sp, si, want) in ((1, 52f0, 5.159f0), (3, 50f0, 4.591f0))
+    for (sp, si, want) in ((1, 52f0, 5.159), (3, 50f0, 4.591))   # want = live FVSne ESSUBH HHT (3-dec, Float64)
         ca = Float32(FVSjl._NE_ESSUBH_REFAGE[sp])
         hht = (FVSjl.ne_htcalc_height(sp, si, ca) / ca) * min(5f0, 10f0 - 0f0)
-        @test isapprox(hht, want; atol = 5f-4)   # PRINT-HALF-WIDTH: jl renders to the live FVSne ESSUBH HHT 3-dec
-                                                 # value (measured Δ≤3.7e-4 < the 5e-4 half-width of a 3-dec field; was atol 0.002, 4× padded)
+        @test round(Float64(hht), digits=3) == want   # RENDERED-==: jl renders to the live 3-dec HHT (measured
+                                                       # Δ≤3.7e-4 ⟹ rounds exactly to 5.159/4.591; was atol 5f-4 half-width)
     end
     @test FVSjl._NE_ESSUBH_REFAGE[1] == 20 && FVSjl._NE_ESSUBH_REFAGE[3] == 15   # essubh.f DATA MAPNE
     @test length(FVSjl._NE_ESSUBH_REFAGE) == 108
@@ -372,11 +372,11 @@ end
 @testset "NE IFOR=3 Allegheny HT-DBH override — vs live FVSne" begin
     sd = FVSjl.coefficients(Northeast()).species
     # (species_index, DBH, live FVSne dubbed height @ IFOR=3)
-    live = [(26, 10f0, 73.4f0), (30, 11f0, 68.6f0), (40, 8f0, 60.8f0), (55, 12f0, 81.9f0), (67, 14f0, 87.9f0)]
+    live = [(26, 10f0, 73.4), (30, 11f0, 68.6), (40, 8f0, 60.8), (55, 12f0, 81.9), (67, 14f0, 87.9)]  # lh Float64 1-dec
     for (sp, d, lh) in live
         h3 = FVSjl._htdbh_height(sd, sp, d, 3)        # Allegheny (IFOR=3)
         h2 = FVSjl._htdbh_height(sd, sp, d, 2)        # base (IFOR=2)
-        @test isapprox(h3, lh; atol = 0.05)            # bit-exact to print precision vs live
+        @test round(Float64(h3), digits=1) == lh       # RENDERED-==: dubbed height renders exactly to live 1-dec
         @test !isapprox(h3, h2; atol = 0.05)           # override actually changes the value (not a no-op)
     end
 end

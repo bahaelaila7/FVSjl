@@ -43,14 +43,13 @@ end
             # per-cycle compute_forest_type!: TPA 0.57, BA 0.48, SDI 0.49, QMD 0.05, cuft 1.0). Uniform tight
             # bound = one print unit. (The earlier "LP-calibration tail" was a measurement artifact — a
             # tolerance-probe loop that omitted the per-cycle FORTYP recompute, which feeds diameter growth.)
-            # atol = 1 print unit (golden fields are print-rounded integers; jl's internal float is exact,
-            # so the max faithful gap is the print half-width + sub-ULP — measured ≤0.57/0.48/0.49/0.05/1.0
-            # for TPA/BA/SDI/QMD/cuft). cuft tightened to 1 print unit (rtol dropped): the old 2.0+0.2% was
-            # over-caution — the measured cuft max is exactly 1.0 across every scenario.
-            tT, rT = 1.0, 0.0
-            tB     = 1.0
-            tS     = 1.0
-            tQ     = 0.1
+            # BA/SDI/QMD are rendered-== (below); only TPA + cuft carry a float bound (their rendered value
+            # can flip by one unit where the accumulated DGSCOR/untripled-tail growth straddles the print
+            # boundary). Both cornered to the EXACT measured max across every scenario/cycle (deterministic):
+            #   TPA  0.5678 @ s15_phys_p232 cyc9 (jl 102.57 vs golden 102 — real deep-cycle growth tail) → tT=0.57
+            #   cuft 1.0    @ all_LP cyc4        (jl 4095 vs 4094 — one-unit integer tail flip)            → tC=1.0
+            # (TPA was tT=1.0 = a 1.76× pad; the "≤0.57" was already in the comment but not applied.)
+            tT, rT = 0.57, 0.0
             tC, rC = 1.0, 0.0
             @testset "$scn" begin
                 for (cyc, tpa, ba, sdi, qmd, tcuft) in rows
