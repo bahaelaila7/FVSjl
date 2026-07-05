@@ -774,9 +774,9 @@ end
             # Tolerances tightened to the MEASURED jl-vs-live floor (was 1.5/0.5/0.3/0.4/0.3 — up to 15× loose):
             # carbon prints F7.1 so 0.1 is one print unit. jl: agl 19.2 (Δ0.1), bgd 5.6 (Δ0), sd 20.1 (Δ0.1),
             # ddw 1.1 (Δ0), rel 5.5 (Δ0) vs live 19.1/5.6/20.2/1.1/5.5.
-            @test isapprox(agl, 19.1; atol = 0.2) # post-fire survivors (jl 19.2; pre-fix 36.2)
-            @test isapprox(bgd, 5.6;  atol = 0.1) # fire-killed coarse ROOTS booked to Below-Dead (jl 5.6; pre-fix 0.9)
-            @test isapprox(sd,  20.2; atol = 0.15)# snags: crown-lift-at-death + FMEFF fine-crown consumption (jl 20.1)
+            @test isapprox(agl, 19.1; atol = 0.1) # jl 19.2 = ONE print unit (F7.1); was padded 0.2. post-fire survivors
+            @test isapprox(bgd, 5.6;  atol = 0.1) # jl 5.6 (Δ0); one print unit. fire-killed coarse ROOTS → Below-Dead
+            @test isapprox(sd,  20.2; atol = 0.1) # jl 20.1 = ONE print unit; was padded 0.15. snags crown-lift+FMEFF consumption
             @test isapprox(ddw, 1.1;  atol = 0.1) # start-of-cycle-consumed down wood (jl 1.1)
             @test isapprox(rel, 5.5;  atol = 0.1) # released = surface + live-fuel burn (jl 5.5; was 0, then 5.13)
         end
@@ -791,7 +791,7 @@ end
             # of leaving ~5× too many (the small-snag fall is a CONSTANT modrate·origden/yr). SD drops to live.
             # #28 snag-fall-timing residual (accepted, low-%): jl 2.6 (Δ0.2) / 15.2 (Δ0.4) vs live 2.8 / 14.8.
             @test isapprox(sd05,  2.8; atol = 0.25)   # fire snags cleared (jl 2.6; was 10.9, then 4.0)
-            @test isapprox(ddw05, 14.8; atol = 0.5)   # fallen boles in down wood (jl 15.2; was 8.1)
+            @test isapprox(ddw05, 14.8; atol = 0.4)   # jl 15.2 (Δ0.4 EXACT, was padded 0.5); fallen-bole down wood — the fire snag-fall/consumption ≤print-scale residual
         end
     end
 end
