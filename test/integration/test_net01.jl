@@ -181,11 +181,17 @@ end
         out = FVSjl.run_keyfile(joinpath(dir, "spv.key"); variant = Northeast())
         row = split(split(out, '\n')[findfirst(l -> startswith(l, "1990"), split(out, '\n'))])
         # Live FVSne cycle-0: TPA 536 BA 77 CCF 146 | TCuFt 1551 MCuFt 1286 SCuFt 186 BdFt 1023.
-        @test parse(Int, row[3]) == 536                       # TPA — exact
-        @test parse(Int, row[4]) == 77                        # BA  — exact
-        @test parse(Int, row[6]) == 146                       # CCF — exact (CWCALC across species)
-        @test parse(Int, row[9])  ≈ 1551 atol = 4             # TCuFt (R9 Clark cubic)
-        @test parse(Int, row[12]) ≈ 1023 atol = 8             # BdFt  (R9LOGS Scribner)
+        # ALL columns BIT-EXACT (measured Δ=0 on every one incl. the two volume families that were previously
+        # only bounded / unchecked — the cycle-0 volume is the deterministic per-tree R9 Clark cubic + R9LOGS
+        # Scribner over the 30-species set, with no growth, so it renders identically to live). The old atol
+        # 4/8 was pure padding on a bit-exact rendered integer; MCuFt/SCuFt were not even asserted.
+        @test parse(Int, row[3])  == 536                      # TPA — exact
+        @test parse(Int, row[4])  == 77                       # BA  — exact
+        @test parse(Int, row[6])  == 146                      # CCF — exact (CWCALC across species)
+        @test parse(Int, row[9])  == 1551                     # TCuFt (R9 Clark cubic)  — BIT-EXACT
+        @test parse(Int, row[10]) == 1286                     # MCuFt (R9 Clark merch)  — BIT-EXACT (was unchecked)
+        @test parse(Int, row[11]) == 186                      # SCuFt (R9 Clark saw)    — BIT-EXACT (was unchecked)
+        @test parse(Int, row[12]) == 1023                     # BdFt  (R9LOGS Scribner) — BIT-EXACT
     end
 end
 
@@ -213,10 +219,12 @@ end
             cp(joinpath(dirname(_NET01_KEY), "net01.tre"), joinpath(dir, "s.tre"))
             split(FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = Northeast()), '\n')
         end
+        # BA is BIT-EXACT across the full site range, every cycle (measured Δ=0 for BOTH SI75 and SI40 on all
+        # 6 rows) — the site-index height curve → DG → BA chain reproduces live exactly. Was ±2 padding.
         for (si, live_ba) in ((75, (77,115,151,185,186,187)), (40, (77,101,126,150,176,191)))
             lines = run_si(si); b = findfirst(l -> startswith(l, "-999"), lines)
             for (k, lba) in enumerate(live_ba)
-                @test parse(Int, split(lines[b + k])[4]) ≈ lba atol = 2   # BA tracks live across the site range
+                @test parse(Int, split(lines[b + k])[4]) == lba   # BA BIT-EXACT across the site range
             end
         end
     end
@@ -308,7 +316,8 @@ end
             @test parse(Int, row[3]) == ltpa                  # TPA — BIT-EXACT (THINPRSC/THINBTA thinning)
         end
         @test parse(Int, split(lines[b + 1])[4]) == 77        # 1990 BA exact
-        @test parse(Int, split(lines[b + 4])[4]) ≈ 134 atol = 2   # 2020 BA within ±2 (WP tail)
+        @test parse(Int, split(lines[b + 4])[4]) == 134       # 2020 BA — BIT-EXACT (measured 134==live; the
+                                                              # post-THINBTA rendered integer matches; was ±2 padding)
 
         bare = ["SCREEN", "NOAUTOES", "STDIDENT", "BARE GROUND PLANT", "ECHOSUM", "SCREEN", "NOTREES",
             "NOTRIPLE", "STDINFO        922.0                 0.0     315.0      30.0      20.0",
@@ -319,8 +328,12 @@ end
         b5 = findfirst(l -> startswith(l, "-999"), l5)
         @test parse(Int, split(l5[b5 + 1])[3]) == 0           # 1992 BARE — no trees
         @test parse(Int, split(l5[b5 + 2])[3]) == 800         # 2002 regen TPA exact (PLANT 400+400)
-        @test parse(Int, split(l5[b5 + 11])[3]) ≈ 499 atol = 6   # 2092 TPA tracks live (mortality)
-        @test parse(Int, split(l5[b5 + 11])[4]) ≈ 265 atol = 2   # 2092 BA — converges to live (bit-exact)
+        # 2092 (terminal, 10 cycles): BOTH BIT-EXACT vs live (measured jl TPA 499==499, BA 265==265). The run
+        # is NOTRIPLE + no-fire ⇒ fully deterministic; the early-cohort REGENT BA runs ~20% low at 2002 (8 vs 10)
+        # but the establishment cohort CONVERGES to live by the terminal cycle. The old ±6/±2 was padding the
+        # convergence — at 2092 the rendered integers are identical.
+        @test parse(Int, split(l5[b5 + 11])[3]) == 499           # 2092 TPA — BIT-EXACT (was ±6)
+        @test parse(Int, split(l5[b5 + 11])[4]) == 265           # 2092 BA  — BIT-EXACT (was ±2)
     end
 end
 

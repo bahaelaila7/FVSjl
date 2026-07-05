@@ -707,3 +707,21 @@ accepted grown-cycle crown-ratio evolution (cosmetic, non-`.sum`), NOT a crown-m
 without bit-matching the crown-ratio integer evolution (= the accepted grown-cycle tail). This RETIRES the
 prior turn's "deferred fixable crown bug" framing: it is a proven grown-cycle-class residual (category 2).
 Bound values unchanged (= exact observed floor). Suite 7662/2.
+
+## Session 2026-07-05 (cont.) — net01 NE bounds: a cluster of padded bit-exacts (work-list #2/#3)
+
+Re-measured the net01 NE audit bounds (spv volume + site-index + shelterwood + bare-plant) against their
+live FVSne golden values — found a whole cluster that was PADDED over a bit-exact result:
+
+- **spv cycle-0 volume** (`test_net01` A2): TCuFt/MCuFt/SCuFt/BdFt all measured Δ=0 vs live
+  (1551/1286/186/1023) → `==` (was TCuFt atol 4, BdFt atol **8** — the forbidden multi-unit slack; MCuFt
+  and SCuFt were not even asserted). Cycle-0 volume is the deterministic per-tree R9 Clark cubic + R9LOGS
+  Scribner over the 30-species set — no growth, renders identically.
+- **site-index BA** (A2 breadth): BOTH SI75 and SI40, all 6 cycles, measured Δ=0 → `==` (was ±2 padding).
+- **shelterwood 2020 BA**: measured 134==live → `==` (was ±2 "WP tail").
+- **bare-plant 2092 TPA + BA**: measured 499==499, 265==265 (deterministic NOTRIPLE+no-fire; the establishment
+  cohort converges to bit-exact by the terminal cycle) → `==` (was ±6 TPA / ±2 BA).
+
+The "±2 tracks live" / "atol=8 Scribner noise" labels were stale — the NE volume + site-index + prescription-
+thin chains are BIT-EXACT. Suite 7662/2. (Reinforces the campaign lesson: re-measure every "tracks within N"
+label; several were covering an exact result.)
