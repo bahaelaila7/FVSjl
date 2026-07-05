@@ -793,3 +793,12 @@ render exactly to their reference:
 - test_econ max_dib (`≈999.9 atol=0.1`): a log-grade "no upper limit" SENTINEL; left as-is — the econ
   harvest setup is nontrivial to reproduce standalone and I won't tighten a constant without measuring it
   (doctrine: measure, don't guess). Flagged for a future econ pass.
+
+## Session 2026-07-05 (cont.) — more unit-test bit-exacts (econ sentinel + fuel decay)
+
+- **test_econ max_dib** (`≈999.9 atol=0.1`): MEASURED (with the correct write_sum_file harvest trigger) =
+  999.9000244140625 = Float32(999.9) EXACTLY; the residual (2.4e-5) is pure Float32 representation → `==
+  999.9f0` (was ~4000× padded). min_dib = 10.0 exactly → `==`. Both are log-grade class-boundary sentinels.
+- **test_fuel_decay** (duff + woody, was rtol 1e-4/1e-3): jl's FMCWD computes (1−DKR)^nyrs as a SINGLE power,
+  so it equals the test's closed form BIT-FOR-BIT (measured rel=0.0 both) → `==`. Not an iterative-vs-closed-
+  form approximation (the earlier concern) — jl uses the same power. Suite 7664/2.

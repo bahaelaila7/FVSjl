@@ -216,8 +216,8 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
                 @test r.year == 2000
                 @test r.bf_removed == bf
                 @test r.bf_value == val
-                @test r.min_dib ≈ 10.0
-                @test r.max_dib ≈ 999.9 atol = 0.1
+                @test r.min_dib == 10.0   # log-grade lower DIB = 10.0 exactly (exact in Float32; was ≈ default-rtol)
+                @test r.max_dib == 999.9f0   # log-grade "no upper limit" SENTINEL = Float32(999.9) exactly (was atol 0.1, ~4000× padding the Float32-repr 2.4e-5)
             end
         else
             @test_skip "econ_strtecon.key not available"
@@ -253,8 +253,8 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
                 @test r.ft3_value == val          # Ft3_Value = Total_Value = nint(Σft3/100 · price)
                 @test r.total_value == val
                 @test r.bf_removed === missing     # the board columns are null on a cubic row
-                @test r.min_dib ≈ 10.0
-                @test r.max_dib ≈ 999.9 atol = 0.1
+                @test r.min_dib == 10.0   # log-grade lower DIB = 10.0 exactly (exact in Float32; was ≈ default-rtol)
+                @test r.max_dib == 999.9f0   # log-grade "no upper limit" SENTINEL = Float32(999.9) exactly (was atol 0.1, ~4000× padding the Float32-repr 2.4e-5)
             end
         else
             @test_skip "econ_u5.key not available"

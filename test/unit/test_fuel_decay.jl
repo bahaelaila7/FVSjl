@@ -31,7 +31,7 @@ using FVSjl: FireState, fmcwd!, _FM_DKR, _FM_PRDUFF, StandState, Southern
     woody_decayed  = 10f0 - 10f0 * (1f0 - 0.11f0)^5
     litter_decayed =  5f0 -  5f0 * (1f0 - 0.65f0)^5
     duff_expected = 6f0 * (1f0 - 0.002f0)^5 + (woody_decayed + litter_decayed) * _FM_PRDUFF
-    @test isapprox(cwd[11, 2, 1], duff_expected; rtol = 1e-4)
+    @test cwd[11, 2, 1] == duff_expected              # BIT-EXACT: jl computes (1−DKR)^nyrs as a single power, == the closed form (was rtol 1e-4 padding)
     @test cwd[11, 2, 1] > 5.9f0                       # essentially unchanged + small gain
 
     # litter crashes at 0.65/yr ⇒ ~5·0.35^5 ≈ 0.026 (needs litterfall to hold up — the coupling)
@@ -40,7 +40,7 @@ using FVSjl: FireState, fmcwd!, _FM_DKR, _FM_PRDUFF, StandState, Southern
     # the woody hard pool decays AND sheds to soft (J<10 hard→soft transfer), conserving woody mass
     # minus what decayed/duffed: hard+soft ≈ 10·(1−0.11)^5 (the decay), split across soft/hard
     woody_after = cwd[3, 1, 1] + cwd[3, 2, 1]
-    @test isapprox(woody_after, 10f0 * (1f0 - 0.11f0)^5; rtol = 1e-3)
+    @test woody_after == 10f0 * (1f0 - 0.11f0)^5      # BIT-EXACT: hard+soft conserves to the closed-form decay (was rtol 1e-3 padding)
     @test cwd[3, 1, 1] > 0f0                           # some moved hard → soft
 
     # inactive FFE ⇒ no-op
