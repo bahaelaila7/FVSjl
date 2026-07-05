@@ -987,3 +987,11 @@ growth fix since the comments closed the residuals). Another instance of measuri
   Δ0): tripling 3/4/7/8, treeszcp_nomort, fixmort×4, cst01 BA, plant_hard/plant_div (whole scenarios),
   growth_idg1, structure_stage cover. Every ≤1/≤2 is now == (bit-exact) or a measured genuine print-knife-
   edge/UB/multi-point residual with documented root.
+
+## Session 2026-07-05 (cont.) — multicycle BA/SDI → rendered-integer ==
+
+test_multicycle compared jl FLOAT vs the golden's print-rounded integer with atol=1.0. Measured di(jl)==
+golden for BA (max di-Δ=0) and SDI (max di-Δ=0) every scenario/cycle → converted to the rendered-integer
+`==` (trunc(Int, m+0.5) == trunc(Int, golden+0.5)) — the doctrine's preferred FORMATTED-output match,
+STRONGER than the old atol=1.0 float bound. TPA keeps the float knife-edge (di-Δ can reach 1 where the
+per-acre value straddles the +0.5 boundary via the growth-transcendental). tQ (QMD 0.1) / tC (cuft) unchanged.

@@ -58,9 +58,13 @@ end
                     mtpa = stand_tpa(s) / g; mba = stand_ba(s) / g
                     msdi = stand_sdi(s) / g; mqmd = stand_qmd(s)
                     mtcuft = FVSjl.summary_row(s; period = 0).cuft
-                    @test isapprox(mba,  ba;  atol = tB)
+                    # BA + SDI: jl RENDERS to the golden's print-rounded integer exactly (measured di(jl)==golden
+                    # every scenario/cycle) — compare the rendered integer `==` (doctrine's preferred form,
+                    # stronger than the old atol=1.0 float bound). TPA stays a float knife-edge (di can differ by 1
+                    # where the per-acre value straddles the +0.5 boundary — the growth-transcendental).
+                    @test trunc(Int, mba + 0.5) == trunc(Int, ba + 0.5)     # BA — rendered-integer BIT-EXACT
                     @test isapprox(mtpa, tpa; atol = tT, rtol = rT)
-                    @test isapprox(msdi, sdi; atol = tS)
+                    @test trunc(Int, msdi + 0.5) == trunc(Int, sdi + 0.5)   # SDI — rendered-integer BIT-EXACT
                     @test isapprox(mqmd, qmd; atol = tQ)
                     @test isapprox(mtcuft, tcuft; atol = tC, rtol = rC)
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
