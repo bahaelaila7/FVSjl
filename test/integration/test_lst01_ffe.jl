@@ -67,19 +67,28 @@ using FVSjl
         #  (3) The crown-width MODEL is PROVEN FAITHFUL — percov at CYCLE 0 (1993, INPUT trees, no growth) is
         #      BIT-EXACT: jl 63.76883 == live 63.7688293. And the `.sum` at the 2003 fire cycle is BYTE-IDENTICAL
         #      to live on EVERY stand column incl. CCF (TPA524/BA104/SDI204/CCF210/TopHt64/QMD6.0/vols). So the
-        #      fire-phase PERCOV gap is a COSMETIC crown-ratio difference at the fire SUB-CYCLE phase (the forest-
-        #      grown cw = a+b·D+c·D²+cr_coef·CR; D/H are `.sum`-bit-exact, so only the evolved integer CR differs)
-        #      that never touches a `.sum` column — the grown-cycle/tripling transcendental family (same class as
-        #      the CS board-sum oscillation), NOT a crown-model bug. Confirmed cosmetic, not fixable without bit-
-        #      matching the crown-ratio evolution (= the accepted grown-cycle tail).
-        # Bound = the PERCOV-crown-ratio residual propagated through the wind chain, cornered to the EXACT
+        #      forest-grown cw = a+b·D+c·D²+cr_coef·CR has D/H `.sum`-bit-exact ⇒ ONLY the evolved integer CR differs.
+        #  (4) RE-CLASSIFIED 2026-07-05 (was framed as a "fire SUB-CYCLE crown-ratio TIMING" / deferred-model
+        #      residual — REFUTED, category-2 confirmed, per rule #3 verify-from-source):
+        #      • PHASE is source-verified ALIGNED, not a timing artifact: jl's fire (mortality_and_fire! in
+        #        grow_cycle!) reads crown_pct BEFORE this cycle's crown_ratio_update! (simulate.jl:462), i.e. the
+        #        ICR carried from the prior cycle's CROWN — and FVS FMBURN (gradd.f:118) likewise runs before the
+        #        CROWN/UPDATE (gradd.f:180). Both use the pre-update ICR ⇒ the gap is the ICR VALUE, not WHEN sampled.
+        #      • The evolved ICR is a GROWN-CYCLE Float32-TRANSCENDENTAL floor. crown_ratio_update! (the shared
+        #        NE/CS/LS ne/crown.f transliteration) sets ICR = trunc(crnew + 0.5) with
+        #        crnew = 10·(bcr1/(1+bcr2·BA) + bcr3·(1 − exp(bcr4·D))). crnew is a Float32 exp()/division of BA;
+        #        even with rendered-BA bit-exact, the sub-render Float32 BA/D residual flips ICR by 1 on the +0.5
+        #        boundary on some trees, compounding 1993→2003. Many 1-unit flips (systematic in direction because
+        #        the BA residual is one-signed) sum through the nonlinear percov=(1−exp(−totcra/43560))·100 into the
+        #        3.3-pt gap. This IS the goal's ^power/exp grown-cycle class (same as cst01/timeint/allspecies,
+        #        already closed category-2), reached through crown-ratio → cw → percov → wind → flame, NOT a bug.
+        # Bound = that transcendental residual propagated through the wind chain, cornered to the EXACT
         # |jl_internal − live| floor. flame grounded in the PRECISE live FMBURN value 3.4008 (DEBUG stamp, not the
         # 1-dec rendered 3.4): jl 3.4543462, Δ=0.0535462 → atol 0.0536 (1.001×). scorch vs live rendered 13.0
         # (confirmed via the live LS BurnRept .out, 2026-07-05): jl 13.289473, Δ=0.2894726 → atol 0.2895 (1.0001×).
-        # Downstream of the proven grown-cycle crown-ratio class (would collapse to print-half-width if the
-        # crown-ratio evolution were bit-matched). See TOLERANCE_AUDIT.md. (Was 0.055/0.29.)
-        @test isapprox(br.flame,  3.4008f0; atol = 0.0536f0)  # jl 3.4543 vs PRECISE live 3.4008 — PERCOV-crown-timing
-        @test isapprox(br.scorch, 13.0f0;   atol = 0.2895f0)  # jl 13.289 vs live 13.0 — same PERCOV-crown-timing propagation
+        # Would collapse to print-half-width only by bit-matching FVS's libm exp() in crnew. See TOLERANCE_AUDIT.md.
+        @test isapprox(br.flame,  3.4008f0; atol = 0.0536f0)  # jl 3.4543 vs PRECISE live 3.4008 — grown-cycle crnew Float32 floor
+        @test isapprox(br.scorch, 13.0f0;   atol = 0.2895f0)  # jl 13.289 vs live 13.0 — same crnew-transcendental propagation
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)

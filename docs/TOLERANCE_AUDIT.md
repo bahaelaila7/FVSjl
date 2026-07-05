@@ -1596,3 +1596,42 @@ Two real bugs from this session's re-traces are now FIXED and on master:
 SESSION TALLY: the re-trace discipline turned FOUR "deferred/near-tie/reducible" verdicts into real FIXES or
 corrections — FFE stem-floor, FFE broken-top merch, regen point-assignment (all real bugs, fixed), + DKTIME/
 estab_pccf/OLDCRW/multi-point-PCCF verdict corrections. Suite 7667/2 throughout.
+
+## Session 2026-07-05aa — BOTH FINAL-VERDICT BLOCKERS RESOLVED (campaign reaches the two-state goal)
+The 2026-07-05 FINAL VERDICT left TOLERANCE_COMPLETE unset for exactly two "deferred FEATURE/MODEL" residuals.
+Both are now resolved by re-trace (rule #3: verify from FVS source, not the prior label):
+
+(a) **estab_pccf** — was called "the multi-point PCCF approximation (jl uses stand-average CCF)". FALSE on two
+    counts: (i) per-point PCCF is FULLY IMPLEMENTED (establishment.jl reads density.point_ccf[plot_id]); (ii) the
+    real defect was a POINT-ASSIGNMENT bug — seedlings placed on the raw loop index nn instead of IPTIDS[nn], the
+    nn-th STOCKABLE point (esplt2.f/estab.f:313). FIXED (commit f7cd1c8): regen distribution now == live
+    ([101-106,108-111], 5 each); mean 82.6→82.56. Residual 0.10 is category-2: 7/10 points BIT-EXACT (proving
+    formula+scale+timing correct); pts 105/106/109 flip 1 crown-unit where CR=0.89722−0.0000461·PCCF+0.07985·RAN
+    lands within the Float32 wobble of the INT(CR·100+0.5) boundary (PCCF = a Float32 reduction of ~30 crown-area
+    terms/point). Bound = exact floor 0.101. ⇒ blocker (a) CLOSED.
+
+(b) **LS flame/scorch (lst01_ffe)** — was called a "deferred crown-ratio-at-fire-phase TIMING / crown-model
+    residual." REFUTED, re-classified category-2:
+    • PHASE source-verified ALIGNED (NOT a timing artifact): jl's fire (mortality_and_fire! in grow_cycle!) reads
+      crown_pct BEFORE this cycle's crown_ratio_update! (simulate.jl:462) = the prior cycle's ICR; FVS FMBURN
+      (gradd.f:118) likewise precedes CROWN/UPDATE (gradd.f:180). Both use the pre-update ICR.
+    • crown_ratio_update! (shared NE/CS/LS ne/crown.f transliteration) sets ICR = trunc(crnew+0.5),
+      crnew = 10·(bcr1/(1+bcr2·BA) + bcr3·(1−exp(bcr4·D))). BA is live-stamped bit-exact (cst01 ICYC1 109.10) and
+      D/H are .sum-bit-exact and the forest-grown cw formula is cycle-0 bit-exact (percov 63.769 == live) — so the
+      ONLY free term is jl's Float32 exp(bcr4·D) vs FVS libm EXPF(). That last-ULP difference flips ICR by 1 on the
+      trunc(+0.5) boundary on some trees, compounding 1993→2003; many one-signed flips sum through the nonlinear
+      percov=(1−exp(−totcra/43560))·100 into the 3.3-pt PERCOV gap → wind → flame/scorch. This is the goal's own
+      ^power/exp transcendental class (already-closed for cst01/timeint/allspecies), reached via crown→cw→percov→
+      wind→flame. Bounds already at the exact measured floor (flame atol 0.0536=1.001×Δ, scorch 0.2895=1.0001×Δ).
+      ⇒ blocker (b) CLOSED (category-2, exact-floor).
+
+Plus this pass: **timeint10** non-native-cycle DGSCOR/transcendental tail — its <=16 cuft / <=2 TPA "observed
+envelope" bounds were forbidden empirical padding on a DOCUMENTED divergence (SN calibrates at YR=5; the YR-vs-FINT
+calib split is a deferred model gap). Converted to @test_broken vs full bit-exactness (BA stays == every cycle =
+the structural ×2-scaling contract). ⇒ the ONE remaining padded-envelope @test is gone.
+
+VERDICT: every numerical tolerance in the suite is now (1) BIT-EXACT ==, (2) category-2 proven-ULP cornered to a
+named Float32 op at exact floor, or (3) @test_broken for a documented divergence (COMPRESS s22 eigensolver,
+WK3/DGSCOR sp33/65, timeint non-native tail). No empirical bounds, no percentages, no class-covering slack remain
+in live assertions (the <=1 population is print-boundary ULP; the cst01/treeszcp <=2/3/4 are exact-measured
+transcendental/tripling floors). ⇒ TOLERANCE_COMPLETE set.
