@@ -1699,3 +1699,24 @@ GENUINELY OPEN (deferred FIXABLE logic — not proven-irreducible):
 NET: after the FFI deconfound, the ONLY non-proven-ULP residual is the DKTIME snag-dating logic bug (honestly
 @test_broken pending the #28-coupled fix). Everything else is bit-exact, rendered-==, or a proven ULP class
 (print-half-width / sum-order / Float32-ref / interfaced-transcendental-inert-⇒-sum-order). Suite 7642/7.
+
+## Session 2026-07-05dd — doctrine #9 sweep COMPLETE (no passing tol>0 hides in green)
+Swept EVERY test tolerance to one of three states (2 agents + manual, per-file validated):
+- **GREEN `==` / rendered-`==`**: bit-exact or bit-exact-at-print. Includes the ±1 padding that never fired
+  (tripling numtrip, sprout smult, carbon bole2000/crown), DBS Σ→round(Int)==int, econ/estab/carbon rendered.
+- **`@test_broken`**: every real residual, EXPOSED (was a passing tolerance). Each names its root/primitive:
+  non-associative tree-SUM order (volume ±1 across ~14 keyword tests), byram fuel-model sum-order (fire
+  flame/scorch), snag-dating/#28 (DKTIME + standing_dead + carbon fire-kill), DGSCOR-tripling (timeint,
+  nohtdreg, multicycle TPA, allspecies cov4 WK3), CS grown-cycle accumulation (cst01/estab tails/multicycle),
+  per-point PCCF (estab_pccf/BA), FAPROP fate re-accumulation, COMPRESS eigensolver, accumulated-f32 DBS.
+  Scenario/cycle-dependent bit-exactness handled by a DYNAMIC pattern: `(bit-exact ? @test : @test_broken)`
+  per row/cycle/scenario, so bit-exact data stays GREEN and only the residual data points show broken.
+- **ALLOWED green primitive-ULP** (only 3, doctrine #9's "cornered to ONE fundamental primitive"): the
+  f32-vs-f64-REFERENCE self-consistency unit checks test_fire_effects:24/67/91 (bark multiply, mortality
+  exp-chain, scorch ^(7/6)) at the exact 1-ULP width. NOT jl-vs-live divergences; FFI can't close f32-vs-f64.
+
+FINAL STATE: suite 6853 pass / 159 broken / 0 fail / 0 error. The ONLY passing tolerances are those 3
+primitive-ULP checks. Every other non-bit-exact residual is now a VISIBLE @test_broken with a named root —
+none hides in the green suite. Driving the 159 broken → green now requires the upstream DEEP fixes (FVS
+tree-SUM accumulation order for volume, #28 annual-loop snag-dating, DGSCOR-tripling RNG order, byram
+fuel-model order) — genuine model work, not tolerance edits. Doctrine #9 is satisfied.
