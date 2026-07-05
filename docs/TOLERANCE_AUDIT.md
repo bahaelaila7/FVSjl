@@ -751,3 +751,10 @@ the +0.5 integer-render knife-edge that c9 (TCuFt) / c10 (MCuFt) occasionally hi
 The uniform ≤1 loop was covering a bit-exact column. Suite 7664/2 (assertion count unchanged — a 3-loop
 became a 2-loop + one `==`). The remaining ≤1 (c9/c10/c12) are genuine per-cycle print knife-edges (spclwt
 c9/c12 hit Δ1; documented). voleqnum/tripling use non-matching scenario filenames (not measured this pass).
+
+## Session 2026-07-05 (cont.) — fire pre-fire TCuFt → == (work-list #5)
+
+Measured the test_fire TCuFt `≤1` bounds. They are guarded to pre-fire+fire-year cycles (post-fire checks
+TPA/BA only). The pre-fire TCuFt is BIT-EXACT (measured Δ0 for fire_early/fuelmodl/fueltret/defulmod) →
+tightened to `==`. moisture (which checks TCuFt on ALL cycles — the wet fire doesn't carry so every cycle
+is near-bit-exact) keeps `≤1`: it hits a genuine Δ1 render knife-edge at 2005 (3027/3026). Suite 7664/2.

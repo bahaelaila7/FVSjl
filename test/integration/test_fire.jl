@@ -35,7 +35,7 @@ _f_rows(txt) = [split(strip(l)) for l in split(txt, "\n") if occursin(r"^(19|20)
             if yr in ("1990", "1995", "2000")              # pre-fire + fire year: bit-exact
                 @test j[3] == f[3]                          # TPA
                 @test j[4] == f[4]                          # BA
-                @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1   # TCuFt
+                @test j[9] == f[9]                          # TCuFt — BIT-EXACT (measured Δ0 pre-fire; was ≤1 padding)
             else                                            # post-fire cycles
                 # TPA is now BIT-EXACT vs the live Fortran .sum. The former ±12 tolerance accommodated a
                 # ~10-TPA group-6 fire under-kill — a real divergence the loosened test masked. Root cause
@@ -89,7 +89,7 @@ end
             if j[1] in ("1990", "1995", "2000", "2005")     # pre-fire + fire-year cycle: bit-exact
                 @test j[3] == f[3]                          # TPA
                 @test j[4] == f[4]                          # BA
-                @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1   # TCuFt
+                @test j[9] == f[9]                          # TCuFt — BIT-EXACT (measured Δ0 pre-fire; was ≤1 padding)
             else                                            # post-fire (2010/2015): the pre-existing post-fire
                 # diameter-growth residual (present in fire_early too) compounds in the grass-fire's small
                 # surviving population — TPA within +/-2, BA within +/-4. The FUELMODL override is faithful
@@ -116,7 +116,7 @@ end
             @test j[1] == f[1]
             if j[1] in ("1990", "1995", "2000", "2005")     # pre-fire + fire-year: bit-exact
                 @test j[3] == f[3]; @test j[4] == f[4]
-                @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1
+                @test j[9] == f[9]   # TCuFt — BIT-EXACT (measured Δ0 pre-fire; was ≤1 padding)
             else                                            # post-fire growth residual
                 @test j[3] == f[3]   # TPA — BIT-EXACT (post-fire residual closed; re-measured max|Δ|=0)
                 @test j[4] == f[4]   # BA  — BIT-EXACT
@@ -140,7 +140,7 @@ end
             @test j[1] == f[1]
             if j[1] in ("1990", "1995", "2000", "2005")     # pre-fire + fire-year: bit-exact
                 @test j[3] == f[3]; @test j[4] == f[4]
-                @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1
+                @test j[9] == f[9]   # TCuFt — BIT-EXACT (measured Δ0 pre-fire; was ≤1 padding)
             else
                 @test j[3] == f[3]   # TPA — BIT-EXACT (post-fire residual closed; re-measured max|Δ|=0)
                 @test j[4] == f[4]   # BA  — BIT-EXACT
