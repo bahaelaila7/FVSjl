@@ -881,3 +881,12 @@ computed self-consistency `≈` (64/74/113/130) — next pass.
   test_rothermel:149 (load == currcwd1+currcwd10, jl's internal load vs a re-sum) and test_fire_biomass:177
   (Σcwd[isz,2,:] == fd[isz]) both FAILED `==` (real accumulation-order residual) → kept `≈`, to corner to the
   exact sum-order ULP width next pass.
+
+## Session 2026-07-05 (cont.) — the two sum-order self-consistency ≈ cornered
+
+- **test_fire_biomass:177** (Σcwd == fd): the BA-weighted split multiplies fd by per-class Float32 fractions
+  that sum back to 1 only to Float32 precision → non-associative sum-order ULP (measured 1.19e-7 = 1 eps) →
+  `atol 2f-7`.
+- **test_rothermel:149** (load == currcwd1+currcwd10): jl's internal fuel-load accumulation vs the test's
+  re-sum → sum-order ULP (measured 1.49e-8 ≈ 1 ULP at load~0.2) → `atol 5f-8`.
+Both are the goal's explicitly-permitted "named non-associative sum order" proven-ULP class.

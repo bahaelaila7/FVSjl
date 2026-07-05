@@ -171,10 +171,13 @@ end
     @test 0f0 < fs.percov <= 100f0
     # forest 520 → hardwood (IFFEFT 1) → hardwood live fuels FULIV[2]
     @test fs.flive == (0.01f0, 0.03f0)
-    # the BA-weighted decay-class split conserves each size class's FUINI total
+    # the BA-weighted decay-class split conserves each size class's FUINI total. The split multiplies fd[isz]
+    # by per-class Float32 fractions that sum back to 1 only to Float32 precision, so Σcwd == fd·(Σfrac) differs
+    # from fd by a NON-ASSOCIATIVE SUM-ORDER ULP (measured max|Δ|=1.19e-7 = 1 Float32 eps). atol 2f-7 = that
+    # sum-order width (was the loose ≈ default rtol≈3.4e-4).
     fd = ffe_dead_fuel_loading(coefficients(Southern()), 520)
     for isz in 1:11
-        @test sum(@view fs.cwd[isz, 2, :]) ≈ fd[isz]
+        @test isapprox(sum(@view fs.cwd[isz, 2, :]), fd[isz]; atol = 2f-7)
     end
     # determinism
     s2 = build(); fmcba!(s2)

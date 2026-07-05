@@ -143,10 +143,12 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
         mois = fuel_moisture(1)                          # very dry
         load, sav, depth, mext = build_dynamic_fuel_model(s, mois)
 
-        # dead 1-hr load = 0–.25" + litter pools (lb/ft²); depth and Mx are positive
+        # dead 1-hr load = 0–.25" + litter pools (lb/ft²); depth and Mx are positive. jl's internal fuel-load
+        # accumulation and the test's re-sum differ by a NON-ASSOCIATIVE SUM-ORDER ULP (measured |Δ|=1.49e-8 ≈
+        # 1 Float32 ULP at load~0.2). atol 5f-8 = that sum-order width (was the loose ≈ default).
         currcwd1 = sum(@view s.fire.cwd[1, :, :]) * 0.04591f0
         currcwd10 = sum(@view s.fire.cwd[10, :, :]) * 0.04591f0
-        @test load[1, 1] ≈ currcwd1 + currcwd10
+        @test isapprox(load[1, 1], currcwd1 + currcwd10; atol = 5f-8)
         @test depth > 0f0 && 0f0 < mext < 1f0
         # the understory trees (≤ 6 ft: the 2-ft sapling) put live-woody load in via crown biomass
         @test load[2, 1] > 0f0
