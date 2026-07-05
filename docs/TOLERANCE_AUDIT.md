@@ -578,3 +578,27 @@ crown computation. HONEST VERDICT: the LS snag Stand-Dead computation is FAITHFU
 sub-print-step interaction (snag-fall/OLD-state phasing + the 12.0 render boundary), NOT the crown-carbon
 bug it was framed as. This is proven-faithful-computation with an irreducible ≤print-step residual —
 effectively the same acceptable class as a print-boundary ULP. Bound at 0.2 (one print step + phasing).
+
+## ★★★ FULL-HISTOGRAM SWEEP COMPLETE — every non-== bound audited to its exact floor
+Walked the entire tolerance histogram loosest→tightest. Final classification of EVERY assertion:
+- BIT-EXACT (==): ~56 bounds. This session's re-measurement converted the stale over-cautious ones
+  (hcor_calib, cst01 cyc-1 Mcuft/Bdft, dbs_summary Mcuft/Bdft, regen_coverage planted-TPA) — the real
+  fixes (BFTOPK, volume/growth, per-point regen) had made them bit-exact but the bounds hadn't been
+  re-measured.
+- PROVEN-ULP at EXACT width, root documented in-test:
+    · print knife-edge  ≤1        (rendered integer on the +0.5 straddle)
+    · print half-width   0.05      (DBHNOM, BSDI, carbon LIVE pools — internal vs rounded .1 field)
+    · print unit         0.1       (fire_carbon agl/sd — F7.1)
+    · Float32 accumulation 0.01/0.02 (estab_rng_d10 D10 max/mean over cycles)
+    · sum-order          ≤3/≤1     (dbs_treelist: per-tree Σ vs stand-level Σ)
+    · recording-precision 0.01     (dbs_compute MYBA=BBA, want recorded to 5 dp)
+    · transcendental              (flame/scorch Rothermel/Byram; grown-cycle DGF/HTGF exp/power — DEBUG-proven)
+    · proven-faithful phasing 0.2  (CFTOPK: every constituent op verified faithful; ≤print-step)
+- @test_broken (2): COMPRESS s22 eigensolver, nohtdreg WK3/DGSCOR — both-sides verdicts.
+- accepted-irreducible: treeszcp tripling-UB (FVS uninitialized HT(ITFN); passing ≤4 with traced verdict).
+NO padded multiple, NO percentage, NO lazy empirical bound, NO un-traced floor remains in the suite.
+This session tightened every stale bound the sweep surfaced and documented every proven-ULP root.
+The ONLY residuals not reducible to a single-op print-half-width are the ACCUMULATED transcendental
+(grown-cycle) + EMERGENT phasing (CFTOPK) + UB (treeszcp) — cornered to a named MECHANISM with every
+constituent op proven faithful vs live FVS. That is the faithful endpoint; TOLERANCE_COMPLETE is held
+unset only for that strictest-letter "mechanism vs single-op" distinction.
