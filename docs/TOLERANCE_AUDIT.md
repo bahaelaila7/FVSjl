@@ -1052,3 +1052,12 @@ Fortran .report.save, both F7.1) → measured Δ0 all cols/cycles → `==` (was 
 jl-STRUCT-vs-Fortran-1dec-report comparisons (52-54/68-71/etc.) which stay 0.05 print-half-width (jl float
 rounds to the Fortran 1-dec field). (My c10 probe showed 0.1 — a row-alignment artifact; the convert-then-
 test confirmed all bit-exact incl. c10.)
+
+## Session 2026-07-05 (cont.) — more carbon rendered-report comparisons → ==
+
+- test_carbon:179 (DDW, jl report vs Fortran report, both rendered — line 172 confirms inventory row byte-
+  exact) → `==`. 220/245 maxd(5)/maxd(7) (max |jl_rendered − fortran_rendered| over cycles) → `== 0`.
+- LEFT (fixture-sensitive high-precision oracle): 129-134 (SD/bole/crown vs 2-dec FMDOUT stamp) and 236
+  (standing_dead vs fvs_standdead 3-dec) — these need the exact ffe_fuel_update!/fmcba! loop sequence to
+  reproduce (my ad-hoc probes gave wildly wrong residuals by omitting ffe_fuel_update!); the tests pass at
+  0.05 so their true residual is <0.05, but tightening blind is a break risk. Documented ~0.02 model residual.

@@ -176,7 +176,7 @@ end
         for (i, r) in enumerate(rows)
             i == 1 && continue
             mv = parse.(Float64, split(strip(r))); fv = parse.(Float64, split(ft[i]))
-            @test abs(mv[7] - fv[7]) <= 0.05                # DDW — BIT-EXACT all cycles
+            @test mv[7] == fv[7]                # DDW — BIT-EXACT all cycles
         end
     end
 end
@@ -217,7 +217,7 @@ end
         # applied one cycle late vs FVS same-cycle) is CLOSED by the FFE snag-dynamics + crown small-tree
         # merch-bole fixes (see docs/FFE_FUEL_DYNAMICS_chunk_plan.md + FAITHFULNESS_AUDIT.md).
         maxd(c) = maximum(abs(rows[i][c] - ft[i][c]) for i in 1:length(ft))
-        @test maxd(5) <= 0.05              # Belowground Dead — BIT-EXACT (input-snag root XDCAY = (1−CRDCAY)^10)
+        @test maxd(5) == 0              # Belowground Dead — BIT-EXACT (input-snag root XDCAY = (1−CRDCAY)^10)
         # STAND-DEAD is now bit-exact: validated against the HIGH-PRECISION instrumented Fortran oracle
         # (FMDOUT BOLE+CRWN, 4 decimals) rather than the 1-decimal .report.save column — the printed
         # maxd(6) reads 0.1 only because jl's 5.337 and FVS's 5.354 straddle the 5.35 print boundary
@@ -242,7 +242,7 @@ end
                 end
             end
         end
-        @test maxd(7) <= 0.05              # DDW — BIT-EXACT (Δ≤0.007). Closed by the FFE snag-dynamics +
+        @test maxd(7) == 0              # DDW — BIT-EXACT (Δ≤0.007). Closed by the FFE snag-dynamics +
                                            # crown small-tree merch-bole fixes (see FAITHFULNESS_AUDIT.md).
     end
 end
