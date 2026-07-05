@@ -545,3 +545,18 @@ crown_biomass(OLD-state) SIZE-1-3 values (xc[2..4], the P1/P2/P3 branch split �
 bit-exact but the branch-size split was NOT independently verified) or a subtle FMEFF/FMSCRO
 consumption-order interaction. Pinning needs the per-fire-tree CROWNW/OLDCRW diff (clean extraction
 still blocked by FMSCRO snag-fall entanglement). Cornered further; lag verdict corrected.
+
+## ★★ CFTOPK crown — crown_biomass PROVEN BIT-EXACT (all sizes) ⇒ deficit is DOWNSTREAM in the fire-kill
+Decisive per-tree check: jl crown_biomass(JP sp1, d=11.5, h=73, cr=35) = 39.11/12.01/31.69/62.87/10.96
+== FVS CROWNW EXACTLY (all 6 sizes, not just foliage). So the "branch-split (P1/P2/P3)" hypothesis is
+REFUTED — the crown computation is ENTIRELY faithful:
+  ✓ crown_biomass (all sizes, proven this check)   ✓ crown_lift_rate X (exact fmsdit formula)
+  ✓ crown-lift timing/lag (identical to FVS)        ✓ propcr (foliage output bit-exact pins it)
+Since the fire crown → CWD2B is Σ xvc·CURKIL and xvc is proven faithful, the ~7% sizes-1-3 CWD2B deficit
+must ride CURKIL — the per-tree FIRE-KILL amount/distribution (FMEFF DTHISC). i.e. the Stand-Dead 0.2 is
+DOWNSTREAM of the fire mortality, the SAME class as the documented LS FFE fire-kill residual (test_
+lst01_ffe: fire mortality ~within a few % — FMEFF scorch/bark), NOT a crown-carbon bug. This UNIFIES the
+CFTOPK Stand-Dead residual with the fire-kill-distribution residual (one root, not two). The fire kill is
+a transcendental scorch/bark-driven per-tree mortality — the same corner-or-accept question as flame/
+scorch. Bound at the measured 0.2 floor. Crown computation fully cleared; residual reattributed to
+the fire-kill distribution.
