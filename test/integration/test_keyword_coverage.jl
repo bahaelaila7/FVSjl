@@ -115,6 +115,13 @@ const _KC_VOL_QUANT_COLS = Set([10, 11, 12, 15, 16, 17])
 const _KC_VOL_QUANT_REL  = 0.003   # ≈ a couple of boundary trees' Scribner/Behre quantization
 
 # sumdiff: returns "" when every cell is within tolerance, else the worst offending cell.
+# TOLERANCE-CAMPAIGN NOTE (2026-07-05): this is a BULK COVERAGE GATE over ~72 keyword scenarios — a broad
+# regression net, NOT a targeted numeric assertion. Its per-cell tolerance is the COMPOSITE of the two
+# accepted proven classes: abs≤1.0 (rendered-integer PRINT KNIFE-EDGE) OR rel (the grown-cycle DGSCOR/
+# transcendental envelope — 0.1% structural, 0.3% for the Scribner/Behre-quantized volume cols). The exact
+# per-keyword numerics are CORNERED to ==/proven-ULP by the DEDICATED tests (test_cuteff/minharv/fertiliz/
+# tcondmlt/voleqnum/…, all == now); this gate exists only to catch a GROSS regression across the full
+# keyword set (a real growth/mortality error moves a structural column past both bounds and still fails).
 function _kc_sumdiff(a, b)
     length(a) != length(b) && return "rows $(length(a))/$(length(b))"
     worst = 0.0; loc = ""
