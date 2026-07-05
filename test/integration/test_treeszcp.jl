@@ -53,8 +53,8 @@ _col(r, c) = parse(Float64, r[c])
         # NOTRIPLE is BIT-EXACT (verified vs live), so the drift is the size-cap × tripling interaction on
         # the tripled records (FVS caps them against STALE array memory set only later by TRIPLE/SVTRIP;
         # grincr.f htgf/morts run before :351). Not deterministically replicable; bound = observed envelope.
-        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 5   # endpoint TPA — tripling-UB envelope
-        @test abs(_col(jl[end], 4) - _col(ft[end], 4)) <= 1   # endpoint BA
+        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 4   # endpoint TPA — tripling-UB envelope (measured Δ4; was ≤5)
+        @test _col(jl[end], 4) == _col(ft[end], 4)            # endpoint BA — BIT-EXACT (measured Δ0; was ≤1)
     end
     if have("treeszcp_htcap")
         jl, ft = runjl("treeszcp_htcap")
