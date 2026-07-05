@@ -54,8 +54,8 @@ end
                 @test j[1] == f[1]                            # Year
                 for k in 2:6; @test j[k] == f[k]; end         # Tpa,BA,SDI,CCF,TopHt
                 @test abs(j[7] - f[7]) <= 0.05                # QMD
-                @test abs(j[8] - f[8]) <= 2                   # MCuFt (±Float32)
-                @test abs(j[9] - f[9]) <= 5                   # BdFt (±Scribner)
+                @test j[8] == f[8]                            # MCuFt — BIT-EXACT (measured Δ=0; was over-cautious ≤2)
+                @test j[9] == f[9]                            # BdFt  — BIT-EXACT (measured Δ=0; was over-cautious ≤5, closed by the BFTOPK fix)
             end
         finally
             rm(tmpkey; force=true); rm(joinpath(_DB_DIR, "_dbs_run.tre"); force=true)
