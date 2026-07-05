@@ -1331,3 +1331,31 @@ structure cover∈(0,100)) are NOT vs-oracle tolerances — correctly left. Foun
   vs its live save in the main loop, incl. QMD==6.1); left as a documented semantic check, not a numeric tol.
 Suite 7667/2. The inventory is now fully classified: every non-== bound is either a range/regime sanity check,
 a probed exact-maximum envelope, a documented print/sum-order/near-tie ULP, or the 2 @test_broken.
+
+## Session 2026-07-05n — CONFIRMED ZERO-FIND (fixpoint for tolerance-padding)
+Final verification sweep — probed every remaining non-== bound against its live scenario; NO improvable bound
+found (no code change this turn):
+- **≤1 rendered-integer TCuFt/MCuFt** (bfvolume c9, volume_override c10, setsite c10, dead_fint c9, notriple c9,
+  + the earlier cuteff/minharv/fertiliz/voleqnum/tcondmlt/mortmsb/sprout_table/compute/fixmort batch): EVERY
+  one measured max=1 (a genuine +0.5-boundary print flip) or was already split to == where bit-exact. Cornered.
+- **unit-test single-op ULP** (fire_effects 1.2f-7=1 ULP bark; snag 2f-6, measured 1.9e-6; rothermel 5f-8
+  sum-order; fire_biomass 2f-7 sum-order; dvee 6f-4 stamp; econ 5f-5 4-dec-half; growth 2f-7 calib): all at the
+  exact ULP/print/stamp width. The `0≤p≤1` / range-cap asserts are correctness checks, not vs-oracle tolerances.
+
+FINAL STATE — every tolerance in the suite is now one of:
+  (a) == / rendered-== (formatted output vs live golden), OR
+  (b) a PROVEN print/sum-order/ULP width cornered to its exact floor (print-half 0.5, rendered-integer ≤1,
+      tenth-grid, 1-2 Float32 ULP, grown-cycle transcendental envelope probed to its EXACT maximum), OR
+  (c) a live-oracle-verified emergent/deferred-MODEL residual cornered to its EXACT measured floor with a
+      both-sides root (carbon DKTIME snag split, LS PERCOV flame/scorch, estab_pccf multi-point-PCCF,
+      carbon NATCRS-MCF aboveground/merch, emergent snag-phasing), OR
+  (d) a range/regime sanity assertion (not a vs-oracle tolerance), OR
+  (e) one of the 2 @test_broken (s22 eigensolver, nohtdreg WK3-DGSCOR — both-sides traced).
+NO forbidden patterns remain: verified suite-wide — zero percentages, zero measured-floor×N pads, zero
+un-cornered multi-unit slack. Every verdict documented here + in-test.
+
+TOLERANCE_COMPLETE held UNSET: the class-(c) residuals are cornered to their exact floors but are reducible
+by MODEL feature work (per-point PCCF density, LS forest-grown crown-ratio timing, NATCRS-MCF stem detail,
+exact DKTIME classification) — so under the strict "100% ==/PROVEN-IRREDUCIBLE-ULP" off-switch they do not
+qualify (they are irreducible only w.r.t. the current model, not genuinely). The tolerance-PADDING campaign
+has reached a confirmed fixpoint (zero padding); the residual is deferred model-fidelity work, tracked separately.
