@@ -1720,3 +1720,16 @@ primitive-ULP checks. Every other non-bit-exact residual is now a VISIBLE @test_
 none hides in the green suite. Driving the 159 broken → green now requires the upstream DEEP fixes (FVS
 tree-SUM accumulation order for volume, #28 annual-loop snag-dating, DGSCOR-tripling RNG order, byram
 fuel-model order) — genuine model work, not tolerance edits. Doctrine #9 is satisfied.
+
+## Session 2026-07-05ee — volume ±1 verdict CORNERED (doctrine #8 deconfound, both variants)
+The ~40-assertion volume ±1 @test_broken group is now DEFINITIVELY cornered by elimination:
+- per-tree Clark `pow` FFI-routed through the gfortran companion in BOTH r9clark_vol.jl (eastern) AND
+  r8clark_vol.jl (_r9ht + _r9dib_clark, the SN DIB helpers that feed cuft) ⇒ INERT on the ±1 (0 flips).
+- summary vtot accumulation made explicitly SEQUENTIAL (FVS DISPLY DO-loop order) ⇒ INERT.
+⇒ the residual is NEITHER the transcendental pow NOR the accumulation shape. It is the non-associative
+Float32 tree-SUM over the TRIPLED record set — i.e. jl's tripling record composition/traversal vs FVS's
+produces a sub-integer sum difference that flips the rendered integer by 1 on knife-edge rows. This is the
+doctrine-#9 "sum-order NOT one portable primitive" class: correctly EXPOSED @test_broken, closeable only by
+bit-matching FVS's exact tree-list order (tripling split order + any mortality compaction) — a tree-list-
+management faithfulness task, not a tolerance edit. r8/r9clark FFI kept (faithful + this deconfound proof).
+Suite 6853/159/0/0, no regression across SN/NE/CS/LS.

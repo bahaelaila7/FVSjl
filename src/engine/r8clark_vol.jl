@@ -272,10 +272,10 @@ function _r9ht(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
                totHt::Real, dbhIb::Real, dib17::Real, stmDib::Real)
     R = Float32(R); C = Float32(C); E = Float32(E); P = Float32(P); B = Float32(B); A = Float32(A)
     totHt = Float32(totHt); dbhIb = Float32(dbhIb); dib17 = Float32(dib17); stmDib = Float32(stmDib)
-    G = (1f0 - 4.5f0/totHt)^R
+    G = fpow(1f0 - 4.5f0/totHt, R)                       # Clark real powers via gfortran companion (doctrine #8)
     W = (C + E/dbhIb^3) / (1f0 - G)
-    X = (1f0 - 4.5f0/totHt)^P
-    Y = (1f0 - 17.3f0/totHt)^P
+    X = fpow(1f0 - 4.5f0/totHt, P)
+    Y = fpow(1f0 - 17.3f0/totHt, P)
     Z = (X - Y) > 1f-10 ? (dbhIb^2 - dib17^2) / (X - Y) : 0.0f0
 
     Im = stmDib^2 > B*(A-1f0)^2*dib17^2 ? 1.0f0 : 0.0f0
@@ -290,13 +290,13 @@ function _r9ht(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
     stemHt = 0.0f0
     if Is > 0f0
         xxx = (stmDib^2/dbhIb^2 - 1f0)/W + G
-        xxx > 0f0 && (stemHt = totHt*(1f0 - xxx^(1f0/R)))
+        xxx > 0f0 && (stemHt = totHt*(1f0 - fpow(xxx, 1f0/R)))
     elseif Ib > 0f0
         xxx = X - (dbhIb^2 - stmDib^2)/Z
-        xxx > 0f0 && (stemHt = totHt*(1f0 - xxx^(1f0/P)))
+        xxx > 0f0 && (stemHt = totHt*(1f0 - fpow(xxx, 1f0/P)))
     else
         xxx = Qb^2 - 4f0*Qa*Qc
-        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0)*((-Qb - xxx^0.5f0)/(2f0*Qa)))
+        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0)*((-Qb - fpow(xxx, 0.5f0))/(2f0*Qa)))
     end
     return max(stemHt, 0.0f0)
 end
@@ -758,13 +758,13 @@ function _r9dib_clark(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
 
     if Is
         Ds = dbhIb^2 * (1f0 + (C + E/dbhIb^3)*
-             ((1f0-StTot)^R - (1f0-4.5f0/totHt)^R) /
-             (1f0 - (1f0-4.5f0/totHt)^R))
+             (fpow(1f0-StTot, R) - fpow(1f0-4.5f0/totHt, R)) /
+             (1f0 - fpow(1f0-4.5f0/totHt, R)))
     end
     if Ib
         Db = dbhIb^2 - (dbhIb^2 - dib17^2)*
-             ((1f0-4.5f0/totHt)^P - (1f0-stemHt/totHt)^P) /
-             ((1f0-4.5f0/totHt)^P - (1f0-17.3f0/totHt)^P)
+             (fpow(1f0-4.5f0/totHt, P) - fpow(1f0-stemHt/totHt, P)) /
+             (fpow(1f0-4.5f0/totHt, P) - fpow(1f0-17.3f0/totHt, P))
     end
     if It
         Dt = dib17^2*(B*(((stemHt-17.3f0)/(totHt-17.3f0))-1f0)^2
@@ -773,5 +773,5 @@ function _r9dib_clark(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
 
     val = Ds + Db + Dt
     val > 0f0 || return 0.0f0
-    return val^0.5f0
+    return fpow(val, 0.5f0)
 end
