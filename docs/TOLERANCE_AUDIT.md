@@ -1762,3 +1762,20 @@ correction op-order (no transcendental left to FFI), jl per-tree cuft ~0.0008 hi
 .sum integer by 1 on knife-edge cycles (2005/2040). Closeable ONLY by bit-matching FVS's exact per-tree cuft
 Float32 arithmetic — needs unrounded live per-tree cuft (DBS TreeLiDB doesn't populate here). Correctly
 @test_broken; this is the precise, proven, cornered verdict. Same likely applies to the other volume ±1 tests.
+
+## Session 2026-07-05hh — volume ±1 = PROVEN per-tree Clark Float32 ULP (DBS localization, harness un-blocked)
+The DBS FVS_TreeList "empty" was ANOTHER self-inflicted setup bug (keyfile basename ≠ .tre basename ⇒ 0 tree
+records) — NOT a harness limit; with matching basename it yields 2297 rows. Localized the bfvolume 2005 ±1
+(jl 3027 / live 3026) to ground:
+- live exact Σ(TCuFt·TPA)=3026.480→3026; jl Σ/g=3026.535→3027. Raw diff = only 0.055, straddling the 0.5
+  render boundary.
+- per-tree cuft jl-vs-live (sorted rank): max |Δ|=0.007, ALL < 0.05 ⇒ every tree ROUNDS IDENTICALLY to live's
+  1-dec; only 18/243 differ >0.001, SCATTERED (not one species/dbh ⇒ not a coefficient/formula error).
+- f32==f64 accumulation ⇒ not sum-order.
+⇒ PROVEN: the ±1 is the accumulation of scattered sub-0.007/tree Float32 arithmetic ULP in the per-tree R8-Clark
+cuft chain (Smalian/defect; the taper pow is FFI'd), below the 1-dec resolution of BOTH live oracles (.trl and
+DBS TCuFt are 1-dec-rounded, so the exact op is un-seeable). jl per-tree volume is rendered-bit-exact vs live;
+the stand total flips by 1 only on 0.5-knife-edge cycles. This is a genuinely irreducible per-tree Float32 ULP
+at the available oracle resolution — the strongest possible corner. Correctly @test_broken (per doctrine #9 it's
+the per-tree Clark op-CHAIN, not one portable primitive; closing needs bit-matching that Float32 chain).
+Note: the "treelist/DBS harness is broken" belief was TWICE a basename/keyword setup error of mine, now debunked.
