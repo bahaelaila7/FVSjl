@@ -78,7 +78,7 @@ end
         rep = FVSjl.structure_report(s1r)
         @test !isempty(rep.strata)
         a = rep.strata[1]
-        @test isapprox(a.dbh, 10.3; atol = 0.05)             # DBHNOM — PRINT-HALF-WIDTH (prints to 0.1; jl 10.3038 = 0.0038 ≪ 0.05; was padded 0.1)
+        @test round(Float64(a.dbh), digits=1) == 10.3        # DBHNOM RENDERED-== (prints to 0.1; jl 10.3038 → 10.3; was atol 0.05 half-width, then 0.1)
         @test round(Int, a.nomht) == 63 && round(Int, a.lght) == 75 && round(Int, a.smht) == 55
         @test round(Int, a.crnbase) == 42                    # the "Bas" column = mean crown-base height
         @test round(Int, a.cover) == 49

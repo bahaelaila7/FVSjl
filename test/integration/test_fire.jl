@@ -177,9 +177,9 @@ end
         @test s.fire !== nothing && !isempty(s.fire.burn_reports)
         br = first(s.fire.burn_reports)
         @test br.year == 2000
-        @test isapprox(br.flame,  4.172f0; atol = 0.003f0)        # live FVS Flame_length: jl 4.16960, Δ0.00240 = the
-                                                                  # 0.45·(byram/60)^0.46 Float32 transcendental vs live's 3-dec print (was 0.005, ~2× padded)
-        @test isapprox(br.scorch, 17.581f0; atol = 0.016f0)       # live FVS Scorch_height: jl 17.56569, Δ0.01531 = the
-                                                                  # van-Wagner ^(7/6)/√ Float32 transcendental vs live's 3-dec print (was 0.03, ~2× padded)
+        @test isapprox(br.flame,  4.172f0; atol = 0.00241f0)      # live FVS Flame_length: jl 4.1695986, Δ=0.0024014 = the
+                                                                  # 0.45·(byram/60)^0.46 Float32 transcendental vs live's 3-dec print (exact floor 1.004×; was 0.003=1.25×, 0.005)
+        @test isapprox(br.scorch, 17.581f0; atol = 0.01531f0)     # live FVS Scorch_height: jl 17.565693, Δ=0.0153071 = the
+                                                                  # van-Wagner ^(7/6)/√ Float32 transcendental vs live's 3-dec print (exact floor 1.0002×; was 0.016, 0.03)
     end
 end

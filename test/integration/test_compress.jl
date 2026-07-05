@@ -53,7 +53,8 @@ end
             @test FVSjl.compress!(s, nclas, 0.5)
             @test s.trees.n == nclas                          # exactly NCLAS records
             tpa1 = sum(s.trees.tpa[i] for i in 1:s.trees.n)
-            @test isapprox(tpa0, tpa1; rtol = 1f-4)           # TPA conserved by the merge
+            @test isapprox(tpa0, tpa1; atol = 7f-5)           # TPA conserved to 1 Float32 ULP (merge re-sums tpa in a
+                                                              # different order): measured Δ=6.1035e-5 = EXACTLY 2^-14 = eps(Float32(589.65)); rtol 1f-4 was ~1000× padded
         end
         # no-op when the target ≥ the record count
         s2, _ = FVSjl.initialize(key); FVSjl.notre!(s2); FVSjl.setup_growth!(s2)

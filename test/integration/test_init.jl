@@ -47,7 +47,7 @@ end
     @test trunc(Int, tpa + 0.5) == 536         # .sum TPA — BIT-EXACT vs live
     @test trunc(Int, ba  + 0.5) ==  77         # .sum BA  — BIT-EXACT vs live
     @test round(Int, sdi) == 160               # .sum SDI — BIT-EXACT vs live
-    @test isapprox(qmd, 5.14;  atol=0.05)      # internal QMD (deterministic); .sum QMD 5.1 bit-exact vs live; atol = cruise-2dec vs internal
+    @test round(Float64(qmd), digits=2) == 5.14   # internal QMD RENDERED-== to the 2-dec cruise value (jl 5.1449676 → 5.14; was atol 0.05 = 10× the 2-dec half-width)
     @test round(Int, FVSjl.stand_top_height(s)) == 63   # AVHT40 top height
     @test round(Int, FVSjl.stand_ccf(s) / g) == 218     # crown competition factor
     @test s.plot.latitude == 32.37f0             # FORKOD forest-location default

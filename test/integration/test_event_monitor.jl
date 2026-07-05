@@ -68,7 +68,7 @@ end
         ctx = FVSjl.EventCtx(1, 1990, s)
         @test FVSjl._event_var("BSDI", ctx) == bsdi          # the variable dispatches to BSDI
         @test FVSjl._event_var("BSDI", ctx) != FVSjl._event_var("BBA", ctx)   # not the BA
-        @test isapprox(bsdi, 202.9; atol = 0.05)            # PRINT-HALF-WIDTH vs live rendered COMPUTE BSDI (jl 202.939 = 0.039 < 0.05 half-width; was padded atol 0.2)
+        @test round(Float64(bsdi), digits=1) == 202.9        # RENDERED-== vs live COMPUTE BSDI (jl 202.939 → 202.9; was atol 0.05 half-width, then 0.2)
     end
 end
 

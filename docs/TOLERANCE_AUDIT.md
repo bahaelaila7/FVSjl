@@ -1197,3 +1197,17 @@ Suite 7664/2, no regression.
   ~300× a real ULP at 26. MEASURED before-after == 25.98935f0 BIT-FOR-BIT (Δ=0.0) → plain `==` (BIT-EXACT).
 Suite 7664/2, no regression. Unit-test sweep otherwise clean (fire_effects 1.2f-7=1 ULP, snag 2f-6≈1.05×
 measured, rothermel/fire_biomass 5f-8/2f-7 sum-order, econ 5f-5 4-dec-half, dvee 6f-4 stamp — all cornered).
+
+## Session 2026-07-05e — 7 more across hcor/event/structure/fire/compress/init
+- **test_hcor_calib.jl:34** — htg_cor_init[22] atol 2f-7 "measured Δ=0" → confirmed BIT-EXACT → `== -0.893823f0`.
+- **test_event_monitor.jl:71** — BSDI atol 0.05 → `round(jl,1)==202.9` RENDERED-== (jl 202.939).
+- **test_structure_stage.jl:81** — DBHNOM atol 0.05 → `round(jl,1)==10.3` RENDERED-== (jl 10.3038).
+- **test_init.jl:50** — internal QMD atol 0.05 (10× the 2-dec half) → `round(jl,2)==5.14` RENDERED-== (jl 5.1449676).
+- **test_fire.jl:180/182** — flame atol 0.003 was 1.25× (measured Δ=0.0024014) → 0.00241 (1.004×); scorch 0.016
+  → 0.01531 (measured Δ=0.0153071, 1.0002×). Float32 transcendentals (0.45·(byram/60)^0.46, van-Wagner ^7/6)
+  vs live's 3-dec print — jl renders 4.17/17.566 vs live 4.172/17.581 so NOT rendered-==; cornered to exact Δ.
+- **test_compress.jl:56** — TPA-conservation rtol 1f-4 (=abstol 0.059, ~1000× padded) → atol 7f-5: measured
+  Δ=6.1035e-5 = EXACTLY 2^-14 = 1 Float32 ULP at 589.65 (merge re-sums tpa in a different order). Named-op ULP.
+Suite 7664/2, no regression. Remaining scanned-but-kept: test_lst01_ffe flame/scorch (0.055/0.29 = LS deferred
+PERCOV-crown-timing, at measured floor) + carb 0.2 (LS snag-phasing, TODO measure); test_keyword atol 1f-6/rtol
+1f-5 (Oracle-A round-trip — next); carbon c3/c4 (eyeball-oracle TODO).
