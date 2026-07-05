@@ -67,8 +67,7 @@ end
         lp27 = snap[2027].lp
         @test length(lp27) == 50
         @test count(>=(10.0f0), lp27) == 4
-        @test isapprox(maximum(lp27), 11.42f0; atol = 0.005)   # PRINT-HALF-WIDTH: jl 11.423086 rounds to
-                                                               # live's exact 2-dec 11.42 (Δ0.003; was padded 0.02)
+        @test round(Float64(maximum(lp27)); digits = 2) == 11.42   # RENDERED-== to live's 2-dec (jl 11.423086→11.42)
 
         # (3) mean DBH at a LATE cycle (2042, ~9 growth cycles). jl 9.812015 vs live 9.8062 → Δ0.0058, which
         # is NOT print (4-dec half-width is 5e-5) but the ACCUMULATED DGF/HTGF Float32 growth tail summed over
