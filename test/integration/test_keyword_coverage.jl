@@ -103,25 +103,17 @@ function _kc_rows_io(lines)
     o
 end
 
-# The merch-cubic (Behre hyperbola) and board-foot (Scribner step rule) columns carry
-# genuine Float32 quantization noise even when the tree STATE is bit-exact: Scribner
-# snaps each log to a board-foot class, so a single boundary tree flips a whole class
-# (~one tree ≈ 0.2%). The .sum merch/saw/board volume columns (10,11,12) and their
-# removed counterparts (15,16,17) therefore get an FP-quantization tolerance; every
-# structural column (TPA/BA/SDI/CCF/Ht/QMD and TOTAL cuft) stays strict ULP. This is
-# exactly the "ULP FP accepted" of the drop-in spec — a real growth/mortality error
-# would move a structural column and still fail.
-const _KC_VOL_QUANT_COLS = Set([10, 11, 12, 15, 16, 17])
-const _KC_VOL_QUANT_REL  = 0.003   # ≈ a couple of boundary trees' Scribner/Behre quantization
-
-# sumdiff: returns "" when every cell is within tolerance, else the worst offending cell.
-# TOLERANCE-CAMPAIGN NOTE (2026-07-05): this is a BULK COVERAGE GATE over ~72 keyword scenarios — a broad
-# regression net, NOT a targeted numeric assertion. Its per-cell tolerance is the COMPOSITE of the two
-# accepted proven classes: abs≤1.0 (rendered-integer PRINT KNIFE-EDGE) OR rel (the grown-cycle DGSCOR/
-# transcendental envelope — 0.1% structural, 0.3% for the Scribner/Behre-quantized volume cols). The exact
-# per-keyword numerics are CORNERED to ==/proven-ULP by the DEDICATED tests (test_cuteff/minharv/fertiliz/
-# tcondmlt/voleqnum/…, all == now); this gate exists only to catch a GROSS regression across the full
-# keyword set (a real growth/mortality error moves a structural column past both bounds and still fails).
+# sumdiff: returns "" when every rendered .sum cell matches live to ±1 print unit, else the worst offender.
+# TOLERANCE-CAMPAIGN NOTE (2026-07-05, re-traced): this is a BULK COVERAGE GATE over ~72 keyword scenarios — a
+# broad regression net whose per-keyword numerics are CORNERED to ==/proven-ULP by the DEDICATED tests
+# (test_cuteff/minharv/fertiliz/tcondmlt/voleqnum/…). Its tolerance is a SINGLE proven class: `d > 1.0`, the
+# rendered-INTEGER PRINT KNIFE-EDGE (two faithful floats that straddle the +0.5 .sum rounding boundary print to
+# adjacent integers, differing by exactly 1). MEASURED (2026-07-05, all scenarios except the @test_broken
+# s22_compress): the worst cell divergence anywhere — structural OR volume — is EXACTLY 1.0 (s10_thinaba cuft
+# 3027/3026, s24_rann bdft 2272/2271), so this threshold sits AT the measured maximum (zero padding). The prior
+# COMPOSITE `d > 1.0 && d > rel·max` carried a 0.1%/0.3% "Scribner/Behre quantization" percentage that was DEAD
+# CODE — nothing non-broken ever exceeds abs 1.0, so the rel term never gated. Dropped (forbidden percentage,
+# provably redundant). A real growth/mortality error moves a rendered column by ≥2 units and still fails.
 function _kc_sumdiff(a, b)
     length(a) != length(b) && return "rows $(length(a))/$(length(b))"
     worst = 0.0; loc = ""
@@ -129,8 +121,7 @@ function _kc_sumdiff(a, b)
         length(ra) != length(rb) && return "row$r width $(length(ra))/$(length(rb))"
         for (c, (x, y)) in enumerate(zip(ra, rb))
             d = abs(x - y)
-            rel = c in _KC_VOL_QUANT_COLS ? _KC_VOL_QUANT_REL : 0.001
-            if d > 1.0 && d > rel * max(abs(x), abs(y)) && d > worst
+            if d > 1.0 && d > worst          # rendered-integer ±1 print knife-edge (measured worst = exactly 1.0)
                 worst = d; loc = "r$r c$c $x vs $y"
             end
         end

@@ -1211,3 +1211,18 @@ measured, rothermel/fire_biomass 5f-8/2f-7 sum-order, econ 5f-5 4-dec-half, dvee
 Suite 7664/2, no regression. Remaining scanned-but-kept: test_lst01_ffe flame/scorch (0.055/0.29 = LS deferred
 PERCOV-crown-timing, at measured floor) + carb 0.2 (LS snag-phasing, TODO measure); test_keyword atol 1f-6/rtol
 1f-5 (Oracle-A round-trip — next); carbon c3/c4 (eyeball-oracle TODO).
+
+## Session 2026-07-05f — keyword lexer == + KILLED the _kc_sumdiff bulk-gate PERCENTAGE (measured dead)
+- **test_keyword.jl:34** — Oracle-A lexer value cross-check `all(isapprox.(a[2],b[2]; atol=1f-6,rtol=1f-5))` →
+  `a[2] == b[2]` (keyword field values parse bit-identically; both read the same .key literals).
+- **test_keyword_coverage.jl _kc_sumdiff** — the BULK COVERAGE GATE (~72 scenarios) used a COMPOSITE
+  `d > 1.0 && d > rel·max` where rel = 0.1% structural / 0.3% volume (Scribner/Behre "quantization"). The goal
+  forbids percentages. MEASURED the worst per-cell abs divergence across ALL scenarios except the @test_broken
+  s22_compress: EXACTLY 1.0 (s10_thinaba cuft 3027/3026; s24_rann bdft 2272/2271). ⇒ the `rel` term is DEAD CODE
+  — nothing non-broken ever exceeds abs 1.0, so the percentage NEVER gated. Dropped it: pure `d > 1.0` (the
+  rendered-integer ±1 print knife-edge) sits AT the measured maximum (zero padding), provably equivalent (74
+  pass / 1 broken unchanged). Removed the now-unused _KC_VOL_QUANT_COLS/_KC_VOL_QUANT_REL constants.
+Also confirmed clean (already ==, historical atol only in comments): test_cuts_coverage, test_multistand,
+test_fortbragg_coverage, test_growth(integration). Harness natural_diff/sumdiff/oracle diff_text_numeric are
+UTILITY functions with default atol/rtol params (not @test assertions in the gated suite) — out of scope.
+Suite 7664/2, no regression. This KILLS the last forbidden PERCENTAGE bound in the gated suite.
