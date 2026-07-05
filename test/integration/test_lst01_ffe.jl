@@ -38,7 +38,8 @@ using FVSjl
         for s in FVSjl.each_stand(key; variant = LakeStates())
             FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
             for _ in 1:5
-                FVSjl.grow_cycle!(s)
+                FVSjl.grow_cycle!(s; fint = 10f0)   # LS native cycle length (was default 5f0 — grew LS
+                                                     # at the wrong period; the loose flame atol masked it)
             end
             fire = s.fire
             break
@@ -87,8 +88,13 @@ using FVSjl
         # 1-dec rendered 3.4): jl 3.4543462, Δ=0.0535462 → atol 0.0536 (1.001×). scorch vs live rendered 13.0
         # (confirmed via the live LS BurnRept .out, 2026-07-05): jl 13.289473, Δ=0.2894726 → atol 0.2895 (1.0001×).
         # Would collapse to print-half-width only by bit-matching FVS's libm exp() in crnew. See TOLERANCE_AUDIT.md.
-        @test isapprox(br.flame,  3.4008f0; atol = 0.0536f0)  # jl 3.4543 vs PRECISE live 3.4008 — grown-cycle crnew Float32 floor
-        @test isapprox(br.scorch, 13.0f0;   atol = 0.2895f0)  # jl 13.289 vs live 13.0 — same crnew-transcendental propagation
+        # FIXED (doctrine #8 — fmath): the crown-ratio `exp(bcr4·D)` (crnew) was Julia openlibm, ~1 ULP off
+        # gfortran's libm; routing it through the FVSjl.fexp companion made the fire-phase crown ratios (hence
+        # PERCOV → wind → byram → flame) bit-identical to live. flame 3.4543 → 3.400805, matching the live FMBURN
+        # value 3.4008 to its full F7.4 stamp precision → bound = the 0.00005 print half-width of that 4-decimal
+        # stamp (was atol 0.0536, a ~1000× loosening hiding a real openlibm/libm exp confound — NOT irreducible).
+        @test isapprox(br.flame, 3.4008f0; atol = 0.00005f0)   # print half-width of the live F7.4 FMBURN stamp 3.4008
+        @test round(br.scorch; digits = 1) == 13.0f0           # scorch renders to the live BurnRept 13.0 (jl 13.0149)
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)
