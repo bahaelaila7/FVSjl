@@ -660,3 +660,31 @@ live FVScs binary + per-cycle jl−live dumps to distinguish a proven MECHANISM 
 NET: every grown-cycle / emergent envelope is now confirmed (via live-differential re-trace) to be a proven
 transcendental / near-tie / phasing MECHANISM with BA (and usually SDI) bit-exact — not a masked bug — with
 the bound set to the exact deterministic envelope. Suite 7662/2.
+
+## Session 2026-07-05 (cont.) — LS flame/scorch RE-TRACE: misattribution corrected (work-list #5)
+
+Applied re-trace discipline to `test_lst01_ffe` flame/scorch (atol 0.055 / 0.29) — the campaign's
+loosest FFE-behavior bounds. The prior comment claimed "PERCOV BIT-EXACT (70.76547==live) ⇒ the residual
+is a pure Rothermel/Byram transcendental on bit-exact input." A live-differential DEBUG dump DISPROVED this:
+
+- Live FVSls `DEBUG … FMFINT FMBURN FMSCRO` on ffe_fireonly, 2003 fire:
+  SWIND 10.0 · PERCOV **70.765** · WMULT 0.111 · FWIND 1.113 → SXIR 6117.786 · BYRAM 4871 · FLAME 3.4008.
+- jl (instrumented fmburn! + fmcba! dump), same fire:
+  wind 10.0 · PERCOV **67.503** · WMULT 0.120 · FWIND 1.200 → xir 6117.786 · byram 5040 · flame 3.4543.
+
+DECISIVE: the 20-ft wind (10.0) AND the Rothermel reaction intensity xir (6117.786) and sigma (1764.775)
+are BIT-EXACT — the Rothermel eval is faithful. The ENTIRE flame/scorch gap enters through **PERCOV**:
+jl 67.50 vs live 70.77 (Δ3.26). fmcba! totcra (Σπ·cw²/4·tpa) is 8.6% low (forest-grown crown widths ~4%
+small at 2003). Lower PERCOV ⇒ higher WMULT ⇒ higher midflame FWIND ⇒ higher spread/byram ⇒ higher
+flame/scorch. Confirmed it is NOT a stale/timing value: fmcba! runs once at the 2003 fire and computes
+67.50 fresh on the 2003 stand; live computes 70.77 on the same stand — a genuine crown-AREA difference.
+
+ROOT = the DOCUMENTED LS "forest-grown crown-CR-timing" ~3.4-pt PERCOV residual (memory
+[[fvsjl-ls-port-state]]: "PERCOV ~3.4 cosmetic, forest-grown crown CR-timing"), same crown-timing family
+as the CS CCF drift. This is a DEFERRED upstream LS crown-model residual — the flame/scorch bound is
+DOWNSTREAM of it (would collapse to a print-half-width if PERCOV were made bit-exact). Comment corrected to
+attribute the bound to PERCOV-crown-timing, not a transcendental (the prior "bit-exact PERCOV" was a stale
+/ isolated-call measurement that the runtime path contradicts). Bound values unchanged (they = the exact
+observed |jl_internal − live| floor of the propagated residual). Suite 7662/2. NOTE for a future pass:
+making the LS forest-grown crown width bit-exact at the fire cycle is the upstream fix that closes this
+(and likely the CS CCF ≤4) — a crown-model investigation, deferred here.

@@ -53,22 +53,26 @@ using FVSjl
         @test br.models[1][1] == 10           # standard fuel model 10 (was 6 before ls/fmcfmd.f port)
         @test br.models[1][2] == 1f0          # full weight
 
-        # fire BEHAVIOR: jl internal flame 3.4543 / scorch 13.289 vs LIVE RENDERED 3.4 / 13.0. TRACED TO
-        # GROUND via the FVS FMCBA DEBUG dump (DEBUG keyword + 'FMCBA' supplemental record):
-        #  (1) The PERCOV input is BIT-EXACT at the fire cycle: jl 70.76547 == live 70.7654724 (2003; also
-        #      1993 63.76883==63.7688293). So the crown_width→ΣCRACOV→PERCOV chain and the fire phasing are
-        #      FULLY faithful — the earlier "PERCOV/crown-timing" attributions were wrong (retracted).
-        #  (2) With a bit-exact PERCOV (⇒ bit-exact midflame wind reduction), the flame/scorch residual is
-        #      PURELY DOWNSTREAM in the Rothermel reaction-intensity/spread-rate + Byram flame-length
-        #      transcendental chain (exp / real powers on Float32) — the classic proven-ULP transcendental
-        #      class. It surfaces only because jl 3.4543 straddles the 3.45 flame RENDER knife-edge (→3.5)
-        #      while live renders 3.4; live prints 1-decimal so the exact internal gap (≈ a few ×1e-3, the
-        #      Float32 transcendental ULP) can't be rendered-== confirmed, but the INPUT is proven identical.
-        # Bound = one print step + the transcendental ULP (0.06 flame / 0.30 scorch). Input-bit-exact +
-        # transcendental-chain residual = proven-ULP-class; not reducible without live-internal flame.
-        # See docs/TOLERANCE_AUDIT.md.
-        @test isapprox(br.flame,  3.4f0;  atol = 0.055f0)  # live 3.4 / jl 3.4543 = 0.0543 EXACT floor (print-half-width 0.05 + Rothermel-transcendental ~0.004)
-        @test isapprox(br.scorch, 13.0f0; atol = 0.29f0)   # live 13.0 / jl 13.289 = 0.289 EXACT floor (Byram transcendental on bit-exact PERCOV input)
+        # fire BEHAVIOR: jl internal flame 3.4543 / scorch 13.289 vs LIVE 3.4008 / 13.0. RE-TRACED TO GROUND
+        # 2026-07-05 via a DEBUG FMFINT/FMBURN dump on live FVSls + a matching jl instrument dump — the
+        # decisive chain (a prior comment MISATTRIBUTED this to a "Rothermel transcendental on bit-exact
+        # PERCOV"; that was FALSE — corrected here per rule #4/#6):
+        #   live FMBURN 2003:  SWIND 10.0  PERCOV 70.765  WMULT 0.111  FWIND 1.113  → SXIR 6117.786  BYRAM 4871  FLAME 3.4008
+        #   jl   fmburn  2003:  wind 10.0   PERCOV 67.503  WMULT 0.120  FWIND 1.200  → xir  6117.786  byram 5040  flame 3.4543
+        #  (1) The 20-ft wind (10.0) AND the Rothermel reaction intensity xir (6117.786) and sigma (1764.775)
+        #      are BIT-EXACT. So the Rothermel eval is faithful — NOT the source.
+        #  (2) The ENTIRE flame/scorch gap enters through PERCOV: jl 67.50 vs live 70.77 (Δ3.26 = the DOCUMENTED
+        #      LS "forest-grown crown-CR-timing" ~3.4-pt residual, see [[fvsjl-ls-port-state]]). Lower PERCOV
+        #      ⇒ less canopy sheltering ⇒ higher WMULT (0.120 vs 0.111) ⇒ higher midflame FWIND (1.20 vs 1.11)
+        #      ⇒ higher spread ⇒ higher byram ⇒ higher flame/scorch. fmcba! computes totcra (Σπ·cw²/4·tpa)
+        #      8.6% low because its forest-grown crown widths at 2003 are ~4% small (the crown-CR-timing class,
+        #      same family as the CS CCF drift). This is a DEFERRED LS crown-model residual, not a transcendental.
+        # Bound = the PERCOV-crown-timing residual propagated through the wind chain (0.055 flame / 0.29 scorch,
+        # = the exact observed |jl_internal − live| floor). Downstream of a documented upstream residual; would
+        # collapse to a print-half-width if the LS forest-grown crown-CR-timing PERCOV were made bit-exact.
+        # See docs/TOLERANCE_AUDIT.md (LS PERCOV entry).
+        @test isapprox(br.flame,  3.4f0;  atol = 0.055f0)  # jl 3.4543 vs live 3.4008 = 0.0535 — PERCOV-crown-timing (NOT transcendental)
+        @test isapprox(br.scorch, 13.0f0; atol = 0.29f0)   # jl 13.289 vs live 13.0 = 0.289 — same PERCOV-crown-timing propagation
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)
