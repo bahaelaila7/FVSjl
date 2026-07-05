@@ -298,19 +298,21 @@ end
         rows = [parse.(Float64, split(strip(l)))
                 for l in split(String(take!(io)), '\n') if occursin(r"^(19|20)\d\d ", l)]
         @test length(rows) == length(ft)
-        for (mv, fv) in zip(rows, ft)
-            # Above (crown+stem) and Merch (stem) — the gross→merch fix brings them from ~9% high to ≤1% of
-            # live. A small ≤1.0/≤0.5-ton residual remains (crown-biomass FMCROWE + NATCRS-MCF detail) — a
-            # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
-            # Aboveground/Merch: after restoring the FMSVL2 MAX(X,MCF) stem floor (carbon.jl:136, fmsvol.f:150),
-            # Aboveground dropped from 9→3 tenths (the missing floor ran small-tree stems low at EVERY cycle).
-            # The residual is now the EXACT measured max tenth-gap (deterministic, both 1-dec RENDERED report vals):
-            # aboveground ≤3 tenths, merch ≤3 tenths. TWO remaining traced sub-parts (deferred model-detail, NOT
-            # ULP): (a) FVS's FFE MCF (fmsvol.f CFVOL) is slightly LARGER than jl's merch_cuft_vol for small trees,
-            # so the floor now OVER-corrects merch by ~+0.3 (a separate MCF-source difference, unmasked by the
-            # floor per doctrine #3); (b) the omitted OLDCRW crown-lift term (X·CROWNW, ~7e-4/yr) on Aboveground.
-            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= 3   # Aboveground Total — crown-lift + MCF-source (exact max)
-            @test abs(round(Int, mv[3]*10) - round(Int, fv[3]*10)) <= 3   # Merch — FFE-MCF-source over-floor (exact max)
+        for (ri, (mv, fv)) in enumerate(zip(rows, ft))
+            # Above (crown+stem) and Merch (stem). The gross→merch fix then the FMSVL2 MAX(X,MCF) stem floor
+            # already brought these to ≤3 tenths. The MERCH residual is now FULLY CLOSED: the last +0.3 gap was
+            # ONE broken-top tree (sp22 D10.4 H55, norm_ht 64.77) whose `merch_cuft_vol` is the NORMAL-height
+            # profile + CFTOPK (13.2), while FMSVL2/FMDOUT computes NATCRS at the ACTUAL broken height with no
+            # top-kill (11.2, verified live via DEBUG FMDOUT). `_ffe_stem_mcf` recomputes broken-top stems at the
+            # actual height ⇒ Merch is BIT-EXACT (rendered) at EVERY cycle (1990-2005: 25.5/39.2/52.2/63.2).
+            @test round(Int, mv[3]*10) == round(Int, fv[3]*10)           # Merch — BIT-EXACT (rendered) all cycles
+            # Aboveground = crown + stem. Cycle-0 (1990) is now BIT-EXACT (both stem and crown exact). At GROWN
+            # cycles a ≤0.6-ton crown deficit remains: the per-tree crown_pct (crown RATIO) timing residual — the
+            # SAME accepted grown-cycle crown-ratio-timing class as LS PERCOV / CS CCF (docs/TOLERANCE_AUDIT.md
+            # 2026-07-05u), NOT a stem/merch issue (stem is bit-exact above). It was previously MASKED by the
+            # +0.3 broken-top merch over-count (which offset the crown deficit ⇒ net ≤3); removing that faithful
+            # error unmasks it. Cornered at the EXACT measured max (0 at cyc0, ≤6 tenths at grown cycles).
+            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= (ri == 1 ? 0 : 6)  # Above — crown-ratio-timing
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end

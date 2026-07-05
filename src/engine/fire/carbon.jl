@@ -108,6 +108,25 @@ function ffe_fuel_loadings(s::StandState)
             total_biomass = surf_total + stand_total, consumed = 0f0, removed = 0f0)
 end
 
+# FFE live-tree stem merch cubic (NATCRS MCF = v[4]+v[7]) as FMSVL2/FMDOUT compute it (fmsvol.f:130-150).
+# The common path returns the tree's cached `merch_cuft_vol`. The ONLY exception is a broken-top tree on
+# the SN R8-Clark volume path: there the .sum's `merch_cuft_vol` was built from the NORMAL height (norm_ht)
+# + CFTOPK truncation, but FMSVL2 for a LIVE tree calls NATCRS with the ACTUAL (broken) height as the total
+# height and LTKIL=.FALSE. (no top-kill), giving a different merch cubic. Recompute it there to match FVS.
+# Gated to the Southern R8-Clark path (NE/CS/LS use a separate NVEL routine and are out of scope / already
+# matched); a NON-broken tree is never recomputed, preserving the bit-exact `merch_cuft_vol` for 299/300.
+@inline function _ffe_stem_mcf(s::StandState, i::Int, sp::Int, d::Float32, h::Float32)::Float32
+    (s.variant isa Southern && h >= 4.5f0 && s.trees.trunc[i] > 0) || return s.trees.merch_cuft_vol[i]
+    c = s.control
+    if d >= c.sp_scf_dbhmin[sp]
+        prod = "01"; stump = c.sp_scf_stump[sp]; mtopp = c.sp_scf_topd[sp]
+    else
+        prod = "02"; stump = c.sp_stump_ht[sp];  mtopp = c.sp_top_diam[sp]
+    end
+    v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+    return d >= c.sp_dbh_min[sp] ? v[4] + v[7] : 0f0     # NATCRS MCF; no CFTOPK (LTKIL=.FALSE. for live)
+end
+
 """
     ffe_live_carbon(s) -> (; aboveground, merch)
 
@@ -131,11 +150,16 @@ function ffe_live_carbon(s::StandState)
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
         # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF)
         # (fmsvol.f:149-151), where X = 0.005454154·H is the tiny-tree cone floor — NOT gross/TCF. SN's MCF is the
-        # NATCRS merch cubic = the tree's `merch_cuft_vol` (v[4]+v[7], the same basis fmburn/fmsadd use). The
-        # MAX(X,·) FLOOR was dropped here (the old "carbon-path X=-1" comment was a MISREAD of fmsvol.f) ⇒ small
-        # trees where X>MCF ran low (jl −0.2 on merch/above at EVERY cycle incl. cyc0). Restored to match FMSVL2
-        # and the snag path (mortality.jl:516, ffe_add_snaginit!). fmvinit V2T basis (lb/cuft) unchanged.
-        stem = max(0.005454154f0 * h, t.merch_cuft_vol[i]) * v2t[sp]  # MAX(X,MCF) × V2T = stem biomass (lb)
+        # NATCRS merch cubic (v[4]+v[7]). For a NON-broken tree this equals the tree's `merch_cuft_vol`, so that
+        # is used directly (the common path). For a BROKEN-TOP tree the two DIVERGE: FMSVL2/FMDOUT calls NATCRS
+        # with the tree's ACTUAL (broken) height as total height and LTKIL=.FALSE. (no CFTOPK), whereas the .sum's
+        # `merch_cuft_vol` builds the profile from the NORMAL height (norm_ht) and then truncates via CFTOPK
+        # (vols.f:191-193). These give different merch cubics — e.g. carbon_ffe sp22 D10.4 H55 (norm 64.77):
+        # FMSVL2 MCF = 11.2 (verified live via DEBUG FMDOUT), .sum merch_cuft_vol = 13.2. So for broken-top trees
+        # (SN R8-Clark path) the stem merch is RECOMPUTED at the actual height to match FMSVL2; non-broken trees
+        # (299/300) keep merch_cuft_vol bit-exact. See docs/TOLERANCE_AUDIT.md 2026-07-05y.
+        mcf = _ffe_stem_mcf(s, i, sp, d, h)
+        stem = max(0.005454154f0 * h, mcf) * v2t[sp]                  # MAX(X,MCF) × V2T = stem biomass (lb)
         above += t.tpa[i] * (crown + stem) * _FM_P2T                   # BIOLIVE = crown + stem, lb→tons
         merch += t.tpa[i] * stem * _FM_P2T                             # merch = stem only (FMSVL2·V2T/2000)
     end

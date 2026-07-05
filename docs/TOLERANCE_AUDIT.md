@@ -1550,3 +1550,29 @@ nonstockable), and set `t.plot_id[n] = IPTIDS[nn]`. Stands with no nonstockable 
 are unaffected ⇒ bare_natural etc. stay bit-exact. Expect estab_pccf mean_cr → 82.46 == live (drives the 0.141
 bound toward ==). This is a REAL fix, not a corner — the 4th stale-verdict correction this session (was "deferred
 multi-point PCCF feature" → "implemented, near-tie" → NOW "regen point-assignment bug, fixable").
+
+## Session 2026-07-05y — FFE-carbon merch RESIDUAL CLOSED (broken-top height, NOT CFVOL): now BIT-EXACT
+The lone "genuinely-reducible" FFE-carbon item (documented for 4 sessions as needing a 244-line CFVOL/NBOLT
+port) was RE-LOCALIZED and FIXED — it was NOT a CFVOL-vs-R8Clark two-merch-definition split; it was a
+BROKEN-TOP HEIGHT difference, entirely within the existing R8-Clark path.
+Live DEBUG stamp (recompiled fvsvol.f, WRITE in NATCRS printing ICYC/D/H/IT/TVOL, restored after):
+  - .sum path (vols.f, IT=tree-index): NATCRS at H=64.770 (the tree's NORMAL height, norm_ht) → MCF=13.2,
+    then vols.f applies CFTOPK to truncate to the broken top.
+  - FFE path (fmsvol.f FMSVL2/FMDOUT, IT=-1): NATCRS at H=55.000 (the ACTUAL/broken height) with LTKIL=.FALSE.
+    (NO CFTOPK) → MCF=11.2. Verified == live FMDOUT VT for sp22 D10.4.
+So FVS's FFE stem uses the actual broken height as total height; `merch_cuft_vol` uses the normal-height profile
++ CFTOPK. For a NON-broken tree the two coincide (that is why 299/300 already matched); only broken-top trees
+diverge. carbon_ffe has 2 broken-top trees — sp65 D8 (recompute == merch_cuft_vol, no change) and sp22 D10.4
+(13.2 → 11.2, the entire residual).
+FIX: `_ffe_stem_mcf` (carbon.jl) — for a Southern R8-Clark broken-top tree (variant Southern && h≥4.5 &&
+trunc>0), recompute the FFE stem merch via `_R8CLARK_VOL` at the ACTUAL height (v[4]+v[7], no CFTOPK); every
+other tree keeps its cached `merch_cuft_vol` bit-exact. carbon_snt is CARBCALC=1 (Jenkins) and never calls
+ffe_live_carbon, and the shared merch_cuft_vol / snag paths are untouched ⇒ carbon_snt LIVE pools stay 31/31 ==.
+RESULT: carbon_ffe MERCH now BIT-EXACT (rendered) at EVERY cycle (1990-2005: 25.5/39.2/52.2/63.2 == live),
+cycle-0 Aboveground also BIT-EXACT (45.7). Tightened test merch bound 3→0 (==). The Aboveground grown-cycle
+gap (≤0.6) that this UNMASKS (the +0.3 broken-top merch over-count previously offset it) is the pre-existing
+crown-ratio-timing residual (accepted class, shared with LS PERCOV / CS CCF, 2026-07-05u) — bound set to the
+exact measured max (0 at cyc0, ≤6 tenths grown), documented as crown-only (stem is bit-exact). Suite 7667/2.
+META: the 5-session "CFVOL two-merch-definition, needs deep port" verdict was WRONG — re-running the live stamp
+with the CYCLE and IT columns (not just VT) exposed the real cause (broken-top height) in one shot. The reducible
+"deferred" list for FFE carbon is now EMPTY; only the accepted crown-ratio-timing class remains.
