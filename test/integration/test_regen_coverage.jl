@@ -68,7 +68,7 @@ end
         # NPTIDS·idup = 5·10 = 50 records/species × 2 species = 100 (NOT 20), and the
         # planted TPA is conserved at 800 (NOT 800/5) — the per-point-loop fix.
         @test s.trees.n == 100
-        @test isapprox(stand_tpa(s) / s.plot.gross_space, 800.0; atol = 2)
+        @test stand_tpa(s) / s.plot.gross_space == 800f0   # planted TPA EXACTLY conserved (was over-cautious atol 2; measured 800.0)
         # records distributed over the 5 points (plot_id), so DGF point-BA = stand BA
         @test length(unique(Int(s.trees.plot_id[i]) for i in 1:s.trees.n)) == 5
     end
