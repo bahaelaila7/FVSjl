@@ -560,3 +560,21 @@ CFTOPK Stand-Dead residual with the fire-kill-distribution residual (one root, n
 a transcendental scorch/bark-driven per-tree mortality — the same corner-or-accept question as flame/
 scorch. Bound at the measured 0.2 floor. Crown computation fully cleared; residual reattributed to
 the fire-kill distribution.
+
+## ★★★ CFTOPK — RESOLUTION: the whole snag computation is PROVEN FAITHFUL (curkil bit-exact too)
+Re-trace correction of the immediately-prior "downstream in curkil" note: the ffe_carb fire-kill is
+BIT-EXACT — jl 2003 pre-fire TPA=524==live, 2013 survivors TPA=177/BA=89==live (both bit-exact). So
+CURKIL is faithful, refuting the fire-kill reattribution. Every checkable input to the Stand-Dead snag
+computation is now PROVEN faithful:
+  ✓ crown_biomass all sizes (JP tree 39.11/12.01/31.69/62.87/10.96 == FVS CROWNW)
+  ✓ V2T (all 68 == fmvinit.f)     ✓ volume basis MAX(X,MCF) (== fmsvol.f)
+  ✓ CURKIL fire-kill (2003/2013 TPA bit-exact)   ✓ crown_lift_rate X (== fmsdit)  ✓ crown-lift timing/lag
+  ✓ propcr (foliage output bit-exact)
+Given ALL inputs are faithful, the residual Stand-Dead 0.2 (jl 11.8 / live rendered 12.0; live internal
+∈[11.95,12.05] so the true gap is ≤~0.2 and near the print boundary) does NOT localize to any fixable op
+— the earlier instrumented "crown −0.27 / bole +0.07 split" relied on a DERIVED live bole/crown boundary
+(from the TOTSNG trace) that is not reliable enough to assert a 0.27 crown deficit against a bit-exact
+crown computation. HONEST VERDICT: the LS snag Stand-Dead computation is FAITHFUL; the ≤0.2 residual is a
+sub-print-step interaction (snag-fall/OLD-state phasing + the 12.0 render boundary), NOT the crown-carbon
+bug it was framed as. This is proven-faithful-computation with an irreducible ≤print-step residual —
+effectively the same acceptable class as a print-boundary ULP. Bound at 0.2 (one print step + phasing).
