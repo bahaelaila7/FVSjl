@@ -437,10 +437,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         bark = bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        # Broken-top trees: the full (NORMHT) height grows by the same increment as the
-        # standing height (update.f:33-35), so the topkill cubic volume keeps growing.
+        # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
+        # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
+        # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
+        # `(norm_ht + htg*100) + 0.5` grouping is non-associatively different in Float32 and accretes
+        # a ~0.05-ft NORMHT error over cycles for topkill trees (the broken-top cuft ±1 residual).
         t.norm_ht[i] > 0 &&
-            (t.norm_ht[i] = floor(Int32, Float32(t.norm_ht[i]) + t.ht_growth[i] * 100f0 + 0.5f0))
+            (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
     accr = 0f0

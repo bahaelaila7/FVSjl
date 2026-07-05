@@ -1840,3 +1840,18 @@ full HTGF, distinct from the standing/broken height — feed THAT to cftopk. Def
 ground: sum-order→irreducible-ULP→broken-top→2005-height→ht_dbh_aa→setup-NORMHT→SN-HTGF→topkill-NORMHT-tracking).
 The residual was NEVER irreducible; each label was a layer peeled by better instrumentation (the working per-tree
 DBS was the key). Correctly @test_broken until the separate-NORMHT fix lands.
+
+## Session 2026-07-05mm — volume ±1 SYMPTOM confirmed exactly (topkill norm_ht = topkilled, should be full)
+Made simulate.jl:443 op-order FAITHFUL to FVS update.f:67 `INT(REAL(NORMHT)+(HTG*100.+.5))` (group HTG*100+.5
+first) — correct but INERT on the ±1 (a ULP is far too small for the 0.05-ft gap). Confirmed the exact symptom
+vs live DBS: jl norm_ht=67.70 ≈ jl STANDING 67.69981, while FVS NORMHT=67.75 = the FULL (untopkilled) grown
+height (FVS standing HT=TOPH=67.6998 too). So jl's norm_ht TRACKS the topkilled standing; FVS's NORMHT keeps the
+full height. Gap = the topkill amount (H−TOPH=0.05) accreted over cycles. ROOT DIRECTION: jl grows norm_ht by the
+(topkill-reduced) ht_growth, so it follows the topkilled standing; FVS grows NORMHT by the FULL HTG (update.f)
+BEFORE htgstp.f reduces the standing to TOPH. FIX = grow norm_ht by the FULL pre-topkill increment (independent of
+the standing's topkill reduction). REMAINING GAP IN MY UNDERSTANDING: I have not mapped WHERE in jl the height
+increment is topkill-reduced (height_growth.jl HTGF vs a separate topkill step), so I can't yet write the exact
+fix — after ~12 re-traces I keep mis-hypothesizing the multi-cycle topkill dynamics. NEXT SESSION: map jl's full
+topkill height flow (increment computation → topkill reduction → height/norm_ht update) side-by-side with
+update.f + htgstp.f, then grow norm_ht by the full increment; validate vs live DBS EstHt. The residual is a REAL
+FIXABLE topkill-height bug (NOT irreducible); symptom is nailed, exact fix pending the flow map. Suite 6853/159.
