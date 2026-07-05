@@ -412,7 +412,12 @@ function snag_summary(s::StandState)
         # annual FMSNAG hard→soft flip (fmsnag.f:282-284), so it reflects the HARD flag as of the PREVIOUS
         # cycle's last FMSNAG year (IY(ICYC)−1). Without the −1 jl over-soften by one year on near-DKTIME snags
         # (verified vs live HARD-flag dump: dbh8.09 dkt5.01 → live age-5<5.01 HARD, jl age-6≥5.01 soft).
-        dktime = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]]) * (1.24f0 * d + 13.82f0)
+        # DKTIME must match FVS's EXACT Float32 evaluation order (fmsngdk.f:80, SN CASE DEFAULT):
+        # `(1.24·DECAYX·D) + (13.82·DECAYX)`, DECAYX distributed into BOTH terms and multiplied separately —
+        # NOT the factored `DECAYX·(1.24·D+13.82)`. At the age≈DKTIME near-tie boundary this sub-ULP order
+        # difference flips boundary cohorts' hard/soft classification. (XMOD=1 for SN.)
+        dcx = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]])
+        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
         if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
             ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
         end

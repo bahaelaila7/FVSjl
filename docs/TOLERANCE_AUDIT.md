@@ -1359,3 +1359,20 @@ by MODEL feature work (per-point PCCF density, LS forest-grown crown-ratio timin
 exact DKTIME classification) — so under the strict "100% ==/PROVEN-IRREDUCIBLE-ULP" off-switch they do not
 qualify (they are irreducible only w.r.t. the current model, not genuinely). The tolerance-PADDING campaign
 has reached a confirmed fixpoint (zero padding); the residual is deferred model-fidelity work, tracked separately.
+
+## Session 2026-07-05o — DKTIME snag-split residual TRACED DEEPER (upstream attempt) + faithful dkt-order fix
+Attempted the upstream fix for the carbon DKTIME hard/soft split residual (728-731, Δ0.233/0.161/0.091).
+FOUND + FIXED a real faithfulness gap: FVS FMSNGDK (fmsngdk.f:80, SN CASE DEFAULT) computes
+`DKTIME = (1.24·DECAYX·D) + (13.82·DECAYX)` — DECAYX distributed into BOTH terms, multiplied separately —
+NOT jl's factored `DECAYX·(1.24·D+13.82)`. Matched the exact Float32 order (snag.jl:415). Suite 7667/2, no
+regression. HOWEVER it made ZERO numerical change to THIS residual (the two orders happen to give the same
+Float32 dkt for these cohorts), so it is a faithfulness improvement, NOT the residual's cause.
+DEEPER TRACE (per-DBH-class dump, carbon_snt 2000): the 0.23 residual is MULTI-PART, not a single near-tie:
+  - jl HARD ≥12 = 0.028 vs live 0.0 — a 1999-death (current-cycle) d12-14 cohort jl carries that live doesn't;
+    the GRAND TOTAL is 48.027 vs 48.0 (Δ0.027 ≈ this excess) ⇒ a small snag-DENSITY difference, upstream of
+    classification (jl creates ~0.027 more snag density than live for the current-cycle deaths).
+  - the remaining <12 difference = the age≈DKTIME classification boundary (jl over-softens by ~0.16).
+VERDICT: NOT a single-op ULP — a genuine multi-part model-fidelity residual (snag-density creation + DKTIME
+classification timing) requiring live per-cohort FMKILL/FMSNAG debug dumps to resolve, with regression risk to
+the bit-exact grand total + SnagSum. Deferred as model-fidelity work; the 728-731 bounds stay cornered at their
+exact measured floors (0.233/0.161/0.091). Traced to ground per re-trace discipline; no cheap fix exists.
