@@ -49,7 +49,8 @@ _mhcol(r, c) = parse(Float64, r[c])
             for i in 1:length(jl)
                 @test _mhcol(jl[i], 3) == _mhcol(ft[i], 3)   # TPA — BIT-EXACT
                 @test _mhcol(jl[i], 4) == _mhcol(ft[i], 4)   # BA  — BIT-EXACT
-                for c in (9, 10, 11)                         # cubic — BIT-EXACT bar a print-boundary ULP (≤1)
+                @test _mhcol(jl[i], 11) == _mhcol(ft[i], 11)   # SCuFt — BIT-EXACT (measured Δ0 all cycles)
+                for c in (9, 10)                             # TCuFt/MCuFt — BIT-EXACT bar a print-boundary ULP (≤1)
                     @test abs(_mhcol(jl[i], c) - _mhcol(ft[i], c)) <= 1
                 end
                 # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner

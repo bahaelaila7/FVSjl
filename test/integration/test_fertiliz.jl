@@ -44,7 +44,8 @@ _fzcol(r, c) = parse(Float64, r[c])
                 for c in (3, 4, 7, 8)              # TPA / BA / TopHt / QMD — BIT-EXACT
                     @test _fzcol(jl[i], c) == _fzcol(ft[i], c)
                 end
-                for c in (9, 10, 11)              # cubic — BIT-EXACT bar a print-boundary ULP (≤1 integer step)
+                @test _fzcol(jl[i], 11) == _fzcol(ft[i], 11)   # SCuFt — BIT-EXACT (measured Δ0 all cycles)
+                for c in (9, 10)                  # TCuFt/MCuFt — BIT-EXACT bar a print-boundary ULP (≤1 integer step)
                     @test abs(_fzcol(jl[i], c) - _fzcol(ft[i], c)) <= 1
                 end
                 # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner

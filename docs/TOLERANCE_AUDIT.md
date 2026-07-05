@@ -739,3 +739,15 @@ label; several were covering an exact result.)
   the true floor is the crown-ratio integer envelope; tightening would be fragile. Belongs to the DEFERRED
   crown-ratio-evolution item (making regen/forest-grown crown ratios bit-exact would close this, the LS PERCOV,
   and the CS CCF together — a crown-model investigation). Flagged here so a future crown-ratio pass finds it.
+
+## Session 2026-07-05 (cont.) — SCuFt/MCuFt split out of the ≤1 cubic loops (work-list #3)
+
+Batch-measured the per-column residual of the keyword tests that check cubic cols (9,10,11) with a uniform
+`≤1` knife-edge loop. Found the sawtimber cubic **c11 (SCuFt) is Δ0 in EVERY scenario** (cuteff/minharv/
+fertiliz/tcondmlt/spclwt) — it's a small-tree-subset sum (only sawtimber-size trees), so it never straddles
+the +0.5 integer-render knife-edge that c9 (TCuFt) / c10 (MCuFt) occasionally hit. Split c11 out to `==`:
+- test_cuteff / test_minharv / test_fertiliz: c11 → `==` (was in the ≤1 loop); c9,c10 stay ≤1.
+- test_tcondmlt: c10 AND c11 → `==` (both Δ0 across tcondmlt+spclwt); c9 stays ≤1 (spclwt hits Δ1).
+The uniform ≤1 loop was covering a bit-exact column. Suite 7664/2 (assertion count unchanged — a 3-loop
+became a 2-loop + one `==`). The remaining ≤1 (c9/c10/c12) are genuine per-cycle print knife-edges (spclwt
+c9/c12 hit Δ1; documented). voleqnum/tripling use non-matching scenario filenames (not measured this pass).

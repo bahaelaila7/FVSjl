@@ -41,7 +41,9 @@ _cecol(r, c) = parse(Float64, r[c])
             for i in 1:length(jl)
                 @test _cecol(jl[i], 3) == _cecol(ft[i], 3)   # TPA — BIT-EXACT
                 @test _cecol(jl[i], 4) == _cecol(ft[i], 4)   # BA  — BIT-EXACT
-                for c in (9, 10, 11)                         # cubic — BIT-EXACT bar a print-boundary ULP (≤1)
+                @test _cecol(jl[i], 11) == _cecol(ft[i], 11)   # SCuFt — BIT-EXACT (measured Δ0 all cycles; the
+                                                               # sawtimber cubic is a small-tree-subset sum, no render knife-edge)
+                for c in (9, 10)                             # TCuFt/MCuFt — BIT-EXACT bar a print-boundary ULP (≤1)
                     @test abs(_cecol(jl[i], c) - _cecol(ft[i], c)) <= 1
                 end
                 # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
