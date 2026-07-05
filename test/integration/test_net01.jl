@@ -585,17 +585,12 @@ end
         @test rows[1992] == [0, 0, 0, 0, 0]                            # bare at plant year
         # live FVSne — BIT-EXACT after two establishment fixes: (1) pre-establishment BAL (GMOD=1, matching
         # live's empty-stand competition) → SDI/CCF; (2) the hard HHTMAX clamp on the reported height with the
-        # DBH derived from the uncapped grown height → TopHt (YB/WO clamp to 22/16). 2002/2012 fully match;
-        # only a ±1 drift by 2022. row = (year, TREES, BA, SDI, CCF, TopHt, tpa_tol, ht_tol)
-        for (yr, tr, ba, sdi, ccf, ht, tpa_tol, ht_tol) in
-            ((2002, 800, 10, 40, 40, 22, 0, 0), (2012, 786, 48, 136, 183, 40, 0, 0),
-             (2022, 733, 97, 234, 317, 49, 2, 1))
-            r = rows[yr]
-            @test abs(r[1] - tr) <= tpa_tol        # TREES — bit-exact (planting + mortality), ±1 by 2022
-            @test abs(r[2] - ba) <= 1              # BA — bit-exact
-            @test abs(r[3] - sdi) <= 1             # SDI — bit-exact (pre-establishment-BAL fix)
-            @test abs(r[4] - ccf) <= 1             # CCF — bit-exact
-            @test abs(r[5] - ht) <= ht_tol         # TopHt — bit-exact (HHTMAX clamp), ±1 by 2022
+        # DBH derived from the uncapped grown height → TopHt (YB/WO clamp to 22/16). ALL FIVE columns (TREES/
+        # BA/SDI/CCF/TopHt) are BIT-EXACT at ALL THREE cycles — re-measured 2026-07-05: max|Δ|=0 everywhere.
+        # The prior "±1 drift by 2022" + "~8% cyc-1 SDI/CCF residual" were STALE (a growth fix closed them).
+        for (yr, tr, ba, sdi, ccf, ht) in
+            ((2002, 800, 10, 40, 40, 22), (2012, 786, 48, 136, 183, 40), (2022, 733, 97, 234, 317, 49))
+            @test rows[yr] == [tr, ba, sdi, ccf, ht]   # TREES/BA/SDI/CCF/TopHt — BIT-EXACT (was ≤1 / ±tol padding)
         end
     end
 end
