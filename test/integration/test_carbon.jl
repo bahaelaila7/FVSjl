@@ -49,9 +49,9 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
             # belowground). The prior `0.005·v+0.1` "grown-cycle DBH-calibration tail ~0.1%" was WRONG — a 0.1%
             # tail at v=124 would be 0.12, but the measured grown-cycle Δ is ≤0.046 (no growing tail; jl tracks
             # live to print resolution). Uniform 0.05 = the 1-decimal print half-width.
-            @test abs(r.aboveground - parse(Float64, f[2])) <= 0.05
-            @test abs(r.merch       - parse(Float64, f[3])) <= 0.05
-            @test abs(r.belowground - parse(Float64, f[4])) <= 0.05
+            @test round(Float64(r.aboveground), digits=1) == parse(Float64, f[2])   # RENDERED-== (F7.1)
+            @test round(Float64(r.merch),       digits=1) == parse(Float64, f[3])   # RENDERED-==
+            @test round(Float64(r.belowground), digits=1) == parse(Float64, f[4])   # RENDERED-==
             c < length(ft) && FVSjl.grow_cycle!(s; fint = 5f0)
         end
 
@@ -65,10 +65,10 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
             FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
             r = FVSjl.stand_carbon_report(s2)
             f = ft[1]
-            @test abs(r.down_wood    - parse(Float64, f[7]))  <= 0.05   # DDW  (3.8)        — BIT-EXACT
-            @test abs(r.forest_floor - parse(Float64, f[8]))  <= 0.05   # Forest floor (9.1) — BIT-EXACT
-            @test abs(r.shrub_herb   - parse(Float64, f[9]))  <= 0.05   # Shrub/herb (0.7)  — BIT-EXACT
-            @test abs(r.total        - parse(Float64, f[10])) <= 0.05   # Total stand carbon — BIT-EXACT
+            @test round(Float64(r.down_wood),    digits=1) == parse(Float64, f[7])   # DDW (3.8) — RENDERED-==
+            @test round(Float64(r.forest_floor), digits=1) == parse(Float64, f[8])   # Forest floor (9.1) — RENDERED-==
+            @test round(Float64(r.shrub_herb),   digits=1) == parse(Float64, f[9])   # Shrub/herb (0.7) — RENDERED-==
+            @test round(Float64(r.total),        digits=1) == parse(Float64, f[10])  # Total stand carbon — RENDERED-==
 
             # GROWN-cycle FOREST FLOOR + DDW via the FFE annual fuel loop (FMCWD decay + FMCADD
             # litterfall + woody breakage, NYRS=1 per year, crown held at the cycle's start). BOTH
@@ -78,8 +78,8 @@ const _CDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
                 FVSjl.fmcwd!(s2, 1); FVSjl.fmcadd_litterfall!(s2); FVSjl.fmcadd_woody!(s2)
             end
             r95 = FVSjl.stand_carbon_report(s2)
-            @test abs(r95.forest_floor - parse(Float64, ft[2][8])) <= 0.05  # 1995 Floor = 6.6 — BIT-EXACT
-            @test abs(r95.down_wood    - parse(Float64, ft[2][7])) <= 0.05  # 1995 DDW   = 2.5 — BIT-EXACT
+            @test round(Float64(r95.forest_floor), digits=1) == parse(Float64, ft[2][8])  # 1995 Floor 6.6 — RENDERED-==
+            @test round(Float64(r95.down_wood),    digits=1) == parse(Float64, ft[2][7])  # 1995 DDW  2.5 — RENDERED-==
         end
     end
 end
@@ -117,7 +117,7 @@ end
             @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.048  # dead coarse roots BIOROOT (measured max Δ0.047; was 0.05)
             # DDW: BIT-EXACT all cycles (before AND after mortality). The former post-mortality dead-pool
             # crown-lift-timing gap is CLOSED (FFE snag-dynamics + crown small-tree merch-bole fixes).
-            @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05   # DDW — BIT-EXACT all cycles
+            @test round(Float64(r.down_wood), digits=1) == parse(Float64, f[7])   # DDW — RENDERED-== all cycles
             # STAND-DEAD: 0 before mortality; after, validated against the HIGH-PRECISION instrumented
             # Fortran oracle (BOLE+CRWN from FMDOUT TOTSNG), NOT the 1-decimal .report.save column — the
             # save's print rounding (e.g. 5.18→5.2) double-rounds against jl's own rounded report and would
@@ -600,7 +600,7 @@ end
         # input-snag bole = 3.77 vs the Fortran inventory Stand-Dead 3.8 (within print resolution): FVS's
         # snag bole is the MERCHANTABLE cubic (FMDOUT→FMSVOL→CFVOL, v[4]), not the gross total stem (v[1]);
         # the <top-dia tip is a large fraction for small snags (sp27 d7.2: v[1]=5.2 vs v[4]=4.8 = FVS).
-        @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.8) <= 0.05
+        @test round(FVSjl.snag_bole_carbon(s) * TO, digits=1) == 3.8   # RENDERED-== (jl 3.77 → 3.8 == live)
         @test FVSjl.snag_standing_density(s.fire) > 0f0            # snags actually created
     end
 end
@@ -683,9 +683,9 @@ end
         @test brk[1] == b[1]                  # 1990: no snags lost height yet → identical
         # PRINT-HALF-WIDTH (Stand-Dead carbon prints to 0.1; was padded 0.1 = full unit). jl 4.3029/5.0608/
         # 9.037 all render to live's 4.3/5.1/9.0 (Δ ≤ 0.039 < 0.05 half-width) — SNAGBRK snag-break carbon.
-        @test isapprox(brk[2], 4.3; atol = 0.05)   # 1995 vs live 4.3 (jl 4.3029)
-        @test isapprox(brk[3], 5.1; atol = 0.05)   # 2000 vs live 5.1 (jl 5.0608; was 4.57 pre-CFTOPK-fix)
-        @test isapprox(brk[4], 9.0; atol = 0.05)   # 2005 vs live 9.0 (jl 9.037; was 8.71)
+        @test round(Float64(brk[2]), digits=1) == 4.3   # RENDERED-== 1995 (jl 4.3029 → 4.3)
+        @test round(Float64(brk[3]), digits=1) == 5.1   # RENDERED-== 2000 (jl 5.0608 → 5.1; was 4.57 pre-CFTOPK-fix)
+        @test round(Float64(brk[4]), digits=1) == 9.0   # RENDERED-== 2005 (jl 9.037 → 9.0; was 8.71)
     end
 end
 
@@ -709,13 +709,21 @@ end
         # classification residual (snag-cohort-age boundary; jl 44.567/3.460 vs ≈44.8/3.3 Δ0.23/0.16, jl
         # 66.709/4.330 vs ≈66.8/4.3 Δ0.09/0.03) — the live reads are APPROXIMATE 1-dec eyeball values, so the
         # atol covers the cohort-age split-timing envelope + oracle-read uncertainty (was uniform 0.5).
-        live = Dict(2 => (35.79, 6.91, 0.005), 3 => (44.8, 3.3, 0.25), 4 => (66.8, 4.3, 0.12))
+        # c2 = EXACT 2-decimal live SNAG SUMMARY (bit-exact split) → RENDERED-== at 2 decimals.
+        # c3/c4 = the EMERGENT hard/soft split against APPROXIMATE 1-dec eyeball oracle reads (cohort-age
+        # split-timing envelope + read uncertainty) — NOT print-cornerable; atol covers the read fuzz.
+        # TODO(exact-oracle): replace c3/c4 eyeball reads with the instrumented live FMDOUT SNAG SUMMARY to
+        # corner these to a real width (the only remaining non-print bound in this test).
+        live = Dict(3 => (44.8, 3.3, 0.25), 4 => (66.8, 4.3, 0.12))
         for c in 1:4
             FVSjl.compute_density!(s)
             ss = FVSjl.snag_summary(s)
-            if haskey(live, c)
+            if c == 2                                                     # exact 2-dec live: 35.79h / 6.91s
+                @test round(Float64(ss.hard[7]), digits=2) == 35.79      # RENDERED-== (jl 35.7938 → 35.79)
+                @test round(Float64(ss.soft[7]), digits=2) == 6.91       # RENDERED-== (jl 6.9069 → 6.91)
+            elseif haskey(live, c)
                 lh, ls, at = live[c]
-                @test isapprox(ss.hard[7], lh; atol = at)
+                @test isapprox(ss.hard[7], lh; atol = at)                # approximate-oracle envelope (see TODO)
                 @test isapprox(ss.soft[7], ls; atol = at)
             end
             c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
@@ -750,7 +758,7 @@ end
             FVSjl.compute_density!(s)
             ss = FVSjl.snag_summary(s)
             if haskey(live, c)
-                @test isapprox(ss.hard[7], live[c]; atol = 0.05)  # PRINT-HALF-WIDTH: jl 48.0275/71.0396 render to live 48.0/71.0 (Δ≤0.04<0.05); was padded full-unit 0.1
+                @test round(Float64(ss.hard[7]), digits=1) == live[c]  # RENDERED-== (jl 48.0275/71.0396 → live 48.0/71.0)
                 @test ss.soft[7] == 0f0                            # DECAYX=2 ⇒ no hard→soft transition
             end
             c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
@@ -790,11 +798,15 @@ end
             # Tolerances tightened to the MEASURED jl-vs-live floor (was 1.5/0.5/0.3/0.4/0.3 — up to 15× loose):
             # carbon prints F7.1 so 0.1 is one print unit. jl: agl 19.2 (Δ0.1), bgd 5.6 (Δ0), sd 20.1 (Δ0.1),
             # ddw 1.1 (Δ0), rel 5.5 (Δ0) vs live 19.1/5.6/20.2/1.1/5.5.
-            @test isapprox(agl, 19.1; atol = 0.1) # jl 19.2 = ONE print unit (F7.1); was padded 0.2. post-fire survivors
-            @test isapprox(bgd, 5.6;  atol = 0.05) # jl renders 5.6 == live (same 0.1-step ⇒ print-HALF-width); fire-killed coarse ROOTS → Below-Dead
-            @test isapprox(sd,  20.2; atol = 0.1) # jl 20.1 = ONE print unit; was padded 0.15. snags crown-lift+FMEFF consumption
-            @test isapprox(ddw, 1.1;  atol = 0.05) # jl renders 1.1 == live (same-step ⇒ print-half-width); start-of-cycle-consumed down wood
-            @test isapprox(rel, 5.5;  atol = 0.05) # jl renders 5.5 == live (same-step ⇒ print-half-width); released = surface + live-fuel burn
+            # agl/sd: jl's rendered report is ONE F7.1 unit off live (19.2 vs 19.1, 20.1 vs 20.2) — the
+            # emergent post-fire survivor / snag-consumption kill-distribution residual (BA 81 vs 78 class);
+            # live's sub-decimal value is unavailable from the 1-dec report, so one print unit is the
+            # irreducible width of a last-digit boundary flip (NOT tightenable without a full-precision oracle).
+            @test isapprox(agl, 19.1; atol = 0.1)   # boundary-flip: fire-kill-distribution (see above)
+            @test bgd == 5.6                        # RENDERED-== : jl's F7.1 output equals live golden (Below-Dead fire-killed roots)
+            @test isapprox(sd,  20.2; atol = 0.1)   # boundary-flip: snag crown-lift + FMEFF consumption
+            @test ddw == 1.1                        # RENDERED-== : jl's F7.1 output equals live golden (start-of-cycle-consumed down wood)
+            @test rel == 5.5                        # RENDERED-== : jl's F7.1 output equals live golden (released = surface + live-fuel burn)
         end
         if haskey(rows, "2005")
             # The snag-fall TIMING fix (update_snags! incrementing annual year): the fire snags now fall in
@@ -806,8 +818,12 @@ end
             # year (update_snags! `born_now`), so the small-snag pool clears like live (DENIH 74→15) instead
             # of leaving ~5× too many (the small-snag fall is a CONSTANT modrate·origden/yr). SD drops to live.
             # #28 snag-fall-timing residual (accepted, low-%): jl 2.6 (Δ0.2) / 15.2 (Δ0.4) vs live 2.8 / 14.8.
-            @test isapprox(sd05,  2.8; atol = 0.25)   # fire snags cleared (jl 2.6; was 10.9, then 4.0)
-            @test isapprox(ddw05, 14.8; atol = 0.4)   # jl 15.2 (Δ0.4 EXACT, was padded 0.5); fallen-bole down wood — the fire snag-fall/consumption ≤print-scale residual
+            # #28 snag-fall-timing emergent residual (accepted low-%; snag-fall mechanism faithful, constituent
+            # ops bit-exact). Both are 1-dec RENDERED values, so state the EXACT tenth-gap vs live (float-clean —
+            # avoids the 2.8-2.6=0.2000…18 knife-edge, and drops sd05's prior 1.25× atol pad). Locks the residual:
+            # any model change flips the gap and flags for review.
+            @test abs(round(Int, sd05  * 10) -  28) == 2   # jl 2.6 vs live 2.8 = exactly 2 tenths (fire snags cleared; was 10.9, then 4.0)
+            @test abs(round(Int, ddw05 * 10) - 148) == 4   # jl 15.2 vs live 14.8 = exactly 4 tenths (fallen-bole down wood)
         end
     end
 end

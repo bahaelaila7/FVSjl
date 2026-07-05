@@ -1165,3 +1165,21 @@ dbs/estab tests surfaced 3 real improvements — NONE were at their true floor d
   but was 1.2× the measured Δ0.0058146. Tightened to 0.00582 (1.001×, deterministic scenario).
 VERDICT: even after the prior fixpoint pass, the re-trace discipline caught 3 more (2 padded multiples +
 1 stale-ULP-that-was-actually-==). Confirms the discipline's value; suite 7664/2, no regression.
+
+## Session 2026-07-05c — test_carbon: 16 print-half-width atols → rendered-== (goal's preferred form)
+Continuing the re-trace sweep into test_carbon (20 bounds, work-list #5). The `<= 0.05`-against-1-decimal
+bounds were legitimate (print-half-width = goal category-2), but the goal PREFERS rendered-== and since
+every measured Δ<0.05 the exact-render claim holds. Converted (convert-then-test, all pass):
+- Lines 52-54,68-71,81-82,120,603,686-688,753: `abs(jl - live_1dec) <= 0.05` → `round(jl,digits=1)==live_1dec`
+  (RENDERED-==, 16 assertions). Bit-exact at print scale, strictly stronger than the half-width.
+- Snag-split c2 (718-719): atol 0.005 (2-dec half-width) → `round(jl,digits=2)==35.79/6.91` (RENDERED-==).
+- fire_carbon 2000 (bgd/ddw/rel): parsed from jl's OWN F7.1 output, renders EXACTLY live → plain `==`
+  (formatted-output == golden, the goal's bit-exact form). agl/sd stay atol=0.1 = one-print-unit
+  boundary-flip (emergent fire-kill-distribution, BA 81-vs-78 class; live sub-decimal unavailable to tighten).
+- fire_carbon 2005 (sd05/ddw05): the #28 emergent snag-fall residual — replaced float-fuzzy isapprox
+  (sd05's 0.25 was 1.25× pad; 0.2 knife-edge fails on 2.8-2.6=0.2000…18) with EXACT integer-tenth gap
+  `abs(round(Int,x*10)-live_tenths)==2/4` — states the precise 2-tenth/4-tenth emergent divergence, float-clean.
+REMAINING non-== in test_carbon (all traced): agl/sd one-unit boundary-flip (0.1), sd05/ddw05 #28 emergent
+2/4-tenth (exact), c3/c4 snag-split vs APPROXIMATE eyeball oracle (0.25/0.12 — TODO: get exact FMDOUT SNAG
+SUMMARY to corner), belowground/floor growth-tail (0.04/0.048 measured floors), emergent-snag-phasing 0.033.
+Suite 7664/2, no regression.
