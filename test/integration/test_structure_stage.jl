@@ -66,7 +66,7 @@ end
         for c in 0:10
             FVSjl.compute_density!(s1c)
             r = FVSjl.structure_class(s1c)
-            @test abs(round(Int, r.cover) - ftcov[c+1]) <= 1
+            @test round(Int, r.cover) == ftcov[c+1]   # Tot-Cov — BIT-EXACT (measured Δ0 all cycles; was ≤1 IFIX padding)
             @test abs(r.strdbh - ftdbh[c+1]) <= 0.55
             c < 10 && FVSjl.grow_cycle!(s1c; fint = 5f0)
         end

@@ -975,3 +975,15 @@ not mislabeled like event_monitor). lst01_ffe:143 (11.8 vs 12.0) + carbon:306 Me
 - **net01 plant_div** (PLANT diverse): all 5 cols × 3 cycles Δ0 → `rows[yr] == ex`. Stale "±1 ULP floor".
 Both whole establishment scenarios were bit-exact behind ≤1/±tol padding + stale residual narratives (a
 growth fix since the comments closed the residuals). Another instance of measuring dissolving the label.
+
+## Session 2026-07-05 (cont.) — structure_stage cover + ≤1/≤2 sweep closeout
+
+- **test_structure_stage Tot-Cov** (`≤1`): measured Δ0 all 11 cycles (jl's round(Int,cover) matches the
+  Fortran integer exactly) → `==` (was ≤1 "IFIX .5-boundary" padding).
+- ≤1/≤2 SWEEP COMPLETE: measured every per-column ≤1/≤2 bound in the integration+unit suite. VERIFIED
+  GENUINE (measured Δ1, kept): multistand stand-1 cuft (2005 3027/3026), compute col3, dead_fint TCuFt,
+  bfvolume/setsite/volume_override cols, fixmort_kpoint col3, estab_pccf col5 (multi-point regen approx),
+  longrun 2090 (jl36/live35 near-SDImax), lst01_ffe BA (104/105), cst01 sdi/topht. TIGHTENED to == (measured
+  Δ0): tripling 3/4/7/8, treeszcp_nomort, fixmort×4, cst01 BA, plant_hard/plant_div (whole scenarios),
+  growth_idg1, structure_stage cover. Every ≤1/≤2 is now == (bit-exact) or a measured genuine print-knife-
+  edge/UB/multi-point residual with documented root.
