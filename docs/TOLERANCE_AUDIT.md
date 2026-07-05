@@ -1796,3 +1796,18 @@ the tcf-reduction / defect interaction) for one broken-top SK tree to find the e
 FIXABLE broken-top cftopk difference, NOT irreducible. Prior "proven irreducible per-tree ULP" verdict RETRACTED.
 META: three wrong verdicts this session caught by re-trace (sum-order, broken-harness×2, and now irreducible→
 broken-top); the user's "same code path?" question was the decisive prompt. Suite 6853/159, flog no regression.
+
+## Session 2026-07-05jj — volume ±1 ROOT localized: SK/SM normal-height dub (calibrated HT-DBH intercept)
+Instrumented the broken-top SK trees vs the DBS FVS_TreeList EstHt (normal height) column: jl's normal height
+h_v = 67.70, FVS EstHt = 67.75 — a 0.05-ft difference (far too big for an exp ULP). cftopk itself is bit-exact
+vs FVS cftopk.f (PHT=1−ITHT/100/H, TCF=TCF·VOLTK/VOLT); the divergence is the INPUT H. h_v comes from the
+calibrated-Wykoff HT-DBH dub `exp(ht_dbh_aa[sp] + ht2[sp]/(d+1)) + 4.5` (volume.jl:277, cratet.f:342-372) for
+topkill trees. So the 18 broken-top SK(65)/SM cuft residuals ALL trace to a 0.05-ft normal-height difference from
+the calibrated HT-DBH INTERCEPT ht_dbh_aa for SK=sp65 (and SM) — sp65 is a WK3/DGSCOR-family calibrated species.
+⇒ the volume ±1 is DOWNSTREAM of the sp65/SM HT-DBH height calibration (NOHTDREG/LHTDRG), not a broken-top bug
+per se: either jl's calibrated ht_dbh_aa[65] differs from FVS's (fixable) OR it carries the accepted WK3/DGSCOR
+sp33/65 calibration tail. FINAL distinguishing step: compare jl ht_dbh_aa[65] to FVS's cratet.f-regressed
+intercept (needs a live cratet DEBUG dump). This UNIFIES the volume ±1 with the sp33/65 WK3/DGSCOR @test_broken
+class. Progression of this residual's verdict: sum-order → per-tree ULP (irreducible) → broken-top code path
+(fixable) → SK/SM normal-height dub → sp65 HT-DBH calibration intercept. Each step via re-trace; user's "same
+code path?" was the pivot. Correctly @test_broken; now cornered to the exact upstream op (the calibrated intercept).
