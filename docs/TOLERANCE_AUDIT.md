@@ -802,3 +802,17 @@ render exactly to their reference:
 - **test_fuel_decay** (duff + woody, was rtol 1e-4/1e-3): jl's FMCWD computes (1−DKR)^nyrs as a SINGLE power,
   so it equals the test's closed form BIT-FOR-BIT (measured rel=0.0 both) → `==`. Not an iterative-vs-closed-
   form approximation (the earlier concern) — jl uses the same power. Suite 7664/2.
+
+## Session 2026-07-05 (cont.) — unit-test `≈`-constant conversions to == (coefficient/table lookups)
+
+Julia's `≈` default for Float32 is rtol=sqrt(eps)≈3.4e-4 — a loose tolerance sitting on exactly-loaded
+constants. Measured and converted the ones that are bit-exact:
+- **test_fire_biomass** (lines 62-75, 124-129): v2t, snag_decayx/fallx/alldwn, fd520/fd103 loadings — all
+  measured Δ0 → `==`. (jenkins_biomass .≈ ref formula + the cwd/percov self-consistency `≈` left as-is.)
+- **test_rothermel** (26,70,71,73,75,99,100,106-110): sigma (single-class SAV=3500), standard_fuel_model
+  l10/l5/m10/m5 loadings, fuel_moisture vd/vw tables, fire_wind_reduction interpolation breakpoints — all
+  measured Δ0 → `==`. (r.flame ≈ 0.45·(byram/60)^0.46 self-consistency left as-is.)
+- **test_snag** (51-53 snag_decay_fraction, 142-143 htx): coefficient lookups Δ0 → `==`. (snag_standing_
+  density conservation checks 64/74 left `≈` — a subtraction self-consistency that may carry a tiny residual.)
+- **test_econ** discount_rate: STRTECON 5.0 → 0.05f0 exactly → `==` (was `≈`).
+Suite green.

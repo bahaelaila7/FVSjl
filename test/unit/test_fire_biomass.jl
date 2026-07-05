@@ -59,20 +59,20 @@ end
     @test coef_col(coef, :ls_spi)[22] == 26f0    # sugar maple → LS 26
     @test coef_col(coef, :ls_spi)[65] == 34f0    # black willow group → LS 34 (red oak set)
     # V2T wood specific gravity (lb/cuft, fmvinit.f) — the SG passed to FMCROWE
-    @test coef_col(coef, :v2t)[1]  ≈ 20.6f0
-    @test coef_col(coef, :v2t)[2]  ≈ 27.4f0
-    @test coef_col(coef, :v2t)[22] ≈ 34.9f0
+    @test coef_col(coef, :v2t)[1]  == 20.6f0
+    @test coef_col(coef, :v2t)[2]  == 27.4f0
+    @test coef_col(coef, :v2t)[22] == 34.9f0
     # snag decay/fall classes (fmvinit.f) — feed the snag dynamics (F3/F7)
     @test coef_col(coef, :dkr_cls)[1]  == 4f0
     @test coef_col(coef, :snag_cls)[2] == 3f0
     @test coef_col(coef, :tfall_cls)[2] == 1f0
     # snag fall/decay dynamics by snag class (fmvinit.f:1060-1086), with species overrides
-    @test coef_col(coef, :snag_decayx)[5] ≈ 0.07f0  # shortleaf pine = fast snag class 1
-    @test coef_col(coef, :snag_fallx)[5]  ≈ 7.17f0
-    @test coef_col(coef, :snag_alldwn)[5] ≈ 50.0f0  # pine ALLDWN override
-    @test coef_col(coef, :snag_alldwn)[2] ≈ 100.0f0 # redcedar ALLDWN override
-    @test coef_col(coef, :snag_decayx)[65] ≈ 0.21f0 # oak = average snag class 2
-    @test coef_col(coef, :snag_alldwn)[65] ≈ 15.0f0
+    @test coef_col(coef, :snag_decayx)[5] == 0.07f0  # shortleaf pine = fast snag class 1
+    @test coef_col(coef, :snag_fallx)[5]  == 7.17f0
+    @test coef_col(coef, :snag_alldwn)[5] == 50.0f0  # pine ALLDWN override
+    @test coef_col(coef, :snag_alldwn)[2] == 100.0f0 # redcedar ALLDWN override
+    @test coef_col(coef, :snag_decayx)[65] == 0.21f0 # oak = average snag class 2
+    @test coef_col(coef, :snag_alldwn)[65] == 15.0f0
     # every species populated (1..90, no gaps)
     @test all(coef_col(coef, :v2t)[s] > 0f0 for s in 1:90)
     @test all(1 <= coef_col(coef, :ls_spi)[s] <= 68 for s in 1:90)
@@ -121,12 +121,12 @@ end
     # dead-fuel loadings (FUINI) — oak–hickory (type 6): litter 4.28, duff 5.91
     fd = ffe_dead_fuel_loading(coef, 520)
     @test length(fd) == 11
-    @test fd[1]  ≈ 0.13f0                        # <0.25" class
-    @test fd[3]  ≈ 1.93f0                        # 1–3" class
-    @test fd[10] ≈ 4.28f0                        # litter
-    @test fd[11] ≈ 5.91f0                        # duff
+    @test fd[1]  == 0.13f0                        # <0.25" class
+    @test fd[3]  == 1.93f0                        # 1–3" class
+    @test fd[10] == 4.28f0                        # litter
+    @test fd[11] == 5.91f0                        # duff
     # white pine (type 1): duff is the heaviest at 12.52
-    @test ffe_dead_fuel_loading(coef, 103)[11] ≈ 12.52f0
+    @test ffe_dead_fuel_loading(coef, 103)[11] == 12.52f0
     # live herb/shrub loadings (FULIV)
     @test ffe_live_fuel_loading(coef, 4) == (0.1f0, 0.25f0)     # pines
     @test ffe_live_fuel_loading(coef, 7) == (1.0f0, 5.0f0)      # redcedar

@@ -23,7 +23,7 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
     @testset "physical invariants" begin
         # a dry grass fire spreads and has positive intensity
         @test r0.spread > 0f0 && r0.byram > 0f0 && r0.flame > 0f0
-        @test r0.sigma ≈ 3500f0                       # characteristic SAV = the single class's SAV
+        @test r0.sigma == 3500f0                       # characteristic SAV = the single class's SAV
         # wind strictly increases spread / intensity
         @test r10.spread > r5.spread > r0.spread
         @test r10.byram  > r5.byram  > r0.byram
@@ -67,12 +67,12 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
         coef = coefficients(Southern())
         # database values (fminit.f) for the models snt01 stand 4 uses
         l10, s10, d10, m10 = standard_fuel_model(coef, 10)   # timber litter + understory
-        @test l10[1, 1] ≈ 0.13820f0 && l10[1, 2] ≈ 0.09183f0 && l10[1, 3] ≈ 0.23003f0
-        @test l10[2, 1] ≈ 0.09183f0                          # live woody
+        @test l10[1, 1] == 0.13820f0 && l10[1, 2] ≈ 0.09183f0 && l10[1, 3] ≈ 0.23003f0
+        @test l10[2, 1] == 0.09183f0                          # live woody
         @test s10[1, 1] == 2000f0 && s10[1, 2] == 109f0 && s10[1, 3] == 30f0
-        @test d10 == 1.0f0 && m10 ≈ 0.25f0
+        @test d10 == 1.0f0 && m10 == 0.25f0
         l5, _, d5, m5 = standard_fuel_model(coef, 5)         # brush
-        @test l5[1, 1] ≈ 0.04591f0 && d5 == 2.0f0 && m5 ≈ 0.20f0
+        @test l5[1, 1] == 0.04591f0 && d5 == 2.0f0 && m5 ≈ 0.20f0
 
         # Under the very-dry FMMOIS model 1, the brush model 5 (live woody, drying out) carries a HOTTER
         # fire than timber-litter model 10 — verified vs live FVSsn FMFINT at fmois=1: FM5 byram 8988 >
@@ -96,18 +96,18 @@ using FVSjl: rothermel_surface_fire, fuel_moisture, fire_wind_reduction,
 
     @testset "fuel moisture scenario (FMMOIS)" begin
         vd = fuel_moisture(1); vw = fuel_moisture(4)
-        @test vd[1, 1] ≈ 0.05f0 && vd[1, 5] ≈ 0.40f0 && vd[2, 1] ≈ 0.55f0   # very dry
-        @test vw[1, 1] ≈ 0.16f0 && vw[2, 1] ≈ 1.5f0                          # very wet
+        @test vd[1, 1] == 0.05f0 && vd[1, 5] ≈ 0.40f0 && vd[2, 1] ≈ 0.55f0   # very dry
+        @test vw[1, 1] == 0.16f0 && vw[2, 1] ≈ 1.5f0                          # very wet
         # 1-hr moisture rises monotonically from very dry → very wet
         @test fuel_moisture(1)[1,1] < fuel_moisture(2)[1,1] < fuel_moisture(3)[1,1] < fuel_moisture(4)[1,1]
     end
 
     @testset "canopy wind reduction (CANCLS/CORFAC)" begin
-        @test fire_wind_reduction(2f0)   ≈ 0.5f0     # below first class
-        @test fire_wind_reduction(17.5f0) ≈ 0.3f0    # exact class breakpoint
-        @test fire_wind_reduction(37.5f0) ≈ 0.2f0
-        @test fire_wind_reduction(90f0)  ≈ 0.1f0     # above last class
-        @test fire_wind_reduction(11.25f0) ≈ 0.4f0   # midway 5↔17.5 ⇒ midway 0.5↔0.3
+        @test fire_wind_reduction(2f0)   == 0.5f0     # below first class
+        @test fire_wind_reduction(17.5f0) == 0.3f0    # exact class breakpoint
+        @test fire_wind_reduction(37.5f0) == 0.2f0
+        @test fire_wind_reduction(90f0)  == 0.1f0     # above last class
+        @test fire_wind_reduction(11.25f0) == 0.4f0   # midway 5↔17.5 ⇒ midway 0.5↔0.3
         @test fire_wind_reduction(10f0) > fire_wind_reduction(50f0)  # denser canopy shelters more
     end
 

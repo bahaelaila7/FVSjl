@@ -175,7 +175,7 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         if isfile(key)
             s = first(FVSjl.each_stand(key))
             @test s.econ !== nothing && s.econ.active
-            @test s.econ.discount_rate ≈ 0.05f0            # STRTECON 5.0% → 0.05 (live FVS Discount_Rate=5.0)
+            @test s.econ.discount_rate == 0.05f0           # STRTECON 5.0% → 0.05 exactly (was ≈; live FVS Discount_Rate=5.0)
         else
             @test_skip "econ_strtecon.key not available"
         end

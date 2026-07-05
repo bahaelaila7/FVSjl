@@ -48,9 +48,9 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
     end
 
     @testset "decay fraction (DECAYX)" begin
-        @test snag_decay_fraction(coef, 5)  ≈ 0.07f0   # fast snag class 1
-        @test snag_decay_fraction(coef, 65) ≈ 0.21f0   # average snag class 2
-        @test snag_decay_fraction(coef, 2)  ≈ 0.35f0   # slow snag class 3 (redcedar)
+        @test snag_decay_fraction(coef, 5)  == 0.07f0   # fast snag class 1
+        @test snag_decay_fraction(coef, 65) == 0.21f0   # average snag class 2
+        @test snag_decay_fraction(coef, 2)  == 0.35f0   # slow snag class 3 (redcedar)
     end
 
     @testset "snag list: creation + per-cycle aging" begin
@@ -139,8 +139,8 @@ end
     @testset "LS default HTX seeded by FMIN (fmvinit height-loss classes)" begin
         # LS default HTX by snag class (fmvinit.f:831-873): class1=3.0, 2=1.0, 3/4=0, 5=0.65, 6=0.45, hemlock=0
         htx = coef_col(lc, :snag_htx)
-        @test htx[6] ≈ 3.0f0    # jack-pine group (class 1)
-        @test htx[1] ≈ 1.0f0    # class 2
+        @test htx[6] == 3.0f0    # jack-pine group (class 1)
+        @test htx[1] == 1.0f0    # class 2
         @test htx[15] ≈ 0.65f0  # maple/ash group (class 5)
         @test htx[10] ≈ 0.45f0  # cedar/oak group (class 6)
         @test htx[12] ≈ 0.0f0   # hemlock exception (fmvinit.f:873)
