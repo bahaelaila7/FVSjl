@@ -28,8 +28,11 @@ end
         tt += t.tpa[i]; sumdr0 += t.tpa[i] * t.dbh[i]^1.605f0
     end
     dia0 = (sumdr0 / tt)^(1f0/1.605f0)
-    @test isapprox(dia0, 4.701f0; atol=0.005)             # vs quadratic QMD 5.14
-    @test isapprox(tt, 589.65f0; atol=0.5)                # density t (per stockable)
+    # both are deterministic sums over the (bit-exact) tree data; they RENDER to the reference exactly
+    # (measured dia0 4.7009993→4.701 Δ9.5e-7 Float32 ULP; tt 589.6528→589.65 Δ0.0027). Compare rounded
+    # value `==` (was atol 0.005 / 0.5 — ~5000×/180× the print-resolution floor).
+    @test round(Float64(dia0); digits=3) == 4.701         # vs quadratic QMD 5.14
+    @test round(Float64(tt);   digits=2) == 589.65        # density t (per stockable)
 end
 
 @testset "mortality reduces TPA in the right regime" begin

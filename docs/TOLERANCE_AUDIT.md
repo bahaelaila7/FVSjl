@@ -779,3 +779,17 @@ is near-bit-exact) keeps `≤1`: it hits a genuine Δ1 render knife-edge at 2005
   genuine per-cycle TCuFt/BdFt render knife-edges (spclwt/vol_eqnum/mortmsb/cuteff hit Δ1 at a specific
   cycle, verified). NOTE: test_managed does NOT assert BdFt (col 12) — measured Δ2 there, an UNCHECKED
   column (not a tolerance), flagged for a future board-foot pass but out of scope for tolerance-closure.
+
+## Session 2026-07-05 (cont.) — unit-test bounds: growth/mortality rounded-render ==
+
+Swept the unit tests (previously less-examined). Found padded bounds over deterministic computations that
+render exactly to their reference:
+- **test_growth ht_growth** (6 per-tree HTG, was atol 0.002/0.005): jl is the live-validated HTGF (snt01.sum
+  bit-exact), and each value ROUNDS to the recorded 3-decimal reference exactly (measured |Δ|≤4.3e-4) →
+  rounded-render `==` (round(·;digits=3)==ref). The "matches Oracle A" values happen to be correct to 3dp.
+- **test_mortality dia0/tt** (was atol 0.005/0.5): both deterministic sums over the bit-exact tree data;
+  dia0 4.7009993→4.701 (Δ9.5e-7 Float32 ULP), tt 589.6528→589.65 (Δ0.0027) → rounded-render `==`
+  (digits=3 / digits=2). The 0.005/0.5 were ~5000×/180× the print-resolution floor.
+- test_econ max_dib (`≈999.9 atol=0.1`): a log-grade "no upper limit" SENTINEL; left as-is — the econ
+  harvest setup is nontrivial to reproduce standalone and I won't tighten a constant without measuring it
+  (doctrine: measure, don't guess). Flagged for a future econ pass.

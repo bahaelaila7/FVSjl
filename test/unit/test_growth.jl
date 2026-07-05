@@ -31,18 +31,22 @@ const KEY3 = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
     @test isapprox(s.calib.dg_cor[33], 1.085818f0; atol=2f-7)
 end
 
-@testset "height growth (HTGF) matches Oracle A" begin
+@testset "height growth (HTGF) — per-tree HTG vs the 3-decimal reference" begin
     s, _ = initialize(KEY3)
     notre!(s); s.plot.basal_area = stand_ba(s); s.plot.avg_height = stand_top_height(s)
     height_growth!(s, s.variant)
     t = s.trees
-    # per-tree HTG, dominant trees (tree 2 is a tiny seedling — small-tree path, skip)
-    @test isapprox(t.ht_growth[1], 1.442f0; atol=0.002)   # HI
-    @test isapprox(t.ht_growth[3], 0.487f0; atol=0.002)   # OH
-    @test isapprox(t.ht_growth[4], 0.141f0; atol=0.002)   # SK
-    @test isapprox(t.ht_growth[5], 1.782f0; atol=0.002)   # SK
-    @test isapprox(t.ht_growth[6], 4.840f0; atol=0.005)   # AB
-    @test isapprox(t.ht_growth[8], 2.311f0; atol=0.005)   # HI
+    # per-tree HTG, dominant trees (tree 2 is a tiny seedling — small-tree path, skip). jl's HTGF is the
+    # live-validated computation (snt01.sum is bit-exact vs live FVSsn every cycle); it RENDERS to the
+    # recorded 3-decimal reference EXACTLY (measured |Δ| ≤ 4.3e-4, all round to the field). Compare the
+    # rounded value `==` — the recorded values happen to match Oracle A but are here anchored to jl's own
+    # live-validated result at print resolution (was atol 0.002/0.005, ~5-10× the 3-decimal half-width).
+    @test round(Float64(t.ht_growth[1]); digits=3) == 1.442   # HI
+    @test round(Float64(t.ht_growth[3]); digits=3) == 0.487   # OH
+    @test round(Float64(t.ht_growth[4]); digits=3) == 0.141   # SK
+    @test round(Float64(t.ht_growth[5]); digits=3) == 1.782   # SK
+    @test round(Float64(t.ht_growth[6]); digits=3) == 4.840   # AB
+    @test round(Float64(t.ht_growth[8]); digits=3) == 2.311   # HI
 end
 
 @testset "cycle loop runs and grows the stand" begin
