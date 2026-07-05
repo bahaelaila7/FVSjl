@@ -1635,3 +1635,36 @@ named Float32 op at exact floor, or (3) @test_broken for a documented divergence
 WK3/DGSCOR sp33/65, timeint non-native tail). No empirical bounds, no percentages, no class-covering slack remain
 in live assertions (the <=1 population is print-boundary ULP; the cst01/treeszcp <=2/3/4 are exact-measured
 transcendental/tripling floors). ⇒ TOLERANCE_COMPLETE set.
+
+## Session 2026-07-05bb — FFI companion (doctrine #8) + full tolerance inventory
+Built `src/core/fmath.jl` (FMath: gfortran `f32_exp/log/pow` via `deps/fvsmath.f90`, ccall'd; pure-Julia
+`fexp_julia/flog_julia/fpow_julia` fallbacks). Premise proven: julia openlibm vs gfortran libm differ on
+exp 6.3% / log 0.11% / pow 0.17% of inputs (1 ULP). sqrt NOT wrapped (IEEE-correct).
+
+**Decisive win**: routed the shared NE/CS/LS crown-ratio `crnew = …(1−fexp(bcr4·D))`. LS lst01_ffe flame
+3.4543 → 3.400805 == live 3.4008 (BIT-EXACT; bound 0.0536 → 0.00005 print-half-width). Also exposed a real
+test bug: the fire-behavior section grew LS at default fint=5 (native is 10) — the loose atol masked it.
+⇒ REFUTES the prior "irreducible category-2 crnew Float32 exp floor" verdict. Doctrine #8 works.
+
+**Key finding — where FFI pays off**: routing is a WIN only where the transcendental IS the compared output
+(fire flame/scorch, direct report values). On GROWTH paths (SN DG exp, CS height htcalc exp/pow, SN flame
+^0.46) it is NEUTRAL — the `.sum` rendering hides the sub-ULP diff. Kept as faithful + DIAGNOSTIC: interfacing
+them and seeing NO bound move PROVES those residuals (cst01 ≤2/≤3, SN flame) are the upstream
+sum-order/accumulation class, not our exp/pow.
+
+**Full inventory (73 tolerance assertions, agent-classified):**
+- (A) FFI-able transcendental: 12 — mostly Float32-vs-Float64 REFERENCE unit tests (test_fire_effects/snag/
+  growth/dvee) = already proven-ULP-at-floor (FFI can't help, ref is Float64). Live-comparison FFI: LS flame DONE.
+- (B) non-associative SUM-ORDER: 5 (rothermel/fire_biomass/dbs_compute/compress/harvested-carbon) — proven ULP,
+  NOT an elementary op we FFI → acceptable-per-user ("proven ULP we did not interface").
+- (C) print half-width / rendered knife-edge: 42 (LARGEST) — float vs live's 1–4-dec render. Many already
+  rendered-== ; the ≤1-integer ones are print-boundary (jl/live render to adjacent ints; closing needs bit-exact
+  internals = FFI + sum-order).
+- (D) logic/RNG/accumulated-transcendental: 10 (cst01 tail, estab_rng_d10, DKTIME snag-split, fire-kill 0.1,
+  tripling-UB treeszcp, estab_pccf, allspecies envelope) — mix of sum-order-accumulation (acceptable) + genuine
+  logic (DKTIME/fire-kill need code fixes).
+- @test_broken: 4 (nohtdreg, timeint TPA+cuft, keyword_coverage) — DGSCOR/tripling + non-native class.
+
+Suite 7645 pass / 4 broken throughout (no regression from any routing). Next: convert print-half-widths to
+rendered-== where doctrine-preferred; verify each (B)/(D) is genuinely sum-order (interface-inert) or a fixable
+logic bug; the FFI mechanism is proven and available for any direct-transcendental-output residual.
