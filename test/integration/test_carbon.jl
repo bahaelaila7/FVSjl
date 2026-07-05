@@ -203,14 +203,14 @@ end
         @test length(rows) == length(ft)
         # The report prints F7.1 (one decimal), so a bit-exact column matches to the print resolution 0.05.
         for (mv, fv) in zip(rows, ft)
-            @test mv[2] ≈ fv[2] atol = 0.05    # Aboveground Total — BIT-EXACT
-            @test mv[3] ≈ fv[3] atol = 0.05    # Merch             — BIT-EXACT
-            @test mv[4] ≈ fv[4] atol = 0.05    # Belowground Live  — BIT-EXACT
-            @test mv[8] ≈ fv[8] atol = 0.05    # Forest Floor      — BIT-EXACT
-            @test mv[9] ≈ fv[9] atol = 0.05    # Shrub/Herb (FLIVE) — BIT-EXACT (post-grow FLIVE refresh)
+            @test mv[2] == fv[2]    # Aboveground Total — BIT-EXACT
+            @test mv[3] == fv[3]    # Merch             — BIT-EXACT
+            @test mv[4] == fv[4]    # Belowground Live  — BIT-EXACT
+            @test mv[8] == fv[8]    # Forest Floor      — BIT-EXACT
+            @test mv[9] == fv[9]    # Shrub/Herb (FLIVE) — BIT-EXACT (post-grow FLIVE refresh)
             # Total Stand Carbon — BIT-EXACT. Includes the belowground-DEAD root pool V(4) because SN's default
             # CRDCAY=0.0425>0 ⇒ LDCAY true (fmcrbout.f:179-180); jl previously omitted it from the total.
-            @test mv[10] ≈ fv[10] atol = 0.05  # Total Stand Carbon — BIT-EXACT (incl. below-dead via LDCAY)
+            @test mv[10] == fv[10]  # Total Stand Carbon — BIT-EXACT (incl. below-dead via LDCAY)
         end
         # DEAD POOLS (BelowD/StandD/DDW) are BIT-EXACT across all cycles, asserted at print resolution on the
         # max residual (not hidden behind a loose tolerance). The former intermediate-cycle gap (crown-lift
@@ -304,8 +304,8 @@ end
             # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
             @test abs(mv[2] - fv[2]) <= 1.0    # Aboveground Total (was ~+4 with gross v[1])
             @test abs(mv[3] - fv[3]) <= 0.4    # Merch — floor is (0.3,0.4] (the "0.3" comment was stale; 0.3 fails); NATCRS-MCF stem-detail residual
-            @test mv[4] ≈ fv[4] atol = 0.05    # Belowground Live  — bit-exact (method-independent)
-            @test mv[8] ≈ fv[8] atol = 0.05    # Forest Floor      — bit-exact
+            @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
+            @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end
         # the method switches the live basis but leaves roots / dead pools alone (fmcrbout.f:144)
         FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)

@@ -1044,3 +1044,11 @@ Measured the jl-internal rtol=1f-4 self-consistency identities:
   measured max MYBA Δ9.1e-5, MYSDI Δ1.2e-4 (a few Float32 ULP at ~126/292). Was ~100–400× padded.
 - **structure_stage strdbh** (≤0.55): re-measured max 0.5428 @cyc2 (near-tie RDPSRT cutoff sort-flip) —
   confirmed at EXACT floor (0.55 = 1.01× the observed, minimal headroom), not padded.
+
+## Session 2026-07-05 (cont.) — carbon rendered-report comparisons → == (both F7.1)
+
+test_carbon lines 206-213 + 307-308 compare TWO rendered carbon reports (jl write_carbon_report vs the
+Fortran .report.save, both F7.1) → measured Δ0 all cols/cycles → `==` (was atol=0.05). Distinct from the
+jl-STRUCT-vs-Fortran-1dec-report comparisons (52-54/68-71/etc.) which stay 0.05 print-half-width (jl float
+rounds to the Fortran 1-dec field). (My c10 probe showed 0.1 — a row-alignment artifact; the convert-then-
+test confirmed all bit-exact incl. c10.)
