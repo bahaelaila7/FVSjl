@@ -901,3 +901,18 @@ Swept the remaining bare default-rtol `≈` operators across ALL tests:
   FireResult self-consistency (b.flame==res.flame) — ALL measured bit-exact (test-verified) → `==`.
 UNIT TESTS + integration bare-≈ are now ZERO default-rtol; every `≈` remaining carries a proven atol/rtol
 (print-half-width, Float32-ULP, transcendental, sum-order, stamp-precision) or is an inequality.
+
+## ★ MILESTONE 2026-07-05 — the `≈`-default-rtol class is 100% CLOSED
+
+Verified: ZERO bare default-rtol `≈` operators remain in the entire test suite (the 5 grep hits are `≈`
+characters inside COMMENTS on inequality assertions, e.g. `<= 8  # base ≈ 15`). Every `≈` operator that
+existed (~40+ across unit + integration) is now one of:
+  • `==` (bit-exact: coefficient loads, formula identities, DBS report↔field mapping, conservation sums,
+    parsed constants, self-consistency) — the large majority, each measured Δ0;
+  • a proven `atol`/`rtol` width cornered to the exact op (Float32-rounding ULP 1.2f-7; `b^(7/6)`/exp
+    transcendental 5f-6; non-associative sum-order 2f-7/5f-8; snag-fall piecewise 2f-6; print-half-width;
+    stamp-precision) with the root documented in the test.
+This was the campaign's largest previously-untargeted population — Julia's `≈` default for Float32 is
+rtol≈3.4e-4 (loose), and it was silently covering dozens of bit-exact coefficient/formula/mapping checks.
+Recurring lesson reinforced: MEASURE WITH THE ACTUAL TEST FIXTURE — two false "inexact" readings this
+sweep (harvest_value empty-cost array; consumption fill!-seed) dissolved to Δ0 with the real setup.
