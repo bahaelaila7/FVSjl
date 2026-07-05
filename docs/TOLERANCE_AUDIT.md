@@ -959,3 +959,11 @@ not mislabeled like event_monitor). lst01_ffe:143 (11.8 vs 12.0) + carbon:306 Me
 - **test_treeszcp**: treeszcp_nomort (3,4,7,8) measured Δ0 → `==` (added an `exact?` flag to the scenario
   tuple); treeszcp_cap (QMD Δ0.4 UB) + htcap (TPA Δ1) keep ≤1.
 - Confirmed genuine Δ1 knife-edges (NOT padded): bfvolume/setsite/volume_override col-9/10, dead_fint TCuFt.
+
+## Session 2026-07-05 (cont.) — fixmort col3 per-scenario split
+
+- **test_fixmort col3 (TPA)**: measured Δ0 for 4/5 scenarios (replace/mult/big/kpbig); ONLY fixmort_kpoint
+  hits Δ1 (kill·rate on the render knife-edge). Made col3 per-scenario: `==` for the bit-exact 4, ≤1 for
+  kpoint only (was a uniform ≤1 padding the 4). cols 4/7/8 already ==.
+- Confirmed GENUINE (not padded): compute col3 (jl vs compute_cycle.save Δ1 knife-edge), estab_pccf col5
+  (Δ1 — the documented stand-average-CCF multi-point regen approximation), fixmort_kpoint col3.
