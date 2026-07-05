@@ -1125,3 +1125,27 @@ crown-ratio, accumulated-DGF, near-tie), or `@test_broken` (2: COMPRESS s22, WK3
 TOLERANCE_COMPLETE held unset ONLY for the strictest "single-op vs named-mechanism" reading of the emergent-
 phasing / tripling-UB / crown-ratio bounds (cornered to a mechanism with every constituent op proven faithful,
 bound = exact floor — but not a single Float32 invocation). Substantive campaign COMPLETE.
+
+## Session 2026-07-05 — FINAL VERDICT: exact reason TOLERANCE_COMPLETE stays unset
+
+Classified every remaining non-== bound definitively into goal-category:
+- **CATEGORY-2 PROVEN-ULP (closed)**: grown-cycle transcendental (cst01/timeint/allspecies — HTGF/DGF ^power/
+  exp, the goal's ^(7/6) example, bounds = exact maxima); non-associative sum-order; Float32-ULP; print-half/
+  knife-edge; DBS/econ/dvee stamps. All cornered to a named low-level op with exact width. ✓
+- **CORNERED-MECHANISM (ops proven faithful, bound = exact floor)**: emergent snag-phasing (0.033/0.4 — snag-
+  fall/consumption timing); tripling-UB (treeszcp ≤4 — FVS uninitialized-memory, genuinely irreducible, both-
+  sides traced). These are mechanisms not single ops, but every constituent op is bit-exact vs live. ✓(-ish)
+- **@test_broken (2)**: COMPRESS s22, WK3/DGSCOR. ✓
+- **THE GENUINE BLOCKERS (deferred FEATURE/MODEL, NOT closeable to ==/ULP)**:
+  (a) **estab_pccf ≤0.2** = the MULTI-POINT PCCF approximation — jl uses stand-average CCF for regen crown; live
+      varies PCCF per inventory point. A deferred FEATURE (needs per-point density, like the deferred TCONDMLT/
+      structure-stage multi-point). Not a ULP, not genuinely-irreducible (implementable) → can't be == or
+      proven-ULP or @test_broken.
+  (b) **LS flame/scorch 0.055/0.29** = DOWNSTREAM of the crown-ratio-at-fire-phase (traced: xir/wind bit-exact,
+      PERCOV 67.5 vs 70.77 from the crown-ratio tripling-redistribution / deferred forest-grown crown-CR-timing).
+      Cornered to the mechanism but the mechanism is a deferred crown-model residual.
+VERDICT: the campaign has driven EVERY bound to == or proven-ULP-at-exact-floor EXCEPT the two deferred-
+FEATURE/MODEL residuals above (multi-point PCCF + LS crown-ratio-timing). Those are not closeable without
+implementing the deferred features — a crown-model/regen investigation beyond tolerance-tightening. This is
+the precise, documented reason TOLERANCE_COMPLETE remains unset. Substantive tolerance campaign COMPLETE;
+the residual is FEATURE work, tracked separately.
