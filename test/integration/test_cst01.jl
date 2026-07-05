@@ -122,8 +122,8 @@ end
                 # Bounds = the EXACT deterministic observed envelope (re-measured 2026-07-05: tpa max=2, ccf=3,
                 # topht=2, qmd=0.1) — not a loosened multiple.
                 @test abs(tpa   - L[1]) <= 2   # mortality drift from the height-transcendental AVH (was ≤3; measured max 2)
-                @test abs(ba    - L[2]) <= 1
-                @test abs(sdi   - L[3]) <= 1
+                @test ba        == L[2]        # BA — BIT-EXACT every grown cycle (measured Δ0; the transcendental is INERT in BA, was ≤1)
+                @test abs(sdi   - L[3]) <= 1   # SDI — render knife-edge (measured max 1)
                 # CCF tol widened 2→3: the gradd.f DENSE-before-CROWN fix (post-growth BA into the NE/CS crown
                 # model) made this stand's cubic/TPA MUCH closer to live (2090 Tcuft drift +41→−6) but shifted
                 # the late-cycle CCF residual to 3 at 2070 (197 vs live 200) — crown-driven, a net improvement.
