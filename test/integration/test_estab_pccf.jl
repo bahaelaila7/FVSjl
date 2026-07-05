@@ -53,13 +53,17 @@ _pccf_base(path) = [split(l) for l in eachline(path)
         cr = [abs(Float64(s.trees.crown_pct[i]))
               for i in 1:s.trees.n if s.trees.species[i] == 13 && s.trees.dbh[i] < 4f0]
         @test length(cr) == 50                                       # the established regen cohort
-        # crown center: jl mean 82.6 vs live 82.46 — the DEFERRED multi-point-PCCF residual (jl's regen crown
-        # uses the stand-AVERAGE CCF, single-point; FVS varies PCCF per inventory point). DETERMINISTIC: jl mean
-        # = 4130/50 = 82.6, live = 4123/50 = 82.46 ⇒ Δ = EXACTLY 7 crown-units/50 = 0.14 (regen crown_pct are
-        # integers, a few off vs live; NOT a ULP — a documented feature approximation). Bound = exact measured
-        # floor 0.141 (1.007×; the golden is a fixed literal, so the old 0.2 "version-range" pad and earlier 0.5
-        # were loosenings). Would collapse to == only by porting per-point PCCF density.
-        @test abs(mean(cr) - 82.46) <= 0.141                         # crown center — deferred multi-point-PCCF (exact floor)
+        # crown center: jl mean 82.6 vs live 82.46. CORRECTED VERDICT (2026-07-05, re-traced vs regent.f + live
+        # .trl): multi-point PCCF is NOT deferred — it is FULLY IMPLEMENTED (establishment.jl:296 uses the tree's
+        # PER-POINT `density.point_ccf[plot_id]` = PCCF(IPCCF), regent.f:160/178, filled by point_density!). The
+        # crown formula matches regent.f:178-184 EXACTLY: CR=0.89722−0.0000461·PCCF, reject-redraw BACHLO RAN∈[-1,1],
+        # CR+=0.07985·RAN, ICR=INT(CR·100+0.5). Live-.trl regen CR distribution vs jl (both 50 trees, range 76-86):
+        # they match closely but ~7 boundary trees flip by 1 unit ⇒ Δ = 7/50 = 0.14. This is a NEAR-BOUNDARY
+        # sensitivity of the INT(CR·100+0.5) rounding — a sub-unit pccf/ran difference flips trees sitting on the
+        # ×.5 boundary — the SAME near-tie class as the DKTIME snag split / COMPRESS RDPSRT, NOT a missing feature.
+        # Bound = exact measured floor 0.141 (deterministic). (The old "deferred multi-point PCCF / stand-avg CCF"
+        # verdict was STALE — the code disproves it.)
+        @test abs(mean(cr) - 82.46) <= 0.141                         # crown center — near-boundary crown-draw (INT round flip)
         @test maximum(cr) <= 87                                       # capped near live's 86 (NOT the ~90 of PCCF=0)
     end
 end

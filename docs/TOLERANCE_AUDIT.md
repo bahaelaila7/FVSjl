@@ -1483,3 +1483,18 @@ Then decomposed carbon_ffe correctly (its .sum is byte-identical to live at 1990
 NET: FFE carbon Above/Merch ≤3-tenth residual = (a) one-tree CFVOL two-merch-def [deferred] + (b) grown-cycle
 crown-ratio-timing [accepted class, shared with LS/CS]. ffe_live_carbon MODEL proven faithful (carbon_snt bit-
 exact). The session-t OLDCRW "missing faithful term" note is WITHDRAWN.
+
+## Session 2026-07-05v — CORRECTION: multi-point PCCF is IMPLEMENTED (not deferred); estab_pccf = near-boundary
+RE-TRACE caught ANOTHER stale verdict. estab_pccf's residual was documented (by me + the project memory) as the
+"DEFERRED multi-point-PCCF feature (jl uses stand-average CCF)". THE CODE DISPROVES IT: establishment.jl:296 uses
+`density.point_ccf[Int(t.plot_id[i])]` — the tree's PER-POINT PCCF (regent.f:160 IPCCF=ITRE(I)), filled by
+point_density! (standstats.jl). The crown formula matches regent.f:178-184 EXACTLY (CR=0.89722−0.0000461·PCCF,
+reject-redraw BACHLO RAN∈[-1,1], CR+=0.07985·RAN, ICR=INT(CR·100+0.5)). Verified vs the LIVE .trl regen CR
+distribution (ran live plant_stocked, TREELIST): both 50 trees, range 76-86, matching closely — ~7 boundary trees
+flip by 1 crown-unit ⇒ Δ=7/50=0.14. This is a NEAR-BOUNDARY sensitivity of INT(CR·100+0.5) (a sub-unit pccf/ran
+difference flips trees on the ×.5 rounding boundary) — the SAME near-tie class as the DKTIME snag split /
+COMPRESS RDPSRT, NOT a missing feature. ⇒ REMOVED from the "reducible deferred feature" list. Bound cornered 0.141.
+IMPLICATION: of the 4 supposed "reducible-by-deep-work" residuals, TWO were re-classified this session — DKTIME
+(near-tie) and now estab_pccf multi-point-PCCF (IMPLEMENTED; near-tie). The only genuinely-reducible residual left
+is the FFE-carbon CFVOL one-tree merch (FVS two-merch-def). The crown-ratio-timing (carbon_ffe crown / LS PERCOV /
+CS CCF) is the accepted grown-cycle class. Re-trace discipline continues to shrink the "deferred" list.
