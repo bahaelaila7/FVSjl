@@ -184,10 +184,10 @@ function _r9_cuft(st::_R9State, lowrHt::Float32, upprHt::Float32)::Float32
     upprHt <= 0f0 && return 0f0
     r = st.r; c = st.c; e = st.e; p = st.p; b = st.b; a = st.a
     totht = st.totHt; dbhib = st.dbhIb; dib17 = st.dib17
-    G = (1f0 - 4.5f0 / totht)^r
+    G = fpow(1f0 - 4.5f0 / totht, r)                       # Clark real powers via gfortran companion (doctrine #8)
     W = (c + e / dbhib^3) / (1f0 - G)
-    X = (1f0 - 4.5f0 / totht)^p
-    Y = ((1f0 - 17.3f0 / totht) < 0.005748f0 && p > 14f0) ? 0f0 : (1f0 - 17.3f0 / totht)^p
+    X = fpow(1f0 - 4.5f0 / totht, p)
+    Y = ((1f0 - 17.3f0 / totht) < 0.005748f0 && p > 14f0) ? 0f0 : fpow(1f0 - 17.3f0 / totht, p)
     Z = (dbhib^2 - dib17^2) / (X - Y)
     T = dbhib^2 - Z * X
     L1 = max(lowrHt, 0f0); U1 = min(upprHt, 4.5f0)
@@ -202,15 +202,15 @@ function _r9_cuft(st::_R9State, lowrHt::Float32, upprHt::Float32)::Float32
     V1 = 0f0; V2 = 0f0; V3 = 0f0
     if I1 > 0f0
         V1 = I1 * dbhib^2 * ((1f0 - G * W) * (U1 - L1) +
-             W * ((1f0 - L1 / totht)^r * (totht - L1) -
-                  (1f0 - U1 / totht)^r * (totht - U1)) / (r + 1f0))
+             W * (fpow(1f0 - L1 / totht, r) * (totht - L1) -
+                  fpow(1f0 - U1 / totht, r) * (totht - U1)) / (r + 1f0))
     end
     if I2 > 0f0 && I3 > 0f0
         if (1f0 - U2 / totht) < 0.005748f0 && p > 14f0
-            V2 = T * (U2 - L2) + Z * ((1f0 - L2 / totht)^p * (totht - L2)) / (p + 1f0)
+            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2)) / (p + 1f0)
         else
-            V2 = T * (U2 - L2) + Z * ((1f0 - L2 / totht)^p * (totht - L2) -
-                 (1f0 - U2 / totht)^p * (totht - U2)) / (p + 1f0)
+            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2) -
+                 fpow(1f0 - U2 / totht, p) * (totht - U2)) / (p + 1f0)
         end
     end
     if I4 > 0f0
