@@ -589,7 +589,7 @@ end
     @test allrow.K3 == Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
     # per-species class-3 kills sum to the ALL aggregate
     @test sum(m.K3 for m in mort if m.SP != "ALL") == Float64(b.clskil[3])
-    @test length(cons) == 1 && cons[1].ST ≈ Float64(b.consumed.surf_total)
+    @test length(cons) == 1 && cons[1].ST == Float64(b.consumed.surf_total)   # DBS round-trips the Float32 exactly (was ≈)
     @test b.consumed.surf_total >= 0f0                        # fire consumes (≥0) surface fuel
 end
 

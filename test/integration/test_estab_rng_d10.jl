@@ -70,12 +70,10 @@ end
         @test round(Float64(maximum(lp27)); digits = 2) == 11.42   # RENDERED-== to live's 2-dec (jl 11.423086→11.42)
 
         # (3) mean DBH at a LATE cycle (2042, ~9 growth cycles). jl 9.812015 vs live 9.8062 → Δ0.0058, which
-        # is NOT print (4-dec half-width is 5e-5) but the ACCUMULATED DGF/HTGF Float32 growth tail summed over
-        # 50 trees × 9 cycles — the same proven accumulated-transcendental class as the cst01 late cycles.
-        # atol 0.00582 = the exact accumulated-tail floor (measured Δ0.0058146, deterministic scenario, last-
-        # digit-rounded up = 1.001×; was 0.007 = a 1.2× padded multiple mislabeled "exact floor", earlier 0.01).
-        # Irreducible without bit-matching FVS's Float32 exp/power in the growth model.
+        # ACCUMULATED DGF/HTGF Float32 growth tail over 50 trees × 9 cycles (Δ0.0058) — NOT one portable
+        # primitive (FFI-routing the growth exp/pow left it render-hidden ⇒ it's the sum-order/accumulation
+        # class) ⇒ EXPOSED @test_broken vs the 4-dec render (doctrine #9), not a passing atol.
         lp42 = snap[2042].lp
-        @test isapprox(sum(lp42) / length(lp42), 9.8062f0; atol = 0.00582)
+        @test_broken isapprox(sum(lp42) / length(lp42), 9.8062f0; atol = 5f-5)   # 4-dec half-width; Δ0.0058 ≫ that
     end
 end
