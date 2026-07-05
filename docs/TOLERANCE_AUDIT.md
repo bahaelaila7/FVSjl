@@ -1075,3 +1075,26 @@ revert + corner. Measured & tightened:
 - 117 (belowground_dead BIOROOT): max Δ0.047 → `<= 0.048` (was 0.05).
 KEY TECHNIQUE: when a bound's setup can't be reproduced standalone, instrument the test itself — the
 faithful in-context measurement, not a simplified probe.
+
+## Session 2026-07-05 — CAMPAIGN STATE (comprehensive sweep complete)
+
+Every numerical tolerance in the suite has now been MEASURED against the live oracle (standalone,
+rendered-==, or IN-TEST instrumentation for fixture-sensitive ones) and driven to one of:
+- **== / rendered-== / ==0** (~234): coefficient loads, formula identities, DBS report↔field mapping,
+  conservation sums, parsed constants, rendered-report comparisons, bit-exact stand columns, whole
+  establishment scenarios (plant_hard/plant_div), grown-cycle BA (cst01/net01), and every column that
+  measured Δ0.
+- **PROVEN-ULP at EXACT floor with documented root** (~37): Float32-ULP (calib 2f-7, sum-order 2f-7/5f-8/
+  5f-7, DBS-stamp 2f-4, disc-cost 5f-5, dvee 6f-4); transcendental (^(7/6) 5f-6/0.003/0.016, PERCOV-crown-
+  timing 0.055/0.29); print-half-width (0.05 struct-vs-1dec-report, 5f-4 3-dec, 0.005 2-dec-max); print-
+  knife-edge (≤1 rendered-integer, measured genuine Δ1); grown-cycle transcendental at observed maxima
+  (cst01 tpa≤2/ccf≤3/topht≤2, timeint ≤2/≤16, allspecies CS/cov4, multicycle cuft/TPA knife-edge); emergent
+  snag-phasing (0.033/0.4); UB (treeszcp ≤4, uninitialized-memory); crown-ratio (estab_pccf 0.2, deferred);
+  accumulated-DGF (estab_rng 0.007); near-tie (strdbh 0.55).
+- **@test_broken** (2): COMPRESS s22 eigensolver + nohtdreg WK3/DGSCOR — both with precise both-sides verdicts.
+
+DISTINCTIONS PROVEN this session: struct-vs-1dec-report = 0.05 print-half-width (correct); struct-vs-2dec-
+oracle = ~0.015 (was padded); DBS-full-precision-vs-DBS = Float32 ULP (dbs_summary was 250,000× padded);
+rendered-vs-rendered = == (Δ0). No percentages / rtol>0 / atol≥0.5 / multi-unit-slack survive. Every "±1
+tracks live" / "~N% tail" / "transcendental drift" label was re-measured — many dissolved to == (a growth/
+tripling fix had closed the residual but the comment lagged).
