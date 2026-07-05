@@ -816,3 +816,14 @@ constants. Measured and converted the ones that are bit-exact:
   density conservation checks 64/74 left `≈` — a subtraction self-consistency that may carry a tiny residual.)
 - **test_econ** discount_rate: STRTECON 5.0 → 0.05f0 exactly → `==` (was `≈`).
 Suite green.
+
+## Session 2026-07-05 (cont.) — test_econ formula identities → == (measured with correct fixtures)
+
+Converted the econ formula-verification `≈` checks (function-vs-re-derived-formula) to `==`. MEASURED each
+with the CORRECT fixtures — a first pass wrongly showed harvest_value ==false, traced to an EMPTY cost array
+in my probe (returns 0); with the test's real cost array all are bit-exact (got==exp Δ0). Converted:
+present_value(0/1/10), bc_ratio, sev, rate_of_return, forest_value/reprod, disc_cost/disc_rev/pnv,
+harvest_value (all unit cases), econ_value_harvest cost/revenue, econ_stand_pnv disc_rev/pnv — jl computes
+exactly the re-derived formula (measured `==true` everywhere). Left the disc_cost stamps (5f-5 print-half-
+width, unchanged) and inequality/ordering checks. Lesson: a wrong FIXTURE (empty cost) made an exact
+identity look inexact — measure with the ACTUAL test setup. Suite green.
