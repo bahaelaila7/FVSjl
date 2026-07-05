@@ -51,6 +51,14 @@ end
 #     cuft tail and the sp33/65 WK3 @test_broken). Bounds = the observed DETERMINISTIC envelope (absolute,
 #     not a loosened percentage). CS board feet carry the largest (0.95% of a big per-acre Scribner sum)
 #     because board is the most nonlinear column; it cannot be isolated further (one stand, no sub-covers).
+#     RE-TRACE VERDICT (2026-07-05, per-cycle jl−live dump vs live FVScs): the volume residual OSCILLATES
+#     IN SIGN cycle-to-cycle (+32/−36/+19/−102/+464/+198/−113 bdft) while BA AND SDI stay BIT-EXACT EVERY
+#     cycle. A systematic bug (e.g. a wrong per-species coefficient, the LS QMDGE5 class) would push the
+#     residual MONOTONICALLY one way; a sign-oscillating residual on a bit-exact BA/SDI basis is the
+#     definitive signature of a knife-edge REDISTRIBUTION — TPA ±1 (a mortality near-tie kill-count) and
+#     TopHt ±1 (the HTGF Float32 height-transcendental, DENSE-DEBUG-proven on cst01) amplified through the
+#     nonlinear board sum. So the envelope is confirmed NOT a masked bug; it is the proven transcendental +
+#     near-tie mechanism, and there is no single-op width for a 96-species oscillating aggregate.
 const _ALLSP_TOL_BITEXACT = (tpa=(0,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(0,0.0), topht=(0,0.0),
                              qmd=(0.0,0.0), tcuft=(0,0.0), mcuft=(0,0.0), scuft=(0,0.0), bdft=(0,0.0))
 const _ALLSP_TOL_NE = _ALLSP_TOL_BITEXACT
