@@ -924,3 +924,15 @@ the goal forbids (work-list #4). MEASURED per-cycle: max|Δ|=0.0464 across ALL 4
 NOT a growing tail. The "grown-cycle DBH-calibration tail ~0.1%" comment was FALSE (a 0.1% tail at v=124
 would be 0.12; actual is 0.02). The report prints 1-decimal; jl renders to it → uniform `0.05` print-half-
 width, percentage removed + comment corrected. The carbon report tracks live to print resolution every cycle.
+
+## Session 2026-07-05 (cont.) — accepted-class bounds re-measured to EXACT floors
+
+Re-measured the documented grown-cycle/UB "accepted class" multi-unit bounds against their exact observed
+floors (doctrine: bound = exact irreducible width, not a loosened multiple):
+- **cst01** grown-cycle: tpa ≤3 → ≤2 (measured max 2); ccf ≤3 / topht ≤2 already exact; qmd ≤0.15 = one 0.1-step.
+- **treeszcp_cap**: endpoint TPA ≤5 → ≤4 (measured Δ4 tripling-UB); endpoint BA ≤1 → `==` (measured Δ0).
+- **treeszcp_htcap**: TopHt per-cycle ≤4 already exact (measured max 4.0).
+- **event_monitor tpa2030**: was `atol=3` with an elaborate "accumulated growth-transcendental drift ≤3 TPA"
+  justification — MEASURED jl 257 == live 257 (Δ0, BIT-EXACT). The justification was FALSE → `== 257`.
+Two more "proven transcendental" bounds (event_monitor, cst01-tpa-half) dissolved to the exact floor / `==`
+under measurement — the recurring campaign lesson.
