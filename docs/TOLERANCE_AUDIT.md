@@ -1037,3 +1037,10 @@ Measured the jl-internal rtol=1f-4 self-consistency identities:
   envelope (covers the version-range 0.02–0.14).
 - **estab_rng_d10 mean lp42** (atol 0.01 → 0.007): measured Δ0.00581 (accumulated DGF/HTGF Float32 tail over
   50 trees × 9 cycles, same class as cst01 late). 0.01 was ~1.7× loosened; 0.007 = the exact accumulated floor.
+
+## Session 2026-07-05 (cont.) — dbs_compute Float32-stamp floor; strdbh verified
+
+- **test_dbs_compute MYBA/MYSDI** (atol 0.01/0.05 → 2f-4): FVS_Compute BBA/BSDI vs 5-decimal live stamps —
+  measured max MYBA Δ9.1e-5, MYSDI Δ1.2e-4 (a few Float32 ULP at ~126/292). Was ~100–400× padded.
+- **structure_stage strdbh** (≤0.55): re-measured max 0.5428 @cyc2 (near-tie RDPSRT cutoff sort-flip) —
+  confirmed at EXACT floor (0.55 = 1.01× the observed, minimal headroom), not padded.

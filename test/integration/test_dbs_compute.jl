@@ -56,9 +56,11 @@ STOP
             @test [g[1] for g in got] == [1990, 1995, 2000]
             # values bit-exact (Float32) vs live Fortran FVS_Compute (BSDI fix → MYSDI)
             want = [(77.39207, 202.93901), (103.19379, 252.89455), (126.26046, 292.84149)]
+            # Float32-vs-5-decimal-stamp floor: jl matches the live FVS_Compute values to a few Float32 ULP
+            # (measured max MYBA Δ9.1e-5, MYSDI Δ1.2e-4 at ~126/292) → atol 2f-4 (was 0.01/0.05, ~100–400× padded).
             for (g, w) in zip(got, want)
-                @test isapprox(g[2], w[1]; atol = 0.01)      # MYBA = BBA
-                @test isapprox(g[3], w[2]; atol = 0.05)      # MYSDI = BSDI (raw Reineke)
+                @test isapprox(g[2], w[1]; atol = 2f-4)      # MYBA = BBA
+                @test isapprox(g[3], w[2]; atol = 2f-4)      # MYSDI = BSDI (raw Reineke)
             end
         finally
             SQLite.close(d)
