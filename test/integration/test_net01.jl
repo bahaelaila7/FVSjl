@@ -23,7 +23,7 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         @test di(stand_top_height(n)) == 63             # TopHt — BIT-EXACT
         # NE-specific parse correctness: first tree is Jack Pine (JP=19), dbh 11.5
         @test n.trees.species[1] == 19
-        @test n.trees.dbh[1] ≈ 11.5f0
+        @test n.trees.dbh[1] == 11.5f0
         # Volume columns (R9 Clark cubic + International-¼" board feet). Live 1990 row:
         # TCuFt 1558 MCuFt 1347 SCuFt 292 BdFt 1633 — now BIT-EXACT after the rounding-order fix
         # (cor→nint) and the top-kill port (NORMHT + CFTOPK for the broken-top SM d10.4 / sp49 trees).
