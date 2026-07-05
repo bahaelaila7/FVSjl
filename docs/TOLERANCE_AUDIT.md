@@ -1668,3 +1668,34 @@ sum-order/accumulation class, not our exp/pow.
 Suite 7645 pass / 4 broken throughout (no regression from any routing). Next: convert print-half-widths to
 rendered-== where doctrine-preferred; verify each (B)/(D) is genuinely sum-order (interface-inert) or a fixable
 logic bug; the FFI mechanism is proven and available for any direct-transcendental-output residual.
+
+## Session 2026-07-05cc — compliance verdict after FFI deconfound + forbidden-pattern re-scan
+Scanned every live @test tolerance: NO forbidden patterns remain — zero active `rtol` (only test-harness
+helpers), zero percentage/relative terms (allspecies `t[2]=0.0` everywhere ⇒ absolute-only; multicycle
+`rT=rC=0`). Every bound is an absolute width. Classified against the doctrine:
+
+RESOLVED / COMPLIANT (proven-ULP or bit-exact):
+- Print-half-width vs rendered N-dec (dbs ≤0.5, econ→rendered-==, estab→rendered-==, carbon Floor/DDW
+  round-==, snt01/init/event/structure round-==) — category-2, doctrine's own example. econ + estab
+  converted to rendered-== this session.
+- ±1 volume (bfvolume/voleqnum/cuteff/minharv/tcondmlt/multistand/fertiliz/setsite/volume_override/
+  mortmsb/sprout_table/tripling ~40 assertions): PROVEN non-associative sum-order — the per-tree Clark
+  `pow` was routed through the gfortran companion (r9clark _r9_cuft) and the bounds DID NOT MOVE ⇒ the
+  residual is the Float32 tree-SUM order, not our transcendental. Bound = 1 integer = exact render-flip width.
+- Float32-vs-Float64 REFERENCE unit tests (fire_effects/snag/growth/dvee/rothermel/fire_biomass ~13):
+  inherent Float32 final-rounding ULP at the stamp; FFI can't help (ref is Float64). Bounds at measured floor.
+- Grown-cycle envelopes (cst01 ≤2/≤3, allspecies cov4/CS, estab_rng_d10 late, multicycle 0.57/1.0):
+  the CS height transcendentals (htcalc exp/pow, balmod, HCON) were routed through the companion and the
+  bounds DID NOT MOVE ⇒ PROVEN the residual is the sum-order/accumulation class, NOT the interfaced exp/pow.
+  "proven ULP we did not interface (sum-order)" per the user's bar.
+- LS flame: BIT-EXACT (crown exp routed). tripling-UB treeszcp ≤4: FVS uninitialized-memory, named irreducible.
+
+GENUINELY OPEN (deferred FIXABLE logic — not proven-irreducible):
+- DKTIME snag hard/soft split (test_carbon) — snag YRDEAD cycle-start dating vs FVS annual-loop; now honest
+  @test_broken (was a masking atol); real fix is #28-coupled (BACKLOG #3).
+- DGSCOR/timeint tripling (@test_broken ×3) + COMPRESS s22 eigensolver + keyword_coverage — the doctrine's
+  named-irreducible @test_broken classes (WK3/DGSCOR sp33/65 + non-native-cycle tripling + IBM EIGEN ULP).
+
+NET: after the FFI deconfound, the ONLY non-proven-ULP residual is the DKTIME snag-dating logic bug (honestly
+@test_broken pending the #28-coupled fix). Everything else is bit-exact, rendered-==, or a proven ULP class
+(print-half-width / sum-order / Float32-ref / interfaced-transcendental-inert-⇒-sum-order). Suite 7642/7.
