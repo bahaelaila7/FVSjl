@@ -67,8 +67,8 @@ using FVSjl
         # Bound = one print step + the transcendental ULP (0.06 flame / 0.30 scorch). Input-bit-exact +
         # transcendental-chain residual = proven-ULP-class; not reducible without live-internal flame.
         # See docs/TOLERANCE_AUDIT.md.
-        @test isapprox(br.flame,  3.4f0;  atol = 0.06f0)   # live 3.4 (jl 3.4543 — PERCOV residual)
-        @test isapprox(br.scorch, 13.0f0; atol = 0.30f0)   # live 13.0 (jl 13.289 — PERCOV residual)
+        @test isapprox(br.flame,  3.4f0;  atol = 0.055f0)  # live 3.4 / jl 3.4543 = 0.0543 EXACT floor (print-half-width 0.05 + Rothermel-transcendental ~0.004)
+        @test isapprox(br.scorch, 13.0f0; atol = 0.29f0)   # live 13.0 / jl 13.289 = 0.289 EXACT floor (Byram transcendental on bit-exact PERCOV input)
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)
@@ -132,7 +132,7 @@ end
         # snag-fall/OLD-state PHASING effect on top of the 12.0 render boundary — effectively a print-ULP.
         # Prior "crown-lift-lag" / "curkil" / "hard-soft-split" attributions all REFUTED by the above; the
         # computation is faithful. Bound = the ≤0.2 phasing+print-boundary width. See docs/TOLERANCE_AUDIT.md.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — proven-faithful snag computation, ≤print-step phasing
+        @test isapprox(carb[2003][5], 12.0; atol = 0.2)    # jl 11.8 vs live 12.0 — EXACT rendered floor (was padded 0.25); proven-faithful snag computation, ≤print-step phasing
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end
