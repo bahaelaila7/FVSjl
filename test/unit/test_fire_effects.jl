@@ -79,7 +79,11 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
         # SCH = (63/(140-ATEMP)) · BYRAM'^(7/6) / sqrt(BYRAM' + FWIND^3), BYRAM'=BYRAM/60
         sch_ref(byram, atemp, fwind) = (b = byram/60; (63/(140-atemp)) * (b^(7/6)/sqrt(b + fwind^3)))
         for (by, at, wd) in ((3000f0, 77f0, 5f0), (12000f0, 90f0, 10f0), (500f0, 60f0, 2f0))
-            @test scorch_height(by, at, wd) ≈ Float32(sch_ref(by, at, wd))
+            # jl's Float32 scorch vs the Float64 reference: the `b^(7/6)` transcendental (the goal's exact
+            # proven-ULP example) rounds differently in Float32-throughout vs Float64-then-round. Measured
+            # max|Δ|=3.8e-6 (≈2 Float32 ULP at scorch~17.6). atol 5f-6 = that transcendental floor (was the
+            # loose ≈ default rtol≈3.4e-4, ~1000× wider).
+            @test isapprox(scorch_height(by, at, wd), Float32(sch_ref(by, at, wd)); atol = 5f-6)
         end
         @test scorch_height(12000f0, 90f0, 5f0) > scorch_height(3000f0, 90f0, 5f0)  # hotter ⇒ taller scorch
 
@@ -90,7 +94,7 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
             100*(sl*(2*crl - sl)/(crl*crl))
         end
         for (sch, ht, cr) in ((40f0, 60f0, 40), (80f0, 60f0, 40), (10f0, 60f0, 40), (100f0, 50f0, 50))
-            @test crown_volume_scorched(sch, ht, cr) ≈ Float32(csv_ref(sch, ht, cr))
+            @test crown_volume_scorched(sch, ht, cr) == Float32(csv_ref(sch, ht, cr))   # BIT-EXACT (polynomial, measured Δ0; was ≈)
         end
         @test crown_volume_scorched(5f0, 60f0, 0) == 100f0    # no crown → fully scorched
         @test crown_volume_scorched(0f0, 60f0, 40) == 0f0     # scorch below crown → 0

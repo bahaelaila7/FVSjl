@@ -839,3 +839,12 @@ identity look inexact — measure with the ACTUAL test setup. Suite green.
   bark + test_snag snag_fall_density compare jl-Float32 against `Float32(ref(...))` where ref is a Float64
   computation (scorch uses `b^(7/6)` — the goal's exact proven-ULP example; measured scorch max|Δ|=7.6e-6).
   These need a transcendental-ULP bound cornered per-case (in progress), not `==`; left `≈` this pass.
+
+## Session 2026-07-05 (cont.) — fire_effects scorch/csv cornered
+
+- **crown_volume_scorched** (csv): a polynomial — jl matches the Float64 ref BIT-EXACT (measured Δ0 all
+  test inputs) → `==`.
+- **scorch_height**: the `b^(7/6)` Van Wagner transcendental (the goal's exact proven-ULP example) rounds
+  differently Float32-throughout vs Float64-then-round — measured max|Δ|=3.8e-6 (≈2 Float32 ULP at ~17.6) →
+  `atol 5f-6` cornered to that transcendental floor (was the loose ≈ default rtol≈3.4e-4). OPEN: fire_bark_
+  thickness/fire_tree_mortality + snag_fall_density (same Float32-vs-Float64-ref class) — next pass.
