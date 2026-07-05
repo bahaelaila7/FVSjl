@@ -72,13 +72,13 @@ end
         @test round(FVSjl.stand_qmd(s); digits = 1) == 5.9f0
 
         # cycle-1 grown-stand volume (live 2000: Tcuft 2110 / Mcuft 1887 / Scuft 886 / Bdft 5084).
-        # Tcuft + Scuft are bit-exact; Mcuft/Bdft land within 1 unit (~0.05% grown-stand rounding floor).
+        # ALL FOUR are BIT-EXACT (re-measured: Mcuft=1887, Bdft=5084 exactly — the old ≤1 was over-cautious).
         FVSjl.compute_volumes!(s)
         v = FVSjl.summary_row(s; period = 0)
         @test v.cuft  == 2110
         @test v.scuft == 886
-        @test abs(v.mcuft - 1887) <= 1
-        @test abs(v.bdft  - 5084) <= 1
+        @test v.mcuft == 1887   # BIT-EXACT (was over-cautious ≤1)
+        @test v.bdft  == 5084   # BIT-EXACT (was over-cautious ≤1)
     end
 end
 
