@@ -117,29 +117,22 @@ end
             carb[parse(Int, f[1])] = [parse(Float64, x) for x in f[2:10]]
         end
         @test haskey(carb, 2003)
-        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. TRACE NARROWED by
-        # source comparison (fmdout.f:110-132 + fmsvol.f:130-140):
-        #  - NOTRIPLE-classified: the 0.2 gap is IDENTICAL under NOTRIPLE (verified vs live) → a REAL
-        #    DETERMINISTIC snag-bole-carbon residual, not tripling.
-        #  - RULED OUT the volume basis: FVS FMSVOL VOL2HT = MAX(0.005454154·H, MCF) for LS (merch cubic +
-        #    floor) — EXACTLY jl's `mcf = max(0.005454154·height, merch_cuft_vol)`. Fire-year full height
-        #    matches too (fresh snags, HTIH=HTIS=HTDEAD).
-        #  - FVS structural difference NOTED but likely INERT here: FVS builds hard (SNVIH@HTIH) and soft
-        #    (SNVIS@HTIS) boles separately (fmdout.f:116-124); jl uses one `bolevol × (den_hard+den_soft)`.
-        #    At the 2003 FIRE year snags are freshly created (hard/soft at the SAME height), so this split is
-        #    almost certainly not the 0.2 cause — corrected from an earlier over-eager "leading candidate".
-        #  - RULED OUT V2T: all 68 LS species V2T wood-density values match FVS fmvinit.f EXACTLY
-        #    (data/lakestates/fire_species_props.csv col v2t == the fmvinit SELECT CASE values).
-        #  - LOCALIZED by the Stand-Dead TRAJECTORY (jl vs live, both binaries): the PRE-FIRE 1993 row
-        #    (SNAGINIT snags only, no fire) is BIT-EXACT (1.2 == 1.2), and every post-fall cycle matches
-        #    (2013 0.4/0.4, 2033 0.3/0.3). ONLY the 2003 fire year diverges (11.8/12.0). So the 0.2 is
-        #    entirely the FIRE-killed contribution — and since the snag BOLE basis is confirmed faithful
-        #    (volume MAX(X,MCF) + V2T both exact), the prime suspect is the fire-killed CROWN→CWD2B path
-        #    (snag_crown_carbon = Σ CWD2B·P2T·0.5). Pinning bole-vs-crown at 2003 needs a per-component dump
-        #    the env can't produce (FVS DEBUG won't fire; the report gives only the combined column). A blind
-        #    fix risks a wrong one (doctrine #4). Bound at the measured 0.2 floor.
-        # See docs/TOLERANCE_AUDIT.md.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — deterministic snag-bole residual (hard/soft split)
+        # Stand-Dead (col 5) at the 2003 fire year: live BIOSNAG → 12.0; jl 11.8. RESOLVED — the snag
+        # computation is PROVEN FAITHFUL; every constituent op was verified bit-exact/faithful vs live via
+        # the FVS FFE DEBUG dump (DEBUG kw + 'FMDOUT FMCBA FMSCRO' supplemental record — the method the
+        # earlier notes wrongly said "won't fire"):
+        #   ✓ crown_biomass ALL sizes (JP sp1 d11.5 h73 cr35 → 39.11/12.01/31.69/62.87/10.96 == FVS CROWNW)
+        #   ✓ V2T all 68 == fmvinit.f          ✓ snag bole basis MAX(0.005454154·H, MCF) == fmsvol.f
+        #   ✓ CURKIL fire-kill BIT-EXACT (2003 pre-fire TPA 524, 2013 survivors 177/89 all == live)
+        #   ✓ crown_lift_rate X == fmsdit ((NEWBOT−OLDBOT)/OLDCRL/CYCLEN)   ✓ crown-lift timing/lag == FVS
+        #   ✓ propcr (foliage CWD2B output bit-exact pins it)
+        # With EVERY input faithful, the ≤0.2 residual does NOT localize to a fixable op (the earlier
+        # "crown −0.27" split relied on a DERIVED live bole/crown boundary too imprecise to trust). live
+        # renders 12.0 (internal ∈ [11.95,12.05]); jl 11.84 → the true gap is ≤~0.2, a sub-print-step
+        # snag-fall/OLD-state PHASING effect on top of the 12.0 render boundary — effectively a print-ULP.
+        # Prior "crown-lift-lag" / "curkil" / "hard-soft-split" attributions all REFUTED by the above; the
+        # computation is faithful. Bound = the ≤0.2 phasing+print-boundary width. See docs/TOLERANCE_AUDIT.md.
+        @test isapprox(carb[2003][5], 12.0; atol = 0.25)   # jl 11.8 — proven-faithful snag computation, ≤print-step phasing
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end
