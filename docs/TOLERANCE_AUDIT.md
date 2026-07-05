@@ -1420,3 +1420,20 @@ Investigated the two FFE-carbon sub-residuals unmasked by the floor fix:
   ⇒ DEFERRED (deep, a separate volume model).
 NET this session on FFE carbon: the missing FMSVL2 MAX(X,MCF) floor was a REAL bug (fixed, Above 9→3 tenths); the
 remaining ≤3-tenth residual is 2 deferred deep-model sub-parts, each traced to its FVS routine + verdict documented.
+
+## Session 2026-07-05r — FFE carbon merch +0.3 PRECISELY LOCALIZED to ONE tree (CFVOL vs R8-Clark)
+Ran live FVSsn DEBUG FMDOUT on carbon_ffe → captured per-tree VT (the FFE carbon stem volume, FMSVL2 MCF).
+Compared jl's stem (max(X,merch_cuft_vol)) to FVS's VT for all 300 cyc0 trees:
+- 299 trees match to <0.0006 (incl. every floored tiny tree — the floor fix is CORRECT).
+- ONE tree (i=19, sp22, D10.4, H55.0, tpa6.78) mismatches: jl stem = 13.2 vs FVS VT = 11.2 (Δ=2.0). This SINGLE
+  tree is the ENTIRE ΣΔ=2.0 ⇒ the ~0.3-ton merch-carbon residual.
+- jl's numbers for it: gross v1 = 13.381, merch_cuft_vol = 13.2 (≈gross!), saw_cuft_vol = 0. FVS's FFE MCF = 11.2
+  (a proper ~84%-of-gross merch). jl's merch_cuft_vol MATCHES the VALIDATED .sum MCuFt ⇒ FVS ITSELF uses TWO
+  different merch volumes: R8-Clark (13.2, the .sum) vs FMSVL2/CFVOL (11.2, the FFE carbon). jl uses the .sum one
+  for both paths.
+VERDICT: the merch residual is NOT a padding/near-tie — it is a specific VOLUME-ROUTINE difference (R8-Clark vs
+CFVOL) that FVS applies differently to .sum vs FFE-carbon, isolated to trees where the two merch definitions
+diverge (here one sp22 tree). Reducible ONLY by porting FVS's FFE CFVOL merch for the ffe_live_carbon stem — a
+deep base-model volume port with regression risk to the bit-exact .sum + validated snag paths (both use v4+v7).
+DEFERRED with a precise root. The 306 bound stays cornered (≤3 tenths). Combined with the crown-lift OLDCRW
+(deferred, double-count) this fully accounts for the ≤3-tenth Above/Merch residual — every part traced to ground.
