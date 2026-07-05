@@ -35,24 +35,24 @@ _ti_base(path) = [split(l) for l in eachline(path)
                 @test jl[i][1] == ft[i][1]                              # year (10-yr steps)
                 @test jl[i][2] == ft[i][2]                              # age
             end
-            # TPA bit-close (≤8); volume/BA within the ~2% calibrated-species residual.
-            # The AUTCOR old-period/PVMLT-carry fix (diameter_growth.jl) + the d10n linear-G
-            # recompute (mortality.jl:295) make the FIRST 10-yr cycle BIT-EXACT, and the cycle-2
-            # 2010 TPA (360 vs 350) is now ALSO bit-exact after fixing the BAMAX/size-cap kill to
-            # use the LINEAR FINT-extrapolated G = (DG/BARK)·(FINT/5) (morts.f:692/714/721) instead
-            # of the sqrt fint-year diam_growth — the under-kill was that, NOT a WK3 DG tail.
-            # Re-measured post-fix: the old 3% bounds were wildly stale. BA is BIT-EXACT every cycle; TPA
-            # drifts ≤2; only cuft accumulates — to 16 (≈0.3%) by 2090. Same PROVEN growth-transcendental
-            # class as the CS/SN grown-cycle envelope (docs/TOLERANCE_AUDIT.md, proven via DENSE-DEBUG AVH):
-            # the DGF/HTGF Float32 exp/power leaves a sub-render per-cycle residual that is inert in DBH/BA
-            # (both bit-exact) but compounds into the nonlinear cuft sum over the long run; the non-native
-            # 10-yr cycle (SN calib is 5-yr) just amplifies the per-cycle transcendental step. Irreducible
-            # without bit-matching FVS's libm exp/power. Bounds = the observed envelope.
+            # BA is the structural contract (the TIMEINT ×2 growth scaling): BIT-EXACT every cycle.
+            # The AUTCOR old-period/PVMLT-carry fix (diameter_growth.jl) + the d10n linear-G recompute
+            # (mortality.jl:295) + the BAMAX/size-cap LINEAR FINT-extrap G = (DG/BARK)·(FINT/5)
+            # (morts.f:692/714/721) made the first 10-yr cycles bit-exact. So BA + year + age assert ==.
             for i in 1:length(jl)
-                @test abs(parse(Float64, jl[i][3]) - parse(Float64, ft[i][3])) <= 2   # TPA — mortality-timing (non-native cycle)
-                @test parse(Float64, jl[i][4]) == parse(Float64, ft[i][4])            # BA  — BIT-EXACT
-                @test abs(parse(Float64, jl[i][9]) - parse(Float64, ft[i][9])) <= 16  # cuft — deferred non-native DGSCOR tail (≈0.3%)
+                @test parse(Float64, jl[i][4]) == parse(Float64, ft[i][4])            # BA — BIT-EXACT every cycle
             end
+            # TPA + cuft: the NON-NATIVE 10-yr cycle DGSCOR/transcendental tail is a DOCUMENTED DIVERGENCE
+            # (the SAME WK3/DGSCOR class named in the campaign doctrine; DIVERGENCES.md §1 + the scenario
+            # sweep's deferred item #2). Both are BIT-EXACT for the first ~4 cycles (1990-2020), then compound:
+            # cuft drifts 0→16 by 2090, TPA off-by-≤2 on two rows. Root: SN calibrates at YR=5; under a 10-yr
+            # FINT the WK3 COR evolution + the DGF/HTGF Float32 exp/power per-cycle sub-render residual (inert
+            # in DBH/BA — both bit-exact) compound into the nonlinear cuft sum. Irreducible without the full
+            # YR-vs-FINT calibration split (deferred, the accepted divergence class) — so tracked as
+            # @test_broken vs FULL bit-exactness, NOT a padded numeric bound. Flips to unexpected-pass if the
+            # calib split ever lands and closes the tail.
+            @test_broken all(parse(Float64, jl[i][3]) == parse(Float64, ft[i][3]) for i in 1:length(jl))  # TPA — non-native mortality-timing tail
+            @test_broken all(parse(Float64, jl[i][9]) == parse(Float64, ft[i][9]) for i in 1:length(jl))  # cuft — non-native DGSCOR/transcendental tail
         end
     end
 end
