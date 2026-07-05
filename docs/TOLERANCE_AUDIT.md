@@ -1452,3 +1452,17 @@ CONFIRMED FIXPOINT (unchanged suite, no code this turn): tolerance-padding is el
 The 4 remaining class-(c) residuals (CFVOL merch, OLDCRW crown-lift, multi-point PCCF, LS crown-timing) are
 cornered at exact floors + traced to a specific FVS routine; each is reducible only by a DEEP base-model port
 carrying regression risk to bit-exact paths (doctrine #7) — model-fidelity work beyond tolerance-closure.
+
+## Session 2026-07-05t — OLDCRW crown-lift verdict REFINED (traced to ground, not just "double-count risk")
+Traced the OLDCRW lifecycle in the Fortran: fmoldc.f:55 snapshots OLDCRW=CROWNW at cycle start; fmsdit.f:112
+sets OLDCRW = X·OLDCRW where X = (NEWBOT−OLDBOT)/OLDCRL/CYCLEN (the annual crown-base-rise fraction). So the
+OLDCRW added to BIOLIVE at fmdout.f:230 is the ANNUAL crown-lift material — which FVS ALSO sends to DDW via
+FMCADD. FVS double-BOOKS the lifting crown in both live-crown (BIOLIVE) AND down-wood during the transition year.
+jl already ports the DDW side (compute_crown_lift! → fire.crown_lift_annual) but OMITS the BIOLIVE side ⇒ jl's
+FFE live crown runs ~0.6 low by 2005 (the growing part of the Above residual). This is NOT a jl double-count — it
+is a MISSING faithful term. But adding it requires: (a) the PER-TREE X·CROWNW (jl aggregates crown-lift to a
+stand-level matrix, not per-tree); (b) matching fmdout's exact OLDCRW sample-point in the cycle. Regression risk
+to the otherwise-close FFE carbon report ⇒ DEFERRED with a precise root (magnitude ~0.6, closes the crown part;
+the merch part still needs the CFVOL port — both needed to fully zero Above).
+FFE CARBON now FULLY DECOMPOSED: floor (FIXED) + merch CFVOL-vs-R8Clark one-tree (deferred, precise) + OLDCRW
+crown-lift double-book (deferred, precise). Every part traced to its exact FVS line. Bounds cornered ≤3 tenths.
