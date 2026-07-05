@@ -60,14 +60,15 @@ end
         # 9@73.03, 18@64.48, …); when the 0.95-ac cutoff lands inside a tied-height group, jl's `sortperm`
         # tie-break vs Fortran's RDPSRT picks a different cutoff tree ⇒ the ±4 70th-pct window shifts ~0.5.
         # This is the ACCEPTED near-tie-ordering family (cf. COMPRESS eigensolver / RDPSRT ties), = ULP-class
-        # on bit-exact input. (Reclassified from an earlier "real non-ULP" mislabel — rule #4.) Bound 0.55 =
-        # just above the tied-cutoff floor. A future exact match needs jl's cohort-cutoff tie-break = RDPSRT's.
+        # on bit-exact input. (Reclassified from an earlier "real non-ULP" mislabel — rule #4.) Bound 0.543 =
+        # the EXACT measured max (0.5427735, deterministic; was 0.55 = 1.013× pad). A future exact match needs
+        # jl's cohort-cutoff tie-break = RDPSRT's.
         ftdbh = [10.3, 9.8, 11.5, 12.3, 15.1, 17.0, 18.2, 20.7, 22.6, 23.8, 24.1]
         for c in 0:10
             FVSjl.compute_density!(s1c)
             r = FVSjl.structure_class(s1c)
             @test round(Int, r.cover) == ftcov[c+1]   # Tot-Cov — BIT-EXACT (measured Δ0 all cycles; was ≤1 IFIX padding)
-            @test abs(r.strdbh - ftdbh[c+1]) <= 0.55
+            @test abs(r.strdbh - ftdbh[c+1]) <= 0.543
             c < 10 && FVSjl.grow_cycle!(s1c; fint = 5f0)
         end
 

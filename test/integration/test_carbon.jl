@@ -431,9 +431,9 @@ end
         @test dw.cov_hard[7] == sum(dw.cov_hard[1:6])
         # hard total volume = hard down-wood biomass × 2000 / 24.96 (SG 0.4)
         hard_bio = sum(@view s.fire.cwd[1:9, 2, :])
-        @test dw.vol_hard[8] ≈ hard_bio * 2000f0 / 24.96f0 rtol = 1f-3
+        @test dw.vol_hard[8] == hard_bio * 2000f0 / 24.96f0   # BIT-EXACT identity (measured relΔ=0; was rtol 1f-3)
         # cover bin 1 (3-6", = size class 4 = volume bin 2) follows the power law
-        @test dw.cov_hard[1] ≈ 0.0166f0 * dw.vol_hard[2]^0.8715f0 rtol = 1f-4
+        @test dw.cov_hard[1] == 0.0166f0 * dw.vol_hard[2]^0.8715f0   # BIT-EXACT power-law identity (measured relΔ=0; was rtol 1f-4)
         rows = [(1990, FVSjl.stand_carbon_report(s), FVSjl.ffe_fuel_loadings(s), FVSjl.snag_summary(s), dw)]
         dbpath = joinpath(mktempdir(), "dwd.db")
         FVSjl.write_dbs_dwd_vol!(dbpath, "C1", "S1", rows)

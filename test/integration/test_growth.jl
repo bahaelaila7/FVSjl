@@ -142,7 +142,8 @@ end
             i = findfirst(r -> r[1] == "1995", jl); k = findfirst(r -> r[1] == "1995", j5)
             @test i !== nothing && k !== nothing
             d_jl = parse(Int, j5[k][3]) - parse(Int, jl[i][3])             # FVSjl ΔTPA (5→10)
-            @test 240 <= d_jl <= 300                                       # ≈269, matching Fortran
+            @test d_jl == 269                                              # deterministic rendered ΔTPA = 269 (both jl runs are
+                                                                          # bit-exact vs live ⇒ the delta is exact; was a wide [240,300] sanity range)
             @test parse(Int, jl[i][4]) > parse(Int, j5[k][4])             # FINTH=10 BA above FINTH=5
         end
     end

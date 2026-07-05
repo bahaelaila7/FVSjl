@@ -1315,3 +1315,19 @@ Probed the last non-== test_carbon float bounds:
 Suite 7667/2, no regression. Remaining test_carbon non-==: 117-style done; the emergent-phasing floors (236/650
 ≤0.033 measured 0.032; agl/sd 811/813 ≤0.1 one-print-unit fire-kill flip; DKTIME split 728-731 exact) + the FAPROP
 1-ULP (483) — all cornered to exact measured floors / documented mechanisms.
+
+## Session 2026-07-05m — full-inventory pass: 4 more (2 formula-identity ==, 1 exact range, 1 near-tie floor)
+Walked the COMPLETE 106-bound inventory; classified every one. Regime/range sanity checks (bamax≤160,
+core 0<e<1, rothermel flame-range, econ pnv<0, snag density<N, longrun n<200, carbon CBD≤0.35/ptorch∈[0,1],
+structure cover∈(0,100)) are NOT vs-oracle tolerances — correctly left. Found + fixed 4 real ones:
+- **test_carbon.jl:434/436** — down-wood FORMULA IDENTITIES (`vol_hard[8] ≈ hard_bio·2000/24.96` rtol 1f-3;
+  `cov_hard[1] ≈ 0.0166·vol^0.8715` rtol 1f-4). PROBED on carbon_snt (the testset's scenario): both relΔ=0.0
+  BIT-EXACT (jl computes them via exactly these ops) → `==`.
+- **test_growth.jl:145** — `240 <= d_jl <= 300` (ΔTPA "≈269") was a wide sanity range on a DETERMINISTIC jl-vs-jl
+  delta. Measured d_jl = EXACTLY 269 → `== 269`.
+- **test_structure_stage.jl:70** — strdbh near-tie-ordering floor `<= 0.55`; measured max = 0.5427735
+  (deterministic) → 0.543 (1.0004×, was 1.013× pad). The RDPSRT tie-break ULP-class.
+- **test_fix_scalers.jl:44** — `< 6.8` is a REDUNDANT semantic "suppression" guard (fixdg_all is already fully ==
+  vs its live save in the main loop, incl. QMD==6.1); left as a documented semantic check, not a numeric tol.
+Suite 7667/2. The inventory is now fully classified: every non-== bound is either a range/regime sanity check,
+a probed exact-maximum envelope, a documented print/sum-order/near-tie ULP, or the 2 @test_broken.
