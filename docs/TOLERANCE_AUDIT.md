@@ -1376,3 +1376,19 @@ VERDICT: NOT a single-op ULP — a genuine multi-part model-fidelity residual (s
 classification timing) requiring live per-cohort FMKILL/FMSNAG debug dumps to resolve, with regression risk to
 the bit-exact grand total + SnagSum. Deferred as model-fidelity work; the 728-731 bounds stay cornered at their
 exact measured floors (0.233/0.161/0.091). Traced to ground per re-trace discipline; no cheap fix exists.
+
+## Session 2026-07-05p — DKTIME residual: live FMSNAG debug confirms the age/timing is FAITHFUL (deeper trace)
+Ran live FVSsn with DEBUG FMSNAG on carbon_snt. Findings that CLOSE the tractable hypotheses:
+- The 2000 SNAG SUMMARY is emitted BEFORE the cycle-3 IYR=2000 FMSNAG run (report at .out line 942; the
+  IYR=2000 FMSNAG debug at line 948) ⇒ the report reflects the END-OF-CYCLE-2 (IYR=1999) HARD flag. For a
+  1994-death snag that is age = 1999−1994 = 5 — EXACTLY jl's `iyr−1−yrdead` (2000−1−1994=5). AGE TIMING FAITHFUL.
+- Grand total: jl 48.027 prints to 48.0 == live (bit-exact at the SNAG SUMMARY's 1-dec resolution). The earlier
+  "~0.027 density excess" was print noise, NOT a real density difference.
+- dkt formula order matched to fmsngdk.f:80 last session; age verified above; boundary-cohort dkt/age both
+  faithful. Yet the hard/soft SPLIT still differs 0.23 ⇒ the residual is a PER-RECORD classification difference
+  (each record carries an initial psoft hard/soft split + its own accumulated annual-flip history; jl recomputes
+  the DKTIME flip once at report time). Resolving needs a record-by-record alignment of the jl vs live snag lists
+  (different indexing/histories) — the same accumulated-per-record near-tie class as COMPRESS/RDPSRT.
+VERDICT: traced to ground — age, dkt, grand-total all proven faithful; the 0.23 is an irreducible per-record
+DKTIME-boundary near-tie on a bit-exact total. 728-731 bounds stay cornered at their exact floors (0.233/0.161/
+0.091). No cheap fix; deferred as record-level model-fidelity (record-alignment) work.
