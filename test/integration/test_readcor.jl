@@ -54,7 +54,7 @@ _rc_base(path) = [split(l) for l in eachline(path)
             for col in (3, 4, 5, 6, 7, 9, 10)                    # TPA/BA/SDI/CCF/TopHt/TCuFt/MCuFt
                 @test j[col] == f[col]
             end
-            @test abs(parse(Int, j[12]) - parse(Int, f[12])) <= 2  # BdFt — ±Scribner Float32 noise
+            @test parse(Int, j[12]) == parse(Int, f[12])  # BdFt — BIT-EXACT (measured Δ=0; was over-cautious ≤2, closed by the BFTOPK fix)
         end
         # the COR2 boost actually changed the stand (vs the same key with READCORD removed)
         offkey = joinpath(_RC_DIR, "_readcord_off.key")
