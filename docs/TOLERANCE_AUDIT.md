@@ -529,3 +529,19 @@ This single proven-ULP transcendental class now corners ALL the CS/SN grown-cycl
 All carry the proven root in-test. The AVH divergence is PROVEN via DENSE DEBUG (jl vs FVS internal AVH).
 Remaining non-proven-ULP fixable item: ONLY the CFTOPK crown-lift OL (blocked: carbon_snt tension +
 OLDCRW extraction). Everything else is BIT-EXACT or PROVEN-ULP with a cornered op.
+
+## ★ CFTOPK crown — RE-TRACE CORRECTION: crown-lift RATE + TIMING are faithful (NOT the lag)
+Traced the crown-lift both sides op-by-op:
+- jl crown_lift_rate (fuel_additions.jl:29) = `((newbot−oldbot)/oldcrl)/cyclen` EXACTLY matches FVS
+  fmsdit.f X = `((NEWBOT−OLDBOT)/OLDCRL)/CYCLEN`. RATE is faithful.
+- jl computes compute_crown_lift! AFTER grow_cycle! (summary.jl:285 / carbon.jl:419), so the fire reads
+  the PREVIOUS cycle's ffe_oldcrw — identical to FVS (FMMAIN gradd.f:118 uses the prior FMSDIT :254
+  OLDCRW). The one-cycle LAG MATCHES FVS. The inventory OLD-state snapshot (snapshot_ffe_oldcrown!) is
+  present. So the earlier "crown-lift one-cycle-lag" attribution is REFUTED — the lag is faithful.
+- FMEFF books 0.5·YRSCYC·OLDCRW (size 1) + FMSCRO YRSCYC·OLDCRW (sizes 2-5) = CYCLEN·X·crown_biomass;
+  jl's crown_lift_at_death = cyclen·ffe_oldcrw = cyclen·X·crown_biomass. Structurally identical.
+⇒ the ~29% sizes-1-3 deficit is NOT the crown-lift rate/timing/lag. It is narrowed to either the
+crown_biomass(OLD-state) SIZE-1-3 values (xc[2..4], the P1/P2/P3 branch split — foliage xc[1] is proven
+bit-exact but the branch-size split was NOT independently verified) or a subtle FMEFF/FMSCRO
+consumption-order interaction. Pinning needs the per-fire-tree CROWNW/OLDCRW diff (clean extraction
+still blocked by FMSCRO snag-fall entanglement). Cornered further; lag verdict corrected.
