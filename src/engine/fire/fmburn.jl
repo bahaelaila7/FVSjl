@@ -117,10 +117,10 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FVS recomputes flame from the WEIGHTED Byram (fmfint.f:541, NLC 2003) — NOT the Σ of per-model
     # flames (x^0.46 is concave, so the per-model sum biases low). fmburn.f:439-464: apply the FLAMEADJ
     # multiplier to flame, then back-compute Byram from the modified flame so scorch tracks it.
-    flame = byram > 0f0 ? 0.45f0 * (byram / 60f0)^0.46f0 : 0f0
+    flame = byram > 0f0 ? 0.45f0 * fpow(byram / 60f0, 0.46f0) : 0f0     # ^0.46 via gfortran companion (doctrine #8)
     oldfl = flame
     flmult != 1f0 && (flame = oldfl * flmult)
-    flame != oldfl && (byram = 60f0 * (flame / 0.45f0)^(1f0 / 0.46f0))
+    flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
 
     # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes), both the

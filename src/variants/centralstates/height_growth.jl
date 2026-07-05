@@ -30,29 +30,29 @@ end
 "HTCALC curve coefficients (B1,B2,B3,B4,B5,BH) for CS species `sp` via MAPCS (shared LTBHEC)."
 @inline _cs_htcoef(sp::Integer) = @inbounds LTBHEC[MAPCS[sp]]
 
-cs_htcalc_htmax(sp::Integer, si::Real) = (b = _cs_htcoef(sp); b[1] * Float32(si)^b[2])
+cs_htcalc_htmax(sp::Integer, si::Real) = (b = _cs_htcoef(sp); b[1] * fpow(Float32(si), b[2]))
 
 "Tree age from current height (HTCALC mode 0). Returns 0 if at/above HTMAX."
 function cs_htcalc_age(sp::Integer, si::Real, h::Real)
     b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si)
-    base = (Float32(h) - bh) / (b1 * sif^b2)
+    base = (Float32(h) - bh) / (b1 * fpow(sif, b2))
     base <= 0f0 && return 0f0
-    return (1f0 / b3) * log(1f0 - base^(1f0 / (b4 * sif^b5)))
+    return (1f0 / b3) * flog(1f0 - fpow(base, 1f0 / (b4 * fpow(sif, b5))))
 end
 
 "NC-128 site-curve height (ft) at age `aget` (HTCALC mode 1) — the forward curve used by ESSUBH."
 @inline function cs_htcalc_height(sp::Integer, si::Real, aget::Real)::Float32
     b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si); a = Float32(aget)
-    hmax = b1 * sif^b2; ex = b4 * sif^b5
-    return bh + hmax * (1f0 - exp(b3 * a))^ex
+    hmax = b1 * fpow(sif, b2); ex = b4 * fpow(sif, b5)
+    return bh + hmax * fpow(1f0 - fexp(b3 * a), ex)
 end
 
 "10-yr height increment from starting age `aget` (HTCALC mode 9)."
 function cs_htcalc_incr(sp::Integer, si::Real, aget::Real)
     b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si); a = Float32(aget)
-    hmax = b1 * sif^b2; ex = b4 * sif^b5
-    h0  = bh + hmax * (1f0 - exp(b3 * a))^ex
-    hp10 = bh + hmax * (1f0 - exp(b3 * (a + 10f0)))^ex
+    hmax = b1 * fpow(sif, b2); ex = b4 * fpow(sif, b5)
+    h0  = bh + hmax * fpow(1f0 - fexp(b3 * a), ex)
+    hp10 = bh + hmax * fpow(1f0 - fexp(b3 * (a + 10f0)), ex)
     return hp10 - h0
 end
 
@@ -64,7 +64,7 @@ end
     part1 = -1f0 * (b1 / (bal + trba) + b2 * d * d)
     part2 = sqrt(1f0 - temba / 210f0)
     part3 = part1 * part2
-    part4 = part3 > -85f0 ? exp(part3) : 0f0
+    part4 = part3 > -85f0 ? fexp(part3) : 0f0
     gmod = b3 * (1f0 - part4)
     gmod < 0.15f0 ? 0.15f0 : gmod
 end
@@ -103,7 +103,7 @@ function height_growth!(s::StandState, ::CentralStates; scale::Float32 = 1f0)
         gmod = (1f0 - (1f0 - gmod) * (1f0 - relht)) * 0.8f0
         htg = htg1 * (1f0 + oldrn[i]) * gmod
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = scale * xht * htg * exp(htcon)
+        htg = scale * xht * htg * fexp(htcon)
         sc4 = s.control.sp_size_cap[sp, 4]
         (hti + htg) > sc4 && (htg = max(sc4 - hti, 0.1f0))
         t.ht_growth[i] = htg
