@@ -45,12 +45,12 @@ _vecol(r, c) = parse(Float64, r[c])
             for i in 1:length(jl)
                 @test _vecol(jl[i], 3) == _vecol(ft[i], 3)    # TPA — BIT-EXACT
                 @test _vecol(jl[i], 4) == _vecol(ft[i], 4)    # BA  — BIT-EXACT
-                # Cubic (9/10/11) is BIT-EXACT every cycle except a single print-boundary ULP at 2020 (col 9):
-                # the per-acre cubic sum lands within one ULP of the `+0.5` integer-render knife-edge, so the
-                # rendered integer rounds to the opposite side of live's. Bound = exactly 1 (one integer step).
-                for c in (9, 10, 11)   # total / merch / sawtimber cubic
-                    @test abs(_vecol(jl[i], c) - _vecol(ft[i], c)) <= 1
-                end
+                # MCuFt (10) + SCuFt (11) are BIT-EXACT every cycle (measured Δ0). TCuFt (9) is bit-exact bar a
+                # single print-boundary ULP at 2020: the per-acre cubic sum lands within one ULP of the +0.5
+                # integer-render knife-edge, so the rendered integer rounds to the opposite side of live's.
+                @test _vecol(jl[i], 10) == _vecol(ft[i], 10)   # MCuFt — BIT-EXACT (was ≤1)
+                @test _vecol(jl[i], 11) == _vecol(ft[i], 11)   # SCuFt — BIT-EXACT (was ≤1)
+                @test abs(_vecol(jl[i], 9) - _vecol(ft[i], 9)) <= 1   # TCuFt — print-boundary ULP at 2020
                 # Board feet: BIT-EXACT bar a single print-boundary ULP at 2030. Previously carried a systematic
                 # −16→−23 residual at the largest cycles; root-caused (BFDUMP per-tree trace) to the BROKEN-TOP
                 # board top-kill (BFTOPK) being fit to the WRONG equation's total cubic. VOLEQNUM splits the board
