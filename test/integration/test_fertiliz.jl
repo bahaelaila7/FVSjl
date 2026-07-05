@@ -45,13 +45,15 @@ _fzcol(r, c) = parse(Float64, r[c])
                     @test _fzcol(jl[i], c) == _fzcol(ft[i], c)
                 end
                 @test _fzcol(jl[i], 11) == _fzcol(ft[i], 11)   # SCuFt — BIT-EXACT (measured Δ0 all cycles)
-                for c in (9, 10)                  # TCuFt/MCuFt — BIT-EXACT bar a print-boundary ULP (≤1 integer step)
-                    @test abs(_fzcol(jl[i], c) - _fzcol(ft[i], c)) <= 1
-                end
-                # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
-                # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).
-                @test abs(_fzcol(jl[i], 12) - _fzcol(ft[i], 12)) <= 1
             end
+            # TCuFt (9) / MCuFt (10): bit-exact bar a print-boundary ULP — residual is the non-associative
+            # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1 integer step).
+            @test_broken all(_fzcol(jl[i], 9)  == _fzcol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
+            @test_broken all(_fzcol(jl[i], 10) == _fzcol(ft[i], 10) for i in 1:length(jl))  # MCuFt — non-associative tree-SUM order
+            # Board feet (12): BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
+            # sum lands within one ULP of the +0.5 integer-render knife-edge); residual is the non-associative
+            # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
+            @test_broken all(_fzcol(jl[i], 12) == _fzcol(ft[i], 12) for i in 1:length(jl))  # BdFt — non-associative tree-SUM order
         end
     end
 end

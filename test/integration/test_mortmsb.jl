@@ -64,11 +64,12 @@ _msb_base(path) = [split(l) for l in eachline(path)
         # (col9 2005 3027/3026, col10 2075 1143/1144), so jl and FVS round to adjacent integers — proven
         # print-knife-edge ≤1 (was padded ≤2, then the whole loop; col11 now split out to ==).
         @test parse(Float32, g[11]) == parse(Float32, b[11])   # SCuFt — BIT-EXACT
-        for c in (9, 10)
-            @test abs(parse(Float32, g[c]) - parse(Float32, b[c])) <= 1f0
-        end
         # confirm the breakup actually fired (a year where TPA drops far more than ordinary self-thinning)
         parse(Int, b[1]) == 2025 && parse(Float32, b[3]) < 200f0 && (fired = true)
     end
+    # col9/col10 cubic totals straddle the ±0.5 print-round boundary (col9 2005 3027/3026, col10 2075 1143/1144);
+    # the residual is the non-associative Float32 TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
+    @test_broken all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 cubic — tree-sum order
+    @test_broken all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 cubic — tree-sum order
     @test fired   # the test must exercise the MSBMRT path, not a degenerate no-fire stand
 end

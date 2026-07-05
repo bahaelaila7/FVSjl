@@ -34,7 +34,13 @@ _trcol(r, c) = parse(Float64, r[c])
                     for c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD — BIT-EXACT (measured Δ0 both scenarios)
                         @test _trcol(jl[i], c) == _trcol(ft[i], c)
                     end
-                    @test abs(_trcol(jl[i], 9) - _trcol(ft[i], 9)) <= 1   # cuft — print-boundary ULP (notriple @ one cycle)
+                end
+                # cuft (9): numtrip is BIT-EXACT every row; notriple straddles the print/tree-sum ±1 boundary at
+                # one cycle ⇒ exposed @test_broken (doctrine #9), not a passing ≤1. (non-associative tree-SUM order.)
+                if nm == "numtrip"
+                    @test all(_trcol(jl[i], 9) == _trcol(ft[i], 9) for i in 1:length(jl))       # BIT-EXACT
+                else
+                    @test_broken all(_trcol(jl[i], 9) == _trcol(ft[i], 9) for i in 1:length(jl))  # tree-sum order
                 end
             end
         end

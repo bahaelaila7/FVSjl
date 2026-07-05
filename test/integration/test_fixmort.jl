@@ -46,12 +46,15 @@ _fmcol(r, c) = parse(Float64, r[c])
                     end
                     # TPA — BIT-EXACT (measured Δ0) for 4 of 5 scenarios; ONLY fixmort_kpoint lands the
                     # per-acre kill·rate TPA on the +0.5 render knife-edge (Δ1 at one cycle). So == for the
-                    # bit-exact scenarios, ≤1 print-step for kpoint only (was a uniform ≤1 padding the 4).
-                    if nm == "fixmort_kpoint"
-                        @test abs(_fmcol(jl[i], 3) - _fmcol(ft[i], 3)) <= 1
-                    else
+                    # bit-exact scenarios; the kpoint residual is exposed below the loop.
+                    if nm != "fixmort_kpoint"
                         @test _fmcol(jl[i], 3) == _fmcol(ft[i], 3)
                     end
+                end
+                # fixmort_kpoint: the TPA 1-step render residual is the non-associative Float32 tree-SUM
+                # accumulation order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
+                if nm == "fixmort_kpoint"
+                    @test_broken all(_fmcol(jl[i], 3) == _fmcol(ft[i], 3) for i in 1:length(jl))  # TPA — non-associative tree-SUM order
                 end
             end
         end

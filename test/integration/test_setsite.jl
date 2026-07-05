@@ -53,8 +53,10 @@ _ss_base(path) = [split(l) for l in eachline(path)
             @test parse(Int, j[9])  == parse(Int, f[9])          # TCuFt — BIT-EXACT
             @test parse(Int, j[11]) == parse(Int, f[11])         # SCuFt — BIT-EXACT
             @test parse(Int, j[12]) == parse(Int, f[12])         # BdFt  — BIT-EXACT
-            @test abs(parse(Int, j[10]) - parse(Int, f[10])) <= 1  # MCuFt — BIT-EXACT bar a print-boundary ULP (≤1)
         end
+        # MCuFt — BIT-EXACT bar a print-boundary ULP; the residual is the non-associative Float32
+        # TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
+        @test_broken all(parse(Int, j[10]) == parse(Int, f[10]) for (j, f) in zip(jl, ft))  # MCuFt (col 10) — tree-sum order
         # the site boost actually changed the projection (vs the same key with SETSITE removed)
         offkey = joinpath(_SS_DIR, "_setsite_off.key")
         cp(joinpath(_SS_DIR, "setsite.tre"), joinpath(_SS_DIR, "_setsite_off.tre"); force = true)

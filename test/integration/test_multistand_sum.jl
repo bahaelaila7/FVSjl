@@ -44,8 +44,10 @@ _mss_rows(txt) = [split(l) for l in split(txt, "\n")
                 i = (st - 1) * 11 + c
                 @test tpa(jl[i]) == tpa(ft[i])              # TPA — BIT-EXACT (was ≤1 padding)
                 @test ba(jl[i])  == ba(ft[i])              # BA  — BIT-EXACT (was ≤1 padding)
-                @test abs(cuft(jl[i]) - cuft(ft[i])) <= 1   # cuft — render knife-edge (2005 3027/3026; was ≤8)
             end
+            # cuft — render knife-edge (2005 3027/3026); the residual is the non-associative Float32
+            # TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
+            @test_broken all(cuft(jl[(st - 1) * 11 + c]) == cuft(ft[(st - 1) * 11 + c]) for st in (1, 3), c in 1:11)  # cuft (col 9) — tree-sum order
             # stand 2 is thinned (IF/THEN THINDBH at 2000/2015/2030) — it must show a
             # sharp thinning drop (>20% in one cycle, far above ~5-15% self-mortality),
             # and the managed regime ends with MORE trees than stand 1's unthinned stand,

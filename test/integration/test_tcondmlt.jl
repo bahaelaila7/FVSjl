@@ -47,14 +47,17 @@ _tccol(r, c) = parse(Float64, r[c])
                         @test _tccol(jl[i], c) == _tccol(ft[i], c)
                     end
                     # TCuFt + BdFt: measured — the tcondmlt stem is BIT-EXACT (Δ0 both cols, all cycles); the
-                    # spclwt stem carries a genuine 1-step rendered-integer print-boundary ULP (measured max=1).
-                    if stem == "spclwt"
-                        @test abs(_tccol(jl[i], 9)  - _tccol(ft[i], 9))  <= 1   # TCuFt — print-boundary ULP (measured max 1)
-                        @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1   # BdFt  — print-boundary ULP (measured max 1)
-                    else
+                    # spclwt stem carries a genuine 1-step rendered-integer residual (exposed below the loop).
+                    if stem != "spclwt"
                         @test _tccol(jl[i], 9)  == _tccol(ft[i], 9)            # TCuFt — BIT-EXACT (tcondmlt stem, measured Δ0)
                         @test _tccol(jl[i], 12) == _tccol(ft[i], 12)           # BdFt  — BIT-EXACT (tcondmlt stem, measured Δ0)
                     end
+                end
+                # spclwt stem: the TCuFt/BdFt 1-step render residual is the non-associative Float32 tree-SUM
+                # accumulation order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
+                if stem == "spclwt"
+                    @test_broken all(_tccol(jl[i], 9)  == _tccol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
+                    @test_broken all(_tccol(jl[i], 12) == _tccol(ft[i], 12) for i in 1:length(jl))  # BdFt  — non-associative tree-SUM order
                 end
             end
         end

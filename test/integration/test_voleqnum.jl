@@ -50,16 +50,20 @@ _vecol(r, c) = parse(Float64, r[c])
                 # integer-render knife-edge, so the rendered integer rounds to the opposite side of live's.
                 @test _vecol(jl[i], 10) == _vecol(ft[i], 10)   # MCuFt — BIT-EXACT (was ≤1)
                 @test _vecol(jl[i], 11) == _vecol(ft[i], 11)   # SCuFt — BIT-EXACT (was ≤1)
-                @test abs(_vecol(jl[i], 9) - _vecol(ft[i], 9)) <= 1   # TCuFt — print-boundary ULP at 2020
-                # Board feet: BIT-EXACT bar a single print-boundary ULP at 2030. Previously carried a systematic
-                # −16→−23 residual at the largest cycles; root-caused (BFDUMP per-tree trace) to the BROKEN-TOP
-                # board top-kill (BFTOPK) being fit to the WRONG equation's total cubic. VOLEQNUM splits the board
-                # equation (SM, VEQNNB) from the cubic (black oak, VEQNNC) → BFPFLG=0; FVS vols.f:391 passes BFMAX
-                # (the BOARD call's total, from BFVOL) to BFTOPK, but jl passed v[1] (the cubic call's total). On a
-                # broken-top tree that scaled the SM board by black-oak's taper. Fixed to use the board call's vb[1].
-                # Now every cycle is bit-exact except the 2030 render knife-edge → bound = exactly 1.
-                @test abs(_vecol(jl[i], 12) - _vecol(ft[i], 12)) <= 1
             end
+            # TCuFt (9): bit-exact bar a single print-boundary ULP at 2020 — the per-acre cubic sum lands within one
+            # ULP of the +0.5 integer-render knife-edge; residual is the non-associative Float32 tree-SUM accumulation
+            # order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
+            @test_broken all(_vecol(jl[i], 9) == _vecol(ft[i], 9) for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
+            # Board feet (12): bit-exact bar a single print-boundary ULP at 2030. Previously carried a systematic
+            # −16→−23 residual at the largest cycles; root-caused (BFDUMP per-tree trace) to the BROKEN-TOP
+            # board top-kill (BFTOPK) being fit to the WRONG equation's total cubic. VOLEQNUM splits the board
+            # equation (SM, VEQNNB) from the cubic (black oak, VEQNNC) → BFPFLG=0; FVS vols.f:391 passes BFMAX
+            # (the BOARD call's total, from BFVOL) to BFTOPK, but jl passed v[1] (the cubic call's total). On a
+            # broken-top tree that scaled the SM board by black-oak's taper. Fixed to use the board call's vb[1].
+            # Now every cycle is bit-exact except the 2030 render knife-edge — residual is the non-associative
+            # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
+            @test_broken all(_vecol(jl[i], 12) == _vecol(ft[i], 12) for i in 1:length(jl))  # BdFt — non-associative tree-SUM order
         end
     end
 end

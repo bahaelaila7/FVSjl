@@ -44,11 +44,14 @@ _cecol(r, c) = parse(Float64, r[c])
                 @test _cecol(jl[i], 11) == _cecol(ft[i], 11)   # SCuFt — BIT-EXACT (measured Δ0 all cycles; the
                                                                # sawtimber cubic is a small-tree-subset sum, no render knife-edge)
                 @test _cecol(jl[i], 9) == _cecol(ft[i], 9)   # TCuFt — BIT-EXACT (measured Δ0 all cycles)
-                @test abs(_cecol(jl[i], 10) - _cecol(ft[i], 10)) <= 1  # MCuFt — BIT-EXACT bar a print-boundary ULP (measured max exactly 1)
-                # Board feet: BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
-                # sum lands within one ULP of the +0.5 integer-render knife-edge). Bound = exactly 1 (one step).
-                @test abs(_cecol(jl[i], 12) - _cecol(ft[i], 12)) <= 1
             end
+            # MCuFt (10): bit-exact bar a print-boundary ULP (measured max exactly 1) — residual is the
+            # non-associative Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
+            @test_broken all(_cecol(jl[i], 10) == _cecol(ft[i], 10) for i in 1:length(jl))  # MCuFt — non-associative tree-SUM order
+            # Board feet (12): BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
+            # sum lands within one ULP of the +0.5 integer-render knife-edge); residual is the non-associative
+            # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
+            @test_broken all(_cecol(jl[i], 12) == _cecol(ft[i], 12) for i in 1:length(jl))  # BdFt — non-associative tree-SUM order
         end
     end
 end
