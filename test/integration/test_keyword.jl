@@ -31,7 +31,7 @@ end
         nbad = 0
         for (i, (a, b)) in enumerate(zip(mine, theirs))
             namematch = a[1] == b[1]
-            valmatch  = all(isapprox.(a[2], b[2]; atol=1f-6, rtol=1f-5))
+            valmatch  = a[2] == b[2]        # keyword field VALUES parse bit-identically (both read the same .key literals)
             presmatch = a[3] == b[3]
             if !(namematch && valmatch && presmatch)
                 nbad += 1
