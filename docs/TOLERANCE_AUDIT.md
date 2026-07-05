@@ -1106,3 +1106,22 @@ edge (Δ0.0499992 < 0.05 — one ULP from failing). Since jl renders to the .sum
 converted to rendered-== (round(Float64(·);digits=1)==target) — stronger AND removes the edge fragility.
 QMD renders to 5.1 too. This is the doctrine's preferred formatted-== form, and it de-risks the tightest
 print-half-width bound in the suite.
+
+## Session 2026-07-05 — FIXPOINT VERIFICATION (zero new padding this pass)
+
+- **CS all-species** (work-list #1): re-measured every grown-cycle column — bound == exact observed max for
+  ALL 7 (tpa 1, ccf 4, topht 1, tcuft 21, mcuft 20, scuft 20, bdft 464). Zero padding.
+- **SN cov4** (the DGSCOR-tail group): bound == exact max for all 7 (tpa 2, sdi 1, ccf 1, tcuft 3, mcuft 3,
+  scuft 4, bdft 54). Zero padding.
+- **Forbidden-pattern scan** (percentages / rtol>0 / atol≥0.5 / un-cornered multi-unit slack): NONE remain.
+  The only two grep hits are a Float32-ULP (atol=1.2f-7) and a regime check (treeszcp QMD ≤8), not tolerances.
+- snt01 qmd/mai → rendered-== (edge-case de-risk). 68-71 verified at the 0.05 struct-vs-1dec floor.
+
+This was a ZERO-NEW-PADDING verification pass over the largest accepted-class envelopes + a suite-wide
+forbidden-pattern scan. Every bound is `==` / rendered-`==` (~235), or PROVEN-ULP cornered to a named op at
+its EXACT observed floor with documented root (~37: Float32-ULP, ^(7/6)/exp transcendental, non-associative
+sum-order, print-half/knife-edge, grown-cycle-transcendental-envelope, emergent-snag-phasing, tripling-UB,
+crown-ratio, accumulated-DGF, near-tie), or `@test_broken` (2: COMPRESS s22, WK3/DGSCOR, both-sides traced).
+TOLERANCE_COMPLETE held unset ONLY for the strictest "single-op vs named-mechanism" reading of the emergent-
+phasing / tripling-UB / crown-ratio bounds (cornered to a mechanism with every constituent op proven faithful,
+bound = exact floor — but not a single Float32 invocation). Substantive campaign COMPLETE.
