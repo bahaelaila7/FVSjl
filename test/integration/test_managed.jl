@@ -62,7 +62,7 @@ _mg_base(path) = [split(l) for l in eachline(path)
                 @test parse(Int, j[c]) == parse(Int, f[c])
             end
             @test parse(Float64, j[8]) == parse(Float64, f[8])   # QMD
-            @test abs(parse(Int, j[10]) - parse(Int, f[10])) <= 2            # MerchCuFt (±Float32)
+            @test parse(Int, j[10]) == parse(Int, f[10])            # MerchCuFt — BIT-EXACT (measured Δ=0; was over-cautious ≤2)
         end
     end
 end
