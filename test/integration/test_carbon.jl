@@ -311,8 +311,8 @@ end
         s.control.carbon_method = Int32(0); r0 = FVSjl.stand_carbon_report(s)
         s.control.carbon_method = Int32(1); r1 = FVSjl.stand_carbon_report(s)
         @test r0.aboveground != r1.aboveground
-        @test r0.belowground ≈ r1.belowground
-        @test r0.standing_dead ≈ r1.standing_dead
+        @test r0.belowground == r1.belowground
+        @test r0.standing_dead == r1.standing_dead
     end
 end
 
@@ -341,10 +341,10 @@ using SQLite, DBInterface
         @test length(res) == 2                                            # two cycles inserted
         @test res[1].Year == 1990 && res[2].Year == 1995
         @test res[1].CaseID == "CASE1" && res[1].StandID == "STAND1"
-        @test res[1].Above ≈ Float64(rep.aboveground)                     # report→column mapping
-        @test res[1].SD ≈ Float64(rep.standing_dead)
-        @test res[1].DDW ≈ Float64(rep.down_wood)
-        @test res[1].Total ≈ Float64(rep.total)
+        @test res[1].Above == Float64(rep.aboveground)                     # report→column mapping
+        @test res[1].SD == Float64(rep.standing_dead)
+        @test res[1].DDW == Float64(rep.down_wood)
+        @test res[1].Total == Float64(rep.total)
     end
 end
 
@@ -377,8 +377,8 @@ end
                for r in DBInterface.execute(db, "SELECT * FROM FVS_Fuels")]
         SQLite.close(db)
         @test length(res) == 1 && res[1].Year == 1990
-        @test res[1].lt3 ≈ Float64(f.lt3)
-        @test res[1].ST ≈ Float64(f.surf_total)
+        @test res[1].lt3 == Float64(f.lt3)
+        @test res[1].ST == Float64(f.surf_total)
     end
 end
 
@@ -406,8 +406,8 @@ end
                for r in DBInterface.execute(db, "SELECT * FROM FVS_SnagSum")]
         SQLite.close(db)
         @test length(res) == 1 && res[1].Year == 1990
-        @test res[1].H1 ≈ Float64(sg.hard[1])
-        @test res[1].Tot ≈ Float64(sg.hard[7] + sg.soft[7])
+        @test res[1].H1 == Float64(sg.hard[1])
+        @test res[1].Tot == Float64(sg.hard[7] + sg.soft[7])
     end
 end
 
@@ -477,8 +477,8 @@ end
     r0 = FVSjl.harvested_carbon_report(s, 2000, 1)
     r30 = FVSjl.harvested_carbon_report(s, 2030, 1)
     @test r0.products > 0f0
-    @test r0.stored ≈ r0.products + r0.landfill              # stored = in-use + landfill
-    @test r0.removed ≈ r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
+    @test r0.stored == r0.products + r0.landfill              # stored = in-use + landfill
+    @test r0.removed == r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
     @test r30.removed ≈ r0.removed rtol = 1f-4               # total removed is fixed at harvest
     @test r30.products < r0.products                         # in-use wood decays over time
     @test r30.landfill >= r0.landfill                        # landfill accumulates
@@ -490,8 +490,8 @@ end
            for x in DBInterface.execute(db, "SELECT * FROM FVS_Hrv_Carbon ORDER BY Year")]
     SQLite.close(db)
     @test length(res) == 2 && res[1].Year == 2000
-    @test res[1].P ≈ Float64(r0.products)
-    @test res[1].Rm ≈ Float64(r0.removed)
+    @test res[1].P == Float64(r0.products)
+    @test res[1].Rm == Float64(r0.removed)
 end
 
 @testset "FVS_PotFire DBS table — potential fire report + writer (fmpofl.f / dbsfmpf.f)" begin
@@ -521,8 +521,8 @@ end
            for x in DBInterface.execute(db, "SELECT * FROM FVS_PotFire")]
     SQLite.close(db)
     @test length(res) == 1 && res[1].Year == 2003
-    @test res[1].SF ≈ Float64(r.surf_flame_sev)
-    @test res[1].CD ≈ Float64(r.canopy_density)
+    @test res[1].SF == Float64(r.surf_flame_sev)
+    @test res[1].CD == Float64(r.canopy_density)
     @test res[1].TI == -1.0
 end
 
@@ -540,8 +540,8 @@ end
     @test length(s.fire.burn_reports) == 1                    # one fire event captured
     b = s.fire.burn_reports[1]
     @test b.year == 2003
-    @test b.flame ≈ res.flame && b.scorch ≈ res.scorch         # matches the FireResult
-    @test b.killed ≈ res.killed
+    @test b.flame == res.flame && b.scorch == res.scorch         # matches the FireResult
+    @test b.killed == res.killed
     @test !isempty(b.models)                                   # at least one weighted fuel model
     dbpath = joinpath(mktempdir(), "burn.db")
     FVSjl.write_dbs_burnreport!(dbpath, "C1", "S1", s.fire.burn_reports)
@@ -551,8 +551,8 @@ end
             for r in DBInterface.execute(db, "SELECT * FROM FVS_BurnReport")]
     SQLite.close(db)
     @test length(rows) == 1 && rows[1].Year == 2003
-    @test rows[1].Flame ≈ Float64(b.flame)
-    @test rows[1].M1 ≈ Float64(b.mois[1,1]) * 100              # moisture reported as percent
+    @test rows[1].Flame == Float64(b.flame)
+    @test rows[1].M1 == Float64(b.mois[1,1]) * 100              # moisture reported as percent
     @test rows[1].Slope == 0                                   # SN surface-fire path: no slope term
 
     # FVS_Mortality: killed vs total TPA by DBH class (Total = killed + remaining, pre-fire)
@@ -568,8 +568,8 @@ end
     SQLite.close(db2)
     # FVS_Mortality emits one row per present species + an 'ALL' aggregate row (dbsfmmort.f) — assert on ALL.
     allrow = only(filter(m -> m.SP == "ALL", mort))
-    @test length(mort) >= 2 && allrow.BA ≈ Float64(b.killed_ba)
-    @test allrow.K3 ≈ Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
+    @test length(mort) >= 2 && allrow.BA == Float64(b.killed_ba)
+    @test allrow.K3 == Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
     # per-species class-3 kills sum to the ALL aggregate
     @test sum(m.K3 for m in mort if m.SP != "ALL") ≈ Float64(b.clskil[3]) rtol = 1f-4
     @test length(cons) == 1 && cons[1].ST ≈ Float64(b.consumed.surf_total)

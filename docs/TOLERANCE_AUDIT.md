@@ -890,3 +890,14 @@ computed self-consistency `≈` (64/74/113/130) — next pass.
 - **test_rothermel:149** (load == currcwd1+currcwd10): jl's internal fuel-load accumulation vs the test's
   re-sum → sum-order ULP (measured 1.49e-8 ≈ 1 ULP at load~0.2) → `atol 5f-8`.
 Both are the goal's explicitly-permitted "named non-associative sum order" proven-ULP class.
+
+## Session 2026-07-05 (cont.) — bare-≈ closeout (integration self-consistency)
+
+Swept the remaining bare default-rtol `≈` operators across ALL tests:
+- test_sdimax (PMSDIL/PMSDIU fraction parses), test_io_formats (keyword field values 2010/200/2),
+  test_event_monitor:71 (BSDI self-dispatch), test_net01:26 (parsed dbh 11.5) → `==` (exact parses).
+- **test_carbon** (22 bare `≈`): DBS report-column ↔ struct-field mapping (res.Above == Float64(rep.above)
+  etc.) + carbon conservation sums (stored==products+landfill, removed==energy+emissions+stored) +
+  FireResult self-consistency (b.flame==res.flame) — ALL measured bit-exact (test-verified) → `==`.
+UNIT TESTS + integration bare-≈ are now ZERO default-rtol; every `≈` remaining carries a proven atol/rtol
+(print-half-width, Float32-ULP, transcendental, sum-order, stamp-precision) or is an inequality.
