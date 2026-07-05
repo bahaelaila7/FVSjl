@@ -72,11 +72,14 @@ using FVSjl
         #      that never touches a `.sum` column — the grown-cycle/tripling transcendental family (same class as
         #      the CS board-sum oscillation), NOT a crown-model bug. Confirmed cosmetic, not fixable without bit-
         #      matching the crown-ratio evolution (= the accepted grown-cycle tail).
-        # Bound = the PERCOV-crown-ratio residual propagated through the wind chain (0.055 flame / 0.29 scorch =
-        # the exact observed |jl_internal − live| floor). Downstream of the proven grown-cycle crown-ratio class;
-        # would collapse to a print-half-width if that crown-ratio evolution were bit-matched. See TOLERANCE_AUDIT.md.
-        @test isapprox(br.flame,  3.4f0;  atol = 0.055f0)  # jl 3.4543 vs live 3.4008 = 0.0535 — PERCOV-crown-timing (NOT transcendental)
-        @test isapprox(br.scorch, 13.0f0; atol = 0.29f0)   # jl 13.289 vs live 13.0 = 0.289 — same PERCOV-crown-timing propagation
+        # Bound = the PERCOV-crown-ratio residual propagated through the wind chain, cornered to the EXACT
+        # |jl_internal − live| floor. flame grounded in the PRECISE live FMBURN value 3.4008 (DEBUG stamp, not the
+        # 1-dec rendered 3.4): jl 3.4543462, Δ=0.0535462 → atol 0.0536 (1.001×). scorch vs live rendered 13.0
+        # (confirmed via the live LS BurnRept .out, 2026-07-05): jl 13.289473, Δ=0.2894726 → atol 0.2895 (1.0001×).
+        # Downstream of the proven grown-cycle crown-ratio class (would collapse to print-half-width if the
+        # crown-ratio evolution were bit-matched). See TOLERANCE_AUDIT.md. (Was 0.055/0.29.)
+        @test isapprox(br.flame,  3.4008f0; atol = 0.0536f0)  # jl 3.4543 vs PRECISE live 3.4008 — PERCOV-crown-timing
+        @test isapprox(br.scorch, 13.0f0;   atol = 0.2895f0)  # jl 13.289 vs live 13.0 — same PERCOV-crown-timing propagation
 
         # --- fire mortality: full .sum trajectory vs live (fire lands 2003→2013) ---
         txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :sum)
@@ -140,7 +143,12 @@ end
         # snag-fall/OLD-state PHASING effect on top of the 12.0 render boundary — effectively a print-ULP.
         # Prior "crown-lift-lag" / "curkil" / "hard-soft-split" attributions all REFUTED by the above; the
         # computation is faithful. Bound = the ≤0.2 phasing+print-boundary width. See docs/TOLERANCE_AUDIT.md.
-        @test isapprox(carb[2003][5], 12.0; atol = 0.2)    # jl 11.8 vs live 12.0 — EXACT rendered floor (was padded 0.25); proven-faithful snag computation, ≤print-step phasing
+        # CONFIRMED live oracle (ran /tmp/FVSls_new on ffe_carb.key, 2026-07-05): 2003 Stand-Dead renders 12.0.
+        # carb[2003][5] is parsed from jl's OWN rendered report (= 11.8 exactly), so state the EXACT tenth-gap
+        # (float-clean, like the SN #28 fire_carbon case): jl 11.8 vs live 12.0 = exactly 2 tenths — the emergent
+        # snag-fall/OLD-state phasing on the render boundary (all constituent ops proven faithful per above). Locks
+        # the residual: a model change flips the gap and flags for review. (Was atol 0.2, then 0.25.)
+        @test abs(round(Int, carb[2003][5] * 10) - 120) == 2    # jl renders 11.8, exactly 2 tenths below live 12.0
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end

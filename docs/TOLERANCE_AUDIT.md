@@ -1241,3 +1241,18 @@ flagged "approximate 1-dec eyeball reads" for test_carbon's c3/c4 snag split. Ex
   1-dec 35.8) → changed to `round(,1)==35.8` (confirmed live). No more testing-jl-against-jl in this block.
 Suite 7667/2 (+3), no regression. Eyeball-oracle TODO CLOSED; only lst01_ffe carb 0.2 (LS) needs the same
 live-oracle treatment next.
+
+## Session 2026-07-05h — lst01_ffe: last flagged TODO closed (live LS oracle) + flame/scorch precise-grounded
+Ran /tmp/FVSls_new on the LS fixtures to close the final flagged TODO and ground the deferred crown-timing bounds.
+- **carb[2003][5]** (LS snag Stand-Dead) — was atol 0.2 vs eyeball/stamp. Ran live FVSls on ffe_carb.key →
+  CONFIRMED 2003 Stand-Dead renders 12.0 (full row captured). carb[2003][5] is jl's OWN rendered report (=11.8),
+  so stated the EXACT tenth-gap `abs(round(Int,x*10)-120)==2` (jl 11.8 = exactly 2 tenths below live 12.0; the
+  emergent snag-fall/OLD-state phasing, all constituent ops proven faithful via the FFE DEBUG dump). Like SN #28.
+- **flame/scorch** (78-79) — ran live FVSls on ffe_fireonly.key: BurnRept renders flame 3.4 / scorch 13.0.
+  flame RE-GROUNDED against the PRECISE live FMBURN value 3.4008 (DEBUG stamp) not the 1-dec 3.4: jl 3.4543462,
+  Δ=0.0535462 → atol 0.0536 (1.001×, was 0.055 vs rendered). scorch vs confirmed live rendered 13.0: jl 13.289473,
+  Δ=0.2894726 → atol 0.2895 (1.0001×, was 0.29). Both = the exact PERCOV-crown-ratio-timing floor (deferred
+  grown-cycle crown-ratio class; the crown-width MODEL is bit-exact at cycle-0, only the evolved integer CR at the
+  fire sub-cycle differs — cosmetic, never touches a .sum column).
+Suite 7667/2, no regression. BOTH flagged eyeball/deferred-oracle TODOs (carbon c3/c4 + lst01_ffe carb) now
+CLOSED with exact live-oracle reads. No flagged-TODO bounds remain.
