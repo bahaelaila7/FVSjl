@@ -51,7 +51,8 @@ _ra_base(path) = [split(l) for l in eachline(path)
         @test length(jl) == length(ft)
         for (j, f) in zip(jl, ft)
             @test parse(Int, j[2]) == parse(Int, f[2])              # AGE
-            @test abs(parse(Float64, j[25]) - parse(Float64, f[25])) <= 0.2   # MAI
+            @test parse(Float64, j[25]) == parse(Float64, f[25])    # MAI — BIT-EXACT (measured Δ=0 all rows; the
+                                                                    # rendered MAI = total cuft/age renders identically; was ≤0.2 padding)
         end
     end
 end

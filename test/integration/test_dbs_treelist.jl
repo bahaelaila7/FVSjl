@@ -44,8 +44,11 @@ const _TL_DIR = joinpath(@__DIR__, "..", "harness", "scenarios")
                 # the SAME quantity in DIFFERENT Float32 accumulation orders (per-tree Σ here vs the stand-
                 # level Σ in summary.jl), so they differ by a non-associative-sum-order ULP, amplified by the
                 # ×TPA and the +0.5 integer render. Proven sum-order ULP; bound = the accumulation width.
+                # measured max Δ = 0.44 (ΣTPA) / 0.465 (Σcuft) — BOTH dominated by the rendered-integer
+                # half-width (0.5) + a sub-0.05 Float32-vs-Float64 accumulation gap; the Σcuft bound was
+                # padded 3× over that. Both = the rendered-integer sum-order print-knife-edge class (≤1).
                 @test abs(agg[y][1] - parse(Int, f[3])) <= 1          # Σ TPA vs stand TPA — sum-order ULP
-                @test abs(agg[y][2] - parse(Int, f[9])) <= 3          # Σ(TCuFt·TPA) vs total cuft — sum-order ULP
+                @test abs(agg[y][2] - parse(Int, f[9])) <= 1          # Σ(TCuFt·TPA) vs total cuft — sum-order ULP (was ≤3)
             end
         finally
             rm(tmpkey; force=true); rm(joinpath(_TL_DIR, "_tl_run.tre"); force=true)
