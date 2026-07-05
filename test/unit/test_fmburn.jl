@@ -31,7 +31,7 @@ end
         @test all(s.trees.tpa[i] < tpa0[i] for i in 1:5)
         @test all(s.trees.tpa[i] >= 0f0 for i in 1:5)
         # killed total equals the summed TPA reduction
-        @test res.killed ≈ sum(tpa0[i] - s.trees.tpa[i] for i in 1:5)
+        @test res.killed == sum(tpa0[i] - s.trees.tpa[i] for i in 1:5)
     end
 
     @testset "size-dependent mortality" begin
@@ -39,7 +39,7 @@ end
         surv(i) = s.trees.tpa[i] / tpa0[i]
         @test surv(1) > surv(3)     # d14 oak vs d4 sapling
         @test surv(1) > surv(5)     # d14 oak vs d1 stem (≤1" → fully killed)
-        @test s.trees.tpa[5] ≈ 0f0  # the ≤1" hardwood is killed outright
+        @test s.trees.tpa[5] == 0f0  # the ≤1" hardwood is killed outright
     end
 
     @testset "controls" begin

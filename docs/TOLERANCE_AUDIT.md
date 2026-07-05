@@ -868,3 +868,16 @@ computed self-consistency `≈` (64/74/113/130) — next pass.
 - htx height-loss coefficient lookups (144-146) → `==` (coefficient loads, exact).
 - LS snag_fall line 135 (clamp·50) → `==` (measured Δ0). test_snag now has ZERO `≈` — all `==` or the
   snag_fall few-ULP atol (2f-6).
+
+## Session 2026-07-05 (cont.) — rothermel/fire_biomass/fmburn ≈ resolved
+
+- **test_rothermel**: flame == 0.45·(byram/60)^0.46 self-consistency (measured Δ0, jl uses that exact op) →
+  `==`; the multi-comparison table lines (l10/l5/vd/vw, 70/75/99/100) had un-converted 2nd/3rd `≈` (perl does
+  first-per-line) — now all `==`.
+- **test_fire_biomass**: jenkins_biomass `.≈ ref` (pure Float32 exp/log, same ops) → `.==` (verified by test);
+  percov self-consistency (181) → `==`.
+- **test_fmburn**: killed == Σ(TPA reductions) conservation + tpa[5]==0 → `==` (verified).
+- OPEN (2, genuine Float32 SUM-ORDER self-consistency — the goal's permitted non-associative-sum class):
+  test_rothermel:149 (load == currcwd1+currcwd10, jl's internal load vs a re-sum) and test_fire_biomass:177
+  (Σcwd[isz,2,:] == fd[isz]) both FAILED `==` (real accumulation-order residual) → kept `≈`, to corner to the
+  exact sum-order ULP width next pass.

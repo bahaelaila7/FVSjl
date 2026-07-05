@@ -28,16 +28,16 @@ using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
     end
 
     # sp1 = group 3 (softwood, jgrp 1), dbh_min 4.0
-    @test all(jenkins_biomass(coef, 1, 10.0f0) .≈ ref(3, 1, 10.0f0, 4.0f0))
+    @test all(jenkins_biomass(coef, 1, 10.0f0) .== ref(3, 1, 10.0f0, 4.0f0))
     # sp65 = group 9 (hardwood, jgrp 2)
     dm65 = coef_col(coef, :dbh_min)[65]
-    @test all(jenkins_biomass(coef, 65, 8.0f0) .≈ ref(9, 2, 8.0f0, dm65))
+    @test all(jenkins_biomass(coef, 65, 8.0f0) .== ref(9, 2, 8.0f0, dm65))
     # sp88 = group 1 (softwood)
     dm88 = coef_col(coef, :dbh_min)[88]
-    @test all(jenkins_biomass(coef, 88, 15.0f0) .≈ ref(1, 1, 15.0f0, dm88))
+    @test all(jenkins_biomass(coef, 88, 15.0f0) .== ref(1, 1, 15.0f0, dm88))
 
     # small-tree (< 2.5 cm) scaling branch
-    @test all(jenkins_biomass(coef, 1, 0.5f0) .≈ ref(3, 1, 0.5f0, 4.0f0))
+    @test all(jenkins_biomass(coef, 1, 0.5f0) .== ref(3, 1, 0.5f0, 4.0f0))
 
     # merch is zero below the species merch-DBH limit, non-zero above it
     @test jenkins_biomass(coef, 1, 3.0f0)[2] == 0f0          # 3 < 4.0 dbh_min
@@ -178,7 +178,7 @@ end
     end
     # determinism
     s2 = build(); fmcba!(s2)
-    @test s2.fire.covtyp == fs.covtyp && s2.fire.percov ≈ fs.percov
+    @test s2.fire.covtyp == fs.covtyp && s2.fire.percov == fs.percov
 
     # no-op when FFE is inactive
     s3 = build(); s3.fire.active = false; fmcba!(s3)
