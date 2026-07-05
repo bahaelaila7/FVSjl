@@ -363,10 +363,10 @@ end
         FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
         f = FVSjl.ffe_fuel_loadings(s)
         # down-wood biomass (lt3+ge3) reconciles with the validated DDW carbon pool (DDW = biomass × 0.5)
-        @test (f.lt3 + f.ge3) ≈ FVSjl.down_wood_carbon(s) / 0.5f0 rtol = 1f-4
+        @test (f.lt3 + f.ge3) == FVSjl.down_wood_carbon(s) / 0.5f0
         # litter+duff reconcile with the forest-floor pool (floor carbon = biomass × 0.37)
-        @test (f.litter + f.duff) ≈ FVSjl.forest_floor_carbon(s) / 0.37f0 rtol = 1f-4
-        @test f.s3to6 + f.s6to12 + f.ge12 ≈ f.ge3 rtol = 1f-4      # ge3 size split is consistent
+        @test (f.litter + f.duff) == FVSjl.forest_floor_carbon(s) / 0.37f0
+        @test f.s3to6 + f.s6to12 + f.ge12 == f.ge3      # ge3 size split is consistent
         @test f.surf_total > 0f0
         # DBS round-trip (collection is (year, carbon_report, fuel) 3-tuples)
         rows = [(1990, FVSjl.stand_carbon_report(s), f)]
@@ -396,7 +396,7 @@ end
         sg = FVSjl.snag_summary(s)
         @test sg.hard[1] ≈ sg.hard[7]                         # class 1 (≥0") == hard total
         @test sg.soft[1] ≈ sg.soft[7]                         # class 1 == soft total
-        @test sg.hard[7] + sg.soft[7] ≈ FVSjl.snag_standing_density(s.fire) rtol = 1f-4
+        @test sg.hard[7] + sg.soft[7] == FVSjl.snag_standing_density(s.fire)
         @test sg.hard[2] <= sg.hard[1]                        # cumulative: ≥12" ⊆ ≥0"
         rows = [(1990, FVSjl.stand_carbon_report(s), FVSjl.ffe_fuel_loadings(s), sg)]
         dbpath = joinpath(mktempdir(), "snag.db")
@@ -423,8 +423,8 @@ end
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         FVSjl.compute_forest_type!(s); FVSjl.fmcba!(s)
         dw = FVSjl.ffe_down_wood(s)
-        @test dw.vol_hard[8] ≈ sum(dw.vol_hard[1:7]) rtol = 1f-4      # total = sum of bins
-        @test dw.cov_hard[7] ≈ sum(dw.cov_hard[1:6]) rtol = 1f-4
+        @test dw.vol_hard[8] == sum(dw.vol_hard[1:7])      # total = sum of bins
+        @test dw.cov_hard[7] == sum(dw.cov_hard[1:6])
         # hard total volume = hard down-wood biomass × 2000 / 24.96 (SG 0.4)
         hard_bio = sum(@view s.fire.cwd[1:9, 2, :])
         @test dw.vol_hard[8] ≈ hard_bio * 2000f0 / 24.96f0 rtol = 1f-3
@@ -480,7 +480,7 @@ end
     @test r0.products > 0f0
     @test r0.stored == r0.products + r0.landfill              # stored = in-use + landfill
     @test r0.removed == r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
-    @test r30.removed ≈ r0.removed rtol = 1f-4               # total removed is fixed at harvest
+    @test isapprox(r30.removed, r0.removed; atol = 5f-7)    # removed fixed at harvest; 2030 report re-accumulates FAPROP fate curves in a diff Float32 order (Δ=2.4e-7 ≈1 ULP; was rtol 1f-4)
     @test r30.products < r0.products                         # in-use wood decays over time
     @test r30.landfill >= r0.landfill                        # landfill accumulates
     # DBS round-trip
@@ -558,7 +558,7 @@ end
 
     # FVS_Mortality: killed vs total TPA by DBH class (Total = killed + remaining, pre-fire)
     @test b.killed_ba > 0f0
-    @test sum(b.clskil) ≈ b.killed rtol = 1f-4
+    @test sum(b.clskil) == b.killed
     @test all(b.totcls[c] >= b.clskil[c] for c in 1:7)        # total ≥ killed in each class
     FVSjl.write_dbs_mortality!(dbpath, "C1", "S1", s.fire.burn_reports)
     FVSjl.write_dbs_consumption!(dbpath, "C1", "S1", s.fire.burn_reports)
@@ -572,7 +572,7 @@ end
     @test length(mort) >= 2 && allrow.BA == Float64(b.killed_ba)
     @test allrow.K3 == Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
     # per-species class-3 kills sum to the ALL aggregate
-    @test sum(m.K3 for m in mort if m.SP != "ALL") ≈ Float64(b.clskil[3]) rtol = 1f-4
+    @test sum(m.K3 for m in mort if m.SP != "ALL") == Float64(b.clskil[3])
     @test length(cons) == 1 && cons[1].ST ≈ Float64(b.consumed.surf_total)
     @test b.consumed.surf_total >= 0f0                        # fire consumes (≥0) surface fuel
 end

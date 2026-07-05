@@ -1009,3 +1009,14 @@ per-acre value straddles the +0.5 boundary via the growth-transcendental). tQ (Q
 test_lst01_ffe pre-fire 2003 BA: bound was `≤1` with a "live 104, jl 105" comment. Re-measured jl BA=104
 == live 104 (Δ0) — the SIGMAR tripling-spread fix made it bit-exact; the "jl 105" comment was STALE. → `==`.
 (flame/scorch stay cornered to the PERCOV-crown-timing floor; carb 2003 = emergent snag phasing, verified.)
+
+## Session 2026-07-05 (cont.) — test_carbon rtol=1f-4 algebraic identities cornered
+
+Measured the jl-internal rtol=1f-4 self-consistency identities:
+- BIT-EXACT (Δ0) → `==`: down_wood vol_hard[8]==Σ(1:7), cov_hard[7]==Σ(1:6) (426/427); fuel-loading
+  lt3+ge3 == down_wood_carbon/0.5, litter+duff == forest_floor_carbon/0.37, ge3 size-split (366/368/369);
+  snag hard[7]+soft[7] == snag_standing_density (399); Σclskil == killed (561); ΣK3 == clskil[3] (575).
+  These are exact algebraic identities (jl computes total = the sum / the division exactly).
+- **483 r30.removed vs r0.removed**: NOT exact (== failed) — the 2030 HWP report re-accumulates the FAPROP
+  fate-decay curves in a slightly different Float32 order (measured Δ=2.4e-7 ≈ 1 Float32 ULP at ~3.36) →
+  `atol 5f-7` (was rtol 1f-4, ~1400× padded). The `==`-then-test approach surfaced this one real residual.
