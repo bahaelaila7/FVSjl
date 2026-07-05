@@ -1733,3 +1733,18 @@ doctrine-#9 "sum-order NOT one portable primitive" class: correctly EXPOSED @tes
 bit-matching FVS's exact tree-list order (tripling split order + any mortality compaction) — a tree-list-
 management faithfulness task, not a tolerance edit. r8/r9clark FFI kept (faithful + this deconfound proof).
 Suite 6853/159/0/0, no regression across SN/NE/CS/LS.
+
+## Session 2026-07-05ff — treelist harness WORKS; volume ±1 verdict CORRECTED (per-tree, not sum-order)
+The live per-tree treelist IS available (bfvolume_override.key has TREELIST 0 → sn_oracle emits a 339KB .trl;
+plant_stocked likewise). The earlier timeint/ls "empty .trl" was scenario-specific, NOT a broken harness.
+Using it to localize the bfvolume ±1 (jl 3027/3251/... vs live 3026/... at cycles 2005 & 2040):
+- jl 2005 Σ(cuft·tpa)/g = 3026.535, IDENTICAL in Float32 AND Float64 accumulation ⇒ NOT the non-associative
+  sum order (my prior "tree-SUM order" verdict was a MISREAD — corrected per re-trace discipline).
+- live treelist Σ ≈ 3026.32 → 3026. jl is ~0.2/ac higher = ~0.0008/tree over 243 trees ⇒ a PER-TREE R8-Clark
+  Float32 volume ULP (jl slightly high), flipping the rendered integer by 1 only on knife-edge cycles.
+- the Clark taper pow is FFI-routed (inert here) ⇒ the residual is a DIFFERENT per-tree Clark op (defect
+  ICDF/IBDF correction, height dub, or a coefficient/formula detail), NOT the pow and NOT accumulation.
+⇒ CORRECTED verdict: volume ±1 = per-tree R8-Clark Float32 volume ULP, cornered to the per-tree cuft op
+(sub-0.1, invisible in the 1-dec treelist ⇒ needs the DBS FVS_TreeList unrounded per-tree cuft to localize
+the exact component). Now TRACTABLE (harness works). Still correctly @test_broken until the component is
+found + FFI'd or matched. Prior "sum-order" audit note superseded.
