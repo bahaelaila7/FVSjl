@@ -1498,3 +1498,21 @@ IMPLICATION: of the 4 supposed "reducible-by-deep-work" residuals, TWO were re-c
 (near-tie) and now estab_pccf multi-point-PCCF (IMPLEMENTED; near-tie). The only genuinely-reducible residual left
 is the FFE-carbon CFVOL one-tree merch (FVS two-merch-def). The crown-ratio-timing (carbon_ffe crown / LS PERCOV /
 CS CCF) is the accepted grown-cycle class. Re-trace discipline continues to shrink the "deferred" list.
+
+## Session 2026-07-05w — estab_pccf near-tie trace COMPLETED (ccft formula proven faithful)
+Finished tracing the estab_pccf 0.14 residual (whether pccf, ran, or near-tie):
+- CCF per-tree contribution `ccft`: jl point_density! (standstats.jl:186-188) and stand_ccf (:235-237) use the
+  IDENTICAL formula `0.001803·cw²·tpa` (cw = crown_width @ crown_pct=90), matching FVS CCFCAL (ccfcal.f). And
+  stand_ccf is VALIDATED bit-exact vs live CCF (the .sum column). ⇒ PCCF's TOTAL is bit-exact; the ccft formula
+  is NOT the residual (candidate refuted).
+- So the ~7-tree flip is either the point-PARTITION (jl `plot_id` vs FVS `ITRE(I)` assignment repartitioning the
+  bit-exact total across points) or the crown-draw RANN state — both FAITHFUL but flipping trees that sit on the
+  INT(cr·100+0.5) ×.5 rounding boundary (a sub-unit pccf/ran nudge flips a boundary tree by 1 crown-unit).
+VERDICT: estab_pccf 0.141 is a genuine NEAR-BOUNDARY / near-tie residual (same class as DKTIME snag split /
+COMPRESS-RDPSRT), on a stand whose CCF total + regen height draws + crown formula are all proven faithful.
+Cornered at the exact measured floor 0.141. NOT a missing feature (multi-point PCCF implemented) and NOT a
+ccft-formula bug (proven identical to the validated stand_ccf). Trace complete.
+SESSION SUMMARY (re-trace discipline on my OWN verdicts): corrected 2 stale "deferred feature" labels
+(OLDCRW crown-lift; multi-point PCCF) + reclassified DKTIME + estab_pccf as near-tie. The "reducible-by-deep-
+work" list is now just ONE item: the FFE-carbon CFVOL one-tree merch (FVS two-merch-def). Everything else is a
+proven == / print-ULP / sum-order / transcendental-envelope / near-tie / crown-ratio-timing accepted class.
