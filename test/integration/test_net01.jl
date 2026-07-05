@@ -36,9 +36,11 @@ const _NET01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSne/net01.key"
         # the top-killed SM (sp27) d=10.4 tree: built on NORMHT=63.9 (not the broken 55) then CFTOPK
         ti = findfirst(i -> n.trees.trunc[i] > 0 && Int(n.trees.species[i]) == 27, 1:n.trees.n)
         @test ti !== nothing
-        # per-tree TOT cuft vs the live FVSne .trl value 15.4: atol=0.1 is PROVEN-ULP = the .trl's 1-decimal
-        # print resolution (jl's internal Float32 cuft vs the live 1-dec .trl ⇒ |Δ| ≤ 0.1). Not slack over a gap.
-        @test isapprox(n.trees.cuft_vol[ti], 15.4f0; atol = 0.1)   # PROVEN-ULP (1-dec .trl print resolution)
+        # per-tree TOT cuft vs the live FVSne .trl value 15.4: jl's internal Float32 (15.352517, deterministic
+        # cycle-0 volume) RENDERS to the .trl's exact 1-decimal 15.4 — compare the rounded value `==` (the
+        # doctrine's preferred formatted-output match). Was atol=0.1 (a full print unit; the .trl is 1-decimal
+        # so the half-width is 0.05, and jl rounds to the field exactly).
+        @test round(Float64(n.trees.cuft_vol[ti]); digits = 1) == 15.4
     end
 end
 

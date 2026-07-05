@@ -758,3 +758,12 @@ Measured the test_fire TCuFt `≤1` bounds. They are guarded to pre-fire+fire-ye
 TPA/BA only). The pre-fire TCuFt is BIT-EXACT (measured Δ0 for fire_early/fuelmodl/fueltret/defulmod) →
 tightened to `==`. moisture (which checks TCuFt on ALL cycles — the wet fire doesn't carry so every cycle
 is near-bit-exact) keeps `≤1`: it hits a genuine Δ1 render knife-edge at 2005 (3027/3026). Suite 7664/2.
+
+## Session 2026-07-05 (cont.) — multistand_sum + net01 .trl render
+
+- **multistand_sum** (snt01): TPA/BA measured Δ0 → `==`; cuft was `≤8` "height-transcendental amplified to
+  ~8" — measured max Δ=1 (single 2005 render knife-edge 3027/3026), the ~8 claim was FALSE for the canonical
+  bit-exact snt01 (stale bound). Tightened cuft to `≤1`.
+- **net01 per-tree .trl cuft**: jl 15.352517 (deterministic cyc-0) renders to the .trl's exact 1-dec 15.4 →
+  rounded-render `==` (was atol 0.1, a full print unit; the .trl is 1-decimal, half-width 0.05, jl rounds to
+  the field). dbs_cutlist ≤1.0 confirmed at the rendered-integer-vs-precise-sum floor (correct, not padded).
