@@ -733,11 +733,17 @@ end
                 if c == 2                                        # 1995: hard+soft each render exactly to live 1-dec
                     @test round(h,  digits=1) == 35.8            # RENDERED-== (jl 35.7938 → 35.8)
                     @test round(sf, digits=1) == 6.9             # RENDERED-== (jl 6.9069 → 6.9)
-                elseif c == 3                                    # 2000: emergent split — exact measured floors
-                    @test isapprox(h,  lh; atol = 0.233)         # DKTIME split: jl 44.567 vs live 44.8, Δ0.23258 (1.001×)
-                    @test isapprox(sf, ls; atol = 0.161)         # jl 3.460 vs live 3.3, Δ0.16008
-                elseif c == 4                                    # 2005: hard emergent split; soft renders exactly
-                    @test isapprox(h,  lh; atol = 0.091)         # DKTIME split: jl 66.709 vs live 66.8, Δ0.09058
+                elseif c == 3                                    # 2000: hard/soft SPLIT (total bit-exact, asserted above)
+                    # The hard/soft split is a DEFERRED, FIXABLE LOGIC divergence, NOT a proven ULP: jl dates
+                    # periodic-mortality snags at the cycle-START year (mortality.jl `current_cycle_year`), so at the
+                    # next report a near-DKTIME cohort reads ~1 cycle too OLD and over-trips the hard→soft flip
+                    # (snag.jl:406-414 verdict; the DKTIME formula itself is bit-exact, distributed order fmsngdk.f:80).
+                    # Fix = FVS's annual-loop YRDEAD accounting, coupled to #28 fire-phasing (docs/audit/BACKLOG.md #3).
+                    # Tracked @test_broken (rendered-==) — NOT an atol measured-floor pretending to be irreducible.
+                    @test_broken round(Float64(h),  digits=1) == 44.8   # jl 44.567→44.6 (snag-dating over-soften)
+                    @test_broken round(Float64(sf), digits=1) == 3.3    # jl 3.460→3.5
+                elseif c == 4                                    # 2005: hard split (same snag-dating root); soft renders exact
+                    @test_broken round(Float64(h), digits=1) == 66.8    # jl 66.709→66.7 (snag YRDEAD dating, #28-coupled)
                     @test round(sf, digits=1) == 4.3             # RENDERED-== (jl 4.3302 → 4.3)
                 end
             end
