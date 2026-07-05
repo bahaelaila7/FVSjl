@@ -41,8 +41,8 @@ _hcor_rows(txt) = [split(l) for l in split(txt, "\n")
             ft = _hcor_rows(read(_HCOR_BASE, String))
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for col in (3, 4, 5, 7, 9)   # TPA, BA, QMD, TopHt, total cuft
-                    @test abs(parse(Float64, jl[2][col]) - parse(Float64, ft[2][col])) <= 1
+                for col in (3, 4, 5, 7, 9)   # TPA/BA/SDI/TopHt/total-cuft — ALL BIT-EXACT (measured Δ=0)
+                    @test parse(Float64, jl[2][col]) == parse(Float64, ft[2][col])
                 end
             end
         end
