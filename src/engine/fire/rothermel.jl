@@ -61,7 +61,7 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     for i in 1:2, kk in ifines[i]:noclas[i]
         j = isize[i][kk]
         A[i, j]  = load[i, j] * (sav[i, j] / _RG_RHOP)
-        GS[i, j] = exp(-138f0 / (sav[i, j] + 1f-9))
+        GS[i, j] = fexp(-138f0 / (sav[i, j] + 1f-9))
         AI[i]   += A[i, j]
         WO[i, j] = load[i, j] * (1f0 - _RG_TMIN)
     end
@@ -74,14 +74,14 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     # live moisture of extinction (dead/live fine ratio)
     fined = 0f0; finel = 0f0; wdfmn = 0f0
     for kk in ifines[1]:noclas[1]
-        j = isize[1][kk]; ep = sav[1, j] != 0f0 ? exp(-138f0 / sav[1, j]) : 0f0
+        j = isize[1][kk]; ep = sav[1, j] != 0f0 ? fexp(-138f0 / sav[1, j]) : 0f0
         wtfac = load[1, j] * ep
         m = j == 4 ? mois[1, 1] : mois[1, j]            # dead herb uses dead 1-hr moisture
         fined += wtfac; wdfmn += wtfac * m
     end
     findm = fined != 0f0 ? wdfmn / fined : 0f0
     for kk in ifines[2]:noclas[2]
-        j = isize[2][kk]; ep = sav[2, j] != 0f0 ? exp(-500f0 / sav[2, j]) : 0f0
+        j = isize[2][kk]; ep = sav[2, j] != 0f0 ? fexp(-500f0 / sav[2, j]) : 0f0
         finel += load[2, j] * ep
     end
     mext[2] = finel != 0f0 ? max(mext_dead, 2.9f0 * (fined / finel) * (1f0 - findm / mext_dead) - 0.226f0) : 100f0
@@ -113,7 +113,7 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
         beta = mcsa / (mext[i] + 1f-9)
         mdcsa = 1f0 - beta * (2.59f0 - beta * (5.11f0 - beta * 3.52f0))
         mext[i] < mcsa && (mdcsa = 0f0)
-        barns = bse != 0f0 ? min(1f0, 0.174f0 / bse^0.19f0) : 0f0
+        barns = bse != 0f0 ? min(1f0, 0.174f0 / fpow(bse, 0.19f0)) : 0f0
         sigma += fx[i] * sigma1
         ir[i] = wo1 * lhv1 * mdcsa * barns
         i == 1 && (mdcsa1 = mdcsa)
@@ -123,25 +123,27 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     sigma == 0f0 && (sigma = 1f-9)
     rhop1 = sum1 / depth                                 # bulk density
     beta1 = sum2 / depth                                 # packing ratio
-    best  = 3.348f0 / sigma^0.8189f0                     # optimum packing ratio
+    # transcendentals routed through the gfortran companion (doctrine #8) so byram/flame/spread are
+    # bit-identical to FVS's libm — this whole chain compounds into the flame/scorch report.
+    best  = 3.348f0 / fpow(sigma, 0.8189f0)              # optimum packing ratio
     rat   = beta1 / (best + 1f-9)
-    a1    = 133f0 / sigma^0.7913f0
-    v     = sigma^1.5f0
-    gamma = (v * rat^a1 * exp(a1 * (1f0 - rat))) / (495f0 + 0.0594f0 * v)  # opt. reaction velocity
+    a1    = 133f0 / fpow(sigma, 0.7913f0)
+    v     = fpow(sigma, 1.5f0)
+    gamma = (v * fpow(rat, a1) * fexp(a1 * (1f0 - rat))) / (495f0 + 0.0594f0 * v)  # opt. reaction velocity
     xir   = gamma * ir[1] + gamma * ir[2]                # reaction intensity
     rhobqig = rhop1 * sum3                               # heat sink
     b   = (0.792f0 + 0.681f0 * sqrt(sigma)) * (0.1f0 + beta1)
-    xio = (xir * exp(b)) / (192f0 + 0.2595f0 * sigma)    # propagating flux
-    phis = beta1 != 0f0 ? 5.275f0 * slope_tan * slope_tan / beta1^0.3f0 : 0f0
-    xm1 = 0.02526f0 * sigma^0.54f0
-    xn1 = 0.715f0 * exp(-0.000359f0 * sigma)
-    c1  = 7.47f0 * exp(-0.133f0 * sigma^0.55f0)
-    rat != 0f0 && (c1 = c1 / rat^xn1)
+    xio = (xir * fexp(b)) / (192f0 + 0.2595f0 * sigma)   # propagating flux
+    phis = beta1 != 0f0 ? 5.275f0 * slope_tan * slope_tan / fpow(beta1, 0.3f0) : 0f0
+    xm1 = 0.02526f0 * fpow(sigma, 0.54f0)
+    xn1 = 0.715f0 * fexp(-0.000359f0 * sigma)
+    c1  = 7.47f0 * fexp(-0.133f0 * fpow(sigma, 0.55f0))
+    rat != 0f0 && (c1 = c1 / fpow(rat, xn1))
     w = wind * 88f0                                       # mi/h → ft/min
-    phiw = c1 * w^xm1
+    phiw = c1 * fpow(w, xm1)
     spread = xio * (1f0 + phis + phiw) / (rhobqig + 1f-9)
     byramt = xir * spread * 384f0 / sigma
-    flame = 0.45f0 * (byramt / 60f0)^0.46f0
+    flame = 0.45f0 * fpow(byramt / 60f0, 0.46f0)
     # FMCFIR crown-fire intermediates (fmfint.f:514-530): `xio` IS SIRXI (the propagating flux, NOT the reaction
     # intensity xir), `rhobqig` = SRHOBQ (heat sink), `phis` = SPHIS (slope factor), `scbe` = C1 (wind coeff),
     # `bwind` = the wind exponent B (xm1). These feed the NE crowning/torching-index formulas.
