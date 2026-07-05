@@ -267,13 +267,16 @@ end
                 for l in olines[ci:end] if occursin(r"^(19|20)\d\d ", strip(l)) &&
                     haskey(ft, parse(Int, split(strip(l))[1])) && length(split(strip(l))) >= 11]
         @test !isempty(rows)
+        # Both sides are the RENDERED 1-decimal carbon-report field (jl .out vs the Fortran .report.save),
+        # so a faithful match is EXACT — measured maxΔ=0.0 across every row for cols 2/4/7. Compare == (was
+        # padded atol 0.05, a full half-unit hiding a bit-identical render).
         for mv in rows
             fv = ft[Int(mv[1])]
-            @test mv[2] ≈ fv[2] atol = 0.05         # Aboveground Total — BIT-EXACT
-            @test mv[4] ≈ fv[4] atol = 0.05         # Belowground Live  — BIT-EXACT
+            @test mv[2] == fv[2]                     # Aboveground Total — BIT-EXACT (rendered)
+            @test mv[4] == fv[4]                     # Belowground Live  — BIT-EXACT (rendered)
         end
-        # DDW now BIT-EXACT through the live run_keyfile path (Δ≤0.007) — the FFE snag-dynamics fixes.
-        @test maximum(abs(mv[7] - ft[Int(mv[1])][7]) for mv in rows) <= 0.05
+        # DDW rendered field — BIT-EXACT through the live run_keyfile path (the FFE snag-dynamics fixes).
+        @test all(mv[7] == ft[Int(mv[1])][7] for mv in rows)
     end
 end
 
@@ -636,9 +639,13 @@ end
                 FVSjl.grow_cycle!(s; fint = 5f0)
             end
         end
-        # Stand-Dead is now bit-exact vs the high-precision oracle (the snag merch-BOLE fix: NATCRS MCF =
-        # merch_cuft_vol, not gross cuft_vol). The remaining FFE dead-pool gap is DDW, not Stand-Dead.
-        @test maxresid <= 0.05
+        # Stand-Dead tracks the high-precision oracle to an EMERGENT SNAG-PHASING floor (NOT bit-exact —
+        # corrected 2026-07-05): measured per-cycle Δ = 0.023/0.019/0.032/0.013 (max 0.032 @c3). The snag
+        # merch-BOLE fix (NATCRS MCF = merch_cuft_vol, not gross cuft_vol) closed the bulk; the residual is
+        # the crown cwd2b flow-TIMING + pre-inventory input-snag age spread across the multi-cohort snag pool
+        # (same emergent-phasing class as CFTOPK Stand-Dead — a cohort fall-timing envelope, not a single op).
+        # atol 0.04 = that emergent floor (was padded 0.05). The remaining FFE dead-pool gap is DDW.
+        @test maxresid <= 0.04
     end
 end
 
@@ -695,7 +702,12 @@ end
         s = first(FVSjl.each_stand(key))
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         FVSjl.ffe_seed_input_snags!(s)
-        live = Dict(2 => (35.79, 6.91, 0.1), 3 => (44.8, 3.3, 0.5), 4 => (66.8, 4.3, 0.5))  # (hard, soft, atol)
+        # (hard, soft, atol). c2 = PRINT-HALF-WIDTH: jl 35.7938/6.9069 vs live's exact 2-dec 35.79/6.91
+        # (Δ≤0.0038 < 0.005 → effectively bit-exact, was padded 0.1). c3/c4 = the EMERGENT hard/soft SPLIT-
+        # classification residual (snag-cohort-age boundary; jl 44.567/3.460 vs ≈44.8/3.3 Δ0.23/0.16, jl
+        # 66.709/4.330 vs ≈66.8/4.3 Δ0.09/0.03) — the live reads are APPROXIMATE 1-dec eyeball values, so the
+        # atol covers the cohort-age split-timing envelope + oracle-read uncertainty (was uniform 0.5).
+        live = Dict(2 => (35.79, 6.91, 0.005), 3 => (44.8, 3.3, 0.25), 4 => (66.8, 4.3, 0.12))
         for c in 1:4
             FVSjl.compute_density!(s)
             ss = FVSjl.snag_summary(s)

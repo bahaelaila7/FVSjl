@@ -383,8 +383,11 @@ end
         v = FVSjl.r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
         mch = d >= dbhmin  ? v[4] + v[7] : 0f0
         saw = d >= scfmind ? v[4] : 0f0
-        @test isapprox(mch, lmch; atol = 0.1)      # YB d=11: 15.7 (was 0.0 before the fix)
-        @test isapprox(saw, lsaw; atol = 0.1)
+        # BIT-EXACT at the .sum 1-decimal render: measured |Δ| ≤ 7.6e-7 (Float32 ULP) on every value,
+        # so jl rounds to live's exact printed field. Compare the rendered 0.1-precision value with ==
+        # (was padded atol 0.1 — a full print unit hiding a sub-ULP match). YB d=11: 15.7 (was 0.0 pre-fix).
+        @test round(Float64(mch); digits = 1) == round(lmch; digits = 1)
+        @test round(Float64(saw); digits = 1) == round(lsaw; digits = 1)
     end
 end
 
