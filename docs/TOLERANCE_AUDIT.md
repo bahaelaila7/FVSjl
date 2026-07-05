@@ -827,3 +827,15 @@ harvest_value (all unit cases), econ_value_harvest cost/revenue, econ_stand_pnv 
 exactly the re-derived formula (measured `==true` everywhere). Left the disc_cost stamps (5f-5 print-half-
 width, unchanged) and inequality/ordering checks. Lesson: a wrong FIXTURE (empty cost) made an exact
 identity look inexact — measure with the ACTUAL test setup. Suite green.
+
+## Session 2026-07-05 (cont.) — sprout/carbon-unit/crown-lift formula identities → ==
+
+- **test_sprout** (15 `≈`): sprtht_sn/essprt_sn/sprout_dbh formula identities — all measured bit-exact
+  (incl. sprout_dbh's `log` transcendental, Julia's log matches) → `==`.
+- **test_carbon (unit)** (all `≈`): stand_live_carbon / down_wood / forest_floor / shrub_herb = biomass×factor
+  identities + struct-field self-consistency — measured Δ0 (jl sums in the same (Σ b·tpa)·0.5 order) → `==`.
+- **test_crown_lift** (3): crown_lift_rate formula identities — measured bit-exact → `==`.
+- OPEN (transcendental Float32-vs-Float64 class, NOT bit-exact): test_fire_effects scorch_height/csv/mortality/
+  bark + test_snag snag_fall_density compare jl-Float32 against `Float32(ref(...))` where ref is a Float64
+  computation (scorch uses `b^(7/6)` — the goal's exact proven-ULP example; measured scorch max|Δ|=7.6e-6).
+  These need a transcendental-ULP bound cornered per-case (in progress), not `==`; left `≈` this pass.

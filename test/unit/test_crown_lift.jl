@@ -13,7 +13,7 @@ using FVSjl: crown_lift_rate
     # Worked example: crown base rises 32 → 35 ft over a 5-yr cycle, old crown length 8 ft.
     #   OLDBOT = oldht − oldcrl = 40 − 8 = 32 ; NEWBOT = ht − ht·cr% = 50 − 50·0.30 = 35
     #   rise = 3 ; X = 3 / 8 / 5 = 0.075 /yr
-    @test crown_lift_rate(40f0, 8f0, 50f0, 30f0, 5) ≈ 0.075f0
+    @test crown_lift_rate(40f0, 8f0, 50f0, 30f0, 5) == 0.075f0
 
     # No base rise (crown grew downward / static) ⇒ X = 0 (fmsdit.f:106 guard).
     # oldht=40 oldcrl=8 ⇒ OLDBOT=32 ; ht=44 cr%=30 ⇒ NEWBOT = 44−13.2 = 30.8 < 32 ⇒ no lift.
@@ -24,10 +24,10 @@ using FVSjl: crown_lift_rate
     @test crown_lift_rate(40f0, 0.0005f0, 50f0, 30f0, 5) == 0f0
 
     # Inversely proportional to cycle length (same geometry, longer cycle ⇒ smaller annual fraction).
-    @test crown_lift_rate(40f0, 8f0, 50f0, 30f0, 10) ≈ 0.0375f0           # double cyclen ⇒ half X
+    @test crown_lift_rate(40f0, 8f0, 50f0, 30f0, 10) == 0.0375f0           # double cyclen ⇒ half X
     # NB OLDCRL enters BOTH OLDBOT and the denominator, so it is not a clean inverse knob: with
     # oldcrl=4 the old base 36 > the new base 35 ⇒ no rise ⇒ X=0 (the fmsdit.f:106 guard).
     @test crown_lift_rate(40f0, 4f0, 50f0, 30f0, 5) == 0f0
     # A larger base rise (taller tree, higher crown-ratio base) scales X up proportionally.
-    @test crown_lift_rate(40f0, 8f0, 60f0, 40f0, 5)  ≈ ((60f0-60f0*0.4f0)-32f0)/8f0/5f0
+    @test crown_lift_rate(40f0, 8f0, 60f0, 40f0, 5)  == ((60f0-60f0*0.4f0)-32f0)/8f0/5f0
 end

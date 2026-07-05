@@ -21,31 +21,31 @@ using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, sprout_dbh, coefficients, Southern
     end
 
     @testset "SPRTHT sprout height" begin
-        @test sprtht_sn(33, 70.0f0, 5) ≈ (0.1f0 + 70f0/50f0) * 5f0   # curve sp
-        @test sprtht_sn(59, 70.0f0, 5) ≈ (0.1f0 + 70f0/50f0) * 5f0   # upper range
-        @test sprtht_sn(58, 70.0f0, 5) ≈ 0.5f0 + 0.5f0 * 5f0         # gap → default
-        @test sprtht_sn(89, 70.0f0, 5) ≈ 0.5f0 + 0.5f0 * 5f0         # >87 → default
-        @test sprtht_sn(5,  60.0f0, 3) ≈ (0.1f0 + 60f0/50f0) * 3f0   # explicit sp5
+        @test sprtht_sn(33, 70.0f0, 5) == (0.1f0 + 70f0/50f0) * 5f0   # curve sp
+        @test sprtht_sn(59, 70.0f0, 5) == (0.1f0 + 70f0/50f0) * 5f0   # upper range
+        @test sprtht_sn(58, 70.0f0, 5) == 0.5f0 + 0.5f0 * 5f0         # gap → default
+        @test sprtht_sn(89, 70.0f0, 5) == 0.5f0 + 0.5f0 * 5f0         # >87 → default
+        @test sprtht_sn(5,  60.0f0, 3) == (0.1f0 + 60f0/50f0) * 3f0   # explicit sp5
     end
 
     @testset "ESSPRT survival multiplier" begin
         # constant-multiplier species
-        @test essprt_sn(coef, 5,  1.0f0, 6.0f0, 520) ≈ 1.0f0 * 0.42f0
-        @test essprt_sn(coef, 33, 1.0f0, 6.0f0, 520) ≈ 1.0f0 * 0.93f0
-        @test essprt_sn(coef, 22, 2.0f0, 6.0f0, 520) ≈ 2.0f0 * 0.73f0
+        @test essprt_sn(coef, 5,  1.0f0, 6.0f0, 520) == 1.0f0 * 0.42f0
+        @test essprt_sn(coef, 33, 1.0f0, 6.0f0, 520) == 1.0f0 * 0.93f0
+        @test essprt_sn(coef, 22, 2.0f0, 6.0f0, 520) == 2.0f0 * 0.73f0
         # logistic species (sp20: a=4.1975, b=-0.1821)
-        @test essprt_sn(coef, 20, 1.0f0, 8.0f0, 520) ≈
+        @test essprt_sn(coef, 20, 1.0f0, 8.0f0, 520) ==
               1f0 / (1f0 + exp(-(4.1975f0 - 0.1821f0 * 8f0)))
         # default logistic (sp65 falls through to a=2.7386, b=-0.1076)
-        @test essprt_sn(coef, 65, 1.0f0, 8.0f0, 520) ≈
+        @test essprt_sn(coef, 65, 1.0f0, 8.0f0, 520) ==
               1f0 / (1f0 + exp(-(2.7386f0 - 0.1076f0 * 8f0)))
         # forest-special sp64: special forest 809 uses the cubic-poly form
-        @test essprt_sn(coef, 64, 1.0f0, 10.0f0, 809) ≈ (57.3f0 - 0.0032f0*1000f0)/100f0
+        @test essprt_sn(coef, 64, 1.0f0, 10.0f0, 809) == (57.3f0 - 0.0032f0*1000f0)/100f0
         # forest-special sp64 in a common forest uses the ELSE logistic (3.8897, -0.2260)
-        @test essprt_sn(coef, 64, 1.0f0, 10.0f0, 520) ≈
+        @test essprt_sn(coef, 64, 1.0f0, 10.0f0, 520) ==
               1f0 / (1f0 + exp(-(3.8897f0 - 0.2260f0 * 10f0)))
         # sp77 special-forest inverse-logistic form
-        @test essprt_sn(coef, 77, 1.0f0, 10.0f0, 905) ≈
+        @test essprt_sn(coef, 77, 1.0f0, 10.0f0, 905) ==
               1f0 / (1f0 + exp(-(-2.8058f0 + 22.6839f0 *
                                   (1f0 / ((10f0/0.7788f0) - 0.4403f0)))))
     end
@@ -53,8 +53,8 @@ using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, sprout_dbh, coefficients, Southern
     @testset "ESUCKR sprout DBH (Wykoff H-D inverse, IABFLG=1)" begin
         # DBH = HT2/(ln(HT-4.5) - HT1) - 1, floored at 0.1; HT<=4.5 -> 0.1.
         # sp65: HT1=4.5142, HT2=-5.2205
-        @test sprout_dbh(coef, 65, 15.0f0) ≈ (-5.2205f0 / (log(15f0 - 4.5f0) - 4.5142f0) - 1f0)
-        @test sprout_dbh(coef, 33, 12.0f0) ≈ (-4.7206f0 / (log(12f0 - 4.5f0) - 4.4772f0) - 1f0)
+        @test sprout_dbh(coef, 65, 15.0f0) == (-5.2205f0 / (log(15f0 - 4.5f0) - 4.5142f0) - 1f0)
+        @test sprout_dbh(coef, 33, 12.0f0) == (-4.7206f0 / (log(12f0 - 4.5f0) - 4.4772f0) - 1f0)
         @test sprout_dbh(coef, 22,  4.5f0) == 0.1f0     # HT == 4.5 -> floor
         @test sprout_dbh(coef, 22,  3.0f0) == 0.1f0     # HT < 4.5  -> floor
         @test sprout_dbh(coef, 65, 15.0f0) >= 0.1f0     # never below floor

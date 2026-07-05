@@ -21,9 +21,9 @@ using FVSjl: stand_live_carbon, standing_dead_carbon, down_wood_carbon, forest_f
         a, m, r = jenkins_biomass(coef, t.species[i], t.dbh[i])
         above += a*t.tpa[i]; merch += m*t.tpa[i]; root += r*t.tpa[i]
     end
-    @test c.aboveground ≈ above * 0.5f0
-    @test c.merch ≈ merch * 0.5f0
-    @test c.belowground ≈ root * 0.5f0
+    @test c.aboveground == above * 0.5f0
+    @test c.merch == merch * 0.5f0
+    @test c.belowground == root * 0.5f0
 
     # physical sanity: positive pools, aboveground > belowground > 0, merch ≤ aboveground
     @test c.aboveground > 0f0 && c.belowground > 0f0
@@ -33,7 +33,7 @@ using FVSjl: stand_live_carbon, standing_dead_carbon, down_wood_carbon, forest_f
     # scales linearly with TPA
     for i in 1:3; t.tpa[i] *= 2f0; end
     c2 = stand_live_carbon(s)
-    @test c2.aboveground ≈ 2f0 * c.aboveground
+    @test c2.aboveground == 2f0 * c.aboveground
 
     # zero-TPA trees contribute nothing
     for i in 1:3; t.tpa[i] = 0f0; end
@@ -58,20 +58,20 @@ end
     @test down_wood_carbon(s) > 0f0                   # down-wood (woody size classes 1–9) carbon
     # fmcrbout.f carbon fractions: down wood (classes 1–9) at 0.5, forest floor (litter+duff,
     # classes 10–11) at 0.37 (Smith & Heath), shrub/herb (FLIVE) at 0.5 — NOT a flat 0.5.
-    @test down_wood_carbon(s)    ≈ sum(@view s.fire.cwd[1:9, :, :]) * 0.5f0
-    @test forest_floor_carbon(s) ≈ sum(@view s.fire.cwd[10:11, :, :]) * 0.37f0
-    @test shrub_herb_carbon(s)   ≈ (s.fire.flive[1] + s.fire.flive[2]) * 0.5f0
+    @test down_wood_carbon(s)    == sum(@view s.fire.cwd[1:9, :, :]) * 0.5f0
+    @test forest_floor_carbon(s) == sum(@view s.fire.cwd[10:11, :, :]) * 0.37f0
+    @test shrub_herb_carbon(s)   == (s.fire.flive[1] + s.fire.flive[2]) * 0.5f0
 
     # snag carbon = Jenkins aboveground × standing density × 0.5
     add_snag!(s.fire, 65, 14f0, 40f0, 2003)
     a, _, _ = jenkins_biomass(coef, 65, 14f0)
-    @test standing_dead_carbon(s) ≈ a * 40f0 * 0.5f0
+    @test standing_dead_carbon(s) == a * 40f0 * 0.5f0
 
     # the combined report: total = live(above+below) + snag + down wood + forest floor + shrub/herb
     c = stand_carbon(s)
-    @test c.standing_dead ≈ standing_dead_carbon(s)
-    @test c.down_wood ≈ down_wood_carbon(s)
-    @test c.forest_floor ≈ forest_floor_carbon(s) && c.shrub_herb ≈ shrub_herb_carbon(s)
-    @test c.total ≈ c.live_above + c.live_below + c.standing_dead + c.down_wood + c.forest_floor + c.shrub_herb
+    @test c.standing_dead == standing_dead_carbon(s)
+    @test c.down_wood == down_wood_carbon(s)
+    @test c.forest_floor == forest_floor_carbon(s) && c.shrub_herb == shrub_herb_carbon(s)
+    @test c.total == c.live_above + c.live_below + c.standing_dead + c.down_wood + c.forest_floor + c.shrub_herb
     @test c.total > 0f0
 end
