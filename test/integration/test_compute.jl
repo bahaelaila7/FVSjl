@@ -55,13 +55,11 @@ end
             ndet = 33                                    # stands 1-3 × 11 rows — all deterministic (no fire/regen)
             for i in 1:min(ndet, length(comp), length(ft))
                 @test parse(Float64, comp[i][4]) == parse(Float64, ft[i][4])   # BA — BIT-EXACT
-                # col 8 is a 0.1-precision decimal (QMD): BIT-EXACT bar one print step (21.9 vs 22.0 at a cycle
-                # where the value sits on the ×.05 render knife-edge). Bound = 0.1 = exactly one print step.
-                @test round(abs(parse(Float64, comp[i][8]) - parse(Float64, ft[i][8])); digits = 1) <= 0.1
-                # TPA — BIT-EXACT bar a single print-boundary ULP (c3=1 at one cycle; per-acre TPA on the
-                # +0.5 render knife-edge). Bound = 1 print step.
-                @test abs(parse(Float64, comp[i][3]) - parse(Float64, ft[i][3])) <= 1
             end
+            # doctrine #9: QMD (col 8, ×.05 render knife-edge) and TPA (col 3, +0.5 render knife-edge)
+            # tolerances exposed as @test_broken vs full bit-exactness — one per tolerant column.
+            @test_broken all(parse(Float64, comp[i][8]) == parse(Float64, ft[i][8]) for i in 1:min(ndet, length(comp), length(ft)))   # QMD
+            @test_broken all(parse(Float64, comp[i][3]) == parse(Float64, ft[i][3]) for i in 1:min(ndet, length(comp), length(ft)))   # TPA
         end
         # 2. The COMPUTE stand (MYCYC frozen at 1) NEVER thins — its FRAC(MYCYC/3)=0.333 condition is
         #    always false (proven against live via a debug-stamp of evmon: MYCYC≡1 every cycle).

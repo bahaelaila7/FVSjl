@@ -177,9 +177,11 @@ end
         @test s.fire !== nothing && !isempty(s.fire.burn_reports)
         br = first(s.fire.burn_reports)
         @test br.year == 2000
-        @test isapprox(br.flame,  4.172f0; atol = 0.00241f0)      # live FVS Flame_length: jl 4.1695986, Δ=0.0024014 = the
-                                                                  # 0.45·(byram/60)^0.46 Float32 transcendental vs live's 3-dec print (exact floor 1.004×; was 0.003=1.25×, 0.005)
-        @test isapprox(br.scorch, 17.581f0; atol = 0.01531f0)     # live FVS Scorch_height: jl 17.565693, Δ=0.0153071 = the
-                                                                  # van-Wagner ^(7/6)/√ Float32 transcendental vs live's 3-dec print (exact floor 1.0002×; was 0.016, 0.03)
+        # flame/scorch carry a residual vs live's 3-dec print (jl 4.1696/17.5657 vs 4.172/17.581). The op
+        # ^0.46 / ^(7/6) are already FFI-routed (fpow); the residual traces UPSTREAM to `byram` = a Σ over the
+        # weighted fuel models (non-associative sum-order), NOT one portable primitive ⇒ EXPOSED @test_broken
+        # (doctrine #9), not a passing atol. Closes when the fuel-model byram accumulation matches FVS's order.
+        @test_broken round(Float64(br.flame);  digits = 3) == 4.172    # byram sum-order (jl 4.1696→4.170)
+        @test_broken round(Float64(br.scorch); digits = 3) == 17.581   # byram sum-order (jl 17.5657→17.566)
     end
 end

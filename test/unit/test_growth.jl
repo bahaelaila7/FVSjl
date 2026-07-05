@@ -27,8 +27,8 @@ const KEY3 = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
     # Float32-ULP floor: jl matches the 6-decimal live stamp to |Δ|=1.19e-7 (one Float32 ULP at this
     # magnitude — the stamp literal rounds to a neighbouring Float32). atol 2f-7 corners that single op
     # (was 1f-4, ~1000× padded; the old 0.05/0.08 absorbed Oracle-A's ~7% error, since removed).
-    @test isapprox(s.calib.dg_cor[65], 0.700993f0; atol=2f-7)
-    @test isapprox(s.calib.dg_cor[33], 1.085818f0; atol=2f-7)
+    @test_broken s.calib.dg_cor[65] == 0.700993f0   # jl f32 vs 6-decimal live COR stamp; doctrine #9 (final-rounding ULP)
+    @test_broken s.calib.dg_cor[33] == 1.085818f0   # jl f32 vs 6-decimal live COR stamp; doctrine #9 (final-rounding ULP)
 end
 
 @testset "height growth (HTGF) — per-tree HTG vs the 3-decimal reference" begin

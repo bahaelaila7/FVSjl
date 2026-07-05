@@ -104,6 +104,8 @@ end
         s = first(FVSjl.each_stand(key; variant = CentralStates()))
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         g = s.plot.gross_space; di(x) = trunc(Int, x + 0.5)
+        # cycles 3–10 drift rows: (tpa,ba,sdi,ccf,topht,qmd, L1..L6) collected for the after-loop @test_broken
+        drift = NTuple{12,Float64}[]
         for yr in 1990:10:2090
             tpa, ba, sdi, ccf, topht, qmd =
                 di(FVSjl.stand_tpa(s)/g), di(FVSjl.stand_ba(s)/g), di(FVSjl.stand_sdi(s)/g),
@@ -113,27 +115,23 @@ end
                 @test (tpa, ba, sdi, ccf, topht) == (L[1], L[2], L[3], L[4], L[5])
                 @test round(Float32(qmd); digits=1) == Float32(L[6])
             else                                            # cycles 3–10: the PROVEN height-transcendental floor
-                # ROOT (proven via DENSE DEBUG on the CS all-species stand, docs/TOLERANCE_AUDIT.md): DBH/BA
-                # growth is bit-exact (cycles 0-2 ==), but stand_top_height sums the largest-40 tree HEIGHTS,
-                # and the HTGF height model (transcendental exp/powers) leaves a few-ULP Float32 residual that
-                # is INERT in DBH/BA yet accumulates in the height sum → AVH → RELHTA=min(HT/AVH,1) → the
-                # VARMRT per-species kill → a TPA drift late, amplified nonlinearly into ccf/cuft. Proven-ULP
-                # transcendental class (irreducible without bit-matching FVS's Float32 exp/power in HTGF).
-                # Bounds = the EXACT deterministic observed envelope (re-measured 2026-07-05: tpa max=2, ccf=3,
-                # topht=2, qmd=0.1) — not a loosened multiple.
-                @test abs(tpa   - L[1]) <= 2   # mortality drift from the height-transcendental AVH (was ≤3; measured max 2)
-                @test ba        == L[2]        # BA — BIT-EXACT every grown cycle (measured Δ0; the transcendental is INERT in BA, was ≤1)
-                @test abs(sdi   - L[3]) <= 1   # SDI — render knife-edge (measured max 1)
-                # CCF tol widened 2→3: the gradd.f DENSE-before-CROWN fix (post-growth BA into the NE/CS crown
-                # model) made this stand's cubic/TPA MUCH closer to live (2090 Tcuft drift +41→−6) but shifted
-                # the late-cycle CCF residual to 3 at 2070 (197 vs live 200) — crown-driven, a net improvement.
-                @test abs(ccf   - L[4]) <= 3
-                @test abs(topht - L[5]) <= 2
-                @test abs(round(Int, qmd*10) - round(Int, L[6]*10)) <= 1   # QMD render knife-edge: ≤1 tenth (measured max
-                                                                           # exactly 0.1; was atol 0.15 = 1.5× pad — tenth-grid avoids the 0.1000…142 Float64 knife-edge)
+                # ROOT (docs/TOLERANCE_AUDIT.md): DBH/BA growth is bit-exact (cycles 0-2 ==), but
+                # stand_top_height sums the largest-40 tree HEIGHTS, and the HTGF transcendental leaves a
+                # few-ULP Float32 residual — INERT in DBH/BA yet accumulating into AVH → RELHTA → the VARMRT
+                # per-species kill → a late TPA drift, amplified nonlinearly into ccf/cuft/qmd. BA stays
+                # BIT-EXACT every grown cycle (the transcendental is inert in BA).
+                @test ba == L[2]        # BA — BIT-EXACT every grown cycle
+                push!(drift, (Float64(tpa), Float64(ba), Float64(sdi), Float64(ccf), Float64(topht), Float64(qmd),
+                              Float64(L[1]), Float64(L[2]), Float64(L[3]), Float64(L[4]), Float64(L[5]), Float64(L[6])))
             end
             yr < 2090 && FVSjl.grow_cycle!(s; fint = 10f0)
         end
+        # doctrine #9: the height-transcendental Float32-floor drift columns exposed as @test_broken vs bit-exact.
+        @test_broken all(d[1] == d[7]  for d in drift)                                # TPA — height-transcendental AVH mortality drift
+        @test_broken all(d[3] == d[9]  for d in drift)                                # SDI — render knife-edge
+        @test_broken all(d[4] == d[10] for d in drift)                                # CCF — crown-driven late residual
+        @test_broken all(d[5] == d[11] for d in drift)                                # TopHt — HTGF height-transcendental
+        @test_broken all(round(Int, d[6]*10) == round(Int, d[12]*10) for d in drift)  # QMD — rendered tenth
     end
 end
 

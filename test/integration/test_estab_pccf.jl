@@ -71,7 +71,10 @@ _pccf_base(path) = [split(l) for l in eachline(path)
         # overstory crown-area terms (0.001803·CW²·TPA·scale) per point; a sub-ULP difference in any one grown
         # DBH/HT→CW on those dense points tips the boundary. Same precision-floor class as the DGSCOR/COMPRESS
         # tails. Total = exactly 5 crown-units/50 = 0.10. Bound = exact measured floor 0.101 (NOT loosened).
-        @test abs(mean(cr) - 82.46) <= 0.101                         # crown center — Float32 per-point-PCCF boundary flip on 3/10 pts (7/10 bit-exact)
+        # crown center residual (mean 82.56 vs 82.46) = Float32 per-point-PCCF boundary flip on 3/10 pts (the
+        # point_ccf Σ + INT(CR·100+0.5) round — a non-associative accumulation, NOT one portable primitive) ⇒
+        # EXPOSED @test_broken vs the print-half-width (doctrine #9), not a passing ≤0.101. 7/10 pts bit-exact.
+        @test_broken isapprox(mean(cr), 82.46; atol = 0.05)          # crown center — per-point PCCF boundary (Δ0.10 > 2-dec half)
         @test maximum(cr) <= 87                                       # capped near live's 86 (NOT the ~90 of PCCF=0)
     end
 end

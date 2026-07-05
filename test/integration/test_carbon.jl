@@ -238,7 +238,9 @@ end
             if s2.fire !== nothing && s2.fire.active
                 FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
             end
-            @test abs(FVSjl.stand_carbon_report(s2).standing_dead - fsd) <= 0.033   # Stand Dead — emergent snag-phasing floor (measured max Δ0.032, same as line 641; was 0.05)
+            # Stand Dead emergent snag-phasing residual (Δ~0.032, #28 snag-dating class, not a portable
+            # primitive) ⇒ EXPOSED @test_broken vs bit-exact (doctrine #9), not a passing ≤0.033.
+            @test_broken FVSjl.stand_carbon_report(s2).standing_dead == fsd
             if k < length(fvs_standdead)
                 s2.fire !== nothing && s2.fire.active && FVSjl.ffe_fuel_update!(s2, 5)
                 FVSjl.grow_cycle!(s2; fint = 5f0)
@@ -408,8 +410,8 @@ end
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         s.fire !== nothing && s.fire.active && FVSjl.ffe_seed_input_snags!(s)
         sg = FVSjl.snag_summary(s)
-        @test sg.hard[1] ≈ sg.hard[7]                         # class 1 (≥0") == hard total
-        @test sg.soft[1] ≈ sg.soft[7]                         # class 1 == soft total
+        @test sg.hard[1] == sg.hard[7]                        # class 1 (≥0") == hard total — structural identity (was ≈)
+        @test sg.soft[1] == sg.soft[7]                        # class 1 == soft total — structural identity (was ≈)
         @test sg.hard[7] + sg.soft[7] == FVSjl.snag_standing_density(s.fire)
         @test sg.hard[2] <= sg.hard[1]                        # cumulative: ≥12" ⊆ ≥0"
         rows = [(1990, FVSjl.stand_carbon_report(s), FVSjl.ffe_fuel_loadings(s), sg)]
@@ -452,8 +454,8 @@ end
         v = [(; T = r.DWD_Volume_Total_Hard) for r in DBInterface.execute(db, "SELECT * FROM FVS_Down_Wood_Vol")]
         c = [(; T = r.DWD_Cover_Total_Hard) for r in DBInterface.execute(db, "SELECT * FROM FVS_Down_Wood_Cov")]
         SQLite.close(db)
-        @test length(v) == 1 && v[1].T ≈ Float64(dw.vol_hard[8])
-        @test length(c) == 1 && c[1].T ≈ Float64(dw.cov_hard[7])
+        @test length(v) == 1 && v[1].T == Float64(dw.vol_hard[8])   # DBS round-trips the Float32 exactly (was ≈)
+        @test length(c) == 1 && c[1].T == Float64(dw.cov_hard[7])
     end
 end
 
@@ -494,7 +496,7 @@ end
     @test r0.products > 0f0
     @test r0.stored == r0.products + r0.landfill              # stored = in-use + landfill
     @test r0.removed == r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
-    @test isapprox(r30.removed, r0.removed; atol = 5f-7)    # removed fixed at harvest; 2030 report re-accumulates FAPROP fate curves in a diff Float32 order (Δ=2.4e-7 ≈1 ULP; was rtol 1f-4)
+    @test_broken r30.removed == r0.removed    # FAPROP fate-curve re-accumulation in a diff Float32 SUM order (Δ2.4e-7) — doctrine #9
     @test r30.products < r0.products                         # in-use wood decays over time
     @test r30.landfill >= r0.landfill                        # landfill accumulates
     # DBS round-trip
@@ -828,9 +830,9 @@ end
             # emergent post-fire survivor / snag-consumption kill-distribution residual (BA 81 vs 78 class);
             # live's sub-decimal value is unavailable from the 1-dec report, so one print unit is the
             # irreducible width of a last-digit boundary flip (NOT tightenable without a full-precision oracle).
-            @test isapprox(agl, 19.1; atol = 0.1)   # boundary-flip: fire-kill-distribution (see above)
+            @test_broken agl == 19.1                # fire-kill-distribution boundary flip (jl renders 19.2) — doctrine #9
             @test bgd == 5.6                        # RENDERED-== : jl's F7.1 output equals live golden (Below-Dead fire-killed roots)
-            @test isapprox(sd,  20.2; atol = 0.1)   # boundary-flip: snag crown-lift + FMEFF consumption
+            @test_broken sd == 20.2                 # snag crown-lift + FMEFF consumption boundary flip (jl 20.1) — doctrine #9
             @test ddw == 1.1                        # RENDERED-== : jl's F7.1 output equals live golden (start-of-cycle-consumed down wood)
             @test rel == 5.5                        # RENDERED-== : jl's F7.1 output equals live golden (released = surface + live-fuel burn)
         end

@@ -40,12 +40,14 @@ _col(r, c) = parse(Float64, r[c])
             jl, ft = runjl(nm)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for i in 1:length(jl), c in cols
-                    if exact
+                if exact
+                    for i in 1:length(jl), c in cols
                         @test _col(jl[i], c) == _col(ft[i], c)
-                    else
-                        @test abs(_col(jl[i], c) - _col(ft[i], c)) <= 1
                     end
+                else
+                    # doctrine #9: the ≤1 print-knife-edge / tripling-UB residual columns exposed as ONE
+                    # @test_broken over all (row,col) — broken if ANY differs; avoids per-col unexpected-pass.
+                    @test_broken all(_col(jl[i], c) == _col(ft[i], c) for i in 1:length(jl), c in cols)
                 end
             end
         end
@@ -59,7 +61,7 @@ _col(r, c) = parse(Float64, r[c])
         # NOTRIPLE is BIT-EXACT (verified vs live), so the drift is the size-cap × tripling interaction on
         # the tripled records (FVS caps them against STALE array memory set only later by TRIPLE/SVTRIP;
         # grincr.f htgf/morts run before :351). Not deterministically replicable; bound = observed envelope.
-        @test abs(_col(jl[end], 3) - _col(ft[end], 3)) <= 4   # endpoint TPA — tripling-UB envelope (measured Δ4; was ≤5)
+        @test_broken _col(jl[end], 3) == _col(ft[end], 3)     # endpoint TPA — tripling-UB envelope (jl135/ft139); doctrine #9
         @test _col(jl[end], 4) == _col(ft[end], 4)            # endpoint BA — BIT-EXACT (measured Δ0; was ≤1)
     end
     if have("treeszcp_htcap")
@@ -77,8 +79,7 @@ _col(r, c) = parse(Float64, r[c])
         # capped tall trees sit ~3 ft lower. Replicating FVS here means emulating uninitialized memory —
         # not deterministically reproducible. ACCEPTED-IRREDUCIBLE class (like the COMPRESS eigensolver);
         # bound = the observed stale-memory envelope (≤4 TopHt-ft). See docs/TOLERANCE_AUDIT.md.
-        for i in 1:length(jl)
-            @test abs(_col(jl[i], 7) - _col(ft[i], 7)) <= 4
-        end
+        # doctrine #9: the ≤4-ft stale-memory height-cap × tripling TopHt envelope exposed as @test_broken.
+        @test_broken all(_col(jl[i], 7) == _col(ft[i], 7) for i in 1:length(jl))
     end
 end

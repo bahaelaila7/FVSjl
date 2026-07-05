@@ -63,10 +63,10 @@ STOP
             # so it cannot be driven to ==; the irreducible width is the measured accumulated diff itself.
             # Per-column atol = exact measured max (deterministic run, IEEE Float32) — MYBA 9.145e-5, MYSDI
             # 1.238e-4, last-digit-rounded (1.006×/1.01×), NOT the prior 2f-4 (1.6–2.2× — a forbidden padded multiple).
-            for (g, w) in zip(got, want)
-                @test isapprox(g[2], w[1]; atol = 9.2f-5)    # MYBA = BBA   (measured max Δ9.145e-5)
-                @test isapprox(g[3], w[2]; atol = 1.25f-4)   # MYSDI = BSDI (raw Reineke; measured max Δ1.238e-4 ≈4 ULP)
-            end
+            # MYBA/MYSDI: accumulated-f32 growth ULP vs live (Δ9e-5/1.2e-4, not one portable primitive) — exposed
+            # @test_broken vs full bit-exactness (doctrine #9), not a passing atol.
+            @test_broken all(g[2] == w[1] for (g, w) in zip(got, want))   # MYBA = BBA
+            @test_broken all(g[3] == w[2] for (g, w) in zip(got, want))   # MYSDI = BSDI
         finally
             SQLite.close(d)
         end
