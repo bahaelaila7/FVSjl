@@ -777,10 +777,10 @@ end
             # carbon prints F7.1 so 0.1 is one print unit. jl: agl 19.2 (Δ0.1), bgd 5.6 (Δ0), sd 20.1 (Δ0.1),
             # ddw 1.1 (Δ0), rel 5.5 (Δ0) vs live 19.1/5.6/20.2/1.1/5.5.
             @test isapprox(agl, 19.1; atol = 0.1) # jl 19.2 = ONE print unit (F7.1); was padded 0.2. post-fire survivors
-            @test isapprox(bgd, 5.6;  atol = 0.1) # jl 5.6 (Δ0); one print unit. fire-killed coarse ROOTS → Below-Dead
+            @test isapprox(bgd, 5.6;  atol = 0.05) # jl renders 5.6 == live (same 0.1-step ⇒ print-HALF-width); fire-killed coarse ROOTS → Below-Dead
             @test isapprox(sd,  20.2; atol = 0.1) # jl 20.1 = ONE print unit; was padded 0.15. snags crown-lift+FMEFF consumption
-            @test isapprox(ddw, 1.1;  atol = 0.1) # start-of-cycle-consumed down wood (jl 1.1)
-            @test isapprox(rel, 5.5;  atol = 0.1) # released = surface + live-fuel burn (jl 5.5; was 0, then 5.13)
+            @test isapprox(ddw, 1.1;  atol = 0.05) # jl renders 1.1 == live (same-step ⇒ print-half-width); start-of-cycle-consumed down wood
+            @test isapprox(rel, 5.5;  atol = 0.05) # jl renders 5.5 == live (same-step ⇒ print-half-width); released = surface + live-fuel burn
         end
         if haskey(rows, "2005")
             # The snag-fall TIMING fix (update_snags! incrementing annual year): the fire snags now fall in
