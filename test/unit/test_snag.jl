@@ -61,7 +61,7 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         add_snag!(s.fire, 5,  10f0, 25f0, 2003)
         add_snag!(s.fire, 33,  8f0,  0f0, 2003)        # no-op
         @test length(s.fire.snags.sp) == 2
-        @test snag_standing_density(s.fire) ≈ 65f0
+        @test snag_standing_density(s.fire) == 65f0
         @test all(s.fire.snags.den_soft .== 0f0)       # new snags start hard
 
         # age 5 years: some fall (transfer to CWD), some hard→soft. update_snags! advances each snag by
@@ -71,7 +71,7 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         fell = update_snags!(s, 5)
         @test fell > 0f0
         @test snag_standing_density(s.fire) < 65f0
-        @test snag_standing_density(s.fire) ≈ 65f0 - fell
+        @test snag_standing_density(s.fire) == 65f0 - fell
         # Snags created HARD stay in the HARD pool for the FALL — FVS's DENIH/DENIS are the snag's INITIAL
         # state at creation (these were created hard via add_snag!), and the per-snag HARD decay flag that
         # flips at DKTIME does NOT move the fall density (verified vs instrumented FMSNAG: DFIS=0). So the
@@ -110,7 +110,7 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         res = fmburn!(s; wind = 20f0, fmois = 1, year = 2003)
         @test res.killed > 0f0
         # the killed TPA became standing snags
-        @test snag_standing_density(s.fire) ≈ res.killed
+        @test snag_standing_density(s.fire) == res.killed
         @test all(s.fire.snags.year .== 2003)
     end
 end
@@ -127,12 +127,12 @@ end
     @testset "LS FMSFALL base rate (−0.006·d+0.18) vs SN" begin
         # sp 10 (snag class 6, FALLX 0.53), DBH 11 (small → linear): MODRATE = (−0.006·11+0.18)·0.53
         modrate = (-0.006f0*11f0 + 0.18f0) * coef_col(lc, :snag_fallx)[10]
-        @test snag_fall_density(lc, 10, 11f0, 50f0, 50f0; variant = LakeStates()) ≈ modrate * 50f0
+        @test snag_fall_density(lc, 10, 11f0, 50f0, 50f0; variant = LakeStates()) == modrate * 50f0
         # the LS rate is far faster than the SN formula would give for the same snag
         sn_modrate = min(1f0, max(0.01f0, -0.001679f0*11f0 + 0.064311f0) * coef_col(lc, :snag_fallx)[10])
         @test snag_fall_density(lc, 10, 11f0, 50f0, 50f0; variant = LakeStates()) > 2f0 * sn_modrate * 50f0
         # LS linear-fall breakpoint is 18" (a 15" non-cedar snag still falls linearly, unlike SN's 12")
-        @test snag_fall_density(lc, 15, 15f0, 50f0, 50f0; variant = LakeStates()) ≈
+        @test snag_fall_density(lc, 15, 15f0, 50f0, 50f0; variant = LakeStates()) ==
               clamp((-0.006f0*15f0 + 0.18f0) * coef_col(lc, :snag_fallx)[15], 0.01f0, 1f0) * 50f0
     end
 
@@ -141,8 +141,8 @@ end
         htx = coef_col(lc, :snag_htx)
         @test htx[6] == 3.0f0    # jack-pine group (class 1)
         @test htx[1] == 1.0f0    # class 2
-        @test htx[15] ≈ 0.65f0  # maple/ash group (class 5)
-        @test htx[10] ≈ 0.45f0  # cedar/oak group (class 6)
-        @test htx[12] ≈ 0.0f0   # hemlock exception (fmvinit.f:873)
+        @test htx[15] == 0.65f0  # maple/ash group (class 5)
+        @test htx[10] == 0.45f0  # cedar/oak group (class 6)
+        @test htx[12] == 0.0f0   # hemlock exception (fmvinit.f:873)
     end
 end

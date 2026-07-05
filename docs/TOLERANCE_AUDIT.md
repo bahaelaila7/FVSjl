@@ -860,3 +860,11 @@ The `≈ Float32(ref(...))` class = jl-Float32 vs a Float64 reference; measured 
   value ~6) → `atol 2f-6`.
 All were the loose `≈` default (rtol≈3.4e-4, ~1000× wider). OPEN: 4 snag_standing_density conservation/
 computed self-consistency `≈` (64/74/113/130) — next pass.
+
+## Session 2026-07-05 (cont.) — test_snag fully resolved
+
+- snag_standing_density conservation/self-consistency (64/74/113/130): measured Δ0 (density after add =
+  exactly 65; after fall = exactly 65−fell; = res.killed exactly; LS snag_fall = modrate·50 exactly) → `==`.
+- htx height-loss coefficient lookups (144-146) → `==` (coefficient loads, exact).
+- LS snag_fall line 135 (clamp·50) → `==` (measured Δ0). test_snag now has ZERO `≈` — all `==` or the
+  snag_fall few-ULP atol (2f-6).
