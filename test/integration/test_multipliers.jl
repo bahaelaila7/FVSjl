@@ -22,14 +22,15 @@ _mult_base(path) = [split(l) for l in eachline(path)
                        (y = tryparse(Int, first(split(l))); y !== nothing && 1900 < y < 2100)]
 
 @testset "growth/mortality multipliers (MULTS) vs Fortran" begin
-    # (scenario, cycles validated, ±tol) — cols 3 TPA / 4 BA / 7 TopHt / 8 QMD. The base-stand
-    # scenarios (htgmult/baimult, tripled) are bit-exact (±1). The bare-PLANT scenarios run
-    # NOTRIPLE (no record tripling), so the per-record DGSCOR serial-correlation realization is
-    # not averaged over the upper/lower triples — the known irreducible regen tail is ±2 in the
-    # validated early cycles (it grows later). (Before NOTRIPLE was honored, FVSjl wrongly tripled
-    # these stands and the averaging masked the tail at ±1 — i.e. they passed for the wrong reason.)
-    for (nm, ncyc, tol) in (("mult_htgmult", 11, 1), ("mult_baimult", 11, 1), ("mult_mortmult", 6, 2),
-                            ("mult_mortmult_win", 7, 2), ("mult_reghmult", 5, 2), ("mult_regdmult", 5, 2))
+    # (scenario, cycles, tpa_tol, ba_tol) — cols 3 TPA / 4 BA / 7 TopHt / 8 QMD. RE-MEASURED per-column
+    # (2026-07-05): TopHt is BIT-EXACT in ALL 6 scenarios; QMD is bit-exact except mult_baimult (1 tenth);
+    # TPA/BA are bit-exact except a rendered-integer 1-step print knife-edge in a few scenarios (TPA: baimult,
+    # mortmult_win; BA: mortmult_win, reghmult). So TopHt→==, QMD→tenth-grid ≤1 tenth, and TPA/BA carry their
+    # EXACT per-scenario measured bound (0 or 1) — replacing the old uniform tol=1/tol=2 (which padded every
+    # bit-exact column, up to 10× on QMD and 2× on the mortmult scenarios).
+    for (nm, ncyc, tpa_tol, ba_tol) in (("mult_htgmult", 11, 0, 0), ("mult_baimult", 11, 1, 0),
+                                        ("mult_mortmult", 6, 0, 0), ("mult_mortmult_win", 7, 1, 1),
+                                        ("mult_reghmult", 5, 0, 1), ("mult_regdmult", 5, 0, 0))
         key  = joinpath(_MULT_DIR, nm * ".key")
         base = joinpath(_MULT_DIR, nm * ".sum.save")
         if !isfile(key) || !isfile(base)
@@ -40,8 +41,12 @@ _mult_base(path) = [split(l) for l in eachline(path)
             ft = _mult_base(base)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for i in 1:min(ncyc, length(jl)), c in (3, 4, 7, 8)
-                    @test abs(parse(Float64, jl[i][c]) - parse(Float64, ft[i][c])) <= tol
+                for i in 1:min(ncyc, length(jl))
+                    @test abs(parse(Float64, jl[i][3]) - parse(Float64, ft[i][3])) <= tpa_tol   # TPA (0 ⇒ BIT-EXACT)
+                    @test abs(parse(Float64, jl[i][4]) - parse(Float64, ft[i][4])) <= ba_tol    # BA  (0 ⇒ BIT-EXACT)
+                    @test parse(Float64, jl[i][7]) == parse(Float64, ft[i][7])                  # TopHt — BIT-EXACT (all)
+                    @test abs(round(Int, parse(Float64, jl[i][8]) * 10) -
+                              round(Int, parse(Float64, ft[i][8]) * 10)) <= 1                   # QMD — ≤1 tenth knife-edge
                 end
             end
         end

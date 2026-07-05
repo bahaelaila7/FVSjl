@@ -64,10 +64,11 @@ STOP
             stpa  = sum(Float64(r.TPA) for r in recs)
             stcuft = sum(Float64(r.TPA) * Float64(coalesce(r.TCuFt, 0.0)) for r in recs)
             smcuft = sum(Float64(r.TPA) * Float64(coalesce(r.MCuFt, 0.0)) for r in recs)
-            # the cut records reconstruct the (Fortran-bit-exact) .sum removed aggregates
-            @test abs(stpa - rtpa) <= 1.0                   # Σ removed TPA (±.sum rounding)
-            @test abs(stcuft - rtcuft) <= 1.0               # Σ removed total cubic
-            @test abs(smcuft - rmcuft) <= 1.0               # Σ removed merch cubic
+            # the cut records reconstruct the .sum removed aggregates: DBS full-precision Σ vs the RENDERED-INTEGER
+            # .sum removed cols (parse(Int,·)) → irreducible width = the PRINT HALF-WIDTH 0.5 (category-2). Was ≤1 (2× pad).
+            @test abs(stpa - rtpa) <= 0.5                   # Σ removed TPA vs rendered — print half-width
+            @test abs(stcuft - rtcuft) <= 0.5               # Σ removed total cubic vs rendered — print half-width
+            @test abs(smcuft - rmcuft) <= 0.5               # Σ removed merch cubic vs rendered — print half-width
         finally
             SQLite.close(d)
         end

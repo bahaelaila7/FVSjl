@@ -1272,3 +1272,17 @@ Fresh inventory of EVERY remaining non-== float bound; measured each against its
   16.0@2080; grown-cycle transcendental envelope). treeszcp ≤4 (tripling-UB, measured Δ4, genuinely irreducible),
   ≤8/≤50 (regime caps). dbs_cutlist/treelist/setsite/longrun/multistand_sum ≤1 (rendered-integer knife-edge).
 Suite 7667/2, no regression.
+
+## Session 2026-07-05j — DBS float-vs-integer half-width + multipliers per-scenario matrix + tcondmlt stem-split
+- **test_dbs_treelist.jl / test_dbs_cutlist.jl** — these compare a FULL-PRECISION float Σ to a RENDERED-INTEGER
+  (parse(Int,·)) .sum column, so the irreducible width is the PRINT HALF-WIDTH 0.5 (category-2), NOT a full
+  integer step. Tightened both from `<= 1` → `<= 0.5` (treelist measured 0.44/0.465; cutlist verified passing).
+- **test_tcondmlt.jl** — probed both stems: the `tcondmlt` stem is BIT-EXACT (c9/c12 Δ0 all cycles), the `spclwt`
+  stem carries a genuine 1-step print ULP. Made it stem-conditional: tcondmlt→`==`, spclwt→`<= 1`. (The old
+  shared `<= 1` + "bound=1 to allow a ULP if one arises" comment was speculative padding on a bit-exact stem.)
+- **test_multipliers.jl** — RE-MEASURED all 6 scenarios × cols 3/4/7/8: TopHt BIT-EXACT in ALL; QMD bit-exact
+  except baimult (1 tenth); TPA/BA bit-exact except a 1-step flip in a few. Replaced the uniform tol=1/tol=2
+  (padded up to 10× on QMD, 2× on the mortmult scenarios) with per-scenario exact bounds: TopHt→`==`,
+  QMD→tenth-grid `<= 1`, TPA/BA→their EXACT measured (tpa_tol/ba_tol ∈ {0,1}; 0 ⇒ BIT-EXACT). 3 of 6 scenarios
+  are now fully `==` (htgmult/mortmult/regdmult all Δ0).
+Suite 7667/2, no regression.

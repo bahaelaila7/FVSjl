@@ -47,8 +47,10 @@ const _TL_DIR = joinpath(@__DIR__, "..", "harness", "scenarios")
                 # measured max Δ = 0.44 (ΣTPA) / 0.465 (Σcuft) — BOTH dominated by the rendered-integer
                 # half-width (0.5) + a sub-0.05 Float32-vs-Float64 accumulation gap; the Σcuft bound was
                 # padded 3× over that. Both = the rendered-integer sum-order print-knife-edge class (≤1).
-                @test abs(agg[y][1] - parse(Int, f[3])) <= 1          # Σ TPA vs stand TPA — sum-order ULP
-                @test abs(agg[y][2] - parse(Int, f[9])) <= 1          # Σ(TCuFt·TPA) vs total cuft — sum-order ULP (was ≤3)
+                # float-sum vs RENDERED-INTEGER (parse(Int,·)) → the irreducible width is the PRINT HALF-WIDTH
+                # 0.5 (category-2), not a full integer step. measured max 0.44 (ΣTPA) / 0.465 (Σcuft) < 0.5. Was ≤1 (2× pad).
+                @test abs(agg[y][1] - parse(Int, f[3])) <= 0.5        # Σ TPA vs rendered stand TPA — print half-width
+                @test abs(agg[y][2] - parse(Int, f[9])) <= 0.5        # Σ(TCuFt·TPA) vs rendered total cuft — print half-width
             end
         finally
             rm(tmpkey; force=true); rm(joinpath(_TL_DIR, "_tl_run.tre"); force=true)

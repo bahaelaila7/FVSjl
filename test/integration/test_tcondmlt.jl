@@ -46,10 +46,15 @@ _tccol(r, c) = parse(Float64, r[c])
                     for c in (10, 11)                           # MCuFt/SCuFt — BIT-EXACT (measured Δ0 both scenarios)
                         @test _tccol(jl[i], c) == _tccol(ft[i], c)
                     end
-                    @test abs(_tccol(jl[i], 9) - _tccol(ft[i], 9)) <= 1   # TCuFt — print-boundary ULP (spclwt)
-                    # Board feet: BIT-EXACT (the per-acre Scribner sum matches live's rendered integer every
-                    # cycle for this scenario). Bound = exactly 1 to allow a print-boundary ULP if one arises.
-                    @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1
+                    # TCuFt + BdFt: measured — the tcondmlt stem is BIT-EXACT (Δ0 both cols, all cycles); the
+                    # spclwt stem carries a genuine 1-step rendered-integer print-boundary ULP (measured max=1).
+                    if stem == "spclwt"
+                        @test abs(_tccol(jl[i], 9)  - _tccol(ft[i], 9))  <= 1   # TCuFt — print-boundary ULP (measured max 1)
+                        @test abs(_tccol(jl[i], 12) - _tccol(ft[i], 12)) <= 1   # BdFt  — print-boundary ULP (measured max 1)
+                    else
+                        @test _tccol(jl[i], 9)  == _tccol(ft[i], 9)            # TCuFt — BIT-EXACT (tcondmlt stem, measured Δ0)
+                        @test _tccol(jl[i], 12) == _tccol(ft[i], 12)           # BdFt  — BIT-EXACT (tcondmlt stem, measured Δ0)
+                    end
                 end
             end
         end
