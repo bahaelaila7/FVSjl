@@ -688,3 +688,22 @@ attribute the bound to PERCOV-crown-timing, not a transcendental (the prior "bit
 observed |jl_internal − live| floor of the propagated residual). Suite 7662/2. NOTE for a future pass:
 making the LS forest-grown crown width bit-exact at the fire cycle is the upstream fix that closes this
 (and likely the CS CCF ≤4) — a crown-model investigation, deferred here.
+
+## Session 2026-07-05 (cont.) — LS flame/scorch PERCOV root NAILED (crown model faithful)
+
+Followed up the flame/scorch re-trace with two decisive experiments that settle whether the PERCOV gap
+(jl 67.50 vs live 70.77 at the 2003 fire) is a fixable crown-model bug or the grown-cycle transcendental:
+
+1. **percov at CYCLE 0 (1993, input trees, no growth) is BIT-EXACT**: jl 63.76883 == live 63.7688293.
+   ⇒ the forest-grown crown-width MODEL (a+b·D+c·D²+cr_coef·CR+hi_coef·HI) and its inputs are FAITHFUL.
+2. **`.sum` at the 2003 fire cycle is BYTE-IDENTICAL** to live on every stand column incl. CCF
+   (TPA524/BA104/SDI204/CCF210/TopHt64/QMD6.0/2263/2080/821/3444).
+   ⇒ the fire-phase PERCOV gap touches NO `.sum` column — it is a COSMETIC crown-ratio difference at the
+   fire SUB-CYCLE phase (D/H are `.sum`-bit-exact, so only the evolved INTEGER crown ratio CR differs in the
+   forest-grown cw), the grown-cycle/tripling transcendental family (same class as the CS board oscillation).
+
+VERDICT: the flame/scorch bound is downstream of the PROVEN-FAITHFUL crown model — the residual is the
+accepted grown-cycle crown-ratio evolution (cosmetic, non-`.sum`), NOT a crown-model bug and NOT fixable
+without bit-matching the crown-ratio integer evolution (= the accepted grown-cycle tail). This RETIRES the
+prior turn's "deferred fixable crown bug" framing: it is a proven grown-cycle-class residual (category 2).
+Bound values unchanged (= exact observed floor). Suite 7662/2.

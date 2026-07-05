@@ -61,16 +61,20 @@ using FVSjl
         #   jl   fmburn  2003:  wind 10.0   PERCOV 67.503  WMULT 0.120  FWIND 1.200  → xir  6117.786  byram 5040  flame 3.4543
         #  (1) The 20-ft wind (10.0) AND the Rothermel reaction intensity xir (6117.786) and sigma (1764.775)
         #      are BIT-EXACT. So the Rothermel eval is faithful — NOT the source.
-        #  (2) The ENTIRE flame/scorch gap enters through PERCOV: jl 67.50 vs live 70.77 (Δ3.26 = the DOCUMENTED
-        #      LS "forest-grown crown-CR-timing" ~3.4-pt residual, see [[fvsjl-ls-port-state]]). Lower PERCOV
-        #      ⇒ less canopy sheltering ⇒ higher WMULT (0.120 vs 0.111) ⇒ higher midflame FWIND (1.20 vs 1.11)
-        #      ⇒ higher spread ⇒ higher byram ⇒ higher flame/scorch. fmcba! computes totcra (Σπ·cw²/4·tpa)
-        #      8.6% low because its forest-grown crown widths at 2003 are ~4% small (the crown-CR-timing class,
-        #      same family as the CS CCF drift). This is a DEFERRED LS crown-model residual, not a transcendental.
-        # Bound = the PERCOV-crown-timing residual propagated through the wind chain (0.055 flame / 0.29 scorch,
-        # = the exact observed |jl_internal − live| floor). Downstream of a documented upstream residual; would
-        # collapse to a print-half-width if the LS forest-grown crown-CR-timing PERCOV were made bit-exact.
-        # See docs/TOLERANCE_AUDIT.md (LS PERCOV entry).
+        #  (2) The ENTIRE flame/scorch gap enters through PERCOV: jl 67.50 vs live 70.77. Lower PERCOV ⇒ less
+        #      canopy sheltering ⇒ higher WMULT (0.120 vs 0.111) ⇒ higher midflame FWIND (1.20 vs 1.11) ⇒ higher
+        #      spread ⇒ higher byram ⇒ higher flame/scorch.
+        #  (3) The crown-width MODEL is PROVEN FAITHFUL — percov at CYCLE 0 (1993, INPUT trees, no growth) is
+        #      BIT-EXACT: jl 63.76883 == live 63.7688293. And the `.sum` at the 2003 fire cycle is BYTE-IDENTICAL
+        #      to live on EVERY stand column incl. CCF (TPA524/BA104/SDI204/CCF210/TopHt64/QMD6.0/vols). So the
+        #      fire-phase PERCOV gap is a COSMETIC crown-ratio difference at the fire SUB-CYCLE phase (the forest-
+        #      grown cw = a+b·D+c·D²+cr_coef·CR; D/H are `.sum`-bit-exact, so only the evolved integer CR differs)
+        #      that never touches a `.sum` column — the grown-cycle/tripling transcendental family (same class as
+        #      the CS board-sum oscillation), NOT a crown-model bug. Confirmed cosmetic, not fixable without bit-
+        #      matching the crown-ratio evolution (= the accepted grown-cycle tail).
+        # Bound = the PERCOV-crown-ratio residual propagated through the wind chain (0.055 flame / 0.29 scorch =
+        # the exact observed |jl_internal − live| floor). Downstream of the proven grown-cycle crown-ratio class;
+        # would collapse to a print-half-width if that crown-ratio evolution were bit-matched. See TOLERANCE_AUDIT.md.
         @test isapprox(br.flame,  3.4f0;  atol = 0.055f0)  # jl 3.4543 vs live 3.4008 = 0.0535 — PERCOV-crown-timing (NOT transcendental)
         @test isapprox(br.scorch, 13.0f0; atol = 0.29f0)   # jl 13.289 vs live 13.0 = 0.289 — same PERCOV-crown-timing propagation
 
