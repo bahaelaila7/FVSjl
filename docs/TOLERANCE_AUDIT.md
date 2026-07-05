@@ -1531,3 +1531,22 @@ FINAL CAMPAIGN STATE: tolerance padding eliminated suite-wide; every bound == / 
 class (print-half, sum-order, transcendental-envelope, near-tie, crown-ratio-timing) / 2 @test_broken. The single
 reducible item (FFE-CFVOL one-tree merch) is a 244-line volume-routine port; the two near-ties (DKTIME, estab_pccf)
 have every constituent proven faithful with only a sub-ULP boundary flip. All verdicts code-verified vs live.
+
+## Session 2026-07-05y — estab_pccf "near-tie" is a REAL BUG: regen point-assignment (plot_id=nn vs IPTIDS[nn])
+RE-TRACE (matched jl vs live regen per-tree by point/DBH/CR via the live .trl treelist): the estab_pccf 0.14
+residual is NOT a near-tie — it is a genuine regen POINT-ASSIGNMENT bug. Decisive evidence (plant_stocked, 2005):
+  LIVE regen points = [101,102,103,104,105,106, 108,109,110,111]  (10 STOCKABLE, skips nonstockable 107, incl 111)
+  JL   regen points = [101,102,103,104,105,106,107,108,109,110]   (skips 111, WRONGLY includes nonstockable 107)
+Points 101-106 CRs match EXACTLY; 105-111 differ purely because jl put point-11's seedlings on the wrong points.
+ROOT: establishment.jl:237 `t.plot_id[n] = Int32(nn)` — jl uses the loop index nn (1..nptids), but FVS uses
+IPTIDS[nn] (esplt2.f:77-131 + estab.f:313 ITRE=IPTIDS[nn]): the nn-th STOCKABLE point index (skipping nonstockable
+plots matched against the tree file). For plant_stocked, nonstockable = point 7 (.tre rec 20 "0107 ... 800",
+mort_code==8, treeinput.jl:90), so IPTIDS = [1,2,3,4,5,6,8,9,10,11]; jl's nn=7 must map to point 8, nn=10 to 11.
+The misassigned seedlings read the wrong density.point_ccf[plot_id] ⇒ wrong CR base ⇒ the 7-unit crown diff.
+FIX PLAN (deferred until the background FFE-carbon agent finishes its full-suite validation — editing source now
+would sabotage its run): (1) treeinput.jl — record the nonstockable point internal indices (the mort_code==8
+records' pj), store on plot state; (2) establishment.jl — build IPTIDS = stockable internal indices (1..NPTS minus
+nonstockable), and set `t.plot_id[n] = IPTIDS[nn]`. Stands with no nonstockable points (IPTIDS==1:NPTS identity)
+are unaffected ⇒ bare_natural etc. stay bit-exact. Expect estab_pccf mean_cr → 82.46 == live (drives the 0.141
+bound toward ==). This is a REAL fix, not a corner — the 4th stale-verdict correction this session (was "deferred
+multi-point PCCF feature" → "implemented, near-tie" → NOW "regen point-assignment bug, fixable").
