@@ -312,7 +312,16 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     toph = dt(stand_top_height(s))
     qmd  = round(stand_qmd(s); digits = 1)
     t = s.trees
-    vtot(f) = dt(sum((getfield(t, f)[i] * t.tpa[i] for i in 1:t.n); init = 0f0) / g)  # init for bare/empty stands
+    # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
+    # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips
+    # the rendered integer by 1 on knife-edge rows (the non-associative tree-SUM residual).
+    function vtot(f)
+        fld = getfield(t, f); acc = 0f0
+        @inbounds for i in 1:t.n
+            acc += fld[i] * t.tpa[i]
+        end
+        return dt(acc / g)
+    end
     # Year/age come from the cycle-boundary schedule (IY, build_cycle_schedule!): the calendar
     # year at this cycle's start, and the age advanced by the elapsed years from the inventory.
     # For uniform cycles this is exactly cycle_year[1] + cyc·per (bit-exact); non-uniform TIMEINT
