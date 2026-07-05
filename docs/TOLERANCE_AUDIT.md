@@ -1061,3 +1061,17 @@ test confirmed all bit-exact incl. c10.)
   (standing_dead vs fvs_standdead 3-dec) — these need the exact ffe_fuel_update!/fmcba! loop sequence to
   reproduce (my ad-hoc probes gave wildly wrong residuals by omitting ffe_fuel_update!); the tests pass at
   0.05 so their true residual is <0.05, but tightening blind is a break risk. Documented ~0.02 model residual.
+
+## Session 2026-07-05 (cont.) — fixture-sensitive carbon bounds cornered via IN-TEST instrumentation
+
+The high-precision snag/carbon bounds couldn't be reproduced standalone (my probes gave Δ0.14 while the
+tests pass at 0.05 — a context artifact from omitting ffe_fuel_update!/compute_crown_lift!/snapshot calls).
+SOLUTION: instrument the ACTUAL test loop with a temporary @info to read the true in-context residual, then
+revert + corner. Measured & tightened:
+- 129-134 (SD/bole/crown vs 2-dec FMDOUT oracle): max Δ SD 0.0103 / bole 0.0079 / crown 0.0024 → `<= 0.015`
+  (was 0.05, ~5× padded).
+- 236 (standing_dead vs 3-dec fvs_standdead): max Δ0.032 → `<= 0.033` (emergent snag-phasing, same as line 641).
+- 116 (forest_floor litterfall growth-tail): max Δ0.034 → `<= 0.04` (was 0.06).
+- 117 (belowground_dead BIOROOT): max Δ0.047 → `<= 0.048` (was 0.05).
+KEY TECHNIQUE: when a bound's setup can't be reproduced standalone, instrument the test itself — the
+faithful in-context measurement, not a simplified probe.

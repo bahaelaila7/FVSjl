@@ -113,8 +113,8 @@ end
             FVSjl.compute_density!(s)
             r = FVSjl.stand_carbon_report(s)
             # forest floor + below-dead (dead coarse roots, BIOROOT) reconcile at print resolution
-            @test abs(r.forest_floor     - parse(Float64, f[8])) <= 0.06   # tiny litterfall growth-tail effect
-            @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.05   # BIT-EXACT
+            @test abs(r.forest_floor     - parse(Float64, f[8])) <= 0.04   # litterfall growth-tail (measured max Δ0.034; was 0.06)
+            @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.048  # dead coarse roots BIOROOT (measured max Δ0.047; was 0.05)
             # DDW: BIT-EXACT all cycles (before AND after mortality). The former post-mortality dead-pool
             # crown-lift-timing gap is CLOSED (FFE snag-dynamics + crown small-tree merch-bole fixes).
             @test abs(r.down_wood - parse(Float64, f[7])) <= 0.05   # DDW — BIT-EXACT all cycles
@@ -126,12 +126,12 @@ end
             # oracle) + the CWD2B crown-in-waiting. Targets: 2000 = 3.72+1.46 = 5.18, 2005 = 3.28+1.19.
             TO = 0.90718474 / 0.40468564
             f[1] in ("1990",) && @test r.standing_dead == 0f0
-            f[1] == "2000" && @test abs(r.standing_dead - 5.18) <= 0.05
-            f[1] == "2005" && @test abs(r.standing_dead - 4.47) <= 0.05
-            f[1] == "2000" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.72) <= 0.05
-            f[1] == "2005" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.28) <= 0.05
-            f[1] == "2000" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.46) <= 0.05
-            f[1] == "2005" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.19) <= 0.05
+            f[1] == "2000" && @test abs(r.standing_dead - 5.18) <= 0.015
+            f[1] == "2005" && @test abs(r.standing_dead - 4.47) <= 0.015
+            f[1] == "2000" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.72) <= 0.015
+            f[1] == "2005" && @test abs(FVSjl.snag_bole_carbon(s) * TO - 3.28) <= 0.015
+            f[1] == "2000" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.46) <= 0.015
+            f[1] == "2005" && @test abs(FVSjl.snag_crown_carbon(s) * TO - 1.19) <= 0.015
             if c < length(ft)
                 # evolve the fuels with the START-of-cycle crown (FVS records the crown at the END of
                 # each cycle for the NEXT cycle's litterfall, fmmain.f:264), THEN grow the trees.
@@ -233,7 +233,7 @@ end
             if s2.fire !== nothing && s2.fire.active
                 FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
             end
-            @test abs(FVSjl.stand_carbon_report(s2).standing_dead - fsd) <= 0.05   # Stand Dead — BIT-EXACT
+            @test abs(FVSjl.stand_carbon_report(s2).standing_dead - fsd) <= 0.033   # Stand Dead — emergent snag-phasing floor (measured max Δ0.032, same as line 641; was 0.05)
             if k < length(fvs_standdead)
                 s2.fire !== nothing && s2.fire.active && FVSjl.ffe_fuel_update!(s2, 5)
                 FVSjl.grow_cycle!(s2; fint = 5f0)
