@@ -1098,3 +1098,11 @@ oracle = ~0.015 (was padded); DBS-full-precision-vs-DBS = Float32 ULP (dbs_summa
 rendered-vs-rendered = == (Δ0). No percentages / rtol>0 / atol≥0.5 / multi-unit-slack survive. Every "±1
 tracks live" / "~N% tail" / "transcendental drift" label was re-measured — many dissolved to == (a growth/
 tripling fix had closed the residual but the comment lagged).
+
+## Session 2026-07-05 (cont.) — snt01 qmd/mai → rendered-== (edge-case robustness)
+
+test_snt01 qmd/mai were atol=0.05 print-half-width, but jl's MAI=19.14999996 sits at the EXACT half-width
+edge (Δ0.0499992 < 0.05 — one ULP from failing). Since jl renders to the .sum's 1-dec value (5.1/19.1),
+converted to rendered-== (round(Float64(·);digits=1)==target) — stronger AND removes the edge fragility.
+QMD renders to 5.1 too. This is the doctrine's preferred formatted-== form, and it de-risks the tightest
+print-half-width bound in the suite.

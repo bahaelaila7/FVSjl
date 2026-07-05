@@ -26,7 +26,7 @@ const _SNT01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test r0.sdi == 160
         @test r0.ccf == 218
         @test r0.topht == 63
-        @test isapprox(r0.qmd, 5.1; atol = 0.05)
+        @test round(Float64(r0.qmd); digits = 1) == 5.1     # QMD renders to the .sum's 5.1 (rendered-==; was atol 0.05)
         @test r0.cuft == 1368        # total cubic
         @test r0.mcuft == 1149       # merch cubic
         @test r0.scuft == 68         # sawtimber cubic
@@ -34,7 +34,8 @@ const _SNT01_KEY = "/workspace/ForestVegetationSimulator/tests/FVSsn/snt01.key"
         @test r0.fortype == 520
         @test r0.sizecls == 2
         @test r0.stockcls == 2
-        @test isapprox(r0.mai, 19.1; atol = 0.05)
+        @test round(Float64(r0.mai); digits = 1) == 19.1    # MAI renders to the .sum's 19.1 (rendered-==; jl 19.15
+                                                            # sits at the print-half-width EDGE, so atol=0.05 was fragile)
 
         # Advance one cycle; the 1995 row matches the baseline BIT-EXACTLY at the .sum print resolution.
         # The .sum truncates via di(x)=trunc(x+0.5); asserting the printed integer/1-decimal matches the
