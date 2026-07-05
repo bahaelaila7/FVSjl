@@ -53,7 +53,8 @@ end
             for (j, f) in zip(jl, ft)
                 @test j[1] == f[1]                            # Year
                 for k in 2:6; @test j[k] == f[k]; end         # Tpa,BA,SDI,CCF,TopHt
-                @test abs(j[7] - f[7]) <= 0.05                # QMD
+                @test abs(j[7] - f[7]) <= 5f-7                # QMD — the DBS stores FULL-precision QMD; jl matches
+                                                              # the Fortran DBS to 1 Float32 ULP (measured max Δ=1.9e-7; was ≤0.05, ~250,000× padded)
                 @test j[8] == f[8]                            # MCuFt — BIT-EXACT (measured Δ=0; was over-cautious ≤2)
                 @test j[9] == f[9]                            # BdFt  — BIT-EXACT (measured Δ=0; was over-cautious ≤5, closed by the BFTOPK fix)
             end
