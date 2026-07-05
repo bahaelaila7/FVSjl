@@ -1516,3 +1516,18 @@ SESSION SUMMARY (re-trace discipline on my OWN verdicts): corrected 2 stale "def
 (OLDCRW crown-lift; multi-point PCCF) + reclassified DKTIME + estab_pccf as near-tie. The "reducible-by-deep-
 work" list is now just ONE item: the FFE-carbon CFVOL one-tree merch (FVS two-merch-def). Everything else is a
 proven == / print-ULP / sum-order / transcendental-envelope / near-tie / crown-ratio-timing accepted class.
+
+## Session 2026-07-05x — FFE-CFVOL merch: sized the deferral (CFVOL = 244-line pulpwood-top volume port)
+The lone genuinely-reducible residual is the FFE-carbon CFVOL one-tree merch. Sized the fix: FVS's FFE stem MCF
+comes from CFVOL (FVSsn_buildDir/cfvol.f, 244 lines) → it computes cubic volume to a species-specific PULPWOOD
+top `TOPD(ISPC)` via `CALL NBOLT` (8-ft-bolt counting to pulpwood + sawlog tops) + the TOPD/BFTOPD coefficient
+tables. That is a genuinely DIFFERENT merch definition than jl's R8-Clark `merch_cuft_vol` (v4+v7): for the sp22
+D10.4 H55 tall-skinny tree, CFVOL deducts to the pulpwood top (MCF 11.2) where R8-Clark barely deducts (13.2).
+Porting CFVOL+NBOLT+tables faithfully for the FFE carbon path — validating it stays bit-exact for carbon_snt
+(currently ==) and all 299/300 carbon_ffe trees where R8-Clark already == CFVOL — is a deep base-model VOLUME
+port with clear rule-#7 regression risk to the bit-exact .sum + snag + carbon_snt paths, for a 0.3-ton / one-tree
+/ one-scenario residual (bound cornered ≤3 tenths). DEFERRED — quantitatively out of scope for tolerance-closure.
+FINAL CAMPAIGN STATE: tolerance padding eliminated suite-wide; every bound == / cornered-exact-floor / accepted
+class (print-half, sum-order, transcendental-envelope, near-tie, crown-ratio-timing) / 2 @test_broken. The single
+reducible item (FFE-CFVOL one-tree merch) is a 244-line volume-routine port; the two near-ties (DKTIME, estab_pccf)
+have every constituent proven faithful with only a sub-ULP boundary flip. All verdicts code-verified vs live.
