@@ -23,8 +23,8 @@ _sx_base(path) = [split(l) for l in eachline(path)
     prs  = [true, true, false, false, true, true, falses(6)...]
     FVSjl.kw_sdimax!(s, FVSjl.KeywordRecord("SDIMAX  ", "", flds, vals, prs, 12, FVSjl.KW_OK, 0))
     @test all(==(300f0), s.plot.sp_sdi_def)
-    @test s.plot.pct_sdimax_mort_lo ≈ 0.20f0   # PMSDIL 20% → fraction
-    @test s.plot.pct_sdimax_mort_hi ≈ 0.90f0   # PMSDIU 90% → fraction
+    @test s.plot.pct_sdimax_mort_lo == 0.20f0   # PMSDIL 20% → fraction
+    @test s.plot.pct_sdimax_mort_hi == 0.90f0   # PMSDIU 90% → fraction
 
     key = joinpath(_SX_DIR, "sdimax.key"); sav = joinpath(_SX_DIR, "sdimax.sum.save")
     if !isfile(key) || !isfile(sav)

@@ -146,7 +146,7 @@ sig2(r) = (strip(r.name), round.(r.values; digits=4), r.present)
     @test any(r -> occursin("em-dash id", r.raw), recs)
     # the THINSDI card maps year→field1, residual SDI→field2 (FVS-term keys)
     thin = recs[findfirst(r -> strip(r.name) == "THINSDI", recs)]
-    @test thin.values[1] ≈ 2010 && thin.values[2] ≈ 200
+    @test thin.values[1] == 2010 && thin.values[2] == 200
     # field positions match a hand-written equivalent .key (numeric value + presence)
     key = tempname() * ".key"
     open(key, "w") do io
@@ -204,7 +204,7 @@ end
     # FVS re-reads the shared tree file (snt01's pattern). One fewer than the stand count.
     rw = [r for r in recs if strip(r.name) == "REWIND"]
     @test length(rw) == 1                       # 2 stands → 1 REWIND
-    @test rw[1].values[1] ≈ 2                    # rewinds the tree-data unit (2)
+    @test rw[1].values[1] == 2                    # rewinds the tree-data unit (2)
     # the REWIND sits between the two stands (after stand 1's PROCESS, before stand 2)
     @test findfirst(==("PROCESS"), names) < findfirst(==("REWIND"), names) <
           findlast(==("STDIDENT"), names)
