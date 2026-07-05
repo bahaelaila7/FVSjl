@@ -43,7 +43,7 @@ function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates,Lake
         end
         d = t.dbh[i]
         den = 1f0 + bcr2[sp] * ba
-        crnew = 10f0 * (bcr1[sp] / den + bcr3[sp] * (1f0 - exp(bcr4[sp] * d)))
+        crnew = 10f0 * (bcr1[sp] / den + bcr3[sp] * (1f0 - fexp(bcr4[sp] * d)))  # gfortran-identical exp (doctrine #8)
         # CRNMLT (crown.f:193-201): the per-species crown-change multiplier, applied only inside its
         # DBH window. active_crn_mult returns 1.0 outside the window / when no CRNMLT keyword (net01).
         cm = active_crn_mult(s.control, sp, cur_year, d)

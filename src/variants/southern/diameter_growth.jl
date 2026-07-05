@@ -777,21 +777,25 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
             # only); `bsc` bounds the 5-yr DG and then scales by sfint/5. FINT=5 ⇒ identity (no scale).
-            dds5 = exp(wk2[i]) * xbai                       # YR-yr DDS (BAIMULT: DDS·XDMULT); YR=5 SN / 10 NE
+            dds5 = fexp(wk2[i]) * xbai                      # YR-yr DDS (BAIMULT: DDS·XDMULT); YR=5 SN / 10 NE
             bsc(dg5) = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, s.control.sp_size_cap, yr)
+            # exp routed through the gfortran companion (fexp, doctrine #8): the tripled records carry
+            # OLDRN forward, so a 1-ULP openlibm-vs-libm exp diff COMPOUNDS across cycles (the timeint
+            # non-native-cycle volume tail). log in ssigma/rho is deliberately NOT routed (it feeds the
+            # dgscor! RNG rejection bound — changing it would desync the bit-exact draw stream).
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
-                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(frmt)) - d_ib)
+                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib)
                 ru = fru + corr * rnpar; rnU[i] = ru
-                dgU[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(ru)) - d_ib)
+                dgU[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib)
                 rl = frl + corr * rnpar; rnL[i] = rl
-                dgL[i] = bsc(sqrt(d_ib * d_ib + dds5 * exp(rl)) - d_ib)
+                dgL[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
                     oldrn[i] = frmt
-                    frm = exp(frmt)
+                    frm = fexp(frmt)
                 else
                     frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i];
                                   dgsd = s.control.dg_stddev_bound)

@@ -76,7 +76,10 @@ Van Wagner crown scorch height (ft) from Byram fireline intensity `byram`
 """
 @inline function scorch_height(byram::Float32, atemp::Float32, fwind::Float32)::Float32
     b = byram / 60f0                                    # BTU/ft/min → BTU/ft/sec
-    return (63f0 / (140f0 - atemp)) * (b^(7f0 / 6f0) / sqrt(b + fwind^3))
+    # b^(7/6): the goal's exact transcendental — routed through the gfortran companion (doctrine #8)
+    # so the Float32 pow is bit-identical to FVS's `**`. fwind^3 is an exact integer power; sqrt is
+    # IEEE-correctly-rounded — neither is routed.
+    return (63f0 / (140f0 - atemp)) * (fpow(b, 7f0 / 6f0) / sqrt(b + fwind^3))
 end
 
 """

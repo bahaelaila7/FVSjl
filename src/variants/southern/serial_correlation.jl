@@ -93,7 +93,7 @@ is the std-dev bound on the variation (DGSD, default 2; `<1` ⇒ no random varia
         frm = (dds - 4f0) * frm
     end
     oldrn[it] = frm
-    return exp(frm)
+    return fexp(frm)   # gfortran-identical exp (doctrine #8); the bachlo draw above is untouched (RNG bit-exact)
 end
 
 """
