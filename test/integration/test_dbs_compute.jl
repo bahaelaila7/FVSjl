@@ -56,11 +56,16 @@ STOP
             @test [g[1] for g in got] == [1990, 1995, 2000]
             # values bit-exact (Float32) vs live Fortran FVS_Compute (BSDI fix → MYSDI)
             want = [(77.39207, 202.93901), (103.19379, 252.89455), (126.26046, 292.84149)]
-            # Float32-vs-5-decimal-stamp floor: jl matches the live FVS_Compute values to a few Float32 ULP
-            # (measured max MYBA Δ9.1e-5, MYSDI Δ1.2e-4 at ~126/292) → atol 2f-4 (was 0.01/0.05, ~100–400× padded).
+            # Float32-vs-5-decimal-stamp floor: MYBA/MYSDI are start-of-cycle BBA/BSDI at 2000 (after 2 growth
+            # cycles). jl's Float32 growth accumulation diverges from live's by a FEW Float32 ULP — the same
+            # accumulated-transcendental (exp/pow) class as estab_rng_d10/cst01 late cycles. The residual is a
+            # REAL computational diff (SDI Δ1.238e-4 ≈ 4.05 ULP at 292.84, NOT the 5e-6 print-half of the stamp),
+            # so it cannot be driven to ==; the irreducible width is the measured accumulated diff itself.
+            # Per-column atol = exact measured max (deterministic run, IEEE Float32) — MYBA 9.145e-5, MYSDI
+            # 1.238e-4, last-digit-rounded (1.006×/1.01×), NOT the prior 2f-4 (1.6–2.2× — a forbidden padded multiple).
             for (g, w) in zip(got, want)
-                @test isapprox(g[2], w[1]; atol = 2f-4)      # MYBA = BBA
-                @test isapprox(g[3], w[2]; atol = 2f-4)      # MYSDI = BSDI (raw Reineke)
+                @test isapprox(g[2], w[1]; atol = 9.2f-5)    # MYBA = BBA   (measured max Δ9.145e-5)
+                @test isapprox(g[3], w[2]; atol = 1.25f-4)   # MYSDI = BSDI (raw Reineke; measured max Δ1.238e-4 ≈4 ULP)
             end
         finally
             SQLite.close(d)

@@ -1149,3 +1149,19 @@ FEATURE/MODEL residuals above (multi-point PCCF + LS crown-ratio-timing). Those 
 implementing the deferred features — a crown-model/regen investigation beyond tolerance-tightening. This is
 the precise, documented reason TOLERANCE_COMPLETE remains unset. Substantive tolerance campaign COMPLETE;
 the residual is FEATURE work, tracked separately.
+
+## Session 2026-07-05b — re-trace found 3 padded/mislabeled bounds behind "ULP/exact-floor" labels
+Re-trace discipline (goal: "an 'accepted/ULP' label may be a misread") applied to the pre-loaded
+dbs/estab tests surfaced 3 real improvements — NONE were at their true floor despite the comments:
+- **test_dbs_compute.jl:62-63** — MYBA/MYSDI atol was `2f-4`, a 1.6–2.2× multiple of the measured
+  maxima (BA 9.145e-5, SDI 1.238e-4 ≈4 ULP at 292.84 — real accumulated-growth Float32 divergence over
+  2 cycles, NOT the 5e-6 print-half of the 5-decimal stamp). Cornered per-column to exact measured floor
+  (9.2f-5 / 1.25f-4, deterministic run). ← the goal's explicitly-forbidden "measured floor × 1.5".
+- **test_dbs_summary.jl:56** — QMD was `<= 5f-7` with a "DBS stores FULL-precision QMD / 1 Float32 ULP"
+  comment — but _read_fvs_summary ROUNDS jl QMD to 1 decimal (line 18) and the .save is 1-decimal
+  (5.1/6.1/7.0/7.8), so it's a RENDERED-== comparison (both → identical nearest-Float64). Driven to `==`
+  (BIT-EXACT). The "full-precision ULP" framing was a stale misread of a 1-decimal comparison.
+- **test_estab_rng_d10.jl:79** — mean-DBH atol `0.007` self-labeled "the exact accumulated-tail floor"
+  but was 1.2× the measured Δ0.0058146. Tightened to 0.00582 (1.001×, deterministic scenario).
+VERDICT: even after the prior fixpoint pass, the re-trace discipline caught 3 more (2 padded multiples +
+1 stale-ULP-that-was-actually-==). Confirms the discipline's value; suite 7664/2, no regression.

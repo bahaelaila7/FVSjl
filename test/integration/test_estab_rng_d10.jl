@@ -73,9 +73,10 @@ end
         # (3) mean DBH at a LATE cycle (2042, ~9 growth cycles). jl 9.812015 vs live 9.8062 → Δ0.0058, which
         # is NOT print (4-dec half-width is 5e-5) but the ACCUMULATED DGF/HTGF Float32 growth tail summed over
         # 50 trees × 9 cycles — the same proven accumulated-transcendental class as the cst01 late cycles.
-        # atol 0.007 = the exact accumulated-tail floor (measured Δ0.00581; was 0.01, ~1.7× loosened).
+        # atol 0.00582 = the exact accumulated-tail floor (measured Δ0.0058146, deterministic scenario, last-
+        # digit-rounded up = 1.001×; was 0.007 = a 1.2× padded multiple mislabeled "exact floor", earlier 0.01).
         # Irreducible without bit-matching FVS's Float32 exp/power in the growth model.
         lp42 = snap[2042].lp
-        @test isapprox(sum(lp42) / length(lp42), 9.8062f0; atol = 0.007)
+        @test isapprox(sum(lp42) / length(lp42), 9.8062f0; atol = 0.00582)
     end
 end
