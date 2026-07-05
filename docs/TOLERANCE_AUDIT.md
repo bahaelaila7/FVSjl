@@ -1226,3 +1226,18 @@ Also confirmed clean (already ==, historical atol only in comments): test_cuts_c
 test_fortbragg_coverage, test_growth(integration). Harness natural_diff/sumdiff/oracle diff_text_numeric are
 UTILITY functions with default atol/rtol params (not @test assertions in the gated suite) — out of scope.
 Suite 7664/2, no regression. This KILLS the last forbidden PERCENTAGE bound in the gated suite.
+
+## Session 2026-07-05g — carbon snag hard/soft split: EYEBALL ORACLE → EXACT LIVE SNAG SUMMARY (TODO resolved)
+Ran the LIVE FVSsn oracle (/tmp/FVSsn_new on carbon_snt.key + SNAGSUM keyword) to replace the doctrine-
+flagged "approximate 1-dec eyeball reads" for test_carbon's c3/c4 snag split. Exact live SNAG SUMMARY REPORT:
+1995 35.8h/6.9s, 2000 44.8h/3.3s, 2005 66.8h/4.3s (grand 42.7/48.0/71.0).
+- **KEY FINDING**: the GRAND TOTAL snag density is BIT-EXACT vs live at every cycle (jl 42.701/48.027/71.040 →
+  render 42.7/48.0/71.0 == live). Added `round(hard+sf,1)==gtot` assertions (+3 passes). Proves all snags exist
+  correctly; the residual is PURE hard↔soft re-classification, not a density bug.
+- The split residual = the DKTIME classification-timing envelope (IYR−YRDEAD ≥ DKTIME boundary). Cornered to
+  EXACT measured per-cohort Δ (deterministic): c3 hard 0.233 (jl 44.567 vs 44.8), c3 soft 0.161 (3.460 vs 3.3),
+  c4 hard 0.091 (66.709 vs 66.8). c2 hard/soft + c4 soft RENDER EXACTLY to live 1-dec → RENDERED-== (35.8/6.9/4.3).
+- CORRECTED my own prior mislabel: the c2 `round(,2)==35.79` was pinning to jl's OWN 2-dec (live .out only gives
+  1-dec 35.8) → changed to `round(,1)==35.8` (confirmed live). No more testing-jl-against-jl in this block.
+Suite 7667/2 (+3), no regression. Eyeball-oracle TODO CLOSED; only lst01_ffe carb 0.2 (LS) needs the same
+live-oracle treatment next.
