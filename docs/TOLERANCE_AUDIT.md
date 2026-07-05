@@ -1256,3 +1256,19 @@ Ran /tmp/FVSls_new on the LS fixtures to close the final flagged TODO and ground
   fire sub-cycle differs — cosmetic, never touches a .sum column).
 Suite 7667/2, no regression. BOTH flagged eyeball/deferred-oracle TODOs (carbon c3/c4 + lst01_ffe carb) now
 CLOSED with exact live-oracle reads. No flagged-TODO bounds remain.
+
+## Session 2026-07-05i — full-suite re-scan of the ±N population: 3 improvements + verified-cornered rest
+Fresh inventory of EVERY remaining non-== float bound; measured each against its scenario:
+- **PROBED the keyword-effect ±1 columns** (cuteff/voleqnum/minharv/fertiliz/volover): the `<=1` on rendered
+  .sum volume cols is the print-integer knife-edge — MOST flip by EXACTLY 1 (cornered, measured max=1), but
+  **cuteff c9 (TCuFt) is bit-exact (measured Δ0)** → split out to `==`. The rest confirmed genuine 1-step flips.
+- **test_simfire_schedule:73** — `r[2025][3] <= 70` (loose regime threshold) → `abs(r[2025][3]-66) <= 2`. RAN
+  live FVSsn on fire_repeat.key: CONFIRMED live 2025 TPA=66 (2005 bit-exact 113). jl 64, Δ2 = the 15-yr post-
+  fire DG-drift + fire-kill residual (deterministic rendered integer). Grounded in confirmed live.
+- **test_cst01.jl:132** — QMD `<= 0.15` while the comment's own re-measure said "qmd=0.1". PROBED (fint=10):
+  exact max = 0.1 → tenth-grid `abs(round(Int,qmd*10)-round(Int,L*10)) <= 1` (avoids the 0.1000…142 Float64
+  knife-edge). Confirmed cst01 tpa/sdi/ccf/topht (2/1/3/2) ALL at exact maxima.
+- **VERIFIED-CORNERED (no change)**: test_timeint TPA≤2/cuft≤16 = EXACT observed maxima (probed: 2.0@2040,
+  16.0@2080; grown-cycle transcendental envelope). treeszcp ≤4 (tripling-UB, measured Δ4, genuinely irreducible),
+  ≤8/≤50 (regime caps). dbs_cutlist/treelist/setsite/longrun/multistand_sum ≤1 (rendered-integer knife-edge).
+Suite 7667/2, no regression.

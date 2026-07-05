@@ -70,7 +70,10 @@ end
         end
         # the SECOND fire (2020) must also fire: 2025 TPA drops well below the unburned ~108 trajectory.
         @test haskey(r, 2025)
-        haskey(r, 2025) && @test r[2025][3] <= 70   # live 66; jl 64 — the 2020 fire fired (not ~108)
+        # 2020 fire fired: jl 2025 TPA 64 vs CONFIRMED live 66 (ran /tmp/FVSsn_new on fire_repeat.key, 2026-07-05;
+        # 2005 bit-exact 113). Δ2 = the 15-yr post-fire DG-drift + fire-kill-distribution residual on a rendered
+        # integer. Was a loose `<= 70` regime threshold (would pass anything below the ~108 unburned trajectory).
+        haskey(r, 2025) && @test abs(r[2025][3] - 66) <= 2
     else
         @test_skip "fire_repeat.key not available"
     end

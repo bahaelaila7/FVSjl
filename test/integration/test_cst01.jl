@@ -129,7 +129,8 @@ end
                 # the late-cycle CCF residual to 3 at 2070 (197 vs live 200) — crown-driven, a net improvement.
                 @test abs(ccf   - L[4]) <= 3
                 @test abs(topht - L[5]) <= 2
-                @test abs(qmd   - L[6]) <= 0.15
+                @test abs(round(Int, qmd*10) - round(Int, L[6]*10)) <= 1   # QMD render knife-edge: ≤1 tenth (measured max
+                                                                           # exactly 0.1; was atol 0.15 = 1.5× pad — tenth-grid avoids the 0.1000…142 Float64 knife-edge)
             end
             yr < 2090 && FVSjl.grow_cycle!(s; fint = 10f0)
         end
