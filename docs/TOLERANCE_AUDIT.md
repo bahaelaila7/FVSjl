@@ -1406,3 +1406,17 @@ pools stay bit-exact). REVEALED (doctrine #3, masked-bug) two smaller sub-parts 
 (a) FVS's FFE MCF (fmsvol.f CFVOL) is slightly larger than jl's merch_cuft_vol for small trees ⇒ the floor now
 OVER-corrects merch by ~+0.3 (a separate FFE-MCF-source difference); (b) the omitted OLDCRW crown-lift term
 (X·CROWNW). Both deferred model-detail; bounds cornered at exact measured floors. A genuine class-(c) improvement.
+
+## Session 2026-07-05q (cont) — FFE carbon remaining sub-parts: OLDCRW crown-lift DEFERRED (double-count risk)
+Investigated the two FFE-carbon sub-residuals unmasked by the floor fix:
+- **OLDCRW crown-lift** (fmdout.f:230 `BIOLIVE = CROWNW + OLDCRW`): OLDCRW is set to CROWNW (fmoldc.f:55) then
+  scaled by the crown-lift rate X (fmsdit.f:112), and FMCADD feeds the LIFTED portion into DOWN-WOOD. jl already
+  ports that DDW crown-lift path (compute_crown_lift! → fire.crown_lift_annual). Adding OLDCRW back into
+  ffe_live_carbon's live crown risks DOUBLE-COUNTING with the DDW path. Resolving needs a careful full trace of
+  the FFE crown-lift accounting (fmoldc/fmsdit/fmcadd/fmdout interplay) to avoid double-count ⇒ DEFERRED (not a
+  safe incremental fix; the term is <0.1%/yr of crown, affects only later cycles, and cyc0 is unaffected).
+- **FFE-CFVOL-MCF source** (merch +0.3 constant): FVS's FFE stem MCF comes from CFVOL (fmsvol.f:138), a different
+  volume routine than jl's merch_cuft_vol (= .sum R8-Clark merch). Matching it needs porting the FFE CFVOL merch
+  ⇒ DEFERRED (deep, a separate volume model).
+NET this session on FFE carbon: the missing FMSVL2 MAX(X,MCF) floor was a REAL bug (fixed, Above 9→3 tenths); the
+remaining ≤3-tenth residual is 2 deferred deep-model sub-parts, each traced to its FVS routine + verdict documented.
