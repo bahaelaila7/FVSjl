@@ -1811,3 +1811,17 @@ intercept (needs a live cratet DEBUG dump). This UNIFIES the volume ±1 with the
 class. Progression of this residual's verdict: sum-order → per-tree ULP (irreducible) → broken-top code path
 (fixable) → SK/SM normal-height dub → sp65 HT-DBH calibration intercept. Each step via re-trace; user's "same
 code path?" was the pivot. Correctly @test_broken; now cornered to the exact upstream op (the calibrated intercept).
+
+## Session 2026-07-05kk — volume ±1 verdict CORRECTED again: setup norm_ht resolution, NOT ht_dbh_aa
+Instrumented sp65 dub: ht_dbh_aa[65]=0.0, iabflg[65]=1 ⇒ jl does NOT take the Wykoff calibrated-intercept
+branch (prior verdict WRONG on mechanism). iabflg=1 ⇒ Curtis-Arney _htdbh_height. But _htdbh_height(sp65,
+d=14.52@2005)=70.51, NOT the observed norm_ht 67.70 ⇒ norm_ht is NOT recomputed at 2005; it is RESOLVED ONCE
+AT SETUP (1990, cratet.f) from the inventory dbh/measured height and stored (×100), then reused every cycle by
+cftopk. So the broken-top SK/SM cuft ±1 traces to the SETUP normal-height (NORMHT) resolution: jl norm_ht·.01
+= 67.70 vs FVS EstHt = 67.75 (0.05 ft), fixed across cycles. The exact 0.05 is in cratet.f's setup NORMHT dub
+(the ≥3-obs HT-DBH regression / Curtis-Arney at 1990 dbh, or the input-.tre height handling for broken-top
+records) — needs a 1990-setup jl-vs-live norm_ht compare (not 2005). FIXABLE (a setup height-resolution diff),
+NOT irreducible. Verdict chain for this residual (all via re-trace): sum-order → per-tree-ULP-irreducible →
+broken-top code path → 2005 normal-height → ht_dbh_aa intercept → SETUP NORMHT resolution. The mechanism keeps
+refining as instrumentation improves; each prior label was superseded, none were loosened. Correctly @test_broken;
+next concrete step = dump jl vs live norm_ht at the 1990 inventory for these SK/SM broken-top records.
