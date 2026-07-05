@@ -117,9 +117,11 @@ end
                 # growth is bit-exact (cycles 0-2 ==), but stand_top_height sums the largest-40 tree HEIGHTS,
                 # and the HTGF height model (transcendental exp/powers) leaves a few-ULP Float32 residual that
                 # is INERT in DBH/BA yet accumulates in the height sum → AVH → RELHTA=min(HT/AVH,1) → the
-                # VARMRT per-species kill → a ≤3-TPA drift late, amplified nonlinearly into ccf/cuft. Proven-ULP
+                # VARMRT per-species kill → a TPA drift late, amplified nonlinearly into ccf/cuft. Proven-ULP
                 # transcendental class (irreducible without bit-matching FVS's Float32 exp/power in HTGF).
-                @test abs(tpa   - L[1]) <= 3   # mortality drift from the height-transcendental AVH (proven)
+                # Bounds = the EXACT deterministic observed envelope (re-measured 2026-07-05: tpa max=2, ccf=3,
+                # topht=2, qmd=0.1) — not a loosened multiple.
+                @test abs(tpa   - L[1]) <= 2   # mortality drift from the height-transcendental AVH (was ≤3; measured max 2)
                 @test abs(ba    - L[2]) <= 1
                 @test abs(sdi   - L[3]) <= 1
                 # CCF tol widened 2→3: the gradd.f DENSE-before-CROWN fix (post-growth BA into the NE/CS crown
