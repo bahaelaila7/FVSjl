@@ -767,3 +767,15 @@ is near-bit-exact) keeps `≤1`: it hits a genuine Δ1 render knife-edge at 2005
 - **net01 per-tree .trl cuft**: jl 15.352517 (deterministic cyc-0) renders to the .trl's exact 1-dec 15.4 →
   rounded-render `==` (was atol 0.1, a full print unit; the .trl is 1-decimal, half-width 0.05, jl rounds to
   the field). dbs_cutlist ≤1.0 confirmed at the rendered-integer-vs-precise-sum floor (correct, not padded).
+
+## Session 2026-07-05 (cont.) — voleqnum/mortmsb SCuFt splits + keyword-test sweep closeout
+
+- **vol_eqnum**: MCuFt(10)+SCuFt(11) measured Δ0 → `==`; TCuFt(9) stays ≤1 (2020 knife-edge).
+- **mortmsb**: SCuFt(11) Δ0 → `==`; col9/col10 stay ≤1 (render knife-edge).
+- **Keyword-test volume sweep CLOSED**: batch-measured managed/spleave/setsite/cycleat/tfixarea/cuteff/
+  minharv/fertiliz/tcondmlt/voleqnum. spleave/cycleat/tfixarea are fully Δ0 and already assert `==`;
+  setsite/managed correctly assert `==` on their bit-exact cols + ≤1 on the genuine knife-edge (MCuFt).
+  All bit-exact cubic columns (SCuFt everywhere, MCuFt in most) are now `==`; the surviving ≤1 are the
+  genuine per-cycle TCuFt/BdFt render knife-edges (spclwt/vol_eqnum/mortmsb/cuteff hit Δ1 at a specific
+  cycle, verified). NOTE: test_managed does NOT assert BdFt (col 12) — measured Δ2 there, an UNCHECKED
+  column (not a tolerance), flagged for a future board-foot pass but out of scope for tolerance-closure.
