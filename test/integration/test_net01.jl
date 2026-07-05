@@ -277,7 +277,8 @@ end
     for (sp, si, want) in ((1, 52f0, 5.159f0), (3, 50f0, 4.591f0))
         ca = Float32(FVSjl._NE_ESSUBH_REFAGE[sp])
         hht = (FVSjl.ne_htcalc_height(sp, si, ca) / ca) * min(5f0, 10f0 - 0f0)
-        @test hht ≈ want atol = 0.002        # = live FVSne ESSUBH HHT (essubh.f), bit-exact
+        @test isapprox(hht, want; atol = 5f-4)   # PRINT-HALF-WIDTH: jl renders to the live FVSne ESSUBH HHT 3-dec
+                                                 # value (measured Δ≤3.7e-4 < the 5e-4 half-width of a 3-dec field; was atol 0.002, 4× padded)
     end
     @test FVSjl._NE_ESSUBH_REFAGE[1] == 20 && FVSjl._NE_ESSUBH_REFAGE[3] == 15   # essubh.f DATA MAPNE
     @test length(FVSjl._NE_ESSUBH_REFAGE) == 108

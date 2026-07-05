@@ -1020,3 +1020,12 @@ Measured the jl-internal rtol=1f-4 self-consistency identities:
 - **483 r30.removed vs r0.removed**: NOT exact (== failed) — the 2030 HWP report re-accumulates the FAPROP
   fate-decay curves in a slightly different Float32 order (measured Δ=2.4e-7 ≈ 1 Float32 ULP at ~3.36) →
   `atol 5f-7` (was rtol 1f-4, ~1400× padded). The `==`-then-test approach surfaced this one real residual.
+
+## Session 2026-07-05 (cont.) — SN fire flame/scorch + ESSUBH hht tightened
+
+- **test_fire flame/scorch** (SN fire_burn vs live 3-dec): flame Δ0.00240 → atol 0.003 (was 0.005); scorch
+  Δ0.01531 → atol 0.016 (was 0.03) — the 0.45·(byram/60)^0.46 and van-Wagner ^(7/6)/√ Float32 transcendentals
+  vs live's 3-decimal print, cornered to the exact deterministic residual (was ~2× padded).
+- **net01 ESSUBH hht** (was atol 0.002): jl renders to the live 3-dec HHT (5.159/4.591; measured Δ≤3.7e-4 <
+  5e-4 half-width) → atol 5f-4 print-half-width. NOTE: rendered-== failed here (want is a Float32 literal;
+  Float64(5.159f0)≠5.159) — the print-half-width isapprox is the correct form for a Float32-literal reference.
