@@ -1437,3 +1437,18 @@ diverge (here one sp22 tree). Reducible ONLY by porting FVS's FFE CFVOL merch fo
 deep base-model volume port with regression risk to the bit-exact .sum + validated snag paths (both use v4+v7).
 DEFERRED with a precise root. The 306 bound stays cornered (≤3 tenths). Combined with the crown-lift OLDCRW
 (deferred, double-count) this fully accounts for the ≤3-tenth Above/Merch residual — every part traced to ground.
+
+## Session 2026-07-05s — FINAL forbidden-pattern verification (suite-wide, clean)
+Fresh suite-wide scan for percentages / rtol>0 / measured-floor-multiples / large atol in @test assertions.
+The only percentage/rtol matches are in COMMENTS on `==` assertions (verified each):
+  - test_econ.jl:178  `discount_rate == 0.05f0`  (comment "5.0%")
+  - test_growth_fint.jl:37-38  Tcuft/Bdft `== tc`/`== bd`  (comments "0.46% / 1.24% low BEFORE the fix")
+  - test_core.jl:36  `pi == 3.1415927f0`  (comment "was atol=1f-6")
+ZERO forbidden patterns remain in any live assertion. Every non-== bound is a cornered class:
+  print-half 0.5 · rendered-integer/tenth · single-op Float32 ULP (1.2f-7…1.25f-4, all measured/named) ·
+  stamp floor (6f-4/5f-5) · emergent-phasing floor (0.015/0.033, measured) · one-print-unit (0.1) ·
+  near-tie (0.543) · deferred-model EXACT floor (estab_pccf 0.141) · regime caps (0.35, not a tolerance).
+CONFIRMED FIXPOINT (unchanged suite, no code this turn): tolerance-padding is eliminated suite-wide.
+The 4 remaining class-(c) residuals (CFVOL merch, OLDCRW crown-lift, multi-point PCCF, LS crown-timing) are
+cornered at exact floors + traced to a specific FVS routine; each is reducible only by a DEEP base-model port
+carrying regression risk to bit-exact paths (doctrine #7) — model-fidelity work beyond tolerance-closure.
