@@ -967,3 +967,11 @@ not mislabeled like event_monitor). lst01_ffe:143 (11.8 vs 12.0) + carbon:306 Me
   kpoint only (was a uniform ≤1 padding the 4). cols 4/7/8 already ==.
 - Confirmed GENUINE (not padded): compute col3 (jl vs compute_cycle.save Δ1 knife-edge), estab_pccf col5
   (Δ1 — the documented stand-average-CCF multi-point regen approximation), fixmort_kpoint col3.
+
+## Session 2026-07-05 (cont.) — two NE establishment scenarios found FULLY bit-exact
+
+- **net01 plant_hard** (PLANT diverse hardwoods): TREES/BA/SDI/CCF/TopHt all Δ0 at 2002/2012/2022 →
+  `rows[yr] == [...]`. Stale comments removed ("±1 drift by 2022", "~8% cyc-1 SDI/CCF residual").
+- **net01 plant_div** (PLANT diverse): all 5 cols × 3 cycles Δ0 → `rows[yr] == ex`. Stale "±1 ULP floor".
+Both whole establishment scenarios were bit-exact behind ≤1/±tol padding + stale residual narratives (a
+growth fix since the comments closed the residuals). Another instance of measuring dissolving the label.

@@ -610,13 +610,11 @@ end
             length(p) >= 7 && occursin(r"^(2002|2012|2022)$", p[1]) || continue
             rows[parse(Int, p[1])] = [parse(Int, p[i]) for i in 3:7]   # TREES BA SDI CCF TopHt
         end
-        # live FVSne — bit-exact (±1 ULP floor): TREES/BA/SDI/CCF/TopHt
+        # live FVSne — BIT-EXACT: TREES/BA/SDI/CCF/TopHt all Δ0 at every cycle (re-measured 2026-07-05; the
+        # prior "±1 ULP floor" was stale — this establishment scenario reproduces live exactly).
         for (yr, ex) in (2002 => [1600, 25, 90, 80, 16], 2012 => [1390, 117, 307, 316, 33],
                          2022 => [1071, 172, 401, 418, 49])
-            r = rows[yr]
-            for k in 1:5
-                @test abs(r[k] - ex[k]) <= 1
-            end
+            @test rows[yr] == ex   # BIT-EXACT (was ≤1 padding)
         end
     end
 end
