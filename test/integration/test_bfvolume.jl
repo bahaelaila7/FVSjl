@@ -45,9 +45,13 @@ _bvcol(r, c) = parse(Float64, r[c])
                 @test _bvcol(jl[i], 4) == _bvcol(ft[i], 4)    # BA  — BIT-EXACT
                 @test _bvcol(jl[i], 10) == _bvcol(ft[i], 10)  # merch cubic — BIT-EXACT
                 @test _bvcol(jl[i], 11) == _bvcol(ft[i], 11)  # sawtimber cubic — BIT-EXACT
-                @test abs(_bvcol(jl[i], 9) - _bvcol(ft[i], 9)) <= 1  # total cubic — BIT-EXACT bar a print-boundary ULP (≤1)
                 @test _bvcol(jl[i], 12) == _bvcol(ft[i], 12)  # board feet — BIT-EXACT (BFMAX fix)
             end
+            # total cubic renders within 1 of live on a knife-edge row — the residual is the non-associative
+            # Float32 TREE-SUM order (per-tree Clark cuft is FFI-identical to gfortran; interfacing it did not
+            # move this). NOT a portable primitive ⇒ EXPOSED as @test_broken vs full bit-exactness (doctrine #9),
+            # not a passing ≤1 hiding in green. Closes when the tree-sum accumulation order matches FVS.
+            @test_broken all(_bvcol(jl[i], 9) == _bvcol(ft[i], 9) for i in 1:length(jl))  # total cubic — tree-sum order
         end
     end
 end

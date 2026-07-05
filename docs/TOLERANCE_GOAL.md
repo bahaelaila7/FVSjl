@@ -46,6 +46,19 @@ WK3/DGSCOR sp33/65 tail) — and even those must carry a precise both-sides trac
    bite (no more "irreducible-ULP" fog masking real bugs like the QMDGE5 cap). Prove the premise first
    (bit-compare Julia `exp/log/pow` vs gfortran `expf/logf/powf` over the real input ranges); only wire
    the FFI for the ops that actually differ. Keep the companion minimal, documented, and variant-safe.
+9. **EXPOSE, DON'T HIDE — every non-bit-exact residual is `@test_broken`, never a green `tol>0`.** The
+   END STATE: the ONLY assertions that may remain `@test_broken` (or carry a residual) are ULPs cornered to
+   ONE fundamental, ISOLATED, PORTABLE, FVS-SEMANTICS-FREE numeric primitive — the eigensolver (EIGEN/Jacobi),
+   the COR / ARMA serial-correlation recurrence, or a transcendental (`exp`/`log`/`pow`) — i.e. irreducible
+   only because a low-level primitive rounds differently and we have not or cannot FFI it. EVERYTHING ELSE —
+   every semantic/logic/ordering difference — must be driven to BIT-EXACT (`==` or rendered-`==`). Crucially,
+   a PASSING `tol>0` assertion HIDES a non-bit-exact residual inside the green suite (a lie by omission). So
+   convert every surviving `tol>0` into a `@test_broken` with a bound TIGHTER than the current one — ideally
+   `@test_broken ==` / rendered-`==`, or `@test_broken all(rows bit-exact)` — so the residual is VISIBLE as
+   broken until it is actually closed. GREEN ⇔ bit-exact; BROKEN ⇔ a documented, cornered, still-open residual
+   (with its primitive named). No residual passes silently. Sum-order accumulations that are NOT one portable
+   primitive do NOT get a free pass — they become `@test_broken` too, until matched to FVS's loop order or
+   proven to reduce to a named primitive.
 
 ## Oracle & runner
 - Oracle = live Fortran per variant: `/tmp/FVS{sn,ne,cs,ls}_new` (relink from `bin/FVS*_buildDir/*.o`
