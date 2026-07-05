@@ -124,6 +124,16 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # coefficient is tiny (4.6e-5), so a bare/sparse stand (CCF≈0) is unchanged to print resolution.
     created = false
     nstart = t.n        # tree count before establishment (phase-2 crown pass starts here)
+    # IPTIDS (esplt2.f:77-131): the STOCKABLE inventory point indices, indexed by the estab outer loop
+    # (estab.f:313 `ITRE=IPTIDS[nn]`) — NOT the raw loop counter nn. A nonstockable plot (its `mort_code==8`
+    # ".tre" record is skipped in treeinput.jl:91) has NO stored tree, so it is absent from the overstory
+    # plot_ids; the stockable points are exactly the distinct plot_ids that DO carry a record. Using nn
+    # directly put regen on the nonstockable point and skipped a stockable one, reading the wrong
+    # `density.point_ccf[plot_id]` ⇒ the estab_pccf 7-tree crown residual (plant_stocked point 7 nonstockable).
+    # FALLBACK to nn when the count doesn't match NPTIDS (bare stands: no overstory ⇒ empty ⇒ identity nn),
+    # so every no-nonstockable-point scenario stays bit-exact.
+    iptids = sort(unique(Int(t.plot_id[i]) for i in 1:nstart))
+    use_iptids = length(iptids) == nptids
     # REGENT-LESTB's BALMOD competition uses the PRE-establishment density — the new seedlings do NOT compete
     # in their own creation cycle (live FVSne debug: GMOD=1.0 / AVH=0 for a BARE stand; the DENSE/BAL the cycle
     # uses predates the regen). Snapshot the BAL over the existing overstory (1:nstart) NOW, before any seedling
@@ -234,7 +244,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # the planted TPA spread evenly over NPTIDS points each point_ba comes back
                 # to the full stand BA — matching the oracle's pba=ba_v fallback (PTBAA≤0)
                 # for fresh establishment, for any NPTIDS (NPTIDS=1 ⇒ this is point 1).
-                t.plot_id[n]     = Int32(nn)
+                t.plot_id[n]     = use_iptids ? Int32(iptids[nn]) : Int32(nn)   # IPTIDS[nn] = nn-th STOCKABLE point
                 t.crown_pct[n]   = Int32(0)            # crown set in phase 2 (REGENT lestb)
                 t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)

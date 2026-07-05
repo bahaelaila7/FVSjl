@@ -1576,3 +1576,23 @@ exact measured max (0 at cyc0, ≤6 tenths grown), documented as crown-only (ste
 META: the 5-session "CFVOL two-merch-definition, needs deep port" verdict was WRONG — re-running the live stamp
 with the CYCLE and IT columns (not just VT) exposed the real cause (broken-top height) in one shot. The reducible
 "deferred" list for FFE carbon is now EMPTY; only the accepted crown-ratio-timing class remains.
+
+## Session 2026-07-05z — regen point-assignment BUG FIXED (estab_pccf 0.14→0.10) + agent's broken-top merch landed
+Two real bugs from this session's re-traces are now FIXED and on master:
+1. **FFE-carbon broken-top merch** (agent, commit a7ddeb2): NOT a CFVOL port — a broken-top HEIGHT difference in
+   the existing R8-Clark path (.sum computes MCF at NORMAL height + CFTOPK → 13.2; FFE at ACTUAL/broken height,
+   no CFTOPK → 11.2). `_ffe_stem_mcf` recomputes the FFE stem merch at actual height for Southern broken-top trees
+   only; carbon_ffe Merch now BIT-EXACT (bound 3→0 ==), carbon_snt 31/31 unchanged, suite 7667/2.
+2. **regen point-assignment** (establishment.jl): seedlings were placed on the raw loop index `nn` instead of
+   IPTIDS[nn] (the nn-th STOCKABLE point, esplt2.f:77-131 / estab.f:313). For plant_stocked (nonstockable point 7)
+   this seeded the nonstockable point and skipped stockable point 11 ⇒ wrong per-point PCCF ⇒ the estab_pccf
+   crown residual. FIX: `iptids = sort(unique(overstory plot_ids))` (the stockable points that carry a record;
+   nonstockable mort_code==8 records are skipped so their point is absent), `plot_id[n] = IPTIDS[nn]`, with a
+   fallback to nn when count≠NPTIDS (bare stands ⇒ identity ⇒ bit-exact). Regen distribution now == live
+   ([101-106,108-111], 5 each); mean crown 82.6→82.56. Suite 7667/2, all regen tests green (21/21, 7/7, 10/10).
+   RESIDUAL now 0.10 (5 crown-units/50) = a smaller SYSTEMATIC per-point PCCF-VALUE difference on points 105/106/109
+   (jl pccf slightly low ⇒ crown +1 there). Bound tightened 0.141→0.101. (A further density subtlety, not the
+   point-assignment; separate follow-up.)
+SESSION TALLY: the re-trace discipline turned FOUR "deferred/near-tie/reducible" verdicts into real FIXES or
+corrections — FFE stem-floor, FFE broken-top merch, regen point-assignment (all real bugs, fixed), + DKTIME/
+estab_pccf/OLDCRW/multi-point-PCCF verdict corrections. Suite 7667/2 throughout.
