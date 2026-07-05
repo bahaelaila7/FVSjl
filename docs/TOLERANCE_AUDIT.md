@@ -936,3 +936,16 @@ floors (doctrine: bound = exact irreducible width, not a loosened multiple):
   justification — MEASURED jl 257 == live 257 (Δ0, BIT-EXACT). The justification was FALSE → `== 257`.
 Two more "proven transcendental" bounds (event_monitor, cst01-tpa-half) dissolved to the exact floor / `==`
 under measurement — the recurring campaign lesson.
+
+## Session 2026-07-05 (cont.) — FFE carbon/fire bounds VERIFIED at exact floors (work-list #5)
+
+Re-measured the FFE fire-carbon report bounds (after event_monitor's false-transcendental catch, to confirm
+these aren't similarly mislabeled):
+- fire_carbon 2000: agl 19.2 (live 19.1, Δ0.1 genuine 1-print-step → atol 0.1), sd 20.1 (live 20.2, Δ0.1 →
+  atol 0.1), bgd 5.6/ddw 1.1/rel 5.5 all Δ0 (→ 0.05 half-width). CONFIRMED accurate (agl/sd genuinely
+  render to the ADJACENT 0.1-step, NOT bit-exact — atol=0.1 is the exact print-unit floor).
+- fire_carbon 2005: ddw 15.2 (live 14.8, Δ0.4 → atol 0.4), sd 2.6 (live 2.8, Δ0.2 → atol 0.25). CONFIRMED —
+  genuine multi-step fire snag-fall/consumption EMERGENT-PHASING residuals (the #28 class, constituent ops
+  proven faithful), bound = exact observed residual.
+These FFE bounds are correctly cornered to the emergent-phasing mechanism at their exact floors (verified,
+not mislabeled like event_monitor). lst01_ffe:143 (11.8 vs 12.0) + carbon:306 Merch (0.3,0.4] same class.
