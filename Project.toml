@@ -5,6 +5,7 @@ authors = ["BahaaEddin AlAila <bahaelaila7@gmail.com>"]
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"

@@ -24,6 +24,8 @@ using SQLite
 using DBInterface
 
 # --- core (order matters: parameters → rng/units/trees → variant → state) ----
+include("core/fmath.jl")                       # gfortran-identical exp/log/pow (doctrine #8)
+using .FMath: fexp, flog, fpow, fexp_julia, flog_julia, fpow_julia
 include("core/parameters.jl")
 include("core/rng.jl")
 include("core/units.jl")

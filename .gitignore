@@ -29,3 +29,4 @@ __DSNOUT__
 !examples/**/*.fvssn.sum
 # committed live-oracle golden sums for the all-species coverage tests
 !test/fixtures/**/*.live.sum
+deps/libfvsmath.*
