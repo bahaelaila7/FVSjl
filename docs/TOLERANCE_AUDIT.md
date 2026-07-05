@@ -1392,3 +1392,17 @@ Ran live FVSsn with DEBUG FMSNAG on carbon_snt. Findings that CLOSE the tractabl
 VERDICT: traced to ground — age, dkt, grand-total all proven faithful; the 0.23 is an irreducible per-record
 DKTIME-boundary near-tie on a bit-exact total. 728-731 bounds stay cornered at their exact floors (0.233/0.161/
 0.091). No cheap fix; deferred as record-level model-fidelity (record-alignment) work.
+
+## Session 2026-07-05q — UPSTREAM FIX: restored the FMSVL2 MAX(X,MCF) stem floor in ffe_live_carbon
+Applied the upstream-fix discipline to the FFE carbon Above/Merch residual (class-(c), was 9/3 tenths).
+Probed carbon_ffe per-cycle: jl was LOW at EVERY cycle INCLUDING cyc0 (above/merch −0.2 at 1990) ⇒ NOT a
+grown-cycle transcendental (would be 0 at cyc0) but a CONSTANT formula offset in the stem volume.
+ROOT CAUSE (re-trace caught a MISREAD): the old comment claimed "carbon-path X=−1 ⇒ MCF", but fmsvol.f:149-151
+(SN CASE) is `VOL2HT = MAX(X,MCF)` with `X = 0.005454154·H` (tiny-tree cone floor). ffe_live_carbon (carbon.jl:136)
+used bare `merch_cuft_vol` WITHOUT the MAX(X,·) floor ⇒ small-tree stems ran low every cycle. The SNAG path
+(mortality.jl:516) already had the floor; the live-carbon path had dropped it. FIXED: `max(0.005454154·h, mcf)·v2t`.
+RESULT: Aboveground residual 9→3 tenths (tightened the test bound). Suite 7667/2, no regression (carbon_snt LIVE
+pools stay bit-exact). REVEALED (doctrine #3, masked-bug) two smaller sub-parts now cornered at ≤3 tenths each:
+(a) FVS's FFE MCF (fmsvol.f CFVOL) is slightly larger than jl's merch_cuft_vol for small trees ⇒ the floor now
+OVER-corrects merch by ~+0.3 (a separate FFE-MCF-source difference); (b) the omitted OLDCRW crown-lift term
+(X·CROWNW). Both deferred model-detail; bounds cornered at exact measured floors. A genuine class-(c) improvement.

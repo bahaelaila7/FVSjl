@@ -302,12 +302,15 @@ end
             # Above (crown+stem) and Merch (stem) — the gross→merch fix brings them from ~9% high to ≤1% of
             # live. A small ≤1.0/≤0.5-ton residual remains (crown-biomass FMCROWE + NATCRS-MCF detail) — a
             # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
-            # Aboveground/Merch: a REAL model-detail residual (crown-biomass FMCROWE + NATCRS-MCF stem detail —
-            # a documented deferred follow-up, NOT a ULP). Both are 1-dec RENDERED report values, so state the
-            # EXACT measured max tenth-gap (deterministic): aboveground ≤9 tenths (0.9), merch ≤3 tenths (0.3).
-            # (Was ≤1.0/≤0.4 = 1.11×/1.33× pads; a bare ≤0.3 fails on the 0.3000…426 Float64 subtraction.)
-            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= 9   # Aboveground Total — crown-biomass residual (exact max)
-            @test abs(round(Int, mv[3]*10) - round(Int, fv[3]*10)) <= 3   # Merch — NATCRS-MCF stem-detail residual (exact max)
+            # Aboveground/Merch: after restoring the FMSVL2 MAX(X,MCF) stem floor (carbon.jl:136, fmsvol.f:150),
+            # Aboveground dropped from 9→3 tenths (the missing floor ran small-tree stems low at EVERY cycle).
+            # The residual is now the EXACT measured max tenth-gap (deterministic, both 1-dec RENDERED report vals):
+            # aboveground ≤3 tenths, merch ≤3 tenths. TWO remaining traced sub-parts (deferred model-detail, NOT
+            # ULP): (a) FVS's FFE MCF (fmsvol.f CFVOL) is slightly LARGER than jl's merch_cuft_vol for small trees,
+            # so the floor now OVER-corrects merch by ~+0.3 (a separate MCF-source difference, unmasked by the
+            # floor per doctrine #3); (b) the omitted OLDCRW crown-lift term (X·CROWNW, ~7e-4/yr) on Aboveground.
+            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= 3   # Aboveground Total — crown-lift + MCF-source (exact max)
+            @test abs(round(Int, mv[3]*10) - round(Int, fv[3]*10)) <= 3   # Merch — FFE-MCF-source over-floor (exact max)
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end

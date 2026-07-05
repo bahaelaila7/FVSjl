@@ -129,11 +129,13 @@ function ffe_live_carbon(s::StandState)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
-        # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF) with the
-        # carbon-path X=-1 ⇒ MCF, the MERCH cubic volume (fmsvol.f:123/148-151) — NOT gross/TCF. SN's MCF is the
-        # NATCRS merch cubic = the tree's `merch_cuft_vol` (v[4]+v[7], the same basis fmburn/fmsadd use), not just
-        # v[4]. jl previously used v[1] (gross) ⇒ FFE live carbon ~9% high on Above AND Merch (they share the stem).
-        stem = t.merch_cuft_vol[i] * v2t[sp]                          # MCF (v4+v7) × V2T = stem biomass (lb)
+        # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF)
+        # (fmsvol.f:149-151), where X = 0.005454154·H is the tiny-tree cone floor — NOT gross/TCF. SN's MCF is the
+        # NATCRS merch cubic = the tree's `merch_cuft_vol` (v[4]+v[7], the same basis fmburn/fmsadd use). The
+        # MAX(X,·) FLOOR was dropped here (the old "carbon-path X=-1" comment was a MISREAD of fmsvol.f) ⇒ small
+        # trees where X>MCF ran low (jl −0.2 on merch/above at EVERY cycle incl. cyc0). Restored to match FMSVL2
+        # and the snag path (mortality.jl:516, ffe_add_snaginit!). fmvinit V2T basis (lb/cuft) unchanged.
+        stem = max(0.005454154f0 * h, t.merch_cuft_vol[i]) * v2t[sp]  # MAX(X,MCF) × V2T = stem biomass (lb)
         above += t.tpa[i] * (crown + stem) * _FM_P2T                   # BIOLIVE = crown + stem, lb→tons
         merch += t.tpa[i] * stem * _FM_P2T                             # merch = stem only (FMSVL2·V2T/2000)
     end
