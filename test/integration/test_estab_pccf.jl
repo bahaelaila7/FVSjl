@@ -53,10 +53,13 @@ _pccf_base(path) = [split(l) for l in eachline(path)
         cr = [abs(Float64(s.trees.crown_pct[i]))
               for i in 1:s.trees.n if s.trees.species[i] == 13 && s.trees.dbh[i] < 4f0]
         @test length(cr) == 50                                       # the established regen cohort
-        # crown center: jl mean 82.6 vs live 82.46 (measured Δ0.14) — the DEFERRED crown-ratio residual (same
-        # class as the LS PERCOV / CS CCF crown-timing; regen crown_pct integers a few off vs live, NOT a ULP).
-        # Bound = the crown-ratio envelope (0.2 covers the version-range 0.02–0.14; was 0.5, a 3.5× loosening).
-        @test abs(mean(cr) - 82.46) <= 0.2                           # crown center — crown-ratio class (deferred), not ==/ULP
+        # crown center: jl mean 82.6 vs live 82.46 — the DEFERRED multi-point-PCCF residual (jl's regen crown
+        # uses the stand-AVERAGE CCF, single-point; FVS varies PCCF per inventory point). DETERMINISTIC: jl mean
+        # = 4130/50 = 82.6, live = 4123/50 = 82.46 ⇒ Δ = EXACTLY 7 crown-units/50 = 0.14 (regen crown_pct are
+        # integers, a few off vs live; NOT a ULP — a documented feature approximation). Bound = exact measured
+        # floor 0.141 (1.007×; the golden is a fixed literal, so the old 0.2 "version-range" pad and earlier 0.5
+        # were loosenings). Would collapse to == only by porting per-point PCCF density.
+        @test abs(mean(cr) - 82.46) <= 0.141                         # crown center — deferred multi-point-PCCF (exact floor)
         @test maximum(cr) <= 87                                       # capped near live's 86 (NOT the ~90 of PCCF=0)
     end
 end

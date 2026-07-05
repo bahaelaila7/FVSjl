@@ -1286,3 +1286,20 @@ Suite 7667/2, no regression.
   QMD→tenth-grid `<= 1`, TPA/BA→their EXACT measured (tpa_tol/ba_tol ∈ {0,1}; 0 ⇒ BIT-EXACT). 3 of 6 scenarios
   are now fully `==` (htgmult/mortmult/regdmult all Δ0).
 Suite 7667/2, no regression.
+
+## Session 2026-07-05k — verification pass (allspecies at exact maxima, @test_broken, single-bound files) + estab_pccf
+VERIFIED (re-probed, no change needed — genuine zero-find for these):
+- **test_allspecies.jl** — CS + SN_cov4 envelopes probed: EVERY column bound == the exact observed maximum
+  (CS tpa1/ccf4/topht1/tcuft21/mcuft20/scuft20/bdft464; SN_cov4 tpa2/sdi1/ccf1/tcuft3/mcuft3/scuft4/bdft54),
+  all relative components 0.0, cyc0 bit-exact. Zero padding.
+- **@test_broken** (work-list #6): nohtdreg WK3-DGSCOR — faithful end-to-end (1990 + 27/27 DG + COR + dead-dub
+  match live), post-1990 drift = the WK3 sp33/65 tail, same class as s22; both-sides traced. Verdict solid.
+- **sprout_table/mortmsb/fixmort/compute/tripling** — all already correctly cornered in prior work: bit-exact
+  cols == , genuine 1-step print flips ≤1 (documented with the exact flipping cycle); fixmort already
+  stem-conditional, mortmsb col11 already split to ==.
+TIGHTENED:
+- **test_estab_pccf.jl:59** — mean(cr) `<= 0.2` "covers version-range 0.02–0.14" was a range-pad on a FIXED
+  golden. Probed: jl mean = 4130/50 = 82.6, live 82.46 ⇒ Δ = EXACTLY 0.14 (7 crown-units/50, deterministic).
+  Tightened to 0.141 (1.007×, exact floor). The deferred multi-point-PCCF feature (single-point stand-avg CCF
+  vs FVS per-point PCCF); collapses to == only by porting per-point density.
+Suite 7667/2, no regression.
