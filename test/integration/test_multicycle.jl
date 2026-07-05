@@ -65,8 +65,8 @@ end
                     @test trunc(Int, mba + 0.5) == trunc(Int, ba + 0.5)     # BA — rendered-integer BIT-EXACT
                     @test isapprox(mtpa, tpa; atol = tT, rtol = rT)
                     @test trunc(Int, msdi + 0.5) == trunc(Int, sdi + 0.5)   # SDI — rendered-integer BIT-EXACT
-                    @test isapprox(mqmd, qmd; atol = tQ)
-                    @test isapprox(mtcuft, tcuft; atol = tC, rtol = rC)
+                    @test round(Float64(mqmd); digits = 1) == qmd   # QMD — rendered 1-dec BIT-EXACT (measured Δ=7.6e-7 Float32 repr; was atol=0.1)
+                    @test isapprox(mtcuft, tcuft; atol = tC, rtol = rC)   # cuft — float knife-edge (di-Δ reaches 1)
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
                 end
             end

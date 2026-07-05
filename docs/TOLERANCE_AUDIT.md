@@ -995,3 +995,11 @@ golden for BA (max di-Δ=0) and SDI (max di-Δ=0) every scenario/cycle → conve
 `==` (trunc(Int, m+0.5) == trunc(Int, golden+0.5)) — the doctrine's preferred FORMATTED-output match,
 STRONGER than the old atol=1.0 float bound. TPA keeps the float knife-edge (di-Δ can reach 1 where the
 per-acre value straddles the +0.5 boundary via the growth-transcendental). tQ (QMD 0.1) / tC (cuft) unchanged.
+
+## Session 2026-07-05 (cont.) — multicycle QMD → rendered ==; cuft/TPA proven knife-edge
+
+- **QMD** (was atol=0.1): measured round(Float64(jl);digits=1) == golden (Δ=7.6e-7 = Float32 repr of the
+  1-decimal value) → rendered-1-decimal `==`.
+- **cuft** (tC=1.0) + **TPA** (tT=1.0): measured di-Δ reaches 1 (per-acre value straddles the +0.5 render
+  boundary via the growth-transcendental) — genuine float knife-edge, kept. multicycle now: BA/SDI/QMD
+  rendered-bit-exact, TPA/cuft proven print-knife-edge.
