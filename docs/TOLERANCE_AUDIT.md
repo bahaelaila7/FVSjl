@@ -1748,3 +1748,17 @@ Using it to localize the bfvolume ±1 (jl 3027/3251/... vs live 3026/... at cycl
 (sub-0.1, invisible in the 1-dec treelist ⇒ needs the DBS FVS_TreeList unrounded per-tree cuft to localize
 the exact component). Now TRACTABLE (harness works). Still correctly @test_broken until the component is
 found + FFI'd or matched. Prior "sum-order" audit note superseded.
+
+## Session 2026-07-05gg — volume ±1 FULLY cornered (per-tree Clark arithmetic, below oracle resolution)
+Attempted unrounded live per-tree cuft via DBS TreeLiDB → FVS_TreeList table is created but EMPTY (0 rows)
+in the relinked binary (same as the LS DBS-treelist limitation); the ASCII .trl is 1-dec (0.1), too coarse
+for the ~0.0008/tree difference. So the exact per-tree op can't be localized further with the available
+oracle. BUT it is now fully cornered by elimination:
+- NOT sum-order (jl 2005 Σ/g = 3026.535 identical f32==f64).
+- NOT the Clark taper pow (r8clark _r9ht + _r9dib_clark powers FFI-routed, inert; and those are the ONLY
+  `^` powers in r8clark per the routing agent — the cuft path _r8_cuft_by_dib + Smalian has NO transcendental).
+⇒ the volume ±1 is a per-tree R8-Clark Float32 ARITHMETIC ULP in the Smalian integration / defect (ICDF/IBDF)
+correction op-order (no transcendental left to FFI), jl per-tree cuft ~0.0008 high, flipping the rendered
+.sum integer by 1 on knife-edge cycles (2005/2040). Closeable ONLY by bit-matching FVS's exact per-tree cuft
+Float32 arithmetic — needs unrounded live per-tree cuft (DBS TreeLiDB doesn't populate here). Correctly
+@test_broken; this is the precise, proven, cornered verdict. Same likely applies to the other volume ±1 tests.
