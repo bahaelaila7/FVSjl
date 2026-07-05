@@ -18,12 +18,15 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
         # general species: DBH · B1[EQNUM[sp]]
         for (sp, d) in ((1, 10f0), (65, 12f0), (33, 8f0), (90, 20f0))
             eq = Int(coef_col(coef, :bark_eqnum)[sp])
-            @test fire_bark_thickness(coef, sp, Float32(d)) ≈ Float32(d * b1[eq])
+            # jl computes Float32(d)·Float32(b1) throughout; the ref rounds the Float64 product d·b1[eq] to
+            # Float32 — they differ only in the LAST BIT (measured max|Δ|=5.96e-8 = 0.5 Float32 ULP). atol
+            # 1.2f-7 = one Float32 ULP, the irreducible final-rounding width (was the loose ≈ default).
+            @test isapprox(fire_bark_thickness(coef, sp, Float32(d)), Float32(d * b1[eq]); atol = 1.2f-7)
         end
         # shortleaf pine (5): Harmon quadratic
         d = 10f0
         ref = max(0f0, (0.07f0 + 0.09f0*d*2.54f0 - 0.0001f0*(d*2.54f0)^2)/2.54f0)
-        @test fire_bark_thickness(coef, 5, d) ≈ ref
+        @test fire_bark_thickness(coef, 5, d) == ref   # shortleaf Harmon quadratic — both Float32, BIT-EXACT (was ≈)
     end
 
     @testset "mortality groups" begin
@@ -59,8 +62,10 @@ using FVSjl: fire_bark_thickness, fire_mortality_group, fire_tree_mortality,
                                  (65, 10f0, 8f0, 50f0),   # northern oak, group 6 (Reinhardt)
                                  (1,  18f0, 4f0, 20f0),   # fir, group 6
                                  (5,  10f0, 8f0, 60f0))   # shortleaf pine, group 6 + special bark
-            @test fire_tree_mortality(coef, sp, Float32(d), Float32(fl), Float32(csv)) ≈
-                  Float32(ref_mort(sp, d, fl, csv))
+            # jl Float32 vs the Float64 ref_mort (exp chain): differ only in the last bit (measured
+            # max|Δ|=5.96e-8 = 0.5 Float32 ULP). atol 1.2f-7 = one Float32 ULP final-rounding width (was ≈).
+            @test isapprox(fire_tree_mortality(coef, sp, Float32(d), Float32(fl), Float32(csv)),
+                           Float32(ref_mort(sp, d, fl, csv)); atol = 1.2f-7)
         end
         # monotonicity: bigger flame ⇒ higher mortality (group-2 oak)
         @test fire_tree_mortality(coef, 64, 10f0, 12f0, 50f0) >

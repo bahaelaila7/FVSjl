@@ -28,7 +28,7 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
 
     @testset "small-snag linear fall" begin
         for (sp, d) in ((5, 8f0), (65, 8f0), (33, 6f0))
-            @test snag_fall_density(coef, sp, d, 100f0, 100f0) ≈ Float32(ref_fall(sp, Float64(d), 100, 100))
+            @test isapprox(snag_fall_density(coef, sp, d, 100f0, 100f0), Float32(ref_fall(sp, Float64(d), 100, 100)); atol = 2f-6)   # jl F32 vs F64 ref_fall: few-ULP piecewise-formula rounding (measured max 1.9e-6)
         end
         # fast-falling pine (snag class 1) falls more than average-class oak
         @test snag_fall_density(coef, 5, 8f0, 100f0, 100f0) > snag_fall_density(coef, 65, 8f0, 100f0, 100f0)
@@ -38,12 +38,12 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
 
     @testset "large-snag last-5% logic" begin
         # a large oak snag (≥12") uses the ALLDWN ramp
-        @test snag_fall_density(coef, 65, 16f0, 100f0, 100f0) ≈ Float32(ref_fall(65, 16.0, 100, 100))
+        @test isapprox(snag_fall_density(coef, 65, 16f0, 100f0, 100f0), Float32(ref_fall(65, 16.0, 100, 100)); atol = 2f-6)   # jl F32 vs F64 ref_fall: few-ULP piecewise-formula rounding (measured max 1.9e-6)
         # redcedar (sp 2) keeps the last-5% logic even when small
-        @test snag_fall_density(coef, 2, 8f0, 100f0, 100f0) ≈ Float32(ref_fall(2, 8.0, 100, 100))
+        @test isapprox(snag_fall_density(coef, 2, 8f0, 100f0, 100f0), Float32(ref_fall(2, 8.0, 100, 100)); atol = 2f-6)   # jl F32 vs F64 ref_fall: few-ULP piecewise-formula rounding (measured max 1.9e-6)
         # at/below 5% remaining, the final fall rate clears the remainder
         f = snag_fall_density(coef, 65, 16f0, 100f0, 4f0)
-        @test f ≈ Float32(ref_fall(65, 16.0, 100, 4))
+        @test isapprox(f, Float32(ref_fall(65, 16.0, 100, 4)); atol = 2f-6)   # jl F32 vs F64 ref_fall: few-ULP piecewise-formula rounding (measured max 1.9e-6)
         @test f >= 0f0
     end
 

@@ -848,3 +848,15 @@ identity look inexact — measure with the ACTUAL test setup. Suite green.
   differently Float32-throughout vs Float64-then-round — measured max|Δ|=3.8e-6 (≈2 Float32 ULP at ~17.6) →
   `atol 5f-6` cornered to that transcendental floor (was the loose ≈ default rtol≈3.4e-4). OPEN: fire_bark_
   thickness/fire_tree_mortality + snag_fall_density (same Float32-vs-Float64-ref class) — next pass.
+
+## Session 2026-07-05 (cont.) — fire_effects bark/mortality + snag_fall cornered to Float32-ULP
+
+The `≈ Float32(ref(...))` class = jl-Float32 vs a Float64 reference; measured each:
+- **fire_bark_thickness (general)** + **fire_tree_mortality**: differ only in the LAST BIT (measured
+  max|Δ|=5.96e-8 = 0.5 Float32 ULP — the final Float32 rounding of the Float64 product/exp-chain) →
+  `atol 1.2f-7` (one Float32 ULP).
+- **fire_bark_thickness (sp5 Harmon quadratic)**: both Float32 → BIT-EXACT `==`.
+- **snag_fall_density** (4 cases): piecewise formula + division → few-ULP (measured max|Δ|=1.9e-6 ≈ 3 ULP at
+  value ~6) → `atol 2f-6`.
+All were the loose `≈` default (rtol≈3.4e-4, ~1000× wider). OPEN: 4 snag_standing_density conservation/
+computed self-consistency `≈` (64/74/113/130) — next pass.
