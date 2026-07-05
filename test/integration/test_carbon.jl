@@ -113,8 +113,8 @@ end
             FVSjl.compute_density!(s)
             r = FVSjl.stand_carbon_report(s)
             # forest floor + below-dead (dead coarse roots, BIOROOT) reconcile at print resolution
-            @test abs(r.forest_floor     - parse(Float64, f[8])) <= 0.04   # litterfall growth-tail (measured max Δ0.034; was 0.06)
-            @test abs(r.belowground_dead - parse(Float64, f[5])) <= 0.048  # dead coarse roots BIOROOT (measured max Δ0.047; was 0.05)
+            @test round(Float64(r.forest_floor),     digits=1) == parse(Float64, f[8])  # Floor RENDERED-== (measured Δ≤0.034<0.05; was atol 0.04)
+            @test round(Float64(r.belowground_dead), digits=1) == parse(Float64, f[5])  # BGDead RENDERED-== (measured Δ≤0.047<0.05; was atol 0.048)
             # DDW: BIT-EXACT all cycles (before AND after mortality). The former post-mortality dead-pool
             # crown-lift-timing gap is CLOSED (FFE snag-dynamics + crown small-tree merch-bole fixes).
             @test round(Float64(r.down_wood), digits=1) == parse(Float64, f[7])   # DDW — RENDERED-== all cycles
@@ -302,8 +302,12 @@ end
             # Above (crown+stem) and Merch (stem) — the gross→merch fix brings them from ~9% high to ≤1% of
             # live. A small ≤1.0/≤0.5-ton residual remains (crown-biomass FMCROWE + NATCRS-MCF detail) — a
             # smaller separate follow-up, NOT the gross-vs-merch GAP this fix closes.
-            @test abs(mv[2] - fv[2]) <= 1.0    # Aboveground Total (was ~+4 with gross v[1])
-            @test abs(mv[3] - fv[3]) <= 0.4    # Merch — floor is (0.3,0.4] (the "0.3" comment was stale; 0.3 fails); NATCRS-MCF stem-detail residual
+            # Aboveground/Merch: a REAL model-detail residual (crown-biomass FMCROWE + NATCRS-MCF stem detail —
+            # a documented deferred follow-up, NOT a ULP). Both are 1-dec RENDERED report values, so state the
+            # EXACT measured max tenth-gap (deterministic): aboveground ≤9 tenths (0.9), merch ≤3 tenths (0.3).
+            # (Was ≤1.0/≤0.4 = 1.11×/1.33× pads; a bare ≤0.3 fails on the 0.3000…426 Float64 subtraction.)
+            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= 9   # Aboveground Total — crown-biomass residual (exact max)
+            @test abs(round(Int, mv[3]*10) - round(Int, fv[3]*10)) <= 3   # Merch — NATCRS-MCF stem-detail residual (exact max)
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end

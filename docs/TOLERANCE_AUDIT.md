@@ -1303,3 +1303,15 @@ TIGHTENED:
   Tightened to 0.141 (1.007×, exact floor). The deferred multi-point-PCCF feature (single-point stand-avg CCF
   vs FVS per-point PCCF); collapses to == only by porting per-point density.
 Suite 7667/2, no regression.
+
+## Session 2026-07-05l — test_carbon final cluster: 2 rendered-== + 2 exact tenth-gaps
+Probed the last non-== test_carbon float bounds:
+- **116 forest_floor / 117 belowground_dead** — full-precision vs 1-dec report; measured max Δ 0.034 / 0.047,
+  BOTH < the 0.05 print half-width ⇒ round(jl,1)==f holds → RENDERED-== (was atol 0.04 / 0.048, 1.18× / 1.02×).
+- **305/306 Aboveground / Merch** (carbon_ffe) — PROBED exact maxima: aboveground 0.9, merch 0.30000…426. These
+  are a REAL model-detail residual (crown-biomass FMCROWE + NATCRS-MCF stem detail, documented deferred follow-up,
+  NOT a ULP), rendered to 1-dec. Stated as EXACT tenth-gaps ≤9 / ≤3 (was ≤1.0 / ≤0.4 = 1.11× / 1.33× pads; a bare
+  ≤0.3 fails on the Float64 subtraction 0.3000…426).
+Suite 7667/2, no regression. Remaining test_carbon non-==: 117-style done; the emergent-phasing floors (236/650
+≤0.033 measured 0.032; agl/sd 811/813 ≤0.1 one-print-unit fire-kill flip; DKTIME split 728-731 exact) + the FAPROP
+1-ULP (483) — all cornered to exact measured floors / documented mechanisms.
