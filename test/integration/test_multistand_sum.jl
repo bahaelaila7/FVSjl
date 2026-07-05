@@ -35,17 +35,16 @@ _mss_rows(txt) = [split(l) for l in split(txt, "\n")
 
         if length(jl) == 55 && length(ft) == 55
             tpa(r) = parse(Float64, r[3]); ba(r) = parse(Float64, r[4]); cuft(r) = parse(Float64, r[9])
-            # stands 1 (unthinned) and 3 (THINPRSC, inherits cross-stand state) must
-            # track Fortran every cycle to within the single-precision tail.
-            # tpa/ba within 1; cuft ≤8 = the PROVEN height-transcendental floor amplified into volume over
-            # the full multi-cycle run (docs/TOLERANCE_AUDIT.md): DBH/BA growth faithful, but the HTGF height
-            # sub-ULP accumulates in stand_top_height → AVH → RELHTA → VARMRT kill → a small TPA drift whose
-            # nonlinear cuft amplification reaches ~8 by the final cycles. Proven-ULP transcendental class.
+            # stands 1 (unthinned) and 3 (THINPRSC, inherits cross-stand state) — snt01 is the canonical
+            # BIT-EXACT scenario, so TPA and BA are BIT-EXACT every cycle (measured Δ0), and cuft is bit-exact
+            # bar a SINGLE render knife-edge at 2005 (jl 3027 / live 3026, the per-acre cubic straddling the
+            # +0.5 integer boundary). The old "cuft ≤8 height-transcendental amplified to ~8" claim was FALSE
+            # for snt01 (measured max Δ=1, not 8 — a stale bound copied from a drifting-scenario class).
             for st in (1, 3), c in 1:11
                 i = (st - 1) * 11 + c
-                @test abs(tpa(jl[i])  - tpa(ft[i]))  <= 1   # height-transcendental mortality drift (proven)
-                @test abs(ba(jl[i])   - ba(ft[i]))   <= 1
-                @test abs(cuft(jl[i]) - cuft(ft[i])) <= 8   # nonlinear volume amplification of the above
+                @test tpa(jl[i]) == tpa(ft[i])              # TPA — BIT-EXACT (was ≤1 padding)
+                @test ba(jl[i])  == ba(ft[i])              # BA  — BIT-EXACT (was ≤1 padding)
+                @test abs(cuft(jl[i]) - cuft(ft[i])) <= 1   # cuft — render knife-edge (2005 3027/3026; was ≤8)
             end
             # stand 2 is thinned (IF/THEN THINDBH at 2000/2015/2030) — it must show a
             # sharp thinning drop (>20% in one cycle, far above ~5-15% self-mortality),
