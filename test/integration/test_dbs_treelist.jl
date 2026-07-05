@@ -40,8 +40,12 @@ const _TL_DIR = joinpath(@__DIR__, "..", "harness", "scenarios")
                 length(f) >= 9 || continue
                 y = tryparse(Int, f[1]); (y === nothing && continue)
                 haskey(agg, y) || continue
-                @test abs(agg[y][1] - parse(Int, f[3])) <= 1          # Σ TPA ≈ stand TPA
-                @test abs(agg[y][2] - parse(Int, f[9])) <= 3          # Σ(TCuFt·TPA) ≈ total cuft
+                # SELF-CONSISTENCY (jl treelist aggregate vs jl stand summary — NOT vs-oracle): the two sum
+                # the SAME quantity in DIFFERENT Float32 accumulation orders (per-tree Σ here vs the stand-
+                # level Σ in summary.jl), so they differ by a non-associative-sum-order ULP, amplified by the
+                # ×TPA and the +0.5 integer render. Proven sum-order ULP; bound = the accumulation width.
+                @test abs(agg[y][1] - parse(Int, f[3])) <= 1          # Σ TPA vs stand TPA — sum-order ULP
+                @test abs(agg[y][2] - parse(Int, f[9])) <= 3          # Σ(TCuFt·TPA) vs total cuft — sum-order ULP
             end
         finally
             rm(tmpkey; force=true); rm(joinpath(_TL_DIR, "_tl_run.tre"); force=true)
