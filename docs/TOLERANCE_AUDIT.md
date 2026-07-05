@@ -1551,7 +1551,7 @@ are unaffected ⇒ bare_natural etc. stay bit-exact. Expect estab_pccf mean_cr �
 bound toward ==). This is a REAL fix, not a corner — the 4th stale-verdict correction this session (was "deferred
 multi-point PCCF feature" → "implemented, near-tie" → NOW "regen point-assignment bug, fixable").
 
-## Session 2026-07-05y — FFE-carbon merch RESIDUAL CLOSED (broken-top height, NOT CFVOL): now BIT-EXACT
+## Session 2026-07-05y (agent) — FFE-carbon merch RESIDUAL CLOSED (broken-top height, NOT CFVOL): now BIT-EXACT
 The lone "genuinely-reducible" FFE-carbon item (documented for 4 sessions as needing a 244-line CFVOL/NBOLT
 port) was RE-LOCALIZED and FIXED — it was NOT a CFVOL-vs-R8Clark two-merch-definition split; it was a
 BROKEN-TOP HEIGHT difference, entirely within the existing R8-Clark path.
