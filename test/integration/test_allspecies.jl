@@ -40,19 +40,32 @@ end
 #
 #   • NE and LS coverage are 100% BIT-EXACT vs the live binary on EVERY column, cycle and species
 #     (max|Δ| = 0 everywhere) — so their grown-cycle bound is 0 = `==`, same as cyc0.
-#   • SN and CS are bit-exact on BA (and SN on TopHt) but carry a small multi-species growth tail on
-#     the density/volume columns. That tail is the ACCEPTED, DOCUMENTED aggregate DGSCOR + tripling
-#     class (the same family as test_timeint's cuft tail and the sp33/65 WK3 @test_broken): a 90/96-
-#     species synthetic stand accumulates each species' sub-ULP per-cycle DBH-growth + tripling-spread
-#     residual into the nonlinear density/volume sums. Bounds = the observed envelope (absolute; the
-#     runs are deterministic), NOT a loosened percentage. CS's board feet carry the largest envelope
-#     (0.95% of a large per-acre Scribner sum) because board is the most nonlinear column.
+#   • SN is bit-exact on BA/TopHt, and — measured per coverage file (2026-07-05) — NEAR-BIT-EXACT on
+#     ALL columns for sn_cov0..3 (max|Δ|=0 bar a ≤1 tcuft/mcuft print-knife-edge). ONLY sn_cov4 carries
+#     the accumulated DGSCOR + tripling tail (its coverage group holds the WK3-calibrated sp33/65-family
+#     species — the same class as the @test_broken). So the wide envelope applies ONLY to cov4; cov0..3
+#     use a near-exact bound. A uniform loose SN bound would MASK the bit-exactness of four files (rule #4).
+#   • CS is bit-exact on BA/SDI but is a SINGLE unpartitioned 96-species stand, so it accumulates every
+#     species' sub-ULP per-cycle DBH-growth + tripling-spread residual into the nonlinear density/volume
+#     sums — the ACCEPTED, DOCUMENTED aggregate DGSCOR + tripling class (same family as test_timeint's
+#     cuft tail and the sp33/65 WK3 @test_broken). Bounds = the observed DETERMINISTIC envelope (absolute,
+#     not a loosened percentage). CS board feet carry the largest (0.95% of a big per-acre Scribner sum)
+#     because board is the most nonlinear column; it cannot be isolated further (one stand, no sub-covers).
 const _ALLSP_TOL_BITEXACT = (tpa=(0,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(0,0.0), topht=(0,0.0),
                              qmd=(0.0,0.0), tcuft=(0,0.0), mcuft=(0,0.0), scuft=(0,0.0), bdft=(0,0.0))
 const _ALLSP_TOL_NE = _ALLSP_TOL_BITEXACT
 const _ALLSP_TOL_LS = _ALLSP_TOL_BITEXACT
-const _ALLSP_TOL_SN = (tpa=(2,0.0), ba=(0,0.0), sdi=(1,0.0), ccf=(1,0.0), topht=(0,0.0),
+# SN is NOT a single envelope: measured per-coverage-file (2026-07-05), sn_cov0..3 are NEAR-BIT-EXACT
+# (max|Δ| = 0 on every stand+volume column bar a single ≤1 tcuft/mcuft print-knife-edge), and ONLY
+# sn_cov4 carries the accumulated DGSCOR + tripling tail (that coverage group holds the WK3-calibrated
+# sp33/65-family species — the same class as the @test_broken). So cov0..3 get the near-exact bound
+# (== + print-knife-edge) and the wide envelope applies ONLY to cov4 — a uniform loose bound across all
+# five would MASK the bit-exactness of four of them (doctrine #4).
+const _ALLSP_TOL_SN_NEAREXACT = (tpa=(0,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(0,0.0), topht=(0,0.0),
+                       qmd=(0.0,0.0), tcuft=(1,0.0), mcuft=(1,0.0), scuft=(0,0.0), bdft=(0,0.0))
+const _ALLSP_TOL_SN_DGSCOR = (tpa=(2,0.0), ba=(0,0.0), sdi=(1,0.0), ccf=(1,0.0), topht=(0,0.0),
                        qmd=(0.1,0.0), tcuft=(3,0.0), mcuft=(3,0.0), scuft=(4,0.0), bdft=(54,0.0))
+const _ALLSP_TOL_SN = _ALLSP_TOL_SN_DGSCOR   # back-compat alias (fallback)
 const _ALLSP_TOL_CS = (tpa=(1,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(4,0.0), topht=(1,0.0),
                        qmd=(0.1,0.0), tcuft=(21,0.0), mcuft=(20,0.0), scuft=(20,0.0), bdft=(464,0.0))
 const _ALLSP_TOL_DEFAULT = _ALLSP_TOL_CS   # CS is the widest-envelope variant (kept as the fallback)
@@ -123,7 +136,9 @@ end
             for j in 0:9
                 isfile("sn_cov$(j).key") || continue
                 jl = FVSjl.run_keyfile("sn_cov$(j).key"; variant = Southern(), output = :sum)
-                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "sn_cov$(j).live.sum"); label = "SN-cov$j", tol = _ALLSP_TOL_SN)
+                # cov0..3 are near-bit-exact; only cov4 (the WK3/DGSCOR-tail species group) needs the envelope.
+                tol = j >= 4 ? _ALLSP_TOL_SN_DGSCOR : _ALLSP_TOL_SN_NEAREXACT
+                _assert_allspecies(jl, joinpath(_ALLSP_DIR, "sn_cov$(j).live.sum"); label = "SN-cov$j", tol = tol)
             end
         end
     end
