@@ -1003,3 +1003,9 @@ per-acre value straddles the +0.5 boundary via the growth-transcendental). tQ (Q
 - **cuft** (tC=1.0) + **TPA** (tT=1.0): measured di-Δ reaches 1 (per-acre value straddles the +0.5 render
   boundary via the growth-transcendental) — genuine float knife-edge, kept. multicycle now: BA/SDI/QMD
   rendered-bit-exact, TPA/cuft proven print-knife-edge.
+
+## Session 2026-07-05 (cont.) — lst01_ffe 2003 BA → == (stale ±1 comment)
+
+test_lst01_ffe pre-fire 2003 BA: bound was `≤1` with a "live 104, jl 105" comment. Re-measured jl BA=104
+== live 104 (Δ0) — the SIGMAR tripling-spread fix made it bit-exact; the "jl 105" comment was STALE. → `==`.
+(flame/scorch stay cornered to the PERCOV-crown-timing floor; carb 2003 = emergent snag phasing, verified.)

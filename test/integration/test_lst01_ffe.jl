@@ -87,10 +87,10 @@ using FVSjl
             f = split(l)
             rows[parse(Int, f[1])] = [parse(Int, f[3]), parse(Int, f[4]), parse(Int, f[5])]
         end
-        # pre-fire (2003): TPA bit-exact vs live 524; BA within Δ1 (live 104, jl 105 —
-        # the faithful per-species SIGMAR tripling spread, blkdat.f DATA SIGMAR).
-        @test rows[2003][1] == 524            # TPA (bit-exact)
-        @test abs(rows[2003][2] - 104) <= 1   # BA  (live 104, jl 105)
+        # pre-fire (2003): TPA and BA BOTH bit-exact vs live (re-measured 2026-07-05: TPA 524, BA 104 == live;
+        # the prior "jl 105 / Δ1" comment was STALE — the per-species SIGMAR tripling-spread fix made it exact).
+        @test rows[2003][1] == 524            # TPA — BIT-EXACT
+        @test rows[2003][2] == 104            # BA  — BIT-EXACT (was ≤1 padding; measured Δ0)
         # post-fire (2013/2023): the fire lands 2003→2013; now BIT-EXACT vs live after fixing the
         # LS white-pine (sp5) fire bark — the shortleaf-pine Harmon quadratic was wrongly applied to
         # LS/NE sp5 (only SN sp5 / CS sp3 are shortleaf); LS sp5 = white pine, EQNUM 24 → B1 .045.
