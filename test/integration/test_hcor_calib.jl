@@ -31,7 +31,7 @@ _hcor_rows(txt) = [split(l) for l in split(txt, "\n")
         # (1) the calibration regression value, bit-exact to Fortran
         s, _ = FVSjl.initialize(_HCOR_KEY)
         FVSjl.notre!(s); FVSjl.setup_growth!(s)
-        @test isapprox(s.calib.htg_cor_init[22], -0.893823f0; atol = 1f-4)
+        @test isapprox(s.calib.htg_cor_init[22], -0.893823f0; atol = 2f-7)   # Float32-ULP: measured Δ=0 vs the 6-dec live stamp (was 1f-4, ~1000× padded)
         @test count(!=(0f0), s.calib.htg_cor_init) == 1   # only SM clears NCALHT(5)
 
         # (2) end-to-end: HCOR attenuation is applied correctly in small-tree growth.

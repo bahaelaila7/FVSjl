@@ -184,9 +184,11 @@ using FVSjl: econ_present_value, econ_pnv, econ_bc_ratio, econ_rate_of_return,
         # econ_strtecon.key). At the old hardcoded 4% jl gave 13.8897 — would NOT have matched.
         ec = FVSjl.EconState(); ec.active = true; ec.base_year = Int32(1990); ec.ann_cost = 3f0
         ec.discount_rate = 0.05f0
-        @test FVSjl.econ_stand_pnv(ec, 1995).disc_cost ≈ 13.6379f0 atol = 1f-3
-        @test FVSjl.econ_stand_pnv(ec, 2000).disc_cost ≈ 24.3235f0 atol = 1f-3
-        @test FVSjl.econ_stand_pnv(ec, 2005).disc_cost ≈ 32.6959f0 atol = 1f-3
+        # PRINT-HALF-WIDTH: jl rounds to the live 4-decimal FVS_EconSummary stamp (measured |Δ| ≤ 4.86e-5
+        # < the 5e-5 half-width of a 4-dec field), so it renders identically. atol 5f-5 (was 1f-3, ~20× padded).
+        @test FVSjl.econ_stand_pnv(ec, 1995).disc_cost ≈ 13.6379f0 atol = 5f-5
+        @test FVSjl.econ_stand_pnv(ec, 2000).disc_cost ≈ 24.3235f0 atol = 5f-5
+        @test FVSjl.econ_stand_pnv(ec, 2005).disc_cost ≈ 32.6959f0 atol = 5f-5
     end
 
     @testset "log-graded HRVRVN revenue → FVS_EconHarvestValue (echarv.f)" begin
