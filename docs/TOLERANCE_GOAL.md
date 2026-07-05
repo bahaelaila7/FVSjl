@@ -35,6 +35,17 @@ WK3/DGSCOR sp33/65 tail) — and even those must carry a precise both-sides trac
 7. **VARIANT-AWARE — DO NOT HARDEN.** Shared `src/engine|io|core` gates on variant/coefficients;
    variant-specific code under `src/variants/<v>/`. Every fix must keep **SN, NE, CS, AND LS bit-exact**
    (all four are validated drop-ins: tags FVSsn-complete … FVSsn+ne+cs+ls-done).
+8. **DECONFOUND THE ELEMENTARY OPS VIA A FORTRAN COMPANION (FFI).** Isolate the SMALLEST set of
+   known compounding low-level operations — the not-correctly-rounded transcendentals `exp`/`log`/
+   `pow(**)` (NOT `sqrt`, which is IEEE-correctly-rounded and already bit-identical) and the
+   eigensolver (COMPRESS EIGEN/Jacobi) — into a gfortran companion library (compiled from / linking
+   the SAME libm as `bin/FVS*_buildDir`) and call the REAL ones from Julia through `ccall`/FFI. Keep
+   the pure-Julia implementations in place but RENAMED `xxx_julia`; the default `xxx` dispatches to the
+   Fortran op. Purpose: REMOVE op-level ULP as a confound so any residual that survives is a genuine
+   SEMANTIC (logic) mismatch, not a libm rounding artifact — this is what lets doctrine #1–#5 actually
+   bite (no more "irreducible-ULP" fog masking real bugs like the QMDGE5 cap). Prove the premise first
+   (bit-compare Julia `exp/log/pow` vs gfortran `expf/logf/powf` over the real input ranges); only wire
+   the FFI for the ops that actually differ. Keep the companion minimal, documented, and variant-safe.
 
 ## Oracle & runner
 - Oracle = live Fortran per variant: `/tmp/FVS{sn,ne,cs,ls}_new` (relink from `bin/FVS*_buildDir/*.o`
