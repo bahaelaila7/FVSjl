@@ -30,8 +30,11 @@ _trcol(r, c) = parse(Float64, r[c])
             ft = _tr_base(joinpath(_TR_DIR, nm * ".sum.save"))
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
-                for i in 1:length(jl), c in (3, 4, 7, 8, 9)   # TPA / BA / TopHt / QMD / cuft
-                    @test abs(_trcol(jl[i], c) - _trcol(ft[i], c)) <= 1
+                for i in 1:length(jl)
+                    for c in (3, 4, 7, 8)   # TPA / BA / TopHt / QMD — BIT-EXACT (measured Δ0 both scenarios)
+                        @test _trcol(jl[i], c) == _trcol(ft[i], c)
+                    end
+                    @test abs(_trcol(jl[i], 9) - _trcol(ft[i], 9)) <= 1   # cuft — print-boundary ULP (notriple @ one cycle)
                 end
             end
         end

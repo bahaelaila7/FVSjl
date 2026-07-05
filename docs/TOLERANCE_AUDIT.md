@@ -949,3 +949,13 @@ these aren't similarly mislabeled):
   proven faithful), bound = exact observed residual.
 These FFE bounds are correctly cornered to the emergent-phasing mechanism at their exact floors (verified,
 not mislabeled like event_monitor). lst01_ffe:143 (11.8 vs 12.0) + carbon:306 Merch (0.3,0.4] same class.
+
+## Session 2026-07-05 (cont.) — more ≤1 loops split (measured Δ0 columns → ==)
+
+- **test_growth:170** (dead_fint TCuFt): measured Δ1 genuine knife-edge → kept ≤1 (I first measured the WRONG
+  scenario growth_idg1 which is all == — a fixture mix-up; corrected). Reinforces: identify the testset's
+  ACTUAL scenario before measuring.
+- **test_tripling** (notriple/numtrip): cols 3/4/7/8 measured Δ0 both → `==`; c9 cuft ≤1 (notriple knife-edge).
+- **test_treeszcp**: treeszcp_nomort (3,4,7,8) measured Δ0 → `==` (added an `exact?` flag to the scenario
+  tuple); treeszcp_cap (QMD Δ0.4 UB) + htcap (TPA Δ1) keep ≤1.
+- Confirmed genuine Δ1 knife-edges (NOT padded): bfvolume/setsite/volume_override col-9/10, dead_fint TCuFt.

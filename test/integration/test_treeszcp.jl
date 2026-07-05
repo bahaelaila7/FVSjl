@@ -29,17 +29,23 @@ _col(r, c) = parse(Float64, r[c])
     runjl(nm) = (_tsz_rows(FVSjl.run_keyfile(joinpath(_TSZ_DIR, nm * ".key"); faithful = true)),
                  _tsz_base(joinpath(_TSZ_DIR, nm * ".sum.save")))
 
-    # (scenario, columns required bit-exact every cycle). Cols: 3 TPA / 4 BA / 7 TopHt / 8 QMD.
-    for (nm, cols) in (("treeszcp_nomort", (3, 4, 7, 8)),  # pure DG bound — fully bit-exact
-                       ("treeszcp_cap",    (8,)),          # DG bound + size-cap mort — QMD exact
-                       ("treeszcp_htcap",  (3, 4, 8)))     # HT cap — TPA/BA/QMD exact (TopHt below)
+    # (scenario, columns, exact?). Cols: 3 TPA / 4 BA / 7 TopHt / 8 QMD. `exact` scenarios are BIT-EXACT
+    # every cycle (measured Δ0); the others carry a ≤1 print-knife-edge / tripling-UB residual (measured:
+    # cap QMD Δ0.4 UB, htcap TPA Δ1).
+    for (nm, cols, exact) in (("treeszcp_nomort", (3, 4, 7, 8), true),   # pure DG bound — fully bit-exact (Δ0)
+                              ("treeszcp_cap",    (8,),         false),  # DG bound + size-cap mort — QMD ≤1 UB
+                              ("treeszcp_htcap",  (3, 4, 8),    false))  # HT cap — TPA ≤1 knife-edge
         if !have(nm); @test_skip "$nm scenario not available"; continue; end
         @testset "$nm" begin
             jl, ft = runjl(nm)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
                 for i in 1:length(jl), c in cols
-                    @test abs(_col(jl[i], c) - _col(ft[i], c)) <= 1
+                    if exact
+                        @test _col(jl[i], c) == _col(ft[i], c)
+                    else
+                        @test abs(_col(jl[i], c) - _col(ft[i], c)) <= 1
+                    end
                 end
             end
         end
