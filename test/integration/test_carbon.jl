@@ -736,7 +736,7 @@ end
             FVSjl.compute_density!(s)
             ss = FVSjl.snag_summary(s)
             if haskey(live, c)
-                @test isapprox(ss.hard[7], live[c]; atol = 0.1)   # hard total bit-exact vs live
+                @test isapprox(ss.hard[7], live[c]; atol = 0.05)  # PRINT-HALF-WIDTH: jl 48.0275/71.0396 render to live 48.0/71.0 (Δ≤0.04<0.05); was padded full-unit 0.1
                 @test ss.soft[7] == 0f0                            # DECAYX=2 ⇒ no hard→soft transition
             end
             c < 4 && (FVSjl.ffe_fuel_update!(s, 5); FVSjl.grow_cycle!(s; fint = 5f0))
