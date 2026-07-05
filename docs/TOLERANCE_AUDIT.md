@@ -1466,3 +1466,20 @@ to the otherwise-close FFE carbon report ⇒ DEFERRED with a precise root (magni
 the merch part still needs the CFVOL port — both needed to fully zero Above).
 FFE CARBON now FULLY DECOMPOSED: floor (FIXED) + merch CFVOL-vs-R8Clark one-tree (deferred, precise) + OLDCRW
 crown-lift double-book (deferred, precise). Every part traced to its exact FVS line. Bounds cornered ≤3 tenths.
+
+## Session 2026-07-05u — CORRECTION: OLDCRW verdict REFUTED; carbon_ffe crown = crown-ratio-timing (re-trace)
+RE-TRACE DISCIPLINE caught my own wrong verdict from session-t. Checked carbon_snt LIVE-pools: ffe_live_carbon
+Above AND Merch are BIT-EXACT (==) vs live at EVERY cycle (31/31). If a missing OLDCRW crown-lift term existed,
+carbon_snt (which grows) could NOT be bit-exact ⇒ **OLDCRW-missing-term verdict REFUTED; ffe_live_carbon is
+FAITHFUL**. (The fmdout.f:230 OLDCRW must be ~0 at the report sample-point in practice.)
+Then decomposed carbon_ffe correctly (its .sum is byte-identical to live at 1990 AND 2005 bar a 1-cuft print ULP
+⇒ growth BIT-EXACT, trees match live):
+  - stem/Merch +0.3 = the ONE sp22 D10.4 H55 tree: jl .sum MCuFt == live (byte-identical) ⇒ jl's merch_cuft_vol
+    is FAITHFUL to the .sum; FVS's FFE MCF (CFVOL, 11.2) genuinely differs from its OWN .sum merch (R8-Clark,
+    13.2). A real FVS two-merch-definition split. Deferred (needs CFVOL port for the FFE path).
+  - Crown −0.6 (grows over cycles) = per-tree crown_pct (crown RATIO) differs at grown cycles — NOT a .sum column
+    (so invisible to the bit-exact .sum check) — the SAME accepted grown-cycle CROWN-RATIO-TIMING class as the
+    LS PERCOV flame/scorch and CS CCF residuals, NOT OLDCRW.
+NET: FFE carbon Above/Merch ≤3-tenth residual = (a) one-tree CFVOL two-merch-def [deferred] + (b) grown-cycle
+crown-ratio-timing [accepted class, shared with LS/CS]. ffe_live_carbon MODEL proven faithful (carbon_snt bit-
+exact). The session-t OLDCRW "missing faithful term" note is WITHDRAWN.
