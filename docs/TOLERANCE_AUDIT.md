@@ -634,3 +634,29 @@ Re-affirmed as GENUINELY IRREDUCIBLE (re-measured, root re-traced): treeszcp ≤
 height-cap escape — NOTRIPLE bit-exact, non-deterministic), structure_stage strdbh ≤0.55 (near-tie RDPSRT
 cutoff flip), cst01 late-cycle (DENSE-DEBUG height-transcendental), the keyword-test ≤1 cols (documented
 per-cycle print knife-edge, e.g. voleqnum names the BFTOPK cycle). Suite 7662/2 throughout.
+
+## Session 2026-07-05 (cont.) — re-trace sweep of the grown-cycle envelopes + @test_broken
+
+Applied re-trace discipline to the highest-leverage remaining envelopes (work-list #1/#4/#6), using the
+live FVScs binary + per-cycle jl−live dumps to distinguish a proven MECHANISM from a masked BUG:
+
+- **CS all-species (bdft=464 envelope)** — per-cycle dump: BA AND SDI bit-exact EVERY cycle; the volume
+  residual OSCILLATES in sign (+32/−36/+19/−102/+464/+198/−113). A systematic bug is monotone (cf. LS
+  QMDGE5); sign-oscillation on a bit-exact BA/SDI basis = knife-edge redistribution (TPA ±1 mortality
+  near-tie + TopHt ±1 HTGF transcendental → nonlinear board sum). CONFIRMED faithful, not a bug.
+- **timeint10 (cuft≤16 envelope)** — per-cycle dump: first 4 cycles bit-exact, then cuft MONOTONE-accumulates
+  to exactly 16 by 2080 (transcendental signature); BA `==` every cycle; TPA max exactly 2. Bounds = exact
+  observed maxima (not padded). Same HTGF/DGF transcendental class, non-native 10-yr cycle amplifies it.
+- **@test_broken (the 2 that fire)** — re-verified both roots vs the goal's permitted list:
+  · `s22_compress` (test_keyword_coverage) — ACCEPTED COMPRESS eigensolver: sub-ULP PC-score ties flip the
+    within-class sort → RANN picks a different sel plot. Port faithful (eigensolver/partition/merge bit-exact).
+  · `nohtdreg` — NOHTDREG proven faithful END-TO-END (1990 state + 27/27 per-tree DG + COR + dead-tree dub all
+    match live); the post-1990 .sum drift is the cross-cutting WK3 sp33/65 DGSCOR tail (same class as s22).
+  `_KC_YAML_BROKEN` is empty ⇒ exactly these 2 broken, both with both-sides traced verdicts.
+
+- **carbon emergent Stand-Dead** — tightened 0.04 → 0.033 (the EXACT measured 0.0320 emergent-phasing floor;
+  the prior 0.04/0.05 carried a >×1.25 margin).
+
+NET: every grown-cycle / emergent envelope is now confirmed (via live-differential re-trace) to be a proven
+transcendental / near-tie / phasing MECHANISM with BA (and usually SDI) bit-exact — not a masked bug — with
+the bound set to the exact deterministic envelope. Suite 7662/2.

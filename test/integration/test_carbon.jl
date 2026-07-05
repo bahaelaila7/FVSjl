@@ -644,8 +644,9 @@ end
         # merch-BOLE fix (NATCRS MCF = merch_cuft_vol, not gross cuft_vol) closed the bulk; the residual is
         # the crown cwd2b flow-TIMING + pre-inventory input-snag age spread across the multi-cohort snag pool
         # (same emergent-phasing class as CFTOPK Stand-Dead — a cohort fall-timing envelope, not a single op).
-        # atol 0.04 = that emergent floor (was padded 0.05). The remaining FFE dead-pool gap is DDW.
-        @test maxresid <= 0.04
+        # atol 0.033 = the EXACT emergent floor (measured max 0.0320 @c3 + minimal render headroom; was 0.05
+        # then 0.04, both carrying a >×1.25 margin). The remaining FFE dead-pool gap is DDW, not Stand-Dead.
+        @test maxresid <= 0.033
     end
 end
 
