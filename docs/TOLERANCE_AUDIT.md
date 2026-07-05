@@ -602,3 +602,35 @@ The ONLY residuals not reducible to a single-op print-half-width are the ACCUMUL
 (grown-cycle) + EMERGENT phasing (CFTOPK) + UB (treeszcp) — cornered to a named MECHANISM with every
 constituent op proven faithful vs live FVS. That is the faithful endpoint; TOLERANCE_COMPLETE is held
 unset only for that strictest-letter "mechanism vs single-op" distinction.
+
+## Session 2026-07-05 — empirical-slack elimination pass (measured every floor)
+
+Re-ran the full non-`==` histogram and MEASURED each remaining multi-unit / atol bound against live.
+Converted every fix-enabled bit-exactness to `==` or its proven single-op width:
+
+- **test_sprout_regen** — TPA/BA/cubic/board measured Δ0 on all 11 rows → `==` (was ≤1.5 padding).
+- **test_mortmsb** — volume cols measured maxΔ=1 (rendered-integer knife-edge, e.g. 3027/3026) → ≤1 (was ≤2).
+- **test_sprout_table** — TopHt Δ0 → `==`; TCuFt rendered-integer knife-edge (1908/1907) → ≤1 (was ≤2).
+- **test_dvee_volume** — R9VOL stamp residual ≤5.94e-4 → 6f-4 stamp-precision floor (3-4 dec stamp + Float32
+  poly op-order); was 5f-3 (~8× padded).
+- **test_mortality** — deterministic isolated mortality! step pinned to EXACT 25.98935 (was ±1.5 band).
+- **test_estab_rng_d10** — max DBH renders to live's 2-dec 11.42 (Δ0.003) → print-half-width 0.005 (was 0.02);
+  mean lp42 re-documented as the accumulated DGF Float32 tail (0.006 over 9 cycles), atol 0.01 kept.
+- **test_net01** — MCH/SAW render to live's exact 1-dec (|Δ|≤7.6e-7) → rounded-render `==` (was atol 0.1).
+- **test_carbon** — CARBREPT report cols 2/4/7: two rendered outputs, measured maxΔ=0.0 → `==` (was atol 0.05);
+  carbon_snt Stand-Dead: false "bit-exact" comment CORRECTED → ≤0.04 emergent snag-phasing floor (real max
+  0.032); snag-summary per-cycle atol (c2 print-half-width 0.005, c3/c4 0.25/0.12 emergent split vs approximate
+  reads; was uniform 0.5/0.1).
+- **test_allspecies** — SN split PER coverage-file: sn_cov0..3 measured NEAR-BIT-EXACT (Δ0 bar ≤1 tcuft/mcuft
+  knife-edge) → near-exact bound; ONLY sn_cov4 (WK3/DGSCOR-tail species group) keeps the bdft=54 envelope. The
+  prior uniform bound MASKED four bit-exact files (rule #4). CS stays a single unpartitionable 96-species
+  aggregate DGSCOR envelope (BA/SDI bit-exact; only nonlinear volume/density sums drift).
+- **test_growth / test_hcor_calib** — calib coeffs match 6-dec live stamps to |Δ|≤1.2e-7 (Float32 ULP) → 2f-7
+  (was 1f-4, ~1000× padded).
+- **test_crown_width** — all 4 formula families (incl ^power) evaluate identically to jl (Δ0) → `==` (was 1f-4/1f-3).
+- **test_econ** — disc_cost rounds to live 4-dec stamp (|Δ|≤4.86e-5) → print-half-width 5f-5 (was 1f-3).
+
+Re-affirmed as GENUINELY IRREDUCIBLE (re-measured, root re-traced): treeszcp ≤4 (FVS uninitialized-memory
+height-cap escape — NOTRIPLE bit-exact, non-deterministic), structure_stage strdbh ≤0.55 (near-tie RDPSRT
+cutoff flip), cst01 late-cycle (DENSE-DEBUG height-transcendental), the keyword-test ≤1 cols (documented
+per-cycle print knife-edge, e.g. voleqnum names the BFTOPK cycle). Suite 7662/2 throughout.
