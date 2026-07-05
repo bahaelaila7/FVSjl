@@ -725,3 +725,17 @@ live FVSne golden values — found a whole cluster that was PADDED over a bit-ex
 The "±2 tracks live" / "atol=8 Scribner noise" labels were stale — the NE volume + site-index + prescription-
 thin chains are BIT-EXACT. Suite 7662/2. (Reinforces the campaign lesson: re-measure every "tracks within N"
 label; several were covering an exact result.)
+
+## Session 2026-07-05 (cont.) — more padded bit-exacts + a crown-ratio-class flag
+
+- **dbs_treelist Σ(TCuFt·TPA)** (self-consistency): measured Δ0.465 = rendered-integer half-width + sub-0.05
+  Float32-vs-Float64 sum-order → ≤1 (was ≤3, 3× padded). ΣTPA Δ0.44, kept ≤1.
+- **resetage MAI**: measured Δ=0 all rows → `==` (was ≤0.2 padding). MAI = total cuft/age, renders identically.
+- **estab_pccf mean regen crown ratio** (`<=0.5`): FLAGGED, not tightened. Measured jl mean 82.6 vs live 82.46
+  (Δ0.14) — but memory [[fvsjl-natural-process-congruence]] records 82.44 (Δ0.02) for this scenario, so the
+  value has SHIFTED across code versions. This is a GENUINE crown-ratio residual (50 integer crown_pct, a few
+  off ±1-2 vs live) — the SAME crown-ratio class as the LS flame/scorch PERCOV finding and the CS CCF drift,
+  NOT a padded bit-exact. Bound left at 0.5 (a close-to-live check) because the value isn't version-stable and
+  the true floor is the crown-ratio integer envelope; tightening would be fragile. Belongs to the DEFERRED
+  crown-ratio-evolution item (making regen/forest-grown crown ratios bit-exact would close this, the LS PERCOV,
+  and the CS CCF together — a crown-model investigation). Flagged here so a future crown-ratio pass finds it.
