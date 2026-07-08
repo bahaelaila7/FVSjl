@@ -14,7 +14,7 @@ The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-t
 | **Cycle-0 inventory** (TPA/BA/SDI/CCF/TopHt/QMD/volumes) | bit-exact | bit-exact | bit-exact | bit-exact |
 | **Canonical multi-cycle** (`*t01`) | snt01 (+ FFE/sprout/estab/econ) | net01 | cst01 | lst01 (+estab/ffe/fire_sprout) |
 | **Growth spine** (DG/HTG/mortality/crown) | bit-exact¹ | bit-exact¹ | bit-exact¹ | bit-exact¹ |
-| **Isolated-keyword scenarios** (KCV harness) | via snt01/harness | **64** | **64** | **64** |
+| **Isolated-keyword scenarios** (KCV harness) | via snt01/harness | **65** | **65** | **65** |
 | **Volume** (cuft/merch/saw + board) | bit-exact³ | bit-exact | bit-exact | bit-exact² |
 | **FFE fire/fuel/snag/carbon** | bit-exact-or-cornered | SIMFIRE bit-exact (KCV) | SIMFIRE cornered* | SIMFIRE cornered* + bit-exact (lst01_ffe) |
 | **FIA-DB reader** (real inventory) | bit-exact | bit-exact | bit-exact | bit-exact |
@@ -26,14 +26,14 @@ The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-t
 ³ SN saw/board is IFOR-aware incl. the North Carolina (IFOR=11) merch overrides (S69 `_sn_merch`,
   setcubicdflts.f region-8) — bit-exact vs live on both default and NC forests.
 
-## KCV isolated-keyword coverage (NE/CS/LS — 64 each, `test/fixtures/kwcov/`, `test_kwcov_variants.jl`)
+## KCV isolated-keyword coverage (NE/CS/LS — 65 each, `test/fixtures/kwcov/`, `test_kwcov_variants.jl`)
 
 Each = the variant's canonical tree data + ONE isolated keyword, validated bit-exact-or-cornered vs live:
 
 baimult · bamax · bfdefect · bfvolume · compress · compute · crnmult · cuteff · cycleat · dgstdev · estab · eventmon · fertiliz · fixhtg ·
 fixdg · fixmort · htgmult · htgstop · leavesp · managed · mcdefect · mcfdln · bffdln · minharv · mortmsb · mortmult · mult · nocalib · notriple · numtrip ·
 rannseed · readcord · readcorh · readcorr · resetage · salvage · sdicalc · sdimax · serlcorr · simfire · setsite · specpref · spgroup · spleave · strclass · tcondmlt ·
-tfixarea · thinaba · thinata · thinbba · thinbta · thincc · thindbh · thinht · thinmult · thinprsc · thinqfa · thinrden · thinsdi · timeint · topkill · treeszcp · volume · yardloss
+tfixarea · thinaba · thinata · thinbba · thinbta · thincc · thindbh · thinht · thinmult · thinprsc · thinpt · thinqfa · thinrden · thinsdi · timeint · topkill · treeszcp · volume · yardloss
 
 (SN is exercised through the broader snt01 multi-stand harness + the SN keyword-coverage suite rather than
 the KCV isolated set.)
