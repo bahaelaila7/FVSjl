@@ -808,3 +808,20 @@ density — jl over-grows large trees ~29%.** This is the driver of the post-thi
 pushes stands into the low-BA regime the un-managed trajectory never visits). Scope: SN large-tree DG, low
 stand BA. NEXT: read dgf DDS for the low-BA-sensitive term (ln(BA)/BAL/PCT-percentile/relSDI/clamp) + dump it
 both sides at the 2026->2031 cycle to name+fix. This is an OPEN real bug (NOT cornered).
+
+---
+## SLICE 20 — sp544 low-BA DG: visible inputs bit-exact ⇒ driver is PTBAA / rel-ht / per-tree CR distribution  [2026-07-08]
+Refined slice 19. The 2031-row DG = the 2026->2031 (first post-thin) growth; its inputs = the 2026 state.
+Order-invariant 2026 large-cohort (sp544, DBH>=10) aggregates ALL BIT-EXACT: stand BA 46.4, meanPctCr 42.69,
+meanHt 63.44, cohort BA 45.721, meanDG-of-prior-cycle 0.8054 — yet the 2026->2031 large-tree DG diverges +29%
+(0.8229 live / 1.0586 jl). Crown ratio + height means are bit-exact at BOTH 2026 and 2031 (42.19/42.19,
+67.31/67.31) ⇒ NOT a crown/height divergence. Large cohort is PAST the tripling window (cyc<=2) ⇒ NOT tripling.
+SN large-tree dgf DDS is LINEAR in stand BA (ba_v) + pbal (=point_ba·(1-CR/100)) + ln_crown; the visible
+per-cohort inputs match, so the divergent driver is an input the treelist does NOT expose:
+  • pba = POINT basal area (PTBAA / point_ba[plot]) — per-point, not the stand mean; OR
+  • the rel-height term (rel_ht = tree ht / AVH, AVH=avg dominant height) — a stand aggregate; OR
+  • the per-tree CROWN-RATIO DISTRIBUTION (same cohort MEAN 42.69, different spread ⇒ different per-tree pbal).
+NEXT (definitive): instrument jl dgf! to dump per sp544 large tree {ba_v, pba, pbal, crown_ratio, rel_ht, each
+DDS term} at the 2026->2031 cycle, + a live debug-FVS dgf.f stamp (edit→build→run→RESTORE→verify pristine),
+compare term-by-term to NAME the divergent primitive. Localization now: SN, sp544, large cohort, low stand
+BA (~46), first post-thin cycle, +29% DG, all VISIBLE inputs bit-exact. Open real bug. Floor 38527/143/0.
