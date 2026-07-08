@@ -134,8 +134,32 @@ so likely a zero-TPA/merged record) — track separately.
   for a large YP tree; dump jl's DDS+terms for the same tree; the divergent term names the fix. Restore
   source + rebuild clean .o + verify oracle pristine.
 
+### Slice 1g — ROOT CAUSE CONFIRMED: jl omits the SN ecological-unit (EUT) diameter-growth term
+Debug-FVS DDS dump (dgf.f DEBUG) vs jl per-tree ln(DDS): **jl is UNIFORMLY 0.344 below FVS for EVERY YP
+tree** (14.7: FVS 3.3614/jl 3.0175; 8.0: 2.2383/1.8945; 17.9: 3.7659/3.4221 — Δ=−0.344 exactly, all DBH/ICR).
+A perfectly uniform ln(DDS) offset ⇒ a per-species CONSTANT-term error (amplified in DG space for big trees,
+hence "large-YP-only"). Also refuted en route: crown variable (FVS `ICR`=25/35/45 == jl `crown_pct` ✓),
+DGBND (both 998/999 ✓).
+
+**CAUSE:** FVS STDINFO for this stand = **ECOLOGICAL UNIT `223Db`** (FOREST-LOCATION 80215). FVS dgf.f adds a
+per-species **ecological-unit (EUT) categorical term** selected by that eco unit (dgf.f:1039 "EXAMINE THE
+STAND ECOLOGICAL UNIT VARIABLE"; SN `dg_phys_*` coefficients p221/p222/p232/…). **jl's `s.plot.eco_unit` is
+BLANK** ⇒ `_dgf_phys_group` returns `none` ⇒ `dgcons!` adds ZERO EUT term. YP's EUT coefficient for group
+223 is large (~+0.255, `dg_phys_p222`-class) so YP loses it; white ash's ~0 ⇒ WA stayed bit-exact. (A small
+forest-type-term difference — jl derives `forest_type=503→upok`, FVS may classify differently — likely
+accounts for the remaining ~0.09.) The FIA reader reads `LOCATION=80215` but does NOT populate the
+ecological unit → the whole EUT DG term is dropped for FIA-DB stands.
+
+**THE FIX (next slice):** populate `s.plot.eco_unit` from the FIA STANDINIT ecological-unit field, and
+confirm `_dgf_phys_group("223Db")` maps to the correct SN group (223→p222-class). Validate: re-run the
+per-tree DG diff (expect YP Δ→0) + the stand differential (expect the 3.7% BA drift to collapse), and the
+full suite MUST stay 38527/143/0 (the EUT term is inert when eco_unit is genuinely blank — snt01 etc. don't
+set it — so no floor risk). This is a real FIA-reader + DG-constant gap, NOT ULP.
+
 ## TODO
-- [ ] DECISIVE: debug-FVS DDS-term dump for a large YP tree vs jl — name the divergent term (uniform YP offset).
+- [ ] FIX: read ecological unit from FIA STANDINIT into eco_unit; verify 223→phys group mapping; re-diff; keep floor.
+- [ ] Then: forest-type derivation check (jl 503→upok vs FVS) for the residual ~0.09.
+- [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 manifest.
       (both sides) vs jl; likely a beyond-growth-sample-max-DBH large-tree DG path YP-specific.
 - [ ] After fix: re-run per-tree + stand differential (expect the 3.7% BA drift to collapse).
 - [ ] Scale differential to NE/CS/LS + larger SN sample; build Pillar-1 stratified manifest.
