@@ -776,3 +776,20 @@ CORRECTED VERDICT: thinning SELECTION + SCHEDULING are bit-exact (cut cycle bit-
 forms). The post-thin tail is PART cornered-ULP (sub-class 1) and PART a real untested-low-density growth
 divergence (sub-class 2, jl over-grows). Floor 38527/143/0 (no src change). NEXT: both-sides-trace the
 low-density DG/HTG path (per-tree DG on a residual tree 2026→2031) to name the divergent term.
+
+---
+## SLICE 18 — Pillar 4: post-thin over-growth LOCALIZED to sp544 large-tree DG at low density  [2026-07-08]
+Both-sides FVS_TreeList DG/HtG differential on 416592108489998 (live FVSOut.db via sn_oracle.sh vs jl DBS):
+  2021 & 2026 (pre-thin + CUT cycle): EVERY species BIT-EXACT (DG/DBH/HtG identical) — cut is per-tree exact.
+  2031 (first post-thin cycle): sp544 meanDG live 0.742 vs jl 0.811 (+9%), meanDBH 4.37/4.44; sp552 matches
+     (1.449/1.446). 2036 sp544 0.688/0.752; 2041 sp544 0.626/0.684 (+ sp552 starts, 0.602/0.634).
+**LOCALIZED:** the post-thin over-growth = species-544 (green ash) LARGE-TREE diameter growth (dgf DDS)
+diverging ~9% at LOW post-thin density (stand BA 47), jl faster; BIT-EXACT at normal/high density (pre-thin
+BA 148+, and all of Pillar-2). The 2026 START state is bit-exact (both 258 TPA / 3.44 DBH / 0.201 DG) ⇒ dgf
+yields different DG on IDENTICAL per-tree input at low density ⇒ the divergent driver is a STAND-LEVEL dgf
+input in the low-BA regime: either a Float32 BA/PBAL SUMMATION-ORDER sub-ULP diff amplified by the steep
+low-density competition response (⇒ cornered ULP), OR a low-BA competition-term extrapolation difference
+(⇒ real coeff/term gap). DISTINGUISHING THESE = next slice: instrument dgf DDS for sp544 at the 2026→2031
+cycle (dump BA, PBAL, each term) both sides. Until then this is an IDENTIFIED-BUT-UNRESOLVED divergence
+(honestly NOT yet cornered). Scope: SN, species-544, low-density (post-thin) only; ~9% DG ⇒ few-% .sum tail.
+Floor 38527/143/0 (no src change; measurement only).
