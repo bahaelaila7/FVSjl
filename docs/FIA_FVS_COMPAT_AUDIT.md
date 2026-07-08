@@ -739,3 +739,19 @@ summary row; cycle-number N fires one cycle earlier — different SEMANTIC, each
 This STRENGTHENS Pillar 3: BOTH cycle-number and calendar-year THINBBA scheduling are faithful; the only
 management residual is the cornered post-thin mortality-cliff ULP amplification (slice 14). Lesson (again):
 a noted-but-untraced divergence must be traced before it's believed — this one dissolved, like the 147% one.
+
+---
+## SLICE 16 — Pillar 3: all 3 SN thinning selection paths agree (thinbta + thindbh)  [2026-07-08]
+Swept the remaining thinning regimes on SN-100 (cycle-2, correct kwrec columns):
+  THINBBA (from below, res-40):  no-op 37/40 | FIRED 4/41 | worst 14.1%  (slice 13)
+  THINBTA (from above, res-40):  no-op 38/39 | FIRED 3/41 | worst  7.8%
+  THINDBH (50% across all DBH):  no-op 36/37 | FIRED 4/41 | worst  5.4%
+Every regime: no-op rate == the Pillar-2 growth-only rate (consistent); fired-thin cut bit-exact (traced);
+post-thin tail cornered. DECISIVE PATTERN — the worst-magnitude tracks how far the thin distorts the size
+distribution (⇒ how mortality-cliff-sensitive the residual is): from-below (sparse large residual) 14% >
+from-above (dense small) 7.8% > proportional (shape-preserving) 5.4%. This CONFIRMS the slice-14 mechanism:
+the divergence is POST-thin density-regime ULP sensitivity, NOT tree-selection (selection is bit-exact in
+all 3 paths). Pillar-3 THINNING (all selection methods × both scheduling forms × 4 variants for thinbba) =
+bit-exact-or-cornered. Floor 38527/143/0 (harness+docs only).
+Pillar-3 remaining: salvage / plant-regen / prescribed-fire regimes (regen+FFE already heavily curated-suite
+validated); the deeper Pillar-4 dive = is the post-thin discrete-mortality TRIGGER ULP-alignable or irreducible.
