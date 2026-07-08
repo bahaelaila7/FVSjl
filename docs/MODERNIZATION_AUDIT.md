@@ -1319,3 +1319,18 @@ doctrine #4). Swept the other `fmvinit.f` FFE init constants for the same patter
 CONCLUSION: `_FM_DKR` was the SOLE SN-hardcoded-cross-variant FFE constant; the class is fully closed. Scalars
 that happen to match (CORFAC/PRDUFF) are correct as-is; everything variant-specific (DKR now, V2T always) is
 sourced per-variant. No code change (verification slice). Suite 37633/140/0.
+
+## Slice S91 — Pillar-1 coverage: THINPT/SETPTHIN point-thinning added to NE/CS/LS KCV (65th keyword) [2026-07-08]
+Added the one genuinely-uncovered BEHAVIORAL keyword (S90 gap analysis): point-level thinning (THINPT icflag 15
++ SETPTHIN 248, jl `_thin_pt!`). Built {ne,cs,ls}_thinpt fixtures = each variant's multi-point canonical stand +
+`SETPTHIN 2010 0 1` (all points, TPA metric) + `THINPT 2010 60` (residual 60 TPA/point). Validated vs freshly-
+relinked live FVS{ne,cs,ls}:
+- **NE + CS thinpt: FULL-ROW BIT-EXACT** all cycles (the 2010 removal — 422-450 TPA removed, every removed/after
+  column — + all growth cycles).
+- **LS thinpt: point-thin BIT-EXACT** (2010 removal + 1990-2020 full rows); only 2 downstream ULP straddles on
+  the heavily-thinned ~52-TPA residual stand (2030 MAI 35.2/35.1, 2040 BdFt 7464/7463) — the accepted DGSCOR/
+  Clark Float32 class — so @test_broken (ls_thinpt), like ls_simfire's 2030 QMD.
+Suite 37633→**37972 / 141 / 0** (+339 passes = the 3 point-thin scenarios' columns×cycles; +1 broken = ls_thinpt
+ULP; zero regressions). Corrects the prior turn's overly-cautious "blocked on field spec" verdict — jl's port IS
+the field spec, and the live comparison is the arbiter (RE-TRACE: don't defer a validatable path as unbuildable).
+KCV now 65 keywords/variant. #93's last behavioral gap closed; the residual is isolated-fixture replication only.
