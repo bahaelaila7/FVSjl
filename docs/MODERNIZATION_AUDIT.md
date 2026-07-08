@@ -1188,3 +1188,21 @@ scorch flame the way fmburn.f does (the higher scorch/uphill flame, ~2.247), not
 Task #100 corrected from "cornered" to "structural, root-caused, fix pending flame-source trace". META: the
 S80 "cornered" verdict was PREMATURE — the smoking gun (user's call) proved it a real bug. Re-trace discipline:
 never bank a "cornered" label without the per-tree proof.
+
+## Slice S83 — #100 refined: LS simfire FIRELINE INTENSITY ~3.26× low (fuel-model/rothermel, masked except short-tree scorch) [2026-07-08]
+Continued the S82 root-cause with a clean FLAME trace (fmburn.f ZQ dumps; oracle+source restored+verified).
+The scorch height SCH=7.093 comes from FLAME=2.247, and FMFINT RETURNS that flame directly (ZQ1: post-FMFINT
+FLAME=2.247, BYRAM=1979 BTU/ft/min). jl's fire flame is 1.305 (byram 607.74) — the fire's FIRELINE INTENSITY is
+~3.26× LOWER in jl (607.74 vs 1979). The earlier "FMEFF flame 1.2426 vs scorch 2.247" was cross-run confusion;
+within one run FLAME=2.247 flows FMFINT→scorch→FMEFF unchanged.
+- WHY only ~5 TPA despite a 3.26× intensity gap: for LS the PMORT logistic is bark(DBH)+CSV(scorch) — NO direct
+  flame term. Tall trees have crown above the scorch zone ⇒ CSV=0 in BOTH ⇒ PMORT=bark-only (flame-independent)
+  ⇒ jl matches. The intensity error surfaces ONLY via scorch→CSV for the 9 short trees (DBH 1.02–1.08, crown base
+  ~4.6 ft) whose crown sits between jl's sch (3.13) and FVS's (7.09). Hence TPA-only, BA+vols bit-exact.
+- NOT the SIMFIRE parse: fields decode identically — field2=10→wind, field4=50→TEMP (jl atemp=50==FVS), PSBURN
+  defaults 100 (all burn, deterministic), FWIND=1.0 both. Weather is bit-identical jl==FVS.
+- ⇒ the gap is the FUEL MODEL / rothermel fireline-intensity (FVS FMD=8, byram 1979 vs jl 607.74) under this
+  scenario's wind=10/temp=50. NEXT SLICE: compare jl's selected fuel model + rothermel byram for ls_simfire
+  vs FVS FMFINT (byram 1979) — likely a fuel-load/model-selection or reaction-intensity difference; fixing the
+  intensity restores the scorch height and the 9-tree kill. FVS integrity re-verified (clean relink → 2020 TPA
+  220, zero debug leakage, oracle mtime unchanged). Suite floor untouched (no jl code change this slice).
