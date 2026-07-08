@@ -825,3 +825,15 @@ NEXT (definitive): instrument jl dgf! to dump per sp544 large tree {ba_v, pba, p
 DDS term} at the 2026->2031 cycle, + a live debug-FVS dgf.f stamp (edit→build→run→RESTORE→verify pristine),
 compare term-by-term to NAME the divergent primitive. Localization now: SN, sp544, large cohort, low stand
 BA (~46), first post-thin cycle, +29% DG, all VISIBLE inputs bit-exact. Open real bug. Floor 38527/143/0.
+
+## SLICE 20b — PTBAA ruled out (single-point stand) ⇒ driver is rel-ht(AVH) or per-tree CR assignment
+416592108489998 has 1 distinct PLOT_CN (9 trees) ⇒ SINGLE-POINT stand ⇒ pba(point_ba)=stand BA=bit-exact(46.4).
+So the divergent dgf DDS input is NOT point BA. Remaining candidates narrowed to TWO:
+  (a) rel_ht term = tree_ht / AVH (avg dominant height) — a stand aggregate; TopHt was bit-exact in .sum but
+      AVH (the dgf-internal dominant-height mean) may differ at low density; OR
+  (b) per-tree CROWN-RATIO ASSIGNMENT — cohort MEAN CR bit-exact (42.69) but WHICH large tree gets which CR
+      may differ (per-tree dump showed CR values 37 & 44 among large trees); since DDS is nonlinear in DBH,
+      a CR↔tree reassignment shifts the TPA-weighted cohort-mean DG even at fixed mean CR. A near-tie
+      size-rank flip in the crown-ratio model would do this (cf. the documented COMPRESS/DGSCOR sort-flip class).
+If (b) via a near-tie rank flip ⇒ this rejoins the cornered sub-ULP-sort-flip primitive; if (a) or a real CR
+low-density formula gap ⇒ a real bug. DEFINITIVE next: jl dgf per-tree term dump + live dgf.f debug-stamp.
