@@ -321,6 +321,27 @@ species, so a 3× DG bug likely fails a large fraction of the 637k SN population
 **Next: both-sides the crown ratio — FVS's assigned CR for these young loblolly vs jl's ~10% (crown_ratio.jl
 CR model). If jl's young-loblolly CR is too low, fixing it lifts DDS→DG and likely clears the top failures.**
 
+### Slice 3c — RETRACTED crown-ratio hypothesis (percentile vs crown-ratio confusion); mechanism still open
+★ SELF-CORRECTION (doctrine #3): I compared jl's `crown_ratio` field (10-18) to FVS treelist `PctCr` (35-55%)
+and wrongly called it a crown-ratio bug. But `standstats.jl:209` + `diameter_growth.jl:192` confirm jl's
+**`crown_ratio` field holds PCT = the stand BASAL-AREA PERCENTILE, NOT a crown ratio.** So 10 = 10th BA
+percentile (CORRECT for a small tree in a dense 1323-TPA stand) — comparing it to FVS's 45% crown was
+comparing two different quantities. RETRACTED. (jl's actual crown IS `crown_pct=45` == FVS PctCr — matches.)
+
+**What's actually PROVEN about the loblolly deficit:**
+- jl under-grows loblolly BA ~3× (solid: `.sum` BA jl115/live152 @2005 + treelist DG jl0.5/live1.5). Systematic
+  (top-3 SN-100 failures all FIA 131). Loblolly-specific (OH/WK in the same stand were jl-HIGH, not low).
+- jl LP dgf DDS (≈1.5) ≈ FVS LP dgf DDS (≈1.7, debug) — the dgf base is ~right, and PCT/pbal inputs match.
+- **UNRESOLVED DDS→DG discrepancy:** by the standard conversion DDS 1.7 → DG ≈0.6, yet FVS's treelist DG is
+  1.5 for the same tree. So FVS's *effective* DDS must be ≈2.6 (or the DG uses a different period/scaling).
+  Either FVS applies a post-dgf step (~+0.9 ln DDS: DGSCOR/COR calibration, a growth-period scaling, or a
+  loblolly adjustment) that jl misses, OR the treelist DG period differs. NOT yet both-sides-nailed.
+
+**Honest status:** the loblolly 3× deficit is real and systematic (the #1 SN failure class), but its exact
+mechanism is NOT resolved — two wrong turns so far (fortype-then-crown-ratio). Next needs a CLEAN single-tree
+match: jl DDS+diam_growth vs FVS DDS+treelist-DG for the SAME LP tree, to decide dgf-DDS vs post-dgf-step vs
+conversion/period. Do NOT ship a fix until that's pinned (doctrine #3: no fix from partial inference).
+
 ## Slice 2 (Pillar 1+2) — cross-variant scaling: LS multi-cycle baseline
 6-stand LS multi-cycle differential (`ls.txt`, vs live FVSls): **core growth BIT-EXACT** — TPA/BA/SDI/QMD
 all 0.0% (4/6 stands fully bit-exact). LS does NOT share SN's EUT/DG divergence (the eco_unit fix was
