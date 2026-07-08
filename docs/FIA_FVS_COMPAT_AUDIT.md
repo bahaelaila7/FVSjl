@@ -324,6 +324,22 @@ the `.sum` + FVS's own reported scale factors; per-tree Julia probes here keep m
 backdating. Next attempt must instrument the calibration FIT both-sides (dgdriv COR inputs: which trees enter
 the LP fit, their residuals) via a debug-FVS stamp, NOT another Julia per-tree reconstruction.
 
+### Slice 5c — debug-FVS attempt (instrumented wrong segment); honest consolidation on loblolly
+Instrumented dgdriv.f:195 (made the `NEW DGCOR` dump unconditional) + built a SEPARATE debug binary
+`/tmp/FVSsn_dbg2` — but line 195 is the NEXT-CYCLE ATTENUATION path (gated `IF(.NOT.LDGCAL)`, fires
+post-cycle-1), not the INITIAL calibration COR. No dump. RESTORED dgdriv.f (matches backup), rebuilt clean
+`.o`, guard verified, dbg binary removed, oracle `/tmp/FVSsn_new` untouched (hygiene per doctrine #6).
+- **Correct instrument target for next attempt:** dgdriv.f **~319-470** (the "CALIBRATION SECTION"): dumps
+  already exist — **9003** `I,ISPC,DG,TERM,DEV,DEVSQ,RESLOG` (per-tree residual, the fit input) and **9010**
+  `ISPC,SPOPN,SPOPX,FN,SNP,…` (the fit sums) and **157** `I,DG,BARK,WK3,WK2,SCALE`. Make the ISPC=13 ones
+  unconditional (or enable CALBSTAT), capture, compare to jl's `snx/sny/snxx/snxy/reslog` for LP.
+
+**CONSOLIDATED HONEST STATE (loblolly, after a long error-prone trace):** CONFIRMED real & not-ULP (user's
+concern validated) — `.sum` BA ~8% high @cyc1, jl `dg_cor[LP]=0.9777`. Localized to the DGSCOR self-
+calibration OVER-FITTING loblolly's COR. NOT root-caused: 5 attributions tried & retracted (period, crown-
+ratio-vs-percentile, backdating "2×", growth_idg, wrong-instrument-segment). The fix needs the calibration-
+FIT both-sides trace above, done carefully in a fresh pass. I deliberately shipped NO speculative fix here.
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
