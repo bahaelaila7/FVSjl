@@ -287,8 +287,21 @@ Cross-variant picture forming: SN = DG/EUT (fixed) + multi-point point-BAL (corn
 + a CCF/crown-width lead. NE/CS differentials pending (need proper NE/CS stand lists — `nc.txt` is likely
 SN-region-8 NC, not NE; extract NE/CS STAND_CNs from the DB by LOCATION→variant for the Pillar-1 manifest).
 
+### Slice 2a — LS CCF divergence sharply characterized: CROWN-WIDTH only, everything else bit-exact
+Worst LS stand 18498465010661 per-cycle: **TPA/BA/SDI/TopHt/QMD ALL bit-exact every cycle**; ONLY CCF
+diverges — jl LOW: 1993 177/live183 (3.3%) → 2043 370/live402 (8%). Since SDI (same trees, DBH-based) is
+bit-exact but CCF (crown-AREA based) is low, it's specifically the **CCF crown-width computation** for LS,
+present at the INVENTORY row (cyc0) and growing. Diverse LS hardwoods (FIA 391 ironwood n13, 318 sugar
+maple, 541 white ash, 371, 71, 543). jl `crown_width` used at standstats.jl:193/246 for CCF (iwho path).
+- Impact: CCF column + crown-width-dependent downstream (PERCOV/fire) only — NOT growth (TPA/BA/SDI/QMD all
+  bit-exact). A real but bounded `.sum` divergence; systematic across LS stands (all showed the CCF drift).
+- NOTE: modernization validated lst01 CCF bit-exact (171) — so it's species/condition-specific to these FIA
+  LS hardwoods (a crown-width coefficient or the open-vs-forest-grown CCF crown-width path for LS species
+  not in lst01). Cornered to: **LS CCF crown-width (species-specific), a bounded crown-only residual.**
+
 ## TODO
-- [ ] LS: trace the systematic CCF/crown-width drift (cyc0 0.55%→1.46%); + worst stand 18498465010661 (8.6%).
+- [ ] LS CCF: identify which LS species' CCF crown-width is low (standstats crown_width iwho path) vs live;
+      compare the LS crown-width coefficient/eqn — potential clean systemic LS fix (CCF only, growth safe).
 - [ ] Extract NE + CS FIA stand lists (LOCATION→variant) and run their multi-cycle differentials.
 - [ ] FIX (density-model slice): true per-point PTBALT for the dgf point_bal term on multi-point stands;
       validate the SA stand + re-diff; keep floor + keep single-point stands bit-exact (YP etc.).
