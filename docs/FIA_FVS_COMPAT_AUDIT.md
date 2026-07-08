@@ -105,9 +105,25 @@ term (dbh/dbh²/ln(dbh) or a size cap) for YP. **This is the next fix (Pillar 4)
 NOTE also: jl loaded **36** tree records vs live **37** at cycle 0 for this stand (.sum TPA was bit-exact,
 so likely a zero-TPA/merged record) — track separately.
 
+### Slice 1e — mechanism leads (FVS SN dgdriv.f), YP coefficients located
+- jl YP DG coefficients: `data/southern/species_coefficients.csv:46` (sp 45, YP, FIA 621). YP already has
+  a documented SN special-case in HTCALC (`height_growth.jl:20`) — SN frequently special-cases YP.
+- **Prime suspect (dgdriv.f:537-538):** "trees that have GREATER DBH THAN THE LARGEST TREE IN THE GROWTH
+  SAMPLE are ASSIGNED THE PREDICTED RESIDUAL FOR THE LARGEST TREE IN THE GROWTH SAMPLE." This is the
+  large-tree DGSCOR/COR residual **extrapolation** for DBH beyond the species' growth-sample max. If these
+  FIA yellow-poplars are LARGER than any YP in the curated snt01 sample, jl's beyond-sample YP extrapolation
+  runs for the first time — and is ~20% low. Fits "small YP exact, large YP low." (Distinct from the
+  accepted sp33/65 WK3 tail — this is a LARGER, YP-specific effect.)
+- Secondary: `dgdriv.f:741` `DGBND` (bounds on DG value) — large trees may hit a bound jl computes differently.
+- Next: debug-FVS stamp dgdriv.f (the sp/DBH/DGSCOR-residual for YP on this stand) + read the jl large-tree
+  DG path; find where large-YP DG diverges; fix keeping 38527/143/0. Then re-run the per-tree differential.
+
 ## TODO
-- [ ] FIX: SN yellow-poplar (YP) large-tree DG ~20% low — trace dgf/dds YP coefficients FVS vs jl.
-- [ ] (was) per-tree DG trace on 3196569010661 — DONE (slice 1d): YP large-tree DG gap found.
+- [ ] FIX: SN yellow-poplar large-tree DG ~20% low — trace dgdriv.f:537-538 residual extrapolation + DGBND
+      (both sides) vs jl; likely a beyond-growth-sample-max-DBH large-tree DG path YP-specific.
+- [ ] After fix: re-run per-tree + stand differential (expect the 3.7% BA drift to collapse).
+- [ ] Scale differential to NE/CS/LS + larger SN sample; build Pillar-1 stratified manifest.
+- [ ] Track: jl 36 vs live 37 tree records at cyc0 on 3196569010661 (.sum TPA bit-exact ⇒ likely zero-TPA rec).
       which species' per-tree DBH increment diverges, and by how much (ULP vs systematic). Classifies
       accepted-DGSCOR vs real-gap and, if real, names the species/coefficient/path.
 - [ ] Scale the differential to NE/CS/LS + larger SN sample once the SN driver is understood.
