@@ -214,9 +214,26 @@ uniformly **~+0.10 higher** (mean +0.0998, relative ~25%). Ruled OUT (measured):
 **NOTE — this refutes the earlier "loblolly sp13" framing in slice 1j** (it's sp6/SA). Magnitude is modest
 (2–4% mid-projection, 6.5% TPA at the 2046 terminal cycle).
 
+### Slice 1l — SA(sp6): site index RULED OUT (jl clamps correctly); narrowed to a per-species DG coefficient
+- **Site index ruled out both-sides:** FVS uses SI=102 for SA (ISPC=6 dgf dump; SA's allowable range
+  includes 102, NOT clamped — the `.out` clamp warnings are for OTHER site species: YP 144→135, BY 127→120,
+  OS 67.5→55, …). jl also uses sp_site_index[SA]=102. Match.
+- **jl DOES clamp site index (not a gap):** SITSET (`site_index.jl:56-85`) uses `site_index_min/max` — line
+  66 clamps the site species to `simax`, and the per-species mapping stays within each species' [simin,simax].
+  jl's derived YP=135 matches FVS's clamped 135; SA=102 matches. So the earlier "jl misses SI clamping"
+  hypothesis is REFUTED — jl's site-index handling is faithful.
+- ⇒ SA +0.10 DDS deficit is now cornered to a **per-species DG coefficient/term** (intercept/ln_dbh/dbh_sq/
+  ln_crown/rel_ht/stand_ba/point_bal) — everything stand-level (site/slope/aspect/phys/fortype) matches.
+  The dDG VARIES with tree DG (0.05–0.16), hinting a size/crown/BA-scaled term rather than a flat intercept.
+  jl SA coeffs: intercept −1.641698, ln_dbh 1.461093, dbh_sq −0.00253, ln_crown 0.265872, rel_ht 0.069104,
+  stand_ba −0.002939, point_bal −0.004873. Decisive next: compare these to FVS dgf.f DATA (INTERC at :399 +
+  the b-arrays) for species 6 — a CSV-vs-blkdat coefficient diff.
+
+**SA divergence magnitude:** modest (2–4% mid-projection, 6.5% terminal TPA) on one stand; not floor-blocking.
+
 ## TODO
-- [ ] NEXT (fresh): resolve the FVS-debug-DBH vs jl-DBH offset on 1152014752290487, then decompose the
-      SA(sp6) +0.10 DDS term (intercept/site/small-vs-large-tree-blend?). BOTH-SIDES before any change.
+- [ ] NEXT: CSV-vs-FVS-blkdat diff of SA(sp6) dgf coefficients (dgf.f:399 DATA INTERC + b-arrays) — find the
+      wrong term. If a coeff is off, one-line CSV fix; re-diff + full suite.
 - [ ] Forest-type derivation: still a candidate for the YP −0.089 tail (separate stand); trace fortyp.f vs jl.
 - [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 stratified manifest.
 - [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
