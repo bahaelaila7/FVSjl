@@ -923,3 +923,15 @@ thresholds). Thinning SELECTION + SCHEDULING (both cycle & calendar forms) repro
 projected residual is bit-exact-or-cornered. ⇒ Pillar-3 "thinning by BA/TPA/DBH" DONE for all 4 variants.
 Pillar-3 remaining: salvage / planting-regen / prescribed-fire (SIMFIRE) regimes on real plots (regen+FFE are
 already heavily curated-suite validated). Floor 38527/143/0 (harness+docs only). Oracle pristine, src clean.
+
+---
+## SLICE 25 — Pillar 3: prescribed fire (SIMFIRE/FFE) on real plots — BA-level bit-exact, TPA-kill cornered FFE  [2026-07-08]
+Added a `simfire` regime to manage_fia.jl (FMIn / SIMFIRE cyc-2 10mph/type1/50% / End). Sanity 10-stand SN:
+fire fires 5/8 (mortality drops BA), both engines parse+produce .sum, no-op 3/3 (=Pillar-2), worst 4.3%.
+BOTH-SIDES trace of a fire-fired stand (246537009010854): 2009/2014 BIT-IDENTICAL; at the fire (2019) BA
+BIT-EXACT (95/95) while TPA 6555(live)/6587(jl) = 0.5% (kill COUNT differs, kill BASAL AREA identical);
+2024/2029 track within 0.5%; 2034 CONVERGES back to BIT-EXACT (2044/153 both). ⇒ the prescribed-fire
+BEHAVIOUR (basal area killed, fire spread/intensity) reproduces live FVS bit-exact; only the per-tree kill
+DISTRIBUTION (which individual stems, at fixed BA) differs ~0.5% — the documented accepted FFE/FMEFF
+fire-mortality-distribution residual (cf. memory: fire mortality within ~3%). Cornered, not a new bug.
+(Full SN-100 simfire distribution pending; then NE/CS/LS + salvage/plant to finish Pillar 3.)

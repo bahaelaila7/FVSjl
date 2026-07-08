@@ -22,6 +22,7 @@ kwrec(kw, fields...) = rpad(kw, 10) * join(lpad(string(f), 10) for f in fields)
 regime_block(r) =
     r == "thinbta" ? kwrec("THINBTA", "2.0", "40.0") :               # thin from above to residual BA 40
     r == "thindbh" ? kwrec("THINDBH", "2.0", "0.0", "99.0", "0.5") : # cut 50% across all DBH
+    r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\nEnd" : # prescribed fire cyc2 (FFE)
                      kwrec("THINBBA", "2.0", "40.0")                  # thin from below to residual BA 40 (default)
 
 keytext(cn, regime) = """
