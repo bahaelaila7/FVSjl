@@ -173,7 +173,18 @@ dropped for all FIA-DB stands.
 ★ First campaign divergence FOUND → both-sides ROOT-CAUSED → FIXED → validated BIT-EXACT vs live, floor
 preserved. Textbook FIA-behaviour-compat slice.
 
+### Slice 1i — batch validation: eco_unit fix is BROAD (5/8 SN stands now bit-exact)
+8-stand SN multi-cycle differential post-fix (`validate_fia.jl`): **5/8 stands now 0.0% (bit-exact all
+cycles)** — the traced stand 3196569010661 PLUS 3237541010661, 3237540010661, 255262477010854,
+1152014712290487 (all drifted pre-fix). Mean BA drift @cyc5: ~1.2% → **0.14%**. Confirms the EUT fix
+corrected the whole FIA sample's DG, not one stand. Remaining drifters → next targets:
+- **255260379010854 — 6.7%** (worst; also a known cyc0 TopHt AVH stand from modernization #92).
+- **1152014752290487 — 6.5%**.
+- 255262502010854 — 2.5%.
+(One stand shows cyc0 TopHt 0.83% = the pre-existing 3/162 AVH-tie cyc0 residual, not new.)
+
 ## TODO
+- [ ] NEXT: root-cause 255260379010854 (6.7%) + 1152014752290487 (6.5%) — per-tree DG diff; new species/EUT/fortype?
 - [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
       may surface on other plots where it crosses the rounding boundary. Trace fortyp.f vs jl for FIA input.
 - [ ] NE/CS/LS: analogous eco-unit read (their FIA differentials — do they show the same EUT gap?).
