@@ -1263,3 +1263,23 @@ NEXT SLICE (the fix): find jl's litter deposit into cwd[10] (grep cwd[10 / litte
 loop) vs FVS's annual litterfall (fmcwd.f/fmcba.f); the ~2× gap is likely a rate/frequency or a missing
 foliage-fall term. REGRESSION GUARD: cwd[10] feeds carbon Forest-Floor (validated) + all FFE fires — keep
 lst01_ffe/snt01/net01 + the carbon Floor bit-exact. FVS+jl pristine; suite floor untouched (no code change).
+
+## Slice S87 — #100 FIXED: LS variant-specific fuel decay-rate table (litter DKR 0.65→0.31) [2026-07-08]
+The 7-slice root-cause (S79-S86) landed: jl's `_FM_DKR` fuel decay table is the SN table (sn/fmvinit.f, litter
+0.65/yr, decay-class-dependent woody) and was applied to ALL variants via the `fs.params.dkr` fallback. LS uses
+DIFFERENT rates (ls/fmvinit.f:72-95: litter 0.31, decay-class-INDEPENDENT woody 0.11/0.11/0.09/0.06/0.06/0.02).
+Applying SN's 0.65 litter decay to LS decayed the litter ~2× too fast ⇒ equilibrium litter ~0.48× (measured
+2.33/4.86=0.479 == the decay ratio 0.31/0.65=0.477, to 0.002) ⇒ SMALL down-wood 5.45 vs 8.08 ⇒ FMDYN weighted
+the hot fm10 at 0.098 vs 0.403 ⇒ byram 607 vs 1979 ⇒ scorch 3.13 vs 7.09 ⇒ 9 short trees under-scorched ⇒
+5.85-TPA fire under-kill.
+- **FIX** (`fuel_decay.jl`): added `_FM_DKR_LS` (ls/fmvinit.f table) + `_fm_dkr_default(::AbstractVariant)=_FM_DKR`
+  / `_fm_dkr_default(::LakeStates)=_FM_DKR_LS`; `fmcwd!` fallback now `_fm_dkr_default(s.variant)`. VARIANT-GATED
+  — SN/NE/CS get `_FM_DKR` byte-for-byte (zero regression risk); only LS changes.
+- **VALIDATED vs live FVSls:** ls_simfire 2020 TPA 225→**220** (== live), 2030 215 (==), 2040 190 (==); the 2020
+  AND 2040 rows are FULL-ROW BIT-EXACT. Only residual = 2030 QMD 11.1 vs 11.2 (sub-print BA/TPA straddle 2 cycles
+  post-fire; displayed BA 146/TPA 215 identical) — a genuine ULP-class print-boundary, kept @test_broken.
+- **Suite: 37628→37633 pass / 140 broken / 0 fail** (+5 passes, zero regressions, 140 broken unchanged — SN/NE/CS
+  bit-identical as gated; the +5 = LS fire/carbon columns now matching live). #100 CLOSED (structural→cornered).
+- **FOLLOW-UP (tracked, not this slice):** NE litter DKR is ALSO SN-mismatched (ne/fmvinit.f litter=0.40 vs jl
+  0.65); net01 has no fire so it's latent, ne_simfire is currently bit-exact — deferred, add `_FM_DKR_NE` + gate
+  once ne_simfire is re-validated vs live. (Task #101.)

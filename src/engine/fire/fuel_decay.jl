@@ -26,6 +26,29 @@ const _FM_DKR = Float32[
     0.65 0.65 0.65 0.65     # 10 litter
     0.002 0.002 0.002 0.002 # 11 duff
 ]
+# Lake States annual decay rates (ls/fmvinit.f:72-95). LS is decay-class-INDEPENDENT (DKR(I,J)=DKR(I,1))
+# and its litter loss is 0.31/yr — NOT the SN 0.65 — so LS litter equilibrates ~2× higher, which is the
+# down-wood loading FMDYN weights the fire fuel model on. Applying the SN table to LS decayed the litter ~2×
+# too fast ⇒ SMALL down-wood ~1.47× low ⇒ FMDYN under-weighted the hot model ⇒ under-scorch ⇒ fire under-kill
+# (S82-S86; ls_simfire 2020 TPA). Woody classes are also slower than SN (0.06/0.02 vs 0.07). Duff 0.002 == SN.
+const _FM_DKR_LS = Float32[
+    0.11 0.11 0.11 0.11     # 1
+    0.11 0.11 0.11 0.11     # 2
+    0.09 0.09 0.09 0.09     # 3
+    0.06 0.06 0.06 0.06     # 4
+    0.06 0.06 0.06 0.06     # 5
+    0.02 0.02 0.02 0.02     # 6
+    0.02 0.02 0.02 0.02     # 7
+    0.02 0.02 0.02 0.02     # 8
+    0.02 0.02 0.02 0.02     # 9
+    0.31 0.31 0.31 0.31     # 10 litter (ls/fmvinit.f:94)
+    0.002 0.002 0.002 0.002 # 11 duff
+]
+# Variant-default DKR: SN + CS use `_FM_DKR` (litter 0.65); LS uses its own (litter 0.31). NE (litter 0.40,
+# ne/fmvinit.f) is ALSO SN-mismatched but currently falls through to `_FM_DKR` — deferred (net01 has no fire;
+# ne_simfire validation pending), tracked separately so this slice stays LS-scoped / zero-regression elsewhere.
+_fm_dkr_default(::AbstractVariant) = _FM_DKR
+_fm_dkr_default(::LakeStates) = _FM_DKR_LS
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """
@@ -94,7 +117,7 @@ function fmcwd!(s::StandState, nyrs::Integer)
     cwd = fs.cwd; n = Float32(nyrs)
     # FUELMULT/FUELDCAY override the DKR matrix; DUFFPROD overrides PRDUFF — both fall back to defaults
     # when unset (size 0×0).
-    dkr = size(fs.params.dkr, 1) == 11 ? fs.params.dkr : _FM_DKR
+    dkr = size(fs.params.dkr, 1) == 11 ? fs.params.dkr : _fm_dkr_default(s.variant)
     has_pd = size(fs.params.prduff, 1) == 11; pdm = fs.params.prduff
     @inbounds for L in 1:4
         # duff (size 11) first, so woody decay can add to it below
