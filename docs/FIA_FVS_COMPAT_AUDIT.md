@@ -49,8 +49,38 @@ accumulation class (corner it). If a specific species' per-tree DG diverges beyo
 (fix it). Also worth checking: cycle LENGTH used (non-native-cycle DGSCOR is a separate documented
 deferred residual — fvsjl-scenario-sweep-findings #2).
 
+### Slice 1c — DEFAULT (drop-in) trajectory pinpoints a SYSTEMATIC diameter-growth drift (stand 3196569010661)
+Ruled out cheap causes first (doctrine #3): **cycle length = 5-yr = SN native** (1998→2023, NOT the
+non-native-cycle DGSCOR issue); **NOTRIPLE does NOT converge** them (jl 408 vs live 415 TPA @2003 — a
+NOTRIPLE-path confound, not the default behaviour). The apples-to-apples DEFAULT (tripled) comparison:
+
+| year | jl TPA/BA/SDI | live TPA/BA/SDI | BA Δ |
+|-----:|---------------|-----------------|-----:|
+| 1998 | 416/102/195 | 416/102/195 | 0 (bit-exact cyc0) |
+| 2003 | 408/114/214 | 408/115/215 | 1 |
+| 2008 | 396/125/231 | 394/128/234 | 3 |
+| 2013 | 378/135/244 | 375/139/248 | 4 |
+| 2018 | 362/146/259 | 358/151/264 | 5 |
+| 2023 | 347/157/273 | 343/163/278 | 6 (3.7%) |
+
+**Signature:** TPA tracks closely (Δ0–4); **BA drifts SYSTEMATICALLY and ONE-DIRECTIONALLY — jl BA always
+LOWER**, 0→6 (3.7%) over 5 cycles; TopHt exact all cycles. ⇒ seed = **jl diameter growth marginally but
+systematically below live's**, compounding into BA/SDI (and slightly higher TPA via reduced density
+mortality).
+
+**Verdict discipline (doctrine #3/#4):** this is **NOT yet cornered**. It is (a) directional (pure Float32
+ULP is not) and (b) ~3.7% BA — orders of magnitude larger than the accepted `dbs_compute` MYBA/MYSDI
+DGSCOR ULP (~4 ULP / 1.2e-4). A systematic directional diameter-growth bias on diverse real SN plots must
+be root-caused per-tree before any corner. It could still resolve to the accepted class (if it's the
+sp33/65 WK3-calibrated species' serial-correlation compounding one way on these mixes) OR be a REAL small
+DG gap a curated few-species test never exercised. **This is the campaign's first substantive open divergence.**
+
 ## TODO
-- [ ] DECISIVE: per-tree DG jl-vs-live on 3196569010661 (accepted aggregate class vs real per-species gap).
+- [ ] DECISIVE next: per-tree DG jl-vs-live on 3196569010661 via FVS_TreeList DBS (live) + jl treelist —
+      which species' per-tree DBH increment diverges, and by how much (ULP vs systematic). Classifies
+      accepted-DGSCOR vs real-gap and, if real, names the species/coefficient/path.
+- [ ] Scale the differential to NE/CS/LS + larger SN sample once the SN driver is understood.
+- [ ] Build the stratified per-variant plot manifest (Pillar 1).
 - [ ] Scale the multi-cycle differential: larger SN sample + NE/CS/LS (Pillar 1 manifest feeds this).
 - [ ] Build the stratified per-variant plot manifest (Pillar 1).
 - [ ] Management-scenario differential on real plots (Pillar 3).
