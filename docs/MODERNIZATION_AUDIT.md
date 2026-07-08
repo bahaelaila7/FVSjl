@@ -13,6 +13,15 @@ per cycle, no growth-with-cycle churn). Generous ceiling catches a real ≥1.5×
 warmup/version noise. Suite **38511 → 38513** (+2 assertions), 143 broken unchanged, 0 fail. Pillar-2 is now
 a guarded part of the floor, not a one-time measurement.
 
+## S102 — Both perf-pillar guards extended to ALL FOUR variants (was NE-only)
+S100/S101 guarded NE only, but the Pillar-2 done-state says "per variant." Rewrote
+`test/integration/test_allocation.jl` to parametrize both testsets over SN/NE/CS/LS canonical stands
+(`snt01`/`net01`/`cst01`/`lst01`). Measured per-cycle `grow_cycle!` allocation floors (dead-stable,
+spread=0): **SN 15,392 · NE 10,640 · CS 10,048 · LS 9,984 B/cycle**; a single 20 KB ceiling covers all
+four with margin. `@inferred` boundary type-stability holds for all four. Suite **38515 → 38527** (+12 =
+16 per-variant assertions replacing 4 NE-only), 143 broken unchanged, 0 fail. Both performance pillars
+now guard every variant, matching the per-variant done-state.
+
 ## S101 — Pillar-4 hot-path type-stability now GUARDED (was documented-once at S77)
 Same gap as S100 but for Pillar 4: the "type-stable hot path" done-state was verified once and left
 ungoverned. Added a second testset to `test/integration/test_allocation.jl`: `@inferred` on the per-cycle

@@ -4,9 +4,9 @@ Pillar-1 done-state deliverable: a documented per-variant coverage matrix showin
 **100% drop-in** claim is defensible for **SN + NE + CS + LS**, every exercised path validated
 **bit-exact (`==` vs freshly-relinked live FVS) or cornered to a named primitive**.
 
-Correctness floor (never regress): **38515 pass / 143 broken / 0 fail** (`julia --project=. test/runtests.jl`).
-(38479/141 → 38511 via S96 NE snag height-loss + S97 NE carbon-report; → 38513 via S100 Pillar-2
-allocation-floor guard; → 38515 via S101 Pillar-4 hot-path type-stability guard.)
+Correctness floor (never regress): **38527 pass / 143 broken / 0 fail** (`julia --project=. test/runtests.jl`).
+(38479/141 → 38511 via S96 NE snag height-loss + S97 NE carbon-report; → 38513/38515 via S100/S101 Pillar-2
+allocation + Pillar-4 type-stability guards; → 38527 via S102 extending both guards to ALL FOUR variants.)
 The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-tie / accepted primitives).
 
 ## Coverage by variant

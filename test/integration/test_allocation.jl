@@ -1,48 +1,57 @@
-# test_allocation.jl — pillar-2 guard: the per-cycle hot path (`grow_cycle!` and everything it
-# transitively calls) must stay allocation-free down to the documented+justified floor. This LOCKS
-# that floor into the suite so a future refactor can't silently regress it (previously the S59
-# metric was measured once, ad-hoc, and left unguarded).
+# test_allocation.jl — pillar-2 + pillar-4 hot-path guards, PER VARIANT (SN/NE/CS/LS).
+# Locks the two performance-pillar metrics into the suite so a future refactor can't silently regress
+# them (previously each was measured once, ad-hoc, and left unguarded).
 #
-# Documented floor (docs/MODERNIZATION_AUDIT.md, S59/S99): `@allocated grow_cycle!` on a warmed
-# non-fire stand is a small, constant per-cycle cost — ALL of it the justified "Base sort scratch"
-# (3× `compute_density!` descending-DBH stat sorts), NOT per-cycle Dict/Vector/comprehension churn.
-# Measured net01 NE = 10,656 B/cycle, dead-stable across calls. The CEILING below is generous
-# (catches a real ≥1.5× regression — e.g. a reintroduced per-cycle temporary — while staying robust
-# to Julia-version / warmup noise). If this fails HIGH, something started allocating per cycle;
-# profile with `--track-allocation=user` before raising the ceiling.
+# Pillar 2 (allocation-free): `@allocated grow_cycle!` on a warmed non-fire stand is a small, CONSTANT
+# per-cycle cost — ALL of it the justified "Base sort scratch" (3× `compute_density!` descending-DBH
+# stat sorts), NOT per-cycle Dict/Vector/comprehension churn. Measured floors (docs/MODERNIZATION_AUDIT
+# S59/S100/S102, dead-stable spread=0): SN 15,392 · NE 10,640 · CS 10,048 · LS 9,984 B/cycle. The 20 KB
+# ceiling is generous (covers SN with margin; catches a real regression — a reintroduced per-cycle
+# temporary is thousands of bytes × tree count, far past 20 KB) while robust to warmup/version noise.
+# If this fails HIGH: profile with `--track-allocation=user` before raising the ceiling.
+#
+# Pillar 4 (type-stable hot path): `@inferred` on the per-cycle ENTRY points — concrete inferred return,
+# no `Any`/`Union` leaking out. Robust stdlib assertion (no JET/version flakiness, no new dependency).
 
-@testset "Pillar-2 — grow_cycle! per-cycle allocation floor (net01 NE)" begin
-    key = joinpath(@__DIR__, "..", "fixtures", "canonical", "net01.key")
-    if !isfile(key)
-        @test_skip "net01.key fixture not available"
-    else
-        s = first(FVSjl.each_stand(key; variant = FVSjl.Northeast()))
-        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
-        for _ in 1:4                      # warm (compile + steady-state buffers)
-            FVSjl.grow_cycle!(s; fint = 5f0)
+const _HOTPATH_CASES = [
+    ("snt01", FVSjl.Southern()),
+    ("net01", FVSjl.Northeast()),
+    ("cst01", FVSjl.CentralStates()),
+    ("lst01", FVSjl.LakeStates()),
+]
+
+# Build a warmed, cyc0-ready stand and step it a few cycles (compile + reach steady-state buffers).
+function _warm_hotpath_stand(key, variant)
+    s = first(FVSjl.each_stand(key; variant = variant))
+    FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+    for _ in 1:4
+        FVSjl.grow_cycle!(s; fint = 5f0)
+    end
+    return s
+end
+
+@testset "Pillar-2 — grow_cycle! per-cycle allocation floor (per variant)" begin
+    for (nm, variant) in _HOTPATH_CASES
+        key = joinpath(@__DIR__, "..", "fixtures", "canonical", "$nm.key")
+        if !isfile(key)
+            @test_skip "$nm.key fixture not available"
+            continue
         end
+        s = _warm_hotpath_stand(key, variant)
         allocs = [ @allocated FVSjl.grow_cycle!(s; fint = 5f0) for _ in 1:5 ]
-        floor_bytes = minimum(allocs)     # min = GC-noise-free steady state
-        # Guard the documented per-cycle floor (10,656 B). Generous ceiling catches real regressions.
-        @test floor_bytes <= 16_000
-        # And it must be a small CONSTANT per cycle (no growth-with-cycle churn) — spread stays tight.
-        @test (maximum(allocs) - minimum(allocs)) <= 4_000
+        @test minimum(allocs) <= 20_000                       # generous per-cycle ceiling
+        @test (maximum(allocs) - minimum(allocs)) <= 4_000    # constant per cycle (no growth-with-cycle churn)
     end
 end
 
-# Pillar-4 guard: the per-cycle hot-path ENTRY points must stay TYPE-STABLE at their boundary
-# (concrete inferred return, no `Any`/`Union` leaking out). Robust stdlib `@inferred` — no JET/version
-# flakiness, no new dependency. A change that makes `grow_cycle!` (or the sort-heavy `compute_density!`
-# it calls 3×/cycle) type-unstable at the boundary fails here. This complements the allocation guard:
-# a hot-loop type instability usually shows up as BOTH a non-concrete return AND heap churn.
-@testset "Pillar-4 — hot-path entry type-stability (net01 NE)" begin
-    key = joinpath(@__DIR__, "..", "fixtures", "canonical", "net01.key")
-    if !isfile(key)
-        @test_skip "net01.key fixture not available"
-    else
-        s = first(FVSjl.each_stand(key; variant = FVSjl.Northeast()))
-        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
-        FVSjl.grow_cycle!(s; fint = 5f0)                       # warm/compile
+@testset "Pillar-4 — hot-path entry type-stability (per variant)" begin
+    for (nm, variant) in _HOTPATH_CASES
+        key = joinpath(@__DIR__, "..", "fixtures", "canonical", "$nm.key")
+        if !isfile(key)
+            @test_skip "$nm.key fixture not available"
+            continue
+        end
+        s = _warm_hotpath_stand(key, variant)
         @test (@inferred FVSjl.grow_cycle!(s; fint = 5f0)) isa
               NamedTuple{(:accretion, :mortality)}            # concrete boundary return
         @test (@inferred FVSjl.compute_density!(s)) isa FVSjl.StandState
