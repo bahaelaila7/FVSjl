@@ -13,6 +13,16 @@ per cycle, no growth-with-cycle churn). Generous ceiling catches a real ≥1.5×
 warmup/version noise. Suite **38511 → 38513** (+2 assertions), 143 broken unchanged, 0 fail. Pillar-2 is now
 a guarded part of the floor, not a one-time measurement.
 
+## S101 — Pillar-4 hot-path type-stability now GUARDED (was documented-once at S77)
+Same gap as S100 but for Pillar 4: the "type-stable hot path" done-state was verified once and left
+ungoverned. Added a second testset to `test/integration/test_allocation.jl`: `@inferred` on the per-cycle
+ENTRY points — `grow_cycle!` (concrete `@NamedTuple{accretion::Float32, mortality::Float32}`) and the
+sort-heavy `compute_density!` (concrete `StandState`). Robust stdlib `@inferred` — no JET/version flakiness,
+no new dependency. Catches a boundary type-regression (a hot-path change leaking `Any`/`Union`), which
+typically co-manifests as allocation churn the S100 guard also catches. Suite **38513 → 38515** (+2), 143
+broken unchanged, 0 fail. Both performance pillars (2 alloc, 4 type-stability) + pillar-3 parallel
+bit-identity are now suite-enforced regression guards — no pillar metric is measured-once-and-unguarded.
+
 ## S98 — NE StandDead/DDW residual RIGOROUSLY CORNERED (#103 closed; state-split refuted)
 The ne_firecarb StandDead residual (SD +0.5/+1.0, DDW −0.4, carbon ~conserved = a snag↔down-wood
 *partition* at rounding-scale) is **faithfully cornered to a named primitive**, NOT a fixable bug:
