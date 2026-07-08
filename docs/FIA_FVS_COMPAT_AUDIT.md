@@ -292,6 +292,21 @@ species-specific, NOT ULP.
   the divergence is likely a FIA-specific calibration INPUT (measured-tree flag / past-growth) that makes jl's
   LP fit fire spuriously. Fix there, keep floor, re-verify LP DG→live, re-sweep.
 
+### Slice 5a — ROOT CAUSE: jl mis-scales the FIA measured `DG` field feeding the DGSCOR calibration
+BOTH-SIDES (FVS `.out` calibration report): **"DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED 0.00 0.88 0.00…"
+— FVS computes a 0.88 (slightly REDUCE) scale for loblolly**; jl computes `exp(dg_cor[13]=0.9777)=2.66`
+(2.66× INCREASE). Opposite direction, ~3× off. Both calibrate ONLY loblolly (others 0.00). The input is the
+FVS_TREEINIT_COND **`DG` field = 8.4** (measured past diameter growth; `DIAMETER=9.1`) — the DGSCOR self-
+calibration fits observed-vs-predicted DG. jl's observed-DDS (`reslog`) from DG=8.4 is ~3× too large ⇒ COR
+2.66 vs FVS 0.88. **⇒ jl mis-reads/scales the FIA `DG` measured-growth field into the calibration** (units /
+period / the observed-DDS computation). The modernization DGSCOR was validated on TREEDATA-measured stands;
+the FIA-DB path feeds `DG` differently and jl's scaling diverges. This is the REAL fix site.
+- Next: trace how jl's FIA reader + calibration consume TREEINIT.`DG` (units, whether it's past-period Δdbh,
+  ×0.1, etc.) vs how FVS's DBS reader passes it to dgdriv; align jl so the LP COR → ~0.88 (== live). Floor-
+  guard (curated TREEDATA calibration must stay bit-exact). Then LP DG → live, and re-sweep to measure lift.
+- ★ This is a systematic FIA-path bug: ANY stand with measured-DG trees mis-calibrates ⇒ likely a big share
+  of the 57 big failures + the growth-driven mortality divergences. Highest-value fix found in the sweep.
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
