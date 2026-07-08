@@ -307,6 +307,23 @@ the FIA-DB path feeds `DG` differently and jl's scaling diverges. This is the RE
 - ★ This is a systematic FIA-path bug: ANY stand with measured-DG trees mis-calibrates ⇒ likely a big share
   of the 57 big failures + the growth-driven mortality divergences. Highest-value fix found in the sweep.
 
+### Slice 5b — growth_idg hypothesis REFUTED; honest reset on the loblolly trace
+Implemented + tested setting `growth_idg=1` in the FIA reader (DG=past-DBH). Result: **INERT on the .sum**
+(loblolly stand still 944/200/411 @1995 == pre-change) and **`dg_cor[LP]` stays 0.9777** regardless. So the
+DGSCOR calibration does NOT depend on the DG-increment conversion — the growth_idg root-cause was WRONG.
+REVERTED (doctrine #3: don't ship an unvalidated, target-inert change; floor re-confirmed 38527/143/0).
+
+**HONEST RESET.** This loblolly trace has produced repeated MEASUREMENT ARTIFACTS + wrong attributions:
+(1) "3× low" (treelist PrdLen misalignment), (2) "crown-ratio bug" (it's the BA percentile), (3) "2× high"
+(jd0 backdating), (4) "growth_idg/DG-as-increment" (inert). The ONLY trustworthy facts, from the `.sum`
+oracle: **jl loblolly BA is ~8% high @cyc1 (200 vs live 185), TPA ~24% low; jl `dg_cor[LP]=0.9777`
+(exp 2.66) vs FVS's reported scale 0.88.** So the divergence IS real (per the user, not ULP) and lives in
+the **DGSCOR self-calibration FIT** (jl over-fits loblolly's COR), but the exact fit-input divergence is
+NOT root-caused. Lesson (hard-learned this session): on coupled growth/backdating/calibration, TRUST ONLY
+the `.sum` + FVS's own reported scale factors; per-tree Julia probes here keep mis-aligning period/quantity/
+backdating. Next attempt must instrument the calibration FIT both-sides (dgdriv COR inputs: which trees enter
+the LP fit, their residuals) via a debug-FVS stamp, NOT another Julia per-tree reconstruction.
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
