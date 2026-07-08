@@ -935,3 +935,13 @@ BEHAVIOUR (basal area killed, fire spread/intensity) reproduces live FVS bit-exa
 DISTRIBUTION (which individual stems, at fixed BA) differs ~0.5% — the documented accepted FFE/FMEFF
 fire-mortality-distribution residual (cf. memory: fire mortality within ~3%). Cornered, not a new bug.
 (Full SN-100 simfire distribution pending; then NE/CS/LS + salvage/plant to finish Pillar 3.)
+
+## SLICE 25b — SN-100 prescribed-fire distribution: same cornered pattern as thinning
+Full SN-100 simfire: 77 both-sum, fire fires 40/77. fire NO-OP 36/37 (=Pillar-2 growth rate). fire FIRED
+3/40 bit-exact. Histogram <1%:42 1-2%:17 2-5%:16 5-10%:1 >10%:1. The lone >10% (163382232010854, "12.6%")
+CHECKED: both engines produce only 1980/1985 rows (both BIT-EXACT) then terminate at the cycle-2 fire on
+that small stand — a post-fire terminal-cycle COUNT artifact (matched cycles bit-exact), not a value
+divergence. So the SN fire regime = BA-level bit-exact at the fire (slice 25 trace) + per-tree-kill
+distribution ~0.5-few% (cornered FFE/FMEFF) + post-fire growth amplification (same growth-ULP/DGSCOR class).
+Prescribed-fire management on real SN FIA plots is bit-exact-or-cornered. (Remaining Pillar 3: fire NE/CS/LS
++ salvage + planting — expected to follow the same established pattern; regen/FFE already curated-validated.)
