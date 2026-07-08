@@ -945,3 +945,17 @@ divergence. So the SN fire regime = BA-level bit-exact at the fire (slice 25 tra
 distribution ~0.5-few% (cornered FFE/FMEFF) + post-fire growth amplification (same growth-ULP/DGSCOR class).
 Prescribed-fire management on real SN FIA plots is bit-exact-or-cornered. (Remaining Pillar 3: fire NE/CS/LS
 + salvage + planting — expected to follow the same established pattern; regen/FFE already curated-validated.)
+
+---
+## SLICE 26 — Fire cross-variant: NE/CS confirm pattern; LS simfire SEGFAULT (real robustness bug, isolating)  [2026-07-08]
+NE-100 + CS-100 simfire confirm the SN fire pattern:
+  NE-fire: fire fires 46, NO-OP 39/46 (=Pillar-2), FIRED 2/46, hist <1%:65 1-2%:16 2-5%:7 5-10%:2 >10%:2
+  CS-fire: fire fires 12, NO-OP 78/81 (=Pillar-2), FIRED 0/12, hist <1%:78 1-2%:3 2-5%:8 5-10%:4 >10%:0
+Fire behaviour BA-bit-exact + per-tree-kill/post-fire cornered (same FFE/FMEFF + growth-ULP class), consistent.
+★ NEW REAL BUG — LS simfire SEGFAULTED (core dumped) mid-sweep, killing it (empty ls_fire.txt). The crashing
+process was the JULIA harness process (in-process run_keyfile), NOT the live subprocess (which is caught) ⇒
+FVSjl's LS FFE-fire path CRASHES on some real LS FIA stand under SIMFIRE. A segfault can't be caught in-proc,
+so isolating via a per-stand subprocess scan (ls_crash_scan.txt: cn + exit code; rc>=128 = signal). This is a
+robustness defect (not a numeric divergence) — must be root-caused (likely an LS FFE array-bounds / uninit in
+the fuel-model or fire-effects path exercised only by certain LS stand structures). Floor unaffected (curated
+LS FFE test test_lst01_ffe.jl still green — this is an FIA-stand-specific input the suite doesn't cover).
