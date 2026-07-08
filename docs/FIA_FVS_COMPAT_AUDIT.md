@@ -198,8 +198,27 @@ corrected the whole FIA sample's DG, not one stand. Remaining drifters → next 
 **SN multi-cycle status post-eco_unit-fix:** 5/8 bit-exact; residuals = 1 accepted AVH tie + 1 new loblolly
 DG lead. The eco_unit fix cleared the dominant DG divergence class; remaining leads are narrower/species-specific.
 
+### Slice 1k — SA(sp6) DG-high partially traced: NOT my fix, NOT fortype/phys (species term, open)
+Corrected: the stand's dominant species is FVS **SA = sp6** (FIA 111), not loblolly-sp13 (both jl AND live
+resolve FIA 111→sp6 here, so the mapping is consistent — not a mapping bug). Per-tree DG diff: jl SA DG
+uniformly **~+0.10 higher** (mean +0.0998, relative ~25%). Ruled OUT (measured):
+- **NOT a regression from the eco_unit fix:** SA `dg_phys_p232 = 0.0`, so on this 232Db→p232 stand the fix
+  adds nothing for SA. (Fix confirmed safe.)
+- **NOT the forest-type term:** jl derives `forest_type=142→ylpn` (yellow pine — correct for this pine
+  stand); SA `dg_fortype_yellow_pine = 0.0`. So no fortype contribution either.
+- jl context: `dg_const[SA]=0.6988`, `SI[SA]=102`. The +0.10 is some OTHER SA DDS term.
+- Per-tree DDS match is currently MUDDY: FVS debug `D=` (3.29/4.59/5.59…) is ~0.5 below jl's DBH
+  (3.9/5.0/6.2…) despite cyc0-bit-exact `.sum` — must resolve (bark/dib? tripled records? debug phase?)
+  before decomposing the DDS term. OPEN — the campaign's 2nd substantive lead.
+
+**NOTE — this refutes the earlier "loblolly sp13" framing in slice 1j** (it's sp6/SA). Magnitude is modest
+(2–4% mid-projection, 6.5% TPA at the 2046 terminal cycle).
+
 ## TODO
-- [ ] NEXT: per-tree DG diff on 1152014752290487 — loblolly (sp13) DG too high (kplant / coeff / eco-fortype?).
+- [ ] NEXT (fresh): resolve the FVS-debug-DBH vs jl-DBH offset on 1152014752290487, then decompose the
+      SA(sp6) +0.10 DDS term (intercept/site/small-vs-large-tree-blend?). BOTH-SIDES before any change.
+- [ ] Forest-type derivation: still a candidate for the YP −0.089 tail (separate stand); trace fortyp.f vs jl.
+- [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 stratified manifest.
 - [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
       may surface on other plots where it crosses the rounding boundary. Trace fortyp.f vs jl for FIA input.
 - [ ] NE/CS/LS: analogous eco-unit read (their FIA differentials — do they show the same EUT gap?).
