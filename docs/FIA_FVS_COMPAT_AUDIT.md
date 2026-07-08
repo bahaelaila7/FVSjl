@@ -837,3 +837,19 @@ So the divergent dgf DDS input is NOT point BA. Remaining candidates narrowed to
       size-rank flip in the crown-ratio model would do this (cf. the documented COMPRESS/DGSCOR sort-flip class).
 If (b) via a near-tie rank flip ⇒ this rejoins the cornered sub-ULP-sort-flip primitive; if (a) or a real CR
 low-density formula gap ⇒ a real bug. DEFINITIVE next: jl dgf per-tree term dump + live dgf.f debug-stamp.
+
+## SLICE 21 — sp544 DG suspect = crown_ratio (pbal term), distinct from the bit-exact crown_pct
+Instrumented jl dgf! (ENV-gated, reverted after — hot-loop ENV check would break the alloc floor). Captured
+green-ash (internal sp=37) large-tree DDS inputs at the divergent cycle. KEY STRUCTURAL FINDING: SN dgf DDS
+reads TWO separate per-tree crown fields —
+  • crown_pct (icr_i) → the ln_crown term; jl values 37-49, cohort-mean ~42 == the treelist PctCr (BIT-EXACT).
+  • crown_ratio (cr) → the pbal COMPETITION term (pbal = pba·(1−cr/100)); jl values span 13.7-100, mean ~59
+    — a DIFFERENT field, NOT exposed in the treelist, so NOT yet verified bit-exact.
+⇒ The reported/verified PctCr being bit-exact does NOT clear crown_ratio. crown_ratio feeding pbal is the
+PRIME SUSPECT for the +29% low-density DG divergence (at low density pbal spans 0-52 across the cohort ⇒
+the DDS point_bal·pbal term is large-swing and cr-sensitive). jl cyc-input snapshot saved (jl_dgf3.txt).
+DEFINITIVE NEXT (heavy, deferred to a fresh session for oracle safety): live dgf.f debug stamp
+(edit→build→run→RESTORE→verify pristine) dumping the same per-tree {cr, pbal, dds} for sp green-ash; compare
+to jl_dgf3.txt term-by-term. If cr diverges → trace crown_ratio! at low density (real bug or cornered
+near-tie); if cr matches but dds diverges → a dgf coefficient/term-form gap. Localization is now maximal
+short of the live Fortran stamp. Floor 38527/143/0 (src reverted clean).
