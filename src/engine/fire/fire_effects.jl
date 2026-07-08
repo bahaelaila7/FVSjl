@@ -76,10 +76,11 @@ Van Wagner crown scorch height (ft) from Byram fireline intensity `byram`
 """
 @inline function scorch_height(byram::Float32, atemp::Float32, fwind::Float32)::Float32
     b = byram / 60f0                                    # BTU/ft/min → BTU/ft/sec
-    # b^(7/6): the goal's exact transcendental — routed through the gfortran companion (doctrine #8)
-    # so the Float32 pow is bit-identical to FVS's `**`. fwind^3 is an exact integer power; sqrt is
-    # IEEE-correctly-rounded — neither is routed.
-    return (63f0 / (140f0 - atemp)) * (fpow(b, 7f0 / 6f0) / sqrt(b + fwind^3))
+    # fmburn.f:471-472 `SCH=(63/(140-ATEMP))*(BYRAM**(7/6)/(BYRAM+FWIND**3.0)**0.5)`. ALL THREE powers are FVS
+    # `**` (gfortran powf): `**(7/6)`, `FWIND**3.0` (a REAL exponent ⇒ powf, NOT x*x*x — gfortran lowers them
+    # differently ~26% of the time!), and the outer `**0.5` (powf, NOT sqrt — differ ~0.07%). Route all three
+    # through the companion (doctrine #8) to match FVS bit-exactly. (The old fwind^3 + sqrt caused the scorch Δ0.002.)
+    return (63f0 / (140f0 - atemp)) * (fpow(b, 7f0 / 6f0) / fpow(b + fpow(fwind, 3f0), 0.5f0))
 end
 
 """
@@ -118,11 +119,13 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
         xm = -(_FM_MORTB0[g] + _FM_MORTB1[g] * dbh * 2.54f0 + _FM_MORTB2[g] * charht / 3.28f0)
-        mnmort = log(1f0 / 0.000001f0 - 1f0)            # guard against exp() overflow
-        return xm >= mnmort ? 0f0 : 1f0 / (1f0 + exp(xm))
+        mnmort = flog(1f0 / 0.000001f0 - 1f0)           # guard against exp() overflow (ALOG → FFI companion)
+        # fmeff.f mortality logistic EXP → FFI companion (gfortran), not native openlibm (doctrine #8): the
+        # per-tree fire-kill probability feeds the RANN gate, so a libm-exp ULP flips a near-threshold kill.
+        return xm >= mnmort ? 0f0 : 1f0 / (1f0 + fexp(xm))
     else                                                # Reinhardt crown-scorch + bark
         bt = fire_bark_thickness(coef, sp, dbh, variant)
-        xm = exp(-1.941f0 + 6.316f0 * (1f0 - exp(-bt)) - 0.000535f0 * csv * csv)
+        xm = fexp(-1.941f0 + 6.316f0 * (1f0 - fexp(-bt)) - 0.000535f0 * csv * csv)
         return 1f0 / (1f0 + xm)
     end
 end

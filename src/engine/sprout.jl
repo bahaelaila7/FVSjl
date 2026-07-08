@@ -521,7 +521,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                ls ? essprt_ls(issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
         prem < 0.001f0 && continue                     # esuckr.f:170/244
         si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)
-        sp2 = s.species.class_codes[issp, 1][1:2]      # 2-char alpha code (for CWCALC)
+        sp2 = s.species.code2[issp]      # 2-char alpha code (for CWCALC)
         prob = prem * smult                            # PROB(ITRN)
         for _ in 1:numspr
             n = t.n + 1; n > length(t.dbh) && break    # no ESCPRS compression — list-overflow guard

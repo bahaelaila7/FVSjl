@@ -13,4 +13,4 @@ const SN_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "southe
 
 Cached Southern coefficient load (first call reads `data/southern/*.csv`).
 """
-coefficients(::Southern) = get!(() -> load_species_coefficients(SN_DATADIR), _COEF_CACHE, "SN")
+coefficients(::Southern) = cached_coefficients(() -> load_species_coefficients(SN_DATADIR), "SN")

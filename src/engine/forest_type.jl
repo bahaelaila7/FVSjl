@@ -25,6 +25,12 @@ end
 # STKVAL: per-ITG-group stocking array s[1:210] from the live tree list. Stocking
 # per tree = b0·D^b1·PROB·cf (cf scales sub-5" trees; a "future stand" correction
 # lifts D to 5" when large-tree stocking < 20). s[g] sums species mapped to group g.
+# Sub-5" stocking size factor (stkval.f). Hoisted from the per-call `_cf` closure inside
+# `_stkval_stocking`, which captured `ttst51`/`dmxss` — both loop-reassigned ⇒ boxed, de-optimizing the
+# stocking loops. Pillar-2/4: pass them by value (they're final before either call site). Bit-identical.
+@inline _forest_cf(d::Float32, ttst51::Float32, dmxss::Float32) =
+    d >= 5f0 ? 1f0 : (dmax = ttst51 >= 10f0 ? 5f0 : dmxss; dmax > 0f0 ? d / dmax : 0f0)
+
 function _stkval_stocking(st::StandState)
     coef = st.coef
     isct = st.control.sp_count_tab; ind1 = st.scratch.idx1
@@ -56,17 +62,16 @@ function _stkval_stocking(st::StandState)
             (d > 0f0 && d >= 5f0) && (ttst51 += b0 * d^b1 * prob[Int(ind1[i3])])
         end
     end
-    _cf(d) = d >= 5f0 ? 1f0 : (dmax = ttst51 >= 10f0 ? 5f0 : dmxss; dmax > 0f0 ? d / dmax : 0f0)
     ttst52 = 0f0
     @inbounds for ispc in 1:MAXSP
         isct[ispc,1] == 0 && continue
         _, b0, b1 = _coeffs(ispc)
         for i3 in isct[ispc,1]:isct[ispc,2]
             i = Int(ind1[i3]); d = dbh[i]; d <= 0f0 && continue
-            d >= 5f0 && (ttst52 += b0 * d^b1 * prob[i] * _cf(d))
+            d >= 5f0 && (ttst52 += b0 * d^b1 * prob[i] * _forest_cf(d, ttst51, dmxss))
         end
     end
-    s = zeros(Float32, 210)
+    s = st.scratch.stkval_s; fill!(s, 0f0)   # reused per-cycle buffer (was zeros(210))
     totstk = 0f0; szcl1 = 0f0; szcl2 = 0f0; szcl3 = 0f0   # for size/stocking class
     @inbounds for ispc in 1:MAXSP
         isct[ispc,1] == 0 && continue
@@ -76,7 +81,7 @@ function _stkval_stocking(st::StandState)
         for i3 in isct[ispc,1]:isct[ispc,2]
             i = Int(ind1[i3]); d = dbh[i]; d <= 0f0 && continue
             d_adj = (ttst52 < 20f0 && d < 5f0) ? 5f0 : d
-            stk = b0 * d_adj^b1 * prob[i] * _cf(d)
+            stk = b0 * d_adj^b1 * prob[i] * _forest_cf(d, ttst51, dmxss)
             acc += stk
             totstk += stk
             # size-class bin by ORIGINAL dbh (stkval.f:466-477); softwood (FIA<300)
@@ -110,8 +115,8 @@ function compute_forest_type!(st::StandState)
     species_sort!(st)
     s, iszcl, istcl = _stkval_stocking(st)
     st.plot.size_class = iszcl; st.plot.stocking_class = istcl
-    sftwds = sum(s[1:58]) + s[60] + sum(s[62:79]) + s[161] + s[162] + s[170]
-    trfirspr = sum(s[1:5]) + s[7] + s[9] + s[14] + s[15] + s[28] + s[34] + s[35]
+    sftwds = sum(@view s[1:58]) + s[60] + sum(@view s[62:79]) + s[161] + s[162] + s[170]
+    trfirspr = sum(@view s[1:5]) + s[7] + s[9] + s[14] + s[15] + s[28] + s[34] + s[35]
     spsafir  = s[4] + s[14] + s[15]
     engsafir = s[4] + s[14]
     salpfir  = s[4]
@@ -120,7 +125,7 @@ function compute_forest_type!(st::StandState)
     whmlcks  = s[34] + s[35]
     whmlck   = s[34]
     mtnhmlk  = s[35]
-    trufir   = sum(s[1:5]) + s[7]
+    trufir   = sum(@view s[1:5]) + s[7]
     pslvrfir = s[1]; whtfir = s[2]; grndfir = s[3]
     redfir   = s[5]; noblfir = s[7]
     akylcdr  = s[9]; wwhpin = s[28]
@@ -139,7 +144,7 @@ function compute_forest_type!(st::StandState)
     mntrypin = s[29]; fxtlpin = s[20]; lmbrpin = s[25]; whbrkpin = s[19]
     miscwsfw = s[12]+s[40]
     redwds   = s[31]+s[32]+s[33]; redwood = s[32]; gntseq = s[33]
-    epine    = sum(s[41:54]) + s[66]
+    epine    = sum(@view s[41:54]) + s[66]
     rwjpin   = s[41]+s[42]+s[53]+s[66]
     whphem   = s[53]+s[66]; ewhpin = s[53]; ehmlck = s[66]
     redpin   = s[42]; jackpin = s[41]
@@ -159,13 +164,13 @@ function compute_forest_type!(st::StandState)
     othsft   = s[170]
 
     # --- HARDWOODS
-    hrdwds = sum(s[81:153]) + sum(s[156:160]) + sum(s[201:210]) +
+    hrdwds = sum(@view s[81:153]) + sum(@view s[156:160]) + sum(@view s[201:210]) +
              s[59] + s[61] + s[163] + s[180] + s[190]
-    oakpin = sum(s[41:54]) + s[64]
+    oakpin = sum(@view s[41:54]) + s[64]
     ercedar = s[64]; shrtlfp = s[45]; ewhpin = s[53]; lnglfp = s[48]
     virgp = s[54]; lobp = s[52]; slashp = s[46]; jackpin = s[41]; redpin = s[42]
     sandp = s[44]; sprucep = s[47]; tblmtnp = s[49]; pitchp = s[50]; pondp = s[51]
-    oakhck = sum(s[81:86]) + s[88]+s[89]+s[92]+s[93]+s[101]+s[108]+s[110]+
+    oakhck = sum(@view s[81:86]) + s[88]+s[89]+s[92]+s[93]+s[101]+s[108]+s[110]+
              s[120]+s[122]+s[202]+s[206]+s[207]
     whoak = s[81]; buroak = s[83]; chstoak = s[84]; nroak = s[85]
     scrltoak = s[82]; yp = s[110]; bwalnut = s[108]; blcst = s[122]
@@ -178,7 +183,7 @@ function compute_forest_type!(st::StandState)
     swgyp = s[109]+s[110]
     sasfprsm = s[93]
     mxdhwd = s[83]+s[88]+s[94]+s[101]+s[106]+s[108]+s[113]+s[122]+s[125] +
-             sum(s[201:204])
+             sum(@view s[201:204])
     okgmcyp = s[59]+s[61]+s[87]+s[90]+s[111]+s[112]+s[114]+s[127]+s[128]+s[143]
     atlwcdr = s[59]
     sbstrm = s[95]+s[111]+s[113]+s[114]+s[127]
@@ -232,7 +237,7 @@ function compute_forest_type!(st::StandState)
     upoakhic = s[81]+s[82]+s[83]+s[84]+s[85]+s[86]+s[88]+s[89]+s[92]+
                s[93]+s[94]+s[95]+s[101]+s[102]+s[103]+s[105]+s[106]+
                s[108]+s[109]+s[110]+s[113]+s[120]+s[121]+s[122]+s[125]+
-               sum(s[201:204])+s[206]+s[207]+s[209]
+               sum(@view s[201:204])+s[206]+s[207]+s[209]
     lwelascw = s[91]+s[94]+s[95]+s[97]+s[100]+s[103]+s[104]+s[105]+
                s[108]+s[109]+s[115]+s[116]+s[118]+s[123]+s[129]+
                s[130]+s[131]+s[135]+s[137]+s[208]+s[209]

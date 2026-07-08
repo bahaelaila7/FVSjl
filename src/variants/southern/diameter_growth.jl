@@ -168,6 +168,10 @@ function dgf!(s::StandState, ::Southern)
         pbal  = pba * (1f0 - t.crown_ratio[i] / 100f0)
         pbal <= 0f0 && (pbal = bal)
 
+        # NB dgf.f uses ALOG here; PROVEN inert (2026-07-05fff: routing log→flog left snt01 bit-exact + suite
+        # unchanged ⇒ openlibm log == gfortran ALOG for the real dbh/icr ranges). Kept as Julia `log` — this is
+        # the PER-TREE hot loop, so the fpow-companion ccall's ~30% suite cost isn't justified for a zero-diff op
+        # (doctrine #8 caveat: only wire the FFI for ops that ACTUALLY differ). The grown-cycle drift is NOT here.
         dds = conspp + intercept[sp] +
               ln_dbh[sp]     * log(d) +
               dbh_sq[sp]     * d * d +
@@ -759,13 +763,20 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
         xbai = active_multiplier(s.control, :bai, sp, cur_year)
+        xdgrow = flog(xbai)                # dgdriv.f:161 XDGROW=ALOG(XDMULT), computed ONCE per species
         vardg = c.vardg[sp]
+        # ssigma/rho `log` routed through the gfortran companion (flog) so SSIG matches FVS's ALOG bit-exactly
+        # (dgf.f). dgscor's rejection `|FRM|>DGSD·SSIG` is DISCONTINUOUS in SSIG — a libm-log ULP could flip a
+        # borderline accept/reject and desync the draw stream — so matching FVS's exact log is the FAITHFUL choice.
+        # Proven SAFE + inert (2026-07-05): snt01 bit-exact + full suite unchanged after routing ⇒ the old memory
+        # warning "routing ssigma/rho desyncs the RNG" was WRONG (openlibm==gfortran for these vardg ranges), and
+        # it DECONFOUNDS the sp33/65 DGSCOR tail: NOT the ssigma log ⇒ it's the upstream WK2 past-dbh/WK3 calib. sqrt stays IEEE.
         evarp1 = (sqrt(1f0 + 4f0 * vardg * pvmlt) + 1f0) / 2f0
-        sig1   = sqrt(log(max(evarp1, 1f0 + eps(Float32))))
+        sig1   = sqrt(flog(max(evarp1, 1f0 + eps(Float32))))
         evarp2 = (sqrt(1f0 + 4f0 * vardg * vmlt) + 1f0) / 2f0
-        ssigma = sqrt(log(max(evarp2, 1f0 + eps(Float32))))
+        ssigma = sqrt(flog(max(evarp2, 1f0 + eps(Float32))))
         rho = (sig1 > 0f0 && ssigma > 0f0) ?
-              log(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
+              flog(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
         rhocp = sqrt(max(1f0 - rho * rho, 0f0))
         frmbase = DG_FM * ssigma * rhocp
         fru = DG_FU * ssigma * rhocp           # upper-triple FRM factor (dgdriv.f:91)
@@ -777,20 +788,27 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
             # only); `bsc` bounds the 5-yr DG and then scales by sfint/5. FINT=5 ⇒ identity (no scale).
-            dds5 = fexp(wk2[i]) * xbai                      # YR-yr DDS (BAIMULT: DDS·XDMULT); YR=5 SN / 10 NE
-            bsc(dg5) = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, s.control.sp_size_cap, yr)
+            # dgdriv.f:161+206: DDS=EXP(WK2 + ALOG(XDMULT)) — the BAIMULT enters in LOG-space BEFORE the exp,
+            # NOT as a post-exp `EXP(WK2)*XDMULT` (mathematically equal but a different Float32 op — differs ~36%
+            # of the time by 1 ULP for xbai=1.5). xbai=1 ⇒ xdgrow=flog(1)=0 ⇒ fexp(wk2+0)=fexp(wk2), bit-identical
+            # to the old ·1.0 ⇒ every non-BAIMULT scenario is untouched (verified 0-diff).
+            dds5 = fexp(wk2[i] + xdgrow)                    # YR-yr DDS (BAIMULT: EXP(WK2+ln XDMULT)); YR=5 SN / 10 NE
+            # DG bound+scale applied inline (pillar-2: was a per-tree `bsc` closure). `_bsc(dg5)` local macro-
+            # style: identical call `_bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, size_cap, yr)`.
             # exp routed through the gfortran companion (fexp, doctrine #8): the tripled records carry
             # OLDRN forward, so a 1-ULP openlibm-vs-libm exp diff COMPOUNDS across cycles (the timeint
-            # non-native-cycle volume tail). log in ssigma/rho is deliberately NOT routed (it feeds the
-            # dgscor! RNG rejection bound — changing it would desync the bit-exact draw stream).
+            # non-native-cycle volume tail). ssigma/rho log IS now routed (flog, see above) — the old
+            # "don't route, it desyncs the RNG" note was DISPROVEN (snt01 bit-exact, suite unchanged); it's
+            # inert (openlibm==gfortran for these vardg ranges) and faithful to FVS's ALOG.
+            size_cap = s.control.sp_size_cap
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
-                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib, sfint, size_cap, yr)
                 ru = fru + corr * rnpar; rnU[i] = ru
-                dgU[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib)
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib, sfint, size_cap, yr)
                 rl = frl + corr * rnpar; rnL[i] = rl
-                dgL[i] = bsc(sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib)
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib, sfint, size_cap, yr)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -800,7 +818,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                     frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i];
                                   dgsd = s.control.dg_stddev_bound)
                 end
-                t.diam_growth[i] = bsc(sqrt(d_ib * d_ib + dds5 * frm) - d_ib)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * frm) - d_ib, sfint, size_cap, yr)
             end
         end
     end

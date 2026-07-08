@@ -539,7 +539,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
         # CR=90 — same convention as `stand_ccf`), NOT the per-tree stored `crown_width` (which jl only
         # sets for sprouts/compress, leaving overstory at 0). Compute it here so the DBS treelist matches
         # live (overstory dbh-8 ≈ 20 ft, was 0). Falls back to 0 for species without crown coefficients.
-        cw = crown_width(c, s.species.class_codes[sp, 1][1:2], t.dbh[i], t.height[i], 90, 1,
+        cw = crown_width(c, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)
         # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
         # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT

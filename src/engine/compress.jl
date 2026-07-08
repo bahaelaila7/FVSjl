@@ -531,6 +531,14 @@ due). Returns whether compression fired — the caller then suppresses record tr
 function apply_compress!(s::StandState)::Bool
     isempty(s.control.schedule) && return false
     yr = current_cycle_year(s); fvscyc = Int(s.control.cycle) + 1
+    # NOTE: this uses an exact `date == cycle_start` gate (NOT the OPCYCL containing-cycle gate that SETSITE/
+    # SIMFIRE/VOLUME use). A calendar-dated mid-cycle COMPRESS (e.g. 2005 in a 10-yr NE cycle) therefore does
+    # not fire — but the OPCYCL gate was TRIED (2026-07-07) and REVERTED: it made the mid-cycle compress FIRE
+    # density-exact (TPA/BA/SDI bit-exact vs live) yet volume-DIVERGENT (~2-5% by 2040, compounding from the
+    # merge), i.e. the same COMPRESS eigensolver near-tie record-distribution sensitivity that corners s22 — so
+    # the mid-cycle firing point/merge is NOT bit-exact-validatable here. The common COMPRESS usage is a
+    # CYCLE-NUMBER date (<1000, fvscyc path, tested bit-exact), so this exact gate is correct for every exercised
+    # case; the mid-cycle-calendar path is a deferred open question (needs a live compress-timing + eigensolver trace).
     due = nothing
     for a in s.control.schedule
         a.icflag == Int32(250) || continue

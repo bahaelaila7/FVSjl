@@ -20,6 +20,7 @@ function init_blockdata!(s::StandState, v::Northeast)
         sd.class_codes[i, 1] = code * "1"
         sd.class_codes[i, 2] = code * "2"
         sd.class_codes[i, 3] = code * "3"
+        sd.code2[i] = String(rstrip(first(sd.class_codes[i, 1], 2)))  # pre-rstripped crown-width key
     end
     hab = s.coef.valid_habitat
     copyto!(s.plot.valid_habitat, 1, hab, 1, min(length(hab), length(s.plot.valid_habitat)))
@@ -43,5 +44,8 @@ load_species_coefficients!(s::StandState, v::Northeast) = init_blockdata!(s, v)
 
 # Species-translation crosswalk: NE's target code is column 6 (alpha,fia,plants,cs,ls,NE,sn).
 spctrn_column(::Northeast) = 6
-# Catch-all "other" species for an unmatched code: OH (other hardwood, index 97). TODO verify vs ne/spctrn.f.
-other_species(::Northeast) = Int32(97)
+# Catch-all "other" species for an unmatched code: OH = other hardwood. NE species index 98 (code_fia 998,
+# VOLEQ 900CLKE998) — NOT 97 (that's RL, red elm / 975). Live-confirmed: FIA 6918 → "OH" → 900CLKE998
+# (netl.out NOTE + eq map). The old index 97 gave unmatched hardwoods the RL volume eq (975), over-stating
+# small-tree cubic (region-9 FIA stand 1536568185290487 TCuFt 220 vs live 145).
+other_species(::Northeast) = Int32(98)

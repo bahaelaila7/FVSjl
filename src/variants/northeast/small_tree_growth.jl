@@ -45,7 +45,9 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
         si = p.sp_site_index[sp]
         htmax = ne_htcalc_htmax(sp, si)
         dgmx = NE_REGENT_DGMAX * scale
-        con = exp(c.htg_cor_small[sp])     # RHCON·exp(HCOR); RHCON=1, htg_cor_small=HCOR (0 for net01)
+        # CON = RHCON·exp(HCOR) (regent.f:147); RHCON=1 default, =RCOR2 when LRCOR2 on (regent.f:624-626).
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
+        con = rhcon * exp(c.htg_cor_small[sp])
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         for k3 in i1:i2
@@ -103,8 +105,8 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                     dg = 0.001f0 * hk
                 else
                     bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
-                    dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx); db_floor = true)
-                    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, Int(p.forest_idx); db_floor = true)
+                    dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx); db_floor = true, isne = true)
+                    dk  = h <= 4.5f0 ? d : _htdbh_dbh(sd, sp, h, Int(p.forest_idx); db_floor = true, isne = true)
                     if dk < 0f0 || dkk < 0f0
                         dg = htg * 0.2f0 * bark * xrdgro      # regent.f:359 degenerate fallback
                         dgsm = dg

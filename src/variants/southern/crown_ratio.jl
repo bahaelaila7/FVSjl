@@ -75,9 +75,11 @@ function crown_ratio_update!(s::StandState, ::Southern; fint::Float32 = 5f0, cro
     eqn = sd[:mcr_eqn]; ma = sd[:mcr_a]; mc = sd[:mcr_c]; mb = sd[:mcr_b]
     mb2 = sd[:mcr_b2]; mb3 = sd[:mcr_b3]
     wa = sd[:wb_a]; wb0 = sd[:wb_b0]; wb1 = sd[:wb_b1]; wc = sd[:wb_c]
-    # Per-species Weibull params (acrnew depends only on species via relsdi).
-    Aw = zeros(Float32, MAXSP); Bw = zeros(Float32, MAXSP); Cw = zeros(Float32, MAXSP)
-    seen = falses(MAXSP)
+    # Per-species Weibull params (acrnew depends only on species via relsdi). Preallocated Scratch buffers
+    # (reused, allocation-free); `seen` is the compute gate, reset false each call. Aw/Bw/Cw need no reset —
+    # they are only read where seen[sp] is true, and the lazy per-species compute order is unchanged (bit-exact).
+    Aw = s.scratch.crown_aw; Bw = s.scratch.crown_bw; Cw = s.scratch.crown_cw
+    seen = s.scratch.crown_seen; fill!(seen, false)
     @inbounds for i in 1:n
         sp = t.species[i]
         if !seen[sp]

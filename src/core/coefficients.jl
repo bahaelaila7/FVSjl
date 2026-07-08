@@ -174,3 +174,15 @@ end
 
 "Cached coefficient load, one per variant (filled by each variant's `coefficients`)."
 const _COEF_CACHE = Dict{String,SpeciesCoefficients}()
+const _COEF_LOCK  = ReentrantLock()
+
+"""
+    cached_coefficients(loader, key) -> SpeciesCoefficients
+
+Thread-safe memoized per-variant coefficient load. Called once per stand (at `StandState`
+construction), so the lock is uncontended after each variant's first load — this makes the
+multi-stand parallel driver safe WITHOUT a manual cache warm (pillar-3: the `_COEF_CACHE`
+`get!` was the only unguarded shared-mutable-global write). `SpeciesCoefficients` is immutable
+and the engine never mutates its arrays, so the cached value is shared read-only across threads.
+"""
+cached_coefficients(loader, key::String) = lock(() -> get!(loader, _COEF_CACHE, key), _COEF_LOCK)

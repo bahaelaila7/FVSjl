@@ -121,8 +121,11 @@ end
     return maxLen, minLen, minLenT, merchL, trim, mTopP, mTopS, stump
 end
 
-# --- mutable per-tree coefficient state (the Fortran CLKCOEF type) -----------
-mutable struct _R9State
+# --- per-tree coefficient state (the Fortran CLKCOEF type) -------------------
+# IMMUTABLE + isbits (all Float32) ⇒ stack-allocated, no per-tree heap. r9clark_cubic rebuilds it once
+# with the resolved dbhIb/dib17/totHt (the only fields set after construction); the taper functions
+# (_r9_dia417/_r9_cuft/_r9_ht/_r9_dib/_r9_bucked_bf) only READ it.
+struct _R9State
     r::Float32; c::Float32; e::Float32; p::Float32; a::Float32; b::Float32
     a4::Float32; b4::Float32; a17::Float32; b17::Float32
     dbhIb::Float32; dib17::Float32; totHt::Float32
@@ -227,10 +230,10 @@ end
 function _r9_ht(st::_R9State, stmDib::Float32)::Float32
     totHt = st.totHt; dbhIb = st.dbhIb; dib17 = st.dib17
     r = st.r; c = st.c; e = st.e; p = st.p; b = st.b; a = st.a
-    G = (1f0 - 4.5f0 / totHt)^r
+    G = fpow(1f0 - 4.5f0 / totHt, r)                       # Clark real powers **R/**P → FFI companion (doctrine #8)
     W = (c + e / dbhIb^3) / (1f0 - G)
-    X = (1f0 - 4.5f0 / totHt)^p
-    Y = ((1f0 - 17.3f0 / totHt) < 0.005748f0 && p > 14f0) ? 0f0 : (1f0 - 17.3f0 / totHt)^p
+    X = fpow(1f0 - 4.5f0 / totHt, p)
+    Y = ((1f0 - 17.3f0 / totHt) < 0.005748f0 && p > 14f0) ? 0f0 : fpow(1f0 - 17.3f0 / totHt, p)
     Z = (dbhIb^2 - dib17^2) / (X - Y)
     Is = stmDib >= dbhIb ? 1f0 : 0f0
     Ib = (stmDib < dbhIb && stmDib >= dib17) ? 1f0 : 0f0
@@ -241,10 +244,10 @@ function _r9_ht(st::_R9State, stmDib::Float32)::Float32
     stemHt = 0f0
     if Is == 1f0
         xxx = (stmDib^2 / dbhIb^2 - 1f0) / W + G
-        xxx > 0f0 && (stemHt = totHt * (1f0 - xxx^(1f0 / r)))
+        xxx > 0f0 && (stemHt = totHt * (1f0 - fpow(xxx, 1f0 / r)))
     elseif Ib == 1f0
         xxx = X - (dbhIb^2 - stmDib^2) / Z
-        xxx > 0f0 && (stemHt = totHt * (1f0 - xxx^(1f0 / p)))
+        xxx > 0f0 && (stemHt = totHt * (1f0 - fpow(xxx, 1f0 / p)))
     else
         xxx = Qb^2 - 4f0 * Qa * Qc
         xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0) * ((-Qb - sqrt(xxx)) / (2f0 * Qa)))
@@ -274,15 +277,18 @@ function _r9_dib(st::_R9State, h::Float32)::Float32
     totHt = st.totHt; dbhIb = st.dbhIb; dib17 = st.dib17
     (r < 0f0 && abs(h - totHt) < 0.00001f0) && (h = h - 0.1f0)
     sttot = h / totHt
-    log(1f0 - sttot) < (-20f0 / abs(r)) && (sttot = 1f0)
+    flog(1f0 - sttot) < (-20f0 / abs(r)) && (sttot = 1f0)   # ALOG + **R/**P → FFI companion (doctrine #8)
     ds = 0f0; db = 0f0; dt = 0f0
     if h < 4.5f0
         ds = dbhIb^2 * (1f0 + (c + e / dbhIb^3) *
-             ((1f0 - sttot)^r - (1f0 - 4.5f0 / totHt)^r) / (1f0 - (1f0 - 4.5f0 / totHt)^r))
+             (fpow(1f0 - sttot, r) - fpow(1f0 - 4.5f0 / totHt, r)) / (1f0 - fpow(1f0 - 4.5f0 / totHt, r)))
     elseif h <= 17.3f0
+        # r9clark.f r9dib: guard the near-zero denominator term for a very short bole with a
+        # steep taper — Y=0 when (1−17.3/totHt) < 0.005748 AND p > 14 (else the usual (…)^p).
+        y = ((1f0 - 17.3f0 / totHt) < 0.005748f0 && p > 14f0) ? 0f0 : fpow(1f0 - 17.3f0 / totHt, p)
         db = dbhIb^2 - (dbhIb^2 - dib17^2) *
-             ((1f0 - 4.5f0 / totHt)^p - (1f0 - h / totHt)^p) /
-             ((1f0 - 4.5f0 / totHt)^p - (1f0 - 17.3f0 / totHt)^p)
+             (fpow(1f0 - 4.5f0 / totHt, p) - fpow(1f0 - h / totHt, p)) /
+             (fpow(1f0 - 4.5f0 / totHt, p) - y)
     else
         im = h < (17.3f0 + a * (totHt - 17.3f0))
         dt = dib17^2 * (b * (((h - 17.3f0) / (totHt - 17.3f0)) - 1f0)^2 +
@@ -327,11 +333,13 @@ end
 # takes each log's small-end (top) DIB from the R9 taper `_r9_dib`. `logfn` maps (len, idib)→board feet:
 # `_r9_intl_log` = vol(10) International ¼" (NE/CS `.sum`), `_r9_scrib_log` = vol(2) Scribner (LS `.sum`).
 function _r9_bucked_bf(st::_R9State, sawHt::Float32, stump::Float32,
-                       minLen::Float32, maxLen::Float32, trim::Float32, logfn::F)::Float32 where {F}
+                       minLen::Float32, maxLen::Float32, trim::Float32, logfn::F,
+                       logbuf::Union{Vector{Float32},Nothing} = nothing)::Float32 where {F}
     lmerch = sawHt - stump
     nlogp = clamp(floor(Int, lmerch / (maxLen + trim)), 0, 39)
     leftov = lmerch - (maxLen + trim) * nlogp - trim
-    logLen = zeros(Float32, 40); tlogs = 0
+    # logLen entries are written before read (1:tlogs, tlogs≤nlogp), so a reused dirty buffer is value-safe.
+    logLen = logbuf === nothing ? zeros(Float32, 40) : logbuf; tlogs = 0
     if !(lmerch < minLen + trim || (nlogp == 0 && leftov < minLen + trim))
         for i in 1:nlogp; logLen[i] = maxLen; end
         if leftov >= minLen + trim
@@ -361,10 +369,10 @@ end
 
 # International ¼" (vol10 — NE/CS) and Scribner Decimal-C (vol2 — LS) board-foot wrappers over the
 # shared R9LOGS bucking. Same log lengths + DIBs; only the per-log kernel differs.
-@inline _r9_intlqtr_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim) =
-    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_intl_log)
-@inline _r9_scribner_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim) =
-    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_scrib_log)
+@inline _r9_intlqtr_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim, logbuf = nothing) =
+    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_intl_log, logbuf)
+@inline _r9_scribner_bf(st::_R9State, sawHt, stump, minLen, maxLen, trim, logbuf = nothing) =
+    _r9_bucked_bf(st, sawHt, stump, minLen, maxLen, trim, _r9_scrib_log, logbuf)
 
 """
     r9clark_cubic(spp, dbhOb, htTot, prod, mTopP, mTopS, stump) -> vol::Vector{Float32}
@@ -378,8 +386,10 @@ computed here (needs R9LOGS/r9bdft). NaN/short-tree guards follow the Fortran.
 function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
                        mTopP::Float32, mTopS::Float32, stump::Float32,
                        bfTopP::Float32 = -1f0, bfStmp::Float32 = -1f0;
-                       board_scribner::Bool = false)::Vector{Float32}
-    vol = zeros(Float32, 15)
+                       board_scribner::Bool = false,
+                       vbuf::Union{Vector{Float32},Nothing} = nothing,
+                       logbuf::Union{Vector{Float32},Nothing} = nothing)::Vector{Float32}
+    vol = vbuf === nothing ? zeros(Float32, 15) : fill!(vbuf, 0f0)
     iProd = prod == "01" ? 1 : 2
     co = _r9_coef(spp)
     maxLen, minLen, minLenT, merchL, trim, mTopP, mTopS, stump =
@@ -402,16 +412,16 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     end
     dbhOb <= topDib && return vol
 
+    # A17/B17 select on topDib (=0 here → coef0 class) — i.e. the construction values, so no post-set.
     st = _R9State(co.r, co.c, co.e, co.p, co.a, co.b, co.a4, co.b4,
                   co.a17_0, co.b17_0, 0f0, 0f0, 0f0)
-    # A17/B17 select on topDib (=0 here → coef0 class).
-    st.a17 = co.a17_0; st.b17 = co.b17_0
-
     dbhIb, dib17, err = _r9_dia417(st, topDib, dbhOb, topHt, 0f0, 0f0, sawDib, plpDib)
     err != 0 && return vol
-    st.dbhIb = dbhIb; st.dib17 = dib17
-    st.totHt = _r9_totht(htTot, dbhIb, dib17, topHt, topDib, st.a, st.b)
-    st.totHt <= 17.3f0 && return vol
+    totHt = _r9_totht(htTot, dbhIb, dib17, topHt, topDib, st.a, st.b)
+    totHt <= 17.3f0 && return vol
+    # immutable _R9State ⇒ rebuild with the resolved dbhIb/dib17/totHt (stack-allocated, no heap)
+    st = _R9State(co.r, co.c, co.e, co.p, co.a, co.b, co.a4, co.b4,
+                  co.a17_0, co.b17_0, dbhIb, dib17, totHt)
 
     # total cuft to the tip (CUTFLG=1)
     cfVol = _r9_cuft(st, stump, st.totHt)
@@ -467,8 +477,8 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     bfHt = _r9_ht(st, bfDib)
     (topDib <= bfDib && topHt < bfHt) && (bfHt = topHt)
     bfHt < merchL + trim + bfSt && (bfHt = 0f0)
-    bfHt > 0f0 && (vol[2] = board_scribner ? _r9_scribner_bf(st, bfHt, bfSt, minLen, maxLen, trim) :
-                                             _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim))
+    bfHt > 0f0 && (vol[2] = board_scribner ? _r9_scribner_bf(st, bfHt, bfSt, minLen, maxLen, trim, logbuf) :
+                                             _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim, logbuf))
 
     # FVS r9clark.f:454-462 applies the correction (r9cor) FIRST, THEN nint-rounds. The port had these
     # REVERSED (round-half-even then cor), so each printed value was cor×(0.1-multiple) instead of the clean
@@ -535,6 +545,53 @@ end
     end
 end
 
+# Fallback SN forest when a stand carries no forest code — a neutral non-special forest so `_sn_merch`
+# yields the region-8 defaults (the North Carolina IFOR=11 and IFOR=10 branches never fire on it).
+const _SN_DEFAULT_IFOR = 1
+
+# SN merch standards (setcubicdflts.f:350-414, the region-8 block). Softwoods = species index ≤ 17
+# (plus sp 88); hardwoods otherwise. FVS overwrites every species from this block keyed on
+# softwood/hardwood + IFOR — the only non-default forests are North Carolina (IFOR=11) and a single
+# IFOR=10 softwood case. The two NC coastal districts (KODIST 3/10) get yet-lower tops, but KODIST is
+# not plumbed through the FIA reader, so the common non-coastal NC branch is used. Board-foot mins are
+# bf-equal (like the eastern variants); stumps STMP 0.5 / SCFSTMP 1.0 (grinit.f). Returns the 6-tuple
+# (dbhmin, topd, scfmind, scftopd, stmp, scfstmp). For every non-NC forest this reproduces the SN
+# merch_specs.csv defaults exactly (softwood 7/10, hardwood 9/12, top 4), so non-NC stays bit-exact.
+@inline function _sn_merch(spi::Integer, ifor::Integer, kodist::Integer)
+    nc = ifor == 11                          # North Carolina overrides (setcubicdflts.f:363-413)
+    coastal = nc && (kodist == 3 || kodist == 10)   # NC coastal districts get lower tops (:368,388,411)
+    softwood = spi <= 17 || spi == 88
+    topd = nc ? 3.5f0 : 4f0                  # :364-365 (NC) / :360
+    dbhmin = if nc                           # :368-373
+        coastal ? (softwood ? 5.6f0 : 6f0) : 8f0
+    else
+        spi in (7,13,39,43,44,52,53,55,63) ? 6f0 : 4f0
+    end
+    if softwood                              # :377-402
+        if nc
+            scfmind, scftopd = coastal ? (11f0, 6.3f0) :
+                               (spi in (2,12,15,16,17) ? (12f0, 9f0) : (10f0, 6.3f0))
+        elseif ifor == 10 && spi == 2
+            scfmind, scftopd = 9f0, 7f0
+        else
+            scfmind, scftopd = 10f0, 7f0
+        end
+    else                                     # hardwoods :404-413
+        scfmind, scftopd = nc ? (coastal ? (13f0, 8f0) : (15f0, 11f0)) : (12f0, 9f0)
+    end
+    return (dbhmin, topd, scfmind, scftopd, 0.5f0, 1f0)
+end
+
+# Region-9 Clark `.sum` board type is per-national-forest (volinit.f:434-451, the R9 branch):
+# after R9CLARK fills both vol2 (Scribner) and vol10 (International ¼"), FVS overwrites
+# vol2←vol10 for the listed R9 forests, so those report International and every other R9
+# forest reports Scribner. IFORST is the 2-digit forest within KODFOR/LOCATION (LOCATION mod
+# 100, or the middle two digits when KODFOR>10000, per fvsvol.f:89-96). Confirmed against live
+# FVSls (debug-stamped volinit): FIA stand LOCATION=924→IFORST=24∈list→International; lst01
+# LOCATION=903→IFORST=3∉list→Scribner. LS defaults to Scribner ⇒ only these forests flip.
+const _R9_INTL_BDFT_FORESTS = (4, 5, 8, 11, 12, 14, 19, 20, 21, 22, 24, 30)
+_r9_iforst(kodfor::Integer) = (k = Int(kodfor); k > 10000 ? (k ÷ 100) % 100 : k % 100)
+
 """
     compute_volumes_ne!(s)
 
@@ -544,8 +601,10 @@ standards. Loads cuft/merch-cuft/saw-cuft/board-feet per tree (board feet = Scri
 via R9LOGS bucking + r9bdft). Broken-top (CFTOPK) reuse is TODO.
 """
 function compute_volumes_ne!(s::StandState)
-    # LS `.sum` BdFt is Scribner (vol2); NE/CS report International ¼" (vol10). ls/vols.f:348-387.
-    board_scribner = s.variant isa LakeStates
+    # LS `.sum` BdFt is Scribner (vol2) EXCEPT on the R9 forests that FVS maps to International
+    # ¼" (vol10) per _R9_INTL_BDFT_FORESTS; NE/CS report International ¼" (vol10). ls/vols.f:348-387.
+    board_scribner = (s.variant isa LakeStates) &&
+                     !(_r9_iforst(s.plot.user_forest_code) in _R9_INTL_BDFT_FORESTS)
     t = s.trees; co = s.coef
     cs = s.variant isa CentralStates
     ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : _NE_DEFAULT_IFOR)
@@ -595,7 +654,8 @@ function compute_volumes_ne!(s::StandState)
             _prod = d >= _scfm ? "01" : "02"
             _mtopp = d >= _scfm ? md.sp_scf_topd[sp] : _topd
             _vc = r9clark_cubic(fia, d, h, _prod, _mtopp, _topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
-                                board_scribner = board_scribner)
+                                board_scribner = board_scribner,
+                                vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf)
             bf = (d >= md.sp_bf_dbhmin[sp] && d > md.sp_bf_topd[sp]) ? _vc[2] : 0f0
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
@@ -612,7 +672,8 @@ function compute_volumes_ne!(s::StandState)
         prod = d >= scfmind ? "01" : "02"
         mtopp = d >= scfmind ? scftopd : topd
         v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
-                          board_scribner = board_scribner)
+                          board_scribner = board_scribner,
+                          vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf)
         tcf = v[1]
         mcf = d >= dbhmin  ? v[4] + v[7] : 0f0
         scf = d >= scfmind ? v[4] : 0f0
@@ -620,9 +681,12 @@ function compute_volumes_ne!(s::StandState)
         if tkill && tcf > 0f0
             bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
             # _ne_merch returns per-species SCALARS; wrap as 1-tuples so cftopk/bftopk's `merch.x[sp]`
-            # works with sp=1. NE board-foot tops == sawtimber tops (bf-equal); bftopk only acts when bf>0.
+            # works with sp=1. The BOARD top-kill (bftopk) uses the BOARD's own top/stump (sp_bf_topd/sp_bf_stump),
+            # NOT the sawtimber scftopd/scfstmp — bf-equal by default so this is inert, but a VOLUME card with a
+            # blank SCFTOPD zeroes scftopd (keeping sp_bf_topd) ⇒ a broken-top tree's board must not follow the
+            # sawtimber-cubic top. (The non-tkill path at r9clark_cubic already passes sp_bf_topd for the board.)
             mk = (stmp = (stmp,), topd = (topd,), scfstmp = (scfstmp,), scftop = (scftopd,),
-                  bftopd = (scftopd,), bfstmp = (scfstmp,))
+                  bftopd = (md.sp_bf_topd[sp],), bfstmp = (md.sp_bf_stump[sp],))
             tcf, mcf, scf = cftopk(mk, 1, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(mk, 1, d, h, bf, v[1], bark, Int(t.trunc[i]))
         end

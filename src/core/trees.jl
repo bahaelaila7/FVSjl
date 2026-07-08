@@ -90,6 +90,11 @@ mutable struct TreeList
     ffe_oldht ::Vector{Float32}    # tree height previous cycle             (OLDHT)
     ffe_olddbh::Vector{Float32}    # DBH previous cycle
     ffe_oldcr ::Vector{Float32}    # crown ratio % previous cycle           (→ OLDCRL, OLDCRW)
+    # Bark ratio evaluated at the START-of-cycle DBH and stashed when DG is applied (simulate.jl:438).
+    # CFTOPK/BFTOPK must use THIS bark (FVS vols.f:150 `BARK=BRATIO(D)` before line 151's `D=D+DG/BARK`),
+    # NOT bark recomputed from the grown DBH — the difference is the broken-top cuft residual. 0 ⇒ not
+    # yet grown (cycle-0 LSTART), in which case volume.jl falls back to BRATIO(current DBH) = FVS LSTART.
+    vol_bark  ::Vector{Float32}    # BRATIO(D_start) for broken-top volume top-kill
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -113,6 +118,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(),                                  # mort_pa
         fz(), fz(), fz(), dz(), fz(), fz(), fz(),
+        fz(),                                  # vol_bark
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
     )
@@ -130,7 +136,23 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark)
+
+# Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
+# loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied
+# value was boxed and dispatched dynamically (per field, per call: the tripling hot path's scattered
+# allocations). This @generated body expands to `t.species[dst]=t.species[src]; …` with CONSTANT
+# symbols → fully type-stable, zero allocation. Auto-derived from _TREE_VEC_FIELDS so it stays in sync.
+@generated function _copy_tree_vecs!(t::TreeList, dst::Int, src::Int)
+    assigns = [:(getfield(t, $(QuoteNode(f)))[dst] = getfield(t, $(QuoteNode(f)))[src])
+               for f in _TREE_VEC_FIELDS]
+    quote
+        @inbounds begin
+            $(assigns...)
+        end
+        nothing
+    end
+end
 
 """
     copy_tree!(t, dst, src)
@@ -139,10 +161,8 @@ Copy every per-tree attribute from record `src` to record `dst` (all vector
 fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
 """
 @inline function copy_tree!(t::TreeList, dst::Int, src::Int)
+    _copy_tree_vecs!(t, dst, src)
     @inbounds begin
-        for f in _TREE_VEC_FIELDS
-            getfield(t, f)[dst] = getfield(t, f)[src]
-        end
         for k in 1:6; t.damage[k, dst]    = t.damage[k, src];    end
         for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
         for k in 1:5; t.ffe_oldcrw[k, dst] = t.ffe_oldcrw[k, src]; end

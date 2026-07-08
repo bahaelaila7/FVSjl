@@ -35,9 +35,13 @@ cs_htcalc_htmax(sp::Integer, si::Real) = (b = _cs_htcoef(sp); b[1] * fpow(Float3
 "Tree age from current height (HTCALC mode 0). Returns 0 if at/above HTMAX."
 function cs_htcalc_age(sp::Integer, si::Real, h::Real)
     b1, b2, b3, b4, b5, bh = _cs_htcoef(sp); sif = Float32(si)
-    base = (Float32(h) - bh) / (b1 * fpow(sif, b2))
+    # htcalc.f:394 AGET=1./B3*(ALOG(1-((H-BH)/B1/SI**B2)**(1./B4/SI**B5))). Fortran `/` is left-assoc, so
+    # `(H-BH)/B1/SI**B2` = ((H-BH)/B1)/SI**B2 and the exponent `1./B4/SI**B5` = (1/B4)/SI**B5 — sequential
+    # divisions, NOT `x/(B1*SI**B2)` / `1/(B4*SI**B5)` (which are (a/b)/c vs a/(b·c), Float32-different ⇒ the
+    # cst01 TopHt/AVH drift feeding the height increment).
+    base = (Float32(h) - bh) / b1 / fpow(sif, b2)
     base <= 0f0 && return 0f0
-    return (1f0 / b3) * flog(1f0 - fpow(base, 1f0 / (b4 * fpow(sif, b5))))
+    return (1f0 / b3) * flog(1f0 - fpow(base, 1f0 / b4 / fpow(sif, b5)))
 end
 
 "NC-128 site-curve height (ft) at age `aget` (HTCALC mode 1) — the forward curve used by ESSUBH."
@@ -62,7 +66,10 @@ end
     trba = d * d * 0.005454f0
     temba = ba > 200f0 ? 200f0 : ba
     part1 = -1f0 * (b1 / (bal + trba) + b2 * d * d)
-    part2 = sqrt(1f0 - temba / 210f0)
+    # cs/balmod.f:67 `PART2 = (1.-TEMBA/210.)**.5` — FVS uses `**0.5` which gfortran lowers to powf(x,0.5),
+    # NOT sqrtf (they differ ~0.05% of the time by 1 ULP). Match it with fpow (doctrine #8: mirror FVS's exact
+    # primitive — here it's pow, not sqrt). balmod is CS HEIGHT-only ⇒ this moves only TopHt, never BA/diameter.
+    part2 = fpow(1f0 - temba / 210f0, 0.5f0)
     part3 = part1 * part2
     part4 = part3 > -85f0 ? fexp(part3) : 0f0
     gmod = b3 * (1f0 - part4)
@@ -91,6 +98,8 @@ function height_growth!(s::StandState, ::CentralStates; scale::Float32 = 1f0)
         htmax = cs_htcalc_htmax(sp, si)
         xht = active_multiplier(s.control, :htg, sp, cur_year)
         htcon = c.htg_cor[sp]
+        # READCORH/REUSCORH: HTCON += ln(HCOR2) when LHCOR2 on (cs/htgf.f:172-174, HTCONS entry).
+        s.control.htg_cor2_on && s.control.htg_cor2[sp] > 0f0 && (htcon += log(s.control.htg_cor2[sp]))
         if htmax - hti <= 1f0                       # htcalc.f:389 — at/near HTMAX
             htg1 = 0f0
         else

@@ -60,12 +60,17 @@ crown ratio `cr`. `iwho==1` → open-grown crown. Unknown species → 0.5. Clamp
 function crown_width(coef::SpeciesCoefficients, sp2::AbstractString, d::Real, h::Real,
                      cr::Real, iwho::Integer, lat::Real, long::Real, elev::Real)::Float32
     cw = 0f0
-    pair = get(coef.crown_species, rstrip(String(sp2)), nothing)
-    if pair !== nothing
+    # sp2 is a pre-stripped key (species.code2 is rstripped at load; structure_stage passes strip()) ⇒
+    # no per-call rstrip/String copy. `haskey`+`getindex` instead of `get(…, nothing)` because the latter
+    # returns a `Union{Tuple{String,String},Nothing}` whose non-isbits Tuple gets BOXED (32 B/call, per-tree
+    # per-cycle); the two-lookup form allocates nothing and is value-identical ⇒ bit-exact.
+    if haskey(coef.crown_species, sp2)
+        pair = coef.crown_species[sp2]
         eqnum = iwho == 1 ? pair[2] : pair[1]
-        e = get(coef.crown_eqs, eqnum, nothing)
-        e !== nothing && (cw = _cw_eval(e, Float32(d), Float32(cr),
-                                        hopkins_index(lat, long, elev)))
+        if haskey(coef.crown_eqs, eqnum)
+            cw = _cw_eval(coef.crown_eqs[eqnum], Float32(d), Float32(cr),
+                          hopkins_index(lat, long, elev))
+        end
     end
     cw < 0.5f0 && (cw = 0.5f0)
     cw > 99.9f0 && (cw = 99.9f0)

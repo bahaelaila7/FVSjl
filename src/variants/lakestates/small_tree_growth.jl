@@ -37,7 +37,9 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
         coef = _ls_htcoef(mapls, sp)
         htmax = _ls_htmax(coef, si)
         dgmx = LS_REGENT_DGMAX * scale
-        con = exp(c.htg_cor_small[sp])
+        # CON = RHCON·exp(HCOR) (regent.f:147); RHCON=1 default, =RCOR2 when LRCOR2 on (regent.f:624-626).
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
+        con = rhcon * exp(c.htg_cor_small[sp])
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         for k3 in i1:i2

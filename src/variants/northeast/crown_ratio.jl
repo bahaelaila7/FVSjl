@@ -20,15 +20,13 @@ function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates,Lake
     t = s.trees; sd = s.coef.species; n = t.n
     n == 0 && return s
     # crown.f COMMON BA = the RAW per-acre total basal area (live-stamped: cst01 ICYC1 BA=109.10 == jl raw
-    # basal_area). The FAITHFUL value is raw `basal_area` (no /gross_space), AND it must read the POST-growth
-    # BA (the gradd.f DENSE-before-CROWN refresh in simulate.jl fixed the stale pre-growth BA). Together
-    # (post-growth + raw) growth_fint10/all_SA go BIT-EXACT. HOWEVER raw currently regresses 7 CS all-species
-    # monocultures (TPA off 5-7 — a separate per-species crown issue it unmasks), so raw is DEFERRED pending
-    # that investigation; the POST-growth density refresh (the dominant fix) is landed, and `/gross_space` is
-    # kept here for now (leaves growth_fint10 at 1.87%, down from 3.72%). ba_override bypasses this (CRATET init).
-    ba = ba_override >= 0f0 ? ba_override :
-         (s.variant isa LakeStates ? s.plot.basal_area :                       # LS: RAW per-acre BA (crown.f faithful)
-          (s.plot.gross_space > 0f0 ? s.plot.basal_area / s.plot.gross_space : s.plot.basal_area))
+    # basal_area), read POST-growth (the gradd.f DENSE-before-CROWN refresh in simulate.jl). ★ 2026-07-06: a live
+    # base/dgscor.f stamp PROVED the DGSCOR frm is bit-exact (0/27) and the FVS_TreeList PctCr stamp traced the CS
+    # grown-cycle residual to THIS: the former NE/CS `/gross_space` band-aid gave cst01 id-11 crown 50 vs live 49,
+    # cascading to a 2010 DBH diff. RAW basal_area gives crown 49==live and DBH 11.37337==live BIT-EXACT. LS already
+    # used raw; all eastern variants now use raw (doctrine #3/#4 — the deferred `/gross_space` was masking, not
+    # fixing). The "7 CS all-species monoculture" regression the old note feared is the UNMASKED bug to chase next.
+    ba = ba_override >= 0f0 ? ba_override : s.plot.basal_area
     bcr1 = sd[:crown_bcr1]; bcr2 = sd[:crown_bcr2]; bcr3 = sd[:crown_bcr3]; bcr4 = sd[:crown_bcr4]
     cur_year = current_cycle_year(s)
     @inbounds for i in 1:n

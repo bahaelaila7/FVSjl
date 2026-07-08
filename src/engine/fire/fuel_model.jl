@@ -234,7 +234,7 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # crown area (ft²/ac) helper for a record: forest-grown crown width (CWCALC iwho=0)
     carea(i) = begin
-        sp2 = s.species.class_codes[Int(t.species[i]), 1][1:2]
+        sp2 = s.species.code2[Int(t.species[i])]
         cw = crown_width(coef, sp2, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)
         3.1415927f0 * cw * cw / 4f0 * t.tpa[i]

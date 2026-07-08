@@ -37,9 +37,14 @@ end
 # Tech-Note-6 (Hough) overrides for 20 hardwood species (sitset.f:428-489). All 20 are
 # Wykoff species (IWYKCA=0), so this only ever fires inside the `_uses_wykoff` path —
 # i.e. NE-only; SN never reaches it (no :htdbh_iwykca column). `ifor` defaults to 0.
-@inline function _htdbh_wykoff(sd, sp::Integer, ifor::Integer)
+# The IFOR==3 block is the NE Allegheny NF Tech-Note-6 (Hough) override, keyed by NE species indices
+# (sp26=RM, 30/31/33=Y/S/P-birch, 41=ash, 55=WO …). It MUST be gated to Northeast — CS (Hoosier) and LS
+# also use forest index 3, where the SAME sp index is a DIFFERENT species (CS sp41=YP, LS sp41=QA), so
+# applying these NE coefs there was wrong (LS aspen dubbed 64.2 ft vs live 52.2; CS elm — the earlier #99
+# birch mis-group). `isne` gates it; non-NE variants fall through to their own base Wykoff coefs.
+@inline function _htdbh_wykoff(sd, sp::Integer, ifor::Integer, isne::Bool = false)
     ht1 = sd[:htdbh_ht1][sp]; ht2 = sd[:htdbh_ht2][sp]
-    if ifor == 3
+    if ifor == 3 && isne
         sp == 26  && (ht1 = 4.6839f0;  ht2 = -4.9622f0)   # red maple
         sp == 27  && (ht1 = 4.6354f0;  ht2 = -4.7168f0)   # sugar maple
         (sp == 30 || sp == 31 || sp == 33) && (ht1 = 4.4635f0; ht2 = -3.6456f0)  # yellow/sweet/paper birch
@@ -56,9 +61,9 @@ end
 end
 
 "HTDBH mode-0 predicted total height (ft) for `sp` at DBH `d` (htdbh.f)."
-@inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0)
+@inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0; isne::Bool = false)
     if _uses_wykoff(sd, sp)
-        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor)
+        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor, isne)
         return exp(ht1 + ht2 / (d + 1f0)) + 4.5f0
     end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
@@ -78,10 +83,10 @@ HTDBH mode-1 inverse: dbh (in) from total height `h` (ft) for `sp` (htdbh.f kode
 NEGATIVE dbh (e.g. LS sugar maple at H≈4.9 → −0.155), which the small-tree DG path then mis-handles
 as a fallback. SN's htdbh.f has NO such floor, so SN keeps the default `db_floor=false`.
 """
-@inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0; db_floor::Bool = false)
+@inline function _htdbh_dbh(sd, sp::Integer, h::Float32, ifor::Integer = 0; db_floor::Bool = false, isne::Bool = false)
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)   # db (budwidth) is a per-species array, valid for Wykoff species too
     d = if _uses_wykoff(sd, sp)
-        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor)
+        ht1, ht2 = _htdbh_wykoff(sd, sp, ifor, isne)
         ht2 / (log(h - 4.5f0) - ht1) - 1f0          # htdbh.f:463 (:331)
     else
         hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
@@ -119,10 +124,14 @@ end
 # broken/killed top. `behre_params` returns the (AHAT,BHAT) hyperbola constants
 # plus a cone flag; `behre` integrates the relative profile between two heights.
 @inline function behre_params(vmax::Float32, d::Float32, h::Float32, bark::Float32)
-    bhat = vmax / (0.00545415f0 * d^2 * bark^2 * h)
+    # Match behprm.f's EXACT left-to-right Float32 multiply order `.00545415*D*D*BARK*BARK*H`
+    # (NOT d^2*bark^2 — `(d*d)*(bark*bark)` groups differently and drifts BHAT by 1 ULP, which the
+    # 1/BHAT + log + sqrt in AHAT amplify into the broken-top cuft ±1). behprm is broken-top-only,
+    # so this is inert for all normal trees.
+    bhat = vmax / (0.00545415f0 * d * d * bark * bark * h)
     bhat > 0.95f0 && (bhat = 0.95f0)
     ahat = 0.44277f0 - 0.99167f0 / bhat - 1.43237f0 * flog(bhat) +
-           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat^2   # gfortran-identical log (doctrine #8; broken-top vol)
+           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat * bhat   # `.13611*BHAT*BHAT` left-to-right; gfortran log (doctrine #8)
     lcone = false
     if abs(ahat) < 0.05f0
         lcone = true
@@ -232,6 +241,7 @@ a break point `trunc` (80% of standing height when none was supplied).
 """
 function dub_missing_heights!(s::StandState)
     t = s.trees; sd = s.coef.species; ifor = Int(s.plot.forest_idx)
+    isne = s.variant isa Northeast     # NE-only Allegheny (IFOR=3) HT-DBH overrides (variant-safe gate)
     # NOHTDREG/LHTDRG (cratet.f:292-335): for each invoked species, fit the Wykoff HT-DBH INTERCEPT from its
     # measured-height trees — `AA = mean(log(H−4.5) − HT2/(D+1))` over trees with H>4.5, NORMHT≥0, D≥3; if ≥3 such
     # trees and AA≥0, set IABFLG=0 so the dub below uses the calibrated Wykoff curve instead of Curtis-Arney.
@@ -276,9 +286,13 @@ function dub_missing_heights!(s::StandState)
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
         else
-            _htdbh_height(sd, sp, d, ifor)
+            _htdbh_height(sd, sp, d, ifor; isne = isne)
         end
-        h_v < 4.5f0 && (h_v = 4.5f0)
+        # cratet.f:352-354: the D≤0.1 seedling case sets H=1.01 and `GO TO 115`, SKIPPING the 4.5 floor —
+        # so a seedling keeps 1.01 ft (sub-breast-height). Only the Curtis-Arney/Wykoff branches (D>0.1) are
+        # floored at 4.5. Without the `d>0.1` guard the floor clobbers 1.01→4.5, inflating dubbed seedling
+        # heights and the AVH top-height on seedling-heavy stands (live-confirmed: DBH 0.1 → HT 1.01).
+        d > 0.1f0 && h_v < 4.5f0 && (h_v = 4.5f0)
         if !tkill
             t.height[i] = h_v
         else
@@ -319,16 +333,33 @@ are bit-identical to the coef defaults, so an un-overridden stand is unchanged.
 function init_merch_standards!(s::StandState)
     s.control.merch_init && return s
     c = s.control
-    if s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates
-        # Eastern (NE/CS/LS) merch standards are IFOR-dependent code rules (ne/cs/ls sitset.f via
-        # `_ne_merch`/`_cs_merch`/`_ls_merch`), not a merch_specs.csv. Board-foot mins equal the sawtimber
-        # cubic mins (bf-equal) in all three.
+    if s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
+       s.variant isa Southern
+        # All four are IFOR-dependent merch code rules (SN setcubicdflts.f, NE/CS/LS sitset.f, via
+        # `_sn_merch`/`_ne_merch`/`_cs_merch`/`_ls_merch`) rather than static data. Board-foot mins equal
+        # the sawtimber cubic mins (bf-equal) in all four. (SN's merch_specs.csv held exactly the non-NC
+        # defaults `_sn_merch` reproduces; routing it here adds the North Carolina IFOR=11 overrides.)
+        sn = s.variant isa Southern
         cs = s.variant isa CentralStates
         ls = s.variant isa LakeStates
-        ifor = Int(s.plot.forest_idx); ifor == 0 && (ifor = cs ? 1 : (ls ? 5 : _NE_DEFAULT_IFOR))
+        # SN uses the resolved IFOR (plot.forest_idx) when set — e.g. STDINFO maps Fort Bragg forest 701 to
+        # IFOR=20 even though its KODFOR is remapped to Uwharrie 81110 for VOLEQDEF, and live keys merch on
+        # that IFOR, not the remapped code. Only FIA stands leave forest_idx=0, where IFOR+KODIST are decoded
+        # from KODFOR the FVS way (IFORST=KODFOR/100−IREGN*100, KODIST=KODFOR mod 100; sitset.f:369/forkod.f:470).
+        # KODIST is consulted only when IFOR==11 (North Carolina). NE/CS/LS carry forest_idx directly.
+        kodist = 0
+        ifor = if sn
+            kod = Int(s.plot.user_forest_code)
+            kodist = kod % 100
+            f = Int(s.plot.forest_idx)
+            f != 0 ? f : (kod == 0 ? _SN_DEFAULT_IFOR : (kod ÷ 100 - (kod ÷ 10000) * 100))
+        else
+            f = Int(s.plot.forest_idx); f == 0 ? (cs ? 1 : (ls ? 5 : _NE_DEFAULT_IFOR)) : f
+        end
         @inbounds for j in 1:length(c.sp_dbh_min)
             dbhmin, topd, scfmind, scftopd, stmp, scfstmp =
-                ls ? _ls_merch(j, ifor) : cs ? _cs_merch(j, ifor) : _ne_merch(j, ifor)
+                sn ? _sn_merch(j, ifor, kodist) : ls ? _ls_merch(j, ifor) :
+                cs ? _cs_merch(j, ifor) : _ne_merch(j, ifor)
             c.sp_dbh_min[j] = dbhmin; c.sp_top_diam[j] = topd
             c.sp_scf_dbhmin[j] = scfmind; c.sp_scf_topd[j] = scftopd
             c.sp_stump_ht[j] = stmp; c.sp_scf_stump[j] = scfstmp
@@ -503,6 +534,11 @@ function compute_volumes!(s::StandState)
     anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
     anyform = any(!iszero, cff0) || any(!=(1f0), cff1) || any(!iszero, bff0) || any(!=(1f0), bff1)
     anydef = anydef_cf || anydef_bf || anyform || any(!iszero, t.defect) # gate the no-defect hot path
+    # Two reusable 15-vectors for the per-tree R8 volume calls (pillar-2: was a fresh zeros(15) per call).
+    # DISTINCT buffers because v (primary cubic) and vb (board recompute) have overlapping lifetimes
+    # (v[7] is read after vb is computed). Allocated once here (per compute_volumes! call), not per tree.
+    _vbuf = Vector{Float32}(undef, 15); _vbbuf = Vector{Float32}(undef, 15)
+    _logbuf = Vector{Float32}(undef, 40)   # sawtimber log-length scratch (both calls run sequentially)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
@@ -522,7 +558,7 @@ function compute_volumes!(s::StandState)
         mtops = topd[sp]
         ldref = log_grade ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
         lcref = log_grade_cuft ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
-        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl)
+        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl, buf = _vbuf, logbuf = _logbuf)
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
@@ -557,7 +593,7 @@ function compute_volumes!(s::StandState)
         if bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
-                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl)
+                vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl, buf = _vbbuf, logbuf = _logbuf)
                 bf = vb[10]; bfmax = vb[1]                # BFMAX = board-equation total (fvsvol.f BFVOL)
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))
@@ -569,7 +605,12 @@ function compute_volumes!(s::StandState)
             end
         end
         if tkill && tcf > 0f0
-            bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)  # unified per-stand bark (Fort Bragg)
+            # FVS vols.f:150 computes BARK=BRATIO(D) from the START-of-cycle DBH (before the cycle's
+            # DG projection at line 151), and CFTOPK/BFTOPK use THAT bark. Use the value stashed at
+            # DG time; fall back to BRATIO(current DBH) at cycle-0 LSTART (no projection yet), which is
+            # exactly FVS's LSTART bark. (Was: always recompute from the grown DBH ⇒ broken-top cuft ±1.)
+            bark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] :
+                   bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(merch, sp, d, h, bf, bfmax, bark, Int(t.trunc[i]))
         end

@@ -39,4 +39,4 @@ mort_dbh_threshold(s, ::LakeStates) = s.control.dbh_sdi  # ls/morts.f:203 IF(D.L
 const LS_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "lakestates"))
 
 "Cached Lake States coefficient load (first call reads `data/lakestates/*.csv`)."
-coefficients(::LakeStates) = get!(() -> load_species_coefficients(LS_DATADIR), _COEF_CACHE, "LS")
+coefficients(::LakeStates) = cached_coefficients(() -> load_species_coefficients(LS_DATADIR), "LS")

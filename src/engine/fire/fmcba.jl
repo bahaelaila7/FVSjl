@@ -50,7 +50,7 @@ function fmcba!(s::StandState)
         sp = Int(t.species[i]); d = t.dbh[i]
         tba[sp] += 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        sp2 = s.species.class_codes[sp, 1][1:2]       # forest-grown crown width (CWCALC, iwho=0)
+        sp2 = s.species.code2[sp]       # forest-grown crown width (CWCALC, iwho=0)
         cw = crown_width(coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]

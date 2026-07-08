@@ -19,12 +19,6 @@ Read tree records from `trepath` using `state.control.tree_format`, appending th
 to `state.trees`. Returns the number of trees loaded. Mirrors intree.f.
 """
 function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
-    t = s.trees
-    p = s.plot
-    plot_ids = Int32[]            # unique record plot numbers (IPVEC)
-    dead = Tuple{Any,Int32,Int32}[]  # (record, species idx, subplot) for dead trees
-    n0 = t.n
-
     # Source the records from the modern self-describing `.csv` when one sits beside
     # the `.tre` (named columns → no TREEFMT needed), else parse the fixed-column `.tre`
     # with the current TREEFMT. Both yield the same `Vector{TreeRecord}`.
@@ -77,6 +71,25 @@ function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
             push!(records, rec)
         end
     end
+
+    return ingest_tree_records!(s, records)
+end
+
+"""
+    ingest_tree_records!(s, records) -> Int
+
+Assign a `Vector{TreeRecord}` into the stand's `TreeList`, applying the intree.f
+per-record fixups (subplot/IPVEC numbering, dead-tree partition, species resolution,
+crown/defect/topkill/birth-age). Shared by the `.tre`/`.csv` file loader and the DBS
+database-input path (`fia_database.jl`) so both produce byte-identical tree state.
+Returns the number of live trees appended.
+"""
+function ingest_tree_records!(s::StandState, records::Vector{TreeRecord})
+    t = s.trees
+    p = s.plot
+    plot_ids = Int32[]            # unique record plot numbers (IPVEC)
+    dead = Tuple{Any,Int32,Int32}[]  # (record, species idx, subplot) for dead trees
+    n0 = t.n
 
     for rec in records
         # Subplot index (IPVEC/ITRE) is assigned to EVERY record before the dead /

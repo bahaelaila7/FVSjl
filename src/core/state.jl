@@ -476,12 +476,13 @@ mutable struct SpeciesData
     fia::Vector{String}          # FIA species codes                     (FIAJSP)
     plants::Vector{String}       # PLANTS symbols                        (PLNJSP)
     class_codes::Matrix{String}  # species-tree class codes (MAXSP,3)     (NSP)
+    code2::Vector{String}        # precomputed class_codes[sp,1][1:2] (crown-width key), set at species load
     dg_const::Vector{Float32}    # site-dependent DG constant per sp      (DGCON)
     vol_eq::Vector{String}       # per-species NVEL volume equation id    (VEQNNC/VEQNNB)
 end
 SpeciesData() = SpeciesData(
     fill("    ",MAXSP), fill("    ",MAXSP), fill("      ",MAXSP),
-    fill("    ",MAXSP,3), zeros(Float32,MAXSP), fill("           ",MAXSP),
+    fill("    ",MAXSP,3), fill("  ",MAXSP), zeros(Float32,MAXSP), fill("           ",MAXSP),
 )
 
 # ---------------------------------------------------------------------------
@@ -554,9 +555,31 @@ mutable struct Scratch
     mort_killed::Vector{Float32}
     mort_efftr::Vector{Float32}
     mort_temwk2::Vector{Float32}
+    # Per-species Weibull crown-parameter caches for crown_ratio_update! (SN crown.f) — computed once per
+    # species per call, read per tree. Preallocated to MAXSP + reused; `crown_seen` is fill!(false)-reset each
+    # call (the compute gate), so the values are value-safe and the per-cycle crown path allocates nothing.
+    crown_aw::Vector{Float32}
+    crown_bw::Vector{Float32}
+    crown_cw::Vector{Float32}
+    crown_seen::Vector{Bool}
+    # Descending-DBH sort permutation for the once-per-cycle stand-stat passes (stand_top_height /
+    # point_basal_area! / stand_pct!). They run sequentially (never nested) ⇒ one shared buffer is
+    # value-safe; `sortperm!` (same default alg as `sortperm`) reproduces the identical permutation ⇒ bit-exact.
+    stat_idx::Vector{Int32}
+    # FORTYP per-group stocking accumulator (stkval.f) — 210 FIA groups, filled fresh (fill!(0)) each
+    # compute_forest_type! (once per cycle); reused instead of a per-cycle `zeros(210)`.
+    stkval_s::Vector{Float32}
+    # R9 Clark volume (NE/CS/LS) per-tree reused buffers — the vol[15] result (fill!(0) each call) and the
+    # R9LOGS log-length buffer (written-before-read), threaded into r9clark_cubic from compute_volumes_ne!'s
+    # hot loop so the per-cycle R9 volume path allocates nothing. (Non-hot callers — snag/mortality — pass
+    # `nothing` and allocate, staying bit-exact and unchanged.)
+    r9_vol::Vector{Float32}
+    r9_logbuf::Vector{Float32}
 end
 Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
-                    zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE))
+                    zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
+                    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
+                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
@@ -609,6 +632,29 @@ mutable struct SnagList
                                   # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
 end
 SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[])
+
+"""
+Preallocated, reused work buffers for `book_mortality_snags!`'s FMSADD snag-record binning (fire path only).
+Replaces the per-call `Dict`s + growable `Vector`s with dense arrays keyed on the (species, DBH-class 1:19,
+HT-class 1:2) tuple space, so the fire mortality path allocates nothing. `minht`/`maxht` index by
+`(sp-1)*19 + dbhcl`; `gkey` indexes by `((sp-1)*19 + (dbhcl-1))*2 + htcl` → the class's first-appearance
+slot g (0 = unseen), with `gsp/gdbh/ght/gden` the per-class accumulators in first-appearance order. All are
+reset (`fill!`) at the top of each call; the i=1:n scan order — hence both the Float32 running-mean
+accumulation order and the emission order — is IDENTICAL to the old Dict version (bit-exact).
+"""
+struct SnagBinScratch
+    minht::Vector{Float32}   # [MAXSP*19]  per (sp,dbhcl) min dying-tree height
+    maxht::Vector{Float32}   # [MAXSP*19]  per (sp,dbhcl) max dying-tree height
+    gkey::Vector{Int32}      # [MAXSP*19*2] class (sp,dbhcl,htcl) → first-appearance slot g (0 = unseen)
+    gsp::Vector{Int32}       # [MAXTRE] first-appearance class species
+    gdbh::Vector{Float32}    # [MAXTRE] class density-weighted running-mean dbh
+    ght::Vector{Float32}     # [MAXTRE] class density-weighted running-mean height
+    gden::Vector{Float32}    # [MAXTRE] class total density
+end
+SnagBinScratch() = SnagBinScratch(Vector{Float32}(undef, MAXSP * 19), Vector{Float32}(undef, MAXSP * 19),
+                                  zeros(Int32, MAXSP * 19 * 2), Vector{Int32}(undef, MAXTRE),
+                                  Vector{Float32}(undef, MAXTRE), Vector{Float32}(undef, MAXTRE),
+                                  Vector{Float32}(undef, MAXTRE))
 
 """
 PotFire-report weather-scenario conditions, overridable by the POTF* keywords (POTFMOIS/POTFWIND/
@@ -738,6 +784,8 @@ mutable struct FireState
                                        # burnseas), conditions resolved with FVS defaults at parse time. A fire is
                                        # popped + its conditions loaded into the scalars above when its year falls in
                                        # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
+    snagbin::SnagBinScratch            # preallocated FMSADD snag-binning work buffers (book_mortality_snags!) —
+                                       # keeps the fire mortality path allocation-free (bit-exact; see SnagBinScratch)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
@@ -746,7 +794,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[])
+                        NTuple{7,Float32}[], SnagBinScratch())
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

@@ -435,6 +435,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75).
         bark = bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
+        t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing

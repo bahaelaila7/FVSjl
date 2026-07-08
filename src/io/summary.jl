@@ -316,7 +316,10 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips
     # the rendered integer by 1 on knife-edge rows (the non-associative tree-SUM residual).
     function vtot(f)
-        fld = getfield(t, f); acc = 0f0
+        # `f` is a runtime Symbol ⇒ getfield(t, f) infers as Any, boxing `fld[i]` on every add (measured
+        # ~50 KB/cycle + a type-instability). All vtot fields are Vector{Float32}, so assert it: concrete
+        # `fld` ⇒ allocation-free, type-stable, and the sequential Float32 accumulation order is unchanged.
+        fld = getfield(t, f)::Vector{Float32}; acc = 0f0
         @inbounds for i in 1:t.n
             acc += fld[i] * t.tpa[i]
         end
@@ -337,7 +340,12 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
     # `total_removed_merch` carries cross-cycle removals (0 at the inventory).
     # Computed in Float32 to match FVS REAL*4 (the %.1f rounding differs from Float64).
-    mai = age > 0 ? Float32(mcuft + total_removed_merch) / Float32(age) : 0f0
+    # After a RESETAGE that rebased the age to ZERO, FVS shuts off MAI (disply.f:391-394 BCYMAI=0 when
+    # MAIFLG≠0; evtstv.f:396 sets it when ZERO=age−period==0, i.e. the age was reset to 0, and persists it).
+    # A RESETAGE to a NON-zero age keeps MAI on (e.g. s17_managed resets to 40 → MAI stays 62.5). Non-RESETAGE
+    # runs have ry<0 ⇒ untouched (bit-exact); bare-ground (NEWSTD) has no RESETAGE ⇒ its own MAI path unchanged.
+    mai = (ry >= 0 && yr > ry && Int(s.control.age_reset_age) == 0) ? 0f0 :
+          (age > 0 ? Float32(mcuft + total_removed_merch) / Float32(age) : 0f0)
     SummaryRow(
         year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,

@@ -116,7 +116,11 @@ function dgf!(s::StandState, ::CentralStates)
               sitec[sp]  * p.sp_site_index[sp]
 
         dds < -9.21f0 && (dds = -9.21f0)
-        # OB→IB bark conversion (cs/dgf.f:547-550).
+        # OB→IB bark conversion (cs/dgf.f:547-550). PROVEN INERT (2026-07-06, live FVS_TreeList NOTRIPLE, matched
+        # by TreeId): routing EXP/ALOG → fexp/flog left the divergent record (id 11 hickory, 2010) DBH UNCHANGED at
+        # 11.382505 ⇒ this conversion is NOT the seed. The seed is the DGSCOR `frm` draw (dgscor.f): ssig is a
+        # bit-exact UNCALIBRATED constant (=sigmar) here, so it's the RNG draw VALUE or ORDER, not ssig/bound.
+        # Left native (hottest DGF inner loop; DGF-hot-loop-perf precedent, and confirmed-inert).
         diagro = sqrt(d * d + exp(dds)) - d
         bark = bark_ratio(ba_a, ba_b, sp, d)
         diagri = diagro * bark

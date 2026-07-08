@@ -92,6 +92,8 @@ include("io/input.jl")
 include("engine/species_translation.jl")
 include("engine/treeinput.jl")
 include("engine/keyword_dispatch.jl")
+include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
+include("io/fia_translate.jl")           # raw FIADB (PLOT/COND/TREE/…) → FVS-ready records
 include("engine/init.jl")
 include("engine/crown_width.jl")
 include("engine/forest_type.jl")

@@ -55,7 +55,7 @@ end
     icls < 1 && (icls = 1); icls > 50 && (icls = 50)
     bal = @inbounds ebau[icls]
     bal <= 0f0 && return 1f0
-    g = exp(-b3 * bal)
+    g = fexp(-b3 * bal)          # balmod.f EXP → FFI companion (gfortran), not native openlibm
     return g < 0.5f0 ? 0.5f0 : g
 end
 

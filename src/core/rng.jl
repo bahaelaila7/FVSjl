@@ -107,8 +107,8 @@ function bachlo(r::FVSRng, xbar::Real, stdev::Real; stream::Symbol = :main)::Flo
         if u > Float32(2.0 / 3.0)
             zval = 3.0f0 * u - 2.0f0
             zval < 0.001f0 && continue
-            x = 1.0f0 - 0.5f0 * log(zval)
-            z = 0.5f0 * (x - 2.0f0)^2
+            x = 1.0f0 - 0.5f0 * log(zval)           # native log kept (doctrine: never route the RNG); PROVEN INERT
+            z = 0.5f0 * (x - 2.0f0)^2                # on the DGSCOR-divergent record (id 11 hickory, NOTRIPLE) — flog left it unchanged
         else
             x = 1.5f0 * u
             z = 0.5f0 * x * x

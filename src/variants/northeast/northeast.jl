@@ -33,4 +33,4 @@ mort_dbh_threshold(s, ::Northeast) = s.control.dbh_sdi   # morts.f:203 — NE ga
 const NE_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "northeast"))
 
 "Cached Northeast coefficient load (first call reads `data/northeast/*.csv`)."
-coefficients(::Northeast) = get!(() -> load_species_coefficients(NE_DATADIR), _COEF_CACHE, "NE")
+coefficients(::Northeast) = cached_coefficients(() -> load_species_coefficients(NE_DATADIR), "NE")

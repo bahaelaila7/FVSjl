@@ -23,6 +23,16 @@ const PRETZSCH_SDIK = 0.02483133f0
 # `yr` = the growth-model native period (FVS /CONTRL/ YR): 5 for SN, 10 for NE. The
 # Fortran is `G = (DG/BARK)·(FINT/YR)`; this reconstructs the YR-year DG from the stored
 # fint-year increment, then linearly extrapolates by FINT/YR. Identity at fint==yr.
+#
+# ★ This squaring+sqrt reconstruction is FAITHFUL, not a jl artifact (task #70, REFUTED 2026-07-06).
+# I tried threading the clean bounded-native 5-yr DG straight through (stash `mort_dg` at growth time,
+# skip the roundtrip). Result: every native 5-yr class stayed bit-exact (identity branch), but the
+# NON-native cycles (timeint10/cycleat/s5/s9) REGRESSED — BA drifted off the live golden by whole trees
+# (129 vs 127) that had been BIT-EXACT with this reconstruction. i.e. live FVS's own Float32 op-sequence
+# matches THIS roundtrip, not the clean direct DGb (FVS's MORTS reads the FINT-scaled DG and recovers the
+# linear increment the same squaring/sqrt way — the two agree in ℝ but differ ~1 ULP in Float32, and the
+# knife-edge kill flips on that ULP). So the reconstruction is the correct Float32 path; do NOT "simplify"
+# it to a direct native stash. The timeint10 residual is the mortality knife-edge, NOT this roundtrip.
 @inline function _mort_traj_g(dg_ib_fint::Float32, dbh::Float32, bark::Float32, fint::Float32, yr::Float32 = 5f0)
     fint == yr && return dg_ib_fint / bark    # exact identity — avoid the sqrt roundtrip's 1-ULP noise
     dib  = dbh * bark
@@ -135,7 +145,10 @@ function _varmrt_efftr!(efftr, s, ::Southern, t::TreeList, n::Int)
     shade_adj = s.coef.species[:varmrt_shade_adj]
     pass1 = 0f0
     @inbounds for i in 1:n
-        pe = clamp(0.84525f0 - 0.01074f0 * pct[i] + 0.0000002f0 * pct[i]^3f0, 0.01f0, 1f0)
+        # PCT**3.0 (sn varmrt.f:146) is a FLOAT-exponent power ⇒ gfortran powf, not x*x*x; jl `^` (Float64-pow-
+        # round) differs on ~26% of non-integer PCT (1-ULP PEFF ~1.5e-8) → sub-ULP EFFTR the geometric
+        # progression can amplify into a different discrete kill. Route via FFI (doctrine #8) to match FVS.
+        pe = clamp(0.84525f0 - 0.01074f0 * pct[i] + 0.0000002f0 * fpow(pct[i], 3f0), 0.01f0, 1f0)
         efftr[i] = pe * shade_adj[sp[i]] * 0.1f0
         pass1 += tpa[i] * efftr[i]
     end
@@ -277,8 +290,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
             sd2sq += pr * (d * d + 2f0 * d * g + g * g)
             sdq0  += pr * d * d
-            sumdr0  += pr * d^1.605f0
-            sumdr10 += pr * (d + g)^1.605f0
+            sumdr0  += pr * fpow(d, 1.605f0)          # Zeide D**1.605 (morts.f) → FFI companion (gfortran powf)
+            sumdr10 += pr * fpow(d + g, 1.605f0)
             tt += pr
         end
     end
@@ -291,8 +304,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
         s.density.mort_slope = 0f0; s.density.mort_intercept = 0f0
     end
     tt > 35000f0 && (tt = 35000f0)
-    dia0 = zeide ? (sumdr0  / tt)^(1f0 / 1.605f0) : sqrt(sdq0  / tt)
-    d10  = zeide ? (sumdr10 / tt)^(1f0 / 1.605f0) : sqrt(sd2sq / tt)
+    dia0 = zeide ? fpow(sumdr0  / tt, 1f0 / 1.605f0) : sqrt(sdq0  / tt)   # (Σ..)**(1/1.605) → FFI (gfortran)
+    d10  = zeide ? fpow(sumdr10 / tt, 1f0 / 1.605f0) : sqrt(sd2sq / tt)
     dia0 < 0.3f0 && (d10 = 0.3f0 + d10 - dia0; dia0 = 0.3f0)
 
     sdimax = stand_sdimax(s)
@@ -311,10 +324,12 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     @inbounds for i in 1:n
         pr = t.tpa[i]; pr <= 0f0 && continue
         sp = t.species[i]
-        ri = ri_scale / (1f0 + exp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))   # NE halves the rate (morts.f:504)
+        # morts.f background-mortality rate: EXP(B0+B1·D) and (1-RI)**FINT are gfortran transcendentals — route
+        # via the FFI companion (doctrine #8), not native openlibm, so bg_tokill matches FVS bit-for-bit.
+        ri = ri_scale / (1f0 + fexp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))   # NE halves the rate (morts.f:504)
         ri > 1f0 && (ri = 1f0)
         xmort = active_mort_mult(s.control, sp, cur_year, t.dbh[i])  # 1 outside the DBH window
-        bg_tokill += min(pr * (1f0 - (1f0 - ri)^fint) * xmort, pr)
+        bg_tokill += min(pr * (1f0 - fpow(1f0 - ri, fint)) * xmort, pr)
     end
 
     msb_d10 = d10   # the converged self-thinning QMD the MSB block reads as FVS's D10 (morts.f:618)
@@ -494,6 +509,32 @@ the full MORTS kill) and, on a fire cycle, by `grow_cycle!` (basis = the MORTS k
 the fire kill, so the two snag sources don't overlap — FVS WK2=MAX(MORTS,fire), snags split as
 fire=FIRKIL + regular=WK2−FIRKIL).
 """
+# Standing-snag MERCH cubic (MCF = FMSVOL→CFVOL VOL2HT, LMERCH=F) for an ARBITRARY (dbh, ht) — needed to book a
+# binned snag record's bole on its class-MEAN dbh/ht (fmsadd merges, then FMSVOL on DBHS/HTDEAD). VARIANT-AWARE
+# (R9 Clark v4+v7 for NE/LS, R8 Clark v4+v7 + Region-8 rule for SN/CS) — MUST match the per-variant path in
+# ffe_seed_input_snags! (snag.jl:476-492), because book_mortality_snags! is shared across variants (simulate.jl:331).
+@inline function _snag_merch_cuft_on(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    c = s.control; coef = s.coef
+    if s.variant isa Northeast || s.variant isa LakeStates
+        ifor = Int(s.plot.forest_idx)
+        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
+        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+        return d >= dbhmin ? v[4] + v[7] : 0f0
+    else
+        prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
+            ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
+        vv, ht1prd, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+        mcuft = d >= c.sp_dbh_min[sp] ? vv[4] + vv[7] : 0f0
+        (d >= c.sp_dbh_min[sp] && prod == "01" && ht1prd < 10f0) && (mcuft = vv[7])
+        return mcuft
+    end
+end
+
+# DBHCL = 2-inch dbh class (fmsadd.f:273-277), 19 for dbh≥36.
+@inline _snag_dbhcl(d::Float32)::Int = d >= 36f0 ? 19 : trunc(Int, d / 2f0 + 1f0)
+
 function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0)
     (s.fire === nothing || !s.fire.active) && return s
     t = s.trees; coef = s.coef; yr = current_cycle_year(s)
@@ -502,29 +543,65 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     # StandDead falldown); `yrdead` carries the true death year for snag_summary's split only.
     yrdead = yr + Int(fint) - 1
     v2t = coef_col(coef, :v2t); dkr = coef_col(coef, :dkr_cls)
+    # FVS SNAG-RECORD BINNING (fmsadd.f): the standing-snag RECORD holds the DENSITY-WEIGHTED-MEAN dbh/ht of its
+    # (sp, DBHCL, HTCL) class (within THIS cycle only — RECORD never merges into prior-cycle standing snags,
+    # fmsadd.f:133-153, so cohort fall-clocks never blend). The bole (FMSVOL) + fall use that class mean; only the
+    # CROWN (FMSCRO, fmsadd.f:306) + ROOT (FMCBIO, :312) are PER-INDIVIDUAL. jl kept individual snags ⇒
+    # Σvol(individual) ≠ vol(class-mean)·density (volume nonlinear) — the carbon_snt cyc3 StandDead Δ0.017,
+    # live-stamped (43 records vs jl's 109; total density matched ~1 ULP). Verdict: this port makes the bole bit-exact.
+    #
+    # PASS 1 — MAXHT/MINHT per (sp,dbhcl) over the dying trees, to size the HTCL split (fmsadd.f:119-123): a class
+    # whose dying-tree HEIGHT RANGE exceeds 20 ft is broken into 2 height classes at MIDHT=(MAXHT+MINHT)/2.
+    # Dense preallocated bins (s.fire.snagbin) replace the per-call Dicts: minht/maxht index by lin2=(sp-1)*19+dbhcl
+    # (dbhcl 1:19), gkey by lin3=((sp-1)*19+(dbhcl-1))*2+htcl. Reset each call; the i=1:n scan order — hence the
+    # Float32 running-mean accumulation AND the emission order — is identical to the Dict version (bit-exact).
+    sb = s.fire.snagbin
+    fill!(sb.minht, 1000f0); fill!(sb.maxht, 0f0); fill!(sb.gkey, Int32(0))
     @inbounds for i in 1:n
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
-        sp = Int(t.species[i])
-        # Snag bole biomass uses the MERCHANTABLE cubic volume (FMSVOL → NATCRS MCF for SN,
-        # fmsvol.f: VOL2HT = MAX(X,MCF)), NOT the gross-cubic cuft_vol — verified per-snag against
-        # the live FVS oracle (carbon_snt: gross v[1] runs 2-8% high on mid/large snags → StandDead
-        # over-production). MCF is the tree's own merch_cuft_vol (= v[4]+v[7] with the DBHMIN gate and
-        # the Region-8 <10ft-product rule), already bit-exact for live trees; v[4] alone undershoots
-        # loblolly (carbon_jenkins) where v[7]≠0. Floor at the tiny-tree cone volume X=0.005454154·H
-        # (fmsvol.f) so sub-merch snags keep a small positive bole. Frozen at death-time dbh/height
-        # (HTIH=HTDEAD in SN, FMSNGHT height-loss is a no-op), weighted by the falling density.
-        mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-        bolevol = mcf * v2t[sp] / 2000f0
-        add_snag!(s.fire, sp, t.dbh[i], basis[i], yr; bolevol = bolevol, height = t.height[i], yrdead = yrdead)
-        # FVS fmscro.f:144-147 dead-tree crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift
-        # term is GATED by `IF (ICALL .NE. 4)`. Ordinary mortality reaches FMSCRO via FMKILL→FMSADD
-        # with ITYP=4 (fmkill.f:143), so it gets CROWNW ONLY — no crown-lift-at-death. (Only FIRE
-        # ICALL=1 (fmburn!) and CUT ICALL=2 add the YRSCYC·OLDCRW term.) Verified vs live: adding the
-        # term here overshoots carbon_snt StandDead [3.796,4.393,5.354,9.535]; CROWNW-only is exact.
-        xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
-        fmscro!(s, sp, t.dbh[i], xv, basis[i], clamp(Int(dkr[sp]), 1, 4))
-        _, _, rbio = jenkins_biomass(coef, sp, t.dbh[i])
-        s.fire.bioroot += rbio * basis[i]
+        k2 = (Int(t.species[i]) - 1) * 19 + _snag_dbhcl(t.dbh[i]); h = t.height[i]
+        h < sb.minht[k2] && (sb.minht[k2] = h); h > sb.maxht[k2] && (sb.maxht[k2] = h)
+    end
+    # PASS 2 — crown+root PER INDIVIDUAL (unchanged), and accumulate each (sp,dbhcl,htcl) record's density-weighted
+    # RUNNING mean dbh/ht in tree-record order (fmsadd.f:334-340) so the Float32 accumulation matches FVS. MIDHT is
+    # computed inline from the PASS-1 min/max (per-key, order-independent — same value as the old midht Dict).
+    ng = 0
+    @inbounds for i in 1:n
+        (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; den = basis[i]
+        # CROWN (CWD2B) + ROOT are scheduled PER INDIVIDUAL TREE (fmsadd.f:306/312). FVS fmscro.f:144-147 dead-tree
+        # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
+        # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
+        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4))
+        _, _, rbio = jenkins_biomass(coef, sp, d)
+        s.fire.bioroot += rbio * den
+        dbhcl = _snag_dbhcl(d); k2 = (sp - 1) * 19 + dbhcl
+        mh = (sb.maxht[k2] - sb.minht[k2]) > 20f0 ? (sb.maxht[k2] + sb.minht[k2]) / 2f0 : 0f0
+        htcl = (mh <= 0f0 || h < mh) ? 1 : 2                                    # fmsadd.f:279-287
+        k3 = ((sp - 1) * 19 + (dbhcl - 1)) * 2 + htcl
+        g = Int(sb.gkey[k3])
+        if g == 0
+            ng += 1
+            sb.gsp[ng] = sp; sb.gdbh[ng] = d; sb.ght[ng] = h; sb.gden[ng] = den; sb.gkey[k3] = Int32(ng)
+        else
+            totden = sb.gden[g] + den
+            sb.ght[g]  = (sb.ght[g] * sb.gden[g] + h * den) / totden
+            sb.gdbh[g] = (sb.gdbh[g] * sb.gden[g] + d * den) / totden
+            sb.gden[g] = totden
+        end
+    end
+    gsp = sb.gsp; gdbh = sb.gdbh; ght = sb.ght; gden = sb.gden
+    # emit one merged snag per (sp,dbhcl,htcl) class — bole (MCF) on the class-MEAN dbh/ht, floored at the tiny-tree
+    # cone volume X=0.005454154·H (fmsvol.f VOL2HT=MAX(X,MCF)), ×V2T→tons, weighted by class density.
+    @inbounds for g in 1:ng
+        sp = Int(gsp[g]); d = gdbh[g]; h = ght[g]
+        mcf = max(0.005454154f0 * h, _snag_merch_cuft_on(s, sp, d, h))
+        # NOTE: the fall→cwd uses this MERCH bolevol (fallvol left unset). REFUTED that FVS uses TOTAL here
+        # (fmcwd.f:187 CWD1 'D') — setting fallvol=total REGRESSED 12 live-validated carbon-DDW + fire tests
+        # (2026-07-06), so jl's merch is what matches live. The scorch big-wood cwd excess is NOT a fall-volume
+        # bug; it's the snag density/fall-timing (see task #72).
+        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead)
     end
     return s
 end

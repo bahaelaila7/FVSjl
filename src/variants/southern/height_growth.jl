@@ -27,29 +27,30 @@ const HTGF_REGYR = 5.0f0
 end
 
 htcalc_htmax(bc, sp::Integer, si::Real, montane::Bool=false) =
-    (b = _htcalc_coef(bc, sp, montane); b[1] * Float32(si)^b[2])
+    (b = _htcalc_coef(bc, sp, montane); b[1] * fpow(Float32(si), b[2]))
 
 "Height (ft) at a given age on the Chapman-Richards curve (HTCALC mode 1) — used by
 ESSUBH to assign established-tree heights."
 function htcalc_height(bc, sp::Integer, si::Real, age::Real, montane::Bool=false)
     b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si)
-    return (b1 * sif^b2) * (1f0 - exp(b3 * Float32(age)))^(b4 * sif^b5)
+    # htcalc.f SI**B2 / EXP / **(...) → FFI companion (gfortran) not native openlibm (doctrine #8).
+    return (b1 * fpow(sif, b2)) * fpow(1f0 - fexp(b3 * Float32(age)), b4 * fpow(sif, b5))
 end
 
 "Solve tree age from current height (HTCALC mode 0)."
 function htcalc_age(bc, sp::Integer, si::Real, h::Real, montane::Bool=false)
     b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si)
-    ratio = Float32(h) / (b1 * sif^b2)
+    ratio = Float32(h) / (b1 * fpow(sif, b2))
     ratio = clamp(ratio, 0f0, 1f0 - 1f-6)
-    return (1f0 / b3) * log(1f0 - ratio^(1f0 / (b4 * sif^b5)))
+    return (1f0 / b3) * flog(1f0 - fpow(ratio, 1f0 / (b4 * fpow(sif, b5))))
 end
 
 "5-year height increment from a starting age (HTCALC mode 9)."
 function htcalc_incr(bc, sp::Integer, si::Real, aget::Real, montane::Bool=false)
     b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si); a = Float32(aget)
-    hmax = b1 * sif^b2; ex = b4 * sif^b5
-    h0  = hmax * (1f0 - exp(b3 * a))^ex
-    hp5 = hmax * (1f0 - exp(b3 * (a + 5f0)))^ex
+    hmax = b1 * fpow(sif, b2); ex = b4 * fpow(sif, b5)
+    h0  = hmax * fpow(1f0 - fexp(b3 * a), ex)
+    hp5 = hmax * fpow(1f0 - fexp(b3 * (a + 5f0)), ex)
     return hp5 - h0
 end
 
@@ -78,7 +79,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htmax = htcalc_htmax(bc, sp, si, montane)
         htcon = c.htg_cor[sp]
         if htmax - hti <= 1f0
-            t.ht_growth[i] = 0.10f0 * xht * scale * exp(htcon)
+            t.ht_growth[i] = 0.10f0 * xht * scale * fexp(htcon)
             sc4 = s.control.sp_size_cap[sp, 4]
             (hti + t.ht_growth[i]) > sc4 && (t.ht_growth[i] = max(sc4 - hti, 0.1f0))
             continue
@@ -87,16 +88,16 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htg1 = htcalc_incr(bc, sp, si, aget, montane)
         relht = avh > 0f0 ? min(hti / avh, 1.5f0) : 0f0
         cr = Float32(t.crown_pct[i]) / 100f0
-        hgmdcr = min(HTGF_CRA * cr^HTGF_CRB * exp(HTGF_CRC * cr), 1f0)
+        hgmdcr = min(HTGF_CRA * fpow(cr, HTGF_CRB) * fexp(HTGF_CRC * cr), 1f0)
         rhyxs = rhyxs_v[sp]; rhr = rhr_v[sp]; rhb = rhb_v[sp]
-        fctrkx = (HTGF_RHK / rhyxs)^(HTGF_RHM - 1f0) - 1f0
+        fctrkx = fpow(HTGF_RHK / rhyxs, HTGF_RHM - 1f0) - 1f0
         fctrrb = -1f0 * (rhr / (1f0 - rhb))
-        fctrxb = relht^(1f0 - rhb) - HTGF_RHXS^(1f0 - rhb)
+        fctrxb = fpow(relht, 1f0 - rhb) - fpow(HTGF_RHXS, 1f0 - rhb)
         fctrm  = -1f0 / (HTGF_RHM - 1f0)
-        hgmdrh = HTGF_RHK * (1f0 + fctrkx * exp(fctrrb * fctrxb))^fctrm
+        hgmdrh = HTGF_RHK * fpow(1f0 + fctrkx * fexp(fctrrb * fctrxb), fctrm)
         htgmod = clamp(0.25f0 * hgmdcr + 0.75f0 * hgmdrh, 0.1f0, 2f0)
         htg = max(htg1 * htgmod, 0.1f0)
-        t.ht_growth[i] = htg * xht * scale * exp(htcon)
+        t.ht_growth[i] = htg * xht * scale * fexp(htcon)
         # htgf.f:286-288 — large-tree height cap (SIZCAP[4], set by TREESZCP). Default 999.
         # A tree already past the cap still crawls by the 0.1 floor (never shrinks).
         sc4 = s.control.sp_size_cap[sp, 4]

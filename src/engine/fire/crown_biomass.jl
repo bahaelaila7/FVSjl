@@ -22,6 +22,18 @@
 
 const _FM_P2T = 0.0005f0           # FMPARM P2T: pounds → tons
 
+# Cumulative bole-tip cone weight (tons) at bark diameter `dbrk`. Hoisted from the per-call `cone`
+# closure inside crown_biomass (pillar-2: no per-tree closure allocation). Bit-identical arithmetic —
+# same op order, all Float32 (mypi=3.14159f0, _FM_P2T=0.0005f0).
+@inline _cone(dbrk::Float32, ang::Float32, sg::Float32, mp::Float32) =
+    sg * (dbrk / 2f0 * tan(ang) * dbrk * dbrk * mp / 1728f0) / _FM_P2T
+
+# Same as _cone but the cone is capped at the tree's own bark diameter (td = min(dbrk, d)) — the
+# maple/else-branch `conem` closure, hoisted so `angle` is never captured (it was boxed, de-optimizing
+# the whole function). Bit-identical arithmetic, all Float32.
+@inline _conem(dbrk::Float32, d::Float32, ang::Float32, sg::Float32, mp::Float32) =
+    (td = min(dbrk, d); sg * (td / 2f0 * tan(ang) * td * td * mp / 1728f0) / _FM_P2T)
+
 # Standalone total cubic-foot volume of one (species, dbh, height) tree — FMSVL2's
 # `TCF` (fmsvol.f), which is just the SN volume model FVSjl uses in compute_volumes!.
 # Mirrors the per-tree cubic block of compute_volumes! (volume.jl:337-344).
@@ -112,7 +124,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # --- small unmerch trees (D < DBHMIN): add the whole-bole weight (FMSVL2) ---
     if dx < dbhmin
         dmin = dbhmin
-        hmin = _htdbh_height(coef.species, sp, dmin, ifor)
+        hmin = _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
         vt  = max(0.005454154f0 * hmin, _fm_cuft(s, sp, dmin, hmin; merch = true))
@@ -152,12 +164,11 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     lilpce = 0f0
     bark_r = bark_ratio(coef, sp, d)
     dobf = 4f0 / bark_r
-    cone(dbrk, ang) = sg * (dbrk / 2f0 * tan(ang) * dbrk * dbrk * mypi / 1728f0) / _FM_P2T
     if d > dobf && d > dbhmin
         htf = 4.5f0 + (h - 4.5f0) / d * (d - dobf)
         u4 = (h - htf) > 0f0 ? sg * ((h - htf) * 16f0 * mypi / 1728f0) / _FM_P2T : 0f0
         angle = atan((h - htf) / 2f0)
-        u1 = cone(0.25f0, angle); u2 = cone(1f0, angle); u3 = cone(3f0, angle)
+        u1 = _cone(0.25f0, angle, sg, mypi); u2 = _cone(1f0, angle, sg, mypi); u3 = _cone(3f0, angle, sg, mypi)
         dib = 4f0 * bark_r
         htlp = 4.5f0 + (h - 4.5f0) / d * (d - 4f0)
         lilpce = (htlp - htf) > 0f0 ?
@@ -168,10 +179,9 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
         if h > 4.5f0
             u4 = sg * ((h - 4.5f0) * d * d * mypi / 1728f0) / _FM_P2T
             angle = atan((h - 4.5f0) / (d / 2f0))
-            conem(dbrk) = (td = min(dbrk, d); sg * (td / 2f0 * tan(angle) * td * td * mypi / 1728f0) / _FM_P2T)
-            u1 = conem(0.25f0)                        # j=1 always
-            d > 0.25f0 && (u2 = conem(1f0))           # j>1 only if d > DBRK(j-1)
-            d > 1f0    && (u3 = conem(3f0))
+            u1 = _conem(0.25f0, d, angle, sg, mypi)   # j=1 always
+            d > 0.25f0 && (u2 = _conem(1f0, d, angle, sg, mypi))   # j>1 only if d > DBRK(j-1)
+            d > 1f0    && (u3 = _conem(3f0, d, angle, sg, mypi))
         end
         temp = mypi * d * d / 4f0 / 144f0 * min(4.5f0, h)   # cylinder below 4.5 ft
         k = d <= 0.25f0 ? 1 : d <= 1f0 ? 2 : d <= 3f0 ? 3 : 4

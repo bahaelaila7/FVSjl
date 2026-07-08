@@ -124,9 +124,16 @@ hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotp
 function stand_top_height(s::StandState)
     t = s.trees
     t.n == 0 && return 0f0
-    order = sortperm(view(t.dbh, 1:t.n); rev = true)
+    # avht40.f sorts IND with FVS's RDPSRT (Scowen quickersort, descending DBH) — NOT a stable sort. The
+    # tie-break among equal-DBH trees decides WHICH tree lands at the 40-TPA boundary (and so its height
+    # enters AVH), so a stable `sortperm!` (ascending-index ties) diverges from live on tie-heavy stands.
+    # (The DG `point_basal_area!` also sorts by DBH but its BAL is an order-independent sum ⇒ tie order is
+    # inert there; only AVH exposes it.) Use the ported `_rdpsrt!` to match FVS's IND tie-break exactly.
+    idx = view(s.scratch.stat_idx, 1:t.n)
+    _rdpsrt!(view(t.dbh, 1:t.n), idx)
     avh = 0f0; ssumn = 0f0
-    for ii in order
+    for k in 1:t.n
+        ii = Int(idx[k])
         p = t.tpa[ii]
         ssumn + p > 40f0 && (p = 40f0 - ssumn)
         ssumn += p
@@ -155,7 +162,7 @@ function point_basal_area!(s::StandState)
         npts = max(npts, Int(t.plot_id[i]))
         pbal[i] = 0f0
     end
-    order = sortperm(view(t.dbh, 1:t.n); rev = true)   # descending DBH (stable)
+    order = sortperm!(view(s.scratch.stat_idx, 1:t.n), view(t.dbh, 1:t.n); rev = true)  # descending DBH (stable)
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
@@ -178,16 +185,20 @@ function point_density!(s::StandState)
     p, t = s.plot, s.trees
     pccf = s.density.point_ccf; ptpa = s.density.point_tpa
     fill!(pccf, 0f0); fill!(ptpa, 0f0)
-    scale = p.pi / p.gross_space
+    pi_f = p.pi; gross = p.gross_space
     @inbounds for i in 1:t.n
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
-        sp2 = s.species.class_codes[t.species[i], 1][1:2]
+        sp2 = s.species.code2[t.species[i]]
         cw  = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
                           p.latitude, p.longitude, p.elevation)
         ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
-        pccf[ip] += ccft * scale
-        ptpa[ip] += t.tpa[i] * scale
+        # dense.f:210-211 accumulates each term as `CCFT*PI/GROSPC` — i.e. (ccft·pi)/gross evaluated
+        # left-to-right, NOT ccft·(pi/gross) with a precomputed reciprocal-scale. The two differ by ~1
+        # Float32 ULP per term; on the dense estab_pccf points that sub-ULP tips a regen-crown INT(CR·100+0.5)
+        # boundary. Match FVS's exact op order to deconfound (doctrine #8).
+        pccf[ip] += ccft * pi_f / gross
+        ptpa[ip] += t.tpa[i] * pi_f / gross
     end
     return s
 end
@@ -204,7 +215,7 @@ this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/
 function stand_pct!(s::StandState)
     t = s.trees; n = t.n
     n == 0 && return s
-    order = sortperm(view(t.dbh, 1:n); rev = true)     # largest DBH first
+    order = sortperm!(view(s.scratch.stat_idx, 1:n), view(t.dbh, 1:n); rev = true)  # largest DBH first
     pct = t.crown_ratio
     cum = 0f0
     @inbounds for k in n:-1:1                            # accumulate from smallest up
@@ -231,7 +242,7 @@ function stand_ccf(s::StandState)
     ccf = 0f0
     @inbounds for i in 1:t.n
         sp = t.species[i]
-        sp2 = s.species.class_codes[sp, 1][1:2]
+        sp2 = s.species.code2[sp]
         cw = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
                          p.latitude, p.longitude, p.elevation)
         ccf += t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
@@ -253,7 +264,9 @@ function stand_sdi(s::StandState)
     if s.control.zeide_sdi
         thr = s.control.dbh_zeide; sdi = 0f0
         @inbounds for i in 1:t.n
-            t.dbh[i] >= thr && (sdi += t.tpa[i] * (t.dbh[i] / 10f0)^1.605f0)
+            # sdical.f:326 `(DBH/10.)**1.605` — FVS `**` is gfortran powf, NOT Julia's openlibm `^` (differ ~0.07%);
+            # route through the companion (doctrine #8) so the reported/MYSDI Zeide SDI matches FVS bit-exactly.
+            t.dbh[i] >= thr && (sdi += t.tpa[i] * fpow(t.dbh[i] / 10f0, 1.605f0))
         end
         return sdi
     end
@@ -271,7 +284,9 @@ function stand_sdi_reineke(s::StandState)
     end
     sprob <= 0f0 && return 0f0
     mdsq = sdsq / sprob
-    a = 10f0^(-1.605f0) * (1f0 - 1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0)
-    b = 10f0^(-1.605f0) * (1.605f0 / 2f0) * mdsq^(1.605f0 / 2f0 - 1f0)
+    # sdical.f:281-282 `(10.0**(-1.605))*…*((SDSQ/SPROB)**(1.605/2.))` — all FVS `**` = gfortran powf, route via
+    # the companion (doctrine #8) not Julia's openlibm `^`. This feeds CROWN's SDI ⇒ keep SN/NE/CS/LS bit-exact.
+    a = fpow(10f0, -1.605f0) * (1f0 - 1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0)
+    b = fpow(10f0, -1.605f0) * (1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0 - 1f0)
     return sprob * a + b * sdsq
 end

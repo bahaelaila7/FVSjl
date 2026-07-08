@@ -450,14 +450,21 @@ function kw_sdimax!(s::StandState, rec::KeywordRecord)
     p = s.plot; v = rec.values; pr = rec.present
     if pr[2] && v[2] > 0f0                              # per-species max SDI (SDIDEF + MAXSDI)
         spfield = strip(rec.fields[1])
-        num = tryparse(Int, spfield)
+        # FVS SPDECD (spdecd.f:97): a NUMERIC species field is the species SEQUENCE INDEX (ISP=IFIX(ARRAY)),
+        # NOT an FIA/alpha code. Parse as FLOAT (the field is written "19.0") then round — using tryparse(Int)
+        # missed "19.0" (⇒ nothing), and resolve_species mis-read "19" as FIA-19→wrong species. Parsing the
+        # float value ALSO makes the .key ("27") and yaml-roundtrip ("27.0") paths resolve identically.
+        numf = tryparse(Float64, spfield)
+        num  = numf === nothing ? nothing : round(Int, numf)
         targets = Int[]
-        if isempty(spfield) || spfield == "0"
-            append!(targets, 1:length(p.sp_sdi_def))    # all species
+        if isempty(spfield) || num == 0
+            append!(targets, 1:length(p.sp_sdi_def))    # all species (0 / blank)
         elseif num !== nothing && num < 0               # species group −N
             g = -num
             (1 <= g <= length(s.control.sp_groups)) && append!(targets, s.control.sp_groups[g])
-        else
+        elseif num !== nothing && num > 0               # numeric field = species SEQUENCE INDEX (SPDECD)
+            push!(targets, num)
+        else                                            # alpha 2-char code
             idx, _ = resolve_species(spfield, s.variant, s.species, s.coef)
             idx > 0 && push!(targets, idx)
         end
@@ -472,6 +479,19 @@ end
 
 # OPTION 14 — STDINFO (initre.f:808): stand info. Forest/habitat decoding
 # (FORKOD/HABTYP) is deferred; the geometry/site fields are set here.
+# Fort Bragg remap (sn/forkod.f CASE 701), shared by the STDINFO keyword and the FIA DB reader so both
+# input paths resolve it the way FVS's forkod does (it runs for every stand). Forest 701 — as the FIA
+# composite `701` (REGION 7 × 100 + FOREST 1) OR the keyfile `701xx` code (forkod collapses IFORDI==701
+# to 701 first) — maps to NC Uwharrie district 81110 (region 8, VOLEQ 821CLKE, IFOR=20 special LL/LP DG +
+# bark). Without it VOLEQDEF sees region 7 ⇒ no R8 Clark equation ⇒ every tree gets zero volume.
+function sn_fortbragg_remap!(p)
+    if p.user_forest_code == 701 || div(p.user_forest_code, 100) == 701
+        p.forest_idx = Int32(20)
+        p.user_forest_code = Int32(81110)
+    end
+    return
+end
+
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
@@ -486,15 +506,7 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         org = nint(v[9])
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
     end
-    # Fort Bragg (forkod.f:137-140): forest 701 (location 701xx) ⇒ IFOR=20 (special
-    # longleaf/loblolly DG + bark equations) AND KODFOR is remapped to NC Uwharrie
-    # district 81110 (region 8) for downstream FORTYP + VOLEQDEF. Without the KODFOR
-    # remap, VOLEQDEF sees region 7 (70106÷10000) and assigns NO R8 Clark equation ⇒
-    # every tree gets zero volume.
-    if div(p.user_forest_code, 100) == 701
-        p.forest_idx = Int32(20)
-        p.user_forest_code = Int32(81110)
-    end
+    sn_fortbragg_remap!(p)   # forest 701 ⇒ NC Uwharrie 81110 / IFOR=20 (forkod.f CASE 701)
     # FORKOD default trap (forkod.f:521-533): a KODFOR that resolves to no recognized SN forest
     # falls through the SELECT CASE to `CASE DEFAULT`; when the 3-digit forest (IFORDI=KODFOR÷100)
     # isn't in JFOR, `FORFOUND=.FALSE.` ⇒ ERRGRO(3) + KODFOR = Talladega NF Alabama = 80106. So a
@@ -586,10 +598,17 @@ habitat is ignored (documented gap). No-op unless a SETSITE is due.
 function apply_setsite!(s::StandState)::Bool
     isempty(s.control.schedule) && return false
     p = s.plot; yr = current_cycle_year(s); fvscyc = Int(s.control.cycle) + 1
+    # OPCYCL containing-cycle bucketing (opcycl.f:58-64, same gate as SIMFIRE `_fire_due` / VOLUME): a SETSITE
+    # dated D fires in the cycle [cs,ce) that CONTAINS D — so a mid-cycle date (2005 in a 10-yr NE cycle
+    # 2000→2010) fires that cycle instead of NEVER (the old `D==cs` only matched boundary dates, so mid-cycle
+    # SETSITE silently no-op'd on NE/CS/LS). Boundary dates (SN 5-yr, D==cs) are unchanged ⇒ SN bit-exact. The
+    # `cs ≤ D < ce` window fires exactly ONCE (next cycle cs'=ce ⇒ D<cs' fails), matching a one-shot site change.
+    ce = cycle_year_at(s.control, Int(s.control.cycle) + 1); ce <= yr && (ce = yr + 1)
     applied = false
     for a in s.control.schedule
         a.icflag == Int32(120) || continue
-        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        ay = Int(a.year)
+        ((0 < ay < 1000) ? (ay == fvscyc) : (yr <= ay < ce)) || continue
         prm = a.params
         bamax = prm[2]; isp = round(Int, prm[3]); si = prm[4]; siflag = prm[5]; sdimax = prm[6]
         bamax > 0f0 && (s.control.ba_max = bamax)
@@ -916,12 +935,34 @@ end
 
 _defect_vals(v) = (Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[6]), Float32(v[7]))
 
+# sdefet.f:60-82 — the MCDEFECT/BFDEFECT card's 5 defect values sit at DBH 5/10/15/20/25". FVS builds the
+# defect curve from the NON-BLANK fields (prepended with the point (0",0%)), then FILLS each BLANK field via
+# ALGSLP (clamp/interp of the non-blanks) — e.g. a blank 25" field clamps to the last non-blank value, NOT 0.
+# jl previously took the raw field (blank→0), so a big tree (DBH≥ the last non-blank class) got ~0% board defect
+# vs FVS's clamped value ⇒ CS/LS bfdefect diverged at the 2040 large trees (NE's stand never reaches those
+# classes, so it stayed bit-exact). `rec.present[I]` is FVS's LNOTBK(I). Returns the FILLED 5-tuple.
+function _fill_defect_vals(rec)
+    xs = Float32[0f0]; ys = Float32[0f0]           # curve always starts at (0",0%) (sdefet.f XX(1)=0,YY(1)=0)
+    @inbounds for I in 3:7
+        rec.present[I] && (push!(xs, 5f0 * (I - 2)); push!(ys, Float32(rec.values[I])))
+    end
+    n = length(xs)
+    _alg(d) = d < xs[1] ? ys[1] : d >= xs[n] ? ys[n] : begin   # ALGSLP (algslp.f): clamp at ends, else interp
+        v = ys[n]
+        for i in 1:n-1
+            if d < xs[i+1]; v = ys[i] + (ys[i+1] - ys[i]) / (xs[i+1] - xs[i]) * (d - xs[i]); break; end
+        end
+        v
+    end
+    return ntuple(k -> (I = k + 2; rec.present[I] ? Float32(rec.values[I]) : _alg(5f0 * (I - 2))), 5)
+end
+
 # MCDEFECT (sdefet.f, IACTK 215) — per-species CUBIC defect curve (CFDEFT). Fields: 1=date,
 # 2=species, 3..7 = defect fractions at DBH 5/10/15/20/25". sdefet.f:84-120: a DATED card is
 # scheduled (OPNEW) to take effect at that cycle; an UNDATED card changes the terms now.
 # `_sched_defect!` shares that gate with BFDEFECT (IACTK 216).
 function _sched_defect!(s::StandState, rec::KeywordRecord, icflag::Int32, immediate_mat)
-    vals = _defect_vals(rec.values); isp = nint(rec.values[2])
+    vals = _fill_defect_vals(rec); isp = nint(rec.values[2])   # blank fields ALGSLP-filled (sdefet.f), not 0
     if rec.present[1] && rec.values[1] > 0f0          # dated → defer to the cycle (sdefet.f OPNEW)
         push!(s.control.volume_events,
               ScheduledActivity(Int32(nint(rec.values[1])), icflag,
@@ -1342,7 +1383,21 @@ DATABASE (dbsin.f): the DBS output block. Read to END; `DSNOUT` sets the output 
 FVS_Summary table (ISUMARY=1). Other DBS sub-keywords (SQLOUT/COMPUTDB/TREELIDB/…) are
 recognized and skipped — only the Summary table is emitted so far (see `write_dbs_summary!`).
 """
+# Read a DBS SQL block (StandSQL/TreeSQL … EndSQL): the SQL text spans the raw lines
+# following the sub-keyword up to a line reading `EndSQL` (dbsin.f). Joined with spaces.
+function _read_dbs_sql!(kr::KeywordReader)
+    buf = IOBuffer(); first = true
+    while !eof(kr.io)
+        line = read_raw_line!(kr)
+        uppercase(strip(line)) == "ENDSQL" && break
+        isempty(strip(line)) && continue
+        first || print(buf, ' '); print(buf, strip(line)); first = false
+    end
+    return String(take!(buf))
+end
+
 function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    dbs_in = ""; standsql = ""; treesql = ""          # DATABASE input block (DSNIN/StandSQL/TreeSQL)
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -1352,6 +1407,12 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             break
         elseif k == "DSNOUT"
             s.control.dbs_out_file = strip(read_raw_line!(kr))   # filename on the next line
+        elseif k == "DSNIN"
+            dbs_in = strip(read_raw_line!(kr))                   # input SQLite file on the next line
+        elseif k == "STANDSQL"
+            standsql = _read_dbs_sql!(kr)
+        elseif k == "TREESQL"
+            treesql = _read_dbs_sql!(kr)
         elseif k == "SUMMARY"
             s.control.dbs_summary = true
         elseif k == "TREELIDB"
@@ -1360,6 +1421,9 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_compute = true
         end
     end
+    # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
+    # STDINFO/SITECODE/DESIGN/TREEDATA-card equivalent (dbsstandin.f/dbstreesin.f).
+    (!isempty(dbs_in) && !isempty(standsql)) && load_fia_stand!(s, dbs_in, standsql, treesql)
     return
 end
 
@@ -2083,7 +2147,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "REUSCORR"; kw_reuscorr!(s)           # reuse prior RCOR2 (initre.f:7600)
         elseif kw == "RESETAGE"; kw_resetage!(s, rec)      # rebase stand age at a date (resage.f act 443)
         elseif kw == "SDICALC";  kw_sdicalc!(s, rec)       # SDI method + thresholds (LZEIDE drives report+mortality, initre.f:14000)
-        elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (initre.f:8000; algorithm TODO)
+        elseif kw == "COMPRESS"; kw_compress!(s, rec)      # schedule record compression (engine: compress.jl apply_compress!/_merge_classes!, IBM EIGEN — validated bit-exact)
         elseif kw == "STDIDENT"; kw_stdident!(s, kr)
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)

@@ -20,6 +20,7 @@ function init_blockdata!(s::StandState, v::CentralStates)
         sd.class_codes[i, 1] = code * "1"
         sd.class_codes[i, 2] = code * "2"
         sd.class_codes[i, 3] = code * "3"
+        sd.code2[i] = String(rstrip(first(sd.class_codes[i, 1], 2)))  # pre-rstripped crown-width key
     end
     hab = s.coef.valid_habitat
     copyto!(s.plot.valid_habitat, 1, hab, 1, min(length(hab), length(s.plot.valid_habitat)))

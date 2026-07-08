@@ -147,6 +147,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # `stand_qmd(s)` recomputed after would include the cohort (0.626) and flip ls_balmod to the else
     # branch (GM 1.0) ⇒ the cohort over-grows (the BARE-PLANT seedling over-sizing).
     rmsqd_pre = stand_qmd(s)
+    # CS REGENT-LESTB BALMOD needs the POST-growth OVERSTORY BA/AVH (pre-seedling) — same snapshot pattern as
+    # ebau_pre/rmsqd_pre above. plot.basal_area/avg_height are STALE here (set pre-growth at cycle start;
+    # compute_density! refreshes them only AFTER establish!, simulate.jl:463), and stand_ba/stand_top_height
+    # computed later in the phase-2 loop would over-count the new seedlings' own BA (breaks the BARE-GROUND case).
+    # Recompute NOW over the overstory (1:nstart, no seedlings yet): cs_estab overstory 134.1/70.2; bare stand 0/0.
+    ov_ba_pre = stand_ba(s)
+    ov_avh_pre = stand_top_height(s)
     # estab.f:175-205 — pre-replicate :estab RNG setup, consumed BEFORE any per-replicate height draw.
     # On the FIRST tally (NTALLY==1) FVS draws once to derive ESDRAW = INT(DRAW·1e5+0.5) and SAVEs it;
     # every tally then reseeds the establishment stream with ESRNSD(.TRUE.,ESDRAW) (odd-forced) and
@@ -229,7 +236,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             if hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
             else
-                dbh = _htdbh_dbh(sd, sp, hht, ifor); dbh < 0.1f0 && (dbh = 0.1f0)
+                dbh = _htdbh_dbh(sd, sp, hht, ifor; isne = s.variant isa Northeast); dbh < 0.1f0 && (dbh = 0.1f0)
                 dbh += 0.001f0 * hht
             end
             for _ in 1:ibrkup
@@ -281,8 +288,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             rnd_e = s.control.dg_stddev_bound >= 1f0        # DGSD random ±10%
         elseif cs_estab
             cb1_e = sd[:balmod_b1]; cb2_e = sd[:balmod_b2]; cb3_e = sd[:balmod_b3]
-            avh_e = s.plot.avg_height
-            ba_e = s.plot.basal_area                       # PRE-establishment overstory BA (seedlings not yet in)
+            avh_e = ov_avh_pre                             # POST-growth overstory (pre-seedling snapshot above) —
+            ba_e = ov_ba_pre                               # NOT the stale plot.* (regent.f end-of-cycle regen timing)
             scale_e = per > 5 ? Float32(per - 5) / 10f0 : 0f0   # FNT/REGYR, REGYR=10 (CON=HGADJ=XRHGRO=1)
             rdiam_e = sd[:htdbh_db]                         # DIAM floor (= cs/regent.f DIAM == htdbh_db)
             rnd_e = s.control.dg_stddev_bound >= 1f0        # DGSD random ±10%
@@ -316,7 +323,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 if ne_htcalc_htmax(sp, si) - h <= 1f0
                     htgr = 0.1f0
                 else
-                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) * scale_e * xrhgro
+                    # regent.f:224 HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO — the LESTB path must apply CON =
+                    # exp(htg_cor_small) (= RHCON·exp(HCOR)) too, as NE small_tree_growth.jl:48 does. It was OMITTED
+                    # here ⇒ planted seedlings over-grew (WP: CON=0.914, live rawHTGR 7.98 vs jl 8.73; live-stamped).
+                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) *
+                           exp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
                 end
                 gmod = ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
@@ -333,7 +344,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 if hk <= 4.5f0                       # regent.f:290-293: DG=0, DBH=D+0.001·HK (no Wykoff inverse)
                     t.dbh[i] = t.dbh[i] + 0.001f0 * hk
                 else
-                    dnew = _htdbh_dbh(sd, sp, hk, ifor); dnew < 0.1f0 && (dnew = 0.1f0)
+                    dnew = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast); dnew < 0.1f0 && (dnew = 0.1f0)
                     dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
                     t.dbh[i] = dnew + 0.001f0 * hk
                 end
@@ -347,7 +358,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 else
                     htgr = cs_htcalc_incr(sp, si, cs_htcalc_age(sp, si, h)) * scale_e * xrhgro
                 end
-                bal = (1f0 - t.crown_ratio[i] / 100f0) * ba_e  # point BAL ≈ overstory BA for the smallest tree
+                # regent.f:156 BAL=(1-PCT/100)·BA, PCT=BA-percentile. A new seedling (D=0.1) is the smallest ⇒
+                # PCT≈0 ⇒ BAL≈full overstory BA (live BAL=134.1=BA). crown_ratio was a wrong proxy (gave ~0.5·BA).
+                bal = ba_e
                 gmod = cs_balmod(cb1_e[sp], cb2_e[sp], cb3_e[sp], bal, ba_e, t.dbh[i])
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
                 htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
@@ -362,7 +375,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 if hk < 4.5f0
                     dbhk = rdiam_e[sp]
                 else
-                    dbhk = _htdbh_dbh(sd, sp, hk, ifor)
+                    dbhk = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast)
                     dbhk < rdiam_e[sp] && (dbhk = rdiam_e[sp])
                 end
                 t.dbh[i] = dbhk + 0.001f0 * hk
@@ -374,7 +387,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 if ls_htcalc_htmax(sp, si) - h <= 1f0
                     htgr = 0.1f0
                 else
-                    htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) * scale_e * xrhgro
+                    # regent.f:224 CON = exp(htg_cor_small) (= RHCON·exp(HCOR)), as LS small_tree_growth.jl:40 applies.
+                    # Was omitted here (inert for JP where CON≈1, but a latent bug for CON≠1 species — cf. the NE fix).
+                    htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) *
+                           exp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
                 end
                 gmod = ls_balmod(sp, t.dbh[i], ba_e, rmsqd_e, lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e)
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
@@ -388,7 +404,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 if hk < 4.5f0                       # ls/regent.f LESTB dbh: DIAM floor (or htdbh⁻¹), + 0.001·hk
                     dbhk = rdiam_e[sp]
                 else
-                    dbhk = _htdbh_dbh(sd, sp, hk, ifor)
+                    dbhk = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast)
                     dbhk < rdiam_e[sp] && (dbhk = rdiam_e[sp])
                 end
                 t.dbh[i] = dbhk + 0.001f0 * hk

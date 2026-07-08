@@ -37,4 +37,4 @@ mort_dbh_threshold(s, ::CentralStates) = s.control.dbh_sdi
 const CS_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "centralstates"))
 
 "Cached Central States coefficient load (first call reads `data/centralstates/*.csv`)."
-coefficients(::CentralStates) = get!(() -> load_species_coefficients(CS_DATADIR), _COEF_CACHE, "CS")
+coefficients(::CentralStates) = cached_coefficients(() -> load_species_coefficients(CS_DATADIR), "CS")

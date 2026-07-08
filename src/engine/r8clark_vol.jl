@@ -82,16 +82,17 @@ function _r8clark_lookup(voleq::AbstractString)
     geoa = 0
     spec = 0
     regn = 0
-    # Parse voleq: "8{geoa}1CLKE{sss}" → geoa from pos 2, spec from pos 8-10
+    # Parse voleq: "8{geoa}1CLKE{sss}" → geoa from pos 2, spec from pos 8-10. `tryparse` (returns nothing on
+    # failure) is semantically identical to the old `parse`+try/catch but WITHOUT throwing — for a blank
+    # voleq (snt01's default) the old code threw+caught an exception on EVERY per-tree volume call (the
+    # dominant allocation here). `tryparse` uses the same whitespace-tolerant parse rules, so bit-identical.
     length(voleq) >= 10 || return nothing, 1
-    geoa_c = voleq[2]
-    spec_s = voleq[8:10]
-    try
-        geoa = parse(Int, string(geoa_c))
-        spec = parse(Int, spec_s)
-    catch
-        return nothing, 6
-    end
+    # SubString views (not string(voleq[2]) / voleq[8:10], which each allocate a fresh String every per-tree,
+    # per-cycle volume call) — tryparse on a SubString uses the same whitespace-tolerant parse ⇒ bit-identical,
+    # allocation-free (the parse result is a per-species constant; this is the hot-path volume driver).
+    geoa = tryparse(Int, SubString(voleq, 2, 2))
+    spec = tryparse(Int, SubString(voleq, 8, 10))
+    (geoa === nothing || spec === nothing) && return nothing, 6
     (geoa < 1 || geoa > 9 || geoa == 8) && return nothing, 1
 
     spec = _r8_remap_spec(spec)
@@ -336,7 +337,9 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
                       mTopp::Float32, mTopS::Float32, stump::Float32,
                       prod::AbstractString; log_dib::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing,
                       log_cuft::Union{Nothing,Base.RefValue{Dict{Int,Float32}}} = nothing,
-                      intl_bf::Bool = false)
+                      intl_bf::Bool = false,
+                      buf::Union{Nothing,Vector{Float32}} = nothing,
+                      logbuf::Union{Nothing,Vector{Float32}} = nothing)
     # `intl_bf`: report vol[10] as INTERNATIONAL ¼" board feet instead of Scribner. FVS volinit2.f:291-297
     # replaces vol(2) with vol(10) (International) for R8 National Forests IFORST∈{4,5,8,11,12,14,19,20,21,
     # 22,24,30}; other R8 forests keep Scribner. Same even-foot sawtimber bucking, different per-log rule.
@@ -346,7 +349,12 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
     # `log_cuft` is the cubic (HRVRVN unit 5, FT3_100_LOG) analog — per-log gross cuft via `_r8_cuft_by_dib`
     # (R9LGCFT), renormalized to VOL(4)+VOL(7); filled in the same sawtimber block.
 
-    vol = zeros(Float32, 15)
+    # Optional caller-supplied 15-vector (pillar-2: the hot volume path reuses a per-cycle buffer instead
+    # of allocating a fresh vector per tree). Zeroed here so the fill logic is identical to zeros(15). The
+    # caller must consume the result before the next call reusing the SAME buffer (volume.jl passes two
+    # distinct buffers because v and vb have overlapping lifetimes). Default nothing ⇒ allocate (all other
+    # callers unchanged).
+    vol = buf === nothing ? zeros(Float32, 15) : fill!(buf, 0f0)
     # Returns (vol, sawHt, plpHt): the merch heights to the sawtimber and pulpwood
     # top diameters (= HT1PRD/HT2PRD in fvsvol.f), used to set HT2TD (merch top ht).
     dbhOb < 1.0f0 && return vol, 0.0f0, 0.0f0   # volinit.f 168: DBH<1 → no volume
@@ -447,7 +455,7 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
         vol[10] = intl_bf ?
             _r8_intlqtr_bf(R,C,E,P,B,A, totHt,dbhIb,dib17, sawHt, stump, minLen, maxLen, trim) :
             _r8_scribner_bf(R,C,E,P,B,A, totHt,dbhIb,dib17,
-                                   sawHt, plpHt, stump, minLen, maxLen, trim)
+                                   sawHt, plpHt, stump, minLen, maxLen, trim; logbuf = logbuf)
         log_dib !== nothing && (log_dib[] = _r8_scribner_bf_by_dib(R,C,E,P,B,A, totHt,dbhIb,dib17,
                                    sawHt, plpHt, stump, minLen, maxLen, trim))
         log_cuft !== nothing && (log_cuft[] = _r8_cuft_by_dib(R,C,E,P,B,A, totHt,dbhIb,dib17,
@@ -511,7 +519,8 @@ end
 # Translated from r9logs.f and r9clark.f r9bdft subroutine.
 # ---------------------------------------------------------------------------
 function _r8_scribner_bf(R, C, E, P, B, A, totHt, dbhIb, dib17,
-                          sawHt, plpHt, stump, minLen, maxLen, trim)
+                          sawHt, plpHt, stump, minLen, maxLen, trim;
+                          logbuf::Union{Nothing,Vector{Float32}} = nothing)
     # Segment sawtimber section into logs
     lmerch = sawHt - stump
     nlogp  = floor(Int, lmerch / (maxLen + trim))
@@ -521,8 +530,9 @@ function _r8_scribner_bf(R, C, E, P, B, A, totHt, dbhIb, dib17,
     nlogp  = clamp(nlogp, 0, 39)
     leftov = lmerch - (maxLen + trim)*nlogp - trim
 
-    # Compute log lengths (even-length trimmed); 40-slot array handles trees up to 340 ft sawHt
-    logLen = zeros(Float32, 40)
+    # Compute log lengths (even-length trimmed); 40-slot array handles trees up to 340 ft sawHt.
+    # Optional caller buffer (pillar-2: reused per-cycle). Zeroed ⇒ identical fill to zeros(40).
+    logLen = logbuf === nothing ? zeros(Float32, 40) : fill!(logbuf, 0f0)
     tlogs = 0
 
     if !(lmerch < minLen + trim || (nlogp == 0 && leftov < minLen + trim))
