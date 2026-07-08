@@ -274,6 +274,24 @@ multi-point FIA stands (point assignment / expansion / PROB weighting), NOT the 
 inferred from the PTBAL debug without checking what dgf CONSUMES (doctrine #3). Next: trace how FVS builds
 PTBAA per point (fvsGetPtBal / the point BA accumulation) vs jl `compute_density!` point_ba on this 4-point stand.
 
+## Slice 4 (Pillar 1+2) — SN-1000 sweep + failure CLUSTERING (widen, then triage by cause)
+SN-1000 stratified sweep (indexed sub-DB, ~20 min):
+- **566/820 BIT-EXACT (69%), 254 FAIL.** cycle-0 identical 814/820.
+- **176 NOSUM = live FVS can't project (17.6%!)** — ill-posed/data stands FVS itself fails; NOT jl. (Worth a
+  separate note: on real FIA-ready SN data, live FVS fails ~1 in 6.)
+- **4 JLERR = jl errored** on 4 stands — a NEW signal (jl robustness bug on some real stands); triage these.
+
+**★ FAILURE CLUSTERING (`cluster_failures.jl`) — the key insight:** failures cluster by **STRUCTURE, not
+species**. By stand avg DBH: **pole5-9" = 140/254 (55%)**, saw9-15" = 56, sap1-5" = 46, lg15+ = 7, seed<1 = 5.
+Dominant species are SPREAD thin (FIA 802:14, 316:12, 110:11, 611:9, 121:8, 621:7, 132:7, 318:6, oaks 6…) —
+NO single species dominates. ⇒ the SN-100 "loblolly" cluster was largely SAMPLING NOISE; the real systematic
+divergence is the **POLE-SIZE regime (avg DBH ~5-9")** across species — a growth or (density-dependent)
+mortality issue for mid-size stands. This reframes the hunt from species-coefficients to a STRUCTURAL cause.
+
+**Next hunt (data-driven):** take several pole-size failing stands of DIFFERENT dominant species, find the
+COMMON divergence signature (which .sum col, which cycle, growth vs mortality) — the shared cause is the
+systematic pole-size bug. Then debug-FVS the shared path (period/quantity-aligned per the slice-3c lesson).
+
 ## Slice 3 (Pillar 1+2) — SCALE SWEEP infrastructure + SN-100 pass/fail (user directive: scale, SN first)
 Built the scale toolchain: `extract_sample.jl` (VARIANT-filtered, ECOREGION/LOCATION-stratified, deterministic)
 + `build_subdb.jl` (C-speed ATTACH+CTAS indexed sub-DB — ~100× faster than the unindexed 2.2M/8M-row master;

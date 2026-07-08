@@ -12,16 +12,18 @@ import SQLite, DBInterface
 struct_bucket(d) = d < 1 ? "seed<1" : d < 5 ? "sap1-5" : d < 9 ? "pole5-9" : d < 15 ? "saw9-15" : "lg15+"
 
 function domspecies(db, cn)
-    r = first(DBInterface.execute(db, "SELECT SPECIES sp, COUNT(*) n FROM FVS_TREEINIT_COND WHERE STAND_CN='$cn' GROUP BY SPECIES ORDER BY n DESC LIMIT 1"))
+    rows = collect(DBInterface.execute(db, "SELECT SPECIES sp, COUNT(*) n FROM FVS_TREEINIT_COND WHERE STAND_CN='$cn' GROUP BY SPECIES ORDER BY n DESC LIMIT 1"))
+    isempty(rows) && return (sp = "none", frac = 0.0, avgdbh = 0.0)   # stand with no tree rows
+    r = rows[1]
     a = first(DBInterface.execute(db, "SELECT ROUND(AVG(DIAMETER),1) d, COUNT(*) c FROM FVS_TREEINIT_COND WHERE STAND_CN='$cn'"))
-    return (sp = Int(r.sp), frac = r.n / a.c, avgdbh = a.d === missing ? 0.0 : Float64(a.d))
+    return (sp = string(r.sp), frac = r.n / a.c, avgdbh = a.d === missing ? 0.0 : Float64(a.d))
 end
 
 function main(failout, subdb, allstands)
     db = SQLite.DB(subdb)
     fails = [split(strip(l), '\t')[1] for l in eachline(failout) if !isempty(strip(l))]
     # cluster fails by (dominant species, structure bucket)
-    byspec = Dict{Int,Int}(); bystruct = Dict{String,Int}(); byboth = Dict{Tuple{Int,String},Int}()
+    byspec = Dict{String,Int}(); bystruct = Dict{String,Int}(); byboth = Dict{Tuple{String,String},Int}()
     for cn in fails
         d = domspecies(db, cn)
         byspec[d.sp] = get(byspec, d.sp, 0) + 1
@@ -36,7 +38,7 @@ function main(failout, subdb, allstands)
     for (b, n) in sort(collect(bystruct), by = x -> -x[2]); println("  $b : $n"); end
     # if the full stand list is given, compute per-species FAIL RATE (fails / total for that dom species)
     if allstands !== nothing && isfile(allstands)
-        tot = Dict{Int,Int}()
+        tot = Dict{String,Int}()
         for l in eachline(allstands)
             isempty(strip(l)) && continue
             cn = split(strip(l), '\t')[1]
