@@ -264,7 +264,22 @@ and feed dgf's point_bal term — a cross-cutting density-model slice, both-side
 Magnitude modest (2-4% mid-projection on dense multi-point stands); does not block the SN single/simple-point
 majority (already 5/8+ bit-exact).
 
+## Slice 2 (Pillar 1+2) — cross-variant scaling: LS multi-cycle baseline
+6-stand LS multi-cycle differential (`ls.txt`, vs live FVSls): **core growth BIT-EXACT** — TPA/BA/SDI/QMD
+all 0.0% (4/6 stands fully bit-exact). LS does NOT share SN's EUT/DG divergence (the eco_unit fix was
+SN-gated & SN-specific; LS core is clean). **NEW LS-specific signal:**
+- **CCF drifts systematically** 0.55% (cyc0) → 1.46% (cyc4), on essentially ALL LS stands. A crown-width /
+  CCF class (distinct from SN's DG class). At cyc0 it's an INVENTORY-level crown-width difference (1/6 LS
+  stands is cyc0-non-identical) — an LS crown-width or CCF-accumulation detail.
+- Worst stand 18498465010661 (8.6%) — trace separately.
+
+Cross-variant picture forming: SN = DG/EUT (fixed) + multi-point point-BAL (cornered); LS = core bit-exact
++ a CCF/crown-width lead. NE/CS differentials pending (need proper NE/CS stand lists — `nc.txt` is likely
+SN-region-8 NC, not NE; extract NE/CS STAND_CNs from the DB by LOCATION→variant for the Pillar-1 manifest).
+
 ## TODO
+- [ ] LS: trace the systematic CCF/crown-width drift (cyc0 0.55%→1.46%); + worst stand 18498465010661 (8.6%).
+- [ ] Extract NE + CS FIA stand lists (LOCATION→variant) and run their multi-cycle differentials.
 - [ ] FIX (density-model slice): true per-point PTBALT for the dgf point_bal term on multi-point stands;
       validate the SA stand + re-diff; keep floor + keep single-point stands bit-exact (YP etc.).
 - [ ] Forest-type derivation: the YP −0.089 tail (separate stand).
