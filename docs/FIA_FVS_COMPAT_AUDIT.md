@@ -340,6 +340,20 @@ calibration OVER-FITTING loblolly's COR. NOT root-caused: 5 attributions tried &
 ratio-vs-percentile, backdating "2×", growth_idg, wrong-instrument-segment). The fix needs the calibration-
 FIT both-sides trace above, done carefully in a fresh pass. I deliberately shipped NO speculative fix here.
 
+### Slice 6 — BOTH-SIDES GROUND TRUTH (via CALBSTAT, no source edit): FVS loblolly calib = 0.879, jl = 2.66×
+Used the **CALBSTAT keyword** (clean — writes per-species calibration to `fort.13`, no instrumentation).
+FVS loblolly (sp13) large-tree DG calibration: `CAL: LD 13 LP 12 1.411 0.713 0.879` — **12 measured trees,
+initial scale 1.411 → FINAL 0.879** (a slight REDUCTION; == the 0.88 summary). jl `dg_cor[LP]=0.9777`
+(added to ln-DDS ⇒ exp=2.66× INCREASE); FVS's equivalent additive COR = ln(0.879) = **−0.13**. So jl's
+loblolly COR is **+1.1 off in ln-DDS** — the quantified, both-sides-confirmed, non-ULP bug the user flagged.
+- ROOT is now bounded to the calibration FIT: jl over-estimates loblolly's OBSERVED growth (positive residual
+  → +0.98 COR) where FVS's 12-tree fit gives −0.13. The observed-growth/residual (`reslog`) computation for
+  measured LP trees is where jl diverges. NOTE growth_idg=1 was INERT on this ⇒ the calibration does NOT read
+  the converted `diam_growth`; it computes observed growth via the backdated WK3 path — trace THAT vs FVS.
+- Next (fix): compare jl's LP calibration fit (# measured trees, per-tree `reslog`, `snx/sny/snxx/snxy`) to
+  FVS's (12 trees, → 0.879). Align jl's observed-growth so LP COR → −0.13; keep floor; re-verify LP DG→live.
+  This is the concrete, targeted fix — first time the trace has clean both-sides numbers (no assumptions).
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
