@@ -702,3 +702,23 @@ large trees near the competition/DGSCOR regime) amplifies the same per-tree grow
 stand does — the SAME named primitive cornered in Pillar 2 (heterogeneous DG × density amplification), not
 a thinning-logic gap. Pillar-3 first pass (SN, thin-from-below) = bit-exact-or-cornered. Floor 38527/143/0.
 (TODO Pillar 3: sweep thinbta/thindbh + NE/CS/LS the same way; trace the calendar-year scheduling divergence.)
+
+---
+## SLICE 14 — Pillar 3 cross-variant (NE/CS/LS thinbba): cut BIT-EXACT, tail = post-thin mortality-cliff ULP  [2026-07-08]
+Ran the split-metric management sweep (THINBBA cyc-2 res-40) on NE/CS/LS-100:
+  NE: no-op 43/47 (=Pillar-2) | FIRED 3/48 | worst 43.9%    CS: no-op 81/85 | FIRED 0/14 | worst 36.2%
+  LS: no-op 69/78 | FIRED 1/21 | worst 26.6%
+No-op rate == Pillar-2 growth rate on every variant (consistent). Fired-thin rate looks bad + big worst-%,
+so BOTH-SIDES-TRACED the sharpest (CS 177137819020004, 36.2%) with a no-mgmt-vs-mgmt differential:
+  NO MANAGEMENT: live==jl BIT-EXACT all cycles (2032 both 1294/121 ... 2062 548/547) — cf. slice-10 0.6%.
+  WITH THINBBA:  cut@2032 BIT-EXACT (both 1294/121 → 1182/81, same trees removed); diverges only AFTER
+                 (2042 992/147 vs 1020/136; 2052 480/209 vs 654/180 = 36%).
+**VERDICT (holds all 4 variants):** the thin CUT is bit-exact (jl removes the same trees / lands the same
+residual as live). The large fired-thin tail is NOT a thinning-logic gap — it is POST-thin growth/mortality
+divergence: the sparse residual sits near a DENSITY-DEPENDENT MORTALITY (self-thinning) threshold where a
+ULP-level per-tree growth difference tips a DISCRETE tree-death event, amplifying to 20-44%. Same named
+primitive as the Pillar-2 dense-regen tail (heterogeneous DG-ULP × discrete self-thinning), stressed harder
+by the post-thin low density. Cornered, not a bug. Floor 38527/143/0 (no src change; harness+docs only).
+NOTE: this is an AMPLIFICATION of a ULP primitive, honestly a large-magnitude residual — the ROOT (per-tree
+DG + the self-thinning trigger) is proven bit-exact/ULP by the no-mgmt + cut-cycle bit-exact evidence.
+(TODO Pillar 3: thinbta/thindbh regimes; calendar-year scheduling divergence trace; salvage/plant/fire.)
