@@ -1360,3 +1360,20 @@ FUELMOVE, DUFFPROD, PILEBURN) — those are validated via the carbon/snag/DBS re
 the FFE-port assertions), not the KCV `.sum`. META (3rd probe this session): the probe correctly returned "don't
 add" WITH evidence (salvage .sum-invisible) — the discipline is to probe AND to honor a negative result, not
 just to bank wins. Contrast S92 (thin-then-fire): the thin IS `.sum`-visible ⇒ a genuine, valuable KCV add.
+
+## Slice S94 — Carbon-report boundary probe found a real NE FFE dead-carbon divergence (StandDead/DDW) [2026-07-08]
+Following S93 (the .sum-KCV can't test snag/fuel/carbon ops), probed the NE carbon report (ne_simfire + CARBREPT/
+CARBCALC) vs live FVSne — a path NOT currently tested for NE (only SN carbon_snt + LS lst01_ffe are). FINDING:
+- BIT-EXACT (validates the NE FFE carbon path): Aboveground-Live Total/Merch, Belowground-Live, Belowground-Dead,
+  Forest-FLOOR (16.8/6.7... == live — confirms the S88 NE litter-DKR 0.40 fix is CORRECT, not just latent),
+  Shrub/Herb. The .sum live-tree block is fully bit-exact too.
+- DIVERGES: StandDead (snags) jl HIGH — 2000 2.3/1.7, 2010 31.2/30.6, 2020 3.0/1.8, 2030 3.5/2.7; DDW mixed
+  (2010 3.2/3.6, 2020 20.5/20.2); ⇒ TotC 2010 conserved (116.9) but 2020 +1.5 (129.4/127.9), 2030 +1.0. The
+  StandDead gap exists at 2000 PRE-FIRE (ordinary-mortality snags) — the SAME snag-carbon-booking residual class
+  cornered for SN (carbon_snt "StandDead Δ0.7") — AMPLIFIED post-fire (the 2010 fire's snags accumulate the gap,
+  and by 2020 jl's dead pools carry ~+1.5 TotC, so it is partly a magnitude drift, not pure StandDead↔DDW
+  redistribution). Candidate cause: NE snag decay/fall RATE (a variant-specific FFE constant like DKR was —
+  StandDead-high + jl accumulating dead-C ⇒ snags persisting/decaying too slowly for NE). Filed #102.
+NET: the boundary probe worked exactly as intended — it surfaced a real NE dead-carbon divergence the .sum-based
+suite structurally cannot see, and confirmed the rest of the NE carbon path (incl. the litter-DKR fix) bit-exact.
+No fixture added yet (needs a carbon-report comparison harness for NE, + root-cause of the StandDead class first).
