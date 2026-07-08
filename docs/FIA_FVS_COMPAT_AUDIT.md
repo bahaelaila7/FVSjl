@@ -306,6 +306,21 @@ deficit → jl grows far less BA → far less density mortality → jl keeps 70%
 **★ This is the campaign's biggest divergence and highest-value target: loblolly is the dominant Southern
 species, so a 3× DG bug likely fails a large fraction of the 637k SN population.**
 
+### Slice 3b — loblolly narrowed: base DDS matches FVS; effective DDS must be ~2.6; CROWN-RATIO suspect
+- NOT the small-tree blend: DBH-5 > XMAX=3" (regent blend band [1,3]), so these use large-tree dgf.
+- jl LP DDS (1.52/1.70/1.73/1.68) MATCHES FVS's lower cluster (1.51/1.69/1.67/1.72) — the dgf DDS FORMULA is
+  right given the same inputs. BUT to yield live's DG≈1.5, the effective DDS must be ≈2.6 (conv check:
+  DDS 1.5→DG 0.5; DG 1.5→DDS ln(Δdib²)≈2.6). FVS's debug DOES show LP trees at DDS 2.33/2.52 that jl lacks.
+- **RED FLAG: jl assigns these young loblolly crown_ratio ≈ 10% (cr=10.3/11.4/13.5)** — implausibly low for
+  vigorous young loblolly (should be ~40-70%). Low crown ratio → high pbal competition (PNTBL·pbal, pbal=
+  PTBAA·(1−cr/100)) AND low ln_crown → suppressed DDS. So the loblolly DG deficit is likely a **CROWN-RATIO
+  model bug for young dense loblolly** (crown too low), NOT the dgf coefficients (which match).
+- Note crown_pct (45, used in ln_crown ICR) vs crown_ratio (10, used in pbal) diverge sharply here — worth
+  confirming which FVS uses where + what crown ratio FVS assigns these trees (est. via crown model at cyc0).
+
+**Next: both-sides the crown ratio — FVS's assigned CR for these young loblolly vs jl's ~10% (crown_ratio.jl
+CR model). If jl's young-loblolly CR is too low, fixing it lifts DDS→DG and likely clears the top failures.**
+
 ## Slice 2 (Pillar 1+2) — cross-variant scaling: LS multi-cycle baseline
 6-stand LS multi-cycle differential (`ls.txt`, vs live FVSls): **core growth BIT-EXACT** — TPA/BA/SDI/QMD
 all 0.0% (4/6 stands fully bit-exact). LS does NOT share SN's EUT/DG divergence (the eco_unit fix was
