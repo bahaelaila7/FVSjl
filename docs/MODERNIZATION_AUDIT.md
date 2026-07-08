@@ -1247,3 +1247,19 @@ NEXT SLICE: instrument FVS FMTRET to dump per-(I,J,K,L) CWD at the 2010 fire + d
 fire_smlg stash; diff per size-class to see whether it's a uniform pool deficit (accumulation) or a specific
 class (timing/component). Guard: cwd feeds carbon DDW (validated) + all FFE fires — keep lst01_ffe/snt01/net01
 bit-exact. FVS binaries + source pristine; jl tree clean; suite floor untouched (no code change this slice).
+
+## Slice S86 — #100 PINPOINTED: jl LITTER (cwd class 10) ~2× low at the fire basis [2026-07-08]
+Per-size-class CWD diff jl-vs-FVS at the 2010 fire basis (FMTRET ZTC dump of Σ_{I,K,L} CWD(I,J,K,L); jl cwd[j,:,:]
+dump; both restored+verified). SMALL (classes 1,2,3,10):
+  class 1: jl 0.387 / FVS 0.405 · class 2: 1.121 / 1.196 · class 3: 1.605 / 1.621 (fine woody ~match)
+  class 10 (LITTER): jl 2.333 / FVS 4.857  ← +2.53, ~2.08× — this ALONE is ~96% of the SMALL deficit (2.63).
+LARGE (classes 4-9): jl 1.397 / FVS 2.045 — spread over classes 5 (0.55/0.69), 6 (0.001/0.130), 7 (0.091/0.379)
+being low in jl (mid-large woody). Duff (class 11, not in SMALL/LARGE): jl 1.851 / FVS 1.801 (match).
+⇒ ROOT: jl's LITTER pool (cwd[10]) is ~2× low; secondarily the mid-large woody classes 5-7. This propagates
+SMALL 5.45→8.08, which is the head of the whole chain (→FMDYN fm10 weight→byram→scorch→9-tree kill). The fine
+woody + duff match, so it is NOT a uniform pool deficit — it is LITTER-specific (+ some coarse woody), pointing
+at the annual LITTERFALL deposit rate into cwd[10] (FFE FMCWD litter model / FMCBA), not the snag-fall cone-split.
+NEXT SLICE (the fix): find jl's litter deposit into cwd[10] (grep cwd[10 / litter accumulation in fmcba/ffe fuel
+loop) vs FVS's annual litterfall (fmcwd.f/fmcba.f); the ~2× gap is likely a rate/frequency or a missing
+foliage-fall term. REGRESSION GUARD: cwd[10] feeds carbon Forest-Floor (validated) + all FFE fires — keep
+lst01_ffe/snt01/net01 + the carbon Floor bit-exact. FVS+jl pristine; suite floor untouched (no code change).
