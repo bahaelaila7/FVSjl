@@ -290,6 +290,27 @@ over-kills very dense stands. Data-driven from the full big-failure set (not a s
 mortality (MORTS/SDImax) vs jl on a few dense stands before any fix (per the loblolly/pole-size lessons).
 Real FIA stands reach near-SDImax densities the curated tests apparently don't exercise as hard.
 
+### Slice 4c-CORRECTION — the "mortality over-kill" is GROWTH-COUPLED via self-thinning (not a mortality bug)
+Re-examined the worst stand: at 1995 both jl & live reach **SDI ≈ 410 (max)** but via different paths —
+jl QMD 6.2 / TPA 944 vs live QMD 5.3 / TPA 1234. jl's trees grew **bigger** (QMD +17%), so at the
+self-thinning limit jl carries FEWER (bigger) trees. ⇒ the TPA (mortality) divergence is a CONSEQUENCE of a
+GROWTH (diameter) divergence, coupled through the SDImax self-thinning — NOT an independent mortality bug.
+My `signature.jl` "TPA-first" reflects .sum COLUMN order (TPA is col 3, QMD col 8), not causal order — a
+misleading proxy. (3rd corrected over-read: loblolly-species, pole-size, now mortality-vs-growth.)
+
+**HONEST BIG PICTURE (SN FIA at scale):** the ~31% multi-cycle failures are NOT one systematic bug. They are
+a HETEROGENEOUS distribution of GROWTH (diameter) divergences — some jl-high, some jl-low, species/condition-
+specific — AMPLIFIED into large TPA differences by the SDImax self-thinning coupling (a small QMD diff →
+a big TPA diff on dense stands). Plus a cornerable ULP/print-straddle tail (~30% <1%). No single fix; the
+realistic path is: corner the <1% straddles as ULP-class, and root-cause the LARGE growth divergences
+incrementally (per-tree DG, period+quantity-aligned, both-sides) — each likely a distinct species/condition
+DG issue. The eco_unit fix (slice-1) was the one broad systematic win; the residual is a long tail.
+
+**Recommendation to revisit with the user:** at real-FIA scale a 100%-bit-exact multi-cycle drop-in may be
+unattainable (live FVS itself fails 17.6% of stands; growth-mortality coupling amplifies sub-% growth ULP into
+%-level TPA on dense stands). A defensible done-state may be "cycle-0 bit-exact (achieved) + multi-cycle
+within a documented tolerance-or-cornered, per variant" rather than strict bit-exact on every cycle.
+
 ### Slice 4b — FIXED: jl FIA-reader crash on text-typed numeric columns (4 JLERR → 0)
 The 4 SN-1000 JLERR stands were all `MethodError(Float64, ("2.0",))`: `TREEINIT.SEVERITY3` is TEXT-typed but
 holds "2.0", and `_fia_int`/`_fia_f32` did `Float64(d[k])` on the String. FIX (`fia_database.jl`): `_fia_num`
