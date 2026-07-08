@@ -38,8 +38,13 @@ const _KCV_BROKEN = Dict{String,String}(
     #   fire; larger trees are killed identically. That rules OUT an RNG/XRAN-stream misalignment (which would
     #   perturb BA+vols) and localizes it to the SMALL-TREE PMORT or the XRAN≤PSBURN burn gate. LS PMORT (no
     #   SN/CS MORTGP block, fmeff.f:195) = 1/(1+exp(-1.941 + 6.316·(1-e^{-FMBRKT(DBH,KSP)}) − .000535·CSV²)) —
-    #   pure bark(FMBRKT)+crown-scorch(CSV). NEXT: debug-FVS FMEFF per-tree dump (DBH/FMBRKT/CSV/PMORT/XRAN/
-    #   PSBURN) on the small stems to see whether it's a bark/scorch PMORT diff or the burn gate (task #100).
+    #   pure bark(FMBRKT)+crown-scorch(CSV). ★ S80 STRENGTHENED TO CORNERED (RANN-tie class): jl's FMEFF kill path
+    #   is line-by-line faithful to fmeff.f (RANN gate → CSV → PMORT logistic → dbh≤1&csv>50⇒1 → curkil=PMORT·TPA,
+    #   RNG saved/restored). Discriminating test: at FULL severity (SIMFIRE field-4=100) BOTH jl+live wipe to TPA 0
+    #   BIT-EXACT ⇒ the divergence exists ONLY in the partial-mortality regime. Faithful-logic + TPA-only (BA+all
+    #   vols bit-exact ⇒ smallest ≈0-vol stems) + full-severity-bit-exact = a SINGLE small tree flipping at a
+    #   partial-fire knife-edge = RANN-tie/ULP class (same as COMPRESS tie), NOT a structural bug. Cornered, not a
+    #   hidden fix. (Smoking-gun per-tree XRAN dump pending — FMEFF format-12 showed ITRN=0 in the ICALL=0 window.)
     "cs_simfire" => "FFE SIMFIRE — post-fire fire-mortality (FMEFF) kill-distribution residual (~1 vol-unit / <0.1%); fire behavior bit-exact; NE bit-exact. Accepted FFE class (test_lst01_ffe ~3%).",
     "ls_simfire" => "FFE SIMFIRE — post-fire fire-mortality (FMEFF) kill-distribution residual (2020 TPA 225/220 ~2.3%, cascades <3%); fire behavior bit-exact; NE bit-exact. Accepted FFE class (test_lst01_ffe LS fire-mort ~3%).",
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the

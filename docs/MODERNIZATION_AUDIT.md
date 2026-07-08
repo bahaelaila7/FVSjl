@@ -1130,3 +1130,23 @@ burn gate. Source (fmeff.f): LS has NO SN/CS MORTGP block (:195), so LS PMORT = 
 {-FMBRKT(DBH,KSP)}) − .000535·CSV²)) — pure bark(FMBRKT) + crown-scorch(CSV). Recorded the sharper diagnosis in
 _KCV_BROKEN + task #100 (next: debug-FVS FMEFF per-tree dump to pin bark/scorch-PMORT vs burn-gate). No code
 change this slice — a scoped hand-off, not a half-finished fix. Suite unchanged (37628/140/0).
+
+## Slice S80 — Pillar-1: LS/CS simfire FMEFF residual strengthened to CORNERED (RANN-tie class), not structural [2026-07-08]
+Pursued #100 (the FMEFF small-tree under-kill) with the #73 fresh-eyes method. Findings:
+1. jl's FMEFF kill path (fmburn.jl:147-163) is LINE-BY-LINE faithful to fmeff.f: unconditional per-record RANN
+   draw → XRAN·100>PSBURN unburned gate (:151/fmeff.f:159) → CSV (crown_volume_scorched) → PMORT logistic
+   (fire_tree_mortality, matches fmeff.f:188 for LS which has NO SN/CS MORTGP block) → fire_mortality_adjust →
+   the universal `DBH≤1 & CSV>50 ⇒ 1.0` rule (:157/fmeff.f:330) → deterministic curkil=PMORT·TPA. RNG saved/
+   restored (RANNGET/RANNPUT) so post-fire growth stays aligned (confirmed: post-fire VOLUMES bit-exact).
+2. DEBUG-keyword extraction (no source edit, oracle pristine): DBCHK enables fmeff.f's own stamps; confirmed the
+   real fire is CYCLE 3 / IYR 2010 / ICALL=0 / FLAME 1.2426. (The per-tree format-12 XRAN stamp reports ITRN=0 in
+   that ICALL=0 window — the LS per-tree kill is applied in a different pass; the smoking-gun dump still pending.)
+3. DISCRIMINATING TEST — full-severity fire (SIMFIRE field-4 = 100 vs 50): BOTH jl and live wipe the stand to
+   TPA 0, BIT-EXACT. So the divergence exists ONLY in the PARTIAL-mortality regime (field-4 = 50).
+VERDICT: (1) faithful logic + (2) TPA-only (BA + every volume column bit-exact ⇒ the ~5 diverging stems are the
+smallest, ≈0-vol) + (3) full-severity bit-exact ⇒ the fingerprint of a SINGLE small tree flipping at a partial-
+fire mortality/selection knife-edge — a RANN-tie / Float32-ULP-class residual, the SAME accepted class as the
+COMPRESS eigensolver tie, NOT a structural formula bug (unlike #73, which had a real missing term). Downgraded
+#100 from "possible hidden bug" to "very likely cornered ULP/RANN-tie; smoking-gun per-tree XRAN dump the only
+remaining confirmation." No code change; suite unchanged (37628/140/0). This is the disciplined counterpart to
+#73: fresh-eyes re-examination CAN conclude "genuinely cornered", not only "secretly fixable."
