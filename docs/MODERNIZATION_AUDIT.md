@@ -1150,3 +1150,18 @@ COMPRESS eigensolver tie, NOT a structural formula bug (unlike #73, which had a 
 #100 from "possible hidden bug" to "very likely cornered ULP/RANN-tie; smoking-gun per-tree XRAN dump the only
 remaining confirmation." No code change; suite unchanged (37628/140/0). This is the disciplined counterpart to
 #73: fresh-eyes re-examination CAN conclude "genuinely cornered", not only "secretly fixable."
+
+## Slice S81 — Pillar 2/3/4 re-verify of the S78 #73 cone-split change (all-pillar floor held) [2026-07-08]
+The S78 fix restructured a hot-path fire routine (`_cwd_cone_fractions` now returns a 2-tuple `(frac_soft,
+frac_hard)` of NTuple{9,Float32}; the update_snags!/salvage/CWD3 deposit loops rewritten). Per doctrine #1 a
+change must hold ALL pillars, not just the suite. Re-verified against the actual tools (doctrine #3/#9):
+- **Pillar 2 (allocation-free):** `@allocated FVSjl._cwd_cone_fractions(...)` = **0 B** across all branches
+  (main cone, truncated-snag htcur<ht, and the ht≤4.6 / total_full≤0 one-hot fallbacks). The 2-tuple of
+  NTuples is an isbits STACK value — no heap. Fire snag path stays allocation-free.
+- **Pillar 3 (parallel bit-identity):** real `julia -t8` run — 32 concurrent `run_keyfile`s vs the serial
+  reference, **bit-identical for ALL FOUR variants** (SN snt01_alpha / NE net01 / CS cst01 / LS lst01). The
+  new tuple-return introduced no shared mutable state; per-stand RNG/scratch/trees intact.
+- **Pillar 4 (type-stable):** the return is a concrete `Tuple{NTuple{9,Float32},NTuple{9,Float32}}` (isbits);
+  no `Any`/boxing. **Pillar 1** was already green (37628/140/0 + live-validated DDW) at S78.
+Conclusion: #73 is a clean all-pillar landing. No pillar regressed. (Also re-confirmed the campaign's Pillar-3
+done-state currently holds under true 8-thread concurrency across all 4 variants, on the current tree.)
