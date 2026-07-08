@@ -1377,3 +1377,20 @@ CARBCALC) vs live FVSne — a path NOT currently tested for NE (only SN carbon_s
 NET: the boundary probe worked exactly as intended — it surfaced a real NE dead-carbon divergence the .sum-based
 suite structurally cannot see, and confirmed the rest of the NE carbon path (incl. the litter-DKR fix) bit-exact.
 No fixture added yet (needs a carbon-report comparison harness for NE, + root-cause of the StandDead class first).
+
+## Slice S95 — #102 ROOT-CAUSED: missing FMSNGHT snag height-loss (HTX>0) for NE + LS [2026-07-08]
+The NE dead-carbon divergence (S94) is the SAME class as DKR — an SN-hardcoded-cross-variant FFE constant.
+FVS fmvinit.f `HTX(I,J)` (snag height-loss rate multiplier): **SN=0.0, CS=0.0, NE=1.0, LS=1.0/3.0** (hardwood/
+softwood). jl uses HTX=0 for ALL variants (no `htx` column in fire_species_props.csv; `snag_htx` is override-only;
+jl explicitly documents "FMSNGHT is a no-op in SN (HTX=0)"). ⇒ For NE (HTX=1) and LS (HTX=1/3), FVS snags LOSE
+HEIGHT over time (FMSNGHT: `HTSNEW = HTCURR·(1 − HTR·HTX(KSP,hard/soft)·SFTMULT)^NYRS`, SFTMULT=HTXSFT=2.0 for
+soft), shrinking the snag BOLE → less StandDead carbon. jl freezes snag height ⇒ boles stay tall ⇒ StandDead
+runs HIGH (the observed NE 2000 2.3/1.7 … 2020 3.0/1.8; TotC +1.5). SN/CS (HTX=0) are correct in jl.
+★ This ALSO explains the pre-existing LS lst01_ffe "StandDead/Released — snag/consumption, separate, OPEN"
+residual (LS port memory): same missing FMSNGHT height-loss (LS HTX=1/3).
+FIX (next slice, #102): port FMSNGHT (fmsnght.f, 168 lines) — the htcur driver jl lacks. jl ALREADY has the
+downstream htcur→bole CFTOPK truncation (snag.jl:124-152); the missing piece is the per-cycle height reduction
+in update_snags!, gated on a variant/species HTX default (NE=1.0 all; LS=1.0 hardwood/3.0 softwood; SN/CS=0 ⇒
+byte-identical, zero regression) + the HTR base rates + HTXSFT=2.0 soft multiplier from fmvinit.f. Then validate
+NE + LS carbon StandDead bit-exact vs live, keep SN/CS + suite floor. VARIANT-SAFE + faithful (fmvinit.f-derived).
+No code change this slice (root-cause + scope). Suite floor 38479/141/0 untouched.
