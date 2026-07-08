@@ -661,3 +661,26 @@ QMD prints 2.4 vs 2.5 — true BA differs sub-print (both round to 23), QMD=√(
 The two variant-agnostic FIA-reader fixes (growth_dg_set FINT-normalization + _fia_num) generalized to
 all 3 companion eastern variants with NO variant-specific code: every NE/CS/LS residual is a Float32
 ±1-unit / print-boundary straddle, no systematic bug in any of the three. Floor intact 38527/143/0.
+
+---
+## SLICE 11 — NE/CS/LS widened to 1000 stands (confirm 100-sample result at scale)  [2026-07-08]
+Widened the 3 companion variants to 1000-stand deterministic VARIANT-stratified samples (per the
+widen-then-hunt plan). Pass rates STABLE vs the 100-samples ⇒ no rare systematic bug was hiding:
+  NE 1000: 841/960 BIT-EXACT (88%; 100-sample was 90%). Histogram <1%:937(98%) 1-2%:18 2-5%:3 5-10%:2 >10%:0
+  CS 1000: 921/988 BIT-EXACT (93%; was 93%).          Histogram <1%:958(97%) 1-2%:25 2-5%:4 5-10%:1 >10%:0
+  LS 1000: 853/999 BIT-EXACT (85%; was 86%).          Histogram <1%:927(93%) 1-2%:49 2-5%:19 5-10%:3 >10%:1
+JLERR=0 all three. Live-NOSUM: NE 10/CS 12/LS 1 (live can't project these — not a jl bug).
+Tail is proportionally tiny and slow-growing; LS carries the fattest 2-5% band + the lone >10% (to triage).
+Pillar-2 first pass is now at 1000-scale for every companion variant (SN already at 1000).
+
+## SLICE 12 — Pillar 3 management harness landed + column-format finding  [2026-07-08]
+Built `test/harness/fia/manage_fia.jl` — injects a silvicultural keyword block (thinbba/thinbta/thindbh)
+scheduled at CYCLE 2 and diffs the 6-col .sum live-vs-jl under management. FINDING (harness, not a jl bug):
+FVS reads keyword records FIXED-FORMAT (A10 + F10.0 fields); a mis-columned THINBBA scrambles the residual
+(my first draft over-spaced ⇒ garbage residual ⇒ live/jl disagreed catastrophically 147%, live column-strict
+vs jl whitespace-tolerant). Fixed via `kwrec()` (keyword left-just in 10, each field right-just in 10).
+With correct columns + CYCLE scheduling (2.0), live and jl AGREE to ULP on the thin (validated stand
+246537009010854: both 2019 TPA6359/BA49, growth after ULP-close). SECOND finding (noted, not yet traced):
+CALENDAR-year scheduling (2019.0) diverges — live ignores it, jl schedules one cycle late (2024); cycle
+scheduling sidesteps it. First 15-stand SN thinbba pass: thin-fired 7/12, worst 14.1% (was 147%) — the
+residual-tree-selection-at-the-cut-margin divergence class that Pillar 3 exists to characterize.
