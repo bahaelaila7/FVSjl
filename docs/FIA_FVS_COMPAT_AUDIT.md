@@ -337,10 +337,19 @@ comparing two different quantities. RETRACTED. (jl's actual crown IS `crown_pct=
   Either FVS applies a post-dgf step (~+0.9 ln DDS: DGSCOR/COR calibration, a growth-period scaling, or a
   loblolly adjustment) that jl misses, OR the treelist DG period differs. NOT yet both-sides-nailed.
 
-**Honest status:** the loblolly 3× deficit is real and systematic (the #1 SN failure class), but its exact
-mechanism is NOT resolved — two wrong turns so far (fortype-then-crown-ratio). Next needs a CLEAN single-tree
-match: jl DDS+diam_growth vs FVS DDS+treelist-DG for the SAME LP tree, to decide dgf-DDS vs post-dgf-step vs
-conversion/period. Do NOT ship a fix until that's pinned (doctrine #3: no fix from partial inference).
+**Honest status (3 imprecise turns — logged as a discipline lesson):** the loblolly under-growth is REAL and
+systematic (#1 SN-100 failure class), but I over-stated magnitude and mis-attributed mechanism:
+- ✗ fortype (ruled out), ✗ crown_ratio (retracted — it's the BA percentile), ✗ "3×" per-tree DG (INFLATED:
+  the treelist 2000 row is `PrdLen=2`, so my y0→y1 DG alignment was off).
+- ✓ RELIABLE magnitude from the `.sum` oracle: jl BA 115 vs live 152 @2005 = **~24% low at cycle-1**,
+  compounding (jl 961 / live 565 TPA @2025). Loblolly-specific, systematic.
+- Mechanism still OPEN. The clean next step is a debug-FVS stamp of the loblolly large-tree growth
+  (dgf DDS → dgdriv scaling/calibration → DG) with EXACT tree + period alignment — not another Julia-side
+  per-tree comparison (which keeps mis-aligning periods/quantities). Do NOT ship a fix until pinned (#3).
+
+**Meta-lesson:** on this trace I repeatedly declared a cause from a partial/mis-matched comparison. The
+`.sum` is the trustworthy oracle; per-tree instrumentation must align period (PrdLen) AND quantity semantics
+(crown_ratio=percentile, D=dib) before any verdict.
 
 ## Slice 2 (Pillar 1+2) — cross-variant scaling: LS multi-cycle baseline
 6-stand LS multi-cycle differential (`ls.txt`, vs live FVSls): **core growth BIT-EXACT** — TPA/BA/SDI/QMD
