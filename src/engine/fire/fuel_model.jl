@@ -46,7 +46,10 @@ function standard_fuel_model(coef::SpeciesCoefficients, model::Integer)
     load[1, 1] = m[3]; load[1, 2] = m[4]; load[1, 3] = m[5]      # dead 1/10/100-hr
     load[2, 1] = m[6]; load[2, 2] = m[7]                          # live woody / herb
     sav[1, 1] = m[1]; sav[1, 2] = 109f0; sav[1, 3] = 30f0; sav[1, 4] = 1500f0
-    sav[2, 1] = m[2]; sav[2, 2] = 1500f0
+    # live-herb SAV: the FVS SURFVL(I,2,2) default is 1500, overridden per-model for the extended
+    # Scott-Burgan grass/timber-understory models (fminit.f). Read from the trailing sav_lherb column
+    # when present (LS); the standard 13-model CSVs omit it ⇒ the 1500 default (bit-identical).
+    sav[2, 1] = m[2]; sav[2, 2] = length(m) >= 10 ? m[10] : 1500f0
     return (load, sav, m[8], m[9])
 end
 

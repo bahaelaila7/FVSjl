@@ -1058,3 +1058,41 @@ residual (accepted-class per LS port notes), more prevalent at 5000-scale (more 
 VERDICT: widening 100→1000→5000 on ALL 4 variants surfaced NO new systematic bug and NO plain-sweep crash; the
 tails are the cornered self-thinning-count-straddle (density within ~5%, count diverges on hyper-dense stands)
 + ULP ±unit straddles. FVSjl multi-cycle is bit-exact-or-cornered at 5000-scale for every variant. Floor 38527/143/0.
+
+---
+## SLICE 33 — LS SIMFIRE @5000 crash-hunt: FIXED extended-fuel-model BoundsError (real bug)  [2026-07-08]
+Ran the management (SIMFIRE, FFE) sweep at 5000-scale on LS — the crash-hunt dimension (the earlier segfault,
+slice 27, lived under fire). Result: 0 segfaults (the covtyp fix holds at scale) but 359/5000 stands hit a
+CAUGHT `BoundsError` in the FFE surface-fire path — a REAL bug, now FIXED.
+
+ROOT CAUSE (both-sides trace):
+  • LS `select_fuel_models` (ls/fmcfmd.f, ported fuel_model.jl:_ls_findmod / _FMD_IPTR_LS) selects the
+    extended Scott-Burgan "Minnesota" fuel models 105/142/143/146/161/162/164/186/189 in addition to the
+    standard 13. `_fmdyn` returns each as its RAW model number (e.g. 142, 186) via IPTR.
+  • But `data/lakestates/fire_fuel_models.csv` held only the 13 standard rows, and `standard_fuel_model`
+    did `@view coef.ffe_fuel_models[model, :]` — a DIRECT row-index by raw model number. model=142 → row
+    142 of a 13-row matrix ⇒ BoundsError (caught by manage_fia's try/catch ⇒ stand produced no jl output).
+  • Secondary faithfulness gap the same code masked: `standard_fuel_model` HARDCODED live-herb SAV
+    `sav[2,2]=1500`, but FVS `fminit.f` sets the SURFVL(I,2,2) default 1500 THEN overrides it per extended
+    model (GR5/105→1600, TU1/161→1800). The 13 standard models all keep 1500, so the hardcode was correct
+    for them but wrong for the extended set.
+
+FIX (variant-safe, floor-safe):
+  1. coefficients.jl: load `ffe_fuel_models` as a matrix DENSE-INDEXED BY RAW MODEL NUMBER (row r == model r),
+     sized to max model id, undefined rows zero — mirroring FVS's FMLOAD/SURFVL arrays. NO-OP for SN/NE/CS
+     (contiguous 1-13 ⇒ same 13-row matrix); LS becomes 189 rows with the 22 real rows filled.
+  2. data/lakestates/fire_fuel_models.csv: appended a trailing `sav_lherb` column (=1500 for the 13 standard
+     rows ⇒ bit-identical) and the 9 extended SB rows, all params transliterated from fire/base/fminit.f
+     (SURFVL/FMLOAD/FMDEP/MOISEX, defaults sav_lwoody=1500 / sav_lherb=1500 where FVS leaves them unset).
+  3. standard_fuel_model: sav[2,2] = m[10] when present (LS), else 1500 (SN/NE/CS ⇒ bit-identical).
+
+VALIDATION vs freshly-relinked live FVSls (stands that previously crashed, incl. model-142 & model-186 selects):
+  • 0 BoundsError; all run. Stand 1686710754290487 (worst): 2023/2033/2043 rows BIT-EXACT vs live (growth
+    spine + new extended-model params sound); divergence appears ONLY post-fire (2053+: TPA ±2, TopHt ±3,
+    BA/SDI ±1) = the documented LS FMEFF fire-kill-DISTRIBUTION primitive (~3%, cornered in LS port notes) —
+    NOT a fuel-model-param error (a wrong model would give wildly-wrong flame/mortality, not ±2 TPA).
+  • Suite floor intact: 38527 / 143 / 0.
+VERDICT: real robustness+faithfulness bug found ONLY by real FIA at fire-scale (extended MN fuel models are
+never selected by the curated tests); FIXED. Residual = the pre-existing named FMEFF fire-kill-distribution
+primitive, merely exposed on more stands. This is the campaign's 2nd real code fix (after slice-27 covtyp),
+both in the LS FFE path, both surfaced by Pillar-3 management at scale.

@@ -134,8 +134,21 @@ function load_species_coefficients(datadir::AbstractString)
     ffe_fuel_dead = isempty(dr) ? zeros(Float32,0,0) : Float32[parse(Float32, dr[i][j]) for i in 1:length(dr), j in 3:length(hd)]
     hl, lr = _opt("fire_fuel_live.csv")
     ffe_fuel_live = isempty(lr) ? zeros(Float32,0,0) : Float32[parse(Float32, lr[i][j]) for i in 1:length(lr), j in 3:length(hl)]
+    # Fuel-model table, indexed by RAW model number (as FVS's FMLOAD/SURFVL arrays are, fminit.f):
+    # row r == fire-behavior fuel model r. SN/NE/CS use the contiguous standard set 1-13 (dense ⇒ no-op),
+    # but LS also selects the extended Scott-Burgan Minnesota models (105/142/143/146/161/162/164/186/189),
+    # so the matrix is sized to the max model id with undefined rows left zero. Column 1 is the model id.
     hm, mr = _opt("fire_fuel_models.csv")
-    ffe_fuel_models = isempty(mr) ? zeros(Float32,0,0) : Float32[parse(Float32, mr[i][j]) for i in 1:length(mr), j in 3:length(hm)]
+    ffe_fuel_models = if isempty(mr)
+        zeros(Float32,0,0)
+    else
+        ids = [parse(Int, mr[i][1]) for i in 1:length(mr)]
+        M = zeros(Float32, maximum(ids), length(hm) - 2)
+        for i in 1:length(mr), j in 3:length(hm)
+            M[ids[i], j-2] = parse(Float32, mr[i][j])
+        end
+        M
+    end
 
     # merchantability specs (MRULES) + HTDBH height-dub coeffs → per-species columns
     for fname in ("merch_specs.csv", "htdbh_coeffs.csv", "crown_ratio_coeffs.csv",
