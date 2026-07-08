@@ -33,8 +33,24 @@ tests don't). Doctrine #3/#4: root-cause the worst offender BOTH-SIDES before co
 per-cycle per-species trace of 3237541010661 (are its drivers the WK3-calibrated sp33/65 family = accepted,
 or a clean species that SHOULD be bit-exact = real gap?), then scale the differential to all 4 variants.
 
+### Slice 1b — worst-stand species composition (classification clue)
+Both worst SN stands are **diverse mixed-species hardwood plots**: 3237541010661 = 5 species
+(FIA 68/407/835/541/462), 3196569010661 = **12 species** (FIA 826/837/621/318/931/541/409/701/544/521/
+491/404). This matches the documented `test_allspecies` verdict: a diverse many-species stand
+"accumulates every species' sub-ULP per-cycle DBH-growth + tripling-spread residual into the nonlinear
+density/volume sums = the ACCEPTED aggregate DGSCOR + tripling class." Real FIA plots are inherently
+multi-species (unlike the clean curated single/few-species tests), so they AMPLIFY that same cornered
+primitive — a strong hypothesis that the ~2-4% drift is the accepted class, not a new gap.
+
+**DECISIVE next diagnostic (do NOT assume — doctrine #3/#4):** the `test_treeszcp` method — compare
+PER-TREE DG jl-vs-live (via FVS_TreeList DBS or a debug-FVS dgdriv stamp) on one worst stand. If per-tree
+DG is bit-exact to ~1 ULP and only the AGGREGATE sums drift, it IS the accepted grown-Float32/DGSCOR
+accumulation class (corner it). If a specific species' per-tree DG diverges beyond ULP, it's a REAL gap
+(fix it). Also worth checking: cycle LENGTH used (non-native-cycle DGSCOR is a separate documented
+deferred residual — fvsjl-scenario-sweep-findings #2).
+
 ## TODO
-- [ ] Root-cause slice-1 worst SN stand (accepted DGSCOR tail vs real gap).
+- [ ] DECISIVE: per-tree DG jl-vs-live on 3196569010661 (accepted aggregate class vs real per-species gap).
 - [ ] Scale the multi-cycle differential: larger SN sample + NE/CS/LS (Pillar 1 manifest feeds this).
 - [ ] Build the stratified per-variant plot manifest (Pillar 1).
 - [ ] Management-scenario differential on real plots (Pillar 3).
