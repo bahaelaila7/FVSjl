@@ -755,3 +755,24 @@ all 3 paths). Pillar-3 THINNING (all selection methods × both scheduling forms 
 bit-exact-or-cornered. Floor 38527/143/0 (harness+docs only).
 Pillar-3 remaining: salvage / plant-regen / prescribed-fire regimes (regen+FFE already heavily curated-suite
 validated); the deeper Pillar-4 dive = is the post-thin discrete-mortality TRIGGER ULP-alignable or irreducible.
+
+---
+## SLICE 17 — CORRECTION: post-thin tail is TWO sub-classes; one is a REAL low-density growth divergence  [2026-07-08]
+Slices 14/16 corner-labeled the whole fired-thin tail as "post-thin growth-ULP amplification." That was
+PREMATURE for part of it. All-6-col + no-mgmt control on 416592108489998 (SN) splits the tail:
+  NO MGMT: live==jl BIT-EXACT all 6 cols, all cycles (2016 445/130/265/353/53/7.3 … 2041 251/189/321/385/72/11.7).
+  THINBBA: cut@2026 BIT-EXACT all 6 (both 336/47/84/99/63/5.0); FIRST post-thin cycle 2031 DIVERGES with
+           SAME TPA 327 but jl HIGHER: BA 61/58, SDI 111/108, CCF 135/131, TopHt 68/67, QMD 5.8/5.7 — and it
+           GROWS monotonically (2041 BA 92/85). SAME-TPA ⇒ pure DIAMETER+HEIGHT GROWTH divergence, NOT mortality.
+**TWO SUB-CLASSES of the fired-thin tail:**
+  (1) CLEAN ULP: first post-thin cycle bit-exact, later ±1-unit ULP amplification (e.g. 218228660020004:
+      2023 & 2028 both 379/52 & 373/66, diverges 2033 BA 81/82 Δ1). Correctly cornered.
+  (2) ★ REAL: immediate SYSTEMATIC over-growth by jl in the LOW-DENSITY regime (SDI ~84-164) that the
+      un-managed stand never reaches (min SDI 265, where jl IS bit-exact). jl consistently grows the sparse
+      residual faster (BA/SDI/CCF/TopHt all jl-high every post-cut cycle). NOT ULP (several %, systematic,
+      one-directional). This is a genuine OPEN divergence — a low-density DG/height growth-regime gap that
+      THINNING EXPOSES. Must be traced (Pillar 4), not cornered.
+CORRECTED VERDICT: thinning SELECTION + SCHEDULING are bit-exact (cut cycle bit-exact all 6 cols, both sched
+forms). The post-thin tail is PART cornered-ULP (sub-class 1) and PART a real untested-low-density growth
+divergence (sub-class 2, jl over-grows). Floor 38527/143/0 (no src change). NEXT: both-sides-trace the
+low-density DG/HTG path (per-tree DG on a residual tree 2026→2031) to name the divergent term.
