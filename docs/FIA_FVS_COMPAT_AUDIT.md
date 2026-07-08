@@ -183,8 +183,23 @@ corrected the whole FIA sample's DG, not one stand. Remaining drifters → next 
 - 255262502010854 — 2.5%.
 (One stand shows cyc0 TopHt 0.83% = the pre-existing 3/162 AVH-tie cyc0 residual, not new.)
 
+### Slice 1j — residual SN stands classified: 1 ACCEPTED, 1 NEW (loblolly DG)
+- **255260379010854 (6.7%) = ACCEPTED cyc0 TopHt AVH tie** (modernization #92 named this stand). The 6.7%
+  is TopHt 32/live30 at the 2010 INVENTORY row (2/30) — the cornered AVH pre-sort tie; it propagates ~2 ft
+  a few cycles then CONVERGES (2030 56/56, 2035 61/61). Not a new bug; carry as cornered. (Small secondary
+  DG/mortality tail exists — TPA 3548/live3520 @2025 — but sub-dominant.)
+- **1152014752290487 (6.5%) = NEW: loblolly-pine DG slightly HIGH.** Near-pure loblolly (FIA 111 = SN sp13,
+  38/42 trees). Cyc0 BIT-EXACT (579/112/5.9); jl then grows DBH too fast (BA 129/live126 @2026 → SDI/QMD
+  high → extra density mortality → TPA 447/live478 = −6.5% @2046). OPPOSITE direction to the YP gap (jl low).
+  A distinct species-specific DG divergence — loblolly (sp13, a major planted SN species; special Fort-Bragg
+  DG path exists). Next: per-tree DG diff on this stand — is it the planted modifier (kplant), an sp13 coeff,
+  or an eco/fortype term for this stand's ECOREGION?
+
+**SN multi-cycle status post-eco_unit-fix:** 5/8 bit-exact; residuals = 1 accepted AVH tie + 1 new loblolly
+DG lead. The eco_unit fix cleared the dominant DG divergence class; remaining leads are narrower/species-specific.
+
 ## TODO
-- [ ] NEXT: root-cause 255260379010854 (6.7%) + 1152014752290487 (6.5%) — per-tree DG diff; new species/EUT/fortype?
+- [ ] NEXT: per-tree DG diff on 1152014752290487 — loblolly (sp13) DG too high (kplant / coeff / eco-fortype?).
 - [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
       may surface on other plots where it crosses the rounding boundary. Trace fortyp.f vs jl for FIA input.
 - [ ] NE/CS/LS: analogous eco-unit read (their FIA differentials — do they show the same EUT gap?).
