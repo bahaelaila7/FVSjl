@@ -1346,3 +1346,17 @@ Suite 37972→**38479 / 141 / 0** (+507 passes, zero new broken, zero regression
 fire-fuel state-carryover path that neither ne_simfire nor ne_thincc alone covers. META (RE-TRACE, 2nd time this
 session): I'd dismissed "interaction coverage" as out-of-scope for the isolated KCV, but checking it — like THINPT
 (S91) — turned a dismissed item into a clean bit-exact win. Coverage-by-category dismissals deserve one probe.
+
+## Slice S93 — Interaction probe: fire-then-salvage — FAITHFUL but NOT a useful .sum-KCV add (coverage-boundary finding) [2026-07-08]
+Probed the highest-bug-probability interaction (SIMFIRE 2010 + SALVAGE 2020 = the D16b salvage→fire class) on
+NE/CS/LS vs live. RESULT: fire+salvage is FAITHFUL — NE full-row BIT-EXACT; CS/LS diffs are EXACTLY the already-
+cornered cs_simfire/ls_simfire residuals (CS post-fire volume ULP; LS 2030 QMD 11.1/11.2 + 2040 BdFt Δ1), NOT a
+new salvage divergence. So the D16b fire-killed-snag-salvage fix generalizes to NE/CS/LS. BUT: NOT added as a KCV
+fixture — SALVAGE is a snag/fuel-pool operation largely INVISIBLE to the standard `.sum` (it doesn't move live-
+tree TPA/BA/volume the way a thin does), so a `.sum`-diff fixture would just re-test *_simfire. This is the
+COVERAGE BOUNDARY of the `.sum`-based KCV harness: it validates keywords that change the live-tree summary
+(thin/fire/growth/volume/estab) but cannot meaningfully test `.sum`-invisible snag/fuel/carbon ops (SALVAGE,
+FUELMOVE, DUFFPROD, PILEBURN) — those are validated via the carbon/snag/DBS report paths (SN snt01_alpha FFE +
+the FFE-port assertions), not the KCV `.sum`. META (3rd probe this session): the probe correctly returned "don't
+add" WITH evidence (salvage .sum-invisible) — the discipline is to probe AND to honor a negative result, not
+just to bank wins. Contrast S92 (thin-then-fire): the thin IS `.sum`-visible ⇒ a genuine, valuable KCV add.
