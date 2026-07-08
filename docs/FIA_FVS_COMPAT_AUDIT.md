@@ -1039,3 +1039,22 @@ VERDICT: widening SN 100→1000→5000 surfaced NO new systematic bug and NO cra
 larger tail is purely more hyper-dense seedling stands where the cornered self-thinning count-straddle is a
 larger % of a huge TPA (density stays ~bit-exact). SN multi-cycle is bit-exact-or-cornered at 5000-scale.
 Floor 38527/143/0. NEXT: management sweep at scale (crash-hunt, where the LS bug lived) + widen NE/CS/LS.
+
+---
+## SLICE 32 — WIDEN NE/CS/LS to 5000 (toward exhaustive): all 4 variants @5000, no new bug/crash  [2026-07-08]
+Completed the 5000-scale widening for all 4 variants (~20,000 real FIA stands total this pass). JLERR=0
+EVERYWHERE (no plain-multi-cycle crash on any variant — the LS segfault was management/fire-specific, fixed slice 27):
+  SN 5000: 3046/4090 bit-exact (74.5%); <1%:89% ; >10%:5
+  NE 5000: 4228/4808 (88%);           <1%:97% ; >10%:0
+  CS 5000: 4579/4947 (92.5%);         <1%:97% ; >10%:12
+  LS 5000: 4210/4988 (84.4%);         <1%:92% ; >10%:23
+Pass rates STABLE vs the 100/1000-scale (SN 74/NE 88/CS 93/LS 85) ⇒ no rare systematic bug hid at smaller N.
+Signatured the LS ≥10% tail (23, the fattest): all dense-regen self-thinning + ±unit BA/SDI/CCF/TopHt straddles.
+Traced the WORST (1831698522290487, TPA 6656/2177=3× @2034): 2024 BIT-EXACT (12091 TPA seedling stand, QMD 0.9);
+over the 10-yr cycle it self-thins — LIVE kills 82% (→2177), JL kills 45% (→6656) — but DENSITY tracks within
+~5% (BA 187/197, SDI 518/494); only the STEM COUNT (+QMD 2.3/4.1) diverges, because the self-thin removes a
+different NUMBER of the ~12k tiny trees. = the documented LS dense-phase / SIGMAR-tripling-spread self-thinning
+residual (accepted-class per LS port notes), more prevalent at 5000-scale (more hyper-dense regen sampled).
+VERDICT: widening 100→1000→5000 on ALL 4 variants surfaced NO new systematic bug and NO plain-sweep crash; the
+tails are the cornered self-thinning-count-straddle (density within ~5%, count diverges on hyper-dense stands)
++ ULP ±unit straddles. FVSjl multi-cycle is bit-exact-or-cornered at 5000-scale for every variant. Floor 38527/143/0.
