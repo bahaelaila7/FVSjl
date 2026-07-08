@@ -156,8 +156,27 @@ per-tree DG diff (expect YP Δ→0) + the stand differential (expect the 3.7% BA
 full suite MUST stay 38527/143/0 (the EUT term is inert when eco_unit is genuinely blank — snt01 etc. don't
 set it — so no floor risk). This is a real FIA-reader + DG-constant gap, NOT ULP.
 
+### Slice 1h — FIX LANDED + VALIDATED: FIA reader now reads ECOREGION → eco_unit (SN EUT DG term)
+**Fix:** `apply_fia_stand!` (src/io/fia_database.jl) now reads the `ECOREGION` STANDINIT column (e.g.
+"223Db") into `p.eco_unit` via `resolve_eco_unit`→SNECU (canonical "223DB"), SN-gated. This restores the
+SN dgf ecological-unit (EUT) categorical term (`dg_phys_p222 = +0.2554` for group 223→p222) that was
+dropped for all FIA-DB stands.
+
+**Validated (stand 3196569010661):**
+- YP per-tree ln(DDS) deficit: **−0.344 → −0.0886** (the p222 term = +0.2554, exactly as predicted).
+- Stand `.sum` vs live: **BIT-EXACT all cycles** (2003 408/115/215, 2013 375/139/248, 2023 343/163/278 ==
+  live) — the **3.7% BA drift collapsed to 0**. The residual −0.089 ln(DDS) forest-type term (jl upland_oak
+  −0.0907 vs FVS ~0) is below the `.sum` integer-rounding threshold here.
+- **Floor held: 38527 pass / 143 broken / 0 fail** — no regression (SN-gated FIA-path change; curated
+  scenarios set eco_unit via STDINFO, unaffected; cycle-0 FIA baseline is DG-independent).
+
+★ First campaign divergence FOUND → both-sides ROOT-CAUSED → FIXED → validated BIT-EXACT vs live, floor
+preserved. Textbook FIA-behaviour-compat slice.
+
 ## TODO
-- [ ] FIX: read ecological unit from FIA STANDINIT into eco_unit; verify 223→phys group mapping; re-diff; keep floor.
+- [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
+      may surface on other plots where it crosses the rounding boundary. Trace fortyp.f vs jl for FIA input.
+- [ ] NE/CS/LS: analogous eco-unit read (their FIA differentials — do they show the same EUT gap?).
 - [ ] Then: forest-type derivation check (jl 503→upok vs FVS) for the residual ~0.09.
 - [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 manifest.
       (both sides) vs jl; likely a beyond-growth-sample-max-DBH large-tree DG path YP-specific.

@@ -78,6 +78,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # index in the eastern crown-width models.
     _fia_present(d, "LATITUDE")  && (p.latitude  = _fia_f32(d, "LATITUDE", p.latitude))
     _fia_present(d, "LONGITUDE") && (p.longitude = _fia_f32(d, "LONGITUDE", p.longitude))
+    # ECOREGION (ecological unit / EUT, e.g. "223Db") → eco_unit. FVS reads it from STANDINIT and adds a
+    # per-species ecological-unit DG term (dgf.f EUT categorical coefficients dg_phys_*), plus it drives the
+    # montane site/height/estab branches (eco_unit[1]=='M'). Without it the whole EUT DG term is dropped for
+    # FIA-DB stands — the FIA/FVS campaign's slice-1 divergence (yellow-poplar large-tree DG ~20% low on a
+    # 223Db stand: jl omitted dg_phys_p222 ≈ +0.255 of the −0.344 ln(DDS) deficit). SN-gated: resolve_eco_unit
+    # / SNECU is the SOUTHERN ecological-unit table; NE/CS/LS use their own eco-unit handling (left blank as
+    # before, a documented follow-up if their FIA differentials show an analogous gap).
+    if s.variant isa Southern && _fia_present(d, "ECOREGION")
+        p.eco_unit = rpad(resolve_eco_unit(_fia_str(d, "ECOREGION", ""), 0), 10)
+    end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
     # DB overrides elevation ONLY when >0 (dbsstandin.f:647) — so a null/≤0 ELEVATION keeps the
