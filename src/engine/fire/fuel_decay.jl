@@ -59,11 +59,26 @@ const _FM_DKR_NE = Float32[
     0.40 0.40 0.40 0.40     # 10 litter (ne/fmvinit.f:96)
     0.002 0.002 0.002 0.002 # 11 duff
 ]
-# Variant-default DKR: SN + CS use `_FM_DKR` (litter 0.65); LS/NE use their own (ls/ne fmvinit.f). CS
-# (cs/fmvinit.f litter=0.65 == SN but woody may be decay-class-independent) is tracked separately (#101).
+# Central States annual decay rates (cs/fmvinit.f:70-93). Litter 0.65 (== SN) but woody is decay-class-
+# INDEPENDENT: classes 3-9 use 0.09/0.07 for ALL decay classes (vs SN's 0.11 at decay class 1). Duff 0.002.
+const _FM_DKR_CS = Float32[
+    0.11 0.11 0.11 0.11     # 1
+    0.11 0.11 0.11 0.11     # 2
+    0.09 0.09 0.09 0.09     # 3
+    0.07 0.07 0.07 0.07     # 4
+    0.07 0.07 0.07 0.07     # 5
+    0.07 0.07 0.07 0.07     # 6
+    0.07 0.07 0.07 0.07     # 7
+    0.07 0.07 0.07 0.07     # 8
+    0.07 0.07 0.07 0.07     # 9
+    0.65 0.65 0.65 0.65     # 10 litter (cs/fmvinit.f:90, == SN)
+    0.002 0.002 0.002 0.002 # 11 duff
+]
+# Variant-default DKR: SN uses `_FM_DKR`; LS/NE/CS use their own faithful tables (ls/ne/cs fmvinit.f).
 _fm_dkr_default(::AbstractVariant) = _FM_DKR
 _fm_dkr_default(::LakeStates) = _FM_DKR_LS
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
+_fm_dkr_default(::CentralStates) = _FM_DKR_CS
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """

@@ -45,7 +45,7 @@ const _KCV_BROKEN = Dict{String,String}(
     #   FVS computes the scorch height from a HIGHER flame (2.247→BYRAM 32.985) than the FMEFF-logistic report
     #   flame (1.2426≈jl 1.305); jl reuses the one low flame for both, under-scorching short trees. Deterministic
     #   kill (all burn), so NOT a RANN-tie. FIX: source the scorch flame per fmburn.f:472. Task #100 (reopened).
-    "cs_simfire" => "FFE SIMFIRE — post-fire fire-mortality (FMEFF) kill-distribution residual (~1 vol-unit / <0.1%); fire behavior bit-exact; NE bit-exact. Accepted FFE class (test_lst01_ffe ~3%).",
+    "cs_simfire" => "FFE SIMFIRE — TPA + BA now BIT-EXACT vs live all cycles (post-S89 CS DKR table: _fm_dkr_default(CentralStates)=_FM_DKR_CS, cs/fmvinit.f decay-class-independent woody). Only residual = the post-fire volume ~1-3 units (<0.1%, MCuFt/SCuFt/BdFt) — an accepted per-tree Clark/ULP straddle, NOT the fire kill. Was 'kill-distribution', now cornered to a volume ULP.",
     "ls_simfire" => "FFE SIMFIRE — FIXED (S87): the ~5-TPA under-kill was jl applying the SN fuel decay-rate table (litter DKR 0.65) to LS, which decays LS litter ~2× too fast (LS litter=0.31, ls/fmvinit.f:94) ⇒ SMALL down-wood ~1.47× low ⇒ FMDYN under-weighted the hot fuel model ⇒ under-scorch. Now _fm_dkr_default(LakeStates) uses the LS DKR table (fuel_decay.jl). 2020/2040 rows BIT-EXACT vs live; ONLY residual = 2030 QMD 11.1/11.2 (a sub-print BA/TPA straddle 2 cycles post-fire, same displayed BA 146/TPA 215) — ULP-class @test_broken. Was structural, now cornered.",
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the
     #   sawtimber scftopd/scfstmp (which a blank-SCFTOPD VOLUME card zeroes) instead of the BOARD's own sp_bf_topd/

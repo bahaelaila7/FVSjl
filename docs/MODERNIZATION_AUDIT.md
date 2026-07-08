@@ -1293,3 +1293,14 @@ either side of the 0.40/0.65 change), so no test moves, but jl is now FAITHFUL (
 carbon scenarios. Suite 37633/140/0 (unchanged — no regression, no new pass). Remaining #101: CS (cs/fmvinit.f
 litter 0.65 == SN but woody may be decay-class-independent — check if cs_simfire, currently @test_broken/cornered,
 needs `_FM_DKR_CS`).
+
+## Slice S89 — #101 COMPLETE: CS variant fuel decay table + all-variant DKR faithful [2026-07-08]
+Added `_FM_DKR_CS` (cs/fmvinit.f:70-90: litter 0.65 == SN, but woody decay-class-INDEPENDENT — classes 3-9 use
+0.09/0.07 for all decay classes vs SN's 0.11 at class 1) + `_fm_dkr_default(::CentralStates)`. Now ALL FOUR
+variants use their faithful fmvinit.f DKR table (SN=_FM_DKR, NE/LS/CS their own). VALIDATED vs live FVScs:
+cs_simfire TPA + BA now BIT-EXACT every cycle (2020 178/178, 2030 166/166 — was the "kill-distribution residual");
+only the post-fire volume (MCuFt/SCuFt/BdFt) differs 1-3 units (<0.1%) = the accepted per-tree Clark ULP straddle,
+unrelated to the DKR. Suite 37633/140/0 (no regression; CS-gated). #101 CLOSED. NET (S87-S89): the `_FM_DKR`
+SN-hardcoded-cross-variant bug is fully resolved — LS fire under-kill FIXED (bit-exact), NE faithful (inert now,
+correct for future), CS fire kill bit-exact. A whole class of latent variant-DKR bugs closed by one variant-gated
+selector, surfaced by the ls_simfire coverage scenario.
