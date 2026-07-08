@@ -63,8 +63,12 @@ tie), 1 CCF (Δ1 ULP), 2 TCuFt (Δ1-8 ULP).
   carbon_snt + fire scenarios are bit-identical. Regression fixture: `carbon_snagpsft.*` + test_carbon.jl.
 - **FIA-reader ULP cells** — TopHt tree-storage-order tie, CCF/TCuFt integer-rounding boundaries.
 - **LS PERCOV** (~3.4) — forest-grown crown CR-timing; feeds only the coarse cover-class-binned fire WMULT.
-- **\*FFE fire-mortality (FMEFF) kill-distribution** (cs/ls_simfire) — post-SIMFIRE the per-tree fire kill
-  differs sub-few-% (LS 2020 TPA 225/220 ~2.3%); fire behavior (flame/scorch/selection) is bit-exact.
-  Accepted FFE class (test_lst01_ffe: LS fire mortality within ~3%). NE SIMFIRE is bit-exact.
+- **ls_simfire FFE fire-mortality — FIXED (S87).** The LS ~5-TPA under-kill was jl applying the SN fuel
+  decay-rate table (litter DKR 0.65) to LS (which uses 0.31, ls/fmvinit.f) ⇒ litter ~2× low ⇒ SMALL down-wood
+  low ⇒ FMDYN under-weighted the hot fuel model ⇒ under-scorch. `_fm_dkr_default(::LakeStates)` now uses the LS
+  DKR table (variant-gated; SN/NE/CS byte-identical). Live-validated: ls_simfire 2020/2040 full-row bit-exact,
+  2030 QMD 11.1/11.2 sub-print straddle only (ULP-class @test_broken). Suite 37633/140/0.
+- **cs_simfire FFE fire-mortality** — post-SIMFIRE per-tree kill differs sub-few-% (cornered @test_broken);
+  likely the same variant-DKR class (cs/fmvinit.f woody rates), tracked in #101. NE SIMFIRE is bit-exact.
 
 Full slice-by-slice detail: `docs/MODERNIZATION_AUDIT.md`.
