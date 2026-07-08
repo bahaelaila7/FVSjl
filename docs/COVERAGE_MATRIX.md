@@ -4,7 +4,7 @@ Pillar-1 done-state deliverable: a documented per-variant coverage matrix showin
 **100% drop-in** claim is defensible for **SN + NE + CS + LS**, every exercised path validated
 **bit-exact (`==` vs freshly-relinked live FVS) or cornered to a named primitive**.
 
-Correctness floor (never regress): **37628 pass / 140 broken / 0 fail** (`julia --project=. test/runtests.jl`).
+Correctness floor (never regress): **37972 pass / 141 broken / 0 fail** (`julia --project=. test/runtests.jl`).
 The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-tie / accepted primitives).
 
 ## Coverage by variant
@@ -68,7 +68,11 @@ tie), 1 CCF (Δ1 ULP), 2 TCuFt (Δ1-8 ULP).
   low ⇒ FMDYN under-weighted the hot fuel model ⇒ under-scorch. `_fm_dkr_default(::LakeStates)` now uses the LS
   DKR table (variant-gated; SN/NE/CS byte-identical). Live-validated: ls_simfire 2020/2040 full-row bit-exact,
   2030 QMD 11.1/11.2 sub-print straddle only (ULP-class @test_broken). Suite 37633/140/0.
-- **cs_simfire FFE fire-mortality** — post-SIMFIRE per-tree kill differs sub-few-% (cornered @test_broken);
-  likely the same variant-DKR class (cs/fmvinit.f woody rates), tracked in #101. NE SIMFIRE is bit-exact.
+- **cs_simfire FFE fire-mortality — FIXED (S89).** After the CS variant DKR table (`_fm_dkr_default(::CentralStates)`
+  = cs/fmvinit.f), cs_simfire TPA + BA are now BIT-EXACT vs live all cycles; only a post-fire volume ULP (<0.1%,
+  MCuFt/SCuFt/BdFt Δ1-3) remains — an accepted per-tree Clark straddle, @test_broken. NE SIMFIRE is bit-exact.
+- **ls_thinpt point-thin** — THINPT/SETPTHIN is BIT-EXACT vs live (2010 removal + 1990-2020); only 2 downstream
+  ULP straddles on the heavily-thinned residual stand (2030 MAI 35.2/35.1, 2040 BdFt 7464/7463). NE/CS thinpt
+  full-row bit-exact (S91).
 
 Full slice-by-slice detail: `docs/MODERNIZATION_AUDIT.md`.
