@@ -853,3 +853,19 @@ DEFINITIVE NEXT (heavy, deferred to a fresh session for oracle safety): live dgf
 to jl_dgf3.txt term-by-term. If cr diverges → trace crown_ratio! at low density (real bug or cornered
 near-tie); if cr matches but dds diverges → a dgf coefficient/term-form gap. Localization is now maximal
 short of the live Fortran stamp. Floor 38527/143/0 (src reverted clean).
+
+## SLICE 22 — CLEARED large-tree dgf; root is UPSTREAM (cyc-2 small-tree/height/mortality). Both-sides dgf stamp.
+Did the definitive both-sides dgf trace (jl ENV-gated dump + live dgf.f debug stamp: backup→edit→compile
+dgf.o→relink /tmp/FVSsn_new→run→RESTORE dgf.f+dgf.o→relink→VERIFY PRISTINE [no-mgmt 2016 445/130, no stamp]).
+Aligned cycles by stand BA: jl cyc2 bav=46.578938 == live BA=46.5789490 (the first post-thin growth cycle).
+RESULT at that cycle — EVERY sp544 large-tree dgf input is BIT-EXACT (all 12 trees): DBH, ICR(=jl crown_pct),
+PCT(=jl crown_ratio, the BA-percentile feeding pbal), PBA, PBAL, BA, RELHT (+ ht, avh). Identical inputs +
+identical coeffs ⇒ large-tree DDS is necessarily bit-exact at cyc2. **The crown_ratio/PCT suspect (slice 21)
+is CLEARED; the large-tree dgf is CLEARED.** The +29% large-tree DG (slices 19-20) appears at cyc3, and is a
+DOWNSTREAM symptom: cyc3 stand BA diverged (jl 60.59 / live 58.44), and stand BA feeds the dgf BA/pbal terms.
+So the ROOT divergence is in the cyc2 (first post-thin, 2026->2031) growth of NON-large-tree components —
+candidates: SMALL-tree diameter growth (d<10, uses the height-based small-tree model not dgf!; treelist showed
+sp544 small cohort +1.7% at 2031), HEIGHT growth (htgf), or MORTALITY of the sparse residual. NEXT: diff
+small-tree DG + htg + periodic mortality at cyc2 both-sides (same stamp method on the small-tree/htgf path).
+LESSON: localizing by the LARGEST symptom (large-tree +29%) pointed at the wrong model; the bit-exact-input
+proof redirected to the upstream driver. Oracle verified pristine; src clean. Floor 38527/143/0.
