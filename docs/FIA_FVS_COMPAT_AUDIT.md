@@ -274,6 +274,24 @@ multi-point FIA stands (point assignment / expansion / PROB weighting), NOT the 
 inferred from the PTBAL debug without checking what dgf CONSUMES (doctrine #3). Next: trace how FVS builds
 PTBAA per point (fvsGetPtBal / the point BA accumulation) vs jl `compute_density!` point_ba on this 4-point stand.
 
+### Slice 5 — REAL BUG (jl-high verified non-ULP per user): loblolly DG 2× via DGSCOR over-calibration
+Per the user's directive ("jl-high ones are not reassuring; make sure ULP-class before scaling, else fix"),
+root-caused the worst jl-high stand 157875449010854 with a PERIOD-ALIGNED per-tree diff (absolute cyc1 DBH,
+not the treelist-DG that burned slice-3): **jl grows loblolly (LP/sp13) ~2× (4.5″: live 0.90/jl 1.91;
+13.0″: live 1.26/jl 2.55); ALL other species BIT-EXACT** (SU/JU/SP/SK/BC/BG/WK dDG≈0). Definitively REAL &
+species-specific, NOT ULP.
+- Coefficients MATCH FVS (INTERC(13)=0.222214, LDBH 1.16304, DBH2 −0.000863) — not the dgf coeffs.
+- LOCALIZED: jl `conspp = dg_const[13](0.2057) + dg_cor[13](0.9777)` (diameter_growth.jl:154). The
+  **`dg_cor[LP]=0.9777` DGSCOR self-calibration term (line 450-472) is added to ln(DDS) ⇒ ×e^0.98≈2.66 DG.**
+  Other species have dg_cor≈0 ⇒ bit-exact. jl's LP DDS (0.22/0.70 @dbh1.0/1.5) − 0.9777 ≈ FVS's (−0.65/0.008).
+- Live FVS LP DG is LOW ⇒ FVS is NOT applying a +0.98 COR for LP here. So jl's self-calibration is FIRING /
+  computing a large COR for loblolly on this FIA stand when FVS doesn't (or gets ~0). 
+- **DECISIVE next (both-sides, do NOT fix blind):** debug-FVS dgdriv COR dump for ISPC=13 on this stand — is
+  FVS's LP COR ≈0 (jl wrongly fires) or does the calibration input differ (which LP trees are "measured",
+  their residuals)? The modernization DGSCOR was validated bit-exact on curated stands (measured sp33/65), so
+  the divergence is likely a FIA-specific calibration INPUT (measured-tree flag / past-growth) that makes jl's
+  LP fit fire spuriously. Fix there, keep floor, re-verify LP DG→live, re-sweep.
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
