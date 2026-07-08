@@ -25,6 +25,8 @@ regime_block(r) =
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\nEnd" : # prescribed fire cyc2 (FFE)
     r == "plant"   ? "ESTAB\n" * kwrec("PLANT", "2.0", "3", "400") * "\nEnd" :          # plant sp3 400tpa cyc2 (ESTAB/regen)
     r == "salvage" ? kwrec("SALVAGE", "2.0", "0.0", "999.0", "0.9") :                   # salvage 90% of dead cyc2
+    r == "firesalv" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\n" *  # fire cyc2 kills, then
+                      kwrec("SALVAGE", "3.0", "0.0", "999.0", "0.9") * "\nEnd" :         # salvage 90% of fire-killed cyc3
                      kwrec("THINBBA", "2.0", "40.0")                  # thin from below to residual BA 40 (default)
 
 keytext(cn, regime) = """

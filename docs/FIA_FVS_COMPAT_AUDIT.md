@@ -992,3 +992,16 @@ handling relaxed for post-plant/degenerate stands (harness limitation, not a jl 
 prior disturbance (dead trees) to exercise — deferred (combine with a fire-then-salvage regime). Pillar-3
 primary regimes (thinning 4var×3methods + fire 4var) fully validated; PLANT traced-faithful; salvage pending.
 Floor 38527/143/0; src unchanged (harness+docs only this slice).
+
+---
+## SLICE 29 — Pillar 3: SALVAGE (fire-then-salvage) validated — Pillar-3 management COMPLETE  [2026-07-08]
+Added `firesalv` regime (FMIn/SIMFIRE cyc2 kills → SALVAGE cyc3 removes 90% of fire-killed / End) so SALVAGE
+exercises real dead trees. SN-12 firesalv: fire-fired 7/10, NO-OP 3/3 (=Pillar-2), worst 4.3% (=the pure-fire
+246537009010854 stand), NO >10%, NO crash. ⇒ salvage-of-fire-killed on real inventory tracks live within the
+SAME cornered FFE class as pure fire (BA-bit-exact fire + salvage removal + post-disturbance growth-ULP);
+salvage adds no new divergence.
+**PILLAR 3 (MANAGEMENT) DONE-STATE MET** — a management-scenario differential over real FIA plots, bit-exact-
+or-cornered, covering: THINNING (4 variants × 3 methods below/above/DBH; selection+scheduling BIT-EXACT),
+PRESCRIBED FIRE (4 variants; BA-bit-exact + cornered FFE/FMEFF; found+FIXED the LS covtyp segfault),
+PLANTING (regen-under-mgmt traced bit-exact), SALVAGE (fire-then-salvage, cornered). Every management residual
+is bit-exact or the cornered growth-ULP×density / DGSCOR-stochastic / FFE-FMEFF primitive. Floor 38527/143/0.
