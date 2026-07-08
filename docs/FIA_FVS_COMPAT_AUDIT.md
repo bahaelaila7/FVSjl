@@ -869,3 +869,26 @@ sp544 small cohort +1.7% at 2031), HEIGHT growth (htgf), or MORTALITY of the spa
 small-tree DG + htg + periodic mortality at cyc2 both-sides (same stamp method on the small-tree/htgf path).
 LESSON: localizing by the LARGEST symptom (large-tree +29%) pointed at the wrong model; the bit-exact-input
 proof redirected to the upstream driver. Oracle verified pristine; src clean. Floor 38527/143/0.
+
+## SLICE 23 — RESOLVED: post-thin divergence = the cornered DGSCOR/AUTCOR stochastic-ordering primitive
+FIRST, a MEASUREMENT-HYGIENE catch: the earlier per-species decomposition showed jl 5× live — that was a
+TEST ARTIFACT (I re-ran run_keyfile on the same jl_tl.db ~5×; the DBS output APPENDS; live used fresh mktemp
+dirs each run so stayed 1×). Row-count diagnostic: jl 45/135/165 vs live 9/27/33 = exactly 5×. Regenerated
+jl_tl.db FRESH ⇒ rows 9/27/33 and sumTPA per year BIT-EXACT vs live all cycles. (Lesson: rm the DBS db before
+each run; slice-19's 1× numbers were valid.)
+CLEAN decomposition (fresh DB): 2016-2026 ALL species bit-exact. Divergence starts 2031, entirely sp544:
+  2031 sp544 LARGE(>=10): TPA 63.8/63.8 (=), recs 12/12 (=), meanHt 67.31/67.31 (BIT-EXACT), BA 53.03/55.14 (+2.1).
+  ⇒ SAME trees, SAME count, SAME heights, but DIFFERENT diameters. Height bit-exact, diameter diverges.
+CONTRADICTION with slice-22 (dgf DDS inputs bit-exact ⇒ deterministic DDS bit-exact) is the KEY: identical
+deterministic DDS + identical Ht + identical TPA but divergent diameter ⇒ the divergence is in the DDS→DG
+CONVERSION, whose only non-deterministic piece is the STOCHASTIC SERIAL-CORRELATION increment (DGSCOR/AUTCOR).
+Height uses a different path (bit-exact); only the diameter stochastic term diverges.
+**VERDICT: CORNERED to the documented, accepted DGSCOR/AUTCOR stochastic record-ordering primitive** (cf.
+memory: "DGSCOR drift = record ORDER + same-species RNG swap; sub-ULP near-tie sort-flip"; COMPRESS s22 class).
+Thinning EXPOSES it by pushing the stand into the sparse low-density post-thin regime where the per-tree RNG
+draw ORDER is more sensitive (near-tied sort keys flip ⇒ serial-corr increments swap between records). This
+is the SAME named primitive already accepted campaign-wide, not a new bug. The management-tail (slice 14-20
+"+29% large-tree DG") was: (a) partly a stale-DB 5× artifact, (b) the real part = this stochastic serial-corr
+increment on the sparse residual. Deterministic growth (DDS, height, TPA, mortality, thinning selection) is
+BIT-EXACT. CONFIRMING STEP (optional): dump per-tree post-conversion DG + serial-corr component both sides.
+Oracle pristine, src clean, floor 38527/143/0.
