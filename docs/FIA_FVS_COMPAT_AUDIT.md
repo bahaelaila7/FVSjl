@@ -365,6 +365,22 @@ ULP" call. The long error-prone trace (5 retracted attributions) finally resolve
 CALBSTAT output as the both-sides anchor and (b) found the actual call-site gate (`growth_dg_set`), not more
 Julia per-tree reconstruction. Meta-lesson reinforced: anchor on the `.sum` + FVS's reported values.
 
+### Slice 8 — remaining SN >5% failures triaged (post-fix): individual residuals, not systematic
+Of the 5 stands still >5% post-fix (signature.jl):
+- `157872834010854` QMD@2005 jl4.4/lv4.5, `155775361010854` QMD@1980 jl15.7/lv15.8 — QMD ±0.1 PRINT-STRADDLE
+  (rendered-integer/tenth knife-edge) → cornerable ULP.
+- `155776435010854` BA@1979 jl26/lv25, `921827906290487` CCF@2026 jl25/lv26 — Δ1-unit straddles → cornerable.
+- **`158851606010854` (13.6%, the lone remaining >10%)** — FIA-128-dominated, **no measured DG (pastDBH null)**
+  so NOT the calibration; jl OVER-grows the base DG (1996 BA jl134/live118, QMD 6.6/6.0). An INDIVIDUAL
+  species/condition base-DG residual (FIA 128), isolated to ~1/1000 — a narrow follow-up, not systematic.
+
+**SN END-STATE (this campaign):** the TWO systematic bugs (eco_unit EUT term; growth_dg_set FINT-normalization)
+are FIXED — big-divergence tail collapsed 57→1 (>10%), 74% strict bit-exact, **89% of real stands within 1%**.
+Remaining = a cornerable sub-1% ULP/print-straddle tail + a handful (~5) of individual species/condition
+residuals (e.g. FIA-128 base-DG). SN systematic work is essentially DONE; the residual is long-tail/cornerable.
+NEXT per the plan: scale NE/CS/LS sweeps (the eco_unit + growth_dg_set fixes are in the shared FIA reader, so
+NE/CS/LS measured-DG stands should benefit — measure it), then Pillar-3 management scenarios.
+
 ### Slice 6 — BOTH-SIDES GROUND TRUTH (via CALBSTAT, no source edit): FVS loblolly calib = 0.879, jl = 2.66×
 Used the **CALBSTAT keyword** (clean — writes per-species calibration to `fort.13`, no instrumentation).
 FVS loblolly (sp13) large-tree DG calibration: `CAL: LD 13 LP 12 1.411 0.713 0.879` — **12 measured trees,
