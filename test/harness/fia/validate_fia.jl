@@ -107,13 +107,25 @@ function main(listfile, variant)
         stand_pass ? (n_pass += 1) : push!(failures, cn)
     end
     if haskey(ENV, "FIA_FAILOUT") && !isempty(failures)
+        mag = Dict(s => r for (r, s) in worst)   # cn[tag] → maxrel
         open(ENV["FIA_FAILOUT"], "w") do io
-            for cn in failures; println(io, cn, '\t', variant); end
+            for cn in failures
+                r = get(mag, "$cn[$variant]", 0.0)
+                println(io, cn, '\t', variant, '\t', round(r*100, digits=1))
+            end
         end
     end
     println("\n===== FIA validation: $variant =====")
     println("stands run=$n_run  both-produced-sum=$n_ok  cycle0-printed-identical=$c0_exact / $n_ok")
     println("BIT-EXACT (all cycles, 6 cols): $n_pass / $n_ok    FAIL: $(length(failures))")
+    # magnitude histogram of the worst per-stand rel diff — separates ULP/print straddles from real bugs
+    buckets = ["<1%"=>0, "1-2%"=>0, "2-5%"=>0, "5-10%"=>0, ">10%"=>0]
+    for (r, _) in worst
+        p = r*100
+        k = p < 1 ? 1 : p < 2 ? 2 : p < 5 ? 3 : p < 10 ? 4 : 5
+        buckets[k] = buckets[k].first => buckets[k].second + 1
+    end
+    println("Worst-rel-diff histogram (all $n_ok): ", join(["$(b.first):$(b.second)" for b in buckets], "  "))
     println("\nMean |rel diff| by cycle (over $n_ok stands):")
     println("  cyc  ", join(lpad.(col_names,7), " "))
     for ci in sort(collect(keys(sumrel)))

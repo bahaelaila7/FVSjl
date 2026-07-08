@@ -288,9 +288,22 @@ NO single species dominates. ⇒ the SN-100 "loblolly" cluster was largely SAMPL
 divergence is the **POLE-SIZE regime (avg DBH ~5-9")** across species — a growth or (density-dependent)
 mortality issue for mid-size stands. This reframes the hunt from species-coefficients to a STRUCTURAL cause.
 
-**Next hunt (data-driven):** take several pole-size failing stands of DIFFERENT dominant species, find the
-COMMON divergence signature (which .sum col, which cycle, growth vs mortality) — the shared cause is the
-systematic pole-size bug. Then debug-FVS the shared path (period/quantity-aligned per the slice-3c lesson).
+### Slice 4a — MAGNITUDE triage of the 254 SN-1000 failures (corrects the "pole-size systematic" read)
+Re-ran the 254 failures with a worst-rel-diff histogram: **<1%:77  1-2%:45  2-5%:50  5-10%:25  >10%:57**.
+⇒ ~77 (30%) are sub-1% = likely the accepted ULP / integer-print-straddle class (cornerable); **57 (22%)
+are >10% = unambiguous real bugs**; the middle is a mix.
+
+**Clustering the 57 BIG (>10%) failures by STRUCTURE: pole5-9=24, saw9-15=24, sap1-5=6, lg15+=3** — split
+EVENLY between pole and sawtimber, NOT pole-concentrated. So slice-4's "pole-size systematic bug" was a
+BASE-RATE artifact (pole is simply the commonest structure in the sample; I never normalized). And 3 sampled
+pole failures showed HETEROGENEOUS directions (one TPA/BA bit-exact→fails on another col; two with jl BA
+HIGH/over-grow) — the OPPOSITE of the loblolly under-grow. ⇒ **the big failures have MULTIPLE causes, not one
+systematic bug.** (Meta: 2nd premature-cluster correction — always base-rate-normalize + inspect direction.)
+
+**Honest campaign state (SN):** ~69% bit-exact at N=1000; failures = a cornerable-small tail (~30% <1%) +
+a heterogeneous real-bug set (~57 >10%, mixed over/under-growth across pole & sawtimber). No single dominant
+fix. Progress now = root-cause the big ones in small batches (each may differ), corner the <1% straddles, and
+separately triage the 4 JLERR (jl crashes) + note the 176/1000 live-NOSUM (live FVS's own failures on real data).
 
 ## Slice 3 (Pillar 1+2) — SCALE SWEEP infrastructure + SN-100 pass/fail (user directive: scale, SN first)
 Built the scale toolchain: `extract_sample.jl` (VARIANT-filtered, ECOREGION/LOCATION-stratified, deterministic)
