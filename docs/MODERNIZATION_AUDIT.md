@@ -1334,3 +1334,15 @@ Suite 37633→**37972 / 141 / 0** (+339 passes = the 3 point-thin scenarios' col
 ULP; zero regressions). Corrects the prior turn's overly-cautious "blocked on field spec" verdict — jl's port IS
 the field spec, and the live comparison is the arbiter (RE-TRACE: don't defer a validatable path as unbuildable).
 KCV now 65 keywords/variant. #93's last behavioral gap closed; the residual is isolated-fixture replication only.
+
+## Slice S92 — Pillar-1 coverage: keyword INTERACTION (thin-then-fire) added to NE/CS/LS KCV [2026-07-08]
+Beyond isolated keywords: the isolated KCV tests thin OR fire, never thin-THEN-fire — but a prior thin's cut
+residue (CWD3) decays into the fire's fuel basis, an interaction where a real bug was previously found (the D16b
+SALVAGE→FMBURN CWD2B release). Built {ne,cs,ls}_thinfire = each variant's *_simfire base + `THINBTA 2000 50`
+(thin-below to BA 50 at 2000, feeding the 2010 SIMFIRE). Validated vs freshly-relinked live FVS{ne,cs,ls}:
+- **ALL THREE variants FULL-ROW BIT-EXACT** vs live across every cycle (the 2000 thin removal → the 2010 fire on
+  the thinned+residue stand → downstream growth). NE 2000 thin-to-72-TPA → 2010 fire 44 TPA; CS/LS likewise.
+Suite 37972→**38479 / 141 / 0** (+507 passes, zero new broken, zero regressions). This exercises the cut-residue→
+fire-fuel state-carryover path that neither ne_simfire nor ne_thincc alone covers. META (RE-TRACE, 2nd time this
+session): I'd dismissed "interaction coverage" as out-of-scope for the isolated KCV, but checking it — like THINPT
+(S91) — turned a dismissed item into a clean bit-exact win. Coverage-by-category dismissals deserve one probe.
