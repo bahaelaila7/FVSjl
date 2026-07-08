@@ -68,6 +68,7 @@ function main(listfile, v, regime)
     stands = [split(strip(l), '\t')[1] for l in eachline(listfile) if !isempty(strip(l))]
     n_run=0; n_ok=0; n_pass=0; n_thinned=0; failures=String[]
     worst = Tuple{Float64,String}[]
+    fired_pass=0; fired_fail=0; noop_pass=0; noop_fail=0   # split pass rate by whether the thin FIRED
     for cn in stands
         n_run += 1
         print(stderr, "[$n_run/$(length(stands))] $cn live..."); flush(stderr)
@@ -83,7 +84,8 @@ function main(listfile, v, regime)
         n_ok += 1
         Jd = Dict(y=>vv for (y,vv) in J)
         # detect whether the thin actually fired: BA drops from cycle 1 → cycle 2 on the LIVE run
-        length(L) >= 3 && L[3][2][2] < L[2][2][2] - 0.5 && (n_thinned += 1)
+        fired = length(L) >= 3 && L[3][2][2] < L[2][2][2] - 0.5
+        fired && (n_thinned += 1)
         maxrel = 0.0
         for (y, lv) in L
             haskey(Jd, y) || continue
@@ -97,6 +99,8 @@ function main(listfile, v, regime)
         stand_pass = length(J)==length(L) &&
                      all(haskey(Jd,y) && all(lv[k]==Jd[y][k] for k in 1:6) for (y,lv) in L)
         stand_pass ? (n_pass += 1) : push!(failures, cn)
+        fired ? (stand_pass ? (fired_pass += 1) : (fired_fail += 1)) :
+                (stand_pass ? (noop_pass  += 1) : (noop_fail  += 1))
     end
     if haskey(ENV,"FIA_FAILOUT") && !isempty(failures)
         mag = Dict(s=>r for (r,s) in worst)
@@ -107,6 +111,7 @@ function main(listfile, v, regime)
     println("\n===== MANAGEMENT ($regime): $v =====")
     println("stands run=$n_run  both-sum=$n_ok  thin-fired(live)=$n_thinned")
     println("BIT-EXACT (all cycles, 6 cols): $n_pass / $n_ok    FAIL: $(length(failures))")
+    println("  thin FIRED: bit-exact $fired_pass / $(fired_pass+fired_fail)   |   thin NO-OP: bit-exact $noop_pass / $(noop_pass+noop_fail) (= growth-only, cf. Pillar-2)")
     buckets = ["<1%"=>0,"1-2%"=>0,"2-5%"=>0,"5-10%"=>0,">10%"=>0]
     for (r,_) in worst; p=r*100; k = p<1 ? 1 : p<2 ? 2 : p<5 ? 3 : p<10 ? 4 : 5; buckets[k]=buckets[k].first=>buckets[k].second+1; end
     println("Worst-rel-diff histogram: ", join(["$(b.first):$(b.second)" for b in buckets], "  "))

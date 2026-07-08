@@ -684,3 +684,21 @@ With correct columns + CYCLE scheduling (2.0), live and jl AGREE to ULP on the t
 CALENDAR-year scheduling (2019.0) diverges — live ignores it, jl schedules one cycle late (2024); cycle
 scheduling sidesteps it. First 15-stand SN thinbba pass: thin-fired 7/12, worst 14.1% (was 147%) — the
 residual-tree-selection-at-the-cut-margin divergence class that Pillar 3 exists to characterize.
+
+---
+## SLICE 13 — Pillar 3: SN thinning (THINBBA) is BIT-EXACT; management tail = post-thin growth-ULP  [2026-07-08]
+SN-100 management sweep (THINBBA cycle-2, residual BA 40): 41/81 bit-exact overall, BUT the harness now
+splits by whether the thin FIRED:
+  thin NO-OP (BA<40 ⇒ no cut): 37/40 bit-exact (92%) = the Pillar-2 growth-only rate (consistent).
+  thin FIRED: 4/41 bit-exact — looks alarming, but BOTH-SIDES-TRACED to a cornered primitive, NOT a bug:
+On EVERY fired-thin failure examined, **the cut cycle itself is bit-exact** — jl removes the same trees and
+lands the identical residual as live:
+  218228660020004: thin@2023 → both 379 TPA / 52 BA / 5.0 QMD EXACT; diverges 2 cyc later (BA 81 vs 82, Δ1).
+  416592108489998: thin@2026 → both 336 TPA / 47 BA / 5.0 QMD EXACT; residual grows apart (BA 58 vs 61 → 8% by 2041).
+  246537009010854: thin@2019 → both 6359 TPA / 49 BA EXACT (from slice-12 trace).
+**VERDICT:** the THINBBA behaviour (from-below tree selection + residual-BA stop) reproduces live FVS
+BIT-EXACT. The elevated fired-thin tail is entirely POST-THIN growth divergence: a sparse residual (few
+large trees near the competition/DGSCOR regime) amplifies the same per-tree growth-ULP faster than a dense
+stand does — the SAME named primitive cornered in Pillar 2 (heterogeneous DG × density amplification), not
+a thinning-logic gap. Pillar-3 first pass (SN, thin-from-below) = bit-exact-or-cornered. Floor 38527/143/0.
+(TODO Pillar 3: sweep thinbta/thindbh + NE/CS/LS the same way; trace the calendar-year scheduling divergence.)
