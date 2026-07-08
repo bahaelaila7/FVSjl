@@ -290,6 +290,42 @@ end
     end
 end
 
+@testset "Stand Carbon Report — NE fire + carbon (SIMFIRE+CARBREPT, snag height-loss HTX=1.0)" begin
+    # ne_firecarb = ne_simfire + CARBREPT/CARBCALC. The FIRST NE carbon-report validation (SN=carbon_snt,
+    # LS=lst01_ffe existed; NE did not — the gap that hid the S94 StandDead divergence). Exercises the NE FFE
+    # dead-carbon pools incl. the S96 snag height-loss (HTX=1.0). BIT-EXACT: Aboveground Total/Merch, Below-
+    # ground Live/Dead, Forest FLOOR (confirms the S88 NE litter-DKR 0.40), Shrub/Herb. CORNERED @test_broken:
+    # StandDead + DDW — the single-`htcur` approximation of FVS's separate hard/soft snag heights (~0.5, the SN
+    # carbon_snt StandDead class); Released rides the same snag basis. Uses the LIVE run_keyfile path (the fire
+    # must run) — not write_carbon_report directly.
+    key = joinpath(_CDIR, "ne_firecarb.key"); sav = joinpath(_CDIR, "ne_firecarb.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "ne_firecarb scenario not available"
+    else
+        ft = [parse.(Float64, split(strip(l))) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
+        out = FVSjl.run_keyfile(key; variant = FVSjl.Northeast())
+        rows = [parse.(Float64, split(strip(l)))
+                for l in split(out, '\n') if occursin(r"^(19|20)\d\d +\d+\.\d", l)]
+        rows = filter(r -> length(r) >= 12 && r[1] in getindex.(ft, 1), rows)[1:length(ft)]
+        @test length(rows) == length(ft)
+        for (mv, fv) in zip(rows, ft)
+            @test mv[2] == fv[2]    # Aboveground Total — BIT-EXACT
+            @test mv[3] == fv[3]    # Merch             — BIT-EXACT
+            @test mv[4] == fv[4]    # Belowground Live  — BIT-EXACT
+            @test mv[5] == fv[5]    # Belowground Dead  — BIT-EXACT
+            @test mv[8] == fv[8]    # Forest Floor      — BIT-EXACT (NE litter-DKR 0.40)
+            @test mv[9] == fv[9]    # Shrub/Herb        — BIT-EXACT
+        end
+        # StandDead + DDW: cornered to the single-htcur snag-height approximation (FVS separate hard/soft
+        # heights), ~0.5 = the SN carbon_snt StandDead class. Assert the residual is SMALL (≤ ~1.5), broken-exact.
+        sdmax = maximum(abs(rows[i][6] - ft[i][6]) for i in 1:length(ft))
+        ddmax = maximum(abs(rows[i][7] - ft[i][7]) for i in 1:length(ft))
+        @test sdmax <= 1.5 && ddmax <= 1.5      # bounded (was ~1.2 pre-S96 fix; now ~0.5)
+        @test_broken maximum(abs(rows[i][6] - ft[i][6]) for i in 1:length(ft)) == 0  # StandDead (single-htcur approx)
+        @test_broken maximum(abs(rows[i][7] - ft[i][7]) for i in 1:length(ft)) == 0  # DDW
+    end
+end
+
 @testset "Stand Carbon Report — emitted by the LIVE run_keyfile path (CARBREPT integration)" begin
     # The CARBREPT keyword (inside the FMIN block) must drive the carbon report from the SAME main
     # simulation (write_sum_file) — not a separate re-simulation — and append it to the .out. This proves

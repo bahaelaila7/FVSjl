@@ -1411,3 +1411,16 @@ RESIDUAL (~0.5): the single-`htcur`-per-record approximation — FVS tracks SEPA
 losing at different rates (SFTMULT 1 vs 2); jl uses the dominant-hardness rate. Bit-exact would need the snag
 hard/soft-height state split (the same limit as the LS StandDead residual — LS already has the mechanism). #102
 downgraded to that named ULP-class residual. No NE carbon-report suite test yet (would be @test_broken on the ~0.5).
+
+## Slice S97 — #102 CLOSED: NE carbon-report suite test added (bit-exact-or-cornered) [2026-07-08]
+Added the FIRST NE carbon-report validation (test_carbon.jl "NE fire + carbon"): ne_firecarb = ne_simfire +
+CARBREPT/CARBCALC, via the LIVE run_keyfile path (the fire runs), compared to a freshly-relinked live FVSne
+golden (ne_firecarb.report.save). BIT-EXACT every cycle: Aboveground Total/Merch, Belowground Live/Dead, Forest
+FLOOR (confirms the S88 NE litter-DKR 0.40), Shrub/Herb. CORNERED @test_broken: StandDead + DDW — the S96
+single-`htcur` snag-height approximation (≤~0.5, the SN carbon_snt StandDead class), with a bounded assertion
+(≤1.5) as the live guard. Suite 38479→**38511 / 143 / 0** (+32 passes, +2 documented broken, 0 regression).
+This is the Pillar-1 done-state for the S94 finding: the NE FFE dead-carbon path is now bit-exact-or-cornered
+with a named residual and a suite test that enforces it. #102 CLOSED. NE joins SN (carbon_snt) + LS (lst01_ffe)
+with carbon-report coverage — the boundary the .sum-KCV harness can't reach (S93) now has an NE test.
+NOTE: the shared hard/soft-snag-height STATE SPLIT (would take NE + LS StandDead to bit-exact) remains the one
+optional refinement — a substantial snag-record change, deferred as the named cornered residual (meets the goal).
