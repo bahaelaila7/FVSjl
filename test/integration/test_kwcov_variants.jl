@@ -32,6 +32,14 @@ const _KCV_BROKEN = Dict{String,String}(
     #   accepted FFE fire-mortality (FMEFF) per-tree kill-distribution residual — documented at ~3% for LS
     #   (test_lst01_ffe: "fire BEHAVIOR bit-exact + fire MORTALITY within ~3%"). Fire behavior (flame/scorch/
     #   selection) is bit-exact; only the per-tree kill count differs sub-few-%. Named primitive, not a new bug.
+    #   ★ SHARPENED DIAGNOSIS (S79 scouting, 2026-07-08): the LS 2020 divergence is TPA-ONLY — BA (119=119) AND
+    #   EVERY volume column (MCuFt 3002, SCuFt 2893, BdFt 2015, TCuFt) are BIT-EXACT, so the ~5 extra survivors
+    #   carry ≈0 volume ⇒ they are the SMALLEST (sub-merch) trees. jl under-kills ~5 TPA of tiny stems at the
+    #   fire; larger trees are killed identically. That rules OUT an RNG/XRAN-stream misalignment (which would
+    #   perturb BA+vols) and localizes it to the SMALL-TREE PMORT or the XRAN≤PSBURN burn gate. LS PMORT (no
+    #   SN/CS MORTGP block, fmeff.f:195) = 1/(1+exp(-1.941 + 6.316·(1-e^{-FMBRKT(DBH,KSP)}) − .000535·CSV²)) —
+    #   pure bark(FMBRKT)+crown-scorch(CSV). NEXT: debug-FVS FMEFF per-tree dump (DBH/FMBRKT/CSV/PMORT/XRAN/
+    #   PSBURN) on the small stems to see whether it's a bark/scorch PMORT diff or the burn gate (task #100).
     "cs_simfire" => "FFE SIMFIRE — post-fire fire-mortality (FMEFF) kill-distribution residual (~1 vol-unit / <0.1%); fire behavior bit-exact; NE bit-exact. Accepted FFE class (test_lst01_ffe ~3%).",
     "ls_simfire" => "FFE SIMFIRE — post-fire fire-mortality (FMEFF) kill-distribution residual (2020 TPA 225/220 ~2.3%, cascades <3%); fire behavior bit-exact; NE bit-exact. Accepted FFE class (test_lst01_ffe LS fire-mort ~3%).",
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the

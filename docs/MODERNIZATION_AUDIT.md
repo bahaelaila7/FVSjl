@@ -1118,3 +1118,15 @@ loht dependence ⇒ soft over-deposit.
 - **Validated:** live FVSsn on carbon_snagpsft.key ⇒ DDW 5.8/5.2/7.9/10.7; jl now 5.8/5.2/7.9/10.7 (was 8.0/10.8) —
   BIT-EXACT to the F7.1 report on every carbon column. New regression fixture + testset (carbon_snagpsft.*,
   test_carbon.jl). Suite 37628/140/0 (floor held — no regression). #73 CLOSED (was the last cornered-deferred item).
+
+## Slice S79 — Pillar-1 scouting: sharpened the LS/CS simfire FMEFF residual (no code change) [2026-07-08]
+Applied the #73 lesson (re-examine "accepted" residuals with fresh measurement) to the next-strongest deferred
+item — the cs/ls_simfire FMEFF fire-mortality residual. Ran jl vs freshly-relinked live FVSls on ls_simfire.key:
+pre-fire rows (1990/2000/2010) BIT-EXACT; post-fire 2020 diverges TPA-ONLY (jl 225 / live 220) while BA (119=119)
+AND every volume column (MCuFt 3002, SCuFt 2893, BdFt 2015, TCuFt) are BIT-EXACT. ⇒ the ~5 extra survivors carry
+≈0 volume = the SMALLEST (sub-merch) trees; larger trees killed identically. This RULES OUT an RNG/XRAN-stream
+misalignment (that would perturb BA+vols) and localizes the residual to the SMALL-TREE PMORT or the XRAN≤PSBURN
+burn gate. Source (fmeff.f): LS has NO SN/CS MORTGP block (:195), so LS PMORT = 1/(1+exp(-1.941 + 6.316·(1-e^
+{-FMBRKT(DBH,KSP)}) − .000535·CSV²)) — pure bark(FMBRKT) + crown-scorch(CSV). Recorded the sharper diagnosis in
+_KCV_BROKEN + task #100 (next: debug-FVS FMEFF per-tree dump to pin bark/scorch-PMORT vs burn-gate). No code
+change this slice — a scoped hand-off, not a half-finished fix. Suite unchanged (37628/140/0).
