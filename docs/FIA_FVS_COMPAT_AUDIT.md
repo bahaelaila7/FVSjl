@@ -118,8 +118,24 @@ so likely a zero-TPA/merged record) — track separately.
 - Next: debug-FVS stamp dgdriv.f (the sp/DBH/DGSCOR-residual for YP on this stand) + read the jl large-tree
   DG path; find where large-YP DG diverges; fix keeping 38527/143/0. Then re-run the per-tree differential.
 
+### Slice 1f — DGBND ruled out; reframed as a uniform YP DDS offset (size-amplified)
+- **DGBND ruled out (both-sides):** jl YP `dg_bound_dbh_lo/hi` = 998/999 (sentinel = no range adjustment);
+  FVS `DLODHI(45,·)` = 998.0/999.0 too (dgbnd.f I=31,45 block, 15th pair). Faithfully absent on both.
+- jl base DDS (diameter_growth.jl:175-183) = conspp + intercept + ln_dbh·ln(d) + dbh_sq·d² + ln_crown·ln(icr)
+  + rel_ht·relht + stand_ba·ba + point_bal·pbal + ft_coef + planted·kplant. (`dg_site_index` is folded into
+  the per-stand constant via `dgcons!`, not a per-tree term.) YP coeffs: intercept −2.513351, ln_dbh 1.495351,
+  dbh_sq −0.000756, ln_crown 0.530123, rel_ht 0.161718.
+- **REFRAME:** DG = f(DDS, dbh) amplifies a CONSTANT ln-space DDS error for large dbh. So a DG deficit that
+  grows with tree size is the signature of a **uniform YP DDS offset**, NOT necessarily large-tree-specific
+  logic. Candidates: the folded site-index term (dgcons!), `dg_const[YP]`, `dg_cor[YP]` default, or a base
+  coefficient — any small YP-constant error shows up big only on large YP.
+- **DECISIVE next (debug-FVS, doctrine #6):** dgf.f already has `IF(DEBUG)WRITE ... 'IN DGF, I=,ISPC=,DDS='`
+  (line 376) + a RELHT/DG5/DDS stamp (365). Run the stand with DEBUG (or stamp dgf.f), dump DDS + each term
+  for a large YP tree; dump jl's DDS+terms for the same tree; the divergent term names the fix. Restore
+  source + rebuild clean .o + verify oracle pristine.
+
 ## TODO
-- [ ] FIX: SN yellow-poplar large-tree DG ~20% low — trace dgdriv.f:537-538 residual extrapolation + DGBND
+- [ ] DECISIVE: debug-FVS DDS-term dump for a large YP tree vs jl — name the divergent term (uniform YP offset).
       (both sides) vs jl; likely a beyond-growth-sample-max-DBH large-tree DG path YP-specific.
 - [ ] After fix: re-run per-tree + stand differential (expect the 3.7% BA drift to collapse).
 - [ ] Scale differential to NE/CS/LS + larger SN sample; build Pillar-1 stratified manifest.
