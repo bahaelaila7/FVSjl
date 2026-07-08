@@ -1206,3 +1206,28 @@ within one run FLAME=2.247 flows FMFINT→scorch→FMEFF unchanged.
   vs FVS FMFINT (byram 1979) — likely a fuel-load/model-selection or reaction-intensity difference; fixing the
   intensity restores the scorch height and the 9-tree kill. FVS integrity re-verified (clean relink → 2020 TPA
   220, zero debug leakage, oracle mtime unchanged). Suite floor untouched (no jl code change this slice).
+
+## Slice S84 — #100 COMPLETE root-cause chain: jl fire-basis SMALL/LARGE down-wood ~1.47× low [2026-07-08]
+FMDYN instrumentation (fmdyn.f ZD dump of SM/LG inputs + FWT/FMOD weights; oracle+source restored+verified)
+closed the chain. FVS FMDYN for the fire: SM=8.079, LG=2.045 ⇒ FMOD/FWT = {model 8: 0.597, model 10: 0.403}
+⇒ byram = 0.597·165 + 0.403·4661 ≈ 1979 (== the FMFINT byram). jl: sm=5.446, lg=1.397 ⇒ {8:0.902, 10:0.098}
+⇒ byram 607.74. So jl's fire-basis (SMALL,LARGE) down-wood loading is ~1.47× LOW (8.079/5.446=1.48,
+2.045/1.397=1.46 — a consistent scalar), which UNDER-weights the hot fuel model (fm10 0.098 vs 0.403). The
+earlier FMCFMD "SMALL=0.08/LARGE=0.22" was a different quantity (red herring); the true FMDYN inputs are ~8/2.
+
+FULL CHAIN (each link measured, not guessed):
+  jl fire-basis SMALL/LARGE ≈1.47× low (5.446/1.397 vs 8.079/2.045)
+   → FMDYN under-weights fm10 (0.098 vs 0.403)
+   → weighted byram 607.74 vs 1979 (~3.26× low)
+   → scorch height sch 3.126 vs 7.093
+   → 9 short trees (DBH 1.02–1.08, crown base ~4.6 ft) get CSV 0 vs ~73
+   → PMORT 0.42 vs 0.49 → Σ 5.85 TPA = the entire ls_simfire 2020 under-kill (jl 225 vs live 220).
+Masked for tall trees (LS PMORT = bark(DBH) + CSV; their crown is above the scorch zone ⇒ CSV=0 in both ⇒
+PMORT bark-only, flame-independent) — hence the divergence is TPA-only with BA + every volume column bit-exact.
+
+FIX TARGET (next slice): jl's fire-basis (SMALL,LARGE) — `s.fire.fire_smlg` / `_small_large_fuel` — is ~1.47×
+too low. The consistent scalar across both size classes suggests a single missing factor (a fuel component,
+a size-class boundary, or the "+1 annual-step" fire-basis timing). Trace `_small_large_fuel` + the fire_smlg
+stash vs FVS's SMALL/LARGE (=8.079/2.045); fixing it restores byram→scorch→the 9-tree kill. Guard: this feeds
+FMDYN weighting → keep lst01_ffe (the validated LS fire) + snt01 fire bit-exact; verify per-variant.
+FVS integrity re-verified (relink → 2020 TPA 220, zero leakage, oracle mtime unchanged). No jl code change.
