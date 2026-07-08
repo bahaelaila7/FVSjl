@@ -62,8 +62,16 @@ function fmcba!(s::StandState)
         tba[ksp] > bamost && (bamost = tba[ksp]; covtyp = Int32(ksp))
         totba += tba[ksp]
     end
-    # no basal area: default to red oak (75) the first year, else keep the previous cover type
-    covtyp == 0 && (covtyp = fs.covtyp == 0 ? Int32(75) : fs.covtyp)
+    # No basal area: FVS fmcba.f sets COVTYP to a VARIANT-SPECIFIC default cover-type species the first
+    # year (SN 75, NE 1, CS 48, LS 3 red pine — fmcba.f "COVTYP.EQ.0" block), else keeps the previous
+    # cover type (OLDCOVTYP). The default is a SPECIES index feeding DKRCLS/FULIVI; the hardcoded 75 was
+    # SN-only and indexed a 0 decay-class on LS (dkr_cls[75]=0) ⇒ an @inbounds OOB write in the cwd fill.
+    if covtyp == 0
+        covtyp = fs.covtyp != Int32(0) ? fs.covtyp :
+                 s.variant isa Northeast     ? Int32(1)  :
+                 s.variant isa CentralStates ? Int32(48) :
+                 s.variant isa LakeStates    ? Int32(3)  : Int32(75)
+    end
     fs.covtyp = covtyp
     fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
 

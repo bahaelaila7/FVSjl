@@ -959,3 +959,19 @@ so isolating via a per-stand subprocess scan (ls_crash_scan.txt: cn + exit code;
 robustness defect (not a numeric divergence) — must be root-caused (likely an LS FFE array-bounds / uninit in
 the fuel-model or fire-effects path exercised only by certain LS stand structures). Floor unaffected (curated
 LS FFE test test_lst01_ffe.jl still green — this is an FIA-stand-specific input the suite doesn't cover).
+
+---
+## SLICE 27 — FIXED the LS simfire SEGFAULT: variant-specific FFE default cover-type (fmcba.jl)  [2026-07-08]
+Root-caused the slice-26 LS simfire segfault (real bug, not a divergence). Method: re-ran the LS sweep with
+stderr → Julia crash backtrace pointed at zeros() in stand init (heap-corruption signature); `--check-bounds=yes`
+on stands 1-17 converted the silent @inbounds corruption into a clean BoundsError:
+  `11×2×4 Array{Float32,3} at index [1,2,0]` @ fmcba.jl:94 (via fuel_additions.jl:198, fuel init in the .sum write).
+ROOT: fmcba! (FFE crown-biomass/fuel init) — for a stand with NO basal area at fuel-init (totba==0), covtyp
+defaults to a species index, and jl HARDCODED 75 for ALL variants. dkr_cls[75]=0 on LS (68 species) ⇒ idc=0 ⇒
+`fs.cwd[isz,2,0]` OOB WRITE (silent under @inbounds → heap corruption → segfault 16 stands later). BOTH-SIDES:
+FVS fmcba.f "COVTYP.EQ.0" block defaults COVTYP to a VARIANT-SPECIFIC cover-type species — SN 75 / NE 1 / CS 48
+/ LS 3 (red pine), else OLDCOVTYP. jl used SN's 75 everywhere. FIX (faithful, variant-safe): fmcba.jl covtyp
+default now dispatches on s.variant (SN 75 / NE 1 / CS 48 / LS 3; OLDCOVTYP=fs.covtyp still preferred). VERIFIED:
+crash stand + stands 1-17 clean under --check-bounds; full LS-100 simfire sweep exit 0 (was core-dumped), same
+cornered fire pattern (no-op 65/73=Pillar-2). This is the campaign's FIRST real code FIX (a robustness bug only
+real FIA inventory at scale surfaced — a nonstocked/zero-BA LS stand under fire). Suite verification pending.
