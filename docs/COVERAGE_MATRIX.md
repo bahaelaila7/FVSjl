@@ -78,4 +78,23 @@ tie), 1 CCF (Δ1 ULP), 2 TCuFt (Δ1-8 ULP).
   ULP straddles on the heavily-thinned residual stand (2030 MAI 35.2/35.1, 2040 BdFt 7464/7463). NE/CS thinpt
   full-row bit-exact (S91).
 
+## Known parsed-but-unported keywords (honest scope of the drop-in claim)
+
+These FVS keywords are recognized but **not** acted on by FVSjl. Each was investigated and found to be
+either `.sum`-invisible (so an isolated KCV test would be vacuous — violates "test must exercise the
+semantic") or a specialty/extension path outside the exercised eastern scope. Documented so the
+"100% drop-in" claim is honest rather than silently incomplete:
+
+- **FIXCW** (crown-width multiplier, `cwidth.f` activity 90) — investigated S99. Multiplies per-tree
+  crown WIDTH within a (species/group, DBH-window). Effect is confined to PERCOV/crown-width `.out`
+  reporting and the coarse cover-class-binned fire WMULT — **fully `.sum`-invisible** (proven: base vs
+  FIXCW-10× on the NE canonical stand → byte-identical `.sum`, every column, every cycle). The `.sum`
+  CCF column is the DBH-based crown-competition factor, not crown width. Porting is a per-tree multiplier
+  threaded through the ~9 `crown_width` consumers, inert by default; deferred because it is `.sum`-
+  invisible and its only observable (fire-PERCOV) is coarse-binned — no non-vacuous isolated test exists.
+- **PRUNE** (`fmprun.f`) — FFE fuel-pruning activity (raises crown base for fuel management); FFE-scoped,
+  affects fuels→fire only. Not investigated for `.sum` visibility; specialty FFE path.
+- **Extension keywords** (`DFB`/`DFTM`/`MPB`/`BRUST`/`WSBW`/`MISTOE`/`CLIMATE`/`ORGANON`/`FIAVBC`) —
+  insect/disease/climate/growth-model extensions outside the SN+NE+CS+LS core scope.
+
 Full slice-by-slice detail: `docs/MODERNIZATION_AUDIT.md`.
