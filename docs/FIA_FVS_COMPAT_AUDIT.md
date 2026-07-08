@@ -1020,3 +1020,22 @@ fixes cleared the systematic causes). ⇒ SN Pillar-2 residual set is ENTIRELY c
 LS 85% bit-exact); every residual bit-exact or cornered to a NAMED primitive with deep-traced representatives
 of each sub-class (self-thinning mortality straddle · QMD/print-boundary straddle · DGSCOR/AUTCOR stochastic
 record-ordering · FFE/FMEFF fire-kill distribution). Floor 38527/143/0.
+
+---
+## SLICE 31 — WIDEN SN to 5000 (toward exhaustive, user-directed): 74.5% bit-exact, no new systematic bug/crash  [2026-07-08]
+Per user "widen toward exhaustive, SN first". SN-5000 (indexed sub-DB, 5000 of 637641 SN stands):
+BIT-EXACT 3046/4090 (74.5%, == the 1000-scale 74%); 910 live-NOSUM (live can't project ~18% real SN, not jl);
+JLERR=0 (NO crash — the LS segfault was management-specific). Histogram <1%:3658(89%) 1-2%:264 2-5%:144
+5-10%:19 >10%:5. The >10% (5 stands) + 5-10% (19) tail is NEW at this N (100/1000 had zero >10% plain-SN) —
+HUNTED per doctrine:
+  • Worst 886367013290487 (+11% TPA @2026): a 7500-TPA SEEDLING stand self-thinning to ~3800; BA 127/125 +
+    SDI 401/398 track within ~1% but the tiny-tree COUNT (TPA) diverges 11% — the cornered self-thinning-
+    mortality-straddle (a diameter-ULP shifts which marginal seedlings cross the self-thin cutoff; DENSITY
+    ~bit-exact, only raw stem count amplifies on a hyper-dense stand). 202594265 (+6% TPA) = same class.
+  • The rest of the ≥5% tail = ±1-unit BA/SDI/CCF/QMD straddles amplified over cycles (cornered ULP class).
+  • The apparent same-CN-prefix "cluster" (six 15577…, three 16256…) is COINCIDENTAL inventory-CN adjacency,
+    NOT a systematic: different forest types (600/166/232) + species (222/555/128/131). No shared cause.
+VERDICT: widening SN 100→1000→5000 surfaced NO new systematic bug and NO crash in plain multi-cycle; the
+larger tail is purely more hyper-dense seedling stands where the cornered self-thinning count-straddle is a
+larger % of a huge TPA (density stays ~bit-exact). SN multi-cycle is bit-exact-or-cornered at 5000-scale.
+Floor 38527/143/0. NEXT: management sweep at scale (crash-hunt, where the LS bug lived) + widen NE/CS/LS.
