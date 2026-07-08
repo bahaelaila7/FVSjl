@@ -44,11 +44,26 @@ const _FM_DKR_LS = Float32[
     0.31 0.31 0.31 0.31     # 10 litter (ls/fmvinit.f:94)
     0.002 0.002 0.002 0.002 # 11 duff
 ]
-# Variant-default DKR: SN + CS use `_FM_DKR` (litter 0.65); LS uses its own (litter 0.31). NE (litter 0.40,
-# ne/fmvinit.f) is ALSO SN-mismatched but currently falls through to `_FM_DKR` — deferred (net01 has no fire;
-# ne_simfire validation pending), tracked separately so this slice stays LS-scoped / zero-regression elsewhere.
+# Northeast annual decay rates (ne/fmvinit.f:73-96). Decay-class-INDEPENDENT; litter 0.40/yr (NOT SN 0.65);
+# woody 0.19/0.19/0.11/0.07/0.03… (Fahey/Arthur/Foster-Lang). Same SN-mismatch class as LS.
+const _FM_DKR_NE = Float32[
+    0.19 0.19 0.19 0.19     # 1
+    0.19 0.19 0.19 0.19     # 2
+    0.11 0.11 0.11 0.11     # 3
+    0.07 0.07 0.07 0.07     # 4
+    0.03 0.03 0.03 0.03     # 5
+    0.03 0.03 0.03 0.03     # 6
+    0.03 0.03 0.03 0.03     # 7
+    0.03 0.03 0.03 0.03     # 8
+    0.03 0.03 0.03 0.03     # 9
+    0.40 0.40 0.40 0.40     # 10 litter (ne/fmvinit.f:96)
+    0.002 0.002 0.002 0.002 # 11 duff
+]
+# Variant-default DKR: SN + CS use `_FM_DKR` (litter 0.65); LS/NE use their own (ls/ne fmvinit.f). CS
+# (cs/fmvinit.f litter=0.65 == SN but woody may be decay-class-independent) is tracked separately (#101).
 _fm_dkr_default(::AbstractVariant) = _FM_DKR
 _fm_dkr_default(::LakeStates) = _FM_DKR_LS
+_fm_dkr_default(::Northeast) = _FM_DKR_NE
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """

@@ -1283,3 +1283,13 @@ the hot fm10 at 0.098 vs 0.403 ⇒ byram 607 vs 1979 ⇒ scorch 3.13 vs 7.09 ⇒
 - **FOLLOW-UP (tracked, not this slice):** NE litter DKR is ALSO SN-mismatched (ne/fmvinit.f litter=0.40 vs jl
   0.65); net01 has no fire so it's latent, ne_simfire is currently bit-exact — deferred, add `_FM_DKR_NE` + gate
   once ne_simfire is re-validated vs live. (Task #101.)
+
+## Slice S88 — #101 (part 1): NE variant fuel decay-rate table (litter DKR 0.65→0.40) [2026-07-08]
+Extended the S87 variant-DKR fix to Northeast (`ne/fmvinit.f:73-96`: litter 0.40, decay-class-independent woody
+0.19/0.19/0.11/0.07/0.03…). Added `_FM_DKR_NE` + `_fm_dkr_default(::Northeast)`. Variant-gated (SN/CS/LS
+unaffected). VALIDATED: ne_simfire full-row BIT-EXACT vs freshly-relinked live FVSne (2010/2020/2030 identical) —
+the litter-decay difference is INERT for ne_simfire's FMDYN fuel-model weighting (SMALL lands on the same models
+either side of the 0.40/0.65 change), so no test moves, but jl is now FAITHFUL (correct 0.40) for future NE fire/
+carbon scenarios. Suite 37633/140/0 (unchanged — no regression, no new pass). Remaining #101: CS (cs/fmvinit.f
+litter 0.65 == SN but woody may be decay-class-independent — check if cs_simfire, currently @test_broken/cornered,
+needs `_FM_DKR_CS`).
