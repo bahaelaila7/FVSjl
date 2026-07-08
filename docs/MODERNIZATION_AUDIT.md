@@ -1304,3 +1304,18 @@ unrelated to the DKR. Suite 37633/140/0 (no regression; CS-gated). #101 CLOSED. 
 SN-hardcoded-cross-variant bug is fully resolved — LS fire under-kill FIXED (bit-exact), NE faithful (inert now,
 correct for future), CS fire kill bit-exact. A whole class of latent variant-DKR bugs closed by one variant-gated
 selector, surfaced by the ls_simfire coverage scenario.
+
+## Slice S90 — Sweep: was DKR the only SN-hardcoded-cross-variant FFE constant? (yes) [2026-07-08]
+The S87-S89 DKR fix exposed a bug CLASS (a shared FFE constant hardcoded from SN + applied to all variants,
+doctrine #4). Swept the other `fmvinit.f` FFE init constants for the same pattern:
+- **CORFAC** (0.5/0.3) — IDENTICAL across SN/NE/CS/LS ⇒ jl's hardcoded value correct.
+- **PRDUFF** (0.02) + TODUFF=DKR·PRDUFF — IDENTICAL across all four ⇒ correct (and TODUFF now tracks the fixed
+  per-variant DKR automatically).
+- **V2T** (volume→tons) — variant-specific AND species-indexed; jl loads it from PER-VARIANT
+  `data/<variant>/fire_species_props.csv` via `coef_col(:v2t)` (not hardcoded) ⇒ correct.
+- DECISIVE cross-check: ls_simfire / ne_simfire / cs_simfire are now bit-exact-or-<0.1%-ULP after ONLY the DKR
+  fix. V2T (and every other FFE constant feeding the down-wood biomass → SMALL/LARGE → FMDYN → fire) sits on
+  that same path, so if any were SN-wrong for a variant, those fire scenarios could NOT have gone bit-exact.
+CONCLUSION: `_FM_DKR` was the SOLE SN-hardcoded-cross-variant FFE constant; the class is fully closed. Scalars
+that happen to match (CORFAC/PRDUFF) are correct as-is; everything variant-specific (DKR now, V2T always) is
+sourced per-variant. No code change (verification slice). Suite 37633/140/0.
