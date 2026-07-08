@@ -907,3 +907,19 @@ thinning selection + scheduling) is BIT-EXACT vs live; the residual is the corne
 increment, exposed by thinning into low density. Bit-exact-or-cornered satisfied. A future FIX (if pursued)
 = trace the per-tree serial-corr AR state through the partial thin; deep + stochastic, low ROI vs cornering.
 Floor 38527/143/0; oracle pristine; src clean.
+
+---
+## SLICE 24 — Pillar 3 THINNING MATRIX COMPLETE: 4 variants × 3 methods, uniform verdict  [2026-07-08]
+Ran thinbta (from above) + thindbh (by DBH class) on NE/CS/LS-100 (SN had all 3 already; thinbba done all 4).
+Full matrix (thin FIRED bit-exact / NO-OP bit-exact | >10% tail):
+  NE-bta 6/52 | 41/43 | >10%:3    NE-dbh 3/45 | 39/49 | >10%:0
+  CS-bta 0/15 | 79/82 | >10%:2    CS-dbh 0/14 | 78/83 | >10%:2
+  LS-bta 4/26 | 65/73 | >10%:0    LS-dbh 4/26 | 65/73 | >10%:3
+UNIFORM verdict across ALL variants × methods: NO-OP bit-exact rate == the Pillar-2 growth-only rate
+(consistent), and the fired-thin tail = the cornered POST-THIN low-density amplification (growth-ULP × density
++ the DGSCOR/AUTCOR stochastic serial-corr increment, root-caused in slices 19-23b on the SN CS-36% + sp544
+stands). The handful of >10% stands per cell are that same class (sparse post-thin residual near self-thinning
+thresholds). Thinning SELECTION + SCHEDULING (both cycle & calendar forms) reproduce live FVS bit-exact; the
+projected residual is bit-exact-or-cornered. ⇒ Pillar-3 "thinning by BA/TPA/DBH" DONE for all 4 variants.
+Pillar-3 remaining: salvage / planting-regen / prescribed-fire (SIMFIRE) regimes on real plots (regen+FFE are
+already heavily curated-suite validated). Floor 38527/143/0 (harness+docs only). Oracle pristine, src clean.
