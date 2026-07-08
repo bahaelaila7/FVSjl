@@ -354,6 +354,24 @@ loblolly COR is **+1.1 off in ln-DDS** — the quantified, both-sides-confirmed,
   FVS's (12 trees, → 0.879). Align jl's observed-growth so LP COR → −0.13; keep floor; re-verify LP DG→live.
   This is the concrete, targeted fix — first time the trace has clean both-sides numbers (no assumptions).
 
+### Slice 6a — CORRECTED reframe: in the DEFAULT run jl UNDER-calibrates loblolly (skips FVS's 0.879 reduction)
+Clean idg test on the loblolly stand (each_stand→set idg→setup_growth!): **idg=0 (the actual FIA default,
+since there's no DG_TRANS col) → `dg_cor[13]=0.0` — jl does NOT calibrate loblolly at all.** idg=1 →
+`dg_cor[13]=0.9777` (wrong sign+magnitude). FVS (CALBSTAT fort.13): LP calibrates to **0.879** over 12 trees.
+⇒ CORRECTED verdict: in the real default run jl **UNDER-calibrates** loblolly (no COR applied) so it grows at
+the uncalibrated base rate — ~8% above live, which applies FVS's ~0.88 reduction. (My "2.66× over-calibration"
+was the idg=1 probe conflated with the default run — yet another entanglement; the trustworthy facts are the
+`.sum` and CALBSTAT.) The real gap: **jl's DGSCOR calibration does not fire / mis-fits for the FIA measured-DG
+(past-DBH) loblolly trees** — it needs to (a) recognize the FIA `DG`=past-DBH as measured growth AND (b)
+compute the residual so LP COR → 0.879 (not 0, not 0.98).
+
+**HONEST LIMIT (this session):** after ~a dozen probes my jl-side measurements have been self-contradictory
+(dg_cor 0 vs 0.9777 for "default"), which means I do NOT yet reliably understand jl's calibration state for
+this stand. The two ANCHORS I trust: `.sum` (LP BA ~8% high) + CALBSTAT (FVS LP → 0.879, 12 trees). The fix
+needs a careful, dedicated jl-calibration instrumentation (dump fn/snp/reslog/measured for sp13 alongside the
+FVS 12-tree fit) — a FRESH pass, not more same-session iteration that keeps producing conflicting numbers.
+No speculative fix shipped; floor intact 38527/143/0.
+
 ### Slice 4c — SIGNATURE clustering of the 57 big failures → dominant class = DENSITY MORTALITY (jl over-kill)
 Built `signature.jl` (first diverging .sum col + cycle + direction per stand). Over ALL 57 big (>10%) failures:
 - **First-diverging column: 41 TPA / 16 BA** ⇒ **72% are MORTALITY (tree-count) divergences**, not growth.
