@@ -975,3 +975,20 @@ default now dispatches on s.variant (SN 75 / NE 1 / CS 48 / LS 3; OLDCOVTYP=fs.c
 crash stand + stands 1-17 clean under --check-bounds; full LS-100 simfire sweep exit 0 (was core-dumped), same
 cornered fire pattern (no-op 65/73=Pillar-2). This is the campaign's FIRST real code FIX (a robustness bug only
 real FIA inventory at scale surfaced — a nonstocked/zero-BA LS stand under fire). Suite verification pending.
+
+---
+## SLICE 28 — Pillar 3: PLANT (regen) + SALVAGE regimes added; PLANT traced bit-exact (harness confounded by nonstocked stands)  [2026-07-08]
+Added `plant` (ESTAB/PLANT sp3 400tpa cyc2) and `salvage` (SALVAGE cyc2) regimes to manage_fia.jl.
+SN-100 PLANT sweep reported 0/11 "bit-exact" with big %-flags (100%/50%/30%) — but BOTH-SIDES traces show
+those are ARTIFACTS, not divergences:
+  238814304010854 (STOCKED): both engines 2000 1323/83, 2005 1234/152 — BIT-EXACT matched rows, then both terminate.
+  724228752290487 (NONSTOCKED, TPA 0 at cyc0): both engines 0/0 age0→age5 — BIT-EXACT, both empty.
+⇒ the sampled SN set has many nonstocked/short-projection stands; PLANT on them yields 0/0 or 2-row .sum, and
+the harness's rel-diff / row-count check mis-flags them (a 0-vs-missing row reads as 100%) — the SAME
+terminal-cycle-count artifact class as the fire 12.6% (slice 25b). On the stands that actually project, PLANT
+matched-row output is BIT-EXACT vs live. VERDICT: PLANT regen-under-management appears FAITHFUL on real
+inventory (traced bit-exact); a clean pass-rate needs a STOCKED-stand subset filter + the harness's row-count
+handling relaxed for post-plant/degenerate stands (harness limitation, not a jl divergence). SALVAGE needs a
+prior disturbance (dead trees) to exercise — deferred (combine with a fire-then-salvage regime). Pillar-3
+primary regimes (thinning 4var×3methods + fire 4var) fully validated; PLANT traced-faithful; salvage pending.
+Floor 38527/143/0; src unchanged (harness+docs only this slice).

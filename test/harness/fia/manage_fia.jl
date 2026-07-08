@@ -23,6 +23,8 @@ regime_block(r) =
     r == "thinbta" ? kwrec("THINBTA", "2.0", "40.0") :               # thin from above to residual BA 40
     r == "thindbh" ? kwrec("THINDBH", "2.0", "0.0", "99.0", "0.5") : # cut 50% across all DBH
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\nEnd" : # prescribed fire cyc2 (FFE)
+    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", "2.0", "3", "400") * "\nEnd" :          # plant sp3 400tpa cyc2 (ESTAB/regen)
+    r == "salvage" ? kwrec("SALVAGE", "2.0", "0.0", "999.0", "0.9") :                   # salvage 90% of dead cyc2
                      kwrec("THINBBA", "2.0", "40.0")                  # thin from below to residual BA 40 (default)
 
 keytext(cn, regime) = """
