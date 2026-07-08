@@ -4,7 +4,7 @@ Pillar-1 done-state deliverable: a documented per-variant coverage matrix showin
 **100% drop-in** claim is defensible for **SN + NE + CS + LS**, every exercised path validated
 **bit-exact (`==` vs freshly-relinked live FVS) or cornered to a named primitive**.
 
-Correctness floor (never regress): **37972 pass / 141 broken / 0 fail** (`julia --project=. test/runtests.jl`).
+Correctness floor (never regress): **38479 pass / 141 broken / 0 fail** (`julia --project=. test/runtests.jl`).
 The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-tie / accepted primitives).
 
 ## Coverage by variant
@@ -34,6 +34,8 @@ baimult · bamax · bfdefect · bfvolume · compress · compute · crnmult · cu
 fixdg · fixmort · htgmult · htgstop · leavesp · managed · mcdefect · mcfdln · bffdln · minharv · mortmsb · mortmult · mult · nocalib · notriple · numtrip ·
 rannseed · readcord · readcorh · readcorr · resetage · salvage · sdicalc · sdimax · serlcorr · simfire · setsite · specpref · spgroup · spleave · strclass · tcondmlt ·
 tfixarea · thinaba · thinata · thinbba · thinbta · thincc · thindbh · thinht · thinmult · thinprsc · thinpt · thinqfa · thinrden · thinsdi · timeint · topkill · treeszcp · volume · yardloss
+
+★ Keyword INTERACTIONS: {ne,cs,ls}_thinfire (thin-then-fire, cut-residue→fire-fuel) are FULL-ROW bit-exact vs live (S92).
 
 (SN is exercised through the broader snt01 multi-stand harness + the SN keyword-coverage suite rather than
 the KCV isolated set.)
