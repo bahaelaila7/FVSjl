@@ -1394,3 +1394,20 @@ in update_snags!, gated on a variant/species HTX default (NE=1.0 all; LS=1.0 har
 byte-identical, zero regression) + the HTR base rates + HTXSFT=2.0 soft multiplier from fmvinit.f. Then validate
 NE + LS carbon StandDead bit-exact vs live, keep SN/CS + suite floor. VARIANT-SAFE + faithful (fmvinit.f-derived).
 No code change this slice (root-cause + scope). Suite floor 38479/141/0 untouched.
+
+## Slice S96 — #102 PARTIAL FIX: NE snag height-loss (HTX=1.0) now wired — StandDead Δ1.2→0.5 [2026-07-08]
+Implemented the NE half of the FMSNGHT/HTX fix (S95). The mechanism ALREADY EXISTED in jl (ffe_snag_height_loss!
+driver + the htcur→bole CFTOPK recompute + LS's snag_htx seeding) — NE was simply never wired (the seed block
+was `s.variant isa LakeStates` only, on the WRONG assumption "SN/NE keep HTX=0"). Two changes:
+1. keyword_dispatch.jl: seed NE snag_htx = (1,1,1,1) for all species (ne/fmvinit.f:1221 HTX=1.0), like LS.
+2. snag.jl: HTR1 is now variant-gated `_snag_htr1` — NE=0.015 (ne/fmvinit.f:116); SN/CS/LS stay 0.1 (the SN
+   SNAGBRK keyword CALIBRATES its HTX against 0.1 — HTR·HTX cancels — and LS 0.1 is faithful; changing it broke
+   3 SN SNAGBRK tests, caught + reverted per doctrine #1).
+RESULT: NE carbon StandDead 2000 2.3→2.2 / 2010 31.2→31.1 / 2020 3.0→2.8 / 2030 3.5→3.3 (vs live 1.7/30.6/1.8/
+2.7) — the divergence dropped from ~1.2 to ~0.5, now the SAME magnitude as SN's accepted carbon_snt StandDead
+residual (~0.7). NE snags now LOSE HEIGHT faithfully (they were frozen). Suite 38479/141/0 (0 regression — NE
+.sum ne_simfire/ne_thinfire stay FULL bit-exact; the snag-height→down-wood coupling is .sum-invisible here).
+RESIDUAL (~0.5): the single-`htcur`-per-record approximation — FVS tracks SEPARATE hard/soft heights (HTIH/HTIS)
+losing at different rates (SFTMULT 1 vs 2); jl uses the dominant-hardness rate. Bit-exact would need the snag
+hard/soft-height state split (the same limit as the LS StandDead residual — LS already has the mechanism). #102
+downgraded to that named ULP-class residual. No NE carbon-report suite test yet (would be @test_broken on the ~0.5).

@@ -359,6 +359,12 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     return fallen
 end
 
+# Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
+# CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
+# HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
+_snag_htr1(::AbstractVariant) = 0.1f0
+_snag_htr1(::Northeast) = 0.015f0
+
 """
     ffe_snag_height_loss!(s, nyears) -> nothing
 
@@ -374,7 +380,10 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     fs = s.fire; (fs === nothing || isempty(fs.params.snag_htx)) && return
     sn = fs.snags; htxmap = fs.params.snag_htx
     iyr = at_year === nothing ? Int(current_cycle_year(s)) : Int(at_year)
-    HTR1 = 0.1f0; HTR2 = 0.01f0; HTXSFT = 2f0    # fmvinit.f:114-115 (HTR1=first-50% rate, HTR2=after-50%)
+    # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
+    # (after-50%) = 0.01 all four. jl formerly hardcoded 0.1 (the LS value) — inert for NE (snag_htx empty)
+    # but a latent cross-variant bug; NE now populates snag_htx (=1.0), so its HTR1 must be its own 0.015.
+    HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = 2f0
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue

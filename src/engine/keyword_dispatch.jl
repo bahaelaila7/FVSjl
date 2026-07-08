@@ -1705,14 +1705,22 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     s.fire === nothing && (s.fire = FireState())
     fs = s.fire
     fs.active = true
-    # FMVINIT: LS snags LOSE HEIGHT over time — non-zero default HTX per snag class (fmvinit.f:823-875:
-    # class1=3.0, class2=1.0, class3/4=0, class5=0.65, class6=0.45, hemlock sp12=0). SN/NE keep HTX=0 (no
-    # height loss). Seed the per-species defaults so ffe_snag_height_loss! (FMSNGHT) AND the snag bole-volume
-    # truncation (FMSVOL at the current height) run for LS; a later SNAGBRK keyword overrides specific species.
-    if s.variant isa LakeStates && isempty(fs.params.snag_htx)
-        htxcol = coef_col(s.coef, :snag_htx)
-        @inbounds for sp in 1:min(nspecies(s.variant), length(htxcol))
-            h = htxcol[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)
+    # FMVINIT: LS + NE snags LOSE HEIGHT over time (SN/CS keep HTX=0 — no loss). LS = per-snag-class HTX
+    # (ls/fmvinit.f:823-875: class1=3.0, class2=1.0, class3/4=0, class5=0.65, class6=0.45, hemlock sp12=0);
+    # NE = 1.0 for ALL species (ne/fmvinit.f:1221). Seed the per-species defaults so ffe_snag_height_loss!
+    # (FMSNGHT, with the variant HTR1) AND the snag bole-volume truncation (FMSVOL at the current height) run;
+    # a later SNAGBRK keyword overrides specific species. (NE was previously mis-assumed HTX=0 ⇒ snags never
+    # shrank ⇒ StandDead carbon ran high — S94/#102.)
+    if isempty(fs.params.snag_htx)
+        if s.variant isa LakeStates
+            htxcol = coef_col(s.coef, :snag_htx)
+            @inbounds for sp in 1:min(nspecies(s.variant), length(htxcol))
+                h = htxcol[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)
+            end
+        elseif s.variant isa Northeast
+            @inbounds for sp in 1:nspecies(s.variant)
+                fs.params.snag_htx[Int32(sp)] = (1f0, 1f0, 1f0, 1f0)
+            end
         end
     end
     while true
