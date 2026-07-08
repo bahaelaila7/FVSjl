@@ -75,8 +75,39 @@ be root-caused per-tree before any corner. It could still resolve to the accepte
 sp33/65 WK3-calibrated species' serial-correlation compounding one way on these mixes) OR be a REAL small
 DG gap a curated few-species test never exercised. **This is the campaign's first substantive open divergence.**
 
+### Slice 1d — ROOT-CAUSE: yellow-poplar large-tree diameter growth ~20% LOW (REAL gap, NOT cornered)
+Per-tree DG differential (live FVS_TreeList `DBH,DG` via `TREELIST`+`TreeLiDB`→FVSOut.db; jl per-tree
+`s.trees.diam_growth` direct from the engine; matched by sorted initial DBH — cycle-0 bit-exact). Result
+on stand 3196569010661, cycle 1998→2003:
+
+- **Most trees: dDG = 0.0 (BIT-EXACT diameter growth).**
+- A subset — **all yellow-poplar (FVS `YP`, FIA 621)**, the large fast-growing ones — jl DG is
+  **systematically ~20–25% LOW**:
+
+| initDBH | species | live DG | jl DG | Δ |
+|--------:|:--------|--------:|------:|----:|
+| 8.0 | YP | 0.712 | 0.558 | −0.155 |
+| 11.9 | YP | 0.873 | 0.682 | −0.191 |
+| 13.3 | YP | 0.635 | 0.495 | −0.140 |
+| 14.5 | YP | 0.902 | 0.704 | −0.198 |
+| 14.7 | YP | 1.029 | 0.804 | −0.225 |
+| 17.9 | YP | 1.019 | 0.794 | −0.225 |
+
+Co-large white ash (WA, DBH 11.8, live DG 0.709) was **bit-exact** ⇒ the gap is **species-specific to
+yellow-poplar**, not a general large-tree issue. This ~20% per-cycle YP DG deficit compounds into the
+observed 3.7%-BA/5-cycle stand drift (YP is a dominant large-tree component of these mixed hardwood plots).
+
+**VERDICT: a REAL DG gap — NOT ULP, NOT cornered.** Directional, ~20% relative, single species. First real
+bug of the campaign. Root-cause = trace the SN yellow-poplar large-tree DG (`dgf`/`dds` coefficients +
+size terms) in FVS blkdat/dgf vs jl's coefficients; small YP are ~exact, large YP low ⇒ a DBH-dependent
+term (dbh/dbh²/ln(dbh) or a size cap) for YP. **This is the next fix (Pillar 4), keeping the 38527/143/0 floor.**
+
+NOTE also: jl loaded **36** tree records vs live **37** at cycle 0 for this stand (.sum TPA was bit-exact,
+so likely a zero-TPA/merged record) — track separately.
+
 ## TODO
-- [ ] DECISIVE next: per-tree DG jl-vs-live on 3196569010661 via FVS_TreeList DBS (live) + jl treelist —
+- [ ] FIX: SN yellow-poplar (YP) large-tree DG ~20% low — trace dgf/dds YP coefficients FVS vs jl.
+- [ ] (was) per-tree DG trace on 3196569010661 — DONE (slice 1d): YP large-tree DG gap found.
       which species' per-tree DBH increment diverges, and by how much (ULP vs systematic). Classifies
       accepted-DGSCOR vs real-gap and, if real, names the species/coefficient/path.
 - [ ] Scale the differential to NE/CS/LS + larger SN sample once the SN driver is understood.
