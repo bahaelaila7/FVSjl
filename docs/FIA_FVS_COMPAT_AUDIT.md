@@ -793,3 +793,18 @@ low-density competition response (⇒ cornered ULP), OR a low-BA competition-ter
 cycle (dump BA, PBAL, each term) both sides. Until then this is an IDENTIFIED-BUT-UNRESOLVED divergence
 (honestly NOT yet cornered). Scope: SN, species-544, low-density (post-thin) only; ~9% DG ⇒ few-% .sum tail.
 Floor 38527/143/0 (no src change; measurement only).
+
+---
+## SLICE 19 — DECISIVE: real (non-ULP) large-tree DG low-density gap, +29%, order-invariant  [2026-07-08]
+Order-invariant cohort-mean DG (TPA-weighted, sort-independent) on 416592108489998 sp544, both-sides FVS_TreeList:
+  2026 (post-thin START): BIT-EXACT — large(DBH>=10) BA 45.721/45.721 meanDG 0.8054/0.8054; ALL BA 46.399/46.399.
+  2031 (1st post-thin cycle 2026->2031 growth): large meanDG 0.8229 vs 1.0586 = **jl +29%**, BA 53.0/55.1;
+     small(<10) meanDG 0.7154/0.7277 (+1.7% only). Divergence DOMINATED by the LARGE cohort.
+Order-invariance ⇒ NOT the record-tripling/near-tie-sort-flip artifact (that earlier per-tree row view was
+confounded by reordering; the cohort MEAN is immune). 2026 input bit-exact ⇒ SN large-tree dgf yields +29%
+different DG on IDENTICAL low-density input (stand BA ~46); BIT-EXACT at normal density (pre-thin BA 148, all
+Pillar-2). **VERDICT: a REAL non-ULP divergence in SN large-tree diameter growth (dgf DDS) at LOW stand
+density — jl over-grows large trees ~29%.** This is the driver of the post-thin management tail (thinning
+pushes stands into the low-BA regime the un-managed trajectory never visits). Scope: SN large-tree DG, low
+stand BA. NEXT: read dgf DDS for the low-BA-sensitive term (ln(BA)/BAL/PCT-percentile/relSDI/clamp) + dump it
+both sides at the 2026->2031 cycle to name+fix. This is an OPEN real bug (NOT cornered).
