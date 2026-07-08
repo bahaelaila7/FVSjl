@@ -1005,3 +1005,18 @@ or-cornered, covering: THINNING (4 variants × 3 methods below/above/DBH; select
 PRESCRIBED FIRE (4 variants; BA-bit-exact + cornered FFE/FMEFF; found+FIXED the LS covtyp segfault),
 PLANTING (regen-under-mgmt traced bit-exact), SALVAGE (fire-then-salvage, cornered). Every management residual
 is bit-exact or the cornered growth-ULP×density / DGSCOR-stochastic / FFE-FMEFF primitive. Floor 38527/143/0.
+
+---
+## SLICE 30 — SN Pillar-2 residuals all CORNERED (ULP / mortality / print straddle) — Pillar 2 closed  [2026-07-08]
+Re-ran SN-100 (fixes in): 62/86 bit-exact, worst-rel histogram <1%:76 1-2%:7 2-5%:3 5-10%:0 **>10%:0** —
+the heavy tail is GONE; worst residual 2.6%. signature.jl on all 24 failures: EVERY first-diverge is a small
+±unit straddle — TPA ±1-13 on high-density stands (self-thinning mortality straddle), SDI/CCF/BA ±1, QMD ±0.1
+(print boundary). Representative trace (220062826010854, the largest first-diverge TPA 1144/1131=Δ13/1.1%):
+early cycles BIT-EXACT, divergence is a downstream self-thinning MORTALITY straddle on a declining dense stand
+(1521→1131) — cornered growth-ULP × density-dependent-mortality. NO systematic individual SN bug remains (the
+earlier "isolated FIA-128 base-DG over-grow" does NOT appear in this re-run — the eco_unit + growth_dg_set
+fixes cleared the systematic causes). ⇒ SN Pillar-2 residual set is ENTIRELY cornered to named primitives.
+**PILLAR 2 (MULTI-CYCLE PROJECTION) done-state MET**: 4-variant @1000 pass rates documented (SN 74/NE 88/CS 93/
+LS 85% bit-exact); every residual bit-exact or cornered to a NAMED primitive with deep-traced representatives
+of each sub-class (self-thinning mortality straddle · QMD/print-boundary straddle · DGSCOR/AUTCOR stochastic
+record-ordering · FFE/FMEFF fire-kill distribution). Floor 38527/143/0.
