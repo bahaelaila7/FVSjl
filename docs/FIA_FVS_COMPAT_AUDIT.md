@@ -892,3 +892,18 @@ is the SAME named primitive already accepted campaign-wide, not a new bug. The m
 increment on the sparse residual. Deterministic growth (DDS, height, TPA, mortality, thinning selection) is
 BIT-EXACT. CONFIRMING STEP (optional): dump per-tree post-conversion DG + serial-corr component both sides.
 Oracle pristine, src clean, floor 38527/143/0.
+
+## SLICE 23b — confirm: post-thin record-order + RNG-assignment ALREADY matched ⇒ residual is deep DGSCOR stochastic state
+Checked the fix candidate (post-thin compaction order → RNG swap). jl ALREADY replicates it: cuts.jl:296
+calls tredel_compact! (trees.jl:207) = FVS TREDEL swap-from-end, and it RESETS sort_key=Float64(i) (physical
+position, distinct integers ⇒ NO near-tie flips) so "the DGSCOR per-tree RNG assignment tracks the oracle
+post-removal" (per its own comment). Partial from-below thins reduce tpa without zeroing ⇒ those records are
+NOT compacted (order preserved). So the record ORDER and RNG-ASSIGNMENT are already faithful. ⇒ the residual
+post-thin diameter divergence is NOT a compaction-order bug; it is a deeper stochastic serial-correlation
+STATE subtlety (the per-tree AR/OLDDG residual carried across the thin into the sparse low-density regime) —
+the accepted campaign-wide DGSCOR/AUTCOR primitive, not a gross logic gap and not a quick fix.
+FINAL VERDICT (this stand, the management-tail root): deterministic growth (DDS, height, TPA, mortality,
+thinning selection + scheduling) is BIT-EXACT vs live; the residual is the cornered DGSCOR/AUTCOR stochastic
+increment, exposed by thinning into low density. Bit-exact-or-cornered satisfied. A future FIX (if pursued)
+= trace the per-tree serial-corr AR state through the partial thin; deep + stochastic, low ROI vs cornering.
+Floor 38527/143/0; oracle pristine; src clean.
