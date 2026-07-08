@@ -97,6 +97,16 @@ TOTCRA (Σ π·CW²/4·TPA): FVSjl's per-tree crown width CW is ~1.4× FVS's CRW
 ≥75 (WMULT 0.10) vs FVS ~50 (WMULT 0.167). The pre-fire stand TPA/BA match at 2005 (439/147),
 LSPCWE=false for SN (so both take the CWCALC(iwho=0) branch, NOT the CWDS polynomial) — so the
 root is the CWCALC crown-width value (or its CR/HT inputs) at iwho=0 for these SN species. The
+[2026-07-07] RE-TRACE (doctrine #9) — a LS "1.4× forest CW" claim from FIA validation was a MISREAD,
+now RETRACTED: it compared FVS's FOREST-grown text-.trl CW column against FVSjl's DBS treelist
+CrWidth column, which BY DESIGN uses the OPEN-grown CW (iwho=1, CR=90; see dbs_output.jl:532). Direct
+check proves FVSjl's `crown_width` is BIT-EXACT for LS both ways: GA dbh7.5 forest(iwho=0,cr35)=
+14.8142 == FVS bechtold 54401 (2.9672+1.3066·D+0.0585·CR); open(iwho=1,cr90)=21.0394 == FVS ek 54403
+(4.755·D^0.7381). So there is NO LS forest-grown crown-width bug — jl's iwho=0 path is correct. The
+small LS-hardwood `.sum` residual (CCF ~4%, BdFt ~8%) is a SEPARATE, still-open small item (open-grown
+CCF aggregation / hardwood board), NOT this crown-width equation. The SN PERCOV finding below is
+SN-specific (LSPCWE/CWCALC) and should be re-verified the same careful way before any shared-code change.
+The
 spread rate `R = XIO·(1+PHIS+PHIW)/RHOBQIG` scales with PHIW=C1·(FWIND·88)^XM1, so the low wind
 suppresses spread/byram.
 (b) MODEL-5 LIVE-FUEL reaction intensity 4.5× low (xir 706 vs 3174) — the live-fuel-load /

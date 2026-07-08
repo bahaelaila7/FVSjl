@@ -1855,3 +1855,514 @@ fix — after ~12 re-traces I keep mis-hypothesizing the multi-cycle topkill dyn
 topkill height flow (increment computation → topkill reduction → height/norm_ht update) side-by-side with
 update.f + htgstp.f, then grow norm_ht by the full increment; validate vs live DBS EstHt. The residual is a REAL
 FIXABLE topkill-height bug (NOT irreducible); symptom is nailed, exact fix pending the flow map. Suite 6853/159.
+
+## 2026-07-05nn — VOLUME ±1 FULLY FIXED (cftopk pre-growth bark); suite 6883/129, 0 fail/0 error
+
+The ~30-assertion volume ±1 @test_broken family is CLOSED (bit-exact), not irreducible. Two prior
+root-causes were RETRACTED as phantoms before the real one:
+
+1. RETRACTED "topkill NORMHT Float32-accumulation bug": the jl norm_ht 67.70 vs live EstHt 67.75 "gap"
+   is a DBS DISPLAY offset — dbsatrtls.f:326 `ESTHT=(REAL(NORMHT)+5)/100` adds 5 hundredths. Actual
+   NORMHT=6770 == jl norm_ht=6770 BIT-EXACT (constant 0.05 across all cycles = a fixed display fudge, not
+   a drifting accumulation error). The dub is also a non-issue: HTDBH(sp65,8.0)=54.11 == jl.
+
+2. REAL ROOT (stamped live cftopk.f dumping D/H/VMAX/BARK/AHAT/BHAT/PHT): CFTOPK bark. FVS vols.f:150-151:
+   `BARK=BRATIO(D)` from the START-of-cycle DBH, THEN `IF(.NOT.LSTART) D=D+DG/BARK` projects volume to the
+   grown DBH. So cftopk uses BRATIO(D_start), not BRATIO(D_grown). jl used the grown t.dbh ⇒ D14.52 tree
+   live BARK 0.8966 = BRATIO(12.586)=its 2000 DBH, jl 0.9011. bark→bhat(bark² denom)→ahat→behre voltk/volt
+   ⇒ jl kept ~0.02%/tree too much broken-top volume. R8Clark takes no bark ⇒ ONLY broken-top trees diverged
+   (matched-by-DBS-treelist: 18 differing all broken-top, 233 normal bit-exact).
+
+FIX: trees.vol_bark stashes the pre-growth bark at simulate.jl:438; cftopk/bftopk use it (fallback
+BRATIO(current DBH) at cycle-0 LSTART). Carried through tripling via copy_tree!/_TREE_VEC_FIELDS. Also fixed
+a faithful op-order ULP in behre_params (d^2*bark^2 → d*d*bark*bark per behprm.f left-to-right; inert on
+magnitude). Result: bfvolume_override .sum BIT-IDENTICAL to live all 11 cycles; 17/18 broken-top trees
+bit-exact per-tree, 1 residual ~1e-4 (SM sp22 = behre/flog transcendental floor). 30 assertions flipped
+@test_broken→green ==; the misleading "non-associative tree-SUM order" comments were corrected in place.
+
+## 2026-07-05oo — treeszcp cap-mortality @test_broken RE-CORNERED (false "NOTRIPLE bit-exact" label corrected)
+
+Re-trace discipline caught a documented misread. test_treeszcp.jl claimed the endpoint TPA Δ4 (jl135/ft139)
+was "tripling-UB, NOTRIPLE is BIT-EXACT (verified vs live)". Ran treeszcp_cap WITH NOTRIPLE in both engines
+(live FVSsn oracle): FALSE — NOTRIPLE keeps TPA/BA/TopHt bit-exact every cycle but QMD/cuft/merch drift ~2%
+from 2015 (jl 485/live 483 cuft). Root: SIZCAP size-cap MORTALITY (morts.f:684-698) is a discrete amplifier —
+a near-10"-cap tree's projected (D+G) straddles the cap by a Float32 ULP, so one engine caps+kills it and the
+other keeps it. Verified bit-exact: BRATIO/bark_ratio (proven by the volume fix), _mort_traj_g vs `(DG/BARK)·
+(FINT/5)` (identity at FINT=5), the MORTS-before-TRIPLE order (grincr.f:535<543). So the (D+G) ULP is the
+accumulated start-DBH (DGF/serial-correlation floor), amplified by the hard threshold; tripling adds an
+independent cap-straddle on the tripled records ⇒ the endpoint Δ4. NOT an orderable bug; correctly @test_broken,
+now with an accurate both-sides verdict (reduces to the DGF Float32 floor via the cap). The pure-DG-bound path
+(treeszcp_nomort) stays bit-exact, confirming it's the mortality threshold, not dgbnd.
+
+## 2026-07-05pp — carbon Stand-Dead: green 3.3% tolerance EXPOSED as @test_broken (doctrine #9)
+
+Doctrine-#9 sweep caught a survivor: test_carbon.jl:666 `@test maxresid <= 0.033` — a GREEN 3.3% bound on
+carbon_snt Stand-Dead vs the high-precision instrumented-Fortran oracle. Its OWN comment admitted "NOT
+bit-exact… emergent-phasing class… not a single op" — i.e. a non-primitive residual passing silently (a lie
+by omission). Converted to `@test_broken all(round(sds[c];digits=1) == save[c] for c in 1:4)` against the live
+.sum Stand-Dead [3.8,4.4,5.4,9.5]: correctly BROKEN — at c3 jl 5.337 renders 5.3 vs live 5.4 (per-cycle Δ vs
+the 4-dec oracle = 0.023/0.019/0.032/0.013). Root = crown cwd2b flow-TIMING + pre-inventory input-snag age
+spread across the multi-cohort snag pool (part of #28) — a cohort fall-timing envelope, not one portable
+primitive. Now VISIBLE as broken until matched to FVS's exact snag-cohort fall order (not fixed this turn;
+the NATCRS merch-BOLE fix already closed the bulk, this is the phasing tail). Broken count 129→130 (correct
+direction: green⇔bit-exact, broken⇔open residual). The monotonic-increase semantic checks stay green.
+
+## 2026-07-05qq — test_multipliers green ±1 tolerances EXPOSED (doctrine #9); suite 6874/138
+
+Swept remaining green `abs(...)<=tol` survivors. test_multipliers.jl compared TPA/BA with `abs(jl-ft)<=tpa_tol/
+ba_tol` (per-scenario 0 or 1) and QMD with `abs(round(*10)-...)<=1` — the tol>0 scenarios (mult_baimult TPA,
+mult_mortmult_win TPA/BA, mult_reghmult BA, mult_baimult QMD) hid a rendered-integer print-knife-edge behind
+green. Converted to the exact-or-broken dispatch `exq(a,b,allow) = (a==b||!allow) ? @test a==b : @test_broken
+a==b` (same shape as test_allspecies chk): bit-exact columns stay GREEN `==`, the print-knife-edge columns are
+now VISIBLE `@test_broken ==` (8 assertions). These reduce to the same DGF/mortality-accumulation Float32 floor
+amplified by integer rendering (a ~X.5 aggregate renders 135 vs 136) — cornered, not fixed. Broken 130→138
+(correct: green⇔bit-exact). Confirmed no other green tolerance-vs-golden survives: test_multicycle/test_timeint
+were already @test_broken; test_allspecies chk always compares `==` (its tol tuples are boolean exact/broken
+flags, not applied slack); the fire_effects isapprox atols are the allowed f32-vs-f64 primitive-ULP class.
+
+## 2026-07-05rr — BAIMULT DDS op-order fixed to FVS log-space (faithful); mult_baimult residual traced to volume product-rule
+
+Traced the mult_baimult print-knife-edge @test_broken (exposed 2026-07-05qq). Found a REAL op-order divergence
+in the SN DGF: dgdriv.f:161+206 does `XDGROW=ALOG(XDMULT)` then `DDS=EXP(WK2 + XDGROW)` — the BAIMULT enters in
+LOG-space BEFORE the exp. jl did `dds5 = fexp(wk2)*xbai` (post-exp multiply). These are mathematically equal but
+differ ~36% of the time by 1 Float32 ULP for xbai=1.5 (measured). FIXED: `xdgrow = flog(xbai)` once per species
+(matching FVS's per-species XDGROW at :161) + `dds5 = fexp(wk2[i] + xdgrow)`. xbai=1 ⇒ flog(1)=0 ⇒ fexp(wk2+0)=
+fexp(wk2) bit-identical to the old ·1.0 ⇒ ALL non-BAIMULT scenarios untouched (suite 6874/138 unchanged, 0 regress).
+The fix is FAITHFUL + deconfounding (doctrine #4/#8) but INERT on mult_baimult's .sum: the residual is NOT the DDS.
+Traced it — at 2010 only scuft (col 11) differs (jl 2890/live 2891) while tcuft AND mcuft MATCH; since mcuft=v[4]+
+v[7] matches but scuft=v[4] differs, it's a v[4]↔v[7] SAWTIMBER/TOPWOOD split flip at the Region-8 ≥10-ft sawlog
+product rule (fvsvol.f HT1PRD<10, volume.jl:543) — a near-10-ft sawlog height straddles the threshold by a ULP.
+Kept the DDS fix (correct op order, will bite for other multiplier values); the @test_broken stays (volume
+product-rule knife-edge on the ht1prd computation, a separate R8-Clark investigation).
+
+## 2026-07-05ss — log-space-multiplier generalization CHECKED: BAIMULT-specific (negative result)
+
+Followed up the BAIMULT DDS log-space fix by auditing the other MULTS keywords for the same post-exp-vs-log-space
+bug. NEGATIVE result — the bug is BAIMULT-only, because only the DGF DDS is `exp(ln-regression)`:
+  * HTGMULT (kind 2): htgf.f:193,260 `HTG*XHT*SCALE*EXP(HTCON)` — linear post-multiply; jl height_growth.jl:99
+    `htg*xht*scale*exp(htcon)` is the SAME left-to-right order. Faithful (mult_htgmult bit-exact).
+  * MORTMULT (kind 4): morts.f:483 `XMORT=XMMULT` scales the mortality RATE (linear). mult_mortmult bit-exact.
+  * REGDMULT: mult_regdmult bit-exact (linear).
+  * REGHMULT (kind 3): regent.f:233 `HTGR*CON*SCALE*HGADJ*XRHGRO` — linear post-multiply on regen height growth;
+    jl uses the same `*…*xrhgro` order. mult_reghmult TopHt is bit-exact (rules out a height-mult order bug); its
+    BA ±1 is a downstream regen-accumulation print-knife-edge, not the multiplier.
+So the remaining multiplier @test_broken (mult_baimult, mult_mortmult_win, mult_reghmult) are NOT multiplier
+op-order bugs: baimult = volume ≥10-ft sawlog product-rule knife-edge (see rr); mortmult_win = mortality-window
+timing; reghmult = regen-accumulation — all print-knife-edges reducing to the DGF/mortality/volume Float32 floor.
+Only DDS needed the log-space fix. (Doctrine #1/#2: traced to ground, ruled out a whole bug class.)
+
+## 2026-07-05tt — CS cst01 TopHt drift: TWO real op-order bugs FIXED (not a "transcendental floor")
+
+Re-traced the cst01 grown-cycle drift (7 @test_broken, labeled "HTGF transcendental floor"). The label was
+WRONG — found + fixed TWO real op-order bugs in the CS HEIGHT path (all in src/variants/centralstates/height_growth.jl):
+  1. cs/balmod.f:67 `PART2=(1.-TEMBA/210.)**.5` — FVS `**0.5` is compiled by gfortran to powf(x,0.5), NOT sqrtf
+     (verified: they differ ~0.05% of the time by 1 ULP). jl used `sqrt`. Fixed to `fpow(x,0.5f0)`. (Doctrine #8
+     nuance: sqrt is IEEE-correct and normally NOT wrapped, but here FVS's primitive is POW, so mirror pow.)
+  2. htcalc.f:394 age inversion: `(H-BH)/B1/SI**B2` and exponent `1./B4/SI**B5` are Fortran LEFT-ASSOC sequential
+     divisions ((a/b)/c and (1/b)/c), but jl divided by the PRODUCT (a/(b·c), 1/(b·c)) — Float32-different. Fixed
+     to sequential.
+DECONFOUND PROOF this matters: ruled out AVH sum-order (jl stand_top_height == avht40.f exactly) and the CS htgf
+multiply chain (SCALE*XHT*HTG*EXP matches). balmod is HEIGHT-ONLY in CS (height_growth + small_tree_growth, not
+diameter) — which is exactly why BA/DBH stayed bit-exact while only height drifted. RESULT: TopHt drift 2020-2090
+went from every-cycle to Δ0 on 2020-2060+2080 (residual Δ1@2070, Δ-2@2090); TPA Δ-1 residual remains. Suite
+6874/138 unchanged (0 regress; CS-only, SN/NE/LS untouched). The 5 @test_broken stay broken (binary any-cycle),
+but the residual is now SMALLER + correctly attributed: a further per-tree-height sub-ULP (candidate HCOR
+attenuation / another compound op) → RELHTA → VARMRT → late TPA. NEXT: audit HCOR (htg_cor) attenuation bit-exactness.
+
+## 2026-07-05uu — NE htcalc_age same fix (defensive); LS/NE swept; CS residual narrowed (HCOR ruled out)
+
+Extended the CS htcalc_age sequential-division fix to NE (ne_htcalc_age had the identical `(H-BH)/(B1*SI**B2)`
+product-division vs FVS htcalc.f:394's `/B1/SI**B2` sequential — htcalc.f is byte-identical CS/NE). net01 stays
+BIT-EXACT (product==sequential for its inputs) ⇒ faithful + defensive, 0 regress (suite 6874/138). Left NE's
+`^`/`log` as plain (already bit-exact; not routed to fpow/flog to avoid risk on a green variant).
+SWEPT all variants for the two patterns: (a) `**0.5`-as-sqrt is CS-balmod-ONLY (NE/LS balmod.f + htgf.f have no
+`**.5`); LS balmod.f:111 `SQRT(ARG)` is a GENUINE SQRT (jl sqrt correct); the NE/LS/SN small-tree
+`sqrt(dib²+dds)` = FVS DG `SQRT` (correct). (b) product-division: only CS+NE htcalc_age (both now fixed); LS has
+no htcalc_age. So these two op-order bug classes are now CLOSED across all variants.
+CS cst01 residual (post-fix TPA Δ-1, TopHt Δ1@2070/Δ-2@2090): HCOR RULED OUT — htg_cor[sp]=0 for cst01 (FVSjl does
+no large-tree HT self-calibration absent HCOR2; keyword_dispatch.jl:297) ⇒ exp(htcon)=1, inert. With op-orders
+matched + htcon=1 + xht=1, the residual is in htg1/gmod/scale/OLDRN — prime suspect the height SERIAL-CORRELATION
+(ARMA/COR) recurrence SCALE/OLDRN, a doctrine-#9-PERMITTED primitive. NEXT: per-tree height diff (CS DBS treelist)
+to confirm the residual reduces to the height-COR recurrence (then it is a legitimately-cornered @test_broken).
+
+## 2026-07-05vv — CS cst01 residual: all ops matched, cornered near the FFI-transcendental floor
+
+Attempted per-tree height verification for the remaining cst01 residual (TPA Δ1) via a live CS DBS treelist
+(stand-1 cst01 + DATABASE/DSNOUT/TREELIDB) — but live FVScs emits only FVS_Summary/Cases/InvReference, NOT an
+FVS_TreeList table (CS DBS treelist unsupported / different keyword). So per-tree unrounded heights aren't
+available for CS the way they were for the SN volume work.
+Cornered the residual by exhaustive op-audit instead: after the balmod-`**0.5` + htcalc_age-division fixes, the
+CS height chain has NO remaining op-order divergence — scale=fint/htg_period=1 (inert), xht=1 (no HTGMULT),
+htcon=htg_cor=0⇒exp=1 (inert; no large-tree HT self-cal absent HCOR2), oldrn=t.old_random rides the DIAMETER
+DGSCOR (BA bit-exact ⇒ oldrn bit-exact), gmod = fixed-balmod + relht, htg1 = cs_htcalc_incr (formula matches
+htcalc.f:412-413, all fpow/fexp/flog FFI-routed = gfortran libm). By induction from the bit-exact cycle-0, the
+per-tree height should be bit-exact unless a transcendental rounds differently — and those are the SAME box
+gfortran libm as the relinked FVScs_new. So the residual is at/near the FFI-transcendental floor: a sub-ULP
+per-tree height that a knife-edge in the (regen/small-tree) VARMRT mortality amplifies into TPA Δ1 (BA stays
+exact ⇒ only a <1-TPA regen tree flips). This is a legitimately-cornered @test_broken: NOT an open op-order bug
+(all matched), reduces to the transcendental/serial-correlation primitive floor amplified by a mortality
+threshold. The 2 op-order fixes cut the drift from every-cycle to Δ0 on most cycles — the honest remaining floor.
+
+## 2026-07-05ww — estab_pccf crown-center: point_ccf SUM-ORDER hypothesis DISPROVEN (negative result)
+
+Re-traced the estab_pccf crown-center @test_broken (mean cr 82.56 vs live 82.46, 3/10 per-point flips), whose
+comment blamed "non-associative point_ccf Σ". Tested that: reordered point_density! to FVS dense.f's exact order
+(species-major DO 50 ISPC, DBH-descending within species via IND1, replacing jl's record order). Result: INERT —
+estab_pccf stayed 20 pass/1 broken and the full suite stayed 6874/138 (measured via git-stash before/after). So
+the 3-point PCCF flip is NOT the accumulation order. REVERTED the change (inert + unvalidatable ⇒ not kept per
+doctrine #4). Real driver is the per-point PI/GROSPC scale ASSOCIATIVITY (dense.f:210 `CCFT*PI/GROSPC` =
+(ccft·pi)/gross, vs jl's precomputed `ccft·scale`) and/or a sub-ULP grown DBH/HT→CW on the dense points. NOT
+attempted: jl stores gross_space as a RECIPROCAL (standstats.jl:33 `gross_space=1/g`), so matching FVS's exact
+`*PI/GROSPC` op order needs untangling that bookkeeping — high risk of a wrong fix on a green-magnitude path,
+deferred. Corrected the misleading test comment. Lesson: verify a "sum-order" label by actually reordering
+before trusting it (here it was the scale op, not the Σ order).
+
+## 2026-07-05xx — test_fire flame "byram sum-order" DISPROVEN: harness artifact, PRODUCTION flame BIT-EXACT
+
+Re-traced test_fire's flame/scorch @test_broken (labeled "byram non-associative sum-order"). Stamped live
+FMFINT (fmfint.f:509 dump of FMOD/FWT/BYRAMT) on fire_burn.key: the per-model BYRAMT is BIT-EXACT vs jl
+(fm10=6518.9, fm5=8987.5) — so NOT sum-order and NOT the transcendental. The divergence is the fuel-model
+WEIGHTS: jl-manual 0.5673/0.4327 vs live-fire 0.5634/0.4366. jl's weights EXACTLY match live's NON-fire FMFINT
+calls (period-end fuel); the live FIRE uses fire-basis fuel (start-of-cycle+1-annual). ROOT: the TEST grows via
+manual `grow_cycle!(fint=5)` which never stashes `fire_smlg` (simulate.jl:368, gated on fuel_period from the
+summary driver), so select_fuel_models(fire_basis=true) falls back to period-end `_small_large_fuel` ⇒ wrong
+weights ⇒ flame 4.1696. Passing fuel_period=5 naively over-corrects (1.63, it also alters the ffe_fuel_update!
+deferral). DECISIVE: ran the PRODUCTION path (run_keyfile → DBS FVS_BurnReport) — Flame_length=4.171710968 ⇒
+renders 4.172 == live BIT-EXACT. So flame is CORRECT in production; the @test_broken is a manual-grow HARNESS
+ARTIFACT. Only scorch keeps a genuine Δ0.002 (production 17.579 vs live 17.581). Corrected the test verdict; the
+right close is to migrate test_fire to assert the production BurnReport (flame → green ==). Debug stamps
+reverted; FVSsn_new rebuilt clean. Another mislabeled "sum-order"/floor caught by re-trace + live instrumentation.
+
+## 2026-07-05yy — test_fire flame CLOSED (migrated to production DBS BurnReport, bit-exact)
+
+Followed through on xx: migrated test_fire's B1 flame/scorch check off the flawed manual-grow harness onto the
+PRODUCTION path (run_keyfile → temp DSNOUT → SQLite FVS_BurnReport, same pattern as test_dbs_treelist). The
+manual grow is kept only for the burn_report OBJECT checks (year/non-empty). Flame now asserts `round(Flame_length,
+3)==4.172` GREEN — production Flame_length=4.17171 renders 4.172 == live BIT-EXACT (the fire-basis fuel weights,
+not the manual grow's period-end weights). Scorch stays @test_broken (production 17.579 vs live 17.581, Δ0.002 —
+the fire-basis fuel-weight ULP → byram → scorch_height ^(7/6)). Suite 6874/138 → 6876/137 (flame closed, +1
+assertion, 0 regress). Doctrine #9 satisfied for flame: GREEN ⇔ bit-exact, via the correct oracle path.
+
+## 2026-07-05zz — scorch_height ops routed to match FVS (**0.5/**3.0 = powf); scorch residual = upstream byram
+
+Audited scorch_height for the scorch Δ0.002 (production 17.579 vs live 17.581). fmburn.f:471-472
+`SCH=(63/(140-ATEMP))*(BYRAM**(7/6)/(BYRAM+FWIND**3.0)**0.5)` — ALL THREE powers are FVS `**` (gfortran powf).
+jl used `sqrt` for the outer **0.5 and `fwind^3` (x*x*x) for FWIND**3.0. Measured gfortran divergence: x**0.5 vs
+sqrt ~0.07%, x**3.0 vs x*x*x ~26%(!). Routed all three through the companion (fpow) to match FVS bit-exactly —
+faithful + deconfounding (doctrine #8), suite 6876/137 unchanged (0 regress; green fire tests had sqrt==pow /
+cube==pow for their inputs, so stay green). But the fix was INERT on fire_burn's scorch (17.579 unchanged) ⇒
+scorch_height is RULED OUT as the residual's cause. The scorch Δ0.002 is the upstream BYRAM: production flame
+renders 4.172 (byram exact to flame's resolution) but scorch's larger magnitude exposes the fire-basis
+fuel-WEIGHT ULP (FMCFMD/_fmdyn weights from the fire-basis fuel; see xx/yy). Kept the pow routings (correct
+primitives, will bite for other fire inputs). Scorch @test_broken now carries the precise both-sides verdict.
+
+## 2026-07-05aaa — scorch residual CORNERED to FMCFMD/_fmdyn fire-basis fuel weights (jl production-instrumented)
+
+Instrumented jl's PRODUCTION fmburn byram loop (fire_burn via run_keyfile): jl weights fm10=0.5639475/
+fm5=0.43605253 vs live-fire fm10=0.5633581/fm5=0.4366419 (Δ~0.0006 each). Per-model BYRAMT is BIT-EXACT
+(6518.9/8987.5). So the scorch Δ0.002 is the FMCFMD/_fmdyn fuel-model WEIGHTS, off by ~0.0006 ⇒ byram off ~1.7
+⇒ flame renders 4.172 (same, below its resolution) but scorch (∝byram^(7/6), larger scale) shows Δ0.002. The
+weights come from the fire-basis (sm,lg) = start-of-cycle+1-annual small/large fuel loads fed to _fmdyn; jl's
+differ slightly from live's ⇒ the FFE cwd/down-wood fuel-pool accounting at fire time (#28 family). Debug removed;
+scorch_height pow routings kept (faithful). Scorch @test_broken carries the precise both-sides verdict; closing
+needs the fire-basis cwd bit-exact vs live (deep FFE fuel-pool work). Not a sum-order, not scorch_height, not a
+transcendental — a fuel-load accounting residual amplified through the nonlinear _fmdyn weight interpolation.
+
+## 2026-07-05bbb — scorch: _fmdyn weight geometry VERIFIED faithful ⇒ residual is purely the fire-basis cwd sm/lg
+
+Ruled out the last non-cwd layer: jl _fmdyn (fuel_model.jl) vs FVS fmdyn.f:225-246 — the perpendicular-distance
+weight geometry matches EXACTLY (M1=XPTS2/(-XPTS1), M2=-(1/M1), B2=PT2-M2·PT1, NPT1=(B2-B1)/(M1-M2), NPT2=M2·
+NPT1+B2, WT=SQRT((PT2-NPT2)**2+(PT1-NPT1)**2) — jl mirrors each op; SQRT=sqrt genuine, **2=x*x=^2, no **0.5/pow
+issue here). So the scorch fuel-model WEIGHT diff (jl 0.5639/0.4361 vs live 0.5634/0.4366) is NOT scorch_height
+(ruled out zz), NOT _fmdyn geometry (ruled out here), NOT the per-model byram (bit-exact) — it is PURELY the
+fire-basis (sm,lg) small/large fuel-load INPUTS to _fmdyn, i.e. the FFE cwd/down-wood fuel-pool accounting at
+fire time (#28 family). Scorch @test_broken is now cornered to that single input; closing it needs jl's
+fire-basis cwd bit-exact vs live (a fmcba/ffe_fuel_update fuel-pool trace, shared with the carbon #28 residuals).
+No code change this turn (verification only). scorch_height pow routings kept.
+
+## 2026-07-05ccc — scorch fully cornered to the FFE cwd fuel-pool sum (fmtret.f SMALL/LARGE; 4D-vs-3D structure)
+
+Traced the fire-basis (sm,lg) to its source: FVS fmtret.f:376-390 computes SMALL/LARGE from CWD(I,J,K,L)
+(FMCOM.F77:238 `REAL CWD(3,MXFLCL,2,5)` — 4D) summing I=1:2 OUTERMOST, then K=1:2, L=1:4, size J1=1:3 & 10
+(SMALL) / J2=4:9 (LARGE). jl's fs.cwd is 3D `Array{Float32,3}` [size 1:11, hard/soft 1:2, decay 1:4] (state.jl:689)
+— the FVS I=1:3 dimension is COLLAPSED. So jl's _small_large_fuel (Σ over k,l of sizes 1,2,3,10 / 4:9) CANNOT
+replicate FVS's I-outer Float32 accumulation order without restructuring cwd to 4D (a large, risky FFE change
+touching all fuel accounting). ⇒ the scorch fuel-model WEIGHT diff (0.0006 → byram ~1.7 → scorch Δ0.002) is the
+FFE cwd fuel-pool SUM over this structural difference — the same #28 fuel-pool family that the extensive prior
+#28 work left at accepted ~ULP-to-low-% residuals. FULLY CORNERED (scorch_height ops ✓, _fmdyn geometry ✓,
+per-model byram bit-exact ✓, weights ← cwd sum only). Not pursuing the 4D-cwd restructure (disproportionate risk
+for a Δ0.002 that's in the accepted #28 class). Scorch @test_broken carries the complete both-sides verdict.
+
+## 2026-07-05ddd — doctrine-#9 core invariant RE-VERIFIED after the full session's changes
+
+Comprehensive green-tolerance scan (applied atol/rtol/isapprox/abs()<= vs a golden, in `@test` not `@test_broken`,
+excluding range/sanity checks): the ONLY matches are test_fire_effects.jl:24/67/91 — the documented allowed
+f32-vs-f64 REFERENCE primitive-ULP class (scorch_height/bark/mortality vs a Float64 `*_ref`, self-consistency,
+NOT jl-vs-live; FFI cannot close f32-vs-f64). Every other suite assertion is `==` / rendered-`==` (green ⇔
+bit-exact) or a visible `@test_broken` (documented, cornered residual). So after this session's fixes (volume
+bark, BAIMULT DDS, CS/NE htcalc_age, CS balmod + scorch pow-primitives, vol_bark field) and re-cornerings, the
+campaign's central property HOLDS: no non-bit-exact residual hides in green. Note the scorch_height f32-vs-f64
+unit check (line 91, atol 5f-6 at value ~17 = the compounded 3-pow f32-vs-f64 width) still passes after routing
+its `**0.5`/`**3.0`/`**(7/6)` to fpow. Suite 6876 pass / 137 broken / 0 fail / 0 error, all four variants green.
+Remaining 137 broken are all visible + cornered: FFE #28 cwd fuel-pool (scorch + carbon), grown-cycle DGSCOR/
+growth-accumulation print-knife-edges (TPA/QMD/cuft render flips — reduce to the serial-correlation floor, a
+permitted primitive), and COMPRESS eigensolver (accepted). Each carries a both-sides traced verdict.
+
+## 2026-07-05eee — SDI ^1.605 routed to fpow (doctrine #8 deconfound); MYSDI proven = grown-DBH accumulation
+
+stand_sdi (standstats.jl) computed the Zeide `(DBH/10)^1.605` and the Reineke Taylor `10^-1.605`/`mdsq^(1.605/2)`
+via Julia's openlibm `^`, but FVS sdical.f:326/281-282 uses `**` (gfortran powf) — measured to differ ~0.07% of
+the time. Routed all four powers through the companion (fpow). Faithful + deconfounding; suite 6876/137 unchanged
+(0 regress — the Reineke path feeds CROWN's SDI, stayed bit-exact for all growth tests ⇒ jl `^`==gfortran `**` for
+their inputs; and the Zeide path feeds the reported/MYSDI SDI). INERT on test_dbs_compute MYSDI ⇒ the SDI
+transcendental is now RULED OUT as the MYSDI residual's cause. Combined with MYBA (which uses only dbh²+Σ, no
+transcendental), both MYBA/MYSDI are PROVEN the upstream grown-DBH accumulation floor (grown-cycle DGSCOR/growth
+Float32), not any op in the density computation. This is exactly doctrine #8's purpose: route the primitive to
+remove it as a confound, leaving the residual provably a semantic/accumulation mismatch. Kept the fpow routings
+(correct primitives, will bite for other SDI inputs). MYBA/MYSDI @test_broken carry the deconfounded verdict.
+
+## 2026-07-05fff — DGF regression logs routed to flog (doctrine #8); PROVES grown-cycle drift ≠ DGF logs
+
+The SN DGF regression (diameter_growth.jl:171-179) computed `ln_dbh·log(d)` and `ln_crown·log(icr)` via Julia's
+openlibm `log`, while FVS dgf.f uses gfortran `ALOG`. Routed both to flog (doctrine #8). Result: snt01 stays
+BIT-EXACT (20/20) and the full suite is UNCHANGED (6876/137, 0 regress) — so for every test scenario's dbh/icr
+range, openlibm log == gfortran ALOG (the 0.11% general divergence doesn't hit these inputs; snt01 was bit-exact
+vs live BECAUSE they already matched). ⇒ DECONFOUND PROOF: the grown-cycle accumulation drift (cst01/multicycle/
+timeint/dbs_compute MYBA-MYSDI/etc.) is NOT the DGF regression logs — it is the DGSCOR serial-correlation
+recurrence (the WK3/sp33-65 tail, a doctrine-permitted primitive) and/or downstream f32 accumulation, NOT a
+routable regression transcendental. Kept the flog routings (faithful vs FVS ALOG; will bite for untested inputs).
+The narrow Fort-Bragg dg5 path (exp/^, IFOR==20 sp8/13 only) left as-is (not exercised by these scenarios).
+Combined with eee (SDI power routed, inert) the grown-cycle floor is now cornered to DGSCOR+accumulation, its
+last routable confounds removed.
+
+## 2026-07-05ggg — DGSCOR ISOLATION analysis + ssigma/rho log routed (deconfound): tail is WK2/WK3 calib, not libm
+
+USER Q: "can DGSCOR be isolated or is it a whole system?" ANSWER: the dgscor recurrence is a small isolable
+routine (bachlo draw → AR(1) FRM·RHOCP+RHO·OLDRN → rejection |FRM|>DGSD·SSIG → DDS attenuation → EXP), already a
+faithful bit-exact transliteration of dgscor.f. Its only un-FFI-able entanglement is the RNG: BACHLO→RANN is a
+STATEFUL GLOBAL stream shared across all trees/draws — can't isolate one call; and jl's RNG is already bit-exact
+so FFI gains nothing. The residual is NOT dgscor's arithmetic — it's (1) upstream ssigma/rho computed with
+openlibm log, (2) amplified by the DISCONTINUOUS rejection threshold (ULP in SSIG flips accept/reject ⇒ draw-count
+desync ⇒ divergence). TESTED the concrete fix: routed ssigma/rho log → flog (the memory said this "desyncs the
+RNG" — DISPROVEN: snt01 bit-exact, suite unchanged 6876/137). INERT ⇒ openlibm==gfortran for the tested vardg
+ranges ⇒ the sp33/65 DGSCOR tail is NOT the ssigma/rho log either. Having now routed EVERY transcendental input to
+dgscor (DGF regression logs [fff], ssigma/rho log [here], the exp [prior]) — all inert — the DGSCOR tail is PROVEN
+a genuine semantic residual in the WK2 past-dbh / WK3 calibration accumulation (the doctrine-permitted "WK3/DGSCOR
+sp33/65 tail"), NOT a libm-rounding artifact. Kept the flog routings (faithful vs FVS ALOG; correct the stale
+memory "don't route ssigma" warning). This is doctrine #8 fully applied to DGSCOR: confounds removed, residual
+proven semantic.
+
+## 2026-07-05hhh — perf-conscious revert of the INERT hot-loop DGF logs (finding kept)
+
+The DGF regression log(d)/log(icr) (per-tree hot loop) was routed to flog in fff to TEST the grown-cycle drift
+hypothesis; PROVEN inert (openlibm==gfortran there). Reverted to Julia `log` — doctrine #8's own caveat is "only
+wire the FFI for ops that ACTUALLY differ", and a zero-diff op doesn't warrant the companion-ccall cost in the
+per-tree hot loop. Suite stays 6876/137 bit-exact. Finding documented in-code. KEPT the ssigma/rho flog routing
+(per-SPECIES, negligible cost, faithful vs FVS ALOG, and it corrected the stale "don't route — desyncs RNG"
+warning) and the SDI fpow (per-stand-summary). Net of the DGSCOR deep-dive (ggg): dgscor is isolable + already
+faithful; every transcendental input routed-and-inert ⇒ the sp33/65 tail is a WK2 past-dbh/WK3-calibration
+semantic residual (permitted primitive floor), not a libm artifact — with the routings kept only where cost-free.
+
+## 2026-07-05iii — test_carbon (#28) cluster re-trace: all 13 labels VERIFIED correct (no mislabels)
+
+Applied the re-trace discipline to the largest FFE cluster (test_carbon, 13 @test_broken). Unlike the sum-order/
+floor mislabels found across the session (bark, DDS, weights, point_ccf, scorch), the carbon labels are ALL
+accurate — each residual genuinely in the #28 snag/cwd/fire-kill accounting family, with a both-sides verdict:
+  * standing_dead total (134/135): print DOUBLE-ROUNDING — jl's Float32 bole+crown sum rounds 5.17 vs the
+    sum-of-rendered-components 5.18; components stay green rendered-==. (#28 snag bole/crown carbon.)
+  * Stand-Dead emergent snag-phasing (243/666): Δ~0.032, #28 snag-dating (deaths-spreading), rendered-==.
+  * YRDEAD annual-loop over-soften (750-753): jl 44.567→44.6 vs 44.8 — the #28 FMKILL YRDEAD dating tail.
+  * fire-kill-distribution boundary flips (833/835): agl 19.1(jl19.2)/sd 20.2(jl20.1) — F7.1 last-digit flip.
+  * FAPROP fate-curve (499): r30.removed==r0.removed Δ2.4e-7 — a jl-INTERNAL Float32 re-accumulation SUM-order
+    (self-consistency, not vs live); correctly @test_broken though low-value (not a live divergence).
+CONCLUSION: the carbon cluster is honestly cornered; no fixable op hiding behind a mislabel (the discipline
+confirms clean here, having caught real bugs elsewhere). The #28 snag/cwd fuel-pool accounting is the shared root
+(with the scorch fire-basis cwd) — a deep, largely-resolved family at the ~ULP-to-low-% floor. Suite 6876/137.
+
+## 2026-07-05jjj — FFI-eigensolver avenue ASSESSED for COMPRESS s22: not applicable (already Float64-bit-exact)
+
+Doctrine #8 lists the eigensolver (EIGEN/Jacobi) as an FFI candidate; COMPRESS s22 is the last "accepted" broken.
+Assessed FFI-ing eigen.f: it's a self-contained SUBROUTINE EIGEN(A,R,N,MV) (no COMMONs ⇒ FFI-able), BUT eigen.f:61
+is the DOUBLE PRECISION build (`DOUBLE PRECISION A(*),R(*),...`) and comprs.f:98 declares XTX/EIVECT DOUBLE — and
+jl's _ibm_eigen ALREADY uses Matrix{Float64}. So there is NO precision mismatch: jl's Float64 Jacobi eigen is
+already bit-exact vs FVS's DOUBLE eigen (the memory's "5 merged records BIT-EXACT" confirms). ⇒ FFI-ing the
+eigensolver would NOT change anything. The s22 residual is NOT the eigen arithmetic — it's the DOWNSTREAM Float32
+sort keys WK3/WK4 (the PC1/PC2 projections stored/compared in Float32): rec6 9154.72461 vs live 9154.72413 = a
+sub-Float32-ULP that flips the nested sort of ~4 near-tied records ⇒ a different partition ⇒ the ~1% s22 tail.
+That Float32 projection-round is the irreducible primitive; it is EXPLICITLY permitted (mission statement lists
+COMPRESS s22). CONCLUSION: the FFI-deconfound is now COMPLETE across all doctrine-#8 primitives — transcendentals
+(routed where they differ), eigensolver (already Float64-bit-exact, FFI moot), COR/ARMA (dgscor faithful, residual
+= upstream WK3 calib). Every surviving @test_broken is cornered to a named primitive or a deep accounting class.
+
+## 2026-07-05kkk — scorch/FFE-cwd QUANTIFIED both-sides (live-stamped): jl fire-basis cwd ~0.1% HIGH, #28 low-% floor
+
+Traced the scorch to ground per re-trace discipline (not assumed floor). Live-stamped fmcfmd.f (dump COMMON
+SMALL/LARGE at the fire) + instrumented jl select_fuel_models: jl fire-basis sm=6.7242403/lg=3.2864919 vs live
+SMALL=6.722648/LARGE=3.282428 — jl is HIGH by Δsm=0.0016 (0.024%), Δlg=0.0041 (0.12%). So the scorch fuel-model
+weight diff (0.5639 vs 0.5634) is a REAL fire-basis cwd VALUE difference, NOT a sum-order or sub-ULP floor: jl's
+down-wood fuel pools at fire time carry ~0.1% more than live. This is the #28 FFE fuel-pool accounting (decay/
+additions/snag-fall/crown-lift over the fire-basis start-of-cycle+1-annual window) at the "low-%" residual the
+prior #28 campaign explicitly left accepted. VERDICT: semantic (not a permitted primitive) ⇒ per the strict
+mission it's open, but closing needs a pool-by-pool cwd audit (which of small classes 1-3+10 / large 4-9 carries
+the 0.1%) — a deep #28 fuel-accounting hunt disproportionate to a Δ0.002 scorch (and the shared carbon StandDead
+Δ0.032). Stamps reverted, FVSsn_new rebuilt clean. This upgrades the scorch @test_broken from "cornered to cwd"
+to a QUANTIFIED both-sides verdict (jl cwd +0.1% vs live). NEXT (if pursued): stamp fmtret.f pool-by-pool CWD.
+
+## 2026-07-05lll — FFE cwd per-class breakdown captured; pool-level hunt deferred (disproportionate)
+
+Extended kkk: dumped jl's per-class fire-basis cwd. small(1+2+3+10)=0.366+1.408+2.320+2.631=6.7242 (litter
+class-10 dominant), large(4-9)=1.211+1.196+0.526+0.305+0.045+0.004=3.2865 — matches jl sm/lg exactly. jl total is
++0.0016 small / +0.0041 large vs live (kkk). Pinpointing WHICH pool carries the +0.1% needs (a) live per-class
+(stamp fmtret.f nested CWD) AND (b) resolving the FVS 4D CWD(I=3,size,K=2,L=5) ↔ jl 3D [size,k=2,l=4] index
+mapping (which FVS I/K/L jl's k/l map to, and whether I is collapsed) — a deep #28 fuel-accounting investigation
+disproportionate to Δ0.002 scorch / Δ0.032 carbon in an already-"#28-resolved" subsystem. VERDICT: the FFE-cwd
+residual is QUANTIFIED to the sm/lg + per-class level (jl +0.1%, distributed across the down-wood pools), a
+semantic #28 fuel-pool accounting difference at the accepted low-% floor. Instrumentation reverted. This is the
+deepest tractable trace; the pool-level fix is documented as the remaining (disproportionate) #28 work.
+
+## 2026-07-05mmm — FFE cwd residual PRECISELY LOCALIZED (live-stamped per-class): size-class apportionment shift
+
+Stamped fmtret.f (per-size-class Σ CWD over I=1:2,K=1:2,L=1:4, exactly the SMALL/LARGE loop) at the 2000 fire.
+Full fire-basis per-class jl vs live: cl1 0.36558/0.36403 (+0.0016), cl2/cl3/cl10 BIT-EXACT, cl4 1.21128/1.20836
+(+0.0029), cl5 1.19596/1.19242 (+0.0035), cl6 0.52618/0.52654 (-0.0004), cl7 0.30455/0.30654 (-0.0020), cl8
+0.04485/0.04510 (-0.0003), cl9 0.00368/0.00347 (+0.0002). So the FFE-cwd residual is NOT a distributed floor — it
+is LOCALIZED: (1) class-1 fine fuel jl +0.0016, and (2) a large-CWD SIZE-CLASS APPORTIONMENT SHIFT — jl skews the
+coarse wood toward smaller sizes (cl4/cl5 HIGH) vs live's larger (cl6/cl7 LOW), net +0.0041 large. This points at
+the FFE fallen/crown-lift down-wood size-class apportionment (fmsfall/fmsdit + the UMBTW/size tables), NOT decay of
+the bit-exact litter/small classes. A concrete both-sides verdict: the scorch Δ0.002 + carbon StandDead Δ0.032
+trace to this apportionment shift in coarse-wood size classes 4-7. Fixing needs the FFE apportionment op audited
+vs fmsfall.f/fmsdit.f (well-localized for a future targeted session; sub-% in the #28-resolved subsystem). Stamps
+reverted, FVSsn_new rebuilt clean. This is the deepest proportionate trace — residual localized to 3-4 size classes.
+
+## 2026-07-05nnn — FFE cwd localized to _cwd_cone_fractions (CWD1 taper); main ops verified matching, candidate = soft/hard frac
+
+Traced the coarse-wood size-class apportionment shift (mmm: cl4/5 high, cl6/7 low) to its EXACT routine:
+snag.jl:189 _cwd_cone_fractions ↔ FVS fmcwd.f CWD1 (the cone-taper bole→size-class split). Op-by-op compared the
+taper: RHRAT ((HTD·12−54)/(0.5·DIAM)) fmcwd.f:308 == jl:197; BPH (MAX(0.10, HTD−(0.5·BP·RHRAT)/12)) :318-322 ==
+jl:199; R1 (DIAM·0.0416666667) :345 == jl:200; the R1 stem-base extension (R1+LOHT·((R1·HTD)/(HTD−4.5))) :347 ==
+jl:201 FOR LOHT=0.10 (the common case). All main taper ops BIT-MATCH. The remaining candidate: jl uses a SINGLE
+frac (htcur) for BOTH soft(addS) and hard(addH) bole, but FVS CWD1 runs K=1 soft (HIHT=HTIS) and K=2 hard
+(HIHT=HTIH) SEPARATELY — if a snag's soft/hard portions have different current heights, the size-class split
+differs. HOWEVER the single-frac is a DELIBERATE, memory-documented choice (validated DFIS=0 for carbon_snt; the
+prior hard→soft-at-DKTIME bug caused a 13% DDW under-count). So closing the fire_burn residual via separate soft/
+hard fracs is a REAL code change requiring dual-validation vs BOTH carbon_snt (must stay green) AND fire_burn —
+scoped but with regression risk, disproportionate to Δ0.002 scorch. TERMINAL localization: the FFE-cwd residual is
+now traced to the exact routine + candidate mechanism (soft/hard frac separation), main ops proven bit-matching.
+
+## 2026-07-05ooo — FFE cwd is NOT a CWD1 apportionment bug: ops bit-match ⇒ residual is upstream snag population
+
+Completed the CWD1 op-by-op audit: _CWD_BP breakpoints (0,0.25,1,3,6,12,20,35,50,9999) == FVS BP EXACTLY; RHRAT,
+BPH, R1, the R1 stem-base extension (LOHT=0.10), and the HICUT/LOCUT class-integration logic all bit-match fmcwd.f
+CWD1. So _cwd_cone_fractions IS FAITHFUL — the coarse-wood size-class shift (cl4/5 high, cl6/7 low) is NOT an
+apportionment op bug. Since frac is a deterministic fn of (dbh,ht) and the ops match, the cwd difference must be
+the UPSTREAM snag population: which snags fell, their DBH-at-death, density, fall-rate. The fire .sum has TPA/BA
+BIT-EXACT at 1990/1995/2000 ⇒ the same LIVE trees ⇒ same trees died ⇒ the snag SET matches; the residual is the
+dead trees' DBH-at-death (carries the growth/DGSCOR accumulation for calibrated sp33/65) + the #28 snag fall/decay
+accounting. CONCLUSION: the FFE-cwd (scorch Δ0.002 + carbon StandDead Δ0.032) reduces to (a) the growth-DBH
+DGSCOR/accumulation floor (a doctrine-permitted primitive) feeding the bole apportionment, and (b) the #28 snag
+fall/decay accounting — NOT a fixable CWD1 op. This is the terminal both-sides verdict: every FFE-cwd input op
+verified faithful; the residual is the upstream snag-DBH/accounting, the same permitted-primitive + #28 floor as
+the grown-cycle cluster. No CWD1 fix warranted. Suite 6876/137 (verification only).
+
+## 2026-07-05ppp — FFE cwd VERIFIED (CWD1 stamp): driver is the snag DBH POPULATION, not a CWD1 op or DBH-ULP
+
+Verified the ooo deduction by stamping fmcwd.f CWD1 (dump DIAM/DIH/DISIN per snag) + instrumenting jl's snag list.
+Result: some snags BIT-IDENTICAL (diam 16.18681, 16.21476, 19.42992, 21.09638, 34.60000 in BOTH), but many DIFFER
+by MORE than a ULP (jl has 15.23/15.69/18.42/18.80; live has 13.16/13.64/14.39/14.67 — entirely different snag
+DBHs). dis=0.0 everywhere ⇒ NO soft snags (the soft/hard-frac candidate is moot). So the FFE-cwd size-class shift
+is driven by the snag DBH POPULATION differing — NOT the CWD1 apportionment (ops verified faithful, ooo) and NOT a
+pure DBH-ULP (the diffs are structural, not last-bit). The snags come from mortality→snag creation over 1990-2000;
+the live tree .sum is bit-exact (aggregate) but the per-record snag DBHs differ ⇒ a mortality/snag-creation/tripling
+per-record difference (the snag records' DBH basis), a #28-class semantic residual at the record level. This is
+NOT a permitted primitive (structural, not a single ULP op) — it's the deepest #28 residual: the snag-creation
+per-record DBH population. Pinpointing needs matching individual snag records jl↔live through the mortality/tripling
+(a deep #28 snag-creation audit). Stamps reverted, FVSsn_new clean. TERMINAL: FFE-cwd driver isolated to snag-record
+DBH population (mortality/snag-creation), CWD1 apportionment proven faithful. Suite 6876/137.
+
+## 2026-07-05qqq — CORRECTION to ppp: snag booking is from TRIPLED records (faithful); FFE cwd = DGSCOR-tripling + #28 floor
+
+Self-correction (re-trace of my own ppp over-read): the ppp "structural snag-DBH difference" was an ARTIFACT of
+comparing top-20 UNIQUE DBH values across DIFFERENT snag counts (jl vs live have slightly different #snag records,
+so the 20th-largest unique differs — NOT the same snag at a different DBH). The COMMON snags DO bit-match
+(16.18681, 16.21476, 19.42992, 21.09638, 34.60000 in both). And the booking ORDER is FAITHFUL: simulate.jl:300-331
+does MORTS on un-tripled → TRIPLE (split kill 0.60/0.25/0.15 onto the 3 spread-DBH records) → FMBURN → FMKILL
+WK2=MAX → book_mortality_snags! from the TRIPLED records (extra[j] per tripled record) — exactly FVS's GRINCR
+TRIPLE→FMKILL→FMSDIT order. So the snag DBHs come from the TRIPLED-record DBHs, which carry the DGSCOR-tripling-
+spread floor (the WK3/sp33-65 serial-correlation ULP) for calibrated species, plus the KNOWN #28 snag-dating
+(snag.jl:406, periodic-mortality snags dated at cycle-START, the carbon YRDEAD tail). CORRECTED VERDICT: the FFE
+cwd residual reduces to (a) the DGSCOR-tripling-spread PERMITTED PRIMITIVE (tripled snag DBHs of calibrated species)
+and (b) the #28 snag-dating accounting — NOT a structural snag-creation bug (booking order verified faithful).
+Same floors as the grown-cycle cluster. This supersedes ppp's "structural" over-read. Suite 6876/137.
+
+## 2026-07-05rrr — #28 snag-YRDEAD dating ASSESSED: the sole non-primitive residual; documented BACKLOG#3, coupled+risky
+
+The one remaining SEMANTIC (non-permitted-primitive) residual is the #28 snag-YRDEAD dating (carbon StandDead
+750-753 hard/soft split; snag.jl:406-421). Assessed the fix scope: jl dates periodic-mortality snags at cycle-START
+(mortality.jl current_cycle_year); FVS's TRUE YRDEAD is cycle-END via the annual FMSNAG loop. jl's report code
+ALREADY carries tuned compensations for this (the `iyr-1-yrdead` −1 report-lag adjustment + the exact fmsngdk.f
+Float32 order `(1.24·DECAYX·D)+(13.82·DECAYX)` for the near-DKTIME hard/soft boundary). So a real fix = set the
+stored YRDEAD to FVS's annual-loop value AND rip out the report compensations AND re-validate — coupled to the
+extensively-validated #28 fire-phasing (the .sum + fire_carbon + carbon_snt StandDead are all bit-exact/tracking on
+the CURRENT dating). This is BACKLOG.md #3, left as a KNOWN residual because it's a risky coordinated refactor, NOT
+a floor and NOT a clean single-op fix. Per doctrine #3 (regression=masked-bug) it needs dual-validation vs
+carbon_snt+fire_carbon+test_fire; attempting it blindly in-loop risks regressing 3 validated FFE tests. VERDICT:
+the last non-primitive residual is a scoped, documented, coupled #28 refactor — the ONLY remaining semantic work,
+disproportionate/risky to attempt without dedicated multi-cycle FFE validation. Every OTHER residual is a permitted
+primitive (WK3/DGSCOR, COMPRESS). Suite 6876/137; campaign at its verified terminal.
+
+## 2026-07-05sss — #28 snag-YRDEAD EXACT TARGET traced (fmkill.f:141): ordinary-mort snags = IY(ICYC+1)-1 (cycle-end−1)
+
+Stamped/read FVS's exact ordinary-mortality snag dating: fmkill.f:141 `YEAR = IY(ICYC+1) - 1` → fmsadd.f:240
+`YRDEAD(X)=YEAR`. So FVS dates periodic-mortality snags at CYCLE-END MINUS 1 (1994 for a 1990→1995 cycle). jl dates
+them at CYCLE-START (current_cycle_year, 1990) — ~4-5 yr too EARLY ⇒ snags read too OLD ⇒ over-trip DKTIME ⇒ the
+carbon StandDead hard/soft residual (carbon.jl 750-753, jl 44.567/live 44.8). The report's `iyr-1-yrdead` −1
+compensation removes only 1 of the ~4-yr error. THE FIX (now precisely targeted, was vague BACKLOG#3): set jl's
+ordinary-mort snag yrdead = IY(ICYC+1)-1 (current_cycle_year + fint − 1), matching fmkill.f:141, and rework the
+report age to FVS's fmsnag.f:284 `IYR - YRDEAD` (dropping the tuned −1). COUPLING/RISK (why it's not a 1-liner):
+the SAME yrdead drives the snag-fall-age gate (update_snags! `at_year - yrdead`, extensively tuned to the current
+dating for the fire_carbon DDW/density) AND the fall would shift (a snag created at cycle-end−1 can't fall in its
+creation cycle, matching FVS — but jl's current cycle-start dating lets it fall early). So a correct fix is a
+COORDINATED change (yrdead + fall-age basis + report formula) requiring dual-validation vs carbon_snt + fire_carbon
++ test_fire + longrun — a focused FFE session, not an autonomous loop turn (doctrine #3: must not regress the 3
+validated FFE tests). ADVANCE: the deferred BACKLOG#3 now has an EXACT both-sides target (IY(ICYC+1)-1) for that
+session. Suite 6876/137.
+
+## 2026-07-05ttt — #28 snag-YRDEAD fix LANDED + re-cornered; 3 doctrine-#9 slacks exposed/tightened → campaign closed
+
+RE-TRACE (memory meta-lesson: re-verify "deferred" flags against SOURCE) found the #28 snag-YRDEAD fix had ALREADY
+LANDED since sss — `mortality.jl:503 yrdead = yr + Int(fint) - 1` (cycle-END−1). The landed solution is CLEANER than
+sss predicted: instead of reworking the report formula, it SPLIT the two clocks — `SnagList.year` stays the cycle-
+START fall-clock (bit-exact StandDead falldown preserved) and `SnagList.yrdead` carries the TRUE FVS death year for
+the hard→soft classification ONLY. Fall-age gate uses `year` (snag.jl:259), report split uses true `yrdead` with the
+iyr−1 report-lag (snag.jl:421), salvage uses true `yrdead` (snag.jl:540). Result: 1995 split BIT-EXACT (35.8h/6.9s),
+2000 jl 44.567h/3.460s vs live 44.8/3.3, 2005 66.7h/4.3s (soft render-exact) — reclassified from wildly-inverted
+(pre-fix 2.9h/39.8s) to live-tracking. GRAND TOTAL density bit-exact every cycle. The coupled FFE suite (fire_carbon,
+test_fire, carbon_snt, longrun) is all green ⇒ the dual-validation doctrine #3 demanded is satisfied.
+
+RE-CORNER of the residual (STALE verdicts in snag.jl:406-410 + test_carbon.jl:749-756 corrected — they still claimed
+"deferred fixable logic divergence" / "Fix = FVS's annual-loop YRDEAD accounting" which is now DONE): boundary dump at
+2000 shows every ordinary snag reports at a CLEAN INTEGER age=5 (all share yrdead=cycle-end−1), dcx is a species
+constant, and the classification `age ≥ dktime` is fully FVS-faithful (distributed dktime order + iyr−1 lag, live-
+validated HARD-flag dump). By ELIMINATION the ONLY input that can still differ from live is the snag's frozen death-
+time DBH `d` — grown-cycle accumulated. Exact flip boundary d=8.056 (dktime=age=5); jl's boundary cohorts sp65 d=7.9/
+8.0 sit 0.05-0.15″ below it (dktime 4.96/4.99, gap +0.01/+0.04). If `d` were bit-exact the split would be bit-exact
+(contradiction with the 0.233 residual) ⇒ the residual IS the grown-DBH Float32 accumulation floor — SAME permitted
+primitive as MYBA/MYSDI (test_dbs_compute) and the carbon-aboveground crown-timing. This RECLASSIFIES the last
+"non-primitive residual" (sss) as a PROPER primitive corner. No fixable logic remains.
+
+DOCTRINE-#9 SWEEP (expose-don't-hide) — 3 surviving green golden-match slacks found + resolved:
+  (1) test_carbon.jl:322 `abs(Above) <= 6 tenths` (0.6-ton crown deficit hidden as green) → cyc0 green `==` (bit-exact)
+      + grown cycles `@test_broken ==` (grown-cycle crown-ratio Float32 timing floor). +3 broken.
+  (2) test_growth.jl:171 `abs(TCuFt) <= 1` → measured 0 diff all cycles ⇒ tightened to green `==`.
+  (3) test_fire.jl:72 `abs(TCuFt) <= 1` → measured 0 diff all cycles ⇒ tightened to green `==`.
+All other surviving atols verified NON-golden: semantic invariants (≥0, [0,1] prob, conservation, BAMAX cap, "changed"
+assertions), F32-vs-F64 in-test-mirror floors (2f-6/6f-4, documented measured maxima, pure non-transcendental
+arithmetic), and print-half-width rendered matches (0.00005 = live F7.4 stamp resolution). No empirical golden-match
+green slack survives.
+
+TERMINAL STATE: suite 6873 pass / 140 broken / 0 fail / 0 error. Every remaining @test_broken is cornered to a
+PERMITTED primitive — eigensolver (COMPRESS s22 EIGEN/Jacobi), COR/ARMA serial-correlation (WK3/DGSCOR sp33-65),
+transcendental exp/log/pow, or the accepted accumulated-Float32-growth floor (grown-DBH/QMD/SDI: MYBA/MYSDI,
+snag hard/soft split, carbon aboveground crown-timing, estab_rng_d10) — each with a both-sides traced verdict.
+The doctrine-#9 invariant (green ⇔ bit-exact/rendered-==; @test_broken ⇔ documented primitive corner) now HOLDS
+suite-wide. Campaign complete → docs/TOLERANCE_COMPLETE written.

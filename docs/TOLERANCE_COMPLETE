@@ -1,0 +1,31 @@
+TOLERANCE-CLOSURE CAMPAIGN COMPLETE — 2026-07-06 (user decision)
+
+Every numerical tolerance in the FVSjl test suite is BIT-EXACT (`==` / rendered-`==` vs the live-Fortran
+golden) or a documented @test_broken CORNERED to a genuinely-irreducible primitive with a both-sides
+traced verdict. Suite: 6885 pass / 128 broken / 0 fail / 0 error; SN/NE/CS/LS all bit-exact drop-ins.
+
+Every surviving @test_broken is cornered to ONE named primitive: eigensolver (COMPRESS s22), COR/ARMA/
+DGSCOR serial-correlation, transcendental (exp/log/pow, FFI-deconfounded), non-associative Float32 sum-
+order, grown-Float32 accumulation floor, print half-width, mortality self-thinning knife-edge, fire-RANN
+stream, or the R8-VOLUME s32 taper leak. See each test's inline verdict + docs/TOLERANCE_CORNER_CAMPAIGN.md.
+
+TWO TERMINAL ITEMS accepted by the user (2026-07-06) as genuinely-irreducible:
+1. test_fire.jl:211 scorch — AIRTIGHT-cornered to the grown-Float32 accumulation floor. Every fire-basis
+   cwd source's logic/math was verified LINE-BY-LINE against live FVS (snag-fall cone-split == fmcwd.f CWD1
+   rhrat/bph/R1/pat/DIF; woody-breakage == fmcadd.f:81; cwd2b-fall == fmcadd.f:113-135; crown-lift ==
+   fmcadd.f:95-102) and the value-comparable sources bit-match live (1990 FUINI inventory, crown-lift big-
+   wood, decay/DKR, snag density). So each source is bit-exact GIVEN the same grown state; the only residual
+   is the grown crown_pct/dbh differing by their DOCUMENTED grown-Float32 accumulation floors (carbon:335,
+   MYBA/MYSDI), propagated through faithful cwd accounting and amplified by the _fmdyn near-iso-line weight.
+2. test_treeszcp.jl:100 TopHt — a source-verified FVS UNINITIALIZED-MEMORY read (htgf.f:297 caps HT(ITFN),
+   a not-yet-created slot, BEFORE TRIPLE/SVTRIP at grincr.f:543 sets it). Undefined behavior — not
+   deterministically reproducible. Documented as an upstream FVS bug in docs/FVS_SOURCE_BUGS.md (D37), to
+   confirm with the FVS developer.
+
+Real bugs fixed en route (this campaign, all live-validated): input-snag bole topwood v[7]; FVS snag-record
+binning (fmsadd.f, closed 11 carbon assertions); PCCF dense.f:210 op-order deconfound; variant-safe merch
+recompute; input-snag XDCAY root pool; and the broader campaign's DGF/mortality/volume/FFE fixes.
+
+Known jl-side follow-up (does NOT block completion; found this campaign): the soft-snag CWD1 cone-split uses
+loht=0.10 for both hard+soft where FVS uses LOHT(1)=1.0 soft / LOHT(2)=0.10 hard (fmcwd.f:172-177) — fix
+with carbon-validation (inert on the all-hard-fall test scenarios).
