@@ -1165,3 +1165,26 @@ change must hold ALL pillars, not just the suite. Re-verified against the actual
   no `Any`/boxing. **Pillar 1** was already green (37628/140/0 + live-validated DDW) at S78.
 Conclusion: #73 is a clean all-pillar landing. No pillar regressed. (Also re-confirmed the campaign's Pillar-3
 done-state currently holds under true 8-thread concurrency across all 4 variants, on the current tree.)
+
+## Slice S82 — #100 REOPENED + ROOT-CAUSED: LS simfire mortality scorch-height uses too-low flame (NOT cornered) [2026-07-08]
+The user directed pursuing the #100 smoking gun; it OVERTURNED the S80 "cornered RANN-tie" verdict — #100 is a
+STRUCTURAL bug. Debug-FVS per-tree instrumentation (fmeff.f ZZT dump of I/DBH/HT/CR/SCH/CSV/PMORT + fmburn.f
+ZZS dump of the scorch params; separate /tmp/FVSls_dbg binary, oracle + source restored pristine after,
+verified by a clean relink reproducing 505→220):
+- The fire kill is DETERMINISTIC (all 243 tripled records burn, curkil=PMORT·TPA; no stochastic XRAN
+  exclusion), so it is NOT a RANN-tie. The S80 knife-edge hypothesis was wrong (I never confirmed PSBURN<100;
+  it is effectively 100 here — every tree burns).
+- Diffing all 243 per-tree PMORT jl-vs-FVS: EXACTLY 9 trees diverge, ALL DBH∈[1.02,1.08], Σ(ΔPMORT·TPA)=5.85 TPA
+  = the entire ~5 TPA under-kill. For those trees HT (9.7–9.9) and CR (53) are BIT-IDENTICAL jl==FVS, but CSV
+  (crown-volume-scorched) is FVS≈70–77 vs jl 0 ⇒ FVS PMORT 0.494 vs jl 0.419.
+- CSV=0 in jl because the SCORCH HEIGHT fed to `crown_volume_scorched` is jl sch=3.126 vs FVS SCH=7.093. ATEMP
+  (50) and FWIND (1.0) match; the difference is the FLAME: FVS scorch uses FLAME=2.247 (→BYRAM 32.985 BTU/ft/s
+  →SCH 7.093), jl uses flame=1.305 (→b 10.13→sch 3.126). FVS's FMEFF *report* flame is 1.2426 (≈jl's 1.305), so
+  FVS uses a HIGHER, SEPARATE flame for the mortality SCORCH (fmburn.f:472 recomputes BYRAM from a flame of
+  2.247) than for the FMEFF logistic — jl uses ONE (low) flame for both. That under-scorches short trees whose
+  crown base (HT−CRL≈4.6 ft) sits between jl's sch (3.13) and FVS's (7.09).
+ROOT CAUSE: jl's fire-mortality scorch height is computed from too low a flame. FIX (next slice): source the
+scorch flame the way fmburn.f does (the higher scorch/uphill flame, ~2.247), not the surface/report flame.
+Task #100 corrected from "cornered" to "structural, root-caused, fix pending flame-source trace". META: the
+S80 "cornered" verdict was PREMATURE — the smoking gun (user's call) proved it a real bug. Re-trace discipline:
+never bank a "cornered" label without the per-tree proof.
