@@ -231,9 +231,28 @@ uniformly **~+0.10 higher** (mean +0.0998, relative ~25%). Ruled OUT (measured):
 
 **SA divergence magnitude:** modest (2–4% mid-projection, 6.5% terminal TPA) on one stand; not floor-blocking.
 
+### Slice 1m — SA(sp6) ALL 8 dgf coefficients verified == FVS; narrowed to multi-point point-BAL input
+Read FVS dgf.f DATA arrays, species-6 (SA) value == the CSV for **every** term:
+INTERC −1.641698, LDBH 1.461093, DBH2 −0.002530, LCRWN 0.265872, ISIO 0.006851, HREL 0.069104,
+PLTB(stand_ba) −0.002939, PNTBL(point_bal) −0.004873. **NOT a coefficient error** — extraction is correct.
+Combined with site/phys/fortype/clamp all matching, the SA +0.10 DDS offset is a **stand-level INPUT** for
+this stand, not the equation constants. 
+- Prime suspect: **point-BAL** (`point_bal·pbal`, pbal = point-BA-in-larger × (1−cr/100)). This stand is a
+  **dense multi-point FIA plot** (BA 112, 579 TPA); per-point PTBAA is the known harder multi-point-density
+  area (cf. the modernization TCONDMLT/pccf per-point notes — jl faithful single-point, deferred multi-point).
+  A per-point vs stand-point pbal difference × −0.004873, amplified by density, plausibly yields the +0.10.
+- Secondary: `stand_ba·ba_v` (but cyc0 BA is bit-exact 112, so ba_v matches) or `rel_ht·(height/avh)`.
+- Both-sides trace needed: dump FVS pbal (PTBAA per point) vs jl's for the SA trees; confirm the multi-point
+  point-density path. If it's the multi-point PTBAA, this is a shared-density-model slice, not SN-specific.
+
+**SA verdict:** NOT a coefficient bug; a stand-level competition-input divergence on dense multi-point FIA
+plots — the campaign's 2nd substantive open item (modest magnitude, likely a multi-point density model slice).
+
 ## TODO
-- [ ] NEXT: CSV-vs-FVS-blkdat diff of SA(sp6) dgf coefficients (dgf.f:399 DATA INTERC + b-arrays) — find the
-      wrong term. If a coeff is off, one-line CSV fix; re-diff + full suite.
+- [ ] NEXT: trace point-BAL (PTBAA per-point) FVS vs jl on 1152014752290487 — the SA +0.10 competition input.
+      Likely the multi-point density model (shared engine), not a SN coefficient.
+- [ ] Forest-type derivation: the YP −0.089 tail (separate stand).
+- [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 stratified manifest.
 - [ ] Forest-type derivation: still a candidate for the YP −0.089 tail (separate stand); trace fortyp.f vs jl.
 - [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 stratified manifest.
 - [ ] Residual: forest-type derivation for FIA stands (jl 503→upok −0.0907 vs FVS) — the −0.089 DDS tail;
