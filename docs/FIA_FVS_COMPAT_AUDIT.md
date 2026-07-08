@@ -340,6 +340,23 @@ calibration OVER-FITTING loblolly's COR. NOT root-caused: 5 attributions tried &
 ratio-vs-percentile, backdating "2×", growth_idg, wrong-instrument-segment). The fix needs the calibration-
 FIT both-sides trace above, done carefully in a fresh pass. I deliberately shipped NO speculative fix here.
 
+### Slice 7 — ★★ FIXED (systematic): FIA reader didn't set `growth_dg_set` ⇒ DG calibration un-normalized by FINT
+ROOT CAUSE (clean, both-sides): FVS_STANDINIT_COND provides `DG_TRANS`(=1) + `DG_MEASURE`(=9yr). The FIA reader
+set `growth_idg=1` and `growth_fint=9` from them, but NOT `growth_dg_set` — which `simulate.jl:47` gates the
+`dgscale = YR/FINT` normalization on (`growth_dg_set ? yr/dfint : 1`). So dgscale stayed 1, the 9-yr observed
+DG increment was NOT normalized to the model's 5-yr period in the DGSCOR self-calibration ⇒ observed DDS ~1.8×
+too high ⇒ loblolly COR over-fit to 0.9777 (exp 2.66×) vs FVS's fort.13 (CALBSTAT) raw scale 1.411.
+**FIX** (`fia_database.jl`): set `growth_dg_set=true` when DG_TRANS/DG_MEASURE present. Then dgscale=5/9,
+LP COR 0.9777→0.3442 (exp 1.411 == FVS raw), and the loblolly stand `.sum` goes from jl 944/200 @1995
+(24% TPA low, 8% BA high) to **jl 1233/186 == live 1234/185 (Δ1 unit, ULP-class) at EVERY cycle**.
+**Floor held 38527/143/0** (curated tests use kw_growth!, unaffected). SYSTEMATIC — every FIA measured-DG stand.
+Re-sweeping SN-1000 to quantify the pass-rate lift (was 566/820=69%).
+
+★ This is the campaign's SECOND broad fix (after eco_unit), and vindicates the user's "jl-high = fix, not
+ULP" call. The long error-prone trace (5 retracted attributions) finally resolved once I (a) used FVS's own
+CALBSTAT output as the both-sides anchor and (b) found the actual call-site gate (`growth_dg_set`), not more
+Julia per-tree reconstruction. Meta-lesson reinforced: anchor on the `.sum` + FVS's reported values.
+
 ### Slice 6 — BOTH-SIDES GROUND TRUTH (via CALBSTAT, no source edit): FVS loblolly calib = 0.879, jl = 2.66×
 Used the **CALBSTAT keyword** (clean — writes per-species calibration to `fort.13`, no instrumentation).
 FVS loblolly (sp13) large-tree DG calibration: `CAL: LD 13 LP 12 1.411 0.713 0.879` — **12 measured trees,
