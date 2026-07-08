@@ -616,3 +616,24 @@ maple, 541 white ash, 371, 71, 543). jl `crown_width` used at standstats.jl:193/
 - [ ] Scale the multi-cycle differential: larger SN sample + NE/CS/LS (Pillar 1 manifest feeds this).
 - [ ] Build the stratified per-variant plot manifest (Pillar 1).
 - [ ] Management-scenario differential on real plots (Pillar 3).
+
+---
+## SLICE 9 — NE-100 multi-cycle sweep (first NE cross-variant pass rate)  [2026-07-08]
+First NE FIA multi-cycle differential (100 real NE stands from SQLITE_FIADB_ENTIRE.db VARIANT='NE',
+indexed sub-DB `ne100.db`, 5 cycles × 10yr native = 50yr horizon).
+
+**Result: 85/94 BIT-EXACT (90%)** (100 run, 94 produced .sum, 6 live-FVS-NOSUM = live itself can't
+project them, not a jl bug; JLERR=0 ⇒ the `_fia_num` text-numeric fix carried over to NE).
+Worst-rel histogram (all 94): <1%:91, 1-2%:2, 2-5%:1, 5-10%:0, >10%:0 ⇒ **97% within 1%, NO heavy tail.**
+Mean |rel diff| by cycle ≤0.03% on every column/cycle.
+
+**Divergence taxonomy (9 failures, all CORNERED — ULP/straddle-class):** signature.jl first-diverge:
+7/9 = TPA ±1-2 trees on high-density (2.5k-13k stem) stands (=0.01-0.08%); 1 = TopHt ±1ft (82/83);
+1 = SDI ±1 (259/258). Worst stand 233164158020004 "2.5%" fully traced: 2013 bit-identical (10032 TPA),
+2023 seedling self-thin 10032→2535 lands TPA 2533/2535 (Δ2=0.08%), BA identical (227) ⇒ QMD=√(BA/TPA/k)
+tips the 1-decimal print boundary 4.0↔4.1 = "2.5%". A ±2-tree mortality straddle amplified by low-precision
+QMD print — NOT a logic gap.
+
+**NE verdict:** no systematic NE bug; reached 90% WITHOUT the SN-gated eco_unit/EUT term (NE dgf differs).
+The two variant-agnostic FIA-reader fixes (growth_dg_set FINT-normalization + _fia_num) generalize cleanly.
+Remaining 10% = the same Float32-compounded straddle class cornered for SN. Floor intact 38527/143/0.
