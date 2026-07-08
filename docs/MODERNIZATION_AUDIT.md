@@ -3,6 +3,19 @@
 Goal + doctrine: `docs/MODERNIZATION_GOAL.md`. Tick each slice only when **bit-exact re-verified
 (suite green)** AND the pillar metric is recorded. Baseline floor = tolerance-campaign end state.
 
+## S98 — NE StandDead/DDW residual RIGOROUSLY CORNERED (#103 closed; state-split refuted)
+The ne_firecarb StandDead residual (SD +0.5/+1.0, DDW −0.4, carbon ~conserved = a snag↔down-wood
+*partition* at rounding-scale) is **faithfully cornered to a named primitive**, NOT a fixable bug:
+- **Params verified vs `ne/fmvinit.f`**: jl NE HTR1=0.015, HTR2=0.01, HTXSFT=2.0, HTX(·)=1.0 (S96) all
+  == fmvinit.f:115-1221. Height-loss rate/regime is faithful — no divergence there.
+- **State-split (#103) refuted** (doctrine #9 re-trace of fmsnag.f): DENIH/DENIS are the *initially*-
+  hard/soft populations FIXED at creation (fmsnag.f:38-41; both init=HTDEAD at fmsadd.f); they don't
+  transition. Every ordinary+fire snag is all-hard → uses only HTIH → jl's single `htcur` already
+  matches. Splitting `htcur` into hard/soft would change nothing for these snags.
+- **Same class as the ACCEPTED SN residual**: scale/shape == the SN carbon_snt StandDead Δ0.7 rounding-
+  scale residual (snag bole-carbon / snag↔DDW partition). Cornered on SN (accepted), cornered on NE
+  (@test_broken S97, bounded ≤1.5). #103 resolved: no code change; the state-split refactor is shelved.
+
 ## Baseline (measured — fill as established)
 - **Suite:** ✅ floor intact. Baseline **6885/128/0** → **6889** (+4 pillar-3 `test_parallel.jl`) →
   **7037/128/0** (+148 pillar-1 `test_kwcov_variants.jl`, 4 NE scenarios × 37 col/row assertions). All +
