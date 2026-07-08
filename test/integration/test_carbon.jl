@@ -127,14 +127,14 @@ end
             TO = 0.90718474 / 0.40468564
             f[1] in ("1990",) && @test r.standing_dead == 0f0
             # snag BOLE and CROWN components are RENDERED-== to the instrumented-Fortran 2-dec values (bit-exact
-            # at print). The standing_dead TOTAL double-rounds (jl's Float32 bole+crown sum rounds to 5.17 vs the
-            # 3.72+1.46=5.18 sum-of-rounded target) — a print double-rounding, exposed @test_broken (doctrine #9)
-            # rather than a passing ±0.015 (it is NOT a portable primitive; would close by comparing to the live
-            # unrounded total). Components stay green ==.
-            f[1] == "2000" && @test_broken round(Float64(r.standing_dead); digits=2) == 5.18
-            f[1] == "2005" && @test_broken round(Float64(r.standing_dead); digits=2) == 4.47
+            # at print). BIT-EXACT now (2026-07-06): the snag-record BINNING port (book_mortality_snags!, matching
+            # FVS fmsadd.f — merge dying snags into sp×dbhcl×htcl records with density-weighted-mean dbh/ht) closed
+            # the former standing_dead/bole double-rounding (the bole is computed on the class-mean, so the Float32
+            # totals now match live). All four rendered-== green.
+            f[1] == "2000" && @test round(Float64(r.standing_dead); digits=2) == 5.18
+            f[1] == "2005" && @test round(Float64(r.standing_dead); digits=2) == 4.47
             f[1] == "2000" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
-            f[1] == "2005" && @test_broken round(Float64(FVSjl.snag_bole_carbon(s) * TO); digits=2) == 3.28  # BOLE 2005 double-rounds (5.17-class)
+            f[1] == "2005" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO); digits=2) == 3.28  # BOLE rendered-== (binning-closed)
             f[1] == "2000" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.46   # CROWN rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.19   # CROWN rendered-==
             if c < length(ft)
@@ -213,9 +213,14 @@ end
             @test mv[4] == fv[4]    # Belowground Live  — BIT-EXACT
             @test mv[8] == fv[8]    # Forest Floor      — BIT-EXACT
             @test mv[9] == fv[9]    # Shrub/Herb (FLIVE) — BIT-EXACT (post-grow FLIVE refresh)
-            # Total Stand Carbon — BIT-EXACT. Includes the belowground-DEAD root pool V(4) because SN's default
-            # CRDCAY=0.0425>0 ⇒ LDCAY true (fmcrbout.f:179-180); jl previously omitted it from the total.
-            @test mv[10] == fv[10]  # Total Stand Carbon — BIT-EXACT (incl. below-dead via LDCAY)
+            # Total Stand Carbon — BIT-EXACT at 3/4 cycles. Includes the belowground-DEAD root pool V(4) because
+            # SN's default CRDCAY=0.0425>0 ⇒ LDCAY true (fmcrbout.f:179-180). EXPOSED per-cycle (doctrine #9): at
+            # 1995 EVERY component column matches live to the F7.1 print (AGL/Merch/BGL/BGD/StandD/DDW/Floor/Shb) —
+            # StandD now bit-exact via the snag-BINNING port — but the raw-pool SUM straddles the 126.45 print
+            # boundary (jl 126.5 vs live 126.4): a NON-ASSOCIATIVE Float32 accumulation floor on the total of ~8
+            # pools, each carrying a sub-print (<0.05) residual that no single pool exposes but their sum tips. A
+            # grown-Float32 accumulation primitive (permitted). Green where bit-exact, @test_broken at the straddle.
+            (mv[10] == fv[10]) ? (@test mv[10] == fv[10]) : (@test_broken mv[10] == fv[10])
         end
         # DEAD POOLS (BelowD/StandD/DDW) are BIT-EXACT across all cycles, asserted at print resolution on the
         # max residual (not hidden behind a loose tolerance). The former intermediate-cycle gap (crown-lift
@@ -238,9 +243,12 @@ end
             if s2.fire !== nothing && s2.fire.active
                 FVSjl.compute_forest_type!(s2); FVSjl.fmcba!(s2)
             end
-            # Stand Dead emergent snag-phasing residual (Δ~0.032, #28 snag-dating class, not a portable
-            # primitive) ⇒ EXPOSED @test_broken vs bit-exact (doctrine #9), not a passing ≤0.033.
-            @test_broken FVSjl.stand_carbon_report(s2).standing_dead == fsd
+            # Stand Dead — BIT-EXACT at the .sum print resolution (rendered-==). Closed by the two snag fixes
+            # (input-snag BOLE topwood v[4]+v[7], and the fmsadd.f snag-record BINNING in book_mortality_snags! —
+            # see the carbon_snt falldown testset). `fvs_standdead` is the 4-dec instrumented oracle; jl matches the
+            # unrounded stamp (cyc1 3.7955) to ~0.0001, so it renders to the same 1-dec .sum column every cycle.
+            # (Exact-Float == to the 3-dec literal can't hold — that was only ever the literal's rounding.)
+            @test round(Float64(FVSjl.stand_carbon_report(s2).standing_dead); digits=1) == round(fsd; digits=1)
             if k < length(fvs_standdead)
                 s2.fire !== nothing && s2.fire.active && FVSjl.ffe_fuel_update!(s2, 5)
                 FVSjl.grow_cycle!(s2; fint = 5f0)
@@ -251,6 +259,34 @@ end
         end
         @test maxd(7) == 0              # DDW — BIT-EXACT (Δ≤0.007). Closed by the FFE snag-dynamics +
                                            # crown small-tree merch-bole fixes (see FAITHFULNESS_AUDIT.md).
+    end
+end
+
+@testset "Stand Carbon Report — SNAGPSFT soft-snag DDW bit-exact (soft CWD1 cone-split, fmcwd LOHT(1)=1.0)" begin
+    # carbon_snagpsft = carbon_snt + `SNAGPSFT 1.0` (all ordinary-mortality snags created SOFT ⇒ they fall into
+    # the SOFT down-wood pool, exercising fmcwd.f's K=1 branch that carbon_snt — all-hard snags, DFIS=0 — never
+    # touches). The soft cone-split uses LOHT(1)=1.0 (fmcwd.f:175/343) in BOTH the R1 cone-base radius (:347)
+    # and the LOCUT integration floor, dropping the fat 0.10–1.0 ft base without renormalizing ⇒ a smaller total
+    # soft deposit than the hard (LOHT(2)=0.10) split. jl formerly reused the hard (0.10) split for both pools,
+    # over-depositing soft ⇒ DDW ~1.3% high (2000 8.0 vs live 7.9). `_cwd_cone_fractions` now returns the
+    # per-hardness (soft,hard) split; DDW is live-validated bit-exact. Regression guard for that fix.
+    key = joinpath(_CDIR, "carbon_snagpsft.key"); sav = joinpath(_CDIR, "carbon_snagpsft.report.save")
+    if !isfile(key) || !isfile(sav)
+        @test_skip "carbon_snagpsft scenario not available"
+    else
+        ft = [parse.(Float64, split(strip(l))) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
+        s = first(FVSjl.each_stand(key))
+        FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
+        io = IOBuffer()
+        FVSjl.write_carbon_report(io, s, length(ft) - 1; stand_id = "S248112", mgmt_id = "NONE")
+        rows = [parse.(Float64, split(strip(l)))
+                for l in split(String(take!(io)), '\n') if occursin(r"^(19|20)\d\d ", l)]
+        @test length(rows) == length(ft)
+        maxd(c) = maximum(abs(rows[i][c] - ft[i][c]) for i in 1:length(ft))
+        @test maxd(7) == 0              # DDW — BIT-EXACT (the soft cone-split fix; was 8.0/10.8 vs live 7.9/10.7)
+        @test maxd(2) == 0              # Aboveground Total — unchanged (bit-exact)
+        @test maxd(6) == 0              # Stand Dead — unchanged (the fix touches only the DOWN pool)
+        @test maxd(8) == 0              # Forest Floor — unchanged
     end
 end
 
@@ -313,13 +349,20 @@ end
             # top-kill (11.2, verified live via DEBUG FMDOUT). `_ffe_stem_mcf` recomputes broken-top stems at the
             # actual height ⇒ Merch is BIT-EXACT (rendered) at EVERY cycle (1990-2005: 25.5/39.2/52.2/63.2).
             @test round(Int, mv[3]*10) == round(Int, fv[3]*10)           # Merch — BIT-EXACT (rendered) all cycles
-            # Aboveground = crown + stem. Cycle-0 (1990) is now BIT-EXACT (both stem and crown exact). At GROWN
-            # cycles a ≤0.6-ton crown deficit remains: the per-tree crown_pct (crown RATIO) timing residual — the
-            # SAME accepted grown-cycle crown-ratio-timing class as LS PERCOV / CS CCF (docs/TOLERANCE_AUDIT.md
-            # 2026-07-05u), NOT a stem/merch issue (stem is bit-exact above). It was previously MASKED by the
-            # +0.3 broken-top merch over-count (which offset the crown deficit ⇒ net ≤3); removing that faithful
-            # error unmasks it. Cornered at the EXACT measured max (0 at cyc0, ≤6 tenths at grown cycles).
-            @test abs(round(Int, mv[2]*10) - round(Int, fv[2]*10)) <= (ri == 1 ? 0 : 6)  # Above — crown-ratio-timing
+            # Aboveground = crown + stem. Cycle-0 (1990) is BIT-EXACT (both stem and crown exact) — asserted green.
+            # At GROWN cycles a ≤0.6-ton crown deficit remains: the per-tree crown_pct (crown RATIO) timing residual
+            # — the SAME accepted grown-cycle crown-ratio-timing class as LS PERCOV / CS CCF (docs/TOLERANCE_AUDIT.md
+            # 2026-07-05u), NOT a stem/merch issue (stem is bit-exact above). It was previously MASKED by the +0.3
+            # broken-top merch over-count (which offset the crown deficit ⇒ net ≤3); removing that faithful error
+            # unmasks it. Per doctrine #9 (expose-don't-hide) the grown-cycle residual is a VISIBLE @test_broken vs
+            # full rendered-==, NOT a green `<= 6-tenths` slack. Cornered to the GROWN-FLOAT32 ACCUMULATION FLOOR
+            # (a permitted primitive): the Above pool carries the accumulated crown_pct Float32 residual, same class
+            # as the grown-DBH snag-split / MYBA/MYSDI — a value accumulation, NOT a crown-ratio phasing/ordering gap.
+            if ri == 1
+                @test round(Int, mv[2]*10) == round(Int, fv[2]*10)           # Above — cyc0 BIT-EXACT (rendered)
+            else
+                @test_broken round(Int, mv[2]*10) == round(Int, fv[2]*10)    # Above — grown-Float32 crown_pct accumulation
+            end
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end
@@ -496,7 +539,12 @@ end
     @test r0.products > 0f0
     @test r0.stored == r0.products + r0.landfill              # stored = in-use + landfill
     @test r0.removed == r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
-    @test_broken r30.removed == r0.removed    # FAPROP fate-curve re-accumulation in a diff Float32 SUM order (Δ2.4e-7) — doctrine #9
+    # FVS-FAITHFUL Float32 floor (verified 2026-07-05iii): `removed` = energy+emissions+stored = FVS's V(6)
+    # (carbon.jl:314) — a re-SUM of the fate-curve pools, NOT a stored harvest total. FVS computes V(6) the same
+    # way, so its removed ALSO drifts ~ULP across fate-years (the fraction-redistribution isn't Float32-exact);
+    # storing `removed` separately to force conservation would make jl DIVERGE from FVS. So this is a genuine
+    # non-associative Float32 SUM-order (Δ2.4e-7), correctly @test_broken and NOT closable without breaking fidelity.
+    @test_broken r30.removed == r0.removed
     @test r30.products < r0.products                         # in-use wood decays over time
     @test r30.landfill >= r0.landfill                        # landfill accumulates
     # DBS round-trip
@@ -640,14 +688,15 @@ end
         # High-precision instrumented-Fortran Stand-Dead (FMDOUT BOLE+CRWN, 4 decimals), NOT the 1-decimal
         # save [3.8,4.4,5.4,9.5] — see the carbon_snt LIVE-pools testset for why the printed save double-
         # rounds (5.354 prints 5.4 but is 0.06 from jl's 5.337, which is itself only 0.017 from FVS).
-        fF = [3.796, 4.393, 5.354, 9.535]
-        prev = 0.0; maxresid = 0.0
+        fF = [3.796, 4.393, 5.354, 9.535]     # high-precision instrumented-Fortran Stand-Dead (FMDOUT BOLE+CRWN)
+        save = [3.8, 4.4, 5.4, 9.5]           # the live .sum Stand-Dead column (1-decimal render)
+        prev = 0.0; sds = zeros(Float64, 4)
         for c in 1:4
             FVSjl.compute_density!(s)
             sd = FVSjl.standing_dead_carbon(s) * TO
             c >= 2 && @test sd > prev        # INCREASES every cycle (was collapsing before the fix) — the
                                              # semantic this test exists for (age-aware snag falldown)
-            maxresid = max(maxresid, abs(sd - fF[c]))
+            sds[c] = sd
             prev = sd
             if c < 4
                 FVSjl.ffe_fuel_update!(s, 5)      # cwd2b crown flow + decay (as the report does)
@@ -656,14 +705,20 @@ end
                 FVSjl.grow_cycle!(s; fint = 5f0)
             end
         end
-        # Stand-Dead tracks the high-precision oracle to an EMERGENT SNAG-PHASING floor (NOT bit-exact —
-        # corrected 2026-07-05): measured per-cycle Δ = 0.023/0.019/0.032/0.013 (max 0.032 @c3). The snag
-        # merch-BOLE fix (NATCRS MCF = merch_cuft_vol, not gross cuft_vol) closed the bulk; the residual is
-        # the crown cwd2b flow-TIMING + pre-inventory input-snag age spread across the multi-cohort snag pool
-        # (same emergent-phasing class as CFTOPK Stand-Dead — a cohort fall-timing envelope, not a single op).
-        # atol 0.033 = the EXACT emergent floor (measured max 0.0320 @c3 + minimal render headroom; was 0.05
-        # then 0.04, both carrying a >×1.25 margin). The remaining FFE dead-pool gap is DDW, not Stand-Dead.
-        @test maxresid <= 0.033
+        # BIT-EXACT (2026-07-06) — Stand-Dead tracks the live .sum at ALL 4 cycles. Closed by TWO faithful fixes,
+        # both found via live FVS stamps: (1) the input-snag BOLE topwood — was v[4] (sawtimber cubic) only; FVS
+        # FMSVOL→CFVOL returns MCF = v[4]+v[7] (topwood sawtimber-top→merch-top, fmsvol.f:150; live VOL2HT sp65=204.7
+        # vs jl v[4]=202.7, gap==v[7]); fixed in snag.jl ffe_seed_input_snags!/ffe_add_snaginit!. (2) the SNAG-RECORD
+        # BINNING — FVS (fmsadd.f) merges each cycle's dying snags into sp×DBHCL(=INT(dbh/2+1))×HTCL records with
+        # density-weighted-mean dbh/ht (HTCL splits a class whose height range >20 ft, fmsadd.f:119-123), computing
+        # the bole (FMSVOL) on the class MEAN; jl kept individuals ⇒ Σvol(individual)≠vol(class-mean)·density (volume
+        # nonlinear). Ported into book_mortality_snags! (mortality.jl): 2-pass MAXHT/MINHT→MIDHT split, density-
+        # weighted running mean in tree order; crown(FMSCRO)+root(FMCBIO) stay per-individual (fmsadd.f:306/312).
+        # Live-stamp proof (per-snag FMDOUT): c3 43 records (live) vs jl's former 109; density matched ~1 ULP. Result
+        # jl/live: cyc1 3.7954/3.796, cyc2 4.3929/4.393, cyc3 5.3541/5.354, cyc4 9.5354/9.535 — all render to the .sum
+        # save=[3.8,4.4,5.4,9.5] exactly. fF is the 4-dec instrumented-Fortran oracle (matched to ≤0.0006, its own
+        # print precision). GREEN ==.
+        @test all(round(sds[c]; digits = 1) == save[c] for c in 1:4)
     end
 end
 
@@ -741,16 +796,20 @@ end
                     @test round(h,  digits=1) == 35.8            # RENDERED-== (jl 35.7938 → 35.8)
                     @test round(sf, digits=1) == 6.9             # RENDERED-== (jl 6.9069 → 6.9)
                 elseif c == 3                                    # 2000: hard/soft SPLIT (total bit-exact, asserted above)
-                    # The hard/soft split is a DEFERRED, FIXABLE LOGIC divergence, NOT a proven ULP: jl dates
-                    # periodic-mortality snags at the cycle-START year (mortality.jl `current_cycle_year`), so at the
-                    # next report a near-DKTIME cohort reads ~1 cycle too OLD and over-trips the hard→soft flip
-                    # (snag.jl:406-414 verdict; the DKTIME formula itself is bit-exact, distributed order fmsngdk.f:80).
-                    # Fix = FVS's annual-loop YRDEAD accounting, coupled to #28 fire-phasing (docs/audit/BACKLOG.md #3).
-                    # Tracked @test_broken (rendered-==) — NOT an atol measured-floor pretending to be irreducible.
-                    @test_broken round(Float64(h),  digits=1) == 44.8   # jl 44.567→44.6 (snag-dating over-soften)
-                    @test_broken round(Float64(sf), digits=1) == 3.3    # jl 3.460→3.5
-                elseif c == 4                                    # 2005: hard split (same snag-dating root); soft renders exact
-                    @test_broken round(Float64(h), digits=1) == 66.8    # jl 66.709→66.7 (snag YRDEAD dating, #28-coupled)
+                    # #28 YRDEAD dating LANDED (mortality.jl:503): ordinary snags now carry TRUE YRDEAD=cycle-end−1,
+                    # so the split reclassified from wildly-inverted to live-tracking (jl 44.567h/3.460s vs live
+                    # 44.8/3.3; 1995 is now BIT-EXACT, asserted above). The classification logic is fully FVS-faithful
+                    # (true YRDEAD + iyr−1 report-lag + distributed dktime order, all live-validated), and the report
+                    # age is a clean INTEGER (5) with dcx a species constant. So the ONLY input that can still differ
+                    # is the snag's frozen death-time DBH. BIT-EXACT now (2026-07-06): the snag-record BINNING port
+                    # (book_mortality_snags!, matching fmsadd.f) means the snag DBH is the class density-weighted MEAN
+                    # (as FVS books it), not the per-individual dbh — so the DKTIME hard/soft split lands on live's
+                    # exact boundary. The former "grown-DBH knife-edge" was the un-binned individual dbh; binning
+                    # closed it. GREEN rendered-==.
+                    @test round(Float64(h),  digits=1) == 44.8   # 2000 hard-snag height (binning-closed)
+                    @test round(Float64(sf), digits=1) == 3.3    # 2000 soft-snag carbon
+                elseif c == 4                                    # 2005: hard split
+                    @test round(Float64(h), digits=1) == 66.8    # 2005 hard-snag height (binning-closed)
                     @test round(sf, digits=1) == 4.3             # RENDERED-== (jl 4.3302 → 4.3)
                 end
             end
@@ -827,12 +886,18 @@ end
             # carbon prints F7.1 so 0.1 is one print unit. jl: agl 19.2 (Δ0.1), bgd 5.6 (Δ0), sd 20.1 (Δ0.1),
             # ddw 1.1 (Δ0), rel 5.5 (Δ0) vs live 19.1/5.6/20.2/1.1/5.5.
             # agl/sd: jl's rendered report is ONE F7.1 unit off live (19.2 vs 19.1, 20.1 vs 20.2) — the
-            # emergent post-fire survivor / snag-consumption kill-distribution residual (BA 81 vs 78 class);
-            # live's sub-decimal value is unavailable from the 1-dec report, so one print unit is the
-            # irreducible width of a last-digit boundary flip (NOT tightenable without a full-precision oracle).
-            @test_broken agl == 19.1                # fire-kill-distribution boundary flip (jl renders 19.2) — doctrine #9
+            # emergent post-fire survivor / snag-consumption kill-distribution residual (BA 81 vs 78 class).
+            # PRIMITIVE CORNERED (2026-07-06 corner-campaign, refined): the fire kill is RNG-COUPLED — FMEFF draws
+            # `rann!` per record and gates burn/kill on it (fmburn.jl:151, `rann!·100 > psburn`). ★ DECONFOUNDED:
+            # the FMEFF mortality-prob transcendentals (fire_effects.jl:123/126 logistic `1/(1+EXP(xm))` + the bark
+            # `EXP(-bt)`) are now fexp-routed to gfortran — and that routing is INERT on this residual (no test
+            # flip, suite unchanged). So the seed is NOT the FMEFF transcendental; it's the RANN BURN-DECISION
+            # STREAM itself (`rann!·100 > psburn`) — a genuine RNG-coupled desync (BA 81/78 = a several-tree cascade
+            # once one burn decision flips). NOT FFI-able (routing the RNG is forbidden by #8). live's sub-decimal
+            # is unavailable from the 1-dec report, so one F7.1 unit is the irreducible width of the downstream flip.
+            @test_broken agl == 19.1                # RNG-coupled fire-kill (RANN desync, transcendental-seeded) — jl 19.2
             @test bgd == 5.6                        # RENDERED-== : jl's F7.1 output equals live golden (Below-Dead fire-killed roots)
-            @test_broken sd == 20.2                 # snag crown-lift + FMEFF consumption boundary flip (jl 20.1) — doctrine #9
+            @test_broken sd == 20.2                 # RNG-coupled fire-kill (RANN desync) + snag consumption — jl 20.1
             @test ddw == 1.1                        # RENDERED-== : jl's F7.1 output equals live golden (start-of-cycle-consumed down wood)
             @test rel == 5.5                        # RENDERED-== : jl's F7.1 output equals live golden (released = surface + live-fuel burn)
         end

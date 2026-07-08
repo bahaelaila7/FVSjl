@@ -161,10 +161,10 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             dsng = loss * s.control.yardloss_prdsng
             if dsng > 0f0
                 idc = ffe_dkr_cls(s, sp)
-                frac = _cwd_cone_fractions(t.dbh[i], t.height[i])
+                (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
                 addH = fallvol * dsng
                 @inbounds for j in 1:9
-                    frac[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac[j])
+                    frac_h[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac_h[j])
                 end
             end
         end
@@ -509,7 +509,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     lbarea = ic == Int32(5) || ic == Int32(6)        # BBA, ABA to basal area
     jtyp = lbarea ? 2 : 1
     target, cuteff_p, dbhlo, dbhhi_p, htlo, hthi_p = act.params
-    cuteff = cuteff_p > 0f0 ? cuteff_p : 1f0
+    cuteff = cuteff_p > 0f0 ? cuteff_p : s.control.cut_eff   # blank ⇒ EFF (CUTEFF default; cuts.f:567 NPS>1 gate)
     target = max(0f0, target)
     # A blank upper bound (parsed as 0) means "no upper limit" — guard with ≤ so the
     # common sparse form (e.g. `THINBTA <yr> <tpa>`, blank dbhhi/hthi) selects all
@@ -859,7 +859,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     p = s.plot
     cw = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        sp2 = s.species.class_codes[t.species[i], 1][1:2]
+        sp2 = s.species.code2[t.species[i]]
         cw[i] = crown_width(s.coef, sp2, t.dbh[i], t.height[i],
                             Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
     end
@@ -1066,7 +1066,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         elseif ithnpa == 3
             w[i] = (d / 10f0)^1.605f0
         elseif ithnpa == 4
-            sp2 = s.species.class_codes[t.species[i], 1][1:2]
+            sp2 = s.species.code2[t.species[i]]
             cw = crown_width(s.coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
                              s.plot.latitude, s.plot.longitude, s.plot.elevation)
             w[i] = cw * cw

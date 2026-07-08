@@ -1,0 +1,70 @@
+# FVSjl per-variant coverage matrix
+
+Pillar-1 done-state deliverable: a documented per-variant coverage matrix showing that the
+**100% drop-in** claim is defensible for **SN + NE + CS + LS**, every exercised path validated
+**bit-exact (`==` vs freshly-relinked live FVS) or cornered to a named primitive**.
+
+Correctness floor (never regress): **37628 pass / 140 broken / 0 fail** (`julia --project=. test/runtests.jl`).
+The `broken` are the documented cornered set (ULP-class / FVS-UB / eigensolver-tie / accepted primitives).
+
+## Coverage by variant
+
+| Axis | SN | NE | CS | LS |
+|------|----|----|----|----|
+| **Cycle-0 inventory** (TPA/BA/SDI/CCF/TopHt/QMD/volumes) | bit-exact | bit-exact | bit-exact | bit-exact |
+| **Canonical multi-cycle** (`*t01`) | snt01 (+ FFE/sprout/estab/econ) | net01 | cst01 | lst01 (+estab/ffe/fire_sprout) |
+| **Growth spine** (DG/HTG/mortality/crown) | bit-exact¹ | bit-exact¹ | bit-exact¹ | bit-exact¹ |
+| **Isolated-keyword scenarios** (KCV harness) | via snt01/harness | **64** | **64** | **64** |
+| **Volume** (cuft/merch/saw + board) | bit-exact³ | bit-exact | bit-exact | bit-exact² |
+| **FFE fire/fuel/snag/carbon** | bit-exact-or-cornered | SIMFIRE bit-exact (KCV) | SIMFIRE cornered* | SIMFIRE cornered* + bit-exact (lst01_ffe) |
+| **FIA-DB reader** (real inventory) | bit-exact | bit-exact | bit-exact | bit-exact |
+| **FIA-DB, all 10 `.sum` cols, 162 real stands** | — | part of the 159/162 (7/10 cols perfect on all 162) | — | — |
+
+¹ bit-exact for uncalibrated species at the variant's native cycle length; the accepted residual is the
+  non-native-cycle-length DGSCOR drift (documented) and the cross-cutting WK3 DGSCOR tail.
+² LS board is Scribner OR International ¼" per national forest (S43 `_R9_INTL_BDFT_FORESTS`, `volinit.f`).
+³ SN saw/board is IFOR-aware incl. the North Carolina (IFOR=11) merch overrides (S69 `_sn_merch`,
+  setcubicdflts.f region-8) — bit-exact vs live on both default and NC forests.
+
+## KCV isolated-keyword coverage (NE/CS/LS — 64 each, `test/fixtures/kwcov/`, `test_kwcov_variants.jl`)
+
+Each = the variant's canonical tree data + ONE isolated keyword, validated bit-exact-or-cornered vs live:
+
+baimult · bamax · bfdefect · bfvolume · compress · compute · crnmult · cuteff · cycleat · dgstdev · estab · eventmon · fertiliz · fixhtg ·
+fixdg · fixmort · htgmult · htgstop · leavesp · managed · mcdefect · mcfdln · bffdln · minharv · mortmsb · mortmult · mult · nocalib · notriple · numtrip ·
+rannseed · readcord · readcorh · readcorr · resetage · salvage · sdicalc · sdimax · serlcorr · simfire · setsite · specpref · spgroup · spleave · strclass · tcondmlt ·
+tfixarea · thinaba · thinata · thinbba · thinbta · thincc · thindbh · thinht · thinmult · thinprsc · thinqfa · thinrden · thinsdi · timeint · topkill · treeszcp · volume · yardloss
+
+(SN is exercised through the broader snt01 multi-stand harness + the SN keyword-coverage suite rather than
+the KCV isolated set.)
+
+## FIA-database mass validation (audit S44/S46/S47/S48)
+
+Native `DATABASE`/`DSNIN` reader validated on **162 real cross-variant stands** (SN/NE/CS/LS) extracted
+from `SQLITE_FIADB_ENTIRE.db` (read-only, never modified): **159/162 bit-exact on all 10 `.sum` columns**;
+TPA/BA/SDI/QMD/MCuFt/SCuFt/BdFt (**7/10**) bit-exact on **every** stand. Fixes landed this campaign:
+S43 (LS board-type), S45 (SN missing-elevation→forkod Hopkins index), S47 (SN seedling height ≤0.1→1.01),
+S48 (AVH top-height RDPSRT tie-break). The 4 remaining residuals are cornered: 1 TopHt (tree-storage-order
+tie), 1 CCF (Δ1 ULP), 2 TCuFt (Δ1-8 ULP).
+
+## Named cornered residuals / accepted deferrals (not bugs)
+
+- **COMPRESS eigensolver/RNG-tie** (s22) — IBM EIGEN + RDPSRT sub-ULP partition tie; faithful port.
+- **Non-native-cycle-length DGSCOR** drift — Float32 serial-correlation, variant-native bit-exact.
+- **CS SETSITE** — sub-ULP height amplified by the ill-conditioned NC-128 anamorphic inversion at raised
+  site; re-converges bit-exact @2040.
+- **THINAUTO on NE/CS/LS canonical stands** — live FVS is ill-posed (FPE / no data — full-stocking UB);
+  jl handles gracefully. SN THINAUTO validated.
+- ~~**Soft-snag soft-DDW residual** (#73)~~ — **RESOLVED (S78, bit-exact vs live).** The soft CWD1 cone-split
+  now uses the FVS per-hardness LOHT (fmcwd.f: soft LOHT(1)=1.0 in both the R1 cone-base radius :347 and the
+  LOCUT floor; hard LOHT(2)=0.10). `_cwd_cone_fractions` returns `(frac_soft, frac_hard)`, soft normalized by
+  the invariant pat_hard(0.10) base. Live-validated on carbon_snagpsft.key: DDW 5.8/5.2/7.9/10.7 (was 8.0/10.8)
+  == live on every carbon column. Floor safe — ordinary/fire snags are hard (DFIS=0 ⇒ soft split ×0), so
+  carbon_snt + fire scenarios are bit-identical. Regression fixture: `carbon_snagpsft.*` + test_carbon.jl.
+- **FIA-reader ULP cells** — TopHt tree-storage-order tie, CCF/TCuFt integer-rounding boundaries.
+- **LS PERCOV** (~3.4) — forest-grown crown CR-timing; feeds only the coarse cover-class-binned fire WMULT.
+- **\*FFE fire-mortality (FMEFF) kill-distribution** (cs/ls_simfire) — post-SIMFIRE the per-tree fire kill
+  differs sub-few-% (LS 2020 TPA 225/220 ~2.3%); fire behavior (flame/scorch/selection) is bit-exact.
+  Accepted FFE class (test_lst01_ffe: LS fire mortality within ~3%). NE SIMFIRE is bit-exact.
+
+Full slice-by-slice detail: `docs/MODERNIZATION_AUDIT.md`.
