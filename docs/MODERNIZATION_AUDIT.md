@@ -1231,3 +1231,19 @@ a size-class boundary, or the "+1 annual-step" fire-basis timing). Trace `_small
 stash vs FVS's SMALL/LARGE (=8.079/2.045); fixing it restores byram→scorch→the 9-tree kill. Guard: this feeds
 FMDYN weighting → keep lst01_ffe (the validated LS fire) + snt01 fire bit-exact; verify per-variant.
 FVS integrity re-verified (relink → 2020 TPA 220, zero leakage, oracle mtime unchanged). No jl code change.
+
+## Slice S85 — #100 narrowed: SMALL/LARGE formula MATCHES FVS ⇒ isolated to the CWD pool VALUES [2026-07-08]
+Source-read comparison (no build; FVS pristine). FVS computes the FMDYN SMALL/LARGE in fmtret.f:375-390:
+  SMALL = Σ over I=1,2 (CWD pool: 1=natural CWD1, 2=piled CWD2), K=1,2 (hard/soft), L=1,4 (decay),
+          J1=1,3 (size classes 0-3") + CWD(I,10,K,L) (LITTER); LARGE = same but J2=4,9 (3"+).
+jl `_small_large_fuel` (fuel_model.jl:94-103): small = Σ k=1:2, l=1:4 of cwd[1,k,l]+cwd[2,k,l]+cwd[3,k,l]+
+cwd[10,k,l]; large = Σ cwd[4:9,k,l]. IDENTICAL loop structure. The FVS 4-D CWD first index (I=1,2) sums the
+natural + PILED pools; ls_simfire has no fuel treatment ⇒ CWD2≡0 ⇒ the I-sum reduces to jl's single pool. So
+the formula is faithful; the ~1.47× (jl 5.446/1.397 vs FVS 8.079/2.045) is in the CWD POOL VALUES at the 2010
+fire basis, NOT the SMALL/LARGE reduction. ⇒ jl's down-wood loading at the fire basis is ~1.47× low, from
+either (a) the CWD accumulation over cycles 1-2 (1990→2010 snag-fall/litter into cwd), or (b) the fire_smlg
+STASH point (summary.jl:276 stashes _small_large_fuel BEFORE grow_cycle!; FVS's FMTRET timing may differ).
+NEXT SLICE: instrument FVS FMTRET to dump per-(I,J,K,L) CWD at the 2010 fire + dump jl's cwd[:, :, :] at the
+fire_smlg stash; diff per size-class to see whether it's a uniform pool deficit (accumulation) or a specific
+class (timing/component). Guard: cwd feeds carbon DDW (validated) + all FFE fires — keep lst01_ffe/snt01/net01
+bit-exact. FVS binaries + source pristine; jl tree clean; suite floor untouched (no code change this slice).
