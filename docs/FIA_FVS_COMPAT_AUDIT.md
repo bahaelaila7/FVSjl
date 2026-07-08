@@ -248,9 +248,25 @@ this stand, not the equation constants.
 **SA verdict:** NOT a coefficient bug; a stand-level competition-input divergence on dense multi-point FIA
 plots — the campaign's 2nd substantive open item (modest magnitude, likely a multi-point density model slice).
 
+### Slice 1n — SA divergence CORNERED to a named mechanism: point-BA-in-larger on multi-point FIA plots
+Confirmed multi-point: stand 1152014752290487 has **4 points**. FVS debug (`IN PTBAL`) computes the ACTUAL
+per-tree **PTBALT** (point BA in larger: 0/21.8/40.3/57.3/71.2 for descending DBH) with total point
+**PTBAA=183.216**. **jl approximates** the competition term as `pbal = PTBAA·(1−cr/100)` — a crown-ratio
+proxy for "fraction of BA in larger" (`diameter_growth.jl:163-168`), NOT the true rank-based PTBALT — and
+jl's per-point BA (177.5/143.5/49.7/75.5) differs from FVS's point structure. On a dense multi-point plot
+these diverge (→ SA DG +0.10, ~25%); on the simpler single-ish YP stand they matched (YP bit-exact). 
+
+**NAMED CORNER:** the `point_bal` competition input on multi-point FIA stands — jl's crown-proxy
+`PTBAA·(1−cr/100)` vs FVS's actual rank-ordered `PTBALT`, compounded by point-assignment differences. This
+is a **shared density-model** item (the modernization per-point-density deferral: pccf/TCONDMLT were faithful
+single-point / deferred multi-point). Fixing it = compute true per-point PTBALT (BA in larger at each point)
+and feed dgf's point_bal term — a cross-cutting density-model slice, both-sides-traced, floor-guarded.
+Magnitude modest (2-4% mid-projection on dense multi-point stands); does not block the SN single/simple-point
+majority (already 5/8+ bit-exact).
+
 ## TODO
-- [ ] NEXT: trace point-BAL (PTBAA per-point) FVS vs jl on 1152014752290487 — the SA +0.10 competition input.
-      Likely the multi-point density model (shared engine), not a SN coefficient.
+- [ ] FIX (density-model slice): true per-point PTBALT for the dgf point_bal term on multi-point stands;
+      validate the SA stand + re-diff; keep floor + keep single-point stands bit-exact (YP etc.).
 - [ ] Forest-type derivation: the YP −0.089 tail (separate stand).
 - [ ] Scale differential to NE/CS/LS + larger SN sample; Pillar-1 stratified manifest.
 - [ ] Forest-type derivation: still a candidate for the YP −0.089 tail (separate stand); trace fortyp.f vs jl.
