@@ -35,8 +35,11 @@ function _fia_rows(db::SQLite.DB, sql::AbstractString, sid::AbstractString)
 end
 
 _fia_present(d, k) = haskey(d, k) && d[k] !== missing && d[k] !== nothing
-_fia_f32(d, k, dv) = _fia_present(d, k) ? Float32(d[k]) : dv
-_fia_int(d, k, dv) = _fia_present(d, k) ? round(Int, Float64(d[k])) : dv
+# Some FVS-ready columns are TEXT-typed but hold numbers (e.g. TREEINIT.SEVERITY3 = "2.0"); live FVS parses
+# them. `_fia_num` accepts a real OR a numeric string (tryparse → nothing if unparseable → caller uses dv).
+_fia_num(x) = x isa AbstractString ? tryparse(Float64, strip(x)) : Float64(x)
+_fia_f32(d, k, dv) = (_fia_present(d, k) && (v = _fia_num(d[k])) !== nothing) ? Float32(v) : dv
+_fia_int(d, k, dv) = (_fia_present(d, k) && (v = _fia_num(d[k])) !== nothing) ? round(Int, v) : dv
 _fia_str(d, k, dv) = _fia_present(d, k) ? strip(string(d[k])) : dv
 
 # FIA numeric species codes arrive un-padded from the DB (e.g. "71"), but the FVS species
