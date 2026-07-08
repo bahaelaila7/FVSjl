@@ -1,7 +1,7 @@
 # FIA validation harness: FVSjl (native reader) vs live FVS, per stand, diff .sum.
 using FVSjl
 
-const DB = "/workspace/SQLite_FIADB_ENTIRE.db"
+const DB = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
 
 # variant → (live binary, FVSjl variant)
 variant_cfg(v) = v == "LS" ? ("/tmp/FVSls_new", FVSjl.LakeStates()) :
@@ -62,6 +62,8 @@ function main(listfile, variant)
     dir = mktempdir()
     # aggregate: per-cycle abs-rel-diff of the 6 cols; cycle-0 exact count
     n_ok = 0; n_run = 0; c0_exact = 0
+    n_pass = 0                                  # ALL cycles × all 6 cols rendered-identical vs live
+    failures = String[]                         # stands that are NOT fully bit-exact (for hunting)
     col_names = ["TPA","BA","SDI","CCF","TopHt","QMD"]
     # accumulate mean |rel diff| by cycle index
     sumrel = Dict{Int,Vector{Float64}}(); cnt = Dict{Int,Int}()
@@ -98,9 +100,20 @@ function main(listfile, variant)
             maxrel = max(maxrel, maximum(rel))
         end
         push!(worst, (maxrel, "$cn[$tag]"))
+        # PASS = every matched cycle has all 6 .sum cols rendered-identical (parsed .sum values are already
+        # rendered, so == is the printed-identical test). Any missing year or any col diff ⇒ FAIL.
+        stand_pass = length(J) == length(L) &&
+                     all(haskey(Jd, y) && all(lv[k] == Jd[y][k] for k in 1:6) for (y, lv) in L)
+        stand_pass ? (n_pass += 1) : push!(failures, cn)
+    end
+    if haskey(ENV, "FIA_FAILOUT") && !isempty(failures)
+        open(ENV["FIA_FAILOUT"], "w") do io
+            for cn in failures; println(io, cn, '\t', variant); end
+        end
     end
     println("\n===== FIA validation: $variant =====")
     println("stands run=$n_run  both-produced-sum=$n_ok  cycle0-printed-identical=$c0_exact / $n_ok")
+    println("BIT-EXACT (all cycles, 6 cols): $n_pass / $n_ok    FAIL: $(length(failures))")
     println("\nMean |rel diff| by cycle (over $n_ok stands):")
     println("  cyc  ", join(lpad.(col_names,7), " "))
     for ci in sort(collect(keys(sumrel)))
@@ -112,4 +125,8 @@ function main(listfile, variant)
     for (r,s) in worst[1:min(8,end)]; println("  ", round(r*100,digits=1), "%  ", s); end
 end
 
-main("/tmp/fia_val/ls_stands.txt", "LS")
+# CLI: julia validate_fia.jl <listfile> <variant>   (listfile = one STAND_CN per line, optional \t tag)
+if abspath(PROGRAM_FILE) == @__FILE__
+    length(ARGS) >= 2 || error("usage: validate_fia.jl <listfile> <SN|NE|CS|LS>")
+    main(ARGS[1], ARGS[2])
+end
