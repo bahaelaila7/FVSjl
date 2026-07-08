@@ -69,10 +69,11 @@ end
         @test count(>=(10.0f0), lp27) == 4
         @test round(Float64(maximum(lp27)); digits = 2) == 11.42   # RENDERED-== to live's 2-dec (jl 11.423086→11.42)
 
-        # (3) mean DBH at a LATE cycle (2042, ~9 growth cycles). jl 9.812015 vs live 9.8062 → Δ0.0058, which
-        # ACCUMULATED DGF/HTGF Float32 growth tail over 50 trees × 9 cycles (Δ0.0058) — NOT one portable
-        # primitive (FFI-routing the growth exp/pow left it render-hidden ⇒ it's the sum-order/accumulation
-        # class) ⇒ EXPOSED @test_broken vs the 4-dec render (doctrine #9), not a passing atol.
+        # (3) mean DBH at a LATE cycle (2042, ~9 growth cycles). jl 9.812015 vs live 9.8062 → Δ0.0058 = the
+        # GROWN-FLOAT32 ACCUMULATION FLOOR (a permitted primitive): a DGF/HTGF Float32 growth residual accumulated
+        # over 50 trees × 9 cycles. DECONFOUNDED — FFI-routing the growth exp/pow (doctrine #8) left it unchanged,
+        # so it is NOT a libm transcendental artifact but the non-associative grown-Float32 accumulation itself
+        # (same class as MYBA/MYSDI, test_dbs_compute). ⇒ EXPOSED @test_broken vs the 4-dec render (doctrine #9).
         lp42 = snap[2042].lp
         @test_broken isapprox(sum(lp42) / length(lp42), 9.8062f0; atol = 5f-5)   # 4-dec half-width; Δ0.0058 ≫ that
     end

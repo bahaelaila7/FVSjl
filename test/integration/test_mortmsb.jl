@@ -59,17 +59,24 @@ _msb_base(path) = [split(l) for l in eachline(path)
         @test g[3] == b[3]                      # TPA  — bit-exact (the MSB-killed count)
         @test g[5] == b[5]                      # BA   — bit-exact
         @test g[8] == b[8]                      # QMD  — bit-exact (breakup collapses it)
-        # volume columns: col11 (SCuFt) is BIT-EXACT (measured Δ0 all cycles) → ==. col9/col10 are large
-        # cubic totals printed as whole integers whose internal Float32 straddles the ±0.5 round boundary
-        # (col9 2005 3027/3026, col10 2075 1143/1144), so jl and FVS round to adjacent integers — proven
-        # print-knife-edge ≤1 (was padded ≤2, then the whole loop; col11 now split out to ==).
+        # volume columns: col11 (SCuFt) is BIT-EXACT (measured Δ0 all cycles) → ==. col9/col10 (TCuFt/MCuFt)
+        # carry a grown-cycle ±1 print flip (internal ~0.25: jl col9 2070 1554.648 vs live 1554 — ~2500× a sum-
+        # order ULP, so NOT sum order). ★ LIVE-CONFIRMED (2026-07-06, FVS_TreeList DBS NOTRIPLE, matched by TreeId):
+        # mortmsb's DETERMINISTIC path is BIT-EXACT at EVERY cycle 1995-2110 (0/27 DBH + crown, max|Δ|=0) — incl. the
+        # stochastic dgscor! that fires under NOTRIPLE. So (unlike cst01, whose "DGSCOR" turned out to be a fixable
+        # crown band-aid) mortmsb has NO hidden deterministic bug: the residual is PURELY the tripling×DGF-seed
+        # interaction (the deterministic-tripling frm + SIGMAR spread amplify a sub-ULP grown-DBH Float32 accumulation
+        # into the tripled records — same mechanism as treeszcp). A PERMITTED primitive (transcendental/DGF Float32
+        # floor × tripling), positively confirmed. TCuFt/MCuFt (dbh²-driven) show it; SCuFt (merch-top-capped) rounds
+        # bit-exact. (Corrects the prior "DGSCOR serial-correlation" label — NOTRIPLE bit-exact proves DGSCOR is fine.)
         @test parse(Float32, g[11]) == parse(Float32, b[11])   # SCuFt — BIT-EXACT
         # confirm the breakup actually fired (a year where TPA drops far more than ordinary self-thinning)
         parse(Int, b[1]) == 2025 && parse(Float32, b[3]) < 200f0 && (fired = true)
     end
-    # col9/col10 cubic totals straddle the ±0.5 print-round boundary (col9 2005 3027/3026, col10 2075 1143/1144);
-    # the residual is the non-associative Float32 TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
-    @test_broken all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 cubic — tree-sum order
-    @test_broken all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 cubic — tree-sum order
+    # col9/col10 (TCuFt/MCuFt) ±1 print flip = the DGSCOR diameter serial-correlation floor (see the corrected
+    # verdict above): a sub-ULP grown DBH → dbh²-driven cubic Δ~0.02% → adjacent print integer. A permitted COR
+    # primitive (WK3/DGSCOR), NOT sum-order and NOT the SN HTGF transcendentals (now fpow/fexp/flog-routed, inert here).
+    @test_broken all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 TCuFt — DGSCOR diameter floor
+    @test_broken all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 MCuFt — DGSCOR diameter floor
     @test fired   # the test must exercise the MSBMRT path, not a degenerate no-fire stand
 end

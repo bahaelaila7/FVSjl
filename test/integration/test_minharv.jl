@@ -53,12 +53,12 @@ _mhcol(r, c) = parse(Float64, r[c])
             end
             # TCuFt (9) / MCuFt (10): bit-exact bar a print-boundary ULP — residual is the non-associative
             # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
-            @test_broken all(_mhcol(jl[i], 9)  == _mhcol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
-            @test_broken all(_mhcol(jl[i], 10) == _mhcol(ft[i], 10) for i in 1:length(jl))  # MCuFt — non-associative tree-SUM order
+            @test all(_mhcol(jl[i], 9)  == _mhcol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
+            @test all(_mhcol(jl[i], 10) == _mhcol(ft[i], 10) for i in 1:length(jl))  # MCuFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
             # Board feet (12): BIT-EXACT every cycle bar a single print-boundary ULP (the per-acre Scribner
             # sum lands within one ULP of the +0.5 integer-render knife-edge); residual is the non-associative
             # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
-            @test_broken all(_mhcol(jl[i], 12) == _mhcol(ft[i], 12) for i in 1:length(jl))  # BdFt — non-associative tree-SUM order
+            @test all(_mhcol(jl[i], 12) == _mhcol(ft[i], 12) for i in 1:length(jl))  # BdFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
         end
     end
 end

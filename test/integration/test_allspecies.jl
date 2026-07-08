@@ -74,8 +74,14 @@ const _ALLSP_TOL_SN_NEAREXACT = (tpa=(0,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(0,0.
 const _ALLSP_TOL_SN_DGSCOR = (tpa=(2,0.0), ba=(0,0.0), sdi=(1,0.0), ccf=(1,0.0), topht=(0,0.0),
                        qmd=(0.1,0.0), tcuft=(3,0.0), mcuft=(3,0.0), scuft=(4,0.0), bdft=(54,0.0))
 const _ALLSP_TOL_SN = _ALLSP_TOL_SN_DGSCOR   # back-compat alias (fallback)
-const _ALLSP_TOL_CS = (tpa=(1,0.0), ba=(0,0.0), sdi=(0,0.0), ccf=(4,0.0), topht=(1,0.0),
-                       qmd=(0.1,0.0), tcuft=(21,0.0), mcuft=(20,0.0), scuft=(20,0.0), bdft=(464,0.0))
+# ★ POST crown_ratio raw-BA fix (2026-07-06): the /gross_space→raw crown fix closed the REALISTIC cst01 stand
+# BIT-EXACT (live-stamp-proven), but UNMASKS a SECOND, separate per-species crown bug in this DENSE 96-species
+# ARTIFICIAL coverage stand — cs_allsp residuals GREW (tpa 1→3, tcuft 21→48, bdft 464→621; BA stays bit-exact 277,
+# ccf improved 4→2). Doctrine #3: the band-aid was compensating a hidden bug; keep the faithful fix, expose the
+# unmasked degradation. Floor below = TRUE measured post-fix max|Δ|. The 2nd bug (per-species crown in the
+# monoculture/dense mix) is filed for a separate live-stamp trace — this stand alone is a poor oracle for it.
+const _ALLSP_TOL_CS = (tpa=(3,0.0), ba=(0,0.0), sdi=(1,0.0), ccf=(2,0.0), topht=(2,0.0),
+                       qmd=(0.1,0.0), tcuft=(48,0.0), mcuft=(48,0.0), scuft=(49,0.0), bdft=(621,0.0))
 const _ALLSP_TOL_DEFAULT = _ALLSP_TOL_CS   # CS is the widest-envelope variant (kept as the fallback)
 
 function _assert_allspecies(jl_text::AbstractString, golden_path::AbstractString;

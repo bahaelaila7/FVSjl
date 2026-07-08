@@ -66,9 +66,9 @@ end
             @test parse(Int, mf[3]) == parse(Int, of[3])               # TPA — BIT-EXACT
             @test parse(Int, mf[4]) == parse(Int, of[4])               # BA  — BIT-EXACT
         end
-        # total cuft — BIT-EXACT bar a print-boundary ULP; the residual is the non-associative Float32
-        # TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
-        @test_broken all(parse(Int, split(m)[9]) == parse(Int, split(o)[9]) for (m, o) in zip(data, base))  # total cuft (col 9) — tree-sum order
+        # total cuft — BIT-EXACT bar a print-boundary ULP; the residual is FIXED (was mis-attributed to non-associative Float32
+        # TREE-SUM order); real cause was cftopk using post-growth bark — now BRATIO(D_start) per FVS vols.f:150, bit-exact.
+        @test all(parse(Int, split(m)[9]) == parse(Int, split(o)[9]) for (m, o) in zip(data, base))  # total cuft (col 9) — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
         # NOTE: stands 2 (THINDBH in IF/THEN event monitor), 3 (THINPRSC), and 4 (FFE
         # fire) require management subsystems still being ported — the driver runs them
         # but their thinning/fire is not yet applied. Tracked, not asserted here.

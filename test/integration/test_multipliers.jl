@@ -41,12 +41,16 @@ _mult_base(path) = [split(l) for l in eachline(path)
             ft = _mult_base(base)
             @test length(jl) == length(ft)
             if length(jl) == length(ft)
+                # doctrine #9: bit-exact ⇒ GREEN `==`; a should-be-exact column (tol 0) that ISN'T exact ⇒ real
+                # FAILURE; a column allowed a rendered print-knife-edge (tol>0, or the QMD tenth grid) that isn't
+                # exact ⇒ EXPOSED `@test_broken ==`. No green ±1 tolerance hides a residual (was `abs(...)<=tol`).
+                exq(a, b, allow) = (a == b || !allow) ? (@test a == b) : (@test_broken a == b)
                 for i in 1:min(ncyc, length(jl))
-                    @test abs(parse(Float64, jl[i][3]) - parse(Float64, ft[i][3])) <= tpa_tol   # TPA (0 ⇒ BIT-EXACT)
-                    @test abs(parse(Float64, jl[i][4]) - parse(Float64, ft[i][4])) <= ba_tol    # BA  (0 ⇒ BIT-EXACT)
-                    @test parse(Float64, jl[i][7]) == parse(Float64, ft[i][7])                  # TopHt — BIT-EXACT (all)
-                    @test abs(round(Int, parse(Float64, jl[i][8]) * 10) -
-                              round(Int, parse(Float64, ft[i][8]) * 10)) <= 1                   # QMD — ≤1 tenth knife-edge
+                    g(c) = parse(Float64, jl[i][c]); f(c) = parse(Float64, ft[i][c])
+                    exq(g(3), f(3), tpa_tol > 0)                          # TPA — knife-edge in baimult/mortmult_win
+                    exq(g(4), f(4), ba_tol > 0)                           # BA  — knife-edge in mortmult_win/reghmult
+                    @test g(7) == f(7)                                    # TopHt — bit-exact (all scenarios)
+                    exq(round(Int, g(8) * 10), round(Int, f(8) * 10), true)  # QMD rendered tenth — baimult carries 1 tenth
                 end
             end
         end

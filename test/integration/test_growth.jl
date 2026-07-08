@@ -168,7 +168,7 @@ end
         for (j, f) in zip(jl, ft)
             @test j[1] == f[1]                                              # YEAR
             @test parse(Int, j[4]) == parse(Int, f[4])                     # BA — BIT-EXACT
-            @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1           # TCuFt — BIT-EXACT bar a print-boundary ULP (≤1)
+            @test parse(Int, j[9]) == parse(Int, f[9])                    # TCuFt — BIT-EXACT (rendered ==, measured 0 diff all cycles)
             @test parse(Int, j[10]) == parse(Int, f[10])                  # MCuFt — BIT-EXACT
         end
     end

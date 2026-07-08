@@ -51,10 +51,10 @@ _vecol(r, c) = parse(Float64, r[c])
                 @test _vecol(jl[i], 10) == _vecol(ft[i], 10)   # MCuFt — BIT-EXACT (was ≤1)
                 @test _vecol(jl[i], 11) == _vecol(ft[i], 11)   # SCuFt — BIT-EXACT (was ≤1)
             end
-            # TCuFt (9): bit-exact bar a single print-boundary ULP at 2020 — the per-acre cubic sum lands within one
-            # ULP of the +0.5 integer-render knife-edge; residual is the non-associative Float32 tree-SUM accumulation
-            # order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
-            @test_broken all(_vecol(jl[i], 9) == _vecol(ft[i], 9) for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
+            # TCuFt (9): BIT-EXACT vs live. The former 2020 print-boundary ±1 was the CFTOPK bark bug (used the
+            # post-growth DBH; FVS vols.f:150 uses BRATIO(D_start) before projecting to the grown DBH) — fixed via
+            # the stashed pre-growth trees.vol_bark. (Was wrongly attributed to non-associative tree-SUM order.)
+            @test all(_vecol(jl[i], 9) == _vecol(ft[i], 9) for i in 1:length(jl))  # TCuFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
             # Board feet (12): bit-exact bar a single print-boundary ULP at 2030. Previously carried a systematic
             # −16→−23 residual at the largest cycles; root-caused (BFDUMP per-tree trace) to the BROKEN-TOP
             # board top-kill (BFTOPK) being fit to the WRONG equation's total cubic. VOLEQNUM splits the board
@@ -63,7 +63,7 @@ _vecol(r, c) = parse(Float64, r[c])
             # broken-top tree that scaled the SM board by black-oak's taper. Fixed to use the board call's vb[1].
             # Now every cycle is bit-exact except the 2030 render knife-edge — residual is the non-associative
             # Float32 tree-SUM accumulation order (doctrine #9: exposed, not a passing ≤1).
-            @test_broken all(_vecol(jl[i], 12) == _vecol(ft[i], 12) for i in 1:length(jl))  # BdFt — non-associative tree-SUM order
+            @test all(_vecol(jl[i], 12) == _vecol(ft[i], 12) for i in 1:length(jl))  # BdFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
         end
     end
 end

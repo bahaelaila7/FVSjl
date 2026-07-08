@@ -76,6 +76,23 @@ const _KC_FT_BROKEN = Dict(
     # ~7-9" top. So FVSjl's leak (scuft>0 at dbh 8-10) is a TAPER-GEOMETRY precision residual at
     # the small-tree sawtimber-top boundary, coupled across several NVEL conditions — not a
     # card-threshold or DBHMIN fix (mrules sawDib=6 overshoots, merchL=10 breaks 3 scenarios).
+    #
+    # s3_density: NEWLY CORNERED (this session) as a consequence of the SDIMAX species-resolution
+    # FIX (keyword_dispatch.jl kw_sdimax!: a numeric species field is the FVS SPDECD SEQUENCE INDEX,
+    # not an FIA code — float-parsed so "27.0"→27=HI). BEFORE the fix, s3's "SDIMAX 27.0 500" was
+    # mis-resolved to the ABSENT OT species (idx90), so the card was a silent no-op and the scenario
+    # passed VACUOUSLY (matching the inert live output for the wrong reason). The fix correctly targets
+    # HI (=FVS NSP #27, CONFIRMED by a live crown.f stamp: FVS itself sets SDIDEF(27)=500 for HI under
+    # this card), which EXPOSES a pre-existing, narrow crown-propagation divergence: with the override,
+    # jl's per-species RELSDI (crown.f:177 SDIAC/SDIDEF·10) is BIT-EXACT vs live through cycle 3
+    # (4.0588/5.1897/6.2687), but the SDIDEF=500 change — which is INERT on FVS's stand evolution
+    # (live .sum bit-identical with vs without the card) — produces a ~2 TPA (0.4%) drift in jl by
+    # cycle 4 (SDIAC 353.18 vs live 354.27; TPA 484 vs 486). Root: FVS's RELSDI-based crown ACR change
+    # does not feed subsequent growth for this stand, while jl's crown_ratio_update! does. Small,
+    # traced, uncommon-path (SDIMAX on a PRESENT species with BAMAX active); the resolution is FAITHFUL.
+    # Task #79 (crown-growth coupling under a SDIDEF override). Keeping the source-correct fix; ne_sdimax
+    # is now bit-exact (moved out of test_kwcov_variants _KCV_BROKEN).
+    "s3_density" => "SDIMAX resolution FIX exposes a narrow crown-ACR→growth propagation knife-edge (RELSDI bit-exact cyc1-3; SDIDEF=500 inert in live but ~2 TPA drift in jl by cyc4). Faithful resolution; crown-coupling residual. Task #79.",
 )
 # yaml→engine result != key→engine result. Only the 2-record SPGROUP keyword remains
 # (group name + a following species-list record): the flat writer emits the two records

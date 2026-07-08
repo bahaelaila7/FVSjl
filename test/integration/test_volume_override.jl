@@ -57,8 +57,8 @@ _vocol(r, c) = parse(Float64, r[c])
             # sum = 2732.5195 — so jl's Float32 accumulation is faithful to the true value). It sits 0.019
             # ABOVE the .5 rounding knife-edge, so jl's `trunc(x+0.5)` gives the mathematically-correct 2733;
             # live FVS's own Float32 accumulation order lands fractionally below 2732.5 → 2732. The residual is
-            # the non-associative Float32 TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
-            @test_broken all(_vocol(jl[i], 10) == _vocol(ft[i], 10) for i in 1:length(jl))  # merch cubic (col 10) — tree-sum order
+            # FIXED (was mis-attributed to non-associative Float32 TREE-SUM order); real cause was cftopk using post-growth bark — now BRATIO(D_start) per FVS vols.f:150, bit-exact.
+            @test all(_vocol(jl[i], 10) == _vocol(ft[i], 10) for i in 1:length(jl))  # merch cubic (col 10) — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
         end
     end
 end

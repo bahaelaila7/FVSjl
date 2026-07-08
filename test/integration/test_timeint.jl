@@ -42,15 +42,34 @@ _ti_base(path) = [split(l) for l in eachline(path)
             for i in 1:length(jl)
                 @test parse(Float64, jl[i][4]) == parse(Float64, ft[i][4])            # BA — BIT-EXACT every cycle
             end
-            # TPA + cuft: the NON-NATIVE 10-yr cycle DGSCOR/transcendental tail is a DOCUMENTED DIVERGENCE
-            # (the SAME WK3/DGSCOR class named in the campaign doctrine; DIVERGENCES.md §1 + the scenario
-            # sweep's deferred item #2). Both are BIT-EXACT for the first ~4 cycles (1990-2020), then compound:
-            # cuft drifts 0→16 by 2090, TPA off-by-≤2 on two rows. Root: SN calibrates at YR=5; under a 10-yr
-            # FINT the WK3 COR evolution + the DGF/HTGF Float32 exp/power per-cycle sub-render residual (inert
-            # in DBH/BA — both bit-exact) compound into the nonlinear cuft sum. Irreducible without the full
-            # YR-vs-FINT calibration split (deferred, the accepted divergence class) — so tracked as
-            # @test_broken vs FULL bit-exactness, NOT a padded numeric bound. Flips to unexpected-pass if the
-            # calib split ever lands and closes the tail.
+            # TPA + cuft: NON-NATIVE 10-yr cycle residual. ★ VERDICT CORRECTED (2026-07-06, live FVS_TreeList DBS
+            # NOTRIPLE, matched by TreeId): the "DGF/HTGF transcendental cubic tail" attribution was WRONG — jl's
+            # per-tree DBH AND crown are BIT-EXACT at every checked cycle (2000/2010/2020: 0/27, max|Δ|=0). So the
+            # growth path (incl. the 10-yr FINT/YR scaling) is faithful. The real residual is a BA-CONSERVING
+            # MORTALITY KNIFE-EDGE: NOTRIPLE .sum shows TPA Δ≤1 + TCuFt Δ≤2 from 2040 on (BA bit-exact), i.e. the
+            # 10-yr mortality flips a near-tie kill (jl kills a slightly different small tree), and TRIPLING amplifies
+            # it into the test's cuft tail. SAME class as cs_allsp (task 68) — the dense/non-native-cycle mortality-
+            # distribution knife-edge. Seed = a sub-ULP in the 10-yr tokill / size-cap kill / VARMRT efftr (per-tree
+            # DBH bit-exact rules out the growth transcendentals). ★ TRACED TO GROUND (2026-07-06, live morts.f
+            # stamp of T/DIA0/D10): cycle-1 T (Σtpa, species-sorted) is BIT-EXACT (589.6527709961 both) — NOT the
+            # sum-order — but D10 (the grown-diameter self-thinning QMD) differs by ~5e-7 = ~1 Float32 ULP; that
+            # shifts the self-thinning line → flips a near-tie kill → cascades (cyc2 T Δ2e-4). D10=fpow(sumdr10/tt,
+            # 1/1.605) with ^1.605 fpow-routed (inert) + tt bit-exact ⇒ the 1-ULP is in the MORTS grown-diameter G.
+            # EXACT MECHANISM (2026-07-06): FVS morts.f:225 uses G=(DG_5yr/BARK)·(FINT/5) — a linear scale of the
+            # NATIVE 5-yr DG. jl doesn't store the native DG (it keeps the fint-year applied growth), so for a
+            # non-native FINT (=10 here, YR=5) `_mort_traj_g` RECONSTRUCTS the 5-yr DG via a squaring+sqrt roundtrip
+            # ((dg+dib)²→·yr/fint→sqrt), which loses ~1 ULP vs FVS's actual native DG → D10 ~1-ULP → the self-thin
+            # knife-edge. NOT a transcendental (sqrt is IEEE-exact) — a SEMANTIC reconstruction diff. Native-cycle
+            # scenarios use the identity (`_mort_traj_g` line 2) and are BIT-EXACT (all realistic canonicals).
+            # ★ "FIXABLE by threading the native DG" — REFUTED (task #70, 2026-07-06). I stashed the clean bounded
+            # native 5-yr DG at growth time and fed it straight to MORTS (skipping the roundtrip). Native cycles
+            # stayed bit-exact (identity), but the NON-native cycles REGRESSED: BA line 43 (bit-exact today!) drifted
+            # to 129 vs live 127, s5 cuft 3149 vs 3111, s9 15752 vs 15426. So live FVS's own Float32 op-sequence
+            # matches THIS reconstruction, NOT the clean native DGb — FVS's MORTS recovers the linear increment from
+            # the FINT-scaled DG the same squaring/sqrt way (equal in ℝ, ~1 ULP apart in Float32; the knife-edge
+            # flips on that ULP). ⇒ the reconstruction is the CORRECT/faithful path; the residual below is purely
+            # the mortality knife-edge (a sub-ULP self-thinning-line near-tie flip), a PERMITTED cornered primitive,
+            # NOT a fixable reconstruction artifact. @test_broken with the exact mechanism named, not a padded bound.
             @test_broken all(parse(Float64, jl[i][3]) == parse(Float64, ft[i][3]) for i in 1:length(jl))  # TPA — non-native mortality-timing tail
             @test_broken all(parse(Float64, jl[i][9]) == parse(Float64, ft[i][9]) for i in 1:length(jl))  # cuft — non-native DGSCOR/transcendental tail
         end

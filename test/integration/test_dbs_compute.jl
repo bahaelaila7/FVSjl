@@ -64,7 +64,10 @@ STOP
             # Per-column atol = exact measured max (deterministic run, IEEE Float32) — MYBA 9.145e-5, MYSDI
             # 1.238e-4, last-digit-rounded (1.006×/1.01×), NOT the prior 2f-4 (1.6–2.2× — a forbidden padded multiple).
             # MYBA/MYSDI: accumulated-f32 growth ULP vs live (Δ9e-5/1.2e-4, not one portable primitive) — exposed
-            # @test_broken vs full bit-exactness (doctrine #9), not a passing atol.
+            # @test_broken vs full bit-exactness (doctrine #9), not a passing atol. DECONFOUNDED (2026-07-05):
+            # stand_sdi's `^1.605` is now routed through the gfortran companion (fpow, matching sdical.f's `**1.605`),
+            # so MYSDI is NOT the SDI transcendental — it's the upstream grown-DBH accumulation (BA uses only dbh²+Σ,
+            # no transcendental at all). Both reduce to the same grown-cycle DGSCOR/growth Float32 floor.
             @test_broken all(g[2] == w[1] for (g, w) in zip(got, want))   # MYBA = BBA
             @test_broken all(g[3] == w[2] for (g, w) in zip(got, want))   # MYSDI = BSDI
         finally

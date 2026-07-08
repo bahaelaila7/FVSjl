@@ -114,24 +114,55 @@ end
             if yr <= 2010                                   # cycles 0–2: BIT-EXACT
                 @test (tpa, ba, sdi, ccf, topht) == (L[1], L[2], L[3], L[4], L[5])
                 @test round(Float32(qmd); digits=1) == Float32(L[6])
-            else                                            # cycles 3–10: the PROVEN height-transcendental floor
-                # ROOT (docs/TOLERANCE_AUDIT.md): DBH/BA growth is bit-exact (cycles 0-2 ==), but
-                # stand_top_height sums the largest-40 tree HEIGHTS, and the HTGF transcendental leaves a
-                # few-ULP Float32 residual — INERT in DBH/BA yet accumulating into AVH → RELHTA → the VARMRT
-                # per-species kill → a late TPA drift, amplified nonlinearly into ccf/cuft/qmd. BA stays
-                # BIT-EXACT every grown cycle (the transcendental is inert in BA).
+            else                                            # cycles 3–10: CS height-path Float32 residual (much reduced)
+                # ROOT (docs/TOLERANCE_AUDIT.md, CORRECTED 2026-07-05): NOT a "transcendental floor" — it was
+                # two REAL op-order bugs in the CS HEIGHT path (balmod is height-only ⇒ DBH/BA stay bit-exact):
+                #   (1) cs/balmod.f:67 `(1.-TEMBA/210.)**.5` — FVS `**0.5` lowers to powf, jl used sqrt (differ
+                #       ~0.05%); fixed to fpow(x,0.5).  (2) htcalc.f:394 age inversion `(H-BH)/B1/SI**B2` +
+                #       `1./B4/SI**B5` are SEQUENTIAL divisions ((a/b)/c), jl divided by the product a/(b·c);
+                #       fixed to match. Together these took TopHt from drifting every grown cycle to Δ0 on
+                #       2020–2060+2080 (residual Δ1@2070, Δ-2@2090). The remaining TPA Δ1 is a regen-tree VARMRT
+                #       KNIFE-EDGE (BA BIT-EXACT every cycle ⇒ only a <1-TPA regen tree flips). CORNERED BY
+                #       ELIMINATION (2026-07-05uuu corner-campaign): the regen height = htg1·(1+OLDRN)·gmod feeds
+                #       relht=min(hti/AVH,1) → varmrt EFFTR → the discrete deletion that flips ONE <1-TPA regen tree.
+                #       Every DECONFOUNDABLE factor was FFI-routed to gfortran AND tested INERT on this flip:
+                #       (1) PEFF `RELHTA**3` (sn mortality.jl:138/ne:23 → fpow); (2) htg1 NC-128 SI**B2/EXP/ALOG/**EX
+                #       (ne_htcalc_age/incr → fpow/fexp/flog); (3) gmod balmod EXP(-B3·BAL) (ne_balmod → fexp);
+                #       (4) AVH — a +1 Float32 ULP bump to stand_top_height left TPA UNCHANGED. ★ LIVE-CONFIRMED
+                #       (2026-07-06, FVS_TreeList DBS per-tree differential across cycles): the per-tree grown DBH
+                #       SET is BIT-EXACT at cycle 1 (2000: 0/81 mismatch, max|Δ|=0), then diverges AT TRIPLING —
+                #       2010 (cycle 2) 3/243 (max 0.009"), 2020 56/243 (max 0.027"). BA still rounds bit-exact
+                #       because the sub-0.03" DBH diffs are small vs BA~145. NOTRIPLE isolates it FURTHER — it is
+                #       NOT tripling-caused: under NOTRIPLE exactly ONE record diverges at cycle 2 (2010: 1/27,
+                #       matched BY TreeId = id 11, FIA 400 hickory, DG Δ0.009"); tripling merely MULTIPLIES that
+                #       one record ×3 (→3/243). Cycle 1 bit-exact ⇒ its inputs entering cycle 2 are bit-exact, so
+                #       with bit-exact predictors the ONLY cycle-2-specific stochastic factor is the DGSCOR serial-
+                #       correlation (dgscor.f, first applies at cycle 2 via the carried OLDRN). Its EXP is already
+                #       fexp-routed. ★★ DGSCOR REFUTED by a live base/dgscor.f STAMP (2026-07-06): dumped FVS's
+                #       per-tree pre-exp FRM for all 27 NOTRIPLE cycle-2 records and compared to jl's — 0/27
+                #       mismatch, the DGSCOR frm is BIT-EXACT (incl. id 11: FVS 0.0673524439335 == jl). So the
+                #       "irreducible DGSCOR" label was WRONG (the re-trace discipline paying off). The REAL seed is
+                #       UPSTREAM: at cycle 1 (2000) id 11's DBH (9.71887) and Ht (76.0995) are BIT-EXACT but its
+                #       CROWN differs — jl crown_pct 50 vs live PctCr 49 (crown CHANGE 1990→2000: jl +5 vs live +4).
+                #       The 2000 crown feeds the 2000→2010 dgf! `crwn·cr` term ⇒ wk2 ⇒ dds5 ⇒ the 2010 DBH diverges
+                #       (11.38251 vs 11.37337). VERDICT: NOT a primitive — a real, potentially FIXABLE CS crown-ratio
+                #       model divergence (task: trace CS crown_ratio_update! vs FVS cratet/CS crown change). The
+                #       libm routings (peff/htcalc/balmod/AVH/DGF-exp/log/bachlo) were all inert because the seed is
+                #       the CROWN, not any transcendental. This is a lead to CLOSE the class, not accept it.
                 @test ba == L[2]        # BA — BIT-EXACT every grown cycle
                 push!(drift, (Float64(tpa), Float64(ba), Float64(sdi), Float64(ccf), Float64(topht), Float64(qmd),
                               Float64(L[1]), Float64(L[2]), Float64(L[3]), Float64(L[4]), Float64(L[5]), Float64(L[6])))
             end
             yr < 2090 && FVSjl.grow_cycle!(s; fint = 10f0)
         end
-        # doctrine #9: the height-transcendental Float32-floor drift columns exposed as @test_broken vs bit-exact.
-        @test_broken all(d[1] == d[7]  for d in drift)                                # TPA — height-transcendental AVH mortality drift
-        @test_broken all(d[3] == d[9]  for d in drift)                                # SDI — render knife-edge
-        @test_broken all(d[4] == d[10] for d in drift)                                # CCF — crown-driven late residual
-        @test_broken all(d[5] == d[11] for d in drift)                                # TopHt — HTGF height-transcendental
-        @test_broken all(round(Int, d[6]*10) == round(Int, d[12]*10) for d in drift)  # QMD — rendered tenth
+        # ★ ALL BIT-EXACT (2026-07-06): the crown-ratio raw-BA fix (crown_ratio.jl — the /gross_space band-aid was
+        # the root, proven by the live dgscor.f + FVS_TreeList stamps above) closed every drift column. Was
+        # @test_broken (mislabeled "height-transcendental/DGSCOR floor"); now green ==.
+        @test all(d[1] == d[7]  for d in drift)                                # TPA — BIT-EXACT
+        @test all(d[3] == d[9]  for d in drift)                                # SDI — BIT-EXACT
+        @test all(d[4] == d[10] for d in drift)                                # CCF — BIT-EXACT
+        @test all(d[5] == d[11] for d in drift)                                # TopHt — BIT-EXACT
+        @test all(round(Int, d[6]*10) == round(Int, d[12]*10) for d in drift)  # QMD — BIT-EXACT (rendered tenth)
     end
 end
 

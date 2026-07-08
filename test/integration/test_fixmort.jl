@@ -51,10 +51,22 @@ _fmcol(r, c) = parse(Float64, r[c])
                         @test _fmcol(jl[i], 3) == _fmcol(ft[i], 3)
                     end
                 end
-                # fixmort_kpoint: the TPA 1-step render residual is the non-associative Float32 tree-SUM
-                # accumulation order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
+                # fixmort_kpoint TPA 1-step render flip. VERDICT CORRECTED (2026-07-06uuu corner-campaign):
+                # NOT "tree-sum order" — the FULL trajectory is rendered BIT-EXACT at EVERY cycle 1990-2040 EXCEPT
+                # 2020 (jl_raw 264.449→264 vs live 265). 1995 (the year FIXMORT fires) renders 507==507, so the
+                # per-point concentration is not grossly wrong; there is a persistent ~0.05 TPA INTERNAL gap that
+                # only crosses the ±0.5 print boundary at 2020 (2015 jl 328.04 / 2025 jl 213.57 sit far from .5).
+                # ~0.05 ≫ a TPA sum-order ULP (~1e-5), so NOT sum-order. It is a DETERMINISTIC per-point FIXMORT
+                # concentration partial-kill boundary (which record absorbs the last fractional kill, morts.f:937
+                # point/record traversal) OR a downstream growth-floor accumulation of that ~0.05. CORNER HOLDS
+                # REGARDLESS of which: BOTH candidates are permitted-primitive classes — the per-point/per-record
+                # kill-assignment boundary IS the mortality self-thinning knife-edge class (a deterministic sub-unit
+                # kill-distribution flip), and the growth-floor accumulation IS the grown-Float32 accumulation floor.
+                # So the residual is cornered to permitted-primitive space; distinguishing the two (and any fix)
+                # needs a live per-record FIXMORT differential (stamp morts.f) — deferred as disproportionate for a
+                # single-cycle ±1 print flip. Exposed @test_broken == with the mechanism named (not a padded bound).
                 if nm == "fixmort_kpoint"
-                    @test_broken all(_fmcol(jl[i], 3) == _fmcol(ft[i], 3) for i in 1:length(jl))  # TPA — non-associative tree-SUM order
+                    @test_broken all(_fmcol(jl[i], 3) == _fmcol(ft[i], 3) for i in 1:length(jl))  # TPA — per-point FIXMORT kill-dist (deterministic, trace)
                 end
             end
         end

@@ -47,11 +47,11 @@ _bvcol(r, c) = parse(Float64, r[c])
                 @test _bvcol(jl[i], 11) == _bvcol(ft[i], 11)  # sawtimber cubic — BIT-EXACT
                 @test _bvcol(jl[i], 12) == _bvcol(ft[i], 12)  # board feet — BIT-EXACT (BFMAX fix)
             end
-            # total cubic renders within 1 of live on a knife-edge row — the residual is the non-associative
-            # Float32 TREE-SUM order (per-tree Clark cuft is FFI-identical to gfortran; interfacing it did not
-            # move this). NOT a portable primitive ⇒ EXPOSED as @test_broken vs full bit-exactness (doctrine #9),
-            # not a passing ≤1 hiding in green. Closes when the tree-sum accumulation order matches FVS.
-            @test_broken all(_bvcol(jl[i], 9) == _bvcol(ft[i], 9) for i in 1:length(jl))  # total cubic — tree-sum order
+            # total cubic — BIT-EXACT vs live. The former knife-edge ±1 was NOT tree-sum order (that hypothesis
+            # was wrong): broken-top trees fed CFTOPK the post-growth bark, but FVS (vols.f:150) computes
+            # BARK=BRATIO(D) from the START-of-cycle DBH before projecting the volume to the grown DBH. Fixed by
+            # stashing the pre-growth bark (trees.vol_bark) at DG time and using it in cftopk/bftopk.
+            @test all(_bvcol(jl[i], 9) == _bvcol(ft[i], 9) for i in 1:length(jl))  # total cubic — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
         end
     end
 end

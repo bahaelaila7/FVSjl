@@ -53,11 +53,13 @@ _tccol(r, c) = parse(Float64, r[c])
                         @test _tccol(jl[i], 12) == _tccol(ft[i], 12)           # BdFt  — BIT-EXACT (tcondmlt stem, measured Δ0)
                     end
                 end
-                # spclwt stem: the TCuFt/BdFt 1-step render residual is the non-associative Float32 tree-SUM
-                # accumulation order (doctrine #9: exposed as @test_broken, not a passing ≤1 hiding in green).
+                # spclwt stem: TCuFt/BdFt are BIT-EXACT (green ==). The former 1-step render residual was FIXED by
+                # the cftopk pre-growth-bark fix (vols.f:150 BRATIO(D_start)); it was NEVER a tree-SUM-order issue —
+                # the stale "non-associative sum-order @test_broken" label was wrong (same misattribution class as
+                # mortmsb/fixmort). No residual here now.
                 if stem == "spclwt"
-                    @test_broken all(_tccol(jl[i], 9)  == _tccol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — non-associative tree-SUM order
-                    @test_broken all(_tccol(jl[i], 12) == _tccol(ft[i], 12) for i in 1:length(jl))  # BdFt  — non-associative tree-SUM order
+                    @test all(_tccol(jl[i], 9)  == _tccol(ft[i], 9)  for i in 1:length(jl))  # TCuFt — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
+                    @test all(_tccol(jl[i], 12) == _tccol(ft[i], 12) for i in 1:length(jl))  # BdFt  — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
                 end
             end
         end

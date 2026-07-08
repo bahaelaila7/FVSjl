@@ -72,9 +72,18 @@ _pccf_base(path) = [split(l) for l in eachline(path)
         # overstory crown-area terms (0.001803·CW²·TPA·scale) per point; a sub-ULP difference in any one grown
         # DBH/HT→CW on those dense points tips the boundary. Same precision-floor class as the DGSCOR/COMPRESS
         # tails. Total = exactly 5 crown-units/50 = 0.10. Bound = exact measured floor 0.101 (NOT loosened).
-        # crown center residual (mean 82.56 vs 82.46) = Float32 per-point-PCCF boundary flip on 3/10 pts (the
-        # point_ccf Σ + INT(CR·100+0.5) round — a non-associative accumulation, NOT one portable primitive) ⇒
-        # EXPOSED @test_broken vs the print-half-width (doctrine #9), not a passing ≤0.101. 7/10 pts bit-exact.
+        # crown center residual (mean 82.56 vs 82.46) = Float32 per-point-PCCF boundary flip on 3/10 pts.
+        # CORNERED (2026-07-06): BOTH candidate confounds are now TESTED-AND-INERT, so the residual bottoms out
+        # at ONE named primitive — the grown DBH/HT→CW Float32 accumulation floor (same class as the DGSCOR /
+        # COMPRESS tails). (1) accumulation ORDER: reordering point_density! to FVS's species-major/DBH-desc
+        # dense.f order (2026-07-05) was INERT on all 3 flips + the whole suite. (2) per-term ASSOCIATIVITY:
+        # point_density! now accumulates `ccft·pi/gross` LEFT-TO-RIGHT = FVS dense.f:210 `CCFT*PI/GROSPC` exactly
+        # (standstats.jl, replacing the precomputed reciprocal-scale `ccft·(pi/gross)`) — verified INERT here
+        # (mean stayed 82.56) AND across the whole suite (6875/138, no regression). With both the point_ccf
+        # sum-order and the PI/GROSPC op-order matched to FVS bit-for-bit, the sole remaining seed is a sub-ULP
+        # in a grown DBH/HT→crown_width on the ~30 dense-point overstory terms, tipping the regen
+        # INT(CR·100+0.5) half-integer boundary — a grown-Float32 accumulation-floor primitive, not a logic gap.
+        # ⇒ EXPOSED @test_broken vs the print-half-width (doctrine #9). 7/10 pts bit-exact.
         @test_broken isapprox(mean(cr), 82.46; atol = 0.05)          # crown center — per-point PCCF boundary (Δ0.10 > 2-dec half)
         @test maximum(cr) <= 87                                       # capped near live's 86 (NOT the ~90 of PCCF=0)
     end

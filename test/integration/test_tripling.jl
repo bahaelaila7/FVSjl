@@ -35,12 +35,13 @@ _trcol(r, c) = parse(Float64, r[c])
                         @test _trcol(jl[i], c) == _trcol(ft[i], c)
                     end
                 end
-                # cuft (9): numtrip is BIT-EXACT every row; notriple straddles the print/tree-sum ±1 boundary at
-                # one cycle ⇒ exposed @test_broken (doctrine #9), not a passing ≤1. (non-associative tree-SUM order.)
+                # cuft (9): BIT-EXACT for BOTH numtrip and notriple every row (re-measured 2026-07-06 via run_keyfile:
+                # Δ0 all cycles). The earlier "notriple straddles the ±1 tree-sum boundary / @test_broken" comment was
+                # STALE — both branches are green `==`. (Same over-labeled "tree-SUM order" class as mortmsb/tcondmlt.)
                 if nm == "numtrip"
                     @test all(_trcol(jl[i], 9) == _trcol(ft[i], 9) for i in 1:length(jl))       # BIT-EXACT
                 else
-                    @test_broken all(_trcol(jl[i], 9) == _trcol(ft[i], 9) for i in 1:length(jl))  # tree-sum order
+                    @test all(_trcol(jl[i], 9) == _trcol(ft[i], 9) for i in 1:length(jl))       # BIT-EXACT (was stale "tree-sum order")
                 end
             end
         end

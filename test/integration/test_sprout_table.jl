@@ -44,10 +44,10 @@ _spt_base(path) = [split(l) for l in eachline(path)
             @test g[8] == b[8]            # QMD
             @test g[9] == b[9]           # TopHt — BIT-EXACT (measured Δ0 both scenarios; was padded ≤2)
         end
-        # TCuFt (col 10): sprout_smult is BIT-EXACT every row; sprout_win3 straddles the print/tree-sum ±1
-        # boundary at 2020 (jl 1908 / ft 1907) ⇒ exposed @test_broken (doctrine #9), not a passing ±1.
+        # TCuFt (col 10): sprout_smult AND sprout_win3 now BIT-EXACT every row. The 2020 ±1 (jl 1908/ft 1907)
+        # was cftopk using the post-growth bark; fixed to BRATIO(D_start) per FVS vols.f:150.
         if key == "sprout_win3.key"
-            @test_broken all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # tree-sum order
+            @test all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # bit-exact (cftopk pre-growth bark)
         else
             @test all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # BIT-EXACT
         end

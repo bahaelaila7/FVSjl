@@ -16,6 +16,7 @@
 # carbon-report fix is confirmed inert for the fire path.
 
 using Test, FVSjl
+using SQLite
 
 const _FDIR = joinpath(@__DIR__, "..", "harness", "scenarios")
 
@@ -68,7 +69,7 @@ end
             @test j[1] == f[1]                              # YEAR
             @test j[3] == f[3]                              # TPA — bit-exact (the gate skips the over-kill)
             @test j[4] == f[4]                              # BA  — bit-exact
-            @test abs(parse(Int, j[9]) - parse(Int, f[9])) <= 1   # TCuFt (±1 ULP)
+            @test parse(Int, j[9]) == parse(Int, f[9])            # TCuFt — BIT-EXACT (rendered ==, measured 0 diff all cycles)
         end
     end
 end
@@ -171,17 +172,50 @@ end
     if !isfile(key)
         @test_skip "fire_burn.key not available"
     else
+        # Object-level: the manual-grow path still produces a burn_report at the fire year.
         s = first(FVSjl.each_stand(key))
         FVSjl.notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_volumes!(s)
         for _ in 1:3; FVSjl.grow_cycle!(s; fint = 5f0); end       # through the 2000 fire
         @test s.fire !== nothing && !isempty(s.fire.burn_reports)
-        br = first(s.fire.burn_reports)
-        @test br.year == 2000
-        # flame/scorch carry a residual vs live's 3-dec print (jl 4.1696/17.5657 vs 4.172/17.581). The op
-        # ^0.46 / ^(7/6) are already FFI-routed (fpow); the residual traces UPSTREAM to `byram` = a Σ over the
-        # weighted fuel models (non-associative sum-order), NOT one portable primitive ⇒ EXPOSED @test_broken
-        # (doctrine #9), not a passing atol. Closes when the fuel-model byram accumulation matches FVS's order.
-        @test_broken round(Float64(br.flame);  digits = 3) == 4.172    # byram sum-order (jl 4.1696→4.170)
-        @test_broken round(Float64(br.scorch); digits = 3) == 17.581   # byram sum-order (jl 17.5657→17.566)
+        @test first(s.fire.burn_reports).year == 2000
+        # Flame/scorch are asserted against the PRODUCTION path (run_keyfile → DBS FVS_BurnReport). The manual
+        # grow above weights the fuel models on PERIOD-END fuel (it can't stash `fire_smlg`, which needs the
+        # summary driver's fuel_period/deferred-ffe_fuel_update! path); production uses the FIRE-BASIS fuel
+        # (start-of-cycle+1-annual) exactly as FVS's FMMAIN. Live FMFINT-stamped proof (2026-07-05xx): per-model
+        # BYRAMT is bit-exact (fm10=6518.9/fm5=8987.5); only the WEIGHTS differ by the fuel basis. Live Flame=4.172.
+        base = tempname(); tkey = base * ".key"; dbpath = base * ".db"
+        open(tkey, "w") do io
+            for l in eachline(key); println(io, replace(l, "FVSOut.db" => dbpath)); end
+        end
+        tre = joinpath(_FDIR, "fire_burn.tre")
+        isfile(tre) && cp(tre, base * ".tre"; force = true)
+        FVSjl.run_keyfile(tkey)
+        fl = nothing; sc = nothing
+        if isfile(dbpath)
+            db = SQLite.DB(dbpath)
+            for r in SQLite.DBInterface.execute(db, "SELECT Flame_length,Scorch_height FROM FVS_BurnReport LIMIT 1")
+                fl = Float64(r[1]); sc = Float64(r[2])
+            end
+        end
+        @test fl !== nothing
+        # PRODUCTION flame — BIT-EXACT vs live's 3-dec print (production 4.17171 → 4.172).
+        @test round(fl; digits = 3) == 4.172
+        # Scorch keeps a genuine Δ0.0035 (17.5775 vs live 17.581). CORNERED to the GROWN-FLOAT32 ACCUMULATION FLOOR
+        # (a permitted primitive) by EXHAUSTIVE both-sides elimination (2026-07-06; ~28 turns of live stamps): the
+        # residual is the _fmdyn fuel-model WEIGHTS (jl 0.5639/0.4361 vs live 0.5634/0.4366), from a +0.0084 big-wood
+        # fire-basis cwd (LARGE) excess (jl 3.2908 vs live 3.2824), amplified by _fmdyn's near-iso-line sensitivity.
+        # scorch_height's own transcendentals match (routed **0.5/**3.0/**(7/6), inert); per-model BYRAMT bit-exact.
+        # The cwd excess is traced: EVERY down-wood source's LOGIC matches FVS (snag-fall cone-split _cwd_cone_fractions
+        # == fmcwd.f CWD1 R1/pat/DIF+LOHT; woody-breakage == fmcadd.f:81 LIMBRK·CROWNW; cwd2b-fall == fmcadd.f:113-135;
+        # crown-lift == fmcadd.f:95-102), and the DIRECTLY value-comparable pieces bit-MATCH live: 1990 FUINI inventory
+        # LARGE (2.45==2.45), crown-lift big-wood (0.261==0.0521607×5), decay (DKR==fmvinit.f), snag density (FMDOUT
+        # exact). So each source is bit-exact GIVEN the same grown tree state — the only residual is that the GROWN
+        # crown_pct (feeding woody-breakage CROWNW) and grown dbh (feeding the snag-fall cone-split) differ by their
+        # DOCUMENTED grown-Float32 accumulation floors (crown_pct = the carbon:335 @test_broken; grown-dbh = MYBA/MYSDI,
+        # test_dbs_compute). i.e. the SAME accumulated-Float32-growth primitive (doctrine #9's permitted class),
+        # propagated through faithful cwd accounting into the fire-basis fuel and amplified by _fmdyn. Bug #1 (input-snag
+        # bole topwood) + the snag-record binning were REAL fixes en route (both landed this session). REFUTED along the
+        # way: total-fallvol (regressed 12 tests). @test_broken vs rendered-== (not a padded bound). See task #72.
+        @test_broken round(sc; digits = 3) == 17.581
     end
 end

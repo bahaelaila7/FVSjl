@@ -374,7 +374,7 @@ end
     # (species_index, DBH, live FVSne dubbed height @ IFOR=3)
     live = [(26, 10f0, 73.4), (30, 11f0, 68.6), (40, 8f0, 60.8), (55, 12f0, 81.9), (67, 14f0, 87.9)]  # lh Float64 1-dec
     for (sp, d, lh) in live
-        h3 = FVSjl._htdbh_height(sd, sp, d, 3)        # Allegheny (IFOR=3)
+        h3 = FVSjl._htdbh_height(sd, sp, d, 3; isne = true)   # Allegheny (IFOR=3) — NE-gated override
         h2 = FVSjl._htdbh_height(sd, sp, d, 2)        # base (IFOR=2)
         @test round(Float64(h3), digits=1) == lh       # RENDERED-==: dubbed height renders exactly to live 1-dec
         @test !isapprox(h3, h2; atol = 0.05)           # override actually changes the value (not a no-op)

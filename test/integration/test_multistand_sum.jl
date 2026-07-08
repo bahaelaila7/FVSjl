@@ -45,9 +45,9 @@ _mss_rows(txt) = [split(l) for l in split(txt, "\n")
                 @test tpa(jl[i]) == tpa(ft[i])              # TPA — BIT-EXACT (was ≤1 padding)
                 @test ba(jl[i])  == ba(ft[i])              # BA  — BIT-EXACT (was ≤1 padding)
             end
-            # cuft — render knife-edge (2005 3027/3026); the residual is the non-associative Float32
-            # TREE-SUM accumulation order (doctrine #9: exposed, not a passing ±1).
-            @test_broken all(cuft(jl[(st - 1) * 11 + c]) == cuft(ft[(st - 1) * 11 + c]) for st in (1, 3), c in 1:11)  # cuft (col 9) — tree-sum order
+            # cuft — render knife-edge (2005 3027/3026); the residual is FIXED (was mis-attributed to non-associative Float32
+            # TREE-SUM order); real cause was cftopk using post-growth bark — now BRATIO(D_start) per FVS vols.f:150, bit-exact.
+            @test all(cuft(jl[(st - 1) * 11 + c]) == cuft(ft[(st - 1) * 11 + c]) for st in (1, 3), c in 1:11)  # cuft (col 9) — bit-exact (cftopk pre-growth bark, FVS vols.f:150)
             # stand 2 is thinned (IF/THEN THINDBH at 2000/2015/2030) — it must show a
             # sharp thinning drop (>20% in one cycle, far above ~5-15% self-mortality),
             # and the managed regime ends with MORE trees than stand 1's unthinned stand,
