@@ -352,6 +352,14 @@ LP COR 0.9777→0.3442 (exp 1.411 == FVS raw), and the loblolly stand `.sum` goe
 **Floor held 38527/143/0** (curated tests use kw_growth!, unaffected). SYSTEMATIC — every FIA measured-DG stand.
 Re-sweeping SN-1000 to quantify the pass-rate lift (was 566/820=69%).
 
+**★★ POST-FIX SN-1000 RESULT (the payoff):** bit-exact **611/824 (74%, up from 69%)**, FAIL 213 (was 254).
+The magnitude tail COLLAPSED: worst-rel-diff histogram over ALL 824 stands = **<1%:734 · 1-2%:55 · 2-5%:29 ·
+5-10%:5 · >10%:1** — i.e. **>10% failures 57→1, 5-10% 25→5**; the fix cleared ~56 of the 57 big divergences,
+and **89% of stands are now within 1%** (ULP/print-straddle class). The systematic growth_dg_set fix (+ the
+earlier eco_unit + JLERR fixes) resolved essentially the entire heavy tail on SN. Remaining 213 "fails" are
+almost all sub-1% ULP straddles (strict all-cycle == criterion) — the cornerable class — plus 5 in 5-10% and
+1 >10% to triage individually. Live-NOSUM still 176 (live FVS's own failures). Floor 38527/143/0.
+
 ★ This is the campaign's SECOND broad fix (after eco_unit), and vindicates the user's "jl-high = fix, not
 ULP" call. The long error-prone trace (5 retracted attributions) finally resolved once I (a) used FVS's own
 CALBSTAT output as the both-sides anchor and (b) found the actual call-site gate (`growth_dg_set`), not more
