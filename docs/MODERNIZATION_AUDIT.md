@@ -3,6 +3,16 @@
 Goal + doctrine: `docs/MODERNIZATION_GOAL.md`. Tick each slice only when **bit-exact re-verified
 (suite green)** AND the pillar metric is recorded. Baseline floor = tolerance-campaign end state.
 
+## S100 — Pillar-2 allocation floor now GUARDED (was measured-once, unguarded)
+The S59 per-cycle metric (`@allocated grow_cycle!`) was measured ad-hoc and left ungoverned — a hole in
+the never-regress floor. Added `test/integration/test_allocation.jl` (wired into runtests.jl after the
+pillar-3 parallel test): warms a net01 NE stand (`each_stand`→`notre!`→`setup_growth!`→`compute_volumes!`),
+then asserts `@allocated grow_cycle!` stays ≤ 16 KB (measured floor **10,656 B/cycle**, dead-stable across
+5 calls — all of it the documented density-sort scratch) AND that the per-call spread stays ≤ 4 KB (constant
+per cycle, no growth-with-cycle churn). Generous ceiling catches a real ≥1.5× regression while robust to
+warmup/version noise. Suite **38511 → 38513** (+2 assertions), 143 broken unchanged, 0 fail. Pillar-2 is now
+a guarded part of the floor, not a one-time measurement.
+
 ## S98 — NE StandDead/DDW residual RIGOROUSLY CORNERED (#103 closed; state-split refuted)
 The ne_firecarb StandDead residual (SD +0.5/+1.0, DDW −0.4, carbon ~conserved = a snag↔down-wood
 *partition* at rounding-scale) is **faithfully cornered to a named primitive**, NOT a fixable bug:
