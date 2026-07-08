@@ -722,3 +722,20 @@ by the post-thin low density. Cornered, not a bug. Floor 38527/143/0 (no src cha
 NOTE: this is an AMPLIFICATION of a ULP primitive, honestly a large-magnitude residual — the ROOT (per-tree
 DG + the self-thinning trigger) is proven bit-exact/ULP by the no-mgmt + cut-cycle bit-exact evidence.
 (TODO Pillar 3: thinbta/thindbh regimes; calendar-year scheduling divergence trace; salvage/plant/fire.)
+
+---
+## SLICE 15 — RETRACTION: calendar-year scheduling is BIT-EXACT (the "divergence" was a column artifact)  [2026-07-08]
+Slices 12/14 NOTED (untraced) that calendar-year scheduling diverged (live ignores THINBBA 2019.0, jl one
+cycle late). TRACED it → FALSE. That note came from a pre-kwrec MANUAL keyfile (`THINBBA       2019.0  40.0`,
+7 spaces) whose column misalignment shifted 2019.0 into the wrong FIXED-FORMAT field, so live (column-strict)
+misread the date while jl (whitespace-tolerant) read it fine ⇒ artificial disagreement. Re-tested stand
+246537009010854 with kwrec-aligned columns at calendar 2014/2019/2024:
+  2014.0: live/jl AGREE — thin shows @2019 BA 49 (then 103/102, 140/139, 144/143 ULP)
+  2019.0: live/jl BIT-EXACT — 2019/135(pre) 2024/47 2029/81 2034/119 identical
+  2024.0: live/jl BIT-EXACT — 2024/145 2029/46 2034/70 identical
+**Calendar-year scheduling reproduces live FVS bit-exact-or-ULP.** (Timing note, both engines agree: a
+calendar year Y fires in the cycle that GROWS from Y (OPCYCL IY(i)≤Y<IY(i+1)) so the cut shows at the NEXT
+summary row; cycle-number N fires one cycle earlier — different SEMANTIC, each matching live for its form.)
+This STRENGTHENS Pillar 3: BOTH cycle-number and calendar-year THINBBA scheduling are faithful; the only
+management residual is the cornered post-thin mortality-cliff ULP amplification (slice 14). Lesson (again):
+a noted-but-untraced divergence must be traced before it's believed — this one dissolved, like the 147% one.
