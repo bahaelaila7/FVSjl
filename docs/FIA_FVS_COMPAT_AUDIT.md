@@ -637,3 +637,27 @@ QMD print — NOT a logic gap.
 **NE verdict:** no systematic NE bug; reached 90% WITHOUT the SN-gated eco_unit/EUT term (NE dgf differs).
 The two variant-agnostic FIA-reader fixes (growth_dg_set FINT-normalization + _fia_num) generalize cleanly.
 Remaining 10% = the same Float32-compounded straddle class cornered for SN. Floor intact 38527/143/0.
+
+---
+## SLICE 10 — CS-100 + LS-100 multi-cycle sweeps (complete the 4-variant cross-check)  [2026-07-08]
+Ran the same multi-cycle differential (5 cycles, indexed sub-DBs cs100.db/ls100.db, deterministic
+VARIANT-stratified samples) for the two remaining variants. JLERR=0 both (the `_fia_num` fix holds).
+
+**CS: 91/98 BIT-EXACT (93%)** (100 run, 98 .sum, 2 live-NOSUM). Worst-rel histogram: <1%:98 — **every
+CS stand within 1%, zero tail.** Mean |rel diff|/cycle ≤0.02%. All 7 failures = TPA/SDI ±1-2 unit
+straddles (signature.jl: 2689/2690, 180/181, 270/271, SDI 224/225, 1761/1759, 1181/1182, 918/919).
+
+**LS: 86/100 BIT-EXACT (86%)** (100 run, 100 .sum, 0 NOSUM). Histogram: <1%:94, 1-2%:4, 2-5%:2, >10%:0
+(94% within 1%). All 14 failures = ±1-unit straddles (TPA/SDI/CCF/BA ±1) + one QMD print straddle.
+Worst 4.0% (566121733126144) fully traced: 2018 & 2038 bit-identical; 2028 TPA(695)+BA(23) identical but
+QMD prints 2.4 vs 2.5 — true BA differs sub-print (both round to 23), QMD=√(BA·k/TPA) lands ~2.449 vs
+~2.451 across the 2.45 one-decimal boundary; rest bit-exact or ±1. ULP-compounded straddle, not a logic gap.
+
+**4-VARIANT CROSS-CHECK COMPLETE (Pillar 2, first pass):**
+  SN 1000: 74% (heavy tail collapsed 57→1 by 2 fixes; residual ULP + ~5 individual)
+  NE  100: 90% (all-ULP tail, no fix needed)
+  CS  100: 93% (all-ULP tail, zero >1%, no fix needed)
+  LS  100: 86% (all-ULP tail, no fix needed)
+The two variant-agnostic FIA-reader fixes (growth_dg_set FINT-normalization + _fia_num) generalized to
+all 3 companion eastern variants with NO variant-specific code: every NE/CS/LS residual is a Float32
+±1-unit / print-boundary straddle, no systematic bug in any of the three. Floor intact 38527/143/0.
