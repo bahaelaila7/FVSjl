@@ -6,7 +6,7 @@ const DB = "/workspace/SQLite_FIADB_ENTIRE.db"
 # variant → (live binary, FVSjl variant)
 variant_cfg(v) = v == "LS" ? ("/tmp/FVSls_new", FVSjl.LakeStates()) :
                  v == "SN" ? ("/tmp/FVSsn_new", FVSjl.Southern()) :
-                 v == "NE" ? ("/tmp/FVSne_new", FVSjl.NorthEast()) :
+                 v == "NE" ? ("/tmp/FVSne_new", FVSjl.Northeast()) :
                  v == "CS" ? ("/tmp/FVScs_new", FVSjl.CentralStates()) : error("variant $v")
 
 keyfile_text(cn) = """
