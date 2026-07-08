@@ -83,7 +83,12 @@ tie), 1 CCF (Δ1 ULP), 2 TCuFt (Δ1-8 ULP).
 These FVS keywords are recognized but **not** acted on by FVSjl. Each was investigated and found to be
 either `.sum`-invisible (so an isolated KCV test would be vacuous — violates "test must exercise the
 semantic") or a specialty/extension path outside the exercised eastern scope. Documented so the
-"100% drop-in" claim is honest rather than silently incomplete:
+"100% drop-in" claim is honest rather than silently incomplete.
+
+**Coverage-probe conclusion (S99):** the two findable common unimplemented keywords (FIXCW, PRUNE) were
+both *measure-verified* `.sum`-invisible (FIXCW at 10×; PRUNE fired-but-identical) — their effects live in
+crown-width/fuel/fire pools, never the standard summary. This is the strongest completeness evidence for
+the `.sum` drop-in claim: the remaining gaps do not move any `.sum` column on the exercised scenarios.
 
 - **FIXCW** (crown-width multiplier, `cwidth.f` activity 90) — investigated S99. Multiplies per-tree
   crown WIDTH within a (species/group, DBH-window). Effect is confined to PERCOV/crown-width `.out`
@@ -92,8 +97,12 @@ semantic") or a specialty/extension path outside the exercised eastern scope. Do
   CCF column is the DBH-based crown-competition factor, not crown width. Porting is a per-tree multiplier
   threaded through the ~9 `crown_width` consumers, inert by default; deferred because it is `.sum`-
   invisible and its only observable (fire-PERCOV) is coarse-binned — no non-vacuous isolated test exists.
-- **PRUNE** (`fmprun.f`) — FFE fuel-pruning activity (raises crown base for fuel management); FFE-scoped,
-  affects fuels→fire only. Not investigated for `.sum` visibility; specialty FFE path.
+- **PRUNE** (`cuts.f` activity 249 / `fmprun.f`) — investigated S99, **measured `.sum`-invisible**. Prunes
+  lower crown to a height (method/feet/maxCRprop/species/DBH-window) and books the pruned crown material
+  into the CWD fuel pools (fmprun.f). On the NE canonical stand the activity FIRED ("PRUNE … DONE IN 2000"
+  in the `.out`) yet the `.sum` was byte-identical to baseline every column/cycle — its effect is confined
+  to fuels→fire and crown/fuel reporting. Non-vacuous isolated `.sum` test does not exist without a
+  fire-coupled scenario (and even then via the coarse-binned fuel path). Specialty FFE-fuel keyword.
 - **Extension keywords** (`DFB`/`DFTM`/`MPB`/`BRUST`/`WSBW`/`MISTOE`/`CLIMATE`/`ORGANON`/`FIAVBC`) —
   insect/disease/climate/growth-model extensions outside the SN+NE+CS+LS core scope.
 
