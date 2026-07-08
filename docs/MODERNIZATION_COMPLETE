@@ -1,0 +1,34 @@
+FVSjl MODERNIZATION CAMPAIGN — CLOSED (user-authorized, 2026-07-08)
+
+Closed on explicit user direction ("you can close the modernization campaign and the tolerance
+campaign and start FIA/FVS campaign of behaviour compatibility on the 4 variants").
+
+## Final state
+- Suite: **38527 pass / 143 broken / 0 fail / 0 error** (`julia --project=. test/runtests.jl`).
+- All FOUR pillars met, documented, AND suite-guarded across all four variants (SN/NE/CS/LS):
+  1. CORRECTNESS & COVERAGE — whole bit-exact-or-cornered suite; per-variant coverage matrix
+     (docs/COVERAGE_MATRIX.md). Remaining unimplemented keywords (FIXCW/PRUNE) proven .sum-INVISIBLE
+     (S99, measured); the coverage gap has zero .sum impact.
+  2. ALLOCATION-FREE — grow_cycle! per-cycle floor guarded ≤20 KB, all 4 variants
+     (test/integration/test_allocation.jl, S100/S102). Measured: SN 15,392 · NE 10,640 · CS 10,048 ·
+     LS 9,984 B/cycle, all justified sort-scratch.
+  3. SoA + PARALLEL — serial==parallel bit-identical, all 4 variants (test_parallel.jl).
+  4. IDIOMATIC/TYPE-STABLE — hot-path @inferred guarded, all 4 variants (test_allocation.jl, S101/S102).
+
+## @test_broken justification audit (2026-07-08, the close gate)
+All 76 @test_broken source assertions reviewed; EVERY one is cornered to a named primitive — none
+hides an unexplained divergence. Classes:
+- Non-associative Float32 sum-order ULP (direct) — rothermel/fire_biomass re-sums, carbon total &
+  `removed` re-sum (closing `removed` would DIVERGE from FVS), fertiliz volumes.
+- Final-rounding ULP vs N-decimal live stamp — growth COR (1 ULP).
+- Grown-Float32 / DGSCOR serial-correlation floor (compounded ULP; deconfounded from transcendentals
+  by FFI-routing) — multicycle, mortmsb, dbs_compute MYBA/MYSDI, allspecies cov4/CS, nohtdreg
+  (1990 state + 27/27 DG + COR all match live), timeint, estab_pccf/rng, carbon Above.
+- Deterministic kill-distribution knife-edge (±1 tree at a self-thinning near-tie) — fixmort,
+  longrun 2090, simfire_schedule.
+- Single-htcur snag approximation — NE carbon StandDead/DDW (#103-verified, SN carbon_snt class).
+- RNG-coupled fire-kill desync at print width — carbon agl/sd (deconfounded from FMEFF transcendentals).
+- FVS UB — treeszcp height-cap uninitialized-array read (docs/FVS_SOURCE_BUGS.md D37).
+- Legacy tool bug, NOT drop-in-relevant — translate .csv→.tre (engine reads .csv directly).
+
+Successor campaign: **FIA/FVS behaviour compatibility on the 4 variants** (docs/FIA_FVS_COMPAT_GOAL.md).
