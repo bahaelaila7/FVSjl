@@ -274,6 +274,13 @@ multi-point FIA stands (point assignment / expansion / PROB weighting), NOT the 
 inferred from the PTBAL debug without checking what dgf CONSUMES (doctrine #3). Next: trace how FVS builds
 PTBAA per point (fvsGetPtBal / the point BA accumulation) vs jl `compute_density!` point_ba on this 4-point stand.
 
+### Slice 4b — FIXED: jl FIA-reader crash on text-typed numeric columns (4 JLERR → 0)
+The 4 SN-1000 JLERR stands were all `MethodError(Float64, ("2.0",))`: `TREEINIT.SEVERITY3` is TEXT-typed but
+holds "2.0", and `_fia_int`/`_fia_f32` did `Float64(d[k])` on the String. FIX (`fia_database.jl`): `_fia_num`
+tryparses numeric strings (nothing→default), so the reader robustly handles text-encoded numbers like live FVS.
+All 4 now RUN (1 bit-exact, 3 = small <1% straddles). **Floor held 38527/143/0** (numeric inputs unchanged;
+faithful). A real jl robustness win on real FIA data — the first campaign fix since eco_unit.
+
 ## Slice 4 (Pillar 1+2) — SN-1000 sweep + failure CLUSTERING (widen, then triage by cause)
 SN-1000 stratified sweep (indexed sub-DB, ~20 min):
 - **566/820 BIT-EXACT (69%), 254 FAIL.** cycle-0 identical 814/820.
