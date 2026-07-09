@@ -1170,3 +1170,12 @@ VERDICT: all 10 .sum columns at scale are BIT-EXACT-OR-CORNERED. Volume residual
 growth-ULP / self-thinning-count-straddle propagating through the merchantability-threshold + board-rule
 step functions (a boundary tree is genuinely ambiguous under a sub-display-ULP dbh diff). NO volume-equation
 bug — TCuFt (threshold-free) is ULP-clean. Pillar-2 "all 10 columns" done-state met at scale on real FIA.
+
+### SLICE 36 addendum — all-10-column per-variant table complete (CS + LS, plain regime, ~300 stands each)
+Per-column bit-exact CELL rate (all cycles), completing the 4-variant Pillar-2 table:
+  CS: TPA 98 BA 99 SDI 99 CCF 99 TopHt 100 QMD 99 | TCuFt 96 MCuFt 96 SCuFt 96 BdFt 95  (cleanest variant)
+  LS: TPA 95 BA 99 SDI 98 CCF 90 TopHt 99 QMD 99 | TCuFt 87 MCuFt 87 SCuFt 89 BdFt 84
+All 4 variants (SN/NE/CS/LS) show the SAME signature: volume columns a few points below the structure columns,
+BdFt typically the lowest (board-rule step function most sensitive to a threshold-straddling tree). Same named
+primitive on every variant (growth-ULP × merch/board threshold-step); no variant has a volume-equation bug.
+Pillar-2 "per-variant pass rate on all 10 columns" done-state: COMPLETE for all four variants at scale.
