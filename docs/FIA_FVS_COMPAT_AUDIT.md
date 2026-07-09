@@ -1179,3 +1179,29 @@ All 4 variants (SN/NE/CS/LS) show the SAME signature: volume columns a few point
 BdFt typically the lowest (board-rule step function most sensitive to a threshold-straddling tree). Same named
 primitive on every variant (growth-ULP × merch/board threshold-step); no variant has a volume-equation bug.
 Pillar-2 "per-variant pass rate on all 10 columns" done-state: COMPLETE for all four variants at scale.
+
+---
+## SLICE 37 — DEEPER FIDELITY DIFFERENTIAL under management: FIXED PLANT-by-cycle-number (real bug)  [2026-07-09]
+Ran validate_fia10.jl (all 10 cols) under the 4 MANAGEMENT regimes on SN (300 stands). thin/salvage matched the
+plain baseline (volumes 77-86%, cornered). PLANT was a DRAMATIC outlier: TPA 33%, 0/249 stands fully bit-exact,
+TCuFt 53% but MCuFt/BdFt ~72% (the divergence in the SEEDLINGS, non-merch) — a management-specific divergence.
+
+ROOT CAUSE (both-sides trace on an empty stand; live plants 400 TPA at 2016, jl planted NOTHING all cycles):
+Two bugs, both from the PLANT date "2" being a CYCLE NUMBER (the standard keyword form) not a calendar year:
+  (1) FIRING: establish!'s `due` filter (establishment.jl:87) had ONLY the calendar-year clause
+      `yr <= a.year < yr+per` ⇒ `2016 <= 2` is false ⇒ PLANT scheduled by cycle number NEVER FIRED. cuts! already
+      resolves cycle-number dates via `0 < a.year < 1000 && a.year == fvscyc` (cuts.jl:203-208); ESTAB was the
+      omission. FIX: added the same cycle-number clause to establish!.
+  (2) SIZING: even once firing, `delay = Int(a.year) - Int(yr) = 2 - 2016 = -2014` (establishment.jl:194) ⇒
+      `age = per - delay + ... ≈ 2019` ⇒ grossly over-sized "seedlings" (QMD 3.2" vs live 0.1"). FIX: resolve the
+      cycle-number date to its calendar year via `cycle_year_at(a.year)` BEFORE the DELAY offset, so a cycle-number
+      "2" behaves exactly like calendar "2016".
+VALIDATION vs live FVSsn (empty stand, PLANT cycle 2): before = jl 0 TPA every cycle (all 10 cols wrong);
+after = 2016 400/0/0.1/0 and 2021 389/0/0.1/0 BIT-EXACT vs live; residual = the young planted cohort's growth
+(2031 QMD 2.2 vs 2.3, TCuFt 167 vs 178) = the cornered dense-regen small-tree-growth primitive (TPA bit-exact
+every cycle). Suite floor: 38527/143/0 (existing establishment tests use calendar-year dates ⇒ the additive
+cycle-number clause + resolved-year delay don't regress them; the delay path is IDENTICAL for a.year>=1000).
+VERDICT: 4th REAL code fix of the campaign — the standard `PLANT <cycle> <sp> <tpa>` keyword (cycle-number date)
+was COMPLETELY broken (never planted), surfaced by the user-requested deeper-fidelity differential under mgmt.
+This is a substantial keyword-behaviour bug (Pillar 3), not a ULP residual. Variant-safe (shared establishment.jl,
+same convention as cuts! for all variants). NATURAL(431) regen scheduled by cycle number is fixed by the same change.

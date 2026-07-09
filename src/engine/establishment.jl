@@ -83,8 +83,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
+    # PLANT/NATURAL dates < 1000 are CYCLE NUMBERS (FVS 1-based), not calendar years — the same OPNEW/OPFIND
+    # convention cuts! applies (cuts.jl:203-208). Without the cycle-number clause a `PLANT 2 ...` (cycle 2) never
+    # matched `yr <= a.year` (2016 <= 2 is false) ⇒ planting silently never fired (bit vs live only on real FIA
+    # stands scheduled by cycle; thin/salvage already resolved this way, ESTAB was the omission).
+    fvscyc = Int(s.control.cycle) + 1
     due = [a for a in s.control.schedule
-           if (a.icflag == Int32(430) || a.icflag == Int32(431)) && yr <= a.year < yr + per]
+           if (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+              ((yr <= a.year < yr + per) || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc))]
     isempty(due) && return false
 
     # NPTIDS = IPTINV − NONSTK (esplt2.f:74): the STOCKABLE inventory points, not the raw
@@ -185,7 +191,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             sp = round(Int, a.params[1]); (1 <= sp <= MAXSP) || continue
             ptree = a.params[2] * (a.params[3] / 100f0) / dupnpt
             ptree <= 0f0 && continue
-            delay  = Int(a.year) - Int(yr)
+            # a cycle-number date (<1000) resolves to the calendar year at that cycle (cycle_year_at) before the
+            # DELAY offset — else `delay = 2 - 2016 = -2014` ⇒ age≈2019 ⇒ grossly over-sized "seedlings". A
+            # calendar-year date carries its own sub-cycle offset unchanged.
+            pyr    = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year))) : Int(a.year)
+            delay  = pyr - Int(yr)
             trage  = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
             age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
             si  = s.plot.sp_site_index[sp]
