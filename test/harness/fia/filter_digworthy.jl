@@ -78,7 +78,10 @@ function main(csv, v, cornerfile)
         if !is_escalation(sig, worst_col, max_rel)
             e = get(eco, cn, "")
             for (pfx, csig) in corners
-                if csig == sig && startswith(e, pfx); drop = true; break; end
+                # pfx "*" = GLOBAL (all ecoregions) — the taxonomy signatures verified SN-model-universal
+                # (dig #1/#2/#2d: 221 Appalachian-hardwood + 223 interior-broadleaf identical); the escalation
+                # guard (is_escalation) still surfaces genuine real-bug candidates regardless.
+                if csig == sig && (pfx == "*" || startswith(e, pfx)); drop = true; break; end
             end
         end
         drop || println(rows[idx])

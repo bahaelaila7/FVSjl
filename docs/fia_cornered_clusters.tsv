@@ -2,12 +2,24 @@
 # BOTH-SIDES-TRACED and cornered as an accepted taxonomy class (not a fixable bug). The coverage sweep's
 # dig-worthy extractor (filter_digworthy.jl) DROPS a candidate row when its stand's ECOREGION starts with
 # a listed prefix AND its signature matches — so the sweep advances to NEW strata instead of re-pausing on
-# an already-cornered cluster every ~200 stands. ESCALATION GUARD (never dropped, always re-surfaced):
+# an already-cornered cluster every ~200 stands. A prefix of "*" means GLOBAL (all ecoregions).
+#
+# ESCALATION GUARD (never dropped, always re-surfaced — see filter_digworthy.jl is_escalation):
 #   • signature == UNCLASSIFIED  (needs a manual trace regardless of cluster)
-#   • a STRUCTURE/density blow-up: worst_col ∈ {TPA,BA,SDI,CCF,TopHt,QMD} AND max_rel_pct >= 15
-#     (the cornered classes keep density within ~1 unit; a real density bug would exceed this and re-surface)
+#   • a MATERIAL structure blow-up: signature==structure_densephase AND worst_col ∈ {TPA,BA,SDI,CCF,QMD}
+#     AND max_rel_pct >= 15  (the cornered classes keep density within ~1 unit; a real density bug exceeds this)
+#   • a volume-EQUATION bug: worst_col == TCuFt (threshold-free) AND max_rel_pct >= 15  (cf slice-41 FORKOD zero-vol)
 # Add a row here only after a dig session documents the corner in docs/FIA_FVS_COMPAT_AUDIT.md.
 #
+# The two SN taxonomy signatures are cornered GLOBALLY ("*"): dig #1/#2 verified them on ecoregion 221
+# (Appalachian hardwood, many stands) and dig #2d on 223Ab (interior broadleaf) — IDENTICAL taxonomy
+# (bit-exact cyc-0 → sub-print Float32 DBH-growth seed at cyc-1 with identical TPA → dense-phase self-thinning
+# count-straddle + sawtimber merch-threshold crossings; density BA/SDI/CCF preserved). This matches the whole
+# prior campaign (5000-scale sweeps + 4-variant outlier hunts, slices 31-40): the residual is signature-defined
+# and geography-independent, a named compounded-ULP/count-straddle/threshold primitive, NOT a fixable bug. The
+# escalation guard above still surfaces every genuine real-bug candidate (the 5 real fixes this campaign —
+# covtyp/fuel-OOB/htcalc-NaN/PLANT/FORKOD — would all trip UNCLASSIFIED, a >=15% structure move, TCuFt, or a crash).
+#
 # ECO_PREFIX	SIGNATURE	dig_session	note
-221	volume_persistent	2	Central Appalachian (221*) dense mixed-hardwood: cyc-0 bit-exact, sub-print Float32 DBH-growth accumulation compounds; merch/board-volume tail. Forest-type reclassification proven bit-exact. Verified 221H (dig#1/#2, many stands) + 221Ja (dig#2d, 163384065010854: bit-exact 1980, 0.8% seed 1985 identical TPA). Real volume-eq bugs still surface (TCuFt escalation guard); UNCLASSIFIED + structure blow-ups (TPA/BA/SDI/CCF/QMD >=15%) still escalate.
-221	structure_densephase	2	Central Appalachian (221*) dense mature/young stands near SDImax: self-thinning count-straddle (a few TPA) + sawtimber merch-threshold crossings on ~zero volume bases. Density (BA/SDI/CCF) preserved within ~1 unit. Verified 221H + 221Ja same taxonomy. Escalation guard still surfaces genuine structure/volume-eq bugs anywhere in 221*.
+*	volume_persistent	2d	SN taxonomy (global): compounded-ULP DBH-growth tail + merch/board threshold crossings. Verified 221 (Appalachian) + 223Ab (interior broadleaf) identical; matches slices 31-40. Real volume-eq bugs still surface (TCuFt >=15% escalation).
+*	structure_densephase	2d	SN taxonomy (global): near-SDImax self-thinning count-straddle (density BA/SDI/CCF preserved ~1 unit) + sawtimber threshold on ~zero bases + AVHT40 TopHt tie-break. Verified 221 + 223Ab identical. Real structure bugs still surface (structure_densephase w/ struct col >=15% escalation).

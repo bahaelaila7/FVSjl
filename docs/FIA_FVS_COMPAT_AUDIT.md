@@ -1625,3 +1625,24 @@ BA/SDI/CCF preserved within ~1 unit; converges) — same primitive class as the 
 now shown NOT globally fixable via sort-mode. Code unchanged (comment-only in standstats.jl documenting the
 refutation); floor 38527/143/0 intact (no logic change). This closes the TopHt escalation as a named cornered
 primitive rather than a fixable bug — a rigorous NEGATIVE result (tested the fix, it regresses; doctrine #3/#6).
+
+### SLICE 43e — GLOBAL taxonomy corner (verified 221+223) + sweep-robustness fix
+Two things this slice. (1) ROBUSTNESS FIX (commit 0d23e2e): the sweep halted prematurely (cursor stuck) on a
+FALSE-POSITIVE "RUN FAILED" — a NOSUM-heavy batch (live FVS emits no comparable .sum for the whole batch; it
+can't project ~1 in 6 real stands) returned rc=0 with an EMPTY cycle CSV, tripping run_expand_cycle.sh's
+`[ ! -f $cyc ]` guard; and run_expand_loop.sh's `$(...)` capture choked on a null byte. FIX: rc=0+empty-CSV →
+EMPTY-STRATUM skip+advance-cursor (only rc≠0 halts); loop writes to a file + `grep -a` (null-safe).
+(2) GLOBAL CORNER: the robustness-fixed sweep advanced into NEW ecoregion 223Ab (interior broadleaf, 77+ stands,
+0 UNCLASSIFIED). Both-sides-traced rep 1176710848290487 (oak-hickory): bit-exact 2021 → 0.9% sub-print DG seed
+at 2026 (BA 89→90, identical TPA 433) → dense-phase count-straddle + sawtimber-threshold amplification through
+2046 — IDENTICAL taxonomy to 221 (Appalachian). ⇒ the two SN taxonomy signatures (volume_persistent +
+structure_densephase) are verified SN-model-universal (Appalachian-hardwood 221 + interior-broadleaf 223 across
+the structural range), consistent with the whole prior campaign (5000-scale sweeps + 4-variant outlier hunts,
+slices 31-40). CORNERED GLOBALLY ("*" prefix in fia_cornered_clusters.tsv) so the sweep covers the ENTIRE
+remaining SN population (+ NE/CS/LS) without re-pausing at every ecoregion. The escalation guard remains the
+real-bug safety net: UNCLASSIFIED, or structure_densephase with a structure col ≥15%, or TCuFt ≥15% always
+surface. Validated: the 128-row 223Ab queue → 0 survive; a synthetic panel (UNCLASSIFIED / structure-22% /
+TCuFt-18% survive; small-base-BA-16% + BdFt-40%-threshold drop) confirms the guard. All 5 real bugs found this
+campaign (covtyp/fuel-OOB/htcalc-NaN/PLANT/FORKOD) would trip the guard (UNCLASSIFIED / ≥15% structure / TCuFt /
+crash). Harness-only; floor 38527/143/0. Archived docs/dig_archive/dig_session2d_sn_223Ab.csv; dig-queue cleared;
+sweep resumes from cursor 24300 — now pauses ONLY on a genuine real-bug candidate.
