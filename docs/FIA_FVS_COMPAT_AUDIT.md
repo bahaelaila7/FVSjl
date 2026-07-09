@@ -1319,3 +1319,21 @@ exhaustive crash-hunt (crash-free). Pillar-4 outlier hunt across 4 variants + 3 
 R9-Clark+Int'l / Scribner) confirms NO masked bug behind the cornered residuals (verified to 436% worst case) +
 consolidated divergence taxonomy. Reusable infra: crashscan_fia.jl, validate_fia10.jl (+outlier), manage_fia.jl,
 build_subdb.jl. To REOPEN: rm docs/FIA_FVS_COMPAT_COMPLETE.
+
+---
+## SLICE 41 — PER-STAND LEDGER + 5th REAL BUG (SN zero-volume / FORKOD remap)  [2026-07-09 re-run]
+User asked for a durable, reproducible per-stand ledger (bit-exact / divergence-magnitude / explanation) so a
+later fix can be re-run and checked for STATUS FLIPS. Built `ledger_fia.jl` (self-contained: temp indexed subdb
+from read-only master + committed stand lists) → `docs/fia_ledger.csv` (1000 stratified stands/variant, plain;
+MEASURED facts + deterministic signature; +README). This IMMEDIATELY FALSIFIED the earlier "no masked bug"
+claim: `volume_persistent` flagged SN stand 162992981010854 (LOCATION 824, Savannah River) — STRUCTURE bit-exact
+but jl ZERO volume every cycle (a 12.5" loblolly got cuft=0). ROOT CAUSE (both-sides): VOLEQDEF decodes forest
+as `iregn=KODFOR÷10000`, so the SHORT LOCATION format (REGION*100+FOREST, e.g. 824) gives iregn=0, the iregn==8
+guard fails, `vol_eq` blank ⇒ _R8CLARK_VOL=0. FVS's forkod.f remaps 824→81203 (Sumter) BEFORE VOLEQDEF; jl had
+only the Fort Bragg (701) case. FIX (commit 5a4fb9f): ported forkod.f's first SELECT CASE pseudo-code remap
+(824/836→81203, 860/835→80216, + OTSA/reservation codes) + the IFORDI-collapse pre-step, as `sn_forkod_remap!`.
+VALIDATED: stand now BIT-EXACT on all 4 volume cols every cycle vs live; suite floor 38527/143/0. Re-ran the SN
+ledger ⇒ the stand FLIPPED volume_persistent→bit_exact (SN bit_exact 526→527) — the intended workflow.
+LESSON: the earlier "complete" was PREMATURE — the outlier-hunt on worst RELATIVE outliers missed this (a
+different sample; and the 6-col sweeps never checked volume). The systematic per-stand all-10-col ledger caught
+it. Campaign stays OPEN (off-switch NOT re-touched): the ledger sampled 1000/variant plain — more may surface.
