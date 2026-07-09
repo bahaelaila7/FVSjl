@@ -29,3 +29,16 @@ where STRUCTURE is BIT-EXACT (TPA/BA/QMD match live) but jl computes **ZERO volu
 1599→3160, jl 0). Includes six 12.2" trees that should carry large cubic. NOT a cornered primitive — a genuine
 volume-computation failure on these locations. UNDER INVESTIGATION; the campaign's "complete" status is therefore
 PREMATURE until this is root-caused (both-sides-traced) and fixed or genuinely cornered.
+
+## ROOT CAUSE of the zero-volume bug (both-sides-traced)
+`setup_volume_equations!` (src/engine/volume_equations.jl:84-92) decodes the national-forest code as
+`iregn = kodfor ÷ 10000`, which assumes the LONG LOCATION format `REGION*10000 + FOREST*100 + DIST`
+(e.g. 80216 → iregn 8). But FIA `LOCATION` also arrives in the SHORT `REGION*100 + FOREST` form
+(e.g. 824 = R8 forest 24, per fia_database.jl:61-62). For a short code, `824 ÷ 10000 = 0 ≠ 8`, so the
+`iregn == 8` guard fails and `species.vol_eq[sp]` is left BLANK ⇒ `_R8CLARK_VOL` returns 0 for every tree
+(confirmed: a 12.5" loblolly gets cuft=0). Live FVS handles both formats and reports normal volume.
+The related stand 80216 decodes to iforst=2, which `_r8_ceqn` doesn't cover — also blank ⇒ 0.
+FIX (needs care, both-sides + multi-stand validation, per doctrine): normalize KODFOR to a canonical
+(region, forest, district) covering BOTH formats before the `iregn==8` guard — mirroring FVS forkod.f/
+sitset.f — and confirm the currently-passing stands (long-format + STDINFO-resolved forest_idx) stay bit-exact.
+STATUS: OPEN. Because a real bug is open, `docs/FIA_FVS_COMPAT_COMPLETE` should NOT stand — removing it.
