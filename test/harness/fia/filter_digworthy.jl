@@ -13,24 +13,28 @@ const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 
 # base dig-worthy rule (same as run_expand_cycle.sh's historical awk): a MATERIAL, potentially-real-bug class.
 const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase"])
-# columns that force an escalation (never dropped even in a cornered cluster): the true density/structure
-# cols. TopHt is DELIBERATELY EXCLUDED — dig-session #2c empirically cornered the AVHT40 top-height tie-break
-# as a ULP primitive (no global single/double RDPSRT sort choice is bit-exact; stand-dependent), and TopHt
-# divergences with density preserved ARE that primitive's signature. A TopHt-worst row in an ALREADY-CORNERED
-# ecoregion is therefore dropped; in a NEW ecoregion it still surfaces (signature not yet in corners). A real
-# height bug would also perturb BA/SDI/CCF/QMD or appear in a non-cornered geography, both of which still escalate.
-# TCuFt (total cubic, threshold-FREE) is included: a large TCuFt divergence is a real volume-EQUATION bug
-# signal (e.g. the slice-41 FORKOD zero-vol), not the threshold-crossing/count-straddle noise that BdFt/SCuFt/
-# MCuFt (merch/board step-functions) show. TopHt is EXCLUDED (dig-2c: cornered AVHT40 tie-break ULP primitive).
-const ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD", "TCuFt"])
+# structure/density cols whose MATERIAL divergence signals a real structure bug. TopHt is DELIBERATELY EXCLUDED
+# — dig-session #2c empirically cornered the AVHT40 top-height tie-break as a ULP primitive (no global single/
+# double RDPSRT sort is bit-exact; stand-dependent), and TopHt divergences with density preserved ARE that
+# primitive. A TopHt-worst row in a cornered ecoregion is dropped; in a NEW ecoregion it still surfaces.
+const STRUCT_ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD"])
 const ESCALATE_REL = 15.0
 
 is_dig(sig, worst_col, struct_pct, max_rel) =
     sig in DIG_SIGS || (worst_col == "TCuFt" && struct_pct < 1.0 && max_rel >= 5.0)
 
-# escalation: never drop these even in a cornered cluster
+# escalation: never dropped even in a cornered cluster. Three principled classes:
+#   • UNCLASSIFIED — always needs a manual trace.
+#   • a MATERIAL structure blow-up — worst_col a structure col AND signature==structure_densephase (which BY
+#     DEFINITION means the structure divergence is material, >1 abs unit). This gate excludes the small-base
+#     %-inflation false-positive: a volume_persistent tiny stand (e.g. BA 6→7 = 16.7% but a ±1-unit straddle,
+#     struct NOT material) is NOT escalated — its worst_col=BA is just the highest-relative cell, not a real move.
+#   • a volume-EQUATION bug — worst_col==TCuFt (threshold-FREE total cubic) ≥15%, any signature (cf slice-41
+#     FORKOD zero-vol). BdFt/SCuFt/MCuFt (merch/board step-fns) are NOT here — their large % is threshold-crossing.
 is_escalation(sig, worst_col, max_rel) =
-    sig == "UNCLASSIFIED" || (worst_col in ESCALATE_COLS && max_rel >= ESCALATE_REL)
+    sig == "UNCLASSIFIED" ||
+    (sig == "structure_densephase" && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL) ||
+    (worst_col == "TCuFt" && max_rel >= ESCALATE_REL)
 
 function load_cornered(path)
     corners = Set{Tuple{String,String}}()

@@ -1,1 +1,3 @@
 variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature
+SN,none,232303372010854,6,false,BA|CCF|TCuFt|MCuFt|SCuFt|BdFt,BA,2019,16.667,3.0,16.667,1.299,true,false,volume_persistent
+SN,none,232303372010854,6,false,BA|CCF|TCuFt|MCuFt|SCuFt|BdFt,BA,2019,16.667,3.0,16.667,1.299,true,false,volume_persistent
