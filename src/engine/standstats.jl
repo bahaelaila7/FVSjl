@@ -130,7 +130,13 @@ function stand_top_height(s::StandState)
     # (The DG `point_basal_area!` also sorts by DBH but its BAL is an order-independent sum ⇒ tie order is
     # inert there; only AVH exposes it.) Use the ported `_rdpsrt!` to match FVS's IND tie-break exactly.
     idx = view(s.scratch.stat_idx, 1:t.n)
-    _rdpsrt!(view(t.dbh, 1:t.n), idx)
+    dbhv = view(t.dbh, 1:t.n)
+    # FVS cratet.f computes the AVHT40 top-height IND by a DOUBLE sort: IND1 = a fresh RDPSRT(.TRUE.), then
+    # RDPSRT(.FALSE.) re-sorts that pre-ordered IND. RDPSRT is unstable, so the `.FALSE.` pass SWAPS equal-DBH
+    # ties (the later-read record lands at the 40-tpa boundary), which a single sort does NOT — this is the
+    # cycle-0 top-height divergence on tie-heavy stands (equal-DBH, different-height trees at the boundary).
+    _rdpsrt!(dbhv, idx)                 # LSEQ=.TRUE. → IND1
+    _rdpsrt!(dbhv, idx; lseq = false)   # LSEQ=.FALSE. → re-sort preserving IND1 (swaps ties, matches FVS)
     avh = 0f0; ssumn = 0f0
     for k in 1:t.n
         ii = Int(idx[k])

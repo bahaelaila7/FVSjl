@@ -17,9 +17,13 @@ const _BA_PER_TREE = 0.005454154f0   # cuts.f basal-area-per-tree factor
 # must match FVS: snt01 has identical input trees that triple into exact-DBH-tied
 # records, so the from-below cut's tie order decides WHICH lineage is removed — and
 # the surviving lineages set the post-thin DGSCOR traversal order (and thus the RNG).
-function _rdpsrt!(key::AbstractVector{Float32}, index::AbstractVector{Int32})
+# `lseq` is FVS RDPSRT's 4th argument (rdpsrt.f LSEQ): true ⇒ initialize index=1..n (a fresh sort); false ⇒
+# use the INCOMING index order (re-sort a pre-ordered index). Because RDPSRT is UNSTABLE, a `.FALSE.` re-sort
+# of an already-DBH-sorted index SWAPS equal-key ties — which is exactly how FVS's cratet computes the cycle-0
+# AVHT40 top-height (IND1 fresh-sorted, then RDPSRT(.FALSE.) on it). Default true keeps all existing callers.
+function _rdpsrt!(key::AbstractVector{Float32}, index::AbstractVector{Int32}; lseq::Bool = true)
     n = length(key)
-    @inbounds for i in 1:n; index[i] = Int32(i); end
+    lseq && @inbounds for i in 1:n; index[i] = Int32(i); end
     n < 2 && return index
     ipush = zeros(Int, 64)
     itop = 0; il = 1; iu = n
