@@ -9,11 +9,16 @@ cd /workspace/FVSjl
 export BATCH=${BATCH:-2000}
 DIGCAP=${DIGCAP:-200}
 DIGQ=docs/fia_dig_queue.csv
+SC=/tmp/claude-1000/-workspace/b4e1b3b1-495b-403e-810b-5db3604b56cc/scratchpad
+mkdir -p $SC/expand
+LOGF=$SC/expand/cycle_last.log
 while true; do
-  out=$(bash test/harness/fia/run_expand_cycle.sh 2>&1)
-  echo "$out"
-  echo "$out" | grep -q "ALL_VARIANTS_EXHAUSTED" && { echo "LOOP_DONE all exhausted"; break; }
-  echo "$out" | grep -q "RUN FAILED" && { echo "LOOP_HALT run failed"; break; }
+  # Write the cycle output to a FILE (not `$(...)`) — the ledger/run logs can contain null bytes on empty
+  # strata, which command substitution mangles (the earlier spurious LOOP_HALT). grep on the file is null-safe.
+  bash test/harness/fia/run_expand_cycle.sh > $LOGF 2>&1
+  cat $LOGF
+  grep -qa "ALL_VARIANTS_EXHAUSTED" $LOGF && { echo "LOOP_DONE all exhausted"; break; }
+  grep -qa "RUN FAILED" $LOGF && { echo "LOOP_HALT run failed"; break; }
   dign=0; [ -f $DIGQ ] && dign=$(($(wc -l < $DIGQ)-1))
   if [ "$dign" -ge "$DIGCAP" ]; then echo "DIG_PAUSE digq=$dign (>= $DIGCAP) — pausing sweep for dig/fix"; break; fi
 done

@@ -39,7 +39,17 @@ if [ "${emitted:-0}" -eq 0 ]; then echo "$V DONE (cursor $cur)"; exit 0; fi
 cyc=$SC/expand/${vl}_cycle.csv; rm -f $cyc
 LEDGER=$cyc julia --project=. test/harness/fia/ledger_fia.jl $bl $V none > $SC/expand/${vl}_run.log 2>&1
 rc=$?
-if [ $rc -ne 0 ] || [ ! -f $cyc ]; then echo "$V RUN FAILED at offset $cur (rc=$rc, cursor NOT advanced)"; tail -4 $SC/expand/${vl}_run.log; exit 1; fi
+# A non-zero rc is a REAL failure (crash) — halt so it can be investigated. But rc=0 with an empty/missing
+# cycle CSV is NOT a failure: it's a stratum where live FVS emitted no comparable .sum rows for the whole batch
+# (NOSUM-heavy / nonstocked plots — live itself can't project ~1 in 6 real stands). Skipping it and ADVANCING
+# the cursor is correct; halting the whole sweep on it was a bug that stopped coverage prematurely.
+if [ $rc -ne 0 ]; then echo "$V RUN FAILED at offset $cur (rc=$rc, cursor NOT advanced)"; tail -4 $SC/expand/${vl}_run.log; exit 1; fi
+ncyc=0; [ -f $cyc ] && ncyc=$(($(wc -l < $cyc) - 1)); [ $ncyc -lt 0 ] && ncyc=0
+if [ ! -s $cyc ] || [ "$ncyc" -eq 0 ]; then
+  echo $((cur + emitted)) > $CURD/$vl.cursor
+  echo "$V batch: offset $cur→$((cur+emitted)) of ${POP[$V]}  EMPTY-STRATUM (no comparable .sum rows) — skipped, cursor advanced"
+  echo "EXPAND_CYCLE_DONE $(date +%T)"; exit 0
+fi
 
 # append cycle rows to the scratchpad master ledger (full detail, not committed)
 master=$SC/expand/${vl}_ledger.csv
@@ -56,6 +66,6 @@ n_after=$(($(wc -l < $DIGQ) - 1))
 
 # advance cursor on success
 echo $((cur + emitted)) > $CURD/$vl.cursor
-be=$(awk -F, 'NR>1 && $5=="true"' $cyc | wc -l); tot=$(($(wc -l < $cyc)-1))
+be=$(awk -F, 'NR>1 && $5=="true"' $cyc | wc -l); tot=$ncyc
 echo "$V batch: offset $cur→$((cur+emitted)) of ${POP[$V]}  bit_exact=$be/$tot  dig-worthy +$((n_after-n_before)) (queue=$n_after)"
 echo "EXPAND_CYCLE_DONE $(date +%T)"
