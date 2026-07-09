@@ -1499,3 +1499,22 @@ NET (PLANT, corrected & complete): cycle-BOUNDARY calendar PLANT is FAITHFUL on 
 cornered, 0 real-bug candidates). The sole real residual is jl's sub-cycle/off-boundary establishment-date age
 computation (mid-cycle calendar OR cycle-number dates) — low-severity, uncommon input, one named primitive.
 Supersedes the 42d "cross-variant establishment machinery" and 42h "NE/CS/LS 0%" readings.
+
+### SLICE 42j — BOTH-SIDES TRACE COMPLETE for the off-boundary establishment-date primitive (Pillar-4)
+Decisive measurement (NE stand 1203375687290487, inv 2021, 10-yr cycles; live vs jl, cohort state AT 2031):
+    live PLANT 2021 (cycle START) : BA45 SDI103 CCF104 QMD1.6
+    live PLANT 2026 (MID-cycle)   : BA43 SDI97  CCF100 QMD1.5   <- distinct, INTERMEDIATE
+    live PLANT 2031 (BOUNDARY)    : BA43 SDI93  CCF98  QMD1.6
+    jl   PLANT 2026 (MID-cycle)   : BA45 SDI102 CCF103 QMD1.6   == live PLANT 2021, NOT live 2026
+ROOT CAUSE (both sides): FVS HONORS the sub-cycle plant-date offset (a cohort planted partway through the cycle
+gets less growth by cycle end → the intermediate 2026 result); jl SNAPS the mid-cycle date to cycle-START
+behaviour (its 2026 result equals live's cycle-start 2021). i.e. jl's establishment.jl:198-200 delay/age
+(`delay=pyr-yr`; `age=per-delay-gentim+trage`) does not carry the within-cycle offset into the planted cohort's
+effective age/growth the way FVS's DELAY/GENTIM does. At a cycle BOUNDARY the offset is 0 so both agree (bit-
+exact) — which is why boundary PLANT is faithful on all variants and only OFF-boundary dates diverge.
+STATUS: fully root-caused + named (single primitive: off-cycle-boundary establishment-date age/growth). Per
+doctrine-4 this is a LOGIC gap (not ULP/FVS-bug/FVS-UB) ⇒ should be FIXED, not corner-tolerated. Fix is localized
+to establishment.jl:198-200 but delicate: it must reproduce FVS's DELAY/GENTIM sub-cycle arithmetic for
+off-boundary dates WHILE keeping the boundary path bit-exact (the validated establishment tests + the 4-variant
+boundary-PLANT result). Deferred pending go-ahead on the engine change (uncommon input: real scenarios plant at
+cycle boundaries, which are already faithful). Ready to implement + validate rebuild-free (live binary + full suite).
