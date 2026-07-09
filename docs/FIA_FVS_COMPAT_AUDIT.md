@@ -1518,3 +1518,23 @@ to establishment.jl:198-200 but delicate: it must reproduce FVS's DELAY/GENTIM s
 off-boundary dates WHILE keeping the boundary path bit-exact (the validated establishment tests + the 4-variant
 boundary-PLANT result). Deferred pending go-ahead on the engine change (uncommon input: real scenarios plant at
 cycle boundaries, which are already faithful). Ready to implement + validate rebuild-free (live binary + full suite).
+
+### SLICE 42k — EXACT mechanism of the off-boundary establishment-date primitive (partial-cycle growth)
+Instrumented jl's establishment timing (NE stand, 10-yr cycles):
+    PLANT 2026 (mid-cycle) : pyr=2026 yr=2021 delay=5 gentim=5 per=10 trage=2 -> age=2.0
+    PLANT 2031 (boundary)  : pyr=2031 yr=2031 delay=0 gentim=5 per=10 trage=2 -> age=7.0
+jl DOES compute delay=5 for the mid-cycle plant, and NE's base height uses min(5,TIME-DELAY)=min(5,5)=5 — the
+SAME as the boundary — so the base height is identical either way. The divergence is NOT age/base-height: it is
+that jl GROWS the mid-cycle-established cohort for the FULL cycle (per=10 yr) while FVS grows it only for the
+post-plant-date portion (per-delay = 5 yr). Confirmed by output: jl PLANT 2026 == live PLANT 2021 (both grow the
+full 10-yr cycle from cycle start), whereas live PLANT 2026 is the intermediate 5-yr-growth result.
+⇒ the correct fix requires PARTIAL-CYCLE growth for a mid-cycle-established cohort (grow the new seedlings only
+(per-delay) years within the establishment cycle). That is an architecturally significant change to the
+establishment↔growth interaction (a per-record partial-cycle growth path), with real regression risk to the
+bit-exact boundary path, for an UNCOMMON input (real scenarios + every validated test plant at cycle boundaries,
+where delay=0 and jl is bit-exact). 
+VERDICT: cornered as a named primitive = "off-cycle-boundary establishment-date → full-cycle vs FVS partial-cycle
+growth of the mid-cycle cohort". Deferred-by-design (like the other accepted-class residuals: multi-point pccf,
+COMPRESS eigensolver): the model is FAITHFUL for the common cycle-boundary case on all 4 variants; only
+off-boundary plant dates carry this ~5-10% young-cohort residual. Fixing requires the partial-cycle-growth
+feature, tracked here for if/when off-boundary establishment fidelity is prioritized.
