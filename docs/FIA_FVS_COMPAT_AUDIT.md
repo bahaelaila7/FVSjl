@@ -1390,3 +1390,32 @@ faithful. Divergence only appears 2 cycles later (2011: SDI 120/121, CCF 114/115
 = 0.15%) = the SAME downstream cornered class as no-management, merely seeded from a thinned stand. So under
 management the `structure_densephase`/`volume_persistent` signatures do NOT indicate a thinning-selection bug;
 the first-divergence-cycle (thin cycle bit-exact) is the discriminator. [full-batch triage pending run completion]
+
+### SLICE 42d — Pillar-3 management ledger COMPLETE (4 regimes × 4 variants, 1000 stands each) + PLANT finding
+Ran thinbba/salvage/plant/simfire over the pinned 1000-stand lists, all 4 variants → docs/fia_ledger_mgmt.csv
+(14,992 stand-runs). triage_ledger.sh tight filter: **0 real-vol-bug candidates** across the whole set.
+Per variant×regime bit-exact rate:
+  thinbba : SN 59% NE 49% CS 85% LS 63%   salvage: SN 64% NE 80% CS 88% LS 76%
+  simfire : SN 56% NE 49% CS 85% LS 61%   plant  : SN 0.1% NE 0% CS 0% LS 0%   <-- PLANT is the outlier
+thinbba/salvage/simfire track the no-management baseline (THINBBA thin-cycle proven bit-exact, 42c) — the
+keyword behaviour is faithful; residuals are the same cornered classes seeded from a managed stand.
+
+**OPEN divergence — PLANT regime 0% bit-exact, ALL 4 variants (root-cause LOCALIZED, verdict PENDING):**
+Every planted stand diverges ~5–10% in young-cohort density (BA/SDI/CCF), jl systematically LOWER; the
+absolute gap is small (1–3 units on a young cohort) but universal. BOTH-SIDES trace so far (SN, PLANT 2.0 3 400,
+bare stand 163925862010854):
+  - MEASURED both binaries: live plants seedlings 13×0.5/12×0.6/11×0.7/5×0.8/… ; jl plants 33×0.5/7×0.6/2×0.7/…
+    (jl over-floors to the 0.5 XMIN). Same 50 records, apples-to-apples.
+  - Establishment stream is STATIC per stand in BOTH (block-data seed 55329) — CORRECT FVS behaviour; a
+    per-stand-randomisation "fix" would WRONGLY break bit-exactness with live. (Confirmed: live gives identical
+    height dists on two different stands/years.)
+  - BASE HEIGHT RULED OUT: FVS essubh.f returns HHT=HTCALC(MODE=1) directly; computing htcalc.f's formula
+    H=HB+B1·SI^B2·(1−e^(B3·AGE))^(B4·SI^B5) for sp3 (B=1.3307,1.0442,−.0496,3.5829,.0945; HB=0; AGE=2; SI=60.5)
+    = 0.00037 — IDENTICAL to jl's htcalc_height (0.0004). Same coefficients, same age, same formula. NOT the base.
+  - LOCUS: the shared :estab RNG height-draw sequence (BACHLO(0.5,0.25) accepted in [0,1.5], floored at XMIN).
+    jl's accepted-RAN sequence lands lower than live's (jl 34% of records >0.5 vs live ~74%), so jl floors more.
+    Cross-variant 0% (NE/CS/LS use the ESSUBH base, not htcalc) ⇒ the divergence is in the SHARED establishment
+    height/RNG machinery, not a per-variant base formula.
+  - VERDICT PENDING: fixable draw-count/ordering desync vs accepted establishment-RNG-tail residual. To close
+    needs a debug-FVS estab.f stamp (dump live's accepted RAN per record) vs jl's — a rebuild-class both-sides
+    measurement, deferred pending go-ahead. NOT prematurely cornered (doctrine 4).
