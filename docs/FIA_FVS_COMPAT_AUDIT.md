@@ -1345,3 +1345,14 @@ stands, already handled by the old fortbragg case) and 824 (Savannah River, 554 
 0/90 codes fail ⇒ every SN LOCATION resolves to region 8. So the fix resolves ~554 real SN stands from zero
 volume (not just the 1 sampled), comprehensively for the whole SN population. Reusable guard: forkod_audit.jl.
 (NE/CS/LS use the R9 Clark path — different vol-eq resolution; the ledger's NE/CS/LS rows showed no zero-vol hit.)
+
+### SLICE 41 extension — SN ledger expanded to 5000 stands: 0 new real bugs
+Ran the per-stand ledger on 5000 SN stands (docs/fia_ledger_sn5000.csv) to hunt more real bugs of the zero-vol
+class. bit_exact 2593/4090 both-sum. Signatures: bit_exact 2593, print_boundary 1105 (±1 straddles), volume_
+persistent 146, threshold_crossing 108, structure_densephase 103, count_straddle 35. REAL-vol-bug triage
+(worst_col=TCuFt, threshold-free ⇒ can't be threshold-crossing, clean structure): only 5 hits, all 1.0-2.6%
+TCuFt — the cornered dense-regen count-straddle (verified 729301571290487: bit-exact through 2029, 2.6% at the
+self-thin). ZERO worst=TCuFt≥5%, ZERO UNCLASSIFIED, ZERO sustained-zero (the zero-vol/FORKOD fix holds at scale).
+⇒ No new bug CLASS surfaces at 5000 for SN (the largest variant, where the zero-vol bug was found). Every
+divergence remains a named cornered primitive. (NE/CS/LS use the R9 Clark path; their 1000-sample showed no zero-
+vol/large-vol hits, so a 5000 expansion there is lower-yield and not run.)
