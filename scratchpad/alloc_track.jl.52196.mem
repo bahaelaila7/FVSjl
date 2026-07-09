@@ -1,0 +1,7 @@
+        - using FVSjl
+        - const KEY = "test/fixtures/canonical/snt01.key"
+        0 run() = FVSjl.run_keyfile(KEY; variant=FVSjl.Southern(), faithful=true)
+        - run()  # compile
+        - using Profile
+        - Profile.clear_malloc_data()
+        0 for _ in 1:20; run(); end

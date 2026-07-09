@@ -1559,3 +1559,48 @@ by merch/board volume (BdFt/SCuFt/MCuFt 60%); median 2.5%, 89% non-converging. C
     stand_top_height. VARIANT-SAFE (all 4 cratet.f share the IND1→RDPSRT(.FALSE.) pattern). Validated: stand
     cycle-0 TopHt 37→34==live, all cycles match; full suite 38527/143/0 (floor intact); a 2nd tie stand
     163925866010854 max_rel 3.28%→0.03%. Sweep resumes from cursor 6300 with the fix live.
+
+### SLICE 43b — DIG SESSION #2 (SN 6300–10300, 348 dig-worthy) → whole cluster CORNERED + sweep meta-filter
+The sweep marched through offsets 6300–10300 (two batches, bit_exact 625/1673 + 670/1684 ≈ 38%) and self-paused
+at DIG_PAUSE (348 ≥ 200). Cluster-and-trace: ALL 348 stands are ECOREGION **221H** (Ha/Hb/Hc — Appalachian) at
+LOCATIONs 802xx/80403 — the deterministic (ECOREGION,LOCATION,STAND_CN) order has the sweep working through the
+ENTIRE Appalachian ecoregion, the same cluster dig-session #1 cornered. Signatures: volume_persistent 207 +
+structure_densephase 141; **zero UNCLASSIFIED**. This is not a location-specific bug: 221H holds dense, mature/
+young, multi-species hardwood stands (age 70-95, SDI 325+, or 2000+ TPA young) — precisely the regime where the
+accepted compounded-ULP + near-SDImax self-thinning count-straddle taxonomy is most active.
+
+BOTH-SIDES-TRACE (representatives, all `.sum` + one debug run):
+  • Shape is uniform: bit-exact for the first 2-4 cycles, then a sub-print seed emerges and amplifies. Stand
+    202388261010854: bit-exact through 2004; at 2009 jl's CONTINUOUS BA=140.5 vs live≈140.4 (a <0.1% diameter-
+    growth difference straddling the integer print-rounding boundary → prints 141 vs 140) with IDENTICAL TPA
+    1132 ⇒ the seed is diameter growth, NOT mortality/count. Then dense self-thinning (SDI 325) count-straddles
+    (a few TPA) compound to ~1% volume by 2024.
+  • NEW POSITIVE FINDING — dynamic FOREST-TYPE reclassification is BIT-EXACT. Live `.out` FOR TYP flips
+    503→506→503 across cycles (FVS recomputes FORTYP every cycle from current species BA); FT_DEBUG-instrumented
+    jl compute_forest_type! reproduces 503,503,506,506,503,503 EXACTLY (BA basis 98.6/120.0/140.5/160.5/167.9/
+    172.1). ⇒ FORTYP is ruled out as the seed; the seed is narrowed to sub-print Float32 diameter-growth
+    accumulation feeding the dense-phase count-straddle. (debug line added to forest_type.jl then REVERTED;
+    `git diff src/` empty — source byte-clean, floor 38527/143/0 intact.)
+  • The extreme outliers (SCuFt/MCuFt/BdFt 25–785%) are all late-cycle sawtimber MERCH-THRESHOLD crossings on
+    ~zero volume bases. Stand 29549638020004: bit-exact 4 cycles; a 9-TPA count-straddle at 2027 (2100 TPA young
+    stand) pushes a couple trees across the sawtimber DBH threshold at 2032 → BdFt 21 (live) vs 186 (jl) on a
+    near-zero base = 785%. Density (BA/SDI/CCF within 1-2 units) preserved throughout ⇒ pure which-tree-dies +
+    which-tree-crosses-threshold, the count-straddle taxonomy. Not a bug.
+VERDICT: 221H × {volume_persistent, structure_densephase} CORNERED (accepted compounded-ULP + count-straddle +
+sawtimber-threshold-crossing class; identical to dig-session #1's ecoregion-221 corner). No fixable bug.
+
+SWEEP META-FILTER (so coverage actually advances instead of re-pausing every ~200 stands on a cornered cluster):
+  • docs/fia_cornered_clusters.tsv — (ECO_PREFIX, signature) pairs cornered by a documented dig session.
+  • test/harness/fia/filter_digworthy.jl — replaces run_expand_cycle.sh's inline awk: applies the base dig-worthy
+    rule, then DROPS candidates whose (ecoregion-prefix, signature) is cornered. ESCALATION GUARD (never dropped):
+    UNCLASSIFIED, or a structure/density blow-up (worst_col ∈ {TPA,BA,SDI,CCF,TopHt,QMD} & max_rel ≥ 15%) — a
+    genuinely new bug in a cornered geography still pauses the sweep. Validated on the 8300–10300 batch: 170 base
+    dig-worthy → 1 survivor (an escalation).
+  • The 1 escalation (stand 202594547010854, TopHt 22% @2026) was REVIEWED: same count-straddle taxonomy
+    expressed in the AVHT40 top-height statistic. At 2016 the stand has IDENTICAL TPA/BA/QMD yet TopHt 39 vs 37 —
+    sub-print DBH/height differences flip the top-40-by-DBH selection, amplified by 74% self-thinning
+    (4570→1181 TPA); density (BA/SDI/CCF) preserved. Not a distinct bug; the guard surfacing it (~1/1700 stands)
+    is the intended low-rate human-review rate.
+DISPOSITION: 348 archived to docs/dig_archive/dig_session2_sn_6300-10300.csv; dig-queue cleared; sweep resumes
+from cursor 10300 with the meta-filter live (will now advance through the rest of 221H, pausing only on genuine
+escalations / new strata). Floor 38527/143/0 confirmed (suite re-run).

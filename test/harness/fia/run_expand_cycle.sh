@@ -45,11 +45,13 @@ if [ $rc -ne 0 ] || [ ! -f $cyc ]; then echo "$V RUN FAILED at offset $cur (rc=$
 master=$SC/expand/${vl}_ledger.csv
 if [ ! -f $master ]; then cp $cyc $master; else tail -n +2 $cyc >> $master; fi
 
-# extract dig-worthy discrepancies → committed dig-queue (create header if new)
+# extract dig-worthy discrepancies → committed dig-queue (create header if new). filter_digworthy.jl applies
+# the base dig-worthy rule AND drops stands whose (ecoregion,signature) is already cornered
+# (docs/fia_cornered_clusters.tsv) so the sweep advances past cornered clusters to NEW strata; UNCLASSIFIED and
+# structure/density blow-ups (≥15% on a density col) are never dropped (escalation guard).
 [ -f $DIGQ ] || head -1 $cyc > $DIGQ
 n_before=$(($(wc -l < $DIGQ) - 1))
-awk -F, 'NR>1 && ($15=="UNCLASSIFIED" || $15=="volume_persistent" || $15=="structure_densephase" || \
-                  ($7=="TCuFt" && $11+0<1.0 && $9+0>=5.0))' $cyc >> $DIGQ
+julia --project=. test/harness/fia/filter_digworthy.jl $cyc $V docs/fia_cornered_clusters.tsv >> $DIGQ 2>>$SC/expand/${vl}_filter.log
 n_after=$(($(wc -l < $DIGQ) - 1))
 
 # advance cursor on success
