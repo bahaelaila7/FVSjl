@@ -1214,3 +1214,26 @@ COHORT that grows with the cornered small-tree/dense-regen self-thinning ULP str
 count + small-volume diverge) — at least one cell diverges over the 6-cycle projection. TCuFt lowest (includes
 the seedlings). Same NAMED primitive as the plain-regime dense-regen residual; the FIRING+SIZING bug is fixed,
 the remaining is cornered growth of the young cohort (single-stand: 2016/2021 bit-exact, 2031 QMD 2.2/2.3).
+
+---
+## SLICE 38 — DEEPER FIDELITY DIFFERENTIAL under management, ALL 4 VARIANTS × 4 REGIMES (all 10 cols)  [2026-07-09]
+Ran validate_fia10.jl (all 10 .sum cols, every cycle vs live) under fire/thin/salvage/plant on SN(300)+NE/CS/LS(200 each).
+Per-regime TPA% and ALL-10-col-bit-exact/n (post the slice-37 PLANT fix):
+                simfire            thinbba            salvage            plant(post-fix)
+  SN:  TPA 84% (130/226)    TPA 92% (134/227)   TPA 87% (143/251)   TPA 81% (0/249)
+  NE:  TPA 73% ( 49/200)    TPA 85% ( 55/200)   TPA 86% (113/200)   TPA 58% (0/199)
+  CS:  TPA 96% (177/194)    TPA 97% (178/196)   TPA 99% (184/197)   TPA 81% (0/197)
+  LS:  TPA 77% ( 80/200)    TPA 88% ( 92/200)   TPA 96% (132/200)   TPA 74% (0/200)
+FINDINGS:
+  • The slice-37 PLANT fix is confirmed CROSS-VARIANT: plant TPA SN 81 / NE 58 / CS 81 / LS 74 — all FAR above the
+    pre-fix ~33% (SN was 33% before ⇒ 81% after). Planting FIRES and TPA tracks live on every variant.
+  • thin/salvage/simfire fidelity is STRONG: CS cleanest (90-93% of stands fully bit-exact on all 10 cols, TPA 96-99%);
+    SN/NE/LS thin+salvage 85-96% TPA. NO new variant-specific management bug surfaced — every non-bit-exact cell is the
+    already-named cornered set (dense-regen self-thinning count-straddle / DGSCOR ordering / FFE-FMEFF fire-kill / volume
+    merch-threshold step). All 4 variants behave consistently.
+  • plant ALL-10 = 0/n on every variant because EVERY planted stand carries a dense seedling COHORT whose small-tree
+    growth straddles (density tracks, count/small-volume diverge) — the cornered dense-regen primitive, at least one cell
+    over the 6-cycle projection. TCuFt (includes seedlings) is the lowest volume column; merch cols higher.
+VERDICT: Pillar-3 management fidelity validated on real FIA across ALL 4 variants × 4 regimes on all 10 columns —
+bit-exact-or-cornered. The deeper differential (user-chosen) delivered the campaign's 4th real fix (slice 37 PLANT) and
+confirmed it cross-variant; no further management-specific bug remains — residuals are all named primitives.
