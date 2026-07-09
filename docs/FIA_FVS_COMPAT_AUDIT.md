@@ -1538,3 +1538,24 @@ growth of the mid-cycle cohort". Deferred-by-design (like the other accepted-cla
 COMPRESS eigensolver): the model is FAITHFUL for the common cycle-boundary case on all 4 variants; only
 off-boundary plant dates carry this ~5-10% young-cohort residual. Fixing requires the partial-cycle-growth
 feature, tracked here for if/when off-boundary establishment fidelity is prioritized.
+
+### SLICE 43 — FULL-POPULATION SWEEP: harness + DIG SESSION #1 (SN 0–6300) → 1 real bug FIXED
+Built the resumable full-population coverage sweep (expand_batch.jl / run_expand_cycle.sh / run_expand_loop.sh):
+deterministic (ECOREGION,LOCATION,STAND_CN) order, SN first (goal = all 1.47M FVS-ready stands for the 4 ported
+variants), cursor-checkpointed; dig-worthy discrepancies (UNCLASSIFIED/volume_persistent/structure_densephase/
+TCuFt-clean) accumulate in docs/fia_dig_queue.csv; the loop PAUSES at ~200 for a deep dig/fix session.
+DIG SESSION #1 (SN cursor 6300, 280 dig-worthy): geographically clustered in ecoregion 221x (Appalachian) at
+LOCATIONs 80211/80804/80217. Signatures: volume_persistent 167 + structure_densephase 113; worst-col dominated
+by merch/board volume (BdFt/SCuFt/MCuFt 60%); median 2.5%, 89% non-converging. Cluster-and-trace:
+  • MAJORITY = COMPOUNDED-ULP: cycle-0 BIT-EXACT (volume equation correct), then a sub-print DBH+height growth
+    drift (mortality/DGSCOR tail) compounds to ~1% over cycles; amplified by dense multi-species Appalachian
+    stands. Cornered (named primitive, accepted class) — no fixable bug.
+  • REAL BUG FOUND + FIXED = cycle-0 TOP-HEIGHT tie-break (stand 1737985937290487: live TopHt 34 vs jl 37). Two
+    equal-DBH 4.2" trees (ht33/ht29) tie at the 40-tpa boundary. Debug-FVS stamp on cratet.f (AVHT40 caller;
+    oracle restored clean after) proved FVS DOUBLE-sorts: IND1=fresh RDPSRT(.TRUE.)=[2,5,1,3,4], then
+    RDPSRT(.FALSE.) re-sorts it; RDPSRT is UNSTABLE so the .FALSE. pass SWAPS the tie→[2,5,3,1,4] (later-read
+    ht29 to the boundary). jl single-sorted (ht33). Standalone rdpsrt.f confirmed jl's _rdpsrt! faithful; only
+    the double-sort was missing. FIX (commit 90c193f): `lseq` flag on _rdpsrt! + double-sort in
+    stand_top_height. VARIANT-SAFE (all 4 cratet.f share the IND1→RDPSRT(.FALSE.) pattern). Validated: stand
+    cycle-0 TopHt 37→34==live, all cycles match; full suite 38527/143/0 (floor intact); a 2nd tie stand
+    163925866010854 max_rel 3.28%→0.03%. Sweep resumes from cursor 6300 with the fix live.
