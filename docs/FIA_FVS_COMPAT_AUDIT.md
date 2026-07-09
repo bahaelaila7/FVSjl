@@ -1146,3 +1146,27 @@ Each fixed floor-safe (38527/143/0), validated vs freshly-relinked live FVS, res
 is retained as reusable exhaustive-crash-hunt infrastructure; subdbs {sn,ne,cs,ls}20k.db regenerate via build_subdb.jl.
 VERDICT: the "widen toward exhaustive" crash-hunt dimension is COMPLETE for the 20K/variant sample across all
 regimes — FVSjl is a crash-free drop-in for FVS on real FIA inventory under fire/thin/salvage/plant/no-mgmt at scale.
+
+---
+## SLICE 36 — PILLAR-2 ALL-10-COLUMN differential at scale: volume columns cornered  [2026-07-09]
+The FIA multi-cycle differential had validated 6 structure columns (TPA/BA/SDI/CCF/TopHt/QMD); the 4 VOLUME
+columns (TCuFt/MCuFt/SCuFt/BdFt, .sum fields 9-12) were bit-exact at CYCLE-0 (modernization #85) but not in the
+AT-SCALE MULTI-CYCLE differential. New harness `validate_fia10.jl` diffs all 10 columns every cycle vs live FVS
+with a PER-COLUMN bit-exact rate (so a volume-only divergence can't hide behind a structure pass rate).
+SN 500 / NE 300, plain regime, per-column bit-exact CELL rate (all cycles):
+  SN: TPA 89 BA 98 SDI 97 CCF 95 TopHt 99 QMD 99 | TCuFt 82 MCuFt 85 SCuFt 89 BdFt 84
+  NE: TPA 85 BA 99 SDI 98 CCF 97 TopHt 99 QMD 99 | TCuFt 76 MCuFt 75 SCuFt 80 BdFt 76
+Most volume divergence is DOWNSTREAM of the cornered structure primitives (fewer/more trees ⇒ less/more volume).
+Isolating cells where all 6 STRUCTURE cols are BIT-EXACT yet a volume col differs (SN 500): the residual is
+±1-unit on 3000-18000 (~0.03%) for the bulk, with a small tail. Per-column MAX on struct-bit-exact cells:
+  TCuFt 1.13% (>0.5%: 1 cell) ; MCuFt 1.99% (2) ; SCuFt 5.56% (4) ; BdFt 5.77% (10).
+DECISIVE both-sides characterization: the divergence grows MONOTONICALLY with merchantability strictness.
+TCuFt is THRESHOLD-FREE (every tree contributes) ⇒ ULP-only (max 1.13% = ±1 on a small-volume stand) ⇒ the
+volume EQUATIONS themselves are faithful. Adding the merch-DBH threshold (MCuFt), then the sawlog threshold +
+board-rule STEP FUNCTION (SCuFt/BdFt), amplifies: a growth-ULP dbh difference (invisible in the rounded QMD/BA)
+straddles a merch/sawlog threshold ⇒ a whole tree's board volume flips in/out ⇒ a larger % swing on a small
+BdFt total. Bidirectional (jl higher AND lower), <6%, concentrated in the most-quantized measures.
+VERDICT: all 10 .sum columns at scale are BIT-EXACT-OR-CORNERED. Volume residual = a NAMED primitive: the
+growth-ULP / self-thinning-count-straddle propagating through the merchantability-threshold + board-rule
+step functions (a boundary tree is genuinely ambiguous under a sub-display-ULP dbh diff). NO volume-equation
+bug — TCuFt (threshold-free) is ULP-clean. Pillar-2 "all 10 columns" done-state met at scale on real FIA.
