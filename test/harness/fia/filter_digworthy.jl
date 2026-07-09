@@ -13,8 +13,13 @@ const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 
 # base dig-worthy rule (same as run_expand_cycle.sh's historical awk): a MATERIAL, potentially-real-bug class.
 const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase"])
-# columns that are STRUCTURE/density (1-6) — a large divergence here escapes the count-straddle corner.
-const STRUCT_COLS = Set(["TPA", "BA", "SDI", "CCF", "TopHt", "QMD"])
+# columns that force an escalation (never dropped even in a cornered cluster): the true density/structure
+# cols. TopHt is DELIBERATELY EXCLUDED — dig-session #2c empirically cornered the AVHT40 top-height tie-break
+# as a ULP primitive (no global single/double RDPSRT sort choice is bit-exact; stand-dependent), and TopHt
+# divergences with density preserved ARE that primitive's signature. A TopHt-worst row in an ALREADY-CORNERED
+# ecoregion is therefore dropped; in a NEW ecoregion it still surfaces (signature not yet in corners). A real
+# height bug would also perturb BA/SDI/CCF/QMD or appear in a non-cornered geography, both of which still escalate.
+const ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD"])
 const ESCALATE_REL = 15.0
 
 is_dig(sig, worst_col, struct_pct, max_rel) =
@@ -22,7 +27,7 @@ is_dig(sig, worst_col, struct_pct, max_rel) =
 
 # escalation: never drop these even in a cornered cluster
 is_escalation(sig, worst_col, max_rel) =
-    sig == "UNCLASSIFIED" || (worst_col in STRUCT_COLS && max_rel >= ESCALATE_REL)
+    sig == "UNCLASSIFIED" || (worst_col in ESCALATE_COLS && max_rel >= ESCALATE_REL)
 
 function load_cornered(path)
     corners = Set{Tuple{String,String}}()
