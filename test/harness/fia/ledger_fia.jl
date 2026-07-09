@@ -35,13 +35,18 @@ const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt
 const DENSITY_COLS = (2,3,4,5)   # BA,SDI,CCF,TopHt — preserved under the self-thinning count-straddle
 
 kwrec(kw, f...) = rpad(kw,10) * join(lpad(string(x),10) for x in f)
-regime_block(r) =
+# PLANT uses a CALENDAR-year date (the standard form every validated test + real scenario uses), NOT a
+# cycle-number date: `PLANT 2.0` hits FVS's cycle-number→age scheduler path where jl has a small residual
+# (audit slice 42d-42g), which tanked the PLANT bit-exact rate to ~0% as a HARNESS ARTIFACT. `plantyr` is the
+# stand's INV_YEAR+period (cycle 1) passed from main(). The other activities keep cycle-number "2.0" (their
+# scheduling is age-independent and already bit-exact at normal rates). plantyr=0 ⇒ fall back to cycle "2.0".
+regime_block(r, plantyr=0) =
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE","2.0","10.00","1","50.0") * "\nEnd" :
     r == "thinbba" ? kwrec("THINBBA","2.0","40.0") :
     r == "salvage" ? kwrec("SALVAGE","2.0","0.0","999.0","0.9") :
-    r == "plant"   ? "ESTAB\n" * kwrec("PLANT","2.0","3","400") * "\nEnd" : ""
+    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3","400") * "\nEnd" : ""
 
-keytext(cn, db, regime) = """
+keytext(cn, db, regime, plantyr=0) = """
 STDIDENT
 $cn
 DATABASE
@@ -55,7 +60,7 @@ SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'
 EndSQL
 END
 NUMCYCLE         5.0
-$(regime_block(regime))
+$(regime_block(regime, plantyr))
 ECHOSUM
 PROCESS
 STOP
@@ -74,8 +79,8 @@ function parse_sum10(text)
     rows
 end
 
-function run_live(bin, cn, db, regime, dir)
-    key = joinpath(dir,"s.key"); write(key, keytext(cn, db, regime))
+function run_live(bin, cn, db, regime, dir, plantyr=0)
+    key = joinpath(dir,"s.key"); write(key, keytext(cn, db, regime, plantyr))
     for f in ("s.sum","s.out"); fp=joinpath(dir,f); isfile(fp) && rm(fp); end
     try; run(pipeline(`$bin --keywordfile=$key`; stdout=devnull, stderr=devnull)); catch; end
     sp = joinpath(dir,"s.sum"); isfile(sp) ? read(sp,String) : ""
@@ -115,6 +120,18 @@ function main(listfile, v, regime)
     dir = mktempdir(); sub = joinpath(dir, "sub.db")
     print(stderr, "building sub-DB ($(length(cns)) stands)..."); flush(stderr)
     build_subdb(cns, sub); println(stderr, "ok")
+    # Per-stand INV_YEAR so the PLANT regime can use a CALENDAR date (INV_YEAR+period = cycle 1) — the faithful
+    # form (audit 42d-42g); a cycle-number PLANT date hits jl's cycle-number→age residual. Other regimes ignore it.
+    period = 5
+    invyr = Dict{String,Int}()
+    let db = SQLite.DB(sub)
+        for r in DBInterface.execute(db, "SELECT STAND_CN, INV_YEAR FROM FVS_STANDINIT_COND")
+            (r[:STAND_CN] === missing || r[:INV_YEAR] === missing) && continue
+            invyr[String(r[:STAND_CN])] = Int(r[:INV_YEAR])
+        end
+        SQLite.close(db)
+    end
+    plantyr_of(cn) = (regime == "plant" && haskey(invyr, cn)) ? invyr[cn] + period : 0
     out = get(ENV, "LEDGER", "docs/fia_ledger.csv")
     newfile = !isfile(out)
     io = open(out, "a")
@@ -124,8 +141,9 @@ function main(listfile, v, regime)
     ismat(lv,jv) = (ad=abs(lv-jv); ad > 1.0 + 1e-6 && (lv==0 ? true : ad/abs(lv) >= MATERIAL))
     for cn in cns
         n += 1; n % 200 == 0 && (print(stderr, "[$n/$(length(cns))] be=$nbe div=$ndiv\r"); flush(stderr))
-        live = run_live(bin, cn, sub, regime, dir); isempty(live) && (nskip+=1; continue)
-        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, regime))
+        py = plantyr_of(cn)
+        live = run_live(bin, cn, sub, regime, dir, py); isempty(live) && (nskip+=1; continue)
+        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, regime, py))
         jlout = try FVSjl.run_keyfile(keyf; variant=var) catch; ""; end
         isempty(jlout) && (nskip+=1; continue)
         L = parse_sum10(live); J = parse_sum10(jlout)

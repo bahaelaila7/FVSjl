@@ -1467,3 +1467,13 @@ cohort to an EXISTING stand perturbs the shared RNG/density by ULP, which compou
 — the same cornered class as the no-management print_boundary/volume_persistent residuals. CORNERED, not a bug.
 NET on PLANT: calendar-date establishment is FAITHFUL — 96% bit-exact-add-nothing, 4% sub-1% compounded-ULP.
 Only remaining OPEN PLANT item = the cycle-number-date age computation (uncommon input form; low severity).
+
+### SLICE 42h — harness fix: ledger PLANT regime now uses a CALENDAR date (42e TODO done)
+ledger_fia.jl regime_block/keytext/main threaded a per-stand plant year = INV_YEAR+period (cycle 1, calendar),
+so the PLANT regime exercises the FAITHFUL path instead of the cycle-number `PLANT 2.0` artifact. Other regimes
+keep cycle "2.0" (age-independent scheduling, already bit-exact). Smoke (30 SN stands): plant bit-exact 15/27
+(56%, = baseline) vs the old ~0%. Harness-only change (no engine; floor untouched). The committed
+docs/fia_ledger_mgmt.csv PLANT rows predate this and reflect the cycle-number artifact (documented 42d-42g); a
+re-run with the fixed harness would show PLANT at baseline rates. PLANT establishment question now fully closed:
+calendar-date faithful (proven at scale 42f/42g + harness now tests it); cycle-number-date age residual remains
+the sole OPEN low-severity item.
