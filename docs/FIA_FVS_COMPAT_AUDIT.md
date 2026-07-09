@@ -1127,3 +1127,22 @@ Re-ran NE 20K crashscan ⇒ 0 crashes. Floor: 38527/143/0.
 VERDICT: 3rd real code fix of the campaign (after slice-27 covtyp segfault + slice-33 fuel-model OOB) — a
 LATENT SN-FAMILY robustness bug (missing-guard NaN-poison), surfaced ONLY by real FIA at scale under fire, on a
 degenerate off-curve tree (H>HTMAX). All 4 variants now crash-free across 20K-stand fire scans (only NE had one).
+
+---
+## SLICE 35 — EXHAUSTIVE crash-hunt COMPLETE: 400K stand-runs, 5 regimes × 4 variants, crash-free  [2026-07-09]
+Ran crashscan_fia.jl (jl-only, oracle-free) over 20K stratified stands/variant under EVERY management regime:
+  none (plain multi-cycle), thinbba, salvage, plant  — 4 regimes × 4 variants × 20K = 320,000 stand-runs
+  + the earlier simfire (fire) regime × 4 variants × 20K = 80,000 (which surfaced the slice-34 NE bug; re-scan 0)
+  = ~400,000 real-FIA multi-cycle projections exercised for robustness.
+RESULT: 16/16 (none/thin/salvage/plant × SN/NE/CS/LS) = 20000/20000 ok, 0 empty, **0 CRASH**; fire regime 0 after
+the fix. EVERY FVS-ready stand in the 20K/variant sample projects the full horizon under every regime WITHOUT
+throwing, on all 4 variants.
+Three REAL robustness bugs were found and fixed by this exhaustive crash-hunt (all latent, all surfaced ONLY by
+real FIA at scale under management — never by the curated suite):
+  • slice 27 — LS FFE covtyp default → OOB segfault (fmcba variant-specific default cover type).
+  • slice 33 — LS extended Scott-Burgan fuel-model index OOB (dense-index ffe_fuel_models by raw model#).
+  • slice 34 — NE htcalc NaN calibration-poison (missing HTMAX guard in the NCALHT path; SN-family latent).
+Each fixed floor-safe (38527/143/0), validated vs freshly-relinked live FVS, residuals named. crashscan_fia.jl
+is retained as reusable exhaustive-crash-hunt infrastructure; subdbs {sn,ne,cs,ls}20k.db regenerate via build_subdb.jl.
+VERDICT: the "widen toward exhaustive" crash-hunt dimension is COMPLETE for the 20K/variant sample across all
+regimes — FVSjl is a crash-free drop-in for FVS on real FIA inventory under fire/thin/salvage/plant/no-mgmt at scale.
