@@ -8,8 +8,16 @@ thinsdi/     thinsdi.key  thinsdi.tre  thinsdi.yaml  thinsdi.csv
 multistand/  multistand.key  …  .tre  …  .yaml  …  .csv
 semantic/      thinsdi.yaml  multistand.yaml   (+ .tre/.csv)   ← the SEMANTIC form
 multiscenario/ stand.yaml    (+ stand.tre/.csv)              ← N scenarios, one stand
+fia/           163384065010854.{key,tre,yaml,csv}           ← a real FVS-ready FIA plot, exported
 convert_and_run.sh                            ← run + convert every form
+fia/export_and_run.sh                         ← FIA CNs → standalone files, then run/convert
 ```
+
+> **From FVS-ready FIA plots.** The `fia/` folder ships one real FIA plot (`STAND_CN
+> 163384065010854`) exported to standalone `.key`/`.tre` + `.yaml`/`.csv` by
+> [`bin/fvsjl-fia-export.jl`](../bin/fvsjl-fia-export.jl) — runnable with no database. To turn
+> your own list of CNs into files, see [`fia/README.md`](fia/README.md) and the CLI guide
+> [`../docs/TOOLS.md`](../docs/TOOLS.md).
 
 > **Multi-scenario runs.** `multiscenario/stand.yaml` projects one stand under four
 > treatments (control / light thin / heavy thin / thin-twice) — every scenario reads the

@@ -1,0 +1,35 @@
+variant: SN
+# FVS keywords — ORDER-AWARE hierarchical form. The keyword stream is
+# an ordered sequence; sections only GROUP it (flattening top-to-bottom
+# reproduces the exact order). `treatments`, `species_groups` and
+# `event_monitor` are order-significant (define-before-use, same-cycle
+# activities run in input order). See docs/KEYWORDS.md.
+stand:
+  - setup:
+      - keyword: "STDIDENT"
+      - raw: "163384065010854"
+      - STDINFO:
+          forest_code: 80404
+          habitat: "221Ja"
+          stand_age: 5
+          aspect: 0
+          slope: 3
+          elevation: 14.6
+      - DESIGN:
+          basal_area_factor: 0
+          fixed_plot_area_inverse: 1
+          break_dbh: 999
+          number_of_plots: 1
+      - INVYEAR:
+          year: 1980
+  - growth:
+      - keyword: "GROWTH"
+        params: ["1", "10", "1", "10", "10"]
+  - setup:
+      - NUMCYCLE:
+          cycles: 10
+  - output:
+      - keyword: "ECHOSUM"
+  - setup:
+      - keyword: "TREEDATA"
+      - keyword: "PROCESS"

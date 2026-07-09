@@ -56,18 +56,33 @@ julia --project bin/fvsjl-translate.jl  stand.key  stand.yaml   # .key ⇄ .yaml
 julia --project bin/fvsjl-translate.jl  stand.tre  stand.csv    # .tre ⇄ .csv
 ```
 
-Worked examples (thinning, multi-stand, multi-scenario, semantic YAML) are in
-[`examples/`](examples/).
+Export **FVS-ready FIA plots** (by `STAND_CN`) from an FIA SQLite database to standalone
+stand files that run with no database:
+
+```bash
+# one CN → out/<CN>.key + out/<CN>.tre  (or --format yaml for .yaml + .csv)
+julia --project bin/fvsjl-fia-export.jl  fia.db  163384065010854  out/
+julia --project bin/fvsjl-run.jl         out/163384065010854.key
+```
+
+Worked examples (thinning, multi-stand, multi-scenario, semantic YAML, FIA export) are in
+[`examples/`](examples/). The three CLI tools and every workflow are in
+[docs/TOOLS.md](docs/TOOLS.md).
 
 ## Documentation
 
 **Using FVSjl**
 
-- **[docs/KEYWORDS.md](docs/KEYWORDS.md)** — every keyword FVSjl recognizes, grouped by
-  purpose, with its named parameters in both the legacy `.key` and modern `.yaml` forms.
+- **[docs/TOOLS.md](docs/TOOLS.md)** — the three command-line tools and every workflow: run a
+  stand, convert `.key ↔ .yaml` / `.tre ↔ .csv`, and export FVS-ready FIA plots (by CN) to
+  standalone files. Start here to *do* something.
+- **[docs/KEYWORDS.md](docs/KEYWORDS.md)** — every keyword FVSjl recognizes, each with a full
+  plain-English explanation of what it does, its parameters (position/units/defaults/codes),
+  and a worked `.key` + `.yaml` example.
 - **[docs/FORMATS.md](docs/FORMATS.md)** — the input formats: `.key`/`.yaml` (two YAML
   flavors — an order-preserving keyword stream *and* a declarative `fvs-stand/v1`) and
-  `.tre`/`.csv`, plus how the keyword and tree files pair up and the translate CLI.
+  `.tre`/`.csv`, plus how the keyword and tree files pair up, species groups, and the four
+  variants (SN/NE/CS/LS).
 
 **Understanding the model**
 
