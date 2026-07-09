@@ -19,7 +19,10 @@ const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase
 # divergences with density preserved ARE that primitive's signature. A TopHt-worst row in an ALREADY-CORNERED
 # ecoregion is therefore dropped; in a NEW ecoregion it still surfaces (signature not yet in corners). A real
 # height bug would also perturb BA/SDI/CCF/QMD or appear in a non-cornered geography, both of which still escalate.
-const ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD"])
+# TCuFt (total cubic, threshold-FREE) is included: a large TCuFt divergence is a real volume-EQUATION bug
+# signal (e.g. the slice-41 FORKOD zero-vol), not the threshold-crossing/count-straddle noise that BdFt/SCuFt/
+# MCuFt (merch/board step-functions) show. TopHt is EXCLUDED (dig-2c: cornered AVHT40 tie-break ULP primitive).
+const ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD", "TCuFt"])
 const ESCALATE_REL = 15.0
 
 is_dig(sig, worst_col, struct_pct, max_rel) =

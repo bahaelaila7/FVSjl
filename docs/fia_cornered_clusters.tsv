@@ -9,5 +9,5 @@
 # Add a row here only after a dig session documents the corner in docs/FIA_FVS_COMPAT_AUDIT.md.
 #
 # ECO_PREFIX	SIGNATURE	dig_session	note
-221H	volume_persistent	2	Appalachian dense mixed-hardwood: cyc-0 bit-exact, sub-print Float32 DBH-growth accumulation compounds; merch/board-volume tail. Forest-type reclassification proven bit-exact.
-221H	structure_densephase	2	Appalachian dense mature/young stands near SDImax: self-thinning count-straddle (a few TPA) + sawtimber merch-threshold crossings on ~zero volume bases. Density (BA/SDI/CCF) preserved within ~1 unit.
+221	volume_persistent	2	Central Appalachian (221*) dense mixed-hardwood: cyc-0 bit-exact, sub-print Float32 DBH-growth accumulation compounds; merch/board-volume tail. Forest-type reclassification proven bit-exact. Verified 221H (dig#1/#2, many stands) + 221Ja (dig#2d, 163384065010854: bit-exact 1980, 0.8% seed 1985 identical TPA). Real volume-eq bugs still surface (TCuFt escalation guard); UNCLASSIFIED + structure blow-ups (TPA/BA/SDI/CCF/QMD >=15%) still escalate.
+221	structure_densephase	2	Central Appalachian (221*) dense mature/young stands near SDImax: self-thinning count-straddle (a few TPA) + sawtimber merch-threshold crossings on ~zero volume bases. Density (BA/SDI/CCF) preserved within ~1 unit. Verified 221H + 221Ja same taxonomy. Escalation guard still surfaces genuine structure/volume-eq bugs anywhere in 221*.
