@@ -1454,3 +1454,16 @@ Residual: the 6 (4%) plant-induced stands are not yet individually classified �
 seedling-cohort ULP compounding (bare-stand traces showed exactly this: a 400-tree monoculture amplifies tiny
 per-tree rounding coherently), but NOT verified per-stand. Tracked with the cycle-number-date residual as the two
 OPEN low-severity PLANT items. Harness: test/harness/fia + scratchpad/plantcal/run2.jl (reproducible).
+
+### SLICE 42g — the 4% calendar-PLANT-induced stands CLASSIFIED (compounded-ULP, corrected from 42f guess)
+42f left the 6 plant-induced stands "unclassified (likely young even-aged-cohort ULP compounding)". VERIFIED
+per-stand (scratchpad/plantcal/run3.jl) — that guess was WRONG. All 6 are:
+  cn 238920384010854 non-bare TCuFt 0.1% firstdiv 2022 | 205292117010854 non-bare TCuFt 0.1% 2020
+  162997713010854 non-bare TCuFt 0.0% 2011 | 159737268010854 non-bare BdFt 0.0% 2014
+  159743065010854 non-bare BA 0.9% 2003    | 238748466010854 non-bare TCuFt 0.2% 2026
+i.e. ALL non-bare stands, ALL sub-1% (0.0–0.9%, mostly ~0.1%), divergence appearing LATE (2011–2026), not at
+the plant cycle and not the 5–10% young-cohort signature. ⇒ named primitive = COMPOUNDED-ULP: adding a planted
+cohort to an EXISTING stand perturbs the shared RNG/density by ULP, which compounds to a sub-1% tail by cycle 5–6
+— the same cornered class as the no-management print_boundary/volume_persistent residuals. CORNERED, not a bug.
+NET on PLANT: calendar-date establishment is FAITHFUL — 96% bit-exact-add-nothing, 4% sub-1% compounded-ULP.
+Only remaining OPEN PLANT item = the cycle-number-date age computation (uncommon input form; low severity).
