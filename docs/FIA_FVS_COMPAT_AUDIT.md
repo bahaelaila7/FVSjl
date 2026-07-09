@@ -4,6 +4,32 @@ Goal + doctrine: `docs/FIA_FVS_COMPAT_GOAL.md`. Every slice: plots covered, per-
 freshly-relinked live FVS, divergences found → both-sides-traced → fixed or cornered. Never regress the
 floor (`julia --project=. test/runtests.jl` = 38527/143/0).
 
+## ★ DIVERGENCE TAXONOMY (Pillar-4 consolidated reference) — every FIA divergence is one of these
+Verified across 4 variants × 4 mgmt regimes × 3 volume/board paths, and against the WORST outliers (to 436%).
+**A. REAL BUGS — FOUND & FIXED** (all surfaced only by real FIA at scale; floor-safe; live-validated):
+  1. LS FFE covtyp default → OOB segfault (slice 27, fmcba.jl variant default cover type).
+  2. LS extended Scott-Burgan fuel-model index OOB (slice 33, dense-index ffe_fuel_models by raw model#).
+  3. NE htcalc NaN calibration-poison (slice 34, missing HTMAX guard in the NCALHT path; SN-family latent).
+  4. PLANT/NATURAL scheduled by cycle-number never fired + over-sized seedlings (slice 37, establishment.jl).
+**B. CORNERED RESIDUALS — named primitives, bit-exact-or-cornered** (Float32 semantics, not padded tolerance):
+  1. **Self-thinning count-straddle** — at a dense self-thin, live/jl kill a different NUMBER of tiny trees;
+     DENSITY (BA/SDI/CCF/TopHt) stays bit-exact, only stem count + QMD diverge; re-converges next cycle.
+     (growth-ULP × density-dependent mortality; the SIGMAR tripling-spread. Dense/hyper-dense regen stands.)
+  2. **Merch/sawtimber-threshold crossing** — a growth-ULP dbh diff straddles a merch (4")/sawlog (10") DBH
+     threshold; on the near-zero volume base when a product first forms this is a huge % (to 436%), converging
+     as the cohort matures. Volume-only; board:cuft ratio EXACT on all rules (Int'l ¼", Scribner) ⇒ equations
+     faithful. Amplified in the most-quantized measures (SCuFt/BdFt).
+  3. **DGSCOR/AUTCOR stochastic record-ordering** — diameter-growth serial-correlation draw order (post-thin,
+     COMPRESS). Deterministic paths are bit-exact; this is stochastic-by-elimination.
+  4. **FFE/FMEFF fire-kill distribution** — the per-tree fire mortality split (fire BEHAVIOR + BA are bit-exact).
+  5. **LS dense-phase growth residual** — LS-specific calibration-backdating relative-ranking in hyper-dense
+     regen (BA/SDI diverge mid-projection ~20%, converge by stand maturity). Accepted-class per LS port notes.
+  6. **Non-native cycle-length DGSCOR** — a variant at a non-native cycle length (NE@5yr, SN@10yr) drifts;
+     bit-exact at each variant's native cycle. Deferred known residual.
+  7. **Print-boundary ±1-unit straddle** — QMD 1-decimal / TPA·SDI·CCF·BA integer rounding straddles.
+STRUCTURE columns never appear in the >5% outlier tail except via (B1)/(B5); no masked volume-equation bug on
+any variant. Full per-slice detail below.
+
 ## Infra fixes
 - **F1** — `test/harness/fia/validate_fia.jl`: fixed `FVSjl.NorthEast()` → `Northeast()` (would have
   errored EVERY NE FIA stand). Made the harness CLI-arg driven (`julia validate_fia.jl <listfile>
