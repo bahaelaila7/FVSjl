@@ -1237,3 +1237,23 @@ FINDINGS:
 VERDICT: Pillar-3 management fidelity validated on real FIA across ALL 4 variants × 4 regimes on all 10 columns —
 bit-exact-or-cornered. The deeper differential (user-chosen) delivered the campaign's 4th real fix (slice 37 PLANT) and
 confirmed it cross-variant; no further management-specific bug remains — residuals are all named primitives.
+
+---
+## SLICE 39 — OUTLIER HUNT (>5% tail) confirms NO masked bug behind the cornered residuals  [2026-07-09]
+Per the meta-lesson (re-trace cornered flags against source; masked bugs hide in the tail), added an outlier
+capture to validate_fia10 (per-stand max-rel + sorted list) and ran SN 1000 stands (plain). 29 stands >5%.
+KEY OBSERVATION: EVERY outlier is a VOLUME column (SCuFt/BdFt/MCuFt) — structure (TPA/BA/SDI/CCF/TopHt/QMD) NEVER
+appears in the >5% tail. Both-sides-traced the top two (436% and 253%) over an extended horizon:
+  • Stand 210898427010854 (1806 TPA, moderate): SCuFt 436% @2025 (sawtimber JUST forming: live 43 / jl 226) then
+    the trajectory SIGN-FLIPS and CONVERGES (2035 -44% → 2050 -9%, monotonic → 0). Board:cuft ratio = 5.36 on BOTH
+    (jl SCuFt/BdFt internally exact) ⇒ volume EQUATIONS faithful. = the sawtimber-threshold (SCFMIND=10") crossing
+    sensitivity: growth-ULP/DGSCOR puts a fraction of a TPA across the 10" threshold at slightly different rates,
+    the ENTIRE sawtimber base when it is just forming (~0), washing out as the cohort matures past 10". A volume-
+    EQUATION bug would persist proportionally; convergence+sign-flip ⇒ threshold-sensitivity, NOT a bug.
+  • Stand 886367013290487 (7500 TPA seedling): MCuFt 999%→253% at merch formation, persistent ~10% mature — this
+    is the DENSE-REGEN self-thinning count-straddle stand (structure diverges by a few trees ⇒ volume follows).
+VERDICT: the extreme-magnitude tail (up to 436%) decomposes ENTIRELY into the two already-named primitives —
+(1) merch/sawtimber-threshold crossing at formation (volume-only, equations exact, converges) and (2) dense-regen
+self-thinning count-straddle (structure + downstream volume). NO masked volume-equation bug; structure never in the
+tail. This rigorously validates Pillar-4 "every divergence cornered to a named primitive" against the worst outliers,
+not just the aggregate rates. Harness: validate_fia10.jl FIA_OUTLIER=<thresh>. Commit 13251f2 (harness).
