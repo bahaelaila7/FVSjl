@@ -42,3 +42,12 @@ FIX (needs care, both-sides + multi-stand validation, per doctrine): normalize K
 (region, forest, district) covering BOTH formats before the `iregn==8` guard — mirroring FVS forkod.f/
 sitset.f — and confirm the currently-passing stands (long-format + STDINFO-resolved forest_idx) stay bit-exact.
 STATUS: OPEN. Because a real bug is open, `docs/FIA_FVS_COMPAT_COMPLETE` should NOT stand — removing it.
+
+## ✔ RESOLVED (commit 5a4fb9f) — the flip, demonstrated
+The zero-volume bug is FIXED (ported forkod.f pseudo-code remap 824→81203). Re-ran the SN ledger; the flagged
+stand FLIPPED, exactly the intended workflow:
+  OLD: 162992981010854 ... false ... volume_persistent   (all volume 0)
+  NEW: 162992981010854 ... true  ... bit_exact            (all 10 cols match live)
+SN bit_exact 526→527. This CSV now carries the post-fix SN rows (NE/CS/LS unchanged — the fix is SN-only).
+The 2nd "zero-vol" hit (202566908010854, LOCATION 80216) was a false positive of the quick filter = a SCuFt
+threshold-crossing (cornered), not a bug. Suite floor 38527/143/0.

@@ -1,4 +1,5 @@
 variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature
+variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature
 SN,none,163925862010854,6,true,,,0,0.0,0.0,0.0,0.0,true,true,bit_exact
 SN,none,220182923010854,6,true,,,0,0.0,0.0,0.0,0.0,true,true,bit_exact
 SN,none,163923046010854,6,false,TCuFt|SCuFt|BdFt,SCuFt,1981,0.048,1.0,0.0,0.048,true,true,print_boundary
@@ -587,7 +588,7 @@ SN,none,250807496010854,6,false,TPA|BA|CCF|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2035,2
 SN,none,158850149010854,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TopHt,1971,3.846,152.0,3.846,2.123,false,true,structure_densephase
 SN,none,159737169010854,6,true,,,0,0.0,0.0,0.0,0.0,true,true,bit_exact
 SN,none,238870212010854,6,false,TPA|BA|SDI|CCF|QMD|TCuFt|MCuFt|SCuFt|BdFt,QMD,2018,1.695,29.0,1.695,0.798,true,true,print_boundary
-SN,none,162992981010854,6,false,TCuFt|MCuFt|SCuFt|BdFt,TCuFt,1986,100.0,14766.0,0.0,100.0,true,false,volume_persistent
+SN,none,162992981010854,6,true,,,0,0.0,0.0,0.0,0.0,true,true,bit_exact
 SN,none,158850456010854,6,false,TPA|BA|SDI|CCF|QMD|TCuFt|MCuFt|SCuFt|BdFt,BdFt,1981,14.031,278.0,1.754,14.031,true,true,threshold_crossing
 SN,none,159196722010854,6,true,,,0,0.0,0.0,0.0,0.0,true,true,bit_exact
 SN,none,159201682010854,6,false,TPA|TCuFt|MCuFt|SCuFt|BdFt,TPA,2001,0.19,14.0,0.19,0.164,true,true,print_boundary
