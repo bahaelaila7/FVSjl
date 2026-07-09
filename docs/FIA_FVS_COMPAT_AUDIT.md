@@ -1205,3 +1205,12 @@ VERDICT: 4th REAL code fix of the campaign — the standard `PLANT <cycle> <sp> 
 was COMPLETELY broken (never planted), surfaced by the user-requested deeper-fidelity differential under mgmt.
 This is a substantial keyword-behaviour bug (Pillar 3), not a ULP residual. Variant-safe (shared establishment.jl,
 same convention as cuts! for all variants). NATURAL(431) regen scheduled by cycle number is fixed by the same change.
+
+### SLICE 37 result — SN plant differential at scale (300 stands) BEFORE vs AFTER the fix
+  BEFORE: TPA 33%  BA 36  TCuFt 53  ...  ALL-10 bit-exact 0/249  (planting never fired ⇒ everything wrong)
+  AFTER : TPA 81%  BA 78  SDI 74  CCF 72  TopHt 91  QMD 81 | TCuFt 57  MCuFt 78  SCuFt 82  BdFt 77
+TPA 33%→81% confirms the fix at scale. ALL-10 still 0/249 because EVERY planted stand carries a dense seedling
+COHORT that grows with the cornered small-tree/dense-regen self-thinning ULP straddle (density tracks, stem
+count + small-volume diverge) — at least one cell diverges over the 6-cycle projection. TCuFt lowest (includes
+the seedlings). Same NAMED primitive as the plain-regime dense-regen residual; the FIRING+SIZING bug is fixed,
+the remaining is cornered growth of the young cohort (single-stand: 2016/2021 bit-exact, 2031 QMD 2.2/2.3).
