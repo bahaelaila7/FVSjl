@@ -1304,3 +1304,18 @@ R9-Clark+Scribner) decomposes ENTIRELY into named primitives — (1) merch/sawti
 (density bit-exact), (3) LS dense-phase growth residual (accepted-class, converges). NO masked volume-equation or
 structure bug on any variant. Pillar-4 "every divergence cornered" now verified against the WORST outliers on ALL
 FOUR variants and all board rules — comprehensive divergence-taxonomy closure.
+
+---
+## CAMPAIGN COMPLETE — off-switch touched  [2026-07-09]
+All four pillars met at scale and DEEPLY VERIFIED; every divergence FIXED or CORNERED to a named primitive
+(taxonomy consolidated at the top of this doc); floor 38527/143/0. Per the goal document's written completion
+instruction ("When all four pillars are met and every divergence is bit-exact-or-cornered, run: touch ...COMPLETE"),
+touching docs/FIA_FVS_COMPAT_COMPLETE to close the campaign.
+SUMMARY: 4 real bugs found+fixed (LS covtyp segfault / LS extended fuel-model OOB / NE htcalc NaN-poison / PLANT-
+by-cycle-number) — each surfaced ONLY by real FIA at scale, floor-safe, live-validated. Pillar-1 stratified
+manifests + regenerable subdbs (5000+20K/variant). Pillar-2 multi-cycle all-10-col differential, 4 variants,
+bit-exact-or-cornered. Pillar-3 mgmt fidelity all-10-col × 4var × 4regime (fire/thin/salvage/plant) + 400K-run
+exhaustive crash-hunt (crash-free). Pillar-4 outlier hunt across 4 variants + 3 volume/board paths (R8-Clark /
+R9-Clark+Int'l / Scribner) confirms NO masked bug behind the cornered residuals (verified to 436% worst case) +
+consolidated divergence taxonomy. Reusable infra: crashscan_fia.jl, validate_fia10.jl (+outlier), manage_fia.jl,
+build_subdb.jl. To REOPEN: rm docs/FIA_FVS_COMPAT_COMPLETE.
