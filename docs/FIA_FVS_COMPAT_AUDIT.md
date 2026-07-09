@@ -1439,3 +1439,18 @@ cycle_year_at/delay vs FVS estab.f ESTIME/DELAY). Low-severity (uncommon input f
 norm and are exact). Candidate for a focused fix or corner; NOT the broad establishment bug 42d implied.
 HARNESS FIX NEEDED: regime_block should plant with a calendar-year date to test the common path; the
 cycle-number residual is tracked separately.
+
+### SLICE 42f — AT-SCALE confirmation: calendar-date PLANT is faithful (retires the 42d "0% PLANT" scare)
+Rigorous per-stand isolation over 200 SN stands (pinned list), plant year = INV_YEAR+5 (calendar), comparing
+each stand's NONE-regime bit-exactness vs its calendar-PLANT bit-exactness (both jl-vs-live over the full horizon):
+  both bit-exact = 87   both diverge (pre-existing baseline classes) = 55   PLANT-INDUCED divergence = 6 (4%)
+  plant "fixed" (noise) = 1   skipped (no both-sum) = 51
+⇒ calendar-date PLANT adds NO new divergence on 96% of stands; the diverging stands carry the SAME baseline
+cornered classes as no-management (worst = 202566908010854, the known threshold_crossing). Contrast: the
+cycle-number date `PLANT 2.0` broke ~100% (1/824 bit-exact). This CONFIRMS at scale what 42e showed on 2 stands:
+the establishment/PLANT model is faithful on the standard calendar-date form; the 42d "0% all variants" was the
+cycle-number-date harness artifact.
+Residual: the 6 (4%) plant-induced stands are not yet individually classified — consistent with young even-aged
+seedling-cohort ULP compounding (bare-stand traces showed exactly this: a 400-tree monoculture amplifies tiny
+per-tree rounding coherently), but NOT verified per-stand. Tracked with the cycle-number-date residual as the two
+OPEN low-severity PLANT items. Harness: test/harness/fia + scratchpad/plantcal/run2.jl (reproducible).
