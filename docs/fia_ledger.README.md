@@ -51,3 +51,11 @@ stand FLIPPED, exactly the intended workflow:
 SN bit_exact 526→527. This CSV now carries the post-fix SN rows (NE/CS/LS unchanged — the fix is SN-only).
 The 2nd "zero-vol" hit (202566908010854, LOCATION 80216) was a false positive of the quick filter = a SCuFt
 threshold-crossing (cornered), not a bug. Suite floor 38527/143/0.
+
+## Reading `volume_persistent` (avoid false alarms)
+Most `volume_persistent` rows are the merch/sawtimber-threshold CROSSING primitive caught before convergence:
+the ledger uses a 6-cycle (30-yr) window, and late-forming sawtimber (dense regen crossing the 10" threshold
+near the last cycle) hasn't converged yet — extend NUMCYCLE and it does (verified: 259566665010854 BdFt 43%@2036
+→ ~0% by 2061). The REAL-BUG signature is different and specific: struct_max_rel≈0 AND vol_max_rel=100 (jl volume
+exactly 0) SUSTAINED across all cycles with all four volume cols in div_cols — that was the zero-volume/FORKOD bug
+(now fixed). When triaging a re-run, look for that sustained-zero signature first; a converging tail is cornered.
