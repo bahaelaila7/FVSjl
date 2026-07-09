@@ -70,6 +70,8 @@ function main(listfile, v, regime)
     n_ok = 0; n_pass_all = 0
     col_cells = zeros(Int, 10); col_match = zeros(Int, 10)   # per-column cell counts
     vol_fail_stands = String[]
+    outliers = Tuple{Float64,String,Int,Int}[]   # (maxrel, cn, col, year) — for the >THRESH tail
+    othresh = parse(Float64, get(ENV, "FIA_OUTLIER", "0.05"))
     for cn in stands
         live = run_live(bin, cn, regime, dir); isempty(live) && continue
         keyf = joinpath(dir, "jl.key"); write(keyf, keytext(cn, regime))
@@ -79,18 +81,23 @@ function main(listfile, v, regime)
         (isempty(L) || isempty(J)) && continue
         n_ok += 1
         Jd = Dict(y => vv for (y, vv) in J)
-        all_ok = length(J) == length(L); vol_ok = true
+        all_ok = length(J) == length(L); vol_ok = true; smaxrel = 0.0; scol = 0; syr = 0
         for (y, lv) in L
             haskey(Jd, y) || (all_ok = false; continue)
             jv = Jd[y]
             for k in 1:10
                 col_cells[k] += 1
                 if lv[k] == jv[k]; col_match[k] += 1
-                else; all_ok = false; (k >= 7) && (vol_ok = false); end
+                else
+                    all_ok = false; (k >= 7) && (vol_ok = false)
+                    rel = lv[k] == 0 ? (jv[k]==0 ? 0.0 : 1.0) : abs(lv[k]-jv[k])/abs(lv[k])
+                    rel > smaxrel && (smaxrel = rel; scol = k; syr = y)
+                end
             end
         end
         all_ok && (n_pass_all += 1)
         vol_ok || push!(vol_fail_stands, cn)
+        smaxrel >= othresh && push!(outliers, (smaxrel, cn, scol, syr))
     end
     println("\n===== VALIDATE-10COL ($regime): $v =====")
     println("both-sum stands = $n_ok   ALL-10-cols bit-exact (every cycle) = $n_pass_all / $n_ok")
@@ -101,6 +108,11 @@ function main(listfile, v, regime)
         println("  $(rpad(COLS[k],6)): $(round(r,digits=2))%  ($(col_match[k])/$(col_cells[k]))$marker")
     end
     println("stands with a VOLUME-column divergence: $(length(vol_fail_stands))")
+    sort!(outliers, rev=true)
+    println("OUTLIERS (max-rel >= $(round(othresh*100))% on any col): $(length(outliers))")
+    for (r,cn,col,yr) in outliers[1:min(15,end)]
+        println("  $(round(r*100,digits=2))%  $cn  col=$(COLS[col]) @ $yr")
+    end
     if haskey(ENV,"FIA_VOLFAIL") && !isempty(vol_fail_stands)
         open(ENV["FIA_VOLFAIL"],"w") do io; for s in vol_fail_stands; println(io, s); end; end
     end
