@@ -479,16 +479,33 @@ end
 
 # OPTION 14 — STDINFO (initre.f:808): stand info. Forest/habitat decoding
 # (FORKOD/HABTYP) is deferred; the geometry/site fields are set here.
-# Fort Bragg remap (sn/forkod.f CASE 701), shared by the STDINFO keyword and the FIA DB reader so both
-# input paths resolve it the way FVS's forkod does (it runs for every stand). Forest 701 — as the FIA
-# composite `701` (REGION 7 × 100 + FOREST 1) OR the keyfile `701xx` code (forkod collapses IFORDI==701
-# to 701 first) — maps to NC Uwharrie district 81110 (region 8, VOLEQ 821CLKE, IFOR=20 special LL/LP DG +
-# bark). Without it VOLEQDEF sees region 7 ⇒ no R8 Clark equation ⇒ every tree gets zero volume.
-function sn_fortbragg_remap!(p)
-    if p.user_forest_code == 701 || div(p.user_forest_code, 100) == 701
-        p.forest_idx = Int32(20)
-        p.user_forest_code = Int32(81110)
+# FORKOD pseudo-code remap (sn/forkod.f first SELECT CASE + the IFORDI-collapse pre-step), shared by the
+# STDINFO keyword and the FIA DB reader so both input paths resolve KODFOR the way FVS's forkod does (it runs
+# for every stand). FVS remaps proclaimed/reservation "pseudo" forest codes to a canonical 5-digit R8
+# region/forest/district code BEFORE VOLEQDEF. Without it VOLEQDEF's `IREGN = KODFOR÷10000` guard sees region
+# ≠ 8 (e.g. LOCATION 824 → 824÷10000 = 0) ⇒ no R8 Clark equation string ⇒ EVERY tree gets zero volume
+# (found by the FIA divergence ledger: SN Savannah River stands, structure bit-exact but all volume 0).
+# Fort Bragg (701) is special: IFOR=20 (LL/LP DG + bark) in forkod.f's SECOND SELECT CASE; the rest just
+# rewrite the code and let the normal decode assign the forest. The pre-step collapses a long code whose
+# ÷100 is one of these pseudo forests (e.g. 82400 → 824) so the CASE catches it (forkod.f:183-188).
+const _SN_FORKOD_REMAP = Dict{Int,Int}(
+    836=>81203, 824=>81203,                  # Savannah River → Sumter NF
+    860=>80216, 835=>80216,                  # Land Between the Lakes → Daniel Boone
+    7201=>81304, 7207=>80906, 7210=>81005, 7211=>81005, 7212=>81005, 7213=>81005,
+    7215=>80901, 7216=>80901, 7218=>80901, 7601=>80906, 7602=>81005, 7603=>81005,
+    7604=>81005, 7605=>81005, 7606=>81005, 7607=>81005, 7608=>81005, 7609=>81005,
+    7610=>80901, 7611=>81005, 7612=>80906, 7613=>80901,   # OTSA / reservation pseudo-codes
+    8205=>80505, 8207=>80103, 8210=>81201, 8212=>80601, 8213=>80602, 8219=>81111,
+    8220=>80505, 8221=>80701)                # tribal reservation pseudo-codes
+function sn_forkod_remap!(p)
+    k = Int(p.user_forest_code)
+    ifordi = div(k, 100)                                  # forkod.f:183-188 collapse
+    ifordi in (905, 908, 836, 824, 860, 835, 701) && (k = ifordi)
+    if k == 701                                           # Fort Bragg → Uwharrie 81110, special IFOR=20
+        p.forest_idx = Int32(20); p.user_forest_code = Int32(81110); return
     end
+    haskey(_SN_FORKOD_REMAP, k) && (k = _SN_FORKOD_REMAP[k])
+    p.user_forest_code = Int32(k)
     return
 end
 
@@ -506,7 +523,7 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
         org = nint(v[9])
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
     end
-    sn_fortbragg_remap!(p)   # forest 701 ⇒ NC Uwharrie 81110 / IFOR=20 (forkod.f CASE 701)
+    sn_forkod_remap!(p)   # forest 701 ⇒ NC Uwharrie 81110 / IFOR=20 (forkod.f CASE 701)
     # FORKOD default trap (forkod.f:521-533): a KODFOR that resolves to no recognized SN forest
     # falls through the SELECT CASE to `CASE DEFAULT`; when the 3-digit forest (IFORDI=KODFOR÷100)
     # isn't in JFOR, `FORFOUND=.FALSE.` ⇒ ERRGRO(3) + KODFOR = Talladega NF Alabama = 80106. So a

@@ -65,7 +65,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # Fort Bragg (forkod.f CASE 701): a region-7/forest-1 FIA code (composite LOCATION=701) is remapped to
     # NC Uwharrie 81110 (region 8) — forkod runs for every stand, incl. DB input. Without it VOLEQDEF sees
     # region 7 ⇒ no R8 Clark equation ⇒ zero volume. (Shared with kw_stdinfo!.)
-    s.variant isa Southern && sn_fortbragg_remap!(p)
+    s.variant isa Southern && sn_forkod_remap!(p)
     # AGE (IAGE)
     _fia_present(d, "AGE") && (p.stand_age = Int32(_fia_int(d, "AGE", 0)))
     # ASPECT degrees → radians (TRNASP ×0.0174533); SLOPE percent → fraction (PLOT.F77)
