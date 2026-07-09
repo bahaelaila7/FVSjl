@@ -1257,3 +1257,24 @@ VERDICT: the extreme-magnitude tail (up to 436%) decomposes ENTIRELY into the tw
 self-thinning count-straddle (structure + downstream volume). NO masked volume-equation bug; structure never in the
 tail. This rigorously validates Pillar-4 "every divergence cornered to a named primitive" against the worst outliers,
 not just the aggregate rates. Harness: validate_fia10.jl FIA_OUTLIER=<thresh>. Commit 13251f2 (harness).
+
+---
+## SLICE 40 — OUTLIER HUNT across NE/CS/LS (variant-specific VOLUME paths): no masked bug on any variant  [2026-07-09]
+Extended the >5% outlier hunt to NE/CS/LS (700 stands each, plain) — covering the variant-DISTINCT volume equations
+that SN's R8-Clark hunt cannot exercise: NE/CS = NVEL R9 Clark cubic + International-¼" board; LS = R9 Clark + SCRIBNER
+board. Outlier counts + composition:
+  NE: 5 outliers, ALL volume (SCuFt/BdFt/MCuFt), max 12.5% — STRUCTURE never in the tail (like SN). Clean.
+  CS: 7 outliers — 4 volume + 3 TPA(structure). Traced worst TPA (21% @2032, stand 175608425020004): BA 215 / SDI
+      232-234 / CCF 176-178 / TopHt 61 all BIT-EXACT, only stem-count 394-vs-478 + QMD 10.0-vs-9.1 differ at the
+      self-thin, RE-CONVERGES next cycle (2042 both 22 TPA) = the self-thinning COUNT-STRADDLE caught mid-thin.
+  LS: 25 outliers (densest-regen variant) — volume + 2 TPA. Traced worst volume (49% SCuFt @2030, stand 1210963224290487):
+      density BIT-EXACT all cycles, sawtimber-volume-only, CONVERGES 2040 (3.5%) ⇒ Scribner board path faithful, the
+      threshold-crossing primitive. Traced worst TPA (28% @2060, stand 1283781939290487, 1970-TPA regen): BA/SDI diverge
+      ~20% MID-projection (2040 BA 134/163) then CONVERGE by 2090 = the documented LS DENSE-PHASE growth residual
+      (SIGMAR-tripling / calibration relative-ranking, ACCEPTED-class per LS port notes) — not a new bug.
+VERDICT: the >5% outlier tail on ALL FOUR variants (across THREE distinct volume paths: R8-Clark, R9-Clark+Intl,
+R9-Clark+Scribner) decomposes ENTIRELY into named primitives — (1) merch/sawtimber-threshold crossing at formation
+(volume-only, converges, board:cuft exact ⇒ equations faithful on every board rule), (2) self-thinning count-straddle
+(density bit-exact), (3) LS dense-phase growth residual (accepted-class, converges). NO masked volume-equation or
+structure bug on any variant. Pillar-4 "every divergence cornered" now verified against the WORST outliers on ALL
+FOUR variants and all board rules — comprehensive divergence-taxonomy closure.
