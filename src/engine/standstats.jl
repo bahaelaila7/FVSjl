@@ -135,6 +135,14 @@ function stand_top_height(s::StandState)
     # RDPSRT(.FALSE.) re-sorts that pre-ordered IND. RDPSRT is unstable, so the `.FALSE.` pass SWAPS equal-DBH
     # ties (the later-read record lands at the 40-tpa boundary), which a single sort does NOT — this is the
     # cycle-0 top-height divergence on tie-heavy stands (equal-DBH, different-height trees at the boundary).
+    # NOTE (dig-session #2): the per-cycle FVS path is gradd.f:186 CALL RDPSRT(...,.TRUE.) → dense.f (single
+    # sort), while cratet.f cycle-0 empirically double-sorts (dig-session #1). An empirical single-vs-double
+    # sweep over 4 tie-heavy stands REFUTED a global per-cycle-single fix: single fixes stand 232271267010854
+    # (2003) but REGRESSES the two dig-session #1 stands (1737985937290487 2024/2034, 163925866010854 1976);
+    # a 3rd (202594547010854) is sort-INDEPENDENT (genuine small-tree height ULP). The correct tie-break is
+    # stand-dependent because RDPSRT is an unstable quicksort on tied DBHs — no global sort choice is bit-exact.
+    # Double matches the most stands (2/4 fully), so it stays. Residual TopHt swings on tie-heavy dense stands
+    # are the cornered AVHT40 top-height tie-break ULP primitive (density BA/SDI/CCF preserved; converges).
     _rdpsrt!(dbhv, idx)                 # LSEQ=.TRUE. → IND1
     _rdpsrt!(dbhv, idx; lseq = false)   # LSEQ=.FALSE. → re-sort preserving IND1 (swaps ties, matches FVS)
     avh = 0f0; ssumn = 0f0

@@ -1604,3 +1604,24 @@ SWEEP META-FILTER (so coverage actually advances instead of re-pausing every ~20
 DISPOSITION: 348 archived to docs/dig_archive/dig_session2_sn_6300-10300.csv; dig-queue cleared; sweep resumes
 from cursor 10300 with the meta-filter live (will now advance through the rest of 221H, pausing only on genuine
 escalations / new strata). Floor 38527/143/0 confirmed (suite re-run).
+
+### SLICE 43c — TopHt escalation: single-vs-double AVHT40 sort hypothesis REFUTED (empirical, both-sides)
+The dig-session #2 meta-filter's escalation guard kept surfacing TopHt divergences (worst_col=TopHt, ≥15%) in
+dense 221H stands. Both-sides-traced the FVS top-height source: the `.sum` TopHt col (IOSUM(13) = OLDAVH/ATAVH,
+disply.f:321/330) is `AVH` from the 40-largest-DBH-TPA loop. That loop lives in BOTH avht40.f AND dense.f and
+consumes a PRE-SORTED `IND` (neither sorts internally). The per-cycle path is **gradd.f:186
+`CALL RDPSRT(ITRN,DBH,IND,.TRUE.)` → dense.f** — a SINGLE sort; cratet.f cycle-0 empirically double-sorts
+(dig-session #1). Hypothesis: jl's stand_top_height double-sorts EVERY cycle, so per-cycle tie-heavy stands
+diverge. Tested via an ENV toggle (FVS_TOPHT_SORT single|double) over 4 tie-heavy stands vs live:
+  • DOUBLE (current): 1737985937290487 ✓all, 163925866010854 ✓all; 232271267010854 ✗(2003 L30/J21),
+    202594547010854 ✗(2016/2026/2031).
+  • SINGLE: 232271267010854 ✓all (FIXED); but REGRESSES 1737985937290487 (2024/2034) + 163925866010854 (1976);
+    202594547010854 UNCHANGED (sort-INDEPENDENT ⇒ genuine small-tree height ULP, not the sort).
+VERDICT: the correct tie-break is STAND-DEPENDENT — no global single/double choice is bit-exact (single fixes
+one stand, regresses two). RDPSRT is an unstable quicksort on tied DBHs, so the 40-TPA-boundary tree (and its
+height) is inherently input-order-sensitive. Double matches the most stands (2/4 fully) and is kept. The TopHt
+swings on tie-heavy dense stands are the cornered **AVHT40 top-height tie-break ULP primitive** (density
+BA/SDI/CCF preserved within ~1 unit; converges) — same primitive class as the dig-session #1 cratet tie-break,
+now shown NOT globally fixable via sort-mode. Code unchanged (comment-only in standstats.jl documenting the
+refutation); floor 38527/143/0 intact (no logic change). This closes the TopHt escalation as a named cornered
+primitive rather than a fixable bug — a rigorous NEGATIVE result (tested the fix, it regresses; doctrine #3/#6).
