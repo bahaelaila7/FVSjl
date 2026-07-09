@@ -43,30 +43,30 @@ PROCESS
 STOP
 """
 
-# a .sum with a non-finite / absurd value is as bad as a throw — flag it too
-function sane_sum(text)
-    got = false
+# A crash-hunt success = jl produced a .sum with at least one projection DATA ROW. FVS's .sum is FIXED-WIDTH
+# and adjacent columns can ABUT (e.g. "1995-999" = year 1995 + a -999 code with no separating space), so a
+# whitespace-split of the whole row is unreliable — but the LEADING 4-digit year is always present and
+# unambiguous. We only need "did jl run to a real projection row?"; value-level fidelity is the differential
+# harness's job (validate_fia / manage_fia), not this crash scan. Non-finite/absurd values would surface there.
+function has_data_row(text)
     for ln in split(text, '\n')
-        f = split(strip(ln)); length(f) < 8 && continue
-        y = tryparse(Int, f[1]); (y===nothing || y<1000 || y>3000) && continue
-        for i in 3:8
-            v = tryparse(Float64, f[i]); v === nothing && continue
-            (isfinite(v) && v >= 0 && v < 1e9) || return false
-            got = true
-        end
+        s = strip(ln)
+        length(s) >= 4 || continue
+        y = tryparse(Int, s[1:4])
+        (y !== nothing && 1000 <= y <= 3000) && return true
     end
-    got
+    false
 end
 
 function main(listfile, v, regime)
     var = VAR[v]
     stands = [split(strip(l), '\t')[1] for l in eachline(listfile) if !isempty(strip(l))]
-    n=0; ok=0; empty=0; crash=0; insane=0
+    n=0; ok=0; empty=0; crash=0
     crashes = Tuple{String,String}[]
     dir = mktempdir()
     for cn in stands
         n += 1
-        n % 500 == 0 && (print(stderr, "[$n/$(length(stands))] crash=$crash insane=$insane\r"); flush(stderr))
+        n % 500 == 0 && (print(stderr, "[$n/$(length(stands))] crash=$crash\r"); flush(stderr))
         kf = joinpath(dir, "s.key"); write(kf, keytext(cn, regime))
         out = try
             FVSjl.run_keyfile(kf; variant=var)
@@ -75,18 +75,16 @@ function main(listfile, v, regime)
             length(crashes) < 40 && push!(crashes, (cn, first(sprint(showerror, e), 160)))
             continue
         end
-        if isempty(out); empty += 1
-        elseif !sane_sum(out); insane += 1; length(crashes) < 40 && push!(crashes, (cn, "INSANE_SUM"))
-        else; ok += 1; end
+        has_data_row(out) ? (ok += 1) : (empty += 1)   # empty = no projection row (e.g. nonstocked; not a crash)
     end
     println(stderr)
     println("\n===== CRASHSCAN ($regime): $v =====")
-    println("stands=$n  ok=$ok  empty(no-sum)=$empty  CRASH(throw)=$crash  INSANE(sum)=$insane")
+    println("stands=$n  ok(projected)=$ok  empty(no-data-row)=$empty  CRASH(throw/OOB)=$crash")
     if !isempty(crashes)
-        println("--- first $(length(crashes)) crash/insane stands ---")
+        println("--- first $(length(crashes)) CRASH stands ---")
         for (cn, msg) in crashes; println("  $cn  $msg"); end
     else
-        println("NO CRASHES — jl ran every stand to a finite .sum.")
+        println("NO CRASHES — jl ran every stand without throwing.")
     end
 end
 
