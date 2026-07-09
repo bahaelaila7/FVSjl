@@ -609,8 +609,18 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 hstart = t.height[i] - t.ht_growth[i]            # start-of-period H for the filter (regent.f:451)
                 hstart < 0.01f0 && continue
                 t.ht_growth[i] < 0.001f0 && continue             # no measured height growth
-                aget = ne_htcalc_age(sp, si, t.height[i])        # HTCALC age/incr on the CURRENT height (regent.f:466)
-                htgr = ne_htcalc_incr(sp, si, aget)
+                # htcalc.f:389 guard (`IF(HTMAX-H.LE.1.) GO TO 900` ⇒ HTG1=0): a tree at/above the NC-128
+                # asymptote (H ≥ HTMAX-1) has no invertible age — the ALOG argument goes negative and yields
+                # NaN. FVS guards this INSIDE HTCALC so every call is protected; jl guards per-caller, and this
+                # NCALHT calibration path was the one omission. Without it an off-curve small tree (e.g. a
+                # 47-ft, 2.9" tree) NaNs `cornew` ⇒ poisons the species-level htg_cor_init ⇒ NaN growth for all
+                # small trees of that species (an SN-family crash surfaced only on a rare FIA stand under fire).
+                if ne_htcalc_htmax(sp, si) - t.height[i] <= 1f0
+                    htgr = 0f0
+                else
+                    aget = ne_htcalc_age(sp, si, t.height[i])    # HTCALC age/incr on the CURRENT height (regent.f:466)
+                    htgr = ne_htcalc_incr(sp, si, aget)
+                end
                 gmod = ne_balmod(b3ne[sp], ebau, t.dbh[i])       # BALMOD·RELHTA (regent.f:485-491)
                 relht = avh > 0f0 ? min(t.height[i] / avh, 1f0) : 0f0
                 gmod = 1f0 - (1f0 - gmod) * (1f0 - relht)

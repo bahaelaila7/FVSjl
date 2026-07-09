@@ -1096,3 +1096,34 @@ VERDICT: real robustness+faithfulness bug found ONLY by real FIA at fire-scale (
 never selected by the curated tests); FIXED. Residual = the pre-existing named FMEFF fire-kill-distribution
 primitive, merely exposed on more stands. This is the campaign's 2nd real code fix (after slice-27 covtyp),
 both in the LS FFE path, both surfaced by Pillar-3 management at scale.
+
+---
+## SLICE 34 — EXHAUSTIVE jl-only crash-hunt: FIXED NE htcalc NaN calibration-poison (real bug)  [2026-07-09]
+Added a FAST oracle-free crash-scanner (crashscan_fia.jl): runs FVSjl only (no live FVS, no .sum diff) so it
+covers ~15x more stands/min — the "exhaust all FVS-ready stands" dimension. Ran it at 20K/variant under SIMFIRE
+(the fire path where slices 27 & 33 crashed). Result: SN/CS/LS 0 crashes; NE = 1 crash in 20K — a REAL bug, FIXED.
+
+CRASH: NE stand 1735125535290487 threw `InexactError: Int64(NaN32)` at mortality.jl:175 (floor(Int, tokill/pass1))
+— a NaN reached the VARMRT integer conversion (Julia's floor(Int,NaN) throws; Fortran IFIX(NaN) doesn't trap).
+
+ROOT CAUSE (both-sides trace; live FVS produces a fully-finite .sum for this stand ⇒ genuine jl divergence):
+  • The NaN is a NaN diameter-growth on a tree, traced up: sd2sq(mort) ← diam_growth ← small_tree_growth con=
+    exp(htg_cor_small) ← htg_cor_init[sp1] = log(cornew) with cornew=NaN ← the NCALHT small-tree height
+    CALIBRATION loop (diameter_growth.jl:612) calling `ne_htcalc_age` on an OFF-CURVE tree (H=47ft at 2.9" dbh,
+    H > HTMAX=B1·SI^B2=43): base=(H-BH)/HTMAX=1.09>1 ⇒ log(1-base^exp)=log(negative)=NaN.
+  • FVS htcalc.f guards this INSIDE the subroutine: line 386 `HTMAX=B1*SI**B2`, line 389 `IF(HTMAX-H.LE.1.) GO
+    TO 900` ⇒ returns HTG1=0 (no ALOG) ⇒ regent.f:491-497 EDH=0.1. So EVERY FVS HTCALC call is protected.
+  • jl guards per-CALLER instead. height_growth.jl:92, small_tree_growth.jl:59, establishment.jl:323 all have
+    the `htmax-h<=1` guard — but the NCALHT calibration path (diameter_growth.jl:612) was the ONE omission. One
+    off-curve tree there NaNs the SPECIES-LEVEL htg_cor_init ⇒ NaN growth for ALL that species' small trees.
+
+FIX (variant-safe — gated `variant isa Northeast`; floor-safe): add the htcalc.f:389 guard at diameter_growth.jl:612
+— `ne_htcalc_htmax(sp,si) - t.height[i] <= 1f0 ? htgr=0f0 : (age→incr)`. htgr=0 ⇒ the existing `max(htgr·gmod,0.1)`
+floors to 0.1 = FVS's EDH=0.1 for an off-curve tree (regent.f:494/497). Bit-faithful calibration contribution.
+VALIDATION vs live FVSne: stand no longer crashes, produces the full 6-cycle .sum; 2023 BA/SDI/CCF/TopHt/QMD +
+all 4 volume cols BIT-EXACT vs live; residual = TPA/mortality-count ~2% by 2033 (3794 vs 3878) on this 6288-TPA
+dense-regen stand = the documented self-thinning count-straddle primitive (density bit-exact, stem count diverges).
+Re-ran NE 20K crashscan ⇒ 0 crashes. Floor: 38527/143/0.
+VERDICT: 3rd real code fix of the campaign (after slice-27 covtyp segfault + slice-33 fuel-model OOB) — a
+LATENT SN-FAMILY robustness bug (missing-guard NaN-poison), surfaced ONLY by real FIA at scale under fire, on a
+degenerate off-curve tree (H>HTMAX). All 4 variants now crash-free across 20K-stand fire scans (only NE had one).
