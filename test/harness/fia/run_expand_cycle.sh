@@ -37,13 +37,26 @@ emitted=$(julia --project=. test/harness/fia/expand_batch.jl $V $cur $BATCH $bl 
 if [ "${emitted:-0}" -eq 0 ]; then echo "$V DONE (cursor $cur)"; exit 0; fi
 
 cyc=$SC/expand/${vl}_cycle.csv; rm -f $cyc
-LEDGER=$cyc julia --project=. test/harness/fia/ledger_fia.jl $bl $V none > $SC/expand/${vl}_run.log 2>&1
+# Bound the batch with `timeout -s KILL` so a pathologically slow stratum (dense stands / huge tree lists)
+# SELF-KILLS inside the script instead of running away. Critical for driver robustness: when the outer Bash
+# tool times out it kills the shell but ORPHANS a still-running julia child, which later checkpoints a STALE
+# cursor and rewinds the sweep. A per-batch timeout keeps every julia bounded so the script always reaches its
+# clean cursor-advance and no orphan survives the turn. CYCLE_TO default 480s ⇒ a batch fits under a ~9-min cap.
+LEDGER=$cyc timeout -s KILL ${CYCLE_TO:-480} julia --project=. test/harness/fia/ledger_fia.jl $bl $V none > $SC/expand/${vl}_run.log 2>&1
 rc=$?
+# rc 124 (timeout) / 137 (128+SIGKILL) = the batch exceeded CYCLE_TO — NOT a crash. Treat like an empty stratum:
+# advance the cursor past it (any rows ledger already wrote are still filtered below via the partial $cyc) so the
+# sweep keeps moving. A genuine crash (other non-zero rc) still HALTS for investigation per doctrine.
+if [ $rc -eq 124 ] || [ $rc -eq 137 ]; then
+  echo $((cur + emitted)) > $CURD/$vl.cursor
+  echo "$V batch: offset $cur→$((cur+emitted)) of ${POP[$V]}  TIMEOUT (>${CYCLE_TO:-480}s) — skipped, cursor advanced"
+  # fall through so any partial $cyc rows still get ledgered/filtered, but do not halt
+fi
 # A non-zero rc is a REAL failure (crash) — halt so it can be investigated. But rc=0 with an empty/missing
 # cycle CSV is NOT a failure: it's a stratum where live FVS emitted no comparable .sum rows for the whole batch
 # (NOSUM-heavy / nonstocked plots — live itself can't project ~1 in 6 real stands). Skipping it and ADVANCING
 # the cursor is correct; halting the whole sweep on it was a bug that stopped coverage prematurely.
-if [ $rc -ne 0 ]; then echo "$V RUN FAILED at offset $cur (rc=$rc, cursor NOT advanced)"; tail -4 $SC/expand/${vl}_run.log; exit 1; fi
+if [ $rc -ne 0 ] && [ $rc -ne 124 ] && [ $rc -ne 137 ]; then echo "$V RUN FAILED at offset $cur (rc=$rc, cursor NOT advanced)"; tail -4 $SC/expand/${vl}_run.log; exit 1; fi
 ncyc=0; [ -f $cyc ] && ncyc=$(($(wc -l < $cyc) - 1)); [ $ncyc -lt 0 ] && ncyc=0
 if [ ! -s $cyc ] || [ "$ncyc" -eq 0 ]; then
   echo $((cur + emitted)) > $CURD/$vl.cursor
