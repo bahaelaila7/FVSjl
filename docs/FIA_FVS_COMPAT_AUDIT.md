@@ -1477,3 +1477,25 @@ docs/fia_ledger_mgmt.csv PLANT rows predate this and reflect the cycle-number ar
 re-run with the fixed harness would show PLANT at baseline rates. PLANT establishment question now fully closed:
 calendar-date faithful (proven at scale 42f/42g + harness now tests it); cycle-number-date age residual remains
 the sole OPEN low-severity item.
+
+### SLICE 42i — CORRECTION to 42h + full 4-variant resolution: the plant-date issue is MID-CYCLE, not cycle-number
+42h fixed the ledger PLANT regime to a calendar date at INV_YEAR+5 and validated on SN only. The 4-variant
+re-run exposed the incompleteness: SN calendar-PLANT = 61% bit-exact (= baseline, faithful) but NE/CS/LS = 0%.
+Root cause: NE/CS/LS use 10-YEAR default cycles (SN uses 5), so INV_YEAR+5 lands MID-CYCLE for them. Direct test
+(NE stand 1203375687290487, INV_YEAR 2021):
+    PLANT 2026 (inv+5, MID-cycle) : jl vs live DIVERGE
+    PLANT 2031 (inv+10, cycle-1 BOUNDARY): BIT-EXACT
+⇒ the divergence is the MID-CYCLE / sub-cycle establishment-DATE age computation (date not on a cycle boundary),
+the SAME primitive as the SN cycle-number `PLANT 2.0` residual (42e). It is NOT a per-variant establishment-model
+bug: at a cycle boundary, PLANT is faithful for ALL variants. The SN "0%" (cycle-number) and the NE/CS/LS "0%"
+(inv+5 mid-cycle) are two faces of one thing — a non-cycle-boundary plant date.
+FIX: ledger period 5→10 (INV_YEAR+10 is a boundary for BOTH 5-yr SN [cycle 2] and 10-yr NE/CS/LS [cycle 1]).
+VALIDATION (NE 60 stands, boundary date): bit_exact 0%→23%, and 75% bit-exact-OR-print_boundary; triage = 0
+real-bug candidates; residuals are print_boundary (±1-unit, 31/60) + young even-aged-cohort ULP (median struct
+0.59%, max 9% single BA straddle) — the same cornered classes as no-management, amplified by the 400-seedling
+monoculture. NE's 10-yr cycles produce more ±1 straddles than SN's 5-yr, hence lower raw bit-exact but same
+faithfulness class.
+NET (PLANT, corrected & complete): cycle-BOUNDARY calendar PLANT is FAITHFUL on all 4 variants (bit-exact or
+cornered, 0 real-bug candidates). The sole real residual is jl's sub-cycle/off-boundary establishment-date age
+computation (mid-cycle calendar OR cycle-number dates) — low-severity, uncommon input, one named primitive.
+Supersedes the 42d "cross-variant establishment machinery" and 42h "NE/CS/LS 0%" readings.

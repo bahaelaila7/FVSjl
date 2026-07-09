@@ -120,9 +120,11 @@ function main(listfile, v, regime)
     dir = mktempdir(); sub = joinpath(dir, "sub.db")
     print(stderr, "building sub-DB ($(length(cns)) stands)..."); flush(stderr)
     build_subdb(cns, sub); println(stderr, "ok")
-    # Per-stand INV_YEAR so the PLANT regime can use a CALENDAR date (INV_YEAR+period = cycle 1) — the faithful
-    # form (audit 42d-42g); a cycle-number PLANT date hits jl's cycle-number→age residual. Other regimes ignore it.
-    period = 5
+    # Per-stand INV_YEAR so the PLANT regime uses a CALENDAR date at a CYCLE BOUNDARY (the faithful form, audit
+    # 42d-42i). Offset +10 lands on a boundary for BOTH default cycle lengths: cycle-1 for 10-yr variants
+    # (NE/CS/LS) and cycle-2 for 5-yr SN. A MID-CYCLE date (e.g. inv+5 on a 10-yr variant) instead triggers jl's
+    # sub-cycle establishment-date age residual on every stand (the 42h "NE/CS/LS 0%" was that harness mistake).
+    period = 10
     invyr = Dict{String,Int}()
     let db = SQLite.DB(sub)
         for r in DBInterface.execute(db, "SELECT STAND_CN, INV_YEAR FROM FVS_STANDINIT_COND")
