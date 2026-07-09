@@ -137,7 +137,7 @@ function main(listfile, v, regime)
     out = get(ENV, "LEDGER", "docs/fia_ledger.csv")
     newfile = !isfile(out)
     io = open(out, "a")
-    newfile && println(io, "variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature")
+    newfile && println(io, "variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature,struct_max_abs")
     n=0; nbe=0; ndiv=0; nskip=0
     # a per-cell divergence is MATERIAL if rel≥MATERIAL AND abs>1 (beyond a ±1-unit / sub-% straddle)
     ismat(lv,jv) = (ad=abs(lv-jv); ad > 1.0 + 1e-6 && (lv==0 ? true : ad/abs(lv) >= MATERIAL))
@@ -153,6 +153,9 @@ function main(listfile, v, regime)
         Jd = Dict(y=>vv for (y,vv) in J)
         div_set = Set{Int}(); worst_rel=0.0; worst_col=0; worst_yr=0; max_abs=0.0
         struct_rel=0.0; vol_rel=0.0; struct_mat=false; vol_mat=false; density_mat=false
+        struct_abs=0.0   # largest ABSOLUTE diff among structure cols 1-6 (escalation floor: separates a real
+                         # BA/SDI/CCF move of 10s of units from a small-base ±1-5 ULP straddle that inflates to a
+                         # big RELATIVE % only because the base is tiny — e.g. young age-3 stand, BA 2 vs 3 = 33%)
         peak_rel=0.0; last_rel=0.0; ncyc=0
         for (y, lv) in sort(collect(L))
             haskey(Jd, y) || continue
@@ -163,6 +166,7 @@ function main(listfile, v, regime)
                     ad = abs(lv[k]-jv[k]); ad > max_abs && (max_abs = ad)
                     rel = lv[k]==0 ? (jv[k]==0 ? 0.0 : 1.0) : abs(lv[k]-jv[k])/abs(lv[k])
                     mat = ismat(lv[k], jv[k])
+                    k <= 6 && ad > struct_abs && (struct_abs = ad)
                     if k <= 6; rel > struct_rel && (struct_rel = rel); mat && (struct_mat = true)
                     else;      rel > vol_rel && (vol_rel = rel);       mat && (vol_mat = true); end
                     (k in DENSITY_COLS) && mat && (density_mat = true)
@@ -182,7 +186,7 @@ function main(listfile, v, regime)
         println(io, join([v, regime, cn, ncyc, bit_exact, dcols, wcol, worst_yr,
                           round(worst_rel*100,digits=3), round(max_abs,digits=3),
                           round(struct_rel*100,digits=3), round(vol_rel*100,digits=3),
-                          density_be, converges, sig], ","))
+                          density_be, converges, sig, round(struct_abs,digits=3)], ","))
         flush(io)
     end
     close(io)

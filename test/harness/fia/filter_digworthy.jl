@@ -19,21 +19,29 @@ const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase
 # primitive. A TopHt-worst row in a cornered ecoregion is dropped; in a NEW ecoregion it still surfaces.
 const STRUCT_ESCALATE_COLS = Set(["TPA", "BA", "SDI", "CCF", "QMD"])
 const ESCALATE_REL = 15.0
+# A structure blow-up must ALSO be material in ABSOLUTE terms, not just relative. The signature
+# `structure_densephase` does NOT by itself imply a large absolute move: its materiality can come from a small
+# 2-unit cell (e.g. CCF 56 vs 58 = 3.4%) while the row's worst_col/max_rel comes from a DIFFERENT tiny-base cell
+# (BA 2 vs 3 = 33%, a ±1-unit ULP straddle). A genuine structure bug (covtyp/FORKOD/DGSCOR) moves BA/SDI/CCF by
+# tens of units. struct_max_abs (ledger col 16) = the largest absolute diff among the structure cols; require it
+# ≥ this floor before escalating a structure %. Both-sides-traced on CN 202567027010854 (SN 221Hb, age 3): worst
+# structure abs move ≈5 units across all 10 cycles, tracks live within ±1-5, converges (BA 105=105 @2056) ⇒
+# compounded-ULP small-base straddle, not a bug. Floor 10 clears it while surfacing any real ≥10-unit move.
+# (Legacy 15-col rows lack the field ⇒ struct_abs=+Inf ⇒ still escalate — the conservative default is preserved.)
+const STRUCT_ABS_FLOOR = 10.0
 
 is_dig(sig, worst_col, struct_pct, max_rel) =
     sig in DIG_SIGS || (worst_col == "TCuFt" && struct_pct < 1.0 && max_rel >= 5.0)
 
 # escalation: never dropped even in a cornered cluster. Three principled classes:
 #   • UNCLASSIFIED — always needs a manual trace.
-#   • a MATERIAL structure blow-up — worst_col a structure col AND signature==structure_densephase (which BY
-#     DEFINITION means the structure divergence is material, >1 abs unit). This gate excludes the small-base
-#     %-inflation false-positive: a volume_persistent tiny stand (e.g. BA 6→7 = 16.7% but a ±1-unit straddle,
-#     struct NOT material) is NOT escalated — its worst_col=BA is just the highest-relative cell, not a real move.
+#   • a MATERIAL structure blow-up — worst_col a structure col, signature==structure_densephase, max_rel≥15% AND
+#     struct_max_abs≥FLOOR (a real ≥10-unit BA/SDI/CCF move, not a tiny-base %-inflated ±1 straddle; see above).
 #   • a volume-EQUATION bug — worst_col==TCuFt (threshold-FREE total cubic) ≥15%, any signature (cf slice-41
 #     FORKOD zero-vol). BdFt/SCuFt/MCuFt (merch/board step-fns) are NOT here — their large % is threshold-crossing.
-is_escalation(sig, worst_col, max_rel) =
+is_escalation(sig, worst_col, max_rel, struct_abs) =
     sig == "UNCLASSIFIED" ||
-    (sig == "structure_densephase" && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL) ||
+    (sig == "structure_densephase" && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL && struct_abs >= STRUCT_ABS_FLOOR) ||
     (worst_col == "TCuFt" && max_rel >= ESCALATE_REL)
 
 function load_cornered(path)
@@ -50,7 +58,7 @@ end
 function main(csv, v, cornerfile)
     corners = load_cornered(cornerfile)
     # parse candidate rows first (cheap), collect their CNs for a single ecoregion lookup
-    rows = String[]; cand = Tuple{Int,String,String,String,Float64}[]  # (rowidx, cn, sig, worst_col, max_rel)
+    rows = String[]; cand = Tuple{Int,String,String,String,Float64,Float64}[]  # (rowidx,cn,sig,worst_col,max_rel,struct_abs)
     for (i, l) in enumerate(eachline(csv))
         i == 1 && continue
         f = split(l, ',')
@@ -58,8 +66,10 @@ function main(csv, v, cornerfile)
         cn = f[3]; worst_col = f[7]; sig = strip(f[15])
         max_rel = something(tryparse(Float64, f[9]), 0.0)
         struct_pct = something(tryparse(Float64, f[11]), 0.0)
+        # struct_max_abs is col 16 in the new schema; legacy 15-col rows lack it ⇒ +Inf (still escalate).
+        struct_abs = length(f) >= 16 ? something(tryparse(Float64, f[16]), Inf) : Inf
         is_dig(sig, worst_col, struct_pct, max_rel) || continue
-        push!(rows, l); push!(cand, (length(rows), cn, sig, worst_col, max_rel))
+        push!(rows, l); push!(cand, (length(rows), cn, sig, worst_col, max_rel, struct_abs))
     end
     isempty(cand) && return
     # one ecoregion lookup for all candidate CNs
@@ -73,9 +83,9 @@ function main(csv, v, cornerfile)
         end
         SQLite.close(db)
     end
-    for (idx, cn, sig, worst_col, max_rel) in cand
+    for (idx, cn, sig, worst_col, max_rel, struct_abs) in cand
         drop = false
-        if !is_escalation(sig, worst_col, max_rel)
+        if !is_escalation(sig, worst_col, max_rel, struct_abs)
             e = get(eco, cn, "")
             for (pfx, csig) in corners
                 # pfx "*" = GLOBAL (all ecoregions) — the taxonomy signatures verified SN-model-universal

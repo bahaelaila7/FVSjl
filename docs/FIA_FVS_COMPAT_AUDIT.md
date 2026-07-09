@@ -1646,3 +1646,46 @@ TCuFt-18% survive; small-base-BA-16% + BdFt-40%-threshold drop) confirms the gua
 campaign (covtyp/fuel-OOB/htcalc-NaN/PLANT/FORKOD) would trip the guard (UNCLASSIFIED / ≥15% structure / TCuFt /
 crash). Harness-only; floor 38527/143/0. Archived docs/dig_archive/dig_session2d_sn_223Ab.csv; dig-queue cleared;
 sweep resumes from cursor 24300 — now pauses ONLY on a genuine real-bug candidate.
+
+### SLICE 43f — sweep continuation (SN 32300→34100) + batch-sizing operational lesson
+Continued the global-cornered SN sweep from cursor 32300 to 34100 (~1800 more plots, ecoregion-ordered):
+**dig-worthy +0 across every batch** — the two SN-universal signatures (volume_persistent + structure_densephase)
+continue to absorb all non-bit-exact plots, and the escalation guard surfaced nothing. Per-batch bit_exact ratio
+varies with stratum density (e.g. 10/20, 18/30, 83/95) but every non-exact plot corners cleanly; no UNCLASSIFIED,
+no ≥15% structure/TCuFt blow-up. Confirms the global corner (slice 43e) holds deeper into the SN population.
+
+OPERATIONAL LESSON (no code/floor change): run the sweep with a SMALL batch (BATCH≈100, ~200s/cycle), NOT
+BATCH=1500 (~50 min/cycle). run_expand_cycle.sh checkpoints the cursor only at end-of-batch; a background task
+reaped mid-batch (or a foreground call hitting the tool timeout) loses no *correctness* (re-processing is
+idempotent) but makes NO forward progress if the batch never completes. Small batches checkpoint every few
+minutes → steady, reap-resilient advance. Also: run the sweep in the FOREGROUND (bounded ~8 min/turn); launching
+a second background task appears to cancel the first, so a single foreground loop per turn is the reliable driver.
+Floor untouched (38527/143/0); harness/docs only.
+
+### SLICE 43g — dig #3: small-base structure escalation false-positive (CN 202567027010854) → guard floored
+FIRST genuine escalation survivor since the global corner (slice 43e): a full re-filter of this session's entire
+23,034-row SN ledger (a rigor check after finding the per-batch filter had been crashing on concurrent-loop
+`rm -f sn_cycle.csv` races — now moot under foreground-singleton) surfaced exactly ONE dig candidate:
+CN 202567027010854 (SN, ecoregion 221Hb), signature structure_densephase, worst_col=BA, max_rel=33.333% @2011.
+
+BOTH-SIDES-TRACED vs freshly-relinked live FVSsn (DATABASE reader, NUMCYCLE 10). NOT a bug — a young **age-3**
+seedling stand (BAF=0 fixed-area, 1 plot) where BA is tiny. Per-cycle jl-vs-live: BA 2011 jl=2/live=3 (the 33%
+= a **1 sq ft** straddle on BA=3); every other cycle tracks within ±1-5 absolute units (BA ±1, SDI ±2, CCF ±3,
+TPA ±5) and CONVERGES (BA 105=105 @2056). The classic compounded-ULP small-base straddle: a sub-print DBH-growth
+seed rounds BA to 2 vs 3, inflating to 33% RELATIVE only because the base is 3.
+
+ROOT CAUSE OF THE FALSE-POSITIVE (guard blind spot, not a model bug): the escalation guard escalated a structure
+`max_rel≥15%` with NO absolute-magnitude floor. The comment claimed signature==structure_densephase "BY
+DEFINITION" means a >1-unit structure move — FALSE. Here the materiality that earned the structure_densephase
+label came from a *different* small cell (CCF 56 vs 58 @2016 = 2 units, 3.4% — material by ismat), while
+worst_col/max_rel came from the tiny-base BA 2-vs-3 cell (33%, not even material). So the guard escalated on a
+relative % belonging to a non-material cell.
+
+FIX (harness only; floor 38527/143/0 untouched — no src/ change): added `struct_max_abs` (largest ABSOLUTE diff
+among structure cols 1-6) as ledger col 16 (appended AFTER signature ⇒ backward-compatible: signature stays f[15];
+legacy 15-col rows lack it ⇒ treated as +Inf ⇒ still escalate, preserving the conservative default). The structure
+escalation now also requires `struct_max_abs ≥ 10` — a real BA/SDI/CCF bug moves tens of units; a small-base ULP
+straddle does not. VALIDATED end-to-end: the real ledger emits struct_max_abs=3.0 for this CN ⇒ filter DROPS it;
+a synthetic panel confirms REAL_STRUCT_BUG (abs=45), UNCLASSIFIED, TCuFt-volume, and legacy-15-col rows ALL still
+surface. UNCLASSIFIED and TCuFt-volume escalation are unchanged (no floor) — the primary real-bug nets stay
+unconditional. dig-queue remains a true 0. Files: ledger_fia.jl, filter_digworthy.jl.
