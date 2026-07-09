@@ -56,7 +56,7 @@ maps them at a glance).
 
 ```yaml
 format: fvs-stand/v1     # REQUIRED discriminator (anything starting `fvs-stand`)
-variant: SN              # which FVS model — SN = Southern (FVSsn), NE = Northeast. Default SN.
+variant: SN              # which FVS model — SN Southern · NE Northeast · CS Central States · LS Lake States. Default SN.
 output_format: sum       # summary format — sum (legacy fixed-column) or csv. Default sum.
 
 stand:                   # ONE stand …
@@ -72,13 +72,17 @@ stands:                  # … or MANY (each map is one self-contained stand)
 
 A single `STOP` is appended after the last stand; each stand gets its own `PROCESS`.
 
-**`variant:`** names the FVS geographic model to run the file as — `SN` (Southern, the
-`FVSsn` binary) or `NE` (Northeast). In stock FVS the variant is *which binary you run*,
-not a keyword; making the config carry it keeps a YAML file self-describing (the engine
-reads it and dispatches to that variant). It is **not** written into a converted `.key`
-(stock FVS has no variant keyword — you pick the `FVSsn`/`FVSne` binary). Resolution
-order: an explicit `run_keyfile(...; variant=…)` argument wins; else the file's `variant:`;
-else `SN`. The keyword-stream YAML accepts the same top-level `variant:` key.
+**`variant:`** names the FVS geographic model to run the file as — one of the four ported
+variants: `SN` (Southern, the `FVSsn` binary), `NE` (Northeast, `FVSne`), `CS` (Central
+States, `FVScs`), or `LS` (Lake States, `FVSls`). The long names (`Southern`, `Northeast`,
+`CentralStates`, `LakeStates`) are also accepted. In stock FVS the variant is *which binary
+you run*, not a keyword; making the config carry it keeps a YAML file self-describing (the
+engine reads it and dispatches to that variant). It is **not** written into a converted
+`.key` (stock FVS has no variant keyword — you pick the `FVS{sn,ne,cs,ls}` binary).
+Resolution order: an explicit `run_keyfile(...; variant=…)` argument wins; else the file's
+`variant:`; else `SN`. The keyword-stream YAML accepts the same top-level `variant:` key.
+The keyword *grammar* is identical across variants — they differ only in the underlying
+model coefficients (growth, volume, site, forest type) and species list.
 
 **`output_format:`** selects the summary format — `sum` (the legacy fixed-column `.sum`, the
 default) or `csv` (the modern named-column form, see [§4](#4-the-sum-summary-output)). Same
@@ -206,6 +210,48 @@ run in input order in FVS, so the list order is preserved verbatim.
 | `baimult` `htgmult` `mortmult`  | `species`2 `mult`3 `dmin`4 `dmax`5                              |
 | `fixmort`                       | `species`2 `rate`3 `dmin`4 `dmax`5 `option`6                    |
 | `fixdg`                         | `species`2 `value`3 `dmin`4 `dmax`5                             |
+
+Any `species` field above accepts the same codes as the keywords do: an **alpha/FIA/PLANTS
+code**, `0`/`ALL` for every species, or **`−N`** to mean "every member of the *N*-th
+[species group](KEYWORDS.md#species-groups)" (first `spgroup:` = `−1`, second = `−2`, …).
+
+### Species groups (`spgroup:`) — define once, thin as a set
+
+`spgroup:` (a single group `{name, species:[…]}`, or a **list** of them) defines named
+groups you can then aim a treatment at with the negative code `−N`. The converter emits
+each group as a `SPGROUP` card + a member line, **before** the treatments — satisfying
+FVS's rule that a group must be declared before the card that references it. Groups are
+numbered in the order they appear.
+
+```yaml
+format: fvs-stand/v1
+variant: SN
+stand:
+  invyr: 1990
+  numcycle: 5
+  spgroup:
+    - { name: OAKHIC, species: [WO, RO, BO, HI] }   # group −1 : oaks + hickory
+    - { name: SOFTWD, species: [LP, SP, VP] }        # group −2 : southern pines
+  treatments:
+    - thindbh: { year: 2010, dmin: 0, dmax: 99, eff: 1.0, species: -1 }  # thin the oak/hickory group
+    - thinbba: { year: 2015, ba: 80, species: -2 }                       # thin the pine group to 80 ft²/ac
+```
+
+unravels to (groups first, in definition order, then the treatments that name them):
+
+```
+SPGROUP   OAKHIC
+WO RO BO HI
+SPGROUP   SOFTWD
+LP SP VP
+...
+THINDBH   2010      0         99        1.0                 -1
+THINBBA   2015      80                                      -2
+```
+
+`−1` in the first `THINDBH` selects every member of `OAKHIC`; `−2` in the `THINBBA`
+selects `SOFTWD`. (In the order-preserving keyword-stream YAML the same thing is written
+as an explicit `species_groups:` section — see [KEYWORDS.md](KEYWORDS.md#species-groups).)
 
 ### The `raw_keywords:` escape hatch
 
@@ -368,6 +414,12 @@ The `species` field (`.tre`/`.csv` column 5) accepts **any** of three codes — 
 resolves them all to the same internal species. Keywords that take a `species` argument
 accept the **FVS alpha** code (or `0`/`ALL`, or `−N` for an [SPGROUP]). The 90 Southern
 species (from `data/southern/species_coefficients.csv`, the source of truth):
+
+> **Other variants have their own species lists** — the table below is the **SN** (Southern)
+> set of 90. Northeast (NE), Central States (CS), and Lake States (LS) each carry a different
+> species list and codes (`data/{northeast,centralstates,lakestates}/species_coefficients.csv`).
+> The alpha/FIA/PLANTS/`−N`/`0` code conventions are identical across all four; only the
+> membership differs.
 
 | # | FVS | common name | FIA | PLANTS |
 |---|-----|-------------|-----|--------|
@@ -554,13 +606,13 @@ both as flags (a YAML's `variant:`/`output_format:` are used when the flag is om
 overrides):
 
 ```bash
-julia --project bin/fvsjl-run.jl <key.{key,yaml}> [--variant SN|NE] [--output sum|csv] [-o out]
+julia --project bin/fvsjl-run.jl <key.{key,yaml}> [--variant SN|NE|CS|LS] [--output sum|csv] [-o out]
 
 # legacy .key run as Southern, .sum to stdout (the defaults):
 julia --project bin/fvsjl-run.jl examples/multistand/multistand.key
 # same stand, modern CSV to a file:
 julia --project bin/fvsjl-run.jl examples/multistand/multistand.key --output csv -o out.csv
-# a .key with no variant marker, run as Northeast:
+# a .key with no variant marker, run as Northeast (or CS / LS):
 julia --project bin/fvsjl-run.jl net01.key --variant NE
 ```
 
