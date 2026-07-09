@@ -1337,3 +1337,11 @@ ledger ⇒ the stand FLIPPED volume_persistent→bit_exact (SN bit_exact 526→5
 LESSON: the earlier "complete" was PREMATURE — the outlier-hunt on worst RELATIVE outliers missed this (a
 different sample; and the 6-col sweeps never checked volume). The systematic per-stand all-10-col ledger caught
 it. Campaign stays OPEN (off-switch NOT re-touched): the ledger sampled 1000/variant plain — more may surface.
+
+### SLICE 41 addendum — population-wide impact of the FORKOD fix (forkod_audit.jl)
+Enumerated all 90 distinct SN LOCATION codes across the full FVS-ready population (637,641 stands) and ran each
+through sn_forkod_remap! + the VOLEQDEF iregn decode. PRE-FIX: 2 codes blanked vol_eq — 701 (Fort Bragg, 2573
+stands, already handled by the old fortbragg case) and 824 (Savannah River, 554 stands, the NEW bug). POST-FIX:
+0/90 codes fail ⇒ every SN LOCATION resolves to region 8. So the fix resolves ~554 real SN stands from zero
+volume (not just the 1 sampled), comprehensively for the whole SN population. Reusable guard: forkod_audit.jl.
+(NE/CS/LS use the R9 Clark path — different vol-eq resolution; the ledger's NE/CS/LS rows showed no zero-vol hit.)
