@@ -1356,3 +1356,37 @@ self-thin). ZERO worst=TCuFt≥5%, ZERO UNCLASSIFIED, ZERO sustained-zero (the z
 ⇒ No new bug CLASS surfaces at 5000 for SN (the largest variant, where the zero-vol bug was found). Every
 divergence remains a named cornered primitive. (NE/CS/LS use the R9 Clark path; their 1000-sample showed no zero-
 vol/large-vol hits, so a 5000 expansion there is lower-yield and not run.)
+
+---
+## SLICE 42 — coverage EXPANSION: NE/CS/LS 5000 base + Pillar-3 management regimes  [2026-07-09]
+### 42a — NE/CS/LS base ledger expanded to 5000 (completes the all-4-variant 5000-scale hunt)
+Slice 41 deferred the R9-Clark variants at 5000 as "lower-yield". Ran them anyway for completeness (the campaign
+wants comprehensive fidelity across ALL variants, not just the R8/SN path). Results (docs/fia_ledger_{ne,cs,ls}5000.csv):
+  NE: bit_exact 3990/4953 (80.6%)  — print_boundary 834, threshold_crossing 65, volume_persistent 32, count_straddle 17, structure_densephase 15
+  CS: bit_exact 4332/4947 (87.6%)  — print_boundary 472, count_straddle 46, threshold_crossing 38, structure_densephase 36, volume_persistent 23
+  LS: bit_exact 3800/4988 (76.2%)  — print_boundary 766, threshold_crossing 193, structure_densephase 93, count_straddle 73, volume_persistent 63
+REAL-bug triage (test/harness/fia/triage_ledger.sh — tight filter: worst_col=TCuFt & struct%<1 & rel>=5, OR
+UNCLASSIFIED): **0 candidates on all three**. Combined with SN 5000 (also 0), the 4-variant 5000-scale
+no-management hunt finds **0 new real bugs**; every divergence is a named cornered primitive (print/ULP
+straddle, merch/board threshold-crossing, self-thin count-straddle, compounded-ULP volume drift, dense-phase
+growth-ranking). The zero-vol/FORKOD fix (slice 41) is the last real bug; it holds at 20,000 stands total.
+
+### 42b — triage_ledger.sh (durable real-bug isolator)
+Codified the real-vs-cornered discriminator learned from the FORKOD zero-vol bug into a committed script:
+a REAL logic bug in the volume path shows as a BASE-cubic (TCuFt) gap with CLEAN structure (struct%<1) and
+LARGE magnitude (>=5%) — TCuFt is the discriminator because every DBH>0 tree contributes, so it can only zero
+out if the vol EQUATION is unassigned. The merch cols (MCuFt/SCuFt/BdFt) legitimately zero out below merch
+size (cornered threshold_crossing, converges, ratio exact) so a generic "big vol%" filter is NOISE; the
+struct%<1 gate excludes structure_densephase (structure moved ⇒ volume moving with it is expected). Validated:
+0 candidates on the post-fix SN 5000 (would have flagged the FORKOD bug pre-fix). The script also prints the
+full signature histogram as the FLIP-DETECTION baseline (re-run after any fix, diff the populations).
+
+### 42c — Pillar-3 management-scenario coverage (thinbba/salvage/plant/simfire x 4 variants, 1000 stands each)
+Extended the ledger to the four management regimes the harness supports, over the pinned 1000-stand lists
+(→ docs/fia_ledger_mgmt.csv). Validation of the harness on THINBBA (SN stand 164242774010854, THINBBA 2.0 40.0):
+the THIN CYCLE itself is BIT-EXACT (2001: both TPA=594 BA=46 SDI=67 CCF=51 QMD=3.8 TCuFt=1289) and so is the
+immediate post-thin cycle (2006) — i.e. jl and live SELECT THE SAME TREES to thin; the keyword behaviour is
+faithful. Divergence only appears 2 cycles later (2011: SDI 120/121, CCF 114/115, TopHt 60/61, TCuFt 2063/2066
+= 0.15%) = the SAME downstream cornered class as no-management, merely seeded from a thinned stand. So under
+management the `structure_densephase`/`volume_persistent` signatures do NOT indicate a thinning-selection bug;
+the first-divergence-cycle (thin cycle bit-exact) is the discriminator. [full-batch triage pending run completion]
