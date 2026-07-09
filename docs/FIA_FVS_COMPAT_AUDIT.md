@@ -1419,3 +1419,23 @@ bare stand 163925862010854):
   - VERDICT PENDING: fixable draw-count/ordering desync vs accepted establishment-RNG-tail residual. To close
     needs a debug-FVS estab.f stamp (dump live's accepted RAN per record) vs jl's — a rebuild-class both-sides
     measurement, deferred pending go-ahead. NOT prematurely cornered (doctrine 4).
+
+### SLICE 42e — CORRECTION to 42d: the "PLANT 0%" is largely a CYCLE-NUMBER-DATE harness artifact
+42d flagged PLANT as 0% bit-exact on all 4 variants and localized it to the shared establishment RNG. That
+localization was INCOMPLETE. Root cause found: the ledger's regime_block planted with a CYCLE-NUMBER date
+(`PLANT 2.0 3 400`); every validated PLANT test + real scenarios use a CALENDAR-YEAR date (`PLANT 1992 …`).
+Direct 2×2 on SN stand 163925862010854 (live vs jl, .sum @2001):
+    PLANT 2.0   (cycle#) : LIVE BA10/SDI33/TopHt18   JL BA9/SDI31/TopHt17   → diverges (small)
+    PLANT 1986  (cal yr) : LIVE BA2/SDI8/TopHt10      JL BA2/SDI8/TopHt10    → BIT-EXACT
+Confirmed on a 2nd stand (164246326010854, PLANT 2001 calendar): jl == live BIT-EXACT every cycle/every col
+(TPA 400→389→378, BA→2, SDI→8, CCF→5, TopHt→10, QMD 0.9, TCuFt 22).
+⇒ With the STANDARD calendar-date PLANT, jl establishment is BIT-EXACT vs live — the model is faithful. The
+0%-everywhere pattern was the cycle-number-date path (shared code, hence all 4 variants) hit on every stand by
+the harness. The base-height ruling in 42d stands (FVS HTCALC == jl); the earlier ":estab RNG sequence" locus
+was a red herring driven by the bad date form.
+RESIDUAL (real, minor, OPEN): the CYCLE-NUMBER PLANT-date path still diverges ~5–10% on the young cohort (jl
+BA9 vs live10) — a sub-cycle age/delay computation difference for date<1000 (establishment.jl:194-200
+cycle_year_at/delay vs FVS estab.f ESTIME/DELAY). Low-severity (uncommon input form; calendar dates are the
+norm and are exact). Candidate for a focused fix or corner; NOT the broad establishment bug 42d implied.
+HARNESS FIX NEEDED: regime_block should plant with a calendar-year date to test the common path; the
+cycle-number residual is tracked separately.
