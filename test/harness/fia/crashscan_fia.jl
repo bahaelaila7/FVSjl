@@ -72,7 +72,9 @@ function main(listfile, v, regime)
             FVSjl.run_keyfile(kf; variant=var)
         catch e
             crash += 1
-            length(crashes) < 40 && push!(crashes, (cn, first(sprint(showerror, e), 160)))
+            msg = first(sprint(showerror, e), 200)
+            println(stderr, "\nCRASH $cn :: $msg"); flush(stderr)   # log immediately (survives interruption)
+            length(crashes) < 40 && push!(crashes, (cn, msg))
             continue
         end
         has_data_row(out) ? (ok += 1) : (empty += 1)   # empty = no projection row (e.g. nonstocked; not a crash)
