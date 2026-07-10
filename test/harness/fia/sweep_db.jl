@@ -64,10 +64,13 @@ const _SCHEMA = [
         n_cycles INTEGER, bit_exact INTEGER, div_cols TEXT, worst_col TEXT, worst_cycle INTEGER,
         max_rel_pct REAL, max_abs_diff REAL, struct_max_rel_pct REAL, vol_max_rel_pct REAL,
         struct_max_abs REAL, density_bitexact INTEGER, converges INTEGER, signature TEXT,
-        dig_class TEXT NOT NULL, swept_at TEXT, vol_max_abs REAL,
+        dig_class TEXT NOT NULL, swept_at TEXT, vol_max_abs REAL, oracle TEXT DEFAULT 'shipping',
         PRIMARY KEY (variant, cn, regime))""",
-    # migrate DBs created before vol_max_abs existed (idempotent — the wrapper below swallows "duplicate column")
+    # migrate DBs created before these columns existed (idempotent — the wrapper below swallows "duplicate column")
     "ALTER TABLE sweep ADD COLUMN vol_max_abs REAL",
+    # `oracle` = which live binary produced the comparison: 'shipping' (pristine FVS) or 'patched_d38' (the D38
+    # r9ht-fix binary, used ONLY where the shipping oracle SIGFPE-crashes; validated bit-identical on non-crashers).
+    "ALTER TABLE sweep ADD COLUMN oracle TEXT DEFAULT 'shipping'",
     "CREATE INDEX IF NOT EXISTS sweep_digclass ON sweep(dig_class)",
     "CREATE INDEX IF NOT EXISTS sweep_variant ON sweep(variant)",
     # per-variant sweep CURSOR (deterministic-order offset into the population) — a self-contained durable
@@ -103,13 +106,14 @@ _f(x) = x === nothing ? nothing : float(x)
 # Upsert one stand. `row` is a NamedTuple with the ledger fields (see COLS order in ledger_fia.jl).
 function upsert!(db, row)
     vma = hasproperty(row, :vol_max_abs) ? row.vol_max_abs : nothing
+    orc = hasproperty(row, :oracle) ? String(row.oracle) : "shipping"
     dc = dig_class(row.bit_exact, row.signature, something(row.worst_col, ""),
                    something(row.max_rel_pct, 0.0), row.struct_max_abs, vma, row.struct_max_rel_pct)
     DBInterface.execute(db, """
         INSERT INTO sweep (variant,cn,regime,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,
                            max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,struct_max_abs,density_bitexact,
-                           converges,signature,dig_class,swept_at,vol_max_abs)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                           converges,signature,dig_class,swept_at,vol_max_abs,oracle)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(variant,cn,regime) DO UPDATE SET
           n_cycles=excluded.n_cycles, bit_exact=excluded.bit_exact, div_cols=excluded.div_cols,
           worst_col=excluded.worst_col, worst_cycle=excluded.worst_cycle, max_rel_pct=excluded.max_rel_pct,
@@ -117,13 +121,13 @@ function upsert!(db, row)
           vol_max_rel_pct=excluded.vol_max_rel_pct, struct_max_abs=excluded.struct_max_abs,
           density_bitexact=excluded.density_bitexact, converges=excluded.converges,
           signature=excluded.signature, dig_class=excluded.dig_class, swept_at=excluded.swept_at,
-          vol_max_abs=excluded.vol_max_abs
+          vol_max_abs=excluded.vol_max_abs, oracle=excluded.oracle
         """,
         (row.variant, row.cn, row.regime, _i(row.n_cycles), row.bit_exact ? 1 : 0, row.div_cols,
          row.worst_col, _i(row.worst_cycle), _f(row.max_rel_pct), _f(row.max_abs_diff),
          _f(row.struct_max_rel_pct), _f(row.vol_max_rel_pct), _f(row.struct_max_abs),
          row.density_bitexact ? 1 : 0, row.converges ? 1 : 0, row.signature, dc,
-         Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS"), _f(vma)))
+         Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS"), _f(vma), orc))
 end
 
 _pbool(s) = lowercase(strip(s)) == "true"
