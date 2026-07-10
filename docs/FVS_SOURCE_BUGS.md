@@ -154,3 +154,17 @@ for honest COVERAGE ACCOUNTING — {comparable = bit_exact+ulp_class} + {live_cr
 so the crash stands are visible, not silently skipped. The D38 measurement (SN ~30% of treed stands crash live)
 explains the region-variable comparable rate. (Meta: this "new" finding was a RE-DISCOVERY of D38 — always grep
 FVS_SOURCE_BUGS.md before writing up an FVS crash.)
+
+## D38 addendum — the guard EXISTS in FVS's own tree but is ORPHANED (NVEL vs fvsMod)
+Root of the D38 `r9ht` gap: there are TWO copies of the Clark profile in the FVS source tree:
+- `volume/NVEL/r9clark.f` — the National Volume Estimator Library (git submodule) copy. **This is what EVERY
+  variant compiles** (confirmed in all `bin/FVS*_CmakeDir/FVS*_sourceList.txt`: `../../volume/NVEL/r9clark.f`).
+  Its `r9ht` (line 1286) is UNGUARDED — the D38 crash. (It DOES guard `r9cuft`/`r9dib` at line 1015.)
+- `volume/r9clark_fvsMod.f` — an older FVS-internal copy (last commit 2025-01-08) that **DOES** carry the
+  underflow guard in `r9ht` (at lines 1015/1213/1292). But it is in **NO** variant's source list — orphaned,
+  not compiled by anything.
+So FVS ships the unguarded NVEL copy while a guarded copy sits unused in the same repo. The D38 fix is therefore
+literally FVS's OWN code (the `fvsMod` guard = the `r9cuft` guard). UPSTREAM REPORT: NVEL's `r9ht` should carry
+the same guard its sibling `r9cuft` already has (or FVS should compile `r9clark_fvsMod.f`). SN uses this via NVEL
+because the Clark profile is the shared national eastern taper model (SN=R8/NE/CS/LS all route to it through
+NVEL) — the "R9" filename is the library's origin, not a variant misroute.
