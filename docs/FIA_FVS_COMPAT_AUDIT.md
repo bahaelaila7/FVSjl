@@ -1725,3 +1725,25 @@ NON-disruptive to the verification (nothing re-swept from scratch):
 - MASTER FIA INPUT /workspace/SQLite_FIADB_ENTIRE.db — on /workspace, read-only. DURABLE. ✓
 New: test/harness/fia/resume_sweep.sh — one command to recover after a restart (relink oracle → reconcile cursor
 → report durable coverage + needs_dig worklist → resume the loop). Harness only; suite floor 38527/143/0 untouched.
+
+### SLICE 43j — DB data-quality: reject/scrub CSV-concatenation artifacts; document ulp_class basis
+A query of the coverage DB (prompted by "how do you know these are ULP-class?") exposed 53 MALFORMED rows: the
+variant glued to the CN, the signature slot holding a bool/number (e.g. cn="216864634010854SN", sig="true",
+max_rel_pct=7.3e14). Root cause: the one-time BACKFILL ingested the master-ledger CSV, whose lines had been
+SPLICED by concurrent writers / timeout-killed appends (a partial line without a trailing newline + the next
+batch's line ⇒ shifted columns on positional split). The inline per-stand upsert path (ledger_fia.jl→DB) was
+never affected — only the CSV re-ingest. FIX (sweep_db.jl): `_valid_row` gate on ingest (variant∈{SN,NE,CS,LS},
+signature in the known taxonomy set, CN all-digits) drops spliced lines; new `scrub` command deletes existing
+malformed rows and salvages the embedded CNs for a clean re-sweep. Scrubbed 53, re-swept the 50 recoverable CNs
+via the clean inline path: 32 bit_exact / 17 ulp_class / 1 no-comparable-sum — **none was a hidden needs_dig**.
+DB now 0 malformed.
+
+ON THE ulp_class BASIS (documented for honesty): dig_class is a RULE over the deterministic signature, NOT a
+per-stand both-sides proof. A stand is ulp_class iff it diverges, its signature ∈ the accepted cornered set, and
+it does not trip the escalation guard. The signatures were established as ULP/threshold primitives by tracing
+REPRESENTATIVES to the FVS source (digs #1/#2/#2d/#3); cornering is by-signature + magnitude-guarded, so a
+modest-magnitude real bug mimicking a cornered signature (<15%, converging, density-preserved) could in principle
+be mislabeled ulp_class rather than needs_dig — the inherent limit of taxonomy-cornering vs per-stand tracing.
+Empirical profile (SN ulp_class): 75% print_boundary (≤1-unit straddles), 96% worst-cell <5%; of the 1.6% ≥15%,
+~94% are merch/board volume cols (SCuFt/MCuFt/BdFt = sawtimber-threshold step-fn), the rest TopHt AVHT40 tie-break
++ small BA. Harness only; suite floor 38527/143/0 untouched.

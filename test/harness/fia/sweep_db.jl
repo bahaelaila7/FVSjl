@@ -109,6 +109,15 @@ _pbool(s) = lowercase(strip(s)) == "true"
 _pf(s) = (v = tryparse(Float64, strip(s)); v)
 _pi(s) = (v = tryparse(Int, strip(s)); v)
 
+# A ledger row is well-formed only if these hold. Guards against CSV line-concatenation artifacts (a
+# timeout-killed / concurrently-appended ledger file can splice two lines ⇒ shifted columns: the variant ends up
+# glued to the CN, the signature slot holds a bool/number). Such rows are DROPPED on ingest, never classified.
+const _VALID_VARIANTS = Set(["SN","NE","CS","LS"])
+const _VALID_SIGS = Set(["bit_exact","print_boundary","volume_persistent","structure_densephase",
+                         "threshold_crossing","count_straddle","UNCLASSIFIED"])
+_valid_row(variant, cn, sig) =
+    variant in _VALID_VARIANTS && sig in _VALID_SIGS && !isempty(cn) && all(isdigit, cn)
+
 # Ingest a ledger/cycle CSV (positional; header may be 15- or 16-col — struct_max_abs optional). Idempotent.
 function ingest_csv(dbpath::AbstractString, csvpath::AbstractString)
     db = open_sweepdb(dbpath)
@@ -120,11 +129,13 @@ function ingest_csv(dbpath::AbstractString, csvpath::AbstractString)
         length(f) < 15 && continue
         # columns: variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,
         #          struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature[,struct_max_abs]
-        row = (variant=String(strip(f[1])), regime=String(strip(f[2])), cn=String(strip(f[3])),
+        variant=String(strip(f[1])); cn=String(strip(f[3])); sig=String(strip(f[15]))
+        _valid_row(variant, cn, sig) || continue      # drop mangled/concatenated lines
+        row = (variant=variant, regime=String(strip(f[2])), cn=cn,
                n_cycles=_pi(f[4]), bit_exact=_pbool(f[5]), div_cols=String(strip(f[6])),
                worst_col=String(strip(f[7])), worst_cycle=_pi(f[8]), max_rel_pct=_pf(f[9]),
                max_abs_diff=_pf(f[10]), struct_max_rel_pct=_pf(f[11]), vol_max_rel_pct=_pf(f[12]),
-               density_bitexact=_pbool(f[13]), converges=_pbool(f[14]), signature=String(strip(f[15])),
+               density_bitexact=_pbool(f[13]), converges=_pbool(f[14]), signature=sig,
                struct_max_abs=(length(f) >= 16 ? _pf(f[16]) : nothing))
         upsert!(db, row); n += 1
     end
@@ -149,6 +160,28 @@ function get_cursor(dbpath::AbstractString, variant::AbstractString)
     db = open_sweepdb(dbpath); c = nothing
     for r in DBInterface.execute(db, "SELECT cursor FROM progress WHERE variant=?", (variant,)); c = r.cursor; end
     SQLite.close(db); c
+end
+
+# Delete rows that fail _valid_row (CSV-concatenation artifacts from the one-time master-ledger backfill). Prints
+# the digit-only CNs found glued inside those rows so they can be re-swept cleanly. Idempotent.
+function scrub!(dbpath::AbstractString)
+    db = open_sweepdb(dbpath)
+    bad = Tuple{String,String,String}[]; recover = Set{String}()
+    for r in DBInterface.execute(db, "SELECT variant,cn,signature FROM sweep")
+        v=String(r.variant); c=String(r.cn); s=String(r.signature)
+        if !_valid_row(v,c,s)
+            push!(bad,(v,c,s))
+            # salvage any 12+ digit FIA CN embedded in the mangled variant/cn/signature fields for a re-sweep
+            for fld in (c,s), m in eachmatch(r"\d{12,}", fld); push!(recover, m.match); end
+        end
+    end
+    SQLite.transaction(db) do
+        for (v,c,s) in bad
+            DBInterface.execute(db, "DELETE FROM sweep WHERE variant=? AND cn=? AND signature=?", (v,c,s))
+        end
+    end
+    SQLite.close(db)
+    (deleted=length(bad), recover=sort(collect(recover)))
 end
 
 function _stats(dbpath, variant)
@@ -188,6 +221,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
         set_cursor!(ARGS[2], ARGS[3], parse(Int, ARGS[4]), length(ARGS) >= 5 ? parse(Int, ARGS[5]) : nothing)
     elseif cmd == "getcursor"      # getcursor <db> <variant>  → prints the offset (empty if none)
         c = get_cursor(ARGS[2], ARGS[3]); c === nothing || println(c)
+    elseif cmd == "scrub"          # scrub <db>  → delete malformed rows; print recoverable CNs (one per line)
+        res = scrub!(ARGS[2])
+        print(stderr, "scrubbed $(res.deleted) malformed rows; $(length(res.recover)) recoverable CNs\n")
+        for cn in res.recover; println(cn); end
     else
         error("unknown command $cmd")
     end
