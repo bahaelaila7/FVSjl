@@ -19,6 +19,14 @@ BIN=${ORACLE[$V]}
 
 echo "== resume_sweep $V =="
 
+# 0. Julia depot — ~/.julia is on the ephemeral overlay, so a restart can EVICT installed packages (SQLite/etc.),
+#    which silently breaks expand_batch/ledger_fia (they import SQLite) and stalls the sweep with "DONE". Re-download
+#    at the manifest-pinned versions (no version change; floor-safe) if a core dep is missing.
+if ! julia --project=. -e 'import SQLite' >/dev/null 2>&1; then
+  echo "julia depot missing packages — Pkg.instantiate() ..."
+  julia --project=. -e 'using Pkg; Pkg.instantiate()' 2>&1 | tail -3
+fi
+
 # 1. Oracle binary — regenerable; relink if the ephemeral /tmp copy was lost on restart.
 if [ ! -x "$BIN" ]; then
   echo "oracle $BIN absent — relinking via test/harness/${vl}_oracle.sh ..."
