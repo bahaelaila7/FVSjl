@@ -1747,3 +1747,15 @@ be mislabeled ulp_class rather than needs_dig — the inherent limit of taxonomy
 Empirical profile (SN ulp_class): 75% print_boundary (≤1-unit straddles), 96% worst-cell <5%; of the 1.6% ≥15%,
 ~94% are merch/board volume cols (SCuFt/MCuFt/BdFt = sawtimber-threshold step-fn), the rest TopHt AVHT40 tie-break
 + small BA. Harness only; suite floor 38527/143/0 untouched.
+
+### SLICE 43k — cross-variant coverage: NE/CS/LS sampled (pillar 2 "all 4 variants" opened)
+SN was deeply covered (33k stands, ecoregion-stratified) but NE/CS/LS had ZERO coverage — pillar 2 requires all
+four. Ran the full multi-cycle projection differential (freshly-relinked live FVS{ne,cs,ls} vs FVSjl, via the
+DATABASE reader, all 10 .sum cols every cycle) over a deterministic ECOREGION/LOCATION-stratified sample of each
+(extract_sample.jl), recording every stand to the durable coverage DB with its dig_class:
+  NE  80 stands / 64 ecoregions → 61 bit_exact, 19 ulp_class, 0 needs_dig
+  CS  79 stands / 56 ecoregions → 70 bit_exact,  9 ulp_class, 0 needs_dig  (1 no-comparable-sum)
+  LS  80 stands / 57 ecoregions → 56 bit_exact, 24 ulp_class, 0 needs_dig
+All-variant DB total: 33,263 real stands, 0 needs_dig — every non-bit-exact plot cornered (print/ULP/threshold/
+count-straddle/compounded-ULP). First cross-variant behavioural differential at scale; NE/CS/LS samples are
+reproducible via `extract_sample.jl <V> <N>` (deterministic, no RNG). Harness/docs only; floor 38527/143/0.
