@@ -1,4 +1,3 @@
-# CNs manually confirmed as genuine needs_dig by a both-sides dig (auto-guard scores them ulp_class because
-# their highest-RELATIVE column is a volume-threshold col, but their STRUCTURE diverges materially). See
-# docs/FIA_FVS_COMPAT_AUDIT.md slice 43p. One CN per line.
-209314057010854  # SN: systematic growing BA/SDI divergence (jl consistently higher BA/SDI/vol, lower TPA), struct_rel 20%, struct_abs 302, non-converging
+# CNs manually confirmed as genuine needs_dig by a both-sides dig (auto-guard scores them ulp_class). One CN/line.
+# (209314057010854 was here (slice 43p); root-caused in 43r/43s to the dense-phase mortality-allocation straddle
+#  and moved to docs/fia_cornered_stands.txt.)

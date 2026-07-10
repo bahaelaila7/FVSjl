@@ -1,0 +1,10 @@
+# CNs a both-sides dig CORNERED to a named primitive (doctrine bar met) — auto-guard still trips needs_dig on them
+# but reclassify forces ulp_class. See docs/FIA_FVS_COMPAT_AUDIT.md. One CN/line.
+# --- dense-phase self-thinning mortality-allocation count-straddle (crown/BA-percentile near-tie -> VARMRT efftr);
+#     growth proven bit-exact (loblolly isolation), VARMRT+efftr faithful ports; bidirectional. Slices 43l/43m/43r/43s.
+211016796010854   # SN dense-phase TPA straddle (converging)
+781951924290487   # SN dense-phase TPA straddle (bidirectional)
+209314057010854   # SN dense-phase mortality-partition (mixed loblolly+391+521, isolation-proven)
+1093612541290487  # LS dense-phase TPA straddle
+1901267649290487  # LS dense-phase TPA straddle
+1901273492290487  # LS dense-phase TPA straddle

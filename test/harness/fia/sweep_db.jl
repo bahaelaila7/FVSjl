@@ -209,26 +209,33 @@ end
 # ulp_class — a structure-divergent stand whose highest-RELATIVE column is a volume-threshold col (see slice 43p).
 # One CN per line; committed so the flag survives reclassify. Format: "<cn> # note".
 const MANUAL_NEEDSDIG_FILE = "/workspace/FVSjl/docs/fia_manual_needsdig.txt"
-function _manual_needsdig()
+# Symmetric to MANUAL_NEEDSDIG: CNs a both-sides dig CORNERED to a named primitive (doctrine bar met) even though
+# the conservative auto-guard still trips needs_dig on them. reclassify forces these to ulp_class. One CN/line.
+const CORNERED_STANDS_FILE = "/workspace/FVSjl/docs/fia_cornered_stands.txt"
+function _read_cn_set(path)
     s = Set{String}()
-    isfile(MANUAL_NEEDSDIG_FILE) || return s
-    for l in eachline(MANUAL_NEEDSDIG_FILE)
+    isfile(path) || return s
+    for l in eachline(path)
         t = strip(split(l, '#')[1]); isempty(t) || push!(s, String(t))
     end
     s
 end
+_manual_needsdig() = _read_cn_set(MANUAL_NEEDSDIG_FILE)
+_cornered_stands() = _read_cn_set(CORNERED_STANDS_FILE)
 
 # Recompute dig_class for every row from the STORED facts (no FVS re-run) — apply a refined guard to the whole DB.
 function reclassify!(dbpath::AbstractString)
     db = open_sweepdb(dbpath)
-    manual = _manual_needsdig()
+    manual = _manual_needsdig(); cornered = _cornered_stands()
     rows = Tuple[]
     for r in DBInterface.execute(db, """SELECT variant,cn,regime,bit_exact,signature,worst_col,max_rel_pct,
                                         struct_max_abs,vol_max_abs,struct_max_rel_pct,dig_class FROM sweep""")
         mn(x) = (x === missing || x === nothing) ? nothing : x
         dc = dig_class(r.bit_exact == 1, String(something(r.signature,"")), String(something(r.worst_col,"")),
                        something(mn(r.max_rel_pct), 0.0), mn(r.struct_max_abs), mn(r.vol_max_abs), mn(r.struct_max_rel_pct))
-        String(r.cn) in manual && (dc = "needs_dig")   # preserve manually-confirmed genuine finds
+        String(r.cn) in manual && (dc = "needs_dig")   # force manually-confirmed genuine finds
+        # cornered-to-named-primitive (dig complete) overrides needs_dig → ulp_class; keep bit_exact as-is
+        String(r.cn) in cornered && dc == "needs_dig" && (dc = "ulp_class")
         dc == r.dig_class || push!(rows, (dc, r.variant, r.cn, r.regime))
     end
     SQLite.transaction(db) do
