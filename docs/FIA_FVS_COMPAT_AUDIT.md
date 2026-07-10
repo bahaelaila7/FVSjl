@@ -1778,3 +1778,15 @@ ULP-class vs a real dense-mortality bug requires a per-tree state comparison at 
 state) at the divergence onset. Kept as needs_dig in data/fia_sweep.db (the durable worklist) pending that dig.
 The 4 stands (1 SN + 3 LS) share the signature ⇒ a single cluster to trace together in a dedicated session.
 Floor 38527/143/0 untouched (harness/docs only).
+
+### SLICE 43m — dense-phase cluster: 2nd SN case, BIDIRECTIONAL straddle (strengthens ULP-class verdict)
+Second SN needs_dig 781951924290487 (structure_densephase, TPA 15.1% @2039, abs 159). Both-sides per-cycle:
+2019/2024 bit-exact (2024 only TCuFt Δ1 ULP) → 2029 first split TPA 2260/2335 → peaks 2039 (Δ159) → converges
+(2044 Δ61). DECISIVE new evidence: the straddle is BIDIRECTIONAL across stands — here FVSjl has MORE TPA than
+live (jl under-kills), whereas case 1 (211016796010854) had FEWER (jl over-kills). A systematic mortality BUG
+would bias consistently one direction; a bidirectional, converging, from-bit-exact-base straddle in dense stands
+is the fingerprint of the self-thinning count-straddle primitive (the two impls round a near-tie at the SDI/
+density-mortality threshold to opposite sides, stand-by-stand). Cluster now 2 SN + 3 LS, all same signature.
+This bidirectionality materially raises confidence the cluster is ULP-class, not a bug — but per doctrine the
+GOLD-STANDARD confirmation is still a per-tree state comparison at the divergence-onset cycle (printed-bit-exact
+≠ per-tree-bit-exact). Kept as needs_dig in the DB worklist pending that per-tree dig. Floor 38527/143/0 untouched.
