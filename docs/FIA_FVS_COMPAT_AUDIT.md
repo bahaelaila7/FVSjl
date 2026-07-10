@@ -1900,3 +1900,14 @@ FIX (honesty): run_live now returns (text, crashed) via termsignal/exit>128; the
 comparable(bit_exact+ulp_class) + live_crash + skip. Validated on the crash-heavy 290487 region: 11 be / 11 div /
 18 live_crash / 0 skip of 40. The stronger, honest claim: "0 needs_dig among the comparable stands; the remainder
 are live-FVS crashes FVSjl survives." Harness/docs only; floor 38527/143/0 untouched (no src/ change).
+
+### SLICE 43u — CORRECTION: the `live_crash` stands are the known D38 r9ht bug (jl-correct + validated)
+My slice-43t framing ("live_crash = jl plausible but UNVALIDATED") was WRONG — a re-discovery of an
+already-resolved bug. The live_crash SIGFPEs are the D38 R9 Clark `r9ht` short-tree underflow/invalid-op crash
+(FVS_SOURCE_BUGS.md), already root-caused AND fixed AND VALIDATED against a patched live binary (/tmp/FVSsn_fixtest:
+18/18 crashers cleared, 276/282 non-crashers bit-identical; jl carries the fix). So on a live_crash stand jl
+produces the CORRECT projection — the buggy shipping oracle just can't confirm it, but the FIXED oracle does and jl
+matches. The `live_crash` category is still right for honest coverage accounting (visible, not skipped); the verdict
+is "FVS-UB (D38), jl-correct", NOT "unvalidated". D38's measured SN ~30% live-crash rate on treed stands also
+explains the region-variable comparable rate the coverage audit surfaced. META-LESSON: grep FVS_SOURCE_BUGS.md
+before writing up any FVS crash. Floor 38527/143/0 untouched.

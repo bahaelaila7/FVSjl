@@ -142,12 +142,15 @@ tracks the (absurd) live SDI within 0.46% (4381035 vs 4361021). Recorded as a FI
 even FVS's degenerate behavior). The residual TCuFt/MCuFt wobble (412/350 cuft) is a small-magnitude consequence,
 cornered by the vol_max_abs≥300 escalation floor (audit slice 43n).
 
-## Live FVS SIGFPE crash on high-expansion 0.1" seedling records (FVS-UB; FVSjl survives)
-Live FVSsn (relinked FS2026.1) CRASHES with a floating-point exception (SIGFPE, exit 136) on stands containing a
-tree record representing >1000 TPA at DBH 0.1" (e.g. CN 1224249623290487: sp611 dbh 0.1" TPA 1199). FVS prints its
-own guard `FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TPA ENCOUNTERED. MAY CAUSE MATHEMATICAL
-ERRORS` and then dies (a div-by-zero in the per-tree small-tree stats). These stands are common in some ecoregions
-(the FIA microplot expansion produces them). FVSjl PROJECTS them fine (full .sum). ⇒ FVS-UB, not an FVSjl
-divergence — the oracle is un-runnable, so there is nothing to compare against, but FVSjl is strictly MORE robust.
-Recorded by the sweep as dig_class `live_crash` (ledger_fia run_live detects termsignal/exit>128), so coverage is
-honestly accounted: {comparable = bit_exact+ulp_class} + {live_crash} + {skip}, never silently dropped.
+## `live_crash` sweep category = the D38 `r9ht` SIGFPE bug (already root-caused + fixed + validated)
+The full-population sweep's `live_crash` dig_class (ledger_fia run_live detects termsignal/exit>128; e.g. CN
+1224249623290487, sp611 dbh 0.1") is the SAME live-FVS SIGFPE documented and RESOLVED above as **D38** — the R9
+Clark `r9ht` short-tree underflow/invalid-op crash (r9clark.f:1286 / the missing `r9cuft` guard at :1015). It is
+NOT a new bug and NOT "plausible-but-unvalidated": jl carries the D38 fix, and the fix was **empirically validated
+against a PATCHED live binary** (`/tmp/FVSsn_fixtest`) — 18/18 crashers cleared (all emit .sum) and 276/282
+non-crashers BIT-IDENTICAL. So on a `live_crash` stand jl produces the CORRECT projection (the buggy SHIPPING
+oracle just can't run it to confirm; the FIXED oracle does, and jl matches). The sweep records `live_crash` only
+for honest COVERAGE ACCOUNTING — {comparable = bit_exact+ulp_class} + {live_crash = D38, jl-correct} + {skip} —
+so the crash stands are visible, not silently skipped. The D38 measurement (SN ~30% of treed stands crash live)
+explains the region-variable comparable rate. (Meta: this "new" finding was a RE-DISCOVERY of D38 — always grep
+FVS_SOURCE_BUGS.md before writing up an FVS crash.)
