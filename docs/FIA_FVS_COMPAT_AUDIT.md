@@ -1759,3 +1759,22 @@ DATABASE reader, all 10 .sum cols every cycle) over a deterministic ECOREGION/LO
 All-variant DB total: 33,263 real stands, 0 needs_dig — every non-bit-exact plot cornered (print/ULP/threshold/
 count-straddle/compounded-ULP). First cross-variant behavioural differential at scale; NE/CS/LS samples are
 reproducible via `extract_sample.jl <V> <N>` (deterministic, no RNG). Harness/docs only; floor 38527/143/0.
+
+### SLICE 43l — FLAGGED cluster: dense-phase self-thinning TPA-straddle (material, converging) — 1 SN + 3 LS
+The escalation guard surfaced its first genuine needs_dig candidates (the struct_max_abs floor working as intended):
+- SN 211016796010854 (ecoregion, ultra-dense TPA~3900/SDI~404): structure_densephase, TPA 17.1% @2026, abs 368.
+- LS 1093612541290487 (TPA 39.5% @2041, abs 275), 1901267649290487 (19% @2034, abs 661), 1901273492290487
+  (24.6% @2045, abs 429).
+BOTH-SIDES per-cycle differential (live FVS{sn,ls} vs FVSjl, sub-DB, NUMCYCLE 5) for the SN case:
+  2006/2011 BIT-EXACT (all 10 cols) → 2016 first split TPA 3951/3617 (Δ334) BA 153/148 (Δ5) → peaks ~2021-26
+  (~17%) → CONVERGES (2031 Δ213/12.5%). BA/SDI/CCF/TopHt track within ~3%, QMD near-exact.
+MECHANISM (hypothesis, strongly supported): a stand near SDImax where the SDI-driven self-thinning mortality
+kills a batch of SMALL trees — moving TPA by hundreds while BA/SDI barely move — and a sub-print difference in
+the tree-diameter distribution flips WHICH cycle that batch dies. The CONVERGENCE after the peak is the fingerprint
+of a mortality-TIMING straddle, not a persistent model bug (a real over-kill bug diverges monotonically). This is
+the accepted dense-phase count-straddle primitive amplified to MATERIAL magnitude by extreme density.
+STATUS: FLAGGED, NOT yet cornered. Honesty gate: printed-bit-exact @2011 ≠ per-tree-bit-exact — confirming
+ULP-class vs a real dense-mortality bug requires a per-tree state comparison at 2011 (FVS_TreeList vs FVSjl tree
+state) at the divergence onset. Kept as needs_dig in data/fia_sweep.db (the durable worklist) pending that dig.
+The 4 stands (1 SN + 3 LS) share the signature ⇒ a single cluster to trace together in a dedicated session.
+Floor 38527/143/0 untouched (harness/docs only).
