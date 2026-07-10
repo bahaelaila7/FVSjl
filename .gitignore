@@ -30,3 +30,8 @@ __DSNOUT__
 # committed live-oracle golden sums for the all-species coverage tests
 !test/fixtures/**/*.live.sum
 deps/libfvsmath.*
+
+# durable local FIA sweep coverage DB (survives sessions/container restart; not git-tracked)
+data/*.db
+data/*.db-wal
+data/*.db-shm

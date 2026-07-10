@@ -1689,3 +1689,22 @@ straddle does not. VALIDATED end-to-end: the real ledger emits struct_max_abs=3.
 a synthetic panel confirms REAL_STRUCT_BUG (abs=45), UNCLASSIFIED, TCuFt-volume, and legacy-15-col rows ALL still
 surface. UNCLASSIFIED and TCuFt-volume escalation are unchanged (no floor) — the primary real-bug nets stay
 unconditional. dig-queue remains a true 0. Files: ledger_fia.jl, filter_digworthy.jl.
+
+### SLICE 43h — DURABLE cross-session sweep coverage DB (data/fia_sweep.db)
+The sweep's per-stand differential was EPHEMERAL (scratchpad ledger, lost at session end) — only dig-worthy rows
+(0) + audit prose survived. Added a local SQLite coverage DB on the durable repo volume (data/fia_sweep.db;
+gitignored — survives sessions AND container restart, not a git blob) that records EVERY stand swept and its
+outcome, so it is a durable cross-session WORKLIST of what still needs a dig.
+
+Schema (test/harness/fia/sweep_db.jl): table `sweep` keyed (variant,cn,regime) with the measured ledger facts +
+a derived `dig_class` ∈ {bit_exact | ulp_class | needs_dig}. dig_class MIRRORS filter_digworthy.jl's escalation
+guard exactly (UNCLASSIFIED, or a MATERIAL structure move ≥10 abs-units & ≥15%, or threshold-free TCuFt ≥15% ⇒
+needs_dig; every other divergence is an accepted cornered primitive ⇒ ulp_class). Upsert is idempotent on
+(variant,cn,regime) so re-sweeps UPDATE (a fixed bug flips needs_dig→ulp/bit_exact and the diff is visible).
+
+Wiring: ledger_fia.jl upserts each stand inline when SWEEP_DB is set (no extra process — SQLite already loaded;
+DB errors are caught and never break the sweep); run_expand_cycle.sh exports SWEEP_DB by default. CLI:
+`sweep_db.jl {ingest <db> <csv> | stats <db> [variant] | digs <db> [variant]}` — `digs` prints the needs_dig
+worklist. Backfilled this session's entire SN ledger: 21,676 distinct stands → 12,724 bit_exact / 8,955
+ulp_class / **0 needs_dig** (the one transient survivor, CN 202567027010854, reclassified to ulp_class once its
+struct_max_abs=3 landed — slice 43g). Harness only; suite floor 38527/143/0 untouched.

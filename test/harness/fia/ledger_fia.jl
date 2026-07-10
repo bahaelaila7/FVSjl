@@ -28,6 +28,7 @@ const MATERIAL = 0.01f0
 
 import SQLite, DBInterface
 using FVSjl
+include(joinpath(@__DIR__, "sweep_db.jl"))   # open_sweepdb / upsert! — durable per-stand coverage record
 const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 const BIN = Dict("SN"=>"/tmp/FVSsn_new","NE"=>"/tmp/FVSne_new","CS"=>"/tmp/FVScs_new","LS"=>"/tmp/FVSls_new")
 const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates())
@@ -139,6 +140,9 @@ function main(listfile, v, regime)
     io = open(out, "a")
     newfile && println(io, "variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature,struct_max_abs")
     n=0; nbe=0; ndiv=0; nskip=0
+    # optional durable per-stand coverage record: set SWEEP_DB to the local SQLite path (survives sessions /
+    # container restart) and every stand's outcome (bit_exact | ulp_class | needs_dig) is upserted as we go.
+    sdb = haskey(ENV, "SWEEP_DB") ? open_sweepdb(ENV["SWEEP_DB"]) : nothing
     # a per-cell divergence is MATERIAL if rel≥MATERIAL AND abs>1 (beyond a ±1-unit / sub-% straddle)
     ismat(lv,jv) = (ad=abs(lv-jv); ad > 1.0 + 1e-6 && (lv==0 ? true : ad/abs(lv) >= MATERIAL))
     for cn in cns
@@ -188,8 +192,22 @@ function main(listfile, v, regime)
                           round(struct_rel*100,digits=3), round(vol_rel*100,digits=3),
                           density_be, converges, sig, round(struct_abs,digits=3)], ","))
         flush(io)
+        if sdb !== nothing
+            try
+                upsert!(sdb, (variant=v, cn=cn, regime=regime, n_cycles=ncyc, bit_exact=bit_exact,
+                              div_cols=dcols, worst_col=wcol, worst_cycle=worst_yr,
+                              max_rel_pct=round(worst_rel*100,digits=3), max_abs_diff=round(max_abs,digits=3),
+                              struct_max_rel_pct=round(struct_rel*100,digits=3),
+                              vol_max_rel_pct=round(vol_rel*100,digits=3),
+                              struct_max_abs=round(struct_abs,digits=3),
+                              density_bitexact=density_be, converges=converges, signature=sig))
+            catch e
+                print(stderr, "sweep_db upsert failed for $cn: $e\n")   # never let the DB write break the sweep
+            end
+        end
     end
     close(io)
+    sdb !== nothing && SQLite.close(sdb)
     println(stderr)
     println("LEDGER $v/$regime → $out : bit_exact=$nbe  diverging=$ndiv  skipped(no-both-sum)=$nskip  of $n")
 end

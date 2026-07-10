@@ -16,6 +16,9 @@ SC=/tmp/claude-1000/-workspace/b4e1b3b1-495b-403e-810b-5db3604b56cc/scratchpad
 BATCH=${BATCH:-2000}
 CURD=test/harness/fia/expand
 DIGQ=docs/fia_dig_queue.csv
+# Durable per-stand coverage DB (survives sessions / container restart; gitignored). ledger_fia.jl upserts every
+# stand's outcome (bit_exact | ulp_class | needs_dig) here as it runs — the cross-session dig worklist.
+export SWEEP_DB=${SWEEP_DB:-/workspace/FVSjl/data/fia_sweep.db}
 mkdir -p $CURD $SC/expand
 
 # variant order + populations (STAND_CN IS NOT NULL, per FVS_STANDINIT_COND.VARIANT)
