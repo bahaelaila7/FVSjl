@@ -152,10 +152,20 @@ function main(listfile, v, regime)
     # optional durable per-stand coverage record: set SWEEP_DB to the local SQLite path (survives sessions /
     # container restart) and every stand's outcome (bit_exact | ulp_class | needs_dig) is upserted as we go.
     sdb = haskey(ENV, "SWEEP_DB") ? open_sweepdb(ENV["SWEEP_DB"]) : nothing
+    # SKIP_DONE: skip CNs already recorded (bit_exact/ulp_class/live_crash) so a re-sweep of a covered range only
+    # actually runs the UNCOVERED stands (cheap backfill — the historical skips, mostly fast live crashes). Preload
+    # the done-set once (indexed lookup).
+    ndone = 0; done_cns = Set{String}()
+    if haskey(ENV, "SKIP_DONE") && sdb !== nothing
+        for r in DBInterface.execute(sdb, "SELECT cn FROM sweep WHERE variant='$v' AND dig_class IN ('bit_exact','ulp_class','live_crash')")
+            push!(done_cns, String(r.cn))
+        end
+    end
     # a per-cell divergence is MATERIAL if rel≥MATERIAL AND abs>1 (beyond a ±1-unit / sub-% straddle)
     ismat(lv,jv) = (ad=abs(lv-jv); ad > 1.0 + 1e-6 && (lv==0 ? true : ad/abs(lv) >= MATERIAL))
     for cn in cns
         n += 1; n % 200 == 0 && (print(stderr, "[$n/$(length(cns))] be=$nbe div=$ndiv\r"); flush(stderr))
+        cn in done_cns && (ndone += 1; continue)     # SKIP_DONE: already recorded, don't re-run FVS
         py = plantyr_of(cn)
         live, live_crashed = run_live(bin, cn, sub, regime, dir, py)
         keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, regime, py))
