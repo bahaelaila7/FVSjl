@@ -1803,3 +1803,13 @@ volume-equation bug like FORKOD moves 1000s of cuft; 62 is not). sweep_db schema
 Re-swept the 3 SN candidates: the degenerate stand → ulp_class; the 2 genuine dense-phase TPA-straddle cases
 (43l/43m) remain needs_dig. Guard now has BOTH an absolute floor (struct + vol) and the relative threshold.
 Harness/docs only; floor 38527/143/0 untouched.
+
+### SLICE 43o — fix vol_max_abs: TCuFt-column-only (BdFt-domination bug in slice 43n's floor)
+Slice 43n's vol_max_abs tracked ALL volume cols 7-10, but BdFt (board feet) magnitudes are ~10x cubic feet and
+DOMINATE — so vol_max_abs was ~always ≥300 (the floor) for any sawtimber stand, defeating the gate. Surfaced by
+SN 209219251010854 (young age-3 3-sapling stand): worst_col=TCuFt 35% @2011 on 310 cuft (109 cuft absolute,
+converges to 4% by 2031) — a small-base ULP amplification that slipped through because BdFt inflated vol_max_abs.
+FIX: vol_max_abs tracks the TCuFt column (7) ONLY — the escalation net is worst_col==TCuFt, so its floor must be
+TCuFt's own absolute divergence. Re-swept the 4 SN candidates: the young small-base stand + the degenerate 2-tree
+stand (43n) → ulp_class (TCuFt abs 109/62 < 300); the 2 genuine dense-phase TPA-straddle cases (43l/43m,
+worst_col=TPA, unaffected by the vol floor) remain needs_dig. Harness/docs only; floor 38527/143/0 untouched.

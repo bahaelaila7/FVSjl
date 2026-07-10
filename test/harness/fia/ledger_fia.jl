@@ -160,9 +160,11 @@ function main(listfile, v, regime)
         struct_abs=0.0   # largest ABSOLUTE diff among structure cols 1-6 (escalation floor: separates a real
                          # BA/SDI/CCF move of 10s of units from a small-base ±1-5 ULP straddle that inflates to a
                          # big RELATIVE % only because the base is tiny — e.g. young age-3 stand, BA 2 vs 3 = 33%)
-        vol_abs=0.0      # largest ABSOLUTE diff among volume cols 7-10 (cuft/bdft): escalation floor for the
-                         # TCuFt net — a real volume-equation bug (FORKOD zero-vol) moves 1000s of cuft; a 15% on
-                         # a tiny 412-cuft degenerate 2-tree stand (62 cuft) is not a bug. (Mirror of struct_abs.)
+        vol_abs=0.0      # largest ABSOLUTE diff of the TCuFt column (7) SPECIFICALLY — the floor for the TCuFt
+                         # escalation net. Must be TCuFt-only, NOT all vol cols: BdFt (board feet) magnitudes are
+                         # ~10x cubic feet and would dominate, making the floor meaningless. A real volume-equation
+                         # bug (FORKOD zero-vol) moves 1000s of cuft; a 35% on a young 310-cuft stand (109 cuft) is
+                         # small-base inflation, not a bug. (Mirror of struct_abs.)
         peak_rel=0.0; last_rel=0.0; ncyc=0
         for (y, lv) in sort(collect(L))
             haskey(Jd, y) || continue
@@ -174,7 +176,7 @@ function main(listfile, v, regime)
                     rel = lv[k]==0 ? (jv[k]==0 ? 0.0 : 1.0) : abs(lv[k]-jv[k])/abs(lv[k])
                     mat = ismat(lv[k], jv[k])
                     k <= 6 && ad > struct_abs && (struct_abs = ad)
-                    k > 6  && ad > vol_abs && (vol_abs = ad)
+                    k == 7 && ad > vol_abs && (vol_abs = ad)   # TCuFt column ONLY (see vol_abs comment)
                     if k <= 6; rel > struct_rel && (struct_rel = rel); mat && (struct_mat = true)
                     else;      rel > vol_rel && (vol_rel = rel);       mat && (vol_mat = true); end
                     (k in DENSITY_COLS) && mat && (density_mat = true)
