@@ -1813,3 +1813,25 @@ FIX: vol_max_abs tracks the TCuFt column (7) ONLY — the escalation net is wors
 TCuFt's own absolute divergence. Re-swept the 4 SN candidates: the young small-base stand + the degenerate 2-tree
 stand (43n) → ulp_class (TCuFt abs 109/62 < 300); the 2 genuine dense-phase TPA-straddle cases (43l/43m,
 worst_col=TPA, unaffected by the vol floor) remain needs_dig. Harness/docs only; floor 38527/143/0 untouched.
+
+### SLICE 43p — DIG SESSION (user-requested): 2 SN needs_dig + 10 most-suspicious SN ulp_class
+Paused the sweep; both-sides per-cycle differential (live FVSsn vs FVSjl, sub-DB) on the 2 SN needs_dig + the 12
+most-suspicious ulp_class (ranked: non-converging + high rel% + large abs). RESULTS:
+- 2 needs_dig (211016796010854, 781951924290487): CONFIRMED the dense-phase self-thinning TPA count-straddle
+  cluster (43l/43m) — density cols diverge ~5-10%, bidirectional/converging. Remain needs_dig pending per-tree.
+- 11 of the 12 suspicious ulp_class: CONFIRMED threshold-crossing (correctly ulp_class). Signature: STRUCTURE
+  tracks within ~5% AND total cubic (TCuFt) tracks closely, but MERCH/BOARD volume (MCuFt/SCuFt/BdFt) flips on a
+  small base near the merchantability/sawtimber DBH — e.g. 204664667 MCuFt 16/167, 1261822875 BdFt 1283/4744
+  (TCuFt 4564/4587 bit-close). The huge relative %s (240-944%) are the discrete log-volume step, not a bug.
+- 1 GENUINE FIND — 209314057010854: a SYSTEMATIC, GROWING, NON-converging STRUCTURAL divergence. jl consistently
+  higher BA/SDI/volume and lower TPA across EVERY cycle (BA 79/85 @2013 → 182/203 @2033; struct_rel 20%, struct_abs
+  302). NOT threshold-crossing (structure itself diverges and grows), NOT a bidirectional straddle (one-directional
+  systematic bias). It was mis-scored ulp_class only because its highest-RELATIVE column is BdFt (a volume-threshold
+  col), so the guard's worst_col-gated struct net missed it. This is a real candidate (likely a dense-stand
+  growth/mortality-partition divergence) requiring a per-tree trace.
+GUARD: tried gating the struct net on struct_max_rel_pct (worst_col-independent) — OVER-flagged (struct_abs is
+TPA-dominated; struct_max_rel_pct is inflated by TopHt AVHT40-ULP + small-base). Reverted to the conservative
+worst_col gate; a faithful fix needs a density-specific relative metric (BA/SDI, excluding TPA+TopHt) — deferred.
+Added: `reclassify` command (recompute dig_class over stored facts, no FVS re-run) + docs/fia_manual_needsdig.txt
+(committed manual-confirmed genuine finds that survive reclassify). 209314057 pinned there. SN needs_dig now 3
+(2 dense-phase + 1 genuine structural). Harness/docs only; floor 38527/143/0 untouched.

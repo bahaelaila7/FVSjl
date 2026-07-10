@@ -37,8 +37,14 @@ const _STRUCT_ABS_FLOOR = 10.0
 const _VOL_ABS_FLOOR = 300.0
 
 # dig_class over the MEASURED facts. Missing *_abs (legacy rows) ⇒ +Inf ⇒ conservative (escalates).
+# NOTE (slice 43p): a struct escalation gated on struct_max_rel_pct instead of worst_col OVER-flags — struct_abs
+# is TPA-dominated (always huge in dense stands) and struct_max_rel_pct is inflated by TopHt (AVHT40 ULP) and
+# small-base columns. A faithful "structure-divergent-but-worst_col=volume" net needs a density-specific metric
+# (BA/SDI relative, excluding TPA+TopHt); deferred. The one real case the dig found (CN 209314057, systematic
+# growing BA/SDI divergence) is flagged manually. Keeping the conservative worst_col gate here.
 function dig_class(bit_exact::Bool, sig::AbstractString, worst_col::AbstractString,
-                   max_rel_pct::Real, struct_max_abs::Union{Real,Nothing}, vol_max_abs::Union{Real,Nothing}=nothing)
+                   max_rel_pct::Real, struct_max_abs::Union{Real,Nothing}, vol_max_abs::Union{Real,Nothing}=nothing,
+                   struct_max_rel_pct::Union{Real,Nothing}=nothing)
     bit_exact && return "bit_exact"
     sa = struct_max_abs === nothing ? Inf : float(struct_max_abs)
     va = vol_max_abs === nothing ? Inf : float(vol_max_abs)
@@ -97,7 +103,7 @@ _f(x) = x === nothing ? nothing : float(x)
 function upsert!(db, row)
     vma = hasproperty(row, :vol_max_abs) ? row.vol_max_abs : nothing
     dc = dig_class(row.bit_exact, row.signature, something(row.worst_col, ""),
-                   something(row.max_rel_pct, 0.0), row.struct_max_abs, vma)
+                   something(row.max_rel_pct, 0.0), row.struct_max_abs, vma, row.struct_max_rel_pct)
     DBInterface.execute(db, """
         INSERT INTO sweep (variant,cn,regime,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,
                            max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,struct_max_abs,density_bitexact,
@@ -199,6 +205,41 @@ function scrub!(dbpath::AbstractString)
     (deleted=length(bad), recover=sort(collect(recover)))
 end
 
+# CNs manually confirmed (by a both-sides dig) as genuine needs_dig even though the auto-guard scores them
+# ulp_class — a structure-divergent stand whose highest-RELATIVE column is a volume-threshold col (see slice 43p).
+# One CN per line; committed so the flag survives reclassify. Format: "<cn> # note".
+const MANUAL_NEEDSDIG_FILE = "/workspace/FVSjl/docs/fia_manual_needsdig.txt"
+function _manual_needsdig()
+    s = Set{String}()
+    isfile(MANUAL_NEEDSDIG_FILE) || return s
+    for l in eachline(MANUAL_NEEDSDIG_FILE)
+        t = strip(split(l, '#')[1]); isempty(t) || push!(s, String(t))
+    end
+    s
+end
+
+# Recompute dig_class for every row from the STORED facts (no FVS re-run) — apply a refined guard to the whole DB.
+function reclassify!(dbpath::AbstractString)
+    db = open_sweepdb(dbpath)
+    manual = _manual_needsdig()
+    rows = Tuple[]
+    for r in DBInterface.execute(db, """SELECT variant,cn,regime,bit_exact,signature,worst_col,max_rel_pct,
+                                        struct_max_abs,vol_max_abs,struct_max_rel_pct,dig_class FROM sweep""")
+        mn(x) = (x === missing || x === nothing) ? nothing : x
+        dc = dig_class(r.bit_exact == 1, String(something(r.signature,"")), String(something(r.worst_col,"")),
+                       something(mn(r.max_rel_pct), 0.0), mn(r.struct_max_abs), mn(r.vol_max_abs), mn(r.struct_max_rel_pct))
+        String(r.cn) in manual && (dc = "needs_dig")   # preserve manually-confirmed genuine finds
+        dc == r.dig_class || push!(rows, (dc, r.variant, r.cn, r.regime))
+    end
+    SQLite.transaction(db) do
+        for (dc,v,cn,rg) in rows
+            DBInterface.execute(db, "UPDATE sweep SET dig_class=? WHERE variant=? AND cn=? AND regime=?", (dc,v,cn,rg))
+        end
+    end
+    SQLite.close(db)
+    length(rows)
+end
+
 function _stats(dbpath, variant)
     db = open_sweepdb(dbpath)
     where = variant === nothing ? "" : "WHERE variant='$(variant)'"
@@ -240,6 +281,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
         db = open_sweepdb(ARGS[2])
         for r in DBInterface.execute(db, "SELECT cn FROM sweep WHERE variant=?", (ARGS[3],)); println(r.cn); end
         SQLite.close(db)
+    elseif cmd == "reclassify"     # reclassify <db>  → recompute dig_class for all rows from stored facts
+        n = reclassify!(ARGS[2]); println("reclassified $n rows")
     elseif cmd == "scrub"          # scrub <db>  → delete malformed rows; print recoverable CNs (one per line)
         res = scrub!(ARGS[2])
         print(stderr, "scrubbed $(res.deleted) malformed rows; $(length(res.recover)) recoverable CNs\n")
