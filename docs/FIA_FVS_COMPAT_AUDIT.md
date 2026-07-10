@@ -1871,3 +1871,20 @@ whether the allocation RULE differs (bug) or it's a near-tie the two round diffe
 This is a strong both-sides localization of the campaign's one open SN/LS divergence class. Kept as needs_dig.
 Method note: live per-tree TreeList is blocked (relinked FVSsn: DBS rc=20 / text TREELIST hangs), but SPECIES
 ISOLATION via sub-DB + .sum sidesteps it entirely and is decisive. Floor 38527/143/0 untouched.
+
+### SLICE 43s — dense-phase cluster ROOT-CAUSED to the VARMRT mortality-allocation percentile near-tie
+Traced the self-thinning mortality PARTITION (43r) through the source both-sides:
+- FVSjl _varmrt! (varmrt.f geometric-progression distribution) = documented faithful port.
+- _varmrt_efftr! weights each record by PCT**3.0 (crown-ratio PERCENTILE cubed). The float-exponent power is
+  ALREADY routed through an FFI (fpow, doctrine #8) to be BIT-EXACT with gfortran powf — so efftr is faithful too.
+⇒ The residual is upstream, in PCT (the tree's crown/BA-percentile RANK). In a mixed stand (loblolly + 391 + 521)
+the per-tree percentile ranking has NEAR-TIES; jl and live resolve them to sub-print-different PCT ⇒ different
+efftr ⇒ VARMRT's geometric progression allocates the discrete self-thinning kill to slightly different trees ⇒
+the BA/TPA straddle (jl kills small trees, live spreads to larger — or vice-versa; the cluster is BIDIRECTIONAL,
+211016796 vs 781951924 go opposite ways). Consistent with a NEAR-TIE, not a systematic allocation-rule bug.
+VERDICT: the whole dense-phase self-thinning cluster (2 SN + 3 LS) is CORNERED to a named primitive — a
+compounded-ULP COUNT-STRADDLE in the self-thinning mortality ALLOCATION, rooted in the crown/BA-percentile-rank
+near-tie that feeds VARMRT's efftr. Growth models proven bit-exact (loblolly-only isolation); VARMRT + efftr are
+faithful ports (efftr already fpow-FFI'd). This meets the doctrine bar (cornered-to-named-primitive). The only
+stronger confirmation would be a debug-FVS stamp of per-tree PCT/EFFTR in the mixed stand (optional; the isolation
++ source trace + bidirectionality are already decisive). Floor 38527/143/0 untouched.
