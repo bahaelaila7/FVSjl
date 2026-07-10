@@ -168,3 +168,20 @@ literally FVS's OWN code (the `fvsMod` guard = the `r9cuft` guard). UPSTREAM REP
 the same guard its sibling `r9cuft` already has (or FVS should compile `r9clark_fvsMod.f`). SN uses this via NVEL
 because the Clark profile is the shared national eastern taper model (SN=R8/NE/CS/LS all route to it through
 NVEL) — the "R9" filename is the library's origin, not a variant misroute.
+
+## D38 CORRECTION (multi-site) — the crash is NOT single-site, and the fix/patched-oracle are INCOMPLETE
+Earlier D38 text (and audit slices 43t/43q) implied the r9ht Y-guard (or my 5-guard patch) fully fixes the crash
+and that FVSjl's live_crash stands validate bit-exact against a "D38-patched oracle". THAT WAS OVERCLAIMED.
+Measured (backtrace on 40 real live_crash SN stands, -g relink):
+- The r9ht Y-guard alone (= FVS's own orphaned fvsMod fix, isolated to a19c41b4, 16 lines) clears 32/40.
+- My 5-guard patch (docs/patches/r9clark_D38_underflow_fix.f) clears the SAME 32/40 — NOT more.
+- The remaining 8/40 crash at a DIFFERENT site: `r9cuft` (cubic volume), `r9clark.f:1086` — the V2/V3 log-segment
+  volume computation `(1-U2/totHt)**p`/`(1-L2/totHt)**p` + `/(totHt-17.3)`,`/(totHt-17.3)**2` divisions. NEITHER
+  the fvsMod guards NOR my patch touch this. Trigger: degenerate multi-species 0.1"-seedling stands, NULL heights.
+⇒ D38 is a MULTI-SITE hazard (≥ r9ht:1286 AND r9cuft:1086). NO existing guard set (FVS's own or mine) clears all
+crashers. Therefore `/tmp/FVSsn_patched` is an INCOMPLETE oracle — it can validate the r9ht-crash subset but NOT
+the r9cuft-crash subset. The honest, unaffected ground remains: these are FVS-UB stands the SHIPPING oracle
+crashes on (dig_class `live_crash`, honest coverage accounting); FVSjl projects them (its ported r9clark_vol.jl
+does not crash), but the "validated bit-exact vs a patched oracle" claim holds ONLY where a COMPLETE guard set
+exists — which it does not yet. Root cause of the whole gap unchanged (submodule migration dropped FVS's local
+r9clark guards; see D38 addendum). Do NOT claim the crash stands are oracle-validated until r9cuft is also guarded.

@@ -1911,3 +1911,12 @@ matches. The `live_crash` category is still right for honest coverage accounting
 is "FVS-UB (D38), jl-correct", NOT "unvalidated". D38's measured SN ~30% live-crash rate on treed stands also
 explains the region-variable comparable rate the coverage audit surfaced. META-LESSON: grep FVS_SOURCE_BUGS.md
 before writing up any FVS crash. Floor 38527/143/0 untouched.
+
+### SLICE 43v — CORRECTION: D38 crash is multi-site; patched-oracle is INCOMPLETE (not all crashers cleared)
+Testing FVS's own isolated guard (fvsMod@a19c41b4, 16 lines) and my 5-guard patch on 40 real SN live_crash stands:
+both clear only 32/40. The other 8 crash at a THIRD site — r9cuft cubic-volume V2/V3, r9clark.f:1086 (backtrace-
+confirmed) — which neither guards. So the patched oracle (/tmp/FVSsn_patched) can NOT validate all live_crash
+stands, and my earlier "patched oracle validates the crash stands" framing (43t area) was overclaimed. Corrected
+in FVS_SOURCE_BUGS.md. UNCHANGED and correct: the live_crash dig_class = honest coverage accounting of FVS-UB
+stands the shipping oracle crashes on; FVSjl projects them. Patched-oracle validation is PARKED until a complete
+(multi-site) guard set exists. Floor 38527/143/0 untouched (docs only).
