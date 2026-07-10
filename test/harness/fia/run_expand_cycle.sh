@@ -23,6 +23,9 @@ DIGQ=docs/fia_dig_queue.csv
 # Durable per-stand coverage DB (survives sessions / container restart; gitignored). ledger_fia.jl upserts every
 # stand's outcome (bit_exact | ulp_class | needs_dig) here as it runs — the cross-session dig worklist.
 export SWEEP_DB=${SWEEP_DB:-/workspace/FVSjl/data/fia_sweep.db}
+# Skip CNs already recorded (bit_exact/ulp_class/live_crash) — makes a re-sweep/backfill cheap (only uncovered
+# stands actually run) and every resume idempotent. Harmless forward: new stands aren't in the DB, so they run.
+export SKIP_DONE=${SKIP_DONE:-1}
 mkdir -p $CURD $SC/expand
 
 # variant order + populations (STAND_CN IS NOT NULL, per FVS_STANDINIT_COND.VARIANT)

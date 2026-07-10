@@ -29,6 +29,18 @@ const ESCALATE_REL = 15.0
 # compounded-ULP small-base straddle, not a bug. Floor 10 clears it while surfacing any real ≥10-unit move.
 # (Legacy 15-col rows lack the field ⇒ struct_abs=+Inf ⇒ still escalate — the conservative default is preserved.)
 const STRUCT_ABS_FLOOR = 10.0
+# TCuFt volume net also needs an ABSOLUTE floor (mirror of sweep_db dig_class): a real volume-equation bug moves
+# 1000s of cuft; a 15% on a tiny/degenerate stand (62 cuft on 412) is not. vol_max_abs is the TCuFt-column-only
+# absolute diff (ledger col 17). Also drop CNs a dig CORNERED to a named primitive (docs/fia_cornered_stands.txt).
+const VOL_ABS_FLOOR = 300.0
+const CORNERED_STANDS_FILE = "/workspace/FVSjl/docs/fia_cornered_stands.txt"
+function _cornered_cns()
+    s = Set{String}(); isfile(CORNERED_STANDS_FILE) || return s
+    for l in eachline(CORNERED_STANDS_FILE)
+        t = strip(split(l, '#')[1]); isempty(t) || push!(s, String(t))
+    end
+    s
+end
 
 is_dig(sig, worst_col, struct_pct, max_rel) =
     sig in DIG_SIGS || (worst_col == "TCuFt" && struct_pct < 1.0 && max_rel >= 5.0)
@@ -39,10 +51,10 @@ is_dig(sig, worst_col, struct_pct, max_rel) =
 #     struct_max_abs≥FLOOR (a real ≥10-unit BA/SDI/CCF move, not a tiny-base %-inflated ±1 straddle; see above).
 #   • a volume-EQUATION bug — worst_col==TCuFt (threshold-FREE total cubic) ≥15%, any signature (cf slice-41
 #     FORKOD zero-vol). BdFt/SCuFt/MCuFt (merch/board step-fns) are NOT here — their large % is threshold-crossing.
-is_escalation(sig, worst_col, max_rel, struct_abs) =
+is_escalation(sig, worst_col, max_rel, struct_abs, vol_abs) =
     sig == "UNCLASSIFIED" ||
     (sig == "structure_densephase" && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL && struct_abs >= STRUCT_ABS_FLOOR) ||
-    (worst_col == "TCuFt" && max_rel >= ESCALATE_REL)
+    (worst_col == "TCuFt" && max_rel >= ESCALATE_REL && vol_abs >= VOL_ABS_FLOOR)
 
 function load_cornered(path)
     corners = Set{Tuple{String,String}}()
@@ -57,19 +69,23 @@ end
 
 function main(csv, v, cornerfile)
     corners = load_cornered(cornerfile)
+    cornered_cns = _cornered_cns()
     # parse candidate rows first (cheap), collect their CNs for a single ecoregion lookup
-    rows = String[]; cand = Tuple{Int,String,String,String,Float64,Float64}[]  # (rowidx,cn,sig,worst_col,max_rel,struct_abs)
+    rows = String[]; cand = Tuple{Int,String,String,String,Float64,Float64,Float64}[]  # (idx,cn,sig,worst_col,max_rel,struct_abs,vol_abs)
     for (i, l) in enumerate(eachline(csv))
         i == 1 && continue
         f = split(l, ',')
         length(f) < 15 && continue
         cn = f[3]; worst_col = f[7]; sig = strip(f[15])
+        sig == "live_crash" && continue                 # FVS-UB (jl projected, live crashed) — not dig-worthy
+        String(cn) in cornered_cns && continue          # dig-CORNERED to a named primitive (fia_cornered_stands.txt)
         max_rel = something(tryparse(Float64, f[9]), 0.0)
         struct_pct = something(tryparse(Float64, f[11]), 0.0)
-        # struct_max_abs is col 16 in the new schema; legacy 15-col rows lack it ⇒ +Inf (still escalate).
+        # struct_max_abs is col 16, vol_max_abs (TCuFt-only) is col 17; legacy rows lack them ⇒ +Inf (still escalate).
         struct_abs = length(f) >= 16 ? something(tryparse(Float64, f[16]), Inf) : Inf
+        vol_abs    = length(f) >= 17 ? something(tryparse(Float64, f[17]), Inf) : Inf
         is_dig(sig, worst_col, struct_pct, max_rel) || continue
-        push!(rows, l); push!(cand, (length(rows), cn, sig, worst_col, max_rel, struct_abs))
+        push!(rows, l); push!(cand, (length(rows), cn, sig, worst_col, max_rel, struct_abs, vol_abs))
     end
     isempty(cand) && return
     # one ecoregion lookup for all candidate CNs
@@ -83,9 +99,9 @@ function main(csv, v, cornerfile)
         end
         SQLite.close(db)
     end
-    for (idx, cn, sig, worst_col, max_rel, struct_abs) in cand
+    for (idx, cn, sig, worst_col, max_rel, struct_abs, vol_abs) in cand
         drop = false
-        if !is_escalation(sig, worst_col, max_rel, struct_abs)
+        if !is_escalation(sig, worst_col, max_rel, struct_abs, vol_abs)
             e = get(eco, cn, "")
             for (pfx, csig) in corners
                 # pfx "*" = GLOBAL (all ecoregions) — the taxonomy signatures verified SN-model-universal
