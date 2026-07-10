@@ -1888,3 +1888,15 @@ near-tie that feeds VARMRT's efftr. Growth models proven bit-exact (loblolly-onl
 faithful ports (efftr already fpow-FFI'd). This meets the doctrine bar (cornered-to-named-primitive). The only
 stronger confirmation would be a debug-FVS stamp of per-tree PCT/EFFTR in the mixed stand (optional; the isolation
 + source trace + bidirectionality are already decisive). Floor 38527/143/0 untouched.
+
+### SLICE 43t — honest coverage accounting: `live_crash` category (the "no-sum" stands are FVS SIGFPE crashes)
+User challenge: "what's the point of the sweep if we skip ~half of it?" MEASURED the skip cause across 6 regions
+(108 stands): 92 comparable / 16 live_crash / 0 clean-nosum / 0 jl_fail — EVERY skip is live FVS crashing with
+SIGFPE (never FVSjl failing, never nonstocked). Rate is region-variable (some ecoregions 18/18 comparable; the
+high-expansion-seedling ecoregions ~half crash). Root cause: live FVSsn dies on >1000-TPA 0.1"-seedling records
+(FVS40 warning → floating-point exception); FVSjl projects them fine (FVS-UB, documented in FVS_SOURCE_BUGS.md).
+FIX (honesty): run_live now returns (text, crashed) via termsignal/exit>128; the ledger records dig_class
+`live_crash` (jl-projected, live-crashed) instead of silently skipping. Coverage is now denominated honestly:
+comparable(bit_exact+ulp_class) + live_crash + skip. Validated on the crash-heavy 290487 region: 11 be / 11 div /
+18 live_crash / 0 skip of 40. The stronger, honest claim: "0 needs_dig among the comparable stands; the remainder
+are live-FVS crashes FVSjl survives." Harness/docs only; floor 38527/143/0 untouched (no src/ change).

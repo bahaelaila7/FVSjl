@@ -80,11 +80,20 @@ function parse_sum10(text)
     rows
 end
 
+# Returns (sum_text, crashed). crashed=true when the live binary died on a SIGNAL (SIGFPE=8/SIGSEGV=11/SIGABRT=6)
+# or exit>128 — distinguishing a live-FVS CRASH (e.g. the FVS40 >1000-TPA-seedling floating-point exception, which
+# FVSjl survives) from a clean no-output run. Lets the ledger record `live_crash` instead of silently skipping.
 function run_live(bin, cn, db, regime, dir, plantyr=0)
     key = joinpath(dir,"s.key"); write(key, keytext(cn, db, regime, plantyr))
     for f in ("s.sum","s.out"); fp=joinpath(dir,f); isfile(fp) && rm(fp); end
-    try; run(pipeline(`$bin --keywordfile=$key`; stdout=devnull, stderr=devnull)); catch; end
-    sp = joinpath(dir,"s.sum"); isfile(sp) ? read(sp,String) : ""
+    crashed = false
+    try
+        p = run(pipeline(ignorestatus(`$bin --keywordfile=$key`); stdout=devnull, stderr=devnull))
+        crashed = (p.termsignal != 0) || (p.exitcode > 128)
+    catch
+        crashed = true
+    end
+    sp = joinpath(dir,"s.sum"); (isfile(sp) ? read(sp,String) : "", crashed)
 end
 
 # Build a temp indexed sub-DB from the master for exactly `cns` (C-speed; master never modified).
@@ -139,7 +148,7 @@ function main(listfile, v, regime)
     newfile = !isfile(out)
     io = open(out, "a")
     newfile && println(io, "variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature,struct_max_abs,vol_max_abs")
-    n=0; nbe=0; ndiv=0; nskip=0
+    n=0; nbe=0; ndiv=0; nskip=0; ncrash=0
     # optional durable per-stand coverage record: set SWEEP_DB to the local SQLite path (survives sessions /
     # container restart) and every stand's outcome (bit_exact | ulp_class | needs_dig) is upserted as we go.
     sdb = haskey(ENV, "SWEEP_DB") ? open_sweepdb(ENV["SWEEP_DB"]) : nothing
@@ -148,12 +157,33 @@ function main(listfile, v, regime)
     for cn in cns
         n += 1; n % 200 == 0 && (print(stderr, "[$n/$(length(cns))] be=$nbe div=$ndiv\r"); flush(stderr))
         py = plantyr_of(cn)
-        live = run_live(bin, cn, sub, regime, dir, py); isempty(live) && (nskip+=1; continue)
+        live, live_crashed = run_live(bin, cn, sub, regime, dir, py)
         keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, regime, py))
         jlout = try FVSjl.run_keyfile(keyf; variant=var) catch; ""; end
-        isempty(jlout) && (nskip+=1; continue)
         L = parse_sum10(live); J = parse_sum10(jlout)
-        (isempty(L) || isempty(J)) && (nskip+=1; continue)
+        if isempty(L)
+            # Live emitted no comparable .sum. If it CRASHED (SIGFPE etc.) but FVSjl projected fine, this is an
+            # FVS-UB (live-binary bug) that jl SURVIVES — record it as `live_crash` so coverage is honestly
+            # accounted (comparable + live_crash + skip), not silently dropped. Otherwise a genuine skip.
+            if live_crashed && !isempty(J)
+                ncrash += 1
+                println(io, join([v, regime, cn, length(J), false, "", "", 0, 0.0, 0.0, 0.0, 0.0,
+                                  false, false, "live_crash", 0.0, 0.0], ","))
+                flush(io)
+                if sdb !== nothing
+                    try
+                        upsert!(sdb, (variant=v, cn=cn, regime=regime, n_cycles=length(J), bit_exact=false,
+                                      div_cols="", worst_col="", worst_cycle=0, max_rel_pct=0.0, max_abs_diff=0.0,
+                                      struct_max_rel_pct=0.0, vol_max_rel_pct=0.0, struct_max_abs=0.0, vol_max_abs=0.0,
+                                      density_bitexact=false, converges=false, signature="live_crash"))
+                    catch e; print(stderr, "sweep_db live_crash upsert failed $cn: $e\n"); end
+                end
+            else
+                nskip += 1
+            end
+            continue
+        end
+        isempty(J) && (nskip+=1; continue)
         Jd = Dict(y=>vv for (y,vv) in J)
         div_set = Set{Int}(); worst_rel=0.0; worst_col=0; worst_yr=0; max_abs=0.0
         struct_rel=0.0; vol_rel=0.0; struct_mat=false; vol_mat=false; density_mat=false
@@ -215,7 +245,7 @@ function main(listfile, v, regime)
     close(io)
     sdb !== nothing && SQLite.close(sdb)
     println(stderr)
-    println("LEDGER $v/$regime → $out : bit_exact=$nbe  diverging=$ndiv  skipped(no-both-sum)=$nskip  of $n")
+    println("LEDGER $v/$regime → $out : bit_exact=$nbe  diverging=$ndiv  live_crash=$ncrash  skipped(no-both-sum)=$nskip  of $n")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

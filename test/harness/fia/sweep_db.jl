@@ -46,6 +46,7 @@ function dig_class(bit_exact::Bool, sig::AbstractString, worst_col::AbstractStri
                    max_rel_pct::Real, struct_max_abs::Union{Real,Nothing}, vol_max_abs::Union{Real,Nothing}=nothing,
                    struct_max_rel_pct::Union{Real,Nothing}=nothing)
     bit_exact && return "bit_exact"
+    sig == "live_crash" && return "live_crash"   # live FVS crashed (FVS-UB); FVSjl projected — not comparable
     sa = struct_max_abs === nothing ? Inf : float(struct_max_abs)
     va = vol_max_abs === nothing ? Inf : float(vol_max_abs)
     esc = sig == "UNCLASSIFIED" ||
@@ -134,7 +135,7 @@ _pi(s) = (v = tryparse(Int, strip(s)); v)
 # glued to the CN, the signature slot holds a bool/number). Such rows are DROPPED on ingest, never classified.
 const _VALID_VARIANTS = Set(["SN","NE","CS","LS"])
 const _VALID_SIGS = Set(["bit_exact","print_boundary","volume_persistent","structure_densephase",
-                         "threshold_crossing","count_straddle","UNCLASSIFIED"])
+                         "threshold_crossing","count_straddle","UNCLASSIFIED","live_crash"])
 _valid_row(variant, cn, sig) =
     variant in _VALID_VARIANTS && sig in _VALID_SIGS && !isempty(cn) && all(isdigit, cn)
 
@@ -247,6 +248,35 @@ function reclassify!(dbpath::AbstractString)
     length(rows)
 end
 
+# Dump the whole sweep table to a CSV (git-friendly, re-ingestable on another machine via `ingest`). Sorted for
+# a stable diff. Round-trips through ingest_csv (same 17-col ledger layout + regime), so a beefier machine can
+# `git clone`, `ingest` this into a fresh DB, and resume where this one left off.
+function export_csv(dbpath::AbstractString, csvpath::AbstractString)
+    db = open_sweepdb(dbpath); n = 0
+    open(csvpath, "w") do io
+        println(io, "variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,",
+                    "max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature,",
+                    "struct_max_abs,vol_max_abs")
+        f(x) = x === missing || x === nothing ? "" : x
+        for r in DBInterface.execute(db, """SELECT variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,
+            worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,
+            signature,struct_max_abs,vol_max_abs FROM sweep ORDER BY variant,cn,regime""")
+            println(io, join([r.variant, r.regime, r.cn, f(r.n_cycles), r.bit_exact==1 ? "true" : "false",
+                f(r.div_cols), f(r.worst_col), f(r.worst_cycle), f(r.max_rel_pct), f(r.max_abs_diff),
+                f(r.struct_max_rel_pct), f(r.vol_max_rel_pct), r.density_bitexact==1 ? "true" : "false",
+                r.converges==1 ? "true" : "false", r.signature, f(r.struct_max_abs), f(r.vol_max_abs)], ","))
+            n += 1
+        end
+    end
+    # also dump progress cursors as a trailer comment-free companion file
+    open(csvpath * ".progress", "w") do io
+        for r in DBInterface.execute(db, "SELECT variant,cursor,population FROM progress ORDER BY variant")
+            println(io, r.variant, ",", r.cursor, ",", something(r.population, ""))
+        end
+    end
+    SQLite.close(db); n
+end
+
 function _stats(dbpath, variant)
     db = open_sweepdb(dbpath)
     where = variant === nothing ? "" : "WHERE variant='$(variant)'"
@@ -290,6 +320,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
         SQLite.close(db)
     elseif cmd == "reclassify"     # reclassify <db>  → recompute dig_class for all rows from stored facts
         n = reclassify!(ARGS[2]); println("reclassified $n rows")
+    elseif cmd == "export"         # export <db> <csv>  → git-friendly re-ingestable dump (+ <csv>.progress)
+        n = export_csv(ARGS[2], ARGS[3]); println("exported $n rows to $(ARGS[3])")
     elseif cmd == "scrub"          # scrub <db>  → delete malformed rows; print recoverable CNs (one per line)
         res = scrub!(ARGS[2])
         print(stderr, "scrubbed $(res.deleted) malformed rows; $(length(res.recover)) recoverable CNs\n")

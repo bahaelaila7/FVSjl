@@ -141,3 +141,13 @@ AND FVSjl. This is a live-FVS numerical pathology on a degenerate micro-stand, n
 tracks the (absurd) live SDI within 0.46% (4381035 vs 4361021). Recorded as a FIDELITY success (jl reproduces
 even FVS's degenerate behavior). The residual TCuFt/MCuFt wobble (412/350 cuft) is a small-magnitude consequence,
 cornered by the vol_max_abs≥300 escalation floor (audit slice 43n).
+
+## Live FVS SIGFPE crash on high-expansion 0.1" seedling records (FVS-UB; FVSjl survives)
+Live FVSsn (relinked FS2026.1) CRASHES with a floating-point exception (SIGFPE, exit 136) on stands containing a
+tree record representing >1000 TPA at DBH 0.1" (e.g. CN 1224249623290487: sp611 dbh 0.1" TPA 1199). FVS prints its
+own guard `FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TPA ENCOUNTERED. MAY CAUSE MATHEMATICAL
+ERRORS` and then dies (a div-by-zero in the per-tree small-tree stats). These stands are common in some ecoregions
+(the FIA microplot expansion produces them). FVSjl PROJECTS them fine (full .sum). ⇒ FVS-UB, not an FVSjl
+divergence — the oracle is un-runnable, so there is nothing to compare against, but FVSjl is strictly MORE robust.
+Recorded by the sweep as dig_class `live_crash` (ledger_fia run_live detects termsignal/exit>128), so coverage is
+honestly accounted: {comparable = bit_exact+ulp_class} + {live_crash} + {skip}, never silently dropped.
