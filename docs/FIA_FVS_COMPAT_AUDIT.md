@@ -1835,3 +1835,19 @@ worst_col gate; a faithful fix needs a density-specific relative metric (BA/SDI,
 Added: `reclassify` command (recompute dig_class over stored facts, no FVS re-run) + docs/fia_manual_needsdig.txt
 (committed manual-confirmed genuine finds that survive reclassify). 209314057 pinned there. SN needs_dig now 3
 (2 dense-phase + 1 genuine structural). Harness/docs only; floor 38527/143/0 untouched.
+
+### SLICE 43q — root-cause of the genuine find 209314057: small-tree (seedling) growth divergence
+Per-tree trace of the one genuine structural find. The stand is a PURE-SEEDLING stand: SN, ecoregion 231Ba,
+AGE 7, INVYR 2008, 3 tree records ALL at DBH 0.1" (missing height): sp131 loblolly pine 2162 TPA, sp391 432 TPA,
+sp521 1297 TPA (~3891 TPA). FVSjl per-tree (FVS_TreeList via DSNOUT/TreeLiDb) at cycle 1 (2008→2013): loblolly
+EXPLODES 0.1"→2.73" (DG 2.1"), ht 1→21.5 ft; sp391/521 crawl (0.1→0.46"/0.64"). Stand-level both-sides (live
+FVSsn vs jl): jl BA 85 vs live 79 @2013 — jl over-grows the loblolly seedlings ~8% in the FIRST cycle → higher
+SDI → more self-thinning (jl kills 302 more TPA) → the systematic, growing, non-converging divergence booked as
+needs_dig. LOCALIZED to the SMALL-TREE (seedling) growth model for loblolly, amplified because the stand is
+pure-seedling (no overstory to dominate the summary). Connects to the known small-tree/height-growth residual
+area (NOHTDREG/LHTDRG + WK3 DGSCOR tail; see [[fvsjl-growth-gap-verdicts]]). VERDICT: a genuine small-tree-growth
+divergence, NOT a threshold artifact and NOT a bidirectional straddle. NOT yet fully cornered vs a new bug: the
+decisive live-vs-jl PER-TREE loblolly DG comparison is blocked by the relinked FVSsn binary (DBS TreeList → rc=20;
+text TREELIST → >120s timeout). Kept as manual needs_dig; next step = obtain live per-tree DG (fix the live DBS
+output or parse the text treelist) to confirm it's the known small-tree residual vs a new seedling-growth bug.
+Harness/docs only; floor 38527/143/0 untouched.
