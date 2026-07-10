@@ -12,7 +12,11 @@
 # Env: BATCH (default 2000). Cursors: test/harness/fia/expand/<v>.cursor.
 set -u
 cd /workspace/FVSjl
-SC=/tmp/claude-1000/-workspace/b4e1b3b1-495b-403e-810b-5db3604b56cc/scratchpad
+# Sweep working dir on the PERSISTENT /workspace btrfs volume (NOT the ephemeral, session-specific /tmp
+# scratchpad) so batch state + the accumulated master ledger survive a container restart and are not tied to a
+# session UUID. Override with SWEEP_WORK. (The durable per-stand results live in the sweep DB; this is scratch +
+# a redundant ledger copy.) .sweep_work is gitignored.
+SC=${SWEEP_WORK:-/workspace/FVSjl/.sweep_work}
 BATCH=${BATCH:-2000}
 CURD=test/harness/fia/expand
 DIGQ=docs/fia_dig_queue.csv

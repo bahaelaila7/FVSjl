@@ -9,7 +9,7 @@ cd /workspace/FVSjl
 export BATCH=${BATCH:-2000}
 DIGCAP=${DIGCAP:-200}
 DIGQ=docs/fia_dig_queue.csv
-SC=/tmp/claude-1000/-workspace/b4e1b3b1-495b-403e-810b-5db3604b56cc/scratchpad
+SC=${SWEEP_WORK:-/workspace/FVSjl/.sweep_work}   # persistent /workspace volume (see run_expand_cycle.sh)
 mkdir -p $SC/expand
 LOGF=$SC/expand/cycle_last.log
 while true; do

@@ -35,3 +35,6 @@ deps/libfvsmath.*
 data/*.db
 data/*.db-wal
 data/*.db-shm
+
+# persistent sweep working dir (scratch + redundant master ledger; results are in data/*.db)
+.sweep_work/

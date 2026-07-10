@@ -1708,3 +1708,20 @@ DB errors are caught and never break the sweep); run_expand_cycle.sh exports SWE
 worklist. Backfilled this session's entire SN ledger: 21,676 distinct stands → 12,724 bit_exact / 8,955
 ulp_class / **0 needs_dig** (the one transient survivor, CN 202567027010854, reclassified to ulp_class once its
 struct_max_abs=3 landed — slice 43g). Harness only; suite floor 38527/143/0 untouched.
+
+### SLICE 43i — restart-safety: move all sweep operations onto the persistent volume
+Audited what a container restart would destroy. `/workspace` = a real btrfs disk partition (persists); `/` and
+`/tmp` = the container overlay (`fsync=volatile`, EPHEMERAL — wiped on restart). Findings + fixes so a restart is
+NON-disruptive to the verification (nothing re-swept from scratch):
+- VERIFICATION RESULTS — were in the ephemeral /tmp scratchpad ⇒ already moved to data/fia_sweep.db on
+  /workspace (slice 43h). DURABLE. ✓
+- PROGRESS CURSOR — test/harness/fia/expand/<v>.cursor is on /workspace (persistent) AND git-tracked; now ALSO
+  mirrored into the DB `progress` table (self-contained snapshot). resume_sweep.sh reconciles max(file, DB). ✓
+- SWEEP WORKING DIR — was hardcoded to /tmp/claude-1000/<session-UUID>/scratchpad (ephemeral AND tied to a
+  session UUID ⇒ broken after restart). MOVED to /workspace/FVSjl/.sweep_work (persistent, gitignored, override
+  SWEEP_WORK); migrated the accumulated master ledger there. run_expand_cycle.sh + run_expand_loop.sh updated. ✓
+- ORACLE BINARY /tmp/FVS*_new — ephemeral but REGENERABLE (doctrine relinks per run anyway); resume_sweep.sh
+  relinks it if absent. Not data loss. ✓
+- MASTER FIA INPUT /workspace/SQLite_FIADB_ENTIRE.db — on /workspace, read-only. DURABLE. ✓
+New: test/harness/fia/resume_sweep.sh — one command to recover after a restart (relink oracle → reconcile cursor
+→ report durable coverage + needs_dig worklist → resume the loop). Harness only; suite floor 38527/143/0 untouched.

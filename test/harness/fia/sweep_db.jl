@@ -56,6 +56,11 @@ const _SCHEMA = [
         PRIMARY KEY (variant, cn, regime))""",
     "CREATE INDEX IF NOT EXISTS sweep_digclass ON sweep(dig_class)",
     "CREATE INDEX IF NOT EXISTS sweep_variant ON sweep(variant)",
+    # per-variant sweep CURSOR (deterministic-order offset into the population) — a self-contained durable
+    # snapshot of PROGRESS so a resume after container restart doesn't re-sweep from scratch even if the
+    # working cursor file is gone. Mirrors test/harness/fia/expand/<v>.cursor.
+    """CREATE TABLE IF NOT EXISTS progress (
+        variant TEXT PRIMARY KEY, cursor INTEGER NOT NULL, population INTEGER, updated_at TEXT)""",
 ]
 
 # Run a statement and DRAIN its cursor — an unconsumed result (e.g. PRAGMA journal_mode returns a row) leaves
@@ -128,6 +133,24 @@ function ingest_csv(dbpath::AbstractString, csvpath::AbstractString)
     n
 end
 
+function set_cursor!(dbpath::AbstractString, variant::AbstractString, cursor::Integer, population=nothing)
+    db = open_sweepdb(dbpath)
+    DBInterface.execute(db, """
+        INSERT INTO progress (variant,cursor,population,updated_at) VALUES (?,?,?,?)
+        ON CONFLICT(variant) DO UPDATE SET cursor=excluded.cursor, population=excluded.population,
+                                           updated_at=excluded.updated_at""",
+        (variant, Int(cursor), population === nothing ? nothing : Int(population),
+         Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")))
+    SQLite.close(db)
+end
+
+function get_cursor(dbpath::AbstractString, variant::AbstractString)
+    isfile(dbpath) || return nothing
+    db = open_sweepdb(dbpath); c = nothing
+    for r in DBInterface.execute(db, "SELECT cursor FROM progress WHERE variant=?", (variant,)); c = r.cursor; end
+    SQLite.close(db); c
+end
+
 function _stats(dbpath, variant)
     db = open_sweepdb(dbpath)
     where = variant === nothing ? "" : "WHERE variant='$(variant)'"
@@ -161,6 +184,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
         _stats(ARGS[2], length(ARGS) >= 3 ? ARGS[3] : nothing)
     elseif cmd == "digs"
         _digs(ARGS[2], length(ARGS) >= 3 ? ARGS[3] : nothing)
+    elseif cmd == "setcursor"      # setcursor <db> <variant> <offset> [population]
+        set_cursor!(ARGS[2], ARGS[3], parse(Int, ARGS[4]), length(ARGS) >= 5 ? parse(Int, ARGS[5]) : nothing)
+    elseif cmd == "getcursor"      # getcursor <db> <variant>  → prints the offset (empty if none)
+        c = get_cursor(ARGS[2], ARGS[3]); c === nothing || println(c)
     else
         error("unknown command $cmd")
     end
