@@ -1851,3 +1851,23 @@ decisive live-vs-jl PER-TREE loblolly DG comparison is blocked by the relinked F
 text TREELIST → >120s timeout). Kept as manual needs_dig; next step = obtain live per-tree DG (fix the live DBS
 output or parse the text treelist) to confirm it's the known small-tree residual vs a new seedling-growth bug.
 Harness/docs only; floor 38527/143/0 untouched.
+
+### SLICE 43r — 209314057 CORRECTED: it's self-thinning MORTALITY-PARTITION, not small-tree growth (43q refuted)
+Species-isolation test (build sub-DBs with only some species; compare jl vs live .sum) DECISIVELY refutes slice
+43q's small-tree-growth hypothesis:
+- LOBLOLLY-ONLY (sp131): jl == live BIT-EXACT all cycles (2013 both TPA2122/BA81/SDI250; 2033 both BA203/SDI410).
+  ⇒ the small-tree/seedling GROWTH model is FAITHFUL.
+- SLOW-SPECIES-ONLY (391+521): near-bit-exact (2033 TPA 787/776, an 11-TPA ULP straddle). ⇒ their growth faithful.
+- FULL 3-species stand: diverges materially (2013 BA 85 jl / 79 live; TPA 3242 jl / 3544 live).
+The divergence EMERGES ONLY from the 3-way interaction at COMBINED high density (~3900 TPA): the density-dependent
+SELF-THINNING mortality PARTITIONS DIFFERENTLY across the diameter distribution. jl kills 302 MORE trees yet has
+HIGHER BA ⇒ jl preferentially kills SMALL trees (preserving the loblolly BA), while live spreads the mortality to
+include larger stems (lower BA, more survivors). This is a MORTALITY-ALLOCATION difference (which trees die under
+SDI>SDIMAX self-thinning), NOT a growth-model difference.
+⇒ 209314057 belongs to the SAME dense-phase self-thinning cluster as the 2 SN + 3 LS needs_dig (43l/43m) — all
+are the self-thinning mortality partition in dense stands, now LOCALIZED (growth proven faithful; the divergence
+is purely in mortality allocation). NEXT: read morts.f's mortality-distribution vs FVSjl mortality.jl to decide
+whether the allocation RULE differs (bug) or it's a near-tie the two round differently (ULP count-straddle).
+This is a strong both-sides localization of the campaign's one open SN/LS divergence class. Kept as needs_dig.
+Method note: live per-tree TreeList is blocked (relinked FVSsn: DBS rc=20 / text TREELIST hangs), but SPECIES
+ISOLATION via sub-DB + .sum sidesteps it entirely and is decisive. Floor 38527/143/0 untouched.
