@@ -1790,3 +1790,16 @@ density-mortality threshold to opposite sides, stand-by-stand). Cluster now 2 SN
 This bidirectionality materially raises confidence the cluster is ULP-class, not a bug — but per doctrine the
 GOLD-STANDARD confirmation is still a per-tree state comparison at the divergence-onset cycle (printed-bit-exact
 ≠ per-tree-bit-exact). Kept as needs_dig in the DB worklist pending that per-tree dig. Floor 38527/143/0 untouched.
+
+### SLICE 43n — guard 2nd blind spot: TCuFt net needs an ABSOLUTE floor (vol_max_abs) — degenerate stand
+3rd SN needs_dig 218434248010854 both-sides-traced: a DEGENERATE 2-tree micro-stand (TPA~7000 from a tiny fixed
+plot) that triggers a SHARED FVS SDI-overflow pathology — SDI → ~4.38 MILLION at 2026 in BOTH live FVSsn and
+FVSjl (jl within 0.46%), TCuFt momentarily 0. NOT a bug (a fidelity success: jl reproduces even FVS's degenerate
+behavior; see FVS_SOURCE_BUGS.md). It tripped the escalation guard's TCuFt≥15% net on a 62-cuft divergence
+(412/350) — the mirror of the slice-43g small-base struct false-positive: the TCuFt volume net had NO absolute
+floor, so a big RELATIVE % on tiny cuft false-positives. FIX: added vol_max_abs (largest abs diff among vol cols
+7-10) to the ledger (col 17, backward-compatible) + a VOL_ABS_FLOOR=300 gate on the TCuFt escalation (a real
+volume-equation bug like FORKOD moves 1000s of cuft; 62 is not). sweep_db schema migrated via idempotent ALTER.
+Re-swept the 3 SN candidates: the degenerate stand → ulp_class; the 2 genuine dense-phase TPA-straddle cases
+(43l/43m) remain needs_dig. Guard now has BOTH an absolute floor (struct + vol) and the relative threshold.
+Harness/docs only; floor 38527/143/0 untouched.

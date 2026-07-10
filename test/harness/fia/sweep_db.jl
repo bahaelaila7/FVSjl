@@ -31,16 +31,21 @@ const DEFAULT_SWEEP_DB = "/workspace/FVSjl/data/fia_sweep.db"
 const _STRUCT_ESCALATE_COLS = Set(["TPA","BA","SDI","CCF","QMD"])
 const _ESCALATE_REL = 15.0
 const _STRUCT_ABS_FLOOR = 10.0
+# TCuFt volume net also needs an ABSOLUTE floor: a real volume-equation bug (FORKOD zero-vol) moves 1000s of
+# cuft; a 15% on a tiny/degenerate stand (e.g. a 2-tree stand, 62 cuft on 412) is not a bug. 300 cuft clears the
+# degenerate case (both-sides-traced CN 218434248010854) while surfacing any real volume-equation error.
+const _VOL_ABS_FLOOR = 300.0
 
-# dig_class over the MEASURED facts. struct_abs missing (legacy 15-col rows) ⇒ +Inf ⇒ conservative (escalates).
+# dig_class over the MEASURED facts. Missing *_abs (legacy rows) ⇒ +Inf ⇒ conservative (escalates).
 function dig_class(bit_exact::Bool, sig::AbstractString, worst_col::AbstractString,
-                   max_rel_pct::Real, struct_max_abs::Union{Real,Nothing})
+                   max_rel_pct::Real, struct_max_abs::Union{Real,Nothing}, vol_max_abs::Union{Real,Nothing}=nothing)
     bit_exact && return "bit_exact"
     sa = struct_max_abs === nothing ? Inf : float(struct_max_abs)
+    va = vol_max_abs === nothing ? Inf : float(vol_max_abs)
     esc = sig == "UNCLASSIFIED" ||
           (sig == "structure_densephase" && worst_col in _STRUCT_ESCALATE_COLS &&
                  max_rel_pct >= _ESCALATE_REL && sa >= _STRUCT_ABS_FLOOR) ||
-          (worst_col == "TCuFt" && max_rel_pct >= _ESCALATE_REL)
+          (worst_col == "TCuFt" && max_rel_pct >= _ESCALATE_REL && va >= _VOL_ABS_FLOOR)
     return esc ? "needs_dig" : "ulp_class"
 end
 
@@ -52,8 +57,10 @@ const _SCHEMA = [
         n_cycles INTEGER, bit_exact INTEGER, div_cols TEXT, worst_col TEXT, worst_cycle INTEGER,
         max_rel_pct REAL, max_abs_diff REAL, struct_max_rel_pct REAL, vol_max_rel_pct REAL,
         struct_max_abs REAL, density_bitexact INTEGER, converges INTEGER, signature TEXT,
-        dig_class TEXT NOT NULL, swept_at TEXT,
+        dig_class TEXT NOT NULL, swept_at TEXT, vol_max_abs REAL,
         PRIMARY KEY (variant, cn, regime))""",
+    # migrate DBs created before vol_max_abs existed (idempotent — the wrapper below swallows "duplicate column")
+    "ALTER TABLE sweep ADD COLUMN vol_max_abs REAL",
     "CREATE INDEX IF NOT EXISTS sweep_digclass ON sweep(dig_class)",
     "CREATE INDEX IF NOT EXISTS sweep_variant ON sweep(variant)",
     # per-variant sweep CURSOR (deterministic-order offset into the population) — a self-contained durable
@@ -71,7 +78,12 @@ function open_sweepdb(path::AbstractString=DEFAULT_SWEEP_DB)
     mkpath(dirname(path))
     db = SQLite.DB(path)
     for stmt in _SCHEMA
-        _run(db, stmt)
+        try
+            _run(db, stmt)
+        catch e
+            # tolerate the idempotent ALTER (column already present on a fresh or migrated DB)
+            startswith(stmt, "ALTER TABLE") || rethrow(e)
+        end
     end
     # pragmatic durability/perf: WAL survives an abrupt container stop mid-write better than the default journal.
     _run(db, "PRAGMA journal_mode=WAL")
@@ -83,26 +95,28 @@ _f(x) = x === nothing ? nothing : float(x)
 
 # Upsert one stand. `row` is a NamedTuple with the ledger fields (see COLS order in ledger_fia.jl).
 function upsert!(db, row)
+    vma = hasproperty(row, :vol_max_abs) ? row.vol_max_abs : nothing
     dc = dig_class(row.bit_exact, row.signature, something(row.worst_col, ""),
-                   something(row.max_rel_pct, 0.0), row.struct_max_abs)
+                   something(row.max_rel_pct, 0.0), row.struct_max_abs, vma)
     DBInterface.execute(db, """
         INSERT INTO sweep (variant,cn,regime,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,
                            max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,struct_max_abs,density_bitexact,
-                           converges,signature,dig_class,swept_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                           converges,signature,dig_class,swept_at,vol_max_abs)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(variant,cn,regime) DO UPDATE SET
           n_cycles=excluded.n_cycles, bit_exact=excluded.bit_exact, div_cols=excluded.div_cols,
           worst_col=excluded.worst_col, worst_cycle=excluded.worst_cycle, max_rel_pct=excluded.max_rel_pct,
           max_abs_diff=excluded.max_abs_diff, struct_max_rel_pct=excluded.struct_max_rel_pct,
           vol_max_rel_pct=excluded.vol_max_rel_pct, struct_max_abs=excluded.struct_max_abs,
           density_bitexact=excluded.density_bitexact, converges=excluded.converges,
-          signature=excluded.signature, dig_class=excluded.dig_class, swept_at=excluded.swept_at
+          signature=excluded.signature, dig_class=excluded.dig_class, swept_at=excluded.swept_at,
+          vol_max_abs=excluded.vol_max_abs
         """,
         (row.variant, row.cn, row.regime, _i(row.n_cycles), row.bit_exact ? 1 : 0, row.div_cols,
          row.worst_col, _i(row.worst_cycle), _f(row.max_rel_pct), _f(row.max_abs_diff),
          _f(row.struct_max_rel_pct), _f(row.vol_max_rel_pct), _f(row.struct_max_abs),
          row.density_bitexact ? 1 : 0, row.converges ? 1 : 0, row.signature, dc,
-         Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")))
+         Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS"), _f(vma)))
 end
 
 _pbool(s) = lowercase(strip(s)) == "true"
@@ -136,7 +150,8 @@ function ingest_csv(dbpath::AbstractString, csvpath::AbstractString)
                worst_col=String(strip(f[7])), worst_cycle=_pi(f[8]), max_rel_pct=_pf(f[9]),
                max_abs_diff=_pf(f[10]), struct_max_rel_pct=_pf(f[11]), vol_max_rel_pct=_pf(f[12]),
                density_bitexact=_pbool(f[13]), converges=_pbool(f[14]), signature=sig,
-               struct_max_abs=(length(f) >= 16 ? _pf(f[16]) : nothing))
+               struct_max_abs=(length(f) >= 16 ? _pf(f[16]) : nothing),
+               vol_max_abs=(length(f) >= 17 ? _pf(f[17]) : nothing))
         upsert!(db, row); n += 1
     end
     end                                                        # SQLite.transaction
@@ -221,6 +236,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
         set_cursor!(ARGS[2], ARGS[3], parse(Int, ARGS[4]), length(ARGS) >= 5 ? parse(Int, ARGS[5]) : nothing)
     elseif cmd == "getcursor"      # getcursor <db> <variant>  → prints the offset (empty if none)
         c = get_cursor(ARGS[2], ARGS[3]); c === nothing || println(c)
+    elseif cmd == "cns"            # cns <db> <variant>  → print every already-recorded CN (one per line)
+        db = open_sweepdb(ARGS[2])
+        for r in DBInterface.execute(db, "SELECT cn FROM sweep WHERE variant=?", (ARGS[3],)); println(r.cn); end
+        SQLite.close(db)
     elseif cmd == "scrub"          # scrub <db>  → delete malformed rows; print recoverable CNs (one per line)
         res = scrub!(ARGS[2])
         print(stderr, "scrubbed $(res.deleted) malformed rows; $(length(res.recover)) recoverable CNs\n")

@@ -133,3 +133,11 @@ Format per entry:
   clears the underflow case with zero output change (the invalid-op `totHt<17.3` case still needs a
   base guard). Fault lines confirmed via `-g` recompiles: `r9ht` `Y=` (underflow, `totHt=17.4`) and
   `r9clark.f:1286` (invalid, `totHt<17.3`).
+
+## Shared SDI overflow on degenerate ultra-dense micro-stands (SN; FVSjl reproduces)
+CN 218434248010854 (SN, 2 tree records, fixed 1/300ac plot ⇒ TPA~7000, AGE 28): at cycle 2026 the reported SDI
+jumps to ~4.38 MILLION (physically impossible; SDImax<1500) and TCuFt momentarily reports 0, in BOTH live FVSsn
+AND FVSjl. This is a live-FVS numerical pathology on a degenerate micro-stand, not an FVSjl divergence — FVSjl
+tracks the (absurd) live SDI within 0.46% (4381035 vs 4361021). Recorded as a FIDELITY success (jl reproduces
+even FVS's degenerate behavior). The residual TCuFt/MCuFt wobble (412/350 cuft) is a small-magnitude consequence,
+cornered by the vol_max_abs≥300 escalation floor (audit slice 43n).
