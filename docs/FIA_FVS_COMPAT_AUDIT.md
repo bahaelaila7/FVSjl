@@ -2042,3 +2042,14 @@ LS FFE-fire residuals (carbon StandDead/Released snag+consumption). The 16.1% LS
 >10% residual across all 20 variant×regime cells and is the ONE item left to SPOT-TRACE (is it the accepted
 dense-phase+fire class, or a new LS fire-kill straddle?) — flagged, not yet cornered. Everything else across the
 20 cells is bit-exact-or-cornered. Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
+
+### SLICE 43ab — LS simfire 16.1% outlier SPOT-TRACED → cornered (dense-phase terminal mortality, NOT a fire bug)
+Both-sides-traced the last open cell (CN 21145708010661, LS simfire, `diff_one.jl`). The FIRE cycle itself is
+BIT-EXACT (1998 = LS cycle 2: TPA 1076/1076, BA/SDI/CCF/TopHt/QMD all match) — so it is NOT a fire-behaviour or
+fire-kill bug. The divergence ACCUMULATES post-fire in a dense, high-SDI stand (SDI ~385, at the self-thinning
+limit): TPA Δ +1 (2008) → +8 (2018) → +97 (2028 terminal: live 601 / jl 504 = 16.1%), with terminal QMD 8.4/9.1
+(jl keeps FEWER, LARGER trees). That signature = the LS DENSE-PHASE SELF-THINNING MORTALITY-PARTITION straddle
+(VARMRT near-tie percentile × the per-species SIGMAR tripling-spread) at the terminal cycle — the SAME accepted LS
+dense-phase residual class already cornered (fvsjl-ls-port-state: "Control Δ5-6 / BARE Δ12 accepted-class"),
+amplified in this high-SDI stand. CORNERED, not a new bug. ⇒ ALL 20 variant×regime Pillar-3 cells are now
+bit-exact-or-cornered; SN/NE/CS/LS management-scenario compatibility is fully accounted. Floor 38527/143/0 untouched.
