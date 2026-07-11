@@ -1973,3 +1973,28 @@ ULP / threshold-count-straddle / small-base-relative primitives already cornered
 plain max-rel metric over-reports small-base cells (planted seedlings) as "fails" — a metric artifact, not a jl gap;
 a struct_abs-aware pass (like the sweep) would score plant ~13/13. Pillar-3 for NE/CS/LS remains to be run.
 Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
+
+### SLICE 43y — PILLAR 3 for NE: 4/5 regimes faithful; PLANT flagged as a GENUINE divergence (dedicated dig)
+Ran the same 5-regime `manage_fia.jl` differential on the first 15 NE stands (oracle /tmp/FVSne_new; NE native
+10-yr cycle ⇒ 50-yr horizon). Per-regime BIT-EXACT (all cycles, 6 cols) / worst-rel:
+  • thinbba — 11/15, no-op 7/7, fired 4/8, worst 7.4%
+  • thindbh — 8/15,  no-op 7/9, fired 1/6, worst 2.4%
+  • salvage — 14/15,               worst 1.1%
+  • simfire — 7/15,  no-op 7/7, fired 0/8, worst 5.0%
+  • plant   — 0/15,  seven stands at 100% — FLAGGED (see below)
+FOUR of five regimes are FAITHFUL, same cornered primitives as SN (slices 43w/43x). Both-sides-traced:
+  • thinbba's worst (382476618489998, TPA 1668 dense) is ±1 tree AT the thin (2035: 1312/1313, count-straddle),
+    then the dense-phase VARMRT self-thinning mortality-partition straddle (cornered, 43l-43s) amplifies it to
+    ±41 TPA by 2065 (7.4%). simfire's 5.0% is the SAME dense stand. Same primitive, larger stand ⇒ larger %.
+  • salvage 14/15 (removes dead only) ≈ Pillar-2 growth rate. no-op stands bit-exact across all four.
+FLAGGED — NOT CORNERED — NE PLANT (genuine divergence, needs a dedicated both-sides-trace): on the 7 bare stands
+live+jl BOTH plant 400 TPA at the SAME cycle (TPA bit-exact all cycles: 400/400→389/389→377/378→367/367), but the
+PLANTED TREES ARE MATERIALLY SMALLER IN jl at the first post-plant report and converge only slowly — CN
+9690883010661 @2006 (first treed row, +10yr): BA 5.0/0.0, SDI 19/2, CCF 13/1, TopHt 12/6, QMD 1.5/0.4; by 2036
+BA 68/60, TopHt 43/40 (closing). This is NOT the cycle-number PLANT scheduling artifact (ledger 42d-42g — both
+plant at the same cycle here) and NOT the small-base ULP that made SN plant look like 50% (that was TPA-bit-exact
+with BA 2/1; here BA is 5 vs 0 and TopHt 12 vs 6 — an order of magnitude, not ±1). The NE planted-tree INITIAL
+HEIGHT/SIZE and/or its first-cycle height growth diverges from live. TODO (next slice): trace the NE PLANT height
+default (esprt/plant height set) + NE small-tree height-growth over the planting cycle, both-sides; SN's PLANT is
+bit-exact at the plant cycle (TopHt 1/1) so this is NE-specific (or exposed by NE's 10-yr first-cycle growth).
+Recorded in docs/fia_flagged_plant_ne.txt. Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/).
