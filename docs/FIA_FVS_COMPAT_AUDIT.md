@@ -2021,3 +2021,24 @@ keyword form — the same class of error as the s32 prod=="01" lesson. A large %
 bug until the keyword is exercised the way FVS intends (here: PLANT by calendar year at a cycle boundary). Always
 reach for the known-faithful harness form (ledger_fia) before flagging. HARNESS FIX committed: manage_fia.jl now
 schedules PLANT by INV_YEAR+period (mirrors ledger_fia). Floor 38527/143/0 untouched (test/harness/ + docs only).
+
+### SLICE 43aa — PILLAR 3 breadth COMPLETE: 5 regimes × 4 variants (SN/NE/CS faithful; LS within its residual class)
+Ran the full 5-regime `manage_fia.jl` differential (thinbba/thindbh/salvage/simfire/plant) on 15 stands per variant,
+all 4 variants, live-vs-jl over the default horizon. WORST per-regime relative-diff (all cycles, 6 struct cols):
+  variant | thinbba | thindbh | salvage | simfire | plant     | no-op(growth) bit-exact rate
+  SN      |  3.4%   |  4.2%   |  1.8%   |  4.2%   | ULP(sb)   | 7/8,7/7,11/13,7/7,(sb)
+  NE      |  7.4%   |  2.4%   |  1.1%   |  5.0%   |  0.8%     | 7/7,7/9,14/15,7/7,11/15
+  CS      |  3.1%   |  2.6%   |  0.0%   |  5.4%   |  0.1%     | 14/14,13/14,15/15,13/13,14/15
+  LS      |  9.7%   |  7.5%   |  1.9%   | 16.1%   |  4.5%     | 8/11,8/10,11/15,8/11,8/15
+VERDICT: across ALL 4 variants the NO-OP (non-firing = pure-growth) stands reproduce the Pillar-2 growth rate
+(bit-exact bar the same growth-ULP), and the managed-action divergences are the ALREADY-CORNERED primitives —
+thin/fire count-straddle at the residual-BA/kill threshold + dense-phase VARMRT self-thinning + growth-ULP. SN, NE
+and CS are BIT-EXACT-OR-CORNERED on all 5 regimes (worst 7.4%, all traced). PILLAR-3 done-state MET for SN/NE/CS.
+LS HONEST STATUS: LS is the noisiest — no-op stands bit-exact (growth SPINE correct), but dense/managed stands
+diverge more (thinbba 9.7%, thindbh 7.5%, simfire 16.1% on CN 21145708010661). This is consistent with LS's
+DOCUMENTED, ACCEPTED dense-phase residual class (per-species SIGMAR tripling-spread + calibration-backdating
+relative-ranking; see fvsjl-ls-port-state memory: "Control Δ5-6 / BARE Δ12 accepted-class") AND the separate
+LS FFE-fire residuals (carbon StandDead/Released snag+consumption). The 16.1% LS simfire stand is the single
+>10% residual across all 20 variant×regime cells and is the ONE item left to SPOT-TRACE (is it the accepted
+dense-phase+fire class, or a new LS fire-kill straddle?) — flagged, not yet cornered. Everything else across the
+20 cells is bit-exact-or-cornered. Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
