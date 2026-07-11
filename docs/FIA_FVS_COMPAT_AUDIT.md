@@ -2053,3 +2053,24 @@ limit): TPA Δ +1 (2008) → +8 (2018) → +97 (2028 terminal: live 601 / jl 504
 dense-phase residual class already cornered (fvsjl-ls-port-state: "Control Δ5-6 / BARE Δ12 accepted-class"),
 amplified in this high-SDI stand. CORNERED, not a new bug. ⇒ ALL 20 variant×regime Pillar-3 cells are now
 bit-exact-or-cornered; SN/NE/CS/LS management-scenario compatibility is fully accounted. Floor 38527/143/0 untouched.
+
+### SLICE 43ac — PILLAR 2 (no-management) 10-column differential on NE/CS/LS samples (all cornered)
+Complements Pillar-3 with the NO-MANAGEMENT multi-cycle projection differential on all TEN .sum columns
+(TPA/BA/SDI/CCF/TopHt/QMD/TCuFt/MCuFt/SCuFt/BdFt) — manage_fia only diffs the 6 structure cols; this uses
+ledger_fia.jl's full 10-col + signature classifier. Ran 30 stands per variant (NE ne_sample; CS/LS first-30):
+  variant | fully bit-exact (all 10 cols, all cycles) | divergers → signature breakdown            | worst-rel
+  NE      | 25/30                                      | 4 print_boundary + 1 threshold_crossing     | 1.23% (BdFt)
+  CS      | 25/30 (29 comparable, 1 live_crash=D38)    | 4 print_boundary                            | 0.81% (QMD)
+  LS      | 19/30                                      | 6 print_boundary + 3 threshold_crossing + 2 volume_persistent | 4.0% (QMD)
+EVERY divergence is an ACCEPTED cornered class — NO UNCLASSIFIED, NO structure_densephase anywhere:
+  • print_boundary = a cell that rounds across an integer print boundary (±1 last-digit, ULP-class print artifact).
+  • threshold_crossing = a merch/board volume step-function boundary (BdFt/MCuFt/SCuFt), the accepted merch class.
+  • live_crash (CS ×1) = D38 R9 Clark short-tree SIGFPE (FVS-UB; jl projects it — FVS_SOURCE_BUGS.md).
+  • volume_persistent (LS ×2) = volume-only, non-converging — BOTH tiny: CN 155997623010661 CCF 1.9%/±29,
+    CN 720588683290487 MCuFt 1.1%/±2 cuft = the documented LS volume/CCF residual class (aspen cftopk / R9 cubic),
+    not a structure or growth bug (TPA/BA/SDI track live).
+VERDICT: NE/CS Pillar-2 = BIT-EXACT-OR-CORNERED on all 10 cols (worst ≤1.23%, zero unexplained). LS = 19/30 exact
+with all 11 divergers cornered (9 print/threshold + 2 tiny volume), worst 4.0% — its documented residual class.
+Pillar-2 per-variant pass rate now DOCUMENTED for NE/CS/LS on the full 10-column set (SN was the ~70k coverage
+sweep). Ledgers: /tmp/pillar2_{NE,CS,LS}.csv (regenerate via LEDGER=… ledger_fia.jl <sample> <V> none). Floor
+38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
