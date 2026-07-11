@@ -8,8 +8,25 @@
 #   regime ∈ {thinbba, thinbta, thindbh}  (default thinbba)  — cycle-2 thin, universal (scales to stand).
 
 using FVSjl
-const DB = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
+import SQLite, DBInterface
+# The 70 GB master's STAND_CN columns are UNINDEXED, so every per-stand DSNin query full-scans the 2.2M/8M-row
+# tables (~10 min/stand for live AND jl). Like ledger_fia.jl, build a SMALL INDEXED sub-DB of exactly the
+# sample stands once (C-speed ATTACH+CREATE TABLE AS SELECT), then run both engines against that (~100× faster).
+# Override the master with FIA_DB (e.g. a pre-built sub-DB); set FIA_NOSUBDB=1 to query the master directly.
+const MASTER = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
 const BIN = Dict("SN"=>"/tmp/FVSsn_new","NE"=>"/tmp/FVSne_new","CS"=>"/tmp/FVScs_new","LS"=>"/tmp/FVSls_new")
+
+# Build a temp indexed sub-DB from the master for exactly `cns` (C-speed; master never modified).
+function build_subdb(cns, out)
+    inlist = join(["'" * replace(s,"'"=>"''") * "'" for s in cns], ",")
+    isfile(out) && rm(out)
+    dst = SQLite.DB(out); DBInterface.execute(dst, "ATTACH DATABASE '$MASTER' AS m")
+    for tbl in ("FVS_STANDINIT_COND","FVS_TREEINIT_COND")
+        DBInterface.execute(dst, "CREATE TABLE $tbl AS SELECT * FROM m.$tbl WHERE STAND_CN IN ($inlist)")
+        DBInterface.execute(dst, "CREATE INDEX ix_$(tbl)_cn ON $tbl(STAND_CN)")
+    end
+    DBInterface.execute(dst, "DETACH DATABASE m"); SQLite.close(dst)
+end
 const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates())
 
 # Regime keyword blocks. Scheduled by CYCLE (field 1 = 2 ⇒ cycle 2, aligns across stands regardless of
@@ -29,12 +46,12 @@ regime_block(r) =
                       kwrec("SALVAGE", "3.0", "0.0", "999.0", "0.9") * "\nEnd" :         # salvage 90% of fire-killed cyc3
                      kwrec("THINBBA", "2.0", "40.0")                  # thin from below to residual BA 40 (default)
 
-keytext(cn, regime) = """
+keytext(cn, db, regime) = """
 STDIDENT
 $cn
 DATABASE
 DSNin
-$DB
+$db
 StandSQL
 SELECT * FROM FVS_STANDINIT_COND WHERE STAND_CN = '%StandID%'
 EndSQL
@@ -61,8 +78,8 @@ function parse_sum(text)
     rows
 end
 
-function run_live(bin, cn, regime, dir)
-    key = joinpath(dir, "s.key"); write(key, keytext(cn, regime))
+function run_live(bin, cn, db, regime, dir)
+    key = joinpath(dir, "s.key"); write(key, keytext(cn, db, regime))
     for f in ("s.sum","s.out"); fp=joinpath(dir,f); isfile(fp) && rm(fp); end
     try; run(pipeline(`$bin --keywordfile=$key`; stdout=devnull, stderr=devnull)); catch; end
     sp = joinpath(dir,"s.sum"); isfile(sp) ? read(sp,String) : ""
@@ -71,16 +88,24 @@ end
 function main(listfile, v, regime)
     bin = BIN[v]; var = VAR[v]; dir = mktempdir()
     stands = [split(strip(l), '\t')[1] for l in eachline(listfile) if !isempty(strip(l))]
+    # Build one indexed sub-DB for the whole sample (unless FIA_NOSUBDB=1 or FIA_DB already points at a sub-DB).
+    db = MASTER
+    if get(ENV,"FIA_NOSUBDB","") != "1" && !isempty(stands)
+        db = joinpath(dir, "sub.db")
+        print(stderr, "building sub-DB for $(length(stands)) stands ... "); flush(stderr)
+        build_subdb(stands, db)
+        println(stderr, "ok"); flush(stderr)
+    end
     n_run=0; n_ok=0; n_pass=0; n_thinned=0; failures=String[]
     worst = Tuple{Float64,String}[]
     fired_pass=0; fired_fail=0; noop_pass=0; noop_fail=0   # split pass rate by whether the thin FIRED
     for cn in stands
         n_run += 1
         print(stderr, "[$n_run/$(length(stands))] $cn live..."); flush(stderr)
-        live = run_live(bin, cn, regime, dir)
+        live = run_live(bin, cn, db, regime, dir)
         print(stderr, isempty(live) ? "NOSUM " : "ok jl..."); flush(stderr)
         isempty(live) && (println(stderr); continue)
-        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, regime))
+        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, db, regime))
         jlout = try FVSjl.run_keyfile(keyf; variant=var) catch e; println(stderr, "JLERR:$e"); ""; end
         println(stderr, isempty(jlout) ? "nojl" : "ok"); flush(stderr)
         isempty(jlout) && continue

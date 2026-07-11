@@ -1920,3 +1920,26 @@ stands, and my earlier "patched oracle validates the crash stands" framing (43t 
 in FVS_SOURCE_BUGS.md. UNCHANGED and correct: the live_crash dig_class = honest coverage accounting of FVS-UB
 stands the shipping oracle crashes on; FVSjl projects them. Patched-oracle validation is PARKED until a complete
 (multi-site) guard set exists. Floor 38527/143/0 untouched (docs only).
+
+### SLICE 43w — PILLAR 3 opened: THINBBA management differential on 13 real SN stands (faithful; ULP-cornered)
+First documented **management-scenario** slice (pillars 1/2/4 were well underway; pillar 3 was untouched). Ran the
+existing `manage_fia.jl` THINBBA regime (thin-from-below to residual BA 40 at cycle 2, 5-cycle projection) live-FVS
+vs FVSjl on the 30-stand SN sample (first 15). Result: 13 both-sum (2 live-NOSUM), 5 thin-fired. **thin NO-OP:
+7/8 bit-exact** (= the Pillar-2 growth rate; the 1 fail = CN 1898789491290487, TPA bit-exact all cycles, BA/SDI/QMD
+drift ≤3.4% from 2040 = pure DGSCOR growth-ULP compounding, the accepted class). **thin FIRED: 0/5 "bit-exact" but
+all ULP-cornered** — both-sides-traced two fired stands with a per-cycle side-by-side (`diff_one.jl`):
+  • CN 157873023010854: **thin cycle (2000) BIT-EXACT** (TPA 324→293/293, BA 81→45/45) — the thin removes exactly
+    the same trees. Divergence is a single ±1-unit blip at 2005 (first post-thin growth cycle: BA 54/53, TopHt 71/72)
+    that RECONVERGES by 2010 (62/62, 99/99, 88/88 bit-exact). TPA bit-exact every cycle.
+  • CN 158073892010854: a pre-thin growth-ULP (SDI 271/272 at 1982, TPA+BA bit-exact ⇒ sub-display QMD/diameter drift)
+    tips ONE near-tie tree across the residual-BA cutoff ⇒ ±1 TPA AT the thin (1987: 158/157), then TPA reconverges
+    (155/155, 153/153, 150/150). A count-straddle at the thin's BA threshold, driven by upstream growth-ULP.
+VERDICT: THINBBA thin SELECTION is FAITHFUL (same residual-BA target + ordering; thin cycle bit-exact or ±1-tree
+threshold straddle); every divergence is the SAME growth-ULP → threshold-count-straddle primitive already cornered
+for natural self-thinning (VARMRT percentile near-tie, slices 43l-43s), now confirmed UNDER ACTIVE MANAGEMENT. No
+new bug; magnitudes ≤3.4%, TPA within ±1. Pillar-3 THINBBA = bit-exact-or-cornered on this sample.
+HARNESS FIX (the enabler): `manage_fia.jl` queried the 70 GB master directly, whose STAND_CN columns are UNINDEXED
+⇒ every per-stand DSNin full-scanned the 2.2M/8M-row tables (~10 min/stand; a 30-stand run never finished). Mirrored
+`ledger_fia.jl`: build one small INDEXED sub-DB of the sample stands once (C-speed ATTACH+CREATE TABLE AS SELECT),
+run both engines against it — 15 stands now finish in ~2 min. Added `diff_one.jl` (per-cycle live-vs-jl dump for a
+single stand). Master never modified. Floor 38527/143/0 untouched (test/harness/ + docs only; NO src/ change).
