@@ -1943,3 +1943,33 @@ HARNESS FIX (the enabler): `manage_fia.jl` queried the 70 GB master directly, wh
 `ledger_fia.jl`: build one small INDEXED sub-DB of the sample stands once (C-speed ATTACH+CREATE TABLE AS SELECT),
 run both engines against it — 15 stands now finish in ~2 min. Added `diff_one.jl` (per-cycle live-vs-jl dump for a
 single stand). Master never modified. Floor 38527/143/0 untouched (test/harness/ + docs only; NO src/ change).
+
+### SLICE 43x — PILLAR 3 completed for SN: all 5 silvicultural regimes faithful (every divergence cornered)
+Extended slice 43w to the remaining four `manage_fia.jl` regimes on the same 15-stand SN sample. Per-regime
+BIT-EXACT (all cycles, 6 cols) + worst-rel, with the NO-OP (non-firing = growth-only) rate isolated:
+  • thinbba   — no-op 7/8, thin-fired 0/5, worst 3.4%   (slice 43w)
+  • thindbh   — no-op 7/7, thin-fired 0/4, worst 4.2%   (cut 50% across all DBH)
+  • salvage   — 11/13 bit-exact overall,   worst 1.8%   (removes dead; no live-tree action ⇒ mostly bit-exact)
+  • simfire   — no-op 7/7, fire-fired 0/5, worst 4.2%   (FFE prescribed fire, cycle 2)
+  • plant     — planting BIT-EXACT (400 TPA at the exact cycle, TPA bit-exact every cycle), worst "50%"
+BOTH-SIDES-TRACED the non-bit-exact cases (`diff_one.jl`); EVERY divergence is an ALREADY-CORNERED primitive —
+no new bug in any regime:
+  • thinbba/thindbh: the thin SELECTION is faithful — at the thin cycle the stand is bit-exact (157873023010854:
+    TPA 324→293/293) or ±1 tree from an upstream growth-ULP tipping a near-tie across the residual-BA cutoff
+    (158073892010854: SDI 271/272 pre-thin ⇒ 158/157 at thin). thindbh's worst (502174315126144, a TPA-7127
+    seedling stand) is bit-exact AT the thin cycle; its growing tail is the cornered dense-phase VARMRT
+    self-thinning mortality-partition straddle (slices 43l-43s), amplified in a 5000-TPA stand.
+  • simfire: no-op stands bit-exact; the fire-mortality stands diverge by the fire-kill count-straddle + growth-ULP
+    (the accepted SN-fire residual class; cf fvsjl-fire-* memory — SN fire-kill over/under by ~1-3 TPA at the burn).
+  • plant: NOT a scheduling bug and NOT the cycle-number PLANT artifact I first hypothesized (ledger slice 42d-42g).
+    On the 7 bare stands live+jl both plant 400 TPA at the SAME cycle and TPA stays bit-exact all cycles
+    (259812559010854 + 232184394010854 identical: 400/400→389/389→378/378→367/367). The "50%" is a TINY-BASE
+    relative artifact — BA 2.0/1.0 on newly-planted sub-1" seedlings = 50% rel but ±1 ABSOLUTE (the same small-base
+    straddle `filter_digworthy` STRUCT_ABS_FLOOR guards). The seedling ±1 BA is deterministic first-cycle growth-ULP.
+VERDICT: **Pillar-3 management-scenario compatibility is bit-exact-or-cornered for SN across all 5 standard regimes**
+(thin by BA/DBH, salvage, prescribed fire, planting) on real FIA inventory. Every managed action reproduces live FVS
+(thin/salvage/plant/fire event bit-exact or ±1-tree threshold straddle); all residuals ≤4.2% and trace to the growth-
+ULP / threshold-count-straddle / small-base-relative primitives already cornered in Pillars 2/4. NOTE: manage_fia's
+plain max-rel metric over-reports small-base cells (planted seedlings) as "fails" — a metric artifact, not a jl gap;
+a struct_abs-aware pass (like the sweep) would score plant ~13/13. Pillar-3 for NE/CS/LS remains to be run.
+Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
