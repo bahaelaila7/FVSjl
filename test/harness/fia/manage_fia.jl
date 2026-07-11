@@ -36,17 +36,21 @@ const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.Cent
 # boundaries or the values scramble. kwrec() enforces that: keyword left-justified in 10, each field
 # right-justified in 10.
 kwrec(kw, fields...) = rpad(kw, 10) * join(lpad(string(f), 10) for f in fields)
-regime_block(r) =
+# PLANT must be scheduled by a CALENDAR YEAR at a cycle boundary (plantyr), NOT a cycle number ("2.0"): the
+# cycle-number→age scheduler path has a jl residual (audit slice 42d-42g) that mis-ages the planted trees ⇒
+# wrong ESSUBH initial height ⇒ the eastern (NC-128) variants show a huge PLANT divergence that is a HARNESS
+# ARTIFACT, not a jl gap. `plantyr` (INV_YEAR+period, passed from main) is the faithful form. plantyr=0 ⇒ "2.0".
+regime_block(r, plantyr=0) =
     r == "thinbta" ? kwrec("THINBTA", "2.0", "40.0") :               # thin from above to residual BA 40
     r == "thindbh" ? kwrec("THINDBH", "2.0", "0.0", "99.0", "0.5") : # cut 50% across all DBH
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\nEnd" : # prescribed fire cyc2 (FFE)
-    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", "2.0", "3", "400") * "\nEnd" :          # plant sp3 400tpa cyc2 (ESTAB/regen)
+    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3", "400") * "\nEnd" : # plant sp3 400tpa (ESTAB/regen)
     r == "salvage" ? kwrec("SALVAGE", "2.0", "0.0", "999.0", "0.9") :                   # salvage 90% of dead cyc2
     r == "firesalv" ? "FMIn\n" * kwrec("SIMFIRE", "2.0", "10.00", "1", "50.0") * "\n" *  # fire cyc2 kills, then
                       kwrec("SALVAGE", "3.0", "0.0", "999.0", "0.9") * "\nEnd" :         # salvage 90% of fire-killed cyc3
                      kwrec("THINBBA", "2.0", "40.0")                  # thin from below to residual BA 40 (default)
 
-keytext(cn, db, regime) = """
+keytext(cn, db, regime, plantyr=0) = """
 STDIDENT
 $cn
 DATABASE
@@ -60,7 +64,7 @@ SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'
 EndSQL
 END
 NUMCYCLE         5.0
-$(regime_block(regime))
+$(regime_block(regime, plantyr))
 ECHOSUM
 PROCESS
 STOP
@@ -78,8 +82,8 @@ function parse_sum(text)
     rows
 end
 
-function run_live(bin, cn, db, regime, dir)
-    key = joinpath(dir, "s.key"); write(key, keytext(cn, db, regime))
+function run_live(bin, cn, db, regime, dir, plantyr=0)
+    key = joinpath(dir, "s.key"); write(key, keytext(cn, db, regime, plantyr))
     for f in ("s.sum","s.out"); fp=joinpath(dir,f); isfile(fp) && rm(fp); end
     try; run(pipeline(`$bin --keywordfile=$key`; stdout=devnull, stderr=devnull)); catch; end
     sp = joinpath(dir,"s.sum"); isfile(sp) ? read(sp,String) : ""
@@ -96,16 +100,31 @@ function main(listfile, v, regime)
         build_subdb(stands, db)
         println(stderr, "ok"); flush(stderr)
     end
+    # Per-stand INV_YEAR so the PLANT regime schedules by a CALENDAR date at a cycle boundary (INV_YEAR+period,
+    # the faithful form — see regime_block). period=10 lands on a cycle boundary for both 5-yr and 10-yr variants.
+    period = 10
+    invyr = Dict{String,Int}()
+    if regime == "plant"
+        let d = SQLite.DB(db)
+            for r in DBInterface.execute(d, "SELECT STAND_CN, INV_YEAR FROM FVS_STANDINIT_COND")
+                (r[:STAND_CN] === missing || r[:INV_YEAR] === missing) && continue
+                invyr[String(r[:STAND_CN])] = Int(r[:INV_YEAR])
+            end
+            SQLite.close(d)
+        end
+    end
+    plantyr_of(cn) = (regime == "plant" && haskey(invyr, cn)) ? invyr[cn] + period : 0
     n_run=0; n_ok=0; n_pass=0; n_thinned=0; failures=String[]
     worst = Tuple{Float64,String}[]
     fired_pass=0; fired_fail=0; noop_pass=0; noop_fail=0   # split pass rate by whether the thin FIRED
     for cn in stands
         n_run += 1
+        py = plantyr_of(cn)
         print(stderr, "[$n_run/$(length(stands))] $cn live..."); flush(stderr)
-        live = run_live(bin, cn, db, regime, dir)
+        live = run_live(bin, cn, db, regime, dir, py)
         print(stderr, isempty(live) ? "NOSUM " : "ok jl..."); flush(stderr)
         isempty(live) && (println(stderr); continue)
-        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, db, regime))
+        keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, db, regime, py))
         jlout = try FVSjl.run_keyfile(keyf; variant=var) catch e; println(stderr, "JLERR:$e"); ""; end
         println(stderr, isempty(jlout) ? "nojl" : "ok"); flush(stderr)
         isempty(jlout) && continue

@@ -1998,3 +1998,26 @@ HEIGHT/SIZE and/or its first-cycle height growth diverges from live. TODO (next 
 default (esprt/plant height set) + NE small-tree height-growth over the planting cycle, both-sides; SN's PLANT is
 bit-exact at the plant cycle (TopHt 1/1) so this is NE-specific (or exposed by NE's 10-yr first-cycle growth).
 Recorded in docs/fia_flagged_plant_ne.txt. Floor 38527/143/0 untouched (test/harness/ runs + docs only; NO src/).
+  [RETRACTED by slice 43z — this was a HARNESS artifact, not a jl divergence. See 43z.]
+
+### SLICE 43z — CORRECTION: the eastern PLANT "divergence" was the cycle-number SCHEDULING artifact, NOT a bug
+Slice 43y flagged NE PLANT as a genuine divergence. That was WRONG — a GUESS ("both plant at the same cycle ⇒
+NOT the scheduling artifact") that I did not test against the faithful form. DOCTRINE VIOLATION corrected: the
+cycle-number→age path (ledger 42d-42g) mis-ages the planted trees EVEN WHEN both engines plant at the same cycle,
+because the ESSUBH initial height is age-derived — so the eastern (NC-128) variants show a huge PLANT divergence
+that is a HARNESS artifact of scheduling PLANT by a CYCLE NUMBER ("2.0") instead of a CALENDAR YEAR. ledger_fia.jl
+already schedules PLANT by `plantyr = INV_YEAR + period` for exactly this reason; manage_fia.jl did not.
+MEASURED (added the same plantyr scheduling to manage_fia.jl, re-ran plant on 15 stands/variant):
+  regime          cycle-number "2.0"         calendar-year plantyr
+  NE plant        0/15  worst 100%      →     11/15 bit-exact  worst 0.8%
+  CS plant        0/15  worst 87.5%     →     14/15 bit-exact  worst 0.1%
+  LS plant        0/15  worst 100%      →      8/15 bit-exact  worst 4.5%
+With the faithful calendar-year schedule ALL THREE eastern variants' PLANT is bit-exact-or-ULP (residuals ≤4.5%
+= the growth-ULP / LS dense-phase class already cornered). So NE PLANT is FAITHFUL; slice 43y's flag is RETRACTED
+and docs/fia_flagged_plant_ne.txt deleted. NE Pillar-3 is 5/5 regimes faithful (like SN). PILLAR-3 VERDICT stands:
+management-scenario compatibility is bit-exact-or-cornered for SN and NE across all 5 regimes.
+META-LESSON (doctrine #3/#6): I asserted a "genuine divergence" from a differential WITHOUT testing the faithful
+keyword form — the same class of error as the s32 prod=="01" lesson. A large %-divergence under a keyword is not a
+bug until the keyword is exercised the way FVS intends (here: PLANT by calendar year at a cycle boundary). Always
+reach for the known-faithful harness form (ledger_fia) before flagging. HARNESS FIX committed: manage_fia.jl now
+schedules PLANT by INV_YEAR+period (mirrors ledger_fia). Floor 38527/143/0 untouched (test/harness/ + docs only).
