@@ -8,3 +8,10 @@
 1093612541290487  # LS dense-phase TPA straddle
 1901267649290487  # LS dense-phase TPA straddle
 1901273492290487  # LS dense-phase TPA straddle
+# --- ultra-dense (5000-8000 TPA) seedling self-thinning tail (500-manifest Pillar-2 scale, slice 43af): the
+#     dense-phase SIGMAR tripling-spread → diameter-distribution ULP (BA/SDI diverge at bit-exact TPA) amplifies
+#     through the self-thinning crash to hundreds of TPA (20-32% rel). Both-sides-traced: divergence STARTS as a
+#     BA/SDI diameter-spread diff while TPA is still bit-exact, then the ~5000→~800 TPA crash magnifies it; one
+#     reconverges (1695983931290487: 3107/3123 by 2063), one stays diverged. Same accepted LS dense-phase class.
+1536019697290487  # LS ultra-dense self-thinning (TPA 5781; 31.7%, stays diverged)
+1695983931290487  # LS ultra-dense self-thinning (TPA 7835; 21.9%, reconverges by 2063)

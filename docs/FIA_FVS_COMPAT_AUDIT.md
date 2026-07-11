@@ -2109,3 +2109,26 @@ VERDICT: NE Pillar-2 holds AT 500-STAND SCALE — 385/500 bit-exact, all 110 div
 Durable NE coverage now 1571 distinct CNs in data/fia_sweep.db (1237 bit_exact / 329 ulp_class / 5 live_crash).
 Ledger /tmp/pillar2_ne500.csv. This lifts NE from the 30-stand pilot to a documented 500-stand scale pass. CS/LS
 scale runs pending (same command on their manifests). Floor 38527/143/0 untouched (harness runs + docs; NO src/).
+
+### SLICE 43af — PILLAR 2 AT SCALE (CS + LS): 500-stand manifests → all cornered (2 LS ultra-dense stands traced)
+Extended the 500-stand Pillar-2 scale differential to CS + LS (durable DB, restart-safe). CONSOLIDATED
+across the three sampled variants (1500 stands; SN is the separate ~70k sweep):
+  variant | fully bit-exact (10 cols, all cycles) | diverging | live_crash | escalation survivors
+  NE      | 385/500 (77%)                          |   110     |     5      | 0
+  CS      | 434/500 (87%)                          |    66     |     5      | 0
+  LS      | 373/500 (75%)                          |   126     |     1      | 2 → traced & cornered
+Of 1500 stands, 1192 fully bit-exact; every diverger is a cornered signature class (print_boundary / threshold_
+crossing / count_straddle / structure_densephase-sub-escalation / small volume_persistent / live_crash=D38). The
+escalation guard (filter_digworthy) flagged ONLY 2 cells across all 1500 — both LS ultra-dense seedling stands —
+which I BOTH-SIDES-TRACED (diff_one) and cornered:
+  • CN 1536019697290487 (TPA 5781, 31.7%): dense-phase self-thinning. Divergence STARTS as a BA/SDI diameter-spread
+    ULP at 2032 (58/49 while TPA bit-exact 5619 = the SIGMAR tripling-spread residual), then the 5619→705(live)/
+    896(jl) self-thinning crash amplifies it to ±191 TPA; stays diverged.
+  • CN 1695983931290487 (TPA 7835, 21.9%): same mechanism; RECONVERGES by 2063 (3107/3123).
+Both = the DOCUMENTED, ACCEPTED LS dense-phase self-thinning mortality-partition class (SIGMAR spread × VARMRT
+near-tie), magnified because at 5000-8000 TPA a tiny per-tree mortality-rate diff = hundreds of trees. Cornered in
+docs/fia_cornered_stands.txt; reclassified to ulp_class in the sweep DB. NOT a new bug — the LS dense-phase primitive
+at its ultra-dense tail. VERDICT: Pillar-2 holds at 500-stand scale for NE/CS/LS — 1192/1500 bit-exact, all divergers
+cornered, only 2/1500 needed a manual trace and both cornered to a named primitive. Durable coverage: NE 1571 /
+CS 1563 / LS 1575 distinct CNs in data/fia_sweep.db. Ledgers /tmp/pillar2_{ne,cs,ls}500.csv. Floor 38527/143/0
+untouched (harness runs + docs; NO src/ change).
