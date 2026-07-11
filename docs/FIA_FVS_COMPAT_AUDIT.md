@@ -2090,3 +2090,22 @@ Each manifest spreads across 93-170 ecoregions — the axis that drives the DG E
 the ledger_fia (Pillar-2) / manage_fia (Pillar-3) runners that consume a manifest. This gives Pillars 2/3 a
 documented, materially-larger, reproducible sample to scale onto (the 30-stand sample runs in slices 43w-43ac were
 the pilot; the 500-stand manifests are the scale target). Floor 38527/143/0 untouched (test/harness/ + docs; NO src/).
+
+### SLICE 43ae — PILLAR 2 AT SCALE (NE): 500-stand manifest projection differential → durable DB, all cornered
+Ran the Pillar-2 (no-management) 10-column differential over the full NE 500-stand manifest (slice 43ad),
+per-stand outcomes upserted to the durable sweep DB (data/fia_sweep.db, SKIP_DONE, restart-safe). RESULT:
+385/500 FULLY BIT-EXACT (all 10 .sum cols, every cycle) = 77%; 110 diverging; 5 live_crash (D38 FVS-UB, jl
+projects). Divergence signature breakdown (110): 89 print_boundary + 10 threshold_crossing + 4 count_straddle
++ 6 structure_densephase + 1 volume_persistent. ESCALATION FILTER (filter_digworthy) = EMPTY — NOTHING needs a
+manual trace; every diverger is an accepted cornered class:
+  • print_boundary (89) = integer print-boundary ±1 last-digit ULP.
+  • threshold_crossing (10) = merch/board step-function boundary (worst overall = 14.3% SCuFt, a board-volume step).
+  • count_straddle (4) = ±1-tree mortality near-tie straddle.
+  • structure_densephase (6) = ALL sub-escalation: 3 are worst_col=TopHt (the cornered AVHT40 tie-break, excluded
+    from escalation) at 4.8/9.4/5.3%; 3 are worst_col=TPA at 2.4/2.7/3.3% (small dense-phase straddles, <<15% floor
+    + struct_abs check). None meet the escalation criteria (structure col & ≥15% & abs≥10).
+  • volume_persistent (1) = volume-only, sub-floor.
+VERDICT: NE Pillar-2 holds AT 500-STAND SCALE — 385/500 bit-exact, all 110 divergers cornered, ZERO unexplained.
+Durable NE coverage now 1571 distinct CNs in data/fia_sweep.db (1237 bit_exact / 329 ulp_class / 5 live_crash).
+Ledger /tmp/pillar2_ne500.csv. This lifts NE from the 30-stand pilot to a documented 500-stand scale pass. CS/LS
+scale runs pending (same command on their manifests). Floor 38527/143/0 untouched (harness runs + docs; NO src/).
