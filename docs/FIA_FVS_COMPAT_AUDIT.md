@@ -2074,3 +2074,19 @@ with all 11 divergers cornered (9 print/threshold + 2 tiny volume), worst 4.0% �
 Pillar-2 per-variant pass rate now DOCUMENTED for NE/CS/LS on the full 10-column set (SN was the ~70k coverage
 sweep). Ledgers: /tmp/pillar2_{NE,CS,LS}.csv (regenerate via LEDGER=… ledger_fia.jl <sample> <V> none). Floor
 38527/143/0 untouched (test/harness/ runs + docs only; NO src/ change).
+
+### SLICE 43ad — PILLAR 1 deliverable: 500-stand stratified sample MANIFESTS per variant (2000 total)
+Pillar-1 done-state = "a per-variant plot manifest (plot IDs + strata) + an extraction script that regenerates it;
+materially larger than the 162-stand baseline." Landed it: `test/harness/fia/manifests/<v>_manifest.txt`, 500
+stands/variant (2000 total = 12× the 162 baseline), deterministic stratified sample (order by ECOREGION,LOCATION,
+STAND_CN then even-stride — no RNG, fully reproducible via `extract_sample.jl <V> 500 …`). Strata coverage:
+  variant | population | sampled | distinct ECOREGION | distinct LOCATION
+  SN      |   637,641  |   500   |        170         |       76
+  NE      |   178,149  |   500   |        111         |        6
+  CS      |   255,952  |   500   |         93         |        3
+  LS      |   400,649  |   500   |         96         |        8
+Each manifest spreads across 93-170 ecoregions — the axis that drives the DG EUT coefficients + species/geography
+(the axis that surfaced the eco_unit bug in modernization). `manifests/README.md` documents the strata + method +
+the ledger_fia (Pillar-2) / manage_fia (Pillar-3) runners that consume a manifest. This gives Pillars 2/3 a
+documented, materially-larger, reproducible sample to scale onto (the 30-stand sample runs in slices 43w-43ac were
+the pilot; the 500-stand manifests are the scale target). Floor 38527/143/0 untouched (test/harness/ + docs; NO src/).
