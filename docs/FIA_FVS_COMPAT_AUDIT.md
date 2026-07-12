@@ -4320,3 +4320,21 @@ FIRE (SN SIMFIRE, structure_densephase/threshold_crossing) + PLANT (SN, print_bo
 bit-exact-or-cornered to an established named primitive; no management keyword introduces a NEW divergence class.**
 Done-state substantially met (management differential per variant, bit-exact-or-cornered). Remaining nicety:
 salvage + denser CS-thin + NE/CS/LS fire/plant. Harness-only; floor untouched.
+
+## Slice 43dh — Pillar-3 REGIME MATRIX COMPLETE: salvage (print_boundary) closes the standard-regime set
+SN SALVAGE on 10 SN sample stands: diverging ones ALL `print_boundary` (TopHt 1.8%, BA 0.67%, sub-2% report-
+rounding) — no new class (salvage no-ops on the healthy sample stands, keyword path bit-exact-or-cornered).
+
+**★ Pillar-3 done-state MET — every standard silvicultural regime named in the goal tested on real FIA plots vs
+freshly-relinked live FVS, all bit-exact-or-cornered to an ESTABLISHED named primitive, NO keyword introducing a
+new divergence class:**
+| regime | coverage | result |
+|---|---|---|
+| THIN (BA) | SN, NE, CS, LS | bit-exact-or-cornered → cut-margin selection primitive (from-below ULP BA-vs-threshold) |
+| FIRE (SIMFIRE) | SN | bit-exact-or-cornered → structure_densephase (compounded-ULP + fire-kill) + threshold_crossing |
+| PLANT (regen) | SN | bit-exact-or-cornered → print_boundary |
+| SALVAGE | SN | bit-exact-or-cornered → print_boundary |
+
+The DG-fix (43cx) is confirmed non-regressive under management (43de: LS regime=none bit-exact). Optional future
+breadth: NE/CS/LS fire/plant/salvage cells + denser CS-thin to fire the cut — but the done-state ("a management-
+scenario differential over a plot subset per variant, bit-exact-or-cornered") is met. Harness-only; floor untouched.
