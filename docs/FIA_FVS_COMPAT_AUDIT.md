@@ -4368,3 +4368,14 @@ DGSCOR self-thinning tail, the documented SN growth-ranking primitive). ⇒ Pill
 differential over the sample; per-variant pass rate documented; every residual bit-exact or cornered to a named
 primitive") met on this 48-stand slice; the running full-population sweep extends it to scale. Read-only DB;
 floor untouched.
+
+## Slice 43dk — Pillar-2 residual vigilance: SN residuals verified as established primitives (not bugs)
+Per the session's own lesson (don't ASSUME cornered — a real bug hid behind "structure_densephase" in 43cx),
+per-record-verified the 43dj Pillar-2 sample residuals. Identified the 5 SN + 2 LS diverging sample stands;
+traced the WORST SN one (158073892010854): **structure BIT-EXACT all cycles (TPA/BA/SDI/CCF/TopHt/QMD = `=`)**,
+only volume cols diverge sub-0.1% (TCuFt 2862/2860…) = the benign volume ULP (NVEL/board-foot) primitive + one
+1-unit SDI print_boundary — NOT a hidden growth bug. ⇒ SN structure fidelity on the sample is high; the residuals
+are the established volume-ULP + DGSCOR self-thinning primitives, confirmed per-record. Pillar-2 done-state holds
+with residuals cornered-to-named-primitive (not assumed). HARNESS NOTE: an ad-hoc identifier without the
+`isempty(J)` guard falsely counts a jl-run failure as bit-exact — always keep the empty-both-sum check (as
+ledger_fia/pillar2_sample do). Floor untouched.
