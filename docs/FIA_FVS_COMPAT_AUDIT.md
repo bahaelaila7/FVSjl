@@ -4287,3 +4287,15 @@ CS subset is needed to exercise the cut). **Pillar-3 running tally:** SN thin = 
 12-13); NE thin = bit-exact-or-cornered (43dc, same cut-margin primitive); CS growth-under-mgmt = bit-exact. Next
 Pillar-3 increments: LS thinbba + denser CS stands (to fire the cut) + non-thin regimes (salvage/plant/simfire)
 across variants. Harness-only; floor untouched.
+
+## Slice 43de — Pillar-3: LS THINBBA cornered + DG-fix confirmed non-regressive under no-management
+LS THINBBA on 12 LS sample stands: thin NO-OP 7/8 bit-exact, thin-FIRED 0/4 bit-exact (worst 9.7%). Traced the
+worst (54958761010661) BOTH regimes: **regime=none BIT-EXACT all 6 cycles** ⇒ the 43cx DG-fix does NOT regress
+LS no-management projection (important regression check on the fix); **regime=thinbba** bit-exact pre-thin, then
+at the cut BA MATCHES but TPA diverges (2033 TPA 1429/1433, compounding to 2053 465/420) = the **thin cut-margin
+selection primitive** (ULP-level BA-vs-40 in the from-below cut stops at a slightly different small tree ⇒ ±few
+TPA at the margin ⇒ residual size distribution differs ⇒ compounds), the SAME primitive SN (slices 12-13) and NE
+(43dc) exhibit. ⇒ **Pillar-3 THINNING now uniform + bit-exact-or-cornered across all 4 variants:** growth-under-
+management bit-exact (modulo the accepted dense-phase compounded-ULP, e.g. the 1/8 NO-OP LS divergence), thin-
+fired cornered to the cut-margin selection primitive (named ULP-class). Remaining Pillar-3 increments: non-thin
+regimes (salvage/plant/simfire) on real plots. Harness-only; floor untouched.
