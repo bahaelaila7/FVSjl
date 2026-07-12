@@ -1,2 +1,3 @@
 variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature
-NE,none,207147469020004,6,false,TPA|TopHt|TCuFt|MCuFt|SCuFt|BdFt,TCuFt,2053,100.0,1.5395106646e10,0.408,100.0,true,false,volume_persistent,1.0,17245.0
+NE,none,207147469020004,6,false,TPA|TopHt|TCuFt|MCuFt|SCuFt|BdFt,TCuFt,2053,100.0,1.5395106646e10,0.408,100.0,true,false,r9clark_domain_zero_jlgap,1.0,17245.0
+LS,none,1899605764290487,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2074,17.5,2412.0,17.5,14.813,false,false,structure_densephase,113.0,263.0

@@ -4468,3 +4468,17 @@ DIRECTION: a BA≈195 / QMD-16 stand cannot have 0 volume ⇒ live FVS is the im
 VERDICT DEFERRED: doctrine #3 forbids an FVS-bug verdict without the FVS-side vollib trace (which volume routine
 zeroes, and why at 2053) + an independent check that jl's ~15284 is correct. Left in the dig queue for a
 dedicated volume-dig session; NOT cornered (no rushed verdict). Sweep resumed meanwhile.
+
+### 43do follow-up — VERDICT RESOLVED: jl r9clark port gap (NVEL out-of-domain volume-zeroing), NOT an FVS bug
+Instrumented compute_volumes_ne! (DBGVOL dump, removed after). The stand's heights are EXTREME but jl
+reproduces live BIT-EXACTLY every cycle (TopHt 109/109 @2023 QMD3.1 → 258/258 @2053 → 295/295 @2063; the NE
+NC-128 height model's behaviour on this 900-TPA dense-regen stand — 0.7" seedlings reach ~351 ft, 22" trees
+~293 ft). So the height anomaly is FAITHFUL (bit-exact), not the divergence. Volume is bit-exact 2013-2043
+(both compute it at 109-214 ft heights), then at 2053 (QMD crosses 12→16, TopHt 214→258) **live NVEL Clark
+returns 0 (out-of-domain error for the extreme height:diameter geometry) while jl's r9clark_cubic extrapolates
+to a nonzero value**. ⇒ VERDICT: a **jl r9clark port gap** — jl must replicate NVEL's error/zero condition
+(when the Clark profile goes invalid for extreme geometry) and return 0 to match live. This is jl-side FIXABLE
+(not FVS-bug, not a primitive). Deferred to a dedicated slice because the fix needs the r9clark_fvsMod.f
+error-path traced (which check zeroes: negative taper diameter / form-param domain / a returned errFlg) AND
+is high-blast-radius (r9clark_vol.jl is shared NE+CS volume) so it requires full-suite + multi-stand
+validation, not a rushed edit. Queue signature updated to `r9clark_domain_zero (jl port gap, fix pending)`.
