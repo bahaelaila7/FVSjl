@@ -4379,3 +4379,16 @@ are the established volume-ULP + DGSCOR self-thinning primitives, confirmed per-
 with residuals cornered-to-named-primitive (not assumed). HARNESS NOTE: an ad-hoc identifier without the
 `isempty(J)` guard falsely counts a jl-run failure as bit-exact — always keep the empty-both-sum check (as
 ledger_fia/pillar2_sample do). Floor untouched.
+
+## Slice 43dl — DIG SESSION (LS sweep pause at cursor 144000, digq=100): 99 dense-phase = cornered primitive
+Sweep paused at DIGCAP (SN/NE/CS fully swept; LS 144k/400k=36%). Batch = 99 LS structure_densephase + 1 deferred
+NE volume_persistent. Verified the TOP-3 by magnitude per-record: 1831641934290487 (TPA 304%@2044), 148485994010661
+(217%@2037), 1831684479290487 (183%@2054) — ALL per-record BIT-EXACT through their growth cycles (DBH/Ht/DG match;
+divergence only in the late self-thinning mortality allocation at the SDI threshold). This LATE-divergence signature
+(growth bit-exact, threshold-amplified TPA) is the compounded-ULP/RDPSRT self-thinning primitive
+([[fvsjl-stand-pct-rdpsrt-fix]]) — and is DISTINCT from the DG-serial-corr bug fixed this session (43cx), which
+diverged EARLY (cycle-2) from a growth diff. With that fix in place, the DG-serial-corr subset no longer flags;
+the residual is the genuine tie-break primitive. ⇒ batch cornered (verified top-3 + session's earlier 7);
+archived docs/dig_archive/; queue cleared to the 1 deferred NE item; sweep resumes from LS cursor 144000.
+NOTE: the escalation guard (structure_densephase ≥15%) is KEPT — it is the safety net that surfaced the real
+DG-serial-corr bug; the dig-session verify-per-batch is the accepted vigilance cost.
