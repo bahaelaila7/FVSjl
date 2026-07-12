@@ -44,14 +44,17 @@ STOP
 
 # parse the 10 reporting fields (.sum cols 3-12) keyed by year. Robust to fixed-width column abutment by
 # reading the leading 4-digit year, then splitting the remainder on whitespace (cols 2-12 don't abut here).
+# FVS .sum is FIXED-WIDTH (sumout.f FMT 9014, eastern SN/NE/CS/LS); split() misparses on field overflow
+# (CCF≥1000 abuts SDI). Parse fixed cols: TPA[9:14] BA[15:18] SDI[19:23] CCF[24:27] TopHt[28:31]
+# QMD[32:36] TCuFt[37:42] MCuFt[43:48] SCuFt[49:54] BdFt[55:60].
 function parse_sum10(text)
     rows = Tuple{Int,Vector{Float64}}[]
+    cols = ((9,14),(15,18),(19,23),(24,27),(28,31),(32,36),(37,42),(43,48),(49,54),(55,60))
     for ln in split(text, '\n')
-        s = strip(ln); length(s) < 4 && continue
-        y = tryparse(Int, s[1:4]); (y === nothing || y < 1000 || y > 3000) && continue
-        f = split(s); length(f) < 12 && continue
+        s = rstrip(ln); length(s) < 60 && continue
+        y = tryparse(Int, strip(s[1:4])); (y === nothing || y < 1000 || y > 3000) && continue
         vals = Float64[]; ok = true
-        for i in 3:12; v = tryparse(Float64, f[i]); v === nothing && (ok = false; break); push!(vals, v); end
+        for (a,b) in cols; v = tryparse(Float64, strip(s[a:b])); v === nothing && (ok = false; break); push!(vals, v); end
         ok && push!(rows, (y, vals))
     end
     rows

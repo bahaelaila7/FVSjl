@@ -67,14 +67,24 @@ PROCESS
 STOP
 """
 
+# The FVS .sum data row is FIXED-WIDTH (sumout.f FORMAT 9014, identical across the eastern
+# variants SN/NE/CS/LS): `2I4,I6,I4,I5,2I4,F5.1,9I6,...` ⇒ 1-indexed char columns
+#   year[1:4] age[5:8] TPA[9:14] BA[15:18] SDI[19:23] CCF[24:27] TopHt[28:31] QMD[32:36]
+#   TCuFt[37:42] MCuFt[43:48] SCuFt[49:54] BdFt[55:60].
+# A whitespace split() MISPARSES whenever a field fills its width and abuts its neighbour — notably
+# CCF (I4) hits 4 digits at ≥1000 and merges with the preceding SDI (I5), e.g. "  762"+"1019" → "7621019".
+# That shift fabricated multi-thousand-percent SDI/CCF/QMD "divergences" (and false structure_densephase
+# labels) whenever CCF straddled 1000 differently between live and jl. Parse by fixed columns instead.
+const _SUM10_COLS = ((9,14),(15,18),(19,23),(24,27),(28,31),(32,36),(37,42),(43,48),(49,54),(55,60))
 function parse_sum10(text)
     rows = Tuple{Int,Vector{Float64}}[]
     for ln in split(text, '\n')
-        s = strip(ln); length(s) < 4 && continue
-        y = tryparse(Int, s[1:4]); (y === nothing || y < 1000 || y > 3000) && continue
-        f = split(s); length(f) < 12 && continue
+        s = rstrip(ln); length(s) < 60 && continue          # leading cols are position-critical: rstrip only
+        y = tryparse(Int, strip(s[1:4])); (y === nothing || y < 1000 || y > 3000) && continue
         vals = Float64[]; ok = true
-        for i in 3:12; v = tryparse(Float64, f[i]); v === nothing && (ok=false; break); push!(vals, v); end
+        for (a,b) in _SUM10_COLS
+            v = tryparse(Float64, strip(s[a:b])); v === nothing && (ok=false; break); push!(vals, v)
+        end
         ok && push!(rows, (y, vals))
     end
     rows

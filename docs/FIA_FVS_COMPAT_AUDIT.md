@@ -3987,3 +3987,68 @@ No floor impact (dig-only).
   threshold_crossing (vol_mat&converges) | volume_persistent (vol_mat&!converges). No fallthrough ⇒ no spurious
   UNCLASSIFIED for the real fact-combos; the CS-sweep's 0-UNCLASSIFIED stream is a genuine property, not a masked gap.
 - **Verdict:** the entire Pillar-4 labeling pipeline is sound; no code change. One stale working-note claim corrected.
+
+## Slice 43co (2026-07-12) — ★ HARNESS BUG: `.sum` parser mis-read fixed-width overflow → FALSE divergences
+**Trigger.** User lowered DIGCAP 200→100; began the dig phase (queue=111). First target = the worst-magnitude
+`structure_densephase` outlier, SN 253699300010854 (metric said CCF struct%=5433, SDI 7.6 *million*).
+**Both-sides-trace ⇒ it is a MEASUREMENT bug, not an FVSjl divergence.** `parse_sum10` (and 7 sibling harness
+parsers) tokenized the FVS `.sum` with `split()` — a WHITESPACE split — but the `.sum` data row is FIXED-WIDTH
+(`sumout.f` FORMAT **9014**, byte-identical across SN/NE/CS/LS): `2I4,I6,I4,I5,2I4,F5.1,9I6,...`. CCF is `I4`
+directly after SDI `I5` with **no separator**, so when CCF reaches 4 digits (≥1000) it fills its field and abuts
+SDI: e.g. live `  762`+`1019` → `  7621019`, which `split()` reads as one token `7621019` and shifts every later
+column. When CCF straddles 1000 DIFFERENTLY between live and jl (live CCF 1003 overflows, jl CCF 996 does not),
+the two `.sum` rows tokenize into different columns ⇒ a fabricated SDI 7521003-vs-748 / CCF 5433% / QMD 4260-vs-19
+"divergence." Verified against the raw `.sum` with a column ruler (`.sweep_work/dig_rawsum.jl`): the TRUE values
+are SDI 752/748 (0.5%), CCF 1003/996 (0.7%), QMD 18.8/19.0 — an ordinary dense-stand straddle.
+**Impact.** Systematic: for every stand whose CCF (or a wide SDI/vol field) straddles a width boundary between
+live and jl, the parser inflated `max_rel_pct`/`struct_abs` and mis-drove `classify()` → FALSE `structure_densephase`
+labels that tripped the dig-worthy escalation (≥15% & real abs) → false dig-queue rows, and contaminated the
+headline `bit_exact` coverage counts. The `structure_densephase` cluster (dense stands = exactly the CCF≥1000
+population) was the most affected. NOTE: `crashscan_fia.jl` already carried a comment that "whitespace-split of the
+whole row is unreliable" — latent awareness of this exact bug, worked around only for year detection.
+**Fix (harness-only; floor untouched — the julia suite never runs these parsers).** Parse by FIXED CHARACTER
+COLUMNS: TPA[9:14] BA[15:18] SDI[19:23] CCF[24:27] TopHt[28:31] QMD[32:36] TCuFt[37:42] MCuFt[43:48] SCuFt[49:54]
+BdFt[55:60] (verified against the ruler). Applied to all 8: `ledger_fia.parse_sum10` (the sweep), `run_sweep`/
+`census_driver`/`validate_fia_cols`/`validate_fia10` (10-col), `validate_fia`/`manage_fia` (6-col), `signature.psum`
+(6-col). `diff_one` reuses `manage_fia`'s parser; `crashscan` reads only the year (already safe). A fixed-column
+parse can only REMOVE false divergence (bit-exact stands stay bit-exact), never add one.
+**Validation.** SN 253699300010854: fake 5433% CCF / 7.6M SDI → true <3% (dense straddle). Cross-variant clean
+(CS/NE parse correctly). GENUINE divergences unaffected — CS 351966617489998 (2034 TPA 35 vs 121, QMD 27.9 vs 15.0
+at CONSTANT BA/SDI/vol) and NE 381531994489998 (2026 TPA 117 vs 626, QMD 17.2 vs 7.4) are real self-thinning
+DISTRIBUTION divergences (jl retains more small trees); TPA is BEFORE the merge point so the old parser read it
+right and they were correctly flagged.
+**Re-check DONE** (`.sweep_work/recheck_digqueue.jl` → `digqueue_recheck.tsv`): reclassified all 111 queued stands
+with the fixed parser via the sweep's own `classify()`. **12 ARTIFACTS** (2 now bit_exact, 6 densephase→print_boundary/
+count_straddle/sub-threshold, 4 threshold_crossing <15%) + **99 GENUINE** (real dense self-thinning DISTRIBUTION
+divergences — the accepted `structure_densephase`/`count_straddle` primitive). Purged the 12 from
+`docs/fia_dig_queue.csv` (111→99; backup `.sweep_work/fia_dig_queue.prefix43co.bak`).
+**★ Stale-queue note:** one artifact was SN 220314124010854 — whose frozen-TopHt was a GENUINE Dunning SITE_INDEX
+bug already root-caused + FIXED (slice 43bp, fia_database.jl:157-164; TopHt bit-exact post-fix). The re-diff confirms
+it: TopHt bit-exact, whole stand ≤0.3% (print_boundary). So the frozen-TopHt is NOT a parser artifact — it was a real
+bug, already resolved. What the parser bug did was FALSELY RE-QUEUE this already-fixed stand: the buggy split() inflated
+its post-fix ±1-2 ULP CCF-overflow straddle back into a fake `structure_densephase`. Correct attribution: real bug
+(fixed) + parser bug (re-queued it). Now correctly clean under both fixes.
+**Next:** resume the sweep (`run_expand_loop.sh`, DIGCAP now 100) with the corrected parser; coverage `bit_exact`
+stats are trustworthy going forward. The 99 genuine remain for the normal dig treatment (corner to primitive or
+escalate a real bug). Not yet committed (harness + docs; awaiting user's push cadence).
+
+## Slice 43cp (2026-07-12) — dig the top-magnitude genuine stands (post-parser-fix); all ultra-young-dense
+Dug the 2 highest genuine outliers after the 43co parser fix (both SN, both AGE 3-5 seedling stands, SITE_INDEX
+MISSING ⇒ not a Dunning-code case):
+- **921837076290487** (struct_abs 8007, 82%): ultra-dense seedling (21784 TPA@QMD 1.5"). jl UNDER-thins ⇒
+  density itself spreads: 2035 BA 156/204, SDI 407/528, TCuFt 2330/3255 (~30-40%). This is the ultra-dense
+  self-thinning `structure_densephase` regime (RDPSRT tie-break sensitivity in tie-heavy seedling stands,
+  [[fvsjl-stand-pct-rdpsrt-fix]] / dense-underthin ±straddle) — density diverges (not a pure count-straddle),
+  consistent with the accepted primitive; NOT bit-exact, cornered pending a per-tree self-thinning confirm.
+- **257105833010854** (max_rel 600% on tiny-base TCuFt 7/49; real signal = TopHt): density matches ~3-5% every
+  cycle, but **jl TopHt runs ~30-40% HIGHER than live and GROWING** (2020 18/26, 2025 26/36, 2030 32/44). A
+  distinct **small-tree HEIGHT-GROWTH over-shoot** on an age-5 / 13264-TPA seedling stand — NOT self-thinning
+  (density preserved) and NOT Dunning (SI missing). Initially flagged as a height-growth lead; then TESTED for
+  systematicity by sampling 3 other young-dense SN genuine stands (1584316322290487, 226256815010854,
+  1263765856290487) — all show TopHt within 1-4% and in the OPPOSITE direction (jl ~1 unit LOWER). ⇒ the +30-40%
+  overshoot is **ISOLATED to 257105833010854, NOT a systematic height-growth bias** ⇒ DOWNGRADED to a single-stand
+  anomaly (likely a per-stand small-tree/site-derivation edge case amplified by the age-5/13k-TPA extreme), left
+  needs_dig but NOT a broad-model bug. (Refutes the "systematic htg" reading — measure-don't-guess.)
+Housekeeping: removed a 0-byte `/workspace/SQLITE_FIADB_ENTIRE.db` junk file I accidentally created via a
+wrong-CASE path (`SQLite.DB()` on a bad path creates an empty file); the real read-only 70GB
+`/workspace/SQLite_FIADB_ENTIRE.db` (May-9) was untouched.

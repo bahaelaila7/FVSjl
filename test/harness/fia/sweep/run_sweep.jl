@@ -25,13 +25,17 @@ ECHOSUM
 PROCESS
 STOP
 """
+# FVS .sum is FIXED-WIDTH (sumout.f FMT 9014, eastern SN/NE/CS/LS); split() misparses on field overflow
+# (CCF≥1000 abuts SDI). Parse fixed cols: TPA[9:14] BA[15:18] SDI[19:23] CCF[24:27] TopHt[28:31]
+# QMD[32:36] TCuFt[37:42] MCuFt[43:48] SCuFt[49:54] BdFt[55:60].
 function parse_sum(text)
     rows = Tuple{Int,Vector{Float64}}[]
+    cols = ((9,14),(15,18),(19,23),(24,27),(28,31),(32,36),(37,42),(43,48),(49,54),(55,60))
     for ln in split(text,'\n')
-        f = split(strip(ln)); length(f) < 12 && continue
-        y = tryparse(Int, f[1]); (y===nothing || y<1000 || y>3000) && continue
+        s = rstrip(ln); length(s) < 60 && continue
+        y = tryparse(Int, strip(s[1:4])); (y===nothing || y<1000 || y>3000) && continue
         vals = Float64[]; ok=true
-        for i in 3:12; v=tryparse(Float64,f[i]); v===nothing && (ok=false;break); push!(vals,v); end
+        for (a,b) in cols; v=tryparse(Float64,strip(s[a:b])); v===nothing && (ok=false;break); push!(vals,v); end
         ok && length(vals)==10 && push!(rows,(y,vals))
     end
     rows
