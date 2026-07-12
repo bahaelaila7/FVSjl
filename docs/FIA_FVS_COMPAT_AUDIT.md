@@ -4266,3 +4266,16 @@ NE/CS/LS span all four axes adequately. **Observation (not yet a bug):** SN's si
 with the known SN Dunning-code / missing-SITE_INDEX handling ([[fvsjl-fia-slope-default-fix]] et al.). A future
 Pillar-1 slice could add explicit forest-type/site-class strata to the extractor for SN to guarantee spread
 (currently the whole-population sweep covers them anyway). Advances Pillar-1 to the documented-manifest done-state.
+
+## Slice 43dc — Pillar-3: NE THINBBA management differential (extends Pillar-3 beyond SN)
+Ran the NE THINBBA (cycle-2 thin to residual BA 40) differential on 12 NE sample stands vs freshly-relinked
+live FVSne (manage_fia.jl): **thin NO-OP (growth-only) 5/5 BIT-EXACT** (matches Pillar-2), **thin-FIRED 3/7
+bit-exact**, 4 diverge (worst 7.4% BA). Classified the worst (382476618489998, cut fires 2025→2035): pre-thin
+(2015/2025) BIT-EXACT; at the thin cycle 2035 **TPA MATCHES but BA/SDI/CCF diverge ~5%** (BA 59/56), growing
+after. Same-count / different-residual-size ⇒ a **cut-margin selection swap**: the from-below thin removes the
+same TPA, but a ULP-level BA-vs-40 comparison at the cut margin picks a different one of two near-equal trees, so
+the residual DBH distribution (hence BA) differs and compounds — exactly the residual class the SN Pillar-3
+(slices 12-13) cornered. ⇒ **NE thinning is bit-exact-or-cornered, same primitive as SN.** Pillar-3 now covers
+SN+NE (thin-from-below); CS/LS thinbba + other regimes (salvage/plant/fire) are the next Pillar-3 increments. A
+per-tree cut-cycle trace (as done for SN) would confirm the single-tree swap — deferred (fingerprint matches the
+established cornered primitive). Floor untouched (harness-only, read-only DB).
