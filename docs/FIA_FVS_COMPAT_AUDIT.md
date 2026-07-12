@@ -4117,3 +4117,23 @@ trace of the last open lead:
   unstable-quicksort tie-break, not a new bug. It only looked distinctive because it surfaced on a NORMAL-density
   stand (12 TPA/rec) rather than an ultra-dense cohort. ⇒ **ALL 99 now corner to named primitives** (RDPSRT
   self-thinning + FVS >1000-TPA-unstable + NVEL volume-domain); zero unexplained divergences remain in the queue.
+
+## Slice 43ct (2026-07-12) — LS DIGCAP=100 batch dug (103 stands): same dense-phase primitive, NO new bug
+LS sweep hit DIG_PAUSE at queue=103 (98 LS structure_densephase + 1 LS threshold_crossing + 3 CS-tail + 1 NE-NVEL
+lead). Ran the batch characterizer (`characterize99.jl`):
+- **87 / 103 TPA-worst self-thinning**, cycle-0 identical = the accepted RDPSRT/dense-phase ±straddle. ★ LS leans
+  the OPPOSITE way to CS/SN: **61 jl< : 26 jl>** (jl OVER-thins the ultra-dense seedling stands, vs CS/SN's under-thin
+  lean) — a variant-direction property of the same Float32 tie-break primitive, not a new bug.
+- **29 EXTREME >1000-TPA/record** (FVS-unstable regime, cornered per 43cq).
+- **1 other_struct = NE 207147469020004 NVEL lead** (already cornered; carried in the queue).
+- Spot-dug top outliers — 1901261471290487 (4327-TPA seedlings, jl over-thins 2132/923@2045) and 1285412426290487
+  (jl under-thins 915/1385@2041): both ultra-dense seedling self-thinning ±straddles, QMD moving inversely to TPA.
+- **Metric note:** `maxTPArec` (max per-RECORD TREE_COUNT) UNDER-counts total density — a stand with many small-count
+  records can total 1000s of TPA (1901261471290487: maxTPArec=10 but 4327 total). So nearly all LS dig stands are
+  effectively dense seedling stands; the density_spread/EXTREME split blurs but both corner to the SAME primitive.
+**Verdict:** the LS batch corners entirely to the accepted dense-phase self-thinning ±straddle (RDPSRT / LS-DGSCOR
+growth-ranking, Float32-tie-sensitive) + the FVS >1000-TPA regime; ZERO new systematic bug; taxonomy now confirmed
+STABLE across all 4 variants (SN/NE/CS/LS). Archived the 102 reviewed → `.sweep_work/dig_queue.reviewed_43ct.tsv`,
+kept the NE-NVEL lead, resumed the sweep. ⚠ LS (400k population, dominated by dense seedling stands) will re-pause at
+DIGCAP ≈ every ~20 batches on this SAME confirmed primitive — recommend RAISING DIGCAP for the LS leg (taxonomy proven)
+rather than re-digging identical batches; left DIGCAP=100 pending the user's call.
