@@ -4310,3 +4310,13 @@ established primitives. (The large dense-stand fire%s are the compounded-ULP amp
 mortality; not exhaustively per-tree traced — consistent with the accepted primitive + the known SN fire
 StandDead/TotC residual [[fia-fvs-compat-campaign]].) Pillar-3 now spans THIN (SN/NE/CS/LS) + FIRE (SN). Remaining:
 salvage/plant regimes. Harness-only; floor untouched.
+
+## Slice 43dg — Pillar-3: SN PLANT (regeneration) — clean, only print_boundary residuals
+SN PLANT (ESTAB/PLANT 400 tpa sp3 at a cycle boundary) on 10 SN sample stands vs live FVSsn: mostly bit-exact;
+the diverging ones are ALL `print_boundary` (TopHt 1.8%, TPA 0.24%, SCuFt 0.02%, BdFt 0.55% — sub-2% report-
+rounding), the benign established primitive. ⇒ the regeneration/establishment path reproduces live FVS bit-exact-
+or-cornered, no new divergence class. **Pillar-3 REGIME COVERAGE now: THIN (SN/NE/CS/LS, cut-margin primitive) +
+FIRE (SN SIMFIRE, structure_densephase/threshold_crossing) + PLANT (SN, print_boundary) — every regime tested is
+bit-exact-or-cornered to an established named primitive; no management keyword introduces a NEW divergence class.**
+Done-state substantially met (management differential per variant, bit-exact-or-cornered). Remaining nicety:
+salvage + denser CS-thin + NE/CS/LS fire/plant. Harness-only; floor untouched.
