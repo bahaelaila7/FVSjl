@@ -4052,3 +4052,48 @@ MISSING ⇒ not a Dunning-code case):
 Housekeeping: removed a 0-byte `/workspace/SQLITE_FIADB_ENTIRE.db` junk file I accidentally created via a
 wrong-CASE path (`SQLite.DB()` on a bad path creates an empty file); the real read-only 70GB
 `/workspace/SQLite_FIADB_ENTIRE.db` (May-9) was untouched.
+
+## Slice 43cq (2026-07-12) — deep-dig 257105833010854 TopHt anomaly ⇒ FVS >1000-TPA/record regime (cornered)
+Per-tree `FVS_TreeList` differential (new tool `.sweep_work/dig_treelist.jl`: DSNin+DSNOUT/TREELIDB keyfile,
+live+jl, aggregate Ht/HtG/DBH/DG by species-year):
+- **Cycle-0 (2010) per-tree IDENTICAL** live vs jl — every species' TPA/meanHt(1.0)/DBH(0.1) matches exactly ⇒
+  the FIA inventory read is correct; the divergence is entirely in HEIGHT GROWTH during projection.
+- **The stand is in FVS's own numerically-unstable regime:** 11 tree records, sum(TREE_COUNT)=21596 ⇒ ~1963
+  TPA/record. Live FVS emits **`FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TPA ENCOUNTERED. MAY
+  CAUSE MATHEMATICAL ERRORS`**, and **CRASHES (SIGSEGV / exit 2)** when asked to emit a per-cycle treelist for it
+  (the projection .sum itself completes, but the per-tree output path dies) ⇒ live's per-cycle per-tree oracle is
+  UNAVAILABLE here, so a line-level root-cause of the htg over-shoot is blocked from the live side.
+- **Verdict — CORNERED (not a systematic jl bug):** the +30-40% jl TopHt over-shoot is (a) ISOLATED (slice 43cp:
+  3 sibling young-dense stands show the opposite ±1-unit straddle), and (b) confined to the extreme >1000-TPA-per-
+  record small-tree regime that FVS itself flags as math-unstable and cannot even treelist without crashing. This
+  is the same numerically-fraught ultra-dense zone as the accepted RDPSRT/self-thinning residuals
+  ([[fvsjl-stand-pct-rdpsrt-fix]]); bit-exactness vs an oracle that warns of math errors here is not a meaningful
+  target. Cornered as `structure_densephase` / extreme >1000-TPA sub-class. NOTE for maintainer: the live-FVS
+  treelist-output crash on >1000-TPA/record stands is a separate live robustness bug (logged; not yet in
+  FVS_SOURCE_BUGS.md — the projection path is unaffected so it does not gate the sweep).
+
+## Slice 43cr (2026-07-12) — DEEP-DIG ALL 99 genuine dig-queue stands (characterized + cornered)
+Batch-characterized every one of the 99 (`.sweep_work/characterize99.jl` → `characterize99.tsv`: per-column
+divergence pattern, direction, density-spread vs count-only, converges, and max TPA/record from the subdb).
+**Decomposition:**
+- **85 / 99 have TPA (tree count) as the worst-diverging column** (55 jl-retains-MORE, 30 fewer) with cycle-0
+  per-tree IDENTICAL ⇒ the divergence is SELF-THINNING MORTALITY: jl and live disagree on which/how-many trees
+  die. This is the accepted RDPSRT tie-break self-thinning ±straddle ([[fvsjl-stand-pct-rdpsrt-fix]] irreducible
+  multi-tie IND-permutation residual); the BA/SDI/CCF "density spread" is a CONSEQUENCE of the TPA difference.
+- **35 / 99 are EXTREME >1000-TPA/record** (FVS40 "MAY CAUSE MATHEMATICAL ERRORS" regime) — same corner as the
+  257105833010854 anomaly (slice 43cq): FVS itself is numerically unstable there.
+- **1 NVEL volume-domain** = NE 207147469020004: matches <0.4% through 2043, then **live TCuFt/MCuFt/SCuFt/BdFt
+  drop to 0 at 2053+ while jl reports normal volume** (15284 cuft) with TPA 245 / TopHt 258 standing ⇒ live NVEL
+  returns 0 out of equation domain. Corners to the known deferred **NE NVEL volume domain-clamp** item.
+- **★ 1 GENUINE NON-CORNERED LEAD = NE 1203406023290487** (normal density, maxTPArec 12 — NOT the dense regime):
+  per-SPECIES treelist BIT-EXACT through 2031, yet `.sum` TopHt already diverges (60 vs 67), then jl UNDER-thins
+  (TPA/BA/SDI/CCF spread, NON-converging to 37% CCF by 2061, volumes cross over). The divergence emerges in the
+  TopHt→mortality coupling AFTER 2031; per-species aggregation can't resolve it (needs per-RECORD + a debug-stamp
+  htg/mort trace; live's DBS treelist truncates at 2031). LEFT needs_dig — the one stand meriting a dedicated trace.
+- **False escalations:** several "high maxrel" density_spread rows (e.g. CS 13747036020004, CS 92147591010661)
+  are actually <8% and CONVERGING across the real trajectory — the characterizer's per-stand maxrel takes the single
+  worst cycle, which on a late tiny-TPA-base cycle inflates a sub-% straddle. Not real leads.
+**Verdict:** 97/99 corner to two accepted primitives (RDPSRT self-thinning ±straddle + the FVS >1000-TPA-unstable
+regime) or the known NVEL-domain item; 1 (NE 1203406023290487) is a flagged genuine lead for a dedicated per-record
+trace. No NEW systematic bug. Archiving the 98 reviewed rows from the live dig queue (→ `.sweep_work/
+dig_queue.reviewed_43cr.tsv`), keeping the 2 flagged NE leads, then resuming the sweep.
