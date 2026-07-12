@@ -4137,3 +4137,14 @@ STABLE across all 4 variants (SN/NE/CS/LS). Archived the 102 reviewed → `.swee
 kept the NE-NVEL lead, resumed the sweep. ⚠ LS (400k population, dominated by dense seedling stands) will re-pause at
 DIGCAP ≈ every ~20 batches on this SAME confirmed primitive — recommend RAISING DIGCAP for the LS leg (taxonomy proven)
 rather than re-digging identical batches; left DIGCAP=100 pending the user's call.
+
+## Slice 43cu (2026-07-12) — 2nd LS DIGCAP batch (102): same primitive; DIGCAP raised 100→500
+2nd LS pause at queue=102 (offset 38k→62k). Characterizer: 81 density_spread + 20 EXTREME_1000TPA + 1 NE-NVEL;
+96/102 TPA-worst self-thinning (50 jl< : 46 jl> — balanced this batch). Spot-verified the top density-col-worst
+outlier 1803280574290487 (BA 25%): it starts SPARSE (38 records, 49 TPA) but REGENERATES to 2671 TPA dense
+seedlings by 2042 with jl's dense regen cohort ~20% denser than live ⇒ the dense-phase self-thinning primitive
+reached via NATURAL REGENERATION (regen-establishment + dense self-thinning, both Float32-tie-sensitive), not a new
+bug. **All 102 corner to accepted primitives.** Given the taxonomy is now 3× confirmed for LS and stable across all
+4 variants, **raised DIGCAP 100→500** (`run_expand_loop.sh`) — a reversible change to stop re-digging identical
+dense-phase batches every ~20 min and let the LS coverage advance ~5× further between reviews. Archived the 101
+reviewed → `.sweep_work/dig_queue.reviewed_43cu.tsv`, kept the NE-NVEL lead, resumed. (User can lower DIGCAP back.)

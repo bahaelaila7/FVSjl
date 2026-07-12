@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # run_expand_loop.sh — continuous driver for the full-population FIA coverage sweep.
-# Repeatedly runs one batch-cycle (SN first, then NE→CS→LS) until EITHER the dig-queue reaches DIGCAP (~100
+# Repeatedly runs one batch-cycle (SN first, then NE→CS→LS) until EITHER the dig-queue reaches DIGCAP (~500
 # dig-worthy discrepancies → PAUSE for the caller to root-cause/fix) OR all variants are exhausted.
 # Cursor-based & checkpointed every cycle ⇒ safely resumable. Runs in the background across many cycles.
-# Env: BATCH (default 2000), DIGCAP (default 100).
+# Env: BATCH (default 2000), DIGCAP (default 500).
 set -u
 cd /workspace/FVSjl
 export BATCH=${BATCH:-2000}
-DIGCAP=${DIGCAP:-100}
+DIGCAP=${DIGCAP:-500}
 DIGQ=docs/fia_dig_queue.csv
 SC=${SWEEP_WORK:-/workspace/FVSjl/.sweep_work}   # persistent /workspace volume (see run_expand_cycle.sh)
 mkdir -p $SC/expand
