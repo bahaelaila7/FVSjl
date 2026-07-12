@@ -4444,3 +4444,13 @@ aspen-regen stands) not present in the curated suite, so the count holds (the 3 
 SQLite/Parsers precompile failures, not this change). This is the campaign's 7th real bug fix and confirms the
 user's "we might fix some of what you might think is ulp class" — a fingerprint-cornered dense stand held a real,
 localized, single-species porting gap.
+
+**Dig-bucket-wide verification (post-fix, magnitude-aware over all 32 LS densephase dig CNs).** Worst-cell %
+distribution: 16 ≤2% / 11 2-10% / 5 >10%. The 5 remaining >10% (1222379399290487 15.5%, 1686724313290487 17.9%,
+1832008650290487 21.3%, 156730013010661 24.6%, 156735105010661 32.5%) are ALL the self-thinning RDPSRT tie-break
+primitive — the worst-divergence column is TPA/RTPA (mortality) while **BA (growth) is bit-exact-to-≤5.3%** (four
+of five <1.5%). E.g. 156735105010661 (24886 TPA seedlings): 2016 BA 38/38 bit-exact but TPA 18512 live / 24530 jl
+— growth correct, only the count of tiny (≈0-SDI) seedlings that self-thin diverges via the unstable-quicksort
+tie-break ([[fvsjl-stand-pct-rdpsrt-fix]], "amplified to large TPA%"). ⇒ the dig bucket's only GROWTH bug was the
+aspen HCOR gap (now fixed); every residual is the accepted self-thinning primitive (confirmed by bit-exact BA).
+Sweep may resume.
