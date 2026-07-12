@@ -1,3 +1,2 @@
 variant,regime,cn,n_cycles,bit_exact,div_cols,worst_col,worst_cycle,max_rel_pct,max_abs_diff,struct_max_rel_pct,vol_max_rel_pct,density_bitexact,converges,signature
 NE,none,207147469020004,6,false,TPA|TopHt|TCuFt|MCuFt|SCuFt|BdFt,TCuFt,2053,100.0,1.5395106646e10,0.408,100.0,true,false,volume_persistent,1.0,17245.0
-NE,none,1203406023290487,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,CCF,2051,37.398,3400.0,37.398,11.492,false,false,structure_densephase,59.0,874.0

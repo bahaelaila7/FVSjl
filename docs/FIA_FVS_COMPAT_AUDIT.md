@@ -4097,3 +4097,23 @@ divergence pattern, direction, density-spread vs count-only, converges, and max 
 regime) or the known NVEL-domain item; 1 (NE 1203406023290487) is a flagged genuine lead for a dedicated per-record
 trace. No NEW systematic bug. Archiving the 98 reviewed rows from the live dig queue (→ `.sweep_work/
 dig_queue.reviewed_43cr.tsv`), keeping the 2 flagged NE leads, then resuming the sweep.
+
+## Slice 43cs (2026-07-12) — NE 1203406023290487 lead ROOT-CAUSED ⇒ RDPSRT tie-break primitive (cornered)
+Full per-cycle per-species treelist (fixed the tooling: `TREELIST` must precede the `DATABASE` block, else FVS16
+"wrong context" truncates the DBS treelist to 2 cycles — corrected in `.sweep_work/dig_treelist.jl`). Both-sides
+trace of the last open lead:
+- **2021 & 2031 per-species BIT-EXACT** (TPA/Ht/DBH/HtG/DG identical live=jl).
+- **Height & diameter GROWTH stay matched** where trees are alive (2041 sp741 meanHt 89.6/88.9, meanDBH 10.93/10.91)
+  ⇒ NOT a height- or diameter-growth bug (my slice-43cp "height overshoot" framing was wrong for this stand).
+- **The divergence is SELF-THINNING MORTALITY ALLOCATION** (2041+): live kills 100% of species 012 (368→0 TPA)
+  while jl retains 108; jl kills more of sp741 (237 vs 310). Net: jl under-thins (395 vs 336 TPA) — the documented
+  self-thinning ±straddle *under*-lean ([[fvsjl-dense-underthin-bug4]]), here redistributing mortality ACROSS species.
+- **The 2031 `.sum` TopHt tie (60 vs 67)** — the thing that first made this look distinctive despite bit-exact
+  per-species heights — is a DBH TIE in the top-height selection: at 2031 sp741 and sp746 have IDENTICAL DBH (5.66")
+  but different heights (58.1 vs 70.6); the top-40-by-DBH average breaks that tie, and live vs jl order the tied
+  trees by a different RDPSRT/percentile index ⇒ different top-40 membership ⇒ TopHt 60 vs 67.
+- **Verdict — CORNERED to the RDPSRT tie-break primitive** ([[fvsjl-stand-pct-rdpsrt-fix]] "exact multi-tie IND
+  permutation" residual): every link (tied-DBH top-height selection + tied-value mortality allocation) is the same
+  unstable-quicksort tie-break, not a new bug. It only looked distinctive because it surfaced on a NORMAL-density
+  stand (12 TPA/rec) rather than an ultra-dense cohort. ⇒ **ALL 99 now corner to named primitives** (RDPSRT
+  self-thinning + FVS >1000-TPA-unstable + NVEL volume-domain); zero unexplained divergences remain in the queue.
