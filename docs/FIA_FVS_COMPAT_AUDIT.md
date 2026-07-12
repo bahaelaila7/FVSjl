@@ -4244,3 +4244,25 @@ resolved manifest in docs/ls_densephase_resolved.txt. ⇒ **LS dense-phase bucke
 done-state for this cluster); sweep unblocked.** CAVEAT: with the escalation guard unchanged, the sweep may
 re-flag some compounded-ULP stands (they reach ≥15% by cycle 4) — a classifier-threshold tuning question for a
 later slice, separate from the divergence taxonomy which is now complete for this bucket.
+
+## Slice 43db — Pillar-1: annotated strata manifests (plot IDs + strata) + multi-axis coverage documented
+The Pillar-1 extraction (`extract_sample.jl`, deterministic, ECOREGION/LOCATION-stratified) already yields the
+per-variant `_sample.txt` manifests the sweep/validate harnesses consume. To reach the full done-state ("plot IDs
++ strata spanning forest types, stand structures, site classes, geographies") WITHOUT disturbing those consumers
+or the floor, added `annotate_manifest.jl` (read-only on the FVS-ready DB): it emits `<v>_sample_strata.csv`
+(STAND_CN, forest_type, age_class, site_class, ecoregion) and a coverage report. Result — the ECOREGION-stratified
+samples INCIDENTALLY span the other axes well:
+
+| variant | n | forest_types | age_classes | site_classes | ecoregions |
+|---|---|---|---|---|---|
+| SN | 30 | 15 | 4 | 2 (vhi+unknown) | 30 |
+| NE | 30 | 12 | 6 | 4 | 28 |
+| CS | 100 | 11 | 5 | 4 | 63 |
+| LS | 100 | 16 | 5 | 5 | 67 |
+
+age classes = seedsap/pole/smallsaw/largesaw/oldgrowth (by STDAGE); site classes = lo/med/hi/vhi (by SITE_INDEX).
+NE/CS/LS span all four axes adequately. **Observation (not yet a bug):** SN's site-class coverage is thin — only
+`vhi`+`unknown`, i.e. SN's FVS_STANDINIT_COND.SITE_INDEX is sparsely populated / mostly high-band; consistent
+with the known SN Dunning-code / missing-SITE_INDEX handling ([[fvsjl-fia-slope-default-fix]] et al.). A future
+Pillar-1 slice could add explicit forest-type/site-class strata to the extractor for SN to guarantee spread
+(currently the whole-population sweep covers them anyway). Advances Pillar-1 to the documented-manifest done-state.
