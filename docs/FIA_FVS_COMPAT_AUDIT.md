@@ -4454,3 +4454,17 @@ of five <1.5%). E.g. 156735105010661 (24886 TPA seedlings): 2016 BA 38/38 bit-ex
 tie-break ([[fvsjl-stand-pct-rdpsrt-fix]], "amplified to large TPA%"). ⇒ the dig bucket's only GROWTH bug was the
 aspen HCOR gap (now fixed); every residual is the accepted self-thinning primitive (confirmed by bit-exact BA).
 Sweep may resume.
+
+## Slice 43do — NE volume_persistent candidate 207147469020004 (CHARACTERIZED, verdict PENDING FVS trace)
+The one non-densephase dig-queue entry. Dense NE regen stand (2013: 900 TPA seedlings @ QMD 0.1). Structure is
+bit-exact-or-cornered vs live ALL cycles (struct_max_rel 0.4%, density_bitexact). Volume is bit-exact 2013-2043
+(TCuFt 0/1745/9459/13007 == live), then **live outputs CLEAN ZERO for every volume column (TCuFt/MCuFt/SCuFt/
+BdFt) at 2053 AND 2063 while the stand still carries 135→92 TPA at QMD 16.3→19.7** (BA≈195). jl continues sanely
+(TCuFt 13007→15284→17246). The ledger's max_abs_diff=1.5e10 was a parse artifact — the raw .sum is clean zeros,
+not overflow garbage. Live's TreeList also drops to 0 records after 2023 (TREELIST schedule) so per-tree live
+volume isn't directly observable here.
+DIRECTION: a BA≈195 / QMD-16 stand cannot have 0 volume ⇒ live FVS is the implausible side, jl the plausible one
+(likely an FVS-bug / volume-equation domain issue at large regen-origin DBH, or an NE summary-volume zeroing).
+VERDICT DEFERRED: doctrine #3 forbids an FVS-bug verdict without the FVS-side vollib trace (which volume routine
+zeroes, and why at 2053) + an independent check that jl's ~15284 is correct. Left in the dig queue for a
+dedicated volume-dig session; NOT cornered (no rushed verdict). Sweep resumed meanwhile.
