@@ -1,0 +1,7 @@
+# LS structure_densephase dig bucket RESOLVED 2026-07-12 (slices 43cv-43cz):
+# 4 FIXED bit-exact by the growth_dg_set DG-measurement-period fix (51177ca):
+#   245913808010661
+#   234742314020004
+#   99028123010661
+#   1283807531290487
+# 185 CORNERED to compounded-ULP dense self-thinning primitive (per-record bit-exact, .sum self-thinning divergence at cycle 3-4; spot-verified 7 stands).

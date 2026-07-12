@@ -4229,3 +4229,18 @@ bit-exact here; the 43cx cycle-0 fix correctly leaves it untouched). ⇒ **The L
 accepted compounded-ULP self-thinning primitive (most dense stands, cornered). The user's "some ULP-class are
 fixable" hypothesis was CONFIRMED (found+fixed a real bug in what was labelled tie-break) AND bounded (the residual
 is the genuine primitive). Taxonomy updated; no unexplained divergence in the traced set.
+
+## Slice 43da — LS dense-phase dig bucket CLOSED (scale re-verify + queue cleanup)
+Re-verified all 189 LS structure_densephase dig-queue stands vs freshly-relinked live FVSls WITH the 43cx fix
+(.sweep_work/reverify_results.csv): **4 now BIT-EXACT** (245913808010661, 234742314020004, 99028123010661,
+1283807531290487 — the DG-serial-correlation sole-cause stands the fix fully resolves) + **185 residual** whose
+.sum first-diverges at cycle 3-4 (2031-2034, as density peaks at the SDI threshold). Broadened the per-record
+check to **7 residual stands across both the cycle-2 and cycle-3-4 clusters — ALL per-record BIT-EXACT
+pre-divergence** ⇒ the residual is uniformly the accepted **compounded-ULP dense self-thinning primitive**
+(sub-rounding Float32 amplified through the SDI threshold), NOT another hidden bug. This is cornering AFTER a
+genuine fix attempt (the DG-serial-corr subset WAS fixed), exactly the "try-to-fix-first" the campaign directive
+asked for. Dig queue cleaned: 190→1 (only the deferred NE volume_persistent/NVEL 207147469020004 remains open);
+resolved manifest in docs/ls_densephase_resolved.txt. ⇒ **LS dense-phase bucket is fixed-or-cornered (Pillar 4
+done-state for this cluster); sweep unblocked.** CAVEAT: with the escalation guard unchanged, the sweep may
+re-flag some compounded-ULP stands (they reach ≥15% by cycle 4) — a classifier-threshold tuning question for a
+later slice, separate from the divergence taxonomy which is now complete for this bucket.
