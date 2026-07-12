@@ -4279,3 +4279,11 @@ the residual DBH distribution (hence BA) differs and compounds — exactly the r
 SN+NE (thin-from-below); CS/LS thinbba + other regimes (salvage/plant/fire) are the next Pillar-3 increments. A
 per-tree cut-cycle trace (as done for SN) would confirm the single-tree swap — deferred (fingerprint matches the
 established cornered primitive). Floor untouched (harness-only, read-only DB).
+
+## Slice 43dd — Pillar-3 status: CS growth-under-management bit-exact (thin no-op on subset)
+CS THINBBA on 10 CS sample stands: **10/10 BIT-EXACT**, but thin-fired=0 — the subset stands are below the BA-40
+threshold so THINBBA is a no-op (validates CS growth-under-management = Pillar-2, not the CS thin logic; a denser
+CS subset is needed to exercise the cut). **Pillar-3 running tally:** SN thin = bit-exact-or-cornered (slices
+12-13); NE thin = bit-exact-or-cornered (43dc, same cut-margin primitive); CS growth-under-mgmt = bit-exact. Next
+Pillar-3 increments: LS thinbba + denser CS stands (to fire the cut) + non-thin regimes (salvage/plant/simfire)
+across variants. Harness-only; floor untouched.
