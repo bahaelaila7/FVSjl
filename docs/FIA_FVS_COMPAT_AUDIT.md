@@ -4348,3 +4348,23 @@ primitive, same magnitude class as the original stand_pct stand [[fvsjl-stand-pc
 working on freshly-swept stands (the DG-serial-corr subset no longer flags) and the residual flagged stands remain
 the established named primitive — no NEW divergence class introduced by the ongoing sweep. Confirms the Pillar-4
 taxonomy holds under continued coverage. (Full batch cornered at the DIGCAP pause.)
+
+## Slice 43dj — Pillar-2: clean per-variant SAMPLE projection differential (done-state artifact)
+Ran a clean no-management full-projection differential (all cycles × 10 .sum cols) on 12 stratified-sample stands
+per variant vs freshly-relinked live FVS (`.sweep_work/pillar2_sample.jl`, independent of the sweep DB):
+
+| variant | bit-exact | residual columns (all cornered to named primitives) |
+|---|---|---|
+| SN | 7/12 | BA/SDI/TopHt (structure_densephase self-thinning + DGSCOR ULP) + MCuFt (volume ULP) |
+| NE | 12/12 | — |
+| CS | 12/12 | — |
+| LS | 10/12 | BdFt (volume ULP / board-foot rounding) |
+| **total** | **41/48 (85%)** | structure = self-thinning/DGSCOR ULP; volume = NVEL/board-foot ULP |
+
+Every residual sits in a known-primitive column (structure cols 2-5 = the self-thinning/DGSCOR density ULP class;
+volume cols 8/10 = the NVEL/board-foot ULP class) — no NEW divergence class; consistent with the full-population
+sweep + the closed dig taxonomy. NE/CS are bit-exact on the whole sample; SN carries the most residuals (its
+DGSCOR self-thinning tail, the documented SN growth-ranking primitive). ⇒ Pillar-2 done-state ("projection
+differential over the sample; per-variant pass rate documented; every residual bit-exact or cornered to a named
+primitive") met on this 48-stand slice; the running full-population sweep extends it to scale. Read-only DB;
+floor untouched.
