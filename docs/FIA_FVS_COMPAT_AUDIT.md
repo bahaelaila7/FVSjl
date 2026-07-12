@@ -4482,3 +4482,14 @@ to a nonzero value**. ⇒ VERDICT: a **jl r9clark port gap** — jl must replica
 error-path traced (which check zeroes: negative taper diameter / form-param domain / a returned errFlg) AND
 is high-blast-radius (r9clark_vol.jl is shared NE+CS volume) so it requires full-suite + multi-stand
 validation, not a rushed edit. Queue signature updated to `r9clark_domain_zero (jl port gap, fix pending)`.
+
+### 43do correction — mechanism NOT yet confirmed; needs FVS instrumentation before any jl fix
+Deeper read of r9clark_vol.jl + r9clark_fvsMod.f tempers the follow-up above: jl ALREADY guards _r9_dia417's
+errFlg (r9clark_vol.jl:419) and totHt<=17.3 (:421), and neither fires for the 2053 tree. The r9clark_fvsMod.f
+:549 reasonableness block's height-ORDERING checks only fire when the product heights ht1Prd/ht2Prd/upsHt1 are
+>0, but FVS's compute-volume call is total-height-only (those =0) ⇒ :549 likely does NOT fire. And I never
+confirmed live's PER-TREE volume is 0 — only the .sum aggregate (the DB TreeList stopped at 2023). So the exact
+zeroing path is UNCONFIRMED. Correct next step (doctrine #6): instrument r9clark_fvsMod.f on a scratch NE build
+to capture live's per-tree vol(1)+errFlg+heights for stand 207147469020004 @2053, THEN replicate. Verdict
+direction (jl-side gap: jl computes vol where live reports 0) stands; the precise mechanism + fix are deferred to
+a measured slice. NOT cornered, NOT guessed. [[fvsjl-ne-r9clark-domain-gap]]
