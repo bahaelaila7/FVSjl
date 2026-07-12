@@ -4148,3 +4148,84 @@ bug. **All 102 corner to accepted primitives.** Given the taxonomy is now 3× co
 4 variants, **raised DIGCAP 100→500** (`run_expand_loop.sh`) — a reversible change to stop re-digging identical
 dense-phase batches every ~20 min and let the LS coverage advance ~5× further between reviews. Archived the 101
 reviewed → `.sweep_work/dig_queue.reviewed_43cu.tsv`, kept the NE-NVEL lead, resumed. (User can lower DIGCAP back.)
+
+## Slice 43cv — ★ LS dense-phase bucket RE-CHARACTERIZED: real MORTS growth-projection bug, NOT the RDPSRT tie-break
+**Dig-FIX mode (user: stop cornering, some "ULP-class" are fixable). Stand 289804326489998 (LS), sweep STOPPED.**
+
+Per-record trace (`dig_record.jl`/`dig_order.jl` — the reliable tools; `dig_treelist.jl` is UNRELIABLE, its
+species-sum aggregation misaligns year/species counts and fabricated a false "sp809 3% growth divergence"):
+- Physical tree ORDER bit-exact every cycle; DBH/Ht/DG per-record bit-exact through 2034; `_rdpsrt!` faithful.
+  So the divergence is NOT the self-thinning tie-break and NOT growth application.
+- It is PURELY the self-thinning MORTALITY calc. FVS `DEBUG MORTS` (field-2 non-blank ⇒ DBPRSE scopes to MORTS;
+  BLANK ⇒ DBALL debugs all + SIGSEGVs in the volume path) + env-gated jl `MORTDBG`: jl over-kills at **cycle 2**
+  (kills 4.41 TPA vs live 2.40 / TEMKIL 2.4046) → cascades to the 27% TPA blowup at 2044.
+- Root: jl `tn10=546.5` vs live `548.5`, from jl `d10` (projected QMD) too high. Raw Zeide sums cyc1: SDQ0/SUMDR0
+  (no-growth) MATCH bit-for-bit; **SD2SQ jl 12835.6 vs live 12672.0 (+1.3%)**, SUMDR10 +1.0% — divergence is
+  entirely the **G (diameter-growth) term** (`SD2SQ=ΣP·(D+G)²`, `CIOBDS=2DG+G²` morts.f:206 = jl).
+- Paradox: jl MORTS-G = `diam_growth/bark` = jl applied (simulate.jl:439) = live applied (2024 bit-exact incl.
+  sp809 to 18.285"), and update.f:115 = same `DBH+=DG/BARK` ⇒ by algebra should match, but +1.3%. ⇒ **live's MORTS
+  DG(I) ≠ live's applied DG** (FVS uses a ~1.5%-smaller G in MORTS than it applies). DGF debug: sp809 base
+  DIAGRI≈0.83, applied≈2.8 (COR~3.4 / REGENT); COR is pre-MORTS on both sides (live SD2SQ≈jl, not 3× smaller),
+  so the residual 1.5% is a subtle COR/bounding/REGENT-timing difference relative to MORTS — NOT yet pinned.
+
+**Verdict:** at least this stand is a REAL FIXABLE growth-projection bug, NOT the cornered RDPSRT tie-break the
+prior dig phase labeled it. Fix not yet applied. Next: a `morts.f WRITE(DG(I))` stamp (scratch rebuild, restore,
+verify) to get FVS's per-tree DG(I)-at-MORTS and diff vs jl's `diam_growth`. Floor 38527/143/0 untouched (docs +
+env-gated debug only, reverted). See memory [[fvsjl-ls-morts-growth-projection-bug]].
+
+## Slice 43cw — CORRECTION to 43cv: the LS dense-phase bug is DIAMETER GROWTH (serial-correlation), not mortality
+**4 debug-FVS DG(I) stamps (morts.f/gradd.f/update.f, scratch rebuilds, all restored, real oracle untouched).**
+Decisive (sp809/int-36, D=8.6, cyc1): FVS `DG(I)`=**2.7707** at BOTH MORTS and update.f (→2024 DBH 11.612); jl
+`diam_growth`=**2.847** (→11.694). So jl's DIAMETER GROWTH is ~2.75% too high for the tripled record (the "2024
+bit-exact" in 43cv was a `dig_record` sort-pairing artifact — 2024 is NOT bit-exact for these trees). Mortality
+merely inherits the over-high `diam_growth`; both applied DBH and the self-thinning QMD-projection over-grow,
+amplified by the SDI threshold to the 27% blowup. Ruled out: gradd.f:79 transform (FINT=YR=10 confirmed, block
+skipped), triple.f (no DG). Order grincr.f DGDRIV(437)→MORTS(535)→TRIPLE(543). Over-high DG set in DGDRIV tripling
+serial-correlation (dgdriv.f:244 `DG=SQRT(DSQ+DDS·EXP(FRM+CORR·OLDRN))-D`). jl region: diameter_growth.jl:776-817
+(corr/ssigma/rho/frmbase/oldrn/dds5 for LS YR=10). Error varies per tree (2.75-3.4% sp809; sp105 mixed) — a
+serial-correlation term (corr/rho/oldrn/vardg), NOT the already-fixed ssigma-period. NEXT: isolate exact term
+(jl dump vs DGDRIV stamp), variant-safe fix (SN YR=5 bit-exact, floor untouched). See [[fvsjl-ls-morts-growth-projection-bug]].
+
+## Slice 43cx — ★★★ FIXED: LS dense-phase bucket = wrong DG-serial-correlation measurement period (1-line, live-bit-exact)
+**Root cause (both-sides-traced, 4 debug-FVS DG(I) stamps + autcor period sweep):** jl's cycle-0 DG serial-
+correlation `oldp` (FVS `OLDFNT`) was gated on `growth_fint != 5f0`, discarding an EXPLICIT measurement period of
+5 (the FIA `DG_MEASURE` remeasurement) as if it were the universal default, falling back to `htg_period=10` for
+LS/CS/NE. ⇒ first-cycle `CORR = AUTCOR(NEW=10,NOLD=10) = 0.181` instead of FVS's `AUTCOR(NEW=10,NOLD=5) = 0.148`
+(live dgdriv.f stamp: FVS CORR=0.147986). Since `CORR·OLDRN` drives the tripled-record serial-correlation DG
+(`√(D²+DDS·EXP(FRM+CORR·OLDRN))−D`), a too-high CORR over-grew tripled records ~3% on fast-growing sp809 →
+over-projected the self-thinning QMD → the 27% TPA blowup the sweep flagged. **NOT the RDPSRT tie-break** the
+prior dig phase cornered it as.
+
+**Fix (diameter_growth.jl):** `meas_fint = (growth_dg_set && growth_fint>0) ? round(growth_fint) : htg_period` —
+gate on the explicit-period flag `growth_dg_set` (set by both the FIA reader's DG_MEASURE and the GROWTH keyword),
+not the `!=5` value hack. VARIANT-SAFE: SN htg_period=5 unchanged; NE/CS FIA stands correctly get their DG_MEASURE;
+.key/YAML scenarios (growth_dg_set=false) keep htg_period, untouched. A variant-constant attempt regressed 1924 (LS
+.key scenarios have OLDFNT=10) ⇒ the period is DATA-DRIVEN (per-stand), not a variant constant.
+
+**Validated:** stand 289804326489998 now BIT-EXACT all 6 cycles × 10 .sum cols vs freshly-relinked live FVSls
+(was 27% TPA-divergent at 2044). Full suite **38587 pass / 0 FAIL / 3 env-err / 75 broken** (was 38586/0/3/76 —
++1 pass, −1 broken, ZERO regressions; floor held). Re-characterizes the LS structure_densephase bucket: a large
+share is this fixable growth bug, not the cornered tie-break. See [[fvsjl-ls-morts-growth-projection-bug]].
+
+## Slice 43cy — CORRECTION to 43cx impact claim: the DG-measurement-period fix closes ONE cause, not the whole bucket
+Batch re-verify post-fix (25 LS structure_densephase dig CNs, sorted head): **0/25 now FULLY bit-exact** (the
+earlier 4-stand check showed 3/4 *improved*, not exact). So the `growth_dg_set` fix (43cx) FULLY resolves only the
+stands where the cycle-0 DG-serial-correlation was the SOLE cause (confirmed bit-exact: 289804326489998,
+9424773020004) and reduces divergence on many others (155972087010661 39→27 cells), with ZERO regressions — but
+MOST dense-phase stands retain a SEPARATE residual: a **cycle-2+ dense self-thinning** divergence (e.g.
+63706827010661 diverges from 2020/cycle-2, jl under-kills 734 vs 638 TPA at 2050). The fix only touches cycle-0
+(cycle-2+ correctly uses the prior cycle length), so that residual is a DISTINCT cause — untraced; possibly the
+accepted RDPSRT tie-break, possibly another fixable bug (do NOT assume — 43cx already disproved the tie-break label
+for the DG-serial-corr subset). The LS dense-phase bucket is HETEROGENEOUS: 43cx closes one fixable cause; the
+cycle-2+ self-thinning residual is the next dig target. See [[fvsjl-ls-morts-growth-projection-bug]].
+
+## Slice 43cz — the cycle-2+ dense-phase residual = accepted compounded-ULP self-thinning primitive
+Traced 63706827010661 (unchanged by the 43cx fix) per-record: **bit-exact at 2010 AND 2020** (414/414 recs, 0
+growth- + 0 mortality-divergent) — yet .sum TPA 2870/2873 (+0.1%) at 2020, compounding to 638/734 (+15%) by 2050.
+i.e. sub-rounding Float32 differences in a dense stand, amplified through the SDI self-thinning threshold — the
+accepted `structure_densephase` compounded-ULP primitive, NOT the DG-serial-correlation bug (growth is already
+bit-exact here; the 43cx cycle-0 fix correctly leaves it untouched). ⇒ **The LS dense-phase bucket is a MIX:**
+(a) the DG-measurement-period bug (43cx, FIXED — fully resolves stands where it's the sole cause) + (b) the
+accepted compounded-ULP self-thinning primitive (most dense stands, cornered). The user's "some ULP-class are
+fixable" hypothesis was CONFIRMED (found+fixed a real bug in what was labelled tie-break) AND bounded (the residual
+is the genuine primitive). Taxonomy updated; no unexplained divergence in the traced set.

@@ -770,7 +770,14 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # 5 SN / 10 NE). Live-stamped: growth_fint10 (GROWTH 10) ⇒ AUTCOR(new=5, old=10) CORR=0.3906, not
     # AUTCOR(5,5)=0.3196 — the ~0.4% cuft growth_fint residual (D2). Default (growth_fint=5) is unchanged for
     # both variants (SN old=5, NE old=10), so every bit-exact scenario stays bit-exact.
-    meas_fint = (s.control.growth_fint > 0f0 && s.control.growth_fint != 5f0) ?
+    # Use the EXPLICIT DG measurement period (FVS OLDFNT) when one was given — via a GROWTH card OR the
+    # FIA-DB DG_MEASURE column (both set `growth_dg_set`). The old `growth_fint != 5f0` test discarded an
+    # explicit 5 (indistinguishable from the universal default 5), wrongly falling back to the variant YR:
+    # for LS/CS/NE (htg_period 10) an FIA stand's DG_MEASURE=5 became oldp=10, so the first-cycle serial-
+    # correlation CORR used AUTCOR(NOLD=10)=0.181 instead of FVS's AUTCOR(NOLD=5)=0.148 — a ~3% over-high
+    # tripled-record DG that over-projected the self-thinning QMD (live dgdriv.f DG(I) stamp; see
+    # [[fvsjl-ls-morts-growth-projection-bug]]). `growth_dg_set` distinguishes an explicit 5 from the default.
+    meas_fint = (s.control.growth_dg_set && s.control.growth_fint > 0f0) ?
                 Int(round(s.control.growth_fint)) : Int(htg_period(s.variant))
     oldp = cyc == 0 ? meas_fint : max(1, cycle_period_at(s.control, cyc - 1))
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
