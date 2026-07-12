@@ -4299,3 +4299,14 @@ TPA at the margin ⇒ residual size distribution differs ⇒ compounds), the SAM
 management bit-exact (modulo the accepted dense-phase compounded-ULP, e.g. the 1/8 NO-OP LS divergence), thin-
 fired cornered to the cut-margin selection primitive (named ULP-class). Remaining Pillar-3 increments: non-thin
 regimes (salvage/plant/simfire) on real plots. Harness-only; floor untouched.
+
+## Slice 43df — Pillar-3: SN SIMFIRE (prescribed fire) — same named primitives as no-management
+SN SIMFIRE (FMIn/SIMFIRE cycle-2, flame 10ft) on 10 SN sample stands vs live FVSsn (ledger_fia.jl): 6/10
+BIT-EXACT; the 4 diverging classify to the SAME named primitives as the no-management sweep — `structure_
+densephase` (the compounded-ULP dense self-thinning, now amplified by fire-kill mortality on dense stands; worst
+MCuFt 115% is a low-base volume ratio on one such stand) + `threshold_crossing` (BdFt 1.5%). ⇒ the SIMFIRE fire
+path introduces NO NEW divergence class on this subset — fire-under-management is bit-exact-or-cornered to the
+established primitives. (The large dense-stand fire%s are the compounded-ULP amplified through fire+self-thinning
+mortality; not exhaustively per-tree traced — consistent with the accepted primitive + the known SN fire
+StandDead/TotC residual [[fia-fvs-compat-campaign]].) Pillar-3 now spans THIN (SN/NE/CS/LS) + FIRE (SN). Remaining:
+salvage/plant regimes. Harness-only; floor untouched.
