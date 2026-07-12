@@ -27,7 +27,7 @@ NE_TRE=/workspace/ForestVegetationSimulator/tests/FVSne/net01.tre
 CS_CODES="$($JL -e 'using FVSjl; c=FVSjl.coefficients(CentralStates()).code_alpha; print(join([strip(c[i]) for i in 1:FVSjl.nspecies(CentralStates())],","))')"
 NE_CODES="$($JL -e 'using FVSjl; c=FVSjl.coefficients(Northeast()).code_alpha; print(join([strip(c[i]) for i in 1:FVSjl.nspecies(Northeast()) if strip(c[i])!=""],","))')"
 
-python3 - "$CS_TRE" "$NE_TRE" "$FIX" "$CS_CODES" "$NE_CODES" /tmp/FVScs_new /tmp/FVSne_new <<'PY'
+python3 - "$CS_TRE" "$NE_TRE" "$FIX" "$CS_CODES" "$NE_CODES" /workspace/FVSjl/tmp/oracles/FVScs_new /workspace/FVSjl/tmp/oracles/FVSne_new <<'PY'
 import sys, subprocess, os
 cs_tre, ne_tre, FIX, cs_codes, ne_codes, CSBIN, NEBIN = sys.argv[1:8]
 cs_codes=cs_codes.split(","); ne_codes=ne_codes.split(",")
@@ -90,9 +90,9 @@ print(f"CS: 1 stand / {len(cs_codes)} species; NE: {gi} stands / {len(ne_codes)}
 PY
 
 # --- refresh live golden .sum files ------------------------------------------------------
-( cd "$FIX" && /tmp/FVScs_new --keywordfile=cs_allsp.key >/dev/null 2>&1 && cp cs_allsp.sum cs_allsp.live.sum )
+( cd "$FIX" && /workspace/FVSjl/tmp/oracles/FVScs_new --keywordfile=cs_allsp.key >/dev/null 2>&1 && cp cs_allsp.sum cs_allsp.live.sum )
 for k in "$FIX"/ne_cov*.key; do b=$(basename "$k" .key)
-  ( cd "$FIX" && /tmp/FVSne_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
+  ( cd "$FIX" && /workspace/FVSjl/tmp/oracles/FVSne_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
 done
 # clean live run artifacts (keep only .key/.tre/.live.sum)
 find "$FIX" -maxdepth 1 -type f ! -name '*.key' ! -name '*.tre' ! -name '*.live.sum' -delete

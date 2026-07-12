@@ -229,11 +229,20 @@ this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/
 function stand_pct!(s::StandState)
     t = s.trees; n = t.n
     n == 0 && return s
-    order = sortperm!(view(s.scratch.stat_idx, 1:n), view(t.dbh, 1:n); rev = true)  # largest DBH first
+    # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
+    # `CALL RDPSRT(ITRN,DBH,IND,.TRUE.)` feeding dense.f/PCTILE. RDPSRT is Scowen's UNSTABLE
+    # Quickersort, so equal-DBH ties resolve by the partition order, NOT ascending index. A stable
+    # `sortperm!` diverges from FVS on tie-heavy stands: e.g. a dense all-0.1"-seedling regen plot
+    # (5 records, one dominant-TPA loblolly) gets its dominant assigned a LOW percentile (own BA
+    # fraction) instead of ~100, which inverts VARMRT's self-thinning kill (kills the dominant),
+    # collapses the survivor QMD, and makes the morts QMD-convergence loop LIMIT-CYCLE instead of
+    # converging — a 2–3× first-cycle mortality error. Use `_rdpsrt!` (single .TRUE. sort) to match.
+    idx = view(s.scratch.stat_idx, 1:n)
+    _rdpsrt!(view(t.dbh, 1:n), idx)                     # IND: DBH descending, FVS tie-break
     pct = t.crown_ratio
     cum = 0f0
     @inbounds for k in n:-1:1                            # accumulate from smallest up
-        ii = order[k]
+        ii = Int(idx[k])
         cum += t.dbh[ii]^2 * t.tpa[ii]
         pct[ii] = cum
     end

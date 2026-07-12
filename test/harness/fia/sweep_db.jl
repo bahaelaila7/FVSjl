@@ -97,6 +97,12 @@ function open_sweepdb(path::AbstractString=DEFAULT_SWEEP_DB)
     end
     # pragmatic durability/perf: WAL survives an abrupt container stop mid-write better than the default journal.
     _run(db, "PRAGMA journal_mode=WAL")
+    # busy_timeout: WAL lets readers+1writer coexist, but a WAL checkpoint (or any transient lock, e.g. a
+    # supervisor's COUNT(*) scan holding a read snapshot) can momentarily block a write. WITHOUT a busy_timeout
+    # the upsert fails INSTANTLY with "database is locked" ⇒ that stand is silently DROPPED = a coverage HOLE.
+    # 30s makes the writer WAIT out any transient lock instead of dropping the row. (2026-07-11: a supervisor's
+    # per-turn COUNT(*) reads created ~20 holes/affected-cycle; captured to .sweep_work/sn_coverage_holes.txt.)
+    _run(db, "PRAGMA busy_timeout=30000")
     db
 end
 

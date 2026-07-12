@@ -60,6 +60,12 @@ rc=$?
 if [ $rc -eq 124 ] || [ $rc -eq 137 ]; then
   echo $((cur + emitted)) > $CURD/$vl.cursor
   echo "$V batch: offset $cur→$((cur+emitted)) of ${POP[$V]}  TIMEOUT (>${CYCLE_TO:-480}s) — skipped, cursor advanced"
+  # NON-SILENT skip: record the offset range whose UNREACHED tail was skipped, so coverage is explicit and a
+  # targeted backfill can re-run this exact range (SKIP_DONE then runs only the uncovered stands, not the ones
+  # the partial $cyc already ledgered). Turns a silent coverage gap into a documented, recoverable one.
+  SKIPLOG=docs/fia_skipped_ranges.csv
+  [ -f $SKIPLOG ] || echo "variant,offset_start,offset_end,reason,cycle_to_s" > $SKIPLOG
+  echo "$V,$cur,$((cur+emitted)),timeout,${CYCLE_TO:-480}" >> $SKIPLOG
   # fall through so any partial $cyc rows still get ledgered/filtered, but do not halt
 fi
 # A non-zero rc is a REAL failure (crash) — halt so it can be investigated. But rc=0 with an empty/missing

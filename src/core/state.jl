@@ -447,6 +447,12 @@ mutable struct PlotData
     sp_sdi_def::Vector{Float32} # max SDI by species                  (SDIDEF)
     sp_site_index::Vector{Float32} # site index by species            (SITEAR)
     site_trees::Matrix{Float32} # site tree records (MAXSTR,6)        (SITETR)
+    # FFE initial dead surface-fuel loadings read from the FVS_STANDINIT DB FUEL_* columns (dbsstandin.f:396-458):
+    # measured FIA down-woody-material tons/ac, size classes 1:11 (<.25/.25-1/1-3/3-6/6-12/12-20/20-35/35-50/>50/
+    # litter/duff), hard + soft. EMPTY = no DB fuel data (use the FUINI-table default). fmcba! seeds
+    # FFEParams.stfuel_hard/soft from these (the reader's equivalent of dbsstandin.f injecting a FUELINIT keyword).
+    ffe_fuel_hard::Vector{Float32}
+    ffe_fuel_soft::Vector{Float32}
 end
 
 function PlotData()
@@ -462,6 +468,7 @@ function PlotData()
         0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,0.0f0,
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSTR,6),
+        Float32[], Float32[],
     )
 end
 

@@ -84,6 +84,11 @@ function fmcba!(s::StandState)
                   s.variant isa CentralStates ? cs_dead_fuel_loading(coef, Int(s.plot.forest_type)) :
                   s.variant isa LakeStates ? ls_dead_fuel_loading(s) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
+        # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
+        # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set
+        # them (the keyword takes precedence, matching FVS where a later-scheduled FUELINIT overrides the DB one).
+        isempty(fs.params.stfuel_hard) && !isempty(s.plot.ffe_fuel_hard) && (fs.params.stfuel_hard = copy(s.plot.ffe_fuel_hard))
+        isempty(fs.params.stfuel_soft) && !isempty(s.plot.ffe_fuel_soft) && (fs.params.stfuel_soft = copy(s.plot.ffe_fuel_soft))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
         fill!(fs.cwd, 0f0)
         @inbounds for isz in 1:11

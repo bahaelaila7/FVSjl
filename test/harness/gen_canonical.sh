@@ -4,7 +4,7 @@
 #
 # These reference keys bundle realistic management scenarios (control / thinning / shelterwood
 # +ECON / FFE fire / bare-ground plant) across 5 stands each — the strongest per-scenario
-# drop-in gate. Golden sums come from the freshly-relinked live binaries (/tmp/FVSxx_new).
+# drop-in gate. Golden sums come from the freshly-relinked live binaries (/workspace/FVSjl/tmp/oracles/FVSxx_new).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
@@ -19,9 +19,9 @@ gen() { # <variant-dir> <stem> <bin>
   echo "  $stem: $(awk '/^-999/{n++}END{print n}' "$FIX/$stem.sum") stands, $(grep -cE '^(19|20)[0-9][0-9]' "$FIX/$stem.sum") rows"
 }
 
-gen FVSsn snt01 /tmp/FVSsn_new
-gen FVSne net01 /tmp/FVSne_new
-gen FVScs cst01 /tmp/FVScs_new
-gen FVSls lst01 /tmp/FVSls_new
+gen FVSsn snt01 /workspace/FVSjl/tmp/oracles/FVSsn_new
+gen FVSne net01 /workspace/FVSjl/tmp/oracles/FVSne_new
+gen FVScs cst01 /workspace/FVSjl/tmp/oracles/FVScs_new
+gen FVSls lst01 /workspace/FVSjl/tmp/oracles/FVSls_new
 find "$FIX" -maxdepth 1 -type f ! -name '*.key' ! -name '*.tre' ! -name '*.live.sum' -delete
 echo "canonical multi-stand fixtures + golden sums written to $FIX"

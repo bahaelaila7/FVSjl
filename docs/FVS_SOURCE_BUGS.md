@@ -73,6 +73,37 @@ Format per entry:
 ---
 
 ### D38 — SN volume init (R9 Clark `r9ht`) SIGFPE-crashes on real FIA stands with short trees (≤17.3 ft: invalid-op; just >17.3 ft: FE_UNDERFLOW — `r9ht` is missing the underflow guard `r9cuft` already has at `r9clark.f:1015`)
+
+> ★★ **RESOLVED — FIX APPLIED TO LIVE FVS, ALL 4 VARIANTS (2026-07-11).** A crash is a *bug*,
+> not a tolerable divergence; the faithful action is to fix FVS at source (for maintainer
+> submission) so the stand yields comparable output — never to replicate the crash in FVSjl.
+> Sites pinned by `-g` backtraces on real crashers at the **exact original flags** (`-O0
+> -ffpe-trap=invalid,zero,underflow,overflow,denormal`; note **`-O2` masks the trap**):
+> `r9ht:1286`, `r9dib:~1213`, `r9cuft:1018`, `r9cuft`-V2:1086 — all the Clark taper terms
+> `(1-h/totHt)**p`. **Measurement** (e.g. crasher `1224249126290487`: `totHt=17.49, U2=17.30,
+> p=19.17, base=0.0108` → `base**p·(totHt-U2)` **subnormal**) showed the dominant failure is a
+> **legitimate gradual underflow to a denormal**, not a logic error — and the `YW-2023` fixed
+> threshold `0.005748.AND.p.GT.14` can't cover it (it's p-dependent). Since denormal underflow
+> is well-defined IEEE and **FVSjl/Julia does not trap it**, the clean FVSjl-exact fix is
+> **two-part**:
+> 1. **BUILD FLAG** (`bin/makefile_Xbuild`): drop `underflow,denormal` from `-ffpe-trap`
+>    (→ `invalid,zero,overflow`). Denormals flow exactly as the port computes them; **fixes
+>    every denormal crash site at once with ZERO output change**.
+> 2. **SOURCE** (`volume/NVEL/r9clark.f`): guard the residual **invalid-op** (negative base,
+>    `totHt<17.3`) in `r9ht`+`r9dib` — `Y=0` is the correct limit (17.3′ term vanishes),
+>    mirroring the guard `r9cuft` already has (~:1015). Matches FVSjl (`r9clark_vol.jl` r9ht:236).
+> **Validation:** 8/8 first-wave + **162/162 second-wave** SN crashers now emit `.sum`; **cycle-0
+> volume bit-exact vs FVSjl**; **40/40 normal stands byte-identical** patched-vs-pristine (data
+> rows). **All 4 oracles relinked** (`/tmp/FVS{sn,ne,cs,ls}_new`): SN+CS get the build-flag +
+> source guards; **NE/LS get the build-flag only** — their build dirs were compiled with a
+> different gfortran (`.mod` ABI mismatch blocks recompiling r9clark.o), but the trap-drop is
+> `main.o`-only and clears their (denormal) crashers, verified. Any residual `totHt<17.3`
+> invalid-op crash in NE/LS would need the source guard via a full rebuild (tiny: NE 5 / LS 1
+> live_crash total). Clean maintainer patch (build flag + source): **`docs/patches/
+> r9clark_D38_allsites.patch`**. Previously-crashed SN stands re-run through the patched oracle
+> reclassify into the ordinary cornered taxonomy (structure_densephase / print_boundary /
+> count_straddle), 0 `live_crash`, 0 UNCLASSIFIED.
+
 - **Live Fortran — EXACT LINE:** `bin/FVSsn_buildDir/r9clark.f:1286`, in subroutine `r9ht`:
   ```fortran
         Y = (1.0 - 17.3/totHt)**p
@@ -185,3 +216,73 @@ crashes on (dig_class `live_crash`, honest coverage accounting); FVSjl projects 
 does not crash), but the "validated bit-exact vs a patched oracle" claim holds ONLY where a COMPLETE guard set
 exists — which it does not yet. Root cause of the whole gap unchanged (submodule migration dropped FVS's local
 r9clark guards; see D38 addendum). Do NOT claim the crash stands are oracle-validated until r9cuft is also guarded.
+
+---
+## CS essprt.f:216-217 — stump-sprout reciprocal SIGFPE under THINBBA (real live-FVS crash, fix proposed, env-blocked)
+
+**Found 2026-07-11 via the Pillar-3 CS management differential** (audit slice 43bw): 3 of 40 sampled CS stands
+SIGFPE-crash live FVScs under **THINBBA** (salvage/plant/none do NOT crash). Backtrace (all 3, identical path):
+```
+essprt.f:217  (SIGFPE, signal 8)
+esuckr.f:239 → esnutr.f:119 → gradd.f:229 → tregro.f:52 → fvs.f:376 → main.f
+```
+**Root cause.** `SUBROUTINE ESSPRT(VAR,ISPC,PREM,DSTMP)` computes the stump-sprout "probability-remaining" multiplier.
+The CS branch, CASE(57,58) (essprt.f:215-217):
+```fortran
+CASE(57,58)
+  PREM = PREM * (1. / (1. + EXP(-(-2.8058 + 22.6839 * (1./((DSTMP/0.7788)-0.4403))))))
+```
+The term `1./((DSTMP/0.7788)-0.4403)` divides by zero when the cut-stump diameter `DSTMP == 0.7788*0.4403 ≈
+0.34296"`. Under the shipped build's FPE trap (`-ffpe-trap=invalid,zero,overflow`, confirmed from the .o DWARF
+producer string), the `1./0.` divide-by-zero raises SIGFPE. (The DENOM<0 side is also hazardous: `1./(tiny neg)`
+→ −∞ → predictor +∞ → `EXP(+∞)` → the `overflow` trap.) THINBBA cuts a species-57/58 hardwood whose stump lands
+on/near that diameter ⇒ post-harvest sprouting (esuckr→esnutr→gradd→essprt) hits the singularity ⇒ crash.
+
+**Anomaly.** CASE(57,58) is the ONLY CS branch using the *reciprocal* `1./((DSTMP/0.7788)-0.4403)`. Every other
+branch built on the same base term (CASE 47, 54: `((DSTMP/0.7788)-0.4403)*2.54`) uses it as a *linear* predictor
+(×2.54, in→cm). The reciprocal form (with the odd 22.6839 coef and no 2.54) looks like a transcription anomaly, but
+regardless it is a genuine numerical singularity on valid inputs.
+
+**Both-sides.** FVSjl does NOT crash on these 3 stands (dig_class is `live_crash`, not a jl error ⇒ FVSjl produced
+output) — its essprt port evidently uses a safe formulation / guarded limit. So this is a live-FVS-only hazard.
+
+**Proposed maintainer fix (essprt.f, CASE(57,58)) — source guard clamping the LOGISTIC ARGUMENT** (an
+epsilon-on-DENOM-only guard is INSUFFICIENT: the DENOM<0 side still overflows EXP):
+```fortran
+CASE(57,58)
+  DENOM = (DSTMP/0.7788) - 0.4403
+  IF (ABS(DENOM) .LT. 1.0E-6) THEN
+    XARG = SIGN(1.0E30, DENOM)            ! DENOM→0 : predictor → ±∞ limit
+  ELSE
+    XARG = -2.8058 + 22.6839 * (1./DENOM)
+  ENDIF
+  XARG = MAX(-80.0, MIN(80.0, XARG))      ! keep EXP finite (no overflow/underflow trap)
+  PREM = PREM * (1. / (1. + EXP(-XARG)))  ! → 1 (DENOM>0 limit) or 0 (DENOM<0 limit): the correct limits
+```
+This preserves the model's value for every non-singular DSTMP and returns the mathematically-correct logistic
+limit (1 / 0) at the singularity, with no FP exception. ALTERNATIVE (R9-clark-style build-flag fix): drop `zero`
+and `overflow` from main.o's `-ffpe-trap`, letting IEEE ±Inf propagate to the same limits — but that masks
+divide-by-zero globally, so the source guard is preferred.
+
+**★ CORRECTION — the BUILD-FLAG fix IS validatable + faithful here (earlier "env-blocked" was WRONG).** The build-dir
+`main.o` was compiled with the LOCAL gfortran (Debian **12.2.0**, per its DWARF producer) and does no floating-point
+(40-line driver); recompiling it with the FULL exact flags gives BYTE-IDENTICAL `.text/.data/.rodata` (only `-g`
+debug sections differ). My earlier "relink non-reproducible" was a two-fold artifact: (1) I dropped the
+`-fintrinsic-modules-path`/`-fpre-include` flags (partial-flags → different .text), and (2) I compared the FULL
+`.sum` text including the per-run **timestamp header** (a spurious diff). With full flags + timestamp-stripped DATA
+comparison: recompiling `main.f` with `-ffpe-trap=invalid` (dropping `zero,overflow`) → relink → **50/50 normal CS
+stands DATA-bit-identical** to `/tmp/FVScs_new` AND all 3 crashers FIXED (SIGFPE→valid output, the `1./0.→+Inf`
+propagating to the correct logistic limit — same value FVSjl computes). So the crash IS fixable+validatable here.
+(NOTE: the *source-recompile* path — recompiling essprt.f itself — remains blocked, since essprt.o was built with
+SUSE gfortran **15.2.1** and a 12.2.0 recompile perturbs numerics; only the trap-flag-on-main.o path is faithful.)
+
+**Fix recommendation (unchanged) + deployment decision.** The precise MAINTAINER fix is still the essprt.f source
+guard (logistic-arg clamp — fixes ONLY this site). The build-flag fix (`main.o -ffpe-trap=invalid`) is a VALIDATED
+alternative here but BROADER: it stops trapping divide-by-zero/overflow GLOBALLY (the R9-clark fix deliberately kept
+`zero,overflow`), so it could mask a genuine div/0 elsewhere. Oracle `/tmp/FVScs_new` LEFT PRISTINE and NOT
+hot-patched — because the SWEEP runs regime=none, which does NOT hit this crash (it needs THINBBA→stump-sprouting →
+essprt CASE 57/58), so the sweep's CS coverage is unaffected; the crash is a Pillar-3 THINBBA-management issue only.
+The directive ("fix live FVS for maintainer submission; never tolerate as live_crash") is satisfied: root-caused +
+validated working fix + source-guard proposal for submission — not tolerated. Affected sample stands (thinbba):
+1910906629290487, 488847180126144, 224864192010661 (+ likely more; the 3-stand sample is not exhaustive). All test
+binaries removed; build-dir .o untouched (compiled only to scratch).

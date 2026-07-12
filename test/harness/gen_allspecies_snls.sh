@@ -24,7 +24,7 @@ LS_TRE=/workspace/ForestVegetationSimulator/tests/FVSls/lst01.tre
 SN_CODES="$($JL -e 'using FVSjl; c=FVSjl.coefficients(Southern()).code_alpha; print(join([strip(c[i]) for i in 1:FVSjl.nspecies(Southern()) if strip(c[i])!=""],","))')"
 LS_CODES="$($JL -e 'using FVSjl; c=FVSjl.coefficients(LakeStates()).code_alpha; print(join([strip(c[i]) for i in 1:FVSjl.nspecies(LakeStates()) if strip(c[i])!=""],","))')"
 
-python3 - "$SN_TRE" "$LS_TRE" "$FIX" "$SN_CODES" "$LS_CODES" /tmp/FVSsn_new /tmp/FVSls_new <<'PY'
+python3 - "$SN_TRE" "$LS_TRE" "$FIX" "$SN_CODES" "$LS_CODES" /workspace/FVSjl/tmp/oracles/FVSsn_new /workspace/FVSjl/tmp/oracles/FVSls_new <<'PY'
 import sys, subprocess, os
 sn_tre, ls_tre, FIX, sn_codes, ls_codes, SNBIN, LSBIN = sys.argv[1:8]
 sn_codes=sn_codes.split(","); ls_codes=ls_codes.split(",")
@@ -101,10 +101,10 @@ PY
 
 # --- refresh live golden .sum files ------------------------------------------------------
 for k in "$FIX"/sn_cov*.key; do b=$(basename "$k" .key)
-  ( cd "$FIX" && /tmp/FVSsn_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
+  ( cd "$FIX" && /workspace/FVSjl/tmp/oracles/FVSsn_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
 done
 for k in "$FIX"/ls_cov*.key; do b=$(basename "$k" .key)
-  ( cd "$FIX" && /tmp/FVSls_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
+  ( cd "$FIX" && /workspace/FVSjl/tmp/oracles/FVSls_new --keywordfile="$b.key" >/dev/null 2>&1 && cp "$b.sum" "$b.live.sum" )
 done
 find "$FIX" -maxdepth 1 -type f ! -name '*.key' ! -name '*.tre' ! -name '*.live.sum' -delete
 echo "SN+LS fixtures + golden sums written to $FIX"

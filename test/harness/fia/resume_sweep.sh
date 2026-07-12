@@ -5,7 +5,7 @@
 # So the verification STATE is safe — the per-stand results (data/fia_sweep.db), the progress cursor
 # (test/harness/fia/expand/<v>.cursor, also mirrored in the DB progress table), and the working dir
 # (.sweep_work) all live on /workspace. The only casualties are REGENERABLE: the live-FVS oracle binary
-# (/tmp/FVSsn_new) and transient batch files. This script rebuilds the oracle if missing, reconciles the cursor
+# (/workspace/FVSjl/tmp/oracles/FVSsn_new) and transient batch files. This script rebuilds the oracle if missing, reconciles the cursor
 # (max of the file and the DB mirror), reports state, and resumes the loop. Nothing is re-swept from scratch.
 #
 #   bash test/harness/fia/resume_sweep.sh [SN|NE|CS|LS]   # default SN; env BATCH/CYCLE_TO/DIGCAP as usual
@@ -14,7 +14,7 @@ cd /workspace/FVSjl
 V=${1:-SN}; vl=$(echo "$V" | tr 'A-Z' 'a-z')
 DB=/workspace/FVSjl/data/fia_sweep.db
 JL="julia --project=."
-declare -A ORACLE=( [SN]=/tmp/FVSsn_new [NE]=/tmp/FVSne_new [CS]=/tmp/FVScs_new [LS]=/tmp/FVSls_new )
+declare -A ORACLE=( [SN]=/workspace/FVSjl/tmp/oracles/FVSsn_new [NE]=/workspace/FVSjl/tmp/oracles/FVSne_new [CS]=/workspace/FVSjl/tmp/oracles/FVScs_new [LS]=/workspace/FVSjl/tmp/oracles/FVSls_new )
 BIN=${ORACLE[$V]}
 
 echo "== resume_sweep $V =="

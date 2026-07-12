@@ -70,7 +70,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "AGE") && (p.stand_age = Int32(_fia_int(d, "AGE", 0)))
     # ASPECT degrees → radians (TRNASP ×0.0174533); SLOPE percent → fraction (PLOT.F77)
     _fia_present(d, "ASPECT") && (p.aspect = _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0)
-    _fia_present(d, "SLOPE")  && (p.slope  = _fia_f32(d, "SLOPE", 0f0) / 100f0)
+    # SLOPE: grinit.f:226 defaults a MISSING/NULL slope to 5.0% (→0.05 fraction) BEFORE the DB
+    # overrides it — all 4 variants (sn/ne/cs/grinit.f:221-226 SLOPE=5.0). jl previously left a
+    # missing slope at the 0.0 constructor default, which zeroed the DGF slope/aspect DGCON term
+    # (TANS·SLOPE + FCOS·SLOPE·cos(ASP) + FSIN·SLOPE·sin(ASP), dgf.f:1125-1127) → over-grew species
+    # with large slope coefficients (e.g. sp39 loblolly-bay FCOS=-10.15: a 0.05 slope = -0.68 in
+    # ln(DDS) ⇒ ~2× DBH growth). Apply the grinit default so a missing slope matches live FVS.
+    p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : 5f0 / 100f0
     # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710)
     if _fia_present(d, "ELEVFT")
         p.elevation = _fia_f32(d, "ELEVFT", 0f0) * 0.01f0
@@ -132,8 +138,12 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "HTG_TRANS")    && (c.growth_ihtg  = Int32(_fia_int(d, "HTG_TRANS", 0)))
     _fia_present(d, "HTG_MEASURE")  && (c.growth_finth = _fia_f32(d, "HTG_MEASURE", 5f0))
     _fia_present(d, "MORT_MEASURE") && (c.growth_fintm = _fia_f32(d, "MORT_MEASURE", 5f0))
-    # SITE_SPECIES (ISISP) + SITE_INDEX (SITEAR): assign to the site species only if given,
-    # else to all species (dbsstandin.f:841). ≤7 = Dunning code (not yet handled → direct).
+    # SITE_SPECIES (ISISP) + SITE_INDEX (SITEAR): assign to the site species only if given, else to all
+    # species (dbsstandin.f:841). A SITE_INDEX ≤ 7 is a DUNNING site-CLASS code, NOT a site index in feet
+    # (dbsstandin.f:763 `IF (RSTANDDATA(35).LE.7.) ... DUNNING CODE`); FVS calls DUNN to convert it, but the
+    # SN/NE/CS/LS DUNN routines are all DUMMIES ⇒ the code is not usable as an SI ⇒ FVS falls through to the
+    # SITSET default. So we record the site species but leave sp_site_index=0 for SITSET to default; using the
+    # code literally (e.g. 5) cripples growth (frozen TopHt / suppressed DBH — audit 43bl).
     if _fia_present(d, "SITE_INDEX")
         si = _fia_f32(d, "SITE_INDEX", 0f0)
         isp = 0
@@ -144,12 +154,48 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
                 isp = Int(idx)
             end
         end
-        if isp >= 1
-            p.sp_site_index[isp] = si; p.site_species = Int32(isp); p.site_index = si
-        else
-            fill!(p.sp_site_index, si); p.site_index = si
+        if si > 7f0                                # a real site index in feet
+            if isp >= 1
+                p.sp_site_index[isp] = si; p.site_species = Int32(isp); p.site_index = si
+            else
+                fill!(p.sp_site_index, si); p.site_index = si
+            end
+        else                                       # Dunning class code (≤7): record site species, SITSET defaults SI
+            isp >= 1 && (p.site_species = Int32(isp))
         end
     end
+    # FFE initial dead surface fuels (FUINI override) from the FVS_STANDINIT FUEL_* columns
+    # (dbsstandin.f:396-458 → FUELINIT/FUELSOFT → fmcba.f:318-362). Measured FIA down-woody-material tons/ac by
+    # size class; missing ⇒ -1 sentinel (fmcba! keeps the FUINI-table default for that class). Class order =
+    # jl stfuel_hard (state.jl / _fuelinit!): <.25/.25-1/1-3/3-6/6-12/12-20/20-35/35-50/>50/litter/duff.
+    _fuelcol(nm::Vararg{String}) = begin
+        v = -1f0
+        for n in nm; _fia_present(d, n) && (v = _fia_f32(d, n, -1f0); break); end
+        v
+    end
+    hard = Float32[
+        _fuelcol("FUEL_0_25_H","FUEL_0_25"),   _fuelcol("FUEL_25_1_H","FUEL_25_1"),
+        _fuelcol("FUEL_1_3_H","FUEL_1_3"),     _fuelcol("FUEL_3_6_H","FUEL_3_6"),
+        _fuelcol("FUEL_6_12_H","FUEL_6_12"),   _fuelcol("FUEL_12_20_H","FUEL_12_20","FUEL_GT_12"),
+        _fuelcol("FUEL_20_35_H","FUEL_20_35"), _fuelcol("FUEL_35_50_H","FUEL_35_50"),
+        _fuelcol("FUEL_GT_50_H","FUEL_GT_50"), _fuelcol("FUEL_LITTER"), _fuelcol("FUEL_DUFF")]
+    # lumped <1" (FUEL_0_1) splits into classes 1&2 when the split columns are absent (fmcba.f:329-340)
+    c01 = _fuelcol("FUEL_0_1","FUEL_0_1_H")
+    if c01 >= 0f0
+        if hard[1] < 0f0 && hard[2] < 0f0
+            hard[1] = c01 * 0.5f0; hard[2] = c01 * 0.5f0
+        elseif hard[1] < 0f0
+            hard[1] = max(c01 - hard[2], 0f0)
+        elseif hard[2] < 0f0
+            hard[2] = max(c01 - hard[1], 0f0)
+        end
+    end
+    soft = Float32[
+        _fuelcol("FUEL_0_25_S"), _fuelcol("FUEL_25_1_S"), _fuelcol("FUEL_1_3_S"),
+        _fuelcol("FUEL_3_6_S"), _fuelcol("FUEL_6_12_S"), _fuelcol("FUEL_12_20_S"),
+        _fuelcol("FUEL_20_35_S"), _fuelcol("FUEL_35_50_S"), _fuelcol("FUEL_GT_50_S"), -1f0, -1f0]
+    any(x -> x >= 0f0, hard) && (p.ffe_fuel_hard = hard)
+    any(x -> x >= 0f0, soft) && (p.ffe_fuel_soft = soft)
     return s
 end
 

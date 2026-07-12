@@ -3,7 +3,7 @@
 #
 # The NE port's oracle. The shipped bin/FVSls fails on this box's GLIBC (needs
 # 2.38/2.43), so — exactly like the SN harness (fortran_baseline.sh) — we relink
-# a working binary (/tmp/FVSls_new) from the resolved .o files in the NE build dir
+# a working binary (/workspace/FVSjl/tmp/oracles/FVSls_new) from the resolved .o files in the NE build dir
 # plus the glibc shim, then run it on a keyfile in an isolated dir.
 #
 # Usage:  ls_oracle.sh <keyfile> <outdir>      → prints <outdir>, writes <stem>.sum etc.
@@ -15,20 +15,20 @@
 set -euo pipefail
 
 BUILDDIR="${FVSLS_BUILDDIR:-/workspace/ForestVegetationSimulator/bin/FVSls_buildDir}"
-BIN="${FVSLS_BIN:-/tmp/FVSls_new}"
-SHIM=/tmp/glibc_shim.o
+BIN="${FVSLS_BIN:-/workspace/FVSjl/tmp/oracles/FVSls_new}"
+SHIM=/workspace/FVSjl/tmp/oracles/glibc_shim.o
 
 _ensure_binary() {
     [ -x "$BIN" ] && return 0
     if [ ! -f "$SHIM" ]; then
-        cat > /tmp/glibc_shim.c <<'EOF'
+        cat > /workspace/FVSjl/tmp/oracles/glibc_shim.c <<'EOF'
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdarg.h>
 int __isoc23_sscanf(const char *s, const char *f, ...){va_list a;va_start(a,f);int r=vsscanf(s,f,a);va_end(a);return r;}
 int __isoc99_sscanf(const char *s, const char *f, ...){va_list a;va_start(a,f);int r=vsscanf(s,f,a);va_end(a);return r;}
 EOF
-        gcc -c -O2 /tmp/glibc_shim.c -o "$SHIM"
+        gcc -c -O2 /workspace/FVSjl/tmp/oracles/glibc_shim.c -o "$SHIM"
     fi
     local n; n=$(ls "$BUILDDIR"/*.o 2>/dev/null | wc -l)
     [ "$n" -lt 100 ] && { echo "ERROR: $BUILDDIR has only $n .o files" >&2; return 1; }

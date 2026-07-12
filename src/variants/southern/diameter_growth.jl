@@ -299,9 +299,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # Backdate diameters to the start of the measured-growth period (DENSE/LBKDEN,
     # dense.f:70-86): WK3 = sqrt(d²·r). For a tree with measured DG, r=(d−DG/bark)²/d²
     # (so WK3 = past inside-bark-adjusted dbh); unmeasured trees use the stand-average
-    # ratio bagr. The calibration DGF must predict from this PAST stand state (past
-    # dbh + past BA/AVH/PCT), which is what makes COR/OLDRN bit-exact.
+    # ratio bagr. The calibration DGF predicts from this PAST stand state (past dbh +
+    # past BA/PCT/point_ba), EXCEPT the AVHT40 top height (AVH), which stays at the
+    # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
     # recent dead are added back at the right rate to recover the BACKDATED density (notre.f:122-124). FVS keeps
     # that inflation live through calibration and "undoes" it for treelist/FFE uses (FMSSEE/PRTRLS); jl carries
@@ -389,7 +391,17 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # backdated dbh — FVS NE calib computes BADIST on the current stand (verified EBAU=52). Stash the current dbh
     # for ne_badist! to read; SN ignores it (point_bal-based, never calls ne_badist!). Cleared right after.
     s.variant isa Northeast && (c.calib_dbh = saved_dbh)
+    # AVH (AVHT40 top height) is NOT backdated during calibration: FVS's DENSE backdating pass
+    # updates BA/point_ba/PCT at the past dbh, but the calibration DGF's relative-height term
+    # reads the CURRENT-stand AVH (like the current point_ba restored at line 347 and the NE
+    # current-stand BADIST above). compute_density! above recomputes AVH at the backdated dbh
+    # ranking (too low → relht too high → WK2 too high → COR under-shrunk); restore the current
+    # value for the prediction. Validated bit-exact vs live FVSsn (COR 1.548, full .sum) on FIA
+    # stand 160545945010854 (missing SITE_INDEX, HB/CW/WI increment cores).
+    _saved_avh = s.plot.avg_height
+    s.plot.avg_height = _cur_avh
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
+    s.plot.avg_height = _saved_avh
     c.calib_dbh = Float32[]
     s.plot.forest_type = saved_fortype
     wk2 = view(s.scratch.wk, 2, :)

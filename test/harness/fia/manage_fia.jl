@@ -14,7 +14,7 @@ import SQLite, DBInterface
 # sample stands once (C-speed ATTACH+CREATE TABLE AS SELECT), then run both engines against that (~100× faster).
 # Override the master with FIA_DB (e.g. a pre-built sub-DB); set FIA_NOSUBDB=1 to query the master directly.
 const MASTER = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
-const BIN = Dict("SN"=>"/tmp/FVSsn_new","NE"=>"/tmp/FVSne_new","CS"=>"/tmp/FVScs_new","LS"=>"/tmp/FVSls_new")
+const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new")
 
 # Build a temp indexed sub-DB from the master for exactly `cns` (C-speed; master never modified).
 function build_subdb(cns, out)

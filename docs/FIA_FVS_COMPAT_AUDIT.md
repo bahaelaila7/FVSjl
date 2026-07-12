@@ -1921,6 +1921,102 @@ in FVS_SOURCE_BUGS.md. UNCHANGED and correct: the live_crash dig_class = honest 
 stands the shipping oracle crashes on; FVSjl projects them. Patched-oracle validation is PARKED until a complete
 (multi-site) guard set exists. Floor 38527/143/0 untouched (docs only).
 
+### SLICE 43ag — population-scale re-confirmation of the `live_crash` class (D38 SIGFPE, not a harness artifact)
+While stewarding the full SN population sweep (cursor ~39,800/637,641; 76,158 stands recorded in data/fia_sweep.db),
+audited the single largest cornered bucket: **live_crash = 9,405 (~12% of swept SN stands)** — the biggest non-bit-
+exact class after print_boundary. Doctrine (Pillar-4) requires every divergence root-caused, so I spot-reproduced the
+oracle directly on 5 sampled live_crash CNs (1224244256290487 …1224249126290487) via run_live against the freshly
+relinked /tmp/FVSsn_new: **all 5 die with exitcode=0 / termsignal=8 (SIGFPE) and emit NO .sum**. This is the genuine
+oracle-side D38 R9-Clark short-tree FPE (slices 43t/43u/43v), NOT a harness mislabel inflating the cornered count —
+the ledger's crash detector (`termsignal!=0 || exitcode>128`, ledger_fia.jl:92) fires only on a real signal, and
+these are real SIGFPEs. FVSjl projects all 5 fine. Sweep-DB dig_class distribution is clean: bit_exact 40,102 /
+ulp_class 26,651 / live_crash 9,405 — **zero needs_dig**; every non-bit-exact stand is a cornered signature
+(print_boundary 18,887 / volume_persistent 2,662 / structure_densephase 2,547 / threshold_crossing 1,577 /
+count_straddle 978, all sub-escalation). VERDICT: the live_crash count is audited-genuine, D38-cornered per the
+existing verdict. Floor 38527/143/0 untouched (spot-repro + docs only; NO src/ change).
+
+### SLICE 43ah — sub-escalation tail audit: the guard's structural blind-spot is benign (dense-phase + a .sum parse artifact)
+Stewarding-time Pillar-4 audit of the ONE place a real structure bug could hide UNDER the escalation guard: a large
+structural move whose row `worst_col` is a VOLUME column (so `is_escalation`'s `worst_col ∈ {TPA,BA,SDI,CCF,QMD}`
+gate never fires) inside the globally-cornered `structure_densephase` cluster. Query: SN `structure_densephase`,
+non-structural worst_col, `struct_max_abs ≥ 50` ⇒ **69 candidates**. Both-sides-traced the two largest via diff_one:
+  • **204758406010854** — 14,103-TPA seedling regen (QMD 0.1). TPA self-thins live 5762 / jl 7858 @2008 (struct_abs
+    2096) while density tracks close (BA 80/73, SDI 304/291). = dense-phase self-thinning count-straddle (taxonomy
+    B1/B5, SIGMAR tripling-spread × density-dependent mortality), the SAME primitive cornered for the LS ultra-dense
+    stands, here in SN at higher TPA. Correctly globally-cornered.
+  • **218434248010854** — 7003-TPA regen; reported `struct_max_abs=20014` at only 3.3% structural rel (physically
+    impossible for any structure col). diff_one showed SDI=`4.381035e6`, QMD=`2750`. RAW .sum: the 2026 row is
+    `... 2058 164 4381035 42 3.8 ...` — **SDI (438) and CCF (1035) MERGED into one token `4381035`**: in an ultra-dense
+    stand CCF exceeds 999 and overflows its fixed-width Fortran field, gluing to the SDI field with no separating
+    space. `parse_sum10` (ledger_fia.jl:75) splits on WHITESPACE ⇒ the row loses a token ⇒ columns past the overflow
+    shift (the "SDI" cell = merged SDI+CCF, "QMD" cell = a volume col). So `struct_max_abs=20014` is a **parse
+    artifact, not a real structural move**; the genuine divergence is again dense-phase self-thinning (TPA 2058/2085,
+    BA 164/162 within ~1%).
+CRITICAL SAFETY PROPERTY: the overflow afflicts BOTH live and jl `.sum` identically (both are FVS-format), so it can
+only INFLATE apparent divergence — it can NEVER produce a false `bit_exact` (that needs all 10 parsed cells equal; a
+real per-column difference still surfaces through the merged token) nor mask a real bug. It is diagnostic-metric noise
+on the `struct_max_abs`/`worst_col` fields, confined to CCF≥1000 ultra-dense regen — every such stand is already the
+globally-cornered dense-phase class. VERDICT: the sub-escalation structural tail is CLEAN — no structural bug hides
+under the guard; the 69 large-`struct_abs` candidates are dense-phase self-thinning (cornered) + .sum field-overflow
+artifacts. Also re-confirms the AVHT40 TopHt tie-break primitive (232056444010854: TopHt spikes 32→49 @2013 then
+RECONVERGES bit-exact to 60 @2018 — a transient that self-heals, not a compounding height-model error; the intended-
+excluded col per filter_digworthy.jl:16-19). FOLLOW-UP (deferred, not floor-relevant): make parse_sum10 fixed-width
+column-aware so struct_max_abs is trustworthy at the dense tail — but NOT mid-sweep (would make new DB rows'
+metrics inconsistent with old, and changes NO verdict since these stands are cornered). Floor 38527/143/0 untouched
+(diff_one/.sum-dump repro + docs only; NO src/ change; sweep uninterrupted, cursor advanced 39k→42k during the audit).
+
+  UPDATE (2 more traced, the highest-structural-% NON-CONVERGING candidates — the most bug-suspect of the 69):
+  • **1276028313290487** — 17,841-TPA regen; TPA straddles/oscillates (live 6140/jl 4902 @2027 → 3097/3671 @2032)
+    while density tracks within a few % throughout (BA 108/115, SDI 341/350, CCF 310/316, TopHt 27/27). Dense-phase.
+  • **209314057010854** — 3,891-TPA regen; TPA diverges (3544/3242 @2013) while BA/SDI/CCF/TopHt track within ~7%
+    all cycles (BA 174/191, SDI 373/392 @2033). Dense-phase.
+  REFINED VERDICT: `struct_max_abs≥50` is large PURELY because TPA at thousands-of-stems yields hundreds-of-units
+  ABSOLUTE diffs even at modest %; the structure RELATIVE divergence stays inside the count-straddle band (3–20%),
+  and `worst_col` is correctly a VOLUME col (huge % on near-zero-QMD bases = threshold-crossing). So the guard's
+  `worst_col ∈ {structural}` gate is WORKING AS INTENDED — moderate-struct-% + big-volume-% is a threshold-crossing,
+  NOT a structural bug. 4 of 69 traced (2 largest struct_abs + 2 highest struct-% non-converging), ALL dense-phase
+  self-thinning; the tail is audited clean. The `struct_abs≥50` metric is NOT a bug indicator at ultra-dense TPA —
+  it is the count-straddle's expected absolute footprint. No guard change needed (the earlier "blind-spot" concern is
+  resolved: structural REL, not ABS, is what the guard keys on, and REL stays in-band).
+
+### SLICE 43ai — Pillar-4 taxonomy audit COMPLETE across every signature class (population-scale, measured)
+Closed out the sub-escalation audit by tracing the two remaining large SN buckets (after 43ag live_crash + 43ah
+structure_densephase), so EVERY non-bit-exact signature class is now both-sides-verified at population scale:
+  • **threshold_crossing** (1,577; worst 886359561290487, MCuFt 451% @2035): diff_one shows all 6 STRUCTURE cols
+    bit-exact-or-±1 every cycle (SDI 130/129, TopHt 39/40) — the divergence is purely a merch/sawlog volume
+    DBH-threshold crossing on a near-zero base as the cohort first forms sawtimber (converges as it matures; tiny
+    vol_abs). Structure faithful; volume-threshold artifact only. ✓ named primitive B2.
+  • **count_straddle** (978; worst 232303097010854, BdFt 258% @2029): 6,755-TPA regen; DENSITY bit-exact all cycles
+    (BA 117/117, SDI 368/368, CCF 426/426) while TPA straddles (3656/3655 → 1615/1632) and QMD (4.3/4.2) — a
+    different COUNT of tiny trees killed at the self-thin (dens_be=1 flag decisive). ✓ named primitive B1.
+Full SN non-bit-exact taxonomy now audited-complete: live_crash (D38 SIGFPE, 43ag) / structure_densephase (dense-
+phase self-thin + .sum overflow artifact, 43ah) / threshold_crossing (merch-threshold, structure faithful) /
+count_straddle (density bit-exact) / volume_persistent (same merch-threshold family, non-converging tail) /
+print_boundary (definitionally ±1 print rounding — classify() assigns it only when NO cell is material). ZERO
+needs_dig across 80k+ swept SN stands; every class maps to a named primitive (taxonomy A-fixed / B-cornered at the
+doc head). Pillar-4 "no unexplained divergence remains" HOLDS at population scale for SN. Floor 38527/143/0 untouched
+(read-only DB queries + 2 diff_one traces + docs; NO src/ change; sweep uninterrupted).
+
+### SLICE 43aj — Pillar-4 CROSS-VARIANT taxonomy pre-flight: NE/CS/LS share SN's exact 6-class taxonomy (durable DB)
+Pre-flight for the full-population sweep's NE→CS→LS phases (~1.5 days out) using the durable sweep DB's existing
+500-scale rows (NE 1571 / CS 1563 / LS 1575 distinct CNs from the Pillar-2 differentials) — read-only, no new runs,
+sweep uninterrupted. Every variant shows the IDENTICAL six-class taxonomy and ZERO needs_dig:
+  variant | bit_exact | ulp_class | live_crash | signatures (non-BE)
+  NE      | 1237 (79%)|    329    |     5      | print_boundary 283 / threshold_crossing 20 / structure_densephase 16 / count_straddle 7 / volume_persistent 3
+  CS      | 1376 (88%)|    182    |     5      | print_boundary 139 / threshold_crossing 14 / count_straddle 13 / structure_densephase 10 / volume_persistent 6
+  LS      | 1159 (74%)|    415    |     1      | print_boundary 263 / threshold_crossing 73 / structure_densephase 32 / count_straddle 30 / volume_persistent 17
+NO new signature class appears outside SN — the taxonomy (print_boundary / threshold_crossing / structure_densephase /
+count_straddle / volume_persistent / live_crash) is VARIANT-INDEPENDENT. live_crash is SN-concentrated (SN ~12% vs
+NE/CS 0.3% / LS 0.06%), consistent with D38 R9-Clark short-tree FPE tripping mainly on SN shortleaf/loblolly stands.
+LS has the highest divergence rate (26%), driven by threshold_crossing(73)+structure_densephase(32) = its documented
+dense-phase self-thin/growth-ranking residual (B5). MEASURED CONFIRMATION (worst LS structure_densephase, 24097911010661,
+580 TPA): density diverges ~5-8% mid-projection (BA 67/72→96/104, SDI 147/154→170/177) with the self-thin TPA straddle
+(329/319) — the DOCUMENTED LS B5 calibration-backdating relative-ranking × SIGMAR tripling-spread primitive, NOT a new
+bug (the 141% max_rel was SCuFt near-zero-base threshold = B2). VERDICT: when the full sweep reaches NE/CS/LS, the same
+6 cornered classes are expected; the escalation guard (struct-col ≥15%/abs≥10, TCuFt ≥15%, UNCLASSIFIED) still surfaces
+any genuine new bug. Pillar-4 taxonomy now pre-validated across ALL 4 variants. Floor 38527/143/0 untouched (durable
+DB queries + 1 diff_one trace + docs; NO src/ change).
+
 ### SLICE 43w — PILLAR 3 opened: THINBBA management differential on 13 real SN stands (faithful; ULP-cornered)
 First documented **management-scenario** slice (pillars 1/2/4 were well underway; pillar 3 was untouched). Ran the
 existing `manage_fia.jl` THINBBA regime (thin-from-below to residual BA 40 at cycle 2, 5-cycle projection) live-FVS
@@ -2132,3 +2228,1762 @@ at its ultra-dense tail. VERDICT: Pillar-2 holds at 500-stand scale for NE/CS/LS
 cornered, only 2/1500 needed a manual trace and both cornered to a named primitive. Durable coverage: NE 1571 /
 CS 1563 / LS 1575 distinct CNs in data/fia_sweep.db. Ledgers /tmp/pillar2_{ne,cs,ls}500.csv. Floor 38527/143/0
 untouched (harness runs + docs; NO src/ change).
+
+### SLICE 43ah — D38 R9-Clark short-tree SIGFPE FIXED AT SOURCE in live FVS (all 4 variants) + live_crash reclassify
+Per the standing rule "on any live-FVS crash, stop+trace+patch+fix live FVS for maintainer submission"
+([[feedback-crash-means-fix-live-fvs]]), the D38 live_crash class is no longer accepted as bare FVS-UB — it is
+now FIXED in the oracle. BOTH-SIDES-TRACE: the SIGFPE (backtrace volinit.f:414 → r9clark) is dominated by a
+LEGITIMATE gradual underflow to a denormal in the Clark taper term `(1-h/totHt)**p` for short trees (totHt<17.3,
+large p) — a well-defined IEEE result that FVSjl/Julia does NOT trap but the FVS build DID (its `-ffpe-trap`
+list included `underflow,denormal`). A residual invalid-op (negative base when totHt<17.3) is the secondary site.
+THE FIX (two-part, FVSjl-exact; docs/patches/r9clark_D38_allsites.patch):
+  (1) BUILD FLAG — drop `underflow,denormal` from `-ffpe-trap` (makefile_Xbuild); denormals flow, ZERO output
+      change, fixes all denormal sites. Recompiling main.o alone resets the global FP trap mask, so this applies
+      even where r9clark.o cannot be rebuilt (NE/LS build dirs = `.mod` ABI mismatch from a different gfortran).
+  (2) SOURCE — guard the residual invalid-op in r9dib/r9ht with the `Y=0` short-tree limit, mirroring r9cuft's
+      existing guard and FVSjl's r9clark_vol.jl (r9ht:236 / r9cuft:193). Computes the CORRECT value, does NOT
+      replicate the crash.
+VALIDATION: 8/8 first-wave + 162/162 second-wave SN crashers now survive; cycle-0 volume BIT-EXACT vs FVSjl on
+the ex-crashers (guards are faithful, not hacks); 40/40 normal stands byte-identical patched-vs-pristine (data
+rows; only the wall-clock header differs). Applied to all 4 oracles (/tmp/FVS{sn,ne,cs,ls}_new); pristine
+backups preserved (.sweep_work/oracles/FVS*_pristine) for regression/rollback. Documented in FVS_SOURCE_BUGS.md
+(D38 "RESOLVED" block). RECLASSIFY (in progress): the ~14k SN live_crash stands are being rerun through the
+patched oracle — every chunk clears with still_live_crash=0, and the ex-crashers reclassify into ordinary
+cornered classes (structure_densephase / print_boundary / count_straddle — the dense short-tree stands that
+co-trigger the crash), 0 UNCLASSIFIED. VERDICT: live_crash is no longer a terminal class — it is a FIXED FVS
+crash-bug; the underlying stands are now projected and fall into the existing named-primitive taxonomy. Floor
+38527/143/0 untouched (oracle + docs + maintainer patch; NO src/ change).
+
+### SLICE 43ak — resumed-sweep dig-queue review (3 entries, patched-oracle sweep past cursor 80k)
+On resuming the SN full-population sweep on the patched oracle (cursor 64.8k→80k+), the dig queue held 3 entries;
+reviewed each per doctrine (both-sides-trace via diff_one per-cycle .sum):
+  • CN 1738006484290487 (TCuFt 6.34% @2043) and CN 1738007692290487 (TCuFt 5.53% @2038) — VERDICT: cornered.
+    Both are `threshold_crossing`: struct_max_rel 0.57%/0.65% (structure bit-exact <1%), density_bitexact=TRUE,
+    converges=TRUE. Only a TCuFt column crosses a merch-rounding threshold while the stand itself matches — the
+    accepted merch-threshold volume-ULP class. (They land in the dig queue via the filter's `worst_col==TCuFt &
+    struct%<1 & max_rel≥5` clause, which is exactly the merch-threshold catch — not a structural gap.)
+  • CN 1283725167290487 (TPA 38.2% @2047, structure_densephase, converges=false) — VERDICT: cornered to the
+    named `structure_densephase` = DGSCOR record-ordering / dense-phase growth-ranking class (classify()
+    ledger_fia.jl:122-123), an established+already-both-sides-traced primitive (COMPRESS/DGSCOR post-compress
+    order slices + the growth-gap "WK3 DGSCOR tail", accepted). diff_one trajectory CONFIRMS this instance fits
+    that class: 2022 bit-exact (TPA291/BA36); 2027 TPA bit-exact (286/286) but QMD 6.4/6.6 → BA 63/69 → SDI
+    102/109 (BA fully explained by QMD via 0.005454·QMD²·TPA); higher jl SDI then drives a stronger self-thinning
+    crash at 2032 (TPA 54/53) and amplifies without reconverging. ROOT = a dense-phase DIAMETER-GROWTH increment
+    divergence at 2022→2027 (the DGSCOR/point-density growth-ranking mechanism), amplified by the SDI-triggered
+    self-thinning — exactly the documented amplification ("a tiny per-tree diff = hundreds of trees at high
+    density; sub-ULP flips the near-tie ranking"). No NEW failure mode vs the traced class ⇒ per the population-
+    scale taxonomy rule, corner the instance; a fresh per-tree dgdriv stamp is NOT required (available as an
+    optional deepening if a maximally-rigorous instance-level proof is ever wanted). RESULT: dig queue → 0 open
+    (2 threshold_crossing + 1 structure_densephase, all cornered to named primitives). Sweep left running; floor
+    untouched (docs only).
+  ADDENDUM (sweep past 100k): two more entries reviewed & cornered to the same structure_densephase class,
+  both at EXTREME density: CN 1889016132290487 (8096-TPA seedling, QMD 1.5/1.9@2030 dense-phase diameter
+  growth → jl self-thins harder) and CN 1894616359290487 (20547-TPA seedling; 2030 mortality partition near-
+  tie with QMD BIT-EXACT, reconverges to ~1% by 2050). NOTABLE: 1894616359290487's ledger row is `live_crash`
+  but the DB is `needs_dig` and diff_one runs a FULL clean trajectory on the patched oracle — i.e. it is an
+  EX-D38-CRASHER that now projects and lands in the accepted ultra-dense self-thinning class (the SN analog of
+  the documented LS ultra-dense cases). This closes the loop between the D38 crash-fix (slice 43ah) and the
+  divergence taxonomy: the dense short-tree stands that used to SIGFPE now project into a named cornered
+  primitive, not a crash. Both added to fia_cornered_stands.txt; SN needs_dig back to 0.
+
+### SLICE 43al — sweep coverage-integrity audit + non-silent timeout-skip (scope question)
+Audited exactly what the population sweep skips (measure, don't guess). THREE skip mechanisms:
+  (1) SKIP_DONE dedup (ledger_fia.jl:168) — CNs already recorded (bit_exact/ulp_class/live_crash) are skipped on
+      a re-sweep; those stands WERE run in a prior pass ⇒ resume-idempotency, NOT a coverage gap.
+  (2) EMPTY-STRATUM (run_expand_cycle.sh:71) — a whole batch where live FVS emits no comparable .sum (nonstocked/
+      no-tree plots; live itself can't project ~1 in 6 real stands) advances the cursor. No data to differential
+      ⇒ not a gap. Per-stand no-comparable-output cases are counted as skipped(no-both-sum), i.e. accounted.
+  (3) TIMEOUT-skip (run_expand_cycle.sh:60) — `timeout -s KILL ${CYCLE_TO:-480}` bounds each 2000-batch; if a
+      dense/huge-treelist stratum exceeds 480s the ledger is KILLED (rc=137) and the cursor advances the full
+      2000, so the UNREACHED tail of that batch is skipped and never written to the DB (partial rows before the
+      kill ARE kept). This IS a real coverage gap when it fires.
+MEASURED frequency: the resumed sweep (cursor 64,800 → 118,800) = 27 clean cycles, 0 timeout-skips, 0 empty-
+strata ⇒ NOTHING skipped in the current run. But earlier sessions DID hit the 480s cap (Killed lines in the run
+log) ⇒ a historical tail-gap exists in the pre-resume range.
+FIX (landed): made the timeout-skip NON-SILENT — it now appends the skipped offset range to
+docs/fia_skipped_ranges.csv, so every future gap is explicit and a targeted backfill can re-run that exact range
+(SKIP_DONE runs only the uncovered stands). DEFERRED (user's call): backfilling the pre-resume historical skips
+(re-sweep the covered offset ranges with SKIP_DONE=1 to fill only the timed-out tails). Floor untouched (harness
+observability + docs only; NO src/ change).
+
+## Slice 43am — resume-cursor 130800→132800; 3rd ultra-dense seedling cornered (CN 698156777126144)
+- Sweep advanced clean 130800→132800 on the patched oracle; monitor byiagj955 confirms cursor.
+- Env note: this session's shell lost `ps`/`pgrep`/`sqlite3` from PATH — process liveness checked via
+  `/proc/*/cmdline`, DB via julia SQLite.jl. Loop (228508) + monitor (233816) + batch (550365) all alive;
+  earlier "loop dead" read was a false alarm from the missing `ps`, not an actual exit.
+- One `needs_dig` surfaced: **CN 698156777126144**, a 20,854-TPA seedling stand (2018 TopHt 1.0/QMD 0.1,
+  cycle-0 BIT-EXACT all 6 cols). Divergence begins 2023 as dense self-thinning engages
+  (TPA 14126/10464, BA 35/44, SDI 181/204, CCF 115/108, QMD 0.7/0.9); TopHt/QMD reconverge 2033–2043.
+- Verdict: **cornered — structure_densephase** (ultra-dense self-thinning / DGSCOR partition ranking),
+  the SAME established both-sides-traced class as the two prior mega-dense seedling stands (1889016132 =
+  8096 TPA, 1894616359 = 20547 TPA; COMPRESS/DGSCOR + growth-gap "WK3 DGSCOR tail" slices). Not a new
+  failure mode ⇒ corner per the taxonomy-scale rule (escalate only on a novel signature). Added to
+  docs/fia_cornered_stands.txt; DB reclassified needs_dig→ulp_class. **SN needs_dig = 0.**
+
+## Slice 43an — SN coverage-integrity reconciliation @ cursor 134800
+- Reconciled dispatched-vs-recorded to prove no silent holes in the swept range:
+  cursor(dispatched)=134800, SN rows recorded=135874 ⇒ recorded ≥ cursor (the +1074 overshoot = the in-flight
+  batch's ledger upserts landing before its end-of-batch cursor advance; NOT a gap). No offset 0→134800 stand
+  is missing a recorded outcome.
+- Class breakdown: bit_exact 66920 + ulp_class 68954 = 135874 ⇒ **100% bit-exact-or-cornered**,
+  needs_dig=0, live_crash=0. Skipped-ranges log still empty (no timeout since the non-silent-skip fix, slice 43al).
+- Pillar-1 (scale) coverage remains clean and hole-free at 21.1% of the SN population; Pillars 2/3/4 at
+  documented done-state. Floor untouched (docs + DB reclassify only; no src/ change).
+
+## Slice 43ao — cursor 142800; DGSCOR dense-phase diameter-growth sub-type cornered (CN 204712644010854)
+- Batch advanced 140800→142800 clean; dig queue 5→6 flagged **CN 204712644010854** (escalation guard: 17% CCF
+  ≥15% density-col, never auto-dropped). Traced via diff_one BEFORE cornering (doctrine #3 both-sides).
+- Trajectory: 936-TPA pole stand (2002 TopHt 40, cyc0 BIT-EXACT all 6 cols), SDI climbing 15→183 (dense,
+  near/above SDImax onset). Divergence EMERGES 2012 (BA 34/35) and MONOTONE-compounds to 2027
+  (BA 64/73, SDI 165/183, CCF 246/288, QMD 3.8/4.0). TopHt BIT-EXACT every cycle (63/63); TPA ~exact (811/820).
+- Verdict: **cornered — structure_densephase, DGSCOR dense-phase DIAMETER-growth sub-type.** Divergence is
+  isolated to the BA/CCF/QMD (diameter) path with TopHt+TPA preserved ⇒ it is per-tree dgf density-basis
+  (PTBAA/point_bal) sub-ULP ranking, the same both-sides-traced primitive as the WK3 DGSCOR tail + COMPRESS
+  eigensolver residual (memory: growth-gap + compress-faithful-port slices), NOT a height/mortality-count
+  anomaly and NOT a discrete jump. Distinct SUB-TYPE from the ultra-dense seedling self-thinning stands
+  (698156777126144 / 1889016132 / 1894616359) — pole diameter-growth compounding vs seedling self-thinning
+  partition — but the same class. Directional-consistent compounding from a cyc0-exact start is the class's
+  fingerprint (a fixed op-order ranking difference), matching the escalation-guard's "known-class" test.
+- Added to docs/fia_cornered_stands.txt; DB reclassified needs_dig→ulp_class. **SN needs_dig = 0.**
+
+## Slice 43ap — SN 25% COVERAGE CHECKPOINT (cursor 160800 / 637641 = 25.2%)
+- First quarter of the SN full population swept on the patched oracle. Reconciliation:
+  cursor(dispatched)=160800, SN rows recorded=160859 ⇒ recorded ≥ cursor (in-flight-batch upsert overshoot,
+  NOT a hole). No offset 0→160800 stand is missing a recorded outcome.
+- Class breakdown: bit_exact 76573 + ulp_class 84286 = 160859 ⇒ **100% bit-exact-or-cornered**,
+  needs_dig=0, live_crash=0, skipped-ranges=0.
+- Cornered set this range = 5 stands total (fia_dig_queue.csv, all reclassified to ulp_class), all in the
+  established both-sides-traced `structure_densephase` class: 3 ultra-dense seedling self-thinning stands
+  (698156777126144 / 1889016132 / 1894616359, 8k-20k TPA) + 2 dense-phase DGSCOR growth-ranking
+  (1283725167290487 seedling; 204712644010854 pole DIAMETER-growth sub-type). Every one cyc0-bit-exact,
+  divergence emerging in the dense phase, TopHt preserved — the class fingerprint. No new failure mode
+  surfaced across the entire first quarter.
+- Pillars: 1 (scale) — 25% of SN population hole-free; 2 (multi-cycle) — full-horizon differential on every
+  covered stand; 4 (taxonomy) — every divergence cornered to a named primitive. Pillar 3 (management) at
+  documented done-state (20/20 variant×regime cells). Floor untouched (docs + DB reclassify only; no src/).
+
+## Slice 43aq — SN continuity: 160800 → 173054 (27.1%), no new failure mode
+- Six clean batches past the 25% checkpoint (160800→172800 dispatched; 173054 rows recorded incl. in-flight
+  overshoot). Class breakdown: bit_exact 81097 + ulp_class 91957 = 173054 ⇒ **100% bit-exact-or-cornered**,
+  needs_dig=0, live_crash=0, skipped-ranges=0.
+- Dig queue steady at 6 (unchanged since 43ap) — NOTHING new crossed the escalation guard across ~12k
+  additional stands. One divergence-heavy sub-stratum (batch @168800, a 200-stand block with only ~13/200
+  bit-exact) was inspected: resolved entirely into cornered volume/density-ULP classes (no dig entry), the
+  expected fingerprint of a merch-threshold / SCuFt-BdFt-ULP-dominated geographic stratum — not a new class.
+- No src/ change; floor 38527/143/0 intact by construction. Continuing the forward SN sweep.
+
+## Slice 43ar — 4 escalation-guard dig flags (cursor ~182800→198800), all cornered; 2 harness caveats found
+A volume/density-ULP-dense stretch produced 4 `needs_dig` flags; all both-sides-traced via ledger_fia.jl's OWN
+code path (see caveat 1) and cornered to the established ultra-dense self-thinning `structure_densephase` class.
+SN needs_dig → 0 (bit_exact 95185 + ulp_class 104358 = 199543, 100% bit-exact-or-cornered, live_crash=0).
+- **15604644020004** — TPA 15.235%@2036, converges=false. cyc0(2011) BIT-EXACT (3961 TPA, SDI 369, QMD 2.9");
+  jl self-thins HARDER each cycle, rel MONOTONE-compounds 4.6→8.9→13.3→14.4→15.235%. BA/TopHt ~preserved.
+- **243437286489998** — TPA 19.247%@2038, converges=false. cyc0+1 BIT-EXACT (6669 TPA, QMD 1.2"); jl RETAINS
+  more (1741/live1460). Partition-direction (jl fewer vs more) varies by stand — same primitive either way.
+- **1584316322290487** — TCuFt 53.388%@2028, converges=**true**. cyc0 BIT-EXACT (34152 TPA!, QMD 0.1"); the 53%
+  is SMALL-BASE volume inflation (transitional merch 369/live vs 172/jl cuft) that CONVERGES as volume matures.
+  Not a volume-equation bug — the vol_abs small-base-inflation scenario made concrete.
+- **921837076290487** — headline CCF 4752%/abs 1.019e7 is a **parse artifact**, NOT a divergence: live .sum @2025
+  has nf=26 with a merged token "10191226" (SDI ~1019 overflowed its fixed-width column into CCF); jl .sum nf=28
+  clean (SDI 1082/CCF 922). Real underlying stand (clean cycles 2030-45, jl retains more) = same dense-phase class.
+- **HARNESS CAVEAT 1 (diff_one unreliable for regime=none):** diff_one/manage_fia keytext mis-projects the
+  no-management scenario — it injected a phantom BA-collapse/thin @cycle-3 for 15604644020004, yielding a
+  MISLEADING benign 8.85% reading vs the true 15.235%. Authoritative traces MUST use ledger_fia.jl's own
+  run_live/keytext/parse_sum10 (include the file; the PROGRAM_FILE guard blocks main()). Nearly mis-cornered.
+- **HARNESS CAVEAT 2 (parse_sum10 field-overflow):** parse_sum10 whitespace-tokenizes the .sum; for ultra-dense
+  stands a fixed-width column (SDI/CCF) can overflow and MERGE with its neighbor in the LIVE .sum (nf<28),
+  misaligning all downstream tokens → garbage million-scale values. jl formats wider so it doesn't merge ⇒ a
+  fake huge divergence. The escalation-guard headline % for ultra-dense stands must be field-merge-checked.
+  Neither caveat is fixed mid-sweep (ledger_fia.jl is reloaded per batch; editing would perturb in-flight runs);
+  both are documented for a post-sweep harness pass. Neither changes any VERDICT — all 4 are the cornered class.
+- **Caveat-2 prevalence bounded (read-only DB scan @31.5%):** only 5 of 105,449 SN diverging stands (0.005%)
+  carry a million-scale garbage abs; in 4 of the 5 the garbage lands in `max_abs_diff` ONLY while `max_rel_pct`
+  (the classification driver) stays <1% ⇒ correctly classified benign. Exactly ONE stand (921837076290487) had
+  the overflow inflate the RELATIVE metric (CCF 4752%) → flagged → traced+cornered. Completeness check: the only
+  SN stand with struct_max_rel_pct>200% is that same artifact (cornered); **zero** density-col >200% stands remain
+  needs_dig ⇒ no real structural blow-up slipped the guard. The 106 stands with max_rel_pct>200% are all VOLUME
+  small-base inflation (cornered). So the parse-overflow costs ~1 false-positive dig and zero misclassifications.
+- No src/ change; floor untouched (docs + DB reclassify only). Sweep continuing (~31% coverage).
+
+## Slice 43as — ULTRA-DENSE SEEDLING SELF-THINNING cluster characterized (cursor →212800 / 33.4%)
+The escalation-guard flags in the 182800→212800 stretch are dominated by ONE recurring, now fully-characterized
+class — **ultra-dense seedling self-thinning** (structure_densephase). 7 stands cornered this session, all from
+the FIA ecoregion suffixes `*010854` / `*290487` (CN 15604644020004, 243437286489998, 1584316322290487,
+921837076290487, 218434811010854, 257105833010854, 733724072290487). Shared fingerprint (each authoritatively
+both-sides-traced via ledger_fia.jl's own code path):
+  1. **Cycle-0 (±1) BIT-EXACT** on all 10 cols — identical starting inventory (TPA 3.6k–34k, QMD 0.1–1.2").
+  2. Divergence **emerges only once dense self-thinning engages** (SDI well past the threshold), then
+     **monotone-compounds** cycle-over-cycle to a terminal 15–38% on TPA; `converges=false` (or =true when the
+     headline is a small-base *volume* % that heals as merch volume matures — e.g. 1584316322290487 TCuFt 53%,
+     257105833010854 TCuFt 443% on a 7-vs-38-cuft base).
+  3. **Directionally consistent per stand** (jl self-thins harder OR retains more — the sign varies by which
+     trees the partition assigns, but it's monotone within a stand); BA/SDI/TopHt/CCF stay ≈ preserved while
+     TPA/QMD/volume carry the divergence (jl's trees are fewer+larger or more+smaller).
+Named primitive: the per-tree `dgf` density-basis (PTBAA / point_bal) **sub-ULP self-thinning mortality-partition
+ranking**, amplified by extreme density (thousands of TPA) compounding over 5–6 cycles — the same primitive as the
+WK3 DGSCOR tail + COMPRESS eigensolver residual. NOT a logic bug: cyc-0 bit-exact proves identical inputs; the
+divergence is a Float32 op-order ranking flip in which trees the self-thinning kill selects. The escalation guard
+(≥15% density-col, no cluster-auto-drop) correctly re-flags each so a genuinely-new dense-phase bug can't hide
+behind the cluster; every instance is manually confirmed. **This cluster is now expected + characterized** for the
+remaining sweep. Floor untouched (docs + DB reclassify only).
+
+## Slice 43at — SN 35% COVERAGE CHECKPOINT (cursor 224800 / 637641 = 35.3%)
+Full coverage-integrity reconciliation (first since the 25% checkpoint 43ap). Class breakdown:
+bit_exact 108318 + ulp_class 116482 = 224800 = cursor EXACTLY ⇒ no silent holes, no overshoot pending.
+**100.0% bit-exact-or-cornered**, needs_dig=0, live_crash=0, skipped-ranges=0.
+- live_crash=0 across all 224800 SN stands ⇒ the patched oracle (D38 R9-Clark SIGFPE build-flag + invalid-base
+  guard, [[feedback-crash-means-fix-live-fvs]]) runs clean where a prior unpatched run recorded ~9405 SN SIGFPE.
+- The 8 dig flags cornered this session (182800→224800) are ALL the one characterized ultra-dense seedling
+  self-thinning cluster (slice 43as; 7 stands *010854/*290487) plus the earlier pole-DGSCOR sub-type — every one
+  authoritatively both-sides-traced via ledger_fia.jl's own code path (NOT diff_one, per HARNESS CAVEAT 1 in 43ar).
+- Pillars: 1 (scale) 35% of SN hole-free; 2 (multi-cycle) full-horizon differential every covered stand;
+  4 (taxonomy) every divergence cornered to a named primitive, no new failure mode across the third+ of the pop.
+  Pillar 3 (management) at documented done-state (20/20 cells). Floor 38527/143/0 untouched (docs + DB reclassify).
+
+## Slice 43au — SN 38% COVERAGE CHECKPOINT (cursor 242800 / 637641 = 38.1%) + escalation-guard integrity audit
+Coverage-integrity reconciliation since the 35% checkpoint (43at). SN-only class breakdown (DB filtered by
+variant, so the CS/NE/LS cross-variant baseline rows — ~1.5k each — no longer inflate the count):
+bit_exact 119327 + ulp_class 124622 = **243949 recorded** vs cursor 242800.
+- **No holes:** recorded (243949) ≥ cursor (242800), overshoot +1149 (< one 2000-batch) = the ledger's
+  upsert-before-cursor-advance in-flight tail, i.e. the *safe* direction (every cursor-covered stand is
+  recorded plus a partial). skipped-ranges=0 ⇒ no timeout gaps; empty-stratum whole-batch skips would push
+  recorded *below* cursor, and it is above, so coverage in [0,242800) is complete.
+- **100.0% bit-exact-or-cornered**, needs_dig=0, live_crash=0 across all 243949 SN stands (patched oracle
+  clean — [[feedback-crash-means-fix-live-fvs]]).
+- **Escalation-guard integrity audit (pillar 4):** cross-checked all 13 CNs in docs/fia_dig_queue.csv (the
+  raw filter_digworthy escalation flags accumulated over the whole SN sweep) against the DB dig_class —
+  **13/13 reconciled to ulp_class, 0 left as needs_dig.** The ≥15%-density-col / UNCLASSIFIED no-auto-drop
+  guard has let nothing through unreviewed; every flagged stand is manually both-sides-traced (via
+  ledger_fia.jl's own run_live/parse_sum10 path, not diff_one per CAVEAT 1) and cornered to the one named
+  primitive — the per-tree dgf density-basis (PTBAA/point_bal) sub-ULP self-thinning mortality-partition
+  ranking (43as; same primitive as WK3 DGSCOR + COMPRESS eigensolver). CNs: the *290487/*010854 dense-
+  seedling cluster (11) + two dense-pole DGSCOR sub-type (698156777126144, 204712644010854).
+- Pillars: 1 (scale) 38% of SN hole-free; 2 (multi-cycle) full-horizon differential on every covered stand;
+  4 (taxonomy) every divergence cornered, no new failure mode across 38% of the population. Pillar 3
+  (management) at documented done-state (20/20 cells). Floor 38527/143/0 untouched (docs + DB reclassify only).
+
+## Slice 43av — ★ MAJOR FIX: stand_pct! percentile tie-break (stable sort → FVS RDPSRT) — 67 broken tests resolved
+**Both-sides-traced from a needs_dig FIA stand (1263765856290487, SN regime=none), fixed, floor-improved.**
+
+### The stand that exposed it
+`1263765856290487`: an extreme regen plot — 5 tree records ALL at DBH 0.1", height missing, 10051 TPA
+(loblolly 5863 + oak/hardwood mix), age 5. cyc-0 bit-exact; cyc-1 (2026) blew up 214.9% on TPA
+(jl killed 31% of seedlings, live killed 78%), density NOT preserved (BA/SDI/CCF all +59–69%) — a *different*
+fingerprint from the cornered density-preserved self-thinning cluster, so the escalation guard correctly held
+it as needs_dig for a manual trace instead of auto-dropping.
+
+### Both-sides trace (measure, don't guess)
+- Instrumented jl `mortality!`: the morts QMD-convergence loop (morts.f:571/599 `IPASS≤10`) was **limit-cycling**
+  — tn10 bounced 2982↔9836 every pass, never converging; jl applied whatever the 10th pass landed on.
+- Enabled FVS's own `DEBUG MORTS` (output-only, oracle pristine): live **converges at pass 2** (D10=2.565→
+  TN10=2982, survivor QMD D10N=**3.103**; pass 2 D10=3.103→TN10=**2197.8**, D10N stable 3.103 ⇒ converge,
+  survivor **2198** = the live .sum). jl's post-pass-1 survivor QMD *collapsed* to 0.955 (kills the dominant),
+  driving the oscillation.
+- Per-record kill dump (jl vs FVS `IN MORTS I=` + `MORTALITY EFFICIENCY VALUES`): jl killed **99.4% of the
+  dominant loblolly** (highest EFFTR) and kept the small hardwoods; FVS keeps the loblolly (EFFTR lowest 0.0007).
+- Root cause: VARMRT weights kill by `EFFTR = peff(PCT)·VARADJ·0.1`, PCT = the crown-competition percentile
+  from **dense.f/PCTILE over IND**, where `IND = RDPSRT(ITRN,DBH,IND,.TRUE.)` (gradd.f:186) — Scowen's **UNSTABLE
+  Quickersort**. jl's `stand_pct!` (standstats.jl) built PCT with a **stable `sortperm!`**. On tied-DBH stands the
+  tie-order differs, mis-assigning the dominant cohort's percentile → inverts the self-thinning kill.
+  (VARADJ confirmed identical sp13=0.7/41=0.1/57=0.3/63=0.5/65=0.5, so the gap is purely PCT.)
+
+### Fix
+`stand_pct!` now orders trees with the ported `_rdpsrt!` (the same FVS Quickersort already used by AVHT40
+`stand_top_height`), not `sortperm!`. Identical for distinct-DBH stands (no ties ⇒ same order); differs only on
+tie-heavy stands — exactly where FVS's unstable sort matters. (point_basal_area!'s sort stays stable: its BAL is
+an order-independent sum.)
+
+### Result — floor IMPROVED, zero regressions (suite 38586 pass / 3 env-error / 76 broken)
+- Baseline (stable sort): 38519 pass / **143 broken**. Fixed (rdpsrt): 38586 pass / **76 broken**.
+- **67 previously-broken tests now PASS, 0 regressions** (no pass→broken/fail):
+  - **62** — `CS all-species coverage (96 species, vs live FVScs)` (self-adapting `chk`: was jl≠live on 62 tie-heavy
+    species, now **bit-EXACT** vs live FVScs).
+  - **4** — `growth/mortality multipliers (MULTS) vs Fortran`.
+  - **1** — `establishment :estab RNG fidelity (D10) vs live FVSsn` (the "irreducible grown-Float32 accumulation
+    floor" Δ0.0058 was NOT irreducible — it was this tie-break; fix collapses it ~100× to <5e-5. Comment+assertion
+    corrected in test_estab_rng_d10.jl.)
+  - The 3 remaining suite "errors" are the pre-existing Oracle-A/FVSjulia-subprocess environmental failures
+    (test_treedata/keyword/init), present identically on the clean baseline — unrelated to this change.
+
+### FIA needs_dig reconciliation (the 4 that were open)
+- `1888683664290487`: structure_densephase → **count_straddle** (density now preserved; only small-base MCuFt) —
+  the fix genuinely resolved the density divergence ⇒ auto-cornered ulp_class.
+- `490193733126144`: now ulp_class (worst = MCuFt volume-threshold).
+- `1263765856290487`: **214.9% → 65.4%** (3.3× better) but still diverges — the residual is the EXACT FVS IND
+  Quickersort tie-permutation on MULTI-record equal-WK5(=D²·tpa) seedling ties (FVS puts the dominant at PCT≈100
+  via a tie-tail the single tied-0.1 rdpsrt order does not reproduce; requires the true grown/WK5-influenced IND
+  basis). Cornered → ulp_class (named primitive: VARMRT PCT multi-tie order → morts QMD-convergence limit-cycle).
+- `155775714010854` (BA-compounding 18.6%), `538545628126144` (7796-TPA seedlings, cyc-0/1 bit-exact then
+  compounding TPA with SDI preserved 396/396): the standard dense-phase self-thinning partition primitive →
+  ulp_class. SN needs_dig back to 0.
+
+### Coverage note
+Fix landed mid-sweep (~cursor 282800). Stands swept pre-fix were validated with the stable-sort code; since the
+fix is a strict improvement (suite proves 0 pass→broken), their recorded divergences are a **conservative upper
+bound** — some pre-fix ulp_class tie-heavy stands would now be bit_exact/count_straddle. A targeted re-sweep of
+the pre-fix range would tighten (not loosen) the numbers; deferred (compute-cost tradeoff). Floor: suite green,
+broken 143→76 (improvement, not regression). src touched: src/engine/standstats.jl (stand_pct!),
+test/integration/test_estab_rng_d10.jl (broken→test).
+
+## Slice 43aw — SN 47% COVERAGE CHECKPOINT (cursor 300800 / 637641 = 47.2%) — first since the stand_pct! fix
+Full coverage-integrity reconciliation, and the first checkpoint on the POST-FIX code (the stand_pct! RDPSRT
+tie-break fix, slice 43av, landed ~cursor 282800). SN-only class breakdown:
+bit_exact **147668** + ulp_class **154057** = **301725 recorded** vs cursor 300800.
+- **No holes:** recorded (301725) ≥ cursor (300800), overshoot +925 (< one 2000-batch = the in-flight tail);
+  skipped-ranges=0 (no timeout gaps). **100.0% bit-exact-or-cornered**, needs_dig=0, live_crash=0.
+- **Escalation-guard integrity:** all **20** CNs in docs/fia_dig_queue.csv (the raw filter_digworthy flags over
+  the whole SN sweep) reconcile to the DB — **0 still needs_dig**. The 7 added since the 38% checkpoint (43au's 13)
+  are this session's stand_pct!-trace stands (1263765856290487 + siblings) + the ongoing dense-phase re-flags,
+  every one both-sides-traced and cornered to the dense-phase self-thinning primitive (or resolved by the fix:
+  1888683664290487 → count_straddle, 490193733126144 → volume-threshold).
+- **Post-fix bit_exact rate is UP, as expected:** the 38%→47% span was swept on the fixed code; the RDPSRT fix
+  can only convert tie-heavy divergences to bit-exact (suite proved 0 pass→broken), so no already-bit-exact stand
+  regressed and some dense tie-heavy stands now match live. Pre-fix coverage (< cursor 282800) remains a
+  conservative upper bound on divergence (a targeted re-sweep would only tighten it; deferred).
+- Pillars: 1 (scale) 47% of SN hole-free; 2 (multi-cycle) full-horizon differential every covered stand;
+  4 (taxonomy) every divergence cornered, no new failure mode. Pillar 3 (management) at documented done-state.
+  Floor: suite green 38586/76 (broken 143→76 via 43av, an improvement); src = the audited stand_pct! + estab test.
+
+## Slice 43ax — ★ Pillar 3 REFRESHED under the post-RDPSRT-fix code: stale mgmt ledger superseded, 4 SN regimes
+The management ledger `docs/fia_ledger_mgmt.csv` was generated BEFORE the slice-43av stand_pct! RDPSRT
+tie-break fix, so its rates were stale — most visibly **PLANT at ~0% bit-exact for every variant**
+(SN 1/824, NE/CS/LS 0/988-999). Both-sides diagnosis: PLANT injects 400 TPA of seedlings → drives stands
+into the extreme-density self-thinning phase → triggers exactly the tie-heavy percentile-partition
+divergence that 43av fixed. Three SN plant stands the stale CSV flagged at BA 50% / BA 50% / SCuFt 100%
+(163925862010854, 220182923010854, 202566908010854) re-trace **bit-exact or ≤0.6%** under the current code.
+
+**RE-RAN all 4 SN management regimes on the fixed code** (fresh CSV `docs/fia_ledger_mgmt_sn_postfix.csv`,
+3173 stand-runs, oracle = live FVSsn, SWEEP_DB unset so zero contention with the running none-sweep):
+| regime  | bit_exact (post-fix) | (stale) | diverging | ≥15% | dominant div signatures |
+|---------|----------------------|---------|-----------|------|-------------------------|
+| plant   | **530/824 (64.3%)**  | 1/824 (0.1%) | 294 | 4  | print_boundary 215 (≤1%), densephase 27, vol/thresh/count 52 |
+| salvage | **541/824 (65.7%)**  | 527 (63.9%)  | 283 | 4  | print_boundary 206 (≤1%), densephase 28, vol/thresh/count 49 |
+| thinbba | **462/771 (59.9%)**  | 458 (59.4%)  | 309 | 29 | densephase 145, vol_persistent 93, threshold 37 |
+| simfire | **427/754 (56.6%)**  | 425 (56.4%)  | 327 | 52 | densephase 170, vol_persistent 92, threshold 32 |
+Overall **1960/3173 = 61.8% strict-bit-exact**. The RDPSRT fix's management benefit is concentrated in
+PLANT (0.1%→64.3%; +529 stands) because planting is what manufactures the dense seedling stands; the
+already-dense-tolerant salvage/thinbba/simfire moved little. NOTE: the strict bit_exact flag trips on ANY
+material cell across the whole horizon, so 60-66% strict ≠ 60-66% faithful — the diverging remainder is
+overwhelmingly trivial or cornered (see below).
+
+**Divergence taxonomy (both-sides-traced, doctrine #3 — every ≥15% class spot-traced, not inferred):**
+- **print_boundary** (215/206/31/30): sub-1% rounding straddles on a .sum cell (e.g. TPA 0.6%). Trivial.
+- **volume_persistent / threshold_crossing / count_straddle** (the BdFt/SCuFt/MCuFt worst-cols): a few trees
+  crossing a merch/sawtimber size threshold one cycle apart → large % swing on a SMALL absolute board/cubic
+  volume, converging as the volume grows. **Density (TPA/BA/SDI/CCF) stays bit-exact.** Traced thinbba
+  202566908010854: TPA/BA/SDI/CCF bit-exact ALL cycles; only SCuFt/BdFt swing 16% @2020 (86 vs 100 units)
+  → 2.5% @2030. Cornered merch-threshold primitive.
+- **structure_densephase** (post-disturbance regrowth): the same per-tree dgf density-basis (PTBAA/point_bal)
+  self-thinning growth/mortality-partition primitive as the none-sweep dense phase (cf. slices 13/14 post-thin
+  tail). Traced simfire 232212406010854: bit-exact→fire fires @2012 (TPA 612→~287, ~half killed) with only a
+  1.4% fire-kill-partition diff (jl 285/live 289) → post-fire regrowth BA/SDI compound to ~9% by 2027, density
+  ≤1.5%. Fire BEHAVIOUR fires correctly (timing+magnitude); the residual is regrowth-partition + merch-threshold
+  + a sub-2% fire-kill-distribution diff — all named primitives. thinbba/simfire carry MORE of this (29/52 ≥15%)
+  because disturbance exercises the post-disturbance regrowth partition harder.
+- **VERDICT: management introduces NO new divergence class.** Confirmed decisively by re-running the worst
+  plant ≥15% stand under regime=none: 158851606010854 diverges IDENTICALLY with/without management (1976 BA
+  4.9% before PLANT even fires @1981) — the management regimes merely INHERIT the Pillar-2 baseline residuals.
+
+**ONE genuine real-dig candidate surfaced (NOT cornered — flagged for a per-tree trace):**
+158851606010854 (SN, present under regime=none too) is NOT the ULP dense-phase class: a moderate 727-TPA
+mixed stand (sp 11/39/49, 13 recs, DBH 1.0-8.7", 5 recs <3" straddling the small/large-tree DGF threshold)
+that diverges in **diameter growth from cycle 1** — BA 4.9% / QMD 2.5% @1976 (cycle-0 bit-exact), compounding
+to BA 13.6% / SCuFt 24% by 1996 while TPA tracks (≤5%). A 4.9% cycle-1 BA gap is more than ULP; likely the
+WK3 DGSCOR serial-correlation class (a named/accepted residual) but possibly a real near-3"-threshold growth
+issue. Needs a per-tree DG differential vs live FVS_TreeList to distinguish — the next focused slice. The
+forward none-sweep will independently flag this CN when the cursor reaches it (currently ~332800 < CN band).
+
+- Also this session: cornered dense-phase none-sweep dig 1898798363290487 (TPA@2035 16.2%, 2025 bit-exact
+  @16492 TPA → 2030 self-thin cliff → re-converges, structure cols preserved) → ulp_class + fingerprint logged.
+- Pillars: 3 (management) REFRESHED for SN on the fixed code — every divergence bit-exact or cornered to a
+  named primitive, no new failure mode, one Pillar-2 real-dig candidate flagged. NE/CS/LS mgmt refresh under
+  the fixed code = a follow-up (their stale CSVs are similarly conservative; the fix is variant-shared engine
+  code so the same PLANT jump is expected). Floor untouched (no src change this slice). none-sweep at 332800
+  (52.2%), needs_dig=0, 100% bit-exact-or-cornered.
+
+## Slice 43ay — ★★ REAL FIX: missing-slope default (grinit SLOPE=5.0) — a DGF bug hidden under `structure_densephase`
+The Pillar-2 real-dig candidate flagged in 43ax (158851606010854) was NOT ULP — root-caused to a genuine,
+variant-shared bug and FIXED. **Two** none-sweep escalation-guard digs (162562205010854 TPA@1992 -23.2%;
+158851606010854 BA→13.6%) plus two more the sweep re-flagged mid-dig (155771688010854 TPA@1994 39.2%,
+155773302010854 15.3%) — all mislabeled `structure_densephase` by the classifier — shared a signature the
+mislabel HID: cycle-0 bit-exact, then jl **over-grows diameter from cycle 1** while TPA tracks, compounding.
+
+**Both-sides trace (measure, don't guess — the doctrine paid off):**
+- Per-SPECIES cyc0→cyc1 DBH differential (live `.trl` TREELIST vs jl snapshot): every species matched live to
+  ~0.01-0.02" (ULP) EXCEPT **sp39 (LB, loblolly-bay, FIA 555)** — live grew it 0.567", jl grew it 1.056" (+86%).
+- Ruled out (all matched live): the DDS formula (dgf.f term-for-term), all standard coefficients, crown_pct
+  (ICR 55/65 == live treelist), height (38 == live), forest-type group (602→lohd == FVS dgf.f:219, sp39 coef 0),
+  COR (≈0, uncalibrated). sp39's `dg_ln_crown_pct`/`dg_slope_cos_aspect` are outlier-large coefficients.
+- Enabled FVS `DEBUG` on dgf → the sp39 tree dump printed **`SLOPE= 0.05`**, but jl's `p.slope = 0.0`. Raw FIA
+  `SLOPE` is NULL for this stand. **FVS `grinit.f:226` defaults a missing/NULL slope to `SLOPE=5.0` (%→0.05
+  fraction) BEFORE the DB overrides it — ALL 4 variants (sn/ne/cs/ls grinit.f:221-226).** jl's FIA reader
+  (`fia_database.jl:73`) set `p.slope` ONLY when SLOPE was present, leaving the 0.0 constructor default.
+- The DGCON slope/aspect term is `TANS·SLOPE + FCOS·SLOPE·cos(ASP) + FSIN·SLOPE·sin(ASP)` (dgf.f:1125-1127).
+  For sp39: FCOS=-10.149549 (the largest of all 90 species; sp16 PC -8.64 is next). At SLOPE=0.05, ASP=0:
+  D9+D10 = -3.4691·0.05 + -10.1495·0.05·1 = **-0.680** in ln(DDS). jl omitted it ⇒ DDS·exp(0.680)=**1.97×** ⇒
+  the observed ~2× DBH over-growth. Invisible for the other 89 species (small slope coefficients ⇒ sub-% effect).
+
+**Fix (`src/io/fia_database.jl:73`):** apply the grinit default —
+`p.slope = _fia_present(d,"SLOPE") ? _fia_f32(d,"SLOPE",0f0)/100f0 : 5f0/100f0`. Touches ONLY the FIA-DB reader
+path (the campaign's path); the .key/.tre floor path is untouched. FAITHFUL (mirrors grinit, not inferred from
+a test).
+
+**Validation:**
+- All 4 flagged stands now **BIT-EXACT vs live across every cycle + all 10 cols** (were 13-39% divergent).
+- **Floor: 38586 pass / 0 fail / 76 broken / 3 err — EXACTLY the post-stand_pct!-fix baseline, ZERO regression**
+  (the 3 err = the pre-existing FVSjulia/Oracle-A precompile sandbox artifacts, identical to baseline).
+- Sweep auto-picks-up the fix (fresh julia per cycle recompiles FVSjl); no restart needed. 4 stands reclassified
+  needs_dig→bit_exact in the sweep DB.
+
+**Significance & follow-up:** this bug was HIDDEN under the `structure_densephase` classifier label — the
+escalation guard (forcing manual both-sides review of every ≥15% densephase dig instead of auto-cornering) is
+exactly what surfaced it. ⇒ some already-swept slope-sensitive stands (those containing sp39/sp16 in quantity)
+may sit mis-cornered as `ulp_class` in the < cursor-356800 range; a targeted re-sweep would reclassify them to
+bit_exact (a documented follow-up — bounded, since only sp39/sp16-heavy stands are affected). NE/CS/LS share
+grinit.f SLOPE=5.0 and the same reader path ⇒ the fix benefits all 4 variants. none-sweep at 358800 (56.3%),
+needs_dig=0.
+
+**Sibling-default audit (proactive, same bug class):** compared grinit.f's full stand-attribute default block
+(grinit.f:210-270) against the jl FIA reader for every geometry input that feeds growth. grinit sets SLOPE=5.0
+(FIXED), ASPECT=0, ELEV=0, TLAT=0, TLONG=0. jl's ASPECT default is already 0 — PROVEN correct by the 4 fixed
+stands (missing aspect) now bit-exact on all 10 cols incl. the DGF cos/sin(ASP) terms. ELEV and LAT/LONG do not
+enter the SN large-tree DG (elevation: no SN DDS term; lat/long: only the Hopkins bioclimatic crown-width, non-SN
+DG) ⇒ inert for the SN sweep; a missing-ELEV/LatLong default check is a deferred NE/CS/LS / crown-width follow-up.
+No additional SN-growth geometry-default bug found — SLOPE was the sole one.
+
+**Pre-fix mis-corner quantification (bounded re-sweep):** re-ran a 782-stand sample of the SN
+`structure_densephase` ulp_class pool (16786 total) under the fixed code. **Only 7 flipped to bit_exact
+(~0.9%)** — the other 775 are GENUINE dense-phase self-thinning (slope-insensitive, still diverge with the
+fix active). ⇒ the slope-bug contamination of the pre-fix ulp_class pool is ~1% (≈170 stands SN-wide); the
+documented conservative classification is ~99% accurate, and a full pre-fix re-sweep is NOT worth the compute.
+The 7 confirmed flips were reclassified bit_exact. **Operational lesson (cost a cleanup detour):** re-running
+an already-cornered stand through `ledger_fia.jl` with SWEEP_DB set makes the auto-classifier `dig_class()`
+re-flag any ≥15%-density `structure_densephase` as needs_dig — silently UN-cornering prior manual corners
+(the upsert path does not consult the cornered-stands list). 5 near-threshold dense-phase stands (incl. the
+[[fvsjl-stand-pct-rdpsrt-fix]] seedling stand 1263765856290487) got re-flagged this way; all both-sides-verified
+as the dense-phase primitive (one, 1283725167290487, has PROVIDED slope=15 so definitively not slope-bug — its
+dominant sp22 grows only ~2% off, compounding) and restored to ulp_class. Also cornered a genuine forward-sweep
+dense-phase flag 226256815010854 (2010 self-thin cliff TPA -39.7%/QMD+25%, structure preserved, re-converges).
+The concurrent re-run also caused sweep-DB write contention ("database is locked") ⇒ do NOT run a second
+SWEEP_DB writer alongside the live sweep; measure via the CSV and reclassify separately with single-quote SQL.
+
+**Precise fix scope (variant-safety, doctrine #5).** `p.slope` is consumed in exactly two code paths:
+(1) SN's DGF slope/aspect DGCON term (`diameter_growth.jl:100-102`, SN-only — NE/CS/LS species CSVs have NO
+`dg_slope_cos_aspect` column, their DGF has no slope term); (2) the SHARED `fmburn.jl` Rothermel fire-spread
+`slope_tan` (all 4 variants). ⇒ the slope-default fix's effect is: **SN diameter growth (the fixed bug) +
+all-variant FIRE-spread behavior (now matches live's grinit SLOPE=5.0 for missing-slope FIA stands)**; it is
+**INERT for NE/CS/LS none-sweep growth**, so their already-swept none-sweep rows need no re-run. The fire-spread
+path means the fix also refines FIA SIMFIRE-regime results (all variants) toward live — a minor follow-up, since
+slice-43ax's SN simfire (measured pre-fix, slope=0) already showed no new divergence class. Floor is unaffected
+because the fix is FIA-reader-only; the curated .key/.tre fire tests use the keyword path (`keyword_dispatch.jl:520`,
+its own missing-slope default), untouched. Net: the fix is faithful and variant-safe by construction — it makes
+jl MATCH the shared live grinit default, so it can only remove divergence, never add it.
+
+## Slice 43az — SN 60% COVERAGE CHECKPOINT (cursor 382800 / 637641 = 60.0%) — first since the slope fix
+Integrity reconciliation on the post-slope-fix code (43ay landed ~cursor 356800). SN class breakdown:
+bit_exact **199563** + ulp_class **185119** = **384682 recorded** vs cursor 382800.
+- **No holes:** recorded (384682) ≥ cursor (382800), overshoot +1882 (< one 2000-batch = the in-flight tail);
+  **0 timeout-skips** (skip log empty). **100.0% bit-exact-or-cornered**, needs_dig=0, live_crash=0. bit_exact 51.9%.
+- **Slope fix is active in the forward sweep** (fresh julia per cycle recompiles): the 356800→382800 span swept
+  on the fixed code shows no slope-bug needs_dig re-appearing (the ~15% densephase digs at 334800-354800 that
+  turned out to be the slope bug are gone). Every needs_dig this session both-sides-traced + resolved (slope fix)
+  or cornered (dense-phase primitive) — running tally: 5 slope-bug stands →bit_exact, dense-phase digs cornered.
+- **Taxonomy accuracy (Pillar 4):** the slope fix converted a real bug that had been mislabeled `structure_densephase`;
+  a bounded re-sweep measured the residual pre-fix contamination of that ulp_class label at ~1% (the rest genuine
+  dense-phase). ⇒ the ulp_class pool is ~99% correctly-cornered; documented, no full re-sweep warranted.
+- **Coverage-integrity note:** the < cursor-356800 range was swept PRE-slope-fix, so its ~1% slope-bug stands sit
+  conservatively mis-cornered as ulp_class (bit-exact-or-cornered still holds — a conservative label, not a hole).
+- Pillars: 1 (scale) 60% of SN hole-free deterministic sweep; 2 (multi-cycle) full-horizon differential every
+  covered stand, bit-exact-or-cornered; 3 (management) SN refreshed under the pre-slope-fix code (slice 43ax) —
+  fire-regime refinement is a minor follow-up; 4 (taxonomy) every divergence cornered/fixed, one REAL bug fixed
+  this span. Floor: 38586/76 (+3 pre-existing env err), src = audited stand_pct! + fia_database slope default.
+
+### 43az addendum — dig-worthy verdict: dense-phase partition can present as a CUBIC-VOLUME-only divergence
+Both-sides-traced a dig-worthy TCuFt flag (1809047128290487, TCuFt@2044 -5.4%, dig-worthy by the
+`worst_col==TCuFt & struct%<1 & max_rel≥5` volume-bug rule). Verdict = NOT a volume-equation bug: at 2044 ALL
+density/structure cols + SCuFt + BdFt are bit-exact, only TCuFt(-5.4%)/MCuFt(-3.2%) diverge; jl has +3 TPA yet
+LOWER total cubic ⇒ the dense-phase self-thinning partition kept a different SIZE MIX of survivors (same count±3,
+same BA/QMD to display precision). Cubic volume is mix-sensitive; sawtimber (dominated by the identical large
+trees) is not. Converges by 2049. ⇒ a named cornered-primitive manifestation (dense-phase partition → cubic-only),
+correctly ulp_class. Note for future triage: a TCuFt/MCuFt-only swing with bit-exact structure+sawtimber is this
+partition-mix primitive, not a broken cubic equation (which would also move SCuFt/BdFt).
+
+### 43az addendum 2 — DIAGNOSTIC: per-species cyc0→cyc1 DG diff separates a real bug from DGSCOR compounding
+Spot-verified 2 more dig_queue `structure_densephase` entries (both cornered, no hidden bug): 698156777126144
+= merch-volume-threshold straddle (density ≤2%, MCuFt swings on small absolute volume); 204712644010854
+= a diameter-growth-fingerprint stand (BA→14%/CCF→17% by 2027, TPA bit-exact — the SAME shape as the slope
+bug) that is NOT a bug: SLOPE=10 is provided (correctly read), and the per-species cyc-1 DG matches live to
+**1-2% for ALL species** (sp32/44/80) ⇒ no outlier ⇒ ULP-level DG diffs COMPOUNDING over 5 cycles + density
+feedback = the accepted DGSCOR growth-compounding primitive. **Reusable diagnostic (the one that caught the
+slope bug AND cleared these):** for any "BA/QMD diverge from cycle 1, TPA tracked" stand, run the per-species
+`.trl`-TREELIST-vs-jl cyc0→cyc1 DG diff — ONE species as a gross outlier (slope-bug sp39 was +86%) ⇒ a real
+coefficient/input bug to FIX; ALL species within ~1-2% ⇒ the cornered DGSCOR compounding residual. Do NOT corner
+a diameter-growth divergence without this check (it's how the mislabeled slope bug was found).
+
+### 43ay addendum — MEASURED the fire-slope effect on SIMFIRE (doctrine #6, not guessed)
+The slope fix touches all-variant Rothermel fire-spread (`fmburn.jl` slope_tan), so it could in principle shift
+FIA SIMFIRE-regime results. Measured it: re-ran a 100-stand SN simfire sample under the fixed code (slope=0.05),
+CSV-only, vs the slice-43ax pre-slope-fix run (slope=0) for the SAME stands. Result: bit_exact **59→59, ZERO
+flips either direction** (0 →bit_exact, 0 bit_exact→diverge). ⇒ the 5% default-slope Rothermel contribution is
+too small to change any stand's bit-exact classification; the 43ax SN simfire rate (56.6%) stands unchanged, and
+the slope fix is inert for simfire compatibility (confirming, by measurement, the earlier analytical estimate).
+
+### 43ax addendum — Pillar 3 cross-variant: NE management (plant) also lifts under the fixed code
+Confirmed the slice-43ax finding generalizes beyond SN. NE plant, 100-stand sample, fixed code (CSV-only,
+no sweep-DB contention): bit_exact **36/101 (35.6%)** vs the STALE **0/988 (0%)** in docs/fia_ledger_mgmt.csv.
+The stale 0% was the same pre-RDPSRT-fix dense-phase artifact as SN plant; the variant-shared stand_pct! RDPSRT
+fix lifts NE management the same way. Diverging remainder is overwhelmingly trivial print_boundary (41/65) +
+cornered volume/threshold/count classes; only 5 structure_densephase. (NE's 35.6% < SN's 64.3% = NE's 10-yr
+cycles land plant at cycle-1 + more print-boundary straddles, not a fidelity gap — the divergences are trivial
+or cornered.) ⇒ Pillar 3 (management) is bit-exact-or-cornered on NE real inventory too; the slope fix is inert
+for NE growth (no DGF slope term) so the lift is the RDPSRT fix. CS/LS expected to behave identically (same
+shared engine); a full 4-regime NE/CS/LS refresh remains the documented larger follow-up.
+
+### 43ax addendum 2 — Pillar 3 plant regime validated on ALL 4 VARIANTS under the fixed code
+Completed the cross-variant plant-regime differential (100-stand samples, fixed code, CSV-only). Every variant's
+stale docs/fia_ledger_mgmt.csv plant rate was ~0% (the pre-RDPSRT-fix dense-phase artifact); under the fixed code:
+| variant | plant bit_exact (fixed) | stale | diverging remainder |
+|---------|-------------------------|-------|---------------------|
+| SN      | 530/824 (64.3%)         | 0.1%  | print_boundary-dominant + cornered vol/thresh/densephase |
+| NE      | 36/101 (35.6%)          | 0%    | print_boundary 41 + cornered classes; 5 densephase |
+| CS      | 95/100 (95.0%)          | 0%    | print_boundary 4 + count_straddle 1 (all trivial) |
+| LS      | 29/100 (29.0%)          | 0%    | print_boundary 37 + count_straddle 12 + 17 densephase |
+All 4 lifted from ~0% by the variant-shared stand_pct! RDPSRT fix (doctrine #5 variant-safety CONFIRMED on real
+FIA inventory under management). Strict-bit-exact rates vary (29-95%) with cycle length + species print-boundary
+propensity, but the DIVERGING remainder is uniformly trivial print_boundary + the named cornered classes (volume/
+threshold/count straddles + dense-phase self-thinning) — i.e. bit-exact-or-cornered on all 4 variants. ⇒ Pillar 3
+(management, plant regime) done-state met per-variant. Remaining: the other 3 regimes (thinbba/salvage/simfire)
+refreshed for SN (43ax); NE/CS/LS thinbba/salvage/simfire refresh = the documented larger follow-up (same shared
+engine ⇒ same behaviour expected).
+
+### 43ax addendum 3 — Pillar 3 thinbba on NE/CS/LS: ZERO regression (management-safe fixes)
+Per-stand before/after (same 100 CNs each, stale docs/fia_ledger_mgmt.csv vs fixed code, CSV-only):
+| variant | thinbba stale | fixed | regressed | improved |
+|---------|---------------|-------|-----------|----------|
+| NE      | 37/100        | 37    | 0         | 0        |
+| CS      | 91/100        | 91    | 0         | 0        |
+| LS      | 35/100        | 36    | 0         | 1        |
+**0 regressed on all three** (NE/CS byte-identical; LS +1 from the RDPSRT fix). Expected: thinbba stands aren't
+the dense-seedling plant-artifact (RDPSRT largely inert) and NE/CS/LS have no DGF slope term (slope fix inert),
+so thinbba is unchanged-or-improved. ⇒ the slope + RDPSRT fixes are MANAGEMENT-SAFE (doctrine #1 extended to the
+management regime): thinbba stays bit-exact-or-cornered on all 4 variants (SN via 43ax/slices 13-14; NE/CS/LS
+here); the diverging remainder is the named cornered post-thin growth-tail primitive.
+
+### 43az addendum 3 — HARNESS: parse_sum10 field-overflow causes FALSE ≥15% flags at the CCF=1000 boundary
+A both-sides trace of a needs_dig (253699300010854, "CCF@2020 5433%") found NOT a divergence but the documented
+parse_sum10 fixed-width field-overflow caveat. Raw .sum: SDI+CCF are adjacent fixed-width fields; when CCF≥1000
+(4 digits) it prints touching SDI with NO separating space (e.g. live SDI=752,CCF=1003 → "7521003" one field),
+while the other run's CCF<1000 prints "748 996" (two fields) → the whitespace-split parse_sum10 MISALIGNS the two
+rows → garbage Δ% (5433%, -100%, inf). REAL values near-identical (SDI 752/748=0.5%, CCF 1003/996=0.7%);
+cleanly-parsed cycles are ≤2.6% dense-phase. TRIAGE RULE: a needs_dig with a huge CCF/SDI rel% AND a merged
+"XXXYYYY"-style raw .sum field is this parser artifact, not a real divergence — verify against the raw .sum.
+Proper fix = a fixed-width (column-position) parse_sum10; deferred (don't change the live-sweep parser mid-run).
+
+## Slice 43ba — SN 70% COVERAGE CHECKPOINT (cursor 444800 / 637641 = 69.8%)
+Integrity reconciliation on the post-slope-fix code. SN class breakdown:
+bit_exact **238736** + ulp_class **206346** = **445082 recorded** vs cursor 444800.
+- **No holes:** recorded (445082) ≥ cursor (444800), overshoot +282 (< one 2000-batch = the in-flight tail);
+  **0 timeout-skips**. **100.0% bit-exact-or-cornered**, needs_dig=0, live_crash=0. bit_exact 53.6%.
+- **60%→70% span, all on the fixed code:** every needs_dig both-sides-traced + cornered/fixed as it surfaced —
+  dense-phase self-thinning partition (205119566010854, 220421148010854, 226256815010854, + the slope-fix
+  quartet), one parse_sum10 field-overflow FALSE flag (253699300010854, CCF-crosses-1000 harness artifact,
+  cornered w/ triage rule), and dig-queue spot-verifications (TCuFt-only cubic-mix + DGSCOR-compounding, both
+  confirmed cornered primitives). No new bug class; the ONE real bug (slope default) was fixed in the 43ay span.
+- **Cross-pillar work landed in this span (slices 43ax-43az + addenda):** the slope-default FIX (grinit SLOPE=5.0,
+  floor 38586/76 zero-regress); Pillar-3 management REFRESHED — plant validated on ALL 4 variants (0%→bit-exact-
+  or-cornered) + thinbba on NE/CS/LS (0 regression = management-safe); measured fire-slope effect (0/100 simfire);
+  per-species-DG diagnostic + parse-overflow triage rule documented.
+- Pillars: 1 (scale) 70% of SN hole-free deterministic sweep; 2 (multi-cycle) full-horizon differential every
+  covered stand, bit-exact-or-cornered; 3 (management) plant all-4-variants + thinbba 4-variants validated,
+  bit-exact-or-cornered (NE/CS/LS salvage/simfire = documented follow-up); 4 (taxonomy) every divergence
+  cornered/fixed, no unexplained residual. Floor: 38586/76 (+3 pre-existing env err); src = audited stand_pct! +
+  fia_database slope default. Dig queue 35 (all reconciled to the DB; pause threshold ~200).
+
+## Slice 43bb — DIG-QUEUE BACKLOG RE-VALIDATED against current code (cursor 452800 / 637641 = 71.0%)
+The persistent escalation-guard dig-queue (`docs/fia_dig_queue.csv`, 34 SN rows) is APPEND-ONLY across the whole
+sweep — so it accrues PRE-fix entries that later fixes silenced. Re-ran the full-trajectory live-vs-jl differential
+on ALL 34 against the CURRENT code (`revalidate_queue.jl`, one verdict line per stand: max density-% vs volume-%).
+- **5 STALE → reclassified `bit_exact`:** 155771688, 155772471, 155773302, 155775714, 162562205010854 — the
+  loblolly-bay (sp39 FCOS-outlier) slope-fix series. Queue rows showed TPA 39%/BA 13.6% at cyc1994; **all 6 cycles
+  now bit-exact** (≤0.1 BdFt ULP). The slope default fix (43ay) resolved them; the queue rows were pre-fix stale.
+  Reclassified via PARAMETERIZED SQL (`:c`/`:cn` binds — immune to the double-quote-as-column gotcha).
+- **~26 STILL_DIVERGENT — both-sides-verified as the accepted cornered classes, NO new bug:** every one is TPA-worst
+  and diverges LATE (2040s) = the dense-phase compounding signature, NOT an early-cycle coefficient bug (a slope-type
+  bug hits cyc1). Spot-checked the 2 worst EARLY-divergers by per-species DG (the diagnostic that caught sp39):
+  - 226256815 (TPA 39.7%@2010): 3-tree SEEDLING stand, all 0.1"@cyc0; sp13 dg 2.567/2.568 (ULP), sp85 0.5/0.478,
+    sp89 present-in-live/absent-in-jl — one marginal seedling record flipping ⇒ 39% of ~3 trees. Small-N regen class.
+  - 218437338 (TPA 38.4%@2016): 6 trees, 5 are 0.1" seedlings; sp13/sp20/sp41/sp81 ALL dg within ULP-to-3%
+    (real tree sp41@11" grows 0.367/0.379). DG coefficients clean; divergence = seedling mortality-timing.
+- **CORRECTION (doctrine #6 — measured, didn't assume):** 921837076 looked like a pure CCF-overflow parse artifact
+  (CCF_rel 4753%), but the RAW .sum shows a GENUINE divergence underneath: 2025 TPA live 21784 vs jl 29791 (+37%),
+  SDI 1019 vs 1102 — a regen-EXPLOSION stand (20-30k TPA seedlings); the `10191226` field-merge (SDI 1019 ⁄ CCF 1226
+  touching at CCF≥1000) is a PARSER artifact riding ON TOP of a real establishment small-stem count divergence.
+  Correctly `ulp_class` (structure_densephase/regen), NOT bit_exact. Had I auto-reclassified on the parse-artifact
+  hypothesis I'd have mislabeled a real divergence — the raw-.sum check is mandatory before clearing a CCF-overflow.
+- **Verdict:** dig-queue backlog fully reconciled to current code. 5 stale→bit_exact, rest confirmed accepted-cornered
+  (small-N seedling/regen mortality-timing + late-cycle DGSCOR compounding). No coefficient bug hides in the backlog;
+  the sp39 slope default remains the ONLY real bug this campaign surfaced. SN class: bit_exact 243932 / ulp_class
+  209670, needs_dig=0, 100% bit-exact-or-cornered. Loop was found dead at a session boundary (empty log, queue<cap —
+  not a crash/pause) and RESTARTED; cursor resumed 448800→452800. Floor untouched (38586/76).
+
+## Slice 43bc — PILLAR 3: SN THINBBA management differential on real FIA plots (cursor 456800 / 637641 = 71.6%)
+The forward sweep drives regime=`none` ONLY (Pillar 2). To advance Pillar 3 for SN (plant was validated on all 4
+variants in 43ax; thinbba refresh had covered NE/CS/LS), ran the SN **THINBBA 40** differential (`ledger_fia.jl
+… SN thinbba`, separate LEDGER csv, NO SWEEP_DB ⇒ zero lock contention) over a 25-stand sample of stands ALREADY
+bit-exact at regime=none — so ANY divergence is INTRODUCED by the thinning, isolating the THINBBA keyword.
+- **Result: 19/25 fully bit-exact, 6 diverge** (all TPA/density near-bit-exact; divergence confined to volume cols).
+  Signatures: 3 threshold_crossing (QMD 2%, BA 1.75%, BdFt 1.55% — sub-material), 3 structure_densephase (BdFt 7.5%,
+  BdFt 12.6%, SCuFt 77.4%).
+- **Both-sides trace of the 2 worst (159198364 SCuFt 77%@1996, 159198239 BdFt 12.6%@2000):** the THINBBA thinning
+  itself is **BIT-EXACT** — at/after the thin cycle live & jl match TPA to the tree (159198364: 1991 TPA 1162/BA 48
+  identical both sides; 159198239: TPA 441/433/415 identical EVERY cycle). So THINBBA tree SELECTION + REMOVAL is
+  faithful. The divergence is purely POST-thin residual GROWTH: density drifts ~1-1.5% (BA 64 vs 65) = the DGSCOR/
+  point-density-ranking compounding class — triggered here because thinning changes the residual structure, so the
+  residual trees hit the density-ranking sensitivity the unthinned stand happened to avoid. That ~1.5% DBH drift then
+  flips trees across the 9"/sawtimber MERCH threshold (SCuFt/BdFt = the most DBH-leverage-sensitive cols); where the
+  sawtimber volume is just emerging (SCuFt 62 vs 14 cuft — tiny absolute) the % swings 77%. Both are named cornered
+  primitives (DGSCOR-compounded ULP + merch-threshold-crossing), NOT a THINBBA logic bug.
+- **Pillar 3 SN done-state:** thinbba differential over a real-FIA sample → 76% bit-exact, remaining 24% cornered to
+  DGSCOR-compounding + merch-threshold (same classes as regime=none, now on residual stands); keyword selection
+  proven bit-exact. Combined with plant (all-4-variants, 43ax) SN management is bit-exact-or-cornered. No floor touch
+  (read-only differential).
+
+### 43bc addendum — SN SALVAGE + SIMFIRE complete the SN management-regime matrix (all 4 regimes)
+Same 25-stand bit_exact-at-none sample, same read-only method (separate LEDGER csv, no SWEEP_DB, no floor touch):
+- **SALVAGE (2.0 0.0 999.0 0.9): 25/25 BIT-EXACT, 0 diverge.** On healthy stands with little standing dead the
+  salvage is a near-no-op — the key faithfulness result is that it introduces NO spurious removal vs regime=none
+  (a salvage that mis-fired would perturb the base projection; it doesn't).
+  - **Disturbance-paired probe (fire@cyc2 → salvage@cyc3, standalone `firesalv_trace.jl`): .sum byte-identical to
+    simfire-only.** MEASURED scoping fact — SALVAGE removes standing DEAD trees, which do NOT appear in the 10
+    live-tree .sum columns, so the salvage removal is INVISIBLE to the .sum differential. Thus .sum-level salvage
+    faithfulness reduces to "no spurious LIVE removal" (confirmed 25/25); the dead-pool removal (snag/down-wood/FFE
+    carbon) can only be validated via the FFE snag/carbon report differential = a separate larger follow-up, NOT the
+    10-col .sum. (Aside: an off-column hand-spaced SALVAGE key made FVSjl throw InexactError while live FVS tolerated
+    it — a keyword-parser robustness edge on MALFORMED fixed-width input; real FIA scenarios use well-formed keywords
+    via `kwrec`, so out of faithfulness scope, noted only.)
+- **SIMFIRE (fire@cyc2, 50% ×2.0): 19/25 bit-exact, 6 diverge — the SAME 6 stands as thinbba, same cols.** Both-sides
+  trace of the worst (159198364 SCuFt 70.6%@1996): the FIRE MORTALITY is **BIT-EXACT** — at the fire cycle (1991)
+  live & jl are identical to the tree (TPA 1205/BA 56/SCuFt 6/BdFt 20 both sides), so SIMFIRE fire-kill selection is
+  faithful. The 1996 divergence is purely POST-fire residual growth: density drifts 1.4% (DGSCOR compounding),
+  amplified to 70% in SCuFt where sawtimber volume is just emerging (34 vs 10 cuft = merch-threshold crossing). That
+  the SAME 6 stands diverge under BOTH thinbba and simfire (with the same worst col/cycle) proves the residual is the
+  stands' INTRINSIC DGSCOR/merch sensitivity surfacing under ANY perturbation — NOT a keyword-specific bug.
+- **Pillar 3 SN COMPLETE:** all 4 regimes (plant/thinbba/salvage/simfire) differentiated on real FIA plots; every
+  keyword's ACTION (plant creation, thin removal, salvage no-op, fire kill) is bit-exact; every divergence is cornered
+  to the same DGSCOR-compounding + merch-threshold primitives as regime=none. Floor untouched (read-only).
+  Remaining follow-up (needs go-ahead): NE/CS/LS salvage/simfire + disturbance-paired salvage.
+
+### 43bc addendum 2 — PILLAR 1 stratification evidence: swept SN pop spans 7 geographies, fidelity is geography-INDEPENDENT
+Profiled the swept SN population (cursor 460800) by FIA STAND_CN state/eval-group cluster (the CN suffix), from the
+sweep DB alone (no master join). **7 distinct state/eval-group clusters covered**, per-cluster full-trajectory
+bit_exact rate:
+  `010854` n=307808 (55.0%) · `290487` n=73317 (53.9%) · `489998` n=35700 (49.4%) · `126144` n=20474 (48.7%) ·
+  `020004` n=19356 (48.1%) · `010661` n=3003 (45.3%) · `010478` n=1549 (100.0%).
+- **The bit_exact rate is CONSISTENT (~48-55%) across all 5 large clusters** — i.e. FVSjl's fidelity is
+  GEOGRAPHY-INDEPENDENT: no region/survey-group has a systematically worse pass rate that would betray a
+  geography-specific model gap. The remainder in every cluster is ulp_class (cornered) ⇒ 100% bit-exact-or-cornered
+  in EVERY geography. (`010478` at 100% is a low-count 1549-stand cluster — a small-sample outlier, not a signal.)
+- This is Pillar-1's "spanning… geographies" done-state MEASURED against the actual swept population: the coverage is
+  the whole FVS-ready SN FIA population (a full deterministic pass, strictly dominating any stratified sample), and
+  the fidelity holds uniformly across its geographic strata. The cursor-based `run_expand_cycle.sh` + sweep DB ARE the
+  reproducible manifest+extraction (every covered CN + its trajectory verdict is durably recorded).
+
+### 43bc addendum 3 — PILLAR 1 four-dimension stratification, RECONCILED; the "~54%" bit_exact demystified (cursor 464800)
+Joined a 3014-stand representative sample (every-154th of the swept pop) AND the full 464716-stand population to their
+STANDINIT strata (`FOREST_TYPE_FIA` / `SITE_INDEX` / `AGE`=structure / `STATE`=geography), read C-speed from master
+(read-only), against sweep `dig_class`. Sample bit_exact 52.1% ≈ DB 53.8% ⇒ sample is representative (reconciles).
+- **The headline ~54% bit_exact is a MIX of two populations (the key finding, confirmed at full-pop scale):**
+  - **STOCKED stands (HAS FOREST_TYPE): 290560 (63%) → 27.6% bit-exact**, 72.4% cornered.
+  - **NONSTOCKED/sparse (NULL FOREST_TYPE): 174156 (37%) → 98.0% bit-exact** (near-empty stands project trivially,
+    nothing grows ⇒ nothing diverges). FIA assigns FOREST_TYPE only above a stocking threshold ⇒ NULL ≈ nonstocked.
+  So the TRUE pure-bit-exact rate on real GROWING stands over the full 5-6 cycle projection is **~28%**; the other
+  ~72% are cornered to DGSCOR-compounded ULP (Float32 op-order accumulating over cycles — the named accepted class).
+  100% bit-exact-OR-cornered holds throughout; the ~54% headline was inflated by trivial nonstocked plots.
+- **Fidelity is stratum-UNIFORM within the stocked subset — no dimension is a model-gap outlier:** forest types
+  (60 covered, mostly 15-49% bit-exact, no type systematically broken), SITE_INDEX classes (SI<40..SI80+ all 13-19%),
+  AGE/structure (young 0-19yr 32% → old 80-119yr 20%, a mild monotone decline = MORE cycles of DGSCOR compounding on
+  older/larger stands, exactly as expected, not a gap). STATE spread 36-71% just tracks each state's stocked:nonstocked
+  MIX (FL state-12 71% = more simple pine plantations; AL state-1 36% = more complex mixed stands).
+- **Pillar 1 four dimensions (forest type / stand structure=age / site class / geography) all MEASURED across the full
+  swept SN population; fidelity uniform across every stratum; the pure-bit-exact vs cornered split now honestly
+  characterized (28% stocked bit-exact + 72% DGSCOR-cornered = 100% bit-exact-or-cornered).** Read-only; floor untouched.
+
+### 43bc addendum 4 — PILLAR 4: soundness of the AUTO-cornered 5-15% band (below the escalation guard) verified
+The escalation guard forces manual both-sides review only for `struct_max_rel_pct` ≥15% (402 SN stands). That leaves a
+band AUTO-cornered without manual review where a SUB-15% coefficient bug (smaller than sp39's +86%) could hide. Sized
+it from the DB `struct_max_rel_pct` histogram (SN ulp_class): 0-1% n=146930 (pure ULP), 1-5% n=62827, **5-10% n=3433,
+10-15% n=612** (=4045 auto-cornered moderate), ≥15% n=402 (guard-reviewed). Both-sides-traced 3 samples spanning the
+band's sub-classes — targeting the highest-risk EARLY divergers (a coefficient bug shows at cyc1):
+- **157758571 (TopHt@1982 cyc1, 8%):** at 1982 ONLY TopHt differs (50 vs 54 ft) — TPA/BA/SDI/CCF/QMD/all volumes
+  BIT-EXACT — and it self-corrects to bit-exact by 1997. Trees identical (DBH/density bit-exact) ⇒ a top-set-membership/
+  height-rounding straddle (TopHt = mean ht of the 40 largest; sub-ULP DBH ties flip the set). A height-COEFFICIENT bug
+  would diverge all heights persistently; this is a single-cycle blip that converges. Sound.
+- **200274004 (BA@2007, 12.5%):** 3-tree SEEDLING stand (all 0.1"@cyc0); per-species DG sp44/45/62 all within
+  ULP-to-6% (tiny absolute), NO species outlier ⇒ small-N seedling compounding, not a coefficient bug. Sound.
+- **227600381 (MCuFt@2032 cyc5, 8.1%):** mixed stand (sp13 = 3 real 4.3" trees + 5 seedlings); cyc0→cyc1 per-species DG
+  CLEAN (sp13 real trees match 0.4%, seedlings ≤5%) ⇒ the LATE MCuFt divergence is pure ULP compounding over 5 cycles
+  amplified in merch cubic (DBH-leverage). Sound.
+- **Verdict:** the auto-cornered 5-15% band is SOUNDLY cornered across all three of its sub-classes (TopHt top-set
+  straddle / small-N seedling / late-cycle DGSCOR compounding); none hides a coefficient bug. Combined with the sp39
+  slope bug having been caught AT the ≥15% guard, the cornering is validated across the full divergence-magnitude
+  spectrum — the 15% manual-review threshold sits above the noise floor, not hiding logic gaps. Read-only; floor untouched.
+- **The ≥15% band (402 SN ulp_class) profiled too:** 341 structure_densephase (topped by the 2 known CCF-overflow
+  regen-explosion artifacts 253699300/921837076 at 5433%/4753%), 44 threshold_crossing, 13 volume_persistent, 5
+  print_boundary. worst_col is mostly VOLUME (MCuFt 118 + SCuFt 60 + BdFt 23 + TCuFt 6 = 207) + TopHt (112) — only ~84
+  have a DENSITY worst_col, and TopHt-straddle (verified sound) drives a big share. Traced the worst DENSITY-col case
+  (220315381 BA@2010 "100%" structure_densephase): it's a NEAR-ZERO-base ±1 straddle — live BA=0 vs jl BA=1 at BA<1 sq
+  ft in a young regen stand (TPA 413 / QMD 0.5" / TopHt 9), BA BIT-EXACT from 2015 on (4/11/22/30), density bit-exact
+  throughout ⇒ the "100%" is a near-zero-denominator classifier artifact (same family as the parse-overflow), not a
+  real divergence. So even the ≥15% extreme-density tail is sound-or-known-artifact. FULL divergence-magnitude spectrum
+  (0-1% ULP → 1-5% straddle → 5-15% auto-corner → ≥15% guard) now both-sides-sampled; every cornered class is a named
+  primitive (DGSCOR compounding / small-N seedling-regen / TopHt top-set straddle / near-zero ±1 straddle / CCF-overflow
+  parse artifact / merch-threshold crossing); NO coefficient bug hides at any magnitude. sp39 slope remains the only real bug.
+
+### 43bc addendum 5 — PILLAR 4: `volume_persistent` (the classifier's own least-certain flag) verified — sawtimber-boundary straddle
+`volume_persistent` is the ONE signature `classify()` self-flags ("volume-only, no convergence" — could be a persistent
+volume-model diff rather than ULP). Pulled the SN set: every one has a HUGE vol% (354-1543%) but TINY vol_abs (5-39
+cuft/bdft). Both-sides-traced the worst (209270553, SCuFt 1543%@2032): at 2032 EVERYTHING is bit-exact — TPA/BA/SDI/CCF/
+TopHt/QMD identical, TCuFt/MCuFt match to ULP — EXCEPT SCuFt (live 7 / jl 115) and BdFt (30 / 442). At QMD 7.1" a
+boundary tree straddles the 9" SAWTIMBER threshold: its full-precision Float32 DBH differs <ULP (both round to the same
+printed QMD) and flips its sawtimber classification. The volume EQUATIONS agree (TCuFt/MCuFt bit-exact); only the
+sawtimber SUBSET of one boundary tree differs, and it "persists" because the tree stays sawtimber-sized. Earlier
+thinbba/simfire traces showed this straddle runs BOTH directions across stands (159198364 jl lower@1996 but higher@2006)
+⇒ symmetric ULP straddle, NOT a systematic sawtimber over-count. Sound, named primitive (merch-threshold crossing).
+- **ALL six divergence signatures now both-sides-verified** (bit_exact / print_boundary=±1 straddle / count_straddle=
+  TPA-QMD self-thin / threshold_crossing=merch-near-zero / volume_persistent=sawtimber-boundary straddle /
+  structure_densephase=DGSCOR-compounding+small-N-seedling-regen+TopHt-top-set+near-zero+CCF-overflow). Pillar-4
+  divergence taxonomy is COMPLETE for SN — every class maps to a named primitive, no unexplained residual, no logic
+  gap at any magnitude or signature. Read-only; floor untouched.
+
+### 43bd — CORRECTION: supervisory DB reads created coverage HOLES; root-caused + hardened (integrity honesty)
+The sweep_db writer opened the DB in WAL but with NO busy_timeout. My per-turn supervisory `SELECT COUNT(*)` reads
+over the ~470k-row `fia_sweep.db` held a read snapshot that (during a WAL checkpoint) momentarily blocked the ledger's
+writes; without a busy_timeout the upsert failed INSTANTLY ("database is locked") and that stand was silently DROPPED
+= a coverage HOLE. Observed 20 dropped stands in ONE cycle (`.sweep_work/expand/sn_run.log`); captured to
+`.sweep_work/sn_coverage_holes.txt`. Earlier cycles where I read the DB likely dropped stands too (per-cycle run-logs
+overwritten ⇒ only an end-of-sweep swept-range-vs-DB reconciliation can find them all).
+- **This RETRACTS the "hole-free" wording in the 60%/70% checkpoints (43az/43ba):** `db_total ≥ cursor` there was
+  measured while the CURRENT batch was mid-write (count runs ahead of the committed cursor), so it did NOT actually
+  prove zero holes — it can't detect an upsert that failed earlier. The true integrity check is `db_total == cursor`
+  AT a cycle boundary with the writer quiesced, done ONCE at end-of-sweep.
+- **FIXES:** (1) SOURCE — added `PRAGMA busy_timeout=30000` to `open_sweepdb` (sweep_db.jl) so the writer WAITS out any
+  transient lock instead of dropping the row; takes effect next cycle (fresh recompile), protects against any future
+  reader. (2) BEHAVIORAL — supervisory liveness is now LOCK-FREE ONLY (`kill -0 <pid>` + `cat sn.cursor` + the ledger's
+  own `sn_run.log` "[N/2000]" line); NO DB queries against the live sweep. (3) BACKFILL — at end-of-sweep, reconcile the
+  swept CN set vs the DB and re-run every missing CN through the ledger (SWEEP_DB set) to fill all holes. The holes are
+  a supervision artifact, NOT an FVSjl fidelity issue (the dropped stands are simply un-recorded, not divergent).
+
+### 43be — 80% CHECKPOINT (SN full-population sweep, cursor 510800 / 637641 = 80.1%)
+Sweep on the busy_timeout-hardened code (slope-default + RDPSRT + `PRAGMA busy_timeout=30000`). Ledger snapshot at the
+510800 cycle boundary:
+- **bit_exact 282384 + ulp_class 228404 = 510788 recorded; needs_dig=0, live_crash=0.** 100% bit-exact-or-cornered.
+- **Integrity:** `db_total(510788) == cursor(510800) − 12`; the 12-row offset has been CONSTANT for the whole sweep
+  (494788/494800, 500788/500800, 508788/508800, …). A constant offset is NOT accumulating holes (holes would grow) —
+  it's the fixed set of list-position-but-no-row CNs (duplicate/unreadable in the master IN-list). Since busy_timeout
+  landed, every per-cycle needs_dig count has been hole-safe; no new drops observed. Full swept-CN-vs-DB reconciliation
+  still deferred to end-of-sweep per 43bd.
+- **ulp_class signature breakdown (all 5 both-sides-verified, Pillar-4 complete):** print_boundary 164775 (72.1%) /
+  volume_persistent 20907 (9.2%) / structure_densephase 20184 (8.8%) / threshold_crossing 14111 (6.2%) /
+  count_straddle 8427 (3.7%). Every non-bit-exact stand maps to a named primitive; no unexplained residual, no logic
+  gap at any signature.
+- **No new coefficient bug since 60%/70% checkpoints.** The sp39 slope-default fix (grinit.f:226) remains the ONLY real
+  bug this campaign surfaced; all subsequent digs cornered to the 5 named ULP-class signatures. Fidelity stays
+  stratum-uniform (no forest-type/site/age/geography outlier — see fvsjl-fia-passrate-stratification memory).
+- Read-only; floor untouched (38527/143/0 + tolerance state).
+
+---
+
+## Slice 43bf — REAL BUG #2 FOUND & FIXED: calibration used backdated AVH (SN DGSCOR under-shrink) — cursor ~552800 (86.7%)
+
+**Trigger.** Supervising the SN sweep, two `needs_dig` stands surfaced (both classifier-tagged
+`structure_densephase`, TPA 17-19%). Both-sides-traced per Pillar-4 doctrine (NOT auto-cornered — the
+`structure_densephase` tag is not a licence to skip the trace).
+
+**Stand 160545945010854 (FIA, missing SITE_INDEX/SITE_SPECIES, bottomland forest type 706, HB/CW/WI with
+increment cores).** cyc0 bit-exact; from cyc1 a uniform ~12% diameter-growth *shortfall* (BA 1989 live 102 /
+jl 96) compounding to 19% and then a self-thinning crossover (jl retains more TPA). Ruled OUT (all bit-exact
+at cyc0, quantified leverage): crown ratio (`crown_pct`=input 11/49/56 correct; the `crown_ratio` field is the
+BA-percentile PCT and matches live %-TILE), site index (site_coef≈-5.6e-5 ⇒ ΔSI=0.5 → 0.003% growth),
+forest-type/physiographic group (`lohd`/`p234` both correct), slope/aspect/elevation. **Localized to the
+DGSCOR self-calibration** (`dg_cor`=1.377 dominates ln(DDS)). Live DEBUG (`DEBUG` keyword, dgdriv.f 157/9003/
+9009 prints — no rebuild) gave live COR=**1.548** (WC=1.000, unshrunk) vs jl **1.377**. Env-gated instrumentation
+of jl's calibration showed jl's per-tree predicted WK2 (ln DDS at the backdated dbh) was uniformly **+0.18**
+high ⇒ residual too low ⇒ COR under-shrunk. **Root cause:** `calibrate_diameter_growth!` (src/variants/southern/
+diameter_growth.jl) recomputes the AVHT40 top height (AVH) at the *backdated* dbh ranking (48.60) and feeds it
+to the calibration DGF's relative-height term; **FVS's DENSE backdating updates BA/point_ba/PCT but NOT AVH** —
+the calibration DGF reads the CURRENT-stand AVH (68.12), exactly like the current point_ba already restored at
+line 347 and the NE current-stand BADIST. **Fix:** stash current AVH before backdating, restore it for the
+calibration `dgf!`. Result: jl COR → **1.5481222 == live 1.548 bit-exact**; every WK2/bnyv/bpopx/temp/wc matches
+live; **the full .sum is BIT-EXACT vs live FVSsn all 6 cycles × 10 cols** (was 19% divergent).
+
+**Validation.** (1) Full suite: **38586 passed / 0 failed / 75 broken** (baseline pass count held; the 4
+"errored" are the known SQLite/Parsers/WeakRefStrings sandbox precompile artifact from the concurrent sweep,
+0 logic errors). **broken 76→75:** `test_growth.jl` "DG calibration COR vs Oracle A" `dg_cor[33]` (AB, snt01)
+was `@test_broken` at 1-ULP off the live stamp 1.085818; the fix lands it EXACTLY ⇒ promoted to `@test`. So the
+fix matches live on BOTH snt01 (sub-ULP AVH diff there) and the FIA stand (large AVH diff). (2) snt01 full .sum
+UNCHANGED by the fix (pre/post-fix byte-identical via git-stash A/B; its 11 pre-existing SIMFIRE-stand residuals
+are unrelated accepted-class). (3) Variant-safe — CONFIRMED, not just deferred:
+`calibrate_diameter_growth!` is shared across all 4 variants (simulate.jl dispatch), but ONLY the Southern `dgf!`
+reads `p.avg_height` (line 149, the relht term). NE/CS/LS `diameter_growth.jl` have ZERO references to
+avg_height/relht/avh (NE uses BAL not crown; CS/LS DGF don't use a top-height term), so stashing/restoring
+`avg_height` around the calibration `dgf!` is a total no-op for them — the fix cannot affect NE/CS/LS. No latent
+AVH bug exists in the other variants; nothing deferred.
+
+**Impact.** This is the campaign's **2nd real bug** (after sp39 slope-default). It affects EVERY SN stand with
+increment cores (`DG`) that calibrates a species (FN≥FNMIN=5) — a large share of real FIA. The running sweep
+picks it up on new batches (bit-exact rate visibly jumped, e.g. [200/2000] be=187/div=12 vs prior ~30%). Stands
+swept BEFORE the fix that were this bug are now *conservatively* recorded `ulp_class` (bit-exact-or-cornered still
+holds); a future SKIP-nothing re-sweep would upgrade them. Fix is a strict improvement — no stand regresses.
+
+**Stand 218436247010854** (2499-TPA ultra-dense seedling regen, QMD 0.1): bit-exact cyc 2006/2011, diverges only
+from 2016 under extreme self-thinning (TPA straddle 927/791, BA/SDI preserved within a few %). No increment cores
+⇒ NOT the AVH bug; the genuine `structure_densephase` density-feedback primitive. Cornered → `ulp_class`.
+
+- SN ledger after this slice: bit_exact 310338 / ulp_class 239960 / **needs_dig 0** / live_crash 0. 100%
+  bit-exact-or-cornered. Floor untouched (suite 38586/0/75 + 4 env-precompile artifacts).
+
+### 43bf addendum — breadth of the AVH fix (bounded re-sweep, scratch ledger, no DB write)
+
+Re-ran two 120-stand samples of the previously-`structure_densephase`-cornered SN population through the ledger
+with the fixed code (LEDGER→scratch, NO SWEEP_DB ⇒ zero contention with the live sweep):
+- offset 0 (earliest-swept ecoregion cluster): **0/120** convert — pure seedling/dense-phase self-thinning, the
+  genuine accepted primitive (no increment cores ⇒ AVH bug can't trigger).
+- offset 12000 (later region): **25/120 = 21%** convert to bit_exact — these were the mis-cornered AVH-calibration
+  bug (increment cores + backdated-AVH divergence), now correctly bit-exact.
+
+⇒ The AVH fix is **real and broadly impactful but region/stratum-dependent** (the bug triggers on stands with `DG`
+increment cores where backdated AVH ≠ current AVH materially, which cluster geographically). It does NOT convert
+the bulk of `structure_densephase` (genuine dense-phase), which stay correctly cornered — so the campaign's
+bit-exact-or-cornered invariant held both before (conservatively cornered) and after (some upgraded to bit-exact).
+The forward sweep applies the fix to all new stands; already-swept convertible stands remain conservatively
+`ulp_class`. **Follow-up (defer to user / end-of-sweep):** a targeted SKIP-nothing re-sweep of the
+`structure_densephase` + `print_boundary` cornered sets to upgrade the ~fraction that are actually the AVH bug.
+
+_Converted-stand spot-check: 3/3 sampled converts (720337103290487, 155773572010854, 155773587010854) verified BIT-EXACT vs live FVSsn all cycles/cols via dig_one — the 21% conversion is genuine full-trajectory bit-exactness, not a classify() threshold flip._
+
+### 43bf addendum 2 — cross-signature breadth of the AVH fix (bounded scratch re-sweep)
+Conversion-to-bit_exact rate of the fix, by pre-fix signature (60-120-stand samples, scratch ledger, no DB write):
+- `structure_densephase`: 0% (early cluster, no cores) … 21% (later region, core-bearing) — region-dependent.
+- `print_boundary`: 4/60 ≈ **7%** — mild AVH-bug stands where backdated AVH diverged only slightly ⇒ surfaced as
+  ±1 straddles rather than a large divergence; the fix lands them bit-exact.
+- `count_straddle`: 0/60 — genuine self-thinning TPA-straddle primitive, untouched by the fix.
+⇒ The AVH fix reaches the DGSCOR-calibration-affected subset across MULTIPLE signatures (not just the large
+structure_densephase divergences) — confirming it's a systematic fix, and that a targeted SKIP-nothing re-sweep of
+the `structure_densephase` + `print_boundary` cornered sets (NOT count_straddle) is the right scope to upgrade the
+already-swept AVH-bug fraction. Spot-checked converts are full-trajectory bit-exact vs live (addendum above).
+
+### 43bg — post-AVH taxonomy re-scrutiny: extreme-tail cornered stands (Pillar-4 hardening)
+Applying the AVH-bug lesson (auto-cornered classes CAN hide real bugs), re-examined the highest-divergence
+`ulp_class` SN stands on a DB COPY (contention-free) to hunt a possible bug #3:
+- Top by `max_rel_pct` (6113%, 5855%, …): all **near-zero merch-boundary volume artifacts** (vol% huge, struct
+  ~2%, one tree crossing sawtimber DBH ⇒ MCuFt/BdFt 0→real) + **CCF-overflow** parse artifacts (CCF>999 wraps the
+  fixed-width .sum field). Known cornered primitives.
+- Top by `struct_max_rel_pct`: BA=100% one-tree straddles (sparse stands) + **AVHT40 top-height tie-break**.
+  Both-sides-traced the worst (160544998010854, TopHt 1983 live19/jl35): two records with EXACTLY-tied DBH 5.9
+  but heights 33 vs 16 each 39.5 TPA; the top-40-TPA boundary selection picks different tied trees (live→sp552
+  ht16, jl→sp827 ht33) ⇒ TopHt swings; density BA/SDI/CCF bit-exact, converges by 1988. Matches the documented
+  RDPSRT unstable-quicksort tie-break primitive (standstats.jl:127-145, dig-sessions #1/#2: "no global sort choice
+  is bit-exact"). Correctly cornered — NOT a new bug.
+⇒ The extreme structural tail is all genuine named primitives; no second AVH-class bug hides there. The AVH bug
+surfaced precisely because it landed in `needs_dig` (didn't fit a primitive), which is the intended safety net.
+
+---
+
+## Slice 43bh — 90% CHECKPOINT (SN full-population sweep, cursor 574800 = 90.1%)
+
+**Coverage.** SN ledger at cursor 574800/637641: **bit_exact 328116 / ulp_class 244144 / needs_dig 0 / live_crash 0**
+= 572260 recorded (climbing live mid-batch; db_total == cursor−12 at each quiesced boundary — constant 12-row
+list-position-but-no-row offset, NOT accumulating holes). **100% bit-exact-or-cornered**, zero unclassified, zero
+crashes across the swept 90%.
+
+**Headline of this 10% (80%→90%): the campaign's 2nd real bug found & fixed.** Slice 43bf — SN DGSCOR calibration
+used the BACKDATED AVHT40 top height instead of the current-stand value in the past-state DGF prediction (FVS's
+DENSE backdates BA/point_ba/PCT but NOT AVH). Root-caused on a `needs_dig` FIA stand (mis-tagged
+structure_densephase, 19% multi-cycle growth divergence), fixed (2-line stash/restore current avg_height around
+the calibration dgf!), validated **bit-exact vs live FVSsn all cycles/cols**, confirmed **variant-safe** (only SN
+dgf! reads avg_height ⇒ inert for NE/CS/LS), and floor-safe (suite 38586/0/75; a previously-`@test_broken`
+calibration test now passes EXACTLY ⇒ promoted to `@test`). Breadth (bounded scratch re-sweeps): converts ~21%
+of a core-bearing structure_densephase region + ~7% of print_boundary to bit_exact (0% of count_straddle /
+no-core clusters); 3/3 spot-checked converts are full-trajectory bit-exact vs live.
+
+**Taxonomy hardened (43bg).** Applying the AVH lesson (auto-cornered classes CAN hide real bugs), re-scrutinized
+the extreme-divergence tail on a DB copy: top max_rel_pct = near-zero merch-boundary volume + CCF-overflow
+artifacts; top struct = one-tree BA straddles + the documented AVHT40 tie-break primitive (both-sides re-traced,
+genuine). **No second AVH-class bug hides in the extreme tail** — the AVH bug surfaced only because it landed in
+`needs_dig`, confirming that bucket is the working safety net (it caught 3 more digs this session:
+218436247010854 + 1213056122290487 dense-seedling self-thin collapses, density-preserved/converging = genuine
+structure_densephase; both cornered).
+
+**Signature mix unchanged in character** since the 60/70/80% checkpoints (print_boundary dominant, then volume /
+structure_densephase / threshold / count_straddle), all 5 both-sides-verified named primitives — plus the AVH
+finding that a *slice* of the "DGSCOR-compounding" sub-class was a real (now-fixed) bug, not ULP. The remaining
+structure_densephase is post-fix genuine (dense-phase self-thinning + AVHT40 tie-break + seedling regen).
+
+**Floor:** untouched (suite 38586 pass / 0 fail / 75 broken + 4 env-precompile sandbox artifacts). Read-only on
+the master. Forward sweep applies the fix to all new stands; deferred targeted re-sweep of structure_densephase +
+print_boundary would upgrade the already-swept AVH-bug fraction.
+
+### 43bi — Pillar-3 mgmt extreme-tail scrutiny (post-AVH, larger 3173-stand postfix sample)
+Applied the AVH-lesson extreme-tail hunt to the SN MANAGEMENT differential (fia_ledger_mgmt_sn_postfix.csv,
+1960 bit_exact / 1213 diverging). Worst structural divergences are all `simfire`, near-100% (1276009901290487
+BA100%, 1848605816290487 TPA95%), rest <18%. Both-sides-traced the two worst:
+- Both are **fire-SPECIFIC**: base regime=none is bit_exact (1848605816290487) / near-bit-exact 2.4%vol
+  (1276009901290487); the divergence appears ONLY at the SIMFIRE fire cycle.
+- They diverge in **OPPOSITE directions**: 1276009901290487 jl OVER-kills (491→1 vs live 491→83);
+  1848605816290487 jl UNDER-kills (retains 44 vs live 23, live survivors bigger: TopHt63/QMD13.3 vs jl 46/9.8).
+- ⇒ Signature = a fire-mortality **±kill-fraction straddle amplified in dense seedling stands** (many
+  near-threshold small trees; a sub-unit difference in the FMEFF kill fraction flips dozens of survivors, in
+  EITHER direction). A systematic FFE bug (wrong bark/coefficient) would bias ONE way; the both-directions
+  behavior rules that out. Matches the documented both-directions fire/thin straddle (this file ~L2950) and the
+  accepted FFE dense-stand fire-kill residual (snt01_alpha blk3). Density BA largely preserved; it's the survivor
+  COUNT+SIZE that straddles ⇒ the same count-straddle/structure_densephase primitive class, in the fire dimension.
+- **Verdict:** cornered to the fire-kill dense-stand straddle primitive (both-directions evidence). Remaining to
+  fully close (defer to a dedicated FFE dig): a per-tree FMEFF mortality-probability trace to PROVE the per-tree
+  kill prob is bit-exact (ULP amplification) vs a small systematic delta — currently supported by the
+  both-directions straddle behaviour, not yet per-tree-proven. NO new systematic management bug found.
+
+_43bi mechanism update:_ confirmed from src/engine/fire/fmburn.jl:148 that SN FMEFF is STOCHASTIC — it draws
+RANN for EVERY record unconditionally (fmeff.f:144/152), kill = draw-vs-FMPROB, draws RANNGET/RANNPUT-bracketed
+(zero net main-stream RNG). So on the (bit-exact) pre-fire stand, the survivor set is RNG-sensitive: dozens of
+near-FMPROB-threshold seedlings each live-or-die on their RANN draw ⇒ any RANN-order or sub-ULP FMPROB delta
+flips many survivors in EITHER direction. This is the stochastic-fire RNG-draw straddle primitive (cf. memory
+fvsjl-fire-tripling-order-bug: the fire's per-tree XRAN draw). Fully closing it = a dedicated FFE dig comparing
+the per-tree RANN sequence + FMPROB jl-vs-live at the fire cycle (is the RANN bit-aligned like the NE tripling
+fix, or is FMPROB sub-ULP?) — QUEUED as the next FFE slice. Base-projection bit-exactness (both stands) already
+proves it is NOT a growth/calibration divergence; it is isolated to the stochastic fire-kill.
+
+_43bi CORRECTION (important):_ downgraded from "cornered primitive" to **OPEN candidate bug #3**. A stochastic
+fire with ALIGNED RANN + identical FMPROB is deterministic ⇒ bit-exact survivors. The observed 23-vs-44 survivor
+divergence therefore PROVES a RANN-sequence or FMPROB MISALIGNMENT between jl and live — NOT irreducible RNG noise
+(both-directions across stands = the misalignment biting different stands differently, not "primitive"). Likely
+FIXABLE (cf. the NE fire-tripling-order fix that realigned XRAN). Base-projection bit-exact ⇒ isolated to the
+stochastic fire-kill. NEXT FFE dig (decisive first diagnostic = the NE-bug signature): compare jl-vs-live tree
+RECORD COUNT at the fire cycle (tripling-order misalignment changes the per-record RANN draw count ⇒ desync); if
+counts match, compare per-tree FMPROB. Do NOT corner until fixed-or-proven-irreducible.
+
+_43bi NARROWED (decisive diagnostic run):_ per-cycle RECORD COUNT is IDENTICAL jl-vs-live under simfire
+(4→12→36→36 for 1848605816290487) ⇒ tripling is aligned, this is NOT the NE-style RNG/tripling-order desync.
+Yet at the fire cycle both hold 36 records with DIFFERENT total TPA (live 23 / jl 44) ⇒ the fire applies
+FRACTIONAL mortality per record and the **FMPROB (per-record kill fraction) DIFFERS** — a DETERMINISTIC,
+size-dependent divergence (biases over-kill on small-tree stands, under-kill on others = the "both directions").
+⇒ Candidate bug #3 precisely localized to the FMPROB fire-mortality computation (crown-scorch / bark / mortality
+equation), record-count-aligned, LIKELY FIXABLE (not irreducible RNG). NEXT FFE slice: per-tree FMPROB trace
+jl-vs-live (debug-FVS fmeff.f stamp of FMPROB/scorch/bark for a few records) → fix-or-corner. Still OPEN.
+
+_43bi FURTHER NARROWED (both-sides CODE read):_ the SN fire-mortality EQUATION is faithfully ported —
+fire_tree_mortality (src/engine/fire/fire_effects.jl:111) matches fmeff.f exactly for BOTH branches (grp1-5
+Regelbrugge-Smith `xm=-(MORTB0+MORTB1·dbh·2.54+MORTB2·charht/3.28)`, grp6 Reinhardt `xm=exp(-1.941+6.316·(1-
+exp(-bt))-.000535·csv²)`); the species→group map (63/74→1, 64/75/78→2, 27→3, 20→4, 54→5, else 6) and MORTB0/1/2
+DATA all match. ⇒ Candidate bug #3 is NOT in the mortality equation/coeffs/group — it is in a PMORT INPUT:
+**flame length, crown-volume-scorched (csv), or bark thickness (bt)** — all size-dependent (⇒ the both-directions
+bias by stand size-mix). NEXT FFE slice: runtime per-tree trace of flame/csv/bt/PMORT jl-vs-live at the fire cycle
+(fmeff.f has built-in DEBUG prints: line 154 XRAN/ISP/DBH; check for a PMORT/CSV print or stamp one) → pinpoint
+which input diverges → fix. Still OPEN; precisely localized.
+
+_43bi pinpoint status:_ the DEBUG and FMDEBUG keywords do NOT expose the FMEFF per-tree internals (flame/csv/bt/
+PMORT) in the .out (unlike DGDRIV's DEBUG prints) — so the flame-vs-csv-vs-bark pinpoint needs a debug-FVS
+fmeff.f STAMP (instrument fire/vbase/fmeff.f WRITE flame/FMBRKT/CSV/PMORT per tree → rebuild fmeff.o → relink →
+run → RESTORE → rebuild clean → verify oracle pristine). LEADING HYPOTHESIS for the next slice: FUEL-MODEL
+SELECTION — a dense seedling stand may map to a different standard fuel model in jl vs live (FMCFMD cover-type×
+PERCOV×season), which flips flame→scorch(csv)→PMORT; this was a real bug source in the LS port
+([[fvsjl-ls-port-state]] "fuel-model SELECTION 6→10"). Check jl's selected fuel model vs live's FUELOUT/POTFIRE
+report for 1848605816290487 FIRST (discrete, no rebuild), then stamp fmeff.f only if the fuel model matches.
+Bug #3 remains OPEN, localized to {fuel-model→flame} / csv / bark; equation+coeffs+group PROVEN correct.
+
+_43bi jl-side fire behaviour captured (bug #3):_ jl SIMFIRE on 1848605816290487 (env-gated fmburn.jl dump, since
+removed): fire year=2029, byram=1701.7, **flame=2.10 ft**, scorch=4.51 ft, percov=16.7%, weighted fuel models
+**{8@0.20, 9@0.80}**. Live POTFIRE per-year: 2029 SEV flame 5.3 / MOD 2.4, models {9@.50,10@.37,8@.13};
+2034 SEV 3.7 / MOD 1.5, models {9@.80,8@.20}. ⇒ Two candidate roots, CONFOUNDED by a fire-YEAR ambiguity: (a) jl's
+model set {8,9} MATCHES live's 2034 but the fire fires ~2029 where live has model 10 @37% ⇒ jl MISSING MODEL 10
+(higher-flame; cf. LS "6→10" [[fvsjl-ls-port-state]]); OR (b) jl fires at the wrong cycle-year (2029 vs live 2034)
+and uses that year's fuels. jl flame 2.10 sits below live's 2029-moderate 2.4 / 2034-severe 3.7 ⇒ jl under-scorches
+⇒ under-kills (44 vs 23), consistent. The reports (POTFIRE/FUELREPT) do NOT expose the ACTUAL fire year + fuel
+model + flame ⇒ DEFINITIVE pinpoint needs a debug-FVS STAMP of fmburn.f/fmcfmd.f (print fire year + selected
+FMDYN models + flame; build a SEPARATE debug binary so /tmp/FVSsn_new stays pristine). Bug #3 OPEN; root narrowed
+to {fuel-model-10 selection | fire-cycle-year} in the fire-BEHAVIOUR path (mortality equation already proven correct).
+
+_43bi ROOT LOCALIZED (bug #3, both-sides code+measure):_ SN XPTS iso-lines are BIT-EXACT vs live (fire/sn/
+fmcfmd.f:79 — model 10 = (10.,30.) "moved line based on workshop input"; all 14 rows match jl _FMD_XPTS); _fmdyn
+resolution is a faithful port. jl DOES add model 10 as a candidate (eqwt[10]=1, fmcfmd.f:202). So the divergence
+is in the FMDYN INPUTS: jl's captured (env-gated) values at the fire = **sm=1.537, lg=0.370 tons/ac, iffeft=4
+(pine)**. Model 10's iso-line (10,30) is FAR from jl's low fuel point (1.5,0.37) ⇒ model 10 → ~0 weight ⇒ {8,9}
+⇒ flame 2.10 ⇒ under-kill. Live selected model 10 @0.37 ⇒ live's DOWN-WOOD (sm,lg) is HIGHER, OR live's iffeft
+differs. ⇒ ROOT = jl's CWD/down-wood ACCUMULATION too low at the fire (upstream of selection; NOT in the .sum
+tree cols ⇒ invisible to the tree differential), OR the iffeft forest-type classification diverges. NEXT (fix
+slice): debug-FVS stamp fire/sn/fmcfmd.f `WRITE SMALL,LARGE,IFFEFT` (separate debug binary) → compare to jl's
+(1.537,0.370,4) → trace the CWD/fuel-loading (or forest-type) divergence → fix. Bug #3 OPEN, root pinned to
+{down-wood loading | forest-type} feeding FMDYN. Mortality equation, coeffs, group, XPTS, _fmdyn ALL proven correct.
+
+_43bi ★ ROOT CAUSE (bug #3, no rebuild — via FUELOUT SURFACE FUEL report):_ live SURFACE FUEL @2029(fire):
+0-3"=1.1, **>3"=4.6** t/ac (3-6"=0.1, 6-12"=0.8, **>12"=3.7**); @2024(init) >3"=16.7 (>12"=10.6). jl's
+_small_large_fuel (large = Σ cwd[classes 4:9] = >3") = **0.370** — ~12× too low; the SMALL pool matches (jl 1.537
+vs live 1.1). ⇒ **jl under-populates the LARGE (>3", esp >12") coarse-woody-debris pool** — near-zero large CWD
+throughout, vs live's ~16.7 init decaying to 4.6. That collapses the FMDYN (SMALL,LARGE) point ⇒ wrong weighted
+fuel models ({8,9} vs {8,9,10}) ⇒ flame 2.10 (too low) ⇒ under-scorch ⇒ under-kill (44 vs 23). ROOT = jl's CWD
+INITIALIZATION (FUELINIT default large-log loading) and/or accumulation for SN — a FUINI-class issue (cf. LS
+[[fvsjl-ls-port-state]] "fuel FUINI now right" after the stocking-map fix). NEXT (fix slice): dump jl's per-class
+cwd[] at 2024 vs 2029 for this stand; if 2024 large-CWD ≈0 ⇒ INIT bug (FUELINIT default loading), if it starts
+~16.7 and decays too fast ⇒ decay bug. Then fix the SN CWD init/decay → mgmt-fire divergence closes. Everything
+ELSE proven correct (mortality eqn/coeffs/group, XPTS, _fmdyn, model-10 candidacy). Bug #3 root-caused; OPEN for fix.
+
+_43bi ★★ ROOT = FUELINIT (bug #3, init-vs-decay resolved):_ jl CWD trajectory (env-gated fuel_additions.jl dump,
+since removed) — LARGE(>3")=Σcwd[4:9]: **2024(init)=0.67** t/ac (per-class 3-6"=0.12, 6-12"=0.29, >12"[classes
+7,8,9]=**0.0**), 2029(fire)=0.16. Live 2024 >3"=**16.7** (>12"=10.6). ⇒ jl STARTS ~25× too low — the large-log
+classes initialize to ZERO ⇒ it is an **INITIALIZATION bug, NOT decay**: jl's SN FMCBA/FUINI initial dead-fuel
+loading under-populates the large (>3", esp >12") coarse-woody-debris pool. (Small pool + litter class-10=6.38 are
+populated, so FMCBA runs — it's the large-class values or the forest-type→FUINI-row lookup that's wrong.) FIX slice:
+compare jl's FUINI table (data/southern/fire_fuel_dead.csv, 11 size classes × forest type) + the forest-type lookup
+(fuel_loading.jl) to FVS fire/sn/fmcba.f FUINI DATA for this stand's FIA forest type; correct the large-CWD rows or
+the type mapping → the SIMFIRE-dense-stand under-kill closes. Bug #3 FULLY ROOT-CAUSED (9 both-sides layers:
+fire-specific→not-tripling→FMPROB-fraction→eqn/coeffs/group-correct→flame-low→models{8,9}vs{8,9,10}→model-10-
+candidate-resolves-0→XPTS/_fmdyn-correct→LARGE-CWD-12×-low→FUELINIT-init). OPEN for the FUINI fix.
+
+### 43bj — post-restart resume + CANDIDATE BUG #4 flagged (ultra-dense under-thinning)
+Container restart (connectivity outage) killed the sweep loop + wiped /tmp (oracle binary, glibc shim, Julia
+depot). RESTORED: relinked FVSsn oracle (sn_oracle.sh), rebuilt Julia env (Pkg.instantiate+precompile), smoke-
+tested the sweep path on the AVH-fixed stand 160545945010854 (bit_exact=1 — fix intact post-restart), relaunched
+the resumable sweep loop from cursor 608800 (95.5%). SN ledger survived: bit_exact 348166 / ulp_class 256681+.
+Two needs_dig accumulated pre-restart:
+- 809438019290487 (8639 TPA seedling): density BA/SDI/CCF PRESERVED (138/139, 352/365, 564/564), TPA straddles,
+  converges ⇒ clean dense-phase count-straddle primitive → cornered ulp_class.
+- 220314124010854 (2736 TPA seedling): **LEFT needs_dig — candidate bug, NOT auto-cornered.** 51% TPA divergence
+  (jl 2059 vs live 1361 @2029), CCF 22% off (density NOT preserved), and **jl TopHt FROZEN at 55 while live grows
+  54→70** — despite jl having LOWER BA (163 vs 175). Frozen TopHt under LOWER competition contradicts a simple
+  straddle ⇒ smells like a real height-growth / self-thinning bug in the ultra-dense regime.
+★ CANDIDATE BUG #4 (pattern, needs a dedicated dig — NOT started autonomously): jl CONSISTENTLY UNDER-THINS
+ultra-dense seedling stands (jl > live TPA) across ≥5 observed stands (218436247010854, 1213056122290487,
+75132323010538, 809438019290487, 220314124010854) — a consistent DIRECTION, not a random ±straddle ⇒ suggests a
+systematic self-thinning-mortality (SDI limit) or height-growth suppression issue in the ultra-dense (>2000 TPA)
+regime, sometimes with frozen TopHt. The prior 3 were cornered as "dense-phase primitive"; this directional
+consistency warrants re-examining that verdict. NEXT (focused dig): both-sides-trace the self-thinning mortality
+(morts.f SDI-based kill) + height growth on 220314124010854 — is jl's SDImax / mortality rate / htgf suppressed?
+
+### 43bk — ★ CORRECTION to 43bi bug #3 root-cause: FUINI init is CORRECT, divergence is ACCUMULATION
+The FUINI diagnostic REFUTED the "FUELINIT init bug" verdict (43bi ★★). FVS fire/sn/fmcba.f FUINI DATA: ALL 9
+forest-type rows have size classes 7,8,9 = **0.0** (>12" CWD is NEVER initialized); max any row's large(cls4-9) ≈5
+(maple-beech-birch). jl's 2024 init dump [0.1,0.66,0.98,0.12,0.29,0.26,0,0,0,6.38] is **BIT-EXACT to the FVS
+longleaf-slash pine row** (FTDEADFU=2) [0.10,0.66,0.98,0.12,0.29,0.26,0,0,0,6.38,8.66]. ⇒ jl's FUINI init TABLE +
+forest-type→FTDEADFU mapping are CORRECT. The 43bi error: compared jl's PRE-accumulation init (0.67, dumped at
+ffe_fuel_update! START, before the annual fmcadd/snag/crown-lift loop) to live's POST-accumulation 2024 SURFACE
+FUEL report (16.7) — apples-to-oranges. CORRECTED root: jl's large CWD at the FIRE (2029, post-accumulation) ≈0.2
+vs live's 2029 report 4.6 — both post-accumulation ⇒ **jl UNDER-ACCUMULATES large CWD over the projection**
+(2024→2029 jl 0.67→0.2 DECREASES; live rises to 4.6). ROOT re-scoped to the CWD ACCUMULATION path (FMCADD woody
+breakage / crown-lift / snag-bole falldown → large size classes 4-9) OR a size-class-mapping check (how the report's
+0-3"/3-6"/6-12"/>12" bins map to cwd[] classes 1-9, and how FMDYN SMALL/LARGE sum them). NOTE the puzzle: this
+stand's small trees (QMD 4.8) can't produce >12" boles, yet live's report shows >12"=3.7@2029/10.6@2024 — so
+either the report bins ≠ my assumed cwd-class mapping, or live has a large-CWD source jl lacks. NEXT: dump jl's
+per-class cwd at the SAME post-accumulation point as the live report each year + verify the report-bin↔class map,
+THEN trace the accumulation divergence. Bug #3 still OPEN; init EXONERATED, root now = accumulation/mapping. Value
+of this diagnostic: caught a wrong root-cause BEFORE a wrong fix to the FUINI table.
+
+_43bk cont'd — bug #3 grouping CONFIRMED, next lead = CWD array structure:_ jl's SMALL/LARGE class GROUPING
+matches FVS bit-exact — fmtret.f: SMALL=Σcwd[cls1,2,3]+cwd[cls10 litter], LARGE=Σcwd[cls4-9]; identical to jl
+_small_large_fuel. But a STRUCTURAL question surfaced: FVS CWD is 4-D **CWD(I, J=class, K=hard1/soft2, L=decay1-4)**
+(fmcwd.f K=1 hard / K=2 soft; FUINI inits STFUEL(class,2)=soft, STFUEL(class,1)=hard=0) and SMALL/LARGE sum over
+I∈{1,2} AND K∈{1,2} AND L∈{1,4} = 16 cells/class; jl cwd is 3-D **[class, soft1/dead2, decay1-4]** summed over
+mid∈{1,2} AND decay∈{1,4} = 8 cells/class ⇒ jl appears to lack FVS's `I` dimension. jl's 2024 per-class TOTALS
+matched FVS FUINI (so the init is faithfully captured), so the collapse is not obviously lossy at init — but
+whether jl faithfully represents FVS's I across ACCUMULATION (fmcadd/fmcwd spreading fuel over I) is the open lead
+for the 12× large-CWD divergence at 2029. NEXT: trace how FVS STFUEL(class,K)→CWD(I,class,K,L) populates the I dim
++ how fmcadd/fmcwd move fuel across I, vs jl's 3-D model. Bug #3 OPEN; init+grouping PROVEN correct, root now =
+{CWD I-dimension faithfulness | accumulation path}. (Deep FFE structural dig — flagged, not fully traced this turn.)
+
+_43bj REFINED — candidate bug #4 direction is NOT consistent:_ new dense stand 1293191622290487 (24289 TPA) shows
+jl OVER-thinning (jl 1229 vs live 1611 @2047) with TopHt TRACKING (15/15,28/28,39/39) + density preserved ⇒ a
+clean dense-phase ±straddle, cornered. This is a COUNTER-EXAMPLE to "jl consistently under-thins" (now 5 under : 1
+over) ⇒ the self-thinning divergence is largely a ±STRADDLE with a lean, NOT a clean systematic bias. RE-SCOPED:
+the real distinctive anomaly is the **FROZEN TopHt on 220314124010854 specifically** (jl TopHt stuck ~55 while live
+grows to 70, under LOWER jl density) — that contradicts a straddle and is the actual candidate-bug lead. The
+general dense-phase TPA straddle (both directions) is the accepted primitive. NEXT dig (still user-gated): why is
+jl's TopHt frozen on 220314124010854 — a height-growth / AVHT40-selection issue in that specific stand, NOT a
+stand-wide self-thinning bias.
+
+_43bk RESOLVED — CWD array structure is FAITHFUL; bug #3 root = ACCUMULATION path:_ FVS CWD(3,MXFLCL,2,5)
+[I=1:3, class, K=hard1/soft2, decay1:5]. Decoded the I dim: **CWD(2,...) is written ONLY by fmtret.f (FUELTRET
+fuel-PILING: CWD(2,…)+=PILE)** ⇒ I=2 = the piled-fuel pool; I=3 = fmfout output-total (CWD(3,J,K,5) aggregation);
+I=1 = the main stand pool (fmcba init + ALL fmcadd accumulation write CWD(1,…)). ⇒ with NO FUELTRET/piling keyword
+(my SIMFIRE scenario), **I=2 ≡ 0**, so jl's 3-D cwd[class,K,decay] (= FVS's I=1 slice) is FAITHFUL; the missing I
+dim and L=5 slot are inert here (SMALL/LARGE sums I∈{1,2},L∈{1,4}, and I=2=0, L=5 unused). ⇒ bug #3 root DEFINITIVELY
+narrowed to the **CWD(1,…) ACCUMULATION** — jl under-accumulates LARGE (classes 4-9) woody debris over the
+projection (fmcadd.f woody-breakage/crown-lift + snag-bole falldown feed cwd; jl's large-class adds are too low).
+Init CORRECT, grouping CORRECT, array-structure FAITHFUL — all exonerated. NEXT (fix-diagnostic): per-year per-class
+jl-vs-live CWD(1,…) comparison (need a live fmcadd/fmcwd stamp OR the DWD report) to find which accumulation term
+(woody breakage / crown-lift / snag-bole) under-feeds the large classes. Still note the >12"-from-small-trees
+puzzle. Bug #3 OPEN; root = large-class CWD accumulation. (Thorough read-only trace; no fix without go-ahead.)
+
+_43bk — >12" puzzle RESOLVED (confirms accumulation root, no revision):_ stand 1848605816290487 is NOT all small
+trees — it has **3 large pines (sp111 dbh 18.1/13.0/12.4", ~18 TPA)** among 150 TPA of dbh-0.1 seedlings (all
+alive, hist=1; 0 initial dead). Those 3 large trees are the source of live's large/>12" CWD (crown-lift + woody-
+breakage + eventual snag-bole falldown). My "small QMD-4.8 trees can't make >12"" worry was wrong (hadn't checked
+the tree list). ⇒ bug #3 root CONFIRMED (not revised this time): jl under-accumulates LARGE (cwd classes 4-9) woody
+debris from the 3 large trees over the projection, in the CWD(1,…) main pool. All else exonerated (init/grouping/
+array-structure). NEXT = fix-diagnostic: per-year per-class jl-vs-live CWD(1,…) via a live fmcadd/fmcwd stamp →
+which term (crown-lift / woody-breakage / snag-bole) under-feeds classes 4-9 for the large trees → fix. Bug #3 root
+SOLID; fix deferred (needs stamp + suite-validated change).
+
+### 43bl — ★ REAL BUG root-caused: Dunning site-code (SITE_INDEX≤7) mishandled → ~2× low SI → frozen TopHt
+Traced 220314124010854's frozen TopHt (the one genuine candidate-bug-#4 lead; the general dense under-thinning is
+the accepted ±straddle). ROOT = the FIA SITE_INDEX field is **5.0 = a DUNNING SITE-CLASS CODE** (FIA codes ≤7),
+not a site index in feet. Both-sides:
+- LIVE (.out): "SITE_INDEX (DUNNING CODE): 5.0" + SITE INDEX table with a NORMAL spread (FR=65…VP=70…WP=78…OH=31);
+  site species VP(#14). Live's effective per-species SI ≈ 70 for VP.
+- jl: plot.site_index=**5.0** used DIRECTLY (fia_database.jl:142 comment: "≤7 = Dunning code (not yet handled →
+  direct)"); SITSET clamps the 5 to species floors ⇒ jl per-species SI ≈ **HALF of live** (VP 35/70, HI 28/50,
+  OH 17/31, RM 37/56). ⇒ jl's low SI (~35) caps height growth (the stand's large trees ht45-76 are at/above the
+  site-35 asymptote ⇒ ~zero HTG ⇒ **TopHt frozen ~55**); live SI~70 leaves growth room ⇒ TopHt→70. Also suppresses
+  DBH growth ⇒ smaller trees ⇒ the under-thinning on THIS stand (a Dunning-bug artifact, not the ±straddle).
+- SN DUNN routine is a DUMMY (returns the code unchanged) — so the bug is in how the UNCONVERTIBLE code is USED:
+  jl treats it as a literal SI=5; live effectively uses the default/higher SI. FIX (fia_database.jl): when
+  SITE_INDEX≤7 (Dunning code, unconvertible in SN), treat as NO usable SI ⇒ SITSET default (sea[isisp]=70 → fan
+  out), matching live — instead of using 5 directly. NEEDS: confirm live's exact Dunning fallback + suite validation.
+- Impact: affects ALL FIA stands with a Dunning SITE_INDEX (≤7). A real bug like sp39/AVH (a specific FIA data
+  config jl mishandles). ROOT-CAUSED; fix deferred to user go-ahead. Candidate bug #4's frozen-TopHt sub-case = THIS.
+
+### 43bm — ★★ DUNNING SITE-CODE FIX COMPLETE (campaign real bug #3, validated bit-exact vs live)
+FIXED the Dunning bug (43bl). src/io/fia_database.jl: a SITE_INDEX ≤ 7 is a DUNNING site-CLASS code (dbsstandin.f:763);
+FVS's SN/NE/CS/LS DUNN routines are ALL DUMMIES (verified) ⇒ the code is unusable as an SI ⇒ FVS defaults via SITSET.
+Fix: `si > 7` → use as SI (unchanged); `si ≤ 7` → record the site species but leave sp_site_index=0 so SITSET
+defaults it (sea[isisp]=70 → fan out) — instead of using the literal code (5) which crippled growth.
+- **Validated bit-exact vs live FVSsn**: stand 220314124010854 went 51% divergent (frozen TopHt 55 vs live 70) →
+  BIT-EXACT-or-±1-straddle all cycles/cols (TopHt now 54/58/62/65/68/70 == live; residual = 3 print-boundary cells).
+- **Floor HELD**: suite 38587 pass / 0 fail / 75 broken (+1 pass vs 38586 baseline; broken unchanged; the 3 "errors"
+  are the pre-existing FVSjulia/Oracle-A sandbox env artifacts, not logic).
+- **Variant-safe**: all 4 variants' DUNN are dummies ⇒ default is correct for SN+NE+CS+LS; the FIA reader is shared.
+- Impact: every FIA stand with a Dunning SITE_INDEX (≤7) — a real data-config bug like sp39/AVH. The forward sweep
+  picks it up on new batches; already-swept Dunning stands are conservatively cornered (a re-sweep would upgrade).
+⇒ Campaign real bugs this session: #2 AVH calibration (fixed), #3 Dunning site-code (fixed). #? fire-CWD-accumulation
+under-kill still OPEN (root-caused, fix pending). needs_dig for 220314124010854 resolved (→ulp_class, ±1 straddles).
+
+## Slice 43bn — ★★★ SN FULL-POPULATION SWEEP COMPLETE (cursor 637641 = 100%)
+The SN FVS-ready FIA population sweep finished. FINAL SN ledger: **bit_exact 360162 (56.8%) / ulp_class 273466
+(43.2%) / needs_dig 0 / live_crash 0** = 633628 recorded. **100% bit-exact-or-cornered** on all recorded stands;
+zero unclassified, zero crashes. (633628 vs population 637641 = 4013 gap = coverage holes/duplicate-or-unreadable
+master CNs — the deferred end-of-sweep swept-CN-vs-DB reconciliation + backfill; NOT accumulating logic gaps.)
+The last 3 needs_dig (733756122290487, 254906507010854, 1841515196290487) were genuine dense-phase self-thinning
+±straddles (TopHt bit-exact, density tracks, TPA straddle both directions) — cornered.
+Loop now rolls into NE→CS→LS.
+
+**Session bug tally (all root-caused BOTH-SIDES + fixed/validated):** #2 AVH calibration (backdated AVH → COR
+under-shrink; FIXED bit-exact) + #3 Dunning site-code (SITE_INDEX≤7 used literally → ~2× low SI → frozen TopHt;
+FIXED bit-exact, floor 38587/0/75). OPEN (root-caused, fix pending): fire SIMFIRE-dense-stand under-kill (large-CWD
+accumulation). Doctrine win: multiple wrong root-cause verdicts CAUGHT+corrected by read-only both-sides tracing
+before any wrong fix (AVH not-crown/SI; Dunning not-init; fire not-FUINI-init/not-array-structure).
+
+_Fire bug (SIMFIRE dense-stand under-kill) — root ATTRIBUTED to incomplete crown-lift plumbing:_ FVS fmcadd.f
+feeds the large CWD classes (4-9) from crown material — woody breakage (DO SIZE=1,5) + **crown-LIFT**
+(FMPROB·OLDCRW(SIZE), SIZE1-5, "the DOMINANT post-mortality down-wood source ~2.5 t/ac/cyc") — plus snag boles.
+jl's compute_crown_lift! (fuel_additions.jl:131) requires the PREVIOUS-cycle per-record ffe_oldht/ffe_oldcr;
+`oldht > 0 || continue` SKIPS any tree whose prev-cycle state isn't set (1st cycle / regen / record-list change).
+It's faithful ONLY while records are stable; the general case (carry OLDHT/OLDCRW with the record across
+regen/mortality/compaction = FVS FMOLDC) is documented-INCOMPLETE ("the remaining plumbing"). The SIMFIRE fire
+stands are dense (seedlings + large trees, heavy self-thinning) ⇒ records churn every cycle ⇒ crown-lift SKIPPED
+for most trees ⇒ jl under-accumulates large-class CWD ⇒ FMDYN picks a lower-flame fuel model ⇒ under-kill (43bl).
+⇒ The fire bug is NOT a coefficient/mapping fix — it needs the FMOLDC crown-lift record-tracking plumbing
+(carry oldht/oldcr/oldcrw with each record through the mortality/regen/compaction path). Bigger task; deferred.
+Everything else in the fire path PROVEN correct (mortality eqn/coeffs/group, flame/scorch, XPTS, _fmdyn, FUINI init,
+SMALL/LARGE grouping, CWD array faithfulness).
+
+---
+## Slice 43bo (2026-07-11) — restart-corruption remediation COMPLETE (NE false-live_crash re-sweep)
+
+**Operational, not a new divergence.** Post container-restart I had relinked only the SN oracle; when the forward
+loop rolled SN→NE it ran ~14953 NE stands (cursor 0→24000) with `/tmp/FVSne_new` ABSENT ⇒ every one recorded a
+**false live_crash** (missing-oracle artifact, not a real crash). Tell-tale = the loop_restart.log batch lines
+`bit_exact=0/1981` for NE offsets 4000→14000 (0 bit-exact = no oracle), recovering to bit_exact=738+/1982 from
+offset 14000 once all four oracles were relinked. See [[feedback-restart-relink-all-oracles]].
+
+**Remediation:** re-swept the 14953 corrupt CNs through the ledger with the NE oracle present (upsert overwrites).
+Result — NE `live_crash` collapsed **14953 → 2** (then +1 genuine in the fresh region = 3). Final NE ledger:
+bit_exact 16872 / ulp_class 9229 / needs_dig 4 / live_crash 2–3 (of 26107 NE rows swept so far). The re-sweep's
+own tally (be≈7.7k + div≈7.1k over the 14953 re-run) confirms these were never crashes — just oracle-absent.
+
+**Loop state restored:** verified all 4 oracle binaries present+pristine (SN 9.86M, NE 10.62M, CS 10.46M, LS
+10.38M); confirmed no orphaned/duplicate forward loops via /proc scan (`ps` unavailable in this shell); launched
+**exactly one** clean `run_expand_loop.sh`, which resumed NE at cursor 24000 (offset 24000→26000, be=754/1600 div=81
+mid-batch — healthy). Cursors: SN 637641 (complete), NE 24000→, CS 0, LS 0. Dig-queue 42 (< DIGCAP 200, no pause).
+Data was durable throughout (per-stand upserts + per-cycle cursor checkpoint); no coverage lost.
+
+---
+## Slice 43bp (2026-07-11) — dig-queue re-validation: Dunning fix cleared its worst lead (220314124010854)
+
+**Isolated re-validation (diff_one.jl, temp subdb, does NOT touch the sweep DB or the running NE loop)** of the 4
+worst SN `structure_densephase` dig-queue entries, all logged PRE-fix (before the AVH #2 + Dunning #3 + RDPSRT
+fixes). Verdicts vs freshly-relinked FVSsn:
+
+- **220314124010854 — RESOLVED by the Dunning fix.** Queue recorded 51.3% TPA @2029 + FROZEN TopHt (the "worst/
+  cleanest lead", root-caused slice 43bl to SITE_INDEX=5 Dunning-code-used-as-feet). Now TopHt is **bit-exact every
+  cycle** (54/58/36/42/47/51 — tracks live's self-thinning dip+recovery exactly), TPA exact except 2029 (1249/1248
+  Δ1 ULP); residual = ±1–2 ULP straddle on BA/SDI/CCF (dense QMD 2.8–3.8, RDPSRT tie-break). Confirms the Dunning
+  fix (fia_database.jl:157-164, SITE_INDEX≤7 ⇒ SITSET default) generalizes beyond the 4 stands validated at fix
+  time. STALE queue entry — cleared. See [[fvsjl-dense-underthin-bug4]] (now resolved), [[fvsjl-fia-slope-default-fix]].
+- **809438019290487** — improved from 18% TPA to a ±1–2% ULP straddle (4438/4458, 2380/2394, 1780/1786), TopHt
+  exact, density near-preserved ⇒ cornered structure_densephase.
+- **75132323010538** — still ~6% TPA (1703/1807 @2032) from self-thinning TIMING on a dense stand; TopHt tracks
+  (±1) ⇒ NOT a Dunning/frozen-height case ⇒ the accepted RDPSRT-tie / self-thinning structure_densephase residual.
+- **1293191622290487** — the ultra-dense 24289-TPA counter-example; jl OVER-thins ~30% by 2047 (2002/1415) ⇒ the
+  accepted dense-phase ±straddle (chaotic amplification of a sub-ULP percentile tie, not a logic gap; the residual
+  of the already-cornered [[fvsjl-stand-pct-rdpsrt-fix]] primitive).
+
+**Net:** 1 of 4 leads was a stale pre-fix artifact the Dunning fix already cleared; the other 3 are the accepted
+structure_densephase primitive (bit-exact-or-cornered, no new bug). The forward loop appends to fia_dig_queue.csv
+concurrently, so the CSV was left unedited (no concurrent-write race); resolutions are recorded here instead. A
+full re-validation pass of the pre-fix SN dense-phase queue entries (many likely stale post AVH+Dunning+RDPSRT) is
+a worthwhile batch task, deferred so as not to compete with the live sweep.
+
+---
+## Slice 43bq (2026-07-11) — full SN dig-queue re-validation: every entry bit-exact-or-cornered
+
+**Batch re-validation** of all 42 SN dig-queue entries (ledger_fia.jl, scratch LEDGER, **no SWEEP_DB** ⇒ no live
+sweep-DB contention with the running NE loop) vs freshly-relinked FVSsn, current code (post AVH #2 + Dunning #3 +
+RDPSRT). Recomputed each stand's max-rel-% and re-classified; diffed against the pre-fix recorded value:
+
+- **4 CLEARED (stale pre-fix entries — now bit-exact / ±ULP, density_bitexact):**
+  - 160545945010854 (19.5% → 0, bit_exact) — the **AVH calibration bug #2** stand (cor 1.085818, test_growth.jl:31).
+  - 538528513126144 (6.9% → 0, bit_exact).
+  - 220314124010854 (51.3% → 0.3% print_boundary) — the **Dunning bug #4** frozen-TopHt stand (slice 43bp).
+  - 733292996290487 (15.9% → 0.1% print_boundary).
+- **~5 IMPROVED by the fixes (reduced ≥60%, still cornered):** 1283725167290487 (38→1.1, now density-bitexact
+  print_boundary), 1263765856290487 (215→65 — the stand that DROVE the RDPSRT fix [[fvsjl-stand-pct-rdpsrt-fix]]),
+  1889016132290487 (28→4), 698156777126144 (123→67), 1584316322290487 (53→40).
+- **~31 SAME — genuinely cornered structure_densephase** (dense self-thinning RDPSRT-tie residual; unchanged pre→post).
+- **2 DEGENERATE-INPUT (GIGO), cornered:** 253699300010854 + 921837076290487 report CCF/SDI in the MILLIONS
+  (253699300010854 cycle-0: QMD **2844 inches**, SDI **9.54e6** — a corrupt/extreme FIA tree record). **Live FVS and
+  jl are BIT-EXACT on the pathology at cycle 0** (9.54128e6/9.54128e6, QMD 2844/2844); they ULP-amplify as the giant
+  trees self-thin, collapsing to sane values by 2020. Not an FVSjl bug — both engines agree on the garbage-in.
+
+**Net (pillar 4):** 4 stale entries cleared by the AVH+Dunning fixes, ~5 improved, the rest cornered
+(structure_densephase self-thinning + 2 degenerate-input). **Every SN dig-queue entry is bit-exact-or-cornered —
+no new unexplained divergence.** Several also RE-classified under the fixes (structure_densephase → bit_exact /
+print_boundary / count_straddle / threshold_crossing), confirming the taxonomy is fix-sensitive. Lesson reaffirmed:
+TRACE the structure_densephase tag before accepting it — it correctly held here, but the trace is what distinguishes
+a stale-pre-fix artifact and a degenerate-input GIGO from a genuine cornered residual. The dig-queue CSV was left
+unedited (loop appends concurrently); status recorded here. Suite floor untouched (no code change this slice).
+
+---
+## Slice 43br (2026-07-11) — NE dig-queue entry cornered; current dig queue fully bit-exact-or-cornered
+
+Both-sides trace (diff_one.jl, isolated) of the lone NE dig-queue entry **65944663010538** (recorded TPA 29.7%
+@2015, structure_densephase): an ultra-dense 15054-TPA seedling stand (QMD 1.6 @2005) that self-thins to ~700–950
+TPA at the first cycle. jl OVER-thins ~30% at that massive mortality event (667 vs live 949 @2015); BA tracks
+(219/219, 225/225) and TopHt tracks post-cycle-0 (69/69, 58/58, 66/66), but TPA/QMD split (jl higher QMD). The
+cycle-0 TopHt 62/59 (±3) is the AVHT40-largest-40-TPA tie-break on 15054 near-equal tiny trees. ⇒ cornered
+**structure_densephase** (ultra-dense RDPSRT-tie / SDI-limit self-thinning + AVHT40 tie-break) — the NE analog of
+the SN ultra-dense cases (1293191622290487 / 1213056122290487); the residual of the already-cornered
+[[fvsjl-stand-pct-rdpsrt-fix]] primitive. No new bug.
+
+**State:** every entry in the current dig queue (42 SN + 1 NE) is now bit-exact-or-cornered to a named primitive
+(43bp/43bq/43br). Forward loop continues NE (cursor 34000/178149) → CS → LS, appending any new dig-worthy leads;
+those get the same both-sides trace as they arrive. Floor untouched (no code change in 43bo–43br).
+
+---
+## Slice 43bs (2026-07-11) — Pillar-3 SN management reconciliation: zero UNCLASSIFIED, volume flag = base-projection tail
+
+Reconciled the SN post-fix management ledger (docs/fia_ledger_mgmt_sn_postfix.csv; thinbba/salvage/plant/simfire ×
+~1000 real SN stands each, produced post AVH #2 fix). **Signature distribution has ZERO UNCLASSIFIED** — every
+management divergence is cornered to a named primitive (bit_exact majority; then print_boundary, structure_densephase,
+volume_persistent, threshold_crossing, count_straddle). The only genuinely-open management item remains the SIMFIRE
+dense-stand under-kill (170 structure_densephase + 92 volume_persistent under simfire) = fire crown-lift bug #3
+([[fvsjl-fire-fmprob-bug3]], FMOLDC plumbing, deferred bigger task).
+
+**Spot-check of the flagged `volume_persistent` class** (doctrine: don't auto-accept a "no-convergence" flag) —
+worst thinbba entry 259566665010854 (BdFt 42.2%): the thinbba run is **byte-identical to no-management** because
+the stand's cycle-2 BA (16) is BELOW the THINBBA residual-BA-40 target ⇒ **no trees cut (no-op thinning)**. So its
+"management divergence" is really the BASE projection's BdFt tail — a sawtimber-DBH threshold crossing that swings
+board-foot % large on small absolute volume, atop the accepted ±1 ULP dense-phase straddle on TPA/SDI/CCF/TopHt.
+Cornered (volume/threshold primitive), NOT a thinning-logic gap. METHOD NOTE: some thinbba ledger rows are no-op
+thins (residual target above stand BA) whose "divergence" is the base projection — this slightly inflates the raw
+management-divergence count with base-projection tails; the cut-cycle bit-exactness (slices 13-14) is the real
+thinning-logic evidence. Floor untouched (no code change). Loop continues NE.
+
+---
+## Slice 43bt (2026-07-11) — NE dig leads homogeneous: structure_densephase label validated; supervision posture
+
+New NE dig lead 68395700010538 (TPA 15.3%) both-sides-traced: dense 1368-TPA stand, jl UNDER-thins ~15% at the
+first-cycle self-thinning event (430 vs live 373 @2011), BA tracks (188/188), TopHt tracks post-cycle-0 (99/99,
+54/54, 59/59), TPA/QMD/SDI/CCF split; cycle-0 TopHt 92/96 = AVHT40 largest-40-TPA tie-break. Same cornered
+**structure_densephase** primitive as 65944663010538 (43br).
+
+**Pattern established (3 NE + 5 SN both-sides traces):** the forward loop's new dig-worthy leads are homogeneously
+the dense self-thinning ±straddle — a dense stand hits a large first/second-cycle mortality event where the RDPSRT-
+tie / SDI-limit kill FRACTION differs by ULP-amplified amounts (±straddle: under- or over-thin), with BA/TopHt
+preserved and TPA/QMD splitting, plus the cycle-0 AVHT40 tie-break. The ledger's deterministic `structure_densephase`
+classifier is FAITHFUL to this (verified, not assumed). **Supervision posture:** the signature classifier reliably
+buckets these; re-tracing every identical instance adds no taxonomy value. Intervene on (a) a NON-structure_densephase
+or UNCLASSIFIED lead, (b) the dig queue nearing DIGCAP=200, or (c) a signature the classifier flags for manual trace.
+Loop: NE cursor 38000/178149, healthy (bit_exact ~82%/batch). Floor untouched.
+
+---
+## Slice 43bu (2026-07-11) — Pillar-1 status reconciliation (extraction script + manifest done-state)
+
+Reconciled Pillar-1's done-state ("per-variant plot manifest + extraction script; materially larger than the 162
+baseline") against what exists:
+- **Extraction script: DONE** — `test/harness/fia/extract_sample.jl` is a deterministic (no-RNG), read-only,
+  per-variant stratified sampler: orders FVS_STANDINIT_COND by (ECOREGION, LOCATION, STAND_CN) and takes every
+  K-th, spreading across ecological units (the axis that surfaced the eco_unit DG bug) + national forests. Regenerates
+  the sample reproducibly. Read-only on the master DB.
+- **Sample manifests: exist** for NE/CS/LS (`.sweep_work/{ne,cs,ls}_sample.txt`, ~150 stands each with strata).
+- **Coverage far exceeds a sample:** the forward sweep runs the FULL FVS-ready population per variant (SN complete
+  at 637641; NE in progress at 38000/178149; CS/LS queued) through the per-cycle 10-col live-vs-jl differential —
+  materially larger than 162, and larger than any sample manifest. Per-stand outcomes are the durable sweep ledger.
+- **Gap (deferred by design):** a single CONSOLIDATED manifest doc with the full-population strata breakdown
+  (stands per ECOREGION / forest-type / structure-class / site-class per variant). Building it needs a full GROUP BY
+  scan of the 70GB master FVS_STANDINIT_COND, which would contend on master-DB I/O with the running loop's per-batch
+  sub-DB builds and slow the sweep. Correctly deferred to a sweep milestone (NE completion or all-variants-done),
+  when the scan won't compete. NOT a fidelity gap — purely a documentation-consolidation artifact.
+Floor untouched (no code change). Loop healthy, NE advancing.
+
+---
+## Slice 43bv (2026-07-11) — Pillar-3 extended to NE management (salvage + plant): bit-exact-or-cornered
+
+Ran the management differential (ledger_fia.jl, scratch LEDGER, **no SWEEP_DB** ⇒ no live-sweep contention) on a
+bounded 40-stand deterministic NE sample (head of .sweep_work/ne_sample.txt) under SALVAGE and PLANT vs
+freshly-relinked FVSne. Result — **ZERO UNCLASSIFIED; every divergence cornered to a named primitive:**
+- SALVAGE: 28 bit_exact, 11 print_boundary, 1 structure_densephase (of 40).
+- PLANT:   19 bit_exact, 15 print_boundary, 2 threshold_crossing, 2 count_straddle, 1 volume_persistent,
+  1 structure_densephase (of 40).
+Dominant non-bit-exact class = **print_boundary** (the .sum last-printed-digit rounding straddle — a sub-ULP diff
+flips the rounded display; the reason the campaign standard is "bit-exact-OR-cornered"). PLANT shows more
+print_boundary because added regeneration trees land on more display-rounding straddles. Same profile as the SN
+management ledger (43bs, zero UNCLASSIFIED).
+
+**Pillar-3 status update:** NE management now spans THINBBA (cut bit-exact, tail ULP — slices 13-14) + SALVAGE +
+PLANT (this slice), all bit-exact-or-cornered. SIMFIRE deferred (fire crown-lift bug #3). SN complete. Remaining
+Pillar-3 gap: CS/LS salvage/plant/thinbba differentials (same bounded approach, when loop CPU allows). Kept the
+subset to 40 stands to bound contention with the running forward sweep; loop stayed healthy throughout (NE
+advancing). Floor untouched (no code change).
+
+---
+## Slice 43bw (2026-07-11) — Pillar-3 CS management + a REAL live-FVS SIGFPE (essprt stump-sprout) under THINBBA
+
+Ran the CS management differential (ledger_fia.jl, scratch LEDGER, no SWEEP_DB) on a bounded 40-stand deterministic
+CS sample under SALVAGE + PLANT + THINBBA vs freshly-relinked FVScs. **Zero UNCLASSIFIED; all divergences cornered**
+(salvage 36 be/3 print_boundary/1 volume_persistent; plant 32 be/7 print_boundary/1 structure_densephase; thinbba
+28 be/7 structure_densephase/1 volume_persistent/1 print_boundary) — EXCEPT **3 thinbba `live_crash`**.
+
+**The 3 thinbba live_crash are a GENUINE live-FVS SIGFPE** (not an artifact, not FVSjl): reproduced directly on the
+CS oracle (signal 8) at **essprt.f:216-217** — the CS species-57/58 stump-sprout multiplier `1./((DSTMP/0.7788)-
+0.4403)` divides by zero at cut-stump diameter DSTMP≈0.343", under the build's `-ffpe-trap=...,zero,...,overflow`.
+THINBBA cuts a sp57/58 hardwood → post-harvest sprouting (esuckr→esnutr→gradd→essprt) → singularity → crash.
+Salvage/plant/none don't crash (no matching cut→sprout). FVSjl projects all 3 without crashing. FULL root-cause,
+the anomaly (only 57/58 use the reciprocal; siblings 47/54 use the linear `(…)*2.54`), the proposed maintainer fix
+(logistic-argument clamp), and the in-container application blocker are documented in docs/FVS_SOURCE_BUGS.md
+("CS essprt.f:216-217"). Stands: 1910906629290487, 488847180126144, 224864192010661.
+
+**Environment blocker (measured, honest):** a fix cannot be validated here without risking oracle fidelity — local
+gfortran 12.2.0 ≠ essprt.o's build compiler (SUSE 15.2.1), so a source recompile perturbs normal-stand numerics;
+and even relinking main.f with the exact original flags does NOT reproduce /tmp/FVScs_new bit-for-bit. So the bug
+is DOCUMENTED + fix PROPOSED for the maintainer, NOT applied. /tmp/FVScs_new left pristine (verified: still SIGFPEs
+the 3 crashers, runs normals). All my test binaries removed; build-dir .o files untouched (compiled only to scratch).
+
+**Pillar-3 status:** SN (all regimes) + NE (thinbba/salvage/plant) + CS (salvage/plant/thinbba) now differentiated,
+all bit-exact-or-cornered, with the CS essprt SIGFPE the sole genuine live-FVS defect surfaced (directive-flagged,
+fix proposed). Remaining: LS management + SIMFIRE (fire crown-lift bug #3). Loop stayed healthy throughout (NE
+46000→58000 during the investigation). FVSjl floor untouched (no FVSjl code change).
+
+---
+## Slice 43bx (2026-07-11) — Pillar-3 LS management: non-fire management now covered on ALL 4 variants
+
+Ran the management differential (ledger_fia.jl, scratch LEDGER, no SWEEP_DB) on a bounded 40-stand deterministic LS
+sample under SALVAGE + PLANT + THINBBA vs freshly-relinked FVSls. **Zero UNCLASSIFIED, zero live_crash; every
+divergence cornered to a named primitive:**
+- SALVAGE: 18 bit_exact, 8 print_boundary, 5 count_straddle, 4 threshold_crossing, 4 structure_densephase, 1 volume_persistent.
+- PLANT:   9 bit_exact, 12 print_boundary, 10 structure_densephase, 6 count_straddle, 2 threshold_crossing, 1 volume_persistent.
+- THINBBA: 11 bit_exact, 21 structure_densephase, 4 volume_persistent, 2 threshold_crossing, 2 count_straddle.
+LS shows more structure_densephase (thinbba 21/40) + lower bit_exact than SN/NE/CS — consistent with LS's documented
+dense-phase terminal tails (calibration-backdating relative-ranking, accepted class; see the LS port state) — but
+all cornered, none unexplained.
+
+**Pillar-3 milestone — NON-FIRE management now differentiated on ALL 4 variants, all bit-exact-or-cornered:**
+- SN: thinbba/salvage/plant/simfire, zero UNCLASSIFIED (43bs).
+- NE: thinbba (43bv thinbba cut bit-exact, slices 13-14) + salvage + plant (43bv), zero UNCLASSIFIED.
+- CS: salvage + plant + thinbba (43bw), zero UNCLASSIFIED + the 1 genuine essprt SIGFPE (documented, fix proposed).
+- LS: salvage + plant + thinbba (this slice), zero UNCLASSIFIED.
+Remaining Pillar-3 gap: SIMFIRE on NE/CS/LS (SN simfire done) — gated by the known fire crown-lift bug #3
+([[fvsjl-fire-fmprob-bug3]]), the one deferred bigger implementation task. Loop stayed healthy (NE advancing).
+FVSjl floor untouched (no FVSjl code change).
+
+---
+## Slice 43by (2026-07-11) — fire bug #3 re-scoped: crown-lift record-carry IS in place; cause = CWD-accumulation puzzle
+
+Re-measured the documented SN SIMFIRE fire-kill divergence (1848605816290487) with CURRENT code vs freshly-relinked
+FVSsn: pre-fire bit-exact (2024/2029 168/165 both), at the 2034 fire live retains **23 TPA / jl 44** — jl still
+UNDER-KILLS ~2× (BUG REAL + CURRENT, not stale). BUT the both-sides SOURCE re-trace REFUTES part of the bug memory's
+mechanism: `ffe_oldht/ffe_olddbh/ffe_oldcr` ARE registered in `_TREE_VEC_FIELDS` (trees.jl:130) and `ffe_oldcrw` is
+explicitly carried in `copy_tree!` (trees.jl:168) ⇒ record moves (tripling/compaction) DO preserve the old-crown
+snapshots. So `compute_crown_lift!`'s `oldht>0 || continue` skip (fuel_additions.jl:141) now fires ONLY for (a)
+cycle-1 (no snapshot) and (b) genuinely-new regen records (no prior crown) — BOTH correct. The "record-list change
+skips crown-lift" framing (memory [[fvsjl-fire-fmprob-bug3]], slice 43bl) is STALE — the FMOLDC-style carry was
+since implemented. ⇒ the persistent fire under-kill is NOT the crown-lift record-churn; it is the still-unresolved
+CWD-ACCUMULATION puzzle (slice 43bk): jl under-populates the LARGE (>3") coarse-woody pool (jl ~0.2-0.67 vs live 4.6
+t/ac at the fire) ⇒ collapses the FMDYN (SMALL,LARGE) fuel-model point ⇒ picks low-flame models {8,9} not {8,9,10}
+⇒ flame 2.10 too low ⇒ under-kill. The OPEN question is live's >3" CWD SOURCE on a QMD-4.8 seedling stand (small
+trees can't make >12" boles, yet live reports >12"=3.7) — needs a both-sides CWD-source trace (which FVS routine
+feeds cwd classes 4-9 here: FMCADD woody breakage vs snag-bole falldown vs a fuel-model-independent path). Recurring
+meta-lesson reaffirmed: re-trace "remaining plumbing" flags against SOURCE — here it caught a STALE mechanism (the
+record-carry is done) AND kept the real bug (under-kill persists, CWD-accumulation cause). FVSjl floor untouched.
+
+---
+## Slice 43bz (2026-07-11) — fire bug #3 narrowed: initial LARGE CWD gap is an FFE init-computation diff (not FUINI table/mapping/reader)
+
+Deep both-sides trace of the SN SIMFIRE under-kill (1848605816290487), driving to the initial (2024/cycle-0) fuel.
+Live FVS "ALL FUELS REPORT" (via FuelOut) shows 2024 SURFACE >3" = 16.7 t/ac (>12"=10.6, 6-12"=3.7, 3-6"=2.4),
+litter 4.40, duff 25.2 — a LARGE pool present at cycle-0 that then DECAYS (16.7→4.6→3.7→…). Traced the source:
+- **jl's FUINI table + forest-type→row mapping are CORRECT.** FVS fmcba.f maps FIA forest type 141/142 → FTDEADFU=2
+  (longleaf-slash); jl's `ffe_dead_fuel_type(142)`=2 matches. The FVS FUINI longleaf-slash DATA row =
+  `[0.10,0.66,0.98,0.12,0.29,0.26, 0,0,0, 6.38,8.66]` — jl's row 2 is bit-exact to it (slice 43bk was right about that).
+- **NO FUINI row explains the 10.6.** ALL 9 FVS FUINI rows have classes 7,8,9 (>12") = 0.0, and none has litter 4.40
+  / duff 25.2. So live's initial LARGE (>12") pool is NOT from the FUINI table — refuting the "wrong FUINI row" idea.
+- **Not a simple DWM-reader gap.** The master FIA DB has rich down-woody tables (DWM_COARSE_WOODY_DEBRIS,
+  DWM_DUFF_LITTER_FUEL, COND_DWM_CALC, …), but `build_subdb` copies only FVS_STANDINIT_COND + FVS_TREEINIT_COND,
+  so BOTH engines run the identical 2-table sub-db + identical keyfile (neither reads DWM). jl's keytext(simfire)
+  emits no FUELINIT. ⇒ same inputs, different initial large-CWD ⇒ an FFE INIT-COMPUTATION difference.
+
+**Net:** the fire under-kill root is now cornered to *how FVS FFE derives the initial large (>3", esp >12") down-wood
+pool at cycle-0* (a live-run FUELINIT-activity echo carries the exact report values 3.65/10.60/4.40/25.19 despite no
+FUELINIT keyword — an FFE-internal derivation, e.g. an initial snag/past-mortality → down-wood spin-up, or a
+DATABASE-side FUELINIT auto-inject). NOT the FUINI table, forest-type mapping, crown-lift record-carry (43by), or a
+DWM table read — all ruled out by both-sides trace. NEXT (focused effort): instrument jl's fire cwd-by-size at 2024
+vs live's ALL FUELS 2024 row to quantify the exact class gap, then trace the FVS FFE init routine that fills classes
+4-9 at cycle-0 (fmcba.f OPFIND MYACT(1)=2521 path / fminit snag-derivation). FVSjl floor untouched (no code change).
+
+---
+## Slice 43ca (2026-07-11) — ★ fire bug #3 ROOT CAUSE FOUND (read the code): FIA FUEL_* standinit columns not read by jl
+
+Per doctrine (read the FVS SOURCE, don't infer): traced live's initial large CWD to `dbsstandin.f`. The
+FVS_STANDINIT_COND table carries MEASURED FIA down-woody-material fuel loadings as columns —
+`FUEL_0_25_H/FUEL_25_1_H/FUEL_1_3_H/FUEL_3_6_H/FUEL_6_12_H/FUEL_12_20_H/FUEL_20_35_H/FUEL_35_50_H/FUEL_GT_50_H`,
+`FUEL_LITTER`, `FUEL_DUFF`, + the `_S` soft-decay variants (22 columns total). `dbsstandin.f:396-458` reads them
+into RSTANDDATA(39..63); :843-1000 assembles a FUELINIT/FUELHARD+FUELSOFT keyword; `fmcba.f:318-343` (the OPFIND
+MYACT(1) branch) then OVERRIDES the FUINI-table STFUEL with those values. Confirmed for 1848605816290487:
+FUEL_12_20_H=10.6035, FUEL_6_12_H=3.6520, FUEL_1_3_H=5.5894, FUEL_LITTER=4.4023, FUEL_DUFF=25.1908 — EXACTLY live's
+FUELINIT echo + ALL FUELS 2024 row. Class map: FUEL_12_20→STFUEL class 6 (the FUINI longleaf default there is only
+0.26 ⇒ the measured 10.6 is a ~40× override ⇒ the large-CWD gap).
+
+**jl's `fia_database.jl` does NOT read the FUEL_* columns** ⇒ jl falls back to the FUINI table (class-6 = 0.26,
+classes 7-9 = 0) ⇒ near-zero large CWD ⇒ collapsed FMDYN fuel-model point ⇒ low flame ⇒ SIMFIRE under-kill. This is
+a READER GAP, the exact class as the Dunning (dbsstandin.f:763) + slope-default reader bugs — a REAL, FIXABLE FVSjl
+bug. Supersedes the crown-lift (43by, refuted) and FUINI-table (43bz, refuted) theories; the "CWD-accumulation
+puzzle" is resolved — the large pool is INITIAL (measured FIA DWM), not accumulated.
+
+**FIX (scoped, faithful to dbsstandin.f + fmcba.f):** (1) fia_database.jl reads the 22 FUEL_* columns into a plot
+fuel-init snapshot (missing ⇒ -1 sentinel); (2) the FFE fuel init (fmcba.jl) applies them as the STFUEL override
+(hard→decay-hard, soft→decay-soft) BEFORE the basal-area decay-class distribution, matching fmcba.f:318-393. Floor
+guard: existing fire tests use synthetic stands WITHOUT these columns ⇒ -1 sentinel ⇒ FUINI fallback unchanged ⇒ no
+regression expected. Validate: SN SIMFIRE 1848605816290487 fire-kill vs live + suite floor. IMPLEMENTATION NEXT.
+
+---
+## Slice 43cb (2026-07-11) — ★★ fire bug #3 FIXED: FIA FUEL_* reader → STFUEL override (bit-exact vs live)
+
+Implemented the reader-gap fix (root cause slice 43ca). Three files:
+- `src/core/state.jl`: PlotData gains `ffe_fuel_hard`/`ffe_fuel_soft` (Vector{Float32}, empty default) — the
+  measured FIA down-woody fuel loadings, size classes 1:11.
+- `src/io/fia_database.jl` (apply_fia_stand!): reads the 22 FVS_STANDINIT FUEL_* columns (hard `_H` + soft `_S`,
+  with the FUEL_0_1 lumped-<1" split per fmcba.f:329-340) into plot.ffe_fuel_* (−1 sentinel for missing). Mirrors
+  dbsstandin.f:396-458. Only sets the fields when ≥1 fuel column is present.
+- `src/engine/fire/fmcba.jl` (fuels_init block): seeds FFEParams.stfuel_hard/soft from plot.ffe_fuel_* when present
+  AND not already set by an explicit FUELINIT/FUELSOFT keyword (keyword precedence preserved). The existing
+  STFUEL-override path then applies them, overriding the FUINI-table default.
+
+**Validated BIT-EXACT vs freshly-relinked FVSsn** on 1848605816290487 (the documented under-kill stand): every cycle
+of all 6 structural cols now matches — 2034 fire kills to **23 TPA == live 23** (was jl 44 vs live 23, ~2× under-
+kill); 2049 22/22, QMD 15.3/15.3, TopHt 67/67. The measured FUEL_12_20_H=10.6 now populates the large CWD pool ⇒
+correct FMDYN fuel model ⇒ correct flame ⇒ correct fire kill. Supersedes the crown-lift (43by) + FUINI (43bz)
+theories entirely.
+
+Floor safety by design: the fields default empty; synthetic test stands (no FIA FUEL_* columns) ⇒ empty stash ⇒
+fmcba! seeding skipped ⇒ FUINI fallback unchanged. Sweep (regime=none) never calls fmcba! ⇒ unaffected. FULL SUITE
+floor validation RUNNING (pid 158296) — to confirm 38527/143 (+ documented broken set) holds before declaring done.
+
+## Slice 43cb (cont) — FLOOR CONFIRMED
+Full suite after the fire fix: **FVSjl 38587 pass / 75 broken / 0 real fail** (broken set UNCHANGED vs baseline
+38586/75). The only non-pass are 3 "vs Oracle A" Errors (test_treedata/test_keyword/test_init) — each a
+`failed process: julia --project=/workspace/FVSjulia` subprocess (FVSjulia/Oracle-A can't precompile in this
+container: the WeakRefStrings/SQLite artifact), independent of the FVSjl source change. ⇒ fire bug #3 fix is
+COMPLETE: bit-exact vs live on 1848605816290487 + floor preserved. (Ran the suite with the forward loop PAUSED to
+avoid the concurrent-precompile race; loop resumed from the NE 86000 checkpoint after.) ★★★ Fire bug #3 CLOSED.
+
+## Slice 43cb (cont) — generalization + inertness validation
+Re-ran SN simfire on a 40-stand sample (fresh FVSsn oracle) to test the fix's population effect: 21/40 bit_exact,
+rest cornered (9 structure_densephase, 7 volume_persistent, 2 threshold_crossing, 1 print_boundary), ZERO
+UNCLASSIFIED/live_crash. KEY: **0 of these 40 carry measured DWM fuel columns** (all 22 FUEL_* NULL) — so the fix is
+correctly INERT for them (both engines use the FUINI default), which is why their divergences (dense-phase
+self-thinning / volume tails, present with or without fire) are unchanged in KIND. The fix's value shows on the
+fuel-data subset (target 1848605816290487, FUEL_12_20_H=10.6 → bit-exact). INERTNESS PROVEN: for the one stand whose
+magnitude shifted vs the pre-fix ledger (165735019, structure_densephase 70→89), ALL 22 FUEL_* columns are NULL ⇒
+empty ffe_fuel stash ⇒ fmcba!'s `!isempty` guard skips seeding ⇒ the fix CANNOT touch it. The shift is stale-golden
+noise (the pre-fix ledger used the PRIOR, pre-container-restart oracle; a chaotic dense stochastic-fire stand shifts
+with any oracle relink — cf. the CS relink non-reproducibility, slice 43bw). Per doctrine (validate vs FRESH oracle,
+not a stale golden) the fresh-oracle run is authoritative ⇒ NO regression. Fix is correct-where-applicable +
+inert-elsewhere + floor-preserved. ★★★ Fire bug #3 CLOSED (validated).
+
+## Slice 43cb (cont) — cross-variant (NE/CS/LS) validation: fire-fuel fix is VARIANT-SAFE
+The fix is variant-agnostic by construction (shared fia_database.jl reader + the shared fmcba! STFUEL-override
+block, outside the per-variant dead-fuel branch). Verified empirically on a fuel-data (FUEL_12_20_H>0) simfire stand
+per variant vs fresh oracle:
+- NE 1318365400290487: pre-fire bit-exact; tail ±2-3% dense-phase straddle (155/151…). Cornered.
+- CS 66720086010661: bit-exact through 2041, then ±1-2 ULP straddle (416/418). Cornered.
+- LS 1642770637290487: bit-exact/±ULP throughout (5316/5317, 991/984). Cornered.
+All bit-exact-or-cornered (accepted structure_densephase self-thinning), NONE showing the gross fire-fuel under-kill
+the SN target had — confirming the fix produces CORRECT fuel init across all 4 variants (live also reads the columns
+via the shared dbsstandin.f) with no regression. ⇒ doctrine #5 (variant-safe) satisfied. Pillar-3 SIMFIRE is now
+bit-exact-or-cornered on the fuel-data subset for every variant; fuel-less dense SIMFIRE stands remain the accepted
+dense-phase primitive. ★★★ Fire bug #3 CLOSED + variant-validated.
+
+---
+## Slice 43cc (2026-07-11) — NE volume_persistent cornered: NVEL out-of-domain 0 vs jl extrapolation (degenerate runaway-height stand)
+
+Both-sides trace of the sole non-densephase NE dig lead 207147469020004 (volume_persistent). The stand runaway-grows
+height: TopHt 1→109→162→214→258→295 ft over 2013-2063 (295 ft = non-physical) — BOTH jl and live reach the same
+heights (a SHARED degenerate FVS growth behavior, not a jl divergence; bit-exact TPA/TopHt/QMD throughout). The
+divergence is VOLUME only, and only once TopHt ≥ ~258 ft: **live returns 0 volume (TCuFt/SCuFt/BdFt all 0 at 2053/
+2063) while jl extrapolates** (2053 TCuFt 0/15284; 2063 SCuFt 0/**1.5395e10** — a garbage overflow). 
+
+**Mechanism (both-sides):** live calls the NVEL (National Volume Estimator Library) which sets an error flag for
+out-of-domain inputs (extreme height); FVS r9clark.f:110/177 (`TLOGVOL=0` … `if(errFlg.ne.0) return`) then returns
+0 volume. jl's ported r9 volume equation has NO out-of-domain guard ⇒ it extrapolates the polynomial past its valid
+height range ⇒ absurd values. ⇒ cornered primitive **volume_persistent / NVEL-out-of-domain**: manifests ONLY on
+degenerate runaway-height stands (TopHt ≥ ~258 ft — real stands never reach this); regime=none (NOT related to the
+fire fix). PROPOSED fix direction (deferred, low-priority — degenerate/rare): port the NVEL errFlg domain check (or
+clamp jl volume to 0 when total height exceeds the equation's valid domain) so jl returns 0 like live. Note: jl's
+1.5e10 overflow is a robustness gap that could pollute aggregate stats on degenerate stands — worth the domain
+clamp eventually. Both-sides-traced + cornered; no unexplained divergence remains in the current dig queue.
+
+## Slice 43cc (cont) — NVEL errFlg trigger read from source (fix scoped, deferred)
+Read r9clark.f to pin the exact 0-volume trigger. errFlg is set nonzero by a MULTI-CONDITION NVEL validation, not a
+single clean domain bound: totHt≤17.3 (errFlg=8, :202), dbhOb≤0 / htTot<ht1Prd / ht2Prd<ht1Prd inconsistencies
+(errFlg=3/7/8/10, :550-586), and a diameter-profile degeneracy `dbhOb≤sawDib` (errFlg=13, :744). Notably the upper
+height-vs-DBH sanity bound `htTot > 35·sqrt(dbhOb+3)` (errFlg=5) is COMMENTED OUT (:577-582) — FVS devs disabled it —
+so there is NO simple "too tall" guard; our stand trips one of the geometry/consistency checks at extreme height.
+`if(errFlg.ne.0) return` (r9clark.f:177/184/588) then leaves volume 0. The FAITHFUL fix = port the NVEL r9Prep/
+r9dia417 errFlg validation into jl's r9clark_vol (so jl also returns 0 out-of-domain); it is a bounded port but
+DISPROPORTIONATE for a single rare degenerate runaway-height stand ⇒ CORNERED + deferred (not a padded tolerance /
+heuristic clamp, per doctrine #4 — the mechanism is named and the fix is the exact FVS validation). Both-sides-trace
+complete.
+
+## Slice 43cc (cont) — NE volume garbage is the KNOWN r9clark fvsMod-vs-NVEL discrepancy (not a new primitive)
+Checked the jl side: src/engine/r9clark_vol.jl is translated from `r9clark_fvsMod.f` (FVS's LOCAL modified r9clark),
+whereas LIVE FVSne links the NVEL-library `r9clark.f` (bin/FVSne_buildDir, the errFlg-validated version read above).
+⇒ the NE 207147469020004 volume divergence (jl extrapolates to 1.5e10, live NVEL errFlgs → 0 on the degenerate
+runaway-height geometry) is a manifestation of the ALREADY-DOCUMENTED r9clark fvsMod/NVEL version discrepancy (the
+D38 r9clark family in docs/FVS_SOURCE_BUGS.md), NOT a new unexplained primitive. Cornered under that known family;
+the "port the NVEL errFlg validation into jl's fvsMod-based r9clark" fix is the same D38 alignment work (bounded,
+deferred, rare-degenerate-only). Both-sides-trace fully closed — no unexplained divergence remains in the dig queue.
+
+## Slice 43cb (cont) — fire-fix coverage scope (Pillar-3 SIMFIRE)
+Bounded prevalence sample (first 5000 stands/variant) of the measured DWM large-fuel column FUEL_12_20_H (the one
+that drove the fire under-kill): SN 0.2%, NE 0.7%, CS 0.4%, LS 0.1% of stands carry it. FIA's down-woody-material
+inventory runs on only a small subset of plots, so the fire-fuel reader gap directly affected ~0.1-0.7% of SIMFIRE
+stands — MODEST in count but IMPORTANT in kind: those are exactly the DWM-inventoried plots where fuel-driven fire
+behaviour matters, and the fix makes jl bit-exact there (target validated). For the ~99% without DWM data, both
+engines use the FUINI-table default (already consistent) and the fix is provably inert. ⇒ Pillar-3 SIMFIRE:
+bit-exact on the fuel-data subset (all variants), FUINI-consistent elsewhere; the residual dense-SIMFIRE divergences
+are the accepted structure_densephase self-thinning primitive (fuel-independent), NOT the fire-fuel bug.
+
+---
+## Slice 43cd (2026-07-11) — CS essprt SIGFPE fix VALIDATED here (corrects earlier "env-blocked")
+
+Reopened the CS essprt.f:216-217 SIGFPE (slice 43bw) per the standing crash directive. Earlier I called it
+"env-blocked"; that was WRONG, from two artifacts: (1) partial compile flags (dropped -fintrinsic-modules-path/
+-fpre-include) and (2) comparing the full .sum text incl the per-run TIMESTAMP header. Corrected: build-dir main.o
+is LOCAL gfortran 12.2.0 (DWARF producer) + does zero FP ⇒ recompiling with FULL exact flags gives BYTE-IDENTICAL
+.text/.data/.rodata. Rebuilt `main.f` with `-ffpe-trap=invalid` (drop zero,overflow), relinked, and validated with
+a timestamp-stripped DATA comparison: **50/50 normal CS stands data-bit-identical to /tmp/FVScs_new + all 3 crashers
+FIXED** (SIGFPE→valid output; the 1./0.→+Inf propagates to the correct logistic limit = the value FVSjl computes).
+⇒ the crash IS fixable + validatable in this container via the build-flag path (the essprt.f source-recompile path
+stays blocked — essprt.o is SUSE 15.2.1). Oracle LEFT PRISTINE / not hot-patched: the sweep is regime=none which
+does NOT trigger the crash (needs THINBBA→sprouting), so CS sweep coverage is unaffected; and the build-flag drops
+zero,overflow GLOBALLY (broader than the R9-clark precedent that kept them), so the precise essprt.f source guard
+remains the maintainer recommendation. Directive satisfied (root-caused + VALIDATED fix + submission proposal). Test
+binaries removed; build-dir .o untouched. Meta-lesson: validate relinks with FULL DWARF-producer flags + strip the
+.sum timestamp header — both bit me into a false "env-blocked" verdict (doctrine: measure precisely, don't guess).
+
+## Slice 43cd (cont) — with the essprt fix, the 3 crashers are bit-exact-or-cornered (Pillar-3 CS THINBBA closed)
+Rebuilt the essfix oracle and compared the 3 formerly-crashing CS THINBBA stands to FVSjl: fixed-live vs jl is
+BIT-EXACT through the harvest cycles (e.g. 1910906629290487: 2024/2034/2044 all "="), then a SMALL dense-phase
+divergence develops (2054+: TPA 0.3-2%, volume 1-3%, TopHt ±6 late) — the accepted structure_densephase self-thinning
+primitive (dense sprouting stand, record churn). So each essprt crasher goes live_crash → BIT-EXACT-OR-CORNERED with
+the fix (bit-exact pre-divergence + dense-phase-cornered tail), NOT a new unexplained divergence. ⇒ Pillar-3 CS
+THINBBA fully resolved: the essprt SIGFPE is the only genuine live-crash, it has a VALIDATED fix (slice 43cd), and
+under the fix the stands are bit-exact-or-cornered vs jl. essfix binary cleaned; oracle pristine. The crash directive
+is fully discharged: root-caused + validated fix + the stands shown bit-exact-or-cornered once fixed.
+
+## Slice 43ce (2026-07-12) — NE dig-queue spot-verify: structure_densephase label is genuine (not a masked bug)
+
+Doctrine check (memory: a structure_densephase tag has twice hidden a real bug — AVH-backdating, FIA-slope-default —
+so fresh queue leads get TRACED, not auto-cornered). Picked the newest non-degenerate NE lead from the dig queue:
+**1167714929290487** (NE, regime=none, worst=TPA@2030, 77 trees, classifier=structure_densephase).
+
+Full-trajectory differential vs freshly-relinked /tmp/FVSne_new (LIVE/JL):
+```
+2020 | TPA= BA= SDI= CCF= TopHt 21/24 QMD= vols=      <- cycle-0 inventory
+2030 | TPA 1933/2781  TCuFt 2651/2609 MCuFt 166/186   <- +44% transient TPA in jl
+2040 | TPA 865/936    ...                              <- gap closing
+2050 | TPA 570/575    ...                              <- ~1%, converged
+2060 | TPA 416/420    2070 | 311/314                   <- tracks live
+```
+Raw live .sum: 2020 = age 10, **TPA 9096, QMD 0.8"**, dense seedling thicket self-thinning 9096→1933→865→570.
+
+Both-sides trace — both signals corner to the SAME named primitive `structure_densephase`:
+- **TopHt 21/24 @ cycle 0**: TPA/BA/SDI/CCF/QMD all BIT-EXACT; only TopHt differs. TopHt = mean height of the ~40
+  largest-DBH trees/acre; among thousands of trees near-tied at 0.8" DBH the top-height cohort membership is decided
+  by the RDPSRT unstable-sort tie-break (fvsjl-stand-pct-rdpsrt-fix family) — tied trees carry different imputed
+  heights ⇒ 3-ft delta. Tie-break, not a height-model gap.
+- **Transient TPA @ 2030**: dense self-thinning mortality phase; jl's kill lags one cycle then over-corrects,
+  converging to within ~1% by 2050 and tracking live thereafter (the documented dense self-thinning limit-cycle).
+
+Verdict: classifier label CONFIRMED genuine; cornered to structure_densephase (RDPSRT tie-break + dense
+self-thinning phase). No floor impact (dig-only; no code change). Fixed a stale harness: .sweep_work/dig_one.jl
+now unwraps the (String,Bool) tuples that run_live/run_keyfile return.
+
+## Slice 43cf (2026-07-12) — NE dig-queue: TCuFt-worst class confirmed = D38 r9clark domain-guard
+
+Queue discriminator scan: no dig entry is worst-on-TopHt (⇒ no masked height bug; TopHt divergences are always
+secondary to a density tie, per 43ce). Worst-col histogram = TPA 39 / TCuFt 11 / CCF 5 / QMD 2 — all density or
+volume, all named-primitive classes. Spot-verified the one distinct volume class: **NE 207147469020004**
+(worst=TCuFt@2053, classifier=volume_persistent). Differential vs /tmp/FVSne_new (LIVE/JL):
+```
+2013,2023 | all 10 cols BIT-EXACT
+2033,2043 | TPA/TCuFt/MCuFt/BdFt off by ~1 ULP (dense-phase mortality ULP)
+2053 | TPA/BA/SDI/CCF/QMD = ; TopHt 258/257; TCuFt 0/15284  MCuFt 0/14932  SCuFt 0/12819  BdFt 190/86286
+2063 | TCuFt 0/17245  MCuFt 0/16981  SCuFt 0/15395
+```
+Both-sides trace: at 2053/2063 LIVE reports **0** cuft/bdft while jl computes ~15000 — the trees are identical
+(TPA/BA/QMD bit-exact). Signature of FVS NVEL r9clark.f errFlg DOMAIN GUARD (`if(errFlg.ne.0) return` ⇒ 0 for
+out-of-domain trees; here the stand reaches TopHt ~257 ft, out of the volume-eq domain), vs jl's ported
+r9clark_fvsMod.f which EXTRAPOLATES. = the D38 volume family; cornered to the r9clark errFlg-domain-guard primitive.
+Matches the deferred "NE NVEL volume domain-clamp" item (make jl mirror the errFlg 0-return); deferred by design.
+No floor impact (dig-only).
+
+## Slice 43cg (2026-07-12) — dig-queue taxonomy holds uniformly (3 classes spot-verified)
+
+Third spot-check this session: **SN 212199455010854** (worst=QMD@2008, structure_densephase). Differential vs
+/tmp/FVSsn_new: cycle-0 (2003) all-10 BIT-EXACT; dense seedling thicket (2013 TPA 10026, QMD ~1") self-thinning
+10026→4648→2914→2055, every divergence sub-2% density-driven. QMD-"worst" @2008 = `QMD 1/0` (value ~0.5 straddling
+the integer print boundary) — print_boundary on a dense-phase stand. Confirmed genuine.
+
+**Consolidated observation (Pillar-4):** across the three distinct dig-queue classes spot-verified this session —
+43ce density tie-break (cycle-0 TopHt cohort tie), 43cf volume domain-guard (r9clark errFlg 0-return), 43cg dense
+QMD print-boundary — the pattern is uniform: dense seedling/sapling FIA stands (10^3–10^4 TPA, QMD <1–2") produce
+sub-2% dense-phase divergences, and the classifier's "worst column" merely reflects whichever metric straddled a
+tie/rounding boundary that cycle (TopHt cohort-tie, QMD print-boundary, TPA self-thinning phase, CCF/SDI density).
+All corner to named primitives (structure_densephase / print_boundary / volume_persistent-D38); no masked bug in any.
+No floor impact (dig-only).
+
+## Slice 43ch (2026-07-12) — CORRECTION to 43cf mechanism (re-traced against r9clark source)
+
+Per doctrine (both-sides-trace; re-trace asserted verdicts against SOURCE), read volume/NVEL/r9clark.f. The 43cf
+claim "live guards via errFlg 0-return, jl extrapolates WITHOUT the guard" is **mechanistically WRONG** and is
+withdrawn. Findings:
+- r9clark.f DOES return 0 on domain failure — `if(errFlg.ne.0) return` at :177/:184/:203/:225/:256 (leaves cfVol=0).
+- BUT the trigger is a COMPUTED-quantity domain check, not a simple input bound: `errFlg=8 if COEFFS%totHt.le.17.3`
+  (:202, the TAPER-computed total height from r9totHt), plus internal errFlg from r9dia417/r9totHt/r9cuft.
+- CRUCIALLY the extrapolating variant volume/r9clark_fvsMod.f ALSO has errFlg (72 refs) and the jl port
+  src/engine/r9clark_vol.jl tracks errFlg too (returns (dbhIb,dib17,errFlg)). So this is NOT guard-vs-no-guard.
+
+Accurate verdict: NE 207147469020004 has NORMAL bit-exact-ish volume through 2043 (TCuFt 9459/9449, 13007/13003)
+then live DROPS to 0 at 2053 (0/15284) while trees persist (TPA/BA bit-exact). A specific errFlg domain path fires
+in LIVE at that cycle that the jl port does not replicate — the exact condition (which of totHt≤17.3 / r9dia417 /
+r9totHt fails, and why jl's port computes errFlg=0 there) requires a per-tree volume trace at 2053. Class = D38
+r9clark computed-domain family (volume_persistent), but the precise both-sides mechanism is OPEN, not yet pinned.
+Deferred to the D38 volume-domain work item (per-tree trace + faithful errFlg replication), gated on a sweep-pause
+milestone. No floor impact (dig-only). META: caught my own false-precise verdict by reading the source — the
+recurring re-trace-cleared-flags lesson.
+
+## Slice 43ci (2026-07-12) — D38 NE volume mechanism PINNED (both-sides source, supersedes 43ch OPEN)
+
+Re-traced both sides against source; the 43ch "OPEN" is now resolved to corner-classification precision.
+- Raw live .sum for NE 207147469020004 shows the trigger: TopHt runs away 109→162→214→**258→295 ft** while QMD is
+  only 16.3" (h/d ≈ 16, vs a real ~0.5) — a degenerate height-growth geometry. It is reproduced BIT-EXACTLY by jl
+  (TopHt 258/257) ⇒ the runaway height is FAITHFUL live-FVS behaviour (an NE height-model extrapolation for this
+  spp809/site over 60 yr), NOT a jl divergence. Only the VOLUME of the degenerate tree diverges.
+- LIVE links guarded NVEL r9clark.f (bin/FVSne_buildDir/r9clark.f, 12 `if(errFlg.ne.0) return`): computed-totHt
+  guard `if(COEFFS%totHt.le.17.3) errFlg=8` (:202) + r9Prep height-reasonableness guards `errFlg=8/7/10` (:551-570).
+  Out-of-domain ⇒ returns 0 volume.
+- jl ports the EXTRAPOLATING volume/r9clark_fvsMod.f (src/engine/r9clark_vol.jl `_r9_totht` :136-151): no
+  out-of-domain 0-return — it extrapolates a totHt and computes volume. ⇒ live 0, jl ~15284 at 2053+.
+
+Verdict: cornered to **D38 r9clark taper-domain-guard, triggered by degenerate runaway-height geometry** (named
+primitive: FVS NVEL out-of-domain 0-return vs jl fvsMod-port extrapolation). Both-sides SOURCE-confirmed; no longer
+unexplained. Residual sub-detail (exact errFlg branch: :202 computed-totHt vs :551-570 reasonableness) needs a live
+DEBUG%MODEL per-tree trace — does not affect the corner classification. Faithful-drop-in FIX = make jl's r9clark
+port replicate NVEL's errFlg 0-return on out-of-domain trees (shared volume path; deferred to a sweep-pause
+milestone + full suite run; floor-regression risk). 43cf mechanism was imprecise, 43ch over-corrected; 43ci is the
+source-grounded resolution. No floor impact (dig-only).
+
+## Slice 43cj (2026-07-12) — NE sweep COMPLETE; NE→CS rollover clean
+
+NE full-population coverage sweep COMPLETE: ne.cursor=178149/178149 (all NE FVS-ready FIA plots, regime=none,
+multi-cycle .sum differential vs /tmp/FVSne_new). Auto-rolled to CS (driver order SN→NE→CS→LS, first cursor<pop).
+CS started clean: VARIANT=CS population=255952 offset=0, first batch (2000 stands) complete + 2nd building, **0
+live_crash / 0 RUN FAILED**, dig queue stable at 57 (< DIGCAP 200). Confirms the CS oracle + variant-safe FIA
+reader/CS dgf path produce valid differentials on the sweep (regime=none doesn't hit the essprt CASE 57/58 SIGFPE,
+which needs THINBBA→sprouting — see fvsjl-cs-essprt-sigfpe). NE divergence taxonomy fully cornered (this session:
+43ce density tie-break, 43ci D38 r9clark degenerate-geometry volume domain-guard, both source-grounded both sides).
+Now supervising the CS sweep (255952 plots) toward the CS→LS rollover.
+
+## Slice 43ck (2026-07-12) — CS Pillar-2 spot-verify: 4/4 stands bit-exact full trajectory
+
+While the CS full-population sweep runs, proactively spot-verified CS multi-cycle fidelity on 4 real CS FIA stands
+(from cs_sample.txt) via dig_one vs freshly-relinked /tmp/FVScs_new (contention-safe: each builds its own sub-DB
+from the read-only master FIADB):
+- 27621869020004: 2011→2061 (6 cycles) — ALL 10 cols BIT-EXACT every cycle
+- 103505016010661: 2006→2056 (6 cycles) — ALL 10 cols BIT-EXACT
+- 244228309010661: 2010→2060 (6 cycles) — ALL 10 cols BIT-EXACT
+- 55193911010661:  1999→2049 (6 cycles) — ALL 10 cols BIT-EXACT
+Pillar-2 (multi-cycle projection) for CS: 4/4 stands bit-exact on the WHOLE trajectory (TPA/BA/SDI/CCF/TopHt/QMD/
+TCuFt/MCuFt/SCuFt/BdFt), not just cycle-0 — confirms the CS growth+volume+mortality spine reproduces live FVScs
+behaviour across full default horizons. Complements the running population sweep (offset ~4000/255952, 0 live_crash).
+No floor impact (dig-only).
+
+## Slice 43cl (2026-07-12) — CS dig-queue label audit: threshold_crossing verified genuine
+- **Queue state:** 82 entries, ALL cornering to the 5 named primitives (0 unknown-class):
+  76 structure_densephase (SN 38 / CS 24 / NE 14), 5 threshold_crossing (SN 4 / CS 1), 1 volume_persistent (NE).
+- **Spot-check target** (verify label, don't assume — doctrine #3/#6): CS 65459886010661, sig=threshold_crossing,
+  div_cols=CCF|TCuFt, density_bitexact=true, struct_max_rel 0.606% vs vol_max_rel 7.601%.
+- **Per-cycle differential (dig_one.jl, live FVScs vs FVSjl):** every density col (TPA/BA/SDI/CCF/TopHt/QMD)
+  bit-exact at EVERY cycle; the only diffs are a single-cycle TCuFt blip at 2019 (592/547, fully recovered
+  bit-exact by 2029/2039) and a 1-unit CCF rounding blip at 2049 (165/164).
+- **Both-sides mechanism (confirmed, not inferred from pass/fail):** the stand STATE (TPA/BA/QMD) is bit-exact
+  at 2019 — identical trees, identical dimensions — yet total cubic volume differs ~8% at that ONE cycle and
+  re-converges. Volume qualification is a STEP function of per-tree DBH/height; a boundary tree sitting within a
+  Float32 ULP of the merch threshold lands on opposite sides in the two implementations at exactly 2019, then
+  grows unambiguously clear by 2029 so both re-qualify → transient blip, not a growth-model gap. Density is
+  untouched because qualification does not feed back into growth (that is why density_bitexact holds throughout).
+- **Verdict:** cornered — threshold_crossing (ULP-class in the input to a discrete step function). Label ACCURATE.
+  CS queue remains 0 new-class leads; every entry corners to an already-named + both-sides-traced primitive.
+
+## Slice 43cm (2026-07-12) — Pillar-1 status verified DONE; coverage-characterization pause-gated (measured why)
+- **Verified (not assumed) Pillar-1 done-state is MET:** test/harness/fia/manifests/{sn,ne,cs,ls}_manifest.txt =
+  500 stands/variant × 4 = 2000 (materially larger than the 162-stand modernization baseline), deterministic
+  stratified extraction (extract_sample.jl, even stride over (ECOREGION,LOCATION,STAND_CN) — no RNG, regenerable),
+  documented in manifests/README.md with the per-variant population/sampled/ECOREGION/LOCATION table. Checked
+  before touching anything — the manifest infra already exists; no duplication needed.
+- **Residual Pillar-1 doc gap identified:** the manifest STRATIFIES on geography (ECOREGION/LOCATION) only; the
+  goal also lists forest-type / stand-structure / site-class strata. Whether the geographic-stride sample also
+  SPANS those three axes is currently undocumented. FVS_STANDINIT_COND carries the needed columns
+  (FOREST_TYPE_FIA, SITE_INDEX, AGE = development stage).
+- **Why it is pause-gated (measured, doctrine #6):** `PRAGMA index_list(FVS_STANDINIT_COND)` = NO indexes on the
+  70 GB master; a 2000-CN `IN` characterization query would force a FULL TABLE SCAN, i.e. exactly the master-DB
+  I/O contention to keep off the live sweep. Deferred to the next idle window (CS→LS rollover or a DIGCAP pause),
+  when the master DB is quiescent — then run the FOREST_TYPE_FIA/SITE_INDEX/AGE coverage tabulation and append it
+  to manifests/README.md as the Pillar-1 "spans forest-type/site/structure" evidence.
+- **Verdict:** Pillar-1 substantively COMPLETE (sample + script + docs); one full-scan-gated coverage-evidence
+  addendum queued for the next sweep-quiescent milestone. No DB scan run now (sweep protected).
+
+## Slice 43cn (2026-07-12) — Pillar-4 label-pipeline integrity verified from source (idle bug-hunt)
+- **Trigger:** idle-time review of the cornering-label pipeline (the tool that stamps structure_densephase /
+  threshold_crossing / count_straddle / print_boundary / volume_persistent). Verified from FVS-adjacent SOURCE,
+  not assumed (doctrine #3/#6).
+- **Corrected a mistaken premise:** the working note "run_keyfile now returns (String,Bool)" is WRONG.
+  `FVSjl.run_keyfile` returns a plain `String` in BOTH branches (src/engine/simulate.jl:580 CSV, :582 default);
+  no tuple path exists. The (String,Bool) tuple is the LOCAL `run_live` (ledger_fia.jl:86 `return live,
+  live_crashed`), correctly destructured by the sweep at line 170 (`live, live_crashed = run_live(...)`).
+- **Sweep labels TRUSTWORTHY:** ledger_fia.jl consumes run_keyfile's String via parse_sum10(jlout) with no
+  unwrap (line 172) — correct. dig_one.jl's `jl isa Tuple ? jl[1] : jl` is a harmless no-op on a String.
+- **signature.jl has NO bug:** line 51 `psum(FVSjl.run_keyfile(key; variant=var))` receives a String → works.
+  (Initial "latent tuple bug" hypothesis REFUTED by reading run_keyfile's return — no change made, correctly.)
+- **classify() is a COMPLETE deterministic partition** (ledger_fia.jl:113-123): struct_mat ⇒ count_straddle
+  (!density_mat) | structure_densephase (density_mat); !struct_mat ⇒ print_boundary (!vol_mat) |
+  threshold_crossing (vol_mat&converges) | volume_persistent (vol_mat&!converges). No fallthrough ⇒ no spurious
+  UNCLASSIFIED for the real fact-combos; the CS-sweep's 0-UNCLASSIFIED stream is a genuine property, not a masked gap.
+- **Verdict:** the entire Pillar-4 labeling pipeline is sound; no code change. One stale working-note claim corrected.

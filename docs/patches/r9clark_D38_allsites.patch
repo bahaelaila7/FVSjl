@@ -1,0 +1,69 @@
+D38 — R9 Clark short-tree volume SIGFPE on real FIA stands (all variants; SN worst).
+The Clark taper terms (1-h/totHt)**p in r9ht/r9dib/r9cuft legitimately go SUBNORMAL
+for short trees (totHt just > the 17.3 ft reference) and NaN for totHt < 17.3 ft.
+The build traps underflow+denormal+invalid, so it ABORTS (SIGFPE, no .sum) on valid
+inventory. Two-part fix, both matching the independent Julia port (src/engine/
+r9clark_vol.jl) and verified BYTE-IDENTICAL on non-crash stands:
+
+(1) BUILD FLAG (bin/makefile_Xbuild): drop underflow,denormal from -ffpe-trap. Gradual
+    underflow to a denormal is well-defined IEEE; the port does not trap it either.
+    Denormals now flow with zero output change; fixes every denormal crash site.
+(2) SOURCE (volume/NVEL/r9clark.f): guard the remaining invalid-op (negative base,
+    totHt<17.3) in r9ht and r9dib — Y=0 is the correct limit (the 17.3 ft profile term
+    vanishes), mirroring the guard r9cuft already has near line 1015.
+
+Validation: 8/8 sampled crashers + 162/162 second-wave crashers now emit .sum; cycle-0
+volume bit-exact vs the Julia port; 40/40 normal stands byte-identical patched-vs-pristine.
+
+=== build flag ===
+--- a/bin/makefile_Xbuild : -ffpe-trap=invalid,zero,underflow,overflow,denormal
++++ b/bin/makefile_Xbuild : -ffpe-trap=invalid,zero,overflow
+
+=== source (volume/NVEL/r9clark.f) ===
+--- a/volume/NVEL/r9clark.f
++++ b/volume/NVEL/r9clark.f
+@@ -1135,7 +1135,7 @@
+ !...  Local variables
+       integer   i
+       real      r,c,e,p,b,a,totHt,dbhIb,dib17
+-      real      Is,Ib,It,Im,StTot
++      real      Is,Ib,It,Im,StTot,Y
+       REAL Ds,Db,Dt
+ !======================================================================      
+ 
+@@ -1210,10 +1210,19 @@
+      &   (1-(1-4.5/TOTHT)**R)))
+       ENDIF
+       IF(Ib.EQ.1.0)THEN
++c-----D38 guard: (1-17.3/totHt)**p underflows to a denormal (SIGFPE under the
++c-----binary's FP-exception trapping) for short trees; as totHt -> 17.3 the
++c-----17.3' reference term vanishes, so Y=0 is the correct limit (mirrors the
++c-----r9cuft guard near line 1015; matches FVSjl r9clark_vol.jl).
++        IF((1.0-17.3/TOTHT).LT.0.005748.AND.P.GT.14)THEN
++          Y = 0.0
++        ELSE
++          Y = (1.0-17.3/TOTHT)**P
++        ENDIF
+         Db = (DBHIB**2-(DBHIB**2-DIB17**2)*
+      &   ((1-4.5/TOTHT)**P
+      &     -(1-stemHt/TOTHT)**P)/((1-4.5/TOTHT)
+-     &   **P-(1-17.3/TOTHT)**P))
++     &   **P-Y))
+       ENDIF
+       IF(It.EQ.1.0)THEN
+         Dt = (DIB17**2*(B*(((stemHt-17.3)/
+@@ -1283,7 +1292,13 @@
+       G=(1.0-4.5/totHt)**r
+       W=(c+e/dbhIb**3)/(1-G)
+       X=(1.0-4.5/totHt)**p
+-      Y=(1.0-17.3/totHt)**p
++c-----D38 guard (see r9dib / r9cuft): Y=0 is the correct short-tree limit for
++c-----(1-17.3/totHt)**p, which otherwise underflows to a denormal -> SIGFPE.
++      IF((1.0-17.3/totHt).LT.0.005748.AND.p.GT.14)THEN
++        Y=0.0
++      ELSE
++        Y=(1.0-17.3/totHt)**p
++      ENDIF
+       Z=(dbhIb**2-dib17**2)/(X-Y)
+ 
+ c-----Set height indicator variables

@@ -5,8 +5,8 @@
 using FVSjl
 DB = length(ARGS) >= 3 ? ARGS[3] : "/workspace/SQLite_FIADB_ENTIRE.db"
 const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt"]
-cfg(v) = v=="LS" ? ("/tmp/FVSls_new",FVSjl.LakeStates()) : v=="SN" ? ("/tmp/FVSsn_new",FVSjl.Southern()) :
-         v=="NE" ? ("/tmp/FVSne_new",FVSjl.Northeast()) : v=="CS" ? ("/tmp/FVScs_new",FVSjl.CentralStates()) : error(v)
+cfg(v) = v=="LS" ? ("/workspace/FVSjl/tmp/oracles/FVSls_new",FVSjl.LakeStates()) : v=="SN" ? ("/workspace/FVSjl/tmp/oracles/FVSsn_new",FVSjl.Southern()) :
+         v=="NE" ? ("/workspace/FVSjl/tmp/oracles/FVSne_new",FVSjl.Northeast()) : v=="CS" ? ("/workspace/FVSjl/tmp/oracles/FVScs_new",FVSjl.CentralStates()) : error(v)
 keytext(cn) = """
 STDIDENT
 $cn

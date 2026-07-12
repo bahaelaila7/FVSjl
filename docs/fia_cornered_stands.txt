@@ -15,3 +15,66 @@
 #     reconverges (1695983931290487: 3107/3123 by 2063), one stays diverged. Same accepted LS dense-phase class.
 1536019697290487  # LS ultra-dense self-thinning (TPA 5781; 31.7%, stays diverged)
 1695983931290487  # LS ultra-dense self-thinning (TPA 7835; 21.9%, reconverges by 2063)
+1283725167290487  # SN dense-phase DGSCOR/growth-ranking (TPA 38.2%@2047; diameter-growth onset 2027 TPA bit-exact, amplified by self-thinning; slice 43ak)
+1889016132290487  # SN ultra-dense self-thinning/DGSCOR (8096 TPA seedling; QMD 1.5/1.9@2030 dense-phase diameter growth, jl self-thins harder; structure_densephase, slice 43ak)
+1894616359290487  # SN mega-dense self-thinning partition (20547 TPA seedling; ex-D38-crasher runs clean on patched oracle; 2030 mortality near-tie QMD bit-exact, reconverges by 2050; slice 43ak)
+698156777126144  # SN ultra-dense self-thinning/DGSCOR partition (20854 TPA seedling@2018, cyc0 bit-exact; dense-phase TPA/BA/SDI/CCF/QMD ranking diverges 2023+ same class as 1889016132/1894616359; TopHt/QMD reconverge by 2033-2043)
+204712644010854  # SN structure_densephase — DGSCOR dense-phase DIAMETER-growth sub-type (936 TPA pole@2002, cyc0 bit-exact; SDI 165-183 dense; div isolated to BA/CCF/QMD (jl trees slightly bigger) while TopHt+TPA stay ~exact = diameter-growth density-basis sub-ULP ranking, WK3-DGSCOR-tail class; worst CCF 17% @2027, monotone-compounding not discrete)
+15604644020004  SN none  structure_densephase (ULTRA-DENSE seedling self-thinning sub-type). cyc0(2011) BIT-EXACT all 10 cols (TPA 3961, SDI 369, QMD 2.9"). Divergence emerges 2016, jl self-thins HARDER every cycle (TPA live/jl 2741/2614->1610/1466->1133/982->878/752->722/612); rel MONOTONE-compounds 4.6->8.9->13.3->14.4->15.235% (worst TPA@2036), converges=false. BA(209/211)+TopHt(82/80) ~preserved; jl fewer/larger trees (QMD 7.9/7.3), higher vol. Same named primitive as 698156777126144/1889016132/1894616359/1283725167290487 = per-tree dgf density-basis (PTBAA/point_bal) sub-ULP mortality-partition ranking, amplified by SDI 369 over 5 cycles. NOTE: diff_one/manage_fia keytext mis-projects regime=none (phantom BA-collapse@2021 -> misleading 8.85%); traced via ledger_fia.jl's OWN code path (reproduced 15.235% exactly).
+243437286489998  SN none  structure_densephase (ultra-dense seedling self-thinning). 2013+2018 BIT-EXACT (6669 TPA, QMD 1.2"). Divergence emerges 2023 (0.09%), compounds to 19.247% TPA@2038 (jl RETAINS more: 1741/live1460). BA/SDI/TopHt ~preserved, 28 clean fields, converges=false. Same primitive as 15604644020004 (per-tree dgf density-basis self-thinning partition sub-ULP ranking, amplified by extreme 6669-TPA density). Partition-direction (jl fewer vs more) varies by stand.
+1584316322290487  SN none  structure_densephase + SMALL-BASE VOLUME inflation. 2023 BIT-EXACT (34152 TPA!, QMD 0.1"). Self-thinning partition diverges (28839/26588 TPA @2028); TCuFt worst=53.388%@2028 is on a TINY transitional merch base (369/live vs 172/jl cuft, barely-merchantable) -> % inflated by small base, then CONVERGES as volume matures (2535/2679->2568/2249). converges=true, 28 clean fields. Not a volume-equation bug (vol_abs small-base-inflation scenario); = ultra-dense self-thinning class.
+921837076290487  SN none  structure_densephase; HEADLINE 4752%/1.019e7 CCF is a parse_sum10 FIELD-OVERFLOW ARTIFACT: live .sum @2025 has nf=26 with merged token "10191226" (SDI ~1019 overflowed fixed-width col into CCF), jl .sum nf=28 clean (SDI 1082/CCF 922); whitespace-split misaligns -> garbage 10M in CCF slot. Real underlying stand (clean cycles 2030-2045: TPA 2684/3578, jl retains more) = same ultra-dense self-thinning class. HARNESS CAVEAT: parse_sum10 (whitespace tokenize) breaks on fixed-width field overflow in dense-stand live .sum; escalation-guard headline % for ultra-dense stands must be field-merge-checked before trust.
+218434811010854  SN none  structure_densephase (ultra-dense seedling self-thinning). 2007 BIT-EXACT (7581 TPA, QMD 0.6"), 2012 ULP-close. Divergence emerges 2017, jl RETAINS more each cycle (TPA live/jl 2343/2371->1870/1914->1340/1679->938/1293); rel MONOTONE-compounds to 37.846% TPA@2032, converges=false. BA/SDI/TopHt/CCF ~preserved (131/122, 298/300, 61/61, 509/514); QMD 5.1/4.2 (jl more/smaller trees); 28 clean fields (no parse artifact). Same primitive as 243437286489998/15604644020004 = per-tree dgf density-basis (PTBAA/point_bal) sub-ULP self-thinning mortality-partition ranking, amplified by extreme 7581-TPA density over 5 cycles. Highest % of the cluster but identical fingerprint.
+257105833010854  SN none  structure_densephase (ultra-dense seedling self-thinning) + SMALL-BASE volume inflation. 2010 BIT-EXACT (21596 TPA!, QMD 0.1"). Divergence emerges 2015; TCuFt worst=442.857%@2015 is on a TINY transitional merch base (7/live vs 38/jl cuft, both ~zero in a 0.6" QMD stand) -> % hugely inflated by near-zero base, then CONVERGES as volume matures (TCuFt 1292/1314 = 1.7% by 2035). Self-thinning partition: jl RETAINS more (struct 37.838%, TPA 5548/live4792...1197/live1008). 28 clean fields, converges=true. Same primitive as 1584316322290487/218434811010854 = ultra-dense self-thinning mortality-partition + small-base early-volume inflation; not a volume-equation bug (converges). 6th ultra-dense-seedling stand cornered this session.
+733724072290487  SN none  structure_densephase (ultra-dense seedling self-thinning). 2020+2025 BIT-EXACT (3640 TPA). Divergence emerges 2030, jl RETAINS more each cycle (TPA live/jl 2447/2472->1710/1767->1239/1399->980/1236); rel compounds to 26.122% TPA@2045, converges=false. BA/SDI/TopHt/CCF ~preserved (188/182, 397/402, 69/70, 399/400); QMD 5.9/5.2; 28 clean fields. Same primitive as 243437286489998/218434811010854 = per-tree dgf density-basis self-thinning partition sub-ULP ranking. 7th ultra-dense-seedling stand cornered this session (ecoregion suffix 290487 cluster).
+
+# --- Slice 43av (stand_pct! RDPSRT tie-break fix; dense-phase residuals) ---
+1263765856290487  SN none  ulp_class  TPA@2026 65.4% (was 214.9% pre-fix) — VARMRT PCT multi-record equal-WK5 tie order → morts QMD-convergence limit-cycle; rdpsrt fix cut 3.3× but exact FVS IND tie-tail on multi-species 0.1"-seedlings unresolved.
+155775714010854   SN none  ulp_class  BA@1993 18.6% compounding — dense-phase self-thinning partition primitive (conv=false).
+538545628126144   SN none  ulp_class  7796-TPA seedlings; cyc-0/1 bit-exact then compounding TPA w/ SDI preserved (396/396) — dense-phase self-thinning primitive.
+# 1888683664290487 & 490193733126144: RESOLVED to count_straddle/volume-threshold by the fix (density now preserved) — auto-cornered, no longer needs_dig.
+733730979290487  SN none  ulp_class  TPA@2049 16.9% compounding; cyc-0/1/2 bit-exact, density preserved (SDI 314/315) — dense-phase self-thinning primitive.
+218437338010854   SN none  ulp_class  TPA@2016 38.4% convergent spike (conv=1); cyc-0/1 bit-exact — dense-phase self-thinning partition/QMD-convergence sensitivity.
+252333671010854   SN none  ulp_class  QMD@2015 16.7% conv=1; 2325-TPA dense seedlings, cyc-0 bit-exact, density preserved (BA 83/81 SDI 256/249) — dense-phase self-thinning primitive.
+155772471010854   SN none  ulp_class  TPA@1994 40% compounding conv=0; MATURE dense stand (1473 TPA DBH5.1), cyc-0 bit-exact, cyc-1 only 3.9% then compounds, BA preserved (239/240) SDI drift ~9% — dense-phase self-thinning compounding-ULP primitive (mature-stand instance, distinct DBH so NOT tie-order).
+1677342112290487  SN none  ulp_class  TPA@2043 40.5% conv=0; EXTREME 21150-TPA seedlings, cyc-0 bit-exact, jl retains more, density preserved (BA 199/210 SDI 415/412) — ultra-dense seedling self-thinning primitive (morts QMD limit-cycle + PCT multi-tie at extreme density; same class as 1263, sign varies by partition).
+
+1898798363290487  SN  regime=none  ulp_class  [dense-phase self-thinning primitive]
+  2025 bit-exact all 10 cols @ 16492 TPA (extreme loblolly seedling density).
+  2030 self-thinning cliff (16492→~12000 TPA): TPA 9.4% BA 14.1% SDI 12.7% CCF 14.4% TCuFt 15.3%.
+  2035 TPA -16.2% (worst), BA/SDI/CCF back to ≤1.3%, QMD 9.8%. Then re-converges:
+  2040 TPA -6.4% / 2045 -5.0% / 2050 -3.0%, BA/SDI/CCF/TopHt all ≤1.7%. converges=1, density preserved.
+  Both-sides: per-tree dgf density-basis (PTBAA/point_bal) sub-ULP self-thinning mortality-partition
+  ranking, amplified by extreme-density compounding at the 2030 cliff; same family as WK3 DGSCOR /
+  COMPRESS eigensolver / the extreme-seedling stands (1677342112290487). RDPSRT fix reduced not eliminated.
+
+226256815010854  SN  regime=none  ulp_class  [dense-phase self-thinning primitive]
+  2005 bit-exact all cols → 2010 self-thin cliff TPA -39.7% (QMD +25% compensating), BA/SDI/CCF ≤6%.
+  Oscillates/re-converges 2015-2030 (TPA ±1-11%), structure cols preserved. Slope fix active (not slope-bug).
+
+212199455010854  SN  regime=none  ulp_class  [print_boundary QMD-straddle @ ultra-dense seedlings]
+  2008: TPA 11771 + BA 19 BIT-EXACT; QMD live 0.6 / jl 0.5 = 0.1" rounding straddle on ~0.55" QMD (16.7% rel).
+  Density bit-exact, converges (2013+ ≤3%). Mislabeled structure_densephase (classifier keyed on QMD rel%).
+
+205119566010854  SN  regime=none  ulp_class  [dense-phase self-thinning partition]
+  2005-2020 bit-exact (4131 TPA dense) → 2025-2030 self-thin partition diverges: jl retains +21.5% TPA @2030
+  (more small survivors, QMD -8.7%), BA/SDI/CCF preserved ≤2%. Slope fix active (not slope-bug). converges=0.
+
+253699300010854  SN  regime=none  ulp_class  [parse_sum10 field-overflow FALSE FLAG — CCF crosses 1000]
+  Raw .sum: at 2020 live CCF=1003 prints merged w/ SDI as "7521003" (one whitespace-field); jl CCF=996 prints
+  "748 996" (two fields) → parse_sum10 misaligns → garbage Δ% (CCF 5433%, SDI -100%, inf). REAL values near-
+  identical (SDI 752/748=0.5%, CCF 1003/996=0.7%). Cleanly-parsed cycles 2025-2035: TPA ≤2.6% dense-phase.
+  = the documented parse_sum10 fixed-width field-overflow caveat; NOT a real divergence. Underlying stand fine.
+
+220421148010854  SN  regime=none  ulp_class  [dense-phase self-thinning partition]
+  2006 bit-exact (8850 TPA seedlings) → 2011-2016 self-thin: jl retains +16% TPA (QMD -10.5%, more small
+  survivors), BA/SDI/CCF ≤5%. Converges (TPA 16%→4%, QMD -11%→-3% by 2031). Slope fix active; clean parse.
+1738029369290487 SN none structure_densephase small-N-seedling(2-tree,sp73-presence) TPA41%@2049 per-sp-DG-clean
+1738044540290487 SN none structure_densephase small-N-seedling(12-seedling,4sp) TPA30%@2029 per-sp-DG-clean
+218436247010854 dense-phase (bit-exact 2006-2011, TPA self-thin straddle 2016+, BA/SDI preserved)
+1213056122290487 ultra-dense seedling (63945 TPA) self-thin collapse; density BA/SDI/CCF bit-exact/converge, TPA straddle; genuine structure_densephase (no cores)
+1841457639290487 DGSCOR-compounding (cyc1 0.7% print-boundary → 5.5% gradual, dense QMD7, jl grows less; NOT AVH)
+75132323010538 dense self-thin straddle (2156 TPA sapling, BA converges 194/196, TPA straddle 1352/1611)
+809438019290487 dense-phase count-straddle (8639 TPA, density BA/SDI/CCF preserved, converges) → cornered
+1293191622290487 dense-phase straddle (24289 TPA, jl OVER-thins here — counter-example to consistent-under-thin; density+TopHt track) → cornered
+for cn in 733756122290487 254906507010854 1841515196290487: dense-phase self-thin straddle (ultra-dense, TopHt bit-exact, density tracks, TPA straddle both dirs) → cornered

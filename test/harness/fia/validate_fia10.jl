@@ -11,7 +11,7 @@
 
 using FVSjl
 const DB = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
-const BIN = Dict("SN"=>"/tmp/FVSsn_new","NE"=>"/tmp/FVSne_new","CS"=>"/tmp/FVScs_new","LS"=>"/tmp/FVSls_new")
+const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new")
 const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates())
 const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt"]  # .sum fields 3..12
 
