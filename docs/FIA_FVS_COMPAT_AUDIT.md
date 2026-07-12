@@ -4338,3 +4338,13 @@ new divergence class:**
 The DG-fix (43cx) is confirmed non-regressive under management (43de: LS regime=none bit-exact). Optional future
 breadth: NE/CS/LS fire/plant/salvage cells + denser CS-thin to fire the cut — but the done-state ("a management-
 scenario differential over a plot subset per variant, bit-exact-or-cornered") is met. Harness-only; floor untouched.
+
+## Slice 43di — Pillar-4 post-fix dig vigilance: new LS dig items are the known primitive, fix working
+Spot-checked the running sweep's newly-accumulated dig queue (post-43cx-fix): 37 LS structure_densephase + the
+1 deferred NE volume_persistent. Traced the WORST (1803307744290487, TPA 220.5%): per-record BIT-EXACT through
+early cycles (2023: 17/17 recs, 0 growth- + 0 mortality-divergent) — so with the DG-fix in place growth matches;
+the 220% is the self-thinning mortality tie-break amplified at the SDI threshold (accepted RDPSRT / compounded-ULP
+primitive, same magnitude class as the original stand_pct stand [[fvsjl-stand-pct-rdpsrt-fix]]). ⇒ the fix is
+working on freshly-swept stands (the DG-serial-corr subset no longer flags) and the residual flagged stands remain
+the established named primitive — no NEW divergence class introduced by the ongoing sweep. Confirms the Pillar-4
+taxonomy holds under continued coverage. (Full batch cornered at the DIGCAP pause.)
