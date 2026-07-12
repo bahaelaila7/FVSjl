@@ -580,8 +580,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
     # LIVE + the RECENTLY-DEAD records (trees that died within the measurement period, added back at their dbh);
     # `s.plot.basal_area` is live-only (169.5), so sum live+dead here to match CRATET's 177.515 exactly.
-    bd_ba_hcor = 0f0
-    @inbounds for i in 1:(t.n + t.ndead); dd = t.dbh[i]; bd_ba_hcor += dd * dd * t.tpa[i] * 0.005454154f0; end
+    bd_ba_hcor = 0f0; bd_sd2_hcor = 0f0; bd_tpa_hcor = 0f0
+    @inbounds for i in 1:(t.n + t.ndead)
+        dd = t.dbh[i]; bd_ba_hcor += dd * dd * t.tpa[i] * 0.005454154f0
+        bd_sd2_hcor += dd * dd * t.tpa[i]; bd_tpa_hcor += t.tpa[i]
+    end
+    rmsqd_bd_hcor = bd_tpa_hcor > 0f0 ? sqrt(bd_sd2_hcor / bd_tpa_hcor) : 0f0   # backdated stand QMD (RMSQD basis for LS balmod)
     # The regent HCOR calibration reads the BACKDATED-stand PCT for BALMOD's BAL. It uses the CRATET DENSE
     # percentile, which INCLUDES ALL recently-dead records incl. history-8 (dense.f keeps WK3=dbh; only IMC=9 is
     # zeroed) — UNLIKE the dgf percentile above (which zeroes history-8). So recompute the percentile here over
@@ -678,6 +682,50 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 nh += 1
             end
             nh < 5 && continue
+            cornew = sny / snx
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
+    # LS small-tree HCOR height calibration (ls/regent.f:419-560) — same structure as CS (D22) but the LS
+    # variant hooks: ls_htcalc (MAPLS/LTBHEC via _ls_htcoef) + ls_balmod(sp, d, BA, RMSQD, ...) which reads the
+    # stand BA + QMD (not BAL/PCT). regent.f reads the BACKDATED stand BA/QMD (same as cs/regent.f). REGYR=10,
+    # SCALE3 = 10/FINTH. Each LHTCAL species (all by default) with ≥NCALHT(5) measured small-tree (dbh<5) HTG
+    # observations gets HCOR_init = ln(Σ(HTG·SCALE3·P)/Σ(EDH·P)). Stays 0 with no measured small-tree HTG.
+    # This was the port's LS omission: aspen (746) with measured height growth was under-grown ~1.6× (con=1
+    # instead of exp(HCOR)) ⇒ dense aspen regen under-thinned/under-grew vs live FVS.
+    if s.variant isa LakeStates
+        check = sd[:balmod_check]; mb1 = sd[:balmod_b1]; mb2 = sd[:balmod_b2]; mb3 = sd[:balmod_b3]
+        mb4 = sd[:balmod_b4]; mc1 = sd[:balmod_c1]; mc2 = sd[:balmod_c2]; bamax1 = sd[:balmod_bamax1]
+        ba = bd_ba_hcor; rmsqd = rmsqd_bd_hcor; avh = s.plot.avg_height   # BACKDATED stand BA/QMD (ls/regent.f reads
+        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # the backdated DENSE stand; REGYR(10)/FINTH(default 5)
+        @inbounds for sp in 1:MAXSP
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]; si = s.plot.sp_site_index[sp]
+            snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                t.dbh[i] >= 5f0 && continue                       # large trees excluded
+                hstart = t.height[i] - t.ht_growth[i]            # start-of-period H for the filter (regent.f:453)
+                hstart < 0.01f0 && continue
+                t.ht_growth[i] < 0.001f0 && continue             # no measured height growth
+                if ls_htcalc_htmax(sp, si) - t.height[i] <= 1f0  # htcalc.f:388 asymptote guard ⇒ HTG1=0
+                    htgr = 0f0
+                else
+                    aget = ls_htcalc_age(sp, si, t.height[i])    # HTCALC age/incr on the CURRENT height (regent.f:465)
+                    htgr = ls_htcalc_incr(sp, si, aget)
+                end
+                gmod = ls_balmod(sp, t.dbh[i], ba, rmsqd, check, mb1, mb2, mb3, mb4, mc1, mc2, bamax1)
+                relht = avh > 0f0 ? min(t.height[i] / avh, 1f0) : 0f0
+                gmod = 1f0 - (1f0 - gmod) * (1f0 - relht)
+                htgr = max(htgr * gmod, 0.1f0)
+                edh = max(htgr, 0.1f0)                            # ·RHCON=1
+                snx += edh * t.tpa[i]
+                sny += t.ht_growth[i] * scale3 * t.tpa[i]        # TERM = HTG·SCALE3
+                nh += 1
+            end
+            nh < 5 && continue                                    # NCALHT
             cornew = sny / snx
             cornew <= 0f0 && (cornew = 1f-4)
             (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)

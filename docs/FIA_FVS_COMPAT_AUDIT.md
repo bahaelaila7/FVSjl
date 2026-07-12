@@ -4406,3 +4406,41 @@ tie-break distinction genuinely requires DEEP per-tree tracing (debug-FVS DG(I) 
 fix) on a PAUSED sweep (no contention). Dig-session practice: at each pause (sweep stopped), spot-verify a few
 representative worst-magnitude stands per-record + deep-trace if ambiguous, then corner the cluster by fingerprint
 — the campaign's established method. Do NOT run measurement differentials while the sweep runs (contention).
+
+## Slice 43dn — ★ REAL FIX #7: LS small-tree height (REGENT/HCOR) calibration was never computed
+The 43dm "automated dig unreliable" verdict was itself refined: a TreeId-matched per-tree verifier
+(`test/harness/fia/dig_verify_treeid.jl`), run on a PAUSED sweep (no contention), compares per-tree **DBH**
+(the actual grown size — NOT DG, which carries jl's seedling-sentinel -1.0 vs live 0.0 convention) at the
+first PROJECTED cycle. On the LS dense dig stand **1899610057290487** it isolated a genuine growth divergence
+that the 43dl fingerprint cornering had mislabeled compounded-ULP.
+
+**Symptom.** jl massively under-thinned the dense stand: 2034 TPA live 3413 vs jl 6818 (a 2× under-thin),
+then chased live one cycle behind. Root-caused per-tree: at cycle-0→1 (bit-exact start: DBH/Ht/TPA all match
+live), the **height-growth increment diverged by a constant 1.60× — for species 746 (quaking aspen) ONLY**;
+every other species was bit-exact. jl under-thinning was the CONSEQUENCE (aspen under-grew ⇒ QMD projection
+too small ⇒ self-thinning line allowed ~2× the TPA ⇒ dense ⇒ growth suppressed further).
+
+**Trace.** Ruled out: RNG/tripling (NOTRIPLE reproduced it), site index (FVS SICOEF1(42,41)=0 too ⇒ aspen SI=70
+is FAITHFUL fallback when site species=741 balsam poplar), curve coefficients (jl LTBHEC[32] == FVS LTBHEC(:,32)
+bit-exact), HTCALC age/increment math (hand-verified identical), HGADJ (MAXSP*1.0 no-op). The constant scalar
+1.60× = `CON = RHCON·exp(HCOR)` with jl HCOR(aspen)=0 vs FVS exp(HCOR)≈1.6. **`calibrate_diameter_growth!`
+had `Southern`/`Northeast`/`CentralStates` branches for the small-tree REGENT height calibration but NO
+`LakeStates` branch** — so LS `htg_cor_init` stayed 0 for every species. FVS `ls/regent.f:419-560` computes it:
+`HCOR = ln(Σ(HTG·SCALE3·P)/Σ(EDH·P))` over ≥NCALHT(5) measured small-tree (dbh<5) HTG obs, EDH via ls_htcalc +
+ls_balmod(sp,d,BA,RMSQD)+RELHTA. Aspen had the measured HTG; minor species had none ⇒ HCOR=0 for both ⇒ they
+matched. That single-species asymmetry is why the bug hid.
+
+**Fix.** Added the `LakeStates` block to `calibrate_diameter_growth!` (src/variants/southern/diameter_growth.jl):
+mirrors the CS block but with the LS hooks — ls_htcalc_{htmax,age,incr} (MAPLS/LTBHEC) + ls_balmod(sp,d,BA,RMSQD,
+…) reading the **backdated** stand BA/QMD (ls/regent.f == cs/regent.f; current-basis over-corrected ~2%), REGYR=10,
+SCALE3=10/FINTH. Gated to LakeStates ⇒ SN/NE/CS inert; nonzero only with ≥5 measured small-tree HTG ⇒ most LS
+stands unchanged. aspen con 1.0→1.594 (exp(0.466)); cycle-1 aspen HtG 14.16→22.56 vs live 22.60.
+
+**Validation.** Stand 1899610057290487 .sum: 2034 TPA 6818→3625 (live 3413), 2044 2049→733 (live 732), 2054/2064/
+2074 now bit-exact-or-±1 vs live (was 768/600/457 vs 535/405/324). Residual = 0.16% per-tree aspen HtG (exact
+regent BA/RMSQD basis, cornered-ULP) amplified through the one heavy self-thinning cycle. Suite: **38587 pass /
+0 fail / 75 broken — UNCHANGED (zero regression)**; the fix targets real-population sweep divergence (dense
+aspen-regen stands) not present in the curated suite, so the count holds (the 3 "errored" are environmental
+SQLite/Parsers precompile failures, not this change). This is the campaign's 7th real bug fix and confirms the
+user's "we might fix some of what you might think is ulp class" — a fingerprint-cornered dense stand held a real,
+localized, single-species porting gap.
