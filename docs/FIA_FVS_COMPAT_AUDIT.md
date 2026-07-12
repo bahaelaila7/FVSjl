@@ -4392,3 +4392,17 @@ the residual is the genuine tie-break primitive. ⇒ batch cornered (verified to
 archived docs/dig_archive/; queue cleared to the 1 deferred NE item; sweep resumes from LS cursor 144000.
 NOTE: the escalation guard (structure_densephase ≥15%) is KEPT — it is the safety net that surfaced the real
 DG-serial-corr bug; the dig-session verify-per-batch is the accepted vigilance cost.
+
+## Slice 43dm — METHODOLOGY: automated dig-batch classification is NOT reliably feasible (negative result)
+Attempted an automated dig-batch verifier to speed the ~16 LS dig sessions ahead. It FAILS reliably for 3 reasons,
+so it was removed (don't auto-corner from it): (1) PER-RECORD tie-pairing — comparing treelists by (species,DBH)-
+sorted POSITION is fragile on tie-heavy dense stands (tied-DBH records land in different SQL order live-vs-jl ⇒
+false growth-divergence; e.g. it flagged 1899610057290487 as growth-div while dig_record showed 0 at the same
+cycle). (2) .sum GROWTH/MORTALITY ENTANGLEMENT — BA/SDI/QMD all depend on TPA, so a self-thinning (mortality)
+divergence perturbs them exactly like a growth divergence; there is NO clean .sum growth-only column to key on.
+(3) CONTENTION — running the verifier concurrently with the sweep slows/truncates some live-FVS runs, producing
+flaky comparisons (same class as the SN sample 7/12-vs-12/12 flip earlier). ⇒ the growth-bug vs self-thinning-
+tie-break distinction genuinely requires DEEP per-tree tracing (debug-FVS DG(I) stamps, as used for the 43cx
+fix) on a PAUSED sweep (no contention). Dig-session practice: at each pause (sweep stopped), spot-verify a few
+representative worst-magnitude stands per-record + deep-trace if ambiguous, then corner the cluster by fingerprint
+— the campaign's established method. Do NOT run measurement differentials while the sweep runs (contention).
