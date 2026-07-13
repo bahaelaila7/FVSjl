@@ -33,11 +33,18 @@ direct DGSCOR/volume-ULP, non-native cycle drift, COMPRESS eigensolver), **4 FVS
 doesn't replicate (D38 r9clark SIGFPE, CS essprt SIGFPE, NE VOLINIT extreme-height zeroing, shared SDI overflow).
 Full scale (docs/fia_fullscale_results.md): 99.7-100% bit-exact-or-cornered (SN 100% / NE 99.98% / CS 99.97% /
 LS 99.74% partial). **8 FVSjl bugs fixed** (FIX #8 = LS REGENT calibration stale-HTGR carry, audit 43eb). The
-43-stand REAL_growthdiv candidate bucket (the distilled needs_dig frontier: LS 29 / CS 8 / NE 6) is being
-per-stand-reconciled: **LS 29 FULLY DONE** — 1 real bug fixed (FIX #8) + 28 cornered (11 ULP / 17 self-thin
-RDPSRT / 1 AVHT40 RDPSRT), zero unexplained (docs/fia_ls_candidates_classified.md). NE/CS 14 in progress. This
-per-stand pass is the concrete completion of the "class CAN hide a real growth bug" correction — the tamarack
-stand was mislabeled structure_densephase and hid the real FIX #8 bug, exactly like aspen/HCOR before it.
+43-stand REAL_growthdiv candidate bucket (the distilled needs_dig frontier: LS 29 / CS 8 / NE 6) is now
+**FULLY reconciled** — 1 real bug fixed (FIX #8) + 42 cornered primitives, zero unexplained
+(docs/fia_ls_candidates_classified.md). LS 29 = 11 ULP + 17 ultra-dense self-thin RDPSRT + 1 AVHT40 RDPSRT.
+NE/CS 14 = ULP + the AVHT40 top-height RDPSRT tie-break (cycle-0 TopHt e.g. NE live34/jl27 = a genuine DBH tie at
+3.9" between HT27/HT35 records; single-vs-double sort refuted; the stand-dependent unstable-quicksort primitive,
+more frequent on NE/CS integer-tied inventory DBHs). This per-stand pass concretely completes the "class CAN hide
+a real growth bug" correction — the tamarack stand was mislabeled structure_densephase and hid the FIX #8 bug,
+exactly like aspen/HCOR. Pillar-4 candidate frontier: DONE. Remaining for full completion = let the LS sweep
+finish the last ~50% (Pillar 1/2 full-scale); it is now UNBLOCKED (dig bucket cleared). Resume:
+`julia -t auto --project=. test/harness/fia/sweep/census_driver.jl LS <subset.db> <ls_stands.txt> <cache.db>`
+(resumable — skips cached stands; re-run jl-only re-validation on already-cached LS stands to confirm FIX #8's
+effect). Relink all 4 oracles first if the container restarted.
 
 ## Remaining to full completion
 - Let the sweep finish LS (the last ~57%) → ALL_VARIANTS_EXHAUSTED = full-population Pillar-1/2 done at max scale.
