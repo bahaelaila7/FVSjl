@@ -4781,3 +4781,10 @@ Checked whether NE/CS over-map an IFOR that FVS's forkod leaves unset (the LS IF
   (IFOR4 explicitly shares IFOR3). jl mirrors (ifor 4→3) and _CS_FOR_DEFAULTS MATCHES (10/4/6). CLEAN.
 So the IFOR-with-no-CASE + jl-over-default gap was UNIQUE to LS (IFOR=9, forest 924); FIX #9 is correctly
 LS-gated and NE/CS need no change. Doctrine #5 (variant-safe) satisfied.
+
+### 43ec — sweep correctness: forward LS validates against FIX #8/#9 (verified)
+The coverage sweep runs `julia ledger_fia.jl` fresh per batch-cycle. FVSjl precompile cache
+(~/.julia/compiled/v1.12/FVSjl/*.ji) rebuilt 19:27 — AFTER FIX #9 (committed 19:16). So batch-cycles past
+~cursor 250k validate LS against the FIXED FVSjl ⇒ forest-924 (CCF) and tamarack (small-tree DG) stands ahead of
+the cursor are correctly classified bit-exact, not re-flagged. Already-swept stands (<250k) keep stale pre-fix
+classifications ⇒ reconcile at LS completion (re-validate the flagged forest-924/tamarack CNs vs the fixes).
