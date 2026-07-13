@@ -63,3 +63,17 @@ NEXT: instrument the live NE/CS summary top-height (sumit.f / cratet.f AVHT40 IN
 any DBH/large-tree threshold) vs jl stand_top_height for 14106653020004; determine which side is faithful and
 whether jl's stat_idx/PROB weighting or a species/size filter differs. Do NOT corner until traced (FIX #7/#8
 lesson: this exact "cycle-0 anomaly that cascades" signature hid two real growth bugs already).
+
+### NE/CS TopHt lead — instrumentation attempt (43eb, incomplete)
+Instrumented live NE avht40.f (AVHT40 = avg HT of the 40 largest-DBH TPA; IND descending-DBH, accumulate PROB
+to 40 — CONFIRMED identical shape to jl stand_top_height). Added a per-tree WRITE guarded ICYC.LE.1 for
+14106653020004; the trace did NOT fire (no AVHTR lines in stdout or .out) ⇒ AVHT40 is NOT called at inventory/
+ICYC≤1 for the .sum cycle-0 TopHt — the reported cycle-0 TopHt comes from a DIFFERENT path (likely cratet.f's
+own AVHT40-equivalent during calibration, or a later ICYC). NE debug build also emits "TREE RECORD >1000 TPA"
+(the DIA=0.1 seedlings) — watch for FPE on this stand class. FVS source restored pristine, oracle untouched.
+NEXT SESSION: (a) find WHERE the cycle-0 .sum TopHt is sampled (grep sumit/sumout/cratet for the AVH→summary
+store; likely cratet.f calls AVHT40 during calibration and stashes AVH), broaden the guard (dump ICYC + call site);
+(b) OR dump jl's cycle-0 top-40-TPA tree set (DBH/HT/PROB) via FVS_TreeList and compare to live's TreeList to see
+whether jl picks a different tree set / imputes a large tree's height differently. The largest record (DIA=5.0,
+HT=28) is unique so it's NOT a top tie-break; the 7-ft gap (live34/jl27) implies a genuinely different top-40 set
+or a height value difference on a mid-top tree.
