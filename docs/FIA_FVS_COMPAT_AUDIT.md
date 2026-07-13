@@ -4679,3 +4679,15 @@ row) or ls_balmod (gmod from backdated BA/QMD) that halves for tamarack — inst
 9982/BALMOD debug for one sp071 tree; correct the divergent component so jl's EDH matches live ⇒ cornew matches ⇒
 over-growth resolved. Keep aspen bit-exact + floor + per-species-validate (the 43dx variant-safety gap). This is
 the fully both-sides-traced root of the FIX #7 regression + the ~29 LS growth-div stands.
+
+### 43dz cont. — tamarack root NARROWED: NOT si, NOT curve; it's per-tree measured-HTG or ls_balmod
+Ruled out via both-sides trace: (a) SITE INDEX — stand SITE_SPECIES=71/SITE_INDEX=25 is the DIRECT input, jl
+si=25 faithful; (b) CURVE — jl mapls[sp071]=59 == FVS MAPLS(10)=59 ("European larch plantations" — both jl AND
+live use col 59 for tamarack, not the col-60 "Tamarack,MN"), and jl LTBHEC[59] == FVS LTBHEC(:,59) byte-identical.
+So both compute htmax(25)=27.88 and identically floor the H=31-34 above-asymptote trees to EDH=0.1. ⇒ the cornew
+divergence (jl 8.888 / live 4.09) is in the per-tree MEASURED HTG (jl t.ht_growth vs live HTG(I)) OR the ls_balmod
+gmod (jl gmod0≈0.3-0.4 on backdated ba=39.9/rmsqd=2.09) for the BELOW-htmax trees. FINAL STEP: instrument the
+scratch LS regent.f to dump PER-TREE EDH+TERM+HTG for tamarack, compare to jl's per-tree (already have jl:
+htcalcincr/gmod/edh/htg_meas) ⇒ pin measured-HTG-vs-balmod, fix the divergent one. NOTE this may be a PRE-EXISTING
+issue FIX #7 exposed (pre-fix con=1 masked it as under-growth; post-fix the inflated cornew flips it to
+over-growth), not purely a FIX #7 bug. Exhaustively both-sides-traced to 6 levels; fix is one per-tree compare away.
