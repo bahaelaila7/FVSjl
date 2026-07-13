@@ -4705,3 +4705,18 @@ jl DBGCAL, for sp071 tamarack calibration trees:
   (H, EDH, TERM, P) both sides side-by-side to find the divergent tree(s)/weight; likely the backdated-BA/RMSQD
   basis in the LS calibration's ls_balmod. This is the fully-traced-to-the-last-mile root of the FIX #7 regression;
   the fix is the RMSQD/BA basis or the specific below-htmax EDH, pinned by the full dump.
+
+## Slice 43ea — ★★★ tamarack FIX #7 regression ROOT FOUND (full 12-tree dump): jl over-floors near-asymptote EDH
+Full per-tree live dump (scratch LS build, restored) vs jl for the 12 sp071 calibration trees. DECISIVE: LIVE
+predicts EDH=2.0-2.4 for tamarack trees at H=18,19,28,29,33 (measured HTG 2-4 ft) — INCLUDING H=28/29/33 which are
+ABOVE jl's htmax(si25)=27.88 — while jl FLOORS those same trees to edh=0.1 (its ls_htcalc asymptote guard
+`htmax - H <= 1 ⇒ htgr=0` fires). Result: jl Σ(EDH·P)≈523 = HALF live's ≈1137 ⇒ cornew 8.888 vs 4.09 ⇒ HCOR
+2.18 vs 1.41 ⇒ 2-3× tamarack DG over-growth. (Live floors ONLY H=31,34 to 0.1; jl floors H≥~27.) So live's HTCALC
+does NOT apply the htmax guard the way jl's ls_htcalc_incr/ls_htcalc_htmax does for these near/above-asymptote
+tamarack trees — live still returns a positive increment. ROOT = jl's ls_htcalc asymptote handling (ls_htcalc_htmax
+or the mode-9 increment) diverges from FVS htcalc.f for tamarack trees near/above the curve asymptote; jl zeroes,
+live predicts. FIX: reconcile jl's ls_htcalc_incr/htmax vs FVS htcalc.f mode-9 for H≥htmax (likely jl's guard at
+small_tree_growth.jl:713/diameter_growth.jl:713 is too aggressive, or the age/increment for above-asymptote trees
+differs) so jl's EDH matches live ⇒ cornew matches ⇒ over-growth resolved. Impacts the ~29 LS growth-div stands.
+This is the fully-root-caused FIX #7 regression — the actual bug is in the shared ls_htcalc asymptote path, EXPOSED
+(not created) by FIX #7's calibration. Both-sides-traced end-to-end (8 levels).
