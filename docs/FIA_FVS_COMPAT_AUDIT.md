@@ -4650,3 +4650,17 @@ htgr_s height-driven path). Next dig: probe WITHOUT the k3==i1 guard (dump every
 DIAMETER branches (dgsm/dggr at small_tree_growth.jl:93-101 + dg_bound) — the over-growth is in DG, which the
 height-path debug may not capture. Also compare htg_cor_init[sp071] jl-vs-live (the 43dn HCOR block) to confirm
 or rule out the FIX-#7-over-correction hypothesis before touching the calibration.
+
+## Slice 43dy — ★ FIX #7 REGRESSION CONFIRMED + localized: LS HCOR over-calibrates tamarack (sp071)
+DBGSTG on LS 1831637837290487: FIX #7's LS HCOR block computes **corInit(sp071 tamarack)=2.1847** (HCOR=2.18 ⇒
+cornew≈8.9, near the 12.18 trap ceiling); con climbs 1.73→2.06→2.59→3.51→5.24 over cycles ⇒ jl OVER-grows tamarack
+small-tree DG 2-3× vs live. Live grows it ~1× (effective con≈1). So FIX #7 introduced a tamarack (and ~29 LS
+stands') over-growth the suite missed. NOT LHTCAL (grinit.f:101 defaults .TRUE. all species — both should
+calibrate). So the divergence is in the cornew=SNY/SNX computation: jl's predicted small-tree HTG (SNX/EDH via
+ls_htcalc+ls_balmod) too LOW for tamarack and/or measured HTG (SNY = t.ht_growth·SCALE3) too HIGH ⇒ inflated
+cornew=8.9. Aspen calibrated correctly (bit-exact) so the block is right for aspen — tamarack-specific.
+DECISIVE NEXT STEP (doctrine #3, can't guess the fix): instrument live ls/regent.f mode-40 (scratch build; the
+existing DEBUG 9991/9992 writes dump EDH/TERM/SNP/SNX/SNY/CORNEW per species) for this stand ⇒ get live's
+tamarack HCOR + its EDH(predicted) + TERM(measured). Compare to jl's SNX/SNY. Then fix whichever diverges (likely
+jl's EDH prediction or ht_growth init for tamarack), keeping aspen bit-exact + floor. Candidate impact: the ~29 LS
+REAL growth-div stands. This is the top Pillar-4 dig and a genuine variant-safety gap in my own FIX #7.
