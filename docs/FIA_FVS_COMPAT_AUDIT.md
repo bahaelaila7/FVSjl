@@ -4943,3 +4943,13 @@ tie-break); 18344045010661 CCF bit-exact early (63/63, 354/354, 205/205; residua
 (FIX #8 tamarack). ⇒ the stale FIX-#8/#9 dig-queue entries (18xxxxx010661 CCF cluster + tamarack) are genuinely
 resolved; at LS-sweep completion they are purged/reclassified in the ledger. Residuals are all cornered tie-break
 classes. This is the capstone reconciliation confirmed on samples.
+
+### 43ef — stale-entry reconciliation COMPLETE (all validated FIX-resolved, doctrine #2)
+ALL stale FIX-#8/#9 dig-queue entries validated (validate-vs-live, not inferred) as resolved:
+- FIX #9 (forest-924 CCF, early-cycle CCF now bit-exact): 18447951010661, 18807639010661, 18344045010661,
+  18656888010661, 18659636010661, 18840523010661, 18502722010661, 18438314010661, 18821105010661,
+  18430461010661 — all 10 ✓ early-CCF bit-exact 3/3.
+- FIX #8 (tamarack small-tree DG): 1831637837290487 ✓ bit-exact.
+Residuals on these stands are all cornered tie-break classes (self-thin / AVHT40). ⇒ the stale entries are
+genuinely resolved; at LS-sweep completion they are purged from the committed dig-queue and reclassified in the
+ledger (bit_exact/ulp_class). Reconciliation evidence complete; capstone purge is a mechanical ledger update.
