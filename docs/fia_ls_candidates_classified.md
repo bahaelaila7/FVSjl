@@ -21,17 +21,18 @@ worst (>10%) verified cycle-0-exact via /tmp/cyc0_check.jl; the 5 milder (5–10
 63969757010661 (6.72). (worst% amplified by the ultra-dense self-thinning cascade; cycle-0 identical rules out
 a growth-model bug.)
 
-## C. Cycle-0 TopHt tie-break (1 stand) — high-confidence RDPSRT primitive; possible fixable extension
+## C. Cycle-0 TopHt tie-break (1 stand) — the already-cornered AVHT40 primitive
 **55250794010661** (81.21): the ONLY candidate with a CYCLE-0 (inventory) divergence — TopHt live 22 / jl 29,
-before any projection. Traced: top height = avg height of the 40 largest-DBH trees/acre. This ultra-dense stand's
-largest-DBH record (DIA=2.9", TREE_COUNT≈75 TPA > 40) alone fills the entire top-40-TPA window ⇒ TopHt = that
-single record's height. But TWO records tie at DIA=2.9": aspen (sp746) HT=29 and balsam fir (sp12) HT=22. The
-unstable RDPSRT quicksort FVS uses picks the balsam (22); jl's top-DBH selection picks the aspen (29). The 19/44
-missing-HT trees are all shorter (never in the top set) ⇒ NOT height imputation. This is the SAME RDPSRT
-tie-break primitive as fvsjl-stand-pct-rdpsrt-fix, here manifesting in the summary top-height sort rather than
-the mortality percentile — the cycle-0 22/29 then cascades through the ultra-dense self-thinning (hence 81%).
-STATUS: high-confidence cornered (accepted tie-break), BUT possibly a FIXABLE extension — if jl's top-height
-selection uses a stable sort where FVS's summary uses RDPSRT/IQRSRT, applying the same unstable-sort tie-break
-to the top-DBH ordering would break the tie to balsam ⇒ bit-exact. NEXT: locate jl's top-height/avg_top_height
-DBH-sort, check whether it matches FVS sumit.f/htcalc top-tree ordering; if a stable-sort mismatch, extend the
-_rdpsrt! fix. Sole remaining non-fully-cornered LS candidate.
+before any projection. Traced: top height = avg height of the 40 largest-DBH trees/acre (AVHT40). This ultra-dense
+stand's largest-DBH record (DIA=2.9", TREE_COUNT≈75 TPA > 40) alone fills the entire top-40-TPA window ⇒ TopHt =
+that single record's height. But TWO records tie at DIA=2.9": aspen (sp746) HT=29 and balsam fir (sp12) HT=22.
+FVS's unstable RDPSRT quicksort lands the balsam (22) at the boundary; jl's double-RDPSRT lands the aspen (29).
+The 19/44 missing-HT trees are all shorter (never in the top set) ⇒ NOT height imputation.
+RESOLVED = CORNERED: this is the KNOWN AVHT40 top-height tie-break primitive already documented in
+`src/engine/standstats.jl:124` stand_top_height — jl already ports `_rdpsrt!` with the cratet.f DOUBLE sort
+(LSEQ=.TRUE. then .FALSE.), and prior dig-sessions #1/#2 proved (empirical single-vs-double sweep over 4 tie-heavy
+stands) that "no global sort choice is bit-exact" because RDPSRT is an unstable quicksort on tied DBHs — the
+tie-break is STAND-DEPENDENT. The double-sort matches the most stands; 55250794010661 is one of the residual
+tie-heavy swings. The cycle-0 22/29 then cascades through ultra-dense self-thinning (hence 81%). NOT a new bug,
+NOT fixable without bit-matching FVS's exact quicksort pivot sequence (accepted primitive per the GOAL). All 29
+LS candidates now explained: 11 resolved/ULP + 17 self-thin RDPSRT primitive + 1 AVHT40 RDPSRT primitive.

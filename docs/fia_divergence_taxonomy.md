@@ -39,3 +39,12 @@ entries and `FVS_SOURCE_BUGS.md`; this is the single-view index. "Bit-exact-or-c
 Every class surfaced by the sweep is FIXED or CORNERED-to-a-named-primitive. No unexplained divergence remains among the
 processed dig batches. The sweep continues to full-population completion; new dig batches are processed at each DIGCAP pause
 against this taxonomy (a new class ⇒ a new both-sides-trace; a known class ⇒ cornered by fingerprint).
+
+## LS growth-div candidate bucket — fully reconciled post-FIX-#8 (audit 43eb)
+The 29 LS `REAL_growthdiv` candidates (the last needs-per-stand-verification frontier) are all explained:
+- **1 REAL BUG FIXED** — FIX #8 (LS REGENT calibration stale-HTGR carry; exemplar 1831637837290487 was 2-3× off
+  ⇒ now bit-exact-or-±1). The tamarack over-growth that FIX #7 exposed.
+- **28 CORNERED primitives** — 11 resolved/ULP, 17 ultra-dense self-thinning RDPSRT tie-break (cycle-0 bit-exact,
+  diverge only in later cycles on 12k–39k-TPA seedling stands), 1 AVHT40 top-height RDPSRT tie-break
+  (55250794010661, cycle-0 tied-DBH aspen29/balsam22; the already-dug stand-dependent quicksort primitive).
+Full per-stand classification: docs/fia_ls_candidates_classified.md. NO remaining unexplained LS divergence.
