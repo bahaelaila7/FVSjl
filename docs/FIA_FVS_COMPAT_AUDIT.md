@@ -4691,3 +4691,17 @@ scratch LS regent.f to dump PER-TREE EDH+TERM+HTG for tamarack, compare to jl's 
 htcalcincr/gmod/edh/htg_meas) ⇒ pin measured-HTG-vs-balmod, fix the divergent one. NOTE this may be a PRE-EXISTING
 issue FIX #7 exposed (pre-fix con=1 masked it as under-growth; post-fix the inflated cornew flips it to
 over-growth), not purely a FIX #7 bug. Exhaustively both-sides-traced to 6 levels; fix is one per-tree compare away.
+
+### 43dz final — tamarack root: si/curve/htmax all MATCH; residual is per-tree aggregation (needs full 12-tree dump)
+Scratch-LS-build per-tree instrumentation (regent.f EDHTR/SITEAR dump; restored pristine + oracle untouched) vs
+jl DBGCAL, for sp071 tamarack calibration trees:
+  RULED OUT (jl==live): SITEAR=25.0 both; MAPLS[sp071]=59 both (European-larch curve); LTBHEC[59] byte-identical;
+  htmax=27.88 both; per-tree EDH matches on samples (above-htmax H=34: 0.1/0.1; below-htmax H=26: 0.618/0.621);
+  per-tree TERM matches (HTG=4·SCALE3=2 ⇒ 8.0 both); N=12 both.
+  UNRESOLVED: aggregate cornew still differs 2× (jl Σ(TERM·P)/Σ(EDH·P)=8.888 vs live 4.09) ⇒ jl's Σ(EDH·P)≈523 is
+  ~HALF live's ≈1137 despite matching per-tree EDH on the sampled trees. So the divergence is in the UNSAMPLED
+  tamarack trees' EDH or the P(TPA)-weighting correlation. One notable diff: jl RMSQD=2.09 vs live 2.248 (backdated
+  QMD), which shifts ls_balmod gmod for below-htmax trees — a candidate. NEXT: dump ALL 12 tamarack trees'
+  (H, EDH, TERM, P) both sides side-by-side to find the divergent tree(s)/weight; likely the backdated-BA/RMSQD
+  basis in the LS calibration's ls_balmod. This is the fully-traced-to-the-last-mile root of the FIX #7 regression;
+  the fix is the RMSQD/BA basis or the specific below-htmax EDH, pinned by the full dump.
