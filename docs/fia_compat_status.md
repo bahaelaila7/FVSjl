@@ -31,8 +31,12 @@ Consolidated taxonomy `docs/fia_divergence_taxonomy.md`: every non-bit-exact cla
 CORNERED — **7 FVSjl bugs fixed** (floor held), **4 ULP-class named primitives** (RDPSRT self-thinning tie-break,
 direct DGSCOR/volume-ULP, non-native cycle drift, COMPRESS eigensolver), **4 FVS bugs** FVSjl is correct on and
 doesn't replicate (D38 r9clark SIGFPE, CS essprt SIGFPE, NE VOLINIT extreme-height zeroing, shared SDI overflow).
-No unexplained divergence remains among processed dig batches; new batches are triaged against this index at each
-DIGCAP pause.
+Full scale (docs/fia_fullscale_results.md): 99.7-100% bit-exact-or-cornered (SN 100% / NE 99.98% / CS 99.97% /
+LS 99.74% partial). CORRECTION: a needs_dig BACKLOG remains (SN 0 / NE 19 / CS 58 / LS 527 = 604), ~601 of them
+structure_densephase = the self-thinning RDPSRT primitive class (cornered-by-class, verified on samples) but NOT
+each individually reclassified post-HCOR-fix — and this session proved that class CAN hide a real growth bug
+(aspen HCOR). So Pillar-4 is SUBSTANTIALLY met (cornered classes + processed batches) with the needs_dig backlog
+as the genuine remaining per-stand-verification frontier.
 
 ## Remaining to full completion
 - Let the sweep finish LS (the last ~57%) → ALL_VARIANTS_EXHAUSTED = full-population Pillar-1/2 done at max scale.

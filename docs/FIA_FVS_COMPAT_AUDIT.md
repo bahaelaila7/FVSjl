@@ -4578,3 +4578,14 @@ fix (#7) cleared the growth side (BA exact). No new bug; cornered by fingerprint
 Queue now holds 1 NEW LS candidate (224645781010661) the sweep flagged during this triage — pending triage at
 the next dig pass (expected: same self-thinning primitive, to be verified not assumed). The NE VOLINIT stand was
 already removed in 43do (cornered as FVS-bug).
+
+## Slice 43dt — full-scale dig_class breakdown + needs_dig backlog (honesty correction)
+Ran sweep_db.jl stats on a filesystem COPY of data/fia_sweep.db (no live-DB contention). Full-population
+bit-exact-or-cornered: SN 100.000% (0 needs_dig), NE 99.984%, CS 99.966%, LS 99.737% (partial). needs_dig
+backlog = 604 (SN 0/NE 19/CS 58/LS 527), by signature ~601 structure_densephase + 1 volume_persistent (the
+cornered NE VOLINIT stand) + 3 threshold_crossing. CORRECTS the earlier "no unexplained divergence remains"
+overstatement: the structure_densephase backlog is the self-thinning RDPSRT primitive CLASS (both-sides-traced
+this session, sample-verified) but NOT each individually reclassified post-HCOR-fix — and 43dn proved that class
+can HIDE a real growth bug (aspen). So the backlog is the genuine Pillar-4 frontier: per-stand verify BA is
+bit-exact (self-thinning primitive) vs BA-diverges (hidden growth bug), + a post-fix re-sweep to reclassify the
+aspen subset. Detail: docs/fia_fullscale_results.md.
