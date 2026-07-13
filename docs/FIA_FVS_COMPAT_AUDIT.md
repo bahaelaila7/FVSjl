@@ -4566,3 +4566,13 @@ Single-view status of all 4 pillars with pointers to their done-state artifacts:
 in progress (SN/NE/CS done, LS ~43%), P3 management regimes bit-exact-or-cornered, P4 consolidated taxonomy
 (7 fixes/4 primitives/4 FVS bugs). Floor 38587/0/75. Off-switch remains the USER's call — the capstone records
 readiness, not a decision. Remaining: sweep finishes LS → ALL_VARIANTS_EXHAUSTED; process dig batches at DIGCAP.
+
+## Slice 43ds — dig-queue triage: 2 LS densephase candidates = self-thinning RDPSRT primitive (cornered)
+Processed the 2 queued LS structure_densephase candidates (both-sides magnitude+column triage vs live):
+- 1899605764290487 (startTPA 6735): worst 17.5% @TPA/2074, BA-worst 1.0%
+- 69806792010661 (startTPA 11071): worst 20.8% @TPA/2053, BA-worst 0.6%
+Both: worst-divergence column = TPA (mortality) while BA (growth) is bit-exact-to-≤1% ⇒ the compounded-ULP
+self-thinning RDPSRT tie-break primitive (Class B, docs/fia_divergence_taxonomy.md) — which tie-DBH tiny trees
+die at the SDI threshold diverges via the unstable-quicksort permutation on tie-heavy dense stands; the HCOR
+fix (#7) cleared the growth side (BA exact). No new bug; cornered by fingerprint, removed from active queue.
+Queue back to 1 (NE VOLINIT FVS-bug 207147469020004, already cornered/documented — leaving as the recorded item).
