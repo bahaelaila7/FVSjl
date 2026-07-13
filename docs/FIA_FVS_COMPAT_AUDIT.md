@@ -4907,3 +4907,16 @@ with size; report-only, only on far-projected extreme conifers). NEXT (focused r
 the r9cuft profile integration (r9clark_fvsMod.f r9cuft vs r9clark_vol.jl _r9_cuft) on a d=50 tree — the size-
 monotonic gap points at the cubic taper integration or a dib17/totHt term, likely a fixable port refinement. This
 does NOT reopen the 2× headline (that's the cornered tie-break) but keeps the ~10% honestly OPEN, not padded.
+
+### 43ee — r9clark taper residual LOCALIZED (jl-side source read, non-competing)
+jl `_r9_cuft` (r9clark_vol.jl:186) is a faithful CLOSED-FORM translation of r9cuft's 3-segment Clark profile
+integral — analytic (no iteration/step-count), real powers via the gfortran `fpow` companion (doctrine #8). So the
+size-monotonic ~4→10% gap is NOT the integration structure. It is UPSTREAM: the per-tree state inputs dbhIb /
+dib17 / totHt (from r9dia417 @ r9clark_fvsMod.f:817 + r9totHt @ :920), OR FVS domain-handling for the extreme
+totHt (200-322 ft). Note _r9_totht returns htTot directly when htTot>17.4 (line 138) ⇒ totHt=322 for these trees;
+the profile is being extrapolated to absurd heights. The port validated <1% on MODERATE trees (dbhIb/dib17 fine
+there) so the divergence is size/extrapolation-specific — likely FVS clamps/attenuates the extreme-height profile
+where jl extrapolates fully (same family as the r9clark extreme-geometry domain question). DECISIVE NEXT (focused,
+non-competing post-sweep): instrument FVS r9clark.f to dump COEFFS dbhIb/dib17/totHt + cfVol for a d=50 tree,
+compare to jl's _R9State — match ⇒ fpow/precision; mismatch ⇒ r9dia417/r9totHt or a domain clamp. Report-only,
+extreme (physically-impossible) geometry ⇒ negligible practical impact; kept OPEN (not padded) per doctrine #4.
