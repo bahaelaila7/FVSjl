@@ -4575,4 +4575,6 @@ Both: worst-divergence column = TPA (mortality) while BA (growth) is bit-exact-t
 self-thinning RDPSRT tie-break primitive (Class B, docs/fia_divergence_taxonomy.md) — which tie-DBH tiny trees
 die at the SDI threshold diverges via the unstable-quicksort permutation on tie-heavy dense stands; the HCOR
 fix (#7) cleared the growth side (BA exact). No new bug; cornered by fingerprint, removed from active queue.
-Queue back to 1 (NE VOLINIT FVS-bug 207147469020004, already cornered/documented — leaving as the recorded item).
+Queue now holds 1 NEW LS candidate (224645781010661) the sweep flagged during this triage — pending triage at
+the next dig pass (expected: same self-thinning primitive, to be verified not assumed). The NE VOLINIT stand was
+already removed in 43do (cornered as FVS-bug).
