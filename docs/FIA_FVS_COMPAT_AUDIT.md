@@ -4837,3 +4837,21 @@ stand's RESOLVED verdict). DECISIVE: instrument FVS r9clark_fvsMod.f (RCTRACE pe
 a 37"×322ft red pine — if live per-tree ≈ jl 901 ⇒ FVS summary bug (corner); if ≈ 450 ⇒ jl over-extrapolates (fix
 the domain limit). Deferred to the focused r9clark window. Report-only (structural/growth bit-exact). This folds
 the "LS conifer volume" lead INTO the existing open r9clark extreme-geometry item rather than a separate new bug.
+
+### 43ee — LS conifer volume: r9clark EQUATION RULED OUT (measured); 2× is aggregation/survivor-distribution
+Both-sides per-tree measurement (FVS r9clark.f RCTRACE dbhOb>30, scratch build, restored pristine + oracle
+untouched; jl VOL_DBG d>30, restored): on MATCHED large trees (same dbh/ht, bit-exact) jl's r9clark cfVol is only
+~5-10% high, NOT 2×:
+  d=30.34 h=131.7 rp: jl 266.2 / live 256.0    d=53.94 h=213.9 ash: jl 1139 / live 1035
+  d=41.20 h=155.5 ash: jl 504.1 / live 458.3   d=45.69 h=213.9 ash: jl 814.8 / live 740.8
+Max DBH identical (both 53.94"), d>35 counts 28/29 ⇒ near-identical survivor sets. errFlg=0 (no domain zeroing).
+BUT the RAW .sum aggregate IS genuinely 2× (2066 TCuFt jl 15590 / live 7586, BdFt 107960/49355 — confirmed in raw
+.sum, not a parser artifact). So per-tree ~10% cannot produce aggregate 2× under bit-exact TPA/BA/QMD.
+⇒ The r9clark cubic EQUATION is ~faithful (the ~10% is itself a smaller residual to chase later). The 2× is an
+AGGREGATION effect: jl's Σ(cuft·prob) is 2× live's despite matching total TPA/BA — i.e. a per-record PROB /
+survivor-distribution difference (same total TPA/BA can hide different individual survivors; volume is nonlinear in
+size, so a tie-break-different survivor set diverges in volume). Candidate = the self-thinning RDPSRT tie-break
+primitive manifesting in volume (would be CORNERED), OR a prob/record-count bug (fixable). DECISIVE NEXT: dump
+per-tree (d, prob, cuft) at cycle 2066 for jl AND live (FVS_TreeList) and diff the Σ — localize the prob/survivor
+delta. This CORRECTS the earlier "r9clark extreme-geometry" framing: the equation is fine; it's aggregation.
+Report-only (structural bit-exact). The ~10% per-tree r9clark residual on extreme trees is a separate minor item.
