@@ -4616,3 +4616,17 @@ TWO follow-ups:
 - **SN 0→35 needs_dig**: reclassify's dig_class() guard flags 35 SN stands the sweep's classify() had cornered as
   ulp_class — a HARNESS guard-inconsistency (classify vs dig_class), NOT a new FVSjl divergence; to reconcile.
 Backlog is now 66 (from 604), with the remaining work precisely scoped and measured — the honest Pillar-4 frontier.
+
+## Slice 43dw — ★ the 43 REAL candidates are MOSTLY GENUINE GROWTH BUGS (cycle-1 BA), LS-heavy — Pillar-4 OPEN
+Cycle-1 BA discriminator on the top 8 REAL candidates: 7/8 diverge in BA at the FIRST projected cycle (growth-
+model bug), only 1 (NE 1203406023290487) is a late-cycle cascade. Several LS stands show BA diverging 8-30% at
+cycle-1 with TPA BIT-EXACT (0.0%) — PURE growth divergences, not self-thinning cascades:
+  LS 1831637837290487 cyc1 BA=30.2% TPA=0.0% | LS 1803273086290487 cyc1 BA=13.0% TPA=0.0% |
+  LS 1283811993290487 cyc1 BA=8.4% TPA=0.0% | NE 75190472010538 cyc1 BA=4.8% TPA=9.2% | LS 54608351010661 BA=10.9%.
+⇒ CORRECTION: the needs_dig backlog contained REAL growth bugs, NOT only the self-thinning primitive. There is a
+genuine **LS growth-divergence class (~29 of the 43, aspen-HCOR did NOT cover it) + a few NE/CS** — an OPEN
+Pillar-4 frontier (my earlier "no unexplained divergence"/"campaign complete" was PREMATURE). Priority dig =
+LS 1831637837290487 (BA 30% at cycle-1, TPA bit-exact — a large pure growth divergence, likely another
+species-specific missing calibration like aspen). Candidates: docs/fia_real_growthdiv_candidates.csv (43); the
+full 43 need the cycle-1 pass to confirm the growth-bug subset. This is the real remaining Pillar-4 work — the
+backlog investigation's most important result.

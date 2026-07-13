@@ -7,3 +7,5 @@ LS,none,62261244010661,6,false,TPA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,
 LS,none,18502722010661,6,false,CCF|MCuFt|BdFt,CCF,1993,15.603,52.0,15.603,0.016,false,false,structure_densephase,52.0,0.0
 LS,none,18344045010661,6,false,CCF,CCF,1990,24.011,105.0,24.011,0.0,false,false,structure_densephase,105.0,0.0
 NE,none,166318995010661,needs_dig_growth_BA3.5pct
+LS,none,18656888010661,6,false,CCF,CCF,2003,22.097,81.0,22.097,0.0,false,false,structure_densephase,81.0,0.0
+LS,none,1831637837290487,growthbug_BA30pct_cyc1_TPAexact
