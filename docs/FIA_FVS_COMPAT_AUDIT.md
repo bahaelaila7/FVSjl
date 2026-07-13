@@ -4920,3 +4920,17 @@ where jl extrapolates fully (same family as the r9clark extreme-geometry domain 
 non-competing post-sweep): instrument FVS r9clark.f to dump COEFFS dbhIb/dib17/totHt + cfVol for a d=50 tree,
 compare to jl's _R9State — match ⇒ fpow/precision; mismatch ⇒ r9dia417/r9totHt or a domain clamp. Report-only,
 extreme (physically-impossible) geometry ⇒ negligible practical impact; kept OPEN (not padded) per doctrine #4.
+
+### 43ef — ★ r9clark residual DOES NOT EXIST (measurement-artifact self-correction); volume 2× = 100% cornered tie-break
+The "~10% r9clark taper residual" (43ee) was a MEASUREMENT ARTIFACT — apples-to-oranges. Both-sides re-measured:
+- jl r9clark_cubic pre-r9cor (R9INT @ r9clark_vol.jl:427): dbhOb=50.47 ⇒ cfVol=864.42.
+- live r9clark pre-r9cor (RCTRACE @ r9clark.f:227): dbhOb=50.47 ⇒ cfVol=864.46. → BIT-EXACT (0.005%).
+- The earlier "jl 950.9 vs live 864" compared jl's POST-r9cor (950.9) to live's PRE-r9cor (864). r9cor (applied at
+  r9clark.f:454, AFTER the :227 trace point) multiplies vol(1) by cf2. Confirmed cf2 MATCHES: FVS r9cor
+  else-branch (hardwoods incl. ash 544) cf2=1.1 == jl _r9_cor! else cf2=1.1f0. So live post-r9cor = 864×1.1 =
+  950.9 = jl. PER-TREE r9clark IS FULLY FAITHFUL (bit-exact pre-cor + identical cf2 correction).
+⇒ There is NO open r9clark taper residual. The LS-conifer volume 2× is ENTIRELY (100%) the compounded self-thin
+RDPSRT tie-break (survivor prob-redistribution, moment-preserving) — a SINGLE named CORNERED primitive, report-only.
+The volume lead is FULLY CLOSED as cornered, with NO remaining open item. META (doctrine #6): the debug-FVS trace
+point matters — RCTRACE at :227 was PRE-correction; always confirm the instrumentation captures the SAME pipeline
+stage on both sides. This retracts the 43ee "r9clark residual OPEN" — that divergence was never real.
