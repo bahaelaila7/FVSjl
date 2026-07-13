@@ -4630,3 +4630,17 @@ LS 1831637837290487 (BA 30% at cycle-1, TPA bit-exact — a large pure growth di
 species-specific missing calibration like aspen). Candidates: docs/fia_real_growthdiv_candidates.csv (43); the
 full 43 need the cycle-1 pass to confirm the growth-bug subset. This is the real remaining Pillar-4 work — the
 backlog investigation's most important result.
+
+## Slice 43dx — top LS growth bug CHARACTERIZED: sp071 (tamarack) small-tree DG over-growth (possible 43dn regression)
+First probe of LS 1831637837290487 (BA 30% @cyc1, TPA bit-exact): the stand is ALL species 071 (tamarack); jl
+OVER-grows its small-tree diameter 2-3× vs live (TreeId=10 DG 1.31 live/2.40 jl; TreeId=1071002 DG 0.41/1.24;
+DBH 0.54/1.42). OPPOSITE direction from aspen (which under-grew). ⚠ LIKELY CAUSE = a side-effect of the FIX #7
+LS HCOR calibration (43dn): before it LS had NO small-tree height calibration (con=1 all species); after it sp071
+gets con=exp(HCOR) — if jl's HCOR for sp071 is mis-computed (too high) vs live's, jl over-grows. The suite
+(38587/0/75) did NOT catch this — no tamarack small-tree scenario. So FIX #7 may have traded aspen under-growth
+for tamarack (and other LS species) OVER-growth, surfacing as the ~29 LS REAL growth-div stands. NEXT DIG
+(doctrine #6, aspen-style): instrument LS small_tree_growth.jl (DBGSTG) for sp071 — dump si/htg1/con/corS — and
+compare jl's HCOR to live's (ls/regent.f mode-40 debug); verify FIX #7's ls_balmod/ls_htcalc HCOR computation is
+faithful for sp071, not just aspen. If a 43dn over-correction, tighten the LS HCOR block; re-validate aspen stays
+fixed + tamarack matches + suite floor. VARIANT-SAFETY (doctrine #5): FIX #7 needs per-species validation, not
+just the one aspen stand. This is the priority Pillar-4 dig.
