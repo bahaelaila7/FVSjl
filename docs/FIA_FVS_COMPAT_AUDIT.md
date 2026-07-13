@@ -4551,3 +4551,11 @@ FULLY swept; LS ~43% and progressing. Report: docs/fia_pillar1_coverage.md, rege
 test/harness/fia/pillar1_coverage.py (deterministic, read-only). This makes Pillar-1's "documented, reproducible
 stratified sample, materially larger than 162" concrete and verifiable — the stratified sample IS the full
 population at maximum scale.
+
+## Slice 43dq — Pillar-4 done-state artifact: consolidated divergence taxonomy
+docs/fia_divergence_taxonomy.md — single-view index of every non-bit-exact class the sweep surfaced, both-sides-traced
+and FIXED or CORNERED: (A) 7 FVSjl bugs FIXED (floor held), (B) 4 ULP-class named primitives cornered (RDPSRT
+self-thinning tie-break, direct DGSCOR/volume-ULP, non-native cycle drift, COMPRESS eigensolver), (C) 4 FVS bugs
+FVSjl is correct on and doesn't replicate (D38 r9clark SIGFPE, CS essprt SIGFPE, NE VOLINIT extreme-height zeroing,
+shared SDI overflow), (D) faithful-but-extreme behaviours noted to avoid re-litigation. Makes Pillar-4's "documented
+divergence taxonomy; no unexplained divergence remains" concrete. New dig batches are triaged against this index.
