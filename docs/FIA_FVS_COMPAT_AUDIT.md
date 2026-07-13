@@ -4720,3 +4720,35 @@ small_tree_growth.jl:713/diameter_growth.jl:713 is too aggressive, or the age/in
 differs) so jl's EDH matches live ⇒ cornew matches ⇒ over-growth resolved. Impacts the ~29 LS growth-div stands.
 This is the fully-root-caused FIX #7 regression — the actual bug is in the shared ls_htcalc asymptote path, EXPOSED
 (not created) by FIX #7's calibration. Both-sides-traced end-to-end (8 levels).
+
+## Slice 43eb — ★★★ REAL FIX #8: LS REGENT calibration stale-HTGR carry (FVS uninitialized-var bug, ported)
+Root of the FIX-#7 tamarack over-growth regression, both-sides-traced to certainty via scratch-LS-build
+instrumentation of htcalc.f + regent.f (restored pristine, oracle untouched):
+
+FVS BUG: the LS/CS/NE regent.f small-tree HCOR **calibration** loop (mode 40, regent.f:449-523) calls
+HTCALC mode-9 (regent.f:479) to get each tree's predicted height increment. For a tree AT/ABOVE the species
+asymptote, htcalc.f:391 `IF(HTMAX-H.LE.1.) GO TO 900` returns WITHOUT setting the HTG1 output arg (label 900 =
+bare CONTINUE/RETURN, htcalc.f:421-427). So the caller's HTGR keeps the **previous calibration tree's**
+post-line-495 value — a stale/uninitialized carry (seeded HTGR=0.0 at regent.f:100, then propagated across ALL
+trees and species since the calibration loop never re-zeros it). The *growth* loop guards this with an explicit
+`HTGR=0.10` (regent.f:208); the *calibration* loop does not. Only bites species whose dbh<5 records exceed the
+species HTMAX — e.g. tamarack (sp071, HTMAX≈27.9ft@SI25) carries tall-skinny dbh<5 trees at H=28-34.
+
+jl was faithfully setting edh=0.1 (the "obviously correct" value) for those above-asymptote calibration trees,
+which HALVED SNX (523 vs live's ~1137) ⇒ cornew 8.888 vs live 4.09 ⇒ HCOR 2.18 vs 1.41 ⇒ tamarack small-tree DG
+2-3× too high ⇒ ultra-dense tamarack self-thinning over-kill.
+
+FIX (diameter_growth.jl LS block): reproduce the stale carry — `htgr_carry` seeded 0, updated for EVERY
+dbh<5,H>0.01 tree (post HTGR·GMOD·floor, before the measured-HTG filter at regent.f:503), and used in place of 0
+for above-asymptote trees. LS-gated (SN/NE/CS untouched). Validation:
+  * 1831637837290487 (all-tamarack): was 2-3× off ALL cycles ⇒ now BIT-EXACT-or-±1 vs live all 6 cycles×6 cols
+    (2044 self-thinning cliff TPA 440/440 bit-exact — growth matches ⇒ thinning matches).
+  * 1210955343290487: TPA bit-exact all cycles, residual BA/QMD ±2 = ULP class (resolved).
+  * aspen 1899610057290487 (FIX #7 target): BYTE-IDENTICAL with/without this change (stashed A/B test) ⇒ fix is
+    inert for aspen — its dbh<5 trees are all below HTMAX so the carry is never consumed, and the ht_growth<0.001
+    reorder only touches the carry, not aspen's SNX/SNY. Aspen's residual (BA 247/250, TPA-only divergence,
+    heights/QMD bit-exact) is the PRE-EXISTING self-thinning RDPSRT tie-break primitive, a separate cornered class.
+Remaining LS candidates (e.g. 366591155489998, ultra-dense 21602-TPA seedlings, BA-close/TPA-far/QMD-±rounding)
+have the ultra-dense self-thinning-tie-break signature, NOT the tamarack stale-carry — separate cornered class.
+NE/CS carry the SAME latent FVS calibration bug but no validated NE/CS stand hits an above-asymptote dbh<5 tree;
+left as-is (variant-safe), to port if a dig surfaces it.

@@ -700,18 +700,28 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         mb4 = sd[:balmod_b4]; mc1 = sd[:balmod_c1]; mc2 = sd[:balmod_c2]; bamax1 = sd[:balmod_bamax1]
         ba = bd_ba_hcor; rmsqd = rmsqd_bd_hcor; avh = s.plot.avg_height   # BACKDATED stand BA/QMD (ls/regent.f reads
         scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # the backdated DENSE stand; REGYR(10)/FINTH(default 5)
+        # FVS regent.f:100 HTGR=0.0 (subroutine entry). The calibration loop's mode-9 HTCALC (regent.f:479) does
+        # NOT reset HTGR for an at/above-asymptote tree: htcalc.f:391 `IF(HTMAX-H.LE.1.) GO TO 900` returns
+        # WITHOUT setting the HTG1 output arg (label 900 = bare RETURN), so HTGR keeps the PREVIOUS calibration
+        # tree's post-line-495 value. This is an FVS uninitialized-carry bug — the *growth* loop guards it with an
+        # explicit `HTGR=0.10` (regent.f:208) but the *calibration* loop does not. It only bites species whose
+        # small trees (dbh<5) exceed the species asymptote — e.g. tamarack (sp071, HTMAX≈27.9ft@SI25) carries tall
+        # skinny dbh<5 records at H=28-34. A faithful drop-in must reproduce the stale carry (setting htgr=0 here
+        # inflated cornew 8.888 vs live 4.09 ⇒ 2-3× DG over-growth). The carry propagates across trees AND species
+        # (HTGR is never re-zeroed inside DO 100), and is updated for EVERY dbh<5,H>0.01 tree — including
+        # measured-HTG=0 trees (regent.f:503 skips them from SNX/SNY only AFTER HTGR is computed at 495/498).
+        htgr_carry = 0f0
         @inbounds for sp in 1:MAXSP
             i1 = isct[sp, 1]; i1 == 0 && continue
             i2 = isct[sp, 2]; si = s.plot.sp_site_index[sp]
             snx = 0f0; sny = 0f0; nh = 0
             for k in i1:i2
                 i = ind1[k]
-                t.dbh[i] >= 5f0 && continue                       # large trees excluded
+                t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454, pre-HTCALC ⇒ no carry)
                 hstart = t.height[i] - t.ht_growth[i]            # start-of-period H for the filter (regent.f:453)
-                hstart < 0.01f0 && continue
-                t.ht_growth[i] < 0.001f0 && continue             # no measured height growth
-                if ls_htcalc_htmax(sp, si) - t.height[i] <= 1f0  # htcalc.f:388 asymptote guard ⇒ HTG1=0
-                    htgr = 0f0
+                hstart < 0.01f0 && continue                       # (regent.f:454, pre-HTCALC ⇒ no carry update)
+                if ls_htcalc_htmax(sp, si) - t.height[i] <= 1f0  # htcalc.f:391 asymptote guard ⇒ HTCALC leaves HTGR stale
+                    htgr = htgr_carry                             # STALE carry (FVS bug), NOT 0
                 else
                     aget = ls_htcalc_age(sp, si, t.height[i])    # HTCALC age/incr on the CURRENT height (regent.f:465)
                     htgr = ls_htcalc_incr(sp, si, aget)
@@ -719,8 +729,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 gmod = ls_balmod(sp, t.dbh[i], ba, rmsqd, check, mb1, mb2, mb3, mb4, mc1, mc2, bamax1)
                 relht = avh > 0f0 ? min(t.height[i] / avh, 1f0) : 0f0
                 gmod = 1f0 - (1f0 - gmod) * (1f0 - relht)
-                htgr = max(htgr * gmod, 0.1f0)
-                edh = max(htgr, 0.1f0)                            # ·RHCON=1
+                htgr = max(htgr * gmod, 0.1f0)                    # regent.f:495 (HTGR·GMOD) + 498 (floor 0.1)
+                htgr_carry = htgr                                 # FVS keeps HTGR for the next tree (the stale carry)
+                t.ht_growth[i] < 0.001f0 && continue              # no measured HTG (regent.f:503, AFTER HTGR ⇒ carry already set)
+                edh = htgr                                        # EDH = max(HTGR·RHCON,0.1) = htgr (regent.f:500-501)
                 snx += edh * t.tpa[i]
                 sny += t.ht_growth[i] * scale3 * t.tpa[i]        # TERM = HTG·SCALE3
                 nh += 1
