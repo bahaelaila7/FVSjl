@@ -77,3 +77,16 @@ single sort from record-order/identity. jl-side AVHT40_DBG dump on 1410665302000
 as the boundary (above). Live avht40.f WRITE guarded ICYC≤1 did not fire (AVHT40 runs during cratet before the
 cycle counter; not needed once the jl-side dump + source path made the tie-break conclusive). FVS source restored
 pristine, oracle untouched.
+
+### Dig-queue triage snapshot (43ec, sweep @ ~262k) — all known classes
+The live dig-queue (17 entries) is fully classified, no unexplained pattern:
+- `18xxxxx010661` cluster (CCF-only or CCF+volume, ~15-24%) = forest-924 elevation ⇒ FIX #9-resolved. Verified on
+  18447951010661: post-fix, 10-col cols bit-exact in early cycles (incl volume TCuFt/MCuFt/SCuFt/BdFt), residual
+  only ~2-3% in later cycles (2010+) tracking a ±1-2 structural ULP/tie-break — NOT a separate volume bug.
+- multi-col ultra-dense (224645781010661, 62261244010661, 9426842020004, 24089675010661; all/most 10 cols, high
+  rel%) = self-thinning RDPSRT tie-break primitive (cornered).
+- 55250794010661 (81%, TopHt) = AVHT40 RDPSRT tie-break primitive (cornered).
+- 166318995010661 (NE, empty div_cols) = NE AVHT40 TopHt tie-break (cornered).
+- 1831637837290487 (LS, empty div_cols) = tamarack, FIX #8-resolved (STALE queue entry).
+STALE entries (FIX #8/#9-resolved) to be purged at the DIGCAP triage; the sweep picks up both fixes on fresh
+batch-cycles so forward flags won't repeat them.
