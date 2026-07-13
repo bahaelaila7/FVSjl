@@ -90,3 +90,7 @@ The live dig-queue (17 entries) is fully classified, no unexplained pattern:
 - 1831637837290487 (LS, empty div_cols) = tamarack, FIX #8-resolved (STALE queue entry).
 STALE entries (FIX #8/#9-resolved) to be purged at the DIGCAP triage; the sweep picks up both fixes on fresh
 batch-cycles so forward flags won't repeat them.
+
+  (verified 43ec: 9426842020004 cyc0 TopHt 64/62 ±2 TPA/BA bit-exact ⇒ AVHT40 tie-break cornered;
+   24089675010661 cyc0 BIT-EXACT TopHt64/TPA1396/BA160 ⇒ self-thin later-cycle cornered. Both NOT new bugs.)
+Dig-queue FULLY triaged — every entry FIX-#8/#9-resolved or a named cornered primitive; no unexplained divergence.
