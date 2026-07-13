@@ -1,0 +1,25 @@
+# Pillar-1 — full-population stratification coverage (SN/NE/CS/LS)
+
+Auto-generated from SQLITE_FIADB_ENTIRE.db (read-only). The FIA/FVS-compat sweep covers the ENTIRE
+per-variant population below (vs the 162-stand modernization baseline), spanning every stratum present.
+
+## SN — 637641 stands (full population)
+- forest types: 95 distinct | ecoregions: 227 distinct
+- age class: 1_seedsap=100720(15%) 2_pole=98219(15%) 3_smallsaw=146311(22%) 4_largesaw=35068(5%) 5_oldgrowth=1145(0%) unknown=256178(40%)
+- site class: hi=46165(7%) lo=813(0%) med=11305(1%) unknown=488061(76%) vhi=91297(14%)
+
+## NE — 178149 stands (full population)
+- forest types: 85 distinct | ecoregions: 117 distinct
+- age class: 1_seedsap=9674(5%) 2_pole=12055(6%) 3_smallsaw=49971(28%) 4_largesaw=27305(15%) 5_oldgrowth=1895(1%) unknown=77249(43%)
+- site class: hi=26441(14%) lo=4166(2%) med=20303(11%) unknown=114200(64%) vhi=13039(7%)
+
+## CS — 255952 stands (full population)
+- forest types: 69 distinct | ecoregions: 103 distinct
+- age class: 1_seedsap=3770(1%) 2_pole=7861(3%) 3_smallsaw=27256(10%) 4_largesaw=9580(3%) 5_oldgrowth=879(0%) unknown=206606(80%)
+- site class: hi=12608(4%) lo=1353(0%) med=8717(3%) unknown=225394(88%) vhi=7880(3%)
+
+## LS — 400649 stands (full population)
+- forest types: 74 distinct | ecoregions: 99 distinct
+- age class: 1_seedsap=21057(5%) 2_pole=26880(6%) 3_smallsaw=79071(19%) 4_largesaw=29065(7%) 5_oldgrowth=4433(1%) unknown=240143(59%)
+- site class: hi=42398(10%) lo=8212(2%) med=32846(8%) unknown=300419(74%) vhi=16774(4%)
+
