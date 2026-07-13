@@ -4821,3 +4821,19 @@ conifers (red pine sp125 / white spruce sp94) — cubic drives it (TCuFt +49%), 
 DECISIVE NEXT STEP (focused/non-competing window): dump per-tree cubic volume (jl vs live FVS_TreeList) for a large
 red pine at cycle 2046; localize whether it's the Clark taper/profile integration, a form-class, or a large-DBH
 domain boundary. Then both-sides-trace r9clark_fvsMod.f vs r9clark_vol.jl. Flagged REAL/open (not cornered).
+
+### 43ed cont2 — LS conifer volume lead LOCALIZED to r9clark extreme-geometry (== the open NE r9clark domain item)
+Instrumented jl compute_volumes_ne! (r9clark_vol.jl, restored clean). The divergent red pines (fia=125) at
+cycle 2046+ have DBH≈37" and HEIGHT 131-322 ft — physically absurd but STRUCTURALLY BIT-EXACT vs live
+(diff_one 499580541126144: TopHt 144/144→210/209, QMD 17.6/17.6→29.7/29.7 all cycles). So jl and live carry the
+IDENTICAL extreme-geometry trees (faithful/bit-exact height growth — same as the r9clark domain-gap memo's
+"TopHt 295ft/QMD20, 351ft seedlings"). jl's r9clark_cubic returns geometry-consistent cuft (37"×322ft ⇒ tcf≈901,
+≈0.4·BA·H). The .sum divergence is PURELY the volume equation on these identical extreme trees: jl ~2× live.
+⇒ This is the SAME class as the OPEN [[fvsjl-ne-r9clark-domain-gap]] item — r9clark_vol.jl was validated only on
+MODERATE cycle-0 trees (<1%, per its own header), never extreme height:diameter. Two candidate verdicts (as in the
+NE case): (a) jl over-extrapolates the Clark taper where live's NVEL limits/zeroes out-of-domain ⇒ jl-side FIXABLE
+port gap; (b) live computes the same per-tree but its summary/vollib loses half ⇒ FVS bug, jl correct (the NE
+stand's RESOLVED verdict). DECISIVE: instrument FVS r9clark_fvsMod.f (RCTRACE per-tree cfVol, as in the NE dig) on
+a 37"×322ft red pine — if live per-tree ≈ jl 901 ⇒ FVS summary bug (corner); if ≈ 450 ⇒ jl over-extrapolates (fix
+the domain limit). Deferred to the focused r9clark window. Report-only (structural/growth bit-exact). This folds
+the "LS conifer volume" lead INTO the existing open r9clark extreme-geometry item rather than a separate new bug.
