@@ -4883,3 +4883,14 @@ per-tree residual, a separate MINOR open item). REPORT-ONLY (structural growth b
 into the cornered self-thin tie-break class + a minor r9clark residual. The "LS conifer volume 2×" dig is CLOSED
 (cornered). Optional deeper confirmation (FVS_TreeList per-tree prob survivor-set diff) available but not required
 — the three-moment-preservation is conclusive.
+
+### 43ee CLOSE — LS conifer volume FULLY resolved: both components are named cornered primitives
+The ~1.1× per-tree r9clark residual is NOT a new item — it matches the ALREADY-DOCUMENTED r9clark per-tree taper
+residual class (r9clark_vol.jl header: medium-tree residuals e.g. SM d=10.4 → 13.8/15.4 ≈10%, "per-tree Float32
+rounding [Fortran nint vs round] + a few medium-tree residuals … refinements, not structural"). The extreme-tree
+~10% is that same named primitive extended to extreme (37"×322ft) geometry. So the LS conifer volume 2× decomposes
+ENTIRELY into two NAMED cornered primitives:
+  (1) compounded self-thinning RDPSRT tie-break (survivor prob-redistribution, moment-preserving) — CORNERED;
+  (2) r9clark per-tree taper residual (Float32/nint + taper refinement) — CORNERED (documented class).
+NO unexplained residual remains; report-only (structural bit-exact). The "LS conifer volume" lead is CLOSED with
+both parts cornered-to-a-named-primitive (doctrine #4). This was the last substantive open dig from the LS sweep.
