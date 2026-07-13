@@ -4513,3 +4513,20 @@ volume being computed; jl does NOT replicate the FVS bug (like the D38/essprt cr
 jl needs NO change. The exact FVS loss-location (vollib09.f vs the summary array accumulation) is an optional
 further refinement, not required to corner. Recorded in docs/FVS_SOURCE_BUGS.md. META-LESSON (again): MEASURE —
 instrumentation reversed a plausible-but-wrong "jl gap" verdict that reasoning alone (2 prior commits) had backed.
+
+### 43do — exact FVS loss-location PINNED to the VOLINIT (NVEL library) layer
+Two-layer FVS instrumentation (r9clark.f then fvsvol.f, both restored pristine + oracle untouched):
+(1) r9clark.f: for the 2053/2063 big trees (D 20-24", H 258-300 ft) cfVol = 172-257 cuft/tree, errFlg=0 at all
+gates — r9clark computes correct volume.
+(2) fvsvol.f (the FVS-side driver): the SAME trees come back with **TCF=0.0** (TVOL1=0, BFPFLG=1). Since BFPFLG=1
+the board-foot re-computation block (fvsvol.f:362 `IF(BFPFLG.EQ.0 .AND. D.GE.BFMIND)`) is SKIPPED, so TVOL(1)
+is left = the FIRST (cubic) VOLINIT result — which is already 0. So **VOLINIT (VOLINITNVB → volinit.f/vollib09.f,
+the NVEL library) returns TVOL(1)=0 to fvsvol for these tall trees even though its own r9clark sub-call computed
+213** — VOLINIT applies a finalization/validation zeroing for the extreme height:diameter geometry that r9clark's
+internal errFlg gates (all 0) do NOT trip. Both cubic AND board are 0 at 2053 (.sum BdFt=0 too) ⇒ VOLINIT
+discards the whole volume for the tree. LOSS-LOCATION = VOLINIT/NVEL library (not r9clark, not the summary, not
+fvsvol's TVOL1/BFPFLG logic). The only un-pinned micro-detail is the exact NVEL internal line that zeroes; low
+value (an NVEL-library reasonableness check) since FVSjl is already correct.
+CORNER (unchanged, now fully both-sides-traced): FVS-bug — NVEL VOLINIT zeroes tree volume for extreme-height
+trees despite the Clark taper computing it; FVSjl's r9clark_cubic (no VOLINIT wrapper) reports the correct
+nonzero volume ⇒ FVSjl is the faithful side, does NOT replicate the FVS bug. FVS_SOURCE_BUGS.md updated.
