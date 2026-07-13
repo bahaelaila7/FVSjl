@@ -4855,3 +4855,17 @@ primitive manifesting in volume (would be CORNERED), OR a prob/record-count bug 
 per-tree (d, prob, cuft) at cycle 2066 for jl AND live (FVS_TreeList) and diff the Σ — localize the prob/survivor
 delta. This CORRECTS the earlier "r9clark extreme-geometry" framing: the equation is fine; it's aggregation.
 Report-only (structural bit-exact). The ~10% per-tree r9clark residual on extreme trees is a separate minor item.
+
+### 43ee cont — LS conifer volume 2× RESOLVED to survivor-distribution (likely compounded self-thin tie-break)
+jl per-cycle VOLAGG (instrumented, restored): Σ(cuft·tpa) == jl .sum EXACTLY (2066: 15590), ΣTPA==.sum TPA (42.9)
+⇒ jl aggregation internally consistent, NO record-doubling. So with (a) per-tree r9clark faithful (~10%),
+(b) TPA/BA/QMD ALL bit-exact (⇒ mean-d² identical), (c) volume 2× — the only degree of freedom left is the
+SURVIVOR SIZE-DISTRIBUTION SHAPE: jl carries more prob in the large-tree tail (same mean-d², more spread), and
+volume ∝ d^~2.5 amplifies the tail. Mechanism = which trees survive self-thinning — masked in the linear moments
+(TPA=Σprob, BA=Σd²prob, QMD) but exposed in the nonlinear volume, COMPOUNDED over 5 cycles into 2×. This is the
+signature of the accepted self-thinning RDPSRT tie-break primitive (which-trees-die), not the r9clark equation and
+not a prob/record bug. LIKELY CORNERED (compounded tie-break), report-only. CONFIRM (don't auto-corner): diff the
+per-tree (d, prob) survivor sets jl vs live at 2066 — SIMILAR-SIZE swaps ⇒ tie-break/cornered; a SYSTEMATIC
+large-tree mortality skew ⇒ real mortality bug. Separate minor open item: the ~10% per-tree r9clark residual on
+extreme (37"×322ft) trees. Net: the "LS conifer volume" lead is NOT a new equation bug — it's the compounded
+self-thin tie-break (pending the survivor-set confirmation) + a small r9clark extreme-geometry residual.
