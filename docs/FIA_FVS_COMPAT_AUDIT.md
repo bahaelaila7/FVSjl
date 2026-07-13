@@ -4934,3 +4934,12 @@ RDPSRT tie-break (survivor prob-redistribution, moment-preserving) — a SINGLE 
 The volume lead is FULLY CLOSED as cornered, with NO remaining open item. META (doctrine #6): the debug-FVS trace
 point matters — RCTRACE at :227 was PRE-correction; always confirm the instrumentation captures the SAME pipeline
 stage on both sides. This retracts the 43ee "r9clark residual OPEN" — that divergence was never real.
+
+### 43ef — stale forest-924 CCF dig entries CONFIRMED FIX-#9-resolved (capstone reconciliation prep)
+Validated (doctrine #2, not inferred) that the pre-FIX-#9 CCF-flagged forest-924-cluster stands are resolved by
+FIX #9: 18807639010661 CCF now bit-exact early (274/274, 317/317, 88/88, 128/128; residual ±1 @2032+ = self-thin
+tie-break); 18344045010661 CCF bit-exact early (63/63, 354/354, 205/205; residual = AVHT40 TopHt tie-break @2010
+54/60 + self-thin, both cornered). Plus the exemplars already validated: 18447951010661 (FIX #9), 1831637837290487
+(FIX #8 tamarack). ⇒ the stale FIX-#8/#9 dig-queue entries (18xxxxx010661 CCF cluster + tamarack) are genuinely
+resolved; at LS-sweep completion they are purged/reclassified in the ledger. Residuals are all cornered tie-break
+classes. This is the capstone reconciliation confirmed on samples.
