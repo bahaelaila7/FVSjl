@@ -4493,3 +4493,23 @@ zeroing path is UNCONFIRMED. Correct next step (doctrine #6): instrument r9clark
 to capture live's per-tree vol(1)+errFlg+heights for stand 207147469020004 @2053, THEN replicate. Verdict
 direction (jl-side gap: jl computes vol where live reports 0) stands; the precise mechanism + fix are deferred to
 a measured slice. NOT cornered, NOT guessed. [[fvsjl-ne-r9clark-domain-gap]]
+
+### 43do RESOLVED — VERDICT REVERSED via FVS instrumentation: FVS summary bug, jl is CORRECT (not a jl port gap)
+Instrumented volume/r9clark.f (build-dir copy) with 4 RCTRACE prints — one at each errFlg gate (r9Prep / r9dia417
+/ r9totHt / r9cuft) guarded by dbhOb>20 — recompiled r9clark.o (gfortran 12.2.0: OK, r9clark USES but does not
+DEFINE modules, so no .mod ABI break — the D38-era "r9clark blocked" note was about DEFINING .mod), relinked a
+SCRATCH binary /tmp/FVSne_dbg (NOT the oracle), ran stand 207147469020004, then RESTORED r9clark.f + r9clark.o and
+verified the build dir pristine (oracle /tmp/FVSne_new untouched).
+RESULT for the 2053/2063 big trees (dbhOb 21-24, htTot 258-300 ft): errFlg=0 at ALL four gates, and
+**P4cuft cfVol = 172-257 cuft/tree with errFlg=0** — r9clark RETURNS NONZERO per-tree cubic volume. P1 also shows
+ht1Prd=ht2Prd=upsHt1=0 (total-height-only call) ⇒ the :549 height-ordering checks cannot fire (as the f904b68
+correction suspected). In the SAME run the l.sum 2053/2063 rows show ALL volume columns = 0.
+⇒ **live r9clark computes correct nonzero per-tree volume; it is LOST downstream (vollib09 driver / summary
+accumulation) — an FVS SUMMARY-level bug, NOT r9clark and NOT a jl port gap.** jl's 15284 (= the per-tree sum)
+is the CORRECT/faithful side. This REVERSES the 111fbaa/f904b68 "jl port gap" verdict.
+CORNER: **FVS-bug** (named primitive per doctrine #4) — NE .sum total/merch volume is dropped to 0 at cycles where
+the stand carries extreme-height trees (this stand's NC-128 height model yields TopHt 258-295 ft), despite per-tree
+volume being computed; jl does NOT replicate the FVS bug (like the D38/essprt crashes jl doesn't reproduce).
+jl needs NO change. The exact FVS loss-location (vollib09.f vs the summary array accumulation) is an optional
+further refinement, not required to corner. Recorded in docs/FVS_SOURCE_BUGS.md. META-LESSON (again): MEASURE —
+instrumentation reversed a plausible-but-wrong "jl gap" verdict that reasoning alone (2 prior commits) had backed.

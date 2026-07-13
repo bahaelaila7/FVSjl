@@ -286,3 +286,20 @@ The directive ("fix live FVS for maintainer submission; never tolerate as live_c
 validated working fix + source-guard proposal for submission — not tolerated. Affected sample stands (thinbba):
 1910906629290487, 488847180126144, 224864192010661 (+ likely more; the 3-stand sample is not exhaustive). All test
 binaries removed; build-dir .o untouched (compiled only to scratch).
+
+## NE summary volume dropped to 0 at extreme-height cycles (FVSjl reproduces the CORRECT nonzero volume)
+Found via the FIA-compat sweep (audit 43do), NE stand 207147469020004 (dense regen, 900 TPA seedlings → sawtimber).
+The NE .sum reports **0 for ALL volume columns (TCuFt/MCuFt/SCuFt/BdFt) at 2053 and 2063** while the stand carries
+135→92 TPA at QMD 16→20 (structure — TPA/BA/SDI/CCF/TopHt/QMD — is bit-exact vs FVSjl every cycle). Volume is
+bit-exact 2013-2043, then drops to 0 from 2053 on.
+ROOT (proven by instrumenting r9clark.f on a scratch NE build; source restored + oracle pristine): live's
+r9clark COMPUTES CORRECT NONZERO per-tree cubic volume for these trees — RCTRACE at the r9cuft gate shows
+cfVol = 172-257 cuft/tree with errFlg=0 at all four internal gates (r9Prep/r9dia417/r9totHt/r9cuft). So the
+volume is LOST DOWNSTREAM of r9clark (the vollib09 driver or the summary accumulation), NOT in the Clark taper
+model. The trigger correlates with extreme tree heights: this stand's NC-128 NE height model yields TopHt 258 ft
+(2053) / 295 ft (2063) — 22" trees at ~293 ft, even 0.7" seedlings at ~351 ft (FVSjl reproduces these heights
+BIT-EXACTLY, so the height behaviour itself is faithful, not the bug). FVSjl sums the per-tree volumes correctly
+(15284 TCuFt @2053) — i.e. FVSjl reports what the .sum SHOULD show; it does NOT replicate this FVS summary bug.
+STATUS: cornered as FVS-bug in the FIA-compat campaign (FVSjl is the correct side; no FVSjl change). Exact FVS
+loss-location (vollib09.f vs sumout/summary array) not yet pinned — needs a second instrumentation pass on the
+driver/summary; low priority since FVSjl is already correct. Repro: run NE stand 207147469020004 to cycle 2053.
