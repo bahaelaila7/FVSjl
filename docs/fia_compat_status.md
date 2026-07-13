@@ -17,7 +17,7 @@ Stratified sample (`.sweep_work/pillar2_sample_results.txt`): **NE 12/12, CS 12/
 bit-exact, all residuals = named ULP/volume primitives (see Pillar 4). Fidelity is stratum-UNIFORM (no forest-type/
 site/age/geography model gap). Full-scale: the running sweep validates the entire population per variant; growing
 stands are 100% bit-exact-or-cornered (~28% pure-bit-exact + DGSCOR/RDPSRT-cornered remainder). SN/NE/CS complete;
-**LS resumed 2026-07-13 and at ~86% (344k/400,649)**, durable coverage **99.99% bit-exact-or-cornered** (last
+**LS COMPLETE 2026-07-13 (400,649/400,649, ALL_VARIANTS_EXHAUSTED)**, durable coverage **99.99% bit-exact-or-cornered** (last
 sampled: 152,996 bit_exact + 61,704 ulp_class + 18 needs_dig + 13 live_crash; recent batches ~98-99% pure-bit-exact)
 → completion at ALL_VARIANTS_EXHAUSTED. Session 43ea-43ee fixed 2 more real bugs found by digging real FIA stands
 (FIX #8 LS REGENT stale-HTGR / tamarack; FIX #9 LS forkod IFOR-9 elevation / CCF) and resolved the LS-conifer

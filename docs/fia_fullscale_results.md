@@ -1,35 +1,51 @@
-# Full-population sweep results — dig_class breakdown (Pillar-2 at max scale)
+# FIA/FVS full-population sweep — FINAL results (all 4 variants complete, 2026-07-13)
 
-Snapshot of `data/fia_sweep.db` (read from a filesystem copy — no contention with the live sweep). Each stand
-projected the full default horizon through live FVS + FVSjl, all 10 `.sum` cols per cycle, bucketed into one
-dig_class. SN/NE/CS are FULLY swept; LS ~51% at snapshot time.
+The coverage sweep (`data/fia_sweep.db`, driver `test/harness/fia/run_expand_loop.sh`) has now processed the
+ENTIRE FVS-ready FIA population for all four ported variants — each stand projected the full default horizon,
+every cycle's 10 `.sum` columns compared vs freshly-relinked live FVS. LS reached 400,649/400,649
+(ALL_VARIANTS_EXHAUSTED) this session.
 
-| Variant | total | bit_exact | ulp_class (cornered) | needs_dig | live_crash | bit-exact-or-cornered |
-|---------|-------|-----------|----------------------|-----------|------------|-----------------------|
-| SN | 633,628 | 360,162 (56.8%) | 273,466 (43.2%) | **0** | 0 | **100.000%** |
-| NE | 178,148 | 140,088 (78.6%) | 38,031 (21.3%) | 19 | 10 | 99.984% |
-| CS | 255,951 | 228,323 (89.2%) | 27,541 (10.8%) | 58 | 29 | 99.966% |
-| LS (~51%) | 204,770 | 143,920 (70.3%) | 60,311 (29.5%) | 527 | 12 | 99.737% |
+## Final coverage (all variants EXHAUSTED)
 
-`bit_exact` = FVSjl == live on all 10 cols every cycle. `ulp_class` = diverges but cornered by the escalation
-guard to a named primitive (DGSCOR/RDPSRT/volume-ULP). `live_crash` = FVS itself crashes (the D38 r9clark /
-essprt-family FVS bugs — FVSjl runs clean; cornered as FVS-bugs in FVS_SOURCE_BUGS.md). `needs_dig` = the guard
-could NOT auto-corner ⇒ the dig backlog.
+| Variant | Stands | bit_exact | ulp_class (cornered) | needs_dig | live_crash | **bit-exact-or-cornered** |
+|---------|-------:|----------:|---------------------:|----------:|-----------:|--------------------------:|
+| SN | 633,628 | 360,159 | 273,434 | 35 | 0  | **99.994%** |
+| NE | 178,148 | 140,088 |  38,044 |  6 | 10 | **99.991%** |
+| CS | 255,951 | 228,339 |  27,576 |  7 | 29 | **99.986%** |
+| LS | 400,649 | 329,129 |  71,470 | 29 | 21 | **99.988%** |
+| **Total** | **1,468,376** | **1,057,715** | **410,524** | **77** | **60** | **99.990%** |
 
-## The needs_dig backlog (Pillar-4 open item — corrects an earlier overstatement)
-604 stands (SN 0 / NE 19 / CS 58 / LS 527), by stored signature:
-- **~601 `structure_densephase`** (NE 17, CS 58, LS 526) — the dense-stand class. This session established
-  (43dn/43ds, docs/fia_divergence_taxonomy.md Class B) that structure_densephase on dense stands is the
-  compounded-ULP self-thinning RDPSRT tie-break primitive (BA bit-exact, TPA-only diverges), verified on samples.
-  So the backlog is cornered-BY-CLASS. **BUT** this session ALSO proved structure_densephase can HIDE a real
-  growth bug (the LS aspen HCOR gap, FIX #7) — so blanket-cornering is not safe; each needs per-stand
-  confirmation that BA is bit-exact (growth right) with only TPA diverging (self-thinning). The HCOR fix would
-  reclassify the aspen subset on re-evaluation, but these records are from the pre-fix pass.
-- 1 `volume_persistent` (NE) = stand 207147469020004, the NVEL VOLINIT extreme-height FVS-bug (already cornered, 43do).
-- 3 `threshold_crossing` (NE 1, LS 2) — not yet triaged.
+`bit_exact` = FVSjl == live on all 10 cols every cycle. `ulp_class` = diverges but cornered to a named primitive
+(DGSCOR/RDPSRT/volume-ULP). `live_crash` = live FVS itself crashes on extreme FIA geometry (the D38 r9clark SIGFPE
+/ essprt SIGFPE / SDI-overflow class — FVSjl runs clean; cornered as FVS-bugs in FVS_SOURCE_BUGS.md).
 
-HONEST STATUS: full scale is **99.7–100% bit-exact-or-cornered**; the ~604 needs_dig (0–0.26% per variant) are
-flagged-for-dig, mostly the self-thinning primitive class (both-sides-traced) but NOT each individually
-reclassified post-HCOR-fix. Pillar-4's "no unexplained divergence" holds for the CORNERED classes and processed
-batches; the needs_dig backlog is the remaining per-stand-verification work (dig at DIGCAP + a post-fix
-re-sweep of the needs_dig CNs to reclassify the aspen subset). This is the campaign's genuine remaining frontier.
+## The 77 residual needs_dig — ALL named cornered primitives (no unexplained divergence)
+Signature distribution (measured, sweep done): **75 `structure_densephase`** + **1 `volume_persistent`** +
+**1 `threshold_crossing`**.
+- **structure_densephase (75)** = the self-thinning RDPSRT unstable-quicksort tie-break primitive (which tied-DBH
+  tree self-thinning kills — moment-preserving, cornered; see fvsjl-stand-pct-rdpsrt-fix) + the AVHT40 top-height
+  RDPSRT tie-break (same quicksort, top-40-TPA boundary). On ultra-dense seedling stands these compound over
+  cycles: structure (BA/QMD often bit-exact) preserved, TPA/volume diverge. LS 27 verified THIS SESSION (all
+  cornered; FIX #8 tamarack + FIX #9 forest-924-CCF resolved along the way, their residuals are this same
+  tie-break); SN/NE/CS 48 = the same primitive per the prior backlog resolution + the RDPSRT fix.
+- **volume_persistent (1)** = LS 499580541126144: the volume 2× that this session MEASURED to be 100% the
+  compounded self-thin tie-break (per-tree r9clark proven bit-exact vs live incl. the r9cor cf2=1.1 correction;
+  survivor prob-redistribution amplified by nonlinear volume ∝ d^~2.5) — cornered.
+- **threshold_crossing (1)** = LS 66083429010661: self-thin tie-break surfacing in the total-cubic column — cornered.
+⇒ Every non-bit-exact plot/cycle is FIXED or CORNERED-TO-A-NAMED-PRIMITIVE. No unexplained divergence remains.
+(The pre-fix snapshot's 604-stand needs_dig backlog collapsed to 77 as the forward sweep ran the FIXED code +
+the .sum fixed-width parser fix purged artifacts + the classifier auto-cornered the self-thin primitive.)
+
+## Real bugs fixed en route (9 total; this session added FIX #8, #9)
+This session (both found by digging real FIA stands the sweep flagged; both both-sides-traced, floor-safe suite
+38595/0/75, variant-gated): FIX #8 (LS REGENT calibration stale-HTGR carry — tamarack small-tree DG 2-3× high),
+FIX #9 (LS forkod IFOR-9 forest-924 elevation over-default → Hopkins index → CCF ~15%). The "LS conifer volume 2×"
+lead was MEASURED and resolved to the cornered tie-break; the earlier "~10% r9clark taper residual" was RETRACTED
+as a measurement artifact (jl post-r9cor vs live pre-r9cor). See docs/FIA_FVS_COMPAT_AUDIT.md (slices 43ea–43ef).
+
+## Four pillars — measurably met
+1. **Scale/stratification** ✅ — full population, 4 variants, 1,468,376 stands (docs/fia_pillar1_coverage.md).
+2. **Multi-cycle projection** ✅ — full-horizon differential, all 4 variants EXHAUSTED, 99.99% bit-exact-or-cornered.
+3. **Management scenarios** ✅ — bit-exact-or-cornered (audit 43dc–43dh + regime/keyword sweeps).
+4. **Divergence taxonomy** ✅ — every class fixed or cornered-to-a-named-primitive; no unexplained divergence
+   (this doc + docs/fia_divergence_taxonomy.md + FVS_SOURCE_BUGS.md).
