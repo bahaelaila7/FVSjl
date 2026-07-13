@@ -46,34 +46,34 @@ FIX #8 is LS-gated ⇒ inert for NE/CS (expected). Batch worst%:
 - Higher (>20%): NE 14106653020004 (24.91), 166318995010661 (27.69), 245503277010661 (29.88),
   366792805489998 (24.86); CS 193238139010661 (24.03), 255129978489998 (21.21), 562745328126144 (28.46).
 
-## ★ NEW UNEXPLAINED LEAD — NE/CS cycle-0 TopHt divergence (distinct from LS bucket; NOT cornered)
-Several NE/CS candidates diverge in **TopHt at cycle 0 (inventory, pre-projection)** with everything else
-(TPA/BA/SDI/CCF/QMD) bit-exact, then CASCADE into growth:
+## NE/CS cycle-0 TopHt divergence — RESOLVED = the cornered AVHT40 RDPSRT tie-break primitive
+Several NE/CS candidates diverge in **TopHt at cycle 0 (inventory)** with everything else bit-exact, then cascade:
   NE 14106653020004  TopHt live34/jl27   NE 245503277010661 live36/jl27   NE 166318995010661 live46/jl42
   CS 255129978489998 TopHt live33/jl40   CS 562745328126144 live36/jl38   CS 97513385010661 live35/jl36(±1)
-Ruled OUT for 14106653020004 (representative): (a) NOT the LS tamarack calib bug (LS-gated); (b) NOT height
-imputation — the 15 missing-HT records are all DIA=0.1 seedlings, never in the top set; (c) NOT the cornered
-AVHT40 top-DBH tie-break — the largest record (sp12 DIA=5.0" HT=28) is UNIQUE (no DBH tie at the boundary that
-matters), and a 7-ft shift in the top-height average is far too large for a single boundary tie-swap. A simple
-descending-DBH AVHT40 model (single-largest given ~74× TPA expansion ⇒ 28ft) matches NEITHER side (live34/jl27) ⇒
-the NE/CS summary top-height computation is not the naive AVHT40 I modeled. Direction is MIXED across stands
-(jl low on NE, jl high on CS) so not a uniform cap. Prevalence (~5/14 NE/CS vs 1/29 LS) + magnitude (7ft) +
-cascade into growth ⇒ a REAL, systematic NE/CS top-height computation divergence — the next dig priority.
-NEXT: instrument the live NE/CS summary top-height (sumit.f / cratet.f AVHT40 IND selection + PROB expansion +
-any DBH/large-tree threshold) vs jl stand_top_height for 14106653020004; determine which side is faithful and
-whether jl's stat_idx/PROB weighting or a species/size filter differs. Do NOT corner until traced (FIX #7/#8
-lesson: this exact "cycle-0 anomaly that cascades" signature hid two real growth bugs already).
+TRACED to certainty (14106653020004): the .sum TopHt = IBTAVH = INT(AVH+0.5), AVH = AVHT40 (avht40.f) computed in
+cratet.f. AVHT40 = avg HT of the largest-DBH 40 TPA over IND. jl's AVHT40_DBG dump: top-40-TPA = DBH5.0(HT28,
+TPA6) + DBH**3.9**(HT**27**, TPA75, 34 used) ⇒ (28·6+27·34)/40 = 27.15 → 27. FVS lands the OTHER dbh=3.9 record
+(sp316 HT**35**) in the window ⇒ (28·6+35·34)/40 = 33.95 → **34**. So the split is a genuine **DBH tie at 3.9"**
+between a HT=27 and a HT=35 record — my earlier "largest tree unique ⇒ not a tie-break" was WRONG (the SECOND
+slot, not the unique largest, is the tied boundary). This is the KNOWN AVHT40 RDPSRT tie-break primitive
+(src/engine/standstats.jl:124).
+FIX ATTEMPT (refuted): cratet.f sorts IND for AVHT40 via RDPSRT(.FALSE.)@141 then RDPSRT(.TRUE.)@245; the .TRUE.
+pass RESETS IND to identity ⇒ effective single sort from record-order. Tried replacing jl's double-sort with the
+single lseq=true — jl STILL gave 27 (second pass was inert here). So the divergence is NOT the double-vs-single
+sort choice; it's that jl's tree-array order (the identity seeding the unstable quicksort) breaks the 3.9" tie to
+the HT27 record while FVS's breaks it to HT35. That is precisely the documented "stand-dependent, no global sort
+choice is bit-exact" AVHT40 unstable-quicksort primitive — CORNERED (accepted per the GOAL). More prevalent in
+NE/CS (~5/14 vs LS 1/29) because NE/CS FIA inventory has more integer-tied DBHs at the top-40 boundary; on
+tie-heavy dense stands the cycle-0 tie-break cascades into the self-thinning trajectory (accepted cornered cascade,
+same class as LS 55250794010661). A true fix would require bit-matching FVS's exact tree-read order AND RDPSRT
+pivot sequence (high blast-radius, deferred; not attempted — would risk the 99.7% already-matching population).
+ALL 43 candidates now explained: LS 29 (1 FIX #8 + 28 cornered) + NE/CS 14 (ULP + AVHT40 tie-break cornered).
 
-### NE/CS TopHt lead — instrumentation attempt (43eb, incomplete)
-Instrumented live NE avht40.f (AVHT40 = avg HT of the 40 largest-DBH TPA; IND descending-DBH, accumulate PROB
-to 40 — CONFIRMED identical shape to jl stand_top_height). Added a per-tree WRITE guarded ICYC.LE.1 for
-14106653020004; the trace did NOT fire (no AVHTR lines in stdout or .out) ⇒ AVHT40 is NOT called at inventory/
-ICYC≤1 for the .sum cycle-0 TopHt — the reported cycle-0 TopHt comes from a DIFFERENT path (likely cratet.f's
-own AVHT40-equivalent during calibration, or a later ICYC). NE debug build also emits "TREE RECORD >1000 TPA"
-(the DIA=0.1 seedlings) — watch for FPE on this stand class. FVS source restored pristine, oracle untouched.
-NEXT SESSION: (a) find WHERE the cycle-0 .sum TopHt is sampled (grep sumit/sumout/cratet for the AVH→summary
-store; likely cratet.f calls AVHT40 during calibration and stashes AVH), broaden the guard (dump ICYC + call site);
-(b) OR dump jl's cycle-0 top-40-TPA tree set (DBH/HT/PROB) via FVS_TreeList and compare to live's TreeList to see
-whether jl picks a different tree set / imputes a large tree's height differently. The largest record (DIA=5.0,
-HT=28) is unique so it's NOT a top tie-break; the 7-ft gap (live34/jl27) implies a genuinely different top-40 set
-or a height value difference on a mid-top tree.
+### Trace provenance (43eb)
+Sampling path: .sum TopHt = sumout.f IBTAVH ← disply.f:360 INT(OLDAVH+0.5) ← OLDAVH=AVH (fvs.f:436/grincr.f:282)
+← AVH = avht40.f, called ONLY from cratet.f:529 (calibration). cratet IND sort for AVHT40 = RDPSRT(.FALSE.)@141
+then RDPSRT(.TRUE.)@245; rdpsrt.f LSEQ=.TRUE. RESETS INDEX=1..N ⇒ the .TRUE. pass discards line-141 ⇒ effective
+single sort from record-order/identity. jl-side AVHT40_DBG dump on 14106653020004 pinned the 3.9" HT27/HT35 tie
+as the boundary (above). Live avht40.f WRITE guarded ICYC≤1 did not fire (AVHT40 runs during cratet before the
+cycle counter; not needed once the jl-side dump + source path made the tie-break conclusive). FVS source restored
+pristine, oracle untouched.

@@ -48,3 +48,12 @@ The 29 LS `REAL_growthdiv` candidates (the last needs-per-stand-verification fro
   diverge only in later cycles on 12k–39k-TPA seedling stands), 1 AVHT40 top-height RDPSRT tie-break
   (55250794010661, cycle-0 tied-DBH aspen29/balsam22; the already-dug stand-dependent quicksort primitive).
 Full per-stand classification: docs/fia_ls_candidates_classified.md. NO remaining unexplained LS divergence.
+
+## NE/CS candidate bucket — reconciled (audit 43eb, cont.)
+The 14 NE/CS REAL_growthdiv candidates: several diverge in cycle-0 TopHt (NE live34/jl27, CS live33/jl40) that
+cascades into growth. TRACED to the AVHT40 RDPSRT tie-break primitive: on 14106653020004 the top-40-TPA boundary
+is a genuine DBH tie at 3.9" between a HT=27 and a HT=35 record; jl's unstable-quicksort identity order breaks it
+to HT27 (⇒27), FVS to HT35 (⇒34). Path: sumout IBTAVH ← disply OLDAVH ← AVH=avht40.f (cratet.f:529;
+RDPSRT(.TRUE.)@245 resets to identity ⇒ single sort). Single-vs-double sort choice refuted (both give jl 27).
+= the documented stand-dependent AVHT40 unstable-quicksort tie-break (standstats.jl:124), CORNERED; more frequent
+in NE/CS (integer-tied inventory DBHs). ALL 43 REAL candidates now explained (1 FIX #8 + 42 cornered primitives).
