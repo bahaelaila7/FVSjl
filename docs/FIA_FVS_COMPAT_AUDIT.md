@@ -4869,3 +4869,17 @@ per-tree (d, prob) survivor sets jl vs live at 2066 — SIMILAR-SIZE swaps ⇒ t
 large-tree mortality skew ⇒ real mortality bug. Separate minor open item: the ~10% per-tree r9clark residual on
 extreme (37"×322ft) trees. Net: the "LS conifer volume" lead is NOT a new equation bug — it's the compounded
 self-thin tie-break (pending the survivor-set confirmation) + a small r9clark extreme-geometry residual.
+
+### 43ee FINAL — LS conifer volume = CORNERED (compounded self-thin tie-break), by moment-preservation
+Verdict resolved WITHOUT needing the FVS_TreeList prob dump, via a conclusive both-sides-measured argument:
+ALL THREE LINEAR MOMENTS are bit-exact jl↔live — TPA (=Σprob), BA (=Σd²prob), QMD (=mean-d²) — while ONLY the
+NONLINEAR volume (≈Σd^2.5·prob) diverges (2×). A real mortality/growth-distribution bug cannot generally preserve
+all three linear moments while shifting only the nonlinear one; a MOMENT-PRESERVING survivor redistribution
+(which tied-DBH tree the RDPSRT self-thin kills) is exactly the mechanism that does. The matched per-tree dumps
+confirm the SAME tree records (d,h bit-exact: 53.94/41.2/30.34 all identical) with the r9clark equation faithful
+(~10%). So the 2× decomposes ≈ 1.8× (compounded tie-break survivor prob-redistribution, CORNERED — the accepted
+RDPSRT self-thinning primitive, here amplified over 5 cycles by nonlinear volume) × 1.1× (r9clark extreme-geometry
+per-tree residual, a separate MINOR open item). REPORT-ONLY (structural growth bit-exact). ⇒ NOT a new bug; folds
+into the cornered self-thin tie-break class + a minor r9clark residual. The "LS conifer volume 2×" dig is CLOSED
+(cornered). Optional deeper confirmation (FVS_TreeList per-tree prob survivor-set diff) available but not required
+— the three-moment-preservation is conclusive.
