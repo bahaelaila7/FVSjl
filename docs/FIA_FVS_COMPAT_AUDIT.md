@@ -4788,3 +4788,23 @@ The coverage sweep runs `julia ledger_fia.jl` fresh per batch-cycle. FVSjl preco
 ~cursor 250k validate LS against the FIXED FVSjl ⇒ forest-924 (CCF) and tamarack (small-tree DG) stands ahead of
 the cursor are correctly classified bit-exact, not re-flagged. Already-swept stands (<250k) keep stale pre-fix
 classifications ⇒ reconcile at LS completion (re-validate the flagged forest-924/tamarack CNs vs the fixes).
+
+## Slice 43ed — ★ NEW REAL LEAD (open): LS conifer large-tree VOLUME ~2× high (499580541126144)
+Surfaced by the running sweep dig-queue (the "dig within sweeps" thesis). Stand 499580541126144 (LS, MN/WI,
+lat 43.93/lon -92.04), conifer-dominated: red pine (sp125, 16 recs dbh 5.7-7.8), white spruce (sp94), green ash
+(sp544). Structural cols (TPA/BA/SDI/CCF/TopHt/QMD) BIT-EXACT all cycles (dig-queue flagged volume-only). But ALL
+volume cols run high once the stand grows to sawtimber:
+  cyc  TCuFt live/jl   BdFt live/jl
+  2016 502/502         0/0            (bit-exact)
+  2026 5948/5947       17553/17529    (ULP)
+  2036 4075/4077       27994/28009    (ULP)
+  2046 7134/10633      34196/59369    (jl +49% cuft / +74% bdft)
+  2056 6946/13597      40311/88455    (jl +96% / +119%)
+  2066 7586/15590      49355/107960   (jl +105% / +119%)
+Identical trees (structural bit-exact) but ~2× volume ⇒ a genuine LS large-conifer volume-equation divergence
+(NOT ULP, NOT cornered, NOT FIX-#9 elevation — volume doesn't use elev). jl OVER-estimates. Direction/species
+(large red pine/white spruce sawtimber) suggest a volume-library domain issue: likely r9clark/LS volume form-class
+or merch-height handling for large conifers, OR jl missing a cap/limit live applies. DEFERRED deep trace (both-
+sides r9clark/vollib per-tree dump) to a non-competing window (DIGCAP pause / post-sweep) — flagged REAL, not
+cornered (doctrine: don't auto-corner). Sibling new dig 245899663010661 = ultra-dense self-thin (cornered).
+This is the next PRIORITY dig once the sweep pauses/completes.
