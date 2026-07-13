@@ -4771,3 +4771,13 @@ mapped tribal lands 7527/7531/7535/7536) stands change. Validation: 184479510106
 (1980 269/269, 1990 419/419, 2000 107/107; was 269/228, 419/352, 107/94), residual ±1-2 later = rounding.
 NE/CS use direct-indexed _NE/_CS_FOR_DEFAULTS (no fall-through) — whether they over-map an unset-in-FVS IFOR is a
 documented follow-up. This is REPORT-ONLY (CCF column; growth was already bit-exact — did not cascade).
+
+### 43ec follow-up — FIX #9 variant-safety: NE/CS forkod tables VERIFIED CLEAN (LS gap was unique)
+Checked whether NE/CS over-map an IFOR that FVS's forkod leaves unset (the LS IFOR=9 bug class):
+- NE (ne/forkod.f): JFOR=[914,922,919,920,921,911,930]; FVS EXPLICITLY remaps 911→IFOR1 (line 176) and 930→IFOR4
+  (line 181) before SELECT CASE; CASE covers IFOR 1-5 (ELEV 9/20/17/19/30). jl mirrors (ifor 6→1, 7→4) and
+  _NE_FOR_DEFAULTS values MATCH exactly. No unset fall-through. CLEAN.
+- CS (cs/forkod.f): JFOR=[905,908,912,911]; FVS remaps 911→IFOR3 (line 167); CASE(1)=10, CASE(2)=4, CASE(3,4)=6
+  (IFOR4 explicitly shares IFOR3). jl mirrors (ifor 4→3) and _CS_FOR_DEFAULTS MATCHES (10/4/6). CLEAN.
+So the IFOR-with-no-CASE + jl-over-default gap was UNIQUE to LS (IFOR=9, forest 924); FIX #9 is correctly
+LS-gated and NE/CS need no change. Doctrine #5 (variant-safe) satisfied.
