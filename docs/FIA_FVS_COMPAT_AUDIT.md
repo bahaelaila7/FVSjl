@@ -4664,3 +4664,18 @@ existing DEBUG 9991/9992 writes dump EDH/TERM/SNP/SNX/SNY/CORNEW per species) fo
 tamarack HCOR + its EDH(predicted) + TERM(measured). Compare to jl's SNX/SNY. Then fix whichever diverges (likely
 jl's EDH prediction or ht_growth init for tamarack), keeping aspen bit-exact + floor. Candidate impact: the ~29 LS
 REAL growth-div stands. This is the top Pillar-4 dig and a genuine variant-safety gap in my own FIX #7.
+
+## Slice 43dz — ★★ FIX #7 tamarack regression BOTH-SIDES-PINNED: jl under-predicts EDH ~2× ⇒ cornew doubles
+Instrumented live ls/regent.f mode-40 (scratch /tmp/FVSls_dbg, source restored pristine + oracle untouched) AND
+jl's LS calibration block (DBGCAL). For sp071 tamarack, stand 1831637837290487, N=12 trees both sides:
+  LIVE:  CORNEW=4.09  SNX=1.263  SNY=5.167  (SNX/SNY are ÷SNP-normalized, regent.f:537-538)
+  FVSjl: cornew=8.888 snx=523.2  sny=4650   (raw Σ, ÷SNP cancels in the ratio)
+Measured SNY matches (jl Σ≈4650 == live 5.167·SNP); jl's predicted SNX (Σ EDH·P) is ~HALF live's (523 vs
+~1.263·SNP≈1137). ⇒ ROOT: jl's PREDICTED small-tree height growth EDH = ls_htcalc_incr(sp,si,aget)·ls_balmod(...)·
+relht UNDER-predicts tamarack ~2× vs live regent.f HTCALC(mode9)·BALMOD·RELHTA. Under-predicting the denominator
+inflates cornew (8.888 vs 4.09) ⇒ HCOR 2.18 vs 1.41 ⇒ con climbs to 5.24 vs live's lower ⇒ 2-3× DG over-growth.
+(Aspen was bit-exact because its EDH matched.) FIX: pin whether it's ls_htcalc_incr (curve, MAPLS[sp071]→LTBHEC
+row) or ls_balmod (gmod from backdated BA/QMD) that halves for tamarack — instrument jl's EDH per-tree vs live's
+9982/BALMOD debug for one sp071 tree; correct the divergent component so jl's EDH matches live ⇒ cornew matches ⇒
+over-growth resolved. Keep aspen bit-exact + floor + per-species-validate (the 43dx variant-safety gap). This is
+the fully both-sides-traced root of the FIX #7 regression + the ~29 LS growth-div stands.
