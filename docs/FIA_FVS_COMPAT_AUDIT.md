@@ -4589,3 +4589,16 @@ this session, sample-verified) but NOT each individually reclassified post-HCOR-
 can HIDE a real growth bug (aspen). So the backlog is the genuine Pillar-4 frontier: per-stand verify BA is
 bit-exact (self-thinning primitive) vs BA-diverges (hidden growth bug), + a post-fix re-sweep to reclassify the
 aspen subset. Detail: docs/fia_fullscale_results.md.
+
+## Slice 43du — needs_dig backlog sample-triage (10 stands): mostly stale/cornered + 1 real growth divergence
+Sample-triaged 10 needs_dig structure_densephase stands (NE/CS/LS) vs live (worst-col + BA-worst):
+- 3 CS (351966617489998, 175608425020004, 372159576489998): now BIT-EXACT ⇒ STALE needs_dig (cleared by fixes;
+  would reclassify to bit_exact on re-sweep). Confirms much of the backlog is stale.
+- 6 (NE 381531994489998 @435%TPA/BA0.5%, NE 68395700010538, LS 104456850010661/1831637377290487/1809299393290487/
+  1831973265290487): cornered class — self-thinning RDPSRT primitive (BA bit-exact, TPA-worst) or TopHt/SDI/BdFt ULP.
+- **1 NE 166318995010661: worst 27.6% TPA but BA-worst 3.5%** ⇒ a REAL growth (BA) divergence, NOT the pure
+  self-thinning primitive — a genuine hidden dig (like the aspen HCOR case was). Added to dig_queue.
+CONCLUSION: the needs_dig backlog is mostly stale-or-cornered, but per-stand verification IS required (it hides
+occasional real divergences). EFFICIENT RESOLUTION PATH = a targeted needs_dig RE-SWEEP with current FVSjl:
+reclassifies stale→bit_exact, cornered→ulp_class, leaving only the genuine residual (e.g. NE 166318995010661)
+for both-sides digging. This is the campaign's key remaining Pillar-4 work.
