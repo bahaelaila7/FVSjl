@@ -9,3 +9,9 @@ LS,none,18344045010661,6,false,CCF,CCF,1990,24.011,105.0,24.011,0.0,false,false,
 NE,none,166318995010661,needs_dig_growth_BA3.5pct
 LS,none,18656888010661,6,false,CCF,CCF,2003,22.097,81.0,22.097,0.0,false,false,structure_densephase,81.0,0.0
 LS,none,1831637837290487,growthbug_BA30pct_cyc1_TPAexact
+LS,none,18659636010661,6,false,CCF,CCF,1993,16.104,67.0,16.104,0.0,false,false,structure_densephase,67.0,0.0
+LS,none,18840523010661,6,false,CCF,CCF,1993,15.429,36.0,15.429,0.0,false,false,structure_densephase,36.0,0.0
+LS,none,18447951010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1990,15.99,76.0,15.99,0.926,false,false,structure_densephase,76.0,1.0
+LS,none,18438314010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1981,16.547,28.0,16.547,0.099,false,false,structure_densephase,28.0,1.0
+LS,none,18821105010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1993,16.667,38.0,16.667,0.033,false,false,structure_densephase,38.0,1.0
+LS,none,9426842020004,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2021,18.659,344.0,18.659,1.609,false,true,structure_densephase,153.0,34.0

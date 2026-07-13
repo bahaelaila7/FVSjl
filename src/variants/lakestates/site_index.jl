@@ -82,7 +82,10 @@ const _LS_FOR_DEFAULTS = Dict{Int,NTuple{3,Float32}}(
     5 => (46.45f0, 90.17f0, 14f0),
     6 => (46.78f0, 92.11f0, 16f0),
     7 => (45.75f0, 87.06f0,  8f0),
-    9 => (46.45f0, 90.17f0, 14f0),   # 924 (Superior/others) — CASE default falls through to IFOR 5 lat/long
+    # ls/forkod.f:297-322 SELECT CASE(IFOR) has NO CASE(9): forest 924 (Manistee, JFOR index 9) gets NO geo
+    # default — TLAT/TLONG/ELEV fall through unset (grinit ELEV=0). The prior `9 => IFOR-5 values` was a
+    # misread of the fall-through and set ELEV=14 ⇒ inflated Hopkins index ⇒ open-grown crown width ⇒ CCF
+    # (audit 43ec: 18447951010661 CCF ~15% high vs live). Omit key 9 ⇒ the fallback below leaves geo unset.
 )
 
 """
@@ -98,7 +101,7 @@ function ls_forkod_defaults!(s::StandState)
     ifor = 5                                          # ls/grinit.f:186 default
     idx = findfirst(==(code), _LS_JFOR)
     idx !== nothing && (ifor = idx)
-    d = get(_LS_FOR_DEFAULTS, ifor, _LS_FOR_DEFAULTS[5])
+    d = get(_LS_FOR_DEFAULTS, ifor, (0f0, 0f0, 0f0))   # unmapped IFOR (e.g. 9) ⇒ no default, matches FVS fall-through
     lat0, long0, elev0 = d
     p.latitude  == 0f0 && (p.latitude  = lat0)
     p.longitude == 0f0 && (p.longitude = long0)

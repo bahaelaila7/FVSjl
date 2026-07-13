@@ -4752,3 +4752,22 @@ Remaining LS candidates (e.g. 366591155489998, ultra-dense 21602-TPA seedlings, 
 have the ultra-dense self-thinning-tie-break signature, NOT the tamarack stale-carry — separate cornered class.
 NE/CS carry the SAME latent FVS calibration bug but no validated NE/CS stand hits an above-asymptote dbh<5 tree;
 left as-is (variant-safe), to port if a dig surfaces it.
+
+## Slice 43ec — ★ REAL FIX #9: LS forkod IFOR=9 (forest 924) elevation over-default → CCF divergence
+Found via the running sweep's dig-queue (a cluster of `18xxxxx010661` LS stands, CCF ~15% high vs live,
+everything else bit-exact — a clean report-only crown-width signal). Both-sides-traced:
+- CCF = 0.001803·CW² (ccfcal.f:59 == jl stand_ccf). CW from cwcalc.f; silver maple (sp317, dominant) uses
+  CWEQ 31701 Bechtold: `CW = 3.3576 + 1.1312·D + 0.1011·CR − 0.1730·HI`. HI (Hopkins) formula is IDENTICAL
+  jl↔FVS (cwcalc.f:92-96). CR=90 both (ccfcal.f:52). So the divergence is the HI INPUT = elevation.
+- Stand 18447951010661: DB ELEVATION/ELEVFT null; lat/long present (43.33/-83.48); forest code 924. FVS .out
+  echo: `ELEVATION(100'S FEET)= 0.0`. jl: elev=14.0. ⇒ jl HI too high ⇒ CW ~7.5% low ⇒ CCF ~15% low.
+- ROOT: ls/forkod.f:297-322 `SELECT CASE(IFOR)` sets per-forest geo defaults for IFOR∈{1..8} but has NO
+  CASE(9); forest 924 = JFOR index 9 ⇒ falls through UNSET ⇒ ELEV stays grinit 0. jl's _LS_FOR_DEFAULTS had a
+  spurious `9 => IFOR-5 values (elev 14)` (a misread "falls through to IFOR 5") + a `get(...,_LS_FOR_DEFAULTS[5])`
+  fallback ⇒ jl set elev=14 for forest 924. Directly analogous to the FIA missing-SLOPE default fix.
+FIX (src/variants/lakestates/site_index.jl): removed the `9 =>` entry; changed the fallback to `(0,0,0)` so an
+unmapped IFOR applies NO geo default (mirrors FVS's CASE fall-through). LS-gated; only forest-924 (Manistee +
+mapped tribal lands 7527/7531/7535/7536) stands change. Validation: 18447951010661 CCF now bit-exact
+(1980 269/269, 1990 419/419, 2000 107/107; was 269/228, 419/352, 107/94), residual ±1-2 later = rounding.
+NE/CS use direct-indexed _NE/_CS_FOR_DEFAULTS (no fall-through) — whether they over-map an unset-in-FVS IFOR is a
+documented follow-up. This is REPORT-ONLY (CCF column; growth was already bit-exact — did not cascade).
