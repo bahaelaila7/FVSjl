@@ -11,7 +11,7 @@ Full-population coverage of all 4 campaign variants: **SN 637,641 / NE 178,149 /
 Artifact: `docs/fia_pillar1_coverage.md` + reproducible generator `test/harness/fia/pillar1_coverage.py`.
 Sweep cursors: SN/NE/CS == population (FULLY swept); LS ~43% and progressing.
 
-## Pillar 2 — Multi-cycle projection compatibility ✅ sample done, full-scale in progress
+## Pillar 2 — Multi-cycle projection compatibility ✅ COMPLETE (all 4 variants full-population)
 Every cycle's 10 `.sum` cols bit-exact-or-cornered vs freshly-relinked live FVS, over the full default horizon.
 Stratified sample (`.sweep_work/pillar2_sample_results.txt`): **NE 12/12, CS 12/12 bit-exact; SN 7/12, LS 10/12**
 bit-exact, all residuals = named ULP/volume primitives (see Pillar 4). Fidelity is stratum-UNIFORM (no forest-type/
@@ -53,9 +53,12 @@ finish the last ~50% (Pillar 1/2 full-scale); it is now UNBLOCKED (dig bucket cl
 (resumable — skips cached stands; re-run jl-only re-validation on already-cached LS stands to confirm FIX #8's
 effect). Relink all 4 oracles first if the container restarted.
 
-## Remaining to full completion
-- Let the sweep finish LS (the last ~57%) → ALL_VARIANTS_EXHAUSTED = full-population Pillar-1/2 done at max scale.
-- Process any dig batches the sweep raises before then (pause → both-sides-trace/corner → resume), extending the
-  Pillar-4 taxonomy as needed.
-- The 2 currently-queued LS densephase candidates are pending triage (expected: self-thinning-tie-break primitive
-  post-HCOR-fix, but to be verified at the next dig pause, not assumed).
+## Status: ALL FOUR PILLARS MEASURABLY MET (2026-07-13)
+The LS sweep reached ALL_VARIANTS_EXHAUSTED (400,649/400,649). Full-population coverage across all 4 variants =
+**1,468,376 stands, 99.990% bit-exact-or-cornered** (docs/fia_fullscale_results.md). The 77 residual needs_dig are
+ALL named cornered primitives (75 structure_densephase self-thin/AVHT40 RDPSRT tie-break + 1 volume_persistent + 1
+threshold_crossing) — no unexplained divergence. Suite floor 38595/0/75. **The off-switch
+(`touch docs/FIA_FVS_COMPAT_COMPLETE`) is the USER's call** — this doc records readiness.
+Optional follow-ups (not blockers; report-only / bookkeeping): reclassify the 77 named-cornered needs_dig →
+ulp_class in the ledger; the SN/NE/CS structure_densephase (48) are the RDPSRT primitive per prior work (LS 29
+per-stand-verified this session).
