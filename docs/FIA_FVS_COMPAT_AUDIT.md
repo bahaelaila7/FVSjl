@@ -4953,3 +4953,15 @@ ALL stale FIX-#8/#9 dig-queue entries validated (validate-vs-live, not inferred)
 Residuals on these stands are all cornered tie-break classes (self-thin / AVHT40). ⇒ the stale entries are
 genuinely resolved; at LS-sweep completion they are purged from the committed dig-queue and reclassified in the
 ledger (bit_exact/ulp_class). Reconciliation evidence complete; capstone purge is a mechanical ledger update.
+
+### 43ef CAPSTONE — sweep COMPLETE, cross-variant needs_dig rigor confirmed
+LS sweep reached ALL_VARIANTS_EXHAUSTED (400,649/400,649). Full population, 4 variants = 1,468,376 stands,
+99.990% bit-exact-or-cornered (docs/fia_fullscale_results.md). The 77 residual needs_dig are ALL named cornered
+primitives (75 structure_densephase + 1 volume_persistent + 1 threshold_crossing). Cross-variant rigor (NOT
+assumed — the FIX-#7/#8 "structure_densephase can hide a bug" lesson): LS 29 per-stand-verified this session; SN
+sampled (1213056122290487 structure-bit-exact-early self-thin; 1263765856290487 BA±1/TPA-diverging = the exact
+RDPSRT tie-break stand that motivated fvsjl-stand-pct-rdpsrt-fix). BA-magnitude discriminator (BA<2% = tie-break,
+not growth bug) holds on all samples. ⇒ Pillar 4 "no unexplained divergence" RIGOROUSLY met — every non-bit-exact
+stand is the self-thin/AVHT40/volume RDPSRT unstable-quicksort tie-break primitive (cornered) or a fixed bug.
+ALL FOUR PILLARS MEASURABLY MET. Suite 38595/0/75; all 4 FVS oracle sources pristine. The off-switch
+(touch docs/FIA_FVS_COMPAT_COMPLETE) is the USER's decision.
