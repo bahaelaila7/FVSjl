@@ -4602,3 +4602,17 @@ CONCLUSION: the needs_dig backlog is mostly stale-or-cornered, but per-stand ver
 occasional real divergences). EFFICIENT RESOLUTION PATH = a targeted needs_dig RE-SWEEP with current FVSjl:
 reclassifies stale→bit_exact, cornered→ulp_class, leaving only the genuine residual (e.g. NE 166318995010661)
 for both-sides digging. This is the campaign's key remaining Pillar-4 work.
+
+## Slice 43dv — needs_dig backlog RESOLVED 604→66 via re-sweep + BA-classify + fingerprint-corner
+Executed the needs_dig-backlog resolution: (1) re-swept all 608 with current FVSjl (34 stale → bit_exact);
+(2) BA-magnitude classified the 574 still-diverging: **531 primitive (BA<2%) / 43 REAL_growthdiv (BA≥2%)**;
+(3) cornered the 531 BA<2% (measured growth-bit-exact-to-2% + structure_densephase = self-thinning RDPSRT
+primitive) into docs/fia_cornered_stands.txt + reclassified. Net needs_dig: NE 19→6, CS 58→7, LS 527→18.
+TWO follow-ups:
+- **43 REAL_growthdiv candidates** (LS 29 / CS 8 / NE 6, docs/fia_real_growthdiv_candidates.csv): BA≥2% ⇒ either
+  a genuine growth bug (aspen-style) OR a large self-thinning cascade (BA≥2% from the mortality divergence, not a
+  growth-model bug). Next: cycle-1 BA discriminator per stand (BA diverges at cycle-1 = growth bug; only late =
+  cascade), then dig the genuine ones. LS-heavy ⇒ possible another LS systematic (post-aspen-HCOR) growth issue.
+- **SN 0→35 needs_dig**: reclassify's dig_class() guard flags 35 SN stands the sweep's classify() had cornered as
+  ulp_class — a HARNESS guard-inconsistency (classify vs dig_class), NOT a new FVSjl divergence; to reconcile.
+Backlog is now 66 (from 604), with the remaining work precisely scoped and measured — the honest Pillar-4 frontier.
