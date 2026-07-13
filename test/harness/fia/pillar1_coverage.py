@@ -44,5 +44,6 @@ for v in ["SN", "NE", "CS", "LS"]:
     out.append("- site class: " + " ".join(f"{k}={sc[k]}({100*sc[k]//n}%)" for k in sorted(sc)))
     out.append("")
 out.insert(9, f"TOTAL across the 4 campaign variants: {grand} stands.\n")
-open(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "fia_pillar1_coverage.md"), "w").write("\n".join(out) + "\n")
+_docs = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "docs"))
+open(os.path.join(_docs, "fia_pillar1_coverage.md"), "w").write("\n".join(out) + "\n")
 print(f"wrote docs/fia_pillar1_coverage.md ({grand} stands across SN/NE/CS/LS)")
