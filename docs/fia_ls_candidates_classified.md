@@ -36,3 +36,30 @@ tie-break is STAND-DEPENDENT. The double-sort matches the most stands; 552507940
 tie-heavy swings. The cycle-0 22/29 then cascades through ultra-dense self-thinning (hence 81%). NOT a new bug,
 NOT fixable without bit-matching FVS's exact quicksort pivot sequence (accepted primitive per the GOAL). All 29
 LS candidates now explained: 11 resolved/ULP + 17 self-thin RDPSRT primitive + 1 AVHT40 RDPSRT primitive.
+
+# NE/CS candidates (14) — post-FIX-#8 check (audit 43eb)
+
+FIX #8 is LS-gated ⇒ inert for NE/CS (expected). Batch worst%:
+- CS resolved/ULP (<5%): 193228158010661 (3.78), 943930276290487 (2.28), 430360223489998 (4.23).
+- CS/NE mid (5-12%): 75190472010538 NE (9.63), 97513385010661 CS (7.14), 65532203010661 CS (11.43),
+  1203406023290487 NE (11.67).
+- Higher (>20%): NE 14106653020004 (24.91), 166318995010661 (27.69), 245503277010661 (29.88),
+  366792805489998 (24.86); CS 193238139010661 (24.03), 255129978489998 (21.21), 562745328126144 (28.46).
+
+## ★ NEW UNEXPLAINED LEAD — NE/CS cycle-0 TopHt divergence (distinct from LS bucket; NOT cornered)
+Several NE/CS candidates diverge in **TopHt at cycle 0 (inventory, pre-projection)** with everything else
+(TPA/BA/SDI/CCF/QMD) bit-exact, then CASCADE into growth:
+  NE 14106653020004  TopHt live34/jl27   NE 245503277010661 live36/jl27   NE 166318995010661 live46/jl42
+  CS 255129978489998 TopHt live33/jl40   CS 562745328126144 live36/jl38   CS 97513385010661 live35/jl36(±1)
+Ruled OUT for 14106653020004 (representative): (a) NOT the LS tamarack calib bug (LS-gated); (b) NOT height
+imputation — the 15 missing-HT records are all DIA=0.1 seedlings, never in the top set; (c) NOT the cornered
+AVHT40 top-DBH tie-break — the largest record (sp12 DIA=5.0" HT=28) is UNIQUE (no DBH tie at the boundary that
+matters), and a 7-ft shift in the top-height average is far too large for a single boundary tie-swap. A simple
+descending-DBH AVHT40 model (single-largest given ~74× TPA expansion ⇒ 28ft) matches NEITHER side (live34/jl27) ⇒
+the NE/CS summary top-height computation is not the naive AVHT40 I modeled. Direction is MIXED across stands
+(jl low on NE, jl high on CS) so not a uniform cap. Prevalence (~5/14 NE/CS vs 1/29 LS) + magnitude (7ft) +
+cascade into growth ⇒ a REAL, systematic NE/CS top-height computation divergence — the next dig priority.
+NEXT: instrument the live NE/CS summary top-height (sumit.f / cratet.f AVHT40 IND selection + PROB expansion +
+any DBH/large-tree threshold) vs jl stand_top_height for 14106653020004; determine which side is faithful and
+whether jl's stat_idx/PROB weighting or a species/size filter differs. Do NOT corner until traced (FIX #7/#8
+lesson: this exact "cycle-0 anomaly that cascades" signature hid two real growth bugs already).
