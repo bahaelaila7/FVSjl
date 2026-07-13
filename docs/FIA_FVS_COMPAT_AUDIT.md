@@ -4559,3 +4559,10 @@ self-thinning tie-break, direct DGSCOR/volume-ULP, non-native cycle drift, COMPR
 FVSjl is correct on and doesn't replicate (D38 r9clark SIGFPE, CS essprt SIGFPE, NE VOLINIT extreme-height zeroing,
 shared SDI overflow), (D) faithful-but-extreme behaviours noted to avoid re-litigation. Makes Pillar-4's "documented
 divergence taxonomy; no unexplained divergence remains" concrete. New dig batches are triaged against this index.
+
+## Slice 43dr — campaign status capstone (docs/fia_compat_status.md)
+Single-view status of all 4 pillars with pointers to their done-state artifacts: P1 full-population coverage
+(1.47M stands), P2 sample bit-exact rates (NE/CS 12/12, SN 7/12, LS 10/12; residuals named) + full-scale sweep
+in progress (SN/NE/CS done, LS ~43%), P3 management regimes bit-exact-or-cornered, P4 consolidated taxonomy
+(7 fixes/4 primitives/4 FVS bugs). Floor 38587/0/75. Off-switch remains the USER's call — the capstone records
+readiness, not a decision. Remaining: sweep finishes LS → ALL_VARIANTS_EXHAUSTED; process dig batches at DIGCAP.
