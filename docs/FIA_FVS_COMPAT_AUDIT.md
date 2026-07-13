@@ -4530,3 +4530,14 @@ value (an NVEL-library reasonableness check) since FVSjl is already correct.
 CORNER (unchanged, now fully both-sides-traced): FVS-bug — NVEL VOLINIT zeroes tree volume for extreme-height
 trees despite the Clark taper computing it; FVSjl's r9clark_cubic (no VOLINIT wrapper) reports the correct
 nonzero volume ⇒ FVSjl is the faithful side, does NOT replicate the FVS bug. FVS_SOURCE_BUGS.md updated.
+
+### 43do — NE VOLINIT-bug BLAST RADIUS: NARROW/localized (rare extreme-height trigger)
+Tested 8 even-denser NE regen stands (TPA 37k-161k, incl. 68620144010538 @160950 TPA) for the VOLINIT-zero
+signature (live vol=0 / jl vol>0 at a cycle with trees present + extreme TopHt). NONE hit it — all grew to
+REALISTIC heights (maxTopHt 45-76 ft) and had no volume-zeroing. So the trigger is NOT dense-regen per se; it is
+the RARE extreme-height condition (TopHt >~250 ft) which stand 207147469020004 reaches via a height-model
+extrapolation runaway (295 ft vs its SI=70 — far beyond site potential), while denser stands stay at normal
+heights. ⇒ the NVEL VOLINIT-zero FVS-bug is a LOCALIZED corner (one pathological stand so far), NOT a systematic
+class contaminating the sweep's volume columns. The runaway heights themselves are FAITHFUL (jl==live bit-exact
+every cycle), so not a divergence — just an FVS NE height-model extrapolation that both sides share. Pillar-4:
+the NE volume divergence class is bounded and cornered; no systematic volume-fidelity gap.
