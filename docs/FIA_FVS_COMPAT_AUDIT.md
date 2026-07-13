@@ -4808,3 +4808,16 @@ or merch-height handling for large conifers, OR jl missing a cap/limit live appl
 sides r9clark/vollib per-tree dump) to a non-competing window (DIGCAP pause / post-sweep) — flagged REAL, not
 cornered (doctrine: don't auto-corner). Sibling new dig 245899663010661 = ultra-dense self-thin (cornered).
 This is the next PRIORITY dig once the sweep pauses/completes.
+
+### 43ed cont — LS conifer volume lead NARROWED (source, non-competing)
+Ruled OUT via source + the cycle pattern:
+- NOT merch-spec (_ls_merch top-diam/dbh-min): those are set once at merch_init (volume.jl:359-368), constant all
+  cycles ⇒ would corrupt cycle-0 too, but cycle-0 (2016) volume is BIT-EXACT. The 2× emerges only as trees reach
+  sawtimber (2046+).
+- NOT elevation/FIX-#9: volume equations don't read elev.
+- NOT structural: TPA/BA/QMD bit-exact all cycles (same trees).
+⇒ The divergence is in the CUBIC volume EQUATION (r9clark_vol.jl / r9vol_gevorkiantz.jl) over-estimating for LARGE
+conifers (red pine sp125 / white spruce sp94) — cubic drives it (TCuFt +49%), board-foot follows (BdFt +74%→+119%).
+DECISIVE NEXT STEP (focused/non-competing window): dump per-tree cubic volume (jl vs live FVS_TreeList) for a large
+red pine at cycle 2046; localize whether it's the Clark taper/profile integration, a form-class, or a large-DBH
+domain boundary. Then both-sides-trace r9clark_fvsMod.f vs r9clark_vol.jl. Flagged REAL/open (not cornered).
