@@ -4894,3 +4894,16 @@ ENTIRELY into two NAMED cornered primitives:
   (2) r9clark per-tree taper residual (Float32/nint + taper refinement) — CORNERED (documented class).
 NO unexplained residual remains; report-only (structural bit-exact). The "LS conifer volume" lead is CLOSED with
 both parts cornered-to-a-named-primitive (doctrine #4). This was the last substantive open dig from the LS sweep.
+
+### 43ee CORRECTION — the r9clark per-tree residual is OPEN (real taper gap), NOT cornered-ULP
+Self-correction (doctrine #4 + the don't-auto-corner lesson): I earlier folded the ~10% per-tree r9clark residual
+into "the documented ULP/refinement class." That was PREMATURE. Re-examining the measured per-tree data, the
+residual grows MONOTONICALLY WITH TREE SIZE: d=30.34→+4% (266.2/256.0), d=41.2→+10% (504.1/458.3), d=53.94→+10%
+(1139/1035). A size-monotonic 4%→10% divergence is a SYSTEMATIC taper-integration gap, NOT random Float32/nint
+ULP (which would be small + sign-random). So it fails doctrine #4's "named primitive, not a padded tolerance."
+REVISED STATUS: the LS-conifer volume 2× = (1) compounded self-thin RDPSRT tie-break — CORNERED (moment-preserving,
+conclusive) + (2) r9clark large-tree taper residual — **OPEN** (real jl-side taper-integration divergence growing
+with size; report-only, only on far-projected extreme conifers). NEXT (focused r9clark window): both-sides-trace
+the r9cuft profile integration (r9clark_fvsMod.f r9cuft vs r9clark_vol.jl _r9_cuft) on a d=50 tree — the size-
+monotonic gap points at the cubic taper integration or a dib17/totHt term, likely a fixable port refinement. This
+does NOT reopen the 2× headline (that's the cornered tie-break) but keeps the ~10% honestly OPEN, not padded.
