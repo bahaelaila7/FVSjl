@@ -17,7 +17,13 @@ Stratified sample (`.sweep_work/pillar2_sample_results.txt`): **NE 12/12, CS 12/
 bit-exact, all residuals = named ULP/volume primitives (see Pillar 4). Fidelity is stratum-UNIFORM (no forest-type/
 site/age/geography model gap). Full-scale: the running sweep validates the entire population per variant; growing
 stands are 100% bit-exact-or-cornered (~28% pure-bit-exact + DGSCOR/RDPSRT-cornered remainder). SN/NE/CS complete;
-LS in progress → completion at ALL_VARIANTS_EXHAUSTED.
+**LS resumed 2026-07-13 and at ~86% (344k/400,649)**, durable coverage **99.99% bit-exact-or-cornered** (last
+sampled: 152,996 bit_exact + 61,704 ulp_class + 18 needs_dig + 13 live_crash; recent batches ~98-99% pure-bit-exact)
+→ completion at ALL_VARIANTS_EXHAUSTED. Session 43ea-43ee fixed 2 more real bugs found by digging real FIA stands
+(FIX #8 LS REGENT stale-HTGR / tamarack; FIX #9 LS forkod IFOR-9 elevation / CCF) and resolved the LS-conifer
+volume lead to cornered primitives (compounded self-thin tie-break + r9clark per-tree residual). NOTE: LS stands
+swept BEFORE ~cursor 250k carry stale pre-FIX-#8/#9 classifications ⇒ reconcile the flagged forest-924/tamarack
+CNs at completion (forward >250k already validated against the fixed code — precompile rebuilt post-commit).
 
 ## Pillar 3 — Management-scenario compatibility ✅ done
 Real plots under standard silvicultural regimes match live across the projection, bit-exact-or-cornered: 4 variants
@@ -32,7 +38,8 @@ CORNERED — **7 FVSjl bugs fixed** (floor held), **4 ULP-class named primitives
 direct DGSCOR/volume-ULP, non-native cycle drift, COMPRESS eigensolver), **4 FVS bugs** FVSjl is correct on and
 doesn't replicate (D38 r9clark SIGFPE, CS essprt SIGFPE, NE VOLINIT extreme-height zeroing, shared SDI overflow).
 Full scale (docs/fia_fullscale_results.md): 99.7-100% bit-exact-or-cornered (SN 100% / NE 99.98% / CS 99.97% /
-LS 99.74% partial). **8 FVSjl bugs fixed** (FIX #8 = LS REGENT calibration stale-HTGR carry, audit 43eb). The
+LS 99.74% partial). **9 FVSjl bugs fixed** (FIX #8 = LS REGENT calibration stale-HTGR carry, audit 43eb; FIX #9 =
+LS forkod IFOR-9 forest-924 elevation over-default → CCF, audit 43ec). The
 43-stand REAL_growthdiv candidate bucket (the distilled needs_dig frontier: LS 29 / CS 8 / NE 6) is now
 **FULLY reconciled** — 1 real bug fixed (FIX #8) + 42 cornered primitives, zero unexplained
 (docs/fia_ls_candidates_classified.md). LS 29 = 11 ULP + 17 ultra-dense self-thin RDPSRT + 1 AVHT40 RDPSRT.
