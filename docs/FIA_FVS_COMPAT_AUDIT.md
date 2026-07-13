@@ -4644,3 +4644,9 @@ compare jl's HCOR to live's (ls/regent.f mode-40 debug); verify FIX #7's ls_balm
 faithful for sp071, not just aspen. If a 43dn over-correction, tighten the LS HCOR block; re-validate aspen stays
 fixed + tamarack matches + suite floor. VARIANT-SAFETY (doctrine #5): FIX #7 needs per-species validation, not
 just the one aspen stand. This is the priority Pillar-4 dig.
+
+### 43dx tooling note — DBGSTG on sp071 didn't fire (k3==i1 guard misses it, or sp071 DG over-growth is NOT the
+htgr_s height-driven path). Next dig: probe WITHOUT the k3==i1 guard (dump every sp071 tree) AND check the
+DIAMETER branches (dgsm/dggr at small_tree_growth.jl:93-101 + dg_bound) — the over-growth is in DG, which the
+height-path debug may not capture. Also compare htg_cor_init[sp071] jl-vs-live (the 43dn HCOR block) to confirm
+or rule out the FIX-#7-over-correction hypothesis before touching the calibration.
