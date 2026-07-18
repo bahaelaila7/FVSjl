@@ -1,0 +1,42 @@
+diff --git a/cs/dgf.f b/cs/dgf.f
+index d8d8f8cc..f49bc08e 100644
+--- a/cs/dgf.f
++++ b/cs/dgf.f
+@@ -547,7 +547,15 @@ C----------
+       DIAGRO= SQRT(DBH(I)*DBH(I)+EXP(DDS))-DBH(I)
+       BARK=BRATIO(ISPC,DBH(I),HT(I))
+       DIAGRI= DIAGRO*BARK
+-      DDS=ALOG(((DBH(I)*BARK+DIAGRI)**2.0)-(DBH(I)*BARK)**2.0)
++C  Guard the LN pole: a large tree with tiny predicted growth underflows
++C  DIAGRO to 0 in Float32 (growth < ULP of DBH**2) => arg<=0 => ALOG(0)
++C  SIGFPE. Zero growth floors to DDS=-9.21 (consistent with the cap below).
++      DDS=((DBH(I)*BARK+DIAGRI)**2.0)-(DBH(I)*BARK)**2.0
++      IF(DDS.LE.0.0)THEN
++        DDS=-9.21
++      ELSE
++        DDS=ALOG(DDS)
++      ENDIF
+       IF(DEBUG) WRITE(JOSTND,*) 'IN DGF-I= ',I,' D=',D,
+      &' DIAGRO= ',DIAGRO,' DIAGRI= ',DIAGRI,' BARK= ',BARK,
+      &' DDS= ',DDS
+diff --git a/ls/dgf.f b/ls/dgf.f
+index 6814a260..8ea9ef84 100644
+--- a/ls/dgf.f
++++ b/ls/dgf.f
+@@ -453,7 +453,15 @@ C----------
+       DIAGRO= SQRT(DBH(I)*DBH(I)+EXP(DDS))-DBH(I)
+       BARK=BRATIO(ISPC,DBH(I),HT(I))
+       DIAGRI= DIAGRO*BARK
+-      DDS=ALOG(((DBH(I)*BARK+DIAGRI)**2.0)-(DBH(I)*BARK)**2.0)
++C  Guard the LN pole: a large tree with tiny predicted growth underflows
++C  DIAGRO to 0 in Float32 (growth < ULP of DBH**2) => arg<=0 => ALOG(0)
++C  SIGFPE. Zero growth floors to DDS=-9.21 (consistent with the cap below).
++      DDS=((DBH(I)*BARK+DIAGRI)**2.0)-(DBH(I)*BARK)**2.0
++      IF(DDS.LE.0.0)THEN
++        DDS=-9.21
++      ELSE
++        DDS=ALOG(DDS)
++      ENDIF
+       IF(DEBUG) WRITE(JOSTND,*) 'IN DGF-I= ',I,' D=',D,
+      &' DIAGRO= ',DIAGRO,' DIAGRI= ',DIAGRI,' BARK= ',BARK,
+      &' DDS= ',DDS

@@ -303,3 +303,23 @@ BIT-EXACTLY, so the height behaviour itself is faithful, not the bug). FVSjl sum
 STATUS: cornered as FVS-bug in the FIA-compat campaign (FVSjl is the correct side; no FVSjl change). Exact FVS
 loss-location (vollib09.f vs sumout/summary array) not yet pinned — needs a second instrumentation pass on the
 driver/summary; low priority since FVSjl is already correct. Repro: run NE stand 207147469020004 to cycle 2053.
+
+## Three SIGFPE crash classes on real FIA inventory — FIXED with minimal source guards (2026-07-18)
+Full write-up + patches: `docs/FVS_LIVECRASH_AUDIT.md`, `docs/patches/livecrash_*.patch`. The FIA sweep recorded
+60 `live_crash` stands (SIGFPE on the shipped trapping build); the 12 that still reproduced collapse to 3
+unguarded-arithmetic root classes (backtraces named the *caller* frame — several `dgdriv:134/:353`/`grincr:437`
+are `CALL DGF`, and `grincr:449`→`regent:324` is `CALL HTDBH`). FVSjl runs all clean (correct side). Each trigger
+was confirmed by direct instrumentation (not just reproduction, which is FP-precision-sensitive under the
+in-container gfortran 12.2.0 ≠ official 15.2.1). Fixes are no-ops off the degenerate path (51/51 normal stands
+byte-identical patched-vs-official across all 4 variants) and match FVSjl on the degenerate one.
+
+1. **DGF `ALOG(0)`** — `{ls,cs}/dgf.f` (LS:456 / CS:550): a large tree with tiny growth underflows
+   `DIAGRO→0` (Float32) ⇒ LN arg `=0` ⇒ `ALOG(0)`. Fix: guard arg≤0 → `DDS=-9.21` (the code's own floor
+   sentinel). LS/CS only (NE/SN dgf compute DDS differently).
+2. **varmrt `TEMKIL/TEMSUM` div0** — `{cs,ne,ls,sn}/varmrt.f:162`: mortality-search `TEMSUM=0` (no killable TPA
+   left) with `TEMKIL>0` ⇒ `+Inf`. Instrumented `TEMSUM=0.0, TEMKIL=0.067`. Fix: `IF(TEMSUM.LE.0.) {ADJUST=1;
+   GO TO 110}` = apply zero additional mortality. All 4 variants (line identical).
+3. **htdbh H→D inverse `ALOG(<0)`** — `{cs,ne,ls,sn}/htdbh.f` Curtis-Arney branch: a tree grown TALLER than its
+   asymptote `4.5+P2` makes `ratio=(ln(H-4.5)-ln(P2))/(-P3)<0` ⇒ `ALOG(negative)`. Instrumented `H=114.7 >
+   asymptote 85, ratio=-0.0116`. Fix mirrors FVSjl volume.jl:92-98 exactly: clamp `MIN(H-4.5,0.9999*P2)` +
+   `ratio>0 ? EXP(ALOG(ratio)/P4) : 100`. All 4 variants. (`fvs:197`/CRATET was a STALE record — runs clean.)

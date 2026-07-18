@@ -1,0 +1,84 @@
+diff --git a/cs/htdbh.f b/cs/htdbh.f
+index 0e460844..62273d3c 100644
+--- a/cs/htdbh.f
++++ b/cs/htdbh.f
+@@ -426,7 +426,15 @@ C----------
+           HAT3 = 4.5 + P2 * EXP(-1.*P3*3.0**P4)
+           IF(H .GE. HAT3) THEN
+             IF(DEBUG) WRITE(JOSTND,*)' H= ',H,' HAT3= ',HAT3,' P2= ',P2
+-            D=EXP(ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3)) * 1./P4)
++C  Guard the H->D inverse: a tree grown TALLER than its asymptote
++C  (H-4.5 >= P2) drives the ratio non-positive => ALOG SIGFPE. Clamp H just
++C  below the asymptote (as the FVSjl port does); D=100 if still non-positive.
++            D=(ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3)
++            IF(D .GT. 0.)THEN
++              D=EXP(ALOG(D) * 1./P4)
++            ELSE
++              D=100.
++            ENDIF
+           ELSE
+             D=(((H-4.51)*(3.-DB))/(4.5+P2*EXP(-1.*P3*(3.**P4))-4.51))+DB
+           ENDIF
+diff --git a/ls/htdbh.f b/ls/htdbh.f
+index 72454831..bd80dc1a 100644
+--- a/ls/htdbh.f
++++ b/ls/htdbh.f
+@@ -333,7 +333,15 @@ C----------
+           HAT3 = 4.5 + P2 * EXP(-1.*P3*3.0**P4)
+           IF(H .GE. HAT3) THEN
+             IF(DEBUG) WRITE(JOSTND,*)' H= ',H,' HAT3= ',HAT3,' P2= ',P2
+-            D=EXP(ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3)) * 1./P4)
++C  Guard the H->D inverse: a tree grown TALLER than its asymptote
++C  (H-4.5 >= P2) drives the ratio non-positive => ALOG SIGFPE. Clamp H just
++C  below the asymptote (as the FVSjl port does); D=100 if still non-positive.
++            D=(ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3)
++            IF(D .GT. 0.)THEN
++              D=EXP(ALOG(D) * 1./P4)
++            ELSE
++              D=100.
++            ENDIF
+           ELSE
+             D=(((H-4.51)*(3.-DB))/(4.5+P2*EXP(-1.*P3*(3.**P4))-4.51))+DB
+           ENDIF
+diff --git a/ne/htdbh.f b/ne/htdbh.f
+index c7a5f261..a584f6d8 100644
+--- a/ne/htdbh.f
++++ b/ne/htdbh.f
+@@ -465,7 +465,15 @@ C----------
+           HAT3 = 4.5 + P2 * EXP(-1.*P3*3.0**P4)
+           IF(H .GE. HAT3) THEN
+             IF(DEBUG) WRITE(JOSTND,*)' H= ',H,' HAT3= ',HAT3,' P2= ',P2
+-            D=EXP(ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3)) * 1./P4)
++C  Guard the H->D inverse: a tree grown TALLER than its asymptote
++C  (H-4.5 >= P2) drives the ratio non-positive => ALOG SIGFPE. Clamp H just
++C  below the asymptote (as the FVSjl port does); D=100 if still non-positive.
++            D=(ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3)
++            IF(D .GT. 0.)THEN
++              D=EXP(ALOG(D) * 1./P4)
++            ELSE
++              D=100.
++            ENDIF
+           ELSE
+             D=(((H-4.51)*(3.-DB))/(4.5+P2*EXP(-1.*P3*(3.**P4))-4.51))+DB
+           ENDIF
+diff --git a/sn/htdbh.f b/sn/htdbh.f
+index 21286392..b812da42 100644
+--- a/sn/htdbh.f
++++ b/sn/htdbh.f
+@@ -297,7 +297,15 @@ C----------
+         HAT3 = 4.5 + P2 * EXP(-1.*P3*3.0**P4)
+         IF(H .GE. HAT3) THEN
+           IF(DEBUG) WRITE(JOSTND,*)' H= ',H,' HAT3= ',HAT3,' P2= ',P2
+-          D = EXP( ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3)) * 1./P4)
++C  Guard the H->D inverse: a tree grown TALLER than its asymptote
++C  (H-4.5 >= P2) drives the ratio non-positive => ALOG SIGFPE. Clamp H just
++C  below the asymptote (as the FVSjl port does); D=100 if still non-positive.
++          D = (ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3)
++          IF(D .GT. 0.)THEN
++            D = EXP( ALOG(D) * 1./P4)
++          ELSE
++            D = 100.
++          ENDIF
+         ELSE
+           D = (((H-4.51)*(3.-DB))/(4.5+P2*EXP(-1.*P3*(3.**P4))-4.51))+DB
+         ENDIF
