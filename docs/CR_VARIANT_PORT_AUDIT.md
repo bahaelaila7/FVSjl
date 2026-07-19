@@ -23,4 +23,16 @@ Charter/doctrine: docs/CR_VARIANT_PORT_GOAL.md. Branch: cr-variant-port. Oracle:
   LZEIDE=.TRUE.), RNG both streams 55329. load_species_coefficients!(::CentralRockies)=init_blockdata!.
 - Includes placed AFTER core/state.jl (species.jl signature needs StandState). `using FVSjl` loads clean.
 
-## Next: chunk 2 — site/habitat (cr/sitset.f + cr/habtyp.f, habitat-type groups) — prerequisite for the DG coefs.
+## Chunk 2 — site/habitat [PARTIAL: site-index bounds done]
+- site_lo/site_hi columns added to species_coefficients.csv (cr/blkdat.f SITELO/SITEHI, 38 species; verified
+  bit-exact: 40/30/40… lo, 105/100/120… hi).
+- src/variants/centralrockies/site_index.jl: cr_relative_si (cr/regent.f:209-213 RELSI) — verified
+  cr_relative_si(DF,90)=0.625=(90-40)/(120-40).
+- STILL TODO in this chunk: the full sitset ISISP between-species SI conversion + IMODTY model-type defaults
+  (1=SW mixed conifer, 2=SW ponderosa, …) + the SDICON SDI-max defaults + cr/habtyp.f habitat-type groups
+  (the OCURHT (16,MAXSP) coefficient dimension). These are CR-specific and feed the DG coefficients.
+
+## Road ahead (the substantial growth-model chunks)
+3. **Large-tree diameter growth (cr/dgf.f — the western Wykoff DDS)** = the core, largest chunk.
+4-6. Height (htgf), crown (crown/cratet/ccfcal), small-tree (regent). 7. Mortality reconcile. 8. Volume (NVEL).
+9. Full-cycle differential vs live FVScr. Best tackled as focused sessions, each port-and-diff per doctrine #1.

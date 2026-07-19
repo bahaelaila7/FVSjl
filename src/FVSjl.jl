@@ -55,6 +55,7 @@ include("variants/centralstates/centralstates.jl")  # CS singleton + registratio
 include("variants/lakestates/lakestates.jl")         # LS singleton + registration (MAXSP 68)
 include("variants/centralrockies/centralrockies.jl") # CR singleton + registration (MAXSP 38) — first WESTERN variant
 include("variants/centralrockies/species.jl")
+include("variants/centralrockies/site_index.jl")
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
