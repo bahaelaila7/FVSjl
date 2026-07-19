@@ -348,5 +348,8 @@ via the AVHT40-inflated height model).
 
 VALIDATION: NE 1167721956290487 TCuFt now 17744/20591/23208/25413 at 2050-2080 (was 13555/217/0/0), sensible &
 monotonic, and within ~4% of FVSjl (the correct side; residual = the normal AVHT40/self-thin tie-break). Normal
-NE stands 12/12 byte-identical patched-vs-official. In-container gfortran 12.2.0 relink (validation vehicle);
-deliverable = the NVEL source patch. Applies to CS/LS/NE (shared library). Build caveat per doctrine #5.
+NE stands 12/12 byte-identical patched-vs-official. CONFIRMED SAME BUG ON LS (499580541126144, red pine,
+fia125): live TCuFt collapsed 12924(2036)->12047(2046)->2832(2056)->4(2066) as TopHt passed ~200ft; the fix
+recovers it to 12432 (within ~9% of FVSjl), 12/12 normal LS stands byte-identical. So the memory's "LS live=half"
+was just an earlier collapse cycle, NOT a separate issue. In-container gfortran 12.2.0 relink (validation vehicle);
+deliverable = the NVEL source patch. Applies to CS/LS/NE (shared FMSC NVEL library; CS latent-same). Build caveat #5.
