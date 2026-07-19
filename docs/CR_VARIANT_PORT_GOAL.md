@@ -13,10 +13,14 @@ whole validation harness + methodology is reused. CR infra: `VARACD='CR'`, **MAX
 like NE/CS/LS), seed 55329.
 
 ## What is NEW (the port surface — cr/*.f, ~35 routines)
-CR is the **western Prognosis/Wykoff large-tree DDS** model — genuinely different from the eastern forms:
-- **dgf.f / dgdriv.f** — DDS = f(ln(D), **BAL**, **CCF**, **CR**, **CR²**, site, habitat/forest interactions).
-  This is the Wykoff (1990) western large-tree DG. The MAIN new model. NOT the SN ln(DDS) regression, NOT NE's
-  BAL-potential iteration — a new dispatch on `diameter_growth!(::CentralRockies)`.
+CR is a **GENGYM** variant (Edminster's SW growth-and-yield), NOT the standard western Wykoff DDS —
+CORRECTED by MEASUREMENT (doctrine #2; the DGLD/DGBAL/DGCCF coefficient-name inference was WRONG):
+- **dgf.f** computes stand stats (SDI/RELSDI/DSTAG, BAL, PBAL, CR, BAUTBA, SPBA, SSITE) then delegates the DDS
+  to **`CALL GEMDG(...)`** (cr/gemdg.f, line 194). `WK2 = DDS + COR + DGCON`.
+- **gemdg.f (GENGYM)** — dispatch on **IMODTY** (model type 1-5: SW mixed conifer, SW ponderosa, …) then
+  **SELECT CASE(species)** with per-species/per-model-type regression DDS equations (hardcoded coefficients,
+  terms in DP/BA/CR/SI/slope/aspect/elev). The gem* routines (gemdg/gemht/gemcr) are the CR-specific model.
+  A new dispatch on `diameter_growth!(::CentralRockies)`. This is a LARGE careful transcription-and-diff chunk.
 - **htgf.f** — western height growth. **crown.f / cratet.f / ccfcal.f** — western crown + CCF.
 - **regent.f** — western small-tree/regen. **sitset.f / habtyp.f** — site index + **HABITAT TYPE groups**
   (a new coefficient dimension the eastern variants lack: OCURHT is (16 habitat-type-groups, MAXSP)).

@@ -33,6 +33,11 @@ Charter/doctrine: docs/CR_VARIANT_PORT_GOAL.md. Branch: cr-variant-port. Oracle:
   (the OCURHT (16,MAXSP) coefficient dimension). These are CR-specific and feed the DG coefficients.
 
 ## Road ahead (the substantial growth-model chunks)
-3. **Large-tree diameter growth (cr/dgf.f — the western Wykoff DDS)** = the core, largest chunk.
+3. **Large-tree diameter growth = GENGYM (cr/gemdg.f), NOT Wykoff DDS** [SCOPED, correction logged].
+   dgf.f sets stand/tree terms then CALL GEMDG(DDS,IMODTY,IS,BAUTBA,SPBA,SI,DP,BAT,BARK,CR,SLOPE,ASPECT,ELEV,
+   PBAL,PCCFI,RELDEN,BAL); GEMDG dispatches IMODTY(1-5 model types) x SELECT CASE(species) => per-species
+   regression DDS (hardcoded coefficients). WK2=DDS+COR+DGCON. The gem* trio (gemdg/gemht/gemcr) = the CR model.
+   This is the largest chunk: faithful transcription of every IMODTY x species branch + calibration (COR2), then
+   per-tree DG diff vs live FVScr in the pre-tripling window.
 4-6. Height (htgf), crown (crown/cratet/ccfcal), small-tree (regent). 7. Mortality reconcile. 8. Volume (NVEL).
 9. Full-cycle differential vs live FVScr. Best tackled as focused sessions, each port-and-diff per doctrine #1.
