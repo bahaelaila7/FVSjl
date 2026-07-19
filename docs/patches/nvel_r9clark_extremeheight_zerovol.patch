@@ -1,8 +1,8 @@
 diff --git a/r9clark.f b/r9clark.f
-index 5244da5..1fd43f6 100644
+index 5244da5..e78baac 100644
 --- a/r9clark.f
 +++ b/r9clark.f
-@@ -368,9 +368,19 @@ C-----Get topwood cubic volumes
+@@ -368,9 +368,25 @@ C-----Get topwood cubic volumes
        
  !...  get log lengths, dibs
          CALL R9LOGS(SAWHT, PLPHT, STUMP, MINLEN, MAXLEN, TRIM,
@@ -18,13 +18,19 @@ index 5244da5..1fd43f6 100644
 +C  as 0 (fixes the extreme-height 0-cuft summary bug).
 +          IF(ERRFLG .EQ. 12) THEN
 +            VOL(2) = 0.0
++            READ(VOLEQ(1:1),'(I1)') REGN
++            IF(REGN.EQ.9) CALL r9cor(vol,logVol,spp,iProd)
++            IF(vol(1).GT.0.0) vol(1)=nint(vol(1)*10.0)/10.0
++            IF(vol(4).GT.0.0) vol(4)=nint(vol(4)*10.0)/10.0
++            IF(vol(7).GT.0.0) vol(7)=nint(vol(7)*10.0)/10.0
++            VOL(2) = 0.0
 +            ERRFLG = 0
 +            RETURN
 +          ENDIF
            DO 525, I=1,15
               VOL(I) = 0.0
    525     CONTINUE
-@@ -413,6 +423,16 @@ C-----Get board foot volumes
+@@ -413,6 +429,22 @@ C-----Get board foot volumes
            if(errFlg.ne.0) return
          endif
          IF(ERRFLG .NE. 0) THEN
@@ -34,6 +40,12 @@ index 5244da5..1fd43f6 100644
 +C  volume and report 0 board-foot rather than discarding a valid volume
 +C  as 0 (fixes the extreme-height 0-cuft summary bug).
 +          IF(ERRFLG .EQ. 12) THEN
++            VOL(2) = 0.0
++            READ(VOLEQ(1:1),'(I1)') REGN
++            IF(REGN.EQ.9) CALL r9cor(vol,logVol,spp,iProd)
++            IF(vol(1).GT.0.0) vol(1)=nint(vol(1)*10.0)/10.0
++            IF(vol(4).GT.0.0) vol(4)=nint(vol(4)*10.0)/10.0
++            IF(vol(7).GT.0.0) vol(7)=nint(vol(7)*10.0)/10.0
 +            VOL(2) = 0.0
 +            ERRFLG = 0
 +            RETURN

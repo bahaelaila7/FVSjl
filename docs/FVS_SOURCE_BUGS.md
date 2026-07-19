@@ -340,14 +340,16 @@ zeroing). Only the board-foot LOG detail is invalid when >20 logs. Net effect on
 collapse to 0 once the stand's tallest trees exceed the ~20-log height (e.g. TopHt>~240 ft), even though the
 trees are large and carry hundreds of cuft each.
 
-FIX (minimal, both handlers): when ERRFLG.EQ.12, set VOL(2)=0 (board-foot), clear ERRFLG, and RETURN with the
-cubic volumes intact — instead of zeroing all 15 slots. No-op on every tree that buckets into <=20 logs
-(ERRFLG=0 skips the whole handler). Board foot is reported 0 for the >20-log giants (they cannot be bucked
+FIX (both handlers): when ERRFLG.EQ.12, preserve the cubic (vol 1/4/7), report 0 board-foot, and ALSO apply the
+same Region-9 correction the normal path applies AFTER bucking (r9cor cf=1.04 softwd/1.10 hardwd, whose cubic
+scaling does NOT depend on the log arrays) + the vol rounding, then RETURN — instead of zeroing all 15 slots.
+Without the r9cor step the recovered cubic is low by the cf factor (~4-9%); WITH it, patched-live matches FVSjl
+bit-exact-or-ULP. No-op on every tree that buckets into <=20 logs (ERRFLG=0 skips the whole handler). Board foot is reported 0 for the >20-log giants (they cannot be bucked
 into the fixed arrays — an acceptable degradation; these heights are already beyond the model's realistic range
 via the AVHT40-inflated height model).
 
-VALIDATION: NE 1167721956290487 TCuFt now 17744/20591/23208/25413 at 2050-2080 (was 13555/217/0/0), sensible &
-monotonic, and within ~4% of FVSjl (the correct side; residual = the normal AVHT40/self-thin tie-break). Normal
+VALIDATION: NE 1167721956290487 TCuFt 17912/21405/24137/26429 at 2050-2080 (was 13555/217/0/0) == FVSjl
+17897/21397/24147/26445 to ~0.05% (ULP); LS 499580541126144 13667@2066 == FVSjl 13667 BIT-EXACT (was 4). Normal
 NE stands 12/12 byte-identical patched-vs-official. CONFIRMED SAME BUG ON LS (499580541126144, red pine,
 fia125): live TCuFt collapsed 12924(2036)->12047(2046)->2832(2056)->4(2066) as TopHt passed ~200ft; the fix
 recovers it to 12432 (within ~9% of FVSjl), 12/12 normal LS stands byte-identical. So the memory's "LS live=half"
