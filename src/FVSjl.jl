@@ -31,6 +31,7 @@ include("core/rng.jl")
 include("core/units.jl")
 include("core/trees.jl")
 include("variants/variant.jl")
+include("variants/centralrockies/centralrockies.jl")
 include("core/coefficients.jl")
 include("core/state.jl")
 

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# Active campaign: verify the LARGEST FIA divergences are irreducible (goal docs/FVS_LARGEST_DIV_GOAL.md;
-# off-switch: touch docs/FVS_LARGEST_DIV_COMPLETE).
-exec /workspace/FVSjl/.claude/stop-largest.sh "$@"
+# Active campaign: port the CR (Central Rockies) FVS variant (goal docs/CR_VARIANT_PORT_GOAL.md;
+# off-switch: touch docs/CR_VARIANT_PORT_COMPLETE).
+exec /workspace/FVSjl/.claude/stop-cr.sh "$@"
