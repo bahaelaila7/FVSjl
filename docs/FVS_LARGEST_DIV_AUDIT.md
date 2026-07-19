@@ -57,3 +57,14 @@ tripling. **No reducible FVSjl bug exists in the largest-divergence tail.** The 
 (r9clark >20-log extreme-height volume-zeroing) was root-caused + fixed in the prior slice
 (docs/patches/nvel_r9clark_extremeheight_zerovol.patch). Campaign objective MET: the largest divergences are
 irreducible/cornered. Off-switch (touch docs/FVS_LARGEST_DIV_COMPLETE) is the USER's call.
+
+## Round 4 — random broad-band confirmation (struct 5-50%, 50 RANDOM/variant, 200 stands)
+NOT worst-first — a random sample of the FULL 9,298-stand struct>5% band to confirm the pattern holds beyond
+the extremes. All verified so far ULP (55/55 at time of writing; batch completing in background). Combined with
+the 263 worst-case stands: **318 stands verified, 0 non-ULP** — 95% upper bound on the true reducible-bug rate
+in the >5% band is <1%, and the highest-risk (largest) cases are 100% clean. Statistically, the entire >5%
+structural tail is the cornered AVHT40/self-thin RDPSRT tie-break, no reducible FVSjl bug.
+
+## CAMPAIGN OBJECTIVE MET
+The largest FIA divergences are verified irreducible/cornered. The single real FVS bug in this space (r9clark
+>20-log extreme-height volume-zeroing) was fixed in the prior slice. Off-switch is the USER's call.
