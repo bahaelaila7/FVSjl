@@ -15,3 +15,8 @@ LS,none,18447951010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1990,15.99,76.0,15.99,0.
 LS,none,18438314010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1981,16.547,28.0,16.547,0.099,false,false,structure_densephase,28.0,1.0
 LS,none,18821105010661,6,false,CCF|TCuFt|SCuFt|BdFt,CCF,1993,16.667,38.0,16.667,0.033,false,false,structure_densephase,38.0,1.0
 LS,none,9426842020004,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2021,18.659,344.0,18.659,1.609,false,true,structure_densephase,153.0,34.0
+LS,none,24089675010661,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2033,19.149,4778.0,19.149,14.241,false,false,structure_densephase,27.0,496.0
+LS,none,499580541126144,6,false,TCuFt|MCuFt|SCuFt|BdFt,TCuFt,2066,341575.0,93516.0,0.0,341575.0,true,false,volume_persistent,0.0,13663.0
+LS,none,245899663010661,6,false,TPA|BA|SDI|CCF|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2040,16.041,1784.0,16.041,3.555,false,true,structure_densephase,1784.0,121.0
+LS,none,66083429010661,6,false,TCuFt,TCuFt,2041,51.635,2779.0,0.0,51.635,true,true,threshold_crossing,0.0,2779.0
+LS,none,55377475010661,6,false,TPA|BA|SDI|CCF|TopHt|QMD|TCuFt|MCuFt|SCuFt|BdFt,TPA,2050,20.106,889.0,20.106,4.892,false,false,structure_densephase,115.0,134.0
