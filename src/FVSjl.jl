@@ -31,7 +31,6 @@ include("core/rng.jl")
 include("core/units.jl")
 include("core/trees.jl")
 include("variants/variant.jl")
-include("variants/centralrockies/centralrockies.jl")
 include("core/coefficients.jl")
 include("core/state.jl")
 
@@ -54,6 +53,8 @@ include("variants/southern/mortality.jl")
 # dispatches on `Union{Northeast,CentralStates}` (CS reuses it). The CS *methods* land after.
 include("variants/centralstates/centralstates.jl")  # CS singleton + registration (MAXSP 96)
 include("variants/lakestates/lakestates.jl")         # LS singleton + registration (MAXSP 68)
+include("variants/centralrockies/centralrockies.jl") # CR singleton + registration (MAXSP 38) — first WESTERN variant
+include("variants/centralrockies/species.jl")
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

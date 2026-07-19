@@ -34,3 +34,5 @@ htg_period(::CentralRockies) = 10f0          # /CONTRL/ YR = 10 (cr/blkdat.f:126
 # mort_ri_scale / mort_dbh_threshold: TODO — reconcile vs cr/morts.f in the mortality chunk.
 
 const CR_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "centralrockies"))
+
+coefficients(::CentralRockies) = cached_coefficients(() -> load_species_coefficients(CR_DATADIR), "CR")
