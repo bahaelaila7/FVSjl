@@ -1,0 +1,43 @@
+diff --git a/r9clark.f b/r9clark.f
+index 5244da5..1fd43f6 100644
+--- a/r9clark.f
++++ b/r9clark.f
+@@ -368,9 +368,19 @@ C-----Get topwood cubic volumes
+       
+ !...  get log lengths, dibs
+         CALL R9LOGS(SAWHT, PLPHT, STUMP, MINLEN, MAXLEN, TRIM,
+-     &       LOGLEN,LOGDIA,NOLOGP,NOLOGS,TLOGS,COEFFS,ERRFLG,BOLHT) 
+-     
++     &       LOGLEN,LOGDIA,NOLOGP,NOLOGS,TLOGS,COEFFS,ERRFLG,BOLHT)
++
+         IF(ERRFLG .NE. 0) THEN
++C  ERRFLG=12 means the stem needs >20 logs for the fixed 20-log arrays.
++C  That invalidates only the board-foot LOG detail, NOT the cubic taper
++C  integrals (vol 1/4/7) already computed by r9cuft. Preserve the cubic
++C  volume and report 0 board-foot rather than discarding a valid volume
++C  as 0 (fixes the extreme-height 0-cuft summary bug).
++          IF(ERRFLG .EQ. 12) THEN
++            VOL(2) = 0.0
++            ERRFLG = 0
++            RETURN
++          ENDIF
+           DO 525, I=1,15
+              VOL(I) = 0.0
+   525     CONTINUE
+@@ -413,6 +423,16 @@ C-----Get board foot volumes
+           if(errFlg.ne.0) return
+         endif
+         IF(ERRFLG .NE. 0) THEN
++C  ERRFLG=12 means the stem needs >20 logs for the fixed 20-log arrays.
++C  That invalidates only the board-foot LOG detail, NOT the cubic taper
++C  integrals (vol 1/4/7) already computed by r9cuft. Preserve the cubic
++C  volume and report 0 board-foot rather than discarding a valid volume
++C  as 0 (fixes the extreme-height 0-cuft summary bug).
++          IF(ERRFLG .EQ. 12) THEN
++            VOL(2) = 0.0
++            ERRFLG = 0
++            RETURN
++          ENDIF
+           DO 575, I=1,15
+              VOL(I) = 0.0
+   575     CONTINUE

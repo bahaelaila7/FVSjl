@@ -323,3 +323,30 @@ byte-identical patched-vs-official across all 4 variants) and match FVSjl on the
    asymptote `4.5+P2` makes `ratio=(ln(H-4.5)-ln(P2))/(-P3)<0` ⇒ `ALOG(negative)`. Instrumented `H=114.7 >
    asymptote 85, ratio=-0.0116`. Fix mirrors FVSjl volume.jl:92-98 exactly: clamp `MIN(H-4.5,0.9999*P2)` +
    `ratio>0 ? EXP(ALOG(ratio)/P4) : 100`. All 4 variants. (`fvs:197`/CRATET was a STALE record — runs clean.)
+
+## r9clark >20-log cap zeroes ALL volume (incl. total cubic) for extreme-height trees — FIXED (2026-07-19)
+Full trace: this section. Patch: docs/patches/nvel_r9clark_extremeheight_zerovol.patch (NVEL submodule
+volume/NVEL/r9clark.f — the FMSC National Volume Estimator Library, shared by all Region-9 variants CS/LS/NE).
+This is the "extreme-height volume-zeroing" class (2,140 sweep stands, ~0.5% of non-bit-exact; FVSjl is the
+correct side and was cornered as an FVS bug).
+
+ROOT CAUSE (instrumented, NE stand 1167721956290487, VOLEQ 900CLKE): for a very tall tree the merchantable
+stem needs MORE than 20 logs, overflowing the fixed 20-slot log arrays (LOGLEN/LOGDIA/LOGVOL). r9logs.f flags
+this with ERRFLG=12 and returns. Back in r9clark.f the error handler (line 373, DO 525; and the prod!=1
+handler DO 575) does `DO I=1,15: VOL(I)=0.0; RETURN` — discarding the TOTAL and MERCH cubic volume too.
+But those cubic volumes are r9cuft TAPER INTEGRALS computed BEFORE the log bucking and are perfectly valid
+(instrumented: a 33-38" x ~300ft tree had vol(1)=536-680 cuft, vol(4)=529-674, vol(7)=5 right before the
+zeroing). Only the board-foot LOG detail is invalid when >20 logs. Net effect on the .sum: TCuFt/MCuFt/SCuFt
+collapse to 0 once the stand's tallest trees exceed the ~20-log height (e.g. TopHt>~240 ft), even though the
+trees are large and carry hundreds of cuft each.
+
+FIX (minimal, both handlers): when ERRFLG.EQ.12, set VOL(2)=0 (board-foot), clear ERRFLG, and RETURN with the
+cubic volumes intact — instead of zeroing all 15 slots. No-op on every tree that buckets into <=20 logs
+(ERRFLG=0 skips the whole handler). Board foot is reported 0 for the >20-log giants (they cannot be bucked
+into the fixed arrays — an acceptable degradation; these heights are already beyond the model's realistic range
+via the AVHT40-inflated height model).
+
+VALIDATION: NE 1167721956290487 TCuFt now 17744/20591/23208/25413 at 2050-2080 (was 13555/217/0/0), sensible &
+monotonic, and within ~4% of FVSjl (the correct side; residual = the normal AVHT40/self-thin tie-break). Normal
+NE stands 12/12 byte-identical patched-vs-official. In-container gfortran 12.2.0 relink (validation vehicle);
+deliverable = the NVEL source patch. Applies to CS/LS/NE (shared library). Build caveat per doctrine #5.
