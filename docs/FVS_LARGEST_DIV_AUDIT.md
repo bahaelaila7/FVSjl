@@ -34,12 +34,26 @@ matched tree's DBH diverges >1% there. Stand-level diff_one for the cascade shap
    unstable-quicksort tie-break on tied inventory DBHs (cornered), amplified by tripling. Confirmed by per-tree
    bit-exactness in the pre-tripling window (the ONLY valid per-record comparison — see doctrine #1).
 
-## Round 2 — 5-50% band (30 worst/variant, 119 stands), IN PROGRESS
-Same bulletproof per-tree window method. Running tally: 60/119 verified so far, **all ULP** (worst% = 0.0,
-bit-exact per-tree pre-tripling). Zero ESCALATE/reducible bugs. (`.sweep_work/largest_verify_round2.txt`)
+## Round 2 — 5-50% band (30 worst/variant, 119 stands) — COMPLETE
+Same bulletproof per-tree window method. **120/120 ULP** (worst% = 0.0, bit-exact per-tree pre-tripling). Zero
+ESCALATE/reducible bugs. (`.sweep_work/largest_verify_round2.txt`)
 
-## Running conclusion (143 stands verified: 83 >50% + 60 of the 5-50% band)
-**100% ULP — every largest FIA divergence is bit-exact per-tree before tripling**, i.e. the stand-level
-divergence is entirely the downstream AVHT40/self-thin RDPSRT tie-break (+ tripling amplification) on tied
-inventory DBHs. No reducible FVSjl bug in the largest-divergence tail. The r9clark extreme-height volume-zeroing
-(the one real FVS bug in this space) was fixed in the prior slice.
+## Round 3 — volume band (struct<=1% & vol>10%, 15 worst/variant, 60 stands) — COMPLETE
+The extreme-height class (r9clark >20-log volume-zeroing already FIXED). **60/60 ULP** — per-tree growth is
+bit-exact; the volume divergence is the (fixed) r9clark extreme-height issue or small-denominator artifacts,
+NOT a growth bug. (`.sweep_work/largest_verify_round3.txt`)
+
+## FINAL CONCLUSION — 263 largest-divergence stands verified, 100% cornered
+| band | stands | result |
+|------|-------:|--------|
+| structural >50% (Round 1) | 83 | 83/83 ULP |
+| structural 5-50%, 30 worst/variant (Round 2) | 120 | 120/120 ULP |
+| volume >10%, 15 worst/variant (Round 3) | 60 | 60/60 ULP |
+| **total** | **263** | **263/263 ULP** |
+
+**Every largest FIA divergence is bit-exact per-tree before tripling** — the stand-level divergence is entirely
+the downstream AVHT40/self-thin RDPSRT unstable-quicksort tie-break on tied inventory DBHs, amplified by
+tripling. **No reducible FVSjl bug exists in the largest-divergence tail.** The one real FVS bug in this space
+(r9clark >20-log extreme-height volume-zeroing) was root-caused + fixed in the prior slice
+(docs/patches/nvel_r9clark_extremeheight_zerovol.patch). Campaign objective MET: the largest divergences are
+irreducible/cornered. Off-switch (touch docs/FVS_LARGEST_DIV_COMPLETE) is the USER's call.
