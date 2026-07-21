@@ -151,3 +151,20 @@ birth ages) but >40 like 1000 ⇒ same DF-branch, so the DDS check used live AGE
 computation is still to be independently checked when a real stand loads. Oracle RESTORED pristine (git-clean).
 ⇒ Chunk 3 (large-tree diameter growth) is COMPLETE + end-to-end live-validated. Next: species crosswalk (unblocks
 full tree-input + chunk 9), then height(htgf)/crown/regent/mortality/volume.
+
+### CR species SPCTRN crosswalk — DONE (tree input now works; WP→SW verified vs live)
+Source: bin/FVScr_buildDir/spctrn.f = the SHARED western SPCTRN table ASPT(442,21): cols 1-3 = (alpha,FIA,PLANTS)
+input codes, and column J=8 = the CR target 2-char code (header row "AK BM CA CI CR EC EM" over J=4..10). Extracted
+all 442 rows → data/centralrockies/species_translation.csv in the 7-col eastern layout (target_cr in the first
+target slot, replicated across cols 4-7). Hooks: spctrn_column(::CentralRockies)=4, other_species=Int32(38) (OH;
+softwood misses go to OS via the table). ★ VERIFIED vs live: crt01's WP (FIA 119, PIMO3) → SW (sp 15), matching
+the live "INPUT SPECIES CODE (WP) WAS SET TO (SW)" echo. crt01 now LOADS through the engine (27 trees, species
+WF/PP/SW/ES/AS correct). Species-mapping was approved by FVS regional contacts Apr 2007 (spctrn.f header).
+
+### FOLLOW-UP (tree-input, shared reader — matters for chunk 9 full-cycle, NOT the crosswalk):
+jl loads 27 trees vs live's 29 (cruise "NUMBER OF RECORDS PER SPECIES 5 8 1 9 6"). The 2 dropped = crt01.tre
+lines 5 ("018ES 346") + 14 ("016PP 072"), the ONLY records whose pre-species I1 field (TREEFMT T31,F2.0,I1,A3
+→ the 1 col after the F2.0 count, before the A3 species) is ≠1 (=8 and =6). All I1=1 records load (incl. tiny
+DBH=0.1 seedlings and a ht=0 record). Likely a history/value-class-code or fixed-format field-alignment handling
+gap in the shared tree reader for this CR TREEFMT. Investigate before the chunk-9 differential; it does NOT affect
+the chunk-3 DG validation (that used the live treelist via instrumentation).
