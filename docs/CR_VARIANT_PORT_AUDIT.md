@@ -323,3 +323,18 @@ coefficients present) but LARGE (comparable to the eastern r9clark port). Recomm
   3. Port FW2 (300FW2W, DF/PP) + NVB National-Biomass (NVB*/NVBM*, 5 sp).
   4. Validate per-tree cuft/bdft vs live via instrument-replay (dump the NVEL call args+results on crt01,
      replay). Merch specs already wired; compute_volumes! runs (returns 0 until equations land).
+
+### CHUNK 8 volume — full characterization (3 NVEL families; crt01 exercises NVB+FW2, not DVEE)
+★ KEY (measure): crt01's 5 species use **NVB** (WF NVB0000015, SW NVBM240119, ES NVBM330093, AS NVB0000746) +
+**FW2** (PP 300FW2W122) — NOT DVEE. So crt01-based volume validation needs NVB+FW2; the DVEE family (31/38 sp) is
+UNEXERCISED by crt01 and needs a different test stand. Source (all in-tree, volume/NVEL/):
+  - **NVB** = NVEL/nsvb.f (FIA National-Scale Volume & Biomass — modern, LARGE) + biomassformula.f/calcbiomass.f.
+  - **FW2** = NVEL/fwinit.f (form-class volume).
+  - **DVEE** = NVEL/r3d2hv.f (717 lines; 49 GCUFT4 D2H-polynomial formulas by equation 093/113/122/746/060/106/
+    800/999/310/314 — TRACTABLE direct formulas, D2H=DBH²·HT). dvest.f dispatches on VOLEQ[1] region digit
+    (crt01 forest 303 ⇒ region 3 ⇒ R3D2HV). Assignment logic = voleqdef.f (2749 lines) — or reuse the saved
+    volume_equations_reference.csv (verified vs live).
+⇒ Chunk 8 is a genuine 3-family NVEL port (NVB the largest). Recommended: port NVB+FW2 first (validate on crt01),
+then DVEE (needs a DVEE-species test stand — pick one from the FVScr test suite). This is the largest remaining
+chunk; growth+mortality (ch3-7) are all bit-exact and volume is a downstream leaf (does not affect grow-cycle).
+Merch specs already wired; setup_volume_equations! still needs a CR branch (load the reference CSV).
