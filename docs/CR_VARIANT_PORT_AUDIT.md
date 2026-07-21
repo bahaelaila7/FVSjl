@@ -452,3 +452,16 @@ small per-tree growth diffs that feed self-thinning. THIS is the last item — r
 DG-serial-corr + height + regent to FVS's exact sequence (species-sorted, per the growth loop order). 1990 stays
 bit-exact. Chunk-9 progress: full cycle runs + close to live; ccfcal + CR-calibration-branch + CR-bark all real
 fixes found via the differential.
+
+### CHUNK 9 residual refined: cycle-1 DG ~3% high is DETERMINISTIC (not RNG-order)
+Checked: at 2000 (cycle 1) tripling is active ⇒ the DG serial-correlation is DETERMINISTIC (frmbase=FM·ssigma·
+rhocp, no draw). c.vardg IS set for CR (0.00144) ⇒ ssigma≈0.038 ⇒ the negative-bias reduction is only ~0.5%,
+NOT enough to explain the ~3% BA over-growth. So the cycle-1 residual is a DETERMINISTIC DG diff, not the RNG
+stream-order (that only bites at post-tripling cycles + the height/regent ZZRAN). Candidates to isolate via a
+per-tree cycle-1 DG instrument-replay (dump live DG(I) for crt01_growth, diff jl t.diam_growth): (a) CR DGBND
+(cr/dgbnd.f) diameter-growth bounds not wired into the driver (dlo_v/dhi_v) ⇒ unbounded DG; (b) a density-input
+detail (point_ba PTBAA / PCT percentile) feeding gemdg PBAL/BAL that differs from live's dense.f; (c) the
+DDS→DG conversion beyond bark. NOTE the per-chunk DG was bit-exact using LIVE dumped inputs, so the residual is
+in jl's OWN computation of those inputs (density pre-pass) OR the DGBND/conversion. NEXT: instrument cr DG on
+crt01_growth (DGTRC per-tree DG at cycle 1), replay, isolate. Then the RNG-order for later cycles. Session fixed
+3 real full-cycle bugs (ccfcal, CR-calibration-dispatch, CR-bark); over-growth 6%→3%; 1990 bit-exact.
