@@ -68,3 +68,78 @@ function cr_gemcr(imodty::Int, is::Int, bau::Float32, bat::Float32, hf::Float32,
     end
     return cr
 end
+
+"""
+    _cr_crown_tree(...) -> ICRI (new crown percent, integer)
+
+Per-tree crown-ratio DUB/change from cr/crown.f. `icr_old`=entry ICR (0 ⇒ dub), `htg`/`dg` this cycle's
+growth. Change is limited to ±1%/yr; CRNMLT/DLOW/DHI are the CRNMULT-keyword adjustments (defaults
+1/0/99 ⇒ inert). Top-kill (itrunc>0, lstart) reduces the crown. Bounds [1 or 10, 95].
+"""
+function _cr_crown_tree(imodty::Int, sp::Int, d::Float32, h::Float32, pcti::Float32, tbau::Float32,
+                        ba::Float32, hf::Float32, df::Float32, relden::Float32, icr_old::Int,
+                        htg::Float32, fint::Float32, crnmlt::Float32, dlow::Float32, dhi::Float32,
+                        itrunc::Int, normht::Int, lstart::Bool)::Int
+    cr = cr_gemcr(imodty, sp, tbau, ba, hf, df, h, relden, pcti)
+    crnew = cr * 100.0f0
+    if !(lstart || icr_old == 0)
+        chg = crnew - Float32(icr_old)
+        pdifpy = chg / Float32(icr_old) / fint
+        pdifpy > 0.01f0 && (chg = Float32(icr_old) * 0.01f0 * fint)
+        pdifpy < -0.01f0 && (chg = Float32(icr_old) * (-0.01f0) * fint)
+        crnew = (d >= dlow && d <= dhi) ? Float32(icr_old) + chg * crnmlt : Float32(icr_old) + chg
+    end
+    icri = trunc(Int, crnew + 0.5f0)
+    if lstart || icr_old == 0
+        (d >= dlow && d <= dhi) && (icri = trunc(Int, Float32(icri) * crnmlt))
+    end
+    if !(lstart || icr_old == 0)
+        crln = h * Float32(icr_old) / 100.0f0
+        crmax = (crln + htg) / (h + htg) * 100.0f0
+        icri > crmax && (icri = trunc(Int, crmax + 0.5f0))
+        (icri < 10 && crnmlt == 1.0f0) && (icri = trunc(Int, crmax + 0.5f0))
+    end
+    if lstart && itrunc != 0
+        hn = Float32(normht) / 100.0f0
+        hd = hn - Float32(itrunc) / 100.0f0
+        cl = (Float32(icri) / 100.0f0) * hn - hd
+        icri = trunc(Int, (cl * 100.0f0 / hn) + 0.5f0)
+    end
+    icri > 95 && (icri = 95)
+    (icri < 10 && crnmlt == 1.0f0) && (icri = 10)
+    icri < 1 && (icri = 1)
+    return icri
+end
+
+"""
+    crown_ratio_update!(s, ::CentralRockies; fint=10, lstart=false, relden_override=-1)
+
+CR crown-ratio update (cr/crown.f): per tree, HF=H+HTG, DF=D+DG/bark, GEMCR → new crown %, with
+±1%/yr change limiting and the CRMAX cap. `lstart` fills missing (ICR=0) inventory crowns. CRNMULT
+keyword adjustments not yet wired (defaults inert). Writes `t.crown_pct` (ICR).
+"""
+function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10.0f0,
+                             lstart::Bool = false, relden_override::Float32 = -1.0f0, kwargs...)
+    p, t, sd = s.plot, s.trees, s.coef.species
+    t.n == 0 && return s
+    imodty = Int(p.model_type)
+    ba = p.basal_area
+    relden = relden_override >= 0.0f0 ? relden_override : stand_ccf(s)
+    bau = _cr_badist_bau(t)
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0.0f0 && continue
+        icr_old = Int(t.crown_pct[i])
+        (lstart && icr_old > 0) && continue        # inventory crown present → keep
+        icr_old < 0 && (t.crown_pct[i] = Int32(-icr_old); continue)   # pest-computed → restore sign
+        sp = Int(t.species[i])
+        d = t.dbh[i]; h = t.height[i]; pcti = t.crown_ratio[i]
+        icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)
+        htg = t.ht_growth[i]; dg = t.diam_growth[i]
+        bark = cr_bratio(sd, sp, d, imodty)
+        hf = h + htg
+        df = d + dg / bark; df < d && (df = d)
+        t.crown_pct[i] = Int32(_cr_crown_tree(imodty, sp, d, h, pcti, bau[icls], ba, hf, df, relden,
+            icr_old, htg, fint, 1.0f0, 0.0f0, 99.0f0, Int(t.trunc[i]), Int(t.norm_ht[i]), lstart))
+    end
+    return s
+end

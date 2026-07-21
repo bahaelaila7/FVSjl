@@ -197,3 +197,15 @@ draw into height_growth! (bachlo + reject loop). Its per-tree VALUES bit-match l
 sequence is reconciled — FVS draws in species-sorted IND1 order, jl loops tree-index order ⇒ deferred to the
 chunk-9 full-cycle RNG reconciliation (same class as DG COR/DGSCOR driver-managed stochastics). cr_gemht itself
 18864/18864. Oracle restored pristine. ⇒ CHUNK 4 deterministic core COMPLETE; only the ZZRAN stream-order remains.
+
+### ★ CHUNK 5 (crown ratio) — cr_gemcr 11140/11140 + crown.f wrapper 11132/11132 BIT-EXACT
+cr_gemcr (crown.jl, GENGYM cr/gemcr.f): crown-length CL by species SELECT CASE → CR=CL/HF, or direct CR
+(MH/RC/WL CASE 6/7/8, ICRFLG=1). VALIDATED 11140/11140 vs live (instrument gemcr.f, crt01). _cr_crown_tree +
+crown_ratio_update!(::CentralRockies) (cr/crown.f cycling path): HF=H+HTG, DF=D+DG/bark, GEMCR → new crown%,
+±1%/yr change limit (PDIFPY), CRMAX cap ((CRLN+HTG)/(H+HTG)), bounds [10,95]. CRNMULT keyword adjustments
+(CRNMLT/DLOW/DHI defaults 1/0/99 ⇒ inert) + top-kill (ITRUNC, lstart) transcribed but not exercised by crt01.
+VALIDATED 11132/11132 BIT-EXACT vs live (instrument crown.f, cycling path LSTART=0; FINT=10). LSTART DUB path +
+dead-tree dub are faithful transcription (crt01 inventory has crowns ⇒ unexercised).
+REMAINING chunk-5 item: ccfcal.f (CCF) — the DG/height/crown validations all took live RELDEN(stand CCF)+PCCF as
+dumped INPUTS, so jl's stand_ccf/point_ccf reproduction for CR (which needs CR crown-width coefficients) is still
+UNVALIDATED. Check whether the shared CCF engine uses CR-specific crown-width coefs before chunk 9.
