@@ -75,3 +75,23 @@ IMODTY=DEFMT[forest] + per-tree loop calling cr_gemdg, then WK2=DDS+COR+DGCON. R
 live FVScr — the next chunk-3 unit is now turnkey (all inputs have a known source).
 4-6. Height (htgf), crown (crown/cratet/ccfcal), small-tree (regent). 7. Mortality reconcile. 8. Volume (NVEL).
 9. Full-cycle differential vs live FVScr. Best tackled as focused sessions, each port-and-diff per doctrine #1.
+
+### dgf!(::CentralRockies) — COMPLETE implementation spec (turnkey; all data sources resolved)
+Engine contract (like ls dgf!): loop trees, write `wk2 = view(s.scratch.wk,2,:)`; the shared
+diameter_growth!(::AbstractVariant) driver handles calibration(COR)+tripling. Per-cycle setup:
+  ba_v = p.basal_area; relden = stand_ccf(s) (RELDEN=stand CCF); slope=p.slope, aspect=p.aspect;
+  imodty = s.control.model_type (= DEFMT[forest] default, MODTYPE kw override — data/centralrockies/
+    model_type_by_forest.csv); spba[sp] = species BA sum (0.005454154*sum(tpa*d^2) per species);
+  BAU pre-pass: for ICLS=1..41, BAU(ICLS)=BA in trees with class > ICLS (ICLS=min(trunc(d+1),41)),
+    i.e. cumulative BA above each dbh class.
+Per tree i (d=t.dbh[i]>0, sp=species):
+  bark=bark_ratio(c.bark_a,c.bark_b,sp,d); cr = t.crown_pct[i]*0.01 (ICR*0.01, 0-1);
+  icls=min(trunc(Int,d+1f0),41); bautba = BAU[icls]/ba_v; pct = t.crown_ratio[i] (BA percentile, shared);
+  pbal = (1-pct/100)*point_ba[pt]; bal = (1-pct/100)*ba_v; pccfi = point_ccf[pt]; ssite = p.sp_site_index[sp];
+  dds = cr_gemdg(imodty, sp, bautba, spba[sp], ssite, d, ba_v, bark, cr, slope, aspect, pbal, pccfi, relden,
+                 bal; dbhmax=sd[:dbh_max][sp]);
+  wk2[i] = dds + c.dg_cor[sp] + c.dg_const[sp]   # DGCON=0 default (cr/dgf.f:222); COR=shared calibration.
+DATA still to add: dg_const column = 0 (all species); confirm engine has point_ccf + control.model_type +
+p.slope/p.aspect accessors (verify; add if missing). VALIDATION: cr_gemdg already 9981/9982 bit-exact vs live;
+validate the wrapper's TERM computation by running the engine's density pre-pass on crt01 and diffing the
+GEMDG inputs (bautba/spba/pbal/bal/relden/pccfi) vs the captured live GEMTRC, then wk2 vs live WK2.
