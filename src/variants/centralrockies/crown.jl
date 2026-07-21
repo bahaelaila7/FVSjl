@@ -143,3 +143,38 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
     end
     return s
 end
+
+# =============================================================================
+# cr_crown_width — CR crown competition factor / crown width (cr/ccfcal.f).
+# CCF per tree: D≥10 → RD1+D·RD2+D²·RD3; D>0.1 → RDA·D^RDB; else 0.001.
+# Crown width = sqrt(CCF/0.001803) (cap 99.9). IMAP = MAP{IMODTY}[sp]. The engine's
+# CCF = 0.001803·cw²·tpa then recovers CCFT=CCF·tpa exactly. Ports the Wykoff-Crookston-
+# Stage INT-133 Table-8 CCF equations mapped to CR species per model type.
+# =============================================================================
+const _CR_CCF_MAP = (
+    (7,7,2,7,3,1,1,1,1,1,1,1,8,1,1,1,1,6,6,5,4,4,4,4,4,4,4,5,1,1,1,1,1,1,1,8,1,4),  # MAP1 IMODTY 1
+    (3,3,2,3,3,1,1,1,1,1,1,7,8,1,1,1,1,1,1,5,4,4,6,6,6,6,6,5,1,1,1,1,7,7,7,8,1,4),  # MAP2 IMODTY 2
+    (1,1,2,1,1,1,1,1,1,1,1,1,8,1,1,1,6,6,6,5,1,1,4,4,4,4,4,5,1,1,1,1,1,1,1,8,1,4),  # MAP3 IMODTY 3
+    (7,7,2,7,7,1,1,1,1,1,1,1,1,1,1,1,6,6,6,5,4,4,4,4,4,4,4,5,1,1,1,1,1,1,1,1,1,4),  # MAP4 IMODTY 4
+    (7,7,2,7,7,1,1,1,1,1,1,1,8,1,1,1,6,6,6,5,4,4,4,4,4,4,4,5,1,1,1,1,1,1,1,8,1,4),  # MAP5 IMODTY ≥5
+)
+const _CR_CCF_RD1 = (0.01925f0, 0.11f0, 0.04f0, 0.03f0, 0.03f0, 0.03f0, 0.03f0, 0.03f0)
+const _CR_CCF_RD2 = (0.01676f0, 0.0333f0, 0.0270f0, 0.0215f0, 0.0238f0, 0.0173f0, 0.0216f0, 0.0180f0)
+const _CR_CCF_RD3 = (0.00365f0, 0.00259f0, 0.00405f0, 0.00363f0, 0.00490f0, 0.00259f0, 0.00405f0, 0.00281f0)
+const _CR_CCF_RDA = (0.009187f0, 0.017299f0, 0.015248f0, 0.011109f0, 0.008915f0, 0.007875f0, 0.011402f0, 0.007813f0)
+const _CR_CCF_RDB = (1.7600f0, 1.5571f0, 1.7333f0, 1.7250f0, 1.7800f0, 1.7360f0, 1.7560f0, 1.7680f0)
+
+@inline function cr_crown_width(sp::Int, d::Float32, imodty::Int)::Float32
+    m = 1 <= imodty <= 5 ? imodty : 5
+    imap = _CR_CCF_MAP[m][sp]
+    ccf = if d >= 10.0f0
+        _CR_CCF_RD1[imap] + d * _CR_CCF_RD2[imap] + d * d * _CR_CCF_RD3[imap]
+    elseif d > 0.1f0
+        _CR_CCF_RDA[imap] * fpow(d, _CR_CCF_RDB[imap])
+    else
+        0.001f0
+    end
+    cw = sqrt(ccf / 0.001803f0)
+    cw > 99.9f0 && (cw = 99.9f0)
+    return cw
+end

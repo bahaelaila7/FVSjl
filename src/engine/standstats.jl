@@ -203,8 +203,9 @@ function point_density!(s::StandState)
     @inbounds for i in 1:t.n
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
-        sp2 = s.species.code2[t.species[i]]
-        cw  = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
+        cw  = s.variant isa CentralRockies ?
+              cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
+              crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
                           p.latitude, p.longitude, p.elevation)
         ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
         # dense.f:210-211 accumulates each term as `CCFT*PI/GROSPC` — i.e. (ccft·pi)/gross evaluated
@@ -265,8 +266,9 @@ function stand_ccf(s::StandState)
     ccf = 0f0
     @inbounds for i in 1:t.n
         sp = t.species[i]
-        sp2 = s.species.code2[sp]
-        cw = crown_width(s.coef, sp2, t.dbh[i], t.height[i], 90, 1,
+        cw = s.variant isa CentralRockies ?
+             cr_crown_width(Int(sp), t.dbh[i], Int(p.model_type)) :
+             crown_width(s.coef, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
                          p.latitude, p.longitude, p.elevation)
         ccf += t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
     end

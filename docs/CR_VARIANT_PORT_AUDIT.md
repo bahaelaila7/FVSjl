@@ -412,3 +412,17 @@ density! + stand_ccf). This is a bounded chunk (ccfcal.f coefficients + dispatch
 fix; after it, re-diff and the residual should be the ZZRAN/regen RNG stream-order (height/small-tree). ⇒ the
 full-cycle harness is now in place + the divergence is root-caused. Growth+mortality integration CONFIRMED correct
 (1990 bit-exact).
+
+### ★ ccfcal (CCF) PORTED — 1990 now FULLY bit-exact (CCF 93=93); residual = ZZRAN RNG-order
+cr_crown_width (crown.jl) ports cr/ccfcal.f: IMAP=MAP{IMODTY}[sp] (MAP1-5, 8 CCF eqn groups = Wykoff-Crookston-
+Stage INT-133 Table-8); CCF = D≥10: RD1+D·RD2+D²·RD3 ; D>0.1: RDA·D^RDB ; else 0.001; crown_width=sqrt(CCF/0.001803)
+cap 99.9. Wired into standstats.jl point_density! + stand_ccf (CentralRockies → cr_crown_width, else eastern cwcalc).
+RESULT: the growth-only .sum 1990 row is now BIT-EXACT vs live INCLUDING CCF (536/77/160/93/63/5.1). CCF at later
+cycles tracks (2000 jl133/live127, 2040 jl257/live239). RESIDUAL: jl still over-grows ~5%/cycle (2040 BA 246 vs 223,
+TopHt 94 vs 87) BUT TPA matches EXACTLY (mortality integration correct) — so it's per-tree DG/HT slightly high with
+correct RELDEN ⇒ the ZZRAN/regen RNG STREAM-ORDER (DGSD=2 ⇒ every tree draws a height + small-tree ZZRAN; FVS draws
+in species-sorted IND1 order, jl in tree-index order ⇒ each tree gets a different deviate ⇒ stand-specific
+systematic offset that compounds). ⇒ the LAST growth-affecting item is the RNG-order reconciliation: make
+height_growth! + small_tree_growth! draw ZZRAN in the species-sorted order FVS uses (needs the IND1/ISCT sort in the
+growth loops). After that the growth .sum should be bit-exact-or-cornered. Downstream leaves (volume/FFE/estab)
+remain but don't affect these growth columns.
