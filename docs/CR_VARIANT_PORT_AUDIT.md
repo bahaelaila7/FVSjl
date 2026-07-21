@@ -274,3 +274,21 @@ trees): b0/b1 coefficients 11577/11577, RI 11577/11577 (=0.5/(1+exp(b0+b1·d))),
 11577/11577 ALL BIT-EXACT. The RN/RIP SDI self-thinning combination is the shared Pretzsch driver (validated for
 eastern; CR uses identical SDIMAX formula) — its end-to-end RN/RIP match rides the chunk-9 full-cycle. Oracle
 restored. ⇒ CHUNK 7 done (CR-specific mortality validated; self-thinning shared).
+
+### CHUNK 8 (volume) — SCOPED (NVEL Region-2 equations; larger than pure wiring)
+CR volume routes through NVEL like the eastern variants, BUT uses Region-2 equation families NOT yet in FVSjl.
+The per-species assignment (from live crt01.out VOLEQ table, saved data/centralrockies/volume_equations_reference.csv):
+  **31 DVEE** (300DVEW093/301DVEW015/300DVEW113/300DVEW060/300DVEW800/300DVEW999/300DVEW106/300DVEW122/301DVEW202),
+  **2 FW2** (DF 300FW2W202, PP 300FW2W122), **5 NVB** (CB/WF NVB0000015, SW NVBM240119, ES NVBM330093, AS NVB0000746).
+Assignment = cr/sitset.f:567-584 CALL VOLEQDEF(VAR='CR', IREGN=KODFOR/100, FORST, IFIASP) per species (METHC 6/9 →
+VOLEQDEF, METHC 10 → NVBEQDEF). FVSjl status: setup_volume_equations! (volume_equations.jl) only handles IREGN==8
+(SN) → r8clark; CR gets blank ⇒ needs a CR VOLEQDEF (extractable from the saved table OR the NVEL voleqdef.f).
+Equation coverage: DVEE partly present (r9vol_gevorkiantz.jl _dvee_* but that's Region-9 "900DVEE" for CS METHC=5;
+CR is "300DVEW"=Region-2 west — CHECK if coefficients differ); FW2 + NVB (National Biomass) NOT ported. Merch
+specs: cr/grinit.f defaults STMP=1, TOPD/SCFMIND/SCFTOPD/SCFSTMP/BF*=0 (⇒ NVEL internal defaults) — must add the
+scf_min_dbh/scf_topd/scf_stump/top_diam/stump_ht/bf* columns (compute_volumes! KeyErrors on :scf_min_dbh for CR).
+⇒ Chunk 8 = (a) add CR merch-spec columns from grinit; (b) CR VOLEQDEF assignment (setup_volume_equations! branch);
+(c) port/verify DVEE-Region2 + FW2 + NVB volume routines (the big part). Validate each vs live per-tree cuft/bdft
+(instrument cr volume or diff crt01 .sum volume cols). This is the LAST equation-porting chunk before the ch9
+full-cycle. NOTE: growth/mortality (chunks 3-7) are all bit-exact and volume is a downstream leaf, so it does not
+block the grow-cycle correctness — only the reported volume columns.
