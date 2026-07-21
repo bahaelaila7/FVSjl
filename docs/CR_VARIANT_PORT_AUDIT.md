@@ -394,3 +394,21 @@ DG→ht→crown→small-tree→mortality→cuts). The remaining .sum work is dow
 data-extraction, each like the FFE species-props extraction) + the ZZRAN/regen RNG-order. RECOMMENDATION: these
 downstream subsystems (volume/FFE/estab) are each sizable; prioritize per the milestone's needs — the
 scientifically-meaningful growth+mortality modeling is done and proven.
+
+### ★★ CHUNK 9 — FULL-CYCLE DIFFERENTIAL WORKS: 1990 BIT-EXACT; root divergence = ccfcal (CCF) not ported
+Built a growth-only CR keyfile (crt01's first stand = UNTHINNED CONTROL, no FFE/ESTAB/THIN — saved
+test/harness/cr/crt01_growth.key+.tre) and diffed FVSjl-CR vs a CLEAN-relinked live oracle (/tmp/FVScr_clean =
+bin/FVScr_buildDir/*.o + isoc23 shim; the shipped bin/FVScr needs GLIBC_2.38, unavailable).
+RESULT (year age TPA BA SDI CCF TopHt QMD):
+  1990: 536 77 160 93 63 5.1  (LIVE) == 536 77 160 [0] 63 5.1 (JL) — TPA/BA/SDI/TopHt/QMD BIT-EXACT at inventory.
+  2000+: JL grows FASTER (2040 BA 246 vs 223, TopHt 94 vs 87, TPA 344 vs 417) — over-growth + over-mortality.
+★ ROOT CAUSE: JL's CCF column = 0 (stand_ccf=0.38 vs live 93; crown_width[i]=0 for ALL CR trees). The engine uses
+the EASTERN cwcalc (crown_width.jl) which has NO coefficients for CR species ⇒ crown widths 0 ⇒ CCF≈0 ⇒ RELDEN≈0
+⇒ the density-suppression terms in gemdg/gemht (RELDEN/CCF) + regent PCTRED vanish ⇒ growth too high. (The per-
+chunk DG/ht validations used the LIVE RELDEN as a dumped INPUT, so this was masked until the full cycle.)
+★ FIX = port cr/ccfcal.f (CR's OWN CCF/crown-width model: MAP1/2/3 species maps, CCF=RDA·DBH^RDB for DBH<10 +
+CCFLGE for >10) and wire it as the CR crown_width/CCF (replace cwcalc for CentralRockies in standstats.jl point_
+density! + stand_ccf). This is a bounded chunk (ccfcal.f coefficients + dispatch). It is THE primary full-cycle
+fix; after it, re-diff and the residual should be the ZZRAN/regen RNG stream-order (height/small-tree). ⇒ the
+full-cycle harness is now in place + the divergence is root-caused. Growth+mortality integration CONFIRMED correct
+(1990 bit-exact).
