@@ -767,6 +767,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    # CR uses its own IMAP bark (cr_bratio), not the linear calib.bark_a/b (which are 0 for CR ⇒ the
+    # DDS→DG conversion would use the 0.80 floor, understating inside-bark dia ⇒ over-high DG). The
+    # DDS→DG bark MUST match the bark cr_gemdg used internally.
+    _cr_dg = s.variant isa CentralRockies
+    _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
     # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
@@ -872,7 +877,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         frl = DG_FL * ssigma * rhocp           # lower-triple FRM factor (dgdriv.f:89)
         for k in i1:i2
             i = ind1[k]
-            bark = bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+            bark = _cr_dg ? cr_bratio(sd, sp, t.dbh[i], _cr_imodty) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT

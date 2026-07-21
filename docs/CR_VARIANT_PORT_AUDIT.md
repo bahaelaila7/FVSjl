@@ -439,3 +439,16 @@ sigma≠0 + DGSD=2. ⇒ NEXT: the DG driver's serial-correlation path (diameter_
 line 907, gated on tripling/dg_sd) isn't reached for CR — investigate the gating (per-variant flag? the CR dgf!
 tripling path?). This is the remaining ~6%/cycle over-growth (TPA still EXACT ⇒ purely per-tree DG magnitude).
 1990 remains fully bit-exact (ccfcal fix). The calibration-branch fix is correct+necessary (COR/sigma) regardless.
+
+### ★ CR-bark-in-DG-driver FIX — over-growth ~halved; residual = RNG stream-order
+The shared DG driver (diameter_growth!(::AbstractVariant)) converted DDS→DG via bark_ratio(calib.bark_a/b) —
+which for CR (bark_a=b=0) returned the 0.80 FLOOR, but CR's real bark = cr_bratio ~0.89. A too-LOW bark ⇒
+too-low inside-bark dia ⇒ too-HIGH DG. FIX: dispatch bark on variant — CR → cr_bratio(sd, sp, d, imodty), else
+bark_ratio (must match the bark cr_gemdg used internally). RESULT: 2000 BA 113→109 (live 106), 2010 154→145
+(live 137), TPA now matches at 2000/2010. Residual now ~3%/cycle BA + slight TPA divergence at later cycles
+(2020 jl476/live497) = the ZZRAN(height)+ZZRAN(regent)+DG-serial-correlation RNG STREAM-ORDER: FVS draws these
+per-tree deviates in species-sorted IND1 order, jl in tree-index order ⇒ each tree gets a different deviate ⇒
+small per-tree growth diffs that feed self-thinning. THIS is the last item — reconcile the RNG draw order across
+DG-serial-corr + height + regent to FVS's exact sequence (species-sorted, per the growth loop order). 1990 stays
+bit-exact. Chunk-9 progress: full cycle runs + close to live; ccfcal + CR-calibration-branch + CR-bark all real
+fixes found via the differential.
