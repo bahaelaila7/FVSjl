@@ -168,3 +168,16 @@ lines 5 ("018ES 346") + 14 ("016PP 072"), the ONLY records whose pre-species I1 
 DBH=0.1 seedlings and a ht=0 record). Likely a history/value-class-code or fixed-format field-alignment handling
 gap in the shared tree reader for this CR TREEFMT. Investigate before the chunk-9 differential; it does NOT affect
 the chunk-3 DG validation (that used the live treelist via instrumentation).
+
+### CHUNK 4 (height growth) — cr_gemht LIVE-VALIDATED 18864/18864 (all 4 outputs); wrapper next
+GENGYM height model cr/gemht.f transcribed to cr_gemht (height_growth.jl): even-aged HHE by IMODTY 1-5
+(site-index curves: Edminster/Minor/Meyer/Alexander/Alexander-Tackle-Dahms) + uneven-aged HHU / direct HTGI
+by SELECT CASE(species). Surrogate species GF/MH/RC/WL(direct CON+ALOG(DGI) form)+LM(logistic) set IHTG=1.
+BATEM carried from the IMODTY block, reset per species case (faithful). Math: flog/fexp/fpow, **2(int)->x*x.
+★ VALIDATED vs live (instrument gemht.f WRITE→unit16, relink, crt01→18864 rows): HHE 18864/18864, HHU
+18864/18864, HTGI 18864/18864, IHTG 18864/18864 ALL BIT-EXACT. (crt01 exercises imodty=2, species 5/13/15/18/20
++ their twin current/future calls; other imodty/species paths are faithful transcription.) Oracle restored.
+NEXT: the htgf.f WRAPPER = height_growth!(::CentralRockies): HTOSI(6,MAXSP) adjust, AP breast-high-age adjust,
+twin gemht calls (current + future age AGEFUT=AP+10, DFUT=D+DGI/BARK), IHTG=1 direct path, Black-Hills realign,
+even/uneven blend (AGERNG>40 & BA≥70, PCT gates), LPP H30, aspen/birch ASPFAC, ZZRAN random (DGSD/BACHLO/RANN),
+HTCON calib + SCALE=FINT/YR + XHMULT mult, mistletoe MISHGF, SIZCAP cap, tripling. Writes HTG.
