@@ -209,3 +209,28 @@ dead-tree dub are faithful transcription (crt01 inventory has crowns ⇒ unexerc
 REMAINING chunk-5 item: ccfcal.f (CCF) — the DG/height/crown validations all took live RELDEN(stand CCF)+PCCF as
 dumped INPUTS, so jl's stand_ccf/point_ccf reproduction for CR (which needs CR crown-width coefficients) is still
 UNVALIDATED. Check whether the shared CCF engine uses CR-specific crown-width coefs before chunk 9.
+
+### CHUNK 6 (small-tree/regen, regent.f) — SCOPED turnkey (NOT yet transcribed)
+regent.f (667 lines) = small-tree HEIGHT increment + DIAMETER-from-height inverse; two near-identical blocks
+(cycling growth ~150-450 + LSTART/ESTAB path ~460-654). Dispatched as small_tree_growth!(::CentralRockies).
+HEIGHT increment (deterministic core):
+  RELSI=(SI-SITELO)/(SITEHI-SITELO); RSIMOD=0.5*(1+RELSI); POTHTG=SITEAR/(15-4*RELSI)*HTADJ[sp];
+  density modifier X=AVHT*(CCF/100) capped 300; PCTRED=poly AB(1..6) in X, clamp[0.01,1];
+  VIGOR: X=ICR/100; VIGOR=min(150*X^3*exp(-6X)+0.3, 1); pinyon/juniper/oak/bristlecone (IVFLAG: sp
+    9,12,16,23:27,29:35) VIGOR=1-(1-VIGOR)/3;
+  aspen/birch (20,28): Sheppard curve HITE=26.9825*AG^1.1752, HTGR=(HITE2-HITE1)/(2.54*12)*RSIMOD*CON*0.75;
+  else HTGR=POTHTG*PCTRED*VIGOR*CON;   CON=RHCON[sp]*exp(HCOR[sp]).
+  ★ RNG: ZZRAN=BACHLO(0,1) if DGSD≥1, reject if ZZRAN>0.5 or <-2.0 (ASYMMETRIC window!); HTGR=(HTGR+ZZRAN*0.2)
+    *XRHGRO*SCALE*WK4[i]. XWT=(D-XMN)/(XMX-XMN), 0 if D≤XMN or LESTB; HTG=HTGR*(1-XWT)+XWT*HTG_large; floor .1;
+    SIZCAP[sp,4] cap.
+DIAMETER-from-height (D<BREAK[sp]): HK=H+HTG; if HK≤4.5 DG=0,DBH=D+.001*HK; else 3 paths:
+  PP/Chihuahua(13,36): DK=(HK-8.31485+.592*7)/3.03659; pinyon/juniper/oak(IVFLAG): DK=(HK-4.5)*10/(SITEAR-4.5);
+  else: DK=(HT2[sp]/(ALOG(HK-4.5)-AX))-1, AX=(IABFLG[sp]==1 ? HT1[sp] : AA[sp]); floors 0.1; DG=(DK-DKK)*BARK...
+COEFFICIENTS (all captured): regent.f DATA — DGMAX[38], XMAX[38], XMIN[38], REGYR=10, MPCC[38], DIAM[38],
+  AB=[1.11436,-.011493,.43012E-4,-.72221E-7,.5607E-10,-.1641E-13,0,0,0], HTADJ[38] (RC/WL=1.10 else 1.0);
+  IVFLAG set = sp{9,12,16,23:27,29:35}. Plus blkdat: BREAK, XMIN(dup), AA, HT1, HT2; grinit: IABFLG; have:
+  SITELO/HI, SITEAR. MPCC = the AB-poly selector? (J=MPCC[sp]) — CHECK: AB may be (poly, MPCC-group) 2D.
+VALIDATION: same instrument-replay as htgf — dump per-tree inputs+ZZRAN+HTG+DG, replay with injected ZZRAN
+(DGSD≥1 so ZZRAN active, asymmetric [-2,0.5] window). RNG stream-order = chunk-9. New-tree crown (LESTB) uses a
+SECOND BACHLO draw (regent.f:255, CR=0.89722-0.0000461*PCCF+0.07985*RAN) — establishment-coupled, defer.
+Note: regent needs WK4[i] (a per-tree factor) + AVHT/ATAVH/ATCCF (estab mid-period interp) from the engine.
