@@ -367,3 +367,17 @@ These are a distinct FFE-wiring sub-task (downstream of the validated growth cor
 TPA/BA/QMD/TopHt vs live (tripling-invariant, doctrine #3) — expect divergence from the ZZRAN/regen RNG
 stream-order (FVS species/IND1 draw order vs jl tree-index), the one cross-cutting stochastic item. Growth+
 mortality per-chunk bit-exact; this validates their INTEGRATION + surfaces the RNG-order fix.
+
+### CHUNK 9 — full cycle reaches FFE/biomass; that subsystem is the .sum prerequisite (needs faithful CR coefs)
+Continuing the full-cycle run past cuts, it reaches the FFE (fire/fuels/snags) + Jenkins-biomass subsystem, which
+runs EVERY cycle even without fire keywords and needs CR species coefficients from a data/centralrockies/
+fire_species_props.csv (cols ls_spi/v2t/tfall_cls/leaf_life/dkr_cls/snag_cls/bark_eqnum/snag_decayx/snag_fallx/
+snag_alldwn/biogrp) PLUS a bio_group (Jenkins) column. Placeholder values were tried but the biomass indexing is
+interdependent (bio_group=placeholder → BoundsError), so faithful CR FFE/biomass coefficients are required (doctrine
+#4 — no placeholder coefficients). Reverted the placeholders; CR data stays faithful (varmrt_varadj + is_sprouting=0
++ merch/htdbh cols are all faithful and retained). ⇒ CHUNK 9 .sum prerequisite = wire the CR FFE/biomass subsystem
+(fire_species_props + Jenkins bio_group) from the CR FFE Fortran (fmvinit.f / the biomass tables) — a distinct
+downstream task. The growth+mortality CORE integrates + runs end-to-end (DG→ht→crown→small-tree→mortality→cuts);
+once FFE/biomass is wired the .sum runs and the TPA/BA/QMD/TopHt vs live comparison surfaces the ZZRAN/regen
+RNG-order (the last cross-cutting item). NOTE: FFE is downstream of the validated growth core; a NOFFE-style run
+(if the engine can skip FFE) would let the growth .sum validate without the FFE coefficients.
