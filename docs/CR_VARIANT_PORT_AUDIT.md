@@ -490,3 +490,16 @@ the exact DGSCOR COR fit for CR (measured-growth backdate + regression + ATTEN w
 the SAME hard cross-cutting DGSCOR precision the eastern variants have as their accepted residual. ⇒ the cycle-1
 ~3% is COR-calibration precision on 2 species, NOT a modeling gap. The driver-bark fix (DDS→DG) stays. This is
 the well-characterized final growth-precision item; the .sum is otherwise close (1990 exact, TPA matching early).
+
+### CR PSIGSQ=0.07 fix (faithful) — COR residual is deeper DGSCOR-regression matching
+Fixed: the DGSCOR COR-weight constant PSIGSQ was hardcoded to the SN 0.0898; CR is 0.07 (cr/dgdriv.f:102 all
+species). Added CR to the psigsq dispatch. Faithful but .sum-INERT here (COR moved <0.003) ⇒ NOT the COR-closing
+term. The sp5/sp18 COR still differs from live by ~0.04-0.11 ln. What's left in the DGSCOR fit: the regression
+accumulation (snx=Σ predicted-DDS, sny=Σ measured-DDS, slope) + the measured-DG→DDS bark conversion
+(calibrate_diameter_growth! lines 384/445 use bark_ratio(0,0)=0.80; a cr_bratio swap helped sp5 a LOT (Δ0.118→0.019)
+but hurt sp18 (Δ0.042→0.062) and slightly regressed the .sum ⇒ reverted — so the bark is PART of sp5 but sp18 has
+another regression-term diff). ⇒ CONCLUSION: the cycle-1 residual is the exact DGSCOR COR fit on the 2 measured-DG
+species (WF/ES) — a bounded, well-localized calibration-precision item (the same class as the eastern accepted
+DGSCOR tail). All other growth is bit-exact. Full session: 5 growth+mort chunks bit-exact per-chunk; full-cycle
+1990 bit-exact + tracks live; 5 real bugs found via the differential (ccfcal, DG-calib-dispatch, driver-bark,
+VARMRT, PSIGSQ); residual = DGSCOR COR precision on 2 species + downstream leaves (volume/FFE/estab).
