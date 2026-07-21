@@ -426,3 +426,16 @@ systematic offset that compounds). ⇒ the LAST growth-affecting item is the RNG
 height_growth! + small_tree_growth! draw ZZRAN in the species-sorted order FVS uses (needs the IND1/ISCT sort in the
 growth loops). After that the growth .sum should be bit-exact-or-cornered. Downstream leaves (volume/FFE/estab)
 remain but don't affect these growth columns.
+
+### CHUNK 9 — fixed CR-missing-from-DG-calibration; residual = DG serial-correlation not applying
+★ BUG FIXED: setup_growth! (simulate.jl:48-67) had DG-calibration branches for SN/NE/CS/LS but NONE for
+CentralRockies ⇒ calibrate_diameter_growth! + dgcons NEVER ran for CR ⇒ c.sigma=0, COR=0, DGSD unset. Added:
+(a) s.control.dg_sd=2.0 in init_blockdata! (cr/grinit.f:176 DGSD default); (b) dg_resid_sd column = IMODTY-2
+SIGMAR (cr/sitset.f; base 0.2 + overrides 4/6/7/8/10/14 + imodty-2 12/23-27/33-35); (c) cr_dgcons! (DGCON=0,
+CR ATTEN 1000+overrides, bark inert) + a CentralRockies branch calling calibrate_diameter_growth!. VERIFIED
+c.sigma now set (0.2/0.201/…). BUT the growth-only .sum is UNCHANGED (2000 BA 113 vs live 106) — so the DG
+serial-correlation (dgscor!, negative bias FM=-0.14228 that reduces DG) is STILL not applying for CR despite
+sigma≠0 + DGSD=2. ⇒ NEXT: the DG driver's serial-correlation path (diameter_growth!(::AbstractVariant) dgscor!
+line 907, gated on tripling/dg_sd) isn't reached for CR — investigate the gating (per-variant flag? the CR dgf!
+tripling path?). This is the remaining ~6%/cycle over-growth (TPA still EXACT ⇒ purely per-tree DG magnitude).
+1990 remains fully bit-exact (ccfcal fix). The calibration-branch fix is correct+necessary (COR/sigma) regardless.

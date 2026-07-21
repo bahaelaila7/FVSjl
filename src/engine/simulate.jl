@@ -64,6 +64,9 @@ function setup_growth!(s::StandState)
         ls_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT) — same as CS
         _ls_init_crowns!(s)               # CRATET: dub missing crowns (ls/dgf.f reads CR); no-op when inventory crowns present
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa CentralRockies
+        cr_dgcons!(s)                     # DGCON=0, ATTEN, bark inert; enables c.sigma=SIGMAR for DG serial-corr
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end

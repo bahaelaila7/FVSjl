@@ -303,3 +303,19 @@ function dgf!(s::StandState, ::CentralRockies)
     end
     return s
 end
+
+# cr_dgcons! (cr/dgf.f ENTRY DGCONS): DGCON=0, ATTEN=1000 (species overrides), bark inert for the
+# calibration backdating (CR bark is cr_bratio; calib.bark_a/b only feed the no-op backdate on stands
+# without measured DG). Enables the shared calibrate_diameter_growth! to set c.sigma=SIGMAR (dg_resid_sd),
+# which drives the DG serial-correlation (DGSD≥1) — the negative-bias reduction FVS applies.
+const _CR_ATTEN = Dict(4 => 21277f0, 6 => 880f0, 7 => 1176f0, 8 => 900f0, 10 => 123f0, 14 => 306f0)
+function cr_dgcons!(s::StandState)
+    c = s.calib; ctl = s.control
+    @inbounds for sp in 1:MAXSP
+        c.dg_const[sp] = 0f0
+        c.atten[sp] = get(_CR_ATTEN, sp, 1000f0)
+        c.bark_a[sp] = 0f0; c.bark_b[sp] = 0f0
+        ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (c.dg_const[sp] += log(ctl.dg_cor2[sp]))
+    end
+    return s
+end
