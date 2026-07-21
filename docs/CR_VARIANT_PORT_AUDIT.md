@@ -234,3 +234,18 @@ VALIDATION: same instrument-replay as htgf — dump per-tree inputs+ZZRAN+HTG+DG
 (DGSD≥1 so ZZRAN active, asymmetric [-2,0.5] window). RNG stream-order = chunk-9. New-tree crown (LESTB) uses a
 SECOND BACHLO draw (regent.f:255, CR=0.89722-0.0000461*PCCF+0.07985*RAN) — establishment-coupled, defer.
 Note: regent needs WK4[i] (a per-tree factor) + AVHT/ATAVH/ATCCF (estab mid-period interp) from the engine.
+
+### ★ CHUNK 6 (regent small-tree) — HEIGHT increment VALIDATED 1349/1349; DG needs cratet AA-fit
+small_tree_growth.jl: _cr_regent_tree transcribes cr/regent.f growth path. Coefficients (st_dgmax/st_xmax/
+st_xmin/st_diam/st_htadj/st_break/ht1/ht2 added to species_coefficients.csv). MPCC is DEAD (debug-only). IABFLG≡1
+(grinit; no overrides) and AA is never DATA-defined ⇒ static path would be AX=HT1.
+★ HEIGHT increment VALIDATED 1349/1349 BIT-EXACT vs live (instrument regent.f REGTRC, crt01, injected ZZRAN):
+POTHTG·PCTRED·VIGOR·CON (or Sheppard aspen/birch curve) + ZZRAN·0.2 (asymmetric reject [-2,0.5]) ·XRHGRO·SCALE·WK4,
+XWT blend with htgf HTG, floor .1, SIZCAP.
+DG (diameter-from-height inverse): 250/338 for d<BREAK — the matches are HK≤4.5 (DG=0) / PP / pinyon-juniper
+(IVFLAG) paths; the 88 mismatches are the "else" path DK=(HT2/(ALOG(HK-4.5)-AX))-1 which uses a **cratet.f-FITTED
+height–DBH intercept AX (AA), NOT static HT1**. Reverse-solved live sp18 DG=0.6689 ⇒ AX≈3.867 vs HT1[18]=4.5293
+(different). ⇒ the DG path is blocked on the cratet.f AA height-DBH regression (a stand-specific per-species fit,
+same mechanism as the eastern NOHTDREG/AA-fit already in the engine). NEXT: wire the cratet AA-fit for CR (check
+if the shared init_crown_ratios!/cratet path fits AA+IABFLG for CR), then DG validates. ZZRAN RNG-order = chunk-9.
+Oracle restored pristine.
