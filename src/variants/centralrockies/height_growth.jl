@@ -201,3 +201,161 @@ function cr_gemht(imodty::Int, si::Float32, dp::Float32, h::Float32, is::Int, ba
 
     return hhe, hhu, ihtg, htgi
 end
+
+# HTOSI(6, MAXSP) — height-to-site adjust factor by (IMODTY 1-6, species) (cr/htgf.f DATA).
+const _CR_HTOSI = Float32[
+  1.25 1.25 1.18 1.00 1.20 1.00 1.00 1.00 1.00 1.00 1.20 1.00 1.20 1.20 1.20 1.00 1.20 1.20 1.20 1.00 1.15 1.15 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.20 1.15 1.15
+  1.25 1.25 1.18 1.00 1.20 1.00 1.00 1.00 1.00 1.00 1.15 1.00 1.20 1.15 1.20 1.00 1.20 1.20 1.20 1.00 1.15 1.15 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.20 1.15 1.15
+  1.13 1.13 1.10 1.10 1.13 1.10 1.10 1.10 1.00 1.07 1.13 1.00 1.10 1.10 1.10 1.00 1.15 1.15 1.15 1.00 1.05 1.05 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.10 1.05 1.15
+  1.15 1.15 1.18 1.00 1.15 1.00 1.00 1.00 1.00 1.00 1.10 1.00 1.15 1.05 1.15 1.00 1.10 1.10 1.10 1.00 1.05 1.05 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.15 1.05 1.05
+  1.25 1.25 1.25 1.10 1.25 1.10 1.10 1.10 1.00 1.07 1.30 1.00 1.25 1.20 1.20 1.00 1.20 1.20 1.20 1.00 1.18 1.18 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.25 1.15 1.20
+  1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 ]
+
+# Breast-high-age adjustment for AP (cr/htgf.f:172-190), IMODTY 1/2/4 only.
+@inline function _cr_bhage_adjust(ap::Float32, imodty::Int, is::Int, ssite::Float32)
+    (imodty == 1 || imodty == 2 || imodty == 4) || return ap
+    if is == 20 || is == 28 || is == 38 || is == 14
+        ap -= 4.5f0 / (0.1f0 + ssite / 50.0f0)
+    elseif imodty == 1
+        tsite = ssite < 30.0f0 ? 30.0f0 : ssite
+        ap -= 4.5f0 / (-0.642f0 + 0.02285f0 * tsite)
+    elseif imodty == 2
+        ap -= 4.5f0 / (0.25f0 + 0.00467f0 * ssite)
+    elseif imodty == 4
+        tsite = ssite < 20.0f0 ? 20.0f0 : ssite
+        ap -= 4.5f0 / (-0.22f0 + 0.0155f0 * tsite)
+    end
+    ap < 1.0f0 && (ap = 1.0f0)
+    return ap
+end
+
+"""
+    height_growth!(s, ::CentralRockies; scale=1)
+
+CR periodic height growth (cr/htgf.f). Per tree ≥0.5" DBH and >4.5 ft: twin GEMHT calls (current + future
+age) meshed into HTG (even-aged, or even/uneven blend when AGERNG>40 & BA≥70), aspen/birch ASPFAC, HTCON
+calibration × SCALE × XHMULT, mistletoe (=1), SIZCAP(·,4) cap. Small trees defer to regent (HTG=0 for now).
+The stochastic ZZRAN term fires only when DGSD>0 (crt01 default 0 ⇒ deterministic). Writes `t.ht_growth`.
+"""
+function height_growth!(s::StandState, ::CentralRockies; scale::Float32 = 1.0f0)
+    p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
+    imodty = Int(p.model_type)
+    ba = p.basal_area
+    dens = s.density
+    agerng = _cr_agerng(t)
+    cur_year = current_cycle_year(s)
+    dgsd = s.control.dg_sd
+
+    # BADIST BAU (BA-above-class) — same pre-pass as dgf! (cr/htgf.f reads BAU from DGF's BADIST).
+    bau = _cr_badist_bau(t)
+
+    @inbounds for i in 1:t.n
+        t.ht_growth[i] = 0.0f0
+        t.tpa[i] <= 0.0f0 && continue
+        d = t.dbh[i]; hnow = t.height[i]
+        (d < 0.5f0 || hnow <= 4.5f0) && continue          # small trees → regent (not yet ported)
+        sp = Int(t.species[i])
+        ssite = p.sp_site_index[sp]
+        icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)
+        bark = cr_bratio(sd, sp, d, imodty)
+        xhmult = active_multiplier(s.control, :htg, sp, cur_year)
+        # ZZRAN stochastic increment (htgf.f:288-294): rejection-sampled BACHLO(0,1,RANN) with |z|≤DGSD.
+        # NOTE: FVS draws in species-sorted IND1 order; this loop is tree-index order — the per-tree draw
+        # VALUES therefore only bit-match live once the cycle RNG sequence is reconciled (chunk-9 concern).
+        zzran = 0.0f0
+        if dgsd > 0.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= dgsd && zzran >= -dgsd) && break
+            end
+        end
+        t.ht_growth[i] = _cr_htg_tree(imodty, sp, ssite, _CR_HTOSI[imodty, sp], d, hnow, bark,
+            bau[icls] / ba, dens.point_ccf[Int(t.plot_id[i])], t.diam_growth[i], t.birth_age[i],
+            agerng, ba, t.crown_ratio[i], c.htg_cor[sp], scale, xhmult, s.control.sp_size_cap[sp, 4], zzran)
+    end
+    return s
+end
+
+"""
+    _cr_htg_tree(...) -> HTG
+
+The per-tree cr/htgf.f height-increment computation (single source of truth for `height_growth!`
+and the validation replay). `birth_age` = raw ABIRTH (the BH-age adjust + LPP-H30 use it directly).
+Deterministic: the ZZRAN stochastic term (DGSD>0) is omitted — the caller adds it when enabled.
+"""
+function _cr_htg_tree(imodty::Int, sp::Int, ssite::Float32, adjust::Float32, d::Float32, hnow::Float32,
+                      bark::Float32, bautba::Float32, pccfi::Float32, dgi::Float32, birth_age::Float32,
+                      agerng::Float32, ba::Float32, pct::Float32, htcon::Float32, scale::Float32,
+                      xhmult::Float32, cap::Float32, zzran::Float32 = 0.0f0)::Float32
+    ap = _cr_bhage_adjust(birth_age, imodty, sp, ssite)
+    hhe1, hhu1, ihtg, htgi = cr_gemht(imodty, ssite, d, hnow, sp, ba, ap, bautba, pccfi, dgi, bark)
+    local htg::Float32
+    if ihtg == 1
+        htg = htgi * adjust
+    else
+        agefut = ap + 10.0f0
+        dfut = d + dgi / bark
+        hhe2, hhu2, _, _ = cr_gemht(imodty, ssite, dfut, hnow, sp, ba, agefut, bautba, pccfi, dgi, bark)
+        if imodty == 3
+            hhe2 = hhe1; hhe1 = hnow
+        end
+        htg = (hhe2 - hhe1) * adjust
+        if imodty == 5 && birth_age <= 31.0f0
+            tccf = pccfi; tccf <= 125.0f0 && (tccf = 0.0f0)
+            h30 = 5.25621f0 + 0.37515f0 * ssite - 0.00082f0 * tccf * ssite
+            h30 = h30 * birth_age / 31.0f0
+            thtg = h30 - hnow
+            thtg > htg && (htg = thtg)
+        end
+        if agerng > 40.0f0 && ba >= 70.0f0
+            if pct <= 10.0f0
+                htg = hhu2 - hhu1
+            elseif pct > 10.0f0 && pct < 40.0f0
+                hge = (hhe2 - hhe1) * adjust
+                hgu = hhu2 - hhu1
+                xwt = ((pct - 10.0f0) * (10.0f0 / 3.0f0)) / 100.0f0
+                htg = xwt * hge + (1.0f0 - xwt) * hgu
+            end
+        end
+        if sp == 20 || sp == 28
+            temsi = ssite; temsi < 30.0f0 && (temsi = 30.0f0); temsi > 90.0f0 && (temsi = 90.0f0)
+            htg = htg * (0.6253f0 + 0.00583f0 * temsi)
+        end
+    end
+    htg = htg + zzran * 0.1f0                          # ZZRAN stochastic increment (htgf.f:295)
+    htg < 0.1f0 && (htg = 0.1f0)                        # floor AFTER the random add (htgf.f:301)
+    htg = htg * fexp(htcon) * scale * xhmult            # HTCON calib × SCALE × XHMULT; MISHGF=1
+    if hnow + htg > cap
+        htg = cap - hnow; htg < 0.1f0 && (htg = 0.1f0)
+    end
+    return htg
+end
+
+# BADIST BA-above-dbh-class (cr/badist.f) — same as dgf!'s inline pre-pass; summed in tree-index
+# order (i=1:n) for Float32 bit-exactness. htgf reads BAU from DGF's earlier BADIST.
+function _cr_badist_bau(t)
+    bau = zeros(Float32, 41); totba = 0.0f0
+    @inbounds for i in 1:t.n
+        t.height[i] < 4.5f0 && continue
+        tdbh = t.dbh[i]; icls = trunc(Int, tdbh + 1.0f0); icls > 41 && (icls = 41)
+        tdbh < 1.0f0 && (tdbh = 1.0f0)
+        treeba = 0.0054542f0 * tdbh * tdbh * t.tpa[i]
+        totba += treeba; bau[icls] += treeba
+    end
+    bau[1] = totba - bau[1]; bau[1] < 0.0f0 && (bau[1] = 0.0f0)
+    @inbounds for j in 2:41
+        bau[j] = bau[j-1] - bau[j]; bau[j] < 0.0f0 && (bau[j] = 0.0f0)
+    end
+    return bau
+end
+
+# AGERNG (cr/dgf.f + htgf.f): birth-age range over established trees (ABIRTH>1, HT>4.5); else 1000.
+function _cr_agerng(t)
+    young = 1000.0f0; old = 0.0f0; anyage = false
+    @inbounds for i in 1:t.n
+        ab = t.birth_age[i]
+        (ab <= 1.0f0 || t.height[i] <= 4.5f0) && continue
+        anyage = true; ab < young && (young = ab); ab > old && (old = ab)
+    end
+    return anyage ? abs(old - young) : 1000.0f0
+end

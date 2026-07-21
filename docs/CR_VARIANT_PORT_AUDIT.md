@@ -181,3 +181,19 @@ NEXT: the htgf.f WRAPPER = height_growth!(::CentralRockies): HTOSI(6,MAXSP) adju
 twin gemht calls (current + future age AGEFUT=AP+10, DFUT=D+DGI/BARK), IHTG=1 direct path, Black-Hills realign,
 even/uneven blend (AGERNG>40 & BA≥70, PCT gates), LPP H30, aspen/birch ASPFAC, ZZRAN random (DGSD/BACHLO/RANN),
 HTCON calib + SCALE=FINT/YR + XHMULT mult, mistletoe MISHGF, SIZCAP cap, tripling. Writes HTG.
+
+### ★ CHUNK 4 (height growth) — htgf.f WRAPPER mesh VALIDATED 9607/9607; ZZRAN RNG = full-cycle item
+height_growth!(::CentralRockies) + _cr_htg_tree (height_growth.jl): HTOSI(6,MAXSP) adjust, BH-age adjust
+(_cr_bhage_adjust, IMODTY 1/2/4), twin cr_gemht calls (current + future AGEFUT=AP+10, DFUT=D+DGI/BARK),
+IHTG=1 direct path, Black-Hills realign, even/uneven blend (AGERNG>40 & BA≥70: PCT≤10→uneven, 10<PCT<40→XWT
+weighted), LPP-H30 young override, aspen/birch ASPFAC, then ZZRAN + 0.1-floor + EXP(HTCON)·SCALE·XHMULT +
+SIZCAP cap. MISHGF=1 (no mistletoe). BAU via shared _cr_badist_bau; AGERNG via _cr_agerng.
+★ VALIDATED (instrument htgf.f WRITE→unit16 gated to large trees, dump raw+derived+HTG+ZZRAN+DGSD, crt01 →
+9607 rows): with the live ZZRAN injected, _cr_htg_tree == live HTG **9607/9607 BIT-EXACT**. The deterministic
+mesh is fully correct.
+★ FOUND: DGSD=2.0 is a CR default (grinit) ⇒ height carries a per-tree stochastic ZZRAN = rejection-sampled
+BACHLO(0,1,RANN), |z|≤DGSD (htgf.f:288-295); the 0.1-floor is AFTER the ZZRAN add (ordering fixed). Wired the
+draw into height_growth! (bachlo + reject loop). Its per-tree VALUES bit-match live only once the cycle RNG
+sequence is reconciled — FVS draws in species-sorted IND1 order, jl loops tree-index order ⇒ deferred to the
+chunk-9 full-cycle RNG reconciliation (same class as DG COR/DGSCOR driver-managed stochastics). cr_gemht itself
+18864/18864. Oracle restored pristine. ⇒ CHUNK 4 deterministic core COMPLETE; only the ZZRAN stream-order remains.
