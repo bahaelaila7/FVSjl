@@ -28,9 +28,11 @@ Charter/doctrine: docs/CR_VARIANT_PORT_GOAL.md. Branch: cr-variant-port. Oracle:
   bit-exact: 40/30/40… lo, 105/100/120… hi).
 - src/variants/centralrockies/site_index.jl: cr_relative_si (cr/regent.f:209-213 RELSI) — verified
   cr_relative_si(DF,90)=0.625=(90-40)/(120-40).
-- STILL TODO in this chunk: the full sitset ISISP between-species SI conversion + IMODTY model-type defaults
-  (1=SW mixed conifer, 2=SW ponderosa, …) + the SDICON SDI-max defaults + cr/habtyp.f habitat-type groups
-  (the OCURHT (16,MAXSP) coefficient dimension). These are CR-specific and feed the DG coefficients.
+- cr_site_index_defaults! (site_index.jl): the sitset ISISP between-species SI conversion (cr/sitset.f:479-497)
+  — TEM default by IMODTY (70/70/57/75/65), ISISP default (DF/PP/PP/ES/LP), per-species scale by SITELO/SITEHI.
+  VERIFIED bit-exact: SITEAR[AF]=64.375, SITEAR[DF]=70.0 (imodty=1). This supplies dgf's SSITE=SITEAR(ISPC).
+- STILL TODO in this chunk: IMODTY determination (MODTYPE kw / habitat default) + SDIDEF SDI-max defaults +
+  cr/habtyp.f habitat-type groups (OCURHT (16,MAXSP)). CR-specific; feed DG/mortality.
 
 ## Road ahead (the substantial growth-model chunks)
 3. **Large-tree diameter growth = GENGYM (cr/gemdg.f), NOT Wykoff DDS** [SCOPED, correction logged].
