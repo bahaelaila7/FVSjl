@@ -29,6 +29,7 @@ function init_blockdata!(s::StandState, v::CentralRockies)
     s.control.year = 10.0f0            # CR YR default cycle length (cr/blkdat.f:126)
     s.control.zeide_sdi = true         # CR uses Zeide SDI (cr/grinit.f:134 LZEIDE=.TRUE.)
     s.rng.s0 = Float64(CR_RNG_SEED); s.rng.ss = CR_RNG_SEED   # both streams (cr/blkdat.f S0/SS)
+    fill!(s.control.ht_drag_sp, true)  # LHTDRG default .TRUE. (cr/grinit.f:110) — enables cratet AA HT-DBH fit
     return s
 end
 

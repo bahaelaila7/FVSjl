@@ -23,7 +23,7 @@ function _cr_regent_tree(sp::Int, d::Float32, h::Float32, icr::Int, abirth::Floa
                          wk4::Float32, htg_large::Float32, sizcap4::Float32, sitear::Float32,
                          bark::Float32, ivflag::Bool, lskiph::Bool, zzran::Float32,
                          dgmax::Float32, break_sp::Float32, xmn::Float32, xmx::Float32,
-                         diam_sp::Float32, ht1::Float32, ht2::Float32)
+                         diam_sp::Float32, ax::Float32, ht2::Float32)
     dgmx = dgmax * scale
     # ---- HEIGHT increment ----
     local htg::Float32
@@ -57,7 +57,7 @@ function _cr_regent_tree(sp::Int, d::Float32, h::Float32, icr::Int, abirth::Floa
     if d < break_sp
         hk = h + htg
         if hk <= 4.5f0
-            dg = 0.0f0                                     # DBH set to D+.001*HK by caller if needed
+            dg = 0.0f0                                     # DBH set to D+.001*HK by caller; NO DIAM floor here
         else
             local dk::Float32, dkk::Float32
             if sp == 13 || sp == 36                        # ponderosa / Chihuahua pine
@@ -68,8 +68,8 @@ function _cr_regent_tree(sp::Int, d::Float32, h::Float32, icr::Int, abirth::Floa
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                 dkk = (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
                 h < 4.5f0 && (dkk = d)
-            else                                           # all other species (IABFLG=1 ⇒ AX=HT1)
-                bx = ht2; ax = ht1
+            else                                           # all other species: AX = cratet-fitted AA or HT1
+                bx = ht2
                 dk = (bx / (flog(hk - 4.5f0) - ax)) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1.0f0
             end
@@ -83,8 +83,76 @@ function _cr_regent_tree(sp::Int, d::Float32, h::Float32, icr::Int, abirth::Floa
             dg > dgmx && (dg = dgmx)
             dds = dg * (2.0f0 * bark * d + dg) * scale2
             dg = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d
+            # DIAM floor is INSIDE the HK>4.5 branch (regent.f:421-423); DBH(K)≈D for cycling.
+            (d + dg) < diam_sp && (dg = diam_sp - d)
         end
-        (d + dg) < diam_sp && (dg = diam_sp - d)           # DBH(K)≈D for cycling (no estab reassign)
     end
     return htg, dg
+end
+
+# AB density-modifier polynomial (regent.f DATA AB, 6 terms used).
+const _CR_AB = (1.11436f0, -0.011493f0, 0.43012f-4, -0.72221f-7, 0.5607f-10, -0.1641f-13)
+# IVFLAG species (vigor cut + pinyon/juniper/oak diameter path): regent.f SELECT CASE.
+const _CR_IVFLAG = (9, 12, 16, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35)
+
+"""
+    small_tree_growth!(s, stash, ::CentralRockies; fint=10)
+
+CR small-tree height + diameter increment (cr/regent.f growth path), overriding htgf's estimate for
+trees with DBH < XMAX[sp]. Reads the cratet-fitted HT-DBH intercept (`s.calib.ht_dbh_aa`/`ht_dbh_iabflg`)
+for the diameter-from-height inverse. Draws the ZZRAN stochastic deviate (BACHLO, asymmetric [-2,0.5]
+reject) per tree — its per-tree VALUES bit-match live only once the cycle RNG sequence is reconciled (ch9).
+"""
+function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float32 = 10.0f0)
+    p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
+    t.n == 0 && return s
+    dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; xminv = sd[:st_xmin]; diamv = sd[:st_diam]
+    htadj = sd[:st_htadj]; brkv = sd[:st_break]; ht2v = sd[:ht2]; ht1v = sd[:ht1]
+    lo = sd[:site_lo]; hi = sd[:site_hi]
+    aa = c.ht_dbh_aa; iabflg = c.ht_dbh_iabflg
+    imodty = Int(p.model_type)
+    regyr = 10.0f0
+    fnt = fint
+    scale = fnt / regyr
+    scale2 = p.year / fnt                                   # YR / FNT (p.year = CR YR = 10)
+    dgsd = s.control.dg_sd
+    # density modifier PCTRED from AVHT * CCF (regent.f:185-190)
+    ccf = stand_ccf(s); avht = p.avg_height
+    x = avht * (ccf / 100.0f0); x > 300.0f0 && (x = 300.0f0)
+    pctred = _CR_AB[1] + x*(_CR_AB[2] + x*(_CR_AB[3] + x*(_CR_AB[4] + x*(_CR_AB[5] + x*_CR_AB[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i])
+        d = t.dbh[i]
+        d >= xmaxv[sp] && continue                          # regent.f:271 D≥XMAX → skip
+        h = t.height[i]
+        # per-species site terms
+        si = p.sp_site_index[sp]
+        si > hi[sp] && (si = hi[sp])
+        si <= lo[sp] && (si = lo[sp] + 0.5f0)
+        relsi = (si - lo[sp]) / (hi[sp] - lo[sp])
+        rsimod = 0.5f0 * (1.0f0 + relsi)
+        pothtg = p.sp_site_index[sp] / (15.0f0 - 4.0f0 * relsi) * htadj[sp]
+        con = 1.0f0                                          # RHCON=1, HCOR=0 (no small-tree calib)
+        ivf = sp in _CR_IVFLAG
+        ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]
+        bark = cr_bratio(sd, sp, d, imodty)
+        # ZZRAN: BACHLO(0,1) if DGSD≥1, reject if >0.5 or <-2.0 (regent.f:308-310)
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+            end
+        end
+        htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
+            pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, t.ht_growth[i], s.control.sp_size_cap[sp, 4],
+            p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
+            diamv[sp], ax, ht2v[sp])
+        t.ht_growth[i] = htg
+        d < brkv[sp] && (t.diam_growth[i] = dg)
+    end
+    return s
 end

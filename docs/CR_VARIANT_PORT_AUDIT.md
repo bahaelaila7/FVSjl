@@ -249,3 +249,16 @@ height–DBH intercept AX (AA), NOT static HT1**. Reverse-solved live sp18 DG=0.
 same mechanism as the eastern NOHTDREG/AA-fit already in the engine). NEXT: wire the cratet AA-fit for CR (check
 if the shared init_crown_ratios!/cratet path fits AA+IABFLG for CR), then DG validates. ZZRAN RNG-order = chunk-9.
 Oracle restored pristine.
+
+### ★★ CHUNK 6 (regent) — DG FORMULA VALIDATED 338/338 + AA-fit WIRED (engine AA == live BIT-EXACT)
+Two fixes closed the DG path: (1) the diameter-from-height "else" intercept AX is the cratet-FITTED AA (not
+static HT1); (2) the DIAM floor (regent.f:421-423) is INSIDE the HK>4.5 branch — NOT applied when HK≤4.5.
+With the correct AX injected: DG 338/338 BIT-EXACT (was 250, then 336, then 338). AA-FIT WIRING (reuses the
+shared engine, doctrine #5): CR LHTDRG defaults .TRUE. (grinit.f:110) ⇒ set ht_drag_sp=trues in init_blockdata!;
+added wykoff_ht2 col (= CR ht2) so dub_missing_heights! (volume.jl:245, the NOHTDREG/AA fit AA=mean(log(H-4.5)-
+HT2/(D+1)) over D≥3,H>4.5,NORMHT≥0; ≥3 trees; IABFLG=0 if AA≥0) uses CR's HT2. ★ VERIFIED: engine ht_dbh_aa for
+crt01 == live AX BIT-EXACT (sp5 4.3869486=4.38694859; sp18 3.8670504=3.86705041; sp15 IABFLG=1 <3 trees).
+small_tree_growth!(::CentralRockies) LOOP written (PCTRED density modifier + per-species POTHTG/RSIMOD + ZZRAN
+draw + _cr_regent_tree), reads s.calib.ht_dbh_aa/iabflg. ⇒ CHUNK 6 deterministic core COMPLETE + AA-fit engine-
+validated. Only the ZZRAN per-tree stream-order (chunk-9 RNG) + new-tree-crown BACHLO (estab) remain.
+Coefficients: st_* cols + ht1/ht2/wykoff_ht2 in species_coefficients.csv. Oracle restored pristine.
