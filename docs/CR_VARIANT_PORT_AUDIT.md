@@ -351,3 +351,19 @@ the LARGEST remaining chunk — a full NVEL port (NSVB + Flewelling + DVEE), com
 volume effort. It is a DOWNSTREAM LEAF: growth (ch3-6) + mortality (ch7) are all bit-exact vs live, so the CR
 simulation CORE is complete; volume only affects reported CF/BF columns + ch9 .sum volume rows. Assignment +
 merch specs done; equation computation deferred to a dedicated volume effort.
+
+### CHUNK 9 (full-cycle) — STARTED: core integration RUNS; VARMRT ported; FFE column wiring next
+Ran run_keyfile(crt01, CentralRockies) end-to-end — the full grow_cycle! now executes through
+diameter_growth! → height_growth! → crown_ratio_update! → small_tree_growth! → mortality! → cuts (THINDBH),
+i.e. ALL the ported growth+mortality chunks integrate and run together. Fixes this pass:
+- small_tree_growth! p.year → s.control.year (YR on Control, not PlotData).
+- ★ CR VARMRT ported (mortality.jl _varmrt_efftr!(::CentralRockies)): CR uses a DISTINCT efficiency —
+  EFFTR=PEFF·((100-CRI)/100)·VARADJ·0.01, PEFF=0.84525-0.01074·PCT+2e-7·PCT³ (BA percentile, NOT relative
+  height like NE/CS/LS), oak(23-27) CRI cap 50; varmrt_varadj[38] col added. (The rest of mortality is shared.)
+- is_sprouting col added = 0 (CR does aspen SUCKERING via esuckr, not ESTUMP stump-sprouting).
+REMAINING for the .sum: FFE (fire/fuels) runs even without fire keywords and needs ~10 CR species columns:
+v2t (wood SG), bark_eqnum, bio_group/biogrp, dkr_cls, leaf_life, ls_spi, snag_alldwn/decayx/fallx, tfall_cls.
+These are a distinct FFE-wiring sub-task (downstream of the validated growth core). THEN compare crt01 .sum
+TPA/BA/QMD/TopHt vs live (tripling-invariant, doctrine #3) — expect divergence from the ZZRAN/regen RNG
+stream-order (FVS species/IND1 draw order vs jl tree-index), the one cross-cutting stochastic item. Growth+
+mortality per-chunk bit-exact; this validates their INTEGRATION + surfaces the RNG-order fix.

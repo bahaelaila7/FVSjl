@@ -114,7 +114,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     regyr = 10.0f0
     fnt = fint
     scale = fnt / regyr
-    scale2 = p.year / fnt                                   # YR / FNT (p.year = CR YR = 10)
+    scale2 = s.control.year / fnt                                   # YR / FNT (p.year = CR YR = 10)
     dgsd = s.control.dg_sd
     # density modifier PCTRED from AVHT * CCF (regent.f:185-190)
     ccf = stand_ccf(s); avht = p.avg_height
