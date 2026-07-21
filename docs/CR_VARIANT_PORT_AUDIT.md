@@ -465,3 +465,14 @@ DDS→DG conversion beyond bark. NOTE the per-chunk DG was bit-exact using LIVE 
 in jl's OWN computation of those inputs (density pre-pass) OR the DGBND/conversion. NEXT: instrument cr DG on
 crt01_growth (DGTRC per-tree DG at cycle 1), replay, isolate. Then the RNG-order for later cycles. Session fixed
 3 real full-cycle bugs (ccfcal, CR-calibration-dispatch, CR-bark); over-growth 6%→3%; 1990 bit-exact.
+
+### DGBND ruled out — residual is a density-input/conversion detail (needs per-tree DG instrument-replay)
+CR's DGBND (bin/FVScr_buildDir/dgbnd.f) is ONLY the SIZCAP(ISPC,1) size cap (999 default ⇒ non-binding), NOT a
+DBH-range bound — so dlo_v/dhi_v=nothing for CR is CORRECT; DGBND is not the residual. ⇒ the deterministic
+cycle-1 ~3% DG over-growth is in jl's OWN computation of the gemdg density inputs (PBAL/BAL from point_ba PTBAA +
+PCT percentile, or SPBA/BAUTBA) OR the DDS→DG conversion. The per-chunk DG was bit-exact using LIVE dumped inputs,
+so the gap is where jl's density pre-pass (point_basal_area!/stand_pct!/point_density!) differs from live dense.f
+for the CR stand. NEXT (concrete): re-run the DGFTRC instrument on crt01_growth (the no-FFE stand), dump live
+per-tree gemdg inputs+DDS at cycle 1, and diff jl's computed inputs to find which one diverges. Bounded. STATUS:
+full-cycle differential CLOSE to live (1990 bit-exact, 2000 within ~3%, TPA matching early); 3 real bugs fixed
+this session (ccfcal / CR-calibration-dispatch / CR-bark); growth+mortality core validated per-chunk + integrated.
