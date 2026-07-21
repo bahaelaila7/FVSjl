@@ -197,3 +197,109 @@ function cr_gemdg(imodty::Int, is::Int, bautba::Float32, spba::Float32, si::Floa
     end
     return dds
 end
+
+# =============================================================================
+# cr_bratio — CR bark ratio (cr/bratio.f). 3 equation forms dispatched by IMAP;
+# species {12,13,16,29..37} zero their coefs under IMODTY 3/4/5 (=> default IEQN-1
+# formula). Height arg is dead in FVS (RDANUW=H). Clamped to [0.80, 0.99].
+# =============================================================================
+const _CR_BARK_MT345_ZERO = (12, 13, 16, 29, 30, 31, 32, 33, 34, 35, 36, 37)
+
+@inline function cr_bratio(sd, sp::Int, d::Float32, imodty::Int)::Float32
+    b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]
+    if 3 <= imodty <= 5 && sp in _CR_BARK_MT345_ZERO
+        b1 = 0.0f0; b2 = 0.0f0
+    end
+    ieqn = round(Int, sd[:bark_imap][sp])
+    temd = d < 1.0f0 ? 1.0f0 : d
+    br = if ieqn == 1
+        if b1 == 0.0f0 && b2 == 0.0f0
+            t = temd > 19.0f0 ? 19.0f0 : temd
+            0.9002f0 - 0.3089f0 * (1.0f0 / t)
+        else
+            b1 + b2 * (1.0f0 / temd)
+        end
+    elseif ieqn == 2
+        b1
+    else                                   # IEQN == 3
+        b1 + b2 * (1.0f0 / temd)
+    end
+    br > 0.99f0 && (br = 0.99f0)
+    br < 0.80f0 && (br = 0.80f0)
+    return br
+end
+
+# =============================================================================
+# dgf!(::CentralRockies) — the cr/dgf.f wrapper. Per-cycle BADIST pre-pass (BAU =
+# BA-above-dbh-class; TBA = species BA) + AGERNG (age range), then per-tree loop
+# calling cr_gemdg and writing WK2 = DDS + COR + DGCON. The shared driver
+# (diameter_growth!(::AbstractVariant)) handles calibration/tripling around this.
+# Density terms (PTBAA=point_ba, PCCF=point_ccf, PCT=crown_ratio, RELDEN=stand CCF,
+# SITEAR=sp_site_index) are populated by the driver's density pre-pass. DSTAG is
+# inert (ISTAGF≡0 in CR, grinit.f:340). ELEV is dead in gemdg (RDANUW=ELEV).
+# =============================================================================
+function dgf!(s::StandState, ::CentralRockies)
+    p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
+    wk2 = view(s.scratch.wk, 2, :)
+    dbhmax_v = sd[:dbh_max]
+    imodty = Int(s.control.model_type)
+    ba_v   = p.basal_area
+    slope  = p.slope
+    aspect = p.aspect
+    relden = stand_ccf(s)                                # RELDEN = stand CCF
+    dens   = s.density                                   # point_ba (PTBAA), point_ccf (PCCF)
+    nsp    = nspecies(s.variant)
+
+    # --- BADIST (cr/badist.f): BA by dbh class -> BA-above-class (BAU), species BA (TBA) ---
+    bau = zeros(Float32, 41)
+    tba = zeros(Float32, nsp)
+    totba = 0.0f0
+    @inbounds for i in 1:t.n
+        t.height[i] < 4.5f0 && continue                  # seedlings excluded from BA (=> SEEDS)
+        tdbh = t.dbh[i]
+        icls = trunc(Int, tdbh + 1.0f0); icls > 41 && (icls = 41)
+        tdbh < 1.0f0 && (tdbh = 1.0f0)
+        sp = Int(t.species[i])
+        treeba = 0.0054542f0 * tdbh * tdbh * t.tpa[i]
+        totba += treeba
+        tba[sp] += treeba
+        bau[icls] += treeba
+    end
+    bau[1] = totba - bau[1]; bau[1] < 0.0f0 && (bau[1] = 0.0f0)
+    @inbounds for j in 2:41
+        bau[j] = bau[j-1] - bau[j]; bau[j] < 0.0f0 && (bau[j] = 0.0f0)
+    end
+
+    # --- AGERNG (dgf.f): age range over established trees (ABIRTH>1, HT>4.5); else 1000 ---
+    young = 1000.0f0; old = 0.0f0; anyage = false
+    @inbounds for i in 1:t.n
+        ab = t.birth_age[i]
+        (ab <= 1.0f0 || t.height[i] <= 4.5f0) && continue
+        anyage = true
+        ab < young && (young = ab); ab > old && (old = ab)
+    end
+    agerng = anyage ? abs(old - young) : 1000.0f0
+
+    # --- per-tree DDS loop (dgf.f DO 10) ---
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]
+        wk2[i] = 0.0f0
+        d <= 0.0f0 && continue
+        sp = Int(t.species[i])
+        bark = cr_bratio(sd, sp, d, imodty)
+        cr = Float32(t.crown_pct[i]) * 0.01f0
+        icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)
+        bautba = ba_v > 0.0f0 ? bau[icls] / ba_v : 0.0f0
+        spba = tba[sp]
+        ipccf = Int(t.plot_id[i])
+        pct = t.crown_ratio[i]
+        pbal = (1.0f0 - pct / 100.0f0) * dens.point_ba[ipccf]
+        bal  = (1.0f0 - pct / 100.0f0) * ba_v
+        pccfi = dens.point_ccf[ipccf]
+        ssite = p.sp_site_index[sp]
+        dds = cr_gemdg(imodty, sp, bautba, spba, ssite, d, ba_v, bark, cr, slope, aspect,
+                       pbal, pccfi, relden, bal; dbhmax = dbhmax_v[sp], agerng = agerng)
+        wk2[i] = dds + c.dg_cor[sp] + c.dg_const[sp]
+    end
+    return s
+end
