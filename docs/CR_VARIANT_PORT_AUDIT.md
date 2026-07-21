@@ -292,3 +292,21 @@ scf_min_dbh/scf_topd/scf_stump/top_diam/stump_ht/bf* columns (compute_volumes! K
 (instrument cr volume or diff crt01 .sum volume cols). This is the LAST equation-porting chunk before the ch9
 full-cycle. NOTE: growth/mortality (chunks 3-7) are all bit-exact and volume is a downstream leaf, so it does not
 block the grow-cycle correctness — only the reported volume columns.
+
+### CHUNK 8 (volume) — merch specs WIRED (compute_volumes! runs); equation computation is the remaining work
+Added CR merch-spec + HT-DBH species columns from cr/grinit.f defaults: stump=1, top_dib=0, dbh_min=0,
+scf_min_dbh=0, scf_top_dib=0, scf_stump=1, bf_min_dbh=0, bf_top_dib=0, bf_stump=1 (0 ⇒ NVEL internal defaults);
+htdbh_iwykca=0 (Wykoff form), htdbh_ht1=HT1, htdbh_ht2=HT2, htdbh_p2/p3/p4/db=0. compute_volumes! now RUNS for
+CR (was KeyError :scf_min_dbh) but returns cuft=0/bdft=0 — no CR volume-equation computation yet.
+★ KEY FINDING (measure): CR's "300DVEW…" DVEE is a **Region-2** estimator, DISTINCT from the Region-9 "900DVEE"
+Gevorkiantz FVSjl already has (r9vol_gevorkiantz.jl, for CS KODFOR-900). So the DVEE coefficients must be sourced
+fresh for Region 2. REMAINING chunk-8 work (the substantial part):
+  (a) CR VOLEQDEF assignment: add a CentralRockies branch to setup_volume_equations! mapping species→eq from
+      data/centralrockies/volume_equations_reference.csv (or port NVEL voleqdef.f for VAR='CR'/IREGN=2).
+  (b) Port the 3 equation families: DVEE-Region2 (31 sp, 300DVEW*), FW2 (2 sp DF/PP, 300FW2W*), NVB National
+      Biomass (5 sp CB/WF/SW/ES/AS, NVB*/NVBM*). Each needs NVEL coefficient tables + cuft/bdft computation.
+      NVB species also flip METHC=6→10 via NVB_REGION_CHECK (sitset.f:566, LFIANVB gate).
+  (c) Validate per-tree cuft/bdft vs live (instrument cr volume or diff crt01 .sum volume cols).
+This is a large NVEL port (comparable to the eastern r9clark). Growth+mortality (ch3-7) all bit-exact; volume is
+a downstream leaf that does NOT affect grow-cycle correctness — only the reported CF/BF columns + the ch9 .sum
+volume rows.
