@@ -58,6 +58,7 @@ include("variants/centralrockies/species.jl")
 include("variants/centralrockies/site_index.jl")
 include("variants/centralrockies/diameter_growth.jl")
 include("variants/centralrockies/height_growth.jl")
+include("variants/centralrockies/crown.jl")
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
