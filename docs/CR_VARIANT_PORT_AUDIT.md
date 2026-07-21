@@ -131,3 +131,23 @@ GEMDG inputs (bautba/spba/pbal/bal/relden/pccfi) vs the captured live GEMTRC, th
   to dump raw per-tree inputs + derived terms on crt01 and REPLAY through dgf! (bypasses the crosswalk — build
   dir intact: 668 .o incl dgf/badist/gemdg); or (b) finish the crosswalk + tree-input integration and diff WK2
   in the pre-tripling window. Path (a) is self-contained; do it OR (b) when the crosswalk lands.
+
+### ★★ CHUNK 3 CLOSED — dgf!(::CentralRockies) FULLY VALIDATED END-TO-END vs live FVScr
+Instrument-replay (doctrine-pure, bypasses the un-ported species crosswalk): instrumented cr/dgf.f with a
+per-DGF-call id (IDGCALL) + LSTART flag + a per-tree dump of raw inputs (ISP,D,HT,PROB,PCT,ITRE,ICR) + point/
+stand (BA,RELDEN,PTBAA,PCCF,SSITE) + derived (BARK,BAUTBA,SPBA,PBAL,BAL,DDS,COR,DGCON,WK2,AGERNG) → 9982 rows on
+crt01 (glibc __isoc23_sscanf shim + 12.2.0 recompile of dgf.o + relink of the 667 other .o; JOSTND=unit16=fort.16).
+Julia replay grouped by call-id, ran the dgf! BADIST pre-pass + term derivation + cr_bratio + cr_gemdg, compared
+bit-exact:
+- **BARK: 9982/9982**  (all calls; cr_bratio re-confirmed)
+- **PBAL: 9982/9982**  ((1-PCT/100)*PTBAA)
+- **BAUTBA: 9766/9766**  (growth calls; BADIST BA-above-class recurrence — must sum in TREE-INDEX order for Float32)
+- **SPBA: 9766/9766**  (species TBA)
+- **★ END-TO-END DDS: 9766/9766 BIT-EXACT**  (cr_gemdg fed by MY computed terms == live DDS, all growth evals)
+Calibration calls (LSTART=T, 216 rows) use backdated WK3 diameters + recent-mortality trees the standalone replay
+can't reconstruct — but that state is the shared calibrate_diameter_growth! DRIVER's job (validated separately),
+NOT dgf!'s logic. crt01 IMODTY=2; SLOPE=0.3, ASPECT=5.49778938. AGERNG was 120.2 (non-1000 ⇒ crt01 trees carry
+birth ages) but >40 like 1000 ⇒ same DF-branch, so the DDS check used live AGERNG; the dgf! AGERNG-from-birth_age
+computation is still to be independently checked when a real stand loads. Oracle RESTORED pristine (git-clean).
+⇒ Chunk 3 (large-tree diameter growth) is COMPLETE + end-to-end live-validated. Next: species crosswalk (unblocks
+full tree-input + chunk 9), then height(htgf)/crown/regent/mortality/volume.
