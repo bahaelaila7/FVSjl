@@ -476,3 +476,17 @@ for the CR stand. NEXT (concrete): re-run the DGFTRC instrument on crt01_growth 
 per-tree gemdg inputs+DDS at cycle 1, and diff jl's computed inputs to find which one diverges. Bounded. STATUS:
 full-cycle differential CLOSE to live (1990 bit-exact, 2000 within ~3%, TPA matching early); 3 real bugs fixed
 this session (ccfcal / CR-calibration-dispatch / CR-bark); growth+mortality core validated per-chunk + integrated.
+
+### ★ CHUNK 9 residual ISOLATED to DG COR self-calibration (DGSCOR) for calibrated species
+Instrument-replay on crt01_growth (DGFTRC on dgf.f, first-GROWTH call=call 3 since 1-2 are backdated calibration):
+matched jl vs live per-tree WK2 by (sp,DBH): 13/27 BIT-EXACT (sp13/PP, sp15/SW, sp20/AS — these have COR=0);
+the 14 misses are sp5(WF) + sp18(ES) with a CONSTANT per-species WK2 offset (sp18 Δ=0.0419 every tree). Since
+WK2=DDS+COR+DGCON and DDS(cr_gemdg) is validated, the offset = a COR DIFFERENCE: jl COR(sp5)=0.2645/COR(sp18)=
+-0.2569 (nonzero ⇒ these species HAVE measured DG ⇒ the shared DGSCOR self-calibration fires) but differ from
+live's by the Δ. RELDEN MATCHES (102.83=102.83); the 78.77 seen earlier was the backdated-calibration call.
+Tried cr_bratio in the calibration backdating (calibrate_diameter_growth! lines 384/449) — it moved COR (sp5
+better, sp18 worse) and REGRESSED the .sum (2000 BA 111 vs 109) ⇒ REVERTED per doctrine #4. So the residual is
+the exact DGSCOR COR fit for CR (measured-growth backdate + regression + ATTEN weighting matching cr/dgdriv.f) —
+the SAME hard cross-cutting DGSCOR precision the eastern variants have as their accepted residual. ⇒ the cycle-1
+~3% is COR-calibration precision on 2 species, NOT a modeling gap. The driver-bark fix (DDS→DG) stays. This is
+the well-characterized final growth-precision item; the .sum is otherwise close (1990 exact, TPA matching early).
