@@ -57,5 +57,14 @@ BAUTBA=BAU(ICLS)/BA (BA-above-by-dbh-class / stand BA); IPCCF=ITRE(I) (point idx
 CALL GEMDG(...) => WK2(I)=DDS+COR(ISPC)+DGCON(ISPC). Most terms (BA, BAL, point-BA/CCF, PCT percentile) are
 SHARED engine state the eastern DG already builds; CR-specific are BAU/BAUTBA (BA-above-by-class), RELDEN,
 IMODTY, SITEAR. COR/DGCON are the DGSCOR calibration + per-species constant.
+
+### dgf wrapper — engine dependency map (checked against src/engine + core/state)
+SHARED (reuse, already built): BA = p.basal_area; PTBAA = density.point_ba; PTBALT = density.point_bal
+(point_basal_area!); PCT (BA percentile) as the eastern DG uses (bal=(1-PCT/100)*BA). CR-SPECIFIC to compute
+in a CR stand-stats pre-pass: BAU (BA-above-by-dbh-class, ICLS=min(int(D+1),41)) -> BAUTBA=BAU(ICLS)/BA;
+RELDEN (relative density) + RELSDI/DGQMD/STDSDI -> DSTAG=3.33333*(1-RELSDI) if RELSDI>0.7; SPBA=TBA(ISPC)
+(species BA sum); PCCF (point CCF, density.point_ccf if present else compute); IMODTY (MODTYPE keyword or
+habitat default). SITEAR done (cr_site_index_defaults!). => wrapper = CR stand-stats pre-pass + per-tree loop
+calling cr_gemdg, then WK2=DDS+COR+DGCON. This is the concrete next chunk-3 unit.
 4-6. Height (htgf), crown (crown/cratet/ccfcal), small-tree (regent). 7. Mortality reconcile. 8. Volume (NVEL).
 9. Full-cycle differential vs live FVScr. Best tackled as focused sessions, each port-and-diff per doctrine #1.
