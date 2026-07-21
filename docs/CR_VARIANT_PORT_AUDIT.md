@@ -381,3 +381,16 @@ downstream task. The growth+mortality CORE integrates + runs end-to-end (DG→ht
 once FFE/biomass is wired the .sum runs and the TPA/BA/QMD/TopHt vs live comparison surfaces the ZZRAN/regen
 RNG-order (the last cross-cutting item). NOTE: FFE is downstream of the validated growth core; a NOFFE-style run
 (if the engine can skip FFE) would let the growth .sum validate without the FFE coefficients.
+
+### CHUNK 9 — the .sum cascades through multiple downstream subsystems (FFE, establishment, volume)
+Measured the full-cycle dependency chain: after growth+mortality+cuts, the crt01 .sum needs — in order —
+(a) FFE (crt01 is a FULL-FFE demo: FMIN/SNAGINIT/SNAGBRK/SIMFIRE-2003/POTFIRE ⇒ species props+biomass DONE
+faithfully from fmvinit/fmcblk, but ALSO fuel-loading/cover-type/fire-behavior tables — ffe_live_fuel_override
+BoundsError next); (b) with FFE stripped, ESTABLISHMENT (establish! needs :estab_min_ht + the CR regen coefs);
+(c) VOLUME (the NVEL port). So a bit-exact CR .sum requires wiring ALL of: volume-NVEL, FFE-fuel, establishment
+— each a distinct downstream subsystem. The GROWTH+MORTALITY CORE is complete: it validates bit-exact per-chunk
+(DG 9766, ht 9607, crown 11132, small-tree 1349+338, mort 11577) AND integrates end-to-end (grow_cycle! runs
+DG→ht→crown→small-tree→mortality→cuts). The remaining .sum work is downstream-subsystem wiring (mechanical
+data-extraction, each like the FFE species-props extraction) + the ZZRAN/regen RNG-order. RECOMMENDATION: these
+downstream subsystems (volume/FFE/estab) are each sizable; prioritize per the milestone's needs — the
+scientifically-meaningful growth+mortality modeling is done and proven.
