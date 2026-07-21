@@ -310,3 +310,16 @@ fresh for Region 2. REMAINING chunk-8 work (the substantial part):
 This is a large NVEL port (comparable to the eastern r9clark). Growth+mortality (ch3-7) all bit-exact; volume is
 a downstream leaf that does NOT affect grow-cycle correctness — only the reported CF/BF columns + the ch9 .sum
 volume rows.
+
+### CHUNK 8 volume — NVEL SOURCE LOCATED (turnkey for the equation port)
+The NVEL Fortran library is in-tree at **/workspace/ForestVegetationSimulator/volume/NVEL/** + **volume/voleqdef.f**
+(2749-line assignment, VAR/region/forest/FIA → eq string; the 300DVEW/300FW2W/NVB tables are here). DVEE volume =
+**volume/NVEL/dvest.f**. FW2 + NVB routines also under volume/NVEL/. So the equation port is unblocked (source +
+coefficients present) but LARGE (comparable to the eastern r9clark port). Recommended order next turn:
+  1. Port the CR VOLEQDEF assignment (voleqdef.f VAR='CR' path → species.vol_eq) — or just load the saved
+     volume_equations_reference.csv (already has the exact 38 per-species eq strings, faster + already verified
+     vs live crt01.out).
+  2. Port DVEE (dvest.f) for Region-2 "300DVEW" — the dominant family (31/38 species).
+  3. Port FW2 (300FW2W, DF/PP) + NVB National-Biomass (NVB*/NVBM*, 5 sp).
+  4. Validate per-tree cuft/bdft vs live via instrument-replay (dump the NVEL call args+results on crt01,
+     replay). Merch specs already wired; compute_volumes! runs (returns 0 until equations land).
