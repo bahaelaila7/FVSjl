@@ -262,3 +262,15 @@ small_tree_growth!(::CentralRockies) LOOP written (PCTRED density modifier + per
 draw + _cr_regent_tree), reads s.calib.ht_dbh_aa/iabflg. ⇒ CHUNK 6 deterministic core COMPLETE + AA-fit engine-
 validated. Only the ZZRAN per-tree stream-order (chunk-9 RNG) + new-tree-crown BACHLO (estab) remain.
 Coefficients: st_* cols + ht1/ht2/wykoff_ht2 in species_coefficients.csv. Oracle restored pristine.
+
+### ★★ CHUNK 7 (mortality) — MOSTLY SHARED; CR coefficients wired + VALIDATED 11577/11577
+CR morts.f is the SAME two-stage model as the shared mortality!(::AbstractVariant) driver (southern/mortality.jl):
+background RI=ri_scale/(1+exp(B0+B1·D)) + Pretzsch SDI self-thinning (RN, TEM=SDIMAX/0.02483133·D10^-1.605·PMSDIL).
+CR-specific wiring only: mort_ri_scale(::CentralRockies)=0.5 (morts.f RI=0.5·RI); background B0/B1 = PMSC/PMD (6
+groups) mapped via IBGMAP[38] → mort_bkgd_intercept/mort_bkgd_dbh columns; sdi_max_default = SDICON[38] (sitset)
++ SDIDEF added to cr_site_index_setup! (populates sp_sdi_def); PMSDIL/PMSDIU=0.55/0.85 (grinit defaults);
+DBHZEIDE/DBHSTAGE=0 (no small-DBH SDI exclusion). ★ VALIDATED vs live (instrument morts.f MORTTRC, crt01, 11577
+trees): b0/b1 coefficients 11577/11577, RI 11577/11577 (=0.5/(1+exp(b0+b1·d))), WKI=P·(1-(1-RIP)^FINT)·X
+11577/11577 ALL BIT-EXACT. The RN/RIP SDI self-thinning combination is the shared Pretzsch driver (validated for
+eastern; CR uses identical SDIMAX formula) — its end-to-end RN/RIP match rides the chunk-9 full-cycle. Oracle
+restored. ⇒ CHUNK 7 done (CR-specific mortality validated; self-thinning shared).

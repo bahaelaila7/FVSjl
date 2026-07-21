@@ -51,6 +51,15 @@ function cr_site_index_setup!(s::StandState)
         s.plot.model_type = Int32(imodty)
     end
     cr_site_index_defaults!(p.sp_site_index, sd, imodty, Int(p.site_species))
+    # SDIDEF (cr/sitset.f): per-species max SDI = SDICON unless BAMAX (or SDIMAX kw) overrode it.
+    bamax = s.control.ba_max
+    pmsdiu = p.pct_sdimax_mort_hi > 0.0f0 ? p.pct_sdimax_mort_hi : 0.85f0
+    sdicon = sd[:sdi_max_default]
+    @inbounds for i in 1:nspecies(s.variant)
+        if p.sp_sdi_def[i] <= 0.0f0
+            p.sp_sdi_def[i] = bamax > 0.0f0 ? bamax / (0.5454154f0 * pmsdiu) : sdicon[i]
+        end
+    end
     return s
 end
 

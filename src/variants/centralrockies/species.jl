@@ -38,6 +38,8 @@ load_species_coefficients!(s::StandState, v::CentralRockies) = init_blockdata!(s
 # Species crosswalk (SPCTRN, bin/FVScr_buildDir/spctrn.f ASPT(442,21)): the shared western table's
 # CR target is column J=8; in the 7-col eastern CSV layout it lands in the first target slot (col 4).
 spctrn_column(::CentralRockies) = 4
+mort_ri_scale(::CentralRockies) = 0.5f0  # CR RI = 0.5*RI (morts.f:471); like NE
+
 # Catch-all for a code absent from the 442-row table (rare — the table is FIA/PLANTS-comprehensive):
 # other-hardwood OH (sp 38). Softwoods that miss resolve to OS via the table itself.
 other_species(::CentralRockies) = Int32(38)
