@@ -39,5 +39,11 @@ Charter/doctrine: docs/CR_VARIANT_PORT_GOAL.md. Branch: cr-variant-port. Oracle:
    regression DDS (hardcoded coefficients). WK2=DDS+COR+DGCON. The gem* trio (gemdg/gemht/gemcr) = the CR model.
    This is the largest chunk: faithful transcription of every IMODTY x species branch + calibration (COR2), then
    per-tree DG diff vs live FVScr in the pre-tripling window.
+   [PARTIAL DONE] cr_gemdg (diameter_growth.jl): full GENGYM transcription — all ~15 species groups x IMODTY
+   branches + the two output paths (DF-forecast / direct ln-DDS) + common tail (DSTAG inert by default, BH-PP
+   x0.80, ln-DDS floor -9.21). Math: flog/fexp/fpow + Base sqrt/sin/cos. DBHMAX (cr/sitset.f) -> dbh_max column.
+   ISTAGF all-0 default (DSTAG inert). Compiles; DF-path (DF spp) verified bit-exact vs hand-computed DDS.
+   STILL TODO: the dgf.f WRAPPER (stand terms BAT/SI/BAUTBA/SPBA/RELDEN/PBAL/PCCFI/BAL/CR/SLOPE/ASPECT +
+   SDI/RELSDI/DSTAG stagnation) -> WK2=DDS+COR+DGCON; wire diameter_growth!(::CentralRockies); per-tree diff.
 4-6. Height (htgf), crown (crown/cratet/ccfcal), small-tree (regent). 7. Mortality reconcile. 8. Volume (NVEL).
 9. Full-cycle differential vs live FVScr. Best tackled as focused sessions, each port-and-diff per doctrine #1.
