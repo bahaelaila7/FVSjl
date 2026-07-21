@@ -242,7 +242,7 @@ function dgf!(s::StandState, ::CentralRockies)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     wk2 = view(s.scratch.wk, 2, :)
     dbhmax_v = sd[:dbh_max]
-    imodty = Int(s.control.model_type)
+    imodty = Int(s.plot.model_type)
     ba_v   = p.basal_area
     slope  = p.slope
     aspect = p.aspect

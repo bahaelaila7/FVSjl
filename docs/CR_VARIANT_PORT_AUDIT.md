@@ -113,3 +113,21 @@ GEMDG inputs (bautba/spba/pbal/bal/relden/pccfi) vs the captured live GEMTRC, th
 - NEXT: validate the wrapper's STAND-STAT pre-pass (BAU/TBA/PBAL/BAL/RELDEN/PCCFI + WK2 assembly) — needs
   either the CR engine stand-load integration (tree input + RCON + density pre-pass) OR a BADIST/dgf.f
   instrumentation dump on crt01 to diff the intermediate terms. dg_const CSV column (=0 all species) still TODO.
+
+### CR engine wiring (MODTYPE keyword + site_setup!) — LANDED; end-to-end DG blocked on species crosswalk
+- **MODTYPE keyword** (kw_modtype!, keyword_dispatch.jl): sets `s.plot.model_type` (IMODTY 1-5) from the
+  MODTYPE keyword (cr/sitset.f). crt01 uses `MODTYPE 2.` (SW ponderosa). NOTE: IMODTY lives on PlotData
+  (`s.plot.model_type`), NOT Control — fixed all refs (dgf!/site_setup!/handler).
+- **site_setup!(::CentralRockies)** (cr_site_index_setup!, site_index.jl): resolve IMODTY (MODTYPE override
+  else _CR_DEFMT[forest_idx], 23-forest table) then fan the site species' SI across species via
+  cr_site_index_defaults!. EXECUTED CLEANLY on crt01 (the load reached tree-input past init+site_setup).
+- **BLOCKER for end-to-end**: crt01.tre uses species ALIASES (WP, etc.) not in the 38 CR alpha codes ⇒ tree
+  input calls translate_species ⇒ needs `spctrn_column(::CentralRockies)` + `other_species(::CentralRockies)`
+  + the REAL CR SPCTRN crosswalk (target_cr column; current CSV is a placeholder self-map). Left spctrn_column
+  UNDEFINED (loud MethodError, doctrine #5 — a placeholder self-map would silently mis-map WP→OH). ⇒ the CR
+  species-crosswalk is the next chunk; it unblocks all real-stand runs + the chunk-9 full-cycle differential.
+- **Two validation paths for the dgf! stand-stat pre-pass** (BADIST recurrence / PBAL/BAL / WK2 assembly, the
+  only chunk-3 piece not yet live-checked; cr_gemdg + cr_bratio already are): (a) instrument cr/dgf.f+badist.f
+  to dump raw per-tree inputs + derived terms on crt01 and REPLAY through dgf! (bypasses the crosswalk — build
+  dir intact: 668 .o incl dgf/badist/gemdg); or (b) finish the crosswalk + tree-input integration and diff WK2
+  in the pre-tripling window. Path (a) is self-contained; do it OR (b) when the crosswalk lands.

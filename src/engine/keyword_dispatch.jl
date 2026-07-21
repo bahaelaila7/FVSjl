@@ -90,6 +90,15 @@ function kw_numcycle!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# MODTYPE (cr/sitset.f): set the GENGYM model type IMODTY (1-5). CR only; ignored by other
+# variants (model_type unused there). An out-of-range value leaves the DEFMT[forest] default.
+function kw_modtype!(s::StandState, rec::KeywordRecord)
+    isempty(rec.values) && return
+    m = nint(rec.values[1])
+    (m >= 1 && m <= 5) && (s.plot.model_type = Int32(m))
+    return
+end
+
 # OPTION 2 — TIMEINT (vbase/initre.f:1200): cycle length (IY). Field 1 = cycle index (0/absent =
 # all cycles), field 2 = period length in years (default 10). The uniform path sets s.control.year
 # (YR/IFINT), the cycle length threaded through the growth models — DDS/HTG scale by FINT/5,
@@ -2152,6 +2161,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)
         elseif kw == "NUMCYCLE"; kw_numcycle!(s, rec)
+        elseif kw == "MODTYPE";  kw_modtype!(s, rec)       # CR GENGYM model type IMODTY (cr/sitset.f)
         elseif kw == "TIMEINT";  kw_timeint!(s, rec)      # cycle length (period); default 5
         elseif kw == "GROWTH";   kw_growth!(s, rec)        # input growth-data type codes + measurement periods (initre.f:2300)
         elseif kw == "INVYEAR";  kw_invyear!(s, rec)

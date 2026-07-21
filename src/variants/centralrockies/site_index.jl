@@ -31,3 +31,27 @@ function cr_site_index_defaults!(sitear::AbstractVector{Float32}, sd, imodty::In
     end
     return sitear
 end
+
+# cr/sitset.f DEFMT (23 forests -> IMODTY default when MODTYPE not given). IMODTY 1..5 =
+# SW-mixed / SW-ponderosa / Black-Hills-ponderosa / spruce-fir / lodgepole.
+const _CR_DEFMT = (5, 3, 4, 5, 3, 4, 5, 5, 4, 4, 5, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+
+"""
+    cr_site_index_setup!(s)
+
+CR sitset.f: resolve the GENGYM model type (IMODTY = MODTYPE keyword override, else DEFMT[forest]),
+then fan the site species' SI across all species via the SITELO/SITEHI conversion (`cr_site_index_defaults!`).
+"""
+function cr_site_index_setup!(s::StandState)
+    p = s.plot; sd = s.coef.species
+    imodty = Int(s.plot.model_type)
+    if !(1 <= imodty <= 5)
+        ifor = Int(p.forest_idx)
+        imodty = (1 <= ifor <= length(_CR_DEFMT)) ? _CR_DEFMT[ifor] : 5
+        s.plot.model_type = Int32(imodty)
+    end
+    cr_site_index_defaults!(p.sp_site_index, sd, imodty, Int(p.site_species))
+    return s
+end
+
+site_setup!(s::StandState, ::CentralRockies) = cr_site_index_setup!(s)
