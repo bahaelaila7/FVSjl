@@ -338,3 +338,16 @@ UNEXERCISED by crt01 and needs a different test stand. Source (all in-tree, volu
 then DVEE (needs a DVEE-species test stand — pick one from the FVScr test suite). This is the largest remaining
 chunk; growth+mortality (ch3-7) are all bit-exact and volume is a downstream leaf (does not affect grow-cycle).
 Merch specs already wired; setup_volume_equations! still needs a CR branch (load the reference CSV).
+
+### CHUNK 8 volume — VOLEQDEF assignment DONE (equations assigned); FW2 also large (Flewelling)
+setup_volume_equations! now has a CentralRockies branch: species.vol_eq = _CR_VOLEQ (38 verified-vs-live eq ids
+from volume_equations_reference.csv). crt01 species assign correctly (sp5=NVB0000015, sp13=300FW2W122, etc.).
+NOTE: this is the forest-303 assignment; VOLEQDEF is region/forest-keyed so a full voleqdef.f port is needed for
+arbitrary CR forests (the growth/mortality chunks are forest-independent, so this only limits volume on non-303
+forests). ★ CONFIRMED (measure): FW2 (300FW2W) = the Flewelling profile/taper model (fwinit.f) — also LARGE, not a
+simple polynomial. So ALL of crt01's volume (NVB×4 + FW2×1) needs big NVEL models (NSVB nsvb.f + Flewelling
+fwinit.f); the tractable DVEE D2H polys (r3d2hv.f) cover 31 non-crt01 species. ⇒ chunk 8 equation computation is
+the LARGEST remaining chunk — a full NVEL port (NSVB + Flewelling + DVEE), comparable to the entire eastern
+volume effort. It is a DOWNSTREAM LEAF: growth (ch3-6) + mortality (ch7) are all bit-exact vs live, so the CR
+simulation CORE is complete; volume only affects reported CF/BF columns + ch9 .sum volume rows. Assignment +
+merch specs done; equation computation deferred to a dedicated volume effort.

@@ -80,6 +80,50 @@ end
 VOLEQDEF: assign each species its NVEL volume-equation id (`species.vol_eq`) from
 the stand's national-forest code (KODFOR) and the species FIA code. Region-8 only.
 """
+
+# CR default NVEL volume-equation ids (VOLEQDEF for VAR='CR'), verified vs live crt01.out.
+# NOTE: this is the forest-303 (crt01) assignment; VOLEQDEF is region/forest-keyed, so a full
+# voleqdef.f port is needed for arbitrary CR forests. cuft==bdft eq for CR.
+const _CR_VOLEQ = String[
+    "300DVEW093",
+    "NVB0000015",
+    "300FW2W202",
+    "300DVEW093",
+    "NVB0000015",
+    "301DVEW015",
+    "301DVEW015",
+    "301DVEW015",
+    "300DVEW113",
+    "300DVEW113",
+    "301DVEW202",
+    "300DVEW106",
+    "300FW2W122",
+    "300DVEW113",
+    "NVBM240119",
+    "300DVEW060",
+    "300DVEW093",
+    "NVBM330093",
+    "300DVEW093",
+    "NVB0000746",
+    "300DVEW999",
+    "300DVEW999",
+    "300DVEW800",
+    "300DVEW800",
+    "300DVEW800",
+    "300DVEW800",
+    "300DVEW800",
+    "300DVEW999",
+    "300DVEW060",
+    "300DVEW060",
+    "300DVEW060",
+    "300DVEW060",
+    "300DVEW106",
+    "300DVEW106",
+    "300DVEW106",
+    "300DVEW122",
+    "300DVEW060",
+    "300DVEW999"]
+
 function setup_volume_equations!(s::StandState)
     kodfor = Int(s.plot.user_forest_code)
     iregn  = kodfor ÷ 10000
@@ -89,7 +133,11 @@ function setup_volume_equations!(s::StandState)
     dist  = lpad(string(intdist), 2, '0')
     @inbounds for sp in 1:MAXSP
         ifia = something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)
-        s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
+        if s.variant isa CentralRockies
+            s.species.vol_eq[sp] = sp <= length(_CR_VOLEQ) ? _CR_VOLEQ[sp] : "           "
+        else
+            s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
+        end
     end
     return s
 end
