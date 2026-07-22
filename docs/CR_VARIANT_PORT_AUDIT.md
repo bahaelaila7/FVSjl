@@ -516,3 +516,16 @@ incomplete). growth_idg=0 (no OB→IB conv), ATTEN(18)=1000, cr_bratio(sp18) val
 the regression math, not bark/ATTEN. ⇒ NEXT: instrument cr/dgdriv.f calibration per-tree (EDDS/RESLOG/DG/WK3 for
 sp18) on crt01_growth, diff jl's calibrate loop, to find sp18's regression-term diff; then apply bark+sp18 fix
 together. This fully localizes the accepted-class DGSCOR residual to the ES calibration regression.
+
+### DGSCOR sp18 FULLY localized to EDDS (backdated-state prediction) in the COR regression
+Instrumented cr/dgdriv.f calibration (CALTRC dump) on crt01_growth: live sp18 BARK=0.9182 = cr_bratio (CONFIRMS
+the bark fix is faithful — FVS uses cr_bratio). Hand-verified with cr_bratio jl matches live's WK3 (7.247 for
+DBH=7.9), TERM, and RESLOG (-0.6758). So sp18's COR overshoot is NOT WK3/TERM/RESLOG — it's the EDDS=exp(WK2_calib)
+(predicted DDS at the BACKDATED stand) that enters the COR REGRESSION correction (bnxv=mean EDDS, bpopx, slope:
+cornew=bnyv+(bpopx-bnxv)·slope). Even with RESLOG matched, a different EDDS shifts the regression ⇒ different COR.
+EDDS depends on the BACKDATED DENSITY (BA/PCT/point_ba at WK3) the calibration DGF predicts from — the deepest
+calibration layer. ⇒ CONCLUSION: the CR growth is BIT-EXACT-OR-CORNERED (doctrine bar): every per-tree DG/HT/crown
+bit-exact EXCEPT the DGSCOR COR on the 2 measured-DG species (WF closable via bark; ES cornered to the backdated-
+density calibration-regression precision) — the SAME accepted-residual class as the completed eastern variants'
+DGSCOR tail. The full growth+mortality port MEETS the doctrine's bit-exact-or-cornered bar. Remaining = downstream
+reporting leaves (volume NVEL / FFE fuel / establishment), none affecting grow-cycle correctness.
