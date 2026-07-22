@@ -267,12 +267,14 @@ function _backdate_dbh!(s::StandState)
     t = s.trees; n = t.n
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     idg = s.control.growth_idg
+    _cr_bd = s.variant isa CentralRockies; _cr_bd_imod = _cr_bd ? Int(s.plot.model_type) : 0; sd = s.coef.species
+    _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
         g = t.diam_growth[i]; ismiss(g) && continue
         d = t.dbh[i]
-        gadj = idg == 1 ? g : g / bark_ratio(bark_a, bark_b, t.species[i], d)
+        gadj = idg == 1 ? g : g / _bk(t.species[i], d)
         gadj > d && continue
         bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
     end
@@ -280,7 +282,7 @@ function _backdate_dbh!(s::StandState)
     @inbounds for i in 1:n
         d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
         if !ismiss(g)
-            gadj = idg == 1 ? g : min(g / bark_ratio(bark_a, bark_b, t.species[i], d), d)
+            gadj = idg == 1 ? g : min(g / _bk(t.species[i], d), d)
             rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
             rr > 0f0 && (r = rr)
         end
@@ -293,6 +295,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b; sigmar = sd[:dg_resid_sd]
+    _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -442,7 +445,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:225)
+        bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) : bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]

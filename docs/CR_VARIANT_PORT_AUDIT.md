@@ -529,3 +529,16 @@ bit-exact EXCEPT the DGSCOR COR on the 2 measured-DG species (WF closable via ba
 density calibration-regression precision) — the SAME accepted-residual class as the completed eastern variants'
 DGSCOR tail. The full growth+mortality port MEETS the doctrine's bit-exact-or-cornered bar. Remaining = downstream
 reporting leaves (volume NVEL / FFE fuel / establishment), none affecting grow-cycle correctness.
+
+### ★ CR calibration bark fix KEPT (faithful, doctrine #4) — sp18 residual = backdated-state EDDS (0.7%)
+Re-applied the faithful cr_bratio bark in _backdate_dbh! (backdate DG/bark) + the calibration TERM (all CR-gated,
+eastern untouched). CONFIRMED faithful by CALJL-vs-CALTRC dump on crt01_growth sp18 DBH=7.9: jl matches live on
+WK3 (7.2465), DGmeas (0.6), BARK (0.9182=cr_bratio), TERM (8.34). The ONLY diff is EDDS = exp(WK2_calib) = jl
+16.515 vs live 16.401 (~0.7%) ⇒ jl's PREDICTED DDS at the BACKDATED stand is 0.7% high (WK2_calib ln-diff 0.007
+⇒ RESLOG -0.6827 vs -0.6758). This is the deepest DGSCOR layer — the backdated-density/crown-ratio prediction
+feeding cr_gemdg at WK3. The old wrong-bark (0.80) was ACCIDENTALLY compensating this EDDS error (netting .sum
+109); the faithful bark unmasks the true error (.sum 111). KEEP the faithful bark (doctrine #4: don't cargo-cult
+to green; a faithful fix exposing a masked bug is progress). sp5 closes bit-exact; sp18 cornered to the 0.7%
+backdated-prediction precision = accepted-class DGSCOR tail. NEXT: the sp18 EDDS needs the backdated-stand
+density/crown to match live at LSTART (CRATET-dubbed crown or backdated BA/PCT) — a bounded but deep calibration
+item. Growth otherwise bit-exact; this is the last cornered growth residual.
