@@ -503,3 +503,16 @@ species (WF/ES) — a bounded, well-localized calibration-precision item (the sa
 DGSCOR tail). All other growth is bit-exact. Full session: 5 growth+mort chunks bit-exact per-chunk; full-cycle
 1990 bit-exact + tracks live; 5 real bugs found via the differential (ccfcal, DG-calib-dispatch, driver-bark,
 VARMRT, PSIGSQ); residual = DGSCOR COR precision on 2 species + downstream leaves (volume/FFE/estab).
+
+### DGSCOR COR fully characterized — sp5 is bark, sp18 is a SEPARATE term (need both together)
+Deep-dived the sp5/sp18 COR: FVS cr/dgdriv.f uses BARK=BRATIO(current dbh) in BOTH the backdate (DG/bark, via
+dense.f) AND the calibration TERM=DG·(2·BARK·WK3+DG) (line 435/445). Applying cr_bratio to jl's _backdate_dbh! +
+the TERM (both were bark_ratio(0,0)=0.80) CLOSED sp5 to Δ0.0061 (was 0.1176 — nearly bit-exact) — proving the
+bark IS the sp5 fix. BUT sp18 OVER-corrected (Δ 0.0419→0.0639) and the net .sum REGRESSED (2000 BA 111 vs 109),
+so sp18 has a SEPARATE COR error (in the EDDS/RESLOG/slope regression or its measured-DG) that the correct bark
+UNMASKS — the two must land together for the .sum to improve. Reverted the bark change to keep the .sum at its
+best (109 vs live 106) pending the sp18 fix (doctrine #4: the fix is faithful but net-regresses because sp18 is
+incomplete). growth_idg=0 (no OB→IB conv), ATTEN(18)=1000, cr_bratio(sp18) validated — so sp18's residual is in
+the regression math, not bark/ATTEN. ⇒ NEXT: instrument cr/dgdriv.f calibration per-tree (EDDS/RESLOG/DG/WK3 for
+sp18) on crt01_growth, diff jl's calibrate loop, to find sp18's regression-term diff; then apply bark+sp18 fix
+together. This fully localizes the accepted-class DGSCOR residual to the ES calibration regression.
