@@ -853,3 +853,13 @@ suspect — cwcalc/crown for small trees or the newly-created establishment-tree
 crown width (live treelist CW col) vs jl for the ESTAB cohort; fix the crown-width → CCF drops → density releases → TopHt
 tracks live. THEN establishment is validatable end-to-end (also needs RNG-exact height draws). The crossover fix itself
 is a real growth-core win independent of this.
+
+## ESTAB crown-width root (measured): sp2 corkbark CCF crown-width too high
+Measured jl cr_crown_width(sp2 corkbark fir, d=3.2, imodty=2) = 7.97 vs live ESTAB treelist CW = 5.1 (1.56× high ⇒
+~2.4× CCF, consistent with the CCF 267/70 over). sp2 (corkbark, FIA 18) is an ESTAB-planted species the San Juan FIA
+sweep (which has ABLA sp1, FIA 19) never exercised — so its CCF imap/coefs (_CR_CCF_MAP[2][2]=3 → RDA .015248/RDB
+1.7333) are UNVALIDATED and the suspect. VERIFY FIRST (doctrine #2): confirm the treelist CW column IS the ccfcal CCF
+crown-width (compute cr_crown_width for a sweep-validated sp1 ABLA tree and match its treelist CW) — if yes, re-check
+sp2's IMAP against cr/ccfcal.f's species→IMAP table for imodty 2 (the corkbark mapping likely differs). Fix → CCF drops
+→ density releases → ESTAB TopHt tracks live (38→~70). This is downstream of the (fixed, validated) crossover; it's the
+regen-density feedback for the establishment species. The FIA growth/volume sweep is unaffected (different species).
