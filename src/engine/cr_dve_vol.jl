@@ -122,13 +122,21 @@ function cr_dve_vol(voleq::AbstractString, d::Float32, h::Float32; unt::Int = 1,
 end
 
 # compute_volumes_cr! — CR per-tree volume (vols.f → NATCRS method dispatch). Dispatches each species' eq id
-# (VEQNNC method = chars 4:6, or "NVB" prefix) to the ported NVEL method; reads TCF=v[1], MCF=v[4]+v[7],
-# SCF=v[4], BF=v[10] (fvsvol.f return mapping) with the FVS dbhmin/scfmin merch zeroing.
-# DVE = ported (cr_dve_vol). NVB/FW2 = TODO (return 0 until ported — keeps the growth .sum valid meanwhile).
+# (VEQNNC method chars 4:6, or "NVB" prefix) to the ported NVEL method, then applies the fvsvol.f return
+# mapping (fvsvol.f:510-529): TCF=TVOL(1)≥0; MCF=TVOL(4)+TVOL(7) gated D≥DBHMIN; SCF=TVOL(4) ONLY for
+# region 8/9/FIA-NVB (so 0 for CR region 2/3); BF gated D≥BFMIND. Merch specs are the CR sitset defaults
+# (cr/sitset.f:520-555, by IMODTY): DBHMIN/TOPD/STUMP. DVE=ported; NVB TCF+MCF=ported (BF/board = TODO);
+# FW2=TODO.
 function compute_volumes_cr!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees; veq = s.species.vol_eq; c = s.control
-    scfmin = c.sp_scf_dbhmin; dbhmin = c.sp_dbh_min
+    t = s.trees; veq = s.species.vol_eq; c = s.control; sd = s.coef.species
+    scfmin = c.sp_scf_dbhmin
+    imodty = Int(s.plot.model_type)
+    # CR volume merch standards (cr/sitset.f): IMODTY 3 (Black-Hills PP) vs the rest.
+    is3 = imodty == 3
+    dbhmin = is3 ? 9f0 : 5f0
+    topd   = is3 ? 6f0 : 4f0
+    stump  = 1f0
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -137,18 +145,19 @@ function compute_volumes_cr!(s::StandState)
         end
         eq = veq[sp]
         mdl = length(eq) >= 6 ? eq[4:6] : "   "
-        unt = d >= scfmin[sp] ? 1 : 3
+        nvb = startswith(eq, "NVB")
         v = if mdl == "DVE"
-            cr_dve_vol(eq, d, h; unt = unt)
-        elseif startswith(eq, "NVB")
-            cr_nvb_vol(eq, d, h)               # total cubic (TCF) exact; MCF/SCF/BF TODO
+            cr_dve_vol(eq, d, h; unt = d >= scfmin[sp] ? 1 : 3)
+        elseif nvb
+            bark = cr_bratio(sd, sp, d, imodty)
+            cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump)   # TCF + MCF exact; board TODO
         else                                   # FW2 — not yet ported
             zeros(Float32, 15)
         end
-        tcf = v[1]
-        mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
-        scf = d >= scfmin[sp] ? v[4] : 0f0
-        bf  = v[10]
+        tcf = max(v[1], 0f0)
+        mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+        scf = 0f0                              # CR is region 2/3: fvsvol.f sets SCF only for region 8/9
+        bf  = nvb ? 0f0 : v[10]                # NVB board = TODO; DVE fills VOL(10)
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
     end
