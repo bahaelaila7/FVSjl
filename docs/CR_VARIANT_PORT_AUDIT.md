@@ -1140,3 +1140,15 @@ a distinct subsystem chunk: the shared FFE fire model (fuel decay/behavior/effec
 the eastern variants) + CR-specific DATA (FULIV live fuel, FUINIT dead fuel, fuel-model assignment, cover types)
 loaded into the CR coefficient CSV. Deferred as the next major chunk after the growth/volume core + national
 sweep. crt01_growth stays BIT-EXACT.
+
+### FFE chunk — SCOPED (western-specific structure, ≠ eastern forest-type fuel)
+Critical scoping finding (FVScr_buildDir/fmcba.f): CR's FFE surface-fuel loading is structurally DIFFERENT from
+the eastern variants and CANNOT reuse their forest-type CSV drop-in. CR keys live fuels by SPECIES via
+FULIVE(2,MAXSP) [established herb/shrub] and FULIVI(2,MAXSP) [initiating], selected through the seral COVER TYPE
+(COVINI2 376 region-2 codes / COVINI3 242 region-3 codes) — the western per-species/seral structure. The shared
+FFE fire model (decay/behavior/effects/carbon — built for the eastern variants) is reusable, but the CR fuel
+LOADING needs: (1) data — FULIVE/FULIVI (38 species × 2 × 2) + COVINI2/COVINI3 cover arrays; (2) logic — the
+cover-type→fuel dispatch (established vs initiating), replacing jl's eastern ffe_live_fuel_loading[ft] index;
+(3) FUINIT dead-fuel + CR fuel-model assignment; (4) validate vs live FVScr POTFIRE/SIMFIRE. This is the next
+MAJOR chunk (the first WESTERN FFE). NOT on the FIA-sweep path (grow regime). Estimated a multi-part transcribe-
+and-diff like the volume chunks. Guarded to error loudly meanwhile (doctrine #5).
