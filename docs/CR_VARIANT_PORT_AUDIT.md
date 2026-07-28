@@ -1015,3 +1015,20 @@ inventory) — the divergence is specific to a pure crossing-4.5 cohort with an 
 cornered (live has no fat-short trees); a real bug, but confined to the SYNTHETIC pure-regen scenario (all real
 San Juan FIA sweep stands bit-exact). Next: instrument gemdg+gemht competition inputs (RELSDI/BAL/PBAL/AVH/CR)
 on the emerging-dominant record across 2022→2032 and diff vs live to isolate which competition term diverges.
+
+### Chunk 10 residual — RESOLVED (real bug #6: small-tree tripling override)
+The pure-regen decorrelation/blowup was a REAL structural bug, now FIXED (commit above). CR small_tree_growth!
+never populated the tripling stash (dgU/dgL/htgU/htgL/is_small), so the upper/lower tripled sub-records of a
+small tree inherited the LARGE-tree gemdg DG. CR's gemdg is explosive on tiny DBH (limber pine sp10: D 1.3→13),
+so 2/3 of every small-tree cohort ballooned each cycle and AVHT40 (largest-DIAMETER) collapsed to fat-short
+trees. Fix = the regent.f:433-436 L-loop (evaluate regent per tripled record, fresh ZZRAN each) as CR's
+small_tree_growth!, mirroring SN. Validated: cr_estab TopHt tracks live (2002-2042 BIT-EXACT 4/9/16/25/35, was
+5/../10+drop; 2092 67 vs 70, was 38); crt01_growth BIT-EXACT; FIA sweep unchanged bit-exact. This is the 6th
+real bug the CR differential surfaced (after ccfcal, DG-calib dispatch, driver bark, VARMRT, PSIGSQ, + the
+volume/crossover set). Residual 2052+ (~5-8% low) is the smaller DGSCOR/per-record random tail.
+
+**Scope note (answers the FIA-sweep-size question):** the 9 CR sweep stands to date are the FVS demo DB
+(FVS_Data_CR.db) used for bit-exact VALIDATION. The eastern variants each ran the NATIONAL FIADB sweep
+(data/fia_sweep.db: SN 633628 / LS 400649 / CS 255951 / NE 178148 = 1.47M). CR has 0 rows there — the full
+CR-geography national sweep is NOT yet run. This tripling bug was a PREREQUISITE (it would have corrupted every
+CR stand carrying limber-pine/small-tree regen). Next: build the CR national stand set + run the sweep.
