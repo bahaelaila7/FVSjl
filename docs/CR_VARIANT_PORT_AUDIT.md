@@ -1368,3 +1368,15 @@ SPRTHT CR sprout heights + the Wykoff sprout-DBH. Reverted the flags (they alone
 sprouting was silently absent — the whole mechanism is unported, and is_sprouting=0 was masking it. A focused
 establishment chunk (like the eastern variants' essprt ports). The FIA sweep (grow regime) is unaffected either
 way. NB the conifer post-fire auto-regen (San Juan 162) is STILL a separate gap from sprouting.
+
+### CR sprout chunk — precisely scoped (a focused establishment port, like the eastern essprt ports)
+The full CR sprout port (the last FFE-adjacent establishment piece) needs: (1) is_sprouting=1 for {20-29,36}
+(blkdat ISPSPE); (2) data/centralrockies/sprout_essprt.csv with per-species essprt_kind/p1/p2/fsp (the eastern
+variants each have this CSV; CR's absence is the :essprt_fsp KeyError); (3) nsprec_cr/essprt_cr/sprtht_cr from
+cr/essprt.f CASE('CR') — NSPREC counts (15→2; 23-27 oaks 1|0.2·DSTMP|2; 21-22 cottonwoods 1|-1+0.4·DSTMP|3;
+DEFAULT 1), ESSPRT survival PREM multipliers (CASE 24,28 / 21,23,25,26 / 22,27 / 29 / 36), ASSPTN aspen Crouch
+polynomial (INDXAS=20, already generic in esuckr!), and SPRTHT CR sprout heights; (4) wire esuckr!'s SN/NE/CS/LS
+dispatch to add a CR branch; (5) validate vs a live CR aspen/oak cut+fire stand (sprout TPA/height). Bounded and
+well-understood (the FVS source is read), but a focused chunk warranting its own validation loop — not a
+session-tail edit. It + conifer post-fire auto-regen are the two remaining establishment-side pieces; everything
+else (growth/mortality/volume/establishment-creation/FFE incl. crown-fire) is done on national CR FIA.
