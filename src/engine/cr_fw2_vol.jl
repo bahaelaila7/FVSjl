@@ -254,11 +254,33 @@ function _fw2_merch_cuft(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f
     return vol4
 end
 
+"FW2 Scribner board VOL(2) (profile.f BFPFLG loop): buck stump→board-top (BFTOPD·BARK) and sum
+SCRIB(small-end inch-class dib, len)·10 per log. Same region-3 log-bucking as the cubic."
+function _fw2_board(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f::Float32,
+                    dbtbh::Float32, bftop::Float32, stump::Float32)::Float32
+    @inline dibat(ht) = _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh)
+    hs = _fw2_hs(dibat, bftop, h)
+    lmerch = hs - stump
+    lmerch < _NVB_R3_MERCHL && return 0f0
+    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM)
+    numseg == 0 && return 0f0
+    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM, numseg)
+    ht2 = stump; vol2 = 0f0
+    @inbounds for i in 1:numseg
+        ht2 += _NVB_R3_TRIM + loglen[i]
+        dib = dibat(ht2)
+        (i == numseg && dib < bftop) && (dib = bftop)
+        dibs = _fw2_dclass(dib)                    # small-end inch class
+        vol2 += _scrib(dibs, loglen[i], 'Y') * 10f0   # COR='Y' ⇒ ×10 (decimal-C → bdft)
+    end
+    return vol2
+end
+
 "CR FW2 per-tree volume. `bark`=DIB/DOB ratio (cr_bratio) → DBTBH=D·(1-bark) for the BRK_OT bark
-reduction; `topd`=cubic top DOB (4.0). Returns a 15-vec: VOL[1]=total cubic, VOL[4]=merch cubic (both
-0.1-rounded). Board (VOL[2]/VOL[10]) TODO."
+reduction; `topd`=cubic top DOB (4.0), `bftopd`=board top DOB (6.0). Returns a 15-vec: VOL[1]=total
+cubic, VOL[4]=merch cubic (0.1-rounded), VOL[2]=Scribner board feet."
 function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
-                    bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0)
+                    bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0)
     vol = zeros(Float32, 15)
     (d < 1f0 || h <= 5f0) && return vol
     jsp = _fw2_jsp(voleq)
@@ -275,5 +297,6 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     vol[1] = Float32(round(tcvol * 10.0f0)) / 10.0f0      # NINT(TCVOL*10)/10
     mtop = topd * bark                         # inside-bark cuft merch top (fvsvol.f MTOPS=TOPD*BARK)
     vol[4] = _fw2_merch_cuft(jsp, d, h, tapcoe, rhfw, rflw, f, dbtbh, mtop, stump)
+    vol[2] = _fw2_board(jsp, d, h, tapcoe, rhfw, rflw, f, dbtbh, bftopd * bark, stump)
     return vol
 end

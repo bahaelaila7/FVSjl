@@ -88,6 +88,40 @@ end
 
 # --- NVBC taper + log-bucking kernels (nsvb.f) -------------------------------
 
+# --- SCRIB Scribner board-foot (scrib.f) — shared by the NVB + FW2 board-feet paths ------------
+include(joinpath(@__DIR__, "..", "..", "data", "centralrockies", "nvb", "scrib_tables.jl"))
+
+"SCRIB (scrib.f): Scribner board feet (decimal-C, 10-bdft units) for a log of inch-class small-end
+`dia` and length `len`. `cor`='Y' uses corrected table volumes (CR default). Returns decimal-C VOL."
+function _scrib(dia::Float32, len::Float32, cor::Char = 'Y')::Float32
+    dia < 1f0 && return 0f0
+    dia > 120f0 && (dia = 120f0)
+    q9 = trunc(Int, dia)
+    if dia > 5f0 && dia <= 11f0
+        (len > 15f0 && len < 32f0) && (q9 = trunc(Int, dia) + 115)
+        (len > 31f0 && len < 41f0) && (q9 = trunc(Int, dia) + 121)
+    end
+    volfac = _SCRIB_FACTOR[q9]
+    vol = cor == 'Y' ? Float32(trunc((len * volfac + 5f0) / 10f0)) : Float32(trunc(len * volfac + 0.5f0))
+    if cor == 'Y'                                   # binary-search the exceptions, ±1 by even/odd
+        ilow = 1; ihigh = 149; anum = len * 1000f0 + dia
+        while true
+            iscrpt = (ihigh + ilow) ÷ 2
+            compar = trunc(_SCRIB_EXCEPT[iscrpt] / 10.0)
+            if anum == compar
+                xxx = (_SCRIB_EXCEPT[iscrpt] / 2.0) - trunc(_SCRIB_EXCEPT[iscrpt] / 2.0)
+                vol += xxx > 0.0 ? 1f0 : -1f0
+                break
+            elseif ilow != ihigh - 1
+                anum > compar ? (ilow = iscrpt) : (ihigh = iscrpt)
+            else
+                break
+            end
+        end
+    end
+    return vol
+end
+
 "CalcRatio (nsvb.f:891): merch-fraction R = (1-(1-h1/H)^a)^b for 0<h1<=H."
 @inline function _nvb_calcratio(H::Float32, h1::Float32, a::Float32, b::Float32)::Float32
     (h1 > 0f0 && h1 <= H) ? fpow(1f0 - fpow(1f0 - h1 / H, a), b) : 0f0

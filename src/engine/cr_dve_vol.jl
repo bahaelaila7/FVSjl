@@ -137,6 +137,9 @@ function compute_volumes_cr!(s::StandState)
     dbhmin = is3 ? 9f0 : 5f0
     topd   = is3 ? 6f0 : 4f0
     stump  = 1f0
+    # Board-foot min DBH (cr/sitset.f): IMODTY 3 → 9; else 7 (IFOR<IGFOR=13) / 9. Board top DOB = 6.
+    ifor   = Int(s.plot.forest_idx)
+    bfmind = is3 ? 9f0 : ((ifor > 0 && ifor < 13) ? 7f0 : 9f0)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -152,14 +155,15 @@ function compute_volumes_cr!(s::StandState)
             bark = cr_bratio(sd, sp, d, imodty)
             cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump)   # TCF + MCF exact; board TODO
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump)   # Flewelling TCF+MCF; board TODO
+            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump)   # Flewelling TCF+MCF+board
         else
             zeros(Float32, 15)
         end
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
         scf = 0f0                              # CR is region 2/3: fvsvol.f sets SCF only for region 8/9
-        bf  = nvb ? 0f0 : v[10]                # NVB board = TODO; DVE fills VOL(10)
+        # BdFt = BBFV = TVOL(2) Scribner for CR (METHB=6≠9), gated D≥BFMIND. NVB board still TODO (0).
+        bf  = d >= bfmind ? (mdl == "FW2" ? v[2] : (nvb ? 0f0 : v[2])) : 0f0
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
     end
