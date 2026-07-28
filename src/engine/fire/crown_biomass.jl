@@ -162,7 +162,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # u1=0–.25", u2=0–1", u3=0–3", u4=0–4" (cumulative cone/cylinder weight, tons)
     u1 = u2 = u3 = u4 = 0f0
     lilpce = 0f0
-    bark_r = bark_ratio(coef, sp, d)
+    bark_r = s.variant isa CentralRockies ? cr_bratio(coef.species, Int(sp), d, Int(s.plot.model_type)) :
+                                             bark_ratio(coef, sp, d)
     dobf = 4f0 / bark_r
     if d > dobf && d > dbhmin
         htf = 4.5f0 + (h - 4.5f0) / d * (d - dobf)
