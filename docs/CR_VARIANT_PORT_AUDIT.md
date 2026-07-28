@@ -1255,3 +1255,15 @@ OINIT1 torching = ((460+25.9·FOLMC)·.001333·ACTCBH)^1.5 (fmcfir.f:100-101); (
 crowning index → set crburn (the existing fmburn.jl:161 crown-fraction path applies it); (4) validate vs live
 (target BA 161→~4). Shared across variants. The inputs + integration point exist; only the index math + Rothermel
 -with-crown-model call remain. A focused, well-bounded port.
+
+### FMCFIR scope refined — bigger than the index formulas (iterative FMFINT + FMBURN mortality mapping)
+Reading the full fmcfir.f (373 lines): the crowning index OACT1 is a direct formula (SIRXI/SRHOBQ/SPHIS/CBD, all
+exposed by rothermel_surface_fire) — tractable. BUT the torching index OINIT1 is computed by ITERATING FMFINT
+across wind speeds until the spread rate hits the critical initiation value (fmcfir.f:197-232, multiple FMFINT
+calls with the crown fuel model), and the crown-fire→MORTALITY mapping (how OINIT1/OACT1/actual-wind decide
+surface vs passive-torch vs active-crown, and thus who dies) lives in FMBURN, not FMCFIR. So the full port is 3
+parts: (1) FMCFIR indices incl. the FMFINT-iteration torching solve; (2) the FMBURN fire-type determination +
+crown-fire mortality (→ crburn); (3) bit-exact validation vs live on the severe San Juan fire. All INPUTS exist
+(CBD/CBH via canopy_bulk_density; SIRXI/SRHOBQ/SPHIS via rothermel_surface_fire's return; crburn path at
+fmburn.jl:161), and the root is MEASURED — but this is a focused multi-step FFE port, not a session-tail edit.
+Cleanly bounded for a dedicated FFE session. It is SHARED (benefits all variants) and not on the FIA-sweep path.
