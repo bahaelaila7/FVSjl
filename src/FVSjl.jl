@@ -119,6 +119,7 @@ include("engine/cuts.jl")
 include("engine/quickersort.jl")        # RDPSRT/IQRSRT (Scowen 1965) — faithful sorts for COMPRESS
 include("engine/compress.jl")            # COMPRESS (act 250) — PC-score tree-record clustering
 include("engine/structure_stage.jl")    # SSTAGE — stand structural-stage class (1-6)
+include("../data/centralrockies/establishment/estab_coefs.jl")   # CR establishment coefs (XMIN/HHTMAX/ESSUBH-HHT)
 include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass
