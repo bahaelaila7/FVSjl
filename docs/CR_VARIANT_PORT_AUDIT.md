@@ -824,3 +824,17 @@ growth/mortality/volume core and do not affect the FIA growth/volume sweep resul
 
 ## MCF residual — CONFIRMED cornered
 Per-tree check of all major San-Juan stand-1 FW2 trees (DF JSP26 + PP JSP23) is bit-exact (MCF 8.5/32.3/22.2/42.6/182.8/134.8/92.4); the ±0.2% stand-MCF residual on 2/8 stands is a single small-tree log-count-flip cornered tail, not systematic.
+
+## ★ FINDING: CR small/large-tree crossover INCONSISTENCY (exposed by the establishment/ESTAB stand)
+Porting the CR establishment creation (jl now runs cr_estab.key) surfaced a real growth bug the large-tree-dominated
+FIA sweep masked: the planted/regen trees grow DIAMETER to QMD 9.7 but HEIGHT stays ~3 ft (live TopHt→70). Cause:
+jl's small→large-tree crossover differs between axes — diameter_growth! transitions a tree to the large-tree GEMDG/DGF
+by DBH (so it reaches QMD 9.7), while height_growth!(::CR) DEFERS to regent whenever h≤4.5 (height_growth.jl:256
+`d<0.5 || hnow≤4.5 → continue`). So a large-DBH/short tree grows DBH fast (DGF) but height at only the regent 0.1-ft/
+cycle floor, never crossing 4.5 ft into the fast htgf path — the two axes decouple. Live grows regen through the
+crossover CONSISTENTLY on both axes (→ TopHt 70/QMD 9.4). FIX (chunk-6/growth-cycle): reconcile the crossover — measure
+FVS's actual regent↔gemdg/htgf switch criterion for CR (likely a single DBH/height threshold applied to BOTH axes),
+so the height transitions with the diameter. This ALSO likely contributes a slice of the FIA-sweep projection residual
+currently attributed to DGSCOR (small trees that should transition but don't). Then validate establishment end-to-end
+vs cr_estab.key (live 2092 TPA400/BA193/TopHt~70/QMD9.4). Establishment CREATION is faithful (estab.f/essubh.f);
+validation is blocked on this crossover fix.
