@@ -804,6 +804,12 @@ GROWTH + MORTALITY + VOLUME are complete + bit-exact-or-cornered (volume FIA-val
   estab coefs (estab_min_ht/XMIN + HHTMAX from cr/blkdat.f) and (b) routes the established-tree height through the CR
   regent path (esgent), not ESSUBH/BACHLO. Live ref built: $CLAUDE_JOB_DIR/tmp/cr_estab.key (bare-ground PLANT sp2+
   sp10 400 TPA, 10 cyc → 2092 TPA 400/BA 193/QMD 9.4). jl currently KeyErrors on :estab_min_ht at establishment.jl:79.
+
+- ★ MEASURED via cr_estab TREELIST (live): planted sp2 (CB/corkbark) at cycle-1/2002 = DBH 0.1, HT 3.5-3.9 (VARIES
+  per record: 3.9/3.5/3.7/3.5, PCTILE 88.8/60.4/79.6/58.3), CR 81-82, 8 TPA/record. The per-record height VARIATION
+  ⇒ CR establishment is RNG-DRIVEN (per-record height draws, like the eastern variants) — so establish!(::CR) is the
+  full RNG-stream + height-model port (measure the CR estab RNG order + the initial-height draw), NOT a coef-only
+  branch. Coefs ready (data/centralrockies/establishment/estab_coefs.jl); live ref cr_estab.key (2092 TPA400/BA193).
 - Doctrine-correct current state: dispatching CR establishment errors loudly (unported), per doctrine #5.
 
 ### FFE (fuel/fire)
