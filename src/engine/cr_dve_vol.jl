@@ -140,6 +140,7 @@ function compute_volumes_cr!(s::StandState)
     # Board-foot min DBH (cr/sitset.f): IMODTY 3 → 9; else 7 (IFOR<IGFOR=13) / 9. Board top DOB = 6.
     ifor   = Int(s.plot.forest_idx)
     bfmind = is3 ? 9f0 : ((ifor > 0 && ifor < 13) ? 7f0 : 9f0)
+    iregn  = Int(s.plot.user_forest_code) ÷ 100    # stand region (MRULES keys merch bucking on REGN)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -153,9 +154,9 @@ function compute_volumes_cr!(s::StandState)
             cr_dve_vol(eq, d, h; unt = d >= scfmin[sp] ? 1 : 3)
         elseif nvb
             bark = cr_bratio(sd, sp, d, imodty)
-            cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump)   # TCF + MCF exact; board TODO
+            cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump)   # Flewelling TCF+MCF+board
+            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
         else
             zeros(Float32, 15)
         end

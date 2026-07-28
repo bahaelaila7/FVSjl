@@ -273,44 +273,44 @@ function _nvb_logvol_cuft(numseg::Int, loglen::Vector{Float32}, dibl0::Float32, 
     return vol4
 end
 
-# CR region-3 CUFT merch rule (mrules.f, PROD 02): the primary-product cubic bucking constants.
-const _NVB_R3_MAXLEN = 16.0f0
-const _NVB_R3_MINLEN = 10.0f0
-const _NVB_R3_MERCHL = 10.0f0
+# CR CUFT merch rule (mrules.f, PROD 02): MAXLEN/TRIM/OPT/EVOD are region-invariant; MINLEN/MERCHL
+# vary by the STAND region (MRULES uses REGN, not the veq): region 3 → 10/10; region 2/4 → 2/8.
+const _NVB_R3_MAXLEN = 16.0f0      # (name kept for the shared FW2 callers) MAXLEN
 const _NVB_R3_TRIM   = 0.5f0
 const _NVB_R3_OPT    = 22
 const _NVB_R3_EVOD   = 2
+@inline _cr_merch_minlen(iregn::Int) = iregn == 3 ? 10.0f0 : 2.0f0
+@inline _cr_merch_merchl(iregn::Int) = iregn == 3 ? 10.0f0 : 8.0f0
 
 "NVBC merch cubic (VOL(4)) to the inside-bark top `mtop`, given total inside-bark cubic `vtotib`
-and stem taper coefs (a,b). Returns the log-bucked sawlog cubic (VOL(7) topwood is 0 when the
-primary and secondary tops coincide, as in the CUFT call)."
+and stem taper coefs (a,b). `minlen`/`merchl` are the region-appropriate MRULES bucking mins."
 function _nvb_merch_cuft(d::Float32, h::Float32, vtotib::Float32, stump::Float32, mtop::Float32,
-                         a::Float32, b::Float32)::Float32
+                         a::Float32, b::Float32, minlen::Float32, merchl::Float32)::Float32
     vtotib <= 0f0 && return 0f0
     ht1prd = mtop < d ? _nvb_ht2topd(vtotib, a, b, h, mtop) : 0f0
     ht1prd < stump && (ht1prd = stump)
     lmerch = ht1prd - stump
     lmerch < 0f0 && (lmerch = 0f0)
-    lmerch < _NVB_R3_MERCHL && return 0f0
+    lmerch < merchl && return 0f0
     dibl = _nint(_nvb_diaatht(vtotib, a, b, h, 4.5f0))
-    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM)
+    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
     numseg == 0 && return 0f0
-    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM, numseg)
+    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
     return _nvb_logvol_cuft(numseg, loglen, dibl, stump, vtotib, _NVB_R3_TRIM, h, a, b)
 end
 
 "NVB Scribner board VOL(2) (nsvb.f NVBC/CalcLOGVOL board leg): buck stump→board-top (BFTOPD·BARK)
 and sum SCRIB(NINT small-end dib, len)·10 per log."
 function _nvb_board(d::Float32, h::Float32, vtotib::Float32, stump::Float32, bftop::Float32,
-                    a::Float32, b::Float32)::Float32
+                    a::Float32, b::Float32, minlen::Float32, merchl::Float32)::Float32
     vtotib <= 0f0 && return 0f0
     ht1prd = bftop < d ? _nvb_ht2topd(vtotib, a, b, h, bftop) : 0f0
     ht1prd < stump && (ht1prd = stump)
     lmerch = ht1prd - stump
-    lmerch < _NVB_R3_MERCHL && return 0f0
-    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM)
+    lmerch < merchl && return 0f0
+    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
     numseg == 0 && return 0f0
-    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM, numseg)
+    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
     ht2 = stump; vol2 = 0f0
     @inbounds for i in 1:numseg
         ht2 += _NVB_R3_TRIM + loglen[i]
@@ -324,7 +324,8 @@ end
 `topd`=cubic top DOB (4.0), `stump`=stump ht, `bftopd`=board top DOB (6.0). Returns a 15-vec:
 VOL[1]=Vtotib=TCF, VOL[4]=merch cubic, VOL[2]=Scribner board feet."
 function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32 = 1f0,
-                    topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0, wdsg::Float32 = 0f0)
+                    topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0,
+                    iregn::Int = 3, wdsg::Float32 = 0f0)
     vol = zeros(Float32, 15)
     (d < 1f0 || h < 5f0) && return vol
     spcd, div, stdorg = _nvb_voleq_key(voleq)
@@ -334,11 +335,12 @@ function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32
     eqn = round(Int, r1[1])
     vib = _nvb_calcvolwt(spcd, d, h, eqn, r1[2], r1[3], r1[4], r1[5], r1[6], r1[7], r1[8], r1[9], r1[10], wdsg)
     vol[1] = vib
-    # merch cubic (VOL(4)): CUFT call top = TOPD·BARK inside bark (fvsvol.f:174)
+    # merch cubic (VOL(4)): CUFT call top = TOPD·BARK inside bark (fvsvol.f:174). Region-aware bucking mins.
     r5 = _nvb_lookup(_nvb_load_s5(), spcd, div, stdorg)
     if r5 !== nothing && vib > 0f0
-        vol[4] = _nvb_merch_cuft(d, h, vib, stump, topd * bark, r5[1], r5[2])
-        vol[2] = _nvb_board(d, h, vib, stump, bftopd * bark, r5[1], r5[2])
+        minl = _cr_merch_minlen(iregn); merl = _cr_merch_merchl(iregn)
+        vol[4] = _nvb_merch_cuft(d, h, vib, stump, topd * bark, r5[1], r5[2], minl, merl)
+        vol[2] = _nvb_board(d, h, vib, stump, bftopd * bark, r5[1], r5[2], minl, merl)
     end
     return vol
 end
