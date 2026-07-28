@@ -151,7 +151,9 @@ function compute_volumes_cr!(s::StandState)
         elseif nvb
             bark = cr_bratio(sd, sp, d, imodty)
             cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump)   # TCF + MCF exact; board TODO
-        else                                   # FW2 — not yet ported
+        elseif mdl == "FW2"
+            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty))   # Flewelling total cubic (TCF); MCF/board TODO
+        else
             zeros(Float32, 15)
         end
         tcf = max(v[1], 0f0)
