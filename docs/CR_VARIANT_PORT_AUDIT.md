@@ -620,3 +620,19 @@ vs live 69→87; NOW jl 68→86 tracks live 69→87 (±1-2). CCF 127→255 vs li
 Suite 38595/0/75 (0 regress; CR-gated). ⇒ the LAST systematic growth divergence is fixed; residuals are the ±1-2
 AVHT40 tie-break (RDPSRT) + ZZRAN small-tree/height RNG (ch9) + late-cycle self-thin TPA tail — all accepted-class.
 CR growth core (DG + height + crown + small-tree + mortality) is now bit-exact-or-cornered end-to-end.
+
+## Second validation stand (DB input, 1101_1030 = San Juan NF) → 6th bug: CR forkod (forest→IMODTY) MISSING
+
+Validated the growth core on a SECOND, denser stand (715 TPA, read from FVS_Data_CR.db via DATABASE/DSNIn) to
+confirm the crt01 fixes generalize. Found: inventory (2014) CCF diverged live 184 vs jl 177 while TPA/BA/SDI/
+TopHt/QMD were bit-exact. Root: live IMODTY=4 (spruce-fir) but jl IMODTY=5 (lodgepole). The stand has no MODTYPE
+keyword ⇒ IMODTY=DEFMT(IFOR); jl never resolved IFOR from the forest code, so it fell back to 5 (site_index.jl:50).
+FVS forkod.f:586 does `IFOR = findfirst(JFOR .== KODFOR)`; KODFOR = Region·100+Forest = 213 (San Juan) = JFOR[10]
+⇒ IFOR=10 ⇒ DEFMT[10]=4. jl read user_forest_code=213 (fia_database.jl:63) but had NO CR forkod. FIX: added
+_CR_JFOR (29 forests) + _cr_forkod! (JFOR lookup, sets p.forest_idx), wired into cr_site_index_setup! before the
+DEFMT resolution. VALIDATED: 2014 now CCF 184/184 BIT-EXACT (all columns); 2024-2044 CCF ±1-6, TopHt ±1-2, BA
+bit-exact-or-±6, TPA self-thin tail — the accepted-class residuals (same as crt01). crt01 UNAFFECTED (uses explicit
+MODTYPE=2). Suite 38595/0/75 (0 regress; CR-gated). ⇒ the growth core GENERALIZES across stands + input paths; the
+DB-input IMODTY resolution now correct. Follow-up: the forkod not-found FALLBACK cases (forkod.f:596-620,
+IMODTY-based IFOR defaults) + the 7xxx legacy-code CASEs are not ported (only the JFOR DEFAULT path) — port when a
+stand hits them.

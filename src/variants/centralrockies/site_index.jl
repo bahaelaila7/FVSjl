@@ -36,6 +36,23 @@ end
 # SW-mixed / SW-ponderosa / Black-Hills-ponderosa / spruce-fir / lodgepole.
 const _CR_DEFMT = (5, 3, 4, 5, 3, 4, 5, 5, 4, 4, 5, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
 
+# cr/forkod.f JFOR (national-forest code KODFOR=Region·100+Forest -> forest subscript IFOR = JFOR index).
+# The DEFAULT case is `IFOR = findfirst(JFOR .== KODFOR)` (forkod.f:586-592); the first 23 index _CR_DEFMT.
+const _CR_JFOR = (202, 203, 204, 206, 207, 209, 210, 211, 212, 213, 214, 215, 301, 302, 303, 304, 305, 306,
+                  307, 308, 309, 310, 312, 201, 205, 208, 224, 311, 216)
+
+"cr/forkod.f: map KODFOR (Region·100+Forest, `user_forest_code`) to the forest subscript IFOR via JFOR. Sets
+`p.forest_idx` so the MODTYPE default DEFMT[IFOR] resolves — else DB-input stands (no MODTYPE) fall back to
+IMODTY=5 (e.g. San Juan NF 213 → IFOR 10 → DEFMT 4=spruce-fir, not 5). Not-found leaves forest_idx unchanged."
+function _cr_forkod!(p)
+    p.forest_idx > 0 && return p                         # already resolved (e.g. STDINFO keyword)
+    kodfor = Int(p.user_forest_code)
+    kodfor <= 0 && return p
+    idx = findfirst(==(kodfor), _CR_JFOR)
+    idx !== nothing && (p.forest_idx = Int32(idx))
+    return p
+end
+
 """
     cr_site_index_setup!(s)
 
@@ -44,6 +61,7 @@ then fan the site species' SI across all species via the SITELO/SITEHI conversio
 """
 function cr_site_index_setup!(s::StandState)
     p = s.plot; sd = s.coef.species
+    _cr_forkod!(p)                       # resolve IFOR from KODFOR (JFOR) so DEFMT[IFOR] works for DB-input stands
     imodty = Int(s.plot.model_type)
     if !(1 <= imodty <= 5)
         ifor = Int(p.forest_idx)
