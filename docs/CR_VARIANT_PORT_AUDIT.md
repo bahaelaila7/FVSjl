@@ -1166,3 +1166,15 @@ without thin/FFE is bit-exact). REMAINING FFE refinement: (1) bit-exact validati
 fuel outputs vs live (the .sum structure is a proxy); (2) COVINI2/COVINI3 seral cover-type arrays for BARE
 stands (cycle-1 no-BA; the with-trees COVTYP=max-BA path is done); (3) SIMFIRE actual-fire differential. The
 shared FFE fire model (behavior/effects/carbon) carries the CR fuel loading. Data in data/centralrockies/fire/.
+
+### Found: shared-Pretzsch mortality tokill=NaN on extreme-density stands (follow-up, not FFE)
+While validating the FFE with a no-thinning crt01 variant (THINDBH stripped → the stand grows to extreme SDI),
+jl crashed InexactError floor(NaN) at mortality.jl:175 (npass = floor(Int, tokill/pass1)). Instrumented:
+pass1=10.32 (fine), **tokill=NaN**. Not the FFE and not the varmrt efftr (efftr all finite) — the NaN is in the
+tokill target from the SHARED Pretzsch self-thinning iteration (tt−tn10 / bg_tokill path, mortality.jl:351-358),
+a log/pow-of-extreme in _pretzsch_tn10 on a stand at ceiling SDI. Live FVScr RUNS this stand (produced output),
+so it's a jl bug, but on a SYNTHETIC extreme config (the real crt01 WITH thinning + the whole national FIA sweep
+run fine). Documented for follow-up (guard/root the _pretzsch_tn10 NaN vs live). Separately FIXED the varmrt
+PCT**3.0 fold (PCT·PCT·PCT) found alongside — faithful, though it was not this crash's cause. The FFE port
+itself is validated via crt01-with-thin (.sum bit-exact at inventory, pre-thin trajectory bit-exact through the
+SIMFIRE 2003 fire).
