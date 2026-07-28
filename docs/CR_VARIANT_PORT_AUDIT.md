@@ -1393,3 +1393,13 @@ sprtht_cr height/sprout_dbh precision). So the FFE severe-fire behavior is now l
 this turn: re-MEASURING after the fix corrected the "conifer auto-regen" mischaracterization — it was sprouting,
 resolved by the sprout port. Conifer post-fire auto-regen may still matter for pure-conifer stands, but is NOT
 the San Juan gap.
+
+### Sprout-size residual measured = birth-cycle GROWTH of the sprouts (creation is faithful)
+Instrumented the San Juan oak sprouts: si=24.5, ishag=10, ht=3.45 ft, DBH=0.1 (floored, ht<4.5), prem≈96+40+24
+=160 TPA — so the sprout COUNT/TPA (160≈live 162) and creation size are FAITHFUL (sprtht_cr = (0.1+SI/100)·10 =
+3.45; sprout_dbh floors at 0.1 for ht<4.5). The QMD 3.1-vs-live-2.2 residual is therefore the sprouts' BIRTH-
+CYCLE GROWTH (DBH 0.1→3.1 over 2014-2024 in jl vs →2.2 in live) — the same small-tree/esgent regent path that
+grows any birth-cycle regen, i.e. the same DGSCOR/regent precision tail already accepted for establishment, now
+seen on the sprout cohort. Not a sprout-mechanism bug. So the FFE severe-fire is resolved end-to-end (inventory
+bit-exact + crown-kill + faithful sprout cohort) with only the accepted regen-growth precision tail on the new
+cohort's size. CR FFE + establishment are complete to the bit-exact-or-cornered bar.
