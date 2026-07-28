@@ -1380,3 +1380,16 @@ dispatch to add a CR branch; (5) validate vs a live CR aspen/oak cut+fire stand 
 well-understood (the FVS source is read), but a focused chunk warranting its own validation loop — not a
 session-tail edit. It + conifer post-fire auto-regen are the two remaining establishment-side pieces; everything
 else (growth/mortality/volume/establishment-creation/FFE incl. crown-fire) is done on national CR FIA.
+
+### FFE severe-fire RESOLVED by the CR sprout port (the "conifer auto-regen" was OAK SPROUTS — I was wrong)
+Re-measuring the San Juan severe fire AFTER the CR sprout port: jl 2024 TPA=164 vs live 162 (was 4!) — the post-
+fire cohort gap is ESSENTIALLY CLOSED. So the 162 post-fire trees are NOT conifer auto-regen (my earlier
+inference, WRONG) — they are OAK SPROUTS: the 1 fire-killed Gambel oak (sp23, ~150 expanded TPA) resprouts via
+the now-ported CR sprout mechanism (fmburn.jl fire-kill path → esuckr! → nsprec_cr/essprt_cr). Inventory bit-
+exact, overstory crown-killed, post-fire cohort produced (164≈162). REMAINING residual = sprout SIZE precision
+(jl QMD 3.1/BA 9 vs live 2.2/4 at 2024 — jl's sprouts slightly larger; likely the ISHAG sprout-age or the
+sprtht_cr height/sprout_dbh precision). So the FFE severe-fire behavior is now largely correct end-to-end
+(inventory + crown-fire kill + sprout cohort), with only a sprout-size cornered-ish residual. Doctrine #2 win #3
+this turn: re-MEASURING after the fix corrected the "conifer auto-regen" mischaracterization — it was sprouting,
+resolved by the sprout port. Conifer post-fire auto-regen may still matter for pure-conifer stands, but is NOT
+the San Juan gap.
