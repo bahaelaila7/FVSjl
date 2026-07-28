@@ -1090,3 +1090,14 @@ the bfmind branch on the SAME index FVS uses — jl's forest_idx=26 is likely th
 IGFOR=13 keys a region-relative IFOR. Downstream reporting leaf; the growth core + TCuFt/MCuFt stay bit-exact.
 The FW2 board EQUATION itself is correct (cr_fw2_vol gives BdFt d9→30/d12→60/d15→110) — only the min-DBH gate
 is off. cr_fw2_vol is faithful; the residual is entirely the bfmind forest index.
+
+### FW2 board-foot — REFINED: equation correct, residual at the bfmind boundary
+Confirmed cr_fw2_vol's board (v[2]) is CORRECT for every stand species (746/093/015/122 all give BdFt d9→30,
+d11→40-50) and IGFOR=13 is right (cr/blkdat.f:266, only saved/restored via INTS). So the FW2 Scribner path and
+the bfmind constant are faithful. The residual on cn=3628406010690 (live BdFt 1026 ≈ 30 bd ft × ~34 TPA = the
+lone ~9″ tree) is at the **bfmind=9 boundary**: either (a) jl's processed DBH for that tree is a hair <9.0 so
+`d≥bfmind` fails where live's passes (a Float32 boundary-precision diff at exactly the threshold), or (b) FVS's
+IFOR for this forest is <13 (bfmind=7) while jl's forest_idx=26 (bfmind=9) — a forkod IFOR-vs-forest_idx
+numbering diff that is inert for growth. NEXT: dump the exact per-tree DBH + bark-adjusted d at the volume call
+vs the FVS treelist BF column (harness: TREELIST at inventory), and/or instrument live sitset.f BFMIND. This is
+a boundary/threshold reporting residual on a minority of stands — the FW2 board equation itself is bit-exact.

@@ -1,2 +1,439 @@
 
-********   FVS02 ERROR:  NO "STOP" RECORD IN KEYWORD FILE;  RECORDS READ=   0; END-OF-FILE.
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- CENTRAL ROCKIES                        RV:20260401    07-28-2026  20:50:51
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY INPUT
+
+KEYWORD FILE NAME: /tmp/jl_xeXcgt/jl.key
+----------------------------------------------------------------------------------------------------------------------------------
+KEYWORD    PARAMETERS:
+--------   -----------------------------------------------------------------------------------------------------------------------
+
+STDIDENT
+           STAND ID= 3628406010690                                                                                             
+
+DATABASE   DATABASE KEYWORDS:
+
+DSNIN      INPUT DATA BASE IS /tmp/jl_xeXcgt/sub.db
+
+STANDSQL   STANDSQL COMMAND FOR INPUT DATA BASE: /tmp/jl_xeXcgt/sub.db
+           SELECT * FROM FVS_STANDINIT_COND WHERE STAND_CN = '%StandID%'
+
+           STAND-LEVEL DATA BASE READ:
+           STAND_CN: 3628406010690
+           INV_YEAR:               1982
+           REGION:                    2
+           FOREST:                    8
+            COMPOSITE LOC:          208
+
+********   PIKE NF (208) BEING MAPPED TO PIKE-SAN ISABEL (212) FOR FURTHER PROCESSING.
+           LOCATION:                208
+
+********   PIKE NF (208) BEING MAPPED TO PIKE-SAN ISABEL (212) FOR FURTHER PROCESSING.
+           LONGITUDE:         -105.4431
+           LATITUDE:            38.8571
+           AGE:                      85
+           ASPECT:                 45.0
+           SLOPE:                 15.00
+           ELEVFT:               9700.0 CONVERTED TO:   97.0
+           BASAL_AREA_FACTOR:       0.0
+           INV_PLOT_SIZE:            1.
+           BRK_DBH:               999.0
+           NUM_PLOTS:                 1
+           STATE:                     8
+           COUNTY:                   93
+           END OF DATA BASE READ.
+
+TREESQL    TREESQL COMMAND FOR INPUT DATA BASE: /tmp/jl_xeXcgt/sub.db
+           SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'
+           STAND_CN           WAS IGNORED
+           STAND_ID           WAS IGNORED
+           PLOT_CN            WAS IGNORED
+           STANDPLOT_CN       WAS IGNORED
+           STANDPLOT_ID       WAS IGNORED
+           PLOT_ID            WAS USED
+           TREE_CN            WAS IGNORED
+           TREE_ID            WAS USED
+           TAG_ID             WAS IGNORED
+           DISTANCE           WAS IGNORED
+           SITE_TREE_FLAG     WAS IGNORED
+           TREE_COUNT         WAS USED
+           MORT_AGENT         WAS IGNORED
+           WDLND_STEMS        WAS USED
+           HISTORY            WAS USED
+           SPECIES            WAS USED
+           DIAMETER           WAS USED
+           DIAMETER_HTCD      WAS IGNORED
+           DG                 WAS USED
+           HT                 WAS USED
+           HTG                WAS USED
+           HTTOPK             WAS USED
+           HTBOLE             WAS IGNORED
+           TPBOLE             WAS IGNORED
+           HTSAW              WAS IGNORED
+           TPSAW              WAS IGNORED
+           HT_TO_CROWN_BASE   WAS IGNORED
+           CRRATIO            WAS USED
+           UNCRRATIO          WAS IGNORED
+           CRCLASS            WAS IGNORED
+           DAMAGE1            WAS USED
+           SEVERITY1          WAS USED
+           DAMAGE2            WAS USED
+           SEVERITY2          WAS USED
+           DAMAGE3            WAS USED
+           SEVERITY3          WAS USED
+           DEFECT_CUBIC       WAS IGNORED
+           DEFECT_BOARD       WAS IGNORED
+           TREEVALUE          WAS USED
+           PRESCRIPTION       WAS USED
+           AGE                WAS USED
+           BH_YEARS           WAS IGNORED
+           SLOPE              WAS USED
+           ASPECT             WAS USED
+           PV_CODE            WAS USED
+           PV_REF_CODE        WAS IGNORED
+           TOPOCODE           WAS USED
+           SITEPREP           WAS USED
+           CREATED_DATE       WAS IGNORED
+           MODIFIED_DATE      WAS IGNORED
+           VERSION            WAS IGNORED
+           CULL               WAS USED
+           DECAYCD            WAS USED
+           NUMBER ROWS PROCESSED:   19
+
+END        END OF DATA BASE OPTIONS.
+
+NUMCYCLE   NUMBER OF CYCLES=  5
+
+
+            
+
+ECHOSUM    SUMMARY OUTPUT WILL BE WRITTEN TO FILE REFERENCED BY NUMBER  4
+
+TREELIST   DATE/CYCLE= 1982; DATA SET REFERENCE NUMBER =  3.; HEADING SUPPRESSION CODE = 0.
+           (0=WITH HEADING, OTHER VALUES=SUPPRESS HEADING).
+
+PROCESS    PROCESS THE STAND.
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY DEFAULT
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+TREEFMT    (I4,T1,I7,F6.0,I1,A3,F4.1,F3.1,2F3.0,F4.1,I1,3(I2,I2),2I1,I2,2I3,2I1,F3.0)      
+                                                                                           
+
+DESIGN     BASAL AREA FACTOR=    0.0; INVERSE OF FIXED PLOT AREA=    1.0; BREAK DBH=  999.0
+           NUMBER OF PLOTS=     1; NON-STOCKABLE PLOTS=     0; STAND SAMPLING WEIGHT=     1.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  1.000
+
+********   FVS14 WARNING:  HABITAT/PLANT ASSOCIATION/ECOREGION CODE WAS NOT RECOGNIZED; HABITAT/PLANT ASSOCIATION/ECOREGION SET TO DEFAULT CODE.
+
+STDINFO    FOREST-LOCATION CODE=   212; HABITAT TYPE=UNKNOWN    (CODE   0); AGE=   85; ASPECT AZIMUTH IN DEGREES=  45.;
+            SLOPE=  15.%;  ELEVATION(100'S FEET)= 97.0; REFERENCE CODE=     ; ECOREGION=      M330
+
+MODTYPE    KEYWORD NOW BEING PROCESSED
+           MODEL TYPE NOT RECOGNIZED. BEING SET TO   4= SPRUCE-FIR                  FOR FURTHER PROCESSING
+
+SPECIES      AF      CB      DF      GF      WF      MH      RC      WL      BC      LM
+SDI MAX      602     423     570     562     634     687     762     423     621     409
+
+SPECIES      LP      PI      PP      WB      SW      UJ      BS      ES      WS      AS
+SDI MAX      679     348     446     621     529     497     620     620     412     562
+
+SPECIES      NC      PW      GO      AW      EM      BK      SO      PB      AJ      RM
+SDI MAX      452     452     652     403     284     423     284     466     395     411
+
+SPECIES      OJ      ER      PM      PD      AZ      CI      OS      OH
+SDI MAX      408     354     358     348     358     446     348     452
+
+                                  NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS
+SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT 
+------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- 
+  AF    I00FW2W019  I00FW2W019   CB    I00FW2W019  I00FW2W019   DF    200FW2W202  200FW2W202   GF    I00FW2W019  I00FW2W019
+  WF    200FW2W015  200FW2W015   MH    407FW2W093  407FW2W093   RC    407FW2W093  407FW2W093   WL    407FW2W093  407FW2W093
+  BC    200FW2W122  200FW2W122   LM    200FW2W122  200FW2W122   LP    200FW2W108  200FW2W108   PI    200DVEW106  200DVEW106
+  PP    200FW2W122  200FW2W122   WB    200FW2W122  200FW2W122   SW    200FW2W122  200FW2W122   UJ    200DVEW065  200DVEW065
+  BS    407FW2W093  407FW2W093   ES    407FW2W093  407FW2W093   WS    407FW2W093  407FW2W093   AS    200FW2W746  200FW2W746
+  NC    300DVEW999  300DVEW999   PW    300DVEW999  300DVEW999   GO    200DVEW814  200DVEW814   AW    300DVEW800  300DVEW800
+  EM    300DVEW800  300DVEW800   BK    200DVEW823  200DVEW823   SO    300DVEW800  300DVEW800   PB    300DVEW999  300DVEW999
+  AJ    300DVEW060  300DVEW060   RM    200DVEW066  200DVEW066   OJ    200DVEW069  200DVEW069   ER    300DVEW060  300DVEW060
+  PM    300DVEW106  300DVEW106   PD    300DVEW106  300DVEW106   AZ    300DVEW106  300DVEW106   CI    200FW2W122  200FW2W122
+  OS    300DVEW060  300DVEW060   OH    200DVEW998  200DVEW998
+
+SITECODE   SITE INDEX INFORMATION:
+            AF=   68.;  CB=   61.;  DF=   75.;  GF=   74.;  WF=   68.;  MH=   53.;  RC=   66.;  WL=   75.; BC=   38.
+            LM=   32.;  LP=   58.;  PI=   21.;  PP=   61.;  WB=   38.;  SW=   74.;  UJ=   17.;  BS=   65.; ES=   75.
+            WS=   54.;  AS=   55.;  NC=   69.;  PW=   69.;  GO=   21.;  AW=   21.;  EM=   21.;  BK=   21.; SO=   21.
+            PB=   55.;  AJ=   17.;  RM=   17.;  OJ=   17.;  ER=   17.;  PM=   21.;  PD=   21.;  AZ=   21.; CI=   61.
+            OS=   58.;  OH=   55.
+           SITE SPECIES=ES CODE=   18
+
+INVENTORY POINT CROSS REFERENCE (FVS SEQUENTIAL POINT NUMBER = POINT NUMBER AS ENTERED IN THE INPUT DATA):
+  1=       1
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+                                                     ACTIVITY SCHEDULE
+
+STAND ID= 3628406010690                 MGMT ID= NONE                                                                            
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  PARAMETERS:
+-----  ----  ---------  --------  ----  ------------------------------------------------------------------------------------------
+
+   1   1982
+               BASE     TREELIST  1982       3.0000     0.0000
+
+   2   1992
+   3   2002
+   4   2012
+   5   2022
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CALIBRATION STATISTICS:
+
+
+                                                 AS    WF    ES    LM
+                                                ----  ----  ----  ----
+
+NUMBER OF RECORDS PER SPECIES                     12     1     5     1
+
+NUMBER OF RECORDS CODED AS RECENT MORTALITY        0     0     0     0
+
+NUMBER OF RECORDS WITH MISSING HEIGHTS             0     0     0     0
+
+NUMBER OF RECORDS WITH BROKEN OR DEAD TOPS         0     0     0     0
+
+NUMBER OF RECORDS WITH MISSING CROWN RATIOS        0     0     0     0
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE DIAMETER INCREMENT MODEL                       0     0     0     0
+
+RATIO OF STANDARD ERRORS
+(INPUT DBH GROWTH DATA : MODEL)                 1.00  1.00  1.00  1.00
+
+WEIGHT GIVEN TO THE INPUT GROWTH DATA WHEN
+DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED    0.00  0.00  0.00  0.00
+
+INITIAL SCALE FACTORS FOR THE
+DBH INCREMENT MODEL                             1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE SMALL TREE HEIGHT INCREMENT MODEL             0     0     0     0
+
+INITIAL SCALE FACTORS FOR THE SMALL TREE
+HEIGHT INCREMENT MODEL                          1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS WITH MISTLETOE                   0     0     0     0
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- CEN. ROCKIES SPRUCE-FIR GENGYM         RV:20260401    07-28-2026  20:50:51
+
+STAND ID: 3628406010690                 MGMT ID: NONE     
+
+
+                                        STAND COMPOSITION (BASED ON STOCKABLE AREA)
+--------------------------------------------------------------------------------------------------------------------------
+                            PERCENTILE POINTS IN THE
+                     DISTRIBUTION OF STAND ATTRIBUTES BY DBH      TOTAL/ACRE
+        STAND       -----------------------------------------      OF STAND         DISTRIBUTION OF STAND ATTRIBUTES BY
+YEAR  ATTRIBUTES      10     30     50     70     90    100       ATTRIBUTES       SPECIES AND 3 USER-DEFINED SUBCLASSES
+----  -----------   ------ ------ ------ ------ ------ ------   --------------  ------------------------------------------
+                                 (DBH IN INCHES)
+
+
+
+1982  TREES           1.8    2.3    4.2    5.9    7.0     8.0     981. TREES     51.% ES1,  42.% AS1,   4.% WF1,   3.% LM1
+      VOLUME:  
+        TOTAL         4.2    5.5    6.2    6.7    7.4     8.0    2152. CUFT      81.% AS1,  11.% ES1,   4.% WF1,   4.% LM1
+        MERCH         5.5    6.1    6.3    6.7    8.0     8.0    1433. CUFT      92.% AS1,   5.% WF1,   4.% LM1,   0.% ---
+        CUBIC SAW     8.0    8.0    8.0    8.0    8.0     8.0       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.0    7.4    7.4    8.0    8.0     8.0    1026. BDFT     100.% AS1,   0.% ---,   0.% ---,   0.% ---
+
+
+      ACCRETION       3.8    5.5    6.1    6.7    7.4     8.0      99. CUFT/YR   71.% AS1,  21.% ES1,   5.% WF1,   3.% LM1
+      MORTALITY       5.3    5.5    5.5    6.1    6.7     8.0      16. CUFT/YR   94.% AS1,   5.% ES1,   1.% WF1,   0.% LM1
+
+
+
+1992  TREES           2.7    3.2    5.3    6.9    7.9     9.3     918. TREES     52.% ES1,  40.% AS1,   4.% WF1,   3.% LM1
+      VOLUME:  
+        TOTAL         5.0    6.4    7.3    7.7    8.4     9.3    2984. CUFT      77.% AS1,  15.% ES1,   5.% WF1,   4.% LM1
+        MERCH         6.2    6.9    7.4    7.9    8.7     9.3    2140. CUFT      88.% AS1,   5.% WF1,   4.% ES1,   3.% LM1
+        CUBIC SAW     9.3    9.3    9.3    9.3    9.3     9.3       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.3    7.5    7.9    8.3    9.0     9.3    4762. BDFT      95.% AS1,   5.% LM1,   0.% ---,   0.% ---
+
+
+      ACCRETION       4.6    6.3    7.2    7.7    8.4     9.3     118. CUFT/YR   70.% AS1,  23.% ES1,   5.% WF1,   2.% LM1
+      MORTALITY       6.0    6.3    6.6    7.2    7.6     9.3      22. CUFT/YR   90.% AS1,   8.% ES1,   1.% WF1,   1.% LM1
+
+
+
+2002  TREES           3.4    3.9    6.0    7.8    9.0    10.7     858. TREES     53.% ES1,  38.% AS1,   5.% WF1,   3.% LM1
+      VOLUME:  
+        TOTAL         5.5    7.4    8.2    8.7    9.7    10.7    3940. CUFT      74.% AS1,  17.% ES1,   5.% WF1,   3.% LM1
+        MERCH         6.0    7.6    8.3    8.9    9.7    10.7    3079. CUFT      81.% AS1,  11.% ES1,   5.% WF1,   3.% LM1
+        CUBIC SAW    10.7   10.7   10.7   10.7   10.7    10.7       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.4    8.1    8.6    9.0   10.0    10.7    9136. BDFT      92.% AS1,   5.% WF1,   3.% LM1,   0.% ---
+
+
+      ACCRETION       5.1    7.2    8.1    8.7    9.7    10.7     134. CUFT/YR   69.% AS1,  24.% ES1,   5.% WF1,   1.% LM1
+      MORTALITY       5.9    7.2    7.6    8.2    8.7    10.7      24. CUFT/YR   86.% AS1,  11.% ES1,   2.% WF1,   1.% LM1
+
+
+
+2012  TREES           4.1    4.6    6.5    8.7    9.9    11.7     808. TREES     54.% ES1,  37.% AS1,   5.% WF1,   4.% LM1
+      VOLUME:  
+        TOTAL         6.1    8.2    9.1    9.7   10.7    11.7    5031. CUFT      72.% AS1,  20.% ES1,   5.% WF1,   3.% LM1
+        MERCH         6.5    8.4    9.2    9.9   10.9    11.7    3984. CUFT      79.% AS1,  13.% ES1,   6.% WF1,   2.% LM1
+        CUBIC SAW    11.7   11.7   11.7   11.7   11.7    11.7       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.1    9.1    9.4   10.0   11.0    11.7   13087. BDFT      91.% AS1,   6.% WF1,   2.% LM1,   0.% ES1
+
+
+      ACCRETION       5.8    8.1    9.1    9.8   10.9    11.7     136. CUFT/YR   71.% AS1,  23.% ES1,   5.% WF1,   1.% LM1
+      MORTALITY       6.3    8.1    8.6    9.1    9.6    11.7      63. CUFT/YR   81.% AS1,  15.% ES1,   2.% WF1,   2.% LM1
+
+
+
+2022  TREES           4.5    5.3    7.2    9.5   11.1    12.8     709. TREES     56.% ES1,  36.% AS1,   5.% WF1,   4.% LM1
+      VOLUME:  
+        TOTAL         6.6    9.1   10.2   10.9   11.8    12.8    5767. CUFT      71.% AS1,  21.% ES1,   6.% WF1,   3.% LM1
+        MERCH         7.2    9.4   10.5   11.0   12.0    12.8    4674. CUFT      77.% AS1,  14.% ES1,   6.% WF1,   2.% LM1
+        CUBIC SAW    12.8   12.8   12.8   12.8   12.8    12.8       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.6   10.0   10.6   11.1   12.1    12.8   17259. BDFT      88.% AS1,   6.% WF1,   5.% ES1,   2.% LM1
+
+
+      ACCRETION       6.6    9.0   10.2   10.9   12.0    12.8     140. CUFT/YR   70.% AS1,  24.% ES1,   5.% WF1,   1.% LM1
+      MORTALITY       6.6    8.9    9.6   10.2   10.9    12.8      77. CUFT/YR   77.% AS1,  17.% ES1,   3.% WF1,   3.% LM1
+
+
+
+2032  TREES           4.9    5.9    7.9   10.5   12.2    13.9     615. TREES     57.% ES1,  34.% AS1,   6.% WF1,   4.% LM1
+      VOLUME:  
+        TOTAL         7.1    9.9   11.5   12.1   13.3    13.9    6395. CUFT      70.% AS1,  22.% ES1,   6.% WF1,   2.% LM1
+        MERCH         7.4   10.2   11.6   12.1   13.3    13.9    5474. CUFT      74.% AS1,  19.% ES1,   6.% WF1,   2.% LM1
+        CUBIC SAW    13.9   13.9   13.9   13.9   13.9    13.9       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.0   11.0   11.6   12.3   13.6    13.9   22271. BDFT      80.% AS1,  13.% ES1,   6.% WF1,   1.% LM1
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- CEN. ROCKIES SPRUCE-FIR GENGYM         RV:20260401    07-28-2026  20:50:51
+
+STAND ID: 3628406010690                 MGMT ID: NONE     
+
+
+------------------------------------------------------------------------------------------------------------------------------
+                     ATTRIBUTES OF SELECTED SAMPLE TREES                 ADDITIONAL STAND ATTRIBUTES (BASED ON STOCKABLE AREA)
+      -----------------------------------------------------------------  -----------------------------------------------------
+      INITIAL                           LIVE   PAST DBH  BASAL   TREES          QUADRATIC   TREES    BASAL  TOP HEIGHT  CROWN
+      TREES/A            DBH    HEIGHT  CROWN   GROWTH   AREA     PER    STAND   MEAN DBH    PER     AREA     LARGEST   COMP
+YEAR   %TILE  SPECIES (INCHES)  (FEET)  RATIO  (INCHES)  %TILE    ACRE   AGE     (INCHES)    ACRE   (SQFT/A) 40/A (FT)  FACTOR
+----  ------- ------- -------- -------- ------ --------- ------- ------  -----  ---------   ------ --------- --------- -------
+
+1982                                          ( 10 YRS)
+
+        10     ES1       1.80    14.00    45     0.65      1.4  100.00
+        30     ES1       2.30    20.00    55     0.59      5.7  100.00
+        50     ES1       4.20    22.00    75     0.75     19.2  100.00
+        70     WF1       5.90    26.00    65     0.60     44.1   42.14
+        90     AS1       7.00    42.00    45     1.29     81.4   29.93
+       100     AS1       8.00    43.00    15     0.76    100.0   22.92
+                                                                          85       4.9      981.     129.       37.9    141.1
+
+1992                                          ( 10 YRS)
+
+        10     ES1       2.50    17.87    50     0.57      1.4   93.22
+        30     ES1       3.01    24.11    61     0.59      6.1   94.72
+        50     ES1       5.02    27.69    68     0.73     20.5   97.57
+        70     WF1       6.66    32.11    71     0.68     42.0   41.26
+        90     AS1       8.04    46.31    41     0.99     84.1   29.34
+       100     AS1       9.00    48.49    17     0.95     98.4   22.83
+                                                                          95       5.7      918.     165.       42.7    174.1
+
+2002                                          ( 10 YRS)
+
+        10     ES1       3.11    21.71    55     0.52      1.3   86.97
+        30     ES1       3.64    28.31    60     0.55      6.1   90.02
+        50     ES1       5.76    32.96    61     0.67     21.3   94.36
+        70     WF1       7.39    38.85    68     0.65     38.5   40.46
+        90     AS1       9.03    50.39    37     0.94     81.1   28.82
+       100     AS1      10.03    54.41    19     0.98     96.9   22.73
+                                                                         105       6.5      858.     200.       48.1    209.0
+
+2012                                          ( 10 YRS)
+
+        10     ES1       3.66    25.30    61     0.48      1.5   82.18
+        30     ES1       4.12    31.58    59     0.43      6.4   85.87
+        50     ES1       6.28    37.15    59     0.47     20.1   90.97
+        70     WF1       8.05    45.00    65     0.59     34.5   39.60
+        90     AS1      10.05    53.77    35     0.97     83.1   28.16
+       100     AS1      11.26    60.18    21     1.17     97.5   22.65
+                                                                         115       7.3      808.     236.       55.7    252.1
+
+2022                                          ( 10 YRS)
+
+        10     ES1       4.08    28.00    61     0.37      1.4   73.22
+        30     ES1       4.60    34.62    59     0.42      4.6   76.66
+        50     ES1       6.88    41.14    59     0.54     20.1   82.96
+        70     WF1       8.62    50.11    65     0.50     33.2   37.29
+        90     AS1      11.08    56.64    34     0.98     80.6   26.87
+       100     AS1      12.36    65.39    23     1.04     97.2   22.46
+                                                                         125       8.1      709.     252.       60.8    286.9
+
+2032                                          ( 10 YRS)
+
+        10     ES1       4.76    32.31    60     0.60      1.7   64.04
+        30     ES1       5.02    37.35    58     0.37      4.2   66.97
+        50     ES1       7.43    44.65    58     0.50     20.5   74.54
+        70     WF1       9.17    54.60    64     0.49     32.4   34.71
+        90     AS1      12.10    59.27    34     0.97     76.4   25.08
+       100     AS1      13.59    70.29    25     1.17     97.3   22.25
+                                                                         135       8.8      615.     262.       65.3    302.4
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- CEN. ROCKIES SPRUCE-FIR GENGYM         RV:20260401    07-28-2026  20:50:51
+
+STAND ID: 3628406010690                 MGMT ID: NONE    
+
+
+
+                                         SUMMARY STATISTICS (PER ACRE OR STAND BASED ON TOTAL STAND AREA)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+                      START OF SIMULATION PERIOD                       REMOVALS               AFTER TREATMENT     GROWTH THIS PERIOD
+         --------------------------------------------------- ----------------------------- ---------------------  ------------------   MAI  ------
+         NO OF              TOP      TOTAL MERCH SAWLG MERCH NO OF TOTAL MERCH SAWLG MERCH              TOP  RES  PERIOD ACCRE MORT   MERCH FOR SS
+YEAR AGE TREES  BA  SDI CCF HT  QMD  CU FT CU FT CU FT BD FT TREES CU FT CU FT CU FT BD FT  BA  SDI CCF HT   QMD  YEARS   PER  YEAR   CU FT TYP ZT
+---- --- ----- --- ---- --- --- ---- ----- ----- ----- ----- ----- ----- ----- ----- ----- --- ---- --- --- ----  ------ ---- -----   ----- ------
+1982  85   981 129  299 141  38  4.9  2152  1433     0  1026     0     0     0     0     0 129  299 141  38  4.9      10   99    16    16.9 901 21
+1992  95   918 165  362 174  43  5.7  2984  2140     0  4762     0     0     0     0     0 165  362 174  43  5.7      10  118    22    22.5 901 21
+2002 105   858 200  419 209  48  6.5  3940  3079     0  9136     0     0     0     0     0 200  419 209  48  6.5      10  134    24    29.3 901 21
+2012 115   808 236  473 252  56  7.3  5031  3984     0 13087     0     0     0     0     0 236  473 252  56  7.3      10  136    63    34.6 901 21
+2022 125   709 252  486 287  61  8.1  5767  4674     0 17259     0     0     0     0     0 252  486 287  61  8.1      10  140    77    37.4 901 21
+2032 135   615 262  488 302  65  8.8  6395  5474     0 22271     0     0     0     0     0 262  488 302  65  8.8       0    0     0    40.5 901 11
+
+NOTE:  6 LINES OF SUMMARY DATA HAVE BEEN WRITTEN TO THE FILE REFERENCED BY LOGICAL UNIT  4
+
+
+
+
+                                                     ACTIVITY SUMMARY 
+
+STAND ID= 3628406010690                 MGMT ID= NONE                                                                            
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  ACTIVITY DISPOSITION  PARAMETERS:
+-----  ----  ---------  --------  ----  --------------------  --------------------------------------------------------------------
+
+   1   1982
+               BASE     TREELIST  1982  DONE IN 1991               3.0000     0.0000
+
+   2   1992
+   3   2002
+   4   2012
+   5   2022
+----------------------------------------------------------------------------------------------------------------------------------
