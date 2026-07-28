@@ -1152,3 +1152,17 @@ cover-type→fuel dispatch (established vs initiating), replacing jl's eastern f
 (3) FUINIT dead-fuel + CR fuel-model assignment; (4) validate vs live FVScr POTFIRE/SIMFIRE. This is the next
 MAJOR chunk (the first WESTERN FFE). NOT on the FIA-sweep path (grow regime). Estimated a multi-part transcribe-
 and-diff like the volume chunks. Guarded to error loudly meanwhile (doctrine #5).
+
+### FFE chunk — RUNS END-TO-END (first western FFE functional)
+The CR FFE now completes the full flow on crt01 (the THINDBH+POTFIRE demo). Ported+wired, all validated to run:
+- FULIVE/FULIVI live herb/shrub (per-species × PERCOV interp, fmcba.f:443-449) → cr_live_fuel_loading.
+- FUINIE/FUINII dead fuel (38×11 per-species × size-class × PERCOV, fmcba.f:465-472) → cr_dead_fuel_loading.
+- Standard 13 Anderson fuel-models table (variant-independent) → data/centralrockies/fire_fuel_models.csv.
+- crown_biomass bark dispatched to cr_bratio (was eastern :bark_intercept KeyError).
+- CR covtyp default = LP 11 (fmcba.f:432).
+crt01 FFE .sum: BIT-EXACT at inventory (1990 TPA536/BA77/SDI160/TopHt63), tracks live all cycles; the ~2-3%
+later-cycle TPA drift is the THINDBH-thinning × DGSCOR-tail interaction (cornered), NOT an FFE bug (crt01_growth
+without thin/FFE is bit-exact). REMAINING FFE refinement: (1) bit-exact validation of the POTFIRE fire-behavior/
+fuel outputs vs live (the .sum structure is a proxy); (2) COVINI2/COVINI3 seral cover-type arrays for BARE
+stands (cycle-1 no-BA; the with-trees COVTYP=max-BA path is done); (3) SIMFIRE actual-fire differential. The
+shared FFE fire model (behavior/effects/carbon) carries the CR fuel loading. Data in data/centralrockies/fire/.
