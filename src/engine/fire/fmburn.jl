@@ -122,6 +122,21 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     flmult != 1f0 && (flame = oldfl * flmult)
     flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
+    # Crown-fire flame adjustment (fmburn.f:538-543, NE/CR): a passive/active crown fire adds the canopy fuel
+    # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
+    # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
+    if (s.variant isa CentralRockies || s.variant isa Northeast) && flmult == 1f0 && byram > 0f0
+        cf2 = canopy_bulk_density(s)
+        if cf2.cbd > 0f0 && cf2.actcbh >= 0
+            crb, rfinal, hpa = crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
+            if crb > 0f0
+                byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN
+                finten = byram / 60f0
+                flame = 0.45f0 * fpow(finten, 0.46f0) + crb * (0.2f0 * fpow(finten, 0.667f0) - 0.45f0 * fpow(finten, 0.46f0))
+                sch = scorch_height(byram, atemp, fwind)
+            end
+        end
+    end
 
     # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes), both the
     # stand aggregate (the ALL row) and PER-SPECIES (FVS_Mortality emits one row per species + an ALL row).
@@ -358,6 +373,41 @@ function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int
         d > 0.001f0 ? (hi = o) : (lo = o)
     end
     return min(o, 999f0)
+end
+
+# FMCFIR crown-fire type + crown-fraction-burned CRBURN (fmcfir.f:313-358). Returns (crburn, rfinal, hpa) for
+# the flame adjustment in fmburn!. CRBURN=0 ⇒ SURFACE fire (flame path unchanged ⇒ mild fires stay bit-exact).
+# NE/CR only. swind = actual 20-ft wind (mi/h).
+function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32,
+                           ::Union{Northeast,CentralRockies})
+    oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
+    oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
+    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0)      # SURFACE (fmcfir.f:334)
+    mois = fuel_moisture(fmois, s.variant)
+    models = select_fuel_models(s, mois)
+    wmult = fire_wind_reduction(s.fire.percov)
+    sxir = 0f0; ssig = 0f0
+    for (fm, w) in models
+        r = rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois; slope_tan = s.plot.slope)
+        sxir += r.xir * w; ssig += r.sigma * w
+    end
+    hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
+    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
+    spr(oi) = sum(rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois;
+                  wind = oi * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
+    sfrate_act = spr(swind); sfrate_crn = spr(oact); ract = 3.34f0 * sfrate_crn
+    if oinit > swind
+        oact > swind && return (0f0, sfrate_act, hpa)          # SURFACE
+        return (1f0, ract, hpa)                                 # COND_CRN
+    elseif oact > swind                                         # PASSIVE — Scott&Reinhardt straight-line CFB
+        den = sfrate_crn - rinit1
+        cfb = den != 0f0 ? (sfrate_act - rinit1) / den : 0f0
+        cfb = clamp(cfb, 0f0, 1f0)
+        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa)
+    else
+        return (1f0, ract, hpa)                                 # ACTIVE
+    end
 end
 
 """
