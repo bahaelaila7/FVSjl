@@ -38,6 +38,11 @@ function _fw2_jsp(voleq::AbstractString)
             spec == "202" && return 26
             spec == "015" && return 27
         end
+    elseif geocode == '4'                         # region 4 (fwinit.f): GEOSUB 07 → R2 profiles + R4 bark
+        if geosub == "07"
+            spec == "093" && return 24            # Engelmann spruce (Dixie ES model)
+            spec == "122" && return 23            # R2 ponderosa (with R4 bark)
+        end
     end
     return 0
 end
