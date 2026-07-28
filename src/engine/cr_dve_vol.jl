@@ -140,7 +140,9 @@ function compute_volumes_cr!(s::StandState)
         unt = d >= scfmin[sp] ? 1 : 3
         v = if mdl == "DVE"
             cr_dve_vol(eq, d, h; unt = unt)
-        else                                   # NVB / FW2 — not yet ported
+        elseif startswith(eq, "NVB")
+            cr_nvb_vol(eq, d, h)               # total cubic (TCF) exact; MCF/SCF/BF TODO
+        else                                   # FW2 — not yet ported
             zeros(Float32, 15)
         end
         tcf = v[1]
