@@ -124,6 +124,27 @@ const _CR_VOLEQ = String[
     "300DVEW060",
     "300DVEW999"]
 
+# CR forest-keyed VOLEQDEF table (data/centralrockies/volume_equations_by_forest.csv), dumped from the
+# module-free NVEL voleqdef.o for VAR='CR' × all 29 CR forests × 38 species. Keyed (KODFOR, FIA)→veq.
+const _CR_VEQ_BY_FOREST = Ref{Union{Nothing,Dict{Tuple{Int,Int},String}}}(nothing)
+function _cr_veq_by_forest()
+    _CR_VEQ_BY_FOREST[] !== nothing && return _CR_VEQ_BY_FOREST[]
+    d = Dict{Tuple{Int,Int},String}()
+    path = joinpath(@__DIR__, "..", "..", "data", "centralrockies", "volume_equations_by_forest.csv")
+    for (li, line) in enumerate(eachline(path))
+        li == 1 && continue
+        f = split(line, ',')
+        length(f) < 3 && continue
+        kf = tryparse(Int, strip(f[1])); fia = tryparse(Int, strip(f[2]))
+        (kf === nothing || fia === nothing) && continue
+        veq = strip(f[3])
+        (isempty(veq) || all(==('0'), veq)) && continue      # skip the "000…" no-eq rows
+        d[(kf, fia)] = veq
+    end
+    _CR_VEQ_BY_FOREST[] = d
+    return d
+end
+
 function setup_volume_equations!(s::StandState)
     kodfor = Int(s.plot.user_forest_code)
     iregn  = kodfor ÷ 10000
@@ -131,10 +152,14 @@ function setup_volume_equations!(s::StandState)
     intdist = kodfor - (kodfor ÷ 100) * 100
     forst = lpad(string(iforst), 2, '0')
     dist  = lpad(string(intdist), 2, '0')
+    cr_tbl = s.variant isa CentralRockies ? _cr_veq_by_forest() : nothing
     @inbounds for sp in 1:MAXSP
         ifia = something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)
         if s.variant isa CentralRockies
-            s.species.vol_eq[sp] = sp <= length(_CR_VOLEQ) ? _CR_VOLEQ[sp] : "           "
+            # Forest-keyed VOLEQDEF (KODFOR, FIA); fall back to the forest-303/crt01 default table.
+            veq = get(cr_tbl, (kodfor, ifia), nothing)
+            s.species.vol_eq[sp] = veq !== nothing ? veq :
+                (sp <= length(_CR_VOLEQ) ? _CR_VOLEQ[sp] : "           ")
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end
