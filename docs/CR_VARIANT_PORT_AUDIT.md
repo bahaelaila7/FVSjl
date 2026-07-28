@@ -1178,3 +1178,14 @@ run fine). Documented for follow-up (guard/root the _pretzsch_tn10 NaN vs live).
 PCT**3.0 fold (PCT·PCT·PCT) found alongside — faithful, though it was not this crash's cause. The FFE port
 itself is validated via crt01-with-thin (.sum bit-exact at inventory, pre-thin trajectory bit-exact through the
 SIMFIRE 2003 fire).
+
+### Pretzsch tokill=NaN — REFINED root: upstream tree-DBH NaN on ceiling-SDI stands (deep follow-up)
+Instrumented the crash: tokill=NaN because **d10cur=NaN** (the entry QMD), with sdimax=2065 (ceiling) — d10 =
+sqrt(sd2sq/tt) / fpow(sumdr10/tt,...) (mortality.jl:308) goes NaN because sd2sq/sumdr10 is NaN, i.e. **a tree's
+DBH is NaN** upstream. So the mortality NaN is a downstream symptom of a tree-state NaN produced somewhere in
+the extreme no-thin+fire growth (a DBH overflow/degenerate on a stand driven to ceiling SDI). The speculative
+line()-TEM guard did NOT fix it (the NaN is d10, not the line solve) and was reverted. SYNTHETIC only — the
+national FIA sweep (16800+ real stands incl. dense ones) is crash-clean; live FVScr runs the synthetic stand.
+Follow-up: trace which growth/volume step NaNs a DBH at ceiling SDI (guard it at source, faithful to FVS which
+stays finite). Not FFE, not on the FIA-sweep path. The FFE port itself is validated (crt01-with-thin: .sum
+bit-exact at inventory, pre-thin trajectory bit-exact through the SIMFIRE fire).
