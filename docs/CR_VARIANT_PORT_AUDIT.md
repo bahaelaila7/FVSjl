@@ -704,3 +704,14 @@ the blanket-bautba=0's Δ8 regression on 1024050210 gone). crt01 stays Δ1 — S
 findag-dubs the crt01 .tre stand (0 DUB calls; its ages come from another source), jl dubs it as an approximation.
 Suite 38595/0/75. ⇒ CR growth core: diameter/BA/QMD/CCF BIT-EXACT + TopHt Δ0-2 across 8 stands + 2 input paths.
 The last systematic growth residual is closed to the ±1-2 AVHT40-tie-break/ZZRAN accepted class.
+
+## Chunk 8 (volume) — SCOPED: jl volume=0 for CR (needs DVE/NVB/FW2 NVEL methods, none implemented)
+Verified: jl CR .sum volume cols are 0 (TCuFt/MCuFt/BdFt all 0) vs live 4049/3256/13487. Cause: the CR volume-eq
+IDs (_CR_VOLEQ, already assigned bit-exact per live) use THREE NVEL methods jl does NOT implement — jl only has
+the eastern Clark (r8clark_vol.jl/r9clark_vol.jl) + Gevorkiantz (r9vol_gevorkiantz.jl). Method distribution across
+the 38 CR species: **DVE=31, NVB=5, FW2=2**. So compute_volumes! sees an unrecognized method ⇒ returns 0.
+PRIORITY: port **DVE (r3d2hv.f — the R3 D2H diameter²·height polynomials)** first — it covers 31/38 species. Then
+NVB (nsvb.f, National-Scale Volume/Biomass, 5 sp) and FW2 (fwinit.f, Flewelling profile, 2 sp). The test stand
+1101_1030 uses sp3/sp13=FW2, sp20=NVB, sp23=DVE (needs all three for that stand; DVE covers the most overall).
+Each is a self-contained NVEL sub-port routed through the existing shared volume driver; a DOWNSTREAM LEAF (growth/
+mortality unaffected — already bit-exact-or-cornered). This is the largest remaining chunk; DVE is the entry point.
