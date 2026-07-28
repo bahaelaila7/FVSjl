@@ -1331,3 +1331,15 @@ on HARVEST/CUT, not fire-kill. So the last FFE piece = "the post-fire regen/spro
 survivors only; live adds a new cohort). The crown-fire MODEL (indices+type+flame/scorch) is DONE and verified;
 the post-fire cohort is the remaining establishment-side piece (check esuckr!/establish! response to fire-killed
 TPA). NB the FIA sweep (grow regime) is unaffected — no fire → no post-fire cohort.
+
+### Last FFE piece CONFIRMED (doctrine #2, read the source): esuckr! missing the FIRE-KILL sprout path
+cr/esuckr.f:6-7 states ESUCKR creates stump/root sprouts "FROM TREES CUT AT BEGINNING OF CYCLE **OR KILLED BY
+FIRE DURING CYCLE**". jl's esuckr! (sprout.jl:452,461) sprouts ONLY cut records ("for each cut record logged",
+"nothing was cut"). So live's 162 post-fire trees are FIRE-TRIGGERED RESPROUTS (aspen/oak resprout vigorously
+after a stand-replacing fire), and jl's gap is precisely: esuckr! does not sprout the FIRE-killed sprouting-
+species TPA. This RESOLVES the regen-vs-sprout ambiguity — it's SPROUTING, confirmed. THE FIX (the last FFE
+piece): (1) the fire (fmburn!/FMKILL) must record the fire-killed sprouting-species TPA (species+stump DBH) as
+a sprout source, like cuts do; (2) esuckr! iterates those too (esuckr.f:162 DO over ITRNRM = cut+fire-killed
+removals). Ordering already correct (fire mortality precedes esuckr! in grow_cycle!). Bounded, well-defined,
+and CR-specific-species-aware (aspen 20-22/oak 23-27 are the CR sprouters). The crown-fire model (verified) +
+this fire-kill sprout path complete the FFE severe-fire behavior. Not on the FIA-sweep path (grow regime).
