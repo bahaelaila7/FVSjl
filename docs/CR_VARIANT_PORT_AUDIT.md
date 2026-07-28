@@ -834,7 +834,11 @@ by DBH (so it reaches QMD 9.7), while height_growth!(::CR) DEFERS to regent when
 cycle floor, never crossing 4.5 ft into the fast htgf path — the two axes decouple. Live grows regen through the
 crossover CONSISTENTLY on both axes (→ TopHt 70/QMD 9.4). FIX (chunk-6/growth-cycle): reconcile the crossover — measure
 FVS's actual regent↔gemdg/htgf switch criterion for CR (likely a single DBH/height threshold applied to BOTH axes),
-so the height transitions with the diameter. This ALSO likely contributes a slice of the FIA-sweep projection residual
-currently attributed to DGSCOR (small trees that should transition but don't). Then validate establishment end-to-end
+so the height transitions with the diameter. PRECISE MECHANISM: _cr_regent_tree's XWT blend htg=htgr·(1-xwt)+xwt·htg_large
+needs htg_large (the htgf large-tree height increment) to transition as XWT→1, but height_growth!(::CR) zeros htg_large
+for h≤4.5 trees (skips them) ⇒ the blend stays regent-only (0.1 floor) even at large DBH. SCOPE: this bites REGEN trees
+that grow up THROUGH the crossover from seedling (ESTAB/PLANT); FIA-inventory trees start with consistent DBH/height
+(large trees already h>4.5) so are unaffected — which is why the FIA sweep was clean. Fix = feed the htgf estimate into
+the blend for large-DBH/short trees (measure FVS htgf behaviour there first). Then validate establishment end-to-end
 vs cr_estab.key (live 2092 TPA400/BA193/TopHt~70/QMD9.4). Establishment CREATION is faithful (estab.f/essubh.f);
 validation is blocked on this crossover fix.
