@@ -604,3 +604,19 @@ CCF systematic drift is NOT the small-tree height calibration (now faithful) and
 it is a separate crown-width/crown-ratio factor (jl's CCF grows systematically faster: 71→127 vs live 69→94) — the
 next lead. Later-cycle HCOR attenuation uses the shared line-826 formula (dg_cor_goal mix); cycle-1 con matches
 exactly (cormlt_h≈1 cancels the mix), later cycles follow the eastern-validated decay.
+
+## Chunk 5 — CRATET age-dubbing (FINDAG/FNDAG) IMPLEMENTED: fixes the TopHt over-growth (the "CCF drift" was TopHt!)
+
+★ METHOD CORRECTION: the "CCF drift" chased earlier was a COLUMN-MISREAD — .sum cols are `TPA BA SDI CCF TopHt QMD`
+($3..$8); the awk used $7 (TopHt) for CCF. The REAL divergence was TOP HEIGHT (CCF is bit-exact: 2000 127/127,
+2010 163/163). Root: jl left inventory trees' birth_age=0 ⇒ htgf's AP floored to 1 ⇒ tall trees grew height as if
+age-1 (sp18 d=7.9 h=75: jl htg=9.24 vs live 2.73, 3.4× high; short h=5 matched). FVS CRATET (cratet.f:552) DUBS
+ABIRTH from the current height via FINDAG→FNDAG (invert the even-aged site curve: linear search AP=10 step 5 to
+AGEMAX, +breast-high adjust), then gradd.f:205 increments ABIRTH by FINT each cycle. jl did NEITHER.
+FIX: ported cr_fndag (fndag.f, all IMODTY curves + aspen/pinyon closed form) + _cr_dub_ages! (cratet.f:540-552),
+wired into CR setup_growth! BEFORE calibration (FVS CRATET→DGDRIV order) + `birth_age += fint` per cycle (CR-gated).
+VALIDATED: sp18 d=7.9 abirth=131.92 (BIT-EXACT vs live), htg 2.76 vs 2.73. .sum TopHt was jl 71→98 (2000→2040)
+vs live 69→87; NOW jl 68→86 tracks live 69→87 (±1-2). CCF 127→255 vs live 127→260 (±1-4). BA bit-exact-or-±2.
+Suite 38595/0/75 (0 regress; CR-gated). ⇒ the LAST systematic growth divergence is fixed; residuals are the ±1-2
+AVHT40 tie-break (RDPSRT) + ZZRAN small-tree/height RNG (ch9) + late-cycle self-thin TPA tail — all accepted-class.
+CR growth core (DG + height + crown + small-tree + mortality) is now bit-exact-or-cornered end-to-end.

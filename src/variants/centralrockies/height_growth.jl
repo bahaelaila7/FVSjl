@@ -359,3 +359,83 @@ function _cr_agerng(t)
     end
     return anyage ? abs(old - young) : 1000.0f0
 end
+
+# cr_fndag (cr/fndag.f) — invert the even-aged site height curve to find the total age (SITAGE) at which a
+# tree of species `sp`/site `site` reaches height `rht`. Linear search AP=10 step 5 up to AGEMAX (fndag.f:100),
+# stop when HH≥RHT or |HH−RHT|<2, + breast-high adjust (fndag.f:9990). Aspen/birch/pinyon use a closed form.
+# Used by _cr_dub_ages! to dub ABIRTH for un-aged inventory trees (cratet.f:552) — else htgf's AP floors to 1
+# and tall trees over-grow height 2-3× (the TopHt divergence).
+function cr_fndag(imodty::Int, site::Float32, rht::Float32, bautba::Float32, relden::Float32, sp::Int)::Float32
+    if sp == 20 || sp == 28 || sp == 38 || sp == 14 ||
+       (imodty == 3 && (sp == 21 || sp == 22 || sp == 16 || (29 <= sp <= 32) || sp == 37))
+        agetem = fpow(rht * 12.0f0 * 2.54f0 / 26.9825f0, 0.8509f0)
+        return agetem + 4.5f0 / (0.1f0 + site / 50.0f0)
+    end
+    agemax = imodty == 3 ? 165.0f0 : imodty == 5 ? 200.0f0 : 210.0f0
+    m = 1 <= imodty <= 5 ? imodty : 1                          # IMODTY 6 → 1 (fndag.f:6000 GO TO 1000)
+    ap = 10.0f0; agetem = ap
+    while true
+        agetem = ap; agetem > agemax && (agetem = agemax)
+        local hh::Float32
+        if m == 3
+            htmax = (site + 0.3846f0) * 1.2999886f0
+            rht >= htmax && return 165.0f0
+            hh = (site + 0.3846f0) * (-0.5234f0 + 1.8234f0 * fexp(-fpow(1.0989f0 - 0.006105f0 * agetem, 2.35f0)))
+            hh *= max(1.0f0 - bautba, 0.793f0)
+        elseif m == 4
+            agetem < 30.0f0 && (agetem = 30.0f0)
+            hh = (2.75780f0 * fpow(site, 0.83312f0)) *
+                 fpow(1.0f0 - fexp(-0.015701f0 * agetem), 22.71944f0 * fpow(site, -0.63557f0)) + 4.5f0
+            hh *= max(1.0f0 - bautba, 0.728f0)
+        elseif m == 5
+            agetem < 30.0f0 && (agetem = 30.0f0)
+            ccftem = relden - 125.0f0; ccftem < 0.0f0 && (ccftem = 0.0f0)
+            hh = 9.89331f0 - 0.19177f0 * agetem + 0.00124f0 * agetem * agetem -
+                 0.00082f0 * ccftem * site + 0.01387f0 * agetem * site - 0.0000455f0 * agetem * agetem * site
+            hh *= max(1.0f0 - bautba, 0.742f0)
+        elseif m == 1
+            hg = 109.559129f0 * fpow(1.0f0 - 0.975884f0 * fexp(-0.014377f0 * agetem), 1.289266f0) + 4.5f0
+            hl = 72.512644f0 * fpow(1.0f0 - 0.876961f0 * fexp(-0.020066f0 * agetem), 2.016632f0)
+            hh = -((hg - hl) * ((82.488f0 - site) / 26.279f0)) + hg
+            hh *= max(1.0f0 - bautba, 0.768f0)
+        else                                                   # m == 2
+            hg = 106.493954f0 * fpow(1.0f0 - 0.938775f0 * fexp(-0.016066f0 * agetem), 1.550720f0) + 4.5f0
+            hl = 78.078735f0 * fpow(1.0f0 - 0.843715f0 * fexp(-0.020412f0 * agetem), 2.280435f0)
+            hh = -((hg - hl) * ((81.5585f0 - site) / 21.7149f0)) + hg
+            hh *= max(1.0f0 - bautba, 0.768f0)
+        end
+        (abs(hh - rht) < 2.0f0 || hh > rht) && break
+        ap += 5.0f0
+        ap > agemax && return agemax
+    end
+    tage = agetem
+    if imodty == 1
+        tsite = site < 30.0f0 ? 30.0f0 : site; tage += 4.5f0 / (-0.642f0 + 0.02285f0 * tsite)
+    elseif imodty == 2
+        tage += 4.5f0 / (0.25f0 + 0.00467f0 * site)
+    elseif imodty == 4
+        tsite = site < 20.0f0 ? 20.0f0 : site; tage += 4.5f0 / (-0.22f0 + 0.0155f0 * tsite)
+    end
+    return tage
+end
+
+# _cr_dub_ages! (cr/cratet.f:540-552 + FINDAG) — dub ABIRTH from the current height for inventory trees with no
+# measured age (birth_age ≤ 0 or > 999). Runs once at setup (before the first height growth); gradd.f:205 then
+# increments birth_age by FINT each cycle. Site = per-species SITEAR; BAUTBA = BAU(dbh-class)/BA.
+function _cr_dub_ages!(s::StandState)
+    p, t = s.plot, s.trees
+    imodty = Int(p.model_type)
+    bau = _cr_badist_bau(t); ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
+    relden = stand_ccf(s)
+    @inbounds for i in 1:t.n
+        ab = t.birth_age[i]
+        (ab > 0.0f0 && ab <= 999.0f0) && continue              # already aged (cratet.f:541)
+        sp = Int(t.species[i]); h = t.height[i]
+        h <= 0.0f0 && continue
+        icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)
+        bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
+        sitage = cr_fndag(imodty, p.sp_site_index[sp], h, bautba, relden, sp)
+        sitage > 0.0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)
+    end
+    return s
+end

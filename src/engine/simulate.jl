@@ -66,6 +66,10 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralRockies
         cr_dgcons!(s)                     # DGCON=0, ATTEN, bark inert; enables c.sigma=SIGMAR for DG serial-corr
+        compute_density!(s)               # current-stand density for the age dub (BADIST/CCF)
+        _cr_dub_ages!(s)                  # CRATET age dub (cratet.f:552 FINDAG): ABIRTH from height for un-aged trees,
+                                          # BEFORE calibration (FVS CRATET→DGDRIV order). Without it htgf's AP floors
+                                          # to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
@@ -445,6 +449,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
+        _cr_up && (t.birth_age[i] += fint)   # CR ages ABIRTH by the cycle length each cycle (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
