@@ -300,7 +300,6 @@ function dgf!(s::StandState, ::CentralRockies)
         dds = cr_gemdg(imodty, sp, bautba, spba, ssite, d, ba_v, bark, cr, slope, aspect,
                        pbal, pccfi, relden, bal; dbhmax = dbhmax_v[sp], agerng = agerng)
         wk2[i] = dds + c.dg_cor[sp] + c.dg_const[sp]
-        haskey(ENV,"CR_WK2") && println(stderr, "WK2JL CYC=$(Int(s.control.cycle)) SP=$sp D=$(round(d,digits=3)) WK2=$(round(wk2[i],digits=6))")
     end
     return s
 end
