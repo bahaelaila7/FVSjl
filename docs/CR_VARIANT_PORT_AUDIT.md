@@ -863,3 +863,15 @@ crown-width (compute cr_crown_width for a sweep-validated sp1 ABLA tree and matc
 sp2's IMAP against cr/ccfcal.f's species→IMAP table for imodty 2 (the corkbark mapping likely differs). Fix → CCF drops
 → density releases → ESTAB TopHt tracks live (38→~70). This is downstream of the (fixed, validated) crossover; it's the
 regen-density feedback for the establishment species. The FIA growth/volume sweep is unaffected (different species).
+
+## ★ RETRACTION (doctrine #2): the ESTAB crown-width finding above was a WRONG comparison
+Checked the hypothesis on a sweep-VALIDATED species: jl cr_crown_width(sp1 ABLA, d12.2, imodty4)=22.3 but the live
+treelist CW for that same tree=10.7 — YET the San Juan sweep CCF for that stand is BIT-EXACT. Two facts that can't both
+hold if the treelist CW were the ccfcal CCF crown-width. Conclusion: the treelist "CW" column is the DISPLAY / open-grown
+crown width (a different cwcalc model), NOT ccfcal's internal CCF crown-width. So the sp2-corkbark "7.97 vs 5.1"
+comparison compared the wrong quantities and does NOT show a CCF bug (cr_crown_width is bit-exact per the sweep). The
+ESTAB CCF/TopHt residual is REAL (jl .sum diverges from live post-crossover) but its diagnosis needs (a) a clean live
+cr_estab .sum with columns aligned to jl's (the SCREEN echo columns may not match — get the actual .sum), THEN (b)
+per-tree diff in the pre-mortality window. Do NOT trust the treelist CW column for CCF. The crossover fix (dgf.f:99)
+stands independently validated (no sweep regression, ESTAB height now grows). Lesson: verify the quantity identity
+before concluding — the ABLA sweep-validated cross-check caught this.
