@@ -730,3 +730,29 @@ validatable against live cr_calib .sum TCuFt=4049/BdFt=13487), THEN DVE (widest 
 constructed DVE-species stand). WIRING: compute_volumes! (volume.jl:561) currently calls _R8CLARK_VOL
 unconditionally; add a method dispatch on veq[sp][4:6] ("DVE"/"NVB"/"FW2" — or NVB prefix) → the new per-method
 jl fns, else the existing Clark path. All downstream leaves; growth/mortality untouched (bit-exact-or-cornered).
+
+## Chunk 8 (volume) — PROGRESS (NVB TCF+MCF bit-exact; FW2/board remaining)
+Measurement-driven (instrumented nsvb.f fort.66 dump on live FVScr, module-free NVEL routines relink fine):
+- **DVE** (cr_dve_vol.jl): ported (12 species D2H polynomials). Validated crt01 sp10 (300DVEW113) bit-exact.
+- **NVB total cubic (TCF=Vtotib, S1)**: BIT-EXACT per-tree (6/6). Fixed the (SPCD,DIVISION,STDORG) VOLEQ parse
+  (SPEQCOEF nsvb.f:903 — div=int(VOLEQ[5:6])*10 +1000 if VOLEQ[4]='M'; e.g. NVBM330093→div1330), fallback
+  (spcd,0,stdorg). S1/S5 CSVs re-keyed on the triple.
+- **NVB merch cubic (MCF=VOL(4)+VOL(7))**: BIT-EXACT per-tree (6/6: 1.6/1.6/3.3/6.4/9.0/16.4). Full NVEL
+  log-bucking ported: NVB_CalcHT2TOPD bisection→merch height, NUMLOG/SEGMNT (region-3 PROD-02:
+  MAXLEN16/MINLEN10/MERCHL10/TRIM0.5/OPT22/EVOD2), NVB_CalcLOGVOL Smalian .00272708*(DIBL²+DIBS²)*LEN with
+  NINT-int DIBs, each log 0.1-rounded. Merch top MTOPP=MTOPS=TOPD·BARK inside bark (fvsvol.f:174; TOPD=4.0 CR
+  sitset IMODTY≠3, STUMP=1.0). Mapping (fvsvol.f:510-529): TCF=VOL(1)≥0; MCF gated D≥DBHMIN(5); SCF=0 (region
+  2/3 never sets it, matches crt01.sum SCF=0); BF per method.
+- **crt01 stand-1 .sum** (FFE-stripped crt01_s1.key vs live FVScr_clean): TPA bit-exact 1990-2010 (536/528/520;
+  later cycles the known DGSCOR growth residual). TCF/MCF track live EXCEPT the FW2 ponderosa (sp13, veq
+  300FW2W122) gap — jl returns 0 for FW2 ⇒ 1990 TCF 1208 vs live 1563 (the ~23% = ponderosa Vtotib).
+
+REMAINING volume leaves (both downstream, growth/mortality untouched):
+1. **FW2/Flewelling** — fwinit.f (367, coef init) + profile.f (2297, Flewelling variable-form segmented taper).
+   Required for ponderosa/DF (sp13/sp3), DOMINANT in CR. Largest single remaining volume sub-port. profile.f is
+   module-free ⇒ instrumentable. Dispatched via volinit.f:261 MDL∈{FW2,FW3}→PROFILE.
+2. **NVB board feet (BdFt)** — the BDFT/saw NVBC call to BFTOPD=6" + SCRIB (Scribner) / INTL14 (Intl-¼); crt01
+   BdFt=2831 currently 0 for NVB. scrib.f (263) + the saw-top bucking (same NUMLOG/SEGMNT kit, MTOPP=BFTOPD·BARK).
+Recipe to instrument: edit bin/FVScr_buildDir/nsvb.f (or profile.f) WRITE(66,…), gfortran -c -O0
+-fno-second-underscore -I. → .o, /workspace/.crwork/relink_cr.sh <name> <.o>, restore source, run crt01_s1.key
+(needs crt01_s1.tre = crt01.tre) against /workspace/.crwork/FVScr_<name>, read fort.66.
