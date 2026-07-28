@@ -152,7 +152,7 @@ function compute_volumes_cr!(s::StandState)
             bark = cr_bratio(sd, sp, d, imodty)
             cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump)   # TCF + MCF exact; board TODO
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty))   # Flewelling total cubic (TCF); MCF/board TODO
+            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump)   # Flewelling TCF+MCF; board TODO
         else
             zeros(Float32, 15)
         end
