@@ -425,15 +425,28 @@ end
 function _cr_dub_ages!(s::StandState)
     p, t = s.plot, s.trees
     imodty = Int(p.model_type)
-    bau = _cr_badist_bau(t); ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
-    relden = stand_ccf(s)
+    # cratet.f:501-522: BADIST (which populates BAU, read as BAUTBA by FINDAG) runs BEFORE the age dub ONLY when
+    # MISSCR — any LIVE (1:n) or cycle-0 DEAD (recent-mortality, n+1:n+ndead) tree with a missing crown ratio
+    # (ICR≤0) — triggers `CALL CROWN`. Else BAU is still 0 at the dub ⇒ BAUTBA=RELDEN=0. Reproducing this gate is
+    # what makes the dubbed ages (hence TopHt) match: a stand with a history-8 dead tree (no crown) uses the
+    # populated BADIST; an all-live stand uses 0. (A blanket 0 or a blanket fresh-compute is wrong either way.)
+    misscr = false
+    @inbounds for i in 1:(t.n + t.ndead)
+        t.crown_pct[i] <= 0 && (misscr = true; break)
+    end
+    bau = misscr ? _cr_badist_bau(t) : nothing
+    ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
+    relden = misscr ? stand_ccf(s) : 0.0f0
     @inbounds for i in 1:t.n
         ab = t.birth_age[i]
         (ab > 0.0f0 && ab <= 999.0f0) && continue              # already aged (cratet.f:541)
         sp = Int(t.species[i]); h = t.height[i]
         h <= 0.0f0 && continue
-        icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)
-        bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
+        bautba = 0.0f0
+        if bau !== nothing
+            icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)
+            bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
+        end
         sitage = cr_fndag(imodty, p.sp_site_index[sp], h, bautba, relden, sp)
         sitage > 0.0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)
     end
