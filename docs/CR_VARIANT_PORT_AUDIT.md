@@ -666,3 +666,18 @@ for others, at the same ICYC — a call-order/re-dub subtlety (cratet.f vs comcu
 vs grincr.f:437 DGDRIV order). NEXT: instrument the live BADIST BAU array state at each cratet dub for both stands
 (dump ITRN + BAU at the CRATET call) to determine when BAU is 0 vs populated, then reproduce that timing in
 _cr_dub_ages!. Impact: bounded TopHt-only residual (Δ1-6, BA/QMD bit-exact) — the diameter/BA growth is unaffected.
+
+
+## TopHt-BADIST-timing — MECHANISM fully root-caused (fix = order the dub vs BADIST like FVS)
+
+Instrumented badist.f (BADISTRUN icyc) + findag.f (DUB icyc bautba) together on both stands. DEFINITIVE: for
+11019040011 there is **NO BADISTRUN before the DUB** (BAU array still 0 ⇒ bautba=0); for 1024050210 **BADISTRUN
+fires BEFORE the DUB** (BAU populated ⇒ bautba 0.43/0.37/...). Same ICYC=1, same keyfile. ⇒ FVS's cratet dub reads
+whatever BADIST BAU state exists at that point in the setup sequence, which is stand-dependent (whether a DGF/
+BADIST call — inventory-stats or DG-calibration — has run before cratet for that stand). jl's _cr_dub_ages! always
+computes BADIST FRESH via _cr_badist_bau ⇒ always nonzero ⇒ wrong for the (common) no-prior-BADIST case ⇒ TopHt
+under-grows. FIX DIRECTION (faithful): the dub must use the ACTUAL cratet-time BADIST state, not a fresh compute —
+i.e. reproduce the FVS order (whatever populates BAU before cratet vs not). CAUTION: circular-ish (calibration uses
+agerng from the dubbed birth_age), so the order must match FVS exactly; a blanket bautba=0 is wrong (regresses the
+BADIST-ran-first stands). Bounded TopHt-only residual (BA/QMD/CCF bit-exact). This is the precise, fully-characterized
+next lead.
