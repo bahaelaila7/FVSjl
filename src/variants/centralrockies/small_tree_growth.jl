@@ -156,3 +156,53 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     end
     return s
 end
+
+# cr_esgent! (esgent.f) — CR-specific: grow the JUST-ESTABLISHED regen records IN their creation cycle via
+# REGENT(LESTB=T), then apply HT+=HTG·WK4, derive DBH if WK4<1, cap at HHTMAX. Eastern variants leave birth-cycle
+# regen ungrown (GRADD order, bit-exact) — this is CR-only. `nstart` = tree count BEFORE establish! (the new
+# records are nstart+1..t.n). Applies the increment directly to t.height/t.dbh (not via the wk2 stash).
+function cr_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
+    nstart >= t.n && return s
+    dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; xminv = sd[:st_xmin]; diamv = sd[:st_diam]
+    htadj = sd[:st_htadj]; brkv = sd[:st_break]; ht2v = sd[:ht2]; ht1v = sd[:ht1]
+    lo = sd[:site_lo]; hi = sd[:site_hi]
+    aa = c.ht_dbh_aa; iabflg = c.ht_dbh_iabflg
+    imodty = Int(p.model_type)
+    # Birth-cycle regen grows only FINT−GENTIM years (established mid-cycle at GENTIM=FINT−5, estab.f:448), not the
+    # full cycle — so the regent SCALE uses the PARTIAL period (else the birth-cycle HTG ~2× over-shoots).
+    gentim = max(fint - 5.0f0, 0.0f0)
+    scale = (fint - gentim) / 10.0f0; scale2 = s.control.year / fint; dgsd = s.control.dg_sd
+    ccf = stand_ccf(s); avht = p.avg_height
+    x = avht * (ccf / 100.0f0); x > 300.0f0 && (x = 300.0f0)
+    pctred = _CR_AB[1] + x*(_CR_AB[2] + x*(_CR_AB[3] + x*(_CR_AB[4] + x*(_CR_AB[5] + x*_CR_AB[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for i in (nstart+1):t.n
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= xmaxv[sp] && continue
+        h = t.height[i]
+        si = p.sp_site_index[sp]; si > hi[sp] && (si = hi[sp]); si <= lo[sp] && (si = lo[sp] + 0.5f0)
+        relsi = (si - lo[sp]) / (hi[sp] - lo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+        pothtg = p.sp_site_index[sp] / (15.0f0 - 4.0f0 * relsi) * htadj[sp]
+        con = exp(c.htg_cor_small[sp]); ivf = sp in _CR_IVFLAG
+        ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]; bark = cr_bratio(sd, sp, d, imodty)
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+            end
+        end
+        htg, _ = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
+            pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, t.ht_growth[i], s.control.sp_size_cap[sp, 4],
+            p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
+            diamv[sp], ax, ht2v[sp])
+        # esgent.f: HTG*=WK4 (=1, no FIXHTG here); HT+=HTG; WK4<1 ⇒ DBH-derive (skipped at WK4=1); cap HHTMAX.
+        nh = h + htg
+        nh > _CR_ES_HHTMAX[sp] && (nh = _CR_ES_HHTMAX[sp])
+        t.height[i] = nh
+        t.ht_growth[i] = htg
+    end
+    return s
+end

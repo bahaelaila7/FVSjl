@@ -471,7 +471,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
+    es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
+    # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
+    # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
+    s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
