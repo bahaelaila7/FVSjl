@@ -1299,3 +1299,14 @@ regeneration (live 162 post-fire trees, jl 0) — a separate establishment-after
 mortality bit-exact magnitude (direction right, exact value ~cornered — depends on the flame/scorch precision +
 the post-fire regen interaction). FFE is now: fuel + fire-bark + inventory + mild-fire + crown-fire-model all
 done; post-fire regen is the last FFE piece.
+
+### FFE crown-fire — direction fixed; last piece = post-fire composition (understory + regen)
+Post-crown-fire-port, the overstory kill is now close (jl BA 161→9 vs live 161→4). The remaining gap is the
+post-fire STAND COMPOSITION: jl leaves 4 large trees (TPA 442→4, QMD 19.7); live has 162 small trees (QMD 2.2).
+So jl's high crown-fire scorch also kills the UNDERSTORY (small trees below the canopy), while live retains/
+regenerates a small-tree cohort. Two candidate causes (need FMEFF/establishment measurement to separate): (a)
+understory mortality — a crown fire should scorch the overstory canopy, not necessarily fully kill sub-canopy
+small trees the way a stand-level scorch height does; (b) post-fire natural regeneration — live may establish a
+post-fire cohort jl doesn't. This is the LAST FFE piece: the crown-fire MODEL (indices + type + flame increase)
+is ported and severe fires now crown; the exact post-fire tree composition (understory survival + regen) is the
+refinement. Mild fires + NE + inventory all bit-exact (no regression). A focused FMEFF/regen follow-up.
