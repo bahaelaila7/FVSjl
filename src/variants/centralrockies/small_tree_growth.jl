@@ -135,7 +135,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
         relsi = (si - lo[sp]) / (hi[sp] - lo[sp])
         rsimod = 0.5f0 * (1.0f0 + relsi)
         pothtg = p.sp_site_index[sp] / (15.0f0 - 4.0f0 * relsi) * htadj[sp]
-        con = 1.0f0                                          # RHCON=1, HCOR=0 (no small-tree calib)
+        con = exp(c.htg_cor_small[sp])                       # RHCON·EXP(HCOR) (regent.f:204); HCOR from the CR REGCAL calib
         ivf = sp in _CR_IVFLAG
         ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]
         bark = cr_bratio(sd, sp, d, imodty)

@@ -753,6 +753,55 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             c.htg_cor_init[sp] = log(cornew)
         end
     end
+    # CR small-tree REGENT height calibration (cr/regent.f REGCAL:445-606). EDH = POTHTG·PCTRED·VIGOR·RHCON
+    # (GENGYM potential HTG), aspen/paper-birch (sp20/28) use the Sheppard curve. HCOR_init = ln(Σ(HTG·SCALE3·P)/
+    # Σ(EDH·P)) with ≥NCALHT(5) measured dbh<5 HTG. Runs on the CURRENT restored stand (regent uses current dbh).
+    # Without this jl held con=1.0 (HCOR=0) ⇒ small-tree height under-grew (sp5 WF con 1.0 vs live 1.047).
+    if s.variant isa CentralRockies
+        htadj = sd[:st_htadj]; lo = sd[:site_lo]; hi = sd[:site_hi]
+        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
+        ccf = stand_ccf(s); avht = s.plot.avg_height                                   # PCTRED from current stand (regent.f AB poly)
+        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        pctred = _CR_AB[1] + xd*(_CR_AB[2] + xd*(_CR_AB[3] + xd*(_CR_AB[4] + xd*(_CR_AB[5] + xd*_CR_AB[6]))))
+        pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+        @inbounds for sp in 1:MAXSP
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]
+            si = s.plot.sp_site_index[sp]
+            si > hi[sp] && (si = hi[sp]); si <= lo[sp] && (si = lo[sp] + 0.5f0)
+            relsi = (si - lo[sp]) / (hi[sp] - lo[sp]); rsimod = 0.5f0 * (1f0 + relsi)
+            pothtg = s.plot.sp_site_index[sp] / (15f0 - 4f0 * relsi) * htadj[sp]        # SITEAR (unclamped), regent.f:534
+            ivf = sp in _CR_IVFLAG
+            snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454)
+                hstart = t.height[i] - t.ht_growth[i]             # start-of-period H (IHTG<2, regent.f:534)
+                hstart < 0.01f0 && continue
+                if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:540-545)
+                    ag2 = (t.birth_age[i] < 5f0 ? 5f0 : t.birth_age[i]) + 10f0
+                    h2 = 26.9825f0 * fpow(ag2, 1.1752f0) / (2.54f0 * 12f0)
+                    edh = (h2 - hstart) * rsimod * 0.75f0
+                    edh < 0f0 && (edh = 0f0)
+                else
+                    xc = Float32(t.crown_pct[i]) / 100f0          # VIGOR from crown ratio (regent.f:531)
+                    vigor = 150f0 * fpow(xc, 3f0) * fexp(-6f0 * xc) + 0.3f0
+                    vigor > 1f0 && (vigor = 1f0)
+                    ivf && (vigor = 1f0 - (1f0 - vigor) / 3f0)
+                    edh = pothtg * pctred * vigor                 # ·RHCON(=1), regent.f:536
+                end
+                t.ht_growth[i] < 0.001f0 && continue              # no measured HTG (regent.f:551)
+                snx += edh * t.tpa[i]
+                sny += t.ht_growth[i] * scale3 * t.tpa[i]         # TERM = HTG·SCALE3 (regent.f:552)
+                nh += 1
+            end
+            nh < 5 && continue                                    # NCALHT
+            cornew = sny / snx
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
     return s
 end
 

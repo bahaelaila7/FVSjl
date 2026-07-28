@@ -588,3 +588,19 @@ add a CR branch computing htg_cor_init (HCOR) from backdated small-tree height g
 the LS ls_htcalc/ls_balmod block. NOTE the CCF-DIRECTION PUZZLE is only partly explained: jl UNDER-grows small-tree
 height (con 1.0<1.047) ⇒ smaller crowns ⇒ would give LOWER jl CCF, yet jl CCF is HIGHER — so a second crown-width
 or crown-ratio factor also feeds the CCF drift (open; the HCOR fix is necessary but likely not sufficient).
+
+## Chunk 6 — CR small-tree REGENT height calibration (HCOR) IMPLEMENTED (faithful; con now bit-exact)
+
+Added the CR branch to the REGENT small-tree height calibration in calibrate_diameter_growth! (mirrors cr/regent.f
+REGCAL:445-606): per LHTCAL species with ≥5 measured dbh<5 HTG, EDH = POTHTG·PCTRED·VIGOR·RHCON (GENGYM potential
+HTG; aspen/birch sp20/28 use the Sheppard curve), TERM = HTG·SCALE3 (SCALE3=REGYR10/FINTH), HCOR_init =
+ln(Σ(TERM·P)/Σ(EDH·P)); runs on the CURRENT restored stand. Wired `con = exp(c.htg_cor_small[sp])` in
+_cr_regent_tree (was hardcoded 1.0). VALIDATED: sp5 (WF) growth-cycle **con=1.0474 vs live 1.047 (bit-exact)**,
+and htgr(pre-scale)=3.360 vs live 3.359 (pothtg 6.0674 + pctred 0.5286 + vigor 1.0 all match). The residual htg
+(jl 3.06 vs live 3.399) is PURELY ZZRAN — jl's small-tree stochastic deviate ≈ −1.5 vs live +0.1999 = the known
+RNG stream-order tail (ch9), NOT this calibration. Suite 38595/0/75 (0 regress; CR-gated). Analog of LS
+[[fvsjl-ls-regent-hcor-fix]] FIX #7. NOTE: .sum CCF UNCHANGED (still jl 71 vs live 69 @2000, compounding) — so the
+CCF systematic drift is NOT the small-tree height calibration (now faithful) and NOT the large-tree DG (bit-exact);
+it is a separate crown-width/crown-ratio factor (jl's CCF grows systematically faster: 71→127 vs live 69→94) — the
+next lead. Later-cycle HCOR attenuation uses the shared line-826 formula (dg_cor_goal mix); cycle-1 con matches
+exactly (cormlt_h≈1 cancels the mix), later cycles follow the eastern-validated decay.
