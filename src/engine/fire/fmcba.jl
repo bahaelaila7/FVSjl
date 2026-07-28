@@ -37,6 +37,10 @@ function fmcba!(s::StandState)
     elseif s.variant isa LakeStates
         # LS uses the FULIV table indexed by (IFFEFT, ISZCL) — ls/fmcba.f:138; no SN FULIV2 override.
         fs.flive = ls_live_fuel_loading(s)
+    elseif s.variant isa CentralRockies
+        # CR (western): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after the
+        # cover-type block below (needs COVTYP + PERCOV). Placeholder here.
+        fs.flive = (0f0, 0f0)
     else
         ovr = ffe_live_fuel_override(s)
         fs.flive = ovr === nothing ? ffe_live_fuel_loading(coef, ffe_forest_type(s)) : ovr
@@ -70,10 +74,13 @@ function fmcba!(s::StandState)
         covtyp = fs.covtyp != Int32(0) ? fs.covtyp :
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
-                 s.variant isa LakeStates    ? Int32(3)  : Int32(75)
+                 s.variant isa LakeStates    ? Int32(3)  :
+                 s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
     fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
+    # CR live fuel now that COVTYP + PERCOV are known (fmcba.f:443-449)
+    s.variant isa CentralRockies && (fs.flive = cr_live_fuel_loading(Int(covtyp), fs.percov))
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column

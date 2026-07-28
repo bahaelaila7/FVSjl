@@ -88,3 +88,19 @@ const _CR_FULIVI = Float32[    # initiating stands (10% cover)  (herb, shrub)
     0.40 1.00;  # 37 other softwoods
     0.18 1.32;  # 38 other hardwoods
 ]
+
+# ALGSLP 2-point linear interpolation with end-clamping (FVS ALGSLP for n=2).
+@inline function _cr_algslp2(x::Float32, x1::Float32, x2::Float32, y1::Float32, y2::Float32)::Float32
+    x <= x1 && return y1
+    x >= x2 && return y2
+    return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+end
+
+# CR live herb/shrub fuel (fmcba.f:443-449): interpolate between INITIATING (10% cover, FULIVI) and
+# ESTABLISHED (60% cover, FULIVE) by the stand's PERCOV, keyed by the dominant-species cover type COVTYP.
+@inline function cr_live_fuel_loading(covtyp::Int, percov::Float32)::NTuple{2,Float32}
+    (covtyp < 1 || covtyp > 38) && (covtyp = 11)     # LP default (fmcba.f:432)
+    herb  = _cr_algslp2(percov, 10f0, 60f0, _CR_FULIVI[covtyp, 1], _CR_FULIVE[covtyp, 1])
+    shrub = _cr_algslp2(percov, 10f0, 60f0, _CR_FULIVI[covtyp, 2], _CR_FULIVE[covtyp, 2])
+    return (herb, shrub)
+end
