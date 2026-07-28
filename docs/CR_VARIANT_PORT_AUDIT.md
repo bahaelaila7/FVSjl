@@ -1356,3 +1356,15 @@ piece splits into: (a) DATA fix — set CR is_sprouting=1 for 20-28 (faithful to
 live aspen/oak cut+fire stand (affects cut-sprouting too, so validate crt01/thinning stays right); (b) post-fire
 natural regeneration for conifers (the San Juan 162). Both are establishment-side; the crown-fire MODEL + the
 fire-kill sprout MECHANISM are already ported. This turn corrected a wrong inference by measuring the code+data.
+
+### CR sprouting — the port is INCOMPLETE (flags AND coefficient tables + logic), a full establishment chunk
+Setting CR is_sprouting=1 (per cr/blkdat.f ISPSPE = {20,21,22,23,24,25,26,27,28,29,36}) EXPOSED that the CR
+sprout MECHANISM is not ported: crt01 (thinning w/ a sprouter) then errors `KeyError :essprt_fsp` — the CR
+ESSPRT survival / NSPREC count / SPRTHT height coefficient tables are absent (only SN/NE/CS/LS are loaded).
+So the last FFE-adjacent piece is a full CR SPROUT chunk, not a 1-line data fix: (1) is_sprouting flags (trivial,
+blkdat ISPSPE); (2) CR essprt.f tables — NSPREC CASE('CR') counts (15→2, 23-27 oaks, 21-22 cottonwoods, DEFAULT
+1), ESSPRT CASE('CR') survival multipliers (21-29,36), ASSPTN aspen-sucker Crouch polynomial (INDXAS=20); (3)
+SPRTHT CR sprout heights + the Wykoff sprout-DBH. Reverted the flags (they alone break crt01). This is why CR
+sprouting was silently absent — the whole mechanism is unported, and is_sprouting=0 was masking it. A focused
+establishment chunk (like the eastern variants' essprt ports). The FIA sweep (grow regime) is unaffected either
+way. NB the conifer post-fire auto-regen (San Juan 162) is STILL a separate gap from sprouting.
