@@ -1068,3 +1068,13 @@ Post-R2OLDV, a coverage probe of all 28 unique CR forest-table VOLEQs confirms: 
 non-zero. Remaining GAP: **203FW2W122** (FW2 JSP-22, R2 ponderosa geosub '03') — used by exactly 1 of 29
 forests; _fw2_jsp maps it to JSP 22 but the downstream profile returns 0 (JSP-22 taper coeffs unported). Deferred
 as a 1-forest edge. All other volume equations bit-exact-or-covered.
+
+### Next volume sub-chunk — FW2 board-foot under-count (BdFt, downstream leaf)
+After R2OLDV, the sweep's residual volume class is now BdFt-led (dug cn=3628406010690, FW2 aspen 746 + conifer
+mix): structure + TCuFt + MCuFt BIT-EXACT at inventory, but BdFt live 1026 vs jl 0 at 1982, jl under-counting
+early then partially catching up (2032 jl 18118 vs live 22271). Signature = a board-foot MIN-DIAMETER threshold
+or FW2 Scribner-board gap: bf = d≥bfmind ? v[2] : 0 (cr_dve_vol.jl:192), bfmind = is3?9:(ifor<13?7:9) (:167);
+cr_fw2_vol fills v[2]. Next: instrument cr_fw2_vol's board (v[2]) + bfmind vs live on the FW2 aspen trees —
+either the bfmind branch is wrong for region-2 FW2 forests or the FW2 Scribner path under-fills. Downstream
+reporting leaf (growth core bit-exact). The oak stands' later-cycle volume divergence is SEPARATE (their
+structure diverges at 1994+ = the DGSCOR/oak-density tail, propagating to volume — not a volume-equation bug).
