@@ -756,3 +756,17 @@ REMAINING volume leaves (both downstream, growth/mortality untouched):
 Recipe to instrument: edit bin/FVScr_buildDir/nsvb.f (or profile.f) WRITE(66,…), gfortran -c -O0
 -fno-second-underscore -I. → .o, /workspace/.crwork/relink_cr.sh <name> <.o>, restore source, run crt01_s1.key
 (needs crt01_s1.tre = crt01.tre) against /workspace/.crwork/FVScr_<name>, read fort.66.
+
+## Chunk 8 (volume) — ★ COMPLETE + BIT-EXACT (all 3 columns, all 3 NVEL methods)
+TCF/MCF/BdFt all ported + validated bit-exact vs live FVScr across DVE + NVB + FW2:
+- FW2/Flewelling (cr_fw2_vol.jl): 2-point stem profile (FWINIT JSP-map, SHP_OT form params, SF_TAPER, SF_YHAT,
+  TCUBIC). KEY: BRK_OT converts the profile's OUTSIDE-bark diameter → inside-bark DIB (DBTBH=D·(1-cr_bratio)) —
+  the 1.31× over-fat fix. MCF via MERLEN(SF_HS bisection)+region-3 bucking+GETDIB. Board via SCRIB.
+- NVB (cr_nvb_vol.jl): S1 total cubic + log-bucked MCF + SCRIB board (_nvb_board).
+- SCRIB (scrib.f FACTOR/EXCEPT, data/centralrockies/nvb/scrib_tables.jl) shared FW2+NVB. BdFt=VOL(2) (METHB=6),
+  gated D≥BFMIND (7 IFOR<IGFOR=13 else 9). SCF=0 (region 2/3).
+Validation: single-ponderosa 1990 TCF108/MCF99/BdFt454 all ==live; crt01_s1 1990 TCF1564(live1563)/MCF1241/BdFt2831
+all bit-exact, 2000 BdFt5187==live. Later cycles = DGSCOR growth residual (tree-size, not volume). profile.f is NOT
+module-free (TAPERMODEL USEs VOLINPUT_MOD) — validated via a standalone driver from the module-free sf_/f_ .o + FVS
+TREELIST (.trl) per-tree truth. Follow-ups (non-blocking): region-2 bucking consts (San Juan), forest VOLEQDEF.
+⇒ CHUNK 8 DONE. Remaining CR chunks: FFE fuel/fire, establishment, FIA FVS-ready sweep.
