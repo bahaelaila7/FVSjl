@@ -784,3 +784,27 @@ the missing profile coverage or it regresses (assigns veqs cr_fw2_vol/cr_dve_vol
 DVE coefficient variants in cr_dve_vol (currently region-3 300/301 blocks only). Then setup_volume_equations!(::CR)
 keys the CSV by (KODFOR=user_forest_code, fia_code) with the _CR_VOLEQ region-3 fallback. Crt01 (region-3) volume is
 already complete+bit-exact; this extends to the other ~28 CR forests for the full FIA sweep.
+
+## Chunks 10-11 (FFE, establishment) — SCOPED for next sessions (not started; neither exercised by the growth/vol sweep)
+GROWTH + MORTALITY + VOLUME are complete + bit-exact-or-cornered (volume FIA-validated: San Juan sweep inventory 8/9
+.sum cols 100% bit-exact, MCF 6/8 cornered). The two remaining CR feature chunks:
+
+### Establishment (ESTAB/PLANT/NATURAL)
+- Test stand: crt01.key 4th stand ("BARE GROUND PLANT": NOTREES + ESTAB 1992 + PLANT 1992 sp2/sp10 400 TPA each,
+  10 cycles). Needs a clean standalone keyfile (extracting the stand alone prompts live for tree-data input —
+  reconstruct with SCREEN/MODTYPE header + NOTREES).
+- jl gaps (establish! in engine/establishment.jl): (1) KeyError :estab_min_ht — CR species data lacks the XMIN
+  establishment-min-height column (cf. the regent st_xmin already in the CR CSV — verify same or separate blkdat);
+  (2) no _CR_ES_HHTMAX table (falls through to _ES_HHTMAX SN default); (3) VERIFY the model — CR is WESTERN GENGYM,
+  its regen may be esgent.f (GENGYM) not the eastern ESSUBH height-at-age; measure before porting (doctrine #2).
+- Doctrine-correct current state: dispatching CR establishment errors loudly (unported), per doctrine #5.
+
+### FFE (fuel/fire)
+- Test stand: crt01.key 3rd stand (FMIn/SNAGINIT/SIMFIRE/PotFIRE/FuelOut/BurnRept — full-FFE demo).
+- Known gaps (from running it): fuel_loading.jl:254 FULIV2 guarded (committed); next a 0×0-matrix index deeper in
+  the CR FFE fuel path (fmcba/fuel_loading) — the CR FFE fuel/cover tables aren't ported (the shared FFE runs the SN
+  tables for CR). This is a multi-part chunk like the eastern FFE campaigns; needs CR fuel-model + fire-table ports
+  with its own validated demo stand (fire_carbon-style .key).
+
+Recommended order: establishment first (smaller, more self-contained) then FFE. Both are downstream of the now-complete
+growth/mortality/volume core and do not affect the FIA growth/volume sweep results.
