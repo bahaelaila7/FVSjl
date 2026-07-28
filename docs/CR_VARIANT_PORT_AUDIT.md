@@ -1189,3 +1189,21 @@ national FIA sweep (16800+ real stands incl. dense ones) is crash-clean; live FV
 Follow-up: trace which growth/volume step NaNs a DBH at ceiling SDI (guard it at source, faithful to FVS which
 stays finite). Not FFE, not on the FIA-sweep path. The FFE port itself is validated (crt01-with-thin: .sum
 bit-exact at inventory, pre-thin trajectory bit-exact through the SIMFIRE fire).
+
+### FFE severe-fire mortality — REAL DIVERGENCE (corrects the "fire bit-exact" claim)
+MEASURE caught an over-claim: crt01's SIMFIRE is MILD (528→520 TPA, ~1.5% mortality) — bit-exact, but that only
+validated the low-intensity path. A real San Juan stand (11019040011) + SIMFIRE 2020 (severe) reveals a large
+FFE divergence:
+```
+        LIVE (2024)              JL (2024)
+TPA     162                      9
+BA      4    (overstory GONE)    33   (9 large trees survive)
+QMD     2.2  (small regen)       26   (nonsensically large)
+```
+Inventory (2014) is BIT-EXACT (442/161/254/58/8.2). So the fuel loading + stand init are fine, but the SEVERE
+FIRE MORTALITY diverges: live kills the overstory (BA→4) and shows small post-fire trees (QMD 2.2); jl kills by
+count (TPA→9) but leaves large trees (QMD 26) — inverted, and jl's QMD 26 from a QMD-8.2 stand is degenerate.
+So the CR FFE RUNS end-to-end and matches live at INVENTORY + on MILD fires, but the fire-BEHAVIOR/mortality
+(fireline intensity → bark-thickness kill, FMEFF/FMBRKT) is NOT bit-exact on severe fires — a REAL FFE bug, the
+next FFE debugging target. The .sum-bit-exact-through-crt01's-fire result was mild-fire-only; corrected here.
+This does NOT affect the FIA sweep (grow regime, no fire) or the growth/volume/establishment core.
