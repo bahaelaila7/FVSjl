@@ -887,3 +887,16 @@ TOP-HEIGHT growth — specifically the regent→htgf transition for the tallest 
 htgf, or htgf's behaviour for small-DBH/young trees), plus whatever causes the 2042 TopHt drop (tall-tree mortality vs
 stalled height growth). NEXT: treelist per-tree HEIGHT of the tallest cohort over 2032→2052 (pre-mortality window) to
 localize the drop. The crossover fix + establishment creation stand; this is the finer height-transition residual.
+
+## ★★ ESTAB height-lag ROOT CAUSE (measured, doctrine #2): established trees miss their creation-cycle growth
+Instrumented live regent.f (HTG dump) on cr_estab + computed jl's HTG for the same trees:
+- LIVE: sp2 (CB) planted at H≈1.6 grows HTG=2.33 IN the creation cycle (→ H 3.9 by 2002); H≈3.9 → HTG 5.07 next cycle.
+- JL: the same freshly-created sp2 trees have htg=0.0 (H stays 1.61) — they do NOT grow in their creation cycle.
+⇒ jl's establishment trees are created AFTER the cycle's growth step (diameter/height/small-tree growth already ran),
+so they only start growing the NEXT cycle — leaving jl permanently ~1 cycle behind, which compounds to the TopHt 38-vs-70
+deficit (density/diameter still track because the lag is uniform + mortality/BA are dominated by the count). FVS grows
+the newly-established trees IN their creation cycle via REGENT with LESTB=T (the regent.f LESTB branch + XWT=0). FIX:
+in the CR grow-cycle, grow the just-established trees this cycle (call small_tree_growth!/regent over the new records
+after establish!, or order establish! before the growth step for the establishment cohort) — matching esnutr/estab's
+same-cycle regen growth. Then ESTAB TopHt should track live. This is the last establishment residual; creation + the
+crossover fix are done. (Instrument recipe: regent.f is module-free — WRITE(66) after HTG(K), relink via crwork.)
