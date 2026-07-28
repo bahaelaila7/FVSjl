@@ -497,6 +497,7 @@ function compute_volumes!(s::StandState)
     # and the per-species METHC=5 DVEE/Gevorkiantz opt-in. LS lst01 defaults METHC=6 ⇒ pure Clark.
     (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates) &&
         return compute_volumes_ne!(s)
+    s.variant isa CentralRockies && return compute_volumes_cr!(s)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     # R8 board-foot rule: the R8-CLK path reports INTERNATIONAL ¼" board feet (volinit2.f:269-272 VOL(2)=
