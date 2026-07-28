@@ -44,12 +44,22 @@ const _CR_JFOR = (202, 203, 204, 206, 207, 209, 210, 211, 212, 213, 214, 215, 30
 "cr/forkod.f: map KODFOR (Region·100+Forest, `user_forest_code`) to the forest subscript IFOR via JFOR. Sets
 `p.forest_idx` so the MODTYPE default DEFMT[IFOR] resolves — else DB-input stands (no MODTYPE) fall back to
 IMODTY=5 (e.g. San Juan NF 213 → IFOR 10 → DEFMT 4=spruce-fir, not 5). Not-found leaves forest_idx unchanged."
+# forkod.f:640-678 SECOND pass — consolidate the pseudo/duplicate NF subscripts into their combined units
+# (Arapaho 201→Arapaho-Roosevelt, Gunnison 205→GMUG, Pike 208→Pike-San Isabel, Grand Mesa 224→GMUG,
+# Sitgreaves 311→Apache-Sitgreaves, Routt 211→Medicine Bow-Routt, McKelvie 216→Nebraska). Keyed on the
+# FIRST-pass IFOR (the _CR_JFOR index), then KODFOR=JFOR(IFOR). jl previously stopped after the first pass,
+# leaving these 7 forests at their pseudo index (e.g. Pike 208→26) — INERT for growth on stands that supply
+# elevation/MODTYPE, but wrong for the BFMIND/SCFMIND merch rule (IFOR<IGFOR=13) and any DEFMT/site default.
+const _CR_FORKOD2 = Dict(24 => 7, 25 => 3, 26 => 9, 27 => 3, 28 => 13, 8 => 4, 29 => 5)
 function _cr_forkod!(p)
     p.forest_idx > 0 && return p                         # already resolved (e.g. STDINFO keyword)
     kodfor = Int(p.user_forest_code)
     kodfor <= 0 && return p
     idx = findfirst(==(kodfor), _CR_JFOR)
-    idx !== nothing && (p.forest_idx = Int32(idx))
+    idx === nothing && return p
+    ifor = get(_CR_FORKOD2, idx, idx)                    # second-pass consolidation
+    p.forest_idx = Int32(ifor)
+    p.user_forest_code = Int32(_CR_JFOR[ifor])           # KODFOR = JFOR(IFOR) (forkod.f:680)
     return p
 end
 
