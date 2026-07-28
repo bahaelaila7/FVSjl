@@ -33,8 +33,17 @@ const _FM_MORTB2 = Float32[2.6232, 3.4152, 6.0415, 8.4682, 2.8312]
 Single bark thickness (in) for fire mortality (FMBRKT, fmbrkt.f): `DBH · B1[EQNUM[sp]]`,
 with shortleaf pine (sp 5) using the Harmon (1984) quadratic.
 """
+# CR fire bark: DBH·B1[sp] with a CR-SPECIFIC per-species B1 (FOFEM V5.0, cr/fmbrkt.f) — NOT the eastern
+# EQNUM-indexed table (CR has no bark_eqnum). Thin CR bark (0.025-0.063) drives the fireline-intensity kill.
+const _CR_FM_BARK_B1 = Float32[
+    0.041, 0.041, 0.063, 0.046, 0.048, 0.040, 0.035, 0.063, 0.030, 0.030,
+    0.028, 0.030, 0.063, 0.030, 0.035, 0.025, 0.031, 0.036, 0.025, 0.044,
+    0.038, 0.038, 0.045, 0.045, 0.045, 0.045, 0.045, 0.044, 0.025, 0.025,
+    0.025, 0.025, 0.030, 0.030, 0.030, 0.063, 0.030, 0.038]
+
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
+    variant isa CentralRockies && return dbh * _CR_FM_BARK_B1[Int(sp)]   # cr/fmbrkt.f
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
