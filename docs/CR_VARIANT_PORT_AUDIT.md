@@ -650,3 +650,19 @@ mesh and/or its interaction with the dubbed age likely carries a small per-cycle
 NEXT LEAD (precise): instrument cr_gemht imodty-4 HHE vs live gemht.f for a tall tree on 11019040011 (per-tree htg
 first cycle). Stand 1024050002 = empty (0/0 both, nonstocked). ⇒ CR growth core validated across 8 stands + 2 input
 paths; diameter/BA/QMD/CCF bit-exact; the bounded residual class is TopHt-imodty4 height + ZZRAN + self-thin tail.
+
+## Chunk 9 (cont.) — TopHt residual root-caused to age-dubbing BADIST timing (bounded lead; NOT yet fixed)
+
+The 8-stand-sweep TopHt residual (jl under-grows top height Δ1-6 on imodty-4 stands, BA/QMD bit-exact) traces to
+the age dub: `_cr_dub_ages!` passes BAUTBA=BAU(dbh-class)/BA (from _cr_badist_bau) to cr_fndag, which scales the
+even-aged site curve (RATIO=1−BAUTBA) ⇒ a nonzero bautba ages a tree older ⇒ slower height growth. MEASURED (live
+findag FNDLV instrument): live's cratet-time BAUTBA is **stand-dependent** — 0.0 for ALL trees on 11019040011 but
+0.369/0.272 on 1024050210, BOTH at ICYC=1. jl's _cr_badist_bau (structurally identical to cr/badist.f) computes
+0.0826 for 11019040011's h=83 tree where live gives 0 ⇒ ages inverted (shorter tree older) ⇒ TopHt Δ6. A blanket
+BAUTBA=0 fix made crt01 TopHt BIT-EXACT (69/69, was 68) + 6/7 sweep stands Δ0-1, but REGRESSED 1024050210 to Δ8
+(jl high) because live genuinely uses 0.369 there ⇒ NOT faithful, reverted (doctrine #4: the fix isn't universal).
+ROOT (bounded): live's BADIST BAU array is 0 at CRATET for some stands (dubbed before DGF's BADIST) but populated
+for others, at the same ICYC — a call-order/re-dub subtlety (cratet.f vs comcup.f dub sites; the fvs.f:197 CRATET
+vs grincr.f:437 DGDRIV order). NEXT: instrument the live BADIST BAU array state at each cratet dub for both stands
+(dump ITRN + BAU at the CRATET call) to determine when BAU is 0 vs populated, then reproduce that timing in
+_cr_dub_ages!. Impact: bounded TopHt-only residual (Δ1-6, BA/QMD bit-exact) — the diameter/BA growth is unaffected.
