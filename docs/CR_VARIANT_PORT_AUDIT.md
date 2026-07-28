@@ -1288,3 +1288,14 @@ uses crowning_index/torching_index). Remaining = the fire-type→flame-increase 
    Juan severe fire (BA 161→~4). SHARED (also fixes NE/others' severe fires — currently surface-only). This is a
    flame-path change to a shared-bit-exact routine ⇒ do it as a focused validated pass (mild fires must stay
    bit-exact: CRBURN=0 ⇒ flame path unchanged, so the guard is inherent). Every formula + input source captured.
+
+### FMCFIR crown-fire mortality — PORTED (fix #7; FFE severe-fire root resolved)
+Implemented crown_fire_result (fmcfir.f:313-358 fire-type + passive CFB) + the fmburn! flame increase
+(fmburn.f:538-543), reusing the ported crowning_index/torching_index. Severe fires now CROWN: San Juan
+BA 161→9 (was surface-only 161→55; live 161→4 — correct direction, overstory killed). VALIDATED zero-regression:
+mild fires bit-exact (crt01 520=520, crt01_growth bit-exact), NE ne_simfire BIT-EXACT 6/6 (crb=0 ⇒ flame path
+untouched). Gated NE/CR (SN/CS/LS skip FMCFIR). The crown-fire MODEL is ported. REMAINING FFE: (1) post-fire
+regeneration (live 162 post-fire trees, jl 0) — a separate establishment-after-fire piece; (2) crown-fire
+mortality bit-exact magnitude (direction right, exact value ~cornered — depends on the flame/scorch precision +
+the post-fire regen interaction). FFE is now: fuel + fire-bark + inventory + mild-fire + crown-fire-model all
+done; post-fire regen is the last FFE piece.
