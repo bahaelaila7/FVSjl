@@ -251,7 +251,12 @@ other units (use the flat `ffe_live_fuel_loading`). Rough age = years since the 
 function ffe_live_fuel_override(s::StandState)
     eu = s.plot.eco_unit
     (startswith(eu, "232") || startswith(eu, "231") || startswith(eu, "M221")) || return nothing
-    si = s.plot.sp_site_index[s.plot.site_species]
+    # FULIV2 keys the shrub load off the SITE SPECIES' site index; with no site species designated
+    # (e.g. a CR stand carrying an eastern 231* eco-unit code, site_species=0) there is nothing to
+    # look up — fall through to the flat loading rather than indexing sp_site_index[0] (BoundsError).
+    ss = Int(s.plot.site_species)
+    (1 <= ss <= length(s.plot.sp_site_index)) || return nothing
+    si = s.plot.sp_site_index[ss]
     j = si < 50f0 ? 1 : si < 65f0 ? 2 : si < 80f0 ? 3 : si < 95f0 ? 4 : si < 110f0 ? 5 : 6
     # Rough age = years since the LAST ACTUAL burn (FULIV2 resets the understory rough age after a fire),
     # or inventory-based when nothing has burned yet. `fire.fire_year` is the SCHEDULED fire year — using
