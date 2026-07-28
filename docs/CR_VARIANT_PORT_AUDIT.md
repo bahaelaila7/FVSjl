@@ -1130,3 +1130,13 @@ establishment port MEETS the bit-exact-or-cornered bar on real national CR FIA: 
 override, esgent, r2oldv volume, forkod consolidation) are all FIXED, and the sweep's per-region <100% reflects
 this accepted ~1-2% tail (the same stratified pattern as SN/NE/CS/LS). Remaining true gaps are only the minor
 1-forest 203FW2W122 JSP-22 edge + the FFE fuel-table path (crt01 full-FFE), both downstream leaves.
+
+### FFE subsystem — the remaining major CHUNK (not exercised by the FIA sweep)
+The crt01 full-FFE demo hit a confusing 0×0 BoundsError in ffe_live_fuel_loading (coef.ffe_fuel_live empty).
+Per doctrine #5 this now errors LOUDLY ("FFE fuel tables not ported for this variant (CR FFE chunk pending)")
+instead of an opaque index crash. The FIA sweep uses the GROW regime and never reaches the FFE path — only
+explicit FFE keywords (POTFIRE/SIMFIRE) do — so this does NOT affect the sweep deliverable. The CR FFE port is
+a distinct subsystem chunk: the shared FFE fire model (fuel decay/behavior/effects/carbon — already built for
+the eastern variants) + CR-specific DATA (FULIV live fuel, FUINIT dead fuel, fuel-model assignment, cover types)
+loaded into the CR coefficient CSV. Deferred as the next major chunk after the growth/volume core + national
+sweep. crt01_growth stays BIT-EXACT.

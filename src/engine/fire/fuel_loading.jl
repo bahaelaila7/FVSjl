@@ -205,6 +205,11 @@ Initial live herb and shrub fuel loading (tons/acre) for FFE forest type `iffeft
 understory-age/site-index curve (FULIV2) — see `ffe_live_fuel_override` (ported).
 """
 @inline function ffe_live_fuel_loading(coef::SpeciesCoefficients, iffeft::Integer)
+    # doctrine #5: dispatch that has no ported data must error LOUDLY, not crash with a confusing 0×0 index.
+    # CR's FFE fuel tables (FULIV/FUINIT/fuel-models) are not yet ported — a separate chunk (the FIA sweep
+    # uses grow regime and never reaches here; only explicit FFE keywords like POTFIRE/SIMFIRE do).
+    isempty(coef.ffe_fuel_live) && error("FFE fuel tables not ported for this variant (CR FFE chunk pending): " *
+                                         "ffe_fuel_live is empty. FFE keywords (POTFIRE/SIMFIRE) are unsupported until ported.")
     ft = ffe_live_fuel_type(iffeft)
     return (coef.ffe_fuel_live[ft, 1], coef.ffe_fuel_live[ft, 2])
 end
