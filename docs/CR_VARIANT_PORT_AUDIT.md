@@ -797,6 +797,13 @@ GROWTH + MORTALITY + VOLUME are complete + bit-exact-or-cornered (volume FIA-val
   establishment-min-height column (cf. the regent st_xmin already in the CR CSV — verify same or separate blkdat);
   (2) no _CR_ES_HHTMAX table (falls through to _ES_HHTMAX SN default); (3) VERIFY the model — CR is WESTERN GENGYM,
   its regen may be esgent.f (GENGYM) not the eastern ESSUBH height-at-age; measure before porting (doctrine #2).
+- ★ MEASURED (doctrine #2): CR establishment = the SHARED estab.f tree-creation (817 ln, keyword-driven, variant-
+  agnostic) + esgent.f (75 ln) which "USES REGENT TO ADD HEIGHT INCREMENT TO REGENERATED TREES" — i.e. the regen/
+  planted trees grow via the CR REGENT height model (_cr_regent_tree, ALREADY PORTED), NOT the eastern ESSUBH height-
+  at-age that jl establish! uses. So the CR port = a CentralRockies branch in establish! that (a) supplies the CR
+  estab coefs (estab_min_ht/XMIN + HHTMAX from cr/blkdat.f) and (b) routes the established-tree height through the CR
+  regent path (esgent), not ESSUBH/BACHLO. Live ref built: $CLAUDE_JOB_DIR/tmp/cr_estab.key (bare-ground PLANT sp2+
+  sp10 400 TPA, 10 cyc → 2092 TPA 400/BA 193/QMD 9.4). jl currently KeyErrors on :estab_min_ht at establishment.jl:79.
 - Doctrine-correct current state: dispatching CR establishment errors loudly (unported), per doctrine #5.
 
 ### FFE (fuel/fire)
