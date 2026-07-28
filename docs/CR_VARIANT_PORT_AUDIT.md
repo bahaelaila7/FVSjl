@@ -1343,3 +1343,16 @@ a sprout source, like cuts do; (2) esuckr! iterates those too (esuckr.f:162 DO o
 removals). Ordering already correct (fire mortality precedes esuckr! in grow_cycle!). Bounded, well-defined,
 and CR-specific-species-aware (aspen 20-22/oak 23-27 are the CR sprouters). The crown-fire model (verified) +
 this fire-kill sprout path complete the FFE severe-fire behavior. Not on the FIA-sweep path (grow regime).
+
+### CORRECTION (doctrine #2): fire-kill sprout path EXISTS; the gap is is_sprouting all-0 + auto-regen
+Earlier I claimed jl's esuckr! only sprouts cuts — WRONG. The fire-kill sprout path IS ported (fmburn.jl:179-191:
+fire-killed sprouting-species trees append to cut_log with ishag=cyclen, then esuckr! sprouts them). MEASURED
+the real gaps: (1) CR's is_sprouting flag is 0 for ALL 27 species (species_coefficients.csv col 40) — so NO CR
+tree ever sprouts (cut OR fire), even though essprt.f NSPREC/ESSPRT CASE('CR') defines sprouters: aspen 20
+(ASSPTN, INDXAS=20), cottonwoods 21-22, oaks 23-27, paper birch 28 (+ edge cases 15/29/36). (2) The San Juan
+severe-fire stand is CONIFER-dominant (8 PIPO/6 PSME/1 oak), so its 162 post-fire trees are mostly conifer
+AUTO-REGEN (natural regeneration seedlings), NOT sprouts — a separate establishment-model gap. So the last FFE
+piece splits into: (a) DATA fix — set CR is_sprouting=1 for 20-28 (faithful to essprt.f), validated against a
+live aspen/oak cut+fire stand (affects cut-sprouting too, so validate crt01/thinning stays right); (b) post-fire
+natural regeneration for conifers (the San Juan 162). Both are establishment-side; the crown-fire MODEL + the
+fire-kill sprout MECHANISM are already ported. This turn corrected a wrong inference by measuring the code+data.
