@@ -1267,3 +1267,24 @@ crown-fire mortality (→ crburn); (3) bit-exact validation vs live on the sever
 (CBD/CBH via canopy_bulk_density; SIRXI/SRHOBQ/SPHIS via rothermel_surface_fire's return; crburn path at
 fmburn.jl:161), and the root is MEASURED — but this is a focused multi-step FFE port, not a session-tail edit.
 Cleanly bounded for a dedicated FFE session. It is SHARED (benefits all variants) and not on the FIA-sweep path.
+
+### FMCFIR crown-fire mortality — COMPLETE algorithm read (zero-unknowns port spec)
+The full crown-fire→mortality path is now captured (fmcfir.f:313-358 + fmburn.f:538-543). Indices DONE (CR now
+uses crowning_index/torching_index). Remaining = the fire-type→flame-increase integration in fmburn!:
+1. FIRE TYPE from OINIT1 (torching), OACT1 (crowning) vs SWIND (actual 20-ft wind):
+   - OINIT1>SWIND & OACT1>SWIND → SURFACE (CRBURN=0, RFINAL=SFRATE)
+   - OINIT1>SWIND & OACT1≤SWIND → COND_CRN (CRBURN=1, RFINAL=RACT)
+   - OINIT1≤SWIND & OACT1>SWIND → PASSIVE (CFB below)
+   - OINIT1≤SWIND & OACT1≤SWIND → ACTIVE (CRBURN=1, RFINAL=RACT)
+   - either index −1 → SURFACE.  (San Juan: OINIT1=0,OACT1=23,SWIND=10 → PASSIVE.)
+2. PASSIVE crown fraction (Scott&Reinhardt straight line): run rothermel at wind=OACT1·wmult for SFRATE_crown;
+   CFB = (SFRATE_actual − RINIT1)/(SFRATE_crown − RINIT1); RFINAL = SFRATE_actual + CFB·(RACT − SFRATE_actual);
+   CRBURN = min(CFB,1). RINIT1 = 60·INIT1/HPA; RACT = 3.34·SFRATE_crown; HPA = Σxir·w·384/Σsigma·w (all already
+   computed inside torching_index).
+3. FLAME INCREASE when CRBURN>0 (fmburn.f:540-543): FINTEN=(HPA+TCLOAD·7744.8·CRBURN)·RFINAL/60;
+   FLB=0.45·FINTEN^0.46; FLT=0.2·FINTEN^0.667; FLAME=FLB+CRBURN·(FLT−FLB); then recompute Byram+SCORCH from the
+   higher FLAME. TCLOAD = total canopy fuel load (from canopy_bulk_density; jl's cf had a tcload field).
+4. The EXISTING per-tree scorch+bark mortality then kills the now-scorched tall overstory. VALIDATE vs live San
+   Juan severe fire (BA 161→~4). SHARED (also fixes NE/others' severe fires — currently surface-only). This is a
+   flame-path change to a shared-bit-exact routine ⇒ do it as a focused validated pass (mild fires must stay
+   bit-exact: CRBURN=0 ⇒ flame path unchanged, so the guard is inherent). Every formula + input source captured.
