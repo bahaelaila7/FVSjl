@@ -104,3 +104,97 @@ end
     shrub = _cr_algslp2(percov, 10f0, 60f0, _CR_FULIVI[covtyp, 2], _CR_FULIVE[covtyp, 2])
     return (herb, shrub)
 end
+
+# CR FFE dead surface-fuel loading (fmcba.f:165-249 DATA FUINIE/FUINII). Per species × 11 size classes
+# (<.25, .25-1, 1-3, 3-6, 6-12, 12-20, 20-35, 35-50, >50, Litter, Duff). Established (60% cover) vs
+# initiating (10%); interpolated by PERCOV (fmcba.f:465-472). From J. Brown / Ottmar 2000.
+const _CR_FUINIE = Float32[    # established (60% cover)
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 1 subalpine fir
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 2 corkbark fir
+    0.9 0.9 1.6  3.5  3.5  0.0 0.0 0.0 0.0 0.6 10.0;  # 3 Douglas-fir
+    0.7 0.7 3.0  7.0  7.0  0.0 0.0 0.0 0.0 0.6 25.0;  # 4 grand fir
+    0.7 0.7 3.0  7.0  7.0  0.0 0.0 0.0 0.0 0.6 25.0;  # 5 white fir
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 6 mountain hemlock
+    1.6 1.6 5.2 15.0 20.0 15.0 0.0 0.0 0.0 1.0 35.0;  # 7 western redcedar
+    0.9 0.9 1.6  3.5  3.5  0.0 0.0 0.0 0.0 0.6 10.0;  # 8 western larch
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 9 bristlecone pine
+    0.9 0.9 1.2  7.0  8.0  0.0 0.0 0.0 0.0 0.6 15.0;  # 10 limber pine
+    0.9 0.9 1.2  7.0  8.0  0.0 0.0 0.0 0.0 0.6 15.0;  # 11 lodgepole pine
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 12 pinyon pine
+    0.7 0.7 1.6  2.5  2.5  0.0 0.0 0.0 0.0 1.4  5.0;  # 13 ponderosa pine
+    0.9 0.9 1.2  7.0  8.0  0.0 0.0 0.0 0.0 0.6 15.0;  # 14 whitebark pine
+    1.0 1.0 1.6 10.0 10.0 10.0 0.0 0.0 0.0 0.8 30.0;  # 15 SW white pine
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 16 Utah juniper
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 17 blue spruce
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 18 Engelmann spruce
+    1.1 1.1 2.2 10.0 10.0  0.0 0.0 0.0 0.0 0.6 30.0;  # 19 white spruce
+    0.2 0.6 2.4  3.6  5.6  0.0 0.0 0.0 0.0 1.4 16.8;  # 20 quaking aspen
+    0.2 0.6 2.4  3.6  5.6  0.0 0.0 0.0 0.0 1.4 16.8;  # 21 narrowleaf cottonwood
+    0.2 0.6 2.4  3.6  5.6  0.0 0.0 0.0 0.0 1.4 16.8;  # 22 plains cottonwood
+    0.3 0.7 1.4  0.2  0.1  0.0 0.0 0.0 0.0 3.9  0.0;  # 23 Gambel oak
+    0.3 0.7 1.4  0.2  0.1  0.0 0.0 0.0 0.0 3.9  0.0;  # 24 Arizona white oak
+    0.3 0.7 1.4  0.2  0.1  0.0 0.0 0.0 0.0 3.9  0.0;  # 25 emory oak
+    0.3 0.7 1.4  0.2  0.1  0.0 0.0 0.0 0.0 3.9  0.0;  # 26 bur oak
+    0.3 0.7 1.4  0.2  0.1  0.0 0.0 0.0 0.0 3.9  0.0;  # 27 silverleaf oak
+    0.2 0.6 2.4  3.6  5.6  0.0 0.0 0.0 0.0 1.4 16.8;  # 28 paper birch
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 29 alligator juniper
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 30 Rocky Mtn juniper
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 31 oneseed juniper
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 32 Eastern redcedar
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 33 singleleaf pinyon
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 34 border pinyon
+    0.2 0.8 2.3  1.4  3.0  0.0 0.0 0.0 0.0 0.5  0.0;  # 35 Arizona pinyon
+    0.7 0.7 1.6  2.5  2.5  0.0 0.0 0.0 0.0 1.4  5.0;  # 36 Chihuahua pine
+    0.9 0.9 1.2  7.0  8.0  0.0 0.0 0.0 0.0 0.6 15.0;  # 37 other softwoods
+    0.2 0.6 2.4  3.6  5.6  0.0 0.0 0.0 0.0 1.4 16.8;  # 38 other hardwoods
+]
+const _CR_FUINII = Float32[    # initiating (10% cover)
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 1 subalpine fir
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 2 corkbark fir
+    0.5 0.5 1.0 1.4 1.4 0.0 0.0 0.0 0.0 0.3  5.0;  # 3 Douglas-fir
+    0.5 0.5 2.0 2.8 2.8 0.0 0.0 0.0 0.0 0.3 12.0;  # 4 grand fir
+    0.5 0.5 2.0 2.8 2.8 0.0 0.0 0.0 0.0 0.3 12.0;  # 5 white fir
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 6 mountain hemlock
+    1.6 1.6 3.6 6.0 8.0 6.0 0.0 0.0 0.0 0.5 12.0;  # 7 western redcedar
+    0.5 0.5 1.0 1.4 1.4 0.0 0.0 0.0 0.0 0.3  5.0;  # 8 western larch
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 9 bristlecone pine
+    0.6 0.7 0.8 2.8 3.2 0.0 0.0 0.0 0.0 0.3  7.0;  # 10 limber pine
+    0.6 0.7 0.8 2.8 3.2 0.0 0.0 0.0 0.0 0.3  7.0;  # 11 lodgepole pine
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 12 pinyon pine
+    0.1 0.1 0.2 0.5 0.5 0.0 0.0 0.0 0.0 0.5  0.8;  # 13 ponderosa pine
+    0.6 0.7 0.8 2.8 3.2 0.0 0.0 0.0 0.0 0.3  7.0;  # 14 whitebark pine
+    0.6 0.6 0.8 6.0 6.0 6.0 0.0 0.0 0.0 0.4 12.0;  # 15 SW white pine
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 16 Utah juniper
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 17 blue spruce
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 18 Engelmann spruce
+    0.7 0.7 1.6 4.0 4.0 0.0 0.0 0.0 0.0 0.3 12.0;  # 19 white spruce
+    0.1 0.4 5.0 2.2 2.3 0.0 0.0 0.0 0.0 0.8  5.6;  # 20 quaking aspen
+    0.1 0.4 5.0 2.2 2.3 0.0 0.0 0.0 0.0 0.8  5.6;  # 21 narrowleaf cottonwood
+    0.1 0.4 5.0 2.2 2.3 0.0 0.0 0.0 0.0 0.8  5.6;  # 22 plains cottonwood
+    0.1 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.9  0.0;  # 23 Gambel oak
+    0.1 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.9  0.0;  # 24 Arizona white oak
+    0.1 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.9  0.0;  # 25 emory oak
+    0.1 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.9  0.0;  # 26 bur oak
+    0.1 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.9  0.0;  # 27 silverleaf oak
+    0.1 0.4 5.0 2.2 2.3 0.0 0.0 0.0 0.0 0.8  5.6;  # 28 paper birch
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 29 alligator juniper
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 30 Rocky Mtn juniper
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 31 oneseed juniper
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 32 Eastern redcedar
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 33 singleleaf pinyon
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 34 border pinyon
+    0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.3  0.0;  # 35 Arizona pinyon
+    0.1 0.1 0.2 0.5 0.5 0.0 0.0 0.0 0.0 0.5  0.8;  # 36 Chihuahua pine
+    0.6 0.7 0.8 2.8 3.2 0.0 0.0 0.0 0.0 0.3  7.0;  # 37 other softwoods
+    0.1 0.4 5.0 2.2 2.3 0.0 0.0 0.0 0.0 0.8  5.6;  # 38 other hardwoods
+]
+
+# CR dead-fuel loading (fmcba.f:465-472): interpolate FUINII↔FUINIE by PERCOV per size class → 11-vector (hard).
+function cr_dead_fuel_loading(covtyp::Int, percov::Float32)::Vector{Float32}
+    (covtyp < 1 || covtyp > 38) && (covtyp = 11)
+    out = Vector{Float32}(undef, 11)
+    @inbounds for isz in 1:11
+        out[isz] = _cr_algslp2(percov, 10f0, 60f0, _CR_FUINII[covtyp, isz], _CR_FUINIE[covtyp, isz])
+    end
+    return out
+end
