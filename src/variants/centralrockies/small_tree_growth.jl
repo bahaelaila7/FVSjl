@@ -122,6 +122,12 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     pctred = _CR_AB[1] + x*(_CR_AB[2] + x*(_CR_AB[3] + x*(_CR_AB[4] + x*(_CR_AB[5] + x*_CR_AB[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
 
+    # REGENT is evaluated for EACH tripled record (regent.f:433-436 L-loop): a fresh ZZRAN per record,
+    # central→trees, upper/lower→the tripling stash (dgU/dgL/htgU/htgL/is_small, filled here after the
+    # driver's LARGE-tree pass). WITHOUT this the tripled small-tree records inherit the large-tree gemdg
+    # DG/HTG — and CR's gemdg is explosive on tiny DBH (limber pine sp10 balloons D 1.3→13). nrec=3 while
+    # tripling, else 1 (non-tripling stands draw once, identical to before).
+    nrec = stash !== nothing ? 3 : 1
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i])
@@ -139,20 +145,32 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
         ivf = sp in _CR_IVFLAG
         ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]
         bark = cr_bratio(sd, sp, d, imodty)
-        # ZZRAN: BACHLO(0,1) if DGSD≥1, reject if >0.5 or <-2.0 (regent.f:308-310)
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+        htg_large = t.ht_growth[i]     # large-tree HTG (height_growth!) for the XWT blend — read before l=0 overwrites
+        small_d = d < brkv[sp]
+        for l in 0:(nrec - 1)
+            # ZZRAN: BACHLO(0,1) if DGSD≥1, reject if >0.5 or <-2.0 (regent.f:308-310) — per tripled record
+            zzran = 0.0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
+                pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, htg_large, s.control.sp_size_cap[sp, 4],
+                p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
+                diamv[sp], ax, ht2v[sp])
+            if l == 0
+                t.ht_growth[i] = htg
+                small_d && (t.diam_growth[i] = dg)
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                small_d && (stash.dgU[i] = dg)              # D<BKPT ⇒ regent DG; else keep the driver's gemdg dgU
+            else
+                stash.htgL[i] = htg
+                small_d && (stash.dgL[i] = dg)
             end
         end
-        htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
-            pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, t.ht_growth[i], s.control.sp_size_cap[sp, 4],
-            p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
-            diamv[sp], ax, ht2v[sp])
-        t.ht_growth[i] = htg
-        d < brkv[sp] && (t.diam_growth[i] = dg)
     end
     return s
 end
