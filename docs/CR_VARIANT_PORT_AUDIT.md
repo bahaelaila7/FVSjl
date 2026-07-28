@@ -770,3 +770,17 @@ all bit-exact, 2000 BdFt5187==live. Later cycles = DGSCOR growth residual (tree-
 module-free (TAPERMODEL USEs VOLINPUT_MOD) — validated via a standalone driver from the module-free sf_/f_ .o + FVS
 TREELIST (.trl) per-tree truth. Follow-ups (non-blocking): region-2 bucking consts (San Juan), forest VOLEQDEF.
 ⇒ CHUNK 8 DONE. Remaining CR chunks: FFE fuel/fire, establishment, FIA FVS-ready sweep.
+
+## Chunk 8b (forest-aware volume assignment) — TABLE DUMPED, wiring deferred (needs profile coverage)
+The CR FIA sweep (8 San Juan region-2 stands) proved the growth core bit-exact-or-cornered but showed volume TCF ~5%
+low because jl's _CR_VOLEQ is hardcoded to forest-303 (crt01, region 3). Dumped the full VOLEQDEF(VAR='CR',IREGN,
+FORST,IFIASP) table (module-free voleqdef.o driver) → data/centralrockies/volume_equations_by_forest.csv (1102 rows,
+29 forests × 38 species). Distribution: DVE 695, FW2 347, NVB 60. GeoCode prefixes: 300/301 (region 3, PORTED) 600;
+200 (region 2) 285; 407 (region 4) 102; I00 (INGY) 51; NVB 60. San Juan (213) uses INGY (I00FW2W019→JSP20 subalpine
+fir) + region-4 (407FW2W093→JSP24 Dixie ES) + region-2 FW2/DVE. NOTE: wiring forest-aware veqs must land TOGETHER with
+the missing profile coverage or it regresses (assigns veqs cr_fw2_vol/cr_dve_vol return 0 for). Needed to complete:
+(a) _fw2_jsp: add GEOCODE '4' (→existing JSP 23/24) and confirm GEOCODE '2' GEOSUB→JSP; (b) INGY FW2 profiles
+(GEOCODE 'I', JSP 11-21: f_ingy.f SHP_C2 + FDBT_C2 bark + BRK_UPA2 — a NEW profile family, ~400 ln); (c) region-2/4
+DVE coefficient variants in cr_dve_vol (currently region-3 300/301 blocks only). Then setup_volume_equations!(::CR)
+keys the CSV by (KODFOR=user_forest_code, fia_code) with the _CR_VOLEQ region-3 fallback. Crt01 (region-3) volume is
+already complete+bit-exact; this extends to the other ~28 CR forests for the full FIA sweep.
