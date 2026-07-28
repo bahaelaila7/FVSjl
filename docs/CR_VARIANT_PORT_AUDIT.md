@@ -1320,3 +1320,14 @@ live's 162 small trees (QMD 2.2) at 2024 are POST-FIRE REGENERATION, not survivo
 any tree ≤150 ft). The LAST FFE piece is thus definitively isolated: post-fire natural regeneration (the fire
 opens the canopy; live establishes a new cohort; jl leaves only the fire survivors). Not the crown-fire model
 (verified), not understory-survival. A focused establishment-after-fire follow-up. Crown-fire MODEL: DONE.
+
+### Last FFE piece — refined: post-fire COHORT (regen or fire-triggered sprouting), not the crown-fire model
+Logic confirms the crown-fire model is faithful: live collapses the overstory to BA 4, which REQUIRES a scorch
+above the 87-ft canopy (kills all trees ≤ canopy) — so live ALSO kills the whole stand, and its 162 small trees
+(QMD 2.2) at 2024 are a NEW post-fire cohort, not survivors. Source candidates (a focused establishment follow-
+up): (a) automatic natural regen surge on the fire-opened canopy; (b) FIRE-TRIGGERED SPROUTING — CR has
+estump.f/esuckr.f (stump/root sprouts; aspen/oak resprout vigorously post-fire), and jl's esuckr! may only fire
+on HARVEST/CUT, not fire-kill. So the last FFE piece = "the post-fire regen/sprout cohort" (jl produces the fire
+survivors only; live adds a new cohort). The crown-fire MODEL (indices+type+flame/scorch) is DONE and verified;
+the post-fire cohort is the remaining establishment-side piece (check esuckr!/establish! response to fire-killed
+TPA). NB the FIA sweep (grow regime) is unaffected — no fire → no post-fire cohort.
