@@ -900,3 +900,16 @@ in the CR grow-cycle, grow the just-established trees this cycle (call small_tre
 after establish!, or order establish! before the growth step for the establishment cohort) — matching esnutr/estab's
 same-cycle regen growth. Then ESTAB TopHt should track live. This is the last establishment residual; creation + the
 crossover fix are done. (Instrument recipe: regent.f is module-free — WRITE(66) after HTG(K), relink via crwork.)
+
+## ★ ESTAB timing — CONFIRMED + REFINED (re-measured both cycles): it's a 1-cycle OFFSET, growth itself is correct
+Re-measured jl per-cycle: cycle-1 established sp2 htg=0 (creation, correct — live also creates at H≈1.6 with no growth
+that step), and cycle-2 htg = 2.35/2.22/2.05/2.22 → h≈3.96 — which MATCHES live's regent HTG 2.33 (h→3.9). So jl's
+regent height growth for the ESTAB cohort is CORRECT per cycle. The ONLY issue is a 1-CYCLE OFFSET: for the INVENTORY-
+YEAR PLANT (PLANT 1992 == INVYEAR 1992), live creates the trees at inventory and grows them IN cycle 1 (2002 TopHt 4);
+jl's establish! fires during cycle 1 AFTER the growth step (GRADD order, correct for eastern regen), so the PLANT cohort
+first grows in cycle 2 — jl stays exactly 1 cycle behind (2002 TopHt 2), compounding to TopHt 38 vs 70. FIX: the
+inventory-year PLANT/ESTAB must be established at INVENTORY (before cycle-1 growth) for CR — check whether that's a
+CR-specific ESGENT path or a general PLANT-at-INVYEAR scheduling issue (compare vs an eastern bare-plant: if eastern
+live also grows the INVYEAR plant in cycle 1 and jl is bit-exact there, the CR difference is narrower). Growth + creation
+are correct; only the first-cycle establishment SCHEDULING for INVYEAR-PLANT lags. This supersedes the earlier
+"creation-cycle growth" framing — the growth is fine, the OFFSET is the bug.
