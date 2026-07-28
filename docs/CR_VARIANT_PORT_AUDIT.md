@@ -1310,3 +1310,13 @@ small trees the way a stand-level scorch height does; (b) post-fire natural rege
 post-fire cohort jl doesn't. This is the LAST FFE piece: the crown-fire MODEL (indices + type + flame increase)
 is ported and severe fires now crown; the exact post-fire tree composition (understory survival + regen) is the
 refinement. Mild fires + NE + inventory all bit-exact (no regression). A focused FMEFF/regen follow-up.
+
+### FFE crown-fire model VERIFIED faithful; last piece ISOLATED = post-fire regeneration
+Measured the crown-fire adjustment on the San Juan severe fire: CRBURN=0.329 (passive), byram 24k→194k, flame
+7.2→26.9 ft, SCORCH 33.7→150.2 ft. Scorch (150 ft) exceeds the canopy (87 ft) ⇒ the crown fire scorches EVERY
+tree's crown ⇒ kills the whole stand (jl BA 161→9 == live's overstory collapse 161→4). So my crown-fire flame/
+scorch port is FAITHFUL (formula + byram=60·FINTEN units verified against the bit-exact surface case). Therefore
+live's 162 small trees (QMD 2.2) at 2024 are POST-FIRE REGENERATION, not survivors (a 150-ft scorch would kill
+any tree ≤150 ft). The LAST FFE piece is thus definitively isolated: post-fire natural regeneration (the fire
+opens the canopy; live establishes a new cohort; jl leaves only the fire survivors). Not the crown-fire model
+(verified), not understory-survival. A focused establishment-after-fire follow-up. Crown-fire MODEL: DONE.
