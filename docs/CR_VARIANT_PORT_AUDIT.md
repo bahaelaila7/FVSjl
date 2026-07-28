@@ -1052,3 +1052,12 @@ bit-exact on these stands), the same class as the volume chunks already done (DV
 dispatch (VOLEQ(1:1)=='2' → R2OLDV), validate bit-exact against the sweep's oak/juniper stands. Mechanical
 transcription like the other volume chunks. The sweep continues cataloging the remaining classes (the ~5-8%
 DGSCOR structural tail + any clusters) as the dig queue.
+
+### Chunk 11 volume gap — R2OLDV region-2 DVE PORTED (bit-exact at inventory)
+The dominant sweep divergence class (region-2 DVE volume=0) is FIXED. Ported R2OLDV (r2oldv.f) woodland/hardwood
+species into cr_dve_vol (reg[1]=='2' branch): Chojnacky INT-339 cubes for 065/066/069 juniper, 106 pinyon, 814/
+823 oak, 998 hardwood, 475 mahogany — TCUFT=(a+b·(D²H)^⅓+c·MSTEM)³, GCUFT=TCUFT (VOL1=VOL4), `**3.`→X·X·X.
+Validated: oak stand 3624484010690 TCuFt/MCuFt BIT-EXACT at inventory (666/10==live); crt01_growth bit-exact;
+demo sweep unchanged. Downstream leaf. Sweep relaunched with the fix (+ the tripling fix) — durable DB
+.sweep_work/cr_sweep.db, log cr_sweep.log. (Note: the region-2 conifer 746/108/122/093 branches of r2oldv.f
+are NOT in the CR forest table, so left unported — dispatch returns 0 as before if ever hit.)
