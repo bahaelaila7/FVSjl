@@ -842,3 +842,14 @@ that grow up THROUGH the crossover from seedling (ESTAB/PLANT); FIA-inventory tr
 the blend for large-DBH/short trees (measure FVS htgf behaviour there first). Then validate establishment end-to-end
 vs cr_estab.key (live 2092 TPA400/BA193/TopHt~70/QMD9.4). Establishment CREATION is faithful (estab.f/essubh.f);
 validation is blocked on this crossover fix.
+
+## Establishment residual after the crossover fix (cr_estab.key, 2092): the next refinement
+With the dgf.f:99 crossover gate, ESTAB height now GROWS (TopHt 3→38) — validated, no sweep regression. Remaining vs
+live 2092: TPA 403/400 ✓, BA 187/193 ✓, SDI 353/361 ✓, QMD 9.2/9.4 ✓ (all close), but ★ TopHt 38 vs 70 (jl ~half) and
+★★ CCF 267 vs 70 (jl 4× HIGH). The high jl CCF likely SUPPRESSES the regen height growth (RELDEN/PCTRED density
+feedback) — so the TopHt deficit may be a downstream symptom of a REGEN-TREE CROWN-WIDTH issue (inventory-tree CCF is
+bit-exact in the FIA sweep, so the crown-width/ccfcal works for established trees; the seedling/regen crown width is the
+suspect — cwcalc/crown for small trees or the newly-created establishment-tree crown init). NEXT: measure the regen-tree
+crown width (live treelist CW col) vs jl for the ESTAB cohort; fix the crown-width → CCF drops → density releases → TopHt
+tracks live. THEN establishment is validatable end-to-end (also needs RNG-exact height draws). The crossover fix itself
+is a real growth-core win independent of this.
