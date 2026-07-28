@@ -299,10 +299,32 @@ function _nvb_merch_cuft(d::Float32, h::Float32, vtotib::Float32, stump::Float32
     return _nvb_logvol_cuft(numseg, loglen, dibl, stump, vtotib, _NVB_R3_TRIM, h, a, b)
 end
 
+"NVB Scribner board VOL(2) (nsvb.f NVBC/CalcLOGVOL board leg): buck stump→board-top (BFTOPD·BARK)
+and sum SCRIB(NINT small-end dib, len)·10 per log."
+function _nvb_board(d::Float32, h::Float32, vtotib::Float32, stump::Float32, bftop::Float32,
+                    a::Float32, b::Float32)::Float32
+    vtotib <= 0f0 && return 0f0
+    ht1prd = bftop < d ? _nvb_ht2topd(vtotib, a, b, h, bftop) : 0f0
+    ht1prd < stump && (ht1prd = stump)
+    lmerch = ht1prd - stump
+    lmerch < _NVB_R3_MERCHL && return 0f0
+    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM)
+    numseg == 0 && return 0f0
+    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, _NVB_R3_MINLEN, _NVB_R3_TRIM, numseg)
+    ht2 = stump; vol2 = 0f0
+    @inbounds for i in 1:numseg
+        ht2 += _NVB_R3_TRIM + loglen[i]
+        dibs = _nint(_nvb_diaatht(vtotib, a, b, h, ht2))
+        vol2 += _scrib(dibs, loglen[i], 'Y') * 10f0
+    end
+    return vol2
+end
+
 "CR NVB per-tree volume. `voleq`=NVB eq id (division/stdorg parsed from it). `bark`=DIB/DOB ratio,
-`topd`=cubic top DOB (4.0), `stump`=stump ht. Returns a 15-vec: VOL[1]=Vtotib=TCF, VOL[4]=merch cubic."
+`topd`=cubic top DOB (4.0), `stump`=stump ht, `bftopd`=board top DOB (6.0). Returns a 15-vec:
+VOL[1]=Vtotib=TCF, VOL[4]=merch cubic, VOL[2]=Scribner board feet."
 function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32 = 1f0,
-                    topd::Float32 = 4f0, stump::Float32 = 1f0, wdsg::Float32 = 0f0)
+                    topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0, wdsg::Float32 = 0f0)
     vol = zeros(Float32, 15)
     (d < 1f0 || h < 5f0) && return vol
     spcd, div, stdorg = _nvb_voleq_key(voleq)
@@ -315,8 +337,8 @@ function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32
     # merch cubic (VOL(4)): CUFT call top = TOPD·BARK inside bark (fvsvol.f:174)
     r5 = _nvb_lookup(_nvb_load_s5(), spcd, div, stdorg)
     if r5 !== nothing && vib > 0f0
-        mtop = topd * bark
-        vol[4] = _nvb_merch_cuft(d, h, vib, stump, mtop, r5[1], r5[2])
+        vol[4] = _nvb_merch_cuft(d, h, vib, stump, topd * bark, r5[1], r5[2])
+        vol[2] = _nvb_board(d, h, vib, stump, bftopd * bark, r5[1], r5[2])
     end
     return vol
 end

@@ -162,8 +162,8 @@ function compute_volumes_cr!(s::StandState)
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
         scf = 0f0                              # CR is region 2/3: fvsvol.f sets SCF only for region 8/9
-        # BdFt = BBFV = TVOL(2) Scribner for CR (METHB=6≠9), gated D≥BFMIND. NVB board still TODO (0).
-        bf  = d >= bfmind ? (mdl == "FW2" ? v[2] : (nvb ? 0f0 : v[2])) : 0f0
+        # BdFt = BBFV = TVOL(2) Scribner for CR (METHB=6≠9), gated D≥BFMIND. DVE/NVB/FW2 all fill VOL(2).
+        bf  = d >= bfmind ? v[2] : 0f0
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
     end
