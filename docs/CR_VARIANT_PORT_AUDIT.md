@@ -572,3 +572,19 @@ downstream density-report drift, NOT the core diameter growth (now bit-exact ear
 all 3 fixes CR-gated). METHOD note: NOTRIPLE (records 1:1) + matching pure-growth cycles is the clean per-tree
 differential; the "0.7% EDDS accepted tail" was a reasoning-only verdict that measurement REVERSED — the .sum
 over-growth was a real, fully-fixable bark bug, not a cornered residual.
+
+## Chunk 6 follow-up — 4th bug FOUND (not yet fixed): CR small-tree REGENT height calibration (HCOR) MISSING
+
+After the 3 large-tree DG fixes, the crt01_growth late-cycle residual is a compounding CCF drift (jl 71 vs live 69
+@2000 → 127 vs 94 @2090) that feeds RELDEN self-thinning (jl over-thins: 2050 TPA 347 vs 376). By elimination the
+CCF drift is 100% small-tree crown widths (cr_crown_width is dbh-only; large-tree 2000 dbh are BIT-EXACT). Measured
+the sp5 (WF) seedling growth (regent.f instrument, d=0.1 h=3.0): **jl htg=2.9108 dg=0.52105 vs live htg=3.39913
+dg=0.64008** (jl ~14% low). Root: live `CON = RHCON·EXP(HCOR(ISPC))` = 1.047 (regent.f:204), jl HARDCODES
+`con=1.0` (small_tree_growth.jl:138 "RHCON=1, HCOR=0 no small-tree calib"). Live computes HCOR from a REGENT
+small-tree HEIGHT calibration (regent.f:593 HCOR=ALOG(CORNEW), REGCAL entry) for species with measured small-tree
+HTG — jl never fits it. **EXACT analog of the LakeStates [[fvsjl-ls-regent-hcor-fix]] (FIX #7): calibrate_diameter_
+growth! has SN/NE/CS/LS small-tree REGENT-height branches but NO CentralRockies branch.** FIX (deferred, substantial):
+add a CR branch computing htg_cor_init (HCOR) from backdated small-tree height growth + the cratet ht_dbh fit, like
+the LS ls_htcalc/ls_balmod block. NOTE the CCF-DIRECTION PUZZLE is only partly explained: jl UNDER-grows small-tree
+height (con 1.0<1.047) ⇒ smaller crowns ⇒ would give LOWER jl CCF, yet jl CCF is HIGHER — so a second crown-width
+or crown-ratio factor also feeds the CCF drift (open; the HCOR fix is necessary but likely not sufficient).
