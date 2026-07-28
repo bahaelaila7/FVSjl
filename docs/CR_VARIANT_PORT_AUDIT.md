@@ -929,3 +929,40 @@ regent HTG uses ZZRAN — validate the draw order matches live (instrument esgen
 GRADD "regen ungrown in birth cycle" order (bit-exact) — this is CR-only. Validate vs cr_estab.key: 2002 TopHt should
 go 2→~4 and the whole trajectory track live (→70). This is the last establishment residual; creation + growth-per-cycle
 + crossover are all correct/validated. WK4 = the fixed-height-growth scaler (usually 1.0 ⇒ the DBH-derive branch is skipped).
+
+## Chunk 10 — Establishment ESGENT birth-cycle growth (DONE) + remaining pure-regen residual
+
+### ESGENT ported + validated (cr_esgent!, committed)
+esgent.f grows the just-established regen IN their creation cycle via REGENT(LESTB=T). Eastern variants
+leave birth-cycle regen ungrown (GRADD order, bit-exact) — this is **CR-only**. Ported as
+`cr_esgent!(s, nstart)` (small_tree_growth.jl), wired in grow_cycle! after `establish!` for CentralRockies.
+
+**Key fix — PARTIAL birth-cycle scale:** the regen is established mid-cycle at GENTIM=FINT−5 (estab.f:448),
+so it grows only ~FINT−GENTIM = 5 of the 10 yr. The regent SCALE must use the partial period
+`(FINT−GENTIM)/10 = 0.5`; the full-cycle scale over-shot the birth cycle 2×.
+
+**Validated vs live cr_estab.key:** 2002 (birth cycle) now **BIT-MATCHES** live — TPA800 BA0 HT4 QMD0.1
+(was jl HT2 before, then HT6 at full scale). FIA sweep UNCHANGED bit-exact (TCF 3381/6209/4566 — CR-only,
+no ESTAB in the sweep). Faithful to esgent.f.
+
+### Remaining residual — pure-regen trajectory height/diameter partition (SEPARATE, pre-existing)
+After the birth cycle matches, the pure-regen ESTAB trajectory still diverges from 2012 on:
+```
+       LIVE                      JL(esgent)
+2002   TPA800 BA0  HT4  QMD0.1   TPA800 BA0  HT4  QMD0.1   <- birth cycle MATCHES (esgent fix)
+2012   TPA778 BA4  HT9  QMD0.9   TPA778 BA5  HT5  QMD1.1   <- HT under, QMD over
+2022   TPA756 BA13 HT16 QMD1.8   TPA756 BA14 HT16 QMD1.9
+2032   TPA734 BA27 HT25 QMD2.6   TPA734 BA37 HT10 QMD3.0   <- TopHt DROP; BA/QMD run high
+```
+Pattern: jl grows **DIAMETER faster / HEIGHT slower** than live in the REGENT cohort; the denser fatter-
+but-shorter stand compounds into a TopHt drop (the 40-largest-diameter set fills with short fat trees).
+Present in BOTH pre- and post-esgent jl (esgent only shifts the drop-year), so it is NOT the esgent port.
+
+Root DIRECTION measured (height-under / diameter-over partition), but the magnitude needs a **pre-tripling
+instrument-replay** to nail (this ESTAB stand triples → per-record treelist diff INVALID, doctrine #3). The
+earlier single-tree regent HTG (jl 2.35 ≈ live 2.33) matched, so the divergence is in the DIAMETER partition
+and/or the cohort-mix (which records become the 40-largest), not the height-growth kernel per se.
+
+**Scope:** this is a SYNTHETIC pure-regen scenario (stand starts empty, fills with planted regen). All real
+San Juan FIA sweep stands (with existing inventory) are bit-exact 8/9 columns. Deferred as the establishment
+edge-case residual; the growth+mortality+volume CORE is bit-exact-or-cornered on real stands.
