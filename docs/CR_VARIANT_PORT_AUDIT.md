@@ -1216,3 +1216,15 @@ CROWN fire (overstory killed, small trees/regen survive → BA 4, QMD 2.2) while
 canopy bulk density, critical fireline intensity for crown ignition — FMFINT/crown-fire logic) so severe fires
 go crown; (2) post-fire regeneration (live shows 162 small trees post-fire, jl none). These are the deep FFE
 fire-behavior pieces; fuel loading + fire-bark + inventory + mild-fire mortality are done/bit-exact.
+
+### FFE severe-fire ROOT: automatic crown-fire transition (FMCFIR) is UNPORTED (shared FFE gap)
+Root-caused the severe-fire under-kill: jl's FFE has NO automatic surface→crown fire transition. fmburn! applies
+crown-fire mortality ONLY via `crburn` from the explicit FLAMEADJ keyword (fmburn.jl:161); the automatic FMCFIR
+crown-fire model (torching index, crowning index, active/passive crown fire from canopy bulk density + canopy
+base height + fireline intensity) is SKIPPED (fmburn.jl:259 "FMCFIR is skipped"). So every jl SIMFIRE is a
+SURFACE fire — it kills understory via bark/scorch but cannot transition to a crown fire that kills the
+overstory. Live FVScr runs FMCFIR ⇒ the severe San Juan fire crowns (BA 161→4). This is a SHARED FFE gap (not
+CR-specific): the eastern variants skip FMCFIR too, so their FFE was validated only on surface/mild fires. To
+fully validate CR (or any variant) severe fires, port FMCFIR (fmcfir.f: crown-fire initiation + spread indices)
++ post-fire regen. The CR-specific FFE pieces (fuel loading, fire-bark, inventory, mild-fire mortality) are
+done/bit-exact; the crown-fire model is the shared remaining piece. Precisely localized for a focused port.
