@@ -424,12 +424,17 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # excludes DBH < 5.0 (cs/dgdriv.f:380 `IF(WK3.LT.5.0...)`). A too-low floor over-counts the
     # calibration sample (FN) so a species that FVS leaves uncalibrated (FN < FNMIN=5 ⇒ COR=0) gets a
     # spurious COR — exactly the cst01 WO over-growth (debug-stamped: live FN[WO]=2, COR=0).
+    # GST eligibility floor (BKPT): SN/NE hardcode WK3<3.0 (sn/ne dgdriv.f:384), CS/LS WK3<5.0. CR uses the
+    # PER-SPECIES BREAK(ISPC) (cr/dgdriv.f:410 BKPT=BREAK(ISPC); e.g. ES=1.0) — the flat 3.0 dropped small GSTs
+    # (backdated WK3 2.5" ES) from the calibration, shrinking FN and skewing COR → uniform over-growth.
     gst_min = (s.variant isa CentralStates || s.variant isa LakeStates) ? 5f0 : 3f0   # cs/ls dgdriv.f WK3<5.0
+    break_cr = _cr_cal ? sd[:st_break] : nothing
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
-        (t.dbh[i] < gst_min || t.diam_growth[i] <= 0f0) && continue
         sp = t.species[i]
+        bkpt = break_cr === nothing ? gst_min : break_cr[sp]
+        (t.dbh[i] < bkpt || t.diam_growth[i] <= 0f0) && continue
         if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
         if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
     end

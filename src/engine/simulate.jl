@@ -434,10 +434,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     old_cfv2 = Float32[t.cuft_vol[i] for i in 1:n]
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
-        # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75).
-        bark = bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
+        # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
+        # BRATIO (cr/bratio.f = cr_bratio): its bark_a/bark_b are 0, so bark_ratio would floor to 0.80
+        # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
+        bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
+               bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]

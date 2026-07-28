@@ -542,3 +542,33 @@ to green; a faithful fix exposing a masked bug is progress). sp5 closes bit-exac
 backdated-prediction precision = accepted-class DGSCOR tail. NEXT: the sp18 EDDS needs the backdated-stand
 density/crown to match live at LSTART (CRATET-dubbed crown or backdated BA/PCT) — a bounded but deep calibration
 item. Growth otherwise bit-exact; this is the last cornered growth residual.
+
+## Chunk 9 (cont.) — 3 REAL full-cycle bugs FOUND+FIXED via differential (crt01_growth): "sp18 EDDS 0.7%" was WRONG diagnosis
+
+The prior entry's "sp18 backdated EDDS 0.7% = accepted DGSCOR tail" was a MIS-diagnosis. Re-instrumenting the
+full growth-cycle differential (live FVScr vs jl, crt01_growth, NOTRIPLE for a clean 1:1 per-tree window) drove
+out THREE real, faithful bugs. Root cause of the .sum over-growth (BA 111 vs live 106 @2000, uniform ~2% dbh
+across ALL species incl. COR=0 ones) was NOT sp18-specific:
+
+1. **notre.f dead-record inflation missing (FINT=10)** — CR grinit.f:179 sets FINT=10 (not the eastern 5); the
+   notre.f:122 dead-PROB inflation FINT/FINTM = 10/5 = 2 adds recent-dead trees back into the BACKDATED
+   calibration density. jl's `growth_fint` defaulted to 5 ⇒ `_fintr` = 1 ⇒ backdated BA 63.09 vs live 67.09
+   (a hist-6 PP tree at half PROB). FIX: `s.control.growth_fint = 10` in CR init_blockdata! (dgscale is
+   growth_dg_set-gated ⇒ inert). Backdated BA/PBAL now bit-exact.
+2. **GST eligibility floor wrong (per-species BREAK)** — SN/NE hardcode WK3<3.0 (dgdriv.f:384), but CR uses the
+   PER-SPECIES BREAK(ISPC) (cr/dgdriv.f:410; ES=1.0). jl's flat 3.0 dropped a WK3=2.5" ES GST ⇒ FN 5 vs live 6
+   ⇒ cornew -0.205 vs -0.276 ⇒ COR -0.145 vs -0.215. FIX: calibrate_diameter_growth! uses `sd[:st_break][sp]`
+   for CR (data already loaded as st_break). sp5+sp18 COR now BIT-EXACT vs live (corv 0.38209 / -0.21496).
+3. **★ DOMINANT: DBH-update bark wrong (update.f:115)** — grow_cycle! applied `dbh += DG/bark` with
+   `bark_ratio(bark_a=0,bark_b=0)` = 0.80 floor, but FVS update.f:115 uses BRATIO(IS,D,H) = cr/bratio.f =
+   cr_bratio (~0.918). DG (inside-bark increment) was correct; the OUTSIDE-bark conversion over-applied by
+   0.918/0.80 ≈ 15% ⇒ the uniform over-growth (7.9" ES → jl 8.94 vs live 8.805). FIX: simulate.jl:440 dispatches
+   cr_bratio for CR. THIRD variant-bark-location bug (after DG driver DDS→DG + calibration TERM).
+
+RESULT (crt01_growth vs clean FVScr): 1990 bit-exact; 2000 BA 106/106 + TPA 528/528 + QMD 6.1/6.1 BIT-EXACT;
+2010 BA 137/139; later cycles BA within ±2-4, TPA within self-thin tolerance. Residual = a growing CCF divergence
+(jl 71 vs live 69 @2000 → 127 vs 94 @2090) feeding RELDEN/self-thinning — the next lead (crown-width/ccfcal), a
+downstream density-report drift, NOT the core diameter growth (now bit-exact early). Suite 38595/0/75 (0 regress;
+all 3 fixes CR-gated). METHOD note: NOTRIPLE (records 1:1) + matching pure-growth cycles is the clean per-tree
+differential; the "0.7% EDDS accepted tail" was a reasoning-only verdict that measurement REVERSED — the .sum
+over-growth was a real, fully-fixable bark bug, not a cornered residual.

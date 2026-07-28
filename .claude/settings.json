@@ -1,4 +1,7 @@
 {
+  "env": {
+    "JULIA_DEPOT_PATH": "/workspace/.julia_depot"
+  },
   "hooks": {
     "Stop": [
       {

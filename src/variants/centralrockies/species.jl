@@ -27,6 +27,10 @@ function init_blockdata!(s::StandState, v::CentralRockies)
 
     s.control.tree_format = DEFAULT_TREE_FORMAT
     s.control.year = 10.0f0            # CR YR default cycle length (cr/blkdat.f:126)
+    s.control.growth_fint = 10.0f0     # CR FINT default = 10 (cr/grinit.f:179), NOT the eastern 5. Drives the
+                                       # notre.f dead-record PROB inflation FINT/FINTM = 10/5 = 2 (recent-dead trees
+                                       # added back into the BACKDATED calibration density); FINTH/FINTM stay 5
+                                       # (grinit.f:180-181 = struct defaults). dgscale is growth_dg_set-gated ⇒ inert here.
     s.control.zeide_sdi = true         # CR uses Zeide SDI (cr/grinit.f:134 LZEIDE=.TRUE.)
     s.rng.s0 = Float64(CR_RNG_SEED); s.rng.ss = CR_RNG_SEED   # both streams (cr/blkdat.f S0/SS)
     fill!(s.control.ht_drag_sp, true)  # LHTDRG default .TRUE. (cr/grinit.f:110) — enables cratet AA HT-DBH fit
