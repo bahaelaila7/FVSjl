@@ -913,3 +913,19 @@ CR-specific ESGENT path or a general PLANT-at-INVYEAR scheduling issue (compare 
 live also grows the INVYEAR plant in cycle 1 and jl is bit-exact there, the CR difference is narrower). Growth + creation
 are correct; only the first-cycle establishment SCHEDULING for INVYEAR-PLANT lags. This supersedes the earlier
 "creation-cycle growth" framing — the growth is fine, the OFFSET is the bug.
+
+## CR ESGENT birth-cycle regen growth — PORT SPEC (the ESTAB 1-cycle-offset fix)
+esgent.f (75 ln) grows the just-established regen records IN their creation cycle. Algorithm to port as a CR-specific
+esgent!(s) called after establish!(::CR) over the new records [ITRNIN..ITRN]:
+  1. CALL REGENT(.TRUE., ITRNIN) — i.e. run the CR regent (small_tree_growth!/_cr_regent_tree) with LESTB=TRUE over
+     ONLY the new establishment records, computing HTG(I) (this consumes the establishment ZZRAN stream — order matters).
+  2. per record I in ITRNIN..ITRN, N=species:
+       HTEMP = HT + HTG;  HTG *= WK4(I);  HT += HTG
+       if WK4(I) < 1.0:  if HT<4.5: DBH=0.1+0.001*HT, DG=0;  else DBH*=(HT/HTEMP), DG=DBH*(HT/HTEMP)
+       if HT > HHTMAX(N): HT = HHTMAX(N)   (_CR_ES_HHTMAX, already extracted)
+Wiring: a CentralRockies-only post-establish! step in grow_cycle! (simulate.jl:474) that grows the new records via the
+regent path with LESTB semantics; do NOT re-grow the pre-existing small trees (target only [nstart+1 .. t.n]). RNG: the
+regent HTG uses ZZRAN — validate the draw order matches live (instrument esgent.f/regent.f). Eastern variants keep the
+GRADD "regen ungrown in birth cycle" order (bit-exact) — this is CR-only. Validate vs cr_estab.key: 2002 TopHt should
+go 2→~4 and the whole trajectory track live (→70). This is the last establishment residual; creation + growth-per-cycle
++ crossover are all correct/validated. WK4 = the fixed-height-growth scaler (usually 1.0 ⇒ the DBH-derive branch is skipped).
