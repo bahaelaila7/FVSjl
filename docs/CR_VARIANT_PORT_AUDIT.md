@@ -715,3 +715,18 @@ NVB (nsvb.f, National-Scale Volume/Biomass, 5 sp) and FW2 (fwinit.f, Flewelling 
 1101_1030 uses sp3/sp13=FW2, sp20=NVB, sp23=DVE (needs all three for that stand; DVE covers the most overall).
 Each is a self-contained NVEL sub-port routed through the existing shared volume driver; a DOWNSTREAM LEAF (growth/
 mortality unaffected — already bit-exact-or-cornered). This is the largest remaining chunk; DVE is the entry point.
+
+## Chunk 8 (volume) — REFINED scope + validation constraint (implementation plan)
+Read the three NVEL method routines. Key findings for the port order:
+- **DVE (r3d2hv.f)**: only **12 distinct species-code blocks** (015,060,093,106,113,122,202,310,314,746,800,999) —
+  tractable. VOL(15) filled from D2H=DBHOB²·HTTOT polynomials with breakpoints (GCUFT6 to 6"top, GCUFT4 to 4",
+  SCBDFT board). Covers 31/38 CR species. BUT the 8 available San Juan DB stands do NOT use DVE for their dominant
+  species (only sp23-type), so DVE has NO available validation stand — would need a constructed WF/ES/etc. stand.
+- **FW2 (fwinit.f, Flewelling profile)**: 2 species — but they are DF(sp3)+PP(sp13), DOMINANT in the San Juan test
+  stands ⇒ needed to validate those stands' TCuFt/BdFt.
+- **NVB (nsvb.f, National-Scale Vol/Biomass)**: 5 species incl AS(sp20), also dominant in San Juan.
+RECOMMENDED ORDER (validation-driven): **FW2 + NVB first** (the San Juan stands' dominant species ⇒ immediately
+validatable against live cr_calib .sum TCuFt=4049/BdFt=13487), THEN DVE (widest coverage, validate with a
+constructed DVE-species stand). WIRING: compute_volumes! (volume.jl:561) currently calls _R8CLARK_VOL
+unconditionally; add a method dispatch on veq[sp][4:6] ("DVE"/"NVB"/"FW2" — or NVB prefix) → the new per-method
+jl fns, else the existing Clark path. All downstream leaves; growth/mortality untouched (bit-exact-or-cornered).
