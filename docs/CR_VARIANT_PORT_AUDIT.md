@@ -875,3 +875,15 @@ cr_estab .sum with columns aligned to jl's (the SCREEN echo columns may not matc
 per-tree diff in the pre-mortality window. Do NOT trust the treelist CW column for CCF. The crossover fix (dgf.f:99)
 stands independently validated (no sweep regression, ESTAB height now grows). Lesson: verify the quantity identity
 before concluding — the ABLA sweep-validated cross-check caught this.
+
+## ★ ESTAB residual — CORRECTED via aligned live .sum (ECHOSUM): it's TopHt-only, NOT CCF
+Got the live cr_estab .sum with ECHOSUM (cr_estab_es.key) and aligned columns to jl. Result (post-crossover-fix):
+TPA/BA/SDI/CCF/QMD ALL TRACK LIVE CLOSELY every cycle (2092: TPA 403/400, BA 187/193, SDI 353/361, CCF 267/279,
+QMD 9.2/9.4). The ONLY real divergence is TopHt: jl 2→4→13→23→17→17→19→23→27→38 vs live 4→9→16→25→35→43→51→59→65→70 —
+jl systematically LOW and with an anomalous DROP 23→17 at 2042 (top height must be monotonic barring tall-tree
+mortality). ⇒ my "CCF 267 vs 70 / crown-width" diagnosis was DOUBLY wrong (column misalignment — 70 was live TopHt;
++ treelist-CW≠CCF-width). The establishment DENSITY + DIAMETER are basically right; the residual is the ESTAB cohort's
+TOP-HEIGHT growth — specifically the regent→htgf transition for the tallest young trees (a tree crossing 4.5 ft into
+htgf, or htgf's behaviour for small-DBH/young trees), plus whatever causes the 2042 TopHt drop (tall-tree mortality vs
+stalled height growth). NEXT: treelist per-tree HEIGHT of the tallest cohort over 2032→2052 (pre-mortality window) to
+localize the drop. The crossover fix + establishment creation stand; this is the finer height-transition residual.
