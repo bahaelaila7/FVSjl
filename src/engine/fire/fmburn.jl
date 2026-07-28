@@ -311,7 +311,7 @@ Computed from the FM10 crown-fuel-model intermediates at the scenario moisture (
 `xio`, heat sink SRHOBQ = `rhobqig`, slope factor SPHIS = `phis`) and the canopy bulk density `cbd`.
 """
 crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
-function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Northeast)::Float32
+function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies})::Float32
     cbd > 0f0 || return -1f0
     r = rothermel_surface_fire(_FM10_LOAD, _FM10_SAV, 1f0, 0.25f0,
                                fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
@@ -331,7 +331,7 @@ the stand's WEIGHTED surface-fuel-model spread = RINIT1. NB the torching bisecti
 STAND models (fmfint.f:120-134, the ICALL=2 ELSE branch) — NOT the fixed FM10 the crowning index uses.
 """
 torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant) = -1f0
-function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Northeast)::Float32
+function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies})::Float32
     (cbd > 0f0 && actcbh >= 0) || return -1f0
     mois = fuel_moisture(fmois, s.variant)
     models = select_fuel_models(s, mois)
