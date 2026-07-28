@@ -693,3 +693,14 @@ BA/QMD/CCF BIT-EXACT across all 8 stands + 2 input paths) — the same accepted-
 AVHT40-RDPSRT residuals. To fully close it, a future session should trace fvs.f's setup sequence (the DGF/BADIST
 call that precedes CRATET) and reproduce that exact gate in _cr_dub_ages!; not worth deeper archaeology now given
 diameter growth is bit-exact everywhere.
+
+## TopHt-BADIST-timing — RESOLVED (7th bug, commit 048221f): MISSCR gate
+The discriminator was found: cratet.f:512-516 sets MISSCR=true if any cycle-0 DEAD tree (history 6-9) has a
+missing crown (ICR≤0); cratet.f:522 then CALL CROWN → BADIST BEFORE the FINDAG age dub. CONFIRMED via DB history
+column: 11019040011 = all-live (no MISSCR ⇒ bautba=0); 1024050210 = 38 live + 2 history-8 dead (no crowns ⇒
+MISSCR ⇒ nonzero bautba). jl _cr_dub_ages! now reproduces the gate (misscr = any crown_pct≤0 over live+dead;
+if set, compute BADIST bautba + stand_ccf relden, else 0). RESULT: all 7 DB sweep stands TopHt Δ0-2 (was Δ1-6;
+the blanket-bautba=0's Δ8 regression on 1024050210 gone). crt01 stays Δ1 — SEPARATE bounded lead: live never
+findag-dubs the crt01 .tre stand (0 DUB calls; its ages come from another source), jl dubs it as an approximation.
+Suite 38595/0/75. ⇒ CR growth core: diameter/BA/QMD/CCF BIT-EXACT + TopHt Δ0-2 across 8 stands + 2 input paths.
+The last systematic growth residual is closed to the ±1-2 AVHT40-tie-break/ZZRAN accepted class.
