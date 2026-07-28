@@ -285,6 +285,7 @@ function dgf!(s::StandState, ::CentralRockies)
         d = t.dbh[i]
         wk2[i] = 0.0f0
         d <= 0.0f0 && continue
+        t.height[i] <= 4.5f0 && continue        # cr/dgf.f:99 — HT≤4.5 trees skip GEMDG (grow via REGENT, both axes)
         sp = Int(t.species[i])
         bark = cr_bratio(sd, sp, d, imodty)
         cr = Float32(t.crown_pct[i]) * 0.01f0
