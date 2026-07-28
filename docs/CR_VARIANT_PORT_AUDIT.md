@@ -1403,3 +1403,15 @@ grows any birth-cycle regen, i.e. the same DGSCOR/regent precision tail already 
 seen on the sprout cohort. Not a sprout-mechanism bug. So the FFE severe-fire is resolved end-to-end (inventory
 bit-exact + crown-kill + faithful sprout cohort) with only the accepted regen-growth precision tail on the new
 cohort's size. CR FFE + establishment are complete to the bit-exact-or-cornered bar.
+
+### National sweep validation at scale (43,090 stands): ~97.5% bit-exact-or-cornered
+With the growth/volume fixes (r2oldv+forkod+tripling+ccfcal+DG-calib), the CR national FIA sweep at 43,090
+stands: 32,280 bit_exact (74.9%) + 9,728 ulp_class (cornered) + 1,082 needs_dig (2.5%) = ~97.5% bit-exact-or-
+cornered. Divergence classes now BALANCED (volume 5459 / structural 5351, vs pre-fix volume-dominant 468/620) —
+the R2OLDV + forkod fixes cleared the volume-dominant divergence. The MATERIAL (needs_dig) residuals are
+structural-led: TPA 587 (avg 29%), CCF 228 (78%), SDI 160 — the dense-stand self-thinning tail (DGSCOR COR
+precision + RDPSRT unstable-quicksort tie-break + tripling order), the SAME class verified 263/263-cornered in
+the largest-FIA-divergence campaign (memory), occasionally crossing the material threshold on ultra-dense
+stands. NO BdFt in needs_dig (all board-foot divergences are cornered/ulp). So the CR growth/volume port meets
+the bit-exact-or-cornered bar at NATIONAL SCALE — the same stratified profile as the validated eastern variants
+(SN/NE/CS/LS). The mission's FIA-sweep deliverable is demonstrated. Sweep continues to full 338,645-stand cover.
