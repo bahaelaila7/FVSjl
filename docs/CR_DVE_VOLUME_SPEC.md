@@ -39,3 +39,12 @@ dominate San Juan; DVE validates per-tree here.) Then a constructed WF/ES timber
 ## Order (validation-driven, from CR_VARIANT_PORT_AUDIT.md)
 FW2 (fwinit.f, DF/PP sp3/13) + NVB (nsvb.f, AS sp20) FIRST — they dominate San Juan ⇒ whole-.sum validatable
 (live cr_calib TCuFt=4049 MCuFt=3256 BdFt=13487). THEN DVE (this spec, widest coverage).
+
+## IMPORTANT correction (after reading the full dispatch)
+DVE blocks are keyed by BOTH VOLEQU(8:10) [species] AND VOLEQU(1:3) [region: 300/301/302] — so ~15-20 variant
+blocks, NOT 12. Region variants seen: 122+300 (own D2H-breakpoint SCBDFT/GCUFT6), 122+301 & 122+302 → **CALL
+HANN_PP** (Hann ponderosa-pine, a SEPARATE routine — must also be ported, switches eq at DBH 21"), 202+301 (·.932
+board), 202+302, 015+301, 015+302, 093 (any region), 113, 106, 310, 314, 746, and woodland 060/800/999 (DRC/FCLASS).
+So the CR-specific eq ids (e.g. 301DVEW015, 300DVEW093, 301DVEW202) each select a region+species block. The DVE
+port therefore also needs HANN_PP (hann_pp.f) for the 122+301/302 (ponderosa) cases. Realistic effort: a focused
+multi-hour transcription of the ~15-20 variant blocks + HANN_PP + woodland DRC handling + per-tree validation.
