@@ -821,3 +821,6 @@ GROWTH + MORTALITY + VOLUME are complete + bit-exact-or-cornered (volume FIA-val
 
 Recommended order: establishment first (smaller, more self-contained) then FFE. Both are downstream of the now-complete
 growth/mortality/volume core and do not affect the FIA growth/volume sweep results.
+
+## MCF residual — CONFIRMED cornered
+Per-tree check of all major San-Juan stand-1 FW2 trees (DF JSP26 + PP JSP23) is bit-exact (MCF 8.5/32.3/22.2/42.6/182.8/134.8/92.4); the ±0.2% stand-MCF residual on 2/8 stands is a single small-tree log-count-flip cornered tail, not systematic.
