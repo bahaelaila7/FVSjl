@@ -1101,3 +1101,19 @@ IFOR for this forest is <13 (bfmind=7) while jl's forest_idx=26 (bfmind=9) — a
 numbering diff that is inert for growth. NEXT: dump the exact per-tree DBH + bark-adjusted d at the volume call
 vs the FVS treelist BF column (harness: TREELIST at inventory), and/or instrument live sitset.f BFMIND. This is
 a boundary/threshold reporting residual on a minority of stands — the FW2 board equation itself is bit-exact.
+
+### Chunk 12 — forkod second-pass IFOR consolidation (REAL FIX #4 this session, board-foot ROOT)
+The FW2 board-foot residual root-caused to a REAL forkod bug (not a boundary-precision issue). FVS forkod.f
+has a SECOND pass (lines 640-680, SELECT CASE(IFOR)) after the first-pass JFOR lookup that consolidates 7
+pseudo/duplicate national forests into their combined administrative units, THEN KODFOR=JFOR(IFOR):
+  IFOR 24(Arapaho 201)→7, 25(Gunnison 205)→3, 26(Pike 208)→9, 27(Grand Mesa 224)→3,
+       28(Sitgreaves 311)→13, 8(Routt 211)→4, 29(McKelvie 216)→5.
+jl's _cr_forkod! stopped after the first pass, leaving these forests at their pseudo subscript (Pike 208→26).
+INERT for growth on stands supplying elevation/MODTYPE, but wrong for BFMIND/SCFMIND (IFOR<IGFOR=13 branch) AND
+the DEFMT model-type + site-index defaults. Fix = the _CR_FORKOD2 remap + KODFOR=JFOR(IFOR).
+
+Validated on Pike NF (208) stand 3628406010690: BdFt BIT-EXACT at inventory (1026==live, was 0); 1992 4655 vs
+live 4762 (was 582); STRUCTURE also improved (1992 TPA 908 vs 918, was 902 — the model-type/site correction).
+crt01_growth BIT-EXACT; demo sweep (San Juan 213, not remapped) unchanged. Faithful to forkod.f. This is the
+board-foot ROOT for the 7 consolidated forests (a large share of the sweep's BdFt + some structural divergence).
+Sweep relaunched with all 4 session fixes (tripling override / esgent / r2oldv / forkod).
