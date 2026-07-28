@@ -966,3 +966,28 @@ and/or the cohort-mix (which records become the 40-largest), not the height-grow
 **Scope:** this is a SYNTHETIC pure-regen scenario (stand starts empty, fills with planted regen). All real
 San Juan FIA sweep stands (with existing inventory) are bit-exact 8/9 columns. Deferred as the establishment
 edge-case residual; the growth+mortality+volume CORE is bit-exact-or-cornered on real stands.
+
+### Chunk 10 residual — MECHANISM measured (height/diameter decorrelation at the 4.5×tripling crossover)
+Instrument-replay + a per-cycle top-height dump (stand_top_height THDBG) nailed the mechanism — it is NOT a
+kernel error:
+
+1. **Regent HTG kernel MATCHES live.** Live regent (instrumented `FVScr_rgd`, dump ISPC/D/H/HTG/HK/DK/DKK/DG
+   for D<1.5): sp2 at H=3.94 → HTG=5.071, HK=9.015. jl `_cr_regent_tree`: same tree HTG=5.077, HK=9.038 —
+   bit-close. The small-tree HEIGHT growth is faithful.
+
+2. **The divergence is a height/diameter DECORRELATION exposed at tripling.** jl per-cycle dump at the TopHt-drop
+   cycle: `hmax=26.22` (a 26-ft tree EXISTS) but `top40avh=10.48`, `dmax=6.69`. So the 40 largest-DIAMETER
+   trees (fat, D≈6.7) are SHORT (H≈10), while the tall trees (26 ft) are THIN. AVHT40 (avg height of the
+   largest-DIAMETER 40) therefore selects the fat-short set → the TopHt drop. The decorrelation switches on
+   exactly at the tripling transition (n=100→300).
+
+3. **Root — the HT=4.5 crossover semantics on tiny-DBH trees.** After a regen tree crosses HT=4.5 (dgf.f:99 /
+   htgf.f:150 stop skipping it), FVS grows its DIAMETER via GEMDG — the large-tree DDS — even at DBH≈0.1. So
+   early-crossers fatten via GEMDG-on-tiny-DBH (fat-short) while trees still ≤4.5 rocket up in height via regent
+   (tall-thin). In live this stays correlated (monotone TopHt); in jl the two paths diverge in ratio.
+
+**Next probe (focused):** instrument GEMDG (cr/gemdg.f) on the ESTAB crossed cohort (D≈0.1, H>4.5) and diff vs
+jl `cr_gemdg` — either jl's GEMDG-for-tiny-DBH over-predicts DDS vs live (a fixable kernel-domain bug) or the
+cohort MIX differs (a downstream tripling/RDPSRT tie-break, cornered like eastern AVHT40). SCOPE unchanged: this
+is the SYNTHETIC pure-regen scenario; all real San Juan FIA sweep stands are bit-exact (they carry normal-size
+inventory, never a pure crossing-4.5 cohort). Growth+mortality+volume CORE remains bit-exact-or-cornered.
