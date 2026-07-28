@@ -22,6 +22,31 @@ function cr_dve_vol(voleq::AbstractString, d::Float32, h::Float32; unt::Int = 1,
     (d < 1.0f0 && drc < 1.0f0) && return vol
     reg = voleq[1:3]; spc = voleq[8:10]
     d2h = d * d * h
+    # Region-2 DVE (VOLEQ 1:1=='2') → R2OLDV (volume/NVEL/r2oldv.f). CR's region-2 DVE set is all WOODLAND/
+    # hardwood (065/066/069/106/814/823/998 + 475): Chojnacky INT-339 cubes TCUFT=(a+b·(D²H)^⅓+c·MSTEM)³, D²H
+    # on DRC if present, MSTEM=1 single-stem (FCLASS==1) else 0. GCUFT=TCUFT (VOL1=VOL4=TCUFT, no board). The
+    # `**3.` is gfortran-folded to X·X·X (integer cube — negatives cube to <0 → floored to 0, not NaN).
+    if reg[1] == '2'
+        h <= 0.0f0 && return vol
+        dd2h = drc > 0.0f0 ? drc * drc * h : d2h
+        cr3 = fpow(dd2h, 1.0f0 / 3.0f0)
+        ms = fclass == 1 ? 1.0f0 : 0.0f0
+        b = if spc == "065";      -0.08728f0 + 0.135420f0*cr3 - 0.019587f0*ms   # Utah juniper
+            elseif spc == "066";   0.02434f0 + 0.119106f0*cr3                    # Rocky Mtn juniper
+            elseif spc == "069";  -0.19321f0 + 0.136101f0*cr3 + 0.038187f0*ms   # oneseed juniper
+            elseif spc == "106";  -0.20296f0 + 0.150283f0*cr3 + 0.054178f0*ms   # pinyon pine (R2)
+            elseif spc == "475";  -0.13363f0 + 0.128222f0*cr3 + 0.080208f0*ms   # mountain mahogany
+            elseif spc == "814";  -0.13600f0 + 0.145743f0*cr3                    # Gambel oak
+            elseif spc == "823";   0.12853f0 + 0.105885f0*cr3                    # bur oak
+            elseif spc == "998";  -0.13822f0 + 0.121850f0*cr3                    # other hardwoods
+            else; return vol                                                     # region-2 conifer — not in CR forest table
+            end
+        tcuft = b * b * b
+        spc == "475" && drc < 3.0f0 && d < 3.0f0 && (tcuft = 0.1f0)              # FIA <3" floor (r2oldv.f:447)
+        tcuft < 0.0f0 && (tcuft = 0.0f0)
+        vol[1] = tcuft; vol[4] = tcuft                                           # VOL1 total, VOL4 gross-merch
+        return vol
+    end
     entire = 0.0f0; gcuft6 = 0.0f0; gcuft4 = 0.0f0; twvol = 0.0f0
     intbdft = 0.0f0; scbdft = 0.0f0; um4 = 0.0f0; um6 = 0.0f0
     d1 = 1.0f0 / d; d15 = fpow(d, 1.5f0)                       # DBHOB^-1, DBHOB^1.5
