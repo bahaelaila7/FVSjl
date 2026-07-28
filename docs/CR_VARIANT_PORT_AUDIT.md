@@ -1078,3 +1078,15 @@ cr_fw2_vol fills v[2]. Next: instrument cr_fw2_vol's board (v[2]) + bfmind vs li
 either the bfmind branch is wrong for region-2 FW2 forests or the FW2 Scribner path under-fills. Downstream
 reporting leaf (growth core bit-exact). The oak stands' later-cycle volume divergence is SEPARATE (their
 structure diverges at 1994+ = the DGSCOR/oak-density tail, propagating to volume — not a volume-equation bug).
+
+### FW2 board-foot gap LOCALIZED — bfmind=7-vs-9 forest-index discrepancy
+Dug cn=3628406010690 (19 trees, 5 DBH≥7″, 1 at 9.0″): live BdFt=1026 at 1982 ⇒ live bfmind=7 (counts the 5
+trees ≥7″); jl bfmind=9 ⇒ excludes the 7-9″ trees (and its lone 9.0″ tree yields 0) ⇒ jl BdFt=0. Instrumented
+jl: imodty=5, forest_idx=**26** ⇒ bfmind = ifor<13 ? 7 : 9 = 9. FVS (sitset.f:539-544): BFMIND = IFOR<IGFOR(13)
+? 7 : 9. So FVS's IFOR for this forest must be <13 while jl's forest_idx=26 — a forkod/IFOR-vs-forest_idx
+mapping mismatch that is INERT for growth (bit-exact) but wrong for the bfmind (and scfmind) merch rule. FIX
+(next): verify FVS IFOR for this forest (instrument sitset.f BFMIND, or check forkod IFOR numbering) and key
+the bfmind branch on the SAME index FVS uses — jl's forest_idx=26 is likely the absolute CR forest index while
+IGFOR=13 keys a region-relative IFOR. Downstream reporting leaf; the growth core + TCuFt/MCuFt stay bit-exact.
+The FW2 board EQUATION itself is correct (cr_fw2_vol gives BdFt d9→30/d12→60/d15→110) — only the min-DBH gate
+is off. cr_fw2_vol is faithful; the residual is entirely the bfmind forest index.
