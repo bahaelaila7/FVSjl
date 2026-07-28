@@ -1061,3 +1061,10 @@ Validated: oak stand 3624484010690 TCuFt/MCuFt BIT-EXACT at inventory (666/10==l
 demo sweep unchanged. Downstream leaf. Sweep relaunched with the fix (+ the tripling fix) — durable DB
 .sweep_work/cr_sweep.db, log cr_sweep.log. (Note: the region-2 conifer 746/108/122/093 branches of r2oldv.f
 are NOT in the CR forest table, so left unported — dispatch returns 0 as before if ever hit.)
+
+### Volume coverage — COMPLETE except 1-forest FW2 edge
+Post-R2OLDV, a coverage probe of all 28 unique CR forest-table VOLEQs confirms: all region-2 DVE (065/066/069/
+106/814/823/998), all region-3 DVE (060/093/106/113/122/800/999/015/202), and all NVB (000/M24/M33) return
+non-zero. Remaining GAP: **203FW2W122** (FW2 JSP-22, R2 ponderosa geosub '03') — used by exactly 1 of 29
+forests; _fw2_jsp maps it to JSP 22 but the downstream profile returns 0 (JSP-22 taper coeffs unported). Deferred
+as a 1-forest edge. All other volume equations bit-exact-or-covered.
