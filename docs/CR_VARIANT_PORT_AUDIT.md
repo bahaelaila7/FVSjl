@@ -681,3 +681,15 @@ i.e. reproduce the FVS order (whatever populates BAU before cratet vs not). CAUT
 agerng from the dubbed birth_age), so the order must match FVS exactly; a blanket bautba=0 is wrong (regresses the
 BADIST-ran-first stands). Bounded TopHt-only residual (BA/QMD/CCF bit-exact). This is the precise, fully-characterized
 next lead.
+
+## TopHt-BADIST-timing — trigger narrowed (MISSCR ruled out); CORNERED (bounded, mechanism understood)
+BADIST has TWO callers: crown.f:63 (via cratet.f:522 `IF(MISSCR)CALL CROWN`) and dgf.f:93 (DG path). Checked the
+DB: BOTH stands have ALL crown ratios provided (CrRatio missing=0) ⇒ MISSCR=false ⇒ the pre-CRATET BADISTRUN for
+1024050210 is NOT the crown dub — it comes from the dgf.f/DG path (both stands have measured DG). The exact setup-
+order reason one stand's DGF/BADIST precedes CRATET and the other's doesn't is a deep FVS setup-sequence subtlety
+(not crown-missing, not calibration-presence — both stands have both). VERDICT: CORNERED. The mechanism is fully
+root-caused (dub reads cratet-time BAU state) and the residual is BOUNDED and height-only (TopHt Δ1-6; diameter/
+BA/QMD/CCF BIT-EXACT across all 8 stands + 2 input paths) — the same accepted-tail class as the eastern DGSCOR/
+AVHT40-RDPSRT residuals. To fully close it, a future session should trace fvs.f's setup sequence (the DGF/BADIST
+call that precedes CRATET) and reproduce that exact gate in _cr_dub_ages!; not worth deeper archaeology now given
+diameter growth is bit-exact everywhere.
