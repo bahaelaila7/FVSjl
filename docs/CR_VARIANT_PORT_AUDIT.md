@@ -1228,3 +1228,15 @@ CR-specific): the eastern variants skip FMCFIR too, so their FFE was validated o
 fully validate CR (or any variant) severe fires, port FMCFIR (fmcfir.f: crown-fire initiation + spread indices)
 + post-fire regen. The CR-specific FFE pieces (fuel loading, fire-bark, inventory, mild-fire mortality) are
 done/bit-exact; the crown-fire model is the shared remaining piece. Precisely localized for a focused port.
+
+### FMCFIR crown-fire port — SCOPED (the FFE severe-fire fix, shared not CR-specific)
+fmcfir.f (373 lines, Scott&Reinhardt 2001) computes two indices per moisture scenario: OINIT1 = TORCHING index
+(wind to initiate torching, from ACTCBH actual crown base height: INIT1=(4.0x·ACTCBH)^1.5) and OACT1 = CROWNING
+index (wind for active crown fire, from CBD crown bulk density: OACT1=(2.95·SRHOBQ/(SIRXI·CBD))·... ). Port plan:
+(1) port fmcfir.f → cr_fmcfir/crown_fire_indices (CBD via the existing canopy_bulk_density; ACTCBH via canopy
+base height — needs a canopy_base_height helper); (2) in fmburn!, compute crburn AUTOMATICALLY from the actual
+fire's wind vs the crowning index (currently crburn is ONLY the FLAMEADJ keyword, fmburn.jl:161) so a severe
+SIMFIRE transitions to crown fire; (3) validate vs live on the San Juan severe-fire stand (target: BA 161→~4,
+overstory killed) + confirm mild fires stay bit-exact. SHARED across variants (benefits SN/NE/CS/LS too). Plus
+post-fire regen (live shows 162 small trees post-fire). This is the one remaining FFE model gap; fuel loading,
+fire-bark, inventory, and mild-fire mortality are done/bit-exact. A focused multi-step port for a fresh session.
