@@ -1240,3 +1240,18 @@ SIMFIRE transitions to crown fire; (3) validate vs live on the San Juan severe-f
 overstory killed) + confirm mild fires stay bit-exact. SHARED across variants (benefits SN/NE/CS/LS too). Plus
 post-fire regen (live shows 162 small trees post-fire). This is the one remaining FFE model gap; fuel loading,
 fire-bark, inventory, and mild-fire mortality are done/bit-exact. A focused multi-step port for a fresh session.
+
+### FMCFIR root MEASURED (doctrine #2, upgraded from inferred) — port fully de-risked
+Instrumented jl's actual fire behavior on the San Juan severe fire (11019040011, SIMFIRE 2020):
+  byram=24485  flame=7.15ft  SCORCH=33.7ft  fwind=5  CBD=0.085  ACTCBH=6ft  canopyHt=87ft
+The surface fire is intense (flame 7 ft) but its SCORCH height is only 33.7 ft while the canopy is 87 ft — so
+the overstory crowns (40-87 ft) are ABOVE the scorch and survive in jl. Live crown-fires the whole 87-ft canopy
+(CBD 0.085 + CBH 6 ft = textbook crown-fire conditions) → overstory dies. This MEASURES (not infers) the FMCFIR
+root. Crucially, jl ALREADY computes every FMCFIR input — canopy_bulk_density returns (cbd, actcbh, canopy_ht),
+and byram/flame/wind are in fmburn!. So the port is: (1) run the Rothermel kernel (rothermel/FMFINT) with the
+CROWN fuel model (fmcfir.f:122-133 sets model-10-like MPS/FWG/DEPTH) to get SIRXI/SRHOBQ/SPHIS/SFRATE; (2) OACT1
+crowning index = ((2.95·SRHOBQ/(SIRXI·CBD))−SPHIS−1)/0.001612, then (·^0.7)·0.01137/0.4 (fmcfir.f:162-168);
+OINIT1 torching = ((460+25.9·FOLMC)·.001333·ACTCBH)^1.5 (fmcfir.f:100-101); (3) crown fire when actual wind ≥
+crowning index → set crburn (the existing fmburn.jl:161 crown-fraction path applies it); (4) validate vs live
+(target BA 161→~4). Shared across variants. The inputs + integration point exist; only the index math + Rothermel
+-with-crown-model call remain. A focused, well-bounded port.
