@@ -235,12 +235,30 @@ given double-bark-thickness `dbtbh` (>0 from cr_bratio ⇒ the model-DBHIB branc
     return dib < 0.0 ? 0.0f0 : Float32(dib)
 end
 
+"FWSMALL (profile.f): corrected stump dib at 1 ft for small trees (HTTOT≤15), `dib_at_1`=profile dib
+at 1 ft, `dbhib`=D·BARK. JSP14 (INGY PP) uses different height-ratio bounds."
+function _fw2_fwsmall(jsp::Int, h::Float32, dib_at_1::Float32, dbhib::Float32)::Float32
+    hr5 = 0.18f0; hr15lo = 0.11f0; hr15hi = 0.25f0
+    if jsp == 14
+        hr5 = 0.25f0; hr15lo = 0.21f0; hr15hi = 0.27f0
+    end
+    hratio = dib_at_1 / (h - 1.0f0)
+    hr_min = hr5 + (h - 5.0f0) / 10.0f0 * (hr15lo - hr5)
+    hr_max = hr5 + (h - 5.0f0) / 10.0f0 * (hr15hi - hr5)
+    hratio = clamp(hratio, hr_min, hr_max)
+    dib1 = hratio * (h - 1.0f0)
+    dr_min = h < 15.0f0 ? 1.0f0 + 0.3f0 * (15.0f0 - h) / 10.0f0 : 1.0f0
+    (dib1 / dbhib) < dr_min && (dib1 = dr_min * dbhib)
+    return dib1
+end
+
 "TCUBIC (profile.f:883): total cubic via stump cylinder + 4-ft Smalian sections. `dibat(ht)` gives the
-inside-bark section diameter (region-2/3: SF_YHAT then BRK_OT; INGY: SF_YHAT directly — already ib)."
-function _fw2_tcubic(dibat, h::Float32)::Float32
+inside-bark section diameter (region-2/3: SF_YHAT then BRK_OT; INGY: SF_YHAT directly — already ib).
+`stump_dib` (small trees, HTTOT≤15) overrides the 1-ft stump diameter with the FWSMALL value."
+function _fw2_tcubic(dibat, h::Float32; stump_dib::Float32 = -1f0)::Float32
     htloop = trunc(Int, (h + 0.5f0 - 1.0f0) / 4.0f0)
     ht2 = 1.0f0
-    dib = dibat(ht2)                                      # dib at 1 ft
+    dib = stump_dib >= 0f0 ? stump_dib : dibat(ht2)       # dib at 1 ft (FWSMALL for small trees)
     r = dib / 2.0f0
     tcvol = (3.1416f0 * r * r) / 144.0f0                  # 1-ft stump cylinder
     @inbounds for _ in 1:htloop
@@ -331,7 +349,6 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     (d < 1f0 || h <= 5f0) && return vol
     jsp = _fw2_jsp(voleq)
     (_fw2_is_ingy(jsp) || (23 <= jsp <= 29)) || return vol   # supported 2-pt families
-    h <= 15f0 && return vol                   # FWSMALL small-tree path TODO
     ingy = _fw2_is_ingy(jsp)
     rflw, rhfw = _fw2_shp(jsp, d, h)
     tapcoe = _fw2_sf_taper(rhfw, rflw)
@@ -344,7 +361,9 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     dbtbh = d * (1f0 - bark)
     dibat = ingy ? (ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)) :
                    (ht -> _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh))
-    vol[1] = Float32(round(_fw2_tcubic(dibat, h) * 10.0f0)) / 10.0f0    # NINT(TCVOL*10)/10
+    # Small trees (HTTOT≤15): FWSMALL corrects the stump diameter; merch/board stay 0 (LMERCH<MERCHL).
+    stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), d * bark) : -1f0
+    vol[1] = Float32(round(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0)) / 10.0f0    # NINT(TCVOL*10)/10
     vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump)
     vol[2] = _fw2_board(dibat, h, bftopd * bark, stump)
     return vol
