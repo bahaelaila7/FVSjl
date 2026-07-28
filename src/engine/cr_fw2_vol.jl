@@ -16,6 +16,7 @@
 # =============================================================================
 
 include(joinpath(@__DIR__, "..", "..", "data", "centralrockies", "fw2", "fw2_coefs.jl"))
+include(joinpath(@__DIR__, "..", "..", "data", "centralrockies", "fw2", "ingy_coefs.jl"))
 
 "FWINIT (fwinit.f): map a FW2 VOLEQ to the internal Flewelling species JSP. CR uses GEOCODE 2/3
 (regions 2/3). Returns 0 for an unrecognized/unsupported eq (⇒ no FW2 volume)."
@@ -43,16 +44,27 @@ function _fw2_jsp(voleq::AbstractString)
             spec == "093" && return 24            # Engelmann spruce (Dixie ES model)
             spec == "122" && return 23            # R2 ponderosa (with R4 bark)
         end
+    elseif geocode == 'I' || geocode == 'i' || geocode == '1'   # INGY / east-side (fwinit.f)
+        (spec == "202" || spec == "205" || spec == "204") && return 11   # Douglas-fir
+        (spec == "073" || spec == "070") && return 12   # Western larch
+        spec == "017" && return 13                # Grand fir
+        spec == "122" && return 14                # Ponderosa pine
+        spec == "108" && return 15                # Lodgepole pine
+        (spec == "242" || spec == "240") && return 16   # Western red cedar
+        (spec == "260" || spec == "263" || spec == "264") && return 17  # Mountain hemlock
+        spec == "119" && return 18                # White pine
+        (spec == "093" || spec == "090") && return 19   # Engelmann spruce
+        spec == "019" && return 20                # Subalpine fir
+        spec == "012" && return 21                # Balsam fir
     end
     return 0
 end
 
-"SHP_OT (f_other.f): Flewelling geometric form params for JSP 23-29 (jrsp=JSP-22). Returns
-(RFLW::NTuple{6,Float32}, RHFW::NTuple{4,Float32}). Double-precision kernel, REAL*4 storage."
-function _fw2_shp_ot(jsp::Int, d::Float32, h::Float32)
-    jrsp = jsp - 22
-    f = _FW2_F[jrsp]                          # f[k] == Fortran F(k+9, jrsp)
-    @inline ff(i) = f[i - 9]
+"SHP_OT/SHP_C2 (f_other.f / f_ingy.f): Flewelling geometric form params from an F-coefficient row.
+Shared by region-2/3 (SHP_OT) and INGY (SHP_C2) — same regression, `is_lp` picks the lodgepole U3 form.
+Returns (RFLW::NTuple{6,Float32}, RHFW::NTuple{4,Float32}). Double-precision kernel, REAL*4 storage."
+function _fw2_shp_core(f, d::Float32, h::Float32, is_lp::Bool)
+    @inline ff(i) = f[i - 9]                  # f[k] == Fortran F(k+9)
     D = Float64(d); H = Float64(h); lnH = log(H)
     dmedian = ff(10) * (H - 4.5)^(ff(11) + ff(12) * H)
     dform = D / dmedian - 1.0
@@ -63,7 +75,7 @@ function _fw2_shp_ot(jsp::Int, d::Float32, h::Float32)
     u8 = ff(21) + ff(22) * H + ff(23) * lnH + ff(24) * dform
     u1 = ff(25) + ff(26) * lnH + ff(27) * dform + ff(28) * dform * lnH
     u2 = ff(29) + ff(30) * dform + ff(31) * lnH + ff(32) * dform * lnH + ff(33) * D
-    u3 = jrsp == 3 ?
+    u3 = is_lp ?
         ff(34) + ff(35) * dform + ff(36) * (1.0 - exp(ff(37) * H)) :
         ff(34) + ff(35) * dform + ff(36) * lnH + ff(37) * lnH * dform
     u4 = ff(38) + ff(39) * dform + ff(40) * lnH + ff(41) * D
@@ -88,6 +100,35 @@ function _fw2_shp_ot(jsp::Int, d::Float32, h::Float32)
     rflw = (Float32(r1), Float32(r2), Float32(r3), Float32(r4), Float32(r5), Float32(a3))
     rhfw = (Float32(rhi1), Float32(rhi2), Float32(rhc), Float32(rhlongi))
     return rflw, rhfw
+end
+
+@inline _fw2_is_ingy(jsp::Int) = 11 <= jsp <= 21
+
+"Form params for a JSP: region-2/3 (SHP_OT, F=_FW2_F[jsp-22]) or INGY (SHP_C2, F=_FW2_F_INGY[jsp-10])."
+function _fw2_shp(jsp::Int, d::Float32, h::Float32)
+    if _fw2_is_ingy(jsp)
+        return _fw2_shp_core(_FW2_F_INGY[jsp - 10], d, h, jsp == 15)   # INGY; JSP15 = lodgepole
+    else
+        return _fw2_shp_core(_FW2_F[jsp - 22], d, h, jsp == 25)        # region 2/3; JSP25 = R2 lodgepole
+    end
+end
+
+"FDBT_C2 (f_ingy.f): double bark thickness at breast height for INGY JSP 11-21 (GEOSUB '00' path).
+Used to get DBHIB = DBHOB - DBTBH — the INGY profile is calibrated inside bark."
+function _fw2_fdbt_c2(jsp::Int, d::Float32, h::Float32)::Float32
+    a = _FW2_FDBT_A[jsp - 10]                 # (a1,a2,a3,a4,a5,a6)
+    D = Float64(d); H = Float64(h)
+    a00 = a[1]                                # GEOSUB '00' ⇒ A00 = A(1,jspr)
+    duse = D
+    if a[3] < 0.0 && a[6] == 0.0
+        dmax = -(a[2] + a[5] * H) / (2.0 * a[3]); duse = min(D, dmax)
+    elseif a[3] < 0.0 && a[6] == -1.0
+        dmin = -(a[2] + a[5] * H) / (2.0 * a[3]); duse = max(D, dmin)
+    end
+    y2 = a00 + a[2] * duse + a[3] * duse * duse + a[4] * H + a[5] * H * duse
+    y2 = clamp(y2, -8.0, 8.0)
+    ratio = exp(y2) / (1.0 + exp(y2))
+    return Float32(ratio * D)
 end
 
 "SF_TAPER (sf_taper.f): RHFW/RFLW → the 12 taper-polynomial coefficients TAPCOE (REAL*4)."
@@ -194,10 +235,9 @@ given double-bark-thickness `dbtbh` (>0 from cr_bratio ⇒ the model-DBHIB branc
     return dib < 0.0 ? 0.0f0 : Float32(dib)
 end
 
-"TCUBIC (profile.f:883): total cubic via stump cylinder + 4-ft Smalian sections. Each section diameter
-is the profile's outside-bark dib (SF_YHAT) reduced to inside bark by BRK_OT (TAPERMODEL flow)."
-function _fw2_tcubic(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f::Float32, dbtbh::Float32)::Float32
-    @inline dibat(ht) = _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh)
+"TCUBIC (profile.f:883): total cubic via stump cylinder + 4-ft Smalian sections. `dibat(ht)` gives the
+inside-bark section diameter (region-2/3: SF_YHAT then BRK_OT; INGY: SF_YHAT directly — already ib)."
+function _fw2_tcubic(dibat, h::Float32)::Float32
     htloop = trunc(Int, (h + 0.5f0 - 1.0f0) / 4.0f0)
     ht2 = 1.0f0
     dib = dibat(ht2)                                      # dib at 1 ft
@@ -236,9 +276,7 @@ end
 "FW2 merch cubic VOL(4) (profile.f MERLEN→NUMLOG/SEGMNT→GETDIB→CUPFLG loop): buck stump→merch-top,
 sum per-log Smalian .00272708·(DIBL²+DIBS²)·LEN with inch-class DIBs (butt = dib at breast height),
 each log 0.1-rounded. `mtop` = inside-bark merch top = TOPD·BARK."
-function _fw2_merch_cuft(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f::Float32,
-                         dbtbh::Float32, mtop::Float32, stump::Float32)::Float32
-    @inline dibat(ht) = _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh)
+function _fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32)::Float32
     hs = _fw2_hs(dibat, mtop, h)
     lmerch = hs - stump
     lmerch < _NVB_R3_MERCHL && return 0f0
@@ -261,9 +299,7 @@ end
 
 "FW2 Scribner board VOL(2) (profile.f BFPFLG loop): buck stump→board-top (BFTOPD·BARK) and sum
 SCRIB(small-end inch-class dib, len)·10 per log. Same region-3 log-bucking as the cubic."
-function _fw2_board(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f::Float32,
-                    dbtbh::Float32, bftop::Float32, stump::Float32)::Float32
-    @inline dibat(ht) = _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh)
+function _fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32)::Float32
     hs = _fw2_hs(dibat, bftop, h)
     lmerch = hs - stump
     lmerch < _NVB_R3_MERCHL && return 0f0
@@ -281,27 +317,35 @@ function _fw2_board(jsp::Int, d::Float32, h::Float32, tapcoe, rhfw, rflw, f::Flo
     return vol2
 end
 
-"CR FW2 per-tree volume. `bark`=DIB/DOB ratio (cr_bratio) → DBTBH=D·(1-bark) for the BRK_OT bark
-reduction; `topd`=cubic top DOB (4.0), `bftopd`=board top DOB (6.0). Returns a 15-vec: VOL[1]=total
-cubic, VOL[4]=merch cubic (0.1-rounded), VOL[2]=Scribner board feet."
+"CR FW2 per-tree volume (2-point Flewelling), region-2/3 (JSP 23-29) + INGY (JSP 11-21). `bark`=DIB/DOB
+(cr_bratio); `topd`/`bftopd`=cubic/board top DOB. Returns a 15-vec: VOL[1]=total cubic, VOL[4]=merch
+cubic, VOL[2]=Scribner board feet (all 0.1-rounded where applicable). Merch tops are inside bark (·BARK).
+
+INGY vs region-2/3 differ in bark handling: region-2/3 profiles are OUTSIDE bark (calibrated to DBHOB),
+so the section diameter is SF_YHAT reduced by BRK_OT (DBTBH=D·(1-bark)); INGY profiles are INSIDE bark
+(calibrated to DBHIB=DBHOB-FDBT_C2), so the section diameter is SF_YHAT directly (BRK_UP only adds bark
+for DOB, not needed for cubic)."
 function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
                     bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0)
     vol = zeros(Float32, 15)
     (d < 1f0 || h <= 5f0) && return vol
     jsp = _fw2_jsp(voleq)
-    (jsp < 23 || jsp > 29) && return vol      # only the module-free region-2/3 2-pt path (JSP 23-29)
+    (_fw2_is_ingy(jsp) || (23 <= jsp <= 29)) || return vol   # supported 2-pt families
     h <= 15f0 && return vol                   # FWSMALL small-tree path TODO
-    rflw, rhfw = _fw2_shp_ot(jsp, d, h)
+    ingy = _fw2_is_ingy(jsp)
+    rflw, rhfw = _fw2_shp(jsp, d, h)
     tapcoe = _fw2_sf_taper(rhfw, rflw)
-    dbhib = d                                 # JSP 22-30: profile calibrated to DBHOB (SF_SHP DBHIB=DBHOB)
+    # INGY: profile is inside bark, calibrated to DBHIB. SF_SHP uses the PASSED DBTBH (fvsvol DBTBH=D·(1-BARK))
+    # when >0 — so DBHIB=D·BARK (cr_bratio), NOT FDBT_C2 (that's only the no-bark-input fallback). Region-2/3: DBHOB.
+    dbhib = ingy ? d * bark : d
     yhat_bh = _fw2_sf_yhat(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0)
     yhat_bh == 0f0 && return vol
     f = dbhib / yhat_bh
-    dbtbh = d * (1f0 - bark)                   # double bark thickness (fvsvol.f: DBTBH=D*(1-BARK))
-    tcvol = _fw2_tcubic(jsp, d, h, tapcoe, rhfw, rflw, f, dbtbh)
-    vol[1] = Float32(round(tcvol * 10.0f0)) / 10.0f0      # NINT(TCVOL*10)/10
-    mtop = topd * bark                         # inside-bark cuft merch top (fvsvol.f MTOPS=TOPD*BARK)
-    vol[4] = _fw2_merch_cuft(jsp, d, h, tapcoe, rhfw, rflw, f, dbtbh, mtop, stump)
-    vol[2] = _fw2_board(jsp, d, h, tapcoe, rhfw, rflw, f, dbtbh, bftopd * bark, stump)
+    dbtbh = d * (1f0 - bark)
+    dibat = ingy ? (ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)) :
+                   (ht -> _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh))
+    vol[1] = Float32(round(_fw2_tcubic(dibat, h) * 10.0f0)) / 10.0f0    # NINT(TCVOL*10)/10
+    vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump)
+    vol[2] = _fw2_board(dibat, h, bftopd * bark, stump)
     return vol
 end
