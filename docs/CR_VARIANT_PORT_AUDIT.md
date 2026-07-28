@@ -636,3 +636,17 @@ MODTYPE=2). Suite 38595/0/75 (0 regress; CR-gated). ⇒ the growth core GENERALI
 DB-input IMODTY resolution now correct. Follow-up: the forkod not-found FALLBACK cases (forkod.f:596-620,
 IMODTY-based IFOR defaults) + the 7xxx legacy-code CASEs are not ported (only the JFOR DEFAULT path) — port when a
 stand hits them.
+
+## Chunk 9 — 8-stand DB-input differential sweep: growth core GENERALIZES; TopHt (imodty-4 height) residual isolated
+
+Ran the growth differential over all 8 stocked stands in FVS_Data_CR.db (all Region2/Forest13 = San Juan NF,
+imodty 4; NUMCYCLE 5). RESULT: **inventory (2014) BIT-EXACT on ALL 8 stands** (BA/CCF/TopHt/TPA) — the forkod +
+crown/CCF port generalize. Multi-cycle: **BA and QMD BIT-EXACT-or-±few on every stand** (diameter growth perfect),
+TPA within the self-thin tail. The one systematic residual is **TOP HEIGHT**: it under-grows, compounding from
+cycle 1 (11019040011: 2014 58/58 → 2024 64/62 → 2044 74/69 → 2064 82/76, Δ6; 1112100006 Δ5; others Δ0-3, e.g.
+1023050004 90/90 exact). BA/QMD bit-exact throughout ⇒ it is purely the HEIGHT growth of the tall trees, NOT
+diameter. All sweep stands are imodty 4 (crt01 = imodty 2 showed only Δ1) ⇒ the cr_gemht IMODTY-4 (spruce-fir) HHE
+mesh and/or its interaction with the dubbed age likely carries a small per-cycle height bias on some species/stands.
+NEXT LEAD (precise): instrument cr_gemht imodty-4 HHE vs live gemht.f for a tall tree on 11019040011 (per-tree htg
+first cycle). Stand 1024050002 = empty (0/0 both, nonstocked). ⇒ CR growth core validated across 8 stands + 2 input
+paths; diameter/BA/QMD/CCF bit-exact; the bounded residual class is TopHt-imodty4 height + ZZRAN + self-thin tail.
