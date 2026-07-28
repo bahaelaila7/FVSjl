@@ -1032,3 +1032,23 @@ volume/crossover set). Residual 2052+ (~5-8% low) is the smaller DGSCOR/per-reco
 (data/fia_sweep.db: SN 633628 / LS 400649 / CS 255951 / NE 178148 = 1.47M). CR has 0 rows there — the full
 CR-geography national sweep is NOT yet run. This tripling bug was a PREREQUISITE (it would have corrupted every
 CR stand carrying limber-pine/small-tree regen). Next: build the CR national stand set + run the sweep.
+
+## Chunk 11 — CR NATIONAL FIA SWEEP (launched) + volume divergence class = R2OLDV port gap
+The full CR national sweep is running (338,645 stands, VARIANT='CR' in FVS_STANDINIT_COND; runner
+.sweep_work/cr_sweep_run.jl, durable .sweep_work/cr_sweep.db, log cr_sweep.log). Early rate ~94% bit-exact
+(10K stands: 9507 bit_exact / 491 ulp_class / 131 needs_dig).
+
+**Dominant divergence class = VOLUME (TCuFt/MCuFt/BdFt), and it is a clean PORT GAP, not a bug:**
+Digging cn=3624484010690 (145 trees, all species 814 Gambel oak): structure BIT-EXACT-ish (TPA/BA/SDI/CCF/
+TopHt/QMD track), but jl TCuFt/MCuFt = 0 vs live 666+ at EVERY cycle. Root: CR stands use 16 distinct DVE
+equations; jl's cr_dve_vol ports only the 9 REGION-3 (r3d2hv.f) + woodland ones. The REGION-2 DVE species
+(VOLEQ(1:1)='2': 200/201/210 DVEW for 065/066/069/814/823/998 juniper/oak/other-hardwood) route through
+**R2OLDV (volume/NVEL/r2oldv.f, 776 lines)** — per-species LINEAR D2H polynomials (TCUFT=coef·D²H+b, with
+PROD/MTOPP topwood + DRC branches) — which jl returns 0 for. ~1339 volume-divergent stands so far (479 the
+forest-690/oak cluster). This is a DOWNSTREAM REPORTING LEAF (volume doesn't feed growth — structure is
+bit-exact on these stands), the same class as the volume chunks already done (DVE-R3/NVB/FW2).
+
+**Next chunk (well-scoped):** port r2oldv.f as cr_r2oldv_vol (region-2 DVE), wire into compute_volumes_cr!'s
+dispatch (VOLEQ(1:1)=='2' → R2OLDV), validate bit-exact against the sweep's oak/juniper stands. Mechanical
+transcription like the other volume chunks. The sweep continues cataloging the remaining classes (the ~5-8%
+DGSCOR structural tail + any clusters) as the dig queue.
