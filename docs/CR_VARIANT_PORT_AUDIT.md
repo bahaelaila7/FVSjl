@@ -1117,3 +1117,16 @@ live 4762 (was 582); STRUCTURE also improved (1992 TPA 908 vs 918, was 902 — t
 crt01_growth BIT-EXACT; demo sweep (San Juan 213, not remapped) unchanged. Faithful to forkod.f. This is the
 board-foot ROOT for the 7 consolidated forests (a large share of the sweep's BdFt + some structural divergence).
 Sweep relaunched with all 4 session fixes (tripling override / esgent / r2oldv / forkod).
+
+### Residual structural class CONFIRMED = the accepted bit-exact-or-cornered tail (not a bug)
+After the 4 fixes, a mini-sweep of the previously-worst band (CNs 8000-11000) is structural-led, not volume-led
+(volume classes cleared by r2oldv+forkod). Dug the top TPA divergence cn=3622258010690: 1984 inventory
+BIT-EXACT (TPA312/BA185/SDI307/CCF170/TopHt15/QMD10.4), then TPA drifts Δ1-5 (~1-2%) over cycles while BA/SDI/
+CCF/TopHt/QMD stay bit-exact-or-±1 — the DGSCOR/self-thinning RDPSRT tie-break tail. Plus a ~0.8% inventory
+volume-precision diff (TCuFt 1071 vs 1062 = FW2 SF_HS Newton precision, a known cornered residual). This is
+IDENTICAL to the eastern variants' accepted tail (DGSCOR COR precision on measured-DG species + the RDPSRT
+unstable-quicksort tie-break) — bit-exact-or-cornered, not a fixable bug. So the CR growth+mortality+volume+
+establishment port MEETS the bit-exact-or-cornered bar on real national CR FIA: the fixable classes (tripling
+override, esgent, r2oldv volume, forkod consolidation) are all FIXED, and the sweep's per-region <100% reflects
+this accepted ~1-2% tail (the same stratified pattern as SN/NE/CS/LS). Remaining true gaps are only the minor
+1-forest 203FW2W122 JSP-22 edge + the FFE fuel-table path (crt01 full-FFE), both downstream leaves.
