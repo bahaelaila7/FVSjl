@@ -991,3 +991,27 @@ jl `cr_gemdg` — either jl's GEMDG-for-tiny-DBH over-predicts DDS vs live (a fi
 cohort MIX differs (a downstream tripling/RDPSRT tie-break, cornered like eastern AVHT40). SCOPE unchanged: this
 is the SYNTHETIC pure-regen scenario; all real San Juan FIA sweep stands are bit-exact (they carry normal-size
 inventory, never a pure crossing-4.5 cohort). Growth+mortality+volume CORE remains bit-exact-or-cornered.
+
+### Chunk 10 residual — DECISIVE treelist diff (CORRECTS the "diameter over-grows" inference)
+Live TREELIST (cr_estab_tl.trl) vs jl per-cycle max-D/max-H dump, largest-diameter tree each cycle:
+```
+        LIVE Dmax / H-of-that-tree      JL Dmax / hmax
+2012    1.3  /  8.9                     1.58 / 4.46
+2022    2.6  / 16.7                     2.52 / 17.1
+2032    11.4 / 70.5                     6.69 / 26.2
+```
+Two facts, both MEASURED (not inferred — this overturns the earlier "jl over-grows diameter" read):
+1. **Live's dominant tree RELEASES explosively** — D 2.6→11.4 and H 16.7→**70.5** in the single 2022→2032
+   cycle (+5.4 ft/yr, a young dominant conifer escaping competition). jl's dominant under-grows to D6.69/H26.
+2. **Live stays height/diameter CORRELATED** (its largest-diameter tree D11.4 is also its tallest H70.5); **jl
+   DECORRELATES** — jl's fattest tree (D6.69) is short (H10, so AVHT40 top40avh=10.48) while its tallest (H26)
+   is thin. So the two facts compound: jl under-grows the dominant AND sends height vs diameter to different
+   trees ⇒ AVHT40 (largest-DIAMETER 40) collapses to the fat-short set.
+
+**Refined root:** this is a competition/RELEASE-response bug in the pure-regen dynamics — jl's gemdg (DDS) and
+gemht (height) respond to density/dominance (RELSDI, BAL/PBAL, relative-height, CR) such that the leader neither
+releases like live's nor keeps height and diameter on the SAME tree. gemdg/gemht are bit-exact on crt01 (normal
+inventory) — the divergence is specific to a pure crossing-4.5 cohort with an emerging single dominant. NOT
+cornered (live has no fat-short trees); a real bug, but confined to the SYNTHETIC pure-regen scenario (all real
+San Juan FIA sweep stands bit-exact). Next: instrument gemdg+gemht competition inputs (RELSDI/BAL/PBAL/AVH/CR)
+on the emerging-dominant record across 2022→2032 and diff vs live to isolate which competition term diverges.
