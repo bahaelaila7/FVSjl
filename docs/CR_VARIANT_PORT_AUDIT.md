@@ -1207,3 +1207,12 @@ So the CR FFE RUNS end-to-end and matches live at INVENTORY + on MILD fires, but
 (fireline intensity → bark-thickness kill, FMEFF/FMBRKT) is NOT bit-exact on severe fires — a REAL FFE bug, the
 next FFE debugging target. The .sum-bit-exact-through-crt01's-fire result was mild-fire-only; corrected here.
 This does NOT affect the FIA sweep (grow regime, no fire) or the growth/volume/establishment core.
+
+### FFE severe-fire — fix #1 (fire-bark) DONE; crown-fire behavior is the remaining target
+Fixed the CR fire-bark (cr/fmbrkt.f per-species B1, was eastern EQNUM) — severe-fire mortality improved (BA
+survived 33→55 vs live 4), mild fire still bit-exact. But jl still under-kills the overstory: live computes a
+CROWN fire (overstory killed, small trees/regen survive → BA 4, QMD 2.2) while jl computes a SURFACE fire
+(large trees survive → BA 55, QMD 22). Next FFE targets: (1) crown-fire transition/behavior (canopy base height,
+canopy bulk density, critical fireline intensity for crown ignition — FMFINT/crown-fire logic) so severe fires
+go crown; (2) post-fire regeneration (live shows 162 small trees post-fire, jl none). These are the deep FFE
+fire-behavior pieces; fuel loading + fire-bark + inventory + mild-fire mortality are done/bit-exact.
