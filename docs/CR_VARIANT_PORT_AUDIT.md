@@ -2106,3 +2106,24 @@ VARMRT read?") — answered by CALL-CHAIN (fact, not hypothesis):
     the input is un-tripled original records, so compare record order first, then the _rdpsrt! permutation.
     Harness note: CR not in ledger_fia BIN/VAR (add CR=>/workspace/.crwork/FVScr_clean, CentralRockies());
     tmp oracles wiped — relink from bin/FVScr_buildDir if needed.
+
+### Session (resume, cont.): crt01 MEASURED tie-free — NOT the aspen tie-break repro (order-dig blocked on FIA DB)
+Attempted to MEASURE the aspen mortality-selection residual (doctrine #2, not settle by code-read). Instrumented
+cr/varmrt.f (per-tree ISPC/DBH/ICR/PCT/EFFTR/PROB dump, relinked → /workspace/.crwork/FVScr_vmrt) and jl
+_varmrt_efftr! on crt01_growth; findings:
+  - Tree counts MATCH live exactly per cycle (27/81/243 — tripling clean); NO reader/count bug.
+  - VARMRT PASS1 (Σ PROB·EFFTR, the per-tree efficiency) MATCHES live through cycle 3 (Δ ≤0.02%); the .sum
+    diverges at 2020 (TPA 497/486) DESPITE matching PASS1 ⇒ crt01's small late divergence is in the mortality
+    TARGET/iteration (TOKILL/SDImax/NPASS), NOT per-tree PCT selection — OR a call-alignment artifact (live 13
+    VARMRT calls w/ paired-repeat PASS1 = 2 passes/cycle; jl 14). Consistent with the "within self-thin tol" tail.
+  - ★ crt01 cycle-3 has ZERO DBH tie groups (tripled children diverge in DBH after growth) ⇒ crt01 is NOT a
+    valid repro for the RDPSRT MULTI-TIE aspen residual. The tie-break needs a TIE-HEAVY inventory (many equal
+    6.0" aspen at cycle 0), i.e. the FIA stand 39451382010690.
+  - BLOCKER: that FIA stand is not in the available DBs (SQLite_FIADB_ENTIRE.db = CS sample; .sweep_work/cr.db =
+    16-digit ...290487 LS-style CNs). The CR FIA source the prior sweep used is absent from this environment.
+NET: core VARMRT efficiency + tree management MEASURED-correct on crt01; the aspen residual (tie-break) is
+UNMEASURED this session — order-dig needs either the CR FIA aspen stand restored OR a synthetic tie-heavy-aspen
+keyfile (caveat: tripling breaks ties after cycle 1, so ties must be exercised at the cycle-0→1 mortality). The
+code-read trace (residual = stand_pct! RDPSRT multi-tie, the sole per-cycle writer of VARMRT's PCT) stands as the
+best-supported hypothesis, now with crt01 EXCLUDED as its cause. Persistent infra: shim + oracles in
+/workspace/.crwork/ (isoc23_shim.o, FVScr_clean, FVScr_vmrt).
