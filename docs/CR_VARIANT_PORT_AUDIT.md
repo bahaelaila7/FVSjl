@@ -2076,3 +2076,33 @@ caught by measurement (empty dumps / unchanged census / bit-exact), NONE shipped
 the census found the SYMPTOM class (mortality-selection) but the CAUSE needs a FRESH session tracing the exact
 crown_ratio-write that VARMRT reads. SESSION SOLID+SHIPPED: DM + FCLASS(scale-validated 6/8) + GLIM = 3 fixes;
 aspen mortality-selection = UNDETERMINED (honestly), turn-key = trace the VARMRT crown_ratio source.
+
+### Session (resume): DM chunk COMMITTED (6c6a9ca) + aspen mortality-selection TRACED to stand_pct!
+Recovered from a stale checkpoint (the conversation summary predated the DM/FFE/national-sweep work by many
+sessions). Actions:
+1. Restored env (Pkg.instantiate after depot eviction; rebuilt the isoc23 sscanf shim wiped from /tmp).
+2. VALIDATED the uncommitted working tree (DM subsystem + GLIM DG-spread cap + DVE/NVB/FW2 volume):
+   crt01_growth BIT-EXACT through 2010 (TPA/BA/QMD), within self-thin tol after; runtests 0 FAILED (the 3
+   ERRORS are ENVIRONMENT — Parsers/SQLite subprocess-depot flakiness + wiped SN oracle for test_treedata,
+   NOT code). The earlier "111 vs 106 @2000" was a STALE PRECOMPILE artifact (depot eviction), not a real
+   divergence — with a clean precompile the DM+GLIM tree gives 2000 BIT-EXACT.
+3. COMMITTED the DM+GLIM+volume chunk as 6c6a9ca (was uncommitted, at risk from the recurring restarts).
+
+TRACE of the open aspen mortality-selection residual (the audit turn-key: "which crown_ratio-write does CR
+VARMRT read?") — answered by CALL-CHAIN (fact, not hypothesis):
+  - CR `_varmrt_efftr!` (centralrockies/mortality.jl:18) reads `pct = t.crown_ratio[i]` (the BA PERCENTILE)
+    and `cri = t.crown_pct[i]` (crown ratio).
+  - The per-cycle writer of `t.crown_ratio` (PCT) before mortality! is `compute_density!` (simulate.jl:138)
+    → `stand_pct!` (standstats.jl:230), which ALREADY uses `_rdpsrt!` on the UN-TRIPLED original-record DBH
+    array (VARMRT distributes a stand total over the un-tripled set, simulate.jl:307).
+  - `crown_ratio_update!` (grow_cycle! line 490) runs AFTER mortality, so it CANNOT affect this cycle's PCT.
+  ⇒ The residual is the `stand_pct!` RDPSRT MULTI-TIE PERMUTATION on the original-record order — the KNOWN
+    cornered class ([[fvsjl-stand-pct-rdpsrt-fix]] "Residual = exact multi-tie IND permutation (cornered)").
+    This DEFINITIVELY explains why the prior session's line-363 PCTI fix was INERT: line 363 is the
+    CALIBRATION-time PCTI (setup, once), NOT the per-cycle mortality PCT. The correct per-cycle writer is
+    stand_pct!. NOT yet MEASURED whether the divergence is (a) the _rdpsrt! result on large tie groups or
+    (b) the original-record ORDER feeding it differing from FVS's ITRN (cross-cycle compaction). TURN-KEY
+    (fresh): order-dig — dump FVS IND + PCT for the aspen tie group at the divergent cycle vs jl stand_pct!;
+    the input is un-tripled original records, so compare record order first, then the _rdpsrt! permutation.
+    Harness note: CR not in ledger_fia BIN/VAR (add CR=>/workspace/.crwork/FVScr_clean, CentralRockies());
+    tmp oracles wiped — relink from bin/FVScr_buildDir if needed.
