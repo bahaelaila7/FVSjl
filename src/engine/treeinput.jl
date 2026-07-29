@@ -12,6 +12,11 @@
 # not yet ported (not exercised by the basic SN stands); they slot in here later.
 # =============================================================================
 
+# FIA Arceuthobium (dwarf mistletoe) damage-agent codes (mistoe/misdam.f). Used to seed the
+# per-tree DMR at input; the value read here is only consumed by the CentralRockies DM model.
+const _DM_FIA_CODES = (23005,23006,23007,23008,23009,23010,23011,23012,23013,23014,23015,
+    23016,23017,23021,23023,23024)
+
 """
     load_trees!(state, trepath) -> Int
 
@@ -155,6 +160,22 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
     t.cut_code[i]    = rec.cut_code
     @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
     @inbounds for k in 1:5; t.pest_vars[k, i] = rec.pest_vars[k]; end
+
+    # Dwarf mistletoe rating from FIA damage codes (mistoe/misdam.f). Legacy FVS agents 30-34 carry
+    # the severity directly; FIA Arceuthobium agents map to severity (1-6) or default 3. First match wins.
+    # 0 for non-mistletoe codes ⇒ inert for variants without a DM model (only CentralRockies reads dmr).
+    @inbounds begin
+        dm = Int32(0)
+        for j in (1, 3, 5)
+            ag = rec.damage[j]; sv = Int(rec.damage[j+1])
+            if 30 <= ag <= 34
+                dm = Int32(clamp(sv, 0, 6)); break
+            elseif ag in _DM_FIA_CODES
+                dm = Int32((1 <= sv <= 6) ? sv : 3); break
+            end
+        end
+        t.dmr[i] = dm
+    end
 
     # Per-tree volume defect from the damage codes (basdam.f): agent 25 = percent defect for
     # BOTH cubic and board, 26 = cubic only, 27 = board only; the paired value (clamped 0-99)

@@ -1415,3 +1415,664 @@ the largest-FIA-divergence campaign (memory), occasionally crossing the material
 stands. NO BdFt in needs_dig (all board-foot divergences are cornered/ulp). So the CR growth/volume port meets
 the bit-exact-or-cornered bar at NATIONAL SCALE — the same stratified profile as the validated eastern variants
 (SN/NE/CS/LS). The mission's FIA-sweep deliverable is demonstrated. Sweep continues to full 338,645-stand cover.
+
+### ★★ TPA-divergence class ROOT-CAUSED = DWARF MISTLETOE (missing subsystem, NOT self-thinning tail)
+Doctrine-#2 correction (MEASURE reversed the prior inference). The previous entry attributed the needs_dig TPA
+class (587 stands, avg ~29%) to the dense-stand self-thinning / DGSCOR / RDPSRT tie-break tail. That is WRONG for
+the TPA class. Dug the representative TPA stand `46290437020004` (low-density ponderosa, SDI 56 — NOT dense):
+
+  clean differential (FVScr_clean vs FVSjl):
+    2011  TPA 72/72  (inventory BIT-EXACT)
+    2021  TPA 51/71     2031  37/69     2041  29/68     2051  23/67     2061  19/66
+  live steadily kills ~28%/decade (72→51→37→29→23→19); jl kills ~nothing (72→71→…→66). QMDs match (~9.9) ⇒ pure
+  MORTALITY (TPA), not growth.
+
+Instrument-replay of live morts.f (forced DEBUG=.TRUE., relink FVScr_mortsdbg) PROVED the CR mortality CORE is
+correct and jl reproduces it:
+  - MORTS background RIP≈0.00192/yr (B0/B1=PMSC(6)/PMD(6), IBGMAP(13)=6 — jl's coefs are RIGHT); RN(density)=0
+    (T=72 ≪ T55D0=334, SDImax=474 — Reineke gate never engages, correctly, at SDI 56).
+  - VARMRT BACKGROUND TOKILL = 1.296 TPA total; post-MORTS TNEW = 70.70. jl's 2021 TPA=71 ≈ live's post-MORTS
+    70.70 ⇒ jl matches the ported mortality bit-exactly.
+The ~20 TPA/cycle that live kills BEYOND MORTS comes from `MISTOE` (dwarf mistletoe), called unconditionally in
+the WESTERN base/gradd.f (line 96), before FMKILL/growth-apply. The debug .out carries a full DWARF MISTLETOE
+INFECTION AND MORTALITY STATISTICS table:
+    Stand 46290437020004: PP MEAN DMR=5.5 (of max 6), 91% of TPA infected, TPA MORTALITY FROM DM = 21 (32%) in
+    2011→2021, 14 (30%) 2021→2031, … — EXACTLY the 72→51→37→29→23→19 decline.
+morts.f even anticipates it: "SOME EVENTS CAN CHANGE THE TRAJECTORY … REGENERATION, THINNING, USER MORTALITY,
+FIRE, I&P EFFECTS" → the TPAMRT≠T reset at morts.f:227 fires every cycle because DM (an I&P effect) removed trees
+between MORTS calls.
+
+CONCLUSION: the CR TPA-divergence class is substantially the DWARF MISTLETOE subsystem — a WESTERN insect &
+pathogen (I&P) extension the eastern variants (SN/NE/CS/LS) never had, so it was never needed in the shared
+engine. jl has NO dwarf-mistletoe model (grep: none). It is a DOWNSTREAM LEAF like volume-NVEL / FFE-fuel /
+establishment: the growth+mortality CORE is bit-exact/correct; DM is an additive per-cycle mortality (+ growth
+loss + spread + DMR seeding from FIA damage codes) layered on top. FIA seeds initial DMR from tree damage codes,
+so DM fires automatically on infected stands with no keyword.
+
+Sweep scope (56,842 stands, 80.5% bit-exact): of 11,109 non-bit-exact, worst-col = BdFt 2074 / MCuFt 1944 / TPA
+1760 / TCuFt 1592 / CCF 1501 / SDI 863 / TopHt 700 / QMD 383 / BA 292. The ~1,760 TPA-worst stands are the
+strongest DM candidates (jl over-retains lacking DM mortality); volume-worst (BdFt+MCuFt+TCuFt ≈ 5,610) is the
+known NVEL gap. So the two largest remaining non-cornered classes are TWO named missing subsystems (dwarf
+mistletoe, NVEL volume), not core-model bugs — consistent with the growth+mortality core being complete.
+
+NEXT CHUNK (newly scoped): DWARF MISTLETOE port — base/mistoe.f (DMR spread iteration), DMR seeding from FIA
+FVS_TREEINIT damage/severity codes (mistgen), DM growth-loss multiplier (into dgf/htgf), and DM-induced
+mortality (into the MORTS/gradd apply). A distinct extension model requiring its own multi-cycle bit-exact
+validation vs FVScr_clean — deferred as a downstream leaf; the growth+mortality core remains bit-exact-or-
+cornered independent of it.
+
+### Dwarf mistletoe port plan (turn-key scope, ~2,140 core lines)
+Core files (mistoe/): mistoe.f (532, driver — per-cycle DMR spread + growth/mort dispatch), mismrt.f (216,
+DM mortality), misdam.f (108, seed DMR from FIA damage/severity codes), misdgf.f (174, DM diameter-growth loss),
+mishgf.f (160, DM height-growth loss), miscnt.f (82)/miscpf.f (126, DMR spread iteration), misintcr.f (742, the
+CR per-species coefficient tables — PMCSP mortality coefs, DMMMLT multiplier, spread/growth-loss coefs), misran.f
+(RNG — check ZZRAN stream). DM mortality equation (mismrt.f, per tree):
+    DMMORT = PMCSP(sp,1) + PMCSP(sp,2)·DMR + PMCSP(sp,3)·DMR²   (DMR = IMIST rating 0..6)
+    DMMORT *= DMMMLT(sp); IF DBH<9.0 DMMORT *= 1.2; IF DMR==0 DMMORT=0
+    clamp [0, 0.71 (or 0.5)]; DMMORT = 1-(1-DMMORT)^(FINT/10)   → added to WK2 mortality in the gradd apply
+Hooks into FVSjl: (1) seed s.trees IMIST/DMR from FIA FVS_TREEINIT damage_agent/severity at setup (misdam);
+(2) per-cycle DMR spread (miscnt/miscpf, RNG-driven — validate stream order like ZZRAN); (3) DM growth-loss
+multiplier into diameter_growth!/height (misdgf/mishgf); (4) DM mortality (mismrt) added to the mortality apply;
+(5) optional misprt DM summary table. Validate bit-exact vs FVScr_clean on 46290437020004 (DMR=5.5, 91%
+infected, TPA MORTALITY FROM DM 21/14/… — a strong single-stand oracle) then re-sweep the 1,760 TPA-worst
+stands. A distinct extension model = its own chunk; growth+mortality core stays bit-exact-or-cornered without it.
+
+### DM CHUNK started: data + RNG-independent kernels built & VALIDATED (data/centralrockies/dwarf_mistletoe.jl)
+Extracted the full CR DM coefficient set from mistoe/misintcr.f — all IMODTY-INDEPENDENT (MISFIT/DGPDMR/PMCSP
+byte-identical across the 5 model-type blocks; verified by diff). Built dwarf_mistletoe.jl with:
+  - CR_DM_MISFIT (38 host flags; sp13 PP=host, sp7/16/19/20/21-32/37/38 not)
+  - CR_DM_DGPDMR (38×7 diameter-growth-potential by DMR 0-6; PP: 1,1,1,.98,.86,.73,.50)
+  - CR_DM_PMCSP (38×3 mortality B0,B1,B2; PP: .00681,-.00580,.00935)
+  - spread coefs (BDMR/BCONST/BTPA/BHTG/DDMR/DCONST/DTPA/DHTG — mistoe.f, variant-uniform)
+  - cr_dm_seed_dmr (misdam), cr_dm_mortality_rate (mismrt, DBH-dep clamp 0.71/<9" | 0.5/>=9"),
+    cr_dm_dg_mult (misdgf).
+VALIDATED (RNG-independent) vs live on 46290437020004:
+  - SEEDING: 10 records → DMR 6 (FIA code 23023 sev 6) = live "NUMBER OF RECORDS WITH MISTLETOE 10" exactly.
+  - MORTALITY RATE: DMR6 PP = 0.370/dec (DBH<9), 0.309/dec (>=9); × ~60 infected TPA ≈ 21 TPA = live "TPA
+    MORTALITY FROM DM 21" (2011→2021) exactly.
+KEY wiring fact (mismrt.f:191): DM mortality combines with MORTS background per-tree via MAX (WK2=max(WK2,DM)),
+NOT addition ⇒ infected trees die at the DM rate, uninfected at background ⇒ ~21 TPA total (matches).
+REMAINING (engine-integration chunk, the bit-exact crux): (1) per-tree IMIST storage; (2) seed IMIST at setup
+from the FIA damage tuple (treedata.jl already carries it); (3) per-cycle spread/intensification (mistoe.f,
+RANN-heavy — must match the shared ZZRAN stream order, the hard part); (4) MISMRT mortality MAX-combined into the
+mortality apply; (5) DGPDMR into diameter_growth!. Foundation is done + validated; the RNG-coupled spread + wiring
+is next.
+
+### DM spread wiring = the ZZRAN stream-order chunk (grounded; deferred as focused work)
+The DM MORTALITY + GROWTH-LOSS are deterministic (no RANN) — the validated kernels drop straight in. The SPREAD
+(mistoe.f) is RNG-coupled and is the bit-exact crux. Traced the FVS main-stream (RANN/ZZRAN) call order:
+  base/fvs.f: CALL CRATET (crown, draws RANN) @197  →  CALL TREGRO @376 → GRADD @gradd.f:52 → CALL MISTOE
+  @gradd.f:96 (spread draws 1-3 RANN per host-species tree, conditionally) → later COMPRS (comcup.f, draws RANN).
+jl's main stream (src/core/rng.jl rann!) is ALREADY consumed every cycle by crown_ratio.jl:108 (CRATET) and
+compress.jl:366 (COMPRS). So DM spread's draws must be inserted BETWEEN crown and compress, with the EXACT
+per-tree draw count/order of mistoe.f (which branches: PPLUS/PMINUS draw, overstory-intensification extra draw,
+uninfected-spread 1-2 draws). Getting this wrong shifts the main stream for crown/compress and would REGRESS
+currently-bit-exact stands (80.5% baseline). This is the OPEN "ZZRAN stream-order (ch9)" problem, now localized to
+the MISTOE↔CRATET↔COMPRS interleave. ⇒ DM spread is a focused chunk requiring per-draw RNG-order validation vs
+FVScr_clean (instrument RANN call sequence on 46290437020004), NOT a quick wire-in. The deterministic foundation
+(seeding/mortality/growth-loss, all validated) is complete and RNG-safe; the spread+full wiring is the next
+focused step. Note: a mortality-only wire (static DMR, no spread) would fix the ~21-TPA .sum gap but DESYNC the
+RNG (live makes DM draws jl wouldn't) ⇒ not bit-exact ⇒ rejected per doctrine #1; do the spread properly.
+
+### MISTOE per-tree RANN draw pattern (derived from mistoe.f — the spread-port spec)
+Spread runs ONLY for host species (MISFIT=1) whose stand-mean DMR SMR(ISPC)>0 (≥1 infected tree); species with
+no infection skip the tree loop entirely (NO draws). For each tree of such a species (mistoe.f tree loop 305-494):
+  - INFECTED (IDMR≠0): draw #1 @line 371 (XNUM for PPLUS/PMINUS test). If IDMR<6 AND PPLUS>XNUM AND overstoried
+    (DMTALL·0.7 > HT): draw #2 @415 (intensification magnitude 1/2/3). ⇒ 1 or 2 draws.
+  - UNINFECTED (IDMR=0): draw #1 @476. If overstoried AND XNUM<0.55: draw #2 @481 (initial DMR 1/2/3). ⇒ 1 or 2.
+So on 46290437020004 (15 PP all one species, infected): ~15 draws/cycle minimum inserted into the MAIN stream
+between crown(CRATET) and compress(COMPRS). Order within the species loop = ISCT/IND1 tree order (same order the
+shared engine iterates). YPLMLT/YNGMLT default 1.0 (no MISTMULT keyword). MISINF (forced infection) = keyword-
+only, skip for FIA. The spread port must reproduce this draw count/order exactly to keep compress bit-exact.
+
+### DM foundation COMMITTED + suite-validated (dmr storage + seeding + module) — safe, 0 regressions
+Landed the RNG-safe DM infrastructure (behavior-inert until the spread/mortality is wired):
+  - src/core/trees.jl: new per-tree field `dmr::Vector{Int32}` (FVS MISCOM IMIST, 0..6); added to the
+    @generated tripling-copy field list (_TREE_VEC_FIELDS) so it carries through record splitting/compaction.
+  - src/engine/treeinput.jl: `_store_tree!` seeds `t.dmr[i]` from the FIA damage tuple via misdam.f logic
+    (agents 30-34 → severity; FIA Arceuthobium codes `_DM_FIA_CODES` → severity|3; else 0). Runs for ALL
+    variants but writes an UNUSED field ⇒ provably cannot change output for any variant.
+  - src/FVSjl.jl: include data/centralrockies/dwarf_mistletoe.jl (coefs + pure kernels, no load side effects).
+VALIDATION: (1) target 46290437020004 differential UNCHANGED (jl 72→71…, seeding inert); (2) FULL test suite
+38579 passed / 0 FAILED / 75 broken (pre-existing floor) — the lone "errored" is a transient SQLite
+"database is locked" flake from the concurrently-running CR sweep on an SN fire-RNG test, unrelated to the DM
+change. ⇒ the dmr field + seeding + module are safe, committed infrastructure. REMAINING (the ZZRAN-order chunk):
+cr_mistoe! spread (RANN draws between crown/compress, gated on infection so mistletoe-free stands stay untouched)
++ MISMRT max-combine into the mortality apply + DGPDMR into diameter_growth!. Per doctrine #1, wire spread+mort
+together (mortality-only would desync the RNG on infected stands); the deterministic kernels are ready.
+
+### ★★ DM spread port DE-RISKED: jl is RNG-aligned to the MISTOE point (the ZZRAN problem is NOT a blocker here)
+Instrumented live FVScr's RANN (base/rann.f: global counter + per-draw value → fort.66) + MISTOE entry/exit
+markers, relinked FVScr_rngtrace, ran 46290437020004. Then traced jl's rann! sequence (temporary hook) on the
+same stand. FINDINGS:
+  - jl and FVS draw from the IDENTICAL LCG sequence (same seed 55329) — jl[1..12] == FVS[1..12] byte-for-byte.
+  - MISTOE cycle 1 consumes draws #106-138 (33 draws) for the 15 PP trees (~2.2/tree: DMR-6 trees 1 draw at
+    mistoe.f:371, uninfected/overstoried up to 2). Later cycles ~99 draws each (spread reaches more trees).
+  - ★ jl[1..105] == FVS[1..105] EXACTLY (all 105 pre-MISTOE draws match), and jl[106]==FVS[106]==0.08902877.
+    ⇒ jl is RNG-aligned with FVS right UP TO the MISTOE insertion point; jl currently consumes FVS's MISTOE
+    draws for its own next consumer (crown/growth), which is exactly why the stand desyncs from cycle 1's MISTOE
+    point onward (both the RNG-dependent columns AND the missing DM mortality).
+CONSEQUENCE: the DM spread port is TRACTABLE — NOT the intractable ZZRAN-reorder feared. The task is: insert
+cr_mistoe! at the FVS MISTOE cycle position (gradd.f:96 — after GRINCR's growth-increments+MORTS, before UPDATE;
+uses HTG) so it consumes exactly the cycle's 33 draws, and the stream RE-ALIGNS for all downstream consumers.
+Then MISMRT (deterministic, max-combine) + DGPDMR growth-loss ride along bit-exact. REMAINING precise step: map
+which jl grow_cycle! consumer makes draw #105 (one more phase-marked jl trace) to fix the exact insertion line,
+then port mistoe.f's spread loop (SMR/DMTALL overstory test, PPLUS/PMINUS logistic, the intensification/spread
+draw pattern) reproducing the 33-draw count. Oracle FVScr_rngtrace removed; base/rann.f + mistoe/mistoe.f + jl
+rann.jl all restored pristine. Reference traces saved: /home/node/.claude/jobs/e7166935/tmp/{rng.66,jl_rann.txt}.
+
+### ★★ DM spread IMPLEMENTED + RNG-validated: jl matches FVS for 3047 draws (perfect prefix, 4+ cycles bit-exact)
+Ported mistoe.f's spread/intensification as cr_mistoe! (src/variants/centralrockies/dwarf_mistletoe_model.jl):
+per-cycle, species-sorted (species_sort! ISCT/IND1), SMR gate (mistletoe-free species draw nothing), per-point
+DMTALL overstory test, PPLUS/PMINUS logistics (Float32, YPLMLT/YNGMLT=1), the RANN-driven DMR intensification/
+spread distributions. Wired into grow_cycle! after FIXHTG, before mortality (FVS gradd.f:96 position). Coefs made
+Float32 (FVS computes PPLUS in REAL). VALIDATION (rann! trace vs FVScr_rngtrace on 46290437020004): jl now draws
+3047 (was 2667) and jl[1..3047] == FVS[1..3047] EXACTLY — a perfect prefix through 4+ cycles of growth+MISTOE. The
+remaining 88-draw tail (FVS 3135) is the last cycle only, expected because DM MORTALITY is not yet wired ⇒ tree
+state (record survival) diverges by cycle 5. ⇒ the spread RNG order is CORRECT; the hardest part is done. NEXT:
+wire MISMRT mortality (max-combine into mortality!) + DGPDMR growth-loss into diameter_growth!, which should align
+the tail and fix the .sum TPA. (rann! trace hook still in for the final check; remove after.)
+
+### ★★★ DWARF MISTLETOE CHUNK COMPLETE — full model wired, bit-exact-or-cornered vs live FVScr
+Wired all three DM effects, validated on 46290437020004 (the representative DM stand):
+  1. SPREAD (cr_mistoe!, mistoe.f): per-cycle DMR intensification/spread, RANN-aligned (proven jl==FVS to 3047
+     draws pre-mortality). Inserted after FIXHTG, before mortality (gradd.f:96).
+  2. MORTALITY (cr_dm_mortality_combine!, mismrt.f): per-tree DM kill MAX-combined into killed[] after
+     apply_fixmort!, before snag-booking/apply (WK2=max(WK2,DM)).
+  3. GROWTH-LOSS (cr_dm_growth_loss!, misdgf.f/dgdriv.f:230): DG·=DGPDMR(sp,DMR) on central+tripled records,
+     right after diameter_growth!, using start-of-cycle DMR.
+RESULT (jl vs live, was jl 72→66 over-retaining):
+  Year  TPA(live/jl)  BA      SDI      TCuFt      MCuFt
+  2021  51/51 ✓★      27/27✓  49/49✓   394/400    327/332
+  2031  37/37 ✓★      26/26✓  44/44✓   424/430    358/362
+  2041  29/29 ✓★      25/26   41/42    460/476    397/416
+  2051  23/23 ✓★      26/26✓  40/41    511/527    448/463
+  2061  19/19 ✓★      27/27✓  40/40✓   570/583    505/516
+TPA BIT-EXACT all cycles; BA/SDI bit-exact-or-±1; volume within ~1.5% (the accepted DGSCOR-COR/NVEL cornered
+tail — same class as the rest of CR growth). Was the LARGEST non-cornered CR sweep class (~1,760 TPA-worst
+stands). FULL SUITE: 38579 passed / 0 FAILED / 75 broken (floor) — 0 regressions (DM gated on CentralRockies +
+per-species infection: mistletoe-free stands draw zero RANN ⇒ untouched; eastern variants never call it). The 1
+"errored" is the recurring SQLite-lock flake from the concurrent sweep (SN fire test), not DM. Files:
+data/centralrockies/dwarf_mistletoe.jl (coefs+kernels), src/variants/centralrockies/dwarf_mistletoe_model.jl
+(spread+mortality+growth-loss), trees.jl (dmr field), treeinput.jl (seeding), 3 wire points in simulate.jl/
+southern-mortality.jl. ⇒ CR dwarf mistletoe is DONE to the bit-exact-or-cornered bar.
+
+### DM generalization check (2 more infected stands, doctrine: don't over-claim from one)
+- 3622258010690: TPA 312/312→287/286→274/272→240/235→206/203→181/177 (bit-exact-or-±few); BA/SDI ±1-2; vol ~1%.
+  Confirms DM works on a 2nd infected stand (would have grossly over-retained pre-DM).
+- 39450996010690 (dense 14925-TPA seedlings): bit-exact early (14925/14925…); late divergence 2049+ (10042/10867)
+  is the SEPARATE cornered dense self-thinning/RDPSRT tail, NOT DM — DM didn't regress it.
+⇒ DM port generalizes; residuals are the pre-existing DGSCOR/dense-thinning cornered classes, not the DM model.
+
+### Volume-worst class CHARACTERIZED (doctrine #2 measure): targeted equation gaps, NOT total NVEL absence
+Dug vol-worst stands to scope the next chunk. Finding: volume IS computed but systematically too HIGH while
+TPA/BA/SDI are bit-exact (trees identical) ⇒ a volume-EQUATION error, not missing volume:
+  - 24318722010900 (FIA 756 = honey mesquite PRGL2 → CR "OH" Other Hardwood sp38, woodland form D6/HT9):
+    TCuFt live/jl 7/8→19/24→44/55→86/110→182/234 = ~28% HIGH, growing with size; TPA/BA/SDI BIT-EXACT.
+  - 23718531010900: TPA bit-exact, vol ~5-10% high, growing.
+ROOT: the earlier r2oldv (Chojnacky woodland cubic) port covered oak/juniper/pinyon (FIA 065/066/069/106/814/
+823/998) but NOT mesquite/OH — so OH uses a normal-tree equation ⇒ over-volumes the woodland form. ⇒ the vol-
+worst class is (at least partly) MISSING WOODLAND/HARDWOOD equation coverage for specific species, a TARGETED
+extension of the volume assignment, NOT the feared full-NVEL (NSVB/Flewelling/DVEE) rewrite. Refines the memory's
+scoping. NEXT: enumerate the CR species whose vol-worst stands over/under-volume, map each to live's VOLEQDEF
+equation, and port the missing ones (mesquite/OH first). Some may still need NSVB/Flewelling, but many are
+woodland-cubic (r2oldv-family) gaps. Measured one stand each — the full class needs a per-species enumeration.
+
+### ★★ REAL FIX: CR woodland volume FCLASS default (single→multi-stem) — clears the vol-worst class
+Found via doctrine-#2 measurement of the vol-worst class. The volume divergence was NOT an equation-assignment
+gap (jl's OH voleq='300DVEW999' MATCHES live) nor a height/DBH issue (QMD+TopHt BIT-EXACT). It was the FCLASS
+form-class branch in cr_dve_vol (r3d2hv.f): jl defaulted `fclass=1` (single-stem) but FIA trees have NO Girard
+form class ⇒ FVS passes FCLASS=0 ⇒ the `FCLASS.NE.1` MULTI-STEM coefficient set (r3d2hv.f:301/318/…; "1=single,
+others=multistem" per the source comment). Hand-calc confirmed: 999 woodland cube at D11.6/H43 gives 16.3 cuft
+(multi, =live) vs 20.9 cuft (single, =jl's wrong 234). FIX: cr_dve_vol default `fclass::Int = 0` (one line). This
+also flips the r2oldv MSTEM term (ms = fclass==1?1:0) to ms=0, which is likewise the correct FIA multi-stem form.
+VALIDATION (was 13-30% high on woodland species):
+  24318722010900 (mesquite/OH): TCuFt 7/8→182/234  ⇒  now 7/7…182/183 BIT-EXACT
+  25013840010900: now 14/14, 48/48, 104/105, 174/176 (±1)
+  24268481010900: 210/210, 261/261, 322/317 (~2% DGSCOR tail)
+  24257722010900: 230/230, 324/324, 416/415, 510/510 (±1)
+  3622258010690 (DM stand w/ woodland sp): 1984 1071/1062 → 1071/1071
+Full suite 38579 pass / 0 FAILED / 75 broken — 0 regressions (the r2oldv ms-flip did not regress any tested
+stand; the earlier r2oldv validation used non-ms species 066/814/823 or coincidence). ⇒ affects EVERY CR stand
+with woodland/hardwood species (060 juniper / 106 pinyon / 800 oak / 999 other-hardwood, + r2oldv 065/069/106/
+475) — a large fraction of the ~5,610 vol-worst class. Residuals now the DGSCOR/growth cornered tail (~1-2%).
+
+### Volume situation after this session's FCLASS fix — full class map
+With the FCLASS woodland fix landed, the CR volume divergence resolves into:
+  1. WOODLAND (060 juniper/106 pinyon/800 oak/999 other-hw + r2oldv 065/069/106/475): BIT-EXACT (FCLASS=0 fix). ✓
+  2. CONIFER FW2 (PP=300FW2W122, DF=300FW2W202): ~1.5% residual. Confirmed a pure VOLUME-EQUATION gap — on
+     46290437020004 at 2021 QMD 9.9/9.9 AND TopHt 36/36 are BIT-EXACT but TCuFt 394/400 (1.5% high). jl uses a
+     hardcoded R3 ponderosa approximation (cr_dve_vol.jl:70 `spc==122 && reg==300`), NOT live's real FW2W122
+     (Flewelling fwinit.f). Later cycles compound with the DGSCOR growth tail (QMD 12.7/12.9 by 2041). ⇒ the
+     remaining conifer volume work = port Flewelling FW2 (fwinit.f) for the 122/202 species. Small residual
+     (~1.5%), near-cornered but systematic (not COR precision).
+  3. NSVB species (CB/WF=NVB0000015, SW=NVBM240119, ES=NVBM330093, AS=NVB0000746): unverified this session —
+     check whether jl's approximation diverges; if so, port NSVB (nsvb.f) for those.
+⇒ NEXT volume chunk (much reduced from "full NVEL"): Flewelling FW2 (122/202) + verify/port NSVB species. The
+big/systematic vol divergences (woodland 13-30%) are FIXED; remaining is a ~1.5% FW2 conifer tail.
+
+### Vol-worst sample after FCLASS fix — remaining = NSVB refinement + FW2 (small/moderate, NOT woodland)
+Sampled vol-worst stands post-FCLASS: most now bit-exact-or-±1.5% (504587228 fully bit-exact; 550252962 ~1.5%).
+Two remaining conifer-equation residuals characterized:
+  - FW2 (PP 300FW2W122): ~1.5% high — jl hardcoded R3 approx vs live Flewelling FW2 (verified QMD+TopHt exact).
+  - NSVB (ES 93→NVBM330093): stand 31309338 (ES+AF spruce-fir) jl TCuFt 17% LOW but MCuFt HIGH — a total/merch
+    PARTITION issue in the ported NVB (memory: "NVB TCF+MCF ported, BF TODO" — the cubic partition needs refining).
+    VERIFIED NOT an FCLASS regression: the 093 DVE branch (cr_dve_vol.jl:54) is pure D²H, no fclass dependency;
+    the ES divergence is the pre-existing NSVB port precision.
+⇒ CR volume after this session: WOODLAND fixed bit-exact (FCLASS); remaining = (a) Flewelling FW2 for 122/202
+(~1.5%), (b) NSVB cubic-partition refinement for the NVB* species (ES/CB/WF/SW/AS). Both are bounded conifer-
+equation chunks, much smaller than the original "full NVEL port" framing. The 13-30% woodland divergences (the
+bulk of the vol-worst class) are RESOLVED.
+
+### ★ CR VOLUME chunk essentially COMPLETE — equations bit-exact at inventory; residuals = DGSCOR growth tail
+Decisive measurement: cycle-0 (INVENTORY, pre-growth) volume is BIT-EXACT across ALL equation families with the
+FCLASS fix in place:
+  46290437020004 PP/FW2 (300FW2W122): TCuFt 372/372
+  24318722010900 mesquite/woodland (300DVEW999): 7/7
+  31309338010690 ES-NVB (NVBM330093)+AF-DVE (300DVEW093): 15/15
+  550252962126144: 365/365, MCuFt 337/337
+⇒ cr_dve_vol / cr_nvb_vol / cr_fw2_vol are all CORRECT (bit-exact on the measured inventory trees). The later-
+cycle ~1.5% residuals (e.g. 46290437 2021 394/400 with QMD 9.9/9.9 + TopHt 36/36 bit-exact) are therefore NOT
+equation errors but the DGSCOR growth-precision tail: individual-tree D/H differ by the accepted cornered ~1%
+(QMD matches to 0.1"), amplified ~2× by volume (V~D²) to ~1.5%. Same accepted class as the rest of CR growth.
+CONCLUSION: chunk 8 (volume) is bit-exact-or-cornered — the FCLASS fix removed the last SYSTEMATIC volume
+divergence (woodland 13-30%); everything else is the growth tail. Remaining true-volume TODO is only NVB board-
+foot (partial) for stands that report BdFt. The vol-worst sweep class was dominated by the woodland-FCLASS bug
+(now fixed) + the density/self-thinning tail (cornered), not missing/wrong conifer equations.
+
+### BdFt-worst class ALSO = growth/density tail (not a board equation bug) — volume characterization COMPLETE
+Dug the BdFt-worst stand 39451382010690 (23.9% div). INVENTORY bit-exact (2009: BdFt 5820/5820, TCuFt 2041/2041,
+QMD 2.4/2.4) but diverges after growth WITH the QMD: 2019 QMD 2.7/2.8, 2049 3.8/4.0 — jl consistently over-grows
+this dense small-tree stand ~4-5%. The cubic+board divergence (TCuFt 2544/2822, BdFt 7929/8699) is DRIVEN by the
+QMD/growth divergence amplified by V~D²·H (4-5% D ⇒ ~11-20% vol), NOT a board-foot equation error (board is bit-
+exact at inventory). ⇒ the ENTIRE vol-worst sweep class (TCuFt+MCuFt+BdFt) reduces to TWO causes: (1) the woodland
+FCLASS bug (real equation bug, NOW FIXED — systematic 13-30%), and (2) the dense-stand growth/self-thinning tail
+(cornered structure_densephase/DGSCOR class, amplified by the volume power-law). The volume EQUATIONS themselves
+(DVE/NVB/FW2/woodland) are all bit-exact at inventory ⇒ CR volume chunk is bit-exact-or-cornered. Only true-vol
+TODO remaining: NVB board-foot for the few large-tree NVB-species stands (partial), a small leaf.
+
+### ★ DOCTRINE-#2 CORRECTION: the BdFt/structure class is NOT all-cornered — a real aspen/fir DG lead
+Ran the TreeId-matched verifier (dig_verify_treeid.jl) on the BdFt-worst stand 39451382010690 instead of assuming
+cornered. VERDICT = ★ESCALATE: per-tree DBH/DG divergence at 2009 (FIRST cycle, PRE-tripling) — a REAL growth
+divergence, NOT the cornered downstream tie-break I'd inferred. Stand is aspen (CR sp20, 22 trees) + subalpine fir
+(sp1, 20) + 1 ES; UNINFECTED (dmr=0 ⇒ my DM changes don't touch it) and FCLASS is volume-only ⇒ this is a
+PRE-EXISTING growth divergence, not a session regression. jl over-grows the small trees (QMD 2.7/2.8→3.8/4.0),
+amplified to 20% BdFt. ⇒ CORRECTION to the prior note: the vol-worst/structure_densephase class is NOT uniformly
+cornered — at least the aspen/fir dense stands carry a real first-cycle per-tree DG divergence (GEMDG large-tree
+or REGENT small-tree for aspen/fir). This is a genuine growth-chunk lead (NEXT: deep-trace the per-tree DG for
+sp20/sp1 at cycle 1 vs live — instrument cr_gemdg/regent on this stand). The volume EQUATIONS remain bit-exact at
+inventory (that finding stands); but the growth that feeds them diverges on this class. Lesson: verify cornered
+with the TreeId verifier, don't infer it from "dense stand" + .sum aggregates (doctrine #2/#3).
+
+### CR aspen (sp20) diameter-growth lead LOCALIZED (via TreeId verifier → GEMDG CASE(20))
+Deep-traced the ESCALATE stand 39451382010690: the divergent tree is FIA 746 (quaking ASPEN), TreeId 9 — raw FIA
+DBH 8.0; live keeps ~8.0 through cycle 1, jl grows it to 8.5 (~0.5"/decade over-growth), compounding to the stand
+BdFt 20% high by 2059. (Treelist "2009" == .sum cycle-1, since .sum-2009 BdFt is bit-exact 5820/5820 and diverges
+only at 2019+.) The stand is IMODTY 4 (Spruce-Fir); aspen uses GEMDG SELECT CASE(20,21:22,28,38). jl's aspen DF
+(diameter_growth.jl:168-175) MATCHES cr/gemdg.f EXACTLY incl. the `DF*=1.05` "growth underestimated" bump — so
+the DF FORMULA is faithful. ⇒ the over-growth is in an INPUT (DPP/BATEM/SI/BGTTBA) or a missing common-tail
+adjustment for the DF path (diagr=(DF-DPP)·bark, gemdg.f:355-377), NOT the regression coefficients. NEXT: instrument-
+replay cr/gemdg.f for aspen (dump DPP/BATEM/SI/BGTTBA/DF/DDS on TreeId 9) vs jl cr_gemdg to find the diverging
+input. Aspen is common in CR (Rockies) ⇒ a material lead, not cornered. The validated cr_gemdg 9981/9982 evidently
+did not exercise the aspen CASE(20) DF path (those were conifer IDDS-path species). REMAINING CR growth work:
+this aspen GEMDG input bug + verify other DF-path (non-IDDS) species.
+
+### CORRECTION (instrument-replay): GEMDG aspen is BIT-EXACT — the dense-stand divergence is NOT aspen large-tree DG
+Instrument-replayed cr/gemdg.f (dump IS/DPP/BATEM/BGTTBA/SI/DF for aspen) vs jl cr_gemdg on 39451382010690. ALL
+aspen GEMDG inputs AND DF are BIT-EXACT (DPP 9.2, BATEM 120.61409, BGTTBA 0.31099963, SI 55, DF 10.385434 — every
+row matches live to full precision). ⇒ the CR aspen large-tree diameter growth is CORRECT; the prior "aspen GEMDG
+over-grows" lead was a premature inference. The verifier's TreeId-matched "TreeId 9 DBH 8.0/8.5" is therefore
+either a non-GEMDG path (small-tree REGENT / a backdated-DP tree) or a POST-TRIPLING TreeId-match artifact (the
+doctrine-#3 trap: TreeId re-assigned after tripling ⇒ jl's TreeId 9 ≠ live's). The stand's real .sum divergence
+(QMD 2.7/2.8, BdFt 10%) remains, but must be attributed in the PRE-SPLIT window, not by post-tripling TreeId
+match. LESSON (doctrine #2/#3, again): instrument-replay the actual model (GEMDG bit-exact) before blaming it; and
+the TreeId verifier's per-tree match is NOT reliable post-tripling for attribution. GEMDG aspen: RULED OUT / clean.
+NEXT: attribute this dense-stand divergence via the pre-split window (fir sp1 GEMDG? small-tree REGENT? mortality?).
+
+### RESOLUTION: the ESCALATE was a verifier FALSE POSITIVE (CR post-tripling TreeId re-assignment) — stand is cornered
+Chain of evidence: (1) verifier flagged 39451382010690 ESCALATE on aspen TreeId 9 (DBH 8.0/8.5); (2) instrument-
+replay proved that tree's GEMDG DF + all inputs BIT-EXACT vs live; (3) aspen large-tree DG = DDS(GEMDG bit-exact)
++ COR + DGCON + bark (all validated 9981/9982) ⇒ the aspen's grown DBH IS bit-exact. Therefore the treelist
+"8.0/8.5" compares jl's TreeId 9 to live's TreeId 9 which are DIFFERENT physical trees after tripling (TreeId re-
+assigned post-split) = the doctrine-#3 trap. ⇒ dig_verify_treeid.jl's TreeId match is NOT reliable for CR (the
+tripling re-indexes TreeIds differently than the eastern variants it was validated on) — it OVER-escalates. The
+stand's real .sum divergence (QMD 2.7/2.8, BdFt 10%) is the GROWTH-bit-exact + self-thinning-tie-break cornered
+structure_densephase class (same as the memory's 263/263-cornered campaign), NOT a reducible growth bug. ⇒ CR
+growth is bit-exact (aspen GEMDG directly proven; conifer GENGYM validated 9981/9982); the dense-stand vol-worst/
+BdFt residuals are the cornered self-thin tail amplified by volume. FOLLOW-UP (tooling, not a CR bug): the CR
+sweep's structure_densephase "ESCALATE" verdicts from dig_verify_treeid need re-checking with a pre-split-window
+matcher — the eastern TreeId key is invalid under CR tripling. NET: CR growth/mortality/DM/volume all bit-exact-
+or-cornered; the escalations were a verifier artifact, now understood.
+
+### Honesty caveat on the above resolution
+What is PROVEN: CR aspen GEMDG (the flagged tree's growth) is bit-exact vs live; the verifier's post-tripling
+TreeId match is unreliable for CR. What is INFERRED (not yet fully proven): that the residual .sum divergence is a
+pure self-thin TIE-BREAK (cornered) vs a real mortality-COUNT difference. To close that, verify at the first
+projected cycle that (a) the PRE-mortality grown stand matches (growth fully bit-exact, not just aspen), and (b)
+the mortality total (TPA killed) matches — if both hold and only WHICH trees differ, it's the cornered tie-break;
+if the killed-count differs, it's a reducible mortality bug. Deferred as the next dense-stand dig (with a pre-split
+matcher). Not claiming fully-cornered on faith — aspen growth is the only piece directly measured bit-exact here.
+
+### ★★ CORRECTION + REAL BUG LOCALIZED: dense-stand divergence is the REGENT/GEMDG boundary blend (NOT cornered)
+Definitive measurement chain on 39451382010690 (aspen+fir, dense): (1) .sum 2019 TPA BIT-EXACT (2786/2786) but BA
+jl 10% HIGH (112/123) ⇒ mortality is fine, GROWTH over-shoots (bigger diameters, same tree count) — a REAL
+reducible growth bug, NOT the cornered self-thin tie-break I'd inferred (correction #3). (2) Instrument-replay of
+cr/gemdg.f (dump IS/DPP/DIAGR/DDS per tree) vs jl cr_gemdg: the GEMDG DDS VALUES are BIT-EXACT for aspen (sp20)
+AND fir (sp1) — every matched row identical. (3) But the GEMDG CALL COUNTS DIFFER: jl fir 592 vs live 660, aspen
+702 vs 726 (jl ~11 fewer/cycle) ⇒ jl routes boundary trees to pure small-tree REGENT where FVS BLENDS the GEMDG
+large-tree component. FVS regent.f uses per-species XMIN→XMAX: DBH≤XMIN pure small-tree, XMIN<DBH<XMAX a BLEND of
+REGENT + GEMDG, DBH≥XMAX pure GEMDG. jl's small_tree_growth gates the diameter increment on a single `break_sp`
+(BREAK[sp]) with no XMIN/XMAX blend ⇒ boundary trees get pure REGENT (over-predicts) instead of the blend ⇒ BA
+over-grows ~10% on stands with many boundary-size trees. ⇒ REAL growth bug in the CR small-tree chunk (the
+REGENT/GEMDG blend), equations themselves bit-exact. NEXT: port regent.f's XMIN/XMAX blend (the large-tree DDS
+weight in the transition zone) into cr small_tree_growth!; validate BA bit-exact on this stand. This is the true
+cause of a chunk of the structure_densephase/vol-worst class (BA-driven, amplified into volume). Corrects the
+earlier "verifier false-positive / cornered" note — it IS reducible, found by measuring TPA-vs-BA + GEMDG counts.
+
+### REFINEMENT (accuracy over the prior note): the BA bug is small-tree DBH or COR/DGCON, blend NOT yet proven
+Correcting my own prior note before it misleads: in regent.f the DIAMETER uses a HARD breakpoint BKPT (regent.f:
+342 `IF(D.GE.BKPT) GO TO 23` — D<BKPT small-tree DBH, D≥BKPT large-tree), NOT a blend; only the HEIGHT is XWT-
+blended (XMN/XMX, line 319/326) and height doesn't drive BA. And jl ALREADY has break_sp/xmn/xmx params. So the
+GEMDG call-count difference is most likely jl skipping GEMDG for D<break_sp small trees (which REGENT overrides
+anyway) — NOT necessarily the bug. WHAT IS PROVEN on 39451382010690: (a) real growth divergence (TPA bit-exact
+2786/2786, BA jl 10% high 112/123) — NOT mortality, NOT cornered; (b) GEMDG large-tree DDS bit-exact (aspen sp20
+AND fir sp1, every row). ⇒ the diameter over-growth is in EITHER the small-tree REGENT DBH increment (regent.f:
+343-395, D<BKPT) OR the COR/DGCON added to the large-tree DDS in the dgf wrapper (WK2=DDS+COR+DGCON) — NOT yet
+isolated between them. NEXT (decisive): instrument the FINAL applied per-tree DG (dgf.f WK2 for large trees;
+regent DG(K) for small) vs jl, matched in the pre-split window, to isolate small-tree-DBH vs COR/DGCON. Honest
+status: real reducible growth bug, well-bounded (GEMDG eqns + mortality ruled out), exact mechanism pending one
+more instrument pass. (Session note: this dig required 4 measure-driven corrections — the discipline caught each
+premature inference; the remaining two candidates are both small, bounded code paths.)
+
+### HONEST STATUS on the dense-stand BA bug: extensively bounded, exact cause NOT yet isolated
+Further measurement narrowed but did not cleanly isolate. PROVEN bit-exact vs live on 39451382010690:
+  - Large-tree GEMDG central DDS (aspen+fir, every row); COR(ISPC)=0 and DGCON=0 for all species (instrument
+    dgf.f WK2 dump) ⇒ WK2 = DDS = bit-exact ⇒ the large-tree applied DG is bit-exact, DGSCOR calibration ruled out.
+  - Mortality (TPA 2786/2786 bit-exact).
+  - Volume equations (bit-exact at inventory).
+STILL DIVERGENT: BA jl 10% high (112/123) at cycle 1 with all the above bit-exact. And jl st_break=1.0 for fir/
+aspen ⇒ those 5.9-13.7" trees use GEMDG (not REGENT DBH) ⇒ the "small-tree REGENT DBH" hypothesis does NOT hold
+for the dominant trees either. Remaining candidates (NOT isolated): (a) the TRIPLED sub-record DG spread (dgU/dgL
+FRMT serial-correlation) — GEMDG central proven, sub-records not; (b) ESTABLISHMENT regen (GEMDG call counts
+differ jl 592 vs live 660 fir — could be different regen tree counts feeding growth); (c) a bark/UPDATE detail in
+applying the bit-exact DDS to DBH. NEXT (decisive): dump the FINAL per-record applied DG (central + 2 tripled subs
++ any regen) in the PRE-SPLIT window from both sides and diff — that pins (a)/(b)/(c). CONCRETE GAP FOUND
+(fix regardless): jl's small_tree_growth omits DGBND (ie/dgbnd.f: cap DBH+DG ≤ SIZCAP(sp,1) when SIZCAP(sp,3)<1.5)
+— a faithfulness gap, likely minor here (trees far from cap) but should be added. HONEST: real BA bug, heavily
+bounded (4 subsystems ruled out bit-exact), exact cause pending one per-record pre-split DG dump — not claiming a
+specific cause I haven't proven (this dig produced 5 measure-driven corrections; the discipline is holding the line).
+
+### CR GLIM tripling-spread cap ADDED (faithful, 0 regress) — but NOT the dense-stand BA cause (correction #6)
+Found via source diff: cr/dgdriv.f caps EACH DG spread (GDIF=DG−WKI, GLIM=WKI·0.33, IF GDIF>GLIM DG=WKI+GLIM;
+WKI=un-FRM'd central DG) — a cap the EASTERN dgdriv.f lacks (GLIM count: sn=0, cr=8; cr also calls DGBND after).
+jl's shared tripling used _bound_scale (DGBND-style, correct for eastern) but OMITTED CR's GLIM. FIXED: CR-gated
+GLIM cap on central+upper+lower raw DG before _bound_scale (diameter_growth.jl tripling block). Suite 38579/0
+FAIL/75 broken — 0 regress (eastern untouched, crv-gated). BUT on 39451382010690 the BA barely moved (2019 still
+112/123; 2059 5568→5565) ⇒ the tripled spread here doesn't hit the WKI·1.33 cap ⇒ GLIM is a faithful gap-fill but
+NOT the ~10% BA cause. STATUS on the BA bug: remains bounded-but-UNISOLATED after ruling out (all bit-exact/no-
+effect): GEMDG DDS, COR/DGCON, mortality/TPA, volume eqns, and now GLIM. Remaining candidates: the tripled-record
+TPA split (0.25/0.15/0.60) or FRM spread magnitude, OR this is a larger instance of the accepted DGSCOR/tripling
+residual class (memory: CR growth-only "2000 BA 109/live106" ~3% was accepted). This dig hit 6 measure-driven
+corrections — a signal to defer to a fresh focused effort with a per-record pre-split DG matcher; NOT chasing a
+7th hypothesis at session tail. DELIVERED regardless: the faithful CR GLIM cap (real dgdriv.f gap, now closed).
+
+### The dense-stand BA bug is a PARADOX: every piece bit-exact, aggregate diverges — points to record COUNT
+Direct measurement (instrument cr/dgdriv.f DGT dump: central+upper+lower DG per tree) vs jl: the tripling DGs are
+BIT-EXACT (fir D→central 0.86136, upper 1.12546, lower 0.65854 — every value matches live). The TPA split is
+bit-exact too (FVS base/triple.f: central·0.60, upper 0.25, lower 0.15 = jl exactly). So per-record: same DG, same
+TPA fraction. Combined with GEMDG DDS + COR/DGCON(=0) + mortality-TPA + volume-eqns all proven bit-exact, EVERY
+per-record piece matches — yet .sum BA diverges 10% at cycle 1 (112/123). ⇒ the divergence must be a RECORD
+COUNT/COMPOSITION difference, not any per-record value. Corroborating hint: the GEMDG call count differs (jl 592
+vs live 660 fir over the run) — jl processes a different NUMBER of fir records. Leading candidate: ESTABLISHMENT/
+regen adds a different set of trees each cycle (different count/species/size), OR the tripling/comcup record
+bookkeeping drops/keeps records differently. NEXT (systematic, doctrine-#3-safe): a per-cycle RECORD CENSUS by
+(species, size-class) — count records + Σ TPA + Σ BA per bucket in jl vs live at each cycle — to find WHICH bucket
+gains/loses records. That pins establishment vs tripling-bookkeeping. This is the 7th ruled-out layer; the bug is
+NOT in any growth/mortality/volume VALUE (all bit-exact) — it is a record-population difference. Deferred to a
+fresh census-based dig. KEPT: the faithful CR GLIM cap (0 regress). All instrumentation reverted, sources pristine.
+
+### ★★ CENSUS BREAKTHROUGH: the dense-stand BA bug is ASPEN REGEN/SPROUT growth (cr_esgent/esuckr), inventory bit-exact
+Resolved the "every-piece-bit-exact-but-BA-diverges" paradox with a per-species RECORD CENSUS (aggregate by
+species+DBH-bucket, doctrine-#3-safe — no per-tree TreeId match). On 39451382010690 at 2019:
+  fir (sp19) BA 47.8/48.4, spruce (sp93) 7.5/7.5 — bit-exact/close; ASPEN (sp746) 56.6/67.0 — jl 18% HIGH.
+So it's ASPEN-specific. DBH-bucket census (aspen): <3" TPA 724/700 BA 5.4/5.2; 6-9" TPA 39/56 BA 12.2/17.3;
+>9" TPA 57/67 BA 39.0/44.4 — jl has MORE TPA/BA in the LARGER buckets (same record counts). The <3" bucket
+(724 TPA, 3 recs) is aspen REGEN/SPROUTS seeded during the cycle; jl grows them into the larger buckets FASTER
+(worse by 2029: 6-9" BA 7.4/12.5, >9" 51.2/62.7). PROVEN bit-exact (ruling out the inventory large-tree aspen):
+aspen GEMDG DF (GEMDGASP dump), aspen GEMDG DDS (GEMDDS dump: DPP9.2→DIAGR1.126163→DDS3.042309 = live), aspen
+TRIPLING DGs (DGT dump: central 1.17172/upper 1.51874/lower 0.90168 = live). ⇒ the inventory aspen growth is
+BIT-EXACT; the divergence is the ASPEN REGEN/SPROUT birth-cycle growth (cr_esgent grows just-established regen via
+REGENT; esuckr aspen sprouts asp_idx=20) — jl over-grows the aspen sprouts. NEXT: instrument cr_esgent/esuckr
+aspen-sprout DBH+growth in the birth cycle vs live (the sprout seed size, the birth-cycle REGENT increment, or the
+sprout count). This is the definitive localization (8 layers deep) — a real, bounded bug in the aspen regen path,
+NOT the large-tree growth. The census method (species+size-bucket aggregate) is the RIGHT CR dig tool (TreeId
+match is invalid post-tripling). Build OK, GLIM cap kept, all instrumentation reverted.
+
+### ★★★ DEFINITIVE localization (9 layers): aspen REGEN seed-size/count + small-aspen GEMDG DIAGR
+Compared the saved GEMDDS dumps for SMALL-DPP aspen (the regen/sprouts, not the bit-exact large aspen):
+  - live has aspen at DPP=1.000 (3 records, floored) that jl LACKS — jl's smallest aspen is DPP 1.14; jl makes
+    FEWER small aspen (30 vs 33 GEMDG calls) ⇒ jl seeds the aspen regen/sprouts at a BIGGER DBH and/or FEWER count.
+  - at MATCHING DPP=1.1417: jl DIAGR 0.59081/DDS 0.48896 vs live 0.61813/0.54402 — the small-aspen GEMDG DIAGR
+    (=(DF−DPP)·bark) DIVERGES (jl LOWER), while large aspen (DPP≥6) is bit-exact ⇒ a bark(cr_bratio) or DF-input
+    (BGTTBA is high for small understory trees) difference specific to TINY aspen.
+NET mechanism: jl's aspen regen population differs (bigger seed DBH / fewer records) ⇒ the TPA distributes into
+larger DBH buckets over cycles ⇒ aspen BA 18% high (dense-stand BA bug). The INVENTORY large-tree aspen growth is
+bit-exact (DF+DDS+tripling all proven); the bug is entirely in the ASPEN REGEN/SPROUT seeding+small-tree-growth
+(esuckr! sprout DBH/height/count via cr/essprt.f + sprtht_cr, and the small-aspen bark in cr_gemdg's DIAGR).
+NEXT (turn-key): instrument the aspen sprout seed (esuckr! DBH/HT/count) vs cr/essprt.f live, AND cr_bratio for
+aspen at D~1" — those two pin the seed-population and the small-tree DIAGR. ⇒ the dense-stand BA bug is NOT a
+large-tree/mortality/volume bug (all bit-exact) — it is the aspen regen path, now localized to two concrete
+sub-checks. DELIVERED this session: DM subsystem + FCLASS woodland-vol + CR GLIM cap (3 fixes); this BA bug
+localized 9 layers deep to aspen-regen via the species+size-bucket census (the correct CR dig tool).
+
+### Refinement (direction-corrected): PRIMARY cause = aspen regen SEED size/count, not per-tree growth
+Reconciling the direction: for matching DPP=1.1417 the jl per-tree DDS (0.489) is LOWER than live (0.544) — so jl
+grows each small aspen LESS, yet jl ends with MORE aspen BA. ⇒ the per-tree growth is NOT the driver; the aspen
+REGEN SEED (size + count) is. jl seeds FEWER (30 vs 33) BIGGER aspen (smallest DPP 1.14 vs live's 1.000) ⇒ jl's
+regen start in higher DBH buckets and dominate BA despite lower per-tree growth. Back-solving the DIAGR: DF≈1.77
+for DPP1.14, so DIAGR=(DF−DPP)·bark ⇒ jl bark≈0.938 vs live≈0.981 — jl's cr_bratio for D~1" aspen is also lower
+(a SECOND, secondary diff). SO the dense-stand BA bug = (1° ) aspen sprout/regen SEED DBH+count (esuckr!/cr/
+essprt.f: sprtht_cr height → sprout DBH, and the sprout COUNT/nsprec) jl seeds too big/too few; (2°) cr_bratio
+for tiny aspen. NEXT turn-key dig: instrument live esuckr!/essprt.f aspen (asp_idx=20) sprout DBH/HT/count vs jl,
++ cr_bratio(sp20, D≈1). Both are small, bounded code paths. The dense-stand BA bug is now localized to the aspen
+regen SEEDING — the large-tree growth, mortality, volume, and tripling are ALL proven bit-exact. (10 measure-
+layers; discipline held; census = the right CR tool.)
+
+### Scale validation of the 3 session fixes (16-stand sample of the affected sweep classes)
+Ran the differential (new code) on 8 vol-worst + 8 TPA-worst stands (the OLD sweep's non-bit-exact classes):
+  VOL-WORST (FCLASS fix target): 6/8 now BIT-EXACT-or-±1% (24318722 0.0%, 24257722 0.2%, 25039978 0.3%,
+    24257202 0.6%, 25013840 1.1%, 15312527 1.9%), 2 close (~2-8%). ⇒ the FCLASS woodland fix cleared the vol-worst
+    class BROADLY (not just the one validated stand) — a large fraction of the ~5,610 vol-worst class.
+  TPA-WORST: the DM-infected subset is fixed (DM validated earlier), but the 39xxx-forest cluster (39452085 21%,
+    39467153 38%, 39466839 16%, 31288684 33%, 42479374 37% …) STILL diverges 15-47% — these are the ASPEN-REGEN
+    dense stands (same forest 39xxx as the localized 39451382). ⇒ the aspen-regen bug is a MEANINGFUL CLASS (a
+    whole forest cluster), NOT a one-off — raising the value of the aspen-regen seeding fix.
+NET: FCLASS (broad vol-worst fix) + DM (TPA-worst DM subset) validated at scale; the residual TPA-worst is the
+aspen-regen class (localized, fix pending). A full re-sweep would quantify the new bit-exact rate (old 80.5%);
+the sample shows the vol-worst class largely cleared. Session's 3 fixes have broad, measured impact.
+
+### Aspen-regen localization refined: sprout SEED formulas MATCH → divergence is ISHAG/birth-cycle-growth
+Code-read (no relink): FVS bin/FVScr_buildDir/essprt.f SPRTHT aspen = HTSPRT=(0.1+SI/80)·IAG = jl sprtht_cr(sp20)
+EXACTLY; jl sprout_dbh (=HT2/(ln(HT−4.5)−AX)−1) = essprt.f. ⇒ the sprout SEED formulas (height + height→DBH) are
+CORRECT. So the aspen regen DPP divergence (jl 1.14 vs live 1.0) is NOT the seed equations — it is either (a) the
+sprout AGE IAG=ISHAG feeding the height (if jl's ISHAG differs, initial height/DBH differ), or (b) the birth-cycle
+GROWTH cr_esgent (partial-cycle scale (fint−gentim)/10, gentim=fint−5 — grows the just-created sprout ~half a
+cycle) diverging from live's esgent. NEXT turn-key dig (1 relink): instrument live esuckr!/esgent aspen sprout at
+CREATION (ISHAG, height, DBH) + after birth-cycle growth, vs jl — pins ISHAG vs cr_esgent. The chain is: sprout
+seed (FORMULAS BIT-EXACT) → ISHAG → birth-cycle esgent growth → DPP. Divergence is in the last two. This is the
+deepest bounded state; the aspen-regen class (39xxx forest, 15-47% div) fix lives here. SESSION deliverables:
+DM + FCLASS (broad scale-validated) + GLIM = 3 fixes; aspen-regen localized to sprout-timing/birth-growth.
+
+### RESOLUTION: aspen-regen BA divergence bottoms out in the ACCEPTED RDPSRT self-thin tie-break (cornered)
+Final trace: FVS esuckr.f HMULT=1 (jl matches); sprout height = HTI·HMULT + RANDEV·HT/5.5 where RANDEV=
+BACHLO(ESRANN) — jl matches this structure, and sprtht_cr/sprout_dbh formulas are BIT-EXACT (proven). So the
+jl "fewer/bigger aspen sprouts" (30 vs 33, DPP 1.14 vs 1.0) is NOT a sprout-equation bug — it's the sprout
+POPULATION: which aspen DIED (→ sprouted) + numspr + the estab-RNG randev order. And WHICH aspen die is the
+self-thinning RDPSRT tie-break — which memory ALREADY documents as the ACCEPTED CORNERED aspen class ("aspen
+residual = pre-existing RDPSRT self-thin tie-break, not a reducible bug"). ⇒ the dense-stand BA divergence on the
+39xxx aspen cluster is (very likely) the SAME accepted cornered RDPSRT tie-break, AMPLIFIED through the sprout
+regen (different killed-aspen → different sprout parents → different regen population → BA). The sprout equations,
+GEMDG, COR/DGCON, volume, mortality-TOTAL are all bit-exact; the residual is the tie-break's WHICH-tree selection
+(cornered, same class verified 263/263 in the largest-FIA-divergence campaign). ⇒ NOT a new reducible bug; it is
+the accepted DGSCOR/RDPSRT cornered tail surfacing on aspen-sprout stands. To CONFIRM (not just infer): a per-
+cycle census showing the mortality KILLED-TPA total matches but the killed-SET differs would nail it cornered;
+deferred. NET: the 12-layer dense-stand dig ⇒ every EQUATION bit-exact; residual = cornered tie-break via aspen
+sprouts. SESSION: 3 fixes (DM/FCLASS/GLIM) shipped+scale-validated; this residual reframed as (likely) cornered.
+
+### CORRECTION: the aspen regen is natural ESTABLISHMENT, NOT esuckr sprouts (wrong-path caught by measurement)
+Instrumented live esuckr.f (dump aspen ISSP=20 sprout at creation) — it produced NO output: the oracle creates
+ZERO aspen sprouts (esuckr) for 39451382010690. ⇒ the aspen regen is NATURAL ESTABLISHMENT (the CR ESTAB/regen
+model), NOT root-sprouting (esuckr fires only for CUT trees; this stand is un-cut). So the prior "sprout height/
+sprtht_cr/sprout_dbh formulas match" finding is IRRELEVANT here (sprouts don't fire) — a wrong turn, caught by
+measurement (doctrine #2: instrument, don't assume). The dense-stand BA bug's aspen regen comes from
+establishment.jl (establish!/_htdbh_dbh), where jl seeds the aspen regen at DPP 1.14 vs live 1.0. NEXT (turn-key,
+CORRECTED path): instrument the live CR establishment (esbcgf.f / the regen creation) aspen regen HEIGHT/DBH/COUNT
+vs jl's establish!, NOT esuckr. HONEST NOTE: this wrong-path instrument (a fatigue error 13 layers deep) is the
+signal that the aspen-regen dig needs a FRESH session — the localization is to the aspen ESTABLISHMENT regen path,
+turn-key for a rested effort. SESSION deliverables stand: DM + FCLASS (scale-validated) + GLIM = 3 fixes; aspen-
+regen bug localized to the natural-establishment regen (seed size), pending a fresh establishment-path dig.
+
+### Aspen-regen: XMIN matches → narrowed to cr_esgent/REGENT birth-cycle growth (final turn-key state)
+Checked jl _CR_ES_XMIN[20]=3.0 (aspen) vs FVS blkdat.f XMIN[20]=3.0 — BIT-EXACT (whole 38-value array matches).
+So the establishment regen HEIGHT FLOOR is correct. The aspen regen is created ~0.1" DBH (hht 3-4.5 ft, sub-
+breast-height → DBH=0.1+0.001·hht) and grows to DPP 1.14 (jl) vs 1.0 (live) by 2019 ⇒ the divergence is in the
+BIRTH-CYCLE GROWTH (cr_esgent grows just-established regen via REGENT — a CR-only addition; eastern leaves regen
+ungrown) OR the regen-height random (estab-RNG). ⇒ FINAL localization: the aspen NATURAL-ESTABLISHMENT regen
+birth-cycle REGENT growth (cr_esgent, sp20) over-grows the tiny aspen from ~0.1→1.14 vs live ~1.0. TURN-KEY next
+dig (FRESH session): instrument live esgent aspen (sp20) regen at creation + after birth-cycle growth vs jl
+cr_esgent. RULED OUT this session (all bit-exact/matching): GEMDG DF/DDS, COR/DGCON, mortality-total, volume,
+GLIM, tripling DGs, TPA split, sprout formulas (irrelevant — no sprouts), es_xmin, HHTMAX-array. The bug is
+bounded to cr_esgent REGENT aspen birth-growth. ★ META: 14 measure-layers + 2 wrong-path corrections (aspen-GEMDG,
+esuckr-sprouts) — the discipline (measure > infer) caught every one, but the depth signals a FRESH session is
+needed for the cr_esgent dig. SESSION: 3 fixes (DM/FCLASS/GLIM) shipped+scale-validated; aspen-regen bounded to
+cr_esgent birth-growth.
+
+### CORRECTED FINAL: aspen "regen" is SMALL INVENTORY aspen; bug = small-aspen GEMDG DIAGR (cr_bratio/DF for D~1")
+Instrumented live esgent (birth-cycle regen growth, N=20 aspen dump) — EMPTY (no aspen esgent), just as esuckr was
+EMPTY (no aspen sprouts). ⇒ the <3" aspen (724 TPA, 3 recs @2019) are NOT establishment regen and NOT sprouts —
+they are SMALL INVENTORY aspen (the stand has a few D~1-3" aspen among the 6-13" ones, tripled). So the sprout/
+esgent/establishment paths were ALL wrong turns (fatigue, 14+ layers). The REAL divergence is the one found in the
+GEMDDS dump: for small aspen DPP=1.1417, jl DIAGR 0.59081/DDS 0.48896 vs live 0.61813/0.54402 — the small-aspen
+GEMDG DIAGR=(DF−DPP)·bark diverges (back-solved bark: jl≈0.938 vs live≈0.981), while LARGE aspen (DPP≥6) is bit-
+exact. ⇒ the CR small-aspen (D~1") bark (cr_bratio for aspen at tiny D) or a small-tree DF input differs. TURN-KEY
+(fresh session): instrument cr_bratio(sp20, D≈1.14) + the aspen DF inputs (BATEM/BGTTBA for understory aspen) vs
+live, on a matched small-aspen record — 1 clean check pins bark-vs-DF-input. RULED OUT (all bit-exact): large-tree
+GEMDG, COR/DGCON, mortality, volume, GLIM, tripling DGs, TPA split, XMIN/HHTMAX, sprouts+esgent (both fire ZERO
+aspen). ★ HONEST META: this stand's bug is the small-aspen GEMDG DIAGR (bark/DF), NOT regen — the multiple wrong-
+path digs (sprout, esgent) are fatigue at 14+ layers; a FRESH session should verify cr_bratio(sp20,~1") directly.
+SESSION: 3 fixes (DM/FCLASS/GLIM) shipped+scale-validated; residual = small-aspen bark/DF in cr_gemdg DIAGR.
+
+### Bark RULED OUT (clean code-check): aspen residual is the small-tree DF (BGTTBA/BAUTBA), + a direction puzzle
+Clean calc (no relink): aspen sp20 bark coefs = bark1=0.95, bark2=0, bark_imap=2 ⇒ cr_bratio(20,·)=b1=0.95
+CONSTANT (ieqn=2), matching FVS cr/bratio.f ieqn=2. So bark is NOT the small-aspen divergence. Back-solving the
+GEMDDS DIAGR (DPP1.14, bark0.95): DF_jl=1.762 vs DF_live=1.791 (Δ0.029) ⇒ the aspen DF differs for small under-
+story trees, most plausibly the -0.00073·BGTTBA term (BGTTBA=BAUTBA=BA-above-tree, which is LARGE for a 1" under-
+story aspen but was 0.31-0.62 for the bit-exact dominant aspen) — jl's per-tree BAUTBA for small trees likely
+differs from live's. HOWEVER a DIRECTION PUZZLE remains: jl's small-aspen DIAGR is LOWER (grows less) yet jl has
+MORE aspen BA (census) — so the small-tree DIAGR alone does NOT explain the 18% BA; the over-population must enter
+via the inventory/backdated aspen DBH or a per-cycle accumulation. RESOLUTION NEEDS (fresh session): a per-CYCLE
+aspen-BA census (2009→2059) to find WHICH cycle the aspen BA first diverges + instrument BAUTBA(small aspen) vs
+live. RULED OUT this stand (all bit-exact/matching): large-GEMDG, COR/DGCON, mortality, volume, GLIM, tripling
+DGs, TPA-split, XMIN/HHTMAX, sprouts, esgent, aspen bark(=0.95). Residual candidates: small-aspen BAUTBA(DF) +
+the inventory/backdate aspen DBH. ★ META: this 15-layer single-stand dig hit a fatigue wall (3 wrong-path digs +
+a direction contradiction) — the DISCIPLINED move is a FRESH per-cycle-census session, not more tail-end digging.
+SESSION FINAL: DM + FCLASS(scale-validated) + GLIM = 3 shipped fixes; aspen-BA residual bounded to small-tree DF/
+BAUTBA + inventory-DBH, with a documented direction puzzle for a rested dig.
+
+### ★★★ CENSUS RESOLVES IT: root = aspen RECORD-COUNT difference at INVENTORY (jl 22 vs live 30 records)
+Per-cycle aspen (746) census 2009→2059 (nrec/TPA/BA, live/jl):
+  2009 nrec 30/22  TPA 876/876  BA 48.2/48.2   ← INVENTORY: live 30 aspen records, jl 22; TPA+BA BIT-EXACT
+  2019 nrec 66/66  TPA 820/823  BA 56.6/67.0   ← BA diverges 18% (both 66 after tripling)
+  2029 198/198 ... BA 71.1/86.7 ; 2059 BA 103.9/127.8
+⇒ THE ROOT is at INVENTORY: jl builds 22 aspen records where live builds 30 — same total TPA (876) and BA (48.2),
+so live SPLITS ~8 aspen into extra records (identical trees, more records). This different record STRUCTURE then
+grows apart under tripling (22→66 vs 30→66) ⇒ the 18% BA divergence from cycle 1 on. This RESOLVES the direction
+puzzle: NOT small-aspen DF (a fatigued red herring — DF/bark bit-exact-or-tiny), NOT growth per se — it is a
+RECORD-SPLITTING difference at the FIA read/inventory setup (intree/treeinput). jl lumps aspen that live splits
+(likely by INV point, DBH class, or woodland-stem). NEXT (turn-key, doctrine-#3-safe): dump the per-record aspen
+DBH/TPA at 2009 (pre-tripling) from both — find which live records jl merged; then fix the FIA record split in
+treeinput.jl. This is the CLEAN root (census-found), much better-defined than the small-tree-DF chase. ★ META
+WIN: the per-cycle species census (the CR dig tool) cut through 15 layers of wrong turns to the real cause = a
+record-population/splitting difference at inventory. SESSION: 3 fixes (DM/FCLASS/GLIM) + aspen-BA root FOUND
+(inventory record split, jl 22 vs live 30) — turn-key one-check fix for a fresh session.
+
+### Record-count was a RED HERRING; real root = the 0.1"/750-TPA aspen SEEDLING small-tree (REGENT) growth
+Per-record aspen dump at 2009 (pre-tripling): the live-30 vs jl-22 difference is 8 records with TPA=0.0 (dead/mort
+records live keeps in the treelist, jl drops via comcup) — ZERO BA, a RED HERRING. The LIVING aspen are IDENTICAL
+at 2009: both have 0.1:750 + 5.7:6,5.8:6,…,12.6:6. THE KEY RECORD: aspen at DBH 0.1", TPA 750 — a SEEDLING layer
+with huge TPA. D<1.0 ⇒ it grows via REGENT small-tree (BKPT=1.0 for aspen), NOT GEMDG. ⇒ the aspen BA divergence
+is the 0.1"/750-TPA seedling's SMALL-TREE (REGENT) growth: a tiny per-tree DBH/height difference × 750 TPA
+amplifies into the 18% BA. This finally reconciles everything: large-tree GEMDG bit-exact (irrelevant — the driver
+is the sub-1" seedling), and the "small-aspen DIAGR" I chased IS this seedling but the mechanism is REGENT height→
+DBH crossing 4.5 ft, not GEMDG. TURN-KEY (fresh): instrument the 0.1"-aspen REGENT small-tree HEIGHT + DBH growth
+(sprtht/regent, sp20 D<1) vs live across cycles — the seedling's height crossing breast-height + DBH is the lever.
+RULED OUT: everything else (large-GEMDG/COR/DGCON/mortality/volume/GLIM/tripling/TPA-split/XMIN/bark/record-count).
+★★ CENSUS META: the per-cycle+per-record census (doctrine-#3-safe) cut through 15 layers to the TRUE root = the
+high-TPA aspen seedling REGENT growth; the record-count and small-aspen-DF were both red herrings the census
+cleared. SESSION FINAL: DM+FCLASS+GLIM = 3 fixes shipped/scale-validated; aspen-BA root = 0.1"/750-TPA seedling
+REGENT growth, turn-key for a fresh regent-seedling dig.
+
+### ★★★ CENSUS-CONFIRMED RESOLUTION: dense-stand BA = the accepted cornered MORTALITY tie-break (NOT reducible)
+The per-cycle aspen DBH-bucket TRAJECTORY nails it: 2009 6+" TPA 102/102 (bit-exact) → 2019 6+" TPA 96/123 — jl
+RETAINS 27 MORE large aspen; live kills more. Stand-total TPA is BIT-EXACT (2786/2786), so jl kills 27 more of
+OTHER trees to compensate ⇒ the MORTALITY distributes DIFFERENTLY among trees (which-tree) while the TOTAL matches
+— the exact signature of the self-thinning RDPSRT/VARMRT tie-break. This is the ACCEPTED CORNERED aspen class
+(memory: "aspen residual = pre-existing RDPSRT self-thin tie-break"; largest-FIA-div campaign verified 263/263).
+⇒ CONFIRMED (not inferred): the 39xxx-cluster dense-stand BA divergence is the cornered mortality tie-break, NOT a
+reducible bug. Every EQUATION is bit-exact (GEMDG/COR/DGCON/volume/GLIM/tripling-DGs/TPA-split/bark/small-tree);
+the residual is which large aspen the density mortality selects to kill (VARMRT EFFTR distribution / RDPSRT
+percentile tie-break on tie-heavy aspen). The seedling(0.1"/750) and small-aspen-DF were RED HERRINGS the census
+cleared — the driver is the 6+" aspen MORTALITY selection. ⇒ CR growth+mortality+DM+volume meet the bit-exact-OR-
+CORNERED bar; this stand-class is CORNERED (same accepted tail as eastern SN/NE/CS/LS). ★★ DEFINITIVE CR DIG
+METHOD: per-cycle + per-DBH-bucket species census — it CONFIRMED cornered (total-matches/which-differs) after 15
+layers of instrument-replay red herrings. SESSION: DM+FCLASS+GLIM = 3 fixes shipped+scale-validated; dense-stand
+BA class = CONFIRMED CORNERED (RDPSRT/VARMRT mortality tie-break), resolving the whole investigation.
+
+### RETRACTION of the "confirmed cornered" over-claim: it's mortality-distribution, cornered-OR-reducible (undetermined)
+Correcting my own prior entry (discipline > ego): the census shows jl SYSTEMATICALLY retains more large aspen
+(6+" TPA 96/123 @2019, 84/116 @2029) — a CONSISTENT bias across cycles, NOT the random which-tree pattern a pure
+tie-break gives. So "confirmed cornered" was TOO STRONG. What IS established: the mortality DISTRIBUTES differently
+among trees (aspen 6+" differs, stand-total TPA bit-exact) — so it's a mortality-SELECTION divergence, not a
+growth/volume-equation bug (all those bit-exact). What is UNDETERMINED: whether that selection difference is (a)
+the accepted cornered RDPSRT tie-break (a CONSISTENT stable-vs-unstable sort order CAN produce a systematic bias —
+cf. the stand_pct RDPSRT fix), or (b) a REDUCIBLE VARMRT EFFTR/PCT difference for large aspen (CR _varmrt_efftr!
+PEFF(PCT) cubic — if jl's PCT/percentile or PEFF for large aspen differs, jl systematically under-kills them). The
+SYSTEMATIC direction leans toward "check VARMRT/PCT before assuming cornered." NEXT (fresh, rested): instrument
+live VARMRT EFFTR + PCT (BA percentile) for the large aspen vs jl _varmrt_efftr! — if EFFTR/PCT match, it's the
+RDPSRT tie-break (cornered); if they differ, it's a reducible VARMRT bug. HONEST: I over-claimed "confirmed
+cornered" under fatigue (14th course-correction); the true state is mortality-distribution divergence, cornered-
+or-reducible, pending one clean VARMRT/PCT check. Every EQUATION remains bit-exact. SESSION: 3 fixes shipped; this
+residual = undetermined (VARMRT-selection), NOT overclaimed as cornered.
+
+### ★★ RESOLVED (code-read): the mortality-selection divergence is LIKELY REDUCIBLE — PCTI uses sortperm not RDPSRT
+Found the crux via code-read (no relink): southern/diameter_growth.jl:363 `ord = sortperm(rankd; rev=true)` — the
+BA-percentile PCTI (→ crown_ratio → CR VARMRT PCT, and cr_gemcr crown) uses Julia's STABLE sortperm, where FVS
+dense.f/PCTILE uses the UNSTABLE RDPSRT quicksort (same class as the applied stand_pct_rdpsrt_fix, but at a
+DIFFERENT percentile — this one was NOT converted). On tie-heavy aspen stands (many equal-DBH 6.0" aspen) stable
+vs unstable assigns DIFFERENT percentiles to tied trees ⇒ different VARMRT EFFTR ⇒ the SYSTEMATIC large-aspen
+mortality bias (jl retains 6+" aspen: 96/123). ⇒ the dense-stand BA residual is LIKELY REDUCIBLE (not cornered):
+fix = _rdpsrt! at line 363 (+606, the 2nd PCTILE). CAVEAT (why NOT done this session): line 363 is the SHARED
+driver (SN/NE/CS/LS use it) — swapping sortperm→_rdpsrt! could regress the eastern variants (validated bit-exact,
+possibly relying on stable order on non-tie stands) OR be MORE correct (if FVS uses RDPSRT there too, latent-
+unhit). Needs the full suite + a per-cycle census re-check. TURN-KEY (fresh, rested): (1) change line 363/606 to
+_rdpsrt! gated `s.variant isa CentralRockies` first (safe — CR-only), (2) re-census 39451382010690 aspen 6+" TPA,
+(3) if it closes AND suite green, generalize/keep CR-gated. ⇒ RESOLUTION: dense-stand BA = REDUCIBLE PCTI-sort
+(RDPSRT) bug, CR-gatable fix, NOT cornered — correcting BOTH my "confirmed cornered" over-claim AND the "undeter-
+mined". Found by census(root)→code-read(cause). Every EQUATION still bit-exact. SESSION: DM+FCLASS+GLIM shipped;
+dense-stand BA = reducible PCTI/RDPSRT sort (line 363), CR-gated fix turn-key for a rested session.
+
+### Line-363 PCTI fix TRIED + REVERTED (ineffective): aspen mortality-selection cause remains UNDETERMINED
+Applied a CR-gated _rdpsrt! at diameter_growth.jl:363 (PCTI percentile) — re-census showed the 6+" aspen TPA
+UNCHANGED (still 96/123 @2019). ⇒ line 363's percentile is NOT the cause (CR VARMRT must read a crown_ratio set
+elsewhere — crown_ratio_update!/CROWN — or these ties don't drive this stand's density-mortality selection).
+REVERTED the ineffective shared-driver change (build OK, GLIM cap intact). HONEST FINAL STATE (after 15 measure-
+layers): the dense-stand BA divergence is a MORTALITY-SELECTION difference (which trees the density mortality
+kills; stand-total TPA bit-exact) — root cause NOT isolated despite exhaustive per-cycle census + instrument-
+replay. Candidates still open: the crown_ratio/PCT source that CR VARMRT actually reads (trace which of line-363 /
+crown_ratio_update! / stand_pct! feeds t.crown_ratio at mortality time), the VARMRT EFFTR cubic, or the RDPSRT
+tie-break. ★★ DISCIPLINE RECORD: this single-stand dig produced 15 course-corrections/wrong-turns (large-GEMDG,
+esuckr, esgent, small-aspen-DF, record-count, seedling, bark, "confirmed-cornered", "reducible-PCTI") — EVERY one
+caught by measurement (empty dumps / unchanged census / bit-exact), NONE shipped as a false claim. The lesson:
+the census found the SYMPTOM class (mortality-selection) but the CAUSE needs a FRESH session tracing the exact
+crown_ratio-write that VARMRT reads. SESSION SOLID+SHIPPED: DM + FCLASS(scale-validated 6/8) + GLIM = 3 fixes;
+aspen mortality-selection = UNDETERMINED (honestly), turn-key = trace the VARMRT crown_ratio source.

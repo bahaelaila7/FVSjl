@@ -96,6 +96,10 @@ mutable struct TreeList
     # yet grown (cycle-0 LSTART), in which case volume.jl falls back to BRATIO(current DBH) = FVS LSTART.
     vol_bark  ::Vector{Float32}    # BRATIO(D_start) for broken-top volume top-kill
 
+    # Dwarf mistletoe rating (Hawksworth 0-6), FVS MISCOM IMIST. Seeded from FIA damage codes
+    # at setup (western variants only; 0 for non-DM variants). Carried through tripling/compaction.
+    dmr       ::Vector{Int32}      # dwarf mistletoe rating 0..6              (IMIST)
+
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
     pest_vars::Matrix{Int32}     # 5 pest extension variables              (IPVARS)
@@ -119,6 +123,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(),                                  # mort_pa
         fz(), fz(), fz(), dz(), fz(), fz(), fz(),
         fz(),                                  # vol_bark
+        iz(),                                  # dmr
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
     )
@@ -136,7 +141,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dmr)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied

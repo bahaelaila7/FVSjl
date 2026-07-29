@@ -396,10 +396,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4)   # NOTRIP (set by a PRIOR-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
+    # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
+    # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
+    s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
+    # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
+    # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
+    # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
+    # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
+    cr_mistoe!(s; fint = fint)
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
     # then GRADD's FMKILL sets WK2(I)=MAX(WK2(I),FIRKIL(I)) (fmkill.f:86) — a tree dies from
     # whichever is LARGER, density/background MORTS or fire, NOT both summed. The old code ran

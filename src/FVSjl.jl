@@ -61,6 +61,7 @@ include("variants/centralrockies/height_growth.jl")
 include("variants/centralrockies/crown.jl")
 include("variants/centralrockies/small_tree_growth.jl")
 include("variants/centralrockies/mortality.jl")
+include("variants/centralrockies/dwarf_mistletoe_model.jl")  # CR dwarf mistletoe per-cycle spread (mistoe.f)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
@@ -120,6 +121,7 @@ include("engine/quickersort.jl")        # RDPSRT/IQRSRT (Scowen 1965) — faithf
 include("engine/compress.jl")            # COMPRESS (act 250) — PC-score tree-record clustering
 include("engine/structure_stage.jl")    # SSTAGE — stand structural-stage class (1-6)
 include("../data/centralrockies/establishment/estab_coefs.jl")   # CR establishment coefs (XMIN/HHTMAX/ESSUBH-HHT)
+include("../data/centralrockies/dwarf_mistletoe.jl")             # CR dwarf mistletoe coefs + pure kernels (mistoe/misintcr.f)
 include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass

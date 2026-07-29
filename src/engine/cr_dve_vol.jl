@@ -17,7 +17,7 @@
 "CR DVE per-tree volume (r3d2hv.f). `d`=DBHOB, `h`=HTTOT, `drc`=root-collar dia (0⇒use d), `fclass`=1 single/else
 multistem, `unt`=1|3 (prod 01|02). Returns a 15-vec; caller reads [1]/[4]/[7]/[10] like the Clark path."
 function cr_dve_vol(voleq::AbstractString, d::Float32, h::Float32; unt::Int = 1,
-                    drc::Float32 = 0.0f0, fclass::Int = 1, httfll::Float32 = 0.0f0, ht1prd::Float32 = 0.0f0)
+                    drc::Float32 = 0.0f0, fclass::Int = 0, httfll::Float32 = 0.0f0, ht1prd::Float32 = 0.0f0)
     vol = zeros(Float32, 15)
     (d < 1.0f0 && drc < 1.0f0) && return vol
     reg = voleq[1:3]; spc = voleq[8:10]
@@ -150,8 +150,9 @@ end
 # (VEQNNC method chars 4:6, or "NVB" prefix) to the ported NVEL method, then applies the fvsvol.f return
 # mapping (fvsvol.f:510-529): TCF=TVOL(1)≥0; MCF=TVOL(4)+TVOL(7) gated D≥DBHMIN; SCF=TVOL(4) ONLY for
 # region 8/9/FIA-NVB (so 0 for CR region 2/3); BF gated D≥BFMIND. Merch specs are the CR sitset defaults
-# (cr/sitset.f:520-555, by IMODTY): DBHMIN/TOPD/STUMP. DVE=ported; NVB TCF+MCF=ported (BF/board = TODO);
-# FW2=TODO.
+# (cr/sitset.f:520-555, by IMODTY): DBHMIN/TOPD/STUMP. DVE/NVB/FW2 all ported (cr_dve_vol/cr_nvb_vol/cr_fw2_vol);
+# woodland FCLASS=0 (FIA multi-stem) fixed. Residuals: FW2 ~1.5% precision + size-dependent NVB/DVE taper on a few
+# conifer stands (partly entangled with the dense self-thinning/DGSCOR tail); board-foot for NVB still partial.
 function compute_volumes_cr!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control; sd = s.coef.species

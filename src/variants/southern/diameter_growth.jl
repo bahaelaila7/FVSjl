@@ -953,14 +953,26 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # "don't route, it desyncs the RNG" note was DISPROVEN (snt01 bit-exact, suite unchanged); it's
             # inert (openlibm==gfortran for these vardg ranges) and faithful to FVS's ALOG.
             size_cap = s.control.sp_size_cap
+            # CR (cr/dgdriv.f:223-225,256-258,270-272) caps EACH DG's spread: GDIF=DG−WKI, GLIM=WKI·0.33,
+            # IF GDIF>GLIM DG=WKI+GLIM — WKI is the un-FRM'd central DG (dgdriv.f:213 SQRT(DSQ+DDS)−D). Eastern
+            # dgdriv.f has NO GLIM (only DGBND); jl's _bound_scale is DGBND-style, so CR needs this extra cap
+            # BEFORE the bound. Without it CR's upper tripled records over-grow (dense-stand BA ~10% high).
+            crv = s.variant isa CentralRockies
+            wkicr = crv ? (sqrt(d_ib * d_ib + dds5) - d_ib) : 0f0
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib, sfint, size_cap, yr)
+                dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
+                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
                 ru = fru + corr * rnpar; rnU[i] = ru
-                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib, sfint, size_cap, yr)
+                dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
+                crv && (dgu - wkicr > wkicr * 0.33f0) && (dgu = wkicr * 1.33f0)
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr)
                 rl = frl + corr * rnpar; rnL[i] = rl
-                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib, sfint, size_cap, yr)
+                dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
+                crv && (dgl - wkicr > wkicr * 0.33f0) && (dgl = wkicr * 1.33f0)
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -970,7 +982,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                     frm = dgscor!(s.rng, oldrn, i, ssigma, rho, rhocp, wk2[i];
                                   dgsd = s.control.dg_stddev_bound)
                 end
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, sqrt(d_ib * d_ib + dds5 * frm) - d_ib, sfint, size_cap, yr)
+                dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
+                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
             end
         end
     end

@@ -488,6 +488,10 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     # FIXMORT (morts.f:781): forced-mortality override, applied AFTER the BA-check and TPAMRT.
     apply_fixmort!(s, killed, n, fint)
 
+    # CR dwarf mistletoe mortality (mismrt.f): per-tree DM kill MAX-combined into killed[] (WK2=max(WK2,DM)),
+    # using the post-spread DMR set by cr_mistoe! this cycle. No-op for other variants / uninfected trees.
+    s.variant isa CentralRockies && cr_dm_mortality_combine!(killed, s, fint, n)
+
     # FFE: trees killed by ordinary mortality become standing snags (FMSDIT). When a fire also
     # burns this cycle the caller suppresses this (book_snags=false) and books the regular snags
     # itself from only the EXCESS MORTS (WK2−FIRKIL, fmkill.f:135) so fire+regular snags don't
