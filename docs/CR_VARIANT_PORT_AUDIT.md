@@ -2544,3 +2544,17 @@ volume port (28% TCuFt → bit-exact/±1 ULP). Remaining reducible surface = cor
 (sprout/tripling record-granularity + ZZRAN) — accepted, or the establishment/sprouting chunk if the campaign
 chooses to pursue it. The running re-sweep will hand back clean post-crash coverage (its structure_densephase
 numbers predate fix #10; a future re-sweep reflects #10).
+
+### 2026-07-30 — CORRECTION: the 2× record count was a TREELIST-DUPLICATION artifact (doctrine #3), NOT a regen gap
+Measured the per-record 2014/2024 treelist under the sweep's exact keytext: live's 24 records are the 12 UNIQUE
+records EACH DUPLICATED (identical DBH+TPA pairs) — the FVS treelist emits tripling-window records twice; jl emits
+each once. This is precisely doctrine #3 (per-record treelist INVALID after tripling). It is COSMETIC: the .sum is
+bit-exact 2004-2024 (the stand is identical), so the record count never drove any divergence. ⇒ my earlier
+"sprout/regen record-granularity / establishment" characterization was WRONG (a treelist-count red herring). The
+genuine 2034+ .sum residual is the POST-tripling stand: the regent oak (ivflag) DBH as seedlings cross breast
+height (jl meanD 0.505 vs live 0.482 @2034, maxD matches) blended with ZZRAN per-record draws + dense self-thin —
+the CORNERED structure_densephase primitive (±small, same accepted class as the eastern campaigns). NO
+establishment/sprouting chunk is needed for this residual. FINAL DIG VERDICT: needs_dig thousands were mostly
+STALE; real reducible work = 2 live-crashes + FIX #10; volume_persistent resolved by broken-top/FW2; the
+structure_densephase tail is cornered (regent-oak-at-BH-crossing + ZZRAN dense self-thin). META: trust the .sum,
+never the tripling-window per-record treelist — it cost a mischaracterization here, caught by measuring the records.
