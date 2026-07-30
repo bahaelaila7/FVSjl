@@ -2704,3 +2704,16 @@ instrumented gemdg). ⇒ THE REDUCIBLE SURFACE IS NOW EXHAUSTED: the Black Hills
 last big reducible cluster; the remaining 265 are the heterogeneous cornered dense-phase self-thinning straddle.
 ★ FINAL CR STATE: full FIA (338,644) / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig 265 (0.08%, all
 cornered dense-phase). 8 session fixes. Off-switch docs/CR_VARIANT_PORT_COMPLETE remains the USER's call.
+
+### 2026-07-30 — Remaining-tail lead (white fir 688820815126144): entangled dense-phase, possible DBHMAX-cap component
+Dug a conifer (not aspen) needs_dig to test the "check several" lesson. 688820815126144 (imodty=4, San Juan
+IFOR10): 2018 BA bit-exact (200.3), 2028 live BA 270.3 vs jl 232.1 (14% low) at SAME tree count (63) — BUT jl
+maxD 34.4 vs live 32.7 (live's biggest tree did NOT grow 2018→2028, jl's grew) ⇒ possible DBHMAX-cap difference
+(gemdg df>dbhmax cap) where live caps and jl doesn't, PLUS jl under-grows the rest. ENTANGLED (growth + cap +
+tripling + self-thin), not a clean single-mechanism cluster like the Black Hills. NOTE: the zero-pad cosmetic
+(jl SpeciesFIA '15' vs live '015') broke a per-species query first — match normalized. ⇒ the remaining 265 tail
+is a MIX: mostly cornered dense-phase ±straddle (aspen over / white-fir under, verified), with occasional entangled
+leads (this DBHMAX-cap suspicion) that need per-stand deep digging — a continued long-tail campaign, not a single
+reducible class. Concrete follow-up leads: (a) verify CR per-species DBHMAX caps (cr/sitset.f) vs jl; (b) the
+SpeciesFIA zero-pad (cosmetic, all 2-digit-FIA CR species); (c) the general dense-phase RDPSRT straddle (cornered).
+SESSION STANDS: 8 fixes, needs_dig 3,452→265 (0.08%), 99.92% bit-exact-or-cornered, 0 crashes, full FIA coverage.
