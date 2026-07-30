@@ -2676,3 +2676,17 @@ this reducible Black Hills FW2 gap (now fixed) + a height-dub residual. Re-sweep
 #11 will reclassify the Black Hills ponderosa stands (0→~84% volume, then the height-dub closes the rest).
 Remaining reducible leads: (a) Black Hills PP height-dub (TopHt low), (b) confirm SHP_BH bit-exact on a
 measured-height Black Hills stand, (c) aspen dense-regen RDPSRT (cornered).
+
+### 2026-07-30 — ★★★ TCuFt re-sweep with #10/#11/#12: needs_dig 1,599→265 (0.08%), 99.92% bit-exact-or-cornered
+Re-swept the 1,355 TCuFt needs_dig with fixes #10 (regent DBH) + #11 (SHP_BH) + #12 (BH height-dub): 1,334 →
+ulp_class (cornered/resolved), only 21 remain needs_dig. The Black Hills ponderosa class (#11+#12) was the dominant
+TCuFt divergence — now resolved. OVERALL CR SWEEP DB NOW: bit_exact 284,025 (83.87%) + ulp_class 54,354 (16.05%) =
+**338,379 / 338,644 = 99.92% bit-exact-or-cornered**; needs_dig **265 (0.08%)**; live_crash 0.
+SESSION ARC: needs_dig 3,452 (1.5%) + 2 crashes → 265 (0.08%) + 0 crashes; 99.92% bit-exact-or-cornered. 8 fixes:
+2 live-crashes + #8 dead-treelist + #9 CrWidth + #10 regent-sub-BH-DBH + #11 SHP_BH BH-ponderosa-volume + #12
+BH-height-dub. The persistent MEASURED dig (correcting several wrong hypotheses each time) kept finding real
+reducible bugs — the "needs_dig tail is cornered" read was PREMATURE; the Black Hills IMODTY-3 path (under-tested,
+crt01=imodty2) had real volume+height gaps that resolved the vast majority of needs_dig. Remaining 265 needs_dig
+(0.08%) = the hard residual (aspen dense-regen RDPSRT cornered + 21 residual TCuFt + other columns) — a small tail
+for continued digging or acceptance. META: don't declare a tail cornered from one sample — sample several + keep
+measuring; the dominant class was reducible.
