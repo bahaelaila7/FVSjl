@@ -2838,3 +2838,21 @@ CONCLUSION: 5 active variant-bark locations now all cr_bratio-dispatched; 2 late
 (fertilize/topkill), documented. The recurring root = jl's shared `bark_ratio(bark_a,bark_b,…)` floors to 0.80 when
 CR's linear bark coefs are 0, where FVS BRATIO dispatches to cr/bratio.f (~0.95) — AUDIT this pattern first for any
 future western GENGYM variant.
+
+### 2026-07-30 — ★★ FIX #15: IMODTY-conditional DBHMAX table (sitset.f:319-475) was MISSING
+Continuing the disproven-closure dig: another growth-type needs_dig stand (2713779010690, 6 cottonwood records
+sp745=idx22, dbh 6.5-34, IMODTY 5) — jl BA +11%→+29% over cycles at BIT-EXACT TPA (large-tree DG over-growth).
+Instrumented gemdg sp22 (live vs jl): DDS bit-exact at small/mid DBH, but for dp=34.2/31.5 live DF=DPP (DIAGR=0,
+DDS=-9.21 = CAPPED no-growth) while jl grew (dds 4.6/5.0). ROOT: live runtime DBHMAX(22)=24, jl=36. sitset.f has
+an IMODTY-CONDITIONAL DBHMAX override chain (IF IMODTY.EQ.3 [Black Hills] / .EQ.4 / .EQ.5) that REPLACES a subset
+of species' DBHMAX; jl only had the base DATA (=CSV dbh_max, = IMODTY 1/2). The memory's earlier "jl dbh_max ==
+FVS DBHMAX exactly" check verified ONLY the base DATA (sitset.f:201-238), MISSING the IMODTY overrides — a
+premature all-clear (same lesson as the "265 cornered" over-close). IMODTY 3 and 4/5 (4≡5) each have a ~20-27
+species override table (e.g. cottonwood 22: base 36 → 24 for models 4/5, 48 for model 3). Without it, large trees
+in models 3/4/5 escape the gemdg DF>DBHMAX cap. FIX: `_cr_dbhmax_eff(base, imodty)` applies `_CR_DBHMAX_M3`/
+`_CR_DBHMAX_M45` at dgf! entry (CR-only). VALIDATED: 2713779010690 now BIT-EXACT on all structural cols (BA
+128/128 was 128/142, SDI/CCF/QMD all match; ±1-2 TCuFt volume-rounding residual only); crt01 (IMODTY 2) unchanged;
+100/100 + 150-mixed (23 diverge, 0 regress, 0 new flips) preserved. THIRD real fix this dig (after #14 measured-DG
+bark + the 5th variant-bark morts-rank). FOLLOW-UP: audit the OTHER sitset.f IMODTY-block settings (SITELO/SITEHI,
+BARK1/2, ELEV/TLAT defaults) for the same base-only-vs-override gap; remaining growth-type stands (2602547010690
+pinyon-juniper-oak, 758040786290487 ponderosa+oak) still open.

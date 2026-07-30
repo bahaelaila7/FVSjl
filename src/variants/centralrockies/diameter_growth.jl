@@ -234,6 +234,28 @@ end
 # BA-above-dbh-class; TBA = species BA) + AGERNG (age range), then per-tree loop
 # calling cr_gemdg and writing WK2 = DDS + COR + DGCON. The shared driver
 # (diameter_growth!(::AbstractVariant)) handles calibration/tripling around this.
+# cr/sitset.f IMODTY-conditional DBHMAX override tables (sitset.f:319-475). The base DATA (=CSV dbh_max)
+# holds for IMODTY 1/2 (no override block); IMODTY 3 (Black Hills) and IMODTY 4/5 (identical) replace a
+# subset of species. Without these, large trees in models 3/4/5 escape the gemdg DF>DBHMAX cap and keep
+# growing where live floors DF to DPP (DIAGR=0) — e.g. a 34.2" cottonwood (sp22) in an IMODTY-5 stand:
+# live DBHMAX(22)=24 (capped, no growth) vs jl's base 36 (grew, +11% stand BA).
+const _CR_DBHMAX_M3 = Dict{Int,Float32}(1=>20,2=>20,3=>20,5=>20,9=>20,10=>20,11=>24,12=>20,13=>32,14=>30,
+    15=>20,16=>24,17=>24,18=>24,19=>30,20=>24,21=>48,22=>48,28=>24,29=>24,30=>24,31=>24,32=>24,33=>20,
+    34=>20,35=>20,36=>32)
+const _CR_DBHMAX_M45 = Dict{Int,Float32}(1=>28,2=>28,3=>42,4=>36,5=>30,7=>40,8=>36,9=>20,11=>36,12=>20,
+    13=>32,14=>30,17=>36,19=>36,21=>24,22=>24,33=>20,34=>20,35=>20,36=>32)
+
+"Effective per-stand DBHMAX = base dbh_max with the sitset.f IMODTY 3/4/5 overrides applied (1/2 = base)."
+function _cr_dbhmax_eff(base::AbstractVector{Float32}, imodty::Int)::Vector{Float32}
+    ov = imodty == 3 ? _CR_DBHMAX_M3 : (imodty == 4 || imodty == 5) ? _CR_DBHMAX_M45 : nothing
+    ov === nothing && return collect(base)
+    d = collect(base)
+    @inbounds for (sp, v) in ov
+        sp <= length(d) && (d[sp] = v)
+    end
+    d
+end
+
 # Density terms (PTBAA=point_ba, PCCF=point_ccf, PCT=crown_ratio, RELDEN=stand CCF,
 # SITEAR=sp_site_index) are populated by the driver's density pre-pass. DSTAG is
 # inert (ISTAGF≡0 in CR, grinit.f:340). ELEV is dead in gemdg (RDANUW=ELEV).
@@ -241,8 +263,8 @@ end
 function dgf!(s::StandState, ::CentralRockies)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     wk2 = view(s.scratch.wk, 2, :)
-    dbhmax_v = sd[:dbh_max]
     imodty = Int(s.plot.model_type)
+    dbhmax_v = _cr_dbhmax_eff(sd[:dbh_max], imodty)     # sitset.f IMODTY-conditional DBHMAX override (models 3/4/5)
     ba_v   = p.basal_area
     slope  = p.slope
     aspect = p.aspect
