@@ -2768,3 +2768,17 @@ under-lean) — verified 6 ways (fixes resolved 92%; growth gemdg-bit-exact ×2;
 proven bit-exact across imodty 2/3/4, volume incl. Black Hills SHP_BH, treelist 100% faithful, 0 crashes, 99.922%.
 9 session fixes: 2 crashes + #8 dead-treelist + #9 CrWidth + #10 regent-DBH + #11 SHP_BH + #12 BH-height-dub +
 #13 SpeciesFIA-pad. Off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call.
+
+### 2026-07-30 — Western-cluster roadmap scoping (CR complete; next-variant assessment)
+CR is DONE (99.922% bit-exact-or-cornered, verified 6 ways incl. re-sweep stability). Scoped the next western
+variants (goal doc: "KT/IE/EM/BM/TT/UT follow at a discount"). FINDING: NONE of KT/IE/EM/BM/TT/UT use GENGYM
+(no gemdg.f) — they all use the STANDARD WESTERN WYKOFF DDS (dgf.f + dgdriv.f). So CR's gemdg (GENGYM, IMODTY
+dispatch) does NOT port forward — it is CR-UNIQUE. The CR "discount" for the cluster is the SHARED WESTERN
+INFRASTRUCTURE this port established: cwcalc.f (western crown width, ported #9), sitset/habtyp (site + habitat-type
+groups), cratet + FNDAG (western height-dub incl. the Black Hills dub #12), the NVEL volume driver (DVE/NVB/FW2
+incl. SHP_BH #11 + broken-top CFTOPK/BFTOPK), forkod (western forest codes), varmrt (western mortality), and the
+whole FIA sweep harness + doctrine. ⇒ Each next variant = port its Wykoff DDS (dgf/dgdriv, the largest chunk) +
+species/site data ON TOP of the reused western infra. NOT a quick follow-on (the DG model is new each time), but
+the infra + methodology + oracle-relink recipe are proven. RECOMMENDED next hub: KT (Kootenai) or IE (Inland
+Empire) — northern-Rockies Wykoff variants. This is a NEW chunk (new goal) — awaiting USER greenlight on which
+variant, since it is outside the CR objective (off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call).
