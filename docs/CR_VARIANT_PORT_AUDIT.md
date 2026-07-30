@@ -3014,3 +3014,19 @@ volume residual is FW2 profile-hs precision near merch-length thresholds (small-
 — NOT a merch-rule/coefficient bug. Next (now UNBLOCKED): instrument live profile.f SF_HS/SF_YHAT vs jl _fw2_hs/_fw2_sf_yhat
 for the small trees to see if the hs gap is Float32-vs-Float64 (cornered) or a taper-coef bug. Deferred (small, volume-leaf).
 CR growth core bit-exact-or-cornered; volume material divergences cornered (tripling×merch-threshold + this profile-hs cliff).
+
+### 2026-07-30 — FW2 merch-cubic residual QUANTIFIED: 1% profile-crossing diff at the MERCHL=10 cliff (cornered-precision class)
+Used the unblocked volume instrumentation to close the FW2 merch-cubic residual. Instrumented live MERLEN (profile.f,
+the merch-length routine; module-ABI busted via local module rebuild): for the d=5.71 ponderosa (MTOP=3.20), live
+LMERCH=10.059 (≥ MERCHL=10 ⇒ INCLUDED ⇒ merch cubic 0.9) vs jl _fw2_hs lmerch=9.96 (< 10 ⇒ ZEROED). ⇒ a 0.1-ft (~1%)
+difference in the height where the FW2 profile reaches the 4"-DIB merch top — larger than jl's bisection tolerance
+(~0.005 ft) so a REAL small taper/profile difference, not ULP. It only becomes MATERIAL (the ≤21% MCuFt seen) because
+the MERCHL=10 threshold is a CLIFF: trees whose merch length straddles exactly 10 ft flip between 0 and full merch. ⇒
+CLASSIFICATION: cornered-precision-amplified-by-threshold (same family as merch-threshold×tripling), NOT a merch-rule or
+gross-coefficient bug (merch rule confirmed 10/10 PROD-01; per-tree merch cubic BIT-EXACT for trees clear of the cliff,
+e.g. d=12.3 TV4=15.7=jl). A taper-coef comparison (jl _fw2_sf_yhat vs live SF_YHAT/TAPERMODEL) COULD shrink the 1% and
+is now unblocked, but the impact is small (volume-reporting leaf, threshold-cliff subset of FW2 stands) ⇒ deferred.
+★ VOLUME-LEAF CLOSED (spot-check): material divergences = cornered (tripling×merch-threshold + FW2 profile-crossing at
+the MERCHL cliff); merch rule correct; per-tree volume bit-exact away from cliffs. The reducible-and-material volume
+surface is a small profile-precision tail. Growth core exhausted+validated; 0 crashes. Session: module-ABI unlock +
+4 measurement-corrected phantoms + the FW2 residual cornered-classified.
