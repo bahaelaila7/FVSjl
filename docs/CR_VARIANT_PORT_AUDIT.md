@@ -2318,3 +2318,20 @@ NVB + apply (1−CULL/100) with FIA CULL read into the tree. The .sum for KEYFIL
 (crt01 bit-exact) — the change is LFIANVB-gated. The exact NSVB Vtotib/Rrem reconciliation is behind the module
 wall; the port itself (cr_nvb_vol + cull, LFIANVB-gated) can be built+validated against live directly. This
 CLOSES the diagnosis: last CR residual = FIA-report volume uses NSVB-sound not FW2, a bounded LFIANVB-gated port.
+
+### Volume cull — DEFINITIVE (all-original build): CFV=TCF=39.093 NET at fvsvol return; formula UNMEASURABLE (hard wall confirmed)
+Breached the buildDir-vs-NVEL source issue (rebuild from buildDir sources gives correct 39.093), then found the
+DEEPER wall: instrumenting vols.f with an ALL-ORIGINAL link (vols.f has no module deps) gave the reliable truth —
+at vols.f:331 CFV(I)=39.093 (NET), MCFV=34.611 (NET), ICDF=0, LCVOLS=F, CULL=47, DEFECT=0. So CFV=TCF=39.093 is
+already NET when fvsvol RETURNS — the cull is applied INSIDE fvsvol/VOLINITNVB. BUT any REBUILD of the module-
+using vol routines (even from buildDir) BREAKS the cull: FVScr_v4 (rebuilt fvsvol) returned TCF=51.4 GROSS and
+LFIANVB=F — so my "LFIANVB=F / NSVB-sound" readings were CONFOUNDED by the rebuild (which likely flips LFIANVB/
+cull flags in a recompiled module's DATA init). ⇒ the cull formula is genuinely UNMEASURABLE via recompile-
+instrument — HARD WALL confirmed at a deeper level than the .mod-ABI (the recompile itself alters cull/LFIANVB).
+RELIABLE facts (all-original or data-module-only): reported=NET 39.093; FW2 TCUBIC gross=51.375; factor 0.7609;
+CULL=47; net≠gross·(1−CULL/100)=0.53. ⇒ THE FIX PATH IS EMPIRICAL, not instrument-based: run the CULL>0 trees
+through FVScr_clean (net, reliable) + capture FW2 gross (TCUBIC, data-module instrument), FIT net/gross vs CULL
+across trees to recover the formula, then port it + FIA CULL read into jl. Residual = bounded cull-driven volume-
+REPORTING port; every model equation faithful. TURN-KEY: empirical formula fit (5+ CULL-varied trees), NOT more
+instrumentation (definitively walled). NOTE: correcting the prior NSVB-sound audit entry — that path reading was
+rebuild-confounded; the cull is in fvsvol/VOLINITNVB but its exact form must be fit empirically.
