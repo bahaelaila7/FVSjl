@@ -2211,3 +2211,15 @@ CR now in ledger_fia BIN/VAR):
 remaining CR residual class is VOLUME (chunk 8 leaf: DVE/NVB/FW2 ~few-% precision + NVB board-foot partial) +
 the accepted self-thin TPA tail. Next target if pushing further: the volume over-estimate (jl TCuFt ~+9% on
 some conifer stands) — a downstream reporting leaf, growth-independent.
+
+### Volume residual CLASSIFIED (the post-crown-dub remaining CR divergence): FW2 taper on extreme-H/D trees
+On the volume-divergent stand 756416407290487 (growth/mortality BIT-EXACT, TCuFt jl +9%): the volume-equation
+ASSIGNMENT is CORRECT (live NVEL table: FIA 102 bristlecone → 200FW2W122, jl assigns the same). Per-tree TCuFt
+(NOTRIPLE, DBH/HT bit-exact) for the FW2 W122 species is MOSTLY BIT-EXACT (ratio 1.000: D=4.0/4.2/5.4/6.2/6.7/
+9.5/9.8/11.3/12.2) — the divergences are on trees with UNUSUAL H/D (D=11.2 H=40 → jl 12.8/live 9.45 = 1.35×;
+D=12.3 H=33 → jl 8.5/live 12.6 = 0.67×), i.e. the FW2 (Flewelling) TAPER computation at extreme height-diameter
+ratios, plus a jl-16-vs-live-17 W122 tree-count offset (sort-matching artifact). ⇒ the sole non-trivial CR
+residual is the FW2 volume-chunk precision on tall/short trees — a DOWNSTREAM REPORTING LEAF (no growth impact).
+TURN-KEY: audit cr_fw2_vol vs fwinit.f for the height-diameter taper branch (the extreme-H/D trees expose it);
+DVE/NVB species were bit-exact in the sample. This + the accepted self-thin TPA tail are the only CR residuals
+after crown-dub #6 made the growth+mortality core bit-exact nationally.
