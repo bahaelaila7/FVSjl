@@ -2469,3 +2469,24 @@ dub_missing_heights! broken-top branch keeps the predicted normal height 53 when
 bit-exact .sum so not touched). Suite 38580/0-fail/4-env-err/75-broken; treelist tests 212/0; eastern/CS untouched
 (CR-gated). ⇒ The last open treelist leaf is CLOSED for the substantive columns; 2 documented display residuals
 remain as shared/pre-existing follow-ups (port base/cwidth.f for CR CrWidth; broken-top norm_ht display).
+
+### CrWidth column — cwcalc.f forest-grown crown width PORTED (commit c927599, CR fix #9)
+The CR treelist CrWidth read 0.5 for EVERY row (live+dead): FVS fills CRWDTH from base/cwidth.f → cwcalc.f
+(IWHO=0, western Bechtold/Crookston library), NOT the eastern open-grown crown_width jl was calling. Confirmed by
+reading the Fortran: cwidth.f uses the CWDS/CWDL polynomial only when LSPCWE (a CROWNWEQ-keyword path; grinit.f
+inits it FALSE) — FIA stands fall through to CWCALC(IWHO=0). Ported `cr_cwcalc` (crown.jl): CRMAP(38)
+species-index→CWEQN + the 20 CR equation forms — Crookston R6 model 2 (a·D^b·H^c·CL^d·(BAREA+1)^e·EXP(EL)^f),
+Crookston R1 (k·EXP(Σ c·ln·)), incl. the piecewise-H code 264, and Bechtold-2004 models 1/2 (a+bD+cD²+CR+HI, with
+per-species HI/EL clamps + D≥25 plateau). BF=1 and the Region-6 forest section skipped (CR is R2/3, KODFOR<601).
+WESTERN Hopkins point (5449/42.16/116.39) — jl's existing hopkins_index is the EASTERN one (887/39.54/82.52), so a
+CR-specific `_cr_hopkins`. Math faithful (fpow/fexp/flog + left-to-right; ×1.0 no-op for absent BAREA/EL terms).
+treelist_snapshot gates CR→cr_cwcalc (eastern unchanged). Also extended crown_ratio_update!(CR) to dub the DEAD
+partition at LSTART (cratet.f does IREC2..MAXTRE) so cycle-0 dead rows carry PctCr (the CL term needs it).
+VALIDATED on 756416407290487: CrWidth 25/29 bit-exact (was 0/29); LIVE-tree column fully bit-exact; dead rows 6/10
+(PctCr+CW). Residuals (cornered/minor): 3 dead sp093 crown ±1 — dead trees lack the RDPSRT BA percentile jl
+computes live-only (stand_pct! is live-only; extending it risks the delicate live tie-break), incl. broken-top
+D11.0; 1 aspen seedling 0.48 vs 0.50. REPORTING-ONLY: not used in growth/mortality/CCF/volume — .sum byte-for-byte
+unchanged (verified). Suite 38580/0-fail (4 env-err); treelist tests 356/0; eastern/CS untouched (CR-gated). Also
+noted (separate cosmetic): jl emits SpeciesFIA "93" vs live "093" (leading-zero pad) — treelist string only.
+⇒ CR treelist CrWidth is now faithful (whole column was wrong). This is a WESTERN-CLUSTER asset: cwcalc.f + the
+CRMAP pattern port forward to KT/IE/EM/BM/TT/UT (each has its own xxMAP into the same equation library).
