@@ -2387,3 +2387,19 @@ cr_dve_vol already has an httfll arg; cr_fw2_vol/_fw2_tcubic need it added. Vali
 TreeId-match→HTTOPK — a ~120-turn odyssey through THREE wrong hypotheses (mortality-selection, cull, FW2-taper),
 each REFUTED by measurement; the winning clue was the HTTOPK input column, found by asking "what INPUT distinguishes
 the reduced trees" — should have checked tree input attributes MUCH earlier. Growth+mortality bit-exact throughout.
+
+### ★★★ FIX IDENTIFIED: port CFTOPK (broken-top volume adjustment) — volume residual is REDUCIBLE (supersedes "cornered")
+The broken-top volume reduction is FVS routine CFTOPK (vols.f:145-196): TKILL=(H≥4.5 & ITRUNC>0); for broken-top
+trees H is set to NORMHT (full predicted ht) so NATCRS computes the FULL-height volume (TCF), THEN CFTOPK reduces
+it: BEHPRM(VMAX,D,H,BARK) sets Behre form-class params; VOLT=BEHRE(0,1) full; HTRUNC=ITRUNC/100 (broken ht);
+PHT=1−HTRUNC/H; VOLTK=BEHRE(PHT,1.0); TCF=TCF·VOLTK/VOLT (cone path: TCF·(1−PHT³)); same for MCF/SCF with the merch
+top. So the standing broken-stem volume = full · (Behre fraction below the break). For TreeId 9 (D11.2 H40 broke@19):
+12.807·0.738=9.452 ✓. jl's compute_volumes_cr! never applies CFTOPK — it reports full-height volume for broken-top
+trees. FIX (bounded, reducible — NOT cornered): port CFTOPK + BEHPRM + BEHRE (base/ Behre form-class taper; ie/kt
+have cftopk.f) + wire in compute_volumes_cr! for t.norm_ht==-1 trees using t.trunc (=ITRUNC=break_ht·100). Data:
+Behre coefficients (AHAT/BHAT per species or the form-class params), STMP/TOPD merch specs (already have). Validate
+vs live on this FIA stand (TreeId 1/9 → bit-exact). ⇒ the volume residual is REDUCIBLE with a precise fix; the
+earlier "cornered / module-wall / cull / FW2-taper" framings are all SUPERSEDED — it's broken-top CFTOPK, full stop.
+The module-wall was a RED HERRING (I was instrumenting the cull path, but the reduction is CFTOPK in vols.f, which
+has NO module deps and IS cleanly instrumentable — the all-original vols.f dump that gave CFV=39.093 was already
+past CFTOPK). Growth+mortality bit-exact throughout; this closes the volume diagnosis to a clean reducible fix.
