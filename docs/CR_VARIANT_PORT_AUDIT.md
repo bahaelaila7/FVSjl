@@ -2197,3 +2197,17 @@ VARMRT instrument. Residual 2039+ (TPA ±1-2%, self-thin tail) is the accepted c
 bit-exact ⇒ residual is ZZRAN/mortality-cornered" chain was RIGHT that growth is faithful but WRONG on the cause —
 the mortality-side crux (correctly identified as the turn-key) WAS the reducible crown-dub, cornered only for lack
 of the VARMRT-PCT/CRI instrument. Lesson: push the mortality-side instrument BEFORE declaring cornered.
+
+### ★★ Post-crown-dub BROAD VALIDATION: growth+mortality core BIT-EXACT nationally; residuals ISOLATED to volume
+Batch dig vs live FVScr_clean on varied MASTER CR stands (VARIANT='CR', 338,645 available; build_subdb + dig_one,
+CR now in ledger_fia BIN/VAR):
+  - 15/15 bit-exact (first contiguous sample), 36/40 bit-exact + 38/40 within-2% (varied modulo-6700 sample),
+    0 live-empty/crash.
+  - The divergent stands are GROWTH+MORTALITY BIT-EXACT, VOLUME-only: e.g. 756416407290487 has TPA/BA/SDI/CCF/
+    TopHt/QMD ALL "=" every cycle, only TCuFt/MCuFt/BdFt diverge (1018/1109 = jl +9%). ⇒ the remaining >2% cells
+    are the VOLUME chunk (DVE/NVB/FW2 precision + board-foot), NOT growth.
+⇒ MILESTONE: with the crown-dub fix (#6), the CR GROWTH+MORTALITY CORE is bit-exact broadly on real FIA stands
+(the crown-dub was the last systematic growth/mortality bug — it hit every stand with crown-less regen). The
+remaining CR residual class is VOLUME (chunk 8 leaf: DVE/NVB/FW2 ~few-% precision + NVB board-foot partial) +
+the accepted self-thin TPA tail. Next target if pushing further: the volume over-estimate (jl TCuFt ~+9% on
+some conifer stands) — a downstream reporting leaf, growth-independent.
