@@ -2663,3 +2663,16 @@ aspen dense-regen mortality (that one IS cornered); the DOMINANT TCuFt class is 
 META (doctrine #2): kept digging with MEASUREMENT past the first (cornered) sample — the second sample exposed the
 real bug. A single-stand dig (aspen) mis-generalized; sampling several stands + reading dig_one correctly (live/jl)
 found the 0-volume signature.
+
+### 2026-07-30 — FIX #11 landed (Black Hills PP FW2 SHP_BH); residual = height-dub (SI confirmed correct)
+Ported SHP_BH (jsp=22) — 5369210010661 TCuFt 0 → 1777 (live 2109, ~84%), suite 38580/0-fail, additive. The
+residual ~16% is a SEPARATE height-dub issue (jl TopHt 52 vs live 60 @inventory; ALL heights missing in this
+stand). Ruled out the SI: FVS sitset.f:480 `IF(IMODTY.EQ.3) TEM=57` == jl _CR_TEM_DEFAULT[3]=57, and jl's
+ponderosa SI resolves to 57.0 — CORRECT. So the low heights are the height-DBH DUB for all-missing-height Black
+Hills ponderosa (imodty=3), not the site index — a distinct follow-up (the height-DBH curve / AA-fit fallback when
+zero measured heights). ⇒ THE DIG FOUND A REAL FIX (#11, 0-volume) plus a precisely-localized height-dub residual.
+STANDING CORRECTION to the campaign summary: the needs_dig tail is NOT all cornered — the DOMINANT TCuFt class was
+this reducible Black Hills FW2 gap (now fixed) + a height-dub residual. Re-sweeping the TCuFt needs_dig with fix
+#11 will reclassify the Black Hills ponderosa stands (0→~84% volume, then the height-dub closes the rest).
+Remaining reducible leads: (a) Black Hills PP height-dub (TopHt low), (b) confirm SHP_BH bit-exact on a
+measured-height Black Hills stand, (c) aspen dense-regen RDPSRT (cornered).
