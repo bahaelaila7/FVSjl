@@ -2782,3 +2782,43 @@ species/site data ON TOP of the reused western infra. NOT a quick follow-on (the
 the infra + methodology + oracle-relink recipe are proven. RECOMMENDED next hub: KT (Kootenai) or IE (Inland
 Empire) — northern-Rockies Wykoff variants. This is a NEW chunk (new goal) — awaiting USER greenlight on which
 variant, since it is outside the CR objective (off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call).
+
+### 2026-07-30 — STALE-LEDGER re-verification (do not re-chase cr_ledger_resume.csv)
+A background resume sweep surfaced cr_ledger_resume.csv (mtime 15:12) showing 20,106 "diverging"/114,757 incl. a
+737-stand "volume_persistent 100%-at-2005" cluster (forest suffix 010661/020004 = Black Hills). Applied "measure,
+don't infer": dug 96413337010661 / 96442852010661 / 9500512020004 with CURRENT code+FVScr_clean → all now
+bit-exact early, only ±cornered dense-phase ticks late; NO zero-volume side. ROOT: the resume ledger PREDATES fixes
+#11 (SHP_BH, commit dcb11e1 16:01) and #12 (BH-height-dub, 920087f 16:12) — the "100% at 2005" was the
+already-fixed Black Hills ponderosa FW2 0-volume bug. Superseded by commit 0f76505 (16:16): TCuFt re-sweep with
+#10/#11/#12 → needs_dig 1355→21, overall 3452→265. ⇒ cr_ledger_resume.csv + its background-sweep notification are
+STALE pre-fix artifacts; the authoritative state remains needs_dig 265 (0.078%), 99.922% bit-exact-or-cornered,
+0 crashes. No new reducible surface. (Discipline note: measuring the fresh-looking ledger was correct — it COULD
+have been a real bug like #11/#12; it was stale.)
+
+### 2026-07-30 — ★★ FIX #14: measured-DG inside-bark conversion (4th CR variant-bark location) — REOPENS the "265 cornered" closure
+The "265 needs_dig all cornered" closure was OVER-ASSERTED (a 3rd premature-corner this session, caught by
+MEASURING the fresh resume ledger). Sampling the 265 by divergence CHARACTER (matched-TPA-BA = growth vs TPA-diff =
+selection): ~10% are REAL growth-type divergences, not RDPSRT self-thin selection. Clearest: 190851682020004 (dense
+aspen sapling, imodty 4) — jl BA 76% HIGH at cycle 1 (2022) at BIT-EXACT TPA ⇒ diameter over-growth, NOT selection.
+TreeId-matched verifier (dig_verify_treeid) = ★ESCALATE (per-tree DBH div @2022, 14 matched trees).
+
+ROOT CAUSE — localized through 6 instrumented layers (live-oracle relinks + jl printf), all bit-exact until the last:
+(1) cr_gemdg DDS aspen = live GEMDG BIT-EXACT (dp1.9→dds1.83); (2) dgf WK2 = DDS+COR+DGCON bit-exact (COR=DGCON=0
+at the dgf line); (3) regent leaves DG for D≥BKPT (GO TO 23) — passthrough; (4) dgdriv tripling DDS·EXP(FRMT) —
+live applies aspen COR=-2.44 (attenuating), jl applies 0; (5) DGSCOR calibration: live CORI(cornew)=-2.44323,
+WC=1.0, exp(-2.44)=0.0868 > 0.0821 ⇒ PASSES the out-of-range trap (dgdriv.f:640, exp(±2.5)=[0.0821,12.1825]); jl
+cornew=-2.6297 ⇒ exp=0.072 < 0.0821 ⇒ TRAPPED to 0 ⇒ COR=0 ⇒ aspen over-grows where gemdg is explosive on small
+DBH; (6) the Δ0.187 in cornew = per-tree TERM: bark/scale/wk3 identical, but jl measured DG uniformly 0.842× live
+(0.640 vs 0.760, 0.080 vs 0.095 — ratio 0.80/0.95). 
+
+THE BUG: diameter_growth.jl:380-385 (FVS dgdriv.f:361 `DG(I)=DG(I)*BRATIO`, the IDG=1/3 outside→inside-bark
+measured-DG conversion) used `bark_ratio(bark_a,bark_b,…)` which FLOORS to 0.80 for CR (bark_a/bark_b=0), not
+`cr_bratio`≈0.95. The 0.842× shrink pushes cornew ~0.19 more negative, and for measured-DG species whose cornew
+sits near the -2.5 trap cliff (e.g. aspen), it flips COR from ~-2.44 to 0 — an 8× DG swing. FOURTH CR variant-bark
+location (after DDS→DG, DBH-update, backdate/TERM). FIX: dispatch `_cr_cal ? cr_bratio(sd,sp,saved_dbh,imod) :
+bark_ratio(…)` (CR-gated; SN/NE/CS/LS unchanged). VALIDATED: 190851682020004 2022 now BIT-EXACT (BA 17/17, was
+17/30); crt01_growth BYTE-IDENTICAL to pre-fix (no regression on the primary CR validation); 20/20 previously-
+bit-exact stands still bit-exact; growth-type stands 1855935125290487 + 745576365290487 growth→selection (over-
+prediction gone). Meta: the closure was disproved by MEASURING (per-tree TreeId verifier), not inferring — the same
+discipline that found #11/#12. OPEN: a few growth-type stands remain (2602547010690, 758040786290487, 2713779010690)
+— other measured-DG species near the trap, or genuine ±straddles; and 190851682020004 2042+ dense self-thin tail.

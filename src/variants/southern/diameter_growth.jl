@@ -379,8 +379,16 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # term, so it matches the IDG=0 inside-bark basis. IDG=0/2 supply the inside increment directly.
     if s.control.growth_idg == 1 || s.control.growth_idg == 3
         @inbounds for i in 1:t.n
-            t.diam_growth[i] > 0f0 &&
-                (t.diam_growth[i] *= bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i]))
+            if t.diam_growth[i] > 0f0
+                # CR: BRATIO = cr_bratio (bark_a/bark_b are 0 ⇒ bark_ratio floors to 0.80, but cr/bratio.f
+                # gives ~0.95). Using the 0.80 floor shrinks the measured inside-bark DG ⇒ the DGSCOR
+                # cornew drifts ~0.19 more negative, crossing the exp(-2.5)=0.0821 COR out-of-range trap
+                # (dgdriv.f:640) ⇒ COR falsely zeroed for measured-DG species (e.g. aspen sp20), which then
+                # over-grows where gemdg is explosive on small DBH. 4th CR variant-bark location.
+                bk = _cr_cal ? cr_bratio(sd, Int(t.species[i]), saved_dbh[i], _cr_cal_imod) :
+                     bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
+                t.diam_growth[i] *= bk
+            end
         end
     end
 
