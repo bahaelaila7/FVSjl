@@ -3047,3 +3047,19 @@ small (volume-reporting leaf) ⇒ deferred as a focused FW2-profile task, but no
 localized (taper bit-exact, root-finder differs). ★ SESSION META: 5 measurement-corrected phantoms (DBHMAX, OH-small-tree,
 merch-volume-tripling, merch-rule, and this FW2-cornered→reducible) — doctrine #2 relentlessly. Volume instrumentation
 unlocked; growth core exhausted; 0 crashes.
+
+### 2026-07-30 — FW2 merch-cubic residual: MECHANISM COMPLETE (jl diameter-tol bisection vs SF_HS height-tol Newton); fix specified
+Finished the root-cause: read sf_hs.f fully. FVS SF_HS is a NEWTON solver (SF_DS gives the taper SLOPE; BRK_UP bark for
+JSP 22-30) that converges on `ABS(ADJUST) > TOL*TOTALH .OR. ABS(ERR) > EPSILON` — i.e. a HEIGHT tolerance (TOL=5e-4 ×
+TOTALH ≈ 0.01 ft) AND a diameter tolerance, with a modified-bisection fallback (label 200). jl's _fw2_hs converges on
+DIAMETER ONLY (|dib−mtop|<5e-4). Near the 4"-DIB top the taper is FLAT (d/dh≈0), so the 5e-4 diameter band spans ~0.1 ft
+of height ⇒ jl's bisection stops ~0.1 ft LOW (hs 10.96) while SF_HS Newton-refines to the true crossing (11.06). That IS
+the whole lmerch 9.96-vs-10.059 gap; it only becomes material at the MERCHL=10 cliff (small FW2-ponderosa trees flip
+0↔merch) — large trees are unaffected (hs high, ±0.1 ft rounds out in bucking, per-tree mcf bit-exact). ★ FIX SPECIFIED
+(faithful, doctrine #4): port SF_HS's Newton into _fw2_hs — inflection initial guess (SF_DS at RHI2·H → DI2; above/below
+branch), Newton step `H += -(D-DIB)/SLOPE` with SLOPE from SF_DS, height-tol convergence `|ADJUST|<TOL*TOTALH`, and the
+label-200 modified-bisection fallback; BRK_UP already ported as _fw2_brk_ot. Bounded (~sf_hs.f + SF_DS slope) but intricate;
+small payoff (cliff-amplified MCuFt on the FW2-ponderosa threshold subset, ≤21% on a few stands) ⇒ DEFERRED with the
+mechanism fully understood + fix specified. ★ This closes the FW2 investigation: taper BIT-EXACT, residual = _fw2_hs
+convergence-criterion (diameter-only vs SF_HS height+Newton) at the flat top, reducible, fix specified, deferred as small.
+CR core: growth exhausted+validated, volume faithful (material divergences cornered; this one reducible-but-small tail).
