@@ -2490,3 +2490,25 @@ unchanged (verified). Suite 38580/0-fail (4 env-err); treelist tests 356/0; east
 noted (separate cosmetic): jl emits SpeciesFIA "93" vs live "093" (leading-zero pad) — treelist string only.
 ⇒ CR treelist CrWidth is now faithful (whole column was wrong). This is a WESTERN-CLUSTER asset: cwcalc.f + the
 CRMAP pattern port forward to KT/IE/EM/BM/TT/UT (each has its own xxMAP into the same equation library).
+
+### 2026-07-30 — Live-crash fixes + sweep resume + needs_dig characterization (dig phase started)
+CRASHES (per user directive: fix first): the 2 CR sweep live_crashes root-caused, minimally patched, documented
+for FVS maintainers, oracle fixed (see docs/FVS_LIVECRASH_AUDIT.md + docs/patches/livecrash_cr_*.patch):
+(1) cr/varmrt.f:170 TEMKIL/TEMSUM div0 (TEMSUM=0; CR missing the eastern IF(TEMSUM.LE.0) guard);
+(2) volume/NVEL/fia_rm.f:280 WOODLAND_BIO LOG(BIO3<=0) (SPN=69 one-seed juniper, tiny stem; NEW class in the
+shared FMSC/NVEL lib). Both byte-identical no-ops on normal stands; 2/2 crashers exit 0; buildDir left pristine.
+SWEEP: resumed on 114,757 uncovered stands (never-swept + 3452 needs_dig + 2 ex-crashers) with SKIP_DONE, this
+session's growth fixes applied, persisting to cr_sweep.db.
+NEEDS_DIG CHARACTERIZATION (why it's in the thousands): prior sweep = 227,342 swept, 189,375 bit_exact (83.3%),
+34,513 ulp_class, 3,452 needs_dig, 2 live_crash. Ledger signature breakdown of the diverging: structure_densephase
+25,004 (DOMINANT), volume_persistent 9,296, threshold_crossing 1,478, print_boundary 1,329, count_straddle 858.
+DOMINANT class ROOT-CHARACTERIZED via 4703045010690 (CCF worst_col, was 600% pre-fix): sparse seedling stands
+(e.g. 4 recs of sp814 Gambel-oak @ D=0.1, 90 TPA) that regen/sprout to thousands TPA. The ccfcal/crown-dub fixes
+lifted jl CCF off 0 (600%→now 1 vs live 7 @2014). Current jl: 2004 inventory BIT-EXACT; small early CCF gap
+compounds through self-thinning to ~6-8% density (SDI 262/279, BA 65/71 @2044) — but TPA MATCHES (6410/6409). ⇒
+NOT a regen-COUNT bug (jl makes the right number of trees); it's the regen trees' CROWN/CCF. Localized lead: the
+small-tree CCF cliff at D=0.1 (cr_crown_width: D<=0.1→0.001 vs D>0.1→RDA·D^RDB) in the regent small-tree path —
+whether jl's sub-breast-height regen crosses D=0.1 the same cycle as live. NEXT: confirm the D=0.1 crossing on a
+paused pre-tripling window, then the fix generalizes across the ~25K structure_densephase dense-regen stands. The
+volume_persistent (9,296) 2nd class = the FW2/NVB volume ULP (largely cornered per the volume dig). Dig is a
+multi-pass campaign like the eastern sweeps; the running re-sweep isolates cornered-vs-reducible post-fix.
