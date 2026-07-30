@@ -2152,3 +2152,29 @@ NET: the CR aspen residual = ZZRAN RNG stream-order (ch9), NOT a growth-equation
 long-open "aspen mortality-selection" as the cornered ZZRAN class (equations bit-exact). Reducing it requires
 the ch9 RNG draw-order reconciliation (a distinct chunk). Persistent dig infra: /workspace/.crwork/aspendig/
 (sub.db+jl.key), FVScr_{asp,asp2,asp3,gdg,vmrt} oracles, isoc23_shim.o.
+
+### ★★ Aspen residual FULLY DECOMPOSED by measurement: growth BIT-EXACT, residual = mortality-selection + tripled-ZZRAN
+Deep instrument-replay on FIA 39451382010690 (regent/htgf/gemdg/bachlo unit-dumps + NOTRIPLE per-record):
+- BACHLO stream diff: jl==live for the FIRST 1968 draws (through cycle 1); first divergence @#1969 is a CALLER-
+  ORDER swap (jl does a DGSCOR sd=0.2 draw where live does a ZZRAN sd=1.0 draw). The stream comes in per-cycle
+  runs A=DGSCOR(0.2)/B=ZZRAN(1.0): A44 B239 A411 B440 A407 [B455 live / B427 jl] — jl draws 28 FEWER ZZRAN in
+  cycle-2's block (downstream of the cycle-1 stand already differing). All three ZZRAN reject windows match live
+  ([-2,0.5] regent, [-dgsd,dgsd] htgf, [-1,1] new-tree crown).
+- NOTRIPLE per-record @2019 (valid, tripling off): aspen DBH BIT-EXACT per record (9.368/9.368, 8.514/8.514,
+  9.194/9.194, 6.814/6.814…) but jl RETAINS MORE TPA (5.8 vs live ~4.5) ⇒ the 2019 BA divergence (112/123) is
+  LESS MORTALITY in jl (mortality-SELECTION; stand-total TPA matched), NOT growth. (Large-DBH per-id mismatches
+  = TreeId reassignment, invalid to align — doctrine #3.)
+⇒ DEFINITIVE decomposition of the long-open aspen residual:
+  (1) CR aspen GROWTH is FAITHFUL — every equation bit-exact (Sheppard HTGR, seedling HTG+DG, AA-fit, GEMDG DDS)
+      AND per-record DBH bit-exact in NOTRIPLE. The "reducible aspen growth" and cycle-1 dig_treelist "+11%"
+      were TRIPLING/aggregation artifacts.
+  (2) The residual is MORTALITY-SELECTION (jl retains more aspen TPA, redistributed; stand-total TPA matched) —
+      CONFIRMS the earlier stand_pct!/VARMRT code-read trace BY MEASUREMENT, growth now ruled out. Aspen DBHs are
+      distinct (no ties) yet mortality differs ⇒ not the RDPSRT tie-break per se; the exact VARMRT-PCT/kill-
+      distribution driver is the remaining crux (the prior session's undetermined point, now bounded: growth-
+      independent, mortality-side).
+  (3) The tripled-ZZRAN RNG stream-order (ch9) compounds it from cycle 2 (jl 28 fewer draws/cycle).
+NET: CR growth core is PROVEN bit-exact (equations + NOTRIPLE per-record); the residual is a growth-independent
+mortality-selection tail + the shared ch9 tripled-RNG order — the cornered class, not a CR growth defect. Turn-key
+for the mortality crux: instrument VARMRT PCT + per-tree kill on THIS stand @cycle1 (NOTRIPLE) vs live — DBH is
+bit-exact so any EFFTR/kill diff is pure mortality-side (PCT source, crown, or TOKILL distribution).
