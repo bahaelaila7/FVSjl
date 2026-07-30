@@ -3030,3 +3030,20 @@ is now unblocked, but the impact is small (volume-reporting leaf, threshold-clif
 the MERCHL cliff); merch rule correct; per-tree volume bit-exact away from cliffs. The reducible-and-material volume
 surface is a small profile-precision tail. Growth core exhausted+validated; 0 crashes. Session: module-ABI unlock +
 4 measurement-corrected phantoms + the FW2 residual cornered-classified.
+
+### 2026-07-30 — CORRECTION: FW2 merch-cubic residual is REDUCIBLE (root-finding _fw2_hs vs SF_HS), NOT cornered-precision
+Retracting the prior "cornered-precision" call by MEASURING (doctrine #2, 5th inference-correction this session): instrumented
+live profile.f FWINIT form/taper for the d=5.71 ponderosa (module-ABI busted) and compared to jl — RFLW/RHFW/TAPCOE are
+BIT-EXACT (RFLW1=0.0017654, RFLW2=0.0009111, RHFW2=0.27303, TAP1=0.65561 all match). ⇒ the FW2 taper/profile is FAITHFUL;
+the 0.1-ft merch-length gap (jl _fw2_hs lmerch=9.96 vs live MERLEN=10.059) is NOT taper precision. FVS MERLEN for FW2
+(VOLEQ(4)='F') is `CALL SF_HS; LMERCH=HS-STUMP` — so it's jl's _fw2_hs (a simple dib==mtop bisection, tol 5e-4) vs FVS's
+SF_HS (an inflection-aware initial guess via SF_DS/DI2 + BRK_UP bark for JSP 22-30, sf_hs.f). Suspected cause: jl's
+_fw2_hs compares dibat=_fw2_brk_ot(...) (OUTSIDE-bark DOB) to mtop=topd·bark, while SF_HS solves for the INSIDE-bark DIB
+(SF_DS+BRK_UP) — a possible inside/outside-bark inconsistency in the merch-top crossing (large trees mask it: their
+lmerch≫merchl so bit-exact bucking dominates and per-tree mcf matches, e.g. d=12.3 TV4=15.7=jl; only small trees straddling
+the MERCHL=10 cliff flip). ⇒ REDUCIBLE, bounded fix = reimplement _fw2_hs to match SF_HS (inflection guess + inside-bark
+BRK_UP), which would remove the cliff-amplified MCuFt divergences (≤21% on the FW2-ponderosa threshold subset). Impact
+small (volume-reporting leaf) ⇒ deferred as a focused FW2-profile task, but now CORRECTLY classified reducible + fully
+localized (taper bit-exact, root-finder differs). ★ SESSION META: 5 measurement-corrected phantoms (DBHMAX, OH-small-tree,
+merch-volume-tripling, merch-rule, and this FW2-cornered→reducible) — doctrine #2 relentlessly. Volume instrumentation
+unlocked; growth core exhausted; 0 crashes.
