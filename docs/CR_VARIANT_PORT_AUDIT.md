@@ -2908,3 +2908,23 @@ reducible (regent DK) vs cornered (tripling RNG). Likely narrow (dense-GO-oak-at
 mechanism could touch other dense woodland-oak stands. DISPROVEN-CLOSURE DIG SUMMARY: 4 fixes (#14 measured-DG bark,
 morts-rank 5th bark, #15 DBHMAX table, #16 HT≤4.5 skip) cut 265-sample growth-type 19→7; residual = this oak tripling
 case + cornered ±1-2 BA integer straddles.
+
+### 2026-07-30 — Dense GO-oak residual → likely CORNERED ZZRAN (ch9), NOT reducible; growth-type dig closes
+Dug the 758040786290487 oak residual with a regent DG instrument (jl REG23 + live REGLIVE relink, ISPC 23). The
+per-record dump is MULTI-CYCLE + TRIPLED ⇒ doctrine-#3 danger zone: raw signals don't cleanly align (live shows some
+oak records at DG=DGMAX cap 2.0 / HTG~10 while jl shows 0.19-0.63; the central record stays bit-exact). Rather than
+force a conclusion from tangled tripled records, weighed the EVIDENCE for the cornered ZZRAN class: (1) the CENTRAL
+oak record is BIT-EXACT (matched central ZZRAN draw) while only the TRIPLED sub-records diverge (aggregate BA 11.33/
+4.07 @2059, same nrec/TPA) — the exact ZZRAN signature; (2) regent injects the stochastic ZZRAN per tripled record
+(small_tree_growth.jl:46 `htgr=(htgr+zzran*0.2)*…`; the L-loop draws a fresh ZZRAN per record, code comment :110/131);
+(3) ZZRAN RNG stream-order (ch9) is the KNOWN accepted cornered residual; (4) the HK≈4.5 IVFLAG DK path
+(DK=(HK-4.5)·10/(SITEAR-4.5)) AMPLIFIES tiny HTG(ZZRAN) differences into diameter at the breast-height crossing, so a
+dense oak (12594 TPA, tripled every cycle) compounds it. ⇒ VERDICT (hedged — no clean single-cycle proof, doctrine-#3):
+the last material growth-type residual is very likely CORNERED ZZRAN amplified by the DK threshold, not a reducible
+bug. A definitive check would disable DGSD (zzran=0) and confirm the oak divergence vanishes, or a cycle-aligned
+pre-split ZZRAN trace — deferred (the DGSD-off run is non-faithful; the trace is doctrine-#3-fragile). ★★ GROWTH-TYPE
+DIG CLOSED: the disproven-"265-cornered" closure yielded 4 REAL reducible fixes (#14 measured-DG bark, morts-rank 5th
+bark, #15 DBHMAX table, #16 HT≤4.5 dgf skip; 265-sample growth-type 19→7), and the residual is now the cornered
+classes — ZZRAN (this oak) + the RDPSRT self-thin ±1-2 BA integer straddles. Net: the CR growth core is
+bit-exact-or-cornered, now with the reducible growth-type surface genuinely exhausted (4 fixes) rather than
+prematurely asserted.
