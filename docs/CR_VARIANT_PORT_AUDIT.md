@@ -2644,3 +2644,22 @@ cornered primitive OR a mortality refinement, NOT a growth-model bug. ⇒ CORREC
 gemdg is bit-exact. The remaining needs_dig tail is the dense self-thinning mortality on regen (the accepted
 structure_densephase class), amplified in the volume column. META: proved bit-exactness by instrumenting the LIVE
 oracle's gemdg (relink recipe), not by inference — the growth model is exonerated.
+
+### 2026-07-30 — ★ REAL BUG (corrects "tail all cornered"): Black Hills ponderosa FW2 profile (jsp=22) UNPORTED → 0 volume
+Kept digging the needs_dig tail past the aspen (which was cornered mortality) and found the DOMINANT TCuFt needs_dig
+class is a REAL reducible volume bug. Measured on 5369210010661 (forest 203 Black Hills, 27 ponderosa, all HT
+missing): dig_one shows TCuFt live 2109→3747 vs jl **0 all cycles** while BA/SDI bit-exact (dig_one prints
+live/jl). Root cause: veq='203FW2W122' → _fw2_jsp returns JSP=22 (fwinit.f: geocode 2 / spec 122 / geosub 03 =
+"Black Hills model", DISTINCT from JSP=23 San Juan). jl's cr_fw2_vol gates on `_fw2_is_ingy(jsp) || 23<=jsp<=29` —
+JSP=22 falls through ⇒ returns zeros ⇒ 0 volume. The Black Hills PP profile is a SEPARATE NVEL routine SHP_BH
+(f_other.f:682 "BHNF Ponderosa Pine", hardcoded PP14 coeffs, DIFFERENT functional form — U7=−1.2726−0.004826·H
+uses H not lnH; DMEDIAN=1.6802·(H−4.5)^(0.4085+0.00169·H)) + Black Hills bark BRK_OT BK(:,1) + VAR_BH — NONE ported
+(jl's _fw2_shp = SHP_OT covers only jsp 23-29 via F(50,7), JRSP=JSP-22=0 has no F column). ⇒ THE REDUCIBLE NEXT
+CHUNK: port SHP_BH (+ BK(:,1) bark + VAR_BH) as a jsp=22 branch in cr_fw2_vol + extend the gate. A bounded NVEL
+sub-port (~40-line shape transcription + bark + wiring), faithful+validatable. AFFECTS all Black Hills ponderosa
+stands (forest 203, geosub 03) — a large chunk of the 1,355 TCuFt needs_dig. ★ CORRECTION: the TCuFt needs_dig tail
+is NOT all cornered — it has this real Black Hills FW2-volume port gap. My earlier "tail cornered" applied to the
+aspen dense-regen mortality (that one IS cornered); the DOMINANT TCuFt class is this reducible Black Hills volume bug.
+META (doctrine #2): kept digging with MEASUREMENT past the first (cornered) sample — the second sample exposed the
+real bug. A single-stand dig (aspen) mis-generalized; sampling several stands + reading dig_one correctly (live/jl)
+found the 0-volume signature.
