@@ -3063,3 +3063,12 @@ small payoff (cliff-amplified MCuFt on the FW2-ponderosa threshold subset, ≤21
 mechanism fully understood + fix specified. ★ This closes the FW2 investigation: taper BIT-EXACT, residual = _fw2_hs
 convergence-criterion (diameter-only vs SF_HS height+Newton) at the flat top, reducible, fix specified, deferred as small.
 CR core: growth exhausted+validated, volume faithful (material divergences cornered; this one reducible-but-small tail).
+
+### 2026-07-30 — Full test suite: session changes REGRESSION-FREE (38580/0/4/75 = baseline)
+Ran the complete FVSjl test suite (all 4 eastern variants + CR + shared engine) to confirm the session's growth fixes
+(#14 measured-DG bark, morts-rank 5th bark, #15 IMODTY DBHMAX table, #16 HT≤4.5 dgf skip — all CR-gated) + the reverted
+merch-rule experiment left nothing broken. RESULT: 38580 passed / 0 FAILED / 4 errored (env-only: SQLite/WeakRefStrings/
+Parsers subprocess precompile, not test failures) / 75 broken (pre-existing FIA/FVS-compat floor) — IDENTICAL to the
+session baseline. ⇒ zero regressions across all variants from the 4 CR fixes + volume investigation. CR growth+volume
+core: bit-exact-or-cornered, fresh-validated (81.3% random-sample bit-exact, remainder cornered), full-suite-green,
+0 crashes. Sole remaining reducible item = the deferred FW2-hs SF_HS-Newton port (small, mechanism+fix specified).
