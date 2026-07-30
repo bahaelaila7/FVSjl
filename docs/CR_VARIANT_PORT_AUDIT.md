@@ -2874,3 +2874,21 @@ OH HT1/HT2/AA coefficient or the small/large XWT blend. A genuine reducible clas
 cornered. Deferred (needs its own regent instrument cycle), documented so it's actionable. The 3 landed fixes
 (#14/morts/#15) reduced the material growth-type surface; the residual is this OH small-tree class + heterogeneous
 singletons (758040786290487 dense-oak size-class transition at QMD~1.0) + the cornered ±1-2 BA straddles.
+
+### 2026-07-30 — ★★ FIX #16: dgf! erroneous HT≤4.5 GEMDG skip (short-fat trees fell through both DG paths)
+The OH (sp38) under-growth class (prev entry) ROOT-CAUSED + FIXED. Per-tree treelist diff on 212342157010854 (imodty2):
+most OH trees bit-exact, but TWO short-fat trees (D=7.2 H=4.0, D=4.4 H=3.0 — large DBH, HT<4.5, HTG=0) had jl DG
+0.055/0.112 vs live 0.714/0.594. Instrumented the jl DG application: wk2=0.0 for these ⇒ dds5=fexp(0)=1.0 ⇒ near-zero
+DG. ROOT: jl dgf! had `t.height[i] <= 4.5 && continue` in the per-tree DDS loop, misattributed to cr/dgf.f:99 — but
+:99 is the AGE-RANGE loop; the actual DDS loop (cr/dgf.f:182 DO 10) skips ONLY `IF(D.LE.0.0)` and calls GEMDG for
+EVERY D>0 tree regardless of height. jl's spurious skip left wk2=0 for HT≤4.5 trees; normal seedlings are inert
+(REGENT overrides their DG for D<BKPT), but SHORT-FAT trees (D≥XMAX=2 so REGENT skips too, AND HT≤4.5 so dgf! skipped)
+fell through BOTH ⇒ near-zero DG. FIX: delete the HT≤4.5 skip (keep only D≤0), matching FVS DO 10. VALIDATED: 212342157010854
+now BIT-EXACT all cols through 2045 (BA 75/75 was 75/48); crt01 (imodty2) byte-identical; 100/100 + 150-mixed 0-regress.
+★★ RESOLVES THE WHOLE OH/WOODLAND under-growth CLASS in one shot: 562871689126144 (BA 20/20 was 20/11), 2260120010690
+(35/35 was 35/22), AND 2602547010690 (85/85 was 85/65) — the pinyon-juniper-OAK woodland stand earlier flagged for a
+separate "woodland-model" dig was THE SAME H≤4.5 short-fat-tree bug (mesquite/oak→OH38 + pinyon/juniper all had short-fat
+records). FOURTH real fix of the disproven-closure dig (#14 measured-DG bark, morts-rank 5th bark, #15 DBHMAX table, #16
+HT≤4.5 skip). Meta: the "OH small-tree allocation" hypothesis from the prior entry was WRONG — it wasn't small-tree at all,
+it was large-tree gemdg being skipped; per-tree instrumentation (wk2=0) corrected the inference. Remaining growth-type:
+758040786290487 (dense-oak size-class transition) + cornered ±1-2 BA straddles.

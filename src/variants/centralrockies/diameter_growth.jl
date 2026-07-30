@@ -306,8 +306,11 @@ function dgf!(s::StandState, ::CentralRockies)
     @inbounds for i in 1:t.n
         d = t.dbh[i]
         wk2[i] = 0.0f0
-        d <= 0.0f0 && continue
-        t.height[i] <= 4.5f0 && continue        # cr/dgf.f:99 — HT≤4.5 trees skip GEMDG (grow via REGENT, both axes)
+        d <= 0.0f0 && continue                  # cr/dgf.f:182 DO 10 — the ONLY skip is D≤0; GEMDG runs for every
+                                                # D>0 tree regardless of height. (An earlier H≤4.5 skip here was a
+                                                # misread of dgf.f:99, which is the AGE-RANGE loop — it left wk2=0 for
+                                                # short-fat trees, D≥XMAX & HT≤4.5, that REGENT also skips ⇒ near-zero
+                                                # DG. Normal seedlings are inert: REGENT overrides their DG for D<BKPT.)
         sp = Int(t.species[i])
         bark = cr_bratio(sd, sp, d, imodty)
         cr = Float32(t.crown_pct[i]) * 0.01f0
