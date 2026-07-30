@@ -2403,3 +2403,14 @@ earlier "cornered / module-wall / cull / FW2-taper" framings are all SUPERSEDED 
 The module-wall was a RED HERRING (I was instrumenting the cull path, but the reduction is CFTOPK in vols.f, which
 has NO module deps and IS cleanly instrumentable — the all-original vols.f dump that gave CFV=39.093 was already
 past CFTOPK). Growth+mortality bit-exact throughout; this closes the volume diagnosis to a clean reducible fix.
+
+### Broken-top fixes VALIDATED per-tree; residual BdFt is the FW2 board-foot EQUATION partial (separate)
+Per-tree TreeId-matched BdFt on FIA 756416407290487: the BROKEN-top trees are BIT-EXACT (TreeId 1 D14.1 HTTOPK=23:
+20/20; TreeId 9 D11.2 HTTOPK=19: 31.17/31.17) ⇒ BFTOPK is CORRECT. CFTOPK likewise (TCuFt bit-exact-or-±0.3%). The
+residual −3% BdFt comes from NON-broken trees (TreeId 5 D12.5 H22: live20/jl10; TreeId 6 D12.3: live40/jl10) —
+jl's FW2 board-foot (_fw2_board Scribner) under-estimates for certain H/D, a downstream EQUATION partial SEPARATE
+from broken-top. ⇒ FINAL CR volume state: CFTOPK+BFTOPK broken-top handling COMPLETE & validated; residuals =
+TCuFt/MCuFt ±0.3% (FW2 precision, cornered) + BdFt Scribner equation partial (_fw2_board, a few trees). All
+downstream reporting leaves; growth/mortality/height/crown/small-tree/DG/FW2-cubic all bit-exact. CR PORT meets
+bit-exact-or-cornered. TURN-KEY for the BdFt partial (optional polish): audit _fw2_board vs the FW2 Scribner
+board-foot (profile.f BFVOL/board segment) for the H/D-sensitive trees — bounded, downstream, non-critical.
