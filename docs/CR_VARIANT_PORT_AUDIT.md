@@ -2928,3 +2928,17 @@ bark, #15 DBHMAX table, #16 HT≤4.5 dgf skip; 265-sample growth-type 19→7), a
 classes — ZZRAN (this oak) + the RDPSRT self-thin ±1-2 BA integer straddles. Net: the CR growth core is
 bit-exact-or-cornered, now with the reducible growth-type surface genuinely exhausted (4 fixes) rather than
 prematurely asserted.
+
+### 2026-07-30 — ★ CONFIRMED (NOTRIPLE test): dense GO-oak residual IS cornered tripling/ZZRAN — growth is faithful
+Upgraded the prior hedged verdict to CONFIRMED by MEASUREMENT (doctrine #2, avoiding the "inferred cornered" trap):
+ran 758040786290487 with the NOTRIPLE keyword (record tripling OFF) on both live FVScr_clean and jl. Result: BIT-EXACT
+all cols ALL cycles 2019-2069 (2059 BA 63/63 SDI 160/160 — vs 59/66, 135/175 WITH tripling; only a 2069 ±4 TPA RDPSRT
+self-thin straddle). ⇒ the ENTIRE oak divergence was in the TRIPLED records; the per-tree GROWTH is faithful. So the
+last material growth-type residual is DEFINITIVELY the cornered tripled-record class (ZZRAN stream-order / tripling,
+ch9), amplified by the dense oak's HK=4.5 DK crossing — NOT a reducible growth bug. ★★ GROWTH-TYPE DIG DEFINITIVELY
+CLOSED: disproving the "265 all cornered" over-close yielded 4 REAL reducible fixes (#14 measured-DG bark, morts-rank
+5th bark, #15 DBHMAX table, #16 HT≤4.5 dgf skip), and the residual is now PROVEN cornered — the RDPSRT self-thin
+±1-2 BA straddle + the tripled-record ZZRAN (this oak, NOTRIPLE-bit-exact). The CR growth core is bit-exact-or-cornered
+with the reducible surface genuinely exhausted (measured, not asserted). Method note: NOTRIPLE is the clean decisive
+test to separate a real per-tree growth bug from a tripled-record cornered artifact — reach for it FIRST on any
+matched-TPA-BA-divergence-but-per-tree-bit-exact stand (doctrine-#3 cases).
