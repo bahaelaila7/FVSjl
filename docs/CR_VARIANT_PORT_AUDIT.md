@@ -2892,3 +2892,19 @@ records). FOURTH real fix of the disproven-closure dig (#14 measured-DG bark, mo
 HT≤4.5 skip). Meta: the "OH small-tree allocation" hypothesis from the prior entry was WRONG — it wasn't small-tree at all,
 it was large-tree gemdg being skipped; per-tree instrumentation (wk2=0) corrected the inference. Remaining growth-type:
 758040786290487 (dense-oak size-class transition) + cornered ±1-2 BA straddles.
+
+### 2026-07-30 — Last material growth-type residual CHARACTERIZED: dense GO-oak regent tripled-record over-growth (open, doctrine-#3)
+758040786290487 (the remaining growth-type singleton): bit-exact BA/SDI/CCF/QMD through 2049, diverges at 2059 (BA 59/66,
+SDI 135/175). Per-tree treelist diff: EVERY aligned tree bit-exact (sp122 ponderosa + the central sp814 oak record, both
+DBH+DG). But sp814 (GO oak, idx23) aggregate: same nrec=9, same TPA=11954.8, yet jl BA=11.33 vs live 4.07 @2059 (2.8×) —
+i.e. the CENTRAL oak record is bit-exact but the TRIPLED sub-records over-grow (doctrine-#3: per-record invalid after
+tripling, only the aggregate/central is comparable). GO(23): BKPT=99/XMIN=99/XMAX=199 ⇒ the D=0.35 oak is PURE small-tree
+REGENT (d<BKPT, XWT=0) AND an IVFLAG species ⇒ regent DK=(HK-4.5)·10/(SITEAR-4.5). The dense oak (1 input record, TPA 12594,
+tripled to 9) crosses H=4.5 at ~2059, making the IVFLAG DK hypersensitive near the breast-height threshold; jl's tripled
+oak sub-records over-grow diameter. PRE-EXISTING (fix #16 neutral — oak stays regent-driven, d<BKPT). Distinct from the 4
+fixes this dig (all large-tree/allocation). NEXT DIG (harder, deferred): instrument regent per-tripled-record DG for sp23
+(l=0/1/2) jl vs live at the HK~4.5 crossing — either the IVFLAG DK computation or the tripled-record zzran; determine
+reducible (regent DK) vs cornered (tripling RNG). Likely narrow (dense-GO-oak-at-threshold) but the IVFLAG-near-4.5
+mechanism could touch other dense woodland-oak stands. DISPROVEN-CLOSURE DIG SUMMARY: 4 fixes (#14 measured-DG bark,
+morts-rank 5th bark, #15 DBHMAX table, #16 HT≤4.5 skip) cut 265-sample growth-type 19→7; residual = this oak tripling
+case + cornered ±1-2 BA integer straddles.
