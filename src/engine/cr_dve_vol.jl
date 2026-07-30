@@ -223,6 +223,35 @@ function cr_cftopk(tcf::Float32, mcf::Float32, d::Float32, h::Float32, vmax::Flo
     return tcf, mcf
 end
 
+"""
+    cr_bftopk(bbfv, d, h, vmax, bark, itht, bfstmp, bftopd) -> bbfv
+
+BFTOPK (base/bftopk.f): board-foot analog of CFTOPK — reduce a broken-top tree's board-foot volume to
+the standing broken stem via the Behre taper. `vmax` = the full cubic (BFMAX). Board specs BFSTMP=1, BFTOPD=6.
+"""
+function cr_bftopk(bbfv::Float32, d::Float32, h::Float32, vmax::Float32, bark::Float32,
+                   itht::Int, bfstmp::Float32, bftopd::Float32)::Float32
+    bbfv <= 0f0 && return bbfv
+    ahat, bhat, lcone = _behprm(vmax, d, h, bark)
+    htrunc = Float32(itht) / 100f0
+    pht = 1f0 - htrunc / h
+    dtrunc = pht / (ahat * pht + bhat)
+    if dtrunc > bftopd / d
+        htmrch = (bhat * bftopd / d) / (1f0 - ahat * bftopd / d)
+        stump = 1f0 - bfstmp / h
+        if lcone
+            s3 = stump * stump * stump
+            volm = s3 - htmrch * htmrch * htmrch
+            voltk = s3 - pht * pht * pht
+            bbfv = bbfv * voltk / volm
+        else
+            voltk = _behre(pht, stump, ahat, bhat)
+            bbfv = bbfv * voltk / _behre(htmrch, stump, ahat, bhat)
+        end
+    end
+    return bbfv
+end
+
 function compute_volumes_cr!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control; sd = s.coef.species
@@ -259,14 +288,16 @@ function compute_volumes_cr!(s::StandState)
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
         scf = 0f0                              # CR is region 2/3: fvsvol.f sets SCF only for region 8/9
-        # CFTOPK (vols.f:145-196): broken-top trees (TKILL = H≥4.5 & ITRUNC=trunc>0) get their FULL-height
-        # volume reduced to the standing broken stem via the Behre form-class taper. H=t.height=NORMHT.
-        if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
-            tcf, mcf = cr_cftopk(tcf, mcf, d, h, tcf, cr_bratio(sd, sp, d, imodty),
-                                 Int(t.trunc[i]), stump, topd)
-        end
         # BdFt = BBFV = TVOL(2) Scribner for CR (METHB=6≠9), gated D≥BFMIND. DVE/NVB/FW2 all fill VOL(2).
         bf  = d >= bfmind ? v[2] : 0f0
+        # CFTOPK/BFTOPK (vols.f:145-196,394): broken-top trees (TKILL = H≥4.5 & ITRUNC=trunc>0) get their
+        # FULL-height cubic + board volumes reduced to the standing broken stem via the Behre taper. VMAX=full
+        # cubic (v[1]); H=t.height=NORMHT; board specs BFSTMP=1/BFTOPD=6 (grinit.f:91, sitset.f:527).
+        if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
+            bk = cr_bratio(sd, sp, d, imodty); vmax = tcf
+            tcf, mcf = cr_cftopk(tcf, mcf, d, h, vmax, bk, Int(t.trunc[i]), stump, topd)
+            bf = cr_bftopk(bf, d, h, vmax, bk, Int(t.trunc[i]), 1f0, 6f0)
+        end
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
     end
