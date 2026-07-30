@@ -3121,3 +3121,17 @@ _fw2_hs should solve on SF_YHAT vs the brk_ot profile by instrumenting live SF_D
 live SF_HS per-tree hs match + crt01 + 100/150 regression + full suite. STEP 1 (slope) de-risks the hardest math; the
 bark-profile pin + Newton assembly remain. CR core unchanged: complete+full-suite-validated; this is progress on the
 sole deferred item, not a core change.
+
+### 2026-07-30 — CORRECTION (doctrine #2 integrity): FW2 bark/mtop claim RETRACTED — piecemeal analysis is error-prone
+Retracting the prior entry's "bark direction resolved / verified numerically" claim: it rested on a hand-RECONSTRUCTED
+f/bark (approximated bark=0.80), which is UNRELIABLE. Instrumented live SF_DS (module-free, relinked): for the d=5.71
+ponderosa the crossing at live hs=11.06 has SF_DS DIB=3.761 (inside bark) with SLOPE=-0.3234 — NOT my reconstructed
+3.03, and NOT the naive mtop=topd·bark=3.20 I'd assumed jl solves for. ⇒ the actual merch-top diameter + inside/outside-
+bark convention SF_HS/MERLEN use is NOT yet pinned, and my piecemeal reconstruction-based reasoning has been WRONG
+twice. This EMPIRICALLY confirms the SF_HS-Newton port is a focused-session task: it needs live SF_DS/SF_HS instrumented
+END-TO-END (target DIB passed to SF_HS, the inside/outside-bark of the comparison, the profile scale F) BEFORE wiring
+the Newton — doing it across Stop-hook turns produces confident-but-wrong bark claims. SOLID PROGRESS THAT STANDS:
+`_fw2_sf_yhat_sl` (Step-1 slope) is VALIDATED (diameter max-diff 0, slope==numeric-deriv) and INERT (unused) — the one
+reliable building block. The bark/mtop pin + Newton assembly are correctly DEFERRED. crt01 unchanged; core still
+complete+full-suite-validated. LESSON: don't reconstruct profile inputs by hand — instrument the live routine (SF_DS is
+module-free; the module-ABI recipe covers the rest).

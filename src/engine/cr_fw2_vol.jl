@@ -246,8 +246,9 @@ slope uses SUS3=x^(b1+1) (≠ diameter's SUS2=x^b1).
 WIP BUILDING BLOCK (currently UNUSED, inert) toward the deferred SF_HS-Newton _fw2_hs port (see audit 2026-07-30):
 SF_DS (sf_ds.f, NEXTRA=0) = raw SF_YHAT (this slope), NO BRK_UP; SF_HS solves SF_DS==DIB_target on the SF_YHAT
 profile with a HEIGHT-tol Newton (`H+=-(D-DIB)/SLOPE`, |ADJUST|≤TOL·TOTALH) — replacing jl's current diameter-tol
-bisection (which stops ~0.1 ft early at the flat top ⇒ the MERCHL=10 cliff-flip). NOTE region-2/3 SF_YHAT is
-calibrated to DBHOB ⇒ SF_YHAT is OUTSIDE-bark and _fw2_brk_ot converts to INSIDE-bark (opposite the naive read)."
+bisection (which stops ~0.1 ft early at the flat top ⇒ the MERCHL=10 cliff-flip). NOTE: the exact merch-top/bark convention SF_HS solves against is NOT yet pinned — live SF_DS shows the crossing
+DIB≠the naive topd·bark, and hand-reconstruction of f/bark is unreliable; the focused port must instrument live
+SF_DS/SF_HS end-to-end to fix mtop + the inside/outside-bark comparison before wiring the Newton."
 function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Float32)
     rh > 1.0f0 && return (0.0f0, 0.0f0)
     rh < 0.0f0 && return (f, 0.0f0)
