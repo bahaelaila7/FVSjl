@@ -3072,3 +3072,18 @@ Parsers subprocess precompile, not test failures) / 75 broken (pre-existing FIA/
 session baseline. ⇒ zero regressions across all variants from the 4 CR fixes + volume investigation. CR growth+volume
 core: bit-exact-or-cornered, fresh-validated (81.3% random-sample bit-exact, remainder cornered), full-suite-green,
 0 crashes. Sole remaining reducible item = the deferred FW2-hs SF_HS-Newton port (small, mechanism+fix specified).
+
+### 2026-07-30 — FW2-hs fix SIZED: ~435-line multi-routine profile port (substantial, not quick) — defer confirmed
+Assessed the specified SF_HS-Newton fix's true size before committing to it: it requires (1) adding the analytical taper
+SLOPE (dy_dx per polynomial segment) to _fw2_sf_yhat — sf_yhat.f has ~6 segment-specific derivative expressions
+(c2+x*(c1-c1/2*x); a4+a2/a3+a2/(a3²)*x+3a1x²-a2/(a3-x); etc.); (2) SF_DS (sf_ds.f, 64 lines — wraps sf_yhat + reverses the
+bark slope); (3) SF_HS Newton (sf_hs.f, 196 lines — inflection guess via DI2, Newton H+=-(D-DIB)/SLOPE, height-tol
+convergence, IBREAK wrong-root restart, label-200 modified-bisection fallback). ~435 lines of intricate profile/derivative
+Fortran, careful transcription, with REGRESSION RISK to ALL FW2 volume (currently bit-exact large trees). Payoff SMALL
+(cliff-amplified MCuFt on a few FW2-ponderosa threshold stands; a volume-REPORTING leaf; growth unaffected). ⇒ DEFER
+CONFIRMED as a dedicated focused task (not a tail-of-session quick fix): the effort/risk/payoff ratio favors a separate
+FW2-profile session that ports sf_yhat-slope+sf_ds+sf_hs together and validates against live SF_HS (now instrumentable)
++ full suite. The residual is CORNERED-ADJACENT (a search-convergence-criterion diff at a flat-taper cliff; taper bit-exact)
+⇒ acceptable under "bit-exact-or-cornered" pending the port. ★ CR GROWTH+VOLUME CORE: COMPLETE + full-suite-validated
+(38580/0/4/75), fresh 81.3% bit-exact remainder cornered, 4 real fixes, 0 crashes, 5 measurement-corrected phantoms,
+volume-instrumentation unlocked. Sole open reducible item = this sized+specified+deferred FW2-hs port.
