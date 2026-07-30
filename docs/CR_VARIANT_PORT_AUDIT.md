@@ -2299,3 +2299,22 @@ input path (dbstreesin.f/intree.f — is 47 split rotten/missing or halved for c
 instrument: dump CULL just before volinit via a routine that doesn't USE mrules (e.g. add an arg-dump in vols.f
 right after the NATCRS return, linking all-original .o). The residual remains a bounded volume-REPORTING port;
 every model equation (incl. FW2 gross) is faithful.
+
+### Volume cull — HARD WALL reached: reduction is in nsvb.f (NSVB sound vol), but exact factors are module-ABI-blocked
+Recompiled all 4 vol modules + all 7 MRULES_MOD-using routines consistently (defeating the ABI-mismatch that
+broke my first attempt) and instrumented volinit.f + nsvb.f. Findings:
+  - The conifer tree does NOT hit volinit.f:882 (that's the SPGRPCD=10 WOODLAND branch) — no CULLDBG output.
+  - The cull IS in nsvb.f (NSVB/National-Scale-Volume-Biomass, the LFIANVB FIA path): line 301
+    `VOL(1)=VtotibSound=Vtotib·Rrem·(1−CULL/100)`. ⇒ for FIA-DB (LFIANVB) stands the reported cubic volume is
+    NSVB-SOUND, NOT the FW2 growth-driver volume. jl reports FW2 gross regardless — THE root of the divergence.
+  - ★ HARD WALL: EVERY build with a recompiled module in the vol chain BREAKS the cull (nsvb dumps CULL=0, not 47)
+    — the cull is passed through the ORIGINAL-compiled module ABI; recompiling any link breaks it, and the
+    .mod-ABI blocks compiling against the originals. So the exact factors are UNMEASURABLE via recompile. The
+    three grosses don't reconcile with a simple cull (FW2 TCUBIC 51.375; NSVB Vtotib 45.78 [cull-broken];
+    reported net 39.093) — the real path uses Rrem + the NSVB gross + cull, only visible with original modules.
+⇒ COMPLETE MECHANISM: FIA-reporting volume (LFIANVB) = NSVB sound (nsvb.f, Vtotib·Rrem·(1−CULL/100)); jl uses FW2
+gross. FIX (structurally clear, jl HAS cr_nvb_vol): for LFIANVB stands, route the REPORTED cubic volume through
+NVB + apply (1−CULL/100) with FIA CULL read into the tree. The .sum for KEYFILE (non-FIA) stands stays FW2
+(crt01 bit-exact) — the change is LFIANVB-gated. The exact NSVB Vtotib/Rrem reconciliation is behind the module
+wall; the port itself (cr_nvb_vol + cull, LFIANVB-gated) can be built+validated against live directly. This
+CLOSES the diagnosis: last CR residual = FIA-report volume uses NSVB-sound not FW2, a bounded LFIANVB-gated port.
