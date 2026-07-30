@@ -2448,3 +2448,24 @@ dead trees get t.*_vol — currently iterates 1:t.n; summary totals also iterate
 compare vs live (harness normally uses .sum, which is TPA=0-invariant here). DEFERRED: secondary-output cosmetic,
 TPA=0 ⇒ zero effect on .sum / growth / mortality / any validated metric. The CR port's core goal
 (bit-exact-or-cornered .sum vs live FVScr, all columns) is MET without it.
+
+### Dead-record treelist emission — IMPLEMENTED + validated (commit 7e4ed35, CR fix #8)
+Ported dbstrls.f:308-440 (cycle-0 dead-record emission). Live FVS appends input dead trees (HISTORY 6-9) to the
+bottom of FVS_TreeList at the inventory year: TPA=0, mortality expansion in MortPA (P=(PROB/GROSPC)/(FINT/FINTM);
+FINT/FINTM=1 at cyc 0 ⇒ MortPA=tpa/g), DG=HtG=0, with volume + a point-BAL against the live stand. jl kept the
+dead partition (t.n+1:t.n+ndead) but never emitted it. Changes: (1) compute_volumes_cr! extended to the dead
+partition (side-effect-free — summary totals iterate 1:t.n, .sum byte-for-byte unchanged, re-verified on
+756416407290487); (2) cycle index threaded through the treelist cycle_hook; (3) CR-gated dead emission in
+treelist_snapshot with PtBAL = NINT(BA of larger LIVE+DEAD records at the point — dead accumulate into point BA,
+only stand BA/SDI excludes them, which is why the .sum stays bit-exact).
+VALIDATED vs live on 756416407290487: 10/10 dead records; DBH, Ht, MortPA, DG, HtG, TCuFt, MCuFt, BdFt, PtBAL all
+BIT-EXACT (measured, value-aligned). METHOD note: value-align dead rows by (D,species) — the FVS DB TreeIndex for
+dead trees is a high MAXTRE-region slot (2991-3000) that jl can't match (jl stores dead bottom-up), so TreeIndex is
+a cosmetic layout difference. Residual DISPLAY-only gaps (shared with the live-tree rows, hence pre-existing, NOT
+introduced): (a) CrWidth column — FVS fills CRWDTH from base/cwidth.f (a forest crown-width model) not ported for
+CR, so BOTH live and dead CR treelist rows read the 0.5 default (whole-column gap; porting cwidth.f fixes it
+uniformly); (b) one broken-top dead tree's EstHt (D11.0 HTTOPK=37: jl norm_ht 5300 vs live 4500 — the shared
+dub_missing_heights! broken-top branch keeps the predicted normal height 53 when it exceeds the input 45; produces
+bit-exact .sum so not touched). Suite 38580/0-fail/4-env-err/75-broken; treelist tests 212/0; eastern/CS untouched
+(CR-gated). ⇒ The last open treelist leaf is CLOSED for the substantive columns; 2 documented display residuals
+remain as shared/pre-existing follow-ups (port base/cwidth.f for CR CrWidth; broken-top norm_ht display).
