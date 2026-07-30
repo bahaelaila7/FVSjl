@@ -184,8 +184,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
                         total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0))
-        # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year
-        cycle_hook === nothing || cycle_hook(s, r.year, per)
+        # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
+        # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
+        cycle_hook === nothing || cycle_hook(s, r.year, per, c)
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
         # (fire kill + snag booking + consumption) but BEFORE UPDATE grows the stand. For a non-fire cycle
         # that phase equals the cycle-top, pre-growth stand (sampled here). For a SIMFIRE cycle the row

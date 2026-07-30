@@ -529,7 +529,7 @@ Capture the start-of-cycle (pre-thin) tree list for the FVS_TreeList table — o
 live record (the columns FVSjl computes directly). Called per cycle by `write_sum_file`'s
 `cycle_hook`; the tuples are written later by `write_dbs_treelist!`.
 """
-function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
+function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle::Int = -1)
     t = s.trees; c = s.coef; pbal = s.density.point_bal
     g = s.plot.gross_space                      # TPA is per-acre = t.tpa/g (Fortran PROB/GROSPC)
     rows = Vector{Any}[]
@@ -561,6 +561,54 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer)
             Float64(t.bdft_vol[i]), mdef, bdef, Int(t.trunc[i]),   # BdFt, MDefect, BDefect, TruncHt
             estht, actpt,                                          # EstHt, ActPt
             Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+    end
+    # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
+    # trees (HISTORY 6-9) at the bottom of the FVS_TreeList — TPA=0, the mortality expansion in MortPA
+    # (P=(PROB/GROSPC)/(FINT/FINTM); FINT/FINTM=1 at cycle 0 ⇒ MortPA = tpa/g), DG=HtG=0, with volume and
+    # a point-BAL evaluated against the LIVE stand. jl keeps the dead partition at t.n+1 : t.n+ndead
+    # (treeinput.jl). CR-gated (the western validation target); the eastern variants share the same latent
+    # gap — enabling them needs their FVS_TreeList treelists re-validated (their compute_volumes cover only
+    # live), so this stays scoped to CentralRockies for now.
+    if cycle == 0 && s.variant isa CentralRockies && t.ndead > 0
+        scale = s.plot.pi / g                            # point_basal_area! per-acre scale (PI/GROSPC)
+        @inbounds for i in (t.n + 1):(t.n + t.ndead)
+            sp = Int(t.species[i]); dd = t.dbh[i]; pid = Int(t.plot_id[i])
+            # PtBAL (dbstrls.f IPTBAL=NINT(PTBALT)): BA of larger records at this dead tree's point. FVS's
+            # PTBALT accumulates ALL records (live+dead) in descending DBH, so a dead tree's BAL includes the
+            # larger DEAD trees too (only stand BA/SDI excludes dead — that's a separate sum, so the .sum stays
+            # bit-exact). Ties: the descending sort is stable on array index, so a record of equal DBH is
+            # already accumulated iff its index is lower.
+            dbal = 0f0
+            for j in 1:(t.n + t.ndead)
+                j == i && continue
+                (Int(t.plot_id[j]) == pid) || continue
+                (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
+                dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
+            end
+            dbal = Float32(round(Int, dbal))              # NINT(PTBALT(I))
+            # CrWidth: same call as the live-tree loop above. NOTE: the CR treelist CW column is a pre-existing
+            # gap — FVS fills CRWDTH from base/cwidth.f (a forest crown-width model) that isn't ported for CR,
+            # so BOTH live and dead CR rows read the 0.5 default here. Porting cwidth.f fixes the whole column
+            # uniformly; kept out of this dead-emission change.
+            cw = crown_width(c, s.species.code2[sp], dd, t.height[i], 90, 1,
+                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            df = Int(t.defect[i])
+            mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
+            estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
+            actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
+            push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
+                strip(c.code_plants[sp]), strip(c.code_fia[sp]),
+                Int(t.mort_code[i]), Int(t.special[i]), pid,
+                0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
+                Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
+                0.0, Int(t.crown_pct[i]), Float64(cw),     # HtG=0, PctCr, CrWidth
+                0,                                         # MistCD
+                Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
+                Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
+                Float64(t.bdft_vol[i]), mdef, bdef, Int(t.trunc[i]),
+                estht, actpt,
+                Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+        end
     end
     return (Int(year), Int(prdlen), rows)
 end

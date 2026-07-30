@@ -266,7 +266,10 @@ function compute_volumes_cr!(s::StandState)
     ifor   = Int(s.plot.forest_idx)
     bfmind = is3 ? 9f0 : ((ifor > 0 && ifor < 13) ? 7f0 : 9f0)
     iregn  = Int(s.plot.user_forest_code) ÷ 100    # stand region (MRULES keys merch bucking on REGN)
-    @inbounds for i in 1:t.n
+    # Include the DEAD partition (t.n+1 : t.n+ndead) so the cycle-0 FVS_TreeList dead records carry volume
+    # (dbstrls.f emits input dead trees with volume). Dead slots never feed stand totals (summary iterates
+    # 1:t.n), so this is side-effect-free for the .sum; it only fills the otherwise-unused dead vol slots.
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
