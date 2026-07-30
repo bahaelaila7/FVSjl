@@ -2617,3 +2617,15 @@ reducible next chunk is precisely the regent/gemdg small-large TRANSITION (XMAX 
 species (aspen sp746, oak) on DENSE stands — distinct from FIX #10 (sub-breast-height D=0.1 pin). A deep chunk-6
 refinement, well-localized. This is ~85% of the 1,599 needs_dig; the other ~15% is cornered dense-phase.
 CR CORE (large-tree DG/height/crown/mortality/volume) stays bit-exact-or-cornered; the tail is small-tree/regen.
+
+### 2026-07-30 — CORRECTION: needs_dig tail is gemdg density-suppression on dense-regen, NOT a regent-gate bug
+Verified regent.f:342 `IF(D.GE.BKPT) GO TO 23`: the regent height-derived DG is gated on D<BREAK (aspen BREAK=1.0),
+and jl's `small_d = d<brkv[sp]` matches EXACTLY. So the D=1.9 aspen correctly gets the large-tree gemdg DG on both
+sides — NOT a missing regent blend (my prior "regent/gemdg transition" hypothesis was wrong; ruled out the quick
+data fix). The real mechanism: jl's GEMDG over-grows the D~1-2" aspen in DENSE stands (maxD 1.9→3.46 in one cycle
+vs live 1.9→2.08). gemdg is bit-exact on crt01, so the culprit is most likely the DENSITY-SUPPRESSION term (BA/SDI/
+CCF/PBAL) feeding gemdg being underestimated for dense-regen (too little growth suppression ⇒ over-growth) — the
+same density/CCF-for-regen family as fix #10 but at the D~1-2" gemdg stage. ⇒ The reducible next chunk = trace the
+gemdg density inputs (dgf.f SDI/RELSDI/BAL/PBAL/SPBA) on a dense-regen stand vs live instrumentation; a deep dgf/
+gemdg investigation, not a quick fix. This is ~85% of the 1,599 needs_dig. CR CORE (large-tree DG on normal-density
+stands, height, crown, mortality, volume) stays bit-exact-or-cornered; the tail is small-tree/dense-regen density.
