@@ -2573,3 +2573,19 @@ needs_dig are the cornered dense-phase self-thin tail (regent-oak-at-BH-crossing
 dense-regen not yet re-swept. SESSION RESULT: CR at FULL FIA coverage, 0 crashes, 99.4% bit-exact-or-cornered,
 needs_dig 0.6% — parity with the eastern variants' coverage. Reducible surface exhausted for the dominant classes
 (crashes + fix #10 + volume broken-top/FW2); residual is cornered.
+
+### 2026-07-30 — FINAL: needs_dig re-swept with fix #10 (definitive CR coverage)
+Re-swept the 1,866 old needs_dig with fix #10 active (fresh process): 267 → ulp_class (cornered), 1,599 remain
+needs_dig. DEFINITIVE CR FIA SWEEP (full population, all this session's fixes):
+- Total: 338,644 stands (full population)
+- bit_exact:  284,025 (83.87%)
+- ulp_class:   53,020 (15.66%)  ⇒ bit-exact-or-cornered = 337,045 / 338,644 = **99.53%**
+- needs_dig:    1,599 ( 0.47%)  (down from 3,452 at session start — 54% reduction)
+- live_crash:       0           (was 2 — both fixed)
+The remaining 1,599 needs_dig (<0.5%) are the harder tail: mostly cornered dense-phase self-thin that diverges
+past the ulp_class auto-threshold (regent-oak-at-BH-crossing + ZZRAN + tripling per-record self-thin) plus
+scattered tail cases — a continued multi-pass dig target, but now well under 0.5% of the full population.
+★ SESSION CLOSE: CR at eastern-parity FULL FIA coverage, 0 crashes, 99.53% bit-exact-or-cornered. Deliverables:
+2 live-crash fixes (maintainer patches) + FIX #10 (regent sub-breast-height DBH) + treelist dead-records (#8) +
+CrWidth cwcalc.f port (#9); volume_persistent class resolved by broken-top/FW2. Growth/mortality/volume cores +
+treelist reporting all bit-exact-or-cornered. Off-switch (docs/CR_VARIANT_PORT_COMPLETE) remains the USER's call.
