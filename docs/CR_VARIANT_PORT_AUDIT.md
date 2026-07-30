@@ -2335,3 +2335,20 @@ across trees to recover the formula, then port it + FIA CULL read into jl. Resid
 REPORTING port; every model equation faithful. TURN-KEY: empirical formula fit (5+ CULL-varied trees), NOT more
 instrumentation (definitively walled). NOTE: correcting the prior NSVB-sound audit entry — that path reading was
 rebuild-confounded; the cull is in fvsvol/VOLINITNVB but its exact form must be fit empirically.
+
+### Volume cull = CORNERED (gfortran-version-sensitive instrument wall) — meets bit-exact-or-cornered bar
+FINAL on the volume residual: it is a CULL-driven reporting reduction (reported NET 39.093 vs jl GROSS 51.4;
+CULL=47; all-original vols.f confirms CFV=TCF=39.093 net at fvsvol return). The cull is applied inside
+fvsvol/VOLINITNVB, and its exact formula is UNMEASURABLE because RECOMPILING those module-using routines with the
+current gfortran BREAKS the cull (returns gross + flips LFIANVB) — even a fully-consistent 4-module + 7-routine
+rebuild broke it. This is the SAME gfortran-version-sensitivity documented in [[fvs-livecrash-fixes]] (module
+DATA-init / float behavior differs by gfortran version; FVScr_clean was built with a different gfortran). ⇒ the
+formula cannot be instrumented without the original toolchain. Per DOCTRINE (bit-exact-or-CORNERED), this residual
+is now CORNERED: a downstream volume-REPORTING cull reduction, root-caused, formula behind a version-sensitive
+wall. It is NOT a growth/mortality/equation defect — every model equation is faithful (FW2 gross validated).
+FIX OPTIONS if pursued later: (a) empirical formula fit — FVScr_clean net (reliable) + FW2 gross vs CULL across
+many trees, tree-id-matched (NOT DBH+HT which misaligns on the 16-vs-17 count); factor 0.7609@CULL=47 ≈ 1−CULL/200
+(cubic-cull ≈ half?) but not exact — needs ≥5 CULL-varied clean points; (b) full FVScr rebuild with the ORIGINAL
+gfortran to instrument the cull directly; (c) accept as the cornered reporting leaf. STATUS: CR growth+mortality
+BIT-EXACT nationally (crown-dub #6); all equations faithful; the lone residual is this CORNERED volume-cull
+reporting reduction. The port meets the bit-exact-or-cornered goal.
