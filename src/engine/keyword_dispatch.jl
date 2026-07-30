@@ -1146,7 +1146,12 @@ function apply_fixmort!(s::StandState, killed::AbstractVector{Float32}, n::Int, 
         local ord::Vector{Int32}
         if kbig >= 1
             ba = s.calib.bark_a; bb = s.calib.bark_b
-            gdbh(i) = t.dbh[i] + t.diam_growth[i] / bark_ratio(ba, bb, t.species[i], t.dbh[i])
+            # BRATIO = cr_bratio for CR (bark_a/bark_b are 0 ⇒ bark_ratio floors to 0.80 vs cr/bratio.f ~0.95),
+            # so the DBH+DG/bark size-rank key matches morts.f:879-882. 5th CR variant-bark location.
+            _cr_mb = s.variant isa CentralRockies; _cr_mbi = _cr_mb ? Int(s.plot.model_type) : 0
+            gdbh(i) = t.dbh[i] + t.diam_growth[i] /
+                      (_cr_mb ? cr_bratio(s.coef.species, Int(t.species[i]), t.dbh[i], _cr_mbi) :
+                       bark_ratio(ba, bb, t.species[i], t.dbh[i]))
             sgn = kbig == 1 ? -1f0 : 1f0
             key = Float32[sgn * gdbh(i) for i in 1:n]
             ord = Vector{Int32}(undef, n); _rdpsrt!(key, ord)
