@@ -533,14 +533,20 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     t = s.trees; c = s.coef; pbal = s.density.point_bal
     g = s.plot.gross_space                      # TPA is per-acre = t.tpa/g (Fortran PROB/GROSPC)
     rows = Vector{Any}[]
+    # FVS_TreeList CrWidth = CRWDTH(I). For CR (a western variant) that array is filled by base/cwidth.f →
+    # cwcalc.f (IWHO=0, forest-grown Bechtold/Crookston library, actual crown ratio + stand BA/elev/Hopkins),
+    # NOT the eastern open-grown crown_width. Precompute the CR stand inputs once; per-tree via cr_cwcalc.
+    iscr   = s.variant isa CentralRockies
+    cr_hi  = iscr ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
+    cr_ba  = iscr ? s.plot.basal_area : 0f0
+    cr_el  = iscr ? s.plot.elevation : 0f0
     @inbounds for i in 1:t.n
         sp = Int(t.species[i])
-        # FVS's treelist CrWidth = CRWDTH(I), the OPEN-GROWN crown width populated in CCFCAL (iwho=1,
-        # CR=90 — same convention as `stand_ccf`), NOT the per-tree stored `crown_width` (which jl only
-        # sets for sprouts/compress, leaving overstory at 0). Compute it here so the DBS treelist matches
-        # live (overstory dbh-8 ≈ 20 ft, was 0). Falls back to 0 for species without crown coefficients.
-        cw = crown_width(c, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
-                         s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). CR: the forest-grown
+        # cwcalc.f value (cr_cwcalc) — matches live's CRWDTH for CR (was the crown_width 0.5 default before).
+        cw = iscr ? cr_cwcalc(sp, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), cr_ba, cr_el, cr_hi) :
+                    crown_width(c, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
+                                s.plot.latitude, s.plot.longitude, s.plot.elevation)
         # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
         # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT
         # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
@@ -586,12 +592,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
             end
             dbal = Float32(round(Int, dbal))              # NINT(PTBALT(I))
-            # CrWidth: same call as the live-tree loop above. NOTE: the CR treelist CW column is a pre-existing
-            # gap — FVS fills CRWDTH from base/cwidth.f (a forest crown-width model) that isn't ported for CR,
-            # so BOTH live and dead CR rows read the 0.5 default here. Porting cwidth.f fixes the whole column
-            # uniformly; kept out of this dead-emission change.
-            cw = crown_width(c, s.species.code2[sp], dd, t.height[i], 90, 1,
-                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            cw = cr_cwcalc(sp, dd, t.height[i], Float32(t.crown_pct[i]), cr_ba, cr_el, cr_hi)  # cwcalc.f forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
             estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])

@@ -126,7 +126,11 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
     ba = p.basal_area
     relden = relden_override >= 0.0f0 ? relden_override : stand_ccf(s)
     bau = _cr_badist_bau(t)
-    @inbounds for i in 1:t.n
+    # At LSTART, also dub the DEAD partition's crown (cratet.f processes IREC2..MAXTRE too) so the cycle-0
+    # FVS_TreeList dead records carry the crown ratio live shows (PctCr) — which the forest crown width
+    # (cr_cwcalc CL term) also needs. Dead crowns feed nothing else (per-tree write; density is live-only).
+    nlim = t.n + (lstart ? Int(t.ndead) : 0)
+    @inbounds for i in 1:nlim
         t.tpa[i] <= 0.0f0 && continue
         icr_old = Int(t.crown_pct[i])
         (lstart && icr_old > 0) && continue        # inventory crown present → keep
@@ -176,5 +180,108 @@ const _CR_CCF_RDB = (1.7600f0, 1.5571f0, 1.7333f0, 1.7250f0, 1.7800f0, 1.7360f0,
     end
     cw = sqrt(ccf / 0.001803f0)
     cw > 99.9f0 && (cw = 99.9f0)
+    return cw
+end
+
+# =============================================================================
+# cr_cwcalc — CR forest-grown crown width for the FVS_TreeList CrWidth column
+# (base/cwidth.f → cwcalc.f, IWHO=0; western Bechtold/Crookston crown-width library).
+# CR is Region 2/3 ⇒ BF=1 and the Region-6 forest-specific BF section is skipped
+# (KODFOR<601 GO TO 10). CRMAP maps FVS species index 1-38 → a 5-char CWEQN (FIA+eqn#).
+# REPORTING-ONLY: not used in growth/mortality/CCF/volume — the CCF open-grown crown
+# width is the separate ccfcal path (cr_crown_width). Ported so the treelist CrWidth
+# column matches live (it was the crown_width 0.5 default for all CR rows). Math faithful
+# to gfortran: fpow/fexp/flog + left-to-right op order. HI uses the WESTERN Hopkins point.
+# =============================================================================
+const _CR_CWMAP = ("01905","01801","20205","01703","01505","26403","24205","07303","10201","11301",
+                   "10805","10602","12205","10105","11905","06602","09305","09305","09305","74605",
+                   "74902","74902","81402","81402","81402","81402","81402","74605","06602","06602",
+                   "06602","06602","10602","10602","10602","12205","12205","74902")
+
+@inline function _cr_hopkins(lat::Float32, long::Float32, elev::Float32)::Float32
+    hilong = -abs(long)
+    hielev = elev * 100f0
+    return ((hielev - 5449f0) / 100f0) * 1f0 + (lat - 42.16f0) * 4f0 + (-116.39f0 - hilong) * 1.25f0
+end
+
+# Crookston R6 model 2: a·D^b·H^c·CL^dd·(BAREA+1)^e·EXP(EL)^f (BF=1). e=0/f=0 drop the
+# BAREA / EL factor (×1.0f0 = bit-exact no-op). OMIND=1 small-tree scaling; EL∈[ello,elhi].
+@inline function _cr_r6m2(a::Float32, b::Float32, c::Float32, dd::Float32, e::Float32, f::Float32,
+                          d::Float32, h::Float32, cl::Float32, ba1::Float32, el::Float32,
+                          ello::Float32, elhi::Float32, cap::Float32)::Float32
+    elc = el < ello ? ello : (el > elhi ? elhi : el)
+    dm = d >= 1f0 ? d : 1f0
+    cw = a * fpow(dm, b) * fpow(h, c) * fpow(cl, dd) * fpow(ba1, e) * fpow(fexp(elc), f)
+    d < 1f0 && (cw *= d)                 # ×(D/OMIND), OMIND=1
+    cw > cap && (cw = cap)
+    return cw
+end
+
+# Bechtold 2004 model 2: a + b·D + c·D² + crc·CR + hic·HI. HI∈[hlo,hhi]; MIND=5 small-tree
+# scaling; optional D≥25 plateau (dcap25). Coefficients that are 0 drop their term (×0 exact).
+@inline function _cr_bech2(a::Float32, b::Float32, c::Float32, crc::Float32, hic::Float32,
+                           d::Float32, cr::Float32, hi::Float32, hlo::Float32, hhi::Float32,
+                           cap::Float32, dcap25::Bool)::Float32
+    hv = hi < hlo ? hlo : (hi > hhi ? hhi : hi)
+    dm = d >= 5f0 ? d : 5f0
+    cw = a + b * dm + c * dm * dm + crc * cr + hic * hv
+    d < 5f0 && (cw *= d / 5f0)
+    (dcap25 && d >= 25f0) && (cw = a + b * 25f0 + c * 25f0 * 25f0 + crc * cr + hic * hv)
+    cw > cap && (cw = cap)
+    return cw
+end
+
+# Bechtold 2004 model 1: a + b·D (MIND=5 small-tree scaling).
+@inline function _cr_bech1(a::Float32, b::Float32, d::Float32, cap::Float32)::Float32
+    dm = d >= 5f0 ? d : 5f0
+    cw = a + b * dm
+    d < 5f0 && (cw *= d / 5f0)
+    cw > cap && (cw = cap)
+    return cw
+end
+
+function cr_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
+                   el::Float32, hi::Float32)::Float32
+    (1 <= sp <= 38) || return 0f0
+    eqn = _CR_CWMAP[sp]
+    cl  = cr * h * 0.01f0
+    ba1 = barea + 1f0
+    cw = if eqn == "01905"; _cr_r6m2(5.8827f0,0.51479f0,-0.21501f0,0.17916f0,0.03277f0,-0.00828f0, d,h,cl,ba1,el,10f0,85f0,30f0)
+    elseif eqn == "20205"; _cr_r6m2(6.0227f0,0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el,1f0,75f0,80f0)
+    elseif eqn == "01505"; _cr_r6m2(5.0312f0,0.53680f0,-0.18957f0,0.16199f0,0.04385f0,-0.00651f0, d,h,cl,ba1,el,2f0,75f0,35f0)
+    elseif eqn == "24205"; _cr_r6m2(6.2382f0,0.29517f0,-0.10673f0,0.23219f0,0.05341f0,-0.00787f0, d,h,cl,ba1,el,1f0,72f0,45f0)
+    elseif eqn == "10805"; _cr_r6m2(6.6941f0,0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el,1f0,79f0,40f0)
+    elseif eqn == "12205"; _cr_r6m2(4.7762f0,0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el,13f0,75f0,50f0)
+    elseif eqn == "11905"; _cr_r6m2(5.3822f0,0.57896f0,-0.19579f0,0.14875f0,0f0,-0.00685f0, d,h,cl,ba1,el,10f0,75f0,35f0)
+    elseif eqn == "09305"; _cr_r6m2(6.7575f0,0.55048f0,-0.25204f0,0.19002f0,0f0,-0.00313f0, d,h,cl,ba1,el,1f0,85f0,40f0)
+    elseif eqn == "10105"; _cr_r6m2(2.2354f0,0.66680f0,-0.11658f0,0.16927f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,40f0)
+    elseif eqn == "74605"; _cr_r6m2(4.7961f0,0.64167f0,-0.18695f0,0.18581f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,45f0)
+    elseif eqn == "01703"
+        dm = d >= 1f0 ? d : 1f0
+        v = 1.0303f0 * fexp(1.14079f0 + 0.20904f0*flog(cl) + 0.38787f0*flog(dm))
+        d < 1f0 && (v *= d); v > 40f0 && (v = 40f0); v
+    elseif eqn == "07303"
+        dm = d >= 1f0 ? d : 1f0
+        v = 1.02478f0 * fexp(0.99889f0 + 0.19422f0*flog(cl) + 0.59423f0*flog(dm) +
+                             (-0.09078f0)*flog(h) + (-0.02341f0)*flog(barea))
+        d < 1f0 && (v *= d); v > 40f0 && (v = 40f0); v
+    elseif eqn == "26403"
+        v = if h < 5f0
+            (0.8f0*h*max(0.5f0,cr*0.01f0)) * (1f0-(h-5f0)*0.1f0) * 6.90396f0 *
+                fpow(d,0.55645f0) * fpow(h,-0.28509f0) * fpow(cl,0.20430f0) * (h-5f0) * 0.1f0
+        elseif h >= 15f0
+            6.90396f0 * fpow(d,0.55645f0) * fpow(h,-0.28509f0) * fpow(cl,0.20430f0)
+        else
+            0.8f0*h*max(0.5f0,cr*0.01f0)
+        end
+        v > 45f0 && (v = 45f0); v
+    elseif eqn == "10602"; _cr_bech2(-5.4647f0,1.9660f0,-0.0395f0,0.0427f0,-0.0259f0, d,cr,hi,-40f0,11f0,25f0,true)
+    elseif eqn == "06602"; _cr_bech2(-4.1599f0,1.3528f0,-0.0233f0,0.0633f0,-0.0423f0, d,cr,hi,-37f0,19f0,29f0,true)
+    elseif eqn == "74902"; _cr_bech2(4.1687f0,1.5355f0,0f0,0f0,0.1275f0, d,cr,hi,-26f0,-2f0,35f0,false)
+    elseif eqn == "81402"; _cr_bech2(0.3309f0,0.8918f0,0f0,0.0510f0,0f0, d,cr,hi,-1f30,1f30,19f0,false)
+    elseif eqn == "01801"; _cr_bech1(6.073f0,0.3756f0, d,15f0)
+    elseif eqn == "10201"; _cr_bech1(7.4251f0,0.8991f0, d,25f0)
+    elseif eqn == "11301"; _cr_bech1(4.0181f0,0.8528f0, d,25f0)
+    else 0f0 end
     return cw
 end
