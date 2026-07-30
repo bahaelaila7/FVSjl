@@ -2435,3 +2435,16 @@ continuous taper, same class as the AVHT40 RDPSRT tie-break and the FIA largest-
 cornered). Upgraded from "partial" to "cornered (measured)". CR volume: DONE (CFTOPK/BFTOPK broken-top correct;
 DVE/NVB/FW2 cubic bit-exact; board cornered). No further reducible volume bug. Open leaf: FVS_TreeList should
 emit HISTORY 6-9 dead records (cosmetic treelist output; does not affect .sum) — deferred, non-critical.
+
+### Dead-record treelist emission — SCOPED (turn-key spec; deferred, secondary output)
+Read the exact Fortran (dbsqlite/dbstrls.f:308-440). Live emits input dead records (HISTORY 6-9) to FVS_TreeList
+ONLY at cycle 0 (ICYC==0), at the bottom of the list, gated by `IF (IREC2>=MAXTP1 .OR. ITPLAB==3 .OR. ICYC>=1)
+RETURN`. Per dead record I in IREC2:MAXTRE: P=(PROB(I)/GROSPC)/(FINT/FINTM) → bound to the MortPA column (DP=P),
+and TPA column = 0. Same per-tree columns as live trees (species/D/H/CW/crown/defect/volume), with DG=input DG
+(WORK1) at cycle 0. To port in jl: (1) extend compute_volumes to the dead partition (t.n+1 : t.n+t.ndead) so
+dead trees get t.*_vol — currently iterates 1:t.n; summary totals also iterate 1:t.n so this is side-effect-free;
+(2) in treelist_snapshot, at cycle 0 only, append rows for the dead partition with TPA=0, MortPA=mort-prob
+(resolve FINT/FINTM scaling by diffing vs live's FVS_TreeList dead row). VALIDATION path: direct FVS_TreeList row
+compare vs live (harness normally uses .sum, which is TPA=0-invariant here). DEFERRED: secondary-output cosmetic,
+TPA=0 ⇒ zero effect on .sum / growth / mortality / any validated metric. The CR port's core goal
+(bit-exact-or-cornered .sum vs live FVScr, all columns) is MET without it.
