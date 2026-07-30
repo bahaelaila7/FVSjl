@@ -1,0 +1,19 @@
+diff --git a/cr/varmrt.f b/cr/varmrt.f
+index 5c9b56bb..1638ddfa 100644
+--- a/cr/varmrt.f
++++ b/cr/varmrt.f
+@@ -167,6 +167,14 @@ C----------
+       ELSE
+         MINSTP=1
+       ENDIF
++C  Guard div-by-zero: when the mortality search has no killable TPA left
++C  (every record already at PROB-WK2<=0), TEMSUM=0 => TEMKIL/TEMSUM SIGFPE.
++C  Nothing more can be killed => exit with no additional mortality (all
++C  TEMWK2 are 0 in the apply loop at 110, so ADJUST is unused there).
++      IF(TEMSUM .LE. 0.)THEN
++        ADJUST=1.0
++        GO TO 110
++      ENDIF
+       ADJUST=TEMKIL/TEMSUM
+       IF(ADJUST .LT. 0.8)THEN
+         IF(ISWTCH .EQ. 2) GO TO 110

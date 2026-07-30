@@ -1,0 +1,28 @@
+diff --git a/fia_rm.f b/fia_rm.f
+index 9a5fa9a..d86551a 100644
+--- a/fia_rm.f
++++ b/fia_rm.f
+@@ -109,7 +109,10 @@ C       CHANGED TO USE EQUATION NUMBER 02 FOR USING CV FOR 1.5" TOP.(YW 2019/05/
+             CALL CHO_WDBK_1530(SPN,DBH,HTTOT,VOL(1),STEMS,SPSG,BIO3)
+           ENDIF
+           BIO3_M = BIO3/2.2046
+-          IF(SPN.GE.300)THEN
++          IF(BIO3.LE.0.0)THEN
++              WT_FOL=0.0     ! woodland stem BIO3=0 => no crown biomass (LOG(0) guard)
++              WT_BRA=0.0
++          ELSEIF(SPN.GE.300)THEN
+             WT_FOL = 10**(-.5655+(.8382*(LOG10(BIO3)))+(-.0094*HT))
+             WT_BRA = 10**(.3036+(.7752*(LOG10(BIO3)))+(-.0049*HT))
+           ELSE
+@@ -264,7 +267,10 @@ C     Compute small tree volume if none provided
+       !DRYBIO(10) = DRYBIO(2) - BIO3
+       ! Branches and foliage
+       BIO3_M = BIO3/2.2046
+-      IF(SPN.GE.300)THEN
++      IF(BIO3.LE.0.0)THEN
++          WT_FOL=0.0     ! woodland stem BIO3=0 => no crown biomass (LOG(0) guard)
++          WT_BRA=0.0
++      ELSEIF(SPN.GE.300)THEN
+           WT_FOL = 10**(-.5655+(.8382*(LOG10(BIO3)))+(-.0094*THT))
+           WT_BRA = 10**(.3036+(.7752*(LOG10(BIO3)))+(-.0049*THT))
+       ELSE

@@ -123,3 +123,31 @@ Variant scope: all 4 variants carry the Curtis-Arney line ⇒ patched in all 4 (
 The shipped `tmp/oracles/FVS{cs,ne,ls,sn}_new` are left **pristine** (official build). The deliverable is the
 canonical source patch set (`docs/patches/*.patch`, applied to `ForestVegetationSimulator/{variant}/*.f`,
 `git diff`-clean, CRLF-preserving) + this reasoning. Validation oracles were built at `/tmp/FVS*_patched`.
+
+## 2026-07-30 — Central Rockies (CR) variant: 2 new crash sites (found via the CR FIA sweep)
+The CR FIA sweep (227,342 stands) recorded 2 `live_crash`. Both reproduced on the live oracle, root-caused by
+instrumentation (WRITE the degenerate value + FLUSH so it survives the SIGFPE), and fixed with minimal guards
+that are **byte-identical no-ops on non-degenerate input** (verified: normal stands' `.sum` identical modulo the
+run-timestamp header line; both crashers now exit 0).
+
+| stand | site | root class | trigger (instrumented) | fix file |
+|-------|------|-----------|------------------------|----------|
+| 2695949010690 | cr/varmrt.f:170 `ADJUST=TEMKIL/TEMSUM` | **varmrt `TEMKIL/TEMSUM` div0** (SAME class as cs/ne/ls/sn) | `TEMSUM=0.0, TEMKIL=0.288` — mortality search consumed all killable TPA | cr/varmrt.f |
+| 388704556489998 | fia_rm.f:280 `WT_FOL_M=EXP(..LOG(BIO3_M))` in WOODLAND_BIO | **woodland-biomass `LOG(BIO3≤0)`** (NEW class) | `BIO3=0.0, BIO3_M=0.0, SPN=69` (one-seed juniper, tiny woodland stem ⇒ 3″-top biomass = 0) | volume/NVEL/fia_rm.f |
+
+**Class A (varmrt):** identical to the eastern fix — cr/varmrt.f was simply MISSING the `IF(TEMSUM.LE.0.) THEN
+ADJUST=1.0; GO TO 110` guard the eastern variants already carry. Patch: docs/patches/livecrash_cr_varmrt_div0.patch.
+
+**Class B (woodland biomass, NEW):** WOODLAND_BIO (and the sibling block in FIA_RM) computes foliage/branch dry
+weight as `EXP(a+b·LOG(BIO3_M))` / `10**(..LOG10(BIO3)..)`. For a woodland tree whose stem biomass to a 3″ top is
+0 (tiny juniper/pinyon), `LOG(0)` raises FE_DIVBYZERO → SIGFPE under the trapping build. Semantic minimal fix:
+`IF(BIO3.LE.0.0) THEN WT_FOL=0.0; WT_BRA=0.0` (no stem ⇒ no crown biomass) else the original branch. Guards BOTH
+biomass blocks. This is in the SHARED NVEL library (volume/NVEL/fia_rm.f = the FMSC submodule) so it affects every
+variant that runs Chojnacky woodland biomass — CR is just the first with woodland species in the FIA sweep. Patch:
+docs/patches/livecrash_cr_woodland_bio_log0.patch. NOTE: volume/NVEL is the FMSC submodule — do NOT push; the patch
+is for maintainer review.
+
+METHOD (doctrine #2): the FLUSH(0) after the instrument WRITE was essential — without it the degenerate-value line
+sat in a block-buffered stderr and was lost on the SIGFPE, which first made `BIO3` look >0 (a measurement error the
+FLUSH corrected). Oracle fixed by relinking buildDir `.o`s with the two guarded objects swapped in
+(/workspace/.crwork/relink pattern); buildDir `.f` left pristine; 2/2 crashers exit 0, normal `.sum` byte-identical.
