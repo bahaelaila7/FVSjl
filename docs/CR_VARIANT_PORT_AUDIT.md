@@ -2234,3 +2234,17 @@ the jsp=23-29 family at extreme H/D — a bounded DOWNSTREAM leaf. TURN-KEY: rel
 (fwinit.f/fwvolm.f, the FW2 profile) instrumented for jsp=23, compare the taper `dib(h)` and the tcubic
 integration bounds vs jl _fw2_sf_yhat/_fw2_tcubic on a D=20.5 H=50 tree. DVE/NVB families were bit-exact in
 sample. This is the LAST characterized CR residual after crown-dub #6 made growth+mortality bit-exact nationally.
+
+### ★★ FW2 volume residual REFRAMED: the Flewelling EQUATION is FAITHFUL — divergence is DOWNSTREAM VOL(1)→TCuFt mapping
+Deep instrument-replay on 756416407290487 (recompiled debug_mod+volinput_mod modules to defeat the .mod-ABI
+block on profile.f, then instrumented live TCUBIC): for the divergent D=20.5 H=50 tree, EVERY FW2 layer is
+BIT-EXACT jl-vs-live — SHP_OT (rflw/rhfw), BRK_OT (dbtbh=0.8829, dib at all grid heights 21.282…0.465), AND
+the TCUBIC integral itself: **live TCUBIC TCVOL = 51.375 == jl _fw2_tcubic 51.4**. So the Flewelling stem-profile
+port (the hard part) is FAITHFUL. YET live's FVS_TreeList TCuFt = 39.093 (non-round, ≈0.76× of VOL(1)=51.4);
+jl reports vol[1]=51.4 directly. ⇒ the CR volume residual is NOT the FW2 equation but the DOWNSTREAM mapping of
+NVEL VOL(1) → the reported/summary TCuFt: live applies a ~0.76 reduction (merch-top or sound-volume or fvsvol
+index mapping) that jl does not. TURN-KEY: audit fvsvol.f (the FVS↔NVEL interface, VOL→TVOL mapping) / the CR
+volume-storage path for how TCuFt is derived from VOL(1) — 39.093 is non-round so it's a real computed reduction,
+likely a merch/sound cubic to a top, not VOL(1). This REFRAMES the last CR residual from a deep Flewelling-taper
+port (feared) to a bounded volume-REPORTING mapping. Modules recompiled: /tmp/debug_mod.o + /tmp/volinput_mod.o
+(current gfortran) unblock profile.f relinks. jl _fw2_tcubic/_fw2_sf_yhat/_fw2_brk_ot all VALIDATED bit-exact.
