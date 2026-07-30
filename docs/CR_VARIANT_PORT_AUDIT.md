@@ -2248,3 +2248,22 @@ volume-storage path for how TCuFt is derived from VOL(1) — 39.093 is non-round
 likely a merch/sound cubic to a top, not VOL(1). This REFRAMES the last CR residual from a deep Flewelling-taper
 port (feared) to a bounded volume-REPORTING mapping. Modules recompiled: /tmp/debug_mod.o + /tmp/volinput_mod.o
 (current gfortran) unblock profile.f relinks. jl _fw2_tcubic/_fw2_sf_yhat/_fw2_brk_ot all VALIDATED bit-exact.
+
+### ★★★ VOLUME RESIDUAL ROOT-CAUSED: jl reports GROSS cubic volume; live applies a CULL/DEFECT reduction (net)
+Chased the +9% volume all the way down (recompiling debug_mod/volinput_mod/mrules_mod to defeat the .mod-ABI
+block, instrumenting live TCUBIC + fvsvol NATCRS):
+  - FW2/NVEL GROSS volume is BIT-EXACT jl-vs-live at EVERY layer: SHP_OT, BRK_OT (dbtbh/dib), TCUBIC (51.375),
+    and ★live fvsvol NATCRS returns TCF=51.4 == jl vol[1]. The whole Flewelling stem-profile port is FAITHFUL.
+  - BUT live's FVS_TreeList TCuFt=39.093 (& MCuFt 34.611) ≈ 0.76× the gross — a NET (cull/defect-reduced) volume.
+  - ★★ THE TELL: the divergent trees are EXACTLY those with FIA CULL>0 (D=20.5 CULL=47, D=11.2 CULL=35, D=12.3
+    CULL=30, D=12.5 CULL=65) while EVERY bit-exact tree has CULL=0 (D=5.4/9.5/9.8/11.3/6.2/6.7/12.2). jl has NO
+    cull/defect handling in its volume path (grep: none) — it reports GROSS; live applies the cubic-defect
+    reduction (vols.f ICDF = max(input DEFECT, species CFDEFT DLIEQN, log-linear DLLMOD via CFLA0/CFLA1),
+    applied to the reported cubic volume).
+⇒ THE LAST CR RESIDUAL IS A cubic-volume CULL/DEFECT REDUCTION, unported in jl — NOT the FW2 equation (which is
+bit-exact), and NOT a growth defect. This is a bounded, well-defined downstream reporting port. FIX SCOPE: port
+the vols.f cubic-defect logic — read FIA CULL into the tree, compute ICDF (input DEFECT ∨ CFDEFT species-default
+DLIEQN by DBH-class ∨ DLLMOD log-linear model), apply (1−ICDF/100) to the reported TCuFt/MCuFt. Data needed:
+CFDEFT(9,MAXSP) + CFLA0/CFLA1 per species (cr/ blkdat or the volume tables). Note: CFV(I) stays gross THROUGH
+vols.f line 287; the net reduction is applied at the summary/FIA-VBC accumulation — locus TBD but formula is the
+ICDF cubic-defect. Modules recompiled (defeat .mod-ABI): /tmp/{debug_mod,volinput_mod,mrules_mod}.o.
