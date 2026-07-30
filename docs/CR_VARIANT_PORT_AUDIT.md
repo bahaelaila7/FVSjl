@@ -2604,3 +2604,16 @@ NOT a quick fix and NOT a volume/NVEL problem. ⇒ FINAL: the 1,599 needs_dig (0
 under-growth (regent tail) + ~15% dense-phase density/self-thin (cornered). The reducible next chunk is regent
 small-tree growth for the aspen/oak sprouting regen; the rest is cornered dense-phase. CR core (large-tree
 DG/height/crown/mortality/volume) remains bit-exact-or-cornered; this tail is the small-tree/regen refinement.
+
+### 2026-07-30 — Remaining needs_dig tail LOCALIZED: jl OVER-grows regen near the regent/gemdg transition
+Measured aspen (sp746) D-distribution on 190851682020004 (top TCuFt needs_dig): 2012 inventory bit-exact (meanD
+0.1727, maxD 1.90 both). 2022 (cycle 1): jl maxD 3.46 vs live 2.08 — the largest aspen grew 1.9→3.46 (+1.56") in
+ONE cycle vs live's 1.9→2.08 (+0.18"), ~8× too much. 2032: jl maxD 5.03 vs live 2.33. So jl OVER-grows the D~1-2"
+regen (NOT under-grows) — the BA/volume DEFICIT in the .sum is DOWNSTREAM (over-grown aspen out-compete ⇒ the
+lodgepole self-thins ⇒ lower total BA). This matches the known "CR gemdg is explosive on tiny DBH" note
+(small_tree_growth.jl:128, limber pine 1.3→13): the D~1-2" regen sits near the regent XMAX where the regent↔gemdg
+BLEND (xwt=(d-xmn)/(xmx-xmn)) gives it too much large-tree gemdg weight, and gemdg over-grows tiny DBH. ⇒ the
+reducible next chunk is precisely the regent/gemdg small-large TRANSITION (XMAX + blend) for the sprouting regen
+species (aspen sp746, oak) on DENSE stands — distinct from FIX #10 (sub-breast-height D=0.1 pin). A deep chunk-6
+refinement, well-localized. This is ~85% of the 1,599 needs_dig; the other ~15% is cornered dense-phase.
+CR CORE (large-tree DG/height/crown/mortality/volume) stays bit-exact-or-cornered; the tail is small-tree/regen.
