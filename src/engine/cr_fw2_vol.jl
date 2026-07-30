@@ -239,6 +239,56 @@ function _fw2_sf_yhat(rh::Float32, tapcoe, rhfw, rflw, f::Float32)::Float32
     return Float32(Float64(f) * y)
 end
 
+"SF_YHAT with slope (sf_yhat.f, ineedsl=1, JSP≠22): returns (dib::Float32, dDIB/dH::Float32). The diameter is
+identical to _fw2_sf_yhat (validated: max-diff 0 over rh∈[0,1]; slope matches the numerical derivative); the slope
+adds the per-segment dy_dx (dd_dH = dy_dx·F/(RH_LENGTH·TOTALH), sign-flipped for segments 1/4). Middle-segment
+slope uses SUS3=x^(b1+1) (≠ diameter's SUS2=x^b1).
+WIP BUILDING BLOCK (currently UNUSED, inert) toward the deferred SF_HS-Newton _fw2_hs port (see audit 2026-07-30):
+SF_DS (sf_ds.f, NEXTRA=0) = raw SF_YHAT (this slope), NO BRK_UP; SF_HS solves SF_DS==DIB_target on the SF_YHAT
+profile with a HEIGHT-tol Newton (`H+=-(D-DIB)/SLOPE`, |ADJUST|≤TOL·TOTALH) — replacing jl's current diameter-tol
+bisection (which stops ~0.1 ft early at the flat top ⇒ the MERCHL=10 cliff-flip). NOTE region-2/3 SF_YHAT is
+calibrated to DBHOB ⇒ SF_YHAT is OUTSIDE-bark and _fw2_brk_ot converts to INSIDE-bark (opposite the naive read)."
+function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Float32)
+    rh > 1.0f0 && return (0.0f0, 0.0f0)
+    rh < 0.0f0 && return (f, 0.0f0)
+    a3 = Float64(rflw[6])
+    rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhc = rhfw[3]; rhlongi = rhfw[4]
+    a0 = Float64(tapcoe[1]); a1 = Float64(tapcoe[2]); a2 = Float64(tapcoe[3]); a4 = Float64(tapcoe[4])
+    b0 = Float64(tapcoe[5]); b1 = Float64(tapcoe[6]); b2 = Float64(tapcoe[7]); b4 = Float64(tapcoe[8])
+    c1 = Float64(tapcoe[9]); c2 = Float64(tapcoe[10])
+    e1 = Float64(tapcoe[11]); e2 = Float64(tapcoe[12])
+    R = Float64(rh)
+    local y::Float64, dy_dx::Float64, rh_length::Float64, iseg::Int
+    if rh >= rhc                                    # upper (I_SEG=1)
+        x = (1.0 - R) / (1.0 - Float64(rhc))
+        y = x * (c2 + x * ((c1 / 2.0) - (c1 / 6.0) * x))
+        dy_dx = c2 + x * (c1 - c1 / 2.0 * x)
+        rh_length = 1.0 - Float64(rhc); iseg = 1
+    elseif rh >= rhi2                               # middle (I_SEG=2)
+        x = (R - Float64(rhi2)) / (Float64(rhc) - Float64(rhi2))
+        if x > 0.0
+            sus2 = (b1 * log10(x) <= -20.0) ? 0.0 : x^b1
+            y = b0 + x * (b4 + x * (-b2 / ((b1 + 1.0) * (b1 + 2.0)) * sus2 + b2 / 6.0 * x))
+            sus3 = (b1 * log10(x) <= -20.0) ? 0.0 : x^(b1 + 1.0)
+            dy_dx = b4 - b2 / (b1 + 1.0) * sus3 + b2 / 2.0 * x * x
+        else
+            y = b0; dy_dx = b4
+        end
+        rh_length = Float64(rhc) - Float64(rhi2); iseg = 2
+    elseif rhlongi > 0.0f0 && rh > rhi1             # straight (I_SEG=3)
+        y = e1 + e2 * R
+        dy_dx = e2; rh_length = 1.0; iseg = 3
+    else                                            # lower (I_SEG=4)
+        x = (Float64(rhi1) - R) / Float64(rhi1)
+        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * log(1.0 - x / a3)
+        dy_dx = a4 + a2 / a3 + a2 / (a3 * a3) * x + 3.0 * a1 * x * x - a2 / (a3 - x)
+        rh_length = Float64(rhi1); iseg = 4
+    end
+    dd_dh = dy_dx * Float64(f) / (rh_length * Float64(totalh))
+    (iseg == 1 || iseg == 4) && (dd_dh = -dd_dh)
+    return (Float32(Float64(f) * y), Float32(dd_dh))
+end
+
 # BRK_OT (f_other.f) bark model, JSPR=JSP-21 columns 1-8. Rows 1-6 = B2,B3,B5,C1,C2,C3 (the
 # double-bark-thickness proportion PY; the D0/D1/D2 rows 7-9 fit DBHIB when DBTBH≤0 — unused here
 # since cr_bratio always gives DBTBH=D·(1-bark)>0). JSPR 8 = R3 ponderosa; 2=San Juan, 4=R2 LP, etc.

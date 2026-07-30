@@ -3104,3 +3104,20 @@ converge `|ADJUST|≤TOL·TOTALH & |ERR|≤EPSILON` (TOL=5e-4), IBREAK wrong-roo
 bisection fallback (30-iter). VALIDATION PLAN for the port: (1) instrument live SF_HS (FVScr_sfhs recipe, module-ABI
 busted) → jl _fw2_hs must match hs per-tree; (2) crt01 byte-identical; (3) 100/150 regression 0-regress; (4) full suite.
 ⇒ deferred task now de-risked (slope pre-transcribed, validation plan set). Core remains complete+full-suite-validated.
+
+### 2026-07-30 — FW2-hs port STEP 1 done (validated slope fn) + SF_DS/bark resolved; further steps = focused session
+Started the SF_HS-Newton port incrementally (bounded downside: unused=inert, revert-if-regress). STEP 1 DONE: added
+`_fw2_sf_yhat_sl` (SF_YHAT + analytical slope, sf_yhat.f ineedsl=1) — VALIDATED: diameter bit-identical to _fw2_sf_yhat
+(max-diff 0 over rh∈[0,1]); slope matches the numerical derivative (rh0.5: -0.03602 vs -0.03606). Committed as a
+clearly-marked UNUSED WIP building block (crt01 unchanged, inert). MEASURED (resolving my repeated bark-direction
+confusion — doctrine #2): SF_DS (sf_ds.f, NEXTRA=0 standard 2-pt) returns RAW SF_YHAT with NO BRK_UP; SF_HS's ERR=D-DIB
+uses that SF_YHAT diameter. And region-2/3 SF_YHAT is calibrated to DBHOB ⇒ SF_YHAT is OUTSIDE-bark, _fw2_brk_ot converts
+to INSIDE-bark (verified numerically: at h=10.96 sf_yhat=3.03 > brk_ot=2.57 — opposite the naive "outside>inside" read).
+⇒ REMAINING STEPS (deferred to a focused session — each needs live SF_DS/SF_HS instrumentation to verify, and the
+bark convention is error-prone across piecemeal turns): STEP 2 _fw2_sf_ds wrapper (raw sf_yhat+slope; NEXTRA=0 path
+only — CR standard); STEP 3 rewrite _fw2_hs as SF_HS (inflection guess DI2=SF_DS(RHI2·H); Newton with height-tol;
+IBREAK wrong-root restart; label-200 modified-bisection fallback) — MATCHING the correct profile (resolve whether
+_fw2_hs should solve on SF_YHAT vs the brk_ot profile by instrumenting live SF_DS's DIB(H) at the crossing). Validate:
+live SF_HS per-tree hs match + crt01 + 100/150 regression + full suite. STEP 1 (slope) de-risks the hardest math; the
+bark-profile pin + Newton assembly remain. CR core unchanged: complete+full-suite-validated; this is progress on the
+sole deferred item, not a core change.
