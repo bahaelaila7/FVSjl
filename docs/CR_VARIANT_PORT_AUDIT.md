@@ -2267,3 +2267,19 @@ DLIEQN by DBH-class ∨ DLLMOD log-linear model), apply (1−ICDF/100) to the re
 CFDEFT(9,MAXSP) + CFLA0/CFLA1 per species (cr/ blkdat or the volume tables). Note: CFV(I) stays gross THROUGH
 vols.f line 287; the net reduction is applied at the summary/FIA-VBC accumulation — locus TBD but formula is the
 ICDF cubic-defect. Modules recompiled (defeat .mod-ABI): /tmp/{debug_mod,volinput_mod,mrules_mod}.o.
+
+### Volume residual — reduction CONFIRMED at CFV, cull-driven; formula is the open item (recompile-confound noted)
+Instrumented dbstrls.f (the FVS_TreeList writer) on the D=20.5 tree: at bind time CFV(I)=39.0929 (NET), MCFV=34.611,
+CULL(I)=47, DEFECT(I)=0. So CFV IS reduced to net (from the gross TCUBIC 51.375) — driven by CULL (DEFECT=0), NOT
+the FW2 equation. The ONLY CFV(I) assignments in the build are vols.f:287 (=TCF) + fvs.f/gradd.f (*PROB per-acre) —
+so the cull reduction is applied INSIDE the fvsvol/VOLINIT (MRULES) path, making the RETURNED TCF already net.
+CAVEAT: my earlier "NATCRS TCF=51.4 (gross)" used a build with recompiled mrules_mod.o (current gfortran) which
+likely ALTERED the cull step — so that dump is suspect. The SOLID proof that FW2 is faithful is that ALL CULL=0
+trees are bit-exact jl-vs-live (D=5.4/9.5/9.8/11.3/6.2/6.7/12.2) while ALL CULL>0 trees diverge. ⇒ residual =
+jl missing the cull net-volume reduction. OPEN: the exact CULL→net formula — 51.375→39.093 for CULL=47 is a ~24%
+reduction (NOT 1−CULL/100=53%), and D=11.2/CULL=35 vs D=20.5/CULL=47 don't scale monotonically with CULL alone
+(extreme-H/D + cull interaction muddies it) — so the formula needs a clean extraction WITHOUT recompiling mrules
+(instrument only VOLINIT/vols.f with original modules, or read the FVS cull-application source directly). FIX still
+bounded: port the FVS cull/merch-rule net-volume reduction + read FIA CULL into the tree. Confound lesson: NEVER
+recompile a module that carries LOGIC (mrules) to defeat the .mod-ABI — it can change behavior; only recompile
+pure-DATA modules (debug_mod/volinput_mod OK; mrules_mod NOT).
