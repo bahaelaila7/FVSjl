@@ -30,8 +30,8 @@ import SQLite, DBInterface
 using FVSjl
 include(joinpath(@__DIR__, "sweep_db.jl"))   # open_sweepdb / upsert! — durable per-stand coverage record
 const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
-const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new")
-const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates())
+const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new","CR"=>"/workspace/.crwork/FVScr_clean")
+const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates(),"CR"=>FVSjl.CentralRockies())
 const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt"]   # .sum fields 3..12
 const DENSITY_COLS = (2,3,4,5)   # BA,SDI,CCF,TopHt — preserved under the self-thinning count-straddle
 

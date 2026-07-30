@@ -2127,3 +2127,28 @@ keyfile (caveat: tripling breaks ties after cycle 1, so ties must be exercised a
 code-read trace (residual = stand_pct! RDPSRT multi-tie, the sole per-cycle writer of VARMRT's PCT) stands as the
 best-supported hypothesis, now with crt01 EXCLUDED as its cause. Persistent infra: shim + oracles in
 /workspace/.crwork/ (isoc23_shim.o, FVScr_clean, FVScr_vmrt).
+
+### ★★ Session (resume): aspen residual MEASURED on FIA stand 39451382010690 — growth EQUATIONS bit-exact, residual = ZZRAN RNG
+Restored the CR FIA dig (stand IS in SQLite_FIADB_ENTIRE.db; the earlier COUNT `missing` was a SQLite.jl quirk;
+added CR to ledger_fia BIN/VAR). dig_one REFRAMED the residual: at 2019 (first projected cycle) TPA is BIT-EXACT
+but BA diverges +10% (112/123) — so the root is DIAMETER over-growth (the "mortality-selection" TPA divergence
+at 2039+ is a downstream self-thinning CONSEQUENCE), and it is ASPEN-SPECIFIC:
+  dig_treelist per-species @2019:  fir(19) DBH 0.63/0.63 ✓  aspen(746) DBH 2.16/2.39 (+11%) Ht 14.7/16.1 (+10%)
+  spruce(93) DBH 15.1/15.1 ✓.  Aspen start BIT-EXACT @2009 (1.25/1.25, Ht 8.3/8.3).
+INSTRUMENT-REPLAY (regent.f + gemdg unit-71/72/73/74 dumps vs jl) — every aspen GROWTH EQUATION is BIT-EXACT:
+  - Sheppard HTGR (ABIRTH/RSIMOD/CON/HITE1/HITE2): jl==live (8.34073); the ×0.75 Dixon cut is faithful.
+  - seedling final HTG + zzran: jl==live for the first draws (8.36524, zzran 0.1226…).
+  - small-tree DIAMETER (ax=AA-fit=4.5873, dk/dkk, dg=1.02397): jl==live BIT-EXACT; AA/IABFLG selection matches.
+  - large-aspen GEMDG DDS (D=5.7→2.3519, 6.0→2.422787, 9.2→3.0423): jl==live BIT-EXACT.
+⇒ the "reducible aspen growth bug" hypothesis is REFUTED by measurement — the CR aspen growth equations are all
+  faithful. The aggregate divergence is a COMPOSITION effect: aspen HtG_sum is jl LOWER (6239 vs 6346) yet mean
+  Ht HIGHER (16.1 vs 14.7) with TPA matched ⇒ a shifted per-tree size distribution from the **ZZRAN RNG stream-
+  order** (the known ch9 residual): the zzran stream matches for the first trees then DIVERGES (d=1.142 tree:
+  jl zzran -0.2472 vs live -0.0834), so a different NUMBER of draws shifts the value SET and permutes which
+  aspen grow tall — through nonlinear self-thinning this compounds to the +10% aggregate. One minor non-RNG
+  lead: htg_large (blend-zone large-tree htgf) jl 3.54417 vs live 3.47034 (+2.1%) — small, direction-opposite
+  to the aggregate, likely RNG-entangled; note as a lead, not the driver.
+NET: the CR aspen residual = ZZRAN RNG stream-order (ch9), NOT a growth-equation bug. This RESOLVES the
+long-open "aspen mortality-selection" as the cornered ZZRAN class (equations bit-exact). Reducing it requires
+the ch9 RNG draw-order reconciliation (a distinct chunk). Persistent dig infra: /workspace/.crwork/aspendig/
+(sub.db+jl.key), FVScr_{asp,asp2,asp3,gdg,vmrt} oracles, isoc23_shim.o.
