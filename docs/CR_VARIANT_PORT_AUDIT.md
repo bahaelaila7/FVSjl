@@ -2629,3 +2629,18 @@ same density/CCF-for-regen family as fix #10 but at the D~1-2" gemdg stage. ⇒ 
 gemdg density inputs (dgf.f SDI/RELSDI/BAL/PBAL/SPBA) on a dense-regen stand vs live instrumentation; a deep dgf/
 gemdg investigation, not a quick fix. This is ~85% of the 1,599 needs_dig. CR CORE (large-tree DG on normal-density
 stands, height, crown, mortality, volume) stays bit-exact-or-cornered; the tail is small-tree/dense-regen density.
+
+### 2026-07-30 — Aspen needs_dig tail: gemdg is BIT-EXACT (live-instrumented); divergence is downstream self-thinning
+Root-caused the top aspen dense-regen needs_dig (190851682020004, jl aspen BA 20.25 vs live 7.61 @2022 by direct
+per-species BA computation — NOTE this corrected a dig_one column-order misread: dig_one prints live/jl). Verified
+the CR gemdg aspen path is FAITHFUL and BIT-EXACT: (1) the CASE(20,21:22,28,38) equation + the DF*1.05 line match
+cr/gemdg.f exactly; (2) DEFMT/JFOR tables match (forest 212 → IFOR 9 → IMODTY 4, same as live); (3) INSTRUMENTED
+THE LIVE ORACLE (gemdg.f WRITE+FLUSH, relinked): live's aspen DF == jl's DF for every dpp (1.081→2.5023, 1.1→
+2.5226, 1.2/bat9.06→2.6296 …), same IMODTY=4, same BAT. ⇒ the gemdg diameter-growth model is bit-exact; the aspen
+BA/volume divergence is DOWNSTREAM — the dense aspen SELF-THINNING mortality (both grow the D~1.9 aspen to ~3.38
+via gemdg, but live thins the dense aspen down (surviving maxD 2.08) while jl under-thins (maxD 3.46, TPA matches
+so it's DBH-distribution not count). This is the DENSE-PHASE self-thinning class (RDPSRT/VARMRT on dense regen) —
+cornered primitive OR a mortality refinement, NOT a growth-model bug. ⇒ CORRECTED the "gemdg over-grows" hypothesis:
+gemdg is bit-exact. The remaining needs_dig tail is the dense self-thinning mortality on regen (the accepted
+structure_densephase class), amplified in the volume column. META: proved bit-exactness by instrumenting the LIVE
+oracle's gemdg (relink recipe), not by inference — the growth model is exonerated.
