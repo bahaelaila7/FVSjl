@@ -57,7 +57,13 @@ function _cr_regent_tree(sp::Int, d::Float32, h::Float32, icr::Int, abirth::Floa
     if d < break_sp
         hk = h + htg
         if hk <= 4.5f0
-            dg = 0.0f0                                     # DBH set to D+.001*HK by caller; NO DIAM floor here
+            # regent.f:344-346: sub-breast-height (HK≤4.5) ⇒ DG(K)=0 but DBH(K)=D+0.001·HK (a tiny
+            # height-tied diameter bump). jl applies dbh += dg/bark with the SAME cr_bratio(sp,D,imodty),
+            # so dg = 0.001·HK·bark lands dbh = D+0.001·HK exactly. WITHOUT this the seedling DBH is pinned
+            # at inventory (e.g. Gambel-oak regen stuck at D=0.1) — it never crosses the ccfcal CCF cliff
+            # (D>0.1 ⇒ RDA·D^RDB vs D≤0.1 ⇒ 0.001), collapsing stand CCF and driving the dense-regen
+            # structure_densephase divergence.
+            dg = 0.001f0 * hk * bark
         else
             local dk::Float32, dkk::Float32
             if sp == 13 || sp == 36                        # ponderosa / Chihuahua pine
