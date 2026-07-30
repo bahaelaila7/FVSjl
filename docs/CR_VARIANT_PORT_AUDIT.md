@@ -3087,3 +3087,20 @@ FW2-profile session that ports sf_yhat-slope+sf_ds+sf_hs together and validates 
 ⇒ acceptable under "bit-exact-or-cornered" pending the port. ★ CR GROWTH+VOLUME CORE: COMPLETE + full-suite-validated
 (38580/0/4/75), fresh 81.3% bit-exact remainder cornered, 4 real fixes, 0 crashes, 5 measurement-corrected phantoms,
 volume-instrumentation unlocked. Sole open reducible item = this sized+specified+deferred FW2-hs port.
+
+### 2026-07-30 — FW2-hs port HEAD-START: SF_YHAT slope branches transcribed (de-risk the deferred task)
+Read sf_yhat.f/sf_hs.f in full to confirm intricacy + pre-transcribe the slope for the eventual SF_HS-Newton port.
+SF_YHAT slope (ineedsl=1), per segment (jsp≠22; jsp=22 Black-Hills has distinct y but reuses these dy_dx):
+  upper  (I_SEG=1, rh≥rhc):   dy_dx = c2 + x*(c1 - c1/2·x);            RH_LENGTH = 1-rhc      [dd_dH NEGATED]
+  middle (I_SEG=2, rh≥rhi2):  dy_dx = b4 - b2/(b1+1)·x^(b1+1) + b2/2·x²  (x>0, SUS3=x^(b1+1), underflow→0), else b4;
+                              RH_LENGTH = rhc-rhi2                      [dd_dH NOT negated]
+  straight(I_SEG=3, rhlongi>0 & rh>rhi1): dy_dx = e2;  RH_LENGTH = 1    [dd_dH NOT negated]
+  lower  (I_SEG=4, else):     dy_dx = a4 + a2/a3 + a2/a3²·x + 3·a1·x² - a2/(a3-x);  RH_LENGTH = rhi1  [dd_dH NEGATED]
+  conversion: dd_dH = dy_dx · F/(RH_LENGTH·TOTALH); SLOPE = (I_SEG∈{1,4} ? -dd_dH : dd_dH).
+SF_DS then wraps SF_YHAT and, for JSP 22-30, applies BRK_UP (=_fw2_brk_ot) to DIB→DOB — the SLOPE must be chained
+through the bark derivative too (the subtle part; the crossing target in SF_HS mixes inside/outside bark). SF_HS =
+inflection guess (DI2=SF_DS(RHI2·H); above/below-inflection formula for RH) → Newton `H += -(D-DIB)/SLOPE`, clamp H∈(0,H),
+converge `|ADJUST|≤TOL·TOTALH & |ERR|≤EPSILON` (TOL=5e-4), IBREAK wrong-root restart (SLOPE>0), label-200 modified
+bisection fallback (30-iter). VALIDATION PLAN for the port: (1) instrument live SF_HS (FVScr_sfhs recipe, module-ABI
+busted) → jl _fw2_hs must match hs per-tree; (2) crt01 byte-identical; (3) 100/150 regression 0-regress; (4) full suite.
+⇒ deferred task now de-risked (slope pre-transcribed, validation plan set). Core remains complete+full-suite-validated.
