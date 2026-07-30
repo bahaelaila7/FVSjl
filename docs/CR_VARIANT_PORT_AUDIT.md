@@ -2976,3 +2976,22 @@ as low-value ~5%). ⇒ VOLUME-LEAF VERDICT (spot-check): material volume diverge
 merch-threshold; the reducible residual is a small (~1-6%) Black Hills cubic term. The volume assignment/computation
 (DVE/NVB/FW2 incl. #11 SHP_BH) is largely faithful; no systematic merch-volume bug. METHOD reinforced: run NOTRIPLE
 FIRST on any merch-volume (BdFt/MCuFt) divergence — merch thresholds × tripling are a prolific cornered source.
+
+### 2026-07-30 — Volume-leaf lead LOCALIZED (blocked): systematic FW2 merch-CUBIC residual (Smalian integration), not merch-top/region
+Followed the systematic BH-cubic residual (prev entry) to a concrete lead. Confirmed it is SYSTEMATIC via NOTRIPLE on
+several stands: e.g. 316922874489998 (pure ponderosa, REGION 3 / FOREST 11 → IMODTY 5, eq 300FW2W122) — structure +
+BdFt + total-cubic BIT-EXACT but MCuFt 770/608 @2034 (21% jl-UNDER), NOTRIPLE-confirmed reducible (not tripling).
+Localized by RULING OUT (measure, don't infer): (1) merch TOP — fvsvol.f:197-199 TOPDIAM=MTOPS=TOPD·BARK for CR
+(region 2/3, not FIANVB), TOPD=4 for IMODTY 5 = jl's topd·bark, SAME; (2) DBHMIN gating — trees d=12-13 clear it
+both sides; (3) region bucking rules — iregn=user_forest_code÷100=3 (REGION=3), so jl minlen/merchl=10/10 = FVS
+region-3 MRULES, CORRECT; (4) profile+bucking — BdFt (_fw2_board, same dibat+numlog/segmnt, to 6") is BIT-EXACT ⇒
+the FW2 profile and log-bucking are faithful. ⇒ the residual is SPECIFICALLY in the FW2 merch-CUBIC Smalian
+integration (_fw2_merch_cuft, cr_fw2_vol.jl:335 — the 4-6" lower sections the cubic adds below the 6" board top),
+under by up to 21% on the merch cubic while everything else matches. ★ LIVE INSTRUMENTATION BLOCKED: fvsvol.f/
+profile.f/grossvol.f all USE mrules_mod/DEBUG_MOD/VOLINPUT_MOD, whose .mod files were built with a different gfortran
+(15.2.1 vs local 12.2.0) ⇒ "Cannot read module file … different version" — the known volume-submodule (FMSC) ABI
+blocker (D38). So this lead needs EITHER a matching-gfortran volume-submodule rebuild OR a careful FVS grossvol/
+profile Smalian-cubic source comparison vs jl's _fw2_merch_cuft/_nvb_logvol_cuft — a dedicated volume-focused dig,
+deferred. IMPACT: small (~1-21% MCuFt on FW2-ponderosa stands; TCuFt/BdFt/structure faithful) — a volume-REPORTING
+leaf, not growth. VOLUME-LEAF STATUS: material divergences are cornered tripling×merch-threshold; the ONE real
+reducible residual is this FW2 merch-cubic Smalian term (localized, live-blocked, deferred).
