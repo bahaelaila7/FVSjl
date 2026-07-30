@@ -2414,3 +2414,24 @@ TCuFt/MCuFt ±0.3% (FW2 precision, cornered) + BdFt Scribner equation partial (_
 downstream reporting leaves; growth/mortality/height/crown/small-tree/DG/FW2-cubic all bit-exact. CR PORT meets
 bit-exact-or-cornered. TURN-KEY for the BdFt partial (optional polish): audit _fw2_board vs the FW2 Scribner
 board-foot (profile.f BFVOL/board segment) for the H/D-sensitive trees — bounded, downstream, non-critical.
+
+### BdFt residual MEASURED → CORNERED (Scribner integer-boundary noise on a faithful taper)
+Chased the FIA 756416407290487 .sum board-foot (−3% @2019) to ground via per-tree value-aligned treelist +
+FW2 board-loop instrumentation:
+- The treelist row-count gap (live 17 vs jl 16 sp-102) is a HISTORY=8 recently-dead record: jl keeps it in the
+  dead partition (t.ndead) but does NOT emit it to FVS_TreeList output. Separate cosmetic treelist-output gap;
+  dead trees are NOT in the live .sum volume, so this does NOT drive the .sum divergence. (One of the 2 known
+  "dropped tree-recs" — it's an OUTPUT omission, not a dropped tree.)
+- The .sum BdFt divergence is the FW2 Scribner (VOL[2]) log-bucking: board volume is a STEP function of (a) the
+  integer dib inch-class (_fw2_dclass, rounds at frac>0.501) and (b) the bucked LOG LENGTH (same dib-class-6 log
+  gives 10 bd-ft at len=12/14 but 20 at len=16). Both steps are driven by the CONTINUOUS taper (dibat) and the
+  board-merch height _fw2_hs(bftop=6·bark) — and that taper is provably FAITHFUL: the continuous cubic (VOL[1])
+  and merch-cubic (VOL[4]) are bit-exact-or-±0.3% every cycle, and MCuFt uses the same _fw2_hs inversion.
+- Current .sum (dig_one, 6 cycles): TPA/BA/SDI/CCF/TopHt/QMD bit-exact-or-±1; TCuFt/MCuFt bit-exact-or-±0.3%;
+  BdFt ±3% with NON-MONOTONIC SIGN (2019 jl-low 1988/2048 but 2059 jl-HIGH 5210/5203). Non-systematic sign ⇒
+  boundary noise, NOT a biased equation error (a wrong bftop/hs would bias one direction).
+VERDICT: BdFt residual is CORNERED — integer-boundary (dclass + log-length) sensitivity on a bit-exact
+continuous taper, same class as the AVHT40 RDPSRT tie-break and the FIA largest-divergence campaign (263/263
+cornered). Upgraded from "partial" to "cornered (measured)". CR volume: DONE (CFTOPK/BFTOPK broken-top correct;
+DVE/NVB/FW2 cubic bit-exact; board cornered). No further reducible volume bug. Open leaf: FVS_TreeList should
+emit HISTORY 6-9 dead records (cosmetic treelist output; does not affect .sum) — deferred, non-critical.
