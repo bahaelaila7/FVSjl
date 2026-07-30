@@ -2942,3 +2942,20 @@ CLOSED: disproving the "265 all cornered" over-close yielded 4 REAL reducible fi
 with the reducible surface genuinely exhausted (measured, not asserted). Method note: NOTRIPLE is the clean decisive
 test to separate a real per-tree growth bug from a tripled-record cornered artifact — reach for it FIRST on any
 matched-TPA-BA-divergence-but-per-tree-bit-exact stand (doctrine-#3 cases).
+
+### 2026-07-30 — FRESH independent-sample validation (post 4 growth fixes): reducible growth surface confirmed exhausted
+Ran a FRESH classified sweep of 300 random CNs (deterministic every-Nth from cr_cns_all, current code w/ #14/morts/#15/#16)
+to re-measure the divergence breakdown (the old resume ledger was stale/pre-fix). Result: bit_exact=244/300 (81.3%),
+diverging=56, 0 crashes. Diverging signatures: structure_densephase 23, print_boundary 15, volume_persistent 7,
+threshold_crossing 7, count_straddle 4. Worst-col among diverging: TopHt 12 (AVHT40 RDPSRT tie-break), TCuFt/BdFt/MCuFt
+21 (volume), CCF/TPA/BA/QMD/SDI 23 (structural self-thin). ★ VERIFIED (not assumed — the exact trap disproved this
+session) the 23 structure_densephase (the class that HID all 4 growth bugs) via the growth-vs-selection classifier:
+18 SELECTION-type (matched BA / TPA-differs = RDPSRT self-thin tie-break), 4 ±1-2 BA integer straddles, 1 bit-exact —
+ZERO growth-type (matched-TPA + material-BA). Spot-checks: TopHt-worst = ±1 tie-break (246848861489998 13/14);
+volume_persistent = tiny 1-2.6% structural-cornered; threshold_crossing = transient merch-boundary crossing
+(1587166377290487 BdFt 60/120 @2020 ONLY, converges 2030+ — a tree crossing the BdFt merch min, cornered). ⇒ the
+fresh independent sample CONFIRMS the reducible GROWTH surface is EXHAUSTED (4 fixes cleaned the growth-type class);
+the remaining ~19% divergence is the cornered families: RDPSRT self-thin selection + AVHT40 TopHt tie-break + ±1
+integer straddles + transient merch-threshold + tiny volume rounding. CR growth core = bit-exact-or-cornered, now
+MEASURED on a fresh sample rather than asserted. Remaining reducible leads live ONLY in the downstream-reporting leaves
+(volume-NVEL beyond Black Hills, FFE-fuel, establishment — none affect the growth core).
