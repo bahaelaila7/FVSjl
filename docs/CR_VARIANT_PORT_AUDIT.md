@@ -2283,3 +2283,19 @@ reduction (NOT 1−CULL/100=53%), and D=11.2/CULL=35 vs D=20.5/CULL=47 don't sca
 bounded: port the FVS cull/merch-rule net-volume reduction + read FIA CULL into the tree. Confound lesson: NEVER
 recompile a module that carries LOGIC (mrules) to defeat the .mod-ABI — it can change behavior; only recompile
 pure-DATA modules (debug_mod/volinput_mod OK; mrules_mod NOT).
+
+### Volume cull-reduction FORMULA FOUND (volinit.f) — but effective-cull transformation is the precision blocker
+The net-volume reduction is volinit.f:882-883: `VOL(1)=VOL(1)*(1-(CULL+CULLMSTOP)/100)` (& VOL(4) merch), applied
+in the FIA-NVB volume path (VOLINITNVB, fvsvol.f:304). This CONFIRMS the mechanism: FVS reduces the cubic volume
+by the cull percent; jl reads no CULL and applies none. BUT: (a) the formula sits inside `IF(SPGRPCD.EQ.10)`
+(woodland biomass branch) — bristlecone (FIA 102) may or may not be SPGRPCD=10, so the exact reduction path for
+conifers needs confirmation; (b) the EFFECTIVE cull is ~24% (51.375→39.093) NOT the raw FIA CULL=47 (→53%), so
+there's a CULL transformation (47→~24, ≈ half) between input and the volinit reduction that I could NOT cleanly
+measure — volinit.f USEs MRULES_MOD (LOGIC module), so instrumenting it hits the recompile-confound (recompiling
+mrules changes cull behavior; the .mod-ABI blocks compiling volinit with the ORIGINAL mrules). ⇒ THE FIX IS
+STRUCTURALLY KNOWN (read FIA CULL into the tree; apply net=gross·(1−effCull/100) to TCuFt+MCuFt) but needs the
+exact CULL→effCull transformation. TURN-KEY (unblock): (1) find the FIA CULL→cubic-cull transform by READING the
+input path (dbstreesin.f/intree.f — is 47 split rotten/missing or halved for cubic?), OR (2) build a NON-module
+instrument: dump CULL just before volinit via a routine that doesn't USE mrules (e.g. add an arg-dump in vols.f
+right after the NATCRS return, linking all-original .o). The residual remains a bounded volume-REPORTING port;
+every model equation (incl. FW2 gross) is faithful.
