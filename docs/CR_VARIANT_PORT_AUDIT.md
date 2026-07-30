@@ -3135,3 +3135,19 @@ the Newton — doing it across Stop-hook turns produces confident-but-wrong bark
 reliable building block. The bark/mtop pin + Newton assembly are correctly DEFERRED. crt01 unchanged; core still
 complete+full-suite-validated. LESSON: don't reconstruct profile inputs by hand — instrument the live routine (SF_DS is
 module-free; the module-ABI recipe covers the rest).
+
+### 2026-07-30 — FW2-hs: end-to-end SF_HS measured, but UNRECONCILED observations remain ⇒ STOP piecemeal, focused session required
+Instrumented live SF_HS entry/exit (module-free): for the d=5.71 ponderosa it is passed DIBtarget=3.20 (=topd·bark,
+bark=0.80) and returns H=11.059 (⇒ MERLEN LMERCH=10.059). Facts confirmed: jl F=10.678503 == live F=10.6785 (form/taper
+faithful); jl _fw2_sf_yhat(11.059)≈3.76 == live SF_DS(11.059)≈3.76 (raw profile matches). UNRECONCILED (do NOT treat as
+conclusions — a same-tree/same-cycle assumption may be wrong): (a) jl mtop=topd·bark=3.275 (bark≈0.819) vs live SF_HS
+DIBtarget=3.20 (bark=0.80) — a merch-top bark discrepancy that is INCONSISTENT with the matching F (which implies equal
+bark via DBHIB=D·bark); (b) jl _fw2_brk_ot(11.059)=3.249 vs the value SF_HS's BRK_UP must yield at the crossing — unclear
+if _fw2_brk_ot==live BRK_UP. These need SYSTEMATIC isolation (print jl vs live: cr_bratio, DBHIB, MTOPS, BRK_UP output,
+all for the SAME instrumented tree) — which scattered Stop-hook-turn probes cannot do (each surfaces a new inconsistency).
+★ PROCESS CAUTION: a botched perl instrument-removal this turn silently merged vol[1]/vol[4] onto one line (commenting
+out vol[4] ⇒ would zero ALL FW2 merch cubic); caught by git-diff + crt01 check, restored. ⇒ CONCLUSION: the FW2-hs port
+is a FOCUSED-SESSION task; piecemeal attempts across hook-fired turns are net-negative (a retracted claim + a near-miss
+regression). The core (growth+volume) is complete + full-suite-validated; _fw2_sf_yhat_sl slope block stands (validated,
+inert). Deferring FW2-hs firmly. Next session: systematic same-tree jl-vs-live instrument of {cr_bratio, dbhib, mtops,
+sf_yhat, brk_ot, BRK_UP, SF_HS} → pin the (a)/(b) discrepancies → then decide fix (profile choice + convergence).
