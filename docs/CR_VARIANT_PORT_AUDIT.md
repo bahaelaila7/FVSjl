@@ -3167,3 +3167,24 @@ BARK wrong (volume vs growth bratio)? Then the fix is a data/dispatch correction
 the SF_HS-Newton port — and may be the actual root cause. ⇒ REFRAME: the FW2-hs residual is now a concrete mtop-value
 discrepancy, not (only) a convergence-algorithm issue. Core stays complete+validated; no code change this turn (probe
 clean-removed). Slope building block stands.
+
+### 2026-07-30 — ★★ FW2-hs REFRAMED: root cause is a merch-top BARK discrepancy (volume 0.80 vs cr_bratio 0.8188), NOT SF_HS
+Major reframe via clean measurement (all live instruments module-free/relinked; git-diff-verified clean, no jl change).
+Chain of DEFINITIVE facts for the d=5.71 ponderosa (316922874489998, IMODTY 2):
+  - jl cr_bratio(13,5.71,2) = 0.8188445  ==  live BRATIO unclamped = 0.818844 (BARK1=0.8967,BARK2=-0.4448,IEQN1). ⇒
+    cr_bratio is FAITHFUL (identical). NOT a cr_bratio bug.
+  - live fvsvol MTOPS = TOPD(13)·BARK = 4.0 · 0.80 = 3.20  (TOPD matches jl's 4.0; BARK=0.80).
+  - jl volume mtop = topd·cr_bratio(current d) = 4·0.8188 = 3.275.
+  ⇒ jl uses cr_bratio(CURRENT dbh)=0.8188 for the merch top; live's fvsvol BARK arg = 0.80 (a DIFFERENT bark). The
+    0.10-ft merch-length gap (jl _fw2_hs 9.96 vs live 10.059) is DOWNSTREAM of this mtop mismatch (3.275 vs 3.20), NOT the
+    SF_HS convergence criterion I chased for several turns. ⇒ the whole "SF_HS-Newton port" is likely UNNECESSARY.
+FVS fvsvol BARK is a SUBROUTINE ARG (passed by the caller); =0.80 = the BRATIO floor. jl's cr_bratio(pre-growth dbh≈4.7)
+≈0.803 (close, not exactly the 0.80 floor) ⇒ the exact source is a pre-growth/backdated dbh OR a separately-floored/FW2-
+model bark — NOT YET PINNED (do not implement on the ≈ guess; last turns' lesson). REMAINING PRECISE PIN (focused, one
+measurement): instrument the FVSVOL CALLER (find it — not in cr/*.f by name; likely base vollib/cvcalc) to print the
+DBH+method it uses for BARK ⇒ decide fix = use that bark (likely jl's already-stashed start-of-cycle t.vol_bark, or a
+0.80-floored bark) for the FW2/NVB/DVE merch top. LIKELY-SIMPLE fix (a bark-source correction, analogous to the #14/#15
+family), MUCH smaller than the ~435-line SF_HS port. Validation: large trees stay bit-exact (BRATIO(current)≈BRATIO(start)
+near the asymptote), small cliff trees fixed; crt01 + 100/150 regression + full suite. ⇒ CR core unchanged/complete; the
+FW2 residual is now correctly reframed to a bark-source fix (deferred pending the caller-bark pin). _fw2_sf_yhat_sl slope
+block may be UNNEEDED if the SF_HS port is avoided (leave inert; remove in the focused session if confirmed unnecessary).
