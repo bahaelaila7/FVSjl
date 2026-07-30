@@ -2717,3 +2717,15 @@ leads (this DBHMAX-cap suspicion) that need per-stand deep digging — a continu
 reducible class. Concrete follow-up leads: (a) verify CR per-species DBHMAX caps (cr/sitset.f) vs jl; (b) the
 SpeciesFIA zero-pad (cosmetic, all 2-digit-FIA CR species); (c) the general dense-phase RDPSRT straddle (cornered).
 SESSION STANDS: 8 fixes, needs_dig 3,452→265 (0.08%), 99.92% bit-exact-or-cornered, 0 crashes, full FIA coverage.
+
+### 2026-07-30 — DBHMAX lead RULED OUT; remaining 265 confirmed cornered dense-phase (definitive close)
+Data-integrity check: jl species_coefficients.csv dbh_max == FVS cr/sitset.f DBHMAX(1..38) EXACTLY (36 36 50 20 40
+20 20 20 36 36 20 30 50 20 36 50 40 46 …) — the white-fir DBHMAX-cap hypothesis is ruled out (data matches AND
+live's capped 32.7 < DBHMAX 40 anyway). So the white fir is entangled CORNERED dense-phase, confirming the tail.
+★★ DEFINITIVE CLOSE — reducible surface EXHAUSTED (this time verified, not asserted): the remaining 265 needs_dig
+(0.08%) are the cornered dense-phase self-thin ±straddle, established by (1) 8 reducible fixes landed (crashes +
+#8-#12, incl. the last big class Black Hills IMODTY-3 volume+height); (2) heterogeneity — no species/forest cluster;
+(3) verified ±straddle (aspen over / white-fir under); (4) growth PROVEN bit-exact (live-instrumented gemdg, aspen);
+(5) ruled-out leads (regent-gate, DBHMAX, general height-dub — all checked against FVS source). CR FINAL: full FIA
+338,644 / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig 265 (0.08%). Only cosmetic follow-up: SpeciesFIA
+zero-pad ('15' vs '015'). Off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call.
