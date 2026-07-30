@@ -2995,3 +2995,22 @@ profile Smalian-cubic source comparison vs jl's _fw2_merch_cuft/_nvb_logvol_cuft
 deferred. IMPACT: small (~1-21% MCuFt on FW2-ponderosa stands; TCuFt/BdFt/structure faithful) — a volume-REPORTING
 leaf, not growth. VOLUME-LEAF STATUS: material divergences are cornered tripling×merch-threshold; the ONE real
 reducible residual is this FW2 merch-cubic Smalian term (localized, live-blocked, deferred).
+
+### 2026-07-30 — ★ Volume-submodule module-ABI block BUSTED; FW2 merch-cubic residual = profile-hs precision (merch rule CONFIRMED correct)
+Two results. (1) ★ METHODOLOGY UNLOCK — the "volume routines can't be instrumented (mrules_mod/DEBUG_MOD/VOLINPUT_MOD
+.mod built by gfortran 15.2.1 ≠ local 12.2.0)" block is BUSTED: recompile the MODULE SOURCE locally
+(`gfortran -c mrules_mod.f debug_mod.f volinput_mod.f` → compatible .mod in /workspace/.crwork), then compile the
+instrumented routine with `-I/workspace/.crwork -I$BD` (local .mod for the interface) and link with the buildDir .o's
+minus the original (the 15.2.1 module .o symbols `__mod_MOD_*` resolve — mangling is version-stable). Verified: fvsvol.f
+AND mrules.f both relinked + ran. So NVEL/FMSC volume routines ARE instrumentable after all (kept the 3 .mod/.o in
+.crwork for reuse). (2) The FW2 merch-cubic residual is NOT the merch rule — CORRECTED a wrong hypothesis by MEASURING
+(doctrine #2, 4th inference-correction this session): I'd changed region-3 MINLEN/MERCHL 10/10→2/8 (misreading mrules.f
+as PROD-02 default); it improved 316922874489998 MCuFt (608→736) but REGRESSED crt01 (1862→1885) ⇒ reverted. Then
+instrumented LIVE mrules.f: 316922874489998 ponderosa runs PROD=01, MINLEN=10, MERCHL=10 — jl's 10/10 is CORRECT.
+Since merchl=10 matches, the d=5.71 divergence (jl lmerch=hs−stump=9.96 <10 ⇒ zeroed; live includes ⇒ TV4=0.9) means
+live's PROFILE height-to-4"-top (hs) is slightly HIGHER than jl's 10.96 — a FW2 profile (SF_YHAT/SF_HS taper) precision
+difference for small trees, AMPLIFIED into a cliff by the MERCHL=10 threshold (a ~0.5ft hs diff flips inclusion). ⇒ the
+volume residual is FW2 profile-hs precision near merch-length thresholds (small-tree-dominated, threshold-cliff-amplified)
+— NOT a merch-rule/coefficient bug. Next (now UNBLOCKED): instrument live profile.f SF_HS/SF_YHAT vs jl _fw2_hs/_fw2_sf_yhat
+for the small trees to see if the hs gap is Float32-vs-Float64 (cornered) or a taper-coef bug. Deferred (small, volume-leaf).
+CR growth core bit-exact-or-cornered; volume material divergences cornered (tripling×merch-threshold + this profile-hs cliff).
