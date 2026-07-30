@@ -2368,3 +2368,22 @@ NOT growth/mortality. CORNERED. TURN-KEY (real): audit _fw2_sf_yhat/_fw2_sf_tape
 sf_yhat.f — the taper polynomial at high relative-height; the earlier "SHP/BRK/dib bit-exact" was verified ONLY on
 D=20.5 (normal H/D), NOT the extreme-H/D trees. META: the cull hypothesis was a ~60-turn detour caused by trusting
 DBH+HT alignment; the TreeId-matched fit (doctrine #3-adjacent) was the correct tool and should have been first.
+
+### ★★★ VOLUME RESIDUAL — TRUE ROOT CAUSE: BROKEN TOPS (HTTOPK), a reducible bug (NOT cull, NOT FW2-taper, NOT wall)
+The HTTOPK (height-to-top-kill / broken top) input field PERFECTLY distinguishes the divergent trees:
+  REDUCED: TreeId 9 (D11.2 H40 HTTOPK=19, factor 0.738), TreeId 1 (D20.5 H50 HTTOPK=24, 0.761), TreeId 6 (HTTOPK=29)
+  NOT reduced: TreeId 7 (D12.5 CULL=65 HTTOPK=missing, 1.0), TreeId 5/8 (HTTOPK=missing, 1.0)
+⇒ live computes reported cubic volume only to the BROKEN-TOP height (HTTOPK); jl uses `h=t.height[i]` (FULL height)
+for ALL trees in compute_volumes_cr! → over-counts the stem above the break. 9.452/12.807=0.738 = the fraction of
+the full-height FW2 profile below ht=19. This DEFINITIVELY resolves the volume residual — and REFUTES both prior
+hypotheses (cull: TreeId-matched showed CULL=65 unreduced; FW2-extreme-H/D: live TCUBIC=12.807=jl for the tall
+tree, FW2 gross bit-exact even at H/D=3.6). It is a REDUCIBLE bug, no module wall involved. jl DOES read the broken
+top (treeinput.jl: t.norm_ht=-1, t.trunc=break_ht·100) but compute_volumes_cr! IGNORES it for volume.
+FIX (clean, scoped): in compute_volumes_cr!, for broken-top trees (t.norm_ht[i]==-1) pass the broken height
+(t.trunc[i]/100) as HTTFLL to the vol funcs; make _fw2_tcubic / cr_dve_vol / cr_nvb_vol integrate the FULL-height
+profile only to HTTFLL (NOT recompute the profile at h=broken — the taper is the full-height tree's, truncated).
+cr_dve_vol already has an httfll arg; cr_fw2_vol/_fw2_tcubic need it added. Validate vs live on this FIA stand
+(TreeId 1/9 → bit-exact). META: this took dig_one→dig_treelist→NOTRIPLE→VARMRT→NSVB→module-wall→empirical-fit→
+TreeId-match→HTTOPK — a ~120-turn odyssey through THREE wrong hypotheses (mortality-selection, cull, FW2-taper),
+each REFUTED by measurement; the winning clue was the HTTOPK input column, found by asking "what INPUT distinguishes
+the reduced trees" — should have checked tree input attributes MUCH earlier. Growth+mortality bit-exact throughout.
