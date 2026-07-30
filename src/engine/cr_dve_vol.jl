@@ -153,6 +153,76 @@ end
 # (cr/sitset.f:520-555, by IMODTY): DBHMIN/TOPD/STUMP. DVE/NVB/FW2 all ported (cr_dve_vol/cr_nvb_vol/cr_fw2_vol);
 # woodland FCLASS=0 (FIA multi-stem) fixed. Residuals: FW2 ~1.5% precision + size-dependent NVB/DVE taper on a few
 # conifer stands (partly entangled with the dense self-thinning/DGSCOR tail); board-foot for NVB still partial.
+# --- Behre form-class taper (base/behprm.f, base/behre.f) — used ONLY by CFTOPK for broken-top trees ---
+"BEHPRM (behprm.f): Behre hyperbolic-taper params from the tree's form factor. Returns (AHAT,BHAT,LCONE)."
+@inline function _behprm(vmax::Float32, d::Float32, h::Float32, bark::Float32)
+    bhat = vmax / (0.00545415f0 * d * d * bark * bark * h)
+    bhat > 0.95f0 && (bhat = 0.95f0)
+    ahat = 0.44277f0 - 0.99167f0 / bhat - 1.43237f0 * flog(bhat) +
+           1.68581f0 * sqrt(bhat) - 0.13611f0 * bhat * bhat
+    lcone = false
+    if abs(ahat) < 0.05f0
+        lcone = true
+        ahat = ahat < 0f0 ? -0.05f0 : 0.05f0
+    end
+    bhat = 1f0 - ahat
+    bhat < 0.0001f0 && (bhat = 0.0001f0)
+    return ahat, bhat, lcone
+end
+
+"BEHRE (behre.f): Behre-profile cubic volume between relative heights L1 and L2 (AHAT/BHAT from BEHPRM)."
+@inline function _behre(l1::Float32, l2::Float32, ahat::Float32, bhat::Float32)::Float32
+    alb1 = ahat * l1 + bhat
+    alb2 = ahat * l2 + bhat
+    return alb2 - alb1 - 2f0 * bhat * (flog(alb2) - flog(alb1)) - bhat * bhat / alb2 + bhat * bhat / alb1
+end
+
+"""
+    cr_cftopk(tcf, mcf, d, h, vmax, bark, itht, stmp, topd) -> (tcf, mcf)
+
+CFTOPK (base/cftopk.f): reduce the FULL-height cubic volumes of a BROKEN-TOP tree to the standing broken
+stem, using the Behre form-class taper. `h` = NORMHT (full predicted height), `itht` = break height ×100
+(t.trunc), `vmax` = the full cubic (the un-reduced TCF). SCF omitted (CR region 2/3 → SCF=0).
+"""
+function cr_cftopk(tcf::Float32, mcf::Float32, d::Float32, h::Float32, vmax::Float32,
+                   bark::Float32, itht::Int, stmp::Float32, topd::Float32)
+    ahat, bhat, lcone = _behprm(vmax, d, h, bark)
+    htrunc = Float32(itht) / 100f0
+    pht = 1f0 - htrunc / h; pht < 0f0 && (pht = 0f0)
+    dtrunc = pht / (ahat * pht + bhat)
+    if tcf > 0f0
+        if !lcone
+            volt = _behre(0f0, 1f0, ahat, bhat)
+            voltk = _behre(pht, 1f0, ahat, bhat)
+            tcf = tcf * voltk / volt
+        else
+            tcf = tcf * (1f0 - pht * pht * pht)
+        end
+    end
+    if mcf > 0f0
+        stump = 1f0 - stmp / h
+        dmrch = topd / d
+        htmrch = (bhat * dmrch) / (1f0 - ahat * dmrch)
+        if !lcone
+            if dtrunc > dmrch
+                volt = _behre(htmrch, stump, ahat, bhat)
+                voltk = _behre(pht, stump, ahat, bhat)
+                mcf = mcf * voltk / volt
+            end
+        else
+            s3 = stump * stump * stump
+            volm = s3 - htmrch * htmrch * htmrch
+            if dtrunc > dmrch
+                voltk = s3 - pht * pht * pht
+                mcf = mcf * voltk / volm
+            end
+        end
+        mcf > tcf && (mcf = tcf)
+        mcf < 0f0 && (mcf = 0f0)
+    end
+    return tcf, mcf
+end
+
 function compute_volumes_cr!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control; sd = s.coef.species
@@ -189,6 +259,12 @@ function compute_volumes_cr!(s::StandState)
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
         scf = 0f0                              # CR is region 2/3: fvsvol.f sets SCF only for region 8/9
+        # CFTOPK (vols.f:145-196): broken-top trees (TKILL = H≥4.5 & ITRUNC=trunc>0) get their FULL-height
+        # volume reduced to the standing broken stem via the Behre form-class taper. H=t.height=NORMHT.
+        if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
+            tcf, mcf = cr_cftopk(tcf, mcf, d, h, tcf, cr_bratio(sd, sp, d, imodty),
+                                 Int(t.trunc[i]), stump, topd)
+        end
         # BdFt = BBFV = TVOL(2) Scribner for CR (METHB=6≠9), gated D≥BFMIND. DVE/NVB/FW2 all fill VOL(2).
         bf  = d >= bfmind ? v[2] : 0f0
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
