@@ -2822,3 +2822,19 @@ bit-exact stands still bit-exact; growth-type stands 1855935125290487 + 74557636
 prediction gone). Meta: the closure was disproved by MEASURING (per-tree TreeId verifier), not inferring — the same
 discipline that found #11/#12. OPEN: a few growth-type stands remain (2602547010690, 758040786290487, 2713779010690)
 — other measured-DG species near the trap, or genuine ±straddles; and 190851682020004 2042+ dense self-thin tail.
+
+### 2026-07-30 — variant-bark AUDIT (after #14): 5th location fixed, 2 latent sites catalogued
+Given #14 was the 4th instance of the identical `bark_ratio(0,0)=0.80` vs `cr_bratio~0.95` pattern, swept ALL
+shared-engine `bark_ratio(` call sites for CR-reachability:
+- ★ 5th location FIXED (commit b02964a): keyword_dispatch.jl:1149 morts KBIG RDPSRT size-rank key
+  WORK3=DBH+DG/BRATIO (morts.f:879-882) — CR-gated to cr_bratio. FAITHFUL but .sum-INERT on the tested sample
+  (crt01 byte-identical, 100/100 bit-exact preserved, 13 dense self-thin stands unchanged): CR dense mortality
+  rarely hits a near-tie where the ~0.02" DG/bark difference flips selection. Kept per doctrine #4 (faithful port).
+- LATENT (not FIA-sweep-reachable, catalogued for future variant-bark audit, NOT fixed — each needs its own
+  validation path): simulate.jl:186 (FERTILIZ growth-effect `dib=d*bark_ratio`, only under a FERTILIZE keyword);
+  keyword_dispatch.jl:1245 (HTGSTOP/topkill breakage `d=dbh*bark_ratio`, only when a tree topkills).
+- ALREADY-DISPATCHED (prior fixes): simulate.jl:460 (DBH-update, `_cr_up`), the DDS→DG driver bark, backdate/TERM.
+CONCLUSION: 5 active variant-bark locations now all cr_bratio-dispatched; 2 latent conditional sites remain
+(fertilize/topkill), documented. The recurring root = jl's shared `bark_ratio(bark_a,bark_b,…)` floors to 0.80 when
+CR's linear bark coefs are 0, where FVS BRATIO dispatches to cr/bratio.f (~0.95) — AUDIT this pattern first for any
+future western GENGYM variant.
