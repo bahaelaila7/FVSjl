@@ -3151,3 +3151,19 @@ is a FOCUSED-SESSION task; piecemeal attempts across hook-fired turns are net-ne
 regression). The core (growth+volume) is complete + full-suite-validated; _fw2_sf_yhat_sl slope block stands (validated,
 inert). Deferring FW2-hs firmly. Next session: systematic same-tree jl-vs-live instrument of {cr_bratio, dbhib, mtops,
 sf_yhat, brk_ot, BRK_UP, SF_HS} → pin the (a)/(b) discrepancies → then decide fix (profile choice + convergence).
+
+### 2026-07-30 — FW2-hs root-cause NARROWED to a concrete mtop discrepancy (jl 3.275 vs live 3.20) — bounded next step
+Clean pure-jl probe (Edit-inserted, Edit-removed; git-diff-verified clean): jl volume for the d=5.71 ponderosa uses
+sp=13, IMODTY=2, cr_bratio=0.8188, topd=4 ⇒ mtop=topd·bark=3.2754. Live (FVSVOLLIVE + SF_HS DIBtarget, two independent
+measurements) MTOPS=3.20. ⇒ CONCRETE DISCREPANCY: jl merch-top=3.275 vs live=3.20 (same TOPD-nominal-4). This SHIFTS the
+merch-top crossing and is a more concrete root-cause candidate for the FW2 merch-cubic residual than the SF_HS convergence
+criterion. KEY CONTEXT: growth (IMODTY-2 ponderosa, crt01) DG is BIT-EXACT using cr_bratio ⇒ jl's cr_bratio == live's
+GROWTH BRATIO. So the discrepancy is one of: (i) live's VOLUME BARK (fvsvol.f MTOPS=TOPD(ISPC)·BARK, BARK from a COMMON
+set by the vol caller) ≠ live's growth BRATIO; or (ii) live's per-species TOPD(ISPC=13) ≠ jl's flat topd=4 (sitset may
+override TOPD per species/imodty, like the DBHMAX #15 table) ⇒ MTOPS=TOPD(13)·BARK decomposes differently (e.g. 4·0.80
+vs 4.06·0.788). BOUNDED NEXT STEP (focused session, pure measurement): instrument fvsvol.f to print TOPD(ISPC) AND BARK
+SEPARATELY for the ponderosa ⇒ decompose live MTOPS=3.20 → is TOPD wrong (jl flat 4 vs a sitset per-species value) or
+BARK wrong (volume vs growth bratio)? Then the fix is a data/dispatch correction (analogous to #15), likely SIMPLER than
+the SF_HS-Newton port — and may be the actual root cause. ⇒ REFRAME: the FW2-hs residual is now a concrete mtop-value
+discrepancy, not (only) a convergence-algorithm issue. Core stays complete+validated; no code change this turn (probe
+clean-removed). Slope building block stands.
