@@ -2729,3 +2729,15 @@ live's capped 32.7 < DBHMAX 40 anyway). So the white fir is entangled CORNERED d
 (5) ruled-out leads (regent-gate, DBHMAX, general height-dub — all checked against FVS source). CR FINAL: full FIA
 338,644 / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig 265 (0.08%). Only cosmetic follow-up: SpeciesFIA
 zero-pad ('15' vs '015'). Off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call.
+
+### 2026-07-30 — White fir gemdg PROVEN bit-exact (live-instrumented) → 265 tail CONFIRMED cornered (2 proofs)
+Applied the "don't assume cornered — measure" lesson to the white fir (688820815126144, imodty=4 — an UNvalidated
+imodty, crt01=imodty2). Instrumented BOTH jl cr_gemdg and live gemdg.f (DDS at return): jl DDS == live DDS for
+every (is,dpp) — is=5 white fir dpp10.1→2.58699, 12.0→2.69841, 16.0→3.12872, and the dpp=30→dds=-9.21 no-growth
+floor all MATCH; is=20 aspen too. ⇒ imodty=4 gemdg is BIT-EXACT (the growth model generalizes across imodty,
+not just crt01's imodty2). The white fir BA 270/232 + maxD 32.7/34.4 divergence is mortality SELECTION (jl's
+survivors differ — live's biggest at dpp30 has 0 growth/dds=-9.21, jl's shown max is a different survivor). ⇒ the
+265 needs_dig tail is CONFIRMED cornered dense-phase mortality selection, now with TWO gemdg-bit-exact proofs
+(aspen OVER + white-fir UNDER = ±straddle, both growth-faithful). DEFINITIVE: reducible surface exhausted; CR at
+99.92% bit-exact-or-cornered / full FIA / 0 crashes; remaining 0.08% = cornered RDPSRT self-thin. gemdg proven
+bit-exact on imodty 2 (crt01) AND 4 (this) AND the aspen path — the CR growth core is faithful across model types.
