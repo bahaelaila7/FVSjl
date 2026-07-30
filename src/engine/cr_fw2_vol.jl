@@ -102,12 +102,50 @@ function _fw2_shp_core(f, d::Float32, h::Float32, is_lp::Bool)
     return rflw, rhfw
 end
 
+# SHP_BH (f_other.f:682) — Black Hills NF ponderosa (JSP=22) Flewelling shape: distinct hardcoded PP14
+# coefficients (U7 uses H not lnH; U6 capped at 100 not 10), same U→R tail as SHP_OT. Separate routine
+# because JRSP=JSP-22=0 has no F(:,0) column. Ported so Black Hills ponderosa stands (voleq 203FW2W..122,
+# geosub 03) get volume instead of 0.
+function _fw2_shp_bh(d::Float32, h::Float32)
+    D = Float64(d); H = Float64(h); lnH = log(H)
+    dmedian = 1.6802 * (H - 4.5)^(0.4085 + 0.00169 * H)
+    dform = D / dmedian - 1.0
+    u7 = -1.2726446 - 0.0048259438 * H
+    u9 = 0.1821947
+    u8 = 0.99
+    u1 = -1.5505171 - 0.017174522 * H
+    u2 = 0.27722769 - 0.21540189 * D
+    u3 = 2.0426515 - 0.83434213 * lnH
+    u4 = -7.0
+    u5 = 7.7448837
+    u6 = 1.376637 - 0.47598661 * dform
+    u1 = clamp(u1, -7.0, 7.0); u2 = clamp(u2, -7.0, 7.0)
+    u3 = clamp(u3, -7.0, 7.0); u4 = clamp(u4, -7.0, 7.0)
+    u5 = u5 < -7.0 ? -7.0 : (u5 > 7.1 ? 7.1 : u5)
+    u6 = u6 < 1.005 ? 1.005 : (u6 > 100.0 ? 100.0 : u6)   # SHP_BH caps U6 at 100 (SHP_OT at 10)
+    u7 = clamp(u7, -7.0, 7.0)
+    u8 > 0.99 && (u8 = 0.99)
+    u9 = u9 > 0.3 ? 0.3 : (u9 < 0.0 ? 0.0 : u9)
+    r1 = exp(u1) / (1.0 + exp(u1)); r2 = exp(u2) / (1.0 + exp(u2))
+    r3 = exp(u3) / (1.0 + exp(u3)); r4 = exp(u4) / (1.0 + exp(u4))
+    r5 = u5 <= 7.0 ? 0.5 + 0.5 * exp(u5) / (1.0 + exp(u5)) : 1.0
+    a3 = u6
+    rhi1 = exp(u7) / (1.0 + exp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
+    rhlongi = u9; rhi2 = rhi1 + rhlongi; rhc = u8
+    rhc < rhi2 + 0.01 && (rhc = min(rhi2 + 0.01, (rhi2 + 1.0) / 2.0))
+    rflw = (Float32(r1), Float32(r2), Float32(r3), Float32(r4), Float32(r5), Float32(a3))
+    rhfw = (Float32(rhi1), Float32(rhi2), Float32(rhc), Float32(rhlongi))
+    return rflw, rhfw
+end
+
 @inline _fw2_is_ingy(jsp::Int) = 11 <= jsp <= 21
 
 "Form params for a JSP: region-2/3 (SHP_OT, F=_FW2_F[jsp-22]) or INGY (SHP_C2, F=_FW2_F_INGY[jsp-10])."
 function _fw2_shp(jsp::Int, d::Float32, h::Float32)
     if _fw2_is_ingy(jsp)
         return _fw2_shp_core(_FW2_F_INGY[jsp - 10], d, h, jsp == 15)   # INGY; JSP15 = lodgepole
+    elseif jsp == 22
+        return _fw2_shp_bh(d, h)                                       # Black Hills PP (SHP_BH)
     else
         return _fw2_shp_core(_FW2_F[jsp - 22], d, h, jsp == 25)        # region 2/3; JSP25 = R2 lodgepole
     end
@@ -349,7 +387,7 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     vol = zeros(Float32, 15)
     (d < 1f0 || h <= 5f0) && return vol
     jsp = _fw2_jsp(voleq)
-    (_fw2_is_ingy(jsp) || (23 <= jsp <= 29)) || return vol   # supported 2-pt families
+    (_fw2_is_ingy(jsp) || (22 <= jsp <= 29)) || return vol   # supported 2-pt families (22 = Black Hills PP)
     ingy = _fw2_is_ingy(jsp)
     rflw, rhfw = _fw2_shp(jsp, d, h)
     tapcoe = _fw2_sf_taper(rhfw, rflw)
