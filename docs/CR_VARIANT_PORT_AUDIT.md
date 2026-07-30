@@ -2856,3 +2856,21 @@ in models 3/4/5 escape the gemdg DF>DBHMAX cap. FIX: `_cr_dbhmax_eff(base, imodt
 bark + the 5th variant-bark morts-rank). FOLLOW-UP: audit the OTHER sitset.f IMODTY-block settings (SITELO/SITEHI,
 BARK1/2, ELEV/TLAT defaults) for the same base-only-vs-override gap; remaining growth-type stands (2602547010690
 pinyon-juniper-oak, 758040786290487 ponderosa+oak) still open.
+
+### 2026-07-30 — Remaining growth-type tail characterized: OH (sp38) small-tree diameter UNDER-growth class (open lead)
+After fixes #14/morts/#15, re-classified a fresh 265 sample: growth-type 19→15, of which ~10 are ±1-2 BA-unit
+integer straddles (cornered print-boundary), leaving ~5 MATERIAL — 4 of them jl-UNDER. Profiled the under-growers:
+562871689126144 + 212342157010854 = sp756 (honey mesquite), 2260120010690 = sp757 (velvet mesquite), 2602547010690
+= sp847 + pinyon/juniper. ALL the mesquite/oak codes map to OH (sp38) in BOTH jl and FVS SPCTRN (absent-code default
+= max species #38; mapping CONSISTENT, not the bug). So this is an OH-class DIAMETER under-growth (e.g. 212342157010854:
+BA 75/48 by 2045 at matched TPA, 36% under; QMD live 7.3/jl 5.9 but TopHt jl-OVER = height-over/diameter-under).
+INSTRUMENTED (212342157010854, imodty 2): cr_gemdg sp38 DDS BIT-EXACT vs live (dp6.9→2.5529, dp9.5→3.006); dgdriv
+growth params MATCH (COR=0 both — 0 GST trees so UNcalibrated; SSIGMA=0.20, XDMULT=1.0, VARDG=0.00144 all match).
+⇒ large-tree DDS path is faithful; the under-growth is NOT gemdg/COR/tripling-scale. The height-over/diameter-under
+signature on small (dbh 0.1-9.5) OH trees points to the REGENT small-tree height→diameter allocation for OH (sp38
+uses the "all other species" DK=(HT2/(ln(HK-4.5)-AX))-1 path with AX=HT1(38)/AA(38); height uses POTHTG·PCTRED·VIGOR,
+not aspen Sheppard). NEXT DIG: instrument regent small-tree HTG+DG for sp38 (per-tree, pre-split) vs live — likely an
+OH HT1/HT2/AA coefficient or the small/large XWT blend. A genuine reducible class (≥3-4 mesquite/oak→OH stands), not
+cornered. Deferred (needs its own regent instrument cycle), documented so it's actionable. The 3 landed fixes
+(#14/morts/#15) reduced the material growth-type surface; the residual is this OH small-tree class + heterogeneous
+singletons (758040786290487 dense-oak size-class transition at QMD~1.0) + the cornered ±1-2 BA straddles.
