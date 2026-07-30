@@ -2690,3 +2690,17 @@ crt01=imodty2) had real volume+height gaps that resolved the vast majority of ne
 (0.08%) = the hard residual (aspen dense-regen RDPSRT cornered + 21 residual TCuFt + other columns) — a small tail
 for continued digging or acceptance. META: don't declare a tail cornered from one sample — sample several + keep
 measuring; the dominant class was reducible.
+
+### 2026-07-30 — Remaining 265 needs_dig characterized: heterogeneous cornered dense-phase (±straddle, verified)
+Characterized the 265 (0.08%) after #10/#11/#12: ALL signature=structure_densephase; worst_col BA 76 / TPA 75 /
+SDI 52 / CCF 39 / TCuFt 17 / QMD 6 (density columns). HETEROGENEOUS — 14 worst stands span sp 108/522/682/835/552/
+122/814/140/742/475/15/749/838/745 across forests R2/12,R3/8,R2/7,R3/6,R3/2… NO cluster (a species-specific bug
+clusters, as the Black Hills sp122/forest203 did). Verified the ±STRADDLE (honoring the "check several" lesson,
+not one sample): 246868108489998 (aspen/lodgepole) jl OVER-densifies (BA 82/89→94/149); 688820815126144 (white fir)
+jl UNDER-thins (TPA 517/610, jl keeps ~18% more). Opposite directions ⇒ ±straddle ⇒ the cornered RDPSRT self-thin
+tie-break (the exact multi-tie IND permutation of FVS's unstable quicksort), same accepted primitive as the eastern
+campaigns (dense under-thin bug #4 = 5-under:1-over straddle). Growth PROVEN bit-exact for the aspen sample (live-
+instrumented gemdg). ⇒ THE REDUCIBLE SURFACE IS NOW EXHAUSTED: the Black Hills IMODTY-3 class (#11/#12) was the
+last big reducible cluster; the remaining 265 are the heterogeneous cornered dense-phase self-thinning straddle.
+★ FINAL CR STATE: full FIA (338,644) / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig 265 (0.08%, all
+cornered dense-phase). 8 session fixes. Off-switch docs/CR_VARIANT_PORT_COMPLETE remains the USER's call.
