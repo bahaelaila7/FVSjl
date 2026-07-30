@@ -2178,3 +2178,22 @@ NET: CR growth core is PROVEN bit-exact (equations + NOTRIPLE per-record); the r
 mortality-selection tail + the shared ch9 tripled-RNG order — the cornered class, not a CR growth defect. Turn-key
 for the mortality crux: instrument VARMRT PCT + per-tree kill on THIS stand @cycle1 (NOTRIPLE) vs live — DBH is
 bit-exact so any EFFTR/kill diff is pure mortality-side (PCT source, crown, or TOKILL distribution).
+
+### ★★★ REAL FIX: CR inventory crown-dub was MISSING — the aspen residual was a REDUCIBLE crown bug, not ZZRAN/cornered
+The multi-layer "aspen = ZZRAN/mortality-selection cornered" conclusion was WRONG (measurement corrected it AGAIN).
+Instrumenting VARMRT per-tree on FIA 39451382010690 (NOTRIPLE, DBH bit-exact) showed large-aspen PCT/EFFTR
+BIT-EXACT but the 0.1" aspen SEEDLING: live ICR=95 / EFFTR=0.00038 vs jl ICR=0 / EFFTR=0.0076 (20× high).
+ROOT: `t.crown_pct=0` for the seedlings — the CR `setup_growth!` branch NEVER dubbed missing inventory crowns,
+while ALL FOUR eastern variants call init_crown_ratios!/_cs_init_crowns!/_ls_init_crowns! there. jl HAD the logic
+(`crown_ratio_update!(::CentralRockies; lstart=true)` fills ICR=0 crowns) but it was never wired. VARMRT
+EFFTR ∝ (100−CRI)/100 ⇒ CRI=0 vs 95 = 20× seedling over-kill (PROB=750) ⇒ cascades to the whole mortality
+distribution (jl over-kills seedlings → lower density → retains more large aspen → BA/SDI/CCF diverge).
+FIX: wire `crown_ratio_update!(s, s.variant; lstart=true)` in the CR setup_growth! branch (after _cr_dub_ages!,
+before calibrate — matching live CRATET→DGDRIV order). RESULT on the aspen stand: 2019 BA/SDI/TopHt/QMD/volumes
+now BIT-EXACT (was BA 112/123), 2029 BA/SDI/CCF bit-exact (TPA ±1), 2039+ much closer (BA 168/164 vs old 168/179).
+crt01_growth UNCHANGED (its trees carry input crowns ⇒ lstart dub skips them). Suite 38587/0-failed/75 (the 3
+errors are env: subprocess-depot + wiped SN oracle). This is FIX #6 of the CR campaign, found by the doctrine-#2
+VARMRT instrument. Residual 2039+ (TPA ±1-2%, self-thin tail) is the accepted class. META: the prior "growth
+bit-exact ⇒ residual is ZZRAN/mortality-cornered" chain was RIGHT that growth is faithful but WRONG on the cause —
+the mortality-side crux (correctly identified as the turn-key) WAS the reducible crown-dub, cornered only for lack
+of the VARMRT-PCT/CRI instrument. Lesson: push the mortality-side instrument BEFORE declaring cornered.

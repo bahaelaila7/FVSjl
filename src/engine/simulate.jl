@@ -70,6 +70,10 @@ function setup_growth!(s::StandState)
         _cr_dub_ages!(s)                  # CRATET age dub (cratet.f:552 FINDAG): ABIRTH from height for un-aged trees,
                                           # BEFORE calibration (FVS CRATET→DGDRIV order). Without it htgf's AP floors
                                           # to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (cr/crown.f);
+                                          # eastern variants call init_crown_ratios! here. Without it, 0.1" seedlings keep
+                                          # crown_pct=0 ⇒ VARMRT CRI=0 ⇒ EFFTR (100−CRI)/100 = 20× too high ⇒ seedling
+                                          # over-kill cascades to the whole stand's mortality distribution.
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
