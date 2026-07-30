@@ -2589,3 +2589,18 @@ scattered tail cases — a continued multi-pass dig target, but now well under 0
 2 live-crash fixes (maintainer patches) + FIX #10 (regent sub-breast-height DBH) + treelist dead-records (#8) +
 CrWidth cwcalc.f port (#9); volume_persistent class resolved by broken-top/FW2. Growth/mortality/volume cores +
 treelist reporting all bit-exact-or-cornered. Off-switch (docs/CR_VARIANT_PORT_COMPLETE) remains the USER's call.
+
+### 2026-07-30 — Remaining needs_dig (1,599) characterized: dense-regen small-tree growth, NOT a volume bug
+Characterized the post-fix-#10 needs_dig by worst_col: TCuFt 1355 (85%), then BA 76 / TPA 72 / SDI 51 / CCF 39.
+The "TCuFt-dominated" label is MISLEADING — it's a SYMPTOM, not a volume-equation bug. Dug the top one
+(190851682020004, 246% TCuFt @2042): inventory = 132 TPA of small ASPEN (sp746, D 0.1-1.9) + 5 TPA lodgepole.
+jl UNDER-grows the aspen regen (2022 BA 17 vs live 30, 43% at the FIRST cycle; jl higher TPA + smaller trees =
+less self-thin), and the density under-growth shows LARGEST in the volume column (vol scales super-linearly with
+DBH). So the remaining needs_dig tail is the DENSE-REGEN SMALL-TREE GROWTH class (aspen/oak sprouting species in
+the regent model) — the same family as FIX #10 but the residual after it (the HK>4.5 regent branch and/or the
+aspen REGENT height-calibration path for the D~0.5-1.9 regen, not the sub-breast-height D=0.1 that #10 fixed).
+This is a real reducible area = "chunk-6 (regent) refinement for dense-regen stands" — a continued multi-step dig,
+NOT a quick fix and NOT a volume/NVEL problem. ⇒ FINAL: the 1,599 needs_dig (0.47%) are ~85% dense-regen small-tree
+under-growth (regent tail) + ~15% dense-phase density/self-thin (cornered). The reducible next chunk is regent
+small-tree growth for the aspen/oak sprouting regen; the rest is cornered dense-phase. CR core (large-tree
+DG/height/crown/mortality/volume) remains bit-exact-or-cornered; this tail is the small-tree/regen refinement.
