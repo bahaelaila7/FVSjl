@@ -2558,3 +2558,18 @@ establishment/sprouting chunk is needed for this residual. FINAL DIG VERDICT: ne
 STALE; real reducible work = 2 live-crashes + FIX #10; volume_persistent resolved by broken-top/FW2; the
 structure_densephase tail is cornered (regent-oak-at-BH-crossing + ZZRAN dense self-thin). META: trust the .sum,
 never the tripling-window per-record treelist — it cost a mischaracterization here, caught by measuring the records.
+
+### 2026-07-30 — CR FIA SWEEP COMPLETE (full population, post-crash-fix)
+Resume finished: the sweep DB now holds **338,644 of 338,645 CR stands (full population; 1 skip)** — up from the
+prior 227,342. Final dig_class distribution:
+- bit_exact: 284,025 (83.9%)
+- ulp_class:  52,753 (15.6%)  ⇒ bit-exact-or-cornered = **336,778 / 338,644 = 99.4%**
+- needs_dig:   1,866 (0.6%)   (down from 3,452 — the re-sweep re-classified the old needs_dig with this session's
+                               growth+volume fixes; ~1,586 resolved to bit_exact/ulp_class)
+- live_crash:      0          (was 2 — BOTH crashes fixed; ZERO crashes across the full 338k population)
+CAVEAT: this sweep's jl process launched BEFORE fix #10 (sub-breast-height DBH), so the 1,866 needs_dig does NOT
+yet reflect #10's improvement to the dense-regen stands — a future re-sweep will drop it further. The remaining
+needs_dig are the cornered dense-phase self-thin tail (regent-oak-at-BH-crossing + ZZRAN) + the fix-#10-affected
+dense-regen not yet re-swept. SESSION RESULT: CR at FULL FIA coverage, 0 crashes, 99.4% bit-exact-or-cornered,
+needs_dig 0.6% — parity with the eastern variants' coverage. Reducible surface exhausted for the dominant classes
+(crashes + fix #10 + volume broken-top/FW2); residual is cornered.
