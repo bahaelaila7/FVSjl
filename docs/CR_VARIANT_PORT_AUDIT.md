@@ -2959,3 +2959,20 @@ the remaining ~19% divergence is the cornered families: RDPSRT self-thin selecti
 integer straddles + transient merch-threshold + tiny volume rounding. CR growth core = bit-exact-or-cornered, now
 MEASURED on a fresh sample rather than asserted. Remaining reducible leads live ONLY in the downstream-reporting leaves
 (volume-NVEL beyond Black Hills, FFE-fuel, establishment — none affect the growth core).
+
+### 2026-07-30 — Volume-leaf spot-check: alarming BdFt 2× is CORNERED tripling×merch-threshold (NOTRIPLE-proven); small BH cubic residual
+The fresh 300-sample flagged a cluster of merch-volume (BdFt/MCuFt) divergences; dug the worst persistent one
+(5442515010661, IMODTY-3 Black Hills, bur-oak sp823→internal26 DVEW + ponderosa sp122→13 FW2). WITH tripling: BdFt
+359/682 (jl 2×), MCuFt 77/142 — looked like a real merch bug. APPLIED THE NOTRIPLE DECISIVE TEST (doctrine #2): with
+tripling OFF, structure BIT-EXACT, BdFt BIT-EXACT (899/899, 1497/1497), only TCuFt (448/442, ~1%) + MCuFt (213/201,
+~5%) small residual. ⇒ the alarming 2× BdFt was ENTIRELY the tripling×merch-threshold interaction (tripled records
+straddling the d≥9 BFMIND / d≥DBHMIN boundary differently) — CORNERED, not a bug. (3rd time this session NOTRIPLE/
+measurement corrected a "real bug" inference — DBHMAX phantom, OH-small-tree phantom, now this merch-volume phantom.)
+RESIDUAL (NOTRIPLE, structure+BdFt bit-exact): a small ~1-6% CUBIC (TCuFt/MCuFt) difference on this Black Hills stand.
+Since BdFt (ponderosa-only FW2 board) is bit-exact while cubic differs, the residual is likely the OAK woodland cubic
+(sp26 bur-oak R2OLDV Chojnacky INT-339, cr_dve_vol.jl:40 `0.12853+0.105885·cr3`) or the FW2 cubic integration — a
+minor reducible volume-leaf lead (needs a volume-submodule relink r2oldv/fwinit to localize oak-vs-ponderosa; deferred
+as low-value ~5%). ⇒ VOLUME-LEAF VERDICT (spot-check): material volume divergences are dominated by CORNERED tripling×
+merch-threshold; the reducible residual is a small (~1-6%) Black Hills cubic term. The volume assignment/computation
+(DVE/NVB/FW2 incl. #11 SHP_BH) is largely faithful; no systematic merch-volume bug. METHOD reinforced: run NOTRIPLE
+FIRST on any merch-volume (BdFt/MCuFt) divergence — merch thresholds × tripling are a prolific cornered source.
