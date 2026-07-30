@@ -2352,3 +2352,19 @@ many trees, tree-id-matched (NOT DBH+HT which misaligns on the 16-vs-17 count); 
 gfortran to instrument the cull directly; (c) accept as the cornered reporting leaf. STATUS: CR growth+mortality
 BIT-EXACT nationally (crown-dub #6); all equations faithful; the lone residual is this CORNERED volume-cull
 reporting reduction. The port meets the bit-exact-or-cornered goal.
+
+### ★★ CORRECTION (TreeId-matched fit): residual is NOT cleanly cull-driven — it's FW2 EXTREME-H/D precision
+Did the proper TreeId-matched empirical fit (dig_treelist DBs, match jl-gross vs live-net vs input CULL by TreeId,
+inventory year) — this REFUTES the cull hypothesis: TreeId 7 (D=12.5 CULL=65) factor=1.0 (NOT reduced), TreeId 5
+(CULL=15) 1.0, TreeId 8 (CULL=5) 1.0, but TreeId 9 (D=11.2 H=40, CULL=35) factor=0.7384 (reduced). CULL=65 not
+reduced while CULL=35 IS ⇒ NOT cull-driven. The reduced tree (D=11.2 H=40) is EXTREME H/D (H/D=3.6, very tall);
+the un-reduced ones are normal H/D. ⇒ the divergence is primarily the FW2 (Flewelling) TAPER PRECISION at extreme
+height-diameter — jl's cr_fw2_vol/_fw2_sf_yhat over-estimates tall thin trees (and D=6.1 H=13 short trees). The
+"CULL>0 diverge / CULL=0 match" correlation from the DBH+HT-aligned pass was ALIGNMENT-CONTAMINATED (16-vs-17
+count → mismatched pairs). CAVEAT: D=20.5 (H/D=2.44, NOT extreme) IS reduced (live 39.093 vs measured FW2 TCUBIC
+51.375) — so there may be a SECOND effect on some large trees, entangled. ⇒ the volume residual = FW2 extreme-H/D
+taper precision (primary) + a possible large-tree reduction (secondary), BOTH downstream reporting-leaf effects,
+NOT growth/mortality. CORNERED. TURN-KEY (real): audit _fw2_sf_yhat/_fw2_sf_taper for extreme rh (tall) trees vs
+sf_yhat.f — the taper polynomial at high relative-height; the earlier "SHP/BRK/dib bit-exact" was verified ONLY on
+D=20.5 (normal H/D), NOT the extreme-H/D trees. META: the cull hypothesis was a ~60-turn detour caused by trusting
+DBH+HT alignment; the TreeId-matched fit (doctrine #3-adjacent) was the correct tool and should have been first.
