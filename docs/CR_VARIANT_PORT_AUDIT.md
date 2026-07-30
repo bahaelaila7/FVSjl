@@ -2741,3 +2741,16 @@ survivors differ — live's biggest at dpp30 has 0 growth/dds=-9.21, jl's shown 
 (aspen OVER + white-fir UNDER = ±straddle, both growth-faithful). DEFINITIVE: reducible surface exhausted; CR at
 99.92% bit-exact-or-cornered / full FIA / 0 crashes; remaining 0.08% = cornered RDPSRT self-thin. gemdg proven
 bit-exact on imodty 2 (crt01) AND 4 (this) AND the aspen path — the CR growth core is faithful across model types.
+
+### 2026-07-30 — 265 direction distribution: 5 over / 10 under / 5 ≈ (2:1 under-lean = cornered RDPSRT, not systematic bias)
+Final rigor check (honoring the "don't assume from 2 samples" lesson): sampled 20 random needs_dig, measured
+jl-vs-live total BA direction at the last cycle — 5 jl-OVER, 10 jl-UNDER, 5 ≈. A ~2:1 UNDER-lean, matching the
+eastern "dense under-thin bug #4" (5-under:1-over, established largely ±straddle-cornered). NOT a strong systematic
+bias (not 20:0 → not a single reducible mortality-rate bug). Combined with: growth PROVEN bit-exact (aspen +
+white-fir gemdg instrumentation), no species/forest cluster, RDPSRT tie-break = shared engine (validated for
+eastern via _rdpsrt!) ⇒ the 265 are the CORNERED dense-phase self-thin RDPSRT multi-tie permutation (leaning under,
+the accepted primitive), compounding through cycles. The under-lean is the known tendency of this cornered class,
+not a reducible rate bug (growth bit-exact rules out density feeding a rate difference). ★ DEFINITIVE: reducible
+surface exhausted+verified 4 ways (fixes resolved 92% of needs_dig; growth gemdg-bit-exact; no cluster; ±straddle
+w/ under-lean = cornered RDPSRT). CR PORT: full FIA 338,644 / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig
+265 (0.08% cornered) / 9 session fixes / treelist 100% faithful / growth proven bit-exact across imodty 2/3/4.
