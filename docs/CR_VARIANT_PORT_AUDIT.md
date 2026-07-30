@@ -2223,3 +2223,14 @@ residual is the FW2 volume-chunk precision on tall/short trees — a DOWNSTREAM 
 TURN-KEY: audit cr_fw2_vol vs fwinit.f for the height-diameter taper branch (the extreme-H/D trees expose it);
 DVE/NVB species were bit-exact in the sample. This + the accepted self-thin TPA tail are the only CR residuals
 after crown-dub #6 made the growth+mortality core bit-exact nationally.
+
+### FW2 residual LOCALIZED to jsp=23 (bristlecone 2-pt family): profile taper wrong at extreme H/D
+Instrumenting jl cr_fw2_vol on 756416407290487: the divergent W122 trees are jsp=23 (the `23<=jsp<=29` non-INGY
+2-pt family). Profile params (f, yhat_bh, dbhib) compute cleanly, but `_fw2_tcubic` gives the wrong total-cubic
+at extreme height-diameter: SHORT trees under-estimate (D=6.1 H=13: jl 1.5 / live 1.706), LARGE/short trees
+over-estimate (D=20.5 H=50: jl 51.4 / live 39.1 = +31%; D=11.2 H=40: jl 12.8 / live 9.45). Mid-range H/D trees
+are BIT-EXACT (D=9.5 H=25 tcf 6.0/6.0). ⇒ the CR volume residual is the FW2 (Flewelling) stem-profile taper for
+the jsp=23-29 family at extreme H/D — a bounded DOWNSTREAM leaf. TURN-KEY: relink the live NVEL volume lib
+(fwinit.f/fwvolm.f, the FW2 profile) instrumented for jsp=23, compare the taper `dib(h)` and the tcubic
+integration bounds vs jl _fw2_sf_yhat/_fw2_tcubic on a D=20.5 H=50 tree. DVE/NVB families were bit-exact in
+sample. This is the LAST characterized CR residual after crown-dub #6 made growth+mortality bit-exact nationally.
