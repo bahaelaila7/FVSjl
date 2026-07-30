@@ -242,6 +242,7 @@ a break point `trunc` (80% of standing height when none was supplied).
 function dub_missing_heights!(s::StandState)
     t = s.trees; sd = s.coef.species; ifor = Int(s.plot.forest_idx)
     isne = s.variant isa Northeast     # NE-only Allegheny (IFOR=3) HT-DBH overrides (variant-safe gate)
+    iscr_dub = s.variant isa CentralRockies   # CR Black Hills (IMODTY 3) no-AA height dub (cratet.f:352)
     # NOHTDREG/LHTDRG (cratet.f:292-335): for each invoked species, fit the Wykoff HT-DBH INTERCEPT from its
     # measured-height trees — `AA = mean(log(H−4.5) − HT2/(D+1))` over trees with H>4.5, NORMHT≥0, D≥3; if ≥3 such
     # trees and AA≥0, set IABFLG=0 so the dub below uses the calibrated Wykoff curve instead of Curtis-Arney.
@@ -285,6 +286,17 @@ function dub_missing_heights!(s::StandState)
             1.01f0
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
+        elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1
+            # cratet.f:352-360 — Black Hills (IMODTY 3, no AA fit): a distinct SI-driven logistic height
+            # curve, NOT the Curtis-Arney/Wykoff dub. Without it, all-missing-height Black Hills ponderosa
+            # dub ~8-10 ft low (⇒ TopHt + volume low).
+            si = s.plot.sp_site_index[sp]
+            if d > 0.5f0
+                32.108633f0 * fpow(si, 0.276926f0) *
+                    fpow(1f0 - fexp(-0.057766f0 * d), fpow(0.9844340f0, -0.169876f0)) + 4.5f0
+            else
+                (12.41173f0 + 0.04633f0 * si - 0.000158f0 * si * si) * d
+            end
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end
