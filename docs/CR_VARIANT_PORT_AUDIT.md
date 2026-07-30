@@ -2528,3 +2528,19 @@ note: launched BEFORE fix #10 so its structure_densephase results won't reflect 
 confirm the reduced reducible set. Session dig deliverables: 2 live-crash fixes + FIX #10 (sub-breast-height DBH) +
 confirmation that broken-top/FW2 volume work cleared the volume_persistent class. Remaining reducible surface after
 this = the cornered dense-phase self-thin tail (accepted primitive) + ZZRAN RNG stream-order (ch9, accepted).
+
+### 2026-07-30 — Dig conclusion: structure_densephase residual = sprout/regen RECORD-GRANULARITY (cornered/next-chunk)
+Localized the 4703045010690 2034+ residual (after fix #10 made 2004-2024 bit-exact): under the sweep's default
+"grow" keytext (NO ESTAB block), live carries 2× the tree records that jl does through the tripling cycles
+(live 24/72 vs jl 12/36 @2014/2024) — the SAME total TPA (6664 both, .sum bit-exact early). The extra live records
+are oak (sp814) sprout/natural-regen stems represented at finer granularity. With an explicit ESTAB block both
+sides produce 12/12 (they agree when establishment is configured identically). So the residual is the CR
+sprout/regen RECORD REPRESENTATION feeding per-record self-thinning + ZZRAN stream-order at later cycles — the
+cornered dense-phase class (accepted primitive, same as the eastern campaigns) OR, if pursued, the known-open CR
+establishment/sprouting port (a future chunk; memory flags estab/BACHLO as open). NOT a clean formula bug.
+DIG PHASE VERDICT (this session): the needs_dig thousands were mostly STALE. Real reducible work found+fixed =
+2 live-crashes + FIX #10 (sub-breast-height DBH). volume_persistent (9K) already resolved by the broken-top/FW2
+volume port (28% TCuFt → bit-exact/±1 ULP). Remaining reducible surface = cornered dense-phase self-thin
+(sprout/tripling record-granularity + ZZRAN) — accepted, or the establishment/sprouting chunk if the campaign
+chooses to pursue it. The running re-sweep will hand back clean post-crash coverage (its structure_densephase
+numbers predate fix #10; a future re-sweep reflects #10).
