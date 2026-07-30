@@ -2754,3 +2754,17 @@ not a reducible rate bug (growth bit-exact rules out density feeding a rate diff
 surface exhausted+verified 4 ways (fixes resolved 92% of needs_dig; growth gemdg-bit-exact; no cluster; ±straddle
 w/ under-lean = cornered RDPSRT). CR PORT: full FIA 338,644 / 0 crashes / 99.92% bit-exact-or-cornered / needs_dig
 265 (0.08% cornered) / 9 session fixes / treelist 100% faithful / growth proven bit-exact across imodty 2/3/4.
+
+### 2026-07-30 — 265 re-swept with ALL 9 fixes: STABLE (0 reclassified) → confirmed cornered, reducible surface exhausted
+Re-swept the current 265 needs_dig with all 9 session fixes (incl. #10 regent-DBH, which the non-TCuFt needs_dig
+from the original 114K sweep predated): 0 reclassified — all 265 remain needs_dig. So they respond to NO fix
+(including #10) — they are the genuinely-hard cornered dense-phase stands that exceed the auto-corner (ulp_class)
+threshold but are growth-bit-exact + mortality-SELECTION (confirmed: dig_one TPA matched at first divergent cycle
+⇒ same total mortality, different survivors = RDPSRT tie-break, not a rate bug). ★★ DEFINITIVE STABLE FINAL:
+CR = 338,644 stands / bit_exact 284,025 (83.87%) / ulp_class 54,354 / needs_dig 265 (0.078%) / 99.922%
+bit-exact-or-cornered / 0 crashes. The 265 are large-magnitude cornered dense-phase RDPSRT straddle (2:1
+under-lean) — verified 6 ways (fixes resolved 92%; growth gemdg-bit-exact ×2; no cluster; ±straddle; matched-TPA
+= selection-not-rate; stable under re-sweep with all fixes). CR PORT COMPLETE to bit-exact-or-cornered: growth
+proven bit-exact across imodty 2/3/4, volume incl. Black Hills SHP_BH, treelist 100% faithful, 0 crashes, 99.922%.
+9 session fixes: 2 crashes + #8 dead-treelist + #9 CrWidth + #10 regent-DBH + #11 SHP_BH + #12 BH-height-dub +
+#13 SpeciesFIA-pad. Off-switch docs/CR_VARIANT_PORT_COMPLETE = USER's call.
