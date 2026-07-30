@@ -537,6 +537,10 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # cwcalc.f (IWHO=0, forest-grown Bechtold/Crookston library, actual crown ratio + stand BA/elev/Hopkins),
     # NOT the eastern open-grown crown_width. Precompute the CR stand inputs once; per-tree via cr_cwcalc.
     iscr   = s.variant isa CentralRockies
+    # SpeciesFIA: FVS emits the 3-char zero-padded FIA code (FIAJSP). CR's data has 2-digit western codes
+    # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
+    # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
+    fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
     cr_hi  = iscr ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     cr_ba  = iscr ? s.plot.basal_area : 0f0
     cr_el  = iscr ? s.plot.elevation : 0f0
@@ -556,7 +560,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
         estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
         actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
         push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
-            strip(c.code_plants[sp]), strip(c.code_fia[sp]),
+            strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
             Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
             Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g),      # TPA, MortPA
             Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
@@ -598,7 +602,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
-                strip(c.code_plants[sp]), strip(c.code_fia[sp]),
+                strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
                 Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
@@ -638,6 +642,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)
     c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
     nsp = nspecies(s.variant)   # the variant's real species count (code arrays are padded to MAXSP capacity)
+    fia3(x) = s.variant isa CentralRockies ? lpad(strip(x), 3, '0') : strip(x)   # 3-char FIAJSP (CR western codes)
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
@@ -647,7 +652,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
         for sp in 1:nsp
             DBInterface.execute(stmt, (caseid, standid, sp,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
-                String(strip(co.code_fia[sp])), sditype,
+                String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
                 "FVS", String(strip(sp_eq[sp])),
                 Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
