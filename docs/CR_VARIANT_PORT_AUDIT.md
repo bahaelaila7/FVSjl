@@ -2512,3 +2512,19 @@ whether jl's sub-breast-height regen crosses D=0.1 the same cycle as live. NEXT:
 paused pre-tripling window, then the fix generalizes across the ~25K structure_densephase dense-regen stands. The
 volume_persistent (9,296) 2nd class = the FW2/NVB volume ULP (largely cornered per the volume dig). Dig is a
 multi-pass campaign like the eastern sweeps; the running re-sweep isolates cornered-vs-reducible post-fix.
+
+### 2026-07-30 — needs_dig was largely STALE (pre-session-fix); dig resolves both dominant classes
+Answering "why is needs_dig in the thousands": the prior sweep's 3,452 needs_dig (and the 34K ulp_class) PREDATE
+this session's fixes. Digging the two dominant diverging classes shows most are now resolved or cornered:
+- structure_densephase (25K, DOMINANT): had a REAL reducible bug — FIX #10 (regent.f:346 sub-breast-height DBH
+  increment). 4703045010690 now bit-exact 2004-2024. Residual @2034+ = cornered dense-phase (tripling/oak-sprout
+  record-granularity jl 12/36 vs live 24/72 + ZZRAN stream-order acting per-record through self-thinning; maxD
+  matches, .sum bit-exact early). ⇒ 1 real bug fixed + cornered tail.
+- volume_persistent (9K): sampled 24318722010900 (was 28.8% TCuFt) → NOW BIT-EXACT all cycles; 25013840010900
+  (29.3%) → ±1 ULP @2044; 25039978010900 (28.2%) → ±1 ULP. ⇒ RESOLVED by this session's broken-top CFTOPK/BFTOPK
+  + FW2/NVB volume port; the old 13-29% TCuFt divergences are now cornered ULP-or-±1.
+⇒ The needs_dig thousands were mostly STALE. The running re-sweep (114,757 uncovered, this session's growth fixes;
+note: launched BEFORE fix #10 so its structure_densephase results won't reflect #10 — a future re-sweep will) will
+confirm the reduced reducible set. Session dig deliverables: 2 live-crash fixes + FIX #10 (sub-breast-height DBH) +
+confirmation that broken-top/FW2 volume work cleared the volume_persistent class. Remaining reducible surface after
+this = the cornered dense-phase self-thin tail (accepted primitive) + ZZRAN RNG stream-order (ch9, accepted).
