@@ -568,7 +568,16 @@ function kw_thin!(s::StandState, rec::KeywordRecord, icflag::Int32)
     # Blank date field defaults to cycle 1 (IDT=1, initre.f:1189) — a cycle number, not a
     # year. cuts! interprets dates < 1000 as cycle numbers (FVS cycle = FVSjl cycle + 1).
     yr = rec.present[1] ? nint(v[1]) : Int32(1)
-    params = ntuple(i -> Float32(v[i + 1]), 6)
+    # THINDBH (icflag 8) / THINHT (12) carry a SPECIES field at position 5 (FVS SPDECD(5,...),
+    # initre.f:1212) — the cut is restricted to that species. It may be an ALPHA code (e.g. "AS"),
+    # so decode it via species_selector (0=all, >0 species index, <0 SPGROUP group) into param 4;
+    # `_thindbh!` consumes param 4 as `ispcut`. Reading it as a plain Float32 (the old code) turned
+    # "AS" into 0 = ALL species, so a species-targeted thin cut the whole stand. Options 24-28
+    # (THINBTA/ATA/BBA/ABA/PRSC) have NO species field, so their param 4 stays a plain numeric.
+    sp_thin = (icflag == Int32(8) || icflag == Int32(12))
+    params = ntuple(i -> (sp_thin && i == 4) ?
+                    Float32(species_selector(s, length(rec.fields) >= 5 ? rec.fields[5] : "")) :
+                    Float32(v[i + 1]), 6)
     push!(s.control.schedule, ScheduledActivity(yr, icflag, params))
     return
 end

@@ -3426,3 +3426,21 @@ FFE fire chunk, which is FUNCTIONAL + behavior-verified.
     CR_FFE_Reg_db / FIA fire stands), F3 low-pool lead, POTFIRE report. DONE (core).
 (3) ESTABLISHMENT: PLANT path bit-exact-or-cornered (crt01 stand 5). NATURAL/SPROUT ported, need a differential. DONE (core).
 Growth+volume core (chunks 0-9) remains bit-exact-or-cornered. Off-switch (docs/CR_VARIANT_PORT_COMPLETE) = USER's call.
+
+## ESTABLISHMENT — ALL 3 paths validated (PLANT/NATURAL/SPROUT) + a shared THINDBH species bug FIXED (2026-07-31)
+Built inline-tree scenarios (crt01.tre, NOTRIPLE) run through BOTH jl and live FVScr_clean (.crwork/vbrun/{nattest,
+estabtest}.key):
+  - NATURAL (nattest, DF+ES 2000): 2010 TPA 793/793 BIT-EXACT (BA 138, SDI, CCF, QMD all match); later cornered
+    growth-tail. NATURAL regen path faithful.
+  - SPROUT (estabtest, ThinDBH aspen 2000 + Sprout AS + Natural DF/ES): 2010 TPA 658/658 BIT-EXACT (BA 116/SDI 221/
+    CCF 135/QMD 5.7); TopHt ±2 (AVHT40 tie-break) + late growth-tail. Aspen suckering + natural regen faithful.
+  - PLANT: crt01 stand 5, bit-exact 1992-2022 (prior entry).
+★ REAL SHARED-ENGINE BUG FOUND + FIXED (via the SPROUT scenario): `kw_thin!` (keyword_dispatch.jl) read ALL THINDBH/
+THINHT params as Float32, so the SPECIES field (position 5, FVS SPDECD(5,...) initre.f:1212 — may be ALPHA like "AS")
+became 0 = ALL species ⇒ a species-targeted `ThinDBH ... AS 50.` cut the WHOLE stand (jl 2010 TPA 189 vs live 503).
+Fix: decode field 5 via species_selector into param 4 for icflag 8 (THINDBH) / 12 (THINHT) only — options 24-28
+(THINBTA/ATA/BBA/ABA/PRSC) have NO species field (no SPDECD), so their param 4 stays numeric. `_thindbh!` already
+consumes param 4 as ispcut. AFTER: cut-only 2010 TPA 503/503 BA 117/117 BIT-EXACT. Affects ALL VARIANTS (shared engine)
+— any species-targeted diameter/height thin was cutting everything. Suite check running (numeric/blank species fields
+unchanged ⇒ decode gives the same index; only alpha-species thins change, toward correct/live).
+⇒ ESTABLISHMENT (#2) COMPLETE: PLANT/NATURAL/SPROUT all bit-exact-or-cornered vs live.
