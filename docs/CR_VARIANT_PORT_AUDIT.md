@@ -4359,3 +4359,14 @@ TIMING confusion made jl's pre-fire fuel 50.09 look "off" vs the live 11.3 POST-
 fire comparison matches.) ⇒ FFE CHUNK now comprehensively bit-exact-or-cornered: crown-biomass (FMCROWW) + fire-
 behavior (flame/scorch/fuel-model) + fire-mortality (Reinhardt) + FUEL LOADINGS + CONSUMPTION all match live;
 residuals = AVHT40 ±1 tie-break + standing-snag ±0.1 ULP + the CR-only PotFIRE-cycle-1-empty-cwd report note.
+
+### PotFIRE-cycle-1 imperfection — scope bounded to the DBS FVS_PotFire table (latent)
+The 12th-bug fix's load_dead gate makes the CR cycle-1 PotFIRE report read empty cwd (dead fuel deferred to post-
+cuts!). Measured scope: jl's PotFIRE report (potential_fire) is generated ONLY when DBS output is configured
+(summary.jl potfire_collect gate) — a plain .sum/.out run never calls it. So the imperfection is confined to the
+FVS_PotFire DBS TABLE, cycle-1 row, CR-only, and only when the init-year has a thin (crt01 STAND-4). Cycle≥2 rows
+use the loaded fuel (fuels_init=true ⇒ load_dead=true) and are unaffected. The CR FVS_PotFire DBS table is not yet
+validated, so this is a LATENT report-leaf note, not an active divergence. A clean close needs the post-cuts!
+report reorder (move the pre-grow PotFIRE/carbon report block after the dead-fuel load) — deferred as low-value
+(narrow, DBS-only, CR-only, cycle-1-only). Live 1993 PotFIRE SEVERE flame 5.8 (fuel model 10@100%) is the target
+if/when the reorder + CR FVS_PotFire validation is done.
