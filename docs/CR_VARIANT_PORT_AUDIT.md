@@ -4244,3 +4244,20 @@ validated against the full FFE suite (SN/NE/CS/LS fire tests). Cleanest approach
 fuels_init LOAD into grow_cycle! right after cuts! (analogous to the existing fire-cycle fuel_period deferral),
 leaving the annual accumulation timing unchanged for all later cycles. Verify crt01 STAND-4 2013 BA→57(==live) +
 no eastern-FFE .sum change. DEFERRED to a focused FFE implementation pass (regression-risk-managed, not rushed).
+
+### FFE fire — ROOT-CAUSE CORRECTED: fuel-model weighting is MINOR, BA+9% driver is elsewhere
+IMPLEMENTED the scoped init-timing fix (deferred the dead-fuel LOAD to grow_cycle! post-cuts! + gated the PotFIRE-
+report fmcba! with load_dead=fuels_init) and MEASURED it: the init PERCOV corrected 46.26→44.39 (== live 44.4 ✓)
+and the 2003 fire behavior improved — flame 4.53→4.45 (live 4.4), byram 9102→8754 (live ~8537), scorch 19.62→
+19.11 (live 19.0). BUT the .sum BA was ESSENTIALLY UNCHANGED (2013 jl 62→63 vs live 57). ⇒ CORRECTION: the fuel-
+model over-weight is only a MINOR contributor; with the flame now NEARLY MATCHING live (4.45 vs 4.4) yet BA still
++11% off, the dominant BA+9% cause is NOT the fire behavior/fuel. It is DOWNSTREAM: either the per-tree FIRE
+MORTALITY SELECTION (which specific trees die at a given flame/scorch — FMEFF crown-scorch-volume × bark logistic;
+same TPA killed 93/94 but jl keeps bigger trees) OR the SURVIVOR GROWTH 2003→2013. REVERTED the fix (non-goal-
+achieving + the load_dead PotFIRE-report change makes the cycle-1 report use unloaded fuel = report risk). The
+init-timing observation stands as a real minor faithful discrepancy but is NOT the .sum lever. NEXT (re-scoped):
+at the 2003 SIMFIRE, compare the fire-KILLED TPA BY DBH CLASS jl vs live (instrument fmburn!'s per-tree PMORT/kill
++ relink live fmeff.f) — the same-count/different-size kill points at FMEFF crown-scorch-volume or the burned-
+fraction (PSBURN) draw, not the fuel model. META: a matched intermediate (flame) with an unmatched output (BA)
+proved the fuel-weight chain was a RED HERRING for the .sum — should have checked the .sum sensitivity to the
+fuel fix BEFORE the multi-step fuel-load localization.
