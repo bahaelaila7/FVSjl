@@ -337,3 +337,16 @@ carry PI/GROSPC). jl's raw Σ CCFT omits the /GROSPC (gross growing space) divis
 (find p.gross_space; confirm PI). Then RELDEN->98.39, DG WK2 -> bit-exact, then the 40-stand DG batch. NOTE:
 RELDEN may technically be the SDI-based RELDSP sum (dense.f:217 PRDA=P*(D/10)^1.605/GROSPC/XMAXPT) not the CCF
 sum — but the CCF-poly value (79->98 w/ GROSPC) tracks live 98.39 closely, so verify which after the GROSPC fix.
+
+## Chunk 5 — GROSPC hypothesis DISPROVEN (measured GROSPC=1.0); residual needs proper RELDEN diagnosis
+Measured: p.gross_space=1.0, p.pi=4.0, points_inv=4. So /GROSPC does NOTHING (=1) — the 79.27-vs-98.39 gap is
+NOT GROSPC (hypothesis retracted, doctrine #2: measure don't infer). The KT CCF polynomial (Σ kt_tree_ccf*tpa =
+79.27) is close-but-not-live's-98.39. PROPER diagnosis needed (do NOT cargo-cult a factor):
+  (a) RELDEN may be the SDI-BASED relative density (dense.f:217 PRDA=P*(D/10)^1.605*PI/GROSPC/XMAXPT; RELDT=
+      Σ RELDSP), NOT the CCF sum — compute SDI-relative for this stand and compare to 98.39. My CCF-poly being
+      ~80% of 98.39 could be coincidence.
+  (b) OR backdated-DBH: DGDRIV backdates DBH before dgf!; live's RELDEN(98.39) vs jl stand_ccf on current DBH.
+  (c) OR tree-set: jl stand_ccf sums live trees at dgf!; verify count/DBH match.
+IMPACT: small — RELDEN feeds only DGCCFA*RELDEN + CCFSQ*RELDEN^2 in DDS; DG WK2 already ~1% (was ~5%). Instrument
+the LIVE dense.f to print RELDSP/RELDEN derivation (relink) to settle (a) vs CCF-sum. The KT CCF polynomial +
+stand_ccf branch are committed (real: RELDEN 2.05->79.27); the final normalization/definition is the open item.
