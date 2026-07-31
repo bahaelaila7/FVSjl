@@ -266,7 +266,9 @@ function stand_ccf(s::StandState)
     ccf = 0f0
     if s.variant isa Kootenai
         # KT CCF is a direct per-tree polynomial (kt/ccfcal.f), not the crown-width→area path.
-        @inbounds for i in 1:t.n
+        # Include the DEAD partition (n+1:n+ndead) — live dense.f sums dead trees into RELDEN during the
+        # backdated calibration window (same dead-inclusive-density pattern as CR).
+        @inbounds for i in 1:(t.n + t.ndead)
             ccf += kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
