@@ -4892,3 +4892,20 @@ live's 121 — but must be checked against the NULL-site stand (where CCF was us
 eastern suite. This CLOSES the oak-con diagnosis: F1 = COR decay clock (END vs START), F2 = backdated-
 density basis (jl crown-CCF 68 vs live BA-scale RELDM1 121). Bounded (1 stand), fully localized,
 deferred to a focused CR-gated fix pass with revalidation.
+
+## Oak-con factor-2 — HONESTY CORRECTION (the BA reading is confounded; last layer unresolved)
+
+The prior note's "backdated BA=121.12 correct" is CONFOUNDED: 121.12 EXCEEDS the current live BA
+(71 at 2023), impossible for genuinely-backdated (smaller) trees ⇒ `s.plot.basal_area` in the
+backdated calibration window includes the NOTRE dead-tree inflation (the window exposes dead trees at
+inflated TPA), so it is NOT the pure backdated-live BA. So I CANNOT conclude "backdated BA correct,
+only crown-CCF distorted." What IS solidly confirmed for the bounded oak-con residual:
+  • jl oak con 1.234 vs live 2.33 (cycle 1) ⇒ oak under-grows (17% BA on 1855925743290487).
+  • F1 = small-tree-height COR decay CLOCK: jl END (elapsed+sfint) vs live START (~1.32×).
+  • F2 = the backdated-DENSITY VALUE feeding PCTRED: jl `_cr_bd_ccf`=68 vs live RELDM1=121 (~1.75×).
+The EXACT F2 sub-mechanism (crown-CCF vs BA-scale vs the dead-inflation/backdate-distribution
+interplay in the calibration window) is NOT cleanly isolated — the window's dead-tree exposure +
+backdated-dbh + crown-width all interact. Needs a clean per-tree isolation (backdated-dbh distribution
++ dead partition + crown width, live vs jl) in a focused pass. Bounded (1 stand /150), deferred.
+The CR port remains comprehensively bit-exact-or-cornered (18 fixes); this is the sole reducible
+residual, root-region-localized (calibration backdated-density + COR clock) but last-layer-open.
