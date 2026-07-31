@@ -43,7 +43,7 @@ end
 function dgf!(s::StandState, ::Kootenai)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
-    relden = stand_ccf(s)              # RELDEN = stand CCF (kt/dgf.f dense RELDEN; == CR DG's stand_ccf)
+    relden = stand_ccf(s)              # RELDEN = stand CCF (KT ccfcal polynomial via stand_ccf Kootenai branch)
     ba = p.basal_area
     lnba = ba > 0f0 ? log(ba) : 0f0
     managed = p.managed == Int32(1)

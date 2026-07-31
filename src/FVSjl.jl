@@ -69,6 +69,7 @@ include("variants/kootenai/species.jl")              # KT blkdat init (11 specie
 include("variants/kootenai/habitat_tables.jl")       # KT habtyp/sitset lookup tables (KOTHAB/JTYPE/KTYPE/MTYPE/BAMAXA)
 include("variants/kootenai/site_index.jl")           # KT habtyp 2-level mapping + sitset SDImax (site_setup!)
 include("variants/kootenai/dg_coefficients.jl")      # KT large-tree DDS coefficient arrays (kt/dgf.f DATA)
+include("variants/kootenai/crown.jl")                # KT per-tree CCF (ccfcal MODE=1) → RELDEN
 include("variants/kootenai/diameter_growth.jl")      # KT dgf! (Wykoff DDS) + kt_dgcons!
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
