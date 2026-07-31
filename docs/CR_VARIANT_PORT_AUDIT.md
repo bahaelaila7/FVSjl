@@ -3853,3 +3853,18 @@ the cycle-1 pre-split window (doctrine #3) or instrument jl small-tree DG vs a l
 NEXT: dig the small-tree DG (density suppression / the sub-inch DG rate / the 1"-transition) on one of these
 3. Tools: batch_dig.jl (sweep rate), dig_vol.jl. Re-running the full 1355-stand sweep would reclassify most
 as pass/cornered now.
+
+## Small-tree-DG class LOCALIZED two levels: jl CCF too high → PCTRED over-suppression
+Dug the remaining small-tree-DG seedling class (the ~10% of tcuft_nd the mortality fix didn't clear). MECHANISM
+(cr/regent.f:185-190, small_tree_growth.jl:125-129): the small-tree height/DG reduction PCTRED = AB-poly(x),
+x = AVHT·(CCF/100). MEASURED from the .sum CCF column: jl CCF is ~15-40% TOO HIGH and GROWING (CN
+381211668489998: CCF jl/live 7/6 @2025, 14/10 @2035, 68/50 @2045) at MATCHED TPA ⇒ higher x ⇒ lower PCTRED ⇒
+the regent small-tree DG (dg = htg·0.2·bark·xrdgro) is over-suppressed ⇒ QMD jl0.5/live0.6, compounding. So
+the small-tree under-growth is DOWNSTREAM of a CCF/crown-width over-estimate on ultra-dense sub-inch stands,
+NOT a regent-DG-equation bug per se. ROOT candidates (need a live ccfcal per-tree instrument to disambiguate):
+(a) cr_crown_width RDA/RDB coefs (crown.jl:171, per-tree CCF = RDA·D^RDB for 0.1<D<10) too high; (b) the
+sub-inch tree-count distribution near the D=0.1 CCF cliff (D≤0.1→0.001 vs D>0.1→RDA·D^RDB) — jl may hold more
+trees just above 0.1. NEXT: relink a live ccfcal/crown crown-width dump, compare jl cr_crown_width(sp,D,imodty)
+per D on one seedling stand — if the formula matches, it's the distribution (⇒ back to a subtler DG/HTG diff);
+if not, fix RDA/RDB. This is the last bounded CR growth-core class (~10% of the volume-flagged stands). The
+mortality-bark fix (commit e27ade9) remains the turn's headline: it cleared ~90% of the 1355-stand flag list.
