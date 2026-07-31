@@ -4571,3 +4571,31 @@ simfire stands: pre-fire bit-exact, small cornered post-fire residuals, no regre
 surface-fuel loopback; BD snag CURRENT-broken-height (live FMSVOL to HTIH/HTIS vs jl total
 fallvol — the BD 0.167-vs-0.23 gap, model-inert while FWIND≤7). Remaining FFE fuel leaves:
 OBCT (413-518) rules + ASCT conifer-understory branch (946+).
+
+## CHUNK 9 / FFE fuel-model — OBCT oak-brush branch ported (15th CR full-cycle bug fix)
+
+**Symptom (HIGH impact):** ict==1 (OBCT oak-brush) was the last unhandled CR cover-type in
+`cr_select_fuel_models` — oak-dominant stands fell through to natural-fuel candidates (hot
+down-wood models 10/12) instead of the OBCT model 8/5 rule. On CN 103432853010661 (pure Gambel
+oak) the 2026 SIMFIRE year went to BA=0 in jl (total kill) vs live BA=18. 2467 CR oak-dominant
+FIA stands are affected.
+
+**Port (fuel_model.jl ict==1, fmcfmd.f:413-518):** FWIND≤7 → model 8. FWIND>7: CTBA(OBCT)==0 →
+model 5; else compute X (BA-weighted avg oak height, sp 23-27) + BL (crown+bole over ALL trees,
+NO USHT filter — differs from PPCT) + BD (snags, no height filter, PLUS LARGE+SMALL down-wood) →
+Y=100·BD/(BD+BL); then X≤2 OR Y≤50 → model 5, X>6 AND Y>50 → model 4, else ALGSLP(X,[2,6],[0,1])
+model 4/5 blend.
+
+**Measured (instrumented live OBCT: WRITE X,Y,FWIND,CTBA):** the FWIND>7 model-5 selections are
+driven by **Y≤50** (Y=34.7-43.3, live-biomass dominant), NOT X (X=17-31, all >6). ⇒ the fragile
+live buggy-IND1(J) X computation (species-sort-order dependent — reads IND1(J) not IND1(J2)) is
+IRRELEVANT for the common oak-brush case; it only affects the rare Y>50 dead-dominant blend. We
+port the INTENDED avg-oak-height X and document the buggy-IND1 divergence as a bounded residual
+(mixed-stand + Y>50 only; in dominant-oak stands live's bug reads oak trees anyway so X agrees).
+
+**Validation (simfire):** CN 103432853010661 (pure oak) — the BA=0 total-kill is GONE; TPA/BA/
+SDI/CCF/TopHt/QMD all **bit-exact through the fire** (2026: 165/165, 18/18, ...), only ±1 merch-
+volume cornered residuals. 103606117010661 (0.60 oak) bit-exact through fire; 103604451010661
+(0.64) bit-exact-or-±2. 11684018010690 (0.52, borderline-mixed) small BA residual ~2 at near-
+total-kill (buggy-IND1 X or covertype boundary — cornered, tiny absolute). PPCT stand unchanged
+(no regression; ict==1 was previously unhandled ⇒ non-oak covertypes unaffected).

@@ -547,7 +547,45 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     ifmst = structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
     imodty = Int(s.plot.model_type)
     eqwt = zeros(Float32, _FMD_ICLSS)
-    if ict == 2                                    # PJCT pinyon-juniper (fmcfmd.f:530-543, CR) — pure PERCOV
+    if ict == 1                                    # OBCT oak-brush (fmcfmd.f:413-518, CR)
+        if fwind <= 7f0
+            eqwt[8] = 1f0                           # low wind ⇒ model 8 (the common case)
+        elseif ctba[1] <= 0f0                       # CTBA(OBCT)==0 ⇒ model 5
+            eqwt[5] = 1f0
+        else
+            p2t = _FM_P2T; v2t = coef_col(s.coef, :v2t)
+            # X = BA(FMPROB)-weighted avg height of oak species (23–27). NOTE: live uses a buggy IND1(J)
+            # index (species-sort-order dependent) that in dominant-oak stands reads oak trees anyway; we
+            # compute the INTENDED avg oak height. In mixed stands with Y>50 (the only X-dependent path)
+            # this can diverge from live's buggy X — a documented bounded residual (rare dead-oak case).
+            xh = 0f0; psum = 0f0; bl = 0f0; bd = 0f0
+            @inbounds for i in 1:t.n
+                t.tpa[i] > 0f0 || continue
+                spi = Int(t.species[i]); dd = t.dbh[i]; hh2 = t.height[i]; pr = t.tpa[i]
+                (23 <= spi <= 27) && (xh += hh2 * pr; psum += pr)
+                xv = crown_biomass(s, spi, dd, hh2, Int(t.crown_pct[i]))   # BL over ALL trees (NO USHT filter)
+                bl += xv[1] * pr * p2t
+                for j in 2:6
+                    bl += (xv[j] + t.ffe_oldcrw[j - 1, i]) * pr * p2t
+                end
+                bl += pr * v2t[spi] * p2t * cr_snag_bole_cuft(s, spi, dd, hh2)  # bole; v2t RAW ⇒ ·P2T
+            end
+            x = psum > 1f-6 ? xh / psum : 0f0
+            sn = fs.snags
+            @inbounds for k in eachindex(sn.sp)                            # snags (NO height filter for OBCT)
+                bd += sn.fallvol[k] * (sn.den_hard[k] + sn.den_soft[k])
+            end
+            bd += lg + sm                                                   # + LARGE + SMALL down-wood
+            y = (bd + bl) > 1f-6 ? 100f0 * bd / (bd + bl) : 0f0
+            if x <= 2f0 || y <= 50f0
+                eqwt[5] = 1f0
+            elseif x > 6f0 && y > 50f0
+                eqwt[4] = 1f0
+            else                                                           # 2<X≤6, Y>50: model 4/5 blend
+                w4 = _fm_algslp2(x, 2f0, 6f0, 0f0, 1f0); eqwt[4] = w4; eqwt[5] = 1f0 - w4
+            end
+        end
+    elseif ict == 2                                # PJCT pinyon-juniper (fmcfmd.f:530-543, CR) — pure PERCOV
         if percov <= 25f0
             eqwt[2] = 1f0
         elseif percov <= 35f0
