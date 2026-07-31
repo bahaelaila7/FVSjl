@@ -4281,3 +4281,18 @@ metrics within ±1-4 through the run. Residual (TPA 89/93, TopHt ±1) = PSBURN p
 Zero-regression (Pkg.test 1918/140-preexisting/3 identical; CR-gated). ★ META: the CORRECTED root-cause (prior
 entry: "driver is FMEFF selection, not fuel") was RIGHT — the fuel-weight chain WAS a red herring; the fix was one
 line once I compared the kill-by-size-class (live MORTALITY REPORT gives it directly, no relink needed).
+
+### FFE fire — post-11th-bug residual characterized: deterministic flame over-estimate (fuel chunk)
+The 2003 SIMFIRE has PSBURN=100 (whole stand burns, live BURN report "PERCENTAGE OF THE STAND BURNED: 100.0") ⇒
+the fire kill is DETERMINISTIC (pmort×tpa, no stochastic burned-fraction RANN selection). fmeff.f loops tree-index
+order (DO 100 I=1,ITRN) — matches jl. So after the 11th-bug mortality-grouping fix, the ONLY remaining fire
+divergence is that jl kills ~5 more TPA UNIFORMLY across all DBH classes (47.3/153/17.1 vs live 45/150/17) — the
+signature of a slightly-HOTTER fire: jl flame 4.53 vs live 4.4 (+3%). That flame over-estimate is the FFE FUEL-
+BEHAVIOR issue already localized (the reverted init-timing: dead-fuel LOAD reads pre-thin PERCOV 46.26 vs live's
+post-thin 44.4 ⇒ LARGE fuel +2.75% ⇒ FMDYN over-weights the hot model ⇒ flame +3%). Because PSBURN=100 the kill is
+deterministic, so closing the flame to 4.4 WOULD make the fire bit-exact — but the init-timing fix only reached
+flame 4.45 (a second ~1% residual from the fuel accumulation / fire-basis), and its clean implementation needs the
+invariant-heavy post-cuts! reorder of BOTH the dead-fuel load AND the PotFIRE-report fmcba!. VERDICT: FFE fire
+MORTALITY is now correct (11th bug); the .sum is within ±1 BA. The remaining ±4-TPA / +3%-flame residual is the
+bounded FFE FUEL-BEHAVIOR chunk (init-timing + accumulation) — a documented, faithful-reorder lead, not a
+mortality bug. crt01 STAND-4 2013 BA 56 vs live 57 (was 62).
