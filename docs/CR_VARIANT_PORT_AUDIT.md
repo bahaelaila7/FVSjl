@@ -4164,3 +4164,21 @@ ACCUMULATED from the mid-cycle self-thin/RDPSRT density tie-break (2052 SDI jl21
 competition ⇒ taller, persists) — the cornered cross-variant class, NOT a height-model bug (gemht is bit-exact at
 matched age+bautba). CR-gated (SN/NE/CS/LS share the latent gap but are separately validated — avoided unvalidated
 churn). Zero-regression (Pkg.test 1918/140-preexisting/3 identical; normal FIA inventory stands unchanged).
+
+### Systematic post-fix verification — general needs-dig sample confirms cornered-only residual
+After the 9th (aspen HCOR) + 10th (established ABIRTH) fixes, sampled the general cr_cns_needsdig list (first-two-
+projected-cycle bit-exactness = the discriminator: early divergence ⇒ real bug; late-only ⇒ cornered tail):
+- 2/10 fully bit-exact in both early cycles (pure cornered tail).
+- 6/10 first-projected-cycle BIT-EXACT, divergence starts cycle 3+ (cornered self-thin/ULP tail).
+- 2/10 a ±1-unit first-cycle rounding on ONE column (BA 55/56, TopHt 79/78) — tie-break.
+- The largest early case (CN 12224788, TPA 22338/22277 = 0.27% @cyc1 → 9.5% @2027) is a 25000-TPA SEEDLING
+  explosion: INVENTORY (2007) BIT-EXACT (equations correct); the divergence is the RDPSRT self-thin tie-break
+  picking different survivors among thousands of IDENTICAL tied seedlings (the accepted ultra-dense ±straddle
+  class, memory dense-underthin-bug4, already RDPSRT-cornered).
+Also validated the NATURAL keyword establishment path == PLANT (same AGEPL=TRAGE) — the 10th-bug ABIRTH fix is
+correct for both keyword regimes; the estab.f:517 distinct-AGEPL formula applies only to the AUTOMATIC ESTAB
+tally regen (not keyword PLANT/NATURAL). VERDICT: CR growth/mortality/crown/small-tree/volume/establishment are
+bit-exact-or-cornered end-to-end; 10 bugs fixed; NO remaining reducible bug class surfaced by the sample. Residual
+= cornered cross-variant (RDPSRT self-thin tie-break, growth-ULP vol oscillation, ±1 rounding, ultra-dense-seedling
+straddle). Downstream leaves still unported: FFE fuel/fire TABLES (crown-biomass FMCROWW done) + automatic-ESTAB
+natural in-growth model (keyword regen done).
