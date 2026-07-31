@@ -531,3 +531,17 @@ refinements: (a) small-tree density feedback; (b) ZZRAN + XWT final-HTG + D<3 DG
 cornered ch9); (c) tripling stash (dgU/dgL/htgU/htgL/is_small) — currently central-only; (d) KT REGENT-height
 HCOR calib branch in the shared calibrate_diameter_growth! (con=exp(htg_cor_small), 0 until added — inert on
 no-measured-small-HTG stands). CON/XRHGRO(:regh)/XRDGRO(:regd) wired. All KT-gated.
+
+## Chunk 7 (mortality) — SCOPING: KT is HAMILTON MORTS, NOT VARMRT (distinct from all prior variants)
+The full grow_cycle now runs DG→height→regent and blocks at mortality: _varmrt_efftr!(::Kootenai) is undefined.
+FINDING (measured): KT has NO varmrt.f — it uses kt/morts.f = the HAMILTON mortality model, structurally DIFFERENT
+from the VARMRT/EFFTR model that SN/NE/CS/LS/CR all share (the jl shared mortality! driver + _varmrt_efftr! hook).
+Hamilton (kt/morts.f:273-288): per-tree annual rate RIP = 1/(1+exp(2.76253 + 0.222310·√D − 0.0460508·√BA + …))
+·POTENT; stand rate RIPP = (BA·RZ + (BAMAX−BA)·RIP)/BAMAX, floored at RIP, capped 1; periodic kill WKI =
+P·(1−(1−RIPP)^FINT)·X; SDIMAX self-thinning (SDICAL) drives the density limit. So KT needs its OWN mortality path
+(a mortality!(::Kootenai) or a Hamilton base-rate hook feeding the shared SDIMAX/kill flow) — NOT an EFFTR method.
+This is the last growth-core chunk before the full-cycle .sum can run. Requires reading kt/morts.f fully + the
+shared mortality! driver to choose the integration seam (rate-hook vs full driver), then instrument-replay validate
+the per-tree RIPP/WKI vs live FVSkt. GROWTH CORE STATUS: DG (bit-exact) + height (CON bit-exact) + regent (htgr1
+~0.05%) all run end-to-end; mortality (Hamilton) is the remaining growth-core piece, then crown (5) full-cycle
+validation, volume (8, shared NVEL), full-cycle differential (9).
