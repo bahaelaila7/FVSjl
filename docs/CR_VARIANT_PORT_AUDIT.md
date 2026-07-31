@@ -5046,3 +5046,16 @@ jl-HIGH, 255124 jl-low; 462 species BOTH directions ⇒ density straddle). 1 (43
 converging transient (above). The oak class (814, persistent) is GONE — resolved by the 19th+20th fixes.
 ⇒ NO persistent reducible growth bug remains in the 265-stand curated population; all flags are cornered
 (±straddle) or a converging transient. CR growth is bit-exact-or-cornered. 20 CR bugs fixed.
+
+## 430462971489998 — species mapping CONFIRMED correct (doctrine #2); candidate is CORNERED
+
+Verified the species mapping: the stand's trees are FIA 901/919/641. FIA 901 = Robinia pseudoacacia
+(black locust, alpha RP) → CR "OH" (sp38) in BOTH jl (species_translation.csv:390) and live
+(spctrn.f:1036 → 'OH'). FIA 919/641 are in NEITHER table ⇒ both jl+live map them to the "other" species
+(sp38 OH). So the species mapping AGREES — NOT a mapping bug. Combined with the CONVERGING divergence
+(BA 17%→3% by 2045, TPA crossing jl-low→jl-HIGH), 430462971489998 is CORNERED (an sp38-dominated dense
+stand's self-thin/first-cycle transient), not a reducible bug. ⇒ ALL 4 flagged stands in the 265-sweep
+are cornered (3 ±straddles + this transient). NO reducible growth bug remains in the curated population.
+CR growth is comprehensively bit-exact-or-cornered. (The earlier "no J38 con print" was a probe-placement
+artifact — sp38 trees route via cr_esgent!/xmax-skip, not the small_tree_growth! con line I instrumented
+— NOT evidence of a mapping divergence.)
