@@ -205,3 +205,23 @@ kt/dgf.f — likely RELSDI/relative-SDI or a density ratio; find its assignment)
 index (shared point-CCF — check the engine's per-point CCF); (3) the DUM1/DUM2 condition at :316. Then implement
 kt_dgcons! (DGCON from DGHAB/DGFOR/elev/slope-aspect via KKTYPE=habitat_code + KOTFOR) + dgf! (DDS eqn, WK2=DDS,
 no bark) + loader PV_CODE->habitat_code + per-tree WK2 instrument-replay vs live on 40 IE stands.
+
+## Chunk 3 — MEASUREMENT COMPLETE (all stand-stats sourced); dgf! is now a pure coding task
+Final stand-stat sources traced:
+  - RELDEN = shared dense.f (RELDEN=RELDM1 dense.f:261, or RELDT :247) — the stand RELATIVE DENSITY. NOT
+    KT-specific; the FVSjl engine already computes it (CR used dense.f RELDM1 for crown/REGCAL). Find the jl
+    field (compute_density! output — the relative-density scalar CR reads).
+  - PCCF1 = PCCF(ITRE(I)) — POINT CCF at the tree's inventory point (ITRE(I)=tree's point). Shared point-CCF
+    (the engine's per-point CCF, as CR estab used density.point_ccf[plot_id]).
+  - DUM switch = MANAGD (managed-stand flag): MANAGD==1 -> DGPCC1 else DGPCC2 (both x PCCF1).
+  - BA=p.basal_area; PCT=crown percentile (t.crown_ratio); CR=crown ratio (t.crown_pct); D=t.dbh; ELEV/SLOPE/
+    ASPECT from plot.
+FULL dgf!(::Kootenai) SPEC (all inputs now sourced):
+  kt_dgcons!: dg_const[sp] = DGHAB[MAPHAB[KKTYPE,sp],sp] + DGFOR[MAPLOC[KOTFOR,sp],sp] + DGEL[sp]*ELEV
+    + DGEL2[sp]*ELEV^2 + (DGSASP[sp]*sin(ASP)+DGCASP[sp]*cos(ASP)+DGSLOP[sp])*SLOPE + DGSLSQ[sp]*SLOPE^2
+    (+ ln(COR2)); KKTYPE=plot.habitat_code (ch2), KOTFOR=forest index.
+  dgf! per tree: DDS = dg_const[sp] + COR[sp] + DGCCFA[sp]*RELDEN (sp11: 0.01*) + DGLD[sp]*ln(D)
+    + CR*(DGCR[sp]+CR*DGCRSQ[sp]) + DGDBAL[sp]*BAL/ln(D+1) + CCFSQ[sp]*RELDEN^2 + DGDS[sp]*D^2 + DGLBA[sp]*ln(BA)
+    + (MANAGD? DGPCC1[sp] : DGPCC2[sp])*PCCF(point); BAL=(1-PCT/100)*BA (sp11:/100); clamp>=-9.21; WK2=DDS (no bark).
+=> CHUNK-3 MEASUREMENT COMPLETE. Remaining = pure coding (map jl field names for RELDEN/point-CCF/MANAGD/ELEV/
+SLOPE/ASPECT) + kt_dgcons!/dgf! + loader PV_CODE->habitat_code + per-tree WK2 instrument-replay vs live.
