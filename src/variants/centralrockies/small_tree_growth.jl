@@ -134,7 +134,13 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     # DG/HTG — and CR's gemdg is explosive on tiny DBH (limber pine sp10 balloons D 1.3→13). nrec=3 while
     # tripling, else 1 (non-tripling stands draw once, identical to before).
     nrec = stash !== nothing ? 3 : 1
-    @inbounds for i in 1:t.n
+    # FVS regent.f:197-239 processes trees SPECIES-SORTED (DO ISPC=1,MAXSP; DO I3=ISCT(1),ISCT(2) via IND1 —
+    # SPESRT's chain sort ⇒ record order WITHIN a species). The per-record ZZRAN (BACHLO) draws must happen in
+    # THIS order, else the per-tree deviate — and EVERY downstream RNG draw — desyncs vs live on multi-species
+    # stands (jl's record-order interleaving ≠ FVS's species grouping). Iterate species-then-record to match.
+    _sp_order = sortperm(view(t.species, 1:t.n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
+    @inbounds for oi in 1:t.n
+        i = _sp_order[oi]
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i])
         d = t.dbh[i]
