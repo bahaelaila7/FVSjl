@@ -5012,3 +5012,17 @@ fix) AND AVH (this 20th fix) — not the current live-only values. My earlier cl
 RED HERRINGS (superseded); the clock is END for all (correct), the cornew followed from AVH+CCF. The
 18th fix's "AVH stays CURRENT" note was WRONG (it coincided on the NULL-site stand). CR growth is now
 bit-exact-or-cornered with NO known reducible residual.
+
+## NEW candidate (265-sweep) — 430462971489998: small-tree DG jl-low, NOT oak (species 919), same class
+
+The 265-stand growth-bug sweep (post-20th-fix) confirms the oak class (814) resolved but flagged a NEW
+persistent jl-low candidate: 430462971489998 @2025 BA 178/148 (16.9% jl-low), QMD 2.1/2.0. Species FIA
+919 (n=7197, avgD 0.9") DOMINANT + 901(7.4") + 641(8.8"); NULL site (LOC 310). The tiny 919 grow to
+~2" and dominate the BA, so the BA-low is SMALL-TREE DG — SAME signature as the oak (small-species
+dominant, NULL site, cycle-0 bit-exact, first-cycle jl-low, converges later). But species 919 ≠ oak
+(sp23), so it likely uses a DIFFERENT small-tree DG path (not the ivflag oak DK path); the 19th/20th
+backdated-window PCTRED fixes are stand-level (apply to all species) so the con should be right — ⇒
+the residual is likely species-919-specific: its SITEAR (NULL-site SI default), its small-tree DG
+equation, or its calibration. NEXT LEAD: trace 430462971489998 species-919 con/SITEAR/DG vs live
+(same playbook as the oak: FVScr_reg OCYC/LAVH/LCORNEW + jl JCON/JEDH). The 3 ±balanced straddles
+(536543/255124/224766, non-oak, same-species-both-directions) remain the accepted self-thin class.
