@@ -76,6 +76,9 @@ include("variants/kootenai/regent.jl")               # KT regent (chunk 6): kt_r
 include("variants/kootenai/mortality.jl")            # KT mortality (chunk 7): Hamilton MORTS
 include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Region-1 Flewelling FW2
 
+# --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
+include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -163,7 +166,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees

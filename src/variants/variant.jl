@@ -39,6 +39,7 @@ function variant_from_code(code::AbstractString)
     (c == "LS" || c == "LAKESTATES" || c == "LAKE STATES") && return LakeStates()
     (c == "CR" || c == "CENTRALROCKIES" || c == "CENTRAL ROCKIES") && return CentralRockies()
     (c == "KT" || c == "KOOTENAI") && return Kootenai()
+    (c == "IE" || c == "INLANDEMPIRE") && return InlandEmpire()
     error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States, CR = Central Rockies, KT = Kootenai)")
 end
 
