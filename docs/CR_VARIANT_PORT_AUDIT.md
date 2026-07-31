@@ -3322,3 +3322,29 @@ analysis)** — the big sub-dependency; the biomass helpers (crown_biomass ✓ e
 PPCT/OBCT cases; LDRY (DROUGHT date range — false for crt01, jl `ldry` exists). Validate ICT+IFMST+FMD vs live
 FVScr_cfmd per cover type, then the FFE stand .sum (2013 TPA→~93), then re-check the crown-fire torching index + apply
 the moisture effect. This is the western FFE fuel-model hub (shared w/ TT/UT); the largest remaining CR chunk.
+
+## FFE fuel-model — FRAMEWORK PORTED, wipeout FIXED; FMSSTAGE (structure class) is the last piece (2026-07-31)
+Ported `cr_select_fuel_models` (fuel_model.jl) + `_cr_fm_covtype` species→metagroup map + `_FMD_XPTS_CR` (model
+10=(15,30), ICLSS=12) + wired the CR branch into select_fuel_models. RESULT: crt01 FFE wipeout FIXED — 2013 TPA
+jl 1→**144** (live 93); the stand survives (fire kills 287→144 not 287→1). Big correctness win.
+RESIDUAL (144 vs 93): jl now picks model 8 (sch 3.79) not model 10 (live sch 18.97) — the fire is now slightly too
+WEAK. Cause: my FIRST-CUT IFMST (single-stratum proxy, mean DBH~8 → IFMST=2 → MCCT EQWT(8) → weak model 8). Live's
+IFMST=3 (multi-stratum) → EQWT(10) → FMD=10. So — CONTRARY to the earlier guess — crt01's FMD IS sensitive to IFMST
+(IFMST=2 uniquely picks weak model 8). ⇒ must port the real FMSSTAGE (sstage.f) for the correct NSTR/IFMST.
+FMSSTAGE SPEC (complete, for the port — sstage.f, FFE path FMFLAG=1, CR params TPAMIN=200 CCMIN=5 PCTSMX=30
+SAWDBH=18[12 lodgepole] SSDBH=5 GAPPCT=20):
+  1. INDEX = trees with TMPPRB>1e-5; if ≤1 tree → simple size class (sstage.f:58-90).
+  2. RDPSRT INDEX by HT descending (jl _rdpsrt!); WK6[i]=crown_width²·TMPPRB·0.785398 (crown area/ac).
+  3. Gap analysis (306-366): walk top→down; a GAP = tree >max(10, HT·GAPPCT%) below current top, skipping ladder
+     trees (cumulative TMPPRB<2.0). Track the 2 largest gaps DIFF1@ID1, DIFF2@ID2 (each = first/last tree pointers).
+  4. Ensure upper stratum on top (swap ID1/ID2 if ID1I1>ID2I1, 371-383). NSTR 1/2/3 + boundaries IS1I1..IS3I2 (388-408).
+  5. COVOLP cover per stratum = (1-exp(-CCCOEF·Σcrownarea/43560))·100; CRS>CCMIN(5) ⇒ ISxOK. NSTR=IS1OK+IS2OK+IS3OK.
+     NSTR=0 & TPA≥TPAMIN ⇒ one stratum of all.
+  6. DOM stratum = first OK; TMPDBH = SSTGHP mean DBH: cover-cumulate to I3 (95%·43560=41382), RDPSRT by crown-area-
+     per-tree WK4=WK6/TMPPRB, PCTILE→I70 (70th pctile), SD=Σ(DBH·TMPPRB) over K1=I70-4..K2=I70+4, DBHS=SD/ΣPRB.
+     DMIND = DBH of the stratum's last (smallest) tree.
+  7. Size class TMPSCL (539-576): NSTR=1: <SSD→1; <SAW→2 (→1 if SDI<.01·PCT·BAmax); else→5 (→6 if DMIND<3). NSTR=2:
+     <SSD→1; <SAW→3; else→6. NSTR=3: <SSD→1; <SAW→4; else→6.
+Deps in jl: _rdpsrt! ✓, PCTILE ✓ (stand_pct!), crown_width ✓ (CWCALC). Need to port COVOLP + the SSTGHP DBHS window.
+Then wire IFMST into cr_select_fuel_models MCCT, validate crt01 (→FMD10, 2013 TPA→93), then the other cover types +
+crown-index. ALSO APPLIED: CR moisture table (prior commit). Suite check pending (CR-isolated ⇒ 0 eastern regression).

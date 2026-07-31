@@ -75,7 +75,13 @@ const _FMD_XPTS_NE = Float32[                               # ne/fmcfmd.f:78-91 
     5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7
     5  15;  5  15;                                          # models 8–9
    15  30; 15  30; 30  60; 45 100;  0   0]                  # models 10–13 (14 = degenerate/unused)
+const _FMD_XPTS_CR = Float32[                               # cr/fmcfmd.f:119-131 — model 10 = (15,30); ICLSS=12
+    5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7
+    5  15;  5  15;                                          # models 8–9
+   15  30; 15  30; 30  60;                                  # models 10–12 (10 shares iso-line with 11)
+    0   0;  0   0]                                          # 13,14 unused in CR (degenerate ⇒ _fmdyn skips)
 fmd_xpts(::Northeast) = _FMD_XPTS_NE
+fmd_xpts(::CentralRockies) = _FMD_XPTS_CR
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
@@ -142,6 +148,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # LS uses a full cover-type × PERCOV × season selection (ls/fmcfmd.f), NOT the SN forest-type path.
     if s.variant isa LakeStates
         return ls_select_fuel_models(s, mois, sm, lg)
+    end
+
+    # CR (like western TT/UT) is COVER-TYPE based (cr/fmcfmd.f), NOT the SN forest-type path.
+    if s.variant isa CentralRockies
+        return cr_select_fuel_models(s, mois, sm, lg)
     end
 
     # --- SN candidate-model selection (fmcfmd.f:131) ---
@@ -458,6 +469,102 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     end
 
     return _fmdyn(sm, lg, eqwt, _FMD_XPTS_LS; iptr = _FMD_IPTR_LS)
+end
+
+# CR species → fuel-model cover-type metagroup (cr/fmcfmd.f:281-315). 1=OBCT oak-brush,
+# 2=PJCT pinyon-juniper, 3=PPCT ponderosa, 4=WSCT white-spruce, 5=SFCT spruce-fir,
+# 6=LPCT lodgepole, 7=MCCT mixed-conifer, 8=ASCT aspen.
+@inline function _cr_fm_covtype(sp::Int)::Int
+    (23 <= sp <= 27)                        && return 1   # OBCT oak brush
+    (sp == 12 || sp == 16 || 29 <= sp <= 35) && return 2  # PJCT pinyon-juniper
+    (sp == 13 || sp == 36)                  && return 3   # PPCT ponderosa, chihuahua pine
+    (sp == 19)                              && return 4   # WSCT white spruce
+    (sp == 1 || sp == 17 || sp == 18)       && return 5   # SFCT spruce-fir
+    (sp == 11)                              && return 6   # LPCT lodgepole
+    (sp in (2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 37)) && return 7  # MCCT mixed conifer
+    (sp in (20, 21, 22, 28, 38))            && return 8   # ASCT aspen
+    return 7                                              # default mixed conifer
+end
+
+"""
+    cr_select_fuel_models(s, mois, sm, lg) -> [(model, weight)]
+
+CR FFE fuel-model selection (cr/fmcfmd.f `CASE('CR')`). CR is COVER-TYPE based (like the
+western TT/UT variants), NOT forest-type like SN: accumulate BA into 8 metagroups, pick the
+dominant cover type (>50% BA, else mixed conifer), then per-cover-type rules build the
+candidate `eqwt`, plus the always-added natural-fuel candidates 10 & 12; `_fmdyn` resolves
+by the actual (SMALL,LARGE) fuel load. IN PROGRESS: MCCT (mixed conifer) fully ported +
+validated (crt01); the biomass-heavy cover types (OB/PP/WS/SF/LP/AS) and the exact FMSSTAGE
+structure class (`sstage.f`) are follow-ups — see docs/CR_VARIANT_PORT_AUDIT.md.
+"""
+function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    t = s.trees; fs = s.fire
+    percov = fs.percov
+    fwind = fs.swind * fire_wind_reduction(percov)
+    ldry = false                                   # DROUGHT (IDRYB..IDRYE) — none in crt01
+    NSP = 38
+    ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)
+    fmtba = zeros(Float32, NSP)                     # per-species BA (FMTBA — LPPDOM)
+    dbhba = 0f0                                     # BA-weighted Σ(dbh·ba) for the first-cut structure class
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i])
+        x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+        ctba[_cr_fm_covtype(sp)] += x
+        (1 <= sp <= NSP) && (fmtba[sp] += x)
+        dbhba += t.dbh[i] * x
+    end
+    stndba = sum(ctba)
+    # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343)
+    ict = 7
+    if t.n > 0 && stndba > 0.001f0
+        for i in 1:8
+            if ctba[i] / stndba > 0.5f0
+                ict = i; break
+            end
+        end
+    end
+    # LPPDOM: is ponderosa (sp13) the single highest-BA species? (fmcfmd.f:811-822, CR J=13)
+    lppdom = true
+    @inbounds for i in 1:NSP
+        (i != 13 && fmtba[i] > fmtba[13]) && (lppdom = false)
+    end
+    # FIRST-CUT structure class (IFMST). TODO: port FMSSTAGE (sstage.f) for the faithful
+    # multi-stratum/gap analysis. Single-stratum proxy (fmcfmd.f CR params SSDBH=5, SAWDBH=18;
+    # sstage.f:539-559 NSTR=1 path) on the BA-weighted mean DBH. crt01's FMD is INSENSITIVE to
+    # IFMST here (the always-added natural candidate 10 + heavy fuel dominate _fmdyn), so this
+    # suffices to validate the fuel-model path; refine for other stands with the full FMSSTAGE.
+    tmpdbh = stndba > 1f-6 ? dbhba / stndba : 0f0
+    ifmst = tmpdbh < 5f0 ? 1 : (tmpdbh < 18f0 ? 2 : 5)
+    eqwt = zeros(Float32, _FMD_ICLSS)
+    if ict == 7                                    # MCCT mixed conifer (fmcfmd.f:827-869, CR)
+        if lppdom
+            eqwt[9] = 1f0
+        elseif ifmst == 0
+            ldry ? (eqwt[1] = 1f0) : (eqwt[2] = 1f0)
+        elseif ifmst == 1
+            ldry ? (eqwt[6] = 1f0) : (eqwt[5] = 1f0)
+        elseif ifmst == 2
+            ldry ? (eqwt[6] = 1f0) : (eqwt[8] = 1f0)
+        elseif ifmst == 3 || ifmst == 4 || ifmst == 6
+            eqwt[10] = 1f0
+        elseif ifmst == 5
+            if percov >= 55f0
+                eqwt[8] = 1f0
+            elseif percov < 45f0
+                eqwt[2] = 1f0
+            else
+                eqwt[2] = 1f0 - (percov - 45f0) / 10f0
+                eqwt[8] = 1f0 - (55f0 - percov) / 10f0
+            end
+        end
+    end
+    # TODO: OBCT/PJCT/PPCT/WSCT/SFCT/LPCT/ASCT cover-type rules (fmcfmd.f:413-955) — not yet
+    # ported; those stands currently fall through to natural-candidates-only (approximate).
+    # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
+    eqwt[10] = 1f0
+    eqwt[12] = 1f0
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
 """
