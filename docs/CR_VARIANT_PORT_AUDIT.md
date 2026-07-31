@@ -4130,3 +4130,19 @@ vs with-fix (the 140 errs are PRE-EXISTING+ENVIRONMENTAL — 139 in-suite-only `
 southern/site_index.jl:85 = cached_coefficients global-state pollution [all pass STANDALONE] + 1 Pkg.test-sandbox
 `Statistics not found`; NONE CR-related, present on committed HEAD ff8ce3c). CR validation gate = the dig_vol.jl
 differential (not Pkg.test, which has no CR integration test).
+
+### Volume chunk (NVEL) broad re-verification — bit-exact-or-cornered, NO remaining gap
+Sampled the STALE cr_cns_tcuft_nd.txt (1355 volume needs-dig CNs, pre-fix). Findings:
+- NO vol=0 anywhere — the NVEL equations (DVE/NVB/FW2) compute for every species hit (the batch "VOL0?" flags were
+  false positives on the BdFt/SCuFt columns).
+- INVENTORY-cycle volume is BIT-EXACT on the divergent stands (e.g. CN 5282895010661 1994: TCuFt 904/904,
+  MCuFt 736/736) ⇒ the volume EQUATIONS + merch specs are correct; divergence only appears on GROWN trees.
+- A forest-10661 cluster showed a systematic ~0.1-0.6% jl-LOW volume at first projected cycle while ALL stand
+  aggregates (TPA/BA/SDI/CCF/TopHt/QMD) were bit-exact — looked like a small directional bias. CLASSIFIED via
+  NOTRIPLE: with tripling OFF the divergence FLIPS sign (2004 jl-HIGH 1181/1178, 2024 jl-low) and SELF-CORRECTS
+  to bit-exact (2014 TCuFt 1478/1478). ⇒ the "consistent direction" was a TRIPLING-ORDER artifact; the underlying
+  signal is the RDPSRT self-thin tie-break + per-tree growth ULP (1 SDI unit / ~0.25% vol) — the accepted
+  cross-variant cornered class, NOT an NVEL/height bug.
+VERDICT: CR volume is bit-exact-or-cornered. The "full NVEL port = largest remaining chunk" memory note is STALE —
+compute_volumes_cr! (DVE/NVB/FW2 dispatch) is functional and inventory-bit-exact; the tcuft needs-dig list is
+dominated by the cornered self-thin/ULP tail (much of it now resolved by the mortality-bark + aspen-HCOR fixes).
