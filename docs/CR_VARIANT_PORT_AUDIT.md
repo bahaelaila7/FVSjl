@@ -3660,3 +3660,19 @@ CR ispmap table (data/centralrockies/). VALIDATE with a LIVE FMCROWW instrument 
 for crt01 trees via the relink recipe) diffed per-tree, THEN the crt01 litter trajectory vs live ALL FUELS.
 LARGE fresh-context chunk (1273 lines, per-species small+large+interp+dead). This is the last known CR FFE
 fidelity gap; growth/mortality/volume core + snag volume + fuel data tables + fire timing are all done.
+
+## FMCROWW port — validation FOUNDATION built + jl error QUANTIFIED (live instrument)
+Built the live FMCROWW instrument (fmcrow.f WRITE after the crown call → SPIW,SPIE,D,H,IC,ITR,HP,XV(0:5);
+compiled to fmcrow.o, relink_cr.sh crowdump, ran crt01). Reference dump SAVED: /workspace/.crwork/
+fmcroww_live_dump.txt (615 per-tree rows). Oracle: /workspace/.crwork/FVScr_crowdump. buildDir fmcrow.f
+restored clean. CONFIRMED + QUANTIFIED the divergence — jl's Jenkins crown_biomass foliage (xv[1]) vs live
+FMCROWW XV(0), per tree: PP(sp13) D11.5 jl 39.1/live 25.5 (1.54x); WF/grandfir(sp5) D6.2 jl 9.9/live 36.3
+(0.27x!); ES spruce(sp18) D7.9 jl 16.8/live 43.0 (0.39x); SWwhitepine(sp15) D6.5 jl 11.0/live 13.2 (0.83x).
+So jl conifer foliage is WRONG by 0.27-1.54x (species-dependent, mostly LOW for the true-fir/spruce). CROWN
+SPECIES in crt01: SPIW 5,13,15,18 → FMCROWW (jl WRONG); SPIW 20 = ASPEN → FMCROWE (jl already correct, the
+leaf_life=1 litterfall dominant). CORRECTION to the earlier "foliage 2x → litter 2x" hypothesis: aspen (the
+biggest litterfall contributor) is CORRECT, and the conifer foliage errors are mixed high/low — so the NET
+litter direction must be RE-MEASURED after the FMCROWW port (the confirmed fact is conifer crown biomass is
+wrong; its net litter + crown-fuel effect is empirical). The port now has a per-tree gold-standard diff
+(fmcroww_live_dump.txt). NEXT: port FMCROWW (1273 lines) + crown_biomass(::CentralRockies) SPIW-dispatch,
+diff each XV(0:5) vs the dump, then re-measure crt01 litter + coarse crown fuel + standing-dead crown.
