@@ -218,15 +218,21 @@ function cr_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
                 (zzran <= 0.5f0 && zzran >= -2.0f0) && break
             end
         end
-        htg, _ = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
+        htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
             pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, t.ht_growth[i], s.control.sp_size_cap[sp, 4],
             p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
             diamv[sp], ax, ht2v[sp])
-        # esgent.f: HTG*=WK4 (=1, no FIXHTG here); HT+=HTG; WK4<1 ⇒ DBH-derive (skipped at WK4=1); cap HHTMAX.
+        # esgent.f:48 CALL REGENT(.TRUE.) grows BOTH height AND diameter in the birth cycle; the returned DG
+        # must be APPLIED to DBH (outside-bark, dbh += DG/BRATIO, as update.f:115 / simulate.jl:460 do for the
+        # regular cycles). jl previously DISCARDED the regent DG here (grew only height) ⇒ planted/regen
+        # seedlings kept DBH≈0.1 while HT grew to ~5 ft (inconsistent HT-DBH pair) ⇒ every downstream small-tree
+        # DG started from a too-small DBH ⇒ the ~24-29% PLANT-regime under-growth. Live ESGENT trace: DF HT=4.8
+        # ⇒ DBH=0.58 (vs jl's 0.10). WK4=1 here (no FIXHTG), matching esgent.f's DBH-derive skip AFTER REGENT.
         nh = h + htg
         nh > _CR_ES_HHTMAX[sp] && (nh = _CR_ES_HHTMAX[sp])
         t.height[i] = nh
         t.ht_growth[i] = htg
+        d < brkv[sp] && (t.dbh[i] = d + dg / bark)   # small-tree regent DG (D≥BREAK uses the driver's gemdg DBH)
     end
     return s
 end
