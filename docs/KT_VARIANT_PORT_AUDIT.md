@@ -109,3 +109,18 @@ TODO: site_setup! = KOTHAB search(habitat_code)->KKTYPE; KOTHAB[KKTYPE]->JTYPE s
 BAMAXA[ITYPE]; SDIDEF=BAMAX/(0.5454154*pmsdiu) into sp_sdi_def; + KT site-index (SITEAR) per kt/sitset.f site
 curves (may defer to height chunk). Validate jl KKTYPE/ITYPE/sp_sdi_def vs live across the 40 IE stands
 (.sweep_work/kt_ie_stands.txt) — need each stand's raw input habitat code + a setup-only entry point.
+
+## Chunk 2 — INPUT confirmed (PV_CODE) + full flow validated end-to-end with real input
+FIA FVS_STANDINIT_COND habitat column = PV_CODE (also PV_FIA_HABTYPCD1). Stand 753200841290487: PV_CODE=531,
+PV_REF_CODE=110. Live FVSkt read it from the DB (build_subdb copies the stand; FVS reads FVS_STANDINIT directly)
+=> KOOTENAI habitat 531. FULL FLOW now validated with the REAL input:
+  PV_CODE=531 -> plot.habitat_code=531 -> KOTHAB search (531 in KOTHAB) -> KKTYPE (KOTHAB[KKTYPE]=531, =live 531)
+  -> JTYPE search(531) -> ITYPE=14 -> MTYPE[14]=530 (=live IE 530) -> BAMAXA[14]=440 -> SDIDEF=949 (=live).
+REMAINING chunk-2 wiring (precise):
+  (1) jl FIA loader must read PV_CODE -> plot.habitat_code (CR didn't need it — habitat-input was a documented
+      gap, keyword_dispatch.jl:630 "non-zero habitat ignored"; the LIVE side reads PV_CODE from the DB
+      automatically, so jl must match). Also handle PV_REF_CODE (the CPVREF/PVREF1 path in habtyp for
+      reference-code stands) — 110 here; check if it changes KODTYP.
+  (2) src/variants/kootenai/site_index.jl: site_setup!(::Kootenai) = KOTHAB search -> KKTYPE (store for DG),
+      -> ITYPE -> BAMAX/SDIDEF into sp_sdi_def; include habitat_tables.jl + site_index.jl in FVSjl.jl.
+  (3) validate jl KKTYPE/ITYPE/sp_sdi_def vs live (531/ITYPE14/949) across the 40 IE stands.
