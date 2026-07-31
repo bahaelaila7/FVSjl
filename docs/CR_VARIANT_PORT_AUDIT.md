@@ -4761,3 +4761,25 @@ computed, then using it in place of stand_ccf for the PCTRED. jl ALREADY backdat
 (hstart = height − ht_growth, using the available ht_growth); the symmetric density backdating just
 needs the DBH increment made available. This is the clean, CONFIRMED next fix — scoped to the CR
 REGCAL block, no gemdg/growth-path change, needs the backdated-DBH source wired.
+
+## 18th bug FIXED — backdated CCF wired into the CR REGENT height calibration PCTRED
+
+**Fix (calibrate_diameter_growth!, southern/diameter_growth.jl):** the CR small-tree REGENT height
+calibration ran on the CURRENT (restored) stand and used `stand_ccf(s)` (current CCF 157.8) for its
+PCTRED density modifier. Live uses the BACKDATED CCF (dense.f RELDM1, 109.54). jl ALREADY backdates
+the DBH in the calibration (`_backdate_dbh!` → the backdated window, lines 337-623); I captured
+`_cr_bd_ccf = stand_ccf(s)` inside that window (dbh backdated, live trees only — VERIFIED = 109.54
+exactly = live RELDEN) and used it for the CR REGCAL PCTRED. AVH stays CURRENT (58.6, not backdated),
+matching regent.f:466 X=AVH·(RELDEN/100). 3-line change, no gemdg/growth-path touch.
+
+**Validation:** CN 408704093489998 (Gambel-oak): 2025 was TPA 5723/**8249**, BA 205/**134**, QMD
+2.6/**1.7** → NOW TPA 5723/**5723** (bit-exact), BA 205/206 (±1), QMD 2.6/**2.6** (bit-exact); 2045
+TPA 4666/4666 + BA 222/222 bit-exact; residuals = ±1 AVHT40/self-thin cornered. NO REGRESSION:
+60-stand grow sweep — the oak dropped out of the worst list (max BA 34.6%→18.8%, max TPA 72.8%→
+21.6%, both now self-thin ±straddles), aggregate divergent-cells DOWN (BA 92→84, TPA 135→133);
+755568965290487 unchanged bit-exact-early; 39470962010690 IDENTICAL pre/post (a SEPARATE pre-
+existing small-tree DG divergence — TPA/TopHt bit-exact, DBH ~18% low — NOT caused by this fix).
+
+**Follow-up lead:** 39470962010690 (dense 0.6" seedlings, 2233 TPA): TPA+TopHt bit-exact but BA/QMD
+low ⇒ another small-tree DBH-growth under-prediction, distinct from the backdated-CCF bug (this fix
+left it unchanged). Next dig target.

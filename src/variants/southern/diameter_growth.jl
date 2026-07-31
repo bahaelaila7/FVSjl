@@ -306,6 +306,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # past BA/PCT/point_ba), EXCEPT the AVHT40 top height (AVH), which stays at the
     # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
     # recent dead are added back at the right rate to recover the BACKDATED density (notre.f:122-124). FVS keeps
@@ -346,6 +347,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     t.n = nlive + t.ndead
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
     t.n = nlive
+    # CR REGENT height calib uses the BACKDATED CCF (dense.f RELDM1) for its density modifier PCTRED — NOT the
+    # current CCF (regent.f:466 X=AVH·RELDEN/100; RELDEN is the backdated relative density). Capture it here
+    # while dbh is backdated (live trees only); AVH stays CURRENT (not backdated), as in live. (18th-bug fix.)
+    _cr_cal && (_cr_bd_ccf = stand_ccf(s))
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
     end
@@ -768,7 +773,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     if s.variant isa CentralRockies
         htadj = sd[:st_htadj]; lo = sd[:site_lo]; hi = sd[:site_hi]
         scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
-        ccf = stand_ccf(s); avht = s.plot.avg_height                                   # PCTRED from current stand (regent.f AB poly)
+        ccf = _cr_bd_ccf; avht = s.plot.avg_height                                      # PCTRED: BACKDATED CCF (dense.f RELDM1) · CURRENT AVH (regent.f:466)
         xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
         pctred = _CR_AB[1] + xd*(_CR_AB[2] + xd*(_CR_AB[3] + xd*(_CR_AB[4] + xd*(_CR_AB[5] + xd*_CR_AB[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
