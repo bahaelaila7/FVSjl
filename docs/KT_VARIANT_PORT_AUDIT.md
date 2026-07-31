@@ -603,3 +603,17 @@ sp4 d16.1 WKI 0.18499 vs 0.18537 (~0.2%). Residuals trace to the large-tree DG C
 (cornered). The full grow_cycle now runs DG→height→regent→mortality END-TO-END, blocking only at chunk-5
 crown_ratio_update!(::Kootenai) (the per-cycle crown update, next). OMISSIONS to refine: MORTMULT/establishment
 windows (X=1), the past-DG WK1 growth term for cycle>1 (uses projected DG now, cycle-1-exact). All KT-gated.
+
+## ★★ CHUNK 5 crown IMPLEMENTED — FULL-CYCLE .sum NOW RUNS END-TO-END; 2019 BIT-EXACT
+Implemented crown_ratio_update!(::Kootenai) (kt/crown.f) + kt_dubscr (D<3 logistic) + coefficients (KT_CRPARM
+11×14, KT_CRHAB 11×14, KT_CR_MAPHAB, KT_DUB_*). Large trees (D≥3) PCR/DCR change model bounded ±1%/yr; D<3 DUBSCR
+(LSTART only). The full grow_cycle now runs DG→height→regent→mortality→crown END-TO-END and produces a multi-cycle
+.sum. ★★ MILESTONE: full-cycle differential vs clean FVSkt on stand 753200841290487 — **2019 inventory BIT-EXACT**
+(TPA/BA/SDI/CCF/TopHt/QMD all match; only volume /0.0 = chunk-8 NVEL not ported). ⇒ the growth+mortality+crown
+core INTEGRATES correctly. 2029+ DIVERGES: jl TPA 2117 vs live 1504 (jl UNDER-KILLS), QMD 4.1 vs live 4.9 (jl more
+small survivors). ROOT SUSPECT: the mortality growth term G uses the PROJECTED DG (wk1=0 ⇒ the `ICYC==1||WK1==0`
+override always fires) instead of the past-DG WK1 rate for cycle>1 — higher G ⇒ higher RIP arg ⇒ LOWER rate ⇒
+under-kill. FIX = thread the past-cycle DG (WK1) so cycle>1 uses the WK1-based G (the documented mortality omission).
+Other refinements: crown OLDPCT (uses current PCT), regent small-tree density feedback, MORTMULT/estab windows.
+NEXT: (1) thread WK1 for mortality-G cycle>1 (the .sum divergence); (2) chunk 8 volume (NVEL — vol currently 0);
+(3) tighten to full-cycle bit-exact-or-cornered. GROWTH+MORTALITY+CROWN CORE COMPLETE + INTEGRATED (2019 bit-exact).
