@@ -3562,3 +3562,24 @@ specific fine-fuel/litterfall (SFCT spruce small-fuel under-accumulation), and t
 single-species stands. These need the live per-cohort snag/cwd + FMSSTAGE instrumentation trace — a fresh-context task.
 NEXT-SESSION START: instrument live fmsnag/fmcwd (per-cohort snag density + cwd add/decay) on crt01 & the spruce stand,
 diff vs a jl per-cohort dump. The DATA is DONE; only the dynamics remain.
+
+## ===== REAL BUG (post-"data audit") — CR FFE snag bole volume was ZERO (commit c8e0ce7) =====
+The "DATA done, only dynamics" verdict was INCOMPLETE. Tracing the F3 snag→cwd path found a real,
+measured CR COMPUTATION bug (not a per-variant data table, not the fall dynamics): all three CR snag
+volume paths (_snag_merch_cuft_on / ffe_seed_input_snags! / ffe_add_snaginit!) fell through to
+_R8CLARK_VOL, but CR vol_eq are NVEL DVE/NVB/FW2 codes (300DVEW093/NVB0000015/300FW2W202), NOT R8-Clark
+strings — _r8clark_lookup MISSES them (measured err=1/6/1) ⇒ returns 0 ⇒ every CR snag bole collapsed to
+the tiny-tree cone floor 0.005454·H (~2% of true stem vol). So CR snags contributed ~nothing to cwd or
+Stand-Dead — THE ROOT of the documented ~15% F3 down-wood deficit (snags had no volume to fall).
+FIX: cr_snag_bole_cuft = the fmsvol.f→NATCRS dispatch (mirrors compute_volumes_cr!) at the snag class-mean
+(dbh,ht). BASIS = TOTAL cubic (TCF=v[1]), NOT merch — FMSVOL is called by SNAGOUT (fmsout.f:123) and CWD1
+with LMERCH=.FALSE. (fmsvol.f:65), and non-top-killed ⇒ VOL2HT=MAX(X,TCF) (fmsvol.f:153). CR-gated (3 sites).
+VALIDATION (per-cohort vs live crt01.sng CURR VOLUME = FMSVOL VOL2HT): ES 34.6" jl 79.4/live 78.2; PP 7.2"
+jl 4.8/live 4.73; LM 11.0" jl 12.45/live 12.22 (residual = known snag height-decay refinement). MCF ran
+~15-18% low; TCF matches. 1993 STANDING WOOD DEAD >3" biomass now BIT-EXACT (jl 1.3/live 1.3; was ~0).
+Suite 38588/0/1/75 zero-regress. META: the "all DATA verified" pass missed this because it audited the
+per-variant TABLES (DKR/moisture/XPTS/V2T/…) but not the volume-EQUATION DISPATCH inside the FFE snag path.
+NEW LEAD (sharpened, not resolved): on the 2003 FIRE cycle jl's fresh fire-kill snags have already FALLEN
+to surface (jl standing 4.8/surf 18.8) where live keeps them STANDING at full density (live standing
+18.1/surf 4.4; live fresh-kill densities ES 97.85/WF 59.82 vs jl <2). = the snag-fall-timing / fire-cycle
+report-ordering dynamics — now clearly the next target (the volume that made it visible is now faithful).
