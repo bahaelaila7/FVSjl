@@ -3998,3 +3998,18 @@ derivation). BOUNDED NICHE (planted/regen seedlings; does NOT affect grow/thin/f
 which grow inventory trees). This is the CR ESTABLISHMENT chunk's planted-tree-growth tail (estab COUNT was
 already validated; the planted-tree DBH-GROWTH is the remaining gap). Method: DEBUG REGENT + TreeList dump +
 esgent.f/estab.f read, no relink.
+
+## ===== REAL FIX (7th session bug): cr_esgent! discarded the birth-cycle regent DG (commit 92abc03) =====
+The PLANT-regime ~24-29% under-growth was FIXED. ROOT (found via live DEBUG ESGENT, no relink): esgent.f:48
+grows established/planted regen via CALL REGENT(.TRUE.) — returning BOTH htg AND dg, and applying dg to DBH.
+jl's cr_esgent! (small_tree_growth.jl) called `htg, _ = _cr_regent_tree(...)`, DISCARDING dg, growing ONLY the
+height ⇒ planted/regen seedlings kept DBH≈0.1 while HT grew to ~5 ft (inconsistent HT-DBH pair) ⇒ every
+downstream small-tree DG started from the too-small DBH ⇒ compounding ~24-29% BA deficit. FIX: capture dg,
+apply t.dbh += dg/BRATIO (D<BREAK, small-tree; matches update.f:115). Live DEBUG ESGENT proof: DF HT=4.8 ⇒
+DBH=0.58 (jl 0.10), WK4=1 (so the DBH growth IS the REGENT DG, not the esgent WK4<1 rescale). VALIDATED: CN
+3626556010690 @2003 QMD 0.4 (was 0.1) == live, @2013 BA 7/QMD 1.8 == live EXACT; PLANT sample maxrel 100%→5.6%
+(residual = the accepted RDPSRT/ZZRAN SEEDLING tail — these are regen stands, same cornered class as the ultra-
+dense-seedling stands). CR-only, suite 38588/0/1/75. ⇒ ALL 5 regimes now bit-exact-or-cornered: grow 96%,
+thin/fire/salvage bit-exact, PLANT fixed (100%→~5% cornered ZZRAN). This was the CR ESTABLISHMENT chunk's
+planted-tree-DBH-growth gap (estab COUNT was already validated; the DBH GROWTH is now applied). Method note:
+DEBUG <SUB> (REGENT/ESGENT/MORTS) gives live per-record internals with NO relink — the workhorse this session.
