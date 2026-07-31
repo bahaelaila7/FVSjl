@@ -655,3 +655,15 @@ The 2039+ divergence is a NEW chunk = KT ESTABLISHMENT (kt regent.f ESTAB path: 
 BIT-EXACT-OR-CORNERED end-to-end (2019+2029 .sum bit-exact; cycle-2 mortality kill matches). REMAINING = downstream
 ADDITIVE chunks only: ESTABLISHMENT (the TPA re-stock) + VOLUME (chunk 8, NVEL, the /0.0). NEXT: establishment
 (the .sum TPA/QMD convergence) then volume. This mirrors CR (growth+mort core bit-exact; estab/volume downstream).
+
+## Chunk (establishment) — SCOPE: shared model, auto-runs; the 2039+ .sum re-stock
+KT auto-establishes with NO ESTAB keyword (verified: plain grow keyfile). The establishment model is SHARED
+(base/exestb.f + base/svestb.f — the "full establishment model"), NOT KT-specific; jl already has the shared
+establish! (establishment.jl, with a CR branch _CR_ES_XMIN). KT calls REGENT(LESTB=.TRUE.,ITRNIN) for the
+established 5-yr trees (regent.f LESTB branches: :187 NTYR−=5, :235 the density-interpolation path, :288 the
+crown dub CR=0.89722−0.0000461·PCCF, :306 DELMAX/AH). So the establishment CHUNK = (1) wire the shared auto-regen
+trigger for KT (fires each cycle without a keyword); (2) KT regen species/density coefficients; (3) the REGENT
+LESTB branch in small_tree_growth! (the ITRNIN-interpolated subcycle density + estab crown dub). This RE-STOCKS
+~360 TPA/cycle (the confirmed 2039+ divergence). Downstream/additive — the growth+mortality+crown CORE is already
+bit-exact. NEXT: establishment (TPA/QMD re-stock) + chunk 8 volume (NVEL, the /0.0). Both are additive leaves on
+the bit-exact core, mirroring CR's finish order (core bit-exact → estab/volume/FFE downstream).
