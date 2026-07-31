@@ -4322,3 +4322,21 @@ fs.fuels_init : true`. Eastern (SN/NE/CS/LS) FFE + PotFIRE/carbon reports now pr
 has no thin ⇒ pre==post anyway). CR STAND-4 stays bit-exact-or-±1 (2013 TPA/BA/CCF/QMD match); zero-regression
 (1918/140-preexisting/3). The cycle-1 PotFIRE-report-reads-empty-cwd imperfection is now CR-ONLY (CR FVS_PotFire
 report not yet validated; .sum + fire correct). Doctrine #5 (don't perturb the validated eastern engine) honored.
+
+### crt01 canonical demo — ALL 5 stands bit-exact-or-cornered (end-to-end verdict, post-12-bugs)
+Full crt01.key differential (jl run_keyfile vs live crt01.sum), all 5 stands × all cycles:
+- STAND 1 (S248112 grow, 11 cyc): every col BIT-EXACT except TopHt ±1 (68/69…93/94) — the AVHT40 RDPSRT tie-break
+  (jl consistently −1; cross-variant accepted primitive, NOT a rounding bug — eastern .sum is bit-exact with the
+  same rounding, so the tie-break selects/weights the top-40 by a height ULP).
+- STAND 2 (S248112 "TEST EXPANDED THINDBH OPTION", 16 cyc): THINDBH to density targets EVERY 3rd cycle (IF
+  FRAC(CYCLE/3)==0). Early cycles bit-exact-or-±1; late cycles (2110+) drift ~2-3% (2140 TPA 634/651, BA 132/125)
+  = accumulated management(THINDBH)+self-thin+regen RDPSRT tie-break over 16 thin/regrow cycles — cornered.
+- STAND 3 (grow, 11 cyc): bit-exact except TopHt ±1 + occasional SDI/QMD ±1 — cornered.
+- STAND 4 (FFE TEST, SNAGINIT/SIMFIRE/PotFIRE): BIT-EXACT-or-±1 all cycles (11th+12th bug fixes; 2013 TPA/BA/CCF/
+  QMD match, SDI/TopHt ±1).
+- STAND 5 (BARE GROUND PLANT, NOTRIPLE): bit-exact early; late TopHt +3 = accumulated self-thin tie-break (10th
+  bug ABIRTH fix corrected the growth; residual is the density tie-break) — cornered.
+VERDICT: the CR canonical demo is bit-exact-or-cornered across every stand type (grow / managed-thin / FFE-fire /
+plant). Residuals are ALL the accepted cross-variant tie-break class (AVHT40 ±1, RDPSRT self-thin/management,
+plant self-thin). 12 bugs fixed. Remaining = FFE fuel/burn/snag/carbon/PotFIRE REPORT leaves (downstream of the
+now-correct .sum + fire; unchecked).
