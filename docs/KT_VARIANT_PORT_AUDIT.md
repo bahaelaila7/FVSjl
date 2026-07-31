@@ -189,3 +189,19 @@ computes per-species dg_const. KT dgf!(::Kootenai) TODO (mirror LS):
   Need from shared stand-stats: RELDEN, CCF2, PCCF1, DUM1/DUM2, BA, PCT, CR, D — confirm availability/definitions
   vs LS dgf! (BAGE5/BALC etc. may differ; KT uses raw BA + PCCF1). Then wire loader PV_CODE->habitat_code +
   per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh instrumented dgf.o) on 40 IE stands.
+
+## Chunk 3 — dgf! stand-stats traced; KEY: WK2 = OB DDS (no bark conversion, unlike LS)
+Traced kt/dgf.f per-tree stand-stats (doctrine #2):
+  - WK2(I)=DDS DIRECTLY (clamp >= -9.21), NO OB->IB bark conversion in dgf.f (UNLIKE LS which converts).
+    => KT dgf! is simpler; WK2 = the outside-bark DDS as computed. (BKRAT is for bratio/other chunks, not dgf.)
+  - CONSPP = DGCON(ISPC) + COR(ISPC) + DGCCF(ISPC)*RELDEN   [sp11: 0.01*DGCCF*RELDEN]  (RELDEN=stand rel density)
+  - CCF2 = RELDEN*RELDEN (dgf.f:324 — NOT crown-competition²; the CCFSQ term is CCFSQ(ISPC)*RELDEN²)
+  - PCCF1 = PCCF(IPCCF) (point CCF at the tree's point; IPCCF = point index)
+  - DUM1/DUM2 (dgf.f:314-318): default DUM1=0,DUM2=1; under a condition (~:316) DUM1=1,DUM2=0 -> a SWITCH between
+    DGPCC1 and DGPCC2 coefficients (DGPC1=DGPCC1*DUM1, DGPC2=DGPCC2*DUM2; both multiply the SAME PCCF1).
+  - ALD=ALOG(D); BAL=(1-PCT/100)*BA [sp11:/100]; CR=crown ratio; BA=stand basal area.
+REMAINING TRACE before coding dgf!(::Kootenai): (1) RELDEN exact formula (computed before the tree loop in
+kt/dgf.f — likely RELSDI/relative-SDI or a density ratio; find its assignment); (2) PCCF point array + IPCCF
+index (shared point-CCF — check the engine's per-point CCF); (3) the DUM1/DUM2 condition at :316. Then implement
+kt_dgcons! (DGCON from DGHAB/DGFOR/elev/slope-aspect via KKTYPE=habitat_code + KOTFOR) + dgf! (DDS eqn, WK2=DDS,
+no bark) + loader PV_CODE->habitat_code + per-tree WK2 instrument-replay vs live on 40 IE stands.
