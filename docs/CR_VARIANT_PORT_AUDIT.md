@@ -3868,3 +3868,22 @@ trees just above 0.1. NEXT: relink a live ccfcal/crown crown-width dump, compare
 per D on one seedling stand — if the formula matches, it's the distribution (⇒ back to a subtler DG/HTG diff);
 if not, fix RDA/RDB. This is the last bounded CR growth-core class (~10% of the volume-flagged stands). The
 mortality-bark fix (commit e27ade9) remains the turn's headline: it cleared ~90% of the 1355-stand flag list.
+
+## Small-tree-DG class VERDICT: CCF/crown-width VERIFIED CORRECT ⇒ residual is sub-inch DG (ZZRAN + cliff)
+Verified jl's CCF crown-width vs live ccfcal.f EXACTLY: coefficients _CR_CCF_RDA/RDB == ccfcal.f DATA RDA/RDB
+(0.009187/1.76, 0.017299/1.5571, …, 8 imap groups); AND the branch boundary matches (D≥10 → RD1+D·RD2+D²·RD3;
+D>0.1 → RDA·D^RDB; D≤0.1 → 0.001 floor). So jl's per-tree CCF for a given DBH is BIT-IDENTICAL to live ⇒ the
+stand-CCF over-estimate (jl 7/live 6 @2025 at matched TPA+QMD) is NOT a crown-width bug — it is purely the
+DBH DISTRIBUTION near the D=0.1 CCF cliff. KEY cliff mechanic: a sub-inch tree contributes 0.001 at D≤0.1 but
+the SMALLER RDA·D^RDB just above 0.1 (e.g. 0.009·0.11^1.76≈0.00016) ⇒ CCF DROPS as seedlings cross 0.1 (this
+is why the .sum CCF falls 10→6 from 2015→2025). jl keeping marginally more trees at D≤0.1 (from a tiny sub-inch
+DG difference) ⇒ higher CCF ⇒ higher PCTRED suppression ⇒ less DG ⇒ POSITIVE-FEEDBACK compounding under-growth.
+The seed = the sub-inch regent DG, whose ZZRAN/BACHLO stochastic deviate is the KNOWN accepted-cornered residual
+(ch9 RNG stream-order; memory: "residual htg gap = ZZRAN"). So this last ~10% class is the ZZRAN residual
+AMPLIFIED by the CCF cliff on pathological ultra-dense seedling stands (which also hit live's own >1000-TPA-
+seedling FP exception under NOTRIPLE) — NOT a fixable crown/CCF bug. CAVEAT (doctrine, avoid auto-cornering):
+the deterministic-vs-ZZRAN split for THIS class was inferred (crown-width verified + prior ZZRAN acceptance on
+other stands), NOT directly instrumented here; a live regent HTG/DG dump (pre-ZZRAN deterministic part) on one
+seedling stand would confirm no residual deterministic sub-inch DG term. NET: CR growth-core FIA divergences
+are now bit-exact-or-cornered — dense-mortality class FIXED (bark, ~90% of flags), small-tree class CORNERED
+(ZZRAN + CCF-cliff, crown-width verified).
