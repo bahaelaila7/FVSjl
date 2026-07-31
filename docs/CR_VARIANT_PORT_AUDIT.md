@@ -3233,3 +3233,22 @@ residuals (ZZRAN RNG ch9 + AVHT40/RDPSRT tie-break, ±0.1–1.4 ft) and (b) the 
 accepted class from the growth core. ⇒ The ~435-line SF_HS-Newton port is UNNEEDED; the bark-source fix is faithful but
 inert-to-slightly-worse and stays reverted; `_fw2_sf_yhat_sl` remains inert. META: two turns chased a volume "bug" that
 was the height residual bleeding through — the fix was to MEASURE per-tree tcf-vs-Δh, which localized it in one shot.
+
+## Volume verdict GENERALIZED — 6-stand sweep-ledger dig confirms no volume-equation bug (2026-07-31)
+crt01 is only IMODTY 2 / ~5 species, so I stress-tested "no volume bug" against the sweep's volume-divergence
+population. cr_ledger.csv flags 11572 rows as density-bit-exact-but-vol-diverging (1286 with worst=TCuFt, struct%<0.5,
+vol% up to 100). Dug 6 spanning the magnitude range + all signatures (volume_persistent / threshold_crossing /
+print_boundary), via dig_vol.jl (live FVScr_clean vs jl full-column .sum). Every one decomposes into a NON-bug class:
+  - **Stale ledger artifacts** (175171768020004, 2542905010690, 51630921020004; flagged 33–50%): now FULLY BIT-EXACT
+    every column & cycle incl. TCuFt — pre-fix sweep state or the known fixed-width .sum parser bug (see
+    fvsjl-sum-parser-fixedwidth-bug). ⇒ the "1286 candidates" are largely stale.
+  - **Growth-tail** (51628579020004, dense 456 TPA): TopHt (7/8, 10/11), BA, SDI diverge (AVHT40 tie-break + height
+    residual) and TCuFt/MCuFt ride along (23/24, 45/48). Identical to the crt01 mechanism — structure diverges too, so
+    it was mis-labeled "density_bitexact".
+  - **±1 integer-rounding on tiny stands** (694345448126144, 3252775010690): d/h bit-exact (QMD & TopHt match) but one
+    tree's sub-0.1-cuft per-tree precision flips the .sum integer round on a 1–6-tree stand (TCuFt 3/2, 20/19 at a
+    single cycle; bit-exact elsewhere). The crt01 per-tree ±0.1 noise, amplified by integer rounding on tiny stands.
+No genuine volume-equation divergence in any of the 6 (NVB/FW2/DVE all reproduce live per-tree cuft given matching d,h).
+⇒ CHUNK 8 volume is bit-exact-or-cornered, robustly. Residual classes = stale-ledger (re-sweep would clear) +
+growth-tail (already cornered) + tiny-stand rounding-boundary (accepted primitive). META: don't trust sweep-ledger
+vol% at face value — re-dig; 3 of 6 "material" flags were already bit-exact.
