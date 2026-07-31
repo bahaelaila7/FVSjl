@@ -49,14 +49,20 @@ function fmcba!(s::StandState)
     # per-species basal area, total crown area (for percent cover), and the big DBH
     tba = zeros(Float32, nsp)
     totcra = 0f0
+    # CR forest-grown crown width is cr_cwcalc (cwcalc.f IWHO=0 — the same CRWDTH FMCBA/FMSSTAGE use), NOT the
+    # generic crown_width, which returns the 0.5 default for every CR species ⇒ near-zero crown area ⇒ PERCOV≈0.
+    _cr_fm = s.variant isa CentralRockies
+    _cr_ba = _cr_fm ? s.plot.basal_area : 0f0
+    _cr_el = _cr_fm ? s.plot.elevation : 0f0
+    _cr_hi = _cr_fm ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         tba[sp] += 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        sp2 = s.species.code2[sp]       # forest-grown crown width (CWCALC, iwho=0)
-        cw = crown_width(coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
-                         s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
+                         s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
     end
 

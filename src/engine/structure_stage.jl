@@ -80,17 +80,23 @@ override the thresholds (`control.strclass_thresh` = gappct/ssdbh/sawdbh/ccmin/t
 # Build the working tree list (live, HT>0, raw PROB, per-tree crown area) and the canopy
 # stratification (sstage.f:166-465): up to 3 height-gap strata, each with its cover range
 # (incl. gap trees) and OK flag (> CCMIN). Shared by `structure_class` and `structure_report`.
-function _ss_strata(s::StandState)
+function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     t = s.trees; p = s.plot; co = s.coef
     cccoef = Float64(s.control.cc_coef)
-    gappct = Float64(s.control.strclass_thresh[1]); ccmin = Float64(s.control.strclass_thresh[4])
+    gappct = Float64(thresh[1]); ccmin = Float64(thresh[4])
     n = 0; ht = Float64[]; dbh = Float64[]; tpa = Float64[]; crarea = Float64[]
     species = Int[]; icr = Float64[]
+    # CR uses cr_cwcalc (cwcalc.f IWHO=0, the CRWDTH FMSSTAGE reads), not the generic crown_width (0.5 default
+    # for CR ⇒ zero cover ⇒ wrong strata/class). Eastern variants keep crown_width. Precompute CR stand inputs.
+    _cr_ss = s.variant isa CentralRockies
+    _cr_ba = _cr_ss ? p.basal_area : 0f0
+    _cr_el = _cr_ss ? p.elevation : 0f0
+    _cr_hi = _cr_ss ? _cr_hopkins(p.latitude, p.longitude, p.elevation) : 0f0
     @inbounds for i in 1:t.n
         t.height[i] > 0f0 && t.tpa[i] > 0f0 || continue
-        sp2 = strip(co.code_alpha[Int(t.species[i])])
-        cw = crown_width(co, sp2, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
-                         p.latitude, p.longitude, p.elevation)
+        cw = _cr_ss ? cr_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             crown_width(co, strip(co.code_alpha[Int(t.species[i])]), t.dbh[i], t.height[i],
+                         Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
         pa = Float64(t.tpa[i])                          # PROB (raw, as SSTAGE uses it — NOT /GROSPC)
         n += 1; push!(ht, Float64(t.height[i])); push!(dbh, Float64(t.dbh[i]))
         push!(tpa, pa); push!(crarea, Float64(cw)^2 * pa * 0.785398)
@@ -143,16 +149,16 @@ function _ss_strata(s::StandState)
     oks = covers .> ccmin
     nstr = count(oks)
     cover = _ss_cover(crarea, 1:n, cccoef)
-    if nstr == 0 && tprob >= Float64(s.control.strclass_thresh[5])   # < TPAMIN ⇒ stays 0
+    if nstr == 0 && tprob >= Float64(thresh[5])   # < TPAMIN ⇒ stays 0
         str = [(1, n, 1, n)]; covers = [cover]; oks = [true]; nstr = 1
     end
     return (data..., ord, strata = str, oks, covers, nstr, tprob, cover)
 end
 
-function structure_class(s::StandState; iba::Int = 1)
-    th = s.control.strclass_thresh
+function structure_class(s::StandState; iba::Int = 1, thresh = s.control.strclass_thresh)
+    th = thresh
     ssdbh = Float64(th[2]); sawdbh = Float64(th[3]); pctsmx = Float64(th[6])
-    st = _ss_strata(s)
+    st = _ss_strata(s; thresh = thresh)
     st.n == 0 && return (class = 0, nstr = 0, cover = 0.0, strdbh = 0.0)
     # Single-canopy-tree path (sstage.f:234-268): a stand with only ONE canopy tree is classified by its
     # CROWN-AREA cover (WK6 = CW²·TPA·π/4, already = `st.crarea`), NOT the stratum DBHNOM. Checked BEFORE the

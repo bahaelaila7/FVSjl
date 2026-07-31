@@ -3348,3 +3348,31 @@ SAWDBH=18[12 lodgepole] SSDBH=5 GAPPCT=20):
 Deps in jl: _rdpsrt! ✓, PCTILE ✓ (stand_pct!), crown_width ✓ (CWCALC). Need to port COVOLP + the SSTGHP DBHS window.
 Then wire IFMST into cr_select_fuel_models MCCT, validate crt01 (→FMD10, 2013 TPA→93), then the other cover types +
 crown-index. ALSO APPLIED: CR moisture table (prior commit). Suite check pending (CR-isolated ⇒ 0 eastern regression).
+
+## FFE fuel-model — FMSSTAGE reused (structure_class); IFMST refinement open (2026-07-31)
+DISCOVERY: FMSSTAGE (sstage.f) is ALREADY ported+validated as `structure_class` (structure_stage.jl, bit-exact vs the
+SSTAGE report). Wired it into cr_select_fuel_models (added a `thresh` override to structure_class/_ss_strata; CR passes
+GAPPCT=20/SSDBH=5/SAWDBH=18[12 lodgepole]/CCMIN=5/TPAMIN=200/PCTSMX=30) — faithful, replaces the first-cut proxy.
+crt01 unchanged (2013 TPA 144 vs live 93) because structure_class returns IFMST=2 (→ MCCT EQWT(8)=weak model 8) where
+live FMSSTAGE gives 3 (→ EQWT(10)=model 10). TWO OPEN LEADS for the 144→93 residual:
+  (1) IFMST 2-vs-3: jl finds NSTR=1 (single stratum), live NSTR=2. With gappct=20 (smaller gap threshold) jl SHOULD
+      find MORE strata — so likely the 2nd stratum's canopy cover falls below CCMIN=5 in jl and is dropped. Points at
+      the crown-area/cover computation at the fire-time (tripled) stand.
+  (2) ★ percov BUG: cr_select's percov = fs.percov = 0.07–0.27 (a FRACTION-scale value) vs live fmcfmd PERCOV=27.98
+      (percent) — ~100× too LOW. fmcba.jl:81 does ×100 so should be percent; the tiny value ⇒ fmcba's crown-area
+      (totcra) is ~100× too low at the fire, OR the crown_fire_result select_fuel_models call path reads a stale
+      fs.percov (not refreshed by fmcba!). A too-low crown area would ALSO starve structure_class's cover ⇒ explains
+      lead (1). NEXT: instrument the SIMFIRE-2003 call (IYR-tagged) for percov + totcra + NSTR vs live; fix the crown-
+      area/percov, which likely fixes IFMST→3→FMD10→2013 TPA→93. Wipeout fix (144) already committed (debf867).
+
+## FFE fire — ROOT FIXED: CR crown width (fmcba + structure_class used the generic crown_width = 0.5 default)
+The IFMST-2-vs-3 + percov-0.27 leads UNIFIED to one root: fmcba (fmcba.jl:58) AND structure_class (_ss_strata) used the
+generic `crown_width`, which returns the 0.5 DEFAULT for every CR species (CR's forest-grown crown width is the separate
+`cr_cwcalc`, cwcalc.f IWHO=0 — the same CRWDTH FMCBA/FMSSTAGE read in FVS). ⇒ crown area ~100× too low ⇒ PERCOV≈0.27%
+(vs live 27.98) AND structure_class's per-stratum cover starved below CCMIN ⇒ 2nd stratum dropped ⇒ NSTR=1 ⇒ IFMST=2
+⇒ MCCT picks weak model 8. (structure_class was validated only on SN/snt01, so its CR crown-width path was never
+exercised.) FIX: dispatch the crown width on CentralRockies → cr_cwcalc(sp,d,h,cr, basal_area, elevation, hopkins) in
+both fmcba.jl and structure_stage.jl (_ss_strata). RESULT: crt01 FFE stand 2013 TPA jl 1→144→**98** (live 93); BA 64 vs
+57, TopHt 72/72 — the fire now kills the right amount. FFE fire is FUNCTIONAL (was a total wipeout). Residual ~5%
+(98 vs 93, BA 64/57) = the crown-fire torching-index secondary bug and/or minor IFMST/PMORT precision — next, minor.
+Suite covering fmcba+structure_stage+fuel_model changes running (CR-gated dispatch ⇒ 0 eastern regression expected).

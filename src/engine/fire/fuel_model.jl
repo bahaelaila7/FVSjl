@@ -512,7 +512,6 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
         ctba[_cr_fm_covtype(sp)] += x
         (1 <= sp <= NSP) && (fmtba[sp] += x)
-        dbhba += t.dbh[i] * x
     end
     stndba = sum(ctba)
     # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343)
@@ -529,13 +528,14 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     @inbounds for i in 1:NSP
         (i != 13 && fmtba[i] > fmtba[13]) && (lppdom = false)
     end
-    # FIRST-CUT structure class (IFMST). TODO: port FMSSTAGE (sstage.f) for the faithful
-    # multi-stratum/gap analysis. Single-stratum proxy (fmcfmd.f CR params SSDBH=5, SAWDBH=18;
-    # sstage.f:539-559 NSTR=1 path) on the BA-weighted mean DBH. crt01's FMD is INSENSITIVE to
-    # IFMST here (the always-added natural candidate 10 + heavy fuel dominate _fmdyn), so this
-    # suffices to validate the fuel-model path; refine for other stands with the full FMSSTAGE.
-    tmpdbh = stndba > 1f-6 ? dbhba / stndba : 0f0
-    ifmst = tmpdbh < 5f0 ? 1 : (tmpdbh < 18f0 ? 2 : 5)
+    # IFMST structure class = FMSSTAGE (sstage.f) — already ported + validated bit-exact vs the SSTAGE
+    # "Structural statistics" report as `structure_class`. Called with the CR fmcfmd params
+    # (fmcfmd.f:388-398): GAPPCT=20, SSDBH=5, SAWDBH=18 (12 for lodgepole ICT=6), CCMIN=5, TPAMIN=200,
+    # PCTSMX=30 — distinct from the STRCLASS-report defaults (gappct=30, sawdbh=25). NOTE (open): on
+    # crt01 this returns IFMST=2 where live FMSSTAGE gives 3 (→ MCCT picks model 8 not 10, the 144-vs-93
+    # residual) — a strata-count/threshold difference under investigation.
+    sawdbh = ict == 6 ? 12f0 : 18f0
+    ifmst = structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
     eqwt = zeros(Float32, _FMD_ICLSS)
     if ict == 7                                    # MCCT mixed conifer (fmcfmd.f:827-869, CR)
         if lppdom
