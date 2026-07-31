@@ -4460,3 +4460,22 @@ had live and jl SWAPPED in my narration — but the BIT-EXACT and CORNERED class
 analyses (11th/12th bugs) used EXPLICIT jl/live labels + jl-instrument-vs-live-MORTALITY-REPORT (independent of
 dig_vol), so they are UNAFFECTED and correct. META: always confirm the diff tool's column ORDER before narrating
 divergence direction (cost a mislabeled "jl under-kills" that was actually "jl over-kills" here).
+
+### Dense-seedling SIMFIRE over-kill — ROOT-CAUSED to the UNPORTED PPCT fuel-model rules (bounded gap)
+Followed the SIMFIRE-sweep lead (CN 1807153225290487, jl 95 vs live 382) to full root-cause via live MortRept +
+BurnRept + jl fuel-model instrument:
+- jl OVER-kills: class 0-5" jl 1547/1549 (99.9%) vs live 1279/1549 (82.5%); ALL jl ~99% vs live ~81%.
+- Because jl flame 3.39 / scorch 12.89 vs LIVE flame 1.7 / scorch 4.4 (2-3× hotter).
+- Because jl selects FUEL MODEL 10 vs LIVE model 9.
+- Because the stand is ict=3 (PPCT ponderosa) and the CR PPCT fuel-model-selection rules (cr/fmcfmd.f:562-641)
+  are NOT PORTED (documented TODO in fuel_model.jl:606 — "biomass-heavy live/dead crown+snag BL/BD"). jl falls
+  through to the always-added natural-fuel candidates (models 10+12), and _fmdyn picks the hotter model 10; live's
+  real PPCT rules pick model 9 (SURFACE, low flame).
+⇒ NOT a new bug — a KNOWN UNPORTED CHUNK (PPCT/OBCT fuel-model rules) surfaced EMPIRICALLY by the simfire sweep.
+BOUNDED: only fire (SIMFIRE/POTFIRE) on PPCT-cover-type stands; the .sum (non-fire) is UNAFFECTED (fuel model only
+feeds fire behavior). Same latent status as the OBCT rules + the ASCT/SFCT/WSCT F3-down-wood-fuel gap (fuel_model.
+jl:606-609). NEXT (to close): port the cr/fmcfmd.f PPCT rules (562-641) — needs the FFE live/dead crown+snag
+biomass (BL/BD) inputs. Verify flame→1.7, model→9, kill→81% on 1807153225290487. This is the FFE fuel-model-
+selection completion (a bounded fire-only leaf), distinct from the now-bit-exact FFE fire-mortality (11th) +
+fuel-init (12th). ★ The 11th/12th FFE fixes generalize on NON-PPCT / normal-density fire stands (84/100 simfire
+bit-exact); the PPCT gap is the residual fire-only class.
