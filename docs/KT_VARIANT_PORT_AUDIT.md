@@ -240,3 +240,15 @@ jl fields for dgf!(::Kootenai) (from src/core/state.jl):
 REMAINING chunk-3 = (1) confirm/expose RELDM1 jl scalar; (2) code kt_dgcons! + dgf!(::Kootenai) per the full spec;
 (3) loader PV_CODE->plot.habitat_code; (4) per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh dgf.o) on
 the 40 IE stands (.sweep_work/kt_ie_stands.txt) — CR DGFTRC recipe.
+
+## Chunk 3 — dgf!/kt_dgcons! IMPLEMENTED + compiles
+src/variants/kootenai/diameter_growth.jl written (LS pattern): kt_dgcons!(s) fills calib.dg_const (DGCON =
+DGHAB[MAPHAB[KKTYPE,sp]] + DGFOR[MAPLOC[KOTFOR,sp]] + DGEL*ELEV + DGEL2*ELEV^2 + slope-aspect + ln(COR2)),
+atten=OBSERV[ISPHAB], bark=BKRAT; dgf!(s,::Kootenai) fills scratch.wk[2,i]=DDS (kt/dgf.f:341, WK2=OB no bark
+conversion). jl fields: KKTYPE=p.habitat_code, KOTFOR=p.forest_idx, RELDEN=p.relative_density, PCCF=p.point_ccf
+[t.plot_id], MANAGD=p.managed, ELEV/SLOPE/ASP=plot. Wired kt_dgcons! into simulate.jl dgcons! dispatch (KT
+branch) + included in FVSjl.jl. VALIDATED: precompiles clean; kt_dgcons!/dgf!(::Kootenai) methods resolve;
+coefficients loaded (KT_DGLD/KT_MAPHAB(175,11)/KT_DGPCC1). REMAINING: loader PV_CODE->plot.habitat_code +
+confirm calibrate_diameter_growth! handles KT + per-tree WK2 instrument-replay vs live FVSkt (relink dgf.o) on
+40 IE stands. NOTE placeholders to verify vs live: KOTFOR=forest_idx (may need KT forkod map); crown dubbing
+skipped (validate on input-crown stands until KT crown chunk 5); RELDEN=relative_density (vs _prev).

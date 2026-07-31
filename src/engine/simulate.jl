@@ -75,6 +75,9 @@ function setup_growth!(s::StandState)
                                           # crown_pct=0 ⇒ VARMRT CRI=0 ⇒ EFFTR (100−CRI)/100 = 20× too high ⇒ seedling
                                           # over-kill cascades to the whole stand's mortality distribution.
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa Kootenai
+        kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
