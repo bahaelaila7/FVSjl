@@ -122,7 +122,10 @@ function _cr_crownw_dbrx(spi::Int, d::Float32, h::Float32, sg::Float32,
     xv = zeros(Float32, 6)
     if d <= dcthgh
         # direct small-tree XV (fmcroww.f:319-352), in lb
-        if spi == 12                       # pinyon: X=D/2
+        if spi == 9                        # bristlecone: X=D/2
+            x = d / 2f0
+            xv[1] = 8.874f0 * x; xv[2] = 3.428f0 * x; xv[3] = 4.429f0 * x; xv[4] = 0.590f0 * x
+        elseif spi == 12                   # pinyon: X=D/2
             x = d / 2f0
             xv[1] = 3.177f0 * x; xv[2] = 0.977f0 * x; xv[3] = 1.084f0 * x; xv[4] = 0.079f0 * x
         elseif spi == 16                   # juniper: X=D/2
@@ -153,8 +156,8 @@ end
 
 # metric branch biomass DFOL/DBR1-5 (kg, except oak in lb) for the DBRx groups (fmcroww.f:643-1030).
 function _cr_dbrx_large(spi::Int, d::Float32, h::Float32, sg::Float32)
-    if spi == 12                           # pinyon: DRC = D·2.54 (users enter DRC ≈ DBH here)
-        drc = d * 2.54f0
+    if spi == 12 || spi == 9               # pinyon / bristlecone — same eqs, different DRC (fmcroww.f:653-654)
+        drc = spi == 9 ? 2.54f0 * (d + 1.9410f0) / 1.0222f0 : d * 2.54f0
         l = log10(drc)
         dfol = 10f0^(-0.946f0 + 1.565f0 * l)
         base1 = 10f0^(-1.613f0 + 2.088f0 * l)
@@ -220,18 +223,27 @@ end
     spi == 1 && return exp(-3.335f0 + 2.303f0 * log(h))      # subalpine/corkbark fir
     spi == 3 && return exp(-4.212f0 + 2.7168f0 * log(h))     # Douglas-fir
     spi == 4 && return 0.4284f0 * h                          # grand fir
+    spi == 7 && return 0.04833f0 * h * h                      # western redcedar (CASE 7,19,20)
+    spi == 8 && return 0.1128f0 * h + 0.00813f0 * h * h      # western larch
     spi == 11 && return 0.03111f0 * h * h                     # lodgepole pine
     spi == 13 && return 0.3451f0 * h                         # ponderosa
+    spi == 14 && return 0.070f0 + 0.02446f0 * h * h          # whitebark pine
     spi == 15 && return 0.3292f0 * h                         # western white pine
+    spi == 17 && return 0.81135f0 * h / 5.1213f0             # tanoak / CA black oak
     spi == 18 && return exp(-3.932f0 + 2.571f0 * log(h))     # Engelmann spruce
+    spi == 24 && return exp(-5.126f0 + 2.563f0 * log(h))     # mountain hemlock (CASE 6,24)
     error("cr_crownw: small-tree TOTWT for SPIE group $spi not ported")
 end
 
 # small-tree XV(0),(1),(2) proportions of TOTWT (fmcroww.f:257-360)
 @inline function _cr_crownw_small_prop(spi::Int)::NTuple{3,Float32}
-    (spi == 1 || spi == 4 || spi == 18) && return (0.62f0, 0.26f0, 0.12f0)         # CASE (1,4,6,7,18,24)
+    (spi == 1 || spi == 4 || spi == 7 || spi == 18 || spi == 24) &&
+        return (0.62f0, 0.26f0, 0.12f0)                                            # CASE (1,4,6,7,18,24)
     spi == 13 && return (0.57f0, 0.14f0, 0.29f0)                                   # CASE (13,25)
-    (spi == 3 || spi == 11 || spi == 15) && return (0.52f0, 0.27f0, 0.21f0)        # CASE (3,11,14,15)
+    (spi == 3 || spi == 11 || spi == 14 || spi == 15) &&
+        return (0.52f0, 0.27f0, 0.21f0)                                            # CASE (3,11,14,15)
+    spi == 8 && return (0.40f0, 0.42f0, 0.18f0)                                    # western larch
+    spi == 17 && return (0.38f0, 0.32f0, 0.30f0)                                   # CASE (17,21) tanoak/oak
     error("cr_crownw: small-tree proportions for SPIE group $spi not ported")
 end
 
@@ -349,6 +361,59 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
         end
         dp1 = d < 1.8f0 ? 1f0 : 1.4657f0 * d^(-0.6454f0)
         dp2 = d < 10f0 ? 1f0 : 1f0 / (0.847f0 + 0.01678f0 * d)
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 7                      # western redcedar (CASE 7,20)
+        livewt = exp(1.7273f0 * log(d * r) - 2.8086f0)
+        deadwt = 0.01063f0 * d * d * d
+        p1 = 0.6174f0 * exp(-0.02326f0 * d)
+        p2 = 0.7562f0 * exp(-0.02411f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.0602f0 * exp(-0.02226f0 * d)
+        dp1 = d < 1.5f0 ? 1f0 : -0.01578f0 + (1.4673f0 / d)
+        dp2 = d < 8f0 ? 1f0 : 1.4534f0 * exp(-0.05395f0 * d)
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 8                      # western larch (no dead crown)
+        livewt = exp(0.4373f0 + 1.6786f0 * log(d))
+        if hp < dompct
+            livewt *= d <= 7.5f0 ? 0.5f0 : 0.6f0
+        end
+        p1 = 0.3468f0 * exp(-0.04343f0 * d)
+        p2 = 0.745f0 * exp(-0.03622f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.05448f0 * exp(-0.0213f0 * d)
+        p4 = d <= 11f0 ? 1f0 : 0.9223f0 + 0.7197f0 / d
+        deadwt = 0f0; dp1 = 0f0; dp2 = 0f0
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 14                     # whitebark pine
+        livewt = 0.06056f0 * d * d * d + 0.05477f0 * d * d * r + 0.646f0
+        deadwt = 0.001713f0 * d * d * c + 0.33f0
+        p1 = d > 20f0 ? 0.242f0 : 0.5120f0 * exp(-0.03737f0 * d)
+        p2 = d > 20f0 ? 0.268f0 : 0.8644f0 * exp(-0.05854f0 * d)
+        p3 = d <= 3.9f0 ? 1f0 : (d > 20f0 ? 0.670f0 : 1.0733f0 * exp(-0.02376f0 * d))
+        dp1 = d < 1.4f0 ? 1f0 : 0.268f0 + (1.1733f0 / d)
+        dp2 = 1f0
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 17                     # tanoak / CA black oak (Snell & Little 1983)
+        livewt = exp(-0.3169f0 + 2.2774f0 * log(d))
+        deadwt = exp(-2.4895f0 + 2.0374f0 * log(d))
+        p1 = 1f0 / (1.7936f0 + 0.5952f0 * d^0.7239f0)
+        p2 = 1f0 / (0.9940f0 + 0.4229f0 * d^0.6520f0)
+        p3 = d < 1.5f0 ? 1f0 : 1f0 / (0.8759f0 + 0.0927f0 * d^0.7843f0)
+        dp1 = -0.1424f0 + (0.7684f0 * d^0.25f0) - (0.4730f0 * log(d))
+        dp2 = d < 4.1f0 ? 1f0 : exp(-2.810f0 + (4.379f0 * d^0.25f0) - (1.691f0 * d^0.5f0))
+        dp3 = d < 7.9f0 ? 1f0 : 1.027f0 - (0.003439f0 * d)
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 24                     # mountain hemlock (Gholz 1979 weights, hemlock proportions)
+        ldm = log(d * 2.54f0)
+        livewt = (exp(-3.8169f0 + 1.9756f0 * ldm) + exp(-5.2581f0 + 2.6045f0 * ldm)) * 2.2046f0
+        deadwt = exp(-9.9449f0 + 3.2845f0 * ldm) * 2.2046f0
+        if d <= 40f0
+            p1 = 0.5474f0 * exp(-0.03697f0 * d)
+            p2 = 0.8352f0 * exp(-0.03802f0 * d)
+            p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * exp(-0.02735f0 * d)
+        else
+            p1 = 0.125f0; p2 = 0.183f0; p3 = 0.361f0
+        end
+        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * exp(-0.2064f0 * d))
+        dp2 = d < 12f0 ? 1f0 : 1f0 / (0.2772f0 + 0.06141f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     end
     error("cr_crownw: large-tree model for SPIE group $spi not ported")
