@@ -101,7 +101,9 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     if s.variant isa CentralRockies && !_cr_uses_fmcrowe(sp)
         spie = _CR_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
-        sg = coef_col(coef, :v2t)[sp]
+        # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
+        # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.
+        sg = coef_col(coef, :v2t)[sp] * _FM_P2T
         return cr_crownw(spie, d, h, 0, ic, hh, sg)
     end
     # FMCROWE's species arg is SPILS = the crown-biomass group. For CR that is ISPMAP(sp) (fmcrow.f:163

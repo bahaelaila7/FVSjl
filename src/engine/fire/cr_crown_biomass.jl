@@ -121,9 +121,16 @@ function _cr_crownw_dbrx(spi::Int, d::Float32, h::Float32, sg::Float32,
                          smwgt::Float32, dctlow::Float32, dcthgh::Float32)::NTuple{6,Float32}
     xv = zeros(Float32, 6)
     if d <= dcthgh
-        if spi == 12                       # pinyon (fmcroww.f:319-324): X=D/2
+        # direct small-tree XV (fmcroww.f:319-352), in lb
+        if spi == 12                       # pinyon: X=D/2
             x = d / 2f0
             xv[1] = 3.177f0 * x; xv[2] = 0.977f0 * x; xv[3] = 1.084f0 * x; xv[4] = 0.079f0 * x
+        elseif spi == 16                   # juniper: X=D/2
+            x = d / 2f0
+            xv[1] = 0.256f0 * x; xv[2] = 0.126f0 * x; xv[3] = 1.388f0 * x; xv[4] = 0.454f0 * x
+        elseif spi == 22                   # Gambel oak: X=D/4
+            x = d / 4f0
+            xv[1] = 3.2119f0 * x; xv[2] = 1.606f0 * x; xv[3] = 15.8115f0 * x; xv[4] = 7.7877f0 * x
         else
             error("cr_crownw: DBRx small-tree for SPIE group $spi not ported")
         end
@@ -131,20 +138,21 @@ function _cr_crownw_dbrx(spi::Int, d::Float32, h::Float32, sg::Float32,
         d < dctlow && return Tuple(xv)
     end
     dd = d > 40f0 ? 40f0 : d
-    dfol, dbr1, dbr2, dbr3, dbr4, dbr5 = _cr_dbrx_large(spi, dd)
+    dfol, dbr1, dbr2, dbr3, dbr4, dbr5 = _cr_dbrx_large(spi, dd, h, sg)
     xx = 1f0 - smwgt
-    xv[1] += max(0f0, dfol * 2.2046f0) * xx
-    xv[2] += max(0f0, dbr1 * 2.2046f0) * xx
-    xv[3] += max(0f0, dbr2 * 2.2046f0) * xx
-    xv[4] += max(0f0, dbr3 * 2.2046f0) * xx
-    xv[5] += max(0f0, dbr4 * 2.2046f0) * xx
-    xv[6] += max(0f0, dbr5 * 2.2046f0) * xx
+    cf = spi == 22 ? 1f0 : 2.2046f0        # oak DBRx already in lb; pinyon/juniper metric kg→lb
+    xv[1] += max(0f0, dfol * cf) * xx
+    xv[2] += max(0f0, dbr1 * cf) * xx
+    xv[3] += max(0f0, dbr2 * cf) * xx
+    xv[4] += max(0f0, dbr3 * cf) * xx
+    xv[5] += max(0f0, dbr4 * cf) * xx
+    xv[6] += max(0f0, dbr5 * cf) * xx
     for j in 1:6; xv[j] = max(0f0, xv[j]); end
     return Tuple(xv)
 end
 
-# metric branch biomass DFOL/DBR1-5 (kg) for the DBRx groups (fmcroww.f:643-696 pinyon/bristlecone).
-function _cr_dbrx_large(spi::Int, d::Float32)
+# metric branch biomass DFOL/DBR1-5 (kg, except oak in lb) for the DBRx groups (fmcroww.f:643-1030).
+function _cr_dbrx_large(spi::Int, d::Float32, h::Float32, sg::Float32)
     if spi == 12                           # pinyon: DRC = D·2.54 (users enter DRC ≈ DBH here)
         drc = d * 2.54f0
         l = log10(drc)
@@ -163,6 +171,38 @@ function _cr_dbrx_large(spi::Int, d::Float32)
             dbr2 = temp
         end
         return (dfol, dbr1, dbr2, dbr3, dbr4, dbr5)
+    elseif spi == 16                       # western juniper (fmcroww.f:871-891): DRC = D·2.54
+        drc = d * 2.54f0
+        l = log10(drc)
+        base = 10f0^(-1.737f0 + 1.382f0 * l)
+        dfol = base * 0.67f0
+        dbr1 = base * 0.33f0
+        dbr2 = 10f0^(-1.476f0 + 1.787f0 * l)
+        dbr3 = 10f0^(-1.356f0 + 1.782f0 * l) * 0.25f0
+        dbr4 = 0f0; dbr5 = 0f0
+        x = dbr2 + dbr3
+        temp = 10f0^(-3.543f0 + 2.774f0 * l)
+        if x > 1f-6
+            dbr2 += temp * dbr2 / x; dbr3 += temp * dbr3 / x
+        else
+            dbr2 = temp
+        end
+        return (dfol, dbr1, dbr2, dbr3, dbr4, dbr5)
+    elseif spi == 22                       # Gambel oak (Chojnacky 1992, fmcroww.f:995-1030): DRC=D, in lb
+        drc = d
+        x = drc * drc * h / 1000f0
+        x0 = 7.1046f0
+        v = x <= x0 ? -0.0534f0 + 2.3077f0 * x + 0.0467f0 * x * x :
+            -0.0534f0 + 2.3077f0 * x + 0.0467f0 * 3f0 * (x0 * x0 - x0 * x0 * x0 / x)
+        v <= 0.01f0 && (v = 0.01f0)
+        v *= sg * 2000f0                                       # SG = raw V2T (lb/ft³) → wt of plant+branches >1.5"
+        lv = log10(v)
+        dfol = 10f0^(-0.5655f0 + 0.8382f0 * lv - 0.0094f0 * h)
+        dbr3 = 10f0^(0.3036f0 + 0.7752f0 * lv - 0.0049f0 * h)
+        dbr1 = dfol * 0.5f0
+        dbr2 = max(0f0, (dbr3 - dbr1) * 0.67f0)
+        dbr3 = max(0f0, (dbr3 - dbr1) * 0.33f0)
+        return (dfol, dbr1, dbr2, dbr3, 0f0, 0f0)
     end
     error("cr_crownw: DBRx large-tree for SPIE group $spi not ported")
 end
