@@ -4838,3 +4838,19 @@ Changing it (or the cornew-init) for the CR oak case risks regressing those. Thi
 (1 persistent stand in the 4/150 ±balanced flagged set) needs a CR-gated per-cycle-COR-clock fix
 validated against BOTH the CR oak stands AND the full eastern suite — a focused pass, not a marathon-
 tail edit. Root cause fully localized; fix scoped; regression risk flagged.
+
+## Oak-con residual — jl-con-by-cycle measured: TWO shared-calibration factors (refines the above)
+
+Measured jl oak con BY CYCLE: 1.44, 1.32, 1.23, 1.17, 1.13 (cyc0-4) vs live 2.33, 1.90, 1.63, 1.45,
+1.32 (cyc1-5). BOTH decay geometrically by 0.757/cycle (= exp(-0.02773·10), and jl's dg_cor_goal for
+oak ≈0 so htg_cor_small = cormlt_h·htg_cor_init). The uniform jl-low gap is TWO factors, BOTH shared:
+  (1) CLOCK: live START (cycle-1 cormlt=1, FULL COR) vs jl END (cormlt_h=exp(-0.02773·(elapsed+sfint))
+      = 0.758 already at cyc0) — factor ~1.32. jl's END clock is deliberate (comment cites dgdriv.f);
+      may be right for eastern but wrong for CR small-tree height.
+  (2) CALIBRATION RATIO: jl htg_cor_init=0.484 (cornew 1.62) vs live 0.847 (cornew 2.33) — factor
+      ~1.75 (the LARGER; corrects the earlier "smaller offset" note). jl's cornew=sny/snx is too low
+      (snx/EDH too high or sny/HTG too low) despite SITEAR matching — a residual calibration-ratio
+      diff distinct from the 18th-bug's backdated-CCF snx fix (that stand had NULL site; this one
+      SITE_INDEX=68).
+Both live in the shared calibrate_diameter_growth!; a CR fix needs CR-gating + full-eastern-suite
+revalidation. Bounded (1 stand). DEFERRED as the sole known reducible-but-risky growth residual.
