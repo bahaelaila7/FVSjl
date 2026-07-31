@@ -3966,3 +3966,18 @@ jl's ax/aa[3]/iabflg + the SNX/SNY/CORNEW/dds intermediates for the planted DF v
 lines (DEBUG REGENT prints them). Bounded niche lead (planted-DF small-tree DG under IMODTY=3 Black Hills);
 does NOT affect the 4 bit-exact regimes or the 96%-bit-exact grow sweep (established stands). Tools: DEBUG REGENT
 (no relink), REGDBG jl instrument (removed after use).
+
+## PLANT bug PINNED to the planted-DF initial HEIGHT (HT-DBH coefs + htg both match live)
+Final localization: jl's DF HT-DBH curve coefficients MATCH live EXACTLY — blkdat.f:226 (B1) / :234 (B2)
+species-3 = 4.5879 / -8.9277 == jl ht1[3]/ht2[3]; iabflg[3]=1 (use the ht1/ht2 default, correct for a planted
+species with no inventory HT-DBH data to cratet-fit). And htg MATCHES (jl ~4.0 == live HTGR ~4.09). The regent
+small-tree DG conversion is dg=(dk−dkk)·bark·xrdgro with dk = ht2/(log(hk−4.5)−ht1)−1 and hk = h+htg. With
+ht1/ht2 AND htg both matching, the ~24% DG deficit can ONLY enter via `h` — the planted-DF HEIGHT at the start
+of the growth cycle. Since htg (the height increment) matches, the divergence must be the INITIAL planted-DF
+height (the ESTAB/PLANT default height, or the cr_esgent! birth-cycle height applied at planting). ⇒ ROOT =
+jl's planted-tree initial height ≠ live's for DF (the PLANT keyword left height unspecified → both use a
+DEFAULT; jl's default likely differs from estab.f/plant's). NEXT (definitive): TREELIST-dump the planted DF's
+(dbh,height) at the planting year 2003 jl vs live — one number settles it. Bounded NICHE lead (planted-species
+initial height under ESTAB); does NOT affect the 4 bit-exact regimes or the 96% grow sweep (which grow
+INVENTORY trees with measured heights). This closes the localization chain: PLANT divergence → planted-DF DG
+→ (ht1/ht2 ✓, htg ✓) → planted-DF initial height. Method: DEBUG REGENT + blkdat coef check, no relink.
