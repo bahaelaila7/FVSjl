@@ -3981,3 +3981,20 @@ DEFAULT; jl's default likely differs from estab.f/plant's). NEXT (definitive): T
 initial height under ESTAB); does NOT affect the 4 bit-exact regimes or the 96% grow sweep (which grow
 INVENTORY trees with measured heights). This closes the localization chain: PLANT divergence → planted-DF DG
 → (ht1/ht2 ✓, htg ✓) → planted-DF initial height. Method: DEBUG REGENT + blkdat coef check, no relink.
+
+## PLANT bug: fully localized to the CR establishment/esgent DBH derivation (planted DF DBH 0.1 vs 0.4)
+Definitive chain: @2003 jl TopHt=5.0 == live 5 (established HEIGHT matches) but jl QMD=0.1 vs live 0.4 — the
+planted-DF DBH differs. Both INITIALIZE the planted DBH at 0.1 (estab.f:626 DBH(ITRN)=0.1). The BIRTH-CYCLE
+establishment growth then grows live's DBH 0.1→0.4 by 2003 but jl's stays at 0.1: jl's cr_esgent!
+(small_tree_growth.jl:188-232) grows only the HEIGHT (t.height+=htg) and never updates t.dbh; esgent.f (:54-62)
+updates DBH only when WK4<1 (HT<4.5 ⇒ DBH=0.1+0.001·HT; HT≥4.5 ⇒ DBH=DBH·(HT/HTEMP)). ⇒ ROOT = jl's cr_esgent!
+omits the esgent.f DBH-derivation, so planted seedlings keep DBH≈0.1 while their height grows to ~5 ft (an
+inconsistent DBH/HT pair), and every downstream cycle's small-tree DG starts from the too-small DBH ⇒ the ~24%
+BA / ~29% compounding under-growth on the whole PLANT regime. NOTE the exact esgent WK4/DBH arithmetic doesn't
+trivially reproduce live's 0.4 from init 0.1 (DBH·(HT/HTEMP) would shrink it) — estab.f likely derives a
+non-0.1 establishment DBH from the ESSUBH height BEFORE esgent (estab.f DBH flow around :626 + CWCALC :704), so
+the fix must reconcile the full estab→esgent DBH path (a fresh-context trace: DEBUG ESGENT + the estab.f DBH
+derivation). BOUNDED NICHE (planted/regen seedlings; does NOT affect grow/thin/fire/salvage — all bit-exact —
+which grow inventory trees). This is the CR ESTABLISHMENT chunk's planted-tree-growth tail (estab COUNT was
+already validated; the planted-tree DBH-GROWTH is the remaining gap). Method: DEBUG REGENT + TreeList dump +
+esgent.f/estab.f read, no relink.
