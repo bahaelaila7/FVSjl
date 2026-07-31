@@ -63,6 +63,9 @@ include("variants/centralrockies/small_tree_growth.jl")
 include("variants/centralrockies/mortality.jl")
 include("variants/centralrockies/dwarf_mistletoe_model.jl")  # CR dwarf mistletoe per-cycle spread (mistoe.f)
 
+# --- kootenai (KT) — first of the western Rockies cluster; scaffold, equations chunk by chunk ---
+include("variants/kootenai/kootenai.jl")             # KT singleton + registration (MAXSP 11, western Wykoff DDS)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -150,7 +153,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
