@@ -3676,3 +3676,25 @@ litter direction must be RE-MEASURED after the FMCROWW port (the confirmed fact 
 wrong; its net litter + crown-fuel effect is empirical). The port now has a per-tree gold-standard diff
 (fmcroww_live_dump.txt). NEXT: port FMCROWW (1273 lines) + crown_biomass(::CentralRockies) SPIW-dispatch,
 diff each XV(0:5) vs the dump, then re-measure crt01 litter + coarse crown fuel + standing-dead crown.
+
+## FMCROWW port — TRANSCRIPTION DONE + VALIDATED (commit 994158f); remaining = HPCT wiring + dispatch
+Ported cr_crownw (src/engine/fire/cr_crown_biomass.jl) for the crt01-exercised FMCROWW groups SPIE 4
+(grand/white fir), 13 (ponderosa, both HP branches), 15 (western white pine), 18 (Engelmann spruce): small-
+tree (weight-from-H) + large-tree (LIVEWT/DEADWT + cumulative P1-P4/DP1-3) + SMWGT/ALGSLP blend + CASE-
+DEFAULT assembly + ISPMAP crosswalk. VALIDATED standalone vs the live dump: 466 trees, max rel err 0.0004 (=
+the dump's E14.6 print precision) — BIT-EXACT. Errors loudly on unported groups (doctrine #5).
+REMAINING WIRING (next):
+(1) HPCT (per-tree height percentile) — FMCROWW ponderosa/DF/larch (SPIE 13,3,8,25) branch on HP<DOMPCT(60).
+    FVS: fmcrow.f:130 CALL PCTILE(ITRN, HPOINT, PROB, HPCT). PCTILE (pctile.f) = sort trees HEIGHT-DESCENDING
+    (HPOINT), REVERSE-CUMULATE PROB(=TPA) from the tallest down, normalize ×100/TOT ⇒ tallest tree HP=100,
+    shortest HP=own-share; HP(tree) = 100·(ΣTPA of trees with height ≤ this)/ΣTPA. jl already has the RDPSRT
+    sort + a percentile (stand_pct!/standstats.jl:230); compute an analogous height-percentile per stand-cycle
+    (store t.ffe_hpct) and VALIDATE vs the dump HP column (crt01 PP HP spans 41-98, both branches hit).
+(2) DISPATCH: crown_biomass(::CentralRockies): per tree spiw=sp; if _cr_uses_fmcrowe(spiw) → existing Jenkins
+    path; else spie=_CR_ISPMAP[sp], return cr_crownw(spie,d,h,itrnc,ic,hpct,sg). Needs hp threaded (add an
+    `hp` kwarg to crown_biomass; the CR-relevant callers — litterfall/fmcba/fmscro/carbon — pass t.ffe_hpct[i]).
+(3) RE-MEASURE crt01 litter (carbon_collect deferred-post-fire probe) + coarse crown fuel + standing-dead
+    crown vs live ALL FUELS — the empirical net effect of the corrected conifer crown biomass.
+Only SPIE 4,13,15,18 ported (crt01). Other CR forests need the remaining ~21 groups (fmcroww.f, same pattern;
+aspen SPI 2 uses NATCRS but CR routes aspen to FMCROWE so it's out of the FMCROWW path). Live instrument +
+dump reusable for those: /workspace/.crwork/FVScr_crowdump + fmcroww_live_dump.txt.
