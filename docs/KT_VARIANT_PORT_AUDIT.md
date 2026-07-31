@@ -124,3 +124,14 @@ REMAINING chunk-2 wiring (precise):
   (2) src/variants/kootenai/site_index.jl: site_setup!(::Kootenai) = KOTHAB search -> KKTYPE (store for DG),
       -> ITYPE -> BAMAX/SDIDEF into sp_sdi_def; include habitat_tables.jl + site_index.jl in FVSjl.jl.
   (3) validate jl KKTYPE/ITYPE/sp_sdi_def vs live (531/ITYPE14/949) across the 40 IE stands.
+
+## Chunk 2 — site_index.jl IMPLEMENTED + unit-validated
+src/variants/kootenai/site_index.jl: kt_habtyp(kodtyp) does the 2-level KOTHAB->KKTYPE + JTYPE/KTYPE->ITYPE
+mapping; kt_site_index_setup! stores KKTYPE in plot.habitat_code (chunk-3 DG), ITYPE in plot.habitat_input,
+computes SDIDEF=BAMAX/(0.5454154*pmsdiu) into sp_sdi_def; site_setup!(::Kootenai) hook. Included in FVSjl.jl.
+UNIT-VALIDATED vs live: kt_habtyp(531) -> KKTYPE=87 (KOTHAB[87]=531 = live KOOTENAI 531), ITYPE=14 (MTYPE=530 =
+live IE), BAMAXA[14]=440, SDIDEF=949 (= live SDI MAX). Package precompiles; site_setup! method present.
+REMAINING for full stand-level integration (bundles with chunk 3, since a full jl stand run needs DG):
+  jl FIA loader must read PV_CODE -> plot.habitat_code so site_setup! sees the right input (CR left this a gap).
+  Then end-to-end harness diff (grow regime) once DG/height/crown/mort are ported. Site-index SITEAR curves
+  (kt/sitset.f site-index-by-species) deferred to the height/DG chunk where they're consumed.

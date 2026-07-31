@@ -66,6 +66,8 @@ include("variants/centralrockies/dwarf_mistletoe_model.jl")  # CR dwarf mistleto
 # --- kootenai (KT) — first of the western Rockies cluster; scaffold, equations chunk by chunk ---
 include("variants/kootenai/kootenai.jl")             # KT singleton + registration (MAXSP 11, western Wykoff DDS)
 include("variants/kootenai/species.jl")              # KT blkdat init (11 species, seed 55329, Stage SDI) + SPCTRN col 12
+include("variants/kootenai/habitat_tables.jl")       # KT habtyp/sitset lookup tables (KOTHAB/JTYPE/KTYPE/MTYPE/BAMAXA)
+include("variants/kootenai/site_index.jl")           # KT habtyp 2-level mapping + sitset SDImax (site_setup!)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
