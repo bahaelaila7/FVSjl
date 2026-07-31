@@ -307,6 +307,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
     _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
+    _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
     # recent dead are added back at the right rate to recover the BACKDATED density (notre.f:122-124). FVS keeps
@@ -352,7 +353,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # dense.f's RELDM1 counts them (history-8 already zeroed above). Live-only omission under-counted the CCF on
     # stands with recent mortality (68 vs live 121 on 1855925743290487); dead-inclusive = 121.13 = live exact.
     # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
-    _cr_cal && (_cr_bd_ccf = stand_ccf(s))
+    _cr_cal && (_cr_bd_ccf = stand_ccf(s); _cr_bd_avht = stand_top_height(s))
     t.n = nlive
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
@@ -776,7 +777,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     if s.variant isa CentralRockies
         htadj = sd[:st_htadj]; lo = sd[:site_lo]; hi = sd[:site_hi]
         scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
-        ccf = _cr_bd_ccf; avht = s.plot.avg_height                                      # PCTRED: BACKDATED CCF (dense.f RELDM1) · CURRENT AVH (regent.f:466)
+        ccf = _cr_bd_ccf; avht = _cr_bd_avht                                            # PCTRED: BACKDATED-window CCF+AVH (dense.f RELDM1+AVH, both dead-inclusive; regent.f:466 X=AVH·RELDEN/100)
         xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
         pctred = _CR_AB[1] + xd*(_CR_AB[2] + xd*(_CR_AB[3] + xd*(_CR_AB[4] + xd*(_CR_AB[5] + xd*_CR_AB[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)

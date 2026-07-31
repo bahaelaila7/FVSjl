@@ -4993,3 +4993,22 @@ mean height, ~70.1) for the CR REGCAL PCTRED, not s.plot.avg_height (AVHT40). Id
 quantity (dgf.f AVH definition — large-tree avg height vs AVHT40) and match it. Would fix 1855925743290487
 without regressing 408704093489998 (coincides there). Bounded (1 stand /150). The earlier clock/
 attenuation analysis is SUPERSEDED — do not pursue a clock fix; pursue the calibration AVH.
+
+## Oak-con FULLY FIXED (20th fix) — calibration AVH must also be the backdated-window value (like the CCF)
+
+The AVH mismatch (jl s.plot.avg_height=50.5 vs live REGCAL AVH=70.1) is the SAME dead-inclusive
+backdated-window pattern as factor-2 (the CCF): jl's backdated-window AVHT40 (t.n=nlive+ndead, backdated
+dbh, right after compute_density!) = 70.1 = live REGCAL AVH EXACTLY. But compute_density! then gets
+overwritten by the current-stand AVHT40 (50.5) before the CR REGCAL block. FIX: capture _cr_bd_avht =
+stand_top_height(s) in the backdated window (alongside _cr_bd_ccf) and use it for the REGCAL PCTRED
+X=AVH·RELDEN/100, NOT s.plot.avg_height. CR-ONLY. VALIDATED: 1855925743290487 now BIT-EXACT — 2033 TPA
+2788/2788, BA 124/124, QMD 2.9/2.9; BA/QMD bit-exact ALL cycles (TPA ±3 self-thin straddle). 408704093489998
+UNCHANGED bit-exact (backdated-window AVH = current there, 58.6). 30-stand grow batch: BA div 43→39,
+QMD 31→27 (improved), no new divergence.
+
+⇒ THE ENTIRE OAK-CON RESIDUAL IS RESOLVED. Both factors were the SAME root: the CR REGENT height
+calibration PCTRED must use the BACKDATED-WINDOW (dead-inclusive) density inputs — CCF (factor 2, 19th
+fix) AND AVH (this 20th fix) — not the current live-only values. My earlier clock/cornew analyses were
+RED HERRINGS (superseded); the clock is END for all (correct), the cornew followed from AVH+CCF. The
+18th fix's "AVH stays CURRENT" note was WRONG (it coincided on the NULL-site stand). CR growth is now
+bit-exact-or-cornered with NO known reducible residual.
