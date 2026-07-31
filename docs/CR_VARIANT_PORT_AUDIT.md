@@ -4067,3 +4067,19 @@ where live FVS itself hits its FP exception (a distinct regime, not the ZZRAN or
 seedling class is now bit-exact-or-cornered too; the last big systematic residual is closed. META: "accepted-
 cornered ZZRAN" was a PREMATURE corner — the fixable root (species-sorted draw order, matching mortality's
 IND1 order) sat one level below. Lesson: re-examine "cornered RNG" residuals for a DRAW-ORDER mismatch vs live.
+
+## Post-ZZRAN-fix broad re-validation + FINAL residual set
+Fresh random sample (25 CR FIA stands) after all 8 fixes: 24/25 BIT-EXACT (<0.5%), 1 @2.0% (borderline
+straddle). The regent species-sort fix cleared the multi-species seedling class WITHOUT regressing the non-
+seedling stands (single-species/dgsd<1 unaffected; suite 38588/0/1/75). NET CR fidelity on real FIA: ~96%
+bit-exact across ~75 sampled stands over grow + thin/fire/salvage/plant regimes. FINAL residual set (all
+verified genuine corners, same class across all 5 variants — NOT draw-order fixable):
+  (a) RDPSRT tie-break (AVHT40 / self-thin TPA) — the unstable-quicksort exact-permutation on multi-tie stands
+      (jl ports _rdpsrt!; residual is the exact tie permutation, ±1 TPA);
+  (b) volume merch-threshold spikes — a tree crossing a merch DBH cut (5"/7") one cycle early/late off a ±ULP
+      DBH ⇒ a TCuFt step (growth TPA/BA/SDI stays bit-exact);
+  (c) the pathological >1000-TPA-seedling stand (CN 190851682020004) where LIVE FVS hits its own FP exception.
+META (this session's biggest lesson): the "ZZRAN ch9" and small-tree residuals were NOT irreducible — the
+fixable root (regent SPECIES-SORTED draw order) sat below a premature corner. 8 real bugs fixed this session
+(FFE snag-vol×2, FMCROWW-not-ported, aspen species-group, mortality bark, cr_esgent DG-discard, regent ZZRAN
+order) + FMCROWW complete (38 spp). CR growth/establishment/FFE/volume/mortality all bit-exact-or-cornered.
