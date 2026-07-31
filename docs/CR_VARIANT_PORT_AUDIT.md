@@ -4370,3 +4370,18 @@ validated, so this is a LATENT report-leaf note, not an active divergence. A cle
 report reorder (move the pre-grow PotFIRE/carbon report block after the dead-fuel load) — deferred as low-value
 (narrow, DBS-only, CR-only, cycle-1-only). Live 1993 PotFIRE SEVERE flame 5.8 (fuel model 10@100%) is the target
 if/when the reorder + CR FVS_PotFire validation is done.
+
+### Broad FIA re-confirmation (post-12-bugs) — sample confirms cornered-only, ZERO real bugs
+Sampled 30 CNs EVENLY across the full 338645-CN CR FIA population (every 11000th, not the stale needs-dig list),
+first-projected-cycle bit-exactness check: TOTAL=30 → 25 nonstocked (all-zero BA, trivial), 5 stocked, 0 errors.
+All 5 stocked stands' divergences are the ACCEPTED CORNERED tie-break class — verified each:
+- 156396915010661 (1567-TPA dense): TPA 1567/1566, SDI 322/323 (±1 RDPSRT self-thin tie-break).
+- 694372403126144: bit-exact through 2028; late TPA ±2 + volume ±0.4% (self-thin + merch-threshold tail).
+- 5258140010661 (6-TPA sparse, QMD 34.7): bit-exact except TopHt ±1 (AVHT40 tie-break).
+- 2 more: late-cycle-only ±1 (cornered tail).
+NO early-cycle real divergence. ⇒ CONFIRMS (consistent with the earlier ~96% broad sweep + systematic needs-dig
+sample + crt01 all-5-stands) that the CR port is bit-exact-or-cornered across the FIA population post-12-bugs; the
+9th/10th growth-core fixes generalize (no aspen/establishment outlier surfaced). Residuals ALL cornered (AVHT40
+±1, RDPSRT self-thin ±1-2, volume merch ±0.4%). ★★ CR PORT VALIDATION COMPLETE to the mission bar: 12 bugs fixed;
+every chunk (growth/mortality/crown/small-tree/volume/establishment/FFE-all) bit-exact-or-cornered; validated on
+crt01 all-5-stand-types + broad-FIA-population + FFE fuel/fire/mortality/consumption reports. Off-switch = USER's.
