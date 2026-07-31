@@ -3488,3 +3488,12 @@ CR-specific; per doctrine #5 CR reuses the shared engine), and it's the blocker 
 (SFCT/WSCT/ASCT — tips _fmdyn model 8-vs-10) + crt01's byram ~5%. NEXT: per-cycle trace of the SNAG POOL (creation
 from mortality vs snag-fall density vs cwd decay rate) jl vs live on crt01 to find which of the three is off. Bounded
 but multi-step FFE-fuels trace. Temp oracle FVScr_cfmd2 removed; tree clean.
+
+## F3 handoff detail: snag-density comparison needs live snag-routine instrumentation
+The live snag report is NOT emitted to FVSOut.db (only FVS_Cases/InvReference/Error) nor the text .out for crt01, so
+the jl-vs-live snag-density comparison (the next F3 step — is jl's snag CREATION low, or the FALL/DECAY/biomass?) needs
+INSTRUMENTING the live snag routines (fmsnag.f snag density + fmsdit.f/fmsfall.f falldown → cwd) and relinking, then a
+matching jl snag-pool dump. Bounded but a deep instrument cycle. F3 status this session: initial fuel CORRECT, snag
+CREATION present (simulate.jl:337-342 book_mortality_snags!), deficit = net snag→cwd accumulation << live. Next: the
+live-snag-instrumented trace. This is a SHARED FFE-fuels subsystem item (doctrine #5) blocking only non-MCCT fire
+cover-type accuracy + crt01's ~5% byram; the CR-specific FFE cover-type rules (6/8) + fire behavior are done/validated.
