@@ -781,3 +781,14 @@ _TREE_VEC_FIELDS tripling copy, the volume/standstats/diameter_growth/simulate K
 test_mortality 19/20 (the 1 is a pre-existing @test_broken), test_canonical_multistand 209/209, test_multistand_sum
 51/51 — 279 pass, 0 REGRESSIONS. Confirms the KT additions (dg_prev zero-init + all KT-gated branches) are inert
 for the other 5 variants. KT variant-specific growth-and-yield engine COMPLETE + validated + regression-clean.
+
+## Next variant IE (Inland Empire) — SCOPE (the "at a discount" western sibling)
+IE shares the KT engine framework but is NOT a pure coefficient swap: MORTALITY is IDENTICAL Hamilton (ie/morts.f:278
+RIP=2.76253+0.222310·√D−0.0460508·√BA+… — same equation, IE coefficients PMSC/POT/IPDG) ⇒ reuse mortality!(::Koote-
+nai) form with IE coefs. DG (ie/dgf.f 599 lines vs KT 406): same Wykoff family (DGLD/DGBAL/DGCR CONSPP) but LARGER ⇒
+the DDS TERMS differ (IE has DGBAL·BAL + DGCR·CR classic-Wykoff; KT had DGDBAL·BAL/ln(D+1)+CCFSQ·RELDEN²+DGDS·D²+
+DGLBA·lnBA+DGPCC·PCCF) — VERIFY the IE DDS term set. HEIGHT (ie/htgf.f 406 vs KT 216): larger ⇒ different form,
+check. CROWN/REGENT/VOLUME (FW2)/forkod likely reuse w/ IE coefs + tables. IE has habitat (16,MAXSP) OCURHT dim.
+PLAN: new Inland Empire variant singleton + IE species/habitat/forkod + verify+port the IE DDS + IE height eqns
+(measure vs live FVSie, same instrument-replay recipe: relink ie oracle from bin/FVSie_buildDir) + swap coefficients
+for the shared mortality/crown/regent/volume. Est. ~40% the effort of KT (mortality/framework/volume reused).
