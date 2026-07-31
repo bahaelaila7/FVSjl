@@ -135,3 +135,24 @@ REMAINING for full stand-level integration (bundles with chunk 3, since a full j
   jl FIA loader must read PV_CODE -> plot.habitat_code so site_setup! sees the right input (CR left this a gap).
   Then end-to-end harness diff (grow regime) once DG/height/crown/mort are ported. Site-index SITEAR curves
   (kt/sitset.f site-index-by-species) deferred to the height/DG chunk where they're consumed.
+
+## Chunk 3 (dgf — western Wykoff DDS) — FULLY MEASURED (doctrine #2), ready to execute
+The KT large-tree DDS (kt/dgf.f:341-344), a standard western Wykoff regression:
+  DDS = CONSPP + DGLDS*ALD + CR*(DGCRS + CR*DGCRS2)
+      + DGDBLS*BAL/ln(D+1) + DGCCF2*CCF2 + DGD2*D*D
+      + DGLBAS*ln(BA) + DGPC1*PCCF1 + DGPC2*PCCF1
+  DDS = max(DDS, -9.21);  WK2 = DDS
+  where CONSPP = DGCON(ISPC) + COR(ISPC) + DGCCF(ISPC)*RELDEN   [sp11(OT): 0.01*DGCCF]
+        ALD = ln(D);  BAL = (1-PCT/100)*BA   [sp11: /100]
+        DGCON (per-species, from DGCONS entry): DGHAB(ISPHAB) + DGFOR(ISPFOR) + DGEL*ELEV + DGEL2*ELEV^2
+              + (DGSASP*sin(ASPECT)+DGCASP*cos(ASPECT)+DGSLOP)*SLOPE + DGSLSQ*SLOPE^2 + ln(COR2)
+              [ISPHAB=MAPHAB(KKTYPE,ISPC), ISPFOR=MAPLOC(KOTFOR,ISPC)]
+Coefficient arrays to extract from kt/dgf.f DATA blocks (all length 11=MAXSP unless noted):
+  DGLD, DGCR, DGCRSQ, DGDBAL, DGDS(->DGD2 per-spc), DGCCFA(->DGCCF), + the CCF2/lnBA/PCCF1 coefs
+  (DGCCF2/DGLBAS/DGPC1/DGPC2 — locate their per-species source arrays), DGEL, DGEL2, DGSASP, DGCASP,
+  DGSLOP, DGSLSQ; 2D: DGHAB(9,11), DGFOR(7,11), MAPHAB(175,11), MAPLOC(10,11), OBSERV(9,11).
+EXEC PLAN: (1) extract all arrays (compact — 11 species); (2) write diameter_growth!(::Kootenai) reusing the
+shared stand-stat computation (BAL/CCF/RELDEN/PCCF1/CR — same as eastern engine) + the validated
+KKTYPE->MAPHAB->DGHAB path (chunk-2 site_index stored KKTYPE in habitat_code); (3) wire loader PV_CODE->
+habitat_code; (4) per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh instrumented dgf.o) on the 40 IE
+stands — same recipe as CR's DGFTRC. This is the LARGE core chunk (careful transcription + per-tree diff).
