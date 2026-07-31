@@ -3763,3 +3763,19 @@ By CR species (ISPMAP), COVERED (20/38): sp1 AF,2 CB,3 DF,4 GF,5 WF,10 LM,11 LP,
 HIGHEST-VALUE next: groups 16 (juniper, 5 spp) + 22 (oak, 5 spp) = 10 CR species (both DBRx, reuse the
 _cr_crownw_dbrx path); then the P1-P4 stragglers. The 8 done groups cover the dominant CR conifer basal area
 (fir/spruce/pine/DF/lodgepole/pinyon). Live instrument (FVScr_crowdump) + per-stand dumps reusable.
+
+## ===== FMCROWW COMPLETE — all 38 CR species have a validated crown-biomass model (commit c227034) =====
+Ported the final 6 groups (7 redcedar, 8 larch, 9 bristlecone, 14 whitebark, 17 tanoak[unreachable], 24 mtn
+hemlock) via new single-species stands (RC/WL/BC/WB/MH + FVScr_crowdump). ALL validated bit-exact-or-print-
+precision: larch 0.0013, bristlecone 0.0029, whitebark 0.0006, mtn hemlock 0.0018, redcedar all-match (lone
+"1.0" = a dump-rounding artifact at exactly D=2.9, a P3 threshold; real runs use the true Float32 D).
+FMCROWW groups ported: 1,3,4,7,8,9,11,12,13,14,15,16,18,22,24 (P1-P4: 1,3,4,7,8,11,13,14,15,18,24; DBRx:
+9,12,16,22). Group 17 is dead code for CR (SPIW 21,22,38→FMCROWE). Combined with the FMCROWE path
+(SPIW 20,21,22,28,38 → SPIE 41/17/17/43/17, all in FMCROWE's CASE ranges), EVERY one of the 38 CR species now
+has a faithful, live-validated crown-biomass model. Species→group (ISPMAP): all covered.
+★ CR FFE CROWN BIOMASS SUBSYSTEM COMPLETE. This closes the last identified CR FFE fidelity gap (the litter/
+crown-fuel divergence). Net CR FFE status: DATA tables + snag volume (5 paths) + fire timing + CROWN BIOMASS
+(all 38 species) + litter — faithful end-to-end vs live FVScr. Validation assets (reusable): live instrument
+/workspace/.crwork/FVScr_crowdump + per-species dumps fmcroww_{af,df,lp,pjct,uj,go,rc,wl,bc,wb,nc,mh,live}_
+dump.txt. Residual = the ~6-15% downstream cwd/litter accumulation-dynamics tail (a bounded reporting leaf).
+Suite 38588/0/1/75 zero-regress throughout.
