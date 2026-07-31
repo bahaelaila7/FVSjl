@@ -590,3 +590,16 @@ RIP/RIPP/WKI→killed[], then reuse the shared kill/snag/tripling apply-tail (fa
 Variant), or a dedicated apply). Then instrument-replay validate per-tree WKI + .sum vs live FVSkt. All chunk-7
 coefficients + IFOR ready. WORKFLOW NOTE: a non-greedy debug-removal regex committed a dangling fragment
 (simulate.jl syntax error) — ALWAYS verify precompile BEFORE committing (caught it one commit late).
+
+## Chunk 7 mortality — mortality!(::Kootenai) IMPLEMENTED + validated; cycle runs through it
+Implemented src/variants/kootenai/mortality.jl = KT HAMILTON MORTS: stand-setup (DQ10=√(Σp(D²+2DG+G²)/Σp),
+DELTBA, BA10, TB, RZ=1−(1−TTB)^0.1, AVED=Σ(D·P)/ΣP, BAMAX=KT_BAMAXA[itype], SDIMAX=stand_sdimax) + MORCON
+(POTEN=POT(IPDG/IPDG2(itype,ifor)); GMULT/REIN) + per-tree RIP(logistic)→RIPP(BAMAX/RZ)→WKI=P·(1−(1−RIPP)^FINT)
++ SIZCAP + SDIMAX<5 all-kill. Fills the shared killed[] buffer, reuses the shared apply-tail (book_mortality_snags!
++ TPA removal). The mortality!(::Kootenai) method OVERRIDES the VARMRT-based mortality!(::AbstractVariant) dispatch.
+VALIDATED vs live morts.f instrument-replay: BAMAX 440 ✓, SDIMAX 949.09 ✓, T 2271 ✓, RZ 0.010896 vs 0.010914,
+AVED 1.246 vs 1.250, DQ10 3.964 vs 3.966; per-tree sp1 d7.1 RIP 0.00488 vs 0.00481 / WKI 0.38115 vs 0.37869 (~0.6%),
+sp4 d16.1 WKI 0.18499 vs 0.18537 (~0.2%). Residuals trace to the large-tree DG COR-precision feeding G/DQ10/RZ
+(cornered). The full grow_cycle now runs DG→height→regent→mortality END-TO-END, blocking only at chunk-5
+crown_ratio_update!(::Kootenai) (the per-cycle crown update, next). OMISSIONS to refine: MORTMULT/establishment
+windows (X=1), the past-DG WK1 growth term for cycle>1 (uses projected DG now, cycle-1-exact). All KT-gated.

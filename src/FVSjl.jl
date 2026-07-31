@@ -72,7 +72,8 @@ include("variants/kootenai/dg_coefficients.jl")      # KT large-tree DDS coeffic
 include("variants/kootenai/crown.jl")                # KT per-tree CCF (ccfcal MODE=1) → RELDEN
 include("variants/kootenai/diameter_growth.jl")      # KT dgf! (Wykoff DDS) + kt_dgcons!
 include("variants/kootenai/height_growth.jl")        # KT htgf! (exp-form height increment)
-include("variants/kootenai/regent.jl")               # KT regent (chunk 6): kt_regcons! RHCON + small-tree growth (pending)
+include("variants/kootenai/regent.jl")               # KT regent (chunk 6): kt_regcons! + small_tree_growth!
+include("variants/kootenai/mortality.jl")            # KT mortality (chunk 7): Hamilton MORTS
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
