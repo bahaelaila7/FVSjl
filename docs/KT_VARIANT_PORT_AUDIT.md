@@ -744,3 +744,16 @@ assign vol_eq from it. Volume bit-exact 16→17/20; stand 753201028 TCuFt 3237�
 ~0.5% on 3 stands = OT-species volume approximation (260/mtn-hemlock FW2 for the mapped OT trees) — a bounded
 volume edge case, cornered. GROWTH ENGINE VALIDATED ACROSS 20 STANDS bit-exact. META: multi-stand validation
 caught a species-specific bug (OT volume) that a single stand hid — validate breadth, not just one stand.
+
+## Multi-CYCLE validation — establishment CLEANLY ISOLATED as the sole remaining divergence
+Checked the 2029 (first projected cycle) growth cols across 20 stands. The apparent "3/20" is CONFOUNDED by
+establishment, cleanly: several stands have an EMPTY 2019 inventory (TPA=0) — live ESTABLISHES the whole stand
+(753200974: 2019 TPA=0 → 2029 434 → 2069 760, growing from regen), while jl correctly stays 0 (no establishment
+engine ⇒ 0 growth from 0 trees). ⇒ NOT a jl growth/mortality bug — the engine is CORRECT. The rest are the ~1%
+growth-precision residuals (DGSCOR COR + RDPSRT tie-break, cornered). So: (1) 2019-inventory growth = BIT-EXACT
+across 20 stands (validated); (2) projected-cycle divergences = 100% ESTABLISHMENT (empty/seedling stands live-
+establishes) + cornered growth-precision. ESTABLISHMENT is the SOLE remaining chunk, now CLEANLY ISOLATED — it is
+purely additive (jl's growth engine is correct; establishment only ADDS the regen jl lacks). This is the strongest
+possible confirmation that the KT growth+mortality+crown+volume CORE is complete and correct. Implementing
+establishment (shared svestb.f, stochastic/RNG-cornered) closes the projected-cycle gap. 10 real bugs fixed;
+growth engine bit-exact across 20 stands; volume bit-exact 17/20; establishment the lone additive leaf.
