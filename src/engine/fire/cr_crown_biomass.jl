@@ -79,6 +79,12 @@ function cr_crownw(spie::Integer, d::Float32, h::Float32, itrnc::Integer, ic::In
     # SMWGT = ALGSLP(D, [DCTLOW,DBHCUT,DCTHGH], [1,0.5,0], 3) — segmented-linear, flat outside.
     smwgt = _cr_algslp3(d, (dctlow, dbhcut, dcthgh), (1f0, 0.5f0, 0f0))
 
+    # DBRx-path groups (bristlecone 9, pinyon 12, juniper 16, Gambel oak 22): DIRECT small-tree XV + metric
+    # branch biomass DFOL/DBR1-5 → ×2.2046 assembly (fmcroww.f:319-360 small, 643-1030 large, 1246-1262),
+    # NOT the LIVEWT/P1-P4 conifer path.
+    (spi == 9 || spi == 12 || spi == 16 || spi == 22) &&
+        return _cr_crownw_dbrx(spi, d, h, sg, smwgt, dctlow, dcthgh)
+
     dd = d
     if d <= dcthgh
         # ---- small-tree model (fmcroww.f:174-364) ----
@@ -107,6 +113,58 @@ function cr_crownw(spie::Integer, d::Float32, h::Float32, itrnc::Integer, ic::In
     xv[5] += (livewt * (1f0 - p4) + deadwt * (1f0 - dp3)) * xx
     for j in 1:6; xv[j] = max(0f0, xv[j]); end
     return Tuple(xv)
+end
+
+# DBRx-path crown weight (pinyon/juniper/bristlecone/oak): direct small-tree XV + metric branch biomass.
+# Small-tree XV (fmcroww.f:319-360) is in lb (already), ×SMWGT; large-tree DFOL/DBR1-5 (kg) ×2.2046×(1-SMWGT).
+function _cr_crownw_dbrx(spi::Int, d::Float32, h::Float32, sg::Float32,
+                         smwgt::Float32, dctlow::Float32, dcthgh::Float32)::NTuple{6,Float32}
+    xv = zeros(Float32, 6)
+    if d <= dcthgh
+        if spi == 12                       # pinyon (fmcroww.f:319-324): X=D/2
+            x = d / 2f0
+            xv[1] = 3.177f0 * x; xv[2] = 0.977f0 * x; xv[3] = 1.084f0 * x; xv[4] = 0.079f0 * x
+        else
+            error("cr_crownw: DBRx small-tree for SPIE group $spi not ported")
+        end
+        for j in 1:6; xv[j] = max(0f0, xv[j] * smwgt); end
+        d < dctlow && return Tuple(xv)
+    end
+    dd = d > 40f0 ? 40f0 : d
+    dfol, dbr1, dbr2, dbr3, dbr4, dbr5 = _cr_dbrx_large(spi, dd)
+    xx = 1f0 - smwgt
+    xv[1] += max(0f0, dfol * 2.2046f0) * xx
+    xv[2] += max(0f0, dbr1 * 2.2046f0) * xx
+    xv[3] += max(0f0, dbr2 * 2.2046f0) * xx
+    xv[4] += max(0f0, dbr3 * 2.2046f0) * xx
+    xv[5] += max(0f0, dbr4 * 2.2046f0) * xx
+    xv[6] += max(0f0, dbr5 * 2.2046f0) * xx
+    for j in 1:6; xv[j] = max(0f0, xv[j]); end
+    return Tuple(xv)
+end
+
+# metric branch biomass DFOL/DBR1-5 (kg) for the DBRx groups (fmcroww.f:643-696 pinyon/bristlecone).
+function _cr_dbrx_large(spi::Int, d::Float32)
+    if spi == 12                           # pinyon: DRC = D·2.54 (users enter DRC ≈ DBH here)
+        drc = d * 2.54f0
+        l = log10(drc)
+        dfol = 10f0^(-0.946f0 + 1.565f0 * l)
+        base1 = 10f0^(-1.613f0 + 2.088f0 * l)
+        dbr1 = base1 * 0.33f0
+        dbr2 = base1 * 0.67f0
+        dbr3 = 10f0^(-2.971f0 + 3.007f0 * l) * 0.25f0
+        dbr4 = 0f0; dbr5 = 0f0
+        dbr1 += 10f0^(-1.873f0 + 1.675f0 * l)                 # old twigs → <1/4"
+        x = dbr2 + dbr3                                        # dead branches redistributed over 0.25-1.5"
+        temp = 10f0^(-5.400f0 + 4.470f0 * l)
+        if x > 1f-6
+            dbr2 += temp * dbr2 / x; dbr3 += temp * dbr3 / x
+        else
+            dbr2 = temp
+        end
+        return (dfol, dbr1, dbr2, dbr3, dbr4, dbr5)
+    end
+    error("cr_crownw: DBRx large-tree for SPIE group $spi not ported")
 end
 
 # ALGSLP for 3 breakpoints (algslp.f): flat below x[1] / above x[3], linear between.
