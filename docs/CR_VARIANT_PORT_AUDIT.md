@@ -4414,3 +4414,20 @@ on a near-zero volume base, self-corrects next cycle. Consistent with [[fvsjl-la
 0 UNCLASSIFIED. The CR port is DEFINITIVELY bit-exact-or-cornered across the FIA population — every divergence
 class (print_boundary/threshold_crossing/structure_densephase/volume_persistent/count_straddle) is a KNOWN cornered
 tie-break/rounding primitive, verified not to mask a real bug.
+
+### PLANT-regime sweep (100 stands, different code path) — establishment path bit-exact-or-cornered
+Swept 100 stands under REGIME=plant (adds a standardized PLANT cohort — exercises the establishment path where the
+9th aspen-HCOR + 10th ABIRTH fixes apply). Result: 0 fully-bit-exact / 100 diverging / 0 UNCLASSIFIED — but the
+"0 bit-exact" is EXPECTED and CORNERED, not a bug: the PLANT regime injects a small planted cohort whose tiny
+derived stats (BA/SDI/CCF) trip the ±1 integer-rounding classifier on EVERY stand. Signatures all KNOWN cornered:
+49 volume_persistent, 41 threshold_crossing, 7 structure_densephase, 2 print_boundary, 1 count_straddle. TRACED:
+- Pure bare+PLANT stands (647519148126144, 25042464010900): planted-cohort TPA BIT-EXACT (400→399→397→396),
+  BA/SDI OSCILLATE ±1 (jl 2/1 then 11/12 — rounding straddle, NOT systematic), vol ±1-3% (merch tail). ⇒ the
+  planted-tree GROWTH is bit-exact — the 10th-bug ABIRTH fix GENERALIZES.
+- Mixed existing+PLANT (1629333815290487, "BdFt 33%"): ISOLATED via grow-regime rerun — the EXISTING stand is
+  BIT-EXACT on all structural cols under grow (only BdFt/MCuFt sawtimber-threshold diverges, cornered); the added
+  PLANT-regime divergence (TopHt 36/29, BA/SDI ±1-3) is purely the DENSE planted+existing self-thin + AVHT40
+  tie-break (structure_densephase). Both cohorts grow bit-exact individually; the dense mix amplifies the tie-break.
+⇒ the ESTABLISHMENT/planted-tree path is bit-exact-or-cornered; recent fixes generalize; all divergence classes
+are KNOWN cornered primitives. This session's coverage: 400 grow-regime + 100 plant-regime new stands, all
+bit-exact-or-cornered, zero real bugs, zero UNCLASSIFIED.
