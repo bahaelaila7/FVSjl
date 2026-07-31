@@ -77,7 +77,7 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
-        calibrate_diameter_growth!(s; scale = dgscale)
+        calibrate_diameter_growth!(s; scale = dgscale)," igl=",s.plot.geo_location," kotfor=",s.plot.forest_idx)
     end
     return s
 end

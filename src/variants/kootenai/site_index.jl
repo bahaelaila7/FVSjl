@@ -24,9 +24,25 @@ function kt_habtyp(kodtyp_in::Integer)
     return kktype, itype
 end
 
+# kt/forkod.f JFOR/KFOR tables: national-forest code list + geographic-location class.
+const KT_JFOR = Int[103, 104, 105, 106, 621, 110, 113, 114, 116, 117, 118, 613]
+const KT_KFOR = Int[1, 1, 3, 2, 1, 1, 1, 1, 1, 3, 2, 1]
+
+# kt/forkod.f:95-112: map a padded KODFOR to the JFOR subscript IFOR (1..11; 613→Kaniksu remaps to 7) and the
+# geographic-location class IGL=KFOR(IFOR). IFOR indexes the mortality IPDG(ITYPE,IFOR); IGL the regent sp11 RHGL.
+# Not-found ⇒ defaults (ifor 8, igl 1) — matches "forest code not found" leaving the common-block defaults.
+function _kt_ifor_igl(kodfor_padded::Int)
+    ifordi = kodfor_padded ÷ 100000
+    idx = findfirst(==(ifordi), KT_JFOR)
+    idx === nothing && return (8, 1)
+    ifor = idx == 12 ? 7 : idx           # Kaniksu 613 → 113 (forkod.f:100-102)
+    return (ifor, KT_KFOR[ifor])
+end
+
 # kt/forkod.f: translate the user forest LOCATION code (KODFOR) into KT's location subscript KOTFOR
 # (1..10, default 8 "to avoid blowups in REGENT & DGF" per forkod.f:125). KOTFOR feeds the DG/REGENT
-# MAPLOC(KOTFOR,ISPC) location-class lookup; stored in p.forest_idx (kt_dgcons! reads it there).
+# MAPLOC(KOTFOR,ISPC) location-class lookup; stored in p.forest_idx (kt_dgcons! reads it there). Also resolves
+# IFOR (JFOR subscript, for mortality IPDG) + IGL=KFOR(IFOR) (regent sp11) — IGL stored in p.geo_location.
 function kt_forkod!(p)
     kodfor = Int(p.user_forest_code)
     # reservation pseudo-code crosswalk (forkod.f:56-71)
@@ -59,7 +75,24 @@ function kt_forkod!(p)
     idist == 1405 && (kotfor = ((1 <= icomp <= 4) || (8 <= icomp <= 19) || icomp == 27) ? 5 : 10)
     idist == 1406 && (kotfor = (1 <= icomp <= 4) ? 6 : 9)
     p.forest_idx = Int32(kotfor)
+    ifor, igl = _kt_ifor_igl(kodfor)      # JFOR subscript + geographic-location class
+    p.geo_location = Int32(igl)
     return p
+end
+
+"kt/forkod.f IFOR (JFOR subscript, 1..11) for the mortality IPDG(ITYPE,IFOR) — recomputed from KODFOR (pads first)."
+function kt_ifor(p)
+    kodfor = Int(p.user_forest_code)
+    kodfor == 8109 && (kodfor = 11300000); kodfor == 8133 && (kodfor = 11000000); kodfor == 8137 && (kodfor = 11800000)
+    if 100 <= kodfor <= 9999999
+        if     kodfor <= 999;    kodfor *= 100000
+        elseif kodfor <= 9999;   kodfor *= 10000
+        elseif kodfor <= 99999;  kodfor *= 1000
+        elseif kodfor <= 999999; kodfor *= 100
+        else;                    kodfor *= 10
+        end
+    end
+    return _kt_ifor_igl(kodfor)[1]
 end
 
 function kt_site_index_setup!(s::StandState)
