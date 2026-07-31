@@ -3406,3 +3406,23 @@ dead-fuel pools ~2.6× low) + jl feeds Rothermel the STANDARD model-10 load whil
 actual (heavier) fuel. This is FFE fuel-dynamics (F3: cr_dead_fuel_loading initial load + mortality→down-wood
 accumulation + decay), a shared-engine modeling detail — NOT the CR fire-behavior port. Bounded, ~5% TPA, deferred. The
 CR FFE FIRE-BEHAVIOR chunk (fuel-model selection + structure class + crown width + mortality) is CORRECT/verified.
+
+## FFE byram — CLARIFIED: it is the STANDARD-vs-DYNAMIC fuel-model-LOAD architecture (cornered), not a CR bug
+Sharper analysis: jl's Rothermel runs on the STANDARD Anderson model-10 load (fuel_model_resolved), so jl's byram
+(8063) is INDEPENDENT of jl's actual down-wood pools — the 9% gap vs live (8820) is purely that live's FMFINT
+integrates the stand's ACTUAL (heavier) fuel load with model 10's SAV/depth (the FVS dynamic fuel model), while jl
+uses the standard model-10 load. This is a SHARED-FFE architecture choice (jl weights standard models via FMDYN; the
+same on SN/NE/LS) that only diverges on HEAVY-fuel stands (model 10/12); light-fuel stands match. ⇒ CORNERED (a
+documented jl-FFE approximation; matching would need routing the fire through build_dynamic_fuel_model — shared, risky,
+SN-validated on standard loads). SEPARATE latent lead (does NOT affect crt01 FMD or byram, since jl uses standard
+load): jl's CR down-wood pools read ~2.6× low (small 2.965/large 12.998 vs live 7.776/20.032) — a CR F3 dead-fuel
+loading/accumulation gap worth a look IF a fuel-report or a model-boundary stand ever needs it. Neither blocks the
+FFE fire chunk, which is FUNCTIONAL + behavior-verified.
+
+## STATUS SUMMARY (2026-07-31): all 3 requested tasks addressed
+(1) RE-SWEEP: needs-dig tail = cornered self-thin/tie-break (verified); volume verdict robust (6 stands). DONE.
+(2) FFE FIRE: crt01 wipeout FIXED (2013 TPA 1→98 vs live 93); behavior core all-verified; residual = cornered
+    standard-load architecture. Bounded follow-ups: 6 other cover-type rules (need non-MCCT fire validation targets —
+    CR_FFE_Reg_db / FIA fire stands), F3 low-pool lead, POTFIRE report. DONE (core).
+(3) ESTABLISHMENT: PLANT path bit-exact-or-cornered (crt01 stand 5). NATURAL/SPROUT ported, need a differential. DONE (core).
+Growth+volume core (chunks 0-9) remains bit-exact-or-cornered. Off-switch (docs/CR_VARIANT_PORT_COMPLETE) = USER's call.
