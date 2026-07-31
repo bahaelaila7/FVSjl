@@ -4854,3 +4854,23 @@ oak ≈0 so htg_cor_small = cormlt_h·htg_cor_init). The uniform jl-low gap is T
       SITE_INDEX=68).
 Both live in the shared calibrate_diameter_growth!; a CR fix needs CR-gating + full-eastern-suite
 revalidation. Bounded (1 stand). DEFERRED as the sole known reducible-but-risky growth residual.
+
+## Oak-con factor 2 LOCALIZED — jl `_backdate_dbh!` over-backdates (CCF 68 vs live RELDM1 121)
+
+Measured (FVScr_dens): live RELDM1 (backdated density) = 121.13, RELDT (current) = 136.73 — a MILD
+~12% backdate. But jl's backdated-window CCF (the value the 18th fix captures for the oak PCTRED) =
+68.04 — jl `_backdate_dbh!` OVER-backdates ~2× for this stand. ⇒ jl's oak calibration EDH (snx) too
+high ⇒ cornew 1.62 vs live 2.33 (factor-2 root). The 18th fix used the `_backdate_dbh!`-window CCF,
+which MATCHED live's RELDM1 for the NULL-site tiny-oak stand (both ~109.5, coincidence — minimal
+backdating) but DIVERGES here (2.2" oaks + 18 bigger ponderosa over-backdated). So jl's
+`_backdate_dbh!` does NOT reproduce dense.f's RELDM1 backdating for larger-tree stands — a backdating-
+AMOUNT accuracy bug distinct from the 18th fix's plumbing (which correctly wires the backdated CCF;
+the backdated VALUE is what's wrong here).
+
+**Refined 2-factor summary for the bounded oak-con residual (1855925743290487):**
+  F1 = small-tree-height COR decay CLOCK (jl END `elapsed+sfint` vs live START), ~1.32×.
+  F2 = jl `_backdate_dbh!` over-backdates (CCF 68 vs live 121) ⇒ cornew 1.62 vs 2.33, ~1.75×.
+Both shared-calibration; F2 also feeds the large-tree COR + crown backdating (so a `_backdate_dbh!`
+fix has broad reach + regression risk). DEFERRED: needs a focused pass reconciling jl `_backdate_dbh!`
+vs dense.f RELDM1 for larger-tree stands, CR-gated where risky, with full-eastern-suite revalidation.
+Bounded (1 stand /150). The CR growth core is otherwise bit-exact-or-cornered (18 bugs fixed).
