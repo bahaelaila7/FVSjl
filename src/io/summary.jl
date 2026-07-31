@@ -276,9 +276,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 # cycle≥2 fires the pools are already loaded (fuels_init), so fire_carbon stays bit-exact.
                 fire_this_cycle && !s.fire.fuels_init && (compute_density!(s); fmcba!(s))
                 fire_this_cycle && (s.fire.fire_smlg = _small_large_fuel(s.fire))
-                # Defer the VERY FIRST (init-year) dead-fuel load into grow_cycle! post-cuts! (FVS loads it after
-                # the cut phase). Later cycles (already init) run the annual loop pre-grow as before.
-                fire_this_cycle || (s.fire.fuels_init ? ffe_fuel_update!(s, per) : (ffe_defer_init = true))
+                # Defer the VERY FIRST (init-year) dead-fuel load into grow_cycle! post-cuts! (FVS loads FMCBA
+                # after the cut phase). Later cycles (already init) run the annual loop pre-grow as before.
+                # CR-ONLY: the eastern (SN/NE/CS/LS) FFE + its PotFIRE/carbon reports are separately validated and
+                # their init-year has no thin (pre==post), so keep their pre-grow load path untouched (doctrine #5).
+                if fire_this_cycle
+                elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
+                    ffe_fuel_update!(s, per)
+                else
+                    ffe_defer_init = true
+                end
             end
             chook = fire_cycle ? (st -> (compute_density!(st); fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,

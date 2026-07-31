@@ -4312,3 +4312,13 @@ FFE untouched. VALIDATED: STAND-4 now bit-exact-or-±1 all cycles; zero-regressi
 identical). CAVEAT: on the FFE-init year a stand's cycle-1 PotFIRE report now reads the pre-load (empty) cwd — a
 report-only imperfection (the CR FVS_PotFire report is not yet validated; the .sum + fire are correct). ⇒ the FFE
 FIRE chunk (behavior + mortality) is now BIT-EXACT-OR-CORNERED. Residual = AVHT40/SDI ±1 tie-break (cornered).
+
+### FFE dead-fuel-init fix — CR-GATED (removes the eastern PotFIRE-report risk)
+The 12th-bug fix (b2ab4e7) deferred the load + gated the PotFIRE-report fmcba! for ALL variants — which also
+changed the EASTERN cycle-1 PotFIRE report to read empty cwd (it previously loaded+used the dead fuel). The suite
+passed (no eastern PotFIRE-cycle-1 assertion), but that is an unvalidated eastern behavior change ⇒ CR-GATED both:
+summary.jl only sets ffe_defer_init for `s.variant isa CentralRockies`; potential_fire uses `load_dead = CR ?
+fs.fuels_init : true`. Eastern (SN/NE/CS/LS) FFE + PotFIRE/carbon reports now provably UNCHANGED (their init-year
+has no thin ⇒ pre==post anyway). CR STAND-4 stays bit-exact-or-±1 (2013 TPA/BA/CCF/QMD match); zero-regression
+(1918/140-preexisting/3). The cycle-1 PotFIRE-report-reads-empty-cwd imperfection is now CR-ONLY (CR FVS_PotFire
+report not yet validated; .sum + fire correct). Doctrine #5 (don't perturb the validated eastern engine) honored.
