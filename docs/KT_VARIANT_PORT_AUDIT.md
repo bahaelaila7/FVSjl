@@ -578,3 +578,15 @@ OLDFNT = DG measurement period. XMMULT/XMDIA1/XMDIA2 = MORTMULT keyword (default
 extend kt_forkod! with IFOR+IGL; (2) write mortality!(::Kootenai) [Hamilton stand-setup DQ10/RZ/AVED + per-tree
 RIP/RIPP/WKI] filling killed[]; (3) factor the shared mortality! apply-tail (kill/snag/tripling) into a helper both
 call; (4) instrument-replay validate per-tree WKI + .sum vs live FVSkt. All chunk-5/6/7 coefficients now extracted.
+
+## Chunk 7 mortality — forkod IFOR/IGL DONE + MORCON validated; mortality! Hamilton is the remaining piece
+kt_forkod! EXTENDED with _kt_ifor_igl (JFOR/KFOR lookup): IFOR (JFOR subscript 1..11, for IPDG(ITYPE,IFOR)) +
+IGL=KFOR(IFOR) (regent sp11 RHGL, stored p.geo_location) + kt_ifor(p) helper. VALIDATED vs live MORCON replay:
+ifor=3, igl=3, kotfor=8 (all match); MORCON POTEN→GMULT/REIN hand-verified bit-exact (gm1 0.857/rein1 1.156 from
+POT(IPDG(14,3)=17)=1.05; gm2 0.926/rein2 1.013 from POT(IPDG2(14,3)=50)=2.70). REMAINING chunk-7: write
+mortality!(::Kootenai) = Hamilton stand-setup (DQ10=√(Σp(D²+2DG+G²)/Σp), DELTBA, BA10, TB, RZ=1−(1−TTB)^0.1,
+AVED=Σ(D·P)/ΣP, BAMAX/SDIMAX via sitset/SDICAL) + kt_morcons! (POTEN/GMULT/REIN from IPDG/IPDG2/POT) + per-tree
+RIP/RIPP/WKI→killed[], then reuse the shared kill/snag/tripling apply-tail (factor it out of mortality!(::Abstract
+Variant), or a dedicated apply). Then instrument-replay validate per-tree WKI + .sum vs live FVSkt. All chunk-7
+coefficients + IFOR ready. WORKFLOW NOTE: a non-greedy debug-removal regex committed a dangling fragment
+(simulate.jl syntax error) — ALWAYS verify precompile BEFORE committing (caught it one commit late).
