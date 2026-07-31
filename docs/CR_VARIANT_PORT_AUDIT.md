@@ -3790,3 +3790,20 @@ volume columns). Confirmed independently: a CR dig_vol stand is 2014 bit-exact a
 CR growth+volume core is intact and this session's FFE crown-biomass completion added no growth-path risk.
 NET CR PORT STATE: growth core bit-exact-or-cornered (self-thin tail accepted); volume (NVEL) tracks growth;
 FFE fully faithful (data + snag-vol + timing + crown-biomass[all 38 spp] + litter). Suite 38588/0/1/75.
+
+## NEXT CHUNK (surfaced via CR FIA sweep): dense-stand growth-core divergences (real, not the accepted tail)
+With FFE complete, dug the CR FIA sweep open items (.sweep_work/cr_cns_tcuft_nd.txt = 1355 volume-flagged
+stands). dig_vol on a sample (REGIME=grow, single-stand .sum vs clean FVScr) shows a MIX — 3 distinct classes:
+(1) ACCEPTED ULP tail — e.g. CN 490427696126144: TPA bit-exact, BA/vol ~0.3% (rounding). Not a bug.
+(2) ★ SMALL-TREE DG UNDER-GROWTH on ultra-dense seedling stands — CN 190851682020004 (9930 TPA, QMD 0.5):
+    TPA MATCHES (9552/9551 ⇒ NOT mortality) but BA jl 34/live 69 and QMD jl 0.8/live 1.2 by 2042 (~2x/33%),
+    divergence EXPLODES 2032→2042 (live BA 23→69 vs jl 21→34) — the small trees' DG (regent/gemdg small-tree
+    path) grows far less than live, or the small→large transition is missed. HIGHEST-VALUE lead.
+(3) MORTALITY over-kill on dense stands — CN 3651130010661 (1622 TPA): TPA jl 1204/live 1238 @2004 (~3%);
+    CN 12232632010690 (5531 TPA, QMD 2.7): TPA jl 4190/live 4506 @2017 (~7%). jl kills more than live cycle-1.
+These are GROWTH-CORE divergences (chunk 3 DG / chunk 6 small-tree / chunk 7 mortality), NOT FFE leaves and
+NOT the accepted late-year self-thin/RDPSRT/ZZRAN tail (they start at cycle 1 and are 3-33%). NEXT: dig class
+(2) first (CN 190851682020004) — instrument the small-tree DG at cycle 1 (pre-tripling window per doctrine #3)
+vs a live gemdg/regent instrument; determine if it's the small-tree DG rate, the 3" transition, or a density
+term. Then class (3) mortality. Sweep tooling: .sweep_work/dig_vol.jl <CN>, cr_cns_{tcuft_nd,needsdig}.txt.
+Caveat: verify the .sum parser is fixed-width (CCF≥1000 column-merge bug) — these sample CCF<1000 so clean.
