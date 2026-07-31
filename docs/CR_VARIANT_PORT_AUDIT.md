@@ -3541,3 +3541,12 @@ F3 down-wood fuel (which the DKR fix largely fixed). NEXT for SFCT/WSCT: compare
 live-FMSSTAGE-instrumented dump on the spruce stand. FFE residual map now COMPLETE: (a) F3 ~15% snag-biomass over-accum
 [deep], (b) structure_class IFMST precision on single-species stands [SFCT/WSCT], (c) OBCT/PPCT biomass rules. LPCT/PJCT/
 MCCT + the DKR/crown-width/moisture/behavior all done.
+
+## Correction: SFCT/WSCT is INTERTWINED (F3 fuel + IFMST), not "structure_class not fuel"
+Re-reading the SFCT CRSEL dump: jl's spruce fuel is STILL lighter than live (jl sm=4.4/lg=14 vs live sm=6.8/lg=15.7)
+AND jl IFMST=1→EQWT(5) differs from live IFMST 0/2/3→EQWT(2/8/10). Live gives FMD=10 for SFCT REGARDLESS of IFMST
+(the naturals 10/12 + live's HEAVIER fuel dominate _fmdyn); jl blends 5/10 because BOTH its fuel is lighter (post-DKR
+F3 residual ~15-30% on this stand) AND its candidate model differs. So SFCT/WSCT = intertwined F3-fuel + IFMST, both in
+the deep remainder — the prior "structure_class not fuel" framing was too strong. The dominant lever remains the F3
+fuel (heavier fuel → 10 regardless of IFMST, as live shows). Net: the deep FFE remainder is ONE coupled thing —
+the F3 snag-biomass fuel level — plus IFMST precision as a secondary; both need live per-cohort/FMSSTAGE instrumentation.
