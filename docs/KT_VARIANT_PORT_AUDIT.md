@@ -437,3 +437,23 @@ species (fn=0, no measured DG) whose OLDRN serial-correlation residual is a reje
 height bug. The calibrated species' residual is the DGSCOR COR precision (sp4 COR 0.09133 vs live 0.09100,
 0.4%, calibration-tie-break cornered). Height equation + coefficients BIT-EXACT. All shared-file changes are
 KT-gated. NEXT: chunk 5 (crown/CRATET) — also dubs the inventory seedling ICR (the cr=0 chunk-3 seedling item).
+
+## Chunk 5 (crown/CRATET) — SCOPE (read + mapped; implementation pending)
+kt/crown.f model fully read. It DUBS missing inventory crowns at LSTART and UPDATES crowns each cycle.
+Per-stand setup (CRCONS entry): CRCON(sp) = CRHAB(MAPHAB(ITYPE,sp), sp) [MAPHAB is 30×11, CRHAB 14×11].
+Density: if RELDM1<100 → OBA=BA, RDM1=RELDEN, else OBA=OLDBA, RDM1=RELDM1; X1=ln(OBA), X2=ln(RDM1).
+Per species: XCRCON = CRCON(sp) + PARM(sp,1)·BA + PARM(sp,2)·BA² + PARM(sp,3)·ln(BA) + PARM(sp,4)·RELDEN
+  + PARM(sp,5)·RELDEN² + PARM(sp,6)·ln(RELDEN); DCRCON same with OBA/X1/RDM1/X2 (0 at LSTART); B7..B14=PARM(sp,7..14).
+Per tree: LSTART & ICR>0 ⇒ BYPASS (keep inventory crown). D≥3: PCR = XCRCON + B7·D + B8·D² + B9·ln(D) + B10·H
+  + B11·H² + B12·ln(H) + B13·P + B14·ln(P) [P=PCT(I)≥0.01]; EXPPCR=exp(PCR). LSTART ⇒ ICRI=EXPPCR·100 (dub),
+  + stochastic INT(BACHLO(ICRI,CRSD=6.35,RANN)) when DGSD≥1 [RNG dependency — ch9 cornered like OLDRN]. Cycling ⇒
+  backdate D−=DG/bark, H−=HTG, P=OLDPCT → DCR/EXPDCR; CHG=EXPPCR−EXPDCR bounded ±1%/yr; ICRI=ICR+CHG·100
+  (·CRNMLT if DLOW≤DBH<DHI). D<3: CALL DUBSCR(sp,D,H,BA,CR) ⇒ ICRI=CR·100 (dub at LSTART only). Top-kill (ITRUNC)
+  reduces CL. Bounds [5,95] (dead cycle-0: [10,95]). PARM(11×14): cols 1-6 density terms, 7-14 = B7-B14.
+COEFFICIENTS (kt/crown.f DATA, verbatim): PARM col-major 14×11, MAPHAB(30,11), CRHAB(14,11), CRSD=6.35.
+DEPENDENCY: DUBSCR (small-tree crown dub) — check if shared/ported or needs a KT version.
+NOTE: this resolves the chunk-3 seedling cr=0 item (inventory seedlings ICR≤0 get dubbed here). Validation must
+compare per-tree ICR at LSTART (dub) and post-cycle-1 (update) vs live crown.f instrument-replay; the DGSD≥1
+BACHLO dub will carry an RNG-stream-order (ch9) cornered residual on the dubbed (missing-crown) trees.
+STATUS chunks 3-4 DONE bit-exact-or-cornered + committed (779f55e, a737f99). Full-cycle .sum still blocked on
+chunk 6 small_tree_growth!(::Kootenai) (regent) — the immediate grow_cycle blocker; crown (5) follows in-cycle.
