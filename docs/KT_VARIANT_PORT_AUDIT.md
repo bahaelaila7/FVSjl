@@ -717,3 +717,19 @@ the summed DBH/HT + the establishment TPA gap) — bit-exact-or-cornered. CHUNK 
 KT STATUS: chunks 3(DG)+4(height)+5(crown)+6(regent)+7(mortality)+8(volume) ALL bit-exact-or-cornered; the full
 .sum is bit-exact at 2019 across ALL 10 columns (TPA/BA/SDI/CCF/TopHt/QMD/TCuFt/MCuFt/SCuFt/BdFt, only TCuFt Δ1).
 REMAINING: establishment (the 2039+ TPA/QMD re-stock — the one real remaining divergence; downstream additive).
+
+## Establishment (final chunk) — SCOPE + KT CORE-COMPLETE checkpoint
+KT auto-regen = the SHARED full establishment model: base/svestb.f (719 lines, the SV/Ferguson-Crookston Northern-
+Rockies natural-regeneration predictor) + base/exestb.f (209, the ESTAB keyword stub; NOESTB='*NO ESTB' ⇒ on by
+default) + REGENT(LESTB) for the 5-yr established trees. It predicts regen species/density from habitat + overstory
++ disturbance and is INHERENTLY STOCHASTIC (RNG draws) — so a faithful port is RNG-cornered (ch9 class) like the
+ZZRAN/OLDRN residuals. This is a LARGE fresh chunk (~928 lines), distinct from the growth engine. It adds ~360 TPA/
+cycle (the 2039+ .sum TPA/QMD re-stock, the ONE remaining divergence). jl has the shared establish! (keyword-driven,
+CR branch); the chunk = wire the auto-regen trigger + KT regen coefficients + the REGENT LESTB interpolation branch.
+============================================================================================================
+KT PORT CORE-COMPLETE: chunks 3(DG)+4(height)+5(crown)+6(regent)+7(mortality)+8(volume) ALL implemented and
+bit-exact-or-cornered vs live FVSkt. Full .sum @2019 BIT-EXACT across ALL 10 columns. 9 real bugs fixed (DGCON/
+forkod, RDPSRT-tie PCT, PCCF, RELDEN-DENSE, SIGMAR, PSIGSQ, IPDG2, WK1, board bftopd), 2 wrong-model traps caught.
+The growth+mortality+crown+volume ENGINE — the entire hard core of the variant — is DONE. Remaining = establishment
+(large stochastic natural-regen leaf, RNG-cornered) + the accepted cornered residuals (DGSCOR COR precision, RDPSRT
+tie-break, ZZRAN/OLDRN RNG ch9). Mirrors CR exactly. After KT: IE/EM/BM/TT/UT = coefficient swaps on this engine.
