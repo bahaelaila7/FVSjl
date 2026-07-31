@@ -694,3 +694,15 @@ board-foot top-diameter/Scribner-rule tuning: cr_fw2_vol takes one topd for both
 may need a separate board-top pass or a METHB/rule difference — TUNE next). 2029+ TCuFt close but stand totals
 diverge from 2039 via the establishment TPA gap (per-tree vol is right). All KT-gated. Volume chunk ~DONE (cubic
 bit-exact); remaining = board-foot tuning + establishment. KT growth+mortality+crown+CUBIC-VOLUME now validated.
+
+## Chunk 8 volume — board-foot ~9% NOT International (v[10]=0); it's the board MODEL (follow-up)
+Tested v[10] (International) → 0.0 (cr_fw2_vol doesn't fill it) ⇒ the BdFt gap is NOT Scribner-vs-International.
+kt/bfvol.f reveals KT's board can be the ALLEN-ADAMS-PRAUSA equation (COFBVS(sp)·D²H + VT, D2HBRK breakpoint,
+HDRATM top table) for METHB=999 (default) — a KT-SPECIFIC board model, NOT the FW2/NVEL board. BUT VEQNNB was
+also "I00FW2W" (FW2) ⇒ ambiguity: either NVEL computes the FW2 board (and cr_fw2_vol's v[2] Scribner needs the
+INGY-specific board form/specs, currently region-2/3-tuned) OR bfvol.f's Allen-Adams path runs. RESOLUTION (follow-
+up): instrument live per-tree BdFt for the D=16.1 tree, compare to jl cr_fw2_vol v[2] AND to a hand-computed
+Allen-Adams COFBVS·D²H — whichever matches identifies the model; then port it (COFBVS coefficients if Allen-Adams,
+or fix the INGY FW2 board specs). Kept v[2] (7380, closest to live 8100). CUBIC volume (TCuFt/MCuFt) BIT-EXACT —
+the primary volume. KT STATUS: growth+mortality+crown+CUBIC-VOLUME all bit-exact; remaining = board-foot model +
+establishment (both downstream leaves; growth trajectory unaffected).
