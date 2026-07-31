@@ -3950,3 +3950,19 @@ faithful. PLANT regime: 20/20 DIVERGENT — but characterized as a REAL, bounded
   REGENT/GEMHT trace on the first growing cycle — determine if it's the planted-tree init size or a model_type-3
   regent/gemdg DF coefficient. Bounded lead. NET regime coverage: grow/thin/fire/salvage faithful; PLANT has
   one bounded planted-seedling-DG bug. Tools: batch_regime.jl (per-regime sweep), dig_plant2.jl.
+
+## PLANT bug LOCALIZED: planted-DF HTG matches, DG (HTG→DBH conversion) is ~24% low
+Instrumented jl small_tree_growth! (sp3=DF) + live DEBUG REGENT (DEBUG 0. = all cycles) on CN 3626556010690
+(planted DF, model_type=3). MEASURED — the REGENT HEIGHT growth MATCHES: jl pothtg=5.265 / pctred=1.0 / con=1.0
+== live POTHTG=5.265/PCTRED=1.0/CON=1.0 (RHCON defaults 1.0, regent.f:662; con=exp(htg_cor_small)=1.0 correct
+for this stand — HCOR doesn't calibrate a planted species, and RHCON=1 ⇒ con=1.0 both sides); jl htg avg ~4.0
+== live HTGR avg ~4.09 (per-record VIGOR 0.75-0.82 derived from the ZZRAN X-deviate; ~2% = ZZRAN spread). BUT
+jl's small-tree DG is ~24% LOW: jl dg avg ~1.3 vs live's implied ~1.7 (live QMD 0.4→1.8 @2003→2013 vs jl
+0.4→~1.5). ⇒ the divergence is NOT the height growth — it is the HTG→DG conversion (regent's inverse HT-DBH
+curve: dg from the new height H+HTG via the cratet-fitted AA intercept / SNX-SNY-CORNEW DDS scaling, _cr_regent_
+tree). The planted-DF cratet AA fit (c.ht_dbh_aa[3] / iabflg / ax) or the DDS scale2 is the suspect — for a
+PLANTED species with no inventory HT-DBH data, the cratet fit may default differently than live's. NEXT: dump
+jl's ax/aa[3]/iabflg + the SNX/SNY/CORNEW/dds intermediates for the planted DF vs the live REGENT SNX/SNY/CORNEW
+lines (DEBUG REGENT prints them). Bounded niche lead (planted-DF small-tree DG under IMODTY=3 Black Hills);
+does NOT affect the 4 bit-exact regimes or the 96%-bit-exact grow sweep (established stands). Tools: DEBUG REGENT
+(no relink), REGDBG jl instrument (removed after use).
