@@ -4673,3 +4673,14 @@ REGRESSION: OBCT oak stand still bit-exact through fire (oak-LSW-exclusion inert
 Residual actcbh 8 vs live ~15 is inert here (both crb=0); a smaller conifer-profile difference to
 revisit only if it tips crb elsewhere. Separate: CN 11652450010690 still diverges = the pre-fire
 ±4-TPA self-thin straddle (2017 418/414) amplified by the fire, NOT the crown fire (LSW fix inert).
+
+## CORRECTION (measured): the LSW fix makes ACTCBH BIT-EXACT at the fire (no residual)
+
+Instrumented live fmpocr CRFILL profile + ACTCBH per cycle. At the ACTUAL fire (2016): live ACTCBH=8,
+J1=6, profile [0,0,0,0,0,10.8,23.4,37.6,50.4,66.4,69.7,…] — jl (post-LSW-fix) = actcbh=8, profile
+[6:10.9,7:23.5,8:37.5,9:50.6,10:66.8,11:69.7,…] — BIT-EXACT (tiny rounding). The earlier "jl 8 vs
+live 15-21" was a MIS-COMPARISON: the 15-21 ACTCBH values came from the FMCFIR instrument on
+DIFFERENT-cycle POTENTIAL-fire calls, not the 2016 actual fire. ⇒ There is NO ACTCBH residual; the
+LSW fix makes the crown-fire determination bit-exact (actcbh=8, crb=0 both). The remaining .sum ±1
+(474/473) is the flame-length precision cornered residual (jl 3.208 / live 3.201 — the ^0.46
+companion, doctrine #8), NOT crown fire. This closes the crown-fire lead cleanly.
