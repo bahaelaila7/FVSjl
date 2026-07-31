@@ -3916,3 +3916,19 @@ or-cornered + broadly validated; FFE fully faithful (data + snag volume + fire t
 species + litter); volume (NVEL) tracks growth; establishment validated. This session: 6 real bugs fixed +
 FMCROWW complete + mortality-bark fix (~90% of flagged stands) + both residual classes verified-cornered vs
 live + broad 50-stand FIA validation. The off-switch (docs/CR_VARIANT_PORT_COMPLETE) is the USER's call.
+
+## CR-bark class AUDIT: all common/high-impact paths fixed; remainder are enumerated edge cases
+Swept every bark_ratio(bark_a,bark_b) use in the shared engine that CR hits (CR zeroes calib bark_a/b ⇒
+bark_ratio(0,0)=0.80 floor vs the correct cr_bratio ~0.89-0.95). RESULT — all COMMON/high-impact paths already
+dispatch to cr_bratio for CR: DBH-update (simulate.jl:460), thinning size-rank key (keyword_dispatch.jl:1163),
+DG-driver + snag-volume (prior), and mortality self-thinning (this session, commit e27ade9). REMAINING
+bark_ratio(0,0)-for-CR uses are EDGE CASES (all low-frequency, none seen in the 50-stand 96%-bit-exact broad
+validation): (1) FERTILIZE effect dib (simulate.jl:186) — only with the FERTILIZE keyword; (2) breakage/
+topkill break-height (keyword_dispatch.jl:1259) — only on a wind/break event; (3) cycle-0 broken-top CFTOPK
+FALLBACK (volume.jl:626) — the PRIMARY path uses t.vol_bark (cr_bratio-stashed at DG time); the 0.80 fallback
+fires only for a broken-top tree at cycle-0 LSTART before any DG projection; (4) FFE 3-arg bark_ratio(coef,
+sp,d) (snag.jl:150 CFTOPK, crown_biomass.jl:182) — reads :bark_intercept which CR's coef LACKS ⇒ KeyError, so
+these are UNREACHABLE for CR (crt01 confirms; CR crown returns via cr_crownw before line 182; snag CFTOPK gated
+on snag_htx). ⇒ the CR-bark bug class is CLEARED for all practical paths; the 4 edge cases are faithful-fix
+candidates (CR-gate to cr_bratio) but need a HITTING SCENARIO (FERTILIZE / break event / cycle-0 broken-top /
+SNAGBRK-HTX keyfile) to validate per doctrine #4 — logged as low-priority latent, not fixed speculatively.
