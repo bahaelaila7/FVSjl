@@ -3735,3 +3735,17 @@ lbs). Gambel oak (22) additionally needs SG (V2T) + a D²H volume. These need a 
 (/workspace/.crwork/fmcroww_pjct_dump.txt, SPIW12) + juniper/oak stands. Bounded follow-up; the main conifer
 FFE (crt01/lp/sfct/wsct) is done. The remaining ~17 non-test groups (other CR forests) follow the same two
 patterns (P1-P4 or DBRx) — reuse the live instrument + per-stand dumps.
+
+## FMCROWW: ALL CR test-stand species now covered (commit e638d8b)
+Added the DBRx path + pinyon (group 12, validated pjct dump 855 trees err 0.0044 = seedling Float32 print
+precision). FMCROWW coverage complete for every CR test stand:
+  P1-P4 groups: 4 (grand/white fir), 11 (lodgepole), 13 (ponderosa), 15 (W white pine), 18 (spruce)
+  DBRx group:   12 (pinyon)
+  FMCROWE:      aspen (sp20→41, fixed)
+covering crt01, lp, sfct, wsct, pjct, asct — all bit-exact-or-print-precision vs the live FMCROWW/E dumps.
+The CR FFE crown-biomass subsystem is DONE for the validated stands. Remaining ungported FMCROWW groups
+(1 subalpine fir, 3 Douglas-fir, 5-10,14,16,17,19-25) are for OTHER CR forests with no current test stand;
+they follow the two ported patterns (P1-P4 or DBRx) — build a single-species stand + dump (like lp/sfct/pjct)
+to validate each when those forests are exercised. NET CR FFE STATUS: data tables + snag volume (5 paths) +
+fire timing + crown biomass (all test-stand species) + litter — faithful end-to-end vs live. Residual =
+~6-15% downstream cwd/litter accumulation dynamics (a bounded reporting-leaf tail).
