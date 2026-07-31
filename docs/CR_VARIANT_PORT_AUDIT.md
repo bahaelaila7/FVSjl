@@ -4112,3 +4112,21 @@ live's, over-shrinking HCOR. NEXT: instrument the live aspen CON (relink regent.
 REGCAL calib) + jl's calibrate_diameter_growth! aspen EDH path; reconcile the aspen Sheppard EDH in the HCOR
 init. BOUNDED (aspen-regen stands). The Sheppard HTGR ·0.75 + BREAK/XMAX are all CORRECT. All other seedling
 stands FIXED by the species-sort. ⇒ the ONE remaining non-cornered seedling divergence is this aspen HCOR calib.
+
+### Aspen HCOR calibration FIXED — 9th CR bug (aspen calib age was birth_age, must be inverse-Sheppard-from-H)
+ROOT (measured, regent.f:542-549 REGCAL vs diameter_growth.jl aspen branch): the aspen/paper-birch (sp20/28)
+calibration EDH derives its age from the START HEIGHT by INVERTING the Sheppard curve —
+`AG1=(H*12*2.54/26.9825)**0.8509; AG2=AG1+10; H2=(26.9825*AG2**1.1752)/(2.54*12); EDH=(H2-H)*RSIMOD*RHCON*.75`.
+jl WRONGLY used `ag2=birth_age+10` (the GROWTH path uses ABIRTH; the CALIBRATION path inverts height→age). That
+produced a ~30% wrong EDH ⇒ cornew=sny/snx over-shrunk ⇒ con=exp(HCOR)=0.14 vs live ~0.19-0.21 ⇒ aspen Sheppard
+HTGR ~30% low each cycle ⇒ compounding aspen-regen height under-growth. FIX (diameter_growth.jl aspen branch):
+`ag1 = fpow(hstart*12*2.54/26.9825, 0.8509); ag2 = ag1 + 10` (hstart is jl's start-of-period H, matching the
+EDH's `(h2-hstart)` subtraction). VALIDATED CN 190851682020004 (aspen-dominant sp20): 2012 .sum BIT-EXACT
+(TPA/BA/SDI/CCF/TopHt/QMD/vols all X/X), 2022/2032 within ±1; 2042+ = accepted self-thin/volume-merch tail
+(RDPSRT tie-break + merch-threshold spikes, cornered cross-variant). Was ~30% aspen under-growth before. This
+was the ONE remaining non-cornered seedling divergence ⇒ CR small-tree (REGENT) height calibration now faithful
+for BOTH the conifer VIGOR path (4th bug HCOR) AND the aspen Sheppard path (this fix). ZERO-REGRESSION: Pkg.test() 1918/140-err/3-broken IDENTICAL clean-HEAD
+vs with-fix (the 140 errs are PRE-EXISTING+ENVIRONMENTAL — 139 in-suite-only `mapsi[i]=0` BoundsError at
+southern/site_index.jl:85 = cached_coefficients global-state pollution [all pass STANDALONE] + 1 Pkg.test-sandbox
+`Statistics not found`; NONE CR-related, present on committed HEAD ff8ce3c). CR validation gate = the dig_vol.jl
+differential (not Pkg.test, which has no CR integration test).

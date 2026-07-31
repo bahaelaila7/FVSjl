@@ -786,8 +786,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454)
                 hstart = t.height[i] - t.ht_growth[i]             # start-of-period H (IHTG<2, regent.f:534)
                 hstart < 0.01f0 && continue
-                if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:540-545)
-                    ag2 = (t.birth_age[i] < 5f0 ? 5f0 : t.birth_age[i]) + 10f0
+                if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:542-549)
+                    # AG1 = INVERSE Sheppard from the start height H (regent.f:542), NOT birth_age — the
+                    # calibration path derives the age from height (the growth path uses ABIRTH; the REGCAL
+                    # path inverts the curve). Using birth_age gave a ~30% wrong EDH ⇒ con over-shrunk (0.14
+                    # vs live ~0.19) ⇒ aspen regen height under-grew.
+                    ag1 = fpow(hstart * 12f0 * 2.54f0 / 26.9825f0, 0.8509f0)
+                    ag2 = ag1 + 10f0
                     h2 = 26.9825f0 * fpow(ag2, 1.1752f0) / (2.54f0 * 12f0)
                     edh = (h2 - hstart) * rsimod * 0.75f0
                     edh < 0f0 && (edh = 0f0)
