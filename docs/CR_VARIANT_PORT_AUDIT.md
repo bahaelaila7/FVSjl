@@ -3396,3 +3396,13 @@ REGENT growth → :estab RNG) is FAITHFUL end-to-end. Late TopHt tail (2092 jl 7
 AVHT40 residual on an all-regen stand (accepted class). OPEN: NATURAL + SPROUT paths not exercised by crt01 (need a
 dedicated harvest+SPROUT / NATURAL scenario) — the recon confirms the code is ported (nsprec_cr/essprt_cr/sprtht_cr),
 just not independently differential-tested. But the core establishment (PLANT/regen) is confirmed bit-exact-or-cornered.
+
+## FFE fire — byram residual PINNED to down-wood fuel (F3), fire-behavior core all-verified
+Verified ALL fire-behavior inputs correct at the SIMFIRE 2003: wind reduction (jl _FM_CANCLS/_FM_CORFAC == CR
+5/17.5/37.5/75 → 0.5/0.3/0.2/0.1; fire_wind_reduction(50.64)=0.165 == live WMULT), crown width (cr_cwcalc, verified),
+percov (50.64 == live 50.63), moisture (cr/fmmois.f), FMD=10, depth=1.0. The byram 9% residual (jl 8063 vs live 8820 →
+sch 18.07 vs 18.97 → 2013 TPA 98 vs 93) is the DOWN-WOOD FUEL: jl small=2.965/large=12.998 vs live 7.776/20.032 (jl
+dead-fuel pools ~2.6× low) + jl feeds Rothermel the STANDARD model-10 load while live's dynamic model integrates the
+actual (heavier) fuel. This is FFE fuel-dynamics (F3: cr_dead_fuel_loading initial load + mortality→down-wood
+accumulation + decay), a shared-engine modeling detail — NOT the CR fire-behavior port. Bounded, ~5% TPA, deferred. The
+CR FFE FIRE-BEHAVIOR chunk (fuel-model selection + structure class + crown width + mortality) is CORRECT/verified.
