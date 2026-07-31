@@ -4431,3 +4431,14 @@ derived stats (BA/SDI/CCF) trip the ±1 integer-rounding classifier on EVERY sta
 ⇒ the ESTABLISHMENT/planted-tree path is bit-exact-or-cornered; recent fixes generalize; all divergence classes
 are KNOWN cornered primitives. This session's coverage: 400 grow-regime + 100 plant-regime new stands, all
 bit-exact-or-cornered, zero real bugs, zero UNCLASSIFIED.
+
+### THINBBA-regime sweep (100 stands, cut/thin code path) — managed-thin bit-exact-or-cornered
+Swept 100 stands under REGIME=thinbba (THIN to a basal-area target — exercises the CUT/density-selection path):
+bit_exact=84, diverging=16, crash=0, 0 UNCLASSIFIED. Signatures all KNOWN cornered: 8 print_boundary, 4
+structure_densephase, 3 threshold_crossing, 1 volume_persistent. The structural divergences are all TopHt (the
+"9.091%" is exactly 1/11 = a ±1 on TopHt=11). TRACED the largest (4705138010690): TopHt *11/12 (±1 AVHT40 tie-
+break) @2004, EVERYTHING ELSE BIT-EXACT — and critically the THIN itself is bit-exact (TPA 249→9 @2024 matches
+live exactly), residuals are only ±1 TopHt + ±1-2 volume + ±0.1 QMD. ⇒ the managed-thin CUT/density-selection path
+is bit-exact-or-cornered. Multi-regime validation this session now spans grow (400) + plant (100, establishment) +
+thinbba (100, cut) = 600 new stands across 3 distinct keyword code paths, ALL bit-exact-or-cornered, ZERO real
+bugs, ZERO UNCLASSIFIED. (simfire/FFE-fire already validated bit-exact-or-±1 on crt01 STAND-4.)
