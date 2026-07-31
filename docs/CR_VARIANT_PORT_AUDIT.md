@@ -4599,3 +4599,35 @@ volume cornered residuals. 103606117010661 (0.60 oak) bit-exact through fire; 10
 (0.64) bit-exact-or-±2. 11684018010690 (0.52, borderline-mixed) small BA residual ~2 at near-
 total-kill (buggy-IND1 X or covertype boundary — cornered, tiny absolute). PPCT stand unchanged
 (no regression; ict==1 was previously unhandled ⇒ non-oak covertypes unaffected).
+
+## CHUNK 9 / FFE fuel-model — ASCT non-dominant + GOTO-111 loopback (16th CR fix, rules-complete)
+
+**Completes the CR fuel-model rules.** Prior: ict==8 handled only aspen-DOMINANT (>80% BA); non-
+dominant ASCT (aspen 35-80% w/ conifer understory or other conifers, ~1107 CR FIA stands) fell
+through to natural-fuel candidates. Also the PPCT FWIND>7 Y≤50 OBCT/PJCT loopback was deferred.
+
+**Port (fuel_model.jl, fmcfmd.f:936-1020 + 407 loopback):**
+- ASCT full: dominant → model 5/2; else LCUNDR (conifer understory USBA>1) → COVOLP crown-cover
+  CVR10 of trees HT>10 EXCLUDING sp {12,16,20:35,38} (cr_cwcalc crown width + `_ss_cover` formula),
+  CVR10>40 → model 8 else model 2; else CTBA(PPCT+WSCT+SFCT+LPCT+MCCT)>1 → loopback MCCT, else
+  CTBA(OBCT)>1 → loopback OBCT, else CTBA(PJCT)>1 → loopback PJCT.
+- GOTO-111 loopback infra: the dispatch if/elseif is wrapped in a bounded (≤5-pass) loop; a branch
+  sets `redo_ict` and re-dispatches with the new ICT (eqwt is NOT reset — faithful to fmcfmd.f
+  where label 111 precedes SELECT CASE and the triggering branch sets no eqwt). Also computed USCT
+  (dominant understory cover-type, argmax USBA) and wired the PPCT FWIND>7 Y≤50 USCT∈{OBCT,PJCT}
+  loopback (was deferred to model 5).
+
+**Validation (measure-first):** instrumented live CTBA/ICT/ASCT sub-path. On CN 11682371010690
+(0.55 aspen) live hits ASCT-LCUNDR (CVR10 25-35 ≤40 → model 2) + MCCT loopback across cycles; jl
+now sets the SAME candidate set {2,10,12} as live, and jl's _fmdyn output {10:0.95,12:0.048}
+MATCHES live's 0.95/0.05 cycle. Model 2 is dropped by _fmdyn in BOTH (its (5,15) iso-line is far
+from the down-wood point) ⇒ the rules are faithful/candidate-validated. NO REGRESSION: PPCT
+(47/43), OBCT (bit-exact through fire), aspen-dominant + mixed stands all unchanged.
+
+**Attribution of residual:** the non-dominant-ASCT .sum divergence (e.g. 11682371010690 2026 fire
+474 live / 423 jl) is NOT the fuel-model rules (candidates match live) — it is the DOWN-WOOD F3
+magnitude: live shows FMD=12-dominant later cycles (more accumulated down-wood → shifts (SMALL,
+LARGE) toward model-12's (30,60) iso-line) that jl's cwd pools don't reproduce. F3 down-wood is
+the next lead for the SFCT/WSCT/ASCT fire stands. SEPARATE covertype-flip note: CN 11652450010690
+is SFCT (not ASCT) at the fire (spruce-fir 55% pre-fire, wiped to ~0.5 post-fire → ICT flips to
+ASCT); its divergence is a pre-fire ±4-TPA self-thin straddle amplified by the fire, not a rule gap.

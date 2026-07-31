@@ -546,7 +546,20 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     sawdbh = ict == 6 ? 12f0 : 18f0
     ifmst = structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
     imodty = Int(s.plot.model_type)
+    # USCT = dominant UNDERSTORY cover-type group (fmcfmd.f:348-364): argmax(USBA), else ICT.
+    usct = ict; ybest = -1f0; usbatot = 0f0
+    for i in 1:8; usbatot += usba[i]; end
+    if usbatot > 0f0
+        for i in 1:8
+            usba[i] > ybest && (usct = i; ybest = usba[i])
+        end
+    end
     eqwt = zeros(Float32, _FMD_ICLSS)
+    # GOTO-111 loopback (fmcfmd.f:407): some cover-type rules reassign ICT and re-dispatch.
+    # eqwt is NOT reset on loopback (the triggering branch sets nothing before GOTO 111), so a
+    # loopback is simply re-running the dispatch with the new ICT. Bounded pass count = backstop.
+    for _pass in 1:5
+    redo_ict = 0                                   # >0 ⇒ loop back and re-dispatch with this ICT
     if ict == 1                                    # OBCT oak-brush (fmcfmd.f:413-518, CR)
         if fwind <= 7f0
             eqwt[8] = 1f0                           # low wind ⇒ model 8 (the common case)
@@ -642,8 +655,33 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 eqwt[8] = 1f0 - (55f0 - percov) / 10f0
             end
         end
-    elseif ict == 8 && ctba[8] / max(1f-3, stndba) > 0.80f0   # ASCT aspen-DOMINANT (>80% BA, fmcfmd.f:938-944)
-        imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)
+    elseif ict == 8                                # ASCT aspen (fmcfmd.f:936-1020, CR)
+        if ctba[8] / max(1f-3, stndba) > 0.80f0    # aspen-DOMINANT (>80% BA)
+            imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)   # CR is not UT/TT
+        elseif lcundr                              # conifer understory present ⇒ COVOLP crown cover CVR10
+            # Sum crown area (sq ft/ac) of trees HT>10 EXCLUDING sp {12,16,20:35,38} (fmcfmd.f:988-1000),
+            # then COVOLP (canopy cover %). CVR10>40 ⇒ model 8, else model 2.
+            cccoef = Float64(s.control.cc_coef)
+            _cr_ba = s.plot.basal_area; _cr_el = s.plot.elevation
+            _cr_hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            area = 0.0
+            @inbounds for i in 1:t.n
+                (t.tpa[i] > 0f0 && t.height[i] > 10f0) || continue
+                spi = Int(t.species[i])
+                (spi == 12 || spi == 16 || (20 <= spi <= 35) || spi == 38) && continue
+                cw = cr_cwcalc(spi, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi)
+                area += Float64(cw)^2 * Float64(t.tpa[i]) * 0.785398
+            end
+            pccu = cccoef * (area / 43560.0)
+            cvr10 = pccu > 5.0 ? 100.0 : (1.0 - exp(-pccu)) * 100.0
+            eqwt[cvr10 > 40.0 ? 8 : 2] = 1f0
+        elseif (ctba[3] + ctba[4] + ctba[5] + ctba[6] + ctba[7]) > 1f0   # PPCT+WSCT+SFCT+LPCT+MCCT
+            redo_ict = 7                           # ⇒ reprocess as MCCT (GOTO 111)
+        elseif ctba[1] > 1f0
+            redo_ict = 1                           # ⇒ reprocess as OBCT
+        elseif ctba[2] > 1f0
+            redo_ict = 2                           # ⇒ reprocess as PJCT
+        end
     elseif ict == 3                                # PPCT ponderosa (fmcfmd.f:562-665, CR)
         if percov > 60f0                           # PERCOV>60 branch (fmcfmd.f:643-665) — no understory biomass
             if fwind > 7f0
@@ -679,7 +717,11 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             y = (bd + bl) > 1f-6 ? 100f0 * bd / (bd + bl) : 0f0
             if (bd + bl) > 0f0
                 if fwind > 7f0
-                    eqwt[y <= 50f0 ? 5 : 6] = 1f0   # y≤50: OBCT/PJCT understory loopback DEFERRED ⇒ model 5
+                    if y <= 50f0
+                        (usct == 1 || usct == 2) ? (redo_ict = usct) : (eqwt[5] = 1f0)  # OBCT/PJCT loopback
+                    else
+                        eqwt[6] = 1f0
+                    end
                 else
                     eqwt[5] = 1f0
                 end
@@ -688,15 +730,16 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             end
         end
     end
-    # PPCT (562-665) is now ported both branches: PERCOV>60 (natural fuels) + PERCOV≤60 (understory BL/BD
-    # biomass → Y → FWIND/Y model 5/6/2). Validated vs live on CN 188683386020004: FMOD={5,10} weights
-    # 0.59/0.41 bit-exact. DEFERRED sub-paths (un-exercised, documented): the FWIND>7 & Y≤50 OBCT/PJCT
-    # GOTO-111 surface-fuel loopback, and BD snag CURRENT-broken-height (FMSVOL to HTIH/HTIS vs jl fallvol —
-    # BD 0.167 vs live 0.23, model-inert while FWIND≤7). TODO: OBCT (413-518) rules + the ASCT conifer-
-    # understory branch (946+) remain unported; those stands fall through to natural-fuel candidates only.
-    # PJCT/WSCT/SFCT/LPCT/ASCT-dominant + MCCT are ported (LPCT validated bit-exact vs live;
-    # SFCT/WSCT/ASCT diverge PENDING the F3 down-wood-fuel fix — jl's cwd pools read ~2.6× low, which tips
-    # _fmdyn's model-8-vs-10 choice near the fuel boundary; the rules themselves are faithful transcriptions).
+    redo_ict == 0 && break
+    ict = redo_ict
+    end                                            # end GOTO-111 loopback loop
+    # ALL CR cover-type fuel-model rules are now ported: OBCT/PJCT/PPCT(both PERCOV branches)/WSCT/SFCT/
+    # LPCT/MCCT/ASCT(dominant + LCUNDR-COVOLP + MCCT/OBCT/PJCT loopback), plus the GOTO-111 loopback infra
+    # (PPCT FWIND>7 Y≤50 → USCT OBCT/PJCT; ASCT → MCCT/OBCT/PJCT). Bounded residuals (documented): the OBCT
+    # FWIND>7 buggy-IND1(J) avg-oak-height X (only affects the rare Y>50 mixed-stand blend; dominant-oak
+    # agrees), and BD snag CURRENT-broken-height (FMSVOL to HTIH/HTIS vs jl total fallvol — model-inert on
+    # validated stands). SFCT/WSCT residuals near the model-8-vs-10 boundary track the F3 down-wood-fuel
+    # magnitude (jl cwd pools), not these rules.
     # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
     eqwt[10] = 1f0
     eqwt[12] = 1f0
