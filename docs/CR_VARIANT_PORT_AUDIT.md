@@ -4508,3 +4508,21 @@ PPCT-PERCOV≤60 (biomass BL/BD) + OBCT fuel-model rules (both over- and under-k
 model is hotter/cooler than live's). NEXT to fully close FFE-fire: port the PPCT PERCOV≤60 biomass branch (needs
 the FFE understory live crown+bole + dead snag biomass) + OBCT rules. .sum remains comprehensively bit-exact-or-
 cornered (fuel-model only feeds fire behavior, not the .sum).
+
+### PPCT PERCOV≤60 fuel-model branch — port PLAN (feasibility assessed; subtle pieces identified)
+The last fuel-model leaf (fixes low-cover ponderosa SIMFIRE). Feasibility CONFIRMED — inputs available:
+- BL (understory LIVE biomass, HT≤USHT): per understory tree `xv = cr_crownw(...)` (0..5 by-category, PORTED) +
+  `t.ffe_oldcrw[i]` (OLDCRW snapshot, present) + bole via cr_snag_bole_cuft(TCF); ·TPA·_FM_P2T(1/2000); bole·V2T.
+  BL = Σ [ xv[1]·tpa·P2T + Σ_j=2..6 (xv[j]+oldcrw[j])·tpa·P2T + tpa·V2T·bolecuft ]  (fmcfmd.f:571-585).
+- BD (understory DEAD snag biomass, HTIH/HTIS≤USHT): SnagList has sp/dbh/den_hard(DENIH)/den_soft(DENIS)/height
+  (HTDEAD)/fallvol(total-cuft·V2T). ★ SUBTLETY: Fortran uses FMSVOL at the snag's CURRENT (post-breakage) height
+  HTIH, but jl stores the DEATH height + fallvol (death-time total) — so an UNBROKEN-snag port is fallvol·density,
+  but broken snags need the current-height volume (SNAGBRK/ffe_snag_height_loss! tracks breakage — need to expose
+  the current height). Many stands have no understory snags ⇒ BD≈0 ⇒ Y≈0 (common case simple).
+- Y = 100·BD/(BD+BL). Model selection (fmcfmd.f:608-631): PERCOV≤60 & (BD+BL)>0: FWIND>7 → Y≤50: OBCT/PJCT
+  understory ⇒ GOTO-111 LOOPBACK (re-run OA/PJ rules with ICT=USCT) else model 5; Y>50 → model 6. FWIND≤7 →
+  model 5 (CR; UT/TT→8). (BD+BL)≤0 → model 2. ★ SUBTLETY: the OBCT/PJCT loopback + USCT (understory dominant
+  cover type from USBA) — USBA is now computed (13th fix); USCT + the loopback need wiring.
+BOUNDED fire-only (doesn't touch .sum). Deferred to a FOCUSED pass (doctrine #4: faithful, not rushed) — the
+BD-current-height + loopback subtleties risk subtle errors if hurried. The 13th-fix PERCOV>60 branch covers dense/
+high-cover ponderosa; this closes low-cover. OBCT rules (fmcfmd.f:413-518) are the analogous remaining leaf.
