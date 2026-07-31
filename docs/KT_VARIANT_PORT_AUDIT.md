@@ -96,3 +96,16 @@ HAND-VERIFICATION against the extracted tables (doctrine #2 — the data reprodu
    code->KKTYPE (KOTHAB search) -> KOTHAB(KKTYPE) -> JTYPE search -> ITYPE=KTYPE(K-1) -> MTYPE(ITYPE) + BAMAX/
    SDIDEF, wire site_setup!(::Kootenai), and diff jl's KKTYPE/ITYPE/SDImax vs these live values across the 40
    IE stands. (Also: locate each stand's raw INPUT habitat code — the FIA stand record field feeding habtyp.)
+
+## Chunk 2 — tables VALIDATED (habitat_tables.jl); site_index.jl wiring is next
+habitat_tables.jl committed + programmatically validated vs live (KODTYP=531 -> ITYPE=14 -> IE=530 -> SDI=949,
+all matching FVSkt). Plot fields identified (src/core/state.jl): habitat_code=KODTYP (input), habitat_input=ITYPE,
+valid_habitat=JTYPE(122), sp_sdi_def=SDIDEF, sp_site_index=SITEAR, model_type=IMODTY, forest_idx=IFOR.
+OPEN DESIGN Q (couples chunk 2<->3): KT's DG needs KKTYPE (1..175, the Kootenai habitat index feeding
+MAPHAB(KKTYPE,ISPC)->DGHAB), but the shared plot has no KKTYPE field (only habitat_input=ITYPE 1..30). Options:
+(a) store KKTYPE in habitat_input for KT (repurpose; check no shared code reads it as ITYPE), (b) add a KT field,
+(c) recompute KKTYPE in the DG chunk from habitat_code. Decide when writing chunk 3 dgf. site_index.jl(Kootenai)
+TODO: site_setup! = KOTHAB search(habitat_code)->KKTYPE; KOTHAB[KKTYPE]->JTYPE search->ITYPE; BAMAX default
+BAMAXA[ITYPE]; SDIDEF=BAMAX/(0.5454154*pmsdiu) into sp_sdi_def; + KT site-index (SITEAR) per kt/sitset.f site
+curves (may defer to height chunk). Validate jl KKTYPE/ITYPE/sp_sdi_def vs live across the 40 IE stands
+(.sweep_work/kt_ie_stands.txt) — need each stand's raw input habitat code + a setup-only entry point.
