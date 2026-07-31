@@ -904,3 +904,24 @@ ITYPE/IFOR derivation = chunk 2 (habtyp/sitset), RELDEN = chunk 5 (ccfcal) — s
 Suite 38588/0/1err/75 (the 1 err = PRE-EXISTING SN estab-test closure quirk, errors on clean baseline;
 0 IE regressions). NEXT: IE chunk 2 (habtyp/sitset → ITYPE/IFOR/SITEAR) so the full engine drives DG
 end-to-end; then height (chunk 4), crown/ccfcal (5), regent (6), mortality (7, reuse KT), volume (8, FW2).
+
+============================================================================
+IE CHUNK 2 (SITE/HABITAT: habtyp + forkod + sitset) — ITYPE/IFOR/SITEAR reproduce LIVE FVSie
+============================================================================
+src/variants/inlandempire/site_index.jl — ie_habtyp / ie_forkod! / ie_sitset! / ie_site_index_setup!
++ site_setup!(::InlandEmpire). Ported from ie/habtyp.f (numeric path) + ie/forkod.f + ie/sitset.f (measured):
+  ie_habtyp(KODTYP)  : JTYPE(95) bracket search (first K with KODTYP<JTYPE[K]) -> ITYPE=KTYPE(K-1). IE_JTYPE
+    identical to KT_JTYPE; IE_KTYPE(95) transcribed from ie/habtyp.f DATA. PVREF/HBDECD (R6 plant-community +
+    plant-assoc-ref) DEFERRED — fire only for CPVREF / R6 inputs; STDINFO numeric habitat uses this path.
+  ie_forkod!(KODFOR) : reservation special-cases (8106->5,8107->10,8109->7,8131->5,8132->7,8133->6,8137->11)
+    else match KODFOR in JFOR(15)=[103,104,105,106,621,110,113,114,116,117,118,613,102,109,112] -> IFOR=idx,
+    then remap 12->7 /13->1 /14->1 /15->9; IGL=KFOR(IFOR). -> p.forest_idx, p.geo_location.
+  ie_sitset!(ITYPE)  : SITEAR(sp)=MAPSIT(ITYPE,sp) when 0 (non-zero only LM/PI/JU/PY/AS/CO/MM/PB/OH; MM==PB==AS,
+    OH==CO); BAMAX=BAMAXA(ITYPE); SDIDEF=BAMAX/(0.5454154*PMSDIU/100). -> p.sp_site_index, p.sp_sdi_def.
+  ie_site_index_setup!: forkod -> habtyp(p.habitat_code=KODTYP) -> ITYPE->p.habitat_input -> sitset.
+VALIDATED (unit, vs the live iet01 instrument dump ITYPE=17/IFOR=11): ie_habtyp(570)=17 (also 530->14, 999->30);
+forest 118 -> IFOR=11, IGL=KFOR=2 — BOTH match live bit-for-bit. NI-conifer SITEAR=0 (MAPSIT 0 for sp1-12) —
+matches the live SI=0 seen in the chunk-3 dump. => the engine now DERIVES ITYPE/IFOR/SITEAR itself (no injection),
+so setup_growth! -> ie_dgcons! -> dgf! runs end-to-end with live-matched habitat inputs. RELDEN still pending
+chunk 5 (ccfcal). Precompiles; site_setup!(::InlandEmpire) registered. NEXT: chunk 4 (height ie/htgf.f), chunk 5
+(crown/ccfcal -> RELDEN), then a full-cycle .sum differential vs live FVSie on iet01.
