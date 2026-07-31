@@ -3529,3 +3529,15 @@ SFCT still 91 (its IFMST-2→model-8 needs the fuel even heavier to flip); ASCT 
 F3 correction (fuel fidelity ~60%-deficit → ~15%-high) and FAITHFUL (kept per doctrine #4); the remaining FFE fire
 residuals are now smaller secondary factors (the ~15% accumulation overshoot + per-cover-type fire-intensity). CR-gated
 (_fm_dkr_default(::CentralRockies)) ⇒ no eastern impact. Suite running.
+
+## FFE SFCT/WSCT divergence — ROOT is structure_class IFMST precision (not fuel), distinct from F3
+Post-DKR SFCT measurement (CRSEL dump): jl SFCT at the fire uses IFMST=1 ⇒ MCCT... no, SFCT rule IFMST=1 → EQWT(5) ⇒
+_fmdyn blends model 5 (0.46-0.51) + model 10 (0.49-0.54) = a WEAKER fire (retains 91). The IFMST=3 rows correctly give
+pure model 10. Live SFCT fire = FMD=10 (total kill, TPA 0) at IFMST=2/3. So jl's structure_class returns IFMST=1 where
+live's FMSSTAGE gives 2/3 for these single-species even-aged spruce stands ⇒ SFCT/WSCT divergence = structure_class
+IFMST PRECISION (structure_class was validated bit-exact vs the SN SSTAGE report; it differs subtly for CR single-species
+stands — likely the strata/gap analysis or dominant-DBH on a uniform even-aged stand). This is a DISTINCT root from the
+F3 down-wood fuel (which the DKR fix largely fixed). NEXT for SFCT/WSCT: compare jl structure_class(nstr, strdbh) vs a
+live-FMSSTAGE-instrumented dump on the spruce stand. FFE residual map now COMPLETE: (a) F3 ~15% snag-biomass over-accum
+[deep], (b) structure_class IFMST precision on single-species stands [SFCT/WSCT], (c) OBCT/PPCT biomass rules. LPCT/PJCT/
+MCCT + the DKR/crown-width/moisture/behavior all done.
