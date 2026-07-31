@@ -145,6 +145,9 @@ function _cr_veq_by_forest()
     return d
 end
 
+# KT per-species VOLUME FIA code (kt/sitset.f FIAJSP), validated vs live VEQNNC. sp11 OT = 260 (not code_fia 999).
+const KT_VOL_FIA = Int[119, 73, 202, 17, 260, 242, 108, 93, 19, 122, 260]
+
 function setup_volume_equations!(s::StandState)
     kodfor = Int(s.plot.user_forest_code)
     iregn  = kodfor ÷ 10000
@@ -161,9 +164,10 @@ function setup_volume_equations!(s::StandState)
             s.species.vol_eq[sp] = veq !== nothing ? veq :
                 (sp <= length(_CR_VOLEQ) ? _CR_VOLEQ[sp] : "           ")
         elseif s.variant isa Kootenai
-            # KT VOLEQDEF (kt/sitset.f): Region-1 Flewelling FW2, geocode "I00", per-species FIA code
-            # (validated vs live: I00FW2W119, …073, …202, …). _fw2_jsp already maps the 'I' INGY geocode.
-            s.species.vol_eq[sp] = ifia > 0 ? "I00FW2W" * lpad(string(ifia), 3, '0') : "           "
+            # KT VOLEQDEF (kt/sitset.f): Region-1 Flewelling FW2, geocode "I00", per-species VOLUME FIA code
+            # (FIAJSP, NOT code_fia — sp11 OT is 260 not 999). Validated vs live VEQNNC dump for all 11 species.
+            vfia = KT_VOL_FIA[sp]
+            s.species.vol_eq[sp] = "I00FW2W" * lpad(string(vfia), 3, '0')
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

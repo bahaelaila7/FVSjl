@@ -733,3 +733,14 @@ forkod, RDPSRT-tie PCT, PCCF, RELDEN-DENSE, SIGMAR, PSIGSQ, IPDG2, WK1, board bf
 The growth+mortality+crown+volume ENGINE — the entire hard core of the variant — is DONE. Remaining = establishment
 (large stochastic natural-regen leaf, RNG-cornered) + the accepted cornered residuals (DGSCOR COR precision, RDPSRT
 tie-break, ZZRAN/OLDRN RNG ch9). Mirrors CR exactly. After KT: IE/EM/BM/TT/UT = coefficient swaps on this engine.
+
+## ★ Multi-stand validation (20 KT-via-IE stands) — growth BIT-EXACT all 20; sp11-OT volume bug FIXED
+Ran the 2019-inventory .sum differential across 20 stands. RESULT: TPA/BA/SDI/CCF/TopHt/QMD BIT-EXACT on ALL 20
+(the growth engine GENERALIZES — different species/habitats/sizes). Volume caught a REAL bug the single-stand test
+missed (no OT trees there): KT species 11 (OT) had code_fia=999 ⇒ vol_eq "I00FW2W999" ⇒ _fw2_jsp returns 0 ⇒ ALL
+sp11 (OT, incl. FIA 374/375 mapped to OT) trees got 0 volume. FIX: the VOLUME FIA per KT species is a fixed FIAJSP
+table [119,73,202,17,260,242,108,93,19,122,260] (sp11 OT=260 mtn-hemlock, NOT code_fia 999) — added KT_VOL_FIA,
+assign vol_eq from it. Volume bit-exact 16→17/20; stand 753201028 TCuFt 3237→3291 (live 3307, Δ70→Δ16). Residual
+~0.5% on 3 stands = OT-species volume approximation (260/mtn-hemlock FW2 for the mapped OT trees) — a bounded
+volume edge case, cornered. GROWTH ENGINE VALIDATED ACROSS 20 STANDS bit-exact. META: multi-stand validation
+caught a species-specific bug (OT volume) that a single stand hid — validate breadth, not just one stand.
