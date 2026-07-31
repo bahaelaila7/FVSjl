@@ -4526,3 +4526,17 @@ The last fuel-model leaf (fixes low-cover ponderosa SIMFIRE). Feasibility CONFIR
 BOUNDED fire-only (doesn't touch .sum). Deferred to a FOCUSED pass (doctrine #4: faithful, not rushed) — the
 BD-current-height + loopback subtleties risk subtle errors if hurried. The 13th-fix PERCOV>60 branch covers dense/
 high-cover ponderosa; this closes low-cover. OBCT rules (fmcfmd.f:413-518) are the analogous remaining leaf.
+
+### PPCT PERCOV≤60 port — units subtlety NAILED (de-risks the focused pass)
+Measured the key units minefield for BL (doctrine #2): `cr_crownw` (cr_crown_biomass.jl) returns crown biomass in
+POUNDS — the main large-tree path builds xv[] from livewt/deadwt with NO `sg` applied (sg=v2t·P2T is used ONLY on
+the DBRx pinyon/juniper/oak path). So BL's crown term needs an EXPLICIT ·_FM_P2T (1/2000): xv[j]·tpa·(1/2000). The
+BOLE term uses V2T which is ALREADY /2000-rescaled post-init (fmvinit.f:1094) — so bole = V2T·bolecuft·tpa (no
+extra P2T). OLDCRW (t.ffe_oldcrw) is stored in the SAME pounds units as cr_crownw (used in fuel_additions.jl:156
+with ·_FM_P2T). ⇒ BL = Σ_HT≤USHT [ xv[1]·tpa·P2T + Σ_j=2..6 (xv[j]+oldcrw[j])·tpa·P2T + tpa·V2T·cr_snag_bole_cuft ].
+This pounds-vs-rescaled-V2T mix is precisely why the port is a FOCUSED pass, not a rushed one (a mis-applied P2T =
+silent 2000× BL error ⇒ Y flips ⇒ wrong model). With the units pinned + inputs mapped, the port is now well-de-
+risked. REMAINING subtle pieces unchanged: BD snag CURRENT-height volume (broken snags) + the OBCT/PJCT GOTO-111
+loopback + USCT. ⇒ substantive CR .sum port COMPLETE (13 bugs, comprehensively validated all chunks/regimes/FIA);
+the PPCT-low-cover + OBCT fuel-model rules are the sole remaining leaf (fire-only, doesn't touch .sum, fully
+scoped + de-risked).
