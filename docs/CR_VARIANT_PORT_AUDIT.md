@@ -3599,3 +3599,18 @@ on a 10-yr-cycle boundary 1993/2003/2013 — does the fire run at the END of 199
 of the apparent offset may be probe-sampling, not the engine. RESOLVING NEEDS live-timing instrumentation
 (when live books+reports the 2003 fire) + a jl DBS/.sum-aligned fuel dump (not the ad-hoc cycle_hook). This
 is the concrete next FFE task; the 5 snag-volume paths are now all faithful (per-cohort .sng-validated).
+
+## RESOLVED: the "fire-cycle timing offset" was a PROBE ARTIFACT — jl fire timing is CORRECT
+The prior entry's "jl fires SIMFIRE 2003 one cycle late (burns=1 first at 2013)" was a SAMPLING-PHASE
+artifact of the ad-hoc cycle_hook, NOT an engine bug. The cycle_hook (summary.jl:189) fires at CYCLE-START,
+BEFORE grow_cycle! (which contains the fire) — so at year 2003 it samples PRE-fire. FVS's real FFE report
+(summary.jl:190-194) is DEFERRED to the post-fire carbon_hook, reported at the cycle-start year of the cycle
+containing the fire (2003). MEASURED via jl's real (deferred post-fire) carbon_collect path: jl 2003 snag
+TOTAL density = 248.7 vs LIVE crt01.sng 2003 = 249.2 (18 cohorts) — MATCHES (0.2%, the 0.5 gap = snag
+class-mean binning, cornered). ⇒ jl books+reports the 2003 fire snags at 2003 at the correct density; fire
+timing is faithful. META (doctrine #2): a report-PROBE must sample at the same PHASE as FVS's report — the
+cycle-start cycle_hook is pre-fire/pre-fuel-update (also why it saw SURF>3=0 @1993), so it mislabeled a
+correct engine as one-cycle-late. Use carbon_collect (deferred post-fire), not the cycle_hook, for FFE
+fuel/snag validation. NET FFE state for CR: snag DENSITY cornered (248.7/249.2 @2003), snag VOLUME faithful
+(per-cohort .sng-validated, commits c8e0ce7+f2e828d), fire TIMING correct. Residual = F3 down-wood
+accumulation-precision dynamics only (the snag-volume fix gave snags real volume to fall, improving it).
