@@ -5026,3 +5026,23 @@ the residual is likely species-919-specific: its SITEAR (NULL-site SI default), 
 equation, or its calibration. NEXT LEAD: trace 430462971489998 species-919 con/SITEAR/DG vs live
 (same playbook as the oak: FVScr_reg OCYC/LAVH/LCORNEW + jl JCON/JEDH). The 3 ±balanced straddles
 (536543/255124/224766, non-oak, same-species-both-directions) remain the accepted self-thin class.
+
+## 430462971489998 — REFINED: species maps same (not a mapping bug), divergence CONVERGES (likely transient)
+
+Two findings refine the candidate: (1) FIA 919 is NOT in the CR species-translation table NOR the live
+spctrn.f ASPT table — BOTH jl and live map it via the "other" fallback (jl → CR sp38); so it is NOT a
+species-mapping divergence. (2) The divergence CONVERGES: BA 178/148 (2025, 17% jl-low) → 212/182
+(2035, 14%) → 210/204 (2045, 3%); TPA crosses (jl-low 2025 → jl-HIGH 2045). This is UNLIKE the oak
+(persistent ~15% all cycles, never converging). A converging first-cycle-jl-low-then-catch-up pattern
+is characteristic of a self-thin/mortality TIMING transient (cornered) OR a first-cycle-only con
+residual — NOT a persistent DG bug. QMD is jl-low early (2.1/2.0) so it IS a DBH-growth effect, but it
+self-corrects. ⇒ likely CORNERED (transient), not the oak-class reducible bug; a focused trace (species-
+38 first-cycle con/AVH/SITEAR vs live on this stand) would classify definitively. Bounded (1 stand /265).
+
+## 265-STAND SWEEP FINAL: 4/265 flagged (1.5%), all cornered-or-transient — CR growth core CLEAN
+
+Full post-20th-fix sweep: 4 flagged / 265. 3 are ±balanced self-thin/ZZRAN straddles (536543/224766
+jl-HIGH, 255124 jl-low; 462 species BOTH directions ⇒ density straddle). 1 (430462971489998) is a
+converging transient (above). The oak class (814, persistent) is GONE — resolved by the 19th+20th fixes.
+⇒ NO persistent reducible growth bug remains in the 265-stand curated population; all flags are cornered
+(±straddle) or a converging transient. CR growth is bit-exact-or-cornered. 20 CR bugs fixed.
