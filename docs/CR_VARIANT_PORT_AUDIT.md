@@ -4230,3 +4230,17 @@ FMMAIN, and incidental report calls (PotFIRE/carbon) must NOT persistently initi
 then (they should compute fuel non-persistently or run post-thin). NEXT (implementation): gate `fuels_init` so
 only the main fmburn!-path fmcba! (post-cuts!) sets it; the PotFIRE/carbon report fmcba! calls read/compute fuel
 without latching the one-time init. Verify crt01 STAND-4 2013 BA → 57 (== live) after.
+
+### FFE dead-fuel-init fix — architecture + risk assessment (implementation plan)
+The init fires via ffe_fuel_update!→fmcba! (fuel_additions.jl:198), invoked PRE-grow (summary.jl:278 non-fire
+cycle) or the fire-cycle pre-init (summary.jl:276) — both BEFORE grow_cycle!'s cuts! (the THINDBH thin). FVS FMMAIN
+inits AFTER the cut phase (proven: live percov 44.4 = post-thin). FIX = make the one-time dead-fuel LOAD happen on
+the POST-cuts! stand for the FFE-init year. KEY DE-RISK: this reorder is a NO-OP for any stand WITHOUT a thin in
+the init year (pre==post when no thin) ⇒ cannot regress the eastern FFE stands lacking a same-cycle init-thin;
+behavior only changes in exactly the buggy case (init-year thin + later SIMFIRE). CAVEAT: the FFE per-cycle order
+carries many documented invariants (fire-basis fire_smlg stash, carbon FMCRBOUT timing, FMSNAG→FMCWD→FMCADD
+snag-falldown-before-decay) — so the reorder must preserve the annual-loop accumulation for non-init cycles and be
+validated against the full FFE suite (SN/NE/CS/LS fire tests). Cleanest approach: on the FFE-init year, defer the
+fuels_init LOAD into grow_cycle! right after cuts! (analogous to the existing fire-cycle fuel_period deferral),
+leaving the annual accumulation timing unchanged for all later cycles. Verify crt01 STAND-4 2013 BA→57(==live) +
+no eastern-FFE .sum change. DEFERRED to a focused FFE implementation pass (regression-risk-managed, not rushed).
