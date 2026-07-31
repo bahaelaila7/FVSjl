@@ -4083,3 +4083,18 @@ META (this session's biggest lesson): the "ZZRAN ch9" and small-tree residuals w
 fixable root (regent SPECIES-SORTED draw order) sat below a premature corner. 8 real bugs fixed this session
 (FFE snag-vol×2, FMCROWW-not-ported, aspen species-group, mortality bark, cr_esgent DG-discard, regent ZZRAN
 order) + FMCROWW complete (38 spp). CR growth/establishment/FFE/volume/mortality all bit-exact-or-cornered.
+
+## Remaining seedling divergence CN 190851682020004 LOCALIZED to the ASPEN regent (not species-sort)
+The one seedling stand the ZZRAN species-sort fix did NOT clear is aspen-DOMINANT (sp20 = 132/137 inv TPA, ~1
+species ⇒ species-sort is a no-op). Its divergence is a DISTINCT aspen-specific regent issue. Live DEBUG REGENT
+(aspen sp20) vs jl instrument @cycle-3: LIVE aspen curHT~16.3, htINC~3.8-4.0, curDBH~1.7, dgINC~0.16-0.21; JL
+aspen curHT~12-13, htINC~2.5-3.5, dgINC=0.0, con=0.14, abirth~22-30. THREE findings: (1) jl aspen HEIGHT is
+cumulatively under-grown (12-13 vs 16.3 ⇒ compounding); (2) con=exp(htg_cor_small[20])=0.14 is SUSPICIOUSLY
+LOW (sp5 validated con~1.05; aspen is the one species with measured small-tree HTG ⇒ its HCOR calib fires —
+possibly over-shrinking, same class as the fixed calibration-AVH bug); (3) jl regent dgINC=0 (aspen at
+d~1.4-1.8 > BREAK[20] ⇒ uses the driver's gemdg DBH, NOT regent DG) while LIVE computes the REGENT DBH INC
+(0.20) at those DBHs ⇒ the aspen BREAK point and/or the regent-vs-gemdg DBH source may differ. The aspen
+Sheppard HTGR formula itself is CORRECT (jl's ·0.75 matches regent.f:292 "reduce by 25% Dixon 8-27-92"). ⇒
+BOUNDED aspen-regen lead (affects aspen-dominated regen stands; aspen common in the Rockies): NEXT dig the
+aspen HCOR calibration (con=0.14) + the aspen BREAK/regent-DBH path vs live. NOT the species-sort class. All
+other seedling stands are FIXED (species-sort). Method: DEBUG REGENT + jl ASPDBG instrument (removed).
