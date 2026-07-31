@@ -4796,3 +4796,23 @@ scattered tiny-tree DBH) are the ACCEPTED ZZRAN small-tree-DG stochastic residua
 ch9) — NOT a reducible bug. Corrects the 18th-fix note's "next dig target". After the 18th fix, the
 CR growth residuals are back to the cornered classes: self-thin RDPSRT ±straddle + ZZRAN small-tree
 DG ±straddle + AVHT40 ±1 + volume NINT/threshold. No known reducible systematic growth bug remains.
+
+## Growth-rate-bug detector (150 stands) — class is ±balanced; one bounded oak-con residual
+
+Built a targeted detector (.sweep_work/dig_growthbug.jl): cycle-0 bit-exact (TPA+BA+SDI) but the
+FIRST projected cycle's BA diverges >8% — the oak-bug signature. Across 150 stands: only 4 flagged
+(2.7%), DIRECTION-BALANCED (2 jl-low, 2 jl-HIGH: 536543308126144 +10.2%, 224766968010661 +10.3%) ⇒
+a ±STRADDLE class (first-cycle DG/self-thin noise on dense small-tree stands), NOT a systematic bug.
+Confirms the 18th fix left no systematic oak growth bug.
+
+**One bounded residual isolated — 1855925743290487** (Gambel-oak 814@2.2" + ponderosa, LOC 213,
+SITE_SP=122/SI=68, ELEV NULL): the largest (16.9% jl-low) and the only one persistently one-direction
+(BA jl-low ALL cycles). Traced (FVScr_reg oracle): oak SITEAR=24.457 MATCHES jl (24.46); jl's oak
+calibration cornew/hcor_init=0.484 MATCHES one of live's per-cycle HCOR values (0.486); but the
+APPLIED oak con = jl 1.234 vs live 1.322 (~7% low) ⇒ the residual is in the oak REGENT height
+calibration BLEND/cycle-timing (jl blends hcor_init via cormlt_h → htg_cor_small=0.210; live's regent
+uses HCOR=ln(cornew) with per-cycle recalibration). A SECONDARY residual of the oak-calibration class
+the 18th fix (backdated CCF) addressed — the dominant term is fixed, this ~7% blend/timing residual
+remains on SITE_INDEX-set larger-oak stands. BOUNDED (isolated in the 4/150 ±balanced flagged set),
+not systematic. Open lead: reconcile the CR oak REGENT-height con blend vs live's per-cycle HCOR
+recomputation (does live re-run REGCAL each cycle where jl blends once?).
