@@ -296,3 +296,17 @@ VERDICT: KT DG EQUATION + COEFFICIENTS + CR-units are VALIDATED CORRECT (WK2 3.8
 except the CCF-derived RELDEN). Chunk-3 DG is bit-exact-PENDING-ccfcal — the residual is a documented cross-chunk
 dependency (chunk 5 crown/ccfcal), NOT a DG bug. Coefficient extraction + equation + integration all confirmed
 by the per-tree diff. (Instrument: /tmp/kt_dgf_instr.f, relink_kt.sh dgftrc /tmp/dgf.o; 40-stand batch pending.)
+
+## Chunk 4 (height, htgf) — MEASURED (equation + coefficients), ready to implement
+KT height growth (kt/htgf.f:107-112):
+  CON = HTCON(sp) + H2COF*HT^2 + HGLD(sp)*ln(D) + HGLH*ln(HT)
+  HTG = EXP(CON + HDGCOF*ln(DG)) + BIAS            [DG = this cycle's diameter growth from chunk 3!]
+  HTG = max(HTG, 0.1);  HTG = HTG * SCALE * XHMULT(sp) * MISHGF(mistletoe)
+  HTCON(sp) = HGHCH + HGSC(sp)  [+ ln(HCOR2) calib]  (htgf.f:210, a DGCONS-like per-stand setup)
+=> height growth DEPENDS on DG (chunk 3) — cycle order DG->height (already how the engine runs; the gating hook
+   height_growth!(::Kootenai) fires right after DG). Coefficient DATA blocks (kt/htgf.f): HGLD(11)@69, BIAS/HGLH
+   @71 (scalars .4809/.23315), MAPHAB@185, HGHC@187, HGLDD@190, HGH2@193, HGSC(11)@196, XHMULT(11), + scalars
+   H2COF/HDGCOF (locate). IMPLEMENT (chunk-3 pattern): extract arrays (parser like extract_kt_dgf.jl) ->
+   ht_coefficients.jl; kt_htcons! (HTCON=HGHCH+HGSC) + height_growth!(s,::Kootenai) computing HTG; per-tree HTG
+   instrument-replay vs live FVSkt (relink instrumented htgf.o). NOTE: DG must be bit-exact first (needs ccfcal
+   ch5) for HTG's ln(DG) term to match live — so height validation partly gated on ch5 too (like DG's RELDEN).
