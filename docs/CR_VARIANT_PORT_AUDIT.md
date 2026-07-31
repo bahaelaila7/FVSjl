@@ -4035,3 +4035,17 @@ session: `DEBUG <SUBROUTINE>` (MORTS/REGENT/ESGENT) gives live per-record intern
 root-caused with it; NOTRIPLE classifies deterministic-vs-RNG; batch_dig.jl/batch_regime.jl for the sweeps.
 Remaining = the cross-variant ZZRAN RNG (ch9, accepted-cornered) + enumerated bark/keyword edge cases. Off-
 switch (touch docs/CR_VARIANT_PORT_COMPLETE) = the USER's call.
+
+## Edge-case follow-up: FFE 3-arg bark is UNREACHABLE for CR (no crash) + CFTOPK CR no-op noted
+Re-analyzed the enumerated FFE bark edge case (snag.jl:150 bark_ratio(coef,sp,d), which KeyErrors for CR — no
+:bark_intercept): it is GATED behind `if mcf_full > 0` (snag.jl:146), and for CR mcf_full = _fm_cuft(...) = 0
+(NVEL vol_eq ⇒ the R8-Clark path returns 0, the same mechanism as the fixed snag-volume bug). So line 150 is
+NEVER reached for CR ⇒ NO latent crash. Consequence: the SNAGBRK CFTOPK broken-top bole reduction (snag_bole_
+carbon, gated on snag_htx) is a NO-OP for CR broken-top snags (mcf_full=0 skips it) — a bounded FIDELITY gap
+(CR SNAGBRK-HTX snags keep full bole carbon, no top-kill reduction), same R8Clark-returns-0-for-CR class, but
+only reachable with a SNAGBRK-HTX keyfile (crt01 has SNAGBRK but HTX=0 ⇒ not hit; the snag-height-decay
+refinement noted earlier). A faithful fix = CR branch using cr_snag_bole_cuft (merch+total) + cr_cftopk +
+cr_bratio; low priority (rare scenario, needs a SNAGBRK-HTX stand to validate). NET: no remaining REACHABLE CR
+crash; the CR port is bit-exact-or-cornered across all validated regimes, with the residual set = cross-variant
+ZZRAN (ch9) + these rare fidelity refinements (FFE snag-height-decay/CFTOPK, FERTILIZE/breakage/cycle-0-broken-
+top bark), all enumerated and requiring specific hitting scenarios to validate a fix.
