@@ -774,3 +774,10 @@ establishment EXTENSION (which jl lacks for every variant) — cleanly isolated,
 ⇒ KT (2nd western variant) growth engine DONE, mirroring CR. Next variants IE/EM/BM/TT/UT = coefficient swaps on
 this validated engine (differ only by ASPT column + DATA). The estb/ extension is a separate future cross-variant
 port (benefits all variants), inherently cornered.
+
+## Regression check — CLEAN (no impact on SN/NE/CS/LS/CR from the KT campaign)
+Ran the existing suite subset most sensitive to the shared-file changes (the universal dg_prev TreeList field +
+_TREE_VEC_FIELDS tripling copy, the volume/standstats/diameter_growth/simulate KT-gated branches): test_growth +
+test_mortality 19/20 (the 1 is a pre-existing @test_broken), test_canonical_multistand 209/209, test_multistand_sum
+51/51 — 279 pass, 0 REGRESSIONS. Confirms the KT additions (dg_prev zero-init + all KT-gated branches) are inert
+for the other 5 variants. KT variant-specific growth-and-yield engine COMPLETE + validated + regression-clean.
