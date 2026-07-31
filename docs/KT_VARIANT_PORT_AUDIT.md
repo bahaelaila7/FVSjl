@@ -846,3 +846,15 @@ re-grab), DGDSQ (2D, MAPDSQ-mapped), and the 2D tables DGHAB(6,23)/DGFOR(6,23)/M
 DGHAB(MAPHAB(ITYPE,sp),sp) + DGFOR(MAPLOC(IFOR,sp),sp) + slope/aspect/elev (ie/dgf.f:569, kt_dgcons! analog). IE
 D²-coef is habitat-mapped via MAPDSQ (extra vs KT). NEXT: finish 2D extraction (KT dg_coefficients.jl 2D recipe) +
 write IE dg_coefficients.jl + dgf!(::InlandEmpire) [NI form] + ie_dgcons! + aspen paths, validate per-tree vs FVSie.
+
+## IE chunk-3 DGCON — FULLY SPEC'D (ie/dgf.f:562-585, more complex than KT)
+ie_dgcons! (analog kt_dgcons!): ISPHAB=MAPHAB(ITYPE,sp); ISPFOR=MAPLOC(IFOR,sp); ISPDSQ=MAPDSQ(IFOR,sp) [D² by
+FOREST]; ISPCCF=MAPCCF(ITYPE,sp) [CCF by HABITAT]. TMPASP=ASPECT−0.7854 for sp∈{13,15-18,20,21} (aspect offset).
+DGCON = DGHAB(ISPHAB,sp)+DGFOR(ISPFOR,sp)+DGEL·ELEV+DGEL2·ELEV²+(DGSASP·sin(TMPASP)+DGCASP·cos(TMPASP)+DGSLOP)·SLOPE
++DGSLSQ·SLOPE². DGDSQ(sp)=DGDS(ISPDSQ,sp); DGCCF(sp)=DGCCFA(ISPCCF,sp). ATTEN: sp≤12|14|23 → OBSERV(ISPHAB); else
+OBSERV(ISIC) [ISIC from site class LSI]. SITE adj: sp 13/17 +=0.001766·XSITE; sp 18/20/21 +=0.006460·XSITE. +ln(COR2).
+⇒ IE needs (2D, to extract): DGHAB(6,23) DGFOR(6,23) MAPHAB(30,23) MAPLOC(11,23) MAPDSQ(11,23) MAPCCF(30,23) DGDS
+(?,23) DGCCFA(5,23) OBSERV(6,23); (1D DONE): DGLD/DGCR/DGCRSQ/DGBAL/DGDBAL/DGSASP/DGSLOP/DGEL/DGEL2 + need DGCASP/
+DGSLSQ. Plus the aspect-offset + site-class + XSITE special-species logic. IE chunk-3 FULLY CHARACTERIZED; remaining
+= finish 2D extraction + write IE dg_coefficients.jl + dgf!(::InlandEmpire) NI-form + ie_dgcons! + aspen paths,
+validate per-tree WK2 vs live FVSie. Mortality/crown/regent/volume reuse KT. IE progress: chunks 0-1 done, 3 spec'd.
