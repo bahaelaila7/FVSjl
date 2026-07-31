@@ -20,7 +20,7 @@ function compute_volumes_kt!(s::StandState)
         bfmind = sp == 7 ? 6f0 : 7f0
         bark = bark_ratio(ba_a, ba_b, sp, d)
         v = startswith(veq[sp], "I") ?
-            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, stump = stump, iregn = iregn) :
+            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn) :
             zeros(Float32, 15)
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0

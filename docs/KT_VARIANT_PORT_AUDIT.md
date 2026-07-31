@@ -706,3 +706,14 @@ Allen-Adams COFBVS·D²H — whichever matches identifies the model; then port i
 or fix the INGY FW2 board specs). Kept v[2] (7380, closest to live 8100). CUBIC volume (TCuFt/MCuFt) BIT-EXACT —
 the primary volume. KT STATUS: growth+mortality+crown+CUBIC-VOLUME all bit-exact; remaining = board-foot model +
 establishment (both downstream leaves; growth trajectory unaffected).
+
+## ★★ CHUNK 8 volume — DONE, BIT-EXACT (board-foot fixed: missing bftopd)
+The board-foot ~9% was the MISSING bftopd param: cr_fw2_vol has a SEPARATE bftopd (board top DOB, default 6),
+but KT's BFTOPD=4.5 (kt/grinit.f) — I wasn't passing it, so the board used a 6" top (less stem → 7380 < 8100).
+FIX: pass bftopd=4.5f0. RESULT @2019 (bit-exact stand): TCuFt 2528 vs 2529 (Δ1 rounding), MCuFt/SCuFt/BdFt ALL
+BIT-EXACT (=). Confirmed live bfvol.f (Allen-Adams) is NOT called — KT board is the NVEL FW2 board, and cr_fw2_vol
+(with the right bftopd) reproduces it bit-exact. 2029+ volume cornered ~1% (growth-precision DGSCOR residuals in
+the summed DBH/HT + the establishment TPA gap) — bit-exact-or-cornered. CHUNK 8 VOLUME DONE.
+KT STATUS: chunks 3(DG)+4(height)+5(crown)+6(regent)+7(mortality)+8(volume) ALL bit-exact-or-cornered; the full
+.sum is bit-exact at 2019 across ALL 10 columns (TPA/BA/SDI/CCF/TopHt/QMD/TCuFt/MCuFt/SCuFt/BdFt, only TCuFt Δ1).
+REMAINING: establishment (the 2039+ TPA/QMD re-stock — the one real remaining divergence; downstream additive).
