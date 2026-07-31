@@ -617,3 +617,15 @@ under-kill. FIX = thread the past-cycle DG (WK1) so cycle>1 uses the WK1-based G
 Other refinements: crown OLDPCT (uses current PCT), regent small-tree density feedback, MORTMULT/estab windows.
 NEXT: (1) thread WK1 for mortality-G cycle>1 (the .sum divergence); (2) chunk 8 volume (NVEL — vol currently 0);
 (3) tighten to full-cycle bit-exact-or-cornered. GROWTH+MORTALITY+CROWN CORE COMPLETE + INTEGRATED (2019 bit-exact).
+
+## Chunk 7 mortality — IPDG2 extraction bug FIXED (found via full-cycle .sum); 2029 now BIT-EXACT
+The full-cycle .sum differential (doctrine #3) exposed a REAL bug: 2029 TPA jl 2117 vs live 1504 (jl under-killed
+5×). Traced to seedling g=0.130 vs live ~0.045 → jl POTEN2=1.20 vs live 2.70 → IPDG2 lookup wrong. ROOT: the
+coefficient extraction's `J=1,2)` key matched IPDG's DATA block FIRST (both IPDG and IPDG2 have `J=1,2)`), so
+KT_MORT_IPDG2 got IPDG's data (IPDG2[14,3]=17 not 50). FIX: anchor the extraction on the full `IPDG2(I,J),I=1,30)`
+prefix; regenerated KT_MORT_IPDG2. RESULT: 2029 now BIT-EXACT (TPA 1504/1503, BA 195/196, QMD 4.9/4.9; ±1).
+2039+ now slightly OVER-thins (jl TPA 994 vs live 1356, QMD 6.9 vs 5.9) — the next divergence, likely the cycle>1
+WK1/G omission (mortality growth term uses projected DG since past-DG WK1 not threaded) or the density self-thin
+tail. NEXT: thread WK1 (past DG) for cycle>1 mortality-G; then volume (chunk 8). META: the .sum differential is
+the right validation — it caught a coefficient-extraction bug per-tree spot-checks missed (I'd only validated
+large-tree WKI, not seedlings; the seedling POTEN2 was wrong). ALWAYS run the full-cycle .sum.
