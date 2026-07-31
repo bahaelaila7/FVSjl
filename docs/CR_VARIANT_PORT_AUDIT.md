@@ -3550,3 +3550,15 @@ F3 residual ~15-30% on this stand) AND its candidate model differs. So SFCT/WSCT
 the deep remainder — the prior "structure_class not fuel" framing was too strong. The dominant lever remains the F3
 fuel (heavier fuel → 10 regardless of IFMST, as live shows). Net: the deep FFE remainder is ONE coupled thing —
 the F3 snag-biomass fuel level — plus IFMST precision as a secondary; both need live per-cohort/FMSSTAGE instrumentation.
+
+## ===== FFE DATA AUDIT COMPLETE — all per-variant CR fire tables verified/fixed; residual is DYNAMICS =====
+Systematically audited every per-variant CR FFE DATA table vs live cr/fmvinit.f + cr/fmmois.f:
+  FIXED this session: DKR decay (_FM_DKR_CR), moisture (_FM_MOIS_CR), crown width (cr_cwcalc dispatch), XPTS
+  (_FMD_XPTS_CR). VERIFIED CORRECT (match live): V2T wood density, PRDUFF (0.02), ALLDWN snag-fall years (40/100/90/…),
+  CANCLS/CORFAC wind reduction, species cover-type map, moisture. ⇒ NO remaining missing/wrong per-variant DATA table.
+The remaining ~15% F3 fuel residual + SFCT/WSCT are therefore confirmed to be in the DYNAMICS (not data): the snag-fall
+DISTRIBUTION over ALLDWN years (crt01 large boles reach cwd too fast → converging over-accumulation), the species-
+specific fine-fuel/litterfall (SFCT spruce small-fuel under-accumulation), and the structure_class IFMST precision on
+single-species stands. These need the live per-cohort snag/cwd + FMSSTAGE instrumentation trace — a fresh-context task.
+NEXT-SESSION START: instrument live fmsnag/fmcwd (per-cohort snag density + cwd add/decay) on crt01 & the spruce stand,
+diff vs a jl per-cohort dump. The DATA is DONE; only the dynamics remain.
