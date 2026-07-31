@@ -82,6 +82,7 @@ include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (
 include("variants/inlandempire/dg_coefficients.jl")  # IE large-tree DDS coefficient arrays (ie/dgf.f)
 include("variants/inlandempire/diameter_growth.jl")  # IE large-tree DDS hooks (ie_dgcons! + dgf!)
 include("variants/inlandempire/height_growth.jl")    # IE large-tree height growth (ie/htgf.f)
+include("variants/inlandempire/crown.jl")            # IE per-tree CCF (ie/ccfcal.f) -> RELDEN + crown width
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

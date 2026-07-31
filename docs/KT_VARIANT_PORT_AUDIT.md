@@ -946,3 +946,23 @@ paths (LM/PY/aspen Weibull, PI/JU) ported but NOT in iet01 -> validate on a stan
 (IE-gated). META: my htgf instrument FORMAT had a 4-vs-3-reals-before-integer off-by-one that crashed the live
 run (exit 20, "Expected REAL got INTEGER") -> ALWAYS check run exit + stderr, not just grep -c of the dump.
 NEXT: chunk 5 (crown/cratet/ccfcal -> RELDEN, the last DG/HT input still injected), then chunk 6/7/8 + full-cycle.
+
+============================================================================
+IE CHUNK 5a (CROWN COMPETITION FACTOR / RELDEN: ie/ccfcal.f) — VALIDATED bit-exact-or-cornered vs LIVE FVSie
+============================================================================
+src/variants/inlandempire/crown.jl — ie_tree_ccf (MODE=1 per-tree CCFT) + ie_crown_width (MODE=2 B1..B6).
+Wired: standstats.jl stand_ccf + point_density! IE branches (Σ ie_tree_ccf*P); simulate.jl compute_density! sets
+p.relative_density = stand_ccf(s) for IE. ie/ccfcal.f MODE=1 dispatch (3 species classes):
+  sp{1:12,14,23}: D>=10 -> RD1+D*RD2+D^2*RD3 ; else RDA*D^RDB.
+  sp{19,22}:      D>=10 -> poly ; 0.1<D -> RDA*D^RDB ; else 0.001.
+  sp{13,15,16,17,18,20,21}: D>=1 -> poly ; 0.1<D<1 -> RDA*D^RDB ; else 0.001.  (RD1/2/3, RDA, RDB 23-sp.)
+Crown width MODE=2: sp{1:10,12:22} B1*exp(B2+B3*lnCL+B4*lnD+B5*lnH+B6*lnBA); sp{11,23} height-blend; IFOR=5
+R6CRWD deferred. This is the RELDEN the DG/HT chunks read (western polynomial, NOT eastern crown-width->area).
+VALIDATION (instrument-replay): patched buildDir/ccfcal.f to dump ISPC/D/P/CCFT for MODE=1 @ICYC<=1, relink
+FVSie_instr3 (excl dgf.o+ccfcal.o), ran iet01.key. Replay /workspace/.iework/replay_ie_ccf.jl: per-tree CCFT
+1898/1898 records within rel 1e-5, MAX rel|Δ|=2.65e-7 (all species/sizes incl the power form) = cornered. So
+ie_tree_ccf BIT-EXACT-OR-CORNERED; RELDEN = Σ CCFT*P over the live tree list = the shared (KT-validated) Σ, so
+RELDEN reproduces (live cycle-1 RELDEN=80.71). => the DG/HT chunks now read an engine-derived RELDEN (last
+still-injected input CLOSED). NEXT chunk 5b: crown ratio update (ie/crown.f, the CRPARM-style model producing
+ICR/crown_pct + PCT that dgf!/htgf consume) so the whole IE growth pipeline runs end-to-end for the .sum
+differential. Then regent(6)/mortality(7,reuse KT)/volume(8,reuse FW2).

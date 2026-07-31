@@ -201,6 +201,7 @@ function point_density!(s::StandState)
     fill!(pccf, 0f0); fill!(ptpa, 0f0)
     pi_f = p.pi; gross = p.gross_space
     kt = s.variant isa Kootenai
+    ie = s.variant isa InlandEmpire
     @inbounds for i in 1:t.n
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
@@ -208,6 +209,8 @@ function point_density!(s::StandState)
         if kt
             # KT PCCF uses the same per-tree ccfcal polynomial as RELDEN (kt/ccfcal.f), not crown-width area.
             ccft = kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        elseif ie
+            ccft = ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ie/ccfcal.f MODE=1
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -279,6 +282,12 @@ function stand_ccf(s::StandState)
         # compute_density! into p.relative_density and read by dgf!, matching FVS's DENSE→DGF flow.
         @inbounds for i in 1:t.n
             ccf += kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
+    elseif s.variant isa InlandEmpire
+        # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
+        @inbounds for i in 1:t.n
+            ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
     end
