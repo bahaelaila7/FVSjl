@@ -4146,3 +4146,21 @@ Sampled the STALE cr_cns_tcuft_nd.txt (1355 volume needs-dig CNs, pre-fix). Find
 VERDICT: CR volume is bit-exact-or-cornered. The "full NVEL port = largest remaining chunk" memory note is STALE —
 compute_volumes_cr! (DVE/NVB/FW2 dispatch) is functional and inventory-bit-exact; the tcuft needs-dig list is
 dominated by the cornered self-thin/ULP tail (much of it now resolved by the mortality-bark + aspen-HCOR fixes).
+
+### Established-tree ABIRTH=0 — 10th CR bug (planted/regen trees ran AGEPL+GENTIM years too young)
+Found via the crt01 STAND-5 (BARE GROUND PLANT, NOTRIPLE) estab differential: late-cycle TopHt drifted jl-HIGH
+(+5ft/~8% by 2092) while all dbh-metrics (TPA/BA/SDI/CCF/QMD) stayed bit-exact-or-±2. NOTRIPLE ⇒ per-tree valid.
+MEASURED (DB FVS_TreeList mean/max Ht + instrumented LIVE htgf.f relink): jl's planted CB reached maxHt 76.3 vs
+live 70.4; jl's height INCREMENT decelerated too slowly as trees neared the site asymptote (jl htg ~6.2 vs live
+~4.6/cycle at age ~90). ROOT: FVS estab.f:628/707 sets ABIRTH = AGEPL + GENTIM (AGEPL=TRAGE planting age, default
+2.0; GENTIM=FINT−5=5 ⇒ 7 for a default PLANT); jl left established-tree birth_age at the array default 0 ⇒ trees
+were AGEPL+GENTIM (=7) years too YOUNG ⇒ htgf's even-aged GEMHT site curve (steeper at younger age) over-predicted
+height. PROOF the model is otherwise identical: at the SAME age (AP=79.2) jl cr_gemht HHE1=59.144/HHE2=63.992/
+HTG=6.06 == live 59.142/63.990/6.060 (bit-exact); live instrumented ABIRTH=77/87/97 == jl birth_age+7 exactly.
+FIX (establishment.jl tree-creation): `s.variant isa CentralRockies && (t.birth_age[n] = age)` — the REGENT-start
+`age = per−delay−gentim+trage` (essubh.f:93, already computed for the seedling height) IS FVS's ABIRTH. VALIDATED:
+jl TreeAge now 7/17/…/87/97 == live; crt01 STAND-5 TopHt +5→+3 (2062 now bit-exact, 2072 +1). RESIDUAL ~3ft is
+ACCUMULATED from the mid-cycle self-thin/RDPSRT density tie-break (2052 SDI jl216/live221 ⇒ marginally less
+competition ⇒ taller, persists) — the cornered cross-variant class, NOT a height-model bug (gemht is bit-exact at
+matched age+bautba). CR-gated (SN/NE/CS/LS share the latent gap but are separately validated — avoided unvalidated
+churn). Zero-regression (Pkg.test 1918/140-preexisting/3 identical; normal FIA inventory stands unchanged).

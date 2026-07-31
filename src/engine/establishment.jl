@@ -260,6 +260,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
+                # ABIRTH = AGEPL + GENTIM (estab.f:628/707) — the REGENT-start `age` already computed above IS
+                # FVS's tree age (essubh.f:93). jl left birth_age=0 ⇒ established trees ran ~AGEPL+GENTIM (=7 for a
+                # default PLANT) years too YOUNG ⇒ htgf's even-aged site curve (steeper when young) over-predicted
+                # height growth as planted stands approached the site asymptote (late-cycle TopHt jl-high). CR-gated:
+                # the eastern variants share this latent gap but are separately validated (avoid unvalidated churn).
+                s.variant isa CentralRockies && (t.birth_age[n] = age)
                 # Records go on inventory point `nn` (estab.f:313 ITRE=IPTIDS[nn]).
                 # point_ba scales each point's raw BA by PI/GROSPC with PI=NPTIDS, so with
                 # the planted TPA spread evenly over NPTIDS points each point_ba comes back
