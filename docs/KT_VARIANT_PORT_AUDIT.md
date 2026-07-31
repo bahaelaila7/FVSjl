@@ -858,3 +858,15 @@ OBSERV(ISIC) [ISIC from site class LSI]. SITE adj: sp 13/17 +=0.001766·XSITE; s
 DGSLSQ. Plus the aspect-offset + site-class + XSITE special-species logic. IE chunk-3 FULLY CHARACTERIZED; remaining
 = finish 2D extraction + write IE dg_coefficients.jl + dgf!(::InlandEmpire) NI-form + ie_dgcons! + aspen paths,
 validate per-tree WK2 vs live FVSie. Mortality/crown/regent/volume reuse KT. IE progress: chunks 0-1 done, 3 spec'd.
+
+## IE chunk-3 DG — ALL coefficients EXTRACTED (data foundation complete)
+Full IE DG coefficient set extracted → /workspace/.iework/ie_dg_coefs.json: 1D (23 sp): DGLD DGCR DGCRSQ DGBAL
+DGDBAL DGSASP DGCASP DGSLOP DGSLSQ DGEL DGEL2. 2D: DGHAB(6,23) DGFOR(6,23) DGDS(4,23) DGCCFA(5,23) OBSERV(6,23)
+MAPHAB(30,23) MAPLOC(11,23) MAPDSQ(11,23)[IFOR→1-4] MAPCCF(30,23). (DGDS is (4,23) not (11,23) — 92=4×23; MAPDSQ
+maps the 11 IFOR to a 1-4 group.) IE chunk-3 DATA COMPLETE. REMAINING chunk-3: generate IE dg_coefficients.jl (const
+arrays from the JSON) + write dgf!(::InlandEmpire) [NI-form DDS, measured] + ie_dgcons! [DGCON setup, spec'd:
+MAPHAB/MAPLOC/MAPDSQ/MAPCCF + aspect-offset + site-class ATTEN + XSITE adj] + the aspen measured-DG + Utah-aspen
+paths + IE habitat tables (JTYPE 95, TBD) + BA100=BA/100 in the per-tree BAL, then calibrate (shared DGSCOR) +
+validate per-tree WK2 vs live FVSie instrument-replay (relink ie oracle, dump WK2). Mortality/crown/regent/volume
+reuse KT. IE STATE: chunks 0(scaffold)+1(CSV loads) DONE; chunk 3 DG fully MEASURED + ALL COEFFICIENTS EXTRACTED,
+ready to write the Julia + validate. This is the deepest IE chunk (like KT chunk 3); height/others follow.
