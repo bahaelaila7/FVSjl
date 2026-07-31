@@ -870,3 +870,37 @@ paths + IE habitat tables (JTYPE 95, TBD) + BA100=BA/100 in the per-tree BAL, th
 validate per-tree WK2 vs live FVSie instrument-replay (relink ie oracle, dump WK2). Mortality/crown/regent/volume
 reuse KT. IE STATE: chunks 0(scaffold)+1(CSV loads) DONE; chunk 3 DG fully MEASURED + ALL COEFFICIENTS EXTRACTED,
 ready to write the Julia + validate. This is the deepest IE chunk (like KT chunk 3); height/others follow.
+
+============================================================================
+IE CHUNK 3 (LARGE-TREE DIAMETER GROWTH) — VALIDATED bit-exact-or-cornered vs LIVE FVSie
+============================================================================
+Commit a12213d. Ported ie/dgf.f faithfully (MEASURED, not inferred — read the actual Fortran
+main body + ENTRY DGCONS + ie/bratio.f + ie/dgfasp.f):
+  src/variants/inlandempire/diameter_growth.jl  — dgf!(::InlandEmpire) [4 species paths] +
+    ie_dgcons! [DGCON/DGDSQ/DGCCF/ATTEN] + ie_bratio [ie/bratio.f IMAP] + ie_dgfasp [ie/dgfasp.f aspen].
+  src/variants/inlandempire/dg_coefficients.jl  — + IE_BARK1/BARK2/BRK_IMAP.
+  setup_growth! (simulate.jl) — IE branch: ie_dgcons! + calibrate_diameter_growth! (IE-gated).
+
+DDS forms (species-dispatched, ie/dgf.f):
+  NI (all except special): CONSPP + DGLD*lnD + DGBAL*BAL + CR*(DGCR+CR*DGCRSQ) + DGDSQ*D^2
+     + DGDBAL*BAL/ln(D+1);  CONSPP=DGCON+COR+0.01*DGCCF*RELDEN;  BAL=(1-PCT/100)*(BA/100);  CR=ICR*0.01.
+  sp15,16 (PM/RM PI-JU, UT closed form); sp18,20,21 (AS/MM/PB aspen, Utah DGFASP);
+  sp19,22 (CO/OH cottonwood, CR closed form).  All clamp DDS>=-9.21.
+DGCON (ENTRY DGCONS): ISPHAB=MAPHAB(ITYPE,sp) ISPFOR=MAPLOC(IFOR,sp) ISPDSQ=MAPDSQ(IFOR,sp)
+  ISPCCF=MAPCCF(ITYPE,sp); TMPASP=ASPECT-.7854 sp{13,15-18,20,21}; ISIC 5-class from SITEAR;
+  ATTEN=OBSERV(ISPHAB) sp{<=12,14,23} else OBSERV(ISIC); sp13/17 +.001766*XSITE, sp18/20/21 +.006460*XSITE.
+
+VALIDATION (instrument-replay, doctrine #1): patched a CRLF copy of bin/FVSie_buildDir/dgf.f to WRITE
+per-species DGCON/DGDSQ/DGCCF/COR/SI + stand ITYPE/IFOR/ELEV/SLOPE/ASPECT/BA/RELDEN + per-tree
+I/ISPC/D/PCT/ICR/DDS at ICYC=1; gfortran -c + relink FVSie (excl orig dgf.o) + shim; ran tests/FVSie/
+iet01.key (stand S248112, dumps to fort.16). Replay (/workspace/.iework/replay_ie_dg.jl) fed the LIVE
+ITYPE=17/IFOR=11/ELEV=34/SLOPE=0.30/ASPECT=5.498/BA=67.10/RELDEN=80.71 + live SITEAR into the jl equations:
+  (A) ie_dgcons! DGCON/DGDSQ/DGCCF vs live: MAX|Δ| = 4.2e-08 (all 7 species WL/DF/GF/WH/LP/ES/PP).
+  (B) dgf! per-tree DDS vs live: 54/54 trees within 1e-5, MAX|Δ| = 4.9e-08.
+Δ ~1e-8 = Float32 machine-eps (sin/cos/log ULP, gfortran vs openlibm) = the cornered class. => IE NI-path
+DG EQUATION BIT-EXACT-OR-CORNERED vs live. Special paths (PI-JU/aspen/CO) not in iet01 — code ported,
+validation deferred to a stand that exercises them. This validated the EQUATION with matched inputs;
+ITYPE/IFOR derivation = chunk 2 (habtyp/sitset), RELDEN = chunk 5 (ccfcal) — separate downstream chunks.
+Suite 38588/0/1err/75 (the 1 err = PRE-EXISTING SN estab-test closure quirk, errors on clean baseline;
+0 IE regressions). NEXT: IE chunk 2 (habtyp/sitset → ITYPE/IFOR/SITEAR) so the full engine drives DG
+end-to-end; then height (chunk 4), crown/ccfcal (5), regent (6), mortality (7, reuse KT), volume (8, FW2).
