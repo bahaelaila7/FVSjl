@@ -3837,3 +3837,19 @@ METHOD (doctrine #2, textbook): NOTRIPLE classified it deterministic (not RNG); 
 tail. Suite 38588/0/1/75. This likely fixes a large share of the 1355 cr_cns_tcuft_nd flagged stands (the
 dense/self-thinning subset). Re-sweep to reclassify. The ultra-dense-seedling class (CN 190851682020004) is
 SEPARATE (live FP-exception regime + small-tree DG) — still open.
+
+## Mortality bark fix — BROAD VALIDATION + remaining small-tree-DG class isolated
+Batch-dug 30 cr_cns_tcuft_nd stands (scratch batch_dig.jl, TPA/BA/SDI/TCuFt max-rel vs clean FVScr) AFTER the
+mortality bark fix: 27/30 (90%) now WITHIN 2% (3 bit-exact <0.5% + 24 in the 0.5-2% accepted RDPSRT/ZZRAN
+tail). Only 3/30 remain >2% — and they are the SAME small-tree-DG seedling stands (190851682020004 58%,
+381211668489998 58%, 31226976010690 31%). ⇒ the CR-bark mortality fix (commit e27ade9) cleared essentially
+the ENTIRE dense-stand over-kill class from the 1355-stand flag list; the residual ~10% is one bounded class.
+REMAINING CLASS = SMALL-TREE DG under-growth on ultra-dense seedling stands (2800-5400 TPA, QMD 0.4-0.6):
+TPA now MATCHES live every cycle (mortality fixed) but QMD/BA/SDI/vol diverge and GROW — e.g. 381211668489998
+QMD jl0.5/live0.6 @2035, BA 9/10; SDI 25/37; the sub-inch trees' DG (regent/gemdg small-tree path) grows too
+little, compounding + a volume-threshold spike when trees finally cross ~1". NOTE this class CANNOT use the
+NOTRIPLE classifier (live hits its own >1000-TPA-seedling FP exception, exit 10) — must compare in TRIPLE via
+the cycle-1 pre-split window (doctrine #3) or instrument jl small-tree DG vs a live gemdg/regent instrument.
+NEXT: dig the small-tree DG (density suppression / the sub-inch DG rate / the 1"-transition) on one of these
+3. Tools: batch_dig.jl (sweep rate), dig_vol.jl. Re-running the full 1355-stand sweep would reclassify most
+as pass/cornered now.
