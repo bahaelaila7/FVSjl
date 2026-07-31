@@ -225,3 +225,18 @@ FULL dgf!(::Kootenai) SPEC (all inputs now sourced):
     + (MANAGD? DGPCC1[sp] : DGPCC2[sp])*PCCF(point); BAL=(1-PCT/100)*BA (sp11:/100); clamp>=-9.21; WK2=DDS (no bark).
 => CHUNK-3 MEASUREMENT COMPLETE. Remaining = pure coding (map jl field names for RELDEN/point-CCF/MANAGD/ELEV/
 SLOPE/ASPECT) + kt_dgcons!/dgf! + loader PV_CODE->habitat_code + per-tree WK2 instrument-replay vs live.
+
+## Chunk 3 — jl field mapping (dgf! inputs -> StandState); RELDEN=RELDM1 traced to dense.f
+jl fields for dgf!(::Kootenai) (from src/core/state.jl):
+  PCCF1  -> p.point_ccf[ITRE] (per-point PCCF, dense.f:210)     MANAGD -> p.managed (0/1)
+  ELEV   -> p.elevation (hundreds ft)   SLOPE -> p.slope (0..1)   ASPECT -> p.aspect (radians)
+  BA     -> p.basal_area   D -> t.dbh   CR -> t.crown_pct   PCT -> t.crown_ratio
+  KKTYPE -> p.habitat_code (chunk-2 stored)   KOTFOR -> forest index (p.forest_idx or KOTFOR map)
+  RELDEN -> RELDM1: dense.f RELDT=Σ RELDSP(ISPC) (per-species relative density), RELDM1=RELDT, then backdate
+            adjust (LBKDEN: TEMP1=(RELDEN-RELDM1)*FINTH/FINT+RELDM1). The stand relative-density scalar from
+            compute_density!. NOTE: CR crown reads relden=stand_ccf(s) — CONFIRM whether the jl engine's
+            relative-density (RELDM1) == stand_ccf or a distinct helper; KT dgf uses RELDM1 specifically (and
+            CCF2=RELDM1^2). This is THE last field to pin (identify/expose RELDM1 in the jl density engine).
+REMAINING chunk-3 = (1) confirm/expose RELDM1 jl scalar; (2) code kt_dgcons! + dgf!(::Kootenai) per the full spec;
+(3) loader PV_CODE->plot.habitat_code; (4) per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh dgf.o) on
+the 40 IE stands (.sweep_work/kt_ie_stands.txt) — CR DGFTRC recipe.
