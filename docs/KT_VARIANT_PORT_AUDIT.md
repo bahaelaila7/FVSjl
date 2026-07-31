@@ -327,3 +327,13 @@ B1-B6 + R6CRWD/IFOR branches) is for the crown model (chunk-5 crown_ratio, separ
    WK2 diff -> expect bit-exact (RELDEN closes). THEN chunk 4 height (ln(DG) term matches).
 ### KT growth-core DEPENDENCY CHAIN fully measured:
   ccfcal CCF(ch5) -> RELDEN 98.39 -> DG WK2 bit-exact(ch3) -> height ln(DG)(ch4). Implement ch5-CCF FIRST.
+
+## Chunk 5 — CCF implemented (RELDEN 2.05->79.27); residual = GROSPC normalization
+crown.jl: KT_RD1/RD2/RD3/RDA/RDB + kt_tree_ccf(sp,d); stand_ccf(s) Kootenai branch = Σ kt_tree_ccf*tpa.
+RELDEN 2.05 -> 79.27 (live 98.39) — right CCF scale, DG WK2 residual ~5% -> ~1%. RESIDUAL 79.27 vs 98.39
+(ratio 1.241 = 1/0.806) = GROSPC normalization: dense.f:207 PCCF=PCCF+CCFT*PI/GROSPC (and RELDSP/PRDA all
+carry PI/GROSPC). jl's raw Σ CCFT omits the /GROSPC (gross growing space) divisor; 79.27/0.806 ≈ 98.4. Also PI
+(per-point weight, =NPTS or GROSPC-related). NEXT: apply the KT stand-CCF normalization = Σ CCFT*tpa /GROSPC
+(find p.gross_space; confirm PI). Then RELDEN->98.39, DG WK2 -> bit-exact, then the 40-stand DG batch. NOTE:
+RELDEN may technically be the SDI-based RELDSP sum (dense.f:217 PRDA=P*(D/10)^1.605/GROSPC/XMAXPT) not the CCF
+sum — but the CCF-poly value (79->98 w/ GROSPC) tracks live 98.39 closely, so verify which after the GROSPC fix.
