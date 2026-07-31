@@ -31,7 +31,8 @@ const _CR_ISPMAP = Int[
 
 # SPIE groups whose FMCROWW large-tree LIVEWT branches on the height percentile HP<DOMPCT(60):
 # ponderosa (13), Douglas-fir (3), western larch (8), Black-Hills PP (25). Others ignore HP.
-@inline _cr_crownw_needs_hp(spie::Integer) = spie == 13 || spie == 3 || spie == 8 || spie == 25
+@inline _cr_crownw_needs_hp(spie::Integer) =
+    spie == 13 || spie == 3 || spie == 8 || spie == 11 || spie == 25
 
 """
     cr_hpct_of_height(s, h) -> Float32
@@ -119,6 +120,7 @@ end
 # small-tree TOTWT (fmcroww.f:174-255)
 @inline function _cr_crownw_small_totwt(spi::Int, h::Float32)::Float32
     spi == 4 && return 0.4284f0 * h                          # grand fir
+    spi == 11 && return 0.03111f0 * h * h                     # lodgepole pine
     spi == 13 && return 0.3451f0 * h                         # ponderosa
     spi == 15 && return 0.3292f0 * h                         # western white pine
     spi == 18 && return exp(-3.932f0 + 2.571f0 * log(h))     # Engelmann spruce
@@ -129,7 +131,7 @@ end
 @inline function _cr_crownw_small_prop(spi::Int)::NTuple{3,Float32}
     (spi == 4 || spi == 18) && return (0.62f0, 0.26f0, 0.12f0)   # CASE (1,4,6,7,18,24)
     spi == 13 && return (0.57f0, 0.14f0, 0.29f0)                 # CASE (13,25)
-    spi == 15 && return (0.52f0, 0.27f0, 0.21f0)                 # CASE (3,11,14,15)
+    (spi == 15 || spi == 11) && return (0.52f0, 0.27f0, 0.21f0)  # CASE (3,11,14,15)
     error("cr_crownw: small-tree proportions for SPIE group $spi not ported")
 end
 
@@ -150,6 +152,26 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
         end
         dp1 = d < 3f0 ? 1f0 : (d > 27f0 ? 0.01f0 : 1.4336f0 * exp(-0.1816f0 * d))
         dp2 = d < 8f0 ? 1f0 : 1.2623f0 * exp(-0.0347f0 * d)
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 11                     # lodgepole pine
+        livewt = 0.02238f0 * d * d * d + 0.1233f0 * d * d * r - 2f0
+        deadwt = d <= 10f0 ? (0.026f0 * d - 0.025f0) * livewt : 0.235f0 * livewt
+        if hp < dompct
+            if d <= 7.5f0
+                livewt *= 0.5f0; deadwt *= 0.5f0
+            else
+                livewt *= 0.6f0; deadwt *= 0.6f0
+            end
+        end
+        p1 = 0.4933f0 - 0.01167f0 * d
+        p2 = 0.7767f0 - 0.01464f0 * d
+        p3 = d <= 3.9f0 ? 1f0 : 1.0494f0 - 0.01402f0 * d
+        if d > 20f0
+            dp1 = 0.139f0; dp2 = 0.226f0
+        else
+            dp1 = d < 1.5f0 ? 1f0 : 1.3527f0 * d^(-0.7585f0)
+            dp2 = d < 9f0 ? 1f0 : 2.7979f0 * exp(-0.1257f0 * d)
+        end
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 13                     # ponderosa pine
         if hp < dompct
