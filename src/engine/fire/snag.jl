@@ -509,6 +509,8 @@ function ffe_seed_input_snags!(s::StandState)
             prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
             v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
+        elseif s.variant isa CentralRockies
+            mcuft = cr_snag_bole_cuft(s, sp, d, h)   # CR NATCRS total cubic (R8-Clark returns 0 for NVEL vol_eq)
         else
             prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
                 ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
@@ -671,6 +673,10 @@ function ffe_add_snaginit!(s::StandState)
             v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
             tcuft = v[1]                                         # total cubic (fall→CWD1 basis)
+        elseif s.variant isa CentralRockies
+            # CR vol_eq are NVEL DVE/NVB/FW2 codes ⇒ _R8CLARK_VOL returns 0. CR's FMSVOL (fmsvol.f:153) reports
+            # the TOTAL cubic (TCF) for the snag bole AND the CWD1 fall, so bole==fall==TCF for CR.
+            mcuft = cr_snag_bole_cuft(s, sp, d, h); tcuft = mcuft
         else
             prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
                 ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])

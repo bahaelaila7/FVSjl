@@ -526,6 +526,10 @@ fire=FIRKIL + regular=WK2−FIRKIL).
         prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
         v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
         return d >= dbhmin ? v[4] + v[7] : 0f0
+    elseif s.variant isa CentralRockies
+        # CR vol_eq are NVEL DVE/NVB/FW2 codes ⇒ _R8CLARK_VOL (below) returns 0 ⇒ snag bole collapses to the
+        # cone floor. Use the CR NATCRS merch cubic (fmsvol.f→NATCRS), matching compute_volumes_cr!.
+        return cr_snag_bole_cuft(s, sp, d, h)
     else
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])

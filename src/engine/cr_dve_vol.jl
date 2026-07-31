@@ -306,3 +306,34 @@ function compute_volumes_cr!(s::StandState)
     end
     return s
 end
+
+# CR FFE snag bole cubic (FMSVOL VOL2HT) for an ARBITRARY (dbh,ht) — the fmsvol.f→NATCRS path. Needed to
+# book a binned snag record's bole on its class-MEAN dbh/ht: `_R8CLARK_VOL` CANNOT produce it — CR `vol_eq`
+# are NVEL DVE/NVB/FW2 codes, not R8-Clark, so the Clark lookup misses (err≠0) and returns 0 ⇒ the snag bole
+# collapsed to the tiny-tree cone floor (0.005454·H).
+#
+# BASIS = TOTAL cubic (TCF = v[1]), NOT merch. FMSVOL is called by the snag reports (fmsout.f:123 SNAGOUT)
+# and CWD1 with DEBUG/LMERCH both FALSE (fmsvol.f:65 inits LMERCH=.FALSE.), and for a non-top-killed snag
+# fmsvol.f:153 sets `VOL2HT = MAX(X,TCF)` — the TOTAL cube, not MCF. (The LMERCH=T→MCF and LTKIL→MCF
+# branches are for merch-flagged / broken-top snags; the SNAGBRK top-loss reduction is applied separately in
+# snag_bole_carbon via CFTOPK.) Verified vs live crt01.sng CURR VOLUME: MCF ran ~15-18% low; TCF matches.
+# Contrast the SN path (merch): SN's fmsvol.f differs and SN Stand-Dead validated to MCF — CR is TCF.
+function cr_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    (d < 1f0 || h <= 0f0) && return 0f0
+    c = s.control; sd = s.coef.species
+    imodty = Int(s.plot.model_type); is3 = imodty == 3
+    topd = is3 ? 6f0 : 4f0; stump = 1f0
+    iregn = Int(s.plot.user_forest_code) ÷ 100
+    eq = s.species.vol_eq[sp]
+    mdl = length(eq) >= 6 ? eq[4:6] : "   "
+    v = if mdl == "DVE"
+            cr_dve_vol(eq, d, h; unt = d >= c.sp_scf_dbhmin[sp] ? 1 : 3)
+        elseif startswith(eq, "NVB")
+            cr_nvb_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)
+        elseif mdl == "FW2"
+            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)
+        else
+            return 0f0
+        end
+    return max(v[1], 0f0)                    # TCF (total cubic), fmsvol.f:153 VOL2HT=MAX(X,TCF)
+end
