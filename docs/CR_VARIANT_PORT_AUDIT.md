@@ -4442,3 +4442,21 @@ live exactly), residuals are only ±1 TopHt + ±1-2 volume + ±0.1 QMD. ⇒ the 
 is bit-exact-or-cornered. Multi-regime validation this session now spans grow (400) + plant (100, establishment) +
 thinbba (100, cut) = 600 new stands across 3 distinct keyword code paths, ALL bit-exact-or-cornered, ZERO real
 bugs, ZERO UNCLASSIFIED. (simfire/FFE-fire already validated bit-exact-or-±1 on crt01 STAND-4.)
+
+### SIMFIRE-regime sweep (100 stands) — surfaced a REAL dense-seedling fire divergence + a direction correction
+Swept 100 stands under REGIME=simfire (validates the 11th+12th FFE fire fixes broadly): bit_exact=84, diverging=16,
+0 UNCLASSIFIED. MOST diverging are cornered (print_boundary/threshold_crossing/structure_densephase). BUT tracing
+the largest (dense seedling stands, 630-1623 TPA QMD ~2) surfaced a GENUINE divergence — the FIRST non-cornered
+one found in the sweeps:
+- CN 1807153225290487: raw .sum @2044 jl=95 vs LIVE=382 (verified from both raw .sum files). jl's fire kills the
+  dense seedling cohort to 15.4 TPA (99%), then esuckr stump-sprouts rebound to 95; live ends at 382. jl OVER-kills
+  or UNDER-sprouts the dense post-fire cohort. Bounded (simfire + dense-seedling). Likely the documented
+  [[fvsjl-fire-fmprob-bug3]] class (SN SIMFIRE dense-stand fire-kill divergence, PMORT-input, shared/open) OR an
+  esuckr sprout difference on the dense burned cohort. REAL OPEN LEAD — needs a live-side fire/sprout instrument.
+★★ DIRECTION CORRECTION (important harness note): .sweep_work/dig_vol.jl prints **live/jl** (`lv[k]/jv[k]`,
+line 8), NOT jl/live. This session's dig_vol-based SWEEP direction-readings (uncovered/plant/thinbba/simfire "X/Y")
+had live and jl SWAPPED in my narration — but the BIT-EXACT and CORNERED classifications are direction-INDEPENDENT
+(merch-threshold / ±1-rounding / self-thin-straddle hold either way), so those verdicts STAND. The FFE STAND-4
+analyses (11th/12th bugs) used EXPLICIT jl/live labels + jl-instrument-vs-live-MORTALITY-REPORT (independent of
+dig_vol), so they are UNAFFECTED and correct. META: always confirm the diff tool's column ORDER before narrating
+divergence direction (cost a mislabeled "jl under-kills" that was actually "jl over-kills" here).
