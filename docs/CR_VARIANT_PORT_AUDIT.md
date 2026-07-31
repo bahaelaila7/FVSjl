@@ -4716,3 +4716,30 @@ coincidence). This is a latent bug on ANY stand where CCF diverges from relative
 oak/pinyon/juniper hardwood stands most exposed). Affects ~2467 CR oak-dominant FIA stands.
 Instrument oracle: FVScr_reg (regent RELDEN/PCTRED/EDH/cornew). META: found ONLY by widening the
 sweep to 60 stands — the 25-30 stand samples missed this oak-stand class.
+
+## 18th bug — CORRECTED root cause (SDI hypothesis DISPROVEN; it's the BACKDATED CCF in the calibration)
+
+The earlier "RELDEN = (STDSDI/SDIMAX)·100 relative density" direction was WRONG — measured jl
+stand_sdi/stand_sdimax·100 = 301.82/555.08·100 = 54.37, NOT live's 109.54. Correct root cause:
+
+RELDEN = dense.f RELDT = Σ CCFT (a CCF-LIKE crown-competition sum, dense.f:199,223). Live's value
+109.54 is LOWER than the current stand CCF (157.8) because the CALIBRATION path backdates density:
+dense.f LBKDEN (line 256-263) sets RELDEN=RELDM1 = CCFT recomputed on BACKDATED tree DBH (the stand
+~10yr ago, when it was less dense). Live calibration RGAT print: RELDEN=109.54, ATCCF=0 (current CCF
+unset at calib time), AVH=58.6.
+
+⇒ The bug is LOCALIZED to the small-tree REGENT height CALIBRATION (southern/diameter_growth.jl CR
+block): it uses `stand_ccf(s)` (CURRENT, 157.8) for the PCTRED density modifier X=AVH·(RELDEN/100),
+but should use the BACKDATED CCF (109.54). The GROWTH path uses current CCF correctly (regent.f:179
+growth CCF = 0.5·RELDT+0.5·ATCCF ≈ current), and gemdg's density term is NOT implicated in the oak
+under-growth (oaks are small ⇒ REGENT path only). So the fix does NOT need to touch gemdg — much
+lower risk than first assessed. This is the SAME class as [[fvsjl-calibration-avh-bug]] (SN DGSCOR
+calib used backdated-vs-current the wrong way): here the CR small-tree height calib uses current
+CCF where it should backdate.
+
+**Fix (clean, localized):** in the CR REGCAL block, backdate the CCF for PCTRED — recompute stand
+CCF on backdated DBH (current DBH − past-period diameter growth), matching dense.f RELDM1. jl already
+backdates the HEIGHT there (hstart = height − ht_growth for EDH) but NOT the density. Note AVH is NOT
+backdated (live+jl both 58.6). Validate: oak stand con 1.0→~1.7, BA 134→~205; no regression (growth
+path + gemdg untouched). The backdated-DBH source at calib time needs wiring (like the LS calib's
+backdated BA/QMD).
