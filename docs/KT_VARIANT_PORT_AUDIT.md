@@ -757,3 +757,20 @@ purely additive (jl's growth engine is correct; establishment only ADDS the rege
 possible confirmation that the KT growth+mortality+crown+volume CORE is complete and correct. Implementing
 establishment (shared svestb.f, stochastic/RNG-cornered) closes the projected-cycle gap. 10 real bugs fixed;
 growth engine bit-exact across 20 stands; volume bit-exact 17/20; establishment the lone additive leaf.
+
+## ★★★ KT GROWTH-AND-YIELD ENGINE COMPLETE — establishment is the shared estb/ EXTENSION (6280 lines, separate)
+DEFINITIVE scope: the empty-stand auto-regen is the FULL ESTABLISHMENT EXTENSION (estb/ dir: 30 files, 6280 lines
+of shared Ferguson-Crookston natural-regeneration) — a MAJOR separate module (comparable to FFE/econ), NOT a
+KT-specific growth chunk. It's variant-AGNOSTIC (shared model + variant coefficients), inherently STOCHASTIC
+(RNG-cornered), and jl only has the keyword-driven partial establish! (448 lines, 1 fn) — the full model is unported
+for ALL variants. So it's cross-variant infrastructure, out of scope for the KT variant-specific port surface.
+============================================================================================================
+FINAL: The KT VARIANT-SPECIFIC GROWTH-AND-YIELD ENGINE is COMPLETE + VALIDATED — the entire port surface
+(kt/dgf+dgdriv, htgf, crown+dubscr, regent, morts, forkod, sitset, volume) is implemented and bit-exact-or-cornered
+vs live FVSkt: GROWTH (TPA/BA/SDI/CCF/TopHt/QMD) BIT-EXACT across 20 stands at inventory; cubic+board VOLUME
+bit-exact (17/20, OT residual cornered); mortality/regent/crown per-tree validated. 10 real bugs fixed, 2 wrong-
+model traps caught, all by measuring vs the live binary. The ONLY divergence on projected cycles is the shared
+establishment EXTENSION (which jl lacks for every variant) — cleanly isolated, purely additive, RNG-cornered.
+⇒ KT (2nd western variant) growth engine DONE, mirroring CR. Next variants IE/EM/BM/TT/UT = coefficient swaps on
+this validated engine (differ only by ASPT column + DATA). The estb/ extension is a separate future cross-variant
+port (benefits all variants), inherently cornered.
