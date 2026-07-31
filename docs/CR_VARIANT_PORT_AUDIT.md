@@ -3822,3 +3822,18 @@ compare.) NEXT (focused dig): instrument jl's grow-cycle mortality on CN 3651130
 background-vs-density kill split + stand_sdimax + the CR self-thinning target — vs a live morts/varmrt
 instrument (relink recipe). Determine which mortality term over-kills ~3%. Tools: dig_nt.jl (NOTRIPLE dig),
 dig_vol.jl. This is the highest-value CR growth-core lead (real deterministic bug, moderate-density = common).
+
+## ===== REAL FIX: CR mortality bark (self-thinning over-kill) — commit e27ade9 =====
+Dug the classified deterministic mortality over-kill (dense CR stands, chunk 7). ROOT: the shared
+Hamilton+Pretzsch mortality computes g=(DG/BARK) for the self-thinning grown-QMD d10; CR zeroes calib
+bark_a/bark_b (diameter_growth.jl:343) so bark_ratio(0,0,…)=0.80 FLOOR instead of cr_bratio (~0.89) ⇒ g=DG/0.80
+inflates d10 (5.33 vs live 5.25) ⇒ lower TMD10/TN10 self-thin target ⇒ ~3-8% OVER-KILL. FIFTH CR-bark-class
+bug (after DG-driver/DBH-update/snag-vol). FIX: `_mbark(sp,d)` = cr_bratio for CR else bark_ratio; CR-gated,
+SN/NE/CS/LS byte-identical; all 5 mortality bark calls (bg+density+QMD-recompute), MSB path untouched.
+METHOD (doctrine #2, textbook): NOTRIPLE classified it deterministic (not RNG); MORTDBG ruled out mistletoe
+(ninf=0); live MORTS DEBUG (SDIMAX 553.77=jl, TN10=1324.58 d10=5.25, RN=0.02007) vs a jl tn10 instrument
+(tn10=1198 d10=5.33) localized it to d10 ⇒ g ⇒ bark. VALIDATED: CN 3651130010661 @2004 BA/SDI BIT-EXACT
+(227/486), TPA Δ34→Δ6; CN 12232632010690 @2017 fully BIT-EXACT (was ~7%). Residual = accepted RDPSRT/ZZRAN
+tail. Suite 38588/0/1/75. This likely fixes a large share of the 1355 cr_cns_tcuft_nd flagged stands (the
+dense/self-thinning subset). Re-sweep to reclassify. The ultra-dense-seedling class (CN 190851682020004) is
+SEPARATE (live FP-exception regime + small-tree DG) — still open.
