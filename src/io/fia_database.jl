@@ -97,6 +97,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     if s.variant isa Southern && _fia_present(d, "ECOREGION")
         p.eco_unit = rpad(resolve_eco_unit(_fia_str(d, "ECOREGION", ""), 0), 10)
     end
+    # PV_CODE (potential-vegetation / habitat-type code, e.g. 531) → habitat_code (KODTYP), the input to
+    # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
+    # KODTYP→KKTYPE. Eastern variants key DG off forest type (habitat-input left a documented gap there), so
+    # KT-gated. Live FVSkt reads PV_CODE from the DB automatically; this matches it on the jl side.
+    if s.variant isa Kootenai && _fia_present(d, "PV_CODE")
+        p.habitat_code = Int32(round(_fia_f32(d, "PV_CODE", 0f0)))
+    end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
     # DB overrides elevation ONLY when >0 (dbsstandin.f:647) — so a null/≤0 ELEVATION keeps the

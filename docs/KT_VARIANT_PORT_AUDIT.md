@@ -252,3 +252,17 @@ coefficients loaded (KT_DGLD/KT_MAPHAB(175,11)/KT_DGPCC1). REMAINING: loader PV_
 confirm calibrate_diameter_growth! handles KT + per-tree WK2 instrument-replay vs live FVSkt (relink dgf.o) on
 40 IE stands. NOTE placeholders to verify vs live: KOTFOR=forest_idx (may need KT forkod map); crown dubbing
 skipped (validate on input-crown stands until KT crown chunk 5); RELDEN=relative_density (vs _prev).
+
+## Chunk 3 — loader PV_CODE->habitat_code WIRED; next: species CSV needs shared-setup columns
+Wired fia_database.jl: KT-gated PV_CODE -> plot.habitat_code (so site_setup! sees the habitat input; matches
+live FVSkt which reads PV_CODE from the DB). Loading an IE stand through jl Kootenai() now reaches SETUP and
+errors at `KeyError: :wykoff_ht2` — the shared setup path (HT-DBH height dubbing, then DG/calibrate) reads
+species-coefficient columns that KT's minimal chunk-1 species_coefficients.csv (4 identity cols only) lacks.
+=> NEXT: expand data/kootenai/species_coefficients.csv to the shared-engine column set (CR schema is the
+reference: site_lo/hi, dbh_max, bark1/bark2, st_*, ht1/ht2/wykoff_ht2, mort_*, sdi_max_default, htdbh_*,
+varmrt_varadj, dg_resid_sd, ...). For chunk-3 DG VALIDATION specifically, the DG inputs that must match live are
+D/CR/BAL/BA/RELDEN/PCCF (heights don't feed the KT DDS) — so height/htdbh columns can be placeholder until ch4,
+BUT they must be PRESENT (non-KeyError) and consistent enough that the density computation matches. Fill the
+columns KT genuinely needs now (bark from KT_BKRAT, sdi_max_default, dbh bounds) with real values; defaults
+elsewhere pending their chunks. Then: confirm calibrate_diameter_growth! handles KT (or add branch) + per-tree
+WK2 instrument-replay vs live FVSkt (relink instrumented dgf.o) on the 40 IE stands.
