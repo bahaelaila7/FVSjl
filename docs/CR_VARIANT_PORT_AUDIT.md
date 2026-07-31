@@ -3614,3 +3614,25 @@ correct engine as one-cycle-late. Use carbon_collect (deferred post-fire), not t
 fuel/snag validation. NET FFE state for CR: snag DENSITY cornered (248.7/249.2 @2003), snag VOLUME faithful
 (per-cohort .sng-validated, commits c8e0ce7+f2e828d), fire TIMING correct. Residual = F3 down-wood
 accumulation-precision dynamics only (the snag-volume fix gave snags real volume to fall, improving it).
+
+## ===== ROOT CAUSE: CR FFE litter over-accumulation = FMCROWW (western crown biomass) NOT PORTED =====
+Re-measured the FFE fuel state with the CORRECT probe (carbon_collect deferred post-fire, NOT the ad-hoc
+cycle_hook) vs live crt01.out ALL FUELS REPORT, AFTER the snag-volume fix. RESULT — the coarse fuel is now
+WELL-MATCHED (the snag-fix win): SURFACE >3" jl/live 16.7/16.3(1993) 19.6/20.0(2013) 18.6/19.1(2023); 6-12"
+8.4/8.1, 13.9/14.8; standing-dead>3" 17.2/18.1(2003, ~5%). The prior "~15% deficit" is GONE. The one clear
+remaining divergence is LITTER (size class 10): jl 3.0→6.2 vs live 1.97→2.58 over 2013-2043 — ~2× too high,
+and GROWING. Traced it exhaustively: litterfall FORMULA matches (fmcadd.f:70-74 foliage·TPA/LEAFLF·P2T,
+binned by DKRCLS into cwd[10,2,DKCL]); LEAFLF (leaf_life CSV) matches cr/fmvinit.f per-species EXACTLY
+(sp1-38, needle life 3-7 for conifers); litter DKR matches (0.5 class-1 / 0.225 class-2-4, and ALL CR DKRCLS
+are 2-4 so 0.225 uniformly). Steady-state check ⇒ jl's litterfall INPUT is ~2× live ⇒ the FOLIAGE BIOMASS is
+wrong. ROOT: fmcrow.f:161-166 dispatches the FFE crown weight — `SELECT CASE(SPIW): CASE(20:22,28,38) →
+FMCROWE (Jenkins), CASE DEFAULT → FMCROWW`. So ONLY 5 CR species (hardwoods/aspen) use the Jenkins FMCROWE
+that jl's crown_biomass ports; ALL OTHER CR species — the CONIFERS (WF/ES/PP/SW/LP, the crt01-dominant) — use
+FMCROWW, the WESTERN crown-weight model (fmcroww.f, 1273 lines, per-species SELECT CASE(SPI): TOTWT=EXP(a+
+b·LOG(H)), DFOL=0.5+0.2V+89.2D², LIVEWT=EXP(a+b·LOG(D)), …). jl's crown_biomass ALWAYS uses FMCROWE ⇒ CR
+conifers get the wrong foliage (and crown woody) ⇒ litter over-accumulates (foliage-fed) while coarse fuel is
+close-enough (bole-dominated). ⇒ NEXT CHUNK: port FMCROWW (fmcroww.f), dispatch crown_biomass on
+CentralRockies with the fmcrow.f:161 SPIW split (CASE 20:22,28,38 keep FMCROWE, else FMCROWW). LARGE
+transcription-and-diff chunk (1273 lines, per-species) — fresh-context. Validate: crt01 litter trajectory +
+the per-tree foliage vs a live FMCROWW instrument. This also likely tightens the standing-dead crown (CWD2B)
+and the 2003 standing-dead>3" 5% gap. The 5 snag-volume paths + fuel DATA tables remain faithful.
