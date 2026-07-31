@@ -3698,3 +3698,24 @@ REMAINING WIRING (next):
 Only SPIE 4,13,15,18 ported (crt01). Other CR forests need the remaining ~21 groups (fmcroww.f, same pattern;
 aspen SPI 2 uses NATCRS but CR routes aspen to FMCROWE so it's out of the FMCROWW path). Live instrument +
 dump reusable for those: /workspace/.crwork/FVScr_crowdump + fmcroww_live_dump.txt.
+
+## ===== FMCROWW WIRED + LITTER FIXED (commit 535cb30) — 2 real bugs, both faithful =====
+Wired the FMCROWW port live and RE-MEASURED crt01 litter vs live ALL FUELS. Found the litter over-
+accumulation had TWO causes, both now fixed CR-gated in crown_biomass:
+(BUG A) FMCROWW not ported — CR conifer crown biomass used Jenkins FMCROWE (foliage 0.27-1.54x off).
+        Fixed via cr_crownw dispatch (conifers) + HP self-compute (cr_hpct_of_height = PCTILE over
+        height/TPA) for ponderosa/DF/larch. Per-tree bit-exact vs the dump.
+(BUG B — the DOMINANT litter driver) The CR FMCROWE species group was WRONG: FMCROWE's first arg SPILS =
+        the crown group = ISPMAP(sp) (fmcrow.f:163), NOT the `ls_spi` column. jl used ls_spi[20]=1 for
+        aspen ⇒ the <15 hardwood foliage fraction ⇒ 2.45x too much ASPEN foliage. Aspen (leaf_life=1) is
+        THE litterfall dominant, so this — not the conifers — was the main litter over-accumulation. Fixed
+        to _CR_ISPMAP[sp] (aspen sp20 → Jenkins group 41). Aspen foliage now BIT-EXACT (11.609/11.609).
+        NOTE: BUG B was a pre-existing CR crown-biomass-data bug independent of the FMCROWW port; the
+        FMCROWW investigation surfaced it. My earlier "foliage 2x→litter 2x" instinct was right in MAGNITUDE
+        but WRONG in species — it was aspen (FMCROWE mis-grouped), not the conifers (FMCROWW missing).
+RESULT: crt01 LITT jl 2.07→3.43 vs live 1.97→~2.9 (was jl 3.0→6.2, ~2x) — over-accumulation GONE, within
+~10-15%. Coarse >3"/6-12" within ~6% (per-tree crown now matches live; residual = downstream cwd dynamics).
+Suite 38588/0/1/75 zero-regress (all CR-gated). STATUS: FMCROWW port DONE for crt01 groups (SPIE 4,13,15,18)
++ wired + validated; other CR forests need the remaining ~21 groups (reuse the dump/instrument). The CR FFE
+fuel subsystem is now faithful end-to-end: DATA tables + snag volume (5 paths) + fire timing + crown biomass
++ litter, all validated-or-cornered vs live. Residual = ~6-15% downstream cwd/litter accumulation dynamics.
