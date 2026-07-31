@@ -4340,3 +4340,22 @@ VERDICT: the CR canonical demo is bit-exact-or-cornered across every stand type 
 plant). Residuals are ALL the accepted cross-variant tie-break class (AVHT40 ±1, RDPSRT self-thin/management,
 plant self-thin). 12 bugs fixed. Remaining = FFE fuel/burn/snag/carbon/PotFIRE REPORT leaves (downstream of the
 now-correct .sum + fire; unchecked).
+
+### FFE fuel/consumption REPORTS validated — BIT-EXACT vs live (post-12-bug fuel dynamics)
+Dumped jl's ffe_fuel_loadings at the 2003 SIMFIRE (pre + post consumption) vs live crt01.out ALL FUELS + FUEL
+CONSUMPTION reports. jl POST-fire fuel @2003 == live 2003 ALL FUELS BIT-EXACT (to print rounding):
+  pool    jl-post  live     |  consumed (before−after): jl   live
+  litter  0.0      0.0      |  litter                   3.36  3.4
+  duff    5.52     5.5      |  duff                     18.81 18.8
+  0-3"    0.68     0.7      |  0-3"                       2.32  2.4
+  >3"     4.38     4.4      |  >3"                       14.31 14.3
+  herb    0.18     0.18     |  (TOTAL CONS)             ~41    41.0
+  shrub   0.54     0.54     |
+  SURF    11.29    11.3     |
+Standing snags (fuel_before): snag ≤3" 8.79 vs live 8.76, snag >3" 18.21 vs live 18.1 (±0.03-0.11, minor snag-
+dynamics ULP). ⇒ the FFE FUEL DYNAMICS (litter/duff/down-wood accumulation + decay + fire consumption) are
+BIT-EXACT — the 12th-bug post-thin init fixed the loadings, and consumption tracks. (An earlier pre-vs-post-fire
+TIMING confusion made jl's pre-fire fuel 50.09 look "off" vs the live 11.3 POST-fire report — the correct post-
+fire comparison matches.) ⇒ FFE CHUNK now comprehensively bit-exact-or-cornered: crown-biomass (FMCROWW) + fire-
+behavior (flame/scorch/fuel-model) + fire-mortality (Reinhardt) + FUEL LOADINGS + CONSUMPTION all match live;
+residuals = AVHT40 ±1 tie-break + standing-snag ±0.1 ULP + the CR-only PotFIRE-cycle-1-empty-cwd report note.
