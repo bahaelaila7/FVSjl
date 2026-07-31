@@ -145,8 +145,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         wki > pr && (wki = pr)
         sdimax < 5f0 && (wki = pr)
         killed[i] = wki
-    end
-    book_snags && book_mortality_snags!(s, killed, n, fint)
+    end    book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
 end
