@@ -4098,3 +4098,17 @@ Sheppard HTGR formula itself is CORRECT (jl's ·0.75 matches regent.f:292 "reduc
 BOUNDED aspen-regen lead (affects aspen-dominated regen stands; aspen common in the Rockies): NEXT dig the
 aspen HCOR calibration (con=0.14) + the aspen BREAK/regent-DBH path vs live. NOT the species-sort class. All
 other seedling stands are FIXED (species-sort). Method: DEBUG REGENT + jl ASPDBG instrument (removed).
+
+## Aspen-regen lead REFINED to the aspen HCOR calibration (con ~30% low); BREAK/XMAX ruled out
+Further localized CN 190851682020004's aspen under-growth: jl aspen st_break[20]=1.0 & st_xmax[20]=2.0 MATCH
+live (blkdat.f BREAK/XMAX pos-20 = 1.0/2.0) ⇒ NOT a BREAK/regent-vs-gemdg-boundary bug (aspen at d≥1.0 uses
+gemdg DBH in BOTH). The ROOT is the aspen HCOR CALIBRATION: htg_cor_small[20] starts 0 (con=1.0 at setup) but
+the calib fires to con=exp(htg_cor_small[20])=0.14 during the run. From the htINC ratio (jl 2.5-3.5 vs live
+3.8-4.0) live's aspen con ≈ 0.19-0.21 ⇒ jl's 0.14 is ~30% LOW ⇒ the aspen Sheppard HTGR (htgr=(hite2-hite1)/
+(2.54·12)·rsimod·con·0.75) is ~30% low each cycle ⇒ compounding height under-growth (curHT 12-13 vs live 16.3).
+The aspen HCOR calibration uses the SHEPPARD-derived EDH (memory 4th-bug: EDH=POTHTG·PCTRED·VIGOR·RHCON was the
+CONIFER path; aspen's EDH is the Sheppard age-curve increment) — jl's aspen calibration-EDH likely differs from
+live's, over-shrinking HCOR. NEXT: instrument the live aspen CON (relink regent.f aspen branch WRITE, or the
+REGCAL calib) + jl's calibrate_diameter_growth! aspen EDH path; reconcile the aspen Sheppard EDH in the HCOR
+init. BOUNDED (aspen-regen stands). The Sheppard HTGR ·0.75 + BREAK/XMAX are all CORRECT. All other seedling
+stands FIXED by the species-sort. ⇒ the ONE remaining non-cornered seedling divergence is this aspen HCOR calib.
