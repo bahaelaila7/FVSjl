@@ -4924,3 +4924,17 @@ unchanged. Improvement is partial — the residual (111 vs 124) is FACTOR 1 (the
 decay CLOCK: jl END `elapsed+sfint` vs live START), which is SHARED + comment-warned ("do NOT fix to
 elapsed+sfint", line 14) and needs eastern revalidation ⇒ still deferred. Factor 2 is the clean,
 confirmed, CR-only piece.
+
+## Oak-con FACTOR-1 (COR clock) REJECTED by validation — dead-inclusion (F2) is the fix; residual bounded
+
+Tested a CR-gated START clock for the small-tree-height con (cormlt_h = exp(-0.02773·elapsed), like the
+diameter COR, instead of the END clock elapsed+sfint). It HELPED 1855925743290487 (BA 111→121, live
+124) but REGRESSED 408704093489998 badly (TPA 5723→3668 — its oaks over-grow with the higher con). So
+the START clock is STAND-DEPENDENT, NOT a universal CR fix — exactly what the code's "do NOT fix to
+elapsed+sfint" comment warned (doctrine #4: a regression on a ported change ⇒ examine the oracle, don't
+cargo-cult). REVERTED factor 1. The END clock is correct for at least some CR stands (408704093489998
+bit-exact with it). ⇒ the ~10% residual on 1855925743290487 (BA 124/111 after F2) is NOT the clock; it
+is a deeper stand-specific cornew subtlety (the dead-inclusion F2 fixed the dominant term, 103→111).
+Bounded (1 stand), deferred. NET: FACTOR 2 (dead-inclusive backdated CCF) is the 19th CR fix — clean,
+CR-only, validated, no regression. FACTOR 1 rejected. Oak-con residual reduced (17%→10% on the target)
+and remaining is a bounded deeper-calibration subtlety, not the clock.
