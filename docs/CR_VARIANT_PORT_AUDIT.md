@@ -4684,3 +4684,35 @@ DIFFERENT-cycle POTENTIAL-fire calls, not the 2016 actual fire. ⇒ There is NO 
 LSW fix makes the crown-fire determination bit-exact (actcbh=8, crb=0 both). The remaining .sum ±1
 (474/473) is the flame-length precision cornered residual (jl 3.208 / live 3.201 — the ^0.46
 companion, doctrine #8), NOT crown fire. This closes the crown-fire lead cleanly.
+
+## OPEN BUG (18th, found via larger sweep) — RELDEN wrongly defined as stand CCF (oak-dominant under-growth)
+
+**Symptom (HIGH impact):** a 60-stand grow sweep surfaced CN 408704093489998 (Gambel-oak sp23
+dominant, 119 oak @1.7" + 8 ponderosa; SITE_SPECIES/SITE_INDEX/ELEVATION all NULL) diverging
+MASSIVELY: cycle-0 bit-exact, but 2025 (first projected cycle) BA 205/134 (jl 35% LOW), SDI
+496/342, TPA 5723/8249, QMD 2.6/1.7 — jl's oak barely grows (QMD 1.6→1.7 vs live 1.6→2.6), stays
+small, doesn't self-thin, TPA balloons.
+
+**Root cause (fully traced via instrumented oracle FVScr_reg = regent.f):** jl's `relden = stand_ccf(s)`
+(diameter_growth.jl:271) is WRONG. Live's RELDEN is the RELATIVE DENSITY from dense.f (RELDT =
+Σ RELDSP = (STDSDI/SDIMAX)·100), NOT the CCF. On this stand live RELDEN=109.54 but CCF=157.8.
+The chain: regent.f REGCAL (small-tree height calibration) computes the density modifier
+X=AVH·(RELDEN/100) → PCTRED. jl used CCF (157.8) not RELDEN (109.54) ⇒ X 92.5 vs 64.2 ⇒ PCTRED
+0.366 vs 0.536 ⇒ EDH (estimated regent HTG) 0.577 vs 0.844 (1.46× low) ⇒ cornew = HTG/EDH = 12.92
+vs live 8.83 ⇒ jl's 12.92 EXCEEDS the clamp (regent.f:600 cornew>12.1825 → reset 1.0, faithful,
+live has it too) ⇒ HCOR_init=0 ⇒ con=RHCON·exp(HCOR)=1.0 (vs live ~1.72) ⇒ oak REGENT height (and
+the height-tied oak DG = HTG·10/(SITEAR-4.5)) grows ~1/9th. VERIFIED bit-exact intermediates: per-
+tree HTG identical (10/9/10), SITEAR identical (20.875), pothtg/vigor identical, AVH identical
+(58.6) — ONLY the density value (RELDEN vs CCF) differs.
+
+**Fix direction (deferred — needs careful re-validation):** port dense.f RELDEN = (STDSDI/SDIMAX)·100
+(with the LBKDEN backdating blend for the calibration path: TEMP1=(RELDEN-RELDM1)·FINTH/FINT+RELDM1),
+and use it instead of stand_ccf in: (a) the CR small-tree REGENT height calibration PCTRED
+(southern/diameter_growth.jl CR block), (b) the small_tree_growth! PCTRED, AND likely (c) the
+large-tree gemdg density term (dgf passes the SAME RELDEN to gemdg + regent). Caveat: gemdg is
+currently "bit-exact" using stand_ccf — that validation was on stands where CCF≈RELDEN; the change
+must be re-validated across the gemdg set (the memory "RELDEN matches 102.83" was a CCF≈RELDEN
+coincidence). This is a latent bug on ANY stand where CCF diverges from relative density (dense
+oak/pinyon/juniper hardwood stands most exposed). Affects ~2467 CR oak-dominant FIA stands.
+Instrument oracle: FVScr_reg (regent RELDEN/PCTRED/EDH/cornew). META: found ONLY by widening the
+sweep to 60 stands — the 25-30 stand samples missed this oak-stand class.
