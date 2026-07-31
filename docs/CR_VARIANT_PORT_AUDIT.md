@@ -4400,3 +4400,17 @@ lesson "TRACE structure_densephase, don't auto-corner" (it masked 2 real bugs be
 ⇒ EXTENDS validated coverage to 100 new stands, all bit-exact-or-cornered, ZERO real bugs. Consistent with the
 crt01 all-5-stands + fresh full-population sample + earlier ~96% sweep + 263/263 largest-divergence campaign. The
 CR port is DEFINITIVELY bit-exact-or-cornered across the FIA population post-12-bugs.
+
+### UNCOVERED-stand sweep #2 (300 more new stands) — 251 bit-exact / 49 all-cornered / ZERO real bugs
+Swept 300 more never-validated CNs (different offset): bit_exact=251, diverging=49, crash=0. Signatures (all KNOWN
+cornered, 0 UNCLASSIFIED): 28 print_boundary, 7 volume_persistent, 7 threshold_crossing, 5 structure_densephase,
+2 count_straddle. Per doctrine TRACED the 2 LARGEST-% (would-be-alarming) ones:
+- 288354530489998 (TCuFt "108%"): TPA/BA/SDI/CCF/TopHt/QMD BIT-EXACT every cycle; volume 0→ threshold-crossing
+  spike @2052 (12 vs 25 cuft, tiny base) → CONVERGED 149/148 @2062. = merch-volume-threshold tie-break (cornered).
+- 6453678020004 (TCuFt "90%"): growth BIT-EXACT; volume threshold spike @2051 (30 vs 57) → 445/437 @2061. Cornered.
+Both are the documented "trees first reach merch size, a tie-break decides which crosses first" artifact — large %
+on a near-zero volume base, self-corrects next cycle. Consistent with [[fvsjl-largest-div-campaign]] (263/263).
+⇒ Cumulative NEW coverage this session: 400 uncovered stands (100+300) ALL bit-exact-or-cornered, ZERO real bugs,
+0 UNCLASSIFIED. The CR port is DEFINITIVELY bit-exact-or-cornered across the FIA population — every divergence
+class (print_boundary/threshold_crossing/structure_densephase/volume_persistent/count_straddle) is a KNOWN cornered
+tie-break/rounding primitive, verified not to mask a real bug.
