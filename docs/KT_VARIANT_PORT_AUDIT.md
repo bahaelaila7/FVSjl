@@ -376,3 +376,15 @@ diff tree-by-tree -> settle whether jl sums fewer trees, a different TPA, or a p
 (1) jl stand_ccf sums s.trees.n but live dense sums a different (tripled? point-expanded?) set; (2) jl t.tpa
 != live P at dgf! (per-acre vs per-point). IMPACT ~1% DG WK2. FORMULA + COEFFICIENTS + CR-units + CCF-def all
 CONFIRMED; the open item is strictly the CCF-sum's tree-set/TPA.
+
+## ★ Chunk 3 DG — RESIDUAL ROOT-CAUSED: shared tree-loader drops 3/52 records (NOT a KT bug)
+DEFINITIVE via per-tree CCFT diff (instrumented live dense.f FVSkt_denstrc printing ISPC,D,P,CCFT after
+dense.f:199): live first pass = 52 trees, Σ CCFT = 98.387 (= live RELDEN). jl stand_ccf = 49 trees, Σ = 79.27.
+Per-tree CCFT MATCHES EXACTLY (live sp4 D13.7 P6.0 CCFT=7.020; jl kt_tree_ccf(4,13.7)*6.0 = 1.17*6 = 7.02; tiny
+seedling sp3 D0.071 P75 CCFT=0.021 also matches). => jl is MISSING 3 tree records (49 vs 52); the 3 dropped
+trees' CCF (~19) IS the entire RELDEN gap (98.39-79.27=19.12). This is the SHARED tree-loader "dropped tree-recs"
+issue (a known OPEN CR item, cross-variant — affects density on ALL variants), NOT a KT DG defect.
+VERDICT: KT DG (chunk 3) is FULLY CORRECT — equation, all coefficients, CR-units, RELDEN=ΣCCFT definition, AND
+the per-tree CCFT all bit-exact vs live. The stand-level ~1% RELDEN/WK2 residual is entirely the shared 3-dropped-
+tree-records bug (fix in the shared FIA loader, benefits all variants; separate from the KT port). Chunk 3 DG:
+DONE + validated (per-tree bit-exact; stand-level pending the shared tree-drop fix). Instrument oracles cleaned.
