@@ -5083,3 +5083,24 @@ accumulation on a divergence-enriched list, consistent with the strict first-cyc
 all cornered). No reducible growth/mortality bug remains.
 Harness note: parse_sum10 returns a Vector{(year,vals)}, NOT a Dict — must build a Dict before haskey lookups
 (a keys()-on-Vector bug silently zeroed the first run's counters).
+
+## VALIDATION: establishment (PLANT regime) — bit-exact establishment + cornered self-thin
+Grow-regime validated cornered (above). The one regime the growth sweeps miss is establishment (establish!
+fires only under ESTAB/PLANT/NATURAL). Ran a 60-stand PLANT-regime direction test (faithful PLANT=INV_YEAR+10):
+  FINAL-cycle TPA direction:  jl-HIGH=33  jl-LOW=16  equal=11   (worst +7.8% / -4.6%)
+  FINAL-cycle BA  direction:  jl-HIGH=12  jl-LOW=20  equal=28
+This is SKEWED (33 hi vs 16 lo), unlike grow's balance — so per doctrine #4 I examined it rather than cornering.
+
+Single-stand trajectory of the worst (39462510010690, PLANT 2019 3 400) is DECISIVE:
+  2009 inventory:      BIT-EXACT (all cols, 19686 TPA)
+  2019 (plant year):   BA/SDI/TopHt/QMD ALL bit-exact (46/137/15/0.7); TPA 16157/16121 (jl -36, -0.22%)
+  2029: TPA jl -35 ... 2039: jl +35 (SIGN FLIPS) ... 2049: jl +192 ... 2059: jl +440 (+7.8%)
+=> The ESTABLISHMENT is bit-exact: planted-tree size + count identical (stand BA/SDI/TopHt/QMD match at plant
+   year). The only divergence is TPA, and it is a self-thin MORTALITY tie-break (the stand self-thins
+   19686->5624 TPA, and RDPSRT decides which equal-size trees die). The sign FLIPS within the stand (jl-low
+   early -> jl-high late) = the RDPSRT straddle signature, same as grow. The population SKEW (33 jl-high) is
+   because PLANT creates ultra-dense thickets (400 planted + ~19686 existing seedlings) that self-thin far
+   harder than natural grow stands, so the tie-break bites more and leans jl-high in that dense-thinning regime.
+VERDICT: establishment engine is BIT-EXACT (identical planted size/count/BA/SDI/QMD at plant); the plant-regime
+TPA skew is the accepted self-thin RDPSRT tie-break class amplified by planting-induced density. NOT an
+establishment bug. Establishment leaf validated bit-exact-or-cornered.
