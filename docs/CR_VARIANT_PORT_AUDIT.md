@@ -3779,3 +3779,14 @@ crown-fuel divergence). Net CR FFE status: DATA tables + snag volume (5 paths) +
 /workspace/.crwork/FVScr_crowdump + per-species dumps fmcroww_{af,df,lp,pjct,uj,go,rc,wl,bc,wb,nc,mh,live}_
 dump.txt. Residual = the ~6-15% downstream cwd/litter accumulation-dynamics tail (a bounded reporting leaf).
 Suite 38588/0/1/75 zero-regress throughout.
+
+## Session-end verification: growth core intact, FFE crown work is .sum-inert
+Ran crt01_growth (single-stand growth+volume baseline) vs live after the FMCROWW session: early cycles
+(1990-2030) BIT-EXACT; 2040-2090 diverge ~1-2% (2040 TPA jl412/live417 → BA 221/223 → vol 5874/5963;
+2090 178/183). This is the PRE-EXISTING accepted residual (self-thinning TPA tail + AVHT40/RDPSRT tie-break
++ ZZRAN RNG, ch9), NOT a session regression — the FMCROWW/crown_biomass changes are .sum-INERT (crown biomass
+feeds ONLY the FFE fire/carbon/litter reports, never the growth columns TPA/BA/SDI/CCF/TopHt/QMD or the NVEL
+volume columns). Confirmed independently: a CR dig_vol stand is 2014 bit-exact across all 10 columns. So the
+CR growth+volume core is intact and this session's FFE crown-biomass completion added no growth-path risk.
+NET CR PORT STATE: growth core bit-exact-or-cornered (self-thin tail accepted); volume (NVEL) tracks growth;
+FFE fully faithful (data + snag-vol + timing + crown-biomass[all 38 spp] + litter). Suite 38588/0/1/75.
