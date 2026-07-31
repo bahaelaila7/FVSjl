@@ -3807,3 +3807,18 @@ NOT the accepted late-year self-thin/RDPSRT/ZZRAN tail (they start at cycle 1 an
 vs a live gemdg/regent instrument; determine if it's the small-tree DG rate, the 3" transition, or a density
 term. Then class (3) mortality. Sweep tooling: .sweep_work/dig_vol.jl <CN>, cr_cns_{tcuft_nd,needsdig}.txt.
 Caveat: verify the .sum parser is fixed-width (CCF≥1000 column-merge bug) — these sample CCF<1000 so clean.
+
+## Growth-core lead CLASSIFIED: CR mortality over-kill is DETERMINISTIC (not RNG) — a real bug
+NOTRIPLE test on CN 3651130010661 (1622 TPA, QMD 4.8", moderate density) — divergence PERSISTS without
+tripling: TPA @2004 jl 1198/live 1230 (NOTRIPLE) vs 1204/1238 (tripled) — SAME ~3% over-kill. ⇒ NOT the
+tripling / ZZRAN RNG-stream-order (the accepted-tail suspects); it is a DETERMINISTIC mortality over-kill =
+a REAL, fixable bug (chunk 7). QMD matches every cycle (5.8/5.8, 6.9/7.0, …) ⇒ jl kills ~3% more trees
+~uniformly across sizes ⇒ the mortality RATE is slightly high (background Hamilton RIP or the Pretzsch self-
+thinning), NOT a size-biased/VARMRT-percentile effect. The stand sits at SDI≈470 @1994 (near typical CR
+SDImax) so self-thinning is plausibly active. (The ultra-dense seedling stands — CN 190851682020004, 9930
+TPA — are a SEPARATE, PATHOLOGICAL class: live FVS itself hits the >1000-TPA-seedling FP exception under
+NOTRIPLE (exit 10), so that one is not a clean target; its small-tree DG divergence needs the tripled-window
+compare.) NEXT (focused dig): instrument jl's grow-cycle mortality on CN 3651130010661 @cycle-1 — print the
+background-vs-density kill split + stand_sdimax + the CR self-thinning target — vs a live morts/varmrt
+instrument (relink recipe). Determine which mortality term over-kills ~3%. Tools: dig_nt.jl (NOTRIPLE dig),
+dig_vol.jl. This is the highest-value CR growth-core lead (real deterministic bug, moderate-density = common).
