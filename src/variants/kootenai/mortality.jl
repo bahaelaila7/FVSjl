@@ -118,13 +118,14 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         dgi = t.diam_growth[i]
         ip = d <= 5f0 ? 2 : 1
         gmult = ip == 1 ? gmult1 : gmult2
-        # G growth term (morts.f:259-272). WK1 (past DG) not threaded ⇒ treat as 0 (cycle-1 exact).
-        wk1 = 0f0
-        dgt = 0f0
+        # G growth term (morts.f:259-272). WK1 = previous cycle's applied DG (vigor proxy), OLDFNT = its
+        # period (10 for uniform cycles). Cycle 1 (WK1=0) falls to the DG override.
+        wk1 = t.dg_prev[i]; oldfnt = 10f0
+        dgt = wk1 / oldfnt
         d <= 1f0 && dgt < 0.05f0 && (dgt = 0.05f0)
         (1f0 < d <= 5f0) && dgt < 0.05f0 && (dgt = 0.05f0 * (5f0 - d) / 4f0)
-        g = 0f0
-        g < dgt && (g = dgt / bark)                          # WK1/OLDFNT=0 < dgt ⇒ g = dgt/bark
+        g = wk1 / (bark * oldfnt)
+        wk1 / oldfnt < dgt && (g = dgt / bark)
         (icyc1 || wk1 == 0f0) && dgi > 0.5f0 && (g = dgi / (bark * 10f0))
         g = g * gmult
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -

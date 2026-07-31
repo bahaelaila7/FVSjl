@@ -629,3 +629,15 @@ WK1/G omission (mortality growth term uses projected DG since past-DG WK1 not th
 tail. NEXT: thread WK1 (past DG) for cycle>1 mortality-G; then volume (chunk 8). META: the .sum differential is
 the right validation — it caught a coefficient-extraction bug per-tree spot-checks missed (I'd only validated
 large-tree WKI, not seedlings; the seedling POTEN2 was wrong). ALWAYS run the full-cycle .sum.
+
+## Chunk 7 mortality — WK1 threading DONE (large-tree G bit-exact); 2039+ over-kill localized to SMALL trees
+Added a per-tree dg_prev field (WK1 = previous cycle's applied DG, the Hamilton vigor proxy), snapshotted at the
+DBH update (simulate.jl, KT-gated) and carried through tripling via _TREE_VEC_FIELDS/copy_tree!. mortality! now
+uses wk1=t.dg_prev with OLDFNT=10 (cycle 1 wk1=0 ⇒ DG override). VALIDATED: cycle-2 large-tree G now matches live
+(d18.4 jl g 0.19412 wk1 2.0722 vs live g 0.194056 wk1 2.07154). BUT the .sum barely moved (2039 jl 995 vs 994) ⇒
+the 2039+ over-kill (jl kills ~508 vs live ~147 at cycle 2) is DOMINATED by SMALL-tree/seedling mortality, not
+large trees (large-tree WKI ~0.18 each is negligible vs high-P seedlings). REMAINING 2039+ diagnosis targets:
+(a) small-tree/seedling RIP at cycle 2 (their G via dg_prev, or the regent DG feeding it); (b) RZ self-thinning
+slightly high (jl 0.01275 vs live 0.01234, from DQ10 5.721 vs 5.683 = DG COR-precision); (c) regent htgr1 ~0.05%
++ crown OLDPCT approximation compounding into the small-tree DG/crown. NEXT: instrument cycle-2 kill by DBH class
+to localize the small-tree over-kill; then volume (chunk 8). WK1 fix is faithful + per-tree-validated (kept).
