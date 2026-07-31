@@ -81,6 +81,7 @@ include("variants/inlandempire/inlandempire.jl")     # IE singleton + registrati
 include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (chunk 2): ITYPE/IFOR/SITEAR
 include("variants/inlandempire/dg_coefficients.jl")  # IE large-tree DDS coefficient arrays (ie/dgf.f)
 include("variants/inlandempire/diameter_growth.jl")  # IE large-tree DDS hooks (ie_dgcons! + dgf!)
+include("variants/inlandempire/height_growth.jl")    # IE large-tree height growth (ie/htgf.f)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

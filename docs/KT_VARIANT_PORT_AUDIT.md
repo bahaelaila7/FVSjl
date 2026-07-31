@@ -925,3 +925,24 @@ matches the live SI=0 seen in the chunk-3 dump. => the engine now DERIVES ITYPE/
 so setup_growth! -> ie_dgcons! -> dgf! runs end-to-end with live-matched habitat inputs. RELDEN still pending
 chunk 5 (ccfcal). Precompiles; site_setup!(::InlandEmpire) registered. NEXT: chunk 4 (height ie/htgf.f), chunk 5
 (crown/ccfcal -> RELDEN), then a full-cycle .sum differential vs live FVSie on iet01.
+
+============================================================================
+IE CHUNK 4 (LARGE-TREE HEIGHT GROWTH: ie/htgf.f) — NI path VALIDATED bit-exact-or-cornered vs LIVE FVSie
+============================================================================
+src/variants/inlandempire/height_growth.jl — height_growth!(::InlandEmpire). Measured from ie/htgf.f:
+  NI conifers (sp<=12,14,23): CON=HTCON(sp)+H2COF*HTI^2+HGLD(sp)*ln(D)+HGLH*ln(HTI); HTG=exp(CON+HDGCOF*ln(DG))
+    +BIAS; max(0.1). HGLH=0.23315, BIAS=0.4809. Per-stand HTCONS: IHT=MAPHAB(ITYPE) (== KT_HTMAPHAB) ->
+    HGHCH=HGHC(IHT)/H2COF=HGH2(IHT)/HDGCOF=HGLDD(IHT); HTCON(sp)=HGHCH+HGSC(sp) NI else 0 (+ln(HCOR2) if LHCOR2).
+    IE HGHC/HGLDD/HGH2(8) values IDENTICAL to KT; HGLD/HGSC extend to 23 sp. (KT height was already validated;
+    this reuses that exact form.)
+  sp15,16 (PM/RM): HTG=0. sp13,17 (LM/PY) + sp18-22 (aspen/CO/MM/PB/OH): COFLM/COFAS Weibull curve (ICR-class K)
+    + young-tree accelerator (age 10-40, D<9, cyc1) + PSI/H -> HTG=H-HTI. Tail: *SCALE*XHT, sp{13,15:22} also
+    *exp(HTCON), *MISHGF(=1), SIZCAP(sp,4) cap.
+VALIDATION (instrument-replay): patched CRLF copy of buildDir/htgf.f (dump per-tree I/ISPC/D/HTI/DG/ICR/CON/HTG/
+HTCON @ICYC=1), relink FVSie_instr2 (excl dgf.o+htgf.o), ran iet01.key. Replay /workspace/.iework/replay_ie_ht.jl:
+NI (all 108 trees, sp2/3/4/5/7/8/10): CON 108/108 within 1e-4 (max|Δ|=5.0e-8), HTG 108/108 within 1e-4
+(max|Δ|=1.15e-6) — Float32 ULP (exp magnifies) = cornered. NI HEIGHT BIT-EXACT-OR-CORNERED vs live. Special
+paths (LM/PY/aspen Weibull, PI/JU) ported but NOT in iet01 -> validate on a stand that has them. Suite unchanged
+(IE-gated). META: my htgf instrument FORMAT had a 4-vs-3-reals-before-integer off-by-one that crashed the live
+run (exit 20, "Expected REAL got INTEGER") -> ALWAYS check run exit + stderr, not just grep -c of the dump.
+NEXT: chunk 5 (crown/cratet/ccfcal -> RELDEN, the last DG/HT input still injected), then chunk 6/7/8 + full-cycle.
