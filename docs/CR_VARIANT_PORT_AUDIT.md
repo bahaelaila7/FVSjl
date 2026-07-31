@@ -4816,3 +4816,25 @@ the 18th fix (backdated CCF) addressed — the dominant term is fixed, this ~7% 
 remains on SITE_INDEX-set larger-oak stands. BOUNDED (isolated in the 4/150 ±balanced flagged set),
 not systematic. Open lead: reconcile the CR oak REGENT-height con blend vs live's per-cycle HCOR
 recomputation (does live re-run REGCAL each cycle where jl blends once?).
+
+## Oak-con residual — MECHANISM CONFIRMED: per-cycle small-tree-height COR decay clock (bounded, deferred)
+
+Instrumented live regent.f by CYCLE (FVScr_reg): the oak CON DECAYS geometrically each cycle —
+CON = 2.33, 1.90, 1.63, 1.45, 1.32 for cycles 1-5 (HCOR 0.847→0.279), factor exp(-0.2773)=0.757/cycle
+= EXACTLY the FVS cormlt decay constant exp(-0.02773·sfint), sfint=10. So live's cycle-1 oak con is
+the FULL calibration (cormlt≈1, con 2.33) and decays thereafter.
+
+jl's calibrate_diameter_growth! DOES run each cycle (simulate.jl:51-77) and DOES decay (cormlt=
+exp(-0.02773·elapsed), elapsed grows per cycle) — BUT for the small-tree HEIGHT COR it uses the
+END-of-period clock cormlt_h = exp(-0.02773·(elapsed+sfint)) (diameter_growth.jl:890), so at cycle 1
+cormlt_h=0.758 (already one-period-decayed) not ≈1. Result: jl oak con=1.234 vs live cycle-1 2.33 —
+jl's oak grows far too little early ⇒ the 17% BA under-growth. (Also jl's cornew-init 0.484 ≠ live's
+cycle-1 HCOR 0.847 — a second, smaller offset.)
+
+**DEFERRED (not a tail-of-session change):** the cormlt_h END-of-period clock is SHARED across all
+variants and carries a standing code note "do NOT 'fix' it to elapsed+sfint" (diameter_growth.jl:14)
+— it is load-bearing for the eastern SN/NE/CS/LS small-tree height calibration (validated bit-exact).
+Changing it (or the cornew-init) for the CR oak case risks regressing those. This bounded oak residual
+(1 persistent stand in the 4/150 ±balanced flagged set) needs a CR-gated per-cycle-COR-clock fix
+validated against BOTH the CR oak stands AND the full eastern suite — a focused pass, not a marathon-
+tail edit. Root cause fully localized; fix scoped; regression risk flagged.
