@@ -4631,3 +4631,16 @@ LARGE) toward model-12's (30,60) iso-line) that jl's cwd pools don't reproduce. 
 the next lead for the SFCT/WSCT/ASCT fire stands. SEPARATE covertype-flip note: CN 11652450010690
 is SFCT (not ASCT) at the fire (spruce-fir 55% pre-fire, wiped to ~0.5 post-fire → ICT flips to
 ASCT); its divergence is a pre-fire ±4-TPA self-thin straddle amplified by the fire, not a rule gap.
+
+## CORRECTION to the ASCT residual attribution (measured, supersedes the F3 guess above)
+
+Instrumented live SM/LG (down-wood) per FMDYN call vs jl on CN 11682371010690: at the ACTUAL
+fire cycle (2016) jl's down-wood = **sm 10.72, lg 9.99** MATCHES live's **10.66 / 10.04** exactly,
+and both pick model 10 @ 0.95/0.05. jl calls cr_select ONCE (the actual fire); live's other SM/LG
+values (17.3/8.7, 14.2/22.4 → later FMD=12) are per-cycle POTENTIAL-fire computations for the
+PotFIRE report, NOT the fire that drives the .sum. ⇒ The fuel model AND the down-wood MATCH at the
+fire. The 2026 divergence (474 live / 423 jl) is therefore **FIRE MORTALITY** (crown-scorch / bark
+/ FMEFF mortality step), NOT the fuel-model rules and NOT F3 down-wood magnitude. This corrects the
+"F3 down-wood" guess in the 16th-fix note: down-wood is bit-exact at the fire here. The next lead
+for these non-dominant-ASCT/SFCT fire stands is the fire-mortality path (cf. the SN FMPROB fire-kill
+lead). The ASCT fuel-model RULES remain faithful/candidate-validated (unchanged verdict).
