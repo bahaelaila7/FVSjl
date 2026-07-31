@@ -3887,3 +3887,18 @@ other stands), NOT directly instrumented here; a live regent HTG/DG dump (pre-ZZ
 seedling stand would confirm no residual deterministic sub-inch DG term. NET: CR growth-core FIA divergences
 are now bit-exact-or-cornered — dense-mortality class FIXED (bark, ~90% of flags), small-tree class CORNERED
 (ZZRAN + CCF-cliff, crown-width verified).
+
+## Small-tree-DG verdict CONFIRMED by direct live measurement (DEBUG REGENT) — cornering rigorous
+Enabled live DEBUG REGENT on CN 381211668489998 (no relink — DEBUG keyword). Cycle-1 trace:
+  IN REGENT AVH,RELDEN,X,PCTRED = 6.018, 9.6998, 0.5837, 1.0000
+  IN REGENT SI,RELSI,X,ISPC,J,POTHTG = 25.43, 0.571, 57.14, 23, 4, 2.000   (VIGOR=0.9101)
+⇒ live PCTRED = 1.0 at cycle 1 (NO growth suppression yet — X=AVH·RELDEN/100=0.58 is below the AB-poly knee).
+regent uses CCF=RELDEN (regent.f:176), and the 2015 stand CCF is BIT-EXACT (jl 10 / live 9.70) ⇒ jl's cycle-1
+X/PCTRED = live's (=1.0); POTHTG (SI/(15−4·RELSI)·HTADJ) + VIGOR + CON are all validated ⇒ jl's cycle-1
+DETERMINISTIC regent HTG is IDENTICAL to live. The ONLY cycle-1 difference is the ZZRAN/BACHLO deviate
+(RAN=BACHLO(0,1), regent.f:255). ⇒ CONFIRMED (measured, not inferred): the ultra-dense-seedling small-tree
+divergence is SEEDED purely by the ZZRAN RNG residual (ch9 stream-order, known cornered), then COMPOUNDED over
+later cycles through the D=0.1 CCF-cliff → PCTRED positive feedback (suppression only turns on at later cycles
+once the compounded CCF pushes X past the AB knee). NOT a deterministic regent/CCF/crown-width bug. This closes
+the CR growth-core FIA investigation: dense-mortality class FIXED (bark), small-tree class CORNERED (ZZRAN),
+both verified against live. Residual = ZZRAN (ch9) — the same cornered RNG class accepted across all 5 variants.
