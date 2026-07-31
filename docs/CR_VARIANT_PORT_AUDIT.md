@@ -4201,3 +4201,21 @@ fuel-dynamics chunk (a fresh multi-step reconciliation of FMDYN fuel loads + mod
 only affects SIMFIRE/fire scenarios (broad FIA grow regime has no fire). NEXT: differential jl vs live FUEL
 LOADING by size class @ the fire year (live surface total 11.3 t/ac @2003) to pin the fuel-accumulation/decay
 step feeding the fm12 over-weight. Analogous to the LS FMDYN under-weight fix (fuel_decay.jl:32/81).
+
+### FFE fire divergence ROOT-CAUSED — dead-fuel-init runs PRE-THINDBH (jl) vs POST (live)
+Full localization chain (all measured, jl instrument + live cr/fmcfmd.f relink + cr/fmcba.f DEBUG):
+FFE fire-kill BA +9% @2013 → fuel-model over-weight (fm10/fm12 jl 0.929/0.071 vs live 0.95/0.05) → LARGE
+down-wood +2.35% @fire / +2.75% @cyc1 → percov at the DEAD-FUEL-INIT (jl 46.26 vs live 44.4). The FUINIE/FUINII
+tables + _cr_algslp2 interp + covtyp(=18 ES) all VERIFIED bit-exact vs cr/fmcba.f. ROOT (smoking gun): jl calls
+fmcba! TWICE at 1993 — 1st (fuels_init=false, ntrees=27, livetpa=589.7, totcra=27053, percov=46.26) INITS the
+dead fuel; 2nd (ntrees=22, livetpa=319.7, totcra=25565, percov=44.4) == live's cyc-1 value. The livetpa 589.7→
+319.7 drop is the **THINDBH 3.** keyword removing all <3" trees. So jl initializes the FFE dead-fuel pools on the
+PRE-thin stand (more small-tree crown ⇒ percov 46.26), but live inits POST-thin (percov 44.4). Higher init percov
+⇒ FUINII↔FUINIE interp weights the open (higher) loading more ⇒ LARGE +2.75% ⇒ fm12 over-weight ⇒ Byram +6.6% ⇒
+flame 4.53/scorch 19.62 vs live 4.4/19.0 ⇒ over-kills short trees ⇒ survivors bigger ⇒ BA +9%.
+FIX DIRECTION: defer the CR (all-variant?) FFE dead-fuel-init (`!fs.fuels_init` block in fmcba!) until AFTER the
+cycle-1 THINDBH thin, i.e. init on the post-thin stand state so percov/covtyp/BA-split match live. NEXT: find why
+jl's first fmcba! call precedes the thin (PotFire-report call? FFE-setup ordering vs apply_thin timing in the
+cycle-1 sequence) and move the fuels_init trigger to the post-thin call. BOUNDED: SIMFIRE + a pre-projection thin
+(THINDBH/THINxxx) both required; pure-grow FIA stands never init fuel pre-thin. All instruments removed
+(jl fire files + cr/fmcfmd.f reverted); FVSjl tree clean.
