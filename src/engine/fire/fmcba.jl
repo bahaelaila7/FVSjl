@@ -20,7 +20,7 @@
 Update the stand's `FireState` cover type, percent cover, big DBH, live fuels, and
 (first FFE year) dead-fuel pools (FMCBA, fmcba.f). No-op unless FFE is active.
 """
-function fmcba!(s::StandState)
+function fmcba!(s::StandState; load_dead::Bool = true)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     t = s.trees; coef = s.coef
@@ -92,7 +92,7 @@ function fmcba!(s::StandState)
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
     # is 0 by default. FUELINIT (hard) / FUELSOFT (soft) override per-size-class values (STFUEL, fmcba.f:320-371).
     # IDC = each species' decay-rate class (DKRCLS).
-    if !fs.fuels_init
+    if load_dead && !fs.fuels_init
         deffuel = s.variant isa Northeast ? ne_dead_fuel_loading(s) :
                   s.variant isa CentralStates ? cs_dead_fuel_loading(coef, Int(s.plot.forest_type)) :
                   s.variant isa LakeStates ? ls_dead_fuel_loading(s) :

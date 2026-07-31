@@ -264,6 +264,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # with FMBURN, so a fire fires on the cycle-start + fire-year's single annual step — NOT the
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
             # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
+            ffe_defer_init = false
             if ffe_on
                 # FMMAIN runs FMBURN (the fire, fmmain.f:170) BEFORE the annual fuel loop (FMSNAG/FMCWD/
                 # FMCADD, fmmain.f:228), so the fire samples the START-OF-CYCLE down wood. Stash (SMALL,LARGE)
@@ -275,11 +276,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 # cycle≥2 fires the pools are already loaded (fuels_init), so fire_carbon stays bit-exact.
                 fire_this_cycle && !s.fire.fuels_init && (compute_density!(s); fmcba!(s))
                 fire_this_cycle && (s.fire.fire_smlg = _small_large_fuel(s.fire))
-                fire_this_cycle || ffe_fuel_update!(s, per)
+                # Defer the VERY FIRST (init-year) dead-fuel load into grow_cycle! post-cuts! (FVS loads it after
+                # the cut phase). Later cycles (already init) run the annual loop pre-grow as before.
+                fire_this_cycle || (s.fire.fuels_init ? ffe_fuel_update!(s, per) : (ffe_defer_init = true))
             end
             chook = fire_cycle ? (st -> (compute_density!(st); fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
-                             fuel_period = fire_this_cycle ? per : nothing)   # advances cycle
+                             fuel_period = fire_this_cycle ? per : nothing,
+                             ffe_init_period = ffe_defer_init ? per : nothing)   # advances cycle
             r.accretion = trunc(Int, gr.accretion + 0.5)
             r.mortality = trunc(Int, gr.mortality + 0.5)
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot

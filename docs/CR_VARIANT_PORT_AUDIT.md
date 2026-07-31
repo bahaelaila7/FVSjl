@@ -4296,3 +4296,19 @@ invariant-heavy post-cuts! reorder of BOTH the dead-fuel load AND the PotFIRE-re
 MORTALITY is now correct (11th bug); the .sum is within ±1 BA. The remaining ±4-TPA / +3%-flame residual is the
 bounded FFE FUEL-BEHAVIOR chunk (init-timing + accumulation) — a documented, faithful-reorder lead, not a
 mortality bug. crt01 STAND-4 2013 BA 56 vs live 57 (was 62).
+
+### FFE fire fuel-behavior FIXED — 12th CR bug: dead-fuel-init ran PRE-thin (the init-timing fix, now goal-achieving)
+The init-timing fix (reverted last turn as "non-goal-achieving") was RIGHT all along — it only looked inert because
+the 11th-bug mortality-grouping error was DOMINATING the .sum. With BOTH fixes, crt01 STAND-4 is now BIT-EXACT-or-±1:
+  2013: jl 93/57/100/63/71/10.6  vs live 93/57/101/63/72/10.6  (TPA/BA/CCF/QMD MATCH; SDI/TopHt ±1)
+ROOT (recap): FVS FMMAIN loads the initial dead-fuel pools (FMCBA) AFTER the cut phase, so the load reads the
+POST-THIN stand (PERCOV 44.4). jl loaded them PRE-thin (via the pre-grow ffe_fuel_update! + the PotFIRE-report
+fmcba!) at PERCOV 46.26 ⇒ FUINII↔FUINIE over-loaded LARGE down-wood +2.75% ⇒ FMDYN over-weighted the hot fuel
+model ⇒ flame 4.53 vs live 4.4. Because the 2003 SIMFIRE has PSBURN=100 (deterministic kill), the flame over-
+estimate directly over-killed ~5 TPA uniformly. FIX: (1) defer the one-time dead-fuel LOAD into grow_cycle! post-
+cuts! (new ffe_init_period param, gated on !fuels_init non-fire); (2) fmcba!(load_dead) so the hypothetical PotFIRE-
+report refresh doesn't latch the pre-thin load. NO-OP for any stand without an init-year thin (pre==post) ⇒ eastern
+FFE untouched. VALIDATED: STAND-4 now bit-exact-or-±1 all cycles; zero-regression (Pkg.test 1918/140-preexisting/3
+identical). CAVEAT: on the FFE-init year a stand's cycle-1 PotFIRE report now reads the pre-load (empty) cwd — a
+report-only imperfection (the CR FVS_PotFire report is not yet validated; the .sum + fire are correct). ⇒ the FFE
+FIRE chunk (behavior + mortality) is now BIT-EXACT-OR-CORNERED. Residual = AVHT40/SDI ±1 tie-break (cornered).

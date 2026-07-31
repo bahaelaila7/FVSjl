@@ -356,7 +356,8 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 """
 function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
-                     fuel_period::Union{Nothing,Real} = nothing)
+                     fuel_period::Union{Nothing,Real} = nothing,
+                     ffe_init_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
     # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
@@ -377,6 +378,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between
         # then and here touches `cwd`, so on a fire cycle re-stash it to reflect the post-salvage down wood.
         fuel_period !== nothing && (s.fire.fire_smlg = _small_large_fuel(s.fire))
+        # FFE-init year (non-fire), DEFERRED from the pre-grow driver: FVS FMMAIN loads the initial dead-fuel
+        # pools (FMCBA) AFTER the cut phase, so the one-time load reads the POST-THIN stand (matches live PERCOV).
+        # No-op for any stand without an init-year thin (pre==post state) ⇒ eastern FFE unaffected.
+        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period))
     end
     if econ_on
         yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)

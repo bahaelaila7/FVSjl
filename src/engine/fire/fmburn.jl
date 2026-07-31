@@ -573,7 +573,9 @@ skipped, so total flame = surface flame, there are no crown indices, and CBD/Can
 function potential_fire(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active) && return nothing
-    fmcba!(s)
+    # Hypothetical report: refresh cover/percov but do NOT latch the one-time dead-fuel load pre-thin (deferred
+    # to grow_cycle! post-cuts!). load_dead only once already-initialized (cycle≥2 reports use the loaded pools).
+    fmcba!(s; load_dead = fs.fuels_init)
     coef = s.coef; t = s.trees
     function scenario(sev::Int, fmois::Int, wind::Float32, temp::Float32, season::Int)
         # POTF* keyword overrides for this severity (sev 1=SEVERE, 2=MODERATE); −1/0 ⇒ scenario default.
