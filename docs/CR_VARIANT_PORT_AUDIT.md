@@ -5127,3 +5127,20 @@ CONCLUSION: the CR variant port is COMPREHENSIVELY bit-exact-or-cornered across 
 population-level direction-balance + single-stand trajectory measurement (not reasoning). Residual divergences
 are exclusively the documented accepted classes (RDPSRT self-thin straddle, ZZRAN small-tree, merch/board
 threshold, AVHT40 tie-break, volume NINT/ULP). No reducible growth/mortality/establishment/thinning bug remains.
+
+## NEXT CHUNK SCOPING — western cluster KT/IE/EM/BM/TT/UT (measured, not inferred)
+CR validation complete (all regimes bit-exact-or-cornered). Scoped the next chunk by READING the FVS source
+(/workspace/ForestVegetationSimulator/): all 6 western buildDirs exist (FVS{kt,ie,em,bm,tt,ut}_buildDir).
+KEY FINDING (doctrine #2): NONE of KT/IE/EM/BM/TT/UT have gemdg.f — ONLY CR does. They each have their own
+dgf.f/htgf.f/regent.f/crown.f/ccfcal.f. kt/dgf.f is the STANDARD WESTERN WYKOFF DDS: reads DGLD (ln-dia),
+DGCR/DGCRSQ (crown), DGDBAL (BAL), DGHAB(9,MAXSP) (9 habitat groups — note CR habtyp used 16), DGFOR(7,MAXSP),
+DGDS (dia^2), DGEL/DGEL2 (ELEVATION), DGSASP (slope-aspect) — NO CALL GEMDG.
+=> The DGLD/DGBAL/DGCCF coefficient family that the doctrine flagged as WRONGLY-inferred-for-CR is CORRECT for
+   the western cluster. CR (GENGYM) is the OUTLIER; the western cluster is NOT a discount of CR's growth model.
+PORT STRATEGY for KT/IE/EM/BM/TT/UT: each = a discount of BOTH (a) the eastern SN/NE/CS/LS Wykoff-DDS engine
+(structurally identical dgf) AND (b) CR's western framework (crown/ccfcal/regent/htgf already ported for CR),
+PLUS western terms the eastern variants lack (elevation DGEL/DGEL2, slope-aspect DGSASP, 9-group habitat DGHAB).
+The bulk of each variant's work = transcribing the per-variant coefficient DATA arrays (DGLD/DGCR/DGDBAL/DGHAB/
+DGFOR/DGDS/DGEL/DGSASP) + wiring a western-Wykoff dgf hook (reuse eastern DDS structure, add DGEL/DGSASP/DGHAB
+terms). Start with KT (buildDir present, canonical hub) then IE/EM/BM/TT/UT. Relink oracle from
+bin/FVS{v}_buildDir/*.o (same recipe as CR /workspace/.crwork). This is a FRESH session's undertaking.
