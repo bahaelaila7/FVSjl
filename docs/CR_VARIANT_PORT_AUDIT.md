@@ -4540,3 +4540,34 @@ risked. REMAINING subtle pieces unchanged: BD snag CURRENT-height volume (broken
 loopback + USCT. ⇒ substantive CR .sum port COMPLETE (13 bugs, comprehensively validated all chunks/regimes/FIA);
 the PPCT-low-cover + OBCT fuel-model rules are the sole remaining leaf (fire-only, doesn't touch .sum, fully
 scoped + de-risked).
+
+## CHUNK 9 / FFE fuel-model — PPCT PERCOV≤60 branch ported (14th CR full-cycle bug fix)
+
+**Symptom:** dense-ponderosa SIMFIRE stands (ict=3 PPCT, PERCOV≤60) fell through
+`cr_select_fuel_models` to natural-fuel candidates only — the entire `fmcfmd.f:571-631`
+understory-biomass branch was unported (only PERCOV>60 was done in the 13th fix). Live's
+PPCT PERCOV≤60 rule computes live (BL) + dead (BD) understory biomass, then Y=100·BD/(BD+BL),
+then picks model 5/6/2 by FWIND/Y. Missing ⇒ wrong candidate set ⇒ mis-weighted flame.
+
+**Port (fuel_model.jl ict==3 else-branch):** BL = Σ_understory[ foliage CROWNW(I,0)·FMPROB·P2T
++ Σ_{j=1..5}(CROWNW(I,j)+OLDCRW(I,j))·P2T·FMPROB + FMPROB·V2T·VT(bole) ]; BD = Σ_snag
+fallvol·(den_hard+den_soft) for snags ≤ USHT. Y→ (BL+BD)>0: FWIND>7 → Y≤50 model 5 (OBCT/PJCT
+loopback deferred) / Y>50 model 6; FWIND≤7 → model 5 (CR is not UT/TT). (BL+BD)=0 → model 2.
+
+**Units bug caught + fixed (the validate step earning its keep):** first cut gave BL=3919 vs
+live 3.08 (~1272× high). Per-tree breakdown localized it to the BOLE term — `coef_col(:v2t)`
+returns the RAW V2T (23.7), NOT the /2000-rescaled value; crown_biomass.jl already multiplies
+by `_FM_P2T` to rescale, so the bole needed the same `·P2T`. After fix: BL=3.456 (vs 3.08),
+BD=0.167 (vs 0.23) — both small, Y=4.6 (vs 7.06) but model-inert here (FWIND≤7 → model 5).
+
+**Validation (CN 188683386020004, simfire):** instrumented live FMDYN (WRITE FMOD/FWT) →
+live selects FMOD={5,10}, weights 0.50–0.69 across cycles; jl fire-year call = {5:0.5949,
+10:0.4051} == live's 0.59/0.41 **bit-exact**. .sum: pre-fire 2012/2022 TPA bit-exact
+(462/462, 447/447); fire-year 2032 live 47 / jl 43 — the gross over-kill is GONE, residual
+±4 survivors is per-tree fire-mortality precision (cornered band). Spot-checked 3 more CR
+simfire stands: pre-fire bit-exact, small cornered post-fire residuals, no regression.
+
+**Deferred (documented, un-exercised on validated stands):** FWIND>7 & Y≤50 OBCT/PJCT GOTO-111
+surface-fuel loopback; BD snag CURRENT-broken-height (live FMSVOL to HTIH/HTIS vs jl total
+fallvol — the BD 0.167-vs-0.23 gap, model-inert while FWIND≤7). Remaining FFE fuel leaves:
+OBCT (413-518) rules + ASCT conifer-understory branch (946+).

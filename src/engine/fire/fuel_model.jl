@@ -606,26 +606,57 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     elseif ict == 8 && ctba[8] / max(1f-3, stndba) > 0.80f0   # ASCT aspen-DOMINANT (>80% BA, fmcfmd.f:938-944)
         imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)
-    elseif ict == 3 && percov > 60f0               # PPCT ponderosa, PERCOV>60 branch (fmcfmd.f:643-665, CR)
-        # Only the PERCOV>60 sub-tree is ported (no understory biomass needed); the PERCOV≤60 branch is
-        # biomass-heavy (BL/BD live+dead understory crown/bole/snag) and stays deferred (falls through to the
-        # natural-fuel candidates below). Fixes the dense-ponderosa SIMFIRE over-kill (jl was picking the hot
-        # model 10 via the fallback; live's PPCT rule picks the SURFACE model 9).
-        if fwind > 7f0
-            if ctba[2] / max(1f-3, stndba) > 0.2f0    # PJCT pinyon-juniper component
-                eqwt[ldry ? 6 : 5] = 1f0
-            elseif ifmst == 6
-                eqwt[lcundr ? 5 : 2] = 1f0
+    elseif ict == 3                                # PPCT ponderosa (fmcfmd.f:562-665, CR)
+        if percov > 60f0                           # PERCOV>60 branch (fmcfmd.f:643-665) — no understory biomass
+            if fwind > 7f0
+                if ctba[2] / max(1f-3, stndba) > 0.2f0    # PJCT pinyon-juniper component
+                    eqwt[ldry ? 6 : 5] = 1f0
+                elseif ifmst == 6
+                    eqwt[lcundr ? 5 : 2] = 1f0
+                else
+                    eqwt[9] = 1f0
+                end
             else
                 eqwt[9] = 1f0
             end
-        else
-            eqwt[9] = 1f0
+        else                                       # PERCOV≤60 branch (fmcfmd.f:571-631) — understory BL/BD biomass
+            p2t = _FM_P2T; v2t = coef_col(s.coef, :v2t)
+            bl = 0f0; bd = 0f0
+            @inbounds for i in 1:t.n
+                (t.tpa[i] > 0f0 && t.height[i] <= usht) || continue
+                spi = Int(t.species[i]); dd = t.dbh[i]; hh2 = t.height[i]
+                xv = crown_biomass(s, spi, dd, hh2, Int(t.crown_pct[i]))   # (0..5) crown biomass (pounds)
+                bl += xv[1] * t.tpa[i] * p2t                                # foliage (current crown only)
+                for j in 2:6
+                    bl += (xv[j] + t.ffe_oldcrw[j - 1, i]) * t.tpa[i] * p2t # wood j: current + OLDCRW(j-1)
+                end
+                bl += t.tpa[i] * v2t[spi] * p2t * cr_snag_bole_cuft(s, spi, dd, hh2)  # bole; v2t is RAW ⇒ ·P2T
+            end
+            sn = fs.snags
+            @inbounds for k in eachindex(sn.sp)
+                den = sn.den_hard[k] + sn.den_soft[k]
+                (den > 0f0 && sn.height[k] <= usht) || continue
+                bd += sn.fallvol[k] * den                              # snag biomass (fallvol=total-cuft·V2T)
+            end
+            y = (bd + bl) > 1f-6 ? 100f0 * bd / (bd + bl) : 0f0
+            if (bd + bl) > 0f0
+                if fwind > 7f0
+                    eqwt[y <= 50f0 ? 5 : 6] = 1f0   # y≤50: OBCT/PJCT understory loopback DEFERRED ⇒ model 5
+                else
+                    eqwt[5] = 1f0
+                end
+            else
+                eqwt[2] = 1f0
+            end
         end
     end
-    # TODO: OBCT (413-518) / PPCT (562-641) rules are BIOMASS-heavy (live/dead crown+snag biomass BL/BD) and
-    # the ASCT conifer-understory branch (946+) — not yet ported; those stands fall through to natural-fuel
-    # candidates only. PJCT/WSCT/SFCT/LPCT/ASCT-dominant + MCCT are ported (LPCT validated bit-exact vs live;
+    # PPCT (562-665) is now ported both branches: PERCOV>60 (natural fuels) + PERCOV≤60 (understory BL/BD
+    # biomass → Y → FWIND/Y model 5/6/2). Validated vs live on CN 188683386020004: FMOD={5,10} weights
+    # 0.59/0.41 bit-exact. DEFERRED sub-paths (un-exercised, documented): the FWIND>7 & Y≤50 OBCT/PJCT
+    # GOTO-111 surface-fuel loopback, and BD snag CURRENT-broken-height (FMSVOL to HTIH/HTIS vs jl fallvol —
+    # BD 0.167 vs live 0.23, model-inert while FWIND≤7). TODO: OBCT (413-518) rules + the ASCT conifer-
+    # understory branch (946+) remain unported; those stands fall through to natural-fuel candidates only.
+    # PJCT/WSCT/SFCT/LPCT/ASCT-dominant + MCCT are ported (LPCT validated bit-exact vs live;
     # SFCT/WSCT/ASCT diverge PENDING the F3 down-wood-fuel fix — jl's cwd pools read ~2.6× low, which tips
     # _fmdyn's model-8-vs-10 choice near the fuel boundary; the rules themselves are faithful transcriptions).
     # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
