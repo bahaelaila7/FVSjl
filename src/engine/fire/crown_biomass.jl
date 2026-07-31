@@ -91,10 +91,24 @@ against live Fortran once the fire-behavior chunks (F5/F6) are in. The function 
 included but **not yet called** in the cycle; the structural tests pin the component
 split, size-class ordering, and species-form selection, not absolute bit-exactness.
 """
-function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::Integer)::NTuple{6,Float32}
+function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::Integer;
+                       hp::Float32 = -1f0)::NTuple{6,Float32}
     (d == 0f0 || h == 0f0) && return (0f0, 0f0, 0f0, 0f0, 0f0, 0f0)
     coef = s.coef
-    spils = Int(coef_col(coef, :ls_spi)[sp])
+    # CR (western) crown biomass: conifers use FMCROWW (cr_crownw); only the aspen/oak SPIW {20,21,22,28,38}
+    # use the Jenkins FMCROWE path below (fmcrow.f:161-166). HP (height percentile) is self-computed for the
+    # groups whose LIVEWT branches on it (caller may override via `hp`).
+    if s.variant isa CentralRockies && !_cr_uses_fmcrowe(sp)
+        spie = _CR_ISPMAP[sp]
+        hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
+        sg = coef_col(coef, :v2t)[sp]
+        return cr_crownw(spie, d, h, 0, ic, hh, sg)
+    end
+    # FMCROWE's species arg is SPILS = the crown-biomass group. For CR that is ISPMAP(sp) (fmcrow.f:163
+    # CALL FMCROWE(SPIE,…), SPIE=ISPMAP), NOT the `ls_spi` column — e.g. aspen sp20 → 41 (Jenkins aspen
+    # group), which selects the correct TOTABV + the ≥15 foliage fraction. Using ls_spi[20]=1 gave the
+    # <15 hardwood foliage ⇒ ~2.45× too much aspen foliage ⇒ the crt01 litter over-accumulation.
+    spils = s.variant isa CentralRockies ? Int(_CR_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]

@@ -29,6 +29,27 @@ const _CR_ISPMAP = Int[
 # CR species that use the Jenkins FMCROWE (the generic `crown_biomass`) instead of FMCROWW.
 @inline _cr_uses_fmcrowe(spiw::Integer) = spiw == 20 || spiw == 21 || spiw == 22 || spiw == 28 || spiw == 38
 
+# SPIE groups whose FMCROWW large-tree LIVEWT branches on the height percentile HP<DOMPCT(60):
+# ponderosa (13), Douglas-fir (3), western larch (8), Black-Hills PP (25). Others ignore HP.
+@inline _cr_crownw_needs_hp(spie::Integer) = spie == 13 || spie == 3 || spie == 8 || spie == 25
+
+"""
+    cr_hpct_of_height(s, h) -> Float32
+
+The FFE height percentile HP (0-100) of a tree of height `h`, matching FVS FMCROW's
+`RDPSRT(HT,desc)+PCTILE(PROB=TPA)` (fmcrow.f:121-130): HP = 100·(ΣTPA of records with height ≤ h)/ΣTPA,
+i.e. the reverse-cumulative TPA from the tallest. Tallest record → 100. Computed over the live tree list.
+"""
+function cr_hpct_of_height(s::StandState, h::Float32)::Float32
+    t = s.trees; tot = 0f0; le = 0f0
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]; p > 0f0 || continue
+        tot += p
+        t.height[i] <= h && (le += p)
+    end
+    tot <= 0f0 ? 100f0 : (le / tot) * 100f0
+end
+
 # The FMCROWW small-tree breakpoints (fmcroww.f:140-157), by SPIE group.
 @inline function _cr_crownw_breaks(spi::Int)
     (spi == 9 || spi == 12 || spi == 16) && return (2f0, 1f0, 3f0)   # DBHCUT, DCTLOW, DCTHGH
