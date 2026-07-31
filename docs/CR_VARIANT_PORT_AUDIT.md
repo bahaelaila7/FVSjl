@@ -3719,3 +3719,19 @@ Suite 38588/0/1/75 zero-regress (all CR-gated). STATUS: FMCROWW port DONE for cr
 + wired + validated; other CR forests need the remaining ~21 groups (reuse the dump/instrument). The CR FFE
 fuel subsystem is now faithful end-to-end: DATA tables + snag volume (5 paths) + fire timing + crown biomass
 + litter, all validated-or-cornered vs live. Residual = ~6-15% downstream cwd/litter accumulation dynamics.
+
+## FMCROWW coverage: groups 4,11,13,15,18 DONE (main conifers); DBRx groups (9,12,16,22) = follow-up
+Added group 11 (lodgepole, commit 56d8140) — validated vs the lp-stand dump (873 trees, max rel err 0.0012).
+FMCROWW now covers the main CR conifer stands BIT-EXACT: SPIE 4 (grand/white fir), 11 (lodgepole), 13
+(ponderosa), 15 (western white pine), 18 (spruce — sfct SPIW18 + wsct SPIW19 both map here). All use the
+standard P1-P4 assembly; ponderosa/DF/larch/lodgepole (3,8,11,13,25) branch on HP<60 (self-computed).
+REMAINING = the DBRx-path groups 9 (bristlecone), 12 (pinyon), 16 (juniper), 22 (Gambel oak) — a DIFFERENT
+code path (fmcroww.f:643-697, 859-897, 985-1030 + assembly 1246-1262): small-tree sets XV DIRECTLY (e.g.
+pinyon CASE 12: XV(0..3)=(3.177,0.977,1.084,0.079)·(D/2), lbs, no TOTWT); large-tree computes metric branch
+biomass DFOL/DBR1-5 (kg) from DRC=D·2.54 (e.g. pinyon DFOL=10^(-0.946+1.565·log10 DRC), DBR split 33/67% +
+old-twig + dead-branch redistribution); assembly xv+=DBRx·2.2046·X (×2.2046 kg→lb; oak uses ·X only, already
+lbs). Gambel oak (22) additionally needs SG (V2T) + a D²H volume. These need a DBRx branch in cr_crownw
+(early-return before the P1-P4 path, existing validated path untouched); validate vs the pjct dump
+(/workspace/.crwork/fmcroww_pjct_dump.txt, SPIW12) + juniper/oak stands. Bounded follow-up; the main conifer
+FFE (crt01/lp/sfct/wsct) is done. The remaining ~17 non-test groups (other CR forests) follow the same two
+patterns (P1-P4 or DBRx) — reuse the live instrument + per-stand dumps.
