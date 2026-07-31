@@ -3749,3 +3749,17 @@ they follow the two ported patterns (P1-P4 or DBRx) — build a single-species s
 to validate each when those forests are exercised. NET CR FFE STATUS: data tables + snag volume (5 paths) +
 fire timing + crown biomass (all test-stand species) + litter — faithful end-to-end vs live. Residual =
 ~6-15% downstream cwd/litter accumulation dynamics (a bounded reporting-leaf tail).
+
+## FMCROWW coverage: 8 groups / 20-of-38 CR species DONE (commit 249c1a7)
+Ported + validated subalpine fir (1) + Douglas-fir (3) via new AF/DF single-species stands (lp.tre LP→AF/DF
++ FVScr_crowdump): 882/918 trees, err 0.0004/0.0008 — bit-exact. FMCROWW now covers SPIE 1,3,4,11,12,13,15,18.
+By CR species (ISPMAP), COVERED (20/38): sp1 AF,2 CB,3 DF,4 GF,5 WF,10 LM,11 LP,12 PI,13 PP,15 SW,17 BS,
+18 ES,19 WS,33 PM,34 PD,35 AZ,36 CI,37 OS (FMCROWW) + 20 AS,28 PB (FMCROWE, fixed). REMAINING (18 species,
+8 groups) — same two patterns, build stand+dump to validate each:
+  P1-P4: grp 7 redcedar (RC sp7), 8 W larch (WL sp8), 14 whitebark (WB sp14), 24 mtn hemlock (MH sp6),
+         17 oak/tanoak (NC21,PW22,OH38)
+  DBRx:  grp 9 bristlecone (BC sp9), 16 JUNIPER (UJ16,AJ29,RM30,OJ31,ER32 — 5 spp), 22 GAMBEL OAK
+         (GO23,AW24,EM25,BK26,SO27 — 5 spp)
+HIGHEST-VALUE next: groups 16 (juniper, 5 spp) + 22 (oak, 5 spp) = 10 CR species (both DBRx, reuse the
+_cr_crownw_dbrx path); then the P1-P4 stragglers. The 8 done groups cover the dominant CR conifer basal area
+(fir/spruce/pine/DF/lodgepole/pinyon). Live instrument (FVScr_crowdump) + per-stand dumps reusable.
