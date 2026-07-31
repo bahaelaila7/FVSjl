@@ -4492,3 +4492,19 @@ harmless usht/usba pre-pass only affect PPCT fire stands — crt01 STAND-4 is MC
 PERCOV≤60 branch (biomass-heavy BL/BD live+dead understory crown/bole/snag) + the OBCT rules stay deferred (fall
 through to natural-fuel candidates) — a smaller fire-only leaf. This closes the DENSE/high-cover ponderosa SIMFIRE
 class; low-cover PPCT fire stands may still diverge pending the biomass branch.
+
+### SIMFIRE sweep #2 (post-13th-fix, 100 fresh stands) — PPCT>60 fix generalizes; remaining = PPCT≤60/OBCT fuel-model
+Fresh simfire sweep: bit_exact=81, diverging=19, 0 UNCLASSIFIED (12 structure_densephase, 6 print_boundary, 1
+threshold_crossing). Traced the two largest structural divergences:
+- CN 3554099010690 ("SDI 200%"): the fire WIPES the big-tree stand (163→0 live / 1 jl); the "200%" is a ±1 on a
+  near-zero post-fire remnant (both kill ~100%). CORNERED.
+- CN 188683386020004 ("TPA 56%"): jl UNDER-kills (2032 live 47 / jl 71, persistent) — the OPPOSITE direction from
+  the dense-ponderosa over-kill. Consistent with a PPCT-PERCOV≤60 (or OBCT) stand where the natural-fuel fallback
+  (models 10/12) is COOLER than live's biomass-selected model ⇒ under-kill. = the still-UNPORTED PPCT-low-cover +
+  OBCT fuel-model rules (fire-only leaf, doesn't touch .sum).
+⇒ the 13th-fix (PPCT PERCOV>60) generalizes — the dense/high-cover ponderosa over-kill class is gone; the residual
+simfire divergences are (a) cornered (±near-zero fire-wipeout / dense self-thin straddle) and (b) the deferred
+PPCT-PERCOV≤60 (biomass BL/BD) + OBCT fuel-model rules (both over- and under-kill depending on whether the fallback
+model is hotter/cooler than live's). NEXT to fully close FFE-fire: port the PPCT PERCOV≤60 biomass branch (needs
+the FFE understory live crown+bole + dead snag biomass) + OBCT rules. .sum remains comprehensively bit-exact-or-
+cornered (fuel-model only feeds fire behavior, not the .sum).
