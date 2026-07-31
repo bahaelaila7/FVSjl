@@ -503,17 +503,23 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     fwind = fs.swind * fire_wind_reduction(percov)
     ldry = false                                   # DROUGHT (IDRYB..IDRYE) — none in crt01
     NSP = 38
+    usht = 0.5f0 * stand_top_height(s)             # UNDERSTORY = HT ≤ 0.5·FMAVH (top-40 ht) (fmcfmd.f:182)
     ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)
+    usba = zeros(Float32, 8)                        # per-cover-type UNDERSTORY BA (USBA, HT≤USHT; for LCUNDR)
     fmtba = zeros(Float32, NSP)                     # per-species BA (FMTBA — LPPDOM)
     sumtpa = 0f0; sumd = 0f0; sumd2 = 0f0           # ΣFMPROB, Σ(FMPROB·DBH), Σ(FMPROB·DBH²) — avg DBH / QMD
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         x = t.tpa[i] * d * d * 0.0054542f0
-        ctba[_cr_fm_covtype(sp)] += x
+        ct = _cr_fm_covtype(sp)
+        ctba[ct] += x
+        t.height[i] <= usht && (usba[ct] += x)     # understory BA (fmcfmd.f:203-231)
         (1 <= sp <= NSP) && (fmtba[sp] += x)
         sumtpa += t.tpa[i]; sumd += t.tpa[i] * d; sumd2 += t.tpa[i] * d * d
     end
+    # LCUNDR: coniferous understory present (fmcfmd.f:368) — PPCT+WSCT+SFCT+LPCT+MCCT understory BA > 1
+    lcundr = (usba[3] + usba[4] + usba[5] + usba[6] + usba[7]) > 1f0
     avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
     qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
     stndba = sum(ctba)
@@ -600,6 +606,22 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     elseif ict == 8 && ctba[8] / max(1f-3, stndba) > 0.80f0   # ASCT aspen-DOMINANT (>80% BA, fmcfmd.f:938-944)
         imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)
+    elseif ict == 3 && percov > 60f0               # PPCT ponderosa, PERCOV>60 branch (fmcfmd.f:643-665, CR)
+        # Only the PERCOV>60 sub-tree is ported (no understory biomass needed); the PERCOV≤60 branch is
+        # biomass-heavy (BL/BD live+dead understory crown/bole/snag) and stays deferred (falls through to the
+        # natural-fuel candidates below). Fixes the dense-ponderosa SIMFIRE over-kill (jl was picking the hot
+        # model 10 via the fallback; live's PPCT rule picks the SURFACE model 9).
+        if fwind > 7f0
+            if ctba[2] / max(1f-3, stndba) > 0.2f0    # PJCT pinyon-juniper component
+                eqwt[ldry ? 6 : 5] = 1f0
+            elseif ifmst == 6
+                eqwt[lcundr ? 5 : 2] = 1f0
+            else
+                eqwt[9] = 1f0
+            end
+        else
+            eqwt[9] = 1f0
+        end
     end
     # TODO: OBCT (413-518) / PPCT (562-641) rules are BIOMASS-heavy (live/dead crown+snag biomass BL/BD) and
     # the ASCT conifer-understory branch (946+) — not yet ported; those stands fall through to natural-fuel

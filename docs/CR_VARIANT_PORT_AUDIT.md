@@ -4479,3 +4479,16 @@ biomass (BL/BD) inputs. Verify flame→1.7, model→9, kill→81% on 18071532252
 selection completion (a bounded fire-only leaf), distinct from the now-bit-exact FFE fire-mortality (11th) +
 fuel-init (12th). ★ The 11th/12th FFE fixes generalize on NON-PPCT / normal-density fire stands (84/100 simfire
 bit-exact); the PPCT gap is the residual fire-only class.
+
+### 13th CR fix — PPCT fuel-model PERCOV>60 branch ported (fixes dense-ponderosa SIMFIRE over-kill)
+Ported the CR PPCT (ict==3 ponderosa) fuel-model-selection PERCOV>60 sub-tree (cr/fmcfmd.f:643-665): added the
+understory USBA pre-pass (HT≤USHT=0.5·top-40-ht) + LCUNDR (conifer-understory-BA>1), then the branch — FWIND>7:
+PJCT-component>0.2⇒model 5/6(LDRY), IFMST==6⇒5(LCUNDR)/2, else⇒9; FWIND≤7⇒model 9. The added model-9 candidate
+(alongside the always-added natural-fuel 10+12) makes _fmdyn pick the SURFACE model 9 for dense ponderosa (small
+down-wood ⇒ closest iso-line), instead of the fallback's hot model 10. VALIDATED CN 1807153225290487 (simfire):
+2044 over-kill FIXED — jl 381 vs live 382 (was jl 95); BA/SDI/CCF/TopHt/QMD all match, vol ±1.5% (merch tail);
+bit-exact-or-±1 all cycles. Zero-regression (Pkg.test 1918/140-preexisting/3 identical; the ict==3 branch + the
+harmless usht/usba pre-pass only affect PPCT fire stands — crt01 STAND-4 is MCCT, unaffected). REMAINING: the PPCT
+PERCOV≤60 branch (biomass-heavy BL/BD live+dead understory crown/bole/snag) + the OBCT rules stay deferred (fall
+through to natural-fuel candidates) — a smaller fire-only leaf. This closes the DENSE/high-cover ponderosa SIMFIRE
+class; low-cover PPCT fire stands may still diverge pending the biomass branch.
