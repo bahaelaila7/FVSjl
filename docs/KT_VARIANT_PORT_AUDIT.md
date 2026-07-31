@@ -470,3 +470,25 @@ parser; crown_coefs.json). DUBSCR (small-tree, D<3, KT-specific kt/dubscr.f): CR
 +BCR3·BA + FCR)), FCR=BACHLO(0,CRSD_sp) when DGSD≥1 else 0, clamp [.05,.95]; coefs BCR0/1/2/3 + per-sp CRSD in
 the same dir. Large-tree CRSD (dubbing spread) = 6.35. Model already mapped in the prior scope note. NEXT ACTION:
 implement chunk 6 regent (small_tree_growth!(::Kootenai)) — the grow_cycle blocker — then chunk 5 crown.
+
+## Chunk 6 (regent, small-tree) — FULLY MAPPED + coefficients extracted (implementation ready)
+kt/regent.f (1043 lines) fully read. MULTI-SUBCYCLE model (NPER = ceil(cycleyears/REGYR=5), KPER(J) splits).
+HEIGHT per subcycle J, per species, per tree (H1=WK3(I), accumulates; small trees D<XMAX): 
+  sp≠11: HTGRL = RHCONS + BH·H1 + HTHS2·H1² + BBAL·BAL + BBA·ln(BA) + HTPC1·PCCF1 + (HTCRS + HTCRS2·CR)·CR;
+         H2 = H1 + HTGRL·(KPER(J)/REGYR)·XRHGRO·CON  [CON = EXP(HCOR(sp)) height calib]
+  sp=11 (mtn hemlock): HTGRL = EXP(RHCONS + BH·ln(H1) + BCCF·RDJ + BBALMH·BALMH + HCOR(11)); H2 = H1 + HTGRL·(KPER/REGYR)·XRHGRO
+  BAL = BAJ·(100−PCT)·0.01, BALMH = ·0.0001; RDJ/BAJ = subcycle density (RDNEXT/BANEXT updated between subcycles w/ 1.5%/yr mort).
+AFTER subcycles: HTGR1 = WK3−HT; ZZRAN stochastic (BACHLO(0,1), bound −1.5..1.0)·HSIGMA=0.59; HTGR≥0.15.
+XWT BLEND with large-tree htgf: XWT = (D−XMIN)/(XMAX−XMIN) [0 if D≤XMIN]; HTG = HTGR·(1−XWT) + XWT·HTG_large. SIZCAP.
+DIAMETER (D<3): DELMAX = (AH/36)·(0.01232·R−1.75) clamp≤0; DADJ = DELMAX·RELH²−2·DELMAX·RELH+0.65, RELH=(H−4.5)/(AH−4.5)∈[0,1];
+  D1 = HCON(sp)·H + DCON(sp) + DADJ (sp11: .0729·(H−4.5)^1.1988 + DADJ); DG = (D2−D1)·XRDGRO ≥0.
+RHCON (RHCONS, REGCON entry) is SITE-dependent like kt_dgcons!: sp≠11: RHCON = HTFOR(MAPLOC(KOTFOR,sp),sp) +
+  (HTSLOP(sp) + HTSLSQ(sp)·SLOPE + HTCASP(sp)·cosASP + HTSASP(sp)·sinASP)·SLOPE + HTEL(sp)·ELEV + RHSC(sp) +
+  RHHAB(MAPHAB(KKTYPE,sp),sp); sp11: RHGL(IGL) + (RSAB0+RSAB1·cosASP+RSAB2·sinASP)·SLOPE + RHSC(11)+RHHAB(...).
+  (MAPLOC 10×11, MAPHAB 175×11 = SAME as DG, already ported KT_MAPLOC/KT_MAPHAB.) HCOR = the small-tree height
+  calibration — reuse the shared calibrate_diameter_growth! REGENT branch (htg_cor_small, like SN/CR/LS).
+COEFFICIENTS EXTRACTED + saved /workspace/.ktwork/chunk6_regent_coefs.json (20 arrays: DIAM DCON HCON RHBAL RHLH
+RHCCF HTH2 HT2MOD RHBA HTCR HTCR2 HTPCC1 HTSLOP HTSLSQ HTEL HTCASP HTSASP RHSC XMAX; REGYR=5). STILL TO EXTRACT:
+2D HTFOR(5×11) + RHHAB(6×11) + RHGL(3) + scalars RSAB0/1/2, HSIGMA=0.59, XMIN(6*2,1,4*2). RESIDUAL will carry the
+ZZRAN RNG-stream-order (ch9) cornered class on the stochastic height draw. Reuses shared CCFCAL (done). This is the
+grow_cycle blocker — implement as small_tree_growth!(::Kootenai) + kt_regcons! (RHCON setup) + wire HCOR calib.
