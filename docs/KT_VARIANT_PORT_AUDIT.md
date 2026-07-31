@@ -565,3 +565,16 @@ kills+snags+tripling inline. KT computes killed[i]=WKI DIRECTLY (Hamilton) — s
 replicates the apply. Option (a) is cleaner (no duplication). IMPLEMENT: mortality!(::Kootenai) [Hamilton WKI] +
 kt SDICAL/BAMAX + factor-out shared apply. Validate per-tree WKI + stand .sum vs live FVSkt. This unblocks the
 full-cycle .sum (currently DG→height→regent all run; mortality is the last growth-core piece).
+
+## Chunk 7 mortality — coefficients EXTRACTED (implementation-ready)
+All KT mortality coefficients extracted + saved /workspace/.ktwork/chunk7_morts_coefs.json: POT(54)=0.25..2.90
+step .05; PMSC(11) species mort const [0,-.17603,.317888,.317888,.607725,1.57976,-.12057,.94019,.2118,.2118,0];
+IPDG(30×11)[itype,ifor]→POT index (size class D>5); IPDG2(30×11) (D≤5). MORCON derivation: POTEN=POT(IPDG(ITYPE,
+IFOR)); GMULT(1)=0.90/POTEN, REIN(1)=(1−(POTEN/20+1)^−1.605)/0.06821 [D>5, IP=1]; POTEN2=POT(IPDG2(ITYPE,IFOR)),
+GMULT(2)=2.50/POTEN2, REIN(2)=(1−(POTEN2+1)^−1.605)/0.86610 [D≤5, IP=2]. ITYPE=p.habitat_input; IFOR = the forkod
+JFOR subscript (1..12) — NOT KOTFOR — so chunk 7 (and regent sp11 IGL) needs the forkod IFOR/IGL port added to
+kt_forkod! (currently only KOTFOR computed; IFOR=JFOR index, IGL=KFOR(IFOR)). BAMAX from sitset (p.ba_max/SDICAL);
+OLDFNT = DG measurement period. XMMULT/XMDIA1/XMDIA2 = MORTMULT keyword (default X=1, no window). REMAINING: (1)
+extend kt_forkod! with IFOR+IGL; (2) write mortality!(::Kootenai) [Hamilton stand-setup DQ10/RZ/AVED + per-tree
+RIP/RIPP/WKI] filling killed[]; (3) factor the shared mortality! apply-tail (kill/snag/tripling) into a helper both
+call; (4) instrument-replay validate per-tree WKI + .sum vs live FVSkt. All chunk-5/6/7 coefficients now extracted.
