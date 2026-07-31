@@ -4974,3 +4974,22 @@ off, masked), THEN apply the START clock (universal, matches live). Doing EITHER
 BOTH together is required. Bounded (materially 1 stand /150 after factor-2; 408704093489998 bit-exact
 by cancellation), DEFERRED. This is the DEFINITIVE oak-con diagnosis: cornew-init accuracy + START clock,
 coupled. Factor 2 (19th fix) fixed the dominant mortality-driven cornew term.
+
+## Oak-con — DIAGNOSIS CORRECTED (clock was WRONG): the residual is the calibration AVH, live uses END clock
+
+CORRECTION of the "live uses START clock" conclusion (it was WRONG): live 408704093489998 REGCAL
+cornew=8.83 (HCOR_init=2.178) but applied cyc1 HCOR=1.651 = 2.178·0.758 ⇒ live ATTENUATES with the END
+clock (cyc1 already ×0.758), SAME as jl. So the clock is NOT the issue and NOT stand-dependent. The
+real residual is the CALIBRATION AVH (feeds PCTRED via X=AVH·RELDEN/100):
+  • Live REGCAL AVH (FVScr_reg LAVH) = 70.1 for 1855925743290487; jl uses s.plot.avg_height = 50.5.
+  • RELDEN/CCF match (121, factor-2), so X: live 84.9 vs jl 61.2 ⇒ PCTRED live ~0.41 vs jl 0.556 ⇒
+    jl EDH 1.37× too high ⇒ jl cornew 2.237 vs live 3.06 ⇒ oak under-grows (the 10% residual).
+  • jl's 50.5 = AVHT40 (= the .sum TopHt 51, bit-exact). But live's calibration AVH (70.1) ≠ AVHT40 —
+    it is a DIFFERENT (higher) quantity, likely the LARGE-TREE/overstory average height (ponderosa-
+    dominated ~70), NOT the top-40-by-DBH. For 408704093489998 the two coincided (58.6) so the 18th
+    fix's `avht=s.plot.avg_height` matched there; for the ponderosa+oak mix they diverge.
+⇒ CLEAN FIX (tractable, non-risky, NOT the clock): use live's regent AVH (the overstory/large-tree
+mean height, ~70.1) for the CR REGCAL PCTRED, not s.plot.avg_height (AVHT40). Identify the exact AVH
+quantity (dgf.f AVH definition — large-tree avg height vs AVHT40) and match it. Would fix 1855925743290487
+without regressing 408704093489998 (coincides there). Bounded (1 stand /150). The earlier clock/
+attenuation analysis is SUPERSEDED — do not pursue a clock fix; pursue the calibration AVH.
