@@ -4783,3 +4783,16 @@ existing small-tree DG divergence — TPA/TopHt bit-exact, DBH ~18% low — NOT 
 **Follow-up lead:** 39470962010690 (dense 0.6" seedlings, 2233 TPA): TPA+TopHt bit-exact but BA/QMD
 low ⇒ another small-tree DBH-growth under-prediction, distinct from the backdated-CCF bug (this fix
 left it unchanged). Next dig target.
+
+## 18th-fix follow-up — the "39470962010690 lead" is the accepted ZZRAN small-tree-DG ±straddle (NOT a new bug)
+
+Widened the scan: 6/30 grow stands show TPA+TopHt BIT-EXACT but BA/QMD diverging >5% — and the
+DIRECTION IS MIXED (4 jl-lower: 31303160010690, 756418412290487, 1855917484290487, 336332150489998;
+2 jl-HIGHER: 1855877281290487 51/55, 1592854740290487 50/54). Mixed direction ⇒ a ±STRADDLE, not a
+systematic bias. Confirmed the growth-path density is correct (regent.f:176 CCF=RELDEN = the CURRENT
+RELDT at growth time = current CCF = jl's stand_ccf; only the CALIBRATION backdates, now fixed), and
+oak SITEAR matches live (24.31). ⇒ These dense-seedling BA/QMD ±straddles (bit-exact count+height,
+scattered tiny-tree DBH) are the ACCEPTED ZZRAN small-tree-DG stochastic residual (RNG stream-order,
+ch9) — NOT a reducible bug. Corrects the 18th-fix note's "next dig target". After the 18th fix, the
+CR growth residuals are back to the cornered classes: self-thin RDPSRT ±straddle + ZZRAN small-tree
+DG ±straddle + AVHT40 ±1 + volume NINT/threshold. No known reducible systematic growth bug remains.
