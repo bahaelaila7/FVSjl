@@ -3278,3 +3278,22 @@ Both trace to the Rothermel reaction-intensity/HPA/crown-index math for CR — n
 actual (load,sav,depth) + spread to pin (SAV or reaction-intensity suspected; HPA is 2.4× low too). Fix all together +
 validate the FFE stand .sum, THEN apply the moisture fix (its effect is masked while the stand is wiped). Tree clean;
 instrument-relink recipe in .crwork (FVScr_burn/FVScr_cfir built this session).
+
+## FFE fire — ROOT CAUSE FULLY PINNED: jl lacks a CR branch in select_fuel_models (uses SN's path)
+The crt01 over-kill (287→1 vs live 93) is root-caused end-to-end:
+  live FMFINT fuel-bed DEPTH=1.0 ft for the fire; jl uses DEPTH=2.5 ft (standard Anderson model 6). In Rothermel a
+  deeper bed ⇒ lower bulk density ⇒ ~7× higher surface ROS (jl sfrate 41.85 vs live 5.77) ⇒ byram 2.5× ⇒ (compounded by
+  a spurious PASSIVE-crown-fire mis-classification from the wrong torching index) ⇒ SCH 85.6 vs 18.97 ft ⇒ every crown
+  CSV=100 ⇒ PMORT≈0.98 ⇒ wipeout.
+  WHY: `select_fuel_models` (src/engine/fire/fuel_model.jl:117) has branches for Northeast + LakeStates then FALLS
+  THROUGH to the SN forest-type selection — there is NO CentralRockies branch. CR therefore runs SN's fmcfmd path and
+  picks std models 6+10 (depth 2.5), not CR's own cover-type dynamic model (depth 1.0).
+FIX (next): port cr/fmcfmd.f `CASE('CR')` (buildDir fmcfmd.f:276-345+). CR is COVER-TYPE based (like western TT/UT), NOT
+forest-type: accumulate BA into 8 metagroups — OBCT oak-brush(sp23-27), PJCT pinyon-juniper(12,16,29-35), PPCT ponderosa
+(13,36), WSCT white-spruce(19), SFCT spruce-fir(1,17,18), LPCT lodgepole(11), MCCT mixed-conifer(2-10,14,15,37), ASCT
+aspen(20-22,28,38); dominant >50% BA (else MCCT; else OLDICT); then cover-type×understory → fuel model + the dynamic
+small/large-fuel selection with the CR depth. Add a CentralRockies branch to select_fuel_models + the depth wiring
+(jl build_dynamic_fuel_model already computes a bulk-density depth — verify it yields ~1.0). THEN the secondary fixes:
+CR moisture table (cr/fmmois.f, documented above) + confirm the crown-fire torching-index (oinit) once the fuel model
+is right. Validate the FFE stand .sum (2013 TPA→~93) + no regression. This is FFE sub-chunk F4 (fuel-model selection),
+the one genuinely-unported piece; F3/F5-F9 data+engine are present. Instrument binaries (FVScr_burn/cfir/fint) in .crwork.
