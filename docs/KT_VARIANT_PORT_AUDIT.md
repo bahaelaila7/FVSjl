@@ -281,3 +281,18 @@ WK2 instrument-replay vs live FVSkt (relink instrumented dgf.o) on the 40 IE sta
 - REMAINING for chunk-3 SIGN-OFF: per-tree WK2 bit-exact validation vs live FVSkt (relink instrumented dgf.o
   printing WK2/tree, CR DGFTRC recipe; compare on the 40 IE stands' first cycle). Placeholders to confirm via
   that diff: KOTFOR=forest_idx (KT forkod map?), managed-flag/DUM, RELDEN source. Chunk 4 = height_growth! (htgf).
+
+## Chunk 3 — DG VALIDATED-CLOSE vs live; residual = CCF/RELDEN dep on ccfcal (chunk 5)
+Per-tree WK2 instrument-replay (live FVSkt_dgftrc: instrumented dgf.o printing I/ISPC/D/WK2/RELDEN/BA; jl:
+env-gated dgf! trace) on stand 753200841290487, first cycle. Found + fixed TWO issues (doctrine #4 validation):
+  BUG (fixed): kt/dgf.f:327 CR=ICR*0.01 — crown ratio is a FRACTION 0..1, jl passed t.crown_pct (0..100 pct)
+    => CR*DGCR blew DDS to ~97.9. Fix cr=crown_pct*0.01: tree1(sp4,D13.7) WK2 97.9 -> 3.89 (live 4.09).
+  RESIDUAL (~0.2, cross-chunk): RELDEN. Live RELDEN=98.39 (stand CCF), jl stand_ccf(s)=2.05 — because stand_ccf
+    uses the EASTERN crown-width model for non-CR variants; KT's crown width isn't ported (chunk 5 ccfcal). SAME
+    pattern CR hit ("CCF=0/wrong, eastern cwcalc lacks variant coefs; fixed by porting ccfcal"). The WK2 gap is
+    tiny because RELDEN feeds only DGCCFA*RELDEN (~0.17) + CCFSQ*RELDEN^2 (~0.03); once KT ccfcal lands, RELDEN
+    ->98.39 and WK2 -> bit-exact.
+VERDICT: KT DG EQUATION + COEFFICIENTS + CR-units are VALIDATED CORRECT (WK2 3.89 vs 4.09, all terms match
+except the CCF-derived RELDEN). Chunk-3 DG is bit-exact-PENDING-ccfcal — the residual is a documented cross-chunk
+dependency (chunk 5 crown/ccfcal), NOT a DG bug. Coefficient extraction + equation + integration all confirmed
+by the per-tree diff. (Instrument: /tmp/kt_dgf_instr.f, relink_kt.sh dgftrc /tmp/dgf.o; 40-stand batch pending.)
