@@ -365,3 +365,14 @@ the RIGHT quantity; the 98.39 gap is a DBH/tree-set difference at dgf! time:
     small-tree threshold. IMPACT ~1% on DG WK2 (RELDEN in DGCCFA·RELDEN + CCFSQ·RELDEN²).
 VERDICT: DG equation+coefficients+CR-units+CCF-definition all CONFIRMED correct; the last ~1% is the RELDEN CCF
 sum's input DBH/tree-set at dgf! time (a shared-driver backdate-timing detail, not a KT-coefficient bug).
+
+## Chunk 5 — CCFT formula CONFIRMED correct (ccfcal.f:110-116 IF/ELSE); residual = tree-set/TPA input
+Re-read exact ccfcal.f MODE=1: IF(D.GE.10) CCFT=RD1+D*RD2+D^2*RD3 ELSE CCFT=RDA*D^RDB; CCFT=CCFT*P. My
+kt_tree_ccf matches this exactly (ELSE present — earlier grep had filtered it). Per-tree D also matches
+(jl d=13.7 == live D=13.7 for tree1). => the 79.27-vs-98.39 RELDEN gap is NOT the formula and NOT DBH —
+it is a TREE-SET or TPA(P) difference in the sum at dgf! time. DEFINITIVE DIAGNOSIS (next): instrument live
+dense.f (add WRITE after :199 RELDSP+=CCFT printing ISPC,D,P,CCFT) + jl per-tree (sp,d,tpa,kt_tree_ccf);
+diff tree-by-tree -> settle whether jl sums fewer trees, a different TPA, or a point-weight (PI=4). Candidates:
+(1) jl stand_ccf sums s.trees.n but live dense sums a different (tripled? point-expanded?) set; (2) jl t.tpa
+!= live P at dgf! (per-acre vs per-point). IMPACT ~1% DG WK2. FORMULA + COEFFICIENTS + CR-units + CCF-def all
+CONFIRMED; the open item is strictly the CCF-sum's tree-set/TPA.
