@@ -3463,3 +3463,15 @@ I mis-judged F3 as low-value because on crt01/MCCT the fuel was heavy enough tha
 flips the model.) Rules committed as faithful; SFCT/WSCT/ASCT flagged PENDING F3. LPCT/PJCT/MCCT good. OBCT/PPCT (biomass)
 + ASCT-understory deferred. META: repeated the git-checkout-loses-uncommitted-work blunder removing an instrument —
 re-applied via Edit. ALWAYS remove instruments with Edit, never git checkout, when the file has uncommitted work.
+
+## F3 down-wood fuel — MEASURED: jl pools are low AND erratic vs live (a fuel-DYNAMICS bug, not a data table)
+Instrumented jl cr_select (FUELDUMP; removed via python, not git-checkout) — crt01 per-cycle small/large vs live
+(FVScr_cfmd):  jl (p32 s4.4/l11.7) (p50 s2.97/l13.0) with the LARGE pool swinging 11.7→5.65→2.85→1.59→16.7→13.0;
+live smooth (p32 s6.9/l19.1 … p50 s6.45/l18.7, large steady ~16-20). ⇒ NOT a simple initial-load mismatch (the
+FUINIE/FUINII tables) — the LARGE (4-9") pool is erratic, pointing at the F3 fuel-DYNAMICS: mortality→cwd conversion
+(dead trees → large down-wood), decay rates, and the fire→cwd feedback, accumulated per cycle. This is a substantial
+FFE-fuels subsystem trace (fmcwd/fmsnag→cwd + fmcba decay), not a quick fix. It is the blocker for SFCT/WSCT/ASCT
+(tips _fmdyn model 8-vs-10) and crt01's byram ~5%. NEXT SESSION: trace the cwd large-pool accumulation over cycles
+(jl vs live: initial cr_dead_fuel_loading, then the per-cycle mortality→cwd add + decay) to find where the ~2.6×
+deficit + erraticness originate. Committed so far: 5 cover-type rules (LPCT bit-exact, PJCT close); OBCT/PPCT biomass +
+ASCT-understory deferred; F3 fuel dynamics + the 2 biomass cover types are the remaining FFE surface.
