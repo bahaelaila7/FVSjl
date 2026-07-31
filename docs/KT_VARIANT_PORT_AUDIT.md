@@ -817,3 +817,12 @@ stands, volume bit-exact, 10 bugs fixed, 0 regressions. IE (3rd western, Inland 
 relinked+verified, MAXSP=23 infra + species mapping extracted, 8-chunk port plan documented (~40% KT effort,
 mortality/crown/regent/volume reused). Then EM/BM/TT/UT. The estb/ establishment extension (6280 lines, shared,
 RNG-cornered) is a separate cross-variant future port. Methodology proven: measure vs live binary, chunk by chunk.
+
+## IE chunk-3 DDS form — MEASURED (differs from KT; needs own dgf!)
+ie/dgf.f DDS (line 516, "ORIGINAL NI SECTION"): DDS = CONSPP + DGLDS·ALD + DGBALS·BAL + CR·(DGCRS+CR·DGCRS2) +
+DGDSQS·D² + DGDBLS·BAL/ln(D+1); CONSPP = DGCON+COR+0.01·DGCCF·RELDEN (ALL species); CR=ICR·0.01; BAL=(1−PCT/100)·
+BA100 (BA100 = verify). PLUS aspen measured-DG (:479) + Utah-aspen (:487 ASPDG) paths. DIFFERS from KT (no DGBAL·BAL
+in KT; KT had CCFSQ·RELDEN²+DGLBA·lnBA+DGPCC·PCCF). ⇒ IE dgf!(::InlandEmpire) is a distinct port (classic NI form +
+IE coefs + aspen paths), verify vs live FVSie. Progress: IE chunk 0 (singleton, commit 940cfd1) + chunk 1 (species
+CSV loads, identity real / coefs placeholder, commit 372c242) DONE. Mortality/crown/regent/volume reuse KT; dgf/htgf
+are IE-specific (measured). Next: port IE dgf + extract IE coefs, validate vs oracle.
