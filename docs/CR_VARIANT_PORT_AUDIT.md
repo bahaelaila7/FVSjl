@@ -3386,3 +3386,13 @@ all right (FMD=10). REMAINING residual (crt01 FFE 2013 TPA jl 98 vs live 93; byr
 model-10 load fed to Rothermel (jl uses the standard Anderson-10 load; live FMFINT integrates the stand's actual
 SMALL/LARGE fuel), the CR moisture interaction, or the _fmdyn model-10-vs-12 blend weight. MINOR (~5% TPA) — the fire
 is functional and behavior-matched (was a total wipeout). Deferred as a bounded polish. FFE fire chunk: FUNCTIONAL.
+
+## ESTABLISHMENT (#2) — validated functional via crt01 stand 5 (bare-ground PLANT)
+crt01 stand 5 = ESTAB 1992 + PLANT 1992 sp2/sp10 400 TPA each (bare ground). jl vs live FVScr_clean .sum:
+BIT-EXACT 1992–2022 (planting → 800 TPA → early regen growth: TPA/BA/SDI/CCF/TopHt/QMD all identical); 2032+ diverges
+ONLY by the accepted growth-tail residuals (SDI ±1, TopHt ±1, self-thin TPA tail 2052 jl 709 vs live 693). Same cornered
+class as the growth core. ⇒ the establishment PLANT path (ESTAB/PLANT → ESSUBH base height → BACHLO → birth-cycle
+REGENT growth → :estab RNG) is FAITHFUL end-to-end. Late TopHt tail (2092 jl 76 vs live 70, ~9%) = the height-growth/
+AVHT40 residual on an all-regen stand (accepted class). OPEN: NATURAL + SPROUT paths not exercised by crt01 (need a
+dedicated harvest+SPROUT / NATURAL scenario) — the recon confirms the code is ported (nsprec_cr/essprt_cr/sprtht_cr),
+just not independently differential-tested. But the core establishment (PLANT/regen) is confirmed bit-exact-or-cornered.
