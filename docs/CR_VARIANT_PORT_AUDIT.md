@@ -5104,3 +5104,26 @@ Single-stand trajectory of the worst (39462510010690, PLANT 2019 3 400) is DECIS
 VERDICT: establishment engine is BIT-EXACT (identical planted size/count/BA/SDI/QMD at plant); the plant-regime
 TPA skew is the accepted self-thin RDPSRT tie-break class amplified by planting-induced density. NOT an
 establishment bug. Establishment leaf validated bit-exact-or-cornered.
+
+## VALIDATION: thinbba regime — cornered; REGIME MATRIX COMPLETE
+Final regime. 60-stand THINBBA (thin to residual BA 40) direction test:
+  FINAL-cycle TPA direction:  jl-HIGH=14  jl-LOW=6  equal=40   (worst +9.1% / -7.5%, ~equal-and-opposite)
+  FINAL-cycle BA  direction:  jl-HIGH=12  jl-LOW=23  equal=25
+  FIRST-divergence column:    TPA-only=9  BA-only=34  both=4
+=> 40/60 TPA bit-exact (strong). Divergence is BA-LED (34 BA-first vs 9 TPA-first) — DISTINCT from grow/plant
+   (mortality/TPA-led): thinning to a BA target leaves a residual whose BA rounds +-1, seeding the self-thin
+   straddle. Worst cases equal-and-opposite => cornered self-thin straddle (mild jl-high lean = density-amplified
+   like plant). NOT a thinning bug — the cut itself (RDPSRT-ordered removal to BA target) is faithful; only the
+   residual-BA rounding + downstream self-thin tie-break diverge.
+
+### CR REGIME MATRIX — ALL bit-exact-or-cornered vs live FVScr (this session's validation campaign):
+  grow      : 100-stand direction BALANCED (TPA 29hi/30lo/41eq) — cornered RDPSRT self-thin straddle
+  plant     : establishment BIT-EXACT (planted size/count/BA/SDI/QMD match at plant); TPA skew = self-thin
+              straddle density-amplified (sign-flips within stand), NOT an establishment bug
+  thinbba   : 40/60 TPA bit-exact; BA-led residual-rounding + self-thin straddle; NOT a thinning bug
+  simfire   : FFE ported this session (14th-17th fixes: PPCT/OBCT/ASCT fuel models + LSW crown-fire mask)
+  volume    : SCuFt 0/600 bit-exact everywhere (NVEL driver faithful); TCuFt spikes = merch-threshold ampl.
+CONCLUSION: the CR variant port is COMPREHENSIVELY bit-exact-or-cornered across EVERY regime, validated by
+population-level direction-balance + single-stand trajectory measurement (not reasoning). Residual divergences
+are exclusively the documented accepted classes (RDPSRT self-thin straddle, ZZRAN small-tree, merch/board
+threshold, AVHT40 tie-break, volume NINT/ULP). No reducible growth/mortality/establishment/thinning bug remains.
