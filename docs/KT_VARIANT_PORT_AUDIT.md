@@ -792,3 +792,14 @@ check. CROWN/REGENT/VOLUME (FW2)/forkod likely reuse w/ IE coefs + tables. IE ha
 PLAN: new Inland Empire variant singleton + IE species/habitat/forkod + verify+port the IE DDS + IE height eqns
 (measure vs live FVSie, same instrument-replay recipe: relink ie oracle from bin/FVSie_buildDir) + swap coefficients
 for the shared mortality/crown/regent/volume. Est. ~40% the effort of KT (mortality/framework/volume reused).
+
+## IE (Inland Empire) — FOUNDATION READY (oracle + infra scoped)
+IE oracle relinked + VERIFIED running: /workspace/.iework/FVSie_clean (674 .o + isoc23 shim; relink_ie.sh mirrors
+relink_kt.sh). Runs clean on stand 753200841 (6 cycles; 2019 inventory 2271/121/2529 = KT's, growth diverges via
+IE coefs). INFRA: MAXSP=23 (KT's 11 [WP/WL/DF/GF/WH/RC/LP/ES/AF/PP/MH] + 12 more [WB/LM/LL/PM/RM/PY/AS/CO/MM/PB/
+OH/OS]), YR=10, VARACD='IE', seed 55329, habitat OCURHT(16,MAXSP). IE PORT PLAN (mirrors KT, ~40% effort): (0)
+Kootenai-style IE variant singleton + registration; (1) IE 23-species + FIA map + SPCTRN col; (2) IE habtyp/sitset;
+(3) IE dgf — VERIFY DDS term set (classic DGLD·lnD+DGBAL·BAL+DGCR·CR vs KT's form) vs live FVSie instrument-replay;
+(4) IE htgf (larger form, verify); (5) crown (reuse KT crown model + IE coefs); (6) regent; (7) mortality — REUSE
+KT Hamilton (identical RIP eqn) + IE POT/IPDG/PMSC; (8) volume (reuse FW2). Same instrument-replay recipe (relink
+ie oracle, dump per-tree). All KT-gated engine hooks generalize by adding IE methods/dispatch.
