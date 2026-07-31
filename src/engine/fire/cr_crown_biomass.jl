@@ -177,6 +177,8 @@ end
 
 # small-tree TOTWT (fmcroww.f:174-255)
 @inline function _cr_crownw_small_totwt(spi::Int, h::Float32)::Float32
+    spi == 1 && return exp(-3.335f0 + 2.303f0 * log(h))      # subalpine/corkbark fir
+    spi == 3 && return exp(-4.212f0 + 2.7168f0 * log(h))     # Douglas-fir
     spi == 4 && return 0.4284f0 * h                          # grand fir
     spi == 11 && return 0.03111f0 * h * h                     # lodgepole pine
     spi == 13 && return 0.3451f0 * h                         # ponderosa
@@ -187,9 +189,9 @@ end
 
 # small-tree XV(0),(1),(2) proportions of TOTWT (fmcroww.f:257-360)
 @inline function _cr_crownw_small_prop(spi::Int)::NTuple{3,Float32}
-    (spi == 4 || spi == 18) && return (0.62f0, 0.26f0, 0.12f0)   # CASE (1,4,6,7,18,24)
-    spi == 13 && return (0.57f0, 0.14f0, 0.29f0)                 # CASE (13,25)
-    (spi == 15 || spi == 11) && return (0.52f0, 0.27f0, 0.21f0)  # CASE (3,11,14,15)
+    (spi == 1 || spi == 4 || spi == 18) && return (0.62f0, 0.26f0, 0.12f0)         # CASE (1,4,6,7,18,24)
+    spi == 13 && return (0.57f0, 0.14f0, 0.29f0)                                   # CASE (13,25)
+    (spi == 3 || spi == 11 || spi == 15) && return (0.52f0, 0.27f0, 0.21f0)        # CASE (3,11,14,15)
     error("cr_crownw: small-tree proportions for SPIE group $spi not ported")
 end
 
@@ -198,7 +200,35 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
     dompct = 60f0
     dp1 = 0f0; dp2 = 0f0; dp3 = 1f0     # fmcroww.f:108-110 init (DP3=1)
     p4 = 1f0
-    if spi == 4                          # grand fir
+    if spi == 1                          # subalpine / corkbark fir
+        livewt = 0.1862f0 * d * d * r + 1.066f0
+        deadwt = d <= 16f0 ? exp(4.0365f0 * log(d) - 6.5431f0) : 0.31f0 * livewt
+        p1 = 0.5966f0 * exp(-0.04247f0 * d)
+        p2 = 0.8643f0 * exp(-0.03733f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.0221f0 - 0.01083f0 * d
+        dp1 = d < 1.5f0 ? 1f0 : 1.2105f0 * d^(-0.565f0)
+        dp2 = 1f0
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 3                      # Douglas-fir
+        if hp < dompct
+            livewt = exp(0.1508f0 + 1.8621f0 * log(d))
+            deadwt = exp(-1.928f0 + 2.353f0 * log(d))
+        else
+            livewt = d < 17f0 ? exp(1.1368f0 + 1.5819f0 * log(d)) : 1.0237f0 * d * d - 20.74f0
+            deadwt = 0.01094f0 * d * d * d
+        end
+        if d > 36f0
+            p1 = 0.227f0; p2 = 0.315f0; p3 = 0.465f0
+        else
+            p1 = 0.484f0 * exp(-0.02102f0 * d)
+            p2 = 0.7289f0 * exp(-0.02332f0 * d)
+            p3 = d <= 2.9f0 ? 1f0 : 1.0342f0 - 0.01584f0 * d
+        end
+        p4 = d <= 14f0 ? 1f0 : 1.0221f0 - 0.001821f0 * d
+        dp1 = d < 1.8f0 ? 1f0 : 0.08355f0 + (1.5893f0 / d)
+        dp2 = d < 9f0 ? 1f0 : 1.5673f0 * exp(-0.05232f0 * d)
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 4                      # grand fir
         livewt = exp(1.3094f0 + 1.6076f0 * log(d))
         deadwt = d <= 18f0 ? exp(3.5638f0 * log(d) - 5.3154f0) : 0.38f0 * livewt
         if d > 36f0
