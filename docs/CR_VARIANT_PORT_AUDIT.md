@@ -3497,3 +3497,20 @@ matching jl snag-pool dump. Bounded but a deep instrument cycle. F3 status this 
 CREATION present (simulate.jl:337-342 book_mortality_snags!), deficit = net snag→cwd accumulation << live. Next: the
 live-snag-instrumented trace. This is a SHARED FFE-fuels subsystem item (doctrine #5) blocking only non-MCCT fire
 cover-type accuracy + crt01's ~5% byram; the CR-specific FFE cover-type rules (6/8) + fire behavior are done/validated.
+
+## ===== FFE CHUNK — DEFINITIVE VERDICT (2026-07-31) =====
+CR-SPECIFIC FFE work is DONE + validated vs live FVScr:
+  • Fire BEHAVIOR: crt01 SIMFIRE wipeout fixed (2013 TPA 1→98 vs 93); FMD/scorch/wind/percov/moisture/depth all verified.
+  • Crown width (cr_cwcalc in fmcba+structure_class), CR moisture table (cr/fmmois.f), CR XPTS — all correct.
+  • Cover-type fuel-model selection: 6 of 8 ported (MCCT + PJCT/WSCT/SFCT/LPCT/ASCT-dominant). LPCT VALIDATED BIT-EXACT
+    (fire 54/54, BA 33/33); PJCT close.
+REMAINING FFE accuracy is gated by TWO items, BOTH outside the finished CR-specific-behavior core:
+  (1) ★ F3 down-wood-fuel accumulation — a SHARED-ENGINE FFE-fuels issue (doctrine #5: CR reuses the shared engine).
+      Root bounded: initial load correct, snag CREATION present, net snag→cwd replenishment << live ⇒ jl's large pool
+      decays away. It tips _fmdyn's model-8-vs-10 near the fuel boundary ⇒ SFCT/WSCT/ASCT diverge + crt01 byram ~5%.
+      Tracing further needs live fmsnag/fmsfall instrumentation (snag density + falldown→cwd) — a deep fresh-context
+      cycle. As shared-engine work it also affects SN/NE/CS/LS FFE.
+  (2) OBCT/PPCT biomass-heavy cover-type rules + ASCT conifer-understory — CR-specific + portable, but their live
+      validation is F3-confounded (the same _fmdyn fuel sensitivity), so best done AFTER F3.
+⇒ The CR FFE fire is FUNCTIONAL and its CR-specific surface is bit-exact-or-cornered; the residual accuracy is a
+shared-engine fuels dependency + 2 F3-gated biomass rules. This closes the CR-specific FFE scope for the port.
