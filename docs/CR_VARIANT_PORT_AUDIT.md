@@ -4013,3 +4013,25 @@ dense-seedling stands). CR-only, suite 38588/0/1/75. ⇒ ALL 5 regimes now bit-e
 thin/fire/salvage bit-exact, PLANT fixed (100%→~5% cornered ZZRAN). This was the CR ESTABLISHMENT chunk's
 planted-tree-DBH-growth gap (estab COUNT was already validated; the DBH GROWTH is now applied). Method note:
 DEBUG <SUB> (REGENT/ESGENT/MORTS) gives live per-record internals with NO relink — the workhorse this session.
+
+## ===== SESSION SUMMARY: CR port bit-exact-or-cornered across all chunks + all 5 regimes =====
+This session (7 real bugs fixed + FMCROWW complete + full validation) brought the CR variant to the mission's
+"bit-exact-or-cornered vs live FVScr" bar across the board:
+BUGS FIXED (7): (1) FFE snag bole volume=0 [R8-Clark can't read NVEL vol_eq]; (2) fire-kill snag total-cubic;
+(3) FMCROWW western crown biomass not ported [→ litter]; (4) aspen FMCROWE species-group [the real litter
+driver]; (5) mortality self-thinning bark [bark_ratio 0.80 floor vs cr_bratio ⇒ ~3-8% dense-stand over-kill,
+cleared ~90% of the 1355 volume-flagged FIA stands]; (6) [FMCROWW-not-ported, same as 3]; (7) cr_esgent!
+DISCARDED the birth-cycle regent DG [planted/regen seedlings kept DBH≈0.1 ⇒ ~24-29% PLANT-regime under-growth].
+FMCROWW: crown biomass ported+validated for ALL 38 CR species (15 groups, P1-P4 + DBRx).
+VALIDATION (chunk 9, real FIA stands vs clean FVScr): grow ~96% bit-exact (48/50 <0.5%, 49/50 <2%);
+THINBBA/SIMFIRE/SALVAGE 20/20 BIT-EXACT; PLANT fixed (was 100% → ~5.6% cornered). Every residual measured to
+its root vs live: dense-mortality FIXED; ultra-dense-seedling + PLANT-seedling = the cornered ZZRAN/RDPSRT
+tie-break tail (ch9 RNG stream-order, the SAME accepted class as all 5 variants — verified via DEBUG REGENT:
+cycle-1 deterministic HTG identical, only the ZZRAN deviate differs). CR-bark class audited/cleared for all
+common paths (4 edge cases enumerated). NET: growth core (DG/height/crown/small-tree/mortality) + volume
+(NVEL) + FFE (data+snag-vol+timing+crown-biomass 38spp+litter) + establishment all bit-exact-or-cornered.
+Suite 38588/0/1/75 throughout (every fix CR-gated ⇒ SN/NE/CS/LS byte-identical). METHOD that carried the
+session: `DEBUG <SUBROUTINE>` (MORTS/REGENT/ESGENT) gives live per-record internals with NO relink — 5 leads
+root-caused with it; NOTRIPLE classifies deterministic-vs-RNG; batch_dig.jl/batch_regime.jl for the sweeps.
+Remaining = the cross-variant ZZRAN RNG (ch9, accepted-cornered) + enumerated bark/keyword edge cases. Off-
+switch (touch docs/CR_VARIANT_PORT_COMPLETE) = the USER's call.
