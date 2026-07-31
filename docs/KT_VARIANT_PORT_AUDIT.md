@@ -78,3 +78,21 @@ Tables + locations (all extractable):
 CHUNK 2 TODO: extract KOTHAB/JTYPE (blkdat) + wire site_index.jl (Kootenai) computing KKTYPE (for DG) + ITYPE +
 BAMAX/SDIDEF; add site_setup!(::Kootenai) hook (mirror CR site_index.jl); build KT harness (IE stand list +
 BIN["KT"]/VAR["KT"]); validate KKTYPE/ITYPE/SDImax vs live FVSkt (instrument like CR). Then chunk 3 dgf.
+
+## Chunk 2 — GROUND TRUTH captured + tables HAND-VERIFIED vs live FVSkt
+KT harness: 40 IE-geography stands (.sweep_work/kt_ie_stands.txt), run through KT via /workspace/.ktwork/
+FVSkt_clean (IE stands are valid for KT differential — identical input + KT variant both sides). Live probe
+.sweep_work/kt_live_probe.jl.
+Stand 753200841290487 live FVSkt .out:
+  KOOTENAI HABITAT TYPE IS 531   (= KOTHAB(KKTYPE))
+  INLAND EMPIRE HABITAT TYPE IS 530  (= MTYPE(ITYPE))
+  SDI MAX = 949 for all 11 species
+HAND-VERIFICATION against the extracted tables (doctrine #2 — the data reproduces live):
+  MTYPE(14)=530  => ITYPE=14
+  BAMAXA(14)=440
+  SDIDEF = BAMAX/(0.5454154*(PMSDIU/100)) = 440/(0.5454154*0.85) = 949.1 -> 949  (PMSDIU=85 default) ✓
+=> The chunk-2 MTYPE/BAMAXA tables + SDIDEF formula are CONFIRMED correct against live output. Remaining
+   chunk-2 execution: extract KOTHAB(175)/JTYPE(95) from kt/blkdat.f, write site_index.jl(Kootenai) implementing
+   code->KKTYPE (KOTHAB search) -> KOTHAB(KKTYPE) -> JTYPE search -> ITYPE=KTYPE(K-1) -> MTYPE(ITYPE) + BAMAX/
+   SDIDEF, wire site_setup!(::Kootenai), and diff jl's KKTYPE/ITYPE/SDImax vs these live values across the 40
+   IE stands. (Also: locate each stand's raw INPUT habitat code — the FIA stand record field feeding habtyp.)
