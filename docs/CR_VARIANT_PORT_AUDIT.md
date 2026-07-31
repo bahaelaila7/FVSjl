@@ -3252,3 +3252,29 @@ No genuine volume-equation divergence in any of the 6 (NVB/FW2/DVE all reproduce
 ⇒ CHUNK 8 volume is bit-exact-or-cornered, robustly. Residual classes = stale-ledger (re-sweep would clear) +
 growth-tail (already cornered) + tiny-stand rounding-boundary (accepted primitive). META: don't trust sweep-ledger
 vol% at face value — re-dig; 3 of 6 "material" flags were already bit-exact.
+
+## FFE (chunk F, #1) — crt01 SIMFIRE differential: REAL over-kill bug found + partially root-caused (IN PROGRESS)
+crt01 is a full-FFE demo (FMIN/SNAGINIT/SNAGBRK/FLAMEADJ/SIMFIRE 2003/PotFIRE/SNAGOUT). Ran it jl vs live FVScr_clean;
+the FFE stand diverges catastrophically:
+  1990 bit-exact; 2003 (pre-fire) TPA 287/287 bit-exact; 2013 (post-fire): jl TPA=1 vs live 93 (jl BA 1 vs 57, TCuFt
+  18 vs 1548). jl WIPES the stand; live keeps 93/287.
+The fire fires at year 2003 = start of the 2003→2013 cycle (BA rises 77→103 by 2003 then drops 103→57 by 2013 in live).
+Instrumented BOTH sides (jl FIREDUMP env-gate in fmburn.jl [reverted after]; live fmburn.f/fmcfir.f WRITE + relink):
+  - jl scorch height SCH=85.6 ft vs live 18.97 ft ⇒ jl scorches every crown (CSV=100) ⇒ PMORT≈0.98 ⇒ wipeout.
+  - Fire-behavior components (SIMFIRE 2003, swind=10, fmois=1, atemp=50 — parse VERIFIED correct vs fmin.f):
+      oinit(torching) live 17.88 / jl 5.26;  oact(crowning) 19.48 / 33.33;  sfrate_act(surface ROS) 5.77 / 41.85;
+      HPA 1480 / 614;  → live classifies SURFACE (crburn=0, rfinal=5.77); jl mis-classifies PASSIVE crown fire
+      (oinit<swind<oact) ⇒ crown-fuel intensity boost ⇒ byram 86420 vs live surface 8820 ⇒ SCH 85 vs 19.
+  - jl SURFACE byram itself is 2.5× high (22265 vs 8820 BTU/ft/min) BEFORE the crown block ⇒ two layered bugs.
+RULED OUT: fuel-model selection (both pick std Anderson 6+10 w/ standard loads — jl FM6 1hr=0.0689 lb/ft²=1.5 t/ac ✓),
+slope (jl 0.3 = 30% ✓), SIMFIRE field parse (wind10/fmois1/temp50/mort1/psburn100/season1 ✓ vs fmin.f:325-344).
+CONFIRMED BUG #1 (data): jl uses the SN moisture table for CR (fm_mois_table(::AbstractVariant)=_FM_MOIS). CR has its
+own cr/fmmois.f: cond1 dead[0.04,0.04,0.05,0.10,0.15] live[0.70,0.70]; cond2 [0.05,0.06,0.08,0.15,0.50]/[0.90,0.90];
+cond3 [0.08,0.10,0.12,0.16,1.25]/[1.20,1.20]; cond4 [0.10,0.12,0.15,0.18,2.00]/[1.40,1.40]. (jl SN cond1 =
+[0.05,0.07,0.12,0.17,0.40]/[0.55,0.55].) FAITHFULNESS bug — but CR is DRIER, so it alone does NOT explain the
+over-intensity (wrong direction); it masks under the bigger bugs.
+OPEN (next): the 2.5-7× surface-ROS/byram over-intensity + the torching-index (oinit) 3.4×-low mis-classification.
+Both trace to the Rothermel reaction-intensity/HPA/crown-index math for CR — need live FMFINT instrumentation of the
+actual (load,sav,depth) + spread to pin (SAV or reaction-intensity suspected; HPA is 2.4× low too). Fix all together +
+validate the FFE stand .sum, THEN apply the moisture fix (its effect is masked while the stand is wiped). Tree clean;
+instrument-relink recipe in .crwork (FVScr_burn/FVScr_cfir built this session).
