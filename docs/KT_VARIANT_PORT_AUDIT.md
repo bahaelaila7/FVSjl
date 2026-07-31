@@ -503,3 +503,15 @@ HSIGMA=0.59, REGYR=5, XMIN/XMAX. IMPLEMENTATION-READY: small_tree_growth!(::Koot
 height + XWT large/small blend + D<3 DELMAX/DADJ diameter dubbing + ZZRAN stochastic) + kt_regcons! (RHCON site
 setup using KT_RG_MAPLOC/KT_RG_MAPHAB) + reuse the shared calibrate_diameter_growth! REGENT-height (HCOR/
 htg_cor_small) branch. All coefficients verified against kt/regent.f DATA. Chunks 3-4 remain committed+validated.
+
+## Chunk 6 regent — kt_regcons! (RHCON site constant) DONE + BIT-EXACT
+Implemented src/variants/kootenai/regent.jl with ALL extracted regent coefficients + kt_regcons! (the REGCON
+entry: per-species RHCONS site constant). VALIDATED bit-exact vs live REGCON instrument-replay (stand
+753200841290487, kotfor=8, kktype=87): all 11 species RHCON match to 6 dp (sp1 2.040052, sp4 1.316852, sp10
+0.846868, sp11 0.788422 …). Confirms the regent-specific MAPLOC/MAPHAB tables + the HTFOR+slope/aspect/elev+RHSC
++RHHAB formula (sp≠11) and the RHGL/RSAB sp11 path. CAVEAT: sp11 uses IGL=p.geo_location (default 3 when unset);
+matched here — a stand WITH mtn-hemlock + non-default geo_location needs the forkod IGL=KFOR(IFOR) port. REMAINING
+for chunk 6: the small_tree_growth!(::Kootenai) HOOK itself — the multi-subcycle height model (NPER/KPER loop with
+RDNEXT/BANEXT density updates) + ZZRAN + XWT large/small blend + D<3 DELMAX/DADJ diameter dubbing + reuse of the
+shared REGENT-height HCOR calib branch. That hook is the grow_cycle .sum blocker (still errors loudly per doctrine
+#5 until implemented). kt_regcons! + all coefficients are in place to build it.
