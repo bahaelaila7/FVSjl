@@ -272,10 +272,12 @@ function stand_ccf(s::StandState)
     p, t = s.plot, s.trees
     ccf = 0f0
     if s.variant isa Kootenai
-        # KT CCF is a direct per-tree polynomial (kt/ccfcal.f), not the crown-width→area path.
-        # Include the DEAD partition (n+1:n+ndead) — live dense.f sums dead trees into RELDEN during the
-        # backdated calibration window (same dead-inclusive-density pattern as CR).
-        @inbounds for i in 1:(t.n + t.ndead)
+        # KT CCF is a direct per-tree polynomial (kt/ccfcal.f), not the crown-width→area path. Sum over the
+        # CURRENT tree list (1:t.n). The dead partition is folded in ONLY when the caller has bumped t.n to
+        # include it — i.e. the backdated calibration density pass (compute_density! at t.n=nlive+ndead);
+        # the growth-cycle pass runs with t.n=nlive so dead are (correctly) excluded. RELDEN is stored by
+        # compute_density! into p.relative_density and read by dgf!, matching FVS's DENSE→DGF flow.
+        @inbounds for i in 1:t.n
             ccf += kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf

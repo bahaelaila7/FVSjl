@@ -71,6 +71,7 @@ include("variants/kootenai/site_index.jl")           # KT habtyp 2-level mapping
 include("variants/kootenai/dg_coefficients.jl")      # KT large-tree DDS coefficient arrays (kt/dgf.f DATA)
 include("variants/kootenai/crown.jl")                # KT per-tree CCF (ccfcal MODE=1) → RELDEN
 include("variants/kootenai/diameter_growth.jl")      # KT dgf! (Wykoff DDS) + kt_dgcons!
+include("variants/kootenai/height_growth.jl")        # KT htgf! (exp-form height increment)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

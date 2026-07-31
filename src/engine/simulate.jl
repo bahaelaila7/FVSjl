@@ -148,6 +148,10 @@ function compute_density!(s::StandState)
     point_basal_area!(s)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)
+    # KT reads RELDEN (stand CCF) from p.relative_density in dgf!/htgf — set it here (DENSE→DGF flow) at
+    # whatever t.n is current: the backdated calibration density pass runs with t.n=nlive+ndead (dead-
+    # inclusive RELDM1), the growth-cycle pass with t.n=nlive (live-only). (Gated: only KT's dgf! reads it.)
+    s.variant isa Kootenai && (s.plot.relative_density = stand_ccf(s))
     return s
 end
 

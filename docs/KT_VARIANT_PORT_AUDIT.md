@@ -412,3 +412,28 @@ dgf (jl doesn't dub ICR) vs live's CRATET-dubbed crowns ⇒ their (very negative
 (crown/CRATET init) item, inert for large-tree DG and routed through regent for small trees anyway.
 Full-cycle .sum differential BLOCKED until chunk 4 (height_growth!(::Kootenai)) exists. Chunk 3 verdict:
 large-tree DDS BIT-EXACT-OR-CORNERED per-tree. NEXT: chunk 4 (htgf height growth).
+
+## Chunk 4 — height growth (kt/htgf.f) DONE + 3 DG-completeness bugs found via the height differential
+KT height is the western Wykoff exp-form (NO age-curve, NO GENGYM): CON = HTCON(sp) + H2COF·HT² + HGLD(sp)·ln(D)
++ HGLH·ln(HT); HTG = exp(CON + HDGCOF·ln(DG)) + BIAS; max(0.1); ·SCALE·XHT·MISHGF; SIZCAP. Per-stand habitat
+coefs IHT=MAPHAB(ITYPE) (ITYPE=p.habitat_input); HTCON(sp)=HGHC(IHT)+HGSC(sp). No large-tree height self-
+calibration (only optional HCOR2). Ported as height_growth.jl + wired into grow_cycle (height_growth! hook).
+VALIDATION (instrument-replay live htgf.f, growth cycle, stand 753200841290487): **height CON bit-exact for
+ALL species** (tree1 sp4 1.7608 = live). HTG then depends on DG(sp) — validating it exposed THREE real DG
+(chunk-3-completeness) bugs, each fixed + re-validated:
+  1. **Growth-cycle RELDEN inflated by dead trees** — stand_ccf was dead-inclusive UNCONDITIONALLY (KT), right
+     for the backdated calib but wrong for growth (jl RELDEN 162.76 vs live 143.64 = the 3 notre dead trees'
+     CCF). FIX: revert stand_ccf to sum 1:t.n; store RELDEN in p.relative_density from compute_density!/DENSE
+     (t.n=nlive+ndead during calib → dead-inclusive; t.n=nlive during growth → live-only), dgf! READS it.
+     Matches FVS's DENSE→DGF flow. RELDEN now 143.641 bit-exact.
+  2. **SIGMAR (dg_resid_sd) placeholder** — the species CSV had junk (0.2/0.26/…) vs kt blkdat.f DATA SIGMAR
+     (0.4099…0.3433). Wrong SSIGMA (0.266 vs 0.408) ⇒ wrong serial-correlation FRM ⇒ ~2% DG. FIX: real values
+     into the CSV. SSIGMA now 0.40797 = live 0.40796.
+  3. **PSIGSQ scalar vs KT per-species** — the DGSCOR COR-shrinkage weight used the SN scalar; KT's PSIGSQ is
+     per-species (kt/dgdriv.f:95, 0.0408…0.0858). FIX: KT_PSIGSQ + a Kootenai branch in the shared calib.
+RESULT: 41/43 large-tree heights bit-exact-or-cornered (<0.05 ft); the 2 outliers are sp1/sp3 — UNCALIBRATED
+species (fn=0, no measured DG) whose OLDRN serial-correlation residual is a rejection-sampled RNG draw
+(bachlo) — the known ZZRAN/RNG-stream-order (ch9) cornered class, sensitive to the setup draw order; NOT a
+height bug. The calibrated species' residual is the DGSCOR COR precision (sp4 COR 0.09133 vs live 0.09100,
+0.4%, calibration-tie-break cornered). Height equation + coefficients BIT-EXACT. All shared-file changes are
+KT-gated. NEXT: chunk 5 (crown/CRATET) — also dubs the inventory seedling ICR (the cr=0 chunk-3 seedling item).

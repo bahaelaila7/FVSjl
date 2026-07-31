@@ -15,6 +15,10 @@
 #   BAL = (1 - PCT/100)*BA  [sp11: /100];  RELDEN = plot.relative_density
 # =============================================================================
 
+# KT PSIGSQ (kt/dgdriv.f:95): per-species prior variance of the DGSCOR calibration correction (SN/NE/CR
+# use a scalar). Read by the shared calibrate_diameter_growth! for the COR shrinkage weight wc.
+const KT_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636, 0.0858]
+
 """KT per-stand DG setup (kt/dgf.f ENTRY DGCONS): fill calib.dg_const (DGCON), atten (OBSERV), bark copy."""
 function kt_dgcons!(s::StandState)
     c = s.calib; ctl = s.control; p = s.plot
@@ -43,7 +47,8 @@ end
 function dgf!(s::StandState, ::Kootenai)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
-    relden = stand_ccf(s)              # RELDEN = stand CCF (KT ccfcal polynomial via stand_ccf Kootenai branch)
+    relden = p.relative_density        # RELDEN = stand CCF, set by compute_density!/DENSE (backdated-inclusive
+                                       # during calibration at t.n=nlive+ndead, live-only during growth)
     ba = p.basal_area
     lnba = ba > 0f0 ? log(ba) : 0f0
     managed = p.managed == Int32(1)
