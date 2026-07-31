@@ -457,3 +457,16 @@ compare per-tree ICR at LSTART (dub) and post-cycle-1 (update) vs live crown.f i
 BACHLO dub will carry an RNG-stream-order (ch9) cornered residual on the dubbed (missing-crown) trees.
 STATUS chunks 3-4 DONE bit-exact-or-cornered + committed (779f55e, a737f99). Full-cycle .sum still blocked on
 chunk 6 small_tree_growth!(::Kootenai) (regent) — the immediate grow_cycle blocker; crown (5) follows in-cycle.
+
+## Chunk 5 (crown) — coefficients EXTRACTED+VERIFIED; validation is regent-blocked (do chunk 6 first)
+Determined the correct chunk ORDER: crown's meaningful validation is the DETERMINISTIC per-cycle UPDATE (the
+LSTART dub is mostly ICR>0 bypass + stochastic BACHLO seedling dub = RNG-cornered). That update needs (a) a NEW
+per-tree OLDPCT field (previous-cycle PCT, crown.f uses it in the backdate) threaded across cycles, and (b) the
+full grow cycle — which is BLOCKED on chunk 6 small_tree_growth!(regent). So the faithful order is REGENT FIRST,
+then crown validated against the full-cycle crown.f replay. All KT crown coefficients are EXTRACTED + spot-check
+VERIFIED against kt/crown.f + kt/dubscr.f and saved to /workspace/.ktwork/chunk5_crown/ (crown_coef_jl.txt =
+ready-to-paste Julia consts KT_CRPARM[sp,1:14], KT_CRHAB[sp,1:14], KT_CR_MAPHAB[itype,sp]; ext_crown.py = the
+parser; crown_coefs.json). DUBSCR (small-tree, D<3, KT-specific kt/dubscr.f): CR = 1/(1+exp(BCR0+BCR1·D+BCR2·H
++BCR3·BA + FCR)), FCR=BACHLO(0,CRSD_sp) when DGSD≥1 else 0, clamp [.05,.95]; coefs BCR0/1/2/3 + per-sp CRSD in
+the same dir. Large-tree CRSD (dubbing spread) = 6.35. Model already mapped in the prior scope note. NEXT ACTION:
+implement chunk 6 regent (small_tree_growth!(::Kootenai)) — the grow_cycle blocker — then chunk 5 crown.
