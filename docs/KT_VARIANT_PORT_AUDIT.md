@@ -545,3 +545,23 @@ shared mortality! driver to choose the integration seam (rate-hook vs full drive
 the per-tree RIPP/WKI vs live FVSkt. GROWTH CORE STATUS: DG (bit-exact) + height (CON bit-exact) + regent (htgr1
 ~0.05%) all run end-to-end; mortality (Hamilton) is the remaining growth-core piece, then crown (5) full-cycle
 validation, volume (8, shared NVEL), full-cycle differential (9).
+
+## Chunk 7 mortality — INTEGRATION SEAM identified (implementation-ready)
+Read kt/morts.f fully (655 lines). KT-SPECIFIC part = compute per-tree WK2(I)=WKI (TPA dying):
+  STAND SETUP (morts.f:195-235): DQ10 = √(Σp(D²+2DG+G²)/Σp) (grown QMD); DELTBA = 0.005454154·DQ10²·T − BA;
+    BA10 = BA + (BAMAX−BA)/BAMAX·DELTBA; TB = BA10/(0.005454154·DQ10²); TTB = (T−TB)/T cap 0.9999;
+    RZ = 1−(1−TTB)^0.1; AVED = Σ(D·P)/ΣP (BA-weighted mean DBH); BAMAX/SDIMAX via SDICAL.
+  PER TREE (morts.f:260-326): RELDBH=D/AVED; G = growth-rate term (WK1/OLDFNT floors, cycle-1 uses DG(I)/10),
+    ·GMULT(IP) [IP=1 D>5, IP=2 D≤5]; RIP = 2.76253 + 0.222310·√D − 0.0460508·√BA + 11.2007·G − 0.554421/D +
+    PMSC(sp) + 0.246301·RELDBH + 6.07129·G/D; RIP=1/(1+exp(RIP)) [clamp ±70]; ·POTENT=REIN(IP);
+    RIPP = (BA·RZ + (BA≤BAMAX ? (BAMAX−BA)·RIP : 0))/BAMAX, floored RIP, cap 1; X=XMORT(sp) if D1≤D<D2 (MORTMULT),
+    ·establishment-window factor; WKI = P·(1−(1−RIPP)^FINT)·X; SIZCAP min; WKI≤P; SDIMAX<5 ⇒ WKI=P (kill all).
+  Coefficients to extract: PMSC(11) [species mort const], REIN(2) [POTENT by size class], GMULT(2), XMDIA1/XMDIA2
+    (MORTMULT DBH window), + SDICAL/BAMAX (shared? check kt SDICAL). The rest (CLMORTS climate, FIXMORT, the
+    kill/snag APPLICATION) is shared/standard.
+SEAM: the shared mortality!(::AbstractVariant) computes killed[i] via _varmrt! (EFFTR distribution) THEN applies
+kills+snags+tripling inline. KT computes killed[i]=WKI DIRECTLY (Hamilton) — so either (a) factor the shared
+"apply killed[]" tail into a helper both call, or (b) write mortality!(::Kootenai) that fills killed[]=WKI and
+replicates the apply. Option (a) is cleaner (no duplication). IMPLEMENT: mortality!(::Kootenai) [Hamilton WKI] +
+kt SDICAL/BAMAX + factor-out shared apply. Validate per-tree WKI + stand .sum vs live FVSkt. This unblocks the
+full-cycle .sum (currently DG→height→regent all run; mortality is the last growth-core piece).
