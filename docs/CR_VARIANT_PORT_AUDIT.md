@@ -4938,3 +4938,18 @@ is a deeper stand-specific cornew subtlety (the dead-inclusion F2 fixed the domi
 Bounded (1 stand), deferred. NET: FACTOR 2 (dead-inclusive backdated CCF) is the 19th CR fix — clean,
 CR-only, validated, no regression. FACTOR 1 rejected. Oak-con residual reduced (17%→10% on the target)
 and remaining is a bounded deeper-calibration subtlety, not the clock.
+
+## Oak-con DIAGNOSIS CLOSED — factor-2 fixed cornew (1.62→2.237≈live 2.33); residual is attenuation semantics
+
+After the factor-2 (dead-inclusive backdated CCF) fix, jl's oak cornew = 2.237 vs live 2.33 — the
+calibration RATIO is now largely correct (was 1.62). So factor 2 was the dominant fix. The remaining
+con gap (⇒ BA 124/111, 10%) is the ATTENUATION SEMANTICS of the small-tree height con: jl applies the
+DGSCOR cormlt_h decay (htg_cor_small = goal + cormlt_h·(htg_cor_init−goal)) per calibrate_diameter_
+growth! call, but live's regent.f:593 uses HCOR=ln(cornew) FRESH each cycle (regent recomputes REGCAL
+per cycle; the observed 2.33→1.90→1.63 decay is the fresh cornew naturally relaxing as the model
+catches up, ~0.757/cyc coincident with cormlt). ⇒ jl's cormlt_h attenuation on the CR height con is
+the mismatch — but it's STAND-DEPENDENT: removing/START-clocking it helps 1855925743290487 yet
+regresses 408704093489998 (bit-exact WITH the current attenuation). So the clean fix is NOT a clock
+tweak; it's reconciling whether CR regent attenuates the height con at all vs uses fresh per-cycle
+cornew, validated across BOTH stand types. Bounded (1 stand /150, 10% after F2), DEFERRED as a focused
+attenuation-semantics reconciliation. Factor 2 (19th fix) captured the dominant term.
