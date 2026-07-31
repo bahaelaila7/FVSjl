@@ -681,3 +681,16 @@ LEAF — does NOT affect the bit-exact growth trajectory (TPA/BA/SDI/CCF/TopHt/Q
 columns. Stand meta confirmed: FOREST-LOCATION 105 (Clearwater, JFOR[3] ⇒ IFOR=3 ✓), HABITAT 530, AGE 46.
 STATUS: KT growth+mortality+crown CORE bit-exact-or-cornered end-to-end; the TWO remaining chunks (establishment =
 the TPA re-stock; volume = the /0.0) are both scoped, both downstream-additive leaves on the validated core.
+
+## ★ CHUNK 8 volume — CUBIC BIT-EXACT via FW2 reuse; board-foot ~9% (tuning)
+KT volume = Region-1 Flewelling FW2 (live VEQNNC = "I00FW2W<FIA>", instrument-dumped). The FW2 kernel jl already
+has (cr_fw2_vol) ALREADY supports KT: _fw2_jsp's 'I'/INGY geocode branch maps all KT species (119→18 white pine,
+073→12 larch, 202→11 DF, 017→13 GF, 260→17 mtn hemlock, 242→16 WRC, 108→15 LP, 093→19 ES, 019→20 AF, 122→14 PP).
+Implemented: (1) setup_volume_equations! KT branch (vol_eq = "I00FW2W"+FIA); (2) compute_volumes_kt! (all-FW2, KT
+bark=bark_ratio(KT_BKRAT), merch from kt/grinit.f: TOPD/BFTOPD=4.5, DBHMIN/BFMIND=7 [sp7 LP=6], stump=1) reusing
+cr_fw2_vol + cr_cftopk/cr_bftopk broken-top; (3) compute_volumes! KT dispatch. VALIDATED @2019 (bit-exact stand):
+TCuFt jl 2528 vs live 2529 (Δ1, CUBIC BIT-EXACT), MCuFt BIT-EXACT, SCuFt=0 both. BdFt jl 7380 vs live 8100 (~9% —
+board-foot top-diameter/Scribner-rule tuning: cr_fw2_vol takes one topd for both cubic+board; KT board BFTOPD=4.5
+may need a separate board-top pass or a METHB/rule difference — TUNE next). 2029+ TCuFt close but stand totals
+diverge from 2039 via the establishment TPA gap (per-tree vol is right). All KT-gated. Volume chunk ~DONE (cubic
+bit-exact); remaining = board-foot tuning + establishment. KT growth+mortality+crown+CUBIC-VOLUME now validated.

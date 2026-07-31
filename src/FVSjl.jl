@@ -74,6 +74,7 @@ include("variants/kootenai/diameter_growth.jl")      # KT dgf! (Wykoff DDS) + kt
 include("variants/kootenai/height_growth.jl")        # KT htgf! (exp-form height increment)
 include("variants/kootenai/regent.jl")               # KT regent (chunk 6): kt_regcons! + small_tree_growth!
 include("variants/kootenai/mortality.jl")            # KT mortality (chunk 7): Hamilton MORTS
+include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Region-1 Flewelling FW2
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

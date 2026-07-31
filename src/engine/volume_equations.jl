@@ -160,6 +160,10 @@ function setup_volume_equations!(s::StandState)
             veq = get(cr_tbl, (kodfor, ifia), nothing)
             s.species.vol_eq[sp] = veq !== nothing ? veq :
                 (sp <= length(_CR_VOLEQ) ? _CR_VOLEQ[sp] : "           ")
+        elseif s.variant isa Kootenai
+            # KT VOLEQDEF (kt/sitset.f): Region-1 Flewelling FW2, geocode "I00", per-species FIA code
+            # (validated vs live: I00FW2W119, …073, …202, …). _fw2_jsp already maps the 'I' INGY geocode.
+            s.species.vol_eq[sp] = ifia > 0 ? "I00FW2W" * lpad(string(ifia), 3, '0') : "           "
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end
