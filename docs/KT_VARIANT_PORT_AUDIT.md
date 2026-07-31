@@ -492,3 +492,14 @@ RHCCF HTH2 HT2MOD RHBA HTCR HTCR2 HTPCC1 HTSLOP HTSLSQ HTEL HTCASP HTSASP RHSC X
 2D HTFOR(5×11) + RHHAB(6×11) + RHGL(3) + scalars RSAB0/1/2, HSIGMA=0.59, XMIN(6*2,1,4*2). RESIDUAL will carry the
 ZZRAN RNG-stream-order (ch9) cornered class on the stochastic height draw. Reuses shared CCFCAL (done). This is the
 grow_cycle blocker — implement as small_tree_growth!(::Kootenai) + kt_regcons! (RHCON setup) + wire HCOR calib.
+
+## Chunk 6 regent — CORRECTION + coefficient extraction COMPLETE
+CORRECTION (doctrine #2, measured): regent's MAPLOC(10×11) and MAPHAB(175×11) are DIFFERENT from dgf.f's
+(diffed raw DATA — each FVS routine carries its own habitat/forest grouping). The earlier "reuses DG's MAPLOC/
+MAPHAB" note was WRONG — regent needs its OWN tables (KT_RG_MAPLOC, KT_RG_MAPHAB), extracted. ALL regent
+coefficients now extracted + saved to /workspace/.ktwork/chunk6_regent_coefs.json (28 keys): the 20 per-species
+growth arrays + HTFOR(5×11) + RHHAB(6×11) + RHGL(3) + RSAB(3) + RG_MAPLOC(10×11) + RG_MAPHAB(175×11) + scalars
+HSIGMA=0.59, REGYR=5, XMIN/XMAX. IMPLEMENTATION-READY: small_tree_growth!(::Kootenai) (multi-subcycle NPER/KPER
+height + XWT large/small blend + D<3 DELMAX/DADJ diameter dubbing + ZZRAN stochastic) + kt_regcons! (RHCON site
+setup using KT_RG_MAPLOC/KT_RG_MAPHAB) + reuse the shared calibrate_diameter_growth! REGENT-height (HCOR/
+htg_cor_small) branch. All coefficients verified against kt/regent.f DATA. Chunks 3-4 remain committed+validated.
