@@ -1,6 +1,11 @@
 # IE large-tree DDS coefficient arrays (ie/dgf.f DATA), extracted+dim-verified.
 # DDS (NI form): CONSPP + DGLD·lnD + DGBAL·BAL + CR·(DGCR+CR·DGCRSQ) + DGDSQ·D² + DGDBAL·BAL/ln(D+1); BAL=(1−PCT/100)·(BA/100).
 
+# IE bark ratio (ie/bratio.f): BARK1/BARK2 + IMAP dispatch (1=default-or-BARK, 2=const, 3=BARK1+BARK2/D).
+const IE_BARK1 = Float32[0.964f0, 0.851f0, 0.867f0, 0.915f0, 0.934f0, 0.950f0, 0.969f0, 0.956f0, 0.937f0, 0.890f0, 0.934f0, 0.851f0, 0.969f0, 0.937f0, 0.000f0, 0.000f0, 0.969f0, 0.950f0, 0.892f0, 0.950f0, 0.950f0, 0.892f0, 0.934f0]
+const IE_BARK2 = Float32[0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, -0.086f0, 0f0, 0f0, -0.086f0, 0f0]
+const IE_BRK_IMAP = Int[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 3, 2, 2, 3, 2]
+
 const IE_DGLD = Float32[0.56445f0, 0.5414f0, 0.56888f0, 0.6881f0, 0.68712f0, 0.58705f0, 0.89503f0, 0.73045f0, 0.8624f0, 0.66101f0, 0.89778f0, 0.5414f0, 0.213947f0, 0.8624f0, 0f0, 0f0, 0.213947f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0.89778f0]
 const IE_DGCR = Float32[1.08338f0, 1.03478f0, 2.0685f0, 1.93969f0, 1.64133f0, 1.2936f0, 1.85558f0, 1.54643f0, 0.52044f0, 1.31618f0, 1.28403f0, 1.03478f0, 1.523464f0, 0.52044f0, 0f0, 0f0, 1.523464f0, 0f0, 0f0, 0f0, 0f0, 0f0, 1.28403f0]
 const IE_DGCRSQ = Float32[0f0, 0.07509f0, -0.62361f0, -0.78258f0, -0.27244f0, 0f0, -0.36393f0, -0.26635f0, 0.86236f0, 0f0, 0f0, 0.07509f0, 0f0, 0.86236f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0]

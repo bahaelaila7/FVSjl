@@ -79,6 +79,7 @@ include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Regi
 # --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
 include("variants/inlandempire/dg_coefficients.jl")  # IE large-tree DDS coefficient arrays (ie/dgf.f)
+include("variants/inlandempire/diameter_growth.jl")  # IE large-tree DDS hooks (ie_dgcons! + dgf!)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

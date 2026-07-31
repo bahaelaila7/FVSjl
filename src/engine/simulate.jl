@@ -78,6 +78,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa InlandEmpire
+        ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
