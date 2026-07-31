@@ -3932,3 +3932,21 @@ these are UNREACHABLE for CR (crt01 confirms; CR crown returns via cr_crownw bef
 on snag_htx). ⇒ the CR-bark bug class is CLEARED for all practical paths; the 4 edge cases are faithful-fix
 candidates (CR-gate to cr_bratio) but need a HITTING SCENARIO (FERTILIZE / break event / cycle-0 broken-top /
 SNAGBRK-HTX keyfile) to validate per doctrine #4 — logged as low-priority latent, not fixed speculatively.
+
+## Regime validation (chunk 9 cont.): 4/5 regimes bit-exact; PLANT surfaces a real planted-seedling bug
+Ran all sweep regimes on the 20-stand random CR sample (batch_regime.jl): THINBBA 20/20 BIT-EXACT, SIMFIRE
+20/20 BIT-EXACT, SALVAGE 20/20 BIT-EXACT (grow already 48/50). ⇒ CR cuts/fire/salvage on real FIA stands are
+faithful. PLANT regime: 20/20 DIVERGENT — but characterized as a REAL, bounded planted-seedling growth bug
+(NOT the whole regime):
+  MEASURED on CN 3626556010690 (forest 207 Black Hills, model_type=3, planted DF/sp3 @400 TPA): planted-tree
+  TPA MATCHES every cycle (establishment count correct) but BA runs ~29% LOW (jl 5/live 7 @2013→jl14/live18
+  @2033), i.e. the planted DF seedlings grow ~17% too little in diameter (QMD jl~1.5/live1.8).
+  RULED OUT: (a) the "PLANT 2.0" cycle-number harness artifact — persists with a calendar-date plantyr;
+  (b) site index — jl SI[DF]=70.86 == live DF=71; (c) habitat default — both get the "habitat UNRECOGNIZED →
+  default" warning + identical SI table. ⇒ ROOT = the planted-DF SMALL-TREE growth (regent DG or the planted-
+  seedling INITIAL HEIGHT) specifically under IMODTY=3 (Black Hills PP) — a niche the grow-regime sweep
+  (established stands, few seedlings) never exercised. NOT the ZZRAN class (29% systematic is far above the
+  ZZRAN reject-bias). NEXT: dump the planted-DF initial (dbh,height) jl vs live at establishment + a DEBUG
+  REGENT/GEMHT trace on the first growing cycle — determine if it's the planted-tree init size or a model_type-3
+  regent/gemdg DF coefficient. Bounded lead. NET regime coverage: grow/thin/fire/salvage faithful; PLANT has
+  one bounded planted-seedling-DG bug. Tools: batch_regime.jl (per-regime sweep), dig_plant2.jl.
