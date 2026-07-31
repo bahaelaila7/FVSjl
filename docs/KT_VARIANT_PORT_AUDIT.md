@@ -837,3 +837,12 @@ analog: DGHAB[MAPHAB]+DGFOR[MAPLOC]+DGEL·ELEV+slope/aspect) + the aspen measure
 tables (JTYPE 95). Then calibrate (reuse shared DGSCOR) + validate per-tree WK2 vs live FVSie instrument-replay.
 STATE: IE chunks 0(scaffold)+1(CSV loads) DONE; chunk 3 (DG) fully MEASURED+scoped (equation+BA100+coefs), ready to
 extract+port. Mortality/crown/regent/volume reuse KT. Methodology (measure vs live binary chunk by chunk) unchanged.
+
+## IE chunk-3 DG — 1D coefficients EXTRACTED (2D tables pending)
+Extracted 9 IE 1D DG arrays (23 sp each) → /workspace/.iework/ie_dg_coefs.json: DGLD DGCR DGCRSQ DGBAL DGDBAL DGSASP
+DGSLOP DGEL DGEL2 (spot-checked OK). REMAINING extraction: DGCCFA (came out L115=5×23 — 2D or extractor over-match,
+re-grab), DGDSQ (2D, MAPDSQ-mapped), and the 2D tables DGHAB(6,23)/DGFOR(6,23)/MAPHAB(30,23)/MAPLOC(11,23)/MAPDSQ
+(11,23)/OBSERV(6,23). Note IE dims: 6 habitat-groups + 6 forest-classes (vs KT 9+7), 11 IFOR/MAPDSQ. DGCON(sp) =
+DGHAB(MAPHAB(ITYPE,sp),sp) + DGFOR(MAPLOC(IFOR,sp),sp) + slope/aspect/elev (ie/dgf.f:569, kt_dgcons! analog). IE
+D²-coef is habitat-mapped via MAPDSQ (extra vs KT). NEXT: finish 2D extraction (KT dg_coefficients.jl 2D recipe) +
+write IE dg_coefficients.jl + dgf!(::InlandEmpire) [NI form] + ie_dgcons! + aspen paths, validate per-tree vs FVSie.
