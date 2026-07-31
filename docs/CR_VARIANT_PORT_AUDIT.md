@@ -3188,3 +3188,48 @@ family), MUCH smaller than the ~435-line SF_HS port. Validation: large trees sta
 near the asymptote), small cliff trees fixed; crt01 + 100/150 regression + full suite. ⇒ CR core unchanged/complete; the
 FW2 residual is now correctly reframed to a bark-source fix (deferred pending the caller-bark pin). _fw2_sf_yhat_sl slope
 block may be UNNEEDED if the SF_HS port is avoided (leave inert; remove in the focused session if confirmed unnecessary).
+
+---
+
+## VOLUME RESOLVED — the ~2% crt01 deficit is the ACCEPTED height-growth residual, NOT a volume bug (bark reframe RETRACTED)
+
+The prior entry's reframe ("FW2 residual = a merch-top bark-source fix, likely avoiding the SF_HS port") was itself a
+partial red herring. Measured end-to-end this turn; the real answer is cleaner and retires the whole FW2/SF_HS/bark thread.
+
+### 1. FVS volume bark IS pre-growth — measured, definitive (a real finding, but minor)
+Instrumented live `vols.f` (recompiled vols.o from buildDir, relinked FVScr_volbark; `.crwork/vbrun/vb2.txt`). vols.f:150
+`BARK=BRATIO(ISPC,D,H)` runs BEFORE :151 `IF(.NOT.LSTART) D=D+DG(I)/BARK`; VOLS is called from update.f:108 BEFORE the
+DBH-array update at update.f:115. So on non-LSTART cycles the volume BARK = `BRATIO(start-of-cycle DBH)` and the taper
+profile uses the post-growth `Dfinal = Dentry + DG/BARK`. CONFIRMED per-tree: BRATIO(Dentry=11.5)=0.858, BRATIO(9.5)=0.8499
+== live BARK exactly. jl already stashes this in `t.vol_bark[i]` (simulate.jl:461, = cr_bratio(pre-growth dbh), the same
+bark it uses for the dbh update at :462, so jl's t.dbh == FVS Dfinal bit-for-bit). So "FVS mixes post-growth diameter with
+pre-growth bark" is TRUE and faithful.
+
+### 2. …but the pre-growth-bark fix is NOT the volume residual — REVERTED (doctrine #4, sp18 pattern)
+Wired `vbk = t.vol_bark[i] > 0 ? t.vol_bark[i] : cr_bratio(current d)` into compute_volumes_cr! (NVB/FW2/cftopk). Clean
+unthinned crt01 stand-1 (S248112 CONTROL), jl-vs-FVScr_clean SUM|Δ|: baseline TCuFt 1148 → fixed 1171 (WORSE by ~2%,
+BdFt 4428→4488). 1990 (LSTART) stays bit-exact both. The faithful pre-growth bark (0.80) is SMALLER than the wrong
+post-growth bark (0.8188) ⇒ less DBHIB ⇒ LESS volume ⇒ widens an already-LOW deficit. The wrong post-growth bark was
+*partially masking* a larger opposite-signed deficit — exactly the sp18 "faithful fix unmasks a separate error" case.
+Reverted pending the joint fix (git checkout); tree clean.
+
+### 3. The REAL residual: crt01 volume is ~2% LOW because per-tree HEIGHTS differ — the volume EQUATIONS are correct
+Per-tree NOTRIPLE differential (live `fort.16` VS-dump at vols.f:191 vs jl CRVOLDUMP in compute_volumes_cr!; stand-1
+s1.key NOTRIPLE). Matched 76 trees on (sp, d):
+  - **Volume function is bit-exact**: matched on (sp,d,h), Δtcf ≈ ±0.1 both directions, net +0.4 over 62 trees — noise.
+    NVB (NVB0000015/746, NVBM240119/330093 — the DOMINANT ~66 trees) AND FW2 (300FW2W122, only 13 sp13 trees) both
+    reproduce live tcf. ⇒ the SF_HS/FW2 saga was chasing a MINORITY path; both methods are correct.
+  - **Heights differ**: matched on (sp,d) only, 39/76 trees h-bit-exact, 37 differ ±0.1–1.4 ft, and **Δtcf tracks Δh
+    linearly** (Δh≈0 ⇒ Δtcf≈0; sp13 d=10.98 Δh=−1.4 ⇒ Δtcf=−0.30, the largest). Net Δh slightly negative (jl low) ⇒
+    net Δtcf −2.7.
+Full-column stand-1 .sum confirms the causal chain: 1990 bit-exact; 2000 ONLY TopHt 68/69 differs (TPA/BA/SDI/CCF/QMD
+all bit-exact) yet TCuFt −4 ⇒ per-tree heights, not diameters; 2020+ TPA diverges (486/497 = self-thin tail) dragging
+BA/SDI/vol down.
+
+### VERDICT: CHUNK 8 volume is bit-exact-or-cornered. There is NO volume-code bug.
+The volume equations (NVB/NSVB, FW2/Flewelling, DVE/Gevorkiantz) reproduce live per-tree cuft given matching d,h. The
+crt01 .sum volume deficit is 100% downstream of the ALREADY-CORNERED growth-tail residuals: (a) small per-tree height
+residuals (ZZRAN RNG ch9 + AVHT40/RDPSRT tie-break, ±0.1–1.4 ft) and (b) the self-thin TPA tail at 2020+. Both are the
+accepted class from the growth core. ⇒ The ~435-line SF_HS-Newton port is UNNEEDED; the bark-source fix is faithful but
+inert-to-slightly-worse and stays reverted; `_fw2_sf_yhat_sl` remains inert. META: two turns chased a volume "bug" that
+was the height residual bleeding through — the fix was to MEASURE per-tree tcf-vs-Δh, which localized it in one shot.
