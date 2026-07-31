@@ -3475,3 +3475,16 @@ FFE-fuels subsystem trace (fmcwd/fmsnag→cwd + fmcba decay), not a quick fix. I
 (jl vs live: initial cr_dead_fuel_loading, then the per-cycle mortality→cwd add + decay) to find where the ~2.6×
 deficit + erraticness originate. Committed so far: 5 cover-type rules (LPCT bit-exact, PJCT close); OBCT/PPCT biomass +
 ASCT-understory deferred; F3 fuel dynamics + the 2 biomass cover types are the remaining FFE surface.
+
+## F3 down-wood fuel — ROOT BOUNDED (year-tagged jl vs live): accumulation deficit, NOT initial load
+Year-tagged crt01 down-wood fuel (jl FUELDUMP vs live FVScr_cfmd2 with IYR):
+  1993 (INITIAL): jl small 4.533 / large 16.703  vs  live 4.617 / 16.256  → MATCH (cr_dead_fuel_loading CORRECT).
+  then jl LARGE decays away: 2003 13.0 · 2013 11.7 · 2023 5.65 · 2033 2.85 · 2043 1.59;  live HOLDS ~16-20.
+⇒ the deficit is the per-cycle ACCUMULATION: jl's down-wood decays but is NOT replenished at live's rate. The
+snag→cwd falldown IS wired (update_snags! adds fallen-snag Jenkins biomass to fire.cwd; the "CWD2B pending" note is
+only the CROWN-debris size-1-5 path, not the snag bole), so it is NOT a missing path — jl's NET replenishment
+(mortality→snag→fall→cwd) is simply far below live's, so decay wins. This is a SHARED-ENGINE FFE-fuels issue (not
+CR-specific; per doctrine #5 CR reuses the shared engine), and it's the blocker for the non-MCCT cover types
+(SFCT/WSCT/ASCT — tips _fmdyn model 8-vs-10) + crt01's byram ~5%. NEXT: per-cycle trace of the SNAG POOL (creation
+from mortality vs snag-fall density vs cwd decay rate) jl vs live on crt01 to find which of the three is off. Bounded
+but multi-step FFE-fuels trace. Temp oracle FVScr_cfmd2 removed; tree clean.
