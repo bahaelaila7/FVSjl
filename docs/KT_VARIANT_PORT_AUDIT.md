@@ -172,3 +172,20 @@ MAPLOC(10,11)=11 groups of 10; OBSERV(9,11)=11 groups of 9. E.g. DGHAB species1(
 implements the DDS eqn (dgf.f:341) reusing shared stand-stats + KKTYPE->MAPHAB->ISPHAB->DGHAB (chunk-2 stored
 KKTYPE in habitat_code) + KOTFOR->MAPLOC->ISPFOR->DGFOR + elev/slope-aspect DGCON terms; validate per-tree WK2
 vs live via relink_kt.sh instrumented dgf.o (CR DGFTRC recipe) on the 40 IE stands.
+
+## Chunk 3 — coefficients EXTRACTED+VERIFIED; diameter_growth! implementation scoped (LS template)
+src/variants/kootenai/dg_coefficients.jl: all 23 arrays parsed+spot-verified vs source (DGLD/DBHCH(repeat-
+syntax)/ICRLIM/DGHAB[,1]/DGFOR[,1] exact). The transcription risk (the big chunk-3 hazard) is ELIMINATED.
+IMPLEMENTATION TEMPLATE = LS (src/variants/lakestates/diameter_growth.jl) — KT is Wykoff like LS/CS, NOT CR
+GENGYM. LS provides: dgf!(s, ::LakeStates) fills scratch.wk[2,i]=ln(inside-bark DDS) per tree; ls_dgcons!(s)
+computes per-species dg_const. KT dgf!(::Kootenai) TODO (mirror LS):
+  kt_dgcons!: dg_const[sp] = DGHAB[MAPHAB[KKTYPE,sp], sp] + DGFOR[MAPLOC[KOTFOR,sp], sp] + DGEL[sp]*ELEV +
+    DGEL2[sp]*ELEV^2 + (DGSASP[sp]*sin(ASP)+DGCASP[sp]*cos(ASP)+DGSLOP[sp])*SLOPE + DGSLSQ[sp]*SLOPE^2
+    (+ ln(COR2) calib). KKTYPE from plot.habitat_code (chunk-2 stored it there).
+  dgf! per tree: DDS = dg_const[sp] + COR[sp] + DGCCFA[sp]*RELDEN(sp11:0.01*) + DGLD[sp]*ln(D) +
+    CR*(DGCR[sp]+CR*DGCRSQ[sp]) + DGDBAL[sp]*BAL/ln(D+1) + CCFSQ[sp]*CCF2 + DGDS[sp]*D^2 + DGLBA[sp]*ln(BA) +
+    (DGPCC1[sp]*DUM1+DGPCC2[sp]*DUM2)*PCCF1; BAL=(1-PCT/100)*BA (sp11:/100); clamp>=-9.21;
+    inside-bark: diagro=sqrt(D^2+exp(DDS))-D, then WK2=ln((D*BR+diagro)^2-(D*BR)^2) using BR=KT_BKRAT[sp].
+  Need from shared stand-stats: RELDEN, CCF2, PCCF1, DUM1/DUM2, BA, PCT, CR, D — confirm availability/definitions
+  vs LS dgf! (BAGE5/BALC etc. may differ; KT uses raw BA + PCCF1). Then wire loader PV_CODE->habitat_code +
+  per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh instrumented dgf.o) on 40 IE stands.
