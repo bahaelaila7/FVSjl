@@ -505,14 +505,17 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     NSP = 38
     ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)
     fmtba = zeros(Float32, NSP)                     # per-species BA (FMTBA — LPPDOM)
-    dbhba = 0f0                                     # BA-weighted Σ(dbh·ba) for the first-cut structure class
+    sumtpa = 0f0; sumd = 0f0; sumd2 = 0f0           # ΣFMPROB, Σ(FMPROB·DBH), Σ(FMPROB·DBH²) — avg DBH / QMD
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        sp = Int(t.species[i])
-        x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+        sp = Int(t.species[i]); d = t.dbh[i]
+        x = t.tpa[i] * d * d * 0.0054542f0
         ctba[_cr_fm_covtype(sp)] += x
         (1 <= sp <= NSP) && (fmtba[sp] += x)
+        sumtpa += t.tpa[i]; sumd += t.tpa[i] * d; sumd2 += t.tpa[i] * d * d
     end
+    avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
+    qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
     stndba = sum(ctba)
     # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343)
     ict = 7
@@ -531,13 +534,50 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # IFMST structure class = FMSSTAGE (sstage.f) — already ported + validated bit-exact vs the SSTAGE
     # "Structural statistics" report as `structure_class`. Called with the CR fmcfmd params
     # (fmcfmd.f:388-398): GAPPCT=20, SSDBH=5, SAWDBH=18 (12 for lodgepole ICT=6), CCMIN=5, TPAMIN=200,
-    # PCTSMX=30 — distinct from the STRCLASS-report defaults (gappct=30, sawdbh=25). NOTE (open): on
-    # crt01 this returns IFMST=2 where live FMSSTAGE gives 3 (→ MCCT picks model 8 not 10, the 144-vs-93
-    # residual) — a strata-count/threshold difference under investigation.
+    # PCTSMX=30 — distinct from the STRCLASS-report defaults (gappct=30, sawdbh=25). (The crown-width fix
+    # in fmcba/structure_class — cr_cwcalc, not the 0.5-default crown_width — makes this return the right
+    # class, e.g. crt01 MCCT → IFMST 3 → model 10.)
     sawdbh = ict == 6 ? 12f0 : 18f0
     ifmst = structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
+    imodty = Int(s.plot.model_type)
     eqwt = zeros(Float32, _FMD_ICLSS)
-    if ict == 7                                    # MCCT mixed conifer (fmcfmd.f:827-869, CR)
+    if ict == 2                                    # PJCT pinyon-juniper (fmcfmd.f:530-543, CR) — pure PERCOV
+        if percov <= 25f0
+            eqwt[2] = 1f0
+        elseif percov <= 35f0
+            eqwt[2] = 1f0 - (percov - 25f0) / 10f0; eqwt[5] = 1f0 - (35f0 - percov) / 10f0
+        elseif percov <= 45f0
+            eqwt[5] = 1f0
+        elseif percov <= 55f0
+            eqwt[5] = 1f0 - (percov - 45f0) / 10f0; eqwt[6] = 1f0 - (55f0 - percov) / 10f0
+        else
+            eqwt[6] = 1f0
+        end
+    elseif ict == 4                                # WSCT white spruce (fmcfmd.f:671-690, CR)
+        if percov <= 40f0
+            eqwt[2] = 1f0
+        else
+            (ifmst >= 4 && avgdbh > 12f0) ? (eqwt[10] = 1f0) : (eqwt[8] = 1f0)
+        end
+    elseif ict == 5                                # SFCT spruce-fir (fmcfmd.f:695-727, CR)
+        if ifmst == 0
+            eqwt[2] = 1f0
+        elseif ifmst == 1
+            qmd > 1f0 ? (eqwt[5] = 1f0) : (eqwt[2] = 1f0)
+        elseif ifmst == 2
+            eqwt[8] = 1f0
+        else                                       # IFMST 3–6
+            eqwt[10] = 1f0
+        end
+    elseif ict == 6                                # LPCT lodgepole (fmcfmd.f:742-759, CR)
+        if ifmst == 0 || ifmst == 1 || ifmst == 5
+            eqwt[5] = 1f0
+        elseif ifmst == 2
+            eqwt[8] = 1f0
+        else                                       # IFMST 3,4,6
+            eqwt[10] = 1f0
+        end
+    elseif ict == 7                                # MCCT mixed conifer (fmcfmd.f:827-869, CR)
         if lppdom
             eqwt[9] = 1f0
         elseif ifmst == 0
@@ -558,9 +598,14 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 eqwt[8] = 1f0 - (55f0 - percov) / 10f0
             end
         end
+    elseif ict == 8 && ctba[8] / max(1f-3, stndba) > 0.80f0   # ASCT aspen-DOMINANT (>80% BA, fmcfmd.f:938-944)
+        imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)
     end
-    # TODO: OBCT/PJCT/PPCT/WSCT/SFCT/LPCT/ASCT cover-type rules (fmcfmd.f:413-955) — not yet
-    # ported; those stands currently fall through to natural-candidates-only (approximate).
+    # TODO: OBCT (413-518) / PPCT (562-641) rules are BIOMASS-heavy (live/dead crown+snag biomass BL/BD) and
+    # the ASCT conifer-understory branch (946+) — not yet ported; those stands fall through to natural-fuel
+    # candidates only. PJCT/WSCT/SFCT/LPCT/ASCT-dominant + MCCT are ported (LPCT validated bit-exact vs live;
+    # SFCT/WSCT/ASCT diverge PENDING the F3 down-wood-fuel fix — jl's cwd pools read ~2.6× low, which tips
+    # _fmdyn's model-8-vs-10 choice near the fuel boundary; the rules themselves are faithful transcriptions).
     # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
     eqwt[10] = 1f0
     eqwt[12] = 1f0

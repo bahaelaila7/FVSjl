@@ -3444,3 +3444,22 @@ consumes param 4 as ispcut. AFTER: cut-only 2010 TPA 503/503 BA 117/117 BIT-EXAC
 — any species-targeted diameter/height thin was cutting everything. Suite check running (numeric/blank species fields
 unchanged ⇒ decode gives the same index; only alpha-species thins change, toward correct/live).
 ⇒ ESTABLISHMENT (#2) COMPLETE: PLANT/NATURAL/SPROUT all bit-exact-or-cornered vs live.
+
+## FFE non-MCCT cover-type rules — 5 more ported; LPCT bit-exact; SFCT/WSCT/ASCT root-caused to F3 fuel (2026-07-31)
+Ported the 5 SIMPLE (non-biomass) CR cover-type rules into cr_select_fuel_models (fmcfmd.f CASE): PJCT pinyon-juniper
+(pure PERCOV, :530), WSCT white-spruce (:671), SFCT spruce-fir (:695), LPCT lodgepole (:742), ASCT aspen-dominant>80%
+(:938). Added avg-DBH/QMD stats to the BA loop. Self-built single-species validation stands (crt01.tre with species col
+34-36 swapped, fire keyfile) run through BOTH jl and live FVScr_clean:
+  - LPCT (lodgepole): fire 2010 TPA 54/54 BA 33/33 BIT-EXACT all cycles (only TopHt AVHT40 tail). ✓
+  - PJCT (pinyon): 2010 TPA 43/38 (~13%, close).
+  - SFCT (spruce): 2010 jl TPA 91 vs live 0 (total kill); WSCT jl 122 vs live 46; ASCT jl 586/BA34 vs live 501/BA67.
+ROOT-CAUSED the SFCT/WSCT/ASCT divergence (NOT the rules — they're faithful): live SFCT fire uses FMD=10 (heavy→total
+kill) even though the IFMST rule sets EQWT(8), because the always-added natural candidates (10,12) + the HEAVY actual
+down-wood fuel (live small=6.8/large=15.7) resolve _fmdyn to 10. jl retains 91 = it resolved to model 8 ⇒ jl's fuel
+point is LIGHTER ⇒ the ★ F3 DOWN-WOOD-FUEL DEFICIT (jl cwd pools ~2.6× low, small 2.965/large 12.998 vs live 7.776/
+20.032 on crt01) tips _fmdyn's 8-vs-10 choice near the boundary. So F3 (down-wood fuel: cr_dead_fuel_loading initial +
+mortality→cwd accumulation + decay) is the REAL next bug — it fixes SFCT/WSCT/ASCT AND tightens crt01's byram. (Earlier
+I mis-judged F3 as low-value because on crt01/MCCT the fuel was heavy enough that BOTH picked 10; on boundary stands it
+flips the model.) Rules committed as faithful; SFCT/WSCT/ASCT flagged PENDING F3. LPCT/PJCT/MCCT good. OBCT/PPCT (biomass)
++ ASCT-understory deferred. META: repeated the git-checkout-loses-uncommitted-work blunder removing an instrument —
+re-applied via Edit. ALWAYS remove instruments with Edit, never git checkout, when the file has uncommitted work.
