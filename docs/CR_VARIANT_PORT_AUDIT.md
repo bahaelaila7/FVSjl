@@ -4182,3 +4182,22 @@ bit-exact-or-cornered end-to-end; 10 bugs fixed; NO remaining reducible bug clas
 = cornered cross-variant (RDPSRT self-thin tie-break, growth-ULP vol oscillation, ±1 rounding, ultra-dense-seedling
 straddle). Downstream leaves still unported: FFE fuel/fire TABLES (crown-biomass FMCROWW done) + automatic-ESTAB
 natural in-growth model (keyword regen done).
+
+### FFE fire chunk — SIMFIRE fire-kill divergence LOCALIZED to fuel-model weighting (next chunk)
+crt01 STAND-4 (FFE TEST: SNAGINIT/SIMFIRE/PotFIRE/fuel+burn+mort reports) differential: 1993 inventory BIT-EXACT,
+2003 bit-exact-or-±1, but 2013 (AFTER the 2003 SIMFIRE) jumps — TPA matches (93/93) yet BA jl62/live57 (+9%),
+SDI/CCF/QMD all jl-HIGH: same tree COUNT killed, jl kept BIGGER trees ⇒ jl's fire mortality over-killed SHORT
+trees. LOCALIZED by measurement (instrumented jl fmburn! + live crt01.out BURN CONDITIONS report):
+- CR fire bark `_CR_FM_BARK_B1` == cr/fmbrkt.f EXACTLY (all 38) ⇒ bark RULED OUT.
+- jl 2003 fire: flame 4.53 / scorch 19.62 vs LIVE flame 4.4 / scorch 19.0 (~+3%). Higher scorch kills more of the
+  short trees' crowns ⇒ bigger survivors ⇒ the +9% BA. Direction consistent.
+- Back to root: jl Byram ~9102 vs live ~8537 (+6.6%). jl selects fuel models fm10@0.929 + fm12@0.071 vs LIVE
+  fm10@0.95 + fm12@0.05 — and fm12's Byram (22728) is ~3× fm10's (8064), so jl OVER-WEIGHTING fm12 by ~2%
+  inflates the combined Byram 6.6% → flame/scorch +3%.
+ROOT = the CR surface FUEL-MODEL WEIGHTING (FMCFMD3/FMDYN `select_fuel_models`): jl puts ~2% more weight on the
+hot model (12) than live. That weight is driven by the DOWN-WOOD fuel load by size class (fuel accumulation +
+decay, _FM_DKR_CR), so the residual is a small CR fuel-load / dynamic-weighting difference. This is the FFE
+fuel-dynamics chunk (a fresh multi-step reconciliation of FMDYN fuel loads + model weighting for CR). BOUNDED:
+only affects SIMFIRE/fire scenarios (broad FIA grow regime has no fire). NEXT: differential jl vs live FUEL
+LOADING by size class @ the fire year (live surface total 11.3 t/ac @2003) to pin the fuel-accumulation/decay
+step feeding the fm12 over-weight. Analogous to the LS FMDYN under-weight fix (fuel_decay.jl:32/81).
