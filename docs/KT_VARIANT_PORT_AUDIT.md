@@ -156,3 +156,19 @@ shared stand-stat computation (BAL/CCF/RELDEN/PCCF1/CR — same as eastern engin
 KKTYPE->MAPHAB->DGHAB path (chunk-2 site_index stored KKTYPE in habitat_code); (3) wire loader PV_CODE->
 habitat_code; (4) per-tree WK2 instrument-replay vs live FVSkt (relink_kt.sh instrumented dgf.o) on the 40 IE
 stands — same recipe as CR's DGFTRC. This is the LARGE core chunk (careful transcription + per-tree diff).
+
+## Chunk 3 — DATA block inventory + layouts CONFIRMED (extraction is mechanical)
+All kt/dgf.f DATA blocks located (line): DGLD(93) DGCR(96) DGCRSQ(99) DGDBAL(102) CCFSQ(105) DGPCC1(108)
+DGPCC2(111) DGLBA(114) DBHCH(117) ICRLIM(119) OBSERV(121) MAPHAB(138) DGHAB(180) DGCCFA(206) MAPLOC(213)
+DGFOR(225) DGDS(241) DGCASP(257) DGSASP(260) DGSLOP(263) DGSLSQ(266) DGEL(269) DGEL2(272).
+Scalar per-species sources (dgf.f:294-321): DGCCF2=CCFSQ(ISPC); DGLBAS=DGLBA(ISPC); DGD2=DGDS(ISPC);
+DGPC1=DGPCC1(ISPC)*DUM1; DGPC2=DGPCC2(ISPC)*DUM2; DGCCF(ISPC)=DGCCFA(ISPC); CONSPP includes DGCCF*RELDEN.
+LAYOUTS confirmed: 1D arrays = 11 values (e.g. DGLD = 0.89068,0.71363,...,0.89778). 2D arrays fill column-major
+= grouped by SPECIES (each species gets its inner-dim values in order): DGHAB(9,11)=11 groups of 9 (habitat-
+class intercepts); DGFOR(7,11)=11 groups of 7; MAPHAB(175,11)=11 groups of 175 (INTEGER KKTYPE->ISPHAB map);
+MAPLOC(10,11)=11 groups of 10; OBSERV(9,11)=11 groups of 9. E.g. DGHAB species1(WP) classes1-9 =
+0,0.46877,0.36827,0.25380,0,0,0,0,0. DGFOR species1 = 1.76061,0,0,0,0,0,0.
+=> Extraction now purely mechanical (parse DATA -> tokens -> reshape by species). Then diameter_growth!(::Kootenai)
+implements the DDS eqn (dgf.f:341) reusing shared stand-stats + KKTYPE->MAPHAB->ISPHAB->DGHAB (chunk-2 stored
+KKTYPE in habitat_code) + KOTFOR->MAPLOC->ISPFOR->DGFOR + elev/slope-aspect DGCON terms; validate per-tree WK2
+vs live via relink_kt.sh instrumented dgf.o (CR DGFTRC recipe) on the 40 IE stands.
