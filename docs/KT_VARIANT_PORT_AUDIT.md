@@ -826,3 +826,14 @@ in KT; KT had CCFSQ·RELDEN²+DGLBA·lnBA+DGPCC·PCCF). ⇒ IE dgf!(::InlandEmpi
 IE coefs + aspen paths), verify vs live FVSie. Progress: IE chunk 0 (singleton, commit 940cfd1) + chunk 1 (species
 CSV loads, identity real / coefs placeholder, commit 372c242) DONE. Mortality/crown/regent/volume reuse KT; dgf/htgf
 are IE-specific (measured). Next: port IE dgf + extract IE coefs, validate vs oracle.
+
+## IE chunk-3 DG — fully characterized (BA100 + coefficient family)
+BA100 = BA/100 (ie/dgf.f:435) ⇒ IE BAL = (1−PCT/100)·(BA/100), NOT KT's raw BA — key term-scaling difference.
+IE DG coefficient DATA (ie/dgf.f, 23 species each): DGLD DGCR DGCRSQ DGBAL DGDBAL DGHAB DGCCFA DGFOR DGSASP DGSLOP
+DGEL DGEL2 (+ DGDSQ for the D² term). = KT's coefficient family PLUS DGBAL (direct BAL term), MINUS KT's CCFSQ/
+DGLBA/DGPCC. IE chunk-3 fully scoped: port dgf!(::InlandEmpire) = the NI-form DDS (measured above) + extract the 12
+coefficient arrays × 23 species (same extractor recipe as KT dg_coefficients.jl) + IE DGCON site setup (kt_dgcons!
+analog: DGHAB[MAPHAB]+DGFOR[MAPLOC]+DGEL·ELEV+slope/aspect) + the aspen measured-DG + Utah-aspen paths + IE habitat
+tables (JTYPE 95). Then calibrate (reuse shared DGSCOR) + validate per-tree WK2 vs live FVSie instrument-replay.
+STATE: IE chunks 0(scaffold)+1(CSV loads) DONE; chunk 3 (DG) fully MEASURED+scoped (equation+BA100+coefs), ready to
+extract+port. Mortality/crown/regent/volume reuse KT. Methodology (measure vs live binary chunk by chunk) unchanged.
