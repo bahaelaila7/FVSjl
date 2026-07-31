@@ -3514,3 +3514,18 @@ REMAINING FFE accuracy is gated by TWO items, BOTH outside the finished CR-speci
       validation is F3-confounded (the same _fmdyn fuel sensitivity), so best done AFTER F3.
 ⇒ The CR FFE fire is FUNCTIONAL and its CR-specific surface is bit-exact-or-cornered; the residual accuracy is a
 shared-engine fuels dependency + 2 F3-gated biomass rules. This closes the CR-specific FFE scope for the port.
+
+## ★★ F3 ROOT FOUND + FIXED: CR was missing its DKR decay table (used SN's — 7× too-fast large-wood decay)
+The F3 down-wood collapse was NOT the deep snag-biomass trace feared — it was a MISSING DATA TABLE (exactly the
+moisture-table / LS-DKR class). jl had _FM_DKR (SN) + LS/NE/CS tables but NO _FM_DKR_CR ⇒ CR fell through to the SN
+default. SN large-wood DKR (classes 4-9, decay-class-1) = 0.11/yr; live CR (cr/fmvinit.f:83-88) = 0.015/yr — 7× too
+fast ⇒ jl decayed CR's large down-wood at ~69%/cycle vs live's ~14% ⇒ the pool collapsed (crt01 large 16.7→1.6).
+FIX: added _FM_DKR_CR (cr/fmvinit.f:80-112: woody 0.12/0.12/0.09/0.015×6, decay-classes 2-4 = ×0.45 CR/UT modifier,
+litter 0.5, duff 0.002) + _fm_dkr_default(::CentralRockies). RESULT: jl's crt01 down-wood now HOLDS (large 16.7→23→23→
+22→21→20) matching live's steady ~18-20 — the ~2.6× deficit is GONE (now ~15% high, a small secondary residual).
+Fire .sum effect is MIXED (sp18 pattern — correct fuel exposes smaller secondary factors): WSCT much improved
+(2010 TPA 122→73, live 46); crt01 MCCT 98→85 (live 93 — overshot; the ~15% fuel-high + fire-intensity precision);
+SFCT still 91 (its IFMST-2→model-8 needs the fuel even heavier to flip); ASCT ~same. So the DKR fix is the DOMINANT
+F3 correction (fuel fidelity ~60%-deficit → ~15%-high) and FAITHFUL (kept per doctrine #4); the remaining FFE fire
+residuals are now smaller secondary factors (the ~15% accumulation overshoot + per-cover-type fire-intensity). CR-gated
+(_fm_dkr_default(::CentralRockies)) ⇒ no eastern impact. Suite running.

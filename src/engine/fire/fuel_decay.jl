@@ -74,11 +74,31 @@ const _FM_DKR_CS = Float32[
     0.65 0.65 0.65 0.65     # 10 litter (cs/fmvinit.f:90, == SN)
     0.002 0.002 0.002 0.002 # 11 duff
 ]
-# Variant-default DKR: SN uses `_FM_DKR`; LS/NE/CS use their own faithful tables (ls/ne/cs fmvinit.f).
+# Central Rockies annual decay rates (cr/fmvinit.f:80-112). Decay class 1: woody 0.12/0.12/0.09 (classes 1-3),
+# 0.015 (classes 4-9 = LARGE wood, "agrees with published values for large CWD, Brown et al. 1998"); litter 0.5,
+# duff 0.002. Decay classes 2-4 are the class-1 rate × 0.45 (the CR/UT modifier, fmvinit.f:108-112). The SN
+# default decayed CR's LARGE down-wood ~7× too fast (0.11 vs 0.015 at decay class 1) ⇒ the down-wood pool
+# collapsed over cycles (crt01 large 16.7→1.6) ⇒ FMDYN under-weighted the heavy model on non-MCCT fire stands
+# (SFCT/WSCT/ASCT model 8-vs-10) + the crt01 byram residual. This is the CR analogue of the LS DKR fix above.
+const _FM_DKR_CR = Float32[
+    0.12   0.054   0.054   0.054      # 1  (<0.25")
+    0.12   0.054   0.054   0.054      # 2  (0.25-1")
+    0.09   0.0405  0.0405  0.0405     # 3  (1-3")
+    0.015  0.00675 0.00675 0.00675    # 4  (3-6")   — LARGE CWD 0.015/yr (Brown et al. 1998)
+    0.015  0.00675 0.00675 0.00675    # 5  (6-12")
+    0.015  0.00675 0.00675 0.00675    # 6  (12-20")
+    0.015  0.00675 0.00675 0.00675    # 7  (20-35")
+    0.015  0.00675 0.00675 0.00675    # 8  (35-50")
+    0.015  0.00675 0.00675 0.00675    # 9  (>50")
+    0.5    0.225   0.225   0.225      # 10 litter (cr/fmvinit.f:99)
+    0.002  0.0009  0.0009  0.0009     # 11 duff (cr/fmvinit.f:100)
+]
+# Variant-default DKR: SN uses `_FM_DKR`; LS/NE/CS/CR use their own faithful tables (…/fmvinit.f).
 _fm_dkr_default(::AbstractVariant) = _FM_DKR
 _fm_dkr_default(::LakeStates) = _FM_DKR_LS
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
 _fm_dkr_default(::CentralStates) = _FM_DKR_CS
+_fm_dkr_default(::CentralRockies) = _FM_DKR_CR
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """
