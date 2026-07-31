@@ -350,3 +350,18 @@ NOT GROSPC (hypothesis retracted, doctrine #2: measure don't infer). The KT CCF 
 IMPACT: small — RELDEN feeds only DGCCFA*RELDEN + CCFSQ*RELDEN^2 in DDS; DG WK2 already ~1% (was ~5%). Instrument
 the LIVE dense.f to print RELDSP/RELDEN derivation (relink) to settle (a) vs CCF-sum. The KT CCF polynomial +
 stand_ccf branch are committed (real: RELDEN 2.05->79.27); the final normalization/definition is the open item.
+
+## Chunk 5 — RELDEN CONFIRMED = Σ CCFT (dense.f:199, source-read); value gap = backdate/pass-timing
+Settled by reading dense.f (not inferring): RELDSP(ISPC)=RELDSP(ISPC)+CCFT (dense.f:199); RELDEN=RELDM1=RELDT=
+Σ RELDSP = Σ CCFT (the CCF sum, CCFT already ×P). So RELDEN IS the CCF sum (both the GROSPC and SDI-based
+hypotheses are DISPROVEN — RELDSP has NO PI/GROSPC, unlike PCCF at :207). => jl's Σ(kt_tree_ccf·tpa)=79.27 is
+the RIGHT quantity; the 98.39 gap is a DBH/tree-set difference at dgf! time:
+  - DGDRIV backdates DBH for the CALIBRATION pass; dense.f (RELDEN) runs on that stand. jl's stand_ccf(s) at
+    dgf! reads t.dbh — need to confirm it's the SAME (backdated) DBH the live calibration-pass dgf sees, and the
+    SAME tree set. jl relden 79.27(cyc1)/143.64(cyc2): the cyc1 value should match live's calibration-pass 98.39.
+  - LIKELY: jl stand_ccf uses CURRENT dbh but live RELDEN is on a DIFFERENT-pass/backdated dbh, OR small trees
+    (D<0.1 skipped) differ. DIAGNOSE: print jl per-tree (sp,d,tpa,kt_tree_ccf) at dgf! and diff vs a live
+    dense-instrument (relink printing per-tree CCFT+D) — settle whether it's DBH-backdate, tree count, or a
+    small-tree threshold. IMPACT ~1% on DG WK2 (RELDEN in DGCCFA·RELDEN + CCFSQ·RELDEN²).
+VERDICT: DG equation+coefficients+CR-units+CCF-definition all CONFIRMED correct; the last ~1% is the RELDEN CCF
+sum's input DBH/tree-set at dgf! time (a shared-driver backdate-timing detail, not a KT-coefficient bug).
