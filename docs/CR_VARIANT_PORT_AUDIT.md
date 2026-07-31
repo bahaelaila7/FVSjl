@@ -3636,3 +3636,27 @@ CentralRockies with the fmcrow.f:161 SPIW split (CASE 20:22,28,38 keep FMCROWE, 
 transcription-and-diff chunk (1273 lines, per-species) — fresh-context. Validate: crt01 litter trajectory +
 the per-tree foliage vs a live FMCROWW instrument. This also likely tightens the standing-dead crown (CWD2B)
 and the 2003 standing-dead>3" 5% gap. The 5 snag-volume paths + fuel DATA tables remain faithful.
+
+## FMCROWW port SPEC (ready for the next chunk — all prerequisites gathered)
+The crown-biomass port surface for CR (root of the litter over-accumulation):
+DISPATCH (fmcrow.f:143-166): per tree, SPIW = ISP(I) = the CR species index (1-38); SPIE = ISPMAP(SPIW) =
+the crown-group index. Then `SELECT CASE(SPIW): CASE(20:22,28,38) → CALL FMCROWE(SPIE,SPIW,...); CASE DEFAULT
+→ CALL FMCROWW(SPIE,...)`. So CR species {20,21,22,28,38} keep the Jenkins FMCROWE (jl's current
+crown_biomass, keyed by SPIE=ls_spi); ALL OTHERS use FMCROWW keyed by SPIE (the 1-25 group).
+ISPMAP (fmcrow.f:100-103), CR species 1..38 → crown group:
+  1,1,3,4,4,24,7,8,9,11, 11,12,13,14,15,16,18,18,18,41, 17,17,22,22,22,22,22,43,16,16, 16,16,12,12,12,13,11,17
+  + Black Hills/Nebraska NF override: KODFOR 203/207 ⇒ ISPMAP(13)=25 (Black Hills PP crown eqs).
+  (groups 41,43 for sp20/sp28 are >25 ⇒ those go to FMCROWE, consistent with the SPIW dispatch.)
+FMCROWW (fmcroww.f, 1273 lines, Brown & Johnston 1976 Debris Prediction System): output XV(0:5) = foliage +
+5 woody crown sizes (kg→the caller's units). Per SPI (=SPIE, groups 1-25) it computes:
+  - SMALL trees (D ≤ DCTHGH) and LARGE trees (D > DCTHGH), interpolated by SMWGT=ALGSLP(D,XVAL,YVAL,3) over
+    [DCTLOW, DCTHGH] (breakpoints per species, fmcroww.f:140-167: default 0.5/1/2; bristlecone/pinyon/RMjuniper
+    9,12,16 =1/2/3; Gambel oak 22 =3/4/5; lodgepole 11 =0.5/1/3).
+  - TOTWT (total crown wt) from H or D (per-SPI SELECT CASE, e.g. EXP(a+b·LOG(H))), then cumulative live-crown
+    proportions P1-P4 (foliage→size4) per SPI, split into XV; plus DEADWT + DP1-3 for the dead crown.
+  - Black Hills PP (group 25) has its own TFOL/T1HRL/T1HRD block.
+PORT PLAN: add cr_crownw (FMCROWW) + a CR branch to crown_biomass dispatching on the SPIW split; SPIE from a
+CR ispmap table (data/centralrockies/). VALIDATE with a LIVE FMCROWW instrument (dump SPI,D,H,ITRNC,IC,HP→XV
+for crt01 trees via the relink recipe) diffed per-tree, THEN the crt01 litter trajectory vs live ALL FUELS.
+LARGE fresh-context chunk (1273 lines, per-species small+large+interp+dead). This is the last known CR FFE
+fidelity gap; growth/mortality/volume core + snag volume + fuel data tables + fire timing are all done.
