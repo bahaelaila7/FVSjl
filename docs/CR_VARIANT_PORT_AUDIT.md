@@ -4261,3 +4261,23 @@ at the 2003 SIMFIRE, compare the fire-KILLED TPA BY DBH CLASS jl vs live (instru
 fraction (PSBURN) draw, not the fuel model. META: a matched intermediate (flame) with an unmatched output (BA)
 proved the fuel-weight chain was a RED HERRING for the .sum — should have checked the .sum sensitivity to the
 fuel fix BEFORE the multi-step fuel-load localization.
+
+### FFE fire divergence FIXED — 11th CR bug: fire-mortality grouping (aspen used SN Regelbrugge-Smith, not Reinhardt)
+The re-scoped measurement PAID OFF: instrumented jl fmburn! fire-kill BY DBH CLASS + read live's MORTALITY REPORT
+(crt01.out) — same-count-different-size kill localized to the FMEFF per-tree mortality, NOT the fuel/flame:
+  class      live kill/pre   jl-before   jl-after-fix
+  0-5"       45/50           50.3/50.8   47.3/50.8
+  5-10"      150/207         154/207.6   153/207.6
+  10-20"     17/56           9.3/57.0    17.1/57.0   ← the tell: jl UNDER-killed large trees 9 vs 17
+  killed BA  62.94           58.6        63.9
+ROOT (cr/fmeff.f:196): the Regelbrugge-Smith DBH+char-height mortality groups (1-5) are gated
+`IF VARACD .EQ. 'SN' .OR. 'CS'` — CR (like NE/LS/ON) uses the base REINHARDT crown-scorch+bark logistic (fmeff.f:
+188, group 6) for EVERY species. jl's fire_tree_mortality fell CR through to fire_mortality_group(sp) (the SN
+species map), which mis-assigned CR sp20 (ASPEN) → SN group 4 (red maple R-S) and sp27 → group 3 ⇒ the wrong
+logistic UNDER-killed large aspen (a major FFE-stand component) ⇒ +9% surviving BA. FIX (fire_effects.jl): gate CR
+into the group-6 (Reinhardt-for-all) branch alongside NE/LS. VALIDATED crt01 STAND-4: fire-kill by class now
+matches live (10-20" 17.1 vs 17, killBA 63.9 vs 62.94); .sum 2013 BA 62→56 (vs live 57, was +9% now −1.8%), all
+metrics within ±1-4 through the run. Residual (TPA 89/93, TopHt ±1) = PSBURN per-tree-draw tie-break (cornered).
+Zero-regression (Pkg.test 1918/140-preexisting/3 identical; CR-gated). ★ META: the CORRECTED root-cause (prior
+entry: "driver is FMEFF selection, not fuel") was RIGHT — the fuel-weight chain WAS a red herring; the fix was one
+line once I compared the kill-by-size-class (live MORTALITY REPORT gives it directly, no relink needed).

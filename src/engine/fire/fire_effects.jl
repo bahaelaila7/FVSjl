@@ -123,7 +123,12 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     # (fmeff.f:196); NE skips them and uses the base Reinhardt logistic for every species.
     # The Regelbrugge-Smith groups are gated `IF VARACD .EQ. 'SN'/'CS'` — NE and LS/ON skip them
     # (ls/fmeff.f:196) and use the base Reinhardt logistic (group 6) for every species.
-    g = (variant isa Northeast || variant isa LakeStates) ? 6 :
+    # CR gates the Regelbrugge-Smith groups (1-5) to VARACD=='SN'/'CS' ONLY (cr/fmeff.f:196), so CR — like
+    # NE/LS/ON — uses the base Reinhardt crown-scorch+bark logistic (group 6) for EVERY species. jl previously
+    # fell CR through to fire_mortality_group(sp) (the SN species map), which mis-assigned CR sp20 (aspen) to
+    # SN group 4 (red maple Regelbrugge-Smith) and sp27 to group 3 ⇒ the wrong DBH+char-height logistic
+    # UNDER-killed large aspen (crt01 FFE 10-20" kill 9 vs live 17 ⇒ +9% surviving BA).
+    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies) ? 6 :
         variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
