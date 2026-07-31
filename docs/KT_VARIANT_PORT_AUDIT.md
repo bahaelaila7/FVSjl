@@ -667,3 +667,17 @@ LESTB branch in small_tree_growth! (the ITRNIN-interpolated subcycle density + e
 ~360 TPA/cycle (the confirmed 2039+ divergence). Downstream/additive — the growth+mortality+crown CORE is already
 bit-exact. NEXT: establishment (TPA/QMD re-stock) + chunk 8 volume (NVEL, the /0.0). Both are additive leaves on
 the bit-exact core, mirroring CR's finish order (core bit-exact → estab/volume/FFE downstream).
+
+## Chunk 8 (volume) — SCOPE: KT wrongly routes to R8-Clark; needs a western NVEL branch
+compute_volumes! (volume.jl:506) dispatches eastern→compute_volumes_ne!, CR→compute_volumes_cr!, and everything
+ELSE (incl. KT) falls to the Southern R8-Clark path — WRONG for a western variant, and KT's vol_eq is unassigned
+⇒ the .sum volume columns are /0.0. KT volume routes through the SHARED NVEL: kt/sitset.f assigns VEQNNC per
+species via VOLEQDEF(VARACD='KT', IREGN, FORST, DIST, IFIASP, PROD) (Region-1 forest-keyed), then kt/cfvol.f +
+bfvol.f compute through the NVEL driver. So the volume CHUNK = (1) a KT branch in setup_volume_equations! that
+assigns VEQNNC via the KT VOLEQDEF table (Region-1, forest-keyed like the CR data/centralrockies/volume_equations_
+by_forest.csv); (2) a compute_volumes! KT branch routing to the shared NVEL kernels (the equation string dispatches
+to the profile/DVE/Behre model — likely reuses cr_dve_vol / the shared NVEL, KT is Region 1 Northern). Downstream
+LEAF — does NOT affect the bit-exact growth trajectory (TPA/BA/SDI/CCF/TopHt/QMD already match); only the volume
+columns. Stand meta confirmed: FOREST-LOCATION 105 (Clearwater, JFOR[3] ⇒ IFOR=3 ✓), HABITAT 530, AGE 46.
+STATUS: KT growth+mortality+crown CORE bit-exact-or-cornered end-to-end; the TWO remaining chunks (establishment =
+the TPA re-stock; volume = the /0.0) are both scoped, both downstream-additive leaves on the validated core.
