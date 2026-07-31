@@ -4909,3 +4909,18 @@ backdated-dbh + crown-width all interact. Needs a clean per-tree isolation (back
 + dead partition + crown width, live vs jl) in a focused pass. Bounded (1 stand /150), deferred.
 The CR port remains comprehensively bit-exact-or-cornered (18 fixes); this is the sole reducible
 residual, root-region-localized (calibration backdated-density + COR clock) but last-layer-open.
+
+## Oak-con FACTOR-2 FIXED — backdated CCF must INCLUDE the recently-dead (backdated) trees
+
+CLEAN ISOLATION resolved the confound: jl's backdated CCF WITH the recently-dead exposed
+(t.n=nlive+ndead, right after compute_density!) = 121.13 = live RELDM1 EXACTLY (live-only was 68).
+The recently-dead trees were ALIVE at the start of the growth period, so dense.f's RELDM1 counts them
+(history-8 already zeroed). The 18th fix captured _cr_bd_ccf AFTER t.n=nlive (live-only) ⇒ under-
+counted the backdated CCF on stands with recent mortality. FIX: move the _cr_bd_ccf capture to BEFORE
+t.n=nlive (dead-inclusive). CR-ONLY (`_cr_cal &&`, used only in the CR REGCAL block) ⇒ eastern provably
+unaffected. Validated: 1855925743290487 2033 BA 103→111 (live 124; QMD 2.6→2.7); 408704093489998
+(18th-bug stand) UNCHANGED bit-exact; 755568965290487 bit-exact; the ±balanced ZZRAN straddles
+unchanged. Improvement is partial — the residual (111 vs 124) is FACTOR 1 (the small-tree-height COR
+decay CLOCK: jl END `elapsed+sfint` vs live START), which is SHARED + comment-warned ("do NOT fix to
+elapsed+sfint", line 14) and needs eastern revalidation ⇒ still deferred. Factor 2 is the clean,
+confirmed, CR-only piece.

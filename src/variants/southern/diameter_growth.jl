@@ -346,11 +346,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     t.n = nlive + t.ndead
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
-    t.n = nlive
     # CR REGENT height calib uses the BACKDATED CCF (dense.f RELDM1) for its density modifier PCTRED — NOT the
-    # current CCF (regent.f:466 X=AVH·RELDEN/100; RELDEN is the backdated relative density). Capture it here
-    # while dbh is backdated (live trees only); AVH stays CURRENT (not backdated), as in live. (18th-bug fix.)
+    # current CCF (regent.f:466 X=AVH·RELDEN/100; RELDEN is the backdated relative density). Capture it HERE with
+    # the recently-dead (backdated) trees INCLUDED (t.n = nlive+ndead): they were alive at the period start so
+    # dense.f's RELDM1 counts them (history-8 already zeroed above). Live-only omission under-counted the CCF on
+    # stands with recent mortality (68 vs live 121 on 1855925743290487); dead-inclusive = 121.13 = live exact.
+    # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
     _cr_cal && (_cr_bd_ccf = stand_ccf(s))
+    t.n = nlive
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
     end
