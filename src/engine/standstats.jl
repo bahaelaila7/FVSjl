@@ -200,14 +200,21 @@ function point_density!(s::StandState)
     pccf = s.density.point_ccf; ptpa = s.density.point_tpa
     fill!(pccf, 0f0); fill!(ptpa, 0f0)
     pi_f = p.pi; gross = p.gross_space
+    kt = s.variant isa Kootenai
     @inbounds for i in 1:t.n
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
-        cw  = s.variant isa CentralRockies ?
-              cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
-              crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
-                          p.latitude, p.longitude, p.elevation)
-        ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
+        local ccft
+        if kt
+            # KT PCCF uses the same per-tree ccfcal polynomial as RELDEN (kt/ccfcal.f), not crown-width area.
+            ccft = kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        else
+            cw  = s.variant isa CentralRockies ?
+                  cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
+                  crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
+                              p.latitude, p.longitude, p.elevation)
+            ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
+        end
         # dense.f:210-211 accumulates each term as `CCFT*PI/GROSPC` — i.e. (ccft·pi)/gross evaluated
         # left-to-right, NOT ccft·(pi/gross) with a precomputed reciprocal-scale. The two differ by ~1
         # Float32 ULP per term; on the dense estab_pccf points that sub-ULP tips a regen-crown INT(CR·100+0.5)

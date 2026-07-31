@@ -369,11 +369,21 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         rankd = Float32[i <= nlive2 ? saved_dbh[i] : t.dbh[i] for i in 1:ntot]   # current dbh
         wk5   = Float32[i <= nlive2 ? t.dbh[i]^2 * t.tpa[i] :                     # live: backdated
                         (t.history[i] == 8 ? 0f0 : t.dbh[i]^2 * t.tpa[i]) for i in 1:ntot]  # dead: current/0
-        ord = sortperm(rankd; rev = true)
+        # Rank order: FVS's IND from `RDPSRT(ITRN,DBH,IND,.TRUE.)` (gradd.f:186 / dense.f PCTILE) is
+        # Scowen's UNSTABLE quicksort — on a current-dbh TIE between a live tree and a same-dbh recently-
+        # dead tree, it can order the dead one first, dropping the live tree below 100th percentile. KT
+        # needs this exact tie-break (validated: a dead 16.1" ties live tree1, live PCT=89.068 not 100).
+        # SN/CR are validated with the stable `sortperm`; keep it for them.
+        if s.variant isa Kootenai
+            ord = Vector{Int32}(undef, ntot)
+            _rdpsrt!(rankd, ord)
+        else
+            ord = sortperm(rankd; rev = true)
+        end
         tot = sum(wk5); cum = 0f0
         if tot > 0f0
             @inbounds for k in ntot:-1:1
-                ii = ord[k]
+                ii = Int(ord[k])
                 cum += wk5[ii]
                 ii <= nlive2 && (t.crown_ratio[ii] = cum / tot * 100f0)
             end

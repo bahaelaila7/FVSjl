@@ -388,3 +388,27 @@ VERDICT: KT DG (chunk 3) is FULLY CORRECT — equation, all coefficients, CR-uni
 the per-tree CCFT all bit-exact vs live. The stand-level ~1% RELDEN/WK2 residual is entirely the shared 3-dropped-
 tree-records bug (fix in the shared FIA loader, benefits all variants; separate from the KT port). Chunk 3 DG:
 DONE + validated (per-tree bit-exact; stand-level pending the shared tree-drop fix). Instrument oracles cleaned.
+
+## Chunk 3 DG — RETRACTION + real per-tree WK2 validation (3 more bugs found & fixed)
+The prior "per-tree bit-exact" verdict was PREMATURE: it verified only RELDEN=ΣCCFT, not the full WK2/DDS.
+Instrument-replay of live's kt/dgf.f (unconditional WRITE after WK2(I)=DDS; relink FVSkt_dgftrc) on stand
+753200841290487 (IE-geography, run through KT both sides) exposed tree1 (sp4 D13.7) jl DDS=3.87 vs live 4.0902.
+Per-term breakdown localized THREE real bugs, each fixed and re-validated bit-exact:
+  1. **DGCON off by 0.378** — `kt_dgcons!` had KOTFOR=0 (forest_idx unset) ⇒ ISPFOR defaulted to 1 vs live 3
+     ⇒ DGFOR −0.16279 vs 0.21551. FIX: ported kt/forkod.f → `kt_forkod!` (KODFOR→KOTFOR, default 8), stored in
+     p.forest_idx, called first in kt_site_index_setup!. DGCON now 0.24915 bit-exact.
+  2. **BAL/PCT (percentile) wrong** — the shared calibration PCT recompute (southern/diameter_growth.jl block
+     ~368) used a STABLE `sortperm`; FVS's dense.f/PCTILE ranks by the UNSTABLE RDPSRT IND, so a recently-DEAD
+     tree (current 16.1", TPA 6) TIES live tree1 (16.1") and RDPSRT orders the dead one FIRST ⇒ tree1 PCT=89.068
+     not 100 ⇒ BAL 8.4826 not 0. FIX: KT-gated `_rdpsrt!(rankd, ord)` in that block (SN/CR keep sortperm). BAL
+     now bit-exact across trees; mid-tree D≥1 population 32/32 bit-exact (matching cr/pccf/bal keys).
+  3. **PCCF1 (point CCF) wrong** — jl 4.30 vs live 123.14: `point_density!` used the eastern crown-width area
+     CCF, not the KT ccfcal polynomial (same bug stand_ccf had). FIX: KT branch using `kt_tree_ccf`. Bit-exact.
+tree1 now DDS=4.090244 = live 4.0902438 BIT-EXACT; all D≥1 large-tree DDS bit-exact.
+RESIDUAL (accepted/deferred): (a) tied small-mid sp10 trees (5.1"/6.0" clusters) show a ±RDPSRT tie-break
+permutation residual (dBAL 0.3–4.5 ⇒ DDS ±0.001–0.012) — the known cornered unstable-sort tie-break class,
+sensitive to input tree order; large trees unaffected. (b) inventory seedlings (D=0.071) carry cr=0 in the calib
+dgf (jl doesn't dub ICR) vs live's CRATET-dubbed crowns ⇒ their (very negative, DG≈0) DDS differs — a chunk-5
+(crown/CRATET init) item, inert for large-tree DG and routed through regent for small trees anyway.
+Full-cycle .sum differential BLOCKED until chunk 4 (height_growth!(::Kootenai)) exists. Chunk 3 verdict:
+large-tree DDS BIT-EXACT-OR-CORNERED per-tree. NEXT: chunk 4 (htgf height growth).

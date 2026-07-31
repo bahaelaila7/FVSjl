@@ -24,8 +24,47 @@ function kt_habtyp(kodtyp_in::Integer)
     return kktype, itype
 end
 
+# kt/forkod.f: translate the user forest LOCATION code (KODFOR) into KT's location subscript KOTFOR
+# (1..10, default 8 "to avoid blowups in REGENT & DGF" per forkod.f:125). KOTFOR feeds the DG/REGENT
+# MAPLOC(KOTFOR,ISPC) location-class lookup; stored in p.forest_idx (kt_dgcons! reads it there).
+function kt_forkod!(p)
+    kodfor = Int(p.user_forest_code)
+    # reservation pseudo-code crosswalk (forkod.f:56-71)
+    kodfor == 8109 && (kodfor = 11300000)   # Kootenai off-res trust -> Kaniksu 113
+    kodfor == 8133 && (kodfor = 11000000)   # Flathead reservation   -> Flathead 110
+    kodfor == 8137 && (kodfor = 11800000)   # Coeur d'Alene res.     -> St. Joe  118
+    # pad shorter forest location codes with trailing zeros (forkod.f:78-93)
+    if 100 <= kodfor <= 9999999
+        if     kodfor <= 999;    kodfor *= 100000
+        elseif kodfor <= 9999;   kodfor *= 10000
+        elseif kodfor <= 99999;  kodfor *= 1000
+        elseif kodfor <= 999999; kodfor *= 100
+        else;                    kodfor *= 10
+        end
+    end
+    # KOTFOR translation (forkod.f:125-166) — sequential IFs, later matches override earlier
+    kotfor = 8
+    inter = kodfor - 10000000
+    inter < 0 && (inter = 0)
+    ifore = inter ÷ 100000
+    idist = inter ÷ 1000
+    icomp = inter - idist * 1000
+    (ifore == 10 || ifore == 0) && (kotfor = 8)
+    ifore == 14 && (kotfor = 7)
+    idist == 1402 && (kotfor = 2)
+    idist == 1403 && (kotfor = 3)
+    idist == 406  && (kotfor = 7)
+    (idist == 1404 || idist == 407) && (kotfor = 4)
+    idist == 1401 && (kotfor = (16 <= icomp <= 27) ? 1 : 2)
+    idist == 1405 && (kotfor = ((1 <= icomp <= 4) || (8 <= icomp <= 19) || icomp == 27) ? 5 : 10)
+    idist == 1406 && (kotfor = (1 <= icomp <= 4) ? 6 : 9)
+    p.forest_idx = Int32(kotfor)
+    return p
+end
+
 function kt_site_index_setup!(s::StandState)
     p = s.plot
+    kt_forkod!(p)                          # KOTFOR (forest_idx) for the DG/REGENT MAPLOC lookup
     kodtyp_in = Int(p.habitat_code)
     if kodtyp_in > 0
         kktype, itype = kt_habtyp(kodtyp_in)
