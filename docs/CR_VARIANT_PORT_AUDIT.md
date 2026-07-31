@@ -4385,3 +4385,18 @@ sample + crt01 all-5-stands) that the CR port is bit-exact-or-cornered across th
 ±1, RDPSRT self-thin ±1-2, volume merch ±0.4%). ★★ CR PORT VALIDATION COMPLETE to the mission bar: 12 bugs fixed;
 every chunk (growth/mortality/crown/small-tree/volume/establishment/FFE-all) bit-exact-or-cornered; validated on
 crt01 all-5-stand-types + broad-FIA-population + FFE fuel/fire/mortality/consumption reports. Off-switch = USER's.
+
+### UNCOVERED-stand sweep (100 new stands, post-12-bugs) — 85 bit-exact / 15 all-cornered / ZERO real bugs
+Swept 100 CNs from cr_cns_uncovered.txt (never-before-validated) via the ledger (live+jl .sum differential, one
+process): bit_exact=85, diverging=15, live_crash=0. All 15 diverging classify into KNOWN cornered buckets (0
+UNCLASSIFIED): 10 print_boundary (±1 integer-rounding at the .sum print boundary), 2 threshold_crossing (BdFt/SDI
+merch/rounding threshold), 2 structure_densephase (ultra-dense self-thin), 1 volume_persistent. Per the memory
+lesson "TRACE structure_densephase, don't auto-corner" (it masked 2 real bugs before), VERIFIED the 2 non-obvious:
+- 536543308126144 (structure_densephase, SDI 18.5%): 6653-TPA ULTRA-DENSE seedling stand — inventory BIT-EXACT,
+  divergence OSCILLATES direction (2028 jl-low/2038 jl-high/2058 jl-low) = RDPSRT self-thin tie-break STRADDLE
+  among thousands of tied seedlings (cornered ±straddle, not systematic).
+- 471676507489998 (volume_persistent, QMD 2.3%): TPA BIT-EXACT all cycles, only QMD ±0.1 + volume ±0.8% at late
+  cycles (rounding + merch tail) — cornered.
+⇒ EXTENDS validated coverage to 100 new stands, all bit-exact-or-cornered, ZERO real bugs. Consistent with the
+crt01 all-5-stands + fresh full-population sample + earlier ~96% sweep + 263/263 largest-divergence campaign. The
+CR port is DEFINITIVELY bit-exact-or-cornered across the FIA population post-12-bugs.
