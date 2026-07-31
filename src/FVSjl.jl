@@ -126,6 +126,7 @@ include("engine/establishment.jl")
 include("engine/sprout.jl")
 include("engine/fire/biomass.jl")        # FFE F1 — Jenkins tree biomass
 include("engine/fire/crown_biomass.jl")  # FFE F2 — crown biomass by size class (FMCROWE)
+include("engine/fire/cr_crown_biomass.jl") # FFE F2 — CR western crown biomass (FMCROWW)
 include("../data/centralrockies/fire/ffe_live_fuel.jl")  # CR FFE FULIVE/FULIVI live-fuel data
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
