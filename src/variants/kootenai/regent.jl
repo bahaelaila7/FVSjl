@@ -274,3 +274,139 @@ function kt_regcons!(s::StandState)
     end
     return rhcon
 end
+
+"""
+    small_tree_growth!(s, stash, ::Kootenai; fint)
+
+KT REGENT (kt/regent.f) small-tree height+diameter growth. Multi-subcycle (NPER subcycles ≤5yr each). For each
+small tree (D<XMAX): advance height through subcycles (density RDNEXT/BANEXT grow from the large trees), add the
+ZZRAN stochastic increment, then BLEND with the large-tree htgf HTG via XWT=(D−XMIN)/(XMAX−XMIN). Diameter for
+D<3 is dubbed from height (HCON·H+DCON+DADJ). Writes t.ht_growth (central) + the tripling stash.
+CON = exp(HCOR) small-tree height calibration reuses c.htg_cor_small (shared REGENT calib; 0 until a KT branch
+computes it). NOTE: density subcycle feedback from OTHER small trees (regent.f:444) is omitted in this first
+implementation (only the large-tree density contribution is included) — refine if the differential needs it.
+"""
+function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10.0f0)
+    p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    t.n == 0 && return s
+    n = t.n
+    rhcon = kt_regcons!(s)
+    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
+    managed = p.managed == Int32(1)
+    dgsd = s.control.dg_sd
+    regyr = KT_RG_REGYR                                    # 5.0
+    # subcycle count + lengths (regent.f:186-203)
+    ntyr = Int(round(fint)); iyr = Int(regyr)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for i in 1:nper
+        if nn == 1; kper[i] = itot; break; end
+        kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
+    end
+    kper[nper] = itot == ntyr ? kper[nper] : itot          # KPER(NPER)=ITOT (regent.f:203)
+    # recompute ITOT-based last (mirror FVS exactly): after the loop ITOT holds the remainder
+    # (the loop already assigned kper[nper]=itot when nn hit 1)
+    # per-subcycle stand density from the LARGE trees (regent.f:236-256)
+    banext = fill(ba, nper); rdnext = fill(relden, nper)
+    if nper > 1
+        @inbounds for i in 1:n
+            d1 = t.dbh[i]; d1 < 3.0f0 && continue
+            sp = Int(t.species[i]); pr = t.tpa[i]
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            d2 = d1 + t.diam_growth[i] / bark
+            b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
+            c1 = kt_tree_ccf(sp, d1); c2 = kt_tree_ccf(sp, d2)   # CCFCAL per-tree (no tpa) — matches C1/C2 in regent
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]
+                pn = pr * 0.985f0^k
+                rdnext[j] += k * ci / pr * pn
+                banext[j] += k * bi * pn
+            end
+        end
+    end
+    # DELMAX (regent.f:313), R=RELDEN, AH=AVH
+    delmax = (avh / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
+    # per-tree height accumulator (WK3), starts at HT
+    wk3 = Float32[t.height[i] for i in 1:n]
+    ah = avh
+    # ---- subcycle height loop (regent.f:321-460) ----
+    @inbounds for j in 1:nper
+        baj = banext[j]; rdj = rdnext[j]
+        alba = baj > 0.0f0 ? log(baj) : 0.0f0
+        kpj = Float32(kper[j])
+        for i in 1:n
+            sp = Int(t.species[i]); d = t.dbh[i]
+            d >= KT_RG_XMAX[sp] && continue
+            t.tpa[i] <= 0.0f0 && continue
+            con = exp(c.htg_cor_small[sp])                # RHCON·EXP(HCOR); HCOR=0 until KT calib branch
+            h1 = wk3[i]
+            pct = t.crown_ratio[i]
+            bal = baj * (100.0f0 - pct) * 0.01f0
+            balmh = baj * (100.0f0 - pct) * 0.0001f0
+            cr = Float32(t.crown_pct[i]) / 100.0f0
+            pt = Int(t.plot_id[i]); pccf1 = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            htpc1 = managed ? KT_RG_HTPCC1[sp] : 0.0f0
+            xrhgro = active_multiplier(s.control, :regh, sp, current_cycle_year(s))
+            local htgrl::Float32
+            if sp != 11
+                htgrl = rhcon[sp] + KT_RG_RHLH[sp]*h1 + (KT_RG_HTH2[sp]*KT_RG_HT2MOD[sp])*h1*h1 +
+                        KT_RG_RHBAL[sp]*bal + KT_RG_RHBA[sp]*alba + htpc1*pccf1 +
+                        (KT_RG_HTCR[sp] + KT_RG_HTCR2[sp]*cr)*cr
+                htgrl < 0.0f0 && (htgrl = 0.0f0)
+                wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro * con
+            else
+                htgrl = exp(rhcon[sp] + KT_RG_RHLH[sp]*log(h1) + KT_RG_RHCCF[sp]*rdj + KT_RG_RHBAL[sp]*balmh)
+                htgrl < 0.0f0 && (htgrl = 0.0f0)
+                wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro
+            end
+        end
+    end
+    # ---- final: HTGR1 + ZZRAN + XWT blend + DG dub (regent.f:473-560) ----
+    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
+    @inbounds for oi in 1:n
+        i = _sp_order[oi]
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= KT_RG_XMAX[sp] && continue
+        t.tpa[i] <= 0.0f0 && continue
+        h = t.height[i]
+        xmn = KT_RG_XMIN[sp]; xmx = KT_RG_XMAX[sp]
+        htgr1 = wk3[i] - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 1.0f0 && zzran >= -1.5f0) && break
+            end
+        end
+        htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
+        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        t.ht_growth[i] = htg
+        # diameter dub for D<3 (regent.f:534-560)
+        if d < 3.0f0
+            relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
+            dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
+            d1 = KT_RG_DIAM[sp] + dadj
+            if sp == 11
+                h > 4.5f0 && (d1 = 0.0729f0*(h - 4.5f0)^1.1988f0 + dadj)
+            else
+                h > 4.5f0 && (d1 = KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj)
+            end
+            hk = h + htg
+            local d2::Float32
+            if sp == 11
+                d2 = hk > 4.5f0 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj : KT_RG_DIAM[sp] + dadj
+            else
+                d2 = hk > 4.5f0 ? KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj : KT_RG_DIAM[sp] + dadj
+            end
+            xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
+            dg = (d2 - d1) * xrdgro; dg < 0.0f0 && (dg = 0.0f0)
+            t.diam_growth[i] = dg
+        end
+    end
+    return s
+end

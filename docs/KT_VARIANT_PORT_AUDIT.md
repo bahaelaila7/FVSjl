@@ -515,3 +515,19 @@ for chunk 6: the small_tree_growth!(::Kootenai) HOOK itself — the multi-subcyc
 RDNEXT/BANEXT density updates) + ZZRAN + XWT large/small blend + D<3 DELMAX/DADJ diameter dubbing + reuse of the
 shared REGENT-height HCOR calib branch. That hook is the grow_cycle .sum blocker (still errors loudly per doctrine
 #5 until implemented). kt_regcons! + all coefficients are in place to build it.
+
+## Chunk 6 regent — small_tree_growth!(::Kootenai) IMPLEMENTED + deterministic core VALIDATED
+Implemented the multi-subcycle REGENT hook (regent.jl): NPER/KPER split (10yr→[5,5]), per-subcycle stand density
+banext/rdnext growing from the large-tree DG (regent.f:236-256), DELMAX, the subcycle height loop (sp≠11 linear
+HTGRL = RHCONS+BH·H1+HTHS2·H1²+BBAL·BAL+BBA·lnBA+HTPC1·PCCF1+(HTCRS+HTCRS2·CR)·CR; sp11 log-form), then the final
+HTGR1 + ZZRAN(HSIGMA=0.59, RNG) + XWT=(D−XMIN)/(XMAX−XMIN) blend with the large-tree htgf HTG + D<3 diameter dub
+(HCON·H+DCON+DADJ). The cycle now RUNS through regent (next blocker = chunk-7 mortality _varmrt_efftr!(::Kootenai)).
+VALIDATED (instrument-replay live regent, deterministic htgr1 = final-subcycle-height − HT, central trees h>4.5):
+jl 3.66687 vs live 3.66311 (sp1), 7.71558 vs 7.71372 (sp3), 7.62527 vs 7.62348 (sp4)… ~0.05% — the entire
+subcycle model (RHCON, coefs, DELMAX, density, HTGRL) is bit-exact-or-cornered. The residual traces to the
+large-tree DG COR-precision feeding banext/rdnext (cornered) + a documented OMISSION: the small-tree density
+FEEDBACK (regent.f:420-446, D<3 trees' CCF/BA into RDNEXT(J+1)/BANEXT(J+1)) is not yet added. REMAINING regent
+refinements: (a) small-tree density feedback; (b) ZZRAN + XWT final-HTG + D<3 DG validation (ZZRAN is RNG-
+cornered ch9); (c) tripling stash (dgU/dgL/htgU/htgL/is_small) — currently central-only; (d) KT REGENT-height
+HCOR calib branch in the shared calibrate_diameter_growth! (con=exp(htg_cor_small), 0 until added — inert on
+no-measured-small-HTG stands). CON/XRHGRO(:regh)/XRDGRO(:regd) wired. All KT-gated.
