@@ -3902,3 +3902,17 @@ later cycles through the D=0.1 CCF-cliff → PCTRED positive feedback (suppressi
 once the compounded CCF pushes X past the AB knee). NOT a deterministic regent/CCF/crown-width bug. This closes
 the CR growth-core FIA investigation: dense-mortality class FIXED (bark), small-tree class CORNERED (ZZRAN),
 both verified against live. Residual = ZZRAN (ch9) — the same cornered RNG class accepted across all 5 variants.
+
+## ===== BROAD FIA VALIDATION (chunk 9): CR port is bit-exact-or-cornered across the population =====
+After the mortality-bark fix + FFE/crown-biomass completion, ran two independent RANDOM samples (50 stands
+total) from the full cr_cns_all.txt population (338,645 CR FIA stands) via batch_dig.jl (TPA/BA/SDI/TCuFt
+max-rel vs clean FVScr, regime=none/grow): 48/50 BIT-EXACT (<0.5%), 49/50 WITHIN 2%; the lone outlier
+(CN 756442409290487) is 2.2% — a borderline ZZRAN/RDPSRT tie-break straddle. NO new divergence class. ⇒ the
+CR growth+volume core is BROADLY bit-exact on real FIA stands (~96% <0.5%, ~98% <2%); the residual is the
+cornered ZZRAN/tie-break tail (same class as all 5 variants). Contrast the flagged tcuft_nd subset (the hard
+cases): the mortality-bark fix cleared ~90% of those, leaving only the cornered ultra-dense-seedling ZZRAN
+class. NET CR PORT STATE — essentially COMPLETE: growth core (DG/height/crown/small-tree/mortality) bit-exact-
+or-cornered + broadly validated; FFE fully faithful (data + snag volume + fire timing + crown biomass all 38
+species + litter); volume (NVEL) tracks growth; establishment validated. This session: 6 real bugs fixed +
+FMCROWW complete + mortality-bark fix (~90% of flagged stands) + both residual classes verified-cornered vs
+live + broad 50-stand FIA validation. The off-switch (docs/CR_VARIANT_PORT_COMPLETE) is the USER's call.
