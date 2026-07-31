@@ -4953,3 +4953,24 @@ regresses 408704093489998 (bit-exact WITH the current attenuation). So the clean
 tweak; it's reconciling whether CR regent attenuates the height con at all vs uses fresh per-cycle
 cornew, validated across BOTH stand types. Bounded (1 stand /150, 10% after F2), DEFERRED as a focused
 attenuation-semantics reconciliation. Factor 2 (19th fix) captured the dominant term.
+
+## Oak-con STAND-DEPENDENCE SOLVED — END clock accidentally cancels a cornew-init error (definitive)
+
+Measured live 408704093489998 oak con by cycle: 5.21, 3.49, 2.58, 2.05, 1.72 (HCOR 1.651→0.545,
+decay 0.757/cyc) — FULL at cycle 1. So live uses the START clock (full con at cyc1) for BOTH stands
+(1855925743290487 cyc1=2.33, 408704093489998 cyc1=5.21). The clock is NOT stand-dependent in live.
+The stand-dependence of MY factor-1 test is because there are TWO interacting jl errors:
+  (E1) jl's cornew-INIT ≠ live's: 408704093489998 jl init≈2.178 vs live 1.651 (TOO HIGH); 1855925743290487
+       jl init 0.805 vs live 0.847 (slightly low, after factor-2).
+  (E2) jl END clock (cormlt_h=0.758 at cyc0) vs live START (1.0).
+On 408704093489998 the two CANCEL at cyc1: jl 2.178·0.758 = 1.651 = live's full init ⇒ con=5.21 matches
+(bit-exact) by COINCIDENCE. On 1855925743290487 they don't (0.805·0.758=0.610 vs live 0.847). ⇒ The END
+clock ACCIDENTALLY compensates jl's too-high cornew-init on 408704093489998; the START clock unmasks it
+⇒ over-growth ⇒ the "regression."
+
+⇒ CLEAN FIX (both stands, focused pass): get jl's cornew-INIT bit-exact vs live's (the snx/sny/EDH per
+stand — factor 2 got 1855925743290487 close but 408704093489998's init is 2.178 vs live 1.651, still
+off, masked), THEN apply the START clock (universal, matches live). Doing EITHER alone regresses;
+BOTH together is required. Bounded (materially 1 stand /150 after factor-2; 408704093489998 bit-exact
+by cancellation), DEFERRED. This is the DEFINITIVE oak-con diagnosis: cornew-init accuracy + START clock,
+coupled. Factor 2 (19th fix) fixed the dominant mortality-driven cornew term.
