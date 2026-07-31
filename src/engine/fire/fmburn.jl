@@ -309,6 +309,11 @@ const _FM_CANMHT = 6f0
 # 1:25 (ne/fmvinit.f:1151-1156); SN = species 1:17 + 88 (sn/fmvinit.f:1011-1014).
 fm_canopy_lsw(sp::Integer, ::Southern)  = sp <= 17 || sp == 88
 fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
+# CR (cr/fmvinit.f:190-425): softwoods = 1:19 + 29:37; HARDWOODS (LSW=FALSE) = aspen/cottonwood/birch
+# 20:22,28,38 + oaks 23:27. Without a CR method the AbstractVariant `sp<=25` fallback wrongly counted aspen
+# (sp20-22)/oak (23-25) crowns into the canopy profile → crown base height floored to ~2 ft → SPURIOUS crown
+# fires (over-scorch → over-kill on aspen-mix SIMFIRE stands) AND dropped the real conifers 29:37.
+fm_canopy_lsw(sp::Integer, ::CentralRockies) = (1 <= sp <= 19) || (29 <= sp <= 37)
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 # PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (sev_wind, sev_temp, mod_wind, mod_temp),

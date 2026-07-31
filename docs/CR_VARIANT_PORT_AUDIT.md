@@ -4644,3 +4644,32 @@ fire. The 2026 divergence (474 live / 423 jl) is therefore **FIRE MORTALITY** (c
 "F3 down-wood" guess in the 16th-fix note: down-wood is bit-exact at the fire here. The next lead
 for these non-dominant-ASCT/SFCT fire stands is the fire-mortality path (cf. the SN FMPROB fire-kill
 lead). The ASCT fuel-model RULES remain faithful/candidate-validated (unchanged verdict).
+
+## CHUNK 9 / FFE fire-mortality — CR canopy-softwood (LSW) mask MISSING (17th CR fix, SYSTEMATIC)
+
+**Symptom (HIGH impact):** non-dominant-ASCT / aspen-mix SIMFIRE stands over-killed at the fire
+(CN 11682371010690 2026: 474 live / 423 jl, ~11% low). Traced the deterministic (PSBURN=100 full
+burn) mortality: flame MATCHED (jl 3.208 / live 3.201), bark + Reinhardt logistic MATCHED (CSV=0
+trees bit-exact PMORT), HT/crown MATCHED — but jl's CROWN-VOLUME-SCORCHED (CSV) was far too high
+(sp3 d=6: live 25.1 / jl 98.9) because jl's SCORCH HEIGHT was 32.8 vs live's 11.9.
+
+**Root cause:** jl generated a SPURIOUS CROWN FIRE. The crown-fire adjustment (fmburn.jl:128) boosts
+scorch when crb>0. Instrumented live FMCFIR vs jl: live ACTCBH (canopy base height) = 15-21 ft
+(→ torching index OINIT 32-111 > swind 10 → SURFACE, CRB=0); jl ACTCBH = **2 ft** (→ crb=0.30).
+jl's canopy-bulk-density profile had crown fuel ≥30 lb/ac-ft down at 2 ft. Cause: `fm_canopy_lsw`
+(the LSW "canopy softwood" mask, fmpocr.f:78 — HARDWOODS contribute NO canopy fuel) had NO
+CentralRockies method ⇒ the `::AbstractVariant` fallback `sp<=25` wrongly counted CR aspen
+(sp20-22) + oak (sp23-25) crowns into the profile (flooring the crown base to ~2 ft) AND dropped
+the real conifers sp29:37.
+
+**Fix (fmburn.jl):** `fm_canopy_lsw(sp, ::CentralRockies) = (1<=sp<=19) || (29<=sp<=37)` — the exact
+cr/fmvinit.f:190-425 LSW mask (TRUE = conifers 1:19 + 29:37; FALSE = aspen/cottonwood/birch
+20:22,28,38 + oaks 23:27).
+
+**Validation:** CN 11682371010690 — crb 0.30→0, actcbh 2→8, .sum 2026 TPA 474/**473** (was 423),
+2036/2046 **BIT-EXACT**, 2056 BA ±1. CN 11684113010690 now bit-exact-or-±1 (was diverging). NO
+REGRESSION: OBCT oak stand still bit-exact through fire (oak-LSW-exclusion inert there), PPCT
+(conifer, LSW unchanged) 47/43. SYSTEMATIC: affects every CR SIMFIRE stand with hardwood presence.
+Residual actcbh 8 vs live ~15 is inert here (both crb=0); a smaller conifer-profile difference to
+revisit only if it tips crb elsewhere. Separate: CN 11652450010690 still diverges = the pre-fire
+±4-TPA self-thin straddle (2017 418/414) amplified by the fire, NOT the crown fire (LSW fix inert).
