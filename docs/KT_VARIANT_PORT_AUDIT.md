@@ -310,3 +310,20 @@ KT height growth (kt/htgf.f:107-112):
    ht_coefficients.jl; kt_htcons! (HTCON=HGHCH+HGSC) + height_growth!(s,::Kootenai) computing HTG; per-tree HTG
    instrument-replay vs live FVSkt (relink instrumented htgf.o). NOTE: DG must be bit-exact first (needs ccfcal
    ch5) for HTG's ln(DG) term to match live — so height validation partly gated on ch5 too (like DG's RELDEN).
+
+## Chunk 5 (crown/ccfcal) — CCF-per-tree MEASURED (the DG-unblock; priority)
+kt/ccfcal.f CCFCAL(MODE=1 → CCF): per-tree CCF contribution CCFT:
+  D >= 10.0:  CCFT = RD1(sp) + D*RD2(sp) + D*D*RD3(sp)
+  D <  10.0:  CCFT = RDA(sp) * D**RDB(sp)
+  CCFT = CCFT * P   (P = tree TPA);  STAND CCF = Σ CCFT = RELDEN (=98.39 for the validated stand).
+Coefficients (kt/ccfcal.f, all 11-wide): RD1@62 (.03,.02,.11,.04,.03,.03,.01925,.03,.03,.03,.03), RD2@63,
+RD3@65, RDA@67 (.009884,.007244,.017299,.015248,.011109,.008915,.009187,.007875,.011402,.007813,.011109),
+RDB@70 (1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,1.7560,1.7680,1.7250). Crown-WIDTH (MODE=2:
+B1-B6 + R6CRWD/IFOR branches) is for the crown model (chunk-5 crown_ratio, separate) — NOT needed for RELDEN.
+=> IMPLEMENT (priority — unblocks DG+height bit-exact): extract RD1/RD2/RD3/RDA/RDB -> ccf_coefficients.jl;
+   kt_tree_ccf(sp,d) = (d>=10 ? RD1+d*RD2+d^2*RD3 : RDA*d^RDB); add a Kootenai branch to stand_ccf(s) summing
+   kt_tree_ccf*tpa (NOTE: KT CCF is the DIRECT polynomial, NOT the crown-width->area path jl's stand_ccf uses for
+   eastern/CR — so KT needs its own CCF sum). Validate stand CCF == 98.39 vs live, then re-run the DG per-tree
+   WK2 diff -> expect bit-exact (RELDEN closes). THEN chunk 4 height (ln(DG) term matches).
+### KT growth-core DEPENDENCY CHAIN fully measured:
+  ccfcal CCF(ch5) -> RELDEN 98.39 -> DG WK2 bit-exact(ch3) -> height ln(DG)(ch4). Implement ch5-CCF FIRST.
