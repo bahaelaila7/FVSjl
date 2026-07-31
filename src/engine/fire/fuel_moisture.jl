@@ -23,9 +23,15 @@ const _FM_MOIS_NE = Float32[           # NE (ne/fmmois.f) — IDENTICAL to LS (l
     0.07  0.09  0.14  0.17  0.75  1.05   0.82    # 2 dry
     0.10  0.13  0.17  0.21  1.00  1.35   1.16    # 3 moist
     0.19  0.29  0.22  0.25  1.75  1.40   1.20]   # 4 wet
+const _FM_MOIS_CR = Float32[           # CR (cr/fmmois.f) — the western Rockies preset table (distinct from SN)
+    0.04  0.04  0.05  0.10  0.15  0.70   0.70    # 1 very dry
+    0.05  0.06  0.08  0.15  0.50  0.90   0.90    # 2 dry
+    0.08  0.10  0.12  0.16  1.25  1.20   1.20    # 3 moist
+    0.10  0.12  0.15  0.18  2.00  1.40   1.40]   # 4 wet
 
 fm_mois_table(::Northeast) = _FM_MOIS_NE
 fm_mois_table(::LakeStates) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
+fm_mois_table(::CentralRockies) = _FM_MOIS_CR   # cr/fmmois.f (verified vs buildDir fmmois.f)
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """

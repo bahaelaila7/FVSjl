@@ -3297,3 +3297,28 @@ small/large-fuel selection with the CR depth. Add a CentralRockies branch to sel
 CR moisture table (cr/fmmois.f, documented above) + confirm the crown-fire torching-index (oinit) once the fuel model
 is right. Validate the FFE stand .sum (2013 TPA→~93) + no regression. This is FFE sub-chunk F4 (fuel-model selection),
 the one genuinely-unported piece; F3/F5-F9 data+engine are present. Instrument binaries (FVScr_burn/cfir/fint) in .crwork.
+
+## FFE fuel-model port — SCOPED + moisture-table fix applied (2026-07-31)
+APPLIED (this session): CR moisture table `_FM_MOIS_CR` + `fm_mois_table(::CentralRockies)` in fuel_moisture.jl,
+byte-verified vs cr/fmmois.f (cond1 [.04,.04,.05,.10,.15]/[.70,.70] … cond4 [.10,.12,.15,.18,2.00]/[1.40,1.40]). Loads
+OK; isolated to CR fire (0 eastern impact). Its .sum effect is masked until the fuel-model bug below is fixed.
+
+THE BIG PIECE (next, multi-turn): port cr/fmcfmd.f cover-type fuel-model selection as `cr_select_fuel_models` (mirror
+`ls_select_fuel_models` in fuel_model.jl). Contract: build `eqwt::Vector{Float32}(_FMD_ICLSS)` then `_fmdyn(sm,lg,eqwt)`.
+Live measurement (instrument FVScr_cfmd, .crwork): crt01 FFE stand = ICT=7 (MCCT mixed-conifer), IFMST 1/3, **FMD=10**
+(depth 1.0 ⇒ the fix). Structure:
+  1. Accumulate per-cover-type BA into 8 metagroups (fmcfmd.f:276-315): OBCT oak-brush sp23-27; PJCT pinyon-juniper
+     12,16,29-35; PPCT ponderosa 13,36; WSCT white-spruce 19; SFCT spruce-fir 1,17,18; LPCT lodgepole 11; MCCT
+     mixed-conifer 2-10,14,15,37; ASCT aspen 20-22,28,38. Per-tree BA X = FMPROB·DBH²·0.0054542; USBA = understory
+     (HT≤USHT) subset. Dominant ICT = first metagroup >50% total BA, else MCCT, else OLDICT (prev cycle).
+  2. USCT = max understory metagroup; LCUNDR = conifer-understory flag; FMSSTAGE → IFMST structure class.
+  3. SELECT CASE(ICT) → eqwt (fmcfmd.f:409-955). MCCT (799-869 CR): LPPDOM(sp13 highest BA)?EQWT(9): IFMST CASE
+     {0:LDRY?1:2, 1:LDRY?6:5, 2:LDRY?6:8, 3/4/6:EQWT(10), 5:PERCOV blend 2/8}. Other cover types read live/dead
+     biomass (BL/BD via crown weights CROWNW + snag vols FMSVOL + bole V2T·FMSVL2) + PERCOV/FWIND/USCT loop-backs.
+  4. Always-added natural-fuel candidates EQWT(10)=1-AFWT, EQWT(11)=AFWT (post-activity), EQWT(12)=1 (fmcfmd.f:936+).
+  5. `_fmdyn(small,large,eqwt)` resolves candidates by the actual (SMALL,LARGE) fuel point → FMD (crt01: →10).
+DEPENDENCIES to port/verify: **FMSSTAGE (sstage.f, 942 lines — structure class from TPA/canopy/size-class/gap-ladder
+analysis)** — the big sub-dependency; the biomass helpers (crown_biomass ✓ exists, snag vol, FMSVL2 bole) for the
+PPCT/OBCT cases; LDRY (DROUGHT date range — false for crt01, jl `ldry` exists). Validate ICT+IFMST+FMD vs live
+FVScr_cfmd per cover type, then the FFE stand .sum (2013 TPA→~93), then re-check the crown-fire torching index + apply
+the moisture effect. This is the western FFE fuel-model hub (shared w/ TT/UT); the largest remaining CR chunk.
