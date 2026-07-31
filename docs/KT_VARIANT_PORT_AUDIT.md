@@ -266,3 +266,18 @@ BUT they must be PRESENT (non-KeyError) and consistent enough that the density c
 columns KT genuinely needs now (bark from KT_BKRAT, sdi_max_default, dbh bounds) with real values; defaults
 elsewhere pending their chunks. Then: confirm calibrate_diameter_growth! handles KT (or add branch) + per-tree
 WK2 instrument-replay vs live FVSkt (relink instrumented dgf.o) on the 40 IE stands.
+
+## Chunk 3 — DG RUNS END-TO-END on a real stand (species CSV + point_ccf fix)
+- data/kootenai/species_coefficients.csv expanded to full CR schema (11 KT rows: identity + KT bark (KT_BKRAT);
+  NON-DG columns = CR western-conifer placeholders matched by FIA (DF fallback for WP/WH/OT) — TO BE REPLACED
+  with real KT values in chunks 4(height)/6(bark)/7(mort)/8(vol). Builder .sweep_work/build_kt_species_csv.jl.
+- Fixed dgf!: point_ccf is on s.density (Density struct), not s.plot — pccf1 = s.density.point_ccf[t.plot_id[i]]
+  (matches CR diameter_growth.jl:324 dens.point_ccf[ipccf]). RELDEN = p.relative_density confirmed (CR DG comment
+  "RELDEN=stand CCF"; state.jl relative_density = current CCF).
+- Loading IE stand 753200841290487 through jl Kootenai() now: SETUP ok -> kt_dgcons! ok -> dgf! ok -> shared
+  DGDRIV calibrate/tripling/DBH-update ok -> errors at height_growth!(::Kootenai) = the NEXT unimplemented chunk
+  (4). So CHUNK 3 (DG) EXECUTES END-TO-END on a real stand (doctrine #5: next hook errors loudly). Functional
+  integration confirmed.
+- REMAINING for chunk-3 SIGN-OFF: per-tree WK2 bit-exact validation vs live FVSkt (relink instrumented dgf.o
+  printing WK2/tree, CR DGFTRC recipe; compare on the 40 IE stands' first cycle). Placeholders to confirm via
+  that diff: KOTFOR=forest_idx (KT forkod map?), managed-flag/DUM, RELDEN source. Chunk 4 = height_growth! (htgf).

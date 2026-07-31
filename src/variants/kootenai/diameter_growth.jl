@@ -41,7 +41,7 @@ end
 
 """KT `dgf!` hook — fill scratch.wk[2,i] with the (outside-bark) DDS per live tree (kt/dgf.f main body)."""
 function dgf!(s::StandState, ::Kootenai)
-    p, t, c = s.plot, s.trees, s.calib
+    p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
     relden = p.relative_density
     ba = p.basal_area
@@ -58,7 +58,7 @@ function dgf!(s::StandState, ::Kootenai)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba            # PCT = BA percentile
         sp == 11 && (bal = bal / 100f0)
         pt = Int(t.plot_id[i])
-        pccf1 = (1 <= pt <= length(p.point_ccf)) ? p.point_ccf[pt] : 0f0
+        pccf1 = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
         dgpc = managed ? KT_DGPCC1[sp] : KT_DGPCC2[sp]
         dds = conspp +
               KT_DGLD[sp]   * ald +
