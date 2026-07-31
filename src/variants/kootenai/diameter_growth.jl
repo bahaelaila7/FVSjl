@@ -43,7 +43,7 @@ end
 function dgf!(s::StandState, ::Kootenai)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
-    relden = p.relative_density
+    relden = stand_ccf(s)              # RELDEN = stand CCF (kt/dgf.f dense RELDEN; == CR DG's stand_ccf)
     ba = p.basal_area
     lnba = ba > 0f0 ? log(ba) : 0f0
     managed = p.managed == Int32(1)
@@ -54,7 +54,7 @@ function dgf!(s::StandState, ::Kootenai)
         rd = sp == 11 ? 0.01f0 * KT_DGCCFA[sp] * relden : KT_DGCCFA[sp] * relden
         conspp = c.dg_const[sp] + c.dg_cor[sp] + rd
         ald = log(d)
-        cr  = Float32(t.crown_pct[i])                          # crown ratio (CR)
+        cr  = Float32(t.crown_pct[i]) * 0.01f0                 # CR = ICR*0.01 (fraction 0..1; kt/dgf.f:327)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba            # PCT = BA percentile
         sp == 11 && (bal = bal / 100f0)
         pt = Int(t.plot_id[i])
