@@ -203,7 +203,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
             # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
             # double-counts the crown that belongs in the separate CWD2B path) (fmsvol.f merch MCF).
-            mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
+            # CR (western) snag bole is the TOTAL cubic (fmsvol.f:153 VOL2HT=MAX(X,TCF), LMERCH=F), not the
+            # SN merch — same basis difference fixed in the ordinary-mortality/SNAGINIT snag paths (the CR
+            # vol_eq are NVEL codes, so t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
+            mcf = s.variant isa CentralRockies ?
+                  max(0.005454154f0 * t.height[i], cr_snag_bole_cuft(s, sp, d, t.height[i])) :
+                  max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
             add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
             # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead
             # trees. But FIRST consume the fire-REACHED fine crown the way FMEFF does (fmeff.f:457-460)
