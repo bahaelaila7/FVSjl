@@ -4743,3 +4743,21 @@ backdates the HEIGHT there (hstart = height − ht_growth for EDH) but NOT the d
 backdated (live+jl both 58.6). Validate: oak stand con 1.0→~1.7, BA 134→~205; no regression (growth
 path + gemdg untouched). The backdated-DBH source at calib time needs wiring (like the LS calib's
 backdated BA/QMD).
+
+## 18th bug — root cause DEFINITIVELY CONFIRMED (live dense.f instrument)
+
+Instrumented live dense.f at the LBKDEN backdating (FVScr_dens): **RELDT (current relative density)
+= 157.80 = the current stand CCF** (matches jl's stand_ccf exactly), and **RELDEN passed to the
+calibration = RELDM1 = 109.54 = the BACKDATED CCF** (RELDT recomputed on backdated-DBH trees, the
+stand ~10yr younger). So the backdated-CCF diagnosis is PROVEN (not inferred): jl's CR small-tree
+REGENT height calibration uses the CURRENT CCF (157.80) for the PCTRED density modifier where live
+uses the BACKDATED CCF (109.54) ⇒ PCTRED over-suppressed ⇒ EDH too low ⇒ cornew clamped ⇒ con=1.0.
+
+**Implementation blocker identified:** jl's calibration runs with diam_growth mostly 0 (measured:
+only 21/127 trees nonzero at calib time) — i.e. BEFORE the per-tree DG is computed — so jl cannot
+yet backdate the DBH (dbh − DG) to reproduce RELDM1=109.54. The fix requires wiring a DG estimate
+(or the FIA-recorded past diameter increment) into the calibration so the backdated CCF can be
+computed, then using it in place of stand_ccf for the PCTRED. jl ALREADY backdates the HEIGHT there
+(hstart = height − ht_growth, using the available ht_growth); the symmetric density backdating just
+needs the DBH increment made available. This is the clean, CONFIRMED next fix — scoped to the CR
+REGCAL block, no gemdg/growth-path change, needs the backdated-DBH source wired.
