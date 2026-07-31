@@ -4219,3 +4219,14 @@ jl's first fmcba! call precedes the thin (PotFire-report call? FFE-setup orderin
 cycle-1 sequence) and move the fuels_init trigger to the post-thin call. BOUNDED: SIMFIRE + a pre-projection thin
 (THINDBH/THINxxx) both required; pure-grow FIA stands never init fuel pre-thin. All instruments removed
 (jl fire files + cr/fmcfmd.f reverted); FVSjl tree clean.
+
+### FFE dead-fuel-init refinement — the PotFIRE report is the pre-thin trigger
+Tested by removing PotFIRE/POTFTEMP from the FFE stand: WITH PotFIRE jl has TWO 1993 fmcba! calls (1st percov
+46.26/589.7 TPA inits pre-thin; 2nd 44.4/319.7 post-thin). WITHOUT PotFIRE there is ONE 1993 call at percov=0/
+livetpa=0 (inits on an EMPTY state). ⇒ the PotFIRE-report fmcba! is what fires `fuels_init` at the pre-thin 589-TPA
+state; without it the init lands on an unpopulated call. So the fix is NOT merely "defer past the thin" — jl's
+`fuels_init` must fire on the correct MAIN-PATH, POPULATED, POST-THIN fmcba! (the fmburn! call), matching FVS
+FMMAIN, and incidental report calls (PotFIRE/carbon) must NOT persistently initialize the dead-fuel pools before
+then (they should compute fuel non-persistently or run post-thin). NEXT (implementation): gate `fuels_init` so
+only the main fmburn!-path fmcba! (post-cuts!) sets it; the PotFIRE/carbon report fmcba! calls read/compute fuel
+without latching the one-time init. Verify crt01 STAND-4 2013 BA → 57 (== live) after.
