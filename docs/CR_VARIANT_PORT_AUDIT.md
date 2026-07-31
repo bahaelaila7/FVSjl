@@ -4874,3 +4874,21 @@ Both shared-calibration; F2 also feeds the large-tree COR + crown backdating (so
 fix has broad reach + regression risk). DEFERRED: needs a focused pass reconciling jl `_backdate_dbh!`
 vs dense.f RELDM1 for larger-tree stands, CR-gated where risky, with full-eastern-suite revalidation.
 Bounded (1 stand /150). The CR growth core is otherwise bit-exact-or-cornered (18 bugs fixed).
+
+## Oak-con factor-2 — FINAL mechanism: backdated BA correct, crown-CCF distorted (per-tree backdate distribution)
+
+Measured jl backdated BA=121.12 — EXACTLY matches live RELDM1=121.13 (RELDT_cur=136.73). But jl
+backdated CCF (stand_ccf on backdated dbh)=68.04. So `_backdate_dbh!` preserves ΣDBH² (BA correct)
+but the backdated CCF (crown²-weighted) is ~half. ⇒ the backdated DBH DISTRIBUTION is distorted
+(the big ponderosa over-backdated / small oaks under-backdated), which nets to the right BA but the
+wrong crown-competition CCF. Live's RELDM1 tracks the BA scale (~121); jl's crown-CCF on the distorted
+distribution gives 68. For the NULL-site 18th-bug stand the distribution happened to be benign (BA≈CCF
+≈109.5, all tiny oaks) so the 18th fix's `_cr_bd_ccf=stand_ccf(backdated)` matched; here it doesn't.
+
+⇒ Factor-2 fix locus = jl `_backdate_dbh!` per-tree backdate AMOUNT (distribution), OR use the
+backdated BA-scale density (which matches RELDM1) for the PCTRED instead of the crown-CCF. The latter
+(swap _cr_bd_ccf to the backdated BA-scale RELDM1) is the cleaner candidate and directly reproduces
+live's 121 — but must be checked against the NULL-site stand (where CCF was used and matched) + the
+eastern suite. This CLOSES the oak-con diagnosis: F1 = COR decay clock (END vs START), F2 = backdated-
+density basis (jl crown-CCF 68 vs live BA-scale RELDM1 121). Bounded (1 stand), fully localized,
+deferred to a focused CR-gated fix pass with revalidation.
