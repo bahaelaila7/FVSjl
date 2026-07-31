@@ -803,3 +803,17 @@ Kootenai-style IE variant singleton + registration; (1) IE 23-species + FIA map 
 (4) IE htgf (larger form, verify); (5) crown (reuse KT crown model + IE coefs); (6) regent; (7) mortality — REUSE
 KT Hamilton (identical RIP eqn) + IE POT/IPDG/PMSC; (8) volume (reuse FW2). Same instrument-replay recipe (relink
 ie oracle, dump per-tree). All KT-gated engine hooks generalize by adding IE methods/dispatch.
+
+## IE chunk-1 data — 23-species FIA mapping EXTRACTED (ie/blkdat.f)
+IE JSP + FIAJSP (23): WP=119 WL=073 DF=202 GF=017 WH=263 RC=242 LP=108 ES=093 AF=019 PP=122 MH=264 WB=101 LM=113
+LL=072 PM=133 RM=066 PY=231 AS=746 CO=740 MM=321 PB=375 OH=998 OS=299. PLN symbols: PIMO3 LAOC PSME ABGR TSHE
+THPL PICO PIEN ABLA PIPO TSME PIAL PIFL2 LALY PIMO JUSC2 TABR2 POTR5 POPUL ACGL BEPA 2TB 2TN. First 10 match KT
+(WP/WL/DF/GF differ only WH: KT 260 vs IE 263, MH: KT 260 vs IE 264); IE adds WB/LM/LL/PM/RM/PY/AS/CO/MM/PB/OH/OS.
+IE JTYPE (95 habitat codes) also captured. NEXT: build data/inlandempire/species_coefficients.csv (23 rows) + the
+InlandEmpire singleton (mirror kootenai.jl) + IE dgf/htgf coefficient DATA (verify term set vs live FVSie replay).
+=============================================================================================================
+CAMPAIGN STATE: CR (western hub) DONE. KT (2nd western, Kootenai cluster) DONE — growth engine bit-exact across 20
+stands, volume bit-exact, 10 bugs fixed, 0 regressions. IE (3rd western, Inland Empire) foundation READY: oracle
+relinked+verified, MAXSP=23 infra + species mapping extracted, 8-chunk port plan documented (~40% KT effort,
+mortality/crown/regent/volume reused). Then EM/BM/TT/UT. The estb/ establishment extension (6280 lines, shared,
+RNG-cornered) is a separate cross-variant future port. Methodology proven: measure vs live binary, chunk by chunk.
