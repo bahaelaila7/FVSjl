@@ -3583,3 +3583,19 @@ NEW LEAD (sharpened, not resolved): on the 2003 FIRE cycle jl's fresh fire-kill 
 to surface (jl standing 4.8/surf 18.8) where live keeps them STANDING at full density (live standing
 18.1/surf 4.4; live fresh-kill densities ES 97.85/WF 59.82 vs jl <2). = the snag-fall-timing / fire-cycle
 report-ordering dynamics — now clearly the next target (the volume that made it visible is now faithful).
+
+## Follow-up: 5th CR snag-volume path (fire-kill) + fire-cycle TIMING isolated (commit f2e828d)
+Tracing the crt01 2003 standing-dead deficit (jl 4.8 vs live 18.1 tons >3") found the fire-kill snag path
+(fmburn.jl:206) is a 5th snag-volume site: it booked bolevol from t.merch_cuft_vol (MERCH), ~15% below the
+CR total-cubic basis. Fixed CR-gated via cr_snag_bole_cuft (SN keeps its carbon_snt-validated merch bole).
+BUT that ~15% is NOT the 4.8-vs-18.1 gap — MEASURED the real cause: jl fires the SIMFIRE 2003 in the
+2003→2013 CYCLE (burn_reports: burns=0 at the 2003 report, burns=1 first at 2013), so the fire snags stand
+during 2003→2013 and have fallen by the 2013 report (jl 2013 STAND>3=0.6/SURF>3=19.4) — which MATCHES live
+2013 (0.7/20.0). Live instead shows the fire snags STANDING at 2003 (18.1). ⇒ the fire-snag lifecycle is
+shifted ONE CYCLE later in jl vs live: a fire-cycle-ASSIGNMENT or report-YEAR-LABELING offset (SIMFIRE 2003
+on a 10-yr-cycle boundary 1993/2003/2013 — does the fire run at the END of 1993→2003 or the START of
+2003→2013, and under which year is the ALL-FUELS report labeled). Also jl's cycle_hook sees SURF>3=0 at the
+1993 probe (pre-fmcba fuel-init) ⇒ the crude hook samples earlier in the cycle than FVS's report — so part
+of the apparent offset may be probe-sampling, not the engine. RESOLVING NEEDS live-timing instrumentation
+(when live books+reports the 2003 fire) + a jl DBS/.sum-aligned fuel dump (not the ad-hoc cycle_hook). This
+is the concrete next FFE task; the 5 snag-volume paths are now all faithful (per-cohort .sng-validated).
