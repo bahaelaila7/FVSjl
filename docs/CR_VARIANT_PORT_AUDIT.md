@@ -4049,3 +4049,21 @@ cr_bratio; low priority (rare scenario, needs a SNAGBRK-HTX stand to validate). 
 crash; the CR port is bit-exact-or-cornered across all validated regimes, with the residual set = cross-variant
 ZZRAN (ch9) + these rare fidelity refinements (FFE snag-height-decay/CFTOPK, FERTILIZE/breakage/cycle-0-broken-
 top bark), all enumerated and requiring specific hitting scenarios to validate a fix.
+
+## ===== MAJOR FIX (8th session bug): "ch9 ZZRAN" residual was the regent SPECIES-SORT draw order =====
+The long-accepted-cornered "ZZRAN RNG stream-order (ch9)" small-tree residual is now LARGELY FIXED — it was
+a DRAW-ORDER bug, not an irreducible RNG issue. ROOT: FVS regent.f:197-239 processes small trees SPECIES-
+SORTED (DO ISPC=1,MAXSP; DO I3=ISCT(ISPC,1),ISCT(ISPC,2) via IND1 — SPESRT chain sort ⇒ record order WITHIN a
+species) and draws the per-record ZZRAN (BACHLO) in that order. jl's small_tree_growth! iterated raw RECORD
+order (species interleaved) ⇒ on MULTI-species seedling stands each tree got the WRONG ZZRAN deviate and every
+downstream RNG draw desynced ⇒ the compounding small-tree DG divergence (mislabeled cornered-ZZRAN for a long
+time; note the earlier DEBUG-REGENT check confirmed the DETERMINISTIC HTG matched — correctly pointing at the
+ZZRAN, just not yet at the ORDER). FIX (commit f3aefec): iterate `sortperm(species; MergeSort)` (stable ⇒
+record order within species). VALIDATED: CN 381211668489998 (3 species, was 58%) BIT-EXACT through 2035 + ±1
+tail; CN 31226976010690 (3 species, was 31%) GROWTH bit-exact (TPA/BA/SDI/QMD; a residual TCuFt spike =
+volume-merch-threshold crossing, separate). Suite 38588/0/1/75 (zero regress; CR-only, single-species/dgsd<1
+unaffected). REMAINING seedling residual = CN 190851682020004 only — the PATHOLOGICAL >1000-TPA-seedling stand
+where live FVS itself hits its FP exception (a distinct regime, not the ZZRAN order). ⇒ the CR small-tree /
+seedling class is now bit-exact-or-cornered too; the last big systematic residual is closed. META: "accepted-
+cornered ZZRAN" was a PREMATURE corner — the fixable root (species-sorted draw order, matching mortality's
+IND1 order) sat one level below. Lesson: re-examine "cornered RNG" residuals for a DRAW-ORDER mismatch vs live.
