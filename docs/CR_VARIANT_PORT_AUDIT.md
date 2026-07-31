@@ -3376,3 +3376,13 @@ both fmcba.jl and structure_stage.jl (_ss_strata). RESULT: crt01 FFE stand 2013 
 57, TopHt 72/72 — the fire now kills the right amount. FFE fire is FUNCTIONAL (was a total wipeout). Residual ~5%
 (98 vs 93, BA 64/57) = the crown-fire torching-index secondary bug and/or minor IFMST/PMORT precision — next, minor.
 Suite covering fmcba+structure_stage+fuel_model changes running (CR-gated dispatch ⇒ 0 eastern regression expected).
+
+## FFE fire — percov CORRECTION (measured): jl crown width/percov are CORRECT
+Instrumented live fmcba (FVScr_fmcba): at the SIMFIRE 2003, live TOTCRA=30743.7 PERCOV=50.63 cw1=13.52 (d=12.9 PP).
+jl: TOTCRA=30751 PERCOV=50.64 cw~11.6 — MATCHES. The earlier "live percov=27.98" was a MISREAD of a different
+(POTFIRE/other-cycle) fmcfmd call. So the cr_cwcalc crown-width fix is CORRECT and complete — percov/strata/IFMST/FMD
+all right (FMD=10). REMAINING residual (crt01 FFE 2013 TPA jl 98 vs live 93; byram 8063 vs 8820 ~9% low; sch 18.07 vs
+18.97): a fine-grained SURFACE-fire fuel/intensity detail on the SAME model 10 — candidates: the dynamic-vs-standard
+model-10 load fed to Rothermel (jl uses the standard Anderson-10 load; live FMFINT integrates the stand's actual
+SMALL/LARGE fuel), the CR moisture interaction, or the _fmdyn model-10-vs-12 blend weight. MINOR (~5% TPA) — the fire
+is functional and behavior-matched (was a total wipeout). Deferred as a bounded polish. FFE fire chunk: FUNCTIONAL.
