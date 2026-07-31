@@ -5059,3 +5059,27 @@ are cornered (3 ±straddles + this transient). NO reducible growth bug remains i
 CR growth is comprehensively bit-exact-or-cornered. (The earlier "no J38 con print" was a probe-placement
 artifact — sp38 trees route via cr_esgent!/xmax-skip, not the small_tree_growth! con line I instrumented
 — NOT evidence of a mapping divergence.)
+
+## VALIDATION (post-20-fix): population direction-balance test — confirms cornered, NOT a bug
+Re-verified the "bit-exact-or-cornered" conclusion with a FRESH 100-stand differential vs live FVScr_clean
+(curated cr_cns_265 list, regime=grow), because the raw all-cell divergence rate looked alarming
+(dig_batch: only 4/100 fully-bit-exact; TCuFt 380/600 cells, TPA 193/600, up to 20-33%).
+
+Per-stand trajectories (dig_vol) showed the classic cornered shape: bit-exact early cycles -> tiny first
+divergence (+-1 on seedling BA, or +2 TPA) -> compounds via self-thinning to large late-cycle magnitude.
+
+DECISIVE measurement (dig_dir.jl, 100 stands, final-cycle sign of jl-live):
+  FINAL-cycle TPA direction:  jl-HIGH=29  jl-LOW=30  equal=41   (worst +19.3% / -17.4% = equal & opposite)
+  FINAL-cycle BA  direction:  jl-HIGH=12  jl-LOW=17  equal=71
+  FIRST-divergence column:    TPA-only=33  BA-only=22  both=14
+=> Population is BALANCED (+-straddle), not skewed. A systematic mortality/growth bug would skew one way;
+   the equal-and-opposite spread is the RDPSRT self-thin tie-break signature. First divergence is led by TPA
+   (mortality tie-break: which trees die), not BA (growth). The BA-first cases are sub-inch-seedling
+   ZZRAN/rounding straddles (BA rounds 2 vs 3 while TPA stays bit-exact). Volume TCuFt spikes are merch-
+   threshold amplification of tiny DBH straddles (SCuFt 0/600 bit-exact everywhere => NVEL driver faithful).
+VERDICT: CR growth+mortality+volume is bit-exact-or-cornered, now backed by a population-level balance
+measurement (not just per-stand reasoning). The high all-cell rate = accepted late-cycle straddle
+accumulation on a divergence-enriched list, consistent with the strict first-cycle detector (4/265 flagged,
+all cornered). No reducible growth/mortality bug remains.
+Harness note: parse_sum10 returns a Vector{(year,vals)}, NOT a Dict — must build a Dict before haskey lookups
+(a keys()-on-Vector bug silently zeroed the first run's counters).
