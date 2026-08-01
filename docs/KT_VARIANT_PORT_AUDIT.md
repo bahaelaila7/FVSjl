@@ -1040,3 +1040,11 @@ caused a retracted phantom "over-kill bug" — the .sum-misread trap, guard agai
 IE STATUS: growth core + mortality + MISTOE + management VALIDATED end-to-end. REMAINING (downstream leaves,
 large new chunks): chunk 8 volume (full NVEL port — NSVB/Flewelling/DVEE), FFE-fuel, establishment (auto-regen).
 Suite 38588/0/1err/75broken, 0 regressions, all IE-gated.
+
+IE CHUNK 8 (VOLUME) — VALIDATED (merch/board bit-exact; total-cubic ~1% cornered)
+IE volume (volume.jl) reuses cr_fw2_vol (FW2/Flewelling) + cr_dve_vol (DVE/Behre), per-species VOLEQ
+dumped from live FVSie forest-118 VEQNNC. Validated vs live: pure_DF 1990 inventory MerchCuFt 879/879
++ BdFt 4594/4594 BIT-EXACT (FW2 merch/board profile correct); only TotCuFt jl 1392 vs live 1406
+(-1.0% systematic) — a narrow total-stem (TCVOL, ground-to-tip Smalian) residual in the shared
+cr_fw2_vol path (secondary reported quantity; check vs CR — same kernel). IE volume = bit-exact-or-
+cornered. REMAINING IE leaves: FFE-fuel, establishment (auto-regen) — situational/secondary.
