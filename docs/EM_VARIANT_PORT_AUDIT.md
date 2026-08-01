@@ -45,6 +45,23 @@ bit-exact-or-cornered vs live `FVSem` per chunk (same doctrine as CR/KT). Oracle
   trees only — NOT growth coefs). CHECK emt01.tre species vs the 19 NSP (it may use EM-distinct species
   WB/LM/LL/RM/GA that the KT/IE 248112 stand lacked). RESOLVED: emt01 IS the 248112 stand — species DF/WL(L)/LP/PP/ES(S) only, ALL shared conifers (EM idx 3/2/7/10/8), NO EM-distinct species. So the inventory milestone needs only the shared-conifer decode = tractable; the 442-row crosswalk + EM-distinct coefs can follow.
 
+## Chunk 1b progress — coefficient extraction (proven tractable)
+Approach confirmed: em/*.f DATA statements are clean + species-order documented, and the engine hooks
+REUSE the CR/IE/KT patterns (only the DATA differs). First validated column-group:
+
+**Bark (em/bratio.f → bark1/bark2/bark_imap).** EM's BRATIO is IDENTICAL to CR/IE: IMAP(IS) dispatch
+(1/2/3); IMAP=1 with BARK1=BARK2=0 → `0.9002 − 0.3089/min(D,19)`; IMAP=2 → BARK1; IMAP=3 →
+BARK1+BARK2/D; clamp [0.80, 0.99]. Reuses `bark_ratio` (southern/bark_and_bounds.jl) +
+centralrockies/inlandempire diameter_growth bark-coef load (bark_a=−0.3089,bark_b=0.9002 for the
+zero-coef species). Species order 1=WB..19=OH. VALUES (verified vs em/bratio.f DATA):
+- BARK1 = 0.934 0.934 0.867 0.969 0.937 0.000 0.969 0.956 0.937 0.890 0.892 0.950 0.892 0.892 0.892 0.892 0.950 0.934 0.892
+- BARK2 = 0.000×10, −0.086(11 GA) 0.000(12 AS) −0.086(13 CW) −0.086(14 BA) −0.086(15 PW) −0.086(16 NC) 0.000(17 PB) 0.000(18 OS) −0.086(19 OH)
+- IMAP  = 2 2 2 2 2 1 2 2 2 2 3 2 3 3 3 3 2 2 3   (only RM=idx6 uses IMAP=1 w/ BARK1=0 ⇒ the 0.9002−0.3089/D default)
+Note the documented species-expansion lineage (em/bratio.f header): LM←IE LM(TT), LL←IE AF(NI),
+RM←IE JU(UT, really PP from CR), AS/PB←IE AS(UT), GA/CW/BA/PW/NC/OH←IE CO(CR), OS←EM WB.
+Remaining 1b columns (site/sdimax sitset.f, small-tree regent.f, ht/htdbh htcalc.f, mort morts.f,
+dg_resid_sd dgf.f DGCONS, volume merch specs) extract the same way — clean DATA + existing hooks.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
