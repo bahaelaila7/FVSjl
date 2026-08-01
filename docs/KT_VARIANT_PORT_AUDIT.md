@@ -1010,3 +1010,33 @@ END-TO-END: run_keyfile(variant=InlandEmpire()) on iet01 now EXECUTES species->n
 mortality; the 2 remaining hooks are small_tree_growth!(::InlandEmpire) [chunk 6 REGENT] + compute_volumes!
 [chunk 8, reuse cr_fw2_vol]. Suite 38588/0/1err/75 (0 regress; all IE-gated). REUSABLE TECHNIQUE: dump coefficient
 tables from the live binary (crown PARM/CRHAB/MAPHAB, mortality PMSC/IPDG/POT) instead of hand-transcribing.
+
+============================================================================
+IE CHUNK 6 (REGENT special-species) + MISTOE EXTENSION + MANAGEMENT — COMPLETE (2026-08-01)
+============================================================================
+CHUNK 6 REGENT (ie/regent.f) — all special-species small-tree groups PORTED + validated vs live via synthetic
+pure_{sp} stands (the NIVAR-only iet01 hid them): NIVAR (Wykoff exp ht) + UTVAR (PI/JU sp15/16 linear-DK;
+aspen sp18/20/21 Sheppard log-DK) + CRVAR (CO sp19/22 POTHTG) + TTVAR (LM/PY sp13/17 BETA/ZRAND + DLESS3).
+6 real bugs fixed: morts species-mult (×0.2 PI-JU/×0.6 UT-CR-TT sp), non-NIVAR RHCON=1.0, aspen rmsqd=0 in
+DGFASP, ht1/ht2 blkdat placeholders + AA-fit :ht2 source, aspen regent over-mortality, sp13/17 SITEAR + TTVAR
+under-mortality. Per-group 2000-cycle near-bit-exact vs live; residuals = accepted ZZRAN/tripling/self-thin.
+
+MISTOE EXTENSION (mistoe/*.f) — dwarf-mistletoe, mistletoe ON BY DEFAULT (misin0.f), DM-input = tree damage
+codes 30-34 (misdam.f, no DBH gate). 3 layers ported, all IE-gated, mirroring the validated CentralRockies
+path: (1) effects ie_dm_growth_loss! (misdgf DG*=IE_MIS_DGP[dmr+1,sp]); (2) mortality ie_dm_mortality_combine!
+(mismrt WKI=tpa*rate MAX-into-killed, rate=quadratic in DMR via IE_MIS_PMC + caps + FINT/10); (3) spread
+ie_mistoe! (mistoe.f Hawksworth, reused variant-uniform CR B*/D* constants, only IE_MIS_FIT+23sp differ).
+Coefficients IE_MIS_FIT/DGP/PMC transcribed from misintie.f. VALIDATED vs live FVSie on synthetic oracles:
+pure_DF_dmp (partial DMR3, spread exercised) BA bit-exact-or-±1 all cycles; multi-species iet01_dmc (DF/LP/PP
+hosts) matches live within tie-break. Commits fbbf92a/b148d18/6126b00.
+
+MANAGEMENT — IE integrates with the shared cuts engine: THINBTA (thin-to-BA) post-thin TPA BIT-EXACT vs live
+(iet01_thin). Full-cycle control (iet01 UNTHINNED CONTROL scenario) matches live within tie-break.
+
+META: iet01.key is a 4-SCENARIO keyfile (control + 3 thinnings) ⇒ run_keyfile emits 4 .sum blocks; match
+control-to-control or use clean single-scenario keyfiles (iet01_c/iet01_dmc/iet01_thin). A block-misread
+caused a retracted phantom "over-kill bug" — the .sum-misread trap, guard against it.
+
+IE STATUS: growth core + mortality + MISTOE + management VALIDATED end-to-end. REMAINING (downstream leaves,
+large new chunks): chunk 8 volume (full NVEL port — NSVB/Flewelling/DVEE), FFE-fuel, establishment (auto-regen).
+Suite 38588/0/1err/75broken, 0 regressions, all IE-gated.
