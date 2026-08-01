@@ -98,6 +98,18 @@ function ie_dgcons!(s::StandState)
         end
         (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
+        # Set the linear bark (bark_a + bark_b*d)/d so the SHARED engine bark_ratio calls (DBH-apply in
+        # grow_cycle!, _backdate_dbh!, etc.) reproduce ie_bratio (ie/bratio.f) — without this bark_a/bark_b
+        # stay 0 ⇒ bark_ratio floors to 0.80 ⇒ DG over-applied ~9% ⇒ QMD/BA over-growth.
+        #   IEQN=2 → a=0,b=BARK1 (constant BARK1); IEQN=1/3 → a=BARK2,b=BARK1 (BARK1+BARK2/d);
+        #   sp15/16 (BARK1=BARK2=0) → a=-0.3089,b=0.9002 (the 0.9002-0.3089/d default).
+        if IE_BRK_IMAP[sp] == 2
+            c.bark_a[sp] = 0f0; c.bark_b[sp] = IE_BARK1[sp]
+        elseif IE_BARK1[sp] == 0f0 && IE_BARK2[sp] == 0f0
+            c.bark_a[sp] = -0.3089f0; c.bark_b[sp] = 0.9002f0
+        else
+            c.bark_a[sp] = IE_BARK2[sp]; c.bark_b[sp] = IE_BARK1[sp]
+        end
     end
     return s
 end
