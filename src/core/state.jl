@@ -515,13 +515,16 @@ mutable struct Calibration
     calib_dbh::Vector{Float32}   # transient: CURRENT-stand dbh for the NE calibration BADIST (empty except
                                  # during calibrate's dgf! — FVS NE calib computes BAL on the current stand while
                                  # predicting at the backdated per-tree dbh; ne_badist! reads this when non-empty)
+    dg_dsq::Vector{Float32}      # EM per-stand DGDSQ = DGDS[ISPDSQ,sp] (em/dgf.f DGCONS); unused by other variants
+    dg_ccf::Vector{Float32}      # EM per-stand DGCCF (em/dgf.f DGCONS, sp-specific); unused by other variants
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP),
-    zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[])  # ht_dbh_aa=0, iabflg=1, calib_dbh empty
+    zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[],   # ht_dbh_aa=0, iabflg=1, calib_dbh empty
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP))                # dg_dsq, dg_ccf (EM)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

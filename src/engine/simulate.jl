@@ -81,6 +81,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa InlandEmpire
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa EasternMontana
+        em_dgcons!(s)                     # EM DGCON/DGDSQ/DGCCF (DGHAB+DGFOR+MAPDSQ+elev/slope-aspect+site adj), ATTEN=OBSERV
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end

@@ -159,7 +159,8 @@ function em_site_index_setup!(s::StandState)
     kodtyp_in = Int(p.habitat_code)
     iemtyp, itype = kodtyp_in > 0 ? em_habtyp(kodtyp_in) : (Int(p.habitat_input) > 0 ? (0, Int(p.habitat_input)) : (1, Int(EM_NIHMAP[1])))
     (itype < 1 || itype > 30) && (itype = 1)
-    p.habitat_input = Int32(itype)
+    p.habitat_input = Int32(itype)          # ITYPE (30 NI types) — sitset + DGCONS non-Wykoff ISPHAB
+    p.habitat_code  = Int32(iemtyp)         # IEMTYP (1..118) — DGCONS JDTYPE for the Wykoff-species MAPHAB
     em_sitset!(s, itype, iemtyp)
     return s
 end

@@ -99,6 +99,7 @@ include("variants/easternmontana/species.jl")         # EM blkdat init (19 speci
 include("variants/easternmontana/site_index.jl")      # EM habtyp (JTYPE/NIHMAP→ITYPE) + sitset (site index/SDIDEF) — site_setup!
 include("variants/easternmontana/crown.jl")           # EM per-tree CCF (em/ccfcal.f MODE=1 polynomial) — em_tree_ccf
 include("variants/easternmontana/dg_coefficients.jl") # EM large-tree DG coefficient arrays (em/dgf.f DATA, 1D+2D)
+include("variants/easternmontana/diameter_growth.jl") # EM large-tree DDS (em/dgf.f): em_dgcons! + dgf! (Wykoff main)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
