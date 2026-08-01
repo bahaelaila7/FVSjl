@@ -100,6 +100,31 @@ So the READ+SETUP+SITE path is validated; next unblockers are chunk 1b (real spe
 loads with the columns setup/inventory touch) + chunk 3 (diameter_growth!(::EasternMontana) — reuse KT
 diameter_growth.jl engine, swap EM DG coefs from em/dgf.f DATA + DGHAB(8)/DGFOR(6) dims). Both substantial.
 
+## Chunk 1b coefficient-source map (measured — all clean DATA)
+Per-species coefficients for species_coefficients.csv, by source file (all clean DATA, extract like bark):
+- **em/blkdat.f**: HT1/HT2 (Wykoff large-tree height → ht1/ht2/wykoff_ht2), SIGMAR (height resid var),
+  XMIN (small-tree min DBH), B0ACCF/B1ACCF/B0BCCF/B1BCCF/B0ASTD/B1BSTD (CCF open/stand crown-width —
+  eastern-style, feeds ccfcal), OCURHT(16 habitat-grp × MAXSP)+OCURNF(20 NF × MAXSP) (establishment).
+- **em/bratio.f**: bark1/bark2/bark_imap (DONE, validated).
+- **em/sitset.f**: site tables (DONE chunk 2, validated).
+- **em/dgf.f**: DG coefficients (DGLD/DGBAL/DGCR/DGCRSQ/DGDBAL/DGHAB(8,MAXSP)/DGFOR(6,MAXSP)/DGDS/DGEL/
+  DGEL2/DGSASP) + DGCONS (dg_resid_sd) — the chunk-3 bulk.
+- **em/regent.f**: small-tree st_dgmax/xmax/xmin/diam/htadj/break + regen coefs (chunk 6).
+- **em/morts.f + varmrt.f**: mort_bkgd_intercept/dbh + varmrt_varadj (chunk 7).
+- merch/volume specs (stump/top_dib/dbh_min/scf_*/bf_*): shared MRULES defaults + em VOLEQDEF (chunk 8).
+
+**Height group extracted+validated vs em/blkdat.f DATA (species order 1=WB..19=OH):**
+- HT1 = 4.1539 4.1539 4.4161 4.192 4.76537 3.2 4.5356 4.7537 4.5788 4.414 4.4421×6(11-16) 4.4421(17) 4.1539(18=OS) 4.4421(19)
+- HT2 = -4.212 -4.212 -6.962 -5.1651 -7.61062 -5.0 -5.692 -8.356 -7.138 -8.907 -6.5405×6 -6.5405 -4.212 -6.5405
+- SIGMAR = 0.11645 0.11645 0.14465 0.4671 0.4345 0.2 0.14465 0.1585 0.14465 0.1342 0.2 0.375 0.2 0.2 0.2 0.2 0.375 0.11645 0.2
+- XMIN = 1 1 1 1 0.5 0.5 1 0.5 0.5 1 3 6 3 3 3 3 6 0.5 3
+
+**Measured inventory note:** emt01's 27 trees ALL have measured heights (ht>0) ⇒ the 1990 inventory TopHt
+does NOT need htdbh-dubbing (heights from .tre); it needs correct TPA/BA/SDI/QMD (DBH) + CCF (crown-width
+B0*CCF) + volume. So the 1990-inventory validation is gated on: real DBH/expansion path + CCF crown coefs +
+volume merch — NOT the full growth set. (A BA=8-vs-77 gap seen with the placeholder CSV must be re-checked
+with real coefs, not diagnosed on zeros.)
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
