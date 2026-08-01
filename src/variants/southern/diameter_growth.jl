@@ -835,12 +835,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             c.htg_cor_init[sp] = log(cornew)
         end
     end
-    # IE small-tree REGENT height calibration (ie/regent.f:1060-1336) — the HCOR for PI/JU (sp15/16) etc. is
-    # NOT yet ported: live sets HCOR(15)=0.1436 (CON=1.0·exp=1.1545) from CORNEW=Σ(HTG·SCALE3·P)/Σ(EDH·P),
-    # EDH=POTHTG·PCTRED·VIGOR·0.5 over ≥5 measured-HTG dbh<5 trees. An initial port (see git history / topic
-    # memory) produced cornew ~10× off vs live on the synthetic stand + nh=4<NCALHT — reconciling needs a
-    # live-calibration trace (N/EDH/TERM per tree) and a REAL pinyon stand. jl holds htg_cor_init=0 (CON=1.0)
-    # meanwhile; drives the residual PI/JU cycle-compounding BA gap. See [[fvsjl-ie-variant-port]].
+    # IE PI/JU (sp15/16) small-tree height calib: NO regent HCOR block is needed. Live instrumentation showed
+    # sp15's own regent REGCAL gets N=4 < NCALHT(5) and SKIPS (htg_cor_init stays 0 — jl matches). Live's
+    # HCOR(15)=0.1436 is a SPILLOVER from the DIAMETER COR via dgdriv.f:183-205: WCI=0.5·COR, HCOR=WCI+CORMLT·
+    # (HCOR_regent−WCI) = WCI·(1−CORMLT). The line-947 formula below already implements exactly this. So the
+    # real gap is jl's dg_cor_goal[15]=0 vs live 0.59 (⇒ COR(15)≈1.187): sp15's DIAMETER COR calibration, not
+    # a height calib. TODO: reconcile the sp15 diameter DGSCOR COR. See [[fvsjl-ie-variant-port]].
     return s
 end
 
