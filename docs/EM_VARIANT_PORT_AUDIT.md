@@ -290,3 +290,15 @@ NIVAR HTGRL + RHCON extraction + em_regcons! (RHCON/HCOR calib) + DG-from-HTG. T
 branches deferred (not emt01). Then full-cycle emt01 .sum validates the whole growth core end-to-end.
 GROWTH CORE STATUS: DG VALIDATED vs live · height DONE · mortality DONE (matches live) · inventory+CCF+site
 bit-exact · regent = last hook, fully measured.
+
+## Chunk 6 regent — RHCON + implementation plan (measured, ready)
+em_regcons! (em/regent.f:1481): RHCON(sp) = REGCH(sp) + 1.0667 + RHHAB(IRHHAB) [per-species base REGCH +
+habitat-indexed RHHAB]. CON = RHCON + HCOR (HCOR = small-tree ht calibration, calib mode-40 RHCON·EXP(HCOR)).
+IMPLEMENTATION = mirror KT small_tree_growth! (regent.jl ~250 lines: subcycle count/lengths from FINT,
+per-subcycle stand density banext/rdnext from large trees, per-tree HTGRL over subcycles, then HTGR1+ZZRAN
+(dgsd≥1, bachlo)+XWT blend with the large-tree HTG + D<3 diameter dub) — but swap KT's HTGRL for EM NIVAR:
+HTGRL = CON + 0.3740·ln(H1) + (−0.00391)·RDJ + (−0.22957)·BAL + DADJ-bias-path; DG dub via EM DIAM/HCON/DCON.
+Extract EM regent DATA: REGCH/RHHAB (RHCON), XMIN/XMAX (small-tree dbh bounds), DIAM/HCON/DCON (DG dub),
+SLO/SHI, HSIGMA=0.59. Reuse KT's ZZRAN/XWT/size-cap logic verbatim. emt01 = 1 DF seedling (NIVAR).
+⇒ THIS is the last growth-core implementation; a large-but-scaffolded port (KT reuse). After it: full-cycle
+emt01 .sum differential = the end-to-end validation of DG+height+CCF+mortality+regent.
