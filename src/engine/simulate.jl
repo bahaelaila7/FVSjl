@@ -370,6 +370,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
+    # IE crown OLDPCT init (cratet.f:513): at the first grow cycle, seed OLDPCT = inventory (pre-growth) PCT so
+    # cycle-1's crown DCR uses it (not the post-growth PCT). Later cycles get OLDPCT from the post-crown snapshot.
+    if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
+        @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
+    end
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
     # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
     # NOTRIP=.TRUE. So capture NOTRIP here: a COMPRESS this cycle suppresses tripling only from NEXT cycle.
@@ -509,6 +514,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
     crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
+    # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
+    # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
+    if s.variant isa InlandEmpire
+        @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
+    end
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted
     # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first
