@@ -526,7 +526,7 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     # IE (and other western Wykoff variants): field 2 is the numeric habitat code (KODTYP) that
     # ie_habtyp reduces to ITYPE — store it in habitat_code, NOT eco_unit (initre.f:808 KODTYP).
     if rec.present[2]
-        if s.variant isa InlandEmpire
+        if s.variant isa InlandEmpire || s.variant isa Kootenai
             p.habitat_code = nint(v[2])
         else
             p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)
