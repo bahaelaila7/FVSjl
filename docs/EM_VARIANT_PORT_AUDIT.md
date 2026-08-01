@@ -242,3 +242,16 @@ NOTE: live FVSem SEGFAULTS at run-end under DEBUG mode (DGF debug printed fine f
 crash to trace later (doctrine: fix live crashes; low-pri, non-DEBUG runs are clean).
 NEXT: height (ch4 htgf) to enable the full-cycle .sum projection differential; then NI/DIAGR/aspen DG paths
 (non-emt01 species) + regent/mortality/volume.
+
+## Chunk 7 RN/TN10 — the SDI self-thinning (measured, more complex than KT)
+RN = 1−(1−(T−TN10)/T)^(1/FINT) where TN10 = target tree count after SDI mortality (em/morts.f 486-590):
+- T > T85D0 (85% SDI at DIA0): TN10=T85D10 (kill to 85% line).
+- T55D0 < T ≤ T85D0: ITERATIVE linear-fn fit between the 55%/85% SDI lines (label 220 loop, ≤100 iters,
+  Newton-ish TREEIT+=0.5·DIFF) → TN10=exp(CEPMRT+SLPMRT·ln(D10)), capped at T85D10.
+- T ≤ T55D10: TN10=T (HOLD — no SDI mortality). ⇒ ★KEY: a below-55%-SDI stand gets RN=0 → RIP=RI (BACKGROUND
+  ONLY). This is WHY emt01 barely self-thins (536→455) — it's below the SDI limit, so PMSC background dominates.
+T85D10=TMD10·PMSDIU, T55D10=TMD10·PMSDIL, TMD10=CONST·D10^−1.605, CONST=SDIMAX/0.02483133. DIA0/D10=prev/cur
+DQ10. This iterative SDI boundary is NOT in KT (KT used rz=1−(1−ttb)^0.1) — EM mortality is a distinct, larger
+port. Implement: stand-level TN10 fit + RN + the RI-background original-species branch (PMSC extracted) +
+KT-density-Hamilton added-species branch. For emt01's early cycles RN≈0 so the RI/PMSC path is the first
+validation target (full .sum TPA). MSB (mature-stand-boundary SLPMSB/QMDMSB) is an optional refinement.
