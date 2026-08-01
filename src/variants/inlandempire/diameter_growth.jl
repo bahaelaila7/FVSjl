@@ -121,7 +121,8 @@ function dgf!(s::StandState, ::InlandEmpire)
     relden = p.relative_density
     ba = p.basal_area
     ba100 = ba / 100f0
-    rmsqd = p.qmd
+    rmsqd = stand_qmd(s)     # RMSQD (dense.f) — stand QMD; used by aspen DGFASP (REL=D/RMSQD, GOFAD). p.qmd
+                             # is never populated for IE ⇒ was 0 ⇒ GOFAD ~4× low ⇒ aspen under-grew badly.
     itype = Int(p.habitat_input); ifor = Int(p.forest_idx)
     (itype < 1 || itype > 30) && (itype = 1)
     (ifor  < 1 || ifor  > 11) && (ifor  = 1)
