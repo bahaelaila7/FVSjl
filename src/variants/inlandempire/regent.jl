@@ -169,8 +169,18 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         dless3 = 0.000231f0*hl4*cr - 0.00005f0*hl4*tpccf + 0.001711f0*cr + 0.17023f0*hl4
                         wk5[i] = max(dless3 + 0.3f0, IE_RG_DIAM[sp])
                     end
+                elseif (sp == 19 || sp == 22) && j == 1
+                    # CRVAR CO (sp19,22): POTHTG height (VIGOR NOT cut, unlike PI/JU); ONE pass. Diameter stays
+                    # large-tree dgf (CO CR-logic works; CO TPA already tracks live — no seedling-DG problem).
+                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    h1 = wk3[i]
+                    sj = p.sp_site_index[sp]                       # POTHTG uses raw SITEAR
+                    pothtg = ((sj/5f0)*(sj*1.5f0 - h1)/(sj*1.5f0)) * 0.83f0
+                    crx = Float32(t.crown_pct[i]) / 100f0
+                    vigor = 150f0*crx^3*exp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    wk3[i] = h1 + pothtg * pctred * vigor * con * scale_ut
                 end
-                continue                                          # CO special species: TODO
+                continue                                          # (all special species handled)
             end
             con = rhcon[sp] + c.htg_cor_small[sp]              # CON = RHCON + HCOR (HCOR=0 until calib)
             h1 = wk3[i]; d = wk5[i]
@@ -326,8 +336,29 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         t.diam_growth[i] = 0f0
                     end
                 end
+            elseif sp == 19 || sp == 22
+                # CRVAR CO: HTGR=(HTGR1+ZZRAN·0.2)·XRHGRO (regent.f:815), XWT blend [0.5,2]. Diameter = dgf (not overridden).
+                h = t.height[i]
+                xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                htgr1 = wk3[i] - h
+                zzran = 0f0
+                if dgsd >= 1.0f0
+                    while true
+                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                    end
+                end
+                htgr = (htgr1 + zzran*0.2f0) * xrhgro                # CRVAR: ZZRAN·0.2
+                htgr < 0.1f0 && (htgr = 0.1f0)
+                xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
+                xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
+                htg < 0.1f0 && (htg = 0.1f0)                         # CRVAR HTG floor (regent.f:842)
+                cap = s.control.sp_size_cap[sp, 4]
+                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                t.ht_growth[i] = htg
             end
-            continue                                              # CO: TODO
+            continue                                              # (all special species handled)
         end
         h = t.height[i]
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
