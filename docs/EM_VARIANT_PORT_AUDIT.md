@@ -88,6 +88,18 @@ Then the diagnostic will advance past site_setup! to the next hook (htdbh/crown)
 + ht1/ht2/wykoff_ht2 (htcalc.f) + mort_bkgd (morts.f) + htdbh (htdbh.f) + volume merch + dg_resid_sd
 (dgf.f DGCONS) + varmrt_varadj + is_sprouting.
 
+## Chunk 2 COMPLETE (e7d622b) + measured next-blocker
+site_setup!(::EasternMontana) done + validated (see above / commit): ITYPE=4, SDIDEF=696 all sp, DF SI=51,
+BAMAX=310 — bit-exact vs live FVSem emt01. Also fixed kw_stdinfo! habitat_code gate to include EM (4th such
+gate: SN→eco_unit, KT/IE/EM→habitat_code; found running from-scratch, same class as the KT bug).
+
+**Measured (diagnostic identity+bark CSV, run full .sum):** setup_growth! + site_setup! run clean; the
+projection then hits `MethodError diameter_growth!` (dgf!) ⇒ the .sum needs **chunk 3 (DG)** to run all
+cycles. The 1990 inventory ROW itself is pre-growth but needs height-dub (htdbh) + crown coefs for TopHt/CCF.
+So the READ+SETUP+SITE path is validated; next unblockers are chunk 1b (real species_coefficients.csv so EM
+loads with the columns setup/inventory touch) + chunk 3 (diameter_growth!(::EasternMontana) — reuse KT
+diameter_growth.jl engine, swap EM DG coefs from em/dgf.f DATA + DGHAB(8)/DGFOR(6) dims). Both substantial.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
