@@ -206,6 +206,16 @@ branch (PMSC/PMD/PMDSQ in mort_bkgd_coeffs.csv, extracted). Then shared RDPSRT s
 FVSem_clean (EM barely self-thins — 536→455 by 2060 — so the RN/RI balance is the key validation).
 FIND RN's exact assignment (em/morts.f 391-600, the T85D10/T55D10 interpolation) before coding.
 
+## Chunk 6 (regent / small_tree_growth!) scope — the LAST grow_cycle! hook (measured)
+em/regent.f (1491) REUSES the KT/IE REGENT pattern: REGYR=5.0 (5-yr subcycles), HSIGMA=0.59,
+BACON=0.005454154 (em/regent.f:147) — structurally identical to KT's small_tree_growth! (subcycle count/
+lengths from cycle length, per-subcycle stand density from the large trees, small-tree HTG increment model
+then DG derived). ⇒ reuse KT's small_tree_growth! structure + EM regent coefficients (extract from
+em/regent.f DATA) + em_regcons! (RHCON/RHGL calibration). Small-tree threshold dbh<3" (KT) — emt01 has ONE
+0.1" DF seedling, so the stand .sum impact is tiny, but faithful is the goal. Once implemented, grow_cycle!
+runs end-to-end → the full-cycle emt01 .sum differential vs FVSem_clean VALIDATES DG+height+CCF+mortality+
+regent together (TPA/BA/SDI/CCF/TopHt/QMD across all cycles). This is the FINAL growth-core hook.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
