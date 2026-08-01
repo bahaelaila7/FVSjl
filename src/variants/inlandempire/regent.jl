@@ -61,7 +61,9 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             for j in 2:nper
                 k += kper[j-1]
                 pn = pr * 0.985f0^k
-                rdnext[j] += k * ci / pr * pn
+                # regent.f:269 RDNEXT += K*CI/P*PN where CI uses CCFCAL (= CCFT*P). Our ie_tree_ccf is CCFT
+                # (no P), so CI here lacks the P that FVS's /P cancels ⇒ do NOT divide by pr (pn carries it).
+                rdnext[j] += k * ci * pn
                 banext[j] += k * bi * pn
             end
         end
