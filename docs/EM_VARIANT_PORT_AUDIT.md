@@ -174,6 +174,23 @@ Multi-path like DG. MAIN Wykoff conifers (sp1-3,7-10,18 — covers emt01):
 Validate via em/htgf.f DEBUG (IN HTGF WRITE line 192/50/901 fire under DEBUG) — same instrument-replay as DG.
 emt01 = DF/WL/LP/PP/ES ⇒ only POTHTG main path needed for the first height validation + full-cycle .sum.
 
+## Chunk 6/7 scope — the 2 remaining grow_cycle! hooks for the full .sum (measured)
+The full-cycle .sum needs `small_tree_growth!(::EM)` (chunk 6) + `mortality!(::EM)` (chunk 7); grow_cycle!
+calls them after height. emt01 has a 0.1" DF seedling so both fire.
+
+**Chunk 7 mortality (em/morts.f, 1266 lines) — HYBRID of KT-density + CS-background:**
+- RIP density Hamilton (line 678) = IDENTICAL to KT mortality.jl: `2.76253+0.222310·√D−0.0460508·√BA+
+  11.2007·G−0.554421/D+B0+0.246301·RELDBH+6.07129·G/D` (B0=PMSC[sp]). ⇒ reuse KT's mortality! RIP path.
+- RI background (line 630) = CS/LS form: `RI = 1/(1+exp(B0+B1·D+B2·D²))` with B0=PMSC/B1=PMD/B2=PMDSQ (DATA
+  lines 126/131/136); RI×0.5 halving (line 634). RN = trend-matching rate; RIP=RN unless T≤TEM or RN≤0 → RI.
+- Two regimes: SDI-based (default) vs BAMAX-based takeover (header lines 12-14) — like eastern. BAMAX=BAMAXA
+  [ITYPE] default. Extract EM PMSC/PMD/PMDSQ + POTEN/BREAK/GMULT/REIN; reuse KT's mortality! structure +
+  the shared self-thinning RDPSRT tie-break. Validate via full emt01 .sum (TPA self-thin) vs FVSem_clean.
+
+**Chunk 6 small-tree (em/regent.f):** REGENT small-tree DG/HTG for dbh<threshold (the 0.1" seedling). Reuse
+the KT/IE regent pattern (ie_regcons!/small_tree_growth!) + EM coefficients. HTGF's H≤4.5 GO TO 60 path also
+lands here. Needed for the seedling's growth in the projection.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
