@@ -134,3 +134,15 @@ with real coefs, not diagnosed on zeros.)
    (em/crown.f/ccfcal.f). 6. Regent (em/regent.f). 7. Mortality (em/morts.f + varmrt.f — verify vs
    shared driver + KT Hamilton; the low-thinning behavior). 8. Volume (shared NVEL/cr_fw2_vol).
    9. Full-cycle differential vs FVSem_clean on emt01 + native stands.
+
+## Chunk-2/inventory validation: EM 1990 read+expansion+site+height BIT-EXACT
+Validated EM's cycle-0 inventory (each_stand → notre! → setup_growth!, diagnostic identity+bark+site CSV,
+compare via the .sum normalization stand_X/gross_space): TPA=536 BA=77 SDI=184 TopHt=63 QMD=5.1 — ALL
+BIT-EXACT vs live FVSem emt01. Only CCF=0 (needs crown-width coefs B0ACCF/B1ACCF/B0BCCF/B1BCCF/B0ASTD/B1BSTD
+from blkdat.f). ⇒ the READ + notre! expansion + site_setup! + measured-height path is VALIDATED end-to-end
+at inventory. Design params all match live (BAF=40/fixed=300/break=5/11 plots/1 nonstock/wt=11).
+
+META (2 phantom bugs avoided this session): (1) "BA=8" — isolated setup_growth! skips notre! (the tpa
+expansion). (2) "TPA 10% high" — the .sum divides stand_X by gross_space (simulate.jl:456); direct stand_ba
+returns the gross_space-inflated internal value. ALWAYS replicate the .sum normalization (notre! + /gross_space)
+when validating inventory in isolation — else you chase measurement artifacts (doctrine #2/#3 meta-lesson).
