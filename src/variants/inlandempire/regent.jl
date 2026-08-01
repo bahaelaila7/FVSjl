@@ -133,24 +133,25 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
-        # diameter: only D<3 gets the small-tree dub (regent.f:568-600); D≥3 keeps its large-tree DG
+        # diameter: only D<3 gets the small-tree dub (regent.f:875-940); D≥3 keeps its large-tree DG.
+        # KEY (regent.f REGENT-before-MORTS order): REGENT sets DBH(K) DIRECTLY for small trees, so mortality
+        # sees the GROWN small-tree DBH (unlike large trees, whose DG is applied in GRADD after MORTS). So we
+        # update t.dbh here and zero diam_growth (the shared GRADD-apply is then a no-op for these records).
         if d < 3.0f0
             relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
             relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
             hk = h + htg
-            if hk < 4.5f0
-                # regent.f:881: DBH := 0.1 + DIAM(sp)*.01 + HK*.001 (set absolutely), DG=0 in FVS.
-                target = 0.1f0 + IE_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0
-                dg = target - d; dg < 0.0f0 && (dg = 0.0f0)
-                t.diam_growth[i] = dg
+            new_dbh = if hk < 4.5f0
+                0.1f0 + IE_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0   # regent.f:881
             else
-                dk = ax * (hk - 4.5f0)^bx + dadj
+                dk = ax * (hk - 4.5f0)^bx + dadj                 # regent.f:938 (DK<DIAM→DIAM; +HK*.001)
                 dk < IE_RG_DIAM[sp] && (dk = IE_RG_DIAM[sp])
-                dk += hk * 0.001f0
-                dg = dk - d; dg < 0.0f0 && (dg = 0.0f0)
-                t.diam_growth[i] = dg
+                dk + hk * 0.001f0
             end
+            new_dbh < d && (new_dbh = d)                         # no shrink
+            t.dbh[i] = new_dbh
+            t.diam_growth[i] = 0f0                               # DBH already applied ⇒ GRADD-apply is a no-op
         end
     end
     return s
