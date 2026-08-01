@@ -144,6 +144,21 @@ RM/CO DIAGR (like CR gemdg) + DGFASP aspen. Data still to extract: 2D DGHAB(8×1
 via MAPHAB(117×19)/MAPLOC(7×19)/MAPDSQ(7×19) + OBSERV(6×19) + DGDSQ(1D) + em/dgfasp.f + dg_resid_sd(DGCONS).
 1D DG terms already in data/easternmontana/dg_1d_coeffs.csv.
 
+## Chunk 3 DGCONS derivation (em/dgf.f ENTRY DGCONS, line 615) — the per-stand setup
+Per species ISPC (needs IFOR from em_forkod!, ITYPE+JDTYPE from habtyp, ELEV/ASPECT/SLOPE from STDINFO):
+- JDTYPE = IDTYPE (habitat idx); if >117 → 30.
+- ISPHAB = MAPHAB[JDTYPE,ISPC] for sp 1-3,7-10,18 (Wykoff conifers); else MAPHAB[ITYPE,ISPC].
+- ISPFOR = MAPLOC[IFOR,ISPC]; ISPDSQ = MAPDSQ[IFOR,ISPC]; ISPCCF = MAPCCF[ITYPE].
+- TMPASP = ASPECT (−0.7854 for sp 4,6,12,17); XSLOPE = SLOPE (÷10 for sp 1-3,7-10,18; =0 for sp18 OS).
+- **DGCON(ISPC) = DGHAB[ISPHAB,ISPC] + DGFOR[ISPFOR,ISPC] + DGEL·ELEV + DGEL2·ELEV² +
+  (DGSASP·sin(TMPASP) + DGCASP·cos(TMPASP) + DGSLOP)·XSLOPE + DGSLSQ·XSLOPE²**
+- **DGDSQ(ISPC) = DGDS[ISPDSQ,ISPC]**; DGCCF(ISPC) species-specific (sp4 special; see line 665+).
+- Site class ISIC(1-5) from SITEAR/10 (used downstream).
+⇒ NEEDS em_forkod! (IFOR, the JFOR-subscript from em/forkod.f — deferred in chunk 2; MAPLOC/MAPDSQ index it).
+Then the main-loop DDS (Wykoff): CONSPP=DGCON+COR+0.01·DGCCF·RELDEN; DDS=CONSPP+DGLD·lnD+CR·(DGCR+CR·DGCRSQ)+
+DGBAL·BAL+DGDBAL·BAL/ln(D+1)+DGDSQ·D²(?)+... (verify exact large-tree terms at em/dgf.f:540-585). Then
+`DDS=DDS+COR+DGCON` (line 559) for the DIAGR species. All coefficient DATA extracted; forkod + dgfasp remain.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
