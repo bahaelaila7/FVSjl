@@ -13,9 +13,11 @@
 
 "Strip a trailing `.key`/`.KEY` (or any extension) to get the run's base path."
 function strip_key_ext(keypath::AbstractString)
-    lk = findfirst(".k", keypath)
-    lk === nothing && (lk = findfirst(".K", keypath))
-    return lk === nothing ? keypath : keypath[1:first(lk)-1]
+    # `splitext` removes ONLY the final path component's extension, so a dot in a
+    # parent directory (e.g. `/workspace/.ktwork/run/foo.key`) is left intact. The old
+    # `findfirst(".k", …)` matched the first `.k` anywhere in the path — truncating the
+    # base at a `.ktwork`-style directory and losing the companion `.tre`.
+    return first(splitext(keypath))
 end
 
 # Open a keyword source as a `KeywordReader` + the run's base path. A `.yaml`/`.yml`
