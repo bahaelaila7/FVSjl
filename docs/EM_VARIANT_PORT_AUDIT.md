@@ -191,6 +191,21 @@ calls them after height. emt01 has a 0.1" DF seedling so both fire.
 the KT/IE regent pattern (ie_regcons!/small_tree_growth!) + EM coefficients. HTGF's H≤4.5 GO TO 60 path also
 lands here. Needed for the seedling's growth in the projection.
 
+## Chunk 7 mortality FULL flow (em/morts.f) — measured, ready to implement
+Stand-level (lines 360-486, = KT mortality.jl structure): D10=DQ10 (or DR10); DELTBA→BA10=BA+((BAMAX−BA)/
+BAMAX)·DELTBA; TB=BA10/(0.005454154·D10²); TTB=(T−TB)/T (cap .9999); **RZ=1−(1−TTB)^0.1**; CONST=SDIMAX/
+0.02483133; TMD10=CONST·D10^−1.605 (cap 35000); T85D10=TMD10·PMSDIU; T55D10=TMD10·PMSDIL. AVED=Σ(D·P)/ΣP.
+Per-tree, TWO paths by species:
+- **ORIGINAL EM species (1-3,7-10,18 = emt01's WL/DF/LP/ES/PP):** RI=0.5/(1+exp(PMSC+PMD·D+PMDSQ·D²)) [halved];
+  RIP=RN (the SDI trend rate from RZ/T85D10 logic, lines 391-600); TEM=CONST·D10^−1.605·PMSDIL;
+  IF(T≤TEM OR RN≤0) RIP=RI (background when SDI not yet limiting); WKI=P·(1−(1−RIP)^FINT)·X (X=XMORT in
+  [D1,D2] only if RIP==RI). ⇒ a background+SDI-trend model, NOT the KT density Hamilton.
+- **ADDED species (4,5,6,11-17,19):** the KT density Hamilton (RIP=2.76253+…, line 678) — reuse KT path.
+Implement mortality!(::EM): reuse KT's stand-level (rz/tb/ttb/ba10/CONST/TMD10) + add the RI/RN original-species
+branch (PMSC/PMD/PMDSQ in mort_bkgd_coeffs.csv, extracted). Then shared RDPSRT self-thin + full emt01 .sum vs
+FVSem_clean (EM barely self-thins — 536→455 by 2060 — so the RN/RI balance is the key validation).
+FIND RN's exact assignment (em/morts.f 391-600, the T85D10/T55D10 interpolation) before coding.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
