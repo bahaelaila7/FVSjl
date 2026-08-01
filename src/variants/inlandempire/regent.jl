@@ -88,6 +88,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # per-tree height + diameter accumulators (WK3=H, WK5=D), start at HT/DBH
     wk3 = Float32[t.height[i] for i in 1:n]
     wk5 = Float32[t.dbh[i] for i in 1:n]
+    zrand_tt = fill(-999f0, n)          # TTVAR (sp13/17) persistent ZRAND per tree (regent.f:513); drawn fresh
+                                        # each call (cross-cycle persistence = accepted ZZRAN-class residual)
     cur_year = current_cycle_year(s)
     # ---- subcycle loop (regent.f:250-620) ----
     @inbounds for j in 1:nper
@@ -140,8 +142,35 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     htgrl = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con * 0.75f0
                     wk3[i] = h1 + htgrl * scale_ut                          # regent.f:600 (·SCALE=NTYR/YR)
                     # (aspen subcycle DBH/density-feedback omitted — single UT pass; final assembly is authoritative)
+                elseif sp == 13 || sp == 17
+                    # TTVAR (LM/PY): BETA/ZRAND height — EVERY subcycle (NOT one-pass; regent.f:507-538,598).
+                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    h1 = wk3[i]
+                    cr = Float32(t.crown_pct[i])
+                    tpccf = clamp(relden, 25f0, 300f0)                      # PCCF≈stand CCF (single-point)
+                    beta1 = exp(1.17527f0 - 0.42124f0*log(tpccf))
+                    beta2 = exp(-2.56002f0 - 0.58642f0*log(tpccf))
+                    htg1 = beta1 + beta2*cr
+                    stddev = htg1*(1.08720f0 - 0.00230f0*cr)
+                    if zrand_tt[i] == -999f0                                # draw once (regent.f:513, no DGSD gate)
+                        while true
+                            z = bachlo(s.rng, 0.0f0, 1.0f0)
+                            (z >= -2.0f0 && z <= 2.0f0) && (zrand_tt[i] = z; break)
+                        end
+                    end
+                    htgrl = htg1 + zrand_tt[i]*stddev
+                    (htgrl <= 0.1f0) && (htgrl = 0.1f0; zrand_tt[i] = -999f0)   # reset ⇒ redraw next subcycle
+                    xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                    wk3[i] = h1 + htgrl * scale * xrhgro * con              # ·SCALE=kper/regyr ·CON ·WK4(=1)
+                    # DLESS3 diameter into wk5 (= DK in final assembly)
+                    h2 = wk3[i]
+                    if h2 > 4.5f0
+                        hl4 = h2 - 4.5f0
+                        dless3 = 0.000231f0*hl4*cr - 0.00005f0*hl4*tpccf + 0.001711f0*cr + 0.17023f0*hl4
+                        wk5[i] = max(dless3 + 0.3f0, IE_RG_DIAM[sp])
+                    end
                 end
-                continue                                          # CO/TT special species: TODO
+                continue                                          # CO special species: TODO
             end
             con = rhcon[sp] + c.htg_cor_small[sp]              # CON = RHCON + HCOR (HCOR=0 until calib)
             h1 = wk3[i]; d = wk5[i]
@@ -266,8 +295,39 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         t.diam_growth[i] = dgv
                     end
                 end
+            elseif sp == 13 || sp == 17
+                # TTVAR (LM/PY): HTGR=HTGR1 (regent.f:800 skips ZZRAN for TT) + XWT blend; DLESS3 DK−DKK diameter.
+                h = t.height[i]
+                xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+                htgr = wk3[i] - h                                    # HTGR1 (no ZZRAN block for TTVAR)
+                xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
+                xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
+                cap = s.control.sp_size_cap[sp, 4]
+                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                t.ht_growth[i] = htg
+                if d < 3f0
+                    hk = h + htg
+                    if hk >= 4.5f0                                   # regent.f:921
+                        cr = Float32(t.crown_pct[i]); tpccf = clamp(relden, 25f0, 300f0)
+                        hl4 = h - 4.5f0                              # DKK from current height HT(K) (regent.f:922)
+                        dless3 = 0.000231f0*hl4*cr - 0.00005f0*hl4*tpccf + 0.001711f0*cr + 0.17023f0*hl4
+                        dkk = max(dless3 + 0.3f0, IE_RG_DIAM[sp])
+                        dgk = (wk5[i] - dkk) * xrdgro                # DK(subcycle wk5) − DKK (regent.f:927)
+                        dgmx = IE_RG_DGMAX[sp] * (fint / 10f0)       # TTVAR DGMX = FINT·DGMAX (regent.f:736)
+                        dgk > dgmx && (dgk = dgmx); dgk < 0f0 && (dgk = 0f0)
+                        bark = ie_bratio(sp, d)
+                        dg0 = dgk * bark                            # TTVAR DG(K)=DGK·BARK (regent.f:976)
+                        dds = dg0*(2f0*bark*d + dg0)*scale2
+                        dgv = sqrt((d*bark)^2 + dds) - bark*d
+                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
+                        t.diam_growth[i] = dgv
+                    else
+                        t.diam_growth[i] = 0f0
+                    end
+                end
             end
-            continue                                              # CO/TT: TODO
+            continue                                              # CO: TODO
         end
         h = t.height[i]
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
