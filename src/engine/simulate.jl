@@ -424,6 +424,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
     s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
+    s.variant isa InlandEmpire && ie_dm_growth_loss!(s, stash)   # IE MISTOE DG-loss (misdgf.f), static damage-code DMR
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,

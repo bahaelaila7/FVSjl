@@ -55,3 +55,77 @@ const IE_MIS_PMC = reshape(Float32[
     0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0,   # sp14-18
     0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0,   # sp19-23
 ], 3, 23)
+
+# ============================================================================
+# IE MISTOE effect kernels + apply steps (mistoe/misdgf.f + mismrt.f — the SHARED
+# equations, IE coefficients). Mirrors the validated CentralRockies path
+# (data/centralrockies/dwarf_mistletoe.jl + dwarf_mistletoe_model.jl). DMR is seeded
+# generically from tree damage codes 30-34 in treeinput.jl (no IE-specific input needed).
+# IE has NO height-growth reduction (AHGP all 1.0) and the INFECTION/SPREAD subsystem
+# (misinf/mistoe.f DMR intensification) is a separate later layer — the damage-code path
+# gives a STATIC per-tree DMR, sufficient to drive effects + mortality.
+# ============================================================================
+
+"misdgf.f: DG diameter-growth multiplier for (species, DMR). 1.0 for DMR 0 / unaffected species."
+@inline ie_dm_dg_mult(sp::Integer, dmr::Integer) = @inbounds IE_MIS_DGP[dmr + 1, sp]
+
+"""
+    ie_dm_mortality_rate(sp, dmr, dbh, fint; dmmmlt=1.0) -> Float32
+
+Periodic DM-induced mortality proportion (mismrt.f:155-183): quadratic in DMR, species
+multiplier, +20% for DBH<9, floored at 0, capped 0.71(<9)/0.5(≥9), then annualized to the
+cycle length. Returns 0 for DMR 0.
+"""
+function ie_dm_mortality_rate(sp::Integer, dmr::Integer, dbh::Real, fint::Real; dmmmlt::Real = 1.0)
+    dmr == 0 && return 0.0f0
+    b0 = IE_MIS_PMC[1, sp]; b1 = IE_MIS_PMC[2, sp]; b2 = IE_MIS_PMC[3, sp]
+    m = b0 + b1 * dmr + b2 * dmr * dmr
+    m *= dmmmlt
+    small = dbh < 9.0
+    small && (m *= 1.2)
+    m < 0.0 && (m = 0.0)
+    cap = small ? 0.71 : 0.5
+    m > cap && (m = cap)
+    return Float32(1.0 - (1.0 - m)^(fint / 10.0))
+end
+
+"""
+    ie_dm_growth_loss!(s, stash)
+
+misdgf.f (applied at dgdriv.f:230, post-DG-driver): multiply each infected tree's diameter
+growth (central + tripled dgU/dgL) by IE_MIS_DGP[DMR+1,sp], using START-of-cycle DMR.
+No-op for non-IE / uninfected. Deterministic.
+"""
+function ie_dm_growth_loss!(s::StandState, stash)
+    s.variant isa InlandEmpire || return
+    t = s.trees
+    n = stash === nothing ? t.n : stash.nlive
+    @inbounds for i in 1:n
+        dmr = Int(t.dmr[i]); dmr == 0 && continue
+        m = Float32(ie_dm_dg_mult(Int(t.species[i]), dmr))
+        m == 1f0 && continue
+        t.diam_growth[i] *= m
+        stash !== nothing && (stash.dgU[i] *= m; stash.dgL[i] *= m)
+    end
+    return
+end
+
+"""
+    ie_dm_mortality_combine!(killed, s, fint, n)
+
+mismrt.f:185-191: MAX-combine per-tree DM mortality (WKI = PROB·rate) into `killed[]`
+(WK2 = max(WK2, WKI)) — DM mortality REPLACES background when larger, not additive.
+No-op for non-IE / uninfected. Order-independent (per-tree max).
+"""
+function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
+    s.variant isa InlandEmpire || return
+    t = s.trees
+    @inbounds for i in 1:n
+        dmr = Int(t.dmr[i]); dmr == 0 && continue
+        pr = t.tpa[i]; pr <= 0f0 && continue
+        rate = ie_dm_mortality_rate(Int(t.species[i]), dmr, t.dbh[i], fint)
+        wki = pr * rate
+        killed[i] < wki && (killed[i] = wki)
+    end
+    return
+end
