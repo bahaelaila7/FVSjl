@@ -265,3 +265,14 @@ DQ10. This iterative SDI boundary is NOT in KT (KT used rz=1−(1−ttb)^0.1) �
 port. Implement: stand-level TN10 fit + RN + the RI-background original-species branch (PMSC extracted) +
 KT-density-Hamilton added-species branch. For emt01's early cycles RN≈0 so the RI/PMSC path is the first
 validation target (full .sum TPA). MSB (mature-stand-boundary SLPMSB/QMDMSB) is an optional refinement.
+
+## Chunk 6 regent small-tree HTG detail (em/regent.f 419-500) — measured
+Small-tree height increment dispatches by species-SOURCE variant flag (CRVAR/UTVAR/NIVAR/TTVAR — from the
+species-expansion lineage). emt01's conifers (DF/WL/LP/PP/ES) use **NIVAR** (North Idaho, the main EM path):
+  RELH=(H1−4.5)/(AH−4.5) [0,1]; DADJ=DELMAX·RELH²−2·DELMAX·RELH+0.65 (bias); TPCCF=clamp(PCCF·PPCCF,25,300);
+  **HTGRL = CON + BH·ln(H1) + BCCF·RDJ + BBAL·BAL** (Wykoff small-tree form); then HTG via subcycles (REGYR=5,
+  reuse KT). Needs per-species CON/BH/BCCF/BBAL/DELMAX + SLO/SHI (site low/high). DG derived from HTG.
+  (CRVAR path: POTHTG=SITEAR/(15−4·RELSI); UT sp6 different — not emt01.)
+⇒ chunk 6 = reuse KT small_tree_growth! subcycle scaffold + the NIVAR HTGRL small-tree HTG + EM coefs +
+em_regcons! calibration. THE LAST growth-core hook — then full-cycle emt01 .sum differential validates
+DG+height+CCF+mortality+regent end-to-end. Growth core (DG validated / height / mortality matching live) done.
