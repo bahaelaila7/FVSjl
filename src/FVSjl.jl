@@ -93,6 +93,9 @@ include("variants/inlandempire/volume.jl")           # IE volume (ie/sitset.f VO
 include("variants/inlandempire/regent_coefficients.jl") # IE REGENT small-tree coefficients (ie/regent.f, dumped)
 include("variants/inlandempire/regent.jl")           # IE REGENT small-tree growth (ie/regent.f): ie_regcons! + hook
 
+# --- easternmontana (EM) — next western Rockies cluster variant (KT-engine discount); chunk 0 scaffold ---
+include("variants/easternmontana/easternmontana.jl")  # EM singleton + registration (MAXSP 19, western Wykoff DDS)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
