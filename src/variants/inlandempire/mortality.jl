@@ -64,7 +64,10 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)                  # X=1 (no MORTMULT window)
+        # ie/morts.f:316-322 species-group rate: NI rate for sp≤12,14,23; 20% for PI/JU
+        # (sp15,16); 60% for LM,PY,AS,CO,MM,PB,OH (sp13,17,18,19,20,21,22). X=1 (no MORTMULT).
+        smult = (sp <= 12 || sp == 14 || sp == 23) ? 1f0 : (sp == 15 || sp == 16) ? 0.2f0 : 0.6f0
+        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
