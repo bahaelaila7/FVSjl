@@ -331,3 +331,15 @@ stand RELDEN/CCF/BAL feeding dgf!, or the DDS→DG conversion/period). NEXT: ins
 relink, OR compare jl growth-pass RELDEN/CCF vs the inventory-validated 97). Candidate causes: (a) growth-pass
 RELDEN differs (jl RELDEN during growth vs live); (b) DDS→DG conversion; (c) DGSCOR self-cal firing wrongly.
 Deferred: mortality iterative TN10 fit (55-85% SDI, fires ~2020). EM_PSIGSQ wired into the shared psigsq dispatch.
+
+## Residual DG ~7% (post-RELDEN-fix) — DG-precision lead, needs live growth-pass DGF
+After the RELDEN fix: emc2 2000 BA 103 vs live 96 (7% high), 2010 BA 133 vs 114 (compounds). jl WL growth-pass:
+RELDEN=106.653 (raw CCF; ÷gross_space=97), DDS=1.9146, DG=0.5436, dg_cor[WL]=0. NOT the COR: emt01.tre has
+measured DG only on a few records (rec6=5.6") ⇒ jl calibration fires correctly (PP COR=-0.0226; WL/DF/LP/ES
+COR=0, matching no-measured-DG). So the residual is DDS-precision, candidates: (a) RELDEN value — jl uses RAW
+stand_ccf 106.653; if live's DGF wants per-acre 97 it'd be HIGHER DDS (worse) so probably not; (b) CROWN RATIO
+feeding DDS's CR·(DGCR+CR·DGCRSQ) — my new crown_ratio_update! (minimal d<3 dub) may drift CR; (c) the growth-
+pass RELDEN timing (pre vs post prev-cycle); (d) DDS→DG bark conversion. TO PIN DOWN: capture the live GROWTH-
+pass DGF DDS — the DEBUG-keyword run SEGFAULTS at run-end before it prints, so patch em/dgf.f WK2(I)=DDS site
+with an unconditional WRITE(unit) + relink (relink_em.sh <name> patched.o) + compare per-tree DDS at cycle-1
+growth. This is the last full-cycle precision gap (+ the deferred mortality iterative TN10 fit at 2020).
