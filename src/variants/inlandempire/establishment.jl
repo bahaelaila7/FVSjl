@@ -1,0 +1,101 @@
+# =============================================================================
+# establishment.jl (inlandempire) — IE ESSUBH subsequent/planted-tree HEIGHT model
+# (ie/essubh.f). Assigns heights to trees created by the establishment model
+# (PLANT/NATURAL keywords). Per-species: PN = base + b1·ln(AGE) − b2·BAA +
+# UHAB[habitat] + UPRE[prep] + UPHY[phys] + aspect/slope/elev terms; then
+# HHT = exp(PN + disp·σ_sp), where disp = EMSQR·DILATE·BNORM (the estab-engine
+# lognormal dispersion). Special species take fixed heights (0.5 or 5.0 ft).
+#
+# This is the height model only (coefficients + kernel). Wiring into the shared
+# establish! engine (supplying AGE/BAA/IHTSER/IPREP/IPHY + _IE_ES_XMIN/HHTMAX +
+# the draw window) + validation vs pure_DF_est is the next step. Not yet
+# dispatched — inert until establish! gets an InlandEmpire branch.
+# =============================================================================
+
+# ie/essubh.f UHAB(5,MAXSP): subsequent-height coef by H.T. group
+#   [WET-DF, DRY-DF, GRAND-F, WRC/WH, SAF] × species. Nonzero only sp2,3,7,8,10,12.
+const IE_ESSUBH_UHAB = let m = zeros(Float32, 5, 23)
+    m[:, 2]  = Float32[-0.01541, -0.03814,  0.11409,  0.35334, 0.0]
+    m[:, 3]  = Float32[-0.21858, -0.03354,  0.22756,  0.51988, 0.0]
+    m[:, 7]  = Float32[-0.29969, -0.15449,  0.04545, -0.00601, 0.0]
+    m[:, 8]  = Float32[ 0.0,      0.0,      0.18740,  0.26511, 0.0]
+    m[:, 10] = Float32[-0.02287, -0.14710,  0.19278,  0.13817, 0.0]
+    m[:, 12] = Float32[-0.01541, -0.03814,  0.11409,  0.35334, 0.0]   # WB uses WL(2)
+    m
+end
+
+# ie/essubh.f UPRE(4,MAXSP): subsequent-height coef by site prep [NONE, MECH, BURN, ROAD].
+const IE_ESSUBH_UPRE = let m = zeros(Float32, 4, 23)
+    m[:, 2]  = Float32[0.0, -0.11310, -0.06246, 0.009632]
+    m[:, 3]  = Float32[0.0,  0.06961,  0.19508, 0.17952]
+    m[:, 4]  = Float32[0.0, -0.08010,  0.01032, -0.05975]
+    m[:, 6]  = Float32[0.0, -0.41961, -0.22326, 0.15608]
+    m[:, 7]  = Float32[0.0,  0.11502,  0.02486, 0.13080]
+    m[:, 8]  = Float32[0.0,  0.10587,  0.27072, 0.16240]
+    m[:, 10] = Float32[0.0,  0.20729,  0.18491, 0.11864]
+    m[:, 12] = Float32[0.0, -0.11310, -0.06246, 0.009632]   # WB uses WL(2)
+    m
+end
+
+# ie/essubh.f UPHY(5,MAXSP): subsequent-height coef by physiographic position
+#   [BOTTOM, LOWER, MID, UPPER, RIDGE]. Nonzero only sp1,3,4,7,8.
+const IE_ESSUBH_UPHY = let m = zeros(Float32, 5, 23)
+    m[:, 1] = Float32[-0.18731, -0.48682, -0.32160, -0.16113, 0.0]
+    m[:, 3] = Float32[-0.27801, -0.20433, -0.12317, -0.26736, 0.0]
+    m[:, 4] = Float32[-0.06976, -0.16483, -0.10900, -0.15873, 0.0]
+    m[:, 7] = Float32[ 0.32401,  0.14743,  0.22165,  0.24559, 0.0]
+    m[:, 8] = Float32[ 0.41120,  0.01164,  0.22217,  0.15834, 0.0]
+    m
+end
+
+"""
+    ie_essubh(sp, age, baa, ihtser, iprep, iphy, xcos, xsin, slo, elev, disp; bwaf=0, bwb4=0) -> Float32
+
+IE subsequent/planted-tree height (ie/essubh.f). `age` = tree age (AGE, ≥1); `baa` = stand BA;
+`ihtser`/`iprep`/`iphy` = habitat-series/site-prep/physiography index (1-based); `xcos`/`xsin` =
+aspect cos/sin; `slo` = slope; `elev` = elevation (100s ft); `disp` = EMSQR·DILATE·BNORM (the
+estab-engine lognormal dispersion, drawn there). Returns HHT (ft). Faithful transcription of the
+per-species GO TO(I) branches. Special species → fixed 0.5 / 5.0 ft.
+"""
+function ie_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::Integer, iphy::Integer,
+                   xcos::Real, xsin::Real, slo::Real, elev::Real, disp::Real; bwaf::Real = 0.0, bwb4::Real = 0.0)::Float32
+    a = Float32(age); a < 1f0 && (a = 1f0)
+    aln = log(a); baa = Float32(baa); ih = Int(ihtser); ip = Int(iprep); iph = Int(iphy)
+    @inbounds uhab(s) = IE_ESSUBH_UHAB[ih, s]; @inbounds upre(s) = IE_ESSUBH_UPRE[ip, s]; @inbounds uphy(s) = IE_ESSUBH_UPHY[iph, s]
+    xcos = Float32(xcos); xsin = Float32(xsin); slo = Float32(slo); elev = Float32(elev); disp = Float32(disp)
+    pn = 0f0; sig = 0f0; fixed = -1f0
+    if sp == 1                                                                # WP
+        pn = -1.51302f0 + 1.24537f0*aln - 0.003052f0*baa + uphy(1); sig = 0.46010f0
+    elseif sp == 2 || sp == 12                                               # WL (WB=12 reuses WL)
+        pn = -1.36257f0 + 1.21548f0*aln - 0.003797f0*baa + uhab(2) + upre(2); sig = 0.52668f0
+    elseif sp == 3                                                           # DF
+        pn = -2.16416f0 + 1.28151f0*aln - 0.0031363f0*baa + uhab(3) + upre(3) + uphy(3) -
+             0.09626f0*xcos - 0.23946f0*xsin - 0.14589f0*slo; sig = 0.55942f0
+    elseif sp == 4                                                           # GF
+        pn = -2.62001f0 + 1.19408f0*aln - 0.0035489f0*baa + upre(4) + uphy(4) + 0.01871f0*xcos +
+             0.09002f0*xsin - 0.37365f0*slo + 0.05070f0*elev - 0.000736f0*elev*elev; sig = 0.52958f0
+    elseif sp == 5 || sp == 11 || sp == 23                                   # WH; MH(11)/OS(23) reuse WH
+        pn = -2.42379f0 + 1.52366f0*aln - 0.003256f0*baa; sig = 0.54116f0
+    elseif sp == 6                                                           # RC
+        pn = -0.89895f0 + 1.08584f0*aln - 0.00205f0*baa + upre(6) - 0.01594f0*elev; sig = 0.56107f0
+    elseif sp == 7                                                           # LP
+        pn = -0.27105f0 + 1.32027f0*aln - 0.008208f0*baa + upre(7) + uphy(7) + uhab(7) -
+             0.15385f0*xcos + 0.04156f0*xsin - 0.49186f0*slo - 0.04744f0*elev + 0.0003511f0*elev*elev +
+             0.01105f0*Float32(bwaf) + 0.02588f0*Float32(bwb4); sig = 0.47557f0
+    elseif sp == 8                                                           # ES
+        pn = -2.93213f0 + 1.43503f0*aln - 0.002504f0*baa + upre(8) + uphy(8) + uhab(8); sig = 0.48951f0
+    elseif sp == 9 || sp == 14                                               # AF; LL(14) reuses SAF
+        pn = -2.06377f0 + 1.18184f0*aln - 0.0044465f0*baa + 0.06615f0*xcos + 0.03085f0*xsin -
+             0.37402f0*slo; sig = 0.56740f0
+    elseif sp == 10                                                          # PP
+        pn = -1.99480f0 + 1.53946f0*aln - 0.00402f0*baa + uhab(10) + upre(10) - 0.01155f0*elev; sig = 0.49076f0
+    elseif sp == 13 || sp == 15 || sp == 16 || sp == 17                      # LM/PI/JU/PY fixed 0.5
+        fixed = 0.5f0
+    elseif sp == 18 || sp == 19 || sp == 20 || sp == 21 || sp == 22          # AS/CO/MM/PB/OH fixed 5.0
+        fixed = 5.0f0
+    else
+        fixed = 0.5f0
+    end
+    fixed >= 0f0 && return fixed
+    return exp(pn + disp*sig)
+end
