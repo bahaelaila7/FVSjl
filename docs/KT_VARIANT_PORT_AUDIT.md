@@ -988,3 +988,25 @@ plumbing KT flagged. Thread OLDPCT (save PCT each cycle) for full-cycle bit-exac
 linear ported; UTTVAR Weibull deferred) not in iet01. META: dumped the coefficient TABLES from the live binary
 (instrument crown.f WRITE PARM/CRHAB/MAPHAB) instead of hand-transcribing (23x14 error-prone) — doctrine #2 for
 DATA. Sci-notation-f0 generator bug fixed (Nf-MM form). NEXT: OLDPCT thread + then chunks 6/7/8 + full-cycle .sum.
+
+============================================================================
+IE CHUNK 7 (MORTALITY) + OLDPCT thread + CHUNK-1 init hook — pipeline runs DG->HT->crown->mortality end-to-end
+============================================================================
+CHUNK 7 (ie/morts.f): mortality!(::InlandEmpire) = KT Hamilton model VERBATIM (RIP=2.76253+0.222310*sqrtD
+-0.0460508*sqrtBA+11.2007*G-0.554421/D+PMSC+0.246301*RELDBH+6.07129*G/D; RIPP BA/BAMAX/RZ weighting; WKI=P*(1-
+(1-RIPP)^FINT); MORCON GMULT/REIN; G-term WK1/DGT/GMULT — ALL confirmed identical to KT). IE specifics: PMSC(23),
+BAMAX=IE_BAMAXA(ie/sitset.f), IFOR=p.forest_idx(ie/forkod.f), bark=ie_bratio, WK1=t.dg_prev. mort_coefficients.jl
+DUMPED from the live binary (instrumented morts.f WRITE PMSC/POT/IPDG/IPDG2): ★IE IPDG==KT IPDG and IPDG2==KT
+IPDG2 BIT-IDENTICAL, POT identical, PMSC[1:11]==KT (only PMSC[12:23] new). => IE mortality is KT's tables + IE
+PMSC. Validation = end-to-end cycle-2 kill-by-class (needs full cycle).
+OLDPCT THREADING (ie/crown.f + gradd.f:267 + cratet.f:513): crown DCR now reads t.old_crown_pct (prev cycle PCT);
+post-crown snapshot old_crown_pct:=crown_ratio (gradd:267) + cycle-1 inventory-PCT init (cratet:513), IE-gated.
+Closes the 5b end-to-end gap (equation was 260/264 with live OLDPCT); reasoned-correct, validated end-to-end when
+the cycle completes.
+CHUNK-1 INIT HOOK (ie/blkdat.f + grinit.f): species.jl load_species_coefficients!/init_blockdata!(::InlandEmpire)
+(23 codes, YR=10, FINT=10, DGSD=2, LHTDRG, LZEIDE=F STAGE-SDI, seed 55329 — IE grinit defaults IDENTICAL to KT) +
+spctrn_column=4 + other_species=23.
+END-TO-END: run_keyfile(variant=InlandEmpire()) on iet01 now EXECUTES species->notre->setup->DG->HT->crown->
+mortality; the 2 remaining hooks are small_tree_growth!(::InlandEmpire) [chunk 6 REGENT] + compute_volumes!
+[chunk 8, reuse cr_fw2_vol]. Suite 38588/0/1err/75 (0 regress; all IE-gated). REUSABLE TECHNIQUE: dump coefficient
+tables from the live binary (crown PARM/CRHAB/MAPHAB, mortality PMSC/IPDG/POT) instead of hand-transcribing.
