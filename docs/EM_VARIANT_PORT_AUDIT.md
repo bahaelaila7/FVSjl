@@ -62,6 +62,17 @@ RM←IE JU(UT, really PP from CR), AS/PB←IE AS(UT), GA/CW/BA/PW/NC/OH←IE CO(
 Remaining 1b columns (site/sdimax sitset.f, small-tree regent.f, ht/htdbh htcalc.f, mort morts.f,
 dg_resid_sd dgf.f DGCONS, volume merch specs) extract the same way — clean DATA + existing hooks.
 
+**species.jl DONE** (mirrors KT blkdat init — EM grinit identical: seed 55329, Stage SDI, year=10,
+growth_fint=10, ht_drag_sp=true, dg_sd=2.0; spctrn_column=4, other_species=19=OH). Included in FVSjl.jl.
+Package precompiles (lazy coefficients — errors loudly until the CSV lands).
+
+**Dependency order MEASURED** (diagnostic: identity+bark CSV, zeros elsewhere, load emt01): EM gets
+past species-load + tree-read; the FIRST missing hook is **`site_setup!`** (MethodError) ⇒ the 1990
+inventory REQUIRES chunk 2 (sitset/habtyp) before it can run. So the "first validatable milestone"
+needs chunks 1 (species data) + 2 (site_setup!) together. After site_setup! the setup will next need
+height-dubbing (htdbh) + CCF (crown) hooks/data for TopHt/CCF columns. Extract order: finish 1b data
+→ chunk 2 site_setup! → then emt01 1990 inventory differential vs FVSem_clean.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +

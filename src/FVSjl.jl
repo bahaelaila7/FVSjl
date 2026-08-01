@@ -95,6 +95,7 @@ include("variants/inlandempire/regent.jl")           # IE REGENT small-tree grow
 
 # --- easternmontana (EM) — next western Rockies cluster variant (KT-engine discount); chunk 0 scaffold ---
 include("variants/easternmontana/easternmontana.jl")  # EM singleton + registration (MAXSP 19, western Wykoff DDS)
+include("variants/easternmontana/species.jl")         # EM blkdat init (19 species, seed 55329, Stage SDI) + SPCTRN col 10
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
