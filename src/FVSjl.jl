@@ -101,6 +101,7 @@ include("variants/easternmontana/crown.jl")           # EM per-tree CCF (em/ccfc
 include("variants/easternmontana/dg_coefficients.jl") # EM large-tree DG coefficient arrays (em/dgf.f DATA, 1D+2D)
 include("variants/easternmontana/diameter_growth.jl") # EM large-tree DDS (em/dgf.f): em_dgcons! + dgf! (Wykoff main)
 include("variants/easternmontana/height_growth.jl") # EM large-tree height growth (em/htgf.f+pothtg.f): POTHTG+RALPH+modifier
+include("variants/easternmontana/mortality.jl") # EM mortality (em/morts.f): RI-background + SDI-trend RN
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
