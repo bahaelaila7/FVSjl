@@ -12,6 +12,14 @@
 # dispatched — inert until establish! gets an InlandEmpire branch.
 # =============================================================================
 
+# ie/blkdat.f establishment constants:
+#   XMIN   — per-species minimum (default/natural floor) height (ft).
+#   HHTMAX — per-species hard cap on the reported established-tree height (ft).
+#   BNORML — age-indexed (IAGE 1..20) lognormal-dispersion multiplier for ESSUBH (BNORM=BNORML(IAGE)).
+const _IE_ES_XMIN   = Float32[1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 6.0, 3.0, 6.0, 6.0, 3.0, 0.5]
+const _IE_ES_HHTMAX = Float32[23.0, 27.0, 21.0, 21.0, 22.0, 20.0, 24.0, 18.0, 18.0, 17.0, 22.0, 27.0, 27.0, 18.0, 6.0, 6.0, 27.0, 16.0, 16.0, 16.0, 16.0, 16.0, 22.0]
+const _IE_ES_BNORML = Float32[1.0, 1.0, 1.0, 1.046, 1.093, 1.139, 1.186, 1.232, 1.278, 1.325, 1.371, 1.418, 1.464, 1.510, 1.557, 1.603, 1.649, 1.696, 1.742, 1.789]
+
 # ie/essubh.f UHAB(5,MAXSP): subsequent-height coef by H.T. group
 #   [WET-DF, DRY-DF, GRAND-F, WRC/WH, SAF] × species. Nonzero only sp2,3,7,8,10,12.
 const IE_ESSUBH_UHAB = let m = zeros(Float32, 5, 23)
