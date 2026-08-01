@@ -125,6 +125,25 @@ B0*CCF) + volume. So the 1990-inventory validation is gated on: real DBH/expansi
 volume merch — NOT the full growth set. (A BA=8-vs-77 gap seen with the placeholder CSV must be re-checked
 with real coefs, not diagnosed on zeros.)
 
+## Chunk 3 (DG) scope — a HYBRID, not a pure KT reuse (measured from em/dgf.f)
+EM's `diameter_growth!` dispatches on species into DISTINCT DDS paths (em/dgf.f DO 20 loop):
+- **Standard Wykoff** (main conifers 1-3,5,7-10,18 = WB/WL/DF/LL/LP/ES/AF/PP/OS): the classic form
+  DDS = CONSPP + DGLD·lnD + CR·(DGCR+CR·DGCRSQ) + DGBAL·BAL + DGDBAL·BAL/ln(D+1) + DGDSQ·... +
+  slope/aspect (DGCASP/DGSASP/DGSLOP/DGSLSQ) + DGEL·elev + DGEL2·elev². CONSPP = DGCON(sp)+COR(sp)+
+  0.01·DGCCF·RELDEN. DGCON (ENTRY DGCONS) = DGHAB[MAPHAB[kh,sp]] + DGFOR[MAPLOC[loc,sp]] + DGDS[MAPDSQ]
+  + elev. (Fuller than KT's reduced form — KT lacks DGBAL/DGDSQ/slope-aspect.)
+- **sp6 (RM juniper)**: GENGYM DIAGR path from UT — DF=0.25897+1.03129·DPP−0.0002025464·BA+0.00177·SI;
+  DDS=ln(DIAGR·(2·DPP·BARK+DIAGR))+CONSPP.
+- **sp12,17 (AS,PB aspen)**: `CALL DGFASP(D,ASPDG,CR,BARK,SI)` (em/dgfasp.f — separate routine to port);
+  DDS=ASPDG+ln(COR2)+COR.
+- **sp4 (LM)**: Wykoff CONSPP + extra 0.01·(−0.199592)·RELDEN term + a CO-like DIAGR path.
+- **sp11,13-16,19 (CO group GA/CW/BA/PW/NC/OH)**: CR GENGYM DIAGR path — DF=0.24506+1.01291·DPP−
+  0.00084659·BA+0.00631·SI (cap 36), DDS=ln(DIAGR·(2·DPP·BARK+DIAGR)).
+All DIAGR paths floor DDS at −9.21. ⇒ chunk 3 = KT-Wykoff-main (extend with DGBAL/DGDSQ/slope-aspect) +
+RM/CO DIAGR (like CR gemdg) + DGFASP aspen. Data still to extract: 2D DGHAB(8×19)/DGFOR(6×19)/DGDS(4×19)
+via MAPHAB(117×19)/MAPLOC(7×19)/MAPDSQ(7×19) + OBSERV(6×19) + DGDSQ(1D) + em/dgfasp.f + dg_resid_sd(DGCONS).
+1D DG terms already in data/easternmontana/dg_1d_coeffs.csv.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
