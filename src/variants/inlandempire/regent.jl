@@ -36,6 +36,7 @@ end
 bulk (iet01); special species ported faithfully."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    sd = s.coef.species                                 # blkdat HT-DBH :ht1/:ht2 for the aspen log-DK
     t.n == 0 && return s
     n = t.n
     rhcon = ie_regcons!(s)
@@ -124,8 +125,23 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         rdnext[j+1] += Float32(ky) * pr * (c2 - c1) / 10.0f0 * surv
                         banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * surv
                     end
+                elseif (sp == 18 || sp == 20 || sp == 21) && j == 1
+                    # UTVAR aspen: Sheppard height curve (regent.f:556-582), ONE pass. CON=RHCON(=1)·EXP(HCOR).
+                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    h1 = wk3[i]
+                    si = p.sp_site_index[sp]
+                    si > IE_RG_SHI[sp] && (si = IE_RG_SHI[sp])
+                    si <= IE_RG_SLO[sp] && (si = IE_RG_SLO[sp] + 0.5f0)
+                    relsi = (si - IE_RG_SLO[sp]) / (IE_RG_SHI[sp] - IE_RG_SLO[sp])
+                    rsimod = 0.5f0 * (1f0 + relsi)
+                    sitage = (h1 * 12f0 * 2.54f0 / 26.9825f0) ^ 0.8509f0    # FINDAG (inverse Sheppard, regent.f:565)
+                    hite1 = 26.9825f0 * sitage ^ 1.1752f0
+                    hite2 = 26.9825f0 * (sitage + 10f0) ^ 1.1752f0
+                    htgrl = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con * 0.75f0
+                    wk3[i] = h1 + htgrl * scale_ut                          # regent.f:600 (·SCALE=NTYR/YR)
+                    # (aspen subcycle DBH/density-feedback omitted — single UT pass; final assembly is authoritative)
                 end
-                continue                                          # aspen/CO/TT special species: TODO
+                continue                                          # CO/TT special species: TODO
             end
             con = rhcon[sp] + c.htg_cor_small[sp]              # CON = RHCON + HCOR (HCOR=0 until calib)
             h1 = wk3[i]; d = wk5[i]
@@ -208,8 +224,50 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
                     t.diam_growth[i] = dgv
                 end
+            elseif sp == 18 || sp == 20 || sp == 21
+                # UTVAR aspen: height increment + ZZRAN + XWT blend, then log-DK diameter (regent.f:756-985).
+                # XMAX=4, XMIN=2 ⇒ height blends toward large-tree htgf on D∈[2,4]; diameter only D<3 (else DGFASP).
+                h = t.height[i]
+                xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+                htgr1 = wk3[i] - h
+                zzran = 0f0
+                if dgsd >= 1.0f0
+                    while true
+                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break       # CR/UT bound (regent.f:813)
+                    end
+                end
+                htgr = (htgr1 + zzran*0.1f0) * xrhgro
+                htgr < 0.1f0 && (htgr = 0.1f0)
+                xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
+                xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
+                cap = s.control.sp_size_cap[sp, 4]
+                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                t.ht_growth[i] = htg
+                # diameter: aspen log-DK, ONLY D<3 (regent.f:860 D≥3 ⇒ GO TO 23, keeps large-tree DGFASP)
+                if d < 3f0
+                    hk = h + htg
+                    bx = sd[:ht2][sp]                                       # blkdat Wykoff HT2
+                    ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:900-904
+                    if hk < 4.5f0
+                        t.diam_growth[i] = 0f0
+                    else
+                        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:905-906
+                        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:907-911 (no DKK floor)
+                        bark = ie_bratio(sp, d)
+                        dgk = (dk - dkk) * bark * xrdgro                                       # regent.f:960
+                        dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
+                        dgk < 0f0 && (dgk = 0f0)
+                        dds = dgk*(2f0*bark*d + dgk)*scale2                                    # regent.f:980
+                        dgv = sqrt((d*bark)^2 + dds) - bark*d                                  # regent.f:981
+                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
+                        t.diam_growth[i] = dgv
+                    end
+                end
             end
-            continue                                              # aspen/CO/TT: TODO
+            continue                                              # CO/TT: TODO
         end
         h = t.height[i]
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
