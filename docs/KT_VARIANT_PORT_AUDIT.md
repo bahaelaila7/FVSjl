@@ -1048,3 +1048,12 @@ dumped from live FVSie forest-118 VEQNNC. Validated vs live: pure_DF 1990 invent
 (-1.0% systematic) — a narrow total-stem (TCVOL, ground-to-tip Smalian) residual in the shared
 cr_fw2_vol path (secondary reported quantity; check vs CR — same kernel). IE volume = bit-exact-or-
 cornered. REMAINING IE leaves: FFE-fuel, establishment (auto-regen) — situational/secondary.
+
+IE ESTABLISHMENT (NATURAL/PLANT mode) — VALIDATED (2026-08-01)
+Wired IE into the shared establish! engine (ie_essubh + _IE_ES_XMIN/HHTMAX/BNORML committed 1a2e749/
+6316059; establish! IE branch eebb643). NATURAL/PLANT keyword regen validated vs live FVSie on
+pure_DF_est: jl 2010 613/QMD5.9 vs live 603/5.9, establishment-added regen IDENTICAL (272 TPA both),
++10 TPA = pre-existing baseline tie-break. 0 regressions. NOTE: base ht = XMIN first-cut (matches .sum;
+per-tree strict-bit-exact refinement via esnutr trace is low-priority). AUTO-establishment mode
+(essubh/esadvh/ICHOI — measured separate from NATURAL, cont.56) remains a later effort. REMAINING IE
+leaf: FFE-fuel.
