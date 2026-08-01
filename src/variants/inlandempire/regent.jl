@@ -140,7 +140,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
             hk = h + htg
             if hk < 4.5f0
-                t.diam_growth[i] = 0.0f0                        # DBH set to a floor; no DG
+                # regent.f:881: DBH := 0.1 + DIAM(sp)*.01 + HK*.001 (set absolutely), DG=0 in FVS.
+                target = 0.1f0 + IE_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0
+                dg = target - d; dg < 0.0f0 && (dg = 0.0f0)
+                t.diam_growth[i] = dg
             else
                 dk = ax * (hk - 4.5f0)^bx + dadj
                 dk < IE_RG_DIAM[sp] && (dk = IE_RG_DIAM[sp])
