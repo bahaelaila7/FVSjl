@@ -78,6 +78,29 @@ const EM_MAPSIT = Int32[
     26 7 38 49 38 60 80 51 80 78 80;
 ]
 
+# em/forkod.f JFOR(6)/KFOR(6): national-forest location codes + geographic-location class (all 1).
+const EM_JFOR = Int[102, 108, 109, 111, 112, 115]
+const EM_KFOR = Int[1, 1, 1, 1, 1, 1]
+
+# em/forkod.f: translate the user forest location code KODFOR → IFOR (1..6, the JFOR subscript that
+# MAPLOC/MAPDSQ index in the DG DGCONS) + IGL=KFOR[IFOR] (geographic location, regen/htdbh). Reservation
+# pseudo-codes 7xxx map to IFOR directly; else match KODFOR against JFOR (not found → ERRGRO(3), IFOR=1).
+function em_forkod!(p)
+    kodfor = Int(p.user_forest_code)
+    ifor = 1; useigl = true
+    if kodfor in (7101, 7102, 7103, 7107, 7108, 7109, 7302, 7305)
+        ifor = 2
+    elseif kodfor in (7301, 7303, 7304, 7307)
+        ifor = 6
+    else
+        idx = findfirst(==(kodfor), EM_JFOR)
+        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+    end
+    p.forest_idx = Int32(ifor)
+    useigl && (p.geo_location = Int32(EM_KFOR[ifor]))
+    return ifor
+end
+
 # em/habtyp.f: bucket KODTYP into JTYPE -> IEMTYP (largest idx with JTYPE<=KODTYP), ITYPE=NIHMAP(IEMTYP).
 # Returns (iemtyp, itype). KODTYP<JTYPE[1] or <=0 -> defaults (iemtyp 1).
 function em_habtyp(kodtyp::Integer)
@@ -132,6 +155,7 @@ end
 
 function em_site_index_setup!(s::StandState)
     p = s.plot
+    em_forkod!(p)                                    # IFOR → p.forest_idx (DG MAPLOC/MAPDSQ), IGL → p.geo_location
     kodtyp_in = Int(p.habitat_code)
     iemtyp, itype = kodtyp_in > 0 ? em_habtyp(kodtyp_in) : (Int(p.habitat_input) > 0 ? (0, Int(p.habitat_input)) : (1, Int(EM_NIHMAP[1])))
     (itype < 1 || itype > 30) && (itype = 1)
