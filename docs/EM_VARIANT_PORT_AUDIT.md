@@ -302,3 +302,12 @@ Extract EM regent DATA: REGCH/RHHAB (RHCON), XMIN/XMAX (small-tree dbh bounds), 
 SLO/SHI, HSIGMA=0.59. Reuse KT's ZZRAN/XWT/size-cap logic verbatim. emt01 = 1 DF seedling (NIVAR).
 ⇒ THIS is the last growth-core implementation; a large-but-scaffolded port (KT reuse). After it: full-cycle
 emt01 .sum differential = the end-to-end validation of DG+height+CCF+mortality+regent.
+
+## Chunk 6 regent — REGCH + DG-dub (final measurement)
+REGCH = RHGL(IGL) + (RSAB0 + RSAB1·cos(ASPECT) + RSAB2·sin(ASPECT))·SLOPE; RSAB0=−0.10987, RSAB1=0.22157,
+RSAB2=−0.12432 (em/regent.f:1440,1446). RHGL(IGL) = geo-location base (IGL from forkod, emt01 IGL=1).
+DG-dub (em/regent.f:575): D1 = DIAM(sp)+DADJ if H≤4.5 else AX·(H−4.5)^BX+DADJ — a POWER form (AX/BX per
+species), NOT KT's linear HCON·H+DCON ⇒ EM regent DG-dub is EM-SPECIFIC. Extracted DATA: RHHAB(5)=−0.2146,
+−0.0941,−0.4916,−0.3582,0; MAPHAB(30)=12*4,3,2,4*5,1,7*4,1,3,3,4; XMAX/XMIN/DIAM(19). Still need: RHGL, AX/BX.
+⇒ regent = a LARGE EM-specific port (KT subcycle SCAFFOLD reusable, but HTGRL(NIVAR) + DG-dub(AX/BX power) +
+RHCON(REGCH+RHHAB) are EM-specific). EM GROWTH MODEL 100% MEASURED. This is the last growth-core implementation.
