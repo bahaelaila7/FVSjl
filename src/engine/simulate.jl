@@ -480,7 +480,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
-        s.variant isa Kootenai && (t.dg_prev[i] = t.diam_growth[i])   # KT mortality WK1 (this cycle's applied DG → next cycle's vigor)
+        (s.variant isa Kootenai || s.variant isa InlandEmpire) &&
+            (t.dg_prev[i] = t.diam_growth[i])   # KT/IE mortality WK1 (this cycle's applied DG → next cycle's vigor)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         _cr_up && (t.birth_age[i] += fint)   # CR ages ABIRTH by the cycle length each cycle (gradd.f:205)
