@@ -835,6 +835,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             c.htg_cor_init[sp] = log(cornew)
         end
     end
+    # IE small-tree REGENT height calibration (ie/regent.f:1060-1336) — the HCOR for PI/JU (sp15/16) etc. is
+    # NOT yet ported: live sets HCOR(15)=0.1436 (CON=1.0·exp=1.1545) from CORNEW=Σ(HTG·SCALE3·P)/Σ(EDH·P),
+    # EDH=POTHTG·PCTRED·VIGOR·0.5 over ≥5 measured-HTG dbh<5 trees. An initial port (see git history / topic
+    # memory) produced cornew ~10× off vs live on the synthetic stand + nh=4<NCALHT — reconciling needs a
+    # live-calibration trace (N/EDH/TERM per tree) and a REAL pinyon stand. jl holds htg_cor_init=0 (CON=1.0)
+    # meanwhile; drives the residual PI/JU cycle-compounding BA gap. See [[fvsjl-ie-variant-port]].
     return s
 end
 
