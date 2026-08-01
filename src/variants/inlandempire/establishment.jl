@@ -107,3 +107,49 @@ function ie_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::In
     fixed >= 0f0 && return fixed
     return exp(pn + disp*sig)
 end
+
+# ie/esxcsh.f ESXCSH — the per-tree NATURAL/subsequent height: a Weibull inverse-CDF height CLASS from
+# HTMIN(=XMIN) up to HTMAX(=TALL, the tallest-subsequent ht), scaled by a random DRAW. This is the
+# faithful NATURAL per-tree height model (estab.f:931 → HT(ITRN)=HHT). Coefficients by time-class
+# (ITIME 1/2/3) × species. sp 13,15-17 → 0.5; sp 18-22 → 5.0 (fixed).
+const _IE_ESXCSH_SHIFT = Float32[4.0,4.0,2.0,2.0,2.0,2.0,4.0,2.0,2.0,4.0,2.0, 0,0,0,0,0,0,0,0,0,0,0,0]
+# BB/CC (3 time-classes × 23 species). Access [itime, sp].
+const _IE_ESXCSH_BB = let m = zeros(Float32, 3, 23)
+    m[:,1]=Float32[2.121455,5.060402,5.979549];   m[:,2]=Float32[6.643726,11.422982,19.618871]
+    m[:,3]=Float32[3.816083,8.161474,10.987699];  m[:,4]=Float32[3.089571,5.830185,10.105748]
+    m[:,5]=Float32[3.347712,6.806825,13.553455];  m[:,6]=Float32[3.169513,4.506403,8.940539]
+    m[:,7]=Float32[7.360424,10.928846,25.214411]; m[:,8]=Float32[1.466152,5.159270,9.272780]
+    m[:,9]=Float32[2.921356,4.581383,10.333282];  m[:,10]=Float32[2.779221,9.033310,14.131212]
+    m[:,11]=Float32[3.347712,6.806825,13.553455]; m[:,12]=Float32[6.643726,11.422982,19.618871]
+    m[:,14]=Float32[2.921356,4.581383,10.333282]; m[:,23]=Float32[3.347712,6.806825,13.553455]
+    m
+end
+const _IE_ESXCSH_CC = let m = zeros(Float32, 3, 23)
+    m[:,1]=Float32[0.745850,0.782170,0.842171];  m[:,2]=Float32[0.902909,1.166155,1.306380]
+    m[:,3]=Float32[0.996732,0.845413,0.948037];  m[:,4]=Float32[0.800681,0.832278,0.954081]
+    m[:,5]=Float32[0.567768,0.894628,1.214044];  m[:,6]=Float32[0.640554,0.813543,0.943493]
+    m[:,7]=Float32[1.148084,1.232333,1.117025];  m[:,8]=Float32[0.722527,0.739031,1.125510]
+    m[:,9]=Float32[0.885137,0.871559,1.043759];  m[:,10]=Float32[0.899325,1.074932,0.930698]
+    m[:,11]=Float32[0.567768,0.894628,1.214044]; m[:,12]=Float32[0.902909,1.166155,1.306380]
+    m[:,14]=Float32[0.885137,0.871559,1.043759]; m[:,23]=Float32[0.567768,0.894628,1.214044]
+    m
+end
+
+"""
+    ie_esxcsh(sp, htmax, htmin, time, draw) -> Float32
+
+ie/esxcsh.f: per-tree NATURAL height = Weibull inverse-CDF height class from htmin(=XMIN) to
+htmax(=TALL), scaled by `draw` (RNG uniform). `time` = plot age (→ITIME 1/2/3). Faithful transcription.
+"""
+function ie_esxcsh(sp::Integer, htmax::Real, htmin::Real, time::Real, draw::Real)::Float32
+    (sp == 13 || (15 <= sp <= 17)) && return 0.5f0
+    (18 <= sp <= 22) && return 5.0f0
+    itime = time > 12.5 ? 3 : (time > 7.5 ? 2 : 1)
+    bb = _IE_ESXCSH_BB[itime, sp]; cc = _IE_ESXCSH_CC[itime, sp]; sh = _IE_ESXCSH_SHIFT[sp]
+    (bb <= 0f0) && return Float32(htmin)                     # unaffected species → floor
+    class = Float32(htmax) / 0.2f0 - sh
+    xuppr = 1f0 - exp(-(((class - Float32(htmin)) / bb)^cc))
+    xx = xuppr * Float32(draw)
+    hht = ((-log(1f0 - xx))^(1f0 / cc)) * bb + Float32(htmin)
+    return 0.2f0 * (hht + sh)
+end
