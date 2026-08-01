@@ -159,6 +159,7 @@ function compute_density!(s::StandState)
     # inclusive RELDM1), the growth-cycle pass with t.n=nlive (live-only). (Gated: only KT's dgf! reads it.)
     s.variant isa Kootenai && (s.plot.relative_density = stand_ccf(s))
     s.variant isa InlandEmpire && (s.plot.relative_density = stand_ccf(s))   # IE RELDEN (ie/ccfcal.f) for dgf!/htgf
+    s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
     return s
 end
 
