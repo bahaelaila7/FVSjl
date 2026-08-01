@@ -129,3 +129,104 @@ function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState
     end
     return
 end
+
+"""
+    ie_mistoe!(s; fint)
+
+IE dwarf-mistletoe SPREAD/intensification for the cycle (mistoe.f MISTOE). Mutates `s.trees.dmr`
+via the Hawksworth model: per host-species tree, prob-of-increase (PPLUS) intensifies existing
+infection or introduces new infection into uninfected trees, prob-of-decrease (PMINUS) reduces it,
+gated by the tallest-infected-tree height on the point (overstory vs understory branch). The
+spread coefficients (BCONST/BDMR/BHTG/BTPA, DCONST/DDMR/DHTG/DTPA + the intensification thresholds)
+are VARIANT-UNIFORM shared mistoe.f DATA (reused from the CR constants); only the host-species list
+(IE_MIS_FIT) and species count (23) are IE-specific. YPLMLT/YNGMLT/DMMMLT default 1.0 (no MISTMULT).
+Draws rann! per host tree ONLY when that species carries infection (SMR>0), matching FVS draw
+count/order. No-op for non-IE. Mirrors the validated cr_mistoe! exactly.
+"""
+function ie_mistoe!(s::StandState; fint::Float32)
+    s.variant isa InlandEmpire || return s
+    t = s.trees
+    t.n == 0 && return s
+    species_sort!(s)
+    isct = s.control.sp_count_tab
+    ind1 = s.scratch.idx1
+    rng  = s.rng
+    fscale = fint / 10f0
+    @inbounds for ispc in 1:23
+        IE_MIS_FIT[ispc] == 0 && continue
+        i1 = isct[ispc, 1]; i1 == 0 && continue
+        i2 = isct[ispc, 2]
+        tottpa = 0f0; smr = 0f0
+        for i3 in i1:i2
+            i = Int(ind1[i3]); p = t.tpa[i]
+            tottpa += p; smr += Float32(t.dmr[i]) * p
+        end
+        tottpa <= 0f0 && continue
+        smr /= tottpa
+        smr == 0f0 && continue                        # mistletoe-free species ⇒ NO draws
+        dmtall = Dict{Int32,Float32}()
+        for i3 in i1:i2
+            i = Int(ind1[i3])
+            if t.dmr[i] > 0
+                pl = t.plot_id[i]; h = t.height[i]
+                (get(dmtall, pl, 0f0) < h) && (dmtall[pl] = h)
+            end
+        end
+        for i3 in i1:i2
+            i = Int(ind1[i3])
+            idmr = Int(t.dmr[i])
+            htgr10 = t.ht_growth[i]
+            pplus = 0f0
+            if idmr < 6
+                pplus = CR_DM_BCONST + CR_DM_BDMR[idmr + 1] +
+                        CR_DM_BHTG * (htgr10 * 10f0 / fint) + CR_DM_BTPA * tottpa
+                pplus != 0f0 && (pplus = 1f0 / (1f0 + fexp(-pplus)))
+                pplus = pplus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pplus, fscale)
+            end
+            if idmr != 0
+                pminus = CR_DM_DCONST + CR_DM_DDMR * idmr +
+                         CR_DM_DHTG * (htgr10 * 10f0 / fint) + CR_DM_DTPA * tottpa
+                pminus != 0f0 && (pminus = 1f0 / (1f0 + fexp(-pminus)))
+                pminus = pminus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pminus, fscale)
+                xnum = rann!(rng)
+                dtall = get(dmtall, t.plot_id[i], 0f0)
+                if idmr != 6 && pplus > xnum
+                    if dtall * 0.7f0 > t.height[i]
+                        x2 = rann!(rng)
+                        m = Int(t.dmr[i])
+                        inc = if m == 1
+                            x2 < 0.61f0 ? 1 : (x2 < 0.83f0 ? 2 : 3)
+                        elseif m == 2 || m == 3
+                            x2 < 0.34f0 ? 1 : (x2 < 0.67f0 ? 2 : 3)
+                        elseif m == 4
+                            x2 < 0.55f0 ? 1 : 2
+                        else
+                            1
+                        end
+                        t.dmr[i] += Int32(inc)
+                    else
+                        t.dmr[i] += Int32(1)
+                    end
+                    t.dmr[i] > 6 && (t.dmr[i] = Int32(6))
+                end
+                (pminus > xnum) && (t.dmr[i] -= Int32(1))
+            else
+                xnum = rann!(rng)
+                dtall = get(dmtall, t.plot_id[i], 0f0)
+                if dtall * 0.7f0 > t.height[i]
+                    if xnum < 0.55f0
+                        x2 = rann!(rng)
+                        t.dmr[i] = x2 < 0.69f0 ? Int32(1) : (x2 < 0.87f0 ? Int32(2) : Int32(3))
+                    end
+                else
+                    (pplus > xnum) && (t.dmr[i] = Int32(1))
+                end
+            end
+        end
+        for i3 in i1:i2
+            i = Int(ind1[i3])
+            t.dmr[i] >= 4 && (t.mort_code[i] = Int32(3))
+        end
+    end
+    return s
+end

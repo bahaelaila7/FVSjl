@@ -434,6 +434,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
     # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
     cr_mistoe!(s; fint = fint)
+    s.variant isa InlandEmpire && ie_mistoe!(s; fint = fint)   # IE MISTOE spread/intensification (mistoe.f)
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
     # then GRADD's FMKILL sets WK2(I)=MAX(WK2(I),FIRKIL(I)) (fmkill.f:86) — a tree dies from
     # whichever is LARGER, density/background MORTS or fire, NOT both summed. The old code ran
