@@ -89,6 +89,7 @@ include("variants/inlandempire/mort_coefficients.jl")# IE mortality Hamilton coe
 include("variants/inlandempire/mortality.jl")        # IE mortality (ie/morts.f) — Hamilton, reuses KT form
 include("variants/inlandempire/volume.jl")           # IE volume (ie/sitset.f VOLEQ): FW2 + DVE, reuse CR kernels
 include("variants/inlandempire/regent_coefficients.jl") # IE REGENT small-tree coefficients (ie/regent.f, dumped)
+include("variants/inlandempire/regent.jl")           # IE REGENT small-tree growth (ie/regent.f): ie_regcons! + hook
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
