@@ -96,6 +96,15 @@ function ie_sitset!(s::StandState, itype::Int)
             p.sp_site_index[sp] = Float32(IE_MAPSIT[itype, sp])
         end
     end
+    # ie/cratet.f:107-116 — sp13/17 (LM/PY) SITEAR CONVERSION (Alexander/Tackle/Dahms 1967, RM-29) from the
+    # input/MAPSIT SI + stand CCF (TEMCCF≥125). Without it jl uses the raw MAPSIT (43) instead of the converted
+    # 28.33 ⇒ wrong DGCON 0.001766·XSITE term ⇒ TT over-grows/under-kills. TEMCCF floors at 125.
+    temccf = max(stand_ccf(s), 125f0)
+    @inbounds for sp in (13, 17)
+        si = p.sp_site_index[sp]
+        p.sp_site_index[sp] = 9.89311f0 - 0.19177f0*50f0 + 0.00124f0*(50f0*50f0) -
+            0.00082f0*(temccf - 125f0)*si + 0.01387f0*50f0*si - 0.0000455f0*(50f0*50f0)*si
+    end
     bamax = s.control.ba_max
     bamax <= 0f0 && (bamax = IE_BAMAXA[itype])
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
