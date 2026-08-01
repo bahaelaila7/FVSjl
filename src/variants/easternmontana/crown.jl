@@ -37,3 +37,70 @@ const EM_RDB = Float32[1.6667, 1.8182, 1.5571, 1.7600, 1.7560, 1.7600, 1.7600, 1
         return d >= 1f0 ? poly() : (d > 0.1f0 ? small() : 0.001f0)
     end
 end
+
+# =============================================================================
+# EM crown-ratio update (em/crown.f) — the IE/NI Weibull/DCR change-in-crown model.
+# Single PARM(14) vector (IE/NI sp9 form, applied to all species) + habitat intercept
+# CRHAB[MAPHAB[ITYPE]] + CRSD=6.35. Mirrors KT's crown_ratio_update! DCR structure
+# (crown change = exp(PCR) − exp(DCR-backdated), bounded ±1%/yr; d<3 keeps crown while cycling).
+# =============================================================================
+# em/crown.f PARM(14): 1-6 density(BA,BA²,lnBA,RELDEN,RELDEN²,lnRELDEN), 7-14(D,D²,lnD,H,H²,lnH,P,lnP)
+const EM_CRPARM = Float32[-0.00190, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.23372, 0.0, 0.0, -0.28433, 0.001903, 0.0]
+const EM_CRHAB  = Float32[0.09453, -0.07740, 0.07113, 0.2039, 0.06176, 0.1513, 0.09086, 0.1580, 0.09229, 0.01551, 0.0, 0.0, 0.0, 0.0]
+const EM_CR_MAPHAB = Int[2,2,2,2,2,2,2,2,2,2,2,2,2,3,4,4,4,4,5,6,6,7,6,1,8,1,9,10,10,6]  # ITYPE→CRHAB idx (13*2,3,4*4,5,6,6,7,6,1,8,1,9,2*10,6)
+const _EM_CRSD = 6.35f0
+
+function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, lstart::Bool = false, kwargs...)
+    p, t = s.plot, s.trees
+    t.n == 0 && return s
+    itype = Int(p.habitat_input); it = (1 <= itype <= 30) ? itype : 1
+    crcon = EM_CRHAB[clamp(EM_CR_MAPHAB[it], 1, 14)]
+    ba = p.basal_area; relden = p.relative_density
+    lnba = ba > 0f0 ? log(ba) : 0f0; lnrd = relden > 0f0 ? log(relden) : 0f0
+    reldm1 = p.relative_density_prev; oba = p.old_ba
+    if reldm1 < 100f0; oba = ba; reldm1 = relden; end
+    x1 = (!lstart && oba > 0f0) ? log(oba) : 0f0
+    x2 = (!lstart && reldm1 > 0f0) ? log(reldm1) : 0f0
+    dgsd = s.control.dg_sd
+    ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
+    P = EM_CRPARM
+    nlim = t.n + (lstart ? Int(t.ndead) : 0)
+    @inbounds for i in 1:nlim
+        t.tpa[i] <= 0f0 && continue
+        icr = Int(t.crown_pct[i])
+        (lstart && icr > 0) && continue
+        icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        bark = bark_ratio(ba_a, ba_b, sp, d)
+        local icri::Int
+        if d >= 3.0f0
+            xcrcon = crcon + P[1]*ba + P[2]*ba*ba + P[3]*lnba + P[4]*relden + P[5]*relden*relden + P[6]*lnrd
+            pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
+            pcr = xcrcon + P[7]*d + P[8]*d*d + P[9]*log(d) + P[10]*h + P[11]*h*h + P[12]*log(h) + P[13]*pp + P[14]*log(pp)
+            exppcr = exp(pcr)
+            if lstart
+                icri = trunc(Int, icr + exppcr*100f0 + 0.50005f0)
+                dgsd >= 1.0f0 && (icri = trunc(Int, bachlo(s.rng, Float32(icri), _EM_CRSD)))
+            else
+                dcrcon = crcon + P[1]*oba + P[2]*oba*oba + P[3]*x1 + P[4]*reldm1 + P[5]*reldm1*reldm1 + P[6]*x2
+                db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
+                hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
+                pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)
+                dcr = dcrcon + P[7]*db + P[8]*db*db + P[9]*log(db) + P[10]*hb + P[11]*hb*hb + P[12]*log(hb) + P[13]*pb + P[14]*log(pb)
+                chg = exppcr - exp(dcr)
+                if icr > 0
+                    pdifpy = chg / Float32(icr) / fint * 100f0
+                    pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
+                    pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
+                end
+                icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
+            end
+        else
+            lstart || continue                       # cycling: D<3 keeps its crown
+            icri = icr > 0 ? icr : 40                 # minimal lstart dub (emt01 inventory crowns present)
+        end
+        icri > 95 && (icri = 95); icri < 5 && (icri = 5)
+        t.crown_pct[i] = Int32(icri)
+    end
+    return s
+end
