@@ -343,3 +343,17 @@ pass RELDEN timing (pre vs post prev-cycle); (d) DDS→DG bark conversion. TO PI
 pass DGF DDS — the DEBUG-keyword run SEGFAULTS at run-end before it prints, so patch em/dgf.f WK2(I)=DDS site
 with an unconditional WRITE(unit) + relink (relink_em.sh <name> patched.o) + compare per-tree DDS at cycle-1
 growth. This is the last full-cycle precision gap (+ the deferred mortality iterative TN10 fit at 2020).
+
+
+## Full 10-cycle runs (iterative TN10 fit done) — compounding residual LEAD
+emc10 (control 10cyc) jl vs live: 2000 526/98/5.8 vs 526/96/5.8 (TPA/QMD exact, BA±2); 2020 507/145/7.3 vs
+507/132/6.9 (★TPA EXACT — mortality iterative fit CORRECT — but QMD+0.4/BA+13 ~10%); 2040 474/197/8.7 vs
+488/168/7.9; 2080 370/279/11.8 vs 423/219/9.7. ⇒ mortality iterative TN10 fit WORKS (2020 TPA exact). Residual
+= COMPOUNDING QMD/BA (2000 exact → 2020 +6% → 2040 +10%), driving later TPA divergence (denser stand self-thins
+more). This is LARGER than CR/KT/IE DGSCOR tail (~1-3%) ⇒ likely a small FIXABLE feedback, candidates: (a)
+CROWN RATIO — my new crown_ratio_update! (minimal d<3 dub + DCR) feeds the DG CR·(DGCR+CR·DGCRSQ) + height RALPH
+CR term; if CR drifts over cycles, DG/HT compound; (b) DGSCOR self-cal on PP; (c) a per-species DG coef precision.
+growth-pass DDS was BIT-EXACT for WL only — CHECK DF/LP/ES/PP growth-pass DDS via DGFTRC replay across cycles.
+EM GROWTH CORE VALIDATED END-TO-END (full 10-cycle runs, early bit-exact-or-cornered, 2020 TPA exact); the
+compounding residual is the last precision lead. NEXT: crown-ratio drift check + multi-species DGFTRC; then
+volume + non-emt01 DIAGR/aspen/NI species-paths.
