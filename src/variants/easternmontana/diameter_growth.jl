@@ -26,7 +26,7 @@ const EM_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0586, 0.0970, 0.07, 0.0636, 
 # em/dgf.f ENTRY DGCONS — per-species per-stand DG constants (needs IEMTYP=habitat_code, ITYPE=habitat_input,
 # IFOR=forest_idx, ELEV/ASPECT/SLOPE, SITEAR). Fills calib.dg_const(DGCON)/dg_dsq(DGDSQ)/dg_ccf(DGCCF)/atten.
 function em_dgcons!(s::StandState)
-    c = s.calib; p = s.plot; ctl = s.control
+    c = s.calib; p = s.plot; ctl = s.control; sd = s.coef.species
     jdtype = Int(p.habitat_code); jdtype > 117 && (jdtype = 30); jdtype < 1 && (jdtype = 1)
     itype  = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     ifor   = Int(p.forest_idx);    (ifor < 1 || ifor > 7) && (ifor = 1)
@@ -61,7 +61,16 @@ function em_dgcons!(s::StandState)
         c.dg_ccf[sp] = ccf
         (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
-        c.bark_a[sp] = 0f0; c.bark_b[sp] = 0f0     # EM bark via BRATIO (bratio.f), not a per-stand override
+        # EM bark (em/bratio.f) as bark_ratio(bark_a,bark_b)= (bark_a + bark_b·d)/d = bark_b + bark_a/d, for the
+        # DBH update (simulate.jl dbh+=DG/bark). IMAP=2→BARK1 const (bark_a=0,bark_b=BARK1); IMAP=3→BARK1+BARK2/D
+        # (bark_a=BARK2,bark_b=BARK1); IMAP=1 zero-coef→0.9002−0.3089/D (bark_a=−0.3089,bark_b=0.9002). Without
+        # this, c.bark_a/b=0 ⇒ bark_ratio floors to 0.80 ⇒ DG/bark over-applies (0.934/0.80≈17% too much DBH).
+        b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]; imapb = round(Int, sd[:bark_imap][sp])
+        if imapb == 1 && b1 == 0f0 && b2 == 0f0
+            c.bark_a[sp] = -0.3089f0; c.bark_b[sp] = 0.9002f0
+        else
+            c.bark_a[sp] = b2; c.bark_b[sp] = b1      # IMAP 2 (b2=0) or 3
+        end
     end
     return s
 end
