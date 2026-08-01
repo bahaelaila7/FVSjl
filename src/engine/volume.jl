@@ -252,7 +252,9 @@ function dub_missing_heights!(s::StandState)
     # Read it ONLY when some species invoked LHTDRG — otherwise it is never used (the calibrated-Wykoff
     # branch below is gated on lhtdrg[sp]), and reading it would KeyError on a variant (NE) that has no
     # such column. The per-tree dub itself uses the variant-generic `_htdbh_height` (htdbh_* coefs).
-    ht2 = any(lhtdrg) ? coef_col(s.coef, :wykoff_ht2) : nothing
+    # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
+    # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
+    ht2 = any(lhtdrg) ? coef_col(s.coef, s.variant isa InlandEmpire ? :ht2 : :wykoff_ht2) : nothing
     if any(lhtdrg)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
