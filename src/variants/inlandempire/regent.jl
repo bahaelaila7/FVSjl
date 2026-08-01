@@ -86,7 +86,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             con = rhcon[sp] + c.htg_cor_small[sp]              # CON = RHCON + HCOR (HCOR=0 until calib)
             h1 = wk3[i]; d = wk5[i]
             pct = t.crown_ratio[i]
-            bal = baj * (100.0f0 - pct) * 0.01f0
+            bal = baj * (100.0f0 - pct) * 0.0001f0             # ie/regent.f:442 — NOTE 0.0001 (NOT KT's 0.01)
             xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
             xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
             relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h1 - 4.5f0) / (ah - 4.5f0)
