@@ -211,6 +211,8 @@ function point_density!(s::StandState)
             ccft = kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         elseif ie
             ccft = ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ie/ccfcal.f MODE=1
+        elseif s.variant isa EasternMontana
+            ccft = em_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # em/ccfcal.f MODE=1 (for PCCF in dgf! DGPCC term)
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
