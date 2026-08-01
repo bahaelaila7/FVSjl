@@ -320,3 +320,14 @@ PARM[IE/NI sp9 form] + CRHAB[habitat] + MAPHAB(30)=13*2,3,4*4,5,6,6,7,6,1,8,1,9,
 KT/IE crown_ratio_update! structure (Weibull ACR/BCR + habitat CRHAB + ZZRAN) + EM coefficients. Once in,
 grow_cycle! runs END-TO-END → full-cycle emt01 .sum differential vs FVSem_clean validates DG+height+CCF+
 mortality+regent+crown together (TPA/BA/SDI/CCF/TopHt/QMD × all cycles). THE last growth-core hook.
+
+## Full-cycle divergence LEAD (2000 BA/QMD ~9% high) — under investigation
+grow_cycle! runs end-to-end; 1990 BIT-EXACT, 2000 TPA BIT-EXACT (526), but 2000 BA 114 vs live 96 / QMD 6.3
+vs 5.8 (~9% high, TopHt 69 vs 68 close). BA divergence is ENTIRELY QMD (DBH growth) — the DG over-applies
+~9%/cycle. NOT fixed by the real dg_resid_sd=SIGMAR + EM_PSIGSQ (added — faithful, but 2000 unchanged). The DG
+calibration-pass DDS is bit-exact vs live (DEBUG replay 0.0005), so the issue is the GROWTH-pass DG (current-
+stand RELDEN/CCF/BAL feeding dgf!, or the DDS→DG conversion/period). NEXT: instrument the live GROWTH-pass DGF
+(the DEBUG-keyword run SEGFAULTS at run-end before the growth pass prints — need a non-DEBUG WRITE patch +
+relink, OR compare jl growth-pass RELDEN/CCF vs the inventory-validated 97). Candidate causes: (a) growth-pass
+RELDEN differs (jl RELDEN during growth vs live); (b) DDS→DG conversion; (c) DGSCOR self-cal firing wrongly.
+Deferred: mortality iterative TN10 fit (55-85% SDI, fires ~2020). EM_PSIGSQ wired into the shared psigsq dispatch.

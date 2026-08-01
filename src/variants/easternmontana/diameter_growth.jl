@@ -15,6 +15,12 @@
 #   +DGSLSQ·XSLOPE²; ISPHAB=MAPHAB[JDTYPE(Wykoff)|ITYPE, sp]; ISPFOR=MAPLOC[IFOR]; DGDSQ=DGDS[MAPDSQ[IFOR]].
 # =============================================================================
 
+
+# em/dgdriv.f:106 PSIGSQ — per-species prior variance for the DGSCOR COR calibration (read by the shared
+# calibrate_diameter_growth!). EM DG residual SD dg_resid_sd = SIGMAR (em/dgdriv.f:414 SIGMA=SIGMAR).
+const EM_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0586, 0.0970, 0.07, 0.0636, 0.0970, 0.0970, 0.0636,
+                          0.07, 0.1433, 0.07, 0.07, 0.07, 0.07, 0.1433, 0.0858, 0.07]
+
 @inline _em_is_wykoff(sp::Int) = sp <= 3 || (7 <= sp <= 10) || sp == 18   # MAPHAB uses JDTYPE + XSLOPE÷10
 
 # em/dgf.f ENTRY DGCONS — per-species per-stand DG constants (needs IEMTYP=habitat_code, ITYPE=habitat_input,
