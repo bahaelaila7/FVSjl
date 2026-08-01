@@ -311,3 +311,12 @@ species), NOT KT's linear HCON·H+DCON ⇒ EM regent DG-dub is EM-SPECIFIC. Extr
 −0.0941,−0.4916,−0.3582,0; MAPHAB(30)=12*4,3,2,4*5,1,7*4,1,3,3,4; XMAX/XMIN/DIAM(19). Still need: RHGL, AX/BX.
 ⇒ regent = a LARGE EM-specific port (KT subcycle SCAFFOLD reusable, but HTGRL(NIVAR) + DG-dub(AX/BX power) +
 RHCON(REGCH+RHHAB) are EM-specific). EM GROWTH MODEL 100% MEASURED. This is the last growth-core implementation.
+
+## FULL-CYCLE STATUS — all growth chunks implemented; crown_ratio_update! is the LAST hook
+grow_cycle! hooks for EM: DG(✓validated) → height(✓) → small_tree_growth!/regent(✓ d9f48ad) → mortality(✓
+matches live) → establish!(shared, NOAUTOES=inert) → crown_ratio_update!(✗ — the ONLY missing hook).
+crown_ratio_update!(::EM) = em/crown.f Weibull crown-ratio (WEIBA/WEIBB0/WEIBB1/WEIBC0/WEIBC1/C0/C1 +
+PARM[IE/NI sp9 form] + CRHAB[habitat] + MAPHAB(30)=13*2,3,4*4,5,6,6,7,6,1,8,1,9,2*10,6 + CRSD=6.35). Reuse
+KT/IE crown_ratio_update! structure (Weibull ACR/BCR + habitat CRHAB + ZZRAN) + EM coefficients. Once in,
+grow_cycle! runs END-TO-END → full-cycle emt01 .sum differential vs FVSem_clean validates DG+height+CCF+
+mortality+regent+crown together (TPA/BA/SDI/CCF/TopHt/QMD × all cycles). THE last growth-core hook.
