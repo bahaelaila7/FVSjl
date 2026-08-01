@@ -79,6 +79,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]
         scale = Float32(kper[j]) / regyr
+        ky = 0; for jj in 1:j; ky += kper[jj]; end            # KY = cumulative years thru subcycle j (regent.f:353)
+        surv = 0.985f0 ^ ky
         for i in 1:n
             sp = Int(t.species[i]); d0 = t.dbh[i]
             d0 >= IE_RG_XMAX[sp] && continue
@@ -108,6 +110,14 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 d2 = d + dgj
             end
             wk5[i] = d2
+            # small-tree density feedback into the NEXT subcycle (regent.f:665-666): the growing small tree
+            # adds its CCF/BA increase to RDNEXT/BANEXT(J+1). C1/C2 use CCFCAL (= CCFT·P) ⇒ ·pr; no /P here.
+            if j < nper
+                pr = t.tpa[i]
+                c1 = ie_tree_ccf(sp, d); c2 = ie_tree_ccf(sp, d2)
+                rdnext[j+1] += Float32(ky) * pr * (c2 - c1) / 10.0f0 * surv
+                banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * surv
+            end
         end
     end
     # ---- final assembly (regent.f:441-600): HTGR1 + ZZRAN + XWT blend toward the large-tree HTG, then
