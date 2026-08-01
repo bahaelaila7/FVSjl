@@ -513,6 +513,7 @@ function compute_volumes!(s::StandState)
         return compute_volumes_ne!(s)
     s.variant isa CentralRockies && return compute_volumes_cr!(s)
     s.variant isa Kootenai && return compute_volumes_kt!(s)
+    s.variant isa EasternMontana && return compute_volumes_kt!(s)   # EM = Region-1 FW2, sp7=LP lodgepole — same as KT
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control

@@ -357,3 +357,17 @@ growth-pass DDS was BIT-EXACT for WL only — CHECK DF/LP/ES/PP growth-pass DDS 
 EM GROWTH CORE VALIDATED END-TO-END (full 10-cycle runs, early bit-exact-or-cornered, 2020 TPA exact); the
 compounding residual is the last precision lead. NEXT: crown-ratio drift check + multi-species DGFTRC; then
 volume + non-emt01 DIAGR/aspen/NI species-paths.
+
+
+## ★★★★ EM GROWTH CORE FULLY VALIDATED END-TO-END — full 10-cycle BIT-EXACT-OR-CORNERED
+7th real bug (point_ccf/PCCF): standstats.jl point_ccf dispatch had KT/IE but not EM ⇒ EM fell to crown-width
+else (→~0) ⇒ PCCF 0.66 not ~100 ⇒ dgf! DGPCC1/2·PCCF term dropped ⇒ DG high for DGPCC species (LP/ES/PP; WL
+immune DGPCC=0). Localized via multi-species DGFTRC replay (WL DDS exact 1.9146=live; ES off 1.5488 vs 1.38423
+= the missing PCCF term). Fix: EM uses em_tree_ccf for PCCF. ★ emc10 full 10-cycle: 2000 526/96/5.8 EXACT;
+2020 507/133/6.9 (TPA/QMD exact, BA±1); 2040 497/174/8.0 vs 488/168/7.9 (±0.1 QMD); 2080 420/229/10.0 vs
+423/219/9.7 (cornered self-thin/DGSCOR tail like CR/KT/IE). EM DONE at growth-core = CR/KT/IE level.
+★ 7 REAL BUGS this session: habitat_code-gate, strip_key_ext(shared), IE-ESXCSH, EM-habitat_code, RELDEN-
+dispatch, DBH-update-bark, point_ccf-PCCF-dispatch. Instrument-replay recipe (DGFTRC): patch dgf.f WK2=DDS +
+WRITE(77,...); compile to /workspace/.emwork/dgf.o (NOT into BD — stray obj → multiple-def dgf_); gfortran
+manual link excluding $BD/dgf.o$ + shim. NEXT (downstream leaves, like CR/KT/IE): volume(NVEL) + non-emt01
+DIAGR(RM/CO)/aspen(DGFASP)/NI(sp4/5) DG paths + full multi-scenario stands.
