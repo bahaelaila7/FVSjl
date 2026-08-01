@@ -73,6 +73,21 @@ needs chunks 1 (species data) + 2 (site_setup!) together. After site_setup! the 
 height-dubbing (htdbh) + CCF (crown) hooks/data for TopHt/CCF columns. Extract order: finish 1b data
 → chunk 2 site_setup! → then emt01 1990 inventory differential vs FVSem_clean.
 
+## Chunk 2 scope (site/habitat — the next required hook `site_setup!`)
+`em/sitset.f` (228 lines) + `em/habtyp.f` — mirrors KT's site_index.jl + habitat_tables.jl. EM uses the
+**30 NI habitat types** (ITYPE index). Tables to extract (all clean DATA in em/sitset.f):
+- `BAMAXA(30)` (line 53) — BA-max per habitat type. `MAPSDI` (58) — habitat→SDICON index (9*2,13*5,…).
+- `SDICON(9)` (62) = 467,634,696,768,775,751,707,661,635 — SDImax per SDI group.
+- `MAPSIT(30,11)` (64) — site index per habitat type × site-species-group. `MAPSS(30)` (88) — site species
+  per habitat type (2*10,7*3,2*8,…).
+Logic: ISISP (site species) = MAPSS(ITYPE) if unset; SITEAR(I) = MAPSIT(ITYPE, group) via a per-species
+SELECT (DF-default historically, now habitat-mapped); SDIDEF(I) from BAMAX/MAPSDI/SDICON. Implement
+`site_setup!(::EasternMontana)` + `em_habtyp` (habitat code → ITYPE, the 30 NI types) + the data files.
+Then the diagnostic will advance past site_setup! to the next hook (htdbh/crown) — iterate to the emt01
+1990 inventory differential. Also still owed for chunk 1b data: site_lo/hi + dbh_max + small-tree (regent.f)
++ ht1/ht2/wykoff_ht2 (htcalc.f) + mort_bkgd (morts.f) + htdbh (htdbh.f) + volume merch + dg_resid_sd
+(dgf.f DGCONS) + varmrt_varadj + is_sprouting.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
