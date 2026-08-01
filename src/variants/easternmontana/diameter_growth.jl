@@ -92,8 +92,15 @@ function dgf!(s::StandState, ::EasternMontana)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba                 # PCT = BA percentile
         conspp = c.dg_const[sp] + c.dg_cor[sp] + 0.01f0 * c.dg_ccf[sp] * relden
         if sp == 4 || sp == 5
-            # NI section (LM/LL): BAL uses BA100 (TODO verify) — deferred, not in emt01.
-            error("EM dgf! NI path (sp $sp) not yet ported (needs BA100)")
+            # NI section (LM/LL, em/dgf.f:562-565): BAL uses BA100=BA/100; no PCCF/RELDEN²/DGLCCF terms.
+            # conspp already carries the sp4 DGCCF=−0.199592 via em_dgcons!. FAITHFUL but UNVALIDATED (emt01
+            # has no LM/LL — needs a test stand to bit-verify).
+            bal100 = (1f0 - t.crown_ratio[i] / 100f0) * (ba / 100f0)
+            dds = conspp + EM_DGLD[sp] * ald + EM_DGBAL[sp] * bal100 +
+                  cr * (EM_DGCR[sp] + cr * EM_DGCRSQ[sp]) + c.dg_dsq[sp] * d * d +
+                  EM_DGDBAL[sp] * bal100 / log(d + 1f0)
+            dds < -9.21f0 && (dds = -9.21f0)
+            wk2[i] = dds
         elseif sp == 6 || sp == 11 || (13 <= sp <= 16) || sp == 19 || sp == 12 || sp == 17
             error("EM dgf! DIAGR/aspen path (sp $sp) not yet ported")
         else
