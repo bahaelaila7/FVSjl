@@ -180,3 +180,18 @@ META (2 phantom bugs avoided this session): (1) "BA=8" — isolated setup_growth
 expansion). (2) "TPA 10% high" — the .sum divides stand_X by gross_space (simulate.jl:456); direct stand_ba
 returns the gross_space-inflated internal value. ALWAYS replicate the .sum normalization (notre! + /gross_space)
 when validating inventory in isolation — else you chase measurement artifacts (doctrine #2/#3 meta-lesson).
+
+## ★★ CHUNK 3 DG VALIDATED vs live FVSem (em/dgf.f DEBUG instrument-replay)
+Enabled em/dgf.f DEBUG (WRITE IN DGF line 598) via the DEBUG keyword on a 1-cycle emt01 keyfile; captured
+per-tree DDS (calibration pass). jl em_dgcons!+dgf! (Wykoff-main) DDS vs live, 4 WL trees:
+  I=4 DBH7.26 BAL36.61 CR0.25: jl 1.8961 / live 1.8958 (Δ0.0003)
+  I=5 DBH7.25 BAL33.32 CR0.25: jl 1.8980 / live 1.8980 (EXACT)
+  I=7 DBH6.99 BAL27.71 CR0.35: jl 1.9488 / live 1.9490 (Δ0.0002)
+  I=10 DBH6.92 BAL30.48 CR0.45: jl 2.0044 / live 2.0039 (Δ0.0005)
+All within F7.4 debug-print rounding (live values are themselves 4-decimal). ⇒ EM DG Wykoff-main DDS +
+DGCON(em_dgcons!) + all coefficients VALIDATED bit-exact-or-cornered vs live FVSem. The largest EM chunk (DG)
+is correct. RELDEN=90.837/BA=67.097 (calibration-pass backdated stand) also matched (same debug line).
+NOTE: live FVSem SEGFAULTS at run-end under DEBUG mode (DGF debug printed fine first) — a DEBUG-only live
+crash to trace later (doctrine: fix live crashes; low-pri, non-DEBUG runs are clean).
+NEXT: height (ch4 htgf) to enable the full-cycle .sum projection differential; then NI/DIAGR/aspen DG paths
+(non-emt01 species) + regent/mortality/volume.
