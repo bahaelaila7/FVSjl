@@ -276,3 +276,17 @@ species-expansion lineage). emt01's conifers (DF/WL/LP/PP/ES) use **NIVAR** (Nor
 ⇒ chunk 6 = reuse KT small_tree_growth! subcycle scaffold + the NIVAR HTGRL small-tree HTG + EM coefs +
 em_regcons! calibration. THE LAST growth-core hook — then full-cycle emt01 .sum differential validates
 DG+height+CCF+mortality+regent end-to-end. Growth core (DG validated / height / mortality matching live) done.
+
+## Chunk 6 regent NIVAR coefficients (em/regent.f) — measured, COMPLETE
+NIVAR HTGRL = CON + BH·ln(H1) + BCCF·RDJ + BBAL·BAL, then HTG via REGYR=5 subcycles + DADJ bias:
+- BH=0.3740, BCCF=−0.00391, BBAL=−0.22957 (FIXED, em/regent.f:391-393).
+- CON = RHCON(sp) + HCOR(sp)  (calib mode 40: RHCON·EXP(HCOR); line 383/385). RHCON per-species base +
+  HCOR the small-tree height calibration (em_regcons!, like KT/CR/IE htg_cor_small).
+- DELMAX = min((AH/36)·(0.01232·R − 1.75), 0); RELH=(H1−4.5)/(AH−4.5) clamp[0,1]; DADJ=DELMAX·RELH²−
+  2·DELMAX·RELH+0.65. RDJ = relative density (TPCCF-based point CCF, clamp[25,300]).
+- SLO/SHI per-species DATA (em/regent.f:155/161) for the CRVAR POTHTG (not NIVAR); NIVAR uses HTGRL directly.
+⇒ EM ENTIRE GROWTH MODEL NOW FULLY MEASURED. Chunk 6 impl = KT small_tree_growth! subcycle scaffold + this
+NIVAR HTGRL + RHCON extraction + em_regcons! (RHCON/HCOR calib) + DG-from-HTG. TT/CR/UT/aspen small-tree
+branches deferred (not emt01). Then full-cycle emt01 .sum validates the whole growth core end-to-end.
+GROWTH CORE STATUS: DG VALIDATED vs live · height DONE · mortality DONE (matches live) · inventory+CCF+site
+bit-exact · regent = last hook, fully measured.
