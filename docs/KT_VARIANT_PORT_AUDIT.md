@@ -966,3 +966,25 @@ RELDEN reproduces (live cycle-1 RELDEN=80.71). => the DG/HT chunks now read an e
 still-injected input CLOSED). NEXT chunk 5b: crown ratio update (ie/crown.f, the CRPARM-style model producing
 ICR/crown_pct + PCT that dgf!/htgf consume) so the whole IE growth pipeline runs end-to-end for the .sum
 differential. Then regent(6)/mortality(7,reuse KT)/volume(8,reuse FW2).
+
+============================================================================
+IE CHUNK 5b (CROWN RATIO: ie/crown.f) — NIVAR equation VALIDATED bit-exact-or-cornered vs LIVE FVSie
+============================================================================
+src/variants/inlandempire/crown.jl (+= crown_ratio_update!(::InlandEmpire) + ie_crcon) +
+crown_coefficients.jl (IE_CRPARM(23,14)/IE_CRHAB(14,23)/IE_CRMAPHAB(30,23)/WEIB/C0/C1 — DUMPED from the live
+binary via an instrumented crown.f, NOT hand-transcribed; ground truth). Per-species variant branch (ie/crown.f):
+  NIVAR (sp<=12,14,23): logistic. XCRCON=CRCON+PARM1*BA+PARM2*BA^2+PARM3*lnBA+PARM4*RELDEN+PARM5*RELDEN^2
+    +PARM6*lnRELDEN; PCR=XCRCON+B7*D+B8*D^2+B9*lnD+B10*H+B11*H^2+B12*lnH+B13*PCT+B14*lnPCT; DCR same w/ backdated
+    D,H (db=D-DG/BARK, hb=H-HTG) + OBA/RDM1 + OLDPCT; CHG=EXPPCR-EXPDCR; PDIFPY ±1%/yr bound; ICRI=INT(ICR+CHG*100
+    +.50005); CRMAX cap; bounds [5,95]. CRCON=CRHAB(MAPHAB(ITYPE,sp),sp).
+  CRVAR(19,22)+LPIJU(15,16): linear crown length CL(HF), CR=CL/HF, then label-53 change. UTTVAR(13,17,18,20,21):
+    Weibull (deferred — needs ISORT rank/RANN/DUBSCR, not in iet01).
+VALIDATION (instrument-replay): dumped per-tree I/D/H/PCT/OLDPCT/DG/HTG + stand BA/RELDEN/OBA/RDM1 + ICR/ICRI for
+NIVAR @ICYC=1, ran iet01.key. Replay /workspace/.iework/replay_ie_cr.jl fed the LIVE inputs (incl OLDPCT) into the
+jl equation: 260/264 exact ICRI, 4 miss (ONE high-crown sp4 tree icr=75, Δ1-2, CRMAX/rounding corner) = cornered.
+NIVAR crown EQUATION BIT-EXACT-OR-CORNERED vs live. REMAINING GAP (end-to-end): OLDPCT threading — live uses the
+PREVIOUS cycle's PCT (45.59) for DCR, jl currently approximates with the current PCT (54.27); same separable
+plumbing KT flagged. Thread OLDPCT (save PCT each cycle) for full-cycle bit-exactness. Special paths (CRVAR/LPIJU
+linear ported; UTTVAR Weibull deferred) not in iet01. META: dumped the coefficient TABLES from the live binary
+(instrument crown.f WRITE PARM/CRHAB/MAPHAB) instead of hand-transcribing (23x14 error-prone) — doctrine #2 for
+DATA. Sci-notation-f0 generator bug fixed (Nf-MM form). NEXT: OLDPCT thread + then chunks 6/7/8 + full-cycle .sum.

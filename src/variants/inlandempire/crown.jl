@@ -62,3 +62,114 @@ IFOR==5 (Colville) uses R6CRWD (deferred). Returns width clamped [0.1, 99.9]."""
     cw < 0.1f0 && (cw = 0.1f0)
     return cw
 end
+
+# --- crown ratio (ie/crown.f) — chunk 5b. Tables in crown_coefficients.jl (dumped from live). -------------
+"""IE per-species crown constant: CRCON(sp) = CRHAB(MAPHAB(ITYPE,sp), sp) (ie/crown.f:757)."""
+@inline function ie_crcon(itype::Int, sp::Int)::Float32
+    IE_CRHAB[clamp(Int(IE_CRMAPHAB[itype, sp]), 1, 14), sp]
+end
+
+"""
+    crown_ratio_update!(s, ::InlandEmpire; fint, lstart, crown_sdi, ...)
+
+IE crown (ie/crown.f). Per-species variant branch: NIVAR (sp≤12,14,23) logistic PCR/DCR change; CRVAR (19,22)
++ LPIJU (15,16) linear crown-length; UTTVAR (13,17,18,20,21) Weibull. Bounds NIVAR [5,95], others [10,95].
+Cycle update (D-backdated≥3 for NIVAR). LSTART dub via DUBSCR/BACHLO (RNG-cornered) for missing crowns.
+"""
+function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, lstart::Bool = false,
+                             crown_sdi::Float32 = 0.0f0, kwargs...)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
+    ba = p.basal_area; relden = p.relative_density
+    lnba = ba > 0f0 ? log(ba) : 0f0; lnrd = relden > 0f0 ? log(relden) : 0f0
+    reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
+    if reldm1 < 100f0; oba = ba; rdm1 = relden; end
+    x1 = (!lstart && oba > 0f0) ? log(oba) : 0f0
+    x2 = (!lstart && rdm1 > 0f0) ? log(rdm1) : 0f0
+    dgsd = s.control.dg_sd
+    ba_a = c.bark_a; ba_b = c.bark_b
+    # ISORT: descending-DBH rank (ie/crown.f:152, for UTTVAR Weibull X). IND is DBH-descending order.
+    nlim = t.n + (lstart ? Int(t.ndead) : 0)
+    @inbounds for i in 1:nlim
+        t.tpa[i] <= 0f0 && continue
+        icr = Int(t.crown_pct[i])
+        (lstart && icr > 0) && continue
+        icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        d <= 0f0 && continue
+        bark = bark_ratio(ba_a, ba_b, sp, d)
+        crcon = ie_crcon(itype, sp)
+        nivar = sp <= 12 || sp == 14 || sp == 23
+        crvar = sp == 19 || sp == 22
+        lpiju = sp == 15 || sp == 16
+        uttvar = !(nivar || crvar || lpiju)
+        local icri::Int
+        b7=IE_CRPARM[sp,7]; b8=IE_CRPARM[sp,8]; b9=IE_CRPARM[sp,9]; b10=IE_CRPARM[sp,10]
+        b11=IE_CRPARM[sp,11]; b12=IE_CRPARM[sp,12]; b13=IE_CRPARM[sp,13]; b14=IE_CRPARM[sp,14]
+        if crvar || lpiju
+            hf = h + t.ht_growth[i]
+            cl = crvar ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*ba) : (-0.59373f0 + 0.67703f0*hf)
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            crnew = (cl / hf) * 100f0
+            icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d)
+        elseif nivar && (!lstart && (d - t.diam_growth[i]/bark) < 3f0)
+            continue                                    # cycling: backdated D<3 keeps its crown (GOTO 60)
+        elseif nivar
+            xcrcon = crcon + IE_CRPARM[sp,1]*ba + IE_CRPARM[sp,2]*ba*ba + IE_CRPARM[sp,3]*lnba +
+                     IE_CRPARM[sp,4]*relden + IE_CRPARM[sp,5]*relden*relden + IE_CRPARM[sp,6]*lnrd
+            pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)      # P = PCT
+            pcr = xcrcon + b7*d + b8*d*d + b9*log(d) + b10*h + b11*h*h + b12*log(h) + b13*pp + b14*log(pp)
+            exppcr = exp(pcr); expdcr = 0f0
+            if !lstart
+                dcrcon = crcon + IE_CRPARM[sp,1]*oba + IE_CRPARM[sp,2]*oba*oba + IE_CRPARM[sp,3]*x1 +
+                         IE_CRPARM[sp,4]*rdm1 + IE_CRPARM[sp,5]*rdm1*rdm1 + IE_CRPARM[sp,6]*x2
+                db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
+                hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
+                pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)   # OLDPCT ≈ current PCT
+                dcr = dcrcon + b7*db + b8*db*db + b9*log(db) + b10*hb + b11*hb*hb + b12*log(hb) + b13*pb + b14*log(pb)
+                expdcr = exp(dcr)
+            end
+            chg = exppcr - expdcr
+            if !lstart || icr > 0
+                pdifpy = chg / Float32(icr) / fint * 100f0
+                pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
+                pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
+            end
+            icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)   # DLOW=0/DHI=99/CRNMLT=1 defaults
+            (lstart && dgsd >= 1f0) && (icri = trunc(Int, bachlo(s.rng, Float32(icri), IE_CRSD)))
+            # CRMAX cap (crown.f:556-568), skipped at LSTART or ICR==0
+            if !(lstart || icr == 0)
+                crln = h * Float32(icr) / 100f0
+                crmax = (crln + t.ht_growth[i]) / (h + t.ht_growth[i]) * 100f0
+                icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+                Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+            end
+        else
+            # UTTVAR Weibull (sp13,17,18,20,21): needs ISORT/RANN/DUBSCR — deferred (not in iet01).
+            lstart || continue
+            continue
+        end
+        # final bounds (crown.f:382-390)
+        icri > 95 && (icri = 95)
+        if nivar
+            icri < 5 && (icri = 5)                       # CRNMLT==1 default
+        else
+            icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+        end
+        t.crown_pct[i] = Int32(icri)
+    end
+    return s
+end
+
+# ie/crown.f label 53: CRVAR/LPIJU change bound + ICRI (CHG=CRNEW-ICR, PDIFPY ±1%/yr, CRMAX cap).
+@inline function _ie_crown_label53(crnew::Float32, icr::Int, lstart::Bool, fint::Float32, sp::Int, d::Float32)
+    chg = crnew - Float32(icr)
+    if !lstart || icr > 0
+        pdifpy = chg / Float32(icr) / fint
+        pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint)
+        pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
+        crnew = Float32(icr) + chg                       # CRNMLT=1 default
+    end
+    return trunc(Int, crnew + 0.5f0)
+end
