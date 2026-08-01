@@ -840,10 +840,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # HCOR(15)=0.1436 is a SPILLOVER from the DIAMETER COR (dgdriv.f:183-205: WCI=0.5·COR, HCOR=WCI·(1−CORMLT)),
     # which the htg_cor_small formula below (dg_cor_goal + cormlt_h·(htg_cor_init − dg_cor_goal)) already
     # implements. VERIFIED: jl dg_cor[15]=1.186 / dg_cor_goal=0.593 (=live WCI) ⇒ htg_cor_small[15]=0.14366 ⇒
-    # regent CON=1.0·exp=1.15449 == live CON 1.1545 BIT-EXACT. So PI/JU height+DG+CON all match live. The
-    # residual pure_PM gap is SYSTEMATIC (jl BA/CCF always high: CCF 109 vs live 94 @2000 from bit-exact 92
-    # @1990) ⇒ a CROWN-WIDTH/CCF difference for pinyon (ie_tree_ccf/ccfcal sp15/16), NOT calibration/ZZRAN;
-    # it feeds RELDEN → growth+mortality. Next PI/JU lead: trace pinyon CCF. See [[fvsjl-ie-variant-port]].
+    # regent CON=1.0·exp=1.15449 == live CON 1.1545 BIT-EXACT. PI/JU is bit-exact-or-cornered: on a PHYSICAL
+    # pinyon stand the deterministic HTGR1 (pre-ZZRAN height growth) jl==live to ±0.0001 in the growing regime;
+    # per-tree DG + CON also match. The .sum spread is the accepted ZZRAN + tripling residual (ch9) — AMPLIFIED
+    # for pinyon because the linear DK maps the ZZRAN-perturbed H→DBH (live draws per-triple-copy, jl once+triples).
+    # NOT a growth/calib/crown/mortality bug. See [[fvsjl-ie-variant-port]].
     return s
 end
 
