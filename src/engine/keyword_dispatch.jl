@@ -523,7 +523,15 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p.user_forest_code = nint(v[1])
     # SN: STDINFO field 2 is the habitat/ecological-unit field, decoded by HABTYP
     # (numeric → index into SNECU; alpha → matched, uppercased) into the PCOM code.
-    rec.present[2] && (p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10))
+    # IE (and other western Wykoff variants): field 2 is the numeric habitat code (KODTYP) that
+    # ie_habtyp reduces to ITYPE — store it in habitat_code, NOT eco_unit (initre.f:808 KODTYP).
+    if rec.present[2]
+        if s.variant isa InlandEmpire
+            p.habitat_code = nint(v[2])
+        else
+            p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)
+        end
+    end
     rec.present[3] && (p.stand_age = nint(v[3]))
     rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
     rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
