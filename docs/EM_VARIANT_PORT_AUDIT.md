@@ -371,3 +371,14 @@ dispatch, DBH-update-bark, point_ccf-PCCF-dispatch. Instrument-replay recipe (DG
 WRITE(77,...); compile to /workspace/.emwork/dgf.o (NOT into BD — stray obj → multiple-def dgf_); gfortran
 manual link excluding $BD/dgf.o$ + shim. NEXT (downstream leaves, like CR/KT/IE): volume(NVEL) + non-emt01
 DIAGR(RM/CO)/aspen(DGFASP)/NI(sp4/5) DG paths + full multi-scenario stands.
+
+
+## ★ EM VOLUME VALIDATED (= IE/KT standard) — chunk 8
+EM = Region-1 (Northern) Flewelling FW2, SAME kernel as KT (cr_fw2_vol). Added VOLEQ I00FW2W<FIA> (em/sitset.f
+VAR=EM/IREGN=1) + compute_volumes! EM dispatch → compute_volumes_kt! (variant-agnostic: Region-1, sp7=LP
+lodgepole). emc2 1990: Merch=1058 BIT-EXACT, BdFt=5388 BIT-EXACT, TotCuFt 1620 vs 1637 (~1% = INGY geocode-I
+taper upper-stem residual, SAME as IE — cornered). ⇒ EM NOW = KT/IE PARITY: growth core validated end-to-end
+(full 10-cycle bit-exact-or-cornered) + volume validated (merch/board exact, tot-cubic INGY-cornered).
+Remaining (situational, like IE): hardwood DVE volume species + forest-keyed VOLEQDEF; non-emt01 DIAGR(RM/CO)/
+aspen(DGFASP)/NI(sp4/5) DG paths; FFE fuel; establishment. EM is a FOURTH western variant to growth+volume
+validated this session (after CR done; KT+IE growth-core; EM now growth+volume). 7 real bugs fixed.
