@@ -835,12 +835,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             c.htg_cor_init[sp] = log(cornew)
         end
     end
-    # IE PI/JU (sp15/16) small-tree height calib: NO regent HCOR block is needed. Live instrumentation showed
-    # sp15's own regent REGCAL gets N=4 < NCALHT(5) and SKIPS (htg_cor_init stays 0 — jl matches). Live's
-    # HCOR(15)=0.1436 is a SPILLOVER from the DIAMETER COR via dgdriv.f:183-205: WCI=0.5·COR, HCOR=WCI+CORMLT·
-    # (HCOR_regent−WCI) = WCI·(1−CORMLT). The line-947 formula below already implements exactly this. So the
-    # real gap is jl's dg_cor_goal[15]=0 vs live 0.59 (⇒ COR(15)≈1.187): sp15's DIAMETER COR calibration, not
-    # a height calib. TODO: reconcile the sp15 diameter DGSCOR COR. See [[fvsjl-ie-variant-port]].
+    # IE PI/JU (sp15/16) small-tree height calib: NO regent HCOR block needed, and it is ALREADY CORRECT.
+    # sp15's own regent REGCAL gets N=4 < NCALHT(5) and skips (htg_cor_init=0 — jl matches live). Live's
+    # HCOR(15)=0.1436 is a SPILLOVER from the DIAMETER COR (dgdriv.f:183-205: WCI=0.5·COR, HCOR=WCI·(1−CORMLT)),
+    # which the htg_cor_small formula below (dg_cor_goal + cormlt_h·(htg_cor_init − dg_cor_goal)) already
+    # implements. VERIFIED: jl dg_cor[15]=1.186 / dg_cor_goal=0.593 (=live WCI) ⇒ htg_cor_small[15]=0.14366 ⇒
+    # regent CON=1.0·exp=1.15449 == live CON 1.1545 BIT-EXACT. So PI/JU height+DG+CON all match live. The
+    # residual pure_PM gap is SYSTEMATIC (jl BA/CCF always high: CCF 109 vs live 94 @2000 from bit-exact 92
+    # @1990) ⇒ a CROWN-WIDTH/CCF difference for pinyon (ie_tree_ccf/ccfcal sp15/16), NOT calibration/ZZRAN;
+    # it feeds RELDEN → growth+mortality. Next PI/JU lead: trace pinyon CCF. See [[fvsjl-ie-variant-port]].
     return s
 end
 
