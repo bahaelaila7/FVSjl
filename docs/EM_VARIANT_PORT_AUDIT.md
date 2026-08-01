@@ -159,6 +159,21 @@ Then the main-loop DDS (Wykoff): CONSPP=DGCON+COR+0.01·DGCCF·RELDEN; DDS=CONSP
 DGBAL·BAL+DGDBAL·BAL/ln(D+1)+DGDSQ·D²(?)+... (verify exact large-tree terms at em/dgf.f:540-585). Then
 `DDS=DDS+COR+DGCON` (line 559) for the DIAGR species. All coefficient DATA extracted; forkod + dgfasp remain.
 
+## Chunk 4 (height growth) scope — em/htgf.f (479) + em/pothtg.f (169), measured
+Multi-path like DG. MAIN Wykoff conifers (sp1-3,7-10,18 — covers emt01):
+- H≤4.5 → small-tree/regen (GO TO 60, chunk 6). Else: BAL=((100−PCT)/100)·BA; CR=ICR/100.
+- **CALL POTHTG(I,ISPC,H,SI50,SI100,PHTG)** — potential height growth (em/pothtg.f): per-species site-index
+  curves (A=9.72443−0.00091·SI100·CCF−H, B/C forms; TEMSI=SI50−4.5 curves; SI100 base-100 for the conifers,
+  SI50 for DF sp3). Returns PHTG.
+- **RALPH correction:** PHTG = PHTG·0.706·(1−exp(−10.19·CR))·(1−exp(−0.1·18.158·DG))^0.944 + 0.0265·H.
+  (DG = this cycle's diameter growth — so height depends on the DG chunk, already validated.)
+- **Modifiers:** RLHTMD = exp(C3MOD·((H/AVH)^C4MOD − 1)); CRMOD=1; HTMOD=min(CRMOD·RLHTMD, 1);
+  HTG = max(PHTG·HTMOD, 0.1). C1MOD-C4MOD + HTCON from ENTRY HTCONS (em/htgf.f) — extract.
+- Coefficient DATA in em/htgf.f: MAPHAB(30), COFLM(9,3), COFAS(9,3) (LM/aspen), + the mod/HTCON consts.
+- SPECIAL forms: sp5 (LL) `CON=HTCON+H2COF·H²−0.1997·lnD+...`; sp4/12/17 (LM/aspen COFLM/COFAS); RM/CO.
+Validate via em/htgf.f DEBUG (IN HTGF WRITE line 192/50/901 fire under DEBUG) — same instrument-replay as DG.
+emt01 = DF/WL/LP/PP/ES ⇒ only POTHTG main path needed for the first height validation + full-cycle .sum.
+
 ## Chunk plan (mirror KT)
 1. Species: `data/easternmontana/species_coefficients.csv` (19 species × ~40 cols from em/*.f DATA:
    bark bratio.f, site sitset.f, small-tree/regent, htcalc/htdbh, morts, sdimax, volume specs) +
