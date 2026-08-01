@@ -18,3 +18,7 @@ const IE_RG_RHGL = Float32[-0.2785f0, -0.0480f0, 0f0]
 const IE_RG_RSAB = Float32[-0.10987f0, 0.22157f0, -0.12432f0]
 const IE_RG_REGYR = 5.0f0
 const IE_RG_HSIGMA = 0.59f0
+# ie/regent.f:177-178 — CR/UT site-index bounds (SLO/SHI). Used by the special-species (UTVAR/CRVAR)
+# potential-height model: sp15/16(PI/JU), sp18/20/21(aspen), sp19/22(CO). 0 for NIVAR/TT species.
+const IE_RG_SLO = Float32[0,0,0,0,0,0,0,0,0,0,0,0,0,0, 5f0, 5f0, 0, 30f0, 30f0, 30f0, 30f0, 20f0, 0]
+const IE_RG_SHI = Float32[0,0,0,0,0,0,0,0,0,0,0,0,0,0, 20f0, 15f0, 0, 70f0, 120f0, 70f0, 70f0, 100f0, 0]

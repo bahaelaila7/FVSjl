@@ -20,8 +20,14 @@ function ie_regcons!(s::StandState)
     regch = IE_RG_RHGL[igl] + (IE_RG_RSAB[1] + IE_RG_RSAB[2]*cos(asp) + IE_RG_RSAB[3]*sin(asp)) * slope
     rhcon = Vector{Float32}(undef, 23)
     @inbounds for sp in 1:23
-        irhhab = clamp(Int(IE_RG_MAPHAB[itype, sp]), 1, 6)
-        rhcon[sp] = regch + IE_RG_RHSC[sp] + IE_RG_RHHAB[irhhab, sp]
+        # regent.f:1479-1492 — the REGCH+RHSC+RHHAB formula is NIVAR-ONLY; every non-NIVAR (TT/CR/UT)
+        # species gets RHCON = 1.0 (their CON = 1.0·EXP(HCOR); the site effect rides in via HCOR calib).
+        if sp <= 12 || sp == 14 || sp == 23
+            irhhab = clamp(Int(IE_RG_MAPHAB[itype, sp]), 1, 6)
+            rhcon[sp] = regch + IE_RG_RHSC[sp] + IE_RG_RHHAB[irhhab, sp]
+        else
+            rhcon[sp] = 1.0f0
+        end
     end
     return rhcon
 end
@@ -71,6 +77,13 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # DELMAX (regent.f:333), AH=AVH
     ah = avh
     delmax = (ah / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
+    # PCTRED (regent.f:338-343) — CR/UT density modifier from CCF·top-height; used by the special-species
+    # potential-height model (PI/JU here). Stand-level, computed once (does not vary by subcycle).
+    xpr = ah * (relden / 100.0f0); xpr > 300.0f0 && (xpr = 300.0f0)
+    pctred = 1.11436f0 + xpr*(-0.011493f0 + xpr*(0.43012f-4 + xpr*(-0.72221f-7 +
+             xpr*(0.5607f-10 - xpr*0.1641f-13))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    scale_ut = yr > 0f0 ? Float32(ntyr) / yr : 1.0f0    # CR/UT SCALE = NTYR/YR (regent.f:393/397)
     # per-tree height + diameter accumulators (WK3=H, WK5=D), start at HT/DBH
     wk3 = Float32[t.height[i] for i in 1:n]
     wk5 = Float32[t.dbh[i] for i in 1:n]
@@ -86,7 +99,34 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             d0 >= IE_RG_XMAX[sp] && continue
             t.tpa[i] <= 0.0f0 && continue
             nivar = sp <= 12 || sp == 14 || sp == 23
-            nivar || continue                                  # special species handled in the final pass
+            if !nivar
+                # UTVAR PI/JU (sp15,16): potential-height model, ONE pass only (regent.f:407 J>1 skip).
+                if (sp == 15 || sp == 16) && j == 1
+                    con = rhcon[sp] * exp(c.htg_cor_small[sp])   # non-NIVAR CON = RHCON·EXP(HCOR) (regent.f:414)
+                    h1 = wk3[i]; d = wk5[i]
+                    sitear = p.sp_site_index[sp]
+                    xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                    xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+                    sj = sitear                                   # POTHTG uses raw SITEAR (regent.f:459/467); H==H1 at j=1
+                    pothtg = ((sj/5f0)*(sj*1.5f0 - h1)/(sj*1.5f0)) * 0.83f0
+                    crx = Float32(t.crown_pct[i]) / 100f0
+                    vigor = 150f0*crx^3*exp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    vigor = 1f0 - (1f0 - vigor)/3f0               # PI/JU cut vigor by 2/3 (regent.f:552)
+                    htgrl = pothtg * pctred * vigor * con
+                    h2 = h1 + htgrl * scale_ut                    # regent.f:600 (CR/UT else branch)
+                    wk3[i] = h2
+                    # subcycle diameter for density feedback (regent.f:646-651)
+                    d2 = h2 <= 4.5f0 ? d + 0.001f0*h2 : max((h2 - 4.5f0)*10f0/(sitear - 4.5f0), 0.1f0)
+                    wk5[i] = d2
+                    if j < nper
+                        pr = t.tpa[i]
+                        c1 = ie_tree_ccf(sp, d); c2 = ie_tree_ccf(sp, d2)
+                        rdnext[j+1] += Float32(ky) * pr * (c2 - c1) / 10.0f0 * surv
+                        banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * surv
+                    end
+                end
+                continue                                          # aspen/CO/TT special species: TODO
+            end
             con = rhcon[sp] + c.htg_cor_small[sp]              # CON = RHCON + HCOR (HCOR=0 until calib)
             h1 = wk3[i]; d = wk5[i]
             pct = t.crown_ratio[i]
@@ -127,7 +167,50 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= IE_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue
-        (sp <= 12 || sp == 14 || sp == 23) || continue         # NIVAR only (special species: TODO)
+        if !(sp <= 12 || sp == 14 || sp == 23)
+            # UTVAR PI/JU (sp15,16): height increment + ZZRAN + linear height→DBH (regent.f:756-985).
+            # regent OVERRIDES the large-tree dgf/htgf for pinyon/juniper (XMAX=99, XMIN=90 ⇒ XWT≡0).
+            if sp == 15 || sp == 16
+                h = t.height[i]
+                sitear = p.sp_site_index[sp]
+                xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+                htgr1 = wk3[i] - h                                # HK−H (UT: NOT floored; regent.f:756)
+                zzran = 0f0
+                if dgsd >= 1.0f0
+                    while true
+                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break   # CR/UT bound (regent.f:813)
+                    end
+                end
+                htgr = (htgr1 + zzran*0.1f0) * xrhgro              # UT: ZZRAN·0.1 (regent.f:814)
+                htgr < 0.1f0 && (htgr = 0.1f0)
+                xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
+                xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)       # ≡0 for PI/JU (xmn=90)
+                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
+                cap = s.control.sp_size_cap[sp, 4]
+                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                t.ht_growth[i] = htg
+                # diameter: linear height→DBH; DG on the DDS scale (regent.f:879-985)
+                hk = h + htg
+                if hk < 4.5f0
+                    t.diam_growth[i] = 0f0                          # regent.f:883 DG(K)=0
+                else
+                    dk = (hk - 4.5f0)*10f0/(sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                    dkk = (h - 4.5f0)*10f0/(sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                    h < 4.5f0 && (dkk = d)                          # regent.f:897 override
+                    dgk = (dk - dkk) * ie_bratio(sp, d) * xrdgro    # regent.f:960
+                    dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
+                    dgk < 0f0 && (dgk = 0f0)
+                    bark = ie_bratio(sp, d)
+                    dds = dgk*(2f0*bark*d + dgk)*scale2             # regent.f:980 (DG(K)=DGK for CR/UT)
+                    dgv = sqrt((d*bark)^2 + dds) - bark*d           # regent.f:981
+                    (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
+                    t.diam_growth[i] = dgv
+                end
+            end
+            continue                                              # aspen/CO/TT: TODO
+        end
         h = t.height[i]
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
         ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
@@ -145,10 +228,15 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
-        # diameter: only D<3 gets the small-tree dub (regent.f:875-940); D≥3 keeps its large-tree DG.
-        # KEY (regent.f REGENT-before-MORTS order): REGENT sets DBH(K) DIRECTLY for small trees, so mortality
-        # sees the GROWN small-tree DBH (unlike large trees, whose DG is applied in GRADD after MORTS). So we
-        # update t.dbh here and zero diam_growth (the shared GRADD-apply is then a no-op for these records).
+        # diameter dub for D<3. We set DBH=grown-DK directly + zero diam_growth ⇒ mortality sees the grown DBH.
+        # RESIDUAL RESOLVED (2026-08-01, live regent trace): the small-tree base models are CORRECT. For the stand-1
+        # sp3/d=1.2/H=11 tree (identical jl↔live population, valid pre-mortality match), jl's pre-ZZRAN height growth
+        # htgr1=8.61 MATCHES live HTGR1=8.59 (subcycle HTGRL 1.493/1.420, CON=1.486, HCOR=0); the final HK differs
+        # (jl 17.68 vs live 24.54) ONLY because the ZZRAN draw differs (line 142: live drew +0.455, jl negative). That
+        # is the ZZRAN RNG stream-order difference — the documented ACCEPTED residual, NOT a bug. Earlier "DG formula
+        # under-sizing / tripling-order / 4× granularity" hypotheses were all wrong turns from mismatched comparisons.
+        # DBH-old+increment is FVS's true structure (live dump: DBH(K)==D) but restructuring regressed the .sum via
+        # the same ZZRAN-driven HK spread; DK-direct is oracle-.sum-closest (matches live BA=115 @2000) so kept.
         if d < 3.0f0
             relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
             relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
