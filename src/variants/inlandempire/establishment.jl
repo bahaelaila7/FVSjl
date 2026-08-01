@@ -108,10 +108,13 @@ function ie_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::In
     return exp(pn + disp*sig)
 end
 
-# ie/esxcsh.f ESXCSH — the per-tree NATURAL/subsequent height: a Weibull inverse-CDF height CLASS from
-# HTMIN(=XMIN) up to HTMAX(=TALL, the tallest-subsequent ht), scaled by a random DRAW. This is the
-# faithful NATURAL per-tree height model (estab.f:931 → HT(ITRN)=HHT). Coefficients by time-class
-# (ITIME 1/2/3) × species. sp 13,15-17 → 0.5; sp 18-22 → 5.0 (fixed).
+# ie/esxcsh.f ESXCSH — per-tree height-CLASS distribution: a Weibull inverse-CDF from HTMIN(=XMIN) up to
+# HTMAX(=TALL, tallest-subsequent ht), scaled by a random DRAW. Faithful transcription of ie/esxcsh.f.
+# ROLE (measured, cont.64): this is the AUTO-ESTABLISHMENT height-class model (estab.f:931). It is NOT
+# the NATURAL-keyword height path — live instrumentation showed the single CALL ESXCSH never fires for
+# NATURAL regen (XCSHTRC=0 while regen occurs), same as essubh (auto-estab, cont.56). Serves the auto-estab
+# mode; the NATURAL-keyword per-tree height source remains unresolved (additive placeholder in establish!).
+# Coefficients by time-class (ITIME 1/2/3) × species. sp 13,15-17 → 0.5; sp 18-22 → 5.0 (fixed).
 const _IE_ESXCSH_SHIFT = Float32[4.0,4.0,2.0,2.0,2.0,2.0,4.0,2.0,2.0,4.0,2.0, 0,0,0,0,0,0,0,0,0,0,0,0]
 # BB/CC (3 time-classes × 23 species). Access [itime, sp].
 const _IE_ESXCSH_BB = let m = zeros(Float32, 3, 23)
