@@ -290,6 +290,12 @@ function stand_ccf(s::StandState)
             ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa EasternMontana
+        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form).
+        @inbounds for i in 1:t.n
+            ccf += em_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
     end
     @inbounds for i in 1:t.n
         sp = t.species[i]

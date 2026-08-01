@@ -97,6 +97,7 @@ include("variants/inlandempire/regent.jl")           # IE REGENT small-tree grow
 include("variants/easternmontana/easternmontana.jl")  # EM singleton + registration (MAXSP 19, western Wykoff DDS)
 include("variants/easternmontana/species.jl")         # EM blkdat init (19 species, seed 55329, Stage SDI) + SPCTRN col 10
 include("variants/easternmontana/site_index.jl")      # EM habtyp (JTYPE/NIHMAP→ITYPE) + sitset (site index/SDIDEF) — site_setup!
+include("variants/easternmontana/crown.jl")           # EM per-tree CCF (em/ccfcal.f MODE=1 polynomial) — em_tree_ccf
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
