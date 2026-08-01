@@ -1057,3 +1057,23 @@ pure_DF_est: jl 2010 613/QMD5.9 vs live 603/5.9, establishment-added regen IDENT
 per-tree strict-bit-exact refinement via esnutr trace is low-priority). AUTO-establishment mode
 (essubh/esadvh/ICHOI — measured separate from NATURAL, cont.56) remains a later effort. REMAINING IE
 leaf: FFE-fuel.
+
+## KT native-stand validation + strip_key_ext bug (commits 81f9d5d, d996a0b)
+
+**End-to-end unblock (81f9d5d):** KT was non-functional from a scratch run — `grow_cycle` zeroed the whole
+stand. Root: `kw_stdinfo!` gated `habitat_code` capture to InlandEmpire only, so KT got habitat_code=0 →
+kt_habtyp not called → itype=0 → BAMAX=0 → sp_sdi_def=0 → stand_sdimax=0 → Hamilton mortality (`sdimax<5 ⇒
+wki=pr`) killed every tree. Fix: include `Kootenai` in the habitat_code branch. Per-chunk instrument-replay
+validation had masked this (it never exercised the from-scratch mortality path).
+
+**strip_key_ext dot-directory truncation (d996a0b):** `strip_key_ext` used `findfirst(".k", keypath)`, matching
+the first `.k` ANYWHERE. A keyfile under `.ktwork/` had its base truncated to `/workspace/` → companion `.tre`
+missing → 0 trees loaded → silent all-zero projection. Fixed to `first(splitext(keypath))`. Latent shared-engine
+bug; the suite never hit it (clean paths).
+
+**Native-stand result (ktctrl.key, STDINFO 11406001, genuine KT tree data):** 1990 inventory BIT-EXACT
+(TPA 536 / BA 77 / TopHt 63 / QMD 5.1 vs live FVSkt); early cycles ±1-2 TPA; late a small compounding
+self-thin/DG-COR-precision tail (2040 jl BA 175 vs live 170) + AVHT40 RDPSRT tie-break on TopHt (jl 2020 81 vs
+84) — the SAME accepted residual class as CR/IE. **Verdict: KT growth core validated end-to-end on native KT
+data, bit-exact-or-cornered.** Volume (`cr_fw2_vol`): BdFt bit-exact, Merch ±1, total-cubic ~0.7% INGY-taper
+(= IE). Remaining KT downstream (situational): FFE fuel (POTFIRE/SIMFIRE), establishment. Suite 38588/0/75.
