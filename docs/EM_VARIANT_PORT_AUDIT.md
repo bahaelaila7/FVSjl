@@ -382,3 +382,13 @@ taper upper-stem residual, SAME as IE — cornered). ⇒ EM NOW = KT/IE PARITY: 
 Remaining (situational, like IE): hardwood DVE volume species + forest-keyed VOLEQDEF; non-emt01 DIAGR(RM/CO)/
 aspen(DGFASP)/NI(sp4/5) DG paths; FFE fuel; establishment. EM is a FOURTH western variant to growth+volume
 validated this session (after CR done; KT+IE growth-core; EM now growth+volume). 7 real bugs fixed.
+
+
+## Non-conifer species need FULL paths (DG+height+regent), not just DG — measured
+Validated via all-LM synthetic stand (emt01.tre species→LM): live 2000 485/101/6.2 (distinct from conifer
+526/96/5.8, confirms LM/NI path fires). jl errors at height_growth! sp4 — so LM/LL/RM/AS/CO need their HEIGHT
+path (em/htgf.f COFLM(9,3)/COFAS(9,3) for LM/aspen; the sp5 LL HTCON form) + REGENT small-tree path, in
+ADDITION to the DG path (NI done sp4/5; DIAGR RM/CO + aspen DGFASP still todo). ⇒ each non-conifer species-
+group is a full DG+height+regent triad. emt01 (conifers) exercises only the main paths (all validated). EM
+DONE on conifers (growth end-to-end + volume, = KT/IE); non-conifer species-groups (LM/LL/RM/AS/CO/hardwoods)
+are the situational remaining coverage — needs a per-group DG+height+regent port + a test stand. Same tail as IE.
