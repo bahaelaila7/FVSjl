@@ -168,6 +168,10 @@ function setup_volume_equations!(s::StandState)
             # (FIAJSP, NOT code_fia — sp11 OT is 260 not 999). Validated vs live VEQNNC dump for all 11 species.
             vfia = KT_VOL_FIA[sp]
             s.species.vol_eq[sp] = "I00FW2W" * lpad(string(vfia), 3, '0')
+        elseif s.variant isa InlandEmpire
+            # IE VOLEQDEF (ie/sitset.f, VAR='IE'): FW2 (sp1-14,23) + DVE/Behre (sp15-22). Strings dumped from
+            # live (forest 118); forest-keyed VOLEQDEF port needed for arbitrary IE forests (see volume.jl).
+            s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

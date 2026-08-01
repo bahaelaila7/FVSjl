@@ -87,6 +87,7 @@ include("variants/inlandempire/crown_coefficients.jl") # IE crown-ratio tables (
 include("variants/inlandempire/crown.jl")            # IE per-tree CCF (ie/ccfcal.f) + crown ratio (ie/crown.f)
 include("variants/inlandempire/mort_coefficients.jl")# IE mortality Hamilton coefficients (ie/morts.f, dumped)
 include("variants/inlandempire/mortality.jl")        # IE mortality (ie/morts.f) — Hamilton, reuses KT form
+include("variants/inlandempire/volume.jl")           # IE volume (ie/sitset.f VOLEQ): FW2 + DVE, reuse CR kernels
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
