@@ -124,6 +124,8 @@ include("variants/teton/establishment.jl")      # TT establishment clamps (tt/bl
 include("variants/utah/utah.jl")              # UT singleton + registration (MAXSP 24, western Wykoff DDS, Zeide SDI)
 include("variants/utah/species.jl")           # UT blkdat init (24 species, seed 55329, Zeide SDI) + SPCTRN col 4
 include("variants/utah/site_index.jl")         # UT site_setup! (chunk 2): forkod + habtyp (reuse TT R4HABT) + sitset
+include("variants/utah/dg_coefficients.jl")    # UT large-tree DG coefficient arrays (ut/dgf.f DATA, CSV-loaded)
+include("variants/utah/diameter_growth.jl")    # UT large-tree DDS (chunk 3): ut_dgcons! + dgf! (5-branch)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

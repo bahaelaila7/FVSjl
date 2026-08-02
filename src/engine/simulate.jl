@@ -89,6 +89,9 @@ function setup_growth!(s::StandState)
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa Utah
+        ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
