@@ -27,7 +27,9 @@ function compute_volumes_tt!(s::StandState)
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
             t.cuft_vol[i] = max(tcf, 0f0)
             t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0     # board Scribner = TODO
+            bfmind = sp == 7 ? 7.0f0 : 8.0f0                 # board DBHMIN (BFMIND, tt/grinit.f)
+            bf = d >= bfmind ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0   # BFGRS Scribner (M=1)
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else
             # DVEW (PM/RM/MC/OH/UJ) — reuse the CR DVE/Gevorkiantz kernel (deferred; not in ttt01)
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
