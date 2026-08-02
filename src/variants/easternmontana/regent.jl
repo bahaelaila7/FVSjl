@@ -34,6 +34,7 @@ const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
 # already have EM_RG_XMAX=3, but LL(5)'s XMAX=10 is only the height-blend range — its regent still caps at 3,
 # so D≥3 LL stays on the pure large-tree path (else the XWT DG-override halves the large DG → em_LL breaks).
 @inline _em_rg_cap(sp::Int) = sp == 5 ? 3.0f0 : EM_RG_XMAX[sp]
+@inline _em_rg_crvar(sp::Int) = sp == 11 || (13 <= sp <= 16) || sp == 19
 
 # em/regent.f RCON entry: RHCON[sp] = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]]. Returns the RHCON vector.
 function em_regcons!(s::StandState)
@@ -132,6 +133,31 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         dgnew = dnow[i] - d; dgnew < 0f0 && (dgnew = 0f0)
         dgw = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
         t.diam_growth[i] = dgw
+    end
+    slo = s.coef.species[:site_lo]; shi = s.coef.species[:site_hi]; fint10 = fint/10.0f0
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        _em_rg_crvar(sp) || continue
+        (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        h = t.height[i]; sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp]+0.5f0)
+        relsi = (si-slo[sp])/(shi[sp]-slo[sp]); x = relsi*100.0f0
+        pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
+        pctred > 1.0f0 && (pctred=1.0f0); pctred < 0.01f0 && (pctred=0.01f0)
+        xcr = Float32(t.crown_pct[i])/100.0f0
+        vigor = 150.0f0*xcr^3*exp(-6.0f0*xcr)+0.3f0; vigor>1.0f0 && (vigor=1.0f0)
+        pothtg = sitear/(15.0f0-4.0f0*relsi); con = exp(c.htg_cor_small[sp])
+        htgr = pothtg*pctred*vigor*con*fint10
+        if dgsd >= 1.0f0                                          # CRVAR ZZRAN — ONE draw, add only if in
+            zz = bachlo(s.rng, 0.0f0, 1.0f0)                      # [-2,0.5] else skip (em/regent.f:811-813,919)
+            (zz <= 0.5f0 && zz >= -2.0f0) && (htgr = htgr + zz * 0.2f0)
+        end
+        htgr < 0.1f0 && (htgr = 0.1f0)
+        xmn = EM_RG_XMIN[sp]; xmx = EM_RG_XMAX[sp]
+        xwt = d <= xmn ? 0.0f0 : (d-xmn)/(xmx-xmn)
+        largeh = t.ht_growth[i]
+        htg = htgr*(1.0f0-xwt)+xwt*largeh; htg < 0.1f0 && (htg=0.1f0)
+        t.ht_growth[i] = htg
     end
     return s
 end

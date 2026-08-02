@@ -28,6 +28,8 @@ const EM_IMAP  = Int[2,2,2,2,2,1,2,2,2,2,3,2,3,3,3,3,2,2,3]
 # REAL EM DGSCOR residual SD (blkdat.f DATA SIGMAR) — the dg_resid_sd prior variance that drives the
 # per-species DG COR self-calibration (dgdriv.f:414/622). Real ≠ CR placeholder for the non-conifers.
 const EM_SIGMAR = Float32[0.11645,0.11645,0.14465,0.4671,0.4345,0.2,0.14465,0.15850,0.14465,0.13420,0.2,0.3750,0.2,0.2,0.2,0.2,0.3750,0.11645,0.2]
+const EM_SLO = Float32[0,0,0,0,0,5,0,0,0,0,30,30,30,30,30,30,30,0,30]
+const EM_SHI = Float32[0,0,0,0,0,15,0,0,0,0,120,70,120,120,120,120,70,0,120]
 ci = Dict(String(h) => i for (i, h) in enumerate(hdr))
 open("data/easternmontana/species_coefficients.csv", "w") do io
     println(io, join(hdr, ","))
@@ -41,7 +43,8 @@ open("data/easternmontana/species_coefficients.csv", "w") do io
         row[ci["bark1"]]      = string(EM_BARK1[idx])     # REAL EM bark (rest of the row still CR placeholder)
         row[ci["bark2"]]      = string(EM_BARK2[idx])
         row[ci["bark_imap"]]  = string(EM_IMAP[idx])
-        row[ci["dg_resid_sd"]] = string(EM_SIGMAR[idx])   # REAL EM SIGMAR (DGSCOR prior)
+        row[ci["dg_resid_sd"]] = string(EM_SIGMAR[idx])
+        row[ci["site_lo"]] = string(EM_SLO[idx]); row[ci["site_hi"]] = string(EM_SHI[idx])
         println(io, join(row, ","))
     end
 end
