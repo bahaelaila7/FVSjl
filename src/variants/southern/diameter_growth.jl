@@ -269,8 +269,10 @@ function _backdate_dbh!(s::StandState)
     idg = s.control.growth_idg
     _cr_bd = s.variant isa CentralRockies; _cr_bd_imod = _cr_bd ? Int(s.plot.model_type) : 0; sd = s.coef.species
     _tt_bd = s.variant isa Teton
+    _bm_bd = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model DIB=BARK1·D^BARK2, not linear a+b·d)
     _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
-                 _tt_bd ? tt_bratio(Int(sp), Float32(d)) : bark_ratio(bark_a, bark_b, sp, d)
+                 _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
+                 _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
@@ -299,6 +301,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b; sigmar = sd[:dg_resid_sd]
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
+    _bm_cal = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model)
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -408,6 +411,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 # (dgdriv.f:640) ⇒ COR falsely zeroed for measured-DG species (e.g. aspen sp20), which then
                 # over-grows where gemdg is explosive on small DBH. 4th CR variant-bark location.
                 bk = _cr_cal ? cr_bratio(sd, Int(t.species[i]), saved_dbh[i], _cr_cal_imod) :
+                     _tt_cal ? tt_bratio(Int(t.species[i]), saved_dbh[i]) :
+                     _bm_cal ? bm_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
                 t.diam_growth[i] *= bk
             end
@@ -482,6 +487,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         dg <= 0f0 && continue
         bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) :
                _tt_cal ? tt_bratio(Int(sp), saved_dbh[i]) :
+               _bm_cal ? bm_bratio(sd, Int(sp), saved_dbh[i]) :
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
