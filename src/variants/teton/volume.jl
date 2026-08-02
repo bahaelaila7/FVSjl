@@ -12,7 +12,7 @@ const TT_VOL_EQ = String[
 
 function compute_volumes_tt!(s::StandState)
     t = s.trees; veq = s.species.vol_eq
-    mtopp = 5.622f0                          # R4 cubic merch top DIB (matches live; source TBD)
+    ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -21,9 +21,12 @@ function compute_volumes_tt!(s::StandState)
         end
         eq = veq[sp]; mdl = length(strip(eq)) >= 7 ? strip(eq)[4:6] : "   "
         if mdl == "MAT"
+            # R4 merch cubic (tt/grinit.f): TOPD=6" outside-bark → inside-bark top = 6·bark; DBHMIN=8 (sp7=7).
+            mtopp = 6.0f0 * bark_ratio(ba_a, ba_b, sp, d)
+            dbhmin = sp == 7 ? 7.0f0 : 8.0f0
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
             t.cuft_vol[i] = max(tcf, 0f0)
-            t.merch_cuft_vol[i] = d >= 7f0 ? max(mcf, 0f0) : 0f0   # merch DBHMIN (R4 cubic ~7")
+            t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0     # board Scribner = TODO
         else
             # DVEW (PM/RM/MC/OH/UJ) — reuse the CR DVE/Gevorkiantz kernel (deferred; not in ttt01)
