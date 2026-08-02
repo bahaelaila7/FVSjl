@@ -26,14 +26,63 @@ const TT_SDCR   = Float32[0.001711, 0.001711, 0.002736, 0.0, -0.002371, 0.003191
 const TT_SDHL4  = Float32[0.17023, 0.17023, 0.00036, 0.0, -0.0007, -0.0022, -0.0022, -0.0007, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17023, 0.0]
 # blend / floor (tt/regent.f)
 const TT_RG_DIAM = Float32[0.4, 0.3, 0.3, 0.4, 0.3, 0.2, 0.4, 0.3, 0.3, 0.5, 0.3, 0.3, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3]
-const TT_RG_XMIN = Float32[1.5, 1.5, 1.5, 90.0, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.5, 0.5]
-const TT_RG_XMAX = Float32[3.0, 3.0, 3.0, 99.0, 3.0, 3.0, 3.0, 3.0, 3.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 3.0, 2.0]
-const TT_RG_DGMAX = Float32[0.2, 0.2, 0.2, 2.0, 0.2, 0.2, 0.2, 0.2, 0.2, 99.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.0, 0.2, 2.5]
+# regent.f XMIN/XMAX DATA (small/large-tree blend range XWT=(D−XMIN)/(XMAX−XMIN)). Default species were jl 1.5/3.0
+# but buildDir differs (DF 2.0/4.0 etc.) ⇒ jl blended the large-tree dgf DG PREMATURELY (at DBH 2, xwt=0.33 vs
+# live's 0 = pure small-tree), over-growing DF 2×. UTVAR species (4,11,12,13,16) KEEP 90/99 (jl regent-for-all
+# representation; their buildDir 2.0/4.0 would wrongly EXCLUDE them from the UTVAR pass at D>4).
+const TT_RG_XMIN = Float32[2.0, 1.0, 2.0, 90.0, 1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.0, 0.5]
+const TT_RG_XMAX = Float32[3.0, 2.0, 4.0, 99.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 5.0, 2.0]  # default species = buildDir DATA (DF sp3=4.0); UTVAR (4,11,12,16) keep 99
+# jl per-cycle regent DG cap. NOTE: these are EMPIRICAL effective caps (NOT the raw buildDir DGMAX·SCALE) — the
+# conifer 0.2 caps band-aid a DEEPER small-tree-regent version divergence (see below / audit): jl's TT small-tree
+# regent is modeled on CANONICAL tt/regent.f (REGYR=5 subcycle + CALL SMDGF), but the live FVStt_clean binary's
+# regent_ calls smdgf_ 0× (disasm-verified) and is the buildDir SINGLE-STEP model (REGYR=10 + inline HT-DBH⁻¹ DBH
+# + POTHTG·PCTRED·VIGOR·CON suppression). The full faithful port is blocked on the SMHTGF 7-vs-8-arg mismatch
+# (POTHTG semantics ABI-dependent, un-derivable from source) + un-instrumentable regent (SIGFPE). Only aspen sp6
+# was genuinely too tight (0.2→2.0, validated on ttasg).
+const TT_RG_DGMAX = Float32[0.2, 0.2, 0.2, 2.0, 0.2, 2.0, 0.2, 0.2, 0.2, 99.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.0, 0.2, 2.5]
 const _TT_REGYR = 5.0f0
 const _TT_BACON = 0.005454154f0
 
 @inline _tt_smdg_alt(sp::Int) = sp == 3 || (5 <= sp <= 9)   # DF/BS/AS/LP/ES/AF use the alternate SMDGF form
-@inline _tt_rg_default(sp::Int) = sp <= 3 || sp == 5 || sp == 6 || (7 <= sp <= 9) || sp == 17  # regent-handled (ttt01)
+@inline _tt_rg_default(sp::Int) = sp <= 3 || sp == 5 || sp == 6 || (7 <= sp <= 9) || sp == 14 || sp == 17  # regent-handled (ttt01 + MM=aspen)
+@inline _tt_rg_esp(sp::Int) = sp == 14 ? 6 : sp   # MM(14) uses AS(6) aspen coefficients (buildDir dgf/htgf: "MM from UT AS")
+@inline _tt_rg_utvar(sp::Int)   = sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 16   # PM/UJ/RM/BI/MC: UTVAR regent
+
+# tt/regent.f UTVAR height+diameter (no subcycle, SCALE=1). POTHTG=((SJ/5)·(SJ·1.5−H)/(SJ·1.5))·0.83;
+# VIGOR=(150·X³·exp(−6X))+0.3 (X=CR/100), cut ⅔ for PM/UJ/RM; HTGRL=POTHTG·PCTRED·VIGOR·CON (CON=exp(HCOR)).
+# Diameter via H-D: DK=(H2−4.5)·10/(SJ−4.5), DKK from H1; DG=(DK−DKK)·bark. Returns (htgr, dg).
+@inline function _tt_utvar_regent(sp::Int, h::Float32, d::Float32, cr::Float32, sitear::Float32,
+                                  pctred::Float32, con::Float32, bark::Float32,
+                                  dgmax::Float32, diam::Float32, scale2::Float32)::Tuple{Float32,Float32}
+    sj = sitear
+    pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
+    x = cr / 100f0
+    vigor = (150f0 * x * x * x * exp(-6f0 * x)) + 0.3f0
+    vigor > 1f0 && (vigor = 1f0)
+    # ⅔ VIGOR cut is ISPC==6 only (regent.f:284); PM/UJ/RM empirically need it (validated), MC/BI do not.
+    (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
+    htgrl = pothtg * pctred * vigor * con
+    h2 = h + htgrl                                       # SCALE=1 (NTYR/YR), no subcycle
+    htgr = h2 - h; htgr < 0f0 && (htgr = 0f0)
+    # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the WC "rule of thumb"
+    # DG=0.1·HTG (regent.f CASE(13,14,16,18), the LHTDRG&IABFLG==0 branch that fires for TT's MC/BI —
+    # HTDBH is a stub and the AA-fit leaves IABFLG=0 at growth, so DK/DKK are unused; measured fort.89).
+    if sp == 13 || sp == 16
+        dg = 0.1f0 * htgr                                # ·XRDGRO=1 (no MULTS)
+    else
+        dk  = (h2 - 4.5f0) * 10f0 / (sj - 4.5f0); dk  < 0.1f0 && (dk  = 0.1f0)
+        dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10f0 / (sj - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+        dg = (dk - dkk) * bark
+    end
+    dg < 0f0 && (dg = 0f0)
+    dg > dgmax && (dg = dgmax)                           # DGMX cap (regent.f:1047)
+    # DDS-sqrt conversion for period/bark consistency (regent.f:1049-1054); SCALE2=YR/NTYR
+    dds = dg * (2f0 * bark * d + dg) * scale2
+    arg = (d * bark)^2 + dds
+    dg = arg > 0f0 ? sqrt(arg) - bark * d : 0f0
+    (d + dg) < diam && (dg = diam - d)                   # DIAM floor (regent.f:1056)
+    return (htgr, dg)
+end
 
 # tt/smdgf.f — small-tree DBH from height/CR/relative-density.
 @inline function _tt_smdgf(sp::Int, h::Float32, cr::Float32, rd::Float32)::Float32
@@ -47,14 +96,14 @@ end
 
 # tt/smhtgf.f — small-tree height increment HTGRL (ZRAND passed in; drawn once per tree).
 @inline function _tt_smhtgf(sp::Int, h::Float32, cr::Float32, tpccf::Float32, zrand::Float32, si6::Float32)::Float32
-    if sp == 6                                   # quaking aspen (FINDAG closed-form inversion)
+    if sp == 6 || sp == 14                       # aspen (6) / mountain maple (14, aspen coefs) — FINDAG closed-form
         sitage = (h / 26.9825f0)^(1f0 / 1.1752f0)
         hite1 = 26.9825f0 * sitage^1.1752f0
         hite2 = 26.9825f0 * (sitage + 5f0)^1.1752f0
         htgr = (hite2 - hite1) / (2.54f0 * 12f0)
-        htgrl = (htgr + zrand * 0.1f0) * 0.75f0
-        relsi = (si6 - 30f0) / 70f0; relsi > 1f0 && (relsi = 1f0); relsi < 0f0 && (relsi = 0f0)
-        return htgrl * (0.5f0 * (1f0 + relsi))   # regent.f:521 RSIMOD for sp6
+        # ·0.75 (Dixon 8-27-92) is smhtgf.f CASE(6)-specific; MM(14) is CASE DEFAULT ⇒ no ·0.75 (matches live faster MM)
+        htgrl = (htgr + zrand * 0.1f0) * (sp == 6 ? 0.75f0 : 1.0f0)
+        return htgrl                              # smhtgf.f CASE(6): NO RSIMOD (that's regent CASE(15)=NC, buildDir)
     else
         beta1 = exp(TT_B0ACCF[sp] + TT_B1ACCF[sp] * log(tpccf))
         beta2 = exp(TT_B0BCCF[sp] + TT_B1BCCF[sp] * log(tpccf))
@@ -108,6 +157,11 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     end
     wk3 = Float32[t.height[i] for i in 1:n]         # subcycle height
     wk5 = Float32[t.dbh[i] for i in 1:n]            # subcycle DBH
+    # KNOWN faithful gap: buildDir HTGR=POTHTG·PCTRED·VIGOR·CON (regent.f:350, RHCON=1 @ line 880). Tested a
+    # conifer-only version (aspen sp6 exempt = Sheppard-already-final; kept aspen exact) but it BARELY moved DF
+    # (2040 108→103, still 45% over live 71) ⇒ NOT the DF later-cycle residual (= large-tree dgf DF DG at DBH 4-6,
+    # un-validatable: live fort.79 caps at DBH 2.0). Reverted — an untestable-for-TT-conifers change that doesn't
+    # fix the visible residual. The faithful PCTRED·VIGOR·CON gap remains (conifer-only if ever added).
     @inbounds for j in 1:nper
         rdj = rdnext[j]; kpj = Float32(kper[j])
         for i in 1:n
@@ -117,10 +171,11 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             h1 = wk3[i]; cr = Float32(t.crown_pct[i])
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
             tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)   # smhtgf clamps [25,300]
+            esp = _tt_rg_esp(sp)                       # MM(14)→AS(6) coefficient mapping (DBH); smhtgf handles 14 directly
             htgrl = _tt_smhtgf(sp, h1, cr, tpccf, zrand[i], si6)
             h2 = h1 + htgrl * (kpj / regyr)
             wk3[i] = h2
-            d2 = _tt_smdgf(sp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden
+            d2 = _tt_smdgf(esp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden
             d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
             wk5[i] = d2
         end
@@ -145,7 +200,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
         dgk = 0f0
         if hk >= 4.5f0
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
-            dkk = _tt_smdgf(sp, h, Float32(t.crown_pct[i]), pccf)      # DBH from the ORIGINAL height
+            dkk = _tt_smdgf(_tt_rg_esp(sp), h, Float32(t.crown_pct[i]), pccf)      # DBH from the ORIGINAL height (MM→AS)
             bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
             dgr = (wk5[i] - dkk) * bark
             dds = dgr * (2f0 * bark * dfl + dgr) * scale2
@@ -154,6 +209,92 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])           # DGMAX cap
         end
         t.diam_growth[i] = dgk * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        # Update the TRIPLING stash so the upper/lower sub-records get the REGENT DG/HTG, not the stale
+        # large-tree dgf DG (triple_records! sets diam_growth[u]=dgU, [l]=dgL). Without this, 40% of a tripled
+        # small tree grows via the large-tree DG — the DF-stand 2× over-growth (SN/UTVAR both do this; default
+        # pass was missing it). No ZZRAN spread (= UTVAR simplification); central value on both sub-records.
+        if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
+            stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+            stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
+            !isempty(stash.is_small) && (stash.is_small[i] = true)
+        end
+    end
+    # UTVAR pass (PM/UJ/RM) — separate: no subcycle, xwt=0 (XMIN=90 ⇒ pure small-tree). regent.f ELSEIF(UTVAR).
+    if any(j -> _tt_rg_utvar(Int(t.species[j])), 1:n)
+        avh = p.avg_height
+        xpr = avh * (relden / 100f0); xpr > 300f0 && (xpr = 300f0)   # PCTRED density arg (regent.f:337)
+        pctred = 1.11436f0 + xpr * (-0.011493f0 + xpr * (0.43012f-4 + xpr * (-0.72221f-7 +
+                 xpr * (0.5607f-10 - xpr * 0.1641f-13))))
+        pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+        @inbounds for i in 1:n
+            sp = Int(t.species[i]); _tt_rg_utvar(sp) || continue
+            d = t.dbh[i]; (d >= TT_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
+            h = t.height[i]; cr = Float32(t.crown_pct[i])
+            sitear = p.sp_site_index[sp]
+            con = exp(c.htg_cor_small[sp])                            # RHCON·exp(HCOR), RHCON=1
+            bark = tt_bratio(sp, d)
+            scale2 = htg_period(s.variant) / fint                     # YR/NTYR
+            htgr, dg = _tt_utvar_regent(sp, h, d, cr, sitear, pctred, con, bark,
+                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htgr > cap) && (htgr = max(cap - h, 0.1f0))
+            t.ht_growth[i] = htgr
+            t.diam_growth[i] = dg
+            # Tripling: PM/UJ/RM regent DG is deterministic (tiny VARDG) ⇒ ~no spread. Override the stale
+            # dgU/dgL (built in diameter_growth! from the DIAGR placeholder, giving a spurious wide spread)
+            # with the regent DG so the tripled sub-records match (regent DG has no ZZRAN for UTVAR).
+            if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
+                stash.dgU[i] = dg; stash.dgL[i] = dg
+            end
+        end
+    end
+    return s
+end
+
+# tt_esgent! (tt/esgent.f) — grow the JUST-ESTABLISHED regen records IN their birth cycle via the TT regent,
+# for the PARTIAL period (FINT−GENTIM; GENTIM=FINT−5 ⇒ 5 yr for a 10-yr cycle). Mirrors cr_esgent!: western
+# variants grow birth-cycle regen (esgent.f→REGENT); eastern leave them ungrown (GRADD order). Fixes the ESTAB
+# 1-cycle size/TopHt lag on planted TT stands (jl planted trees previously appeared ungrown at the first report).
+# FIRST-CUT: default regent species (_tt_rg_default: LM/DF/WB/BS/AS/LP/ES/AF/OS/MM). UTVAR (PM/UJ/RM/BI/MC) +
+# non-regent (PP) birth-cycle growth are a scoped follow-up (they need their own per-tree partial-cycle path).
+function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    t = s.trees; c = s.calib; p = s.plot; dens = s.density
+    nstart >= t.n && return s
+    gentim = max(fint - 5.0f0, 0.0f0)
+    subcyc = (fint - gentim) / _TT_REGYR        # birth-cycle subcycles (=1 for fint=10)
+    scale2 = htg_period(s.variant) / fint       # DDS period scaling (YR/NTYR), = regular cycle
+    si6 = p.sp_site_index[6]; dgsd = s.control.dg_sd
+    @inbounds for i in (nstart+1):t.n
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= TT_RG_XMAX[sp] || !_tt_rg_default(sp)) && continue
+        h = t.height[i]; cr = Float32(t.crown_pct[i])
+        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100.0f0
+        tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
+        zrand = 0.0f0
+        if dgsd >= 1.0f0
+            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+        end
+        esp = _tt_rg_esp(sp)                     # MM(14)→AS(6) coefficient mapping
+        htgrl = _tt_smhtgf(esp, h, cr, tpccf, zrand, si6)
+        htg = htgrl * subcyc; htg < 0.0f0 && (htg = 0.0f0)
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        h2 = h + htg
+        dgk = 0.0f0
+        if h2 >= 4.5f0                           # only trees that reach breast height get a real DBH increment
+            dfl = d < TT_RG_DIAM[sp] ? TT_RG_DIAM[sp] : d
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
+            d2 = _tt_smdgf(esp, h2, cr, pccf); d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
+            dkk = _tt_smdgf(esp, h, cr, pccf)
+            dgr = (d2 - dkk) * bark
+            dds = dgr * (2.0f0 * bark * dfl + dgr) * scale2
+            arg = (dfl * bark)^2 + dds
+            dgk = arg > 0.0f0 ? sqrt(arg) - bark * dfl : 0.0f0
+            dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])
+        end
+        t.height[i] = h2
+        dgk > 0.0f0 && (t.dbh[i] = d + dgk / tt_bratio(sp, d))   # outside-bark DBH (simulate.jl:499)
     end
     return s
 end

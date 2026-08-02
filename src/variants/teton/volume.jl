@@ -12,7 +12,6 @@ const TT_VOL_EQ = String[
 
 function compute_volumes_tt!(s::StandState)
     t = s.trees; veq = s.species.vol_eq
-    ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -22,7 +21,7 @@ function compute_volumes_tt!(s::StandState)
         eq = veq[sp]; mdl = length(strip(eq)) >= 7 ? strip(eq)[4:6] : "   "
         if mdl == "MAT"
             # R4 merch cubic (tt/grinit.f): TOPD=6" outside-bark → inside-bark top = 6·bark; DBHMIN=8 (sp7=7).
-            mtopp = 6.0f0 * bark_ratio(ba_a, ba_b, sp, d)
+            mtopp = 6.0f0 * tt_bratio(sp, d)
             dbhmin = sp == 7 ? 7.0f0 : 8.0f0
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
             t.cuft_vol[i] = max(tcf, 0f0)
@@ -31,7 +30,8 @@ function compute_volumes_tt!(s::StandState)
             bf = d >= bfmind ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0   # BFGRS Scribner (M=1)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else
-            # DVEW (PM/RM/MC/OH/UJ) — reuse the CR DVE/Gevorkiantz kernel (deferred; not in ttt01)
+            # DVEW (PM/UJ/RM/MC/OH) — TT woodland volume. NOT CR's region-2 Chojnacky (that gave ~5× high:
+            # jl UJ 2090 1252 vs live 258) ⇒ TT DVEW uses a different model/coefs (or DRC). DEFERRED — 0 for now.
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
         end

@@ -86,6 +86,8 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Teton
         tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
+        _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
+                                          # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
@@ -482,19 +484,21 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
+    _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
         # BRATIO (cr/bratio.f = cr_bratio): its bark_a/bark_b are 0, so bark_ratio would floor to 0.80
         # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
         bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
+               _tt_up ? tt_bratio(Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
-        (s.variant isa Kootenai || s.variant isa InlandEmpire) &&
-            (t.dg_prev[i] = t.diam_growth[i])   # KT/IE mortality WK1 (this cycle's applied DG → next cycle's vigor)
+        (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton) &&
+            (t.dg_prev[i] = t.diam_growth[i])   # KT/IE/TT mortality WK1 (this cycle's applied DG → next cycle's vigor)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        _cr_up && (t.birth_age[i] += fint)   # CR ages ABIRTH by the cycle length each cycle (gradd.f:205)
+        (_cr_up || _tt_up) && (t.birth_age[i] += fint)   # CR/TT age ABIRTH by cycle length (gradd.f:205); TT only NC/OH use it
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
@@ -521,6 +525,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
+    s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.

@@ -255,6 +255,11 @@ function dub_missing_heights!(s::StandState)
     # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
     ht2 = any(lhtdrg) ? coef_col(s.coef, s.variant isa InlandEmpire ? :ht2 : :wykoff_ht2) : nothing
+    # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
+    # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
+    # `_htdbh_height` (TT defines no htdbh_p2/p3/p4). Load HT1/wykoff_ht2 unconditionally for TT.
+    tt_ht1  = s.variant isa Teton ? coef_col(s.coef, :ht1) : nothing
+    tt_wht2 = s.variant isa Teton ? coef_col(s.coef, :wykoff_ht2) : nothing
     if any(lhtdrg)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
@@ -298,6 +303,15 @@ function dub_missing_heights!(s::StandState)
                     fpow(1f0 - fexp(-0.057766f0 * d), fpow(0.9844340f0, -0.169876f0)) + 4.5f0
             else
                 (12.41173f0 + 0.04633f0 * si - 0.000158f0 * si * si) * d
+            end
+        elseif s.variant isa Teton
+            # tt/cratet.f CASE DEFAULT dub: PP(sp10,D≤3) linear; else Wykoff exp(AX+BX/(D+1))+4.5,
+            # AX=AA (calibrated) else HT1 (default), BX=wykoff_ht2. (CASE 13,16 P2/P3/P4 forms deferred.)
+            if sp == 10 && d <= 3.0f0
+                1.74189f0 + 4.17687f0 * d
+            else
+                ax = (lhtdrg[sp] && iabflg[sp] == 0) ? aa[sp] : tt_ht1[sp]
+                exp(ax + tt_wht2[sp] / (d + 1f0)) + 4.5f0
             end
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)

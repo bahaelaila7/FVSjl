@@ -268,7 +268,9 @@ function _backdate_dbh!(s::StandState)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     idg = s.control.growth_idg
     _cr_bd = s.variant isa CentralRockies; _cr_bd_imod = _cr_bd ? Int(s.plot.model_type) : 0; sd = s.coef.species
-    _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) : bark_ratio(bark_a, bark_b, sp, d)
+    _tt_bd = s.variant isa Teton
+    _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
+                 _tt_bd ? tt_bratio(Int(sp), Float32(d)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
@@ -296,6 +298,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b; sigmar = sd[:dg_resid_sd]
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
+    _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -477,7 +480,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) : bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
+        bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) :
+               _tt_cal ? tt_bratio(Int(sp), saved_dbh[i]) :
+               bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
@@ -612,6 +617,43 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             cornew <= 0f0 && (cornew = 1f-4)
             (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
             c.htg_cor_init[sp] = log(cornew)
+        end
+    end
+
+    # TT UTVAR regent-height calibration (PM/UJ/RM): HCOR = ln(Σ(HTG·SCALE3·P)/Σ(EDH·P)),
+    # EDH = POTHTG·PCTRED·VIGOR·RHCON·0.5 (regent.f REGCON 1299-1356). RHCON=1. SCALE3=REGYR/FINTH=10/5=2.
+    if s.variant isa Teton
+        scale3_tt = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0
+        avh = stand_top_height(s); relden_c = stand_ccf(s)
+        xp = avh * (relden_c / 100f0); xp > 300f0 && (xp = 300f0)
+        pctred_c = 1.11436f0 + xp * (-0.011493f0 + xp * (0.43012f-4 + xp * (-0.72221f-7 +
+                   xp * (0.5607f-10 - xp * 0.1641f-13))))
+        pctred_c > 1f0 && (pctred_c = 1f0); pctred_c < 0.01f0 && (pctred_c = 0.01f0)
+        for sp in (4, 11, 12, 13, 16)
+            isct[sp, 1] == 0 && continue
+            i1 = isct[sp, 1]; i2 = isct[sp, 2]; sitear = s.plot.sp_site_index[sp]
+            snx = 0f0; sny = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                hg = t.ht_growth[i]; hg < 0.001f0 && continue      # measured HTG (observed)
+                t.height[i] < 0.01f0 && continue
+                cr = Float32(t.crown_pct[i]); x = cr / 100f0
+                # ★ REGCON POTHTG uses H=0 (evaluated once, NOT the tree's current H): (SJ·1.5−0)/(SJ·1.5)=1
+                # ⇒ POTHTG=(SJ/5)·0.83; AND the ·0.5 (UT 10yr→5yr) IS applied. (My earlier current-H/no-0.5
+                # form coincidentally matched PM because H≈½·SJ·1.5, but broke UJ where H>½·SJ·1.5.)
+                pothtg = (sitear / 5f0) * 0.83f0
+                vigor = (150f0 * x * x * x * exp(-6f0 * x)) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                vigor = 1f0 - ((1f0 - vigor) / 3f0)
+                edh = pothtg * pctred_c * vigor * 0.5f0            # ·RHCON=1 · 0.5 (regent.f:1304)
+                p = t.tpa[i]; snx += edh * p; sny += hg * scale3_tt * p; nh += 1
+            end
+            nh < 5 && continue                                     # NCALHT
+            cornew = snx > 0f0 ? sny / snx : 1f0; cornew <= 0f0 && (cornew = 1f-4)
+            hc = log(cornew)                                        # raw HCOR (regent.f:1364)
+            # dgdriv.f:213 attenuation. PM/UJ/RM have NO dgf DG COR (regent-DG) ⇒ dg_cor=0 ⇒ WCI=0 ⇒
+            # HCOR_used = CORMLT·HCOR_raw, CORMLT=exp(−0.02773·SFINT), SFINT=YR=10 (validated: 0.758·1.83=1.39).
+            cormlt = exp(-0.02773f0 * htg_period(s.variant))
+            c.htg_cor_init[sp] = hc; c.htg_cor_small[sp] = cormlt * hc
         end
     end
 
@@ -875,6 +917,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # DDS→DG bark MUST match the bark cr_gemdg used internally.
     _cr_dg = s.variant isa CentralRockies
     _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
+    _tt_dg = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model); DDS→DG dib must match
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
     # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
@@ -980,7 +1023,8 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         frl = DG_FL * ssigma * rhocp           # lower-triple FRM factor (dgdriv.f:89)
         for k in i1:i2
             i = ind1[k]
-            bark = _cr_dg ? cr_bratio(sd, sp, t.dbh[i], _cr_imodty) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+            bark = _cr_dg ? cr_bratio(sd, sp, t.dbh[i], _cr_imodty) :
+                   _tt_dg ? tt_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT

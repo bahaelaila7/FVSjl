@@ -107,6 +107,7 @@ include("variants/easternmontana/regent.jl") # EM small-tree growth (em/regent.f
 # --- teton (TT) — next western Rockies cluster variant (EM-DG + CR-Zeide-density discount) ---
 include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)
 include("variants/teton/species.jl")          # TT blkdat init (18 species, seed 55329, ZEIDE SDI) + SPCTRN
+include("variants/teton/habtyp_table.jl")      # TT R4HABT(363) habitat code → ITYPE (tt/habtyp.f)
 include("variants/teton/site_index.jl")        # TT sitset (SITEAR interp + SDIDEF) + forkod (chunk 2)
 include("variants/teton/crown.jl")             # TT per-tree CCF (tt/ccfcal.f MODE=1) — RELDEN+PCCF for DG (chunk 3)
 include("variants/teton/dg_coefficients.jl")   # TT large-tree DG coefficient arrays (tt/dgf.f DATA, generated)
@@ -116,6 +117,7 @@ include("variants/teton/height_growth.jl")     # TT large-tree height growth (tt
 include("variants/teton/regent.jl")            # TT small-tree growth (tt/regent.f+smhtgf.f+smdgf.f) — chunk 6
 include("variants/teton/mortality.jl")         # TT mortality (tt/morts.f = EM Hamilton form, TT coeffs) — chunk 7
 include("variants/teton/volume.jl")             # TT volume (chunk 8): R4VOL Matney cubic + DVE
+include("variants/teton/establishment.jl")      # TT establishment clamps (tt/blkdat.f ESCOMN XMIN/HHTMAX)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

@@ -24,6 +24,38 @@
 const TT_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.07, 0.0970, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636,
                           0.07, 0.07, 0.0898, 0.1433, 0.07, 0.0898, 0.0858, 0.07]
 
+# tt/bratio.f BARK1/BARK2/IMAP DATA (18 species). PP (sp10) is IMAP=4 (power: BARK1·D^(BARK2−1)),
+# which the linear (a+b·d)/d shared bark_ratio cannot express — so TT bark routes through tt_bratio,
+# mirroring CR's cr_bratio dispatch. IMAP 1/2/3 reproduce the linear form for d≥1 (ttt01 stays exact).
+const TT_BARK1 = Float32[0.969, 0.969, 0.867, 0.0, 0.956, 0.969, 0.969, 0.956, 0.937, 0.809427,
+                         0.0, 0.0, 0.94782, 0.950, 0.892, 0.9, 0.969, 0.892]
+const TT_BARK2 = Float32[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.016866,
+                         0.0, 0.0, 0.0836, 0.0, -0.086, 0.0, 0.0, -0.086]
+const TT_IMAP  = Int[2, 2, 2, 1, 2, 2, 2, 2, 2, 4, 1, 1, 3, 2, 3, 2, 2, 3]
+
+# tt/bratio.f BRATIO(IS,D) — faithful all-IMAP bark ratio. IMAP=4 caps at 0.97 and RETURNS (GO TO 100),
+# skipping the 0.80 floor; IMAP 1/2/3 apply the 0.99 cap + 0.80 floor.
+@inline function tt_bratio(sp::Int, d::Float32)::Float32
+    ieqn = TT_IMAP[sp]; b1 = TT_BARK1[sp]; b2 = TT_BARK2[sp]
+    temd = d < 1f0 ? 1f0 : d
+    local br::Float32
+    if ieqn == 1
+        br = (b1 == 0f0 && b2 == 0f0) ? (0.9002f0 - 0.3089f0 * (1f0 / (temd > 19f0 ? 19f0 : temd))) :
+             1f0 / (b1 + b2 * d)
+    elseif ieqn == 2
+        br = b1
+    elseif ieqn == 3
+        br = b1 + b2 * (1f0 / temd)
+    else                                        # IMAP=4 (PP): power model, cap 0.97, no 0.80 floor
+        d <= 0f0 && return 0.97f0
+        br = (b1 * d^b2) / d
+        return br > 0.97f0 ? 0.97f0 : br
+    end
+    br > 0.99f0 && (br = 0.99f0)
+    br < 0.80f0 && (br = 0.80f0)
+    return br
+end
+
 @inline function _tt_bark_ab(sd, sp::Int)
     # tt/bratio.f IMAP: 1(zero)→0.9002−0.3089/D; 2→const BARK1; 3→BARK1+BARK2/D. (IMAP 1-nonzero/4 = PM/UJ/PP,
     # not in ttt01 — handled in the DIAGR chunk.) Return (bark_a, bark_b) for bark_ratio=(a+b·d)/d.
@@ -90,14 +122,36 @@ function tt_dgcons!(s::StandState)
     return s
 end
 
+# tt/badist.f BAU = BA strictly ABOVE each DBH class (growth pass: DBH, skip HT<4.5 seedlings). Tree-index
+# order for Float32 bit-exactness. Used by dgf CASE(15,18) BAUTBA = BAU(int(D+1))/BA.
+function _tt_badist_bau(t)
+    bau = zeros(Float32, 41); totba = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0f0 && continue
+        t.height[i] < 4.5f0 && continue                  # seedlings excluded (SEEDS bucket)
+        tdbh = t.dbh[i]; tdbh < 1f0 && (tdbh = 1f0)
+        icls = trunc(Int, t.dbh[i] + 1f0); icls > 41 && (icls = 41); icls < 1 && (icls = 1)
+        treeba = 0.0054542f0 * tdbh * tdbh * t.tpa[i]
+        totba += treeba; bau[icls] += treeba
+    end
+    bau[1] = totba - bau[1]; bau[1] < 0f0 && (bau[1] = 0f0)
+    @inbounds for j in 2:41
+        bau[j] = bau[j-1] - bau[j]; bau[j] < 0f0 && (bau[j] = 0f0)
+    end
+    return bau
+end
+
 # tt/dgf.f DO 10 — per-tree WK2 = ln(DDS) (outside-bark). ttt01 exercises MAIN + ASPEN.
 function dgf!(s::StandState, ::Teton)
     p, t, c = s.plot, s.trees, s.calib
+    dens = s.density
     wk2 = view(s.scratch.wk, 2, :)
     relden = p.relative_density
     ba = p.basal_area
     ba100 = ba / 100f0
+    logba = ba > 0f0 ? log(ba) : 0f0   # PP CONSPP term uses raw ALOG(BA) (dgf.f:520; TEMBA clamp is dead code)
     rmsqd = stand_qmd(s)
+    bau = any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n) ? _tt_badist_bau(t) : nothing
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
@@ -118,8 +172,68 @@ function dgf!(s::StandState, ::Teton)
             dds = aspdg + log(cor2) + c.dg_cor[sp]
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
+        elseif sp == 10
+            # tt/dgf.f CASE(10) PP — Wykoff DGHAB form w/ point-BAL (PBAL). CONSPP gets −0.257322·ln(BA).
+            cr  = Float32(t.crown_pct[i]) * 0.01f0
+            ipccf = Int(t.plot_id[i])
+            pbal = (1f0 - t.crown_ratio[i] / 100f0) * dens.point_ba[ipccf]
+            csp = conspp - 0.257322f0 * logba
+            dds = csp + TT_DGLD[sp] * log(d) + cr * (TT_DGCR[sp] + cr * TT_DGCRSQ[sp]) +
+                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * pbal / log(d + 1f0)
+            dds < -9.21f0 && (dds = -9.21f0)
+            wk2[i] = dds
+        elseif sp == 4 || sp == 11 || sp == 12
+            # tt/dgf.f CASE(4,11,12) PM/UJ/RM DIAGR form. NOTE: REGENT overrides DG for ALL sizes (XMAX=99),
+            # so this dgf DDS is a faithful placeholder (the source-variant eqn) that regent replaces.
+            dpp = d < 1f0 ? 1f0 : d
+            batem = ba < 1f0 ? 1f0 : ba
+            si = p.sp_site_index[sp]
+            bark = tt_bratio(sp, d)
+            df = 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
+            (df - dpp) > 1f0 && (df = dpp + 1f0)
+            df < dpp && (df = dpp)
+            diagr = (df - dpp) * bark
+            if diagr <= 0f0
+                wk2[i] = -9.21f0
+            else
+                dds = log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+                dds < -9.21f0 && (dds = -9.21f0)
+                wk2[i] = dds
+            end
+        elseif sp == 13 || sp == 16
+            # tt/dgf.f CASE(13,16) BI/MC — Wykoff form (surrogate from CR/SO) w/ extra DGPCCF·PCCF + DGBA·BA.
+            ald = log(d)
+            cr  = Float32(t.crown_pct[i]) * 0.01f0
+            bal = (1f0 - t.crown_ratio[i] / 100f0) * ba
+            ipccf = Int(t.plot_id[i])
+            pccf = (1 <= ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
+            dds = conspp + TT_DGLD[sp] * ald + TT_DGBAL[sp] * bal + cr * (TT_DGCR[sp] + cr * TT_DGCRSQ[sp]) +
+                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * bal / log(d + 1f0) +
+                  TT_DGPCCF[sp] * pccf + TT_DGBA[sp] * ba
+            dds < -9.21f0 && (dds = -9.21f0)
+            wk2[i] = dds
+        elseif sp == 15 || sp == 18
+            # tt/dgf.f CASE(15,18) NC/OH — CR-surrogate DIAGR form. Uses COR+DGCON directly (NOT conspp: no
+            # CCF·relden term). BAUTBA = BAU(int(D+1))/BA (BA-above-class). ISTAGF=0 ⇒ no DSTAG.
+            icls = trunc(Int, d + 1f0); icls > 41 && (icls = 41); icls < 1 && (icls = 1)
+            bautba = (bau !== nothing && ba > 0f0) ? bau[icls] / ba : 0f0
+            si = p.sp_site_index[sp]
+            dpp = d < 1f0 ? 1f0 : d
+            batem = ba < 5f0 ? 5f0 : ba
+            bark = tt_bratio(sp, d)
+            df = (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * log(batem) +
+                  0.00672f0 * si - 0.00073f0 * bautba) * 1.05f0
+            df < dpp && (df = dpp)
+            diagr = (df - dpp) * bark
+            if diagr <= 0f0
+                wk2[i] = -9.21f0
+            else
+                dds = log(diagr * (2f0 * dpp * bark + diagr)) + c.dg_cor[sp] + c.dg_const[sp]
+                dds < -9.21f0 && (dds = -9.21f0)
+                wk2[i] = dds
+            end
         else
-            error("TT dgf! DDS form for sp $sp (PP/juniper/BI-MC/NC-OH) not yet ported — not in ttt01")
+            error("TT dgf! DDS form for sp $sp not yet ported — not in ttt01")
         end
     end
     return s

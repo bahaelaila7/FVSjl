@@ -17,6 +17,85 @@ const TT_PMDSQ = Float32[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
 
 @inline _tt_mort_default(sp::Int) = sp != 10   # only PP(10) has a special morts form (not in ttt01)
 
+# tt/ttmrt.f VARADJ — species shade tolerance (1.0 = most intolerant), the EFFTR scalar.
+const TT_VARADJ = Float32[0.80, 0.70, 0.55, 0.70, 0.50, 1.00, 0.90, 0.50, 0.60, 0.85,
+                          0.70, 0.70, 0.70, 1.00, 0.90, 1.10, 0.75, 0.90]
+
+# tt/ttmrt.f — redistribute TOKILL across the treelist by PERCENTILE (PCT = t.crown_ratio) + species tolerance
+# (EFFTR), via a geometric progression converging to kill exactly TOKILL. OVERWRITES `killed`. If tokill==0
+# (below-SDI/background), TOKILL = Σ current killed (redistribute the background). NC/OH get the extra CRI factor.
+function _tt_ttmrt!(killed::AbstractVector{Float32}, tokill::Float32, s::StandState, n::Int)
+    t = s.trees
+    efftr = Vector{Float32}(undef, n); temwk2 = zeros(Float32, n)
+    pass1 = 0f0
+    @inbounds for i in 1:n
+        pct = Float32(t.crown_ratio[i])                      # PCT (BA percentile)
+        peff = 0.84525f0 - 0.01074f0 * pct + 0.0000002f0 * pct * pct * pct
+        peff > 1f0 && (peff = 1f0); peff < 0.01f0 && (peff = 0.01f0)
+        sp = Int(t.species[i]); cri = Float32(t.crown_pct[i])
+        efftr[i] = (sp == 15 || sp == 18) ? peff * ((100f0 - cri) / 100f0) * TT_VARADJ[sp] * 0.01f0 :
+                                            peff * TT_VARADJ[sp] * 0.01f0
+        pass1 += t.tpa[i] * efftr[i]
+    end
+    if tokill == 0f0
+        @inbounds for i in 1:n; tokill += killed[i]; end
+    end
+    (pass1 <= 0f0 || tokill <= 0f0) && return                # nothing to distribute
+    fill!(killed, 0f0)
+    temkil = tokill; short = 0f0
+    npass = trunc(Int, tokill / pass1) + 1
+    jpass = 0
+    while true                                               # ttmrt.f label 100
+        jpass += 1
+        jpass > 1 && (temkil = short)
+        iswtch = 0; adjust = 1f0
+        while true                                           # ttmrt.f label 105 (NPASS convergence)
+            temsum = 0f0
+            @inbounds for i in 1:n
+                tpalft = t.tpa[i] - killed[i]
+                if tpalft > 0f0
+                    temwk2[i] = -tpalft * ((1f0 - efftr[i])^npass - 1f0); temsum += temwk2[i]
+                end
+            end
+            minstp = npass > 50 ? 5 : (npass > 20 ? 2 : 1)
+            temsum <= 0f0 && (adjust = 1f0; break)
+            adjust = temkil / temsum
+            if adjust < 0.8f0
+                iswtch == 2 && break
+                npass -= max(minstp, trunc(Int, (temsum - temkil) / pass1)); iswtch = 1
+                npass <= 0 && break
+            elseif adjust > 1.2f0
+                iswtch == 1 && break
+                npass += max(minstp, trunc(Int, (temkil - temsum) / pass1)); iswtch = 2
+            else
+                break
+            end
+        end
+        short = 0f0                                          # ttmrt.f label 110 (scale + cap)
+        @inbounds for i in 1:n
+            tpalft = t.tpa[i] - killed[i]
+            tpalft < 0.00001f0 && continue
+            xkill = temwk2[i] * adjust
+            if (t.tpa[i] - killed[i] - xkill) <= 0.00001f0
+                temwk2[i] = t.tpa[i] - killed[i]
+                short += xkill - t.tpa[i] + killed[i]; pass1 -= efftr[i]
+            else
+                temwk2[i] = xkill
+            end
+            killed[i] += temwk2[i]
+        end
+        (short > 0f0 && pass1 > 0f0) || break
+        npass = trunc(Int, short / pass1) + 1
+    end
+    return
+end
+
+# tt/morts.f MORCON — PP CI-variant REIN (potential mort rate) + GMULT (DG size multiplier) by size class
+# IP (1=D>5, 2=D≤5). IPDG=12→POT=0.80, IPDG2=41→POT=2.25 are fixed ⇒ these are constants.
+# REIN(1)=(1−(0.80/20+1)^−1.605)/0.06821, REIN(2)=(1−(2.25+1)^−1.605)/0.86610; GMULT(1)=0.90/0.80, GMULT(2)=2.50/2.25.
+const TT_PP_REIN  = (Float32(0.89443f0), Float32(0.98042f0))    # (IP=1, IP=2)
+const TT_PP_GMULT = (Float32(1.125f0),   Float32(1.111111f0))
+
 # tt/morts.f label-220 iterative linear-fn fit between the 55%/85% SDI lines → TN10 (target tree count at
 # D10). IPATH2=true (came from T≤T55D0, T>T55D10) computes the line once (TEM=T) then goes to 230; IPATH2=false
 # (55%<T≤85% at DIA0) Newton-iterates TREEIT (≤100) so exp(CEPT+SLP·ln(DIA0)) ≈ T. TN10 = exp(CEPT+SLP·ln(D10)),
@@ -58,7 +137,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     tt = 0f0; sd2sq = 0f0; sd0sq = 0f0; dsum = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = tt_bratio(sp, d)
         g = t.diam_growth[i] / bark
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); sd0sq += pr * d * d; tt += pr; dsum += d * pr
     end
@@ -92,6 +171,15 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
     rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
     tem = const_ * dq10^(-1.605f0) * pmsdil     # SDI threshold (morts.f 641)
+    # PP CI-variant stand projection (tt/morts.f 273-293): BA forward 10y assuming BA/BAMAX of the BA
+    # increment is lost to mortality → an annual TPA-mortality rate RZ. BAMAX defaults from weighted SDImax
+    # (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU) when not user-set. Only PP (CASE 10) consumes RZ/BAMAX.
+    bamax = sdimax * 0.5454154f0 * pmsdiu        # LBAMAX=false default (no user BAMAX keyword in ttpp)
+    deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
+    ba10 = bamax > 0f0 ? ba + ((bamax - ba) / bamax) * deltba : ba
+    tb = ba10 / (0.005454154f0 * dq10 * dq10)
+    ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
+    rz = 1f0 - (1f0 - ttb)^0.1f0
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -106,8 +194,49 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
             sdimax < 5f0 && (wki = pr)
             killed[i] = wki
         else
-            error("TT mortality: PP(10) CI-variant morts form not yet ported — not in ttt01")
+            # tt/morts.f CASE(10) — PP from the CI variant. RIP logistic → REIN(IP) potential rate;
+            # RIPP blends BA·RZ with a BAMAX-approach term. WK1=prior-cycle DG (dg_prev, 0 at cycle 1 ⇒
+            # the ICYC==1 override G=DG/(bark·10) fires for every DG>0.5 tree, matching live).
+            dm = d <= 0.5f0 ? 0.5f0 : d
+            bark = tt_bratio(10, d)
+            reldbh = d / aved
+            wk1 = t.dg_prev[i]                      # prior applied DG (inside-bark); 0 at cycle 1
+            dgt = wk1 / fint                          # OLDFNT = FINT for the uniform-cycle case
+            if dm <= 1f0 && dgt < 0.05f0
+                dgt = 0.05f0
+            elseif dm > 1f0 && dm <= 5f0 && dgt < 0.05f0
+                dgt = 0.05f0 * (5f0 - dm) / 4f0
+            end
+            g = wk1 / (bark * fint)
+            (wk1 / fint < dgt) && (g = dgt / bark)
+            dgcur = t.diam_growth[i]                  # current applied DG (inside-bark)
+            (wk1 == 0f0 && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))   # ICYC==1/WK1==0 override
+            ip = dm <= 5f0 ? 2 : 1
+            g *= TT_PP_GMULT[ip]
+            rip = 2.76253f0 + 0.222310f0 * sqrt(dm) - 0.0460508f0 * sqrt(ba) + 11.2007f0 * g -
+                  0.554421f0 / dm + TT_PMSC[10] + 0.246301f0 * reldbh + 6.07129f0 * g / dm
+            rip = rip > 88.5f0 ? 88.5f0 : (rip < -88.5f0 ? -88.5f0 : rip)
+            rip = 1f0 / (1f0 + exp(rip))
+            rip *= TT_PP_REIN[ip]                     # POTENT = REIN(IP)
+            ripp = ba * rz
+            ba <= bamax && (ripp += (bamax - ba) * rip)
+            ripp /= bamax
+            ripp < rip && (ripp = rip)
+            ripp > 1f0 && (ripp = 1f0)
+            wki = pr * (1f0 - (1f0 - ripp)^fint)      # X=1 (no MORTMULT); establishment "best-tree" deferred
+            wki > pr && (wki = pr)
+            sdimax < 5f0 && (wki = pr)
+            killed[i] = wki
         end
+    end
+    # tt/morts.f:682 — REDISTRIBUTE the mortality by percentile+EFFTR (TTMRT). When self-thinning (default trees
+    # have rip==rn, i.e. tt>tem & rn>0) TOKILL = T−TN10; else TOKILL=0 ⇒ TTMRT redistributes the background total.
+    # Called whenever TN10≥0.1 (morts.f). Overwrites `killed` with the percentile allocation of the same total.
+    if tn10 >= 0.1f0
+        self_thin = tt > tem && rn > 0f0
+        tokill = self_thin ? (tt - tn10) : 0f0
+        tokill < 0f0 && (tokill = 0f0)
+        _tt_ttmrt!(killed, tokill, s, n)
     end
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end

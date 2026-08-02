@@ -77,12 +77,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
     es_xmin = s.variant isa CentralRockies ? _CR_ES_XMIN :
-              s.variant isa InlandEmpire ? _IE_ES_XMIN : sd[:estab_min_ht]   # per-species establishment min height
+              s.variant isa InlandEmpire ? _IE_ES_XMIN :
+              s.variant isa Teton ? _TT_ES_XMIN : sd[:estab_min_ht]   # per-species establishment min height
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
                 s.variant isa LakeStates ? _LS_ES_HHTMAX :
                 s.variant isa CentralRockies ? _CR_ES_HHTMAX :
-                s.variant isa InlandEmpire ? _IE_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
+                s.variant isa InlandEmpire ? _IE_ES_HHTMAX :
+                s.variant isa Teton ? _TT_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
@@ -106,7 +108,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
     # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).
     bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
-          s.variant isa CentralRockies || s.variant isa InlandEmpire) ? nothing :   # CR/IE use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton) ? nothing :   # CR/IE/TT use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -122,7 +124,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE = SN window (cr/estab.f:486; IE TBD-verify)
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT = SN window (cr/estab.f:486; TT tt/estab.f TBD-verify)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -227,6 +229,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # IE NATURAL/PLANT base height — FIRST-CUT placeholder (=XMIN); the DF NATURAL height source
                 # is the estb tally path (not essubh, cont.56), to be pinned via esnutr trace + refined vs live.
                 _IE_ES_XMIN[sp]
+            elseif s.variant isa Teton
+                _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -271,7 +275,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # default PLANT) years too YOUNG ⇒ htgf's even-aged site curve (steeper when young) over-predicted
                 # height growth as planted stands approached the site asymptote (late-cycle TopHt jl-high). CR-gated:
                 # the eastern variants share this latent gap but are separately validated (avoid unvalidated churn).
-                s.variant isa CentralRockies && (t.birth_age[n] = age)
+                (s.variant isa CentralRockies || s.variant isa Teton) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (TT mirrors CR; western even-aged htgf curve)
                 # Records go on inventory point `nn` (estab.f:313 ITRE=IPTIDS[nn]).
                 # point_ba scales each point's raw BA by PI/GROSPC with PI=NPTIDS, so with
                 # the planted TPA spread evenly over NPTIDS points each point_ba comes back

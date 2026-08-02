@@ -68,8 +68,22 @@ function tt_sitset!(s::StandState)
     return s
 end
 
+# tt/habtyp.f + crdecd.f — decode the raw habitat code (KODTYP) into ITYPE (subscript into R4HABT/
+# ICHBCL). CRDECD left-justifies the card text and matches R4HABT[1:8]; since all 363 R4HABT entries
+# are distinct numeric-string codes, matching the numeric KODTYP is faithful. Returns 0 if unmatched
+# (KODTYP≤0 or absent). Only PP (sp10) DGCON uses ITYPE (MAPHAB=ICHBCL(ITYPE)+1); ttt01's species
+# never exercised it, so this gap was invisible until the pure-PP stand.
+function tt_habtyp(kodtyp::Integer)::Int32
+    kodtyp <= 0 && return Int32(0)
+    @inbounds for i in 1:length(TT_R4HABT_CODE)
+        TT_R4HABT_CODE[i] == kodtyp && return Int32(i)
+    end
+    return Int32(0)   # CRDECD IHB=-1 (no valid code) → HABTYP leaves ITYPE 0 (default)
+end
+
 function tt_site_index_setup!(s::StandState)
     tt_forkod!(s.plot)          # IFOR → p.forest_idx (DG DGFOR/DGDS); IGL → p.geo_location
+    s.plot.habitat_input = tt_habtyp(Int(s.plot.habitat_code))   # KODTYP → ITYPE (tt/habtyp.f)
     tt_sitset!(s)               # SITEAR (p.sp_site_index) + SDIDEF (p.sp_sdi_def)
     return s
 end
