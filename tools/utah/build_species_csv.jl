@@ -31,6 +31,10 @@ const UT_IMAP  = Int[3,3,2,2,3,2,3,3,2,3,1,1,3,1,1,1,3,3,3,2,3,3,3,3]
 const UT_SIGMAR = Float32[0.46710,0.46710,0.34418,0.24060,0.35168,0.37500,0.28860,0.35168,0.28005,0.27338,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5357,0.5107,0.2,0.46710,0.2]
 const UT_SLO = Float32[15,15,30,20,20,30,27,20,27,23,5,5,5,5,5,5,20,30,30,5,5,15,15,5]
 const UT_SHI = Float32[32,32,70,50,58,70,53,65,58,50,20,15,20,20,15,15,60,120,90,15,30,40,32,20]
+# REAL UT height-diameter (Wykoff HTDBH) coeffs — ut/blkdat.f DATA HT1/HT2. HT=exp(HT1+HT2/(D+1))-form
+# intercept/slope; feed the ht_dbh AA-fit (AX=IABFLG?HT1:AA, BX=HT2) used by regent small-tree DG + htcalc.
+const UT_HT1 = Float32[4.1920,4.1920,4.5879,4.3008,4.5293,4.4421,4.3767,4.5293,4.4717,4.6024,3.2,3.2,3.2,3.2,3.2,3.2,4.1920,4.4421,4.4421,5.1520,4.7000,4.4421,4.2597,3.2]
+const UT_HT2 = Float32[-5.1651,-5.1651,-8.9277,-6.8139,-7.7725,-6.5405,-6.1281,-7.7725,-6.7387,-11.4693,-5.0,-5.0,-5.0,-5.0,-5.0,-5.0,-5.1651,-6.5405,-6.5405,-13.5760,-6.3260,-6.5405,-9.3949,-5.0]
 ci = Dict(String(h) => i for (i, h) in enumerate(hdr))
 open("data/utah/species_coefficients.csv", "w") do io
     println(io, join(hdr, ","))
@@ -46,6 +50,8 @@ open("data/utah/species_coefficients.csv", "w") do io
         row[ci["bark_imap"]] = string(UT_IMAP[idx])
         row[ci["dg_resid_sd"]] = string(UT_SIGMAR[idx])
         row[ci["site_lo"]] = string(UT_SLO[idx]); row[ci["site_hi"]] = string(UT_SHI[idx])
+        haskey(ci, "ht1") && (row[ci["ht1"]] = string(UT_HT1[idx]))   # REAL UT htdbh HT1/HT2 (ut/blkdat.f)
+        haskey(ci, "ht2") && (row[ci["ht2"]] = string(UT_HT2[idx]))
         println(io, join(row, ","))
     end
 end
