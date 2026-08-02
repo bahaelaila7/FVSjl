@@ -75,7 +75,23 @@ function em_dgcons!(s::StandState)
     return s
 end
 
-# em/dgf.f main body — per-tree WK2 = DDS (outside-bark). emt01 exercises only the MAIN Wykoff path.
+# em/dgfasp.f (Utah aspen large-tree DG) — ASPDG = ln(DDS-equiv). Identical to ie_dgfasp/_tt_dgfasp
+# (the shared UT form). cr = raw crown pct (÷10 → ASPCR inside). rmsqd = stand QMD.
+@inline function _em_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)::Float32
+    rel = rmsqd > 0f0 ? d / rmsqd : 0f0
+    aspcr = cr / 10f0
+    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    pot <= 0f0 && (pot = 0.01f0)
+    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    baact = ba >= 310f0 ? 305f0 : ba
+    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    predgr = pot * valmod * (0.48630f0 + 0.01258f0 * si)
+    return log(2f0 * d * bark * predgr + predgr * predgr)
+end
+
+# em/dgf.f main body — per-tree WK2 = DDS (outside-bark). emt01 exercises only the MAIN Wykoff path;
+# RM(6)/aspen(12,17)/CO-hardwood(11,13-16,19) are the non-conifer DIAGR + DGFASP forms (this chunk).
 function dgf!(s::StandState, ::EasternMontana)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
@@ -101,8 +117,49 @@ function dgf!(s::StandState, ::EasternMontana)
                   EM_DGDBAL[sp] * bal100 / log(d + 1f0)
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
-        elseif sp == 6 || sp == 11 || (13 <= sp <= 16) || sp == 19 || sp == 12 || sp == 17
-            error("EM dgf! DIAGR/aspen path (sp $sp) not yet ported")
+        elseif sp == 6
+            # RM juniper DIAGR (from UT), em/dgf.f:517-531. DF linear in DPP/BATEM/SI, capped +1"/period.
+            dpp = d < 1f0 ? 1f0 : d
+            batem = ba < 1f0 ? 1f0 : ba
+            si = p.sp_site_index[sp]
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            df = 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
+            (df - dpp) > 1f0 && (df = dpp + 1f0)
+            df < dpp && (df = dpp)
+            diagr = (df - dpp) * bark
+            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds < -9.21f0 && (dds = -9.21f0)                # shared floor (em/dgf.f:593)
+            wk2[i] = dds
+        elseif sp == 12 || sp == 17
+            # Aspen (Utah DGFASP), also used for paper birch, em/dgf.f:535-538. Raw crown pct (÷10 inside).
+            cr_raw = Float32(t.crown_pct[i])
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            si = p.sp_site_index[sp]
+            rmsqd = stand_qmd(s)
+            aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
+            cor2 = (s.control.dg_cor2_on && s.control.dg_cor2[sp] > 0f0) ? s.control.dg_cor2[sp] : 1f0
+            dds = aspdg + log(cor2) + c.dg_cor[sp]
+            dds < -9.21f0 && (dds = -9.21f0)
+            wk2[i] = dds
+        elseif sp == 11 || (13 <= sp <= 16) || sp == 19
+            # CO/hardwood DIAGR (from CR), em/dgf.f:542-559. DF capped at 36"; floors the log BEFORE + AFTER
+            # adding COR+DGCON (NOT conspp — no CCF·RELDEN term).
+            dpp = d < 1f0 ? 1f0 : d
+            si = p.sp_site_index[sp]
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            df = 0.24506f0 + 1.01291f0 * dpp - 0.00084659f0 * ba + 0.00631f0 * si
+            df > 36f0 && (df = 36f0)
+            df < dpp && (df = dpp)
+            diagr = (df - dpp) * bark
+            if diagr <= 0f0
+                dds = -9.21f0
+            else
+                dds = log(diagr * (2f0 * dpp * bark + diagr))
+                dds < -9.21f0 && (dds = -9.21f0)            # internal floor (em/dgf.f:557)
+            end
+            dds = dds + c.dg_cor[sp] + c.dg_const[sp]
+            dds < -9.21f0 && (dds = -9.21f0)                # shared floor (em/dgf.f:593)
+            wk2[i] = dds
         else
             pt = Int(t.plot_id[i])
             pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0

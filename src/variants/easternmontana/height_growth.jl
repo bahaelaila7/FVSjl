@@ -12,6 +12,36 @@
 const _EM_C3MOD = 2.54119f0
 const _EM_C4MOD = 0.250537f0
 
+# em/htgf.f COFLM (LM, sp4) / COFAS (aspen+CO, sp11-17,19) Schreuder-Hafley SB height coeffs, by crown
+# class K=1..3 (columns). Row order = COF1..COF9. K from IICR=int(ICR/10+0.5): {1,2}→1 {3-7}→2 {8,9}→3.
+const _EM_COFLM = Float32[  # [9 coeffs × 3 crown classes]
+    37.0    45.0    45.0
+    85.0   100.0    90.0
+    1.77836 1.66674 1.64770
+   -0.51147 0.25626 0.30546
+    1.88795 1.45477 1.35015
+    1.20654 1.11251 0.94823
+    0.57697 0.67375 0.70453
+    3.57635 2.17942 2.46480
+    0.90283 0.88103 1.00316]
+const _EM_COFAS = Float32[
+    30.0    30.0    35.0
+    85.0    85.0    85.0
+    2.00995 2.00995 1.80388
+    0.03288 0.03288 -0.07682
+    1.81059 1.81059 1.70032
+    1.28612 1.28612 1.29148
+    0.72051 0.72051 0.72343
+    3.00551 3.00551 2.91519
+    1.01433 1.01433 0.95244]
+
+# em/htgf.f HTCONS: LL(sp5) height habitat constants. ITYPE(1..30) → IHT(1..8) via MAPHAB; per-IHT
+# HGHC (intercept), HGLDD (ln DG coef), HGH2 (H² coef). HTCON(5)=HGHC(IHT)−0.5478 (others 0).
+const _EM_HT_MAPHAB = Int[1,1,2,2,2,2,2,2,2,3,3,4,5,6,7,7,7,7,4,4,1,4,4,8,8,8,1,1,1,1]
+const _EM_HGHC  = Float32[2.03035, 1.72222, 1.19728, 1.81759, 2.14781, 1.76998, 2.21104, 1.74090]
+const _EM_HGLDD = Float32[0.62144, 1.02372, 0.85493, 0.75756, 0.46238, 0.49643, 0.37042, 0.34003]
+const _EM_HGH2  = Float32[-13.358f-5, -3.809f-5, -3.715f-5, -2.607f-5, -5.200f-5, -1.605f-5, -3.631f-5, -4.460f-5]
+
 # em/pothtg.f: potential 10-yr height growth for the main conifers. Sets t.birth_age[i]=EFAGE if ≤0.
 @inline function em_pothtg(sp::Int, h::Float32, si::Float32, i::Int, t)::Float32
     if sp == 1 || sp == 2 || sp == 7 || sp == 18          # WB/WL/LP/OS — Alexander-Tackle-Dahms (SI100)
@@ -60,8 +90,13 @@ const _EM_C4MOD = 0.250537f0
 end
 
 function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
-    p, t = s.plot, s.trees
+    p, t, c = s.plot, s.trees, s.calib
     avh = p.avg_height
+    # LL(sp5) habitat-dependent height constants (em/htgf.f HTCONS), resolved once per stand.
+    itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
+    iht = _EM_HT_MAPHAB[itype]
+    ll_h2cof = _EM_HGH2[iht]; ll_hdgcof = _EM_HGLDD[iht]
+    ll_htcon = _EM_HGHC[iht] - 0.5478f0
     @inbounds for i in 1:t.n
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
@@ -79,8 +114,49 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             htg = phtg * htmod
             htg < 0.1f0 && (htg = 0.1f0)
             t.ht_growth[i] = htg * scale
+        elseif sp == 6
+            # RM juniper: em/htgf.f:231 GO TO 30 — ALL height growth comes from REGENT. Leave 0.
+            continue
+        elseif sp == 5
+            # LL (NI form, em/htgf.f:222-226): CON = HTCON + H2COF·H² − 0.1997·lnD + 0.23315·lnH.
+            h <= 4.5f0 && continue
+            dg = t.diam_growth[i]
+            con = ll_htcon + ll_h2cof * h * h - 0.1997f0 * log(d) + 0.23315f0 * log(h)
+            htg = dg > 0f0 ? exp(con + ll_hdgcof * log(dg)) + 0.4809f0 : 0.1f0
+            htg < 0.1f0 && (htg = 0.1f0)
+            t.ht_growth[i] = htg * scale
         else
-            error("EM height_growth! sp $sp (LL/LM/aspen/RM/CO) not yet ported")
+            # LM(4)/CO(11,13-16,19)/aspen(12,17) — Schreuder-Hafley SB height (em/htgf.f:236-358). COFLM for
+            # sp4, COFAS otherwise. (Young-tree accelerator at :311 is dead code — IAGE is never set ⇒ 0.)
+            iicr = trunc(Int, Float32(t.crown_pct[i]) / 10f0 + 0.5f0); iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
+            k = iicr <= 2 ? 1 : (iicr <= 7 ? 2 : 3)
+            cof = sp == 4 ? _EM_COFLM : _EM_COFAS
+            cof1 = cof[1,k]; cof2 = cof[2,k]; cof3 = cof[3,k]; cof4 = cof[4,k]; cof5 = cof[5,k]
+            cof6 = cof[6,k]; cof7 = cof[7,k]; cof8 = cof[8,k]; cof9 = cof[9,k]
+            # bounds: outside the fitted SB range ⇒ HTG=0.1 (from regent for these small trees)
+            if h <= 4.5f0 || (0.1f0 + cof1) <= d || (4.5f0 + cof2) <= h || d <= 0.1f0
+                t.ht_growth[i] = 0.1f0 * scale; continue
+            end
+            temd = d <= 0.2f0 ? 0.2f0 : d
+            y1 = (temd - 0.1f0) / cof1; y2 = (h - 4.5f0) / cof2
+            fby1 = log(y1 / (1f0 - y1)); fby2 = log(y2 / (1f0 - y2))
+            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * (1f0 - cof7 * cof7)^(-0.5f0)
+            if sp != 4
+                zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
+                zadj < 0f0 && (zadj = 0f0)
+                z += zadj
+            end
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            dia = d + t.diam_growth[i] / bark
+            if (0.1f0 + cof1) > dia
+                psi = cof8 * ((dia - 0.1f0) / (0.1f0 + cof1 - dia))^cof9 *
+                      exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
+                hnew = (psi / (1f0 + psi)) * cof2 + 4.5f0
+                hnew < h && (hnew = h)
+                t.ht_growth[i] = (hnew - h) * scale
+            else
+                t.ht_growth[i] = 0.1f0 * scale
+            end
         end
     end
     return s
