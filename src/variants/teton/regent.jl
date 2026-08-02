@@ -28,6 +28,7 @@ const TT_SDHL4  = Float32[0.17023, 0.17023, 0.00036, 0.0, -0.0007, -0.0022, -0.0
 const TT_RG_DIAM = Float32[0.4, 0.3, 0.3, 0.4, 0.3, 0.2, 0.4, 0.3, 0.3, 0.5, 0.3, 0.3, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3]
 const TT_RG_XMIN = Float32[1.5, 1.5, 1.5, 90.0, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.5, 0.5]
 const TT_RG_XMAX = Float32[3.0, 3.0, 3.0, 99.0, 3.0, 3.0, 3.0, 3.0, 3.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 3.0, 2.0]
+const TT_RG_DGMAX = Float32[0.2, 0.2, 0.2, 2.0, 0.2, 0.2, 0.2, 0.2, 0.2, 99.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.0, 0.2, 2.5]
 const _TT_REGYR = 5.0f0
 const _TT_BACON = 0.005454154f0
 
@@ -114,28 +115,45 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             (d >= TT_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
             _tt_rg_default(sp) || continue
             h1 = wk3[i]; cr = Float32(t.crown_pct[i])
-            pt = Int(t.plot_id[i]); tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
-            tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+            pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
+            tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)   # smhtgf clamps [25,300]
             htgrl = _tt_smhtgf(sp, h1, cr, tpccf, zrand[i], si6)
             h2 = h1 + htgrl * (kpj / regyr)
             wk3[i] = h2
-            d2 = _tt_smdgf(sp, h2, cr, rdj)
+            d2 = _tt_smdgf(sp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden
             d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
             wk5[i] = d2
         end
     end
-    # blend HTGR/DG over [XMIN,XMAX] with the large-tree prediction (regent.f:473-560)
+    # blend HTGR/DG over [XMIN,XMAX] with the large-tree prediction (regent.f:735-943)
+    scale2 = htg_period(s.variant) / fint          # SCALE2 = YR/NTYR (period scaling of the DBH increment)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= TT_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
         _tt_rg_default(sp) || continue
         h = t.height[i]; xmn = TT_RG_XMIN[sp]; xmx = TT_RG_XMAX[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+        # HTG blend + size cap
         htgr = wk3[i] - h; htgr < 0.0f0 && (htgr = 0.0f0)
-        t.ht_growth[i] = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
-        bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
-        dgnew = (wk5[i] - d) * bark; dgnew < 0f0 && (dgnew = 0f0)   # DG stored inside-bark (·bark)
-        t.diam_growth[i] = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        t.ht_growth[i] = htg
+        # DG (regent.f:923-942): DK=smdgf(grown H)=wk5, DKK=smdgf(ORIGINAL H), DG=(DK−DKK)·bark → DDS → DG. HK≥4.5.
+        hk = h + htg
+        dfl = d < TT_RG_DIAM[sp] ? TT_RG_DIAM[sp] : d       # regent.f:703 D floored to DIAM(sp)
+        dgk = 0f0
+        if hk >= 4.5f0
+            pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
+            dkk = _tt_smdgf(sp, h, Float32(t.crown_pct[i]), pccf)      # DBH from the ORIGINAL height
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
+            dgr = (wk5[i] - dkk) * bark
+            dds = dgr * (2f0 * bark * dfl + dgr) * scale2
+            arg = (dfl * bark)^2 + dds
+            dgk = arg > 0f0 ? sqrt(arg) - bark * dfl : 0f0
+            dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])           # DGMAX cap
+        end
+        t.diam_growth[i] = dgk * (1.0f0 - xwt) + xwt * t.diam_growth[i]
     end
     return s
 end
