@@ -55,7 +55,21 @@ PM(pinyon)/BS(blue spruce)/UJ(Utah juniper)/BI(322)/MM(321)/MC/NC.
   `year`/`growth_fint`=10, `dg_sd`=2.0, seed 55329, `ht_drag_sp`=.TRUE. except **sp13 BI / sp16 MC** =.FALSE.
 - **Validated:** `coefficients(Teton())` loads (18 species + 442 translation rows); alpha/FIA/plants/ht1/
   dg_resid_sd match live. Zero-regression (TT-only additions; no existing test exercises Teton).
-## Chunk 2 — Site/habitat (tt/sitset.f + tt/habtyp.f)  ⬜
+## Chunk 2 — Site/habitat (tt/sitset.f + tt/siterange.f + tt/forkod.f)  ✅ DONE  BIT-EXACT
+
+`src/variants/teton/site_index.jl` — TT's site chunk is SIMPLER than EM (NO habtyp.f / no
+habitat-type-group site index; TT has no tt/habtyp.f at all). SITSET interpolates the site
+species' SI (TEM) into each species' [SITELO,SITEHI]:
+`pos=(TEM-SLOSSP)/(SHISSP-SLOSSP); SITEAR(I)=SITELO(I)+pos·(SITEHI(I)-SITELO(I))`.
+- **Tables** (verified vs live): `TT_SDICON` (sitset.f), `TT_SITELO`/`TT_SITEHI` (siterange.f).
+- **forkod** (`TT_JFOR=[403,405,415,416]` + reservation cases 7306→Bridger/8107→Caribou); IGL=0
+  (KFOR has NO DATA statement in tt/forkod.f ⇒ zeros).
+- **SDIDEF** = SDICON, or Zeide `BAMAX/(0.5454154·PMSDIU/100)` when BAMAX keyword set (PMSDIU is a
+  PERCENT here, unlike EM's fraction — inert for ttt01 which has no BAMAX).
+- **VALIDATED BIT-EXACT vs live ttt01** (measured from the .out SITECODE section): forest 415→IFOR=3,
+  site species DF(3), TEM=50 (default, no explicit SI — the STDINFO 6th field 65 is ELEVATION not SI).
+  All 18 SITEAR match (WB 43.75, DF 50, PM 16.25, NC 97.5, …) and all 18 SDIDEF=SDICON. `initialize!`
+  now runs end-to-end for TT (tree load + site setup); next hook (setup_growth!/DG) errors as expected.
 ## Chunk 3 — Large-tree DG (tt/dgf.f = EM clone + CR-Zeide density dispatch)  ⬜
 ## Chunk 4 — Height (tt/htgf.f)  ⬜   ## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
 ## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
