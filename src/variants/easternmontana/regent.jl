@@ -35,6 +35,8 @@ const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
 # so D≥3 LL stays on the pure large-tree path (else the XWT DG-override halves the large DG → em_LL breaks).
 @inline _em_rg_cap(sp::Int) = sp == 5 ? 3.0f0 : EM_RG_XMAX[sp]
 @inline _em_rg_crvar(sp::Int) = sp == 11 || (13 <= sp <= 16) || sp == 19
+# UTVAR (UT-variant) small-tree form: RM(6, juniper, XMAX=99 fully-regent), AS(12)/PB(17, aspen Sheppard).
+@inline _em_rg_utvar(sp::Int) = sp == 6 || sp == 12 || sp == 17
 
 # em/regent.f RCON entry: RHCON[sp] = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]]. Returns the RHCON vector.
 function em_regcons!(s::StandState)
@@ -158,6 +160,49 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         largeh = t.ht_growth[i]
         htg = htgr*(1.0f0-xwt)+xwt*largeh; htg < 0.1f0 && (htg=0.1f0)
         t.ht_growth[i] = htg
+    end
+    # UTVAR (RM6 juniper / AS12,PB17 aspen) — SINGLE-STEP (em/regent.f:507-533,600). CON=1.0 (non-NIVAR).
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        _em_rg_utvar(sp) || continue
+        (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        h = t.height[i]; sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp]+0.5f0)
+        relsi = (si-slo[sp])/(shi[sp]-slo[sp]); rsimod = 0.5f0*(1.0f0+relsi); x = relsi*100.0f0
+        con = exp(c.htg_cor_small[sp])                            # RHCON(=1.0 non-NIVAR)·exp(HCOR)
+        if sp == 12 || sp == 17                                   # aspen/PB Sheppard (ABIRTH)
+            ab = Float32(t.birth_age[i]); ab < 1.0f0 && (ab = 1.0f0)
+            hite1 = 26.9825f0 * ab^1.1752f0
+            hite2 = 26.9825f0 * (ab + 10.0f0)^1.1752f0
+            htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+        else                                                      # RM juniper
+            pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
+            pctred > 1.0f0 && (pctred=1.0f0); pctred < 0.01f0 && (pctred=0.01f0)
+            xcr = Float32(t.crown_pct[i])/100.0f0
+            vigor = 150.0f0*xcr^3*exp(-6.0f0*xcr)+0.3f0; vigor>1.0f0 && (vigor=1.0f0)
+            vigor = 1.0f0 - (1.0f0 - vigor)/3.0f0                 # RM ⅔ VIGOR cut (em/regent.f:515)
+            pothtg = (si/10.0f0) * (si*1.5f0 - h) / (si*1.5f0)
+            htgr = pothtg*pctred*vigor*con
+        end
+        htgr = htgr * fint10
+        if dgsd >= 1.0f0                                          # UTVAR ZZRAN — ·0.1 (not 0.2), bounds [-2,0.5]
+            zz = bachlo(s.rng, 0.0f0, 1.0f0)
+            (zz <= 0.5f0 && zz >= -2.0f0) && (htgr = htgr + zz * 0.1f0)
+        end
+        htgr < 0.1f0 && (htgr = 0.1f0)
+        xmn = EM_RG_XMIN[sp]; xmx = EM_RG_XMAX[sp]
+        xwt = d <= xmn ? 0.0f0 : (d-xmn)/(xmx-xmn)
+        htg = htgr*(1.0f0-xwt)+xwt*t.ht_growth[i]; htg < 0.1f0 && (htg=0.1f0)
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        t.ht_growth[i] = htg
+        # diameter: aspen(12,17) D≥3 skip; H2≤4.5 → D2=D+0.001·H2 (em/regent.f:600-606)
+        h2 = h + htg
+        if !((sp == 12 || sp == 17) && d >= 3.0f0) && h2 <= 4.5f0
+            d2 = d + 0.001f0 * h2
+            dgnew = d2 - d; dgnew < 0.0f0 && (dgnew = 0.0f0)
+            t.diam_growth[i] = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        end
     end
     return s
 end
