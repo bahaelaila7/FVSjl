@@ -33,12 +33,16 @@ function _tt_r4_ii(code::AbstractString, geo::AbstractString)
 end
 
 "Region-4 Matney gross merch cubic-foot volume (r4vol.f, M=3 path). Returns CFGRS."
-function r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtopp::Float32, ht1prd::Float32)::Float32
-    (dbhob < 1f0 || httot <= 4.5f0) && return 0f0
+r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtopp::Float32, ht1prd::Float32)::Float32 =
+    r4vol_volumes(voleq, dbhob, httot, mtopp, ht1prd)[2]
+
+"Region-4 Matney volumes (r4vol.f): returns (CF0 total-stem cubic [VOL(1)], CFGRS gross merch cubic [VOL(4)])."
+function r4vol_volumes(voleq::AbstractString, dbhob::Float32, httot::Float32, mtopp::Float32, ht1prd::Float32)::Tuple{Float32,Float32}
+    (dbhob < 1f0 || httot <= 4.5f0) && return (0f0, 0f0)
     tht = httot - 1f0
-    tht <= 5f0 && return dbhob * dbhob * httot * 0.00272708f0      # small tree: Smalian, return
+    tht <= 5f0 && (v = dbhob * dbhob * httot * 0.00272708f0; return (v, v))   # small tree: Smalian
     ii = _tt_r4_ii(strip(voleq)[8:10], strip(voleq)[1:3])
-    ii == 0 && return 0f0
+    ii == 0 && return (0f0, 0f0)
     ht67 = TT_R4C1[ii] * dbhob^TT_R4C2[ii] * tht^TT_R4C3[ii]
     buttcf = TT_R4C5[ii] * dbhob + TT_R4C4[ii]
     stumpd = sqrt(buttcf * buttcf * tht / (tht - 4f0))
@@ -48,13 +52,13 @@ function r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
     b = (1f0 - f) / (2f0 * f)
     trm = 0.5f0
     topdia = mtopp <= 0f0 ? 1f0 : mtopp
-    topdia >= buttcf && return 0f0                                 # M=3: TOPDIA≥BUTTCF → no vol
+    topdia >= buttcf && return (cf0, 0f0)                           # M=3: TOPDIA≥BUTTCF → no merch vol
     dratio = topdia / stumpd; dratio <= 0f0 && (dratio = 0.0001f0)
     merlen = tht - tht * dratio^(1f0 / b)
     if ht1prd > 0f0 && ht1prd < merlen
         merlen = ht1prd
     end
-    merlen < 2.5f0 && return 0f0
+    merlen < 2.5f0 && return (cf0, 0f0)
     totlgs = merlen / 16.5f0
     toplen = (totlgs - _fint(totlgs)) * 16.5f0
     if toplen < 2.5f0
@@ -69,7 +73,7 @@ function r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
         end
         set || (toplen = 16.5f0)
     end
-    totlgs <= 0f0 && return 0f0
+    totlgs <= 0f0 && return (cf0, 0f0)
     totlgs = toplen < 16.5f0 ? Float32(_fint(totlgs) + 1) : Float32(_fint(totlgs))
     merlen = (totlgs - 1f0) * 16.5f0 + toplen
     numlgs = _fint(totlgs)
@@ -94,5 +98,5 @@ function r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
     len_top = toplen - trm
     dsm_top = Float32(_fint(stumpd * ((tht - merlen) / tht)^b + 0.499f0))
     cfgrs += logcf(dlg_top, dsm_top, len_top)
-    return cfgrs
+    return (cf0, cfgrs)
 end
