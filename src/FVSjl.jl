@@ -143,6 +143,7 @@ include("variants/bluemountains/diameter_growth.jl")# BM chunk 3: bm_dgcons! + d
 include("variants/bluemountains/height_growth.jl")  # BM chunk 4: bm_findag + height_growth!(::BlueMountains)
 include("variants/bluemountains/regent.jl")         # BM chunk 6: bm_smhtgf + small_tree_growth!(::BlueMountains)
 include("variants/bluemountains/mortality.jl")      # BM chunk 7: mortality!(::BlueMountains) Hamilton + SDI self-thin
+include("variants/bluemountains/volume.jl")         # BM chunk 8: compute_volumes_bm! (FW2W Flewelling conifers)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

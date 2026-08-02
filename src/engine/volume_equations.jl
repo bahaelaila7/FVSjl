@@ -183,6 +183,10 @@ function setup_volume_equations!(s::StandState)
             # EM VOLEQDEF (em/sitset.f VEQNNC, dumped from live): conifers = FW2 (volume-FIA ≠ species-FIA,
             # e.g. LM→073); non-conifers RM/GA/AS/CW/BA/PW/NC/PB/OH = DVEW woodland (region 1/2).
             s.species.vol_eq[sp] = sp <= length(EM_VOL_EQ) ? EM_VOL_EQ[sp] : "           "
+        elseif s.variant isa BlueMountains
+            # BM VOLEQDEF (bm VEQNNC, live bmt01 forest 614): main conifers = FW2W (Flewelling); minor
+            # species = 616BEHW (region-6 Behre, deferred — not in bmt01).
+            s.species.vol_eq[sp] = sp <= length(BM_VOL_EQ) ? BM_VOL_EQ[sp] : "           "
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

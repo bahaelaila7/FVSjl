@@ -43,3 +43,11 @@ spctrn_column(::BlueMountains) = 4
 
 # Catch-all for a code absent from the crosswalk: BM SPTRN default ISPC1=MAXSP=18 (OH).
 other_species(::BlueMountains) = Int32(18)
+
+# BM VOLEQDEF (bm VEQNNC, dumped from live bmt01_growth.out, forest 614 Umatilla): main conifers =
+# FW2W (Flewelling FW2, volume-FIA remapped ≠ species-FIA); WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH = 616BEHW
+# (region-6 Behre — minor species, not in bmt01, DEFERRED). Species order WP..OH.
+const BM_VOL_EQ = String[
+    "616BEHW119", "I13FW2W202", "I13FW2W017", "I13FW2W017", "616BEHW264", "616BEHW064",
+    "I00FW2W108", "I00FW2W093", "I00FW2W019", "I13FW2W122", "616BEHW101", "616BEHW113",
+    "616BEHW231", "616BEHW042", "616BEHW746", "616BEHW747", "616BEHW299", "616BEHW998"]
