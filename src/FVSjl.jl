@@ -140,6 +140,7 @@ include("variants/bluemountains/site_index.jl")     # BM chunk 2: forkod/habtyp(
 include("variants/bluemountains/dg_coefficients.jl")# BM chunk 3: DG coefficient arrays + BM_PSIGSQ + bm_bratio
 include("variants/bluemountains/crown.jl")          # BM chunk 5 (partial): bm_tree_ccf (CCF/RELDEN, needed by DG)
 include("variants/bluemountains/diameter_growth.jl")# BM chunk 3: bm_dgcons! + dgf!(::BlueMountains) MSS spline
+include("variants/bluemountains/height_growth.jl")  # BM chunk 4: bm_findag + height_growth!(::BlueMountains)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
