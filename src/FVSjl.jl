@@ -127,6 +127,8 @@ include("variants/utah/site_index.jl")         # UT site_setup! (chunk 2): forko
 include("variants/utah/crown.jl")              # UT per-tree CCF (ut/ccfcal.f MODE=1) → RELDEN + PCCF (chunk 5 partial)
 include("variants/utah/dg_coefficients.jl")    # UT large-tree DG coefficient arrays (ut/dgf.f DATA, CSV-loaded)
 include("variants/utah/diameter_growth.jl")    # UT large-tree DDS (chunk 3): ut_dgcons! + dgf! (5-branch)
+include("variants/utah/htgf_coefficients.jl")  # UT Schreuder-Hafley SBB height coefficients (ut/htgf.f, CSV)
+include("variants/utah/height_growth.jl")      # UT large-tree height (chunk 4): SBB (conifer/aspen)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
