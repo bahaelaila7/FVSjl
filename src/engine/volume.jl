@@ -254,7 +254,7 @@ function dub_missing_heights!(s::StandState)
     # such column. The per-tree dub itself uses the variant-generic `_htdbh_height` (htdbh_* coefs).
     # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
-    ht2 = any(lhtdrg) ? coef_col(s.coef, s.variant isa InlandEmpire ? :ht2 : :wykoff_ht2) : nothing
+    ht2 = any(lhtdrg) ? coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2) : nothing
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
     # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
     # `_htdbh_height` (TT defines no htdbh_p2/p3/p4). Load HT1/wykoff_ht2 unconditionally for TT.

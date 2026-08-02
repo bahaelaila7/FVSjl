@@ -114,7 +114,11 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
                 dk = 3.1020f0 + 0.0210f0 * hk
                 dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
                 dk < dkk && (dk = dkk + 0.01f0)
-            else                                       # conifers — ht_dbh curve (uncalibrated)
+            elseif c.ht_dbh_iabflg[sp] == 0            # conifers CALIBRATED (ut/regent.f:487): AX=AA, BX=HT2
+                ax = c.ht_dbh_aa[sp]; bx = sd[:ht2][sp]
+                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+            else                                       # conifers UNCALIBRATED — fixed P2/P3/P4 htdbh curve
                 dk = _ut_htdbh_dbh(sp, hk)
                 dkk = h <= 4.5f0 ? d : _ut_htdbh_dbh(sp, h)
             end
