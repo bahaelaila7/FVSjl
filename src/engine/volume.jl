@@ -529,6 +529,7 @@ function compute_volumes!(s::StandState)
     s.variant isa Kootenai && return compute_volumes_kt!(s)
     s.variant isa EasternMontana && return compute_volumes_em!(s)   # EM = FW2 conifers + DVEW (R1KEMP) non-conifers
     s.variant isa Teton && return compute_volumes_tt!(s)           # TT = Region-4 Matney (r4vol) cubic
+    s.variant isa Utah && return compute_volumes_ut!(s)            # UT = MATW r4vol + FW2 + DVEW woodland
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
