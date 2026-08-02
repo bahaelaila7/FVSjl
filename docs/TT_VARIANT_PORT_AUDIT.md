@@ -147,7 +147,17 @@ Coefficients extracted (tools/teton/extract_htgf.py): **data/teton/htgf_cof.csv*
 crown-groups from COF1-11, EQUIVALENCE COF(:,1:3)=COF1…) + **htgf_zbias.csv** (AZBIAS/BZBIAS 18). XHMULT=1
 (MULTS default), HTCON = HTCONS calibration (shared). NEXT: implement `height_growth!(::Teton)` + HTGFTRC bit-verify.
 
-## Chunk 5 — Crown (tt/crown.f)  🔶 SCOPED (rank-based Weibull model; coefficients extracted)
+## Chunk 5 — Crown (tt/crown.f)  ✅ DONE — validated in isolation (WB bit-exact; others ±1-2)
+
+`crown_ratio_update!(::Teton)` (in crown.jl) — rank-based Weibull, coeffs data/teton/crown_weibull.csv.
+ISORT = whole-stand **GROWN-DBH** rank (dbh+DG/bark) via _rdpsrt! (the key fix — tt/crown.f runs after DG).
+**VALIDATED in isolation** (call crown directly after height, bypassing the unported small_tree): WB=68
+BIT-EXACT, ES [28,36,49,50,59] all match live, others ±1-2. Residual = tripling-order confound (live crown
+runs on 81 TRIPLED records vs jl's 27 un-tripled; X=ISORT/ITRN ~preserved since tripling ×3 both) + DG-ZZRAN.
+NOTE: in the full grow_cycle! crown (line 527) is AFTER small_tree_growth! (437) which errors (chunk 6
+unported) ⇒ full-cycle crown validation awaits chunk 6. CCF (tt_tree_ccf) done ch3.
+
+## Chunk 5-OLD — scope notes (superseded)
 
 CCF (tt_tree_ccf) already done (chunk 3). Remaining = `crown_ratio_update!(::Teton)` — a rank-based Weibull
 crown-ratio model (differs from EM's DCR form): (1) RELSDI = SDIAC/SDIDEF(ISPC) (cap 1.5; sp17 cap 1.0);
@@ -157,7 +167,20 @@ C=WEIBC0+WEIBC1·ACRNEW. (3) per tree: SCALE=1−0.00167·(RELDEN−100) (clamp 
 ±1%/yr (PDIFPY); crown-change DBH gate DLOW/DHI (=0/99 uniform, no restriction). CL=crown length from HF=H+HTG.
 Coefficients extracted: data/teton/crown_weibull.csv (18×7: WEIBA/WEIBB0/WEIBB1/WEIBC0/WEIBC1 + mean C0/C1).
 NEXT: implement + wire crown_ratio_update! (lstart CRATET dub + per-cycle change) + instrument-replay bit-verify.
-## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
+## Chunk 6 — Small-tree (tt/regent.f)  🔶 SCOPED (largest remaining chunk; coefficients extracted)
+
+tt/regent.f (1422 lines) — the keystone: `small_tree_growth!` is called at grow_cycle!:437 BEFORE crown(527),
+so it blocks the full cycle + all small-tree DG/HTG/crown. Small-tree height increment on a **5-yr basis**
+(REGYR=5), then HHT1/HHT2 height-DBH assignment for DBH, then blended with the large-tree prediction over
+**DBH ∈ [XMIN,XMAX] = [1.5,3.0]** (DEFAULT): DBH<XMIN pure regent, XMIN–XMAX ramp, DBH>XMAX pure large-tree.
+TT uses the **TTVAR** branch (regent.f has TTVAR/UTVAR/CIVAR — TT=TTVAR=.TRUE.). Height model: RELSI=(SI−SLO)/
+(SHI−SLO), RSIMOD, POTHTG site-curve based + PCTRED density reduction + XRHMLT/XRDMLT multipliers (=1). Coeffs
+extracted: data/teton/regent_1d.csv (DIAM/XMIN/XMAX/DGMAX 18); AB(13)/HHT1/HHT2 + the POTHTG curves still to
+extract. ttt01 small trees: AS d=0.1/1.2, ES/AF d=0.1 (0.1" seedlings). REGCON entry = small-tree calibration.
+NEXT: read the TTVAR height-increment + DBH-assignment + blend fully; implement small_tree_growth!(::Teton) +
+instrument-replay bit-verify; unblocks the full grow_cycle! + small-tree crown + the stand .sum differential.
+
+## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
 
 ## Off-switch
