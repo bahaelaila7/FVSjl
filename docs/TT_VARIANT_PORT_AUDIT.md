@@ -122,7 +122,17 @@ PREDGR=POT·VALMOD·(0.48630+0.01258·SI); ASPDG=ln(2·D·BARK·PREDGR+PREDGR²)
 (4) `tt_dgcons!` (DGCON=DGSIC·XSITE+DGFOR+aspect/slope/elev; DGDSQ; DGCCF; ATTEN) + `dgf!(::Teton)` (6 forms;
 ttt01=main+aspen); RELSDI/DSTAG via SDICAL; (5) wire setup_growth! DG dispatch (+ `relative_density=stand_ccf`
 at simulate.jl:162) + calibrate; (6) DGFTRC bit-verify WK2 (WB/LP/ES/AF/AS).
-## Chunk 4 — Height (tt/htgf.f)  🔶 SCOPED (model mapped + coefficients extracted; implementation next)
+## Chunk 4 — Height (tt/htgf.f)  ✅ DONE — SBB model BIT-EXACT given DG
+
+`height_growth!(::Teton)` + generated `htgf_coefficients.jl` (TT_HTCOF 33×9 + AZBIAS/BZBIAS).
+**VALIDATED via HTGFTRC replay** (instrument TEMHTG=HTG dump, relink FVStt_trc): ttt01 first growth
+cycle — **ES/AF bit-exact end-to-end**; WB/AS/LP height correct but cornered to the upstream DG.
+**PROVEN the height model is bit-exact**: feeding live's per-tree DG into jl's height → max|Δhtg|=7.6e-6
+(float rounding) across ALL 27 trees. So the WB/AS/LP residual is the **accepted DG-ZZRAN RNG stream-order**
+(WK2/DDS bit-exact ch3; the per-tree random DG increment diverges — same ch9 accepted class as CR/KT/EM),
+NOT a height bug. HT matches live (heights faithful). DBH<1.5 → REGENT (chunk 6). Non-ttt01 forms error.
+
+## Chunk 4-OLD — Height (tt/htgf.f)  [scope notes below, superseded]
 
 Species dispatch (SELECT CASE at htgf.f:305): CASE(10)PP `HTG=exp(CON+0.62144·lnDG)+0.4809`; CASE(4,11,12)
 PM/UJ/RM `HTG=0` (regent); CASE(15,18)NC/OH even-aged GEMHT; CASE(13,16)BI/MC FINDAG+POTHTG+modifiers;
@@ -137,7 +147,16 @@ Coefficients extracted (tools/teton/extract_htgf.py): **data/teton/htgf_cof.csv*
 crown-groups from COF1-11, EQUIVALENCE COF(:,1:3)=COF1…) + **htgf_zbias.csv** (AZBIAS/BZBIAS 18). XHMULT=1
 (MULTS default), HTCON = HTCONS calibration (shared). NEXT: implement `height_growth!(::Teton)` + HTGFTRC bit-verify.
 
-## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
+## Chunk 5 — Crown (tt/crown.f)  🔶 SCOPED (rank-based Weibull model; coefficients extracted)
+
+CCF (tt_tree_ccf) already done (chunk 3). Remaining = `crown_ratio_update!(::Teton)` — a rank-based Weibull
+crown-ratio model (differs from EM's DCR form): (1) RELSDI = SDIAC/SDIDEF(ISPC) (cap 1.5; sp17 cap 1.0);
+ACRNEW = C0(ISPC)+C1(ISPC)·RELSDI·100 (mean CR%). (2) Weibull A=WEIBA, B=WEIBB0+WEIBB1·ACRNEW (floor 1, PP 3),
+C=WEIBC0+WEIBC1·ACRNEW. (3) per tree: SCALE=1−0.00167·(RELDEN−100) (clamp 0.30–1.0); X=(ISORT(I)/ITRN)·SCALE
+(rank percentile; clamp 0.05–0.95) or RNUMB·SCALE if DBH≤0; invert Weibull → CRNEW. (4) CHG=CRNEW−ICR bounded
+±1%/yr (PDIFPY); crown-change DBH gate DLOW/DHI (=0/99 uniform, no restriction). CL=crown length from HF=H+HTG.
+Coefficients extracted: data/teton/crown_weibull.csv (18×7: WEIBA/WEIBB0/WEIBB1/WEIBC0/WEIBC1 + mean C0/C1).
+NEXT: implement + wire crown_ratio_update! (lstart CRATET dub + per-cycle change) + instrument-replay bit-verify.
 ## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
 
