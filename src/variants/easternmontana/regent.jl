@@ -10,8 +10,10 @@
 #   DG-dub (per subcycle, D<3 & H2>4.5): D1=DIAM[sp]+DADJ (or AX·(H1−4.5)^BX+DADJ if H1>4.5);
 #     D2=AX·(H2−4.5)^BX+DADJ; DGJ=max(D2−D1,0)·XRDGRO; D2=D+DGJ. AX=0.0658, BX=1.3817.
 #   DADJ = DELMAX·RELH²−2·DELMAX·RELH+0.65; DELMAX=min((AH/36)·(0.01232·RELDEN−1.75),0); RELH=(H1−4.5)/(AH−4.5).
-# Final: HTGR1=WK3−H + ZZRAN·HSIGMA(0.59) (dgsd≥1); XWT blend d∈[XMIN,XMAX] with the large-tree HTG; size cap.
-# CRVAR/UTVAR/TTVAR/aspen small-tree branches deferred (not in emt01).
+# Final: HTGR1=WK3−H + ZZRAN·HSIGMA(0.59) (dgsd≥1); XWT blend d∈[XMIN,cap] with the large-tree HTG; size cap.
+# NIVAR handles the EMVAR conifers + LL(5) — LL capped at D<3 (regent.f:858) so its D≥3 large trees stay on
+# the pure large-tree path (validated: em_LLseed seedlings grow, em_LL large trees bit-exact).
+# CRVAR(CO)/TTVAR(LM)/UTVAR(RM,AS,PB) small-tree branches deferred.
 # =============================================================================
 
 const EM_RG_XMAX = Float32[3,3,3,3,10,99,3,3,3,3,2,4,2,2,2,2,4,3,3]
@@ -24,6 +26,14 @@ const _EM_RG_RSAB0 = -0.10987f0; const _EM_RG_RSAB1 = 0.22157f0; const _EM_RG_RS
 const _EM_RG_BH = 0.3740f0; const _EM_RG_BCCF = -0.00391f0; const _EM_RG_BBAL = -0.22957f0
 const _EM_RG_AX = 0.0658f0; const _EM_RG_BX = 1.3817f0
 const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
+
+# Species handled by the current NIVAR-form regent: EMVAR conifers + LL(5) (NIVAR — same HTGRL form; CON
+# RHCON+HCOR==RHCON·exp(HCOR) at HCOR=0; BH/BCCF/BBAL are the shared subalpine-fir values). LM/CO/RM/AS/PB deferred.
+@inline _em_rg_nivar(sp::Int) = _em_orig_species(sp) || sp == 5
+# Effective regent DIAMETER cap: NIVAR skips the regent for D≥3 (em/regent.f:858 GO TO 23). The conifers
+# already have EM_RG_XMAX=3, but LL(5)'s XMAX=10 is only the height-blend range — its regent still caps at 3,
+# so D≥3 LL stays on the pure large-tree path (else the XWT DG-override halves the large DG → em_LL breaks).
+@inline _em_rg_cap(sp::Int) = sp == 5 ? 3.0f0 : EM_RG_XMAX[sp]
 
 # em/regent.f RCON entry: RHCON[sp] = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]]. Returns the RHCON vector.
 function em_regcons!(s::StandState)
@@ -77,8 +87,8 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         baj = banext[j]; rdj = rdnext[j]; kpj = Float32(kper[j])
         for i in 1:n
             sp = Int(t.species[i]); d = t.dbh[i]
-            (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
-            _em_orig_species(sp) || continue                     # NIVAR path = the EM Wykoff conifers
+            (d >= _em_rg_cap(sp) || t.tpa[i] <= 0.0f0) && continue
+            _em_rg_nivar(sp) || continue                          # EMVAR conifers + LL(5)=NIVAR
             con = rhcon[sp] + c.htg_cor_small[sp]                # + HCOR (0 until calibrated)
             h1 = wk3[i]; h1 <= 0f0 && (h1 = 0.1f0)
             pct = Float32(t.crown_ratio[i]); bal = baj * (100.0f0 - pct) * 0.01f0
@@ -101,9 +111,9 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     @inbounds for oi in 1:n
         i = _sp_order[oi]
         sp = Int(t.species[i]); d = t.dbh[i]
-        (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
-        _em_orig_species(sp) || continue
-        h = t.height[i]; xmn = EM_RG_XMIN[sp]; xmx = EM_RG_XMAX[sp]
+        (d >= _em_rg_cap(sp) || t.tpa[i] <= 0.0f0) && continue
+        _em_rg_nivar(sp) || continue
+        h = t.height[i]; xmn = EM_RG_XMIN[sp]; xmx = _em_rg_cap(sp)
         htgr1 = wk3[i] - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         zzran = 0.0f0
         if dgsd >= 1.0f0
