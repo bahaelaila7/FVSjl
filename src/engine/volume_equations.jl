@@ -172,6 +172,8 @@ function setup_volume_equations!(s::StandState)
             # IE VOLEQDEF (ie/sitset.f, VAR='IE'): FW2 (sp1-14,23) + DVE/Behre (sp15-22). Strings dumped from
             # live (forest 118); forest-keyed VOLEQDEF port needed for arbitrary IE forests (see volume.jl).
             s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
+        elseif s.variant isa Teton
+            s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
         elseif s.variant isa EasternMontana
             # EM VOLEQDEF (em/sitset.f, VAR='EM', IREGN=1): Region-1 Flewelling FW2, "I00FW2W<FIAJSP>" — the
             # conifers (emt01) use FW2. Hardwoods (GA/AS/CW/…) may use DVE/Behre (not emt01) — a forest-keyed
