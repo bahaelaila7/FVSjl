@@ -177,7 +177,15 @@ TT uses the **TTVAR** branch (regent.f has TTVAR/UTVAR/CIVAR — TT=TTVAR=.TRUE.
 (SHI−SLO), RSIMOD, POTHTG site-curve based + PCTRED density reduction + XRHMLT/XRDMLT multipliers (=1). Coeffs
 extracted: data/teton/regent_1d.csv (DIAM/XMIN/XMAX/DGMAX 18); AB(13)/HHT1/HHT2 + the POTHTG curves still to
 extract. ttt01 small trees: AS d=0.1/1.2, ES/AF d=0.1 (0.1" seedlings). REGCON entry = small-tree calibration.
-NEXT: read the TTVAR height-increment + DBH-assignment + blend fully; implement small_tree_growth!(::Teton) +
+### SMHTGF (tt/smhtgf.f, height increment HTGRTH) — MAPPED:
+- **CASE(6) AS aspen**: FINDAG→SITAGE; HITE1=26.9825·SITAGE^1.1752; AG2=SITAGE+5; HITE2=26.9825·AG2^1.1752;
+  HTGR=(HITE2−HITE1)/(2.54·12); HTGRTH=(HTGR+ZRAND·0.1)·0.75. (+ regent.f:521 RSIMOD for sp6.)
+- **CASE DEFAULT (WB/LP/ES/AF)**: BETA1=exp(B0ACCF+B1ACCF·ln(TPCCF)); BETA2=exp(B0BCCF+B1BCCF·ln(TPCCF));
+  HTG1=BETA1+BETA2·CR; STDDEV=HTG1·(B0ASTD+B1BSTD·CR); HTGRTH=HTG1+ZRAND·STDDEV. TPCCF=point CCF clamp[25,300].
+- ZRAND(I) = per-tree BACHLO(0,1) bounded ±2 (small-tree ZZRAN residual). Coeffs data/teton/regent_smht.csv (18×6).
+- Then regent.f:554 H2=H1+HTGRL·SCALE·XRHGRO·CON (SCALE=KPER/REGYR, XRHGRO=1); subcycle to fint.
+### STILL TO READ/PORT: tt/smdgf.f (small-tree DG), HHT1/HHT2 height→DBH assignment, XWT small/large blend over
+DBH∈[1.5,3.0], REGCON calibration. NEXT: implement small_tree_growth!(::Teton) (subcycle+smhtgf+smdgf+blend) +
 instrument-replay bit-verify; unblocks the full grow_cycle! + small-tree crown + the stand .sum differential.
 
 ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
