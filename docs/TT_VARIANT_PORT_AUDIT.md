@@ -70,7 +70,29 @@ species' SI (TEM) into each species' [SITELO,SITEHI]:
   site species DF(3), TEM=50 (default, no explicit SI — the STDINFO 6th field 65 is ELEVATION not SI).
   All 18 SITEAR match (WB 43.75, DF 50, PM 16.25, NC 97.5, …) and all 18 SDIDEF=SDICON. `initialize!`
   now runs end-to-end for TT (tree load + site setup); next hook (setup_growth!/DG) errors as expected.
-## Chunk 3 — Large-tree DG (tt/dgf.f = EM clone + CR-Zeide density dispatch)  ⬜
+## Chunk 3 — Large-tree DG (tt/dgf.f)  🔶 SCOPED (model fully mapped; implementation next)
+
+**ttt01 species: ES×9, AS×8, AF×6, LP×5, WB×1** ⇒ exercises only TWO DDS forms: the MAIN Wykoff
+(WB/LP/ES/AF) + ASPEN DGFASP (AS). No PP/juniper/NC/OH — those forms port later (unvalidatable on ttt01).
+
+### DDS per-species dispatch (tt/dgf.f DO 10, `WK2(I)=DDS`), CONSPP=DGCON(ISPC)+COR(ISPC)+0.01·DGCCF(ISPC)·RELDEN:
+- **CASE(1:3,5,7:9,17)** WB LM DF BS LP ES AF OS — MAIN: `DDS=CONSPP+DGLD·lnD+DGBAL·BAL+CR·DGCR+CR²·DGCRSQ+DGDSQ·D²`; BAL=(1−PCT/100)·BA100, CR=ICR·.01.
+- **CASE(10)** PP — `+DGDBAL·PBAL/ln(D+1)` (PBAL=(1−PCT/100)·PTBAA); DGCON adds DGHAB(MAPHAB), MAPHAB=ICHBCL(ITYPE)+1.
+- **CASE(6,14)** AS MM — aspen: `CALL DGFASP(D,ASPDG,CR,BARK,SI)` → `DDS=ASPDG+ln(COR2)+COR`. DGFASP at bin/FVStt_buildDir/dgfasp.f (shared ut/dgfasp.f). **NEEDED for ttt01.**
+- **CASE(4,11,12)** PM UJ RM — DIAGR juniper: DF=0.25897+1.03129·DPP−0.0002025464·BATEM+0.00177·SI; DDS=ln(DIAGR·(2·DPP·BARK+DIAGR))+CONSPP. (note: REGENT eqns actually drive PM/UJ/RM/BI/MC all sizes.)
+- **CASE(13,16)** BI MC — extended MAIN `+DGDBAL·BAL/ln(D+1)+DGPTCC·PCCF+DGBA·BA`.
+- **CASE(15,18)** NC OH — CR-surrogate DIAGR: DF=(1.55986+1.01825·DPP−0.29342·lnBATEM+0.00672·SI−0.00073·BAUTBA)·1.05; ·DSTAG if ISTAGF.
+
+### DGCONS assembly (ENTRY DGCONS): `DGCON(ISPC)=DGSIC(IDGSIM(ISI,ISPC),ISPC)·XSITE + DGFOR(ISPFOR,ISPC) + (DGSASP·sinθ+DGCASP·cosθ+DGSLOP)·SLOPE + DGSLSQ·SLOPE² + DGEL·ELEV + DGEL2·ELEV²`
+where XSITE=SITEAR(ISISP) (log for sp13/16), ISI=ISMAP(ISISP), ISPFOR=MAPLOC(IFOR,ISPC), ISPDSQ=MAPDSQ(IFOR,ISPC),
+DGDSQ=DGDS(ISPDSQ,ISPC), DGCCF=DGCCFC(IGCCFM(ISC,ISPC),ISPC) [ISC from INT(SITEAR(ISISP)) clamp 20-60, /10−1], ATTEN=IBSERV(ISIC,ISPC) [sp10/13/16 use OBSERV]. Aspect θ=ASPECT−0.7854 (sp10/13/16 special).
+
+### DATA blocks to extract (tt/dgf.f, all MAXSP=18): 1D — DGLD:100 DGCR:106 DGCRSQ:112 DGBAL:118 OBSERV:194
+DGCASP:300 DGSASP:306 DGSLOP:312 DGSLSQ:318 DGEL:324 DGEL2:330 DGDBAL:336 DGBA:342 DGPCCF:348 ISMAP:397.
+2D — IGCCFM(5,18):124 IBSERV(5,18):174 DGCCFC(5,18):147 MAPLOC(4,18):203 DGFOR(5,18):223 MAPDSQ(4,18):246
+DGDS(4,18):272 IDGSIM(5,18):357 DGSIC(5,18):377. Special — ICHBCL(363):405 DGHAB(7):409. DGPTCC/BAU/ISTAGF (sp13-18 only).
+
+### Remaining chunk-3 steps: (1) extract the 19 DATA blocks → data/teton/dg_*.csv (Python, like tools/easternmontana/extract_dg*.py); (2) port DGFASP (aspen, ut/dgfasp.f); (3) `tt_dgcons!` + `dgf!(::Teton)` cloning EM but with DGSIC·XSITE site term + the 6 DDS forms; (4) wire density = **CR Zeide RELSDI** (`relative_density` dispatch, not stand_ccf) + habitat ITYPE (41416→CODE 24 via the habitat keyword handler / ICHBCL); (5) DGFTRC instrument-replay to bit-verify WK2 for WB/LP/ES/AF/AS.
 ## Chunk 4 — Height (tt/htgf.f)  ⬜   ## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
 ## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
