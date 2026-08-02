@@ -511,7 +511,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 psigsq = s.variant isa Northeast ? 0.0898f0 :
                          s.variant isa CentralRockies ? 0.07f0 :
                          s.variant isa Kootenai ? KT_PSIGSQ[sp] :
-                         s.variant isa EasternMontana ? EM_PSIGSQ[sp] : DG_PSIGSQ   # NE 0.0898 / CR 0.07 / KT,EM per-species / SN default
+                         s.variant isa EasternMontana ? EM_PSIGSQ[sp] :
+                         s.variant isa Teton ? TT_PSIGSQ[sp] : DG_PSIGSQ   # NE 0.0898 / CR 0.07 / KT,EM,TT per-species / SN default
                 temp = min(cornew * cornew / psigsq, 72f0)
                 wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
                 corv = wc * cornew

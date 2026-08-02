@@ -109,6 +109,8 @@ include("variants/teton/teton.jl")            # TT singleton + registration (MAX
 include("variants/teton/species.jl")          # TT blkdat init (18 species, seed 55329, ZEIDE SDI) + SPCTRN
 include("variants/teton/site_index.jl")        # TT sitset (SITEAR interp + SDIDEF) + forkod (chunk 2)
 include("variants/teton/crown.jl")             # TT per-tree CCF (tt/ccfcal.f MODE=1) — RELDEN+PCCF for DG (chunk 3)
+include("variants/teton/dg_coefficients.jl")   # TT large-tree DG coefficient arrays (tt/dgf.f DATA, generated)
+include("variants/teton/diameter_growth.jl")   # TT large-tree DDS (tt/dgf.f): tt_dgcons! + dgf! (MAIN + ASPEN)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")

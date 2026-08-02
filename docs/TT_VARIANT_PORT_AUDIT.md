@@ -70,7 +70,18 @@ species' SI (TEM) into each species' [SITELO,SITEHI]:
   site species DF(3), TEM=50 (default, no explicit SI — the STDINFO 6th field 65 is ELEVATION not SI).
   All 18 SITEAR match (WB 43.75, DF 50, PM 16.25, NC 97.5, …) and all 18 SDIDEF=SDICON. `initialize!`
   now runs end-to-end for TT (tree load + site setup); next hook (setup_growth!/DG) errors as expected.
-## Chunk 3 — Large-tree DG (tt/dgf.f)  🔶 SCOPED (model fully mapped; implementation next)
+## Chunk 3 — Large-tree DG (tt/dgf.f)  ✅ DONE — BIT-EXACT (WK2 all 27 trees)
+
+**VALIDATED bit-exact vs live** via DGFTRC instrument-replay (patched WK2(I)=DDS dump + CONSPP-component
+dump, relinked FVStt_trc). ttt01 first growth cycle: **all 27 trees Δwk2=0** — MAIN Wykoff (WB/LP/ES/AF)
+AND aspen DGFASP (AS, all sizes 0.1–12.7"). DGCONS/calibration/density all bit-exact: BA=85.131, RELDEN
+(stand CCF)=112.319, DGCON LP=0.962982/WB=1.235373/ES=1.749294, COR ES=0.042154, bark LP=0.969 — all match.
+Impl: `tt_dgcons!` + `dgf!(::Teton)` (src/variants/teton/diameter_growth.jl) + `tt_tree_ccf` (crown.jl) +
+generated `dg_coefficients.jl` (tools/teton/gen_dg_jl.py). Wired: setup_growth! DG dispatch, standstats
+point_ccf/stand_ccf Teton branches, simulate.jl:163 `relative_density=stand_ccf`, TT_PSIGSQ calibration branch.
+CSV gained wykoff_ht2 (=ht2, Wykoff htdbh) + bark1/bark2/bark_imap (tt/bratio.f). Non-ttt01 forms (PP/juniper/
+BI-MC/NC-OH DIAGR) error loudly (need their own test stand). Validation harness: notre!→setup_growth!→grow_cycle!
+(isolated each_stand skips notre! tpa-expansion ⇒ BA 10× low — a harness artifact, fixed by calling notre! first).
 
 **ttt01 species: ES×9, AS×8, AF×6, LP×5, WB×1** ⇒ exercises only TWO DDS forms: the MAIN Wykoff
 (WB/LP/ES/AF) + ASPEN DGFASP (AS). No PP/juniper/NC/OH — those forms port later (unvalidatable on ttt01).

@@ -84,6 +84,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa EasternMontana
         em_dgcons!(s)                     # EM DGCON/DGDSQ/DGCCF (DGHAB+DGFOR+MAPDSQ+elev/slope-aspect+site adj), ATTEN=OBSERV
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa Teton
+        tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -160,6 +163,7 @@ function compute_density!(s::StandState)
     s.variant isa Kootenai && (s.plot.relative_density = stand_ccf(s))
     s.variant isa InlandEmpire && (s.plot.relative_density = stand_ccf(s))   # IE RELDEN (ie/ccfcal.f) for dgf!/htgf
     s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
+    s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
     return s
 end
 
