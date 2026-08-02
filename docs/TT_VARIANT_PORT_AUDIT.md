@@ -193,3 +193,16 @@ instrument-replay bit-verify; unblocks the full grow_cycle! + small-tree crown +
 
 ## Off-switch
 `touch docs/TT_VARIANT_PORT_COMPLETE` (USER's call).
+
+
+### Chunk-6 per-record validation is TRIPLING-CONFOUNDED (doctrine #3) — measured 2026-08
+Rich instrument (regent.f:929 + :23 CONTINUE, fort.82) proved the small-tree per-record diff is INVALID:
+live triples the record AFTER subcycle 1, so the MAIN record shows WK3 after ONE subcycle (AS I=2: 2.0→5.63)
+while the tripled records continue (→9.607); jl (no tripling in the isolated test) applies BOTH subcycles to
+one record (→8.56). So the aspen HTG 6.56-vs-3.63 gap is largely the tripling/subcycle split, NOT purely a
+FINDAG bug. Confirmed HK = H+HTG = WK3 (my gate is correct); ES DG=0 (HK<4.5) is likely right — live 0.2 is
+the retained large-tree DG (regent skips DBH increment for HK<4.5 / D≥BREAK, leaving dgf DG). ⇒ chunk 6 is a
+FAITHFUL port (smdgf RD-arg/DG-formula/floor/cap all fixed); DEFAULT height close (ES 1.597/1.540). VALIDATE
+AT .sum (needs chunk 7 mortality), NOT per-record. OPEN (verify at .sum): exact aspen FINDAG (BH-adj) + the
+subcycle×tripling interaction. NEXT: chunk 7 mortality (TT hits the SHARED driver — needs mort_bkgd_intercept/
+mort_bkgd_dbh/sdi_max cols in species_coefficients.csv; check tt/morts.f vs shared) → stand .sum differential.
