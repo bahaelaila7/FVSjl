@@ -40,7 +40,7 @@ r4vol_cubic(voleq::AbstractString, dbhob::Float32, httot::Float32, mtopp::Float3
 function r4vol_volumes(voleq::AbstractString, dbhob::Float32, httot::Float32, mtopp::Float32, ht1prd::Float32)::Tuple{Float32,Float32}
     (dbhob < 1f0 || httot <= 4.5f0) && return (0f0, 0f0)
     tht = httot - 1f0
-    tht <= 5f0 && (v = dbhob * dbhob * httot * 0.00272708f0; return (v, v))   # small tree: Smalian
+    tht <= 5f0 && return (dbhob * dbhob * httot * 0.00272708f0, 0f0)   # small tree (THT≤5): total=Smalian, merch=0 (r4vol.f:169-172 only sets VOL(1))
     ii = _tt_r4_ii(strip(voleq)[8:10], strip(voleq)[1:3])
     ii == 0 && return (0f0, 0f0)
     ht67 = TT_R4C1[ii] * dbhob^TT_R4C2[ii] * tht^TT_R4C3[ii]
