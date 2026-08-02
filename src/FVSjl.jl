@@ -111,6 +111,8 @@ include("variants/teton/site_index.jl")        # TT sitset (SITEAR interp + SDID
 include("variants/teton/crown.jl")             # TT per-tree CCF (tt/ccfcal.f MODE=1) — RELDEN+PCCF for DG (chunk 3)
 include("variants/teton/dg_coefficients.jl")   # TT large-tree DG coefficient arrays (tt/dgf.f DATA, generated)
 include("variants/teton/diameter_growth.jl")   # TT large-tree DDS (tt/dgf.f): tt_dgcons! + dgf! (MAIN + ASPEN)
+include("variants/teton/htgf_coefficients.jl") # TT Schreuder-Hafley SBB height coefficients (tt/htgf.f, generated)
+include("variants/teton/height_growth.jl")     # TT large-tree height growth (tt/htgf.f DEFAULT SBB) — chunk 4
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
