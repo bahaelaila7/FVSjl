@@ -142,6 +142,7 @@ include("variants/bluemountains/crown.jl")          # BM chunk 5 (partial): bm_t
 include("variants/bluemountains/diameter_growth.jl")# BM chunk 3: bm_dgcons! + dgf!(::BlueMountains) MSS spline
 include("variants/bluemountains/height_growth.jl")  # BM chunk 4: bm_findag + height_growth!(::BlueMountains)
 include("variants/bluemountains/regent.jl")         # BM chunk 6: bm_smhtgf + small_tree_growth!(::BlueMountains)
+include("variants/bluemountains/mortality.jl")      # BM chunk 7: mortality!(::BlueMountains) Hamilton + SDI self-thin
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
