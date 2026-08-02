@@ -136,6 +136,7 @@ include("variants/utah/volume.jl")             # UT volume (chunk 8): MATW r4vol
 # --- bluemountains (BM) — Region-6 western Wykoff DDS (Stage SDI), 18 species; chunk 0 scaffold ---
 include("variants/bluemountains/bluemountains.jl")  # BM singleton + registration (MAXSP 18, western Wykoff DDS)
 include("variants/bluemountains/species.jl")        # BM blkdat init (18 species, seed 55329, Stage SDI, DGSD=1.5)
+include("variants/bluemountains/site_index.jl")     # BM chunk 2: forkod/habtyp(PCOML)/ecocls/sichg/htcalc/sitset
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
