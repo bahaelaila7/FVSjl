@@ -6,6 +6,33 @@ Doctrine (unchanged from CR/EM): validate vs LIVE per chunk; MEASURE don't infer
 diff INVALID after tripling; port faithfully then validate; reuse the shared engine (TT-gate all shared
 changes). Oracle + Fortran source are the SOLE ground truth (no FVSjulia oracle).
 
+## ★★ DVEW woodland volume COMPLETE (2026-08-02) — chunk-8 tail closed
+
+The last chunk-8 item (PM/UJ/RM/MC/OH woodland cubic) is ported + validated. **Root model (measured, not
+inferred):** TT DVEW = **R4D2H** (Chojnacky INT-339 D2H regression, `volume/NVEL/r4d2h.f`), routed
+`GROSSVOL→DVEST` (region 4, `grossvol.f:172` `MDL='DVE'`). `VOL(1)=VOL(4)=(a+b·D2H^⅓+c·MSTEM)³`,
+`D2H=DBH²·HTTOT`. **NO Behre/CFTOPK trim** in the DVE path (`dvest.f:90` just calls R4D2H, returns whole
+cubic) — the earlier "CFTOPK 0.49× taper" memory was a PHANTOM; the correct chain has no trim. `fvsvol.f`
+NATCRS then maps `TCF=VOL(1)`, `MCF=(D≥DBHMIN)·(VOL(4)+VOL(7))` [VOL(7)=0], `SCF=0` (region-4, not R8/R9),
+`BdFt=0` (DVE has no board-foot, `fvsvol.f:411` skips it; BFPFLG=0 for R4). **DRCOB=0** passed ⇒ D2H uses
+DBH not DRC. **FCLASS=0 ⇒ MSTEM=0** ⇒ the c-coefficient term drops. DBHMIN=8 (tt/grinit.f, no woodland
+override). UJ/PM carry a **0.1 cuft floor for DBH<3** (r4d2h.f:92/98). `jl`: `r4d2h_vol1()` +
+`compute_volumes_tt!` else-branch (src/variants/teton/volume.jl).
+
+**gfortran-match details (both mattered):** `D2H**(1./3.)` and `(...)**3.` are **REAL exponents** ⇒
+`powf` (`fpow(x,1f0/3f0)`, `fpow(base,3f0)`), NOT `cbrt`/`x*x*x` — using the wrong primitive left PM/UJ
+off. **D<1 exclusion:** the FVStt volume loop (`vols.f` DO 200) never calls r4d2h for a sub-inch record —
+INSTRUMENTED: a DBH-0.5 PM never reaches r4d2h while DBH-2.0/2.5 do (and take the 0.1 floor). So the
+existing `d<1→0` guard is faithful and the 0.1 floor applies only to VOLUMED trees (1 ≤ DBH < 3).
+
+**Validation (synthetic pure-woodland stands, ttt01 rows re-speciesed, vs FVStt_g16):**
+per-tree VOL1 + TCF/MCF **BIT-EXACT** for all 5 species (instrument fort.95=r4d2h VOL(1), fort.96=fvsvol
+TCF/MCF). `.sum` 1990: **MC 389/231, RM 397/228, OH 327/195 fully BIT-EXACT**; **PM 610/361 vs 608/360,
+UJ 496/291 vs 495/291** = ±1-2 cuft = the documented Float32 tpa/summation-accumulation cornered tail
+(per-tree exact, same stand/tpa as the exact MC ⇒ not a volume bug). small_PM (0.1-floor+D<1) 5/5 exact.
+Meta: MEASURE settled two phantoms (CFTOPK trim; "5× high" from the wrong CR region-2 Chojnacky). See
+[[fvsjl-tt-variant-port]].
+
 ## Why TT is the chosen next variant (measured — chunk-0 scouting)
 Compared `dgf.f` + `grinit.f` across the 3 remaining western candidates (TT/UT/BM) vs the done EM:
 all three are **Wykoff-DDS** (inline `dgf`, NOT GENGYM). TT is the cleanest discount because it reuses
