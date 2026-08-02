@@ -122,7 +122,22 @@ PREDGR=POT·VALMOD·(0.48630+0.01258·SI); ASPDG=ln(2·D·BARK·PREDGR+PREDGR²)
 (4) `tt_dgcons!` (DGCON=DGSIC·XSITE+DGFOR+aspect/slope/elev; DGDSQ; DGCCF; ATTEN) + `dgf!(::Teton)` (6 forms;
 ttt01=main+aspen); RELSDI/DSTAG via SDICAL; (5) wire setup_growth! DG dispatch (+ `relative_density=stand_ccf`
 at simulate.jl:162) + calibrate; (6) DGFTRC bit-verify WK2 (WB/LP/ES/AF/AS).
-## Chunk 4 — Height (tt/htgf.f)  ⬜   ## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
+## Chunk 4 — Height (tt/htgf.f)  🔶 SCOPED (model mapped + coefficients extracted; implementation next)
+
+Species dispatch (SELECT CASE at htgf.f:305): CASE(10)PP `HTG=exp(CON+0.62144·lnDG)+0.4809`; CASE(4,11,12)
+PM/UJ/RM `HTG=0` (regent); CASE(15,18)NC/OH even-aged GEMHT; CASE(13,16)BI/MC FINDAG+POTHTG+modifiers;
+**CASE DEFAULT (WB/LM/DF/BS/AS/LP/ES/AF/OS + MM→JSPC6)** = the ttt01 path = **Schreuder-Hafley SBB** height-DBH:
+- IICR=INT(ICR/10+0.5) cap 9; KEYCR 1-3 (IICR 0-2→1, 3-7→2, 8-9→3); JSPC=sp≤10?sp:(sp14?6:11); K=(JSPC−1)·3+KEYCR.
+- Small/OOB → HTG=0.1 (HT≤4.5 or DBH≥XI1+COF1 or HT≥XI2+COF2 or DBH≤0.1). XI1=0.1, XI2=4.5.
+- Y1=(DBH−XI1)/COF1; Y2=(HT−XI2)/COF2; FBY=logit; Z=(COF4+COF6·FBY2−COF7·(COF3+COF5·FBY1))·(1−COF7²)^−0.5.
+- ZBIAS=AZBIAS+BZBIAS·ELEV (0 if ELEV<55 or >80; sp6/14 use ELEV−20 + a ZADJ). **DIA=DBH+DG/BARK** (uses DG!).
+- PSI=COF8·((DIA−XI1)/(XI1+COF1−DIA))^COF9·exp(Z·√(1−COF7²)/COF6); H=(PSI/(1+PSI))·COF2+XI2; HTG=max(H−HT,0.1).
+- Finalize (label 201): `HTG·SCALE·XHMULT(sp)·exp(HTCON(sp))·MISHGF`; then SIZCAP(sp,4) cap.
+Coefficients extracted (tools/teton/extract_htgf.py): **data/teton/htgf_cof.csv** (COF 33×9 = 11 JSPC-groups × 3
+crown-groups from COF1-11, EQUIVALENCE COF(:,1:3)=COF1…) + **htgf_zbias.csv** (AZBIAS/BZBIAS 18). XHMULT=1
+(MULTS default), HTCON = HTCONS calibration (shared). NEXT: implement `height_growth!(::Teton)` + HTGFTRC bit-verify.
+
+## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
 ## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
 
