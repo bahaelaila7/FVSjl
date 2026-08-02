@@ -22,7 +22,8 @@ const _EM_R1KEMP_BF = Dict{String,NTuple{4,Float32}}(
     bf = get(_EM_R1KEMP_BF, fia, nothing); bf === nothing && return 0f0
     d2h100 = d * d * h / 100f0
     bfgrs = d < 21f0 ? bf[1] * d2h100 + bf[2] : bf[3] * d2h100 + bf[4]
-    return bfgrs < 0f0 ? 0f0 : bfgrs
+    bfgrs < 10f0 && (bfgrs = 10f0)   # BFNET min 10 (r1kemp.f:396)
+    return bfgrs
 end
 
 # R1KEMP gross cubic (r1kemp.f:345-384, ISPEC≠14,15; KLASS=1 default). D2H100=DBH²·HT/100.
