@@ -92,7 +92,25 @@ DGCASP:300 DGSASP:306 DGSLOP:312 DGSLSQ:318 DGEL:324 DGEL2:330 DGDBAL:336 DGBA:3
 2D — IGCCFM(5,18):124 IBSERV(5,18):174 DGCCFC(5,18):147 MAPLOC(4,18):203 DGFOR(5,18):223 MAPDSQ(4,18):246
 DGDS(4,18):272 IDGSIM(5,18):357 DGSIC(5,18):377. Special — ICHBCL(363):405 DGHAB(7):409. DGPTCC/BAU/ISTAGF (sp13-18 only).
 
-### Remaining chunk-3 steps: (1) extract the 19 DATA blocks → data/teton/dg_*.csv (Python, like tools/easternmontana/extract_dg*.py); (2) port DGFASP (aspen, ut/dgfasp.f); (3) `tt_dgcons!` + `dgf!(::Teton)` cloning EM but with DGSIC·XSITE site term + the 6 DDS forms; (4) wire density = **CR Zeide RELSDI** (`relative_density` dispatch, not stand_ccf) + habitat ITYPE (41416→CODE 24 via the habitat keyword handler / ICHBCL); (5) DGFTRC instrument-replay to bit-verify WK2 for WB/LP/ES/AF/AS.
+### DENSITY CORRECTION (measured — supersedes the chunk-0 scout's "CR Zeide density" for DG):
+tt/dgf.f uses TWO density measures. **RELDEN** (in CONSPP `0.01·DGCCF·RELDEN`) is NOT assigned in dgf.f
+⇒ it is the shared-COMMON **stand CCF** (same as EM/KT — `p.relative_density = stand_ccf(s)`), NOT Zeide.
+The **Zeide RELSDI** (`STDSDI/SDIMAX`, cap 0.85; STDSDI=SUMTRE·(DGQMD/10)^1.605; SDICAL) is LOCAL and only
+drives **DSTAG** (`3.33333·(1−RELSDI)` when RELSDI>0.7 — DIAGR-species stagnation) + mortality (chunk 7). So
+TT's DG RELDEN = CCF (needs tt/ccfcal.f); Zeide is for DSTAG/morts. ttt01 main species have NONZERO DGCCF
+(WB −0.199592, LP −0.206752, ES/AF class-varying) ⇒ RELDEN/CCF is REQUIRED for ttt01 DG (not deferrable).
+DGFASP (aspen) uses REL=D/RMSQD + BA, not RELDEN.
+
+### DGFASP (aspen, bin/FVStt_buildDir/dgfasp.f — mapped): REL=D/RMSQD; ASPCR=CR/10 (CR=ICR raw pct);
+POT=(0.4755−3.8336e-6·D^4.1488)+(4.510e-2·ASPCR·D^0.67266) [floor 0.01]; FOFR=1.07528·(1−exp(−1.89022·REL));
+GOFAD=0.21963·(RMSQD+1)^0.73355; BAACT=min(BA,305 if≥310); VALMOD=1−exp(−FOFR·GOFAD·((310−BAACT)/310)^0.5);
+PREDGR=POT·VALMOD·(0.48630+0.01258·SI); ASPDG=ln(2·D·BARK·PREDGR+PREDGR²). Needs RMSQD (stand QMD) + BA.
+
+### Remaining chunk-3 steps: ✅(1) extract 19 DATA blocks → data/teton/dg_*.csv [DONE 6031e6d].
+(2) port tt/ccfcal.f → `tt_tree_ccf` (RELDEN=stand CCF **and** PCCF; EM did this in crown.jl); (3) port DGFASP;
+(4) `tt_dgcons!` (DGCON=DGSIC·XSITE+DGFOR+aspect/slope/elev; DGDSQ; DGCCF; ATTEN) + `dgf!(::Teton)` (6 forms;
+ttt01=main+aspen); RELSDI/DSTAG via SDICAL; (5) wire setup_growth! DG dispatch (+ `relative_density=stand_ccf`
+at simulate.jl:162) + calibrate; (6) DGFTRC bit-verify WK2 (WB/LP/ES/AF/AS).
 ## Chunk 4 — Height (tt/htgf.f)  ⬜   ## Chunk 5 — Crown (tt/crown+ccfcal)  ⬜
 ## Chunk 6 — Small-tree (tt/regent.f)  ⬜   ## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
