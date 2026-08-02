@@ -23,6 +23,30 @@
 
 # ut/dgf.f ENTRY DGCONS — per-species per-stand DG constants. Needs ISISP (site_species), IFOR (forest_idx),
 # ITYPE (habitat_input), ELEV/ASPECT/SLOPE, SITEAR. Fills calib dg_const/dg_dsq/dg_ccf/atten + bark.
+# ut/cratet.f:96-152 — convert SITEAR from the reported (base-age) site index to an age-50 site-curve
+# HEIGHT for the site-model species, used by the DG/height models. TEMCCF = stand CCF (floored at 125).
+# CASE(1,2,7,23) Alexander-Tackle-Dahms RM-29; CASE(4,5,8,9) Alexander RM-32; CASE(10) Meyer TB-630.
+# Runs ONCE at setup (cycle 0), BEFORE ut_dgcons!. Other species keep the sitset SITEAR.
+function ut_cratet_siteconv!(s::StandState)
+    p = s.plot
+    temccf = stand_ccf(s); temccf < 125f0 && (temccf = 125f0)
+    @inbounds for sp in 1:24
+        si = p.sp_site_index[sp]
+        si <= 0f0 && continue
+        if sp == 1 || sp == 2 || sp == 7 || sp == 23
+            p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * (50f0^2) -
+                0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si - 0.0000455f0 * (50f0^2) * si
+        elseif sp == 4 || sp == 5 || sp == 8 || sp == 9
+            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * si^0.83312f0) *
+                (1f0 - exp(-0.015701f0 * 50f0))^(22.71944f0 * si^(-0.63557f0))
+        elseif sp == 10
+            p.sp_site_index[sp] = (3.635794f0 * si^0.916307f0) /
+                (1f0 + exp(6.09478f0 - 0.96483f0 * log(50f0) - 0.277025f0 * log(si)))
+        end
+    end
+    return s
+end
+
 function ut_dgcons!(s::StandState)
     c = s.calib; p = s.plot; ctl = s.control; sd = s.coef.species
     isisp = Int(p.site_species); (isisp < 1 || isisp > 24) && (isisp = 7)
@@ -153,4 +177,3 @@ function dgf!(s::StandState, ::Utah)
     return s
 end
 
-diameter_growth!(s::StandState, ::Utah) = dgf!(s, Utah())

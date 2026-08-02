@@ -90,6 +90,7 @@ function setup_growth!(s::StandState)
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
+        ut_cratet_siteconv!(s)            # UT CRATET: convert SITEAR → age-50 site-curve height (ut/cratet.f), BEFORE dgcons
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         calibrate_diameter_growth!(s; scale = dgscale)
     end
@@ -169,6 +170,7 @@ function compute_density!(s::StandState)
     s.variant isa InlandEmpire && (s.plot.relative_density = stand_ccf(s))   # IE RELDEN (ie/ccfcal.f) for dgf!/htgf
     s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
     s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
+    s.variant isa Utah && (s.plot.relative_density = stand_ccf(s))           # UT RELDEN (ut/ccfcal.f) for dgf! CONSPP term
     return s
 end
 
