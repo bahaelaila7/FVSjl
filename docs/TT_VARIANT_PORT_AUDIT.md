@@ -201,7 +201,17 @@ VALIDATED) + TopHt exact (66/68/75/79) + QMD close (5.8/6.5/8.1/10.1 vs 5.9/6.5/
 (97/99 → 219/245, growing — accumulating DG-ZZRAN + small-tree tripling residual). Growth core integrates
 end-to-end bit-exact-or-cornered like CR/KT/IE/EM. OPEN: BA-low residual (check DG cumulative vs .sum; likely
 accepted tail) + real volume (chunk 8, FW2 like EM).
-## Chunk 8 — Volume (tt VOLEQ = MATW/DVEW)  🔶 SCOPED (downstream leaf; needs MATW port)
+## Chunk 8 — Volume (tt VOLEQ = MATW/DVEW)  ✅ CUBIC DONE — total BIT-EXACT, merch within 1%
+
+Ported R4VOL/R4MATTAPER (Region-4 Matney taper) → src/engine/r4vol.jl: r4vol_volumes returns (CF0 total-stem,
+CFGRS gross merch) — **499/499 BIT-EXACT** per-tree vs live (instrument fort.83). Taper STUMPD/BUTTCF/CF0/B from
+CFCOEF(20,7) (II from VOLEQ code+geocode) + Smalian 16.5-ft log integration (INT-rounded). Wired compute_volumes_tt!
+(teton/volume.jl) + engine dispatch + Teton VOLEQ branch (TT_VOL_EQ 18 sp). ★MERCH TOP measured: MTOPP=TOPD(6.0
+outside-bark, tt/grinit.f)·bark_ratio = inside-bark top (AF 6·0.937=5.622, ES 5.736, LP/WB/AS 5.814 — match live);
+DBHMIN=8 (sp7=7). .sum: TOTAL cubic (TCuFt) **BIT-EXACT** (1990 1584/1583); MERCH (MCuFt) within 1% (826/817;
+residual = dbhmin-boundary/topwood detail); later years cornered = growth-tail. REMAINING (downstream leaves):
+board-foot Scribner (SCRIBC table + INTL14 Intl-¼), DVEW species (PM/RM/MC/OH/UJ via cr_dve_vol — not in ttt01),
++ the ~1% merch residual. TT GROWTH CORE (0-7) + cubic volume validated = full-variant-port bar these leaves.
 
 TT VOLEQ (from ttt01.out) = geocode 400/401 + eq-type: MOST conifers **400MATW<volcode>** (Matney profile),
 + 400DVEW (PM/RM/MC/OH DVE) + 401DVEW065 (UJ). ttt01 species: WB 400MATW108, DF 400MATW202, BS/ES 400MATW093,
