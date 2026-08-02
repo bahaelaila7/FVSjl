@@ -1,0 +1,150 @@
+# =============================================================================
+# regent.jl (bluemountains) — BM small-tree height + diameter growth (bm/regent.f + bm/smhtgf.f). Chunk 6.
+#
+# small_tree_growth!(s, stash, ::BlueMountains) overrides HTG/DG for trees below XMAX, blended with the
+# large-tree prediction by XWT=(D−XMIN)/(XMAX−XMIN). Height: HTGR = POTHTG·PCTRED·VIGOR·CON, where POTHTG
+# = bm_smhtgf(sp,SI,H,DTIME=10) (per-species small-tree height curves); LM(12)=SI/5; AS(15) Sheppard.
+# + ZZRAN·0.1 (reject until ∈[−2,0.5]), ·XRHGRO(=1)·SCALE(=FINT/REGYR). CON=RHCON(=1)·exp(HCOR).
+# Small-tree DG (D<BKPT=3, WJ 99): HK=H+HTG; DK/DKK ht-dbh curve → DGMX clamp → DDS → DG, DIAM floor.
+# =============================================================================
+
+# bm/regent.f DATA (species order WP WL DF GF MH WJ LP ES AF PP WB LM PY YC AS CW OS OH).
+const BM_RG_DGMAX = Float32[2.8,2.8,2.4,3.6,2.5,2.0,3.5,3.6,3.6,2.8,2.8,2.8,5.0,5.0,2.5,5.0,2.8,5.0]
+const BM_RG_XMAX  = Float32[3,2,4,4,2,99,4,4,4,5,3,4,4,4,4,4,5,4]
+const BM_RG_XMIN  = Float32[2,1,2,2,1,90,2,2,2,1,1.5,2,2,2,2,2,1,2]
+const BM_RG_DIAM  = Float32[0.4,0.3,0.3,0.3,0.2,0.3,0.4,0.3,0.3,0.5,0.4,0.4,0.2,0.2,0.2,0.2,0.5,0.2]
+const BM_RG_AB    = Float32[1.11436, -0.011493, 0.43012f-4, -0.72221f-7, 0.5607f-10, -0.1641f-13]
+const _BM_RG_REGYR = 10.0f0
+
+# bm/smhtgf.f — small-tree potential height growth (POTHTG) over DTIME years for species sp on site si.
+function bm_smhtgf(sp::Int, si::Float32, h::Float32, dtime::Float32)::Float32
+    if sp == 1                                            # WP — Chapman-Richards
+        c1 = 0.375045f0; c2 = 0.92503f0; c3 = -0.020796f0; c4 = 2.48811f0
+        arg = (1.0f0 - (c1 / si * h)^(1f0 / c4)) / c2
+        effage = arg > 0f0 ? log(arg) / c3 : 0f0
+        agepdt = effage + dtime
+        return (si / c1) * (1f0 - c2 * exp(c3 * agepdt))^c4 - (si / c1) * (1f0 - c2 * exp(c3 * effage))^c4
+    elseif sp == 2
+        return ((-3.9725f0 + 0.50995f0 * si) / (28.1168f0 - 0.05661f0 * si)) * dtime
+    elseif sp == 3
+        return ((2.0f0 + 0.420f0 * si) / (28.5f0 - 0.05f0 * si)) * dtime
+    elseif sp == 4
+        return ((4.2435f0 + 0.1510f0 * si) / (19.0184f0 - 0.0570f0 * si)) * dtime
+    elseif sp == 5
+        return ((0.965758f0 + 0.082969f0 * si) / (55.249612f0 - 1.288852f0 * si)) * dtime
+    elseif sp == 6
+        s = clamp(si, 5.5f0, 75.0f0)
+        return (s / 5.0f0) * (s * 1.5f0 - h) / (s * 1.5f0)
+    elseif sp == 7
+        return (0.02008805f0 * si) * dtime
+    elseif sp == 8
+        return ((0.09211f0 + 0.208517f0 * si) / (43.358f0 - 0.168166f0 * si)) * dtime
+    elseif sp == 9
+        return ((6.0f0 + 0.14f0 * si) / (33.882f0 - 0.06588f0 * si)) * dtime
+    elseif sp == 10 || sp == 17
+        return ((-1.0f0 + 0.32857f0 * si) / (28.0f0 - 0.042857f0 * si)) * dtime
+    elseif sp == 11
+        return ((0.02008805f0 * si) * dtime) * 1.6f0
+    elseif sp == 12
+        return 0.5f0
+    elseif sp == 15
+        return 5.0f0
+    else                                                  # PY/YC/CW/OH (13,14,16,18)
+        return ((1.47043f0 + 0.23317f0 * si) / (31.56252f0 - 0.05586f0 * si)) * dtime
+    end
+end
+
+@inline function _bm_rg_stash!(stash, t, i::Int)
+    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
+        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
+        !isempty(stash.is_small) && (stash.is_small[i] = true)
+    end
+end
+
+function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32 = 10.0f0)
+    p, t, c = s.plot, s.trees, s.calib
+    n = t.n; n == 0 && return s
+    sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
+    relden = p.relative_density; avh = p.avg_height
+    dgsd = s.control.dg_sd
+    scale = fint / _BM_RG_REGYR                           # SCALE = FINT/REGYR
+    # PCTRED (density modifier), stand-level (bm/regent.f:198-201)
+    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
+    ab = BM_RG_AB
+    pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= BM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        h = t.height[i]
+        sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
+        relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+        con = exp(c.htg_cor_small[sp])                    # RHCON(=1)·exp(HCOR)
+        xcr = Float32(t.crown_pct[i]) / 100.0f0
+        vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+        sp == 6 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)   # WJ pinyon (bm/regent.f:277)
+        # POTHTG + HTGR
+        local htgr::Float32
+        if sp == 12
+            htgr = (si / 5.0f0) * pctred * vigor * con
+        elseif sp == 15                                   # aspen Sheppard (bm/regent.f:294-305)
+            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+            htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
+        else
+            pothtg = bm_smhtgf(sp, si, h, _BM_RG_REGYR)    # DTIME=TEMT=10
+            htgr = pothtg * pctred * vigor * con
+        end
+        # ZZRAN reject-loop (bm/regent.f:308-310)
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+            end
+        end
+        htgr = (htgr + zzran * 0.1f0) * scale             # XRHGRO=1
+        htgr < 0.1f0 && (htgr = 0.1f0)
+        # XWT blend with the large-tree HTG
+        xmn = BM_RG_XMIN[sp]; xmx = BM_RG_XMAX[sp]
+        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]; htg < 0.1f0 && (htg = 0.1f0)
+        t.ht_growth[i] = htg
+        # ---- small-tree DG (bm/regent.f:388-460). BKPT=3 (WJ 99). HK=H+HTG; DK/DKK ht-dbh → DGMX → DDS.
+        bkpt = sp == 6 ? 99.0f0 : 3.0f0
+        d >= bkpt && (_bm_rg_stash!(stash, t, i); continue)
+        hk = h + htg
+        bark = bm_bratio(sd, sp, d)
+        if hk <= 4.5f0
+            t.diam_growth[i] = 0.0f0
+        else
+            local dk::Float32, dkk::Float32
+            if sp == 7                                    # LP — fixed ht-dbh
+                dk = -9.8752f0 / (log(hk - 4.5f0) - 4.8656f0) - 1.0f0
+                dkk = h <= 4.5f0 ? d : -9.8752f0 / (log(h - 4.5f0) - 4.8656f0) - 1.0f0
+            elseif sp == 6                                # WJ — linear site
+                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+            else                                          # conifers/others — BX/(ln(H−4.5)−AX)−1 (calibrated AA or HT1)
+                bx = sd[:ht2][sp]
+                ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]
+                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
+                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+            end
+            dgk = (dk - dkk) * bark                        # XRDGRO=1
+            dgk < 0.0f0 && (dgk = 0.0f0)
+            dgmx = BM_RG_DGMAX[sp] * scale
+            sp == 11 && (dgmx = fint * 0.2f0)              # WB (bm/regent.f:239)
+            dgk > dgmx && (dgk = dgmx)
+            scale2 = _BM_RG_REGYR / fint                   # YR/FINT
+            dds = dgk * (2.0f0 * bark * d + dgk) * scale2
+            dgk = sqrt((d * bark)^2 + dds) - bark * d
+            (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
+            t.diam_growth[i] = dgk
+        end
+        _bm_rg_stash!(stash, t, i)
+    end
+    return s
+end
