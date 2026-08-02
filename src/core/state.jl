@@ -517,6 +517,7 @@ mutable struct Calibration
                                  # predicting at the backdated per-tree dbh; ne_badist! reads this when non-empty)
     dg_dsq::Vector{Float32}      # EM per-stand DGDSQ = DGDS[ISPDSQ,sp] (em/dgf.f DGCONS); unused by other variants
     dg_ccf::Vector{Float32}      # EM per-stand DGCCF (em/dgf.f DGCONS, sp-specific); unused by other variants
+    sm_const::Vector{Float32}    # BM small-tree (<10") DG constant SMCON (bm/dgf.f DGCONS); unused by other variants
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -524,7 +525,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[],   # ht_dbh_aa=0, iabflg=1, calib_dbh empty
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP))                # dg_dsq, dg_ccf (EM)
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP))  # dg_dsq, dg_ccf (EM), sm_const (BM)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

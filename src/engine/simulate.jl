@@ -93,6 +93,9 @@ function setup_growth!(s::StandState)
         ut_cratet_siteconv!(s)            # UT CRATET: convert SITEAR → age-50 site-curve height (ut/cratet.f), BEFORE dgcons
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa BlueMountains
+        bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -171,6 +174,7 @@ function compute_density!(s::StandState)
     s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
     s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
     s.variant isa Utah && (s.plot.relative_density = stand_ccf(s))           # UT RELDEN (ut/ccfcal.f) for dgf! CONSPP term
+    s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
     return s
 end
 
@@ -490,6 +494,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
+    _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
@@ -497,6 +502,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
         bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
                _tt_up ? tt_bratio(Int(t.species[i]), t.dbh[i]) :
+               _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton) &&
