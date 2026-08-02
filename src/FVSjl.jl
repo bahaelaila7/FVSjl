@@ -120,6 +120,10 @@ include("variants/teton/mortality.jl")         # TT mortality (tt/morts.f = EM H
 include("variants/teton/volume.jl")             # TT volume (chunk 8): R4VOL Matney cubic + DVE
 include("variants/teton/establishment.jl")      # TT establishment clamps (tt/blkdat.f ESCOMN XMIN/HHTMAX)
 
+# --- utah (UT) — Region-4 western Wykoff DDS (Zeide SDI), 24 species, heavy PJ/woodland; chunk 0 scaffold ---
+include("variants/utah/utah.jl")              # UT singleton + registration (MAXSP 24, western Wykoff DDS, Zeide SDI)
+include("variants/utah/species.jl")           # UT blkdat init (24 species, seed 55329, Zeide SDI) + SPCTRN col 4
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -208,7 +212,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
