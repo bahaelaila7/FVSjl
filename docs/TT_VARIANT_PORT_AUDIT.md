@@ -188,7 +188,19 @@ extract. ttt01 small trees: AS d=0.1/1.2, ES/AF d=0.1 (0.1" seedlings). REGCON e
 DBH∈[1.5,3.0], REGCON calibration. NEXT: implement small_tree_growth!(::Teton) (subcycle+smhtgf+smdgf+blend) +
 instrument-replay bit-verify; unblocks the full grow_cycle! + small-tree crown + the stand .sum differential.
 
-## Chunk 7 — Mortality (tt/morts+varmrt)  ⬜
+## Chunk 7 — Mortality (tt/morts.f)  ✅ DONE — full grow_cycle! runs end-to-end, .sum CLOSE
+
+mortality!(::Teton) = EM Hamilton form EXACTLY (tt/morts.f DEFAULT: RI=0.5/(1+exp(PMSC+PMD·D)); RIP=RN merge;
+CONST=SDIMAX/0.02483133; RN=1−(1−(T−TN10)/T)^(1/FINT)) with TT PMSC/PMD (no PMDSQ). All ttt01 species use
+DEFAULT; only PP(10) has a special CI-form (errors, not in ttt01). ttmrt.f = percentile distribution (VARMRT
+equivalent; shared self-thinning used, like EM). Merch-spec default cols added to CSV (real VOLEQ = chunk 8).
+
+★★ FULL grow_cycle! RUNS END-TO-END (DG→height→small_tree→crown→mortality) → .sum. vs live FVStt ttt01:
+1990 BIT-EXACT (536/77/160/102/63/5.1); projected TPA near-exact (2000 525/525, 2090 392/live389 — MORTALITY
+VALIDATED) + TopHt exact (66/68/75/79) + QMD close (5.8/6.5/8.1/10.1 vs 5.9/6.5/8.3/10.8); BA runs few-% LOW
+(97/99 → 219/245, growing — accumulating DG-ZZRAN + small-tree tripling residual). Growth core integrates
+end-to-end bit-exact-or-cornered like CR/KT/IE/EM. OPEN: BA-low residual (check DG cumulative vs .sum; likely
+accepted tail) + real volume (chunk 8, FW2 like EM).
 ## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
 
 ## Off-switch
