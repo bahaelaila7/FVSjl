@@ -44,6 +44,21 @@ end
     return max(tcuft, 0f0), max(gcuft, 0f0), max(grsbdt, 0f0)
 end
 
+# R1ALLEN cubic (r1allen.f:64-79) for the EM DVEW '01' species: paper birch 375 (ISPC=12, N-central eq)
+# and cottonwood 740 (ISPC=13, Edminster RM-351). Both set TCVOL=CUVOL (merch=total per-tree; the .sum
+# gates merch at DBHMIN=7). Board RETURNs 0 for 375/740 (r1allen.f:369-374). D2H = DBH²·HTTOT (full).
+@inline function _em_r1allen_cubic(fia::AbstractString, d::Float32, h::Float32)::Float32
+    d2h = d * d * h
+    if fia == "375"                       # paper birch (ISPC=12)
+        d < 5f0    && return 0f0
+        d < 11f0   && return 0.988264f0 + 0.002732f0 * d2h
+        return 2.512836f0 + 0.002446f0 * d2h
+    elseif fia == "740"                   # cottonwood (ISPC=13)
+        return 0.00142526f0 * fpow(d2h, 1.0636f0)
+    end
+    return 0f0
+end
+
 # R1KEMP gross cubic (r1kemp.f:345-384, ISPEC≠14,15; KLASS=1 default). D2H100=DBH²·HT/100.
 @inline function _em_r1kemp_cubic(fia::AbstractString, d::Float32, h::Float32)::Float32
     cb = get(_EM_R1KEMP_CB, fia, nothing); cb === nothing && return 0f0
@@ -98,13 +113,16 @@ function compute_volumes_em!(s::StandState)
                 t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf   # GCUFT(top4) has its own floor
                 t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = bdf
             else
-                r1kemp = eq[1] == '1' && eq[2:3] == "02"
-                tcf = r1kemp ? _em_r1kemp_cubic(fia, d, h) : 0f0
+                r1kemp  = eq[1] == '1' && eq[2:3] == "02"
+                r1allen = eq[1] == '1' && eq[2:3] == "01"
+                tcf = r1kemp  ? _em_r1kemp_cubic(fia, d, h)  :
+                      r1allen ? _em_r1allen_cubic(fia, d, h) : 0f0
                 t.cuft_vol[i] = max(tcf, 0f0)
-                # R1KEMP VOL(4)=VOL(1)=CBGRS per-tree, but .sum MCuFt gates on DBHMIN=7 (em/grinit.f:102).
-                t.merch_cuft_vol[i] = (r1kemp && d >= 7f0) ? max(tcf, 0f0) : 0f0
+                # R1KEMP/R1ALLEN VOL(4)=VOL(1) per-tree, but .sum MCuFt gates on DBHMIN=7 (em/grinit.f:102).
+                t.merch_cuft_vol[i] = ((r1kemp || r1allen) && d >= 7f0) ? max(tcf, 0f0) : 0f0
                 t.saw_cuft_vol[i] = 0f0
-                t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0   # VOL(3)=BFNET, BFMIND=7
+                # R1KEMP board (VOL(3)=BFNET, BFMIND=7); R1ALLEN returns 0 board for 375/740 (r1allen.f:369).
+                t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0
             end
         else
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
