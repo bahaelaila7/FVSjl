@@ -206,8 +206,12 @@ accepted tail) + real volume (chunk 8, FW2 like EM).
 TT VOLEQ (from ttt01.out) = geocode 400/401 + eq-type: MOST conifers **400MATW<volcode>** (Matney profile),
 + 400DVEW (PM/RM/MC/OH DVE) + 401DVEW065 (UJ). ttt01 species: WB 400MATW108, DF 400MATW202, BS/ES 400MATW093,
 AS 400MATW746, LP 400MATW108, AF 400MATW019, PP 400MATW122. NOTE per-species VOLCODE ≠ FIA (WB→108=LP vol eq).
-The **MATW (Matney) equation is NOT yet in the jl NVEL driver** (CR=DVEW, EM/KT=FW2, eastern=Clark) — chunk 8
-needs the MATW port + a Teton setup_volume_equations! branch. Placeholder merch specs currently let the .sum run
+The **MATW (Matney) equation is NOT yet in the jl NVEL driver** (CR=DVEW, EM/KT=FW2, eastern=Clark). MATW
+dispatches (volinit2.f:157 MDL=MAT) to **R4VOL** (bin/FVStt_buildDir/r4vol.f, 662 lines) = the Region-4 Matney
+taper: R4MATTAPER taper profile + CFCOEF(20,7) height-to-2/3-DBH coeffs + SCRIBC Scribner board rules + cubic/
+board log integration. A substantial NVEL routine port (comparable to the FW2/DVE ports). DVEW (PM/RM/MC/OH/UJ)
+reuses the existing cr_dve_vol. Chunk 8 = port R4VOL (r4vol.jl) + Teton setup_volume_equations! (400MATW/400DVEW/
+401DVEW mapping, per-species VOLCODE from ttt01.out) + compute_volumes! Teton dispatch. Placeholder merch specs currently let the .sum run
 (growth cols validated; volume cols not). DOWNSTREAM LEAF — does not affect the growth core (chunks 0-7 validated).   ## Chunk 9 — Full-cycle diff  ⬜
 
 ## Off-switch
