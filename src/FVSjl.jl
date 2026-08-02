@@ -113,6 +113,7 @@ include("variants/teton/dg_coefficients.jl")   # TT large-tree DG coefficient ar
 include("variants/teton/diameter_growth.jl")   # TT large-tree DDS (tt/dgf.f): tt_dgcons! + dgf! (MAIN + ASPEN)
 include("variants/teton/htgf_coefficients.jl") # TT Schreuder-Hafley SBB height coefficients (tt/htgf.f, generated)
 include("variants/teton/height_growth.jl")     # TT large-tree height growth (tt/htgf.f DEFAULT SBB) — chunk 4
+include("variants/teton/regent.jl")            # TT small-tree growth (tt/regent.f+smhtgf.f+smdgf.f) — chunk 6
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
