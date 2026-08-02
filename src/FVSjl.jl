@@ -104,8 +104,9 @@ include("variants/easternmontana/height_growth.jl") # EM large-tree height growt
 include("variants/easternmontana/mortality.jl") # EM mortality (em/morts.f): RI-background + SDI-trend RN
 include("variants/easternmontana/regent.jl") # EM small-tree growth (em/regent.f NIVAR): em_regcons! + small_tree_growth!
 
-# --- teton (TT) — next western Rockies cluster variant (EM-DG + CR-Zeide-density discount); chunk 0 scaffold ---
+# --- teton (TT) — next western Rockies cluster variant (EM-DG + CR-Zeide-density discount) ---
 include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)
+include("variants/teton/species.jl")          # TT blkdat init (18 species, seed 55329, ZEIDE SDI) + SPCTRN
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
