@@ -68,8 +68,8 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
             xcr = Float32(t.crown_pct[i]) / 100.0f0
             vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
             htgr = pothtg * pctred * vigor * con
-        elseif sp == 6                                # aspen — FINDAG age (birth_age, EM-validated form)
-            age = Float32(t.birth_age[i]); age < 1.0f0 && (age = 1.0f0)
+        elseif sp == 6                                # aspen — FINDAG site age from HEIGHT (ut/findag.f:97)
+            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)   # SITAGE=(H·30.48/26.9825)^(1/1.1752)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0   # aspen: HTGR=POTHTG (no PCTRED/VIGOR)
         else                                          # PJ/GB/MC (non-aspen non-conifer)
