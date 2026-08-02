@@ -123,6 +123,7 @@ include("variants/teton/establishment.jl")      # TT establishment clamps (tt/bl
 # --- utah (UT) — Region-4 western Wykoff DDS (Zeide SDI), 24 species, heavy PJ/woodland; chunk 0 scaffold ---
 include("variants/utah/utah.jl")              # UT singleton + registration (MAXSP 24, western Wykoff DDS, Zeide SDI)
 include("variants/utah/species.jl")           # UT blkdat init (24 species, seed 55329, Zeide SDI) + SPCTRN col 4
+include("variants/utah/site_index.jl")         # UT site_setup! (chunk 2): forkod + habtyp (reuse TT R4HABT) + sitset
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
