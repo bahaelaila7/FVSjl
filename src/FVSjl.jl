@@ -129,6 +129,7 @@ include("variants/utah/dg_coefficients.jl")    # UT large-tree DG coefficient ar
 include("variants/utah/diameter_growth.jl")    # UT large-tree DDS (chunk 3): ut_dgcons! + dgf! (5-branch)
 include("variants/utah/htgf_coefficients.jl")  # UT Schreuder-Hafley SBB height coefficients (ut/htgf.f, CSV)
 include("variants/utah/height_growth.jl")      # UT large-tree height (chunk 4): SBB (conifer/aspen)
+include("variants/utah/regent.jl")             # UT small-tree growth (chunk 6): ut/regent.f POTHTG + ht_dbh DG
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
