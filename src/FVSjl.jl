@@ -108,6 +108,7 @@ include("variants/easternmontana/regent.jl") # EM small-tree growth (em/regent.f
 include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)
 include("variants/teton/species.jl")          # TT blkdat init (18 species, seed 55329, ZEIDE SDI) + SPCTRN
 include("variants/teton/site_index.jl")        # TT sitset (SITEAR interp + SDIDEF) + forkod (chunk 2)
+include("variants/teton/crown.jl")             # TT per-tree CCF (tt/ccfcal.f MODE=1) — RELDEN+PCCF for DG (chunk 3)
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
