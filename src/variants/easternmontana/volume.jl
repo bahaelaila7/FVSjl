@@ -26,6 +26,19 @@ const _EM_R1KEMP_BF = Dict{String,NTuple{4,Float32}}(
     return bfgrs
 end
 
+# R2OLDV Aspen RM-232 (r2oldv.f:57-90, 200DVEW746 = EM OH): total + merch(top4) cubic + Scribner board.
+# D2H = DBH²·HTTOT (full, not /100). Returns (total_cf, merch_cf, board_scribner).
+@inline function _em_r2oldv_aspen(d::Float32, h::Float32)
+    d2h = d * d * h
+    tcuft = d2h <= 12470f0 ? 0.002219f0 * d2h : 0.001896f0 * d2h + 4.0267f0
+    gcuft = d2h <= 11800f0 ? 0.002195f0 * d2h - 0.9076f0 : 0.001837f0 * d2h + 3.3075f0
+    grsbdt = 0f0
+    if d > 7f0
+        grsbdt = d2h <= 2500f0 ? 8f0 : (d2h <= 8850f0 ? 0.011389f0 * d2h - 20.5112f0 : 0.010344f0 * d2h - 11.2615f0)
+    end
+    return max(tcuft, 0f0), max(gcuft, 0f0), max(grsbdt, 0f0)
+end
+
 # R1KEMP gross cubic (r1kemp.f:345-384, ISPEC≠14,15; KLASS=1 default). D2H100=DBH²·HT/100.
 @inline function _em_r1kemp_cubic(fia::AbstractString, d::Float32, h::Float32)::Float32
     cb = get(_EM_R1KEMP_CB, fia, nothing); cb === nothing && return 0f0
@@ -73,12 +86,18 @@ function compute_volumes_em!(s::StandState)
         elseif length(eq) >= 6 && eq[4:6] == "DVE"   # non-conifers — DVEW woodland
             fia = strip(eq)[8:10]
             # dvest.f region-1: VOLEQ(2:3)='02'→R1KEMP; '01'→R1ALLEN (TODO); region-2 (VOLEQ(1:1)='2')→R2OLDV (TODO).
-            r1kemp = eq[1] == '1' && eq[2:3] == "02"
-            tcf = r1kemp ? _em_r1kemp_cubic(fia, d, h) : 0f0
-            t.cuft_vol[i] = max(tcf, 0f0)
-            t.merch_cuft_vol[i] = max(tcf, 0f0)      # R1KEMP: VOL(1)=VOL(4) (no separate merch trim)
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0   # VOL(2)=BFGRS, BFMIND=7
+            if eq[1] == '2' && fia == "746"          # OH aspen (200DVEW746) — R2OLDV RM-232
+                tcf, mcf, bdf = _em_r2oldv_aspen(d, h)
+                t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf   # GCUFT(top4) has its own floor
+                t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = bdf
+            else
+                r1kemp = eq[1] == '1' && eq[2:3] == "02"
+                tcf = r1kemp ? _em_r1kemp_cubic(fia, d, h) : 0f0
+                t.cuft_vol[i] = max(tcf, 0f0)
+                t.merch_cuft_vol[i] = max(tcf, 0f0)  # R1KEMP: VOL(1)=VOL(4) (no separate merch trim)
+                t.saw_cuft_vol[i] = 0f0
+                t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0   # VOL(3)=BFNET, BFMIND=7
+            end
         else
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
