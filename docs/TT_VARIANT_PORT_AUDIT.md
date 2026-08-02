@@ -33,6 +33,19 @@ UJ 496/291 vs 495/291** = ±1-2 cuft = the documented Float32 tpa/summation-accu
 Meta: MEASURE settled two phantoms (CFTOPK trim; "5× high" from the wrong CR region-2 Chojnacky). See
 [[fvsjl-tt-variant-port]].
 
+## Woodland-species GROWTH tail (measured 2026-08-02, alongside DVEW) — CORNERED, not a fresh bug
+With DVEW volume done, the only thing making the pure-woodland stands diverge at projected years is DG.
+Measured pure_{sp}_g (10-cycle, vs FVStt_g16), BA/QMD (growth cols, volume-independent):
+- **OH bit-exact-or-cornered** (2090 BA 176/177) — OH uses the NC/cottonwood DG (not regent-dominated).
+- **MC close** (2090 BA 19/20). **PM/UJ/RM under-grow**: 2000 near-exact (BA 21/22, QMD 7.8/7.9 — matches
+  the memory's "PI/JU validated 2000 near-bit-exact") but a ~0.1-QMD/decade DBH deficit COMPOUNDS → 2090 BA
+  17 vs 21-23, QMD 8.0 vs 8.9-9.3. TPA/mortality match all cycles (49/49) — it's purely DBH growth.
+- ROOT: PM/UJ/RM are **regent-for-all-sizes** (TT_RG_XMAX=99, tt/regent.f), so their entire DBH trajectory
+  rides on TT's small-tree regent — the KNOWN **ABI-dependent buildDir single-step HT-DBH regent** whose
+  POTHTG semantics are un-derivable from source + un-instrumentable (SIGFPE); documented as cornered for the
+  conifer core too. XMAX=99 just amplifies that per-cycle residual over 100 yr. NOT a reducible coefficient
+  bug (first cycle is near-exact). Same accepted class as the conifer regent cornering. See [[fvsjl-tt-variant-port]].
+
 ## Why TT is the chosen next variant (measured — chunk-0 scouting)
 Compared `dgf.f` + `grinit.f` across the 3 remaining western candidates (TT/UT/BM) vs the done EM:
 all three are **Wykoff-DDS** (inline `dgf`, NOT GENGYM). TT is the cleanest discount because it reuses
