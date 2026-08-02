@@ -19,6 +19,15 @@ const EM_PMDSQ = Float32[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0174, 0.0, 0.0, 0.0, 0
 
 @inline _em_orig_species(sp::Int) = sp <= 3 || (7 <= sp <= 10) || sp == 18
 
+# em/morts.f MORCON: IPDG/IPDG2(ITYPE,IFOR) → POT index → GMULT/REIN (added-species Hamilton). IFOR 1-6
+# collapses to two mappings: forests 1-4 (Beaverhead/Custer/Deerlodge/Gallatin)=Bitterroot, 5-6
+# (Helena/Lewis&Clark)=Lolo. POT[k]=0.05·k+0.20 (0.25..2.90), so no table needed.
+const EM_IPDG_BITT  = Int[7,6,6,6,6,6,5,6,5,6,6,6,6,8,7,7,7,7,7,5,3,4,3,4,4,6,5,1,1,6]
+const EM_IPDG_LOLO  = Int[7,7,7,7,6,7,5,6,7,6,6,7,7,9,9,8,9,8,8,5,3,5,4,5,5,7,5,2,4,7]
+const EM_IPDG2_BITT = Int[30,29,29,29,28,28,27,31,27,27,28,31,32,32,31,31,32,31,31,25,23,24,23,24,24,27,26,18,16,27]
+const EM_IPDG2_LOLO = Int[31,29,30,31,29,30,29,33,31,30,29,34,34,35,34,34,35,33,33,27,23,26,26,27,26,31,26,19,23,31]
+@inline _em_pot(k::Int) = 0.05f0 * k + 0.20f0    # POT(k), em/morts.f DATA POT
+
 # em/morts.f label-220 iterative linear-fn fit between the 55%/85% SDI lines → TN10 (target tree count at
 # D10). IPATH2=true (came from T≤T55D0, T>T55D10) computes the line once (TEM=T) then goes to 230; IPATH2=false
 # (55%<T≤85% at DIA0) Newton-iterates TREEIT (≤100) so exp(CEPT+SLP·ln(DIA0)) ≈ T. TN10 = exp(CEPT+SLP·ln(D10)),
@@ -94,6 +103,22 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
     rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
     tem = const_ * dq10^(-1.605f0) * pmsdil     # SDI threshold (morts.f 641)
+    # Added-species (Hamilton) stand values (em/morts.f:366-391 + MORCON): RZ from the BAMAX-limited BA10,
+    # GMULT/REIN from IPDG/IPDG2[ITYPE,IFOR]. Only used by the added-species branch below.
+    itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
+    ifor = Int(p.forest_idx); (ifor < 1 || ifor > 6) && (ifor = 1)
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? EM_BAMAXA[itype] : 0f0)
+    bamax <= 0f0 && (bamax = 1f0)
+    deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
+    ba10 = ba + (bamax - ba) / bamax * deltba
+    tb = ba10 / (0.005454154f0 * dq10 * dq10)
+    ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
+    rz = 1f0 - (1f0 - ttb)^0.1f0
+    ipdg  = ifor <= 4 ? EM_IPDG_BITT  : EM_IPDG_LOLO
+    ipdg2 = ifor <= 4 ? EM_IPDG2_BITT : EM_IPDG2_LOLO
+    poten1 = _em_pot(ipdg[itype]);  gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
+    poten2 = _em_pot(ipdg2[itype]); gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    sqba = sqrt(ba); icyc1 = Int(s.control.cycle) == 0
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -108,7 +133,35 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
             sdimax < 5f0 && (wki = pr)
             killed[i] = wki
         else
-            error("EM mortality: added-species (sp $sp) KT-density Hamilton path not yet ported")
+            # ADDED species (4-6,11-17,19) — KT/IE Hamilton potential-mortality (em/morts.f:661-723).
+            bark = bark_ratio(bark_a, bark_b, sp, d)
+            reldbh = d / aved
+            dd = d <= 0.5f0 ? 0.5f0 : d
+            dgi = t.diam_growth[i]
+            ip = d <= 5f0 ? 2 : 1
+            gmult = ip == 1 ? gmult1 : gmult2
+            wk1 = t.dg_prev[i]; oldfnt = 10f0                    # WK1 = previous cycle's applied DG
+            dgt = wk1 / oldfnt
+            d <= 1f0 && dgt < 0.05f0 && (dgt = 0.05f0)
+            (1f0 < d <= 5f0) && dgt < 0.05f0 && (dgt = 0.05f0 * (5f0 - d) / 4f0)
+            g = wk1 / (bark * oldfnt)
+            wk1 / oldfnt < dgt && (g = dgt / bark)
+            (icyc1 || wk1 == 0f0) && dgi > 0.5f0 && (g = dgi / (bark * 10f0))
+            g = g * gmult
+            rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
+                  0.554421f0 / dd + EM_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
+            rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
+            rip = 1f0 / (1f0 + exp(rip))
+            rip = rip * (ip == 1 ? rein1 : rein2)                # ·POTENT
+            ripp = ba * rz
+            ba <= bamax && (ripp += (bamax - ba) * rip)
+            ripp /= bamax
+            ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
+            # em/morts.f:717-723 species-group NI rate: LL(5) full, RM(6) 20%, others 60%.
+            smult = sp == 5 ? 1f0 : (sp == 6 ? 0.2f0 : 0.6f0)
+            wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+            wki > pr && (wki = pr)
+            killed[i] = wki
         end
     end
     book_snags && book_mortality_snags!(s, killed, n, fint)
