@@ -175,10 +175,9 @@ function setup_volume_equations!(s::StandState)
         elseif s.variant isa Teton
             s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
         elseif s.variant isa EasternMontana
-            # EM VOLEQDEF (em/sitset.f, VAR='EM', IREGN=1): Region-1 Flewelling FW2, "I00FW2W<FIAJSP>" — the
-            # conifers (emt01) use FW2. Hardwoods (GA/AS/CW/…) may use DVE/Behre (not emt01) — a forest-keyed
-            # VOLEQDEF port covers those; here FW2 for all via the species FIA (code_fia = FIAJSP for EM).
-            s.species.vol_eq[sp] = ifia > 0 ? "I00FW2W" * lpad(string(ifia), 3, '0') : "           "
+            # EM VOLEQDEF (em/sitset.f VEQNNC, dumped from live): conifers = FW2 (volume-FIA ≠ species-FIA,
+            # e.g. LM→073); non-conifers RM/GA/AS/CW/BA/PW/NC/PB/OH = DVEW woodland (region 1/2).
+            s.species.vol_eq[sp] = sp <= length(EM_VOL_EQ) ? EM_VOL_EQ[sp] : "           "
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

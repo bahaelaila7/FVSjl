@@ -10,6 +10,15 @@
 
 const EM_RNG_SEED = 55329.0f0   # em/blkdat.f:274 DATA S0/55329D0/, SS/55329.
 
+# EM VOLEQDEF (em/sitset.f VEQNNC) — dumped from live FVSem em_AS.out "NVEL EQUATION NUMBERS" table.
+# Conifers (1-5,7-10,18) = Region-1 Flewelling FW2 (note the volume-FIA ≠ species-FIA mapping: LM→073,
+# LL/AF→019). Non-conifers (RM/GA/AS/CW/BA/PW/NC/PB/OH) = DVEW (Chojnacky/Gevorkiantz woodland, region 1/2).
+const EM_VOL_EQ = String[
+    "I00FW2W012", "I00FW2W073", "I00FW2W202", "I00FW2W073", "I00FW2W019", "102DVEW106",
+    "I00FW2W108", "I00FW2W093", "I00FW2W019", "I00FW2W122", "101DVEW740", "102DVEW746",
+    "102DVEW740", "101DVEW740", "102DVEW740", "102DVEW740", "101DVEW375", "I00FW2W260",
+    "200DVEW746"]
+
 function init_blockdata!(s::StandState, v::EasternMontana)
     sd = s.species
     alpha = s.coef.code_alpha; fia = s.coef.code_fia; plants = s.coef.code_plants
