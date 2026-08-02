@@ -10,11 +10,16 @@
 const _EM_R1KEMP_CB = Dict{String,NTuple{8,Float32}}(
     "746" => (0.3482f0, -0.0384f0, 0.001427f0, -0.842503f0, 0.224f0, -0.343f0, 0.217f0, 1.071f0),
     "740" => (0.1064f0, -0.00778f0, 0.000176f0, -0.265342f0, 0.204f0, -0.749f0, 0.194f0, 4.285f0),
+    # 106 = pinyon (ISPEC=15): coeffs 1-4 are 0 ⇒ the special linear-from-5 cubic path (r1kemp.f:345).
+    "106" => (0f0, 0f0, 0f0, 0f0, 0.211f0, -0.597f0, 0.211f0, -0.597f0),
 )
+# ISPEC 14/15 species (pinyon 106) skip the DBH≤9.5 polynomial branch — linear c5·D2H100+c6 for all DBH≥5.
+const _EM_R1KEMP_LINEAR = Set{String}(["106"])
 # R1KEMP board-foot BFVOL(ISPEC,1,1:4) (r1kemp.f:39-40), JTAB=1 table (the '02' species).
 const _EM_R1KEMP_BF = Dict{String,NTuple{4,Float32}}(
     "746" => (1.197f0, -18.544f0, 1.216f0, -21.309f0),
     "740" => (1.046f0, -15.966f0, 1.140f0, -46.735f0),
+    "106" => (0f0, 0f0, 0f0, 0f0),   # pinyon: BFVOL(15,1,:)=0 ⇒ BFGRS=0 ⇒ BFNET floored to 10/tree
 )
 
 # R1KEMP gross board-foot (r1kemp.f:300, JTAB=1): BFGRS = BFVOL·D2H100 + intercept (DBH split at 21).
@@ -45,6 +50,8 @@ end
     d2h100 = d * d * h / 100f0
     cbgrs = if d < 5f0
         0f0                         # coeffs 9-11 are 0 for these species ⇒ CBGRS=0 for DBH<5 (→ min 1.6)
+    elseif fia in _EM_R1KEMP_LINEAR
+        cb[5] * d2h100 + cb[6]      # ISPEC 14/15 (pinyon): linear from DBH≥5, no polynomial branch
     elseif d <= 9.5f0
         d2h100 * (cb[1] * d + cb[2] * d * d + cb[3] * d * d * d + cb[4])
     elseif d <= 20.5f0
@@ -94,7 +101,8 @@ function compute_volumes_em!(s::StandState)
                 r1kemp = eq[1] == '1' && eq[2:3] == "02"
                 tcf = r1kemp ? _em_r1kemp_cubic(fia, d, h) : 0f0
                 t.cuft_vol[i] = max(tcf, 0f0)
-                t.merch_cuft_vol[i] = max(tcf, 0f0)  # R1KEMP: VOL(1)=VOL(4) (no separate merch trim)
+                # R1KEMP VOL(4)=VOL(1)=CBGRS per-tree, but .sum MCuFt gates on DBHMIN=7 (em/grinit.f:102).
+                t.merch_cuft_vol[i] = (r1kemp && d >= 7f0) ? max(tcf, 0f0) : 0f0
                 t.saw_cuft_vol[i] = 0f0
                 t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0   # VOL(3)=BFNET, BFMIND=7
             end
