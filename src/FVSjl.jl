@@ -114,6 +114,7 @@ include("variants/teton/diameter_growth.jl")   # TT large-tree DDS (tt/dgf.f): t
 include("variants/teton/htgf_coefficients.jl") # TT Schreuder-Hafley SBB height coefficients (tt/htgf.f, generated)
 include("variants/teton/height_growth.jl")     # TT large-tree height growth (tt/htgf.f DEFAULT SBB) — chunk 4
 include("variants/teton/regent.jl")            # TT small-tree growth (tt/regent.f+smhtgf.f+smdgf.f) — chunk 6
+include("variants/teton/mortality.jl")         # TT mortality (tt/morts.f = EM Hamilton form, TT coeffs) — chunk 7
 
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
