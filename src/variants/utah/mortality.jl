@@ -72,8 +72,3 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
 end
-
-# ut/crown.f crown-ratio DCR change model (Weibull, >3" DBH) — PORT PENDING (chunk 5 remainder).
-# STUB: no-op for now. Inert for the utt01_s1 single-cycle .sum (only affects cycle 2+ crowns);
-# multi-cycle validation needs the real DCR port (mirror EM crown_ratio_update!, UT coefficients).
-crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lstart::Bool = false, kwargs...) = s
