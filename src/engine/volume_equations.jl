@@ -174,6 +174,11 @@ function setup_volume_equations!(s::StandState)
             s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
         elseif s.variant isa Teton
             s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
+        elseif s.variant isa Utah
+            # UT VOLEQDEF (ut VEQNNC, dumped from live utt01.out): 400/402MATW (R4 Matney) + 407FW2W (Flewelling
+            # FW2, BS/ES) + 400/300DVEW (Chojnacky woodland, PJ species). Forest-keyed VOLEQDEF port needed for
+            # arbitrary UT forests; this is the forest-407/utt01 assignment.
+            s.species.vol_eq[sp] = sp <= length(UT_VOL_EQ) ? UT_VOL_EQ[sp] : "           "
         elseif s.variant isa EasternMontana
             # EM VOLEQDEF (em/sitset.f VEQNNC, dumped from live): conifers = FW2 (volume-FIA ≠ species-FIA,
             # e.g. LM→073); non-conifers RM/GA/AS/CW/BA/PW/NC/PB/OH = DVEW woodland (region 1/2).

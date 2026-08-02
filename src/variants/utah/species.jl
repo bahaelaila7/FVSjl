@@ -10,6 +10,15 @@
 
 const UT_RNG_SEED = 55329.0f0   # ut/blkdat.f:201 DATA S0/55329D0/,SS/55329./
 
+# UT VOLEQDEF (VEQNNC) — dumped from live FVSut utt01_s1.out "NVEL EQUATION NUMBERS" table (chunk 8).
+# 3 families: 400/402MATW = R4 Matney taper (reuse TT r4vol); 407FW2W = Flewelling FW2 (reuse cr_fw2_vol,
+# BS/ES only); 400/300DVEW = Chojnacky woodland (reuse EM/CR dve_vol) for the PJ species PI/WJ/PM/RM/UJ/MC/OH/GO.
+const UT_VOL_EQ = String[
+    "400MATW108", "400MATW108", "400MATW202", "400MATW015", "407FW2W093", "400MATW746",
+    "400MATW108", "407FW2W093", "400MATW019", "402MATW122", "400DVEW106", "400DVEW064",
+    "300DVEW800", "400DVEW133", "400DVEW066", "400DVEW065", "400MATW108", "400MATW108",
+    "400MATW108", "400DVEW475", "400MATW108", "400MATW108", "400MATW108", "400DVEW998"]
+
 function init_blockdata!(s::StandState, v::Utah)
     sd = s.species
     alpha = s.coef.code_alpha; fia = s.coef.code_fia; plants = s.coef.code_plants
