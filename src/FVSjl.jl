@@ -133,6 +133,10 @@ include("variants/utah/regent.jl")             # UT small-tree growth (chunk 6):
 include("variants/utah/mortality.jl")          # UT mortality (chunk 7): ut/morts.f uniform Hamilton + SDI self-thin
 include("variants/utah/volume.jl")             # UT volume (chunk 8): MATW r4vol + FW2 + DVEW (reuse)
 
+# --- bluemountains (BM) — Region-6 western Wykoff DDS (Stage SDI), 18 species; chunk 0 scaffold ---
+include("variants/bluemountains/bluemountains.jl")  # BM singleton + registration (MAXSP 18, western Wykoff DDS)
+include("variants/bluemountains/species.jl")        # BM blkdat init (18 species, seed 55329, Stage SDI, DGSD=1.5)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -221,7 +225,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees

@@ -43,7 +43,8 @@ function variant_from_code(code::AbstractString)
     (c == "EM" || c == "EASTERNMONTANA" || c == "EASTERN MONTANA") && return EasternMontana()
     (c == "TT" || c == "TETON") && return Teton()
     (c == "UT" || c == "UTAH") && return Utah()
-    error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States, CR = Central Rockies, KT = Kootenai, IE = Inland Empire, EM = Eastern Montana, TT = Teton, UT = Utah)")
+    (c == "BM" || c == "BLUEMOUNTAINS" || c == "BLUE MOUNTAINS") && return BlueMountains()
+    error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States, CR = Central Rockies, KT = Kootenai, IE = Inland Empire, EM = Eastern Montana, TT = Teton, UT = Utah, BM = Blue Mountains)")
 end
 
 """Number of species in the variant (SN=90, NE=108). Array capacity is MAXSP (the max)."""
