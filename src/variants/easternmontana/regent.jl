@@ -37,6 +37,20 @@ const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
 @inline _em_rg_crvar(sp::Int) = sp == 11 || (13 <= sp <= 16) || sp == 19
 # UTVAR (UT-variant) small-tree form: RM(6, juniper, XMAX=99 fully-regent), AS(12)/PB(17, aspen Sheppard).
 @inline _em_rg_utvar(sp::Int) = sp == 6 || sp == 12 || sp == 17
+# Push the regent DG/HTG into the tripling stash so the upper/lower sub-records use the REGENT growth, not
+# the stale large-tree dgf DG (TT does this at teton/regent.jl:216). Critical for LM (Wykoff large DG) seedlings.
+@inline function _em_rg_stash!(stash, t, i::Int)
+    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
+        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
+        !isempty(stash.is_small) && (stash.is_small[i] = true)
+    end
+end
+@inline function _em_dless3(h::Float32, cr::Float32, pccf::Float32)::Float32   # TTVAR DBH-from-height (r:584-587)
+    hl = h - 4.5f0
+    d = 0.000231f0*hl*cr - 0.00005f0*hl*pccf + 0.001711f0*cr + 0.17023f0*hl + 0.3f0
+    return d < EM_RG_DIAM[4] ? EM_RG_DIAM[4] : d
+end
 
 # em/regent.f RCON entry: RHCON[sp] = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]]. Returns the RHCON vector.
 function em_regcons!(s::StandState)
@@ -135,6 +149,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         dgnew = dnow[i] - d; dgnew < 0f0 && (dgnew = 0f0)
         dgw = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
         t.diam_growth[i] = dgw
+        _em_rg_stash!(stash, t, i)
     end
     slo = s.coef.species[:site_lo]; shi = s.coef.species[:site_hi]; fint10 = fint/10.0f0
     @inbounds for i in 1:n
@@ -160,6 +175,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         largeh = t.ht_growth[i]
         htg = htgr*(1.0f0-xwt)+xwt*largeh; htg < 0.1f0 && (htg=0.1f0)
         t.ht_growth[i] = htg
+        _em_rg_stash!(stash, t, i)
     end
     # UTVAR (RM6 juniper / AS12,PB17 aspen) — SINGLE-STEP (em/regent.f:507-533,600). CON=1.0 (non-NIVAR).
     @inbounds for i in 1:n
@@ -202,6 +218,55 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             d2 = d + 0.001f0 * h2
             dgnew = d2 - d; dgnew < 0.0f0 && (dgnew = 0.0f0)
             t.diam_growth[i] = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        end
+        _em_rg_stash!(stash, t, i)
+    end
+    # TTVAR (LM4) — subcycle BETA height + DLESS3 DG (em/regent.f:471-957). CON=1.0. ZRAND redraw/cycle [-2,2].
+    lm_present = false
+    @inbounds for i in 1:n; (Int(t.species[i]) == 4 && t.tpa[i] > 0f0) && (lm_present = true; break); end
+    if lm_present
+        wk3lm = Float32[t.height[i] for i in 1:n]; dklm = Float32[t.dbh[i] for i in 1:n]
+        zrlm = zeros(Float32, n)
+        @inbounds for i in 1:n
+            (Int(t.species[i]) == 4 && dgsd >= 1.0f0) || continue
+            z = 0f0; while true; z = bachlo(s.rng, 0f0, 1f0); (-2f0 <= z <= 2f0) && break; end
+            zrlm[i] = z
+        end
+        conlm = exp(c.htg_cor_small[4])
+        @inbounds for j in 1:nper
+            kpj = Float32(kper[j])
+            for i in 1:n
+                Int(t.species[i]) == 4 || continue
+                d = t.dbh[i]; (d >= EM_RG_XMAX[4] || t.tpa[i] <= 0f0) && continue
+                h1 = wk3lm[i]; cr = Float32(t.crown_pct[i])
+                pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+                tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                beta1 = exp(1.17527f0 - 0.42124f0*log(tpccf)); beta2 = exp(-2.56002f0 - 0.58642f0*log(tpccf))
+                htg1 = beta1 + beta2*cr; stddev = htg1*(1.08720f0 - 0.00230f0*cr)
+                htgrl = htg1 + zrlm[i]*stddev; htgrl < 0.1f0 && (htgrl = 0.1f0)
+                h2 = h1 + htgrl*(kpj/regyr)*conlm; wk3lm[i] = h2
+                dklm[i] = _em_dless3(h2, cr, pccf)
+            end
+        end
+        @inbounds for i in 1:n
+            Int(t.species[i]) == 4 || continue
+            d = t.dbh[i]; (d >= EM_RG_XMAX[4] || t.tpa[i] <= 0f0) && continue
+            h = t.height[i]; cr = Float32(t.crown_pct[i]); xmn = EM_RG_XMIN[4]; xmx = EM_RG_XMAX[4]
+            xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+            htgr = wk3lm[i] - h; htgr < 0f0 && (htgr = 0f0)
+            htg = htgr*(1f0-xwt) + xwt*t.ht_growth[i]
+            cap = s.control.sp_size_cap[4,4]; (h+htg > cap) && (htg = max(cap-h, 0.1f0))
+            t.ht_growth[i] = htg
+            pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            dkk = _em_dless3(h, cr, pccf)
+            bark = bark_ratio(c.bark_a, c.bark_b, 4, d)
+            dgr = (dklm[i] - dkk)*bark
+            dds = dgr*(2f0*bark*d + dgr)
+            arg = (d*bark)^2 + dds
+            dgk = arg > 0f0 ? sqrt(arg) - bark*d : 0f0
+            dgk < 0f0 && (dgk = 0f0); dgk > fint*2.0f0 && (dgk = fint*2.0f0)
+            t.diam_growth[i] = dgk*(1f0-xwt) + xwt*t.diam_growth[i]
+            _em_rg_stash!(stash, t, i)
         end
     end
     return s
