@@ -104,6 +104,9 @@ include("variants/easternmontana/height_growth.jl") # EM large-tree height growt
 include("variants/easternmontana/mortality.jl") # EM mortality (em/morts.f): RI-background + SDI-trend RN
 include("variants/easternmontana/regent.jl") # EM small-tree growth (em/regent.f NIVAR): em_regcons! + small_tree_growth!
 
+# --- teton (TT) — next western Rockies cluster variant (EM-DG + CR-Zeide-density discount); chunk 0 scaffold ---
+include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)
+
 # --- variants: northeast (NE) — skeleton; equations + data ported chunk by chunk ---
 include("variants/northeast/northeast.jl")
 include("variants/northeast/species.jl")
@@ -191,7 +194,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
