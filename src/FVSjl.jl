@@ -164,6 +164,7 @@ include("engine/r9clark_vol.jl")        # NE: NVEL Region-9 Clark profile volume
 include("engine/cr_dve_vol.jl")         # CR: NVEL R3 D2H (DVE) volume
 include("engine/cr_nvb_vol.jl")         # CR: NVEL NSVB (NVB) volume
 include("engine/cr_fw2_vol.jl")         # CR: NVEL Flewelling (FW2) stem-profile volume
+include("engine/r4vol.jl")              # TT: NVEL Region-4 Matney (MATW) cubic volume
 include("engine/r9vol_gevorkiantz.jl")  # CS: NVEL Region-9 Gevorkiantz '900DVEE' (VOLUME METHC=5)
 include("engine/volume_equations.jl")
 include("engine/volume.jl")
