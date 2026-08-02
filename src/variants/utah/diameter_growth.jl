@@ -23,6 +23,12 @@
 
 # ut/dgf.f ENTRY DGCONS — per-species per-stand DG constants. Needs ISISP (site_species), IFOR (forest_idx),
 # ITYPE (habitat_input), ELEV/ASPECT/SLOPE, SITEAR. Fills calib dg_const/dg_dsq/dg_ccf/atten + bark.
+# ut/dgdriv.f:117 DATA PSIGSQ — per-species prior variance for the DGSCOR calibration + tripling spread
+# (read by the shared calibrate_diameter_growth!). UT is per-species (like EM/KT/TT), NOT the SN constant.
+const UT_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0970, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636,
+                          0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.0898,
+                          0.0898, 0.07, 0.0858, 0.07]
+
 # ut/cratet.f:96-152 — convert SITEAR from the reported (base-age) site index to an age-50 site-curve
 # HEIGHT for the site-model species, used by the DG/height models. TEMCCF = stand CCF (floored at 125).
 # CASE(1,2,7,23) Alexander-Tackle-Dahms RM-29; CASE(4,5,8,9) Alexander RM-32; CASE(10) Meyer TB-630.
