@@ -201,7 +201,14 @@ VALIDATED) + TopHt exact (66/68/75/79) + QMD close (5.8/6.5/8.1/10.1 vs 5.9/6.5/
 (97/99 → 219/245, growing — accumulating DG-ZZRAN + small-tree tripling residual). Growth core integrates
 end-to-end bit-exact-or-cornered like CR/KT/IE/EM. OPEN: BA-low residual (check DG cumulative vs .sum; likely
 accepted tail) + real volume (chunk 8, FW2 like EM).
-## Chunk 8 — Volume (Region-4 FW2, likely `I00FW2W<FIAJSP>`)  ⬜   ## Chunk 9 — Full-cycle diff  ⬜
+## Chunk 8 — Volume (tt VOLEQ = MATW/DVEW)  🔶 SCOPED (downstream leaf; needs MATW port)
+
+TT VOLEQ (from ttt01.out) = geocode 400/401 + eq-type: MOST conifers **400MATW<volcode>** (Matney profile),
++ 400DVEW (PM/RM/MC/OH DVE) + 401DVEW065 (UJ). ttt01 species: WB 400MATW108, DF 400MATW202, BS/ES 400MATW093,
+AS 400MATW746, LP 400MATW108, AF 400MATW019, PP 400MATW122. NOTE per-species VOLCODE ≠ FIA (WB→108=LP vol eq).
+The **MATW (Matney) equation is NOT yet in the jl NVEL driver** (CR=DVEW, EM/KT=FW2, eastern=Clark) — chunk 8
+needs the MATW port + a Teton setup_volume_equations! branch. Placeholder merch specs currently let the .sum run
+(growth cols validated; volume cols not). DOWNSTREAM LEAF — does not affect the growth core (chunks 0-7 validated).   ## Chunk 9 — Full-cycle diff  ⬜
 
 ## Off-switch
 `touch docs/TT_VARIANT_PORT_COMPLETE` (USER's call).
