@@ -20,6 +20,11 @@ em = [("WB","101","PIAL","101"),("WL","073","LAOC","73"),("DF","202","PSME","202
       ("CW","747","POBAT","746"),("BA","741","POBA2","745"),("PW","745","PODEM","745"),
       ("NC","749","POAN3","749"),("PB","375","BEPA","375"),("OS","299","2TN","299"),
       ("OH","998","2TB","998")]
+# REAL EM bark (em/bratio.f DATA BARK1/BARK2/IMAP) — replaces the CR-placeholder bark so the
+# non-conifer DG (DIAGR/DGFASP) + height (SBB DIA=D+DG/bark) forms use the correct bark ratio.
+const EM_BARK1 = Float32[0.934,0.934,0.867,0.969,0.937,0.000,0.969,0.956,0.937,0.890,0.892,0.950,0.892,0.892,0.892,0.892,0.950,0.934,0.892]
+const EM_BARK2 = Float32[0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,-0.086,0.000,-0.086,-0.086,-0.086,-0.086,0.000,0.000,-0.086]
+const EM_IMAP  = Int[2,2,2,2,2,1,2,2,2,2,3,2,3,3,3,3,2,2,3]
 ci = Dict(String(h) => i for (i, h) in enumerate(hdr))
 open("data/easternmontana/species_coefficients.csv", "w") do io
     println(io, join(hdr, ","))
@@ -30,6 +35,9 @@ open("data/easternmontana/species_coefficients.csv", "w") do io
         row[ci["code_alpha"]]    = al
         row[ci["code_fia"]]      = fi
         row[ci["code_plants"]]   = pl
+        row[ci["bark1"]]      = string(EM_BARK1[idx])     # REAL EM bark (rest of the row still CR placeholder)
+        row[ci["bark2"]]      = string(EM_BARK2[idx])
+        row[ci["bark_imap"]]  = string(EM_IMAP[idx])
         println(io, join(row, ","))
     end
 end
