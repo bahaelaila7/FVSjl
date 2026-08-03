@@ -138,6 +138,31 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         end
     end
 
+    if get(ENV, "BM_FIRE_DEBUG", "") != "" && byram > 0f0
+        _sm, _lg = _small_large_fuel(s.fire)
+        Base.println(stderr, "FIREDBG_DW sm=", _sm, " lg=", _lg)
+        _cf = canopy_bulk_density(s)
+        _crb = -9f0; _rf = 0f0; _hpa = 0f0
+        if _cf.cbd > 0f0 && _cf.actcbh >= 0
+            _crb, _rf, _hpa = crown_fire_result(s, _cf.cbd, _cf.actcbh, Int(fmois), wind, s.variant)
+        end
+        for _i in 1:t.n
+            (t.tpa[_i] > 0f0 && t.height[_i] < 22f0) || continue
+            _icr = Float32(t.crown_pct[_i]); _crbot = t.height[_i]*(1f0-_icr*0.01f0)
+            _xv = crown_biomass(s, Int(t.species[_i]), t.dbh[_i], t.height[_i], Int(round(_icr)))
+            _cb = (_xv[1]+_xv[2]*0.5f0)*t.tpa[_i]
+            _len = t.height[_i]-max(0f0,_crbot)
+            Base.println(stderr, "FIREDBG_US sp=", Int(t.species[_i]), " d=", round(t.dbh[_i];digits=2),
+                " h=", round(t.height[_i];digits=1), " cr=", Int(round(_icr)), " tpa=", round(t.tpa[_i];digits=2),
+                " crbot=", round(_crbot;digits=1), " crbio=", round(_cb;digits=1),
+                " dens=", round(_len>0f0 ? _cb/_len : 0f0;digits=1))
+        end
+        Base.println(stderr, "FIREDBG yr=", year, " models=", models, " byram=", byram,
+            " flame=", flame, " sch=", sch, " fwind=", fwind, " cbd=", _cf.cbd,
+            " actcbh=", _cf.actcbh, " tcload=", _cf.tcload, " crb=", _crb, " fmois=", fmois,
+            " psburn=", psburn, " fire_carries=", fire_carries)
+    end
+
     # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes), both the
     # stand aggregate (the ALL row) and PER-SPECIES (FVS_Mortality emits one row per species + an ALL row).
     totcls = zeros(Float32, 7); clskil = zeros(Float32, 7)
@@ -448,6 +473,11 @@ function canopy_bulk_density(s::StandState)
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
         xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
+        if get(ENV, "BM_TREE_DEBUG", "") != ""
+            Base.println(stderr, "TREEDBG sp=", Int(t.species[i]), " d=", t.dbh[i], " h=", h,
+                " icr=", Int(round(icr)), " crbot=", crbot, " tpa=", t.tpa[i],
+                " fol=", xv[1], " w1=", xv[2], " crbio=", crbio)
+        end
         crbio > 0f0 || continue
         len = h - crbot; len > 0f0 || continue
         adcrwn = crbio / len                            # uniform density over the crown length (lbs/ac-ft)
@@ -482,6 +512,11 @@ function canopy_bulk_density(s::StandState)
     end
     cbd = cbd_lb * 0.45359237f0 / (4046.856422f0 * 0.3048f0)   # lbs/ac-ft → kg/m³
     cbd > 0.35f0 && (cbd = 0.35f0)                              # cap (S. Rebain 2005)
+    if get(ENV, "BM_CBD_DEBUG", "") != ""
+        Base.println(stderr, "CBDDBG tcload=", tcload, " cbd=", cbd, " actcbh=", actcbh,
+            " j1=", j1, " j2=", j2, " crfill[6,10,15,20,25]=",
+            (crfill[6], crfill[10], crfill[15], crfill[20], crfill[25]))
+    end
     return (cbd = cbd, actcbh = actcbh, canopy_ht = Int(j2), tcload = tcload)
 end
 
