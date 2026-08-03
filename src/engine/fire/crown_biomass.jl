@@ -179,7 +179,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     u1 = u2 = u3 = u4 = 0f0
     lilpce = 0f0
     bark_r = s.variant isa CentralRockies ? cr_bratio(coef.species, Int(sp), d, Int(s.plot.model_type)) :
-             s.variant isa InlandEmpire ? ie_bratio(Int(sp), d) :   # KT uses its own bark → handle at KT validation
+             s.variant isa InlandEmpire ? ie_bratio(Int(sp), d) :
+             s.variant isa Kootenai ? bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT constant BKRAT
                                              bark_ratio(coef, sp, d)
     dobf = 4f0 / bark_r
     if d > dobf && d > dbhmin
