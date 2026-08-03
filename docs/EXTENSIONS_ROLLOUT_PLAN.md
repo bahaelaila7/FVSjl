@@ -83,6 +83,20 @@ CI decay==CR, moisture==IE (both shareable). CI's fmcfmd (ci/fmcfmd.f) is the mo
   crown_biomass CI bark (ci_bratio — CI has per-species branches, use it not calib) ; crown-fire gate. Validate
   cit01 SIMFIRE MOR vs live FVSci (oracle /workspace/.ciwork/FVSci_clean).
 
+## Remaining western FFE variants — assessed (BM, UT, TT); each a dedicated fmcfmd chunk
+All three: decay==CR (verified). Oracles exist (.bmwork/.utwork/.ttwork FVS*_clean). bmt01/utt01/ttt01 stands.
+- **BM (MAXSP=18)**: moisture==IE. fmcfmd is the **MOST COMPLEX** western — FOUR nested weights
+  WT1·WT2·WT3·WT4 + a WD(K) weight-distribution array (ie/bm fmcfmd diff 622 lines). A large careful
+  transcription; give it its own turn. Data: own fmcba FULIVE/FUINIE (18 sp) + fmvinit + ISPMAP + BIOGRP.
+- **UT (MAXSP=24) + TT (MAXSP=18)**: **SHARE ONE fmcfmd** (ut/tt fmcfmd.f dispatches `SELECT CASE(VARACD)` with
+  CASE('TT') branches) — porting UT gets TT mostly free. It is the **CR-style COVER-TYPE selection** (ICT/USCT/
+  FMAVH top-40 ht/LCUNDR conifer-understory/LPPDOM ppine-dom/IFMST structure-class — the SAME variables as the
+  ported `cr_select_fuel_models`). ⇒ **reuse CR's cover-type machinery**, swapping UT/TT cover-type groups + ICT
+  cases + fuel data. UT/TT moisture DIFFERS from IE (own table — extract). ICLSS=12 (not 14; models 1-12, no
+  13/14). Recipe: generalize cr_select_fuel_models to accept a variant's cover-type map + ICT cases, or write
+  ut_select_fuel_models mirroring it. Extract ut/tt fmcba + fmvinit + ISPMAP + BIOGRP + the UT/TT moisture table.
+- **Order suggestion**: UT (+TT free) next (CR-reuse, moderate), then BM (most complex) last of the western FFE.
+
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
   Committed the full IE/KT surface-fire path (7 commits): (1) bark-thickness `_IE_FM_BARK_B1`; (2) moisture
