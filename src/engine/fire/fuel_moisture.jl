@@ -28,10 +28,22 @@ const _FM_MOIS_CR = Float32[           # CR (cr/fmmois.f) — the western Rockie
     0.05  0.06  0.08  0.15  0.50  0.90   0.90    # 2 dry
     0.08  0.10  0.12  0.16  1.25  1.20   1.20    # 3 moist
     0.10  0.12  0.15  0.18  2.00  1.40   1.40]   # 4 wet
+const _FM_MOIS_IE = Float32[           # IE-family western (ie/fmmois.f) — shared bit-identical across
+#   1hr   10hr  100hr 3+    duff  Lwoody Lherb   # ie=kt=em=bm=ci (diff 0); UT/TT differ (their own later)
+    0.04  0.04  0.05  0.10  0.15  0.70   0.70    # 1 very dry
+    0.08  0.08  0.10  0.15  0.50  1.10   1.10    # 2 dry
+    0.12  0.12  0.14  0.25  1.25  1.50   1.50    # 3 moist
+    0.16  0.16  0.18  0.50  2.00  1.50   1.50]   # 4 wet
 
 fm_mois_table(::Northeast) = _FM_MOIS_NE
 fm_mois_table(::LakeStates) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
 fm_mois_table(::CentralRockies) = _FM_MOIS_CR   # cr/fmmois.f (verified vs buildDir fmmois.f)
+# IE-family western moisture (ie/fmmois.f), shared across the N-Rockies cluster (verified diff 0 vs kt/em/bm/ci).
+fm_mois_table(::InlandEmpire) = _FM_MOIS_IE
+fm_mois_table(::Kootenai) = _FM_MOIS_IE
+fm_mois_table(::EasternMontana) = _FM_MOIS_IE
+fm_mois_table(::BlueMountains) = _FM_MOIS_IE
+fm_mois_table(::CentralIdaho) = _FM_MOIS_IE
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """
