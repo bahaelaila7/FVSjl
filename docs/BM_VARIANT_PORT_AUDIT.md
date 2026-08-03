@@ -16,7 +16,7 @@ Growth validation uses `bmt01_growth.key` (FFE keywords stripped — bmt01.key i
 | 5 | Crown | crown.jl | ✓ Weibull (= validated TT/UT form) + bm_tree_ccf (RELDEN, 369/369 per-tree CCF bit-exact) |
 | 6 | Regent (small-tree) | regent.jl | ✓ bm_smhtgf height matches live (POTHTG 11.42, HTG 5.72); ht-dbh uses bm_htdbh (Curtis-Arney) for LHTDRG=false species |
 | 7 | Mortality | mortality.jl | ✓ **faithful** — Hamilton RI + SDI self-thin; RN bit-close for identical input (525.769/0.0114 vs 525.759/0.011), SDIMAX=346 both |
-| 8 | Volume | volume.jl | ~ FW2W Flewelling conifers; total cubic cornered (bark-fixed +18%→~cornered form-precision); 616BEHW minor species deferred |
+| 8 | Volume | volume.jl | ~ FW2W Flewelling conifers (total cubic cornered, bark-fixed +18%→form-precision); **616BEHW total cubic DONE** (bm_r6vol3 + bm_formcl bit-exact vs live; end-to-end TCuFt ±1); 616BEHW merch+board deferred (R6DIBS+R6VOL1) |
 
 ## Real bugs found + fixed (all via measurement vs the live binary)
 
@@ -39,13 +39,19 @@ Growth validation uses `bmt01_growth.key` (FFE keywords stripped — bmt01.key i
 - **Multi-cycle divergence** (2090 TPA 163/96): the DGSCOR-FRM serial-correlation (dgdriv.f:271, WK2 bit-exact but DG-from-WK2 is ZZRAN-affected) + tripling, amplified by the faithful mortality feedback. The accepted cornered stochastic class doctrine #3 forbids chasing per-record.
 - **Volume total-cubic** ~cornered: INGY SF_SHP form precision (jsp-13 coefficients bit-identical to NVEL source; GFSUB substitution ruled out).
 - **Deferred leaves** (scoped, both substantial — not bounded polish):
-  - **616BEHW minor species** (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH — not in bmt01). Behre equations
-    616BEH*** route to **R6VOL3** for total cubic (NVEL profile.f:268). Scoped sub-tree:
-    `R6VOL3(DBHOB,DBTBH,FCLASS,HTTOT,ZONE=1,VOL)` — Behre Smalian taper DR=HRATIO/(0.62·HRATIO+0.38),
-    D17=FCLASS/100·DBHOB, H17=17.3 (75 lines, portable) — **plus** FCLASS from GETFCLASS →
-    **FORMCL_BM** (r6vol.f:205,+forest form-class coefficients) and DBTBH from bark. So it's a
-    multi-layer NVEL port (R6VOL3 + GETFCLASS + FORMCL_BM + coeffs) + a synthetic pure-species stand
-    (IE pure_{sp} pattern) to validate. Currently these species return 0 volume.
+  - **616BEHW minor species** (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH — not in bmt01). Behre equations.
+    **TOTAL CUBIC LAYER DONE** (this commit): ported `bm_r6vol3` (r6vol3.f Behre Smalian taper
+    DR=HRATIO/(0.62·HRATIO+0.38), D17=FCLASS/100·DBHOB, H17=17.3, all 3 branches: DBHIB<TOPD cylinder /
+    D17<TOPD two-log / full taper) + `bm_formcl` (formclas.f FORMCL_BM form-class lookup: FIAJSP binary
+    search, IFCDBH=(D−1)/10+1, 4 forest tables MALH/OCHO/UMAT/WLWH by IFORST=KODFOR%100) + the R6VOL
+    short-tree guard (TTH≤17.3→cylinder) + glue (spec=VEQNNC(8:10), DBTBH=D·(1−bm_bratio) per fvsvol.f:153).
+    **Validated**: bm_r6vol3 **bit-exact vs live R6VOL3 (96/96** grid pts, all 3 branches, drv_r6vol3.f);
+    bm_formcl **bit-exact vs live FORMCL_BM (120/120**, drv_formcl.f); synthetic pure-WP stand end-to-end
+    **TCuFt jl 1556 vs live 1557 (±1**, INGY-cornered class), growth cols bit-exact.
+    **REMAINING sub-leaf** — merch cubic + board foot: live 616BEHW also yields MCuFt/BdFt
+    (pure-WP 1990: 1068/5341) via the full R6VOL path (**R6DIBS** 297-line log-bucking → VOL(4) merch +
+    **R6VOL1** 90-line Scribner/Intl board from log diameters; R6FIX is 628-only). ~390 lines of NVEL,
+    scoped but substantial. bm_r6vol3/bm_formcl already supply the total-cubic core they build on.
   - **FFE** — bmt01.key is a full FMIN/SIMFIRE/PotFIRE/FuelOut demo; the fire/fuel/snag/carbon
     subsystem (needs BM biomass + fuel coefficients). Large; validate vs the full bmt01.key .sum.
 
