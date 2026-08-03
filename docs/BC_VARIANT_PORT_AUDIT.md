@@ -60,3 +60,38 @@ bc_kodtyp_itype (becset.f:1116 KODTYP→ITYPE, 130→1…730→27, NI codes=IE M
 SDIDEF=BAMAX/(0.5454154·PMSDIU/100) (Stage). STDINFO field-2→habitat_code wired for BC. Runs:
 KODTYP 520→ITYPE 21, SDIDEF 129.42 (BAMAX 60 default). DEFERRED: full BEC-STRING parser (becset.f
 ~1000 lines) — synthetic BC stands supply numeric KODTYP + BAMAX (all DG/mortality need). Next hook = dgf!.
+
+## ⚠⚠ CHUNK 3 (DG) — SCOPE CORRECTION: BC IS **NOT** AN IE CLONE (source-verified, bc/dgf.f)
+The earlier "silver lining: DG/height/… are direct IE clones once BEC→ITYPE lands" was **WRONG**. bc/dgf.f
+has **TWO complete DG models** selected by `LV2ATV`:
+- **LV2ATV=.TRUE.** (becset: BEC zone NOT in {ICH,IDF,SBS,SBPS} — e.g. ESSF/MS/BWBS): imperial, the IE NI
+  form `DDS=CONSPP+DGLD·lnD+DGBAL·BAL+CR·(DGCR+CR·DGCRSQ)+DGDSQ·D²+DGDBAL·BAL/ln(D+1)` using the
+  `DGLD/DGCR/DGBAL/DGDBAL` arrays I extracted (these DO match IE). Plus SEILTDG(BECADJ,SEICN2,…) additions.
+  **This is the MINORITY path** (non-productive high zones).
+- **LV2ATV=.FALSE.** (BEC zone ∈ {ICH,IDF,SBS,SBPS} — the productive interior forests — **AND the empty-BEC
+  grinit default**): a **DISTINCT metric "version-3 calibration"** in **centimetres**: CASE DEFAULT
+  `DDS=exp(CONSPP+DGLD1·D+DGDSQ1·D²+DGBAL1·BAL+DGDBAL1·BAL/D+DGDBAL2·BAL/ln(D+1)+DGCR1·CR)`; then
+  `DDS=(DDS²+2·DDS·D·BRATIO)·CMtoIN²`. Birch(11,15) & aspen(12,13) use power forms `DGLD1·D2^(DGDBAL1+DGDBAL2·BAL/D2)·exp(DGDSQ1·D2²)`.
+  This is the COMMON path and is a **different model with different coefficients** — not IE.
+
+**Root of BC's cost — the v3 coefficients are BEC-STRING-DRIVEN table lookups** (bc/dgf.f ENTRY DGCONS):
+- `DGCON(I)=SSKONST(JP)%CON+ZNKONST(IP)%CON`; `DGLD1=ZNKONST(IP)%LD`, `DGDSQ1=%DSQ`, `DGBAL1=%BAL`,
+  `DGDBAL1=%DBAL1`, `DGDBAL2=%DBAL2`, `DGCR1=%CR`, `DGCCF1=%CCFA` (+ aspect/elev via %CASP/%SASP/%EL/%EL2).
+- `IPOS(I)`/`JPOS(I)` are found by string-INDEX-matching the stand's parsed `BEC2%{Zone,SubZone,Series,PrettyName}`
+  against **28 `ZNKONST` (MD_STR) zonal records** + **25 `SSKONST` (SS_STR) site-series records**. Each MD_STR =
+  {SPP(15) list, ZONE(30) 15-char patterns, OBSERV, CON, CASP, SASP, EL, EL2, CCFA, LD, DSQ, DBAL1, DBAL2, CR,
+  BAL, SIGMAR}. RELDN2 caps and CR caps are also `INDEX(BEC%Zone,'ICH'/'IDF')`-gated.
+- **The SAME P_SS/P_ZN string-table machinery recurs in htgf.f / morts.f / regent.f** — so BC's height, mortality,
+  and regen are ALSO BEC-string models, not IE clones.
+
+**Verdict:** BC's real cost = port the BEC-string classifier (becset.f ~1000 lines: parse "IDFdk1"→{Region,Zone,
+SubZone,Series} via RGN/ZN/SZ tables) + the ZNKONST/SSKONST DATA tables (28+25 records × ~16 fields) + the
+species×zone string-matching selection + the metric v3 DDS/bratio-cm math — repeated for DG/HTG/MORT/REGENT.
+This is a **full variant port dominated by the BEC system**, comparable in cost to a fresh western variant, NOT a
+"cheap clone". (The Tier-1 "cheap" projection held for **CI** — done, bit-exact — but not BC.) Chunks 0–2 (scaffold/
+species/site-core) remain valid; chunk 3 is where the IE-clone assumption breaks. Extracted this session:
+`data/britishcolumbia/dg_*.csv` = the LV2ATV(imperial/IE) arrays — reusable for the minority Seiler path only.
+
+**Recommendation:** BC is a genuine multi-chunk variant port (BEC parser first). Given the "cheaper ones + then
+extensions across all variants" directive, CI delivered the cheap win; BC should either be taken as a full port in
+its own right or sequenced after the extensions pass on the 11 done + CI. Flagged for the user's sequencing call.
