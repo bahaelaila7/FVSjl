@@ -77,7 +77,8 @@ p.habitat_input (ch2). Validate WK2 via instrument-replay (relink_ci.sh + DGFTRC
 (b) **BA scale** — TPA is FINE (jl loads 589.7 raw = BM identical; .sum normalizes to 536, validated for BM — false alarm cleared). Open: jl dgf uses p.basal_area=85.13 (raw) but live dgf-internal BA=66.80; trace ci/dense.f BA (large-tree/normalized). Feeds DGLBA·ln(BA).
 ⇒ Both residuals couple to the density machinery ⇒ **port chunk 5 (crown/CCF, ci/ccfcal.f) next** to unblock RELDEN + provide dense stats, then re-validate WK2 bit-exact. DG formula itself is validated (DGCON bit-exact + crown-term fix). |
 | 4 | Height: ci/htgf.f | TODO |
-| 5 | Crown: ci/crown.f + ci/ccfcal.f | TODO |
+| 5a | CCF (ci/ccfcal.f MODE=1) | ✓ **PORTED** — crown.jl ci_tree_ccf (D≥10 → RD1+D·RD2+D²·RD3, else RDA·D^RDB; CI_RD1/2/3/A/B ×19 from ci/ccfcal.f, match KT for shared conifers) wired into stand_ccf/point_ccf (standstats.jl). RELDEN 0.38→102.87 (raw CCF ≈ .sum 94×raw-TPA). **Refine**: live dgf RELDEN=81.89 = dense.f RELDM1 (BACKDATED relative density) + TPA-normalization; couples to the BA-scale item. Crown-WIDTH (MODE=2 B1..B6) + crown_ratio_update! = chunk 5b (TODO). |
+| 5b | Crown ratio: ci/crown.f | TODO |
 | 6 | Small-tree: ci/regent.f | TODO |
 | 7 | Mortality: ci/morts.f (Hamilton) + Zeide SDImax self-thin | TODO |
 | 8 | Volume: ci/sitset.f VOLEQ via shared NVEL driver | TODO |
