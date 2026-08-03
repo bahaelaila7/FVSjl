@@ -41,9 +41,18 @@ const _CR_FM_BARK_B1 = Float32[
     0.038, 0.038, 0.045, 0.045, 0.045, 0.045, 0.045, 0.044, 0.025, 0.025,
     0.025, 0.025, 0.030, 0.030, 0.030, 0.063, 0.030, 0.038]
 
+# N-Rockies western fire bark: plain DBH·B1[sp], per-species B1 (ie/fmbrkt.f, no special cases). KT's
+# 11 species are the first 11 of IE's 23 (KT⊂IE), so KT reuses this table truncated. EM/BM/UT/TT/CI add
+# their own western fmbrkt tables as their FFE lands (see docs/EXTENSIONS_ROLLOUT_PLAN.md).
+const _IE_FM_BARK_B1 = Float32[
+    0.035, 0.063, 0.063, 0.046, 0.040, 0.035, 0.028, 0.036, 0.041, 0.063, 0.040,
+    0.030, 0.030, 0.050, 0.030, 0.025, 0.025, 0.044, 0.038, 0.040, 0.027, 0.026, 0.040]
+
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
     variant isa CentralRockies && return dbh * _CR_FM_BARK_B1[Int(sp)]   # cr/fmbrkt.f
+    # IE (23 sp) and KT (11 sp = first 11 of IE) share ie/fmbrkt.f's plain DBH·B1 form.
+    (variant isa InlandEmpire || variant isa Kootenai) && return dbh * _IE_FM_BARK_B1[Int(sp)]
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
