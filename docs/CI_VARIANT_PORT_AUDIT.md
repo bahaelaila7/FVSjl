@@ -101,8 +101,8 @@ The large-tree growth core (DG+height, DG bit-exact) is done; this regent is the
 
 **◐ regent PORTED + RUNS** (regent.jl): NIVAR path — subcycle (REGYR=5) HTGRL regression → H2=H1+HTGRL·SCALE·XRHGRO·exp(HCOR); HTDBH DK=exp(DHCN+DHHT·lnHK+DHCR·lnRCR); DG=DK−D_old. RHDM1/RHDM2 habitat-code flags (cit01 hab520→RHDM1=1). SMHTGF stochastic BETA/FINDAG establishment path deferred (cit01 small trees are conifers). cit01 projects past regent → next hook mortality _varmrt_efftr! (chunk 7). Validation via full-cycle .sum after mortality/volume land. |
 | 7 | Mortality: ci/morts.f (Hamilton) | ◐ **PORTED + RUNS** — mortality.jl: full Hamilton RIP (2.76253+0.222310·√D−0.0460508·√BA+11.2007·G−0.554421/DD+PMSC+0.246301·RELDBH+6.07129·G/DD) + POTENT (POT/IPDG) + BA10 self-thin (IDENTICAL to IE form; ci/morts.f:269/329 confirmed BA-based, not Zeide-SDI). Coeffs PMSC/PMD/POT/IPDG(30,11)/IPDG2 from ci/morts.f; ITYPE=NIHMAP[ICINDX]; IFOR 1-6; bark=ci_bratio; bamax=CI_BAMAXA[ICINDX]. cit01 projects past mortality → next hook crown_ratio_update! (chunk 5b). |
-| 8 | Volume: ci/sitset.f VOLEQ via shared NVEL driver | TODO |
-| 9 | Full-cycle differential vs FVSci_clean on cit01 | TODO |
+| 8 | Volume: ci VEQNNC via shared NVEL | ✓ **PORTED + RUNS** — volume.jl compute_volumes_ci! (= UT: 400MATW r4vol + I15FW2W cr_fw2_vol + 400DVEW r4d2h; TOPD=6/DBHMIN=8/sp7=7). CI_VOL_EQ dumped from live cit01.out; wired in volume_equations.jl + compute_volumes! dispatch. |
+| 9 | Full-cycle .sum vs FVSci_clean (cit01) | ◐ **RUNS end-to-end; 1990 inventory BIT-EXACT** — jl 536/77/160/63/5.1 = live (TPA/BA/SDI/TopHt/QMD); TopHt bit-exact at 2000 too (71/71). Projected TPA jl-high (2000: 491 vs 439 — under-kill, growth/mort precision — refine) ; volume ~3-10% off at 1990 (MCuFt 856/833, BdFt 3519/3912 — MATW/FW2W bark/eq refine). Growth core COMPLETE end-to-end. |
 
 ## Port strategy (discount)
 Clone IE's 15 Julia module files → retarget dispatch to `CentralIdaho` → swap in CI coefficient
