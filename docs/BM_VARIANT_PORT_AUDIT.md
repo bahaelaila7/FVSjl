@@ -38,7 +38,13 @@ Growth validation uses `bmt01_growth.key` (FFE keywords stripped — bmt01.key i
 
 - **Multi-cycle divergence** (2090 TPA 163/96): the DGSCOR-FRM serial-correlation (dgdriv.f:271, WK2 bit-exact but DG-from-WK2 is ZZRAN-affected) + tripling, amplified by the faithful mortality feedback. The accepted cornered stochastic class doctrine #3 forbids chasing per-record.
 - **Volume total-cubic** ~cornered: INGY SF_SHP form precision (jsp-13 coefficients bit-identical to NVEL source; GFSUB substitution ruled out).
-- **Deferred leaves**: 616BEHW minor species (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH — not in bmt01, need a synthetic stand); FFE (bmt01.key is a full FMIN/SIMFIRE/PotFIRE demo).
+- **Deferred leaves** (scoped, both substantial — not bounded polish):
+  - **616BEHW minor species** (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH — not in bmt01). Behre equations
+    616BEH*** route to **R6VOL3** for total cubic (NVEL profile.f:268): `R6VOL3(DBHOB,DBTBH,FCLASS,
+    HTTOT,ZONE,VOL)` + BEHTAP taper (blmtap.f:275) + FCLASS form-class. Real port + a synthetic
+    pure-species stand (IE pure_{sp} pattern) to validate. Currently these species return 0 volume.
+  - **FFE** — bmt01.key is a full FMIN/SIMFIRE/PotFIRE/FuelOut demo; the fire/fuel/snag/carbon
+    subsystem (needs BM biomass + fuel coefficients). Large; validate vs the full bmt01.key .sum.
 
 ## Verdict
 
