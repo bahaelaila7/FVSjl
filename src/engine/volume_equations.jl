@@ -278,6 +278,64 @@ function _bm_r6_eqn(iforst::Int, idist::Int, fia::Int)::String
     return fia in _BM_R6_FIA ? "616BEHW" * lpad(string(fia), 3, '0') : "616BEHW000"
 end
 
+# NVEL voleqdef.f R4_EQN — Region-4 (Intermountain) default volume-equation assignment, keyed on FORNUM
+# (forest number within region) + FIA species code. Faithful transcription incl. the per-species FORNUM
+# branches and the binary-search fallback. Shared by the region-4 western variants (CI/UT/TT) whose forests
+# span both the INGY (Flewelling FW2) and Matney sub-assignments. Reproduces the live VEQNNC dumps: CI cit01
+# (forest 412 = FORNUM 12) and UT utt01 (forest 407 = FORNUM 7).
+const _R4_EQNUM = String[
+    "400MATW020","300DVEW060","300DVEW060","400DVEW066","400MATW073","400MATW081","300DVEW106","400MATW117",
+    "400MATW117","400DVEW133","400DVEW998","400MATW081","400MATW015","401MATW015","400MATW108","400MATW108",
+    "400MATW108","400MATW108","400DVEW475","400MATW746","400DVEW998","400MATW108","400MATW108","300DVEW800",
+    "300DVEW800","400DVEW998","400DVEW998","I15FW2W017","401MATW015","400MATW015","I15FW2W017","405MATW019",
+    "400MATW019","401DVEW065","400DVEW065","I15FW2W093","407FW2W093","400MATW093","401MATW108","400MATW108",
+    "I15FW2W122","401MATW122","402MATW122","403MATW122","400MATW122","I15FW2W202","405MATW202","400MATW202",
+    "400DVEW064","400DVEW106","407MATW093","401MATW202","407MATW093","401MATW202","401MATW202","407MATW093",
+    "407MATW093"]
+const _R4_FIA = Int[20,60,64,66,73,81,106,117,119,133,231,242,263,264,299,313,321,322,475,746,747,748,749,800,814,998,999]
+const _R4_FIA_IDX = Dict(c => i for (i, c) in enumerate(_R4_FIA))
+
+"NVEL voleqdef.f R4_EQN: (FORNUM, FIA species) → NVEL volume-equation id. `nothing` if unassigned (rare)."
+function r4_voleq(fornum::Int, spec::Int)::Union{String,Nothing}
+    E = _R4_EQNUM
+    f2 = fornum == 2 || fornum == 12 || fornum == 13     # the INGY (Flewelling FW2) forests
+    if spec == 15                                        # White fir
+        return (f2 || fornum == 6) ? E[28] : (fornum == 9 || fornum == 17) ? E[29] : E[30]
+    elseif spec == 17                                    # Grand fir
+        return f2 ? E[31] : E[30]
+    elseif spec == 19                                    # Subalpine fir
+        return fornum == 5 ? E[32] : E[33]
+    elseif spec == 64                                    # Utah/western juniper
+        return E[49]
+    elseif spec == 65                                    # Rocky Mtn juniper (UJ)
+        return (fornum == 3 || fornum == 5 || fornum == 15 || fornum == 16) ? E[34] : E[35]
+    elseif spec == 93 || spec == 96                      # Engelmann / blue spruce
+        return f2 ? E[36] : fornum == 7 ? E[37] : fornum == 8 ? E[56] : E[38]
+    elseif spec == 101 || spec == 108 || spec == 113 || spec == 142   # WB/LP/LM/bristlecone
+        return (fornum == 9 || fornum == 17) ? E[39] : E[40]
+    elseif spec == 106                                   # pinyon
+        return (fornum in (1,4,7,8,9,10,17,18,19)) ? E[50] : nothing
+    elseif spec == 122                                   # Ponderosa pine
+        return f2 ? E[41] : fornum == 1 ? E[42] :
+               (fornum in (7,8,10,18,19)) ? E[43] : (fornum == 9 || fornum == 17) ? E[44] : E[45]
+    elseif spec == 202                                   # Douglas-fir
+        return f2 ? E[46] : fornum == 5 ? E[47] : E[48]
+    elseif spec == 998                                   # other hardwoods
+        return (fornum in (2,6,12,13,14)) ? E[17] : E[21]
+    end
+    idx = get(_R4_FIA_IDX, spec, 0)                      # binary-search fallback (forest-independent)
+    idx > 0 ? E[idx] : nothing
+end
+
+# (KODFOR → (region, FORNUM)) exactly as fvsvol.f decodes it (5-6 digit region-prefixed vs bare 3-digit).
+@inline function _kodfor_region_fornum(kodfor::Int)
+    if kodfor > 10000
+        (kodfor ÷ 10000, kodfor ÷ 100 - (kodfor ÷ 10000) * 100)
+    else
+        (kodfor ÷ 100, kodfor - (kodfor ÷ 100) * 100)
+    end
+end
+
 function setup_volume_equations!(s::StandState)
     kodfor = Int(s.plot.user_forest_code)
     iregn  = kodfor ÷ 10000
@@ -286,6 +344,7 @@ function setup_volume_equations!(s::StandState)
     forst = lpad(string(iforst), 2, '0')
     dist  = lpad(string(intdist), 2, '0')
     cr_tbl = s.variant isa CentralRockies ? _cr_veq_by_forest() : nothing
+    r4reg, r4fornum = _kodfor_region_fornum(kodfor)       # for the region-4 R4_EQN western variants (UT/TT)
     @inbounds for sp in 1:MAXSP
         ifia = something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)
         if s.variant isa CentralRockies
@@ -305,10 +364,16 @@ function setup_volume_equations!(s::StandState)
         elseif s.variant isa Teton
             s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
         elseif s.variant isa Utah
-            # UT VOLEQDEF (ut VEQNNC, dumped from live utt01.out): 400/402MATW (R4 Matney) + 407FW2W (Flewelling
-            # FW2, BS/ES) + 400/300DVEW (Chojnacky woodland, PJ species). Forest-keyed VOLEQDEF port needed for
-            # arbitrary UT forests; this is the forest-407/utt01 assignment.
-            s.species.vol_eq[sp] = sp <= length(UT_VOL_EQ) ? UT_VOL_EQ[sp] : "           "
+            # UT VOLEQDEF = R4_EQN (region-4, FORNUM-keyed). jl previously used ONLY the forest-407/utt01 table,
+            # so WB/LP/LM/PP/WF/ES/BS volume was wrong on other UT forests (e.g. F9/F17 use 401MATW108/403MATW122
+            # /401MATW015, F9/F10/F17 use 400MATW093 not 407FW2W093). Key on the ut_forkod!-CORRECTED forest —
+            # UT_JFOR[forest_idx] — NOT the raw user_forest_code, because forkod remaps (Humboldt 409→Fishlake 408
+            # ⇒ FORNUM 8, matching live's "FOREST-LOCATION CODE 408"). UT_VOL_EQ (= r4_voleq at F7) is the fallback.
+            fidx = Int(s.plot.forest_idx)
+            fnum = (1 <= fidx <= length(UT_JFOR)) ? UT_JFOR[fidx] % 100 : 7
+            veq = r4_voleq(fnum, ifia)
+            s.species.vol_eq[sp] = veq !== nothing ? veq :
+                (sp <= length(UT_VOL_EQ) ? UT_VOL_EQ[sp] : "           ")
         elseif s.variant isa CentralIdaho
             # CI VOLEQDEF (NVEL voleqdef.f R4_EQN, FORNUM-keyed): 400MATW (R4 Matney) + I15FW2W (Flewelling,
             # DF/GF/ES/PP on INGY forests 402/412/413) + 400DVEW (woodland, PY/WJ/MC/CW). Forest-DEPENDENT: the
