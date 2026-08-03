@@ -50,6 +50,27 @@ IE's FMCFMD = candidate standard fuel models → shared FMDYN interpolation. Pie
 5. **Validate**: iet01 SIMFIRE keyword .sum (fire-year TPA/mortality/surface-fuel) bit-exact vs live FVSie
    (relink FVSie oracle in /workspace/.iework). Then KT drops in (fmcfmd identical, bark=[1:11], mois shared).
 
+## CI (Central Idaho) FFE — SCOPED (most complex western fmcfmd; checkpoint before wiring)
+CI decay==CR, moisture==IE (both shareable). CI's fmcfmd (ci/fmcfmd.f) is the most elaborate western selection:
+- **ICT = MAPPVG[ICINDX]** (ci/fmcba.f ENTRY CIPVG; MAPPVG 130 entries, ICT values 1-11). ICINDX is ALREADY
+  computed by the CI growth port (dual-habitat ICITYP bracket) — reuse it. Extracted: MAPPVG (126/130 non-null).
+- **ICT case groups**: CASE(1:4) → K by ICT (1→model1; 2→CIS9B ninebark?5:snowberry?2; 3→5; 4→2), then
+  EQWT(K)+=WT1(1); EQWT(9)+=WT1(2)·PRLONG; EQWT(8)+=WT1(2)·(1−PRLONG), WT1=ALGSLP(PERCOV,[30,50]).
+  CASE(5:6) → K=2/5 THEN a **grand-fir-understory sub-model** (~100 lines: grand-fir saplings ISCT(4), sapling
+  crown-cover CRGF/CCGF → a 2nd weight WT2, splitting EQWT across models via WT1·WT2 products) — the complex part.
+  CASE(7:11) → EQWT(8)=1.0 (trivial). Then activity 11/14 (AFWT) + natural 10/12/13 (AFWT=0 path).
+- **PRLONG** = BA-fraction in sp {1,10} (long-needle pines) / total BA. **CIS9B** = ninebark-vs-snowberry from
+  the CI habitat (ci/fmcba.f) — small habitat lookup, extract with MAPPVG.
+- cit01 STDINFO habitat 520 → ICINDX → ICT (determine which case; if 7:11 or 1:4, cit01 validates WITHOUT the
+  grand-fir-understory branch — port simple cases first, defer CASE(5:6) if cit01 avoids it).
+- **Data-extraction TODO/subtleties**: FULIVE grab FAILED (format differs — re-extract) ; fmvinit found only 15
+  of 19 CASE blocks (CI likely uses CASE ranges / shared defaults for 4 species — verify, don't assume). FUINIE/
+  FUINII/FULIVI/ISPMAP(19)/BIOGRP(19) extracted OK. ISPMAP=[15,8,3,4,6,7,11,18,1,13,14,7,41,16,41,11,17,24,17].
+- **Wiring (next session)**: reuse ci growth-port ICINDX → ci_pvg(icindx)=MAPPVG → ci_select_fuel_models (3 case
+  groups) ; ffe_fuel.jl (FULIVE/FUINIE 19sp) ; fire_species_props.csv ; fmd_xpts==IE, decay==CR, moisture==IE ;
+  crown_biomass CI bark (ci_bratio — CI has per-species branches, use it not calib) ; crown-fire gate. Validate
+  cit01 SIMFIRE MOR vs live FVSci (oracle /workspace/.ciwork/FVSci_clean).
+
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
   Committed the full IE/KT surface-fire path (7 commits): (1) bark-thickness `_IE_FM_BARK_B1`; (2) moisture
