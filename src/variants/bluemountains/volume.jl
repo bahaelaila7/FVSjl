@@ -9,7 +9,7 @@ function compute_volumes_bm!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
     sd = s.coef.species
-    iforst = Int(s.plot.user_forest_code) % 100          # R6 forest number (614→14 Umatilla)
+    iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100   # forkod-remapped R6 forest (619→616, 8117→614)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0

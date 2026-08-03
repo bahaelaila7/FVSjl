@@ -140,10 +140,45 @@ end
 
 @inline _fw2_is_ingy(jsp::Int) = 11 <= jsp <= 21
 
-"Form params for a JSP: region-2/3 (SHP_OT, F=_FW2_F[jsp-22]) or INGY (SHP_C2, F=_FW2_F_INGY[jsp-10])."
-function _fw2_shp(jsp::Int, d::Float32, h::Float32)
+"SHP_C2 (f_ingy.f) GEOSUB subregion coefficient override: return the (possibly modified) INGY
+F-coefficient row for `jsp`/`geosub`. geosub \"00\" (or an unmatched subregion) leaves the base row
+unchanged; matched subregions replace individual F(25)/F(34)/F(38) coefficients (JSP 12/13/14), or the
+whole column with F(:,23) for grand fir geosub 15/03. Faithful to SHP_C2 lines 276-351."
+function _fw2_ingy_frow(jsp::Int, geosub::AbstractString)
+    base = _FW2_F_INGY[jsp - 10]
+    geosub == "00" && return base
+    local ovr
+    if jsp == 11
+        (geosub == "15" || geosub == "03") || return base             # DF: geotemp forced '15'
+        ovr = _FW2_DFSUB
+    elseif jsp == 19
+        geosub == "15" || return base                                 # ES
+        ovr = _FW2_ESSUB
+    elseif jsp == 13                                                  # grand/white fir
+        (geosub == "15" || geosub == "03") && return _FW2_F_INGY_GF23 # whole-column swap, no GFSUB
+        o = get(_FW2_GFSUB, geosub, nothing); o === nothing && return base
+        ovr = o
+    elseif jsp == 14
+        o = get(_FW2_PPSUB, geosub, nothing); o === nothing && return base
+        ovr = o
+    elseif jsp == 12
+        o = get(_FW2_WLSUB, geosub, nothing); o === nothing && return base
+        ovr = o
+    else
+        return base                                                   # JSP 15-18,20,21: no subregion mods
+    end
+    frow = copy(base)
+    @inbounds for (k, v) in ovr
+        frow[k] = v
+    end
+    return frow
+end
+
+"Form params for a JSP: region-2/3 (SHP_OT, F=_FW2_F[jsp-22]) or INGY (SHP_C2, F=_FW2_F_INGY[jsp-10]
+with the GEOSUB subregion override applied)."
+function _fw2_shp(jsp::Int, geosub::AbstractString, d::Float32, h::Float32)
     if _fw2_is_ingy(jsp)
-        return _fw2_shp_core(_FW2_F_INGY[jsp - 10], d, h, jsp == 15)   # INGY; JSP15 = lodgepole
+        return _fw2_shp_core(_fw2_ingy_frow(jsp, geosub), d, h, jsp == 15)  # INGY; JSP15 = lodgepole
     elseif jsp == 22
         return _fw2_shp_bh(d, h)                                       # Black Hills PP (SHP_BH)
     else
@@ -440,7 +475,8 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     jsp = _fw2_jsp(voleq)
     (_fw2_is_ingy(jsp) || (22 <= jsp <= 29)) || return vol   # supported 2-pt families (22 = Black Hills PP)
     ingy = _fw2_is_ingy(jsp)
-    rflw, rhfw = _fw2_shp(jsp, d, h)
+    geosub = length(voleq) >= 3 ? voleq[2:3] : "00"    # SHP_C2 subregion (INGY only)
+    rflw, rhfw = _fw2_shp(jsp, geosub, d, h)
     tapcoe = _fw2_sf_taper(rhfw, rflw)
     # INGY: profile is inside bark, calibrated to DBHIB. SF_SHP uses the PASSED DBTBH (fvsvol DBTBH=D·(1-BARK))
     # when >0 — so DBHIB=D·BARK (cr_bratio), NOT FDBT_C2 (that's only the no-bark-input fallback). Region-2/3: DBHOB.

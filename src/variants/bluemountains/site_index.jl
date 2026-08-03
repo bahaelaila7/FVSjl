@@ -45,6 +45,19 @@ const BM_SICHG_REFAGE = Float32[50,50,50,50,100,100,50,100,100,100,100,100,100,1
 
 # bm/forkod.f — KODFOR → IFOR (location subscript) + IGL. JFOR=[604,607,614,616,619], all KFOR=1.
 const BM_JFOR = Int[604, 607, 614, 616, 619]
+
+# bm/forkod.f KODFOR output (line 79-93): the accepted-location remap that downstream code (incl. NVEL
+# VOLEQDEF) sees. 8117 (Umatilla Reservation) -> Umatilla 614; 619 (Whitman) -> Wallowa-Whitman 616;
+# an unrecognized code defaults to the first location (604). Used by the volume chunk to key the
+# forest-dependent VEQNNC and the 616BEHW form-class lookup off the SAME forest live uses.
+function bm_kodfor_remap(kodfor::Integer)::Int
+    kodfor == 8117 && return 614
+    idx = findfirst(==(Int(kodfor)), BM_JFOR)
+    idx === nothing && return 604                 # forkod DEFAULT (IFOR=1 -> JFOR(1)=604)
+    idx == 5 && (idx = 4)                          # 619 Whitman -> 616 Wallowa-Whitman
+    return BM_JFOR[idx]
+end
+
 function bm_forkod!(p)
     kodfor = Int(p.user_forest_code)
     ifor = 1; useigl = true
