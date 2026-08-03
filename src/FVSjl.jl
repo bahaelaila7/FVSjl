@@ -78,6 +78,7 @@ include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Regi
 
 # --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
 include("variants/britishcolumbia/britishcolumbia.jl") # BC singleton + registration (MAXSP 15) — chunk 0 scaffold
+include("variants/britishcolumbia/species.jl")          # BC species block-data init (bc/blkdat.f) — chunk 1
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax

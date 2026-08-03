@@ -25,3 +25,7 @@ struct BritishColumbia <: AbstractVariant end
 variant_code(::BritishColumbia) = "BC"
 nspecies(::BritishColumbia) = 15
 htg_period(::BritishColumbia) = 10f0
+
+const BC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "britishcolumbia"))
+
+coefficients(::BritishColumbia) = cached_coefficients(() -> load_species_coefficients(BC_DATADIR), "BC")
