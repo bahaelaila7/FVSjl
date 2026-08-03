@@ -56,7 +56,22 @@ IFOR<2 ⇒ same formula, **IFOR≥2 ⇒ SDIDEF(sp)=R4SDI(sp)** (Zeide). cit01 fo
 forkod: JFOR=[117,402,406,412,413,414] NUMFOR=6 KFOR=[1,2,2,3,2,2]. JTYPE brackets = IE's (shared).
 **Still to extract:** ICITYP(130), NIHMAP(130), ICHBCL(130,19) [ch3]. Data in hand: R4SDI, BAMAXA(130),
 SITELO/HI, JFOR/KFOR. Validate SITEAR/SDIDEF echo vs FVSci_clean (instrument sitset.f or read SITECODE).
-| 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | TODO |
+| 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | ◐ **EQUATION FULLY TRACED** (recipe below); extract coeffs + port dgf!/ci_dgcons! + validate WK2 next. |
+
+### Chunk 3 — CI DG equation (ci/dgf.f, traced) — standard western Wykoff DDS (KT/UT family)
+DGCONS (once/stand, per sp): `MAPHAB=ICHBCL(ICINDX,sp)+1`; `DHAB=DGHAB(MAPHAB,sp)` [DGHAB=OCURHT,
+16-17 hab groups]; `ISPFOR=MAPLOC(IFOR,sp)`; `TEMEL=ELEV` (capped 30 for some sp);
+`DGCON = DHAB + DGFOR(ISPFOR,sp) + DGEL·TEMEL + DGEL2·TEMEL² + (DGSASP·sin(asp)+DGCASP·cos(asp)+DGSLOP)·SLOPE`
+`+ site term by sp-group {.001766·XSITE | .006460·XSITE | 0.227307·ln(XSITE)}` (check DGSLSQ·SLOPE² too).
+Per cycle: `CONSPP = DGCON(sp) + COR(sp) + 0.01·DGCCFA(sp)·RELDEN`.
+Per tree (default sp): `BAL=(1−PCT/100)·BA`; `DDS = CONSPP + DGLD·ln(D) + DGBAL·BAL + CR·(DGCR+CR·DGCRSQ)`
+`+ DGDSQ·D² + DGBA·BAL/ln(D+1) − 0.000981·BA` (clamp ≥ −9.21). Special branches: **aspen** `DDS=ASPDG+ln(COR2)+COR`
+(ci/dgfasp-like); **WB/DF-limited** `DF=0.25897+1.03129·DPP−0.0002025464·BATEM+0.00177·SI; DIAGR=(DF−DPP)·BARK;`
+`DDS=ln(DIAGR·(2·DPP·BARK+DIAGR))+CONSPP`. DGLBA/DGPCCF used in a further sp sub-branch (ICLS path).
+**Coeffs to extract (×19 sp unless noted):** DGLD,DGCR,DGCRSQ,DGBAL,DGDBAL,DGDSQ(DGDS),DGBA,DGLBA,DGPCCF,
+DGCCFA,DGEL,DGEL2,DGSLOP,DGSLSQ,DGCASP,DGSASP; DGFOR(nloc,sp); DGHAB/OCURHT(17,sp); ICHBCL(130,sp);
+MAPLOC(6,sp); IBSERV/OBSERV. Clone ie/diameter_growth.jl + ie/dg_coefficients.jl; ICINDX already in
+p.habitat_input (ch2). Validate WK2 via instrument-replay (relink_ci.sh + DGFTRC dump) vs FVSci_clean on cit01.
 | 4 | Height: ci/htgf.f | TODO |
 | 5 | Crown: ci/crown.f + ci/ccfcal.f | TODO |
 | 6 | Small-tree: ci/regent.f | TODO |
