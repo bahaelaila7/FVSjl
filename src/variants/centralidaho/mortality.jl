@@ -25,9 +25,12 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     icindx = Int(p.habitat_input)
     itype = (1 <= icindx <= 130) ? Int(CI_NIHMAP[icindx]) : 1
     (itype < 1 || itype > 30) && (itype = 1)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= icindx <= 130) ? CI_BAMAXA[icindx] : 0f0)
-    bamax <= 0f0 && (bamax = 1f0)
     sdimax = stand_sdimax(s)
+    # CI (Zeide) BAMAX = SDIMAX·0.5454154·PMSDIU (ci/morts.f — verified live 265.15 = 571.92·0.5454154·0.85),
+    # NOT the site BAMAXA. PMSDIU default 0.85 (fraction).
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi / 100f0 : 0.85f0
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+    bamax <= 0f0 && (bamax = 1f0)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
