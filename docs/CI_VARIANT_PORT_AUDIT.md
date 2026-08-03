@@ -74,8 +74,8 @@ MAPLOC(6,sp); IBSERV/OBSERV. Clone ie/diameter_growth.jl + ie/dg_coefficients.jl
 p.habitat_input (ch2). Validate WK2 via instrument-replay (relink_ci.sh + DGFTRC dump) vs FVSci_clean on cit01.
 | 3b | DG port (loader + ci_dgcons!/dgf!) | ◐ **PORTED; DGCON bit-exact; WK2 ~98% (2 stand-stat residuals left)**. Validated via DGFTRC instrument-replay on cit01: **DGCON bit-exact** (sp2 1.5005572, sp3 1.0425863, sp7 0.9978017 — ci_dgcons! + all coeffs correct). **BUG FOUND+FIXED**: DEFAULT DDS missing the 4th continuation line `+ CR·(DGCR+CR·DGCRSQ) + DGBAL·BAL` (dgf.f:493) → WK2 residual 0.64→~0.05. **REMAINING (2 stand-stat inputs; DDS formula itself is bit-exact)**:
 (a) **RELDEN** live 81.89 vs jl 0.38 — jl `stand_ccf` returns 0.38 (broken: CI crown/CCF coeffs not ported ⇒ **BLOCKED on chunk 5** ci/ccfcal.f; once CCF works RELDEN follows). Only affects species with DGCCFA≠0.
-(b) **BA/TPA** — jl total TPA=589.7 but live .sum=536, jl BA=85.13 vs .sum 77 (live dgf-internal BA=66.80) ⇒ a TPA/expansion discrepancy (likely DESIGN `11.0 1.0` handling) inflating jl BA; feeds DGLBA·ln(BA). Investigate tree-expansion/DESIGN for CI.
-⇒ Port chunk 5 (crown/CCF) next to unblock RELDEN, reconcile TPA/BA, then re-validate WK2 bit-exact. |
+(b) **BA scale** — TPA is FINE (jl loads 589.7 raw = BM identical; .sum normalizes to 536, validated for BM — false alarm cleared). Open: jl dgf uses p.basal_area=85.13 (raw) but live dgf-internal BA=66.80; trace ci/dense.f BA (large-tree/normalized). Feeds DGLBA·ln(BA).
+⇒ Both residuals couple to the density machinery ⇒ **port chunk 5 (crown/CCF, ci/ccfcal.f) next** to unblock RELDEN + provide dense stats, then re-validate WK2 bit-exact. DG formula itself is validated (DGCON bit-exact + crown-term fix). |
 | 4 | Height: ci/htgf.f | TODO |
 | 5 | Crown: ci/crown.f + ci/ccfcal.f | TODO |
 | 6 | Small-tree: ci/regent.f | TODO |
