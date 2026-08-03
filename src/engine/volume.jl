@@ -231,6 +231,25 @@ function bftopk(merch, sp::Integer, d::Float32, h::Float32, bbfv::Float32,
 end
 
 """
+    r4_topkill(t, i, sp, d, h, bark, tcf, mcf, bf, merch) -> (tcf, mcf, bf)
+
+Broken/killed-top volume reduction for the Region-4 western MAT/FW2 paths (fvsvol.f OCFVOL/OBFVOL entries
+→ CFTOPK/BFTOPK). A top-killed tree (ITRUNC = `t.trunc[i]` > 0, H ≥ 4.5) has its FULL-height cubic + board
+volume trimmed to the standing break height `ITRUNC/100` ft via the Behre taper. `bark` = start-of-cycle
+BRATIO (uses the stashed `t.vol_bark[i]` when present). No-op for un-killed trees (the common path). The
+region-4 DVE woodland path does NOT call this (fvsvol.f skips CFTOPK for DVE).
+"""
+@inline function r4_topkill(t, i::Integer, sp::Integer, d::Float32, h::Float32, bark::Float32,
+                            tcf::Float32, mcf::Float32, bf::Float32, merch)
+    (t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0) || return (tcf, mcf, bf)
+    bk = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : bark
+    vmx = tcf
+    tcf, mcf, _ = cftopk(merch, sp, d, h, tcf, mcf, 0f0, vmx, bk, Int(t.trunc[i]))
+    bf = bftopk(merch, sp, d, h, bf, vmx, bk, Int(t.trunc[i]))
+    return (max(tcf, 0f0), max(mcf, 0f0), max(bf, 0f0))
+end
+
+"""
     dub_missing_heights!(state)
 
 CRATET height resolution (cratet.f:212-265): assign heights to trees missing one

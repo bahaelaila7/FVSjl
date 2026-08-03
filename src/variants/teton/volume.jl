@@ -45,7 +45,10 @@ const TT_VOL_EQ = String[
 end
 
 function compute_volumes_tt!(s::StandState)
-    t = s.trees; veq = s.species.vol_eq
+    s.control.merch_init || init_merch_standards!(s)
+    t = s.trees; veq = s.species.vol_eq; c = s.control
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         # FVS volumes only trees with DBH ≥ 1 (measured: the FVStt volume loop never calls r4d2h for a
@@ -61,10 +64,15 @@ function compute_volumes_tt!(s::StandState)
             mtopp = 6.0f0 * tt_bratio(sp, d)
             dbhmin = sp == 7 ? 7.0f0 : 8.0f0
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
-            t.cuft_vol[i] = max(tcf, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
+            mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
             bfmind = sp == 7 ? 7.0f0 : 8.0f0                 # board DBHMIN (BFMIND, tt/grinit.f)
             bf = d >= bfmind ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0   # BFGRS Scribner (M=1)
+            # Broken/killed-top reduction (r4_topkill → CFTOPK/BFTOPK): a top-killed tree over-volumes without
+            # it — this WAS the TT forest-405 .sum residual (one AF idx-11 broke at 40ft: jl 53.2 vs live 44.0
+            # ⇒ +55 TCuFt; TCuFt now bit-exact). Latent in CI/UT too (same MAT/FW2 path); no-op for un-killed.
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, tt_bratio(sp, d), max(tcf, 0f0), mcf, bf, merch)
+            t.cuft_vol[i] = max(tcf, 0f0)
+            t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else
             # DVEW (PM/UJ/RM/MC/OH) — TT woodland volume = R4D2H (Chojnacky INT-339 D2H regression,

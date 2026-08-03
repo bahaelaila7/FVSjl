@@ -362,14 +362,16 @@ function setup_volume_equations!(s::StandState)
             # live (forest 118); forest-keyed VOLEQDEF port needed for arbitrary IE forests (see volume.jl).
             s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
         elseif s.variant isa Teton
-            # TT VOLEQDEF = R4_EQN (region-4). Forest 405 (F5) SELECTS DF→405MATW202, AF→405MATW019 (confirmed
-            # live via instrument-replay). But wiring r4_voleq here REGRESSED the .sum on forest-405 stands
-            # (31355566010690: 400-table 2119 vs live 2145 → 405-eq 2200): jl's r4vol produces a ~2.6% residual
-            # for the 405-geo Matney (II=3/II=6) that the matching CFCOEF coefficients don't explain — NOT yet
-            # root-caused (needs per-tree instrument-replay of live's 405MATW202 vol vs jl's). Left on the
-            # forest-407-dumped fixed table until that r4vol 405-geo residual is understood. See ci/ut which
-            # ARE forest-keyed (their forests only need 400-prefix equations jl computes bit-exact).
-            s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
+            # TT VOLEQDEF = R4_EQN (region-4, FORNUM-keyed via TT_JFOR[forest_idx]). Forest 405 (F5) selects
+            # DF→405MATW202, AF→405MATW019 (confirmed live). The earlier apparent ".sum regression" from this
+            # was NOT the equation — it was a latent BROKEN-TOP volume bug (r4_topkill, now fixed in
+            # compute_volumes_tt!/ci!/ut!): a top-killed AF over-volumed with the correct 405 eq. With both
+            # fixes, forest-405 TCuFt is bit-exact (residual = a small separate r4vol merch tail). The 405
+            # SELECTION is validated (r4_voleq 555/555 vs authoritative R4_EQN).
+            fidx_tt = Int(s.plot.forest_idx)
+            fnum_tt = (1 <= fidx_tt <= length(TT_JFOR)) ? TT_JFOR[fidx_tt] % 100 : 3
+            veq_tt = r4_voleq(fnum_tt, ifia)
+            s.species.vol_eq[sp] = veq_tt !== nothing ? veq_tt : (sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          ")
         elseif s.variant isa Utah
             # UT VOLEQDEF = R4_EQN (region-4, FORNUM-keyed). jl previously used ONLY the forest-407/utt01 table,
             # so WB/LP/LM/PP/WF/ES/BS volume was wrong on other UT forests (e.g. F9/F17 use 401MATW108/403MATW122

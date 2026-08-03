@@ -26,7 +26,9 @@ end
 
 function compute_volumes_ut!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees; veq = s.species.vol_eq
+    t = s.trees; veq = s.species.vol_eq; c = s.control
+    utmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+               scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
@@ -40,16 +42,19 @@ function compute_volumes_ut!(s::StandState)
         if mdl == "MAT"
             mtopp = 6.0f0 * bark                             # TOPD=6 outside-bark → inside-bark top
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)
-            t.cuft_vol[i] = max(tcf, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
+            mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
             bf = d >= dbhmin ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, max(tcf, 0f0), mcf, bf, utmerch)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
-            t.cuft_vol[i] = max(v[1], 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
+            tcf = max(v[1], 0f0)
+            mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+            bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, tcf, mcf, bf, utmerch)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # DVE woodland — dvest.f geocode dispatch
             # geocode '3' → Region-3 R3D2HV (GO); '4' → Region-4 R4D2H (PJ). (dvest.f:71/86)
             vol1 = se[1] == '3' ? r3d2hv_vol1(eq, d, h) : r4d2h_vol1(eq, d, h)

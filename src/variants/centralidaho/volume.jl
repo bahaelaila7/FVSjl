@@ -26,7 +26,9 @@ end
 
 function compute_volumes_ci!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species
+    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
+    cimerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+               scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -39,17 +41,20 @@ function compute_volumes_ci!(s::StandState)
         if mdl == "MAT"
             mtopp = 6.0f0 * bark
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)
-            t.cuft_vol[i] = max(tcf, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
+            mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
             bf = d >= dbhmin ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, max(tcf, 0f0), mcf, bf, cimerch)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
-            t.cuft_vol[i] = max(v[1], 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
-        else                                                 # DVE woodland (r4d2h, region 4)
+            tcf = max(v[1], 0f0)
+            mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+            bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, tcf, mcf, bf, cimerch)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
+        else                                                 # DVE woodland (r4d2h, region 4): NO CFTOPK trim
             vol1 = r4d2h_vol1(eq, d, h)
             t.cuft_vol[i] = max(vol1, 0f0)
             t.merch_cuft_vol[i] = d >= dbhmin ? max(vol1, 0f0) : 0f0
