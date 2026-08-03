@@ -39,7 +39,7 @@ First 10 identical to IE's Northern-Rockies conifers.
 | # | Chunk | Verdict |
 |---|-------|---------|
 | 0 | Scaffold: `CentralIdaho` singleton + registration (variant.jl) + include/export; oracle relinked; baseline captured | ✓ **DONE** — loads, `variant_from_code("CI")`→CentralIdaho(), nspecies=19; un-ported hooks error loudly (doctrine #5) |
-| 1 | Species + grinit defaults (19 sp, FIA map, Zeide SDI, DGSD 1.7, LHTDRG, seed) — data/centralidaho/*.csv | TODO |
+| 1 | Species + grinit defaults (19 sp, FIA map, Zeide SDI, DGSD 1.7, LHTDRG, seed) — data/centralidaho/*.csv | ✓ **DONE** — species_coefficients.csv (19, IE-template non-DG + REAL ci/bratio.f BARK1/BARK2, ci/siterange.f SITELO/HI, ci/blkdat.f SIGMAR) + species_translation.csv (442, ci/spctrn.f ASPT col7); species.jl (Zeide SDI, DGSD 1.7, LHTDRG-15, seed 55329). cit01 loads species; coeffs verified (bark1/SIGMAR match live). Next hook site_setup! errors loudly |
 | 2 | Site/habitat: ci/sitset.f + ci/habtyp.f (NI 30 habitat types → OCURHT groups) | TODO |
 | 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | TODO |
 | 4 | Height: ci/htgf.f | TODO |

@@ -30,3 +30,7 @@ struct CentralIdaho <: AbstractVariant end
 variant_code(::CentralIdaho) = "CI"
 nspecies(::CentralIdaho) = 19
 htg_period(::CentralIdaho) = 10f0
+
+const CI_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "centralidaho"))
+
+coefficients(::CentralIdaho) = cached_coefficients(() -> load_species_coefficients(CI_DATADIR), "CI")
