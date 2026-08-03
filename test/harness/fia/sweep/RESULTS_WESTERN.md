@@ -10,9 +10,15 @@
 >   sample): CI 1/15, EM 0/3, UT 1/8 — vs the recorded CI 24 / EM 8 / UT 25. BM added to multi-cycle (median 0).
 > - **Sole remaining volume residual = FW2 merch/board low on large *stunted* DF** (old-growth, low H/D). Per-tree
 >   (CI 3200106010690, DBH 34.1″/HT 67ft): TotCu 130.7≈134.4 ✓ but **MchCu 115.8 vs 129.4 (−11%), BdFt 600 vs 740
->   (−19%)** — live merch-fraction ~0.97, jl ~0.87 ⇒ jl places the 6″ merch top too low. Total-cubic matches, so
->   it's a merch top-height / log-segmentation taper-shape issue, NOT missing species. Narrow (≈1/15 CI stands
->   >10%), scoped for a focused fvsvol-taper Fortran trace (do NOT cargo-cult; instrument live merch height first).
+>   (−19%)**. **Fortran trace DONE** (NVEL profile.f + fvsvol.f + mrules.f): the merch-cubic METHOD is correct
+>   (log-Smalian on integer DIB classes over segments, `VOL(4)` at profile.f:571 — NOT continuous integration, NOT
+>   missing species); merch top MTOPS=TOPD=6 ✓; jl segmnt → loglen [16,16,12,10] for lmerch 55.6. **Residual is in
+>   the segment-boundary numerics (exact SEGMNT log-lengths or the profile DIB at segment tops)** — pinning it needs
+>   live LOGLEN/LOGDIA, which the FVS volume-DEBUG path BLOCKS (SIGSEGV, see below). Next: .bmwork instrument-replay
+>   (patch fvsvol WRITE LOGLEN/LMERCH→file, relink) for ground truth — do NOT cargo-cult a segmentation fix. Narrow
+>   (≈1/15 CI stands >10%).
+> - **⚠ Live FVSci DEBUG SIGSEGV:** the `DEBUG` keyword segfaults after ~1 VOLINIT block (fvsvol DBCHK dump path) on
+>   treed CI stands — DEBUG-only (production fine), but a real live bug; it's what blocks the per-log volume trace.
 > - **Growth core unchanged: density/diameter 100% bit-exact; CCF(±1)/TopHt(AVH-tie) cornered.**
 > Bottom line: the western cluster is bit-exact-or-cornered on growth everywhere; volume is now bit-exact-or-
 > cornered except the narrow large-stunted-DF FW2 merch/board class. See memory `fvsjl-extensions-rollout`.
