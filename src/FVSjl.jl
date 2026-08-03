@@ -77,6 +77,7 @@ include("variants/kootenai/mortality.jl")            # KT mortality (chunk 7): H
 include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Region-1 Flewelling FW2
 
 # --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
+include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
 include("variants/inlandempire/species.jl")          # IE species block-data init (ie/blkdat.f + grinit.f)
 include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (chunk 2): ITYPE/IFOR/SITEAR
@@ -233,7 +234,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
