@@ -92,6 +92,7 @@ fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
 fmd_xpts(::Kootenai) = _FMD_XPTS_IE
 fmd_xpts(::EasternMontana) = _FMD_XPTS_IE   # em/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::CentralIdaho) = _FMD_XPTS_IE     # ci/fmcfmd.f XPTS verified identical to ie
+fmd_xpts(::BlueMountains) = _FMD_XPTS_IE     # bm/fmcfmd.f ICLSS=14, XPTS identical to ie
 fmd_xpts(::Teton) = _FMD_XPTS_CR            # TT/UT ICLSS=12 (models 1-12), same XPTS breakpoints as CR
 fmd_xpts(::Utah) = _FMD_XPTS_CR
 fmd_xpts(::AbstractVariant) = _FMD_XPTS

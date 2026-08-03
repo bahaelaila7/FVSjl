@@ -163,7 +163,7 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
 
     # Dwarf mistletoe rating from FIA damage codes (mistoe/misdam.f). Legacy FVS agents 30-34 carry
     # the severity directly; FIA Arceuthobium agents map to severity (1-6) or default 3. First match wins.
-    # 0 for non-mistletoe codes ⇒ inert for variants without a DM model (only CentralRockies reads dmr).
+    # 0 for non-mistletoe codes ⇒ inert for variants without a DM model. DM-reading variants: CR + the N-Rockies Wykoff cluster IE/KT/EM/BM/UT/TT/CI (shared mistoe.f model).
     @inbounds begin
         dm = Int32(0)
         for j in (1, 3, 5)

@@ -227,6 +227,7 @@ include("../data/centralrockies/fire/ffe_live_fuel.jl")  # CR FFE FULIVE/FULIVI 
 include("../data/inlandempire/fire/ffe_fuel.jl")         # IE FFE FULIVE/FUINIE fuel data (reuses _cr_algslp2)
 include("../data/easternmontana/fire/ffe_fuel.jl")       # EM FFE FULIVE/FUINIE + MD1/MD2 fuel-model map
 include("../data/centralidaho/fire/ffe_fuel.jl")         # CI FFE FULIVE/FUINIE + MAPPVG/MAPS9B fuel-model map
+include("../data/bluemountains/fire/ffe_fuel.jl")        # BM FFE FULIVE/FUINIE + ISPMAP/cwcalc-remap (reuses _cr_algslp2, cr_cwcalc, cr_crownw)
 include("../data/teton/fire/ffe_fuel.jl")                # TT FFE FULIVE/FUINIE (reuses cr_select fmcfmd)
 include("../data/utah/fire/ffe_fuel.jl")                 # UT FFE FULIVE/FUINIE (reuses cr_select fmcfmd)
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
