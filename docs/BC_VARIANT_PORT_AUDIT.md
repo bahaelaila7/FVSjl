@@ -54,3 +54,9 @@ in fvs.f but never defined; stubbed empty (output-only, irrelevant to growth) to
 Same extraction tooling (tools/centralidaho/*.py adapts by variant), same chunk methodology, and the 4
 CI bug classes are the watch-list: DG DDS continuation lines (read ALL of them); mortality self-thin type
 (BA10 vs Zeide — BC is Stage ⇒ BA10 like IE); mortality BAMAX source; bratio.f per-species branches.
+
+### Chunk 2 CORE — PORTED + RUNS (site_index.jl)
+bc_kodtyp_itype (becset.f:1116 KODTYP→ITYPE, 130→1…730→27, NI codes=IE MTYPE, DEFAULT 21) +
+SDIDEF=BAMAX/(0.5454154·PMSDIU/100) (Stage). STDINFO field-2→habitat_code wired for BC. Runs:
+KODTYP 520→ITYPE 21, SDIDEF 129.42 (BAMAX 60 default). DEFERRED: full BEC-STRING parser (becset.f
+~1000 lines) — synthetic BC stands supply numeric KODTYP + BAMAX (all DG/mortality need). Next hook = dgf!.
