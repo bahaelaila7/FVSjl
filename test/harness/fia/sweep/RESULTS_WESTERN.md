@@ -1,5 +1,22 @@
 # Western-variant FIA-plot validation — results
 
+> **★ RE-VALIDATION ADDENDUM (2026-08-03, later than the sweep below).** The tables further down are **STALE** —
+> substantial volume + height-growth work landed AFTER this sweep was recorded. Verified with current code:
+> - **UT height growth sp 20/21/22 CRASH — FIXED.** The 3 repro stands (42631952010690 / 198812416020004 /
+>   31533289010690) now run clean (CR-surrogate 17:19,22 + MC/BI 20:21 ported). No jl crash across the western set.
+> - **"jl=0 missing-volume-species" subclass — largely FIXED.** Repro CI 51052888020004 (juniper sp64): live
+>   TCuFt/MCuFt 282/278, **jl now 282/278 (was 0/0)**. EM 2342318010690: **now bit-exact 82/29/120 (was 23-34% low)**.
+> - **Current >10% volume-divergence rate is FAR lower than the tables below** (measured on the sub.db treed
+>   sample): CI 1/15, EM 0/3, UT 1/8 — vs the recorded CI 24 / EM 8 / UT 25. BM added to multi-cycle (median 0).
+> - **Sole remaining volume residual = FW2 merch/board low on large *stunted* DF** (old-growth, low H/D). Per-tree
+>   (CI 3200106010690, DBH 34.1″/HT 67ft): TotCu 130.7≈134.4 ✓ but **MchCu 115.8 vs 129.4 (−11%), BdFt 600 vs 740
+>   (−19%)** — live merch-fraction ~0.97, jl ~0.87 ⇒ jl places the 6″ merch top too low. Total-cubic matches, so
+>   it's a merch top-height / log-segmentation taper-shape issue, NOT missing species. Narrow (≈1/15 CI stands
+>   >10%), scoped for a focused fvsvol-taper Fortran trace (do NOT cargo-cult; instrument live merch height first).
+> - **Growth core unchanged: density/diameter 100% bit-exact; CCF(±1)/TopHt(AVH-tie) cornered.**
+> Bottom line: the western cluster is bit-exact-or-cornered on growth everywhere; volume is now bit-exact-or-
+> cornered except the narrow large-stunted-DF FW2 merch/board class. See memory `fvsjl-extensions-rollout`.
+
 Companion to `RESULTS.md` (SN/NE/CS/LS). Seeded stratified random FIA sweep across the six newly-ported
 **western** variants — **CR, IE, EM, UT, CI, TT** (BM skipped — mid-port) — validated cycle-0 all-10-`.sum`-
 columns vs the freshly-relinked live FVS binaries.
