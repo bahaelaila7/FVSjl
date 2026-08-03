@@ -1,10 +1,9 @@
 # Stratified reservoir sampler: N random STAND_CN per target variant from FVS_STANDINIT_COND,
 # restricted to stands that actually have trees (TREEINIT_COND). One streaming scan, seeded.
-# Usage: julia --project=. sample_stands.jl <N_per_variant> <seed> <outdir>
+# Usage: julia --project=. sample_stands.jl <N_per_variant> <seed> <outdir> [<var1,var2,...>]
 using SQLite, Random
 const DB = "/workspace/SQLite_FIADB_ENTIRE.db"
-const TARGETS = ("SN","NE","CS","LS")
-function main(n::Int, seed::Int, outdir::String)
+function main(n::Int, seed::Int, outdir::String, TARGETS)
     db = SQLite.DB("file:$DB?mode=ro&immutable=1")
     rng = MersenneTwister(seed)
     # reservoir per variant over STAND_CN
@@ -26,4 +25,5 @@ function main(n::Int, seed::Int, outdir::String)
         println("$v: sampled $(length(res[v])) of $(seen[v]) total")
     end
 end
-main(parse(Int, ARGS[1]), parse(Int, ARGS[2]), ARGS[3])
+const _TARGETS = length(ARGS) >= 4 ? Tuple(uppercase.(strip.(split(ARGS[4], ',')))) : ("SN","NE","CS","LS")
+main(parse(Int, ARGS[1]), parse(Int, ARGS[2]), ARGS[3], _TARGETS)

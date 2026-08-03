@@ -11,7 +11,9 @@ const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt
 const GROWTH = 1:6; const VOL = 7:10
 cfg(v) = v=="CR" ? ("/workspace/.crwork/FVScr_clean",FVSjl.CentralRockies()) : v=="IE" ? ("/workspace/.iework/FVSie_clean",FVSjl.InlandEmpire()) :
          v=="EM" ? ("/workspace/.emwork/FVSem_clean",FVSjl.EasternMontana()) : v=="UT" ? ("/workspace/.utwork/FVSut_clean",FVSjl.Utah()) :
-         v=="CI" ? ("/workspace/.ciwork/FVSci_clean",FVSjl.CentralIdaho()) : v=="TT" ? ("/workspace/.ttwork/FVStt_clean",FVSjl.Teton()) : error(v)
+         v=="CI" ? ("/workspace/.ciwork/FVSci_clean",FVSjl.CentralIdaho()) : v=="TT" ? ("/workspace/.ttwork/FVStt_clean",FVSjl.Teton()) :
+         v=="BM" ? ("/workspace/.bmwork/FVSbm_clean",FVSjl.BlueMountains()) :
+         v=="KT" ? ("/workspace/.ktwork/FVSkt_clean",FVSjl.Kootenai()) : error(v)
 keytext(cn,db) = "STDIDENT\n$cn\nDATABASE\nDSNin\n$db\nStandSQL\nSELECT * FROM FVS_STANDINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nTreeSQL\nSELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nEND\nNUMCYCLE         3.0\nECHOSUM\nPROCESS\nSTOP\n"
 function parse_sum(text)
     rows = Tuple{Int,Vector{Float64}}[]
@@ -79,7 +81,7 @@ function main(args)
         for f in sort(readdir(dir))
             endswith(f,"_sample.txt") || continue
             vv=uppercase(replace(f,"_sample.txt"=>""))
-            vv in ("CR","IE","EM","UT","CI","TT") || continue
+            vv in ("CR","IE","EM","UT","CI","TT","BM","KT") || continue
             haskey(byvar,vv) || (byvar[vv]=Tuple{String,String}[]; seen[vv]=Set{String}(); push!(order,vv))
             for l in eachline(joinpath(dir,f)); s=strip(l); isempty(s)&&continue; cn=split(s,'\t')[1]
                 cn in seen[vv] && continue; push!(seen[vv],cn); push!(byvar[vv],(cn,db)); end
