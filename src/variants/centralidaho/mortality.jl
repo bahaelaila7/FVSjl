@@ -83,7 +83,10 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)
+        # ci/morts.f species multiplier: 60% of NI rate for WB/PY/AS/MC/LM/CW/OH, 20% for WJ (juniper)
+        smult = (sp == 11 || sp == 12 || sp == 13 || sp == 15 || sp == 16 || sp == 17 || sp == 19) ? 0.6f0 :
+                (sp == 14 ? 0.2f0 : 1.0f0)
+        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)

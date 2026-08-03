@@ -108,6 +108,20 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 19) && continue
         (lstart && t.crown_pct[i] > 0) && continue
+        if sp == 17 || sp == 19                         # ci/crown.f CASE(17,19): CW/OH crown model at ALL sizes
+            hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)   # HF=H+HTG (HTG=0 at the lstart dub)
+            cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            icri = trunc(Int, (cl/hf)*100f0 + 0.5f0)
+            if !lstart && t.crown_pct[i] > 0            # cycling: limit change to 1%/yr (label 53)
+                icr0 = Float32(t.crown_pct[i]); chg = Float32(icri) - icr0; pdifpy = chg/icr0/fint
+                pdifpy > 0.01f0 && (chg = icr0*0.01f0*fint); pdifpy < -0.01f0 && (chg = icr0*(-0.01f0)*fint)
+                icri = trunc(Int, icr0 + chg + 0.5f0)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10)
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
         # ci/crown.f:290 — DBH<1" at LSTART jumps to label 58: dub via DUBSCR (small-tree logistic),
         # NOT the Weibull path, and NOT skipped. Floor to 10 (CRNMLT=1). (17/19 use the Weibull-loop
         # CW/OH model at all sizes; here they fall through to Weibull like the rest — sp15 handled in dubscr.)

@@ -22,6 +22,16 @@ let
 end
 const CI_RG_REGYR = 5.0f0
 const CI_RG_DIAM = Float32[0.4,0.3,0.3,0.3,0.2,0.2,0.4,0.3,0.3,0.5,0.3,0.3,0.2,0.3,0.2,0.3,0.2,0.2,0.2]  # ci/regent.f DATA DIAM (min DBH)
+const CI_RG_AB = Float32[1.11436, -0.011493, 0.43012f-4, -0.72221f-7, 0.5607f-10, -0.1641f-13]  # PCTRED poly (regent.f:448)
+@inline _ci_ut_species(sp::Int) = sp == 13 || sp == 14 || sp == 15 || sp == 17 || sp == 19  # ci/regent.f UTVAR branch
+
+"""ci/regent.f sp17/19 (CW/OH) Curtis-Arney height→DBH inverse (P2=1709.7229,P3=5.8887,P4=−0.2286)."""
+@inline function _ci_ut_htdbh(ht::Float32)::Float32
+    p2 = 1709.7229f0; p3 = 5.8887f0; p4 = -0.2286f0
+    hat3 = 4.5f0 + p2 * exp(-p3 * 3.0f0^p4)
+    ht >= hat3 ? exp(log((log(ht - 4.5f0) - log(p2)) / (-p3)) * (1.0f0 / p4)) :
+                 ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
+end
 
 function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
@@ -36,7 +46,12 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
     ntyr = Int(round(fint))                               # NTYR (grow cycle; LSTART/ESTAB partial-cycle deferred)
     scale_h = Float32(ntyr) / regyr                       # ci/regent.f:518 CIVAR SCALE = NTYR/REGYR (single pass)
     scale2 = 1.0f0                                        # SCALE2 = YR/NTYR = 1 for a full cycle ⇒ DDS round-trip identity
+    scale_ut = 1.0f0                                      # UTVAR SCALE = NTYR/YR = 1 for a full cycle (regent.f:514)
     cur_year = current_cycle_year(s)
+    slo_a = sd[:site_lo]; shi_a = sd[:site_hi]
+    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)   # PCTRED input X = AH·(R/100) (regent.f:446)
+    pctred = CI_RG_AB[1] + xd*(CI_RG_AB[2] + xd*(CI_RG_AB[3] + xd*(CI_RG_AB[4] + xd*(CI_RG_AB[5] + xd*CI_RG_AB[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
     # CIVAR (sp 1-10,18) small-tree height+DBH — single pass (regent.f:528 J>1 skips). Verified vs the PRISTINE
     # FVSci_clean via the DEBUG keyword: seedling I=24 H=1.01→HK=5.267, DK=0.5179, DKK=0.1 ⇒ DG=0.387 (matches).
     # ZZRAN random height (regent.f:934) DEFERRED = deterministic mean HTGR=HTGR1 (grow-phase RNG desync class).
@@ -47,6 +62,58 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         t.tpa[i] <= 0.0f0 && continue
         (sp < 1 || sp > 19) && continue
         h0 = t.height[i]
+        # ---- UTVAR path: aspen(13)/juniper(14)/MC(15)/cottonwood(17)/hardwood(19) borrowed from UT variant
+        # (ci/regent.f UTVAR branch). POTHTG·PCTRED·VIGOR·CON height; per-species DBH. ZZRAN deferred (det. mean).
+        if _ci_ut_species(sp)
+            sitear = p.sp_site_index[sp]; sj = sitear
+            con = exp(c.htg_cor_small[sp])                # RHCON=1
+            if sp == 13                                   # aspen: FINDAG site-age from height (Sheppard)
+                slo = slo_a[sp]; shi = shi_a[sp]
+                si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
+                relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
+                age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+                hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+                htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+            else                                          # 14,15,17,19: POTHTG·PCTRED·VIGOR·CON
+                pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h0) / (sj * 1.5f0) * 0.83f0
+                xcr = Float32(t.crown_pct[i]) / 100.0f0
+                vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)   # juniper
+                htgr = pothtg * pctred * vigor * con
+            end
+            htgr = htgr * scale_ut                        # ZZRAN deferred; XRHGRO=1
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
+            xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
+            htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]; htg < 0.1f0 && (htg = 0.1f0)
+            hcap = s.control.sp_size_cap[sp, 4]           # SIZCAP(sp,4) max height (regent.f:955)
+            (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
+            t.ht_growth[i] = htg
+            hk = h0 + htg
+            bark = ci_bratio(sd, sp, d0)
+            if hk <= 4.5f0
+                t.diam_growth[i] = 0.0f0
+            else
+                local dk::Float32, dkk::Float32
+                if sp == 14                               # juniper linear-site
+                    dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                    dkk = h0 < 4.5f0 ? d0 : (h0 - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                elseif sp == 15                           # mountain-mahogany linear
+                    dk = 3.1020f0 + 0.0210f0 * hk
+                    dkk = 3.1020f0 + 0.0210f0 * h0; dkk < 0.0f0 && (dkk = d0); dk < dkk && (dk = dkk + 0.01f0)
+                else                                      # 17,19 cottonwood/hardwood Curtis-Arney
+                    dk = _ci_ut_htdbh(hk)
+                    dkk = h0 <= 4.5f0 ? d0 : _ci_ut_htdbh(h0)
+                end
+                dg = (dk - dkk) * bark; dg < 0.0f0 && (dg = 0.0f0)
+                dgmx = CI_RG_DGMAX[sp] * scale_ut; dg > dgmx && (dg = dgmx)
+                dds = dg * (2.0f0 * bark * d0 + dg) * scale2
+                dg = sqrt((d0 * bark)^2 + dds) - bark * d0
+                (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
+                t.diam_growth[i] = dg
+            end
+            continue
+        end
         pt = Int(t.plot_id[i])
         ptba = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : ba
         pct = t.crown_ratio[i]
