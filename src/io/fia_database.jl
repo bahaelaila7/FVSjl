@@ -136,6 +136,27 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end
+    # EM/UT/TT/IE (western, habitat-type-group DG): read PV_CODE (KODTYP) like CI/KT/BM. These variants'
+    # DG constant + mortality ITYPE key off a habtyp(KODTYP) map (em_habtyp/ut_habtyp/tt_habtyp/ie_habtyp),
+    # but the FIA reader never set habitat_code for them ⇒ it defaulted to 0/1 ⇒ WRONG habitat vs live.
+    # Live e.g. FVSem prints "HABITAT TYPE MAPPED TO 470 ... PV_REF_CODE WAS IGNORED" (PV_CODE priority).
+    # A 5-digit PV_CODE (e.g. 41780 = 2-digit state prefix + 3-digit habitat) → 780 = 41780 mod 1000; the
+    # 3-digit code (470/310) is used directly. PV_REF_CODE is the fallback. Each variant's site_setup! then
+    # maps habitat_code → habitat_input via its own habtyp. Confirmed live bug on EM stand 12344705010690
+    # (live habitat 470, jl was defaulting to 1).
+    if s.variant isa EasternMontana || s.variant isa Utah || s.variant isa Teton || s.variant isa InlandEmpire
+        hc = 0
+        if _fia_present(d, "PV_CODE")
+            pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
+            pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41780 → 780)
+            (10 <= pvc <= 999) && (hc = pvc)
+        end
+        if hc == 0 && _fia_present(d, "PV_REF_CODE")       # fallback
+            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
+            (10 <= pvr <= 999) && (hc = pvr)
+        end
+        hc != 0 && (p.habitat_code = Int32(hc))
+    end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
     # DB overrides elevation ONLY when >0 (dbsstandin.f:647) — so a null/≤0 ELEVATION keeps the
