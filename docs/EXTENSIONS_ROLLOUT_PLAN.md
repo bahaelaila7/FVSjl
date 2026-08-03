@@ -61,8 +61,20 @@ CI decay==CR, moisture==IE (both shareable). CI's fmcfmd (ci/fmcfmd.f) is the mo
   CASE(7:11) → EQWT(8)=1.0 (trivial). Then activity 11/14 (AFWT) + natural 10/12/13 (AFWT=0 path).
 - **PRLONG** = BA-fraction in sp {1,10} (long-needle pines) / total BA. **CIS9B** = ninebark-vs-snowberry from
   the CI habitat (ci/fmcba.f) — small habitat lookup, extract with MAPPVG.
-- cit01 STDINFO habitat 520 → ICINDX → ICT (determine which case; if 7:11 or 1:4, cit01 validates WITHOUT the
-  grand-fir-understory branch — port simple cases first, defer CASE(5:6) if cit01 avoids it).
+- **cit01 CONFIRMED: habitat 520 → ICINDX=66 → ICT=MAPPVG[66]=6 → CASE(5:6) grand-fir branch** (ICINDX=66
+  cross-checked vs the CI growth port's BAMAX work). So cit01 REQUIRES the grand-fir-understory logic — cannot
+  validate with simple cases. ICINDX is stashed in **p.habitat_input** (ci site_index.jl:102) — read it at fire
+  time; ict = MAPPVG[Int(p.habitat_input)].
+- **Full CASE(5:6) logic (ci/fmcfmd.f, read + transcribed)**: K=2(ICT5)/5(ICT6). Grand-fir understory = species-4
+  saplings (DBH≤3): CRGF=Σ(FMPROB·ICR)/ΣFMPROB (avg crown ratio %); TOTCRA=Σ(π·CRWDTH²/4·FMPROB);
+  CCGF=100·(1−exp(−TOTCRA/43560)); LCRGF=(CRGF≥75). If LCRGF: WT1=ALGSLP(CCGF,[50,70]); WT1(1) path splits by
+  WT2=ALGSLP(PERCOV,[40,60]) into EQWT[K]+=WT1(1)·WT2(1), EQWT[9/8]+=WT1(1)·WT2(2)·{PRLONG,1−PRLONG}; WT1(2)
+  path: if==1 EQWT[5]+=1 else WT2=ALGSLP(PERCOV,[40,60]) → EQWT[5]+=WT1(2)·WT2(1), EQWT[9/8]+=WT1(2)·WT2(2)·{PRLONG…}.
+  Else (no GF understory): WT1=ALGSLP(PERCOV,[40,60]) → EQWT[K]+=WT1(1); EQWT[9/8]+=WT1(2)·{PRLONG,1−PRLONG}.
+- **fmvinit combined CASE labels**: (11,16) share; (17,19) share; so 15 blocks cover 19 species. FULIVE/FULIVI/
+  FUINIE/FUINII DATA have inline `!species` comments (strip before parsing). ISPMAP(19)/BIOGRP(19) extracted OK.
+  A robust line-based extractor (strip C/*/! then read DATA name / … /) is needed; the naive regex grab fails.
+- **CIS9B** (ninebark vs snowberry, ICT=2 only — NOT needed for cit01/ICT6): small ci/fmcba.f habitat lookup.
 - **Data-extraction TODO/subtleties**: FULIVE grab FAILED (format differs — re-extract) ; fmvinit found only 15
   of 19 CASE blocks (CI likely uses CASE ranges / shared defaults for 4 species — verify, don't assume). FUINIE/
   FUINII/FULIVI/ISPMAP(19)/BIOGRP(19) extracted OK. ISPMAP=[15,8,3,4,6,7,11,18,1,13,14,7,41,16,41,11,17,24,17].
