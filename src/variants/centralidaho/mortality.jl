@@ -17,6 +17,7 @@ let
     global const CI_MORT_IPDG  = readmat("mort_ipdg.csv")     # [30, 11]
     global const CI_MORT_IPDG2 = readmat("mort_ipdg2.csv")    # [30, 11]
 end
+const CI_MORT_MAPFOR = Int[10, 1, 1, 10, 1, 1]               # ci/morts.f:198 DATA MAPFOR — IFOR→MIFOR (IPDG column)
 
 function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
@@ -48,8 +49,9 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     rz = 1f0 - (1f0 - ttb)^0.1f0
     aved = dsum / wprob
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 6) && (ifor = 1)
-    poten1 = CI_MORT_POT[CI_MORT_IPDG[itype, ifor]]
-    poten2 = CI_MORT_POT[CI_MORT_IPDG2[itype, ifor]]
+    mifor = CI_MORT_MAPFOR[ifor]                              # ci/morts.f:721 MIFOR=MAPFOR(IFOR)
+    poten1 = CI_MORT_POT[CI_MORT_IPDG[itype, mifor]]
+    poten2 = CI_MORT_POT[CI_MORT_IPDG2[itype, mifor]]
     gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
     sqba = sqrt(ba)

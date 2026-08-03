@@ -100,6 +100,13 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralIdaho
         ci_dgcons!(s)                     # CI DGCON (DGHAB via ICHBCL + DGFOR + elev/slope-aspect + site adj), ATTEN
+        compute_density!(s)               # current-stand density for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (ci/crown.f).
+                                          # Without it, 0.1" seedlings keep crown_pct=0 ⇒ rcr=1 starves the REGENT
+                                          # small-tree height-growth crown term (CI_RG_CRSQ·rcr²) ⇒ seedlings never
+                                          # reach breast height (4.5') ⇒ DBH growth skipped ⇒ small-tree DG ~35× low
+                                          # (0.024 vs live 0.833) ⇒ mortality g-term too low ⇒ rip too HIGH (logistic
+                                          # decreasing in g) ⇒ multi-cycle small-tree OVER-KILL. Mirrors the CR branch.
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
