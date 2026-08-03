@@ -47,9 +47,15 @@ end
 "ci/forkod.f: KODFOR → (IFOR 1..6, IGL=KFOR). Not found ⇒ IFOR=1, no IGL."
 function ci_forkod!(p)
     kodfor = Int(p.user_forest_code)
+    if kodfor == 7721 || kodfor == 8107                   # ci/forkod.f reservation pseudo-codes → IFOR=3
+        p.forest_idx = Int32(3); p.geo_location = Int32(CI_KFOR[3])
+        return 3
+    end
     idx = findfirst(==(kodfor), CI_JFOR)
     if idx === nothing
-        p.forest_idx = Int32(1)
+        # ci/forkod.f CASE DEFAULT: an unrecognized code keeps the grinit.f:196 default IFOR=4 (Payette) and
+        # does NOT update IGL (USEIGL=.FALSE.) ⇒ geo_location stays at its init. IFOR=4≥2 ⇒ Zeide R4SDI SDImax.
+        p.forest_idx = Int32(4)
     else
         p.forest_idx = Int32(idx)
         p.geo_location = Int32(CI_KFOR[idx])
