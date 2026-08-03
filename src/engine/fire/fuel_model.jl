@@ -163,6 +163,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return cr_select_fuel_models(s, mois, sm, lg)
     end
 
+    # IE-family (ie/fmcfmd.f) — the simplest western selection: MAPDRY habitat→dryness → base model +
+    # natural fuels {10,12,13}. KT shares IE's fmcfmd + MAPDRY (verified identical).
+    if s.variant isa InlandEmpire || s.variant isa Kootenai
+        return ie_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
@@ -751,6 +757,36 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
     eqwt[10] = 1f0
     eqwt[12] = 1f0
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+end
+
+# MAPDRY (ie/fmcba.f:82) habitat KODTYP → IDRY class (1=dry grassy, 2=dry shrubby); absent ⇒ 0 (other).
+# IE and KT are bit-identical (verified). EM/BM/CI pass their own MAPDRY when their FFE lands.
+const _IE_MAPDRY = Dict{Int,Int}(
+    130 => 1, 140 => 1, 210 => 1, 220 => 1, 230 => 1,                       # dry grassy (PIPO/PSME grass)
+    161 => 2, 170 => 2, 171 => 2, 172 => 2, 180 => 2, 181 => 2, 182 => 2,   # dry shrubby (PIPO/PSME shrub)
+    310 => 2, 311 => 2, 312 => 2, 313 => 2)
+
+"""IE-family FMCFMD candidate selection (ie/fmcfmd.f): MAPDRY habitat→dryness class → a base fuel model
+weighted by canopy cover, plus the always-added natural-fuel candidates {10,12,13}. FMDYN then resolves
+the (SMALL,LARGE) down-wood point among the weighted models. Activity fuels (models 11/14 via
+AFWT/SLCHNG/LATFUEL) are DEFERRED — natural stands take LATFUEL=false ⇒ AFWT=0 (same as SN/NE/CR)."""
+function ie_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    percov = s.fire.percov
+    eqwt = zeros(Float32, _FMD_ICLSS)
+    idry = get(_IE_MAPDRY, Int(s.plot.habitat_code), 0)          # FMKOD → IDRY (fmcba.f MAPDRY)
+    # Canopy-cover split: ALGSLP(PERCOV, X=[30,50], Y=[0,1]) — high-cover weight → model 9 (fmcfmd.f:61-77).
+    wt9 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0
+    wt_lo = 1f0 - wt9
+    if idry == 1                                                 # dry grassy: model 1 (low cover) + 9 (high)
+        eqwt[1] = wt_lo; eqwt[9] = wt9
+    elseif idry == 2                                             # dry shrubby: model 2 + 9
+        eqwt[2] = wt_lo; eqwt[9] = wt9
+    else                                                         # all other habitats: model 8
+        eqwt[8] = 1f0
+    end
+    # Always-added natural-fuel candidates (ie/fmcfmd.f:95-98; AFWT=0, no recent harvest ⇒ EQWT 10/12=1-0).
+    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
