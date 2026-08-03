@@ -130,7 +130,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
     # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).
     bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
-          s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton) ? nothing :   # CR/IE/TT use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton ||
+          s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
+          s.variant isa CentralIdaho) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
