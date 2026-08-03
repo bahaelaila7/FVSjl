@@ -362,6 +362,13 @@ function setup_volume_equations!(s::StandState)
             # live (forest 118); forest-keyed VOLEQDEF port needed for arbitrary IE forests (see volume.jl).
             s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
         elseif s.variant isa Teton
+            # TT VOLEQDEF = R4_EQN (region-4). Forest 405 (F5) SELECTS DF→405MATW202, AF→405MATW019 (confirmed
+            # live via instrument-replay). But wiring r4_voleq here REGRESSED the .sum on forest-405 stands
+            # (31355566010690: 400-table 2119 vs live 2145 → 405-eq 2200): jl's r4vol produces a ~2.6% residual
+            # for the 405-geo Matney (II=3/II=6) that the matching CFCOEF coefficients don't explain — NOT yet
+            # root-caused (needs per-tree instrument-replay of live's 405MATW202 vol vs jl's). Left on the
+            # forest-407-dumped fixed table until that r4vol 405-geo residual is understood. See ci/ut which
+            # ARE forest-keyed (their forests only need 400-prefix equations jl computes bit-exact).
             s.species.vol_eq[sp] = sp <= length(TT_VOL_EQ) ? TT_VOL_EQ[sp] : "          "
         elseif s.variant isa Utah
             # UT VOLEQDEF = R4_EQN (region-4, FORNUM-keyed). jl previously used ONLY the forest-407/utt01 table,
