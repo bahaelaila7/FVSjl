@@ -103,10 +103,14 @@ The fmcfmd is ONE unified algorithm `SELECT CASE(VARACD)` shared by CR/UT/TT; AS
 the **species→covtype map** differs per variant (the `SELECT CASE(ISP)→CTBA(xxCT)` block, ci/fmcfmd.f:196):
 - **TT (18 sp)**: PJCT{4,11,12}, PPCT{10}, SFCT{5,8,9}, LPCT{7}, MCCT{1,2,3,17}, ASCT{6,13,14,15,16,18}. (no OBCT/WSCT)
 - **UT (24 sp)**: OBCT{13}, PJCT{11,12,14,15,16}, PPCT{10}, SFCT{5,8,9}, LPCT{7}, MCCT{1,2,3,4,17,23}, ASCT{6,18,19,20,21,22,24}. (no WSCT)
-- **Next step (the intricate part)**: reconcile the ICT-case fuel-model assignments in cr_select_fuel_models
-  for UT/TT — `diff ut/fmcfmd.f cr/fmcfmd.f` (2114 lines) is mostly the species maps + per-VARACD ICT cases;
-  read the UT/TT branch of each `SELECT CASE(ICT)`/USCT/IFMST block and either parameterize cr_select by
-  (covtype-map, ICT-cases) or write ut_select_fuel_models mirroring it. ICLSS=12 (UT/TT), not 14.
+- **Scope CORRECTION (measured ut/fmcfmd.f:409→FMDYN = ~230 lines)**: UT/TT reuse the SCAFFOLDING — the
+  covtype-stat computation (CTBA/USBA per group → ICT dominant, USCT understory, LCUNDR, IFMST=FMSSTAGE, the
+  GOTO-111 loopback) IS the same as the ported cr_select_fuel_models — but the `SELECT CASE(ICT)` fuel-model
+  BODY (~230 lines: per-ICT EQWT via USCT + PERCOV ALGSLP interpolations, nested conditions) is UT's OWN and
+  differs from the CR-buildDir version I ported. So this is a genuine ~230-line transcription (write
+  ut_select_fuel_models: reuse cr's stat scaffolding, transcribe UT's ICT-case body), NOT a cheap drop-in.
+  ICLSS=12 (UT/TT). ⚠ NOTE: ut/fmcfmd.f handles TT/UT/CR uniformly but the CR branch there ≠ the CR-buildDir
+  fmcfmd I ported — do NOT assume cr_select's ICT body matches; transcribe UT's directly + validate.
 - Then extract UT/TT fmcba FULIVE/FUINIE + fmvinit props + ISPMAP + BIOGRP + the **UT/TT moisture table** (differs
   from IE — ut==tt?) ; wire (xpts, decay==CR, moisture, fmcba, crown_biomass bark, crown-fire gate) ; validate
   utt01 (+ttt01) SIMFIRE vs live FVSut/FVStt. Oracles: /workspace/.utwork, /workspace/.ttwork.
