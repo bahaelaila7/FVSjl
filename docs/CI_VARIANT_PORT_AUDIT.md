@@ -90,7 +90,14 @@ FINDAG aspen path HITE=26.9825·SITAGE^1.1752) → H2=H1+HTGRL·SCALE·XRHGRO·C
 DDS=DG·(2·BARK·D+DG)·SCALE2 (ci/regent.f:1138/1248, DG from small-tree model TBD-read); (4) **HCOR/DCOR**
 calibration (CON=RHCON·exp(HCOR)); (5) special species (aspen FINDAG, PI/JU potential-height). cit01 is
 large-tree-dominated (few D<5), so regent .sum impact is small — but needed to unblock the full-cycle run.
-Given intricacy, this is the CI port's largest remaining single chunk. |
+Given intricacy, this is the CI port's largest remaining single chunk.
+
+**REGENT FULLY TRACED (all components; ready for focused multi-turn write-up):**
+- Calibration: `CON = RHCON(sp)·exp(HCOR(sp))` (RHCON≈1, HCOR=0 pre-calib); H2=H1+HTGRL·SCALE·XRHGRO·CON·WK4.
+- Small-tree final DBH from HTDBH: `DK = exp(DHCN + DHHT·ln(HK) + DHCR·ln(RCR))` (CIVAR: DBH held during subcycles, set at end); DG=DK−D_old; DDS=DG·(2·BARK·D+DG)·SCALE2.
+- SMHTGF (smhtgf.f) OVERWRITES HTGRTH with a stochastic model — BETA path HTG1=BETA1+BETA2·CR + ZRAND·STDDEV, or FINDAG (LESTB establishment) HITE=26.9825·SITAGE^1.1752 — gated on ZRAND(≠−999, |·|≤2)/LESTB/D. **Write-time decision:** determine the exact call-condition selecting HTGRL-regression vs SMHTGF per tree (establishment/size).
+- Subcycle: REGYR=5, NPER=FINT/5, KPER split, 0.985^k survival, per-subcycle BA/RELDEN backdate (clone ie/regent.jl scaffold). XMAX=5/XMIN=2 window.
+The large-tree growth core (DG+height, DG bit-exact) is done; this regent is the last big growth chunk before mortality/volume/full-.sum. |
 | 7 | Mortality: ci/morts.f (Hamilton) + Zeide SDImax self-thin | TODO |
 | 8 | Volume: ci/sitset.f VOLEQ via shared NVEL driver | TODO |
 | 9 | Full-cycle differential vs FVSci_clean on cit01 | TODO |
