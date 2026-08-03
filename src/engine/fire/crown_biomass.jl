@@ -140,7 +140,11 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # --- small unmerch trees (D < DBHMIN): add the whole-bole weight (FMSVL2) ---
     if dx < dbhmin
         dmin = dbhmin
-        hmin = _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
+        # TT/UT define no htdbh curve — they use their own Wykoff HT-DBH H=exp(AX+HT2/(D+1))+4.5 (AX=HT1
+        # uncalibrated, HT2 = TT :wykoff_ht2 / UT :ht2; cratet.f CASE DEFAULT). Others use the shared htdbh.
+        hmin = s.variant isa Teton ? (exp(coef.species[:ht1][sp] + coef.species[:wykoff_ht2][sp] / (dmin + 1f0)) + 4.5f0) :
+               s.variant isa Utah  ? (exp(coef.species[:ht1][sp] + coef.species[:ht2][sp] / (dmin + 1f0)) + 4.5f0) :
+               _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
         vt  = max(0.005454154f0 * hmin, _fm_cuft(s, sp, dmin, hmin; merch = true))
