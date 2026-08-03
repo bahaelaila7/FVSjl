@@ -31,3 +31,41 @@ function compute_volumes_bm!(s::StandState)
     end
     return s
 end
+
+# bm/NVEL r6vol3.f — Behre total-cubic profile (VOLEQ 616BEH*** → ZONE 1). Smalian-integrated taper
+# DR = HRATIO/(0.62·HRATIO+0.38). Inputs: DBHOB, DBTBH (=D·(1-bark)), FCLASS (form class), HTTOT.
+# Used for the BM minor species (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH) whose VEQNNC = 616BEHW.
+function bm_r6vol3(dbhob::Float32, dbtbh::Float32, fclass::Int, httot::Float32, zone::Int)::Float32
+    topd = 4.0f0; a = 0.62f0; b = 1.0f0 - a
+    d17 = Float32(fclass) / 100.0f0 * dbhob
+    h17 = zone == 1 ? 17.3f0 : 33.6f0
+    dbhib = dbhob - dbtbh
+    (dbhib <= 0f0 || dbhib > dbhob) && (dbhib = dbhob)
+    httot <= h17 && return 0.00272708f0 * dbhib * dbhib * httot   # small tree (below FC height)
+    D = zeros(Float32, 21)
+    # butt log (stump→17.3ft): Smalian of DBHIB and D17 over H17
+    vol = 0.00272708f0 * (dbhib * dbhib + d17 * d17) * h17
+    htup = httot - h17
+    D[1] = d17
+    s = 0.0f0; hh = 0.0f0; ilast = 2; hit_top = false
+    for i in 2:20
+        hratio = (htup - ((i - 1) * 16.3f0)) / htup
+        hratio <= 0.0f0 && (ilast = i; break)
+        dr = hratio / (a * hratio + b)
+        D[i] = dr * D[1]
+        ilast = i
+        if D[i] < topd; break; end
+        vol += 0.00272708f0 * (D[i-1] * D[i-1] + D[i] * D[i]) * 16.3f0
+        if D[i] == topd; s = 16.3f0; hit_top = true; break; end
+    end
+    if !hit_top
+        dr = topd / d17
+        hx = (dr * b * htup) / (1.0f0 - (a * dr))
+        hh = (ilast - 2) * 16.3f0
+        s = htup - hx - hh
+        vol += 0.00272708f0 * (D[ilast-1] * D[ilast-1] + topd * topd) * s
+    end
+    htup2 = httot - (16.3f0 * (ilast - 2) + h17) - s   # top-of-tree cone
+    vol += 0.00272708f0 * (topd * topd) * htup2
+    return vol
+end
