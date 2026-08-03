@@ -72,6 +72,7 @@ Per tree (default sp): `BAL=(1−PCT/100)·BA`; `DDS = CONSPP + DGLD·ln(D) + DG
 DGCCFA,DGEL,DGEL2,DGSLOP,DGSLSQ,DGCASP,DGSASP; DGFOR(nloc,sp); DGHAB/OCURHT(17,sp); ICHBCL(130,sp);
 MAPLOC(6,sp); IBSERV/OBSERV. Clone ie/diameter_growth.jl + ie/dg_coefficients.jl; ICINDX already in
 p.habitat_input (ch2). Validate WK2 via instrument-replay (relink_ci.sh + DGFTRC dump) vs FVSci_clean on cit01.
+| 3b | DG port (loader + ci_dgcons!/dgf!) | ◐ **PORTED + RUNS** — wired (setup_growth! + includes); cit01 projects past DG, next hook height_growth! errors loudly. DDS: default main-conifer (DGLD·lnD+DGLBA·lnBA+DGDS·D²+DGDBAL·PBAL/ln(D+1)+DGBA·BAL/ln(D+1)+DGPCCF·PCCF) + aspen(13)/WJ(14)/MC(15)/CW-OH(17,19) branches; DGCON via ICHBCL(ICINDX,sp). **WK2 bit-exact validation vs FVSci_clean (DGFTRC instrument-replay) PENDING.** |
 | 4 | Height: ci/htgf.f | TODO |
 | 5 | Crown: ci/crown.f + ci/ccfcal.f | TODO |
 | 6 | Small-tree: ci/regent.f | TODO |

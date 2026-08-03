@@ -96,6 +96,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa CentralIdaho
+        ci_dgcons!(s)                     # CI DGCON (DGHAB via ICHBCL + DGFOR + elev/slope-aspect + site adj), ATTEN
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end

@@ -80,6 +80,8 @@ include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Regi
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax
+include("variants/centralidaho/dg_coefficients.jl")  # CI large-tree DDS coefficient arrays (ci/dgf.f) — chunk 3
+include("variants/centralidaho/diameter_growth.jl")  # CI large-tree DDS hooks (ci_dgcons! + dgf!) — chunk 3
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
 include("variants/inlandempire/species.jl")          # IE species block-data init (ie/blkdat.f + grinit.f)
 include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (chunk 2): ITYPE/IFOR/SITEAR
