@@ -97,7 +97,9 @@ Given intricacy, this is the CI port's largest remaining single chunk.
 - Small-tree final DBH from HTDBH: `DK = exp(DHCN + DHHT·ln(HK) + DHCR·ln(RCR))` (CIVAR: DBH held during subcycles, set at end); DG=DK−D_old; DDS=DG·(2·BARK·D+DG)·SCALE2.
 - SMHTGF (smhtgf.f) OVERWRITES HTGRTH with a stochastic model — BETA path HTG1=BETA1+BETA2·CR + ZRAND·STDDEV, or FINDAG (LESTB establishment) HITE=26.9825·SITAGE^1.1752 — gated on ZRAND(≠−999, |·|≤2)/LESTB/D. **Write-time decision:** determine the exact call-condition selecting HTGRL-regression vs SMHTGF per tree (establishment/size).
 - Subcycle: REGYR=5, NPER=FINT/5, KPER split, 0.985^k survival, per-subcycle BA/RELDEN backdate (clone ie/regent.jl scaffold). XMAX=5/XMIN=2 window.
-The large-tree growth core (DG+height, DG bit-exact) is done; this regent is the last big growth chunk before mortality/volume/full-.sum. |
+The large-tree growth core (DG+height, DG bit-exact) is done; this regent is the last big growth chunk before mortality/volume/full-.sum.
+
+**◐ regent PORTED + RUNS** (regent.jl): NIVAR path — subcycle (REGYR=5) HTGRL regression → H2=H1+HTGRL·SCALE·XRHGRO·exp(HCOR); HTDBH DK=exp(DHCN+DHHT·lnHK+DHCR·lnRCR); DG=DK−D_old. RHDM1/RHDM2 habitat-code flags (cit01 hab520→RHDM1=1). SMHTGF stochastic BETA/FINDAG establishment path deferred (cit01 small trees are conifers). cit01 projects past regent → next hook mortality _varmrt_efftr! (chunk 7). Validation via full-cycle .sum after mortality/volume land. |
 | 7 | Mortality: ci/morts.f (Hamilton) + Zeide SDImax self-thin | TODO |
 | 8 | Volume: ci/sitset.f VOLEQ via shared NVEL driver | TODO |
 | 9 | Full-cycle differential vs FVSci_clean on cit01 | TODO |
