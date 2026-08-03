@@ -154,3 +154,30 @@ the **species→covtype map** differs per variant (the `SELECT CASE(ISP)→CTBA(
 - **Watch-list carried to EM/CI/BM/UT/TT**: each western variant needs its own fmcfmd MAPDRY + fmcba
   FULIVE/FUINIE + fmvinit fire_species_props + verify its `_FM_DKR`/moisture vs CR (don't let them fall
   through to SN defaults — the decay-fallthrough bug class).
+
+## INTEGRATION STATUS (2026-08-03, 3 sub-agents in flight) — honest checkpoint
+Mission cemented (user): all extensions ported+validated across the 12 variants + full FIA sweep; unattended;
+parallelize. State:
+- **FFE**: eastern + CR + IE/KT/EM/CI/TT/UT = 7 validated (bit-exact-or-cornered vs live). **BM = OPEN**: the
+  sub-agent's port is in main (commit 3659574) but FLAGGED UNVALIDATED — it over-kills (bmt01_fire jl 2030
+  TPA 2 vs live 131) + growth ~1% delta (483 vs 478, isolated to pure-growth ⇒ likely DG-backdating cornered).
+  BM agent RESUMED to reconcile in main. DO NOT touch src/engine/fire/* or run BM jl while it works.
+- **Mistletoe**: all western (shared byte-identical model, dispatch-generalized). **ECON**: all (variant-agnostic).
+- **Climate-FVS**: OUT OF SCOPE (never ported for any variant, incl. the 4 initial — a separate future effort).
+- **FIA western sweep**: DONE (RESULTS_WESTERN.md). Growth cores 100% bit-exact on TPA/BA/SDI/QMD (612 stands).
+  Open bugs it found (agents fixing): (A) UT height_growth! crash on sp 17-22 (agent ae6d, worktree); (B)
+  woodland/DVEW volume zero/low on UT/CI/EM (agent a7e5, worktree).
+
+**INTEGRATION CHECKLIST (when agents report):**
+1. BM (ab7c, in MAIN): verify bmt01_fire reproduces live (post-fire ≈131) → the flagged commit becomes validated.
+2. UT-height (ae6d, worktree): merge branch, re-run the 3 repro stands (sp20/21/22) → no crash, TopHt cornered.
+3. Volume (a7e5, worktree): merge branch, re-run repro stands (CI 51052888020004 etc.) → volume bit-exact/cornered.
+4. Re-run the FULL western FIA sweep (run_sweep_western.jl) → confirm the treed-only rates jump (esp. UT/CI/EM
+   volume) and no regressions on the 100%-bit-exact growth cols.
+5. Re-validate mistletoe on a DM-coded FIA stand multi-cycle (cycle-1+; the sweep is cycle-0 so doesn't exercise DM).
+
+**COORDINATION LESSON (this session):** an agent's worktree isolation silently failed → it edited MAIN → my
+`git add -A` interleaved → the BM "bit-exact" claim didn't reproduce in main. Rules going forward: (1) targeted
+`git add <files>`, NEVER `-A`, while agents share the tree; (2) INDEPENDENTLY re-validate every agent's "done"
+before accepting (doctrine #4 — caught the BM over-kill); (3) prefer letting one writer own the shared tree at a
+time.
