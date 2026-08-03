@@ -66,6 +66,19 @@ const _CS_ES_HHTMAX = Float32[
 const _LS_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20]
 const _LS_ESSUBH_REFAGE = Int[20,15,20,20,5,15,15,20,20,10,20,20,10,10,20,35,15,15,20,20,20,20,20,20,20,20,20,20,20,10,30,10,10,20,10,10,20,20,20,20,20,20,20,20,20,20,10,10,10,10,10,10,10,20,10,10,10,10,25,20,10,10,10,10,10,10,10,10]
 
+# Establishment min-height (XMIN) + max seedling height (HHTMAX) per species — from each variant's
+# blkdat.f (VERIFIED: IE blkdat.f:62 XMIN == _IE_ES_XMIN). EM/BM/UT/CI had no establishment.jl ⇒ the dispatch
+# fell to the missing `:estab_min_ht` coef ⇒ KeyError crash on ESTAB/PLANT-keyword stands (full utt01/emt01/
+# bmt01). NOTE: blkdat.f XMIN (establishment), NOT regent.f XMIN (small-tree/regen — a DIFFERENT array).
+const _EM_ES_XMIN   = Float32[1,1,1,1,0.5,0.5,1,0.5,0.5,1,3,6,3,3,3,3,6,0.5,3]
+const _EM_ES_HHTMAX = Float32[23,27,21,27,18,6,24,18,18,17,16,16,16,16,16,16,16,22,16]
+const _BM_ES_XMIN   = Float32[0.9,1.7,1,1,0.5,0.5,1.3,0.5,0.5,1,1,1,1,1,6,1,1,1]
+const _BM_ES_HHTMAX = Float32[23,27,21,21,22,6,24,18,18,17,23,9,20,20,16,20,17,20]
+const _UT_ES_XMIN   = Float32[1,1,1,0.5,0.5,6,1,0.5,0.5,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,3,3,0.5,0.5,3,0.5,0.5]
+const _UT_ES_HHTMAX = Float32[9,9,10,7,7,16,10,7,7,10,6,6,10,6,6,6,9,16,16,6,6,16,9,10]
+const _CI_ES_XMIN   = Float32[1,1,1,0.5,0.5,0.5,1,0.5,0.5,1,1,1,6,0.5,0.5,1,3,0.5,3]
+const _CI_ES_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17,27,27,16,6,6,27,16,22,16]
+
 """
     establish!(state; fint=5f0) -> Bool
 
@@ -78,13 +91,22 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     t = s.trees; sd = s.coef.species
     es_xmin = s.variant isa CentralRockies ? _CR_ES_XMIN :
               s.variant isa InlandEmpire ? _IE_ES_XMIN :
-              s.variant isa Teton ? _TT_ES_XMIN : sd[:estab_min_ht]   # per-species establishment min height
+              s.variant isa Teton ? _TT_ES_XMIN :
+              s.variant isa EasternMontana ? _EM_ES_XMIN :
+              s.variant isa BlueMountains ? _BM_ES_XMIN :
+              s.variant isa Utah ? _UT_ES_XMIN :
+              s.variant isa CentralIdaho ? _CI_ES_XMIN :
+              sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
                 s.variant isa LakeStates ? _LS_ES_HHTMAX :
                 s.variant isa CentralRockies ? _CR_ES_HHTMAX :
                 s.variant isa InlandEmpire ? _IE_ES_HHTMAX :
-                s.variant isa Teton ? _TT_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
+                s.variant isa Teton ? _TT_ES_HHTMAX :
+                s.variant isa EasternMontana ? _EM_ES_HHTMAX :
+                s.variant isa BlueMountains ? _BM_ES_HHTMAX :
+                s.variant isa Utah ? _UT_ES_HHTMAX :
+                s.variant isa CentralIdaho ? _CI_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
