@@ -104,6 +104,17 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     if s.variant isa Kootenai && _fia_present(d, "PV_CODE")
         p.habitat_code = Int32(round(_fia_f32(d, "PV_CODE", 0f0)))
     end
+    # BM (region-6): PV_CODE is the ALPHA plant-community code (e.g. "CWF312"), decoded to the KODTYP index
+    # into BM_PCOML by habtyp/HBDECD. Without it, bm_sitset! gets no ECOCLS row ⇒ SDIDEF=0 ⇒ stand_sdimax=0 ⇒
+    # bm/morts.f's "SDIMAX<5 ⇒ kill ALL trees" fires and the stand COLLAPSES to 0 TPA at cycle 1 (cycle-0-only
+    # sweeps never caught this). Match live FVSbm, which reads PV_CODE and HBDECDs it to the PCOML index.
+    if s.variant isa BlueMountains && _fia_present(d, "PV_CODE")
+        pv = strip(_fia_str(d, "PV_CODE", ""))
+        if !isempty(pv)
+            idx = findfirst(==(pv), BM_PCOML)
+            idx !== nothing && (p.habitat_code = Int32(idx))
+        end
+    end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
     # DB overrides elevation ONLY when >0 (dbsstandin.f:647) — so a null/≤0 ELEVATION keeps the
