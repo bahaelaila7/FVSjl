@@ -25,19 +25,30 @@ function compute_volumes_bm!(s::StandState)
             t.merch_cuft_vol[i] = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             t.saw_cuft_vol[i] = 0f0
             t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
-        else                                                 # 616BEHW (region-6 Behre total cubic)
+        else                                                 # 616BEHW (region-6 Behre)
             spec = length(se) >= 10 ? String(se[8:10]) : "999"
             fclass = bm_formcl(spec, iforst, d)
             dbtbh = d * (1f0 - bark)                          # double bark thickness (fvsvol.f:153)
             dbhib = d - dbtbh
-            v = if h <= 17.3f0                                # R6VOL short-tree guard (TTH≤FC_HT)
-                0.00272708f0 * dbhib * dbhib * h
+            vol2 = 0f0; vol4 = 0f0
+            v1 = if h <= 17.3f0                               # R6VOL short-tree guard (TTH≤FC_HT):
+                0.00272708f0 * dbhib * dbhib * h             # cylinder VOL(1); R6DIBS/R6VOL1 SKIPPED
             else
-                bm_r6vol3(d, dbtbh, fclass, h, 1)            # ZONE 1 (VOLEQ prefix 616)
+                v = bm_r6vol3(d, dbtbh, fclass, h, 1)        # ZONE 1 total cubic → VOL(1)
+                mtopp = 4.5f0 * bark                         # TOPDIAM = TOPD·BARK (fvsvol.f)
+                xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, h)  # log bucking → small-end diams
+                lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)  # per-log Scribner (VOL2) + merch cubic (VOL4)
+                nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
+                for k in 1:nacc
+                    vol2 += bm_anint(lv1[k])                  # r6vol.f:176 VOL(2)=Σ ANINT(LOGVOL(1))
+                    vol4 += bm_anint(lv4[k] * 10f0) / 10f0    # r6vol.f:174 VOL(4)=Σ round(LOGVOL(4)·10)/10
+                end
+                v
             end
-            t.cuft_vol[i] = max(v, 0f0)
-            t.merch_cuft_vol[i] = 0f0                         # Behre supplies total cubic only
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
+            t.cuft_vol[i] = max(v1, 0f0)
+            t.merch_cuft_vol[i] = d >= dbhmin ? max(vol4, 0f0) : 0f0   # MCF=VOL(4), D≥DBHMIN
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= dbhmin ? max(vol2, 0f0) : 0f0         # BdFt=VOL(2) Scribner, D≥BFMIND
         end
     end
     return s
@@ -124,4 +135,92 @@ function bm_r6vol3(dbhob::Float32, dbtbh::Float32, fclass::Int, httot::Float32, 
     htup2 = httot - (16.3f0 * (iexit - 2) + h17) - s           # label 130: top-of-tree cone
     vol += 0.00272708f0 * (topd * topd) * htup2
     return vol
+end
+
+# Fortran ANINT (round half away from zero); all volumes here are ≥0.
+bm_anint(x::Real)::Float32 = Float32(floor(Float32(x) + 0.5f0))
+
+# bm/NVEL r6vol1.f IFTR — Scribner board-foot table (132 log small-end-diameter entries), loaded once.
+const BM_IFTR = let
+    rows = readlines(joinpath(BM_DATADIR, "r6vol1_iftr.csv"))
+    Int[parse(Int, strip(l)) for l in rows[2:end]]
+end
+
+# bm/NVEL r6dibs.f — ZONE-1 (16.3-ft log), A=0.62, total-height (TLH=0) log-bucking path
+# (labels 70→140): Behre taper DR=HR/(A·HR+B), bucked to merch top MTOPP. Returns (XLOGS number
+# of logs incl. fractional, LOGDIA(:,1) integer small-end diameters, length 21). DBHOB=outside-bark.
+function bm_r6dibs(dbhob::Float32, fclass::Int, mtopp::Float32, th::Float32)
+    a = 0.62f0; b = 1.0f0 - a; fc16 = Float32(fclass) / 100.0f0
+    ld2 = zeros(Float32, 21); sl = zeros(Float32, 20); xl = zeros(Float32, 20)
+    ld2[1] = dbhob * fc16
+    sl[1] = 16.3f0; xl[1] = 16.3f0
+    xlogs = 0.0f0; goto130 = false; goto100 = false; iat = 0
+    if ld2[1] <= mtopp                                         # single log to top
+        ld2[1] = mtopp; xlogs = 1.0f0; goto130 = true
+    else
+        h1 = th - 16.3f0
+        i = 2
+        while i <= 19
+            hx = h1 - ((i - 1) * 16.3f0); hr = hx / h1
+            if hr <= 0.0f0
+                ld2[i] = 1.0f0; iat = i; goto100 = true; break
+            end
+            dr = hr / (a * hr + b); ld2[i] = dr * ld2[1]
+            sl[i] = 16.3f0; xl[i] = 16.3f0
+            if ld2[i] < mtopp
+                iat = i; goto100 = true; break
+            elseif ld2[i] > mtopp
+                i += 1; continue
+            else                                              # exactly at top → whole logs
+                xlogs = Float32(i - 1); sl[i] = 16.3f0; xl[i] = 16.3f0; goto130 = true; break
+            end
+        end
+        if !goto130 && !goto100                               # loop ran to i=19 → fall through, i=20
+            iat = 20; goto100 = true
+        end
+        if goto100                                            # label 100: fractional top log
+            i = iat
+            dr = mtopp / ld2[1]
+            hx = (dr * b * h1) / (1.0f0 - (a * dr))
+            hh = Float32(i - 2) * 16.3f0
+            s = h1 - hx - hh
+            if s < 4.0f0                                      # <4ft stub → drop
+                xlogs = Float32(i - 1); ld2[i] = 0.0f0; sl[i] = 0.0f0; xl[i] = s
+            elseif s <= 12.0f0                                # 4–12ft → half log
+                xlogs = Float32(i - 1) + 0.5f0; ld2[i] = mtopp; sl[i] = 8.0f0; xl[i] = s
+            else                                              # >12ft → full log
+                xlogs = Float32(i); ld2[i] = mtopp; sl[i] = 16.3f0; xl[i] = s
+            end
+        end
+    end
+    ld1 = zeros(Int, 21)
+    for i in 1:20; ld1[i] = Int(floor(ld2[i] + 0.5f0)); end    # LOGDIA(:,1)=INT(LOGDIA(:,2)+0.5)
+    return xlogs, ld1
+end
+
+# bm/NVEL r6vol1.f — ZONE-1 (IAPZ=1) per-log volumes from log small-end diameters:
+#   LOGVOL(1,i) Scribner board (IFTR integer table, (IFTR·16+500)÷1000), LOGVOL(4,i) merch cubic
+#   (butt log = 0.06239·D²·(FC/100)²+0.025624·D²; rest Smalian F=0.005454154). Skips INTL14
+#   International (feeds VOL(10), not the .sum). Returns (logvol1, logvol4) length 20.
+function bm_r6vol1(dbhob::Float32, fclass::Int, xlogs::Float32, ld1::Vector{Int})
+    logs = Int(floor(xlogs)); lv1 = zeros(Float32, 20); lv4 = zeros(Float32, 20)
+    for i in 1:logs
+        kd = ld1[i]; k = kd <= 11 ? kd : kd + 6
+        (k >= 1 && k <= 132) && (lv1[i] = Float32((BM_IFTR[k] * 16 + 500) ÷ 1000))
+    end
+    x = xlogs - Float32(logs)
+    if x != 0.0f0                                             # fractional (8-ft) top log
+        kd = ld1[logs+1]
+        k = kd < 6 ? kd : (kd >= 12 ? kd + 6 : kd + 121)      # sequential-IF mapping (r6vol1.f:42-44)
+        (k >= 1 && k <= 132) && (lv1[logs+1] = Float32((BM_IFTR[k] * 8 + 500) ÷ 1000))
+    end
+    f = 0.005454154f0
+    lv4[1] = 0.06239f0 * dbhob^2 * (Float32(fclass) / 100f0)^2 + 0.025624f0 * dbhob^2
+    if x != 0.0f0
+        lv4[logs+1] = (Float32(ld1[logs+1])^2 * f + Float32(ld1[logs])^2 * f) / 2f0 * 8f0
+    end
+    for i in 2:logs
+        lv4[i] = (Float32(ld1[i])^2 * f + Float32(ld1[i-1])^2 * f) / 2f0 * 16f0
+    end
+    return lv1, lv4
 end
