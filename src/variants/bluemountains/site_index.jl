@@ -158,6 +158,12 @@ function bm_sitset!(s::StandState)
     maxsp = nspecies(s.variant)
     nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])   # #species SI-set by keyword
     pcom = bm_habtyp(Int(p.habitat_code))
+    # Region-6 default (bm/sitset.f:140-142 ISISP=10 PP): an unresolved habitat (habitat_code=0 from a missing
+    # PV_CODE, or a partial/unmatched code like "CJ" not in BM_PCOML) would leave the ECOCLS lookup empty ⇒
+    # sp_sdi_def=0 ⇒ stand_sdimax=0 ⇒ bm/morts.f's "SDIMAX<5 kill ALL" collapses the stand. Live falls back to
+    # the PP-default community "CWG113" (measured: instrumented FVSbm returns PCOM=CWG113, ISISP=10, SDIDEF
+    # PP=395/DF=446 for such stands). Default to it so the fallback matches live instead of zeroing.
+    isempty(pcom) && (pcom = "CWG113")
     rows = bm_ecocls(pcom)
     isisp = 0; jsisp = 0
     for r in rows
