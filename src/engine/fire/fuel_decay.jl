@@ -99,6 +99,10 @@ _fm_dkr_default(::LakeStates) = _FM_DKR_LS
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
 _fm_dkr_default(::CentralStates) = _FM_DKR_CS
 _fm_dkr_default(::CentralRockies) = _FM_DKR_CR
+# IE/KT share CR's N-Rockies decay table (ie/fmcwd.f DKR + breakpoints verified identical to cr/fmcwd.f).
+# Without this they fell through to the SN `_FM_DKR` default ⇒ wrong 30-yr fuel accumulation ⇒ weak flame.
+_fm_dkr_default(::InlandEmpire) = _FM_DKR_CR
+_fm_dkr_default(::Kootenai) = _FM_DKR_CR
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """
