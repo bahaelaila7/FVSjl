@@ -40,9 +40,12 @@ Growth validation uses `bmt01_growth.key` (FFE keywords stripped — bmt01.key i
 - **Volume total-cubic** ~cornered: INGY SF_SHP form precision (jsp-13 coefficients bit-identical to NVEL source; GFSUB substitution ruled out).
 - **Deferred leaves** (scoped, both substantial — not bounded polish):
   - **616BEHW minor species** (WP/MH/WJ/WB/LM/PY/YC/AS/CW/OS/OH — not in bmt01). Behre equations
-    616BEH*** route to **R6VOL3** for total cubic (NVEL profile.f:268): `R6VOL3(DBHOB,DBTBH,FCLASS,
-    HTTOT,ZONE,VOL)` + BEHTAP taper (blmtap.f:275) + FCLASS form-class. Real port + a synthetic
-    pure-species stand (IE pure_{sp} pattern) to validate. Currently these species return 0 volume.
+    616BEH*** route to **R6VOL3** for total cubic (NVEL profile.f:268). Scoped sub-tree:
+    `R6VOL3(DBHOB,DBTBH,FCLASS,HTTOT,ZONE=1,VOL)` — Behre Smalian taper DR=HRATIO/(0.62·HRATIO+0.38),
+    D17=FCLASS/100·DBHOB, H17=17.3 (75 lines, portable) — **plus** FCLASS from GETFCLASS →
+    **FORMCL_BM** (r6vol.f:205,+forest form-class coefficients) and DBTBH from bark. So it's a
+    multi-layer NVEL port (R6VOL3 + GETFCLASS + FORMCL_BM + coeffs) + a synthetic pure-species stand
+    (IE pure_{sp} pattern) to validate. Currently these species return 0 volume.
   - **FFE** — bmt01.key is a full FMIN/SIMFIRE/PotFIRE/FuelOut demo; the fire/fuel/snag/carbon
     subsystem (needs BM biomass + fuel coefficients). Large; validate vs the full bmt01.key .sum.
 
