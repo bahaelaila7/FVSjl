@@ -40,7 +40,7 @@ First 10 identical to IE's Northern-Rockies conifers.
 |---|-------|---------|
 | 0 | Scaffold: `CentralIdaho` singleton + registration (variant.jl) + include/export; oracle relinked; baseline captured | ✓ **DONE** — loads, `variant_from_code("CI")`→CentralIdaho(), nspecies=19; un-ported hooks error loudly (doctrine #5) |
 | 1 | Species + grinit defaults (19 sp, FIA map, Zeide SDI, DGSD 1.7, LHTDRG, seed) — data/centralidaho/*.csv | ✓ **DONE** — species_coefficients.csv (19, IE-template non-DG + REAL ci/bratio.f BARK1/BARK2, ci/siterange.f SITELO/HI, ci/blkdat.f SIGMAR) + species_translation.csv (442, ci/spctrn.f ASPT col7); species.jl (Zeide SDI, DGSD 1.7, LHTDRG-15, seed 55329). cit01 loads species; coeffs verified (bark1/SIGMAR match live). Next hook site_setup! errors loudly |
-| 2 | Site/habitat: ci/sitset.f + ci/habtyp.f (NI 30 habitat types → OCURHT groups) | TODO |
+| 2 | Site/habitat: ci/sitset.f + ci/habtyp.f (NI 30 habitat types → OCURHT groups) | ◐ **MEASURED / scoped** (extract+build next). Clone ie/site_index.jl; CI deltas: JTYPE(95) **identical** to IE (shared bracket search) ✓; **KTYPE/MTYPE differ** (13 lines — CI habitat→ITYPE map); ci/forkod.f **JFOR=[117,402,406,412,413,414] NUMFOR=6 KFOR=[1,2,2,3,2,2]** (cit01 forest 412→class 3); ci/sitset.f is CI-specific: **NIHMAP(130→30 ITYPE)**, **BAMAXA(130)** BA-max by habitat code (not 30 like IE), **R4SDI(19)** per-species ZEIDE SDImax [529,423,570,562,682,762,679,620,602,446,621,576,562,272,501,409,452,409,452] (feeds chunk-7 mortality), MAPSIT default site-index. cit01: forest 412, habitat 520. |
 | 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | TODO |
 | 4 | Height: ci/htgf.f | TODO |
 | 5 | Crown: ci/crown.f + ci/ccfcal.f | TODO |
