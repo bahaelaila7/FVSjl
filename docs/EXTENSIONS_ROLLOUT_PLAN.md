@@ -115,9 +115,19 @@ the **species→covtype map** differs per variant (the `SELECT CASE(ISP)→CTBA(
   species-role indices) per variant; CR passes its current values, UT/TT pass theirs. ICLSS=12 (UT/TT, no
   model 13/14). Then extract UT/TT fmcba/fmvinit/moisture + validate utt01/ttt01. META: measure the ACTUAL diff
   (`diff -w`) before sizing a "port" — raw diff line-count (2114) was 100% whitespace-inflated here.
-- Then extract UT/TT fmcba FULIVE/FUINIE + fmvinit props + ISPMAP + BIOGRP + the **UT/TT moisture table** (differs
-  from IE — ut==tt?) ; wire (xpts, decay==CR, moisture, fmcba, crown_biomass bark, crown-fire gate) ; validate
-  utt01 (+ttt01) SIMFIRE vs live FVSut/FVStt. Oracles: /workspace/.utwork, /workspace/.ttwork.
+- Then extract UT/TT fmcba FULIVE/FUINIE + fmvinit props + ISPMAP + BIOGRP ; wire (xpts==IE, decay==CR,
+  moisture, fmcba, crown_biomass bark, crown-fire gate) ; validate utt01 (+ttt01) SIMFIRE vs live FVSut/FVStt.
+  Oracles: /workspace/.utwork, /workspace/.ttwork.
+- **Moisture RESOLVED (measured): UT==TT==CR (all `_FM_MOIS_CR`)** — fmmois.f byte-identical across ut/tt/cr.
+  So wire `fm_mois_table(::Utah/::Teton) = _FM_MOIS_CR` (NOT a new table). (Earlier "UT/TT differ" meant differ
+  from IE, which is true; they equal CR.)
+- **TT species + roles (from data/teton, MAXSP=18)**: 1WB 2LM 3DF 4PM 5BS 6AS 7LP 8ES 9AF 10PP 11UJ 12RM 13BI
+  14MM 15NC 16MC 17OS 18OH. TT covtype map → PJCT{4,11,12=PM,UJ,RM} PPCT{10=PP} SFCT{5,8,9=BS,ES,AF} LPCT{7=LP}
+  MCCT{1,2,3,17=WB,LM,DF,OS} ASCT{6,13,14,15,16,18}. **TT has NO oak ⇒ SKIPS the OBCT case** (the complex
+  BL/BD live-dead branch) and no WSCT; its only inline-role species in the reached cases are **aspen=6, birch=13**
+  (the ASCT case). ⇒ TT refactor of cr_select is small: `_tt_fm_covtype` + swap aspen(40/41→6)/birch(24/43→13)
+  in the ASCT case + skip `imodty` (CR-only). UT similar (+OBCT{13} oak, +PJ/MC with more species). Do TT first
+  (simplest), then UT reuses the same parameterized cr_select.
 
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
