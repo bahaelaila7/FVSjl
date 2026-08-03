@@ -67,7 +67,14 @@ const IE_MIS_PMC = reshape(Float32[
 # ============================================================================
 
 "misdgf.f: DG diameter-growth multiplier for (species, DMR). 1.0 for DMR 0 / unaffected species."
-@inline ie_dm_dg_mult(sp::Integer, dmr::Integer) = @inbounds IE_MIS_DGP[dmr + 1, sp]
+# The western dwarf-mistletoe model (mistoe.f/misdgf.f/misintie.f) is BYTE-IDENTICAL across the N-Rockies
+# Wykoff variants — so IE's port + coefficients apply verbatim to KT/EM/BM/UT/TT/CI (faithful: same Fortran
+# DATA). CR has its own 38-sp cr_mistoe!. Species beyond the 23-long coef arrays (UT sp24 "other hardwood",
+# a non-host) get no effect. Gated per-tree DMR ⇒ INERT on stands without dwarf-mistletoe ratings.
+@inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
+    v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho
+
+@inline ie_dm_dg_mult(sp::Integer, dmr::Integer) = (sp < 1 || sp > 23) ? 1f0 : @inbounds IE_MIS_DGP[dmr + 1, sp]
 
 """
     ie_dm_mortality_rate(sp, dmr, dbh, fint; dmmmlt=1.0) -> Float32
@@ -78,6 +85,7 @@ cycle length. Returns 0 for DMR 0.
 """
 function ie_dm_mortality_rate(sp::Integer, dmr::Integer, dbh::Real, fint::Real; dmmmlt::Real = 1.0)
     dmr == 0 && return 0.0f0
+    (sp < 1 || sp > 23) && return 0.0
     b0 = IE_MIS_PMC[1, sp]; b1 = IE_MIS_PMC[2, sp]; b2 = IE_MIS_PMC[3, sp]
     m = b0 + b1 * dmr + b2 * dmr * dmr
     m *= dmmmlt
@@ -97,7 +105,7 @@ growth (central + tripled dgU/dgL) by IE_MIS_DGP[DMR+1,sp], using START-of-cycle
 No-op for non-IE / uninfected. Deterministic.
 """
 function ie_dm_growth_loss!(s::StandState, stash)
-    s.variant isa InlandEmpire || return
+    _ie_mis_variant(s.variant) || return
     t = s.trees
     n = stash === nothing ? t.n : stash.nlive
     @inbounds for i in 1:n
@@ -118,7 +126,7 @@ mismrt.f:185-191: MAX-combine per-tree DM mortality (WKI = PROB·rate) into `kil
 No-op for non-IE / uninfected. Order-independent (per-tree max).
 """
 function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
-    s.variant isa InlandEmpire || return
+    _ie_mis_variant(s.variant) || return
     t = s.trees
     @inbounds for i in 1:n
         dmr = Int(t.dmr[i]); dmr == 0 && continue
@@ -144,7 +152,7 @@ Draws rann! per host tree ONLY when that species carries infection (SMR>0), matc
 count/order. No-op for non-IE. Mirrors the validated cr_mistoe! exactly.
 """
 function ie_mistoe!(s::StandState; fint::Float32)
-    s.variant isa InlandEmpire || return s
+    _ie_mis_variant(s.variant) || return s
     t = s.trees
     t.n == 0 && return s
     species_sort!(s)
@@ -152,7 +160,8 @@ function ie_mistoe!(s::StandState; fint::Float32)
     ind1 = s.scratch.idx1
     rng  = s.rng
     fscale = fint / 10f0
-    @inbounds for ispc in 1:23
+    nsp = min(23, nspecies(s.variant))
+    @inbounds for ispc in 1:nsp
         IE_MIS_FIT[ispc] == 0 && continue
         i1 = isct[ispc, 1]; i1 == 0 && continue
         i2 = isct[ispc, 2]
