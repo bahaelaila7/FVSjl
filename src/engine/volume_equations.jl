@@ -310,9 +310,12 @@ function setup_volume_equations!(s::StandState)
             # arbitrary UT forests; this is the forest-407/utt01 assignment.
             s.species.vol_eq[sp] = sp <= length(UT_VOL_EQ) ? UT_VOL_EQ[sp] : "           "
         elseif s.variant isa CentralIdaho
-            # CI VOLEQDEF (ci VEQNNC, dumped from live cit01.out): 400MATW (R4 Matney) + I15FW2W (Flewelling,
-            # DF/GF/ES/PP) + 400DVEW (woodland, PY/WJ/MC/CW). Same three families as UT.
-            s.species.vol_eq[sp] = sp <= length(CI_VOL_EQ) ? CI_VOL_EQ[sp] : "           "
+            # CI VOLEQDEF (NVEL voleqdef.f R4_EQN, FORNUM-keyed): 400MATW (R4 Matney) + I15FW2W (Flewelling,
+            # DF/GF/ES/PP on INGY forests 402/412/413) + 400DVEW (woodland, PY/WJ/MC/CW). Forest-DEPENDENT: the
+            # Salmon-Challis/Sawtooth forests (406/414 = forest_idx 3/6) use Matney for DF/GF/ES/PP — see
+            # ci_vol_eq_table. forest_idx is set by ci_forkod! in site_setup! (runs before volume setup).
+            citbl = ci_vol_eq_table(Int(s.plot.forest_idx))
+            s.species.vol_eq[sp] = sp <= length(citbl) ? citbl[sp] : "           "
         elseif s.variant isa EasternMontana
             # EM VOLEQDEF (em/sitset.f VEQNNC, dumped from live): conifers = FW2 (volume-FIA ≠ species-FIA,
             # e.g. LM→073); non-conifers RM/GA/AS/CW/BA/PW/NC/PB/OH = DVEW woodland (region 1/2).

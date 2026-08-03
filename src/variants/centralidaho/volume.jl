@@ -5,11 +5,24 @@
 # CI bark = ci_bratio (POWER model), so this mirrors compute_volumes_ut! but swaps the bark call.
 # =============================================================================
 
+# CI volume equations are FOREST-dependent (NVEL voleqdef.f R4_EQN, dispatched by FORNUM=forest%100). The base
+# table below is the INGY-region assignment (region-4 forests FORNUM 2/12/13 = 402/412/413, incl. cit01=412):
+# for the 4 mixed-conifer species GF/ES/PP/DF it uses the Flewelling I15FW2W* profile. The OTHER region-4 CI
+# forests — FORNUM 6/14 = 406/414 (Salmon-Challis / Sawtooth) — use the region-4 Matney 400MATW* equation for
+# those same 4 species; every other species is identical across the region-4 forests. jl previously hardcoded
+# ONLY the INGY table (from cit01), so DF/GF/ES/PP volume on 406/414 stands was wrong (FW2 merch ~11% / board
+# ~19% low vs Matney) — confirmed bit-exact: DBH34.1 DF live 400MATW202 gives merch 129.4/bdft 740 = live.
 const CI_VOL_EQ = String[
     "400MATW117", "400MATW073", "I15FW2W202", "I15FW2W017", "400MATW015",   # WP WL DF GF WH
     "400MATW081", "400MATW108", "I15FW2W093", "400MATW019", "I15FW2W122",   # RC LP ES AF PP
     "400MATW108", "400DVEW998", "400MATW746", "400DVEW064", "400DVEW475",   # WB PY AS WJ MC
     "400MATW108", "400DVEW998", "400MATW108", "400MATW108"]                 # LM CW OS OH
+# Matney override for FORNUM 6/14 (forest_idx 3=406, 6=414): GF(4) ES(8) PP(10) DF(3) → region-4 Matney.
+const CI_VOL_EQ_MATNEY = let v = copy(CI_VOL_EQ)
+    v[3] = "400MATW202"; v[4] = "400MATW015"; v[8] = "400MATW093"; v[10] = "400MATW122"; v
+end
+# forest_idx (ci_forkod! order [117,402,406,412,413,414]) → equation table. 3=406, 6=414 are the Matney forests.
+@inline ci_vol_eq_table(forest_idx::Integer) = (forest_idx == 3 || forest_idx == 6) ? CI_VOL_EQ_MATNEY : CI_VOL_EQ
 
 function compute_volumes_ci!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
