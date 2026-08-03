@@ -43,6 +43,12 @@ in fvs.f but never defined; stubbed empty (output-only, irrelevant to growth) to
   string, and site defaults are zone-keyed. Port = the BEC-string parser + the zone/subzone/series BAMAX tables
   + site defaults (bc/sitset.f). Also: BC test stands are FIA-DB-based ⇒ build a synthetic BC .tre + STDINFO
   with a known BEC zone to validate SDIDEF/BAMAX vs FVSbc_clean. This is BC's largest single departure.
+  - **BEC → ITYPE needed for DG**: bc/dgf.f uses `MAPHAB(ITYPE,sp)→ISPHAB→DGHAB(6,sp)` + MAPDSQ/MAPCCF —
+    the SAME structure as IE. So habtyp must map the BEC {Zone,SubZone} → an **ITYPE (1..30)** (not just BAMAX).
+    SDIDEF=BAMAX/(0.5454154·PMSDIU/100) (Stage). BC is metric-I/O but imperial-internal (ACRtoHA only for display).
+    Synthetic-stand shortcut: user BAMAX (>0) skips the zone lookup (LBAMX=false), but ITYPE still needed for DG.
+  - **↑ silver lining**: once BEC→ITYPE lands, **DG/height/crown/regent/mortality/volume are direct IE clones**
+    (BC dgf = IE MAPHAB/DGHAB/MAPDSQ form; Stage SDI; constant bark). The BEC-zone site is the ONLY real new work.
 
 ## Reuse from CI (proven this session)
 Same extraction tooling (tools/centralidaho/*.py adapts by variant), same chunk methodology, and the 4
