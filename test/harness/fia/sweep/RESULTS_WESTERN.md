@@ -8,17 +8,19 @@
 >   TCuFt/MCuFt 282/278, **jl now 282/278 (was 0/0)**. EM 2342318010690: **now bit-exact 82/29/120 (was 23-34% low)**.
 > - **Current >10% volume-divergence rate is FAR lower than the tables below** (measured on the sub.db treed
 >   sample): CI 1/15, EM 0/3, UT 1/8 — vs the recorded CI 24 / EM 8 / UT 25. BM added to multi-cycle (median 0).
-> - **Sole remaining volume residual = FW2 merch/board low on large *stunted* DF** (old-growth, low H/D). Per-tree
->   (CI 3200106010690, DBH 34.1″/HT 67ft): TotCu 130.7≈134.4 ✓ but **MchCu 115.8 vs 129.4 (−11%), BdFt 600 vs 740
->   (−19%)**. **Fortran trace DONE** (NVEL profile.f + fvsvol.f + mrules.f): the merch-cubic METHOD is correct
->   (log-Smalian on integer DIB classes over segments, `VOL(4)` at profile.f:571 — NOT continuous integration, NOT
->   missing species); merch top MTOPS=TOPD=6 ✓; jl segmnt → loglen [16,16,12,10] for lmerch 55.6. **Residual is in
->   the segment-boundary numerics (exact SEGMNT log-lengths or the profile DIB at segment tops)** — pinning it needs
->   live LOGLEN/LOGDIA, which the FVS volume-DEBUG path BLOCKS (SIGSEGV, see below). Next: .bmwork instrument-replay
->   (patch fvsvol WRITE LOGLEN/LMERCH→file, relink) for ground truth — do NOT cargo-cult a segmentation fix. Narrow
->   (≈1/15 CI stands >10%).
+> - **★ ROOT-CAUSED + FIXED (commit 3594405) — the residual was the WRONG VOLUME EQUATION, not segment numerics.**
+>   CI volume equations are FOREST-keyed (NVEL voleqdef.f R4_EQN, FORNUM=forest%100). jl hardcoded only cit01's
+>   INGY table (forest 412 → I15FW2W202 Flewelling for DF/GF/ES/PP). The Salmon-Challis/Sawtooth forests (406/414
+>   = forest_idx 3/6) use region-4 **Matney 400MATW*** for those 4 species. Instrument-replay (patched fvsvol.f
+>   `PRINT VOLEQ`, relinked FVSci) showed live uses `400MATW202` for DF on forest 406 where jl used `I15FW2W202`.
+>   Fix = forest-dependent `ci_vol_eq_table`. **Bit-exact: stand 3200106010690 TCuFt/MCuFt/BdFt 662/575/1758 →
+>   659/623/2124 = live; CI vol-sweep >10% divergence 15→0.** (The prior "segment-numerics / merch-top" hypothesis
+>   in earlier revisions of this addendum was WRONG — PROFILE was never even called; the equation family differed.)
+>   **EM/UT/TT/IE carry the SAME fixed-table gap** (their setup comments already say "forest-keyed VOLEQDEF port
+>   needed") — same class, the obvious follow-up to close the western volume tail cluster-wide.
 > - **⚠ Live FVSci DEBUG SIGSEGV:** the `DEBUG` keyword segfaults after ~1 VOLINIT block (fvsvol DBCHK dump path) on
->   treed CI stands — DEBUG-only (production fine), but a real live bug; it's what blocks the per-log volume trace.
+>   treed CI stands — DEBUG-only (production fine), but a real live bug (it's why instrument-replay, not DEBUG, was
+>   needed for the per-tree trace).
 > - **Growth core unchanged: density/diameter 100% bit-exact; CCF(±1)/TopHt(AVH-tie) cornered.**
 > Bottom line: the western cluster is bit-exact-or-cornered on growth everywhere; volume is now bit-exact-or-
 > cornered except the narrow large-stunted-DF FW2 merch/board class. See memory `fvsjl-extensions-rollout`.
