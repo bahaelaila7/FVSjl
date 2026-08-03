@@ -115,6 +115,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             idx !== nothing && (p.habitat_code = Int32(idx))
         end
     end
+    # CI: the habitat KODTYP fed to ci_habtyp is the 3-digit NI code in PV_REF_CODE (e.g. 401); PV_CODE holds the
+    # 5-digit FIA code (out of ci_habtyp's 10-999 range). Without it habitat_code=0 ⇒ habitat_input defaults to 1
+    # ⇒ wrong DG (DGHAB via ICINDX) + wrong mortality ITYPE ⇒ multi-cycle divergence.
+    if s.variant isa CentralIdaho && _fia_present(d, "PV_REF_CODE")
+        pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
+        (10 <= pvr <= 999) && (p.habitat_code = Int32(pvr))
+    end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
     # DB overrides elevation ONLY when >0 (dbsstandin.f:647) — so a null/≤0 ELEVATION keeps the
