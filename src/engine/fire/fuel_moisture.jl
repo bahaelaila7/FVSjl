@@ -38,6 +38,8 @@ const _FM_MOIS_IE = Float32[           # IE-family western (ie/fmmois.f) — sha
 fm_mois_table(::Northeast) = _FM_MOIS_NE
 fm_mois_table(::LakeStates) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
 fm_mois_table(::CentralRockies) = _FM_MOIS_CR   # cr/fmmois.f (verified vs buildDir fmmois.f)
+fm_mois_table(::Teton) = _FM_MOIS_CR            # tt/fmmois.f == cr (verified byte-identical)
+fm_mois_table(::Utah) = _FM_MOIS_CR             # ut/fmmois.f == cr (verified byte-identical)
 # IE-family western moisture (ie/fmmois.f), shared across the N-Rockies cluster (verified diff 0 vs kt/em/bm/ci).
 fm_mois_table(::InlandEmpire) = _FM_MOIS_IE
 fm_mois_table(::Kootenai) = _FM_MOIS_IE

@@ -105,6 +105,8 @@ _fm_dkr_default(::InlandEmpire) = _FM_DKR_CR
 _fm_dkr_default(::Kootenai) = _FM_DKR_CR
 _fm_dkr_default(::EasternMontana) = _FM_DKR_CR   # em/fmcwd.f DKR verified identical to cr
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_CR     # ci/fmcwd.f DKR verified identical to cr
+_fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmcwd.f DKR == cr
+_fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmcwd.f DKR == cr
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """

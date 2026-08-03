@@ -92,6 +92,8 @@ fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
 fmd_xpts(::Kootenai) = _FMD_XPTS_IE
 fmd_xpts(::EasternMontana) = _FMD_XPTS_IE   # em/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::CentralIdaho) = _FMD_XPTS_IE     # ci/fmcfmd.f XPTS verified identical to ie
+fmd_xpts(::Teton) = _FMD_XPTS_CR            # TT/UT ICLSS=12 (models 1-12), same XPTS breakpoints as CR
+fmd_xpts(::Utah) = _FMD_XPTS_CR
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
@@ -160,8 +162,8 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return ls_select_fuel_models(s, mois, sm, lg)
     end
 
-    # CR (like western TT/UT) is COVER-TYPE based (cr/fmcfmd.f), NOT the SN forest-type path.
-    if s.variant isa CentralRockies
+    # CR / TT / UT share cr/fmcfmd.f's cover-type algorithm (VARACD-branched, parameterized in cr_select).
+    if s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah
         return cr_select_fuel_models(s, mois, sm, lg)
     end
 
@@ -513,6 +515,37 @@ end
     return 7                                              # default mixed conifer
 end
 
+# TT/UT share cr's fmcfmd algorithm (VARACD-branched); only the species→covtype map + a few species-role
+# indices differ (tt/ut fmcfmd.f SELECT CASE(ISP)). Groups: OBCT1 PJCT2 PPCT3 WSCT4 SFCT5 LPCT6 MCCT7 ASCT8.
+@inline function _tt_fm_covtype(sp::Int)::Int   # TT (18 sp): no OBCT/WSCT
+    (sp == 4 || sp == 11 || sp == 12)       && return 2   # PJCT pinyon-juniper (PM,UJ,RM)
+    (sp == 10)                              && return 3   # PPCT ponderosa
+    (sp == 5 || sp == 8 || sp == 9)         && return 5   # SFCT spruce-fir (BS,ES,AF)
+    (sp == 7)                               && return 6   # LPCT lodgepole
+    (sp in (1, 2, 3, 17))                   && return 7   # MCCT mixed conifer (WB,LM,DF,OS)
+    (sp in (6, 13, 14, 15, 16, 18))         && return 8   # ASCT aspen/hardwoods
+    return 7
+end
+@inline function _ut_fm_covtype(sp::Int)::Int   # UT (24 sp): +OBCT oak
+    (sp == 13)                              && return 1   # OBCT oak brush
+    (sp in (11, 12, 14, 15, 16))            && return 2   # PJCT pinyon-juniper
+    (sp == 10)                              && return 3   # PPCT ponderosa
+    (sp == 5 || sp == 8 || sp == 9)         && return 5   # SFCT spruce-fir
+    (sp == 7)                               && return 6   # LPCT lodgepole
+    (sp in (1, 2, 3, 4, 17, 23))            && return 7   # MCCT mixed conifer
+    (sp in (6, 18, 19, 20, 21, 22, 24))     && return 8   # ASCT aspen/hardwoods
+    return 7
+end
+# Western fmcfmd per-variant role params (cr_select_fuel_models generalization).
+@inline _fm_covtype(v::AbstractVariant, sp::Int) =
+    v isa Teton ? _tt_fm_covtype(sp) : v isa Utah ? _ut_fm_covtype(sp) : _cr_fm_covtype(sp)
+@inline _fm_ppct_sp(v::AbstractVariant) = (v isa Teton || v isa Utah) ? 10 : 13   # ponderosa index (lppdom)
+# ASCT lcundr crown-cover EXCLUSION set (tt/ut/cr fmcfmd ASCT SELECT CASE(ISP)): species skipped in the CVR10 sum.
+@inline _fm_asct_excl(v::AbstractVariant, sp::Int) =
+    v isa Teton ? (sp in (4, 6, 11, 12, 13, 14, 15, 16, 18)) :
+    v isa Utah  ? (sp == 6 || (11 <= sp <= 16) || (18 <= sp <= 22) || sp == 24) :
+                  (sp == 12 || sp == 16 || (20 <= sp <= 35) || sp == 38)
+
 """
     cr_select_fuel_models(s, mois, sm, lg) -> [(model, weight)]
 
@@ -529,7 +562,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     percov = fs.percov
     fwind = fs.swind * fire_wind_reduction(percov)
     ldry = false                                   # DROUGHT (IDRYB..IDRYE) — none in crt01
-    NSP = 38
+    NSP = nspecies(s.variant)                       # CR=38, UT=24, TT=18 (fmcfmd shared, VARACD-branched)
     usht = 0.5f0 * stand_top_height(s)             # UNDERSTORY = HT ≤ 0.5·FMAVH (top-40 ht) (fmcfmd.f:182)
     ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)
     usba = zeros(Float32, 8)                        # per-cover-type UNDERSTORY BA (USBA, HT≤USHT; for LCUNDR)
@@ -539,7 +572,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         x = t.tpa[i] * d * d * 0.0054542f0
-        ct = _cr_fm_covtype(sp)
+        ct = _fm_covtype(s.variant, sp)
         ctba[ct] += x
         t.height[i] <= usht && (usba[ct] += x)     # understory BA (fmcfmd.f:203-231)
         (1 <= sp <= NSP) && (fmtba[sp] += x)
@@ -559,10 +592,11 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             end
         end
     end
-    # LPPDOM: is ponderosa (sp13) the single highest-BA species? (fmcfmd.f:811-822, CR J=13)
+    # LPPDOM: is ponderosa the single highest-BA species? (fmcfmd.f:811-822; CR J=13, UT/TT J=10)
+    pp_sp = _fm_ppct_sp(s.variant)
     lppdom = true
     @inbounds for i in 1:NSP
-        (i != 13 && fmtba[i] > fmtba[13]) && (lppdom = false)
+        (i != pp_sp && fmtba[i] > fmtba[pp_sp]) && (lppdom = false)
     end
     # IFMST structure class = FMSSTAGE (sstage.f) — already ported + validated bit-exact vs the SSTAGE
     # "Structural statistics" report as `structure_class`. Called with the CR fmcfmd params
@@ -684,7 +718,8 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     elseif ict == 8                                # ASCT aspen (fmcfmd.f:936-1020, CR)
         if ctba[8] / max(1f-3, stndba) > 0.80f0    # aspen-DOMINANT (>80% BA)
-            imodty == 1 ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)   # CR is not UT/TT
+            # (VARACD≠UT ∧ ≠TT ∧ IMODTY==1) → model 2 (CR SW-mixed), ELSE model 5 (fmcfmd.f ASCT)
+            (s.variant isa CentralRockies && imodty == 1) ? (eqwt[2] = 1f0) : (eqwt[5] = 1f0)
         elseif lcundr                              # conifer understory present ⇒ COVOLP crown cover CVR10
             # Sum crown area (sq ft/ac) of trees HT>10 EXCLUDING sp {12,16,20:35,38} (fmcfmd.f:988-1000),
             # then COVOLP (canopy cover %). CVR10>40 ⇒ model 8, else model 2.
@@ -695,7 +730,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             @inbounds for i in 1:t.n
                 (t.tpa[i] > 0f0 && t.height[i] > 10f0) || continue
                 spi = Int(t.species[i])
-                (spi == 12 || spi == 16 || (20 <= spi <= 35) || spi == 38) && continue
+                _fm_asct_excl(s.variant, spi) && continue    # per-variant CVR10 exclusion set
                 cw = cr_cwcalc(spi, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi)
                 area += Float64(cw)^2 * Float64(t.tpa[i]) * 0.785398
             end
