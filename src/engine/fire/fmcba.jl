@@ -146,6 +146,12 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                 ss > 0f0 && (fs.cwd[isz, 1, idc] += ss)
             end
         end
+        # BM decay-rate habitat adjustment (bm/fmcba.f:333-368): applied ONCE at the first FFE year, and only
+        # when the user has not set the decay rates with FuelDcay/FuelMult (fs.params.dkr still empty). Store
+        # the adjusted matrix into params.dkr so every subsequent fmcwd! reads it (mirrors the persisted DKR).
+        if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = bm_adjusted_dkr(Int(s.plot.habitat_code))
+        end
         fs.fuels_init = true
     end
     return s

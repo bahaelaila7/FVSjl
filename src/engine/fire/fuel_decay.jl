@@ -107,8 +107,82 @@ _fm_dkr_default(::EasternMontana) = _FM_DKR_CR   # em/fmcwd.f DKR verified ident
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_CR     # ci/fmcwd.f DKR verified identical to cr
 _fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmcwd.f DKR == cr
 _fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmcwd.f DKR == cr
-_fm_dkr_default(::BlueMountains) = _FM_DKR_CR     # bm/fmcwd.f DKR verified byte-identical to cr
+# BM has its OWN base decay table (bm/fmvinit.f:68-113) — NOT the CR table. Faster litter (0.65 vs CR 0.5)
+# and different woody rates; used as the base the habitat DKRADJ then scales (see bm_adjusted_dkr).
+const _FM_DKR_BM = Float32[
+    0.076  0.081  0.090  0.113      # 1  (<0.25")
+    0.076  0.081  0.090  0.113      # 2  (0.25-1")
+    0.076  0.081  0.090  0.113      # 3  (1-3")
+    0.019  0.025  0.033  0.058      # 4  (3-6")
+    0.019  0.025  0.033  0.058      # 5  (6-12")
+    0.019  0.025  0.033  0.058      # 6  (12-20")
+    0.019  0.025  0.033  0.058      # 7  (20-35")
+    0.019  0.025  0.033  0.058      # 8  (35-50")
+    0.019  0.025  0.033  0.058      # 9  (>50")
+    0.65   0.65   0.65   0.65       # 10 litter (bm/fmvinit.f:111)
+    0.002  0.002  0.002  0.002      # 11 duff  (bm/fmvinit.f:112)
+]
+_fm_dkr_default(::BlueMountains) = _FM_DKR_BM     # bm/fmvinit.f — distinct from CR; DKRADJ-scaled at 1st yr
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
+
+# ── BM decay-rate habitat adjustment (bm/fmcba.f:67-113, 333-368) ──────────────────────────────────
+# BM is the lone western variant that DOES NOT use the CR decay table verbatim: at the first FFE year it
+# multiplies the base DKR by a habitat-conditioned factor DKRADJ(TEMP,MOIST,K) (from FMR6SDCY). Each BM
+# habitat type (ITYPE, 1-92 = the decoded KODTYP / PCOML index) maps to a temperature class BMHMC (1=hot,
+# 2=moderate, 3=cold) and a moisture class BMWMD (1=wet, 2=mesic, 3=dry); K is a size-class group
+# (1: size 1-3 / <3", 2: size 4-5 / 3-12", 3: size 6-9 / >12"). Without this, BM down-wood decays at the
+# generic CR rate and OVER-ACCUMULATES over the projection (measured: bmt01 SMALL/LARGE ~2.4× live), which
+# pushes FMDYN onto the hot fuel model → spurious crown fire → mortality over-kill.
+const _FM_BMHMC = Int8[   # temperature class by habitat type (bm/fmcba.f:73-84)
+    3,3,2,2,2,2,2,2,2,2, 2,2,2,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3,3,
+    2,3,3,2,3,2,2,2,3,3, 3,2,2,2,2,2,3,3,1,1,
+    1,1,2,2,2,1,2,2,1,2, 1,1,1,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,
+    2,2,2,2,2,2,3,2,2,2, 2,1]
+const _FM_BMWMD = Int8[   # moisture class by habitat type (bm/fmcba.f:88-99)
+    3,3,3,3,3,2,3,3,3,3, 3,2,3,2,1,2,3,1,1,2, 1,1,2,2,2,2,2,3,2,3,
+    2,3,3,1,1,1,2,1,2,3, 3,3,2,2,2,2,3,3,3,3,
+    3,3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,1,1,2, 2,2,2,1,1,1,3,3,3,2,
+    2,2,3,3,2,1,3,2,1,2, 2,2]
+# DKRADJ[TEMP, MOIST, K] (bm/fmcba.f:101 — DATA order fills K innermost, then MOIST(J), then TEMP(I)).
+const _FM_DKRADJ = let a = Array{Float32}(undef, 3, 3, 3)
+    vals = Float32[
+        1.7,  2.0,  1.7,   1.49, 1.91, 1.49,  0.75, 0.85, 0.75,    # TEMP=1 (hot):  MOIST 1,2,3
+        1.35, 1.85, 1.35,  1.0,  1.7,  1.0,   0.875, 1.2, 0.875,   # TEMP=2 (mod):  MOIST 1,2,3
+        1.21, 1.79, 1.21,  1.14, 1.76, 1.14,  0.75, 0.85, 0.75]    # TEMP=3 (cold): MOIST 1,2,3
+    n = 0
+    for i in 1:3, j in 1:3, k in 1:3
+        n += 1; a[i, j, k] = vals[n]
+    end
+    a
+end
+
+"""
+    bm_adjusted_dkr(itype) -> Matrix{Float32}
+
+BM habitat-conditioned decay rates (bm/fmcba.f:333-368): the BM base DKR scaled by `DKRADJ(TEMP,MOIST,K)`
+for the stand's habitat type `itype`, capped at 1.0, then a second pass (size 9→2) bumps any size class that
+would decay slower than the next-larger class up to the larger class's rate. Only the woody classes 1-9 are
+adjusted; litter (10) and duff (11) keep the CR default. Applied once, at the first FFE year, when the user
+has not overridden decay with FuelDcay.
+"""
+function bm_adjusted_dkr(itype::Integer)::Matrix{Float32}
+    dkr = copy(_FM_DKR_BM)
+    (itype < 1 || itype > length(_FM_BMHMC)) && return dkr
+    temp = Int(_FM_BMHMC[itype]); moist = Int(_FM_BMWMD[itype])
+    @inbounds for i in 1:9
+        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
+        adj = _FM_DKRADJ[temp, moist, k]
+        for j in 1:4
+            v = dkr[i, j] * adj
+            dkr[i, j] = v > 1f0 ? 1f0 : v
+        end
+    end
+    # bump smaller wood up to larger wood's rate where it would otherwise decay more slowly (fmcba.f:359-368)
+    @inbounds for i in 9:-1:2, j in 1:4
+        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
+    end
+    return dkr
+end
 
 """
     apply_fuelmove!(s) -> Bool
