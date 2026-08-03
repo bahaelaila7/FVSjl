@@ -45,6 +45,7 @@ function variant_from_code(code::AbstractString)
     (c == "UT" || c == "UTAH") && return Utah()
     (c == "BM" || c == "BLUEMOUNTAINS" || c == "BLUE MOUNTAINS") && return BlueMountains()
     (c == "CI" || c == "CENTRALIDAHO" || c == "CENTRAL IDAHO") && return CentralIdaho()
+    (c == "BC" || c == "BRITISHCOLUMBIA" || c == "BRITISH COLUMBIA") && return BritishColumbia()
     error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States, CR = Central Rockies, KT = Kootenai, IE = Inland Empire, EM = Eastern Montana, TT = Teton, UT = Utah, BM = Blue Mountains)")
 end
 
