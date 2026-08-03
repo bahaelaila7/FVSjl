@@ -52,7 +52,20 @@ IE's FMCFMD = candidate standard fuel models → shared FMDYN interpolation. Pie
 
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
-  Committed 3 FFE increments: (1) IE+KT fire bark-thickness `_IE_FM_BARK_B1` (ie/fmbrkt.f 23 sp; KT=[1:11]);
-  (2) IE-family moisture `_FM_MOIS_IE` covering ie/kt/em/bm/ci (verified diff 0); (3) IE/KT fuel-model XPTS
-  `_FMD_XPTS_IE`. All verified vs source + package precompiles clean. **Next chunk (fresh session): IE fmcfmd
-  steps 2-5 above** (MAPDRY→IDRY, EQWT build+FMDYN wire, fmcba loading, iet01 SIMFIRE live validation), then KT.
+  Committed the full IE/KT surface-fire path (7 commits): (1) bark-thickness `_IE_FM_BARK_B1`; (2) moisture
+  `_FM_MOIS_IE` (covers ie/kt/em/bm/ci); (3) fuel-model XPTS `_FMD_XPTS_IE`; (4) candidate selection
+  `ie_select_fuel_models` (MAPDRY→IDRY + PERCOV weights + natural fuels); (5) fmcba fuel loading
+  (`data/inlandempire/fire/ffe_fuel.jl` FULIVE/FUINIE + COVINI); (6) snag/biomass species props
+  (`fire_species_props.csv` — v2t/decay/fall from fmvinit, ls_spi=ISPMAP, biogrp=BIOGRP; note BIOGRP grab
+  contaminated by "! NN" comments, corrected from source) + standard Anderson-13/Jenkins tables + IE bark in
+  crown_biomass; (7) **fuel-decay fix** — IE/KT fell through to the SN `_FM_DKR`; wired to `_FM_DKR_CR`
+  (ie/fmcwd.f == cr/fmcwd.f).
+  - **IE SIMFIRE now RUNS end-to-end vs live FVSie** (iet01_fire.key in /workspace/.iework/ierun). Growth
+    bit-close (2020 jl 302 trees/BA 178 vs live 305/178). Fire mortality: jl 2020 MOR 145→**322** after the
+    decay fix (live ≈512). **OPEN — not yet bit-exact**: remaining under-kill gap (322 vs 512). Next
+    root-cause: instrument the 2020 surface-fuel load + Byram flame length vs the live FuelOut/Potfire report
+    (candidates: fuel-loading magnitude, litterfall FMCADD additions for IE, flame/scorch calc). Then KT
+    drop-in (needs KT fmbrkt[1:11] bark + kt_bratio in crown_biomass; fmcfmd/moisture/decay already shared).
+- **Watch-list carried to EM/CI/BM/UT/TT**: each western variant needs its own fmcfmd MAPDRY + fmcba
+  FULIVE/FUINIE + fmvinit fire_species_props + verify its `_FM_DKR`/moisture vs CR (don't let them fall
+  through to SN defaults — the decay-fallthrough bug class).
