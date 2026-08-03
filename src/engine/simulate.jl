@@ -178,6 +178,7 @@ function compute_density!(s::StandState)
     s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
     s.variant isa Utah && (s.plot.relative_density = stand_ccf(s))           # UT RELDEN (ut/ccfcal.f) for dgf! CONSPP term
     s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
+    s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
     return s
 end
 

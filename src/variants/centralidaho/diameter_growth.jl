@@ -115,9 +115,11 @@ function dgf!(s::StandState, ::CentralIdaho)
             dds < -9.21f0 && (dds = -9.21f0)
             dds = dds + c.dg_cor[sp] + c.dg_const[sp]
         else                                                 # DEFAULT: main conifers (1-10,16,18)
+            cr = Float32(t.crown_pct[i]) * 0.01f0
             dds = conspp + CI_DGLD[sp] * ald + CI_DGLBA[sp] * logba +
                   CI_DGDS[sp] * d * d + CI_DGDBAL[sp] * pbal / log(d + 1f0) +
-                  CI_DGBA[sp] * bal / log(d + 1f0) + CI_DGPCCF[sp] * pccf
+                  CI_DGBA[sp] * bal / log(d + 1f0) + CI_DGPCCF[sp] * pccf +
+                  cr * (CI_DGCR[sp] + cr * CI_DGCRSQ[sp]) + CI_DGBAL[sp] * bal
         end
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
