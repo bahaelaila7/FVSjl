@@ -85,6 +85,7 @@ include("variants/centralidaho/diameter_growth.jl")  # CI large-tree DDS hooks (
 include("variants/centralidaho/crown.jl")            # CI per-tree CCF (ci/ccfcal.f MODE=1) → RELDEN — chunk 5
 include("variants/centralidaho/height_growth.jl")    # CI large-tree height growth (ci/htgf.f) — chunk 4
 include("variants/centralidaho/regent.jl")           # CI small-tree growth (ci/regent.f) — chunk 6
+include("variants/centralidaho/mortality.jl")        # CI mortality (ci/morts.f) — Hamilton, chunk 7
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
 include("variants/inlandempire/species.jl")          # IE species block-data init (ie/blkdat.f + grinit.f)
 include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (chunk 2): ITYPE/IFOR/SITEAR

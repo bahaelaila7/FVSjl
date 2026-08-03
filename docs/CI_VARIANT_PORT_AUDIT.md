@@ -100,7 +100,7 @@ Given intricacy, this is the CI port's largest remaining single chunk.
 The large-tree growth core (DG+height, DG bit-exact) is done; this regent is the last big growth chunk before mortality/volume/full-.sum.
 
 **◐ regent PORTED + RUNS** (regent.jl): NIVAR path — subcycle (REGYR=5) HTGRL regression → H2=H1+HTGRL·SCALE·XRHGRO·exp(HCOR); HTDBH DK=exp(DHCN+DHHT·lnHK+DHCR·lnRCR); DG=DK−D_old. RHDM1/RHDM2 habitat-code flags (cit01 hab520→RHDM1=1). SMHTGF stochastic BETA/FINDAG establishment path deferred (cit01 small trees are conifers). cit01 projects past regent → next hook mortality _varmrt_efftr! (chunk 7). Validation via full-cycle .sum after mortality/volume land. |
-| 7 | Mortality: ci/morts.f (Hamilton) + Zeide SDImax self-thin | TODO |
+| 7 | Mortality: ci/morts.f (Hamilton) | ◐ **PORTED + RUNS** — mortality.jl: full Hamilton RIP (2.76253+0.222310·√D−0.0460508·√BA+11.2007·G−0.554421/DD+PMSC+0.246301·RELDBH+6.07129·G/DD) + POTENT (POT/IPDG) + BA10 self-thin (IDENTICAL to IE form; ci/morts.f:269/329 confirmed BA-based, not Zeide-SDI). Coeffs PMSC/PMD/POT/IPDG(30,11)/IPDG2 from ci/morts.f; ITYPE=NIHMAP[ICINDX]; IFOR 1-6; bark=ci_bratio; bamax=CI_BAMAXA[ICINDX]. cit01 projects past mortality → next hook crown_ratio_update! (chunk 5b). |
 | 8 | Volume: ci/sitset.f VOLEQ via shared NVEL driver | TODO |
 | 9 | Full-cycle differential vs FVSci_clean on cit01 | TODO |
 
