@@ -26,11 +26,23 @@ let
     global const CI_ICHBCL = round.(Int, readrows("dg_ichbcl.csv"))      # [130, 19]
 end
 
-# ci/bratio.f: POWER model DIB = BARK1·D^BARK2, BRATIO = DIB/D (same family as BM). BARK1/BARK2 in
-# species_coefficients.csv (:bark1/:bark2). r>1 or ≤0 ⇒ 0.99 fallback; final clamp handled by caller.
+# ci/bratio.f — per-species BRATIO (like BM). BARK1/BARK2 in species_coefficients.csv.
+#   CASE(3,5,9,10) DF/WH/AF/PP: DIB=BARK1·D^BARK2; BRATIO=DIB/D (D>0 else 0.97); cap ≤0.97.
+#   CASE(14) WJ: 0.9002 − 0.3089/TEMD (TEMD∈[1,19]); clamp [0.80,0.99].
+#   CASE(17,19) CW/OH: BARK1 + BARK2/TEMD (TEMD≥1); clamp [0.80,0.99].
+#   DEFAULT (rest): BRATIO = BARK1 (constant).
 @inline function ci_bratio(sd, sp::Int, d::Real)::Float32
-    b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]
-    d <= 0f0 && return 0.99f0
-    r = b1 * Float32(d)^b2 / Float32(d)
-    (r > 1f0 || r <= 0f0) ? 0.99f0 : r
+    b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]; dd = Float32(d)
+    if sp == 3 || sp == 5 || sp == 9 || sp == 10
+        r = dd > 0f0 ? b1 * dd^b2 / dd : 0.97f0
+        return r > 0.97f0 ? 0.97f0 : r
+    elseif sp == 14
+        temd = clamp(dd, 1f0, 19f0)
+        return clamp(0.9002f0 - 0.3089f0 * (1f0 / temd), 0.80f0, 0.99f0)
+    elseif sp == 17 || sp == 19
+        temd = dd < 1f0 ? 1f0 : dd
+        return clamp(b1 + b2 * (1f0 / temd), 0.80f0, 0.99f0)
+    else
+        return b1                                            # DEFAULT: constant BARK1
+    end
 end
