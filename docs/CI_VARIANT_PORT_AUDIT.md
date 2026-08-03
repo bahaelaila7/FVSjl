@@ -56,7 +56,7 @@ IFOR<2 ⇒ same formula, **IFOR≥2 ⇒ SDIDEF(sp)=R4SDI(sp)** (Zeide). cit01 fo
 forkod: JFOR=[117,402,406,412,413,414] NUMFOR=6 KFOR=[1,2,2,3,2,2]. JTYPE brackets = IE's (shared).
 **Still to extract:** ICITYP(130), NIHMAP(130), ICHBCL(130,19) [ch3]. Data in hand: R4SDI, BAMAXA(130),
 SITELO/HI, JFOR/KFOR. Validate SITEAR/SDIDEF echo vs FVSci_clean (instrument sitset.f or read SITECODE).
-| 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | ◐ **EQUATION FULLY TRACED** (recipe below); extract coeffs + port dgf!/ci_dgcons! + validate WK2 next. |
+| 3 | Large-tree DG: ci/dgf.f (western Wykoff DDS) + DGHAB coeffs | ◐ **equation traced (recipe below) + 1-D coeffs extracted**. `data/centralidaho/dg_coeffs_1d.csv` = 14 per-species DDS arrays ×19 (DGLD/DGCR/DGCRSQ/DGBAL/DGDBAL/DGBA/DGLBA/DGPCCF/DGEL/DGEL2/DGSLOP/DGSLSQ/DGCASP/DGSASP) via tools/centralidaho/extract_dg_coeffs.py (grab, verified len 19; GF/WH share). **Remaining:** 2-D arrays (DGFOR/DGDS/DGDSQ/DGCCFA/DGHAB=OCURHT/ICHBCL(130,19)/MAPLOC/MAPCCF/MAPDSQ/IBSERV/OBSERV — per-column DATA forms), then port dgf!/ci_dgcons! (clone IE) + DGFTRC WK2 validate. |
 
 ### Chunk 3 — CI DG equation (ci/dgf.f, traced) — standard western Wykoff DDS (KT/UT family)
 DGCONS (once/stand, per sp): `MAPHAB=ICHBCL(ICINDX,sp)+1`; `DHAB=DGHAB(MAPHAB,sp)` [DGHAB=OCURHT,
