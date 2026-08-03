@@ -6,6 +6,24 @@
 # Merch standards (ut/grinit.f): TOPD=6, DBHMIN=8 (sp7 LP=7), BFTOPD=6, BFMIND=8 (sp7=7).
 # =============================================================================
 
+# R3D2HV (volume/NVEL/r3d2hv.f): Region-3 woodland D2H. UT routes geocode-300 DVEW here (dvest.f:71).
+# UT's only 300DVEW species is GO (300DVEW800 → oak). FCLASS=FRMCLS default 80 ≠ 1 ⇒ MSTEM/"multistem"
+# branch; PROD='02' (fvsvol.f:184) ⇒ UNT=3 ⇒ VOL(1)=VOL(4)=GCUFT4 (entire = merch cubic). DBH<1 ⇒ 0;
+# DBH≤3 ⇒ 0.1 floor (r3d2hv.f:441-442). Returns VOL(1). Bit-exact match to live GO 0.1-floor saplings.
+@inline function r3d2hv_vol1(eq::AbstractString, d::Float32, h::Float32)::Float32
+    d < 1f0 && return 0f0
+    code = strip(eq)[8:10]
+    d2h = d * d * h
+    if code == "800"          # Oaks (INT-391 Juniper/Pinyon/Oak/Mesquite; VOLEQ(2:3)="00")
+        d <= 3f0 && return 0.1f0
+        d2ha = d2h / 1000f0
+        g = d2ha <= 4f0 ? -0.028f0 + 1.9545f0 * d2ha + 0.1400f0 * d2ha * d2ha :
+                           6.691f0 + 1.9545f0 * d2ha - 17.918f0 / d2ha
+        return max(g, 0f0)
+    end
+    return 0f0
+end
+
 function compute_volumes_ut!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
@@ -32,8 +50,9 @@ function compute_volumes_ut!(s::StandState)
             t.merch_cuft_vol[i] = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             t.saw_cuft_vol[i] = 0f0
             t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
-        else                                                 # DVE woodland (r4d2h, region 4)
-            vol1 = r4d2h_vol1(eq, d, h)
+        else                                                 # DVE woodland — dvest.f geocode dispatch
+            # geocode '3' → Region-3 R3D2HV (GO); '4' → Region-4 R4D2H (PJ). (dvest.f:71/86)
+            vol1 = se[1] == '3' ? r3d2hv_vol1(eq, d, h) : r4d2h_vol1(eq, d, h)
             t.cuft_vol[i] = max(vol1, 0f0)
             t.merch_cuft_vol[i] = d >= dbhmin ? max(vol1, 0f0) : 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0

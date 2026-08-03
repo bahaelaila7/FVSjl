@@ -64,7 +64,7 @@ end
     cb = get(_EM_R1KEMP_CB, fia, nothing); cb === nothing && return 0f0
     d2h100 = d * d * h / 100f0
     cbgrs = if d < 5f0
-        0f0                         # coeffs 9-11 are 0 for these species ⇒ CBGRS=0 for DBH<5 (→ min 1.6)
+        0f0                         # coeffs 9-11 are 0 for these species ⇒ CBGRS=0 for DBH<5 (→ min 2.4)
     elseif fia in _EM_R1KEMP_LINEAR
         cb[5] * d2h100 + cb[6]      # ISPEC 14/15 (pinyon): linear from DBH≥5, no polynomial branch
     elseif d <= 9.5f0
@@ -74,7 +74,9 @@ end
     else
         cb[7] * d2h100 + cb[8]
     end
-    cbgrs < 1.6f0 && (cbgrs = 1.6f0)      # KLASS≤2 gross cubic minimum (r1kemp.f:378-379)
+    # FVS cubic call passes PROD='02' (fvsvol.f:184) ⇒ KLASS=3 ⇒ gross cubic minimum 2.4
+    # (r1kemp.f:380-381), NOT the KLASS≤2 min of 1.6. Applies to all R1KEMP '02' species.
+    cbgrs < 2.4f0 && (cbgrs = 2.4f0)
     return cbgrs
 end
 

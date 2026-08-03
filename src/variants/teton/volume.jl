@@ -21,7 +21,11 @@ const TT_VOL_EQ = String[
     c = fpow(d2h, 1f0 / 3f0)                                 # D2H**(1./3.) via gfortran powf (doctrine #8)
     # NB: Fortran writes `(...)**3.` — a REAL exponent ⇒ powf(x,3.0), NOT x*x*x; match via fpow(.,3f0).
     code = strip(eq)[8:10]
-    if code == "066"          # Rocky Mountain Juniper (RM)
+    if code == "064"          # Western Juniper (WJ) — r4d2h.f:63-65 (no DBH<3 floor)
+        return fpow(-0.22048f0 + 0.125468f0 * c, 3f0)
+    elseif code == "106"      # Pinyon Pine (PI) — r4d2h.f:101-103 (no DBH<3 floor)
+        return fpow(-0.20296f0 + 0.150283f0 * c, 3f0)
+    elseif code == "066"      # Rocky Mountain Juniper (RM)
         return fpow(0.02434f0 + 0.119106f0 * c, 3f0)
     elseif code == "065"      # Utah Juniper (UJ) — TT uses 401 ⇒ VOLEQ(2:3)="01" (W.CO/E.UT/WY)
         v = strip(eq)[2:3] == "01" ? fpow(-0.08728f0 + 0.135420f0 * c, 3f0) :
