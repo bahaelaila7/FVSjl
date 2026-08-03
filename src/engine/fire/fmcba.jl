@@ -99,6 +99,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa EasternMontana && (fs.flive = em_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa CentralIdaho && (fs.flive = ci_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Teton && (fs.flive = tt_live_fuel_loading(Int(covtyp), fs.percov))
+    s.variant isa Utah && (fs.flive = ut_live_fuel_loading(Int(covtyp), fs.percov))
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -113,6 +114,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa EasternMontana ? em_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa CentralIdaho ? ci_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Teton ? tt_dead_fuel_loading(Int(covtyp), fs.percov) :
+                  s.variant isa Utah ? ut_dead_fuel_loading(Int(covtyp), fs.percov) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set
