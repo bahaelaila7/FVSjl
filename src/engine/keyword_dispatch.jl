@@ -527,7 +527,7 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     # ie_habtyp reduces to ITYPE — store it in habitat_code, NOT eco_unit (initre.f:808 KODTYP).
     if rec.present[2]
         if s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
-           s.variant isa Teton || s.variant isa BlueMountains
+           s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho
             p.habitat_code = nint(v[2])
         else
             p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)

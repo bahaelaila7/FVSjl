@@ -40,7 +40,7 @@ First 10 identical to IE's Northern-Rockies conifers.
 |---|-------|---------|
 | 0 | Scaffold: `CentralIdaho` singleton + registration (variant.jl) + include/export; oracle relinked; baseline captured | ✓ **DONE** — loads, `variant_from_code("CI")`→CentralIdaho(), nspecies=19; un-ported hooks error loudly (doctrine #5) |
 | 1 | Species + grinit defaults (19 sp, FIA map, Zeide SDI, DGSD 1.7, LHTDRG, seed) — data/centralidaho/*.csv | ✓ **DONE** — species_coefficients.csv (19, IE-template non-DG + REAL ci/bratio.f BARK1/BARK2, ci/siterange.f SITELO/HI, ci/blkdat.f SIGMAR) + species_translation.csv (442, ci/spctrn.f ASPT col7); species.jl (Zeide SDI, DGSD 1.7, LHTDRG-15, seed 55329). cit01 loads species; coeffs verified (bark1/SIGMAR match live). Next hook site_setup! errors loudly |
-| 2 | Site/habitat: ci/sitset.f + ci/habtyp.f | ◐ **FULLY TRACED — exact port recipe below** (extract 2 tables + write site_index.jl next). |
+| 2 | Site/habitat: ci/sitset.f + ci/habtyp.f | ✓ **DONE + validated** — site_index.jl (ci_habtyp ICITYP(130) bracket→ICINDX + NIHMAP→ITYPE; ci_forkod! JFOR/KFOR; ci_sitset! site-range SITEAR + forest-dep SDImax). STDINFO field-2→habitat_code wired for CI. cit01: habitat_code 520→**ICINDX 66, IFOR 4, IGL 3, SDIDEF=R4SDI [529,423,570,562,682,762…] bit-exact** (Zeide). Next hook dgf! errors loudly. |
 
 ### Chunk 2 — exact port recipe (ci/habtyp.f + ci/sitset.f traced)
 CI has TWO habitat indices: **ICINDX** (1..130, CI-type) and **ITYPE** (1..30, NI). habtyp: bracket
