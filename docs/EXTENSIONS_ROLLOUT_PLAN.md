@@ -37,8 +37,22 @@ bit-exact-or-cornered vs the LIVE relinked binary, one chunk/variant at a time, 
 - fuel_decay.jl: `_FM_DKR_<v>` decay rates.  snag.jl: snag fall/decay (fmsnag shared with CR).
 - fmburn.jl: conifer-species mortality gate + flame/byram kill.
 
+## IE fuel-model (fmcfmd) chunk — fully mapped (ie/fmcfmd.f is only 105 lines; the 1250-diff was structural)
+IE's FMCFMD = candidate standard fuel models → shared FMDYN interpolation. Pieces:
+1. ✔ **XPTS** `_FMD_XPTS_IE` (ie/fmcfmd.f:22-36, ICLSS=14, model10=(15,30), model14=(30,60)) — DONE; KT identical.
+2. **IDRY class** from `MAPDRY(2,·)` habitat→dryness table (fmcba.f:423-446): 1=dry-grassy, 2=dry-shrubby, 0=other.
+   (`NIFMHAB(IDRY)` just reads IDRYB set there.) → extract MAPDRY for IE (habitat ITYPE → IDRY). TODO.
+3. **EQWT candidate weights** (ie/fmcfmd.f:57-99): CASE(IDRY): 1→models{1,9}; 2→models{2,9} weighted by PERCOV
+   via ALGSLP(PERCOV,[30,50]); DEFAULT→model 8 (=1.0). Then post-harvest activity fuels:
+   AFWT=max(0,1-(IYR-HARVYR)/5); if SLCHNG≥SLCRIT or LATFUEL → EQWT(11)=EQWT(14)=AFWT; EQWT(10)=EQWT(12)=1-AFWT;
+   EQWT(13)=1. → build the IE EQWT vector, hand to the ported `_fmdyn` with `_FMD_XPTS_IE`. TODO.
+4. **fmcba fuel loading** (live/dead by cover type) + **crown_biomass** species→eqn map for IE. TODO.
+5. **Validate**: iet01 SIMFIRE keyword .sum (fire-year TPA/mortality/surface-fuel) bit-exact vs live FVSie
+   (relink FVSie oracle in /workspace/.iework). Then KT drops in (fmcfmd identical, bark=[1:11], mois shared).
+
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
-  Ported IE+KT fire bark-thickness (`_IE_FM_BARK_B1`, ie/fmbrkt.f 23 sp; KT reuses [1:11]) into
-  fire_effects.jl with dispatch. First FFE increment for the western N-Rockies cluster. Next: IE fmmois
-  (western-shared) + fmcfmd fuel-model + iet01 SIMFIRE .sum validation vs live FVSie.
+  Committed 3 FFE increments: (1) IE+KT fire bark-thickness `_IE_FM_BARK_B1` (ie/fmbrkt.f 23 sp; KT=[1:11]);
+  (2) IE-family moisture `_FM_MOIS_IE` covering ie/kt/em/bm/ci (verified diff 0); (3) IE/KT fuel-model XPTS
+  `_FMD_XPTS_IE`. All verified vs source + package precompiles clean. **Next chunk (fresh session): IE fmcfmd
+  steps 2-5 above** (MAPDRY→IDRY, EQWT build+FMDYN wire, fmcba loading, iet01 SIMFIRE live validation), then KT.

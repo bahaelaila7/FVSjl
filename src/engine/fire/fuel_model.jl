@@ -80,8 +80,16 @@ const _FMD_XPTS_CR = Float32[                               # cr/fmcfmd.f:119-13
     5  15;  5  15;                                          # models 8–9
    15  30; 15  30; 30  60;                                  # models 10–12 (10 shares iso-line with 11)
     0   0;  0   0]                                          # 13,14 unused in CR (degenerate ⇒ _fmdyn skips)
+const _FMD_XPTS_IE = Float32[                               # ie/fmcfmd.f:22-36 — ICLSS=14; model 10 = (15,30),
+    5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  5  15;  # models 1–7    # 14 = (30,60) (shares w/ 12)
+    5  15;  5  15;                                          # models 8–9
+   15  30; 15  30; 30  60; 45 100; 30  60]                  # models 10–14 (IE has all 14; = kt/em/bm/ci)
 fmd_xpts(::Northeast) = _FMD_XPTS_NE
 fmd_xpts(::CentralRockies) = _FMD_XPTS_CR
+# IE-family western XPTS (ie/fmcfmd.f). KT identical; EM/BM/CI share the XPTS breakpoints (candidate-set
+# selection via NIFMHAB/IDRY differs per variant — ported with each variant's fmcfmd).
+fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
+fmd_xpts(::Kootenai) = _FMD_XPTS_IE
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
