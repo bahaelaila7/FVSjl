@@ -118,9 +118,23 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # CI: the habitat KODTYP fed to ci_habtyp is the 3-digit NI code in PV_REF_CODE (e.g. 401); PV_CODE holds the
     # 5-digit FIA code (out of ci_habtyp's 10-999 range). Without it habitat_code=0 ⇒ habitat_input defaults to 1
     # ⇒ wrong DG (DGHAB via ICINDX) + wrong mortality ITYPE ⇒ multi-cycle divergence.
-    if s.variant isa CentralIdaho && _fia_present(d, "PV_REF_CODE")
-        pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
-        (10 <= pvr <= 999) && (p.habitat_code = Int32(pvr))
+    # FVS uses PV_CODE (the FIA habitat code) with PRIORITY over PV_REF_CODE — the .out prints "PV_CODE WAS
+    # USED, PV_REF_CODE WAS IGNORED". A 5-digit PV_CODE (e.g. 41732) is the 2-digit state prefix + 3-digit
+    # habitat (→ 732 = 41732 mod 1000); ci_habtyp then maps 732→(ICINDX 110, ITYPE 27). PV_REF_CODE (401) is
+    # only the fallback. Using PV_REF_CODE first (jl's old behavior) picked the WRONG habitat ⇒ wrong DGHAB
+    # (dg_const) + ITYPE (htgf) + mortality on stands where the two codes differ.
+    if s.variant isa CentralIdaho
+        hc = 0
+        if _fia_present(d, "PV_CODE")
+            pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
+            pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41732 → 732)
+            (10 <= pvc <= 999) && (hc = pvc)
+        end
+        if hc == 0 && _fia_present(d, "PV_REF_CODE")       # fallback
+            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
+            (10 <= pvr <= 999) && (hc = pvr)
+        end
+        hc != 0 && (p.habitat_code = Int32(hc))
     end
     # FORKOD phase-3 default (forkod.f:540-546, mirrored from kw_stdinfo!): fill any geo field the
     # DB left at 0 from the national-forest table. FVS runs forkod BEFORE the DB overrides, and the
