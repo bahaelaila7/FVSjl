@@ -91,6 +91,7 @@ fmd_xpts(::CentralRockies) = _FMD_XPTS_CR
 fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
 fmd_xpts(::Kootenai) = _FMD_XPTS_IE
 fmd_xpts(::EasternMontana) = _FMD_XPTS_IE   # em/fmcfmd.f XPTS verified identical to ie
+fmd_xpts(::CentralIdaho) = _FMD_XPTS_IE     # ci/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
@@ -174,6 +175,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # EMMD: (M1,M2)=MD1/MD2[IEMTYP], weighted by PERCOV, + natural fuels {10,12,13}.
     if s.variant isa EasternMontana
         return em_select_fuel_models(s, mois, sm, lg)
+    end
+
+    # CI (ci/fmcfmd.f) — cover-type-group (ICT=MAPPVG[ICINDX]) with a grand-fir-understory sub-model.
+    if s.variant isa CentralIdaho
+        return ci_select_fuel_models(s, mois, sm, lg)
     end
 
     # --- SN candidate-model selection (fmcfmd.f:131) ---
@@ -810,6 +816,69 @@ function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)
     eqwt[m2] += wt2                                              # WT1(2) → M2 (high cover)
     eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0             # natural fuels ASSIGNED (overwrite M1/M2 if 10/12/13)
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+end
+
+"""CI FMCFMD candidate selection (ci/fmcfmd.f) — cover-type-group (ICT=MAPPVG[ICINDX], 1..11) based, with a
+grand-fir-understory sub-model for ICT 5:6. ICINDX is stashed in p.habitat_input by the CI site setup.
+PRLONG = BA-fraction in long-needle pines (sp 1,10). Activity fuels (11/14) deferred (AFWT=0 natural path)."""
+function ci_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    t = s.trees; coef = s.coef; percov = s.fire.percov
+    eqwt = zeros(Float32, _FMD_ICLSS)
+    icindx = Int(s.plot.habitat_input); ict = ci_pvg(icindx)
+    # PRLONG: BA-fraction in sp {1,10} (long-needle pines). FMTBA = per-species BA (ci/fmcba.f uses 0.0054542·D²·TPA).
+    prlong = 0f0; stndba = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        x = t.tpa[i] * t.dbh[i]^2 * 0.0054542f0; stndba += x
+        (t.species[i] == 1 || t.species[i] == 10) && (prlong += x)
+    end
+    prlong = (prlong > 0.01f0 && stndba > 0.01f0) ? prlong / stndba : 0f0
+    alg(v, x1, x2) = _cr_algslp2(Float32(v), Float32(x1), Float32(x2), 0f0, 1f0)   # ALGSLP(v,[x1,x2],[0,1])
+    if 1 <= ict <= 4
+        k = ict == 1 ? 1 : ict == 2 ? (ci_s9b(icindx) == 1 ? 5 : 2) : ict == 3 ? 5 : 2
+        w2 = alg(percov, 30, 50); w1 = 1f0 - w2
+        w1 > 0f0 && (eqwt[k] += w1)
+        w2 > 0f0 && (eqwt[9] += w2 * prlong; eqwt[8] += w2 * (1f0 - prlong))
+    elseif ict == 5 || ict == 6
+        k = ict == 5 ? 2 : 5
+        # grand-fir (sp 4) sapling (DBH≤3) understory: avg crown ratio CRGF (%) + crown-cover CCGF (%).
+        crgf = 0f0; fmtpa = 0f0; totcra = 0f0
+        @inbounds for i in 1:t.n
+            (t.tpa[i] > 0f0 && t.species[i] == 4 && t.dbh[i] <= 3f0) || continue
+            crgf += t.tpa[i] * Float32(t.crown_pct[i]); fmtpa += t.tpa[i]
+            cw = crown_width(coef, s.species.code2[4], t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
+                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
+        end
+        crgf = fmtpa > 0f0 ? crgf / fmtpa : 0f0
+        lcrgf = crgf >= 75f0
+        ccgf = 100f0 * (1f0 - exp(-totcra / 43560f0))
+        if lcrgf
+            w2 = alg(ccgf, 50, 70); w1 = 1f0 - w2       # WT1 on CCGF
+            if w1 > 0f0
+                u2 = alg(percov, 40, 60); u1 = 1f0 - u2  # WT2 on PERCOV
+                u1 > 0f0 && (eqwt[k] += w1 * u1)
+                u2 > 0f0 && (eqwt[9] += w1 * u2 * prlong; eqwt[8] += w1 * u2 * (1f0 - prlong))
+            end
+            if w2 > 0f0
+                if w2 == 1f0
+                    eqwt[5] += w2
+                else
+                    u2 = alg(percov, 40, 60); u1 = 1f0 - u2
+                    u1 > 0f0 && (eqwt[5] += w2 * u1)
+                    u2 > 0f0 && (eqwt[9] += w2 * u2 * prlong; eqwt[8] += w2 * u2 * (1f0 - prlong))
+                end
+            end
+        else                                              # no significant long-crown GF understory
+            w2 = alg(percov, 40, 60); w1 = 1f0 - w2
+            w1 > 0f0 && (eqwt[k] += w1)
+            w2 > 0f0 && (eqwt[9] += w2 * prlong; eqwt[8] += w2 * (1f0 - prlong))
+        end
+    else                                                  # ICT 7:11
+        eqwt[8] = 1f0
+    end
+    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0        # natural fuels (AFWT=0 natural path)
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
