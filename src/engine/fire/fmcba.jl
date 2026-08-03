@@ -37,9 +37,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     elseif s.variant isa LakeStates
         # LS uses the FULIV table indexed by (IFFEFT, ISZCL) — ls/fmcba.f:138; no SN FULIV2 override.
         fs.flive = ls_live_fuel_loading(s)
-    elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai
-        # Western (CR/IE/KT): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after the
-        # cover-type block below (needs COVTYP + PERCOV). Placeholder here.
+    elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai ||
+           s.variant isa EasternMontana
+        # Western (CR/IE/KT/EM): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
+        # the cover-type block below (needs COVTYP + PERCOV). Placeholder here.
         fs.flive = (0f0, 0f0)
     else
         ovr = ffe_live_fuel_override(s)
@@ -80,6 +81,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         covtyp = fs.covtyp != Int32(0) ? fs.covtyp :
                  # IE/KT: bare stand ⇒ COVINI(ITYPE) seral cover species (ie/fmcba.f:279), NOT a fixed species.
                  (s.variant isa InlandEmpire || s.variant isa Kootenai) ? Int32(ie_covini_default(Int(s.plot.habitat_input))) :
+                 s.variant isa EasternMontana ? Int32(3)  :   # EM bare-stand default: DF (em/fmcba.f covtyp=3 path)
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
                  s.variant isa LakeStates    ? Int32(3)  :
@@ -90,6 +92,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # Western live fuel now that COVTYP + PERCOV are known (fmcba.f:443-449 / ie:283-289)
     s.variant isa CentralRockies && (fs.flive = cr_live_fuel_loading(Int(covtyp), fs.percov))
     (s.variant isa InlandEmpire || s.variant isa Kootenai) && (fs.flive = ie_live_fuel_loading(Int(covtyp), fs.percov))
+    s.variant isa EasternMontana && (fs.flive = em_live_fuel_loading(Int(covtyp), fs.percov))
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -101,6 +104,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa LakeStates ? ls_dead_fuel_loading(s) :
                   s.variant isa CentralRockies ? cr_dead_fuel_loading(Int(covtyp), fs.percov) :  # FUINIE/FUINII × PERCOV
                   (s.variant isa InlandEmpire || s.variant isa Kootenai) ? ie_dead_fuel_loading(Int(covtyp), fs.percov) :
+                  s.variant isa EasternMontana ? em_dead_fuel_loading(Int(covtyp), fs.percov) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set

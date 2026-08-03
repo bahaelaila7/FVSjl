@@ -90,6 +90,7 @@ fmd_xpts(::CentralRockies) = _FMD_XPTS_CR
 # selection via NIFMHAB/IDRY differs per variant — ported with each variant's fmcfmd).
 fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
 fmd_xpts(::Kootenai) = _FMD_XPTS_IE
+fmd_xpts(::EasternMontana) = _FMD_XPTS_IE   # em/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
@@ -167,6 +168,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # natural fuels {10,12,13}. KT shares IE's fmcfmd + MAPDRY (verified identical).
     if s.variant isa InlandEmpire || s.variant isa Kootenai
         return ie_select_fuel_models(s, mois, sm, lg)
+    end
+
+    # EM (em/fmcfmd.f) — same structure as IE but the two candidate models come from the habitat table
+    # EMMD: (M1,M2)=MD1/MD2[IEMTYP], weighted by PERCOV, + natural fuels {10,12,13}.
+    if s.variant isa EasternMontana
+        return em_select_fuel_models(s, mois, sm, lg)
     end
 
     # --- SN candidate-model selection (fmcfmd.f:131) ---
@@ -787,6 +794,22 @@ function ie_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     end
     # Always-added natural-fuel candidates (ie/fmcfmd.f:95-98; AFWT=0, no recent harvest ⇒ EQWT 10/12=1-0).
     eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+end
+
+"""EM FMCFMD candidate selection (em/fmcfmd.f): the two candidate models come from the habitat table
+EMMD ((M1,M2)=MD1/MD2[IEMTYP]), split by PERCOV via ALGSLP([30,50]) — WT1(1)→M1, WT1(2)→M2 — plus the
+natural-fuel candidates {10,12,13}. IEMTYP (the EM habitat subscript 1..122) is recomputed from the stand's
+habitat code via the growth-port em_habtyp. Activity fuels (11/14) deferred like IE (AFWT=0 natural path)."""
+function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    percov = s.fire.percov
+    eqwt = zeros(Float32, _FMD_ICLSS)
+    iemtyp = em_habtyp(Int(s.plot.habitat_code))[1]              # EM habitat subscript (em/habtyp.f JTYPE bucket)
+    m1, m2 = em_md_models(iemtyp)                               # EMMD: (MD1,MD2)[iemtyp]
+    wt2 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0   # ALGSLP(PERCOV,[30,50],[0,1])
+    eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)
+    eqwt[m2] += wt2                                              # WT1(2) → M2 (high cover)
+    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0             # natural fuels ASSIGNED (overwrite M1/M2 if 10/12/13)
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 

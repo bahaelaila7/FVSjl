@@ -103,6 +103,7 @@ _fm_dkr_default(::CentralRockies) = _FM_DKR_CR
 # Without this they fell through to the SN `_FM_DKR` default ⇒ wrong 30-yr fuel accumulation ⇒ weak flame.
 _fm_dkr_default(::InlandEmpire) = _FM_DKR_CR
 _fm_dkr_default(::Kootenai) = _FM_DKR_CR
+_fm_dkr_default(::EasternMontana) = _FM_DKR_CR   # em/fmcwd.f DKR verified identical to cr
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 """
