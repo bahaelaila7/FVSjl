@@ -97,6 +97,20 @@ All three: decay==CR (verified). Oracles exist (.bmwork/.utwork/.ttwork FVS*_cle
   ut_select_fuel_models mirroring it. Extract ut/tt fmcba + fmvinit + ISPMAP + BIOGRP + the UT/TT moisture table.
 - **Order suggestion**: UT (+TT free) next (CR-reuse, moderate), then BM (most complex) last of the western FFE.
 
+### UT/TT fmcfmd — CONFIRMED CR-reuse; cover-type maps extracted (ut/fmcfmd.f, ut==tt diff 0)
+The fmcfmd is ONE unified algorithm `SELECT CASE(VARACD)` shared by CR/UT/TT; ASCT=8 cover-type groups
+(OBCT=1,PJCT=2,PPCT=3,WSCT=4,SFCT=5,LPCT=6,MCCT=7,ASCT=8) — SAME as the ported `cr_select_fuel_models`. Only
+the **species→covtype map** differs per variant (the `SELECT CASE(ISP)→CTBA(xxCT)` block, ci/fmcfmd.f:196):
+- **TT (18 sp)**: PJCT{4,11,12}, PPCT{10}, SFCT{5,8,9}, LPCT{7}, MCCT{1,2,3,17}, ASCT{6,13,14,15,16,18}. (no OBCT/WSCT)
+- **UT (24 sp)**: OBCT{13}, PJCT{11,12,14,15,16}, PPCT{10}, SFCT{5,8,9}, LPCT{7}, MCCT{1,2,3,4,17,23}, ASCT{6,18,19,20,21,22,24}. (no WSCT)
+- **Next step (the intricate part)**: reconcile the ICT-case fuel-model assignments in cr_select_fuel_models
+  for UT/TT — `diff ut/fmcfmd.f cr/fmcfmd.f` (2114 lines) is mostly the species maps + per-VARACD ICT cases;
+  read the UT/TT branch of each `SELECT CASE(ICT)`/USCT/IFMST block and either parameterize cr_select by
+  (covtype-map, ICT-cases) or write ut_select_fuel_models mirroring it. ICLSS=12 (UT/TT), not 14.
+- Then extract UT/TT fmcba FULIVE/FUINIE + fmvinit props + ISPMAP + BIOGRP + the **UT/TT moisture table** (differs
+  from IE — ut==tt?) ; wire (xpts, decay==CR, moisture, fmcba, crown_biomass bark, crown-fire gate) ; validate
+  utt01 (+ttt01) SIMFIRE vs live FVSut/FVStt. Oracles: /workspace/.utwork, /workspace/.ttwork.
+
 ## Progress log
 - **2026-08-03** Assessed architecture; set order (IE→KT free, western-shared moisture, then EM/CI/BM/UT/TT).
   Committed the full IE/KT surface-fire path (7 commits): (1) bark-thickness `_IE_FM_BARK_B1`; (2) moisture
