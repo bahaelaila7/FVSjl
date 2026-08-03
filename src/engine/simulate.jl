@@ -92,6 +92,8 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Utah
         ut_cratet_siteconv!(s)            # UT CRATET: convert SITEAR → age-50 site-curve height (ut/cratet.f), BEFORE dgcons
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
+        _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
+                                          # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
@@ -499,6 +501,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
+    _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
@@ -513,7 +516,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.dg_prev[i] = t.diam_growth[i])   # KT/IE/TT mortality WK1 (this cycle's applied DG → next cycle's vigor)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up) && (t.birth_age[i] += fint)   # CR/TT age ABIRTH by cycle length (gradd.f:205); TT only NC/OH use it
+        (_cr_up || _tt_up || _ut_up) && (t.birth_age[i] += fint)   # CR/TT/UT age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
