@@ -55,9 +55,10 @@ const BM_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.0858, 0.0636
 function bm_bratio(sd, sp::Integer, d::Real)::Float32
     b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]
     br = if sp in (1,2,3,4,5,7,8,9,10,17)
-        d > 0f0 ? (r = b1 * Float32(d)^b2; (r > 1f0 || r <= 0f0) ? 0.999f0 : r) : 0.999f0
+        # BRATIO = DIB/D where DIB = BARK1·D^BARK2 (bm/bratio.f:70-71). r>1 or ≤0 ⇒ 0.999.
+        d > 0f0 ? (r = b1 * Float32(d)^b2 / Float32(d); (r > 1f0 || r <= 0f0) ? 0.999f0 : r) : 0.999f0
     elseif sp in (13,14,18)
-        d > 0f0 ? b1 * Float32(d)^b2 : 0.99f0
+        d > 0f0 ? b1 * Float32(d)^b2 / Float32(d) : 0.99f0
     elseif sp == 6
         temd = clamp(Float32(d), 1f0, 19f0); 0.9002f0 - 0.3089f0 * (1f0 / temd)
     elseif sp == 11 || sp == 15
