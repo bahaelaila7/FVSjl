@@ -6,8 +6,8 @@ using SQLite
 const SRC = "/workspace/SQLite_FIADB_ENTIRE.db"
 function main(sampledir, outdb)
     cns = String[]
-    for v in ("sn","ne","cs","ls")
-        f = joinpath(sampledir, "$(v)_sample.txt"); isfile(f) || continue
+    for f in readdir(sampledir; join=true)
+        endswith(f, "_sample.txt") || continue
         for l in eachline(f); s=strip(l); isempty(s) || push!(cns, split(s,'\t')[1]); end
     end
     println("sampled STAND_CN: ", length(cns))
