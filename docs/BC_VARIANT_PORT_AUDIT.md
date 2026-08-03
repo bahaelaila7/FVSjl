@@ -30,8 +30,19 @@ in fvs.f but never defined; stubbed empty (output-only, irrelevant to growth) to
 .tre synthetic stand (or the FIA-DB reader path) needed for the per-chunk .sum differential.
 
 ## Chunk plan (= CI arc; IE template, Stage SDI so SIMPLER than CI's Zeide)
-0. ✓ Scaffold groundwork (oracle, infra, template). 1. species (15 sp). 2. site/habitat. 3. DG (Wykoff).
-4. height. 5. crown/CCF. 6. regent. 7. mortality (Hamilton). 8. volume (NVEL). 9. full-cycle .sum.
+0. ✓ Scaffold groundwork. 1. ✓ species (15 sp, bark/SIGMAR validated). 2. site/habitat ⚠BC-SPECIFIC.
+3. DG (Wykoff). 4. height. 5. crown/CCF. 6. regent. 7. mortality (Hamilton). 8. volume (NVEL). 9. full-cycle .sum.
+
+## Chunk verdicts
+- **0** ✓ scaffold (BritishColumbia loads, nsp=15). **1** ✓ species (data/britishcolumbia/*.csv; BARK1 constant
+  imap=2, SIGMAR; STAGE SDI; validated .964/.851/.969 + .1907/.2679 vs live).
+- **2 site/habitat ◐ SCOPED — BC-SPECIFIC (main IE departure)**: bc/habtyp.f parses a **BEC (Biogeoclimatic
+  Ecosystem Classification) STRING** — e.g. "IDFdk1" — via INDEX into RGN(3)/ZN(7)/SZ(19) tables → a
+  {Region,Zone,SubZone} record; bc/sitset.f then `SELECT CASE(BEC%Zone)` → `CASE(SubZone)` → `CASE(iSeries)`
+  → **BAMAX** (55/58/60/89/53/…). NOT the IE numeric NI-habitat model. So the STDINFO habitat field is a BEC
+  string, and site defaults are zone-keyed. Port = the BEC-string parser + the zone/subzone/series BAMAX tables
+  + site defaults (bc/sitset.f). Also: BC test stands are FIA-DB-based ⇒ build a synthetic BC .tre + STDINFO
+  with a known BEC zone to validate SDIDEF/BAMAX vs FVSbc_clean. This is BC's largest single departure.
 
 ## Reuse from CI (proven this session)
 Same extraction tooling (tools/centralidaho/*.py adapts by variant), same chunk methodology, and the 4
