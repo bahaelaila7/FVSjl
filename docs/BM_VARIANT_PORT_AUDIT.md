@@ -48,10 +48,21 @@ Growth validation uses `bmt01_growth.key` (FFE keywords stripped — bmt01.key i
     **Validated**: bm_r6vol3 **bit-exact vs live R6VOL3 (96/96** grid pts, all 3 branches, drv_r6vol3.f);
     bm_formcl **bit-exact vs live FORMCL_BM (120/120**, drv_formcl.f); synthetic pure-WP stand end-to-end
     **TCuFt jl 1556 vs live 1557 (±1**, INGY-cornered class), growth cols bit-exact.
-    **REMAINING sub-leaf** — merch cubic + board foot: live 616BEHW also yields MCuFt/BdFt
-    (pure-WP 1990: 1068/5341) via the full R6VOL path (**R6DIBS** 297-line log-bucking → VOL(4) merch +
-    **R6VOL1** 90-line Scribner/Intl board from log diameters; R6FIX is 628-only). ~390 lines of NVEL,
-    scoped but substantial. bm_r6vol3/bm_formcl already supply the total-cubic core they build on.
+    **REMAINING sub-leaf** — merch cubic + board foot (data flow now fully traced, r6vol.f):
+    live 616BEHW yields MCuFt/BdFt (pure-WP 1990: 1068/5341) via the full R6VOL path:
+    - **R6DIBS**(IAPZ=ZONE,DBHOB,BTR,FCLASS,MTOPP,TLH,TH, → XLOGS,LOGDIA,SL,XL,A): 297-line log-bucking.
+      For our case (ZONE 1, HTTYPE='F' ⇒ TH>0/TLH=0) the live path is label 70→80→130 (16.3-ft logs,
+      Behre taper DR=HR/(A·HR+B), MTOPP top). Fills NOLOGP(=XLOGS), LOGDIA(21,3) small-end diams,
+      SL/XL(20) scaling+actual lengths. ⚠ heavy computed-GOTO + an IRET-dispatched label-1000 taper-A
+      setup (unread) + ZONE-2 (32-ft) paths (labels 200-500, not needed for 616).
+    - **R6VOL1**(ZONE,DBHOB,FCLASS,NOLOGP,LOGDIA, → LOGVOL,INTBF): 90 lines. Per-log Scribner board
+      LOGVOL(1,·), merch cubic LOGVOL(4,·), International INTBF(·).
+    - **Accumulate** (r6vol.f:170-186): VOL(2)=Σ ANINT(LOGVOL(1,I)) [Scribner board=.sum BdFt col],
+      VOL(4)=Σ round(LOGVOL(4,I)·10)/10 [merch cubic; MCF=VOL(4)+VOL(7), VOL(7)=0], VOL(10)=Σ INTBF.
+    - **Wire**: compute_volumes_bm! BEHW branch sets merch_cuft_vol=VOL(4), bdft_vol=VOL(2) (currently 0).
+    ~390 NVEL lines + accumulation. bm_r6vol3/bm_formcl already supply the total-cubic core.
+    Validate: standalone R6DIBS/R6VOL1 drivers (as with drv_r6vol3/drv_formcl) then pure-WP end-to-end
+    MCuFt/BdFt vs FVSbm_clean. Low-impact (species absent from bmt01), substantial — a fresh-session chunk.
   - **FFE** — bmt01.key is a full FMIN/SIMFIRE/PotFIRE/FuelOut demo; the fire/fuel/snag/carbon
     subsystem (needs BM biomass + fuel coefficients). Large; validate vs the full bmt01.key .sum.
 
