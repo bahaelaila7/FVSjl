@@ -98,8 +98,9 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # CR (western) crown biomass: conifers use FMCROWW (cr_crownw); only the aspen/oak SPIW {20,21,22,28,38}
     # use the Jenkins FMCROWE path below (fmcrow.f:161-166). HP (height percentile) is self-computed for the
     # groups whose LIVEWT branches on it (caller may override via `hp`).
-    if s.variant isa CentralRockies && !_cr_uses_fmcrowe(sp)
-        spie = _CR_ISPMAP[sp]
+    if (s.variant isa CentralRockies || s.variant isa BlueMountains) &&
+       !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) : bm_uses_fmcrowe(sp))
+        spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] : _BM_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
         # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.
@@ -110,7 +111,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # CALL FMCROWE(SPIE,…), SPIE=ISPMAP), NOT the `ls_spi` column — e.g. aspen sp20 → 41 (Jenkins aspen
     # group), which selects the correct TOTABV + the ≥15 foliage fraction. Using ls_spi[20]=1 gave the
     # <15 hardwood foliage ⇒ ~2.45× too much aspen foliage ⇒ the crt01 litter over-accumulation.
-    spils = s.variant isa CentralRockies ? Int(_CR_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
+    spils = s.variant isa CentralRockies ? Int(_CR_ISPMAP[sp]) :
+            s.variant isa BlueMountains ? Int(_BM_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]
@@ -185,6 +187,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     bark_r = s.variant isa CentralRockies ? cr_bratio(coef.species, Int(sp), d, Int(s.plot.model_type)) :
              s.variant isa InlandEmpire ? ie_bratio(Int(sp), d) :
              s.variant isa CentralIdaho ? ci_bratio(coef.species, Int(sp), d) :  # CI per-species bark branches
+             s.variant isa BlueMountains ? bm_bratio(coef.species, Int(sp), d) :  # BM POWER bark (bm/bratio.f)
              (s.variant isa Kootenai || s.variant isa EasternMontana ||
               s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark

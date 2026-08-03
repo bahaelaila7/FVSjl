@@ -185,6 +185,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return ci_select_fuel_models(s, mois, sm, lg)
     end
 
+    # BM (bm/fmcfmd.f) — DF/PP-fraction weighted between a size-class-distribution path (BMSTAGE canopy
+    # stratification + BMSZCLS Monte-Carlo size classes) and a PERCOV-band path.
+    if s.variant isa BlueMountains
+        return bm_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
@@ -915,6 +921,226 @@ function ci_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         eqwt[8] = 1f0
     end
     eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0        # natural fuels (AFWT=0 natural path)
+    return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
+end
+
+# COVOLP (covolp.f): canopy cover % from a set of per-tree crown areas CRAREA over idx[lo:hi].
+@inline function _bm_covolp(idx::Vector{Int}, lo::Int, hi::Int, wk6::Vector{Float32}, cccoef::Float32)::Float32
+    hi < lo && return 0f0
+    ssum = 0f0
+    @inbounds for ii in lo:hi; ssum += wk6[idx[ii]]; end
+    pccu = cccoef * (ssum / 43560f0)
+    return pccu > 5f0 ? 100f0 : (1f0 - exp(-pccu)) * 100f0
+end
+
+"""
+    bm_stage(s) -> (cova, covb, la)
+
+BMSTAGE (bm/fmcfmd.f:337): a stripped SSTAGE that stratifies the stand into at most two canopy layers by
+the largest height gap (>= max(10ft, 30% of the taller tree), ladder trees < 2 TPA absorbed), returns the
+upper/lower stratum canopy cover (COVA/COVB, %) via COVOLP and a per-tree upper-layer membership flag LA.
+CRWDTH is the western forest-grown crown width (bm_cwcalc -> cr_cwcalc library).
+"""
+function bm_stage(s::StandState)
+    t = s.trees; n = t.n
+    cccoef = Float32(s.control.cc_coef)
+    la = falses(n)
+    wk6 = zeros(Float32, n)
+    _ba = s.plot.basal_area; _el = s.plot.elevation
+    _hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
+    cwof(i) = bm_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _ba, _el, _hi)
+    idx = Int[]; sprob = 0f0
+    @inbounds for i in 1:n
+        sprob += t.tpa[i]
+        t.tpa[i] > 0.00001f0 && push!(idx, i)
+    end
+    ntrees = length(idx)
+    ntrees == 0 && return (0f0, 0f0, la)
+    ht = t.height
+    crs1 = 0f0; crs2 = 0f0
+    is1i1 = 1; is1i2 = ntrees; is2i1 = 0; is2i2 = ntrees
+    if ntrees <= 1
+        i = idx[1]; w = cwof(i)
+        crs1 = w * w * t.tpa[i] * 0.785398f0 / 43560f0
+        is1i1 = 1; is1i2 = 1
+    else
+        rdpsrt!(ntrees, ht, idx, false)                     # HT descending; idx[1] = tallest
+        @inbounds for ii in 1:ntrees
+            i = idx[ii]; w = cwof(i)
+            wk6[i] = w * w * t.tpa[i] * 0.785398f0          # crown area (sqft/ac)
+        end
+        diff1 = -1f20; id1i1 = 0; id1i2 = 0
+        iilg = 1; ilarge = idx[iilg]; sumprb = 0f0
+        @inbounds for ii in 2:ntrees
+            ismall = idx[ii]
+            x = max(10f0, ht[ilarge] * 30f0 * 0.01f0)
+            if ht[ismall] < ht[ilarge] - x
+                if t.tpa[ismall] + sumprb < 2f0
+                    sumprb += t.tpa[ismall]
+                else
+                    dff = ht[ilarge] - ht[ismall]
+                    if dff > diff1
+                        diff1 = dff; id1i1 = iilg; id1i2 = ii
+                    end
+                    ilarge = ismall; iilg = ii; sumprb = 0f0
+                end
+            else
+                if t.tpa[ismall] + sumprb < 2f0
+                    sumprb += t.tpa[ismall]
+                else
+                    ilarge = ismall; iilg = ii; sumprb = 0f0
+                end
+            end
+        end
+        nstr = 1
+        if id1i1 > 0
+            nstr = 2; is1i2 = id1i1; is2i1 = id1i2; is2i2 = ntrees
+        end
+        is1i2 = max(is1i2, is2i1 - 1)
+        crs1 = _bm_covolp(idx, is1i1, is1i2, wk6, cccoef)
+        is1ok = crs1 > 5f0 ? 1 : 0
+        is2ok = 0
+        if nstr >= 2
+            crs2 = _bm_covolp(idx, is2i1, is2i2, wk6, cccoef)
+            is2ok = crs2 > 5f0 ? 1 : 0
+        end
+        nstr = is1ok + is2ok
+        if nstr == 0 && sprob >= 200f0
+            crs2 = 0f0; is1i1 = 1; is1i2 = ntrees
+            crs1 = _bm_covolp(idx, is1i1, is1i2, wk6, cccoef)
+        end
+    end
+    @inbounds for ii in is1i1:is1i2
+        (1 <= ii <= ntrees) && (la[idx[ii]] = true)
+    end
+    return (crs1, crs2, la)
+end
+
+# BMSZCLS complexity index per composite size category (bm/fmcfmd.f C(13)).
+const _BM_SZ_CC = (1,1,1,1,1,1,1, 2,2,2, 3,3,2)
+
+"""
+    bm_szcls(s, la) -> Vector{Float32}(13)
+
+BMSZCLS (bm/fmcfmd.f:549): BA-weighted dominant size-class distribution over the 13 BM size categories,
+Monte-Carlo averaged over 50 passes of +/-20% jittered DBH (upper-layer trees LA only). Each pass bins the
+jittered BA into 7 basic + 6 composite categories, picks the max-BA category (ties -> lowest complexity),
+and adds 1/50 to that category's WDOM. RANN is bracketed by RANNGET/RANNPUT so it consumes ZERO net RNG.
+"""
+function bm_szcls(s::StandState, la::AbstractVector{Bool})
+    t = s.trees; n = t.n
+    wdom = zeros(Float32, 13)
+    pass = 50; jitter = 0.2f0
+    saveso = rannget(s.rng)
+    for _j in 1:pass
+        sa = zeros(Float32, 13)
+        @inbounds for i in 1:n
+            la[i] || continue
+            xran = rann!(s.rng)
+            dt = t.dbh[i] * (1f0 + jitter * ((xran * 2f0) - 1f0))
+            ba = dt * dt * t.tpa[i]
+            if dt < 1f0;        sa[1] += ba
+            elseif dt < 5f0;    sa[2] += ba
+            elseif dt < 9f0;    sa[3] += ba
+            elseif dt < 15f0;   sa[4] += ba
+            elseif dt < 21f0;   sa[5] += ba
+            elseif dt < 32f0;   sa[6] += ba
+            else                sa[7] += ba
+            end
+        end
+        sa[8]  = sa[1] + sa[2]
+        sa[9]  = sa[2] + sa[3]
+        sa[10] = sa[4] + sa[5]
+        sa[11] = sa[3] + sa[10]
+        sa[12] = sa[10] + sa[6]
+        sa[13] = sa[6] + sa[7]
+        icls = 0; ccls = 4; swt = -1f0
+        @inbounds for i in 1:13
+            if sa[i] == swt
+                _BM_SZ_CC[i] < ccls && (ccls = _BM_SZ_CC[i]; icls = i)
+            elseif sa[i] > swt
+                swt = sa[i]; ccls = _BM_SZ_CC[i]; icls = i
+            end
+        end
+        icls >= 1 && (wdom[icls] += 1f0 / Float32(pass))
+    end
+    rannput!(s.rng, saveso)
+    return wdom
+end
+
+const _BM_SCLAB = (1f0,2f0,3f0,4f0,5f0,6f0,6.5f0,7f0,7.5f0,8f0,9f0,10f0,11f0)
+
+"""BM FMCFMD candidate selection (bm/fmcfmd.f). WT1 splits the stand by max(PRDF,PRPP) (DF sp3 / PP sp10
+BA fraction) over ALGSLP([0.40,0.60]). WT1(1) (neither dominates) drives a size-class-distribution path
+(BMSTAGE + BMSZCLS) weighting models 5/8/10 by size class x PERCOV x stratum cover; WT1(2) (DF/PP dominant)
+drives a PERCOV-band path (models 1/2/9/10 + a PRPP/(PRPP+PRDF) split). Natural fuels {10,12,13} always
+ASSIGNED last (overwriting any 10 accumulation). Activity fuels (11/14) deferred (AFWT=0)."""
+function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+    t = s.trees; fs = s.fire
+    percov = fs.percov
+    fmtba = zeros(Float32, 18); stndba = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        sp = Int(t.species[i]); (1 <= sp <= 18) || continue
+        x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+        fmtba[sp] += x; stndba += x
+    end
+    prdf = stndba > 0.01f0 ? fmtba[3] / stndba : 0f0
+    prpp = stndba > 0.01f0 ? fmtba[10] / stndba : 0f0
+    eqwt = zeros(Float32, _FMD_ICLSS)
+    wt1b = _fm_algslp2(max(prdf, prpp), 0.40f0, 0.60f0, 0f0, 1f0)   # WT1(2)
+    wt1a = 1f0 - wt1b                                               # WT1(1)
+
+    if wt1a > 0f0                                                   # CASE 1: neither DF nor PP dominates
+        cova, covb, la = bm_stage(s)
+        wd = bm_szcls(s, la)
+        @inbounds for k in 1:13
+            wd[k] > 0f0 || continue
+            szcls = _BM_SCLAB[k]
+            if szcls <= 3f0
+                eqwt[5] += wt1a * wd[k]
+            elseif szcls < 7f0
+                w2b = _fm_algslp2(percov, 25f0, 35f0, 0f0, 1f0); w2a = 1f0 - w2b
+                w2a > 0f0 && (eqwt[5] += wt1a * w2a * wd[k])
+                w2b > 0f0 && (eqwt[8] += wt1a * w2b * wd[k])
+            else                                                    # szcls > 7
+                w2b = _fm_algslp2(percov, 25f0, 35f0, 0f0, 1f0); w2a = 1f0 - w2b
+                w2a > 0f0 && (eqwt[5] += wt1a * w2a * wd[k])
+                if w2b > 0f0
+                    w3b = _fm_algslp2(cova, 25f0, 35f0, 0f0, 1f0); w3a = 1f0 - w3b
+                    w4b = _fm_algslp2(covb, 10f0, 20f0, 0f0, 1f0); w4a = 1f0 - w4b
+                    eqwt[8]  += wt1a * w2b * w3a * w4a * wd[k]
+                    eqwt[8]  += wt1a * w2b * w3a * w4b * wd[k]
+                    eqwt[8]  += wt1a * w2b * w3b * w4a * wd[k]
+                    eqwt[10] += wt1a * w2b * w3b * w4b * wd[k]
+                end
+            end
+        end
+    end
+
+    if wt1b > 0f0                                                  # CASE 2: DF or PP dominates BA
+        wt2 = zeros(Float32, 4)
+        if percov < 15f0
+            v = _fm_algslp2(percov, 5f0, 15f0, 0f0, 1f0); wt2[2] = v; wt2[1] = 1f0 - v
+        elseif percov < 35f0
+            v = _fm_algslp2(percov, 25f0, 35f0, 0f0, 1f0); wt2[3] = v; wt2[2] = 1f0 - v
+        else
+            v = _fm_algslp2(percov, 45f0, 55f0, 0f0, 1f0); wt2[4] = v; wt2[3] = 1f0 - v
+        end
+        wt2[1] > 0f0 && (eqwt[1] += wt1b * wt2[1])
+        wt2[2] > 0f0 && (eqwt[2] += wt1b * wt2[2])
+        if wt2[3] > 0f0
+            denom = prpp + prdf
+            w3b = _fm_algslp2(denom > 0f0 ? prpp / denom : 0f0, 0.40f0, 0.60f0, 0f0, 1f0)
+            w3a = 1f0 - w3b
+            w3a > 0f0 && (eqwt[10] += wt1b * wt2[3] * w3a)
+            w3b > 0f0 && (eqwt[2]  += wt1b * wt2[3] * w3b)
+        end
+        wt2[4] > 0f0 && (eqwt[9] += wt1b * wt2[4])
+    end
+
+    # Natural-fuel candidates always assigned (bm/fmcfmd.f:318-320; AFWT=0 => 10/12=1, 13=1).
+    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 

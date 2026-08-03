@@ -39,7 +39,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         fs.flive = ls_live_fuel_loading(s)
     elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai ||
            s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-           s.variant isa Teton || s.variant isa Utah
+           s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains
         # Western (CR/IE/KT/EM): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). Placeholder here.
         fs.flive = (0f0, 0f0)
@@ -54,15 +54,18 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # CR forest-grown crown width is cr_cwcalc (cwcalc.f IWHO=0 — the same CRWDTH FMCBA/FMSSTAGE use), NOT the
     # generic crown_width, which returns the 0.5 default for every CR species ⇒ near-zero crown area ⇒ PERCOV≈0.
     _cr_fm = s.variant isa CentralRockies
-    _cr_ba = _cr_fm ? s.plot.basal_area : 0f0
-    _cr_el = _cr_fm ? s.plot.elevation : 0f0
-    _cr_hi = _cr_fm ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
+    _bm_fm = s.variant isa BlueMountains        # BM CRWDTH via bm_cwcalc (BMMAP->cr_cwcalc western library)
+    _west_cw = _cr_fm || _bm_fm
+    _cr_ba = _west_cw ? s.plot.basal_area : 0f0
+    _cr_el = _west_cw ? s.plot.elevation : 0f0
+    _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         tba[sp] += 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -86,6 +89,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa CentralIdaho ? Int32(3)  :     # CI bare-stand default: DF (cit01 has trees ⇒ unused)
                  s.variant isa Teton ? Int32(3)  :             # TT bare-stand default: DF
                  s.variant isa Utah ? Int32(3)  :              # UT bare-stand default: DF
+                 s.variant isa BlueMountains ? Int32(3) :      # BM bare-stand default: DF (bm/fmcba.f COVINI/3)
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
                  s.variant isa LakeStates    ? Int32(3)  :
@@ -100,6 +104,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa CentralIdaho && (fs.flive = ci_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Teton && (fs.flive = tt_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Utah && (fs.flive = ut_live_fuel_loading(Int(covtyp), fs.percov))
+    s.variant isa BlueMountains && (fs.flive = bm_live_fuel_loading(Int(covtyp), fs.percov))
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -115,6 +120,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa CentralIdaho ? ci_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Teton ? tt_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Utah ? ut_dead_fuel_loading(Int(covtyp), fs.percov) :
+                  s.variant isa BlueMountains ? bm_dead_fuel_loading(Int(covtyp), fs.percov) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set
