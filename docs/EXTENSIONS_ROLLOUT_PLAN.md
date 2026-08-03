@@ -61,11 +61,16 @@ IE's FMCFMD = candidate standard fuel models → shared FMDYN interpolation. Pie
   crown_biomass; (7) **fuel-decay fix** — IE/KT fell through to the SN `_FM_DKR`; wired to `_FM_DKR_CR`
   (ie/fmcwd.f == cr/fmcwd.f).
   - **IE SIMFIRE now RUNS end-to-end vs live FVSie** (iet01_fire.key in /workspace/.iework/ierun). Growth
-    bit-close (2020 jl 302 trees/BA 178 vs live 305/178). Fire mortality: jl 2020 MOR 145→**322** after the
-    decay fix (live ≈512). **OPEN — not yet bit-exact**: remaining under-kill gap (322 vs 512). Next
-    root-cause: instrument the 2020 surface-fuel load + Byram flame length vs the live FuelOut/Potfire report
-    (candidates: fuel-loading magnitude, litterfall FMCADD additions for IE, flame/scorch calc). Then KT
-    drop-in (needs KT fmbrkt[1:11] bark + kt_bratio in crown_biomass; fmcfmd/moisture/decay already shared).
+    bit-close (2020 jl 302 trees/BA 178 vs live 305/178). Fire mortality after the decay fix: jl kills **83%**
+    at the 2020 fire (302→51 survivors; MOR 322 ft³/yr) vs live **100%** (305→0; MOR 512) — up from 45% pre-fix.
+    **OPEN — not yet bit-exact**: residual under-kill = the largest/thickest-barked trees survive in jl but
+    die in live. Diagnostics gathered: live pre-fire surface fuel ≈21 tons/ac (2010), 30% consumed at 2020;
+    jl does NOT emit the ALL FUELS text report (FuelOut→.sum not wired) so a direct fuel-load comparison needs
+    INTERNAL instrumentation (dump `s.fire.cwd` total + flame length at the 2020 burn vs live 21/512). Prime
+    suspects for the residual 17%: (a) Byram flame length slightly low (fuel-load or fuel-model-weight
+    diff — verify jl picks models 8@56%+10@44% like live, not model 10 alone); (b) bark/scorch mortality for
+    large DBH (ie_bratio vs FVS scorch-height→crown-kill). Then KT drop-in (needs KT fmbrkt[1:11] bark +
+    kt_bratio in crown_biomass; fmcfmd/moisture/decay already shared).
 - **Watch-list carried to EM/CI/BM/UT/TT**: each western variant needs its own fmcfmd MAPDRY + fmcba
   FULIVE/FUINIE + fmvinit fire_species_props + verify its `_FM_DKR`/moisture vs CR (don't let them fall
   through to SN defaults — the decay-fallthrough bug class).
