@@ -127,9 +127,14 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
             elseif sp == 6                                # WJ — linear site
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            else                                          # conifers/others — BX/(ln(H−4.5)−AX)−1 (calibrated AA or HT1)
-                bx = sd[:ht2][sp]
-                ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]
+            elseif !BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1
+                # regent.f:522 — .NOT.LHTDRG OR (LHTDRG & IABFLG==1) ⇒ HTDBH (Curtis-Arney, forest-dependent).
+                # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX.
+                ifor = Int(p.forest_idx)
+                dk = bm_htdbh(ifor, sp, hk)
+                dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
+            else                                          # LHTDRG=true & IABFLG=0 → Wykoff BX/(ln(H−4.5)−AA)−1
+                bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
                 dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
             end
@@ -147,4 +152,32 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
         _bm_rg_stash!(stash, t, i)
     end
     return s
+end
+
+# --- bm/htdbh.f Curtis-Arney ht-dbh (forest-dependent P2/P3/P4), used for LHTDRG=false species ---
+# BM LHTDRG (grinit.f:129,151-154): FALSE for all except WJ(6)/WB(11)/LM(12)/AS(15). regent.f:522 uses
+# HTDBH when .NOT.LHTDRG OR (LHTDRG & IABFLG==1); else the Wykoff AX/BX. So BM conifers (DF/GF/ES/WL, LHTDRG=false)
+# use HTDBH — jl's regent must too (was using AX/BX for all ⇒ over-grew seedlings).
+const BM_LHTDRG = Bool[false,false,false,false,false,true,false,false,false,false,true,true,false,false,true,false,false,false]
+let
+    path = joinpath(BM_DATADIR, "htdbh_coeffs_bm.csv")
+    rows = [split(strip(l), ',') for l in readlines(path)[2:end]]
+    P2 = zeros(Float32,4,18); P3 = zeros(Float32,4,18); P4 = zeros(Float32,4,18)
+    for r in rows
+        fi=round(Int,parse(Float32,r[1])); sp=round(Int,parse(Float32,r[2]))
+        P2[fi,sp]=parse(Float32,r[3]); P3[fi,sp]=parse(Float32,r[4]); P4[fi,sp]=parse(Float32,r[5])
+    end
+    global const BM_HTDBH_P2 = P2; global const BM_HTDBH_P3 = P3; global const BM_HTDBH_P4 = P4
+end
+
+# bm/htdbh.f MODE=1 (HT→DBH), Curtis-Arney with a linear small-tree segment below HAT3 (= _ut_htdbh_dbh form).
+@inline function bm_htdbh(ifor::Int, sp::Int, h::Float32)::Float32
+    (ifor < 1 || ifor > 4) && (ifor = 3)
+    p2 = BM_HTDBH_P2[ifor,sp]; p3 = BM_HTDBH_P3[ifor,sp]; p4 = BM_HTDBH_P4[ifor,sp]
+    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+    if h >= hat3
+        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+    else
+        return ((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0) + 0.3f0
+    end
 end
