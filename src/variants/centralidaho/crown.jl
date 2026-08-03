@@ -14,11 +14,26 @@ const CI_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.725,1.78,1.76,1.736,1.756,1
 
 """Per-tree CCF contribution (ci/ccfcal.f MODE=1), excluding the ×TPA factor."""
 @inline function ci_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
-    if d >= 10f0
-        return CI_RD1[sp] + d * CI_RD2[sp] + d * d * CI_RD3[sp]
-    else
-        return CI_RDA[sp] * Float32(d) ^ CI_RDB[sp]
+    dd = Float32(d)
+    if 11 <= sp <= 16                                   # ccfcal.f CASE(11..16): poly at D≥1.0 (NOT ≥10)
+        if dd >= 1.0f0
+            return CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]
+        elseif dd > 0.1f0
+            return sp == 15 ? dd * (CI_RD1[sp] + CI_RD2[sp] + CI_RD3[sp]) : CI_RDA[sp] * dd ^ CI_RDB[sp]
+        else
+            return sp == 15 ? dd * (CI_RD1[sp] + CI_RD2[sp] + CI_RD3[sp]) : 0.001f0
+        end
+    elseif sp == 17 || sp == 19                         # ccfcal.f CASE(17,19): poly at D≥10, 0.001 floor at D≤0.1
+        if dd >= 10f0
+            return CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]
+        elseif dd > 0.1f0
+            return CI_RDA[sp] * dd ^ CI_RDB[sp]
+        else
+            return 0.001f0
+        end
+    else                                                # DEFAULT (1-10,18): poly at D≥10, else RDA·D^RDB
+        dd <= 0f0 && return 0f0
+        return dd >= 10f0 ? (CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]) : CI_RDA[sp] * dd ^ CI_RDB[sp]
     end
 end
 
