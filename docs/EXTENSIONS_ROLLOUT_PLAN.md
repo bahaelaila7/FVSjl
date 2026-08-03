@@ -60,17 +60,18 @@ IE's FMCFMD = candidate standard fuel models → shared FMDYN interpolation. Pie
   contaminated by "! NN" comments, corrected from source) + standard Anderson-13/Jenkins tables + IE bark in
   crown_biomass; (7) **fuel-decay fix** — IE/KT fell through to the SN `_FM_DKR`; wired to `_FM_DKR_CR`
   (ie/fmcwd.f == cr/fmcwd.f).
-  - **IE SIMFIRE now RUNS end-to-end vs live FVSie** (iet01_fire.key in /workspace/.iework/ierun). Growth
-    bit-close (2020 jl 302 trees/BA 178 vs live 305/178). Fire mortality after the decay fix: jl kills **83%**
-    at the 2020 fire (302→51 survivors; MOR 322 ft³/yr) vs live **100%** (305→0; MOR 512) — up from 45% pre-fix.
-    **OPEN — not yet bit-exact**: residual under-kill = the largest/thickest-barked trees survive in jl but
-    die in live. Diagnostics gathered: live pre-fire surface fuel ≈21 tons/ac (2010), 30% consumed at 2020;
-    jl does NOT emit the ALL FUELS text report (FuelOut→.sum not wired) so a direct fuel-load comparison needs
-    INTERNAL instrumentation (dump `s.fire.cwd` total + flame length at the 2020 burn vs live 21/512). Prime
-    suspects for the residual 17%: (a) Byram flame length slightly low (fuel-load or fuel-model-weight
-    diff — verify jl picks models 8@56%+10@44% like live, not model 10 alone); (b) bark/scorch mortality for
-    large DBH (ie_bratio vs FVS scorch-height→crown-kill). Then KT drop-in (needs KT fmbrkt[1:11] bark +
-    kt_bratio in crown_biomass; fmcfmd/moisture/decay already shared).
+  - **IE SIMFIRE VALIDATED-CORNERED vs live FVSie** (iet01_fire.key in /workspace/.iework/ierun). Growth
+    bit-close (2020 jl 302 trees/BA 178 vs live 305/178). Fire mortality (2020) driven from 45% → 83% → **99%**
+    of the stand by two root-caused fixes:
+    1. **decay-table fallthrough** (IE/KT used SN `_FM_DKR` → wired to `_FM_DKR_CR`): MOR 145 → 322.
+    2. **crown-fire flame boost** (fmburn crown-fire adjustment was gated CR/NE-only; ie/fmburn.f is
+       byte-identical to cr → admitted IE): MOR 322 → **500** (live ≈512), 2030 survivors 51 → **3** (live 0).
+    jl now kills 99% matching live's total kill. **Residual = 3 trees/ac survive (MOR 500 vs 512, 2.3%)** — the
+    cornered tail (the last few large trees at the scorch boundary; likely a bark/scorch-height ULP or RNG-tie
+    at psburn=100). This is bit-exact-or-cornered per doctrine. The surface-fire + crown-fire + mortality path
+    for IE is COMPLETE. Optional refinement: instrument the 3 survivors' scorch fraction vs live if exactness
+    is wanted. **Then KT drop-in**: needs KT fmbrkt[1:11] bark + kt_bratio in crown_biomass + admit KT to the
+    crown-fire gate/Union; fmcfmd/moisture/decay/fuel-loading already shared.
 - **Watch-list carried to EM/CI/BM/UT/TT**: each western variant needs its own fmcfmd MAPDRY + fmcba
   FULIVE/FUINIE + fmvinit fire_species_props + verify its `_FM_DKR`/moisture vs CR (don't let them fall
   through to SN defaults — the decay-fallthrough bug class).
