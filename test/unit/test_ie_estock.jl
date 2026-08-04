@@ -358,3 +358,26 @@ end
     itpp = clamp(round(Int, tpp), 1, 99)   # INT(TPP+0.5), MAXTPP clamp
     @test itpp == 2   # oracle TREES/PLOT
 end
+
+@testset "IE AUTOES scheduler (esnutr.f) — task #143 chunk A3" begin
+    # Drive the scheduler through iet01 stand-4's 10 cycles with the MEASURED per-cycle
+    # (itrn, xtes) inputs (FVSie_trc AUTOESXTES/AUTOESTRC dump, /workspace/.iework/autoes_measure/).
+    # Assert the measured fire-cycle + NTALLY sequence: cyc1(99),3(99),4(1),5(2),7(1),8(2),10(99).
+    est = FVSjl.Establishment()   # defaults lautal=lingrw=true, thres1=.10, thres2=.30
+    inv = 1990
+    # (icyc, year, next_year, itrn, xtes)
+    cyc = [(1,1990,2000,0,0.0f0), (2,2000,2010,468,0.0f0), (3,2010,2020,468,0.0f0),
+           (4,2020,2030,206,0.7991f0), (5,2030,2040,419,0.0f0), (6,2040,2050,670,0.0f0),
+           (7,2050,2060,11,0.9747f0), (8,2060,2070,225,0.0f0), (9,2070,2080,472,0.0f0),
+           (10,2080,2090,472,0.0f0)]
+    fired = Tuple{Int,Int}[]     # (icyc, ntally) for cycles that fire
+    idsdat_seq = Int[]
+    for (ic, y, ny, itrn, xt) in cyc
+        f, nt = FVSjl.ie_autoes_schedule!(est, ic, y, ny, itrn, xt, inv)
+        f && push!(fired, (ic, nt))
+        f && push!(idsdat_seq, Int(est.idsdat))
+    end
+    @test fired == [(1,99), (3,99), (4,1), (5,2), (7,1), (8,2), (10,99)]
+    # IDSDAT at each firing (ingrowth = next_year-20; removal = year; continuation = unchanged)
+    @test idsdat_seq == [1980, 2000, 2020, 2020, 2050, 2050, 2070]
+end

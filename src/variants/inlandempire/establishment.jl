@@ -900,3 +900,46 @@ function ie_espsub(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
     ov(10)&&(pn+=1.0770060f0); (ifo==16||ifo==17)&&(pn+=1.8764150f0); (ifo in (3,19,20,14))&&(pn+=2.4815869f0); (iphy==4||iphy==5)&&(pn+=0.346372f0); p[10]=lg(pn)*Float32(occ[10])
     return (p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8],p[9],p[10])
 end
+
+# =============================================================================
+# AUTOES scheduler (esnutr.f) — decides, per cycle, whether the automatic
+# establishment tally fires and with what NTALLY. Mirrors the esnutr.f control
+# flow: (1) LAUTAL removal path, (2) 20-yr disturbance continuation, (3) LINGRW
+# ingrowth. Measured bit-exact on iet01 stand-4 (see docs/AUTOES_CHUNK_PLAN.md A3).
+#
+# Returns (fire::Bool, ntally::Int) — `ntally` is the value ESTAB receives (99
+# for ingrowth, 1 for a removal disturbance, 2 for a continuation). Mutates
+# `est.idsdat`/`est.ntally` to the PERSISTENT state carried to the next cycle
+# (ingrowth resets to 0 — LONE=T; a heavy removal persists at 1 so the next
+# cycle can continue to 2).
+#
+# `xtes` = max(ONTREM/ONTCUR TPA, OCVREM/OCVCUR cuft) removal fraction from THIS
+# cycle's within-cycle thin (0 for the inventory-year thin — FVS leaves ONTREM=0
+# there, so the inventory-year removal never triggers the removal path; gated on
+# year > inv_year). `itrn` = the tree count when establish! runs (post-thin,
+# post-growth, pre-regen). `next_year` = IY(ICYC+1) (the cycle-end year).
+function ie_autoes_schedule!(est::Establishment, icyc::Integer, year::Integer,
+                             next_year::Integer, itrn::Integer, xtes::Real,
+                             inv_year::Integer)
+    kdt = next_year - 1
+    # (1) LAUTAL removal path (esnutr.f:264-289). The inventory-year thin is not
+    # tallied in ONTREM (measured XTES=0 at cyc1) — gate on year > inv_year.
+    if est.lautal && year > inv_year && Float32(xtes) >= est.thres1
+        lone = est.thres1 <= Float32(xtes) < est.thres2   # THRES1..THRES2 = single tally (resets); heavy persists
+        est.idsdat = Int32(year)                          # IDSDAT = IY(ICYC)
+        est.ntally = lone ? Int32(0) : Int32(1)
+        return (true, 1)
+    end
+    # (2) 20-yr disturbance continuation (esnutr.f:298-306): TALLYONE→TALLYTWO.
+    if est.ntally > 0 && (kdt - Int(est.idsdat)) <= 19
+        est.ntally += Int32(1)
+        return (true, Int(est.ntally))
+    end
+    # (3) LINGRW ingrowth (esnutr.f:313-343): bare-stand (ICYC=1) or 40-yr gap.
+    if est.lingrw && ((itrn == 0 && icyc == 1) || (next_year - Int(est.idsdat) >= 40))
+        est.idsdat = Int32(next_year - 20)                # IDSDAT = IY(ICYC+1) - 20
+        est.ntally = Int32(0)                             # LONE=T ⇒ reset after firing
+        return (true, 99)
+    end
+    return (false, 0)
+end
