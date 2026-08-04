@@ -243,12 +243,13 @@ region-4 DVE woodland path does NOT call this (fvsvol.f skips CFTOPK for DVE).
 # species-CSV `top_dib` (which is 4.0 for TT / 0.0 for CI — the secondary-product default, wrong for the broken-
 # top reduction). A 6.0-filled top vector keyed by species for the western MAT/FW2 broken-top path.
 const _R4_TOPD6 = fill(6.0f0, 64)
+const _BM_TOPD45 = fill(4.5f0, 64)                                       # BM grinit TOPD=4.5
 
 @inline function r4_topkill(t, i::Integer, sp::Integer, d::Float32, h::Float32, bark::Float32,
-                            tcf::Float32, mcf::Float32, bf::Float32, merch)
+                            tcf::Float32, mcf::Float32, bf::Float32, merch, topdv = _R4_TOPD6)
     (t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0) || return (tcf, mcf, bf)
-    merch = (stmp = merch.stmp, topd = _R4_TOPD6, scfstmp = merch.scfstmp,
-             scftop = _R4_TOPD6, bftopd = _R4_TOPD6, bfstmp = merch.bfstmp)  # TOPD=6.0 (grinit), not CSV top_dib
+    merch = (stmp = merch.stmp, topd = topdv, scfstmp = merch.scfstmp,
+             scftop = topdv, bftopd = topdv, bfstmp = merch.bfstmp)  # grinit TOPD (6.0 R4 / 4.5 BM), not CSV top_dib
     bk = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : bark
     vmx = tcf
     tcf, mcf, _ = cftopk(merch, sp, d, h, tcf, mcf, 0f0, vmx, bk, Int(t.trunc[i]))

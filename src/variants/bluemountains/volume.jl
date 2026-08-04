@@ -8,7 +8,9 @@
 function compute_volumes_bm!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
-    sd = s.coef.species
+    sd = s.coef.species; c = s.control
+    bmmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+               scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100   # forkod-remapped R6 forest (619→616, 8117→614)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
@@ -20,11 +22,16 @@ function compute_volumes_bm!(s::StandState)
         bark = bm_bratio(sd, sp, d)
         dbhmin = sp == 7 ? 6.0f0 : 7.0f0
         if mdl == "FW2"
-            v = cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)
-            t.cuft_vol[i] = max(v[1], 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
+            # Top-killed trees: full cubic uses NORMAL height (norm_ht), then cftopk trims (see r4_topkill; BM
+            # TOPD=4.5). Missing this made a broken-top DF/PP ~3-4% low (stand 645243390).
+            hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)
+            tcf = max(v[1], 0f0)
+            mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+            bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, bmmerch, _BM_TOPD45)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # 616BEHW (region-6 Behre)
             fclass = bm_formcl(sp, iforst, d)                # form class keyed by BM species index (formcl.f)
             dbtbh = d * (1f0 - bark)                          # double bark thickness (fvsvol.f:153)
