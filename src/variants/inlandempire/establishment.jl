@@ -658,11 +658,12 @@ const _IE_MAXING = Int[4, 4, 3, 3, 5, 4, 5, 4, 7, 7, 5, 5, 5, 4, 5, 4]
 function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser::Integer, ifo::Integer,
                          iprep::Integer, iphy::Integer, xcos::Real, xsin::Real, slo::Real, elev::Real,
                          baa::Real, regt::Real, bwaf::Real, bwb4::Real, prob1::Real, dupnpt::Real,
-                         occ::AbstractVector, over::AbstractVector, nsp::Integer = 23, wk6fill::Integer = 50)
-    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo)
-    padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, 1f0, Float32(baa), Float32(elev),
+                         occ::AbstractVector, over::AbstractVector, time::Real = 1f0,
+                         nsp::Integer = 23, wk6fill::Integer = 50)
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
+    padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-    pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, 1f0, Float32(baa), Float32(elev),
+    pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
     nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]; maxing = _IE_MAXING[ihab]
@@ -992,13 +993,16 @@ end
 # forest_code=118, ESSS=55329).
 function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Integer,
                        dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
-                       regt::Real = 1f0, bwaf::Real = 0f0, bwb4::Real = 0f0)
+                       time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0)
     idx = ie_estab_indices(habitat_code, forest_code)
-    sl = Float32(slo); asp = Float32(aspect)
+    sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
     xc_sp = xc_st * sl; xs_sp = xs_st * sl                   # species probs: slope-weighted aspect
     ba = max(Float32(baa), 1f0)                              # TBAAA floor (estab.f)
-    pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), 1f0,
+    # ESTOCK/species-prob TIME + REGT = years since disturbance (ESTIME): tally-1 = 10, tally-2 = 20 (a cycle
+    # per tally), ingrowth = 1. NOT 1 for the disturbance re-stocking tallies (that hardcoding under-computed PN
+    # ~1.6 logit → PROB1 0.55 vs the real 0.88). REGT = TIME, SQREGT = √TIME (measured, stand4_estock_inputs.txt).
+    pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
     prob1 = 1f0 / (1f0 + exp(-pn))
     occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:23]
@@ -1007,7 +1011,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
-                            occ = occ, over = over)
+                            occ = occ, over = over, time = tm)
     return (tally = tally, prob1 = prob1, idx = idx)
 end
 
@@ -1044,9 +1048,18 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # AUTOES ESRANN seed: the first tally starts the (separate) establishment stream at ESSS=55329;
     # est.es_seed persists it across tallies (the multi-tally chain is refined once cyc1 validates).
     seed0 = est.es_seed > 0f0 ? round(Int, est.es_seed) : ie_autoes_seed0(55329)
+    # ESTOCK/species-prob BAA = the per-INVENTORY-POINT basal area BAAA(NNID) (estab.f:482, dense.f:213), NOT the
+    # whole-stand BA. After a heavy overstory removal the regen point is bare → BAAA≈0 → TBAAA=max(BAAA,1)=1 →
+    # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual
+    # overstory) collapsed PROB1 to ~0.55 and under-produced ~40%. For the single-inventory-point stand the point
+    # is index 1 (validated: jl point_ba[1]=40 vs live BAAA=41.93 at cyc1; 0→1 vs 1 at the bare disturbance tallies).
+    baaa = (isempty(s.density.point_ba) ? 0f0 : s.density.point_ba[1])
+    # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
+    # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
+    time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
     r = ie_autoes_run(habitat_code = Int(p.habitat_code), forest_code = Int(p.user_forest_code),
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
-                      elev = p.elevation, baa = max(stand_ba(s), 1f0))
+                      elev = p.elevation, baa = max(baaa, 1f0), time = time)
 
     t = s.trees
     xmin = _IE_ES_XMIN
