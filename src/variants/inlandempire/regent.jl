@@ -215,10 +215,14 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             end
         end
     end
-    # ---- final assembly (regent.f:441-600): HTGR1 + ZZRAN + XWT blend toward the large-tree HTG, then
-    #      the D<3 diameter dub. XWT blend is CRITICAL — trees D∈[XMIN,XMAX] blend to the (validated) htgf
-    #      value, and D≥3 keep their large-tree DG (only D<3 gets the small-tree dub). ----
-    @inbounds for i in 1:n
+    # ---- final assembly (regent.f DO 30 ISPC=1,MAXSP): HTGR1 + ZZRAN + XWT blend toward the large-tree HTG,
+    #      then the D<3 diameter dub. XWT blend is CRITICAL — trees D∈[XMIN,XMAX] blend to the (validated) htgf
+    #      value, and D≥3 keep their large-tree DG (only D<3 gets the small-tree dub). FVS iterates SPECIES-
+    #      SORTED (DO 30 ISPC; DO 25 I3=I1,I2 via IND1) — the per-record ZZRAN (BACHLO) draws MUST happen in
+    #      this order or the RNG stream desyncs vs live on multi-species stands (CR proved this). ----
+    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
+    @inbounds for oi in 1:n
+        i = _sp_order[oi]
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= IE_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue
@@ -364,43 +368,71 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
         ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
         htgr1 = wk3[i] - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 1.0f0 && zzran >= -1.5f0) && break
-            end
-        end
-        htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)                # NIVAR multiplicative randomization (regent.f:533)
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]        # blend toward the large-tree htgf value
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        t.ht_growth[i] = htg
-        # diameter dub for D<3. We set DBH=grown-DK directly + zero diam_growth ⇒ mortality sees the grown DBH.
-        # RESIDUAL RESOLVED (2026-08-01, live regent trace): the small-tree base models are CORRECT. For the stand-1
-        # sp3/d=1.2/H=11 tree (identical jl↔live population, valid pre-mortality match), jl's pre-ZZRAN height growth
-        # htgr1=8.61 MATCHES live HTGR1=8.59 (subcycle HTGRL 1.493/1.420, CON=1.486, HCOR=0); the final HK differs
-        # (jl 17.68 vs live 24.54) ONLY because the ZZRAN draw differs (line 142: live drew +0.455, jl negative). That
-        # is the ZZRAN RNG stream-order difference — the documented ACCEPTED residual, NOT a bug. Earlier "DG formula
-        # under-sizing / tripling-order / 4× granularity" hypotheses were all wrong turns from mismatched comparisons.
-        # DBH-old+increment is FVS's true structure (live dump: DBH(K)==D) but restructuring regressed the .sum via
-        # the same ZZRAN-driven HK spread; DK-direct is oracle-.sum-closest (matches live BA=115 @2000) so kept.
-        if d < 3.0f0
-            relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
-            relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
-            dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
-            hk = h + htg
-            new_dbh = if hk < 4.5f0
-                0.1f0 + IE_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0   # regent.f:881
-            else
-                dk = ax * (hk - 4.5f0)^bx + dadj                 # regent.f:938 (DK<DIAM→DIAM; +HK*.001)
-                dk < IE_RG_DIAM[sp] && (dk = IE_RG_DIAM[sp])
-                dk + hk * 0.001f0
+        large_htg = t.ht_growth[i]                              # large-tree htgf value for the blend (before l=0 overwrites)
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+        small_d = d < 3.0f0
+        diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)          # BARK at the pre-growth DBH (regent.f:983)
+        # deterministic dub-bias terms (no ZZRAN) — computed once. DADJ (regent.f:866-872), D1 (regent.f:875-877).
+        relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
+        relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
+        dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
+        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * (h - 4.5f0)^bx + dadj)
+        # TRIPLING (regent.f:801-810 "IF TRIPLING, EACH TRIPLE GETS A NEW RANDOM"): draw a FRESH ZZRAN per
+        # tripled record; central (l=0) → the tree, copies (l=1,2) → the stash (htgU/htgL + is_small + dgU/dgL).
+        # The DBH dub is the FAITHFUL non-ESTAB path (regent.f:955-989): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS
+        # scale — DBH is UNCHANGED and grows later via GRADD (t.dbh += DG/bark). (The old code did DBH-direct,
+        # which is the ESTAB-only branch (regent.f:945-951 LESTB) — wrong for the growth cycle; combined with a
+        # 1-draw-per-tree ZZRAN it desynced the RNG and doubled regen BA.) Only HK<4.5 sets DBH directly
+        # (regent.f:881), a tiny-tree edge that does not fire on realistic small-tree stands (H+HTG > 4.5).
+        nrec = stash !== nothing ? 3 : 1
+        central_dbh = d
+        for l in 0:(nrec - 1)
+            zzran = 0.0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 1.0f0 && zzran >= -1.5f0) && break
+                end
             end
-            new_dbh < d && (new_dbh = d)                         # no shrink
-            t.dbh[i] = new_dbh
-            t.diam_growth[i] = 0f0                               # DBH already applied ⇒ GRADD-apply is a no-op
+            htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
+            htg = htgr * (1.0f0 - xwt) + xwt * large_htg        # blend toward the large-tree htgf value
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            # diameter dub (D<3 only). dg_inc = inside-bark increment (added to DBH via GRADD); dbh_dir≥0 ⇒ set DBH.
+            dg_inc = 0.0f0; dbh_dir = -1.0f0
+            if small_d
+                hk = h + htg
+                if hk < 4.5f0
+                    dbh_dir = 0.1f0 + diam * 0.01f0 + hk * 0.001f0          # regent.f:881 (DBH set, DG=0)
+                else
+                    dk = ax * (hk - 4.5f0)^bx + dadj                        # regent.f:938
+                    dk < diam && (dk = diam)
+                    dk = dk + hk * 0.001f0
+                    dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0) # regent.f:958 (DK−D1)·XRDGRO
+                    dg0 = dgk * bark                                        # DG(K)=DGK·BARK (regent.f:981)
+                    dds = dg0 * (2.0f0*bark*d + dg0) * scale2               # regent.f:984 (FINT→10yr via SCALE2)
+                    dg_inc = sqrt((d*bark)^2 + dds) - bark*d               # regent.f:985
+                    (d + dg_inc) < diam && (dg_inc = diam - d)             # regent.f:987 DIAM floor
+                    dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)  # DGBND (SIZCAP)
+                end
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                if small_d
+                    if dbh_dir >= 0.0f0
+                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
+                    else
+                        t.diam_growth[i] = dg_inc                           # increment; DBH unchanged (=d)
+                    end
+                end
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+            else
+                stash.htgL[i] = htg
+                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+            end
         end
     end
     return s
