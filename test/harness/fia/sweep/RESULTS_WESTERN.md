@@ -1,5 +1,24 @@
 # Western-variant FIA-plot validation — results
 
+> **★★ FINAL VALIDATION (2026-08-04, current code) — supersedes everything below.** Population-scale cycle-0
+> all-column differential (TPA/BA/TCuFt/MCuFt/BdFt vs live) over every treed sub.db stand:
+>
+> | Variant | Growth | Volume | Verdict |
+> |---|---|---|---|
+> | CI | 16/16 | 16/16 | **all bit-exact** |
+> | UT | 8/8 | 8/8 | **all bit-exact** |
+> | TT | 18/18 | 18/18 | **all bit-exact** (2 live-crash stands cross-validated: jl matches non-crash live) |
+> | EM | 3/3 | 3/3 | **all bit-exact** |
+> | BM | 13/13 | total+merch 13/13 | growth + total + merch **bit-exact**; board-foot ~2-3% on 5 stands = accepted class |
+>
+> Fixes that got here this session: **forest-keyed VOLEQDEF** (`r4_voleq`, R4_EQN, validated 555/555) for CI/UT/TT;
+> **broken-top CFTOPK/BFTOPK** with normal-height (`r4_topkill`, TOPD 6.0 R4 / 4.5 BM) for CI/UT/TT/BM; **TT fvsvol
+> version skew** (merch top TOPD=6.0 not 6·bark); **cftopk grinit-TOPD** (not CSV top_dib); **BM 18-species form-class
+> table** (woodland minors were defaulting to FC=80). Habitat FIA-read (PV_CODE) for EM/UT/TT/IE.
+> Remaining cornered: BM board-foot Scribner (~2-3%, OPT=23 hypothesis tested & ruled out); the live-FVStt species-
+> sort SIGSEGV (uninitialized IND1, jl runs correctly — maintainer item); accepted ZZRAN/DGSCOR + AVHT40/RDPSRT.
+> EM/IE/KT are region-1 (R1_EQN forest-independent → already correct); CR already complete.
+
 > **★ RE-VALIDATION ADDENDUM (2026-08-03, later than the sweep below).** The tables further down are **STALE** —
 > substantial volume + height-growth work landed AFTER this sweep was recorded. Verified with current code:
 > - **UT height growth sp 20/21/22 CRASH — FIXED.** The 3 repro stands (42631952010690 / 198812416020004 /
