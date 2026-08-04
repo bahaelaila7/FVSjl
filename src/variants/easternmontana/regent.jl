@@ -347,7 +347,8 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             dgr = (wk5e[i] - dkk)*bark; dds = dgr*(2f0*bark*d + dgr)
             arg = (d*bark)^2 + dds; dgk = arg > 0f0 ? sqrt(arg) - bark*d : 0f0
             dgk < 0f0 && (dgk = 0f0); dgk > fint*2.0f0 && (dgk = fint*2.0f0)
-            t.diam_growth[i] = dgk*(1f0-xwt) + xwt*t.diam_growth[i]
+            t.diam_growth[i] = dgk       # NO XWT blend on DG — FVS blends only HTG (em/regent.f:838); DG is the
+                                         # pure SMDGF regent DG (blending the large-tree DG over-grew BA ~20% cyc2+).
             _em_rg_stash!(stash, t, i)
         end
     end
