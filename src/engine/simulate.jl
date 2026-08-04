@@ -456,6 +456,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4)   # NOTRIP (set by a PRIOR-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
+    # BC V2 mortality WK1 (morts.f) = DG(I) at the START of dgdriv (dgdriv.f:141 WK1=DG), i.e. the PRE-prediction
+    # DG: the measured input increment at cycle 1, or the previous cycle's DG later. Snapshot it before
+    # diameter_growth! overwrites diam_growth. Without it WK1=0 ⇒ the Hamilton G collapses to the DGT floor ⇒
+    # RIP over-predicts ⇒ over-kill. (KT/IE/TT use the post-update snapshot at :527, which misses cycle-1's measured DG.)
+    s.variant isa BritishColumbia && (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
