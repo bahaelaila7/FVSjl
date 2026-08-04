@@ -400,3 +400,15 @@ end
     # a mapped forest: 105 -> IFORST(3)=5
     @test FVSjl.ie_estab_indices(570, 105).ifo == 5
 end
+
+@testset "IE AUTOES full compose from stand inputs (ie_autoes_run) — task #143 chunk A3e" begin
+    # From ONLY (habitat_code=570, forest_code=118, ESSS=55329) + stand slope/aspect/elev/BAA,
+    # derive indices + PROB1 + occupancy and run the tally: bit-exact 583.65 total + species split.
+    r = FVSjl.ie_autoes_run(habitat_code = 570, forest_code = 118, seed0 = FVSjl.ie_autoes_seed0(55329),
+                            dupnpt = 50, slo = 0.30f0, aspect = 5.498f0, elev = 34.0f0, baa = 1.0f0)
+    @test isapprox(r.prob1, 0.5527f0; atol = 1f-3)      # PROB1 = logistic(ie_estock PN=0.2116)
+    @test r.idx == (ihab = 10, iser = 4, ifo = 4, iphy = 3, iprep = 1)
+    oracle = [33, 20, 7, 202, 222, 50, 0, 23, 27]
+    for i in 1:9; @test round(Int, r.tally[i]) == oracle[i]; end
+    @test isapprox(sum(r.tally), 583.7; atol = 0.6)
+end

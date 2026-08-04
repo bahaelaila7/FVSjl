@@ -980,3 +980,35 @@ function ie_estab_indices(habitat_code::Integer, forest_code::Integer)
     end
     return (ihab = ihtype, iser = iser, ifo = ifo, iphy = 3, iprep = 1)
 end
+
+# =============================================================================
+# ie_autoes_run — compose the full AUTOES tally from STAND-LEVEL inputs. Derives
+# the ESTAB indices (ie_estab_indices), the inventory stocking probability PROB1
+# (logistic of ie_estock — NOTE the stocking equation uses the UNWEIGHTED aspect
+# cos/sin, whereas the species-probability routines use the slope-weighted aspect),
+# the occupancy vectors, then runs ie_autoes_tally. Returns the per-species TPA
+# (Float64[23]) plus the derived PROB1 and indices. `aspect` is the raw aspect
+# angle (radians); `slo` the slope fraction; `baa` the plot basal area (floored to
+# ≥1 for a bare stand — TBAAA, estab.f). For a bare stand (BAA=1) this reproduces
+# the iet01 stand-4 ingrowth tally (583.65 TPA) purely from (habitat_code=570,
+# forest_code=118, ESSS=55329).
+function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Integer,
+                       dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
+                       regt::Real = 1f0, bwaf::Real = 0f0, bwb4::Real = 0f0)
+    idx = ie_estab_indices(habitat_code, forest_code)
+    sl = Float32(slo); asp = Float32(aspect)
+    xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
+    xc_sp = xc_st * sl; xs_sp = xs_st * sl                   # species probs: slope-weighted aspect
+    ba = max(Float32(baa), 1f0)                              # TBAAA floor (estab.f)
+    pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), 1f0,
+                   sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+    prob1 = 1f0 / (1f0 + exp(-pn))
+    occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:23]
+    over = zeros(Float32, 10)
+    tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
+                            ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
+                            slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
+                            bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
+                            occ = occ, over = over)
+    return (tally = tally, prob1 = prob1, idx = idx)
+end
