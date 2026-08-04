@@ -94,11 +94,20 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     from esblkd.f). Key detail: **XCOS=cos(asp)·SLO, XSIN=sin(asp)·SLO** (estab.f:480-481, SLO-weighted — distinct
     from ESTOCK's plain XCOSAS/XSINAS). VALIDATED BIT-EXACT vs live FVSie (iet01 stand-4 plot-1, ISER=4/ITPP=2/
     TPP=2): PSPE=(0.543, 0.393, 0, 0, 0, 0) = oracle. Locked in test/unit/test_ie_estock.jl (+4 tests).
-  - **A2b species COUNT + IDENTITY (RNG — the hard part):** estab.f:693-726 draws NUMSPE from the normalized
-    PSPE cumulative SUMUP via `CALL ESRANN(DRAW)` (6 draws into WK6), capped at MAXSPP(IHAB); then selects WHICH
-    species + per-species TPA from PADV/PSUB/PXCS (advance/subsequent/excess apportionment probabilities, estab.f
-    :610-664) with more RNG. This is the RNG-alignment-sensitive machinery the IE memory flagged as high-effort
-    ("EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs A2b end-to-end.
+  - **A2b species probabilities PADV/PSUB/PXCS (DETERMINISTIC, SOURCE-ANALYZED — the next real chunk, larger).**
+    estab.f:615-617 calls ESPADV / ESPSUB(if ITIME>2) / ESPXCS → per-species advance/subsequent/excess regen
+    probabilities, dumped `PADV=`/`PSUB=`/`PXCS=` under DEBUG (measured iet01 stand-4: PADV=0.062 0.005 0.048
+    0.485 0.283 0.122 0.001 0.014 0.039 0…). Each is a clean logistic ×occupancy: e.g. espadv.f
+    `PADV(i)=1/(1+exp(-PNᵢ))·OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i)`, PNᵢ = per-species regression in XCOS/XSIN/
+    SLO/TIME/BAA/BAASQ/ELEV/ELEVSQ/REGT/BWAF/BAALN + CHAB(IHAB,i) + CPRE(IPREP,i) + OVER(i)>9.95 & forest bumps.
+    NEEDS the habitat-type-group tables: **CHAB(16,MAXSP)** + **CPRE** DATA (esblkd.f:45-70), **OCURHT(16,MAXSP)**
+    + **OCURNF(MXFRCDS,MAXSP)** COMPUTED in esinit.f (habitat-group species-occupancy — for iet01 grp10 they're
+    1.0 for sp1-9, 0 else), **XESMLT(MAXSP)** (ESHAP, =1.0 here). This is the "habitat-type-group coefficient
+    dimension" (a data+esinit-logic extraction) — larger than A1/A2a. Validate PADV/PSUB/PXCS vs the debug dumps.
+  - **A2c species COUNT + IDENTITY (RNG — the hard part):** estab.f:646-726 draws EMSQR + TPP + NUMSPE (from the
+    PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. RNG-alignment-sensitive (the
+    IE memory's "EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs
+    A2b (probabilities) + A2c (RNG selection) end-to-end.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
