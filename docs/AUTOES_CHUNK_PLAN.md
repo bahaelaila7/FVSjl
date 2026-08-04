@@ -1,6 +1,19 @@
 # AUTOES — Western Automatic (Natural) Establishment tally — CHUNK PLAN (task #143)
 
-Status: **SCOPED (not started).** Structure mapped + validation anchor measured 2026-08-04. No jl code yet.
+Status: **★★ TALLY COMPUTATION COMPLETE + BIT-EXACT (2026-08-04).** `ie_autoes_tally` reproduces the live FVSie
+per-species ingrowth split on iet01 stand-4 (1999) EXACTLY: WP33 WL20 DF7 GF202 WH222 RC50 ES23 AF27, total 583.7.
+72 tests. All 8 primitives + the multi-plot seed chain + the tally composition are bit-exact vs the live oracle
+(commits de5da44→c28dca2). The entire RNG/probability/selection/booking model is SOLVED — see the A1/A2/A2b/A2c
+sections below for the full spec + measure-first findings (instrument recipe, per-plot reseed, MAXING cap, PXCS-
+weighted excess, etc.). REMAINING = engine integration only (no model unknowns): (1) wire ie_autoes_tally into
+engine/establishment.jl behind the esnutr disturbance-trigger scheduler (A3) — derive per-plot inputs from stand
+state (IHAB/ISER/IFO via habtyp; PROB1 via ESTOCK+ESB; DUPNPT; **seed0 = ESDRAW = INT(main-RNG-draw*100000+0.5)**
+from the engine's seed-55329 stream at establishment time); create the ingrowth trees (per species, heights via
+ie_essubh/ie_esxcsh) in the tree list; (2) A4 full-cycle .sum (536→1025→…→1788); (3) generalize per-plot inputs
+(OCURNF/XESMLT for non-forest-4, ESPSUB for TIME>2 habitat mixes, multi-tally +10/+20yr scheduling). This is a
+focused shared-engine integration best done as one careful unit with end-to-end .sum validation.
+
+--- ORIGINAL PLAN (historical; the tally is now built + validated per the above) ---
 Estimated new surface: ~600–900 lines (ESTOCK+ESNSPE+ESADVH + the esnutr scheduler + the predicted-naturals
 slice of estab.f), reusing jl's EXISTING explicit-PLANT/NATURAL tree-creation machinery (engine/establishment.jl).
 
