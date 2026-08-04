@@ -149,6 +149,19 @@ small_tree_growth!(::EasternMontana) (mirror esgent.f: HT+=HTG, DBH from grown H
 the regent setup on the fresh cohort); LOW-PRIORITY (density cornered, TopHt = the visible tail). This upgrades the
 #137 residual from hypothesis to a SOURCE-VERIFIED mechanism (estb/esgent.f CALL REGENT) with a specific EM-gated fix.
 
+## Gap A-residual — em_esgent! IMPLEMENTED + REVERTED (2026-08-04): exposes a WL+PP density over-growth
+Implemented em_esgent! (mirror cr_esgent!: grow the establishment cohort nstart+1..t.n via SMHTGF height + SMDGF
+diameter, partial period scale=(fint−gentim)/regyr, HT+=HTG/DBH from grown height/HHTMAX cap; wired at
+simulate.jl after cr/tt_esgent!). RESULT on em_plant (DF): TopHt MAXΔ 0.7→0.2 (2000 jl 1→4 vs or 5; 2090 52→58 vs
+60) — FIXES the lag; but BA flipped 8%-under → 13%-over. On emt01 (WL+PP): TopHt better (69/71) but BA WORSE
+(2090 267/218 = 22% over, up from essubh-only's 13% over). So em_esgent UNIFORMLY adds growth: fixes DF, worsens
+WL+PP. Guard stayed green (no establishment there); stand-1 growth-only unchanged. REVERTED (doctrine #4: a
+faithful chunk exposing a regression ⇒ examine the oracle, don't ship). The esgent grow IS faithful (esgent.f does
+it), so this EXPOSES a pre-existing WL+PP establishment DENSITY over-growth (essubh-only already 13% BA over for
+WL+PP while DF was 8% UNDER) — likely the WL/PP essubh height too tall, or the SMDGF/mortality on the WL/PP
+establishment cohort. NEXT: examine WL+PP establishment density (why essubh-only over-grows WL+PP BA but under-grows
+DF) BEFORE re-adding em_esgent; then the esgent grow lands cleanly. Fix code preserved in git history (this session).
+
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
 "SHELTERWOOD WITH AUTO REGENERATION": oracle TPA 1025→1788, jl 224→28). jl's `establish!` has NO AUTOES path —
