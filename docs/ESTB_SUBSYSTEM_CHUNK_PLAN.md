@@ -46,10 +46,15 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    RESTORED pristine. Ground truth: `/workspace/.emwork/em_essubh_df_groundtruth.txt`.
 2. Port DF ESSUBH deterministically (`HHT=EXP(PN)`, EMSQR variance DEFERRED — like CI's intentional ZZRAN
    deferral; RNG stays synced, the emsqr draws are already consumed at establishment.jl:218). Add the EM branch at
-   `establishment.jl:258`. **Open wiring:** IHTSER (habitat series, MYHTS(IHAB)) + IPHY (physiographic) must be
-   derived from jl's EM plot context — check if available; for em_plant they are 2 and 3. IPREP: simplest =1(NONE)
-   for all (gives HHT≈1.169, cornered); faithful = use the per-record WK6 site-prep vector jl fills at line 207.
-   Validate BA/QMD/SDI cornered on em_plant.key; TopHt = deferred-variance tail.
+   `establishment.jl:258`. **jl-input scouting DONE 2026-08-04** (src/core/state.jl): AVAILABLE — `slope`(0..1),
+   `aspect`(rad) ⇒ XCOS=slope·cos(aspect)/XSIN=slope·sin(aspect); `elevation`(100s ft); `basal_area` ⇒ BAA=clamp[1,400];
+   `physio_region`(IPHREG, line 379) — CONFIRM == IPHY(1-5 position; em_plant IPHY=3); `habitat_input`(ITYPE)/
+   `habitat_code`(KODTYP). MISSING — IHTSER derivation: FVS IHTSER=MYHTS(IHAB), IHAB=IPHAB(NNID) a 1-16 habitat
+   GROUP; need the EM habitat→IHAB→MYHTS(=/1,3*2,4*3,2*4,.../) chain (trace IPHAB setup in em/estab.f/esdlay.f;
+   em_plant IHTSER=2). Also verify jl's estab `age`==7 (AGELN 1.9459) for em_plant. IPREP: simplest =1(NONE)⇒HHT≈1.169
+   cornered; faithful = per-record WK6 site-prep vector (jl fills at line 207). Validate BA/QMD/SDI cornered on
+   em_plant.key vs em_plant.sum; TopHt = deferred-variance tail. Coeff tables UHAB(5,19)/UPRE(4,19)/UPHY(5,19) +
+   per-sp PN intercepts/slopes: dump from em/essubh.f + em/blkdat.f (same table-dump technique as other chunks).
 3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP — em/essubh.f labels 10/20/70/80/90/100), then the
    IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
 4. (Later refinement) faithful stochastic EMSQR/DILATE order-statistic + per-record IPREP → bit-exact TopHt.
