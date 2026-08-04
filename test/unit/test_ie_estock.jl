@@ -337,6 +337,17 @@ end
     end
 end
 
+@testset "IE AUTOES subsequent + excess heights — task #143 chunk A2c" begin
+    # Complete the height model. AUTOES first tally: TIME=1 → essubh AGE=max(1-DELAY-GENTIM,1)=1 (AGEL=0),
+    # BNORM=BNORML(1)=1.0; disp = EMSQR·DILATE·BNORM. Excess: ie_esxcsh(sp, TALL, XMIN, TIME=1, draw).
+    slo = 0.30f0; xc = cos(5.498f0) * slo; xs = sin(5.498f0) * slo
+    # Subsequent best trees (SUBH dump): plot-4 GF EMSQR=0.862929 DILATE=0.1 → 0.143546; plot-7 ES EMSQR=-0.279643 → 0.085346
+    @test isapprox(FVSjl.ie_essubh(4, 1.0f0, 1.0f0, 4, 1, 3, xc, xs, slo, 34.0f0, 0.862929f0 * 0.1f0), 0.143546f0; atol = 1f-3)
+    @test isapprox(FVSjl.ie_essubh(8, 1.0f0, 1.0f0, 4, 1, 3, xc, xs, slo, 34.0f0, -0.279643f0 * 0.1f0), 0.085346f0; atol = 1f-3)
+    # Excess trees (XCSH dump): WH TALL=0.70, XMIN=0.5, DRAW=0.670273 → 0.584198
+    @test isapprox(FVSjl.ie_esxcsh(5, 0.70f0, 0.5f0, 1.0f0, 0.670273f0), 0.584198f0; atol = 3f-4)
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
