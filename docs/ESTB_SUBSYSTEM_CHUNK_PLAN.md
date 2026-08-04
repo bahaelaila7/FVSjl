@@ -193,8 +193,16 @@ cohort (800 identical-size seedlings), that is the RDPSRT self-thin quicksort TI
 residual class (see [[fvsjl-largest-div-campaign]], [[fvsjl-stand-pct-rdpsrt-fix]]: RDPSRT unstable-sort boundary
 determines which of N equal trees dies). So the EM establishment GROWTH is CORRECT/validated; the WL/PP density
 residual is most likely the accepted RDPSRT tie-break (not a fixable bug), same as the CR/FIA-campaign residuals.
-⇒ EM establishment is essentially DONE-to-cornered: crash fixed, TPA bit-exact, all growth models validated, the
-density tail = accepted self-thin tie-break. (Confirm by checking if the WL/PP kill order is an RDPSRT ±straddle.)
+CORRECTION (checked the TPA trajectory before asserting "accepted"): emt01 ESTAB TPA = 800/800…715/715,
+699/698, 673/696, 632/659, 590/630 — matches bit-exact through 2062, then jl over-kills GRADUALLY (23→27→40 trees
+from 2072). That is NOT an RDPSRT ±straddle (which bounces ±1-2, not a growing gap); it is a SELF-THIN RATE
+divergence that starts when the dense cohort crosses the self-thin threshold (~2072). So NOT safely "accepted" —
+it's most likely a real SELF-THIN MORTALITY issue (jl over-kills the dense EM cohort), the SAME MECHANISM as BM #140
+(jl UNDER-kills BM — opposite sign, same self-thin/BAMAX-SDImax model). So: EM establishment GROWTH is validated/
+DONE (all 3 models bit-exact); the density residual is an OPEN self-thin mortality question (shared root with #140),
+NOT confirmed-cornered. NEXT (shared #137/#140): per-cycle self-thin/BAMAX kill-rate comparison on a dense EM/BM
+cohort — why jl over-kills EM & under-kills BM at the self-thin threshold. The esgent TopHt grow (git history)
+stays optional. Corrected from the prior over-assertion (growth-validated is solid; the mortality mechanism was not).
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
