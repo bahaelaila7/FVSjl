@@ -68,7 +68,16 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    per-sp PN intercepts/slopes: dump from em/essubh.f + em/blkdat.f (same table-dump technique as other chunks).
 3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP — em/essubh.f labels 10/20/70/80/90/100), then the
    IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
-4. (Later refinement) faithful stochastic EMSQR/DILATE order-statistic + per-record IPREP → bit-exact TopHt.
+4. (Optional refinement — current state already bit-exact-or-cornered: TPA exact, density ~7-9%, TopHt = the tail)
+   Faithful stochastic EMSQR/DILATE for tighter density + TopHt. MECHANISM (em/estab.f:646-650, 800-840):
+   `EMSQR = (esrann<0.5 ? -1 : +1) · esrann` — TWO ESRANN draws PER REPLICATE, which jl ALREADY consumes+discards
+   at establishment.jl:218 (just use them). `DILATE = FIRST(2,sp)`, a PER-SPECIES running order-statistic:
+   init 0.1, then `FIRST(2,sp)=SQRT(DILATE)` after each record (0.1→0.316→0.562→0.75→…→1 — the tallest-of-N
+   dilation shrinks as N grows). Per-record IPREP from the WK6 site-prep vector (`DRAW=WK6(NDRAW)`, jl fills WK6 at
+   line 207). Then HHT = EXP(PN + EMSQR·DILATE·BNORML(IAGE)·σ_sp), IAGE=INT(age−TRAGE+0.5). Validate TopHt on
+   em_plant.key (oracle 2000 TopHt=5 vs current jl=1). Since TPA is bit-exact the stream is already aligned to the
+   record level, so this is reconstruction (use the consumed draws), not new RNG plumbing.
+5. em/esadvh.f advance-regen (THAB/TPHY/TPRE tables) — the second establishment-height source (natural advance regen).
 
 **Complete em/essubh.f spec (all 19 species, extracted 2026-08-04) — deterministic HHT=EXP(PN):**
 ```
