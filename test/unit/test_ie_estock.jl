@@ -248,6 +248,18 @@ end
     @test 0f0 <= FVSjl.ie_esdlay(4, 2, 0.5f0, 10.0f0, 1.0f0) <= 10f0
 end
 
+@testset "IE ESPSUB P(subsequent species) — task #143 chunk A2c" begin
+    # Populated at estab.f:774 for the ADV/SUBS ICHOI dispatch. Oracle iet01 stand-4 plot-1 (TIME=1, BAALN=0).
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    occ = Float32[ones(9); zeros(14)]; over = zeros(Float32, 10)
+    ps = FVSjl.ie_espsub(10, 1, 4, 3, xcos, xsin, slo, 1.0f0, 1.0f0, 0.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ, over)
+    oracle = (0.0628982f0, 0.0310127f0, 0.0701199f0, 0.232294f0, 0.0650079f0,
+              0.0100316f0, 0.0276168f0, 0.00603530f0, 0.0104509f0, 0.0f0)
+    for i in 1:10
+        @test isapprox(ps[i], oracle[i]; atol = 6f-4)
+    end
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)

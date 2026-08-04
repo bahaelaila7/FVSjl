@@ -824,3 +824,79 @@ function ie_esdlay(sp::Integer, ias::Integer, draw::Real, time::Real, baa::Real;
     end
     return clamp(delay, 0f0, 10f0)
 end
+
+# =============================================================================
+# ie_espsub — AUTOES P(subsequent-regen species) (estb/espsub.f, task #143). SHARED establishment code.
+# Same 10-species logistic × occupancy pattern as ie_espadv, with SUBSEQUENT tables DHAB(16,10)/DPRE(4,10)
+# (esblkd.f:78-116) + √(TIME)/BAALN/ALOG(ELEV) terms. Called at estab.f:774 to populate PSUB for the ADV/SUBS
+# ICHOI dispatch (a best tree is SUBSEQUENT when its ADV/SUBS draw > PADV/(PADV+PSUB)). Coeffs verbatim espsub.f.
+# =============================================================================
+const _IE_DHAB = Float32[
+ 0.0        0.6603087  0.0        0.0        0.0  0.0         0.4017175  0.0        0.0       0.0;
+ 0.0        0.0        0.0        0.0        0.0  0.0         0.4017175  0.0        0.0       0.6557608;
+ 0.0        0.0        0.0        0.0        0.0  0.0        -0.7714835  0.0        0.0       0.6557608;
+ 0.0        0.0        0.0        0.0        0.0  0.0        -0.7714835  0.0        0.0       0.6557608;
+ 0.0        0.6603087  0.0        0.0        0.0  0.0         0.0        0.3424427  0.0      -0.3939905;
+ 0.0        0.6603087  0.0       -0.2163169  0.0  0.0         0.6710793  0.3424427  0.0       0.0;
+ 0.0        0.0        0.0        0.0        0.0  0.0         0.0       -0.7935050  0.0      -0.3939905;
+ 0.0        0.0        0.0        0.0        0.0  0.0        -0.7714835 -0.7935050  0.0       0.6557608;
+ 0.6572202  0.7437406  0.0        0.2288325  0.0  0.0        -0.543113   0.0        0.0       0.0;
+ 1.0375612  0.8959712  0.0        0.0        0.0 -0.6403333  -0.0868212  0.2115143  1.285995  0.0;
+ 0.0        0.7381694 -1.108112  -2.442296   0.0  0.0         1.7321693  0.0954259  1.036427  0.0;
+ 0.0        0.7381694 -0.1829031 -2.442296   0.0  0.0         0.6710793  0.0954259  1.036427  0.0;
+ 0.0        0.7381694 -0.1829031 -0.812497   0.0  0.0        -0.6315747  0.0954259  2.449334  0.0;
+ 0.0        0.0       -1.108112  -2.442296   0.0  0.0         1.7321693  0.0954259  1.036427  0.0;
+ 0.0        0.7381694 -1.108112  -2.442296   0.0  0.0         0.4315782  0.5586635  2.449334  0.0;
+ 0.0        0.0        0.0        0.0        0.0  0.0        -0.6315747  0.5586635  2.449334  0.0]
+const _IE_DPRE = Float32[
+ 0.0  0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0;
+ 0.1547952 0.9831529 0.2274977 0.1840748 0.2282684 0.6319225 0.6404021 1.1533183 0.2232152 0.6788768;
+ 0.0230249 1.1296833 0.4415658 0.0475563 0.6218803 1.0655327 0.3812159 1.0900837 0.1324877 0.7407734;
+ 0.5517443 1.5132390 0.6000910 0.5660518 0.6568975 1.4428914 0.7928200 1.4772912 0.9357350 0.8536627]
+
+"""
+    ie_espsub(ihab, iprep, ifo, iphy, xcos, xsin, slo, time, baa, baaln, elev, sqregt, sqbwaf, bwb4, occ, over) -> NTuple{10,Float32}
+
+IE P(subsequent-regen species) (estb/espsub.f). `time`=years since disturbance (uses √time); `baaln`=ln(BAA);
+`occ[i]`=OCURHT·XESMLT·OCURNF. Faithful transcription incl. per-species IFO/OVER/IPHY bumps.
+"""
+function ie_espsub(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, xcos::Real, xsin::Real,
+                   slo::Real, time::Real, baa::Real, baaln::Real, elev::Real, sqregt::Real, sqbwaf::Real,
+                   bwb4::Real, occ::AbstractVector, over::AbstractVector)::NTuple{10,Float32}
+    xc=Float32(xcos); xs=Float32(xsin); sl=Float32(slo); tm=Float32(time); ba=Float32(baa)
+    baln=Float32(baaln); el=Float32(elev); elsq=el*el; srg=Float32(sqregt); sbw=Float32(sqbwaf); b4=Float32(bwb4)
+    st=sqrt(tm); dh(i)=(1<=ihab<=16) ? _IE_DHAB[ihab,i] : 0f0; dp(i)=(1<=iprep<=4) ? _IE_DPRE[iprep,i] : 0f0
+    ov(i)=over[i]>9.95f0; lg(pn)=1f0/(1f0+exp(-pn)); p=zeros(Float32,10)
+    # WP(1)
+    pn=-2.4158523f0+dh(1)-0.0190109f0*xc-1.3862606f0*xs-1.8366897f0*sl+dp(1)-0.0096275f0*ba-0.0480603f0*el+0.5816639f0*st
+    (ifo==7||ifo==10||ifo==16)&&(pn-=1.5468744f0); ov(1)&&(pn+=1.1525173f0); p[1]=lg(pn)*Float32(occ[1])
+    # WL(2)
+    pn=-6.6374979f0+dh(2)+1.4214396f0*xc+0.7795442f0*xs-0.4926099f0*sl+dp(2)-0.0097349f0*ba+0.1260484f0*el-0.0016995f0*elsq
+    ov(2)&&(pn+=1.1026379f0); (ifo==9||ifo==10||ifo==14||ifo==16)&&(pn+=1.8727359f0); p[2]=lg(pn)*Float32(occ[2])
+    # DF(3)
+    pn=-2.6235752f0+dh(3)+dp(3)+0.5771993f0*xc-0.0248810f0*xs+0.2794252f0*sl-0.0058675f0*ba-0.0229114f0*el+0.6120327f0*srg+0.5549276f0*sbw
+    ov(3)&&(pn+=0.2350508f0); (ifo==19||ifo==20)&&(pn-=0.6635007f0); (ifo in (7,9,10,11,12,3))&&(pn+=0.6195183f0); p[3]=lg(pn)*Float32(occ[3])
+    # GF(4)
+    pn=-4.2174864f0+0.7765163f0*xc+0.8718039f0*xs-0.4550694f0*sl-0.0045320f0*ba+0.1369318f0*el-0.0017545f0*elsq+dh(4)+0.555869f0*srg-0.249851f0*b4+0.412380f0*sbw+dp(4)
+    ov(4)&&(pn+=0.2759684f0); (ifo==3||ifo==10)&&(pn-=1.8014250f0); (ifo in (14,16,19,20))&&(pn-=1.1073681f0); p[4]=lg(pn)*Float32(occ[4])
+    # WH(5)
+    pn=-12.3053122f0+2.5642173f0*xc-0.4392772f0*xs-1.4051726f0*sl+dp(5)+0.4534289f0*el-0.0058291f0*elsq+0.7455533f0*st
+    ov(5)&&(pn+=0.7780439f0); p[5]=lg(pn)*Float32(occ[5])
+    # RC(6)
+    pn=-3.6279063f0+dh(6)+1.5773680f0*xc+0.7379712f0*xs-1.7963310f0*sl+dp(6)-0.0039867f0*ba-0.0259884f0*el+0.9247357f0*st
+    ov(6)&&(pn+=0.9973589f0); p[6]=lg(pn)*Float32(occ[6])
+    # LP(7)
+    pn=-0.9637001f0+dh(7)-3.1974275f0*sl-0.6840911f0*xc-0.1853668f0*xs-0.0317628f0*ba+dp(7)
+    ov(7)&&(pn+=1.5827047f0); (ifo in (4,5,17,19))&&(pn-=1.4140185f0); iphy==1&&(pn+=0.7254971f0); p[7]=lg(pn)*Float32(occ[7])
+    # ES(8)
+    pn=-17.6667213f0+dh(8)+1.5222952f0*xc+1.0029485f0*xs-2.0576222f0*sl-0.2404502f0*baln+3.173367f0*log(el)+dp(8)+0.5579416f0*srg+0.7190073f0*sbw
+    ov(8)&&(pn+=1.3091471f0); (ifo in (3,11,12))&&(pn-=0.5256087f0); ifo==4&&(pn+=1.1098698f0); (ifo==9||ifo==10)&&(pn+=0.3115149f0)
+    ifo==14&&(pn+=2.3169837f0); ifo==19&&(pn-=0.3958037f0); ifo==5&&(pn+=0.9730915f0); ifo==17&&(pn+=0.9142514f0); ifo==20&&(pn+=0.7438718f0); p[8]=lg(pn)*Float32(occ[8])
+    # AF(9)
+    pn=-7.7326031f0+dh(9)+0.8712742f0*xc+0.4329470f0*xs-1.7512965f0*sl-0.0112333f0*ba+0.0526394f0*el+0.5499482f0*srg+0.4826650f0*sbw+dp(9)
+    (ifo==14||ifo==16)&&(pn+=0.8137509f0); ov(9)&&(pn+=0.5798956f0); p[9]=lg(pn)*Float32(occ[9])
+    # PP(10)
+    pn=-3.9285939f0-0.7116187f0*xc-0.2141754f0*xs+dh(10)+dp(10)-0.6540064f0*sl-0.3319028f0*baln-0.0370099f0*el+0.4603494f0*st
+    ov(10)&&(pn+=1.0770060f0); (ifo==16||ifo==17)&&(pn+=1.8764150f0); (ifo in (3,19,20,14))&&(pn+=2.4815869f0); (iphy==4||iphy==5)&&(pn+=0.346372f0); p[10]=lg(pn)*Float32(occ[10])
+    return (p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8],p[9],p[10])
+end
