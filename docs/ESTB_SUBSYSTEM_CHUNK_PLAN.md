@@ -68,8 +68,16 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    per-sp PN intercepts/slopes: dump from em/essubh.f + em/blkdat.f (same table-dump technique as other chunks).
 3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP — em/essubh.f labels 10/20/70/80/90/100), then the
    IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
-4. (Optional refinement — current state already bit-exact-or-cornered: TPA exact, density ~7-9%, TopHt = the tail)
-   Faithful stochastic EMSQR/DILATE for tighter density + TopHt. MECHANISM (em/estab.f:646-650, 800-840):
+4. ⚠ ATTEMPTED + REVERTED 2026-08-04 — the EMSQR/DILATE reconstruction is **.sum-INERT** so it was NOT kept.
+   Implemented HHT=EXP(PN+EMSQR·DILATE·BNORML·σ) using the two emsqr draws jl already consumes + a per-species
+   running DILATE. Findings: **DILATE reconstructs BIT-EXACT** (0.1,0.3162,0.5623,… matched live); emsqr record-1
+   matched (0.2186) but **desyncs record-2+** (jl's per-replicate draw count diverges from FVS after record 1 —
+   likely FVS also draws emsqr for the advance/subsequent essubh paths, not just the plant path); IAGE uses Fortran
+   INT (trunc), not round (jl gave 6, FVS 5). CRITICAL: even with the variance the .sum barely moved (2090 TopHt
+   52→53, density unchanged) ⇒ **the ~8% density gap is NOT the establishment-height variance — it's seedling
+   GROWTH (EM regent on D~0.1 seedlings) or another downstream factor.** So step-4 is LOW-VALUE; the real remaining
+   EM-establishment lead is the seedling growth trajectory, not essubh. Deterministic HHT=EXP(PN) kept (cleaner,
+   equally cornered, no wrong-draw noise). Reconstruction MECHANISM for reference (em/estab.f:646-650, 800-840):
    `EMSQR = (esrann<0.5 ? -1 : +1) · esrann` — TWO ESRANN draws PER REPLICATE, which jl ALREADY consumes+discards
    at establishment.jl:218 (just use them). `DILATE = FIRST(2,sp)`, a PER-SPECIES running order-statistic:
    init 0.1, then `FIRST(2,sp)=SQRT(DILATE)` after each record (0.1→0.316→0.562→0.75→…→1 — the tallest-of-N
