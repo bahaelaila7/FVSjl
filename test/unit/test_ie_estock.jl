@@ -175,6 +175,25 @@ end
     end
 end
 
+@testset "IE AUTOES total ingrowth — task #143 chunk A2c" begin
+    # Full tally over NCOUNT = NPTIDS·IDUP = 50 plots. Each plot: ITPP trees × PROB1·300/DUPNPT TPA.
+    # Measured: PROB1=0.5527 (constant, IHAB=10), DUPNPT=50. Oracle 1999 total ingrowth = 583.7 TPA.
+    seeds = FVSjl.ie_autoes_plot_seeds(43303, 50)
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    maxing = FVSjl._IE_MAXING[10]
+    sitpp = 0
+    for (n, sd) in enumerate(seeds)
+        rng = FVSjl.IEEstabRNG(sd)
+        for _ in 1:(n == 1 ? 50 : 0); FVSjl.ie_esrann!(rng); end
+        FVSjl.ie_esrann!(rng); FVSjl.ie_esrann!(rng)
+        d3 = FVSjl.ie_esrann!(rng)
+        sitpp += clamp(round(Int, FVSjl.ie_estpp(d3, 10, xcos, xsin, slo, 1.0f0, 0.0f0)), 1, maxing)
+    end
+    @test sitpp == 176
+    total = sitpp * 0.5527f0 * 300f0 / 50f0
+    @test isapprox(total, 583.7f0; atol = 0.5f0)   # oracle ingrowth total, bit-exact to print precision
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
