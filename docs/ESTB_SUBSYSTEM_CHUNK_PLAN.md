@@ -66,6 +66,37 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
 4. (Later refinement) faithful stochastic EMSQR/DILATE order-statistic + per-record IPREP → bit-exact TopHt.
 
+**Complete em/essubh.f spec (all 19 species, extracted 2026-08-04) — deterministic HHT=EXP(PN):**
+```
+sp1  WB: PN=-1.51302+1.24537·L-0.003052·B+UPHY(iphy,1)                                    σ.46010
+sp2  WL: PN=-1.36257+1.21548·L-0.003797·B+UHAB(ih,2)+UPRE(ip,2)                            σ.52668
+sp3  DF: PN=-2.16416+1.28151·L-0.0031363·B+UHAB(ih,3)+UPRE(ip,3)+UPHY(iphy,3)
+         -0.09626·XC-0.23946·XS-0.14589·SLO                                               σ.55942 [VALIDATED]
+sp4  LM: HHT=0.5                                     sp6 RM: HHT=0.5
+sp5  LL & sp9 AF: PN=-2.06377+1.18184·L-0.0044465·B+0.06615·XC+0.03085·XS-0.37402·SLO      σ.56740
+sp7  LP: PN=-0.27105+1.32027·L-0.008208·B+UPRE(ip,7)+UPHY(iphy,7)+UHAB(ih,7)-0.15385·XC
+         +0.04156·XS-0.49186·SLO-0.04744·E+0.0003511·E²+0.01105·BWAF+0.02588·BWB4          σ.47557
+sp8  ES: PN=-2.93213+1.43503·L-0.002504·B+UPRE(ip,8)+UPHY(iphy,8)+UHAB(ih,8)               σ.48951
+sp10 PP: PN=-1.99480+1.53946·L-0.00402·B+UHAB(ih,10)+UPRE(ip,10)-0.01155·E                 σ.49076
+sp11-17 GA/AS/CW/BA/PW/NC/PB: HHT=5.0    sp18 OS: PN=-2.42379+1.52366·L-0.003256·B σ.54116   sp19 OH: HHT=5.0
+```
+L=ALOG(AGE), B=BAA clamp[1,400], XC=SLO·cos(asp), XS=SLO·sin(asp), E=ELEV(100s ft), ih=IHTSER, ip=IPREP, iphy=IPHY.
+Tables (rows = the species with nonzero coefs; cols = the index):
+```
+UHAB(5,·): WL/2=[-.01541,-.03814,.11409,.35334,0] DF/3=[-.21858,-.03354,.22756,.51988,0]
+           LP/7=[-.29969,-.15449,.04545,-.00601,0] ES/8=[0,0,.18740,.26511,0] PP/10=[-.02287,-.14710,.19278,.13817,0]
+UPRE(4,·): WL/2=[0,-.11310,-.06246,.009632] DF/3=[0,.06961,.19508,.17952] LP/7=[0,.11502,.02486,.13080]
+           ES/8=[0,.10587,.27072,.16240] PP/10=[0,.20729,.18491,.11864]
+UPHY(5,·): WB/1=[-.18731,-.48682,-.32160,-.16113,0] DF/3=[-.27801,-.20433,-.12317,-.26736,0]
+           LP/7=[.32401,.14743,.22165,.24559,0] ES/8=[.41120,.01164,.22217,.15834,0]
+```
+**INTEGRATION FINDING (2026-08-04):** the EM no-treeht post-essubh path DIFFERS from jl's shared path. FVS EM
+(em/estab.f:1035-1038): `HHT=essubh+HTADJ(sp)` then floor XMIN — NO random. jl (establishment.jl:269-274) adds a
+`bachlo(0.5,0.25)` RAN perturbation for the default no-treeht path. So the EM branch must ALSO route around the
+RAN add (use HTADJ, default 0) — check whether CR/TT (validated) hit the RAN path or bypass it, and reconcile.
+BWAF/BWB4 (LP habitat flags) still to source. Remaining sub-steps: reconcile RAN/HTADJ + derive IHTSER(IHAB)/IPHY,
+then write the EM branch + validate em_plant.key (DF) cornered.
+
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
 "SHELTERWOOD WITH AUTO REGENERATION": oracle TPA 1025→1788, jl 224→28). jl's `establish!` has NO AUTOES path —
