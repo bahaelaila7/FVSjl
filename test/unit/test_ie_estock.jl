@@ -296,6 +296,47 @@ end
     @test adv_seq[1:6] == [5, 5, 5, 6, 4, 4]   # WH WH WH RC GF GF
 end
 
+@testset "IE AUTOES advance-height integration — task #143 chunk A2c" begin
+    # End-to-end: seed chain → selection → ICHOI → ie_esadvh with the FIRST(1,sp) order-statistic chain
+    # (0.1 → √0.1 → …) tracked per species. Advance DELAY=0 so heights need only EMSQR + DILATE (no draw idx).
+    # Oracle ADVHHT dump: [0.654103, 0.550567, 0.549335, 0.300050, 0.176656, 0.188457].
+    seeds = FVSjl.ie_autoes_plot_seeds(43303, 8)
+    slo = 0.30f0; xc = cos(5.498f0) * slo; xs = sin(5.498f0) * slo
+    occ = Float32[ones(9); zeros(14)]; over = zeros(Float32, 10)
+    padv = collect(FVSjl.ie_espadv(10, 1, 4, 3, xc, xs, slo, 1.0f0, 1.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ, over))
+    psub = collect(FVSjl.ie_espsub(10, 1, 4, 3, xc, xs, slo, 1.0f0, 1.0f0, 0.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ, over))
+    sumup_base = [Float32.(padv); zeros(Float32, 13)]; sumup_base ./= sum(sumup_base)
+    nspnz = count(>(1f-4), sumup_base); maxspp = FVSjl._IE_MAXSPP[10]; maxing = FVSjl._IE_MAXING[10]
+    kw = (baa = 1.0f0, elev = 34.0f0, xcos = xc, xsin = xs, slo = slo, ihtser = 4, iphy = 3, iprep = 1)
+    FIRST = fill(0.1f0, 23); advh = Float32[]
+    for (n, sd) in enumerate(seeds)
+        rng = FVSjl.IEEstabRNG(sd)
+        for _ in 1:(n == 1 ? 50 : 0); FVSjl.ie_esrann!(rng); end
+        sgn = FVSjl.ie_esrann!(rng); mag = FVSjl.ie_esrann!(rng); emsqr = sgn < 0.5f0 ? -mag : mag
+        itpp = clamp(round(Int, FVSjl.ie_estpp(FVSjl.ie_esrann!(rng), 10, xc, xs, slo, 1.0f0, 0.0f0)), 1, maxing)
+        wk6n = [FVSjl.ie_esrann!(rng) for _ in 1:6]; wk6s = [FVSjl.ie_esrann!(rng) for _ in 1:6]
+        numspe = 1
+        if itpp != 1
+            pspe = collect(FVSjl.ie_esnspe(4, itpp, Float32(itpp), log(Float32(itpp)), 1.0f0, 34.0f0, 1.0f0, 0.0f0, xc, xs, slo))
+            cum = cumsum(pspe ./ sum(pspe)); numspe = 6
+            for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
+        end
+        numspe = min(numspe, maxspp, nspnz)
+        su = copy(sumup_base); best = Int[]
+        for i in 1:numspe; j = FVSjl.ie_estab_pick_species(wk6s[i], su); push!(best, j); su[j] = 0f0; t = sum(su); t > 0 && (su ./= t); end
+        advsub = [FVSjl.ie_esrann!(rng) for _ in 1:23]
+        for j in best
+            if advsub[j] <= padv[j] / (padv[j] + psub[j])
+                push!(advh, FVSjl.ie_esadvh(j, emsqr, FIRST[j], 0.0f0, 1.0f0; kw...)); FIRST[j] = sqrt(FIRST[j])
+            end
+        end
+    end
+    oracle = [0.654103f0, 0.550567f0, 0.549335f0, 0.300050f0, 0.176656f0, 0.188457f0]
+    for i in 1:6
+        @test isapprox(advh[i], oracle[i]; atol = 3f-4)
+    end
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
