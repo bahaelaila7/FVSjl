@@ -60,8 +60,11 @@ function compute_volumes_tt!(s::StandState)
         end
         eq = veq[sp]; mdl = length(strip(eq)) >= 7 ? strip(eq)[4:6] : "   "
         if mdl == "MAT"
-            # R4 merch cubic (tt/grinit.f): TOPD=6" outside-bark → inside-bark top = 6·bark; DBHMIN=8 (sp7=7).
-            mtopp = 6.0f0 * tt_bratio(sp, d)
+            # TT merch cubic top = TOPD = 6.0 UNCONDITIONALLY (NOT 6·bark). TT's fvsvol.f (line 192) is a newer
+            # version: "MTOPS AND TOPDIAM BOTH EQUAL THE TOPD" — no bark multiply. This DIFFERS from CI/UT whose
+            # fvsvol uses MTOPS=TOPD*BARK for NFS equations (so CI/UT keep 6·bark; both bit-exact). Using 6·bark
+            # here made TT small-tree MAT merch ~2-4% high (WB D=11.8: 9.70 vs live 9.30). DBHMIN=8 (sp7=7).
+            mtopp = 6.0f0
             dbhmin = sp == 7 ? 7.0f0 : 8.0f0
             tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
             mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
