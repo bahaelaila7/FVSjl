@@ -543,3 +543,36 @@ function ie_esrann!(rng::IEEstabRNG)::Float32
     rng.ess0 = ess1
     return Float32(ess1 / 2147483648.0)
 end
+
+# =============================================================================
+# ie_ocurht — AUTOES habitat-type-group occupancy (ie/blkdat.f OCURHT(16,MAXSP), task #143).
+# 0/1 flag zeroing out species-regen probabilities that cannot occur in a habitat type by definition.
+# The `occ` multiplier in ie_espadv/ie_espxcs/ie_espsub = OCURHT(ihab,sp)·XESMLT(sp)·OCURNF(ifo,sp).
+# Added species (11-23) have no natural regen ⇒ all 0. VALIDATED vs live FVSie: OCURHT(grp10,·)=[1×sp1-9, 0×sp10+]
+# (the debug dump; OCURHT(10,PP=10)=0 is why oracle PADV/PXCS(PP)=0). Cols 1-10 verbatim ie/blkdat.f:80-111.
+# =============================================================================
+
+# _IE_OCURHT[ihab, sp] (16×23). Species 1-10 = WP WL DF GF WH RC LP ES AF PP; 11-23 (added) = 0.
+const _IE_OCURHT = let m = zeros(Float32, 16, 23)
+    # columns 1-10 (habitat rows 1-16), from ie/blkdat.f OCURHT DATA (col-major)
+    m[:, 1]  = Float32[0,0,0,0,1,1,1,1,1,1,0,1,1,0,1,0]   # WP
+    m[:, 2]  = Float32[1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0]   # WL
+    m[:, 3]  = Float32[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]   # DF
+    m[:, 4]  = Float32[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0]   # GF
+    m[:, 5]  = Float32[0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0]   # WH
+    m[:, 6]  = Float32[0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0]   # RC
+    m[:, 7]  = Float32[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]   # LP
+    m[:, 8]  = Float32[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1]   # ES
+    m[:, 9]  = Float32[0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,1]   # AF
+    m[:, 10] = Float32[1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0]   # PP
+    m
+end
+
+"""
+    ie_ocurht(ihab, sp) -> Float32
+
+IE habitat-type-group occupancy flag (ie/blkdat.f OCURHT). 0 zeroes out a species' regen probability in
+a habitat type. Added species (11-23) → 0 (no natural regen).
+"""
+@inline ie_ocurht(ihab::Integer, sp::Integer)::Float32 =
+    (1 <= ihab <= 16 && 1 <= sp <= 23) ? @inbounds(_IE_OCURHT[ihab, sp]) : 0f0

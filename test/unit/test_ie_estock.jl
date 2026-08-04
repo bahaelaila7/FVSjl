@@ -80,3 +80,12 @@ end
     # even seed → odd-adjusted (ESRNSD)
     @test FVSjl.IEEstabRNG(43302.0).ess0 == 43303.0
 end
+
+@testset "IE OCURHT habitat occupancy — task #143" begin
+    # ie/blkdat.f OCURHT(16,MAXSP). Live debug (iet01 stand-4 grp10): sp1-9=1, sp10+ (incl PP)=0.
+    @test [FVSjl.ie_ocurht(10, s) for s in 1:23] == Float32[ones(9); zeros(14)]
+    @test FVSjl.ie_ocurht(10, 10) == 0f0        # PP not occupant in grp10 (zeroes PADV/PXCS PP)
+    @test FVSjl.ie_ocurht(7, 7) == 1f0          # LP occupies all 16 habitats
+    @test FVSjl.ie_ocurht(3, 5) == 0f0          # WH absent in DF-series habitats
+    @test all(FVSjl.ie_ocurht(h, sp) == 0f0 for h in 1:16, sp in 11:23)  # added species: no natural regen
+end
