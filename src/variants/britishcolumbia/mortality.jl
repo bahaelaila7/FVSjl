@@ -229,7 +229,7 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
         (1f0 < dd <= 5f0 && dgt < 0.05f0) && (dgt = 0.05f0 * (5f0 - dd) / 4f0)
         g = wk1 / (bark * oldfnt)
         (wk1 / oldfnt < dgt) && (g = dgt / bark)
-        ((icyc == 1 || wk1 == 0f0) && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))
+        ((icyc == 0 || wk1 == 0f0) && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))
         ip = dd <= 5f0 ? 2 : 1
         g *= (ip == 1 ? gmult1 : gmult2)
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqrtba + 11.2007f0 * g -
