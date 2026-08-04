@@ -240,6 +240,14 @@ end
     end
 end
 
+@testset "IE ESDLAY germination delay — task #143 chunk A2c" begin
+    # Advance (ias=1): DELAY=(Weibull+3)*(-1) is always negative → clamps to 0. Matches live
+    # "DELAY TO GERM=0.0000" for iet01 advance regen (BAA=1, BWB4=0). Holds ∀ species, draw.
+    @test all(FVSjl.ie_esdlay(sp, 1, dr, 1.0f0, 1.0f0) == 0f0 for sp in 1:10, dr in (0.1f0, 0.5f0, 0.9f0))
+    # Subsequent (ias=2): DELAY=Weibull-4, clamped [0,10] — monotone in draw, in range.
+    @test 0f0 <= FVSjl.ie_esdlay(4, 2, 0.5f0, 10.0f0, 1.0f0) <= 10f0
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)

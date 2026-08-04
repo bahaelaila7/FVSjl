@@ -784,3 +784,43 @@ function ie_esadvh(sp::Integer, emsqr::Real, dilate::Real, agel::Real, bnorm::Re
     end
     return exp(pn + disp*sig)
 end
+
+# =============================================================================
+# ie_esdlay — AUTOES years-to-germination delay (estb/esdlay.f, task #143). SHARED establishment code.
+# Weibull: DELAY=((-ln(1-DRAW))^(1/CC))*BB, then ADVANCE(ias=1): DELAY=(DELAY+3)*(-1) [→negative→clamps to 0];
+# SUBSEQUENT(ias=2): DELAY=DELAY-4. Clamp [0,10]. BB/CC by species×overstory-BA (advance BADV/CADV) or ×plot-age
+# (subsequent BSUB/CSUB); budworm variants (BBW/CBW…) for DF/GF/ES/AF (bwb4/bwaf). VALIDATED: advance DELAY=0
+# for iet01 (BAA=1→IBAA=1, BWB4=0; matches live "DELAY TO GERM=0.0000"). Coeffs verbatim esdlay.f.
+# =============================================================================
+# BADV[ibaa, sp] (2×11) advance, no budworm; CADV likewise. BSUB[it,sp]/CSUB (3×11) subsequent.
+const _IE_DLAY_BADV = Float32[6.699826 9.768223 13.121021 11.269182 13.604594 17.779381 7.358880 13.990273 21.962337 8.986115 13.604594;
+                             13.431179 27.100242 22.186540 18.245664 19.605485 24.241344 32.955809 21.779362 32.176727 10.312660 19.605485]
+const _IE_DLAY_CADV = Float32[1.262533 1.152577 1.043254 1.122139 1.267057 1.337217 0.912295 1.051296 1.101266 1.068472 1.267057;
+                             1.279302 1.319692 1.215651 1.082805 1.287445 1.540663 1.230540 1.416222 1.317022 1.470405 1.287445]
+const _IE_DLAY_BSUB = Float32[3.52946 5.23792 4.34376 4.17909 4.33094 4.16284 5.33757 5.36466 3.45725 3.81610 4.33094;
+                             7.62339 7.38005 6.55916 5.88262 6.30802 7.52536 6.78727 7.44468 6.34975 5.74622 6.30802;
+                             12.79801 10.42350 9.16226 8.49857 8.63060 10.20937 9.45827 9.69507 8.65545 9.36345 8.63060]
+const _IE_DLAY_CSUB = Float32[1.71621 3.11598 2.33194 2.47058 1.97408 2.03892 4.16994 2.89777 2.06804 3.01975 1.97408;
+                             2.72466 3.04038 2.63560 2.25957 2.35053 3.12279 3.59937 2.80504 2.79933 2.09376 2.35053;
+                             3.98359 2.87196 2.21663 2.00065 2.00997 2.68340 2.39138 3.27745 2.28687 1.80925 2.00997]
+
+"""
+    ie_esdlay(sp, ias, draw, time, baa; bwb4=0, bwaf=0) -> Float32
+
+IE years-to-germination delay (estb/esdlay.f). `ias`=1 advance / 2 subsequent; `draw`=ESRANN uniform;
+`time`=plot age; `baa`=overstory BA. Budworm branches (DF/GF/ES/AF) not yet included (bwb4=bwaf=0 here).
+"""
+function ie_esdlay(sp::Integer, ias::Integer, draw::Real, time::Real, baa::Real; bwb4::Real = 0, bwaf::Real = 0)::Float32
+    d = Float32(draw)
+    if ias == 1
+        ibaa = Float32(baa) > 25.5f0 ? 2 : 1
+        bb = _IE_DLAY_BADV[ibaa, sp]; cc = _IE_DLAY_CADV[ibaa, sp]
+        delay = ((-log(1f0 - d))^(1f0/cc)) * bb
+        delay = (delay + 3f0) * (-1f0)
+    else
+        it = time > 12.5 ? 3 : (time > 7.5 ? 2 : 1)
+        bb = _IE_DLAY_BSUB[it, sp]; cc = _IE_DLAY_CSUB[it, sp]
+        delay = ((-log(1f0 - d))^(1f0/cc)) * bb - 4f0
+    end
+    return clamp(delay, 0f0, 10f0)
+end
