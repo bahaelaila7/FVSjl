@@ -943,3 +943,40 @@ function ie_autoes_schedule!(est::Establishment, icyc::Integer, year::Integer,
     end
     return (false, 0)
 end
+
+# =============================================================================
+# ESTAB per-plot habitat/forest index derivation (esplt2.f + estab.f). Maps the
+# stand's raw habitat code + forest code to the establishment indices the tally
+# needs: IHAB (habitat-type-group 1-16), ISER (habitat series), IFO (est. forest
+# code), IPHY (physiographic, 3 default), IPREP (site-prep, 1=none default).
+# Stand case (no plot-specific data): IPHAB=IHTYPE, IPHYS=3, IPPREP=1 (esplt2.f:262-268).
+const _IE_ESTAB_IEND = Int[269,299,319,335,385,394,399,499,509,515,519,522,523,524,529,564,
+                           579,584,589,599,634,637,644,649,659,669,689,699,709,719,739,744,799]
+const _IE_ESTAB_MYGRUP = Int[3,1,4,2,4,3,4,3,8,6,8,7,5,7,8,9,10,6,8,5,13,16,11,14,16,12,15,12,14,15,11,15,14]
+const _IE_ESTAB_MYHABG = Int[1,1,1,1,2,2,2,2,3,4,5,5,5,5,5,5]           # estab.f:111 MYHABG(16)
+const _IE_ESTAB_IFORCD = Int[103,104,105,106,621,110,113,114,116,117,118,109,111,112,412,402,108,102,115,0]
+const _IE_ESTAB_IFORST = Int[3,4,5,4,7,10,4,14,16,17,4,9,11,12,19,20,11,9,12,4]
+
+"""
+    ie_estab_indices(habitat_code, forest_code) -> (ihab, iser, ifo, iphy, iprep)
+
+Derive the AUTOES per-plot indices for a stand (no plot-specific overrides).
+`habitat_code` = the raw STDINFO habitat class (KODTYP/ICL5); `forest_code` = the
+raw forest-location code (KODFOR). For iet01 stand-4 (570, 118) → (10, 4, 4, 3, 1).
+"""
+function ie_estab_indices(habitat_code::Integer, forest_code::Integer)
+    ihtype = 16                                              # esplt2.f:52 fallback
+    @inbounds for i in 1:33                                  # esplt2.f:45-53 IEND/MYGRUP bracket
+        if habitat_code <= _IE_ESTAB_IEND[i]
+            ihtype = _IE_ESTAB_MYGRUP[i]; break
+        end
+    end
+    iser = _IE_ESTAB_MYHABG[ihtype]                          # estab.f:492 ISER=MYHABG(IHAB)
+    ifo = 4                                                  # estab.f:218 default
+    @inbounds for i in 1:20                                  # estab.f:212-215 KODFOR match
+        if forest_code == _IE_ESTAB_IFORCD[i]
+            ifo = _IE_ESTAB_IFORST[i]; break
+        end
+    end
+    return (ihab = ihtype, iser = iser, ifo = ifo, iphy = 3, iprep = 1)
+end

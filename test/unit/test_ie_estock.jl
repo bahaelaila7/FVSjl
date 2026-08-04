@@ -381,3 +381,22 @@ end
     # IDSDAT at each firing (ingrowth = next_year-20; removal = year; continuation = unchanged)
     @test idsdat_seq == [1980, 2000, 2020, 2020, 2050, 2050, 2070]
 end
+
+@testset "IE AUTOES ESTAB index derivation (esplt2.f/estab.f) — task #143 chunk A3e" begin
+    # iet01 stand-4: STDINFO habitat=570, forest=118 -> (IHAB=10, ISER=4, IFO=4, IPHY=3, IPREP=1)
+    # matching the live ESTAB dump (iet01_s4dbg.out:3183 PLOT=1 IPREP=1 ISER=4 IFO=4).
+    idx = FVSjl.ie_estab_indices(570, 118)
+    @test idx.ihab == 10
+    @test idx.iser == 4
+    @test idx.ifo == 4
+    @test idx.iphy == 3
+    @test idx.iprep == 1
+    # bracket edges: 269 -> MYGRUP(1)=3; 799 -> MYGRUP(33)=14; >799 -> fallback 16
+    @test FVSjl.ie_estab_indices(269, 0).ihab == 3
+    @test FVSjl.ie_estab_indices(799, 0).ihab == 14
+    @test FVSjl.ie_estab_indices(9999, 0).ihab == 16
+    # forest fallback (unknown code) -> IFO=4
+    @test FVSjl.ie_estab_indices(570, 99999).ifo == 4
+    # a mapped forest: 105 -> IFORST(3)=5
+    @test FVSjl.ie_estab_indices(570, 105).ifo == 5
+end
