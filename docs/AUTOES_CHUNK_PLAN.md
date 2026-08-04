@@ -306,6 +306,22 @@ Two paths reach the same tree-creation tail; jl implements only the second:
   idsdat=IY(ICYC+1)-20; (3) 20-yr continuation (KDT-idsdat≤19 & ntally>0 → ntally++); (4) each firing runs
   ie_autoes_tally (PNONE=1 for ingrowth) + creates trees via the existing tail. Validate cycle-by-cycle vs the
   0/531/420/711/1537/1868/1256/1300/1600/1171/1081 trajectory.
+- **A3d DONE (commit bc25320): ie_autoes_schedule! bit-exact vs the measured 10-cycle sequence** (106 tests).
+  XTES measured (FVSie_trc): cyc1 ONTREM=ONTCUR=0 (inventory-year thin NOT tallied → gate on year>inv_year);
+  cyc4 XTES=0.799, cyc7 XTES=0.975 (THINBTA). Artifact stand4_xtes_ntally.txt.
+- **A3e — tree-creation wiring (NEXT, fully specced from cyc1 ESTAB dump iet01_s4dbg.out:3165+):** run
+  ie_autoes_tally per firing + create trees. MEASURED cyc1 inputs (ingrowth): seed0=43303 (=ie_autoes_seed0(55329)),
+  nplots=50, NOFSPE=23, IPREP=1, ISER=4, IFO=4, SLO=0.30, BAA=1.00, ELEV=34.0, ASPECT=5.498(→xcos/xsin),
+  TIME=1.0, BWB4=BWAF=0, REGT=SQREGT=1.0, PN_stocking=0.2116→PROB1=logistic=0.5527, OCURHT/OCURNF occupancy
+  (first 9 sp=1). PADV/PSUB/PXCS per species match ie_espadv/espsub/espxcs. ★ NEW SUB-PIECE = derive the ESTAB
+  habitat indices (estab.f): ISER=MYTYPE(ITYPE) then MYHABG(IHAB); IHAB=IPHAB(NNID); IPHY=IPHYS(NNID);
+  IFO=IFORST(I) (default 4, estab.f:214/218); IPREP via ESPREP(ISER,PNONE,PMECH,PBURN)+WK6 sampling (all=1 when
+  PNONE=1 ingrowth). For ITYPE=17→ISER=4, IFO=4, IPREP=1. Port MYTYPE/MYHABG/IPHAB/IPHYS/IFORST tables + ESPREP.
+  Then create the per-species TPA (ie_autoes_tally output) as trees via establish!'s existing tree-creation tail
+  (DBH=0.1+0.001·HHT since all establishment heights <4.5ft; heights from ie_esadvh/essubh/esxcsh by ICHOI).
+- **A3f — engine hook:** capture XTES in grow_cycle! after cuts! (rem.tpa/pre_tpa, rem.cuft/pre_cuft; skip
+  inventory-year), stash on estab; call ie_autoes_schedule! + the A3e tally in establish!'s IE branch.
+- **A4 — full-cycle .sum** vs the target trajectory.
 - **A4 — full-cycle differential:** iet01 stand-4 `.sum` TPA/BA/SDI vs oracle (the anchor table above). `.sum`
   aggregates ONLY (tripling). Then sweep the other western auto-regen stands.
 
