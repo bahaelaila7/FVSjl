@@ -248,8 +248,27 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     NPTIDS·IDUP plots: seed→135-draw stream, EMSQR@52, ESTPP@53, NUMSPE, IBEST, excess, book TPA; next seed=ESAVE}.
     Plot-1 is already bit-exact end-to-end. This is the last measurement before the assembly is fully determined.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
-- **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
-  engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
+- **A3 — scheduler (esnutr.f rules) — MEASURED 2026-08-04:** MODEL COMPLETE (all probs+RNG+heights bit-exact,
+  commit 6ae1ffb, 95 tests). Remaining = this trigger + tree creation. Trigger semantics (esnutr.f/esin.f/esinit.f):
+  - **Defaults (esinit.f:50-64):** `LAUTAL=LINGRW=LSPRUT=.TRUE.`, `THRES1=0.10`, `THRES2=0.30`, `NTALLY=0`,
+    `IDSDAT=-9999`, `MINREP=50`, `STOADJ=1.0`. IE defaults auto-establishment ON.
+  - **NOAUTOES** (initre.f:2815 opt-72 → ESNOAU, esin.f:783): sets `LAUTAL=LINGRW=LSPRUT=.FALSE.`, STOADJ=0.
+    (jl currently only zeroes lsprut — keyword_dispatch.jl:2233 — a STUB; must also clear lautal/lingrw.)
+  - **Keywords (esin.f):** INGROW→LINGRW=T; NOINGROW→F; AUTALLY→LAUTAL=T; NOAUTALY→F; THRSHOLD→THRES1/THRES2
+    (÷100, clamp T1∈[.025,.95], T2∈[.05,.975]); NATURAL keyword → LAUTAL=LINGRW=F, STOADJ=0.
+  - **LAUTAL removal path (esnutr.f:264-290):** after a thinning cycle, `XTPA=ONTREM(7)/ONTCUR(7)`,
+    `XCUF=OCVREM(7)/OCVCUR(7)`, `XTES=max(XTPA,XCUF)`. `LONE=(THRES1≤XTES<THRES2)`. If `LONE .OR. XTES≥THRES2`:
+    `IDSDAT=IY(ICYC)`, `NTALLY=1`, schedule tally at `KDT=IY(ICYC+1)-1`. (ONTREM/ONTCUR = removed/current
+    per-acre TOTALS from the thin — jl `cuts!` returns removed totals; need current-before-thin for the ratio.)
+  - **20-yr continuation (esnutr.f:298):** `IF(KDT-IDSDAT≤19 .AND. NTALLY>0)` → NTALLY++, reschedule tally.
+    Drives the multi-cycle 536→1025→…→1788 on stand-4 (IDSDAT=1990 from THINPRSC 0.999, XTES≈0.999≥0.30).
+  - **LINGRW ingrowth (esnutr.f:313-343):** if no tally next cycle & ((ITRN=0 & ICYC=1) OR (IY(ICYC+1)-IDSDAT≥40)):
+    `NTALLY=99` (ingrowth signal), `IDSDAT=IY(ICYC+1)-20`.
+  - **jl infra present:** `Establishment` struct (src/core/state.jl:599) has active/idsdat/ntally/es_seed/years_done;
+    `establish!` (engine/establishment.jl) already runs PLANT/NATURAL + REGENT-crown tail + computes
+    dupnpt/gentim/nptids/idup. NEED-TO-ADD: lautal/lingrw/thres1/thres2 fields (IE default T/T/.10/.30); the
+    removal-fraction trigger post-cuts!; the AUTOES branch (ie_autoes_tally → create trees via the existing tail).
+  Fire the tally in engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
 - **A4 — full-cycle differential:** iet01 stand-4 `.sum` TPA/BA/SDI vs oracle (the anchor table above). `.sum`
   aggregates ONLY (tripling). Then sweep the other western auto-regen stands.
 

@@ -602,8 +602,15 @@ mutable struct Establishment
     ntally::Int32       # regen-tally counter (NTALLY)
     es_seed::Float32    # persisted ESDRAW establishment reseed value (estab.f ESDRAW, SAVEd across tallies)
     years_done::Set{Int32}  # establishment years already applied (idempotent ESNUTR)
+    # AUTOES automatic-tally controls (esinit.f:50-64 defaults; western/IE auto-establishment). LAUTAL fires a
+    # regen tally when a thinning removes ≥THRES of the stand; LINGRW adds periodic ingrowth. NOAUTOES clears both.
+    lautal::Bool        # LAUTAL — automatic tallies after thinnings (default TRUE)
+    lingrw::Bool        # LINGRW — automatic ingrowth (default TRUE)
+    thres1::Float32     # THRES1 — lower removal fraction for a single AUTOES tally (default 0.10)
+    thres2::Float32     # THRES2 — upper removal fraction for a full AUTOES tally sequence (default 0.30)
 end
-Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}())
+Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
+                                true, true, 0.10f0, 0.30f0)
 
 mutable struct DbsState
     enabled::Bool

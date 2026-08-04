@@ -2230,7 +2230,16 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.
         elseif kw == "TREEDATA"; load_trees!(s, base_path * ".tre"; kr = kr); trees_loaded = true
         elseif kw == "NOTREES";  notrees = true       # bare stand — no tree-data read
-        elseif kw == "NOAUTOES"; s.control.lsprut = false  # disable automatic establishment (incl. auto stump-sprouting); estab.f LFLAG
+        elseif kw == "NOAUTOES"                            # initre.f opt-72 → ESNOAU (esin.f:783): clear ALL auto
+            s.control.lsprut = false                       # establishment — auto tallies, ingrowth, AND stump-sprouting.
+            s.estab.lautal = false; s.estab.lingrw = false
+        elseif kw == "AUTALLY";  s.estab.lautal = true      # esin.f opt 24 — enable automatic tallies
+        elseif kw == "NOAUTALY"; s.estab.lautal = false     # esin.f opt 23 — disable automatic tallies
+        elseif kw == "INGROW";   s.estab.lingrw = true      # esin.f opt 21 — enable automatic ingrowth
+        elseif kw == "NOINGROW"; s.estab.lingrw = false     # esin.f opt 22 — disable automatic ingrowth
+        elseif kw == "THRSHOLD"                             # esin.f opt 25 — removal-fraction thresholds for AUTOES
+            if rec.present[1]; s.estab.thres1 = clamp(Float32(rec.values[1]) / 100f0, 0.025f0, 0.950f0); end
+            if rec.present[2]; s.estab.thres2 = clamp(Float32(rec.values[2]) / 100f0, 0.050f0, 0.975f0); end
         elseif kw == "NOSPROUT"; s.control.lsprut = false  # disable stump sprouting (esin.f opt 27), standalone form
         elseif kw == "THINQFA"; kw_thinqfa!(s, rec, kr)   # 2-record keyword
         elseif kw == "SPGROUP"; kw_spgroup!(s, rec, kr)   # species group: name + next-record species list
