@@ -329,7 +329,9 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                 htgrth = _em_smhtgf(sp, cr, tpccf, zre[i])
                 con = exp(c.htg_cor_small[sp])                       # RHCON(=1)·exp(HCOR)
                 h2 = h1 + htgrth*(kpj/regyr)*con; wk3e[i] = h2       # XRHGRO=1
-                wk5e[i] = _em_smdgf(sp, h2, cr, pccf)                # SMDGF: DBH from grown height (raw PCCF)
+                # SMDGF: DBH from grown height (raw PCCF) — ONLY for h2>4.5 (em/regent.f:578 IF(H2.LE.4.5)GO TO 14
+                # skips the DBH; the HLESS4-form goes NEGATIVE below 4.5). wk5e stays d until the tree crosses 4.5.
+                h2 > 4.5f0 && (wk5e[i] = _em_smdgf(sp, h2, cr, pccf))
             end
         end
         @inbounds for i in 1:n
@@ -342,7 +344,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             cap = s.control.sp_size_cap[sp,4]; (h+htg > cap) && (htg = max(cap-h, 0.1f0))
             t.ht_growth[i] = htg
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
-            dkk = _em_smdgf(sp, h, cr, pccf)                          # SMDGF at start height
+            dkk = h > 4.5f0 ? _em_smdgf(sp, h, cr, pccf) : d          # SMDGF at start height (=d below 4.5, no neg-SMDGF)
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
             dgr = (wk5e[i] - dkk)*bark; dds = dgr*(2f0*bark*d + dgr)
             arg = (d*bark)^2 + dds; dgk = arg > 0f0 ? sqrt(arg) - bark*d : 0f0
