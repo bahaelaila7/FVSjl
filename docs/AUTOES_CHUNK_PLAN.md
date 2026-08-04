@@ -32,6 +32,27 @@ stand-4 to capture the PN (stocking prob) + predicted per-species TPP that produ
 oracle target). Oracle binaries present: /workspace/.iework/FVSie_clean (+ relink_ie.sh, estab.o/estock.o in
 bin/FVSie_buildDir).
 
+## ★ A1/A2 ORACLE TARGETS — MEASURED (2026-08-04, no instrument-replay needed)
+Ran `FVSie_clean` on iet01 stand-4 with a `DEBUG`(cycle 1) keyword; the standard RegRepts establishment output
+(REGENERATION ESTABLISHMENT MODEL v2.0) reports P(stocking) + per-species ingrowth directly — these ARE the A1/A2
+targets. Recipe: copy iet01.key → add `DEBUG` line after stand-4 title → `printf "iet01_dbg.key\n..." | FVSie_clean`
+→ read iet01_dbg.out "INGROWTH TREES/ACRE ADDED" + "PROBABILITY OF STOCKING IS" + "PLOT HABITAT TYPE SUMMARY".
+
+- **ESTOCK inputs (measured):** IHAB=**10** (all 10 plots in habitat GROUP 10 = WH/western-hemlock series) ⇒ ESTOCK
+  dispatch **IEQ=3 (CEDAR & HEMLOCK series, estock.f:74)**. Site-prep IPREP distribution NONE 90% / MECH 8% / BURN 2%.
+  This is why GF+WH+RC dominate the regen (the cedar/hemlock stocking eq).
+- **P(stocking) targets** (= logistic of ESTOCK PN + the ESB/ESB1/STOADJ correction, estab.f:579): first disturbance
+  tally-1(2029)=**0.8918**, tally-2(2039)=**0.9606**; second disturbance (2050 thin) tally-1(2059)=**0.8817**,
+  tally-2(2069)=**0.9554**. (For raw-PN bit-exact isolation, add the estab.f:538 `IF(DEBUG)` 6031 dump — but the
+  P(stocking) aggregate is enough for A1 acceptance.)
+- **Ingrowth pulses (ESNSPE species split, the A2 target):**
+  - FALL 1999 (cyc1, post-shelterwood): **583.7 TPA** = WP33 WL20 DF7 GF202 WH222 RC50 ES23 AF27.
+  - FALL 2019 (cyc3): **415.1 TPA** = WP70 WL5 DF19 GF150 WH137 RC35.
+  - FALL 2089: **135.5 TPA**.
+- **Scheduler behavior confirmed:** the model does PERIODIC TALLIES over a ~20-yr post-disturbance window (tally-1 at
+  +10yr, tally-2 at +20yr), each ESTOCK→ESNSPE→add. Two disturbances (1990 shelterwood + 2050 thin) ⇒ two tally
+  series ⇒ the recurring re-stocking pulses in the .sum. This is the esnutr.f "within 20yr of a disturbance" trigger.
+
 ## FVS structure (SOURCE-MAPPED, estb/*.f)
 Two paths reach the same tree-creation tail; jl implements only the second:
 
