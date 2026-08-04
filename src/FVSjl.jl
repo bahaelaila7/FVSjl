@@ -80,6 +80,14 @@ include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Regi
 include("variants/britishcolumbia/britishcolumbia.jl") # BC singleton + registration (MAXSP 15) — chunk 0 scaffold
 include("variants/britishcolumbia/species.jl")          # BC species block-data init (bc/blkdat.f) — chunk 1
 include("variants/britishcolumbia/site_index.jl")       # BC site/habitat (chunk 2): KODTYP→ITYPE + Stage SDImax
+include("variants/britishcolumbia/dg_coefficients.jl")  # BC V3 DG coeffs (ZNKONST/SSKONST) + matcher/DDS/bark — chunk 3
+include("variants/britishcolumbia/diameter_growth.jl")  # BC large-tree DDS hooks (bc_dgcons! + dgf!) — chunk 3 (not yet in simulate dispatch)
+include("variants/britishcolumbia/height_growth_coefficients.jl") # BC V3 HTG coeffs (LTHG/LTSP) + bc_v3_htg — chunk 4
+include("variants/britishcolumbia/height_growth.jl")             # BC height_growth!(::BritishColumbia) — chunk 4 (V3)
+include("variants/britishcolumbia/crown.jl")                    # BC per-tree CCF + stand RELDEN (ccfcal.f) — chunk 5 (CCF spine)
+include("variants/britishcolumbia/regent_coefficients.jl")     # BC small-tree V3 coeffs (ST_COEF) + bc_v3_sthg/bc_st_dbh — chunk 6
+include("variants/britishcolumbia/regent.jl")                   # BC small_tree_growth!(::BritishColumbia) — chunk 6
+include("variants/britishcolumbia/mortality.jl")                # BC mortality!(::BritishColumbia): V3 FMRT tabular + LMRT logistic — chunk 7
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax
