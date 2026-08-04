@@ -130,6 +130,21 @@ crosses 4.5 ft → large-tree DGF), not the initial DBH (~0.1 for any HT<4.5). B
 source. Remaining sub-steps: (1) branch establishment.jl on EM to skip the RAN draw + use HHT=EXP(PN)+HTADJ;
 (2) derive IHTSER(IHAB decode)/IPHY (em_plant: 2/3); (3) validate em_plant.key (DF) cornered vs em_plant.sum.
 
+## Gap A-residual — EM establishment seedling-growth ROOT CAUSE PINNED (2026-08-04)
+The ~8% density + TopHt lag on EM establishment stands (em_plant + emt01 ESTAB) is NOT the essubh height
+(controlled experiment proved injecting exact heights is .sum-inert) — it is **establishment-cycle growth timing**.
+jl's `establish!` runs at simulate.jl:558, AFTER the growth/UPDATE (line 533-534) — the SN "fresh this period"
+model (establishment.jl:7-14): trees enter at their essubh height with NO growth in the establishment cycle. But
+the EM oracle's establishment trees appear GROWN (emt01 ESTAB 2002 TopHt=10 while essubh height is ~3; em_plant
+2000 TopHt=5 while essubh ~1.2) ⇒ **FVS grows EM establishment trees IN their establishment cycle; jl does not.**
+So jl's establishment cohort is ~1 growth-cycle behind → persistent TopHt lag (density aggregates converge/cross
+because mortality compensates). VARIANT-SPECIFIC: the SN fresh-this-period model IS validated (SN/NE/CS/LS), so
+this is an EM (western?) establishment-timing difference, NOT a universal bug. FIX (a real chunk, risky — touches
+the shared establishment ordering): grow EM establishment trees in their establishment cycle (trace the exact FVS
+mechanism — regent on the age-7 essubh tree within the cycle, or the essubh AGE semantics = age-at-cycle-end).
+Verify against SN/NE/CS/LS non-regression. LOW-PRIORITY (density cornered, TopHt = the visible tail). This PINS
+the #137 residual from "seedling growth" to "establishment trees miss the establishment-cycle growth (SN model)".
+
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
 "SHELTERWOOD WITH AUTO REGENERATION": oracle TPA 1025→1788, jl 224→28). jl's `establish!` has NO AUTOES path —
