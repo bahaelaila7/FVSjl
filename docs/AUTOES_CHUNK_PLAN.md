@@ -182,6 +182,17 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     per-plot reseed/ESAVE). CONCLUSION: the multi-plot draw sequence CANNOT be reverse-engineered from EMSQR
     positions — ie_autoes_tally MUST forward-trace the full DO 245/2451/203/202/201 nest line-by-line (every ESRANN
     in each branch), validating plot-1 first (known-good), then each subsequent NCOUNT. This is the dedicated build.
+    ★ LOOP NESTING RESOLVED (estab.f:447-497): NCOUNT=0; DO 203 NN=1,NPTIDS → DO 202 ITYPEP=1,4 (skip if
+    NNPREP(ITYPEP)<1) → DO 201 IREP=1,NTIMES(=NNPREP); NCOUNT++ per rep ⇒ **NCOUNT total = NPTIDS·IDUP = 50** (NOT
+    10). `IF(IPREP.EQ.IPOLD) GO TO 137` skips only the plot-SETUP (475-601, which draws NOTHING — ESTOCK/ITPP calc
+    are draw-free); all 50 reps run the 602+ EMSQR/selection draws. So the 10 captured EMSQR are the first 10 of
+    ~50 NCOUNT iterations. Per-plot fixed-draw count SHOULD be 2(EMSQR)+1(ESTPP)+6+6+23+46+50 ≈ 134, but plot-2
+    EMSQR isn't at +134 ⇒ my hand-count is missing draws in some branch (INGRO/INADV/MATCH path at :588, or the
+    967 ESAVE, or a per-rep WK6). ⇒ DEFINITIVE NEXT STEP = INSTRUMENT the draw count: patch esrann.f with a call
+    counter + dump it at each EMSQR (or before each 6033 PLOT print) via the DEBUG-run recipe; that gives the EXACT
+    per-NCOUNT draw stride directly, ending the hand-count guessing. THEN write ie_autoes_tally with that stride and
+    validate plot-by-plot vs the EMSQR list. (Doctrine #2: instrument when unsure — hand-tracing 540 lines of
+    branchy Fortran is the wrong tool here.)
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
