@@ -644,3 +644,61 @@ end
 const _IE_MAXTPP = Int[9, 7, 5, 5, 10, 8, 9, 5, 21, 25, 10, 10, 11, 7, 10, 8]
 const _IE_MAXSPP = Int[4, 3, 3, 3, 5, 4, 6, 4, 6, 6, 4, 5, 5, 4, 6, 4]
 const _IE_MAXING = Int[4, 4, 3, 3, 5, 4, 5, 4, 7, 7, 5, 5, 5, 4, 5, 4]
+
+# =============================================================================
+# ie_autoes_tally — AUTOES per-species ingrowth TPA for one tally (ie/estab.f, task #143 chunk A2c).
+# Composes the 8 validated primitives + the per-plot seed chain into the full establishment tally, bit-exact
+# vs live FVSie. For NCOUNT = nplots plots (=NPTIDS·IDUP), each plot runs a 135-draw body from its chained
+# seed: EMSQR@2, ESTPP@3→ITPP (cap MAXING), NUMSPE-WK6@4-9, species-WK6@10-15, ADV/SUBS+heights@16-84,
+# excess-WK6@85-134. NUMSPE species (PSPE cumulative) are the "best" (1 tree each, PADV+PSUB SUMUP); the
+# ITPP-NUMSPE "excess" trees pick ONLY among the best species weighted by PXCS (estab.f:861-877). Each tree
+# = prob1·300/dupnpt TPA. VALIDATED BIT-EXACT on iet01 stand-4 (1999): WP33 WL20 DF7 GF202 WH222 RC50 ES23
+# AF27, total 583.7 = oracle. Returns a length-`nsp` per-species TPA vector.
+# =============================================================================
+function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser::Integer, ifo::Integer,
+                         iprep::Integer, iphy::Integer, xcos::Real, xsin::Real, slo::Real, elev::Real,
+                         baa::Real, regt::Real, bwaf::Real, bwb4::Real, prob1::Real, dupnpt::Real,
+                         occ::AbstractVector, over::AbstractVector, nsp::Integer = 23, wk6fill::Integer = 50)
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo)
+    padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, 1f0, Float32(baa), Float32(elev),
+                             Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
+    pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, 1f0, Float32(baa), Float32(elev),
+                             Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
+    sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
+    nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]; maxing = _IE_MAXING[ihab]
+    tpaw = Float32(prob1) * 300f0 / Float32(dupnpt)
+    seeds = ie_autoes_plot_seeds(seed0, nplots; wk6 = wk6fill)
+    tally = zeros(Float64, nsp)
+    for (n, sd) in enumerate(seeds)
+        rng = IEEstabRNG(sd)
+        for _ in 1:(n == 1 ? wk6fill : 0); ie_esrann!(rng); end
+        ie_esrann!(rng); ie_esrann!(rng)                                     # EMSQR
+        itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, xc, xs, sl, Float32(regt), Float32(bwaf))), 1, maxing)
+        wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
+        numspe = 1
+        if itpp != 1
+            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), log(Float32(itpp)), Float32(baa),
+                                     Float32(elev), Float32(regt), Float32(bwaf), xc, xs, sl))
+            cum = cumsum(pspe ./ sum(pspe)); numspe = 6
+            for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
+        end
+        numspe = min(numspe, maxspp, nspnz)
+        su = copy(sumup_base); ibest = zeros(Int, nsp)
+        for i in 1:numspe
+            j = ie_estab_pick_species(wk6s[i], su); tally[j] += tpaw; ibest[j] = 1
+            su[j] = 0f0; t = sum(su); t > 0 && (su ./= t)
+        end
+        we = zeros(Float32, nsp)
+        for i in 1:10
+            we[i] = pxcs[i] * ibest[i]; (ibest[i] == 1 && we[i] < 0.0001f0) && (we[i] = 0.0001f0)
+        end
+        twe = sum(we); twe > 0 && (we ./= twe)
+        for _ in 1:69; ie_esrann!(rng); end                                  # ADV/SUBS(23)+heights(46)
+        wk6e = ntuple(_ -> ie_esrann!(rng), 50)                              # excess-WK6
+        nd = 0
+        for _ in 1:(itpp - numspe)
+            nd += 1; j = ie_estab_pick_species(wk6e[nd], we); tally[j] += tpaw; nd += 1
+        end
+    end
+    return tally
+end

@@ -194,6 +194,20 @@ end
     @test isapprox(total, 583.7f0; atol = 0.5f0)   # oracle ingrowth total, bit-exact to print precision
 end
 
+@testset "IE AUTOES full per-species tally — task #143 chunk A2c" begin
+    # ie_autoes_tally composes the whole tally: seed chain → per-plot selection → excess (PXCS×IBEST) → TPA.
+    # Oracle iet01 stand-4 (1999 ingrowth): WP33 WL20 DF7 GF202 WH222 RC50 ES23 AF27, total 583.7.
+    occ = Float32[ones(9); zeros(14)]; over = zeros(Float32, 10); slo = 0.30f0
+    t = FVSjl.ie_autoes_tally(seed0 = 43303, nplots = 50, ihab = 10, iser = 4, ifo = 4, iprep = 1, iphy = 3,
+        xcos = cos(5.498f0) * slo, xsin = sin(5.498f0) * slo, slo = slo, elev = 34.0f0, baa = 1.0f0,
+        regt = 1.0f0, bwaf = 0.0f0, bwb4 = 0.0f0, prob1 = 0.5527f0, dupnpt = 50.0f0, occ = occ, over = over)
+    oracle = [33, 20, 7, 202, 222, 50, 0, 23, 27]   # WP WL DF GF WH RC LP ES AF
+    for i in 1:9
+        @test round(Int, t[i]) == oracle[i]
+    end
+    @test isapprox(sum(t), 583.7; atol = 0.6)
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
