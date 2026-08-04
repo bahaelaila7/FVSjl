@@ -26,8 +26,7 @@ function compute_volumes_bm!(s::StandState)
             t.saw_cuft_vol[i] = 0f0
             t.bdft_vol[i] = d >= dbhmin ? max(v[2], 0f0) : 0f0
         else                                                 # 616BEHW (region-6 Behre)
-            spec = length(se) >= 10 ? String(se[8:10]) : "999"
-            fclass = bm_formcl(spec, iforst, d)
+            fclass = bm_formcl(sp, iforst, d)                # form class keyed by BM species index (formcl.f)
             dbtbh = d * (1f0 - bark)                          # double bark thickness (fvsvol.f:153)
             dbhib = d - dbtbh
             vol2 = 0f0; vol4 = 0f0
@@ -57,38 +56,40 @@ end
 # bm/NVEL formclas.f FORMCL_BM — R6 Blue Mountains form-class lookup. Binary search of the FIA
 # code SPEC in FIAJSP (11 sorted codes), IFCDBH = (D−1)/10+1 clamped [1,5] (D>40.9→5), then
 # FC = forest_table[ISPC, IFCDBH]. IFORST 4/7/14/16 → Malheur/Ochoco/Umatilla/Wallowa-Whitman;
-# any other → Wallowa-Whitman. SPEC not in FIAJSP → FC=80. Tables stored [ifcdbh, ispc].
-const BM_FCL_FIAJSP = ["   ", "017", "019", "073", "093", "108", "119", "122", "202", "264", "999"]
-const BM_FCL_MALH = Int[80 76 78 78 77 80 78 78 78 75 60;
-                        80 78 80 79 80 83 78 78 77 79 60;
-                        80 77 80 80 82 83 79 80 77 79 60;
-                        80 76 82 82 84 80 81 82 80 79 60;
-                        80 76 82 77 84 80 78 83 77 78 60]
-const BM_FCL_OCHO = Int[80 76 78 78 82 70 78 76 79 75 60;
-                        80 78 76 78 82 75 80 78 79 78 60;
-                        80 77 74 80 82 75 80 78 76 79 60;
-                        80 74 74 80 82 75 82 80 76 79 60;
-                        80 74 74 80 82 75 80 80 76 78 60]
-const BM_FCL_UMAT = Int[80 76 74 78 77 86 78 78 77 75 60;
-                        80 78 74 78 77 86 78 78 77 75 60;
-                        80 77 74 78 75 86 80 80 77 75 60;
-                        80 76 75 78 75 86 81 81 77 79 60;
-                        80 76 75 78 75 86 81 81 77 78 60]
-const BM_FCL_WLWH = Int[80 76 78 78 84 85 78 78 78 75 60;
-                        80 78 79 82 84 86 78 78 77 79 60;
-                        80 77 79 77 84 85 78 80 77 79 60;
-                        80 76 79 75 84 85 78 82 77 79 60;
-                        80 76 79 75 84 85 78 83 77 78 60]
+# FULL 18-species form-class tables (bm/formcl.f DATA MALHFC/OCHOFC/UMATFC/WLWHFC, dimensioned MAXSP=18 × 5).
+# Indexed by the BM SPECIES INDEX (1=WP 2=WL 3=DF 4=GF 5=MH 6=WJ 7=LP 8=ES 9=AF 10=PP 11=WB 12=LM 13=PY 14=YC
+# 15=AS 16=CW 17=OS 18=OH), NOT a FIA subset — the earlier 11-col FIAJSP table left woodland minors (WJ/PY/YC/
+# WB/LM/AS/CW/OH) defaulting to 80 (bmt01-DEFERRED). Stored [ifcdbh(1..5), sp(1..18)]; column-major from Fortran.
+# Forest→table (formcl.f): 604→MALH 607→OCHO 614→UMAT 616→WLWH (iforst = kodfor%100 = 4/7/14/16).
+const BM_FCL_MALH = Int[78 78 78 76 75 60 80 77 78 78 80 80 56 56 77 76 60 77;
+                        78 79 77 78 79 60 83 80 80 78 81 81 60 66 77 78 60 77;
+                        79 80 77 77 79 60 83 82 80 80 81 81 60 68 77 78 60 77;
+                        81 82 80 76 79 60 80 84 82 82 82 82 60 68 77 78 60 77;
+                        78 77 77 76 78 60 80 84 82 83 82 82 60 68 76 78 60 76]
+const BM_FCL_OCHO = Int[78 78 79 76 75 60 70 82 78 76 80 80 56 56 77 76 60 77;
+                        80 78 79 78 78 60 75 82 76 78 81 81 60 66 77 78 60 77;
+                        80 80 76 77 79 60 75 82 74 78 81 81 60 68 77 78 60 77;
+                        82 80 76 74 79 60 75 82 74 80 82 82 60 68 77 78 60 77;
+                        80 80 76 74 78 60 75 82 74 80 82 82 60 68 76 78 60 76]
+const BM_FCL_UMAT = Int[78 78 77 76 75 60 86 77 74 78 80 80 56 56 77 76 60 77;
+                        78 78 77 78 75 60 86 77 74 78 81 81 60 66 77 78 60 77;
+                        80 78 77 77 75 60 86 75 74 80 81 81 60 68 77 78 60 77;
+                        81 78 77 76 79 60 86 75 75 81 82 82 60 68 77 78 60 77;
+                        81 78 77 76 78 60 86 75 75 81 82 82 60 68 76 78 60 76]
+const BM_FCL_WLWH = Int[78 78 78 76 75 60 85 84 78 78 80 80 56 56 77 76 60 77;
+                        78 82 77 78 79 60 86 84 79 78 81 81 60 66 77 78 60 77;
+                        78 77 77 77 79 60 85 84 79 80 81 81 60 68 77 78 60 77;
+                        78 75 77 76 79 60 85 84 79 82 82 82 60 68 77 78 60 77;
+                        78 75 77 76 78 60 85 84 79 83 82 82 60 68 76 78 60 76]
 
-function bm_formcl(spec::AbstractString, iforst::Int, d::Real)::Int
-    ispc = findfirst(==(spec), BM_FCL_FIAJSP)
-    ispc === nothing && return 80                             # not a form-class species
+function bm_formcl(sp::Integer, iforst::Int, d::Real)::Int
+    (sp < 1 || sp > 18) && return 80
     ifcdbh = Int(floor((Float32(d) - 1f0) / 10f0 + 1f0))
     ifcdbh < 1 && (ifcdbh = 1)
     Float32(d) > 40.9f0 && (ifcdbh = 5)
     tbl = iforst == 4 ? BM_FCL_MALH : iforst == 7 ? BM_FCL_OCHO :
           iforst == 14 ? BM_FCL_UMAT : BM_FCL_WLWH
-    return tbl[ifcdbh, ispc]
+    return tbl[ifcdbh, sp]
 end
 
 # bm/NVEL r6vol3.f — Behre total-cubic profile (VOLEQ 616BEH*** → ZONE 1). Smalian-integrated taper
