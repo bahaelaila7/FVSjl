@@ -150,8 +150,10 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                 dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
                 dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])       # 1600 DIAM floor on DK
                 dk += hk * 0.001f0                                 # 1601
-                # DG = (DK−D1)·XRDGRO; the inside-bark DDS round-trip (1622-1625) is IDENTITY for SCALE=YR/FINT=1.
+                # DGK=(DK−D1)·XRDGRO, then DG=BARK·DGK — the inside-bark DDS round-trip (regent.f:1622-1625)
+                # reduces to ×BARK for SCALE=YR/FINT=1 (NOT identity: DG=sqrt((D·B)²+DGK·B·(2·B·D+DGK·B))−B·D = B·DGK).
                 dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
+                dg *= bc_bratio(sp)
             end
             (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
             t.diam_growth[i] = dg
