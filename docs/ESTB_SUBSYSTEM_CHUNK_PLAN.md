@@ -210,6 +210,25 @@ validated stands stay bit-exact (they actively thin ⇒ |t-TPAMRT|>1 ⇒ reset e
 fixes BOTH #137 (EM over-kill) + #140 (BM under-kill, opposite sign). See task #144. The esgent TopHt grow (git
 history) stays optional. Corrected from the prior over-assertion (growth-validated is solid; mortality was the root).
 
+**#144 IMPLEMENTED, MEASURED, REVERTED (2026-08-04) — HYPOTHESIS FALSIFIED.** Mirrored em/ut/bm/tt morts.f
+persistence exactly (set-once SLPMRT/CEPMRT in _em_tn10_iter/_tt_tn10_iter via dens.mort_slope/intercept; reset
+`cycle≥1 && |tt-tpa_mort|>1`; store tpa_mort=residual TPA post-mortality). Then before/after jl-vs-jl + vs live
+oracle on 8 western stands. RESULT: (1) #137 (emt01_smallr) + #140 (bmt01_smallr) are BYTE-IDENTICAL before/after —
+UNCHANGED. Reason: those dense stands sit ABOVE the 85% SDI line (T>t85d0), so morts takes the "kill-to-85%-line"
+branch (tn10=t85d10 directly) and NEVER calls the linear-fn iter where the persisted line lives — the persistence
+is structurally INERT on the exact stands it was meant to fix. (2) It
+does slightly IMPROVE BMgrow @2010 (446→436 vs oracle 428) but is NEUTRAL-or-WORSE elsewhere; on the emt01 base
+stand it REGRESSES near-bit-exact cycles (2060: was 454 vs oracle 455 → became 447). Faithful port yet moves AWAY
+from an oracle that HAS the persistence ⇒ my T/TPAMRT don't match FVS's DBHSTAGE-filtered T/TNEW (reset mis-timing).
+CONCLUSION: persistence is NOT the root of #137/#140. Reverted (net-negative: doesn't fix targets, regresses base).
+**TRUE ROOT of #137/#140 (re-verified, BMgrow vs oracle):** the LATE self-thin plateau. jl pins SDI at SDImax=267
+with BA still CLIMBING (148→165, 2050-2090) while the live oracle self-thins PAST SDImax — BA plateaus at 146 and
+SDI DECLINES 253→219, TPA 204→96 (jl holds 254→163, +70%). So jl's self-thin STOPS at the SDImax line; the oracle
+keeps thinning as the stand matures beyond it (a BAMAX/SDImax-boundary self-thin-rate issue AT/AFTER the plateau,
+NOT the linear-fn line persistence). That plateau divergence is the real #140 (and the EM base-stand density tail of
+#137). Next probe: em/bm morts.f TN10 in the T>t85d0 "kill-to-85%-line" branch + the RN=1-(1-(T-TN10)/T)^(1/FINT)
+rate when the stand is pinned at SDImax — compare jl vs oracle tn10/rn at the plateau cycles (2050+ on bmt01_growth).
+
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
 "SHELTERWOOD WITH AUTO REGENERATION": oracle TPA 1025→1788, jl 224→28). jl's `establish!` has NO AUTOES path —
