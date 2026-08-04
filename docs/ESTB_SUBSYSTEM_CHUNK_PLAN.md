@@ -90,12 +90,15 @@ UPRE(4,·): WL/2=[0,-.11310,-.06246,.009632] DF/3=[0,.06961,.19508,.17952] LP/7=
 UPHY(5,·): WB/1=[-.18731,-.48682,-.32160,-.16113,0] DF/3=[-.27801,-.20433,-.12317,-.26736,0]
            LP/7=[.32401,.14743,.22165,.24559,0] ES/8=[.41120,.01164,.22217,.15834,0]
 ```
-**INTEGRATION FINDING (2026-08-04):** the EM no-treeht post-essubh path DIFFERS from jl's shared path. FVS EM
-(em/estab.f:1035-1038): `HHT=essubh+HTADJ(sp)` then floor XMIN — NO random. jl (establishment.jl:269-274) adds a
-`bachlo(0.5,0.25)` RAN perturbation for the default no-treeht path. So the EM branch must ALSO route around the
-RAN add (use HTADJ, default 0) — check whether CR/TT (validated) hit the RAN path or bypass it, and reconcile.
-BWAF/BWB4 (LP habitat flags) still to source. Remaining sub-steps: reconcile RAN/HTADJ + derive IHTSER(IHAB)/IPHY,
-then write the EM branch + validate em_plant.key (DF) cornered.
+**INTEGRATION FINDING — RESOLVED (2026-08-04):** the EM no-treeht PLANT path genuinely differs from CR's.
+CR estab.f:486-489 (matches jl's shared establishment.jl:269-274): `RAN=BACHLO(0.5,0.25) reject∉[0,1.5]; HHT+=RAN;
+HHT+=HTADJ; floor XMIN`. **EM estab.f:1035-1038 OMITS the RAN**: just `HHT+=HTADJ(sp); floor XMIN` — no BACHLO draw.
+⇒ jl's EM branch must (a) NOT add the RAN perturbation, and (b) NOT consume the RAN `bachlo` draw at
+establishment.jl:271 (else the `:estab` stream desyncs vs FVSem). i.e. the EM path is `HHT = EXP(PN) + HTADJ(sp)`
+(HTADJ default 0), floor XMIN, cap HHTMAX — deterministic. Matters for the mid/late .sum (which cycle a seedling
+crosses 4.5 ft → large-tree DGF), not the initial DBH (~0.1 for any HT<4.5). BWAF/BWB4 (LP habitat flags) still to
+source. Remaining sub-steps: (1) branch establishment.jl on EM to skip the RAN draw + use HHT=EXP(PN)+HTADJ;
+(2) derive IHTSER(IHAB decode)/IPHY (em_plant: 2/3); (3) validate em_plant.key (DF) cornered vs em_plant.sum.
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
