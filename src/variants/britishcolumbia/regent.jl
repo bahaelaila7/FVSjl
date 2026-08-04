@@ -138,14 +138,22 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
-        if d < 3.0f0                                              # DBH dub (regent.f:1355-1445)
+        if d < 3.0f0                                              # DBH dub (regent.f:1571-1629)
             relh = (h - 4.5f0)/(avh - 4.5f0); relh = clamp(relh, 0f0, 1f0)
             dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
-            d1 = bc_st_dbh(sp, h, dadj); dk = bc_st_dbh(sp, h + htg, dadj)
+            d1 = bc_st_dbh(sp, h, dadj)                            # D1 (regent.f:1588-1589)
+            hk = h + htg
             xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
-            # dg = outside-bark increment (dk−d1). The oracle's inside-bark DDS round-trip (regent.f:1618-1625)
-            # cancels for SCALE=YR/FINT=1 when applied to the outside-bark DBH, so keep the direct increment.
-            dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
+            if hk < 4.5f0
+                dg = 0f0                                           # regent.f:1593-1595
+            else
+                dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
+                dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])       # 1600 DIAM floor on DK
+                dk += hk * 0.001f0                                 # 1601
+                # DG = (DK−D1)·XRDGRO; the inside-bark DDS round-trip (1622-1625) is IDENTITY for SCALE=YR/FINT=1.
+                dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
+            end
+            (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
             t.diam_growth[i] = dg
         end
     end
