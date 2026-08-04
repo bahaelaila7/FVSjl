@@ -138,12 +138,16 @@ model (establishment.jl:7-14): trees enter at their essubh height with NO growth
 the EM oracle's establishment trees appear GROWN (emt01 ESTAB 2002 TopHt=10 while essubh height is ~3; em_plant
 2000 TopHt=5 while essubh ~1.2) ⇒ **FVS grows EM establishment trees IN their establishment cycle; jl does not.**
 So jl's establishment cohort is ~1 growth-cycle behind → persistent TopHt lag (density aggregates converge/cross
-because mortality compensates). VARIANT-SPECIFIC: the SN fresh-this-period model IS validated (SN/NE/CS/LS), so
-this is an EM (western?) establishment-timing difference, NOT a universal bug. FIX (a real chunk, risky — touches
-the shared establishment ordering): grow EM establishment trees in their establishment cycle (trace the exact FVS
-mechanism — regent on the age-7 essubh tree within the cycle, or the essubh AGE semantics = age-at-cycle-end).
-Verify against SN/NE/CS/LS non-regression. LOW-PRIORITY (density cornered, TopHt = the visible tail). This PINS
-the #137 residual from "seedling growth" to "establishment trees miss the establishment-cycle growth (SN model)".
+because mortality compensates). **VERIFIED EXACT MECHANISM (estb/esgent.f, shared):** line 46-58 —
+`'GROW' TREES TO THE END OF THE CYCLE` via `CALL REGENT(.TRUE.,ITRNIN)` then `HT(I)=HT(I)+HTG(I)`, DBH re-derived
+from the grown height. So FVS grows the freshly-established trees ONE cycle via REGENT before summarizing (SN's
+buildDir esgent.f has the SAME call). jl's establish! OMITS this REGENT grow-to-cycle-end. jl handles SN OK because
+SN's essubh uses the age-at-cycle-end site curve (htcalc_height at the grown age = already the cycle-end height),
+but **EM's essubh gives the establishment-age (age-7) height and RELIES on the esgent REGENT grow** — which jl
+skips. FIX (EM-gated, safe from SN): after creating the EM establishment trees, grow them one cycle via
+small_tree_growth!(::EasternMontana) (mirror esgent.f: HT+=HTG, DBH from grown HT, HHTMAX cap). Intricate (needs
+the regent setup on the fresh cohort); LOW-PRIORITY (density cornered, TopHt = the visible tail). This upgrades the
+#137 residual from hypothesis to a SOURCE-VERIFIED mechanism (estb/esgent.f CALL REGENT) with a specific EM-gated fix.
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
