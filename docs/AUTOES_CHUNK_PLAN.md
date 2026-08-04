@@ -13,6 +13,19 @@ ie_essubh/ie_esxcsh) in the tree list; (2) A4 full-cycle .sum (536→1025→…�
 (OCURNF/XESMLT for non-forest-4, ESPSUB for TIME>2 habitat mixes, multi-tally +10/+20yr scheduling). This is a
 focused shared-engine integration best done as one careful unit with end-to-end .sum validation.
 
+★ HEIGHT SUB-MODEL ANALYSIS (2026-08-04, for the wiring phase): ingrowth-tree heights are the one remaining
+model piece, but they are COUPLED to the tally-body draw machinery, not an isolatable increment. Since PSUB=0
+(ITIME≤2), all BEST trees are ADVANCE regen (ICHOI adv, DRAW≤PADV/(PADV+PSUB)=1 always) → ESADVH; EXCESS trees →
+ESXCSH (ported). ESADVH (esadvh.f, 174L) is a clean per-species regression HHT=EXP(PN + EMSQR·DILATE·BNORM·σ_sp)
+with THAB(5,MAXSP)/TPRE(4,MAXSP)/TPHY(5,MAXSP) hab/prep/phys tables (coeffs extracted, ready to port) — BUT its
+inputs DILATE(=FIRST(1,I)), DELAY(=ESDLAY draw, N=INT(DELAY+.5) cap2→1), GENTIM(=FINT-5), TIME, EMSQR come from
+the body-39..84 height draws + ESDLAY + the FIRST dispersion array. ⇒ can't validate ESADVH in isolation (no
+advance-only height oracle; the regen report's AVERAGE HEIGHT [WP3.5 DF3.8 GF1.7 WH1.9 RC2.1 ES2.2] blends
+adv+excess and needs the full DILATE/DELAY/GENTIM chain). So the heights + tree-creation + esnutr-scheduler +
+per-plot-input-derivation are ONE coupled shared-engine build, validated end-to-end via full-cycle .sum. Port
+ESADVH + ESDLAY + wire into engine/establishment.jl as that dedicated unit; the tally counts/species/total are
+already bit-exact and feed it directly.
+
 --- ORIGINAL PLAN (historical; the tally is now built + validated per the above) ---
 Estimated new surface: ~600–900 lines (ESTOCK+ESNSPE+ESADVH + the esnutr scheduler + the predicted-naturals
 slice of estab.f), reusing jl's EXISTING explicit-PLANT/NATURAL tree-creation machinery (engine/establishment.jl).
