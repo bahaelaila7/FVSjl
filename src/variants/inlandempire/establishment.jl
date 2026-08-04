@@ -156,3 +156,79 @@ function ie_esxcsh(sp::Integer, htmax::Real, htmin::Real, time::Real, draw::Real
     hht = ((-log(1f0 - xx))^(1f0 / cc)) * bb + Float32(htmin)
     return 0.2f0 * (hht + sh)
 end
+
+# =============================================================================
+# ie_estock — AUTOES probability-of-stocking (ie/estock.f, task #143 chunk A1).
+# The regeneration establishment model's P(stocking) for the automatic (natural,
+# disturbance-triggered) regen tally. Habitat-series dispatch on IHAB → IEQ
+# (1=Douglas-fir, 2=grand-fir, 3=cedar/hemlock, 4=subalpine-fir); IPREP>3 uses the
+# "all roads" equation. Returns PN (a logit); the caller forms the stocking prob
+# FTEMP = 1/(1+exp(-(PN + ESB - ESB1)))·STOADJ (estab.f:579). Coefficients verbatim
+# from estock.f DATA statements. VALIDATED bit-exact vs live FVSie instrument on
+# iet01 stand-4: IHAB=10→IEQ=3, inputs {SLO=0.30, ASPECT=5.498, ELEV=34, BAA=1,
+# IPREP=1, TIME=1, SQREGT=1} → PN=0.2116 (oracle 0.2116). See docs/AUTOES_CHUNK_PLAN.md.
+# =============================================================================
+
+const _IE_ESTOCK_SHAB = Float32[1.14975, 0.070196, -0.115832, 0.0, 0.539949, -0.060377, 0.0,
+                                -0.178929, 0.0, 0.356001, 0.278596, 0.181755, 0.0, -0.764070,
+                                0.403826, -0.837748]
+const _IE_ESTOCK_SSER = Float32[0.0, 0.5976365, 1.3547862, 1.5073566, 1.1695859]
+# SPRE[iprep, ieq] — site-prep (1=NONE,2=MECH,3=BURN) by habitat series (Fortran SPRE(3,4), col-major).
+const _IE_ESTOCK_SPRE = Float32[0.0 0.0 0.0 0.0;
+                                -0.180267 -0.161450 -0.185464 0.068146;
+                                -0.485674 -0.189325 -0.346349 -0.342800]
+const _IE_ESTOCK_FORDF = Float32[0.0, 0.0, 1.077081, 0.0, 0.0, 0.0, 0.0, 0.0, 0.730596, 0.730596,
+                                 0.730596, 0.730596, 0.0, 0.0, 0.0, 1.077081, 0.0, 0.0, 0.286133, 0.805539]
+const _IE_ESTOCK_FORGF = Float32[0.0, 0.0, 0.0, 0.0, -0.482030, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                 0.0, 0.0, 0.0, 0.0, -0.415825, 0.0, -1.087558, -1.087558]
+
+"""
+    ie_estock(ihab, iprep, slo, xcosas, xsinas, elev, xbaa, xbaaln, time, sqregt, sqbwaf, bwb4, ifo) -> PN
+
+IE regeneration P(stocking) logit (ie/estock.f). `xcosas`/`xsinas` = cos/sin(aspect); `xbaa`/`xbaaln` = BAA
+and ln(BAA); `time` = years since disturbance; `sqregt`/`sqbwaf`/`bwb4` = WSBW habitat-code flags; `ifo` =
+forest index (1-20). Faithful transcription incl. the IPREP>3 "all roads" branch.
+"""
+function ie_estock(ihab::Integer, iprep::Integer, slo::Real, xcosas::Real, xsinas::Real, elev::Real,
+                   xbaa::Real, xbaaln::Real, time::Real, sqregt::Real, sqbwaf::Real, bwb4::Real,
+                   ifo::Integer)::Float32
+    xc = Float32(xcosas); xs = Float32(xsinas); el = Float32(elev); ba = Float32(xbaa)
+    baln = Float32(xbaaln); srg = Float32(sqregt); sbw = Float32(sqbwaf); b4 = Float32(bwb4)
+    elsq = el * el
+    shab = (1 <= ihab <= 16) ? _IE_ESTOCK_SHAB[ihab] : 0f0
+    fordf = (1 <= ifo <= 20) ? _IE_ESTOCK_FORDF[ifo] : 0f0
+    forgf = (1 <= ifo <= 20) ? _IE_ESTOCK_FORGF[ifo] : 0f0
+    # IEQ dispatch (estock.f:46-49)
+    ieq = 1
+    (ihab > 4 && ihab < 9) && (ieq = 2)
+    (ihab == 9 || ihab == 10) && (ieq = 3)
+    ihab > 10 && (ieq = 4)
+    if iprep > 3
+        # "all roads" (estock.f:94-100)
+        ihab > 9 && (ieq += 1)
+        sser = (1 <= ieq <= 5) ? _IE_ESTOCK_SSER[ieq] : 0f0
+        return -2.1072788f0 + sser + 0.0111295f0 * ba + 0.4206679f0 * srg -
+               0.3558347f0 * b4 + 0.1871430f0 * sbw
+    end
+    sqslo = sqrt(Float32(slo)); sqsq = sqslo * sqrt(Float32(time))
+    spre = _IE_ESTOCK_SPRE[iprep, ieq]
+    if ieq == 1                          # Douglas-fir series (estock.f:54-62)
+        return -0.829879f0 + shab + 0.074061f0 * xc * sqsq - 0.067207f0 * xs * sqsq -
+               0.021187f0 * sqsq + spre - 0.027058f0 * el + 0.213680f0 * srg +
+               0.129135f0 * sbw + fordf
+    elseif ieq == 2                      # grand-fir series (estock.f:63-73)
+        return -2.444807f0 + 0.392834f0 * xc * sqsq + shab + 0.117465f0 * xs * sqsq -
+               0.316824f0 * sqsq + spre + forgf + 0.013726f0 * ba - 0.0000822f0 * ba * ba +
+               0.076197f0 * el - 0.000839f0 * elsq + 0.555074f0 * sqrt(Float32(time)) -
+               0.013542f0 * xc * Float32(slo) * ba - 0.013486f0 * xs * Float32(slo) * ba
+    elseif ieq == 3                      # cedar/hemlock series (estock.f:74-84)
+        return -6.216694f0 + shab + 0.587967f0 * xc * sqsq + 0.007416f0 * xs * sqsq +
+               0.152539f0 * sqsq + spre + 0.007953f0 * ba - 0.0000373f0 * ba * ba +
+               0.288594f0 * el - 0.003952f0 * elsq + 0.514807f0 * srg + 0.449858f0 * sbw -
+               0.017901f0 * xc * Float32(slo) * ba - 0.006001f0 * xs * Float32(slo) * ba
+    else                                 # subalpine-fir series (estock.f:85-93)
+        return -0.430349f0 + shab + 0.246248f0 * xc * sqsq - 0.019381f0 * xs * sqsq -
+               0.099968f0 * sqsq + spre + 0.136777f0 * baln + 0.239137f0 * srg -
+               0.111587f0 * b4 + 0.224696f0 * sbw
+    end
+end

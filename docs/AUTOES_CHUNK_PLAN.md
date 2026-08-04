@@ -83,8 +83,12 @@ Two paths reach the same tree-creation tail; jl implements only the second:
 ## Chunk breakdown (proposed; refine on contact)
 - **A0 — harness:** wire iet01 stand-4 into a differential harness vs live FVSie `.sum` (the 2nd stand block).
   Oracle: `/workspace/.iework/ierun/` (relink FVSie if needed). NOAUTOES on = must stay bit-exact (regression gate).
-- **A1 — ESTOCK:** port estock.f verbatim (5 habitat-series eqs + DATA coeffs) + the IHAB/IPREP/aspect/BAA inputs.
-  Validate PN vs a live ESTOCK instrument-replay (dump PN at estab.f:536/572 for iet01 stand-4).
+- **A1 — ESTOCK: ✅ DONE (2026-08-04).** Ported estock.f verbatim → `ie_estock` (src/variants/inlandempire/
+  establishment.jl): 5 habitat-series eqs + IPREP>3 "all roads" branch + DATA coeffs (SHAB/SSER/SPRE/FORDF/FORGF).
+  VALIDATED BIT-EXACT vs live FVSie: iet01 stand-4 {IHAB=10→IEQ=3, SLO=0.30, ASPECT=5.498, ELEV=34, BAA=1, IPREP=1,
+  TIME=1, SQREGT=1} → PN=0.2116 (oracle 0.2116). Locked in test/unit/test_ie_estock.jl (7 tests). The estab.f:538
+  DEBUG dump needs bare `DEBUG` (all cycles — the fall tally runs under a later ICYC); note a debug-ONLY segfault
+  in VOLINIT on tiny regen trees under bare DEBUG (production/.sum runs unaffected — low-pri, not the SIGFPE class).
 - **A2 — ESNSPE + heights:** species apportionment + ESADVH/ESSUBH (reuse the EM essubh generalization). Validate
   the predicted per-species TPP + heights vs instrument.
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
