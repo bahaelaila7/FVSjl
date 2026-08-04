@@ -27,8 +27,15 @@ BNORML(table) in em/blkdat.f.
 
 **Inputs (em/estab.f:470-493, per-plot):** IPREP=ITYPEP (siteprep; default NONE=1 ⇒ UPRE(1,sp)=0);
 IPHY=IPHYS(NNID) (physiographic 1-5); BAA=BAAA(NNID) competition BA clamp[1,400] (BARE ⇒ 1);
-IHAB=IPHAB(NNID) habitat GROUP 1-16; IHTSER=MYHTS(IHAB), `MYHTS=/1,3*2,4*3,2*4,.../`,
-`MYHABG=/4*1,4*2,3,4,6*5/`. XCOS/XSIN from aspect, SLO=slope fraction, from STDINFO.
+IHAB=IPHAB(NNID) habitat GROUP 1-16; IHTSER=MYHTS(IHAB). XCOS/XSIN from aspect, SLO=slope fraction.
+**IHTSER derivation (traced 2026-08-04):** EM has TWO habitat classifications — ITYPE(1-30, growth model,
+which jl HAS as habitat_input) and **IHAB(1-16, ESTAB-specific**, indexed into 16 HABTYP strings at em/estab.f:112,
+which jl LACKS). Tables (em/estab.f:109-111 DATA): `MYHTS(16)=/1,2,2,2,3,3,3,3,4,4,6*5/`,
+`MYHABG(16)=/4*1,4*2,3,4,6*5/`, `MYTYPE(30)=/9*1,2*5,2*2,3*3,4,12*5,1/` (ITYPE→ISER), `MAXTPP(16)`,
+`MAXSPP(16)=/4,3*3,5,4,6,4,2*6,4,2*5,4,6,4/`, `MAXING(16)`. So the port needs the EM estab habitat-decode (habitat
+code → IHAB 1-16), an estab-setup piece jl doesn't have. For em_plant: IHTSER=2 ⇒ IHAB∈{2,3,4}. First-cut: hardcode
+IHTSER=2/IPHY=3 to validate the formula+integration on em_plant, then port the IHAB decode to generalize.
+DF-verified coeffs from the dump: UHAB(2,3)=-0.03354, UPRE(1,3)=0.0, UPHY(3,3)=-0.12317.
 
 **The stochastic wrinkle:** EMSQR=±DRAW (em/estab.f:647-650, DRAW random) and DILATE=FIRST(2,sp) a per-record
 running order-statistic product (`FIRST(2)=SQRT(DILATE)` each record, line 837/1039) → the "tallest of N
