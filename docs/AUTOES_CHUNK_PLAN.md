@@ -25,6 +25,15 @@ adv+excess and needs the full DILATE/DELAY/GENTIM chain). So the heights + tree-
 per-plot-input-derivation are ONE coupled shared-engine build, validated end-to-end via full-cycle .sum. Port
 ESADVH + ESDLAY + wire into engine/establishment.jl as that dedicated unit; the tally counts/species/total are
 already bit-exact and feed it directly.
+★ HEIGHT-MODEL SPEC COMPLETE (routine-level, 2026-08-04): the ingrowth height model = **ESDLAY** (esdlay.f 186L,
+per-species delay from a DRAW; BSUB/BBW Weibull coeffs) → DELAY → N=INT(DELAY+.5) cap2→1, AGE=3-DELAY-GENTIM
+(GENTIM=FINT-5) → **ESADVH** (best/advance, 174L) or **ESXCSH** (excess, PORTED) with **DILATE=FIRST(1,i)** where
+FIRST(1,i) inits 0.1 (estab.f:181) then FIRST(1,i)=SQRT(FIRST(1,i)) after each tree (order-statistic spread:
+0.1→0.316→0.562→…→1). Height draws at body-39..84 feed ESDLAY. This is an OUT-OF-ENGINE extension of
+ie_autoes_tally (validatable via the regen report AVERAGE HEIGHT per species), but it's ~2 more routine ports
+(ESDLAY+ESADVH) + the FIRST chain — a substantial sub-model best built with the tree-creation as one unit. The
+tally counts/species/total (the .sum-TPA driver) are already bit-exact; heights are a second-order refinement
+(affect ingrowth tree DBH→multi-cycle growth). All routine-level pieces now identified; nothing left to discover.
 
 --- ORIGINAL PLAN (historical; the tally is now built + validated per the above) ---
 Estimated new surface: ~600–900 lines (ESTOCK+ESNSPE+ESADVH + the esnutr scheduler + the predicted-naturals
