@@ -993,7 +993,8 @@ end
 # forest_code=118, ESSS=55329).
 function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Integer,
                        dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
-                       time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0)
+                       time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
+                       esb_shift::Real = 0f0)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1004,7 +1005,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # ~1.6 logit → PROB1 0.55 vs the real 0.88). REGT = TIME, SQREGT = √TIME (measured, stand4_estock_inputs.txt).
     pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
-    prob1 = 1f0 / (1f0 + exp(-pn))
+    # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579); esb_shift = ESB-ESB1 (inventory calibration, cyc1/2).
+    prob1 = 1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))
     occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:23]
     over = zeros(Float32, 10)
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
@@ -1057,9 +1059,30 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
+    # ESB inventory calibration (estab.f:319-326,579) applies ONLY at the inventory-year disturbance (INADV=0);
+    # the auto/ingrowth tallies (est.idsdat > inv_year) have ESB=ESB1=0. ESB = logit(clamp(logistic(-5.174+0.851·
+    # ln(TPACRE)),0.10,0.90)) from the current small-tree (DBH<REGNBK=2.999) TPA; ESB1 = ESTOCK(BAAOLD, TIME=0).
+    # Computed once at the first inventory tally, reused by its continuation (est.esb_shift persists ESB-ESB1).
+    esb_shift = 0f0
+    if Int(est.idsdat) == inv_year
+        if isnan(est.esb_shift)
+            idx0 = ie_estab_indices(Int(p.habitat_code), Int(p.user_forest_code))
+            tpacre = 0f0
+            @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre += s.trees.tpa[i]); end
+            tpacre < 1f0 && (tpacre = 1f0)
+            esa = clamp(1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre)))), 0.10f0, 0.90f0)
+            esb = -log(1f0 / esa - 1f0)
+            baaold = max(baaa, 1f0)                          # inventory per-point BA (BAAINV); = baaa at cyc1
+            asp0 = Float32(p.aspect); sl0 = Float32(p.slope)
+            esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
+                             baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
+            est.esb_shift = esb - esb1
+        end
+        esb_shift = est.esb_shift
+    end
     r = ie_autoes_run(habitat_code = Int(p.habitat_code), forest_code = Int(p.user_forest_code),
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
-                      elev = p.elevation, baa = max(baaa, 1f0), time = time)
+                      elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift)
 
     t = s.trees
     xmin = _IE_ES_XMIN

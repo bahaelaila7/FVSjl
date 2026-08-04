@@ -610,9 +610,11 @@ mutable struct Establishment
     thres2::Float32     # THRES2 — upper removal fraction for a full AUTOES tally sequence (default 0.30)
     last_xtes::Float32  # removal fraction (max TPA/cuft) from the most recent within-cycle thin (cuts! stashes
                         # it; ie_autoes_establish! consumes+resets it). Drives the LAUTAL removal trigger.
+    esb_shift::Float32  # AUTOES inventory-calibration logit shift ESB-ESB1 (estab.f:319-326,579), computed once
+                        # at the first inventory-year tally, reused by its continuation. NaN = not yet computed.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0)
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32)
 
 mutable struct DbsState
     enabled::Bool
