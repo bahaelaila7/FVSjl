@@ -380,3 +380,27 @@ ie_estock(current BAA); (d) PROB1 = logistic(PN+ESB-ESB1)*STOADJ clamp/floor. NO
 ie_estock at the tally — jl uses stand_ba (70.6@cyc1) but FVS cyc1 gave PN=0.2116 (=baa≈1 bare); the tally BAA may
 be the per-plot regen BAAA not the overstory BA. Measure PN's BAA input per tally (instrument ESTOCK args). After
 ESB: multi-tally seed chain + per-record heights are the remaining (smaller) refinements.
+
+## ★ PROB1 per-tally ingredients MEASURED (2026-08-04, stand4_prob1_ingredients.txt)
+Instrumented estab.f:584 (unconditional dump ICYC/NTALLY/BAA/PN/ESB/ESB1 at NNID=1, relink, run in tests/FVSie):
+```
+ICYC NTALLY   BAA      PN      ESB     ESB1     => PROB1=logistic(PN+ESB-ESB1)
+  1    1    41.9322  1.9628  -2.1972  -0.6450   => logistic(0.4106)=0.601
+  2    2    46.1743  3.0501  -2.1972  -0.6450   => logistic(1.4979)=0.817
+  4    1     1.0000  1.9916   0.0000   0.0000   => logistic(1.9916)=0.880  (target 0.8918 ✓)
+  5    2     1.0000  3.0699   0.0000   0.0000   => logistic(3.0699)=0.956  (target 0.9606 ✓)
+  7    1     1.0000  1.9916   0.0000   0.0000   => 0.880   (target 0.8817 ✓)
+  8    2     4.7932  3.0896   0.0000   0.0000   => 0.957
+ 10    1    50.0508  0.3845   0.0000   0.0000   => 0.595
+```
+★★ THE DOMINANT DRIVER IS THE PER-PLOT BAAA, NOT THE STAND BA. The BAA passed to ESTOCK at a tally = the per-plot
+basal area BAAA (TBAAA=max(BAAA,1)), NOT stand_ba. At cyc4/5/7 the heavy THINBTA leaves the regen PLOTS bare →
+BAAA=0 → BAA=1 → ESTOCK PN=1.99 → PROB1=0.88. jl uses stand_ba (147@cyc4) → PN wrong → PROB1=0.55 (the ~40% gap).
+The ESB/ESB1 correction (ESB=-2.197 clamped-low, ESB1=-0.645) fires ONLY at the cyc1/2 tally (INADV=0, inventory-
+based); cyc4+ have ESB=ESB1=0 (INADV=1 for the auto/ingrowth tallies → the l.319 calibration block is skipped).
+So PROB1 model: cyc1/2 = logistic(PN+ESB-ESB1) with the inventory calibration; all later tallies = logistic(PN).
+IMPLEMENTATION (revises the earlier ESB-first plan): (1) ★ compute the PER-PLOT BAAA (bare after thin → 1), feed
+each plot's own BAAA to ie_estock — this is the main lever; the current single stand-BA is wrong. Find BAAA in
+estab.f (the "NNID,BAAA,TBAAA" per-plot loop) — likely per-INVENTORY-POINT BA, not stand BA. (2) ESB calibration
+only at the inventory tally (INADV=0). (3) then multi-tally seed chain + per-record heights. jl's PROB1 was flat
+~0.55; the fix (per-plot BAAA) lifts the disturbance tallies to ~0.88-0.96, closing most of the 20-50% gap.
