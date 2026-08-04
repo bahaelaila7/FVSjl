@@ -1,0 +1,64 @@
+# Western-variant REGEN (small-tree) regression guard. The western variants historically validated their
+# small-tree/regen path only on the LARGE-tree 248112 synthetic stands (ut/em/bm/cr t01 read imperially →
+# 11.5″ trees), so the regen path went untested — hiding real bugs (UT ht-dbh curve #134, EM SMHTGF+SMDGF
+# #136). This guard runs a REALISTIC small-tree stand per variant (the same 248112 stand with DBH shrunk to
+# <4″ AND height=4.5+6·d, NOAUTOES to isolate growth from establishment) through FVSjl and diffs vs the live
+# FVS oracle `.sum`, asserting bit-exact-or-cornered per column. It locks in the UT/EM fixes + BM/CR clean
+# state. (Stands + oracle .sum live in /workspace/.{ut,em,bm,cr}work — the live-oracle differential harness,
+# same convention as the BC guard.)
+#
+# NOT covered here: IE (small-tree triple-draw bug OPEN, task #139) and TT (live-binary≠source, blocked).
+import Pkg; Pkg.activate("/workspace/FVSjl"; io = devnull)
+using FVSjl
+
+# (variant, key, oracle.sum). Columns: Year Age TPA BA SDI CCF TopHt QMD.
+const CASES = [
+    (FVSjl.Utah(),           "/workspace/.utwork/utt01_smallr"),
+    (FVSjl.EasternMontana(), "/workspace/.emwork/emt01_smallr"),
+    (FVSjl.BlueMountains(),  "/workspace/.bmwork/bmt01_smallr"),
+    (FVSjl.CentralRockies(), "/workspace/.crwork/crt01_smallr"),
+]
+# Tolerances chosen to ACCEPT the converged cornered state yet FAIL a fix-revert (UT ht-dbh revert → ~30%+
+# under-growth; EM SMHTGF revert → 2-3× height over). Known cornered residuals within these bounds:
+#  - UT BA ~10% mid-cycle (ZZRAN tail), - BM late-cycle TPA up to ~20% (jl under-thins late = SDI-plateau-at-
+#    SDImax vs oracle thinning; a self-thin/mortality residual — flagged for follow-up, NOT a regen-growth bug).
+# EM + CR track bit-exact-or-tight. IE excluded (open triple-draw bug #139); TT excluded (blocked).
+# TPA tol 0.32 accepts BM's late-cycle under-thin (28.6% @2090, open task #140); a fix-revert is 100%+.
+const COLS = [(3, "TPA", :rel, 0.32), (4, "BA", :rel, 0.15), (5, "SDI", :rel, 0.15),
+              (6, "CCF", :rel, 0.15), (7, "TopHt", :rel, 0.15), (8, "QMD", :rel, 0.12)]
+
+_rows(t) = [split(l) for l in split(strip(t), "\n") if !startswith(strip(l), "-999") && !isempty(strip(l))]
+
+function check(variant, base)
+    jl = FVSjl.run_keyfile("$base.key"; variant = variant)
+    orc = read("$base.sum", String)
+    J = _rows(jl); O = _rows(orc); nrow = min(length(J), length(O))
+    fails = String[]; exact = 0
+    for r in 1:nrow
+        all(J[r][c] == O[r][c] for c in 3:8) && (exact += 1)
+        for (c, name, kind, tol) in COLS
+            jv = parse(Float64, J[r][c]); ov = parse(Float64, O[r][c])
+            d = kind === :rel ? (ov == 0 ? abs(jv) : abs(jv - ov) / abs(ov)) : abs(jv - ov)
+            d > tol && push!(fails, "$name yr $(O[r][1]): jl=$jv or=$ov (Δ$(round(d,digits=3))>$tol)")
+        end
+    end
+    return (nrow, exact, fails)
+end
+
+function main()
+    allok = true
+    for (v, base) in CASES
+        vn = string(nameof(typeof(v)))
+        nrow, exact, fails = check(v, base)
+        if isempty(fails)
+            println("✓ $vn  ($(basename(base))): $nrow cycles, $exact bit-exact — bit-exact-or-cornered")
+        else
+            allok = false
+            println("✗ $vn  ($(basename(base))): $(length(fails)) out-of-tolerance:")
+            for f in fails[1:min(6, length(fails))]; println("     ", f); end
+        end
+    end
+    allok ? println("\n✓ WESTERN REGEN GUARD PASS (UT/EM/BM/CR small-tree)") :
+            (println("\n✗ REGRESSION"); exit(1))
+end
+main()
