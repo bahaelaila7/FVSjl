@@ -134,3 +134,35 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     end
     return s
 end
+
+# --- V2 (LV2ATV) small-tree coefficients (regent.f DATA) — verified via instrument (RHCON(14)=1.090813). ---
+# RHCON(sp) = REGCH + RHSC(sp) + RHHAB(IRHHAB,sp); REGCH = RHGL(IGL=2) + (RSAB0+RSAB1·cosA+RSAB2·sinA)·slope.
+# IRHHAB = regent.f's OWN MAPHAB(ITYPE=4,sp) [4th distinct subsystem MAPHAB]. See v2_smalltree_data.txt.
+const BC_RG_V2_RHLH  = Float32[0.4214,0.2716,0.3907,0.3487,0.3417,0.2354,0.5843,0.2827,0.374,0.4485,0.2354,0.2354,0.2354,0.3907,0.2354]
+const BC_RG_V2_RHCCF = Float32[-0.00591,-0.00654,-0.00591,-0.00391,-0.00391,-0.00391,-0.00654,-0.00391,-0.00391,-0.00654,-0.00391,-0.00391,-0.00391,-0.00591,-0.00391]
+const BC_RG_V2_RHBAL = Float32[-0.37199,-0.41532,-0.40043,-0.25355,-0.34693,-0.12013,-0.24172,-0.253,-0.22957,-0.47299,-0.25349,-0.25349,-0.25349,-0.40043,-0.25349]
+const BC_RG_V2_RHSC  = Float32[1.47,1.6204,1.4932,0.9981,1.0202,0.8953,1.2336,1.0964,1.0667,1.7311,0.8953,0.8953,0.8953,1.4932,0.8953]
+const BC_RG_V2_IRHHAB = Int[3,3,4,3,1,1,5,1,4,3,3,3,3,4,3]     # regent MAPHAB(ITYPE=4, sp)
+const BC_RG_V2_RHHAB = ([  # [sp][1..6]
+    Float32[-0.2146,-0.0941,-0.3141,0,0,0], Float32[-0.2146,-0.0941,-0.3296,0,0,0],
+    Float32[-0.2146,-0.0941,-0.5401,-0.3948,0,0], Float32[-0.2146,-0.0941,-0.2776,0,0,0],
+    Float32[-0.2146,-0.0941,0,0,0,0], Float32[-0.2146,-0.0941,0,0,0,0],
+    Float32[-0.2146,-0.0941,-0.2484,-0.5134,-0.3495,0], Float32[-0.2146,-0.0941,-0.3431,0,0,0],
+    Float32[-0.2146,-0.0941,-0.4916,-0.3582,0,0], Float32[-0.2146,-0.0941,-0.4345,0,0,0],
+    Float32[-0.2146,-0.0941,-0.3738,0,0,0], Float32[-0.2146,-0.0941,-0.3738,0,0,0],
+    Float32[-0.2146,-0.0941,-0.3738,0,0,0], Float32[-0.2146,-0.0941,-0.5401,-0.3948,0,0],
+    Float32[-0.2146,-0.0941,-0.3738,0,0,0],
+]...,)
+const BC_RG_V2_XMAX = Float32[10,10,10,10,10,10,5,10,10,10,10,10,10,10,10]
+const BC_RG_V2_XMIN = Float32[2,2,2,2,2,2,1,2,2,2,2,2,2,2,2]
+const BC_RG_V2_RHGL = Float32[-0.2785,-0.0480,0.0]   # RHGL(IGL); IGL=2 (grinit.f:204)
+const BC_RG_V2_RSAB = Float32[-0.10987,0.22157,-0.12432]   # RSAB0/1/2 (aspect/slope)
+const BC_RG_V2_HSIGMA = 0.59f0
+
+"""V2 stand-level REGCH = RHGL(2) + (RSAB0 + RSAB1·cosA + RSAB2·sinA)·slope (regent.f:2020)."""
+bc_v2_regch(aspect::Real, slope::Real) = BC_RG_V2_RHGL[2] +
+    (BC_RG_V2_RSAB[1] + BC_RG_V2_RSAB[2]*cos(Float32(aspect)) + BC_RG_V2_RSAB[3]*sin(Float32(aspect))) * Float32(slope)
+
+"""V2 per-species RHCON = REGCH + RHSC(sp) + RHHAB(IRHHAB,sp) (regent.f:2024, NI case, no RCOR2)."""
+bc_v2_rhcon(sp::Integer, regch::Real) =
+    Float32(regch) + BC_RG_V2_RHSC[sp] + BC_RG_V2_RHHAB[sp][BC_RG_V2_IRHHAB[sp]]

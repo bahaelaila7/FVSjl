@@ -317,6 +317,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
     _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
     _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
+    _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
     # recent dead are added back at the right rate to recover the BACKDATED density (notre.f:122-124). FVS keeps
@@ -398,6 +399,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             end
         end
     end
+    # BC V2 small-tree HCOR calibration reads the BACKDATED stand (regent.f REGCAL): capture BA/RELDEN/PCT here.
+    _bc_cal && (_bc_bd_ba = s.plot.basal_area; _bc_bd_relden = s.plot.relative_density;
+                _bc_bd_pct = Float32[t.crown_ratio[i] for i in 1:t.n])
     if _fintr != 1f0                          # restore TRUE dead TPA (the FINT/FINTM inflation was calibration-
         @inbounds for (k, j) in enumerate((_livec + 1):(_livec + t.ndead)); t.tpa[j] = _saved_dead_tpa[k]; end
     end                                       # only — covers both density passes AND the PCTILE percentile)
@@ -903,6 +907,44 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # per-tree DG + CON also match. The .sum spread is the accepted ZZRAN + tripling residual (ch9) — AMPLIFIED
     # for pinyon because the linear DK maps the ZZRAN-perturbed H→DBH (live draws per-triple-copy, jl once+triples).
     # NOT a growth/calib/crown/mortality bug. See [[fvsjl-ie-variant-port]].
+    # BC V2 (LV2ATV) small-tree HEIGHT calibration (regent.f REGCAL:1783-1922). HCOR = ln(Σ(HTG·SCALE3·P)/
+    # Σ(EDH·P)) over N≥NCALHT(5) trees with measured HTG>0.001, DBH<5, backdated H≥1.37m. NPER=1 (FINTH=5 ⇒
+    # single-subcycle EDH, no density projection): EDH = exp(RHCON + RHLH·ln(H_bd) + RHCCF·RELDEN + RHBAL·BAL),
+    # BAL = BA·(100−PCT)·0.0001. HCOR=htg_cor_init; the attenuation below (htg_cor_small) applies it. Without
+    # this jl's htg_cor stayed 0 ⇒ V2 small-tree under-grew (essf HCOR(14)=0.5439). VERIFIED via FVSbc RGHCOR14.
+    if s.variant isa BritishColumbia
+        _bc_zone, _bc_series = bc_stand_zone(s)
+        if bc_lv2atv(_bc_zone)
+            ba_c = _bc_bd_ba; relden_c = _bc_bd_relden       # BACKDATED stand (REGCAL uses the past-period stand)
+            _bc_pct = _bc_bd_pct                              # BACKDATED percentile
+            scale3 = s.control.growth_finth > 0f0 ? 5f0 / s.control.growth_finth : 1f0
+            regch = bc_v2_regch(s.plot.aspect, s.plot.slope)
+            @inbounds for sp in 1:MAXSP
+                i1 = isct[sp, 1]; i1 == 0 && continue
+                i2 = isct[sp, 2]
+                rhcon_sp = bc_v2_rhcon(sp, regch)
+                snx = 0f0; sny = 0f0; nh = 0
+                for k in i1:i2
+                    i = ind1[k]
+                    t.dbh[i] >= 5f0 && continue
+                    h_bd = t.height[i] - t.ht_growth[i]           # backdated H (IHTG<2)
+                    h_bd < 1.37f0 * 3.28084f0 && continue         # H ≥ 1.37 m (regent.f:1809; MtoFT)
+                    t.ht_growth[i] < 0.001f0 && continue          # measured HTG present
+                    bal = ba_c * (100f0 - _bc_pct[i]) * 0.0001f0
+                    edh = exp(rhcon_sp + BC_RG_V2_RHLH[sp]*log(h_bd) +
+                              BC_RG_V2_RHCCF[sp]*relden_c + BC_RG_V2_RHBAL[sp]*bal)
+                    snx += edh * t.tpa[i]
+                    sny += t.ht_growth[i] * scale3 * t.tpa[i]
+                    nh += 1
+                end
+                nh < 5 && continue                                # NCALHT
+                cornew = sny / snx
+                cornew <= 0f0 && (cornew = 1f-4)
+                (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+                c.htg_cor_init[sp] = log(cornew)
+            end
+        end
+    end
     return s
 end
 
