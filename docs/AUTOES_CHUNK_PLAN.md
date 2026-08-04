@@ -404,3 +404,22 @@ each plot's own BAAA to ie_estock — this is the main lever; the current single
 estab.f (the "NNID,BAAA,TBAAA" per-plot loop) — likely per-INVENTORY-POINT BA, not stand BA. (2) ESB calibration
 only at the inventory tally (INADV=0). (3) then multi-tally seed chain + per-record heights. jl's PROB1 was flat
 ~0.55; the fix (per-plot BAAA) lifts the disturbance tallies to ~0.88-0.96, closing most of the 20-50% gap.
+
+## ★ TIME/REGT + BAAA fixes LANDED (commit 37e0155) — trajectory -40% → ±40%
+The ~40% under-production had TWO input bugs (both fixed):
+1. **BAA = per-inventory-point BAAA(NNID)** (dense.f:213 → jl point_ba[1]), NOT stand_ba. After heavy thin the
+   regen point is bare → BAAA≈0 → TBAAA=1 → ESTOCK PN high. (jl point_ba[1]=40 vs live BAAA=41.93 @cyc1; 0→1 @cyc4.)
+2. **TIME/REGT = years-since-disturbance**, NOT 1: tally-1=10, tally-2=20, ingrowth=1 (stand4_estock_inputs.txt).
+   TIME=(ntally==99)?1:(next_year-IDSDAT); REGT=TIME, SQREGT=√TIME. jl TIME=1→PN=0.21→PROB1=0.55; real TIME=10→
+   PN=1.99→0.88. Threaded through ie_autoes_run + ie_autoes_tally (species probs use TIME too).
+Result: stand-4 was flat -20/-50%; now OSCILLATES ±40% (2000 790→1210). Two refinements remain:
+- **ESB correction (cyc1/2 only, INADV=0 inventory tally)**: PROB1=logistic(PN+ESB-ESB1). Measured cyc1
+  ESB=-2.197 (=logit(0.10), few inventory small trees), ESB1=-0.645 → shifts logit by -1.552 → cyc1 0.88→0.60.
+  cyc4+ (auto tallies, INADV=1) ESB=ESB1=0. Gate on est.idsdat==inv_year. This reduces the cyc1/2 over-production.
+- **★ multi-tally ESRANN seed chain** (the OSCILLATION): per-tally seeds MEASURED = 43303(cyc1/2), 61677(cyc4/5),
+  25425(cyc7/8), 48837(cyc10) — each NTALLY==1 draws a NEW seed from the CONTINUING ESRANN stream; NTALLY≥2
+  reuses it (estab.f:290-295). NOT consecutive draws from 55329 (only the 1st, 43303, matches) — the stream
+  advances by each tally's full draw consumption (per-plot ESAVE reseeds). jl reuses seed0=43303 every tally →
+  identical per-tally output → the oscillation. Fix = track the ESRANN stream state (rng.es0) across firings and
+  draw the next seed after each tally's consumption; persist on est.es_seed. Artifacts: stand4_estock_inputs.txt,
+  stand4_prob1_ingredients.txt, stand4_REAL_scheduler.txt (all /workspace/.iework/autoes_measure/).
