@@ -121,6 +121,24 @@ end
     end
 end
 
+@testset "IE AUTOES per-plot ITPP — task #143 chunk A2c" begin
+    # ITPP = INT(ESTPP(body-draw-3)+0.5), capped at MAXING(IHAB) for ingrowth. IHAB=10 → MAXING=7.
+    # Oracle iet01 stand-4 plots 1-8: TREES/PLOT = [2,1,7,1,3,1,7,3] (plots 3,7 hit the MAXING=7 cap).
+    seeds = FVSjl.ie_autoes_plot_seeds(43303, 8)
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    maxing = FVSjl._IE_MAXING[10]
+    @test maxing == 7
+    jl = Int[]
+    for (n, sd) in enumerate(seeds)
+        rng = FVSjl.IEEstabRNG(sd)
+        for _ in 1:(n == 1 ? 50 : 0); FVSjl.ie_esrann!(rng); end
+        FVSjl.ie_esrann!(rng); FVSjl.ie_esrann!(rng)            # EMSQR sign, mag
+        d3 = FVSjl.ie_esrann!(rng)                               # ESTPP draw (body-3)
+        push!(jl, clamp(round(Int, FVSjl.ie_estpp(d3, 10, xcos, xsin, slo, 1.0f0, 0.0f0)), 1, maxing))
+    end
+    @test jl == [2, 1, 7, 1, 3, 1, 7, 3]
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)

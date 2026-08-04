@@ -638,3 +638,9 @@ function ie_autoes_plot_seeds(seed0::Integer, nplots::Integer; wk6::Integer = 50
     end
     return seeds
 end
+
+# AUTOES per-habitat caps (estab.f:108-112 DATA), indexed by IHAB (1-16):
+#   MAXTPP = max trees per stocked plot; MAXSPP = max species per plot; MAXING = max trees/plot for INGROWTH.
+const _IE_MAXTPP = Int[9, 7, 5, 5, 10, 8, 9, 5, 21, 25, 10, 10, 11, 7, 10, 8]
+const _IE_MAXSPP = Int[4, 3, 3, 3, 5, 4, 6, 4, 6, 6, 4, 5, 5, 4, 6, 4]
+const _IE_MAXING = Int[4, 4, 3, 3, 5, 4, 5, 4, 7, 7, 5, 5, 5, 4, 5, 4]
