@@ -27,9 +27,42 @@ const _EM_RG_BH = 0.3740f0; const _EM_RG_BCCF = -0.00391f0; const _EM_RG_BBAL = 
 const _EM_RG_AX = 0.0658f0; const _EM_RG_BX = 1.3817f0
 const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
 
+# EMVAR small-tree models (em/smhtgf.f height + em/smdgf.f diameter; coeffs em/blkdat.f:253-270 + smdgf.f DATA).
+# EMVAR = _em_orig_species {1,2,3,7,8,9,10,18}. FVS uses these, NOT the NI exp-form (which is sp5/NIVAR only).
+const EM_B0ACCF = Float32[1.17527,1.17527,-4.35709,0,0,0,-0.90086,-0.55052,-4.35709,0.405,0,0,0,0,0,0,0,1.17527,0]
+const EM_B1ACCF = Float32[-0.42124,-0.42124,0.67307,0,0,0,0.16996,-0.02858,0.67307,0,0,0,0,0,0,0,0,-0.42124,0]
+const EM_B0BCCF = Float32[-2.56002,-2.56002,-2.49682,0,0,0,-1.50963,-2.26007,-2.49682,-1.50963,0,0,0,0,0,0,0,-2.56002,0]
+const EM_B1BCCF = Float32[-0.58642,-0.58642,-0.51938,0,0,0,-0.61825,-0.67115,-0.51938,-0.61825,0,0,0,0,0,0,0,-0.58642,0]
+const EM_B0ASTD = Float32[1.08720,1.08720,1.13785,0,0,0,1.00749,1.09730,1.13785,0.57707,0,0,0,0,0,0,0,1.08720,0]
+const EM_B1BSTD = Float32[-0.00230,-0.00230,-0.00185,0,0,0,-0.00435,-0.00130,-0.00185,0.00055,0,0,0,0,0,0,0,-0.00230,0]
+const EM_SDHTCR = Float32[0.000231,0.000231,-0.28654,0,0,0,-0.41227,0.04125,-0.15906,0.000335,0,0,0,0,0,0,0,0.000231,0]
+const EM_SDHPCF = Float32[-0.00005,-0.00005,0.13469,0,0,0,0.16944,0.17486,0.15323,-0.00020,0,0,0,0,0,0,0,-0.00005,0]
+const EM_SDCR   = Float32[0.001711,0.001711,0.002736,0.001711,0.001711,0.003191,0.003191,-0.002371,0.0,0.002621,0,0,0,0,0,0,0,0.001711,0]
+const EM_SDHL4  = Float32[0.17023,0.17023,0.00036,0.17023,0.17023,-0.00220,-0.00220,-0.00070,0.0,0.15622,0,0,0,0,0,0,0,0.17023,0]
+
+# SMHTGF (em/smhtgf.f): small-tree HEIGHT increment (real ft). ZRAND drawn once per tree by the caller.
+@inline function _em_smhtgf(sp::Int, cr::Float32, tpccf::Float32, zrand::Float32)::Float32
+    beta1 = exp(EM_B0ACCF[sp] + EM_B1ACCF[sp]*log(tpccf))
+    beta2 = exp(EM_B0BCCF[sp] + EM_B1BCCF[sp]*log(tpccf))
+    htg1 = beta1 + beta2*cr
+    stddev = htg1*(EM_B0ASTD[sp] + EM_B1BSTD[sp]*cr)
+    htgrth = htg1 + zrand*stddev
+    return htgrth > 0.1f0 ? htgrth : 0.1f0
+end
+# SMDGF (em/smdgf.f): small-tree DBH from height. sp{3,7,8,9} linear; else{1,2,10,18} HLESS4-form. RD=TPCCF.
+@inline function _em_smdgf(sp::Int, h::Float32, cr::Float32, rd::Float32)::Float32
+    if sp == 3 || sp == 7 || sp == 8 || sp == 9
+        return EM_SDHTCR[sp] + EM_SDHPCF[sp]*h + EM_SDCR[sp]*cr + EM_SDHL4[sp]*rd
+    else
+        hl = h - 4.5f0
+        return EM_SDHTCR[sp]*hl*cr + EM_SDHPCF[sp]*hl*rd + EM_SDCR[sp]*cr + EM_SDHL4[sp]*hl + 0.3f0
+    end
+end
+
 # Species handled by the current NIVAR-form regent: EMVAR conifers + LL(5) (NIVAR — same HTGRL form; CON
 # RHCON+HCOR==RHCON·exp(HCOR) at HCOR=0; BH/BCCF/BBAL are the shared subalpine-fir values). LM/CO/RM/AS/PB deferred.
-@inline _em_rg_nivar(sp::Int) = _em_orig_species(sp) || sp == 5
+@inline _em_rg_nivar(sp::Int) = sp == 5   # ONLY LL(5) is NIVAR/exp-form (em/regent.f:364). EMVAR conifers
+# {1,2,3,7,8,9,10,18} use SMHTGF+SMDGF (below), NOT the exp-form (was wrongly lumped here ⇒ ~2-3× HTG over-grow).
 # Effective regent DIAMETER cap: NIVAR skips the regent for D≥3 (em/regent.f:858 GO TO 23). The conifers
 # already have EM_RG_XMAX=3, but LL(5)'s XMAX=10 is only the height-blend range — its regent still caps at 3,
 # so D≥3 LL stays on the pure large-tree path (else the XWT DG-override halves the large DG → em_LL breaks).
@@ -264,6 +297,55 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             dds = dgr*(2f0*bark*d + dgr)
             arg = (d*bark)^2 + dds
             dgk = arg > 0f0 ? sqrt(arg) - bark*d : 0f0
+            dgk < 0f0 && (dgk = 0f0); dgk > fint*2.0f0 && (dgk = fint*2.0f0)
+            t.diam_growth[i] = dgk*(1f0-xwt) + xwt*t.diam_growth[i]
+            _em_rg_stash!(stash, t, i)
+        end
+    end
+    # EMVAR conifers {1,2,3,7,8,9,10,18} — SMHTGF (height→wk3e) + SMDGF (diameter→wk5e). em/regent.f EMVAR
+    # branch (H2=H1+HTGRTH·(KPER/REGYR)·XRHGRO·CON, CON=RHCON·exp(HCOR)=exp(HCOR) since RHCON=1, regent.f:1484).
+    # ZRAND: ONE BACHLO per tree drawn in species order (matches FVS DO 30 ISPC loop). SMHTGF uses CLAMPED TPCCF
+    # [25,300]; SMDGF uses RAW point CCF (regent.f:448 vs SMDGF call). CR = crown PERCENT (=FLOAT(ICR), regent.f:451).
+    emvar_present = false
+    @inbounds for i in 1:n; (_em_orig_species(Int(t.species[i])) && t.tpa[i] > 0f0) && (emvar_present = true; break); end
+    if emvar_present
+        wk3e = Float32[t.height[i] for i in 1:n]; wk5e = Float32[t.dbh[i] for i in 1:n]
+        zre = zeros(Float32, n)
+        _emv_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # species order (stable within sp)
+        @inbounds for oi in 1:n
+            i = _emv_order[oi]; sp = Int(t.species[i])
+            (_em_orig_species(sp) && t.dbh[i] < _em_rg_cap(sp) && t.tpa[i] > 0f0 && dgsd >= 1.0f0) || continue
+            z = 0f0; while true; z = bachlo(s.rng, 0f0, 1f0); (-2f0 <= z <= 2f0) && break; end
+            zre[i] = z
+        end
+        @inbounds for j in 1:nper
+            kpj = Float32(kper[j])
+            for i in 1:n
+                sp = Int(t.species[i]); d = t.dbh[i]
+                (_em_orig_species(sp) && d < _em_rg_cap(sp) && t.tpa[i] > 0f0) || continue
+                h1 = wk3e[i]; cr = Float32(t.crown_pct[i])
+                pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+                tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                htgrth = _em_smhtgf(sp, cr, tpccf, zre[i])
+                con = exp(c.htg_cor_small[sp])                       # RHCON(=1)·exp(HCOR)
+                h2 = h1 + htgrth*(kpj/regyr)*con; wk3e[i] = h2       # XRHGRO=1
+                wk5e[i] = _em_smdgf(sp, h2, cr, pccf)                # SMDGF: DBH from grown height (raw PCCF)
+            end
+        end
+        @inbounds for i in 1:n
+            sp = Int(t.species[i]); d = t.dbh[i]
+            (_em_orig_species(sp) && d < _em_rg_cap(sp) && t.tpa[i] > 0f0) || continue
+            h = t.height[i]; cr = Float32(t.crown_pct[i]); xmn = EM_RG_XMIN[sp]; xmx = _em_rg_cap(sp)
+            xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+            htgr = wk3e[i] - h; htgr < 0f0 && (htgr = 0f0)
+            htg = htgr*(1f0-xwt) + xwt*t.ht_growth[i]
+            cap = s.control.sp_size_cap[sp,4]; (h+htg > cap) && (htg = max(cap-h, 0.1f0))
+            t.ht_growth[i] = htg
+            pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            dkk = _em_smdgf(sp, h, cr, pccf)                          # SMDGF at start height
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            dgr = (wk5e[i] - dkk)*bark; dds = dgr*(2f0*bark*d + dgr)
+            arg = (d*bark)^2 + dds; dgk = arg > 0f0 ? sqrt(arg) - bark*d : 0f0
             dgk < 0f0 && (dgk = 0f0); dgk > fint*2.0f0 && (dgk = fint*2.0f0)
             t.diam_growth[i] = dgk*(1f0-xwt) + xwt*t.diam_growth[i]
             _em_rg_stash!(stash, t, i)
