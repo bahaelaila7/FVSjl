@@ -363,7 +363,13 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             end
         end
     end
-    # ---- final: HTGR1 + ZZRAN + XWT blend + DG dub (regent.f:473-560) ----
+    # ---- final: HTGR1 + ZZRAN + XWT blend + DG dub (kt/regent.f DO 30, species-sorted). A FRESH ZZRAN per
+    #      TRIPLED record (L-loop L=0 central→tree, L=1/2→the two copies). WITHOUT the per-record stash writes
+    #      the tripled small-tree records inherit the EXPLOSIVE large-tree DG/HTG from diameter_growth! (the DDS
+    #      gemdg balloons tiny DBH) ⇒ regen BA over-predicted 30-60%. The DG dub is the FAITHFUL non-ESTAB path
+    #      (kt/regent.f:591-604): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS scale, DBH grows via GRADD — the old code
+    #      did a raw (DK−D1)·XRDGRO with NO bark/DDS/SIZCAP scaling. DBH-direct is the HK<4.5 tiny edge only. ----
+    scale = fint > 0.0f0 ? 10.0f0 / fint : 1.0f0           # SCALE=YR/FINT (kt/regent.f:220), YR=10
     _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
     @inbounds for oi in 1:n
         i = _sp_order[oi]
@@ -373,39 +379,66 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         h = t.height[i]
         xmn = KT_RG_XMIN[sp]; xmx = KT_RG_XMAX[sp]
         htgr1 = wk3[i] - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 1.0f0 && zzran >= -1.5f0) && break
-            end
-        end
-        htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        t.ht_growth[i] = htg
-        # diameter dub for D<3 (regent.f:534-560)
-        if d < 3.0f0
-            relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
-            dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
-            d1 = KT_RG_DIAM[sp] + dadj
-            if sp == 11
-                h > 4.5f0 && (d1 = 0.0729f0*(h - 4.5f0)^1.1988f0 + dadj)
-            else
-                h > 4.5f0 && (d1 = KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj)
+        large_htg = t.ht_growth[i]                          # large-tree htgf value for the blend
+        xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
+        bark = bark_ratio(c.bark_a, c.bark_b, sp, d)        # BRATIO(DBH(K)=D, HT(K)=H)
+        small_d = d < 3.0f0
+        # deterministic dub base D1 (kt/regent.f:544-555)
+        relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
+        dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
+        d1 = KT_RG_DIAM[sp] + dadj
+        if h > 4.5f0
+            d1 = sp == 11 ? 0.0729f0*(h - 4.5f0)^1.1988f0 + dadj : KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj
+        end
+        nrec = stash !== nothing ? 3 : 1
+        central_dbh = d
+        for l in 0:(nrec - 1)
+            zzran = 0.0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 1.0f0 && zzran >= -1.5f0) && break
+                end
             end
-            hk = h + htg
-            local d2::Float32
-            if sp == 11
-                d2 = hk > 4.5f0 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj : KT_RG_DIAM[sp] + dadj
-            else
-                d2 = hk > 4.5f0 ? KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj : KT_RG_DIAM[sp] + dadj
+            htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
+            htg = htgr * (1.0f0 - xwt) + xwt * large_htg
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            dg_inc = 0.0f0; dbh_dir = -1.0f0
+            if small_d
+                hk = h + htg
+                if hk < 4.5f0
+                    dbh_dir = 0.1f0 + KT_RG_DIAM[sp]*0.01f0 + hk*0.001f0   # kt/regent.f:562 (DBH set, DG=0)
+                else
+                    dk = sp == 11 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj :
+                                    KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj
+                    dk < KT_RG_DIAM[sp] && (dk = KT_RG_DIAM[sp])           # kt/regent.f:582
+                    dk = dk + hk*0.001f0
+                    dgk = (dk - d1) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0) # kt/regent.f:591 (DK−D1)·XRDGRO
+                    dg0 = dgk * bark                                        # DG(K)=DGK·BARK (:599)
+                    dds = dg0 * (2.0f0*bark*d + dg0) * scale                # :600
+                    dg_inc = sqrt((d*bark)^2 + dds) - bark*d              # :601
+                    (d + dg_inc) < KT_RG_DIAM[sp] && (dg_inc = KT_RG_DIAM[sp] - d)  # :603 DIAM floor
+                    dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)  # DGBND :610
+                end
             end
-            xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
-            dg = (d2 - d1) * xrdgro; dg < 0.0f0 && (dg = 0.0f0)
-            t.diam_growth[i] = dg
+            if l == 0
+                t.ht_growth[i] = htg
+                if small_d
+                    if dbh_dir >= 0.0f0
+                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
+                    else
+                        t.diam_growth[i] = dg_inc                           # increment; DBH via GRADD
+                    end
+                end
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+            else
+                stash.htgL[i] = htg
+                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+            end
         end
     end
     return s

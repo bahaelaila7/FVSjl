@@ -24,6 +24,7 @@ const CASES = [
     (FVSjl.BlueMountains(),  "/workspace/.bmwork/bmt01_smallr", 0.15),
     (FVSjl.CentralRockies(), "/workspace/.crwork/crt01_smallr", 0.15),
     (FVSjl.InlandEmpire(),   "/workspace/.iework/ierun/iet01_smallr", 0.30),
+    (FVSjl.Kootenai(),       "/workspace/.ktwork/run/ktt01_smallr", 0.15),
 ]
 # Tolerances chosen to ACCEPT the converged cornered state yet FAIL a fix-revert (UT ht-dbh revert → ~30%+
 # under-growth; EM SMHTGF revert → 2-3× height over). Known cornered residuals within these bounds:
@@ -66,7 +67,7 @@ function main()
             for f in fails[1:min(6, length(fails))]; println("     ", f); end
         end
     end
-    allok ? println("\n✓ WESTERN REGEN GUARD PASS (UT/EM/BM/CR/IE small-tree)") :
+    allok ? println("\n✓ WESTERN REGEN GUARD PASS (UT/EM/BM/CR/IE/KT small-tree)") :
             (println("\n✗ REGRESSION"); exit(1))
 end
 main()
