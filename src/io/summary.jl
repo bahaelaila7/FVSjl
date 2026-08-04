@@ -317,12 +317,20 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
                      accretion::Real = 0, mortality::Real = 0)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
-    tpa  = dt(stand_tpa(s) / g)
-    ba   = dt(stand_ba(s) / g)
-    sdi  = dt(stand_sdi(s) / g)
+    # Metric variants (BC, Canada) report the .sum per HECTARE in metric units (metric/vbase/disply.f):
+    # TPA·HAtoACR, BA·FT2pACRtoM2pHA, SDI·HAtoACR, TopHt→m, QMD→cm, volumes→m³/ha; CCF is dimensionless.
+    met  = s.variant isa BritishColumbia
+    fha  = met ? 2.471f0     : 1f0    # per-area (trees, SDI) acre→ha
+    fba  = met ? 0.2295643f0 : 1f0    # ft²/ac → m²/ha
+    fht  = met ? 0.3048f0    : 1f0    # ft → m
+    fqmd = met ? 2.54f0      : 1f0    # in → cm
+    fvol = met ? 0.0699713f0 : 1f0    # ft³/ac → m³/ha
+    tpa  = dt(stand_tpa(s) / g * fha)
+    ba   = dt(stand_ba(s) / g * fba)
+    sdi  = dt(stand_sdi(s) / g * fha)
     ccf  = dt(stand_ccf(s) / g)
-    toph = dt(stand_top_height(s))
-    qmd  = round(stand_qmd(s); digits = 1)
+    toph = dt(stand_top_height(s) * fht)
+    qmd  = round(stand_qmd(s) * fqmd; digits = 1)
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
     # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips
@@ -335,7 +343,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         @inbounds for i in 1:t.n
             acc += fld[i] * t.tpa[i]
         end
-        return dt(acc / g)
+        return dt(acc / g * fvol)
     end
     # Year/age come from the cycle-boundary schedule (IY, build_cycle_schedule!): the calendar
     # year at this cycle's start, and the age advanced by the elapsed years from the inventory.
@@ -357,7 +365,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # A RESETAGE to a NON-zero age keeps MAI on (e.g. s17_managed resets to 40 → MAI stays 62.5). Non-RESETAGE
     # runs have ry<0 ⇒ untouched (bit-exact); bare-ground (NEWSTD) has no RESETAGE ⇒ its own MAI path unchanged.
     mai = (ry >= 0 && yr > ry && Int(s.control.age_reset_age) == 0) ? 0f0 :
-          (age > 0 ? Float32(mcuft + total_removed_merch) / Float32(age) : 0f0)
+          (age > 0 ? Float32(mcuft + fvol * total_removed_merch) / Float32(age) : 0f0)  # mcuft already metric
     SummaryRow(
         year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,
@@ -365,7 +373,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         scuft = vtot(:saw_cuft_vol), bdft = vtot(:bdft_vol),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
         period = period, mai = mai,
-        accretion = trunc(Int, accretion + 0.5), mortality = trunc(Int, mortality + 0.5),
+        accretion = trunc(Int, fvol * accretion + 0.5), mortality = trunc(Int, fvol * mortality + 0.5),
         fortype = Int(s.plot.forest_type), sizecls = Int(s.plot.size_class),
         stockcls = Int(s.plot.stocking_class))
 end
