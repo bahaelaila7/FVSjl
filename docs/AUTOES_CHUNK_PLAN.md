@@ -334,3 +334,23 @@ per-variant ESTOCK/ESSUBH coefficient sets (EM essubh already done).
 
 See [[fvsjl-ie-variant-port]] (IE is the anchor variant) and docs/ESTB_SUBSYSTEM_CHUNK_PLAN.md (the explicit
 PLANT/NATURAL path + EM essubh, already ported).
+
+## ★★ CRITICAL ORACLE CORRECTION (2026-08-04) — earlier target was a broken (tree-data-not-loaded) run
+The A3b/A3c "target" (0/531/420/711/…) and the NTALLY sequence [cyc1(99 ingrowth)…] were measured from FVS runs
+where iet01.tre FAILED TO ASSOCIATE (scratchpad copy not named to the keyfile) → "TREE RECORDS: 0" → every stand
+ran BARE, so stand-4 regenerated purely from the ingrowth path. WRONG. Running FVSie_clean IN tests/FVSie (correct
+tree-data association) gives the REAL behavior:
+- **REAL target TPA (iet01.sum THN3, /workspace/.iework/autoes_measure/iet01_REAL.sum):** 1990→536, 2000→1025,
+  2010→1401, 2020→881, 2030→1324, 2040→1531, 2050→853, 2060→1412, 2070→1788, 2080→1286, 2090→1147. (2070=1788
+  matches the memory's "oracle→1788".) jl 1990=536 is BIT-EXACT (inventory loads correctly).
+- **REAL scheduler (stand4_REAL_scheduler.txt):** ESTAB fires cyc 1(NTALLY=1),2(2),4(1),5(2),7(1),8(2),10(99).
+  cyc1 = REMOVAL path via the THINPRSC XTES=0.5526 (55% of KUTKOD≥2 trees), IDSDAT=IY(ICYC)=1990 — AT the
+  inventory year. cyc2 = 20-yr continuation. cyc4/7 = THINBTA removal (XTES 0.838/0.963). cyc10 = ingrowth (40-yr
+  gap). The stand is NOT bare — AUTOES fires ALONGSIDE the overstory.
+- **FIX:** removed the wrong `year > inv_year` removal-path gate (it was derived from the broken run's XTES=0). The
+  removal path now fires at the inventory year too. jl stand-4 now fires AUTOES end-to-end: 2000 jumped 224→790
+  (was the no-regen baseline). Trajectory in the right ballpark, ~20-50% UNDER — REFINEMENT (not structural):
+  (1) non-bare tally inputs (baa=actual stand BA, prob1 recomputed — validated only for the bare baa=1 case);
+  (2) multi-tally ESRANN seed chain (all firings reuse seed0=43303); (3) per-record heights (XMIN placeholder).
+- LESSON: always verify the oracle loaded its inputs — "TREE RECORDS: 0" / "TOO FEW PROJECTABLE TREE RECORDS" in
+  the .out means a bare run. Run FVS in tests/FVSie (or name the .tre to the keyfile base).

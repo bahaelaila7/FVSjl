@@ -914,17 +914,15 @@ end
 # cycle can continue to 2).
 #
 # `xtes` = max(ONTREM/ONTCUR TPA, OCVREM/OCVCUR cuft) removal fraction from THIS
-# cycle's within-cycle thin (0 for the inventory-year thin — FVS leaves ONTREM=0
-# there, so the inventory-year removal never triggers the removal path; gated on
-# year > inv_year). `itrn` = the tree count when establish! runs (post-thin,
+# cycle's within-cycle thin. `itrn` = the tree count when establish! runs (post-thin,
 # post-growth, pre-regen). `next_year` = IY(ICYC+1) (the cycle-end year).
 function ie_autoes_schedule!(est::Establishment, icyc::Integer, year::Integer,
                              next_year::Integer, itrn::Integer, xtes::Real,
                              inv_year::Integer)
     kdt = next_year - 1
-    # (1) LAUTAL removal path (esnutr.f:264-289). The inventory-year thin is not
-    # tallied in ONTREM (measured XTES=0 at cyc1) — gate on year > inv_year.
-    if est.lautal && year > inv_year && Float32(xtes) >= est.thres1
+    # (1) LAUTAL removal path (esnutr.f:264-289). Fires whenever a within-cycle thin removed ≥THRES1 —
+    # INCLUDING at the inventory year (measured: iet01 stand-4 cyc1 THINPRSC XTES=0.5526 → NTALLY=1, IDSDAT=1990).
+    if est.lautal && Float32(xtes) >= est.thres1
         lone = est.thres1 <= Float32(xtes) < est.thres2   # THRES1..THRES2 = single tally (resets); heavy persists
         est.idsdat = Int32(year)                          # IDSDAT = IY(ICYC)
         est.ntally = lone ? Int32(0) : Int32(1)
