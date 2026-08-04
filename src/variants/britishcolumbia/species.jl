@@ -36,4 +36,5 @@ end
 load_species_coefficients!(s::StandState, v::BritishColumbia) = init_blockdata!(s, v)
 
 spctrn_column(::BritishColumbia) = 4        # BC translation CSV mirrors 7-col layout ⇒ col 4
-other_species(::BritishColumbia) = Int32(15)   # BC "OH" = species 15
+other_species(::BritishColumbia) = Int32(14)   # FVS maps unrecognized codes → OC (sp14): oracle .out
+                                                # "INPUT SPECIES CODE (BC) WAS SET TO (OC)". NOT OH(15).

@@ -21,10 +21,12 @@ function bc_site_index_setup!(s::StandState)
     (itype < 1 || itype > 30) && (itype = 21)
     p.habitat_input = Int32(itype)                            # DG reads MAPHAB(ITYPE) (IE structure)
     p.forest_idx <= 0 && (p.forest_idx = Int32(1))
-    # SDImax (Stage): SDIDEF = BAMAX/(0.5454154·PMSDIU/100). BAMAX from user (control.ba_max) or a
-    # BEC-zone default (deferred → 60, a mid IDF/SBS value; synthetic stands provide BAMAX explicitly).
+    # SDImax (Stage): SDIDEF = BAMAX/(0.5454154·PMSDIU/100). BAMAX from user (control.ba_max) or the
+    # BC site-series default (sitset.f SELECT CASE Zone/SubZone/Series, in m²/ha → convert to ft²/ac).
+    # ⚠ full sitset table is chunk-2 TODO; ICHmw2/01 (all_BC, the hardcoded zone) = 89 m²/ha (oracle .out
+    # "MAXIMUM BASAL AREA FOR ICHmw2/01 IS SET BY DEFAULT TO 89.0 SQ M/HA"). 89/0.2295643 = 387.69 ft²/ac.
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 85.0f0
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : 60.0f0
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : 89.0f0 / BC_FT2pACRtoM2pHA
     @inbounds for sp in 1:15
         p.sp_sdi_def[sp] <= 0f0 && (p.sp_sdi_def[sp] = bamax / (0.5454154f0 * (pmsdiu / 100f0)))
     end
