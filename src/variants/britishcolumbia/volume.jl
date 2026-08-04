@@ -135,31 +135,44 @@ function bc_vol_log(is::Int, dbh::Float32, htm::Float32, shm::Float32, td::Float
     end
     dd = di3 < td ? di3 : td
     topv = hm != htrunc ? bc_vol_vlm(hm, htrunc, dd, diam, ff, per, dh, B, htm) : 0f0
-    return tvol + stmv + topv
+    return tvol + stmv + topv, tvol            # (GROS total, TVOL merch-logs)
 end
 
-"""BC total cubic-foot volume for one tree (VOLS→CFVOL→MIN→LOG). `d` in, `h` ft, `itht` topkill (cm·100)."""
-function bc_tree_cuft(sp::Integer, d::Real, h::Real, itht::Integer)
-    h < 4.5 && return 0f0
-    is = BC_SPTR[Int(sp)]; is < 1 && return 0f0
+"""
+    bc_tree_vol(sp, d, h, itht) -> (total_cuft, merch_cuft)
+
+BC cubic volume for one tree (VOLS→CFVOL→MIN→LOG). `d` in, `h` ft, `itht` topkill (cm·100). Merch (VM)
+is the merch-log volume, gated by D≥DBHMIN and D≥TOPD (cfvol.f:55); else 0. Total (VN) always computed.
+"""
+function bc_tree_vol(sp::Integer, d::Real, h::Real, itht::Integer)
+    h < 4.5 && return (0f0, 0f0)
+    is = BC_SPTR[Int(sp)]; is < 1 && return (0f0, 0f0)
     htrunc_ft = itht > 0 ? Float32(itht)/100f0 : Float32(h)
-    # MIN: convert imperial → metric for LOG (min.f:114-118)
-    dbh_cm = Float32(d) * BC_INtoCM
+    dbh_cm = Float32(d) * BC_INtoCM                        # MIN metric conversion (min.f:114-118)
     ht_m   = Float32(h) * BC_FTtoM
-    sh_m   = (bc_vol_stmp(sp) * 0.01f0)                     # STMP cm → m
+    sh_m   = bc_vol_stmp(sp) * 0.01f0                       # STMP cm → m
     td_cm  = bc_vol_topd(sp)
     htr_m  = htrunc_ft * BC_FTtoM
-    gros = bc_vol_log(is, dbh_cm, ht_m, sh_m, td_cm, htr_m)  # m³
-    return gros * BC_M3toFT3                                 # → ft³
+    gros, tvol = bc_vol_log(is, dbh_cm, ht_m, sh_m, td_cm, htr_m)   # m³
+    vn = gros * BC_M3toFT3
+    # merch gate (cfvol.f:55): D≥DBHMIN (cm) AND D≥TOPD (cm) — metric compare
+    vm = (dbh_cm >= bc_vol_dbhmin(sp) && dbh_cm >= td_cm) ? tvol * BC_M3toFT3 : 0f0
+    return (vn, vm)
 end
 
-"""Fill `t.cuft_vol` (total cubic ft) for all trees; BC Kozak taper. Merch/board TODO."""
+bc_tree_cuft(sp, d, h, itht) = bc_tree_vol(sp, d, h, itht)[1]   # total-only (validation helper)
+
+"""Fill `t.cuft_vol` (total) + `t.merch_cuft_vol` (merch) for all trees; BC Kozak taper. Board deferred (0)."""
 function compute_volumes!(s::StandState, ::BritishColumbia)
     t = s.trees
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]
-        t.cuft_vol[i] = (d <= 0f0 || h <= 0f0) ? 0f0 :
-            bc_tree_cuft(Int(t.species[i]), d, h, Int(t.trunc[i]))
+        if d <= 0f0 || h <= 0f0
+            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
+        else
+            vn, vm = bc_tree_vol(Int(t.species[i]), d, h, Int(t.trunc[i]))
+            t.cuft_vol[i] = vn; t.merch_cuft_vol[i] = vm
+        end
     end
     return s
 end
