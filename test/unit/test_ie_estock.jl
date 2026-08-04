@@ -104,3 +104,14 @@ end
     sumup = [padv ./ sum(padv); zeros(Float32, 14)]       # 23-species selection distribution
     @test FVSjl.ie_estab_pick_species(draw60, sumup) == 5  # WH = oracle IBEST
 end
+
+@testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
+    # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
+    rng = FVSjl.IEEstabRNG(43303.0)
+    for _ in 1:52; FVSjl.ie_esrann!(rng); end
+    draw53 = FVSjl.ie_esrann!(rng)
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    tpp = FVSjl.ie_estpp(draw53, 10, xcos, xsin, slo, 1.0f0, 0.0f0)
+    itpp = clamp(round(Int, tpp), 1, 99)   # INT(TPP+0.5), MAXTPP clamp
+    @test itpp == 2   # oracle TREES/PLOT
+end

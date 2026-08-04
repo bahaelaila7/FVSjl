@@ -591,3 +591,21 @@ function ie_estab_pick_species(draw::Real, sumup::AbstractVector)::Int
     end
     return n
 end
+
+# =============================================================================
+# ie_estpp — AUTOES trees-per-stocked-plot (ie/estpp.f, task #143 chunk A2c primitive).
+# Weibull inverse-CDF: BB = exp(0.697061 + .715825·XCOS − .203452·XSIN − 2.762848·SLO + .041235·REGT +
+# .031435·BWAF + habitat-bump); CC=0.6836; TPP = ((−ln(1−VAL))^(1/CC))·BB + 0.9. ITPP=INT(TPP+0.5),
+# clamped [1, MAXTPP(IHAB)]. VAL = an ESRANN draw. VALIDATED vs live FVSie: iet01 stand-4 plot-1
+# (IHAB=10, draw#53) → ITPP=2 (oracle TREES/PLOT=2). habitat bump: IHAB5-8 +.294473, 9/10 +1.237, >10 +.465788.
+# =============================================================================
+function ie_estpp(val::Real, ihab::Integer, xcos::Real, xsin::Real, slo::Real, regt::Real, bwaf::Real)::Float32
+    bb = 0.697061f0 + 0.715825f0*Float32(xcos) - 0.203452f0*Float32(xsin) - 2.762848f0*Float32(slo) +
+         0.041235f0*Float32(regt) + 0.031435f0*Float32(bwaf)
+    (ihab > 4 && ihab < 9) && (bb += 0.294473f0)
+    (ihab == 9 || ihab == 10) && (bb += 1.237000f0)
+    ihab > 10 && (bb += 0.465788f0)
+    bb = exp(bb)
+    cc = 0.6836f0
+    return ((-log(1f0 - Float32(val)))^(1f0/cc)) * bb + 0.9f0
+end
