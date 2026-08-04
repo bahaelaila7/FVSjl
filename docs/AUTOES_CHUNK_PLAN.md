@@ -107,8 +107,13 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     +11 tests. ★ KEY UNLOCK via measurement (doctrine #2): the prob-call **TIME=1.0** (years-since-disturbance),
     NOT the estab.f:606 TIME=10 literal (overwritten before ESPADV) — my earlier TIME=10 hand-calc (0.008 vs 0.062)
     was the wrong-input trap. PP=0 comes from OCURHT(grp10,PP)=0 (occupancy), not the logistic. (Correction to a
-    prior note: CHAB(10,LP)=0, not 1.9319803.) OVER<9.95 (BAAA=0 dump ⇒ no bumps), IPHY≠1. REMAINING A2b: ESPSUB
-    (subsequent, ITIME>2 only — not fired for iet01 TIME=1) + ESPXCS (excess) — same pattern, own DHAB tables.
+    prior note: CHAB(10,LP)=0, not 1.9319803.) OVER<9.95 (BAAA=0 dump ⇒ no bumps), IPHY≠1.
+    **✅ ESPXCS DONE (2026-08-04):** ported espxcs.f → `ie_espxcs` (10-species excess-regen logistic × occupancy)
+    with FHAB(16,10)/FPRE(4,10) from esblkd.f:117-153. Quirk: WH(5) uses FPRE(iprep,7) & has no FHAB. VALIDATED
+    BIT-EXACT (3 dp, all 10 sp) vs live FVSie: PXCS=(.045 .005 .080 .327 .242 .194 .043 .001 .025 0)=oracle (+10
+    tests). REMAINING A2b: **ESPSUB** (subsequent, espsub.f — ITIME>2 gate, NOT fired for iet01 TIME=1 so PSUB=0;
+    same logistic×occupancy pattern w/ DHAB/DPRE tables — port when a longer-delay stand exercises it).
+    ⇒ deterministic probability layer = ESTOCK + ESNSPE + ESPADV + ESPXCS all bit-exact (ESPSUB inert on anchor).
   - **A2c species COUNT + IDENTITY (RNG — the hard part):** estab.f:646-726 draws EMSQR + TPP + NUMSPE (from the
     PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. RNG-alignment-sensitive (the
     IE memory's "EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs

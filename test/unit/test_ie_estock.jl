@@ -56,3 +56,15 @@ end
     padv0 = FVSjl.ie_espadv(10, 1, 4, 3, xcos, xsin, slo, 1.0f0, 1.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ0, over)
     @test all(collect(padv0) .== 0f0)
 end
+
+@testset "IE ESPXCS P(excess species) — task #143 chunk A2b" begin
+    # iet01 stand-4 plot-1 (same inputs as ESPADV). occ = OCURHT(grp10)=1 sp1-9, 0 PP.
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    occ = Float32[1, 1, 1, 1, 1, 1, 1, 1, 1, 0]; over = zeros(Float32, 10)
+    pxcs = FVSjl.ie_espxcs(10, 1, 4, 3, xcos, xsin, slo, 1.0f0, 1.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ, over)
+    # oracle PXCS (ie/espxcs.f dump, 3 dp): WP WL DF GF WH RC LP ES AF PP
+    oracle = (0.045f0, 0.005f0, 0.080f0, 0.327f0, 0.242f0, 0.194f0, 0.043f0, 0.001f0, 0.025f0, 0.0f0)
+    for i in 1:10
+        @test isapprox(pxcs[i], oracle[i]; atol = 6f-4)
+    end
+end

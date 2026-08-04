@@ -410,3 +410,105 @@ function ie_espadv(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
     end
     return (p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
 end
+
+# =============================================================================
+# ie_espxcs — AUTOES P(excess-regen species) (ie/espxcs.f, task #143 chunk A2b).
+# Same 10-species logistic × occupancy pattern as ie_espadv, with the EXCESS tables FHAB(16,10)/FPRE(4,10)
+# (esblkd.f:117-153). Quirks: WH(5) uses FPRE(IPREP,7) & has no FHAB; various per-species IFO/OVER/IPHY bumps.
+# VALIDATED BIT-EXACT (3 dp, all 10 sp) vs live FVSie (iet01 stand-4, TIME=1): PXCS=(.045 .005 .080 .327 .242
+# .194 .043 .001 .025 0) = oracle. See docs/AUTOES_CHUNK_PLAN.md.
+# =============================================================================
+
+# FHAB[ihab, species] (16×10, esblkd.f DATA col-major). species WP WL DF GF WH RC LP ES AF PP.
+const _IE_FHAB = Float32[
+  0.0        1.0573224  0.7860276  0.0        0.0  0.0         0.0       0.0        0.0        0.0;
+  0.0        0.0        0.7860276  0.0        0.0  0.0         0.0       0.0        0.0        0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        -1.675261  0.0        0.0        0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        -0.404111  0.0        0.0        0.0;
+ -0.6746051  1.0573224  0.0        0.0        0.0  0.0        -0.404111  0.0        0.0       -0.8002471;
+ -0.6746051  1.0573224  0.0       -1.14939    0.0  0.0        -0.404111  0.0        0.0       -0.8002471;
+  0.0        0.4331883  0.0       -0.5557902  0.0  0.0        -0.404111  0.9266407  0.0       -1.6319422;
+ -0.6746051  0.0       -0.6077863 -1.14939    0.0  0.0        -1.675261  0.0        0.0       -0.8002471;
+  0.0        0.433188   0.0        0.0        0.0  0.0        -1.716393  1.859201   0.0       -1.9000533;
+  0.0        1.2050298  0.4930977  0.0        0.0 -0.4357035  -0.465368  2.333042   2.101272   0.0;
+  0.0        1.556329  -0.6364138 -2.43159    0.0  0.0         0.786260  0.612418   1.8053228  0.0;
+ -0.6746051  1.556329   0.5219281 -2.43159    0.0  0.0         0.786260  0.612418   1.8053228  0.0;
+ -0.6746051  1.556329   0.0       -0.88282    0.0  0.0        -0.653006  1.852301   3.371353   0.0;
+  0.0        0.0       -0.6364138 -2.43159    0.0  0.0         0.786260  0.0        0.0        0.0;
+  0.0        1.556329   0.0       -2.43159    0.0  0.0        -0.653006  1.852301   3.371353   0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        -0.653006  1.852301   2.101272   0.0]
+
+# FPRE[iprep, species] (4×10, esblkd.f DATA). iprep 1=NONE 2=MECH 3=BURN 4=ROAD.
+const _IE_FPRE = Float32[
+  0.0  0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0        0.0;
+  0.0  0.7580304 -0.4115679 -0.4249178 -0.2623001 -0.0647744  0.0321509  0.9904144 -0.5096514  0.0;
+  0.0  0.6728193 -0.4939831 -0.8300082 -0.5655652  0.1818555 -0.6495806  0.5408921 -0.8132929  0.0;
+  0.0  1.9293740  0.0397986 -0.2121915 -0.1897423  0.5362320 -0.5745220  1.5293173  0.2181278  0.0]
+
+"""
+    ie_espxcs(ihab, iprep, ifo, iphy, xcos, xsin, slo, time, baa, elev, regt, bwaf, bwb4, occ, over) -> NTuple{10,Float32}
+
+IE P(excess-regen species) (ie/espxcs.f). Same occupancy/args as [`ie_espadv`](@ref); uses FHAB/FPRE (excess
+tables). Note WH(5) reads FPRE(iprep,7) and has no FHAB term (faithful to the Fortran).
+"""
+function ie_espxcs(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, xcos::Real, xsin::Real,
+                   slo::Real, time::Real, baa::Real, elev::Real, regt::Real, bwaf::Real, bwb4::Real,
+                   occ::AbstractVector, over::AbstractVector)::NTuple{10,Float32}
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
+    ba = Float32(baa); el = Float32(elev); rg = Float32(regt); bw = Float32(bwaf); b4 = Float32(bwb4)
+    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? log(ba) : 0f0
+    fh(i) = (1 <= ihab <= 16) ? _IE_FHAB[ihab, i] : 0f0
+    fp(i) = (1 <= iprep <= 4) ? _IE_FPRE[iprep, i] : 0f0
+    ov(i) = over[i] > 9.95f0
+    logistic(pn) = 1f0 / (1f0 + exp(-pn))
+    p = zeros(Float32, 10)
+    # WP(1)
+    pn = -2.6601112f0 - 0.2103586f0*xc - 2.1766529f0*xs - 2.6159747f0*sl - 0.0170345f0*ba +
+         0.3166977f0*baln + fh(1)
+    ov(1) && (pn += 1.0546575f0); (ifo == 7 || ifo == 10 || ifo == 16) && (pn -= 1.8648362f0); ifo == 5 && (pn -= 0.5629999f0)
+    p[1] = logistic(pn) * Float32(occ[1])
+    # WL(2)
+    pn = -15.2532959f0 + 1.5877491f0*xc + 0.4421725f0*xs - 1.5027288f0*sl + 0.4384918f0*el -
+         0.0051305f0*elsq + fp(2) + fh(2)
+    (ifo == 9 || ifo == 10 || ifo == 14 || ifo == 16) && (pn += 2.3989265f0); ov(2) && (pn += 1.2872436f0)
+    p[2] = logistic(pn) * Float32(occ[2])
+    # DF(3)
+    pn = -2.0080204f0 - 0.1351578f0*xc - 0.3944477f0*xs + 0.8531865f0*sl - 0.0383463f0*el +
+         0.0652054f0*tm + fh(3) + fp(3)
+    (ifo == 3 || ifo == 9 || ifo == 12 || ifo == 16) && (pn += 1.3155589f0); ov(3) && (pn += 0.7341939f0)
+    p[3] = logistic(pn) * Float32(occ[3])
+    # GF(4)
+    pn = -6.1448393f0 + fh(4) + 1.4774529f0*xc + 0.2616096f0*xs - 0.4769181f0*sl + fp(4) -
+         0.0048863f0*ba + 0.2789069f0*el - 0.0036567f0*elsq + 0.0582383f0*rg + 0.0502622f0*bw + 0.1356740f0*baln
+    ov(4) && (pn += 0.4348936f0); (ifo == 14 || ifo == 16) && (pn -= 0.5188152f0); (ifo == 19 || ifo == 20) && (pn -= 0.7681130f0)
+    p[4] = logistic(pn) * Float32(occ[4])
+    # WH(5) — FPRE(iprep,7), no FHAB
+    pn = -9.3195372f0 + 4.3167849f0*xc - 0.9011113f0*xs - 0.1339375f0*sl + 0.3964820f0*el -
+         0.0055853f0*elsq + 0.0896454f0*tm + fp(7)
+    ov(5) && (pn += 1.0252551f0)
+    p[5] = logistic(pn) * Float32(occ[5])
+    # RC(6)
+    pn = -1.2917893f0 + 1.9611115f0*xc - 0.0809641f0*xs - 0.6731737f0*sl + 0.0717763f0*tm + fp(6) + fh(6)
+    ov(6) && (pn += 1.3999580f0)
+    p[6] = logistic(pn) * Float32(occ[6])
+    # LP(7)
+    pn = -2.6488557f0 + fh(7) + 0.9309435f0*xc - 0.2925614f0*xs - 2.4103925f0*sl - 0.3734260f0*baln +
+         0.0142129f0*el + fp(7)
+    ov(7) && (pn += 2.5861046f0); iphy == 1 && (pn += 1.1320554f0)
+    p[7] = logistic(pn) * Float32(occ[7])
+    # ES(8)
+    pn = -26.3272057f0 + 0.7454571f0*el - 0.0064948f0*elsq - 1.9590315f0*sl + 0.0703796f0*tm + fh(8) + fp(8)
+    ov(8) && (pn += 1.2224044f0)
+    p[8] = logistic(pn) * Float32(occ[8])
+    # AF(9)
+    pn = -7.4072008f0 + fh(9) + 1.0363630f0*xc + 0.2825538f0*xs - 1.5201763f0*sl + 0.0569783f0*el -
+         0.1950940f0*b4 + fp(9)
+    (ifo == 3 || ifo == 9 || ifo == 10 || ifo == 11 || ifo == 12 || ifo == 14 || ifo == 16) && (pn += 1.2027771f0)
+    ov(9) && (pn += 1.5097677f0)
+    p[9] = logistic(pn) * Float32(occ[9])
+    # PP(10) — no FPRE
+    pn = -18.8911858f0 + 0.6606922f0*el - 0.0068996f0*elsq + fh(10)
+    ov(10) && (pn += 0.9117771f0)
+    p[10] = logistic(pn) * Float32(occ[10])
+    return (p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
+end
