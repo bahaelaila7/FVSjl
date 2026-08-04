@@ -165,6 +165,16 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     DO 123=MAXTPP*2 excess). ⇒ ie_autoes_tally must replicate the nested loop + the STOADJ branch exactly; validate
     each NCOUNT plot's EMSQR against the captured list. This is a focused, careful build (one wrong ESRANN count
     desyncs everything) — best done as a dedicated unit, not piecemeal. Foundation (8 primitives) is 100% ready.
+    ★ CONSTANTS FOUND (estab.f:108-112 DATA): **MAXTPP(16)=[9,7,5,5,10,8,9,5,21,25,10,10,11,7,10,8]** (IHAB10→25,
+    excess=MAXTPP*2=50 draws); **MAXSPP(16)=[4,3,3,3,5,4,6,4,6,6,4,5,5,4,6,4]** (IHAB10→6, the NUMSPE cap);
+    MYHABG=[4*1,4*2,3,4,6*5] (→ISER), MYHTS=[1,3*2,4*3,2*4,6*5], MYTYPE=[9*1,2*5,2*2,3*3,4,12*5,1]. ESDLAY does
+    NOT draw ESRANN; the DO 99 height loop (:802-830, ESDLAY/ESADVH/ESSUBH) consumes the pre-drawn WK6, no new draws.
+    ⚠ DRAW-COUNT GAP: main-path per-plot count = EMSQR2+ESTPP1+NUMSPE6+species6+ADV/SUBS23+heights46+excess50 (+1
+    ESAVE?) ≈ 135, but the observed plot1→plot2 EMSQR stride is ~160 (Δ~25) ⇒ ~25 draws unaccounted (likely a
+    per-plot site-prep/WK6 refill or the ITYPEP nested-loop iterations). The exact count MUST be forward-traced
+    line-by-line through the DO 201/202/203 nest — cannot be reverse-engineered from EMSQR positions (false matches).
+    All constants are now in hand; the assembly is a careful forward transcription validated plot-by-plot vs the
+    EMSQR list.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
