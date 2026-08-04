@@ -354,3 +354,29 @@ tree-data association) gives the REAL behavior:
   (2) multi-tally ESRANN seed chain (all firings reuse seed0=43303); (3) per-record heights (XMIN placeholder).
 - LESSON: always verify the oracle loaded its inputs — "TREE RECORDS: 0" / "TOO FEW PROJECTABLE TREE RECORDS" in
   the .out means a bare run. Run FVS in tests/FVSie (or name the .tre to the keyfile base).
+
+## ★ PROB1 ESB-CORRECTION — the ~20-50% under-production root (2026-08-04, MEASURED)
+jl computes PROB1 = logistic(ie_estock PN) only; the REAL PROB1 (estab.f:536-584) is:
+```
+ESB1(NCOUNT) = ESTOCK(ELEV,IFO,BAAOLD,BAAOLN)         # predicted stocking at "inventory"/disturbance BAA (l.536)
+PN           = ESTOCK(ELEV,IFO,BAA,BAALN)             # predicted stocking at END-of-cycle BAA (l.572)
+PROB1 = logistic(PN + ESB - ESB1) * STOADJ            # (l.579-580), clamp[0.0001,0.9990], floor PNN
+```
+where ESB (the ACTUAL-vs-predicted intercept, estab.f:319-326) is RECOMPUTED at EACH NTALLY==1 (each new
+disturbance tally), NOT once:
+```
+TPACRE = Σ PROB(i) for trees with DBH < REGNBK(=2.999)   # current SMALL-tree TPA (blkdat.f:235)
+ESA    = logistic(-5.17397 + 0.85131*ln(max(TPACRE,1)))
+ESB    = logit(clamp(ESA, 0.10, 0.90))
+```
+MEASURED: cyc1 (1990) TPACRE=0 (no small trees at inventory) → ESB=0 → PROB1=logistic(0.2116)=0.5527. By cyc4
+(2029) the accumulated AUTOES regen gives many small trees → TPACRE high → ESB≈logit(0.90)=2.197 → PROB1=0.8918.
+This is a REGEN→small-trees→higher-ESB→more-regen FEEDBACK. jl PROB1 (measured, per firing): 0.5995/0.5897/…/
+0.5491(cyc4)/…/0.5996(cyc7) — flat ~0.55 vs targets 0.5527(cyc1)/0.8918(cyc4)/0.9606(cyc5)/0.8817(cyc7). The
+missing ESB feedback is the dominant lever. IMPLEMENTATION: (a) at each ie_autoes_establish! firing, if NTALLY==1
+compute ESB from the current small-tree (DBH<2.999) TPA; NTALLY≥2 (continuation) reuses the saved ESB/ESB1/PNN;
+(b) ESB1 = ie_estock(disturbance/inventory BAA) — needs BAAOLD (per-plot inventory BA, BAAINV); (c) PN =
+ie_estock(current BAA); (d) PROB1 = logistic(PN+ESB-ESB1)*STOADJ clamp/floor. NOTE: also verify the BAA passed to
+ie_estock at the tally — jl uses stand_ba (70.6@cyc1) but FVS cyc1 gave PN=0.2116 (=baa≈1 bare); the tally BAA may
+be the per-plot regen BAAA not the overstory BA. Measure PN's BAA input per tally (instrument ESTOCK args). After
+ESB: multi-tally seed chain + per-record heights are the remaining (smaller) refinements.
