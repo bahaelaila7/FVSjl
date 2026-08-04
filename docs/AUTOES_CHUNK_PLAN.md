@@ -150,6 +150,14 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     2 + ESTPP 1 + NUMSPE-WK6 6) → draw#60=0.61708 ∈ WH band (0.567,0.834] of normalized PADV → species 5 (WH) =
     oracle IBEST. draw#52=0.21862=EMSQR checkpoint. ⇒ the hardest A2c piece (RNG-driven selection) is PROVEN
     bit-exact; the remaining A2c work is the mechanical multi-plot loop + TPA booking (estab.f:900+) + engine wiring.
+    ★ ASSEMBLY CHALLENGE + PLOT-BY-PLOT VALIDATION TARGET (2026-08-04): the per-plot draw stride is LARGE and
+    VARIABLE (each plot consumes EMSQR 2 + ESTPP 1 + NUMSPE-WK6 6 + species-WK6 6 + ADV/SUBS NOFSPE=23 [:780-788]
+    + heights NOFSPE*2=46 [:797-800] + excess MAXTPP(IHAB)*2 [:909-912] + …), so it CANNOT be pattern-matched —
+    the assembly must transcribe EVERY per-plot ESRANN call in order and validate PLOT-BY-PLOT. Validation anchor
+    = the per-plot EMSQR sequence (first tally, plots 1-10, captured live): **0.219, -0.925, -0.528, 0.863,
+    -0.565, 0.721, -0.280, 0.562, -0.130, -0.757** (plot-1 mag 0.219 = draw#52). Build ie_autoes_tally so each
+    plot's EMSQR (2 draws) matches this list ⇒ proves the per-plot draw count exact; then ITPP/NUMSPE/species/TPA
+    booking follow. NEEDS: MAXTPP(IHAB)+MAXSPP(IHAB) (blkdat.f), NOFSPE=23, the ESDLAY/height draw count. Intricate.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
