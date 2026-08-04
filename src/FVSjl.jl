@@ -89,6 +89,7 @@ include("variants/britishcolumbia/crown.jl")                    # BC per-tree CC
 include("variants/britishcolumbia/regent_coefficients.jl")     # BC small-tree V3 coeffs (ST_COEF) + bc_v3_sthg/bc_st_dbh — chunk 6
 include("variants/britishcolumbia/regent.jl")                   # BC small_tree_growth!(::BritishColumbia) — chunk 6
 include("variants/britishcolumbia/mortality.jl")                # BC mortality!(::BritishColumbia): V3 FMRT tabular + LMRT logistic — chunk 7
+include("variants/britishcolumbia/volume.jl")                   # BC total cubic volume (Kozak taper: CFVOL→MIN→LOG) — chunk 8
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax

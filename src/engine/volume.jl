@@ -560,6 +560,7 @@ function compute_volumes!(s::StandState)
     s.variant isa BlueMountains && return compute_volumes_bm!(s)   # BM = FW2W Flewelling conifers (BEHW minor deferred)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
+    s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; c = s.control
     # R8 board-foot rule: the R8-CLK path reports INTERNATIONAL ¼" board feet (volinit2.f:269-272 VOL(2)=
