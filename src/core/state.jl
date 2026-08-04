@@ -608,9 +608,11 @@ mutable struct Establishment
     lingrw::Bool        # LINGRW — automatic ingrowth (default TRUE)
     thres1::Float32     # THRES1 — lower removal fraction for a single AUTOES tally (default 0.10)
     thres2::Float32     # THRES2 — upper removal fraction for a full AUTOES tally sequence (default 0.30)
+    last_xtes::Float32  # removal fraction (max TPA/cuft) from the most recent within-cycle thin (cuts! stashes
+                        # it; ie_autoes_establish! consumes+resets it). Drives the LAUTAL removal trigger.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0)
+                                true, true, 0.10f0, 0.30f0, 0f0)
 
 mutable struct DbsState
     enabled::Bool

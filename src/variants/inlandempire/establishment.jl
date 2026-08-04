@@ -1012,3 +1012,73 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             occ = occ, over = over)
     return (tally = tally, prob1 = prob1, idx = idx)
 end
+
+# =============================================================================
+# ie_autoes_establish! — the AUTOES cycle hook. Runs the automatic-establishment
+# tally for InlandEmpire stands (esnutr.f→estab.f). Unlike establish! (which needs
+# a scheduled PLANT/NATURAL activity), AUTOES fires purely off the esnutr scheduler
+# (ie_autoes_schedule!). On a firing it runs ie_autoes_run and creates the tallied
+# per-species TPA as fresh seedling records (DBH≈0.1, height floored to XMIN — all
+# establishment heights are sub-breast-height so esgent.f's nominal DBH applies).
+# `xtes` = the removal fraction from THIS cycle's within-cycle thin (see grow_cycle!).
+function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
+    (s.variant isa InlandEmpire) || return false
+    est = s.estab
+    (est.lautal || est.lingrw) || return false
+    per = round(Int, fint)
+    year = Int(current_cycle_year(s))
+    next_year = year + per
+    inv_year = Int(s.control.cycle_year[1])
+    # esnutr.f:113 — IDSDAT defaults to IY(1)-20 (20 yrs before inventory), NOT -9999. Without this the 40-yr
+    # ingrowth-gap rule (next_year - idsdat ≥ 40) would spuriously fire for every stand at cycle 1.
+    est.idsdat == Int32(-9999) && (est.idsdat = Int32(inv_year - 20))
+    icyc = Int(s.control.cycle) + 1
+    itrn = s.trees.n
+    fire, _ntally = ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year)
+    est.last_xtes = 0f0                       # consume the removal fraction (one cycle only)
+    fire || return false
+    year in est.years_done && return false
+
+    p = s.plot
+    nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
+    idup   = max(1, cld(_ES_MINREP, nptids))
+    dupnpt = Float32(nptids * idup)
+    # AUTOES ESRANN seed: the first tally starts the (separate) establishment stream at ESSS=55329;
+    # est.es_seed persists it across tallies (the multi-tally chain is refined once cyc1 validates).
+    seed0 = est.es_seed > 0f0 ? round(Int, est.es_seed) : ie_autoes_seed0(55329)
+    r = ie_autoes_run(habitat_code = Int(p.habitat_code), forest_code = Int(p.user_forest_code),
+                      seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
+                      elev = p.elevation, baa = max(stand_ba(s), 1f0))
+
+    t = s.trees
+    xmin = _IE_ES_XMIN
+    created = false
+    @inbounds for sp in 1:23
+        tpa_sp = Float32(r.tally[sp])
+        tpa_sp > 0f0 || continue
+        hht = xmin[sp]                                   # nominal height (per-record height refinement pending)
+        dbh = 0.1f0 + 0.001f0 * hht                      # esgent.f:56 sub-breast-height nominal DBH
+        n = t.n + 1; n > length(t.dbh) && break
+        t.n = n
+        t.species[n]     = Int32(sp)
+        t.dbh[n]         = dbh
+        t.height[n]      = hht
+        t.tpa[n]         = tpa_sp
+        t.plot_id[n]     = Int32(1)
+        # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
+        # A near-bare regen stand has PCCF≈0 ⇒ CR≈0.90; a nominal deterministic value here (the ±1% RANN draw is
+        # a refinement) keeps the downstream crown/DG models well-defined (crown_ratio=0 produced NaN TopHt).
+        pccf = s.density.point_ccf[1]
+        cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
+        icr0 = floor(Int32, cr * 100f0 + 0.5f0)
+        t.crown_pct[n]   = icr0
+        t.crown_ratio[n] = Float32(icr0)
+        t.norm_ht[n]     = Int32(0)
+        t.sort_key[n]    = Float64(n)
+        created = true
+    end
+    created || return false
+    push!(est.years_done, Int32(year))
+    compute_density!(s)
+    return true
+end

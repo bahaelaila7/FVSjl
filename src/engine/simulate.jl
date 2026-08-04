@@ -419,7 +419,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
-    rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree)
+    rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
@@ -556,6 +556,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
+    # AUTOES (IE): automatic natural establishment (esnutr.f scheduler → estab.f tally). Fires off the removal/
+    # ingrowth rules (not a scheduled PLANT/NATURAL), so it runs separately from establish!.
+    s.variant isa InlandEmpire && ie_autoes_establish!(s; fint = fint)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)

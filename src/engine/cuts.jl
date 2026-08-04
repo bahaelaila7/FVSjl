@@ -247,6 +247,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # MINHARV gate is live whenever any threshold is set (persists across cycles once set).
     minharv_on = cc.ba_min > 0f0 || cc.tcf_min > 0f0 || cc.cf_min > 0f0 || cc.scf_min > 0f0 || cc.bf_min > 0f0
     tpa_snap = minharv_on ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
+    # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
+    # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
+    autoes_pre_tpa = 0f0
+    if s.variant isa InlandEmpire
+        @inbounds for i in 1:s.trees.n; autoes_pre_tpa += s.trees.tpa[i]; end
+    end
     # SETPTHIN (icflag 248) prescription this cycle → (point, metric) read by THINPT.
     # (same-cycle prescription; cross-cycle persistence would need control state.)
     pt_point = Int32(0); pt_metric = Int32(0); pt_set = false
@@ -307,6 +313,10 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         f = 1f0 - pl
         rem = (tpa = rem.tpa, cuft = rem.cuft, mcuft = rem.mcuft * f,
                scuft = rem.scuft * f, bdft = rem.bdft * f)
+    end
+    # AUTOES (IE): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
+    if s.variant isa InlandEmpire && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
+        s.estab.last_xtes = rem.tpa / autoes_pre_tpa
     end
     return rem
 end
