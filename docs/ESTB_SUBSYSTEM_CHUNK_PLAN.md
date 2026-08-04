@@ -159,8 +159,15 @@ WL+PP. Guard stayed green (no establishment there); stand-1 growth-only unchange
 faithful chunk exposing a regression ⇒ examine the oracle, don't ship). The esgent grow IS faithful (esgent.f does
 it), so this EXPOSES a pre-existing WL+PP establishment DENSITY over-growth (essubh-only already 13% BA over for
 WL+PP while DF was 8% UNDER) — likely the WL/PP essubh height too tall, or the SMDGF/mortality on the WL/PP
-establishment cohort. NEXT: examine WL+PP establishment density (why essubh-only over-grows WL+PP BA but under-grows
-DF) BEFORE re-adding em_esgent; then the esgent grow lands cleanly. Fix code preserved in git history (this session).
+establishment cohort. EXAMINED (2026-08-04, doctrine #4): instrument-replayed the FVSem oracle WL(sp2)/PP(sp10)
+essubh on emt01 — oracle WL HHT-mean 2.614, PP 1.253 (IHTSER=2/IPREP=1/IPHY=3/AGE=7/BAA=1/ELEV=54). jl matches BOTH
+(WL 2.6135, PP 1.2536; jl stores elevation=54 correctly, keyword_dispatch.jl:550). So WL/PP ESSUBH HEIGHTS ARE
+CORRECT — elevation-bug hypothesis REFUTED. ⇒ the WL+PP over-growth is NOT essubh; it's the EM REGENT's SPECIES-
+DEPENDENT seedling growth on the D~0.1 cohort (DF under-grows, WL/PP over-grow — same class, opposite sign). The
+em_esgent grow (faithful) amplifies this pre-existing regent bias. ROOT = EM regent tuning on tiny establishment
+seedlings (below the guard's emt01_smallr D0.4-3.8 range) — a deep per-cycle regent examination (cornered tail).
+NEXT: per-cycle instrument-replay of the EM regent HTG/DG on WL/PP vs DF establishment cohorts, then re-add
+em_esgent. Fix code preserved in git history (this session).
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
