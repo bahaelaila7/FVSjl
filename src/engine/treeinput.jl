@@ -77,7 +77,9 @@ function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
         end
     end
 
-    return ingest_tree_records!(s, records)
+    # BC (metric variant) `.tre` DBH/DG are cm, HT/HTG are m — convert to US units on input
+    # (metric/base/intree.f:302-306). US-FIA DB ingest stays imperial (metric defaults false there).
+    return ingest_tree_records!(s, records; metric = s.variant isa BritishColumbia)
 end
 
 """
@@ -89,7 +91,7 @@ crown/defect/topkill/birth-age). Shared by the `.tre`/`.csv` file loader and the
 database-input path (`fia_database.jl`) so both produce byte-identical tree state.
 Returns the number of live trees appended.
 """
-function ingest_tree_records!(s::StandState, records::Vector{TreeRecord})
+function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric::Bool = false)
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
@@ -122,7 +124,7 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord})
 
         i = t.n + 1
         i > MAXTRE && break
-        _store_tree!(t, i, rec, idx, Int32(pj))
+        _store_tree!(t, i, rec, idx, Int32(pj); metric=metric)
         t.n = i
     end
 
@@ -131,7 +133,7 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord})
     for (rec, idx, pj) in dead
         i = t.n + t.ndead + 1
         i > MAXTRE && break
-        _store_tree!(t, i, rec, idx, pj)
+        _store_tree!(t, i, rec, idx, pj; metric=metric)
         t.ndead += 1
     end
 
@@ -147,7 +149,7 @@ end
 
 # Fill all per-tree fields of record `rec` (resolved species `idx`, subplot `pj`)
 # into TreeList slot `i`. Shared by the live and dead partitions of the loader.
-function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
+function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32; metric::Bool = false)
     t.species[i]     = idx
     t.tree_id[i]     = rec.id
     t.tpa[i]         = rec.tpa
@@ -156,6 +158,14 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
     t.diam_growth[i] = rec.diam_growth
     t.height[i]      = rec.height
     t.ht_growth[i]   = rec.ht_growth
+    # metric-variant input: cm→in (DBH, DG), m→ft (HT, HTG) — metric/base/intree.f:302-306.
+    # BEFORE the topkill/THT block below (intree.f order); THT converted inline there.
+    if metric
+        t.dbh[i]         *= 0.3937f0     # CMtoIN
+        t.diam_growth[i] *= 0.3937f0
+        t.height[i]      *= 3.28084f0    # MtoFT
+        t.ht_growth[i]   *= 3.28084f0
+    end
     t.mort_code[i]   = rec.mort_code
     t.cut_code[i]    = rec.cut_code
     @inbounds for k in 1:6; t.damage[k, i]    = rec.damage[k];    end
@@ -199,7 +209,7 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32)
     topkilled = rec.damage[1] == 96 || rec.damage[1] == 97 ||
                 rec.damage[3] == 96 || rec.damage[3] == 97 ||
                 rec.damage[5] == 96 || rec.damage[5] == 97
-    tht = rec.top_height
+    tht = metric ? rec.top_height * 3.28084f0 : rec.top_height   # THT m→ft (intree.f:305)
     if topkilled || tht > 0f0
         t.norm_ht[i] = Int32(-1)
         if tht > 0f0
