@@ -23,6 +23,15 @@ The oracle's 2000 jump 536→1025 (and the recurring re-stocking pulses) is the 
 the entire gap. Validate the port against these `.sum` aggregates (NOT per-record — AUTOES adds trees → tripling
 → per-record treelist diff INVALID, doctrine #3).
 
+**MECHANISM CONFIRMED at config level (iet01.key stand-4, line 138):** the stand has `THINPRSC 1990 0.999`
+(the shelterwood cut = the disturbance), AUTOES ACTIVE (no `NOAUTOES` — unlike stands 1–3 which carry it), and
+**NO explicit ESTAB/PLANT/NATURAL keyword**. So the regeneration is 100% the automatic disturbance-triggered path
+(esnutr.f "within 20 yrs of a disturbance" → ESTAB → ESTOCK), NOT the keyword path jl already has. Confirms the
+plan is aimed correctly. NEXT measure-first step before coding A1: instrument live FVSie estab.f/estock.f for
+stand-4 to capture the PN (stocking prob) + predicted per-species TPP that produce the 536→1025 pulse (the A1
+oracle target). Oracle binaries present: /workspace/.iework/FVSie_clean (+ relink_ie.sh, estab.o/estock.o in
+bin/FVSie_buildDir).
+
 ## FVS structure (SOURCE-MAPPED, estb/*.f)
 Two paths reach the same tree-creation tail; jl implements only the second:
 
