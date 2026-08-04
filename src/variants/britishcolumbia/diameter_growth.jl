@@ -29,12 +29,14 @@ function bc_dgcons!(s::StandState)
         ip, jp = bc_resolve_ipjp(sp, series, zone)
         if ip < 1 || jp < 1
             c.dg_const[sp] = 0f0
+            c.atten[sp] = 0f0
             continue
         end
         pelev_ft = sp == 1 ? clamp(Float32(elev) * BC_FTtoM, 5f0, 12f0) / BC_FTtoM : Float32(elev)
         dgcon = bc_dgcon(ip, jp, pelev_ft, asp, slope)
         (s.control.dg_cor2_on && c.dg_cor2[sp] > 0f0) && (dgcon += log(c.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
+        c.atten[sp] = BC_ZNKONST[ip].OBSERV   # DGSCOR empirical-Bayes shrinkage prior (dgf.f:2215 ATTEN=ZNKONST%OBSERV)
     end
     return s
 end
