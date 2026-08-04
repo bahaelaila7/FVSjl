@@ -269,6 +269,22 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     dupnpt/gentim/nptids/idup. NEED-TO-ADD: lautal/lingrw/thres1/thres2 fields (IE default T/T/.10/.30); the
     removal-fraction trigger post-cuts!; the AUTOES branch (ie_autoes_tally → create trees via the existing tail).
   Fire the tally in engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
+- **A3b — MEASURED stand-4 trigger + target (2026-08-04, FVSie_clean DEBUG on iet01 stand-4/THN3):**
+  - **★ TRIGGER IS THE INGROWTH PATH, NOT THE REMOVAL-THRESHOLD PATH.** Cycle-1 ESNUTR dump:
+    `XTPA XCUF=0.000 0.000; LONE=F` (removal path did NOT fire) but `ITRN=0` (THINPRSC 0.999 left the stand
+    bare) → LINGRW ingrowth trigger (esnutr.f:328 `ITRN=0 .AND. ICYC=1`) → `NTALLY=99`, `IDSDAT=IY(ICYC+1)-20=1980`.
+    So the removal-fraction (XTES/THRES) machinery is NOT what drives stand-4 — it's the bare-stand ingrowth rule.
+    (The removal-threshold path still needs porting for stands thinned to a NON-bare residual, but stand-4's
+    anchor trajectory is ingrowth-driven.) Cycle-1 ESTAB added the 531 TPA seen at 2000.
+  - **TARGET trajectory (clean .sum, /workspace/.iework/autoes_measure/iet01_clean.sum, THN3 = 4th block):**
+    year→TPA: 1990→0, 2000→531, 2010→420, 2020→711, 2030→1537, 2040→1868, 2050→1256 (THINBTA 2050),
+    2060→1300, 2070→1600, 2080→1171, 2090→1081. jl currently COLLAPSES to 0 (no AUTOES). This is the A4 gate.
+  - **BLOCKER for the full NTALLY sequence:** global DEBUG keyword makes cycle-2 VOLINIT segfault on the tiny
+    (~0-volume) regen seedlings — the debug .out truncates at cycle 2 (iet01_s4dbg.out, 18863 lines). Only
+    cycle-1 ESNUTR/ESTAB captured. To get cycles 2-10 NTALLY: either patch/guard the crashing VOLINIT debug
+    WRITE and relink FVSie_trc, or read estab.f's OPADD follow-on-tally scheduling to reconstruct analytically.
+    LINGRW re-fires when `IY(ICYC+1)-IDSDAT≥40` (esnutr.f:332) → IDSDAT resets to IY(ICYC+1)-20 each fire.
+  - Artifacts persisted: /workspace/.iework/autoes_measure/{iet01_s4dbg.out, iet01_clean.sum, iet01_s4dbg.key}.
 - **A4 — full-cycle differential:** iet01 stand-4 `.sum` TPA/BA/SDI vs oracle (the anchor table above). `.sum`
   aggregates ONLY (tripling). Then sweep the other western auto-regen stands.
 
