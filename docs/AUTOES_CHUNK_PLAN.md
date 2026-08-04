@@ -120,10 +120,21 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     SEL=Float32(ESS1/2147483648)), seed 43303 for iet01 stand-4. PORTED → `IEEstabRNG`/`ie_esrann!` + VALIDATED
     vs live: from seed 43303, draw#52=0.21862 = the oracle EMSQR magnitude (estab.f:646 uses #51 sign + #52 mag).
     +4 tests. ⇒ bit-exact end-to-end AUTOES is FEASIBLE; the remaining A2c work is replicating the driver's exact
-    ESRANN CALL ORDER (site-prep loop + plot reps consume ~50 draws before EMSQR) + ESTPP(TPP) + the NUMSPE/species
-    draw — a driver-transcription chunk, no longer an RNG-unknown. (The IE memory's "EMSQR/DILATE RNG alignment"
-    concern was the establishment-HEIGHT main-stream draw, a different path.) The per-species .sum target (1999:
-    GF202 WH222 … = 583.7) needs A2b probs + A2c selection end-to-end.
+    ESRANN CALL ORDER (a driver-transcription chunk, no longer an RNG-unknown). (The IE memory's "EMSQR/DILATE RNG
+    alignment" concern was the establishment-HEIGHT main-stream draw, a different path.)
+    ★ ESRANN DRAW-ORDER BLUEPRINT (estab.f, MAPPED 2026-08-04 — the A2c spec):
+      1. estab.f:290-294 (NTALLY==1): one ESRANN off the PRIOR stream → ESDRAW=INT(DRAW·100000+0.5); :295
+         `CALL ESRNSD(.TRUE.,ESDRAW)` RESEEDS the stream to ESDRAW (=43303 for iet01 stand-4). From here the
+         sequence is deterministic and `IEEstabRNG(43303)` replicates it (VERIFIED: draw#52=EMSQR).
+      2. :333-336 `DO 183 I=1,IDUP*NPTIDS: ESRANN→WK6(I)` — fills WK6 with **IDUP·NPTIDS** draws (=**50** for iet01:
+         DUP=5 × NPTIDS=10). Site-prep assignment (:380-410) then CONSUMES WK6, no new draws.
+      3. Per plot (NNID loop): EMSQR = 2 draws (:646-650, draws #51 sign + #52 magnitude=0.21862 ✓); the
+         STOADJ<1e-4 branch (:653-670) is SKIPPED when STOADJ normal; ESTPP(TPP) = 1 draw (:675-678); NUMSPE = 6
+         draws into WK6 (:693-698) then cumulative-PSPE select (:702-718, cap MAXSPP(IHAB)); species-identity
+         selection from PADV/PSUB/PXCS = draws at :739+.
+      4. :1075 `CALL ESRNSD(.TRUE.,ESAVE)` saves/restores the stream at the end.
+    ⇒ A2c = implement this order with `ie_esrann!` + `ie_esnspe`/`ie_espadv`/`ie_espxcs`. The per-species .sum
+    target (1999: GF202 WH222 … = 583.7) needs A2b probs + A2c selection end-to-end.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
