@@ -166,8 +166,19 @@ CORRECT — elevation-bug hypothesis REFUTED. ⇒ the WL+PP over-growth is NOT e
 DEPENDENT seedling growth on the D~0.1 cohort (DF under-grows, WL/PP over-grow — same class, opposite sign). The
 em_esgent grow (faithful) amplifies this pre-existing regent bias. ROOT = EM regent tuning on tiny establishment
 seedlings (below the guard's emt01_smallr D0.4-3.8 range) — a deep per-cycle regent examination (cornered tail).
-NEXT: per-cycle instrument-replay of the EM regent HTG/DG on WL/PP vs DF establishment cohorts, then re-add
-em_esgent. Fix code preserved in git history (this session).
+NARROWED (2026-08-04): the .sum deltas split the residual into TWO parts — (1) HTG under for BOTH DF and WL/PP
+(the TopHt lag = the missing esgent in-cycle grow), and (2) DG species-split: DF DBH UNDER (em_plant QMD 5.0/5.3),
+WL/PP DBH OVER (emt01 QMD/BA over). The DG split MATCHES the SMDGF FORM split: DF=sp3 uses the LINEAR SMDGF
+(sp{3,7,8,9}); WL=sp2/PP=sp10 use the HLESS4 form (h−4.5, sp{1,2,10,18}). For the establishment cohort at small h
+(~1.2-3 ⇒ hl=h−4.5 < 0) the HLESS4-form EXTRAPOLATES below its validated range (guard's emt01_smallr is D0.4-3.8, h
+mostly >4.5) ⇒ over-grows WL/PP DBH. FIXED (commit 876ea0c): confirmed jl _em_smdgf goes NEGATIVE below h~2.5 (WL@1.2=-0.198, PP@1.2=-0.074) while
+em/regent.f:578 `IF(H2.LE.4.5)GO TO 14` SKIPS the SMDGF/DBH below 4.5. Added the h>4.5 guard to small_tree_growth!
+(only update the SMDGF DBH for h2>4.5; start DBH = actual d, not SMDGF, below 4.5). A real latent bug — guard's
+emt01_smallr (h>4.5) never triggered it, no regression. IMPROVES em_plant DF establishment BA 42→44/46 (8.7→4.3%
+under). BUT emt01 (WL+PP) UNCHANGED ⇒ the WL/PP BA over-growth is NOT the SMDGF-h<4.5 (hypothesis REFUTED by
+measurement). So the WL/PP over-growth root remains OPEN (two hypotheses refuted: elevation, SMDGF-h<4.5) — a
+separate species-dependent establishment-cohort density issue, deferred to a per-cycle instrument-replay session.
+The SMDGF guard is faithful+shipped regardless. Then re-visit em_esgent (git history) once WL/PP is understood.
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
