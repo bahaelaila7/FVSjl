@@ -34,6 +34,17 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
     aspect = p.aspect; slope = p.slope; dgsd = s.control.dg_sd
     regyr = 5.0f0
+    # V2 (LV2ATV) small-tree: CON = RHCON(habitat) + HCOR(htg_cor_small); exp-form HTGRL; XMAXV2 bounds;
+    # multiplicative ZZRAN (HSIGMA). No ST_COEF/ip needed. (regent.f LV2ATV branches.)
+    v2 = bc_lv2atv(zone)
+    nsp = nspecies(BritishColumbia())
+    con_v2 = zeros(Float32, nsp)
+    if v2
+        regch_v2 = bc_v2_regch(aspect, slope)
+        @inbounds for sp in 1:nsp
+            con_v2[sp] = bc_v2_rhcon(sp, regch_v2) + s.calib.htg_cor_small[sp]
+        end
+    end
     # subcycle count + lengths (regent.f:186-203, mirror KT)
     ntyr = Int(round(fint)); iyr = Int(regyr)
     nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
@@ -76,12 +87,15 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
         decay = 0.985f0 ^ ky
         for i in 1:n
             sp = Int(t.species[i]); d = t.dbh[i]
-            (d >= BC_RG_XMAX[sp] || t.tpa[i] <= 0f0 || ip[sp] < 1) && continue
+            xmx_sp = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
+            (d >= xmx_sp || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue
             h1 = wk3[i]; pct = t.crown_ratio[i]; pr = t.tpa[i]
             bal = (1f0 - pct/100f0) * baj
-            htgrl = bc_v3_sthg(sp, ip[sp], h1, bal, rdj, rhcon[sp], aspect, slope)
+            incr = v2 ? exp(max(-40f0, con_v2[sp] + BC_RG_V2_RHLH[sp]*log(h1) +
+                                BC_RG_V2_RHCCF[sp]*rdj + BC_RG_V2_RHBAL[sp]*bal)) :
+                        bc_v3_sthg(sp, ip[sp], h1, bal, rdj, rhcon[sp], aspect, slope)
             xrhgro = active_multiplier(s.control, :regh, sp, current_cycle_year(s))
-            h2 = h1 + htgrl * (kpj/regyr) * xrhgro
+            h2 = h1 + incr * (kpj/regyr) * xrhgro
             wk3[i] = h2
             # small-tree density contribution to RDNEXT(j+1)/BANEXT(j+1) (regent.f:1437-1458). Skip last subcycle
             # and D≥3in (large trees handled by the pre-loop projection); needs H2>4.5 for the power-form DBH.
@@ -105,8 +119,9 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     @inbounds for oi in 1:n
         i = order[oi]
         sp = Int(t.species[i]); d = t.dbh[i]
-        (d >= BC_RG_XMAX[sp] || t.tpa[i] <= 0f0 || ip[sp] < 1) && continue
-        h = t.height[i]; xmn = BC_RG_XMIN[sp]; xmx = BC_RG_XMAX[sp]
+        xmn = v2 ? BC_RG_V2_XMIN[sp] : BC_RG_XMIN[sp]; xmx = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
+        (d >= xmx || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue
+        h = t.height[i]
         htgr1 = wk3[i] - h; htgr1 < 0f0 && (htgr1 = 0f0)
         zzran = 0f0
         if dgsd >= 1f0
@@ -115,7 +130,9 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                 (zzran <= 1f0 && zzran >= -1.5f0) && break
             end
         end
-        htgr = max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)     # V3 ZZRAN (regent.f:1547)
+        # V2: MULTIPLICATIVE error HTGR=HTGR1·exp(ZZRAN·HSIGMA) (regent.f:1544); V3: additive + ST_COEF.SD
+        htgr = v2 ? htgr1 * exp(zzran * BC_RG_V2_HSIGMA) :
+                    max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
         xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
         htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
         cap = s.control.sp_size_cap[sp, 4]
