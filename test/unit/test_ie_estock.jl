@@ -208,6 +208,19 @@ end
     @test isapprox(sum(t), 583.7; atol = 0.6)
 end
 
+@testset "IE AUTOES seed0 from ESSS + self-contained tally — task #143 chunk A2c" begin
+    # The establishment RNG default ESSS=55329 (esblkd.f:30); the first draw derives ESDRAW=seed0.
+    @test FVSjl.ie_autoes_seed0(55329) == 43303
+    # end-to-end from the DERIVED seed0: species split must still be bit-exact (no hardcoded 43303).
+    occ = Float32[ones(9); zeros(14)]; over = zeros(Float32, 10); slo = 0.30f0
+    t = FVSjl.ie_autoes_tally(seed0 = FVSjl.ie_autoes_seed0(55329), nplots = 50, ihab = 10, iser = 4,
+        ifo = 4, iprep = 1, iphy = 3, xcos = cos(5.498f0) * slo, xsin = sin(5.498f0) * slo, slo = slo,
+        elev = 34.0f0, baa = 1.0f0, regt = 1.0f0, bwaf = 0.0f0, bwb4 = 0.0f0, prob1 = 0.5527f0,
+        dupnpt = 50.0f0, occ = occ, over = over)
+    @test round(Int, t[4]) == 202 && round(Int, t[5]) == 222   # GF, WH
+    @test isapprox(sum(t), 583.7; atol = 0.6)
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)

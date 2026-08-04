@@ -702,3 +702,17 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     end
     return tally
 end
+
+# =============================================================================
+# ie_autoes_seed0 — derive the AUTOES tally seed0 from the establishment RNG default (estab.f:290-295).
+# The establishment RNG is a SEPARATE ESRANN stream (ESRNCM), default ESSS=55329 (esblkd.f:30) — numerically
+# the same as the main FVS seed but an INDEPENDENT stream. For the FIRST tally the stream is fresh at ESSS, so
+# estab.f:291 draws once and ESDRAW=INT(DRAW*100000+0.5) seeds the plot chain (:295 reseed). VALIDATED: from
+# ESSS=55329, draw #1 = 0.433025 → ESDRAW = 43303 = the iet01 stand-4 seed0. ⇒ the AUTOES RNG is fully
+# self-contained/deterministic (no main-growth-RNG dependency for the first tally).
+# =============================================================================
+function ie_autoes_seed0(esss::Integer = 55329)::Int
+    rng = IEEstabRNG(esss)
+    d = ie_esrann!(rng)                       # first draw off the ESSS stream
+    return trunc(Int, d * 100000f0 + 0.5f0)   # ESDRAW = INT(DRAW*100000+0.5)
+end
