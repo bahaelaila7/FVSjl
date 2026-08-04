@@ -129,6 +129,7 @@ include("variants/easternmontana/height_growth.jl") # EM large-tree height growt
 include("variants/easternmontana/mortality.jl") # EM mortality (em/morts.f): RI-background + SDI-trend RN
 include("variants/easternmontana/regent.jl") # EM small-tree growth (em/regent.f NIVAR): em_regcons! + small_tree_growth!
 include("variants/easternmontana/volume.jl") # EM volume: FW2 conifers (cr_fw2_vol) + DVEW woodland (R1KEMP cubic)
+include("variants/easternmontana/establishment.jl") # EM ESSUBH base height (em/essubh.f) — em_essubh_hht + em_ihtser
 
 # --- teton (TT) — next western Rockies cluster variant (EM-DG + CR-Zeide-density discount) ---
 include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)

@@ -255,6 +255,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 _IE_ES_XMIN[sp]
             elseif s.variant isa Teton
                 _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
+            elseif s.variant isa EasternMontana
+                # EM subsequent/planted base height (em/essubh.f, deterministic EXP(PN)). IHTSER from the habitat
+                # code bracket search; IPHY=3 / IPREP=1 defaults (esplt2.f). BAA=overstory competition BA clamp[1,400].
+                _slo = s.plot.slope
+                em_essubh_hht(sp, log(age), clamp(s.plot.basal_area, 1f0, 400f0),
+                              _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation,
+                              em_ihtser(Int(s.plot.habitat_code)), 3, 1)
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -266,6 +273,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
+            elseif s.variant isa EasternMontana
+                # EM (em/estab.f:1035-1038): HHT = essubh + HTADJ(default 0), floor XMIN — NO RAN draw (unlike CR
+                # estab.f:486 which draws + adds RAN). Skipping the draw keeps the :estab stream synced vs FVSem.
+                hht < es_xmin[sp] && (hht = es_xmin[sp])
             else                                                   # default: RAN~N(0.5,0.25), accept RAN∈[ran_lo,ran_hi]
                 while true
                     ran = bachlo(s.rng, 0.5f0, 0.25f0; stream = :estab)
