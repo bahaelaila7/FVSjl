@@ -35,15 +35,24 @@ running order-statistic product (`FIRST(2)=SQRT(DILATE)` each record, line 837/1
 subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is the deterministic expectation.
 
 **Recommended sub-chunks:**
-1. Instrument-replay: patch em/estab.f (buildDir) to WRITE `sp, AGE, BAA, IHTSER, IPREP, IPHY, XCOS, XSIN, SLO,
-   ELEV, EMSQR, DILATE, HHT` for each planted record on em_plant.key; relink `relink_em.sh trc estab.o`
-   (uses plain `gfortran`; if absent use gfortran-16 + `/workspace/.crwork/isoc23_shim.o`); run → dump the
-   ground-truth inputs+HHT. (Pins IHAB→IHTSER and IPHY, which jl's EM estab context may not yet derive.)
-2. Port DF ESSUBH deterministically (`HHT=EXP(PN)`, EMSQR variance DEFERRED — exactly like CI's intentional
-   ZZRAN deferral, RNG stream stays synced because the emsqr draws are already consumed). Add the EM branch at
-   `establishment.jl:258`. Validate BA/QMD/SDI cornered on em_plant.key; TopHt = deferred-variance tail.
-3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP), then the IE-borrowed species (LM/RM/AS/CW/… use IE forms).
-4. (Later refinement) faithful stochastic EMSQR/DILATE order-statistic → bit-exact TopHt.
+1. ✅ DONE 2026-08-04 — Instrument-replay: patched buildDir/essubh.f DF branch (label 30) to WRITE
+   `I,IHTSER,IPREP,IPHY,AGELN,BAA,XCOS,XSIN,SLO,UHAB,UPRE,UPHY,EMSQR,DILATE,BNORM,PN,HHT` to unit 16 (→ .out),
+   compiled gfortran-16, relinked manually (`gfortran-16 -o FVSem_trc $(ls buildDir/*.o) crwork/isoc23_shim.o`
+   — relink_em.sh's plain `gfortran` is absent in non-interactive bash), ran em_plant.key. **VALIDATED the DF
+   formula bit-exact:** for em_plant IHTSER=2, IPREP∈{1,2,3} (per-record, from the site-prep vector!), IPHY=3,
+   AGE=7 (AGELN=1.9459), BAA=1.0. Hand-check PN=0.156307 ✓, HHT=EXP(PN+EMSQR·DILATE·BNORM·0.55942)=1.18492 ✓.
+   Derived: **XCOS=SLO·cos(aspect), XSIN=SLO·sin(aspect)** (0.3·cos315°=0.2121); IAGE=INT(age−TRAGE+0.5)=5 (age
+   BEFORE trage) → BNORML(5)=1.093. mean(HHT over 50 recs)=1.188 ≈ EXP(PN_none)=1.169 (Jensen +1.6%). buildDir
+   RESTORED pristine. Ground truth: `/workspace/.emwork/em_essubh_df_groundtruth.txt`.
+2. Port DF ESSUBH deterministically (`HHT=EXP(PN)`, EMSQR variance DEFERRED — like CI's intentional ZZRAN
+   deferral; RNG stays synced, the emsqr draws are already consumed at establishment.jl:218). Add the EM branch at
+   `establishment.jl:258`. **Open wiring:** IHTSER (habitat series, MYHTS(IHAB)) + IPHY (physiographic) must be
+   derived from jl's EM plot context — check if available; for em_plant they are 2 and 3. IPREP: simplest =1(NONE)
+   for all (gives HHT≈1.169, cornered); faithful = use the per-record WK6 site-prep vector jl fills at line 207.
+   Validate BA/QMD/SDI cornered on em_plant.key; TopHt = deferred-variance tail.
+3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP — em/essubh.f labels 10/20/70/80/90/100), then the
+   IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
+4. (Later refinement) faithful stochastic EMSQR/DILATE order-statistic + per-record IPREP → bit-exact TopHt.
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
