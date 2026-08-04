@@ -24,6 +24,7 @@ end
 function bc_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     zone, series = bc_stand_zone(s)
+    bc_lv2atv(zone) && return bc_v2_dgcons!(s)   # V2 regime (ESSF/MS/PP): IE-form NI-branch DGCON (chunk 2b)
     elev = p.elevation; asp = p.aspect; slope = p.slope
     @inbounds for sp in 1:nspecies(BritishColumbia())
         ip, jp = bc_resolve_ipjp(sp, series, zone)
@@ -47,6 +48,7 @@ function dgf!(s::StandState, ::BritishColumbia)
     wk2 = view(s.scratch.wk, 2, :)
     relden = p.relative_density; ba = p.basal_area
     zone, series = bc_stand_zone(s)
+    bc_lv2atv(zone) && return bc_v2_dgf!(s)      # V2 regime (ESSF/MS/PP): imperial IE-form DDS (chunk 2b)
     inICH = occursin("ICH", zone); inIDF = occursin("IDF", zone)
     nsp = nspecies(BritishColumbia())
     ip = zeros(Int, nsp); dgccf1 = zeros(Float32, nsp)

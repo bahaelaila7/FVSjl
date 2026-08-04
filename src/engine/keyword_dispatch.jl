@@ -543,7 +543,12 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     rec.present[3] && (p.stand_age = nint(v[3]))
     rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
     rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
-    (rec.present[6] && v[6] > 0f0) && (p.elevation = v[6])
+    # BC (metric): STDINFO elevation is converted ARRAY(6)·MtoFT/100 (canada/bc/initre.f:876) — e.g. a
+    # 7.0 field → common ELEV 0.229659. Downstream BC code recovers metres via ELEV·100·FTtoM. Other
+    # variants store the raw field (hundreds of feet). Without this the V2 DGCON elevation term is ~30× off.
+    if rec.present[6] && v[6] > 0f0
+        p.elevation = s.variant isa BritishColumbia ? v[6] * 3.28084f0 / 100f0 : v[6]
+    end
     if rec.present[9]
         org = nint(v[9])
         p.stand_origin = (org < 0 || org > 1) ? Int32(0) : org
