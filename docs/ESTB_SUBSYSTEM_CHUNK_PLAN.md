@@ -200,9 +200,15 @@ divergence that starts when the dense cohort crosses the self-thin threshold (~2
 it's most likely a real SELF-THIN MORTALITY issue (jl over-kills the dense EM cohort), the SAME MECHANISM as BM #140
 (jl UNDER-kills BM — opposite sign, same self-thin/BAMAX-SDImax model). So: EM establishment GROWTH is validated/
 DONE (all 3 models bit-exact); the density residual is an OPEN self-thin mortality question (shared root with #140),
-NOT confirmed-cornered. NEXT (shared #137/#140): per-cycle self-thin/BAMAX kill-rate comparison on a dense EM/BM
-cohort — why jl over-kills EM & under-kills BM at the self-thin threshold. The esgent TopHt grow (git history)
-stays optional. Corrected from the prior over-assertion (growth-validated is solid; the mortality mechanism was not).
+NOT confirmed-cornered. ROOT SOURCE-VERIFIED → task #144: the western self-thin (_em_tn10_iter used by EM/UT/BM; _tt_tn10_iter for TT)
+RECOMPUTES the self-thin linear-fn slope/intercept FRESH every cycle, but em/morts.f:344-559 sets SLPMRT/CEPMRT
+ONCE and PERSISTS them (reset only on trajectory change |T-TPAMRT|>1). SN ALREADY implements this
+(dens.mort_slope/mort_intercept/tpa_mort; southern/mortality.jl:129-133 set-once + 307-312 reset); the western
+variants don't. Instrument (EM_MORTDBG env in EM mortality.jl): emt01 ESTAB self-thin engages 2062, jl tn10=675 vs
+oracle ~696 → over-kill. FIX = mirror SN in the western iters (bounded; state fields exist) + validate the
+validated stands stay bit-exact (they actively thin ⇒ |t-TPAMRT|>1 ⇒ reset each cycle ⇒ likely no change). Likely
+fixes BOTH #137 (EM over-kill) + #140 (BM under-kill, opposite sign). See task #144. The esgent TopHt grow (git
+history) stays optional. Corrected from the prior over-assertion (growth-validated is solid; mortality was the root).
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
