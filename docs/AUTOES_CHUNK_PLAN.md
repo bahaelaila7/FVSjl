@@ -158,6 +158,13 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     -0.565, 0.721, -0.280, 0.562, -0.130, -0.757** (plot-1 mag 0.219 = draw#52). Build ie_autoes_tally so each
     plot's EMSQR (2 draws) matches this list ⇒ proves the per-plot draw count exact; then ITPP/NUMSPE/species/TPA
     booking follow. NEEDS: MAXTPP(IHAB)+MAXSPP(IHAB) (blkdat.f), NOFSPE=23, the ESDLAY/height draw count. Intricate.
+    ★ LOOP STRUCTURE (estab.f, MAPPED): per-plot processing is a NESTED loop `DO 203 NN=1,NPTIDS → DO 202 ITYPEP=
+    1,4 → DO 201 IREP=1,NTIMES`, NCOUNT=plot counter (1-10). The per-plot ESRANN count is BRANCH-DEPENDENT: the
+    STOADJ<1e-4 "skip" path (:653-670, loops DO 71=6, DO 72=6, DO 73=NOFSPE, DO 74=NOFSPE*2, DO 75=MAXTPP*2) vs the
+    MAIN selection path (DO 15=6 NUMSPE-WK6, DO 120=6 species-WK6, DO 63=NOFSPE ADV/SUBS, DO 122=NOFSPE*2 heights,
+    DO 123=MAXTPP*2 excess). ⇒ ie_autoes_tally must replicate the nested loop + the STOADJ branch exactly; validate
+    each NCOUNT plot's EMSQR against the captured list. This is a focused, careful build (one wrong ESRANN count
+    desyncs everything) — best done as a dedicated unit, not piecemeal. Foundation (8 primitives) is 100% ready.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
