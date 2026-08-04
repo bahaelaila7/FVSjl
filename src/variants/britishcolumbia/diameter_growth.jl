@@ -16,8 +16,8 @@
 
 """Stand BEC zone + site-series. TEMP hardcode (all_BC) until chunk-2 (becset.f) populates StandState."""
 function bc_stand_zone(s::StandState)
-    # TODO chunk-2: derive from becset habitat→zone map (STDINFO 231Dd → ICH/ICHmw2/01 for all_BC).
-    return ("ICH", "ICHmw2/01")
+    z, _, _, pretty = bc_becset(s)   # habtyp parse of STDINFO BEC string; default ICH/ICHmw2/01 (becset.jl)
+    return (z, pretty)
 end
 
 """BC DGCONS — resolve per-species DGCON once/stand (canada/bc/dgf.f:2185-2230)."""

@@ -79,6 +79,7 @@ include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Regi
 # --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
 include("variants/britishcolumbia/britishcolumbia.jl") # BC singleton + registration (MAXSP 15) — chunk 0 scaffold
 include("variants/britishcolumbia/species.jl")          # BC species block-data init (bc/blkdat.f) — chunk 1
+include("variants/britishcolumbia/becset.jl")           # BC BEC-zone parse (habtyp) + sitset BAMAX table — chunk 2
 include("variants/britishcolumbia/site_index.jl")       # BC site/habitat (chunk 2): KODTYP→ITYPE + Stage SDImax
 include("variants/britishcolumbia/dg_coefficients.jl")  # BC V3 DG coeffs (ZNKONST/SSKONST) + matcher/DDS/bark — chunk 3
 include("variants/britishcolumbia/diameter_growth.jl")  # BC large-tree DDS hooks (bc_dgcons! + dgf!) — chunk 3 (not yet in simulate dispatch)

@@ -26,7 +26,8 @@ function bc_site_index_setup!(s::StandState)
     # ⚠ full sitset table is chunk-2 TODO; ICHmw2/01 (all_BC, the hardcoded zone) = 89 m²/ha (oracle .out
     # "MAXIMUM BASAL AREA FOR ICHmw2/01 IS SET BY DEFAULT TO 89.0 SQ M/HA"). 89/0.2295643 = 387.69 ft²/ac.
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 85.0f0
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : 89.0f0 / BC_FT2pACRtoM2pHA
+    z, sz, ser, _ = bc_becset(s)                              # BEC zone (default ICHmw2/01); sitset BAMAX table
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : bc_sitset_bamax(z, sz, bc_iseries(ser))
     @inbounds for sp in 1:15
         p.sp_sdi_def[sp] <= 0f0 && (p.sp_sdi_def[sp] = bamax / (0.5454154f0 * (pmsdiu / 100f0)))
     end

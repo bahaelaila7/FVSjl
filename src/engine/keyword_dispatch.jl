@@ -526,8 +526,15 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     # IE (and other western Wykoff variants): field 2 is the numeric habitat code (KODTYP) that
     # ie_habtyp reduces to ITYPE — store it in habitat_code, NOT eco_unit (initre.f:808 KODTYP).
     if rec.present[2]
-        if s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
-           s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho || s.variant isa BritishColumbia
+        if s.variant isa BritishColumbia
+            # BC: STDINFO field 2 (+1) is the BEC site-series STRING (KARD(1)//KARD(2), initre.f:889), parsed
+            # by HABTYP into Zone/SubZone/Series. Keep the raw concat in eco_unit; bc_becset parses it (default
+            # ICHmw2/01 when no Region). habitat_code (numeric) stays for the legacy ITYPE path.
+            p.habitat_code = nint(v[2])
+            f1 = length(rec.fields) >= 1 ? String(rec.fields[1]) : ""
+            p.eco_unit = f1 * String(rec.fields[2])
+        elseif s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
+               s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho
             p.habitat_code = nint(v[2])
         else
             p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)
