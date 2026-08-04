@@ -193,6 +193,18 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     per-NCOUNT draw stride directly, ending the hand-count guessing. THEN write ie_autoes_tally with that stride and
     validate plot-by-plot vs the EMSQR list. (Doctrine #2: instrument when unsure — hand-tracing 540 lines of
     branchy Fortran is the wrong tool here.)
+    ★★★ INSTRUMENTED (2026-08-04, doctrine #2 win) — patched esrann.f (call counter NESDRW in a new /ESDBGC/
+    common) + estab.f (dump NESDRW at each EMSQR), relinked FVSie_trc, ran, RESTORED buildDir clean. RESULT:
+    **per-plot draw stride = EXACTLY 135** (NESDRWCT at EMSQR = 52,187,322,457,592,727,862,997,1132,1267 — constant
+    +135; EMSQR at draw-52 within each plot). My hand-count 134 was off by 1 (the :967 ESAVE draw). ★ BUT the pure
+    LCG from 43303 only reproduces PLOT-1 EMSQR (0.219@#52); plots 2-10 DON'T match at #52+135k ⇒ there is a
+    **PER-PLOT RESEED**: estab.f:967 `ESAVE=INT(DRAW*100000+0.5)` then :1075 `CALL ESRNSD(.TRUE.,ESAVE)` reseeds the
+    stream each plot. So each plot is a FRESH LCG from its own seed (plot1=43303), 135 draws, EMSQR at draw 52. The
+    seed-chain is NOT a simple fixed draw-offset (tried seed_{n+1}=INT(d_n[k]*100000+0.5) ∀k — k=5 matches plots
+    1-2 then diverges at plot-3). ⇒ FINAL UNKNOWN = the exact ESAVE-generation: RE-INSTRUMENT to dump ESAVE (or ESS0
+    at each plot's first draw) per plot → gives the exact per-plot seed sequence. THEN ie_autoes_tally = {for each of
+    NPTIDS·IDUP plots: seed→135-draw stream, EMSQR@52, ESTPP@53, NUMSPE, IBEST, excess, book TPA; next seed=ESAVE}.
+    Plot-1 is already bit-exact end-to-end. This is the last measurement before the assembly is fully determined.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
