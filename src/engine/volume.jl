@@ -239,9 +239,16 @@ volume trimmed to the standing break height `ITRUNC/100` ft via the Behre taper.
 BRATIO (uses the stashed `t.vol_bark[i]` when present). No-op for un-killed trees (the common path). The
 region-4 DVE woodland path does NOT call this (fvsvol.f skips CFTOPK for DVE).
 """
+# Region-4 cftopk/bftopk use the RAW grinit merch top TOPD=6.0 (fvsvol.f CFTOPK: DMRCH=TOPD(ISPC)/D), NOT the
+# species-CSV `top_dib` (which is 4.0 for TT / 0.0 for CI — the secondary-product default, wrong for the broken-
+# top reduction). A 6.0-filled top vector keyed by species for the western MAT/FW2 broken-top path.
+const _R4_TOPD6 = fill(6.0f0, 64)
+
 @inline function r4_topkill(t, i::Integer, sp::Integer, d::Float32, h::Float32, bark::Float32,
                             tcf::Float32, mcf::Float32, bf::Float32, merch)
     (t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0) || return (tcf, mcf, bf)
+    merch = (stmp = merch.stmp, topd = _R4_TOPD6, scfstmp = merch.scfstmp,
+             scftop = _R4_TOPD6, bftopd = _R4_TOPD6, bfstmp = merch.bfstmp)  # TOPD=6.0 (grinit), not CSV top_dib
     bk = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : bark
     vmx = tcf
     tcf, mcf, _ = cftopk(merch, sp, d, h, tcf, mcf, 0f0, vmx, bk, Int(t.trunc[i]))
