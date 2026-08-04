@@ -285,6 +285,27 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     WRITE and relink FVSie_trc, or read estab.f's OPADD follow-on-tally scheduling to reconstruct analytically.
     LINGRW re-fires when `IY(ICYC+1)-IDSDAT≥40` (esnutr.f:332) → IDSDAT resets to IY(ICYC+1)-20 each fire.
   - Artifacts persisted: /workspace/.iework/autoes_measure/{iet01_s4dbg.out, iet01_clean.sum, iet01_s4dbg.key}.
+- **A3c — FULL measured NTALLY scheduler (2026-08-04, unconditional AUTOESTRC dump in esnutr.f before CALL ESTAB,
+  relinked FVSie_trc, ran WITHOUT the DEBUG keyword → no VOLINIT crash, all 10 cycles). GROUND TRUTH:**
+  ESTAB fires on cycles 1,3,4,5,7,8,10 (NOT 2,6,9). Per firing (ICYC / →endYr / NTALLY / IDSDAT / trigger):
+  - cyc1 →2000 NTALLY=99 IDSDAT=1980 — INGROWTH (ITRN=0 after 99.9% thin; ICYC=1 rule). +531 TPA.
+  - cyc3 →2020 NTALLY=99 IDSDAT=2000 — INGROWTH (IY(ICYC+1)-IDSDAT_old=2020-1980=40≥40 rule).
+  - cyc4 →2030 NTALLY=1  IDSDAT=2020 — REMOVAL disturbance (THINBTA 2020 thin in cyc4, start-year 2020).
+  - cyc5 →2040 NTALLY=2  IDSDAT=2020 — CONTINUATION (KDT-IDSDAT=2039-2020=19≤19).
+  - cyc7 →2060 NTALLY=1  IDSDAT=2050 — REMOVAL disturbance (THINBTA 2050 thin in cyc7).
+  - cyc8 →2070 NTALLY=2  IDSDAT=2050 — CONTINUATION.
+  - cyc10 →2090 NTALLY=99 IDSDAT=2070 — INGROWTH (2090-2050=40≥40 rule).
+  ★ So BOTH paths fire: the LAUTAL removal-threshold path (cyc4/5, cyc7/8 from THINBTA) AND the LINGRW ingrowth
+  path (cyc1/3/10). NTALLY 1→2 is the TALLYONE→TALLYTWO 20-yr continuation. The removal path (A3a) IS needed
+  after all — a thinning to a non-bare residual (THINBTA) triggers NTALLY=1; a thinning to bare (THINPRSC 0.999)
+  falls through to the ingrowth path. A no-tally cycle (2/6/9) = growth+mortality only. Sequence artifact:
+  /workspace/.iework/autoes_measure/stand4_ntally_sequence.txt. This fully determines the establish! scheduler.
+- **A3d — NEXT: implement the NTALLY state machine in establish!** mirroring esnutr.f: (1) after cuts!, if a
+  thinning removed ≥THRES2 to a NON-bare residual → set idsdat=cycleYr, ntally=1 (schedule removal tally);
+  (2) at establish!, the ingrowth rule ((ITRN=0 & ICYC=1) OR (IY(ICYC+1)-idsdat≥40)) → ntally=99→1 full tally,
+  idsdat=IY(ICYC+1)-20; (3) 20-yr continuation (KDT-idsdat≤19 & ntally>0 → ntally++); (4) each firing runs
+  ie_autoes_tally (PNONE=1 for ingrowth) + creates trees via the existing tail. Validate cycle-by-cycle vs the
+  0/531/420/711/1537/1868/1256/1300/1600/1171/1081 trajectory.
 - **A4 — full-cycle differential:** iet01 stand-4 `.sum` TPA/BA/SDI vs oracle (the anchor table above). `.sum`
   aggregates ONLY (tripling). Then sweep the other western auto-regen stands.
 
