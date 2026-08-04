@@ -105,6 +105,22 @@ end
     @test FVSjl.ie_estab_pick_species(draw60, sumup) == 5  # WH = oracle IBEST
 end
 
+@testset "IE AUTOES multi-plot seed chain — task #143 chunk A2c" begin
+    # estab.f per-plot reseed: seed_{N+1}=odd(ESAVEGEN_N). Instrument-confirmed on iet01 stand-4.
+    seeds = FVSjl.ie_autoes_plot_seeds(43303, 6)
+    @test seeds == [43303, 22913, 17231, 97317, 32953, 75193]
+    # per-plot EMSQR from each seed (plot-1 offset by wk6=50; plots 2+ EMSQR at body-draw 2)
+    emsqr_oracle = (0.219f0, -0.925f0, -0.528f0, 0.863f0, -0.565f0, 0.721f0)
+    for (n, sd) in enumerate(seeds)
+        rng = FVSjl.IEEstabRNG(sd)
+        off = n == 1 ? 50 : 0          # plot-1 one-time WK6 fill precedes its body
+        for _ in 1:off; FVSjl.ie_esrann!(rng); end
+        sgn = FVSjl.ie_esrann!(rng); mag = FVSjl.ie_esrann!(rng)   # EMSQR sign, magnitude (body draws 1,2)
+        emsqr = (sgn < 0.5f0 ? -mag : mag)
+        @test isapprox(emsqr, emsqr_oracle[n]; atol = 1f-3)
+    end
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)

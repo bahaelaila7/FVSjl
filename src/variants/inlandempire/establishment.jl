@@ -609,3 +609,32 @@ function ie_estpp(val::Real, ihab::Integer, xcos::Real, xsin::Real, slo::Real, r
     cc = 0.6836f0
     return ((-log(1f0 - Float32(val)))^(1f0/cc)) * bb + 0.9f0
 end
+
+# =============================================================================
+# ie_autoes_plot_seeds — AUTOES per-plot RNG seed chain (estab.f, task #143 A2c).
+# The establishment tally reseeds the ESRANN stream PER PLOT (estab.f:967 ESAVE=INT(DRAW*100000+0.5),
+# :1075 CALL ESRNSD). Structure (instrument-confirmed on iet01 stand-4, seed0=43303, wk6=IDUP*NPTIDS=50):
+#   • one-time WK6 site-prep fill of `wk6` draws from seed0 (before plot 1);
+#   • each plot = a 135-draw body: EMSQR@body-2 (sign,mag), ESTPP@body-3, …, ESAVEGEN@body-135;
+#   • seed_{N+1} = odd_adjust(ESAVEGEN_N), where ESAVEGEN_N = INT(draw_last*100000+0.5).
+# Plot 1's body shares seed0's stream after the wk6 prefix (so its ESAVEGEN is at draw wk6+135); plots 2+
+# start a FRESH reseeded stream (ESAVEGEN at draw 135). VALIDATED BIT-EXACT: seeds [43303,22913,17231,
+# 97317,32953,75193] = live FVSie. Returns the per-plot seed vector (each already odd-adjusted).
+# =============================================================================
+function ie_autoes_plot_seeds(seed0::Integer, nplots::Integer; wk6::Integer = 50, body::Integer = 135)::Vector{Int}
+    seeds = Int[]
+    s = Int(seed0); iseven(s) && (s += 1)          # ESRNSD odd-adjust of the initial seed
+    push!(seeds, s)
+    for n in 1:(nplots - 1)
+        rng = IEEstabRNG(s)
+        ndraw = (n == 1 ? wk6 + body : body)       # plot-1 body is offset by the one-time wk6 fill
+        local draw::Float32 = 0f0
+        for i in 1:ndraw
+            draw = ie_esrann!(rng)
+        end
+        esave = trunc(Int, draw * 100000f0 + 0.5f0)  # ESAVE = INT(DRAW*100000+0.5)
+        iseven(esave) && (esave += 1)                # next-plot ESRNSD odd-adjust
+        push!(seeds, esave); s = esave
+    end
+    return seeds
+end
