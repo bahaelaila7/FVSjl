@@ -38,20 +38,22 @@ function compute_volumes_ci!(s::StandState)
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
         bark = ci_bratio(sd, sp, d)
         dbhmin = sp == 7 ? 7.0f0 : 8.0f0
+        # Top-killed trees: full cubic (VMAX) uses the NORMAL height (norm_ht), then r4_topkill trims (see TT).
+        hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         if mdl == "MAT"
             mtopp = 6.0f0 * bark
-            tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)
+            tcf, mcf = r4vol_volumes(eq, d, hv, mtopp, 0f0)
             mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
-            bf = d >= dbhmin ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0
-            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, max(tcf, 0f0), mcf, bf, cimerch)
+            bf = d >= dbhmin ? r4vol_board(eq, d, hv, mtopp, 0f0) : 0f0
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, max(tcf, 0f0), mcf, bf, cimerch)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
-            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, bark, tcf, mcf, bf, cimerch)
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, cimerch)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # DVE woodland (r4d2h, region 4): NO CFTOPK trim

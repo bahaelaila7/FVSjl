@@ -66,14 +66,19 @@ function compute_volumes_tt!(s::StandState)
             # here made TT small-tree MAT merch ~2-4% high (WB D=11.8: 9.70 vs live 9.30). DBHMIN=8 (sp7=7).
             mtopp = 6.0f0
             dbhmin = sp == 7 ? 7.0f0 : 8.0f0
-            tcf, mcf = r4vol_volumes(eq, d, h, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
+            # A top-killed tree's FULL cubic (VMAX for CFTOPK) is computed at the NORMAL predicted height
+            # (norm_ht, cratet.f), not the standing/broken height — then r4_topkill trims it to the break.
+            # (Large trees where norm_ht==height were unaffected; small ones like LP D7.1 norm_ht 56.7≠height 38
+            # were ~13% low.) fvsvol passes HTTOT=NORMHT for TKILL trees.
+            hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+            tcf, mcf = r4vol_volumes(eq, d, hv, mtopp, 0f0)   # (total CF0, merch CFGRS) — bit-exact
             mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0
             bfmind = sp == 7 ? 7.0f0 : 8.0f0                 # board DBHMIN (BFMIND, tt/grinit.f)
-            bf = d >= bfmind ? r4vol_board(eq, d, h, mtopp, 0f0) : 0f0   # BFGRS Scribner (M=1)
+            bf = d >= bfmind ? r4vol_board(eq, d, hv, mtopp, 0f0) : 0f0   # BFGRS Scribner (M=1)
             # Broken/killed-top reduction (r4_topkill → CFTOPK/BFTOPK): a top-killed tree over-volumes without
             # it — this WAS the TT forest-405 .sum residual (one AF idx-11 broke at 40ft: jl 53.2 vs live 44.0
             # ⇒ +55 TCuFt; TCuFt now bit-exact). Latent in CI/UT too (same MAT/FW2 path); no-op for un-killed.
-            tcf, mcf, bf = r4_topkill(t, i, sp, d, h, tt_bratio(sp, d), max(tcf, 0f0), mcf, bf, merch)
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, tt_bratio(sp, d), max(tcf, 0f0), mcf, bf, merch)
             t.cuft_vol[i] = max(tcf, 0f0)
             t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
