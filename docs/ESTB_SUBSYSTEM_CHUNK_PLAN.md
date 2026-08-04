@@ -68,7 +68,16 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    per-sp PN intercepts/slopes: dump from em/essubh.f + em/blkdat.f (same table-dump technique as other chunks).
 3. Extend to the other EM conifers (WB/WL/LP/ES/AF/PP — em/essubh.f labels 10/20/70/80/90/100), then the
    IE-borrowed species (LM/RM/AS/CW/… use IE forms). Same instrument-replay per species if uncertain.
-4. ⚠ ATTEMPTED + REVERTED 2026-08-04 — the EMSQR/DILATE reconstruction is **.sum-INERT** so it was NOT kept.
+4. ✗ NOT NEEDED — the establishment-height variance is DEFINITIVELY irrelevant to the residual. CONTROLLED
+   EXPERIMENT (2026-08-04): injecting the oracle's EXACT 50 per-record HHTs (from em_essubh_df_groundtruth.txt)
+   into jl leaves the .sum COMPLETELY UNCHANGED (2090 BA 42/46, TopHt 52/60, QMD 5.0/5.3 — identical to
+   deterministic EXP(PN)). So even with perfect heights the establishment cohort grows to TopHt 52 vs live 60 over
+   100 yr ⇒ **the ~8% density + TopHt gap is EM REGENT/DG seedling GROWTH on the establishment cohort (D~0.1
+   origin), NOT the essubh height.** The EM essubh height port (deterministic EXP(PN)) is therefore COMPLETE +
+   CORRECT — the EMSQR/DILATE stochastic reconstruction (below) is confirmed NOT worth pursuing (would not move the
+   .sum). REMAINING EM-estab lead = the seedling-growth trajectory (regent/DG on tiny establishment-origin trees),
+   a separate low-pri cornered tail needing multi-cycle per-tree instrument-replay. (Earlier reconstruction attempt,
+   for reference:) the EMSQR/DILATE reconstruction is **.sum-INERT** so it was NOT kept.
    Implemented HHT=EXP(PN+EMSQR·DILATE·BNORML·σ) using the two emsqr draws jl already consumes + a per-species
    running DILATE. Findings: **DILATE reconstructs BIT-EXACT** (0.1,0.3162,0.5623,… matched live); emsqr record-1
    matched (0.2186) but **desyncs record-2+** (jl's per-replicate draw count diverges from FVS after record 1 —
