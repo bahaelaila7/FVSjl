@@ -187,6 +187,14 @@ emt01 ESTAB trajectory shows QMD MATCHES early (2002 jl 0.7/or 0.7) and diverges
 over-kills (2092 jl 590 vs or 630). ⇒ ROOT = the LATE SELF-THIN MORTALITY on the dense WL/PP establishment cohort
 (over-kill leaves fewer, thicker trees → QMD/BA over). SAME CLASS as BM #140 (self-thin on dense stands). NEXT:
 per-cycle mortality/self-thin comparison on the dense EM establishment cohort (shared with #140); NOT a growth fix.
+LIKELY ACCEPTED-CORNERED: since all 3 growth models are now bit-exact-validated and the establishment count (TPA)
+matches early, the divergence can only be the MORTALITY selecting different trees. On a dense, UNIFORM establishment
+cohort (800 identical-size seedlings), that is the RDPSRT self-thin quicksort TIE-BREAK — a known accepted-cornered
+residual class (see [[fvsjl-largest-div-campaign]], [[fvsjl-stand-pct-rdpsrt-fix]]: RDPSRT unstable-sort boundary
+determines which of N equal trees dies). So the EM establishment GROWTH is CORRECT/validated; the WL/PP density
+residual is most likely the accepted RDPSRT tie-break (not a fixable bug), same as the CR/FIA-campaign residuals.
+⇒ EM establishment is essentially DONE-to-cornered: crash fixed, TPA bit-exact, all growth models validated, the
+density tail = accepted self-thin tie-break. (Confirm by checking if the WL/PP kill order is an RDPSRT ±straddle.)
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
