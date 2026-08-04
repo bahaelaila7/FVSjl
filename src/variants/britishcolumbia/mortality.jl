@@ -97,8 +97,7 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
     zone, series = bc_stand_zone(s)
-    bc_lv2atv(zone) && error("BC mortality: V2 (Hamilton) regime not yet ported (zone=$zone); " *
-                             "only V3 (ICH/IDF/SBS/SBPS) validated. Needs a V2 fixture.")
+    bc_lv2atv(zone) && return bc_v2_mortality!(s; fint = fint, book_snags = book_snags)
     beccls = bc_beccls(zone, series)
     ba = p.basal_area
     sdimax = stand_sdimax(s)
@@ -166,6 +165,90 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
         end
         wki > pr && (wki = pr)
         sdimax < 5f0 && (wki = pr)                        # climate death (morts.f:676-678)
+        killed[i] = wki
+    end
+    book_snags && book_mortality_snags!(s, killed, n, fint)
+    @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
+    return s
+end
+
+# --- V2 (LV2ATV) mortality (morts.f:502-578,630-637) — BC Hamilton logistic RIP → shared BAMAX tail. ---
+# POT(1..54) = 0.25..2.90 step 0.05 (morts.f:196). PMSC = per-species B5 (morts.f:123). GMULT/REIN are the
+# NI-case (LLTDGOK=false) MORCON constants (morts.f:1016-1030), STAND-LEVEL: POTEN1=POT(IPDG(ITYPE,IFOR)),
+# POTEN2=POT(IPDG2(ITYPE,IFOR)). For the ESSF/MS/PP default ITYPE=IFOR=4, IPDG(4,4)=12 & IPDG2(4,4)=41
+# (VALIDATED via instrumented FVSbc MORCON dump: GMULT 1.125/1.111111, REIN 0.894426/0.980477). ⚠ Full
+# IPDG[30,15]/IPDG2[30,15] extraction deferred until a non-default-ITYPE V2 stand appears.
+const BC_POT  = Float32[0.25f0 + 0.05f0 * (i - 1) for i in 1:54]
+const BC_PMSC = Float32[0.0, -0.17603, 0.317888, 0.317888, 0.607725, 1.57976, -0.12057,
+                        0.94019, 0.21180, 0.21180, 0.0, 0.0, 0.0, 0.317888, 0.0]
+const BC_MORT_IPDG_44  = 12    # IPDG(ITYPE=4,IFOR=4)
+const BC_MORT_IPDG2_44 = 41    # IPDG2(ITYPE=4,IFOR=4)
+
+"""BC V2 mortality — Hamilton RIP (morts.f:554-578) + shared BAMAX-approach tail. Imperial (BA ft²/acre, D in)."""
+function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Bool = true)
+    p, t = s.plot, s.trees
+    n = t.n; n == 0 && return s
+    ba = p.basal_area
+    sdimax = stand_sdimax(s)
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * 0.85f0
+    bamax <= 0f0 && (bamax = 1f0)
+    icyc = Int(s.control.cycle)
+    oldfnt = fint                                   # OLDFNT=FINT at cyc1 (grincr.f:59); uniform-cycle prev=cur
+    # MORCON constants (NI case, ITYPE=IFOR=4; morts.f:1016-1030)
+    poten1 = BC_POT[BC_MORT_IPDG_44]; poten2 = BC_POT[BC_MORT_IPDG2_44]
+    gmult1 = 0.90f0 / poten1; gmult2 = 2.50f0 / poten2
+    rein1  = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
+    rein2  = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    # stand sums (imperial; morts.f:436-472): DQ10, AVED (BA-weighted mean DBH, in)
+    tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
+    @inbounds for i in 1:n
+        pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
+        g = t.diam_growth[i] / bc_bratio(sp)
+        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr; wprob += pr; dsum += d * pr
+    end
+    tt < 1f-6 && return s
+    dq10 = sqrt(sd2sq / tt)
+    deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
+    ba10 = ba + (bamax - ba) / bamax * deltba
+    tb = ba10 / (0.005454154f0 * dq10 * dq10)
+    ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
+    rz = 1f0 - (1f0 - ttb)^0.1f0
+    aved = dsum / wprob
+    sqrtba = sqrt(ba)
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    sc = s.control.sp_size_cap
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
+        d = t.dbh[i]; bark = bc_bratio(sp)
+        wk1 = t.dg_prev[i]; dgcur = t.diam_growth[i]
+        reldbh = d / aved                            # RELDBH uses ORIGINAL D (morts.f:556, before D≥0.5 floor)
+        dd = d <= 0.5f0 ? 0.5f0 : d                  # morts.f:557
+        # G (morts.f:558-568): annual inside-bark DG with small-tree floors + cycle-1/no-prev override
+        dgt = wk1 / oldfnt
+        (dd <= 1f0 && dgt < 0.05f0) && (dgt = 0.05f0)
+        (1f0 < dd <= 5f0 && dgt < 0.05f0) && (dgt = 0.05f0 * (5f0 - dd) / 4f0)
+        g = wk1 / (bark * oldfnt)
+        (wk1 / oldfnt < dgt) && (g = dgt / bark)
+        ((icyc == 1 || wk1 == 0f0) && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))
+        ip = dd <= 5f0 ? 2 : 1
+        g *= (ip == 1 ? gmult1 : gmult2)
+        rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqrtba + 11.2007f0 * g -
+              0.554421f0 / dd + BC_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
+        rip = clamp(rip, -70f0, 70f0)
+        rip = 1f0 / (1f0 + exp(rip))
+        rip *= (ip == 1 ? rein1 : rein2)
+        # shared BAMAX-approach RIPP (morts.f:632-637) + WKI + size-cap + climate-death
+        ripp = ba * rz
+        ba <= bamax && (ripp += (bamax - ba) * rip)
+        ripp /= bamax
+        ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
+        wki = pr * (1f0 - (1f0 - ripp)^fint)
+        gsc = (dgcur / bark) * (fint / 10f0)
+        if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
+            wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
+        end
+        wki > pr && (wki = pr)
+        sdimax < 5f0 && (wki = pr)
         killed[i] = wki
     end
     book_snags && book_mortality_snags!(s, killed, n, fint)
