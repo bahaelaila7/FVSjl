@@ -89,8 +89,17 @@ Two paths reach the same tree-creation tail; jl implements only the second:
   TIME=1, SQREGT=1} → PN=0.2116 (oracle 0.2116). Locked in test/unit/test_ie_estock.jl (7 tests). The estab.f:538
   DEBUG dump needs bare `DEBUG` (all cycles — the fall tally runs under a later ICYC); note a debug-ONLY segfault
   in VOLINIT on tiny regen trees under bare DEBUG (production/.sum runs unaffected — low-pri, not the SIGFPE class).
-- **A2 — ESNSPE + heights:** species apportionment + ESADVH/ESSUBH (reuse the EM essubh generalization). Validate
-  the predicted per-species TPP + heights vs instrument.
+- **A2 — species apportionment + heights (SOURCE-ANALYZED 2026-08-04; RNG-heavy, defer the RNG half).** Two parts:
+  - **A2a ESNSPE (DETERMINISTic, portable like A1):** esnspe.f computes PSPE(1..6) = P(k species on a stocked
+    plot), k=1..6, via 6 logits in BAA/ELEV/REGT/BWAF/TPPLN/aspect(XCOS/XSIN)/SLO/TPP + SPEHAB(ISER,·). Dumped by
+    estab.f:719 (`P(1-6 SPECIES)` 7001 fmt) under DEBUG. To validate needs ISER/ITPP/TPP/TPPLN + the SPEHAB table
+    + XCOS/XSIN/REGT/BWAF (distinct from ESTOCK's XCOSAS/SQREGT — recapture from a DEBUG run). Bounded unit-test win.
+  - **A2b species COUNT + IDENTITY (RNG — the hard part):** estab.f:693-726 draws NUMSPE from the normalized
+    PSPE cumulative SUMUP via `CALL ESRANN(DRAW)` (6 draws into WK6), capped at MAXSPP(IHAB); then selects WHICH
+    species + per-species TPA from PADV/PSUB/PXCS (advance/subsequent/excess apportionment probabilities, estab.f
+    :610-664) with more RNG. This is the RNG-alignment-sensitive machinery the IE memory flagged as high-effort
+    ("EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs A2b end-to-end.
+  - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
 - **A4 — full-cycle differential:** iet01 stand-4 `.sum` TPA/BA/SDI vs oracle (the anchor table above). `.sum`
