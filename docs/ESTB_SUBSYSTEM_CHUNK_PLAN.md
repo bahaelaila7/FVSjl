@@ -51,7 +51,11 @@ subsequent" spread. Since ±DRAW is symmetric (mean≈0), **HHT ≈ EXP(PN)** is
    Derived: **XCOS=SLO·cos(aspect), XSIN=SLO·sin(aspect)** (0.3·cos315°=0.2121); IAGE=INT(age−TRAGE+0.5)=5 (age
    BEFORE trage) → BNORML(5)=1.093. mean(HHT over 50 recs)=1.188 ≈ EXP(PN_none)=1.169 (Jensen +1.6%). buildDir
    RESTORED pristine. Ground truth: `/workspace/.emwork/em_essubh_df_groundtruth.txt`.
-2. Port DF ESSUBH deterministically (`HHT=EXP(PN)`, EMSQR variance DEFERRED — like CI's intentional ZZRAN
+2. ✅ DONE (commit d219ddb, 2026-08-04) — src/variants/easternmontana/establishment.jl (em_essubh_hht 19-sp +
+   UHAB/UPRE/UPHY + em_ihtser habitat-code bracket search) + EM branch at establishment.jl:258 + RAN-skip.
+   em_plant.key: NO CRASH, TPA BIT-EXACT every cycle, density cornered-late (2090 BA 42/46 SDI 101/109 QMD 5.0/5.3).
+   TopHt low (52/60) = deferred-EMSQR-variance tail. Guard green. (Original plan text:)
+   Port DF ESSUBH deterministically (`HHT=EXP(PN)`, EMSQR variance DEFERRED — like CI's intentional ZZRAN
    deferral; RNG stays synced, the emsqr draws are already consumed at establishment.jl:218). Add the EM branch at
    `establishment.jl:258`. **jl-input scouting DONE 2026-08-04** (src/core/state.jl): AVAILABLE — `slope`(0..1),
    `aspect`(rad) ⇒ XCOS=slope·cos(aspect)/XSIN=slope·sin(aspect); `elevation`(100s ft); `basal_area` ⇒ BAA=clamp[1,400];
