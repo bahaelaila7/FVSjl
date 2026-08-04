@@ -716,3 +716,71 @@ function ie_autoes_seed0(esss::Integer = 55329)::Int
     d = ie_esrann!(rng)                       # first draw off the ESSS stream
     return trunc(Int, d * 100000f0 + 0.5f0)   # ESDRAW = INT(DRAW*100000+0.5)
 end
+
+# =============================================================================
+# ie_esadvh — AUTOES advance-regen tallest-tree height (estb/esadvh.f, task #143 chunk A2c).
+# SHARED establishment code (all variants with regen). HHT = EXP(PN + EMSQR·DILATE·BNORM·σ_sp), per-species
+# regression PN in AGELN/BAA/ELEV/aspect/slope + THAB(hab)/TPRE(prep)/TPHY(phys) tables. AGE=3-DELAY-GENTIM
+# (≥1); for AUTOES advance DELAY=0, GENTIM=5 ⇒ AGE=1, AGELN=0. DILATE=FIRST(1,sp) (order-statistic sqrt chain:
+# 0.1→√0.1→…). VALIDATED BIT-EXACT vs live FVSie (iet01 stand-4): plot-1 WH HHT=0.6542 (oracle 0.654103),
+# plot-2 WH (DILATE=√.1) 0.5507 (oracle .550567). Coeffs verbatim esadvh.f. (Reported TALLEST = max(HHT,XMIN+0.2).)
+# =============================================================================
+const _IE_ADVH_THAB = let m = zeros(Float32, 5, 11)   # THAB[ihtser, sp]; only DF(3)/GF(4) rows nonzero
+    m[:, 3] = Float32[-0.00683, 0.12521, 0.16327, 0.26886, 0.0]
+    m[:, 4] = Float32[0.0, 0.0, 0.20183, 0.31082, 0.0]
+    m
+end
+const _IE_ADVH_TPRE = let m = zeros(Float32, 4, 11)   # TPRE[iprep, sp]; WH(5)/AF(9)/MH(11)
+    m[:, 5]  = Float32[0.0, -0.10356, -1.23036, -0.40522]
+    m[:, 9]  = Float32[0.0, -0.20770, -0.12903,  0.18322]
+    m[:, 11] = Float32[0.0, -0.10356, -1.23036, -0.40522]
+    m
+end
+const _IE_ADVH_TPHY = let m = zeros(Float32, 5, 11)   # TPHY[iphy, sp]; DF(3)/RC(6)/LP(7)/PP(10)
+    m[:, 3]  = Float32[0.04770,  0.41224,  0.25028,  0.23537, 0.0]
+    m[:, 6]  = Float32[0.32413,  0.39404,  0.25123,  0.23419, 0.0]
+    m[:, 7]  = Float32[-0.28223, -0.99702, -0.47684, -0.20872, 0.0]
+    m[:, 10] = Float32[-0.18689, 0.27119,  0.70375,  0.65555, 0.0]
+    m
+end
+
+"""
+    ie_esadvh(sp, emsqr, dilate, agel, bnorm; baa, elev, xcos, xsin, slo, ihtser, iphy, iprep, bwaf=0, bwb4=0) -> Float32
+
+IE advance-regen tallest-tree height (estb/esadvh.f). `agel`=ln(AGE); `dilate`=FIRST(1,sp) dispersion;
+`bnorm`=BNORML(ITIME). Faithful per-species transcription. Aspect `xcos`/`xsin` = SLO-weighted (=cos·SLO etc.).
+"""
+function ie_esadvh(sp::Integer, emsqr::Real, dilate::Real, agel::Real, bnorm::Real; baa::Real, elev::Real,
+                   xcos::Real, xsin::Real, slo::Real, ihtser::Integer, iphy::Integer, iprep::Integer,
+                   bwaf::Real = 0.0, bwb4::Real = 0.0)::Float32
+    al = Float32(agel); ba = Float32(baa); el = Float32(elev); xc = Float32(xcos); xs = Float32(xsin)
+    sl = Float32(slo); bw4 = Float32(bwb4); bwf = Float32(bwaf); disp = Float32(emsqr)*Float32(dilate)*Float32(bnorm)
+    th(s) = (1 <= ihtser <= 5) ? _IE_ADVH_THAB[ihtser, s] : 0f0
+    tp(s) = (1 <= iprep <= 4) ? _IE_ADVH_TPRE[iprep, s] : 0f0
+    ty(s) = (1 <= iphy <= 5) ? _IE_ADVH_TPHY[iphy, s] : 0f0
+    pn = 0f0; sig = 0f0
+    if sp == 1
+        pn = 0.05585f0 + 0.84765f0*al - 0.003824f0*ba - 0.02835f0*el - 0.79565f0*xc + 0.39278f0*xs - 0.68673f0*sl; sig = 0.51878f0
+    elseif sp == 2
+        pn = -1.80559f0 + 1.24136f0*al; sig = 0.54325f0
+    elseif sp == 3
+        pn = -1.15433f0 + 1.09480f0*al + ty(3) + th(3) - 0.04804f0*el + 0.0004225f0*el*el; sig = 0.63678f0
+    elseif sp == 4
+        pn = -1.96040f0 + 1.02403f0*al - 0.00233f0*ba + th(3) + 0.04315f0*xc + 0.13456f0*xs - 0.21468f0*sl - 0.05224f0*bw4 - 0.01898f0*bwf; sig = 0.61195f0
+    elseif sp == 5
+        pn = -0.43269f0 + 0.77433f0*al - 0.00378f0*ba + tp(5); sig = 0.54794f0
+    elseif sp == 6
+        pn = 2.11552f0 + 0.71766f0*al + ty(6) - 0.17259f0*el + 0.12506f0*xc + 0.63747f0*xs - 0.35258f0*sl + 0.0022033f0*el*el; sig = 0.62044f0
+    elseif sp == 7
+        pn = -0.59267f0 + 0.88997f0*al + ty(7) + 0.79158f0*xc + 0.49060f0*xs + 0.49071f0*sl; sig = 0.68842f0
+    elseif sp == 8
+        pn = -2.19638f0 + 1.12147f0*al - 0.002270f0*ba; sig = 0.59475f0
+    elseif sp == 9
+        pn = -1.69509f0 + 0.87242f0*al - 0.001107f0*ba + tp(9) - 0.06402f0*bw4 + 0.02299f0*bwf - 0.01189f0*xc + 0.15379f0*xs + 0.44637f0*sl; sig = 0.59957f0
+    elseif sp == 10
+        pn = -6.33095f0 + 0.79936f0*al + ty(10) + 0.06347f0*bwf + 0.19305f0*el - 0.0020058f0*el*el; sig = 0.53813f0
+    else  # 11 = MH (uses WH eq w/ TPRE(iprep,11))
+        pn = -0.43269f0 + 0.77433f0*al - 0.00378f0*ba + tp(11); sig = 0.54794f0
+    end
+    return exp(pn + disp*sig)
+end

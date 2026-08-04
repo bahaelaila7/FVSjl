@@ -221,6 +221,25 @@ end
     @test isapprox(sum(t), 583.7; atol = 0.6)
 end
 
+@testset "IE ESADVH advance-regen height — task #143 chunk A2c" begin
+    # Bit-exact vs live FVSie (iet01 stand-4 ADVHHT dump). AUTOES advance: AGEL=0 (AGE clamped), BNORM=1.0;
+    # DILATE=FIRST(1,sp) order-statistic chain (0.1 → √0.1 → √√0.1 …). Aspect SLO-weighted.
+    slo = 0.30f0; xc = cos(5.498f0) * slo; xs = sin(5.498f0) * slo
+    kw = (baa = 1.0f0, elev = 34.0f0, xcos = xc, xsin = xs, slo = slo, ihtser = 4, iphy = 3, iprep = 1)
+    d1 = 0.1f0; d2 = sqrt(d1); d3 = sqrt(d2)
+    # (sp, emsqr, dilate, oracle HHT)
+    cases = [(5, 0.21862f0, d1, 0.654103f0),   # WH plot1
+             (5, -0.92534f0, d2, 0.550567f0),  # WH plot2
+             (5, -0.52763f0, d3, 0.549335f0),  # WH plot3
+             (6, -0.56473f0, d1, 0.300050f0),  # RC plot4
+             (4, 0.72090f0, d1, 0.176656f0),   # GF plot5
+             (4, 0.56212f0, d2, 0.188457f0)]   # GF plot6
+    for (sp, em, dil, orc) in cases
+        h = FVSjl.ie_esadvh(sp, em, dil, 0.0f0, 1.0f0; kw...)
+        @test isapprox(h, orc; atol = 3f-4)
+    end
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
