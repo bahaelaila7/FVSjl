@@ -33,6 +33,21 @@ const CI_RG_AB = Float32[1.11436, -0.011493, 0.43012f-4, -0.72221f-7, 0.5607f-10
                  ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
 end
 
+# Push the regent growth into the tripling stash so the upper/lower sub-records use the REGENT growth, not the
+# stale/explosive large-tree dgf DG/HTG (diameter_growth! balloons tiny DBH). FVS computes HTG(K) for EVERY tripled
+# record (ci/regent.f DO 25 L-loop) ⇒ copies always get the regent HTG (is_small); the D<BKPT diameter dub (DG(K))
+# is applied per-record too, so dgU/dgL carry it only when the central got dubbed (small=true, D<BKPT=3 for CIVAR).
+# ZZRAN stays deferred (intentional, regent.f:934 = grow-phase RNG desync class) ⇒ copies == central deterministically.
+@inline function _ci_rg_stash!(stash, t, i::Int, small::Bool)
+    if stash !== nothing && !isempty(stash.htgU) && i <= length(stash.htgU)
+        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
+        !isempty(stash.is_small) && (stash.is_small[i] = true)
+        if small && !isempty(stash.dgU) && i <= length(stash.dgU)
+            stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+        end
+    end
+end
+
 function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
@@ -112,6 +127,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
                 t.diam_growth[i] = dg
             end
+            _ci_rg_stash!(stash, t, i, d0 < 3.0f0)   # copies use the regent growth (UTVAR); dgU/dgL only if dubbed
             continue
         end
         pt = Int(t.plot_id[i])
@@ -137,6 +153,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         hk = h0 + htg                                     # HK = H + HTG (regent.f:1002)
         if hk < 4.5f0
             t.diam_growth[i] = 0.0f0
+            _ci_rg_stash!(stash, t, i, d0 < 3.0f0)
             continue
         end
         dhcn = CI_RG_DHCN[sp]; dhht = CI_RG_DHHT[sp]; dhcr = CI_RG_DHCR[sp]
@@ -150,6 +167,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         dg < 0.0f0 && (dg = 0.0f0)
         (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)              # regent.f:1256 min-DBH floor
         t.diam_growth[i] = dg
+        _ci_rg_stash!(stash, t, i, d0 < 3.0f0)   # copies use the regent growth (CIVAR/NIVAR); dgU/dgL only if dubbed
     end
     return s
 end
