@@ -114,7 +114,12 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
             end
         end
     end
-    # final: HTGR1 + ZZRAN + blend + DBH-dub (regent.f:473-560), species order for RNG determinism
+    # final: HTGR1 + ZZRAN + blend + DBH-dub (regent.f:1490-1690), species order for RNG determinism.
+    # TRIPLING (regent.f:1682-1685 L-loop): while tripling (stash≠nothing), REGENT draws a FRESH ZZRAN per
+    # tripled record — central→trees, upper(l=1)/lower(l=2)→the stash (htgU/htgL + dgU/dgL for DBH-dub) —
+    # so the 3 copies get 3 DIFFERENT random heights AND the RNG stream advances 3×/tree like live FVS. Without
+    # it BC drew 1 ZZRAN/tree (27 vs live's 81 on all_BC_essf) ⇒ copies identical + every downstream draw desynced.
+    nrec = stash !== nothing ? 3 : 1
     order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
     @inbounds for oi in 1:n
         i = order[oi]
@@ -123,40 +128,53 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
         (d >= xmx || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue
         h = t.height[i]
         htgr1 = wk3[i] - h; htgr1 < 0f0 && (htgr1 = 0f0)
-        zzran = 0f0
-        if dgsd >= 1f0
-            while true
-                zzran = bachlo(s.rng, 0f0, 1f0)
-                (zzran <= 1f0 && zzran >= -1.5f0) && break
-            end
-        end
-        # V2: MULTIPLICATIVE error HTGR=HTGR1·exp(ZZRAN·HSIGMA) (regent.f:1544); V3: additive + ST_COEF.SD
-        htgr = v2 ? htgr1 * exp(zzran * BC_RG_V2_HSIGMA) :
-                    max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
-        xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-        htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
+        htg_large = t.ht_growth[i]      # large-tree HTG (height_growth!) for the XWT blend — read before l=0 overwrites
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        t.ht_growth[i] = htg
-        if d < 3.0f0                                              # DBH dub (regent.f:1571-1629)
-            relh = (h - 4.5f0)/(avh - 4.5f0); relh = clamp(relh, 0f0, 1f0)
-            dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
-            d1 = bc_st_dbh(sp, h, dadj)                            # D1 (regent.f:1588-1589)
-            hk = h + htg
-            xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
-            if hk < 4.5f0
-                dg = 0f0                                           # regent.f:1593-1595
-            else
-                dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
-                dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])       # 1600 DIAM floor on DK
-                dk += hk * 0.001f0                                 # 1601
-                # DGK=(DK−D1)·XRDGRO, then DG=BARK·DGK — the inside-bark DDS round-trip (regent.f:1622-1625)
-                # reduces to ×BARK for SCALE=YR/FINT=1 (NOT identity: DG=sqrt((D·B)²+DGK·B·(2·B·D+DGK·B))−B·D = B·DGK).
-                dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
-                dg *= bc_bratio(sp)
+        xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
+        small_d = d < 3.0f0
+        for l in 0:(nrec - 1)
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 1f0 && zzran >= -1.5f0) && break
+                end
             end
-            (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
-            t.diam_growth[i] = dg
+            # V2: MULTIPLICATIVE error HTGR=HTGR1·exp(ZZRAN·HSIGMA) (regent.f:1544); V3: additive + ST_COEF.SD
+            htgr = v2 ? htgr1 * exp(zzran * BC_RG_V2_HSIGMA) :
+                        max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
+            htg = htgr*(1f0 - xwt) + xwt*htg_large
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            dg = 0f0
+            if small_d                                            # DBH dub (regent.f:1571-1629)
+                relh = (h - 4.5f0)/(avh - 4.5f0); relh = clamp(relh, 0f0, 1f0)
+                dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
+                d1 = bc_st_dbh(sp, h, dadj)                        # D1 (regent.f:1588-1589)
+                hk = h + htg
+                xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
+                if hk < 4.5f0
+                    dg = 0f0                                       # regent.f:1593-1595
+                else
+                    dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
+                    dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])   # 1600 DIAM floor on DK
+                    dk += hk * 0.001f0                             # 1601
+                    # DGK=(DK−D1)·XRDGRO, then DG=BARK·DGK — the inside-bark DDS round-trip (regent.f:1622-1625)
+                    # reduces to ×BARK for SCALE=YR/FINT=1 (NOT identity: DG=sqrt((D·B)²+DGK·B·(2·B·D+DGK·B))−B·D = B·DGK).
+                    dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
+                    dg *= bc_bratio(sp)
+                end
+                (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                small_d && (t.diam_growth[i] = dg)
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                small_d && (stash.dgU[i] = dg)                     # D<3in ⇒ regent DBH-dub; else keep driver DDS dgU
+            else
+                stash.htgL[i] = htg
+                small_d && (stash.dgL[i] = dg)
+            end
         end
     end
     return s
