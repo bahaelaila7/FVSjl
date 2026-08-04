@@ -100,10 +100,17 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     0.485 0.283 0.122 0.001 0.014 0.039 0…). Each is a clean logistic ×occupancy: e.g. espadv.f
     `PADV(i)=1/(1+exp(-PNᵢ))·OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i)`, PNᵢ = per-species regression in XCOS/XSIN/
     SLO/TIME/BAA/BAASQ/ELEV/ELEVSQ/REGT/BWAF/BAALN + CHAB(IHAB,i) + CPRE(IPREP,i) + OVER(i)>9.95 & forest bumps.
-    NEEDS the habitat-type-group tables: **CHAB(16,MAXSP)** + **CPRE** DATA (esblkd.f:45-70), **OCURHT(16,MAXSP)**
-    + **OCURNF(MXFRCDS,MAXSP)** COMPUTED in esinit.f (habitat-group species-occupancy — for iet01 grp10 they're
-    1.0 for sp1-9, 0 else), **XESMLT(MAXSP)** (ESHAP, =1.0 here). This is the "habitat-type-group coefficient
-    dimension" (a data+esinit-logic extraction) — larger than A1/A2a. Validate PADV/PSUB/PXCS vs the debug dumps.
+    NEEDS the habitat-type-group tables: **CHAB(16,MAXSP)** + **CPRE(4,MAXSP)** DATA (esblkd.f:45-76, EXTRACTED +
+    parsed column-major 2026-08-04 — CHAB(10,·)=[WP -1.224798, WL 0, DF -2.3086, GF -0.7004423, WH 0, RC
+    0.6572366, LP 1.9319803, ES 0, AF 1.404156, PP 0]; CPRE(1=NONE,·)=all 0), **OCURHT(16,MAXSP)** +
+    **OCURNF(MXFRCDS,MAXSP)** COMPUTED in esinit.f (habitat-group species-occupancy — for iet01 grp10: 1.0 sp1-9,
+    0 else), **XESMLT(MAXSP)** (ESHAP, =1.0 here). "Habitat-type-group coefficient dimension" — larger than A1/A2a.
+    ⚠ NOT a quick hand-verify port: attempted PADV(1)[WP] by hand for iet01 = 0.008 vs oracle 0.062 (sharp
+    divergence) ⇒ ESPADV has input subtleties that MUST be instrument-captured, not inferred: (a) the exact BAA
+    at the TIME=10 prob call (estab.f:606, may differ from the inventory BAA=1), (b) OVER(i,NNID) per-species
+    overstory (the >9.95 bumps), (c) IPHY (RC +1.1103909 if IPHY==1), (d) IFO=4 bumps (RC -1.1554776). NEXT: patch
+    the 7002 format to higher precision + dump ALL espadv inputs (BAA/BAASQ/ELEV/ELEVSQ/BAALN/OVER/IPHY/TIME) for
+    iet01 stand-4, THEN port + validate. This is a focused instrument-first chunk, not a quick win.
   - **A2c species COUNT + IDENTITY (RNG — the hard part):** estab.f:646-726 draws EMSQR + TPP + NUMSPE (from the
     PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. RNG-alignment-sensitive (the
     IE memory's "EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs
