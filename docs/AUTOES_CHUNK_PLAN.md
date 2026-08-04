@@ -175,6 +175,13 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     line-by-line through the DO 201/202/203 nest — cannot be reverse-engineered from EMSQR positions (false matches).
     All constants are now in hand; the assembly is a careful forward transcription validated plot-by-plot vs the
     EMSQR list.
+    ★ CONFIRMED EMPIRICALLY (2026-08-04): plot-1 is bit-exact (EMSQR mag=draw#52 AND species-pick=draw#60→WH, two
+    independent matches). But plot-2 EMSQR (-0.925, needs sign<0.5) does NOT appear at any small stride — the only
+    sign<0.5 match for 0.925 is draw#476 (~424 stride, implausible for one plot). ⇒ the 10 captured EMSQR values
+    are NOT a simple consecutive-plot stream; they span the nested DO 202 ITYPEP=1,4 / DO 201 IREP loop (and/or the
+    per-plot reseed/ESAVE). CONCLUSION: the multi-plot draw sequence CANNOT be reverse-engineered from EMSQR
+    positions — ie_autoes_tally MUST forward-trace the full DO 245/2451/203/202/201 nest line-by-line (every ESRANN
+    in each branch), validating plot-1 first (known-good), then each subsequent NCOUNT. This is the dedicated build.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
