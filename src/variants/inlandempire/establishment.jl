@@ -512,3 +512,34 @@ function ie_espxcs(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
     p[10] = logistic(pn) * Float32(occ[10])
     return (p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
 end
+
+# =============================================================================
+# IEEstabRNG / ie_esrann! — AUTOES establishment RNG (ie/esrann.f, task #143 chunk A2c primitive).
+# A Park-Miller (Lewis-Goodman-Miller) multiplicative LCG, SEPARATE from the main FVS RNG (seed 55329):
+#   ESS1 = mod(16807·ESS0, 2147483647);  SEL = Float32(ESS1 / 2147483648).
+# Seeded per stand's establishment (ESRNSD odd-adjusts an even seed). For iet01 stand-4 the live seed is
+# 43303. VALIDATED vs live FVSie: from seed 43303, draw #52 = 0.21862 = the oracle EMSQR magnitude (0.219,
+# estab.f:646-650 consumes draws #51 sign + #52 magnitude). This exact LCG makes bit-exact end-to-end AUTOES
+# feasible — the remaining A2c/A3 work is replicating the driver's ESRANN CALL ORDER, not the RNG itself.
+# =============================================================================
+
+mutable struct IEEstabRNG
+    ess0::Float64
+    function IEEstabRNG(seed::Real = 43303.0)
+        s = Float64(seed)
+        (mod(s, 2.0) == 0.0) && (s += 1.0)   # ESRNSD: reseed an even seed to odd
+        new(s)
+    end
+end
+
+"""
+    ie_esrann!(rng::IEEstabRNG) -> Float32
+
+Next draw from the IE establishment LCG (ie/esrann.f). Advances `rng` state. Returns SEL∈[0,1) as Float32
+(matching FVS `REAL(ESS1/2147483648D0)`).
+"""
+function ie_esrann!(rng::IEEstabRNG)::Float32
+    ess1 = mod(16807.0 * rng.ess0, 2147483647.0)
+    rng.ess0 = ess1
+    return Float32(ess1 / 2147483648.0)
+end

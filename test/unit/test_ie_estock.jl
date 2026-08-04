@@ -68,3 +68,15 @@ end
         @test isapprox(pxcs[i], oracle[i]; atol = 6f-4)
     end
 end
+
+@testset "IE ESRANN establishment LCG — task #143 chunk A2c" begin
+    # ie/esrann.f Park-Miller LCG from the iet01 stand-4 seed 43303 (live "RANDOM NUMBER SEED= 43303").
+    rng = FVSjl.IEEstabRNG(43303.0)
+    d = [FVSjl.ie_esrann!(rng) for _ in 1:52]
+    @test isapprox(d[1], 0.33890f0; atol = 1f-4)   # first draw
+    @test isapprox(d[2], 0.98084f0; atol = 1f-4)
+    # draw #52 = the EMSQR magnitude the live run prints (0.219, estab.f:646-650 uses #51 sign + #52 mag)
+    @test isapprox(d[52], 0.21862f0; atol = 1f-4)
+    # even seed → odd-adjusted (ESRNSD)
+    @test FVSjl.IEEstabRNG(43302.0).ess0 == 43303.0
+end

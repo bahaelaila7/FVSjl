@@ -114,10 +114,16 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     tests). REMAINING A2b: **ESPSUB** (subsequent, espsub.f — ITIME>2 gate, NOT fired for iet01 TIME=1 so PSUB=0;
     same logistic×occupancy pattern w/ DHAB/DPRE tables — port when a longer-delay stand exercises it).
     ⇒ deterministic probability layer = ESTOCK + ESNSPE + ESPADV + ESPXCS all bit-exact (ESPSUB inert on anchor).
-  - **A2c species COUNT + IDENTITY (RNG — the hard part):** estab.f:646-726 draws EMSQR + TPP + NUMSPE (from the
-    PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. RNG-alignment-sensitive (the
-    IE memory's "EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs
-    A2b (probabilities) + A2c (RNG selection) end-to-end.
+  - **A2c species COUNT + IDENTITY (RNG) — FEASIBILITY PROVEN (2026-08-04).** estab.f:646-726 draws EMSQR + TPP +
+    NUMSPE (from the PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. ★ ESRANN is
+    NOT the hard-to-align main RNG — it's a SEPARATE Park-Miller LCG (ie/esrann.f: ESS1=mod(16807·ESS0,2147483647),
+    SEL=Float32(ESS1/2147483648)), seed 43303 for iet01 stand-4. PORTED → `IEEstabRNG`/`ie_esrann!` + VALIDATED
+    vs live: from seed 43303, draw#52=0.21862 = the oracle EMSQR magnitude (estab.f:646 uses #51 sign + #52 mag).
+    +4 tests. ⇒ bit-exact end-to-end AUTOES is FEASIBLE; the remaining A2c work is replicating the driver's exact
+    ESRANN CALL ORDER (site-prep loop + plot reps consume ~50 draws before EMSQR) + ESTPP(TPP) + the NUMSPE/species
+    draw — a driver-transcription chunk, no longer an RNG-unknown. (The IE memory's "EMSQR/DILATE RNG alignment"
+    concern was the establishment-HEIGHT main-stream draw, a different path.) The per-species .sum target (1999:
+    GF202 WH222 … = 583.7) needs A2b probs + A2c selection end-to-end.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
