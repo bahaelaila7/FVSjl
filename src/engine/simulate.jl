@@ -108,6 +108,9 @@ function setup_growth!(s::StandState)
                                           # (0.024 vs live 0.833) ⇒ mortality g-term too low ⇒ rip too HIGH (logistic
                                           # decreasing in g) ⇒ multi-cycle small-tree OVER-KILL. Mirrors the CR branch.
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa BritishColumbia
+        bc_dgcons!(s)                     # BC V3 DGCON (ZNKONST/SSKONST via BEC PrettyName match) — chunk 3, V3 zones only
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -186,6 +189,7 @@ function compute_density!(s::StandState)
     s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
     s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
     s.variant isa Utah && (s.plot.relative_density = stand_ccf(s))           # UT RELDEN (ut/ccfcal.f) for dgf! CONSPP term
+    s.variant isa BritishColumbia && (s.plot.relative_density = bc_stand_ccf(s))  # BC RELDEN (bc/ccfcal.f) — chunk 5 CCF spine
     s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
     s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
     return s
@@ -557,7 +561,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
-    if s.variant isa InlandEmpire
+    if s.variant isa InlandEmpire || s.variant isa BritishColumbia
         @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
     end
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's

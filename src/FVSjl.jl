@@ -84,7 +84,8 @@ include("variants/britishcolumbia/dg_coefficients.jl")  # BC V3 DG coeffs (ZNKON
 include("variants/britishcolumbia/diameter_growth.jl")  # BC large-tree DDS hooks (bc_dgcons! + dgf!) — chunk 3 (not yet in simulate dispatch)
 include("variants/britishcolumbia/height_growth_coefficients.jl") # BC V3 HTG coeffs (LTHG/LTSP) + bc_v3_htg — chunk 4
 include("variants/britishcolumbia/height_growth.jl")             # BC height_growth!(::BritishColumbia) — chunk 4 (V3)
-include("variants/britishcolumbia/crown.jl")                    # BC per-tree CCF + stand RELDEN (ccfcal.f) — chunk 5 (CCF spine)
+include("variants/britishcolumbia/crown_coefficients.jl")       # BC V3 crown-ratio coeffs (CRKONST ICH/IDF) + CRNMD — chunk 5b
+include("variants/britishcolumbia/crown.jl")                    # BC per-tree CCF + stand RELDEN (ccfcal.f) + crown_ratio_update! — chunk 5
 include("variants/britishcolumbia/regent_coefficients.jl")     # BC small-tree V3 coeffs (ST_COEF) + bc_v3_sthg/bc_st_dbh — chunk 6
 include("variants/britishcolumbia/regent.jl")                   # BC small_tree_growth!(::BritishColumbia) — chunk 6
 include("variants/britishcolumbia/mortality.jl")                # BC mortality!(::BritishColumbia): V3 FMRT tabular + LMRT logistic — chunk 7
