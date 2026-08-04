@@ -21,16 +21,9 @@ const _UT_RG_REGYR = 10.0f0
 @inline _ut_rg_conifer(sp::Int) = sp <= 5 || (7 <= sp <= 10) || sp == 23
 @inline _ut_rg_pjlin(sp::Int)   = (11 <= sp <= 16) || sp == 24 || sp == 17 || (18 <= sp <= 22)  # non-aspen non-conifer
 
-# Conifer/MC ht_dbh inverse (ut/regent.f:432-478, uncalibrated IABFLG=1 fixed curve). Returns DBH given HT.
-@inline function _ut_htdbh_dbh(sp::Int, ht::Float32)::Float32
-    p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
-    hat3 = 4.5f0 + p2 * exp(-p3 * 3.0f0^p4)
-    if ht >= hat3
-        return exp(log((log(ht - 4.5f0) - log(p2)) / (-p3)) * (1.0f0 / p4))
-    else
-        return ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
-    end
-end
+# (The Curtis-Arney P2/P3/P4 ht-dbh inverse formerly here was ut/regent.f's UTBR1 branch, reached only for
+#  LHTDRG=.FALSE. species — i.e. MC/BI, which use their own linear DK — so it is NEVER hit for UT conifers.
+#  It was wrongly used for the uncalibrated conifer DG; replaced by the Wykoff BX/AX(HT1) curve below.)
 
 # em/regent.f stash push — tripled sub-records use the small-tree DG/HTG, not stale large-tree DG.
 @inline function _ut_rg_stash!(stash, t, i::Int)
@@ -114,13 +107,16 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
                 dk = 3.1020f0 + 0.0210f0 * hk
                 dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
                 dk < dkk && (dk = dkk + 0.01f0)
-            elseif c.ht_dbh_iabflg[sp] == 0            # conifers CALIBRATED (ut/regent.f:487): AX=AA, BX=HT2
-                ax = c.ht_dbh_aa[sp]; bx = sd[:ht2][sp]
+            else                                       # conifers: WYKOFF HT-DBH DK=BX/(ln(HK-4.5)−AX)−1
+                # ut/regent.f:398-403 sets BX=HT2, AX=HT1 (IABFLG=1, uncalibrated) or AA (IABFLG=0, calibrated);
+                # the BX/AX branch (466-472) is taken for ALL non-MC/BI conifers (LHTDRG=.TRUE.). The Curtis-Arney
+                # P2/P3/P4 curve is NEVER reached for UT (only LHTDRG=.FALSE. species, i.e. MC/BI, which have their
+                # own linear DK above) — jl previously used it for the uncalibrated branch ⇒ DK too small ⇒ ~30%
+                # small-tree DG under-growth (WB HK=12.4: Curtis-Arney 1.135 vs Wykoff 1.4303; oracle=1.4303).
+                ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
+                bx = sd[:ht2][sp]
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
-            else                                       # conifers UNCALIBRATED — fixed P2/P3/P4 htdbh curve
-                dk = _ut_htdbh_dbh(sp, hk)
-                dkk = h <= 4.5f0 ? d : _ut_htdbh_dbh(sp, h)
             end
             dgk = (dk - dkk) * bark                     # XRDGRO=1
             dgk < 0.0f0 && (dgk = 0.0f0)
