@@ -576,3 +576,18 @@ a habitat type. Added species (11-23) → 0 (no natural regen).
 """
 @inline ie_ocurht(ihab::Integer, sp::Integer)::Float32 =
     (1 <= ihab <= 16 && 1 <= sp <= 23) ? @inbounds(_IE_OCURHT[ihab, sp]) : 0f0
+
+# =============================================================================
+# ie_estab_pick_species — AUTOES single species draw from a selection distribution (estab.f:745-753).
+# Given a uniform DRAW and per-species selection probs SUMUP (e.g. normalized PADV+PSUB), returns the
+# chosen species index: the first J∈1..n-1 with DRAW ≤ cumulative(J), else n. This is the inner pick of
+# the NUMSPE-species selection loop (estab.f:742-763). Part of the A2c driver (uses ie_esrann! draws).
+# =============================================================================
+function ie_estab_pick_species(draw::Real, sumup::AbstractVector)::Int
+    d = Float32(draw); n = length(sumup); s = 0f0
+    @inbounds for j in 1:n-1
+        s += Float32(sumup[j])
+        d <= s && return j
+    end
+    return n
+end

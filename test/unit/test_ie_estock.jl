@@ -89,3 +89,18 @@ end
     @test FVSjl.ie_ocurht(3, 5) == 0f0          # WH absent in DF-series habitats
     @test all(FVSjl.ie_ocurht(h, sp) == 0f0 for h in 1:16, sp in 11:23)  # added species: no natural regen
 end
+
+@testset "IE AUTOES species selection END-TO-END — task #143 chunk A2c" begin
+    # Reproduces iet01 stand-4 plot-1's species pick straight from the reseeded RNG, exercising the full
+    # draw-order model: WK6-fill(IDUP*NPTIDS=50) + EMSQR(2) + ESTPP(1) + NUMSPE-WK6(6) = 59 draws, then
+    # draw #60 = the species-selection WK6(1). Oracle: NUMSPE=1, IBEST -> species 5 (WH), from PADV.
+    rng = FVSjl.IEEstabRNG(43303.0)
+    d = [FVSjl.ie_esrann!(rng) for _ in 1:60]
+    @test isapprox(d[52], 0.21862f0; atol = 1f-4)         # EMSQR magnitude checkpoint (draw #52)
+    draw60 = d[60]
+    @test isapprox(draw60, 0.61708f0; atol = 1f-4)
+    # SUMUP = normalized (PADV+PSUB); PSUB=0 here. PADV sp1-9 then 0.
+    padv = Float32[0.062, 0.005, 0.048, 0.485, 0.283, 0.122, 0.001, 0.014, 0.039]
+    sumup = [padv ./ sum(padv); zeros(Float32, 14)]       # 23-species selection distribution
+    @test FVSjl.ie_estab_pick_species(draw60, sumup) == 5  # WH = oracle IBEST
+end

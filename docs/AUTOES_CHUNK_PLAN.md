@@ -145,6 +145,11 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     ⇒ A2c = a plot-loop transcription: reseed→WK6(50)→per-plot{EMSQR,ESTPP→ITPP,NUMSPE(PSPE),IBEST(PADV+PSUB),
     ADV/SUBS,heights,book TPA} using the ported ie_esrann!/ie_esnspe/ie_espadv/ie_espxcs/ie_ocurht/ie_essubh.
     Large but FULLY SPECIFIED + every primitive bit-exact. Validate end-to-end vs the .sum (1999 GF202 WH222=583.7).
+    ★★ A2c CORE VALIDATED END-TO-END (2026-08-04): `ie_estab_pick_species` (estab.f:745-753) + the draw-order model
+    reproduce iet01 plot-1's species pick STRAIGHT FROM THE RNG: IEEstabRNG(43303) → 59 draws (WK6-fill 50 + EMSQR
+    2 + ESTPP 1 + NUMSPE-WK6 6) → draw#60=0.61708 ∈ WH band (0.567,0.834] of normalized PADV → species 5 (WH) =
+    oracle IBEST. draw#52=0.21862=EMSQR checkpoint. ⇒ the hardest A2c piece (RNG-driven selection) is PROVEN
+    bit-exact; the remaining A2c work is the mechanical multi-plot loop + TPA booking (estab.f:900+) + engine wiring.
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
