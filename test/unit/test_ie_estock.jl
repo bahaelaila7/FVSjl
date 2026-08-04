@@ -139,6 +139,42 @@ end
     @test jl == [2, 1, 7, 1, 3, 1, 7, 3]
 end
 
+@testset "IE AUTOES per-plot species selection — task #143 chunk A2c" begin
+    # Full per-plot selection from the seed chain: seed → EMSQR → ITPP → NUMSPE → species (IBEST).
+    # Oracle iet01 stand-4 plots 1-7 IBEST: [5],[5],[5],[4],[4,6],[4],[8] (plot-5 is NUMSPE=2 GF+RC).
+    seeds = FVSjl.ie_autoes_plot_seeds(43303, 7)
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    occ = Float32[ones(9); zeros(14)]; over = zeros(Float32, 10)
+    padv = collect(FVSjl.ie_espadv(10, 1, 4, 3, xcos, xsin, slo, 1.0f0, 1.0f0, 34.0f0, 1.0f0, 0.0f0, 0.0f0, occ, over))
+    sumup_base = [Float32.(padv); zeros(Float32, 13)]; sumup_base ./= sum(sumup_base)
+    nspnz = count(>(1f-4), sumup_base)
+    maxspp = FVSjl._IE_MAXSPP[10]; maxing = FVSjl._IE_MAXING[10]
+    oracle = [[5], [5], [5], [4], [4, 6], [4], [8]]
+    for (n, sd) in enumerate(seeds)
+        rng = FVSjl.IEEstabRNG(sd)
+        for _ in 1:(n == 1 ? 50 : 0); FVSjl.ie_esrann!(rng); end
+        FVSjl.ie_esrann!(rng); FVSjl.ie_esrann!(rng)
+        itpp = clamp(round(Int, FVSjl.ie_estpp(FVSjl.ie_esrann!(rng), 10, xcos, xsin, slo, 1.0f0, 0.0f0)), 1, maxing)
+        wk6n = [FVSjl.ie_esrann!(rng) for _ in 1:6]
+        wk6s = [FVSjl.ie_esrann!(rng) for _ in 1:6]
+        numspe = 1
+        if itpp != 1
+            pspe = collect(FVSjl.ie_esnspe(4, itpp, Float32(itpp), log(Float32(itpp)), 1.0f0, 34.0f0, 1.0f0, 0.0f0, xcos, xsin, slo))
+            cum = cumsum(pspe ./ sum(pspe)); numspe = 6
+            for i in 1:5
+                if wk6n[i] <= cum[i]; numspe = i; break; end
+            end
+        end
+        numspe = min(numspe, maxspp, nspnz)
+        su = copy(sumup_base); picked = Int[]
+        for i in 1:numspe
+            j = FVSjl.ie_estab_pick_species(wk6s[i], su); push!(picked, j); su[j] = 0f0
+            t = sum(su); t > 0 && (su ./= t)
+        end
+        @test sort(picked) == oracle[n]
+    end
+end
+
 @testset "IE ESTPP trees-per-plot — task #143 chunk A2c" begin
     # draw #53 (after WK6-fill 50 + EMSQR 2) drives ESTPP. Oracle iet01 stand-4 plot-1: TREES/PLOT = ITPP = 2.
     rng = FVSjl.IEEstabRNG(43303.0)
