@@ -83,6 +83,7 @@ include("variants/britishcolumbia/becset.jl")           # BC BEC-zone parse (hab
 include("variants/britishcolumbia/site_index.jl")       # BC site/habitat (chunk 2): KODTYP→ITYPE + Stage SDImax
 include("variants/britishcolumbia/dg_coefficients.jl")  # BC V3 DG coeffs (ZNKONST/SSKONST) + matcher/DDS/bark — chunk 3
 include("variants/britishcolumbia/diameter_growth.jl")  # BC large-tree DDS hooks (bc_dgcons! + dgf!) — chunk 3 (not yet in simulate dispatch)
+include("variants/britishcolumbia/v2_diameter_growth.jl") # BC V2-regime large-tree DDS formula (ESSF/MS/PP) — chunk 2b (task #133)
 include("variants/britishcolumbia/height_growth_coefficients.jl") # BC V3 HTG coeffs (LTHG/LTSP) + bc_v3_htg — chunk 4
 include("variants/britishcolumbia/height_growth.jl")             # BC height_growth!(::BritishColumbia) — chunk 4 (V3)
 include("variants/britishcolumbia/crown_coefficients.jl")       # BC V3 crown-ratio coeffs (CRKONST ICH/IDF) + CRNMD — chunk 5b
