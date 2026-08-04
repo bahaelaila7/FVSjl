@@ -133,8 +133,18 @@ Two paths reach the same tree-creation tail; jl implements only the second:
          draws into WK6 (:693-698) then cumulative-PSPE select (:702-718, cap MAXSPP(IHAB)); species-identity
          selection from PADV/PSUB/PXCS = draws at :739+.
       4. :1075 `CALL ESRNSD(.TRUE.,ESAVE)` saves/restores the stream at the end.
-    ⇒ A2c = implement this order with `ie_esrann!` + `ie_esnspe`/`ie_espadv`/`ie_espxcs`. The per-species .sum
-    target (1999: GF202 WH222 … = 583.7) needs A2b probs + A2c selection end-to-end.
+    ★ SPECIES-IDENTITY SELECTION (estab.f:726-810, MAPPED — completes the A2c spec):
+      a. :726-735 SUMUP(i) = normalized **(PADV(i)+PSUB(i))** — the species-selection distribution (DISTINCT from
+         the PSPE cumulative used for NUMSPE-count). NSPNZ = #species with (PADV+PSUB)>1e-4; NUMSPE capped to NSPNZ.
+      b. :738-741 six ESRANN → WK6. :742-763 DO 60 I=1,NUMSPE: draw WK6(I) vs SUMUP cumulative → mark IBEST(J)=1,
+         zero SUMUP(J), renormalize ⇒ picks NUMSPE DISTINCT species.
+      c. :773-788 recompute PADV(ESPADV if NTALLY==1)+PSUB(ESPSUB); per IBEST species, 1 ESRANN → ADV vs SUBS
+         (ICHOI(J,i), J=1 if DRAW≤PADV/(PADV+PSUB) else 2).
+      d. :797-810 NOFSPE*2 ESRANN → WK6; per chosen species assign tallest-tree height via ESDLAY(delay)+ESSUBH/
+         ESXCSH (DILATE=FIRST). Then TPA booked (estab.f:900+) distributing the plot's ITPP over IBEST species.
+    ⇒ A2c = a plot-loop transcription: reseed→WK6(50)→per-plot{EMSQR,ESTPP→ITPP,NUMSPE(PSPE),IBEST(PADV+PSUB),
+    ADV/SUBS,heights,book TPA} using the ported ie_esrann!/ie_esnspe/ie_espadv/ie_espxcs/ie_ocurht/ie_essubh.
+    Large but FULLY SPECIFIED + every primitive bit-exact. Validate end-to-end vs the .sum (1999 GF202 WH222=583.7).
   - **ESADVH/ESSUBH heights:** reuse the EM essubh generalization (ie_essubh already exists in this file).
 - **A3 — scheduler (esnutr.f rules):** the 20-yr-disturbance + ingrowth triggers → fire the tally in
   engine/establishment.jl's cycle hook. Reuse the existing tree-creation tail (naturals-first).
