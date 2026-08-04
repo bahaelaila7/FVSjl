@@ -179,6 +179,14 @@ under). BUT emt01 (WL+PP) UNCHANGED ⇒ the WL/PP BA over-growth is NOT the SMDG
 measurement). So the WL/PP over-growth root remains OPEN (two hypotheses refuted: elevation, SMDGF-h<4.5) — a
 separate species-dependent establishment-cohort density issue, deferred to a per-cycle instrument-replay session.
 The SMDGF guard is faithful+shipped regardless. Then re-visit em_esgent (git history) once WL/PP is understood.
+NARROWED to MORTALITY (2026-08-04, 3rd hypothesis refuted): instrument-replayed the FVSem SMDGF call on emt01 —
+jl _em_smdgf matches FVS BIT-EXACTLY at the dumped inputs (PP: jl 0.4672 vs FVS 0.46724, 0.6947/0.69471,
+0.8793/0.87934, 1.0874/1.08735). So the DBH-growth FORMULA is correct; ALL three EM establishment growth models
+(essubh, SMHTGF, SMDGF) are now validated/matching. The WL/PP BA/QMD over-growth is therefore NOT growth — the
+emt01 ESTAB trajectory shows QMD MATCHES early (2002 jl 0.7/or 0.7) and diverges only LATE (2092 8.7/8.0) as TPA
+over-kills (2092 jl 590 vs or 630). ⇒ ROOT = the LATE SELF-THIN MORTALITY on the dense WL/PP establishment cohort
+(over-kill leaves fewer, thicker trees → QMD/BA over). SAME CLASS as BM #140 (self-thin on dense stands). NEXT:
+per-cycle mortality/self-thin comparison on the dense EM establishment cohort (shared with #140); NOT a growth fix.
 
 ## Gap B — AUTOES automatic-establishment tally (task #143). LARGE.
 **Symptom:** stands relying on default automatic natural regen after disturbance collapse in jl (iet01 stand-4
