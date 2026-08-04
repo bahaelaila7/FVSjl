@@ -100,17 +100,15 @@ Two paths reach the same tree-creation tail; jl implements only the second:
     0.485 0.283 0.122 0.001 0.014 0.039 0…). Each is a clean logistic ×occupancy: e.g. espadv.f
     `PADV(i)=1/(1+exp(-PNᵢ))·OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i)`, PNᵢ = per-species regression in XCOS/XSIN/
     SLO/TIME/BAA/BAASQ/ELEV/ELEVSQ/REGT/BWAF/BAALN + CHAB(IHAB,i) + CPRE(IPREP,i) + OVER(i)>9.95 & forest bumps.
-    NEEDS the habitat-type-group tables: **CHAB(16,MAXSP)** + **CPRE(4,MAXSP)** DATA (esblkd.f:45-76, EXTRACTED +
-    parsed column-major 2026-08-04 — CHAB(10,·)=[WP -1.224798, WL 0, DF -2.3086, GF -0.7004423, WH 0, RC
-    0.6572366, LP 1.9319803, ES 0, AF 1.404156, PP 0]; CPRE(1=NONE,·)=all 0), **OCURHT(16,MAXSP)** +
-    **OCURNF(MXFRCDS,MAXSP)** COMPUTED in esinit.f (habitat-group species-occupancy — for iet01 grp10: 1.0 sp1-9,
-    0 else), **XESMLT(MAXSP)** (ESHAP, =1.0 here). "Habitat-type-group coefficient dimension" — larger than A1/A2a.
-    ⚠ NOT a quick hand-verify port: attempted PADV(1)[WP] by hand for iet01 = 0.008 vs oracle 0.062 (sharp
-    divergence) ⇒ ESPADV has input subtleties that MUST be instrument-captured, not inferred: (a) the exact BAA
-    at the TIME=10 prob call (estab.f:606, may differ from the inventory BAA=1), (b) OVER(i,NNID) per-species
-    overstory (the >9.95 bumps), (c) IPHY (RC +1.1103909 if IPHY==1), (d) IFO=4 bumps (RC -1.1554776). NEXT: patch
-    the 7002 format to higher precision + dump ALL espadv inputs (BAA/BAASQ/ELEV/ELEVSQ/BAALN/OVER/IPHY/TIME) for
-    iet01 stand-4, THEN port + validate. This is a focused instrument-first chunk, not a quick win.
+    **✅ ESPADV DONE (2026-08-04).** Ported espadv.f verbatim → `ie_espadv` (10-species advance-regen logistic ×
+    occupancy) with the habitat-type-group tables **CHAB(16,10)** + **CPRE(4,10)** transcribed from esblkd.f:45-76
+    (col-major). Occupancy occ(i)=OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i) + over(i) passed in. VALIDATED BIT-EXACT
+    (3 dp, all 10 species) vs live FVSie: iet01 stand-4 PADV=(.062 .005 .048 .485 .283 .122 .001 .014 .039 0)=oracle.
+    +11 tests. ★ KEY UNLOCK via measurement (doctrine #2): the prob-call **TIME=1.0** (years-since-disturbance),
+    NOT the estab.f:606 TIME=10 literal (overwritten before ESPADV) — my earlier TIME=10 hand-calc (0.008 vs 0.062)
+    was the wrong-input trap. PP=0 comes from OCURHT(grp10,PP)=0 (occupancy), not the logistic. (Correction to a
+    prior note: CHAB(10,LP)=0, not 1.9319803.) OVER<9.95 (BAAA=0 dump ⇒ no bumps), IPHY≠1. REMAINING A2b: ESPSUB
+    (subsequent, ITIME>2 only — not fired for iet01 TIME=1) + ESPXCS (excess) — same pattern, own DHAB tables.
   - **A2c species COUNT + IDENTITY (RNG — the hard part):** estab.f:646-726 draws EMSQR + TPP + NUMSPE (from the
     PSPE cumulative, cap MAXSPP(IHAB)) + species selection via `CALL ESRANN(DRAW)`. RNG-alignment-sensitive (the
     IE memory's "EMSQR/DILATE RNG alignment"). The per-species .sum target (1999: GF202 WH222 … = 583.7) needs

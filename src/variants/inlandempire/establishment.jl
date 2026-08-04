@@ -292,3 +292,121 @@ function ie_esnspe(iser::Integer, itpp::Integer, tpp::Real, tppln::Real, baa::Re
     end
     return (p1, p2, p3, p4, p5, p6)
 end
+
+# =============================================================================
+# ie_espadv — AUTOES P(advance-regen species) (ie/espadv.f, task #143 chunk A2b).
+# Per-species probability of ADVANCE regeneration (10 species WP/WL/DF/GF/WH/RC/LP/ES/AF/PP):
+# PADV(i) = 1/(1+exp(-PNᵢ)) · occ(i), where occ(i)=OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i) (the
+# habitat/forest occupancy) and PNᵢ is a per-species regression in XCOS/XSIN/SLO/TIME/BAA/BAASQ/BAALN/
+# ELEV/ELEVSQ/REGT/BWAF + CHAB(IHAB,i) + CPRE(IPREP,i) + OVER(i)>9.95 & forest & IPHY bumps.
+# ★ TIME here = years-since-disturbance passed to the probability call, MEASURED =1.0 for iet01 stand-4
+# (NOT the estab.f:606 TIME=10 literal — that is overwritten before ESPADV runs). VALIDATED bit-exact
+# (3 dp) vs live FVSie: iet01 stand-4 (IHAB=10,IPREP=1,IFO=4,TIME=1,BAA=1,ELEV=34,occ=1,OVER<9.95,IPHY≠1)
+# → PADV=(.062 .005 .048 .485 .283 .122 .001 .014 .039 0) = oracle. Tables verbatim esblkd.f:45-76.
+# =============================================================================
+
+# CHAB[ihab, species] (16×10, esblkd.f DATA, col-major parsed). species: WP WL DF GF WH RC LP ES AF PP.
+const _IE_CHAB = Float32[
+  0.0        0.0        0.0        0.0        0.0  0.0        1.9319803  0.0  0.0       0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        0.0        0.0  0.0       0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        0.0        0.0  0.0       0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        0.0        0.0  0.0       0.0;
+  0.0        1.4934765 -0.6200184  0.674118   0.0  0.0        0.0        0.0  0.0      -2.5921190;
+ -1.224798   0.0       -0.6200184  0.0        0.0  0.0        1.3270519  0.0  0.0      -2.5921190;
+  0.0        0.0       -1.1547343  0.0        0.0  0.0        1.3270519  0.0  0.0      -2.5921190;
+ -1.224798   0.0       -1.1547343 -0.3889028  0.0  0.0        0.0        0.0  0.0      -0.7036813;
+ -0.4296644  0.0       -2.1232    -0.7004423  0.0  0.0        0.0        0.0  0.0      -2.5921190;
+ -1.224798   0.0       -2.3086    -0.7004423  0.0  0.6572366  0.0        0.0  1.404156  0.0;
+  0.0        0.0       -1.36119   -1.587698   0.0  0.0        1.9319803  0.0  2.40966   0.0;
+ -1.224798   1.4934765 -0.13552   -2.06589    0.0  0.0        1.9319803  0.0  2.40966   0.0;
+ -0.4296644  0.0       -1.36119   -0.8935856  0.0  0.0        0.0        0.0  2.40966   0.0;
+  0.0        0.0       -1.36119   -0.8935856  0.0  0.0        0.0        0.0  2.40966   0.0;
+ -0.4296644  0.0       -1.36119   -2.06589    0.0  0.0        1.3270519  0.0  3.23979   0.0;
+  0.0        0.0        0.0        0.0        0.0  0.0        0.0        0.0  3.23979   0.0]
+
+# CPRE[iprep, species] (4×10, esblkd.f DATA). iprep: 1=NONE 2=MECH 3=BURN 4=ROAD.
+const _IE_CPRE = Float32[
+  0.0        0.0  0.0        0.0        0.0        0.0        0.0  0.0        0.0        0.0;
+ -0.8986977  0.0 -0.9135126 -0.9944621 -1.1545026 -0.5937042 0.0 -0.7526562 -0.7226382 -0.5682936;
+ -0.8739164  0.0 -1.5960879 -1.9561505 -3.1841443 -1.3850973 0.0 -0.9553895 -1.4396372 -0.7261403;
+  0.0        0.0 -1.2667466 -1.3659292 -1.4654944 -1.5701306 0.0 -0.1442125 0.0        0.0]
+
+"""
+    ie_espadv(ihab, iprep, ifo, iphy, xcos, xsin, slo, time, baa, elev, regt, bwaf, occ, over) -> NTuple{10,Float32}
+
+IE P(advance-regen species) (ie/espadv.f). `occ[i]` = OCURHT(ihab,i)·XESMLT(i)·OCURNF(ifo,i) occupancy
+multiplier; `over[i]` = per-species overstory BA (the >9.95 bumps). `time` = years since disturbance
+(MEASURED value at the prob call, not the estab.f:606 literal). Species order WP WL DF GF WH RC LP ES AF PP.
+"""
+function ie_espadv(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, xcos::Real, xsin::Real,
+                   slo::Real, time::Real, baa::Real, elev::Real, regt::Real, bwaf::Real, bwb4::Real,
+                   occ::AbstractVector, over::AbstractVector)::NTuple{10,Float32}
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
+    ba = Float32(baa); el = Float32(elev); rg = Float32(regt); bw = Float32(bwaf); b4 = Float32(bwb4)
+    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? log(ba) : 0f0
+    ch(i) = (1 <= ihab <= 16) ? _IE_CHAB[ihab, i] : 0f0
+    cp(i) = (1 <= iprep <= 4) ? _IE_CPRE[iprep, i] : 0f0
+    ov(i) = over[i] > 9.95f0
+    logistic(pn) = 1f0 / (1f0 + exp(-pn))
+    p = zeros(Float32, 10)
+    # WP(1) — skip if IPREP>3
+    if iprep <= 3
+        pn = -1.8733029f0 + ch(1) - 1.5893204f0*xc - 3.7865858f0*xs - 3.9780395f0*sl -
+             0.228477f0*tm + 0.0251953f0*ba - 0.0003143f0*basq + 0.0385460f0*el + cp(1)
+        ov(1) && (pn += 0.6721733f0); (ifo == 7 || ifo == 16) && (pn -= 1.1379313f0)
+        p[1] = logistic(pn) * Float32(occ[1])
+    end
+    # WL(2) — skip if IPREP>2
+    if iprep <= 2
+        pn = -5.0092864f0 + 0.2560369f0*xc + 1.5965058f0*xs + ch(2) - 0.1719499f0*sl
+        ov(2) && (pn += 2.1039474f0)
+        p[2] = logistic(pn) * Float32(occ[2])
+    end
+    # DF(3)
+    pn = -0.691118f0 + ch(3) + cp(3) - 0.224932f0*xc - 0.461642f0*xs + 1.390878f0*sl +
+         0.0151871f0*ba - 0.0000814f0*basq - 0.0137814f0*el
+    ov(3) && (pn += 1.0047915f0)
+    p[3] = logistic(pn) * Float32(occ[3])
+    # GF(4)
+    pn = -2.8426666f0 + ch(4) + cp(4) + 1.3658730f0*sl + 0.0072484f0*ba - 0.0000307f0*basq +
+         0.1643756f0*el - 0.0020789f0*elsq - 0.1182024f0*rg - 0.1092534f0*bw
+    ov(4) && (pn += 1.0538200f0)
+    p[4] = logistic(pn) * Float32(occ[4])
+    # WH(5)
+    pn = -1.8378316f0 + 3.8978596f0*xc - 0.4192431f0*xs - 0.0317794f0*sl + cp(5)
+    ov(5) && (pn += 1.1918564f0)
+    p[5] = logistic(pn) * Float32(occ[5])
+    # RC(6)
+    pn = -0.3039302f0 + 0.6771111f0*xc - 1.0103344f0*xs + 1.7631934f0*sl + 0.0057510f0*ba -
+         0.0390010f0*el - 0.0818480f0*tm + cp(6)
+    ifo == 4 && (pn -= 1.1554776f0); ov(6) && (pn += 1.4044088f0); iphy == 1 && (pn += 1.1103909f0)
+    p[6] = logistic(pn) * Float32(occ[6])
+    # LP(7) — skip if IPREP>3
+    if iprep <= 3
+        pn = -7.8876414f0 + ch(7) - 1.7125410f0*sl + 0.2981326f0*baln + 0.0457937f0*el
+        ov(7) && (pn += 2.4799900f0)
+        p[7] = logistic(pn) * Float32(occ[7])
+    end
+    # ES(8)
+    pn = -12.2236052f0 + 0.2787733f0*el - 0.0019948f0*elsq - 0.0924103f0*rg + 0.1547716f0*b4 -
+         0.0478975f0*bw + cp(8)
+    ov(8) && (pn += 1.4522984f0)
+    (ifo == 19 || ifo == 20) && (pn += 1.1484108f0); (ifo == 14 || ifo == 16) && (pn += 0.9481026f0)
+    ifo == 4 && (pn += 0.8911886f0); ifo == 5 && (pn += 0.9723801f0)
+    p[8] = logistic(pn) * Float32(occ[8])
+    # AF(9) — skip if IPREP>3
+    if iprep <= 3
+        pn = -14.9235325f0 + ch(9) + 0.2327975f0*xc - 0.8445729f0*xs + 0.0810013f0*sl + cp(9) +
+             0.0053038f0*ba + 0.4097059f0*el - 0.0603046f0*rg - 0.0542131f0*bw - 0.0033011f0*elsq
+        ov(9) && (pn += 1.6659029f0)
+        p[9] = logistic(pn) * Float32(occ[9])
+    end
+    # PP(10) — skip if IPREP>3
+    if iprep <= 3
+        pn = -2.0755525f0 - 2.5323539f0*xc - 0.5925702f0*xs - 0.5511553f0*sl + 0.0227489f0*ba -
+             0.0002398f0*basq - 0.1262596f0*rg - 0.0857334f0*bw + ch(10) + cp(10)
+        (ifo == 19 || ifo == 20) && (pn += 1.5321411f0); ov(10) && (pn += 1.0523320f0)
+        p[10] = logistic(pn) * Float32(occ[10])
+    end
+    return (p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10])
+end
