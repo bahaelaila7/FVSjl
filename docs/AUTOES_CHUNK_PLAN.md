@@ -90,10 +90,10 @@ Two paths reach the same tree-creation tail; jl implements only the second:
   DEBUG dump needs bare `DEBUG` (all cycles — the fall tally runs under a later ICYC); note a debug-ONLY segfault
   in VOLINIT on tiny regen trees under bare DEBUG (production/.sum runs unaffected — low-pri, not the SIGFPE class).
 - **A2 — species apportionment + heights (SOURCE-ANALYZED 2026-08-04; RNG-heavy, defer the RNG half).** Two parts:
-  - **A2a ESNSPE (DETERMINISTic, portable like A1):** esnspe.f computes PSPE(1..6) = P(k species on a stocked
-    plot), k=1..6, via 6 logits in BAA/ELEV/REGT/BWAF/TPPLN/aspect(XCOS/XSIN)/SLO/TPP + SPEHAB(ISER,·). Dumped by
-    estab.f:719 (`P(1-6 SPECIES)` 7001 fmt) under DEBUG. To validate needs ISER/ITPP/TPP/TPPLN + the SPEHAB table
-    + XCOS/XSIN/REGT/BWAF (distinct from ESTOCK's XCOSAS/SQREGT — recapture from a DEBUG run). Bounded unit-test win.
+  - **A2a ESNSPE: ✅ DONE (2026-08-04).** Ported esnspe.f verbatim → `ie_esnspe` (6 count-logits + SPEHAB(5,4)
+    from esblkd.f). Key detail: **XCOS=cos(asp)·SLO, XSIN=sin(asp)·SLO** (estab.f:480-481, SLO-weighted — distinct
+    from ESTOCK's plain XCOSAS/XSINAS). VALIDATED BIT-EXACT vs live FVSie (iet01 stand-4 plot-1, ISER=4/ITPP=2/
+    TPP=2): PSPE=(0.543, 0.393, 0, 0, 0, 0) = oracle. Locked in test/unit/test_ie_estock.jl (+4 tests).
   - **A2b species COUNT + IDENTITY (RNG — the hard part):** estab.f:693-726 draws NUMSPE from the normalized
     PSPE cumulative SUMUP via `CALL ESRANN(DRAW)` (6 draws into WK6), capped at MAXSPP(IHAB); then selects WHICH
     species + per-species TPA from PADV/PSUB/PXCS (advance/subsequent/excess apportionment probabilities, estab.f

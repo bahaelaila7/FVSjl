@@ -232,3 +232,63 @@ function ie_estock(ihab::Integer, iprep::Integer, slo::Real, xcosas::Real, xsina
                0.111587f0 * b4 + 0.224696f0 * sbw
     end
 end
+
+# =============================================================================
+# ie_esnspe — AUTOES P(number of species on a stocked plot) (ie/esnspe.f, task #143 chunk A2a).
+# Returns PSPE(1..6) = probability that 1..6 species regenerate on a stocked plot. Six logits in
+# BAA/ELEV/REGT/BWAF/TPPLN/aspect(XCOS,XSIN)/SLO/TPP + SPEHAB(ISER,·). PSPE(k) is computed only when
+# ITPP≥k (else 0); the caller (estab.f) normalizes to a cumulative and draws the species count via RNG.
+# NOTE: XCOS=cos(aspect)·SLO, XSIN=sin(aspect)·SLO (estab.f:480-481) — the SLO-weighted aspect (distinct
+# from ESTOCK's plain XCOSAS/XSINAS). VALIDATED bit-exact vs live FVSie (iet01 stand-4, ISER=4/ITPP=2/TPP=2):
+# PSPE=(0.543, 0.393, 0, 0, 0, 0) = oracle. SPEHAB verbatim from esblkd.f. See docs/AUTOES_CHUNK_PLAN.md.
+# =============================================================================
+
+# SPEHAB[iser, j] (esblkd.f, ESCOM2 SPEHAB(5,4)) — series 1-5 (DF/GF/WRC/WH/SAF) × species-count index 1-4.
+const _IE_SPEHAB = Float32[ 0.0       0.0       0.0       0.0;
+                           -0.695637  0.436955  0.677341  2.301903;
+                           -0.776415  0.426625  0.900422  2.602609;
+                           -1.227597  0.363575  1.290210  3.089499;
+                           -1.058980  0.721468  0.900652  2.156324]
+
+"""
+    ie_esnspe(iser, itpp, tpp, tppln, baa, elev, regt, bwaf, xcos, xsin, slo) -> NTuple{6,Float32}
+
+IE P(k species on a stocked plot), k=1..6 (ie/esnspe.f). `xcos`/`xsin` = SLO-weighted aspect cos/sin
+(=cos(asp)·SLO, sin(asp)·SLO); `tpp`/`tppln` = trees-per-plot and ln(tpp); `iser` = habitat series (1-5).
+Entries beyond `itpp` are 0 (the count logits are gated on ITPP≥k, matching estab.f's PSPE init to 0).
+"""
+function ie_esnspe(iser::Integer, itpp::Integer, tpp::Real, tppln::Real, baa::Real, elev::Real,
+                   regt::Real, bwaf::Real, xcos::Real, xsin::Real, slo::Real)::NTuple{6,Float32}
+    ba = Float32(baa); el = Float32(elev); rg = Float32(regt); bw = Float32(bwaf)
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tp = Float32(tpp); tpl = Float32(tppln)
+    sh(j) = (1 <= iser <= 5) ? _IE_SPEHAB[iser, j] : 0f0
+    p1 = 0f0; p2 = 0f0; p3 = 0f0; p4 = 0f0; p5 = 0f0; p6 = 0f0
+    # P(1 species) — always
+    pn = 1.399594f0 + 0.002162f0*ba + 0.0213903f0*el - 0.022173f0*rg - 0.039405f0*bw -
+         1.017904f0*tpl + sh(1)
+    p1 = 1f0 / (1f0 + exp(-pn))
+    if itpp >= 2
+        pn = -0.441879f0 + 0.577760f0*xc + 0.294070f0*xs - 0.128766f0*sl - 0.010128f0*tp -
+             0.011040f0*el + 0.016568f0*rg - 0.000247f0*bw + sh(2)
+        p2 = 1f0 / (1f0 + exp(-pn))
+    end
+    if itpp >= 3
+        pn = -2.052740f0 + 0.075063f0*xc - 0.471162f0*xs - 0.840378f0*sl - 0.018585f0*el +
+             0.076352f0*bw + 0.004745f0*rg + sh(3) + 0.054661f0*tp - 0.000467f0*tp*tp
+        p3 = 1f0 / (1f0 + exp(-pn))
+    end
+    if itpp >= 4
+        pn = -6.24551f0 - 1.277404f0*xc - 0.329897f0*xs + 0.425239f0*sl + 0.071878f0*bw +
+             0.001371f0*rg + sh(4) + 0.056784f0*tp - 0.000239f0*tp*tp
+        p4 = 1f0 / (1f0 + exp(-pn))
+    end
+    if itpp >= 5
+        pn = -2.043228f0 - 0.052907f0*el + 0.021884f0*tp
+        p5 = 1f0 / (1f0 + exp(-pn))
+    end
+    if itpp >= 6
+        pn = -5.938035f0 + 0.020070f0*tp
+        p6 = 1f0 / (1f0 + exp(-pn))
+    end
+    return (p1, p2, p3, p4, p5, p6)
+end

@@ -25,3 +25,16 @@ using FVSjl
     # IPREP>3 "all roads" branch must also compute
     @test isfinite(FVSjl.ie_estock(10, 4, 0.30f0, 0.7f0, -0.7f0, 34.0f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.0f0, 0.0f0, 4))
 end
+
+@testset "IE ESNSPE P(#species) — task #143 chunk A2a" begin
+    # iet01 stand-4 plot-1: ISER=4 (WH), ITPP=2, TPP=2, TPPLN=ln2, BAA=1, ELEV=34, REGT=1, BWAF=0.
+    # XCOS=cos(asp)·SLO, XSIN=sin(asp)·SLO (SLO-weighted aspect). Oracle PSPE=(0.543,0.393,0,0,0,0).
+    slo = 0.30f0; xcos = cos(5.498f0) * slo; xsin = sin(5.498f0) * slo
+    psp = FVSjl.ie_esnspe(4, 2, 2.0f0, log(2.0f0), 1.0f0, 34.0f0, 1.0f0, 0.0f0, xcos, xsin, slo)
+    @test isapprox(psp[1], 0.543f0; atol = 1f-3)
+    @test isapprox(psp[2], 0.393f0; atol = 1f-3)
+    @test psp[3] == 0f0 && psp[4] == 0f0 && psp[5] == 0f0 && psp[6] == 0f0  # ITPP=2 gates ≥3 off
+    # ITPP=6 exercises all six count-logits (regression guard: finite & in (0,1))
+    psp6 = FVSjl.ie_esnspe(4, 6, 10.0f0, log(10.0f0), 50.0f0, 34.0f0, 1.0f0, 0.0f0, xcos, xsin, slo)
+    @test all(0f0 .< collect(psp6) .< 1f0)
+end
