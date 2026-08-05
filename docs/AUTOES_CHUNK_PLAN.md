@@ -477,3 +477,19 @@ TWO coupled causes (estab.f:770-787 selection + 608-728 stocking):
    itpp needs revisiting (the 583.7 first-tally match may be coincidental alignment). This is the next measure-
    first step: instrument the per-plot ITPP + booked TPA at cyc4 vs cyc5. Redirects from heights → continuation
    amount. Heights remain a (minor) later refinement.
+
+## ★★ THE CONTINUATION FIX = NEWTPP = ITPP − NSTORE (estab.f:679-685) — precise root
+The per-plot tally books only the INCREMENT over what the previous tally already stocked:
+  679  ITPP = INT(TPP+0.5)                      ! fresh per-plot count (draw), clamp [1,MAXTPP], INGRO→MAXING
+  683  NEWTPP = ITPP - NSTORE(NCOUNT)           ! ← only the ADDITIONAL trees vs the prior tally's stocked count
+  685  NSTORE(NCOUNT) = ITPP                     ! carry the new stocked count to the next tally
+So a NTALLY=1 tally (NSTORE=0) books a full ITPP; a CONTINUATION (NTALLY≥2) books ITPP-NSTORE ≈ the small
+increment (FVS cyc5 ~207 vs a full ~1123). jl books a FULL ITPP every tally → the ~5× continuation over-
+production → the ±oscillation. FIX: persist the per-plot NSTORE (a dupnpt-length array) on est across tallies
+within a disturbance sequence; book NEWTPP=max(0,ITPP-NSTORE) trees; update NSTORE=ITPP. Reset NSTORE at a NEW
+disturbance (new IDSDAT / NTALLY=1 that is not a continuation). NOTE this is per-PLOT (NCOUNT), so ie_autoes_tally
+must track it per plot and persist across calls — a state addition (est gains a Vector for NSTORE, or a running
+per-plot count). This + the NTALLY≥2 subsequent-only species (ESPSUB, PADV=0) are the last two model pieces;
+together they should close the oscillation. Heights remain a minor DBH-negligible refinement after.
+Current stand-4: 536/885/1642/1046/1164/2274/1386/1043/2067/1622/1752 vs target 536/1025/1401/881/1324/1531/853/
+1412/1788/1286/1147.
