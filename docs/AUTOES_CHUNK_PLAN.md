@@ -534,3 +534,18 @@ validated bit-exact) dispatched by ICHOI, using the per-tree EMSQR/DILATE(FIRST 
 the tally body (estab.f:795-840; floor TALL=max(HHT+HTADJ, XMIN+0.2), cap HHTMAX). The tally already consumes
 those 69 draws (line 697 skips them) — compute + return the per-record heights instead of discarding. Also (minor,
 split-only) NTALLY≥2 subsequent-only species. + re-examine the cyc1 first-tally -14% (ESB strength / tally total).
+
+## ★★★ DEFINITIVE ROOT of the tally-amount residual: the total must be PLPROB-CONSTANT (2026-08-05)
+FVS ITPP (for the TPA count) = INT(PLPROB(NNID)·DUPNPT/(prob1·300)+0.5) — INVERSELY proportional to prob1. So the
+plot total = ITPP·prob1·(300/DUPNPT) = PLPROB — CONSTANT as prob1 rises (higher prob1 → fewer, higher-TPA trees).
+jl uses the ESTPP DRAW for ITPP (independent of prob1), so jl total = ITPP_draw·prob1 GROWS with prob1. That is
+exactly why the high-prob1 disturbance/continuation cycles (cyc4/5 prob1 0.88/0.96) over-produce at MAXTPP, and why
+MAXING(7) accidentally limits it (the cap truncates the prob1-scaled ITPP). Confirmed: jl cyc1 itpp dist (cap25)
+sum=307 mean=6.1 max=25 — matches FVS's 20-25 disturbance ITPP, but jl's total scales with prob1 while FVS's doesn't.
+THE FIX (the real last sub-model): compute per-plot PLPROB(NNID) = Σ (PROB/DUP) for inventory small trees DBH<REGNBK
+(estab.f:303-313) — the plot's actual stocking. Then the tally total per plot = PLPROB (book tpaw so Σ_tree = PLPROB;
+equivalently ITPP_tpa = PLPROB·DUPNPT/(prob1·300) with per-tree = prob1·300/DUPNPT). Keep the ESTPP draw-ITPP ONLY
+for NUMSPE (species count). Then re-enable MAXTPP. NSTORE inits to the inventory PLPROB-ITPP (estab.f:544), so the
+FIRST tally's NEWTPP = draw_ITPP - PLPROB_ITPP and the ESPROB old/new split applies. Also PNN inits to ESA (≈0.10,
+line 545). This is the last model piece — it makes the total prob1-INVARIANT (=PLPROB), closing the systematic
+under/over. Current best (MAXING workaround): mean|Δ| 22.3%, no oscillation. Artifacts stand4_itpp_newtpp.txt.
