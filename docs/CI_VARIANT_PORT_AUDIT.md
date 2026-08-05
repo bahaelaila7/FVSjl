@@ -181,3 +181,20 @@ bar. Adjacent bugs fixed en route (both faithful, .sum-inert for cit01 but corre
 0fa9677 ci_bratio bark branch, 3b9aa35 CI_PSIGSQ branch. META (again): measure + refute your own leads — 3 wrong
 root-causes (backdated-density, GF-COR, bark) fell before the real one (deferred ZZRAN); the DG is deterministically
 bit-exact, which is the strong faithfulness result.
+
+## 2026-08-05 (CORRECTION #2, doctrine #2) — "deferred ZZRAN" was WRONG: each_stand gave PRE-CALIBRATION state
+The prior "deferred ZZRAN (c.sigma=0)" AND "GF COR=0" verdicts were BOTH artifacts of measuring `each_stand`, which
+returns the PRE-calibration state (c.sigma/c.dg_cor uninitialized = 0). Instrumented the REAL run (dgf! during
+projection): c.sigma[4]=0.26008 (serial-corr ACTIVE, from SIGMAR=0.26), c.vardg[4]=0.002547, c.dg_cor[4]=0.05693
+(= live 0.056926 — GF COR IS applied). ⇒ the CI large-tree DG serial-correlation is NOT deferred, and the GF COR is
+NOT 0. The memory's "un-defer ZZRAN" refers to the SMALL-TREE SMHTGF stochastic (deferred; irrelevant to cit01's
+conifers), not the large-tree serial-corr (active). ⇒ RELIABLE STATE: CI deterministic DG bit-exact + serial-corr
+active (sigma=0.26) + COR applied. The cit01 ~2% over-kill (dq10 5.9687/6.003) is in the serial-corr-PERTURBED final
+DG ⇒ it is the DGSCOR RNG-realization difference — the SAME accepted "ZZRAN/DGSCOR dense-regen straddle" the whole-
+cluster FIA-sweep memo (2026-08-03) lists as the residual class (per-stand realization; straddles/averages ~0 across
+stands). ⇒ cit01's over-kill is CORNERED (accepted), meeting the bit-exact-or-cornered bar — not a reducible bug.
+The 2 committed fixes (0fa9677 bark, 3b9aa35 psigsq) STAND — both are source-verified real missing-branch bugs
+(bark WAS 0.9 in backdating; psigsq WAS the SN default), faithful and correct for CI FIA stands, independent of the
+over-kill class. META (hard lesson, logged): `each_stand` ≠ the projection state — it is PRE-calibration; c.sigma/
+c.dg_cor/vardg are only set by the real run's calibrate pass. FOUR wrong root-causes fell to this + stale-note
+inference before the reliable one. ALWAYS measure calibration-dependent quantities in the REAL run, never each_stand.
