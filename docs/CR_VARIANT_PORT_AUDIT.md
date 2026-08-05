@@ -5320,3 +5320,18 @@ hereby RESOLVED to this accepted class. ⇒ CR fire regime IS bit-exact-or-corne
 the fire re-check WAS worth doing (found the size-selection divergence), and investigating it (not assuming) showed
 it is the accepted RNG class — measurement resolved it either way.
 CR STATUS: growth + volume + thinning + fire all bit-exact-or-cornered vs live FVScr. No reducible bug remains.
+
+## PLANT regime — MEASURED real residual: establishment-cycle VOLUME transient (open, volume-timing class)
+Measured crt01 + ESTAB/PLANT(2010, PP×300) vs live (doctrine #2; my 2nd "redundant" regime re-check, and again NOT
+redundant). Growth is bit-exact-or-±1 (2020 post-plant TPA/BA/SDI/CCF/TopHt/QMD all bit-exact 769/169/312/191/79/
+6.3 — planted count+size correct). BUT TCuFt/MCuFt spike +11.3% at 2020 ONLY (live 4111/3537 vs jl 4575/3922),
+then <0.3% at EVERY other cycle (2030 Δ0.2%, 2040 0.3%, …). With dbh (BA) bit-exact, the transient is a HEIGHT/
+VOLUME-timing effect on the newly-established trees at their first post-plant report — the SAME class as the fixed
+NE "fire tripling-ORDER" volume bug (FVS computes volume at a specific point relative to establishment/tripling; jl's
+order differs for the estab trees' first cycle, converging once they're fully integrated). PRE-EXISTING (setup fixes
+don't touch estab-volume timing); the prior "plant establishment BIT-EXACT" verdict validated size/count/BA/SDI/QMD
+but NOT volume. STATUS: OPEN — a real >2% single-cycle establishment-volume transient (volume-timing chunk). NEXT:
+trace the CR estab→triple→volume order vs FVS (grow_cycle establishment volume timing) as done for NE fire; likely a
+first-cycle newly-established-tree volume-computation ordering. META: BOTH regime re-checks this session (fire, plant)
+that I'd inferred "redundant" surfaced real divergences on measuring — fire resolved to accepted RNG-desync, plant is
+a real open volume-timing item. Doctrine #2 (measure, don't infer) vindicated a 6th time.
