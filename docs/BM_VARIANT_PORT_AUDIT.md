@@ -83,3 +83,27 @@ BM growth core (site + DG + COR + height + crown + regent + mortality) is **bit-
 against the live Fortran; volume bark-fixed with a cornered form-precision tail. Every measurable deterministic
 layer is validated; the sole remaining residual is the DGSCOR-FRM/tripling/ZZRAN stochastic class. BM joins
 EM and UT as a ported, validated core western variant.
+
+## 2026-08-05 — #140 BM growth-only under-thinning: MECHANISM localized (self-thin target too high, feedback-amplified)
+bmt01 first stand (control, NOAUTOES, 10 cyc) vs live FVSbm: jl UNDER-thins badly by 2090 — TPA 163 vs live 96
+(+70%), BA 165 vs 146, QMD 13.6 vs 16.7. jl holds **SDI constant at 267** (2030-2090) while live's SDI **declines
+268→219** (constant BA=146). MEASURED + RULED OUT three hypotheses:
+- **MSB (mature-stand breakup)**: NOT it — bm/grinit.f:284-286 defaults QMDMSB=999, SLPMSB=0 ⇒ MSB is OFF by
+  default (fires only via keyword; QMD never reaches 999). This also explains why task #144's SLPMRT/CEPMRT attempt
+  was falsified — the MSB/MRT alternate-mortality path is simply inert for the default BM stand.
+- **RIP blend**: NOT it — despite the "weighted average of RI and RN" comment (morts.f:81-82), the actual code
+  (morts.f:508-517) is EITHER/OR (RIP=RN unless T≤TEM or RN≤0 → RIP=RI), which jl matches exactly.
+- **SDImax decline**: NOT it — instrumented live morts.f SDIMAX dump: constant **346.00** every cycle, == jl.
+ROOT (localized): jl's mortality self-thin TARGET tn10 (=T85D10=CONST·D10^−1.605·PMSDIU) is consistently HIGHER
+than live's because **jl's projected dq10 (mortality QMD) is LOWER** — icyc1, SAME trees (T=589.65 both): jl
+dq10=6.02 vs live d10=6.10 (−1.3%). Lower QMD ⇒ higher TMD10 ⇒ higher T85D10 ⇒ fewer trees killed. Then BM's
+self-thin **QMD-feedback loop** amplifies it: under-thin → more (smaller) trees → lower QMD → higher target →
+under-thin, compounding the ~1% icyc1 seed into +70% TPA by 2090 (jl tn10 vs live: 530.8/525.8, 490.9/471.1,
+433.1/409.9, 367.8/334.5 — diverging).
+NEXT (definitive settle, not yet done): the icyc1 dq10 difference is on the SAME trees ⇒ it is a
+projected-diameter (d+g) difference. dq10=sqrt(Σpr·(d+g)²/tt). Dump jl vs live per-tree (d, g=diam_growth/bark) at
+icyc1 and diff — if g matches and only the SUM differs, it's an aggregation/order (tie-break) artifact (cornered-
+but-amplified, like the EM over-growth tail); if jl's g is systematically ~1% low, it's a real BM DG bias feeding
+the mortality (fixable). Either way BM's self-thin QMD-feedback is a strong amplifier that turns a ~1% seed into a
+large visible divergence — that sensitivity itself may warrant a damping review. (Live oracle /workspace/.bmwork/
+FVSbm_clean; both sides restored clean.)
