@@ -493,3 +493,27 @@ per-plot count). This + the NTALLY≥2 subsequent-only species (ESPSUB, PADV=0) 
 together they should close the oscillation. Heights remain a minor DBH-negligible refinement after.
 Current stand-4: 536/885/1642/1046/1164/2274/1386/1043/2067/1622/1752 vs target 536/1025/1401/881/1324/1531/853/
 1412/1788/1286/1147.
+
+## ★★ CONTINUATION FIX FULLY SPECCED (estab.f:944-953 ESPROB weighting) — no more measurement needed
+Each tally books ITPP trees per plot, but the PER-TREE TPA weight ESPROB encodes the increment:
+  944  FTEMP = PROB1(NCOUNT)                         ! this tally's stocking prob
+  945  FTEMP2 = FLOAT(NEWTPP)/FLOAT(ITPP)            ! new-fraction (ingrowth only)
+  946  ITEMP = ITPP - NEWTPP                          ! = NSTORE = the prior tally's stocked count
+  947  DO I=1,ITPP
+  948    ESPROB(I) = FTEMP                            ! default = full PROB1 (the NEW trees, I>ITEMP)
+  949    IF(I < ITEMP+1) ESPROB(I) = FTEMP - PNN(NCOUNT)   ! OLD trees get the PROB1 INCREMENT (current-previous)
+  950    IF(INGRO) ESPROB(I) = FTEMP*FTEMP2           ! ingrowth: all trees scaled by NEWTPP/ITPP
+  951    clamp >= 0.0001
+  953  PNN(NCOUNT) = FTEMP                            ! carry PROB1 to the next tally
+Each tree's TPA = ESPROB(I)·(300/DUPNPT). So:
+- FIRST tally (NSTORE=0→NEWTPP=ITPP→ITEMP=0): all ITPP trees get full PROB1. total = ITPP·PROB1·(300/dupnpt).
+- CONTINUATION (NSTORE=ITPP_prev): the first ITPP_prev trees get (PROB1_now - PROB1_prev) [≈0 if PROB1 stable],
+  the last NEWTPP get full PROB1. So the continuation adds ~NEWTPP·PROB1 + a small increment on the old — NOT a
+  full tally. jl gives EVERY tree full PROB1 → over-books the continuation ~5×.
+- INGRO tally: every tree scaled by NEWTPP/ITPP.
+FIX (final, fully specced): ie_autoes_tally must (a) persist per-plot NSTORE (prior ITPP) + PNN (prior PROB1) on
+est, across tallies within a disturbance sequence, reset at a new disturbance (new IDSDAT); (b) ITPP from the
+XSTORE-frozen ESTPP draw (NTALLY==1 stores DRAW, continuation reuses it — estab.f:676-677 — so ITPP grows only via
+REGT); (c) book each tree's tpaw = ESPROB(I)·300/dupnpt with the I<ITEMP+1 old/new split (+ INGRO scaling); (d)
+NTALLY≥2 subsequent-only species (PADV=0/ESPSUB). Heights (ESADVH/ESSUBH per best sp, floored XMIN+0.2 — estab.f:
+838) are computed at :795-840 and are a minor DBH-negligible refinement. This closes the oscillation.
