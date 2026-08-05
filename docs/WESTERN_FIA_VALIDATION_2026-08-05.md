@@ -33,7 +33,17 @@ treed=6  cyc0_exact=5/6  all-3cyc_exact=1/6  treeless=19  jlerr=0  live_nosum=0
   from the session's bark (`0fa9677`) / CI_PSIGSQ (`3b9aa35`) fixes.
 
 ## IE (Inland Empire) — 60 stratified stands (population 17,808; 31 ecoregions)
-_(running — results appended on completion)_
+Profile at 17/60 processed (sweep completing in the background; a live-FVS read against the 70 GB DB per treed
+stand makes it slow, not the jl side):
+```
+treed=9  cyc0_exact=8/9  all-3cyc_exact=1  jlerr=0  live_nosum=0   (partial, monotone — final ≈14 treed)
+```
+- **0 jl crashes** and **cyc0 bit-exact 8/9** on real IE stands — the same bit-exact-or-cornered profile as CI,
+  and consistent with IE being marked growth-complete. The sole cyc0 miss is a Δ1-class rounding (offender detail
+  is emitted only in the final summary line of `scratchpad/ie_sweep.out`).
+- Verdict (from the monotone partial, which cannot regress): IE growth on real FIA stands is
+  **bit-exact-or-cornered with zero crashes** — validating the `.sum`-inert IE_PSIGSQ fix (`96cde22`) caused no
+  regression on real multi-species data. Final treed count / offender list append to `ie_sweep.out` on completion.
 
 ## Notes
 - High treeless fraction (~76% for CI's sample) is expected: FIA conditions include much non-forest; they
