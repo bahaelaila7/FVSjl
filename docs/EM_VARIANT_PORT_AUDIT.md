@@ -392,3 +392,30 @@ ADDITION to the DG path (NI done sp4/5; DIAGR RM/CO + aspen DGFASP still todo). 
 group is a full DG+height+regent triad. emt01 (conifers) exercises only the main paths (all validated). EM
 DONE on conifers (growth end-to-end + volume, = KT/IE); non-conifer species-groups (LM/LL/RM/AS/CO/hardwoods)
 are the situational remaining coverage — needs a per-group DG+height+regent port + a test stand. Same tail as IE.
+
+## 2026-08-05 — emt01 CONTROL (NOAUTOES) growth-only: measured ~+7% BA over-growth by 2090 → CROWN-RATIO lead
+Re-validated the first emt01 stand (S248112 UNTHINNED CONTROL, NOAUTOES growth-only, 10 cycles) vs live FVSem_clean:
+| year | TPA l/j | BA l/j | QMD l/j |
+| 1990 | 536/536 | 77/77 | 5.1/5.1 |  (bit-exact)
+| 2000 | 526/526 | 96/96 | 5.8/5.8 |  (bit-exact .sum; per-tree dbh Δ~0.002 already present)
+| 2010 | 517/517 | 114/115 | 6.4/6.4 |
+| 2050 | 474/471 | 183/194 | 8.4/8.7 |
+| 2090 | 411/394 | 230/246 | 10.1/10.7 |  (jl BA +7%, QMD +6%, TPA −4%)
+jl OVER-grows DBH; the excess compounds ~0.5%/cycle from cyc1. This is the growth-only CONTROL — DISTINCT from
+task #137's establishment-stand self-thin over-kill.
+MEASURED (instrument-replay, live em/dgf.f WRITE(16) of D/CR/PCT/BAL/RELDEN/BA/DDS at ICYC=2, matched to jl by
+sp+dbh):
+- DG formula + bark BIT-EXACT at cyc0 (2000 .sum bit-exact; sp2 bark=0.934 jl==live; NI/DIAGR paths not exercised).
+- At cyc1 the sp2 per-tree DDS is jl-LOWER than live (jl 1.9279 vs live 1.9553), which RECONCILES with a measured
+  CROWN-RATIO divergence: live sp2 crowns are tight 0.27–0.28, jl's are spread 0.25 / 0.25 / 0.32. Crown feeds the
+  DDS `cr·(DGCR+cr·DGCRSQ)` term, so a lower jl crown → lower jl DDS (the formula is consistent given the inputs).
+- The ~3pp crown difference is FAR too large to be explained by the ~0.002" cyc0 dbh divergence ⇒ the EM crown-ratio
+  UPDATE model (crnew/crown.f) is the prime suspect, feeding DG and compounding.
+NOT YET ISOLATED (cause-vs-effect open — per the CI each_stand lesson, NOT claiming a root before proving it): per-
+tree matching ACROSS the divergence is unreliable (doctrine #3). To confirm the crown model is the CAUSE (not an
+effect of dbh drift), the next step is a cyc0-ANCHORED check: pick one input tree (bit-identical at 1990), dump its
+crown ratio at the START of cyc1 from BOTH jl and live, and see if the crown-update itself diverges for identical
+input. If yes → real crown-model bug (likely cross-variant, shared crnew). If the crowns match for identical input
+→ the divergence is a dbh-drift effect and the whole thing is the accepted coupled precision tail (cornered).
+Puzzle to resolve alongside: jl sp2 per-tree DDS is LOWER yet aggregate BA is HIGHER — so the aggregate over-growth
+is carried by OTHER species / the small-tree cohort / size redistribution, not sp2. Verify species BA contributions.
