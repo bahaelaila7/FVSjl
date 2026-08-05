@@ -52,7 +52,7 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
    the settled growth-only tail above; the estab stand's cyc0 mortality divergence, still open).
 3. **BM under-thinning [#140]** — ★ 2026-08-05 CORRECTED to a REAL consistent under-thin BIAS (NOT cornered).
    Multi-stand real-FIA sign-tally: non-self-thinning BM stands BIT-EXACT; actively-self-thinning stands jl
-   under-thins 100% consistently (7/7 divergent stands JL-HIGH, 0 LOW, Δ +1.3% to +48%). Flips the earlier
+   under-thins with a ~10:1 skew (10 JL-HIGH Δ +1.3% to +48%, 1 borderline JL-LOW −0.9%). Flips the earlier
    "cornered tie-break" lean (which over-generalized from bmt01's single −0.3% net). ROOT: jl mortality dq10 runs
    slightly low → higher T85D10 self-thin target → under-kill, amplified by the QMD-feedback. FIX PATH: instrument
    jl mortality! vs bm/morts.f on a JL-HIGH FIA stand at the first divergent cycle (dq10/TN10/RN/per-tree-kill).

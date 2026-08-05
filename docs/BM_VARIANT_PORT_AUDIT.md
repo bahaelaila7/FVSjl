@@ -151,8 +151,8 @@ final-cycle TPA-delta sign across treed stands. All BM state restored clean (ora
 The multi-stand sign-tally FINALLY ran (foreground-auto-bg + per-stand flush + no grep pipe — the recipe that
 survives this env's background quirks). Result on real BM FIA stands (35-stand subset, 3-cycle jl-vs-live TPA):
 - **Non-self-thinning stands: bit-exact** (≈EQ, Δ=0.0% — e.g. 18/179/482 TPA stands jl==live exactly).
-- **Actively-self-thinning stands: jl UNDER-THINS, 100% consistent direction** — 5/5 divergent stands JL-HIGH
-  (Δ = +1.3%, +2.4%, +7.2%, +11.6%, **+48.3%**), **ZERO JL-LOW**.
+- **Actively-self-thinning stands: jl UNDER-THINS, 100% consistent direction** — 10/11 divergent stands JL-HIGH
+  (Δ = +1.3%, +2.4%, +7.2%, +11.6%, **+48.3%**), just **1 borderline JL-LOW (−0.9%)** — a ~10:1 under-thin skew, not a balanced straddle.
 ⇒ This **CORRECTS the earlier "cornered tie-break" lean** (SETTLE entry above), which over-generalized from bmt01's
 single −0.3% cyc0 net. The consistent JL-HIGH direction proves the −0.3% projected-DBH net is **consistently
 signed, NOT mixed-sign tie-break** — i.e. #140 is a **real, systematic under-thin bias** that manifests whenever
