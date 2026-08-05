@@ -419,3 +419,19 @@ input. If yes → real crown-model bug (likely cross-variant, shared crnew). If 
 → the divergence is a dbh-drift effect and the whole thing is the accepted coupled precision tail (cornered).
 Puzzle to resolve alongside: jl sp2 per-tree DDS is LOWER yet aggregate BA is HIGHER — so the aggregate over-growth
 is carried by OTHER species / the small-tree cohort / size redistribution, not sp2. Verify species BA contributions.
+
+### CORRECTION (same day, doctrine #2) — retract the crown-specific claim; robust lead is DG-point DENSITY
+The crown-ratio pairing above is UNDER-SUPPORTED: the CR-carrying live dump (I3≤6) covered sp2 trees d≈8.31–8.56,
+but the d≈8.909 tree I paired with jl's d≈8.907 came from the earlier dump with NO CR captured — so "jl crown 0.32
+vs live 0.28" mixed two different trees. Per-tree matching across the divergence is unreliable (doctrine #3: trees
+don't correspond 1:1 post-cyc0; CR not fully captured). RETRACTED.
+ROBUST (stand-level, not per-tree) fact that stands: at the cyc1 DG point, jl's density inputs are ~0.3% HIGHER than
+live's — jl ba=105.53 / relden=123.98 vs live ba=105.2159 / relden=123.2158 — EVEN THOUGH the 2000 .sum stand BA is
+bit-exact (96/96). Note the DG-point "BA" (~105) ≠ the reported .sum BA (~96), so it is a different aggregation
+(per-point / expansion / small-tree-inclusive). Higher jl density → more competition → lower jl DDS (matches the
+observed jl-lower sp2 DDS), yet aggregate BA ends up HIGHER — so the compounding is a density-aggregation +
+size-redistribution effect, not a single DG term. PROPER next step (STAND-level, avoids the per-tree trap): compare
+how jl vs live aggregate the DG-point BA/RELDEN/PCCF at cyc1 (point_ccf, expansion, small-tree inclusion) — find the
+0.3% source. If it's a faithful-but-different rounding in the density aggregation, this is the accepted coupled
+precision tail (cornered); if a real aggregation bug, it's cross-variant (shared density code). DG formula + bark
+remain bit-exact at cyc0 (unchanged).
