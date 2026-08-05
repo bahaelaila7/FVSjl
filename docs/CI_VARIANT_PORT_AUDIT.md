@@ -134,3 +134,19 @@ calibrate_diameter_growth! path, so it must be scoped/validated to NOT regress t
 (their DGF density-reads are already correct). Magnitude ~2% (DG-precision/self-thin tail = memory's "cornered
 class"); real + systematic, not a straddle. NEXT: trace whether the shared calibration recomputes density post-
 backdate for the other western variants (if yes, CI's dgf just needs to read that; if no, they compensate elsewhere).
+
+## 2026-08-05 (CORRECTION, doctrine #2) — CI over-kill root-cause RE-MEASURED: NOT "reads current 85.13"
+The prior entry's root-cause was WRONG — inferred from a stale memory note without measuring. Instrumented BOTH
+jl (CI_DGBA env dump in dgf!) AND live (ci/dgf.f WRITE BA/RELDEN): the CI DGF calibration call reads the BACKDATED
+density in BOTH — jl ba=66.881/relden=81.955 vs live ba=66.796/relden=81.890; the PREDICTION call is BIT-EXACT in
+both (ba=85.131, relden=102.874). So the calibration backdating WORKS (shared calibrate_diameter_growth! line ~359
+compute_density! on the backdated dbh) — jl does NOT read current 85.13. The ACTUAL residual is a tiny BACKDATING-
+PRECISION difference: jl's backdated stand BA is 0.13% HIGH (66.881 vs 66.796; relden 81.955 vs 81.890). That fits
+the COR against slightly-high density ⇒ DG marginally low ⇒ mortality DQ10 0.6% low ⇒ ~2% early over-kill. LEAD
+(precise): the DENSE backdating (_backdate_dbh!) — WK3=√(d²·r), r from measured DG / bark. jl's backdated dbh is
+slightly LARGE ⇒ ci_bratio (POWER bark DIB=BARK1·D^BARK2) gadj=g/bark slightly low, OR the r/rounding. Since the
+OTHER western variants share _backdate_dbh! and are bit-exact, suspect a CI-specific input to it (ci_bratio value,
+or the measured-DG field). NEXT: instrument the per-tree backdated dbh (WK3) jl vs live for a few cit01 trees
+(pre-split, doctrine-#3-valid at LSTART) to see if it's bark or the r formula. Magnitude ~2% (fine precision tail,
+memory's "cornered class"); real + systematic. META: measuring corrected a wrong inferred root-cause AGAIN — same
+lesson as the CR session (don't trust stale notes; instrument).
