@@ -659,22 +659,33 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          iprep::Integer, iphy::Integer, xcos::Real, xsin::Real, slo::Real, elev::Real,
                          baa::Real, regt::Real, bwaf::Real, bwb4::Real, prob1::Real, dupnpt::Real,
                          occ::AbstractVector, over::AbstractVector, time::Real = 1f0,
-                         nsp::Integer = 23, wk6fill::Integer = 50)
+                         is_ingro::Bool = true, nstore::AbstractVector = Int32[],
+                         pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50)
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
-    nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]; maxing = _IE_MAXING[ihab]
-    tpaw = Float32(prob1) * 300f0 / Float32(dupnpt)
+    nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]
+    cap = _IE_MAXING[ihab]        # AUTOES tallies cap at MAXING (validated 583.7); MAXTPP over-produces on iet01
+    p1 = Float32(prob1); scale = 300f0 / Float32(dupnpt)
+    # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
+    has_state = length(nstore) == nplots && length(pnn) == nplots
     seeds = ie_autoes_plot_seeds(seed0, nplots; wk6 = wk6fill)
     tally = zeros(Float64, nsp)
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
         for _ in 1:(n == 1 ? wk6fill : 0); ie_esrann!(rng); end
         ie_esrann!(rng); ie_esrann!(rng)                                     # EMSQR
-        itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, xc, xs, sl, Float32(regt), Float32(bwaf))), 1, maxing)
+        itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, xc, xs, sl, Float32(regt), Float32(bwaf))), 1, cap)
+        ns = has_state ? Int(nstore[n]) : 0
+        pn = has_state ? pnn[n] : 0f0
+        newtpp = max(0, itpp - ns)
+        # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
+        # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
+        prob_old = max(p1 - pn, 0.0001f0)
+        esprob(i) = is_ingro ? max(p1 * Float32(newtpp) / Float32(itpp), 0.0001f0) : (i <= ns ? prob_old : p1)
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1
@@ -685,8 +696,9 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         end
         numspe = min(numspe, maxspp, nspnz)
         su = copy(sumup_base); ibest = zeros(Int, nsp)
+        iplot = 0                                                            # tree index within the plot (1..itpp)
         for i in 1:numspe
-            j = ie_estab_pick_species(wk6s[i], su); tally[j] += tpaw; ibest[j] = 1
+            iplot += 1; j = ie_estab_pick_species(wk6s[i], su); tally[j] += esprob(iplot) * scale; ibest[j] = 1
             su[j] = 0f0; t = sum(su); t > 0 && (su ./= t)
         end
         we = zeros(Float32, nsp)
@@ -698,8 +710,9 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         wk6e = ntuple(_ -> ie_esrann!(rng), 50)                              # excess-WK6
         nd = 0
         for _ in 1:(itpp - numspe)
-            nd += 1; j = ie_estab_pick_species(wk6e[nd], we); tally[j] += tpaw; nd += 1
+            nd += 1; iplot += 1; j = ie_estab_pick_species(wk6e[nd], we); tally[j] += esprob(iplot) * scale; nd += 1
         end
+        has_state && (nstore[n] = Int32(itpp); pnn[n] = p1)                  # carry to the next tally
     end
     return tally
 end
@@ -994,7 +1007,8 @@ end
 function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Integer,
                        dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
                        time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
-                       esb_shift::Real = 0f0)
+                       esb_shift::Real = 0f0, is_ingro::Bool = true,
+                       nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[])
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1013,7 +1027,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
-                            occ = occ, over = over, time = tm)
+                            occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn)
     return (tally = tally, prob1 = prob1, idx = idx)
 end
 
@@ -1070,6 +1084,16 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
+    # Per-plot NSTORE/PNN state (ESPROB weighting). A NEW disturbance/ingrowth tally (NTALLY==1|99) resets the
+    # per-plot stocked counts; a continuation (NTALLY≥2) reuses them so it books only the increment ITPP-NSTORE.
+    dupnpt_i = Int(dupnpt)
+    is_ingro = _ntally == 99
+    if _ntally == 1 || _ntally == 99
+        est.es_nstore = zeros(Int32, dupnpt_i)
+        est.es_pnn = zeros(Float32, dupnpt_i)
+    elseif length(est.es_nstore) != dupnpt_i
+        est.es_nstore = zeros(Int32, dupnpt_i); est.es_pnn = zeros(Float32, dupnpt_i)
+    end
     # ESB inventory calibration (estab.f:319-326,579) applies ONLY at the inventory-year disturbance (INADV=0);
     # the auto/ingrowth tallies (est.idsdat > inv_year) have ESB=ESB1=0. ESB = logit(clamp(logistic(-5.174+0.851·
     # ln(TPACRE)),0.10,0.90)) from the current small-tree (DBH<REGNBK=2.999) TPA; ESB1 = ESTOCK(BAAOLD, TIME=0).
@@ -1093,7 +1117,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     end
     r = ie_autoes_run(habitat_code = Int(p.habitat_code), forest_code = Int(p.user_forest_code),
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
-                      elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift)
+                      elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
+                      is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn)
 
     t = s.trees
     xmin = _IE_ES_XMIN

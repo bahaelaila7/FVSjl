@@ -615,9 +615,12 @@ mutable struct Establishment
     es_stream::Float32  # AUTOES ESRANN stream state (ESS0) for the NEXT disturbance seed draw; a new NTALLY==1
                         # tally draws seed0=ESRANN(es_stream) then advances es_stream to the post-tally ESAVE_50.
                         # 0 = fresh (start at ESSS=55329). Continuations reuse `es_seed` (this tally's seed0).
+    es_nstore::Vector{Int32}    # per-plot stocked tree count (NSTORE, estab.f:685) from the prior tally in this
+                                # disturbance sequence; a continuation books only the increment ITPP-NSTORE.
+    es_pnn::Vector{Float32}     # per-plot prior PROB1 (PNN, estab.f:953); old trees get the increment PROB1-PNN.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0)
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[])
 
 mutable struct DbsState
     enabled::Bool
