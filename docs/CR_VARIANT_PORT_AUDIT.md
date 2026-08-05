@@ -5240,3 +5240,16 @@ transcription error would be one-directional (always high or always low); a bidi
 NINT/merch-threshold rounding primitive (sub-.sum-rounding dbh differences tipping trees across the merch/board
 boundary either way). BdFt bit-exact everywhere confirms the thresholded board equation is faithful. VERDICT:
 genuine accepted primitive (same class as the eastern variants' merch/board threshold), MEASURED not assumed.
+
+### bug #10 — tractability CHECKED: it is a two-part subsystem, NOT a one-line crosswalk fix (deferral upheld on technical grounds)
+Traced jl's path: fia_database.jl:213 resolve_species("131") → CR sp38; jl then sets sp_site_index[38]=85,
+site_species=38, and cr_site_index_defaults! uses isisp=38/tem=85. Live's MEASURED behavior on the same stand is a
+TWO-PART mechanism jl can't match with a single change: (1) live maps SITE_SPECIES 131 → CR sp32 (SITEAR(32)=85),
+BUT (2) live's sitset ISISP=13 (the imodty-2 DEFAULT), not 32 — i.e. a site species that resolves to a non-native
+SURROGATE (sp32 ER for loblolly) is NOT accepted as the sitset conversion reference, so ISISP falls to the imodty
+default while SITEAR(mapped)=SI is still applied. To be faithful jl needs BOTH: the FIA→CR site-species crosswalk
+(131→32, from the regional fia_se.f data) AND the "surrogate site-species ⇒ ISISP defaults to imodty, SITEAR still
+set" rule (dbsstandin.f + sitset.f interaction). That is a bounded SUBSYSTEM, not a CSV entry. VALUE remains low
+(only out-of-region stands supplying a non-CR site species; the CR-native port is bit-exact-or-cornered). DEFERRED
+— and a future session should NOT attempt a naive resolve_species("131")→32 patch (it would set isisp=32, diverging
+the OTHER direction). This is the final, fully-scoped verdict on the last known CR residual.
