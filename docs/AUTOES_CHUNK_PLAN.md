@@ -622,3 +622,21 @@ clamp-skip (estab.f:1203 ESPROB<0.00011 skipped), the excess contribute ~0 → p
 currently gives BOTH best and excess full prob1. The fix: in ie_autoes_tally, the numspe BEST trees get prob1, the
 EXCESS get prob1−PNN (≈0 → effectively skipped for a fresh disturbance). Then MAXTPP is safe. VALIDATE per-plot
 vs stand4_booktpa.txt (ITPP→PLTPA map). This is the exact, measured close-out of the 22% residual.
+
+## ★ numspe-cap FIT ATTEMPTED + REVERTED (2026-08-05) — the per-plot amount needs EXACT per-plot fitting
+Tried: per-plot total = numspe·prob1·scale (uniform esprob=prob1·numspe/itpp) + MAXTPP. RESULT: mean|Δ| 61.9%
+(WORSE than the 22.3% MAXING best) — severe UNDER (2000: 485 vs 1025). Reverted. Learnings that bound the truth:
+- MAXING+full-prob1 (per-tree=prob1, itpp≤7): 2000=885 (−14%).
+- MAXTPP+full-prob1 (itpp≤25):               2000=1228 (+20%).
+- numspe-cap+MAXTPP:                          2000=485 (−53%).
+- TARGET:                                     2000=1025.
+So the truth books MORE than MAXING-full (885) but the per-tree ESPROB is REDUCED from full prob1 enough to bring
+MAXTPP-full (1228) DOWN to ~1025 (~17% reduction) — NOT the drastic numspe-cap. The measured PLTPA=14.4 (plots
+1-3) = ~4·prob1·scale was NOT globally "numspe·prob1": jl's avg numspe (~2.7) ≠ live's per-plot count, so a global
+numspe rule under-books by half. CONCLUSION (honest): the per-plot amount is a genuine multi-variable fit
+(ITPP-cap × the exact ESPROB(I) old/new split × NSTORE-init-from-PLPROB × PNN-init-from-ESA) that CANNOT be
+resolved by global trajectory tuning — each global rule I tried (MAXING, MAXTPP, numspe-cap) misses. The
+CORRECT next step is to fit jl's PER-PLOT PLTPA to stand4_booktpa.txt EXACTLY (the ITPP→PLTPA map, plot by plot),
+reproducing each plot's booked total, THEN the trajectory follows. That requires the full estab.f amount flow
+ported faithfully (not fit), validated per-plot — a focused methodical chunk. BEST STATE remains MAXING+ESPROB
+old/new = mean|Δ| 22.3%, oscillation-free, committed (77f3ba3). AUTOES is functional; this is the last residual.
