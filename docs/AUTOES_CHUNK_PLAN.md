@@ -454,3 +454,26 @@ the post-last-plot state gives the next tally's seed (validate vs ESS0 55329/788
 est.es_seed. This is the FINAL AUTOES chunk — it closes both the ±oscillation and the placeholder heights at once.
 Current jl (all other fixes landed): 536/885/1642/1046/1102/2220/1675/999/2100/1606/1737 vs target 536/1025/1401/
 881/1324/1531/853/1412/1788/1286/1147.
+
+## ★ REMAINING ERROR = the CONTINUATION tally (NTALLY≥2), NOT the heights (2026-08-05 trace)
+Per-cycle trace (jl, all fixes) of TPA before/after establishment shows the FIRST tally is CORRECT but the
+CONTINUATION over-produces ~5×:
+  cyc4 (NTALLY=1, 2020 disturbance): pre 157 → post 1280 (target 2030 = 1324) ✓ first tally correct.
+  cyc5 (NTALLY=2, continuation):     pre 1280 → post 2502 (target 2040 = 1531) ✗ +63%, added ~1222 vs FVS ~207.
+  Same at cyc7(1)/8(2), cyc1(1)/2(2). The FIRST tally of each sequence ≈ right; the CONTINUATION adds a FULL
+  tally when FVS adds ~5× fewer. ⇒ the ±oscillation is the continuation amount, NOT the placeholder heights
+  (heights affect DBH negligibly — all <4.5ft → DBH≈0.1 — and would hit all tallies equally).
+TWO coupled causes (estab.f:770-787 selection + 608-728 stocking):
+1. **NTALLY≥2 uses SUBSEQUENT species only** (estab.f:773 `IF(NTALLY.EQ.1)CALL ESPADV`; :774 `CALL ESPSUB`
+   always). jl's ie_autoes_tally ALWAYS uses PADV (advance). For NTALLY≥2: PADV=0, SUMUP=PSUB (ie_espsub, already
+   validated). For NTALLY=1 with ITIME>2 (cyc4 TIME=10): SUMUP=PADV+PSUB. The ICHOI dispatch (advance vs
+   subsequent HEIGHT) is FTEMP=PADV/(PADV+PSUB).
+2. **★ the per-plot ITPP / tally AMOUNT** — likely the deeper lever: estab.f:541 ITPP=INT(PLPROB·DUPNPT/(prob1·300)
+   +0.5) (inventory) stored in NSTORE; then per-plot total = ITPP·tpaw = ITPP·(prob1·300/dupnpt) = PLPROB (prob1
+   CANCELS) — so the tally total per plot = PLPROB (the plot's actual stocking), NOT prob1-scaled. jl uses ie_estpp
+   (draw-based ITPP) × prob1·300/dupnpt, which does NOT cancel → the continuation (high prob1=0.956) over-scales.
+   VERIFY: does the tally use NSTORE (PLPROB-based, prob1 cancels) or a fresh ie_estpp draw? Read estab.f how the
+   per-plot loop gets ITPP + tpaw for the tally (vs the inventory NSTORE calc). If PLPROB-based, jl's whole tpaw/
+   itpp needs revisiting (the 583.7 first-tally match may be coincidental alignment). This is the next measure-
+   first step: instrument the per-plot ITPP + booked TPA at cyc4 vs cyc5. Redirects from heights → continuation
+   amount. Heights remain a (minor) later refinement.
