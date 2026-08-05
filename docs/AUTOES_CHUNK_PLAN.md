@@ -603,3 +603,22 @@ ASSESSMENT — NO, it is faithful and likely helps:
 CAVEAT (validate when convenient): run run_sweep_western.jl on an IE sample to CONFIRM the pass-rate moves up (or
 holds), per the FIA/FVS-compat campaign [[fia-fvs-compat-campaign]]. The 22% amount gap means jl's ingrowth is
 approximate, so a few knife-edge stands could flip either way; the aggregate direction is toward live.
+
+## ★★★ DEFINITIVE FIT DATA: per-plot BOOKED TPA measured (2026-08-05, stand4_booktpa.txt)
+Instrumented estab.f:1232 to accumulate PLTPA = Σ PROB(ITRN) per plot (the actual booked TPA). Cyc1 (first
+DISTURBANCE tally, prob1≈0.60), per plot: ITPP=1→3.61, 2→7.21, 3→11.10, 4→14.43, 6→14.79, 14→14.43, 15→14.79,
+22→13.90, 25→13.90. ⇒ **PLTPA = min(ITPP, ~numspe≈4)·prob1·(300/dupnpt)** — it CAPS at ~4 trees per plot
+REGARDLESS of ITPP (14.43 at ITPP=4 AND ITPP=14). The per-tree unit 3.61 = prob1·300/dupnpt confirms the formula;
+the COUNT carrying full TPA is ~numspe (the species count), NOT ITPP. jl books ALL itpp trees at prob1 → at
+MAXTPP(25) it over-books ~6× (25 vs 4) → the +36% over-production; MAXING(7) accidentally limits it to ~7 (closer
+but still over the ~4). So the model is:
+- DISTURBANCE tally: per-plot booked ≈ Σ over the ~numspe BEST trees of prob1 + the EXCESS trees at ESPROB=
+  prob1−PNN (which for a fresh disturbance ≈ prob1−ESA, but MEASURED contributes ~0 → clamped/small). Net ≈
+  numspe·prob1·scale. (INGROWTH tally is different: ESPROB=prob1·NEWTPP/ITPP for ALL trees → total=NEWTPP·prob1,
+  which is why the validated 583.7 ingrowth case matched with jl's itpp·prob1 when NSTORE=0→NEWTPP=itpp.)
+FIX (now a FIT, not a derivation): jl's tally must book the EXCESS trees at ESPROB=prob1−PNN (not prob1) for
+disturbance tallies — the excess are the "old"/over-stocked trees that FVS discounts. With PNN≈ESA≈0.10 and the
+clamp-skip (estab.f:1203 ESPROB<0.00011 skipped), the excess contribute ~0 → per-plot total ≈ numspe·prob1. jl
+currently gives BOTH best and excess full prob1. The fix: in ie_autoes_tally, the numspe BEST trees get prob1, the
+EXCESS get prob1−PNN (≈0 → effectively skipped for a fresh disturbance). Then MAXTPP is safe. VALIDATE per-plot
+vs stand4_booktpa.txt (ITPP→PLTPA map). This is the exact, measured close-out of the 22% residual.
