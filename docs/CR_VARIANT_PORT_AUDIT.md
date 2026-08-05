@@ -5277,3 +5277,13 @@ crt01 unaffected. Shared-infra-safe (recognized in-region codes match identicall
 NINT rounding of the SDI formula with TPA/QMD bit-exact) = accepted primitive. META (session): three times a
 residual filed "cornered/deferred" was actually a fixable bug once measured (8th dub, 9th imodty, 10th site-species)
 — and bug #10's FIRST characterization (subsystem) was itself wrong; the safe read-only source trace corrected it.
+
+## Last residual (post-bug-#10) — SDI Δ1 MEASURED = Zeide-summation NINT primitive (accepted, ledger complete)
+After bug #10, the sole non-bit-exact DB-sweep cell is stand 1224251982290487 SDI@2032 214/213 (Δ1). Measured the
+full trajectory: at 2032 EVERY other column is bit-exact (TPA 2770, BA 100, CCF 116, TopHt 67, QMD 2.6) — only SDI
+differs by 1. DECISIVE: CR's SDI is the ZEIDE per-tree summation (Σ(dbh/10)^1.605), NOT Reineke — a Reineke SDI from
+TPA·QMD would be identical given bit-exact TPA/QMD, so a Δ1 with everything else exact can only come from the
+per-tree summation, where a sub-.sum-rounding dbh difference shifts the sum <1 → NINT Δ1. Same irreducible class as
+AVHT40 tie-break / merch-threshold. VERDICT: accepted primitive (measured, not assumed). ⇒ CR RESIDUAL LEDGER
+COMPLETE: every DB-sweep + crt01 cell is either bit-exact or a measured accepted primitive (Zeide-SDI ±1, RDPSRT
+±1, merch-threshold <2%, AVHT40/ZZRAN/ULP). No reducible growth or volume bug remains after the 8th/9th/10th fixes.
