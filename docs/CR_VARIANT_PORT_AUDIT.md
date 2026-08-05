@@ -5253,3 +5253,12 @@ set" rule (dbsstandin.f + sitset.f interaction). That is a bounded SUBSYSTEM, no
 (only out-of-region stands supplying a non-CR site species; the CR-native port is bit-exact-or-cornered). DEFERRED
 — and a future session should NOT attempt a naive resolve_species("131")→32 patch (it would set isisp=32, diverging
 the OTHER direction). This is the final, fully-scoped verdict on the last known CR residual.
+
+## Regime regression check — THINNING bit-exact post-8th/9th-bug (doctrine #2: measured, not inferred)
+The two setup-path fixes (backdated-density age-dub, forkod imodty) run at initialization, feeding EVERY regime.
+Rather than infer "growth bit-exact ⇒ regimes fine", measured it: crt01 + THINBBA(2010, residual BA 100) vs live
+FVScr. The thin fires identically (TPA 520→193, BA 263→111 at 2020) and post-thin growth is BIT-EXACT on all 6
+growth columns every cycle (2020 193/111/187/118/78/10.2 == live; 2030, 2040 likewise); volume TCuFt/MCuFt <2%
+(bidirectional merch-threshold class). ⇒ the fixes do NOT regress the cut path / RDPSRT self-thin tie-break /
+post-thin growth. Combined with the prior-session regime-matrix validation (plant/thinbba/simfire-FFE/volume all
+bit-exact-or-cornered), the CR management regimes remain faithful with the new fixes in place.
