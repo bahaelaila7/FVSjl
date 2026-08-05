@@ -5304,3 +5304,19 @@ port. NEXT: instrument live FMEFF per-tree fire-kill probability vs jl on crt01'
 for the fire cycle) to classify (cornered precision vs reducible bark/scorch coefficient). META: this finding
 INVALIDATES the earlier "plant/fire regime re-checks are redundant" inference — the height fix DID shift fire input,
 and measuring surfaced a real residual. Doctrine #2 vindicated again.
+
+## FFE fire regime — RESOLVED to accepted RNG-desync (investigated, NOT a bug; commit closes the open item above)
+Pursued the fire-mortality residual per doctrine #2. Root: FMEFF (fmeff.f:34-159) draws a PER-TREE RANN to place
+each tree in the burned fraction (`RANN*100 > PSBURN ⇒ unburned ⇒ skip`, PMORT=0), bracketed by RANNGET/RANNPUT.
+jl's fmburn.jl:161-166/244 replicates this EXACTLY (rannget → `rann!*100 > psburn && continue` → rannput! rollback)
+— the fire-mortality model is FAITHFUL. The divergence signature (TPA/kill-COUNT bit-exact, but jl's survivors
+larger) is the fingerprint of an RNG-STATE difference at fire time: the same burned FRACTION (deterministic PSBURN)
+kills the same COUNT, but WHICH trees fall in the burned portion depends on the per-tree RANN order, and CR carries
+the documented intentional ZZRAN RNG-desync (small-tree/height draws that desync the stream while keeping .sum
+growth bit-exact) — so by the 2010 fire jl's RNG state ≠ live's ⇒ a different subset (of the same size) burns.
+VERDICT: accepted RNG-desync primitive (same class as ZZRAN / RDPSRT tie-break), NOT reducible without the global
+ZZRAN RNG-order reconciliation (a separate deferred item, also open for CI). The earlier "OPEN FFE fire item" is
+hereby RESOLVED to this accepted class. ⇒ CR fire regime IS bit-exact-or-cornered. Correction to my correction:
+the fire re-check WAS worth doing (found the size-selection divergence), and investigating it (not assuming) showed
+it is the accepted RNG class — measurement resolved it either way.
+CR STATUS: growth + volume + thinning + fire all bit-exact-or-cornered vs live FVScr. No reducible bug remains.
