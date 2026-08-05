@@ -435,3 +435,24 @@ how jl vs live aggregate the DG-point BA/RELDEN/PCCF at cyc1 (point_ccf, expansi
 0.3% source. If it's a faithful-but-different rounding in the density aggregation, this is the accepted coupled
 precision tail (cornered); if a real aggregation bug, it's cross-variant (shared density code). DG formula + bark
 remain bit-exact at cyc0 (unchanged).
+
+## 2026-08-05 — cyc0-DG test (NOTRIPLE, emt01) — the bug-vs-cornered settler, at resolution limit
+Ran the definitive test for the compounding over-growth tail: emt01 first stand, NOTRIPLE (trees stay 1:1 with
+input ⇒ per-tree matching is doctrine-valid), NUMCYCLE 1 (1990→2000), TREELIST. Compared jl's exact post-growth
+2000 DBH (instrumented at simulate.jl:533 `dbh += diam_growth/bark`) to live FVSem's TREELIST 2000 CURR DIAM.
+FINDINGS:
+- **cyc0 aggregate growth is BIT-EXACT**: NOTRIPLE .sum 2000 = 526/96/5.8 jl == live.
+- **Per-tree 2000 DBH matches within the .trl's 1-decimal precision** for most trees (e.g. WL start7.9→8.40 jl ==
+  live 8.4; start8.0→8.465 jl == live 8.5), EXCEPT 1-2 boundary cases: WL start8.2 → jl **8.7731** vs live "8.7";
+  WL start8.4 → jl **8.9475** vs live "8.9". These sit on the rounding boundary ⇒ AMBIGUOUS between a real
+  ≤0.5-0.8% over-growth and a print rounding/truncation artifact (the .trl gives DBH to 1 decimal only).
+- ★ TRAP AVOIDED (doctrine #2): the END-CYCLE-0 .trl "DIAM INCR" column (0.60/0.70/1.20…) is NOT the predicted
+  cyc0 DG — it is the OBSERVED/calibration increment. Comparing jl's predicted DG (0.47/0.43/0.54) to it fabricated
+  a bogus "2× difference". The valid comparison is the grown 2000 DBH.
+VERDICT: the compounding tail's cyc0 seed is **at or below the .trl's 1-decimal resolution (≤~0.5-0.8% on a couple
+of trees, aggregate bit-exact)** — consistent with the accepted ULP/DGSCOR-accumulation cornered class, but NOT a
+definitive "zero cyc0 bias" proof. DEFINITIVE SETTLE (documented next step): instrument live FVSem's gradd.f UPDATE
+(or dgf→gradd DG) to dump per-tree 2000 DBH to full Float precision and diff against jl's exact d2000 — if they
+match to ~1e-4 the tail is confirmed cornered (downstream ULP accumulation); if jl is systematically higher by
+~0.5%, it is a real, cluster-wide, fixable crown/PCT-fed DG bias (the shared crown-ratio/BA-percentile computation
+at cyc0 is the prime suspect, per the retracted-but-directionally-suggestive earlier crown/PCT lead).
