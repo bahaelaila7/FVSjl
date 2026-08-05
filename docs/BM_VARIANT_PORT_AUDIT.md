@@ -122,3 +122,15 @@ whether the −0.3% net is pure tie-break realization (cornered) or carries a ti
 MULTI-STAND check (does the sign/magnitude of the net vary stand-to-stand, or is jl consistently low?). If multi-
 stand shows jl consistently ~0.3% low ⇒ a small real projected-DBH bias worth hunting (crown/PCT); if it straddles
 ⇒ fully cornered. That multi-stand net-bias check is the one remaining measurement for #140.
+
+### #140 multi-stand check — harness note for next session (2026-08-05)
+The remaining net-bias check (does jl's cyc0 −0.3% projected-DBH net straddle across BM stands → cornered, or is it
+consistently jl-low → fixable) needs MULTIPLE treed BM stands. tests/FVSbm has only bmt01 (one stand, S248112), so
+this requires FIA stands. Friction hit this session (documented so it isn't repeated): (1) fia_sweep_check-style
+scripts need `Dict(y=>v for (y,v) in J)` not `Dict(J...)`; (2) background julia via `nohup … &` inside a Bash tool
+call dies silently — use Bash `run_in_background: true` on the julia command directly; (3) a stratified N=20 BM
+sample risks being treeless-heavy (EM's N=20 cluster sample was 0-treed) → extract N≥60 and/or filter to treed
+conditions first. RELIABLE recipe: `extract_sample.jl BM 80` → run each treed stand 3 cycles jl-vs-live, tally the
+sign of the final-cycle TPA delta. If JL-HIGH dominates ⇒ small real projected-DBH bias (hunt in crown/PCT feeding
+dq10); if it straddles ⇒ #140 fully cornered like EM/IE. The mechanism + tie-break seed are already established
+(this file, prior entries); only this sign-tally remains.
