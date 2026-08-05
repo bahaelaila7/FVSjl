@@ -5262,3 +5262,18 @@ growth columns every cycle (2020 193/111/187/118/78/10.2 == live; 2030, 2040 lik
 (bidirectional merch-threshold class). ⇒ the fixes do NOT regress the cut path / RDPSRT self-thin tie-break /
 post-thin growth. Combined with the prior-session regime-matrix validation (plant/thinbba/simfire-FFE/volume all
 bit-exact-or-cornered), the CR management regimes remain faithful with the new fixes in place.
+
+## bug #10 — RESOLVED (commit b3b7c1a): it was NOT a subsystem — strict site-species match (SUPERSEDES all deferral notes above)
+The prior verdicts ("regional FIA crosswalk subsystem", "131→32", "two-part, deferred") were WRONG — a safe
+read-only trace of dbsstandin.f:741-779 found the actual mechanism: FVS matches the SITE species STRICTLY against
+the variant's OWN codes (NSP alpha / PLNJSP plants / FIAJSP fia) and NOTHING else; FIA 131 is in none of CR's codes
+⇒ UNRECOGNIZED ⇒ ISISP=0 ⇒ SITE_INDEX applied to ALL species (dbsstandin.f:776-779). Live never maps 131→32; it
+fills every species' SITEAR with 85 (that's why sp32 measured 85). jl used the permissive tree-resolver
+resolve_species (which falls through to the SPCTRN crosswalk → OH/sp38 default), setting only sp38=85 and
+converting the rest. FIX (fia_database.jl, 11 lines): strict own-code match for the site species; no match ⇒ isp=0
+⇒ the existing fill-all branch runs. RESULT: growth 37→39/40, volume 25→29/40 all-col bit-exact, 0 regression,
+crt01 unaffected. Shared-infra-safe (recognized in-region codes match identically to the old exact-match path).
+⇒ CR growth is now bit-exact-or-±1 on crt01 + 39/40 DB stands; the sole residual is one stand's SDI Δ1 (one cycle,
+NINT rounding of the SDI formula with TPA/QMD bit-exact) = accepted primitive. META (session): three times a
+residual filed "cornered/deferred" was actually a fixable bug once measured (8th dub, 9th imodty, 10th site-species)
+— and bug #10's FIRST characterization (subsystem) was itself wrong; the safe read-only source trace corrected it.
