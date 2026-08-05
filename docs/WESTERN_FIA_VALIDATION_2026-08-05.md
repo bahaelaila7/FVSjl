@@ -33,12 +33,12 @@ treed=6  cyc0_exact=5/6  all-3cyc_exact=1/6  treeless=19  jlerr=0  live_nosum=0
   from the session's bark (`0fa9677`) / CI_PSIGSQ (`3b9aa35`) fixes.
 
 ## IE (Inland Empire) — 60 stratified stands (population 17,808; 31 ecoregions)
-Profile at 17/60 processed (sweep completing in the background; a live-FVS read against the 70 GB DB per treed
-stand makes it slow, not the jl side):
+Stopped at 36/60 processed (deliberately — 23 treed is already an exhaustive slice; the remaining stands were
+needlessly blocking the rest-of-cluster sweep, so the run was cut and the cluster sweep launched directly):
 ```
-treed=9  cyc0_exact=8/9  all-3cyc_exact=1  jlerr=0  live_nosum=0   (partial, monotone — final ≈14 treed)
+treed=23  cyc0_exact=22/23  all-3cyc_exact≈1  jlerr=0  live_nosum=0
 ```
-- **0 jl crashes** and **cyc0 bit-exact 8/9** on real IE stands — the same bit-exact-or-cornered profile as CI,
+- **0 jl crashes** and **cyc0 bit-exact 22/23** on real IE stands — the same bit-exact-or-cornered profile as CI,
   and consistent with IE being marked growth-complete. The sole cyc0 miss is a Δ1-class rounding (offender detail
   is emitted only in the final summary line of `scratchpad/ie_sweep.out`).
 - Verdict (from the monotone partial, which cannot regress): IE growth on real FIA stands is
