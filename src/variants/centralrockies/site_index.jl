@@ -56,7 +56,24 @@ function _cr_forkod!(p)
     kodfor = Int(p.user_forest_code)
     kodfor <= 0 && return p
     idx = findfirst(==(kodfor), _CR_JFOR)
-    idx === nothing && return p
+    if idx === nothing
+        # forkod.f CASE DEFAULT / .NOT.FORFOUND error trap for location codes not in JFOR (forkod.f:596-626):
+        # pick a surrogate forest by the INPUT model type (MODTYPE keyword, 0 if none) so DEFMT[IFOR] resolves.
+        # Without this, an out-of-CR-region DB stand (e.g. an R8 FIA stand) left forest_idx=0 ⇒ jl's imodty
+        # fell back to 5 (lodgepole); FVS instead maps it to IFOR=15 (Cibola, DEFMT=2) or 10 (San Juan, DEFMT=4).
+        input_imodty = Int(p.model_type)
+        ifor = if input_imodty <= 2                      # CASE(:2) — includes the no-MODTYPE default 0
+            (0 < kodfor < 300) ? 10 : 15                 # SAN JUAN (DEFMT 4) : CIBOLA (DEFMT 2)
+        elseif input_imodty == 3
+            2                                            # BIGHORN
+        else
+            4                                            # CASE DEFAULT (imodty 4/5) — GMUG
+        end
+        ifor = get(_CR_FORKOD2, ifor, ifor)
+        p.forest_idx = Int32(ifor)
+        p.user_forest_code = Int32(_CR_JFOR[ifor])
+        return p
+    end
     ifor = get(_CR_FORKOD2, idx, idx)                    # second-pass consolidation
     p.forest_idx = Int32(ifor)
     p.user_forest_code = Int32(_CR_JFOR[ifor])           # KODFOR = JFOR(IFOR) (forkod.f:680)

@@ -5170,3 +5170,23 @@ live dubbed ages are the ground truth (fits in the height_growth commit message)
 REMAINING (separate, pre-existing, cornered): the 40 DB-input stands still carry TopHt Δ1-5 (mean 3.2) — a
 DIFFERENT mechanism (they never enter the misscr/BADIST-before-dub path; imodty-4 height + age-dubbing timing per
 the earlier chunk-9 notes). Not addressed or worsened by this fix. crt01 (.tre input) is now fully bit-exact.
+
+## DB-input TopHt residual — CLOSED (9th bug, 2026-08-05): forkod IMODTY fallback for out-of-CR-region stands
+The 40-stand CR DB-input sweep's TopHt Δ1-5 (mean 3.2, called "imodty-4 height, cornered") was ROOT-CAUSED to a
+MODEL-TYPE resolution bug — measured, not the height equation. Instrumented live sitset.f (dump IMODTY/ISISP/SITEAR
+at the SITEAR-default loop) on the worst stand (164246382010854, an R8 FIA stand run through CR): live IMODTY=2, jl
+IMODTY=5. Chain: no MODTYPE keyword ⇒ input IMODTY=0; forkod.f's location code (KODFOR) is NOT in CR's JFOR (an R8
+forest) ⇒ CASE DEFAULT / .NOT.FORFOUND error trap (forkod.f:596-626): SELECT CASE(IMODTY) CASE(:2) ⇒ IFOR=15
+(Cibola; or 10=San Juan if 0<KODFOR<300) ⇒ IMODTY=DEFMT(15)=2. jl's _cr_forkod! instead returned with forest_idx=0
+and cr_site_index_setup! fell back to IMODTY=5 (lodgepole). Wrong IMODTY ⇒ wrong GENGYM submodel for BOTH gemdg
+(diameter) and gemht/fndag (height/age) ⇒ TopHt AND BA drift. (The site-index symptom: imodty-5 default TEM=65 vs
+imodty-2 TEM=70 ⇒ sp38 SITEAR 63.077 vs 65.714 ⇒ the constant +0.123 Sheppard age offset — a downstream tell, not
+the cause.)
+FIX (site_index.jl `_cr_forkod!`): on a JFOR miss, replicate the error trap — IFOR = (input imodty≤2 ? (KODFOR<300 ?
+10 : 15) : imodty==3 ? 2 : 4), then the second-pass consolidation, set forest_idx + KODFOR=JFOR(IFOR). Then
+DEFMT[IFOR] gives the right IMODTY.
+RESULT: 40-stand DB sweep TopHt mean Δ 3.17→0.20, bit-exact 1/40→34/40; ALL-6-growth-col bit-exact 1→37/40 (39
+improved / 0 regressed; BA/CCF/QMD now 100% exact; the 3 residual = ±1 TPA(2)/SDI(1)/TopHt(1) RDPSRT/AVHT40
+straddle). crt01 (.tre, resolves forest via STDINFO ⇒ takes the found-path) UNCHANGED, still bit-exact.
+⇒ Combined with the 8th bug (backdated-density age-dub), CR growth is now bit-exact-or-±1-cornered on crt01 + 37/40
+DB-input stands. This SUPERSEDES the old "imodty-4 height, cornered" verdict — it was a fixable IMODTY-resolution bug.
