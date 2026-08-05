@@ -116,3 +116,21 @@ Clone IE's 15 Julia module files → retarget dispatch to `CentralIdaho` → swa
 CSVs extracted from ci/*.f. Two deltas from IE to watch: (a) **Zeide SDI** (reuse UT's Zeide
 SDImax/self-thin path, not IE's Stage); (b) 19-vs-23 species + CI-specific DG/height/regent
 coefficient DATA. Validate each chunk bit-exact via instrument-replay (relink_ci.sh) + cit01 .sum.
+
+## 2026-08-05 — CI cit01 over-kill LOCALIZED (goal re-anchored to full western cluster)
+Session re-anchored: CR variant COMPLETE (docs/CR_VARIANT_PORT_COMPLETE); stop hook now points at the whole
+western cluster + extensions (docs/WESTERN_ROLLOUT_GOAL.md), not CR alone. Resumed CI (#142).
+MEASURED cit01 control vs live FVSci_clean: 1990 BIT-EXACT; then jl OVER-KILLS TPA — 2010 347/364 (−5%),
+growing to 243/262 (−7%) by 2030, QMD slightly HIGH (7.8/7.7) ⇒ fewer-but-larger (over-thin of small trees).
+Instrumented live ci/morts.f (BA/BAMAX/DQ10/TB/RZ per cycle) vs jl: **BA + BAMAX BIT-EXACT** (85.131, 265.146);
+self-thin RZ negligible (0.0086); the divergence is **DQ10 jl 5.968 vs live 6.003** (−0.6%) ⇒ per-tree G lower in
+the Hamilton RIP ⇒ slightly higher background mortality ⇒ the ~2% early over-kill (concentrated cyc0-1, matches
+by 2010+). ROOT (confirms the memory-noted tail): the CI DGF reads CURRENT stand BA (p.basal_area=85.13) in the
+DG **calibration**, where live's dgf reads the BACKDATED growth-period-start BA (66.80; dgdriv CALL DGF(WK3)) ⇒
+jl's COR is fit against the wrong density ⇒ DG marginally low (sub-.sum-QMD-rounding but amplified by mortality's
+G-sensitivity). SAME family as the CR 8th-bug (backdated calibration density). FIX DIRECTION: recompute stand
+density from the backdated dbh for the CI DG-calibration DGF call — but this is in the SHARED
+calibrate_diameter_growth! path, so it must be scoped/validated to NOT regress the bit-exact CR/KT/IE/EM/BM/TT/UT
+(their DGF density-reads are already correct). Magnitude ~2% (DG-precision/self-thin tail = memory's "cornered
+class"); real + systematic, not a straddle. NEXT: trace whether the shared calibration recomputes density post-
+backdate for the other western variants (if yes, CI's dgf just needs to read that; if no, they compensate elsewhere).
