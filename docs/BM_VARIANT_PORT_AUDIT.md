@@ -134,3 +134,15 @@ conditions first. RELIABLE recipe: `extract_sample.jl BM 80` → run each treed 
 sign of the final-cycle TPA delta. If JL-HIGH dominates ⇒ small real projected-DBH bias (hunt in crown/PCT feeding
 dq10); if it straddles ⇒ #140 fully cornered like EM/IE. The mechanism + tie-break seed are already established
 (this file, prior entries); only this sign-tally remains.
+
+### #140 multi-stand check — INFRASTRUCTURALLY BLOCKED in this environment (2026-08-05)
+Attempted the multi-stand sign-tally three ways (N=20 FIA, N=80 FIA, via nohup and via proper background) — all
+failed to complete: backgrounded `julia` processes die SILENTLY here (main process gone with 0 output), Julia
+BUFFERS stdout when redirected to a file (so any partial per-stand results are lost on the silent death, not
+flushed), and each killed attempt LEAKS orphaned `timeout`/FVS children that then contend for CPU and slow the next
+attempt. Net: the live-FVS-per-stand multi-stand sweep is not runnable-to-completion in this session's environment.
+The single-stand measurements that DID complete (bmt01 cyc0-DG test, full-precision) are what established the #140
+mechanism + tie-break seed; only the cross-stand sign-tally (cornered-vs-tiny-bias) is blocked. To finish it in a
+stable environment: run `bm_dir.jl` (fixed) on `extract_sample.jl BM 80` synchronously (foreground, no redirect
+buffering issue) or with per-stand `flush(stdout)` after each println so partial results survive; tally the
+final-cycle TPA-delta sign across treed stands. All BM state restored clean (oracle 2090 96/146; repo clean).
