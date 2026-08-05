@@ -5208,3 +5208,14 @@ Per doctrine #2 (this session's pattern: every "cornered" residual I measured hi
     for out-of-region codes (131→32 etc.). Narrow impact: only out-of-region stands supplying a non-CR site species;
     the 39 other sweep stands + crt01 are unaffected. Tree-species crosswalk is fine (BA/QMD bit-exact) — SITE-species
     only. This is a DATA-completeness gap, not a model bug.
+
+### bug #10 — fix scope CONFIRMED as the regional FIA crosswalk (deferral upheld)
+Traced further: FVS's blkdat FIAJSP (CR-index→FIA-code) ALSO lacks FIA 131 (CR sp32=ER is FIA '068', not 131), so
+the 131→sp32 mapping is NOT a simple table entry — it comes from FVS's REGIONAL FIA crosswalk (fia_se.f; FIA 131 =
+loblolly, a Southeastern species). An R8 FIA stand run through CR routes its species codes through fia_se.f. jl's
+species_translation.csv covers the codes that appear as TREES on the sweep stands (BA/QMD bit-exact) but not the
+lone SITE species 131. FIX = port/reconcile the regional FIA→FVS crosswalk (fia_{se,ne,nc,rm,nw}.f) — a bounded
+subsystem whose only CR-relevant effect is out-of-region stands supplying a non-CR site species. LOW VALUE (these
+are SE FIA data forced through the Central Rockies growth model); DEFERRED per doctrine #4 (no piecemeal one-code
+patch). The in-region CR growth port is bit-exact-or-±1-cornered (crt01 + 37/40 DB stands); this is the last known
+residual and it is now fully scoped.
