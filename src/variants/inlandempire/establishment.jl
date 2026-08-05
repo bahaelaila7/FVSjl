@@ -668,7 +668,12 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
     nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]
-    cap = _IE_MAXING[ihab]        # AUTOES tallies cap at MAXING (validated 583.7); MAXTPP over-produces on iet01
+    # ITPP cap: FVS uses MAXTPP for disturbances / MAXING for ingrowth (measured: disturbance ITPP=20-25, ingrowth
+    # ≤7). BUT jl's per-tree TPA (prob1·300/dupnpt) over-produces at MAXTPP (20-25 trees·prob1 ≫ target) — the real
+    # per-tree TPA is ~PLPROB/ITPP so the plot total = PLPROB (prob1 CANCELS via ITPP=PLPROB·DUPNPT/(prob1·300)),
+    # INDEPENDENT of ITPP. Until that per-tree-TPA model is ported, MAXING is the empirical best (mean|Δ| 22% vs 36%
+    # at MAXTPP). ⇒ TODO: book tpaw = PLPROB/ITPP·scale (total=PLPROB) instead of prob1·300/dupnpt, then use MAXTPP.
+    cap = _IE_MAXING[ihab]
     p1 = Float32(prob1); scale = 300f0 / Float32(dupnpt)
     # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
     has_state = length(nstore) == nplots && length(pnn) == nplots
@@ -1126,7 +1131,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     @inbounds for sp in 1:23
         tpa_sp = Float32(r.tally[sp])
         tpa_sp > 0f0 || continue
-        hht = xmin[sp]                                   # nominal height (per-record height refinement pending)
+        hht = xmin[sp] + 0.2f0                           # est. height floor TALL=max(HHT,XMIN+0.2) (estab.f:838);
+                                                         # the computed ESADVH/ESSUBH heights (0.14-0.65) fall below
+                                                         # it, so XMIN+0.2 is the effective seedling height (per-tree
+                                                         # ESADVH/ESSUBH refinement pending — this is the floor value)
         dbh = 0.1f0 + 0.001f0 * hht                      # esgent.f:56 sub-breast-height nominal DBH
         n = t.n + 1; n > length(t.dbh) && break
         t.n = n
