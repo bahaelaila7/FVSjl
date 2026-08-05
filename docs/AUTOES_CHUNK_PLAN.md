@@ -702,3 +702,25 @@ rem 223 = 885, uncontaminated) is valid; the residual is diffuse (established ~1
 NET: AUTOES v1 functional at mean|Δ| 22.3%, target verified, residual diffuse + attributed, the two remaining
 close-out steps (fresh-DB live split → established cap; remnant decline diagnosis → shared large-tree) are each
 bounded and need a fresh isolated measurement, not more inference.
+
+## ★★★★ CRITICAL TARGET CORRECTION (2026-08-05): the real target is 531, NOT 1025 — jl OVER-produces
+The iet01_Out.db is an 80MB DB ACCUMULATED across many prior runs. iet01.key's DataBase block writes DSNOut there.
+DECISIVE TEST: same keyfile, FRESH DSNout DB → THN3 = 0/531/420/711/1537/1868/1256/1300/1600/1171/1081; the
+ACCUMULATED DB → 536/1025/1401/../1788. The difference is the DB STATE (fresh vs accumulated), not the treelist
+(treelist ON/OFF both give 531 with a fresh DB). jl uses TREEDATA (the .tre file, NO database read) → jl's CORRECT
+oracle is the FRESH-DB / TREEDATA-based run = **0/531/420/711/1537/1868/1256/1300/1600/1171/1081**. The 536/1025/
+../1788 trajectory I (and the [[fvsjl-ie-variant-port]] memory: "oracle→1788") targeted ALL SESSION was
+CONTAMINATED by the accumulated iet01_Out.db (a stale S248112 stand whose data the run picked up). This INVERTS
+the whole analysis:
+- jl stand-4 2000 = 885 vs the REAL target 531 → jl OVER-produces ~67% (not under!). Two CONCRETE causes:
+  1. **THINPRSC under-removal**: clean FVS 1990=0 (BARE — removes the whole overstory); jl leaves 223 remnant
+     (removes only 55%, reading 9/27 KUTKOD≥2). This is the long-known THINPRSC/KUTKOD gap — jl must remove ~all.
+  2. **AUTOES over-establishment**: clean established 531 vs jl 661 (+25%).
+- ALL the "under-production / diffuse residual / 22%" analysis this session was against the WRONG (contaminated)
+  target. With the real target 531, the picture is CONCRETE: over-thin-remnant (223) + over-establish (130).
+NEXT (re-oriented, both concrete): (1) THINPRSC — why does clean FVS remove the WHOLE overstory (1990=0) when
+KUTKOD marks only ~9/27? Re-measure the live post-thin count with a FRESH DB (the accumulated DB contaminated the
+earlier XTES=0.55 too — re-verify). (2) then the AUTOES over-establishment (661 vs 531) — likely the ITPP cap
+(MAXING=7 is slightly HIGH now, not low). ALWAYS use a FRESH DSNout DB for iet01 measurements (rm the accumulated
+db or point DSNout elsewhere) — the 80MB iet01_Out.db contaminates. Best jl state committed (MAXING) now reads as
+~67% OVER vs the corrected target, but the mechanisms are clear and concrete.
