@@ -569,3 +569,20 @@ init NSTORE[plot]=INT(PLPROB·DUPNPT/(prob1·300)+0.5), PNN[plot]=ESA at each ne
 weighting; MAXTPP cap. HONEST STATUS: this is a genuine multi-piece sub-model needing a methodical port (PLPROB
 + the NSTORE/PNN inventory init) — not another 1-line tweak. AUTOES is functional (mean|Δ| 22.3%, oscillation
 fixed, from collapse-to-28); this closes the systematic bias. Best-state code unchanged (MAXING workaround).
+
+## ★★★ per-tree TPA CONFIRMED = ESPROB·300/DUPNPT (estab.f:1232) — jl's formula is right; fix = NSTORE-init + MAXTPP
+estab.f:1232 `PROB(ITRN)=(ESPROB(N)*300.0)/DUPNPT` — EXACTLY jl's tpaw. (estab.f:1203 skips ESPROB<0.00011, i.e.
+the clamped-0.0001 old trees are NOT created — negligible.) So the per-tree TPA is correct; the residual is ONLY:
+1. **ITPP cap**: FVS uses MAXTPP(25) for disturbances (measured ITPP=20-25), jl's MAXING(7) truncates → fewer
+   trees → UNDER. Must use MAXTPP.
+2. **NSTORE init from inventory PLPROB-ITPP** (estab.f:544 = INT(PLPROB·DUPNPT/(prob1·300)+0.5)): the first
+   PLPROB-ITPP trees are "old" (ESPROB=prob1−PNN, PNN≈ESA≈0.10) not full prob1. THIS reduction is what keeps
+   MAXTPP from over-producing. jl inits NSTORE=0 (all trees full prob1) → MAXTPP over-produces (36%).
+So the two are COUPLED: enable MAXTPP *and* init NSTORE from PLPROB together. NEEDS the per-plot PLPROB(NNID) =
+Σ(PROB/DUP) over the CURRENT small trees (DBH<REGNBK=2.999) on each inventory point (estab.f:303-313) — dynamic,
+recomputed each tally (includes accumulated regen; that's why PLPROB=7-42 at later cycles). jl has the tree list
+(plot_id = point) → computable, but needs the point/IDUP-replicate mapping (dupnpt=NPTIDS·IDUP). IMPLEMENT:
+(a) in ie_autoes_establish!, per point compute PLPROB=Σ(tpa/idup) for small trees on that point; (b) map the 50
+tally plots to points (plot n → point via IPTIDS/replicate order); (c) NSTORE[plot]=INT(PLPROB[point]·dupnpt/
+(prob1·300)+0.5), PNN[plot]=ESA; (d) cap=MAXTPP. Then the ESPROB old/new split (already implemented) does the rest.
+This is the last piece and it is now UNAMBIGUOUS (per-tree TPA confirmed, only the ITPP-count + NSTORE-init remain).
