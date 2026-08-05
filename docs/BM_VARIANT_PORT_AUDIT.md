@@ -166,3 +166,25 @@ JL-HIGH FIA stand (e.g. 374430545489998), instrument jl BM mortality! vs live bm
 cycle — dump dq10, T85D0/T85D10, TN10, RN, and the per-tree kill — to localize whether the gap is the projected
 dq10 (DG/bark into g), the TN10 target formula, or the RN→WKI kill application. The self-thin QMD-feedback then
 compounds it; fixing the per-cycle under-kill closes #140.
+
+### #140 ROOT NAILED (2026-08-05) — jl mortality reads a WRONG (partial) diam_growth ⇒ dq10 too low ⇒ under-thin
+Instrument-replay on repro FIA stand **374430545489998** (a JL-HIGH +7.2% stand), cyc1 mortality, jl vs live
+bm/morts.f, SAME trees (DQ0 bit-exact 5.821):
+- Projection formula IDENTICAL: live `G=(DG(I)/BARK)*(FINT/10)`, `CIOBDS=2*D*G+G²`, `SD2SQ+=P*(D²+CIOBDS)` (morts.f
+  :222-224); jl `g=diam_growth/bark`, `sd2sq+=pr*(d²+2dg+g²)` (bluemountains/mortality.jl:24-26). FINT=10 ⇒ the
+  `(FINT/10)` factor is 1. Both use bm_bratio/BRATIO — **bark MATCHES** (jl 0.8621 vs live-implied 0.862).
+- PER-TREE growth term: **live DG(I) = 0.575–0.589″** (G≈0.667″ outside-bark) vs **jl t.diam_growth = 0.156–0.161″**
+  (g≈0.182″) — jl's mortality growth is **~1/3.7 of live's**. (Small tree i=6 d=5.1: live G 0.667 vs jl g 0.391.)
+- CONSEQUENCE: jl dq10 = sqrt(SD2SQ/T) comes out **5.908 vs live 6.078**; the lower projected QMD keeps
+  T=414.6 **below the self-thin threshold** (t55d10≈505) ⇒ jl RN=0 (background only) ⇒ TPA 403; live's higher
+  dq10 crosses the threshold ⇒ self-thins RN=0.0067→0.0096 ⇒ TPA 376. That is the +7.2% under-thin, and (compounded
+  by the QMD-feedback) the +48% on dense stands and +70% on bmt01.
+★ THE BUG: jl's **applied** DG is correct (BA bit-exact ⇒ dbh+=diam_growth/bark applies ~0.575″), but the value in
+`t.diam_growth[i]` AT THE MORTALITY READ POINT is only ~0.156″ — a PARTIAL/pre-final value. So `t.diam_growth` is
+being read by mortality! before it holds the full cycle DG (or BM stores a pre-scaled/pre-converted increment that
+GRADD later finalizes). FIX: make jl's BM mortality use the SAME full DG live uses — either (a) reorder so
+mortality reads the finalized diam_growth, or (b) have mortality apply the same scaling/conversion GRADD does, or
+(c) BM should use dg_prev/WK1 semantics like KT/IE/TT (check bm/morts.f DG(I) provenance vs jl's t.diam_growth).
+NEXT SESSION: dump jl t.diam_growth at the END of the cycle (post-GRADD) for these same trees — confirm it becomes
+~0.575″ — then trace where the ~1/3.7 partial value at mortality-time comes from (dgf output? subcycle? FINT). This
+is a REAL, high-value fix: it closes #140 and likely tightens BM self-thinning cluster-wide.
