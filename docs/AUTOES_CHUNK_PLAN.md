@@ -423,3 +423,17 @@ Result: stand-4 was flat -20/-50%; now OSCILLATES ±40% (2000 790→1210). Two r
   identical per-tally output → the oscillation. Fix = track the ESRANN stream state (rng.es0) across firings and
   draw the next seed after each tally's consumption; persist on est.es_seed. Artifacts: stand4_estock_inputs.txt,
   stand4_prob1_ingredients.txt, stand4_REAL_scheduler.txt (all /workspace/.iework/autoes_measure/).
+
+## ★ ESB correction LANDED (commit cc3c404) + seed-chain modeling note
+ESB inventory calibration wired (cyc1/2 only, gate est.idsdat==inv_year): PROB1=logistic(PN+ESB-ESB1),
+ESB=logit(clamp(logistic(-5.174+0.851·ln(TPACRE)),0.10,0.90)) [TPACRE=Σtpa DBH<2.999], ESB1=ESTOCK(BAAOLD,TIME=0),
+persisted on est.esb_shift. Effect: 2000 +18%→-14%, 2010 +44%→+17%, 2020 +44%→+19%. Current stand-4 (all fixes):
+536/885/1642/1046/1102/2220/1675/999/2100/1606/1737 vs target 536/1025/1401/881/1324/1531/853/1412/1788/1286/1147.
+REMAINING = multi-tally seed chain (the ±oscillation, worst at cyc5/2050 +96%). Per-tally seeds measured 43303/
+61677/25425/48837. HYPOTHESES TESTED + REFUTED: (a) consecutive ESRANN draws from 55329 → 43303,85428,88687,…
+(only 1st matches); (b) last-plot(plot50 of tally-1)+135-draw-body then 1 more → 12147 (≠61677); (c) one-stream
+seed0 after 50+135·50 draws → 13356 (≠61677). ⇒ the next-tally seed needs the EXACT total ESRANN consumption per
+tally — which INCLUDES the per-tree height (ESADVH/ESSUBH/ESXCSH) + ESDLAY draws, NOT just the 135-draw selection
+body. Next: instrument ESRANN call-count per tally (or the ESRNCM state at each tally boundary), model jl's tally
+to consume the same total, then draw the next seed. This is the last refinement; the per-record HEIGHTS (still
+XMIN placeholder) fold into the same tree-creation pass.
