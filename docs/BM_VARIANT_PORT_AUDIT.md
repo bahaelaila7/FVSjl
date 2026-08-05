@@ -107,3 +107,18 @@ but-amplified, like the EM over-growth tail); if jl's g is systematically ~1% lo
 the mortality (fixable). Either way BM's self-thin QMD-feedback is a strong amplifier that turns a ~1% seed into a
 large visible divergence — that sensitivity itself may warrant a damping review. (Live oracle /workspace/.bmwork/
 FVSbm_clean; both sides restored clean.)
+
+### SETTLE (same day) — #140 seed is the tie-break class (like EM), amplified by BM self-thin feedback
+Ran the cyc0-DG test on BM (NOTRIPLE bmt01, jl projected d2000 at simulate.jl:533 vs live BM dgf D@ICYC=2).
+sp2 projected 2000 DBH: jl {8.82, 8.93, 9.55, 9.65} mean 9.24 vs live {8.90, 9.36, 9.39, 9.44} mean 9.27. ⇒
+per-tree DG diffs are ~0.2-0.4″ MIXED-SIGN (jl more spread), the SAME crown-ratio/BA-percentile tie-break
+signature as the EM cyc0 test, netting to a small −0.3% mean. That −0.3% lower projected mean ⇒ lower dq10 ⇒
+higher T85D10 self-thin target ⇒ under-thin, which BM's self-thin QMD-feedback (faithful to live's identical
+self-thin form) amplifies into the +70% TPA by 2090. VERDICT: #140's SEED is the accepted tie-break precision
+class (irreducible, same as EM/IE); the LARGE visible magnitude is BM's self-thin feedback amplifying it — the
+feedback itself is a faithful port of live's model, so there is no wrong equation to fix. CAVEAT (why not a clean
+"cornered"): unlike EM (net ~0, aggregate BA bit-exact), BM's cyc0 net is −0.3% and gets amplified 200× — so
+whether the −0.3% net is pure tie-break realization (cornered) or carries a tiny systematic component needs a
+MULTI-STAND check (does the sign/magnitude of the net vary stand-to-stand, or is jl consistently low?). If multi-
+stand shows jl consistently ~0.3% low ⇒ a small real projected-DBH bias worth hunting (crown/PCT); if it straddles
+⇒ fully cornered. That multi-stand net-bias check is the one remaining measurement for #140.
