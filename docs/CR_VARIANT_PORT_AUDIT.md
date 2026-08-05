@@ -5360,3 +5360,18 @@ live's `.trl` at 2020, matched by tree index, to find WHICH records carry the 46
 that pins whether it's an establishment-cycle volume-timing on the originals or a regen first-volume anomaly. STILL
 OPEN; hypothesis-refutation logged so the next session doesn't re-chase regen height. Small (11% one-cycle transient,
 pre-existing, .sum-cosmetic), lowest-priority of the CR ledger.
+
+### PLANT volume transient — DEFINITIVELY root-caused: regen CCF density-feedback on ORIGINAL trees' HEIGHT (one cycle)
+Resolved via per-tree comparison (NOTRIPLE, valid): instrumented jl's compute_volumes! to dump per-tree dbh/ht/cuft
+at 2020 vs live's TREELIST. jl's 2020 volume set = the 27 ORIGINAL trees ONLY (regen cuft=0, computed pre-insertion —
+same as live), so the +465-cuft delta is in the ORIGINALS, NOT the regen (both prior hypotheses — regen height AND
+first-post-estab volume-timing — REFUTED). Matched originals by species/dbh: DBH bit-exact but HEIGHTS differ ±0.4-0.5
+ft (PP tree1 jl 83.14/live 82.7; WF jl 55.86/live 56.3 — DIRECTION varies by tree), summing to the 11% volume delta.
+ROOT: the newly-established regen (300 PP) contribute CCF/density, and that density feeds htgf's HEIGHT growth of the
+original trees during the first post-plant cycle (2010→2020); jl and live time/compute that regen-CCF contribution
+slightly differently ⇒ ±0.5-ft height ⇒ the one-cycle volume transient, converging once densities re-align. So it is
+a DENSITY-FEEDBACK-TIMING subtlety on height growth (NOT volume, NOT the regen, NOT tripling). LOWEST-impact CR item
+(±0.5 ft transient height on a few trees; dbh/TPA/BA/QMD/SDI all bit-exact; volume right before & after). FIX (if ever):
+match the exact point at which the birth-cycle regen's CCF enters the density htgf reads (compute_density!/CCF ordering
+around establish!+cr_esgent). DEFINITIVELY CHARACTERIZED; deprioritized. This closes the investigation to a precise,
+bounded density-timing subtlety — the last (cosmetic) CR residual.
