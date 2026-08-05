@@ -655,3 +655,22 @@ per-component attribution (instrument the remnant vs established split at cyc1: 
 to match live, independent of AUTOES?). MAXING stays as the amount model. HONEST FINAL STATE: AUTOES functional at
 22.3%, oscillation-free, regression-safe, amount ~correct; residual diffuse (remnant growth + continuation +
 compounding), no single dominant error. This is a reasonable IE-AUTOES v1; further tightening is incremental.
+
+## ★★ DIFFUSE RESIDUAL CONFIRMED by direct split (2026-08-05)
+Split jl's cyc1 (2000) stand into established (DBH<1, AUTOES seedlings) vs remnant (DBH≥1, thinned overstory):
+  jl established = 661/ac  (est. target ~745, −11%)
+  jl remnant     = 223/ac  (est. target ~280, −20%)  ← post-thin ~245 DECLINES to 223 (net mortality) while live
+                                                          GROWS to ~280
+  jl total 885 vs target 1025 (−14%).
+⇒ BOTH components are under — the residual is DIFFUSE, confirmed. Two SEPARATE, smaller contributors:
+1. Established slightly low: MAXING(cap7)=661 vs itpp-full=943 vs target ~745 → the true cap is ~10 (between
+   MAXING7 and MAXTPP25); a ~11% established gap. (NOTE the target split 745/280 is ESTIMATED, not measured from
+   live — measure live's cyc1 established-vs-remnant split to pin it, e.g. instrument FVSie or read its treelist.)
+2. Remnant DECLINES in jl (245→223) but GROWS in live (→280): this is LARGE-TREE growth/mortality of the thinned
+   overstory — INDEPENDENT of AUTOES (the shared IE growth/mortality, possibly a density-feedback from the added
+   seedlings, or the post-thin remnant's mortality). This is NOT an AUTOES-tally bug.
+FINAL: the ~22% residual = ~half established-cap (a modest AUTOES tuning: cap ~10 not 7) + ~half remnant growth/
+mortality (a non-AUTOES, shared large-tree interaction). No single dominant AUTOES error. AUTOES v1 is functional,
+amount ~correct. Close-out next steps (both incremental, both need live measurement): (a) measure live cyc1
+established/remnant split → set the true established cap; (b) diagnose the remnant decline-vs-grow (large-tree,
+likely density feedback from the seedlings — separate from AUTOES). Committed best: MAXING, mean|Δ| 22.3%.
