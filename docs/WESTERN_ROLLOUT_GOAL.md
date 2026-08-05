@@ -13,6 +13,17 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
 - **BC** (British Columbia) — growth+yield complete; remaining: merch/board vol, V2/non-ICH.
 - **CI** (Central Idaho) ◐ IN PROGRESS — 9/9 chunks running, cit01 1990 bit-exact; refinement tail OPEN.
 
+## Systematic DG-calibration dispatch audit — COMPLETE (2026-08-05)
+Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant branches:
+- **PSIGSQ** (COR Bayes-shrinkage prior variance): was missing CI (fixed 3b9aa35) AND IE (fixed 96cde22, was on the
+  SN 0.0898 scalar default). Dispatch NOW COMPLETE: NE/CR/KT/EM/TT/UT/BM/BC/CI/IE all wired. Both fixes source-
+  verified faithful, `.sum`-inert on cit01/iet01 (no regression), correct for other-species stands.
+- **Bark**: CR/TT/BM/BC/CI have POWER/special bratio wired; EM/IE/UT/KT barks are linear-encodable (c.bark_a/bark_b)
+  and the shared bark_ratio clamps [0.80,0.99]==live bratio.f ⇒ their linear fallback is FAITHFUL. CI's POWER
+  ci_bratio was the ONLY genuine missing-bark branch. No further bark bugs.
+- **DGSD**: all 9 western variants set it explicitly from their grinit.f (2.0 except BM 1.5, CI 1.7). No gap.
+⇒ No remaining missing-branch bugs in the shared DG-calibration path cluster-wide.
+
 ## Extensions matrix
 - **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe**: ALL western DONE ✓.
   **ECON**: DONE ✓.  **Climate-FVS**: TODO (largest remaining extension, lowest priority; inert w/o ready-file).
