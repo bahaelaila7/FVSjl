@@ -674,3 +674,17 @@ mortality (a non-AUTOES, shared large-tree interaction). No single dominant AUTO
 amount ~correct. Close-out next steps (both incremental, both need live measurement): (a) measure live cyc1
 established/remnant split → set the true established cap; (b) diagnose the remnant decline-vs-grow (large-tree,
 likely density feedback from the seedlings — separate from AUTOES). Committed best: MAXING, mean|Δ| 22.3%.
+
+## ★★ TARGET RE-CONFIRMED + TREELIST-CONTAMINATION caught (2026-08-05)
+Near-miss: adding `TREELIST 2000` to iet01.key to measure the live established/remnant split CHANGED the sim —
+THN3 (block 4) dropped from 536/1025/…/1788 to 0/531/420/… (the treelist at a cycle boundary perturbs the
+establishment RNG/processing). The UNMODIFIED iet01.key confirms the 4 blocks: NONE 536/441/…, THN1 536/441/…,
+THN2 (NOAUTOES shelterwood) 536/223/…/28, **THN3 (AUTOES) 536/1025/1401/881/1324/1531/853/1412/1788/1286/1147**
+(2070=1788 = memory's oracle). So the WORKING TARGET (536/1025/…) IS CORRECT — my whole analysis stands; the 531
+this turn was a contaminated measurement, NOT a target correction. LESSON: the TREELIST keyword ALTERS the AUTOES
+sim — cannot use it to inspect the live per-cycle tree split. To get the live established-vs-remnant split
+non-invasively: use a DBS TreeList (DATABASE block, already in the keyfile → iet01_Out.db FVS_TreeList table) or
+instrument intree/the tree array directly. The jl-side split (est 661 + remnant 223 = 885 vs target 1025) is
+UNCONTAMINATED (jl's own run) and stands: jl under-produces ~14% at cyc1, diffuse across established (~11% low)
++ remnant (declines vs live grows). DIFFUSE-RESIDUAL conclusion UNCHANGED; the estimated 745/280 target split
+still needs the non-invasive live measurement (DBS TreeList) to pin the established cap precisely.
