@@ -5144,3 +5144,29 @@ The bulk of each variant's work = transcribing the per-variant coefficient DATA 
 DGFOR/DGDS/DGEL/DGSASP) + wiring a western-Wykoff dgf hook (reuse eastern DDS structure, add DGEL/DGSASP/DGHAB
 terms). Start with KT (buildDir present, canonical hub) then IE/EM/BM/TT/UT. Relink oracle from
 bin/FVS{v}_buildDir/*.o (same recipe as CR /workspace/.crwork). This is a FRESH session's undertaking.
+
+## TopHt-BADIST-timing — CORRECTED & PARTIALLY CLOSED (8th bug, 2026-08-05): dub uses BACKDATED calibration density
+PRIOR NOTES WERE WRONG (measured, doctrine #2): the audit claimed "live never findag-dubs the crt01 .tre stand
+(0 DUB calls; ages from another source)" and that the MISSCR gate closed crt01. Direct instrumentation of live
+FVScr (cratet.f dub loop + fndag.f FNENTRY/FNCONV + badist.f BAU/WK3 + findag.f BA) DISPROVED both:
+  • ALL 27 crt01 trees ARE findag-dubbed (flag=1); "another source" was a mismeasurement.
+  • 23/27 dubbed ages were already bit-exact; 4 (sp13 trees 1/8/18, sp5 tree 21) were jl OVER-aged +5..+30 yr
+    ⇒ older ⇒ slower height growth ⇒ jl TopHt systematically LOW 1-2 ft (all 9 growing cycles) ⇒ ~1% low volume.
+ROOT (fully measured): the age dub's BAUTBA=BAU(ICLS)/BA came from CURRENT-dbh density in jl, but FVS uses the
+BACKDATED CALIBRATION density. cratet.f:93/175 CALL DENSE (LSTART=.TRUE.) loads WK3 with backdated diameters
+(dense.f:128 WK3=sqrt(d²·r), r from measured DG); badist.f:45 builds the BAU "BA-above-class" array from those
+WK3; findag.f:46 divides by BA = the backdated per-acre stand BA (measured 67.089, NOT the current 85.13 nor the
+badist raw TOTBA 59.08). ICLS itself uses CURRENT dbh (cratet.f:548 D1=DBH). jl was building BAU from current dbh
+(integer classes 68/52/48…) and dividing by current BA ⇒ BAUTBA ~1.3-2.5× too high ⇒ RATIO=1−BAUTBA too low ⇒
+HH curve scaled down ⇒ older converged age. (Masked for small trees where both jl & live hit the RATIO=0.768
+floor; corrupts only the large-dbh trees whose true bautba < 0.232.)
+FIX (src/variants/centralrockies/height_growth.jl `_cr_dub_ages!`, faithful): when misscr, backdate dbh via the
+shared `_backdate_dbh!` (DENSE), build BAU on the backdated dbh, take the backdated per-acre BA + CCF from
+`compute_density!`, then restore current dbh (ICLS stays current). RESULT crt01: TPA/BA/SDI/CCF/**TopHt/QMD BIT-
+EXACT all 11 cycles** (was TopHt Δ1-2). Volume swings from systematic ~1% LOW to small (~0.3%) bidirectional =
+accepted merch-threshold/NVEL class. VALIDATION (doctrine #4): 40-stand CR DB-input sweep IDENTICAL before/after
+(0 better / 0 worse / 40 same) — those stands are misscr=false so the branch is inert ⇒ zero regression. The 27
+live dubbed ages are the ground truth (fits in the height_growth commit message).
+REMAINING (separate, pre-existing, cornered): the 40 DB-input stands still carry TopHt Δ1-5 (mean 3.2) — a
+DIFFERENT mechanism (they never enter the misscr/BADIST-before-dub path; imodty-4 height + age-dubbing timing per
+the earlier chunk-9 notes). Not addressed or worsened by this fix. crt01 (.tre input) is now fully bit-exact.

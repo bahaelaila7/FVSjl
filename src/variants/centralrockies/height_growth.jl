@@ -434,9 +434,23 @@ function _cr_dub_ages!(s::StandState)
     @inbounds for i in 1:(t.n + t.ndead)
         t.crown_pct[i] <= 0 && (misscr = true; break)
     end
-    bau = misscr ? _cr_badist_bau(t) : nothing
-    ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
-    relden = misscr ? stand_ccf(s) : 0.0f0
+    # cratet.f:93/175 CALL DENSE runs BEFORE the findag dub (cratet.f:540) with LSTART=.TRUE. — so DENSE loads WK3
+    # with BACKDATED diameters (dense.f:55/128 WK3=sqrt(d²·r), r from the measured DG; unmeasured trees use the
+    # stand-avg BAGR). BADIST (badist.f:45-46) then builds the BAU "BA-above-class" array from those WK3 (backdated)
+    # dbh, and findag divides BAU(ICLS)/BA where ICLS = IFIX(current-DBH+1) (cratet.f:548 D1=DBH(I), CURRENT) but the
+    # BA denominator is the BACKDATED calibration-density BA. Using the CURRENT-dbh density here over-estimates BAUTBA
+    # (RATIO=1−BAUTBA too low ⇒ over-aged ⇒ TopHt/volume under-grow). Measured on crt01: 4/27 ages off +5..+30 yr.
+    bau = nothing; ba = 25.0f0; relden = 0.0f0
+    if misscr
+        saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+        _backdate_dbh!(s)                              # DENSE: t.dbh := WK3 (backdated, calibration-period dbh)
+        bau = _cr_badist_bau(t)                        # BADIST BAU-above-class on the BACKDATED dbh
+        compute_density!(s)                            # backdated per-acre stand density (BA, CCF)
+        ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
+        relden = stand_ccf(s)
+        @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end   # restore CURRENT dbh (ICLS + downstream use it)
+        compute_density!(s)                            # restore CURRENT-dbh stand density
+    end
     @inbounds for i in 1:t.n
         ab = t.birth_age[i]
         (ab > 0.0f0 && ab <= 999.0f0) && continue              # already aged (cratet.f:541)
@@ -444,7 +458,7 @@ function _cr_dub_ages!(s::StandState)
         h <= 0.0f0 && continue
         bautba = 0.0f0
         if bau !== nothing
-            icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)
+            icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)   # CURRENT dbh (cratet.f:548 D1=DBH)
             bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
         end
         sitage = cr_fndag(imodty, p.sp_site_index[sp], h, bautba, relden, sp)
