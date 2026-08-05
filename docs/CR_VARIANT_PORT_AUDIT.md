@@ -5190,3 +5190,21 @@ improved / 0 regressed; BA/CCF/QMD now 100% exact; the 3 residual = ±1 TPA(2)/S
 straddle). crt01 (.tre, resolves forest via STDINFO ⇒ takes the found-path) UNCHANGED, still bit-exact.
 ⇒ Combined with the 8th bug (backdated-density age-dub), CR growth is now bit-exact-or-±1-cornered on crt01 + 37/40
 DB-input stands. This SUPERSEDES the old "imodty-4 height, cornered" verdict — it was a fixable IMODTY-resolution bug.
+
+## The 3 residual DB-sweep stands (2026-08-05, post-8th/9th-bug) — MEASURED, not assumed "accepted"
+After the 8th (backdated-density dub) + 9th (forkod imodty) fixes, the 40-stand DB sweep has 3 non-bit-exact stands.
+Per doctrine #2 (this session's pattern: every "cornered" residual I measured hid a real bug), I measured each:
+  • 199198006020004 (TPA@2022 2658/2656) and 220029210010854 (TPA@2008 1417/1416): single-cycle ±1-2 TPA on DENSE
+    stands = the RDPSRT self-thin straddle. GENUINELY accepted (verified small, single-cycle, dense).
+  • 1224251982290487: TopHt Δ2-3 GROWING (60/60→67/65→72/69→76/73, jl low), TPA/BA/QMD bit-exact ⇒ a REAL residual,
+    NOT a straddle. ROOT (bug #10, characterized, NOT fixed): this out-of-region (R8) stand supplies SITE_SPECIES=131
+    (FIA loblolly, not a CR species) + SITE_INDEX=85. Live's FIA→CR crosswalk maps 131→CR sp32 (ER) ⇒ SITEAR(32)=85;
+    jl's data/centralrockies/species_translation.csv has NO entry for FIA 131 ⇒ it falls back to sp38 (OH) ⇒ jl sets
+    SITEAR(38)=85 and leaves sp32 at the tem=85/isisp=38 CONVERTED value 25.5 (vs live's applied 85). Measured (live
+    fndag instrument): sp32 tall trees (ht53-62) with SITE=85 converge at age ~60-72; with jl's SITE=25.5 the imodty-2
+    HH curve maxes ~27ft < RHT ⇒ the search SATURATES at AGEMAX=210 ⇒ those trees grow height far too slow ⇒ TopHt low.
+    (sp38 trees, Sheppard closed-form, matched live bit-exact — only sp32 is affected.)
+    FIX (deferred, doctrine #4 — don't piecemeal one FIA code): reconcile jl's FIA→CR SITE-species crosswalk vs FVS's
+    for out-of-region codes (131→32 etc.). Narrow impact: only out-of-region stands supplying a non-CR site species;
+    the 39 other sweep stands + crt01 are unaffected. Tree-species crosswalk is fine (BA/QMD bit-exact) — SITE-species
+    only. This is a DATA-completeness gap, not a model bug.
