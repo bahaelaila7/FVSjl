@@ -19,14 +19,14 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
 - **FIA sweep**: whole-cluster multi-cycle validated (2026-08-03); residuals = ZZRAN/DGSCOR dense-regen straddle.
 
 ## REMAINING WORK — drive each to bit-exact-or-cornered (task-tracker #142/#137/#140/#143)
-1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2% (systematic, early). DEFINITIVELY root-caused
-   2026-08-05 (commit aeb91c6): the CI DETERMINISTIC DG is BIT-EXACT (GF DDS jl==live at prediction) — the over-kill
-   is the **DEFERRED DG serial-correlation ZZRAN** (jl c.sigma=0 while dg_sd=1.7; live carries the stochastic term
-   jl omits ⇒ dq10 5.9687/6.003 ⇒ over-kill). NOT backdated-density/GF-COR/bark (all red herrings, refuted). FIX:
-   set CI SIGMAR (ci/dgdriv.f DATA SIGMAR) + fire the serial-corr draw (reuse CR machinery) ⇒ converts the
-   SYSTEMATIC over-kill into an accepted RNG-desync STRADDLE (meets the bar). Adjacent bugs FIXED en route (faithful,
-   .sum-inert for cit01): 0fa9677 ci_bratio bark branch, 3b9aa35 CI_PSIGSQ branch. ALSO still open: volume MATW/FW2W
-   tuning · SMHTGF stochastic small-tree. Oracle /workspace/.ciwork/FVSci_clean. Audit docs/CI_VARIANT_PORT_AUDIT.md.
+1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
+   root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
+   DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
+   (c.dg_cor[4]=0.05693=live). ⇒ the ~2% over-kill is the DGSCOR RNG-realization = the accepted "ZZRAN/DGSCOR
+   dense-regen straddle" (cornered; straddles ~0 across stands per the 2026-08-03 FIA-sweep memo) → MEETS the bar.
+   ★ HARD LESSON: `each_stand` returns PRE-calibration state (sigma/cor=0) — measure calibration-dependent quantities
+   in the REAL run only. 2 real adjacent bugs FIXED (faithful, .sum-inert cit01): 0fa9677 bark branch, 3b9aa35
+   CI_PSIGSQ branch. STILL open (unmeasured): volume MATW/FW2W · SMHTGF small-tree stochastic. Oracle FVSci_clean.
 2. **EM establishment self-thin over-kill [#137]** (shared with BM #140) — dense-cohort self-thin.
 3. **BM small-tree late-cycle under-thinning [#140]** — TPA +28% by 2090 (SDI-plateau / self-thin).
 4. **IE AUTOES tally-amount close-out [#143]** — ~22% diffuse residual; validate vs stand4_booktpa on UNMODIFIED FVSie_clean.
