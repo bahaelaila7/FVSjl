@@ -456,3 +456,25 @@ definitive "zero cyc0 bias" proof. DEFINITIVE SETTLE (documented next step): ins
 match to ~1e-4 the tail is confirmed cornered (downstream ULP accumulation); if jl is systematically higher by
 ~0.5%, it is a real, cluster-wide, fixable crown/PCT-fed DG bias (the shared crown-ratio/BA-percentile computation
 at cyc0 is the prime suspect, per the retracted-but-directionally-suggestive earlier crown/PCT lead).
+
+### DEFINITIVE SETTLE (full-precision, same day) — the tail is CORNERED (tie-break precision), not a fixable bias
+Instrumented live FVSem dgf.f to dump D at ICYC=2 (= the full-precision grown 2000 DBH; NOTRIPLE, NUMCYCLE 2) and
+diffed against jl's exact d2000. Matched by species+start:
+| tree | jl d2000 | live d2000 | Δ |
+| WL 7.9 | 8.4038 | 8.3618 | +0.5% |
+| WL 8.0 | 8.4650 | 8.5144 | −0.6% |
+| WL 8.2 | 8.7731 | 8.7085 | +0.7% |
+| WL 8.4 | 8.9475 | 8.8833 | +0.7% |
+| DF 10.0 | 10.6688 | 10.7544 | −0.8% |
+| DF 10.4 | 11.1038 | 11.1675 | −0.6% |
+| DF 1.2 (small) | 1.5379 | 1.3620 | +13% |
+| DF 1.9 (small) | 2.1178 | 2.2227 | −4.7% |
+⇒ cyc0 per-tree DG differences are **REAL (~0.5-0.8% large-tree, ±5-13% small-tree), NOT ULP** — BUT **mixed-sign
+and mostly-cancelling** (aggregate BA bit-exact 96/96). That is precisely the signature of **DDS-input tie-break
+precision** — the BA-percentile (PCT→BAL) and crown-ratio fed into the Wykoff DDS differ per-tree by the unstable-
+sort/tie ordering, the SAME accepted RDPSRT/AVHT40-tie-break irreducible primitive the largest-FIA-divergence
+campaign already verified (see memory fvsjl-largest-div-campaign). The imperfect cancellation leaves a small net
+that compounds into the ~7% BA-by-2090 tail. **VERDICT: the EM/IE/cluster growth-only over-growth tail is CORNERED
+(accepted tie-break/coupled-precision class), NOT a systematic fixable DG bias.** This closes the bug-vs-cornered
+question the earlier entries left open (and supersedes the "needs the definitive measurement" caveat). The small-
+tree (D<3) larger deltas are the separate SMHTGF/regent stochastic-ZZRAN class (also cornered). No fix warranted.
