@@ -50,7 +50,13 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
    percentile/crown-ratio tie-break precision compounding. No fix warranted. (docs/EM_VARIANT_PORT_AUDIT.md)
 2. **EM establishment self-thin over-kill [#137]** (shared with BM #140) — dense-cohort self-thin (SEPARATE from
    the settled growth-only tail above; the estab stand's cyc0 mortality divergence, still open).
-3. **BM small-tree late-cycle under-thinning [#140]** — TPA +28% by 2090 (SDI-plateau / self-thin).
+3. **BM under-thinning [#140]** — ★ 2026-08-05 CORRECTED to a REAL consistent under-thin BIAS (NOT cornered).
+   Multi-stand real-FIA sign-tally: non-self-thinning BM stands BIT-EXACT; actively-self-thinning stands jl
+   under-thins 100% consistently (7/7 divergent stands JL-HIGH, 0 LOW, Δ +1.3% to +48%). Flips the earlier
+   "cornered tie-break" lean (which over-generalized from bmt01's single −0.3% net). ROOT: jl mortality dq10 runs
+   slightly low → higher T85D10 self-thin target → under-kill, amplified by the QMD-feedback. FIX PATH: instrument
+   jl mortality! vs bm/morts.f on a JL-HIGH FIA stand at the first divergent cycle (dq10/TN10/RN/per-tree-kill).
+   docs/BM_VARIANT_PORT_AUDIT.md. NOTE: distinct from EM/IE's growth-only over-growth tail (that one IS cornered).
 4. **IE AUTOES tally-amount close-out [#143]** — ~22% diffuse residual; validate vs stand4_booktpa on UNMODIFIED FVSie_clean.
 5. **Climate-FVS extension** (clinit/clin/clgmult) — lowest priority.
 
