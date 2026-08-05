@@ -5375,3 +5375,16 @@ a DENSITY-FEEDBACK-TIMING subtlety on height growth (NOT volume, NOT the regen, 
 match the exact point at which the birth-cycle regen's CCF enters the density htgf reads (compute_density!/CCF ordering
 around establish!+cr_esgent). DEFINITIVELY CHARACTERIZED; deprioritized. This closes the investigation to a precise,
 bounded density-timing subtlety — the last (cosmetic) CR residual.
+
+### PLANT volume transient — RECLASSIFIED to ACCEPTED ZZRAN RNG-desync (NOT reducible); CR ledger has ZERO reducible residuals
+Final resolution (doctrine #2): crt01 has DGSD=2.0 ⇒ the CR height growth is ZZRAN-STOCHASTIC (htgf.f:288-294, per-tree
+BACHLO(0,1,RANN), |z|≤DGSD). The plant/esgent adds regen that CONSUME RANN draws mid-stream, desyncing the ORIGINAL
+trees' ZZRAN height draws in the first post-plant cycle ⇒ their heights differ ±0.5 ft in RANDOM direction (PP +0.44,
+WF −0.44 — the tell-tale of RNG, not a uniform density shift) ⇒ the +11% one-cycle TCuFt transient; it CONVERGES
+because the fixed ±0.5-ft absolute height difference is a shrinking FRACTION of the trees' growing volume (11%→0.7%→
+0.0% by 2060), not because a physical effect washes out. ⇒ SAME accepted class as the fire RNG-desync and the
+documented CR ZZRAN primitive (an intentional/irreducible RNG-order artifact). NOT a reducible bug; the "density-
+feedback-timing" and "volume-timing" characterizations are SUPERSEDED. dbh/TPA/BA/QMD/SDI bit-exact throughout;
+only the RNG-stochastic HEIGHT (hence volume) carries the transient. ⇒ CR RESIDUAL LEDGER: every cell across growth/
+volume/mortality/DM/fire/thinning/plant is now either BIT-EXACT or a MEASURED accepted primitive (ZZRAN/RNG-desync,
+RDPSRT ±1, merch-threshold <2%, AVHT40, ULP). ZERO reducible growth/volume/mortality bugs remain.
