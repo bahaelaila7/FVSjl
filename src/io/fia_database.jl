@@ -210,8 +210,17 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         if _fia_present(d, "SITE_SPECIES")
             code = _fia_spcode(_fia_str(d, "SITE_SPECIES", ""))
             if !isempty(code)
-                idx, _ = resolve_species(code, s.variant, s.species, s.coef)
-                isp = Int(idx)
+                # FVS matches the SITE species STRICTLY against the variant's OWN
+                # alpha/FIA/PLANTS codes only (dbsstandin.f:741-748) — NOT the SPCTRN
+                # regional crosswalk that resolve_species falls through to for trees.
+                # An unrecognized site species ⇒ ISISP=0 ⇒ SITE_INDEX applied to ALL
+                # species (dbsstandin.f:776-779), which the `isp<1` branch below does.
+                cc = uppercase(code); sp = s.species
+                @inbounds for j in 1:nspecies(s.variant)
+                    if strip(sp.alpha[j]) == cc || strip(sp.fia[j]) == cc || strip(sp.plants[j]) == cc
+                        isp = j; break
+                    end
+                end
             end
         end
         if si > 7f0                                # a real site index in feet
