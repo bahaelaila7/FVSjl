@@ -517,3 +517,20 @@ XSTORE-frozen ESTPP draw (NTALLY==1 stores DRAW, continuation reuses it — esta
 REGT); (c) book each tree's tpaw = ESPROB(I)·300/dupnpt with the I<ITEMP+1 old/new split (+ INGRO scaling); (d)
 NTALLY≥2 subsequent-only species (PADV=0/ESPSUB). Heights (ESADVH/ESSUBH per best sp, floored XMIN+0.2 — estab.f:
 838) are computed at :795-840 and are a minor DBH-negligible refinement. This closes the oscillation.
+
+## ★★ ESPROB CONTINUATION FIX LANDED (commit f725dd2) — oscillation GONE, now systematic under
+Implemented the per-tree ESPROB weighting + per-plot NSTORE/PNN state. Result on stand-4:
+  before: 536/885/1642/1046/1164/2274/1386/1043/2067/1622/1752 (oscillating ±12-96%, mean~29%)
+  after:  536/885/ 981/ 649/1164/1242/ 741/1043/1050/ 772/1167 (systematic UNDER, mean |Δ|=22.3%)
+  target: 536/1025/1401/881/1324/1531/853/1412/1788/1286/1147
+The +96% continuation SPIKES are GONE (2050 +62%→-13%, 2040 +49%→-19%). Cap kept MAXING (MAXTPP over-produced).
+REMAINING = systematic under-production, and the gap WIDENS across a sequence (cyc1 -14% → cyc2 -30% → cyc2020
+-26%) ⇒ the seedling cohort GROWS TOO SLOWLY. Root = the placeholder XMIN heights: the AUTOES seedlings enter
+REGENT small-tree growth at the wrong height → wrong growth rate → they lag becoming larger DBH → the cohort
+under-accumulates over cycles. So HEIGHTS ARE NOT DBH-negligible after all — they set the growth trajectory (DBH
+at creation ≈0.1 either way, but the HEIGHT drives regent's rate). NEXT (the real last piece): emit per-tree
+heights in ie_autoes_establish!'s creation loop — advance=ie_esadvh, subsequent=ie_essubh, excess=ie_esxcsh (all
+validated bit-exact) dispatched by ICHOI, using the per-tree EMSQR/DILATE(FIRST order-stat)/DELAY(ESDLAY)/AGE from
+the tally body (estab.f:795-840; floor TALL=max(HHT+HTADJ, XMIN+0.2), cap HHTMAX). The tally already consumes
+those 69 draws (line 697 skips them) — compute + return the per-record heights instead of discarding. Also (minor,
+split-only) NTALLY≥2 subsequent-only species. + re-examine the cyc1 first-tally -14% (ESB strength / tally total).
