@@ -44,7 +44,12 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
    ★ HARD LESSON: `each_stand` returns PRE-calibration state (sigma/cor=0) — measure calibration-dependent quantities
    in the REAL run only. 2 real adjacent bugs FIXED (faithful, .sum-inert cit01): 0fa9677 bark branch, 3b9aa35
    CI_PSIGSQ branch. STILL open (unmeasured): volume MATW/FW2W · SMHTGF small-tree stochastic. Oracle FVSci_clean.
-2. **EM establishment self-thin over-kill [#137]** (shared with BM #140) — dense-cohort self-thin.
+   ★ 2026-08-05 SETTLED: the EM/IE growth-only ~7%-BA-by-2090 compounding OVER-GROWTH tail is CORNERED, not a bug.
+   Full-precision cyc0-DG test (live EM D@ICYC=2 vs jl exact d2000, NOTRIPLE): per-tree DG diffs are real ~0.5-0.8%
+   (large-tree) but MIXED-SIGN and mostly-cancelling (aggregate BA bit-exact) = the accepted RDPSRT/AVHT40 BA-
+   percentile/crown-ratio tie-break precision compounding. No fix warranted. (docs/EM_VARIANT_PORT_AUDIT.md)
+2. **EM establishment self-thin over-kill [#137]** (shared with BM #140) — dense-cohort self-thin (SEPARATE from
+   the settled growth-only tail above; the estab stand's cyc0 mortality divergence, still open).
 3. **BM small-tree late-cycle under-thinning [#140]** — TPA +28% by 2090 (SDI-plateau / self-thin).
 4. **IE AUTOES tally-amount close-out [#143]** — ~22% diffuse residual; validate vs stand4_booktpa on UNMODIFIED FVSie_clean.
 5. **Climate-FVS extension** (clinit/clin/clgmult) — lowest priority.
