@@ -70,3 +70,13 @@ a live per-stand sweep against the 70 GB DB expensive, and it added no coverage 
   confirms cross-variant robustness (0 jl crashes). A firing-case for the PSIGSQ COR shrinkage specifically
   would need a stand with an LDGCAL species whose true PSIGSQ ≠ 0.0898 — the source-match to live
   `dgdriv.f` remains the primary correctness proof.
+
+## BM (Blue Mountains) — real-FIA multi-stand under-thin sign-tally (2026-08-05)
+Run to settle #140 (foreground+per-stand-flush recipe; 35-stand subset of `extract_sample.jl BM 80`):
+- **Non-self-thinning BM stands: BIT-EXACT** at cyc3 (jl==live TPA, e.g. 18/179/482 TPA stands Δ=0.0%).
+- **Actively-self-thinning stands: jl UNDER-THINS, 100% consistent** — 8/8 divergent stands JL-HIGH
+  (Δ = +1.3%, +2.4%, +7.2%, +11.6%, +48.3%, …), **ZERO JL-LOW**.
+⇒ #140 is a **REAL consistent under-thin bias, NOT cornered** (corrects the earlier bmt01-only "cornered" lean).
+The multi-stand sign-tally is what distinguishes a cornered straddle from a consistent bias — the single-stand
+net looked like tie-break noise. Root + fix path in docs/BM_VARIANT_PORT_AUDIT.md (jl mortality dq10 low →
+self-thin target too high → under-kill, amplified by QMD-feedback).
