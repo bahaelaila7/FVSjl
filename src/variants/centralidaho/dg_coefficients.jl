@@ -26,6 +26,12 @@ let
     global const CI_ICHBCL = round.(Int, readrows("dg_ichbcl.csv"))      # [130, 19]
 end
 
+# ci/dgdriv.f:133 DATA PSIGSQ — per-species prior variance for the DG self-calibration COR shrinkage
+# (dgdriv.f:665 PVAR=PSIGSQ(ISPC)). Missing branch left CI on the SN default (0.0898) ⇒ wrong shrinkage ⇒
+# GF(sp4) COR fit to 0 vs live 0.0569 ⇒ DG shortfall ⇒ mortality over-kill. First 10 = the N-Rockies conifers (=KT).
+const CI_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636,
+                          0.0586, 0.0586, 0.1433, 0.07, 0.0898, 0.0586, 0.07, 0.0858, 0.07]
+
 # ci/bratio.f — per-species BRATIO (like BM). BARK1/BARK2 in species_coefficients.csv.
 #   CASE(3,5,9,10) DF/WH/AF/PP: DIB=BARK1·D^BARK2; BRATIO=DIB/D (D>0 else 0.97); cap ≤0.97.
 #   CASE(14) WJ: 0.9002 − 0.3089/TEMD (TEMD∈[1,19]); clamp [0.80,0.99].
