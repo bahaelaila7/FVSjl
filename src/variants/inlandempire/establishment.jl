@@ -1047,9 +1047,20 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
     idup   = max(1, cld(_ES_MINREP, nptids))
     dupnpt = Float32(nptids * idup)
-    # AUTOES ESRANN seed: the first tally starts the (separate) establishment stream at ESSS=55329;
-    # est.es_seed persists it across tallies (the multi-tally chain is refined once cyc1 validates).
-    seed0 = est.es_seed > 0f0 ? round(Int, est.es_seed) : ie_autoes_seed0(55329)
+    # AUTOES ESRANN seed chain (estab.f:290-295 + the per-plot ESAVE reseed). A NEW disturbance/ingrowth tally
+    # (NTALLY==1|99) draws seed0 = ESRANN(es_stream) from the continuing establishment stream, then advances the
+    # stream to the post-tally state = the last plot's ESAVE (ie_autoes_plot_seeds[dupnpt+1], validated == the
+    # live ESS0 at the next tally: 55329→ESAVE 78807→…). A continuation (NTALLY≥2) reuses this tally's seed0.
+    # es_stream starts fresh at ESSS=55329. (Measured seeds 43303/61677/…; the ESAVE chain is bit-exact.)
+    if _ntally == 1 || _ntally == 99
+        ess0 = est.es_stream == 0f0 ? 55329.0 : Float64(est.es_stream)
+        dr = ie_esrann!(IEEstabRNG(ess0))
+        seed0 = floor(Int, dr * 100000f0 + 0.5f0)
+        est.es_seed = Float32(seed0)                                          # save for the continuation
+        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1)[end])  # ESAVE_50 = next stream state
+    else
+        seed0 = round(Int, est.es_seed)                                       # continuation reuses seed0
+    end
     # ESTOCK/species-prob BAA = the per-INVENTORY-POINT basal area BAAA(NNID) (estab.f:482, dense.f:213), NOT the
     # whole-stand BA. After a heavy overstory removal the regen point is bare → BAAA≈0 → TBAAA=max(BAAA,1)=1 →
     # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual

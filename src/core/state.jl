@@ -612,9 +612,12 @@ mutable struct Establishment
                         # it; ie_autoes_establish! consumes+resets it). Drives the LAUTAL removal trigger.
     esb_shift::Float32  # AUTOES inventory-calibration logit shift ESB-ESB1 (estab.f:319-326,579), computed once
                         # at the first inventory-year tally, reused by its continuation. NaN = not yet computed.
+    es_stream::Float32  # AUTOES ESRANN stream state (ESS0) for the NEXT disturbance seed draw; a new NTALLY==1
+                        # tally draws seed0=ESRANN(es_stream) then advances es_stream to the post-tally ESAVE_50.
+                        # 0 = fresh (start at ESSS=55329). Continuations reuse `es_seed` (this tally's seed0).
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0, NaN32)
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0)
 
 mutable struct DbsState
     enabled::Bool
