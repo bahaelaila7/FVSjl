@@ -29,6 +29,15 @@
 
 const IE_NSP = 23
 
+# ie/dgdriv.f:104 DATA PSIGSQ — per-species prior variance for the DGSCOR COR shrinkage (dgdriv.f:629
+# PVAR=PSIGSQ(ISPC)). Missing branch left IE on the SN scalar default (0.0898) ⇒ wrong Bayes shrinkage of
+# the fitted COR for every species whose true PSIGSQ ≠ 0.0898. Same missing-branch class as CI/KT/EM/…
+# (23 species, IE order: WP WL DF GF WH RC LP ES AF PP WB WF PY AS WJ MC LM CW OS OP OH RM OT — mapped to
+# the live dgdriv.f DATA order verbatim).
+const IE_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636,
+                          0.0858, 0.0586, 0.0586, 0.0970, 0.07, 0.07, 0.0586, 0.1433, 0.07, 0.1433,
+                          0.1433, 0.07, 0.0858]
+
 """IE bark ratio (ie/bratio.f): IMAP-dispatched BARK1/BARK2 form. sp15/16 use the 0.9002-0.3089/D
 default (D cap 19); most species a constant BARK1; sp19/22 BARK1+BARK2/D. Clamped [0.80, 0.99]."""
 @inline function ie_bratio(sp::Int, d::Float32)
