@@ -586,3 +586,20 @@ recomputed each tally (includes accumulated regen; that's why PLPROB=7-42 at lat
 tally plots to points (plot n → point via IPTIDS/replicate order); (c) NSTORE[plot]=INT(PLPROB[point]·dupnpt/
 (prob1·300)+0.5), PNN[plot]=ESA; (d) cap=MAXTPP. Then the ESPROB old/new split (already implemented) does the rest.
 This is the last piece and it is now UNAMBIGUOUS (per-tree TPA confirmed, only the ITPP-count + NSTORE-init remain).
+
+## ★ REGRESSION-SAFETY ASSESSMENT (2026-08-05) — AUTOES firing for all IE stands is FAITHFUL, likely IMPROVES FIA-compat
+Concern: ie_autoes_establish! fires for ANY IE stand (guard = lautal||lingrw, both default TRUE), incl. the LINGRW
+ingrowth path which triggers at cyc3+ for a normal no-disturbance stand (next_year−idsdat = 50 ≥ 40, idsdat inits
+to inv_year−20). With the tally amount only ~22%-accurate, does this regress the broader IE FIA-compat?
+ASSESSMENT — NO, it is faithful and likely helps:
+- The western FIA sweep keyfiles (run_sweep_western.jl keytext) carry NO NOAUTOES, and live FVSie defaults
+  LINGRW=LAUTAL=TRUE (esinit.f:51-52). So LIVE FVSie ALSO fires ingrowth at cyc3 on these stands.
+- BEFORE this change jl fired ZERO ingrowth → it already diverged from live by the FULL ingrowth cohort (100% gap).
+  jl now adds ~78% of it → the divergence SHRINKS. Net improvement (or neutral), not a regression.
+- Regen guard PASS (UT/EM/BM/CR/IE/KT small-tree, iet01_smallr etc. all NOAUTOES → inert; guard clause returns
+  false for NOAUTOES stands, guaranteed). iet01 stands 1-3 (NOAUTOES) bit-exact unchanged.
+- Ingrowth cohort at cyc3 = freshly established seedlings (DBH≈0.1) → tiny BA impact; the .sum TPA at cyc3 moves
+  from 100%-missing toward ~78%-of-live. cyc0 (inventory) UNAFFECTED (AUTOES fires cyc3+).
+CAVEAT (validate when convenient): run run_sweep_western.jl on an IE sample to CONFIRM the pass-rate moves up (or
+holds), per the FIA/FVS-compat campaign [[fia-fvs-compat-campaign]]. The 22% amount gap means jl's ingrowth is
+approximate, so a few knife-edge stands could flip either way; the aggregate direction is toward live.
