@@ -150,3 +150,16 @@ or the measured-DG field). NEXT: instrument the per-tree backdated dbh (WK3) jl 
 (pre-split, doctrine-#3-valid at LSTART) to see if it's bark or the r formula. Magnitude ~2% (fine precision tail,
 memory's "cornered class"); real + systematic. META: measuring corrected a wrong inferred root-cause AGAIN — same
 lesson as the CR session (don't trust stale notes; instrument).
+
+## 2026-08-05 — CI over-kill NARROWED to sp4 (Grand Fir) calibration COR (jl 0 vs live 0.0569)
+Instrumented live ci/dgf.f COR(ISPC) vs jl c.dg_cor: jl COR=0 for ALL species; live COR=0 for ALL EXCEPT
+**sp4 (GF) = 0.056926**. So jl's DG calibration MATCHES live everywhere except sp4 — jl leaves GF's COR at 0 where
+live corrects it +0.0569. COR is ADDED to the DDS (dgf.f:400 CONSPP=DGCON+COR+…) ⇒ jl's GF DG is lower by ~0.057
+in ln-DDS space ⇒ GF grows slightly less ⇒ the fine DG shortfall ⇒ mortality over-kill. Since COR = f(measured DG,
+predicted DDS) at the backdated state, jl's GF DDS-prediction (or its DG-sample handling) differs from live's,
+making jl's fitted COR=0 vs live 0.0569. NEXT (actionable, narrow): trace jl's calibrate_diameter_growth! COR
+computation for sp4 — is GF excluded by a gate (no DG-sample recognized), or does jl's GF backdated DDS-prediction
+match the measured DG (⇒ COR 0) while live's doesn't? Compare the GF DG-sample trees' measured DG + jl-predicted DDS
+vs live at LSTART (doctrine-#3-valid: current-dbh calibration, pre-split). This is the residual driver — all other
+species' COR already bit-exact (=0). Magnitude still ~2% (GF is a fraction of cit01); a GF-specific DDS/calibration
+precision, not a whole-model bug.
