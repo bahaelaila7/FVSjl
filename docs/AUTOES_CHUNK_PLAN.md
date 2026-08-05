@@ -437,3 +437,20 @@ tally — which INCLUDES the per-tree height (ESADVH/ESSUBH/ESXCSH) + ESDLAY dra
 body. Next: instrument ESRANN call-count per tally (or the ESRNCM state at each tally boundary), model jl's tally
 to consume the same total, then draw the next seed. This is the last refinement; the per-record HEIGHTS (still
 XMIN placeholder) fold into the same tree-creation pass.
+
+## ★ SEED CHAIN + HEIGHTS ARE ONE COUPLED TASK (2026-08-05, ESS0 states measured)
+Instrumented ESRANN's ESS0 (the LCG state, ESRNCM common) at each NTALLY==1 seed draw (stand4_ess0_states.txt):
+  cyc1 ESS0=55329 (=ESSS, fresh) → cyc4 ESS0=78807 → cyc7 ESS0=32485 → cyc10 ESS0=62399.
+Each tally's seed = ESRANN(ESS0): 55329→43303, 78807→61677, 32485→25425, 62399→48837 (the measured seeds ✓).
+So the stream STATE between tallies is the ground truth. My prior 135-draw model (last-plot+135) gave the wrong
+ESS0 because the FULL per-plot body consumes MORE than the 135-draw SELECTION body — it also draws the per-tree
+HEIGHTS (ESADVH/ESSUBH/ESXCSH) + ESDLAY. The ESAVE plot-to-plot chain uses the draw at estab.f:967 (~draw 135),
+but the plot CONTINUES past that (heights/delay) before ending; only the LAST plot's post-135 draws leak into the
+final ESS0 (interior plots reseed to ESAVE, discarding them). ⇒ THE SEED CHAIN AND THE PER-RECORD HEIGHTS ARE THE
+SAME TASK: implement the full per-plot body as ONE persistent ESRANN stream (seed → EMSQR → ITPP → NUMSPE-WK6 →
+species-WK6 → ADV/SUBS+HEIGHTS(ESADVH/ESSUBH/ESXCSH via ICHOI)+ESDLAY → excess-WK6, consuming every draw in FVS
+order), tracking rng state across plots AND tallies; then (a) the heights are emitted for tree creation, and (b)
+the post-last-plot state gives the next tally's seed (validate vs ESS0 55329/78807/32485/62399). Persist on
+est.es_seed. This is the FINAL AUTOES chunk — it closes both the ±oscillation and the placeholder heights at once.
+Current jl (all other fixes landed): 536/885/1642/1046/1102/2220/1675/999/2100/1606/1737 vs target 536/1025/1401/
+881/1324/1531/853/1412/1788/1286/1147.
