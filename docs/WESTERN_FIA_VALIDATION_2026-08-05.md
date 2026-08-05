@@ -45,6 +45,24 @@ treed=23  cyc0_exact=22/23  all-3cyc_exact≈1  jlerr=0  live_nosum=0
   **bit-exact-or-cornered with zero crashes** — validating the `.sum`-inert IE_PSIGSQ fix (`96cde22`) caused no
   regression on real multi-species data. Final treed count / offender list append to `ie_sweep.out` on completion.
 
+## Cluster re-sweep (EM/KT/TT/UT/BM/CR) — attempted, cut; coverage notes
+A whole-cluster live re-sweep was attempted after CI/IE but cut before completion — it hit infra limits that make
+a live per-stand sweep against the 70 GB DB expensive, and it added no coverage beyond what's below:
+- **EM**: N=20 stratified sample came back **0 treed / 20 treeless** — live FVS itself found no trees, so these are
+  genuinely non-forest EM conditions (EM is grassland-heavy; a small-N sampling artifact, not a loading bug).
+  A treed EM slice needs N≈80+ (or a treed-condition filter the harness doesn't yet apply).
+- **KT**: `extract_sample.jl KT` → **"no stands for VARIANT=KT"** — the FIADB has no stands labeled KT (Kootenai's
+  FIA plots fall under a neighboring variant's region assignment). KT is not swept via this DB.
+- **TT/UT/BM/CR**: cut mid-run (TT in progress) — no new results this session.
+- **Harness quality finding**: `fia_sweep_check.jl` (and the killed IE run) **leak julia processes** — after several
+  runs there were ~1480 defunct/zombie `julia` entries (julia's many worker threads not reaped on ungraceful kill).
+  Harmless for CPU (zombies don't run) but a PID-slot leak; a future harness should reap children / run each
+  variant in a fresh subshell that exits cleanly. This, plus the ~24 s/stand live-FVS-against-70GB cost, is why the
+  live cluster re-sweep is impractical to run to completion opportunistically.
+- The pre-existing **2026-08-03 whole-cluster multi-cycle FIA validation** (memory: `fia_sweep.db`) already covers
+  EM/KT/TT/UT/BM/CR; this session's contribution is the **CI + IE post-fix confirmation** above (the two variants
+  whose PSIGSQ/bark fixes landed this session).
+
 ## Notes
 - High treeless fraction (~76% for CI's sample) is expected: FIA conditions include much non-forest; they
   are correctly excluded from the exactness denominator, not counted as trivially-exact zeros.
