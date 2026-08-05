@@ -146,3 +146,23 @@ mechanism + tie-break seed; only the cross-stand sign-tally (cornered-vs-tiny-bi
 stable environment: run `bm_dir.jl` (fixed) on `extract_sample.jl BM 80` synchronously (foreground, no redirect
 buffering issue) or with per-stand `flush(stdout)` after each println so partial results survive; tally the
 final-cycle TPA-delta sign across treed stands. All BM state restored clean (oracle 2090 96/146; repo clean).
+
+### #140 CORRECTED VERDICT (2026-08-05) — REAL consistent under-thin bias, NOT cornered
+The multi-stand sign-tally FINALLY ran (foreground-auto-bg + per-stand flush + no grep pipe — the recipe that
+survives this env's background quirks). Result on real BM FIA stands (35-stand subset, 3-cycle jl-vs-live TPA):
+- **Non-self-thinning stands: bit-exact** (≈EQ, Δ=0.0% — e.g. 18/179/482 TPA stands jl==live exactly).
+- **Actively-self-thinning stands: jl UNDER-THINS, 100% consistent direction** — 5/5 divergent stands JL-HIGH
+  (Δ = +1.3%, +2.4%, +7.2%, +11.6%, **+48.3%**), **ZERO JL-LOW**.
+⇒ This **CORRECTS the earlier "cornered tie-break" lean** (SETTLE entry above), which over-generalized from bmt01's
+single −0.3% cyc0 net. The consistent JL-HIGH direction proves the −0.3% projected-DBH net is **consistently
+signed, NOT mixed-sign tie-break** — i.e. #140 is a **real, systematic under-thin bias** that manifests whenever
+BM self-thinning is active (RIP=RN), amplified by the QMD-feedback (small on most stands, large on dense/rapid-
+self-thin stands like bmt01 +70% by 2090 and FIA stand 248913820489998 +48% by cyc3). META (doctrine #2, again):
+a single-stand net can look like tie-break noise; only the MULTI-STAND sign-tally distinguishes cornered-straddle
+from a consistent bias — and here it flipped the verdict. This is why the measurement was worth the harness fight.
+ROOT (for the fix): jl's self-thin kills fewer trees than live on active-self-thin stands. From the cyc0-DG test,
+jl's mortality-input dq10 runs slightly low ⇒ higher T85D10 target (∝ dq10^−1.605) ⇒ under-kill. Next: on one
+JL-HIGH FIA stand (e.g. 374430545489998), instrument jl BM mortality! vs live bm/morts.f at the FIRST divergent
+cycle — dump dq10, T85D0/T85D10, TN10, RN, and the per-tree kill — to localize whether the gap is the projected
+dq10 (DG/bark into g), the TN10 target formula, or the RN→WKI kill application. The self-thin QMD-feedback then
+compounds it; fixing the per-cycle under-kill closes #140.
