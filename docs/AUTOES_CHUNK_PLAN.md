@@ -549,3 +549,23 @@ for NUMSPE (species count). Then re-enable MAXTPP. NSTORE inits to the inventory
 FIRST tally's NEWTPP = draw_ITPP - PLPROB_ITPP and the ESPROB old/new split applies. Also PNN inits to ESA (≈0.10,
 line 545). This is the last model piece — it makes the total prob1-INVARIANT (=PLPROB), closing the systematic
 under/over. Current best (MAXING workaround): mean|Δ| 22.3%, no oscillation. Artifacts stand4_itpp_newtpp.txt.
+
+## ★ PLPROB MEASURED + prior "prob1-invariant" claim CORRECTED (2026-08-05)
+Dumped PLPROB(NNID) per inventory point (stand4_plprob.txt): PER-POINT (not constant), ranging ~7-42 (cyc10:
+point1=13.65, point2=29.9, point3=7.09; cyc8: point2=41.9, point3=22.05). ⇒ multiple inventory points (NPTIDS>1),
+IDUP replicates. CORRECTION to the prior turn: the tally total DOES grow with prob1 (the TARGET confirms it —
+cyc1 prob1=0.60→1025, cyc4 prob1=0.88→1324), so "total=PLPROB prob1-invariant" was WRONG. Re-derivation of the
+per-plot total (ESPROB, estab.f:944-951): total = draw_ITPP·prob1·scale − PLPROB·PNN/prob1 (scale=300/DUPNPT).
+The 2nd term (the ESPROB old-tree reduction) subtracts ~PLPROB·PNN/prob1 — SIGNIFICANT since PLPROB is large
+(20-42). So the real remaining gaps in jl's tally amount are:
+1. **NSTORE must INIT to the inventory PLPROB-ITPP** (estab.f:544 = INT(PLPROB·DUPNPT/(prob1·300)+0.5)), NOT 0.
+   jl resets NSTORE=0 at a new disturbance ⇒ the first tally books ALL trees at full prob1 (over); FVS books the
+   first PLPROB-ITPP as "old" at prob1−PNN.
+2. **PNN must INIT to ESA** (estab.f:545, ≈0.10 the actual-stocking prob), not 0.
+3. Then the ESPROB subtracts the PLPROB·PNN/prob1 term correctly — reducing high-PLPROB plots.
+4. Re-enable MAXTPP (the cap is real; the over-production was the missing NSTORE/PNN init, not the cap).
+IMPLEMENT: compute per-plot PLPROB in jl = Σ (PROB/DUP) for inventory small trees DBH<REGNBK (estab.f:303-313);
+init NSTORE[plot]=INT(PLPROB·DUPNPT/(prob1·300)+0.5), PNN[plot]=ESA at each new disturbance; keep the ESPROB
+weighting; MAXTPP cap. HONEST STATUS: this is a genuine multi-piece sub-model needing a methodical port (PLPROB
++ the NSTORE/PNN inventory init) — not another 1-line tweak. AUTOES is functional (mean|Δ| 22.3%, oscillation
+fixed, from collapse-to-28); this closes the systematic bias. Best-state code unchanged (MAXING workaround).
