@@ -640,3 +640,18 @@ CORRECT next step is to fit jl's PER-PLOT PLTPA to stand4_booktpa.txt EXACTLY (t
 reproducing each plot's booked total, THEN the trajectory follows. That requires the full estab.f amount flow
 ported faithfully (not fit), validated per-plot — a focused methodical chunk. BEST STATE remains MAXING+ESPROB
 old/new = mean|Δ| 22.3%, oscillation-free, committed (77f3ba3). AUTOES is functional; this is the last residual.
+
+## ★★ REFRAMING: MAXING cap is ~RIGHT for the established amount; the 22% residual is DIFFUSE (2026-08-05)
+Standalone cyc1 tally sums (prob1=0.5527, 50 plots): Σ itpp·prob1·scale = 1018 raw (MAXTPP-full); Σ min(itpp,4)·
+prob1·scale = 487. The TARGET established ≈ 745 (=.sum target 2000=1025 − ~280 grown post-thin remnant). So:
+- MAXTPP-full (1018): OVER-establishes ~37% → the +20% .sum seen earlier (1228 = remnant + 1018).
+- min4/numspe-cap (487): UNDER ~35%.
+- MAXING (cap 7, Σ min(itpp,7)·prob1·scale): lands ~745-800 = CLOSEST to the ~745 target established.
+⇒ MAXING (the committed best, mean|Δ| 22.3%) is ~RIGHT on the tally AMOUNT. The 22% residual is therefore NOT one
+big lever — it is DIFFUSE across (a) the post-thin REMNANT overstory growth (jl 2000 remnant grows to ~140 vs
+live ~280 — the −14% cyc1 is largely the remnant, not the establishment), (b) the continuations, (c) multi-cycle
+mortality/compounding. This REFRAMES the close-out: rather than a single tally-amount port, the residual needs
+per-component attribution (instrument the remnant vs established split at cyc1: does the post-thin overstory grow
+to match live, independent of AUTOES?). MAXING stays as the amount model. HONEST FINAL STATE: AUTOES functional at
+22.3%, oscillation-free, regression-safe, amount ~correct; residual diffuse (remnant growth + continuation +
+compounding), no single dominant error. This is a reasonable IE-AUTOES v1; further tightening is incremental.
