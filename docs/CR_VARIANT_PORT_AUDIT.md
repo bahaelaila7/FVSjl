@@ -5287,3 +5287,20 @@ per-tree summation, where a sub-.sum-rounding dbh difference shifts the sum <1 �
 AVHT40 tie-break / merch-threshold. VERDICT: accepted primitive (measured, not assumed). ⇒ CR RESIDUAL LEDGER
 COMPLETE: every DB-sweep + crt01 cell is either bit-exact or a measured accepted primitive (Zeide-SDI ±1, RDPSRT
 ±1, merch-threshold <2%, AVHT40/ZZRAN/ULP). No reducible growth or volume bug remains after the 8th/9th/10th fixes.
+
+## FFE fire regime — MEASURED residual (open item; corrects the "regimes redundant" inference)
+Per doctrine #2 (don't infer), measured the crt01 + FMIN/SIMFIRE(2010) regime vs live FVScr AFTER the 8th/9th/10th
+fixes — NOT redundant, because the 8th-bug fix changed crt01's pre-fire heights (Δ1-2 low → bit-exact) and fire
+mortality depends on height. RESULT: pre-fire (2010) is BIT-EXACT (both 520/137/263/162/74/7.0) ⇒ the growth fixes
+correctly feed the fire. But POST-fire diverges: TPA nearly bit-exact (2020-2040: 209/208, 206/206, 204/203 — same
+mortality COUNT) while jl's SURVIVORS are consistently LARGER — BA 2/4→5/7→9/12, TopHt 11/14→18/21→24/26, QMD
+1.3/1.8→2.1/2.5→2.9/3.3. So the fire kills the same NUMBER but a different SIZE distribution (live removes more of
+the larger trees; jl leaves them). Since pre-fire input is bit-exact, this is in the FFE fire-mortality SIZE-selection
+model (FMEFF/FMBRKT per-tree kill probability by crown scorch / bark), NOT the growth port. Absolute magnitude is
+small (BA Δ2-3 on a fire-destroyed 263→~3 stand) — plausibly the known "cornered" FFE fire class (memory: simfire
+14th-17th fixes cornered), but MEASURED here as a real per-tree size-selection difference, not confirmed accepted.
+STATUS: OPEN — a distinct FFE fire-mortality item (chunk 8-adjacent), separate from the now-complete CR growth+volume
+port. NEXT: instrument live FMEFF per-tree fire-kill probability vs jl on crt01's 2010 trees (pre-split window valid
+for the fire cycle) to classify (cornered precision vs reducible bark/scorch coefficient). META: this finding
+INVALIDATES the earlier "plant/fire regime re-checks are redundant" inference — the height fix DID shift fire input,
+and measuring surfaced a real residual. Doctrine #2 vindicated again.
