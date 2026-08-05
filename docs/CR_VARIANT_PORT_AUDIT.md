@@ -5335,3 +5335,14 @@ trace the CR estab→triple→volume order vs FVS (grow_cycle establishment volu
 first-cycle newly-established-tree volume-computation ordering. META: BOTH regime re-checks this session (fire, plant)
 that I'd inferred "redundant" surfaced real divergences on measuring — fire resolved to accepted RNG-desync, plant is
 a real open volume-timing item. Doctrine #2 (measure, don't infer) vindicated a 6th time.
+
+### PLANT volume transient — LOCATED to cr_esgent × first-post-estab volume timing (simulate.jl:564/575)
+Narrowed the root: simulate.jl:545 compute_volumes! runs BEFORE establish! (:558), so birth-cycle regen gets NO
+volume that cycle (comment :575-579). CR is SPECIAL: cr_esgent! (:564) grows the just-established regen IN its birth
+cycle (eastern leaves it ungrown). So at the FIRST post-establishment cycle the CR regen's first volume reflects the
+esgent birth-cycle growth + one normal cycle — and jl vs live time that first-volume differently ⇒ the +11% TCuFt/
+MCuFt spike at exactly that cycle, converging once both have the regen fully integrated (a one-cycle offset, not a
+persistent size error — BA/TPA/QMD are bit-exact throughout). NEXT (bounded): instrument live VOLS on the CR regen
+at the first post-plant cycle (dbh/ht/cuft per new record) vs jl's compute_volumes! to find whether live defers the
+esgent-grown size one more cycle. PRE-EXISTING (independent of the 8th/9th/10th setup fixes). This is the precise,
+well-scoped next CR chunk (establishment-volume timing) — the ONLY known reducible CR residual remaining.
