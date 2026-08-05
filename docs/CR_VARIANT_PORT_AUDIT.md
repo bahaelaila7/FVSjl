@@ -5346,3 +5346,17 @@ persistent size error — BA/TPA/QMD are bit-exact throughout). NEXT (bounded): 
 at the first post-plant cycle (dbh/ht/cuft per new record) vs jl's compute_volumes! to find whether live defers the
 esgent-grown size one more cycle. PRE-EXISTING (independent of the 8th/9th/10th setup fixes). This is the precise,
 well-scoped next CR chunk (establishment-volume timing) — the ONLY known reducible CR residual remaining.
+
+### PLANT volume transient — investigated further (NOTRIPLE isolation; regen-height hypothesis REFUTED)
+Progress (turn continued): (1) NOTRIPLE isolation — the +11% 2020 TCuFt/MCuFt persists with tripling OFF (live 4164
+vs jl 4629), so it is NOT a tripling/doctrine-#3 artifact, AND per-record comparison is now VALID. (2) Live TREELIST
+at the post-plant cycle shows the planted PP regen (ES0300xx, sp13) are TINY — dbh 0.1-0.6, ht ~4 ft, TOT CU FT VOL
+= 0.0 — even by 2030. ⇒ the "jl over-grows the regen HEIGHT" hypothesis is REFUTED: live's regen carry ~no volume,
+so the 11% (≈465 cuft) is NOT the regen size. Between 2010→2020 jl's stand gains ~458 more cuft than live's with
+BA/TPA/QMD/TopHt all bit-exact — a volume the regen (0-vol) cannot supply. So the 465 cuft is elsewhere (original
+trees' volume computation shifted by the establishment cycle, or a first-post-estab VOLS timing on records that then
+normalizes). PRECISE NEXT MEASUREMENT (valid under NOTRIPLE): dump jl `treelist_snapshot`(2020) per-tree TOTCU vs
+live's `.trl` at 2020, matched by tree index, to find WHICH records carry the 465-cuft delta (regen vs original) —
+that pins whether it's an establishment-cycle volume-timing on the originals or a regen first-volume anomaly. STILL
+OPEN; hypothesis-refutation logged so the next session doesn't re-chase regen height. Small (11% one-cycle transient,
+pre-existing, .sum-cosmetic), lowest-priority of the CR ledger.
