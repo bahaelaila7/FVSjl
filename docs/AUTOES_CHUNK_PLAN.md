@@ -724,3 +724,18 @@ earlier XTES=0.55 too — re-verify). (2) then the AUTOES over-establishment (66
 (MAXING=7 is slightly HIGH now, not low). ALWAYS use a FRESH DSNout DB for iet01 measurements (rm the accumulated
 db or point DSNout elsewhere) — the 80MB iet01_Out.db contaminates. Best jl state committed (MAXING) now reads as
 ~67% OVER vs the corrected target, but the mechanisms are clear and concrete.
+
+## ★★★★ CORRECTION-OF-THE-CORRECTION (2026-08-05): target IS 1025 — the 531 was a keyfile-mod artifact
+The prior "target is 531" entry is WRONG — RETRACTED. DECISIVE one-variable test: delete iet01_Out.db, run the
+UNMODIFIED iet01.key (fresh DB, SAME path) → THN3 2000 = 1025 (not 531). So the DB content is NOT the contaminant;
+my MODIFIED keyfiles (iet01_fresh.key / iet01_notl.key, which changed the DSNout PATH to /tmp AND/OR removed
+treelist keywords) introduced the 531. Changing the DSNout path to /tmp alone (iet01_fresh.key) → 531; that path
+change (not the DB, not the treelist) caused it — likely a failed/relocated DB write perturbing the run. LESSON
+(the burn): I changed TWO variables at once (path + treelist) → confounded → nearly concluded a huge wrong target
+flip. The one-variable isolated test (unmodified key, fresh DB, same path) settled it: TARGET = 536/1025/1401/881/
+1324/1531/853/1412/1788/1286/1147 (THN3), CONFIRMED, unchanged. All the session's analysis STANDS: jl UNDER-
+produces, mean|Δ| 22.3%, residual diffuse. The [[fvsjl-ie-variant-port]] memory's "oracle→1788" is CORRECT.
+NET (final, verified): AUTOES v1 functional, target 1025/../1788 CONFIRMED (survived a contamination scare via a
+clean isolated test), residual diffuse+attributed. METHOD LESSON: change ONE variable per measurement; when a
+number flips, isolate before concluding. For iet01 measurements the DSNout must stay iet01_Out.db (or the run
+behaves differently) — do NOT relocate it.
