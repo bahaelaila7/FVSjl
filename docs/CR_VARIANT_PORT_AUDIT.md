@@ -5231,3 +5231,12 @@ Since the height fixes change per-tree height → volume, re-ran the 40-stand DB
     stand >2%, SCuFt/BdFt perfect ⇒ accepted merch-threshold class; not root-caused to a single tree but strictly
     bounded. No regression from the height fixes (they only improved/held volume).
 VERDICT: CR volume is bit-exact (SCuFt/BdFt) or <2%-cornered (TCuFt/MCuFt merch-threshold) across the DB sweep.
+
+### TCuFt/MCuFt <2% — CONFIRMED accepted (measured bidirectional sign, not assumed)
+Doctrine-#2 check on the volume residual (this session's rule: don't file "accepted" without measuring): the
+TCuFt/MCuFt <2% divergence is BIDIRECTIONAL across stands — jl is HIGH on crt01 (2000 TCuFt 2291 vs live 2286,
++0.2%) but LOW on the out-of-region DB stands (1224249357290487 2031 5775 vs 5825, -0.9%). A systematic volume-eq
+transcription error would be one-directional (always high or always low); a bidirectional ±<2% straddle is the
+NINT/merch-threshold rounding primitive (sub-.sum-rounding dbh differences tipping trees across the merch/board
+boundary either way). BdFt bit-exact everywhere confirms the thresholded board equation is faithful. VERDICT:
+genuine accepted primitive (same class as the eastern variants' merch/board threshold), MEASURED not assumed.
