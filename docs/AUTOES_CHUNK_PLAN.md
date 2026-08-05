@@ -688,3 +688,17 @@ instrument intree/the tree array directly. The jl-side split (est 661 + remnant 
 UNCONTAMINATED (jl's own run) and stands: jl under-produces ~14% at cyc1, diffuse across established (~11% low)
 + remnant (declines vs live grows). DIFFUSE-RESIDUAL conclusion UNCHANGED; the estimated 745/280 target split
 still needs the non-invasive live measurement (DBS TreeList) to pin the established cap precisely.
+
+## ★ live split measurement BLOCKED both ways; target confirmed (2026-08-05 close-out)
+Attempts to measure the live THN3 established/remnant split at 2000:
+- Text TREELIST 2000: CONTAMINATES (alters the establishment sim → THN3 0/531 not 536/1025). Unusable.
+- DBS FVS_TreeList (iet01_Out.db): the DB is 80MB ACCUMULATED across many runs (stale S248112-1..4 CaseIDs +
+  fresh UUIDs); TPA is not clean per-acre (S248112-4 2000 est=2/rem=5247 ≠ THN3 .sum). Unusable without a fresh
+  isolated-DB run. To do it right: run iet01.key stand-4 ALONE with a FRESH DSNout DB (no accumulation), then
+  query FVS_TreeList THN3 2000 by DBH — a clean bounded step for the next pass.
+CONFIRMED this turn (the important result): the WORKING TARGET is correct — unmodified iet01.key block4=THN3=
+536/1025/1401/881/1324/1531/853/1412/1788/1286/1147. All prior analysis stands. jl's OWN cyc1 split (est 661 +
+rem 223 = 885, uncontaminated) is valid; the residual is diffuse (established ~11% low, remnant declines-vs-grows).
+NET: AUTOES v1 functional at mean|Δ| 22.3%, target verified, residual diffuse + attributed, the two remaining
+close-out steps (fresh-DB live split → established cap; remnant decline diagnosis → shared large-tree) are each
+bounded and need a fresh isolated measurement, not more inference.
