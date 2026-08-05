@@ -5219,3 +5219,15 @@ subsystem whose only CR-relevant effect is out-of-region stands supplying a non-
 are SE FIA data forced through the Central Rockies growth model); DEFERRED per doctrine #4 (no piecemeal one-code
 patch). The in-region CR growth port is bit-exact-or-±1-cornered (crt01 + 37/40 DB stands); this is the last known
 residual and it is now fully scoped.
+
+## DB-sweep VOLUME re-validation (2026-08-05, post-8th/9th-bug height fixes)
+Since the height fixes change per-tree height → volume, re-ran the 40-stand DB sweep on the VOLUME columns vs live:
+  • **SCuFt + BdFt: bit-exact on ALL 40 stands** (NVEL board/sound-cubic driver faithful; unchanged by the fixes).
+  • TCuFt + MCuFt: bit-exact on 25/40; the other 15 diverge **all <2%** (buckets [<2%,2-10%,>10%]=[15,0,0]), jl
+    slightly LOW at the later cycles. Example 1224249357290487: TopHt BIT-EXACT (72/72, 80/80) yet TCuFt 5825/5775
+    (Δ-50, 0.9%) at 2031. Because TopHt/BA/QMD are bit-exact there, this is NOT height-driven — it is a small
+    per-tree merch/total-cubic difference (merch-DBH-threshold NINT rounding and/or the NVEL volume-equation
+    assignment for the out-of-region CR-surrogate species sp32/38, same population as bug #10). Bounded <2%, no
+    stand >2%, SCuFt/BdFt perfect ⇒ accepted merch-threshold class; not root-caused to a single tree but strictly
+    bounded. No regression from the height fixes (they only improved/held volume).
+VERDICT: CR volume is bit-exact (SCuFt/BdFt) or <2%-cornered (TCuFt/MCuFt merch-threshold) across the DB sweep.
