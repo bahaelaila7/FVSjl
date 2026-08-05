@@ -163,3 +163,21 @@ match the measured DG (⇒ COR 0) while live's doesn't? Compare the GF DG-sample
 vs live at LSTART (doctrine-#3-valid: current-dbh calibration, pre-split). This is the residual driver — all other
 species' COR already bit-exact (=0). Magnitude still ~2% (GF is a fraction of cit01); a GF-specific DDS/calibration
 precision, not a whole-model bug.
+
+## 2026-08-05 — CI over-kill DEFINITIVELY root-caused = deferred DG serial-correlation ZZRAN (= task #142)
+Chased every wrong lead to ground (all red herrings, corrected by measurement): NOT backdated-density (calibration
+backdates correctly), NOT the GF COR (the GF DDS at PREDICTION is BIT-EXACT jl==live: i6 2.469860, i14 2.620788,
+i16 2.895830, i21 3.517574, i27 2.915112, all matching live ci/dgf.f WK2). ⇒ the CI DETERMINISTIC DG is FAITHFUL.
+The over-kill is the mortality DQ10 (jl 5.9687 / live 6.003, ba/bamax bit-exact) which uses the FINAL DG = DDS +
+the ZZRAN serial-correlation stochastic term (morts.f:257 G=DG(I)/BARK). MEASURED: jl CI c.sigma[1:5]=[0,0,0,0,0]
+(serial-corr DEFERRED) while dg_sd=1.7 — so jl's large-tree DG is purely deterministic and live's carries the
+serial-correlation deviate jl omits ⇒ the ~2% systematic over-kill. This is EXACTLY task #142 ("un-defer ZZRAN +
+large-tree DG-lag"). Root confirmed: CI's dg_resid_sd/SIGMAR is 0 (calibration leaves c.sigma=sigmar=0), so the
+CR-style serial-corr path (simulate.jl:68 cr_dgcons enables c.sigma=SIGMAR + the bachlo draw) never fires for CI.
+FIX (#142): set CI SIGMAR (per-species DG residual SD from ci/dgdriv.f DATA SIGMAR) + wire the serial-corr draw
+for CI (reuse the CR machinery). TRADE-OFF (documented, intentional): un-deferring converts the SYSTEMATIC ~2%
+over-kill (NOT cornered) into an accepted RNG-DESYNC straddle (cornered) — which MEETS the bit-exact-or-cornered
+bar. Adjacent bugs fixed en route (both faithful, .sum-inert for cit01 but correct for other-species CI stands):
+0fa9677 ci_bratio bark branch, 3b9aa35 CI_PSIGSQ branch. META (again): measure + refute your own leads — 3 wrong
+root-causes (backdated-density, GF-COR, bark) fell before the real one (deferred ZZRAN); the DG is deterministically
+bit-exact, which is the strong faithfulness result.
