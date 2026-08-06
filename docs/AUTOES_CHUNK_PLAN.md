@@ -1136,3 +1136,22 @@ Tallies fire at the SAME cycles but jl labels them ntally=99 (LINGRW ingrowth se
 ★ NET #143: one real source-verified bug FIXED (XCUF in last_xtes, faithful, inert-on-available-stands); the baaa-value
   semantics need per-NNID tree-level live instrumentation on the two contradictory stands. Five hypotheses tested (four
   refuted, XCUF confirmed-by-source). Live restored (0 residue).
+
+## 2026-08-06 (XCUF fix: exercise BLOCKED this session; inert-safe kept; a THIRD layer noted)
+Tried to EXERCISE the XCUF fix (force a volume-heavy removal to confirm it trips LAUTAL): THINPRSC 0.8 and a THINBTA
+to residual BA 30 on 12343703010690 BOTH removed ~nothing in jl (after-treatment BA == before, ntally stayed 99) —
+malformed test-keyword parameters, not a fix failure. The real repro (iet01 stand-4, a working shelterwood) can't run
+jl-side (the .tre parser returns 0 trees — separate gap). So the XCUF fix is UNEXERCISED this session; it is KEPT
+because it is source-verified faithful (esnutr.f:271-275 AMAX1(XTPA,XCUF)) AND inert-safe (guarded by rem.tpa>0 ⇒
+cannot regress when no removal occurs; cyc0 untouched; iet01's 99.9% shelterwood is TPA-heavy so the MAX is unchanged
+there ⇒ its bit-exact scheduler validation is preserved).
+★ THIRD interacting layer noted (for next session): establishment.jl:1082 `est.last_xtes = 0f0` CONSUMES the removal
+fraction EVERY cycle, right after ie_autoes_schedule! reads it — UNCONDITIONALLY (whether or not the tally fired). So
+a thin that sets last_xtes in cycle N is only usable by the schedule IN cycle N; if the 20-yr/idsdat rule doesn't fire
+that same cycle, the removal signal is discarded before the tally cycle. Live's LAUTAL uses a persisted disturbance
+date (IDSDAT) + the removal, not a one-cycle-consumed flag. So even with XCUF correct, the removal tally may not fire
+at the right cycle. NEXT SESSION #143 (three coupled sub-issues, needs a jl-runnable thinned+overstory IE stand):
+(1) EXERCISE + validate XCUF on a real removal; (2) last_xtes consume-timing vs live IDSDAT persistence; (3) the
+baaa VALUE per-NNID semantics (live BAAA 20.66 all-tiny vs 1.0 has-overstory — needs dense.f BAAA(IP) tree-level dump).
+The XCUF root cause is real and fixed; the AUTOES-removal path has these two further coupled layers. jl cyc0/growth/
+mortality/volume all unaffected (change is AUTOES-tally-only, inert on non-removal cycles).
