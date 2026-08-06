@@ -1155,3 +1155,24 @@ at the right cycle. NEXT SESSION #143 (three coupled sub-issues, needs a jl-runn
 baaa VALUE per-NNID semantics (live BAAA 20.66 all-tiny vs 1.0 has-overstory — needs dense.f BAAA(IP) tree-level dump).
 The XCUF root cause is real and fixed; the AUTOES-removal path has these two further coupled layers. jl cyc0/growth/
 mortality/volume all unaffected (change is AUTOES-tally-only, inert on non-removal cycles).
+
+## 2026-08-06 ★ UNBLOCKED — iet01 runs in jl via TREEFMT; #143 residual REPRODUCED + localized to tally-AMOUNT
+KEY ENABLER: iet01.tre needs its custom TREEFMT (in iet01.key: (T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,
+T63,F3.0,T60,F3.1,T48,I1,T52,I2,T66,5I1,T54,7I1,T75,F3.0)) — the earlier "load_trees! returns 0" was a keyfile-
+OMISSION on my part (my extracted stand-4 keyfile dropped the TREEFMT), NOT a jl parser bug. jl's run_keyfile handles
+TREEFMT fine. With the TREEFMT + CRLF-stripped .tre, jl RUNS iet01 stand-4 (the canonical #143 shelterwood stand).
+★ ON iet01 STAND-4 (THINPRSC 1990 0.999 shelterwood + AUTOES), jl vs live FVSie_clean .sum TPA:
+  1990 536/536 BIT-EXACT; then jl OVER-produces AUTOES regen: 2000 +20%, 2030 +48%, 2040 +59%, 2050 +76%, 2090 +55%.
+★ WHAT NOW MATCHES (big progress): jl fires the CORRECT tally TYPES — ntally=1/2 (LAUTAL removal/continuation) at
+  icyc 1/2/4/5/7/8 + ntally=99 (ingrowth) at icyc10 — the live pattern. And jl's baaa is CLOSE to the live target:
+  jl 40.0/43.4/1.0/1.11/1.0/3.8 vs live 41.93/46.17/1/1/1/4.79. So on the shelterwood stand the baaa INPUT and the
+  tally TYPE/SCHEDULE are ~right (the earlier DB-stand "16× baaa" was ingrowth-tally-at-different-state, a red herring).
+★ RESIDUAL LOCALIZED: the ~22% (here +13–76%) is the tally AMOUNT — jl's per-tally TOTAL trees produced is too high
+  (jl per-tally totals 1105/839/2006/809/1848/872/534). The memory's "tally computation bit-exact (WP33 WL20 DF7 GF202
+  WH222 RC50 ES23 AF27=583.7 on stand-4 1999)" was for ONE tally's species-split given its inputs; the multi-cycle
+  over-production is either (a) MORE tallies fired than live, or (b) each tally's total slightly high (baaa 40 vs 41.93
+  → PROB1 higher → more trees), compounding. NEXT (now fully doable in jl): dump live per-tally TOTAL (instrument
+  estab.f ITPP/booktpa) vs jl per-tally total at matched cycles on iet01 stand-4; if jl fires the same #tallies but each
+  is high, it's the baaa/PROB1 (~-4% baaa → the over-production); if jl fires MORE tallies, it's the schedule count.
+⇒ #143 is UNBLOCKED and REPRODUCIBLE in jl. The XCUF fix (2a27b78) is inert here (shelterwood is TPA-heavy) but
+correct for volume-heavy thins. Harness: scratchpad/iet01s4.key (+.tre, TREEFMT, CRLF-stripped) + iet01s4.jl.
