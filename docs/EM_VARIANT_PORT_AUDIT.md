@@ -507,3 +507,21 @@ under-thin (#137) is NOT a clean "route through the shared driver like BM/CR" �
 IPASS convergence added to EM's ORIGINAL-species SDI path while PRESERVING the added-species Hamilton branch (a
 hybrid, more involved than BM). Lower priority than #143 for EM real-FIA (mortality affects only the ~18 treed
 stands; AUTOES affects ~180). Harness: scratchpad em_sample.txt + em_sub.db + em_live.txt (reusable).
+
+### AUTOES architecture — SCOPE DE-RISKED (2026-08-06): shared estb/ model + variant species-crosswalk, NOT a 6280-line per-variant port
+Traced the FVS AUTOES data model to scope the EM extension (#143). KEY FINDING — the establishment model is almost
+entirely SHARED estb/ code+DATA, not variant-specific:
+- **ESTOCK stocking regression** (estb/estock.f): the SHAB(16)/SSER(5)/SPRE(3,4)/FORDF(20)/FORGF(20) coefficients +
+  the PN logistic are hardcoded DATA in the SHARED file — jl's `_IE_ESTOCK_SHAB/SSER/...` consts are actually these
+  SHARED coefficients (the `_IE_` prefix is misleading; they apply to all Northern-Rockies variants).
+- **Habitat-series maps** (estb/estab.f): MYTYPE(30)/MYHABG(16)/MYHTS(16) — the ITYPE→series/height-series maps —
+  are SHARED DATA (`MYTYPE/9*1,2*5,2*2,3*3,4,…/, MYHABG/4*1,4*2,3,4,6*5/`), same across variants.
+- **OCURHT occupancy + the species tally** (estb/esnutr.f/estab.f): built on a FIXED Northern-Rockies estb/ species
+  set that each variant crosswalks to its own species indices (IE 23 sp, EM 19 sp).
+⇒ VARIANT-SPECIFIC pieces are only: (a) habitat_code→ITYPE resolution (already read per-variant), (b) the estb-
+species ↔ variant-species crosswalk, (c) the species count. The DATA/model is shared and ALREADY PORTED as jl's
+ie_autoes_* (establishment.jl). ⇒ EM AUTOES = GENERALIZE ie_autoes_run/ie_autoes_tally/ie_autoes_establish! to be
+variant-agnostic (parameterize the species count + crosswalk, drop the `s.variant isa InlandEmpire` gate at
+simulate.jl:561) + wire EM's habitat + species map + validate vs FVSem_clean on the AUTOES-0 stands (em_sub.db). This
+is FAR more tractable than "port estb/ ~6280 lines". CAVEAT: jl's IE AUTOES is "v1" (~22% residual, target-
+contamination unresolved) so EM would inherit that maturity; the generalization is the enabling step. #143.
