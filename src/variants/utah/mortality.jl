@@ -22,15 +22,19 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     n = t.n; n == 0 && return s
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # grown-stand sums (morts.f): T (total tpa), DQ10 (QMD of DBH+DG), DQ0 (QMD of DBH).
-    tt = 0f0; sd2sq = 0f0; sd0sq = 0f0
+    # UT is a ZEIDE-SDI variant (LZEIDE=.TRUE., ut/grinit.f:133) ⇒ the stand diameter metric is Reineke's
+    # DR10=(Σ p·(D+G)^1.605 / T)^(1/1.605), NOT the quadratic mean (ut/morts.f:218-219,260-263 LZEIDE path).
+    # Using QMD over-stated DQ10 on dense sub-1" cohorts (0.7785 vs Zeide 0.5187) ⇒ TMD10 uncapped ⇒ TN10 low ⇒
+    # RN self-thin OVER-KILL (real-FIA sp814 oak seedlings: jl killed 45% vs live 11%, #147).
+    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = bark_ratio(bark_a, bark_b, sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); sd0sq += pr * d * d; tt += pr
+        sumdr10 += pr * (d + g)^1.605f0; sumdr0 += pr * d^1.605f0; tt += pr
     end
     tt < 1f-6 && return s
-    dq10 = sqrt(sd2sq / tt); dq0 = sqrt(sd0sq / tt)
+    dq10 = (sumdr10 / tt)^(1f0 / 1.605f0); dq0 = (sumdr0 / tt)^(1f0 / 1.605f0)
     if dq0 < 0.3f0; dq10 = 0.3f0 + dq10 - dq0; dq0 = 0.3f0; end
     # SDI self-thinning boundary (morts.f 320-485) — Zeide SDIMAX for UT.
     sdimax = stand_sdimax(s)
