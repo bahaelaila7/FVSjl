@@ -637,3 +637,22 @@ duplicates). NEXT: instrument the ESRANN call-count between consecutive ESTPP dr
 get the exact duplicate-plot advance, then make ie_autoes_plot_seeds use it for idup>1. This also affects IE
 real-FIA stands with idup>1 (the ~22% IE residual may share this root). Structural gap RESOLVED (e1dd44e); amount
 root now PRECISELY located (duplicate-plot RNG advance), body-count-nsp REFUTED, seed0/pre-ESTPP CONFIRMED correct.
+
+### AUTOES ingrowth amount BIT-EXACT (2026-08-06): 303→118=live, TWO measured root causes
+Full instrument-replay chain (live estab.f, EM stand 5332701010661, DB elevation NULL):
+1. **Per-plot RNG body** was hardcoded 135 (=16+69+50, IE-iet01-specific). Measured live per-plot ESRANN advance
+   (esrann.f call-counter): EM = 83 (constant, 137−54−…), IE iet01 = 135. Formula body = 16 + 3·nsp + 2·MAXTPP[ihab]
+   fits BOTH (IE 16+69+50=135, EM 16+57+10=83). Fixed ⇒ jl ITPP [1,2,1,1,3,3]=live bit-exact. This ALONE did not
+   fix the amount (still 321) — the ITPP was right but the per-tree magnitude was 2.7× high.
+2. **PROB1 = ESTOCK logistic used elev=0 not 55.** Live ESPROB = PROB1·NEWTPP/ITPP, PROB1 = 1/(1+exp(−(PN+ESB−
+   ESB1)))·STOADJ. Measured live: PN=−1.48962, ESB=ESB1=0, STOADJ=1 → PROB1=0.18398. jl: PN=−0.00143 → PROB1=0.4996.
+   ratio 0.4996/0.18398 = 2.716 = 321/118 EXACTLY. The sole divergent ESTOCK input: elev (live 55 vs jl 0). The
+   −0.027058·ELEV term = −1.488 = the entire PN gap. ROOT: em/grinit.f:190 `ELEV=55.` (variant default, hundreds-ft);
+   DB overrides only when >0 (dbsstandin.f:647); this stand's ELEVATION/ELEVFT are NULL ⇒ live keeps 55. jl's
+   forest_location elev fallback was SOUTHERN-GATED ⇒ western NULL-elev stands used 0. Fixed in fia_database.jl with
+   the per-variant grinit ELEV default (EM 55, BM 45, IE 38, KT 35, UT 83, TT 65, CI 50). VALIDATED: 4 NULL-elev EM
+   stands all jl=118=live bit-exact. NO regression: iet01 IE 536 (body inert nsp=23/ihab=10; .key skips DB reader),
+   emt01 EM 1990 bit-exact. SCOPE: the 54/200 NULL-elev EM DB stands are the EMPTY establishment stands; treed growth
+   stands all HAVE elevation ⇒ the cornered ~7%-BA growth-tail (treed) is UNAFFECTED (genuinely a separate phenomenon,
+   verdict stands). ⇒ EM AUTOES amount [#143] CLOSED. The elev-default fix is a cluster-wide correctness fix (ESTOCK
+   AND large-tree DG_EL·elev+DG_EL2·elev²) for any western NULL-elevation DB stand.
