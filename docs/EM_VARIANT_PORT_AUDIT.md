@@ -561,3 +561,18 @@ shared MYGRUP bracket + fixed 10-species estb set):
 Estimated ~30-50 line coding chunk (the machinery is all shared/ported). Ground truth + oracle in hand
 (FVSem_clean, em_sub.db). CAVEAT: inherits IE AUTOES v1 maturity (~22% residual). This closes the AUTOES SCOPING;
 the implementation is the next chunk.
+
+### Cluster habitat-type DEFAULT audit (2026-08-06) — no-PV_CODE real-FIA stands defaulted to the wrong ITYPE
+While tracing the EM AUTOES habitat chain, found jl mis-defaulted the habitat-type ITYPE for stands with NO PV_CODE
+in the DB (grassland/regen-heavy real-FIA — ~182/200 EM stands, many IE stands). Each variant's live default = its
+grinit ITYPE:
+- **EM** grinit ITYPE=29 → default (IEMTYP=29, ITYPE=NIHMAP[29]=4). jl was (1,1). FIXED 633a114, INSTRUMENT-VERIFIED
+  vs live (stand 5332701010661, PV_CODE NULL: live ITYPE=4).
+- **IE** grinit ITYPE=4 (ie/grinit.f:201; ie_habtyp keeps-prior on unmatched). jl fell back to 1. FIXED 8c86bc6,
+  source-faithful + iet01-validated (byte-unchanged), pending live-FVSie confirmation.
+- **UT/TT** grinit ITYPE=0 — jl already defaults to 0. No fix needed.
+IMPACT: corrects the ITYPE-keyed DG (DGCONS MAPHAB/MAPCCF) + ITYPE-keyed mortality + the AUTOES indices on every
+no-PV_CODE stand. emt01/iet01 (keyword habitats) byte-unchanged. The 4 EM treed no-PV_CODE stands shift +1-4% TPA =
+the known #137 under-thin exposed (the wrong itype=1 was a compensating error; doctrine #4 masked-bug signal, keep).
+This is essential groundwork for EM AUTOES (#143): the ~182 AUTOES-0 stands now carry the correct IHAB (=3 for the
+repro) for when the tally is wired.
