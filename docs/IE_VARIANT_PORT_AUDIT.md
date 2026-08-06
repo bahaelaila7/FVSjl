@@ -68,3 +68,14 @@ Built scratchpad/ie_test.db (3 dense-seedling IE stands from the 70GB DB, VARIAN
 IE CRVAR CO diameter fix (219d04f) is INERT on these (none are sp19/22 CRVAR) ⇒ non-regressive but unconfirmed-on-target;
 it is source-faithful (ie/regent.f:637-640 = the EM-validated block) + iet01-clean. The WH under-growth (#146) is a
 SEPARATE new lead (conifer, opposite direction, dense) — NOT the CRVAR fix (jl identical with/without).
+
+### WH under-growth [#146] — subcycle-1 HTGRL + coefficients MATCH (2026-08-06, paradox localized)
+Instrument-replay (ie/regent.f:500 vs jl regent.jl:194) on stand 753199439290487 WH seedling (D=0.1, H1=1.01):
+jl HTGRL=0.68317 vs live 0.67374 (jl slightly HIGHER, con=0.7259 both, h1 match); rdj jl 11.79 vs live 13.92
+(jl LOWER density ⇒ LESS suppression). HHT1[5]/HHT2[5] (H-D power) BIT-MATCH (0.0729/1.1988). ⇒ PARADOX: every
+measured subcycle-1 component says jl should grow ≥ live, yet jl under-grows 5× (QMD 0.23 vs 0.54). The divergence
+is therefore NOT height-suppression/coefficients — it is downstream: the MULTI-SUBCYCLE density-feedback trajectory
+(jl's rdnext/banext accumulation across subcycles diverging so later subcycles over-suppress) OR the final DDS→DG
+conversion (regent.jl:414-428 dk→dds→dg_inc). NEXT: dump the FULL per-subcycle (h1,h2,rdj,d2) trajectory for the
+WH seedling jl vs live — the height must reach ~9.7' in live (for d=0.54) vs jl's ~6.5' (d=0.23), so the height
+DIVERGES over subcycles 2+ despite matching at subcycle 1 ⇒ the rdnext density-feedback compounding is the prime suspect.
