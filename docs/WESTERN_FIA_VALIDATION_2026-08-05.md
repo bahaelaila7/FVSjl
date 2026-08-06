@@ -80,3 +80,18 @@ Run to settle #140 (foreground+per-stand-flush recipe; 35-stand subset of `extra
 The multi-stand sign-tally is what distinguishes a cornered straddle from a consistent bias — the single-stand
 net looked like tie-break noise. Root + fix path in docs/BM_VARIANT_PORT_AUDIT.md (jl mortality dq10 low →
 self-thin target too high → under-kill, amplified by QMD-feedback).
+
+## 2026-08-06 — BM real-FIA slice (post #154/#155) — bit-exact-or-cornered, ZERO crashes
+BM 12-stand stratified slice (build_subdb.jl BM 12 → indexed bm_sub.db; run_sweep_western.jl vs FVSbm_clean):
+- treed=7 (5 treeless excluded), **GROWTH-exact 7/7 = 100%** (TPA/BA/SDI/CCF/TopHt/QMD all bit-exact on real FIA).
+- **0 jl crashes, 0 live crashes.** ⇒ #154/#155 shared-path edits (establish!/esuckr!) cause ZERO regression on
+  real FIA data (they gate out on management-free stands; empirically confirmed).
+- VOL: only MCuFt/BdFt (merch cuft + board feet) diverge — 4 stands <2%, 1 at 3.2%, NONE >10%. NO TCuFt mismatch.
+  = the accepted merch/board-threshold precision tail (cornered). offenders: 12827438010497 BdFt Δ0.2%;
+  374435108489998 MCuFt/BdFt Δ1.1%; 1127619588290487 Δ0.8%; 41136808010497 Δ0.2%; 22960873010497 Δ3.2%.
+- ★ NOTE: the bmt01 1990 TCuFt Δ (1531 vs 1554) is bmt01-SPECIFIC (merch config / minor species) — on real FIA
+  stands TCuFt is bit-exact; only merch/board columns show the cornered tail. So BM volume is NOT systematically off.
+★ INFRA: the earlier BM-FIA "infrastructural block" = the 66GB master's UNINDEXED STAND_CN → every per-stand query
+full-scans the 2.2M/8M-row tables (minutes each). FIX = build_subdb.jl → small INDEXED subset DB (~100× faster).
+Reusable for ALL variants; this is how CI/IE slices ran. bm_sub.db built (12 stands, 123 tree rows).
+VERDICT: BM real-FIA = bit-exact-or-cornered (growth 100%, volume merch/board tail), matching CI/IE.
