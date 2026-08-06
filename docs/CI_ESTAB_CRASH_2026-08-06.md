@@ -63,3 +63,21 @@ code comment guessed. ⇒ the #154 fix per western variant = PORT that variant's
 essubh.f species equations are variant-specific DATA + a per-plot ESRANN perturbation) and wire it into the
 establishment.jl:258 dispatch. This is a real per-variant port (CI/BM/UT/TT/KT/IE), NOT a one-line guard. Measured
 target for CI sp2: ~1.5-1.9'. (UT additionally blocked by :essprt_fsp before reaching here.) Fresh-session chunk.
+
+## ★★ RESOLVED 2026-08-06 — essubh height dispatch wired for CI/BM/UT (#154 complete)
+The dispatch gap is CLOSED. No western variant falls to htcalc_height(bc=nothing) anymore.
+- **CI** (commit 2478583): ci_essubh (ci/essubh.f — EXP(PN), 19 species, UHAB/UPRE/UPHY) + PLANT no-draw.
+  cit01 RUNS (was crash). 1990 core BIT-EXACT; 2000+ = pre-existing #142 DGSCOR ~2%; seedlings .sum-inert.
+  ★ MEASURED essubh MEAN BIT-EXACT: live PN=1.11293781 == jl EXP(PN)=3.043 (AGE=7/BAA=1/IHTS=3/IPHY=3/
+  BNORM=1.093 all match). The height gap vs live is ENTIRELY disp=EMSQR·DILATE·BNORM: plot-1 EMSQR bit-exact
+  (+0.21862) but plots 2-50 desync because cit01's ESTAB fires the AUTOES natural-regen tally (per-plot ESRANN
+  inflation) that jl doesn't model (#143). disp=0 (median) until #143; .sum-inert. All pieces (BNORML table,
+  DILATE sqrt-shrink, em_ihtser==shared MYGRUP→MYHTS) are deterministic/measured.
+- **BM** (commit 8f10d8e): bm_essubh_hht = SMHTGF(MODE=0, DTIME=AGE), deterministic (bm/essubh.f discards
+  EMSQR/DILATE). bmt01 RUNS (was crash on clean HEAD). 1990 core BIT-EXACT; 2000+ = pre-existing #140 self-thin
+  under-kill (+15% by 2090); 1990 volume Δ 1531 vs 1554 = UPSTREAM of estab (pre-existing, flag BM volume).
+- **UT** (commit 6382953): _UT_ESSUBH_HHT fixed 24-species table (ut/essubh.f), unit-verified 24/24. E2E utt01
+  still gated on the SEPARATE #155 (aspen stump-sprout, essprt_sn dispatch) — NOT this height gap.
+- Shared: PLANT no-draw extended to EM|CI|BM|UT (estab.f:1035-1037 — no RAN on PLANT-no-userheight). CR/IE/TT
+  latent behind their essubh branches (validated on no-PLANT stands); fold in when a PLANT .key is validated.
+No regression: test_estab_pccf/lst01_estab pass; EM emt01 bit-exact; sprout tests pass.
