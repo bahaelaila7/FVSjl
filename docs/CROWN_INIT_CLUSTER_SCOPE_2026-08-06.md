@@ -33,3 +33,19 @@ EM/UT/TT. The mild UT/TT −3 to −7 BA on the densest stands is within the cor
 port would tighten it but is not needed for the bar). KT/IE untested here but expected similar (linear small-tree HTG).
 NOTE: this REFINES the campaign "unifying root" — the crown-init was the UNIFYING DIAGNOSIS but the SEVERITY is
 gated by each variant's CR=0 height floor; only BM's VIGOR made it a real bug.
+
+## IE added (2026-08-06 cont.) — confirms BM-specific scope
+IE (ie_test.db) dense conifer-seedling stands vs FVSie_clean:
+  12343703010690 (9 seed, 24 dead) live 2017 28930:15  jl 28915:16   (BA +1; close)
+  44987944020004 (7 seed, 2 dead)  live 32104:164      jl 32203:154  (BA −10, ~6%)
+  753199439290487 (WH sp263 dominant, TC=50376) live 45880:74  jl 45030:13  (BA 5.7× LOW)
+The 753199 5.7× under-growth is the ALREADY-KNOWN, CORNERED IE #146 (WH dense-seedling ZZRAN tripled-record height
+straddle; deterministic path bit-matches live, verified in the #146 work) — NOT a crown-init gap (IE's WH small-tree
+height model has no crown term). The other two IE stands are close (BA ±1 to −6%). ⇒ IE is bit-exact-or-cornered on
+dense seedlings, consistent with #150 being BM-specific-severe.
+
+## Final cluster verdict (#150)
+Measured EM, UT, TT, IE dense conifer-seedling real-FIA stands: NONE reproduces BM's severe crown-init gap. The only
+severe dense-seedling under-growths in the cluster are variant-specific KNOWN items — BM #149 (crown-init/VIGOR, FIXED)
+and IE #146 (WH ZZRAN straddle, cornered) — not a uniform missing-crown-init bug. KT unmeasured here (no mini-db built)
+but expected same (linear small-tree HTG; KT #141 regen already validated). #150 CLOSED as BM-specific-severe.
