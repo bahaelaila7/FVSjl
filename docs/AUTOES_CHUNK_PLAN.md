@@ -739,3 +739,18 @@ NET (final, verified): AUTOES v1 functional, target 1025/../1788 CONFIRMED (surv
 clean isolated test), residual diffuse+attributed. METHOD LESSON: change ONE variable per measurement; when a
 number flips, isolate before concluding. For iet01 measurements the DSNout must stay iet01_Out.db (or the run
 behaves differently) — do NOT relocate it.
+
+## 2026-08-06 — CURRENT-STATE MEASUREMENT (post #154; no regression) — residual = MULTI-TALLY RNG, not the model
+★ AUTOES IS INTEGRATED + FIRING: ie_autoes_establish! wired at simulate.jl:565 (IE||EM each cycle). estock/autoes
+unit tests PASS after this session's #154 establishment.jl edits (NO regression). The goal-file's "jl only does
+explicit PLANT/NATURAL" framing is STALE.
+★ MEASURED current residual (iet01 s4dbg AUTOES stand, jl vs live iet01_clean.sum):
+  2000 jl 531 / live 531 = BIT-EXACT (first tally); 2010 +0.7%; 2020 +30%; 2030 +19%; 2040 -7%; 2050 -9%; 2060 +29%.
+⇒ the FIRST AUTOES tally is BIT-EXACT; the ~22% "diffuse residual" is the MULTI-CYCLE RE-TALLY RNG stream diverging
+after the first tally — MIXED-SIGN ±20-30% per cycle (partially averaging). This matches the CI-essubh-disp finding
+(plot-1 EMSQR bit-exact, later plots/tallies desync = per-plot/re-tally ESRANN stream not aligned). ⇒ the remaining
+#143 work is NOT the tally model (bit-exact) NOR the initial wiring (done) — it is the MULTI-TALLY per-plot RE-SEED
+RNG stream alignment across cycles (the +10/+20yr re-tally scheduling + per-plot reseed advancing). Coupled RNG-stream
+work → fresh-session build. FIX PATH: instrument the live per-cycle re-tally ESRANN seed sequence (ESDRAW re-derivation
+at each re-tally) vs jl's ie_autoes_schedule!/plot-seed advance; align the re-seed. Refs: .iework/autoes_measure/
+(booktpa + instrumentation), simulate.jl:565, ie_autoes_schedule! (establishment.jl:948).
