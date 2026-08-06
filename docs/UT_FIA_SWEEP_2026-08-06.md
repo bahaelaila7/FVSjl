@@ -40,3 +40,12 @@ expose it. TT (teton/mortality.jl:145) uses the TMD10/TN10 self-thin ⇒ DR10 ap
 uses D10=DR10 for Zeide, but the BA→TPA conversion is QMD). ★ TT DR10 swap ATTEMPTED → CRASHED ttt01 (DomainError
 −0.0545 at volume.jl:61: (D+G)^1.605 surfaced a latent D+G<0 tree the old QMD (D+G)² tolerated) → REVERTED
 (doctrine #4). Tracked as #148. The UT #147 DR10 fix (6e57347) stands — validated, no crash on the UT sweep stands.
+
+### #148 TT DR10 fix — surfaces MULTIPLE latent TT bugs (2026-08-06, deferred)
+Re-attempted the TT DR10 mortality fix; it cascades through THREE latent jl bugs (all tolerated by the old QMD
+d*d/(d+g)² but not the Zeide ^1.605, and all masked on ttt01's normal treelist — the DR10 kill change alters
+which trees survive to volume): (1) fpow(negative,3f0) DomainError in the woodland volume cubic → FIXED generally
+in fmath.jl (gfortran-match); (2) a tree with NEGATIVE DBH reaches d^1.605 (jl-specific — live D≥0; old d*d
+tolerated); (3) after guarding both, a BoundsError in compute_volumes_tt!:61 (t.saw_cuft_vol[i] OOB) — the altered
+kill desyncs the treelist array sizing. ⇒ TT DR10 is CORRECT (Zeide) but blocked on these latent bugs + the MSTEM/
+FCLASS woodland-volume gap. REVERTED (doctrine #4). The general fpow fix is kept+committed. UT #147 stands.
