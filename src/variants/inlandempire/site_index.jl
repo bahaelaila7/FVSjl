@@ -120,7 +120,11 @@ function ie_site_index_setup!(s::StandState)
     kodtyp_in = Int(p.habitat_code)
     itype = kodtyp_in > 0 ? ie_habtyp(kodtyp_in) : Int(p.habitat_input)
     itype < 1 && (itype = Int(p.habitat_input))      # habtyp error path keeps prior ITYPE
-    (itype < 1 || itype > 30) && (itype = 1)
+    # ie/grinit.f:201 default ITYPE=4 (ie_habtyp returns 0 on an unmatched/absent code and "keeps prior" =
+    # the grinit default). jl previously fell back to 1 — WRONG on no-PV_CODE IE stands (same grinit-default
+    # class as the instrument-verified EM fix; iet01 has a habitat so is byte-unchanged). Source-faithful to
+    # grinit.f:201; pending live-FVSie ground-truth confirmation on a no-PV_CODE IE stand.
+    (itype < 1 || itype > 30) && (itype = 4)
     p.habitat_input = Int32(itype)                   # ITYPE for dgf!/ie_dgcons! (MAPHAB/MAPCCF)
     ie_sitset!(s, itype)
     return s
