@@ -240,3 +240,17 @@ must use a birth-cycle TPCCF that EXCLUDES the newly-established regen (the pre-
 RDNEXT that regent.f:label-8 builds), NOT the post-establish dense point_ccf. That will raise jl htgrth 0.15→~1.04 and
 should close the em_plant_dense +10-29% early residual. (Note: cr_esgent!/tt_esgent! got away with the post-establish
 point_ccf because their test stands lack a 6000-TPA dense-regen event; this is the SAME "dense regime exposes it" META.)
+
+## #152 ROOT (corrected) — it's the CROWN, not TPCCF: em_esgent! runs before the regen crown is dubbed
+Tested _em_smhtgf(3=DF, cr, tpccf, 0) directly: cr=0/tpccf=25 → 0.11 (=jl's em_esgent! value!); cr=82/tpccf=25 → 1.38;
+cr=82/tpccf=100 → 0.90 (live HTGRR≈1.04 sits at cr~82, tpccf~70). So jl's em_esgent! htgrth=0.1-0.15 is the cr=0 curve.
+ROOT: establish! adds the regen with ICR=0 (simulate.jl:562 "adds regen (ICR=0)"), and the crown is dubbed by
+crown_ratio_update! at simulate.jl:573 — AFTER em_esgent! at :569. So em_esgent! reads crown_pct=0 ⇒ _em_smhtgf HTG1
+= BETA1 + BETA2·0 = BETA1 only ⇒ suppressed (0.1). Live's establishment (estb/estab.f) assigns the regen crown BEFORE
+esgent grows it (cr~82 for planted DF) ⇒ HTGRR~1.04. This is a SHARED esgent ordering issue (cr_esgent!/tt_esgent!
+also read t.crown_pct before the :573 dub) — masked for CR/TT because their test stands lack a dense-regen event where
+cr matters, and because the crown TERM dominates only for the EMVAR SMHTGF form. #152 FIX (direction): dub the
+just-established regen's crown BEFORE the birth-cycle esgent (mirror live estab.f's ICR assignment, or run the crown
+dub for the new records before em_esgent!), so em_esgent! sees cr~82 not 0. Needs the establishment-crown value/order
+matched to live (instrument estab.f ICR for the planted cohort). ⇒ #152 is a CROWN-BEFORE-ESGENT ordering fix, not a
+TPCCF fix (supersedes the prior TPCCF hypothesis — corrected by the direct _em_smhtgf test).
