@@ -41,3 +41,11 @@ does not cover the hardwood DIAGR/UTVAR seedling paths). NEXT: instrument jl vs 
 (OH) + 746 (AS) 0.1" seedlings on this stand (pre-tripling window, doctrine #3) — pick the over-growing form and
 compare to the em/regent.f DIAGR/aspen small-tree DG. Likely the OH/aspen seedling DG lacks a size cap or uses the
 large-tree form. Real-FIA-relevant (dense hardwood regen stands), NOT cornered (2× is far beyond the tie-break bar).
+
+## OUTLIER FIXED (2026-08-06, 5116924) — EM CRVAR small-tree diameter
+ROOT (source em/regent.f:599-603): the jl CRVAR regent pass (GA/CW/BA/PW/NC/OH) set only HEIGHT — D<1 seedlings
+kept the large-tree DIAGR diameter growth (~0.92"/cycle on a 0.1" seedling, density-dependent ⇒ huge on the
+dense 6081-TPA stand). Fortran: `ELSEIF(CRVAR) D2=D; IF(D.GE.1.0)GO TO 15; IF(H2.LE.4.5)D2=D+0.0001*H2`. FIX =
+add the sub-BH nominal diameter for D<1 (regent.jl CRVAR pass). VALIDATED: 225065919010661 cyc1 BA 96→48 (=live
+49), TPA 5924→5436 (=live 5447); 1856105255290487 66→61 (=live 61); emt01 bit-exact, em_CW bit-exact, em_COseed
+bit-exact-or-cornered, 6/6 empty AUTOES 118, 0 regressions. ⇒ ALL 12 sweep stands now bit-exact-or-cornered.
