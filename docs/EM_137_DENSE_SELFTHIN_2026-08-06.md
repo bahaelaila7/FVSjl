@@ -43,3 +43,17 @@ diameter growth (which only starts >4.5') is delayed ⇒ BA lag ⇒ later self-t
 mechanism as BM #149, but here for PLANTED trees under DENSE competition (crown≠0, so NOT the crown-init — it's the
 SMHTGF height RATE under high TPCCF/BAL). ⇒ the instrument target is em/regent.f SMHTGF htg1=beta1+beta2·CR under
 the dense-cohort competition inputs: does jl's height growth (or the competition attenuation of it) run low vs live?
+
+## Root NARROWED — small-tree HTG RATE under dense competition (initial height RULED OUT)
+- jl's EM planted base height (em/essubh.f, HHT=EXP(PN)) is ALREADY validated bit-exact vs FVSem on em_plant.key
+  (DF PN=0.156307 HHT=1.18492; establishment.jl:4). And essubh clamps BAA∈[1,400] — at cyc0 both the 400- and
+  6000-TPA cohorts have BA≈0 ⇒ BAA clamps to 1 ⇒ IDENTICAL initial HHT. ⇒ the divergence is NOT the planted
+  initial height.
+- em_plant (400 TPA, low competition) is TPA-bit-exact + BA converges; em_plant_dense (6000 TPA) diverges. The ONLY
+  difference is DENSITY. ⇒ jl's small-tree HEIGHT growth (em/regent.f SMHTGF) OVER-SUPPRESSES under high competition
+  (dense TPCCF/BAL/RELDEN): over the first 10-yr cycle jl's cohort grows shorter → stays <4.5' → dbh/BA=0 at 2000
+  (vs live BA=2) → BA lag compounds → later self-thin → under-kill (+12.6% TPA by 2090).
+- DECISIVE NEXT MEASUREMENT: instrument-replay em/regent.f SMHTGF on em_plant_dense.key (live) — dump the per-tree
+  small-tree HTG and its competition inputs (TPCCF/BAL/CCF/attenuation) at cyc0 — vs jl's em small-tree HTG for the
+  same tree. Whichever competition term jl applies differently (or an attenuation/cap jl over-applies at high density)
+  is the root. Then decide real-bug-vs-cornered. (Doctrine #2: MEASURE; #3: use .sum/pre-split, cohort is tripled.)
