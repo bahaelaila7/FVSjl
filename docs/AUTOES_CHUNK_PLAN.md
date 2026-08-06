@@ -1192,3 +1192,17 @@ NEWTPP/ITPP·DUPNPT per tally vs jl per-tally total at matched cycles on iet01 s
 diverges, it's regen survival/mortality of the AUTOES cohort (not the tally). Harness ready (iet01s4.{key,tre,jl}).
 ⇒ #143 residual = AUTOES-cohort AMOUNT, ITPP bit-exact, root now downstream (dupnpt / tally-count / regen-survival);
 survival is the leading candidate given the compounding. jl unchanged this turn.
+
+## 2026-08-06 (units caution — AUTOES_IN "total" is PRE-scaling, NOT per-acre; use .sum for the real figure)
+Ran live iet01 stand-4 with RegRepts: the regen report prints "TREES/ACRE ADDED" per tally (e.g. 109.3 ingrowth in
+FALL 2089, species split 21/0/1/61/6/18/0/0/3...). jl's FVSJL_AUTOES_DEBUG "total=" (e.g. 533.8 at icyc10) is a
+PRE-scaling sum(r.tally), NOT the per-acre added trees — comparing them directly (533.8 vs 109.3 ⇒ "~5×") is a UNITS
+ARTIFACT and WRONG: the real per-acre over-production is the .sum TPA divergence (+13–76%), which a true 5× could not
+produce. So jl's per-acre regen addition is +13–76% high, not 5×. ⇒ the clean per-tally comparison must be at the
+PER-ACRE level: instrument jl to emit its per-cycle per-acre added-trees (the regen-report equivalent, post dupnpt/300
+scaling) OR read jl's cohort TPA delta pre-mortality, then diff vs live's RegRepts "TREES/ACRE ADDED" at matched
+cycles. Only that isolates per-acre-tally-amount vs survival. (Doctrine #2: caught the units mismatch before concluding
+— the AUTOES_IN debug counter is an internal pre-scaling total, useful for tally TYPE/baaa but NOT for per-acre amount.)
+★ #143 status unchanged & accurate: residual = AUTOES-cohort per-acre amount +13–76% on iet01 s4 (ITPP bit-exact,
+tally-type + baaa matching); root still downstream (dupnpt/300 scaling vs survival). Live clean (RegRepts is a keyword,
+no source change). Harness: iet01s4r.key (adds RegRepts) for the live per-acre reference (109.3-type figures).
