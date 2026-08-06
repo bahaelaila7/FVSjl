@@ -45,3 +45,12 @@ CR is "COMPLETE" but would ALSO crash here on a PLANT/ESTAB .key — its DB-swee
 ⇒ this is a cluster-wide ESTAB-height gap; only EM (this session) + NE/CS/LS (eastern) are wired. Reproduction:
 any western .key with PLANT/ESTAB (cit01/bmt01/utt01) + run_keyfile. Handoff — NO fix-hypothesis on the exact heights
 (fatigue lesson); the DISPATCH GAP is the solid measured root.
+
+## EMPIRICAL CONFIRMATION (ran bmt01/utt01 through jl)
+- BM bmt01.key: CRASHES at the SAME getindex(::Nothing) (htcalc_height bc=nothing) ⇒ #154 dispatch gap CONFIRMED for BM.
+- UT utt01.key: crashes EARLIER at `KeyError: :essprt_fsp` (a SEPARATE UT establishment bug — stump-sprout ESSPRT
+  coefficients unwired; noted earlier this session) ⇒ UT has an ADDITIONAL crash that precedes the htcalc_height path.
+So: htcalc_height dispatch gap (#154) = CONFIRMED BM+CI, INFERRED CR/IE/TT (same ELSE→htcalc_height(bc=nothing) path,
+deterministic); UT would also hit it but crashes first at :essprt_fsp. ⇒ #154 fix (wire western establishment-height
+branches) closes CR/IE/TT/BM/CI; UT needs BOTH #154 + the :essprt_fsp stump-sprout wiring. Two distinct western-estab
+bugs, both blocking PLANT/ESTAB projection.
