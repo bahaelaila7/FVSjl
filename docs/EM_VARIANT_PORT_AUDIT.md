@@ -576,3 +576,17 @@ no-PV_CODE stand. emt01/iet01 (keyword habitats) byte-unchanged. The 4 EM treed 
 the known #137 under-thin exposed (the wrong itype=1 was a compensating error; doctrine #4 masked-bug signal, keep).
 This is essential groundwork for EM AUTOES (#143): the ~182 AUTOES-0 stands now carry the correct IHAB (=3 for the
 repro) for when the tally is wired.
+
+### AUTOES tally-AMOUNT — two distinct paths (2026-08-06 measured): disturbance=PLPROB, ingrowth=per-tree-TPA
+Instrument-replay on the EM repro (treeless→INGROWTH tally, FVSem_trc estab.f:7009): ITPP=1-2 trees/plot, PLPROB=0.0,
+DUPNPT=50, INGRO=1. ⇒ the AUTOES over-production has TWO distinct amount paths:
+- **Disturbance tally** (stand had overstory removed): total → PLPROB (Σ per-species probs, estab.f:313/541); the
+  per-tree booking prob1·300/dupnpt × capped-ITPP diverges from PLPROB = IE's ~22% stand4 residual. FIX: book
+  tpaw=PLPROB/ITPP (total=PLPROB). [The earlier "book to PLPROB" recipe applies HERE.]
+- **Ingrowth tally** (bare stand, itrn==0&icyc==1 — the ~182 EM real-FIA stands): PLPROB=0, so the total is NOT
+  PLPROB. It = Σ_plots ITPP · per-tree-TPA. jl over-produces ~2.6× (repro 303 vs live 118) ⇒ jl's INGROWTH per-tree
+  TPA (esprob·300/dupnpt with esprob=p1·newtpp/itpp) is ~2.6× live's. The live ingrowth per-tree TPA formula (a
+  different scaling — possibly the SHORTY/ingrowth-time path, or a smaller constant than 300) needs tracing in
+  esaddt.f / the ingrowth booking. ⇒ EM's dominant residual is the INGROWTH per-tree TPA, DISTINCT from IE's
+  disturbance PLPROB residual. Both are the #143 tally-amount close-out but need SEPARATE fixes. Structural gap
+  (empty stands) already RESOLVED (e1dd44e).
