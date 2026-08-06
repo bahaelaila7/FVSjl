@@ -184,7 +184,11 @@ function bm_sitset!(s::StandState)
     # PP=395/DF=446 for such stands). Default to it so the fallback matches live instead of zeroing.
     isempty(pcom) && (pcom = "CWG113")
     rows = bm_ecocls(pcom)
-    isisp = 0; jsisp = 0
+    # bm/sitset.f:121 `IF(ISISP.LE.0 .AND. ISFLAG.EQ.1) ISISP=ISEQ` — the ecoclass override fires ONLY when
+    # ISISP is not already set. A DB SITE_SPECIES (dbsstandin.f) / SITECODE keyword sets ISISP on input, so live
+    # KEEPS the user-provided site species; jl reset it to 0, clobbering e.g. a DB GF(4) with the ecoclass LP(10).
+    # That fed the wrong SITEAR(ISISP) → wrong RMAI (maical) + wrong HTCALC site propagation to all species.
+    isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0; jsisp = 0
     for r in rows
         iseq = r.fvsseq
         iseq == 0 && continue
