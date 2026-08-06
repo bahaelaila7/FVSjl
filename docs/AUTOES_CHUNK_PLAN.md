@@ -754,3 +754,19 @@ RNG stream alignment across cycles (the +10/+20yr re-tally scheduling + per-plot
 work → fresh-session build. FIX PATH: instrument the live per-cycle re-tally ESRANN seed sequence (ESDRAW re-derivation
 at each re-tally) vs jl's ie_autoes_schedule!/plot-seed advance; align the re-seed. Refs: .iework/autoes_measure/
 (booktpa + instrumentation), simulate.jl:565, ie_autoes_schedule! (establishment.jl:948).
+
+## 2026-08-06 (CORRECTED via direct per-cycle tally instrumentation) — residual = SCHEDULER + NSTORE BOOKING
+★ SELF-CORRECTION (doctrine #2): the earlier "first tally bit-exact, subtle multi-tally RNG drift" was inferred from
+a MISALIGNED .sum stand comparison (jl AUTOES stand vs live stand4 = different stands). Direct per-cycle tally
+instrumentation (FVSJL_AUTOES_DEBUG in ie_autoes_establish!) gives the REAL picture:
+  jl per-cycle tally TOTAL (icyc/ntally/total):  1/99/583.7  3/99/649.9  4/1/1856  5/2/27  7/1/1817  8/2/630  10/99/0.1
+  LIVE (stand4_ntally_sequence.txt):             1/99/0      3/99/468    4/1/206   5/2/419 7/1/11    8/2/225  10/99/472
+★ CONFIRMED: the tally COMPUTATION is bit-exact — jl icyc1=583.7 perSp[33,20,7,202,222,50,23,27] == the chunk-plan
+validated WP33/WL20/DF7/GF202/WH222/RC50/ES23/AF27. ⇒ the residual is NOT the tally model and NOT RNG drift; it is the
+ENGINE SCHEDULING + BOOKING: (a) jl fires tallies at different YEARS (icyc1=1990 vs live 1999 — a ~9yr offset in the
+esnutr fire-timing / IY(icyc) cycle-year mapping); (b) per-cycle BOOKED amount diverges massively (jl books the full
+583.7 at cyc1; live books 0 at cyc1, 468 at cyc3 — the NSTORE continuation booking [ITPP−NSTORE per plot] and the
+disturbance/ingrowth schedule don't match live). ⇒ #143 FIX = align ie_autoes_schedule! fire-timing (fire-YEAR /
+IDSDAT / IY-mapping) + the NSTORE per-cycle booking to the live sequence above (exact target per icyc/ntally/total).
+This is the sharp, actionable target — a scheduler+booking alignment, validated against the 7-tally live sequence,
+NOT a coupled RNG mystery. (Debug hook kept ENV-gated in ie_autoes_establish! for the fix session.)
