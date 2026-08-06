@@ -801,3 +801,22 @@ against the exact ITPP sequence. (stand4_itpp_newtpp.txt has the per-plot ITPP/N
   live's per-cycle seed0/baaa/nstore + the ITPP/NEWTPP booking (AUTOESXTES/ITPPTRC in .iework/autoes_measure/) vs jl's,
   cycle by cycle, starting at icyc1 (why live books 0) then the seed/baaa/nstore chain for icyc3+. The tally MODEL and
   SCHEDULER are bit-exact; only the per-cycle amount-input state diverges. This is the exact, measure-narrowed target.
+
+## 2026-08-06 (ROOT CAUSE — the divergent input is BAAA) — jl uses growing overstory BA, not disturbance-adjusted BAAA
+★ Compared jl's per-cycle tally INPUTS (seed0/es_stream/baaa) to the prior session's live instrumentation
+(stand4_ess0_states.txt, stand4_estock_inputs.txt). DEFINITIVE root cause = the BAAA (per-point basal area) input:
+  cycle:        icyc1   icyc3   icyc4   icyc5   icyc7   icyc8   icyc10
+  jl baaa:      0.0     10.27   137.09  491.57  69.17   136.69  848.44
+  live BAA:     41.93   46.17   1.00    1.00    1.00    4.79    50.05   (stand4_estock_inputs ESTOCKIN col6)
+⇒ jl uses s.density.point_ba[1] = the GROWING OVERSTORY total BA (0→137→491→848 as the regen cohort grows), but
+live's BAAA(NNID) is the DISTURBANCE-ADJUSTED per-inventory-point BA: 41.93 at the inventory-year calibration, then
+DROPS to ~1.0 after a heavy overstory removal (the bare regen point), recovering slowly. The code comment at
+establishment.jl:1104 anticipated exactly this ("BAAA(NNID), NOT the whole-stand BA; after removal → BAAA≈1;
+validated jl point_ba[1]=40 vs live 41.93 at cyc1") — but the current point_ba[1] gives 0 at icyc1 and the growing
+overstory total thereafter, NOT the disturbance-adjusted BAAA. High/wrong BAAA → wrong ESTOCK PN → wrong PROB1 →
+wrong tally amount (the 4-9× divergence). SECONDARY: the es_stream seed chain (jl 78807/32485/62399 reached at
+icyc1/3/4 vs live ESS0 55329/78807/32485/62399 at icyc1/4/7/10) advances at the wrong cycles — but BAAA is the
+dominant driver. ★ FIX = derive baaa as the disturbance-adjusted per-INVENTORY-POINT BAAA (inventory-year = the ESB
+BAAOLD/STDINFO BA ~41.93; post-removal = the bare regen-point BA ~1; NOT the growing s.density.point_ba), matching the
+live ESTOCKIN sequence 41.93/46.17/1/1/1/4.79/50.05. This is the exact, target-valued root cause — a specific input-
+derivation bug, NOT a coupled RNG mystery. (ENV-gated AUTOES_IN debug in ie_autoes_establish! dumps seed0/es_stream/baaa.)

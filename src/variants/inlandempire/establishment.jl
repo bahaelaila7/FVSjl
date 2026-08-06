@@ -1147,7 +1147,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
-        println(stderr, "AUTOES_TALLY icyc=$icyc year=$year ntally=$(_ntally) total=$(round(sum(r.tally),digits=1)) perSp=", [round(r.tally[sp],digits=0) for sp in 1:nsp if r.tally[sp]>0.5])
+        println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
     t = s.trees
     xmin = _IE_ES_XMIN
     created = false
