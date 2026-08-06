@@ -927,3 +927,24 @@ the FULL stand-4 block (ierun/iet01.key lines 137-end: DESIGN, STDINFO 118/570/6
 jl's per-tally baaa and diff against 41.93/46.17/1/1/1/4.79/50.05. THEN implement + validate vs the stand-4 .sum
 (NOT per-record — AUTOES adds trees ⇒ tripling). Regression-scope: AUTOES fires POST-disturbance (post-cyc0), so the
 IE cyc0 8/9 bit-exact is not at risk; the risk is contained to the (already-diverging) AUTOES tally output.
+
+## 2026-08-06 (jl trigger-chain map) — why AUTOES doesn't fire on the keyfile iet01 stand-4
+Attempted the jl-side per-tally baaa measurement. Built a full stand-4 keyfile (DESIGN/STDINFO 118/570/60/315/30/34/
+INVYEAR 1990/NUMCYCLE 10/THINPRSC 1990 0.999/SPECPREF/THINBTA) with a matching .tre (jl auto-reads base_path.tre when
+no TREEDATA keyword loads — keyword_dispatch.jl:2186; the earlier NaN was just a missing iet01_s4.tre → empty stand).
+RESULT: the projection runs 10 cycles but **AUTOES NEVER FIRES** (zero AUTOES_IN debug lines). TRIGGER CHAIN mapped:
+  simulate.jl:565 ie_autoes_establish! is called EVERY cycle for IE/EM, but
+  establishment.jl:1062 gates on `(est.lautal || est.lingrw) || return false`, and
+  establishment.jl:1081 `ie_autoes_schedule!(…, est.last_xtes, …)` uses last_xtes = the thinning REMOVAL FRACTION.
+⇒ On this keyfile stand-4, neither lautal is set nor is last_xtes armed by the THINPRSC 1990 0.999 removal. So the
+INTEGRATION GAP to close FIRST (before the baaa fix can even be measured jl-side) is: (a) default lautal=TRUE (live
+FVS runs AUTOES ON unless NOAUTOES — iet01 stands 1-3 carry NOAUTOES, stand-4 relies on the default-on), and/or (b)
+have the THINPRSC/thinning path set est.last_xtes = the removed BA fraction so ie_autoes_schedule! detects the
+disturbance. Only once AUTOES fires jl-side can the per-tally baaa be diffed against the live 41.93/46.17/1/1/1/4.79/
+50.05 and the per-inventory-point BAAA/BAAINV fix be validated. NOTE: the memory's "AUTOES wired + scheduler bit-exact"
+was validated on the real-FIA/DB path (which arms lautal/last_xtes differently); the KEYFILE THINPRSC path is a
+separate integration surface. SEPARATE minor edge found: on this 99.9%-removal stand jl's .sum writer NaNs at
+summary.jl:319 (`dt` truncates NaN — a per-year rate ÷ ~0 residual BA); keyfile-specific (real-FIA sweep = 0 crashes),
+low-priority robustness note. ⇒ #143 next session, in order: (1) arm the keyfile AUTOES trigger (lautal default +
+last_xtes from THINPRSC), (2) confirm jl fires + dump per-tally baaa, (3) implement per-point overstory-BA (BAAA) vs
+frozen inventory-BA (BAAINV) split, (4) validate vs iet01 stand-4 .sum. The live-side ground truth is already measured.
