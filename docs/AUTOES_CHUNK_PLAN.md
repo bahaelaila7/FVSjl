@@ -786,3 +786,18 @@ deferred amount live books. FIX = in ie_autoes_establish!, book ITPP (capped+NST
 match the icyc1-books-0 / deferred-cycle schedule. EXACT per-cycle target (ITPP booked): icyc1=0, 3=468, 4=206, 5=419,
 7=11, 8=225, 10=472 (stand4_ntally_sequence.txt). This is the precise, bounded target — the booking step, validated
 against the exact ITPP sequence. (stand4_itpp_newtpp.txt has the per-plot ITPP/NEWTPP breakdown for the fix.)
+
+## 2026-08-06 (DECISIVE, measure-verified) — SCHEDULER is BIT-EXACT; residual = per-cycle TALLY-AMOUNT inputs
+★ Instrumented jl's full per-tally schedule (idsdat/kdt/time/ntally) vs live AUTOESTRC — ALL BIT-EXACT:
+  icyc/kdt/idsdat/time/ntally = 1/1999/1980/1/99 · 3/2019/2000/1/99 · 4/2029/2020/10/1 · 5/2039/2020/20/2 ·
+  7/2059/2050/10/1 · 8/2069/2050/20/2 · 10/2089/2070/1/99 — jl == live EXACTLY. ⇒ BOTH prior hypotheses
+  ("multi-tally RNG drift" AND "scheduler fire-timing offset") are REFUTED by measurement (doctrine #2, 3rd correction).
+★ The residual is PURELY the per-cycle tally AMOUNT: jl total vs live booked = icyc1 583.7/0 · 3 650/468 · 4 1856/206
+  · 5 27/419 · 7 1817/11 · 8 630/225 · 10 0.1/472. jl is 4-9× HIGH on most cycles. Since ie_autoes_tally is bit-exact
+  for the validated inputs (583.65) and the SCHEDULE inputs (idsdat/time/ntally) match, the divergence is the OTHER
+  per-cycle inputs to the tally: the seed0/es_stream ESAVE chain, the per-point baaa, and the es_nstore continuation
+  state — AND jl books the FULL tally at icyc1 (idsdat=1980, a PRE-inventory disturbance whose ingrowth is already in
+  the 1990 inventory) where live books 0 (ESB inventory-calibration zeroes pre-inventory ingrowth). FIX PATH: instrument
+  live's per-cycle seed0/baaa/nstore + the ITPP/NEWTPP booking (AUTOESXTES/ITPPTRC in .iework/autoes_measure/) vs jl's,
+  cycle by cycle, starting at icyc1 (why live books 0) then the seed/baaa/nstore chain for icyc3+. The tally MODEL and
+  SCHEDULER are bit-exact; only the per-cycle amount-input state diverges. This is the exact, measure-narrowed target.
