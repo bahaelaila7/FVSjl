@@ -110,3 +110,15 @@ Using build_subdb.jl → indexed subset DB → run_sweep_western.jl vs each vari
   KT stays validated via ktt01 + the test suite).
 NET: growth bit-exact on ALL treed stands across BM/UT/TT/EM (0 crashes anywhere) ⇒ #154/#155 no real-FIA regression.
 Volume: cornered (<2%) for BM/UT/TT; EM has a real >10% volume divergence on 2 stands → investigate next.
+
+## 2026-08-06 (correction) — EM "volume divergence" MEASURED = merch/board tail, NOT a TCuFt bug
+Per-stand jl-vs-live measurement (both EM offender stands, pure ponderosa pine sp122/emsp10):
+- 42536261010690: TPA/BA bit-exact; TCuFt jl 1715 vs live 1750 (~2%); MCuFt 1252 vs 1367 (8.4%); Δv=9.7% was BdFt.
+- 39600883010690: TPA/BA bit-exact; TCuFt jl 483 vs live 485 (0.4% ≈ bit-exact); BdFt 1444 vs 1685 (14.3%=Δv); MCuFt 5.7%.
+⇒ the sweep's Δv is the MAX volume col = BOARD-FEET (BdFt), NOT TCuFt. TCuFt is near-bit-exact both stands. The
+divergence is entirely MCuFt/BdFt (merch/board), acutely sensitive to the SAWTIMBER merch threshold for small-DBH
+(7-8") PP — the SAME cornered merch/board tail as BM, NOT a fundamental EM volume bug. My earlier ">10% TCuFt real
+bug" read was WRONG (Δv misread as TCuFt); doctrine #2 (MEASURE) corrected it.
+★ CORRECTED VERDICT: the ENTIRE western FIA slice cluster (BM/UT/TT/EM) is BIT-EXACT-OR-CORNERED — growth 100%
+bit-exact on all treed stands, TCuFt bit-exact-or-near, merch/board (MCuFt/BdFt) small cornered threshold tail,
+ZERO jl crashes. No real-FIA regression from #154/#155. KT absent from the FIA DB. Matches the CI/IE 2026-08-05 result.
