@@ -852,3 +852,18 @@ derivation: BAAINV at the inventory year (where 41.93 comes from — likely STDI
 stand is empty of trees), and the post-removal per-regen-point BA (~1). This is the exact, target-valued fix; the
 tally COMPUTATION + SCHEDULER remain bit-exact. Fresh-session BAAA(NNID)-derivation port, verifiable via the AUTOES_IN
 debug + the live ESTOCKIN/tally target sequences.
+
+## 2026-08-06 (CAUTION — prior instrumentation is INCONSISTENT; re-instrument live for the fix)
+★ The prior-session instrumentation files DISAGREE on the scheduler: stand4_REAL_scheduler.txt (idsdat=1990/ntally=1/
+tally 81,852,118,337,48,261 / computed AUTOESXTES 589.65) vs stand4_ntally_sequence.txt (idsdat=1980/ntally=99/tally
+0,468,206,419,11,225,472 / computed matching jl 583.65). Different captures during model development. ⇒ the SCHEDULER
+(idsdat/ntally/tally) comparison must use FRESH live FVSie instrumentation, NOT these stale files — my earlier
+"scheduler bit-exact" claim was against stand4_ntally_sequence.txt (which jl happens to match) but stand4_REAL_
+scheduler.txt differs; re-instrument to establish the authoritative current live schedule before trusting either.
+★ SOLID + CONSISTENT across BOTH files: the baaa root cause. PROB1TRC col3 = BAAOLD = 41.93/46.17/1/1/1/4.79/50.05
+(== ESTOCKIN col6) — the disturbance-adjusted per-inventory-point reference jl must feed ESTOCK (vs jl's growing
+point_ba[1]). 41.93 = the inventory-year BAAOLD calibration for the TREE-EMPTY stand (ntrees=0), NOT from STDINFO's
+34.0 field — so it is computed from the stand's density/stocking (BAAINV); trace estab.f/dense.f BAAINV to source it.
+NET for the fix session: (1) RE-INSTRUMENT live FVSie (fresh Fortran instrument-replay) for the authoritative
+per-cycle idsdat/ntally/seed0/baaa/tally — do NOT trust the inconsistent stale files for scheduling; (2) the baaa
+source fix (BAAA(NNID)=BAAOLD calibration/disturbance ref, not point_ba) is the confirmed root cause to implement.
