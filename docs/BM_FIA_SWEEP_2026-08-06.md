@@ -80,3 +80,12 @@ height_growth.jl:26 error — the lstart crown call + compute_density! disturbed
 seedling ⇒ match jl's inputs exactly (the coeffs are verified-extracted; the inputs are the discrepancy — likely
 AVH or TPCCF or RMAI≠0); (2) gate/guard the lstart crown call so it doesn't perturb the ESTAB path (bmt01 has
 ESTAB). Root (crown=0→VIGOR floor) + fix DIRECTION (add DUBSCR crown-init) CONFIRMED; the port needs input-exactness.
+
+### CORRECTION (2026-08-06): bmt01 error is PRE-EXISTING, not the crown fix
+Re-checked: the REVERTED (original) code ALSO errors on bmt01 (MethodError getindex(::Nothing) in the ESTAB path)
+— bmt01.key has ESTAB 1992, and the BM establishment path is unwired (like utt01's :essprt_fsp). So the crown-init
+fix did NOT break bmt01; bmt01 was already erroring. ⇒ the ONLY real issue with the fix attempt is the crown
+OVER-estimate (~39% vs live ~12%) = wrong DUBSCR INPUTS (TPCCF/AVH/BA/RMAI), coeffs are correct. The no-regress
+check must use a BM stand WITHOUT ESTAB (bmt01-first-stand growth-only / emc2), NOT the full bmt01.key. NEXT: (1)
+instrument live bm/dubscr.f inputs on 504443988; (2) match jl's; (3) re-apply + validate vs a no-ESTAB BM stand.
+SEPARATE pre-existing bug logged: jl BM ESTAB path errors on bmt01.key (BM AUTOES/establishment unwired).
