@@ -985,3 +985,18 @@ overstory-BAAA vs frozen-BAAINV split (live truth 41.93/46.17/1/1/1/4.79/50.05 v
 .sum. SEPARATE minor gap surfaced: jl's .tre reader returns 0 trees for the standard iet01.tre column format — a
 tangential IO limitation (jl real-FIA input is DB-based; the keyword-file .tre path is under-exercised), worth its own
 small task but NOT on the #143 critical path.
+
+## 2026-08-06 (schedule-firing layer) — even THINPRSC on a DB stand doesn't produce a tally yet
+Follow-up probe: a DB IE stand (753199439290487, ie_test.db) with `THINPRSC 2029 0.8` added still produced NO
+AUTOES_IN (no tally). Combined with the reverted TRIG probe (real-FIA stand: lautal=TRUE but ie_autoes_schedule!
+returned fire=FALSE — establishment.jl:1083 `fire || return false` — because last_xtes=0 < thres1=0.1 and the LINGRW
+condition wasn't met), this isolates the NEXT debug layer: the LAUTAL schedule doesn't arm from a keyword THINPRSC on
+these stands. Check next session: (a) does the THINPRSC cut path actually reach cuts.jl:319 (set last_xtes) for a
+DATABASE stand + keyword thin — instrument est.last_xtes right after the cut and at ie_autoes_establish! entry; (b)
+the THINPRSC year vs cycle-boundary alignment (2029 must land on a projected cycle for the removal to register); (c)
+whether the tally then fires the FOLLOWING cycle (schedule timing). Only after AUTOES actually produces a tally can
+jl's per-cycle baaa be read and the point_ba[1]→(overstory BAAA / frozen BAAINV) fix be measured + validated. NET for
+#143: the model math (tally) is bit-exact (prior sessions) and the live baaa/BAAINV ground truth is measured (this
+session); the ENTIRE remaining arc is engine plumbing — (1) make the LAUTAL removal branch actually fire jl-side from
+a thinning, (2) split the baaa input into per-point overstory-BAAA vs frozen-BAAINV, (3) validate vs a DB stand's .sum.
+A clean, self-contained implementation session with zero model unknowns.
