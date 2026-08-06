@@ -1228,3 +1228,21 @@ NEXT: (a) instrument live estab.f — what distinguishes "ALL" (1079) from "<3.0
 to jl's booking loop (establishment.jl:1159-1185); (b) the ingrowth 5× — compare jl vs live ITPP/NEWTPP on the 2089
 tally specifically (MAXING=_IE_MAXING cap + the ingrowth branch). #143 residual = tally-AMOUNT over-booking (ALL-vs-
 <3.0 + ingrowth 5×), NOT baaa/type/schedule/survival. jl unchanged; live clean (RegRepts only). Harness iet01s4r.key.
+
+## 2026-08-06 (SPECIES-SPLIT measurement CONFIRMS the ESADVH/ESSUBH-height root — WP-absent signature)
+Per-species tally on iet01 s4 (jl AUTOES_IN tally vector vs live RegRepts 2089 ingrowth, sp order WP WL DF GF WH RC LP ES AF PP):
+  live 2089 ingrowth: WP21 WL0 DF1 GF61 WH6 RC18 LP0 ES0 AF3 = 109.3
+  jl icyc10 ingrowth: WP0 WL3.1 DF33.6 GF268.4 WH79.3 RC137.3 LP0 ES3.1 AF9.2 = 533.8
+  (same pattern on the disturbance tallies: jl icyc1 WP3.6/GF302/WH568 vs the memory-validated WP33/GF202/WH222 split.)
+★ SIGNATURE: jl produces ~ZERO white pine (WP) and OVER-produces the wet-side species (GF/WH/RC/DF). This INVERTS the
+PADV species-probability (validated bit-exact: WP.062/GF.485/WH.283 — GF/WH-heavy) vs live's FINAL split (WP-heavy).
+The only thing between PADV and the final per-species regen count is the ADVANCE-vs-SUBSEQUENT split + per-tree
+ESADVH/ESSUBH heights (+ ESDLAY delay + the FIRST dispersion chain). jl books the raw tally directly with ALL trees
+floored at dbh=0.1" (est.jl:1166), so it emits the raw PADV-like GF/WH-heavy split and no advance-regen WP. ⇒ CONFIRMS
+the #143 root = the MISSING ESADVH/ESSUBH/ESDLAY height sub-model (plan "HEIGHT-MODEL SPEC COMPLETE, routine-level").
+★ PORT SCOPE (the fix, a dedicated sub-model unit per the plan): ie/esadvh.f (268L, best/advance heights) + ie/essubh.f
+(281L, subsequent) + ie/esdlay.f (190L, delay) = ~739L + the FIRST(1,i) dispersion (0.1→0.316→0.562→…→1) + the
+advance/subsequent DRAW split (ITIME≤2 ⇒ all BEST=advance). Wire into establishment.jl:1159-1185 tree-creation
+(replace the dbh=0.1 floor with the computed per-species heights → ≥3.0" trees excluded from projection; advance-regen
+adds WP). Validate vs live RegRepts (iet01 s4r: 2089 WP21/GF61/... + the .sum 536→1025→…→1788). This is the SINGLE
+remaining #143 piece — large but fully specified; substantial dedicated port, not a bounded step. jl clean (debug reverted).
