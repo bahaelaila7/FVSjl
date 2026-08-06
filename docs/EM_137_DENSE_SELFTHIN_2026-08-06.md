@@ -192,3 +192,19 @@ or the routing) and make jl apply the 0.2-0.5'/cyc increment live gives. This is
 ★ #137 fully MEASURED end-to-end: establishment ~1' (both) → live grows small trees 0.2-0.5'/cyc (spread to 12' by
 2000, TopHt 6) → jl gives ~0 (flat at 1', TopHt 1) → jl BA lag → dense self-thin under-kill (+12.6% TPA). REAL bug,
 jl-side height-increment under-application. Not cornered.
+
+## jl-side MEASURED — jl COMPUTES healthy htgrth but it doesn't reach cyc-1 output (ordering, not the equation)
+Instrumented jl small_tree_growth! _em_smhtgf on em_plant_dense (fast Julia): for the planted DF cohort jl computes
+htgrth = 0.1-0.98'/subcycle with crown cr=82% (NOT 0 — RULES OUT any crown-init/VIGOR connection for #137) and h1
+starting at 1.169' (=planting HHT). So jl's EM small-tree height INCREMENT model is working (healthy values). YET jl
+reports TopHt=1' at 2000 (cyc1) — the computed increment does NOT reach the cycle-1 output. ⇒ #137 is NOT the growth
+equation and NOT the crown; it's a CYCLE-1 establishment/growth/report ORDERING issue: jl's newly-PLANTED cohort is
+established at cyc1 but its cyc1 height growth isn't applied/reported (likely established AFTER the growth pass, or the
+wk3e→t.height application is skipped for freshly-established trees), so the cohort shows flat at ~1' at 2000 then grows
+from 2010 (jl TopHt 2010=10 vs live 14) — a ~1-cycle lag. Live grows the planted cohort IN its establishment cycle
+(update.f HTG=0.2-0.5' applied at cyc→2000, TopHt=6). DECISIVE NEXT: trace jl's cyc1 order — does establish_regen!/
+the PLANT insertion run BEFORE or AFTER small_tree_growth! in the first cycle? If after, the planted trees miss cyc1
+growth. FIX = establish planted trees before the cyc1 growth pass (or grow them in their establishment cycle).
+★ #137 FULLY LOCALIZED (both sides measured): equation OK, crown OK (82%), establishment height OK (~1' both) ⇒ it's
+the cyc1 establish-vs-grow ORDERING (jl planted cohort misses its first-cycle growth → ~1-cycle height lag → BA lag →
+dense self-thin under-kill). REAL bug, not cornered. Reproduction: em_plant_dense.key / em_plant.key.
