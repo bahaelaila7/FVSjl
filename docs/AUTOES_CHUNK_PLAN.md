@@ -1113,3 +1113,26 @@ order): (1) align WHICH cycle each tally fires jl vs live on 12343703010690 (dum
 tallies fire at different cycles, it's a SCHEDULER-timing bug on the THINPRSC path. Four hypotheses now tested this
 session (overstory-filter / cornered / multi-point-attribution / THINPRSC-removal — ALL refuted); the live-vs-jl
 per-tally baaa numbers must be RE-TAKEN at matched cycles before any further fix. jl unchanged; live restored (0 residue).
+
+## 2026-08-06 (ROOT CAUSE FOUND + faithful XCUF fix landed; deeper baaa-semantics puzzle remains)
+★ MATCHED-CYCLE measurement (re-instrumented live estab.f: ICYC/YR/NTALLY/BAAA) on repro 12343703010690:
+  live: ICYC=2 YR=2017 NTALLY=1 BAAA=1.0 ; ICYC=4 YR=2037 NTALLY=1 BAAA=45.07
+  jl:   icyc=2 ntally=99 baaa=16.05 ; icyc=4 ntally=99 baaa=216.21
+Tallies fire at the SAME cycles but jl labels them ntally=99 (LINGRW ingrowth sentinel) vs live NTALLY=1/2 (counter).
+★ SOURCE-VERIFIED ROOT (one real bug found): esnutr.f:271-275 sets the disturbance-detection fraction
+  XTES = AMAX1(XTPA, XCUF), XTPA=ONTREM(7)/ONTCUR(7) (TPA-removal frac), XCUF=OCVREM(7)/OCVCUR(7) (CUBIC-VOLUME
+  removal frac). jl (cuts.jl:319) used ONLY XTPA. An overstory thin removes few TREES (low XTPA) but high VOLUME (high
+  XCUF), so jl under-detected the disturbance and fell to the ingrowth branch. FIX LANDED (cuts.jl): capture
+  autoes_pre_cuft = Σ tpa·cuft_vol (=OCVCUR) and set last_xtes = max(rem.tpa/pre_tpa, rem.cuft/pre_cuft). Faithful port
+  of esnutr.f; INERT on the 3 ie_test.db stands (their THINPRSC removes ~0 TPA in jl ⇒ rem.tpa=0 ⇒ block skipped),
+  cyc0-safe (only fires on a real removal), no regression — but UNEXERCISED here (kept as source-verified-faithful).
+★ STILL UNRESOLVED (deeper, next session) — the baaa VALUE is INCONSISTENT across stands under any single model:
+  - 753199439290487 (all-tiny, 0.2"QMD): live BAAA=20.66 (counts the tiny trees ⇒ NOT overstory-filtered)
+  - 12343703010690 (has overstory to 15.5", stand BA=15 at 2017): live BAAA=**1.0** (≈bare ⇒ does NOT count the 15 BA)
+  These two REFUTE both "BAAA=all-tree BA" (fails 12343) AND "BAAA=overstory BA" (fails 753). So BAAA(NNID) at the
+  tally reflects the per-inventory-point state in a way not captured by point_ba[1] OR a D≥REGNBK filter. NEXT: in live,
+  dump per-NNID the trees/BA that feed BAAA at the tally moment (dense.f BAAA(IP) accumulation) on BOTH stands — resolve
+  what tree set + what phase (inventory vs current) BAAA counts. The tally-amount residual is downstream of this.
+★ NET #143: one real source-verified bug FIXED (XCUF in last_xtes, faithful, inert-on-available-stands); the baaa-value
+  semantics need per-NNID tree-level live instrumentation on the two contradictory stands. Five hypotheses tested (four
+  refuted, XCUF confirmed-by-source). Live restored (0 residue).
