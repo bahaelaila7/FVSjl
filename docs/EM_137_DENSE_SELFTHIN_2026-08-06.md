@@ -57,3 +57,17 @@ the dense-cohort competition inputs: does jl's height growth (or the competition
   small-tree HTG and its competition inputs (TPCCF/BAL/CCF/attenuation) at cyc0 — vs jl's em small-tree HTG for the
   same tree. Whichever competition term jl applies differently (or an attenuation/cap jl over-applies at high density)
   is the root. Then decide real-bug-vs-cornered. (Doctrine #2: MEASURE; #3: use .sum/pre-split, cohort is tripled.)
+
+## PRECISE SOURCE TARGET (2026-08-06 cont.) — em/regent.f:468 sub-BH HTGRL, NOT SMHTGF
+Ruled out SMHTGF: em/smhtgf.f:66-70 returns HTGRTH=0 when DBH≤0. The cyc0 planted cohort is dbh=0 (sub-breast-
+height), so it grows height via the em/regent.f sub-BH path, NOT SMHTGF. That path:
+  regent.f:468  HTGRL = CON + BH·ALOG(H1) + BCCF·RDJ + BBAL·BAL     (H1<4.5' "NI section")
+Competition enters via **RDJ = RDNEXT(J)** (the per-period PROJECTED relative-density CCF, built at regent.f:237-278
+from RELDEN/TEMCCF/CCFYR) and **BAL** (BA in larger trees). On the 6000-TPA cohort RDJ+BAL are high ⇒ BCCF·RDJ +
+BBAL·BAL (both coeffs negative) suppress HTGRL. If jl's RDNEXT trajectory or BAL on the dense cohort differs from
+live, HTGRL under-grows ⇒ trees stay <4.5' ⇒ dbh/BA=0 longer ⇒ the observed cyc0 BA=0-vs-2 and the compounding lag.
+DECISIVE INSTRUMENT (fresh chunk): patch em/regent.f:468 to WRITE I,H1,RDJ,BAL,CON,BH,BCCF,BBAL,HTGRL → FVSem_trc on
+em_plant_dense.key cyc0; dump jl's em sub-BH HTGRL + its RDNEXT/BAL for the same cohort; the diverging competition
+input (RDNEXT projection or BAL) is the root. If RDJ/BAL/HTGRL all match and only the post-4.5' SMHTGF ZRAND realization
+differs, it's the accepted dense-regen stochastic straddle (cornered) — but the one-directional cyc0 BA=0 lag points at
+the DETERMINISTIC HTGRL competition terms, i.e. a real RDNEXT/BAL discrepancy worth fixing.
