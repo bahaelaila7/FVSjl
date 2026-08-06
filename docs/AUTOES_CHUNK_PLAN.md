@@ -1176,3 +1176,19 @@ TREEFMT fine. With the TREEFMT + CRLF-stripped .tre, jl RUNS iet01 stand-4 (the 
   is high, it's the baaa/PROB1 (~-4% baaa → the over-production); if jl fires MORE tallies, it's the schedule count.
 ⇒ #143 is UNBLOCKED and REPRODUCIBLE in jl. The XCUF fix (2a27b78) is inert here (shelterwood is TPA-heavy) but
 correct for volume-heavy thins. Harness: scratchpad/iet01s4.key (+.tre, TREEFMT, CRLF-stripped) + iet01s4.jl.
+
+## 2026-08-06 (#143 over-production narrowed — ITPP-cap REFUTED, it's downstream of ITPP)
+Checked the natural over-production hypothesis (missing MAXTPP/MAXING per-plot cap): REFUTED. jl applies both
+(_IE_MAXTPP=[9,7,5,5,10,8,9,5,21,25,10,10,11,7,10,8], _IE_MAXING=[4,4,3,3,5,4,5,4,7,7,5,5,5,4,5,4]; cap = is_ingro ?
+MAXING : MAXTPP; itpp=clamp(...,1,cap), establishment.jl:677,696) and the code comment records ITPP validated BIT-EXACT
+vs live on iet01 stand-4 ([2,1,14,2,4,2,25,4]). ⇒ with per-plot ITPP already bit-exact but the multi-cycle .sum regen
++13–76% high, the over-production is DOWNSTREAM of ITPP: candidates = (a) DUPNPT (nptids·idup) point-scaling that
+converts per-plot ITPP → per-acre TPA (if jl's dupnpt or the /300 normalization differs, bit-exact ITPP still yields
+wrong TPA), (b) the NUMBER of tallies fired (jl fired 7 on iet01 s4: icyc 1/2/4/5/7/8 removal + 10 ingrowth — compare
+live's count), (c) regen SURVIVAL — the added regen's subsequent mortality (if jl under-kills the new cohort, TPA
+accumulates over cycles, which fits the GROWING +13→+76% divergence). ★ (c) is the strongest fit (the divergence
+COMPOUNDS over cycles, not a fixed per-tally offset). NEXT (enabled by the iet01 unblock): instrument live estab.f
+NEWTPP/ITPP·DUPNPT per tally vs jl per-tally total at matched cycles on iet01 s4; if per-tally totals MATCH but .sum
+diverges, it's regen survival/mortality of the AUTOES cohort (not the tally). Harness ready (iet01s4.{key,tre,jl}).
+⇒ #143 residual = AUTOES-cohort AMOUNT, ITPP bit-exact, root now downstream (dupnpt / tally-count / regen-survival);
+survival is the leading candidate given the compounding. jl unchanged this turn.
