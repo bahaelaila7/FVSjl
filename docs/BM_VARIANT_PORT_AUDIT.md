@@ -390,3 +390,18 @@ species-Hamilton hybrid branch (which the shared mortality!(::AbstractVariant) d
 ⇒ NEXT tractable mortality win: UT (clean, like BM). The hybrids (EM #137/TT/KT) are a separate, more involved
 effort. All were validated on their single canonical stand (utt01/emt01/ttt01) which — like bmt01 — does NOT exercise
 the BMTMRT+IPASS convergence, so they likely ALL carry the same latent real-FIA self-thin under-thin BM had.
+
+### UT MEASURED (2026-08-06) — already bit-exact-or-cornered; BM routing NOT warranted (corrects the audit hypothesis)
+Ran the UT real-FIA sweep (150 stands → ut_sub.db vs FVSut_clean, 0 jl crashes). ★ UT does NOT share BM's under-thin
+bias — the "UT likely carries the same latent under-thin" hypothesis above is REFUTED by measurement (doctrine #2):
+```
+UT treed-stand mortality: 43 compared, JL-HIGH(under-thin)=3, JL-LOW(over-kill)=7, EQ=33, mean|Δ%|=1.16
+```
+Already bit-exact-or-cornered (33/43 EQ, 1.16% mean). The divergence is a slight OVER-kill lean (the 2 biggest are
+−14.5%/−12.5% on dense-regen stands = the accepted small-tree/DGSCOR cornered class), NOT a systematic under-thin.
+⇒ Applying the BM shared-driver routing to UT would ADD IPASS convergence (kills MORE) and WORSEN the over-kill
+outliers — a REGRESSION. Do NOT route UT through the shared driver. (Why UT differs from BM despite the same
+single-pass structure: UT uses ZEIDE SDI vs BM's STAGE, and its sample self-thins less; the naive-single-pass gap
+that bit BM is simply within the cornered band for UT's stands.) META: the BM #140 fix is NOT a universal western
+mortality fix — it must be MEASURED per variant. UT is DONE on real-FIA mortality; no fix needed. (0 AUTOES-0 stands
+in the UT sample — unlike EM, UT's real-FIA slice is genuinely treed.)
