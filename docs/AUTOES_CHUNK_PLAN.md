@@ -1018,3 +1018,16 @@ exercise the LAUTAL removal tally (ntally=1); (2) confirm jl baaa there also gro
 feed the per-inventory-point OVERSTORY BA (D≥REGNBK, drops after removal) to the species-prob ESTOCK + the frozen
 inventory BA to the PN calibration, instead of the growing point_ba[1]; (4) validate vs .sum. The scheduler/firing is
 NOT a blocker (it works); the whole remaining arc is the baaa-input split + validation. Use ALIGNED NUMCYCLE always.
+
+## 2026-08-06 (fix scoped to exact infrastructure) — need a per-point D≥REGNBK OVERSTORY BA (point_ba is all-trees)
+Confirmed WHY jl baaa grows: establishment.jl:1109 uses `s.density.point_ba[1]` = PTBAA (standstats.jl:169
+point_basal_area!), the per-point BA of ALL trees on the point — so as the regen cohort grows, point_ba grows
+(13→216). The Fortran BAAA(IP) (dense.f:213) sums BA ONLY over D≥REGNBK (REGNBK = "minimum DBH of an overstory
+tree") — it EXCLUDES the sub-REGNBK regen, so it drops when the overstory is cut and stays low until regen crosses
+REGNBK. ⇒ THE FIX IS NEW INFRASTRUCTURE (not a one-liner): add a per-inventory-point OVERSTORY BA = Σ BA over trees
+with DBH ≥ REGNBK, recomputed each cycle (a D≥REGNBK-filtered variant of point_basal_area!), feed THAT to the
+species-prob ESTOCK (establishment.jl:1109 baaa); AND keep a frozen inventory-time per-point BA (BAAINV=40.0,
+captured once, persisted) for the PN-calibration ESTOCK. Then validate vs live on a mature-overstory + heavy-thin DB
+IE stand (aligned NUMCYCLE). REGNBK value: confirm IE's (esplt2.f/estab.f) — likely 1.0". This is the complete,
+self-contained #143 implementation: (1) REGNBK-filtered per-point overstory BA, (2) frozen inventory BAAINV, (3) wire
+both to the two ESTOCK uses, (4) validate. Scheduler fires (confirmed), live ground truth measured, no model unknowns.
