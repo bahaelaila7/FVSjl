@@ -909,3 +909,21 @@ recomputed per cycle, reflecting removals → feed to the species-prob ESTOCK; (
 per-point BA (=40.0 here), frozen/persisted → feed to the PN-calibration ESTOCK. The engine change is still the
 regression-risky shared-path port (dense.f overstory-BA-per-point + esfltr.f inventory-BA-per-point), but the model
 inputs are now GROUND-TRUTH MEASURED, not inferred. Live sources restored (estab.f un-instrumented, FVSie_clean relinked).
+
+## 2026-08-06 (jl-side handoff addendum) — point_ba[1] tracks BAAINV, NOT BAAA; runner needs full iet01 s4 config
+Scoped the jl fix site: establishment.jl:1109 `baaa = point_ba[1]` feeds ie_autoes_run's `baa` (the ESTOCK species-
+prob input). ★ Cross-referencing the live measurement (this session): the inline comment at :1104-1108 says "jl
+point_ba[1]=40 vs live BAAA=41.93 at cyc1" — but the live instrument shows BAAINV(NNID=1)=**40.0** and BAAA(NNID=1)=
+**41.93**. So jl's point_ba[1]≈40 is actually tracking live's **BAAINV** (frozen inventory BA), NOT the **BAAA**
+(disturbance-tracked overstory BA, 41.93→…→1→…→50.05) the species-prob path requires. THAT is the mislabel at the
+root of #143: jl feeds a BAAINV-like value where live feeds BAAA, and separately has no distinct BAAINV for the PN
+calibration. FIX (next session): introduce a per-inventory-point OVERSTORY BA (D≥REGNBK, recomputed per cycle,
+reflects removals ⇒ the 41.93/46.17/1/1/1/4.79/50.05 sequence) for the species-prob ESTOCK, and keep the frozen
+inventory BA (40.0) for the PN-calibration ESTOCK. jl-side per-tally CONFIRMATION is blocked only on a RUNNER: a
+hand-minimal iet01 stand-4 keyfile NaNs (InexactError round(Int64,NaN32)) because the stand isn't fully initialized
+(TREEDATA didn't load / habitat unset ⇒ empty stand ⇒ ln(TPA=0) in the esb_shift calc ⇒ NaN). Build the runner from
+the FULL stand-4 block (ierun/iet01.key lines 137-end: DESIGN, STDINFO 118/570/60/315/30/34, INVYEAR 1990, THINPRSC
+1990 0.999, TREEDATA→iet01.tre, SPECPREF/THINBTA) so the stand initializes, then run with FVSJL_AUTOES_DEBUG=1 to dump
+jl's per-tally baaa and diff against 41.93/46.17/1/1/1/4.79/50.05. THEN implement + validate vs the stand-4 .sum
+(NOT per-record — AUTOES adds trees ⇒ tripling). Regression-scope: AUTOES fires POST-disturbance (post-cyc0), so the
+IE cyc0 8/9 bit-exact is not at risk; the risk is contained to the (already-diverging) AUTOES tally output.
