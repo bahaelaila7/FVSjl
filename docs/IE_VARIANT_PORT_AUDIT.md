@@ -59,3 +59,12 @@ Live tally-1 total TTOTTP=1079.33 (was jl 727 at MAXING(7); now matches at MAXTP
    a COMPOUNDING artifact (the ingrowth tally fires late, after prior establishment adds regen). NEXT: resolve
    why jl reads iet01 nptids=1 vs live 5 (points_inv from the .tre plot IDs / DESIGN card), then the PLPROB
    pre-load formula (confirmed correct) drops in. Blocked on the plot-count read, not the establishment formula.
+
+## Real-FIA IE dense-seedling sweep (2026-08-06) — CRVAR cross-fix + WH under-growth lead
+Built scratchpad/ie_test.db (3 dense-seedling IE stands from the 70GB DB, VARIANT='IE'). vs FVSie_clean, 2 cyc:
+- **12343703010690** (conifer seedlings PICO/spruce/larch, 35484 TPA): jl cyc1 28915/16 vs live 28930/15 ✓ (SMDGF works).
+- **44987944020004** (37528 TPA): jl 32203/154 vs live 32104/164 — cornered (−6% BA).
+- **753199439290487** (sp263=WH, 50377 TPA): jl 45030/13 vs live 45880/74 — ★ jl UNDER-grows ~5× (QMD 0.23 vs 0.54).
+IE CRVAR CO diameter fix (219d04f) is INERT on these (none are sp19/22 CRVAR) ⇒ non-regressive but unconfirmed-on-target;
+it is source-faithful (ie/regent.f:637-640 = the EM-validated block) + iet01-clean. The WH under-growth (#146) is a
+SEPARATE new lead (conifer, opposite direction, dense) — NOT the CRVAR fix (jl identical with/without).
