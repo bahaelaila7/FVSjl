@@ -250,3 +250,63 @@ together — (a) the dg_prev snapshot (simulate.jl before small_tree_growth! + B
 CEPMRT/SLPMRT branch (port bm/morts.f:420-450, SLPMRT=SLP default, TN10=exp(CEPMRT+SLPMRT·TEM) capped at T85D10) —
 then validate with the multi-stand sign-tally (13:1 JL-HIGH should collapse). The DG fix was REVERTED here (inert on
 this stand alone, untested for regressions without the MRT half). Repo clean, oracle clean.
+
+### #140 REAL ROOT — CORRECTED & FIXED (2026-08-06): PVREF6 habitat crosswalk → SDIMAX (NOT DG/MRT-path)
+★★ The 2026-08-05 "TWO COUPLED FIXES (DG + CEPMRT/SLPMRT MRT-path)" conclusion (commit ca37c27) was **WRONG** —
+a 5th mis-diagnosis from not measuring SDIMAX. Decisive dual-side instrument-replay on repro stand 374430545489998
+(FVSbm_trc: WRITE(16,…) in morts.f RN-point + sdical.f + sitset.f + habtyp.f), cyc0 (2015→2025):
+
+| quantity | jl (before fix) | live | note |
+|----------|-----------------|------|------|
+| **sdimax** | **395.0** | **205.17** | ← THE ROOT (1.93×) |
+| const | 15907 | 8262 | = sdimax/0.02483133 |
+| dq10 | 5.908 | 6.078 | tiny diff — NOT the driver |
+| t85d0 / t55d0 | 800 / 518 | 415.6 / 268.9 | all ∝ sdimax |
+| t55d10 | 505.6 | 250.9 | (the prior "462" was WRONG — measured 505.6) |
+| branch | `tt<=t55d10 → HOLD, rn=0` | `T55D0<T≤T85D0`, special-case `|t85d0−tt|=1.0≤5 → tn10=t85d10=387.8, rn=0.0067` | |
+| **slpmrt / cepmrt** | — | **0 / 0** | ★ the MRT path was NEVER used by live |
+
+⇒ Live self-thins via the ORDINARY branch (tn10=t85d10), NOT the CEPMRT/SLPMRT MRT path (both 0). The DG-projection
+and MRT-path hypotheses were BOTH artifacts of jl's inflated SDIMAX: with sdimax=395, jl's thresholds are ~2× too
+high, so tt=414.6 falls below t55d10=505 ⇒ HOLD. The prior session's "branch dump t55d10=462, tn10=tt" was measured
+with the SAME wrong SDIMAX (they never dumped SDICAL). MEASURE-don't-infer: 5th wrong root-cause on this bug.
+
+ROOT of the SDIMAX error (traced sdical.f → sitset.f → habtyp.f → pvref6.f):
+- SDICAL weights per-species SDIDEF by BA (jl's stand_sdimax matches this formula exactly). The divergence is the
+  SDIDEF VALUES: live SDIDEF=**166 uniform** (all 18 species; site-species PP value propagated), raised to 205.17 by
+  SDICHK's high-stocking bump. jl SDIDEF averaged **395** because it fell into the **CWG113 default** (SDIMAX PP=395).
+- WHY: this real-FIA stand's DB `PV_CODE="CJG111"` is NOT a canonical PCOML code. Live's `bm/habtyp.f` calls
+  **PVREF6** (bm/pvref6.f, a 3144-row `(PV_CODE, PV_REF_CODE)→HABPVR` crosswalk) whenever PV_REF_CODE is present:
+  `("CJG111","622") → "CPG111"` (row 1438), which HBDECD then matches to KODTYP=49 → ECOCLS SDIDEF(PP)=166. jl's FIA
+  reader did an EXACT `findfirst(==(pv), BM_PCOML)` on the raw "CJG111" ⇒ miss ⇒ habitat_code=0 ⇒ bm_sitset! CWG113
+  fallback ⇒ SDIDEF=395. (Verified: live HABTYP received KARD2="CPG111" already — the J→P translation is PVREF6.)
+
+THE FIX (commit pending): extracted pvref6.f's three 3144-entry arrays → `data/bluemountains/pvref6.csv`
+(1591 non-blank rows), loaded as `BM_PVREF6`/`bm_pvref6` in bluemountains/site_index.jl; fia_database.jl BM branch
+now crosswalks (PV_CODE, PV_REF_CODE)→HABPVR before the PCOML match (no PV_REF_CODE ⇒ raw PV code, as live). RESULT
+on repro: habitat_code 0→49, pcom CWG113→CPG111, **sdimax 395→205.168 (bit-exact vs live)**, jl self-thins the
+NORMAL branch (tn10=387.95 vs live 387.80, rn=0.00662 vs 0.00666), **2025 TPA 403→388** (live 376). No CEPMRT/SLPMRT
+path, no DG-snapshot needed — both prior hypotheses RETRACTED.
+
+### #140 SCOPE — corrected by MULTI-STAND before/after (2026-08-06): PVREF6 is MINOR; the systematic root is BMTMRT+IPASS
+★ Ran the 80-stand real-FIA sign-tally BEFORE vs AFTER the PVREF6 fix (sub-DB `bm_sub.db`, live oracle FVSbm_clean,
+final-year TPA). Result RETRACTS the "PVREF6 = dominant root / closed 56%" claim above:
+```
+BEFORE (CWG113 fallback): HIGH=30 LOW=3 EQ=23   mean|Δ%|=3.53
+AFTER  (PVREF6 fix)     : HIGH=30 LOW=3 EQ=23   mean|Δ%|=3.41
+```
+- PVREF6 changed only **2 of 56 treed stands** (374430545489998: 403→388 = 7.2%→3.2%; 504368405126144: 3.3%→0.4%).
+  The other 78 were byte-identical — they either PCOML-match their PV code directly or lack a PV_REF_CODE, so PVREF6
+  never fires. The 56% figure was REPRO-STAND-ONLY; across the population PVREF6 is a real but MINOR fix (the small
+  non-PCOML-PV subset), ZERO regressions (both changed stands moved toward live).
+- ⇒ The DOMINANT, SYSTEMATIC #140 under-thin is the **30:3 skew that PVREF6 does NOT touch** = the missing MORTS
+  **IPASS QMD-convergence loop** (morts.f:578-618: apply kill → recompute surviving DQ10N, small trees die ⇒ QMD
+  rises 6.08→6.19, if `|D10−D10N|>0.1 & D10N>DIA0` set D10=D10N & re-derive tn10/rn → 2nd-pass tn10=376.4) AND
+  **BMTMRT** (bm/bmtmrt.f, 249 lines: distributes the self-thin kill by PERCENTILE + species shade-tolerance VARADJ,
+  not the uniform per-tree RN jl applies). jl does a single uniform-RN pass ⇒ stops at the 1st-pass (higher) tn10.
+- Two big outliers unchanged by PVREF6 (449441010497 CDS711/no-ref +60.9%; 248913820489998 CDS624/622 +48.3%) — too
+  large for IPASS convergence alone; need per-stand study (SDIDEF-value or dense-regen small-tree, not the crosswalk).
+- One NEW crash exposed: 374361232489998 (CES411/622) jl **DomainError** — a separate robustness bug to trace.
+⇒ NEXT (the real #140 fix): port the BMTMRT percentile/tolerance self-thin distribution + the MORTS IPASS
+convergence loop into bluemountains/mortality.jl (a shared-with-EM/UT self-thin subsystem). PVREF6 lands first as a
+correct, self-contained, zero-regression prerequisite (correct SDIMAX is needed for the convergence to target right).

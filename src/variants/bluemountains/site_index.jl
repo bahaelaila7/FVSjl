@@ -32,6 +32,25 @@ function _bm_load_site_tables()
 end
 const BM_PCOML, BM_ECOCLS = _bm_load_site_tables()
 
+# bm/pvref6.f — FIA (PV_CODE, PV_REF_CODE) → FVS habitat/ecoclass code (HABPVR) crosswalk (3144 rows;
+# 1591 with a non-blank combined mapping). bm/habtyp.f calls PVREF6 whenever PV_REF_CODE is present,
+# translating the raw FIA PV code (e.g. "CJG111") to the canonical PCOML code (e.g. "CPG111") BEFORE the
+# HBDECD/PCOML match. Without it, an FIA PV code absent from PCOML falls through to the CWG113 default
+# (SDIMAX≈395 vs the correct 166) ⇒ BM real-FIA stands UNDER-THIN (#140). First (pvcode,pvref) match wins.
+const BM_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(BM_DATADIR, "pvref6.csv"))[2:end]
+        f = split(strip(l), ',')
+        length(f) < 3 && continue
+        k = (String(strip(f[1])), String(strip(f[2])))
+        haskey(d, k) || (d[k] = String(strip(f[3])))   # PVREF6 EXITs on first match
+    end
+    d
+end
+
+# bm/pvref6.f lookup: canonical PCOML code for a raw FIA (pv_code, pv_ref_code), or "" if no mapping.
+bm_pvref6(pvcode::AbstractString, pvref::AbstractString) =
+    get(BM_PVREF6, (String(strip(pvcode)), String(strip(pvref))), "")
+
 # bm/sichg.f — linear age-at-breast-height coefficients (SIAGE per species) + reference-age/type.
 # Species order WP WL DF GF MH WJ LP ES AF PP WB LM PY YC AS CW OS OH.
 const BM_SICHG_A = Float32[18.43316, 8.11668, 8.50000, 9.01840, 45.24969, 34.0, 10.65724,

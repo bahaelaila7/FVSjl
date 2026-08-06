@@ -109,7 +109,18 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # bm/morts.f's "SDIMAX<5 ⇒ kill ALL trees" fires and the stand COLLAPSES to 0 TPA at cycle 1 (cycle-0-only
     # sweeps never caught this). Match live FVSbm, which reads PV_CODE and HBDECDs it to the PCOML index.
     if s.variant isa BlueMountains && _fia_present(d, "PV_CODE")
-        pv = strip(_fia_str(d, "PV_CODE", ""))
+        pv = String(strip(_fia_str(d, "PV_CODE", "")))
+        # bm/habtyp.f: when PV_REF_CODE is present, PVREF6 crosswalks (PV_CODE, PV_REF_CODE) → the canonical
+        # PCOML code BEFORE the HBDECD/PCOML match (e.g. "CJG111"/622 → "CPG111"). A raw FIA PV code not in
+        # PCOML would otherwise fall through to the CWG113 default (SDIMAX 395 vs 166) ⇒ under-thinning (#140).
+        # No PV_REF_CODE ⇒ the raw PV code is matched directly (PVREF6 is not called).
+        if !isempty(pv) && _fia_present(d, "PV_REF_CODE")
+            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
+            if pvr > 0
+                mapped = bm_pvref6(pv, string(pvr))
+                isempty(mapped) || (pv = mapped)
+            end
+        end
         if !isempty(pv)
             idx = findfirst(==(pv), BM_PCOML)
             idx !== nothing && (p.habitat_code = Int32(idx))
