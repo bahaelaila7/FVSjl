@@ -208,6 +208,17 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         largeh = t.ht_growth[i]
         htg = htgr*(1.0f0-xwt)+xwt*largeh; htg < 0.1f0 && (htg=0.1f0)
         t.ht_growth[i] = htg
+        # CRVAR small-tree DIAMETER (em/regent.f:599-603): D<1 seedlings get the sub-breast-height nominal
+        # (D2=D+0.0001·H2 if H2≤4.5, else D2=D) — NOT the large-tree DIAGR DG, which over-extrapolates a 0.1"
+        # seedling to ~0.9"/cycle (real-FIA stand 225065919010661: dense GA/OH seedlings → BA 2× live). D≥1
+        # keeps the large-tree DG (Fortran `IF(D.GE.1.0)GO TO 15` skips the WK5 store). D<1 ⇒ xwt=0 (below XMIN),
+        # so the override is unblended, matching WK5(I)=D2.
+        if d < 1.0f0
+            h2 = h + htg
+            d2 = h2 <= 4.5f0 ? d + 0.0001f0 * h2 : d
+            dgnew = d2 - d; dgnew < 0f0 && (dgnew = 0f0)
+            t.diam_growth[i] = dgnew
+        end
         _em_rg_stash!(stash, t, i)
     end
     # UTVAR (RM6 juniper / AS12,PB17 aspen) — SINGLE-STEP (em/regent.f:507-533,600). CON=1.0 (non-NIVAR).
