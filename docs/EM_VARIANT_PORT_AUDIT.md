@@ -525,3 +525,23 @@ variant-agnostic (parameterize the species count + crosswalk, drop the `s.varian
 simulate.jl:561) + wire EM's habitat + species map + validate vs FVSem_clean on the AUTOES-0 stands (em_sub.db). This
 is FAR more tractable than "port estb/ ~6280 lines". CAVEAT: jl's IE AUTOES is "v1" (~22% residual, target-
 contamination unresolved) so EM would inherit that maturity; the generalization is the enabling step. #143.
+
+### EM AUTOES ground truth captured (2026-08-06, instrument-replay on stand 5332701010661)
+Instrumented live estb/estab.f (WRITE at IHAB/ISER derivation + OCURHT dump), relinked FVSem_trc, ran the EM
+AUTOES-0 repro stand (starts treeless 1979, live establishes 118 TPA by 1989). GROUND TRUTH for the eventual
+EM AUTOES port validation:
+```
+EMEST plot=1 ITYPE=4 IHAB=3 ISER=1 IHTSER=2 IFO=11 NOFSPE=19 IPREP=1 NTALLY=1 SLO=0 BAA=1 ELEV=55
+OCURHT(IHAB=3, sp1..19) = 0 1 1 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0   (occupancy: sp 2,3,7,10)
+OCURNF(IFO=11, sp1..19) = 0 0 1 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0   (forest occ: sp 3,7,8,9)
+→ 118 TPA established
+```
+KEY FACTS for the port: (1) NOFSPE=19 = EM's species count ⇒ the tally + OCURHT/OCURNF are over EM's 19 species
+(NOT a fixed 23-set) ⇒ OCURHT/OCURNF are VARIANT-SPECIFIC static occupancy tables (corrects the earlier "occupancy
+shared" note — the ESTOCK STOCKING regression SHAB/SSER is shared/IHAB-indexed, but the SPECIES-level occupancy is
+per-variant). (2) The index chain is ITYPE(4, jl already has via NIHMAP in p.habitat_input) → IHAB(3, via the estb
+IPHAB per-plot map) → ISER=MYHABG(IHAB)=1 (MYHABG shared = [4*1,4*2,3,4,6*5], MYHABG[3]=1 ✓). ⇒ the one index jl
+still needs is ITYPE→IHAB (the IPHAB derivation) — for ITYPE=4→IHAB=3. REMAINING PORT PIECES for EM AUTOES:
+(a) the ITYPE→IHAB map (estb IPHAB), (b) EM's OCURHT(16,19)+OCURNF(6,19) occupancy tables (extract from estb/ —
+source location TBD, not a simple DATA in estab.f/esnutr.f/esblkd.f), (c) generalize ie_autoes_* to nspecies +
+these EM tables, (d) validate total-TPA vs em_live.txt (118 for this stand). Oracle FVSem_clean; harness em_sub.db.
