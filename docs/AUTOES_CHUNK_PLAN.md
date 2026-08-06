@@ -1206,3 +1206,25 @@ cycles. Only that isolates per-acre-tally-amount vs survival. (Doctrine #2: caug
 ★ #143 status unchanged & accurate: residual = AUTOES-cohort per-acre amount +13–76% on iet01 s4 (ITPP bit-exact,
 tally-type + baaa matching); root still downstream (dupnpt/300 scaling vs survival). Live clean (RegRepts is a keyword,
 no source change). Harness: iet01s4r.key (adds RegRepts) for the live per-acre reference (109.3-type figures).
+
+## 2026-08-06 (CORRECTION of the units-caution + REAL localization: jl adds "ALL" not "<3.0 PROJECTED"; ingrowth 5×)
+★ RETRACT the prior "units caution" (f8d36ee): r.tally IS per-acre — establishment.jl:1172 sets t.tpa[n]=r.tally[sp]
+(the created seedling's per-acre TPA), NO further scaling. So jl's FVSJL_AUTOES_DEBUG "total"=sum(r.tally) IS the
+per-acre trees added, directly comparable to live's RegRepts. The "pre-scaling" claim was WRONG (doctrine #2/#4 — a
+correction that was itself an over-correction, now re-measured).
+★ REAL per-tally comparison (iet01 stand-4, live RegRepts vs jl AUTOES_IN, both per-acre):
+  DISTURBANCE TALLY 1 (1999/icyc1): live "SUMMARY OF ALL"=1079, "TREES <3.0 BEING PROJECTED"=882 | jl=1105.
+    ⇒ jl (1105) ≈ live "ALL" (1079), but live only PROJECTS the <3.0 subset (882). jl adds ~ALL, ~+25% over the
+    <3.0-projected count. jl's added trees are all dbh=0.1 (seedlings) so the excess = jl not restricting to the
+    "<3.0 BEING PROJECTED" subset live actually books.
+  INGROWTH (2089/icyc10): live "109.3 INGROWTH TREES/ACRE ADDED" | jl=533.8 ⇒ jl ~5× over (the DOMINANT over-producer).
+  Tally COUNT/structure MATCHES: both fire TALLY 1/2 at 1999/2009, 2029/2039, 2059/2069 + ingrowth 2089 (7 tallies).
+★ ROOT (localized, two coupled): (1) jl books the FULL tally ("ALL") rather than live's "TREES <3.0 IN. DBH BEING
+  PROJECTED" subset — find where live restricts the booked count to <3.0 (estab.f the ITPP/NEWTPP → only sub-3.0
+  advance/subs are added; the ≥3.0 "best" trees are summarized but NOT projected). (2) the INGROWTH tally over-produces
+  ~5× — separate, likely the MAXING cap or the ingrowth PROB/height path (SHORTY time=1) producing too many. The
+  net .sum is only +13–76% because the excess seedlings are tiny (0.1") and largely die / stay sub-.sum-threshold.
+NEXT: (a) instrument live estab.f — what distinguishes "ALL" (1079) from "<3.0 PROJECTED" (882)? port that restriction
+to jl's booking loop (establishment.jl:1159-1185); (b) the ingrowth 5× — compare jl vs live ITPP/NEWTPP on the 2089
+tally specifically (MAXING=_IE_MAXING cap + the ingrowth branch). #143 residual = tally-AMOUNT over-booking (ALL-vs-
+<3.0 + ingrowth 5×), NOT baaa/type/schedule/survival. jl unchanged; live clean (RegRepts only). Harness iet01s4r.key.
