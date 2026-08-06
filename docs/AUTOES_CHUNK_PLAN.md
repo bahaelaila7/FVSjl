@@ -1054,3 +1054,25 @@ on a dense-seedling stand (and point_ba was already validated ≈live on iet01: 
 accepted dense-regen straddle than a clean bug. NEXT: measure point_ba[1] vs live BAAA across SEVERAL stands + the
 multi-point attribution (is the tallied NNID always jl's point 1?), before any further code change. The overstory-BA
 avenue is CLOSED. ⇒ #143 is NOT the tractable clean fix the plan assumed; re-scope as a per-point-BA attribution study.
+
+## 2026-08-06 (3-stand jl point_ba[1] vs live BAAA — #143 is REAL, not cornered; it's disturbance-timing/attribution)
+Settled the cornered-vs-bug question with a 3-stand measurement (ie_test.db, aligned NUMCYCLE 5 + THINPRSC 2029 0.8),
+live BAAA(NNID=1) (re-instrumented estab.f) vs jl baaa=point_ba[1] (FVSJL_AUTOES_DEBUG), per tally:
+  12343703010690: live 1.0 / 45.07   | jl 16.05 / 216.21  → jl 16× / 4.8× HIGH
+  44987944020004: live 154.4 / 328.1 | jl 153.6 / 358.8   → ~exact / +9%
+  753199439290487: live 20.66 / 205.6| jl 13.18 / 216.12  → -36% / +5%
+★ VERDICT: NOT a cornered straddle (corrects the 1b82ae0 "likely cornered" lean). There is a REAL, large,
+stand-dependent divergence. The SMOKING GUN is 12343703010690: live BAAA=**1.0** (the inventory point is BARE — the
+disturbance removed its trees, and regen isn't added until AFTER the tally) while jl point_ba[1]=**16.05** (jl still
+counts trees on that point). So jl's per-point BA does NOT reflect the DISTURBANCE-ADJUSTED point state that live's
+BAAA(NNID) captures at the tally moment — exactly the task-title framing ("disturbance-adjusted BAAA"). This is a
+TIMING/ATTRIBUTION issue, NOT the overstory-filter (refuted 1b82ae0) and NOT a straddle. Candidates:
+  (a) point_ba[1] is computed by compute_density! at a cycle phase that does NOT reflect the THINPRSC removal on that
+      specific point (jl removes stand-wide but the per-point BA the tally reads is stale/pre-cut for point 1);
+  (b) jl's point index [1] ≠ live's tallied NNID (multi-point attribution — live loops NNID over inventory points; the
+      point being tallied may be a DIFFERENT, bare point than jl's point 1);
+  (c) the tally reads point_ba after regen/growth of a phase live captures earlier.
+NEXT (real fix path, no overstory filter): instrument WHEN live captures BAAA(NNID) vs when jl fills point_ba (cut →
+density → tally order), and whether the tallied NNID maps to jl's point 1. The stand 12343703010690 (live BAAA=1 vs
+jl 16) is the cleanest repro. ⇒ #143 is a genuine open bug (per-point disturbance-adjusted BA), re-scoped away from
+both the overstory-filter AND the cornered-straddle; the ~22% tally residual is real on disturbance stands. jl unchanged.
