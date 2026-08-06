@@ -617,3 +617,23 @@ ESTPP per plot) vs jl's ie_esrann chain — the IE chain was validated bit-exact
 EM INGROWTH path (NTALLY=99, itrn==0&icyc==1) enters the tally at a different RNG state (possibly the ingrowth
 seed0 derivation or the SHORTY/ESTIME setup draws differ). Structural gap RESOLVED (e1dd44e); this is the amount
 close-out's remaining root, now narrowed to the seed/pre-ITPP RNG realization (body-count excluded).
+
+### AUTOES ingrowth ITPP root FOUND (2026-08-06): per-plot RNG advance too large for DUPLICATE plots
+Instrument-replay comparison of the ESTPP DRAW per plot (live estab.f:678 vs jl ie_estpp), EM repro (nptids=1,
+idup=50 ⇒ 50 DUPLICATE plots):
+```
+plot:    1         2         3         4         5         6
+live:  0.346302  0.350846  0.212445  0.215864  0.991703  0.932161   → ITPP [1,2,1,1,3,3]
+jl:    0.346302  0.184747  0.835307  0.243140  0.462182  0.230992   → ITPP [1,1,3,1,2,…]
+```
+★ Plot-1 DRAW is BIT-IDENTICAL (0.346302) ⇒ seed0 + the pre-ESTPP draws (wk6fill=50 + EMSQR=2) are CORRECT. Plot-2+
+diverge. ★ KEY: live's consecutive draws are CLOSE (0.346/0.351, 0.212/0.216, 0.992/0.932 — a SMALL RNG advance
+between duplicate plots), while jl's are FAR APART (a full body=135 advance). ⇒ jl's ie_autoes_plot_seeds applies
+the full 135-draw per-plot body between ALL plots, but for DUPLICATE plots (idup>1 from a single inventory point)
+live advances the RNG by much LESS. iet01 stand4 (multiple REAL plots) validated the body=135 bit-exact, MASKING
+this — the duplicate-plot advance is a different (smaller) count. ⇒ THE EM AUTOES INGROWTH AMOUNT RESIDUAL ROOT =
+the DUPLICATE-plot RNG advance in ie_autoes_plot_seeds (body=135 is right for distinct plots, wrong for idup
+duplicates). NEXT: instrument the ESRANN call-count between consecutive ESTPP draws in live (esrann.f counter) to
+get the exact duplicate-plot advance, then make ie_autoes_plot_seeds use it for idup>1. This also affects IE
+real-FIA stands with idup>1 (the ~22% IE residual may share this root). Structural gap RESOLVED (e1dd44e); amount
+root now PRECISELY located (duplicate-plot RNG advance), body-count-nsp REFUTED, seed0/pre-ESTPP CONFIRMED correct.
