@@ -1093,3 +1093,23 @@ REMAINING mechanism = a per-point BA value difference on DISTURBED-OVERSTORY sta
 The overstory-removal stands (not the all-seedling ones) are where point_ba[1] diverges most from BAAA; the ~22% AUTOES
 residual is concentrated there. NEXT SESSION: run (ii) first (one .sum diff at the thin year), then (i) if needed.
 Clean repro = 12343703010690. jl unchanged this session; live restored (0 residue).
+
+## 2026-08-06 (#143 .sum diff — THINPRSC-removal REFUTED; baaa comparison was tally-timing-CONFOUNDED)
+Ran hypothesis (ii): jl vs live .sum on repro 12343703010690 (THINPRSC 2029 0.8):
+  live: 2007 BA=2, 2017 BA=15, 2027 BA=148, 2037 BA=219, 2047 BA=240, 2057 BA=246
+  jl:   2007 BA=2, 2017 BA=16, 2027 BA=169, 2037 BA=216, 2047 BA=209, 2057 BA=206
+★ (ii) REFUTED: NO visible THINPRSC drop in EITHER jl or live (BA grows through the 2029 thin) — the cut is not
+removing differently. Stand BA tracks closely early (2/2, 15/16, 148/169, 219/216) and diverges only in the LATE tail
+(jl -15% by 2057 = the known EM/IE growth compounding tail). ⇒ the ~16× baaa gap (live BAAA=1 vs jl 16) is NOT a
+per-point removal difference.
+★ KEY REALIZATION — the earlier baaa comparison was TALLY-TIMING CONFOUNDED: live BAAA=**1.0** is the CLAMPED value
+(estab.f:483 IF(BAA<1)BAA=1) at a tally near INVENTORY (BA≈2 in 2007) — i.e. live's first tally fires early on a
+near-empty stand; jl's icyc2 tally reads a LATER, higher-BA state (BA≈169 → point_ba≈16). The two "tally-1"s are NOT
+at the same stand moment, so BAAA 1 vs point_ba 16 is apples-to-oranges. The real question re-narrows to: DO jl and
+live fire their AUTOES tallies in the SAME cycles/at the same stand state? (Prior sessions claimed the scheduler is
+bit-exact on iet01, but that was the shelterwood stand, not these THINPRSC DB stands.) ⇒ #143 NEXT (fresh session, in
+order): (1) align WHICH cycle each tally fires jl vs live on 12343703010690 (dump idsdat/kdt/ntally/year both sides);
+(2) ONLY THEN compare baaa at MATCHED cycles; (3) if matched-cycle baaa still diverges, it's the point_ba value; if the
+tallies fire at different cycles, it's a SCHEDULER-timing bug on the THINPRSC path. Four hypotheses now tested this
+session (overstory-filter / cornered / multi-point-attribution / THINPRSC-removal — ALL refuted); the live-vs-jl
+per-tally baaa numbers must be RE-TAKEN at matched cycles before any further fix. jl unchanged; live restored (0 residue).
