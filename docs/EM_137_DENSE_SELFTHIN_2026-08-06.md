@@ -225,3 +225,18 @@ em_esgent! (I used gentim=fint-5, subyr/regyr=1 per tt_esgent!) isn't yet bit-ex
 period. NEXT (bit-exact refinement): instrument live em/esgent.f (or estb/esgent.f) for the birth-cycle KPER/subcycle +
 XRHGRO/CON scaling on em_plant_dense cyc1, match em_esgent!'s subyr/con. The ROOT (missing birth-cycle growth) is
 FIXED; this is a scaling-precision tail.
+
+## #152 birth-cycle scaling — MEASURED discrepancy = TPCCF (birth-cycle density), not the period
+Instrumented live em/regent.f:545 (EMVAR birth cycle, gated LESTB=.TRUE.) vs jl em_esgent! for DF (sp3) on
+em_plant_dense: PERIOD matches (NTYR=fint−5=5 ⇒ NPER=1, KPER=5; XRHGRO=XRHMLT=1 default; CON=1 at establishment).
+But the SMHTGF increment differs ~7-10×:
+  live:  H1=1.00  HTGRR≈1.04  CON=1  H2≈2.04
+  jl:    h=1.169  htgrth≈0.10-0.15  con=1  h2≈1.32
+The cause is TPCCF: em_esgent! reads dens.point_ccf AFTER establish! recomputed density WITH the just-established
+6000-TPA dense regen ⇒ point_ccf is huge ⇒ clamps to 300 ⇒ _em_smhtgf BETA1=exp(B0ACCF+B1ACCF·ln(300)) is suppressed
+(htgrth~0.15). Live's birth-cycle DENSITY (the LESTB path, em/regent.f label 8, GO TO 8 skipping the DO-4 RDNEXT
+build) EXCLUDES the just-established regen from its own competition ⇒ a LOW TPCCF ⇒ HTGRR~1.04. ⇒ #152 FIX: em_esgent!
+must use a birth-cycle TPCCF that EXCLUDES the newly-established regen (the pre-establishment point_ccf, or the LESTB
+RDNEXT that regent.f:label-8 builds), NOT the post-establish dense point_ccf. That will raise jl htgrth 0.15→~1.04 and
+should close the em_plant_dense +10-29% early residual. (Note: cr_esgent!/tt_esgent! got away with the post-establish
+point_ccf because their test stands lack a 6000-TPA dense-regen event; this is the SAME "dense regime exposes it" META.)
