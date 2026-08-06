@@ -97,6 +97,10 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
+        bm_crown_init_lstart!(s)          # CRATET (before DGDRIV): dead-inclusive DENSE → DUBSCR dub of missing-CR
+                                          # inventory crowns. Without it dense read 0.1" seedlings keep crown_pct=0 ⇒
+                                          # VIGOR floors at 0.30 ⇒ HTGR under-predicts ⇒ never cross 4.5' ⇒ DBH growth
+                                          # skipped ⇒ small-tree DG/BA ~2× low (#149). bm/crown.f reads BA/AVH/TPCCF/RMAI.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralIdaho
         ci_dgcons!(s)                     # CI DGCON (DGHAB via ICHBCL + DGFOR + elev/slope-aspect + site adj), ATTEN
