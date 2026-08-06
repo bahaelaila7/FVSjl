@@ -677,7 +677,16 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     p1 = Float32(prob1); scale = 300f0 / Float32(dupnpt)
     # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
     has_state = length(nstore) == nplots && length(pnn) == nplots
-    seeds = ie_autoes_plot_seeds(seed0, nplots; wk6 = wk6fill)
+    # Per-plot RNG body = the ACTUAL ESRANN advance per plot (measured live estab.f, EM/IE instrument-replay):
+    #   16 [EMSQR(2)+ESTPP(1)+NUMSPE-WK6(6)+species-WK6(6)+1] + 3·nsp [ADV/SUBS(nsp)+heights(2·nsp)]
+    #   + 2·MAXTPP[ihab] [excess-WK6]. Validated: IE iet01 (nsp=23,ihab=10,MAXTPP=25)=16+69+50=135 (unchanged);
+    #   EM (nsp=19,ihab=3,MAXTPP=5)=16+57+10=83 (measured live per-plot advance = 137−54 = 83, constant). The
+    #   old hardcoded 135/69/50 were iet01-specific ⇒ EM (fewer species, smaller MAXTPP) desynced the seed chain.
+    #   RESULT: jl ITPP sequence [1,2,1,1,3,3,…] now MATCHES live [1,2,1,1,3,3] bit-exact.
+    adv_heights = 3 * nsp
+    excess_draws = 2 * _IE_MAXTPP[ihab]
+    body_n = 16 + adv_heights + excess_draws
+    seeds = ie_autoes_plot_seeds(seed0, nplots; wk6 = wk6fill, body = body_n)
     tally = zeros(Float64, nsp)
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
@@ -711,8 +720,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             we[i] = pxcs[i] * ibest[i]; (ibest[i] == 1 && we[i] < 0.0001f0) && (we[i] = 0.0001f0)
         end
         twe = sum(we); twe > 0 && (we ./= twe)
-        for _ in 1:69; ie_esrann!(rng); end                                  # ADV/SUBS(23)+heights(46)
-        wk6e = ntuple(_ -> ie_esrann!(rng), 50)                              # excess-WK6
+        for _ in 1:adv_heights; ie_esrann!(rng); end                         # ADV/SUBS(nsp)+heights(2·nsp)
+        wk6e = ntuple(_ -> ie_esrann!(rng), excess_draws)                    # excess-WK6 (2·MAXTPP[ihab])
         nd = 0
         for _ in 1:(itpp - numspe)
             nd += 1; iplot += 1; j = ie_estab_pick_species(wk6e[nd], we); tally[j] += esprob(iplot) * scale; nd += 1

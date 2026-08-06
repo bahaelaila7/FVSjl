@@ -83,6 +83,19 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     elseif _fia_present(d, "ELEVATION")
         p.elevation = _fia_f32(d, "ELEVATION", p.elevation)
     end
+    # Western variants set a per-variant DEFAULT elevation (hundreds of ft) in grinit.f (EM 55, BM 45, IE 38,
+    # KT 35, UT 83, TT 65, CI 50); the DB overrides ONLY when >0 (dbsstandin.f:647), so a NULL/≤0 ELEVATION/
+    # ELEVFT keeps that default (a present-but-NULL ELEVFT column reads as 0 above). Without it the ESTOCK and
+    # DG elevation terms use 0 ⇒ wrong AUTOES PROB1 (over-produces: measured EM stand 5332701010661 NULL elev →
+    # live grinit ELEV=55 → ESTOCK PN −1.490, PROB1 0.184; jl elev 0 → PN −0.001, PROB1 0.4996 = 2.7× the trees)
+    # AND wrong large-tree DG (EM_DGEL·elev + EM_DGEL2·elev²). CR grinit ELEV=0 (no default); SN uses forest_location.
+    if p.elevation <= 0f0
+        edf = s.variant isa EasternMontana ? 55f0 : s.variant isa BlueMountains ? 45f0 :
+              s.variant isa InlandEmpire   ? 38f0 : s.variant isa Kootenai      ? 35f0 :
+              s.variant isa Utah           ? 83f0 : s.variant isa Teton         ? 65f0 :
+              s.variant isa CentralIdaho   ? 50f0 : 0f0
+        edf > 0f0 && (p.elevation = edf)
+    end
     # LATITUDE/LONGITUDE (TLAT/TLONG, dbsstandin.f:254-259) — feed the Hopkins bioclimatic
     # index in the eastern crown-width models.
     _fia_present(d, "LATITUDE")  && (p.latitude  = _fia_f32(d, "LATITUDE", p.latitude))
