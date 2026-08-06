@@ -161,3 +161,17 @@ sub-BH established cohort's height at live's rate. NEXT: instrument the LIVE per
 across 1990→2000 (dump HT(I) at each cycle for a tagged planted tree) to find the exact growing path, then port it.
 ★ This REFRAMES #137 from "self-thin over-kill (mortality)" to "planted/established sub-BH HEIGHT under-growth
 (the self-thin is downstream)". The goal-file's "cyc0 mortality divergence" framing is superseded.
+
+## Establishment height CONFIRMED equal (~1') — #137 is definitively a per-cycle GROWTH bug
+Instrumented estb/estab.f:1023 (the PLANT/NATURAL tree-creation ESSUBH, called with TIME=FINT=10): live establishes
+the planted DF cohort at HHT ≈ 1.00-1.12' (varies per-tree by BAA). jl's em_essubh_hht gives ~1.18' (validated). So
+BOTH establish the cohort at ~1' — the establishment height is NOT the divergence. ⇒ #137 is DEFINITIVELY the
+per-cycle GROWTH of the established sub-breast-height cohort: live grows them 1'→5-6' by 2000 (TopHt), jl leaves them
+at ~1'. The growth path remains UNCAPTURED by my instrument-replay (regent NI/TT/SMHTGF, htgf all 0 for these trees) —
+a genuine contradiction (every path I dump gives 0, yet live grows them). Likely I'm instrumenting the wrong branch,
+OR the height jump is a re-assignment not an increment, OR esgent.f:53 REGENT(LESTB=.TRUE.) grows the establishment
+cohort via a path/branch my dumps missed. DECISIVE NEXT: a CATCH-ALL per-tree HT trace — dump HT(I)+HTG(I) for the
+established cohort at the END of base/grincr.f (after ALL growth routines) across 1990→2000, to see whether HT jumps
+via HTG (increment — then trace which routine set HTG) or via a direct HT re-assignment (establishment re-height).
+NET (this iteration): #137 reframed to a HEIGHT-GROWTH bug + establishment height RULED OUT (both ~1') ⇒ it's the
+per-cycle growth of established sub-BH trees, ~5-6× under-grown, general (both densities), REAL not cornered.
