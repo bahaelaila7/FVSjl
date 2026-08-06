@@ -79,3 +79,16 @@ is therefore NOT height-suppression/coefficients — it is downstream: the MULTI
 conversion (regent.jl:414-428 dk→dds→dg_inc). NEXT: dump the FULL per-subcycle (h1,h2,rdj,d2) trajectory for the
 WH seedling jl vs live — the height must reach ~9.7' in live (for d=0.54) vs jl's ~6.5' (d=0.23), so the height
 DIVERGES over subcycles 2+ despite matching at subcycle 1 ⇒ the rdnext density-feedback compounding is the prime suspect.
+
+
+### WH #146 — narrowed to the DIAMETER FINALIZATION (2026-08-06, full subcycle trajectory)
+Full per-subcycle dump (WH seedling i=6, stand 753199439290487): jl vs live BOTH reach ~5.8' height in 2 subcycles
+(j1 h1 1.01→h1 j2 2.99 jl / 2.972 live; rdj CONSTANT jl 11.79 / live 13.92; htgrl jl 0.683/1.054 ≥ live 0.674/1.042).
+⇒ jl grows MORE height with the SAME HHT1/HHT2 (0.0729/1.1988) — so the under-growth (QMD 0.23 vs 0.54, BA 13 vs 74)
+is NOT height, HTGRL, coefficients, or density-feedback. It is the DIAMETER FINALIZATION: the NIVAR diameter dub
+fires only for j<nper & h2>4.5 (regent.jl:197) — for this seedling j=1 has h2=2.99<4.5 (skipped) and j=2 is the last
+subcycle (skipped), so jl's dbh comes ONLY from the final-loop DDS→DG (regent.jl:414-428, dk=ax·(hk−4.5)^bx→dds→
+dg_inc at the final hk≈5.86). The d≈0.0729·(5.86−4.5)^1.1988≈0.10 the dub predicts matches JL (0.23), so LIVE's 0.54
+comes from a DIFFERENT/additional diameter path when the seedling crosses breast height. NEXT: dump the final WK5/DBH
+(ie/regent.f) vs jl tree.dbh for the WH seedling — live likely applies the large-tree DDS on the >4.5' portion that
+jl's last-subcycle-skip drops. (One dense-stand species; real-FIA-relevant but isolated — candidate, not blocker.)
