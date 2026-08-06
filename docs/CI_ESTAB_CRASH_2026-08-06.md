@@ -54,3 +54,12 @@ So: htcalc_height dispatch gap (#154) = CONFIRMED BM+CI, INFERRED CR/IE/TT (same
 deterministic); UT would also hit it but crashes first at :essprt_fsp. ⇒ #154 fix (wire western establishment-height
 branches) closes CR/IE/TT/BM/CI; UT needs BOTH #154 + the :essprt_fsp stump-sprout wiring. Two distinct western-estab
 bugs, both blocking PLANT/ESTAB projection.
+
+## MEASURED FIX DATA — CI establishment height is essubh-driven (~1.5-1.9'), NOT a fixed base
+Instrumented live estb/estab.f PLANT ESSUBH (line 1023) on cit01 (FVSci_trc): CI planted base height HHT = 1.57 /
+1.63 / 1.76 / 1.90 ... ' for IPNSPE=2 (per-plot variation, TIME=FINT=10). So CI's establishment height IS the essubh
+model (site/BAA-dependent + stochastic per-plot, like EM's em_essubh_hht ~1.0-1.18'), NOT the "fixed/XMIN base" the
+code comment guessed. ⇒ the #154 fix per western variant = PORT that variant's essubh (mirror em_essubh_hht: the
+essubh.f species equations are variant-specific DATA + a per-plot ESRANN perturbation) and wire it into the
+establishment.jl:258 dispatch. This is a real per-variant port (CI/BM/UT/TT/KT/IE), NOT a one-line guard. Measured
+target for CI sp2: ~1.5-1.9'. (UT additionally blocked by :essprt_fsp before reaching here.) Fresh-session chunk.
