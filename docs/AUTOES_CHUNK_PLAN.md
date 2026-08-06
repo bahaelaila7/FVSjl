@@ -1076,3 +1076,20 @@ NEXT (real fix path, no overstory filter): instrument WHEN live captures BAAA(NN
 density → tally order), and whether the tallied NNID maps to jl's point 1. The stand 12343703010690 (live BAAA=1 vs
 jl 16) is the cleanest repro. ⇒ #143 is a genuine open bug (per-point disturbance-adjusted BA), re-scoped away from
 both the overstory-filter AND the cornered-straddle; the ~22% tally residual is real on disturbance stands. jl unchanged.
+
+## 2026-08-06 (#143 localized) — single-plot (attribution REFUTED); it's per-point BA on disturbed-overstory stands
+Repro 12343703010690: NUM_PLOTS=**1** (single plot) ⇒ the multi-point NNID↔point-1 ATTRIBUTION hypothesis is REFUTED
+(jl point_ba[1] and live BAAA(NNID=1) are the SAME point). The stand has a real overstory (33 recs, DBH 0.1–15.5",
+24 trees ≥5") that THINPRSC 2029 0.8 heavily cuts. At the icyc2 tally: live BAAA=**1.0** (point ~bare after the cut)
+vs jl point_ba[1]=**16.05**. So jl's per-point BA is ~16× too high on a heavily-disturbed overstory point. THREE
+hypotheses now REFUTED: overstory-filter (1b82ae0), cornered-straddle (453e1a6), multi-point-attribution (this entry).
+REMAINING mechanism = a per-point BA value difference on DISTURBED-OVERSTORY stands, ONE of:
+  (i) TALLY TIMING — jl reads point_ba (compute_density!) at a cycle phase that does not reflect the THINPRSC removal
+      that live's BAAA capture already sees (cut→density→tally ordering within grow_cycle!); or
+  (ii) jl's THINPRSC itself removes LESS BA than live's on this stand (a thinning-implementation Δ, NOT AUTOES) — jl
+      would then legitimately carry 16 BA while live carries ~0. ← CHECK THIS FIRST (cheap): diff the jl vs live .sum
+      BA at the thin year 2029 on 12343703010690; if jl BA >> live BA post-thin, the root is THINPRSC, not the baaa
+      input, and #143 re-routes to a cut bug. If jl and live post-thin BA MATCH, then it's (i) tally timing.
+The overstory-removal stands (not the all-seedling ones) are where point_ba[1] diverges most from BAAA; the ~22% AUTOES
+residual is concentrated there. NEXT SESSION: run (ii) first (one .sum diff at the thin year), then (i) if needed.
+Clean repro = 12343703010690. jl unchanged this session; live restored (0 residue).
