@@ -140,3 +140,24 @@ jl-side instrumentation too (the .sum aggregates can't show the per-tree BH-cros
 ★ HONEST STATUS: #137 reproduced + direction corrected; the per-cycle growth dispatch fully mapped (regent per-cycle
 via grincr; EM→SMHTGF; both height paths zero for sub-BH); crux localized to the first-cycle establishment-height
 BH-crossing. One self-correction logged (REGENT per-cycle, not cratet-only) — doctrine #2 caught it.
+
+## ★★ REFRAMED (per-tree TopHt measurement) — #137 is a HEIGHT-GROWTH bug, general (not density-specific)
+Compared TopHt (tripling-safe stand aggregate) at 2000 (age 10, 10 yr after the 1990 PLANT):
+  em_plant_dense (6000 TPA): live TopHt=6  jl TopHt=1
+  em_plant      (400  TPA): live TopHt=5  jl TopHt=1
+So jl UNDER-grows the EM planted cohort's HEIGHT at BOTH densities — it is NOT density-specific. jl's cohort sits at
+~1' (≈ the essubh establishment HHT 1.18') while live's grows to 5-6' by 2000. Since jl's essubh base height is
+validated bit-exact (establishment.jl:4), live's trees are growing ABOVE the establishment height via the per-cycle
+tree model, whereas jl's stay STUCK at it (~0 height growth). ⇒ #137 is fundamentally a HEIGHT-GROWTH bug: jl gives
+the EM planted/established SUB-breast-height cohort ~0 per-cycle height growth where live grows ~0.5'/yr (1.18'→5-6'
+in 10 yr). This is REAL, one-directional, ~5-6×, NOT the cornered dense-regen straddle. It only CASCADES to the
+self-thin TPA under-kill on DENSE stands (where the height/BA lag delays the QMD-driven self-thin); at low density
+(em_plant) TPA stays bit-exact and BA merely converges, which is why it read as "bit-exact" before — the .sum TPA
+masked a real 5× TopHt height lag (META: measure TopHt, not just TPA/BA).
+UNRESOLVED: my regent(NI/TT)/SMHTGF/htgf instrument-replay showed 0 growth for sub-BH — yet LIVE clearly grows them
+1.18'→5-6'. So live's sub-BH established-tree height growth is in a path my dumps didn't capture (a regent branch I
+mis-identified, or the DIAM/HITE sub-BH path, or an ESTAB per-cycle re-height). The FIX is to make jl grow the EM
+sub-BH established cohort's height at live's rate. NEXT: instrument the LIVE per-tree HT trajectory of one planted DF
+across 1990→2000 (dump HT(I) at each cycle for a tagged planted tree) to find the exact growing path, then port it.
+★ This REFRAMES #137 from "self-thin over-kill (mortality)" to "planted/established sub-BH HEIGHT under-growth
+(the self-thin is downstream)". The goal-file's "cyc0 mortality divergence" framing is superseded.
