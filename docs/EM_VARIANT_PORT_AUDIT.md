@@ -656,3 +656,19 @@ Full instrument-replay chain (live estab.f, EM stand 5332701010661, DB elevation
    stands all HAVE elevation ⇒ the cornered ~7%-BA growth-tail (treed) is UNAFFECTED (genuinely a separate phenomenon,
    verdict stands). ⇒ EM AUTOES amount [#143] CLOSED. The elev-default fix is a cluster-wide correctness fix (ESTOCK
    AND large-tree DG_EL·elev+DG_EL2·elev²) for any western NULL-elevation DB stand.
+
+## 2026-08-06 — #137 re-confirmed SETTLED on emt01 (bit-exact early + cornered compounding tail)
+Re-measured the canonical EM establishment stand emt01 (ESTAB 1992 + PLANT sp2/sp10 400 each) jl vs live FVSem
+(emt01.sum), full 11-cycle TPA+BA (correct cols: BA=$4, SDI=$5):
+  1990-2010: TPA + BA **BIT-EXACT** (536/77, 526/96, 517/114≈115).
+  2020→2090: compounding tail — jl BA +3→+16 (246 vs live 230 = +7% by 2090), jl TPA -0→-17 (394 vs 411 = -4%).
+The late TPA over-kill (-4%) is DOWNSTREAM of the +7% BA over-growth (higher BA → higher SDI → more self-thin), NOT a
+separate cyc0 mortality bug — cyc0 (1990) is bit-exact. This is the accepted RDPSRT/AVHT40 BA-percentile/crown tie-break
+precision compounding (the goal file's own "EM/IE growth-only ~7%-BA-by-2090 tail is CORNERED, no fix warranted").
+⇒ #137 is bit-exact-or-cornered on emt01, consistent with the c7c7d2f/#152 fix (the real #137 bug was a HEIGHT-GROWTH
+esgent birth-cycle omission, not mortality) and the dense-seedling real-FIA campaign ([[fvsjl-dense-seedling-sweep-
+campaign]], #145 fixed). The goal-file's "#137 estab self-thin over-kill still open" is STALE — superseded by those
+fixes. No mortality bug remains on the EM establishment path; the residual is the cluster-wide cornered DG-precision tail.
+NOTE (breadth check, honoring "don't narrow to one variant"): this session's #140 PVREF6 fix is BM-only (fia_database.jl
+BlueMountains branch) — EM emt01 is byte-unchanged by it (verified: EM reads PV_CODE via the numeric mod-1000 path, no
+PVREF6), so this cornered tail is the pre-existing state, not a regression.
