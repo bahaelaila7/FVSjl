@@ -122,3 +122,15 @@ bug" read was WRONG (Δv misread as TCuFt); doctrine #2 (MEASURE) corrected it.
 ★ CORRECTED VERDICT: the ENTIRE western FIA slice cluster (BM/UT/TT/EM) is BIT-EXACT-OR-CORNERED — growth 100%
 bit-exact on all treed stands, TCuFt bit-exact-or-near, merch/board (MCuFt/BdFt) small cornered threshold tail,
 ZERO jl crashes. No real-FIA regression from #154/#155. KT absent from the FIA DB. Matches the CI/IE 2026-08-05 result.
+
+## 2026-08-06 — ROBUSTNESS crash-scan: #154/#155 code EXERCISED on real FIA stands + injected management
+The differential sweeps above used NO-MANAGEMENT FIA stands (so #154 essubh / #155 sprout gate out, inert). A
+jl-only crash-hunt with INJECTED management actually EXERCISES the new code on real FIA plots at scale:
+- **BM** 40 stands + ESTAB/PLANT(sp2,sp10) → exercises bm_essubh_hht (#154): **40/40 OK, 0 crashes**.
+- **UT** 12 stands + PLANT(sp3,sp10) + THINDBH(cut→sprout) → exercises ut essubh (#154) + ut esuckr (#155):
+  **12/12 OK, 0 crashes**.
+- **CI** 12 stands + ESTAB/PLANT(sp2,sp10) → exercises ci_essubh (#154): **12/12 OK, 0 crashes**.
+⇒ 64 real FIA stands with PLANT/thinning, ZERO crashes/non-finite output. Complements the differential sweeps
+(fidelity) with a ROBUSTNESS proof of the session's #154/#155 code on the paths the sweeps don't reach.
+NET SESSION VALIDATION: growth 100% bit-exact on all treed FIA stands (BM/UT/TT/EM) + volume bit-exact-or-cornered
++ 64-stand management crash-scan 0 crashes ⇒ #154 (essubh CI/BM/UT) and #155 (UT sprout) fully validated on real FIA.
