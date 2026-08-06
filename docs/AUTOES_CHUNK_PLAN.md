@@ -965,3 +965,23 @@ well-scoped debug — NOT a re-port — after which the per-inventory-point BAAA
 measured: 41.93/46.17/1/1/1/4.79/50.05 vs 40.0) can be implemented and validated vs the stand-4 .sum. The whole #143
 remaining arc is now reduced to: [debug firing] → [swap point_ba[1]→per-point overstory BAAA + add frozen BAAINV] →
 [validate]. No model unknowns remain.
+
+## 2026-08-06 (validation-path blocker found) — jl AUTOES fires on DB stands; keyfile .tre reads 0 trees
+Ran the trigger-state probe (temp stderr at ie_autoes_establish! entry; reverted). DEFINITIVE:
+  - **jl AUTOES fires correctly on a real-FIA DB IE stand**: AUTOES_TRIG cyc=1 lautal=**true** lingrw=**true**
+    last_xtes=0.0 thres1=0.1 ntrees=21 — so the lautal-default-TRUE + ie_autoes_establish! call path WORKS. (This
+    stand had no thinning ⇒ last_xtes=0 ⇒ it fires via the LINGRW ingrowth branch, not the LAUTAL removal branch.)
+  - **The keyfile iet01 stand-4 never reaches AUTOES because it loads 0 TREES**: `load_trees!(iet01.tre)` returns
+    trees.n=**0** — jl's .tre reader does not parse iet01.tre's fixed-column format (record e.g.
+    `   1      248112       0101   011LP 11510   0734   00111     0  0`). Empty stand ⇒ grow_cycle skips meaningful
+    work ⇒ no AUTOES ⇒ the summary.jl:319 `dt` NaN (a per-year rate ÷ 0 residual). So the earlier "keyfile AUTOES
+    doesn't fire" was NOT a scheduler gap — it was an EMPTY STAND from the .tre parse.
+⇒ #143 VALIDATION PATH (revised, next session): do NOT use the iet01.key/.tre keyfile — jl can't read that .tre. Instead
+either (a) load iet01 stand-4's trees into a small SQLite DB (FVS_TREEINIT/STANDINIT, like ie_test.db / build_subdb.jl)
+and drive jl via DATABASE, OR (b) pick a real-FIA IE stand that carries a management THINNING so last_xtes arms the
+LAUTAL removal branch (the branch that exercises the BAAA-drops-after-cut behavior the fix targets — the ingrowth
+branch alone won't). Then: confirm AUTOES fires via lautal, dump per-tally baaa, implement the per-inventory-point
+overstory-BAAA vs frozen-BAAINV split (live truth 41.93/46.17/1/1/1/4.79/50.05 vs 40.0), validate vs the DB stand's
+.sum. SEPARATE minor gap surfaced: jl's .tre reader returns 0 trees for the standard iet01.tre column format — a
+tangential IO limitation (jl real-FIA input is DB-based; the keyword-file .tre path is under-exercised), worth its own
+small task but NOT on the #143 critical path.
