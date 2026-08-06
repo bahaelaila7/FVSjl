@@ -604,3 +604,16 @@ is purely the RNG/ESTPP path. ⇒ THE EM AUTOES AMOUNT RESIDUAL = the ie_esrann/
 different RNG state; trace the pre-tally draw count for the ingrowth path vs live). If the systematic 2.6× survives
 RNG-matching it may be an accepted stochastic straddle (doctrine #3), but the consistent over-cap suggests a real
 pre-tally RNG-state divergence. Structural gap RESOLVED (e1dd44e); this is the amount close-out's precise root.
+
+### AUTOES ingrowth ITPP root — body-count nsp-scaling REFUTED (2026-08-06, tested)
+Hypothesis: the per-plot RNG body (135 draws in ie_autoes_plot_seeds) + the 69 tally draws are species-dependent
+(3·NOFSPE), so EM (19 sp) desyncs the seed chain → wrong ITPP. TESTED: scaled body=66+3·nsp (123 for EM) and the
+tally draws 69→3·nsp (57 for EM). Result — EM repro 303→315 (essentially UNCHANGED, still ~2.6× over), IE
+byte-IDENTICAL (iet01 unchanged). ⇒ the body/draw-count is NOT the ITPP root (REVERTED — inferred + unvalidated +
+no effect). The ITPP-per-plot divergence (jl [1,1,3,1,2] vs live [1,2,1]) is therefore in the SEED / pre-ITPP RNG
+state: the plot seed0 = ESRANN(es_stream=55329) or the pre-ITPP draws (wk6fill=50 plot-1 fill, EMSQR=2) differ from
+live for EM ingrowth. NEXT: instrument live estab.f ESRANN draw-by-draw for the EM ingrowth tally (the DRAW feeding
+ESTPP per plot) vs jl's ie_esrann chain — the IE chain was validated bit-exact on iet01 (disturbance path), so the
+EM INGROWTH path (NTALLY=99, itrn==0&icyc==1) enters the tally at a different RNG state (possibly the ingrowth
+seed0 derivation or the SHORTY/ESTIME setup draws differ). Structural gap RESOLVED (e1dd44e); this is the amount
+close-out's remaining root, now narrowed to the seed/pre-ITPP RNG realization (body-count excluded).
