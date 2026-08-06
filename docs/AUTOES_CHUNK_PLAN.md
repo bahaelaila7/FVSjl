@@ -1267,3 +1267,22 @@ draw ORDER must match live's ESRANN stream (the seed chain is already bit-exact 
 a WIRING+RNG-order task over EXISTING equations — a focused unit, but NOT the large port previously scoped.
 META (doctrine #5): I duplicated ie_esadvh by not grepping for the existing function first — caught + reverted; the
 lesson (check what exists before porting) is exactly why the port turned out to be a wiring task.
+
+## 2026-08-06 (WIRING located + de-risked: height draws are already BURNED at ie_autoes_tally:724)
+Read ie_autoes_tally (establishment.jl:658-733). KEY: the ADV/SUBS + per-species height ESRANN draws are ALREADY
+CONSUMED — line 724 `for _ in 1:adv_heights; ie_esrann!(rng); end` draws & DISCARDS them (adv_heights = nsp ADV/SUBS
++ 2·nsp heights) purely to keep the stream aligned. So the RNG is ALREADY at the correct position (the seed chain +
+draw order are bit-exact-validated) ⇒ the wiring is LOW-RNG-RISK: capture those drawn values and USE them (with
+DILATE=FIRST(1,i), ie_esdlay for DELAY, ie_esadvh/ie_essubh for HHT) instead of burning them. NO stream shift.
+★ BUT the wiring is more than "use the burned draws" — the tally COUNTS (tally[j], set in the best-pick loop :715-718
+and excess-pick :727-729 via ie_estab_pick_species + esprob·scale) and the height model TOGETHER decide what live
+ADDS. Live's regen report "TREES/ACRE ADDED" = the <3.0-DBH subset; the ≥3.0" (advance-regen, tall ESADVH heights)
+are summarized but NOT projected as new regen. jl currently books ALL tally[j] as dbh=0.1 (est.jl:1166) ⇒ over-books
++ wrong split (measured jl WP0/GF268 vs live WP21/GF61, commit 9663634). ⇒ THE WIRING (final #143 unit): (1) in
+ie_autoes_tally capture per-species EMSQR(from :695) + the ADV/SUBS draw + 2 height draws (from :724) + DILATE=
+FIRST(1,i); dispatch advance→ie_esadvh / subsequent→ie_essubh / excess→ie_esxcsh → per-tree HHT; (2) RETURN heights
+alongside tally; (3) in ie_autoes_establish! tree-creation replace the dbh=0.1 floor with the HHT-derived dbh and
+apply the ≥3.0" advance-regen rule live uses (which trees are ADDED vs summarized); (4) validate vs iet01 s4r RegRepts
+(2089 WP21/GF61 + AVERAGE HEIGHT WP3.5/DF3.8/GF1.7/... + .sum 536→…→1788). Needs the estab.f body-16..84 trace for the
+exact count↔height↔ADD interaction (ITIME≤2 ⇒ BEST=advance). ⇒ #143 = a focused, LOW-RNG-RISK wiring over existing
+equations; the delicate part is the count/height/ADD interaction (estab.f body), NOT the RNG. jl clean this turn.
