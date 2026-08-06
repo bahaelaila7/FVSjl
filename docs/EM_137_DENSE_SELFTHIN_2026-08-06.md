@@ -317,3 +317,18 @@ naturals" / per-plot PLPROB path). NEXT: instrument the ACTUAL amount path for t
 NSTORE/the plot count + final TPACRE per species — vs jl ie_autoes_establish!'s ITPP draw. The +12% is one of: the
 ITPP-per-plot draw (ESTPP/ESTPP-equivalent), the plot count (DUPNPT/NPTIDS), or the TPA scaling. FTEMP/PN/ESB/STOADJ
 all RULED OUT bit-exact. This is a tight, well-scoped close-out for the IE-shared AUTOES tally (#143).
+
+## #143 +12% — ROOT MEASURED: the INGROWTH-path ITPP raw-draw skew (cap correct, RNG/formula)
+Instrumented live estab.f for stand 103399881: INGRO=1, MATCH=0, NTALLY=1, IHAB=3, MAXTPP=5. So this empty
+auto-establishing stand is INGROWTH (INGRO=1) in live — jl's is_ingro path (cap=_IE_MAXING[3]=3) is CORRECT (with
+INGRO=1, estab.f:682 makes MAXING=3 the binding cap over MAXTPP=5). Both cap at 3. Yet the ITPP DISTRIBUTION differs:
+  live ITPP: 22×1 / 15×2 / 15×3  = 97 tree-slots
+  jl   ITPP: 18×1 / 11×2 / 23×3  = 109 tree-slots  = +12.4% (= the exact amount residual)
+jl's raw ITPP draws skew HIGHER (more 3s, incl. draws that would be 4/5 clamped to MAXING=3). Since the cap + INGRO
+classification match, the +12% is the INGROWTH-path ITPP RAW DRAW: jl's ie_estpp(ie_esrann()) gives higher trees-per-
+plot than live's ESTPP on the ingrowth path. This is the KNOWN open residual flagged at establishment.jl:676 ("the
+ingrowth (is_ingro) path has a separate open residual"). NEXT: instrument live ESTPP DRAW/TPP vs jl ie_estpp draw on
+the ingrowth path (the ie_esrann seed-chain position, or the ie_estpp VAL/BB/CC formula) — the ingrowth-path RNG
+advance or the ESPROB-driven NEWTPP normalization (estab.f:589 ITPP=INT((PLPROB·DUPNPT)/(FTEMP·300)+0.5)) is the
+skew source. ★ #143 converted from "diffuse ~22%" to "ingrowth ITPP raw-draw +12%=109-vs-97 tree-slots; PN/FTEMP/ESB/
+STOADJ/cap/INGRO all bit-exact-or-correct". Same residual class as the IE ingrowth audit item.
