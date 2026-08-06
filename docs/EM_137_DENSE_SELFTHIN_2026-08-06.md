@@ -359,3 +359,18 @@ to jl ie_autoes_establish!'s ingrowth path so the ESTPP draw lands at live's pos
 close). NEXT: instrument live ESRANN with a per-CALL-SITE tag (or bisect the 147) to identify WHICH setup phase jl
 skips — likely a per-plot or per-species ESRANN loop count. ★ #143 root fully quantified: RNG count offset ~147
 draws on the EM ingrowth path; all equations/PN/FTEMP/cap correct.
+
+## ★ CORRECTION (2026-08-06) — #143 is NOT a count offset; the ie_esrann SEQUENCES diverge EM-specifically
+The prior "pure ~147-draw count offset, streams align" (commit 63685cd) is REFUTED. Searched all 6 of jl's ingrowth
+ESTPP vals in the full live ESRANN stream (4369 draws): only 0.346301 appears (position 54) — COINCIDENTAL; the other
+5 (0.350846/0.212444/0.215863/0.991703/0.932161) have ZERO occurrences. If it were a count offset in the SAME LCG
+stream, ALL of jl's vals would appear in live's stream at earlier positions. They don't ⇒ jl's ie_esrann is at a
+DIFFERENT LCG STATE than any live's ESRANN passes through for this stand ⇒ NOT a fixable count offset. Since jl's
+ie_estpp/ie_esrann is VALIDATED bit-exact on iet01 stand-4 (memory), the RNG matches THERE but diverges on the EM
+stand ⇒ EM-INGROWTH-SPECIFIC seed/state divergence: jl's per-plot ie_esrann seeding (or a count divergence from an
+EARLIER point in the EM establishment setup that puts jl in a different LCG state by ESTPP) differs from live. ⇒ the
++12% root is a per-plot RNG STATE mismatch on the EM ingrowth path, deeper than a draw-count adjustment. NEXT: compare
+jl's ie_esrann per-plot SEED derivation vs live's ESRANN ESS1 chaining for the EM stand (is jl re-seeding per plot
+where live continues a global chain? is the initial ESS1 seed for the stand different?) — the seeding/chaining is the
+divergence. ★ SELF-CORRECTION LOGGED (doctrine #2, twice this session incl #152): the 9-digit coincidental match
+misled me into a false "offset"; the FULL-sequence search refuted it. Verify the WHOLE distribution, not one point.
