@@ -175,3 +175,20 @@ established cohort at the END of base/grincr.f (after ALL growth routines) acros
 via HTG (increment — then trace which routine set HTG) or via a direct HT re-assignment (establishment re-height).
 NET (this iteration): #137 reframed to a HEIGHT-GROWTH bug + establishment height RULED OUT (both ~1') ⇒ it's the
 per-cycle growth of established sub-BH trees, ~5-6× under-grown, general (both densities), REAL not cornered.
+
+## LIVE growth trajectory CAPTURED (base/update.f:65 HT=HT+HTG catch-all) — jl gives ~0, live 0.2-0.5'/cyc
+Instrumented base/update.f:65 (HT(I)=HT(I)+HTG(I), the universal height application — catches HTG from ANY routine):
+at ICYC=2 (first growth, →2000) live's small-tree cohort (HT<12') has HTG = 0.2-0.5'/tree and spans HT 1.3'→11.97'
+(n=1857) — a real height SPREAD (⇒ TopHt=6 is the top-40 of that spread). Over cycles the spread + growth carries
+trees across 4.5' into large-tree (htgf-POTHTG) growth. jl instead keeps the whole cohort flat at ~1' (TopHt=1) ⇒
+jl's per-cycle EM small-tree HEIGHT growth returns ~0 for the established/planted sub-BH cohort where live returns
+0.2-0.5'+. THAT is the #137 root: jl under-applies (≈0) the EM small-tree height increment to established sub-BH
+trees. (The live HTG=0.2-0.5 with per-tree variation ⇒ the ZRAND-perturbed SMHTGF-style increment IS being applied
+in live even at small size — so my earlier "SMHTGF returns 0 for dbh≤0" reading was the wrong branch; live's small
+established trees DO get a nonzero height increment via update.f, source TBD but now MEASURED to be 0.2-0.5'/cyc.)
+DECISIVE NEXT (jl-side, fast — Julia not gfortran): instrument jl's small_tree_growth!/_em_smhtgf for the em_plant_dense
+cohort at cyc1 — dump the per-tree htgrth. It will show ~0; then trace why (the dbh≤0 guard, the KPER/REGYR scaling,
+or the routing) and make jl apply the 0.2-0.5'/cyc increment live gives. This is the fix.
+★ #137 fully MEASURED end-to-end: establishment ~1' (both) → live grows small trees 0.2-0.5'/cyc (spread to 12' by
+2000, TopHt 6) → jl gives ~0 (flat at 1', TopHt 1) → jl BA lag → dense self-thin under-kill (+12.6% TPA). REAL bug,
+jl-side height-increment under-application. Not cornered.
