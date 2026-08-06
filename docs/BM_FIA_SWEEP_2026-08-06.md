@@ -120,3 +120,20 @@ seedlings over-grow → BA 200 (vs live 80). TWO measured discrepancies, BOTH no
 stands carry NO HISTORY=6/8 standing-dead inventory trees — so the DEAD-INCLUSIVE-density requirement was never
 exercised there either. Real FIA stands routinely carry inventory dead. This is a SECOND cluster-wide gap layered
 under #150: the lstart crown-init density must be dead-inclusive. Verify CR/CI on a real-FIA stand with inventory dead.
+
+### #151 EXACT dead-inclusion + backdating rule — SOURCE-VERIFIED (base/dense.f LBKDEN pass)
+bm/cratet.f:194 `LBKDEN = IDG.LT.2` → CALL DENSE → :610 CALL CROWN (→DUBSCR). So the DUBSCR density is the LBKDEN
+(backdated) DENSE. base/dense.f:76-128 defines it exactly:
+ 1. **Live trees (DO 5 I=1,IREC1): BACKDATED DBH** WK3(I)=SQRT(D²·R), R=1−(2·D·G−G²)/D², G=DG(I)/BRATIO(IS,D,HT)
+    (past bark-adjusted DG); if G invalid, R=BAGR (the stand-avg BA-growth ratio over the DG-sample trees). ⇒ BA/PCCF
+    reflect the START-of-period (smaller) diameters.
+ 2. **HISTORY 6/7 dead (IMC=7, died ≤5yr): INCLUDED at CURRENT DBH** (dense.f:85 WK3=DBH).
+ 3. **HISTORY 8/9 dead (IMC=9, older dead): EXCLUDED** (dense.f:86 WK3=0).
+AVH (top-40, height-weighted) is unaffected by the DBH backdating (monotone ⇒ same IND rank ⇒ same trees, CURRENT
+heights) — that is why jl's AVH=85.07 was already bit-exact while BA/PCCF were not.
+jl's c29c1c7 crown-init instead uses CURRENT-DBH density over ALL dead (HIST 6 AND 8) ⇒ BA 70.8/PCCF 94.2 vs live
+55.6/84.3. THE #151/#150 FIX: the lstart crown-init must run on the LBKDEN density — backdate live DBH (jl's
+calibrate_diameter_growth! already computes per-tree backdated D internally; expose/reuse it), include only IMC=7
+(HIST 6/7) dead at current DBH, exclude IMC=9 (HIST 8/9). This is the SHARED mechanism for the whole #150 cluster
+rollout (every variant's CRATET feeds DUBSCR the LBKDEN density). Near-floor crown ⇒ #149 net (38→87) already good;
+this tightens BA/PCCF to bit-exact and de-risks KT/IE/EM/TT/UT.
