@@ -54,6 +54,19 @@ function bm_smhtgf(sp::Int, si::Float32, h::Float32, dtime::Float32)::Float32
     end
 end
 
+# bm/essubh.f — subsequent/planted-tree base height. HHT = SMHTGF(sp, HHT, H, MODE=0, DTIME=AGE): the
+# small-tree height-at-total-age curve. NO EMSQR/DILATE/ELEV (bm/essubh.f explicitly discards them, lines
+# 47-49). MODE=0 sets EFFAGE=0 (start-from-zero), so only the non-linear WP(sp1) differs from the regent
+# (MODE=1) call; all linear species are coef·AGE with H unused. Deterministic ⇒ bit-exact-portable.
+function bm_essubh_hht(sp::Int, si::Float32, age::Float32)::Float32
+    age <= 0f0 && return 0f0                                # SMHTGF: DTIME≤0 → HHT=0 (bm/smhtgf.f:76)
+    if sp == 1                                              # WP — MODE=0: EFFAGE=0 (not H-derived)
+        c1 = 0.375045f0; c2 = 0.92503f0; c3 = -0.020796f0; c4 = 2.48811f0
+        return (si / c1) * (1f0 - c2 * exp(c3 * age))^c4 - (si / c1) * (1f0 - c2)^c4
+    end
+    return bm_smhtgf(sp, si, 0f0, age)                      # linear/fixed species: H unused ⇒ = coef·AGE
+end
+
 @inline function _bm_rg_stash!(stash, t, i::Int)
     if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
         stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]

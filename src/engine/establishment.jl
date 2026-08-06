@@ -272,6 +272,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                               em_ihtser(Int(s.plot.habitat_code)), 1, 3,
                               _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation, 0f0)
                 end
+            elseif s.variant isa BlueMountains
+                # BM base height (bm/essubh.f): HHT = SMHTGF(sp, MODE=0, DTIME=AGE) = the small-tree height-at-total-
+                # age curve. Deterministic — NO EMSQR/DILATE/ELEV (bm/essubh.f discards them). SI = per-species SITEAR.
+                bm_essubh_hht(sp, si, age)
             elseif s.variant isa EasternMontana
                 # EM subsequent/planted base height (em/essubh.f, deterministic EXP(PN)). IHTSER from the habitat
                 # code bracket search; IPHY=3 / IPREP=1 defaults (esplt2.f). BAA=overstory competition BA clamp[1,400].
@@ -290,7 +294,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
-            elseif s.variant isa EasternMontana || s.variant isa CentralIdaho
+            elseif s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa BlueMountains
                 # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
                 # NO RAN draw. Only the user-specified-height branch (treeht≥0.1, estab.f:1026-1034) draws the lognormal
                 # BACHLO perturbation. jl already consumes the per-replicate EMSQR/ESDRAW draws (line ~218) for stream
