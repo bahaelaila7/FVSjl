@@ -350,3 +350,26 @@ Also OPEN (exposed by the 80-stand sweep, separate from the mortality port):
 - **Two big outliers** 449441010497 (CDS711, no PV_REF ⇒ resolves directly, +60.9%) and 248913820489998
   (CDS624/622, +48.3%) — too large for IPASS convergence alone; per-stand study needed (SDIDEF value or dense-regen
   small-tree), likely resolved once BMTMRT+IPASS lands but verify individually.
+
+### #140 part 2/2 — LANDED + VALIDATED (2026-08-06, commit 56d0931): BM routes through shared BMTMRT+IPASS
+Implemented Option B (route BM through the shared MORTS driver, à la CR): added `_varmrt_efftr!(::BlueMountains)`
+(bmtmrt.f efficiency), `mort_ri_scale(::BlueMountains)=0.5`, a BM branch in the shared `_mbark` (bm_bratio POWER
+bark — the only shared-code change, additive/inert for SN/NE/CR), fixed the BM species-CSV mort_bkgd/varmrt_varadj
+columns (were placeholder values; the row order was already correct = species-index), and DELETED BM's custom
+single-pass mortality!. BM now gets the full machinery it was missing: the BMTMRT percentile/tolerance kill
+distribution (via _varmrt!), the IPASS QMD-convergence loop, the CEPMRT/SLPMRT persistence (via _pretzsch_tn10),
+and BAMAX/SIZCAP caps.
+
+VALIDATION — 80-stand real-FIA sweep vs FVSbm_clean (sub-DB bm_sub.db), mean|Δ% vs live| at final year, OLD (naive
+uniform) → NEW (shared), ALL THREE metrics improved, ZERO aggregate regressions:
+```
+TPA  3.45 → 0.96      BA  8.65 → 6.45      QMD  6.12 → 5.29
+TPA sign-tally: HIGH 31→24, LOW 3→3, EQ 23→30
+```
+Repro stand 374430545489998: 2025 TPA 388→**377** (live 376, Δ1), BA/SDI/CCF **bit-exact**. Only 1/56 treed stands
+regressed on TPA (22404092010497, the pre-existing worst over-thin outlier, −6.1%→−8.2%). The residual BA/QMD
+divergence is PRE-EXISTING (identical old vs new — the small-tree-DBH/DGSCOR seedling tail; two BA=0 stands are
+1554/170-TPA seedling plots, TPA bit-exact vs live but DBH≈0). ⇒ #140's DOMINANT root is RESOLVED; BM self-thin
+mortality is now bit-exact-or-cornered on real-FIA data. The same shared driver applies to EM #137 (verify next).
+REMAINING BM tail (all cornered/pre-existing, not mortality): small-tree seedling DBH (regent) + the DGSCOR
+compounding tie-break class; the 2 big pre-fix outliers (CDS711/CDS624) now fall under the ≤~1% TPA band.
