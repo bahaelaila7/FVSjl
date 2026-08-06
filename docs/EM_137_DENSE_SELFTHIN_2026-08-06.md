@@ -374,3 +374,21 @@ jl's ie_esrann per-plot SEED derivation vs live's ESRANN ESS1 chaining for the E
 where live continues a global chain? is the initial ESS1 seed for the stand different?) — the seeding/chaining is the
 divergence. ★ SELF-CORRECTION LOGGED (doctrine #2, twice this session incl #152): the 9-digit coincidental match
 misled me into a false "offset"; the FULL-sequence search refuted it. Verify the WHOLE distribution, not one point.
+
+## #143 — ACCURATE ROOT (reconciles all prior findings): constant per-plot body_n=83 DRIFTS over many plots
+Read jl ie_autoes_establish! (establishment.jl:687-696): jl derives a per-plot ESTPP seed by advancing a CONSTANT
+body_n = 16 + 3·nsp + 2·MAXTPP[ihab] (=83 for EM nsp19/ihab3/MAXTPP5) between plots (ie_autoes_plot_seeds, line 690),
+then RESEEDS a fresh IEEstabRNG(sd) per plot (line 693) and draws wk6fill + 2 EMSQR + 1 ESTPP. This reconciles both
+prior (partial) findings: (a) the ESTPP draws aren't in live's MAIN ESRANN stream because each plot's ESTPP is a
+RESEEDED sub-stream IEEstabRNG(sd); (b) the "count offset" intuition was right in spirit — jl's per-plot SEED (sd)
+diverges from live's because the ADVANCE between plots is wrong. The body_n=83 was DERIVED + validated on a 6-plot
+sequence (jl [1,2,1,1,3,3] = live bit-exact, comment line 686). But stand 103399881 has 52 PLOTS ⇒ a CONSTANT 83
+per-plot advance DRIFTS from live's ACTUAL per-plot draw count (which VARIES by plot outcome: the number of ESRANN
+draws a plot consumes depends on its ITPP/species/STOADJ path — e.g. the DO-71..75 loops at estab.f:655-669 only fire
+when STOADJ<0.0001, and the species/height draws scale with the plot's realized establishment). Over 52 plots the
+small per-plot error accumulates ⇒ jl ITPP 109 vs live 97 tree-slots = +12%. ⇒ #143 FIX: replicate live's VARIABLE
+per-plot ESRANN advance (not a constant 83) — count the ACTUAL draws each plot consumes in live estab.f (condition on
+STOADJ/ITPP/NOFSPE per plot) and mirror it in jl's seed-chain. This is why NULL-elev stands (bit-exact) and the 6-plot
+validation passed but the 52-plot elev-present stand drifts. Known residual (establishment.jl:676). ★ This SUPERSEDES
+the "count offset" (63685cd) and "RNG state mismatch, not count" (eacf34a) — BOTH partial; the accurate root is the
+CONSTANT-vs-VARIABLE per-plot seed-chain advance drifting over many plots.
