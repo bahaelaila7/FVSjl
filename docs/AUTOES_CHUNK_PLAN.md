@@ -1312,3 +1312,23 @@ ie_esadvh/ie_essubh→HHT, TALL=HHT+HTADJ floored XMIN+0.2 capped HHTMAX; (3) re
 count gap or that's a separate advance-regen-already-in-stand mechanism); (5) validate vs iet01 s4r RegRepts AVERAGE
 HEIGHT (WP3.5/DF3.8/GF1.7/WH1.9/RC2.1/ES2.2) FIRST (bounded height check) then the .sum (536→…→1788). The RNG order is
 already correct (draws burned in place) ⇒ NO stream shift. This is the definitive #143 close-out spec.
+
+## 2026-08-06 (spec 100% complete — EMSQR formula found; implementation piece-list)
+EMSQR (estab.f:645-650): DRAW1→ sign (EMSQR=−1 if DRAW1<0.5 else +1); DRAW2→ EMSQR=EMSQR·DRAW2. ⇒ EMSQR=±DRAW2, the
+two draws jl already makes at ie_autoes_tally:695 (currently burned). So the dispersion disp = EMSQR·DILATE·BNORM is
+fully specified. ⇒ #143 spec is COMPLETE. IMPLEMENTATION PIECE-LIST (all needed to thread heights out of the tally):
+ (1) EMSQR = ±draw2 from :695 (capture, don't burn);
+ (2) the DO-122 WK6 draws (2·nsp) + DO-99 per-species consume (NDRAW++ per advance/subsequent per ICHOI) — replace the
+     :724 burn-loop;
+ (3) DILATE = FIRST[ias,sp] order-statistic STATE (2×nsp, init 0.1, FIRST=sqrt(FIRST) after each use) — thread it;
+ (4) DELAY = ie_esdlay(sp, ias, WK6draw, TIME, BAA);  AGE=3−DELAY−GENTIM(≥1), agel=ln(AGE);  GENTIM=FINT−5;
+ (5) HHT = ie_esadvh(sp,EMSQR,DILATE,agel,BNORM;…) [advance] / ie_essubh(…) [subsequent]; TALL[sp]=HHT;
+ (6) DO-114: TALL[sp]+=HTADJ[sp]; floor XMIN+0.2 (=_IE_ES_XMIN); cap HHTMAX[sp];  ← NEEDS the HTADJ + HHTMAX tables (verify
+     present in jl or extract from esblkd.f);
+ (7) ICHOI advance/subsequent selection per species (plan: ITIME≤2 ⇒ all BEST=advance) — trace estab.f for the ICHOI set;
+ (8) return TALL[] from ie_autoes_tally; in ie_autoes_establish! use TALL[sp] as height + the height→DBH so ≥3.0"
+     advance is excluded from the projected count;
+ (9) validate vs iet01 s4r RegRepts AVERAGE HEIGHT (WP3.5/DF3.8/GF1.7/WH1.9/RC2.1/ES2.2) FIRST, then the .sum.
+RNG order already correct (draws in place) ⇒ no stream shift; port-then-validate + git ⇒ a wrong attempt is caught at
+(9) and revertible. This is the fully-specified, de-risked #143 close-out; the equations (esadvh/essubh/esdlay) exist,
+remaining = threading pieces (1)-(8) + confirming the HTADJ/HHTMAX tables + the ICHOI trace.
