@@ -1286,3 +1286,29 @@ apply the ≥3.0" advance-regen rule live uses (which trees are ADDED vs summari
 (2089 WP21/GF61 + AVERAGE HEIGHT WP3.5/DF3.8/GF1.7/... + .sum 536→…→1788). Needs the estab.f body-16..84 trace for the
 exact count↔height↔ADD interaction (ITIME≤2 ⇒ BEST=advance). ⇒ #143 = a focused, LOW-RNG-RISK wiring over existing
 equations; the delicate part is the count/height/ADD interaction (estab.f body), NOT the RNG. jl clean this turn.
+
+## 2026-08-06 (COMPLETE height-wiring spec — exact estab.f body draw order traced)
+estab.f body (the height loop, verbatim):
+  DO 122 I=1,NOFSPE*2: WK6(I)=ESRANN()            ← the "heights(2·nsp)" burned draws (jl:724) = the ESDLAY draws
+  DO 99 I=1,NOFSPE:  TALL(I)=0.001
+    IF ICHOI(1,I)==1 (advance): DRAW=WK6(NDRAW++); ESDLAY(I,1,DRAW,DELAY); DILATE=FIRST(1,I);
+                                ESADVH(EMSQR,I,HHT,DELAY,ELEV,DILATE,IHTSER,GENTIM,TRAGE); TALL(I)=HHT;
+                                FIRST(1,I)=SQRT(DILATE)     ← order-statistic sqrt update (0.1→0.316→0.562→…)
+    IF ICHOI(2,I)==1 (subsequent): DRAW=WK6(NDRAW++); ESDLAY(I,2,DRAW,DELAY); DILATE=FIRST(2,I);
+                                   ESSUBH(I,HHT,EMSQR,DILATE,…); TALL(I)=HHT; FIRST(2,I)=SQRT(DILATE)
+  DO 114 I: IF IBEST(I)==1: TALL(I)+=HTADJ(I); IF TALL−XMIN<0.2: TALL=XMIN+0.2; IF TALL>HHTMAX: TALL=HHTMAX
+  ⇒ per-species height = TALL(I). EMSQR = per-PLOT draw (jl ie_autoes_tally:695, 2 draws → BACHLO sign+magnitude);
+  DILATE = FIRST(1|2,sp) order-statistic STATE (init 0.1, sqrt after each use, per species per adv/sub); DELAY =
+  ie_esdlay(sp, ias, WK6draw, TIME, BAA). ICHOI = advance/subsequent choice (ITIME≤2 ⇒ all BEST=advance).
+★ jl GAP: ie_autoes_tally:724 BURNS the WK6 draws and est.jl:1166 uses hht=xmin[sp]+0.2 (the DO-114 floor ONLY),
+skipping ESADVH/ESSUBH → all trees dbh≈0.1 → over-book + wrong split. The equations (ie_esadvh/essubh/esdlay) + the
+FIRST/EMSQR machinery all EXIST; the fix threads TALL(I) heights out of ie_autoes_tally.
+★ IMPLEMENTATION (focused, port-then-validate): (1) in ie_autoes_tally compute EMSQR from the 2 draws at :695
+(BACHLO — need ie_bachlo or the sign+mag formula); (2) replace the :724 burn-loop with the DO-99/114 logic: per
+species draw WK6→ie_esdlay(DELAY), DILATE=FIRST[ias,sp] (thread a 2×nsp FIRST array init 0.1, sqrt-update),
+ie_esadvh/ie_essubh→HHT, TALL=HHT+HTADJ floored XMIN+0.2 capped HHTMAX; (3) return TALL[] alongside tally[];
+(4) in ie_autoes_establish! use TALL[sp] as the tree height (+ the height→DBH so ≥3.0" advance is excluded from the
+<3.0 projected count — the remaining count-vs-add subtlety, still to confirm whether it also fixes the WP0-vs-WP21
+count gap or that's a separate advance-regen-already-in-stand mechanism); (5) validate vs iet01 s4r RegRepts AVERAGE
+HEIGHT (WP3.5/DF3.8/GF1.7/WH1.9/RC2.1/ES2.2) FIRST (bounded height check) then the .sum (536→…→1788). The RNG order is
+already correct (draws burned in place) ⇒ NO stream shift. This is the definitive #143 close-out spec.
