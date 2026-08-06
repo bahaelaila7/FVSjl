@@ -42,3 +42,14 @@ HT=None) where live estimates ~12%. The suppressed HTGR keeps them below the 4.5
 BA 2× low. NEXT (the fix): jl's crown-ratio initialization for read sub-1" trees with no measured crown must estimate
 CR (the BM/shared crown model, not leave 0). Likely affects ALL variants' dense-seedling stands (crown init shared).
 DETERMINISTIC (TPA exact) ⇒ fixable, NOT cornered. ⇒ #149 root = crown-ratio init, not the regent/DG itself.
+
+### #149 FIX LOCATION (2026-08-06): crown-init skips sub-1" trees
+crown_ratio_update! (bm/crown.jl:61) SKIPS d<1 trees at lstart (`(d < 1f0 && lstart) && continue`, comment "small
+trees → REGENT bm/crown.f:237") ⇒ dense read seedlings keep crown_pct=0. But live's REGENT is "CALLED FROM CRATET
+DURING CALIBRATION AND FROM TREGRO DURING CYCLING" (bm/regent.f header) — the CRATET-time REGENT call SETS the
+small-tree crown BEFORE the growth-cycle regent's VIGOR reads it. jl never runs that calibration-time small-tree
+crown-set ⇒ crown=0 at the first regent ⇒ VIGOR=0.30 floor ⇒ HTGR under ⇒ 4.5' miss ⇒ DG=0 ⇒ BA 2× low.
+THE FIX: port the small-tree crown assignment from bm/regent.f (the JCR/ICR set for d<XMAX at LESTB/calibration) so
+read sub-1" trees get a crown ratio (~12%, not 0) before the growth regent. Likely a shared pattern across variants'
+regent (VIGOR = f(crown) everywhere). ⇒ #149 is a CROWN-INIT chunk (deterministic, fixable), not regent/DG. Verify
+on 504443988 (BA 38→~80) + ttt01/emt01/etc. no-regress (they have measured crowns, so init-skip is inert there).
