@@ -668,12 +668,13 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
     nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]
-    # ITPP cap: FVS uses MAXTPP for disturbances / MAXING for ingrowth (measured: disturbance ITPP=20-25, ingrowth
-    # ≤7). BUT jl's per-tree TPA (prob1·300/dupnpt) over-produces at MAXTPP (20-25 trees·prob1 ≫ target) — the real
-    # per-tree TPA is ~PLPROB/ITPP so the plot total = PLPROB (prob1 CANCELS via ITPP=PLPROB·DUPNPT/(prob1·300)),
-    # INDEPENDENT of ITPP. Until that per-tree-TPA model is ported, MAXING is the empirical best (mean|Δ| 22% vs 36%
-    # at MAXTPP). ⇒ TODO: book tpaw = PLPROB/ITPP·scale (total=PLPROB) instead of prob1·300/dupnpt, then use MAXTPP.
-    cap = _IE_MAXING[ihab]
+    # ITPP cap (estab.f:681-682): ALWAYS MAXTPP; the MAXING cap applies ONLY when INGRO=1. Instrument-replay
+    # (FVSie iet01) CONFIRMED jl's ESTPP draws + TPP are BIT-IDENTICAL to live (0.346302→2.486, 0.835307→14.036,
+    # 0.967520→34.5) and jl prob1 (0.60012) matches live PROB1 (0.60122) ⇒ per-tree TPA correct. The sole divergence
+    # was jl capping the disturbance path at MAXING(7) too — truncating ITPP 14→7, 25→7 ⇒ UNDER-production. With the
+    # split cap jl ITPP = live bit-exact [2,1,14,2,4,2,25,4]. (Old "over-produces at MAXTPP" comment predated the
+    # ESTOCK-PROB1 understanding.) NOTE: the ingrowth (is_ingro) path has a separate open residual (see IE audit).
+    cap = is_ingro ? _IE_MAXING[ihab] : _IE_MAXTPP[ihab]
     p1 = Float32(prob1); scale = 300f0 / Float32(dupnpt)
     # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
     has_state = length(nstore) == nplots && length(pnn) == nplots
