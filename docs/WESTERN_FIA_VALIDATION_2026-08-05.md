@@ -134,3 +134,10 @@ jl-only crash-hunt with INJECTED management actually EXERCISES the new code on r
 (fidelity) with a ROBUSTNESS proof of the session's #154/#155 code on the paths the sweeps don't reach.
 NET SESSION VALIDATION: growth 100% bit-exact on all treed FIA stands (BM/UT/TT/EM) + volume bit-exact-or-cornered
 + 64-stand management crash-scan 0 crashes ⇒ #154 (essubh CI/BM/UT) and #155 (UT sprout) fully validated on real FIA.
+
+## 2026-08-06 — FIRE × establishment/sprout robustness (crash-prone FFE path)
+SIMFIRE (FFE fire) + ESTAB/PLANT injected on real FIA stands — exercises the historically crash-prone fire path
+COMBINED with the session's new establishment (#154) + sprout (#155) code (fire-kill → sprout, post-fire estab):
+- BM 40/40 OK, UT 12/12 OK, CI 12/12 OK → 64 stands, SIMFIRE+PLANT, ZERO crashes/non-finite.
+⇒ the FFE fire path × #154/#155 interaction is robust on real FIA data. TOTAL session robustness: 128 real-FIA
+stand-runs with injected management (64 PLANT/thin + 64 SIMFIRE/PLANT), 0 crashes.
