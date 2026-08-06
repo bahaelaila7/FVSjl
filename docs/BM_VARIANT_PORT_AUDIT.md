@@ -420,3 +420,13 @@ per-stand realization, not a fixable deterministic DG bias. To fix it one would 
 stream on tripled splits — the known irreducible primitive. VERDICT: reverts to CORNERED, consistent with the
 original tie-break-seed analysis; the "REAL bias" correction over-read a consistent-but-RNG-driven sign lean.
 Instrumentation removed, oracle restored.
+
+## 2026-08-06 — bmt01 1990 inventory-volume Δ observed (now that full run is possible)
+With bmt01 running end-to-end (#154 essubh fix), the 1990 INVENTORY row shows jl TCuFt 1531 vs live 1554 (−1.5%),
+MCuFt 971 vs 992, while TPA/BA/SDI/CCF/TopHt/QMD are ALL bit-exact ⇒ IDENTICAL trees, a pure volume-EQUATION delta.
+UPSTREAM of all growth/mortality/establishment (1990 = inventory, before grow_cycle!), so NOT from #154/#155 and
+NOT tie-break/RNG. Species present = major conifers sp2/3/4/7/8 (WL/DF/GF/LP/ES), NOT the cornered 616BEHW minor-
+species. LIKELY the accepted small-volume tail (form-factor/merch-threshold precision, cf. the goal-file's "TCuFt
+~1% tail" accepted cluster-wide) rather than a new bug — but UNCONFIRMED: to settle, add a TREELIST to bmt01, re-run
+FVSbm, and diff per-species TCuFt jl vs live at 1990 to see if it concentrates on one equation (fixable) or spreads
+(cornered). Cleanest possible target (inventory-only, no dynamics). Bounded next-session chunk.
