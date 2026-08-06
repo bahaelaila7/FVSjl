@@ -285,3 +285,13 @@ refinement — em_esgent! is faithful. ★ LESSON (self-inflicted): NEVER charac
 it cherry-picks the tail; sample representatively (mean/median or the actual per-tree with its inputs). Two wrong
 root-causes committed then refuted by the direct diagnostic — doctrine #2 (measure) caught it, but only after I
 inferred from a biased sample. Measure the RIGHT thing.
+
+## #137 fix — AUTOES-path no-regression CONFIRMED (+ surfaced #143 residual)
+Checked em_esgent! against EM AUTOES (auto-established, empty-inventory) stands 103399881010661/103406000010661/
+11849257010690 (em_sub.db): jl cyc1 (2016) TPA = 246/252/212 WITH the fix, IDENTICAL 246/252/212 WITHOUT (stashed).
+⇒ em_esgent! does NOT regress the AUTOES tally amount (it grows the established regen's height/DBH, not the TPA count;
+these are sub-BH BA=0 so the growth is .sum-inert on TPA/BA here). Live = 219/224/189, so jl over-establishes ~+12% —
+that is the PRE-EXISTING #143 AUTOES tally-amount residual (ESTOCK/ESPROB tally, a separate subsystem from em_esgent!),
+NOT caused by the #137 fix. The earlier "#143 AUTOES amount bit-exact" was on the 4 NULL-elev stands only; these
+elev-present stands show the +12% diffuse residual. ⇒ #137 fully validated (0 regression incl. AUTOES); #143 amount
+residual remains open (unchanged).
