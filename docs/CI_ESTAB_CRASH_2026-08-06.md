@@ -28,3 +28,20 @@ NEXT (fresh): trace why the CI establishment path passes bc=Nothing to htcalc_he
 struct (the `bc` arg) unwired for establishment (vs the growth path where CI height works), or does CI need a variant
 branch in the shared establish!/htcalc_height like the EM essubh fix (#137)? Wire/guard it so CI ESTAB/PLANT stands
 run. Reproduction: /workspace/.ciwork/cit01.key + run_keyfile(variant=CentralIdaho()). Same class: bmt01/utt01 ESTAB.
+
+## ★★ CLUSTER-WIDE ROOT (deterministic trace, supersedes the CI-only framing)
+The crash is NOT CI-specific. establishment.jl:132-136 sets `bc = nothing` for ALL western variants (NE/CS/LS/CR/IE/
+TT/EM/BM/UT/CI — "western variants use a fixed/XMIN base, not the SN ht-curve"). The establishment PHASE-2 height
+dispatch (establishment.jl:258-266) has explicit branches ONLY for: NE (ne_htcalc_height), CS (cs_htcalc_height),
+LS (ls_htcalc_height), EM (em_essubh_hht). Everything ELSE → `htcalc_height(bc, ...)` (line 266) = the SN Chapman-
+Richards curve, which indexes bc[1][sp] ⇒ getindex(::Nothing) CRASH when bc=nothing. ⇒ CR/IE/TT/BM/UT/CI ALL crash
+on any PLANT/ESTAB/NATURAL stand (the phase-2 established-tree height). This is the SINGLE ROOT of the observed
+bmt01 / utt01 / cit01 ESTAB crashes noted throughout this session — one dispatch gap, not per-variant bugs.
+(EM was the only western with its establishment height wired — em_essubh_hht — likely from the #137-adjacent work.)
+FIX (real, per-variant — NOT a guard: a placeholder height would silently produce WRONG establishment heights, worse
+than crashing): wire each western variant's establishment/planted BASE HEIGHT branch in establishment.jl:258, mirroring
+em_essubh_hht (EM essubh.f) — port ci/bm/ut/tt/kt/ie's essubh-equivalent (or their "fixed/XMIN base" per the comment).
+CR is "COMPLETE" but would ALSO crash here on a PLANT/ESTAB .key — its DB-sweep validation used no-PLANT DB stands.
+⇒ this is a cluster-wide ESTAB-height gap; only EM (this session) + NE/CS/LS (eastern) are wired. Reproduction:
+any western .key with PLANT/ESTAB (cit01/bmt01/utt01) + run_keyfile. Handoff — NO fix-hypothesis on the exact heights
+(fatigue lesson); the DISPATCH GAP is the solid measured root.
