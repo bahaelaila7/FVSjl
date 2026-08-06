@@ -837,3 +837,18 @@ uses. Then re-measure baaa per cycle vs the live ESTOCKIN target (41.93/46.17/1/
 vs live (0/468/206/419/11/225/472). CAUTION: a compute_density! before ESNUTR also changes the density esuckr!/
 establish! see — validate NE/CS/LS/SN establish+sprout tests + the IE cyc0 8/9 stay bit-exact (doctrine #4). Bounded,
 testable, code-level fix for a fresh session; the AUTOES_IN debug + live target sequence make it directly verifiable.
+
+## 2026-08-06 (CORRECTION — "missing DENSE" REFUTED; baaa SOURCE is the real fix) — measured
+★ Measured stand_ba + ntrees at AUTOES time (jl): icyc1 stand_ba=0 ntrees=0 (stand EMPTY) → so baaa=point_ba[1]=0
+is CORRECT for the actual empty-stand state; there is NO stale density (the "missing GRADD first-DENSE" hypothesis
+is REFUTED — doctrine #2, 6th self-correction). ⇒ live's BAAA=41.93 at icyc1 is a CALIBRATION REFERENCE (the ESB
+inventory BAAOLD/BAAINV), NOT an actual tree BA. And at icyc4 jl has ntrees=13/stand_ba=49/point_ba=137 while live
+BAAA=1.0 — confirming live's BAAA(NNID) is a DISTURBANCE-ADJUSTED per-inventory-point reference (calibration ~41.93
+at inventory; ~1 after a heavy removal; recovering), fundamentally a DIFFERENT quantity from jl's growing point_ba[1].
+★ CONFIRMED FIX (supersedes the missing-DENSE hypothesis): the baaa SOURCE is wrong. jl must feed ESTOCK the per-
+inventory-point BAAA(NNID) = the calibration/disturbance-adjusted reference BA (matching live ESTOCKIN 41.93/46.17/1/
+1/1/4.79/50.05), NOT s.density.point_ba[1] (the growing regen-cohort BA). Needs the estab.f/dense.f BAAA(NNID)
+derivation: BAAINV at the inventory year (where 41.93 comes from — likely STDINFO/the inventory stocking, since the
+stand is empty of trees), and the post-removal per-regen-point BA (~1). This is the exact, target-valued fix; the
+tally COMPUTATION + SCHEDULER remain bit-exact. Fresh-session BAAA(NNID)-derivation port, verifiable via the AUTOES_IN
+debug + the live ESTOCKIN/tally target sequences.
