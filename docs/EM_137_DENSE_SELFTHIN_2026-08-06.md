@@ -332,3 +332,17 @@ the ingrowth path (the ie_esrann seed-chain position, or the ie_estpp VAL/BB/CC 
 advance or the ESPROB-driven NEWTPP normalization (estab.f:589 ITPP=INT((PLPROB·DUPNPT)/(FTEMP·300)+0.5)) is the
 skew source. ★ #143 converted from "diffuse ~22%" to "ingrowth ITPP raw-draw +12%=109-vs-97 tree-slots; PN/FTEMP/ESB/
 STOADJ/cap/INGRO all bit-exact-or-correct". Same residual class as the IE ingrowth audit item.
+
+## #143 +12% DEFINITIVE ROOT — ingrowth per-plot RNG seed-chain DESYNC (not the formula)
+Instrumented live estab.f ESTPP (DRAW,TPP) vs jl ie_estpp(val,tpp) on stand 103399881:
+  live DRAW: 0.251→1.21, 0.360→1.48, 0.153→1.04, 0.276→1.26, 0.748→3.92, 0.571→2.38, 0.131→1.01, 0.311→1.35
+  jl   val : 0.346→1.44, 0.351→1.45, 0.212→1.13, 0.216→1.14, 0.992→19.6, 0.932→8.9, 0.415→1.66, 0.122→1.00
+The DRAW/val values DIFFER ⇒ the ie_estpp FORMULA is fine (val→tpp mapping matches: e.g. jl 0.212→1.13 ≈ live
+0.153→1.04 shape); jl consumes the WRONG ie_esrann DRAW at the ESTPP point. jl even draws 0.99/0.93 (→TPP 19.6/8.9,
+capped to MAXING=3) that live has no counterpart for ⇒ jl's ITPP skews high (+12%). ⇒ #143 root = the EM INGROWTH
+per-plot RNG SEED-CHAIN is misaligned: the per-plot body advance (16+3·nsp+2·MAXTPP[ihab]=83 for EM ihab3) or the
+WITHIN-plot ie_esrann order (the DO-71..75 ESRANN loops at estab.f:655-669 that jl must replicate exactly, or the
+ESB/species draws) is off by some draws, so the ESTPP draw lands at the wrong RNG position. FIX: align jl
+ie_autoes_establish!'s ingrowth per-plot ie_esrann sequence to live estab.f exactly (count + order) so the ESTPP
+DRAW matches. This is the known ingrowth residual (establishment.jl:676). ★ #143 fully root-caused: PN/FTEMP/ESB/
+STOADJ/cap/INGRO/ie_estpp-formula ALL correct; the sole residual is the ingrowth RNG draw ALIGNMENT.
