@@ -92,3 +92,14 @@ dg_inc at the final hk≈5.86). The d≈0.0729·(5.86−4.5)^1.1988≈0.10 the d
 comes from a DIFFERENT/additional diameter path when the seedling crosses breast height. NEXT: dump the final WK5/DBH
 (ie/regent.f) vs jl tree.dbh for the WH seedling — live likely applies the large-tree DDS on the >4.5' portion that
 jl's last-subcycle-skip drops. (One dense-stand species; real-FIA-relevant but isolated — candidate, not blocker.)
+### WH #146 — deterministic components ALL match; residual = ZZRAN tripled-record realization (2026-08-06)
+Instrument-replay of the final DGK (ie/regent.f:955 vs jl) settled it: live WH seedling DGK components
+(D=0.1,H=1.010): D1=0.8943 (=DIAM 0.2 + DADJ 0.6943), DK=AX·(HK−4.5)^BX+DADJ, DGK=(DK−D1)·XRDGRO. jl MATCHES all
+of these — DIAM(WH)=0.2 (regent_coefficients.jl), d1v=diam+dadj=0.8943, same DGK formula. ⇒ the deterministic
+diameter path is CORRECT. The BA divergence (13 vs 74) is the TRIPLED-RECORD HEIGHT distribution: live's 3 tripled
+records reach HK 5.444 / 8.993 / 4.741 (DGK −0.127 / +0.251 / −0.182) — only the TALL record (HK 8.99, from a high
+ZZRAN draw) grows; the short ones clamp DGK<0→0. So the aggregate BA is driven by WHICH tripled records draw a high
+ZZRAN. That is the accepted "ZZRAN/DGSCOR dense-regen straddle" RNG-realization class (the height ZZRAN, regent.f:924
+HTGR=HTGR1·EXP(ZZRAN·HSIGMA)), here amplified on a 50377-TPA stand. ★ A d1v fix ATTEMPTED (drop DADJ) OVER-corrected
+(BA 13→135) AND regressed iet01 (429→461) ⇒ REVERTED (doctrine #4). VERDICT: #146 deterministic path FAITHFUL; the
+5× is the dense-regen ZZRAN realization = CORNERED class (same as CI #142 / EM-IE growth tail). Not a deterministic bug.
