@@ -210,3 +210,24 @@ DG(I)@MORTS and the applied per-tree DBH increment for the same tree — confirm
 pre-DGBND-cap DG while the applied is post-cap; then jl's fix = have BM mortality project dq10 from the un-capped
 DG (store it alongside the capped diam_growth, or recompute), NOT from the DGBND-reduced t.diam_growth. This closes
 #140 (a real mortality-projection bug) and should tighten BM self-thinning cluster-wide.
+
+### #140 ROOT — FINAL, VERIFIED (2026-08-05): mortality dq10 uses REGENT-reduced DG; must use large-tree POTENTIAL DG
+Step-by-step trace on repro stand 374430545489998, cyc0, tree i=1 (d=8.1"):
+- `diameter_growth!` raw `dgc` = **0.6729** (large-tree DG, un-capped: bounded==raw, so _bound_scale/DGBND is NOT
+  the culprit; and it varies with size: d16.5→1.03, d27.8→1.15 — a real large-tree DG).
+- AFTER `small_tree_growth!` (simulate.jl:470): `t.diam_growth[1]` = **0.1567** ⇐ REGENT reduces it.
+- AFTER `apply_fix_scalers!`: 0.1567 (unchanged). mortality reads 0.1567; apply uses 0.1567.
+- Live `bm/morts.f` MORTS uses DG(I) ⇒ G=0.667″ (≈ the large-tree potential DG 0.575″, NOT the reduced value).
+⇒ **THE FIX (verified mechanism):** jl's BM mortality `g = t.diam_growth/bark` reads the REGENT-reduced DG (0.156),
+but FVS's mortality projects `DQ10 = "QMD at end of cycle if TPA held constant"` (morts.f:62) using the LARGE-TREE
+POTENTIAL DG (~0.6″), not the REGENT-reduced applied DG. The REGENT reduction is correct for the *applied* growth
+(2015 .sum BIT-EXACT ⇒ jl and live apply the same reduced DG), but it must NOT feed the mortality's dq10. Because
+jl's dq10 is built from the reduced 0.156, it comes out low (5.908 vs 6.078), keeping the stand below the self-thin
+threshold ⇒ jl RN=0 (background only) while live self-thins ⇒ the +7.2%/+48%/+70% under-thin (13:1 JL-HIGH multi-
+stand). Inert at cyc0 (both below threshold ⇒ 2015 bit-exact); bites at the threshold-crossing cycle.
+IMPLEMENTATION: in bluemountains/mortality.jl, compute the mortality `g` from the PRE-REGENT (large-tree) DG — either
+(a) snapshot t.diam_growth into a scratch field right after diameter_growth! (before small_tree_growth!) and have
+mortality read that, or (b) confirm live's exact DG(I) (0.575 vs jl raw 0.67 — a ~14% gap to reconcile, possibly the
+FINT/10 factor or a subcycle detail) and match it. Then re-run the multi-stand sign-tally (foreground+flush recipe,
+extract_sample.jl BM 80) and confirm the JL-HIGH skew collapses toward ≈EQ. This closes #140 and likely tightens
+BM (and possibly EM/UT which share the western small-tree+mortality structure) self-thinning.
