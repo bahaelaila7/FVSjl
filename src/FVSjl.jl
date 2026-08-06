@@ -159,6 +159,7 @@ include("variants/utah/height_growth.jl")      # UT large-tree height (chunk 4):
 include("variants/utah/regent.jl")             # UT small-tree growth (chunk 6): ut/regent.f POTHTG + ht_dbh DG
 include("variants/utah/mortality.jl")          # UT mortality (chunk 7): ut/morts.f uniform Hamilton + SDI self-thin
 include("variants/utah/volume.jl")             # UT volume (chunk 8): MATW r4vol + FW2 + DVEW (reuse)
+include("variants/utah/establishment.jl")      # UT ESSUBH planted/subsequent base height (ut/essubh.f) — #154
 
 # --- bluemountains (BM) — Region-6 western Wykoff DDS (Stage SDI), 18 species; chunk 0 scaffold ---
 include("variants/bluemountains/bluemountains.jl")  # BM singleton + registration (MAXSP 18, western Wykoff DDS)
