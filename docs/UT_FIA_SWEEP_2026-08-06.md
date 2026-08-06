@@ -49,3 +49,9 @@ in fmath.jl (gfortran-match); (2) a tree with NEGATIVE DBH reaches d^1.605 (jl-s
 tolerated); (3) after guarding both, a BoundsError in compute_volumes_tt!:61 (t.saw_cuft_vol[i] OOB) — the altered
 kill desyncs the treelist array sizing. ⇒ TT DR10 is CORRECT (Zeide) but blocked on these latent bugs + the MSTEM/
 FCLASS woodland-volume gap. REVERTED (doctrine #4). The general fpow fix is kept+committed. UT #147 stands.
+
+### #148 CORRECTION: CI verified NOT affected (2026-08-06, doctrine #2)
+ci/morts.f:262-263 uses DQ10=SQRT (QMD) in its BAMAX-based DELTBA=0.005454·DQ10²·T / BA10 / TB mortality — QMD is
+CORRECT there (BA≡0.005454·QMD²·T). CI is Zeide only in the SDIMAX INPUT, not the mortality diameter metric. jl's
+centralidaho/mortality.jl:44 (dq10=sqrt) MATCHES ci/morts.f ⇒ NO bug; CI #142 stays the cornered DGSCOR verdict, do
+NOT swap CI to DR10. The Zeide-QMD bug is confined to the TMD10/TN10-self-thin variants: UT (fixed) + TT (blocked).
