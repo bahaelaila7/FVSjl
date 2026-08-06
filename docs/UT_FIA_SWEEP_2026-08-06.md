@@ -31,3 +31,12 @@ REMAINING (2 stands): jl kills to TN10=29750, live to 43220 — measured live se
 IPASS QMD-convergence iteration (kill→recompute DQ10/T→re-kill) that jl's single-pass utah/mortality.jl lacks.
 NEXT: port the IPASS loop (ut/morts.f IPASS) to utah/mortality.jl. Also a pre-existing SEPARATE bug: jl utt01
 ERRORS (KeyError :essprt_fsp) — UT establishment/sprout path not wired (utt01.key fires ESTAB; unrelated to mort).
+
+## CROSS-VARIANT (2026-08-06, #148): TT + CI share the Zeide-QMD mortality bug
+Found while fixing UT #147: TT and CI are BOTH Zeide-SDI (LZEIDE=.TRUE.) but their custom mortality! uses
+dq10=sqrt(QMD), NOT Reineke DR10 — the identical bug. ttt01/cit01 (conifers) hide it; dense small-tree stands
+expose it. TT (teton/mortality.jl:145) uses the TMD10/TN10 self-thin ⇒ DR10 applies directly (like UT). CI
+(centralidaho/mortality.jl:44) is BAMAX-based (DELTBA/ba10/tb) ⇒ needs per-term analysis (DELTBA=0.005454·D10²·T
+uses D10=DR10 for Zeide, but the BA→TPA conversion is QMD). ★ TT DR10 swap ATTEMPTED → CRASHED ttt01 (DomainError
+−0.0545 at volume.jl:61: (D+G)^1.605 surfaced a latent D+G<0 tree the old QMD (D+G)² tolerated) → REVERTED
+(doctrine #4). Tracked as #148. The UT #147 DR10 fix (6e57347) stands — validated, no crash on the UT sweep stands.
