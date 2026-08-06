@@ -46,9 +46,16 @@ Live tally-1 total TTOTTP=1079.33 (was jl 727 at MAXING(7); now matches at MAXTP
    plots (unchanged by the cap fix) ⇒ a SEPARATE residual — likely the multi-tally NSTORE re-stock (live fires
    NTALLY=1 then NTALLY=2 at rising PROB1 0.601→0.817, each booking ITPP−NSTORE) or the established-cohort
    subsequent DG/mortality. Needs stand-level tally alignment (which of the 4 iet01 stands owns which tally).
-2. **Ingrowth path over-produces** (jl tally 629 vs live TTOTTP 109 on the iet01 INGRO=1 tally): the is_ingro
-   per-tree TPA (prob1·newtpp/itpp) or the NSTORE continuation runs high — analogous to the EM ingrowth amount
-   but with body=135 already correct (IE nsp=23/ihab=10). ROOT likely the ingrowth prob1 (PLPROB-driven
-   ITPP=INT(PLPROB·DUPNPT/(FTEMP·300)) at line 589, NOT the ESTPP draw — the ingrowth path OVERRIDES ITPP with
-   the PLPROB formula) or the FTEMP·NEWTPP/ITPP weighting. NEXT: instrument live PLPROB(NNID) + the line-589
-   ITPP override for the INGRO tally, compare to jl's ingrowth ITPP/newtpp. Also the prob1 0.60012 vs 0.60122 hair.
+2. **Ingrowth path over-produces** (jl tally 629 vs live TTOTTP 109 on the iet01 INGRO=1 tally). ROOT MEASURED
+   (estab.f:589-590,683 instrument-replay): the ingrowth pre-loads NSTORE = INT(PLPROB·DUPNPT/(FTEMP·300)+0.5)
+   per plot, so NEWTPP = ITPP−NSTORE books only the increment above the standing regen. Measured iet01 ingrowth:
+   PLPROB=13.651, FTEMP=0.5949, DUPNPT=50 → NSTORE=4 (NEWTPP per plot 0,3,0,3…); disturbance NSTORE=0 (PLPROB
+   0.01). PLPROB = Σ(small-tree TPA<REGNBK=2.999)/DUP, DUP=5 (nptids). jl reset nstore=0 ⇒ booked full ITPP.
+   ★ FIX ATTEMPTED + REVERTED (doctrine #4): pre-loading nstore = the PLPROB formula OVER-corrected (jl tally
+   →0.1 vs live 109) because **jl reads iet01 as nptids=1 (live DUP=5) and its small-tree TPA is ~2× live's**
+   (jl PLPROB 135 vs live 13.651 = 10×: 5× from nptids, 2× from small_tpa). This is a deeper PLOT-STRUCTURE
+   discrepancy (jl collapses iet01's 5 inventory points to 1; dupnpt=50 still matches via idup=50 vs 10, so the
+   disturbance path + growth were unaffected — only the per-point PLPROB exposes it). The 2× small_tpa is likely
+   a COMPOUNDING artifact (the ingrowth tally fires late, after prior establishment adds regen). NEXT: resolve
+   why jl reads iet01 nptids=1 vs live 5 (points_inv from the .tre plot IDs / DESIGN card), then the PLPROB
+   pre-load formula (confirmed correct) drops in. Blocked on the plot-count read, not the establishment formula.
