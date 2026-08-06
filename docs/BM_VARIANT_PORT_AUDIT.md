@@ -310,3 +310,43 @@ AFTER  (PVREF6 fix)     : HIGH=30 LOW=3 EQ=23   mean|Δ%|=3.41
 ⇒ NEXT (the real #140 fix): port the BMTMRT percentile/tolerance self-thin distribution + the MORTS IPASS
 convergence loop into bluemountains/mortality.jl (a shared-with-EM/UT self-thin subsystem). PVREF6 lands first as a
 correct, self-contained, zero-regression prerequisite (correct SDIMAX is needed for the convergence to target right).
+
+### #140 part 2/2 — BMTMRT + IPASS convergence: full implementation recipe (2026-08-06, scoped not-yet-landed)
+The DOMINANT #140 under-thin (30:3 skew, mean 3.4%) = jl's BM mortality! does a SINGLE UNIFORM-RN pass; FVS does
+(a) the **MORTS IPASS QMD-convergence loop** (morts.f:578-618) and (b) **BMTMRT** percentile/shade-tolerance kill
+distribution (bm/bmtmrt.f). KEY DISCOVERY: jl **already implements both** in the shared
+`mortality!(::AbstractVariant)` (southern/mortality.jl:261-389) + `_varmrt!` (the BMTMRT geometric-progression
+distribution, byte-identical algorithm) + `_pretzsch_tn10` (which is BM's `_em_tn10_iter` PLUS the CEPMRT/SLPMRT
+persistence BM lacks — so the shared tn10 is MORE correct than BM's). **CR (a western variant) already routes
+through this shared path** with only a `_varmrt_efftr!(::CentralRockies)` — the exact template for BM.
+
+TWO implementation options:
+- **Option B (route through shared, à la CR — preferred long-term):** add `mort_ri_scale(::BlueMountains)=0.5`,
+  `_varmrt_efftr!(::BlueMountains)`, a BM branch in the shared `_mbark` (bm_bratio POWER bark — the ONE shared-fn
+  change), and set BM's species-CSV `mort_bkgd_intercept`/`mort_bkgd_dbh`/`varmrt_varadj` columns to the correct
+  values, then DELETE BM's custom mortality!. ⚠ BLOCKER MEASURED: BM's CSV `mort_bkgd_*` and `varmrt_varadj`
+  columns are WRONG (placeholder order/values — e.g. mort_bkgd_intercept[1]=5.9617 not BM_PMSC[1]=6.5112;
+  varmrt_varadj=[0.7,0.9,0.5,…] not bmtmrt.f VARADJ=[1,1,1,1,1,1.1,1,1,1,1,.8,.8,.5,.5,1.3,.85,1,1]). Fix the CSV
+  first (verify the row↔species-index order). Also verify BM sets zeide_sdi=false (STAGE) + mort_dbh_threshold=0.
+- **Option A (BM-local rewrite — lower blast radius):** keep BM's own mortality!, but restructure it to mirror the
+  shared body (IPASS loop + `_varmrt!` + `_pretzsch_tn10`) using BM-local `BM_PMSC`/`BM_PMD` + a BM-local
+  `BM_VARADJ` const from bmtmrt.f + `bm_bratio`. Reuses only `_varmrt!`/`_pretzsch_tn10` (both variant-generic).
+
+BMTMRT PEFF (for `_varmrt_efftr!(::BlueMountains)`), species order WP..OH: original species (1-5,7-10,17)
+`PEFF=(14.94435−0.69929·DBH+0.00868·DBH²)·0.1, DBH>40 ⇒ 0.086`; added species (6,11-16,18)
+`PEFF=0.84525−0.01074·PCT+0.0000002·PCT³` (PCT = t.crown_ratio after stand_pct!); clamp[0.01,1]; `EFFTR=PEFF·VARADJ·0.01`
+(★ ·0.01, not the SN ·0.1). Shared MORTS flow: SUMTRE = (self-thin) T−TN10 else Σbackground-WK2 → `_varmrt!`.
+
+GOTCHAS to verify before landing: (1) BM must run species_sort! so `s.scratch.idx1`/`sp_count_tab` (the morts.f DO-20
+IND1 order) are current — the shared SDI sums rely on it for Float32-order bit-exactness; (2) the persisted self-thin
+line reset needs `s.density.tpa_mort` updated each cycle (confirm BM participates); (3) PCT lifecycle — confirm
+`t.crown_ratio` holds the BA percentile at BM mortality time (as it does for SN/CR). VALIDATION GATE: bmt01 (needs the
+separate run_keyfile establishment DomainError resolved first — see below) + the 80-stand sign-tally (scratchpad
+`bm_sub.db`+`bm_live.txt`, expect 30:3 skew → ≈EQ) + SN/NE/CR/CS/LS no-regression (Option B only).
+
+Also OPEN (exposed by the 80-stand sweep, separate from the mortality port):
+- **jl DomainError crash** on stand 374361232489998 (CES411/622) — a robustness bug (likely a neg sqrt/log in the
+  BM growth or mortality path) to trace + fix (doctrine: crash ⇒ fix).
+- **Two big outliers** 449441010497 (CDS711, no PV_REF ⇒ resolves directly, +60.9%) and 248913820489998
+  (CDS624/622, +48.3%) — too large for IPASS convergence alone; per-stand study needed (SDIDEF value or dense-regen
+  small-tree), likely resolved once BMTMRT+IPASS lands but verify individually.
