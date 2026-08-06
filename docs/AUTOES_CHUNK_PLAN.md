@@ -1000,3 +1000,21 @@ jl's per-cycle baaa be read and the point_ba[1]→(overstory BAAA / frozen BAAIN
 session); the ENTIRE remaining arc is engine plumbing — (1) make the LAUTAL removal branch actually fire jl-side from
 a thinning, (2) split the baaa input into per-point overstory-BAAA vs frozen-BAAINV, (3) validate vs a DB stand's .sum.
 A clean, self-contained implementation session with zero model unknowns.
+
+## 2026-08-06 (CORRECTION) — AUTOES DOES fire on DB stands; prior "doesn't fire" was a NUMCYCLE-alignment artifact
+★ RETRACTS the 07aa537 conclusion ("THINPRSC on a DB stand doesn't arm a tally"). That run used `NUMCYCLE 5.0`
+UNALIGNED — jl (like live) parses NUMCYCLE from fixed columns 11-20, so "5.0" one column short reads as ~1 CYCLE
+(the exact trap found on the BM sweep). With only 1 cycle, the THINPRSC 2029 thin (end of cycle 1) never applied and
+AUTOES had no disturbance. RE-RAN with COLUMN-ALIGNED `NUMCYCLE         5` on DB stand 753199439290487:
+  AUTOES_IN icyc=2 ntally=99 baaa=13.18 total=1152.7 ; AUTOES_IN icyc=4 ntally=99 baaa=216.12 total=592.0
+⇒ **AUTOES FIRES on DB stands** — the scheduler works; there is NO firing gap. (This stand is all-seedling BA~3, so the
+tallies fire via the LINGRW ingrowth branch ntally=99, not the LAUTAL removal branch; a mature-overstory + heavy-thin
+DB stand is still needed to exercise the removal path.)
+★ jl-SIDE BUG CONFIRMED: jl's baaa GROWS across tallies (13.18 → 216.12) = the growing regen-cohort point_ba[1],
+NOT the disturbance-tracked overstory BAAA (which live drops after a cut: 41.93→1→50.05). This is exactly the #143
+input bug, now confirmed on the jl side by direct measurement (matches the plan's predicted growing 0/10/137/491/848).
+⇒ REVISED remaining #143 (further de-risked): (1) find/build a DB IE stand with a mature overstory + heavy thin to
+exercise the LAUTAL removal tally (ntally=1); (2) confirm jl baaa there also grows (vs live BAAA dropping); (3) fix:
+feed the per-inventory-point OVERSTORY BA (D≥REGNBK, drops after removal) to the species-prob ESTOCK + the frozen
+inventory BA to the PN calibration, instead of the growing point_ba[1]; (4) validate vs .sum. The scheduler/firing is
+NOT a blocker (it works); the whole remaining arc is the baaa-input split + validation. Use ALIGNED NUMCYCLE always.
