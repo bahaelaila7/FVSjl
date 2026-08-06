@@ -254,3 +254,18 @@ just-established regen's crown BEFORE the birth-cycle esgent (mirror live estab.
 dub for the new records before em_esgent!), so em_esgent! sees cr~82 not 0. Needs the establishment-crown value/order
 matched to live (instrument estab.f ICR for the planted cohort). ⇒ #152 is a CROWN-BEFORE-ESGENT ordering fix, not a
 TPCCF fix (supersedes the prior TPCCF hypothesis — corrected by the direct _em_smhtgf test).
+
+## #152 root — em_esgent! sees crown=0; the fix is crown-before-esgent (needs path audit)
+Confirmed via _em_smhtgf test: jl em_esgent! htgrth=0.1 IS the cr=0 curve (cr=82 → 0.9-1.4). So for em_plant_dense's
+PLANT regen, crown_pct=0 when em_esgent! runs. jl DOES have regen-crown dubs — establish! phase-2 (establishment.jl:379
+cr=clamp(0.89722−0.0000461·pccf+0.07985·N(0,1),0.20,0.90)→~85) AND ie_autoes_establish! (:1173) — but for THIS PLANT
+path the crown isn't set on the records em_esgent! iterates (nstart+1:n) before em_esgent! runs. FIX (scoped): ensure
+the just-established regen crown is dubbed BEFORE em_esgent! for the EM PLANT/AUTOES path — either (a) verify establish!
+phase-2 covers the EM PLANT regen and runs before em_esgent!, or (b) dub the crown inside em_esgent! when crown_pct==0
+using the phase-2 formula (with the matching MAIN-RANN draw order). Then htgrth 0.1→~1.0 and the em_plant_dense +10-29%
+early residual should close. NOTE: cr/tt_esgent! read t.crown_pct too — audit whether their regen crown is set first
+(may share this latent ordering, masked without a dense-regen + crown-sensitive SMHTGF test).
+★ #137 SUMMARY: ROOT (EM missing from birth-cycle esgent list) FIXED (c7c7d2f) — em_plant_dense BA tracks live (was
+~25% under), 0 regression. #152 residual (birth-cycle crown=0 → SMHTGF suppressed ~7×) precisely root-caused; it's a
+crown-before-esgent ordering fix. Both are the SAME theme as #149/#150 (regen/read-seedling crown feeding small-tree
+growth) — the crown must be dubbed before the growth reads it.
