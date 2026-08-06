@@ -95,3 +95,18 @@ BM 12-stand stratified slice (build_subdb.jl BM 12 → indexed bm_sub.db; run_sw
 full-scans the 2.2M/8M-row tables (minutes each). FIX = build_subdb.jl → small INDEXED subset DB (~100× faster).
 Reusable for ALL variants; this is how CI/IE slices ran. bm_sub.db built (12 stands, 123 tree rows).
 VERDICT: BM real-FIA = bit-exact-or-cornered (growth 100%, volume merch/board tail), matching CI/IE.
+
+## 2026-08-06 — cluster FIA slices extended (fast subset-DB workflow) — UT/TT/EM + KT-absent
+Using build_subdb.jl → indexed subset DB → run_sweep_western.jl vs each variant's FVS{v}_clean (cyc0 all-10-col):
+- **UT** 12-stand: treed=3, **3/3 ALL-10-col BIT-EXACT (100%)** (growth+volume), 0 crashes. ⇒ #155 sprout + #154
+  essubh + crown-init = ZERO real-FIA regression.
+- **TT** 12-stand: treed=4, **4/4 ALL-10-col BIT-EXACT (100%)**, 0 crashes.
+- **BM** 12-stand: treed=7, GROWTH 7/7 bit-exact, VOL merch/board tail (4×<2%, 1×3.2%), 0 crashes (see above).
+- **EM** 40-stand: treed=3, **GROWTH 3/3 bit-exact**, 0 crashes — BUT ★ VOLUME REAL DIVERGENCE: 2 stands TCuFt
+  Δ 9.7% and 14.3% (>10%; NOT cornered). Offenders: 42536261010690 (TCuFt/MCuFt/BdFt Δ9.7%),
+  39600883010690 (Δ14.3%). EM real-FIA volume was NOT previously validated (only CI/IE were). This is a REAL EM
+  volume bug (FW2/R1KEMP/R1ALLEN/R2OLDV) surfaced by the sweep — NEW lead, growth-independent (same trees, vol only).
+- **KT**: population=0 in FVS_STANDINIT_COND — KT stands are ABSENT from the FIA-ready DB (no FIA sweep possible;
+  KT stays validated via ktt01 + the test suite).
+NET: growth bit-exact on ALL treed stands across BM/UT/TT/EM (0 crashes anywhere) ⇒ #154/#155 no real-FIA regression.
+Volume: cornered (<2%) for BM/UT/TT; EM has a real >10% volume divergence on 2 stands → investigate next.
