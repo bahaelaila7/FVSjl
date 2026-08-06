@@ -188,3 +188,25 @@ mortality reads the finalized diam_growth, or (b) have mortality apply the same 
 NEXT SESSION: dump jl t.diam_growth at the END of the cycle (post-GRADD) for these same trees — confirm it becomes
 ~0.575″ — then trace where the ~1/3.7 partial value at mortality-time comes from (dgf output? subcycle? FINT). This
 is a REAL, high-value fix: it closes #140 and likely tightens BM self-thinning cluster-wide.
+
+### #140 ROOT REFINED (2026-08-05, post-restart) — it's the MORTALITY growth-term projection, NOT applied DG
+Correcting the prior "jl mortality reads partial diam_growth" framing with the full trajectory on repro stand
+374430545489998 (jl vs live FVSbm):
+| year | jl TPA/BA/SDI/QMD | live TPA/BA/SDI/QMD |
+| 2015 | 415/77/174/5.8 | 415/77/174/5.8  → **BIT-EXACT** |
+| 2025 | 403/77/173/5.9 | 376/80/177/6.2  → jl under-thins (+7.2% TPA) AND under-grows (QMD 5.9 vs 6.2) |
+Since 2015 is bit-exact, the **APPLIED DG matches** — this is NOT a DG-application bug. The divergence enters at
+the 2015→2025 cycle. KEY per-tree measurement (cyc0 mortality, jl `t.diam_growth` == same at mortality AND apply):
+jl mortality growth-term **g ≈ 0.156–0.161″ (constant across d=8–27″)**; live mortality **G = 0.6667″ (also constant
+across sizes)**; jl g ≈ 1/3.7 of live G. Both being SIZE-INDEPENDENT constants ⇒ each side hits a bound/floor/default
+in the mortality's QMD projection, and they differ. Consequence: jl dq10 = 5.908 vs live 6.078 ⇒ jl's projected QMD
+keeps T=414.6 BELOW the self-thin threshold (t55d10≈505) ⇒ jl RN=0 (background only) while live crosses it and
+self-thins ⇒ the +7.2% (and, feedback-amplified, +48% / +70%). At the FIRST cycle both are below threshold ⇒ the
+g/G difference is inert ⇒ 2015 bit-exact; it only bites at the threshold-crossing cycle.
+⇒ **THE BUG IS IN THE MORTALITY's dq10 GROWTH-TERM**, not the applied DG. live morts.f:222 `G=(DG(I)/BARK)*(FINT/10)`
+uses a DG(I) that is ~3.7× jl's `g=diam_growth/bark` — and since applied DG matches, live's mortality DG(I) is a
+DIFFERENT (un-reduced/projected) quantity than the applied (DGBND-reduced) DG. NEXT: instrument live to dump BOTH
+DG(I)@MORTS and the applied per-tree DBH increment for the same tree — confirm live's MORTS DG(I) is the
+pre-DGBND-cap DG while the applied is post-cap; then jl's fix = have BM mortality project dq10 from the un-capped
+DG (store it alongside the capped diam_growth, or recompute), NOT from the DGBND-reduced t.diam_growth. This closes
+#140 (a real mortality-projection bug) and should tighten BM self-thinning cluster-wide.
