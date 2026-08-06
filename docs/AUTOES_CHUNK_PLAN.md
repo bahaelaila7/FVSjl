@@ -885,3 +885,27 @@ Needs the dense.f BAAA(NNID) / BAAINV(NNID) per-point BA tracking (where 41.93 o
 derivation (dense.f/estab.f) + feed the correct one to each ESTOCK use; re-instrument live (stale scheduler files
 inconsistent) to confirm the per-cycle BAAA/BAAINV sequence; validate the tally + full-cycle .sum end-to-end. Fresh
 session. This closes the AUTOES diagnostic arc: tally + scheduler bit-exact; the sole gap is the BAAA/BAAINV input.
+
+## 2026-08-06 — FRESH LIVE INSTRUMENTATION DONE: BAAA vs BAAINV sequence measured (the blocker cleared)
+Re-instrumented live FVSie estab.f (WRITE unit 74 after BAAOLN, line 490 — BEFORE the NTALLY/INADV gates so it
+fires for EVERY tally, not just the NTALLY==1 calibration) + relinked (gfortran-16; the .iework relink_ie.sh's bare
+`gfortran` is stale in this env — use gfortran-16 directly). Ran ierun/iet01.key (4 stands). MEASURED, for the AUTOES
+inventory point NNID=1, per tally event:
+    BAAA(NNID=1)  = 41.9321823, 46.1742516, 1.0, 1.0, 1.0, 4.79316950, 50.0507812   ← the plan's target sequence, CONFIRMED
+    BAAINV(NNID=1)= 40.0000038 CONSTANT across ALL tallies and all 4 stands
+★ THIS CORRECTS THE PRIOR SPEC. The plan hypothesized "BAAINV must be RETAINED ~41.93". WRONG: **41.93 is BAAA at
+tally-1** (the current per-point overstory BA), and **BAAINV is a SEPARATE constant = 40.0** (the inventory-time
+per-point BA). The two are close only at tally-1 (before the cut: BAAA 41.93 ≈ BAAINV 40.0); after the shelterwood
+removes the overstory BAAA DROPS to 1.0 (disturbance-tracked) while BAAINV STAYS 40.0 (frozen at inventory), then
+BAAA recovers (4.79→50.05) as the overstory regrows. So:
+  - **BAAA(NNID)** = dense.f:213 `BAAA(IP) += BATREE·PI/GROSPC` for D≥REGNBK (overstory only), RECOMPUTED each cycle
+    ⇒ reflects removals. Feeds ESTOCK species-probability (estab.f:482 BAA=BAAA(NNID)). Sequence 41.93/46.17/1/1/1/4.79/50.05.
+  - **BAAINV(NNID)** = esfltr.f:67 `BAAINV(N) += 0.005454154·D²·ZPROB·PIX`, captured ONCE at inventory, PERSISTED via
+    getstd/putstd (BFREAD/BFWRIT unit, IPTINV). = 40.0 constant. Feeds ESTOCK PN calibration (estab.f:487→536 BAAOLD).
+jl feeds BOTH from the GROWING regen-cohort s.density.point_ba[1] (0/10/137/491/848) — wrong for each: it is neither
+the disturbance-tracked overstory BAAA (which DROPS post-cut) nor the frozen inventory BAAINV=40.0.
+⇒ FIX (now fully measured, spec corrected): (1) track BAAA(NNID) = current per-inventory-point OVERSTORY BA (D≥REGNBK),
+recomputed per cycle, reflecting removals → feed to the species-prob ESTOCK; (2) capture BAAINV(NNID) = inventory-time
+per-point BA (=40.0 here), frozen/persisted → feed to the PN-calibration ESTOCK. The engine change is still the
+regression-risky shared-path port (dense.f overstory-BA-per-point + esfltr.f inventory-BA-per-point), but the model
+inputs are now GROUND-TRUTH MEASURED, not inferred. Live sources restored (estab.f un-instrumented, FVSie_clean relinked).
