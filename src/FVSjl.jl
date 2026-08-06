@@ -100,6 +100,7 @@ include("variants/centralidaho/diameter_growth.jl")  # CI large-tree DDS hooks (
 include("variants/centralidaho/crown.jl")            # CI per-tree CCF (ci/ccfcal.f MODE=1) → RELDEN — chunk 5
 include("variants/centralidaho/height_growth.jl")    # CI large-tree height growth (ci/htgf.f) — chunk 4
 include("variants/centralidaho/regent.jl")           # CI small-tree growth (ci/regent.f) — chunk 6
+include("variants/centralidaho/establishment.jl")    # CI ESSUBH planted/subsequent base height (ci/essubh.f) — #154
 include("variants/centralidaho/mortality.jl")        # CI mortality (ci/morts.f) — Hamilton, chunk 7
 include("variants/centralidaho/volume.jl")           # CI volume (ci VEQNNC): MATW/FW2W/DVEW — chunk 8
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)

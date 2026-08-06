@@ -215,6 +215,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     @inbounds for nn in 1:nptids, rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
         # (unused on the no-treeht path), one for esdraw (the re-seed value).
+        # estab.f:646-650 EMSQR = ±DRAW2 (sign from DRAW1<0.5). These two draws align with the live oracle only
+        # for the FIRST plot; from plot 2 on, live's per-plot ESRANN count is inflated by the AUTOES natural-regen
+        # tally (STOADJ block + species tally, estab.f:651+) that jl does not model (that is #143). So the CI essubh
+        # `disp = EMSQR·DILATE·BNORM` term is #143-entangled and is left at 0 (the deterministic median) — the essubh
+        # MEAN (PN) is bit-exact vs live; disp is a stochastic realization straddling 0, .sum-inert on cit01.
         esrann!(s.rng); esrann!(s.rng)
         esdraw = floor(esrann!(s.rng) * 100000f0 + 0.5f0)
         for a in due
@@ -255,6 +260,18 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 _IE_ES_XMIN[sp]
             elseif s.variant isa Teton
                 _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
+            elseif s.variant isa CentralIdaho
+                # CI subsequent/planted base height (ci/essubh.f, HHT=EXP(PN + disp·SIG)). IHTSER from the
+                # shared estb habitat-bracket chain (em_ihtser == the shared estab MYGRUP→MYHTS map, estab.f:493);
+                # IPREP=1/IPHY=3 defaults (esplt2.f:191-192). BAA=overstory competition clamp[1,400]; XCOS/XSIN=
+                # cos/sin(aspect)·slope (estab.f:480). disp = EMSQR·DILATE·BNORM (per-stand 2-draw EMSQR × per-species
+                # sqrt-shrink DILATE × deterministic BNORML[IAGE]); MEASUREMENT PASS uses disp=0 (deterministic mean),
+                # validated .sum-inert on cit01 (planted seedlings stay sub-threshold, never enter the summary TPA).
+                let _slo = s.plot.slope
+                    ci_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0),
+                              em_ihtser(Int(s.plot.habitat_code)), 1, 3,
+                              _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation, 0f0)
+                end
             elseif s.variant isa EasternMontana
                 # EM subsequent/planted base height (em/essubh.f, deterministic EXP(PN)). IHTSER from the habitat
                 # code bracket search; IPHY=3 / IPREP=1 defaults (esplt2.f). BAA=overstory competition BA clamp[1,400].
@@ -273,9 +290,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
-            elseif s.variant isa EasternMontana
-                # EM (em/estab.f:1035-1038): HHT = essubh + HTADJ(default 0), floor XMIN — NO RAN draw (unlike CR
-                # estab.f:486 which draws + adds RAN). Skipping the draw keeps the :estab stream synced vs FVSem.
+            elseif s.variant isa EasternMontana || s.variant isa CentralIdaho
+                # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
+                # NO RAN draw. Only the user-specified-height branch (treeht≥0.1, estab.f:1026-1034) draws the lognormal
+                # BACHLO perturbation. jl already consumes the per-replicate EMSQR/ESDRAW draws (line ~218) for stream
+                # sync, so skipping this extra RAN keeps the :estab stream aligned vs the live oracle. EM validated;
+                # CI added #154 (was wrongly taking the else RAN-branch below → +~0.5 ft spurious height + a stream
+                # desync). NOTE (CR/IE/TT): same shared-source no-draw applies, latent behind their essubh branches
+                # (their validation used no-PLANT DB stands); fold them in when a PLANT .key is validated per variant.
                 hht < es_xmin[sp] && (hht = es_xmin[sp])
             else                                                   # default: RAN~N(0.5,0.25), accept RAN∈[ran_lo,ran_hi]
                 while true
