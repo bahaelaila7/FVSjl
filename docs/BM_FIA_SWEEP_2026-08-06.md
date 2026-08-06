@@ -30,3 +30,15 @@ threshold. NEXT: instrument live bm/regent.f htgr/HTG + PCTRED (density modifier
 is jl's small-tree HTG deterministically low (PCTRED density over-suppression on the dense ~44000-TPA stand, or the
 bm_smhtgf POTHTG) or a ZZRAN realization (htgr includes zzran·0.1)? TPA is EXACT ⇒ the mortality-RNG is synced, so
 a deterministic HTG gap is the leading hypothesis. Threshold-sensitive ⇒ could be partly cornered like IE WH #146.
+
+### #149 ROOT-CAUSED (2026-08-06): crown_pct=0 ⇒ VIGOR floor ⇒ HTGR under → 4.5' threshold miss
+Instrument-replay (bm/regent.f:350 vs jl regent.jl) on 504443988 sp2(WL) 0.1" seedling:
+  live: POTHTG=11.05 PCTRED=0.8186 VIGOR=0.426/0.382 CON=1.0 → HTGR=3.86/3.46 (crosses 4.5' next subcycle → DG grows)
+  jl:   POTHTG=12.06 PCTRED=0.8186 VIGOR=0.30       CON=1.0 → HTGR=2.96 (stays <4.5' → DG=0)
+POTHTG/PCTRED/CON match (jl POTHTG even slightly higher). The ENTIRE gap is VIGOR: jl 0.30 (the FLOOR) vs live
+0.426/0.382. VIGOR=150·CR³·exp(−6·CR)+0.3 ⇒ jl's crown_pct=0 (measured) forces the 0.3 floor; live's seedling has
+crown ratio ~12% (VIGOR 0.426 ⇒ CR≈0.12). ⇒ ROOT: jl assigns ZERO crown ratio to the dense FIA seedlings (DBH=0.1,
+HT=None) where live estimates ~12%. The suppressed HTGR keeps them below the 4.5' breast-height threshold ⇒ DG=0 ⇒
+BA 2× low. NEXT (the fix): jl's crown-ratio initialization for read sub-1" trees with no measured crown must estimate
+CR (the BM/shared crown model, not leave 0). Likely affects ALL variants' dense-seedling stands (crown init shared).
+DETERMINISTIC (TPA exact) ⇒ fixable, NOT cornered. ⇒ #149 root = crown-ratio init, not the regent/DG itself.
