@@ -1246,3 +1246,24 @@ advance/subsequent DRAW split (ITIME≤2 ⇒ all BEST=advance). Wire into establ
 (replace the dbh=0.1 floor with the computed per-species heights → ≥3.0" trees excluded from projection; advance-regen
 adds WP). Validate vs live RegRepts (iet01 s4r: 2089 WP21/GF61/... + the .sum 536→1025→…→1788). This is the SINGLE
 remaining #143 piece — large but fully specified; substantial dedicated port, not a bounded step. jl clean (debug reverted).
+
+## 2026-08-06 (KEY CORRECTION — the height routines are PORTED-BUT-UNWIRED; #143 fix = WIRING, not porting)
+★ While starting the "height-model port" I discovered (after mistakenly duplicating ie_esadvh — reverted 6ec952d)
+that ALL FOUR AUTOES height routines ALREADY EXIST in establishment.jl and are FULLY PORTED:
+  ie_essubh (subsequent, line ~68), ie_esxcsh (excess, ~147), ie_esadvh (advance, ~782), ie_esdlay (delay, ~922).
+CONFIRMED: grep across all of src/ — each is DEFINED but has ZERO call sites (only definitions + docstrings). So the
+"HEIGHT-MODEL SPEC COMPLETE, routine-level" note meant the ROUTINES were built; only the tree-creation WIRING was
+deferred. ⇒ #143's remaining fix is NOT a 739-line port (equations done) — it is WIRING the existing routines into
+the AUTOES tree-creation loop (establishment.jl:1159-1185), which currently floors ALL trees at dbh=0.1" (line 1166)
+and never calls any height routine. THAT floor is why jl books the raw PADV-like species split (WP0/GF-heavy, all
+<3.0") instead of live's advance-regen-shaped split (WP21) — confirmed by the species-split measurement (commit 9663634).
+★ THE WIRING (the actual #143 fix, now much smaller than believed): in ie_autoes_establish!, per tallied tree, run the
+advance/subsequent/excess DISPATCH (plan: ITIME≤2 ⇒ all BEST=advance→ie_esadvh; EXCESS→ie_esxcsh; else subsequent→
+ie_essubh) with DILATE=FIRST(1,i) dispersion (0.1→0.316→0.562→…→1, an order-statistic sqrt chain), DELAY=ie_esdlay
+draw, GENTIM=FINT−5, EMSQR (2 per-stand ESRANN draws), TIME → compute per-tree HHT; derive dbh (est.jl:1166 dbh=
+0.1+0.001·hht); trees reaching ≥3.0" are advance regen NOT floored. Then re-validate vs live RegRepts (iet01 s4r:
+2089 WP21/GF61/... + regen-report AVERAGE HEIGHT WP3.5/DF3.8/GF1.7/WH1.9/RC2.1 + .sum 536→…→1788). The dispersion/
+draw ORDER must match live's ESRANN stream (the seed chain is already bit-exact per the tally validation). ⇒ #143 is
+a WIRING+RNG-order task over EXISTING equations — a focused unit, but NOT the large port previously scoped.
+META (doctrine #5): I duplicated ie_esadvh by not grepping for the existing function first — caught + reverted; the
+lesson (check what exists before porting) is exactly why the port turned out to be a wiring task.
