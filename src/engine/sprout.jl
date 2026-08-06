@@ -509,6 +509,27 @@ end
     d = bx / (log(ht - 4.5f0) - ax) - 1f0
     return d < 0.1f0 ? 0.1f0 : d
 end
+# --- UT sprout tables (canonical FVSut = strp/esuckr.f + vstrp/essprt.f CASE('UT'); NOT the vestigial
+# ut/esuckr.f, which FVSut's sourceList does not compile). aspen=sp6 (ESASID CASE('TT','UT')=6), sprouters
+# gated upstream by the :is_sprouting coef (cuts.jl). NSPREC/ESSPRT/SPRTHT each have a distinct CASE('UT').
+@inline function nsprec_ut(issp::Integer, dstmp::Float32)::Int    # ENTRY NSPREC CASE('UT') vstrp/essprt.f:1168
+    nint(x) = floor(Int, x + 0.5f0)
+    issp == 6 && return 2
+    (issp == 13 || issp == 22) && return dstmp < 5f0 ? 1 : (dstmp <= 10f0 ? nint(0.2f0 * dstmp) : 2)
+    (issp == 18 || issp == 19) && return dstmp < 5f0 ? 1 : (dstmp <= 10f0 ? nint(-1f0 + 0.4f0 * dstmp) : 3)
+    return 1
+end
+@inline function essprt_ut(issp::Integer, prem::Float32, dstmp::Float32)::Float32  # PSPROB CASE('UT') vstrp/essprt.f:627
+    issp == 22 && return prem * 0.50f0
+    issp == 21 && return prem * 0.70f0
+    (issp == 13 || issp == 18 || issp == 19) && return prem * 0.80f0
+    return prem
+end
+@inline function sprtht_ut(issp::Integer, si::Float32, iag::Integer)::Float32      # ENTRY SPRTHT CASE('UT') vstrp/essprt.f:1429
+    (issp == 13 || issp == 18 || issp == 19 || issp == 21 || issp == 22) && return (0.1f0 + si / 100f0) * Float32(iag)
+    issp == 6 && return (0.1f0 + si / 80f0) * Float32(iag)
+    return 0.5f0 + 0.5f0 * Float32(iag)
+end
 
 """
     esuckr!(s; fint) -> Bool
@@ -541,12 +562,10 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     ls = s.variant isa LakeStates    # LS ESUCKR (ls/essprt.f CASE('LS','ON') tables; structure == NE/CS, aspen=sp41)
     cr = s.variant isa CentralRockies # CR ESUCKR (cr/essprt.f CASE('CR') tables; aspen=sp20)
     tt = s.variant isa Teton          # TT ESUCKR (tt/essprt.f CASE('TT') tables; aspen=sp6, sprouters {6,13,14,15})
-    ut = s.variant isa Utah           # UT ESUCKR (ut/esuckr.f: aspen=sp6 Crouch, sprouters {6,13,18,19,21,22}, NO essprt)
+    ut = s.variant isa Utah           # UT ESUCKR (canonical = strp/esuckr.f + vstrp/essprt.f CASE('UT'); aspen=sp6)
     # NE/CS aspen suckering (ASSPTN, essprt.f:1228): each aspen sprout's TPA depends on the TOTAL cut-aspen
     # BA/TPA (estump.f:110-111, summed over ALL cut aspen records). Accumulate up front (ESASID=49 NE / 76 CS).
     asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : (tt || ut) ? 6 : -1 # ESASID(VAR) aspen species index
-    # UT sprouter set (ut/blkdat.f ISPSPE) — non-sprouter (conifer) cuts produce NO sprouts (ut/esuckr.f gate).
-    ut_sprouters = (6, 13, 18, 19, 21, 22)
     asbar = 0f0; astpar = 0f0
     if ne || cs || ls || cr || tt || ut
         @inbounds for rec in s.control.cut_log
@@ -555,18 +574,12 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             asbar += 0.0054542f0 * rec.prem * rec.dstmp^2
         end
     end
+    # UT sprouter species are already gated upstream (cuts.jl only pushes :is_sprouting==1 records to cut_log),
+    # so every cut_log record here is a genuine UT sprouter; no per-record species gate needed below.
     created = false
     @inbounds for rec in s.control.cut_log
         prem = rec.prem
         prem < 0.001f0 && continue                     # esuckr.f:170
-        # UT (ut/esuckr.f): only the sprouter species regenerate; a cut conifer produces NO sprouts and is
-        # skipped BEFORE any probability call — UT does NOT use the SN essprt model (that dispatch mismatch was
-        # the :essprt_fsp KeyError crash on any thinned UT stand). Non-sprouter cuts skip here.
-        ut && !(Int(rec.species) in ut_sprouters) && continue
-        # A cut UT SPROUTER (aspen sp6 / hardwood) needs the ut/esuckr.f generation model (Crouch SPA + ESCPRS
-        # sprout height/DBH) — not yet ported/validatable without a sprouter-cut stand. Fail clearly rather than
-        # fall through to the SN essprt/sprtht path (which is what caused the :essprt_fsp crash). Tracked as #155.
-        ut && error("UT stump-sprout generation not yet ported (task #155): sprouter species $(Int(rec.species)) was cut")
         issp = Int(rec.species); dstmp = rec.dstmp
         ishag = Int(rec.ishag); iplot = Int(rec.plot)
         # SPROUT keyword multipliers, looked up by the PARENT species + stump DBH (esuckr.f:197-205, DO 450):
@@ -583,10 +596,10 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         # (both VARACD-branched in essprt.f). NE uses its own CASE('NE') tables (nsprec_ne / essprt_ne); SN
         # uses nsprec_sn / essprt_sn. ⚠ NE aspen suckering (ESASID(NE)=49 → ASSPTN) is still TODO — for a cut
         # sp49 record NE would call ASSPTN to reset PREM before ESSPRT; absent it, sp49 uses the plain PREM.
-        numspr = ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : nsprec_sn(issp, dstmp)
+        numspr = ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : ut ? nsprec_ut(issp, dstmp) : nsprec_sn(issp, dstmp)
         # NE/CS aspen: ASSPTN replaces PREM with the Crouch-polynomial sucker TPA (per cut aspen) BEFORE
         # ESSPRT (esuckr.f:225-228). SPA = poly(ISHAG) clamped [2608,30125], scaled by cut-aspen BA/198.
-        if (ne || cs || ls || cr || tt) && issp == asp_idx && astpar > 0f0
+        if (ne || cs || ls || cr || tt || ut) && issp == asp_idx && astpar > 0f0
             rshag = Float32(ishag)
             spa = 40100.45f0 - 3574.02f0 * rshag^2 + 554.02f0 * rshag^3 -
                   3.5208f0 * rshag^5 + 0.011797f0 * rshag^7
@@ -597,7 +610,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                cs ? essprt_cs(issp, prem, dstmp) :
                ls ? essprt_ls(issp, prem, dstmp) :
                cr ? essprt_cr(issp, prem, dstmp) :
-               tt ? essprt_tt(issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
+               tt ? essprt_tt(issp, prem, dstmp) :
+               ut ? essprt_ut(issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
         prem < 0.001f0 && continue                     # esuckr.f:170/244
         si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)
         sp2 = s.species.code2[issp]      # 2-char alpha code (for CWCALC)
@@ -611,7 +625,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   cs ? sprtht_cs(issp, si, ishag) :
                   ls ? sprtht_ls(issp, si, ishag) :
                   cr ? sprtht_cr(issp, si, ishag) :
-                  tt ? sprtht_tt(issp, si, ishag) : sprtht_sn(issp, si, ishag)) * hmult
+                  tt ? sprtht_tt(issp, si, ishag) :
+                  ut ? sprtht_ut(issp, si, ishag) : sprtht_sn(issp, si, ishag)) * hmult
             randev = 0f0
             while true
                 randev = bachlo(s.rng, 0f0, 0.5f0; stream = :estab)
@@ -622,7 +637,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   cs ? cs_sprout_dbh(coef, issp, ht) :
                   ls ? ne_sprout_dbh(coef, issp, ht) :
                   cr ? ne_sprout_dbh(coef, issp, ht) :
-                  tt ? tt_sprout_dbh(coef, issp, ht) : sprout_dbh(coef, issp, ht)  # LS uses htdbh_ht1/ht2 (Wykoff), like NE
+                  tt ? tt_sprout_dbh(coef, issp, ht) :
+                  ut ? tt_sprout_dbh(coef, issp, ht) : sprout_dbh(coef, issp, ht)  # UT ht-dbh = Wykoff BX/(ln(HT-4.5)-AX)-1 (strp/esuckr.f:303), same form as TT
             # CWCALC's CR arg is the dummy CRDUM=1.0 (esuckr.f:317), NOT the record's ICR=70 (that is the
             # discarded 6th arg IICR, cwcalc.f). Passing 70 inflated sprout CrWidth by cr_coef·69 for Bechtold spp.
             cw = crown_width(coef, sp2, dbh, ht, 1f0, 0,
