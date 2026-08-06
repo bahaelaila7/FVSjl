@@ -405,3 +405,18 @@ single-pass structure: UT uses ZEIDE SDI vs BM's STAGE, and its sample self-thin
 that bit BM is simply within the cornered band for UT's stands.) META: the BM #140 fix is NOT a universal western
 mortality fix — it must be MEASURED per variant. UT is DONE on real-FIA mortality; no fix needed. (0 AUTOES-0 stands
 in the UT sample — unlike EM, UT's real-FIA slice is genuinely treed.)
+
+## 2026-08-06 — #140 DQ10 seed measurement: confirms the tripling/DGSCOR RNG class (doctrine #3)
+Instrumented bm/morts.f per-tree at the SD2SQ accumulation (DQ10=SQRT(SD2SQ/T), SD2SQ=Σ P·(D+G)², G=(DG/BARK)·
+FINT/10). Captured live per-tree D/DG/BARK/G at icyc1 (bmt01). KEY REALIZATION: DQ10 is computed on the **TRIPLED**
+treelist (103 records / T=1762 across the multi-stand keyfile), so a per-tree jl-vs-live DG comparison here is
+**doctrine-#3-INVALID** (per-record treelist meaningless after tripling). The valid measure is the AGGREGATE
+SD2SQ. Since BA (Σ P·D², current diameter) is bit-exact but DQ10 (Σ P·(D+G)², projected) is not, the seed is the
+projected-diameter growth G on the tripled splits — i.e. each split's DGSCOR serial-correlation RNG realization.
+That is the SAME accepted "ZZRAN/DGSCOR dense-regen straddle" class as EM/IE/CI (a tripling-order-sensitive RNG
+realization), which BM's self-thin QMD-feedback then AMPLIFIES into the visible late-cycle TPA delta. ⇒ #140's
+SEED is cornered (RNG realization on tripled splits); the sign-tally's JL-HIGH lean is that RNG straddle's
+per-stand realization, not a fixable deterministic DG bias. To fix it one would have to bit-match the DGSCOR RNG
+stream on tripled splits — the known irreducible primitive. VERDICT: reverts to CORNERED, consistent with the
+original tie-break-seed analysis; the "REAL bias" correction over-read a consistent-but-RNG-driven sign lean.
+Instrumentation removed, oracle restored.
