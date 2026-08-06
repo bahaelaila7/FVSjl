@@ -102,9 +102,12 @@ function em_forkod!(p)
 end
 
 # em/habtyp.f: bucket KODTYP into JTYPE -> IEMTYP (largest idx with JTYPE<=KODTYP), ITYPE=NIHMAP(IEMTYP).
-# Returns (iemtyp, itype). KODTYP<JTYPE[1] or <=0 -> defaults (iemtyp 1).
+# Returns (iemtyp, itype). ★ em/habtyp.f:114-124 DEFAULT (KODTYP<=0 OR KODTYP<JTYPE(1)): IEMTYP=ITYPE where
+# ITYPE is the grinit EM default 29 (em/grinit.f:214) ⇒ default (IEMTYP=29, ITYPE=NIHMAP[29]=4). jl previously
+# defaulted to (1, NIHMAP[1]=1) — WRONG on all no-PV_CODE EM stands (DG habitat-group + AUTOES). Verified vs
+# instrumented FVSem on real-FIA stand 5332701010661 (PV_CODE=missing): live ITYPE=4, jl was 1.
 function em_habtyp(kodtyp::Integer)
-    kodtyp <= 0 && return (1, Int(EM_NIHMAP[1]))
+    (kodtyp <= 0 || kodtyp < EM_JTYPE[1]) && return (29, Int(EM_NIHMAP[29]))   # grinit ITYPE=29 default
     jj = findfirst(k -> kodtyp < EM_JTYPE[k], 1:118)
     iemtyp = jj === nothing ? 118 : jj - 1
     iemtyp < 1 && (iemtyp = 1)
@@ -157,7 +160,7 @@ function em_site_index_setup!(s::StandState)
     p = s.plot
     em_forkod!(p)                                    # IFOR → p.forest_idx (DG MAPLOC/MAPDSQ), IGL → p.geo_location
     kodtyp_in = Int(p.habitat_code)
-    iemtyp, itype = kodtyp_in > 0 ? em_habtyp(kodtyp_in) : (Int(p.habitat_input) > 0 ? (0, Int(p.habitat_input)) : (1, Int(EM_NIHMAP[1])))
+    iemtyp, itype = kodtyp_in > 0 ? em_habtyp(kodtyp_in) : (Int(p.habitat_input) > 0 ? (0, Int(p.habitat_input)) : (29, Int(EM_NIHMAP[29])))
     (itype < 1 || itype > 30) && (itype = 1)
     p.habitat_input = Int32(itype)          # ITYPE (30 NI types) — sitset + DGCONS non-Wykoff ISPHAB
     p.habitat_code  = Int32(iemtyp)         # IEMTYP (1..118) — DGCONS JDTYPE for the Wykoff-species MAPHAB
