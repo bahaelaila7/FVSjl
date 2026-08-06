@@ -294,6 +294,86 @@ function ie_esnspe(iser::Integer, itpp::Integer, tpp::Real, tppln::Real, baa::Re
 end
 
 # =============================================================================
+# ie_esadvh — AUTOES ADVANCE-regen per-tree HEIGHT (ie/esadvh.f, #143 height sub-model).
+# HHT = EXP(PN + EMSQR·DILATE·BNORM·σ_sp), per-species PN regression in AGELN/BAA/ELEV/aspect/SLO/BWB4/BWAF
+# + THAB(IHTSER,·)/TPRE(IPREP,·)/TPHY(IPHY,·) habitat/prep/physiography tables. Same EXP(PN)+dispersion form as
+# ci_essubh/bm_essubh. AGE = 3−DELAY−GENTIM (≥1); DELAY=INT(delay+.5) cap>2→1; BNORM=_IE_ES_BNORML(ITIME).
+# Source-verified verbatim esadvh.f:1-266. NOT yet wired into tree-creation (needs the advance/subsequent DRAW
+# split + ESDLAY + ESSUBH as one unit) — the #143 fix. Species 1-10 = WP WL DF GF WH RC LP ES AF PP.
+# THAB(5,23): only sp3 (used by sp3 AND sp4 as THAB(IHTSER,3)) + sp4 col are nonzero (verbatim).
+const _IE_ADV_THAB3 = Float32[-0.00683, 0.12521, 0.16327, 0.26886, 0.0]   # THAB(IHTSER,3)
+# TPRE(4,23): nonzero sp5/11/23 = [0,-0.10356,-1.23036,-0.40522]; sp9/14 = [0,-0.20770,-0.12903,0.18322]
+const _IE_ADV_TPRE_A = Float32[0.0, -0.10356, -1.23036, -0.40522]         # sp5,11,23 (index by IPREP)
+const _IE_ADV_TPRE_B = Float32[0.0, -0.20770, -0.12903,  0.18322]         # sp9,14
+# TPHY(5,23): sp3/6/7/10 nonzero (index by IPHY)
+const _IE_ADV_TPHY3  = Float32[0.04770, 0.41224, 0.25028, 0.23537, 0.0]
+const _IE_ADV_TPHY6  = Float32[0.32413, 0.39404, 0.25123, 0.23419, 0.0]
+const _IE_ADV_TPHY7  = Float32[-0.28223, -0.99702, -0.47684, -0.20872, 0.0]
+const _IE_ADV_TPHY10 = Float32[-0.18689, 0.27119, 0.70375, 0.65555, 0.0]
+
+"""
+    ie_esadvh(sp, emsqr, delay, elev, dilate, ihtser, gentim, baa, xcos, xsin, slo, bwb4, bwaf, iphy, iprep, time)
+      -> (hht, trage)
+
+ADVANCE-regen height (ie/esadvh.f). `xcos`/`xsin`=SLO-weighted aspect; tables 1-indexed on IHTSER/IPREP/IPHY.
+"""
+function ie_esadvh(sp::Integer, emsqr::Real, delay::Real, elev::Real, dilate::Real, ihtser::Integer,
+                   gentim::Real, baa::Real, xcos::Real, xsin::Real, slo::Real, bwb4::Real, bwaf::Real,
+                   iphy::Integer, iprep::Integer, time::Real)
+    n = Int(floor(Float32(delay) + 0.5f0)); n > 2 && (n = 1)
+    dl = Float32(n)
+    trage = 3f0 - dl
+    age = 3f0 - dl - Float32(gentim); age < 1f0 && (age = 1f0)
+    ageln = log(age)
+    itime = clamp(Int(floor(Float32(time) + 0.5f0)), 1, length(_IE_ES_BNORML))
+    bnorm = _IE_ES_BNORML[itime]
+    em = Float32(emsqr); di = Float32(dilate); ba = Float32(baa); el = Float32(elev)
+    xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); b4 = Float32(bwb4); bw = Float32(bwaf)
+    thab3(k) = (1 <= k <= 5) ? _IE_ADV_THAB3[k] : 0f0
+    tprA(k)  = (1 <= k <= 4) ? _IE_ADV_TPRE_A[k] : 0f0
+    tprB(k)  = (1 <= k <= 4) ? _IE_ADV_TPRE_B[k] : 0f0
+    disp(sig) = em * di * bnorm * sig
+    hht = 0.5f0
+    if sp == 1
+        pn = 0.05585f0 + 0.84765f0*ageln - 0.003824f0*ba - 0.02835f0*el - 0.79565f0*xc + 0.39278f0*xs - 0.68673f0*sl
+        hht = exp(pn + disp(0.51878f0))
+    elseif sp == 2 || sp == 12
+        pn = -1.80559f0 + 1.24136f0*ageln
+        hht = exp(pn + disp(0.54325f0))
+    elseif sp == 3
+        pn = -1.15433f0 + 1.09480f0*ageln + _IE_ADV_TPHY3[clamp(iphy,1,5)] + thab3(ihtser) - 0.04804f0*el + 0.0004225f0*el*el
+        hht = exp(pn + disp(0.63678f0))
+    elseif sp == 4
+        pn = -1.96040f0 + 1.02403f0*ageln - 0.00233f0*ba + thab3(ihtser) + 0.04315f0*xc + 0.13456f0*xs - 0.21468f0*sl - 0.05224f0*b4 - 0.01898f0*bw
+        hht = exp(pn + disp(0.61195f0))
+    elseif sp == 5
+        pn = -0.43269f0 + 0.77433f0*ageln - 0.00378f0*ba + tprA(iprep)
+        hht = exp(pn + disp(0.54794f0))
+    elseif sp == 6
+        pn = 2.11552f0 + 0.71766f0*ageln + _IE_ADV_TPHY6[clamp(iphy,1,5)] - 0.17259f0*el + 0.12506f0*xc + 0.63747f0*xs - 0.35258f0*sl + 0.0022033f0*el*el
+        hht = exp(pn + disp(0.62044f0))
+    elseif sp == 7
+        pn = -0.59267f0 + 0.88997f0*ageln + _IE_ADV_TPHY7[clamp(iphy,1,5)] + 0.79158f0*xc + 0.49060f0*xs + 0.49071f0*sl
+        hht = exp(pn + disp(0.68842f0))
+    elseif sp == 8
+        pn = -2.19638f0 + 1.12147f0*ageln - 0.002270f0*ba
+        hht = exp(pn + disp(0.59475f0))
+    elseif sp == 9 || sp == 14
+        pn = -1.69509f0 + 0.87242f0*ageln - 0.001107f0*ba + tprB(iprep) - 0.06402f0*b4 + 0.02299f0*bw - 0.01189f0*xc + 0.15379f0*xs + 0.44637f0*sl
+        hht = exp(pn + disp(0.59957f0))
+    elseif sp == 10
+        pn = -6.33095f0 + 0.79936f0*ageln + _IE_ADV_TPHY10[clamp(iphy,1,5)] + 0.06347f0*bw + 0.19305f0*el - 0.0020058f0*el*el
+        hht = exp(pn + disp(0.53813f0))
+    elseif sp == 11 || sp == 23
+        pn = -0.43269f0 + 0.77433f0*ageln - 0.00378f0*ba + tprA(iprep)
+        hht = exp(pn + disp(0.54794f0))
+    elseif sp in (18, 19, 20, 21, 22)
+        hht = 5.0f0                                  # sp13,15,16,17 fall through to the 0.5 default
+    end
+    return (hht, trage)
+end
+
+# =============================================================================
 # ie_espadv — AUTOES P(advance-regen species) (ie/espadv.f, task #143 chunk A2b).
 # Per-species probability of ADVANCE regeneration (10 species WP/WL/DF/GF/WH/RC/LP/ES/AF/PP):
 # PADV(i) = 1/(1+exp(-PNᵢ)) · occ(i), where occ(i)=OCURHT(IHAB,i)·XESMLT(i)·OCURNF(IFO,i) (the
