@@ -1013,7 +1013,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
                        time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
                        esb_shift::Real = 0f0, is_ingro::Bool = true,
-                       nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[])
+                       nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
+                       nsp::Integer = 23)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1026,13 +1027,14 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
     # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579); esb_shift = ESB-ESB1 (inventory calibration, cyc1/2).
     prob1 = 1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))
-    occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:23]
+    occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:nsp]
     over = zeros(Float32, 10)
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
-                            occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn)
+                            occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
+                            nsp = nsp)
     return (tally = tally, prob1 = prob1, idx = idx)
 end
 
@@ -1045,9 +1047,18 @@ end
 # establishment heights are sub-breast-height so esgent.f's nominal DBH applies).
 # `xtes` = the removal fraction from THIS cycle's within-cycle thin (see grow_cycle!).
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
-    (s.variant isa InlandEmpire) || return false
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return false
     est = s.estab
     (est.lautal || est.lingrw) || return false
+    nsp = nspecies(s.variant)
+    # The estb habitat bracket (esplt2.f IEND/MYGRUP, = _IE_ESTAB_IEND/MYGRUP) keys off ICL5 = the FVS/NI habitat
+    # CODE. IE's p.habitat_code IS that code; EM's p.habitat_code is IEMTYP (1-118) whose NI code is EM_JTYPE[iemtyp]
+    # (em/habtyp.f:123 KODTYP=JTYPE(IEMTYP)). The OCURHT/CHAB/ESTOCK tables + _IE_ES_XMIN are the SHARED estb data
+    # (species 1-10 = WP WL DF GF WH RC LP ES AF PP), so no species crosswalk is needed — EM's dry habitats zero the
+    # wet-side estb species (OCURHT verified bit-identical to live FVSem for IHAB=3), and EM's establishing species
+    # (WL/DF/LP/ES/AF/PP) sit at the matching estb indices 2,3,7,8,9,10.
+    ihab_code = s.variant isa EasternMontana ?
+        Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)]) : Int(s.plot.habitat_code)
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
     next_year = year + per
@@ -1106,7 +1117,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     esb_shift = 0f0
     if Int(est.idsdat) == inv_year
         if isnan(est.esb_shift)
-            idx0 = ie_estab_indices(Int(p.habitat_code), Int(p.user_forest_code))
+            idx0 = ie_estab_indices(ihab_code, Int(p.user_forest_code))
             tpacre = 0f0
             @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre += s.trees.tpa[i]); end
             tpacre < 1f0 && (tpacre = 1f0)
@@ -1120,7 +1131,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         end
         esb_shift = est.esb_shift
     end
-    r = ie_autoes_run(habitat_code = Int(p.habitat_code), forest_code = Int(p.user_forest_code),
+    r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn)
@@ -1128,7 +1139,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     t = s.trees
     xmin = _IE_ES_XMIN
     created = false
-    @inbounds for sp in 1:23
+    @inbounds for sp in 1:nsp
         tpa_sp = Float32(r.tally[sp])
         tpa_sp > 0f0 || continue
         hht = xmin[sp] + 0.2f0                           # est. height floor TALL=max(HHT,XMIN+0.2) (estab.f:838);

@@ -558,7 +558,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
     # AUTOES (IE): automatic natural establishment (esnutr.f scheduler → estab.f tally). Fires off the removal/
     # ingrowth rules (not a scheduled PLANT/NATURAL), so it runs separately from establish!.
-    s.variant isa InlandEmpire && ie_autoes_establish!(s; fint = fint)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
