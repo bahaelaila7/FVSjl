@@ -53,3 +53,19 @@ THE FIX: port the small-tree crown assignment from bm/regent.f (the JCR/ICR set 
 read sub-1" trees get a crown ratio (~12%, not 0) before the growth regent. Likely a shared pattern across variants'
 regent (VIGOR = f(crown) everywhere). ⇒ #149 is a CROWN-INIT chunk (deterministic, fixable), not regent/DG. Verify
 on 504443988 (BA 38→~80) + ttt01/emt01/etc. no-regress (they have measured crowns, so init-skip is inert there).
+
+### #149 COMPLETE FIX SPEC (2026-08-06): BM missing CI-parity crown-init (bm_dubscr)
+The BM setup dispatch (simulate.jl:98-100) is MISSING the crown-init that CI has (simulate.jl:102-104):
+  compute_density!(s); crown_ratio_update!(s, s.variant; lstart=true)
+CI's comment there LITERALLY describes #149: "Without it, 0.1" seedlings keep crown_pct=0 ⇒ ... seedlings never
+reach breast height (4.5') ⇒ DBH growth skipped ⇒ small-tree DG low". BM's crown_ratio_update! (bm/crown.jl:61)
+SKIPS d<1 at lstart; CI's instead has a d<1 lstart BRANCH (ci/crown.jl:128-136) that estimates the crown via
+ci_dubscr → clamp[10,95] → t.crown_pct[i]. THE FIX (mirror CI, source live bm/crown.f:336/370 CALL DUBSCR):
+(1) port bm_dubscr (BM has NO dubscr yet; KT/CI do — likely the shared DUBSCR crown model with BM coeffs);
+(2) replace bm/crown.jl:61 skip with a d<1 lstart branch: cr=bm_dubscr(...); crown_pct=clamp(cr·100,10,95);
+(3) add `compute_density!(s); crown_ratio_update!(s,s.variant;lstart=true)` to the BM setup branch.
+VALIDATE: 504443988 BA 38→~80 (=live), bmt01 no-regress (its trees have measured crowns ⇒ line-60 skip keeps them
+inert). ★ LIKELY CLUSTER-WIDE: check EM/TT/UT setup too — only CR+CI currently call the lstart crown-init; the
+dense-seedling HTGR-via-VIGOR(crown) starvation is the SAME mechanism (BM #149, and the EM/IE/UT/TT dense-seedling
+findings may share this crown-init root where the DG isn't the specific variant bug I fixed). This is the campaign's
+likely UNIFYING root: read sub-1" seedlings need a dubscr crown estimate at inventory, which most variants skip.
