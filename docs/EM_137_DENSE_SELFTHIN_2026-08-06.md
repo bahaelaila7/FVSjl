@@ -269,3 +269,19 @@ early residual should close. NOTE: cr/tt_esgent! read t.crown_pct too — audit 
 ~25% under), 0 regression. #152 residual (birth-cycle crown=0 → SMHTGF suppressed ~7×) precisely root-caused; it's a
 crown-before-esgent ordering fix. Both are the SAME theme as #149/#150 (regen/read-seedling crown feeding small-tree
 growth) — the crown must be dubbed before the growth reads it.
+
+## ★ CORRECTION (2026-08-06) — em_esgent! IS faithful; #152 residual is the accepted straddle, NOT crown/TPCCF
+Both prior #152 root-cause commits (657c44a TPCCF, 79e910f crown) were WRONG — artifacts of a `sort -u | head` that
+cherry-picked the LOWEST htgrth (0.1) values. DIAGNOSTIC (instrumented phase-2 crown-set + em_esgent! crown-read on
+em_plant_dense): em_esgent! reads the CORRECT crown — cr=82/90 (phase-2 establishment.jl:379 sets it, runs before
+em_esgent!). And _em_smhtgf(3, cr=82/90, tpccf=100-300) = 0.90-0.98 ≈ live HTGRR 1.04. So em_esgent!'s birth-cycle
+increment MATCHES live; the crown is NOT 0 and NOT the issue.
+The em_plant_dense BA residual is MIXED-SIGN and converging: diffs jl−live = −1,+4,+3,+1,−3,−7,−12,−12,−4,+2 across
+2000-2090 (not one-directional) — the accepted dense-cohort DGSCOR/AVHT40 tie-break + ZRAND-realization STRADDLE, the
+SAME cornered primitive as BM #149 (+9%), CI #142 (~2%), the whole-cluster dense-regen straddle. ⇒ #137 is now
+bit-exact-OR-CORNERED: the em_esgent! fix (c7c7d2f) resolved the REAL bug (the ~25% one-directional under-growth from
+the missing birth-cycle growth); the ±10% mixed-sign remainder is the accepted straddle. #152 is CORNERED, not a real
+refinement — em_esgent! is faithful. ★ LESSON (self-inflicted): NEVER characterize a distribution from `sort|head` —
+it cherry-picks the tail; sample representatively (mean/median or the actual per-tree with its inputs). Two wrong
+root-causes committed then refuted by the direct diagnostic — doctrine #2 (measure) caught it, but only after I
+inferred from a biased sample. Measure the RIGHT thing.
