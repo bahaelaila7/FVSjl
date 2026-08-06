@@ -770,3 +770,19 @@ disturbance/ingrowth schedule don't match live). ⇒ #143 FIX = align ie_autoes_
 IDSDAT / IY-mapping) + the NSTORE per-cycle booking to the live sequence above (exact target per icyc/ntally/total).
 This is the sharp, actionable target — a scheduler+booking alignment, validated against the 7-tally live sequence,
 NOT a coupled RNG mystery. (Debug hook kept ENV-gated in ie_autoes_establish! for the fix session.)
+
+## 2026-08-06 (FURTHER CORRECTED) — residual is purely ENGINE BOOKING (ITPP-cap + NSTORE + deferred), fire-timing OK
+★ CORRECTION to the prior entry's "~9yr fire-timing offset": that was a LABELING artifact — my jl debug printed the
+cycle-START year (1990); live AUTOESTRC logs KDT (=next_year-1, e.g. 1999), which jl ALSO computes (ie_autoes_schedule!
+kdt line 951). Fire-timing IS ALIGNED (same cycles 1,3,4,5,7,8,10; same KDT). The residual is PURELY the per-cycle
+BOOKED AMOUNT.
+★ MECHANISM (from stand4_xtes_ntally.txt AUTOESXTES): live COMPUTES the tally = 583.6507 (icyc2, = the bit-exact
+ie_autoes_tally value) but BOOKS ITPP = 468 (icyc2/3), and books 0 at icyc1. jl books the FULL r.tally sum (583.7) at
+icyc1. ⇒ jl is missing the ENGINE BOOKING step: (a) ITPP = the per-plot MAXTPP/MAXING-capped + PXCS-weighted booked
+amount (468 < computed 583.65) — jl books the uncapped computed tally instead of ITPP; (b) the icyc1 tally books 0
+(setup/calibration) with the real booking DEFERRED to the next cycle (NSTORE continuation books ITPP−NSTORE). So the
+tally COMPUTATION is bit-exact but the jl engine books it in full, immediately, instead of the ITPP-capped/NSTORE-
+deferred amount live books. FIX = in ie_autoes_establish!, book ITPP (capped+NSTORE-incremented per plot) not sum(r.tally);
+match the icyc1-books-0 / deferred-cycle schedule. EXACT per-cycle target (ITPP booked): icyc1=0, 3=468, 4=206, 5=419,
+7=11, 8=225, 10=472 (stand4_ntally_sequence.txt). This is the precise, bounded target — the booking step, validated
+against the exact ITPP sequence. (stand4_itpp_newtpp.txt has the per-plot ITPP/NEWTPP breakdown for the fix.)
