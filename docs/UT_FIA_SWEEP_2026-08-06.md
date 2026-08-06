@@ -55,3 +55,14 @@ ci/morts.f:262-263 uses DQ10=SQRT (QMD) in its BAMAX-based DELTBA=0.005454·DQ10
 CORRECT there (BA≡0.005454·QMD²·T). CI is Zeide only in the SDIMAX INPUT, not the mortality diameter metric. jl's
 centralidaho/mortality.jl:44 (dq10=sqrt) MATCHES ci/morts.f ⇒ NO bug; CI #142 stays the cornered DGSCOR verdict, do
 NOT swap CI to DR10. The Zeide-QMD bug is confined to the TMD10/TN10-self-thin variants: UT (fixed) + TT (blocked).
+
+### #148 TT negative-DBH tree ROOT (2026-08-06): sp2 LM small-tree DG goes negative — NOT the DG blend
+The TT DR10 blocker's negative-DBH tree = ttt01 i=13, sp2 (LM limber pine), d=0.1088 with regent DG=−0.159 →
+D=−0.055 next cycle. The TT default-path regent (regent.jl:211) XWT-blends the DG (dgk·(1−xwt)+xwt·large_dg);
+the large-tree dgf DG is negative for a mid-size (XMIN<D<XMAX) seedling ⇒ blended DG<0. TESTED removing the blend
+(doctrine #138 "DG must NOT be XWT-blended", fixed for EM at 428cebd): ttt01 2000 BA improved 100→99 (=live) BUT
+2020 TPA regressed 505→515 (live 505) AND the negative-DBH tree PERSISTED ⇒ MIXED, REVERTED (doctrine #4). So TT's
+DG XWT-blend is NOT cleanly the #138 bug (unlike EM), and the negative DG has a deeper source (the dgk DDS
+conversion for a shrinking LM, or the large-tree DG path). ⇒ #148 TT is a deep multi-layer chunk (Zeide-QMD mort +
+negative-DG-DBH + volume array-OOB + MSTEM/FCLASS), needs focused investigation; NOT a quick fix. UT #147 stands;
+CI cleared; the fpow fix (7efedf1) + CI verification are this line's durable wins.
