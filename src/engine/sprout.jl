@@ -541,11 +541,14 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     ls = s.variant isa LakeStates    # LS ESUCKR (ls/essprt.f CASE('LS','ON') tables; structure == NE/CS, aspen=sp41)
     cr = s.variant isa CentralRockies # CR ESUCKR (cr/essprt.f CASE('CR') tables; aspen=sp20)
     tt = s.variant isa Teton          # TT ESUCKR (tt/essprt.f CASE('TT') tables; aspen=sp6, sprouters {6,13,14,15})
+    ut = s.variant isa Utah           # UT ESUCKR (ut/esuckr.f: aspen=sp6 Crouch, sprouters {6,13,18,19,21,22}, NO essprt)
     # NE/CS aspen suckering (ASSPTN, essprt.f:1228): each aspen sprout's TPA depends on the TOTAL cut-aspen
     # BA/TPA (estump.f:110-111, summed over ALL cut aspen records). Accumulate up front (ESASID=49 NE / 76 CS).
-    asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : tt ? 6 : -1 # ESASID(VAR) aspen species index
+    asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : (tt || ut) ? 6 : -1 # ESASID(VAR) aspen species index
+    # UT sprouter set (ut/blkdat.f ISPSPE) — non-sprouter (conifer) cuts produce NO sprouts (ut/esuckr.f gate).
+    ut_sprouters = (6, 13, 18, 19, 21, 22)
     asbar = 0f0; astpar = 0f0
-    if ne || cs || ls || cr || tt
+    if ne || cs || ls || cr || tt || ut
         @inbounds for rec in s.control.cut_log
             Int(rec.species) == asp_idx || continue
             astpar += rec.prem
@@ -556,6 +559,14 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     @inbounds for rec in s.control.cut_log
         prem = rec.prem
         prem < 0.001f0 && continue                     # esuckr.f:170
+        # UT (ut/esuckr.f): only the sprouter species regenerate; a cut conifer produces NO sprouts and is
+        # skipped BEFORE any probability call — UT does NOT use the SN essprt model (that dispatch mismatch was
+        # the :essprt_fsp KeyError crash on any thinned UT stand). Non-sprouter cuts skip here.
+        ut && !(Int(rec.species) in ut_sprouters) && continue
+        # A cut UT SPROUTER (aspen sp6 / hardwood) needs the ut/esuckr.f generation model (Crouch SPA + ESCPRS
+        # sprout height/DBH) — not yet ported/validatable without a sprouter-cut stand. Fail clearly rather than
+        # fall through to the SN essprt/sprtht path (which is what caused the :essprt_fsp crash). Tracked as #155.
+        ut && error("UT stump-sprout generation not yet ported (task #155): sprouter species $(Int(rec.species)) was cut")
         issp = Int(rec.species); dstmp = rec.dstmp
         ishag = Int(rec.ishag); iplot = Int(rec.plot)
         # SPROUT keyword multipliers, looked up by the PARENT species + stump DBH (esuckr.f:197-205, DO 450):
