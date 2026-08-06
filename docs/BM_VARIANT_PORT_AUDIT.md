@@ -373,3 +373,20 @@ divergence is PRE-EXISTING (identical old vs new — the small-tree-DBH/DGSCOR s
 mortality is now bit-exact-or-cornered on real-FIA data. The same shared driver applies to EM #137 (verify next).
 REMAINING BM tail (all cornered/pre-existing, not mortality): small-tree seedling DBH (regent) + the DGSCOR
 compounding tie-break class; the 2 big pre-fix outliers (CDS711/CDS624) now fall under the ≤~1% TPA band.
+
+### Cluster mortality-structure audit (2026-08-06) — generalizing the BM #140 shared-driver fix
+The BM #140 fix (route the custom naive single-pass mortality! through the shared BMTMRT+IPASS driver) applies to
+any western variant whose mortality! is SDI-self-thin-only. Audited all western custom mortality! for the added-
+species-Hamilton hybrid branch (which the shared mortality!(::AbstractVariant) does NOT implement):
+- **BM** — SDI-only, POWER bark → FIXED (56d0931).
+- **CR** — already routes through the shared driver (the template).
+- **UT** — SDI-only (utah/mortality.jl, 74 lines, identical structure to BM pre-fix), ZEIDE SDI (already set),
+  ut/utmrt.f distribution, LINEAR bark (⇒ NO _mbark branch needed — simpler than BM). ★ CLEAN BM-ROUTING CANDIDATE.
+  Recipe: measure UT real-FIA under-thin (near-certain — same single-pass structure), then _varmrt_efftr!(::Utah)
+  from ut/utmrt.f + mort_ri_scale(::Utah)=0.5 + fix UT-CSV mort_bkgd/varmrt_varadj + delete UT custom mortality!.
+- **EM** (170L), **TT** (244L), **KT** (152L) — HYBRID: original species SDI self-thin + added species a separate
+  KT/IE Hamilton potential-mortality regression (GMULT/REIN/RZ/BAMAX) the shared driver lacks. Need the harder
+  hybrid fix (BMTMRT+IPASS on the original-species path, preserve the added-species branch).
+⇒ NEXT tractable mortality win: UT (clean, like BM). The hybrids (EM #137/TT/KT) are a separate, more involved
+effort. All were validated on their single canonical stand (utt01/emt01/ttt01) which — like bmt01 — does NOT exercise
+the BMTMRT+IPASS convergence, so they likely ALL carry the same latent real-FIA self-thin under-thin BM had.
