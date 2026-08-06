@@ -208,3 +208,20 @@ growth. FIX = establish planted trees before the cyc1 growth pass (or grow them 
 ★ #137 FULLY LOCALIZED (both sides measured): equation OK, crown OK (82%), establishment height OK (~1' both) ⇒ it's
 the cyc1 establish-vs-grow ORDERING (jl planted cohort misses its first-cycle growth → ~1-cycle height lag → BA lag →
 dense self-thin under-kill). REAL bug, not cornered. Reproduction: em_plant_dense.key / em_plant.key.
+
+## ★★★ FIXED (commit c7c7d2f) — em_esgent! grows birth-cycle regen; EM was missing from the esgent list
+ROOT (simulate.jl:566, confirmed): only CR (cr_esgent!) + TT (tt_esgent!) grew just-established regen in its birth
+cycle; EM was omitted (comment literally: "eastern leaves them ungrown"). Added em_esgent! (mirrors tt_esgent! + EM
+SMHTGF/SMDGF EMVAR branch, records nstart+1:n over the birth-cycle subperiod), wired after tt_esgent!.
+VALIDATION vs FVSem_clean:
+  em_plant_dense BA: jl 1,18,33,52,75,101,121,146,178,192  vs live 2,14,30,51,78,108,133,158,182,190
+    (was the ~25% persistent-under 0,9,23,39,58,81,106,127,154,184). TopHt 2000: 1→6 = live.
+  em_plant (400): TopHt 2000 1→4 (live 5).
+  ZERO regression: emt01 bit-identical with/without fix (536-TPA read stand dominates); EM read-tree sweep stands
+  (427473386 etc.) unchanged (em_esgent! is inert without PLANT/NATURAL — nstart==n → early return, no RNG draws).
+RESIDUAL (refinement, not the root): em_plant_dense BA runs +10-29% in the EARLY cycles (2010 18 vs 14, 2020 33 vs 30)
+then slightly under mid (2060 121 vs 133), converging at the ends. ⇒ the birth-cycle GENTIM/subperiod SCALING in
+em_esgent! (I used gentim=fint-5, subyr/regyr=1 per tt_esgent!) isn't yet bit-exact vs live's em/esgent.f REGENT(.TRUE.)
+period. NEXT (bit-exact refinement): instrument live em/esgent.f (or estb/esgent.f) for the birth-cycle KPER/subcycle +
+XRHGRO/CON scaling on em_plant_dense cyc1, match em_esgent!'s subyr/con. The ROOT (missing birth-cycle growth) is
+FIXED; this is a scaling-precision tail.
