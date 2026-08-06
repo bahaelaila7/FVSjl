@@ -1187,3 +1187,8 @@ sprouts grow within the accepted self-thin/growth residual (2060 BA 80 vs 70, TP
 (sprout COUNT ~2%, early BA/QMD bit-exact). ★★ TT NON-BLOCKED SURFACE now: GROWTH 18/18 + MANAGEMENT (THINDBH +
 shelterwood) + ESTABLISHMENT (functional, birth-cycle-grown) + SPROUTING (ESSPRT) — all validated bit-exact-or-
 cornered. Fixture .ttwork/ttaspr.*.
+
+### TT real-FIA mortality sweep (2026-08-06): bit-exact-or-cornered (TPA 0.58%)
+150-stand TT real-FIA sweep (tt_sub.db vs FVStt_clean, 0 jl crashes). 56 treed: TPA mean|Δ%|=0.58% (only 4 stands
+>2%, 1 HIGH:3 LOW — no systematic bias), BA=13.02%/QMD=5.29% (the pre-existing DGSCOR/small-tree growth tail, NOT
+mortality). TT mortality confirmed bit-exact-or-cornered on real FIA — no fix needed (unlike BM). See docs/WESTERN_FIA_MORTALITY_SWEEP_2026-08-06.md.
