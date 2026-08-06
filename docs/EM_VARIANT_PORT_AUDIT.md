@@ -590,3 +590,17 @@ DUPNPT=50, INGRO=1. ⇒ the AUTOES over-production has TWO distinct amount paths
   esaddt.f / the ingrowth booking. ⇒ EM's dominant residual is the INGROWTH per-tree TPA, DISTINCT from IE's
   disturbance PLPROB residual. Both are the #143 tally-amount close-out but need SEPARATE fixes. Structural gap
   (empty stands) already RESOLVED (e1dd44e).
+
+### AUTOES ingrowth over-production PINPOINTED (2026-08-06): ITPP-per-plot RNG realization, NOT the per-tree formula
+Traced the EM ingrowth over-production (303 vs 118) to its exact source. The per-tree TPA MACHINERY is CORRECT
+(matches live estab.f): ingrowth esprob = prob1·FTEMP2, FTEMP2=NEWTPP/ITPP (estab.f:945/951) = jl's
+p1·newtpp/itpp; the tree TPA = ESPROB·300/DUPNPT (estab.f:1459) = jl's esprob·300/dupnpt. ⇒ the over-production
+is NOT the formula. It is the ITPP (trees-per-plot) COUNT: instrumented per-plot ITPP jl=[1,1,3,1,2,…] vs live
+=[1,2,1,…] — jl hits the cap (MAXING[3]=3) more often. ITPP=INT(ESTPP(DRAW)+0.5), so the divergence is the
+ESTPP RNG realization (the ESRANN draw sequence entering EM's ingrowth tally) — jl's chain differs from live for
+EM. prob1=0.4996 (jl); prob1 does NOT feed ITPP (ESTPP takes draw+ihab+aspect+regt only), so the count difference
+is purely the RNG/ESTPP path. ⇒ THE EM AUTOES AMOUNT RESIDUAL = the ie_esrann/ie_estpp realization for EM ingrowth
+(match the ESRANN sequence — the IE chain was validated bit-exact on iet01, so the EM setup enters the tally at a
+different RNG state; trace the pre-tally draw count for the ingrowth path vs live). If the systematic 2.6× survives
+RNG-matching it may be an accepted stochastic straddle (doctrine #3), but the consistent over-cap suggests a real
+pre-tally RNG-state divergence. Structural gap RESOLVED (e1dd44e); this is the amount close-out's precise root.
