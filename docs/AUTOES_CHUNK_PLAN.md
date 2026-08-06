@@ -820,3 +820,20 @@ dominant driver. ★ FIX = derive baaa as the disturbance-adjusted per-INVENTORY
 BAAOLD/STDINFO BA ~41.93; post-removal = the bare regen-point BA ~1; NOT the growing s.density.point_ba), matching the
 live ESTOCKIN sequence 41.93/46.17/1/1/1/4.79/50.05. This is the exact, target-valued root cause — a specific input-
 derivation bug, NOT a coupled RNG mystery. (ENV-gated AUTOES_IN debug in ie_autoes_establish! dumps seed0/es_stream/baaa.)
+
+## 2026-08-06 (FIX HYPOTHESIS — point_ba is STALE at AUTOES time; missing GRADD first-DENSE) — code-level
+★ stand4 (and all iet01 stands) use TREEDATA — a REAL ~41.93 BA overstory (NOT bare/NOTREES). So jl baaa=
+point_ba[1]=0 at icyc1 is DEFINITIVELY WRONG (should be ~41.93). ROOT of the wrong point_ba: the GRADD order is
+"UPDATE→DENSE→ESNUTR→DENSE→CROWN" (simulate.jl:551 comment), but there is NO compute_density! between the growth/
+mortality block (compute_volumes! + comcup!, ~549-557) and the ESNUTR block (esuckr!/establish!/ie_autoes_establish!,
+560-565). establish! only recomputes density when it ADDS regen; the AUTOES stand has no explicit PLANT/NATURAL so
+establish! is a no-op → point_ba stays STALE/empty (0) when ie_autoes_establish! reads point_ba[1] at line 565. The
+final compute_density!(571) runs AFTER AUTOES. ⇒ AUTOES reads a stale/zero point_ba ⇒ baaa=0/wrong ⇒ wrong ESTOCK
+PROB1 ⇒ wrong tally. The code comment (establishment.jl:1108) validated "point_ba[1]=40 vs live 41.93 at cyc1" —
+consistent with the first-DENSE having been present/correct before and the current path leaving it stale.
+★ FIX HYPOTHESIS: insert the GRADD first-DENSE (compute_density!) BEFORE the ESNUTR block (before esuckr!/establish!/
+ie_autoes_establish!) so point_ba reflects the POST-GROWTH per-point overstory BA (~41.93) that live's BAAA(NNID)
+uses. Then re-measure baaa per cycle vs the live ESTOCKIN target (41.93/46.17/1/1/1/4.79/50.05) and the tally totals
+vs live (0/468/206/419/11/225/472). CAUTION: a compute_density! before ESNUTR also changes the density esuckr!/
+establish! see — validate NE/CS/LS/SN establish+sprout tests + the IE cyc0 8/9 stay bit-exact (doctrine #4). Bounded,
+testable, code-level fix for a fresh session; the AUTOES_IN debug + live target sequence make it directly verifiable.
