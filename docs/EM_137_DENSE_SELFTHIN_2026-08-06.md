@@ -122,3 +122,21 @@ re-height the planted cohort via essubh each cycle?) + confirm jl routes them to
 jl's established sub-BH trees via em_essubh_hht(age) instead of the small-tree model.
 NET (2 iterations): #137 reproduced, direction corrected (under-thin), SIX candidate paths eliminated by measurement,
 cornered to the establishment-vs-small-tree ROUTING of sub-BH planted trees. All by instrument-replay (doctrine #2).
+
+## CORRECTION #2 (measurement) — REGENT IS per-cycle (base/grincr.f:449); crux = first-cycle BH crossing
+My "REGENT is cratet-only" claim above was WRONG — it came from grepping only em/. Widening to base/: base/grincr.f:449
+`CALL REGENT(.FALSE.,1)` runs REGENT PER-CYCLE (grincr.f:445 "CALL REGENT TO COMPUTE HEIGHT AND DIAMETER INCREMENT").
+So regent.f IS the per-cycle small-tree growth. Within regent.f the EM species take the ELSE/"EM VARIANT" branch
+(regent.f:540-546) → `CALL SMHTGF` → H2=H1+HTGRR·(KPER/REGYR)·XRHGRO·CON. SMHTGF returns HTGRTH=0 for DBH≤0
+(smhtgf.f:66-70), so my SMHT dump (after the HTG1+ZRAND line) legitimately never fired for the sub-BH cohort.
+NET corrected picture: BOTH htgf (H≤4.5 → HTG=0) AND regent-SMHTGF (dbh≤0 → HTGRTH=0) give the sub-breast-height
+planted trees ZERO height growth. So the trees must get from the establishment HHT (1.18') to >4.5' via ANOTHER
+mechanism — the establishment model's per-cycle height (estb/estab.f CALL ESSUBH/ESADVH re-heighting the regen cohort
+each ESTAB cycle), OR a regent sub-BH path still not instrumented, OR the planted trees are seeded above 4.5'. The
+DIVERGENCE is the FIRST cycle (1990→2000): live's cohort reaches dbh>0 (BA=2) by 2000, jl's stays dbh=0 (BA=0). ⇒
+the decisive measurement is PER-TREE first-cycle height (not .sum): instrument estb/estab.f ESSUBH/ESADVH height +
+the regent first-pass H2 for the planted cohort at 1990→2000, vs jl's established-tree height at 2000. This needs
+jl-side instrumentation too (the .sum aggregates can't show the per-tree BH-crossing). A dedicated chunk.
+★ HONEST STATUS: #137 reproduced + direction corrected; the per-cycle growth dispatch fully mapped (regent per-cycle
+via grincr; EM→SMHTGF; both height paths zero for sub-BH); crux localized to the first-cycle establishment-height
+BH-crossing. One self-correction logged (REGENT per-cycle, not cratet-only) — doctrine #2 caught it.
