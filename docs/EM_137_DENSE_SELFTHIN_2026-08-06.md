@@ -85,3 +85,22 @@ established-tree height + its BAA/density inputs) vs jl's EM establishment heigh
 distinct subsystem from the small-tree regent path — a fresh, well-scoped chunk. NET this session: #137 reproduced,
 direction corrected (under-thin), and localized to the EM estab height subsystem with regent.f/SMHTGF/initial-height
 all RULED OUT by measurement.
+
+## MEASUREMENT CHAIN (2026-08-06 cont.) — per-cycle growth is em/htgf.f, NOT the small-tree/estab paths
+Instrument-replay on em_plant_dense.key ruled out, by ZERO hits each, the paths I'd hypothesized:
+ - regent.f:468 (NI-section HTGRL) — 0 hits.
+ - regent.f:495 (TT-section HTGRL=HTG1+ZRAND) — 0 hits.
+ - smhtgf.f:75 (HTGRTH=HTG1+ZRAND·STDDEV) — 0 hits (SMHTGF returns early at dbh≤0).
+ - REGENT is called ONLY from cratet.f:102/553 (INIT-time CALIBRATION of the small-tree model), NOT per-cycle; and
+   em_plant_dense has no inventory small trees at cratet ⇒ REGENT's growth loop never executes. SMHTGF/SMDGF are
+   called ONLY from regent.f ⇒ also init-only.
+⇒ The planted cohort's per-cycle HEIGHT growth is em/htgf.f (the MAIN height model), which has a small-tree branch at
+htgf.f:225 `HTG=EXP(CON+HDGCOF·ALOG(DG))+0.4809` (height-from-diameter-growth) plus the POTHTG potential-height path
+(htgf.f:191-217, crown-modified). So #137's dense-cohort BA lag lives in em/htgf.f (and its DG input from dgf.f) under
+the dense cohort — NOT the establishment/regen small-tree subsystem (that only ADDS + calibrates at init). This
+also means jl's routing must match: if jl grows the small planted trees via its em small-tree (regent-port) model
+while live grows them via htgf.f main, that ROUTING mismatch is the root. NEXT (decisive): instrument htgf.f:217/225
+(dump ISPC,DBH,HT,DG,PHTG/HTG) on em_plant_dense cyc1 + check jl's EM per-cycle growth dispatch for a dbh<1 planted
+tree (does jl call the small-tree model or the main htgf-equivalent?). The routing/branch discrepancy is the fix.
+NET this iteration: #137 reproduced + direction corrected + FIVE candidate paths ruled out by measurement, localized
+to em/htgf.f main-height (+ its DG) vs jl's small-tree routing. Doctrine #2 in action (each inference measured, not assumed).
