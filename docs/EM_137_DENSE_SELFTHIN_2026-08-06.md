@@ -346,3 +346,16 @@ ESB/species draws) is off by some draws, so the ESTPP draw lands at the wrong RN
 ie_autoes_establish!'s ingrowth per-plot ie_esrann sequence to live estab.f exactly (count + order) so the ESTPP
 DRAW matches. This is the known ingrowth residual (establishment.jl:676). ★ #143 fully root-caused: PN/FTEMP/ESB/
 STOADJ/cap/INGRO/ie_estpp-formula ALL correct; the sole residual is the ingrowth RNG draw ALIGNMENT.
+
+## #143 — RNG offset QUANTIFIED: jl under-advances ~147 ie_esrann draws before the first ingrowth ESTPP
+Dumped the full live ESRANN stream (estb/esrann.f, 4369 draws for the 3-cycle run). Live's first ESTPP DRAW
+(0.251398891) is at stream position ~205; jl's first ESTPP val (0.346301585) EXACTLY matches live's draw at
+position ~58 (jl's ie_esrann LCG stream = live's, so the values align — the desync is purely a COUNT offset). ⇒ jl
+consumes its first ingrowth ESTPP draw ~147 draws EARLIER than live: jl's establishment SETUP (before the plot loop
+reaches ESTPP) draws ~147 FEWER ie_esrann than live. Live's pre-ESTPP setup (ESTIME, EMSQR ±draws, site-prep, per-
+species ESB/ESPROB draws, the DO-71..75 ESRANN loops at estab.f:655-669, the per-plot body 16+3·nsp+2·MAXTPP) has
+~147 more draws than jl replicates for the EM ingrowth path. FIX: add the missing setup/per-plot ie_esrann advances
+to jl ie_autoes_establish!'s ingrowth path so the ESTPP draw lands at live's position (then the ITPP dist + the +12%
+close). NEXT: instrument live ESRANN with a per-CALL-SITE tag (or bisect the 147) to identify WHICH setup phase jl
+skips — likely a per-plot or per-species ESRANN loop count. ★ #143 root fully quantified: RNG count offset ~147
+draws on the EM ingrowth path; all equations/PN/FTEMP/cap correct.
