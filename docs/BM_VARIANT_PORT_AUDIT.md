@@ -231,3 +231,22 @@ mortality read that, or (b) confirm live's exact DG(I) (0.575 vs jl raw 0.67 —
 FINT/10 factor or a subcycle detail) and match it. Then re-run the multi-stand sign-tally (foreground+flush recipe,
 extract_sample.jl BM 80) and confirm the JL-HIGH skew collapses toward ≈EQ. This closes #140 and likely tightens
 BM (and possibly EM/UT which share the western small-tree+mortality structure) self-thinning.
+
+### #140 COMPLETE ROOT (2026-08-05) — TWO COUPLED components; explains why #144 was falsely reverted
+Implemented + tested the mortality-DG fix (snapshot pre-REGENT DG into dg_prev, BM mortality reads it). VERIFIED it
+works AS FAR AS dq10: jl dq10 5.908 → **6.249** (now ≥ live's 6.078), dg_prev = 0.67/1.03/1.0 (correct large-tree
+DGs). BUT the repro stand's TPA was UNCHANGED (still 403, not live's 376) — because jl STILL doesn't self-thin:
+branch dump `tt=414.6, t55d0=517.7, t55d10=462.0, t85d10=714.1 → tn10=tt=414.6, rn=0` (tt < t55d10 ⇒
+bluemountains/mortality.jl line 44 `elseif tt<=t55d10: tn10=tt` ⇒ NO self-thin). LIVE self-thins to **tn10=387.8,
+rn=0.0067** even though tt(414.6) < t55d10 — because live reaches it via the **MRT path** bm/morts.f:434
+`TN10=EXP(CEPMRT+SLPMRT*TEM)` (SLPMRT defaults to SLP at morts.f:430, so it's ACTIVE), which jl DOES NOT HAVE.
+⇒ ★★ **#140 = TWO COUPLED FIXES:** (a) mortality dq10 must use the pre-REGENT large-tree DG (verified above), AND
+(b) the CEPMRT/SLPMRT MRT self-thin path (jl mortality lines 39-48 lack it; it lets a stand below t55d10 still
+self-thin). This EXPLAINS TASK #144 ("SLPMRT/CEPMRT implemented+measured+REVERTED — FALSIFIED as root"): #144 tested
+the MRT path ALONE, WITHOUT the DG fix — so dq10 was still built from the REGENT-reduced 0.156 ⇒ TEM (=const·dq10^
+−1.605·pmsdil, the MRT path's input) was wrong ⇒ the MRT path couldn't produce live's target ⇒ looked falsified.
+The two are COUPLED: the MRT path needs the correct (pre-REGENT-DG) dq10/TEM. NEXT SESSION: re-implement BOTH
+together — (a) the dg_prev snapshot (simulate.jl before small_tree_growth! + BM mortality reads dg_prev), (b) the
+CEPMRT/SLPMRT branch (port bm/morts.f:420-450, SLPMRT=SLP default, TN10=exp(CEPMRT+SLPMRT·TEM) capped at T85D10) —
+then validate with the multi-stand sign-tally (13:1 JL-HIGH should collapse). The DG fix was REVERTED here (inert on
+this stand alone, untested for regressions without the MRT half). Repo clean, oracle clean.
