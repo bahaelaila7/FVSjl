@@ -71,3 +71,17 @@ em_plant_dense.key cyc0; dump jl's em sub-BH HTGRL + its RDNEXT/BAL for the same
 input (RDNEXT projection or BAL) is the root. If RDJ/BAL/HTGRL all match and only the post-4.5' SMHTGF ZRAND realization
 differs, it's the accepted dense-regen stochastic straddle (cornered) — but the one-directional cyc0 BA=0 lag points at
 the DETERMINISTIC HTGRL competition terms, i.e. a real RDNEXT/BAL discrepancy worth fixing.
+
+## CORRECTION (measurement REFUTES regent.f:468) — it's the EM establishment height subsystem
+Instrumented em/regent.f:468 (NI-section HTGRL) → dumped to unit 16 on em_plant_dense.key → **0 hits** (even ungated).
+So the planted cohort's height growth does NOT go through regent.f:468 at all. My source inference was WRONG; the
+measurement caught it (doctrine #2). The PLANTED-tree height trajectory is driven by the EM ESTABLISHMENT height
+routines — em/esadvh.f (advance/subsequent height), em/espsub.f, em/essubh.f (base height), em/esdlay.f (delay) — NOT
+the regent.f small-tree loop (which is for the REGEN blend / read small trees). So #137's cyc0 BA=0-vs-2 lag is in the
+EM ESTAB subsystem's per-cycle height growth under dense competition, and jl's essubh BASE height is validated only at
+cyc0/low-density (BAA clamp) — the SUBSEQUENT/advance-height growth (esadvh) under the dense cohort's rising BAA is the
+unvalidated path where jl likely diverges. REVISED instrument target: em/esadvh.f + espsub.f (dump the per-cycle
+established-tree height + its BAA/density inputs) vs jl's EM establishment height on em_plant_dense.key. This is a
+distinct subsystem from the small-tree regent path — a fresh, well-scoped chunk. NET this session: #137 reproduced,
+direction corrected (under-thin), and localized to the EM estab height subsystem with regent.f/SMHTGF/initial-height
+all RULED OUT by measurement.
