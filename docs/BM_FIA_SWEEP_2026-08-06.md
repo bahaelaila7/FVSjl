@@ -137,3 +137,19 @@ calibrate_diameter_growth! already computes per-tree backdated D internally; exp
 (HIST 6/7) dead at current DBH, exclude IMC=9 (HIST 8/9). This is the SHARED mechanism for the whole #150 cluster
 rollout (every variant's CRATET feeds DUBSCR the LBKDEN density). Near-floor crown ⇒ #149 net (38→87) already good;
 this tightens BA/PCCF to bit-exact and de-risks KT/IE/EM/TT/UT.
+
+### #151 DEEPER THAN A BACKDATE — the LBKDEN density is a calibration interpolation (base/dense.f:257-297)
+Tracing the control flow of the LBKDEN DENSE (the one feeding DUBSCR): it is NOT "current density on backdated dbh".
+ - **BA (dense.f:257-264, LBKDEN block)**: `RAT=FINTH/FINT; TEMP2=(BA−OLDBA)·RAT+OLDBA; BA=OLDBA; OLDBA=TEMP2` —
+   the BA that LEAVES DENSE (and that DUBSCR reads) is set to **OLDBA**, with RELDEN←RELDM1 restored. So the DUBSCR
+   BA/RELDEN are the PREVIOUS-state calibration-density values, interpolated by FINTH/FINT — not the raw backdated BA.
+   Nailing jl's 70.8→live 55.56 requires reproducing OLDBA/RELDM1 as they stand at the lstart CRATET call (measure them).
+ - **PCTILE skipped** under LBKDEN (:272 `IF(LBKDEN) GO TO 55`).
+ - **AVH (:285-297) computed REGARDLESS of LBKDEN** — uses IND (dbh-sort) + PROB(TPA) + HT(height). Only the SORT RANK
+   reflects backdating (monotone ⇒ same top-40 trees), heights/TPA unchanged ⇒ AVH invariant. THIS is why jl's AVH=85.07
+   was already bit-exact with the current-dbh dead-inclusive density, while BA/PCCF were not.
+⇒ REVISED #151 plan: (a) AVH is already correct — do NOT disturb it. (b) BA/RELDEN need the LBKDEN OLDBA/RELDM1
+interpolation — instrument dense.f to dump BA/OLDBA/RELDEN/RELDM1 at the CRATET LBKDEN call, then replicate. jl's
+_backdate_dbh! (southern/diameter_growth.jl:266, already BM-aware) is the WK3 half; the OLDBA/RELDM1 interpolation is
+the missing half. NOTE: the crown is near-floor for the #149 seedlings ⇒ the committed c29c1c7 (BA 38→87 vs 80, 0
+regressions) already MEETS the bar; #151 is a bit-exactness refinement, best done with its own instrument-replay pass.
