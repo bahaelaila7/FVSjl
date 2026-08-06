@@ -56,7 +56,17 @@ end
 # pure-Julia fallbacks (openlibm) — kept verbatim, named `_julia`
 @inline fexp_julia(x::Float32) = exp(x)
 @inline flog_julia(x::Float32) = log(x)
-@inline fpow_julia(x::Float32, p::Float32) = x^p
+@inline function fpow_julia(x::Float32, p::Float32)
+    # Match C/gfortran powf for a NEGATIVE base: valid only for an integer-valued exponent (sign-preserving,
+    # x^p = ±|x|^p by parity), else NaN. Julia's `^` throws DomainError on (negative)^(Float) even when the
+    # exponent is integer-valued (e.g. the R4D2H woodland cubic `(a+b·D2H^⅓)**3.` when a+b·c<0 for a tiny tree).
+    if x < 0f0
+        isinteger(p) || return NaN32
+        r = abs(x)^p
+        return isodd(round(Int, p)) ? -r : r
+    end
+    return x^p
+end
 
 # the DEFAULT ops: gfortran-identical when the shim is active, else openlibm fallback.
 @inline function fexp(x::Float32)
