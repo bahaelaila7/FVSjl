@@ -948,3 +948,20 @@ summary.jl:319 (`dt` truncates NaN — a per-year rate ÷ ~0 residual BA); keyfi
 low-priority robustness note. ⇒ #143 next session, in order: (1) arm the keyfile AUTOES trigger (lautal default +
 last_xtes from THINPRSC), (2) confirm jl fires + dump per-tally baaa, (3) implement per-point overstory-BA (BAAA) vs
 frozen inventory-BA (BAAINV) split, (4) validate vs iet01 stand-4 .sum. The live-side ground truth is already measured.
+
+## 2026-08-06 (correction to the trigger map) — the infrastructure EXISTS; gap is a runtime firing condition
+Followed the trigger deeper: the arming infrastructure is ALREADY present in jl —
+  - state.jl:607-608 document est.lautal / est.lingrw default **TRUE** (AUTOES on unless NOAUTOES clears them,
+    keyword_dispatch.jl:2235).
+  - cuts.jl:317-319 sets `est.last_xtes = rem.tpa / autoes_pre_tpa` for IE thinnings (the removal fraction the
+    esnutr LAUTAL scheduler reads); establishment.jl:954 fires when `est.lautal && xtes >= est.thres1` (thres1=0.10).
+So a THINPRSC 1990 0.999 (≈0.999 removal ≫ 0.10) on stand-4 (no NOAUTOES ⇒ lautal true) SHOULD arm and fire the
+tally. It did NOT in the keyfile run ⇒ the gap is a specific RUNTIME condition, not missing wiring. Candidates to
+check FIRST next session (add a one-line stderr dump of est.lautal / est.last_xtes / xtes / thres1 at the top of
+ie_autoes_establish!): (a) is lautal actually TRUE at runtime for a keyfile stand (constructor honoring the documented
+default), (b) does the THINPRSC cut path actually reach cuts.jl:319 (vs a different removal method that skips the IE
+last_xtes stash), (c) tally-timing/years_done gate (establishment.jl:1084 `year in est.years_done`). This is a small,
+well-scoped debug — NOT a re-port — after which the per-inventory-point BAAA/BAAINV fix (live ground truth already
+measured: 41.93/46.17/1/1/1/4.79/50.05 vs 40.0) can be implemented and validated vs the stand-4 .sum. The whole #143
+remaining arc is now reduced to: [debug firing] → [swap point_ba[1]→per-point overstory BAAA + add frozen BAAINV] →
+[validate]. No model unknowns remain.
