@@ -392,3 +392,23 @@ STOADJ/ITPP/NOFSPE per plot) and mirror it in jl's seed-chain. This is why NULL-
 validation passed but the 52-plot elev-present stand drifts. Known residual (establishment.jl:676). ★ This SUPERSEDES
 the "count offset" (63685cd) and "RNG state mismatch, not count" (eacf34a) — BOTH partial; the accurate root is the
 CONSTANT-vs-VARIABLE per-plot seed-chain advance drifting over many plots.
+
+## ★★ #143 — SOLID MEASURED FACTS (3rd correction; stop speculating the mechanism, these are measured)
+Found live's ESTPP DRAW values (0.251398/0.359962/0.153236/0.275537/0.747601/0.570895/0.131472/0.311342) in the full
+live ESRANN main-stream dump at positions: 56, 139, 222, 305, 388, 471, 554, 637 — GAPS = 83,83,83,83,83,83,83 EXACTLY
+CONSTANT. ⇒ live's per-plot advance IS a constant 83 (= jl's body_n) — my "variable drift" root (76e8cf3) is WRONG too.
+MEASURED (solid, not interpreted):
+ 1. Live ESTPP draws are the CONTINUOUS MAIN ESRANN stream, one per plot at a constant 83-draw interval (from position 56).
+ 2. jl's 1st ESTPP val (0.346301) = live main-stream position 54 — i.e. 2 draws EARLY vs live's 56.
+ 3. jl's 2nd–6th ESTPP vals are ABSENT from the live main stream entirely.
+INTERPRETATION (tentative — I've been wrong 3×, treat as hypothesis): jl uses per-plot RESEEDED sub-streams
+(ie_autoes_plot_seeds → IEEstabRNG(sd), establishment.jl:690-693) whereas LIVE uses ONE CONTINUOUS main stream for the
+ESTPP draw (estab.f XSTORE=ESRANN draw). jl's reseed lands ~2 early on plot 1 and then diverges off-stream for plots
+2+. The likely fix is to make jl's ESTPP DRAW the CONTINUOUS-stream draw (advance the ONE stream by 83 per plot and
+take the draw), NOT a reseeded IEEstabRNG(sd) sub-stream — OR fix the intra-plot draw offset (2) + ensure the reseed
+seed is the EXACT ess0 (not a truncated ESDRAW). ★★ META (important): I have committed THREE different #143 root-causes
+this session (count-offset 63685cd / state-mismatch eacf34a / variable-drift 76e8cf3), each refuted by the next
+measurement. This is a signal that #143's RNG structure (per-plot reseed vs continuous stream) is subtle and I'm
+over-drilling at length — it needs FRESH, careful analysis of ie_autoes_plot_seeds vs estab.f's XSTORE/continuous
+stream, comparing the EXACT draw indices, NOT another quick hypothesis. The MEASURED positions (56/139/.../637 gap-83;
+jl 1st at 54; jl 2nd+ off-stream) are the reliable handoff.
