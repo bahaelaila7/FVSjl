@@ -306,3 +306,14 @@ the +12%: (a) ESB−ESB1 inventory calibration (ESB from inventory, ESB1=ie_esto
 NSTORE for this stand vs jl ie_autoes_establish! — the diverging tally factor is the +12% root. (PN ruled out by
 measurement.) This is the IE-AUTOES-shared tally (#143); the elev-default fix 29d449d closed the NULL-elev PN path,
 this is the amount-draw path.
+
+## #143 +12% — TIGHTLY LOCALIZED to the ITPP/plot-tally amount (FTEMP stocking prob is bit-exact)
+Instrumented live estab.f:585 (PROB1=FTEMP) on stand 103399881: PN=−0.444186, ESB=0, ESB1=0, STOADJ=1.0 ⇒
+FTEMP=1/(1+exp(0.444186))·1 = 0.390744. jl's PN is bit-exact (−0.4441864) and ESB/ESB1=0, STOADJ=1 for an empty
+stand ⇒ jl FTEMP=0.3907 too. So the STOCKING PROBABILITY is bit-exact; the +12% (jl 246 vs live 219) is PURELY in
+the amount draw: ITPP (trees-per-plot) × plot count → TPA. The ESTPP disturbance path (estab.f:679, INT(TPP+0.5)) did
+NOT fire for this empty stand (my TALLY dump 0 hits), so the amount comes from a different tally path (the "predicted
+naturals" / per-plot PLPROB path). NEXT: instrument the ACTUAL amount path for this empty stand — dump ITPP/NEWTPP/
+NSTORE/the plot count + final TPACRE per species — vs jl ie_autoes_establish!'s ITPP draw. The +12% is one of: the
+ITPP-per-plot draw (ESTPP/ESTPP-equivalent), the plot count (DUPNPT/NPTIDS), or the TPA scaling. FTEMP/PN/ESB/STOADJ
+all RULED OUT bit-exact. This is a tight, well-scoped close-out for the IE-shared AUTOES tally (#143).
