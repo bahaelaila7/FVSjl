@@ -430,3 +430,19 @@ species. LIKELY the accepted small-volume tail (form-factor/merch-threshold prec
 ~1% tail" accepted cluster-wide) rather than a new bug — but UNCONFIRMED: to settle, add a TREELIST to bmt01, re-run
 FVSbm, and diff per-species TCuFt jl vs live at 1990 to see if it concentrates on one equation (fixable) or spreads
 (cornered). Cleanest possible target (inventory-only, no dynamics). Bounded next-session chunk.
+
+## 2026-08-06 — #140 QUANTIFIED on real FIA (40-stand, 20-cycle) — UNBLOCKED via indexed subset DB
+Prior session was "infrastructurally blocked" on runnable JL-HIGH self-thinning FIA stands. NOW UNBLOCKED via
+build_subdb.jl (indexed subset DB, ~100× faster). multicycle_check.jl BM 40-stand / NUMCYCLE 20 vs FVSbm_clean:
+23 treed, 3 all-cycle-exact, 20 drift, 0 COLLAPSE. Full final-cycle TPA sign-tally (self-thinning = live decline >15%):
+  SELF-THINNING = 5 stands, ALL JL-HIGH (5:0), Δ = +0.6% / +0.7% / +1.1% / +1.6% / +2.5% (mean +1.3%). JL-LOW = 0.
+  Non-self-thinning = 14 exact + 4 minor drift (one, 504530915126144, jl-LOW -6.3% but only 8% decline = not self-thin).
+★ REFINED #140 VERDICT: the under-thin bias is REAL and 100% consistently signed (JL-HIGH on every self-thinning
+stand — confirms it is NOT tie-break noise), but the MAGNITUDE is SMALL on typical FIA stands (+0.6% to +2.5%, mean
++1.3%) — NOT the "+1.3% to +48%" the goal-file cited (the +48% was a dense/rapid-self-thin OUTLIER like bmt01, not
+typical). ⇒ #140 MEETS bit-exact-or-cornered for the vast majority of stands (~1% straddle-magnitude); it is severe
+only on very dense stands where the QMD-feedback amplifies the ~0.3% dq10 seed. Root unchanged (jl dq10 slightly low →
+higher T85D10 target → under-kill). Largest JL-HIGH real stand for the fix-path mortality instrumentation =
+248894832489998 (init 6555 TPA, dense, +1.6% by 2090). Consistent-direction + small-magnitude = a real but low-
+priority refinement; the fix (pin the ~0.3% dq10/projected-DBH seed to a systematic DG mechanism vs precision) remains
+the deep open step. Stands file: bm40_sub.db.stands.
