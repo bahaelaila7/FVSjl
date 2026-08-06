@@ -867,3 +867,21 @@ point_ba[1]). 41.93 = the inventory-year BAAOLD calibration for the TREE-EMPTY s
 NET for the fix session: (1) RE-INSTRUMENT live FVSie (fresh Fortran instrument-replay) for the authoritative
 per-cycle idsdat/ntally/seed0/baaa/tally — do NOT trust the inconsistent stale files for scheduling; (2) the baaa
 source fix (BAAA(NNID)=BAAOLD calibration/disturbance ref, not point_ba) is the confirmed root cause to implement.
+
+## 2026-08-06 (Fortran-source COMPLETE) — the two BAs: BAAA(NNID) species-prob + BAAINV(NNID) calibration
+★ Traced estb/estab.f: ESTOCK takes TWO per-inventory-point BAs, both of which jl gets wrong:
+  - line 482  BAA    = BAAA(NNID)   — the CURRENT per-inventory-point BA → the ESTOCK species-probability + the
+                                       tally-body BAAA (the 41.93/46.17/1/1/1/4.79/50.05 ESTOCKIN sequence).
+  - line 487  BAAOLD = BAAINV(NNID) — the INVENTORY per-inventory-point BA (captured at inventory) → line 536
+                                       CALL ESTOCK(ELEV,IFO,BAAOLD,BAAOLN,PN) — the PROB1 PN calibration.
+jl feeds BOTH from s.density.point_ba[1] = the GROWING regen-cohort BA (0/10/137/491/848), which is neither
+BAAA(NNID) (the disturbance-tracked per-point overstory BA that DROPS after removals) nor BAAINV(NNID) (the retained
+inventory BA ~41.93). ⇒ FIX (complete spec): (1) capture BAAINV(NNID) at inventory (the per-inventory-point BA before
+any removal — for stand4 ~41.93; the stand IS overstory-loaded at inventory then thinned to bare, so BAAINV must be
+RETAINED, not recomputed from the post-thin empty point_ba); (2) maintain BAAA(NNID) = the current per-inventory-point
+overstory BA that reflects removals (drops to ~1 post-thin); (3) feed BAAA→species-prob, BAAINV→ESTOCK PN calibration.
+Needs the dense.f BAAA(NNID) / BAAINV(NNID) per-point BA tracking (where 41.93 originates + the post-removal drop).
+★ DIAGNOSIS COMPLETE at the Fortran-source level. FIX = port the BAAA(NNID)/BAAINV(NNID) per-inventory-point BA
+derivation (dense.f/estab.f) + feed the correct one to each ESTOCK use; re-instrument live (stale scheduler files
+inconsistent) to confirm the per-cycle BAAA/BAAINV sequence; validate the tally + full-cycle .sum end-to-end. Fresh
+session. This closes the AUTOES diagnostic arc: tally + scheduler bit-exact; the sole gap is the BAAA/BAAINV input.
