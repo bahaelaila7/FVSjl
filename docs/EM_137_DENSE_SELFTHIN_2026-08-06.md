@@ -295,3 +295,14 @@ that is the PRE-EXISTING #143 AUTOES tally-amount residual (ESTOCK/ESPROB tally,
 NOT caused by the #137 fix. The earlier "#143 AUTOES amount bit-exact" was on the 4 NULL-elev stands only; these
 elev-present stands show the +12% diffuse residual. ⇒ #137 fully validated (0 regression incl. AUTOES); #143 amount
 residual remains open (unchanged).
+
+## #143 AUTOES amount +12% — LOCALIZED past the ESTOCK PN (bit-exact) to the downstream tally
+On elev-present EM AUTOES stand 103399881010661 (jl cyc1 246 vs live 219, +12%): instrumented live estb/estock.f PN
+and jl ie_estock — BOTH give ifo=11, elev=16.8, PN=−0.44419 (BIT-EXACT). So the +12% is NOT the stocking logit / elev
+term. ⇒ the residual is DOWNSTREAM in the tally chain: FTEMP = 1/(1+exp(−(PN+ESB−ESB1)))·STOADJ → PROB1 → ITPP =
+INT((PLPROB·DUPNPT)/(FTEMP·300)+0.5) [ingrowth] or the TPP draw [disturbance] (estab.f:541/589/679). Candidates for
+the +12%: (a) ESB−ESB1 inventory calibration (ESB from inventory, ESB1=ie_estock at inventory — the cyc1/2 correction),
+(b) STOADJ, (c) the per-plot ITPP/PLPROB amount or MAXTPP/MAXING cap. NEXT: instrument live estab.f FTEMP/PROB1/ITPP/
+NSTORE for this stand vs jl ie_autoes_establish! — the diverging tally factor is the +12% root. (PN ruled out by
+measurement.) This is the IE-AUTOES-shared tally (#143); the elev-default fix 29d449d closed the NULL-elev PN path,
+this is the amount-draw path.
