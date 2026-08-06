@@ -89,3 +89,34 @@ OVER-estimate (~39% vs live ~12%) = wrong DUBSCR INPUTS (TPCCF/AVH/BA/RMAI), coe
 check must use a BM stand WITHOUT ESTAB (bmt01-first-stand growth-only / emc2), NOT the full bmt01.key. NEXT: (1)
 instrument live bm/dubscr.f inputs on 504443988; (2) match jl's; (3) re-apply + validate vs a no-ESTAB BM stand.
 SEPARATE pre-existing bug logged: jl BM ESTAB path errors on bmt01.key (BM AUTOES/establishment unwired).
+
+### #149 ROOT-CAUSE DEFINITIVELY MEASURED (2026-08-06 cont.): CRATET DUBSCR runs on a DEAD-INCLUSIVE density + site-species RMAI
+Instrumented live bm/dubscr.f (D<0.5 dump, ICYC) + maical.f on 504443988126144. The lstart DUBSCR inputs are:
+  ISPC=2 D=0.1 H=1.0  BA=55.560  TPCCF=84.3369  AVH=85.0748  RMAI=128.0  → CR .119/.076/.056/.051 (WL)
+  ISPC=3/4 (DF/GF) → CR .950 (saturated). MAICAL: ISISP=4(GF) SSSI=61 ISICD=15 RMAI=128 (ADJMAI grp9, capped).
+jl's crown-init (reverted attempt) passed BA=35.36 TPCCF=63.39 AVH=45.22 RMAI=71 → WL CR .28-.35 (2× high) →
+seedlings over-grow → BA 200 (vs live 80). TWO measured discrepancies, BOTH now understood:
+
+1. **RMAI 71 vs 128 — FIXED (commit 1fbdd92).** jl bm_sitset! reset ISISP=0 and re-derived it from the ecoclass
+   (LP idx7, SITEAR 70) instead of KEEPING the DB SITE_SPECIES=17→GF(idx4, SITEAR 61). Live bm/sitset.f:121 only
+   overrides ISISP when ≤0. Fix: seed isisp from p.site_species. ADJMAI(15,61) grp9 = 129→cap128. Bit-exact on
+   8 BM sweep stands. (This is a general FIA-DB site-resolution bug: also mis-propagated SI to all species via HTCALC.)
+
+2. **DEAD-INCLUSIVE CRATET density — the remaining #149 blocker (NOT YET FIXED).** Live's lstart DENSE (feeding
+   DUBSCR) COUNTS the inventory standing-dead trees (HISTORY=6/8). This stand: 15 overstory records, 5 live (HIST=1)
+   + 10 dead (HIST=6/8, D 6.8-12.8"). jl correctly partitions the 10 as dead (ndead=10) ⇒ its live-only top-40 AVH
+   = 45.2 (5 live overstory 20 TPA + 20 TPA of h=1 seedlings). LIVE's AVH=85.07 = the DEAD-INCLUSIVE top-40:
+     (127·.999+109·.999+96·6.018+88·6.018+89·6.018+57·6.018+118·6.018+55·6.018+74·1.9)/40 = 85.08 ✓ (hand-verified).
+   Likewise BA 55.56 (live+dead) vs jl live-only 35, TPCCF 84.3 vs 63. So live's CRATET init density includes the
+   HIST=6/8 dead trees; the projection density (the .sum BA=35) excludes them. jl has no dead-inclusive density pass.
+   ⇒ The crown-init (bm_dubscr, coeffs+ADJMAI+RMAI all verified) CANNOT be bit-exact until the lstart DUBSCR sees a
+   dead-inclusive BA/AVH/TPCCF. Implementation care: (a) compute dead-inclusive scalars into TEMPs, don't leave them
+   in p.basal_area (the grow cycle recomputes live-only density before use, so it's safe if scoped to the crown call);
+   (b) only the LIVE seedlings draw BACHLO in DUBSCR (dead-tree crown dubs come AFTER in bm/crown.f, so live-seedling
+   RNG order is unperturbed — jl can skip dead-tree crowns); (c) no-regress gate = the 8 BM sweep stands + a no-ESTAB
+   growth stand (NOT full bmt01.key, which errors on the unwired ESTAB path).
+
+★ META (extends the campaign META): CR/CI HAVE the lstart crown-init and are "complete", but their synthetic test
+stands carry NO HISTORY=6/8 standing-dead inventory trees — so the DEAD-INCLUSIVE-density requirement was never
+exercised there either. Real FIA stands routinely carry inventory dead. This is a SECOND cluster-wide gap layered
+under #150: the lstart crown-init density must be dead-inclusive. Verify CR/CI on a real-FIA stand with inventory dead.
