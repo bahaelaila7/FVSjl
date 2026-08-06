@@ -545,3 +545,19 @@ still needs is ITYPE→IHAB (the IPHAB derivation) — for ITYPE=4→IHAB=3. REM
 (a) the ITYPE→IHAB map (estb IPHAB), (b) EM's OCURHT(16,19)+OCURNF(6,19) occupancy tables (extract from estb/ —
 source location TBD, not a simple DATA in estab.f/esnutr.f/esblkd.f), (c) generalize ie_autoes_* to nspecies +
 these EM tables, (d) validate total-TPA vs em_live.txt (118 for this stand). Oracle FVSem_clean; harness em_sub.db.
+
+### EM AUTOES — COMPLETE index derivation (2026-08-06), port fully specified as a near-drop-in
+Final trace of the IHAB derivation (the last unknown). For a DB stand (no PLOTINFO), esplt2.f takes the STAND-VALUES
+path: `IHTYPE = ICL5` → the SHARED MYGRUP bracket (esplt2.f:46-53, `DO 3: IF(IHTYPE>IEND(I)) skip; IHTYPE=MYGRUP(I)`,
+IEND/MYGRUP = jl's _IE_ESTAB_IEND/MYGRUP) → `IPHAB=IHTYPE` (line 266). ICL5 = the FVS habitat code set by em/habtyp
+(the NI 3-digit habitat code). For the repro stand ICL5≤269 → MYGRUP[1]=3 → IHAB=3 (matches the ground truth).
+⇒ THE EM AUTOES PORT IS FULLY SPECIFIED — a near-drop-in of jl's ie_autoes machinery (shared ESTOCK/CHAB/OCURHT +
+shared MYGRUP bracket + fixed 10-species estb set):
+  1. jl needs EM's ICL5 (the NI habitat code) — em/habtyp sets it; verify jl computes/stores it (jl has
+     habitat_code=IEMTYP + habitat_input=ITYPE; ICL5 is the 3rd value — add it to em site_setup if absent).
+  2. em_estab_indices: ICL5 → IHAB via the SHARED bracket (reuse _IE_ESTAB_IEND/MYGRUP); ISER=MYHABG[IHAB]; forest→IFO.
+  3. generalize ie_autoes_run/tally/establish! to take nsp (=nspecies, 19 for EM) + drop the InlandEmpire gate.
+  4. validate total-TPA vs em_live.txt (118 for stand 5332701010661).
+Estimated ~30-50 line coding chunk (the machinery is all shared/ported). Ground truth + oracle in hand
+(FVSem_clean, em_sub.db). CAVEAT: inherits IE AUTOES v1 maturity (~22% residual). This closes the AUTOES SCOPING;
+the implementation is the next chunk.
