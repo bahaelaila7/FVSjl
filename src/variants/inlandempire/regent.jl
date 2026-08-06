@@ -361,6 +361,16 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 cap = s.control.sp_size_cap[sp, 4]
                 (h + htg > cap) && (htg = max(cap - h, 0.1f0))
                 t.ht_growth[i] = htg
+                # CRVAR CO DIAMETER (ie/regent.f:637-640): D<1 seedlings get the sub-breast-height nominal
+                # D2=D+0.0001·H2 (H2≤4.5) else D2=D — NOT the large-tree DG, which over-extrapolates a 0.1"
+                # seedling ⇒ dense hardwood-seedling BA over-growth (same bug fixed for EM CRVAR, 5116924).
+                # D≥1 keeps the large-tree DG (Fortran `IF(D.GE.1.0)GO TO 15`).
+                if d < 1.0f0
+                    h2 = h + htg
+                    d2 = h2 <= 4.5f0 ? d + 0.0001f0*h2 : d
+                    dgnew = d2 - d; dgnew < 0f0 && (dgnew = 0f0)
+                    t.diam_growth[i] = dgnew
+                end
             end
             continue                                              # (all special species handled)
         end
