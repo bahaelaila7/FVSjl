@@ -198,3 +198,23 @@ The 2 committed fixes (0fa9677 bark, 3b9aa35 psigsq) STAND — both are source-v
 over-kill class. META (hard lesson, logged): `each_stand` ≠ the projection state — it is PRE-calibration; c.sigma/
 c.dg_cor/vardg are only set by the real run's calibrate pass. FOUR wrong root-causes fell to this + stale-note
 inference before the reliable one. ALWAYS measure calibration-dependent quantities in the REAL run, never each_stand.
+
+### CI real-FIA population sweep (2026-08-06, 150-stand) — REFINES the "~2% straddle" verdict: it's a mild OVER-KILL LEAN
+Ran the BM-style multi-metric real-FIA sweep (150 CI stands → ci_sub.db vs FVSci_clean, 0 jl crashes, 0 AUTOES-0
+stands = CI's slice is genuinely treed). Result on the 45 treed stands:
+```
+mean|Δ%|  TPA=2.28  BA=6.14  QMD=2.86
+TPA sign (all divergent >1 abs): JL-HIGH(under)=5, JL-LOW(over-kill)=20, EQ=20
+TPA sign (>2% only): ~10 LOW : 3 HIGH — a MILD OVER-KILL LEAN, NOT a balanced straddle
+```
+★ This REFINES the goal-file "CI ~2% over-kill = accepted DGSCOR straddle, straddles ~0 across stands" claim: at
+population scale it is a CONSISTENT over-kill LEAN (not a straddle) — the same characterization trap that misled the
+BM #140 "cornered straddle" verdict (single-stand/claimed-straddle masked a systematic bias). HOWEVER, unlike BM,
+CI's magnitude is genuinely small (TPA 2.28% mean) and the largest divergences (−17.7% stand 1856022712290487 3030
+vs 3681; +16.9% stand 31365460010690 83 vs 71) are DENSE-regen stands = the goal-file's OPEN "SMHTGF small-tree
+stochastic" + DGSCOR-density class. So CI is roughly at the bit-exact-or-cornered bar in MAGNITUDE, but the verdict
+should read "mild systematic over-kill lean dominated by small-tree stochastic on dense stands", NOT "clean straddle".
+CI uses the KT/IE Hamilton potential-mortality model (GMULT/REIN/RZ, not SDI self-thin/BMTMRT), so the BM fix does
+not apply. NEXT (if pursued to close the lean): instrument CI mortality! vs ci/morts.f on a JL-LOW dense stand
+(1856022712290487) at the first divergent cycle to separate a real Hamilton-rate/distribution bug from the accepted
+small-tree stochastic. Harness: scratchpad ci_sample.txt + ci_sub.db + ci_live.txt (reusable). #142.
