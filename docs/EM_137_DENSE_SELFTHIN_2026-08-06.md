@@ -34,3 +34,12 @@ crossing) or DIAMETER directly, under the high-competition (dense TPCCF/BAL) inp
 accepted dense-cohort small-tree timing tail (cf. the CORNERED EM/IE growth-only ~7% BA tail) depends on that
 measurement — it converges by 2090, which leans cornered, but the +12.6% TPA under-thin is a notable persistent
 divergence worth the instrument pass. Harness: em_plant_dense.key in /workspace/.emwork (live) + run_keyfile (jl).
+
+## KEY CLUE — the lag starts at cyc0 (planted-tree small-tree HTG timing)
+The BA gap is present from the FIRST reported cycle: 2000 (10 yr after the 1990 PLANT) live BA=2 (QMD≈0.26",
+5455 TPA) vs jl BA=0. So jl's 6000-TPA planted cohort does NOT reach measurable breast-height DBH in the first
+10-yr cycle while live's does — jl's small-tree HEIGHT growth crosses the 4.5' breast-height gate LATER, so
+diameter growth (which only starts >4.5') is delayed ⇒ BA lag ⇒ later self-thin ⇒ under-kill. Same 4.5'-threshold
+mechanism as BM #149, but here for PLANTED trees under DENSE competition (crown≠0, so NOT the crown-init — it's the
+SMHTGF height RATE under high TPCCF/BAL). ⇒ the instrument target is em/regent.f SMHTGF htg1=beta1+beta2·CR under
+the dense-cohort competition inputs: does jl's height growth (or the competition attenuation of it) run low vs live?
