@@ -127,13 +127,16 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
             elseif sp == 6                                # WJ — linear site
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            elseif !BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1
+            elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
                 # regent.f:522 — .NOT.LHTDRG OR (LHTDRG & IABFLG==1) ⇒ HTDBH (Curtis-Arney, forest-dependent).
-                # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX.
+                # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX. But ONLY when
+                # the species actually has Curtis-Arney coeffs (P2>0): AS(15)/LM(12)/WB(11) have P2=0 (bm/regent.f
+                # routes them to the AX/BX / SMDGF branches, never HTDBH) — without this guard bm_htdbh hits
+                # log(P2=0)=-Inf ⇒ DomainError crash on real-FIA aspen/limber-pine stands.
                 ifor = Int(p.forest_idx)
                 dk = bm_htdbh(ifor, sp, hk)
                 dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
-            else                                          # LHTDRG=true & IABFLG=0 → Wykoff BX/(ln(H−4.5)−AA)−1
+            else                                          # AX/BX (bm/regent.f CASE 1:5,8:9,12,15 = incl AS/LM)
                 bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
                 dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
@@ -168,6 +171,13 @@ let
         P2[fi,sp]=parse(Float32,r[3]); P3[fi,sp]=parse(Float32,r[4]); P4[fi,sp]=parse(Float32,r[5])
     end
     global const BM_HTDBH_P2 = P2; global const BM_HTDBH_P3 = P3; global const BM_HTDBH_P4 = P4
+end
+
+# True iff species `sp` has Curtis-Arney HTDBH coefficients (P2>0) for forest `ifor` (clamped 1..4 like bm_htdbh).
+# AS(15)/LM(12)/WB(11) have all-zero rows ⇒ false ⇒ the caller must NOT use bm_htdbh (log(P2=0)=-Inf crash).
+@inline function _bm_has_htdbh(ifor::Int, sp::Int)::Bool
+    (ifor < 1 || ifor > 4) && (ifor = 3)
+    return BM_HTDBH_P2[ifor, sp] > 0f0
 end
 
 # bm/htdbh.f MODE=1 (HT→DBH), Curtis-Arney with a linear small-tree segment below HAT3 (= _ut_htdbh_dbh form).
