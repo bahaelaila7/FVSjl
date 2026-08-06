@@ -20,3 +20,14 @@ NEXT: instrument jl mortality! vs ut/morts.f (Zeide DR10/self-thin target) on 12
 are bit-exact-or-cornered ⇒ the bug is SPECIFIC to the dense woodland-seedling cohort. META: the real-FIA sweep on a
 NEW variant (UT) immediately surfaced a real bug the ttt01/utt01 synthetic stands (conifer-heavy) never exercised —
 same lesson as the EM CRVAR find (#145): population sweeps expose what single test stands miss.
+
+## FIX 1 (2026-08-06, 6e57347) — Zeide DR10 (partial resolution of #147)
+ROOT (ut/morts.f:218-219,260-263): UT is Zeide-SDI but jl's utah/mortality.jl computed dq10/dq0 as QMD (sqrt),
+not Reineke DR10=(Σp·(D+G)^1.605/T)^(1/1.605). On dense sub-1" cohorts QMD over-stated D10 (0.7785 vs 0.5187) ⇒
+TMD10 uncapped ⇒ TN10 low ⇒ RN over-kill. FIXED. Post-fix vs live: 31538752 14457→24611 (=24756 ✓), 11751442
+2209→2487 (=2492 ✓), 11936970 522 bit-exact; 12449454 26688→29750, 276412671 27796→29750 (both improved).
+REMAINING (2 stands): jl kills to TN10=29750, live to 43220 — measured live self-thin T=35000 vs jl 48470 (RN
+0.016 vs 0.047). The SDI loop sums all P (DBHZEIDE=0) ⇒ T should be 48470; live's 35000 is likely the MORTS
+IPASS QMD-convergence iteration (kill→recompute DQ10/T→re-kill) that jl's single-pass utah/mortality.jl lacks.
+NEXT: port the IPASS loop (ut/morts.f IPASS) to utah/mortality.jl. Also a pre-existing SEPARATE bug: jl utt01
+ERRORS (KeyError :essprt_fsp) — UT establishment/sprout path not wired (utt01.key fires ESTAB; unrelated to mort).
