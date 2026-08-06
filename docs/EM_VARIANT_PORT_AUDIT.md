@@ -478,3 +478,32 @@ that compounds into the ~7% BA-by-2090 tail. **VERDICT: the EM/IE/cluster growth
 (accepted tie-break/coupled-precision class), NOT a systematic fixable DG bias.** This closes the bug-vs-cornered
 question the earlier entries left open (and supersedes the "needs the definitive measurement" caveat). The small-
 tree (D<3) larger deltas are the separate SMHTGF/regent stochastic-ZZRAN class (also cornered). No fix warranted.
+
+### EM real-FIA sweep (2026-08-06, 200-stand) — DOMINANT gap is AUTOES (#143), NOT mortality; "EM validated" was cyc0-only
+Ran the BM-style multi-metric real-FIA sweep on EM (200 stratified stands → sub-DB `em_sub.db`, live FVSem_clean,
+NUMCYCLE 3, TPA/BA/QMD at final year). jl: 0 crashes. Two measured findings:
+
+1. ★★ **AUTOES establishment gap is the DOMINANT EM real-FIA divergence** — ~180/200 stands: jl produces **0 TPA**
+   where live has 100-260. CONFIRMED not mortality: stand 5332701010661 (and the repeated 118-TPA `…010661` cohort)
+   START TREELESS (1979: 0 TPA both) and live **auto-establishes to 118** by 1989 via AUTOES natural regen; jl stays
+   0 (jl only does explicit PLANT/NATURAL, not AUTOES — the estb/ ~6280-line subsystem, task #143). ⇒ This CORRECTS
+   the goal-file "EM real-FIA validated, cyc0 bit-exact" claim: cyc0 IS bit-exact (both treeless), but cycle-1+
+   diverges catastrophically because live establishes and jl doesn't. AUTOES (#143) is NOT IE-only — it is the
+   dominant real-FIA fidelity gap for EM (and by extension the grassland/regen-heavy western variants). mean|Δ%| on
+   the full 200 = 91% purely from these 0-vs-100+ AUTOES stands.
+
+2. **EM mortality UNDER-thins genuinely-treed stands — same signature as BM #140.** Of the ~18 stands with real tree
+   data (jl>0), the 7 divergent ones lean under-thin (5 JL-HIGH +4.2%/+5.4%/+6.4%/+6.7%/+7.3% : 2 JL-LOW −1.3%/
+   −4.4%). Exemplar 83402334020004: cyc0 TPA 7721 BIT-EXACT (same tree data), then live→7026 vs jl→**7500** (+6.7%),
+   BA live 20 vs jl 67, QMD live 0.7 vs jl 1.3 — jl retains the self-thinning cohort, exactly BM's pre-fix pattern.
+   EM uses the SAME custom naive single-pass uniform-RN mortality! that BM had (missing BMTMRT distribution + IPASS
+   QMD-convergence).
+
+★ COMPLICATION (why the BM shared-driver routing does NOT drop into EM): EM's mortality! is a HYBRID —
+easternmontana/mortality.jl:126-165 branches per tree: ORIGINAL species use the SDI self-thin RN (like BM), but
+ADDED species (4-6,11-17,19) use a completely separate KT/IE Hamilton potential-mortality regression (GMULT/REIN/RZ/
+BAMAX-limited, em/morts.f:661-723) that the shared mortality!(::AbstractVariant) does NOT implement. So fixing EM's
+under-thin (#137) is NOT a clean "route through the shared driver like BM/CR" — it needs the BMTMRT distribution +
+IPASS convergence added to EM's ORIGINAL-species SDI path while PRESERVING the added-species Hamilton branch (a
+hybrid, more involved than BM). Lower priority than #143 for EM real-FIA (mortality affects only the ~18 treed
+stands; AUTOES affects ~180). Harness: scratchpad em_sample.txt + em_sub.db + em_live.txt (reusable).
