@@ -104,3 +104,21 @@ while live grows them via htgf.f main, that ROUTING mismatch is the root. NEXT (
 tree (does jl call the small-tree model or the main htgf-equivalent?). The routing/branch discrepancy is the fix.
 NET this iteration: #137 reproduced + direction corrected + FIVE candidate paths ruled out by measurement, localized
 to em/htgf.f main-height (+ its DG) vs jl's small-tree routing. Doctrine #2 in action (each inference measured, not assumed).
+
+## CORNERED to the establishment essubh model + a likely jl ROUTING MISMATCH (2026-08-06 cont.)
+Read em/htgf.f: for EM species (ISPC≤3,7-10,18) line 185 `IF(H.LE.4.5)GO TO 60` sends sub-breast-height trees to
+label 60 with HTG(I) STILL 0 (initialized htgf.f:166) ⇒ **htgf gives sub-BH trees ZERO height growth**. Combined with
+the measured facts (regent/SMHTGF are cratet-init-only, not per-cycle; htgf=0 for H≤4.5), the ONLY remaining per-cycle
+height driver for the sub-BH PLANTED cohort is the EM ESTABLISHMENT model (essubh/esadvh height-BY-AGE, which re-heights
+established trees each cycle until they exceed 4.5'). 
+★ LIKELY ROOT (jl routing mismatch, to be MEASURED next): jl's EM height growth (height_growth.jl:106) routes ALL
+h≤4.5 trees to small_tree_growth!/_em_smhtgf (the stochastic small-tree model). But live grows ESTABLISHED sub-BH
+trees via essubh-by-age (deterministic), NOT the small-tree model — that model (regent) only runs at cratet-init.
+So jl likely GROWS the planted sub-BH cohort with the wrong model (small-tree stochastic) where live re-heights via
+essubh(age); under dense competition these diverge ⇒ the cyc0 BA=0-vs-2 lag ⇒ under-thin. (This wouldn't hit READ
+small-tree stands the same way — those ARE inventory trees the small-tree model is meant for; the issue is specifically
+ESTABLISHED/planted sub-BH trees.) DECISIVE NEXT: instrument em essubh/esadvh per-cycle on em_plant_dense (does live
+re-height the planted cohort via essubh each cycle?) + confirm jl routes them to _em_smhtgf ⇒ the fix is to re-height
+jl's established sub-BH trees via em_essubh_hht(age) instead of the small-tree model.
+NET (2 iterations): #137 reproduced, direction corrected (under-thin), SIX candidate paths eliminated by measurement,
+cornered to the establishment-vs-small-tree ROUTING of sub-BH planted trees. All by instrument-replay (doctrine #2).
