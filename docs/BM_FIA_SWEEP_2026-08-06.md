@@ -69,3 +69,14 @@ inert). ★ LIKELY CLUSTER-WIDE: check EM/TT/UT setup too — only CR+CI current
 dense-seedling HTGR-via-VIGOR(crown) starvation is the SAME mechanism (BM #149, and the EM/IE/UT/TT dense-seedling
 findings may share this crown-init root where the DG isn't the specific variant bug I fixed). This is the campaign's
 likely UNIFYING root: read sub-1" seedlings need a dubscr crown estimate at inventory, which most variants skip.
+
+### #149/#150 FIX ATTEMPTED (2026-08-06): bm_dubscr ported, over-corrected + broke bmt01 → REVERTED
+Ported bm_dubscr (bm/dubscr.f logistic, BCR0-10+CRSD extracted, sp13/14/16/18 linear-rescale) + a d<1 lstart
+branch + the setup crown-init call (mirror CI). RESULT on 504443988: BA 38→203 (OVER-shot live 80) + TPA 38775→
+15977 (over-kill) ⇒ the crown estimate came out ~39% (VIGOR→1.0 max) not live's ~12%, so the DUBSCR INPUTS
+(TPCCF/AVH/BA/RMAI) I passed differ from what live passes at inventory. ALSO broke bmt01 (establishment.jl:266 /
+height_growth.jl:26 error — the lstart crown call + compute_density! disturbed bmt01's ESTAB path). REVERTED
+(doctrine #4). ⇒ NEXT: (1) instrument live bm/dubscr.f to dump ISPC/D/H/BA/TPCCF/AVH/RMAI/CR for a 504443988
+seedling ⇒ match jl's inputs exactly (the coeffs are verified-extracted; the inputs are the discrepancy — likely
+AVH or TPCCF or RMAI≠0); (2) gate/guard the lstart crown call so it doesn't perturb the ESTAB path (bmt01 has
+ESTAB). Root (crown=0→VIGOR floor) + fix DIRECTION (add DUBSCR crown-init) CONFIRMED; the port needs input-exactness.
