@@ -127,11 +127,17 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # PCOML code BEFORE the HBDECD/PCOML match (e.g. "CJG111"/622 → "CPG111"). A raw FIA PV code not in
         # PCOML would otherwise fall through to the CWG113 default (SDIMAX 395 vs 166) ⇒ under-thinning (#140).
         # No PV_REF_CODE ⇒ the raw PV code is matched directly (PVREF6 is not called).
+        # ★ pvref6.f BLANKS KARD2 on entry (line 2577) and sets it to HABPVR only on a FULL (pv AND ref) match
+        # (EXIT at 2586); ANY unmatched (pv,ref) pair returns BLANK, NOT the raw pv. So when PVREF6 is invoked
+        # (pvr>0) and no full match exists, the habitat is UNRESOLVED → sitset's CWG113 default (SDIMAX≈433 for a
+        # PP/DF stand), NOT the raw code's ecoclass. jl previously KEPT the raw pv on no-match: e.g. CDG111/653 has
+        # no PVREF6 row (CDG111 exists only for refs 604/622/639/640), so live blanks it → CWG113 433, but jl kept
+        # CDG111 → SDIMAX 278/351 ⇒ jl OVER-thins (#140 over-thin case, measured: 504530915126144 −52% TPA by 2097
+        # vs live; live ZZPVREF out=BLANK, ZZMORTS SDIMAX=433). Assign unconditionally — mapped is "" on no-match.
         if !isempty(pv) && _fia_present(d, "PV_REF_CODE")
             pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
             if pvr > 0
-                mapped = bm_pvref6(pv, string(pvr))
-                isempty(mapped) || (pv = mapped)
+                pv = bm_pvref6(pv, string(pvr))   # PVREF6 blanks on no-match (mapped=="")
             end
         end
         if !isempty(pv)

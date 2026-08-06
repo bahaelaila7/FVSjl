@@ -446,3 +446,36 @@ higher T85D10 target → under-kill). Largest JL-HIGH real stand for the fix-pat
 248894832489998 (init 6555 TPA, dense, +1.6% by 2090). Consistent-direction + small-magnitude = a real but low-
 priority refinement; the fix (pin the ~0.3% dq10/projected-DBH seed to a systematic DG mechanism vs precision) remains
 the deep open step. Stands file: bm40_sub.db.stands.
+
+### #140 REAL FIX (2026-08-06) — PVREF6 no-match must BLANK the habitat (SDIMAX bug), not keep the raw PV code
+★ A **new, definite** #140 mechanism found + fixed, distinct from the dense-self-thin dq10 straddle above. Clean
+apples-to-apples measurement (properly COLUMN-ALIGNED `NUMCYCLE` — the unaligned "NUMCYCLE 20" both live AND jl parse
+as ~1 cycle, so the old "20 drift" sweep was largely a length-mismatch artifact; aligned, live honors NUMCYCLE up to
+a ~10-cycle age-200 cap) on the 40-stand `bm40_sub.db` set exposed ONE stand with a large systematic **over-thin**:
+- **504530915126144** (mature PP122/DF202, dbh~18"): pre-fix jl **−52.5% TPA** by 2097 (jl 524 vs live 1104), BA
+  capped at 293 vs live 396. Not a straddle — jl's density ceiling hit ~100 BA too low.
+ROOT (instrument-replay, live FVSbm relinked w/ WRITE in morts.f + pvref6.f):
+- live `ZZMORTS SDIMAX=433.4`; jl resolved habitat CDG111 → ecoclass SDIMAX PP:278/DF:351 (weighted ~300). jl's
+  SDIMAX ~130 too low ⇒ over-thin. **jl's CDG111 ecocls data is CORRECT** (matches live ecocls.f 278/351 exactly).
+- The divergence is HABITAT RESOLUTION: live `ZZPVREF in=CDG111 ref=653 out=<BLANK> LPVCOD=T LPVREF=F`. pvref6.f
+  BLANKS KARD2 on entry (line 2577) and sets it to HABPVR only on a FULL (pv∧ref) match (EXIT 2586). CDG111 exists
+  in the table but only for refs 604/622/639/640 — ref **653 has no CDG111 row** ⇒ live returns BLANK ⇒ habitat
+  UNRESOLVED ⇒ sitset CWG113 default (PP:395/DF:446 → weighted 433). **jl kept the raw CDG111** (fia_database.jl:134
+  `isempty(mapped) || (pv=mapped)`) ⇒ wrong low SDIMAX.
+FIX (src/io/fia_database.jl): when PV_REF_CODE present (PVREF6 invoked), assign `pv = bm_pvref6(pv, ref)`
+UNCONDITIONALLY — `mapped` is "" on no-match, which correctly blanks → CWG113 default, exactly as live. (Matches
+still resolve via non-empty return; matched control stand CWG113/622→CWG113 SDIMAX 547 unchanged & bit-exact.)
+VALIDATION (40 stands, aligned NUMCYCLE 20, jl-vs-live multi-cycle TPA):
+- 504530915126144: **−52.5% → +5.5%** (BA 293→388 vs 396). Over-thin ELIMINATED, now in the normal straddle band.
+- No regression: 24 stands TPA bit-exact ALL cycles (incl. the 2 previously-exact drift stands); the 2 matched
+  control stands unchanged. Post-fix distribution: **24 bit-exact / 15 near(|Δ|≤15%) / 1 drift(+20.3%)**.
+- The lone >15% residual (7691076010901, +20.3%, no-ref CDS711 → unaffected by the fix) is a 4396-TPA 0.1" seedling
+  cohort with **BA bit-exact/pinned at ~240 both sides** — the dense-regen self-thin ALLOCATION straddle (BA-target
+  met identically, only the TPA count of tiny stems wobbles). Cornered, same class as 248894832489998/248681014489998.
+RECONCILIATION with the "consistent under-thin bias" verdict above: the clean aligned measurement shows BA is
+bit-exact on active self-thinners, so there is **no large systematic under-thin** — the prior ~3% dq10 nudge near the
+self-thin threshold produces a binary RN flip → a small mixed-magnitude TPA-COUNT wobble (the straddle), NOT a big
+signed BA divergence. The genuine systematic divergence in the set was this over-thin habitat/SDIMAX bug (which the
+prior 3-cycle sign-tally missed — it manifests only in LATE cycles), now fixed. #140 ⇒ bit-exact-or-cornered:
+one real bug fixed; residual = the accepted BA-pinned dense-regen TPA-count straddle. Live sources restored (morts.f,
+pvref6.f un-instrumented, FVSbm_clean relinked). Harness: scratchpad/bm140_verify.jl + bm40_all.jl.
