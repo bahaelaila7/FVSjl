@@ -29,3 +29,15 @@
 
 ⇒ Session deliverables VALIDATED at scale: EM AUTOES amount bit-exact (empty stands), elevation-default non-regressive
 (treed stands). The lone outlier is a pre-existing dense small-tree DG issue, not introduced by these fixes.
+
+## OUTLIER characterized (225065919010661) — dense HARDWOOD-SEEDLING DG over-growth [new lead]
+11 tree records, dominated by DBH=0.1" seedlings with huge TPA: sp356 (2841 TPA), 823 (1243), 763 (532), 544
+(355), 746 (177). Crosswalk: 544→GA, 746→AS, 823→OH (QUMA2), 356/763→OH (default). ⇒ the stand is a dense
+hardwood/aspen SEEDLING cohort. cyc0 BA=45 bit-exact; cyc1 jl BA=96 vs live 49 (~2×) + under-thin (5924 vs 5447).
+AUTOES does NOT fire (measured) ⇒ the divergence is the EM NON-CONIFER small-tree/regen DG (GA/AS/OH: CR-DIAGR +
+aspen UTVAR forms, per fvsjl-em-variant-port) over-growing the 0.1" seedlings ~2× in one 10-yr cycle. This is the
+#137/#139 dense-cohort small-tree class, here on HARDWOODS specifically (the EMVAR-conifer SMHTGF/SMDGF fix #136
+does not cover the hardwood DIAGR/UTVAR seedling paths). NEXT: instrument jl vs live per-tree DG for the sp356/823
+(OH) + 746 (AS) 0.1" seedlings on this stand (pre-tripling window, doctrine #3) — pick the over-growing form and
+compare to the em/regent.f DIAGR/aspen small-tree DG. Likely the OH/aspen seedling DG lacks a size cap or uses the
+large-tree form. Real-FIA-relevant (dense hardwood regen stands), NOT cornered (2× is far beyond the tie-break bar).
