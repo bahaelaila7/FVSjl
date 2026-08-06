@@ -367,3 +367,47 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     end
     return s
 end
+
+# em/esgent.f (estb/esgent.f:53 CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle.
+# EM was OMITTED from the birth-cycle esgent list (simulate.jl had only CR + TT), so planted/established EM regen
+# missed its first-cycle height growth ⇒ the cohort stayed at the ~1' establishment height at the birth-cycle report
+# (TopHt 1 vs live 6) ⇒ ~1-cycle height/BA lag ⇒ dense self-thin under-kill (#137). Mirrors the EMVAR branch of
+# small_tree_growth! (SMHTGF height + SMDGF diameter) for the new records nstart+1:n over the birth-cycle subperiod
+# (GENTIM germination offset, like tt_esgent!). Only EMVAR conifers {1,2,3,7,8,9,10,18}; others left as-established.
+function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    t = s.trees; c = s.calib; dens = s.density
+    nstart >= t.n && return s
+    rhcon = em_regcons!(s)                              # RHCON (also refreshes birth-cycle density constants)
+    regyr = _EM_RG_REGYR; dgsd = s.control.dg_sd
+    gentim = max(fint - 5.0f0, 0.0f0)                   # germination offset (tt_esgent! form)
+    subyr = fint - gentim                               # birth-cycle growth years (=5 for fint=10)
+    @inbounds for i in (nstart+1):t.n
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (_em_orig_species(sp) && d < _em_rg_cap(sp)) || continue
+        h = t.height[i]; cr = Float32(t.crown_pct[i])
+        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0.0f0
+        tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
+        zrand = 0.0f0
+        if dgsd >= 1.0f0
+            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+        end
+        htgrth = _em_smhtgf(sp, cr, tpccf, zrand)
+        con = exp(c.htg_cor_small[sp])                  # RHCON(=1)·exp(HCOR)
+        htg = htgrth * (subyr / regyr) * con; htg < 0.0f0 && (htg = 0.0f0)
+        cap = s.control.sp_size_cap[sp, 4]; (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        h2 = h + htg
+        t.height[i] = h2; t.ht_growth[i] = htg
+        if h2 > 4.5f0                                    # DBH only once the tree crosses breast height
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            d2 = _em_smdgf(sp, h2, cr, pccf)
+            dkk = h > 4.5f0 ? _em_smdgf(sp, h, cr, pccf) : d
+            dgr = (d2 - dkk) * bark; dds = dgr * (2.0f0 * bark * d + dgr)
+            arg = (d * bark)^2 + dds
+            dgk = arg > 0.0f0 ? sqrt(arg) - bark * d : 0.0f0
+            dgk < 0.0f0 && (dgk = 0.0f0)
+            dgk > 0.0f0 && (t.dbh[i] = d + dgk / bark; t.diam_growth[i] = dgk)
+        end
+    end
+    return s
+end
