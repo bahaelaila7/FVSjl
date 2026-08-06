@@ -1106,6 +1106,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual
     # overstory) collapsed PROB1 to ~0.55 and under-produced ~40%. For the single-inventory-point stand the point
     # is index 1 (validated: jl point_ba[1]=40 vs live BAAA=41.93 at cyc1; 0→1 vs 1 at the bare disturbance tallies).
+    # ★ #143 (2026-08-06): a D≥REGNBK OVERSTORY-only baaa was TRIED and REFUTED by live measurement — live BAAA is
+    # NOT overstory-filtered. On DB stand 753199439290487 (0.2"-QMD, all sub-3" stems) live BAAA=20.66/205.6 counts
+    # the tiny trees; the overstory-only version (4.59/12.72) is FARTHER from live than point_ba[1] (13.18/216.12).
+    # So BAAA(NNID) is the per-point ALL-tree BA (dense.f REGNBK is ~0 for these stands), and point_ba[1] is the
+    # right concept. Residual = a per-point scaling/attribution Δ (live 20.66 vs jl 13.18, ~1.5×) — see AUTOES doc.
     baaa = (isempty(s.density.point_ba) ? 0f0 : s.density.point_ba[1])
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).

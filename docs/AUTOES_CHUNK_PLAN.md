@@ -1031,3 +1031,26 @@ captured once, persisted) for the PN-calibration ESTOCK. Then validate vs live o
 IE stand (aligned NUMCYCLE). REGNBK value: confirm IE's (esplt2.f/estab.f) — likely 1.0". This is the complete,
 self-contained #143 implementation: (1) REGNBK-filtered per-point overstory BA, (2) frozen inventory BAAINV, (3) wire
 both to the two ESTOCK uses, (4) validate. Scheduler fires (confirmed), live ground truth measured, no model unknowns.
+
+## 2026-08-06 (FIX ATTEMPTED + REFUTED BY LIVE — the "overstory-BA" premise is WRONG) ★ major redirect
+IMPLEMENTED the long-planned fix (replace point_ba[1] with a D≥REGNBK=2.999 OVERSTORY-only per-point BA) and
+VALIDATED against live (re-instrumented estab.f ZZBAA on DB stand 753199439290487, aligned NUMCYCLE):
+  live BAAA(NNID=1) = **20.66, 205.6** ; BAAINV = 1.0
+  jl overstory-only (my fix) = 4.59, 12.72  ← FARTHER from live
+  jl original point_ba[1]     = 13.18, 216.12 ← CLOSER to live
+★ REFUTED: this stand is 0.2"-QMD (56074 TPA of sub-3" stems) — there is NO D≥2.999 overstory, yet live BAAA=20.66.
+So **BAAA(NNID) is NOT the overstory-filtered BA** — it counts the tiny sub-3" trees. dense.f's REGNBK is effectively
+~0 for these stands (REGNBK=REALS(66), a stand var, not a fixed 2.999 in this path). The plan's central premise for
+MANY sessions ("BAAA = overstory BA that excludes regen / drops after cut") is WRONG; the iet01 "drops to 1" was the
+CUT removing trees, not an overstory filter. REVERTED the jl change (back to point_ba[1]) — doctrine #4: a faithful-
+looking change that regresses vs live ⇒ examine, don't keep. jl is byte-unchanged (functional no-op + corrected comment).
+★ CORRECTED #143 SCOPE: point_ba[1] (per-point ALL-tree BA) IS the right concept. The residual is a per-point BA
+SCALING/ATTRIBUTION Δ, and it is MIXED-SIGN not a constant factor: live 20.66 vs jl 13.18 (jl −36%) EARLY, live 205.6
+vs jl 216.12 (jl +5%) LATE. Candidates: (a) PI/GROSPC scaling (PI=NPTIDS) — jl point_ba uses p.pi/p.gross_space; live
+BAAA(NNID) may normalize per the tallied point differently; (b) jl uses point index [1] while live loops NNID over all
+inventory points (the tallied point may not be jl's point 1); (c) tally-moment tree state (jl reads point_ba after
+compute_density! at a different growth/mortality phase than live's BAAA capture). Given the Δ is mixed-sign and ~±30%
+on a dense-seedling stand (and point_ba was already validated ≈live on iet01: 40 vs 41.93), this may be closer to the
+accepted dense-regen straddle than a clean bug. NEXT: measure point_ba[1] vs live BAAA across SEVERAL stands + the
+multi-point attribution (is the tallied NNID always jl's point 1?), before any further code change. The overstory-BA
+avenue is CLOSED. ⇒ #143 is NOT the tractable clean fix the plan assumed; re-scope as a per-point-BA attribution study.
