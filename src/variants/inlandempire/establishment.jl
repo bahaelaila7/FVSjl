@@ -1024,7 +1024,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
                        esb_shift::Real = 0f0, is_ingro::Bool = true,
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
-                       tpacre_ingro::Real = 0f0, nsp::Integer = 23)
+                       tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
+                       idup::Integer = 0, nsp::Integer = 23)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1042,9 +1043,22 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,
     # correct uniform-density multi-point). Then NEWTPP=max(0,ITPP−NSTORE)=0 on an already-stocked plot ⇒ ingrowth
     # books ≈0 (live 0.1 TPA), vs the old es_nstore=0 that booked a full fresh cohort (253 TPA, ~2500× over).
-    if is_ingro && Float32(tpacre_ingro) > 0f0 && length(nstore) == Int(dupnpt)
-        nsval = floor(Int32, Float32(tpacre_ingro) / (prob1 * 300f0) + 0.5f0)
-        fill!(nstore, nsval)
+    if is_ingro && length(nstore) == Int(dupnpt)
+        npt = length(point_small_tpa)
+        if npt > 0 && idup > 0 && npt * Int(idup) == Int(dupnpt)
+            # PER-POINT NSTORE (estab.f:313/589): NSTORE(pt)=INT(PLPROB·DUPNPT/(PROB1·300)+0.5), PLPROB=point_TPA/DUP
+            # ⇒ point_TPA·NPTIDS/(PROB1·300). Fill each point's contiguous IDUP-plot block (FVS NCOUNT order).
+            fill!(nstore, Int32(0))
+            @inbounds for pt in 1:npt
+                ns_pt = floor(Int32, Float32(point_small_tpa[pt]) * Float32(npt) / (prob1 * 300f0) + 0.5f0)
+                ns_pt <= 0 && continue
+                base = (pt - 1) * Int(idup)
+                for k in 1:Int(idup); nstore[base + k] = ns_pt; end
+            end
+        elseif Float32(tpacre_ingro) > 0f0
+            nsval = floor(Int32, Float32(tpacre_ingro) / (prob1 * 300f0) + 0.5f0)   # fallback: uniform (pre-#143)
+            fill!(nstore, nsval)
+        end
     end
     occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:nsp]
     over = zeros(Float32, 10)
@@ -1157,14 +1171,25 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     end
     # #143: existing small-tree (DBH<REGNBK=2.999) stocking → the INGROWTH NSTORE (estab.f:305-315,589). Current
     # (self-thinned) DBH<2.999 TPA at the ingrowth cycle; ie_autoes_run turns it into per-plot NSTORE via prob1.
+    # #143 ingrowth NSTORE is PER-INVENTORY-POINT, not uniform (measured FVSem_g16 estab.f:313 PLPROB(N=ITRE(I))):
+    # the DBH<REGNBK small-tree stock accumulates per point, so points with no small trees leave their IDUP-plot
+    # block FREE to establish (NEWTPP=ITPP), while the stocked points suppress. Uniform fill over-suppressed ~5×
+    # (em_474…: live 127 vs jl 23). point_small[pt] = the point's DBH<2.999 TPA (t.plot_id = point index 1..nptids).
     tpacre_ingro = 0f0
+    point_small = zeros(Float32, nptids)
     if is_ingro
-        @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre_ingro += s.trees.tpa[i]); end
+        @inbounds for i in 1:s.trees.n
+            s.trees.dbh[i] < 2.999f0 || continue
+            tpacre_ingro += s.trees.tpa[i]
+            pid = Int(s.trees.plot_id[i])
+            (1 <= pid <= nptids) && (point_small[pid] += s.trees.tpa[i])
+        end
     end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
-                      is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro)
+                      is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
+                      point_small_tpa = point_small, idup = idup)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
