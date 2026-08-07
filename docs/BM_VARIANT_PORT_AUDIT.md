@@ -870,3 +870,22 @@ NEXT: compare jl vs live for (a) PP conspp — dg_const[10] (BM_DGSIC/DGFOR/DGEL
 Likely a site-index-per-species (BM_DGSIC[sp]·xsite / BM_DGSITE[sp]·log(tsite)) or a coefficient-table mismatch.
 Then fix + re-run the unbiased 20-stand tally (mean→0). Oracle FVSbm_g16 (cycle-gated recipe above). This is the
 final step to close #140.
+
+### #140 PP component PINNED — site-index species-CONVERSION (bm_htcalc/bm_sichg), not a coefficient (2026-08-07)
+
+Verified ALL PP (sp10) DGCON coefficients MATCH live dgf.f DATA bit-for-bit: DGSIC=0.0, DGSITE=0.73067,
+DGEL=-0.05796, DGEL2=0.0006, DGCCFA=0.0, DGFOR=[0.05217,-0.04456,0.05217,0.11197]. So the constant -0.0598
+DDS offset is NOT a coefficient error — and GF-large-bit-exact rules out the SHARED inputs (elev/slope/aspect/xsite).
+The ONLY PP-specific runtime input in DGCON is tsite = p.sp_site_index[10] (PP site index) via DGSITE(10)·log(tsite).
+-0.0598 = 0.73067·Δlog(tsite) ⇒ jl's PP site index is ~8% LOW (ratio ≈ e^(-0.0818)=0.921).
+
+⇒ ROOT of the PP component = jl's BM per-species SITE-INDEX CONVERSION (bm_sitset! → bm_htcalc/bm_sichg,
+site_index.jl:223-227) for PP (sp10). When PP is NOT the site species (here GF=sp4 IS, ∴ GF's SI is direct ⇒ GF
+large trees bit-exact ✓), PP's SI is CONVERTED from the site species and jl's conversion runs ~8% low vs live
+bm/sitset.f+htcalc.f. This is a REAL site-index-translation bug, distinct from the DG coefficients (which match).
+
+⇒ #140 = TWO real BM DG-input bugs: (1) PP (+ likely other non-site-species) SITE-INDEX conversion ~8% low
+(bm_htcalc/bm_sichg) → DGCON under-shoot → self-thin under-thin; (2) GF (sp4) small-tree DDSS coefficient wrong
+(BM_SM* at BM_SMMAPS[4]). NOT cornered. NEXT (final fix): instrument jl bm_htcalc/bm_sichg per-species SI vs live
+bm/sitset.f (dump SITEAR(ispc) per species) on 41134262010497 → find the PP conversion error; + compare GF BM_SM*
+row to live DATA. Fix both, re-run the unbiased 20-stand tally (mean→0). Oracle FVSbm_g16. This roots #140 fully.
