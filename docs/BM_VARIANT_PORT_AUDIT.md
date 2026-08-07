@@ -760,3 +760,21 @@ in a threshold straddle CAN be an accepted RDPSRT-tie-break primitive (same fami
 small real bias in the kill-selection ORDER. That single question — is the count-straddle's directional lean a real
 kill-order bug or an accepted tie-break lean — is all that remains of #140, and needs the cycle-gated per-tree kill
 measurement on bmt01 (density-preserved stand, no DG/habitat/dead confound). Everything else about #140 is cornered.
+
+### #140 — precise boundary: mild cases sub-tree-cornered; LARGE (+48%) cases still need their stands (2026-08-07)
+
+Sharpening the decomposition with magnitudes:
+- MILD count-straddle (my bm_sub.db 12-stand set): e.g. 374435108489998 TPAΔ 0.9% of ~66 TPA = **~0.6 TPA**, a
+  SUB-ONE-TREE rounding/tie-break difference with BA/SDI BIT-EXACT ⇒ unambiguously CORNERED (below 1-tree
+  precision). 41136 (5.8%) and the others in this set are small multi-cycle compounding of the same sub-tree
+  straddle + the accepted DG tail. This SET meets the bar.
+- LARGE cases: the 2026-08-05 memo's real-FIA sign-tally reports JL-HIGH stands up to **+48%** TPA. Those are NOT
+  in bm_sub.db (this set maxes at 5.8%) and are NOT sub-tree rounding — a +48% multi-cycle under-thin is a real
+  compounding bias (a small per-cycle kill-order lean amplified by the QMD→target feedback over many cycles).
+  Those specific JL-HIGH stands must be drawn LIVE from the 70GB FVS-ready DB (extract_sample.jl) to investigate.
+
+⇒ HONEST #140 verdict: the mild/common case (this 12-stand set) is CORNERED (sub-tree straddle + accepted DG tail);
+the LARGE-divergence stands (goal-doc sweep, up to +48%) remain the genuine open concern and require (a) drawing
+those exact JL-HIGH stands from the 70GB DB, then (b) the cycle-gated per-tree self-thin kill measurement to see
+whether the per-cycle kill-order lean is a real RDPSRT/PCT-selection bug or an accepted tie-break lean that merely
+compounds. Cannot be closed either way from bm_sub.db alone. DG-adjacent bugs found en route ARE fixed (66db612 etc.).
