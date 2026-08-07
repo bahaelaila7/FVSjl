@@ -889,3 +889,22 @@ bm/sitset.f+htcalc.f. This is a REAL site-index-translation bug, distinct from t
 (BM_SM* at BM_SMMAPS[4]). NOT cornered. NEXT (final fix): instrument jl bm_htcalc/bm_sichg per-species SI vs live
 bm/sitset.f (dump SITEAR(ispc) per species) on 41134262010497 → find the PP conversion error; + compare GF BM_SM*
 row to live DATA. Fix both, re-run the unbiased 20-stand tally (mean→0). Oracle FVSbm_g16. This roots #140 fully.
+
+### #140 PP component FIXED — bm_forkod! forest-index remap (18b9de0); site-index hypothesis REFUTED (2026-08-07)
+
+★ CORRECTION: the "PP site index ~8% low" hypothesis (prior entry) was REFUTED by measurement — live SITEAR(10)=
+93.1688 = jl 93.169 (MATCH). The real root: jl DGCON(PP)=1.9768 vs live 2.0366 (Δ=−0.0598) because jl forest_idx=5
+(clamped→1 in bm_dgcons!) used DGFOR[1,10]=0.052 vs live DGFOR[4,10]=0.112. Stand 41134262010497 is LOCATION 619
+(Whitman); live bm/forkod.f remaps 619→616 (Wallowa-Whitman) ⇒ IFOR=4. jl's bm_kodfor_remap (volume) HAD this
+remap but bm_forkod! (which sets forest_idx for DG) MISSED it. FIXED (18b9de0): apply idx==5→4 in bm_forkod!.
+VALIDATED: reproducer under-thin 18.5%→8.4%; bmt01 (forest 614) unaffected. GF(sp4) bit-exact on large because its
+DGFOR is forest-CONSTANT; PP's varies ⇒ only PP hit. Only Whitman(619)-forest stands affected (small population
+share ⇒ unbiased-tally mean 5.6%→5.45%).
+
+REMAINING #140 component (dominant for the population): GF (sp4) SMALL-TREE DDSS ~−0.45 on d3-3.7" (measured,
+large GF bit-exact). This is the bigger per-tree error and likely drives most of the residual +5.45% under-thin.
+NEXT: compare jl GF small-tree DDSS (BM_SM* at BM_SMMAPS[4]=3, dg_smcoeffs_bm.csv group 3) vs live dgf.f DATA —
+the GF DDSS coefficients or the SMMAPS[4]/SMMAPH lookup. Then re-run the unbiased 20-stand tally (mean→0).
+META: two more hypotheses REFUTED by measurement this session (site-index; and the earlier "cornered") — the
+DGCON-component dump (SITEAR/DGFOR/DGEL per species) is the decisive tool; forest_idx vs coefficient vs site-index
+are all distinguishable by dumping the actual DGCON inputs.
