@@ -1066,3 +1066,36 @@ NOTRIPLE. The ~12% kill deficit is directional ⇒ likely a systematic self-thin
 the RIP rate), NOT purely the RDPSRT tie-break straddle. META (session lesson): a "BA-low-early" signal on a
 TRIPLED FIA stand can mask a mortality-count divergence — NOTRIPLE + g16 growth-DDS bit-exactness isolates
 growth from mortality cleanly; always separate the two before attributing a self-thin divergence to DG.
+
+### #140 — COMPLETE ROOT-CAUSE TRACE: the mortality QMD projection's per-tree DG realization (2026-08-07)
+
+Instrumented FVSbm_g16 morts.f (targeted WRITEs at the D10 loop + self-thin decision; restored pristine) vs jl
+southern/mortality.jl, bmt01 case-1 NOTRIPLE. The self-thin under-kill is fully decomposed:
+
+STAND-LEVEL (cyc1): EVERYTHING bit-exact EXCEPT the projected end-of-cycle QMD **D10**:
+  tt 589.65=589.65 · dia0 5.145=5.145 · SDIMAX 346.00=346.00 · CONST 13934.01=13934.02 · fint 10 · yr 10 (fast path)
+  **D10: live 6.137 vs jl 6.077** → tn10 live 523.46 vs jl 527.1 → jl kills 62.5 vs live 66 (~12% under-kill).
+
+PER-TREE (D10 = sqrt(Σp·(d+g)²/Σp), g = DG(I)/BARK): bark bit-exact (0.905), but the realized DG(I) differs, MIXED
+direction (not a uniform offset):
+  D=6.5: live DGI 2.278 / jl 1.866 · D=6.2: 1.302/0.827 · D=6.1: 1.796/1.409 · D=6.6: 1.426/**1.766** (jl HIGHER).
+The DETERMINISTIC growth DDS (WK2) for these trees is BIT-EXACT (proven earlier: D=6.5 DDS=3.28866 both). The DGI
+that feeds mortality = f(DDS, **FRM**), where FRM = frmbase + corr·OLDRN (+ the per-tree DGSCOR draw). So the
+divergence is the **per-tree DGSCOR/FRM DG *realization*** — the SAME accepted cornered class as #142 (CI:
+"ZZRAN/DGSCOR RNG-realization straddle, deterministic DG bit-exact"). The self-thin QMD projection AMPLIFIES these
+small per-tree realization differences (mixed sign) into the ~12% kill-count straddle; BA stays ~bit-exact because
+the un-killed trees are small.
+
+CRUCIAL NUANCE for the NEXT step (RNG-straddle vs real bias):
+- bmt01 NOTRIPLE uses the STOCHASTIC `dgscor!` (mortality.jl:1138) ⇒ this stand's DGI diff is an RNG-realization
+  straddle (cornered).
+- BUT the #140 real-FIA SWEEP (+5.6% mean, 20 stands) runs TRIPLED (default), where the FRM is DETERMINISTIC
+  (mortality.jl:1120 frmt=frmbase+corr·rnpar, rnpar=OLDRN, no new draw). A DETERMINISTIC divergence there would be
+  a REAL frmbase/corr/OLDRN-init difference, NOT an RNG straddle — potentially fixable.
+⇒ NEXT (decisive for cornered-vs-real): instrument the TRIPLED DG(I) on a sweep stand (FVSbm_g16 vs jl, NOTRIPLE
+off) — dump per-tree frmbase, corr, OLDRN, and the resulting DG(I). If deterministic FRM inputs match → the whole
+#140 residual is the DGSCOR-realization straddle (CORNERED, close #140). If frmbase/corr/OLDRN-init differ
+systematically → that is the real #140 bug (a DGSCOR realization/serial-correlation init difference), fixable.
+META: #140 was chased as "DG under-shoot" for many sessions; it is actually a MORTALITY effect driven by the DG
+*realization* (not the DG *model*, which is bit-exact). The QMD-projection d10 is the amplifier. Separate
+NOTRIPLE(stochastic) from TRIPLED(deterministic) before ruling cornered.
