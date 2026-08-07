@@ -1192,3 +1192,18 @@ cornered. Fixture .ttwork/ttaspr.*.
 150-stand TT real-FIA sweep (tt_sub.db vs FVStt_clean, 0 jl crashes). 56 treed: TPA mean|Δ%|=0.58% (only 4 stands
 >2%, 1 HIGH:3 LOW — no systematic bias), BA=13.02%/QMD=5.29% (the pre-existing DGSCOR/small-tree growth tail, NOT
 mortality). TT mortality confirmed bit-exact-or-cornered on real FIA — no fix needed (unlike BM). See docs/WESTERN_FIA_MORTALITY_SWEEP_2026-08-06.md.
+
+## 2026-08-07 — #148 Zeide-QMD mortality FIXED + validated (DR10 + regent DIAM floor); commit 62a714f
+The DR10 self-thin fix (Reineke DR10 not QMD, tt/morts.f LZEIDE) + latent bug #2 (regent DEFAULT-path DIAM floor,
+tt/regent.f:576/1056) landed. ttt01 now RUNS end-to-end (was crashing with DR10 through the negative-DBH→NaN-crown
+stack); tracks live within +1.6–3.9% TPA/+1.6% BA (bit-exact through 2020).
+★ VALIDATED on the DENSEST TT FIA stand 388912505489998 (3028 TPA, tt_sub.db) vs FVStt_clean, NUMCYCLE 10:
+  TPA BIT-EXACT 2015-2045 (2915/2850/2786/2724 = live exactly) then small mixed straddle (2055 −3.3%, 2095 +0.5%).
+  ⇒ the Zeide-QMD self-thin OVER-KILL is GONE — mortality now bit-exact-or-cornered. (Was the #147-class over-kill.)
+  RESIDUAL: BA runs +7→+16% high (QMD-implied jl trees slightly bigger) = a SEPARATE small-tree DG over-growth tail on
+  the dense cohort (NOT mortality; TPA matches). Likely the known TT small-tree DG residual / a #156(UT-woodland)-class
+  DG tail; or a DIAM-floored-tree DG-growth follow-up. Cornered-class candidate, distinct from the (fixed) mortality.
+★ REMAINING #148: (a) the BA/DG tail on dense stands (characterize cornered vs real); (b) latent bugs #3 (volume
+  array-OOB) + #4 (MSTEM/FCLASS woodland-volume, r4d2h.f:56-59) — NOT surfaced by ttt01/this conifer stand, they need
+  a woodland (PM/UJ/RM, FCLASS=1) volume stand. So the MORTALITY half of #148 (the UT-#147-class bug) is FIXED; the
+  woodland-volume latent bugs remain for a woodland stand. Doctrine #5: DR10 + DIAM-floor both source-verified faithful.
