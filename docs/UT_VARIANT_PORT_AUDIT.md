@@ -14,3 +14,9 @@ under-growth, not mortality. It is a more-severe manifestation of the known UT "
 woodland. Bounded lead, DISTINCT from #147 (mortality, resolved) — worth a dedicated woodland-DG measurement, low
 priority (woodland BA, not mortality; and PJ volume is the DVEW tail already noted). No jl change this session; the UT
 port is untouched, so this BA-DG tail is pre-existing.
+
+## SDI-gate tem 35000-cap bug — FIXED (2026-08-07, commit 7ce8f1f, cluster w/ EM 04b15e6)
+UT self-thin SDI-in-effect gate `tem` omitted the min(·,35000) cap (ut/morts.f). For UT dq10 IS the
+Zeide DR10, so `tem = t55d10` fixes both the missing cap and the correct Zeide d10 basis. On ultra-dense sub-1"
+cohorts the uncapped tem ≫ tt → wrong background fallthrough → self-thin under-kill. VALIDATED no-regression:
+utt01 TPA bit-exact vs live oracle (fix inert for QMD>~0.9").

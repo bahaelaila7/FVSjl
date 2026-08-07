@@ -852,3 +852,14 @@ jl's ie_autoes_tally does NOT apply (jl per-tree esprob≈prob1≈0.17). ⇒ #14
 META (measurement discipline): 2 hypotheses (XCSMAX, STOADJ) refuted by direct measurement this turn — same as the
 CI "four wrong root-causes" pattern. The honest root is the ESPROB distribution, values now measured (FTEMP 0.5,
 ESPROB 1e-4). CAUTION: my commit 3dd5ea2 "missing XCSMAX" is WRONG — superseded by this entry.
+
+## #137/#140 SDI-gate tem 35000-cap bug — FIXED (2026-08-07, commit 04b15e6)
+
+REAL bug, measured. jl's SDI-in-effect gate `tem = const·dq10^-1.605·pmsdil` omitted live's
+`IF(TEM.GT.35000)TEM=35000` cap (em/morts.f:650-653). On ultra-dense sub-1" cohorts (tiny dq10 → uncapped
+tmd10~193k) tem→~106k > tt → jl selected BACKGROUND mortality (ri) instead of the SDI self-thin (rn) →
+~10× under-kill. Measured via FVSem_g16 morts DEBUG + jl FVSJL_MORT_DEBUG on a synthetic 40000-TPA-AF stand:
+jl target correct (tn10=29750, rn=0.029) but killed 1.4% not 25.6%. FIX: `tem = t55d10` (the already-capped
+tmd10·pmsdil). VALIDATED: dense jl 40000→29750 == live; emt01 TPA bit-exact (fix provably inert for QMD>~0.9").
+Cluster: TT/UT identical (7ce8f1f); BM/SN/NE southern driver already caps (tem_v2, line 360). Residual: minor
+cyc1 timing (jl 1-cycle to 29750, live 2-cycle 34000→29750) — smaller growth-interaction 2nd-order.

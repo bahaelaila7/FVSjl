@@ -1324,3 +1324,9 @@ SMDGF-based small_tree_growth default DBH, INCLUDING the SITAGE *2.54*12 fix. Va
 + the DGMAX band-aids can then be removed. This also likely resolves the conifer 0.2-cap band-aids (same model).
 META: the FIA sweep's value here = it re-surfaced a KNOWN deferred divergence AND my g16 capability removed its
 blocker. The SITAGE fix is correct but must land WITH the single-step model (alone it regresses).
+
+## SDI-gate tem 35000-cap bug — FIXED (2026-08-07, commit 7ce8f1f, cluster w/ EM 04b15e6)
+TT self-thin SDI-in-effect gate `tem` omitted the min(·,35000) cap (tt/morts.f). For TT dq10 IS the
+Zeide DR10, so `tem = t55d10` fixes both the missing cap and the correct Zeide d10 basis. On ultra-dense sub-1"
+cohorts the uncapped tem ≫ tt → wrong background fallthrough → self-thin under-kill. VALIDATED no-regression:
+ttt01 TPA bit-exact vs live oracle (fix inert for QMD>~0.9").
