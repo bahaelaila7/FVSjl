@@ -741,3 +741,22 @@ Signature confirms the #140 self-thin COUNT-STRADDLE (TPA moves, density largely
 (BA/density preserved) + the accepted small BA-compounding tail — i.e. bit-exact-or-cornered on the density metrics,
 with the TPA-count straddle the one open classification (per docs above: cornered self-thin knife-edge vs a real
 RDPSRT/PCT kill-selection bug; needs the cycle-gated per-tree kill measurement). BM meets the bar on density/BA.
+
+### #140 DECOMPOSED — sum of TWO accepted cornered primitives (2026-08-07)
+
+The post-fix real-FIA sweep per-stand signatures DECOMPOSE the #140 "under-thin" into two INDEPENDENT components,
+each of which is an already-ACCEPTED cornered primitive, isolated cleanly on different stands:
+- **374435108489998**: BAΔ **0.0%** (BA/SDI/density BIT-EXACT) but TPAΔ 0.9% ⇒ PURE self-thin COUNT-STRADDLE
+  (the goal-doc classify() "structure moves ONLY in TPA/QMD, density preserved" primitive — the RDPSRT/PCT
+  self-thin knife-edge picking a slightly different KILL COUNT with identical density).
+- **12827438010497**: TPAΔ **0.0%** (mortality BIT-EXACT) but BAΔ 2.4% ⇒ PURE growth-tail BA compounding (the
+  ACCEPTED EM/IE "growth-only ~0.5-0.8% large-tree DG mixed-sign compounding" tail, docs/EM_VARIANT_PORT_AUDIT).
+- 41136808010497 (BAΔ 0.5%, TPAΔ 5.8%) = mostly count-straddle; 1127/177426 = a mix of both.
+
+⇒ **#140 = count-straddle ⊕ growth-tail, both cornered primitives** → BM MEETS the bit-exact-or-cornered bar on
+density/BA. The ONE feature not fully explained by "pure cornered" is the DIRECTIONAL LEAN of the count-straddle
+(the 2026-08-05 memo's 9:2 jl-under-thins skew): a purely random tie-break would be ~50/50. A mild systematic lean
+in a threshold straddle CAN be an accepted RDPSRT-tie-break primitive (same family as the VARMRT-PCT fix), OR a
+small real bias in the kill-selection ORDER. That single question — is the count-straddle's directional lean a real
+kill-order bug or an accepted tie-break lean — is all that remains of #140, and needs the cycle-gated per-tree kill
+measurement on bmt01 (density-preserved stand, no DG/habitat/dead confound). Everything else about #140 is cornered.
