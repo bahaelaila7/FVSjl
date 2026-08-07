@@ -790,3 +790,19 @@ differs. This is the known-hard ESTOCK core; the DECISIVE step is the live per-s
 NTALLY=99 booking) vs jl's r.tally for AF/ES/LP@ihab16 — needs the correct estab.f target (fresh-session task).
 META: 4 candidates eliminated by DB-query + jl-eval + source-compare (all safe, no Fortran instrumentation), each a
 clean negative — the diagnosis is now tightly bounded to the ESTOCK PN/OCURHT tables for the fallback habitat class.
+
+## 2026-08-07 (cont.7) — #143 ALL ESTOCK INPUTS verified == live; bug isolated to PN-equation/ITPP or tree-persistence
+Confirmed jl ELEV=87.0 (reads ELEVFT 8700×0.01; the missing-elev bug was already fixed, fia_database.jl:81-82 — this
+stand has ELEVFT present so elev is correct, NOT 0). Confirmed live esplt2.f:191/267 sets IPPREP=1 & IPHYS=3 for
+keyword-less DB stands (no PLOTINFO) = jl iprep=1/iphy=3. ⇒ the COMPLETE ESTOCK input set is byte-identical jl↔live:
+ihab=16, iphy=3, iprep=1, ELEV=87, BAAA=28.24, species AF/ES/LP, TIME=1 (ingrowth), same firing cycles, same ESRANN
+seeds (43303/61677, "ESAVE chain bit-exact"). YET jl books AF=253 TPA@2028 where live nets ~0 (.sum monotone).
+★ 6 CANDIDATES RULED OUT by SAFE checks (no live-Fortran instrumentation): gate/firing, species-set, BAAA, habitat-
+mapping(→16), elevation(=87), iphy/iprep(=3/1). ⇒ the divergence is NOT the inputs — it is the ESTOCK PN-EQUATION
+COMPUTATION (base coeffs / uphy·uhab·upre tables for the fallback class) OR the ITPP normalization / per-species
+draw, OR live-side tree-PERSISTENCE (live may book then immediately lose them). This is the tightest bound safe
+checks allow. DECISIVE NEXT (needs live instrumentation): dump live's per-species ESTOCK PN + PROB1 + ITPP + the
+booked tree count at the NTALLY=99 ingrowth tally (2028) vs jl's ie_estock PN / r.tally for AF/ES/LP — one clean
+per-species comparison at identical inputs will expose the exact diverging term (a coefficient, the ITPP formula, or
+that live's tally genuinely yields ~0 while jl's ITPP rounds up). META: 6 clean negatives via DB-query/jl-eval/
+source-compare — a model of eliminating candidates cheaply before the expensive live measurement.
