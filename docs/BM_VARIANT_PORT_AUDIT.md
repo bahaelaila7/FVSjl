@@ -551,3 +551,21 @@ NEXT: per-tree/per-species DG jl vs live at cyc3 (2048, pre-self-thin, single-pl
 to localize — is it a large-tree DDS coefficient/dispatch, or COR-evolution? Oracle FVSbm_g16 ready (instrument
 bm/dgf.f or the DDS path). CAUTION: distinguish a real coefficient bug from the settled DGSCOR realization —
 the SYSTEMATIC one-sided BA sign here argues for a real bug, but confirm per-species before fixing.
+
+### #140 ROOT CONFIRMED via differential — BAL/PCT competition term (2026-08-07)
+
+Clean differential experiment (no instrumentation): removed the overstory from reproducer 645155287126144
+(deleted DBH≥1 records, leaving only the 233-TPA 0.1" DF seedling cohort, BAL≈0) and re-ran jl vs live:
+- WITH overstory: cyc3 (2048) BA jl 41 vs live 43 (−4.7%), cyc4 −11%, self-thin under-kills.
+- SEEDLING-ONLY (BAL≈0): cyc3 BA jl 50 vs live 50 **BIT-EXACT**, cyc4 94 vs 95 (−1%), self-thin matches (198 vs 197).
+
+⇒ Removing the overstory ELIMINATES the divergence ⇒ **#140 root = the overstory-BAL suppression term in the BM
+large-tree DG**. jl under-grows understory trees sitting under a high-BAL overstory. Localized to
+diameter_growth.jl:85,92-95: `pct = t.crown_ratio[i]` (BA percentile) → `bal = (1−pct/100)·ba` →
+`BM_DGDBAL[sp]·bal/log(d+1)`. jl under-grows ⇒ bal too HIGH ⇒ pct too LOW for the understory. The BAL FORMULA
+matches live (bm/dgf.f comment "BAL=(1−PCT/100)·BA"), so the suspect is the PCT (BA percentile) value — the
+RDPSRT/stand_pct! ranking for understory-under-overstory (cf. the VARMRT-PCT RDPSRT tie-break fix). Appears at
+cyc3 as the understory blends into ddsl (large-tree, xwt line 109-112). bmt01 has no two-story structure ⇒ uncaught.
+
+NEXT: dump PCT + bal for the understory DF trees, jl vs live (bm/dgf.f DEBUG), at cyc2→3. Confirm PCT divergence
+vs a coefficient/blend issue before fixing. DF (sp 202) is in the MSS-spline branch (line 90).
