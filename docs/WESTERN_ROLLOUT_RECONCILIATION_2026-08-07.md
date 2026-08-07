@@ -38,3 +38,18 @@ Bonus cluster fix this arc's lineage: `04b15e6`/`7ce8f1f` — the self-thin SDI-
 reconciles the stale goal-doc against the measured state to inform that decision. Per-variant `docs/{V}_VARIANT_PORT_COMPLETE`
 flags exist only for CR; the other western variants are bit-exact-or-cornered per the goal-doc's own variant-status
 section but their done-flags are likewise left for the user.
+
+## Climate-FVS — scope + port plan (2026-08-07 assessment)
+The one genuinely-open extension. **Scope:** 8 Fortran files per variant buildDir — `clinit.f` (init), `clin.f`
+(keyword/ready-file read), `clgmult.f` (growth multipliers), `clmaxden.f` (max-density adj), `clmorts.f` (climate
+mortality), `clputget.f` (state serialization), `clauestb.f` (climate auto-estab), `clkcoef_mod.f` (coefficient
+module). **Activation gate:** `clin.f:91 LCLIMATE = NATTRS>0 .AND. NYEARS>0` — climate is active ONLY when a
+**ClimateData ready-file** supplies NATTRS climate attributes × NYEARS. **Therefore it is INERT in every default/
+current validation run** (LCLIMATE=false) ⇒ its non-port does NOT affect the cluster's bit-exact-or-cornered status;
+all tracked validation is climate-off and unaffected. **Blocker:** validation needs a ClimateData ready-file (a
+climate scenario) — none is present in the workspace, and per doctrine #7 (a test must exercise the semantic) an
+unexercised port is vacuous. **Port plan (fresh context):** (1) obtain or synthesize a minimal ClimateData ready-file
+(NATTRS attrs × a few NYEARS) to flip LCLIMATE on; (2) port clinit/clin/clputget (init + read) first, validate the
+LCLIMATE gate + attribute load vs a live climate run; (3) port clgmult/clmaxden/clmorts (the growth/density/mortality
+multipliers) chunk-by-chunk, bit-exact vs live with the ready-file active; (4) clauestb (climate auto-estab) last.
+Until a scenario exists this is correctly deferred — it is the sole item between the tracked cluster and full rollout.
