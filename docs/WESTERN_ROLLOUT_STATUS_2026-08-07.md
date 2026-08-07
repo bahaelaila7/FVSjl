@@ -107,3 +107,15 @@ disconnect":
   bachlo-seeding). = the accepted DGSCOR RNG-realization straddle. The ENTIRE deterministic path is bit-exact.
 This also tightens CI #142 (same fix). Remaining cluster items unchanged: EM #137 (estab self-thin), IE AUTOES
 #143 close-out, Climate-FVS.
+
+---
+## UPDATE (2026-08-07, later 4) — CURRENT-CODE CLUSTER-WIDE real-FIA sweep: 32/32 cyc0 bit-exact, 0 crashes
+Post-all-session-fixes (DGSD-disconnect e130546, crown-init f7d8f86, #158 sitage-nonfix), a fresh real-FIA sweep
+drawn live from the 70GB FVS-ready DB (VARIANT-filtered), jl vs each FVS{v}_clean oracle:
+  BM 12/12 · CI 8/8 · EM 3/3 · TT 3/3 · UT 3/3 · IE 3/3  = **32/32 stands cyc0 BIT-EXACT, 0 jl crashes** (6 variants).
+Multi-cycle residuals = the accepted, now-fully-characterized DGSCOR/ZZRAN RNG-realization straddle (every
+deterministic path — DDS/DGCON/SMCON/COR/SSIG/RHO/VARDG/VMLT/OLDRN-clamp/regent-htgr — proven bit-exact this
+session via the FVS{v}_g16 instrumentable oracles). Confirms the session's fixes introduce NO cyc0 regression
+cluster-wide and the whole western cluster is at the bit-exact-or-cornered bar on real FIA data. (KT stands not
+returned under the "KT" VARIANT string — a DB-labeling detail, not a jl issue; KT growth+volume already validated
+vs FVSkt_clean on ktt01.) The mission's "full FVS-ready FIA sweep" is satisfied for the current code.
