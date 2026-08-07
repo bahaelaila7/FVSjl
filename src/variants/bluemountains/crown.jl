@@ -202,7 +202,17 @@ function bm_crown_init_lstart!(s::StandState)
     nlive = t.n
     if t.ndead > 0
         t.n = nlive + t.ndead
+        # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT
+        # IMC(I)==9 (HISTORY 8,9, older-dead) which LOAD DBH=0. Only HISTORY 6,7 (dead ≤5yr, IMC=7) keep their
+        # DBH. So HISTORY 8,9 contribute 0 to the DBH-based density (BA/CCF/SDI) while their height still counts
+        # toward AVH (stand_top_height, which live does NOT zero). Replicate by zeroing the 8/9 DBH for this pass.
+        saved = Tuple{Int,Float32}[]
+        @inbounds for i in (nlive + 1):(nlive + t.ndead)
+            (t.history[i] == 8 || t.history[i] == 9) || continue
+            push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
+        end
         compute_density!(s)                # dead-inclusive BA / AVH / point-CCF (CRATET DENSE over all inv records)
+        @inbounds for (i, d) in saved; t.dbh[i] = d; end
         t.n = nlive
     end
     crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory
