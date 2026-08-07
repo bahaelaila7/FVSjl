@@ -662,3 +662,25 @@ real DG bias. The current 12-stand bm_sub.db set has NO clean over-thin stand (2
 3 HISTORY=8 dead trees ⇒ confounded); need to draw more clean self-thinning BM stands from the 70GB DB
 (extract_sample.jl). Do NOT declare a fix until this sign-correlation is measured — the DG-calibration zone has
 already produced 4 wrong root-causes on CI.
+
+### #140 RESOLVED — REAL deterministic bug: jl BM DF (sp=3) small-tree DDSS / SMCON (2026-08-07)
+
+DECISIVE test (deterministic DDS, COR=0 both sides, NOTRIPLE, clean stand 41136808010497). Per-tree DDS
+jl (dgf!) vs live (bm/dgf.f WK2):
+- DF (sp=3) d>19": jl==live BIT-EXACT (i=4 d=20.2: 3.42935; i=8 d=19.2: 3.62395; i=14 d=27.6: 4.02426).
+- DF (sp=3) d=6.8-9.8" (MSS-spline blend, d<10): jl LOW — i=3 d=7.6: 1.90612 vs 2.02337 (−0.117); i=11 d=6.8:
+  2.33762 vs 2.49565 (−0.158); i=9 d=8.4: 2.39297 vs 2.47141; i=13 d=9.8: 2.85824 vs 2.86806 (−0.010).
+- ALL sp=10 (PP) BIT-EXACT (i=5,6,7,10,12).
+
+⇒ Deterministic (COR=0, no stochastic) ⇒ **NOT the cornered DGSCOR realization** — a REAL bug. The DDS error
+SCALES WITH xwt (the DDSS blend weight): ~0 at d=9.8 (xwt≈0.03, pure DDSL) → −0.16 at d=6.8 (xwt≈0.46) ⇒ the
+error is in the **DDSS (small-tree, d<10) component for DF (sp=3)**, roughly constant in DDSS ⇒ the SMCON
+(habitat constant) or an SM* coefficient at DF's small-tree index. SMMAPS(3)=2 ⇒ DF uses SM index 2. sp=10
+(PP, SM index 5) is bit-exact ⇒ the bug is SPECIFIC to jl's BM_SM* index-2 (DF) — most likely SMCON via the
+SMMAPH(ICL5,2)/SMHAB(indxh,2) 2D habitat lookup (bm_dgcons! line 43-48), or a BM_SM index-2 coefficient.
+
+⇒ **#140 = a REAL, fixable BM DF small-tree DG under-shoot** (settles the bug-vs-cornered caveat: it is a BUG).
+This explains the 9:2 skew (DF-heavy self-thinning stands under-thin; the confounded/over-thin outliers differ).
+bmt01 didn't catch it (its DF may not sit in the d<10 blend, or its ICL5/habitat picks a matching SMHAB cell).
+NEXT: diff jl c.sm_const[3] + BM_SMHAB[:,2]/BM_SMMAPH[:,2]/BM_SM* index-2 vs live DATA (dgf.f:130-201, DF row
+SMHAB = 0,-0.336855,-1.004248,-0.195972,-0.092403; SMMAPS(3)=2). Fix the mismatched value → validate DDS bit-exact.
