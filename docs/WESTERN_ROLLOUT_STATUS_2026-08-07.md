@@ -147,3 +147,16 @@ find which species/term over-grows; likely a large-tree DG coefficient/site/CCF 
 mix (NOT GF). META (doctrine, hard): cyc0 bit-exactness is NECESSARY BUT NOT SUFFICIENT — a small per-cycle DG
 error is invisible at cyc0 and compounds to catastrophic multi-cycle divergence; ALL "bit-exact-or-cornered"
 claims must be MULTI-CYCLE on real FIA data, not cyc0. My prior "32/32 mission satisfied" was premature.
+
+### CORRECTION (later 6b) — the multi-cycle root is MORTALITY under-kill on MATURE stands, NOT DG over-growth
+The .sum ACCRE (growth) / MORT (mortality) columns are decisive and OVERTURN the "DG over-growth" read: on CI
+753180709290487, GROWTH is similar (ACCRE live 13/15/15/16/16/14 vs jl 14/16/18/19/19/19) but MORTALITY is ~9×
+UNDER in jl (MORT live 27/23/21/19/18/17 vs jl 3/4/4/7/8/8). Live kills the large MATURE trees (BA 52→37 declines,
+QMD held ~8-10) while jl fails to (big trees survive AND grow ⇒ BA 52→74, QMD 8.4→>10). The QMD gap I decomposed
+earlier is a CONSEQUENCE of the mortality gap, not a DG cause. These stands are AGE 233 (very old) ⇒ this is the
+MATURE-STAND / LARGE-TREE mortality (MORTMSB mature-stand-breakup or the large-DBH background/BAMAX path) UNDER-
+firing in jl on old real-FIA stands. Memory says "MORTMSB/MSBMRT ported+bit-exact" — but validated on younger
+synthetic stands; it evidently does NOT fire (or fires ~9× weak) on these age-200+ real-FIA stands. NEXT (revised):
+instrument jl mortality! vs FVS{v}_g16 morts.f/mortmsb on 753180709290487 at 2019→2029 — dump the MSB trigger
+(QMDMSB/SLPMSB/CEPMSB), MSB kill, and the large-tree background RI, find why jl's large-tree/mature kill is ~9×
+low. Highest-priority. (Build FVSci_g16 or reuse the EM DF stand 474180830489998 with FVSem_g16.)
