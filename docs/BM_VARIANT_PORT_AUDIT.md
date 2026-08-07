@@ -494,3 +494,17 @@ tn10 → under-kill. Consistent-sign (not the mixed-sign cornered RDPSRT tail), 
 3-6" transition (cf #149). NEXT = instrument jl vs live bm dgf.f+regent DG at 2038→2048 on the NOTRIPLE stand. This
 is a GROWTH fix, not mortality. META: the goal-charter's "dq10 formula runs low" hypothesis is REFUTED — the formula
 is bit-exact; the low d10 is downstream of the growth under-shoot. Doctrine #2 measurement redirected the fix target.
+
+## 2026-08-07 (cont.) — ★ #140 verdict CORRECTED back to REAL under-thin bias (12-stand sweep, 9:2 skew)
+12-stand bm200_sub.db sweep (final-cycle TPA jl vs FVSbm_clean): JL-HIGH under-thin on 9 stands (+6.2/+6.5/+8.5/
++11.0/+12.0/+12.2/+13.5/+22.4/+33.5%), JL-LOW over-thin on 2 (-5.0/-13.1%), match 1 (-1.6%). ⇒ 9:2 skew =
+a REAL, consistent UNDER-THIN BIAS on dense self-thinning BM stands, up to +33%. CONFIRMS the goal-charter's
+"~10:1 skew" claim. ★ CORRECTS my own 2026-08-07 earlier re-characterization ("modest transition-timing, BA/QMD
+converge, leans cornered, de-conflated") — that OVER-GENERALIZED from a 6-stand check + one converging stand.
+The 12-stand sample settles it: NOT cornered, a real bias. ROOT (consistent with the earlier BM mortality
+instrumentation): the mortality FORMULA is correct (G-extrap/threshold/tn10 verified == live), so the under-thin
+comes from jl's small-tree DIAMETER-GROWTH under-shoot (QMD runs low → higher T85D10/tn10 self-thin target →
+under-kill), amplified by the Stage self-thin QMD-feedback. So #140 = a real small-tree-DG-driven self-thin
+under-thin, priority-class. FIX = the BM small-tree DG (QMD 3-6" regime, cf the DF transition finding); validate
+via the 9 JL-HIGH stands here. META (repeat lesson): a verdict needs an ADEQUATE multi-stand sample — 6 stands
+mis-called it cornered; 12 shows the 9:2 bias. Same lesson as the TT single-stand over-generalization this session.
