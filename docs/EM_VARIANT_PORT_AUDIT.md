@@ -750,3 +750,13 @@ jl's establishing species — jl establishes species live's habitat forbids. NEX
 species r.tally[sp] + the ihab_code for this stand; check which species jl establishes vs the EM habitat's allowed
 set (OCURHT/ie_estab_indices). Then confirm vs live (correct estab.f ingrowth-tally-count target). The BAAA-input
 root (#143 title) is real on OTHER stands but NOT the driver here — the driver is the ESTOCK-PN/habitat-species set.
+
+## 2026-08-07 (cont.4) — #143 jl per-species: over-production is SUBALPINE AF/ES/LP at ihab=870
+jl AUTOES per-species tally @2028 (31446929010690, ihab=870 fcode=102): sp7=LP 15.6, sp8=ES 54.6, sp9=AF 253.4
+(total 323.5). ⇒ the over-production is dominated by AF (subalpine fir, 253) + ES + LP — the SUBALPINE estb species.
+So the fix question narrows to: at EM habitat 870, does live's ESTOCK establish AF/ES/LP at all (and if so how much)?
+Two candidate roots: (a) SPECIES-SET — live's habitat-870 OCURHT zeros/limits AF/ES/LP but jl establishes them; or
+(b) AMOUNT — species set matches but jl's ESTOCK PN over-tallies AF (~17%/species stocking → 253 TPA). DECISIVE
+NEXT = live per-species ingrowth tally at 2028 on this stand (correct estab.f ingrowth-count target, e.g. where the
+NTALLY=99 path books trees per species — trace from esnutr GOTO 200 → the ESTAB tally loop). If live AF≈0 → species-
+gating bug (cleaner fix); if live AF>0 but «253 → ESTOCK-PN amount. BAAA confirmed ~correct on this stand (28.24).
