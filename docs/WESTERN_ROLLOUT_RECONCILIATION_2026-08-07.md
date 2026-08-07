@@ -57,4 +57,14 @@ that EXERCISES the code (values need not be climatically realistic, only that jl
 (NATTRS attrs × a few NYEARS) to flip LCLIMATE on; (2) port clinit/clin/clputget (init + read) first, validate the
 LCLIMATE gate + attribute load vs a live climate run; (3) port clgmult/clmaxden/clmorts (the growth/density/mortality
 multipliers) chunk-by-chunk, bit-exact vs live with the ready-file active; (4) clauestb (climate auto-estab) last.
-Until a scenario exists this is correctly deferred — it is the sole item between the tracked cluster and full rollout.
+★★ 2026-08-07 SCENARIO FOUND + ORACLE VALIDATED — Climate-FVS is now FULLY UNBLOCKED (the goal-doc's "inert
+w/o ready-file / blocked" is WRONG; the ready-file EXISTS in the FVS test suite). tests/FVSie/climate.key
+(+ FVSClimAttrsClearwater.csv + FSVegClearwater.db, CGCM3_A2 scenario, stand 01050620020002) runs on FVSie_clean
+with "CLIMATE EXTENSION ACTIVE" (81 attributes × 4 years; correctly rejects the intentional too-many-years 2510-2540
+test) → climate.sum oracle (bare→500→1013 TPA trajectory) + GROWMULT/MORTMULT/CLIMREPT report output. Staged durably
+at /workspace/.iework/climate/ (key+csv+db+sum). Instrumentable via FVSie_g16 (durable). ⇒ the Climate-FVS port now
+has a complete validation vehicle. NOTE: this test uses the GROWMULT keyword (fixed 0.5 mult) — exercises the keyword-
+multiplier path; the attribute-driven clgmult viability path needs a variant scenario WITHOUT fixed GROWMULT (derive
+from the same attrs). REMAINING = the actual jl port (8 files) chunk-by-chunk vs this oracle — a focused fresh-context
+pass, NOT started here (would be incomplete). It is the sole item between the tracked cluster and full rollout, now
+with everything staged to execute it.
