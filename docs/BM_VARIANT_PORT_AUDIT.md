@@ -705,3 +705,24 @@ ICL5; if it's 0 (or ≠1), the fix is jl's missing-habitat default in bm_dgcons!
 SMMAPH(0,·) lookup — likely a real KODTYP default from ecoregion/forest, not literal 0). Then validate DF DDS
 bit-exact + the #140 sweep. This is a REAL bug (deterministic, coefficients-verified, habitat-localized) — NOT
 cornered. The 9:2 skew = habitat-less DF-heavy FIA stands get the wrong SMCON.
+
+### #140 UPDATE — DF SMCON habitat bug FIXED (66db612) but is NOT the self-thin driver (2026-08-07)
+
+The deterministic-DDS root (DF small-tree SMCON via the missing-habitat default, jl icl5=1 vs live 79) is REAL and
+now FIXED: FIA reader + bm_dgcons! default a missing/unresolved BM habitat to KODTYP 79 (CWG113, bm/habtyp.f:67-69;
+measured live ICL5=79). SMCON(DF) now = live (-0.09338). VALIDATED faithful, no-regress.
+
+HOWEVER — this fix is **.sum-INERT on the #140 sweep** (like the PSIGSQ/bark faithfulness fixes): the 12-stand
+final-TPA sweep is BYTE-IDENTICAL pre/post (41136 +5.8%, 1127 +3.7%, 22960 -1.4%, 3 exact). The corrected
+small-DF-tree DG (d<10, a small fraction of these large-tree stands) does not shift the self-thin COUNT. And bmt01
+(valid habitat ⇒ fix inert) STILL under-thins (jl 483 vs live 478). ⇒ **the DF SMCON bug is NOT the driver of the
+#140 self-thin skew.** #140's self-thin under-thin is a SEPARATE phenomenon: a self-thin COUNT-STRADDLE with
+density (BA/SDI/CCF/QMD-ish) PRESERVED and only TPA moving (per the goal-doc classify() "self-thin count-straddle").
+
+⇒ REVISED #140 status: the DF-DG bug that surfaced during the hunt is fixed (real, faithful); the headline self-thin
+skew remains OPEN and now looks like the cornered self-thin knife-edge (BA/density preserved) rather than a DG bug —
+consistent with the ORIGINAL "cornered tie-break" read that the 2026-08-05 9:2-skew memo had flipped. The systematic
+DIRECTION (jl under-thins) is the one fact arguing against pure-cornered. NEXT: instrument the per-tree self-thin KILL
+(VARMRT efftr/PCT ordering) jl vs live on bmt01 (valid habitat, no DG confound) at the first divergent cycle — the
+straddle is in WHICH trees die (the RDPSRT/PCT kill-selection), not the DG. Likely the same RDPSRT tie-break family
+as the VARMRT-PCT fix, now in the kill-count. This is a DENSITY/mortality knife-edge, measure it directly on bmt01.
