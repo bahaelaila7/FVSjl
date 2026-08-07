@@ -102,7 +102,11 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     end
     tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
     rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-    tem = const_ * dq10^(-1.605f0) * pmsdil     # SDI threshold (morts.f 641)
+    # SDI-in-effect gate (morts.f:650-653): TEM = min(CONST·D10^−1.605, 35000)·PMSDIL. jl previously omitted the
+    # 35000 cap here, so on ultra-dense sub-1" cohorts (tiny dq10 → uncapped TMD10 ≫ 35000) TEM ballooned to
+    # ~106k > tt ⇒ jl wrongly fell to BACKGROUND mortality instead of the SDI self-thin ⇒ severe under-kill
+    # (#137/#140 class: dense-cohort self-thin). tem == t55d10 (the already-capped TMD10·PMSDIL). #140.
+    tem = t55d10
     # Added-species (Hamilton) stand values (em/morts.f:366-391 + MORCON): RZ from the BAMAX-limited BA10,
     # GMULT/REIN from IPDG/IPDG2[ITYPE,IFOR]. Only used by the added-species branch below.
     itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
