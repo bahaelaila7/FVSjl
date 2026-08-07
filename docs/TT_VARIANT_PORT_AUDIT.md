@@ -1241,3 +1241,22 @@ pure_PM_g 49/21 QMD 8.9 = live; pure_RM_g 49/23 QMD 9.3 = live; pure_OH_g 57/177
 QMD 8.0 vs 8.1 (0.1 rounding). ttt01 unchanged (536/77→404/249, no woodland ⇒ no regression). This closes the TT
 memory's known "non-ttt01 DVEW species" remainder. META: the fix was invisible from source reasoning alone (pothtg
 negative ⇒ "should be 0") — the live probe's HK=H+0.1 exactly is what exposed the Dixon floor.
+
+## 2026-08-07 — ★ TT FIA sweep: #148 DR10 (correct) EXPOSES a jl diameter-growth under-shoot on dense conifer
+Ran a 4-stand tt_sub.db sweep (jl vs FVStt_clean, final cycle) to validate #148/#157. Result MIXED — surfaced a
+real issue #148's 2-stand validation (ttt01 + dense-388) missed:
+  388912505489998 (3028 TPA dense sub-1"): TPA +0.5% ✓ (the #148 win) — BA +16% DG tail (documented).
+  3159202010690 (873): TPA +22% under-thin.   2783239010690 (2664): TPA +46% under-thin.   11790600010690: -9%.
+DIAGNOSIS (doctrine #2+#4): TT IS Zeide (grinit.f:150 LZEIDE=.TRUE.; morts.f:267 D10=DR10) ⇒ #148 DR10 is CORRECT
+(live uses DR10). The G formula also matches (jl g=diam_growth/bark = live morts.f:228 (DG/BARK)·(FINT/10) at FINT=10).
+So the under-thin is NOT the mortality — it is jl's underlying DIAMETER GROWTH running ~2-3% low on these dense
+conifer (WB/LP/ES) stands (jl QMD 0.1-0.3 low per cycle from 2009, BEFORE self-thin), AMPLIFIED by the Zeide
+self-thin (D^-1.605 is steep) into +22-46% TPA. TOGGLE TEST (temp QMD vs DR10 on stand 3): QMD gives TPA 904 ≈ live
+924 but that is COINCIDENTAL — jl's low-growth QMD (7.2 vs live 7.5) ≈ live's correct-growth DR10; DR10 gives 1350
+because it faithfully propagates the low growth. So the old QMD "bug" was masking the low growth by over-stating D10.
+⇒ #148 STAYS (faithful, correct model; doctrine #4 = don't revert a faithful fix that exposes an upstream bug). The
+REAL target = the jl diameter-growth under-shoot on dense conifer = the SAME root as BM #140 (cluster-wide, not TT-only).
+META (validation-breadth lesson): ttt01 + one dense-sub-1" stand was insufficient — the mid-density conifer regime
+where DR10≠QMD AND growth is non-trivial is where the growth bug shows. FIA sweeps across density regimes are the
+right gate. NEXT: the cluster-wide dense-conifer DG under-shoot (BM #140 + TT stands 2/3) — instrument jl vs live DG
+per-tree at the first divergent cycle on a NOTRIPLE stand.

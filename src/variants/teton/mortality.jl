@@ -145,7 +145,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr; dsum += d * pr
     end
     tt < 1f-6 && return s
-    dq10 = fpow(sumdr10 / tt, 1f0 / 1.605f0)   # Reineke DR10 (Zeide self-thin diameter)
+    dq10 = fpow(sumdr10 / tt, 1f0 / 1.605f0)   # Reineke DR10 (Zeide self-thin diameter; tt/morts.f:267 D10=DR10)
     dq0  = fpow(sumdr0 / tt, 1f0 / 1.605f0)     # DR0 = pre-growth Reineke diameter
     aved = dsum / tt
     # DIA0<0.3 reset (morts.f 374-376)
