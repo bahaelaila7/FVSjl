@@ -133,17 +133,20 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     n = t.n; n == 0 && return s
     ba = p.basal_area
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    # grown-stand sums (morts.f): T (total tpa), DQ10 (QMD of DBH+DG), AVED (BA-weighted mean DBH)
-    tt = 0f0; sd2sq = 0f0; sd0sq = 0f0; dsum = 0f0
+    # grown-stand sums (morts.f): T (total tpa), DQ10/DQ0, AVED (BA-weighted mean DBH).
+    # ★ #148 (Zeide-QMD fix): TT is a Zeide-SDI variant (tt/grinit.f LZEIDE), so the self-thin diameter is
+    # Reineke's DR10=(Σ p·(D+G)^1.605 / T)^(1/1.605), NOT the quadratic mean (tt/morts.f LZEIDE path) — same as UT
+    # #147 (6e57347). QMD over-states D10 on dense sub-1" cohorts ⇒ TMD10 uncapped ⇒ TN10 low ⇒ RN self-thin OVER-KILL.
+    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; dsum = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = tt_bratio(sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); sd0sq += pr * d * d; tt += pr; dsum += d * pr
+        sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr; dsum += d * pr
     end
     tt < 1f-6 && return s
-    dq10 = sqrt(sd2sq / tt)          # DQ10 = QMD of DBH+DG (post-growth)
-    dq0  = sqrt(sd0sq / tt)          # DQ0  = QMD of DBH (pre-growth) = DIA0
+    dq10 = fpow(sumdr10 / tt, 1f0 / 1.605f0)   # Reineke DR10 (Zeide self-thin diameter)
+    dq0  = fpow(sumdr0 / tt, 1f0 / 1.605f0)     # DR0 = pre-growth Reineke diameter
     aved = dsum / tt
     # DIA0<0.3 reset (morts.f 374-376)
     if dq0 < 0.3f0; dq10 = 0.3f0 + dq10 - dq0; dq0 = 0.3f0; end

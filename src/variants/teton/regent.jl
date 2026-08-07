@@ -209,6 +209,10 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])           # DGMAX cap
         end
         t.diam_growth[i] = dgk * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        # #148 latent bug (2): DIAM floor on the DEFAULT path (regent.f:576 D2=max(smdgf,DIAM) + :1056), missing here.
+        # Without it a tiny tree whose grown smdgf-DBH floors to DIAM while its original DKK exceeds DIAM gets a
+        # NEGATIVE dgk → NEGATIVE DBH → NaN in crown. The H-D branch already floors (line 83). Floor (d+DG)≥DIAM.
+        (d + t.diam_growth[i]) < TT_RG_DIAM[sp] && (t.diam_growth[i] = TT_RG_DIAM[sp] - d)
         # Update the TRIPLING stash so the upper/lower sub-records get the REGENT DG/HTG, not the stale
         # large-tree dgf DG (triple_records! sets diam_growth[u]=dgU, [l]=dgL). Without this, 40% of a tripled
         # small tree grows via the large-tree DG — the DF-stand 2× over-growth (SN/UTVAR both do this; default
