@@ -975,3 +975,27 @@ find): dump jl dg_const[sp]/sm_const[sp] per species for 248804992489998 vs live
 or SMCON is off and by what input (site index / habitat SMMAPH / another forest-ish term). bmt01-614-bit-exact +
 248-614-off ⇒ the differentiator is this stand's site index or habitat code. STATE: forkod FIXED; this second DG
 under-shoot is REAL and OPEN, localized to per-species DGCON/SMCON on non-bmt01-614 stands.
+
+### #140 non-619 residual — DGCON + SMCON proven BIT-EXACT; residual is per-tree DDS inputs (2026-08-07)
+
+Confound-free per-STAND constant comparison on 248804992489998 (614, sp4=GF-dominated small trees, DG under-shoot).
+Method: FVSbm_clean + `DEBUG` keyword (existing 9050/9060 WRITEs; no source edit) vs jl bm_dgcons! dump.
+RESULT — every species' DGCON and SMCON MATCH to 4 decimals:
+  DGCON: sp1 -0.0791=-0.0791 · sp2 1.6496=1.6496 · sp3 1.9394=1.9394 · sp4 1.2201=1.2201 · sp5 0.2102 · sp7
+    1.7126 · sp8 -0.6075 · sp9 1.6167 · sp10/17 2.3517  (all jl==live)
+  SMCON: sp3 0.0806=0.0806 · sp4 -0.4953=-0.4953 · sp7 0.8156=0.8156  (all jl==live)
+  ICL5=84 (both), IFOR=3 (both), TEMEL=37 (both — elevation consistent; jl's missing-elev default is inert here).
+⇒ The large-tree AND small-tree CONSTANT loading is bit-exact. The #140 non-619 DG under-shoot is NOT in the
+  coefficient tables or DGCON/SMCON assembly — it is in the PER-TREE DDS: either a per-tree INPUT (BAL, PCCF,
+  RELDEN, CR, D) or the DDSS 5→10yr adjust / XWT blend, evaluated at growth time.
+
+CONFOUND HIT (documented, not yet defeated): the live `DEBUG`-keyword per-tree dumps (9010/9020/9025/9030) all
+come from "CALL DGDRIV FROM CRATET" (crown-ratio estimation's internal growth probe on DUBBED trees — the ht=71
+tree is dumped with D=9.5, not its real 13.2"), NOT the growth-projection DGDRIV. So the live per-tree D/DDS is
+NOT the stand tree and cannot be matched 1:1 to jl. Also the DEBUG path segfaults after cycle-1 volume (a
+debug-only crash; production FVSbm_clean runs 10 cycles clean — NOT a crash-doctrine target).
+NEXT (proper isolation, fresh session): instrument the GROWTH-specific DGDRIV call site (GRADD/GRINCR path) in a
+single-.o FVSbm_g16 rebuild, TAGGING it distinct from CRATET's, dump per-tree (I, ISPC, D, CR, BAL, PCCF, RELDEN,
+DDSS, DDSL, XWT, DDS) for the growth pass only, match to jl by (ISPC, D) on the 14 NOTRIPLE trees, and find which
+INPUT diverges. Given constants are bit-exact + BA-low-EARLY (small trees) → prime suspect is the DDSS small-tree
+term's per-tree input (BAL via PCT percentile, or PCCF point-CCF) for the sub-10" GF cohort.
