@@ -59,3 +59,31 @@ needs a cycle-gated per-tree measurement on a clean mid-size reproducer (4113426
 bugs fixed this session (habitat 66db612, tem-cap 04b15e6/7ce8f1f) remain valid but are .sum-inert on this bias.
 The rest of the cluster status above is unaffected. LESSON: a systematic-vs-straddle sign-tally MUST use an
 UNBIASED sample — selecting stands on divergence magnitude inverts the apparent sign distribution.
+
+---
+## UPDATE (2026-08-07, later 2) — #140 localized + CLUSTER REGRESSION GATE (no regression)
+
+#140 PROGRESS (confound-free, on 614 stands 248804992489998 + bmt01 case-1):
+- Non-619 residual CONFIRMED a REAL DG under-shoot (BA-low-EARLY on 614 stand, converges by maturity), NOT a
+  density-preserved straddle. [aggregate BA-vs-TPA, no per-tree confound]
+- DGCON **and** SMCON proven BIT-EXACT for every species (per-stand dump via FVSbm_clean `DEBUG` keyword vs jl
+  bm_dgcons!) ⇒ the constant/coefficient loading is correct; the residual is a per-tree DDS INPUT (BAL/PCCF/
+  RELDEN/CR) or the DDSS/XWT assembly at growth time.
+- **bmt01 case-1 is a clean DB-free reproducer**: cyc0 START bit-exact, cycle-1 ACCRETION live 84 / jl 79 (−6%).
+  My BM fixes (forkod=619-only, habitat-default) are INERT on 614 ⇒ pre-existing. NEXT = instrument the
+  GROWTH-specific DGDRIV (distinct from CRATET's dubbed-tree DGDRIV, which confounds the DEBUG-keyword dumps).
+
+CLUSTER REFERENCE REGRESSION GATE (fresh FVS{v}_clean vs jl run_keyfile, {v}t01 case-1 plain growth):
+- **CR: FULLY bit-exact** all 11 cycles (TPA+BA). **TT: cyc0 core bit-exact.**
+- cyc0 core (TPA/BA/QMD/TopHt/merch-cuft/board-ft) BIT-EXACT for ALL of em/ut/tt/ci/cr; the ONLY cyc0 diff is
+  col-9 TOTAL-stem cuft (em −1.1% / ut −1.0% / ci −0.06%) = the KNOWN documented total-cuft residual.
+- Multi-cycle BA tail is DIRECTIONALLY variant-specific and matches each variant's documented cornered tail:
+  em BA +4.8% by 2090 · ut BA −5.4% · ci over-thins (#142) · tt under-thins-then-converges. The tem-cap fix
+  (04b15e6/7ce8f1f) is INERT here (the 35000 cap only bites sub-1" dense cohorts; these start QMD 5.1).
+  ⇒ NO REGRESSION from this session's commits.
+HONEST CLUSTER CHARACTERIZATION: the western Wykoff-DDS variants (em/ut/tt/ci/bm) share a small DIRECTIONAL
+multi-cycle DG-tail (±5% BA by 2090), variant-specific in sign — at the cornered/real boundary. #140 (BM) is the
+one under active per-tree investigation; the growth-DGDRIV instrumentation on bmt01 is the shared tool to settle
+whether this class is a real per-tree-input bug or the accepted DGSCOR/RDPSRT-tie-break straddle. CR (bit-exact)
+is the existence proof that the shared engine CAN be exact — so the tails are variant-DATA/input specific, not
+an engine-wide flaw.
