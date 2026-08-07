@@ -823,3 +823,18 @@ DUPNPT — find the missing structural factor. This is the FIX target, now concr
 for this habitat). Note iet01 stand-4 was "bit-exact" so jl's tally is right for SOME stands — the over-scale is
 habitat/condition-specific (subalpine ihab16 fallback). META: pushing the g16 instrumentation (right target via the
 booking-count intermediate) gave the decisive 0.1-vs-253 number that no amount of input-checking could.
+
+## 2026-08-07 (cont.9) — ★★★ #143 FIX LOCALIZED: jl ingrowth tally MISSES the XCSMAX factor (structural, ~2500×)
+jl-side trace of ie_autoes_tally (safe): the per-tree TPA is `tally[j] += esprob(iplot)·scale`, scale=300/dupnpt
+(establishment.jl:21,59). LIVE's per-tree PROB = (FTEMP2·300·XCSMAX)/DUPNPT (estab.f:1323). ⇒ jl is STRUCTURALLY
+MISSING the ·XCSMAX factor (max-crown-area normalization) that live applies. XCSMAX ≈ live_TPA/jl_TPA ≈ 0.1/253 ≈
+4e-4 for this subalpine dense cohort — a strong per-tree crown-area down-scaling jl omits ⇒ ~2500× over-production.
+★ This is the is_ingro (INGROWTH) path, which establishment.jl:19 EXPLICITLY FLAGS as "a separate OPEN residual":
+the DISTURBANCE path was validated bit-exact on iet01 (prob1 0.600 == live 0.601, ITPP/ESTPP bit-identical), but the
+INGROWTH per-tree TPA was never validated — and it's missing XCSMAX. So #143 = the ingrowth tally's per-tree TPA
+lacks the XCSMAX crown normalization. FIX: apply XCSMAX to the ingrowth esprob/scale = FTEMP2·300·XCSMAX/DUPNPT
+matching estab.f:1323 (the DO 226 IBRKUP breakup-loop path). NEXT: measure live XCSMAX + FTEMP2 (one FVSem_g16 dump
+at estab.f:1323) to get the exact formula (XCSMAX source = crown-competition/max-crown; likely CRWDTH/CCF-derived),
+then port to jl's ingrowth path + validate on the EM sweep stands (net regen → ~0) + iet01/IE (no regress, disturbance
+path unchanged). ★ FROM vague "~22% baaa residual" → a specific missing structural factor (XCSMAX) in the ingrowth
+per-tree TPA, quantified 2500×, with the fix formula identified. This is the priority, now genuinely close to fixable.
