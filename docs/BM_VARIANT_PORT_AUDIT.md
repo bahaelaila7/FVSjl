@@ -684,3 +684,24 @@ This explains the 9:2 skew (DF-heavy self-thinning stands under-thin; the confou
 bmt01 didn't catch it (its DF may not sit in the d<10 blend, or its ICL5/habitat picks a matching SMHAB cell).
 NEXT: diff jl c.sm_const[3] + BM_SMHAB[:,2]/BM_SMMAPH[:,2]/BM_SM* index-2 vs live DATA (dgf.f:130-201, DF row
 SMHAB = 0,-0.336855,-1.004248,-0.195972,-0.092403; SMMAPS(3)=2). Fix the mismatched value → validate DDS bit-exact.
+
+### #140 LOCALIZED to DF SMCON habitat lookup / missing-habitat default (2026-08-07)
+
+The DF (sp=3) small-tree DDSS divergence is NOT the SM coefficients — ALL group-2 (DF) values in
+dg_smcoeffs_bm.csv MATCH live's dgf.f DATA bit-for-bit (SMLD 1.12948, SMCR 1.54957, SMLBA -0.15369, SMDBAL
+-0.00223, SMDS -2.3e-5, SMPCCF -3e-5, SMHAB [0,-0.336855,-1.004248,-0.195972,-0.092403], SMFOR grp2, etc.).
+So the only remaining habitat-dependent term is SMCON via the SMMAPH(ICL5,2)→SMHAB(indxh,2) lookup.
+
+MEASURED: this stand (41136808010497) has **PV_CODE = MISSING** (no plant-association/habitat code; only
+ECOREGION=M332Gf, LOCATION=614). jl bm_dgcons! line 20 defaults `icl5 = 1` when habitat_code is missing/OOR →
+SMMAPH(1,2)=1 → indxh=2 → SMHAB(2,2)=-0.336855 → smcon=-0.43023. Live habtyp.f:98 defaults **ICL5=0** for a
+missing habitat (KODTYP≤0) — a DIFFERENT SMMAPH row than jl's 1 ⇒ a different SMHAB cell ⇒ different SMCON ⇒
+the ~6% DF DDSS under-shoot. LEADING HYPOTHESIS: **jl's missing-habitat default (icl5=1) ≠ live's (ICL5=0)** →
+wrong DF (and other MSS-spline sp) SMCON on habitat-less FIA stands.
+
+NOT YET CONFIRMED: live's exact ICL5 for this stand (the DGCONS DEBUG dump didn't fire — it's an ENTRY called at
+setup before the forced DEBUG). NEXT: force DEBUG at the DGCONS entry (or print KODTYP in habtyp.f) to read live's
+ICL5; if it's 0 (or ≠1), the fix is jl's missing-habitat default in bm_dgcons! (and check how live handles the
+SMMAPH(0,·) lookup — likely a real KODTYP default from ecoregion/forest, not literal 0). Then validate DF DDS
+bit-exact + the #140 sweep. This is a REAL bug (deterministic, coefficients-verified, habitat-localized) — NOT
+cornered. The 9:2 skew = habitat-less DF-heavy FIA stands get the wrong SMCON.
