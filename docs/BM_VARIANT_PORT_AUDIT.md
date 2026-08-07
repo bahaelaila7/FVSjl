@@ -908,3 +908,20 @@ the GF DDSS coefficients or the SMMAPS[4]/SMMAPH lookup. Then re-run the unbiase
 META: two more hypotheses REFUTED by measurement this session (site-index; and the earlier "cornered") — the
 DGCON-component dump (SITEAR/DGFOR/DGEL per species) is the decisive tool; forest_idx vs coefficient vs site-index
 are all distinguishable by dumping the actual DGCON inputs.
+
+### #140 — GF "DDSS bug" is the SAME forkod bug (SMFOR[ifor]); ONE root, two manifestations (2026-08-07)
+
+Correction/refinement: GF (sp4) group-3 SM coefficients ALL match live dgf.f DATA (SMLD 1.52803, SMCR 0.66664,
+SMCRSQ 1.2007, SMDBAL -0.00199, SMLBA -0.13405, SMPCCF -0.00167, SMDS -0.000951, SMFOR [1.31341,1.53206,1.78409,
+1.73754], SMHAB [0,-0.137259,0.282528,0,0]). The measured GF small-tree DDSS −0.45 was NOT a coefficient bug — it
+is SMCON's SMFOR[ifor,3] term with the WRONG ifor: SMFOR[1,3]=1.31341 (jl clamped ifor=1) vs SMFOR[4,3]=1.73754
+(live ifor=4) = −0.424 ≈ the −0.45 measured. So the forkod fix (18b9de0, ifor 5→4) addresses BOTH the PP DGCON
+(DGFOR[ifor,10]) AND the GF SMCON (SMFOR[ifor,3]) — ONE root (forest-index remap miss), two per-species
+manifestations. That is why 41134262010497 improved 18.5%→8.4% (both large-tree PP and small-tree GF terms fixed).
+
+RESIDUAL (8.4% on this stand, +5.45% population mean): FOREST-INDEPENDENT (the forkod fix only touches 619-Whitman
+stands, so it cannot explain the population-wide mean). Needs a POST-FORKOD-FIX deterministic-DDS re-measurement on
+41134262010497 (and a non-619 under-thin stand from the sample) to localize what remains — could be another
+per-species DG term, a different site/geo input, or (now that the two clear DG bugs are removed) closer to the
+accepted DGSCOR/self-thin straddle. The forkod fix is REAL and faithful (matches live IFOR=4 + bm_kodfor_remap);
+whether the population residual is another bug or cornered is the open question. Do NOT assume — re-measure.
