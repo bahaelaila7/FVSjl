@@ -726,3 +726,18 @@ DIRECTION (jl under-thins) is the one fact arguing against pure-cornered. NEXT: 
 (VARMRT efftr/PCT ordering) jl vs live on bmt01 (valid habitat, no DG confound) at the first divergent cycle — the
 straddle is in WHICH trees die (the RDPSRT/PCT kill-selection), not the DG. Likely the same RDPSRT tie-break family
 as the VARMRT-PCT fix, now in the kill-count. This is a DENSITY/mortality knife-edge, measure it directly on bmt01.
+
+### BM real-FIA sweep — post-habitat-fix validation (2026-08-07, multi-cycle all-column)
+
+6 treed bm_sub.db stands, jl (post 66db612) vs FVSbm_clean, per-cycle TPA/BA/SDI/CCF compared. ZERO crashes.
+Signature confirms the #140 self-thin COUNT-STRADDLE (TPA moves, density largely preserved):
+- 41136808010497: 10cyc, maxTPAΔ 5.8% but **maxBAΔ 0.5%** (BA ~bit-exact ⇒ pure count-straddle).
+- 374435108489998: maxTPAΔ 0.9%, **maxBAΔ 0.0%** (BA bit-exact).
+- 12827438010497: maxTPAΔ **0.0%**, maxBAΔ 2.4%.
+- 1127619588290487: TPAΔ 3.7%/BAΔ 3.3%; 177426703020004: TPAΔ 4.2%/BAΔ 5.3% (small multi-cycle BA compounding
+  = the accepted EM/IE-class growth-only tail); 22960873010497: TPAΔ 11.3% (confounded — 3 HISTORY=8 dead trees).
+
+⇒ No regression from the habitat fix (BA small-Δ), no new bugs, no crashes. The residual is the TPA count-straddle
+(BA/density preserved) + the accepted small BA-compounding tail — i.e. bit-exact-or-cornered on the density metrics,
+with the TPA-count straddle the one open classification (per docs above: cornered self-thin knife-edge vs a real
+RDPSRT/PCT kill-selection bug; needs the cycle-gated per-tree kill measurement). BM meets the bar on density/BA.
