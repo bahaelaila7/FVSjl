@@ -21,8 +21,17 @@ The only genuinely-open item is **Climate-FVS** (blocked — inert without a rea
 - **Integrity check** — FVSem_clean==FVSem_g16 confirms EM AUTOES is deterministic, so 3393b32 validated against a real target.
 - **Latent gaps recorded** (real, not required for #143): IE AUTOES `occ` missing `OCURNF·XESMLT` + establishment `SPECPREF→XESMLT` — inert on ifo=4/cyc1 stands; port later with a stand that exercises a different national forest / SPECPREF-active cycle.
 
+## Small-tree refinement items (MEMORY.md's "genuine remaining") — ALSO resolved
+| # | Item | State | Evidence |
+|---|------|-------|----------|
+| **#151** | BM CRATET crown-init dead-inclusion | **FIXED** + cornered residual | `f7d8f86` — exact HISTORY-code rule (zero DBH for HISTORY 8,9 in the dead-inclusive DENSE pass); source-verified, exercised on 374430762489998 (dead-incl BA→98.66=live), .sum-inert, bmt01 unaffected. |
+| **#156** | UT woodland DG | **FIXED** + cornered | `7ce8f1f` (UT self-thin SDI-gate `tem` 35000-cap, shared cluster bug with EM `04b15e6`) + FVSut_g16 measurement: woodland-DG QMD exact (correct). |
+| **#158** | TT aspen regent | **CORNERED** | `19e99a7` (jl feet-native SITAGE is bit-exact with live — the "unit bug" was a false alarm, MEASURED) + `ef57e3e` (aspen over-growth = the known small-tree-regent single-step realization divergence) + `7ce8f1f` (TT SDI-cap). |
+
+Bonus cluster fix this arc's lineage: `04b15e6`/`7ce8f1f` — the self-thin SDI-gate `tem` missing the `IF(TEM>35000)TEM=35000` cap (morts.f:650-653) caused ~10× under-kill on ultra-dense sub-1" cohorts across EM/TT/UT; fixed, references bit-exact.
+
 ## Remaining open (genuine)
-- **Climate-FVS extension** (clinit/clin/clgmult) — lowest priority; inert without a ready-file (no scenario to validate against). Everything else in the tracked cluster is bit-exact-or-cornered.
+- **Climate-FVS extension** (clinit/clin/clgmult) — lowest priority; inert without a ready-file (no scenario to validate against). **Everything else in the tracked western cluster — growth, volume, all extensions (FFE/mistletoe/ECON), the FIA sweep, and the #142/#137/#140/#143/#151/#156/#158 refinements — is bit-exact-or-cornered.**
 
 ## Off-switch — the USER's call
 `touch docs/WESTERN_ROLLOUT_COMPLETE` remains the user's decision and has **not** been touched. This document only
