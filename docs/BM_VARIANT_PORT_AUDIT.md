@@ -569,3 +569,19 @@ cyc3 as the understory blends into ddsl (large-tree, xwt line 109-112). bmt01 ha
 
 NEXT: dump PCT + bal for the understory DF trees, jl vs live (bm/dgf.f DEBUG), at cyc2→3. Confirm PCT divergence
 vs a coefficient/blend issue before fixing. DF (sp 202) is in the MSS-spline branch (line 90).
+
+### #140 CORRECTION — overstory competition, NOT isolated to BAL (2026-08-07)
+
+Re-reading dgf! (bluemountains/diameter_growth.jl:80-112): the overstory's competition on understory DG enters
+via THREE terms, not one — (a) BAL = (1−pct/100)·ba (line 92/95), (b) point-CCF `pccf` = dens.point_ccf[pt]
+(line 87/95, BM_DGPCCF), (c) `relden` (relative density) in conspp (line 88, 0.01·DGCCFA·relden). The
+overstory-removal differential removes ALL THREE simultaneously, so it confirms "the overstory competition drives
+the understory DG under-shoot" but does NOT isolate which term. My earlier "BAL term" note OVER-NARROWED —
+correcting per doctrine (measure, don't infer).
+
+Attempted per-tree pct/bal dump (jl) but the understory is TRIPLED by cyc2 (~18 records spanning pct 1-100),
+so per-record jl-vs-live comparison is INVALID (tripling). Confirmed jl stand BA=14.4 @2038 == live .sum 14 (ba
+input matches). NEXT (fresh, careful — this is the "4 wrong root-causes" DG zone): a NOTRIPLE run of 645155287126144
+to get clean per-tree BAL/PCCF/relden jl vs live at cyc2→3, isolating which competition term diverges. Do NOT
+guess among the three. The differential-confirmed fact (overstory competition → understory DG under-shoot,
+systematic, real, not cornered) is solid; the specific term is OPEN.
