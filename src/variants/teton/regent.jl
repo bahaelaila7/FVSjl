@@ -100,6 +100,10 @@ end
 # tt/smhtgf.f — small-tree height increment HTGRL (ZRAND passed in; drawn once per tree).
 @inline function _tt_smhtgf(sp::Int, h::Float32, cr::Float32, tpccf::Float32, zrand::Float32, si6::Float32)::Float32
     if sp == 6 || sp == 14                       # aspen (6) / mountain maple (14, aspen coefs) — FINDAG closed-form
+        # NB (#158, 2026-08-07): sitage here is the INVERSE-height age s.t. hite1=26.9825·sitage^1.1752 = h
+        # (self-consistent: current height in FEET). Do NOT "fix" it to (h·2.54·12/26.9825) to match findag.f:96
+        # literally — MEASURED: that regresses (jl over-grows; nofix is bit-exact with live at 2003/2013 on
+        # 3189335010690). jl's feet-native form is PRIOR-VALIDATED bit-exact vs live; leave as-is.
         sitage = (h / 26.9825f0)^(1f0 / 1.1752f0)
         hite1 = 26.9825f0 * sitage^1.1752f0
         hite2 = 26.9825f0 * (sitage + 5f0)^1.1752f0
