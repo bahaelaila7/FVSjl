@@ -672,3 +672,21 @@ fixes. No mortality bug remains on the EM establishment path; the residual is th
 NOTE (breadth check, honoring "don't narrow to one variant"): this session's #140 PVREF6 fix is BM-only (fia_database.jl
 BlueMountains branch) — EM emt01 is byte-unchanged by it (verified: EM reads PV_CODE via the numeric mod-1000 path, no
 PVREF6), so this cornered tail is the pre-existing state, not a regression.
+
+## 2026-08-07 — ★★ EM FIA sweep: jl AUTOES massively OVER-establishes vs live (+63-86% TPA) — #143, quantified
+Fresh multi-cycle EM sweep (em40_sub.db, 3 stands, keyword-less DATABASE) vs FVSem_clean:
+  31446929010690: live 1098→902 (monotone mortality) vs jl 1098→1671 (+85%); jl JUMPS at 2028 (1074→1375) + re-
+    establishes every ~20yr (2048/2068/2088). 39600883010690: live 444 vs jl 828 (+86%). 42536261010690: live 409
+    vs jl 667 (+63%). All jl QMD LOWER (regen dilutes).
+★ ISOLATED: jl+NOAUTOES is BIT-EXACT with live (1098→902 all cycles; BA 91 vs live 99 = the accepted growth tail).
+  ⇒ the ENTIRE divergence is jl's AUTOES firing where live establishes ~0. jl runs ie_autoes_establish!
+  UNCONDITIONALLY for EM/IE (simulate.jl:565, no gate). Live LAUTAL defaults TRUE (esinit.f:52) so live's AUTOES is
+  "on" too — but live's TALLY produces ~0 regen for these habitat/site conditions, while jl's over-produces hundreds.
+  ⇒ the jl AUTOES TALLY over-produces (the #143 "tally amount / target contamination" issue), here HUGE not 22%.
+★ VALIDATION-GAP META: the prior EM/IE FIA re-validation (2026-08-05) was CYC0-focused (bit-exact at cycle 0).
+  AUTOES is a LATER-cycle process ⇒ cyc0 validation CANNOT see it. Multi-cycle sweeping surfaced it. LESSON: FIA
+  validation must run MULTI-CYCLE (not just cyc0) to exercise establishment/mortality/self-thin, not only initial DG.
+NEXT (#143): the jl AUTOES tally (ie_autoes_tally / ie_autoes_run) over-produces for EM habitat conditions where
+  live yields ~0. Instrument jl vs live AUTOES tally (count/species/schedule) on 31446929010690 at the first firing
+  cycle (2028). Either the tally MODEL over-counts, or a gate/threshold (seed source, habitat, stocking) that
+  suppresses live's tally is missing in jl. Reuses the ie_autoes machinery. This is the stated open priority.
