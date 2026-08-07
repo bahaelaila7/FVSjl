@@ -624,3 +624,24 @@ The general #140 (DG under-shoot → QMD low → self-thin under-kill, different
 must be re-measured THERE. TWO wrong roots caught this turn by reconciliation (BAL over-narrow; then dead-tree
 stand-specificity) — doctrine working. NEXT: rerun the cyc-by-cyc BA + NOTRIPLE per-tree DG analysis on
 41136808010497 to isolate the real competition/DG term without the dead-tree confound.
+
+### #140 CLEAN-STAND ROOT — systematic ~1% BM large-tree DG under-shoot (2026-08-07)
+
+On the CLEAN reproducer 41136808010497 (14 live DF, 0 dead), dual-side mortality instrumentation (FVSbm_g16
+bm/morts.f DEBUG + jl FVSJL_MORT_DEBUG), cyc0 (bit-exact inputs 273 TPA, dia0=11.61):
+- live: DQ0=11.61, **DQ10=12.51**, T85D10=256.78.
+- jl:   dia0=11.609, **d10=12.387**, tn10=256.21.
+
+DQ10 is the projected end-of-cycle QMD AFTER the DG, at the SAME 273 TPA and SAME dia0 ⇒ jl's DQ10 being LOW
+(12.387 vs 12.51, ⇒ jl Σd² ~1.9% low) is a PURE DIAMETER-GROWTH divergence, independent of mortality. It is
+ONE-SIDED (jl systematically lower), so it is NOT the cornered mixed-sign DG tail (which keeps aggregate Σd²/BA
+bit-exact). This ~1% systematic DG under-shoot → lower self-thin QMD → self-thin under-kill (jl retains 231 vs
+live 226 at 2015). The post-mortality .sum BA looks bit-exact (201) only because the mortality COMPENSATES
+(fewer killed at slightly smaller diameters).
+
+⇒ **#140 root = a real, systematic ~1% BM large-tree DG under-shoot** (confirmed on a dead-tree-free stand),
+distinct from the accepted EM/IE cornered mixed-sign tail. NOTE: bmt01 large-tree DG IS bit-exact ⇒ the under-shoot
+is stand/species/calibration-specific (candidates: a large-tree DDS coefficient for this stand's species, or the
+COR/DGSCOR calibration evolution — goal doc "WK3 calib-species COR evolution"). NEXT: per-tree DG jl vs live at
+cyc0 on the 14 trees (NOTRIPLE, clean) — is the ~1% uniform across trees (⇒ coefficient/COR) or size-dependent?
+And compare c.dg_cor[sp] (COR) jl vs live. Do NOT guess coefficient-vs-COR — measure. Oracle FVSbm_g16.
