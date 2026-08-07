@@ -774,3 +774,19 @@ ingrowth — so ingrowth has NO stocking down-calibration in jl; if live's ingro
 subalpine habitats, jl misses that suppression). NEXT: compare jl uhab/PN for AF@ihab-870 vs the live ESTOCK PN
 (estab.f ESTOCK) — a targeted per-species-per-habitat coefficient check, jl-side first (read the EM uhab table for
 habitat 870). This is the known-hard ESTOCK-model core, now bounded to AF/ES/LP @ subalpine habitat 870, AMOUNT.
+
+## 2026-08-07 (cont.6) — #143 habitat-mapping RULED OUT (jl matches live); bound tightened to ESTOCK-PN/OCURHT@ihab16
+Checked jl's habitat→ESTOCK-class mapping for the WB stand (habitat 870): jl ie_estab_indices(870,2) → ihab=16
+(fallback, because 870 > max IEND 799 in the esplt2 bracket). LIVE esplt2.f:46-53 does the IDENTICAL thing —
+IHTYPE=ICL5; if IHTYPE>IEND(all 33, max 799) → IHTYPE=16 (fallback, line 52). EM's live esplt2 IEND table is
+byte-identical to IE's (both max 799). ⇒ jl's 870→16 MATCHES live. NOT the bug. (Note: 14/118 EM habitats, NI codes
+810-999, all fall to fallback-16 in BOTH jl and live — a shared design, not a jl gap.)
+★ #143 CANDIDATES RULED OUT via SAFE checks this session: (1) gate/firing (both fire same cycles, IDSDAT-reset);
+(2) species-SET (AF/ES/LP appropriate for the subalpine WB stand); (3) BAAA input (jl 28.24 ≈ stand BA, correct
+here); (4) habitat MAPPING (both →ihab16). ⇒ REMAINING = the ESTOCK stocking-probability PN coefficients / OCURHT
+species-availability for ihab=16 (the fallback class), OR the ITPP normalization / ESRANN draw. jl produces AF 253
+where live ~0 at the SAME ihab16/BAAA28/TIME1 — so a jl coefficient (uhab/OCURHT for ihab16) or the ITPP/RNG path
+differs. This is the known-hard ESTOCK core; the DECISIVE step is the live per-species ingrowth tally (estab.f
+NTALLY=99 booking) vs jl's r.tally for AF/ES/LP@ihab16 — needs the correct estab.f target (fresh-session task).
+META: 4 candidates eliminated by DB-query + jl-eval + source-compare (all safe, no Fortran instrumentation), each a
+clean negative — the diagnosis is now tightly bounded to the ESTOCK PN/OCURHT tables for the fallback habitat class.
