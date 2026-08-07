@@ -20,7 +20,11 @@ const TT_VOL_EQ = String[
     d2h = d * d * h
     c = fpow(d2h, 1f0 / 3f0)                                 # D2H**(1./3.) via gfortran powf (doctrine #8)
     # NB: Fortran writes `(...)**3.` — a REAL exponent ⇒ powf(x,3.0), NOT x*x*x; match via fpow(.,3f0).
-    code = strip(eq)[8:10]
+    # latent bug #3 guard: the DVEW branch keys off eq chars 8:10 — a malformed <10-char VOLEQ would
+    # BoundsError here. Real TT DVEW eqs are 10 chars (e.g. "401065   "); guard the untested short path.
+    se = strip(eq)
+    length(se) < 10 && return 0f0
+    code = se[8:10]
     if code == "064"          # Western Juniper (WJ) — r4d2h.f:63-65 (no DBH<3 floor)
         return fpow(-0.22048f0 + 0.125468f0 * c, 3f0)
     elseif code == "106"      # Pinyon Pine (PI) — r4d2h.f:101-103 (no DBH<3 floor)
@@ -28,9 +32,9 @@ const TT_VOL_EQ = String[
     elseif code == "066"      # Rocky Mountain Juniper (RM)
         return fpow(0.02434f0 + 0.119106f0 * c, 3f0)
     elseif code == "065"      # Utah Juniper (UJ) — TT uses 401 ⇒ VOLEQ(2:3)="01" (W.CO/E.UT/WY)
-        v = strip(eq)[2:3] == "01" ? fpow(-0.08728f0 + 0.135420f0 * c, 3f0) :
-            strip(eq)[2:3] == "02" ? fpow(-0.03655f0 + 0.135689f0 * c, 3f0) :
-            strip(eq)[2:3] == "03" ? fpow( 0.04829f0 + 0.114358f0 * c, 3f0) :
+        v = se[2:3] == "01" ? fpow(-0.08728f0 + 0.135420f0 * c, 3f0) :
+            se[2:3] == "02" ? fpow(-0.03655f0 + 0.135689f0 * c, 3f0) :
+            se[2:3] == "03" ? fpow( 0.04829f0 + 0.114358f0 * c, 3f0) :
                                      fpow(-0.13386f0 + 0.133726f0 * c, 3f0)
         return d < 3f0 ? 0.1f0 : v
     elseif code == "133"      # Single-leaf Pinyon Pine (PM)

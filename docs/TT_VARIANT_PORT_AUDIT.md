@@ -1207,3 +1207,22 @@ stack); tracks live within +1.6–3.9% TPA/+1.6% BA (bit-exact through 2020).
   array-OOB) + #4 (MSTEM/FCLASS woodland-volume, r4d2h.f:56-59) — NOT surfaced by ttt01/this conifer stand, they need
   a woodland (PM/UJ/RM, FCLASS=1) volume stand. So the MORTALITY half of #148 (the UT-#147-class bug) is FIXED; the
   woodland-volume latent bugs remain for a woodland stand. Doctrine #5: DR10 + DIAM-floor both source-verified faithful.
+
+## 2026-08-07 — #148 latent bugs #3/#4 (woodland-volume) fully traced; #3 hardened
+Both remaining #148 latents live in teton/volume.jl `r4d2h_vol1` and fire ONLY for DVEW woodland species
+(PM/UJ/RM/MC/OH — FIA 62/63/65/66/69/106/133/134/143/321/322/475/803/810/814/843), which are absent from ttt01
+and tt_sub.db, so they are UNVALIDATABLE here and DO NOT affect any tested TT stand.
+- BUG #3 (volume array-OOB) — FIXED (defensive): the DVEW branch keys off eq chars 8:10; a malformed <10-char
+  VOLEQ would BoundsError. Added `length(se)<10 && return 0f0` guard. Inert on the MAT path (ttt01 still runs).
+- BUG #4 (MSTEM/FCLASS) — DOCUMENTED, NOT ported (needs a woodland validation stand). Exact traced rule:
+  fvsvol.f: `CALL FORMCL(ISPC,IFOR,D,FC); IFC=IFIX(FC)` (→0 for these sp), THEN under `IF(LFIANVB)` for the 16
+  woodland FIA species `IFC = WDSTMS` (the FIA woodland-stem count; jl ALREADY reads this as trees.woodland_stems
+  / WDLDSTEM). r4d2h.f:56-59 `MSTEM = (FCLASS.EQ.1) ? 1 : 0` — i.e. single-stem indicator. The equations then add
+  `+coef·MSTEM` (r4d2h.f:64 +0.100092, :80 -0.019587, :83 -0.018476, :86 -0.045779, :89 +0.036329, etc.) which
+  jl's r4d2h_vol1 currently OMITS (assumes MSTEM=0). So the fix = thread woodland_stems→FCLASS, set
+  MSTEM=(FCLASS==1 && LFIANVB), and restore the per-equation +coef·MSTEM term. BLOCKER to validate = need a TT
+  woodland FIA stand (build from SQLite_FIADB_ENTIRE.db, ISTATE∈{4,16,32,...}, pinyon/juniper) + confirm LFIANVB
+  fires for the TT DVEW VEQNNC assignment. Until then MSTEM=0 is correct for LFIANVB-off / multi-stem / non-woodland.
+★ NET #148 STATUS: the MORTALITY subject (Zeide-QMD over-kill, UT-#147 class) is FIXED + VALIDATED (TPA bit-exact on
+  the densest FIA stand, commit 17ff28f); latent #1 (fpow) + #2 (regent DIAM floor, crash) FIXED; #3 hardened; only
+  #4 (a narrow single-stem-woodland-NVB volume term) remains, fully specified, needing a woodland stand.
