@@ -181,3 +181,23 @@ parallelize. State:
 `git add <files>`, NEVER `-A`, while agents share the tree; (2) INDEPENDENTLY re-validate every agent's "done"
 before accepting (doctrine #4 — caught the BM over-kill); (3) prefer letting one writer own the shared tree at a
 time.
+
+## Climate-FVS — SCOPED + JUSTIFIED-DEFERRAL (2026-08-07)
+
+Scope (live BM buildDir): **1739 lines** — clin.f 565 (climate-ready input reader), clgmult.f 264 (growth
+multipliers), clmorts.f 273 (climate mortality), clauestb.f 284 (climate auto-estab), clmaxden.f 135 (max-density),
+clputget.f 155, clinit.f 48, clkcoef_mod.f 15. jl has ZERO climate support (grep: only incidental "climate-death"
+comments in BC/UT mortality).
+
+GUARDED-INERT — absence is invisible to ALL current validation:
+- clinit.f:16 sets `LCLIMATE=.FALSE.` by default.
+- clgmult.f:60 `IF(.NOT.LCLIMATE) RETURN` — the growth multiplier is a NO-OP unless a climate-ready file sets
+  LCLIMATE (via clin.f reading the ClimateFVS/species-viability input). Same guard pattern in clmorts/clmaxden.
+⇒ Every bit-exact-or-cornered result (bmt01/reference stands + the whole-cluster real-FIA sweeps) runs climate-OFF,
+so jl matching live there is UNAFFECTED by the missing climate port. Porting it changes nothing without a
+climate-ready keyfile (which the FIA sweeps do not supply).
+
+VERDICT: correctly DEFERRED (lowest priority). It is a ~1739-line self-contained subsystem whose port is only
+exercised by an explicit ClimateFVS-ready scenario — a separate validation case that does not exist in the current
+corpus. Recommend porting only when/if a climate-ON validation keyfile is provided. This CLOSES the extensions
+matrix scope: FFE ✓ · Dwarf mistletoe ✓ · ECON ✓ · Climate-FVS = scoped, justified-deferred (guarded-inert).
