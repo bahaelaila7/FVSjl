@@ -1024,7 +1024,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
                        esb_shift::Real = 0f0, is_ingro::Bool = true,
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
-                       nsp::Integer = 23)
+                       tpacre_ingro::Real = 0f0, nsp::Integer = 23)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1037,6 +1037,15 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
     # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579); esb_shift = ESB-ESB1 (inventory calibration, cyc1/2).
     prob1 = 1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))
+    # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
+    # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
+    # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,
+    # correct uniform-density multi-point). Then NEWTPP=max(0,ITPP−NSTORE)=0 on an already-stocked plot ⇒ ingrowth
+    # books ≈0 (live 0.1 TPA), vs the old es_nstore=0 that booked a full fresh cohort (253 TPA, ~2500× over).
+    if is_ingro && Float32(tpacre_ingro) > 0f0 && length(nstore) == Int(dupnpt)
+        nsval = floor(Int32, Float32(tpacre_ingro) / (prob1 * 300f0) + 0.5f0)
+        fill!(nstore, nsval)
+    end
     occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:nsp]
     over = zeros(Float32, 10)
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
@@ -1146,10 +1155,16 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         end
         esb_shift = est.esb_shift
     end
+    # #143: existing small-tree (DBH<REGNBK=2.999) stocking → the INGROWTH NSTORE (estab.f:305-315,589). Current
+    # (self-thinned) DBH<2.999 TPA at the ingrowth cycle; ie_autoes_run turns it into per-plot NSTORE via prob1.
+    tpacre_ingro = 0f0
+    if is_ingro
+        @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre_ingro += s.trees.tpa[i]); end
+    end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
-                      is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn)
+                      is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
