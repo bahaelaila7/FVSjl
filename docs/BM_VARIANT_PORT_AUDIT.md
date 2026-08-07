@@ -508,3 +508,26 @@ under-kill), amplified by the Stage self-thin QMD-feedback. So #140 = a real sma
 under-thin, priority-class. FIX = the BM small-tree DG (QMD 3-6" regime, cf the DF transition finding); validate
 via the 9 JL-HIGH stands here. META (repeat lesson): a verdict needs an ADEQUATE multi-stand sample — 6 stands
 mis-called it cornered; 12 shows the 9:2 bias. Same lesson as the TT single-stand over-generalization this session.
+
+## #140 self-thin under-thin — MECHANISM MEASURED (2026-08-07, FVSbm_g16)
+
+Reproducer stand 645155287126144 (bm_sub.db, +8.9% JL-HIGH final TPA). Dual-side instrumentation
+(jl southern/mortality.jl FVSJL_MORT_DEBUG + live bm/morts.f DEBUG via FVSbm_g16), aligned by cycle:
+
+| cyc | jl d10 | live DQ10 | state |
+|-----|--------|-----------|-------|
+| 1   | 3.378  | 3.36      | pre-self-thin (rn=0 both) — jl ~+0.5% |
+| 2   | 5.709  | 5.83      | pre-self-thin — **jl −2.1% (QMD under-shoot begins)** |
+| 3   | 7.957  | 8.42      | pre-self-thin — jl −5.5% (compounding) |
+| 4   | 10.134 | 10.81     | self-thin onset — jl kills to tn10=206.8; live to ~196 |
+
+**Root chain (measured, not inferred):** jl's diameter growth runs slightly low → the Stage-SDI self-thin QMD
+(d10 = √(Σpr·(d+g)²/tt)) runs LOW → the self-thin target tmd10 = CONST·d10⁻¹·⁶⁰⁵ runs HIGH (lower d10 ⇒ larger
+d10⁻¹·⁶⁰⁵) → tn10 target too high → **under-kill**. The QMD gap is visible at cyc2 BEFORE any self-thin fires
+(rn=0 both sides), so it is a pure diameter-growth divergence, not a mortality-model bug. It then compounds via
+the QMD→target→survivor-QMD feedback. CONFIRMS the documented "#140 = jl dq10 low → higher T85D10 → under-kill."
+
+**OPEN — the real question:** is the upstream ~2% QMD/DG under-shoot a FIXABLE DG bug or the accepted-cornered
+DG precision tail (goal doc: RDPSRT/AVHT40 tie-break, mixed-sign ~0.5-0.8%, cancels in BA)? Here it is SYSTEMATIC
+(consistently low from cyc2) and ~2% > the cornered 0.8% — so it may be a real DG under-shoot on this regime, NOT
+just precision. NEXT: per-tree DG comparison jl vs live at cyc2 (pre-self-thin) on this stand to classify it.
