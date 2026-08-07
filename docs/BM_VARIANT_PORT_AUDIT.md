@@ -1012,3 +1012,32 @@ a regression. ⇒ bmt01 case-1 is the IDEAL vehicle for the growth-DGDRIV per-tr
 DB-free, forest 614, the same forest as reproducer 248804992489998). The −6% cycle-1 accretion is the cleanest
 single #140 signal found. NEXT: single-.o FVSbm_g16, instrument the growth DGDRIV (distinguish from CRATET),
 NOTRIPLE, dump per-tree DDS on bmt01 case-1, match to jl's dgf! wk2 by (ISPC,D) — find the diverging per-tree input.
+
+### #140 — "jl missing sp4 DGSCOR COR" hypothesis RAISED then REFUTED (calib-pass confound) (2026-08-07)
+
+Deep confound-free per-tree DDS trace on bmt01 case-1 (NOTRIPLE, DB-free, forest 614). Method: jl dgf! per-tree
+DDS+COR dump vs FVSbm_clean `DEBUG` 9025 dump (D, XWT, DDSS, DDSL, DDS).
+
+The trail (and its trap):
+1. jl's per-tree DDS matched live's DGF **block A** (D=3.95849 sp4: jl 2.64798 = live 2.64796; all species bit-exact).
+2. Live's DGF **block B** added a constant **+0.0203 to exactly the 7 sp4 (grand fir) trees**, none other. sp4 is
+   the ONLY species meeting the DGSCOR threshold (jl fn[4]=6 ≥ fnmin=5; sp2/3/7/8 fn<5 — matches live calibrating
+   only sp4). ⇒ HYPOTHESIS: jl computes but fails to APPLY the sp4 COR at growth (jl dds showed COR=0).
+3. REFUTED by the attenuation dump: jl's calibration DOES compute corv=0.01963 (≈ live's 0.0203) AND the per-cycle
+   attenuation (southern diameter_growth.jl:1039, dg_cor_goal·(1+cormlt)) DOES apply it — at cyc_year=1990,
+   elapsed=0, cormlt=1 → dg_cor[4]=0.01963 baked into the growth dgf!. jl's sp4 growth DDS = 2.648+0.01963.
+   The "COR=0" line I first grabbed was jl's CALIBRATION pass (dgf! run with COR=0 to DERIVE the ratio, on
+   BACKDATED dbh 3.95849), NOT the growth pass (COR=0.01963, on CURRENT dbh 6.5). Both live blocks A and B are
+   ALSO calibration/CRATET passes (backdated dbh) — the actual growth DGF (current dbh) is TRUNCATED by the
+   live DEBUG-path segfault, so it was never in view. I compared jl-calib to live-calib-with-COR = a
+   calibration-vs-growth confound (the documented confound #4), and nearly logged a false "missing COR" fix.
+
+NET: jl's BM DGSCOR is CORRECT — it computes (0.01963) and applies the sp4 COR with the right attenuation schedule.
+The ~0.0007 ln gap (jl 0.01963 vs live block-delta 0.0203) is far too small (0.07% growth) to explain the .sum
+residual (bmt01 case-1 BA 2000 jl 217 vs live 220, −1.4%). The residual mechanism is in the GROWTH pass at CURRENT
+dbh, which is UNOBSERVABLE on live here because the `DEBUG`-keyword run segfaults before the growth DGF fires
+(debug-path crash only; production runs 10 cycles clean).
+NEXT: instrument the live growth DGDRIV via a single-.o FVSbm_g16 rebuild (targeted WRITE at the WK2 assignment,
+gated to the growth call, no full-DEBUG so no segfault), dump per-tree (I,ISPC,D,CR,BAL,PCCF,DDS) at CURRENT dbh,
+match jl growth dgf! 1:1. LESSON (again): a DDS dump must be gated to the GROWTH pass; jl's FIRST 27 dgf! dumps
+are the DGSCOR calibration pass (COR=0, backdated dbh), NOT growth.
