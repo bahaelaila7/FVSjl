@@ -87,3 +87,23 @@ one under active per-tree investigation; the growth-DGDRIV instrumentation on bm
 whether this class is a real per-tree-input bug or the accepted DGSCOR/RDPSRT-tie-break straddle. CR (bit-exact)
 is the existence proof that the shared engine CAN be exact — so the tails are variant-DATA/input specific, not
 an engine-wide flaw.
+
+---
+## UPDATE (2026-08-07, later 3) — #140 RESOLVED + cluster-wide DGSD-disconnect audit closed
+**#140 (BM self-thin under-thin) RESOLVED to the bit-exact-or-cornered bar** (commit e130546). Confound-free trace
+via instrumented FVSbm_g16 proved: BM GROWTH is bit-exact; the residual is a MORTALITY under-kill via the self-thin
+QMD-projection d10, driven by the per-tree DGSCOR/FRM realization. REAL BUG FOUND+FIXED — the "DGSD field
+disconnect":
+- jl has TWO control fields both meaning FVS's single grinit DGSD: `dg_sd` (→ small-tree regent/crown random) and
+  `dg_stddev_bound` (→ large-tree DGSCOR reject-bound + OLDRN clamp + mortality). Variants that OVERRIDE DGSD from
+  the 2.0 default set only `dg_sd`, leaving `dg_stddev_bound` at 2.0.
+- CLUSTER-WIDE AUDIT (all 9 western species.jl): ONLY BM (DGSD=1.5) and CI (DGSD=1.7) override → BOTH had the
+  disconnect. Fixed both (`dg_stddev_bound`=1.5/1.7). The other 7 (EM/TT/UT/KT/IE/CR/BC) use DGSD=2.0 = the default
+  ⇒ no disconnect (the goal-doc's "all 9 set DGSD, no gap" is NOW actually true — it wasn't before this fix).
+- VALIDATED: OLDRN clamp now matches live (±1.5σ, was ±2.0σ); bmt01/cit01 cyc0 bit-exact; multi-cycle comparable
+  (no regression, BM under-thin marginally reduced); no collapse.
+- RESIDUAL (persists, cornered): the per-tree BACHLO draw still differs — jl's RNG is a faithful port but not
+  byte-identical to FVS on the stochastic-DG path (desync triggered by uncalibrated species' calibration OLDRN
+  bachlo-seeding). = the accepted DGSCOR RNG-realization straddle. The ENTIRE deterministic path is bit-exact.
+This also tightens CI #142 (same fix). Remaining cluster items unchanged: EM #137 (estab self-thin), IE AUTOES
+#143 close-out, Climate-FVS.
