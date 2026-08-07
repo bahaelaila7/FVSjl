@@ -708,3 +708,17 @@ Two findings that sharpen + partly RE-FRAME #143:
   ESTOCK/BAAA ingrowth model over-produces (the known #143 baaa/tally-amount root); if live never fires ingrowth on
   keyword-less DB stands, jl's unconditional LINGRW firing (simulate.jl:565 + ie_autoes_schedule!) is a gate bug.
   Distinguish via the FVSem_g16 rebuild + an estab-tally dump. This is the stated open priority.
+
+## 2026-08-07 (cont.) — #143 gate-vs-tally: measurement INCONCLUSIVE (wrong instrument target); mechanism source-confirmed
+Source-confirmed the LINGRW rule is IDENTICAL jl↔live: esnutr.f:331-338 fires ingrowth when IY(ICYC+1)-IDSDAT≥40,
+IDSDAT=IY(1)-20 ⇒ first fire inv_year+20=2028 (= jl). NTALLY=99 signals ingrowth (esnutr.f:337). ⇒ NOT a firing-rule
+diff. BUT: esnutr is only reached via an establishment ACTIVITY (keyword IACTK-427, or the LAUTAL after-thinning
+path fmcons.f:252) — so whether live INVOKES esnutr (thus the LINGRW branch) on a keyword-less undisturbed DATABASE
+stand is the OPEN gate-vs-tally question. MEASUREMENT ATTEMPT was INCONCLUSIVE: instrumented estab.f:544
+(NSTORE=ITPP) but fort.89 was EMPTY for BOTH the FIA stand AND emt01 (control, which DOES establish via ESTAB+PLANT)
+⇒ estab.f:541/544 "ITPP AT INVENTORY" is NOT on the natural-ingrowth tree-booking path; the empty result is a
+wrong-target artifact, NOT evidence live skips establishment. (Control emt01 correctly invalidated the reading.)
+NEXT: find the ACTUAL natural-ingrowth tree-booking point (ESADDT / where ITRN is incremented for NTALLY=99), dump
+its count + year on the FIA stand vs live. If live never books ingrowth on keyword-less DB stands ⇒ jl's
+unconditional ie_autoes_establish! (simulate.jl:565) is a GATE bug (simple). If live books but ~0 ⇒ ESTOCK/ITPP
+tally-amount over-produce (known baaa root). Still the priority; the mechanism (LINGRW inv_year+20) is source-solid.
