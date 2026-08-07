@@ -532,8 +532,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
-        (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton) &&
-            (t.dg_prev[i] = t.diam_growth[i])   # KT/IE/TT mortality WK1 (this cycle's applied DG → next cycle's vigor)
+        (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton ||
+         s.variant isa CentralIdaho || s.variant isa EasternMontana) &&
+            (t.dg_prev[i] = t.diam_growth[i])   # KT/IE/TT/CI/EM mortality WK1 (this cycle's applied DG → next cycle's
+                                                # vigor). dgdriv.f:161 WK1(I)=DG(I). CI/EM were OMITTED ⇒ their
+                                                # mortality read WK1=0 forever ⇒ wrong vigor G ⇒ mis-calibrated
+                                                # mortality on mature real-FIA stands (the multi-cycle blow-up).
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         (_cr_up || _tt_up || _ut_up) && (t.birth_age[i] += fint)   # CR/TT/UT age ABIRTH by cycle length (gradd.f:205)
