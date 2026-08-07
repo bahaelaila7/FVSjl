@@ -760,3 +760,17 @@ Two candidate roots: (a) SPECIES-SET — live's habitat-870 OCURHT zeros/limits 
 NEXT = live per-species ingrowth tally at 2028 on this stand (correct estab.f ingrowth-count target, e.g. where the
 NTALLY=99 path books trees per species — trace from esnutr GOTO 200 → the ESTAB tally loop). If live AF≈0 → species-
 gating bug (cleaner fix); if live AF>0 but «253 → ESTOCK-PN amount. BAAA confirmed ~correct on this stand (28.24).
+
+## 2026-08-07 (cont.5) — #143 species-set-vs-amount RESOLVED = AMOUNT (subalpine species appropriate for the WB stand)
+Stand 31446929010690 = PURE WHITEBARK PINE (FIA 101, 1170 TPA, avgDBH 6.0), subalpine, habitat 870, forest 2,
+slope 50 aspect 110. ⇒ jl's establishing species AF(9)/ES(8)/LP(7) ARE appropriate subalpine associates of whitebark
+pine — NOT a wrong species-SET. ⇒ #143 here is the AMOUNT: jl's ESTOCK stocking-probability PN over-tallies
+(AF 253 TPA @2028) where live yields ~0 for this harsh subalpine WB habitat. Resolved via a DB-composition query (no
+error-prone live-Fortran instrumentation). So the fix is jl's ESTOCK PN calibration over-predicting stocking for
+subalpine EM habitats — jl PN≈-1.6→logistic 0.17 per species is too high; live's effective stocking prob for AF/ES/LP
+at habitat 870 must be near-zero. CANDIDATE TERMS (establishment.jl:74-108 + FTEMP): the uhab(sp) habitat-adjustment
+for habitat 870, and/or the ESB inventory-calibration (which the audit notes applies only at inv-year, ESB=0 for
+ingrowth — so ingrowth has NO stocking down-calibration in jl; if live's ingrowth PN is effectively suppressed for
+subalpine habitats, jl misses that suppression). NEXT: compare jl uhab/PN for AF@ihab-870 vs the live ESTOCK PN
+(estab.f ESTOCK) — a targeted per-species-per-habitat coefficient check, jl-side first (read the EM uhab table for
+habitat 870). This is the known-hard ESTOCK-model core, now bounded to AF/ES/LP @ subalpine habitat 870, AMOUNT.
