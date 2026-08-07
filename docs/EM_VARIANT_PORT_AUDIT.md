@@ -722,3 +722,18 @@ NEXT: find the ACTUAL natural-ingrowth tree-booking point (ESADDT / where ITRN i
 its count + year on the FIA stand vs live. If live never books ingrowth on keyword-less DB stands ⇒ jl's
 unconditional ie_autoes_establish! (simulate.jl:565) is a GATE bug (simple). If live books but ~0 ⇒ ESTOCK/ITPP
 tally-amount over-produce (known baaa root). Still the priority; the mechanism (LINGRW inv_year+20) is source-solid.
+
+## 2026-08-07 (cont.2) — ★★ #143 gate-vs-tally SETTLED = TALLY AMOUNT (live fires ingrowth same cycles, ITPP≈0)
+Correct measurement (instrumented esnutr.f:313 LINGRW-branch inputs, FVSem_g16, FIA stand 31446929010690):
+  LGCHK ICYC/IYnext/IDSDAT/ITRN — cyc1 2018/1988/24; cyc2 2028/1988/72; cyc3 2038/2008; cyc4 2048/2008; cyc5
+  2058/2028; ... IDSDAT RESETS by 20 each time IYnext-IDSDAT≥40 (esnutr.f:338 IDSDAT=IYnext-20 on the NTALLY=99
+  fire). The reset pattern 1988→2008→2028→2048→2068 PROVES live's LINGRW ingrowth FIRES at cyc 2/4/6/8/10 =
+  2028/2048/2068/2088/2108 — EXACTLY jl's establishment cycles. So it is NOT a gate/firing bug (CALL ESNUTR is
+  ungated, gradd.f:229; the rule is identical). Yet live TPA is MONOTONE-decreasing (0 net regen) ⇒ live's ingrowth
+  ESTOCK/ITPP tally yields ~0 established trees where jl yields hundreds. ⇒ #143 = TALLY-AMOUNT over-production,
+  DEFINITIVELY (the known baaa/ESTOCK/PLPROB root, establishment.jl:1104-1113 jl per-point BAAA ~1.5× live).
+  (Caveat corrected: an earlier LINGRWFIRE dump at NTALLY=99 read empty — a whitespace-match miss on the insertion,
+  NOT non-firing; the LGCHK IDSDAT-reset trace is the reliable evidence. Used the reset invariant, not the raw dump.)
+NEXT: instrument the ingrowth ITPP (estab.f:589, the NTALLY=99/ingrowth path — NOT :541 which is inventory) +
+PLPROB(NNID) + the ESTOCK PN vs jl on 31446929010690 cyc2(2028) — jl's PLPROB/ITPP is the over-producing term.
+The fix is the ESTOCK stocking-probability / BAAA model (jl over-estimates P(stocking) for these EM habitats).
