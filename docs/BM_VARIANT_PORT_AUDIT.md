@@ -925,3 +925,20 @@ stands, so it cannot explain the population-wide mean). Needs a POST-FORKOD-FIX 
 per-species DG term, a different site/geo input, or (now that the two clear DG bugs are removed) closer to the
 accepted DGSCOR/self-thin straddle. The forkod fix is REAL and faithful (matches live IFOR=4 + bm_kodfor_remap);
 whether the population residual is another bug or cornered is the open question. Do NOT assume — re-measure.
+
+### #140 residual — non-619 stands: measurement confounded, NOT yet localized (2026-08-07)
+
+Under-thin spans ALL forests (measured LOCATIONs: 41134/619, 7690/619 [forkod-fixed]; 248804/614, 302205/614,
+177361/614, 24110/616, 30193/604, 1285699/607 [NOT forkod]). So the forest-independent residual (+5.45% tally mean
+post-forkod) is real. Attempted the deterministic-DDS on 248804992489998 (614, +14.6%) but it was CONFOUNDED: jl
+emitted 24 unique (sp,dbh) DDS rows vs live's 14 (NOTRIPLE tree-count MISMATCH — jl has ~10 more), so the sp+DBH
+join produced duplicate-key ambiguity. The unreliable signal: DF(sp3)/LP(sp7)/most-GF(sp4) bit-exact, a couple GF
+small trees showed large Δ — but NOT trustworthy given the count mismatch. DO NOT conclude (this session refuted 3
+hypotheses; this is exactly the kind of confounded read that misleads).
+
+The 24-vs-14 tree-count discrepancy is itself a LEAD: jl may read/split this stand's trees differently than live
+(a reader/tripling difference), which would ALSO perturb the self-thin. NEXT: (a) resolve the tree-count mismatch
+(compare jl's initial treelist vs the DB / live's for 248804992489998 — is jl adding records?); (b) THEN a clean
+NOTRIPLE deterministic-DDS with a 1:1 tree correspondence to localize any remaining per-species DG offset; (c) if
+DG is then bit-exact, the non-619 residual is the accepted DGSCOR/self-thin straddle. STATE: forkod bug FIXED
+(18b9de0, real, 619 stands); non-619 residual OPEN and honestly un-localized.
