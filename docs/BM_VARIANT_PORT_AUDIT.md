@@ -606,3 +606,21 @@ META (doctrine save): reading HISTORY before concluding overturned the BAL root.
 CCF/RELDEN for the live seedlings WITH the dead snags present (the exact HISTORY-8 inclusion rule in dense.f/
 crown-init vs jl). This links #140 (this stand) ↔ #151. Confirm on the other JL-HIGH stands (41136808010497,
 1127619588290487) — do they also have HISTORY=8 dead trees? If so, #140's 9:2 skew IS the dead-inclusion bug.
+
+### #140 — REPRODUCER WAS CONFOUNDED; use 41136808010497 (2026-08-07)
+
+HISTORY=8 cross-check across the JL-HIGH / bit-exact / over-thin stands REFUTES dead-trees as #140's general root:
+- 645155287126144 (+8.9%): 2 live, **4 dead** (19.8 TPA) — dead-heavy (my reproducer, CONFOUNDED).
+- 41136808010497 (+5.8% JL-HIGH): 14 live, **0 dead** — clean, still under-thins.
+- 1127619588290487 (+3.7%): 10 live, 1 dead (13.4 TPA).
+- 22960873010497 (−1.4% OVER-thin): 61 live, 3 dead (18.1 TPA) — dead-heavy yet over-thins.
+
+⇒ Dead-tree density handling does NOT explain the 9:2 under-thin skew (a 0-dead stand under-thins; a 3-dead stand
+over-thins). It IS a real stand-specific divergence on 645155287126144 (removing the snags → bit-exact; links #151
+dead-inclusion in CRATET/DUBSCR density), but that is a SEPARATE issue from the general #140.
+
+⇒ **The clean #140 reproducer is 41136808010497** (14 live DF, 0 dead, +5.8% under-thin) — no dead-tree confound.
+The general #140 (DG under-shoot → QMD low → self-thin under-kill, differential-classified as real not cornered)
+must be re-measured THERE. TWO wrong roots caught this turn by reconciliation (BAL over-narrow; then dead-tree
+stand-specificity) — doctrine working. NEXT: rerun the cyc-by-cyc BA + NOTRIPLE per-tree DG analysis on
+41136808010497 to isolate the real competition/DG term without the dead-tree confound.
