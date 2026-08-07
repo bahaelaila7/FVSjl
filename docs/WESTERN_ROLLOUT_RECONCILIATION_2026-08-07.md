@@ -46,9 +46,14 @@ mortality), `clputget.f` (state serialization), `clauestb.f` (climate auto-estab
 module). **Activation gate:** `clin.f:91 LCLIMATE = NATTRS>0 .AND. NYEARS>0` — climate is active ONLY when a
 **ClimateData ready-file** supplies NATTRS climate attributes × NYEARS. **Therefore it is INERT in every default/
 current validation run** (LCLIMATE=false) ⇒ its non-port does NOT affect the cluster's bit-exact-or-cornered status;
-all tracked validation is climate-off and unaffected. **Blocker:** validation needs a ClimateData ready-file (a
-climate scenario) — none is present in the workspace, and per doctrine #7 (a test must exercise the semantic) an
-unexercised port is vacuous. **Port plan (fresh context):** (1) obtain or synthesize a minimal ClimateData ready-file
+all tracked validation is climate-off and unaffected. **UNBLOCK CONFIRMED (2026-08-07 clin.f read):** Climate-FVS is KEYWORD-DRIVEN, not an external file — CLIMDATA +
+MORTMULT/AUTOESTB/GROWMULT/MXDENMLT/CLIMREPT/SETATTR are read via the standard KEYRDR from the .key. So a synthetic
+climate scenario is SYNTHESIZABLE inline (no external ready-file needed) ⇒ Climate-FVS is UNBLOCKABLE for validation.
+Cost: CLIMDATA requires ~15 named attributes present (clin.f:228-238 EXIT gate): dd5/mat/map/mtcm/mtwm/gsp/d100/mmin/
+dd0/gsdd5/pSite + per-species-viability DEmtwm/DEmtcm/DEdd5/DEsdi/DEdd0/DEpdd5 + PLNJSP species mapping, × NYEARS;
+downstream clgmult/clmorts/clmaxden implement species-climate-DISTANCE viability + growth/mortality/max-density
+multipliers (the largest western extension — genuinely multi-chunk). Doctrine #7 satisfied by a synthetic CLIMDATA
+that EXERCISES the code (values need not be climatically realistic, only that jl computes the same fn as live). **Port plan (fresh context):** (1) obtain or synthesize a minimal ClimateData ready-file
 (NATTRS attrs × a few NYEARS) to flip LCLIMATE on; (2) port clinit/clin/clputget (init + read) first, validate the
 LCLIMATE gate + attribute load vs a live climate run; (3) port clgmult/clmaxden/clmorts (the growth/density/mortality
 multipliers) chunk-by-chunk, bit-exact vs live with the ready-file active; (4) clauestb (climate auto-estab) last.
