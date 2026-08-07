@@ -585,3 +585,24 @@ input matches). NEXT (fresh, careful — this is the "4 wrong root-causes" DG zo
 to get clean per-tree BAL/PCCF/relden jl vs live at cyc2→3, isolating which competition term diverges. Do NOT
 guess among the three. The differential-confirmed fact (overstory competition → understory DG under-shoot,
 systematic, real, not cornered) is solid; the specific term is OPEN.
+
+### #140 RECONCILED — the "overstory" is DEAD (HISTORY=8); root = dead-tree density inclusion (→ #151) (2026-08-07)
+
+CRITICAL reconciliation (the sim reads only 233 TPA but the DB has 253 → investigated). Per-record HISTORY:
+- 2× DBH 0.1" seedlings: **HISTORY=1 (LIVE)**, 233 TPA — the only live trees.
+- 4× DBH 5.8-26.4": **HISTORY=8 (DEAD/snags)**, 19.6 TPA — excluded from live TPA/BA (why cyc0 BA=0).
+
+So 645155287126144 is NOT a two-story live stand — it is a dense LIVE seedling cohort + DEAD large snags. My
+prior "overstory BAL competition" interpretation was WRONG (the large trees are dead, not competing live crowns).
+The overstory-removal differential (→ bit-exact) actually removed the DEAD trees ⇒ **jl includes the DEAD trees
+(HISTORY=8) in a density/crown metric where live does not (or weights them differently)** — CCF/RELDEN/PCCF or
+the CRATET/DUBSCR crown-init — which shifts the live seedlings' crown ratio and/or CONSPP density term → their DG.
+
+This is almost certainly **#151** ("BM #149 refine: exact HISTORY-code dead-inclusion rule for CRATET DUBSCR
+density") surfacing as a growth (not just crown-init) divergence. The dead snags' basal area/CCF gets counted into
+the live seedlings' competition where FVS excludes (or differently includes) dead trees.
+
+META (doctrine save): reading HISTORY before concluding overturned the BAL root. NEXT: compare jl vs live CR +
+CCF/RELDEN for the live seedlings WITH the dead snags present (the exact HISTORY-8 inclusion rule in dense.f/
+crown-init vs jl). This links #140 (this stand) ↔ #151. Confirm on the other JL-HIGH stands (41136808010497,
+1127619588290487) — do they also have HISTORY=8 dead trees? If so, #140's 9:2 skew IS the dead-inclusion bug.
