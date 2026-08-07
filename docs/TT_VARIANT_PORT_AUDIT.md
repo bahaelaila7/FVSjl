@@ -1226,3 +1226,18 @@ and tt_sub.db, so they are UNVALIDATABLE here and DO NOT affect any tested TT st
 ★ NET #148 STATUS: the MORTALITY subject (Zeide-QMD over-kill, UT-#147 class) is FIXED + VALIDATED (TPA bit-exact on
   the densest FIA stand, commit 17ff28f); latent #1 (fpow) + #2 (regent DIAM floor, crash) FIXED; #3 hardened; only
   #4 (a narrow single-stem-woodland-NVB volume term) remains, fully specified, needing a woodland stand.
+
+## 2026-08-07 — #157 TT woodland (DVEW) DG under-growth FIXED + validated bit-exact (regent.f:780 Dixon floor)
+Symptom: jl UJ/PM/RM QMD ~flat (jl 8.0→8.05") vs live growth (8.0→9.1"); TPA bit-exact so pure DG.
+MEASURED via a full gfortran-16 rebuild (FVStt_g16full — the single-.o swap SIGFPE'd on ABI mismatch; the full
+consistent rebuild runs clean + matches FVStt_clean on ttt01 & pure_UJ_g). Live regent probe on a UJ tree cycle 1:
+HK=H+0.1 EXACTLY for every tree (H=73→73.1, H=30→30.1) ⇒ DG=(DK−DKK)·bark≈0.108" where DK=(HK−4.5)·10/(SITEAR−4.5),
+SITEAR(UJ)=12.5. ROOT = regent.f:780 (Dixon 3/4/09 "PREVENT NEGATIVE HEIGHT GROWTH"): UTVAR floors HTGR to 0.1 ft,
+NOT 0. Tall woodland trees (H > SJ·1.5=18.75) get NEGATIVE pothtg; the 0.1-ft floor then drives ~0.1"/cycle DBH via
+the H-D. jl (_tt_utvar_regent) clamped htgr to 0 AND computed dg from the raw (negative) h2 instead of h+floored-htgr
+⇒ froze woodland DBH. FIX: htgr<0.1 → 0.1; h2 = h + floored htgr; dk from that h2.
+VALIDATED vs FVStt_clean (5 woodland stands, NOTRIPLE so per-tree valid): pure_UJ_g 49/23 QMD 9.3 = live (BIT-EXACT);
+pure_PM_g 49/21 QMD 8.9 = live; pure_RM_g 49/23 QMD 9.3 = live; pure_OH_g 57/177 QMD 23.8 = live; pure_MC_g 56/20
+QMD 8.0 vs 8.1 (0.1 rounding). ttt01 unchanged (536/77→404/249, no woodland ⇒ no regression). This closes the TT
+memory's known "non-ttt01 DVEW species" remainder. META: the fix was invisible from source reasoning alone (pothtg
+negative ⇒ "should be 0") — the live probe's HK=H+0.1 exactly is what exposed the Dixon floor.

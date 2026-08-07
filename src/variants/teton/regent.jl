@@ -62,8 +62,11 @@ const _TT_BACON = 0.005454154f0
     # ⅔ VIGOR cut is ISPC==6 only (regent.f:284); PM/UJ/RM empirically need it (validated), MC/BI do not.
     (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
     htgrl = pothtg * pctred * vigor * con
-    h2 = h + htgrl                                       # SCALE=1 (NTYR/YR), no subcycle
-    htgr = h2 - h; htgr < 0f0 && (htgr = 0f0)
+    # regent.f:780 (Dixon 3/4/09 "PREVENT NEGATIVE HEIGHT GROWTH"): UTVAR floors HTGR to 0.1 ft, NOT 0.
+    # This is load-bearing for tall woodland trees whose pothtg goes negative (H > SJ·1.5): the 0.1-ft
+    # floor drives DG=(DK−DKK)·bark≈0.1" via the H-D below. Clamping to 0 (old jl) froze UJ/PM/RM DBH.
+    htgr = htgrl; htgr < 0.1f0 && (htgr = 0.1f0)
+    h2 = h + htgr                                        # HK uses the FLOORED increment (measured vs FVStt_clean)
     # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the WC "rule of thumb"
     # DG=0.1·HTG (regent.f CASE(13,14,16,18), the LHTDRG&IABFLG==0 branch that fires for TT's MC/BI —
     # HTDBH is a stub and the AA-fit leaves IABFLG=0 at growth, so DK/DKK are unused; measured fort.89).
