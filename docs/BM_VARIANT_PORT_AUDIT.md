@@ -803,3 +803,26 @@ the DG-adjacent real bugs found en route ARE fixed (66db612 habitat SMCON, 04b15
 "REAL under-thin bias" verdict is SUPERSEDED by this bidirectional + dense-regen evidence. Fully rigorous closure
 would want a larger unbiased sign-tally (expected to straddle ~0), but the mechanism (dense-regen chaotic straddle)
 + the observed bidirectionality place #140 firmly in the accepted cornered class.
+
+### #140 CORRECTION — UNbiased 20-stand sign-tally REVERSES the "cornered" call: REAL systematic under-thin (2026-08-07)
+
+★ SELF-CORRECTION of commit 31493cb (which wrongly declared #140 cornered from a HAND-PICKED 4-large-stand sample).
+Drew an UNBIASED, geographically-spread sample: 20 BM stands (≥8 trees, stride-sampled across all 5943 BM treed
+stands, 18 distinct CN prefixes), post-all-fixes (HEAD), final-TPA jl vs live FVSbm_clean:
+- **under (jl over-retains TPA) = 15 · over = 0 · ~bit-exact = 5 · mean Δ = +5.6%** (one −0.8% ~exact).
+- Range: 0.9%..18.5% under; NOT a single dense-chaotic case (many are ordinary 50-3700 TPA stands).
+
+⇒ This is a SYSTEMATIC one-directional under-thin bias (15:0), NOT the bidirectional straddle my 4-large-stand
+sample suggested. The 4-stand sample was BIASED (I selected the LARGEST divergences, which are dense-seedling
+chaotic ±cases); an unbiased draw shows the true population signal = jl consistently under-thins ~5.6%. The
+2026-08-05 goal-doc "REAL under-thin bias" verdict STANDS; commit 31493cb's "cornered" resolution is WITHDRAWN.
+
+ROOT (consistent with the earlier clean-stand measurement): jl's self-thin QMD dq10 runs ~1% LOW (41136 cyc0:
+d10=12.387 vs live 12.51) → tmd10=CONST·d10^−1.605 HIGHER → T85D10 target HIGHER → jl kills LESS → systematic
+under-thin, compounding via the QMD→target feedback. NOT resolved by the habitat/tem-cap fixes (66db612/04b15e6 —
+those are real adjacent bugs but .sum-inert on the self-thin). The ~1% dq10-low is on LARGE trees (QMD~12"), so it
+is a large-tree DG or dq10-accumulation issue, still OPEN. NEXT: cycle-gated per-tree deterministic DG (jl dgf!
+vs live bm/dgf.f WK2) on a mid-size under-thin stand from this sample (e.g. 41134262010497 +18.5%, 302205408489998
++11.8%) to localize the ~1% large-tree DG under-shoot — carefully cycle-gate both dumps (the prior bmt01 attempt
+hit a calibration-vs-growth-pass state mismatch). META: the sign-tally MUST use an UNBIASED sample — selecting on
+magnitude inverts the apparent sign distribution. This nearly closed #140 wrongly.
