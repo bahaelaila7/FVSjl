@@ -160,3 +160,23 @@ synthetic stands; it evidently does NOT fire (or fires ~9× weak) on these age-2
 instrument jl mortality! vs FVS{v}_g16 morts.f/mortmsb on 753180709290487 at 2019→2029 — dump the MSB trigger
 (QMDMSB/SLPMSB/CEPMSB), MSB kill, and the large-tree background RI, find why jl's large-tree/mature kill is ~9×
 low. Highest-priority. (Build FVSci_g16 or reuse the EM DF stand 474180830489998 with FVSem_g16.)
+
+### REFINEMENT (later 6c) — the multi-cycle divergences are HETEROGENEOUS (multi-causal), not one shared root
+Instrumenting a 2nd worst stand overturned the "shared mature-stand mortality" hypothesis: the multi-cycle blow-ups
+have DIFFERENT roots per stand:
+- CI 753180709290487 (age 233, pure DF): MORTALITY under-kill — ACCRE similar, MORT live 27 vs jl 3; live BA
+  declines 52→37, jl grows 52→74.
+- EM 474180830489998: ESTABLISHMENT — live TPA JUMPS 403→522 at 2036 (+119 regen), jl stays 418 (jl UNDER-
+  establishes here; ACCRE/MORT both ~equal 7-15/1-2). NOTE this CONTRADICTS the MEMORY.md line-6 caveat ("jl
+  OVER-establishes +63-86%") — either the #143 fix (d089b78) over-corrected on this stand, or this stand's regen
+  path differs; needs its own measurement.
+⇒ The real-FIA MULTI-CYCLE divergences are MULTIPLE independent issues (mortality on some stands, establishment on
+others, likely more), NOT a single cluster-wide bug. Each worst stand must be triaged separately:
+  CI-mortality: instrument morts.f large-tree/background/self-thin kill vs jl on 753180709290487.
+  EM-estab: instrument estab.f/esgent regen count vs jl on 474180830489998 at 2036 (does live AUTOES/natural add
+    ~119 that jl misses? reconcile with #143's over-establish claim).
+  TT 33% / UT 16%: triage separately (TT=aspen 746, UT=PJ 106/65).
+STILL the headline holds: cyc0 bit-exactness (32/32) MASKED all of these; multi-cycle real-FIA is REQUIRED. The
+cluster's multi-cycle fidelity on real FIA data is NOT established — this is the top open work-area, decomposed
+into per-stand root-causes above. (My earlier single-root framings — first "DG over-growth", then "shared
+mortality" — were both narrowed by the next measurement; doctrine #2, keep measuring.)
