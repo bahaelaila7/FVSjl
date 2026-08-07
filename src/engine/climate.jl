@@ -179,6 +179,33 @@ unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGR
     return ps, (tm < 0.0f0 ? 0.0f0 : tm)
 end
 
+# --- Climate mortality (clmorts.f) — viability → survival → mortality rate ---
+const _CLM_VS = Float32[0.2f0, 0.5f0]   # clmorts.f DATA VS/.2,.5/  (viability knots)
+const _CLM_SR = Float32[0.0f0, 1.0f0]   # clmorts.f DATA SR/0.,1./  (survival-rate knots)
+
+"""
+    clim_survival(xv) -> Float32
+
+10-yr climate survival from a species' raw viability score `xv` (clmorts.f:93): interpolate `xv`
+against the VS→SR curve, i.e. `xv<0.2 → 0`, `xv≥0.5 → 1`, linear between. (The SPCALIB-calibrated
+branch, clmorts.f:95-97, is a first-cycle refinement — chunk C, needs the presence-calibration state.)
+"""
+@inline clim_survival(xv::Real)::Float32 = algslp(xv, _CLM_VS, _CLM_SR)
+
+"""
+    clim_mort_rates(x, fint, mult) -> (spmort1, fyrmort)
+
+Climate mortality from 10-yr survival `x` (clmorts.f:103-120): `spmort1 = (1−x)·mult` (10-yr, for
+reporting); `fyrmort = (1 − x^(fint/10))·mult` (the applied fint-yr rate; `x→0` when `x≤1e-5`).
+`mult` = the species' MortMult keyword weight `CLMRTMLT1` (default 1).
+"""
+function clim_mort_rates(x::Real, fint::Real, mult::Real)
+    x1 = Float32(x); m = Float32(mult)
+    spmort1 = (1f0 - x1) * m
+    xf = x1 > 1f-5 ? clamp(exp(log(x1) / 10f0)^Float32(fint), 0f0, 1f0) : 0f0
+    return spmort1, (1f0 - xf) * m
+end
+
 """
     resolve_climate_indices(labels) -> Dict{Symbol,Int}
 
