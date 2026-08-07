@@ -173,7 +173,8 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     end
     tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
     rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-    tem = const_ * dq10^(-1.605f0) * pmsdil     # SDI threshold (morts.f 641)
+    tem = t55d10     # SDI-in-effect gate (tt/morts.f:633-635): min(CONST·D10^-1.605,35000)·PMSDIL — the CAP
+                     # was missing (uncapped tem ≫ tt on ultra-dense sub-1" cohorts → wrong background fallback). #140
     # PP CI-variant stand projection (tt/morts.f 273-293): BA forward 10y assuming BA/BAMAX of the BA
     # increment is lost to mortality → an annual TPA-mortality rate RZ. BAMAX defaults from weighted SDImax
     # (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU) when not user-set. Only PP (CASE 10) consumes RZ/BAMAX.

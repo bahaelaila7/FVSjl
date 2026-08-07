@@ -58,7 +58,8 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     end
     tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
     rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-    tem = const_ * dq10^(-1.605f0) * pmsdil
+    tem = t55d10     # SDI-in-effect gate (ut/morts.f:506-508): min(CONST·D10^-1.605,35000)·PMSDIL — the CAP
+                     # was missing (uncapped tem ≫ tt on ultra-dense sub-1" cohorts → wrong background fallback). #147/#156
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
