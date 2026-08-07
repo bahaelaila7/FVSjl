@@ -847,3 +847,26 @@ OPEN root: is jl's projected d10 ~1% low because of (a) a residual DDSS/blend DG
 DDS vs live bm/dgf.f WK2 — but CYCLE-GATE both dumps to the SAME growth pass (the bmt01 attempt captured live's
 DGF calibration-pass state vs jl's growth state → mismatch; gate on ICYC≥1 and skip the DGDRIV calibration calls).
 This is the single remaining measurement to root #140. It is a REAL bug (unbiased 15:0 under, +5.6%), NOT cornered.
+
+### #140 ROOT LOCALIZED — jl DG under-shoots PP (constant conspp) + GF small-tree DDSS (2026-08-07)
+
+The cycle-gated deterministic-DDS measurement WORKED (fix: gate live dump on ICYC.EQ.1 = first GROWTH cycle, skip
+DGDRIV calibration ICYC=0; jl gate s.control.cycle==0 + NOTRIPLE; align by species+DBH). On clean reproducer
+41134262010497 (COR=0 both), per-tree deterministic DDS jl vs live:
+- **PP (sp10): jl LOW by a CONSTANT −0.0598 log-DDS across ALL large trees** (d=14.4..30.4" all exactly −0.0598),
+  MORE on medium (d5-8: −0.09..−0.12). A size-INDEPENDENT constant offset on large (pure-DDSL) trees ⇒ a wrong
+  CONSTANT term in conspp for PP = dg_const[10] (DGCON) or 0.01·dg_ccf[10]·relden (DGLD·ald, DGDS·d², DGDBAL·bal
+  are all DBH-dependent and would NOT give a constant offset). The extra on medium = an additional PP DDSS error.
+- **GF (sp4): jl LOW by −0.40..−0.45 on SMALL trees (d=3.0/3.7") but BIT-EXACT on large (d=11.3-25.2, Δ=0.0000)**
+  ⇒ the GF small-tree DDSS (blend, d<10) is wrong (like the DF SMCON bug but for GF, and a DIFFERENT/larger error).
+- DF (sp3): mixed small (d0.1 −0.19, d8.6..24.6 +0.04..+0.10) — minor, not the driver.
+
+⇒ #140's systematic under-thin = jl's BM large-tree/blend DG under-shoots for PP (constant conspp) and GF
+(small-tree DDSS). These are REAL per-species coefficient/constant bugs (measured, deterministic, COR=0), NOT
+cornered. The habitat SMCON fix (66db612) addressed DF's DDSS but PP/GF have their OWN term errors.
+
+NEXT: compare jl vs live for (a) PP conspp — dg_const[10] (BM_DGSIC/DGFOR/DGEL/DGSITE·log(tsite) in bm_dgcons!)
++ dg_ccf[10]·relden — to find the −0.0598 constant; (b) GF (sp4) small-tree DDSS coeffs (BM_SM* at BM_SMMAPS[4]).
+Likely a site-index-per-species (BM_DGSIC[sp]·xsite / BM_DGSITE[sp]·log(tsite)) or a coefficient-table mismatch.
+Then fix + re-run the unbiased 20-stand tally (mean→0). Oracle FVSbm_g16 (cycle-gated recipe above). This is the
+final step to close #140.
