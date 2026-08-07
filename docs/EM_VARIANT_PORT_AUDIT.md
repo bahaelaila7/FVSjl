@@ -737,3 +737,16 @@ Correct measurement (instrumented esnutr.f:313 LINGRW-branch inputs, FVSem_g16, 
 NEXT: instrument the ingrowth ITPP (estab.f:589, the NTALLY=99/ingrowth path — NOT :541 which is inventory) +
 PLPROB(NNID) + the ESTOCK PN vs jl on 31446929010690 cyc2(2028) — jl's PLPROB/ITPP is the over-producing term.
 The fix is the ESTOCK stocking-probability / BAAA model (jl over-estimates P(stocking) for these EM habitats).
+
+## 2026-08-07 (cont.3) — #143 jl-side quantified: ingrowth 323 TPA@2028; BAAA is RIGHT here → root is ESTOCK-PN/habitat
+jl FVSJL_AUTOES_DEBUG on 31446929010690: ingrowth tally (ntally=99) total=323.5 TPA@icyc2(2028), then 163/164/175/
+190 at icyc4/6/8/10. baaa=28.24@2028 ≈ the stand BA (jl BA 34) ⇒ on THIS stand the BAAA input is ~CORRECT (NOT the
+documented 1.5×-low case of stand 753199439290487). So the +hundreds over-production here is NOT the BAAA input — it
+is the ESTOCK stocking-probability PN itself. PN≈-1.513+1.245·ln(AGE)-0.003052·baa (establishment.jl:76): TIME=1
+(ingrowth SHORTY, live-matching) ⇒ ln(AGE)≈0, baa=28 ⇒ PN≈-1.6 ⇒ logistic≈0.17 (~17% stocking/species) × ~10 estb
+species × plot-expansion ≈ 323. For live's ~0, live's effective PN must be near-zero ⇒ HYPOTHESIS: EM dry-habitat
+species-gating (OCURHT zeros the wet-side estb species for EM's habitats, establishment.jl:1067-1068) is not zeroing
+jl's establishing species — jl establishes species live's habitat forbids. NEXT (safe jl-side first): dump jl per-
+species r.tally[sp] + the ihab_code for this stand; check which species jl establishes vs the EM habitat's allowed
+set (OCURHT/ie_estab_indices). Then confirm vs live (correct estab.f ingrowth-tally-count target). The BAAA-input
+root (#143 title) is real on OTHER stands but NOT the driver here — the driver is the ESTOCK-PN/habitat-species set.
