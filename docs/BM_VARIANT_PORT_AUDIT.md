@@ -999,3 +999,16 @@ single-.o FVSbm_g16 rebuild, TAGGING it distinct from CRATET's, dump per-tree (I
 DDSS, DDSL, XWT, DDS) for the growth pass only, match to jl by (ISPC, D) on the 14 NOTRIPLE trees, and find which
 INPUT diverges. Given constants are bit-exact + BA-low-EARLY (small trees) → prime suspect is the DDSS small-tree
 term's per-tree input (BAL via PCT percentile, or PCCF point-CCF) for the sub-10" GF cohort.
+
+### #140 — bmt01 IS a clean DB-free reproducer (accretion −6% at cycle 1) (2026-08-07)
+
+bmt01.key case-1 (UNTHINNED CONTROL, forest 614, reads .tre — NO FIA-DB/habitat/elevation confounds) vs fresh
+FVSbm_clean: cyc0/1990 START state BIT-EXACT (TPA 536 · BA 184 · QMD 5.1 · TopHt), but the cycle-1 (1990→2000)
+ACCRETION diverges: live 84 vs jl 79 (−6%), MORT live 16 vs jl 14 → 2000 TPA jl 483 vs live 478 (under-thin
+begins immediately), and by 2090 jl TPA 110 vs live 96 (+14.6%, the #140 pattern). Also cyc0 VOLUME 1531 vs 1554
+(−1.5%) — the KNOWN separate pre-existing BM vol Δ, orthogonal to #140. My session's BM commits (forkod 18b9de0
+remaps only forest 619; bmt01 is 614 with a present habitat) are INERT on bmt01 ⇒ this is pre-existing #140, NOT
+a regression. ⇒ bmt01 case-1 is the IDEAL vehicle for the growth-DGDRIV per-tree instrumentation (deterministic,
+DB-free, forest 614, the same forest as reproducer 248804992489998). The −6% cycle-1 accretion is the cleanest
+single #140 signal found. NEXT: single-.o FVSbm_g16, instrument the growth DGDRIV (distinguish from CRATET),
+NOTRIPLE, dump per-tree DDS on bmt01 case-1, match to jl's dgf! wk2 by (ISPC,D) — find the diverging per-tree input.
