@@ -838,3 +838,17 @@ at estab.f:1323) to get the exact formula (XCSMAX source = crown-competition/max
 then port to jl's ingrowth path + validate on the EM sweep stands (net regen → ~0) + iet01/IE (no regress, disturbance
 path unchanged). ★ FROM vague "~22% baaa residual" → a specific missing structural factor (XCSMAX) in the ingrowth
 per-tree TPA, quantified 2500×, with the fix formula identified. This is the priority, now genuinely close to fixable.
+
+## 2026-08-07 (cont.10) — #143 CORRECTED (XCSMAX+STOADJ refuted): root = FTEMP→ESPROB per-tree/plot distribution
+Measured live at estab.f:579-580 (FVSem_gx): PN≈-0.5→FTEMP(stocking prob)≈0.5, STOADJ=1.0 (NO effect). ⇒ my two
+prior commits (3dd5ea2 "missing XCSMAX", and the STOADJ hypothesis) are BOTH REFUTED by measurement — the stocking
+prob FTEMP≈0.5 is actually HIGHER than jl's prob1≈0.17, and STOADJ=1.0. So the over-production is NOT the stocking
+prob, NOT XCSMAX, NOT STOADJ. ★ The reduction is in the FTEMP(0.5)→ESPROB(≈1e-4) PER-TREE/PLOT DISTRIBUTION step:
+live's booked per-tree ESPROB≈1e-4 (SUMESP 2-4e-4 over EXCESS=1-4 trees; total AF=0.1 TPA) despite FTEMP≈0.5. So
+live distributes the plot-stocking-prob (0.5) over the plot into a tiny per-tree ESPROB (1e-4) — a ~5000× reduction
+jl's ie_autoes_tally does NOT apply (jl per-tree esprob≈prob1≈0.17). ⇒ #143 root = the ESPROB per-tree computation
+(estab.f ~944-951, the plot-tree distribution) — jl over-assigns per-tree TPA. NEXT: trace estab.f:944-951 ESPROB
+(how FTEMP→ESPROB, the plot/tree normalization) vs jl ie_autoes_tally esprob(iplot); the ~5000× reducer is there.
+META (measurement discipline): 2 hypotheses (XCSMAX, STOADJ) refuted by direct measurement this turn — same as the
+CI "four wrong root-causes" pattern. The honest root is the ESPROB distribution, values now measured (FTEMP 0.5,
+ESPROB 1e-4). CAUTION: my commit 3dd5ea2 "missing XCSMAX" is WRONG — superseded by this entry.
