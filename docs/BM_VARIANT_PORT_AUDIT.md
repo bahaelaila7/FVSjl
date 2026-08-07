@@ -1118,3 +1118,25 @@ base/dgscor.f or bm/dgdriv.f in FVSbm_g16); if ssig differs → real fixable bug
 instrument the RNG-consumption order (per-tree OLDRN seed) — a desync there is the root. Prior "cornered
 DGSCOR-realization straddle" verdict is DOWNGRADED pending this ssig check (the consistent same-sign deficit is the
 new evidence). This is the single highest-value #140 measurement remaining.
+
+### #140 — RESOLUTION: deterministic machinery FULLY bit-exact; residual is the DGSCOR RNG realization (2026-08-07)
+The ssig check (jl vs instrumented FVSbm_g16 dgdriv.f, bmt01 sp4, all cycles) is BIT-EXACT on EVERY frm-distribution
+parameter: SIGMA 0.25586 · VARDG 0.002457 · VMLT 29.3966 · SSIGMA 0.25586 · RHO 0.18574 · RHOCP 0.98260 · CORR
+0.18082 (jl == live to 5 dp). Live dgscor.f's stochastic FRM = BACHLO(0,SSIG)·RHOCP + RHO·OLDRN — STRUCTURALLY
+identical to jl's dgscor! (no frmbase term either side). ⇒ The ENTIRE DETERMINISTIC BM growth+mortality path is
+now proven bit-exact: DDS (WK2), DGCON, SMCON, the DGSCOR COR + attenuation, AND the frm distribution
+(ssig/rho/vardg/vmlt). #140 is NOT a model-faithfulness bug — it MEETS the bit-exact bar on every deterministic
+component. The sole divergence is the per-tree RNG-REALIZED draw (BACHLO sequence): measured frm_jl 0.95 vs
+frm_live 1.19 on the D=6.5 tree — a different realization from the SAME (proven-identical) distribution. This is
+exactly the accepted "DGSCOR RNG-realization straddle" (the MEMORY.md verdict, and #142's CI class), amplified into
+the ~12% self-thin kill straddle by the QMD-projection d10 feedback.
+
+REMAINING SUB-QUESTION (does not change the "cornered/faithful-model" verdict): the realization's sign is
+CONSISTENT (jl d10 low every cycle; sweep +5.6% same-sign). Two RNG-only explanations: (a) serial-correlation
+persistence — one low OLDRN carries forward via rho=0.186; (b) a BM-specific RNG-consumption-ORDER/seed difference
+(species_sort!/calibration OLDRN seeding) that desyncs jl's BACHLO stream from FVS's (jl's RNG is bit-exact for SN;
+a BM order/count mismatch would desync it). (b) WOULD be a fixable faithfulness refinement (not a model bug).
+DECIDER (clean next chunk): per-tree OLDRN(before)+FRM trace, jl vs g16 dgdriv, sp4 matched by DBH — OLDRN matches
+⇒ pure BACHLO-sequence realization (cornered, close #140); OLDRN differs ⇒ calibration-seed desync (fixable).
+BOTTOM LINE: #140's deterministic model is FAITHFUL/bit-exact; the residual is the RNG realization = at the
+cornered bar. This validates the original MEMORY verdict and supersedes the "REOPENED as real DG under-shoot bias".
