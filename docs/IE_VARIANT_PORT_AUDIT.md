@@ -103,3 +103,33 @@ ZZRAN. That is the accepted "ZZRAN/DGSCOR dense-regen straddle" RNG-realization 
 HTGR=HTGR1·EXP(ZZRAN·HSIGMA)), here amplified on a 50377-TPA stand. ★ A d1v fix ATTEMPTED (drop DADJ) OVER-corrected
 (BA 13→135) AND regressed iet01 (429→461) ⇒ REVERTED (doctrine #4). VERDICT: #146 deterministic path FAITHFUL; the
 5× is the dense-regen ZZRAN realization = CORNERED class (same as CI #142 / EM-IE growth tail). Not a deterministic bug.
+
+## #143 AUTOES over-establishment — ROOT DECISIVELY FOUND (2026-08-07, formula-level)
+
+**Verdict:** the ~22% diffuse residual is entirely the **ingrowth (LINGRW, ntally==99) tally amount**, and
+the mechanism is now traced link-by-link from live source (no inference):
+
+- Measured (FVSem_g16 instrumentation, prior turn): live establishes the AF ingrowth increment at **~0.1 TPA**;
+  jl books **253 TPA** → ~2500×. Per-tree booked ESPROB: live ≈1e-4, jl ≈0.17.
+- **ESPROB formula MATCHES jl exactly** — `ESPROB(I)=FTEMP*FTEMP2` for ingrowth (estab.f:951) ==
+  establishment.jl:703 `esprob = p1*newtpp/itpp`. So the gap is **NEWTPP/ITPP** (live ≈2e-4, jl ≈1).
+- `NEWTPP = ITPP − NSTORE(NCOUNT)` (estab.f:684) — also identical to jl `newtpp = itpp − ns`.
+  So the gap is **NSTORE**: live's is ≈ITPP (plot already stocked); jl's is 0.
+- For ingrowth live sets `NSTORE = INT(PLPROB(NNID)*DUPNPT/(FTEMP*300)+0.5)` (estab.f:589) where
+  **`PLPROB(N)` accumulates the existing regen-sized stocking per plot**: `PLPROB(N)+=PROB(tree)/DUP`
+  over every existing tree with `DBH<REGNBK` (estab.f:305-314). So on an already-regen-dense plot
+  NSTORE≈ITPP → NEWTPP≈0 → ingrowth adds almost nothing. **Physically exact: ingrowth on a stand already
+  full of regen should add ~nothing.**
+- **jl never computes PLPROB.** It zeros `es_nstore` for ntally==99 (establishment.jl:1122-1123) — correct
+  for a bare *disturbance* plot (ntally==1), WRONG for *ingrowth* (stocked plot). → NEWTPP=full ITPP →
+  jl drops a full fresh cohort every ingrowth cycle.
+
+**Refuted en route (measurement discipline):** the "missing XCSMAX" fix (commit 3dd5ea2) and the STOADJ
+hypothesis were BOTH wrong — live STOADJ=1.0, live stocking-prob FTEMP≈0.5, neither is the ~5000× reducer.
+The reducer is NSTORE/NEWTPP, above. 3dd5ea2 superseded.
+
+**FIX (scoped as a real chunk, deferred to a fresh session):** in jl `ie_autoes`, accumulate a per-plot
+existing-small-tree (DBH<REGNBK=2.999) stocking `plprob[n] = Σ prob(tree)/dup` over the stand's trees
+mapped to plot n (needs the per-tree→plot `ITRE` assignment — verify jl tracks it), then for ingrowth set
+`es_nstore[n] = INT(plprob[n]*dupnpt/(p1*300)+0.5)` instead of 0. Validate: EM real-FIA sweep net ingrowth
+→ ~0 on regen-stocked stands; iet01/IE AUTOES no-regress on UNMODIFIED FVSie_clean/FVSem_clean.
