@@ -84,6 +84,11 @@ function bm_forkod!(p)
         ifor = 3
     else
         idx = findfirst(==(kodfor), BM_JFOR)
+        # bm/forkod.f: 619 (Whitman) remaps to 616 (Wallowa-Whitman) ⇒ IFOR=4, same as bm_kodfor_remap above.
+        # #140: this remap was applied for volume (bm_kodfor_remap) but MISSED here for the DG forest index, so
+        # forest_idx=5 (clamped to 1 in bm_dgcons!) picked the wrong DGFOR column ⇒ DGCON off by DGFOR[1,sp]-
+        # DGFOR[4,sp] (PP −0.0598) ⇒ systematic under-thin on Whitman(619)-forest stands.
+        idx == 5 && (idx = 4)
         idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
     end
     p.forest_idx = Int32(ifor)
