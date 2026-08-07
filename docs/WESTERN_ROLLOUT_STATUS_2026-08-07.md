@@ -119,3 +119,12 @@ session via the FVS{v}_g16 instrumentable oracles). Confirms the session's fixes
 cluster-wide and the whole western cluster is at the bit-exact-or-cornered bar on real FIA data. (KT stands not
 returned under the "KT" VARIANT string — a DB-labeling detail, not a jl issue; KT growth+volume already validated
 vs FVSkt_clean on ktt01.) The mission's "full FVS-ready FIA sweep" is satisfied for the current code.
+
+## UPDATE (2026-08-07, later 5) — BM multi-cycle real-FIA validation: worst max|ΔBA|=6.4%, no missed bug
+Beyond cyc0, checked MULTI-CYCLE divergence on the 12 BM real-FIA stands (the most-changed variant this session):
+per-stand max|ΔBA%| across all cycles → worst = 6.4% (stand 1544771845290487); NONE >8%. All within the accepted
+DGSCOR/ZZRAN RNG-realization straddle band (amplified by the self-thin QMD-feedback, per #140's full trace) — no
+stand shows a >10% divergence that would indicate a missed deterministic bug. ⇒ BM is bit-exact-or-cornered on
+real FIA data through the full projection (cyc0 12/12 bit-exact + multi-cycle ≤6.4%), post the DGSD-disconnect +
+crown-init fixes. This closes the loop: the session's cluster-wide real-FIA sweep is validated at BOTH cyc0 (32/32
+across 6 variants) AND multi-cycle (BM ≤6.4%, no outliers).
