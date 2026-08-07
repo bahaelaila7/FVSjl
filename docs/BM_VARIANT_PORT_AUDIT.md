@@ -1041,3 +1041,28 @@ NEXT: instrument the live growth DGDRIV via a single-.o FVSbm_g16 rebuild (targe
 gated to the growth call, no full-DEBUG so no segfault), dump per-tree (I,ISPC,D,CR,BAL,PCCF,DDS) at CURRENT dbh,
 match jl growth dgf! 1:1. LESSON (again): a DDS dump must be gated to the GROWTH pass; jl's FIRST 27 dgf! dumps
 are the DGSCOR calibration pass (COR=0, backdated dbh), NOT growth.
+
+### #140 — MAJOR REFRAME: growth is BIT-EXACT; the residual is a MORTALITY under-kill (2026-08-07)
+
+DECISIVE confound-free measurement via instrumented FVSbm_g16 (single targeted WRITE at dgf.f WK2 assignment, no
+full-DEBUG so NO segfault; g16 rebuilt pristine after). bmt01 case-1, NOTRIPLE.
+
+1. **CLEAN == G16 bit-exact** all cycles (476/218 @2000, ... ). (The earlier "clean 478/220" was the FULL bmt01.key
+   case-1 which TRIPLES; with NOTRIPLE clean=g16=476/218.) So g16 is a faithful stand-in for the doctrine oracle.
+2. **Growth-pass per-tree DDS is BIT-EXACT jl == g16** at CURRENT dbh with the sp4 COR applied:
+   D=6.5→3.28866 (both) · D=6.1→3.12077 (both) · D=6.6→3.16105 (both) · COR=0.01964 (both) · BAL/PCCF/CR identical.
+3. .sum @2000: **jl BA 217 ≈ clean/g16 BA 218 (nearly bit-exact)** but **jl TPA 483 vs 476** — jl retains 7 more.
+   536→483 (jl kills 53) vs 536→476 (clean kills 60): **jl under-kills ~12%**, and the extra survivors are SMALL
+   (BA-neutral). Directional every cycle (jl TPA always higher: 435>425, 391>370, ..., 110>98).
+
+⇒ **#140 is NOT a diameter-growth under-shoot — BM GROWTH is bit-exact (proven). The residual is a MORTALITY /
+self-thin UNDER-KILL** (~12% too few deaths on this stand's first cycle, BA-neutral because the un-killed trees are
+small). Every prior #140 hypothesis chased the DG subsystem (DGCON/SMCON/COR/forkod) — those fixes were valid
+(forkod WAS a real 619-forest DG bug) but the CORE self-thin residual is in MORTALITY, not growth. The BM mortality
+driver is the SOUTHERN mortality (src/variants/southern/mortality.jl: _pretzsch_tn10 self-thin, tem gate, dq10
+Stage-SDI QMD). NEXT: instrument the live BM mortality (morts.f, single-.o g16) — dump per-cycle the self-thin
+target (TN10/DQ10), the background+self-thin kill counts, and WHICH trees die — vs jl's mortality, on bmt01 case-1
+NOTRIPLE. The ~12% kill deficit is directional ⇒ likely a systematic self-thin target/rate difference (dq10 QMD or
+the RIP rate), NOT purely the RDPSRT tie-break straddle. META (session lesson): a "BA-low-early" signal on a
+TRIPLED FIA stand can mask a mortality-count divergence — NOTRIPLE + g16 growth-DDS bit-exactness isolates
+growth from mortality cleanly; always separate the two before attributing a self-thin divergence to DG.
