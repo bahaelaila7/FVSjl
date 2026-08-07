@@ -107,6 +107,78 @@ function species_vscore(cd::ClimateData, plant_symbol::AbstractString, thisyr::R
     return (spviab, vscore_transform(spviab))
 end
 
+# --- Leites et al. (Ecol. Appl. 22(1):154-165) transfer-distance relative-growth models ---
+# clgmult.f:161-197. Each returns GROW_TD1/GROW_TD0 with both terms floored at 0.05 before the ratio.
+# TD = "now" minus "birth" climate (time substituted for space per the FVS note).
+
+"XDF — Douglas-fir/lodgepole growth ratio from MTCM transfer distance (clgmult.f:161-167)."
+@inline function leites_xdf(mtcm_now::Real, mtcm_birth::Real)::Float32
+    td = Float32(mtcm_now) - Float32(mtcm_birth); mb = Float32(mtcm_birth)
+    td0 = 373.97f0 + 38.52f0 * mb
+    td1 = 373.97f0 + 6.799f0 * td - 3.726f0 * td * td + 38.52f0 * mb - 3.602f0 * mb * td
+    max(td1, 0.05f0) / max(td0, 0.05f0)
+end
+
+"XWL — larch/spruce/hemlock growth ratio from MMIN transfer distance + DD0 (clgmult.f:176-182)."
+@inline function leites_xwl(mmin_now::Real, mmin_birth::Real, dd0_birth::Real)::Float32
+    td = Float32(mmin_now) - Float32(mmin_birth); db = Float32(dd0_birth)
+    td0 = 542.20f0 - 0.1468f0 * db
+    td1 = 542.20f0 + 17.50f0 * td - 1.215f0 * td * td - 0.1468f0 * db - 0.0187f0 * td * db
+    max(td1, 0.05f0) / max(td0, 0.05f0)
+end
+
+"XPP — ponderosa growth ratio from SMI(=dd5/gsp) transfer distance + D100 (clgmult.f:191-197)."
+@inline function leites_xpp(smi_now::Real, smi_birth::Real, d100_birth::Real)::Float32
+    td = Float32(smi_now) - Float32(smi_birth); db = Float32(d100_birth)
+    td0 = 551.20221f0 - 2.02135f0 * db
+    td1 = 551.20221f0 - 14.88483f0 * td - 0.58027f0 * td * td - 2.02135f0 * db + 0.15582f0 * td * db
+    max(td1, 0.05f0) / max(td0, 0.05f0)
+end
+
+"""
+    clim_xgsite(psite_now, psite_invyr) -> Float32
+
+Site-productivity growth adjustment from the pSite attribute (clgmult.f:90-106): 2.0 if the
+inventory-year pSite ≤ .001; 1.0 if unchanged; else 1.5819767·(1−exp(−pSite_now/pSite_inv)),
+snapped to 1.0 within .01.
+"""
+@inline function clim_xgsite(psite_now::Real, psite_invyr::Real)::Float32
+    pi = Float32(psite_invyr); pn = Float32(psite_now)
+    pi <= 0.001f0 && return 2.0f0
+    abs(pn - pi) < 0.001f0 && return 1.0f0
+    x = 1.5819767f0 * (1.0f0 - exp(-(pn / pi)))
+    abs(x - 1.0f0) < 0.01f0 ? 1.0f0 : x
+end
+
+"""
+    clim_xrelgr(plant_symbol, xdf, xpp, xwl) -> Float32
+
+Per-species relative-growth dispatch (clgmult.f:199-217): PSME/PICO→XDF, PIPO→XPP,
+LAOC/PIMO3/PIEN/TSHE→XWL, else the half-weighted mean of the three; snapped to 1.0 within .005.
+"""
+@inline function clim_xrelgr(sym::AbstractString, xdf::Real, xpp::Real, xwl::Real)::Float32
+    x = (sym == "PSME" || sym == "PICO") ? Float32(xdf) :
+        sym == "PIPO"                    ? Float32(xpp) :
+        (sym == "LAOC" || sym == "PIMO3" || sym == "PIEN" || sym == "TSHE") ? Float32(xwl) :
+        1.0f0 + (((Float32(xdf) + Float32(xpp) + Float32(xwl)) / 3.0f0 - 1.0f0) * 0.5f0)
+    abs(x - 1.0f0) < 0.005f0 ? 1.0f0 : x
+end
+
+"""
+    clim_treemult(xgsite, xrelgr, vscore, clgrowmult) -> (ps, treemult)
+
+Combine into the per-tree growth multiplier (clgmult.f:222-226): PS = min(xgsite, xrelgr, vscore)
+unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGROWMULT, floored at 0.
+`clgrowmult` is the species' GrowMult keyword weight (default 1 when GrowMult sets ALL/species).
+"""
+@inline function clim_treemult(xgsite::Real, xrelgr::Real, vscore::Real, clgrowmult::Real)
+    ps = min(Float32(xgsite), Float32(xrelgr), Float32(vscore))
+    ps > 0.99f0 && (ps = max(Float32(xgsite), Float32(xrelgr), Float32(vscore)))
+    ps > 3.0f0 && (ps = 3.0f0)
+    tm = 1.0f0 + (ps - 1.0f0) * Float32(clgrowmult)
+    return ps, (tm < 0.0f0 ? 0.0f0 : tm)
+end
+
 """
     resolve_climate_indices(labels) -> Dict{Symbol,Int}
 
