@@ -826,3 +826,24 @@ vs live bm/dgf.f WK2) on a mid-size under-thin stand from this sample (e.g. 4113
 +11.8%) to localize the ~1% large-tree DG under-shoot — carefully cycle-gate both dumps (the prior bmt01 attempt
 hit a calibration-vs-growth-pass state mismatch). META: the sign-tally MUST use an UNBIASED sample — selecting on
 magnitude inverts the apparent sign distribution. This nearly closed #140 wrongly.
+
+### #140 NARROWED — BA preserved, TPA/kill-count under-thin; initiates at cyc1 with bit-exact inputs (2026-08-07)
+
+Clean +18.5% reproducer 41134262010497 (mid-size, no dead/dense-chaos/habitat confound), per-cycle jl vs live:
+- cyc0 2002 BIT-EXACT (797/188/6.6). cyc1 2012: live 594/195, jl 614/193 (jl kills 183 vs live 203 = 20 FEWER).
+- BA CONVERGES to BIT-EXACT (212=212 from 2042 on; ≤1% low early). TPA systematically under (594/614...119/141).
+  QMD lower in jl throughout (more trees at same BA).
+
+⇒ The divergence is TPA/self-thin KILL-COUNT with DENSITY (BA/SDI) PRESERVED — NOT a raw DG-collapse (BA would run
+low). At cyc1 the mortality INPUTS are bit-exact (797 TPA, QMD 6.6"), so the initiating difference is in the
+projected-QMD (d10) → self-thin-target (tmd10/t85d10) → kill-count chain. Consistent with the earlier 41136 cyc0
+measurement (jl projected d10=12.387 vs live 12.51, ~1% low at bit-exact input) — jl's projected end-of-cycle QMD
+runs ~1% low → higher T85D10 target → kills fewer; the retained extra trees compensate BA (∴ BA preserved). The
+~1% is on MEDIUM trees (this stand starts QMD 6.6", the MSS-spline blend region d3-10 where DDSS blends with DDSL).
+
+OPEN root: is jl's projected d10 ~1% low because of (a) a residual DDSS/blend DG under-shoot (the habitat SMCON fix
+66db612 addressed one DDSS term but this stand still under-thins), or (b) the mortality's own d10-projection/kill
+(dq10 accumulation, morts.f:82 DQ10). SETTLE with the DETERMINISTIC-DDS test at cyc1 on 41134262010497 — jl dgf!
+DDS vs live bm/dgf.f WK2 — but CYCLE-GATE both dumps to the SAME growth pass (the bmt01 attempt captured live's
+DGF calibration-pass state vs jl's growth state → mismatch; gate on ICYC≥1 and skip the DGDRIV calibration calls).
+This is the single remaining measurement to root #140. It is a REAL bug (unbiased 15:0 under, +5.6%), NOT cornered.
