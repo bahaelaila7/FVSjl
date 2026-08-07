@@ -1099,3 +1099,22 @@ systematically → that is the real #140 bug (a DGSCOR realization/serial-correl
 META: #140 was chased as "DG under-shoot" for many sessions; it is actually a MORTALITY effect driven by the DG
 *realization* (not the DG *model*, which is bit-exact). The QMD-projection d10 is the amplifier. Separate
 NOTRIPLE(stochastic) from TRIPLED(deterministic) before ruling cornered.
+
+### #140 — SHARPENED (2026-08-07): d10 deficit is CONSISTENT every cycle ⇒ leaning SYSTEMATIC (not straddle)
+Re-reading the mortality trace: jl's projected d10 is LOW EVERY cycle — 6.077/7.025/7.919/8.835 vs live
+6.137/7.193/8.168/9.16 (jl ~1-2% low, same sign every cycle), and the real-FIA sweep is a CONSISTENT +5.6%
+under-thin (not a mixed-sign straddle). A pure DGSCOR RNG-realization straddle would flip sign across cycles/stands;
+a consistent same-sign deficit is a SYSTEMATIC FRM-realization bias. Also the realized .sum shows jl BA −0.5% /
+QMD −0.1 at 2000 (small but real), consistent with the applied DG being slightly low — so it is NOT purely
+BA-neutral; there is a small real DG-realization deficit that BOTH nudges BA down AND (amplified by the self-thin
+d10 feedback) under-kills.
+jl frm = exp(bachlo(0,ssig)·rhocp + rho·OLDRN) (serial_correlation.jl:dgscor!). A systematic low bias would come
+from: (a) ssig (=c.sigma[sp], the calibrated residual SD → the lognormal E[exp]=exp(ssig²/2) mean-lift; if jl's
+ssig is low, frm's mean is low → DG low), or (b) rho/rhocp (ARMA weights), or (c) an RNG-consumption-ORDER desync
+(species_sort! / calibration-pass OLDRN seeding) that mis-assigns draws. SN is bit-exact with this same dgscor!,
+so the BM-specific suspect is ssig/PSIGSQ (BM_PSIGSQ) or the BM calibration OLDRN seed, NOT the RNG core.
+DECISIVE NEXT (cheap, jl-side first): dump jl c.sigma[4]/ssig/rho/rhocp for bmt01 sp4 vs live SIGMA(4) (instrument
+base/dgscor.f or bm/dgdriv.f in FVSbm_g16); if ssig differs → real fixable bug (the #140 root); if ssig matches →
+instrument the RNG-consumption order (per-tree OLDRN seed) — a desync there is the root. Prior "cornered
+DGSCOR-realization straddle" verdict is DOWNGRADED pending this ssig check (the consistent same-sign deficit is the
+new evidence). This is the single highest-value #140 measurement remaining.
