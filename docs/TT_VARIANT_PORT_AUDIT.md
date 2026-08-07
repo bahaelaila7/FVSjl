@@ -1260,3 +1260,22 @@ META (validation-breadth lesson): ttt01 + one dense-sub-1" stand was insufficien
 where DR10≠QMD AND growth is non-trivial is where the growth bug shows. FIA sweeps across density regimes are the
 right gate. NEXT: the cluster-wide dense-conifer DG under-shoot (BM #140 + TT stands 2/3) — instrument jl vs live DG
 per-tree at the first divergent cycle on a NOTRIPLE stand.
+
+## 2026-08-07 — ★ CORRECTION to the above: TT sweep divergences are MIXED-SIGN + multi-causal (NOT a clean DG under-shoot)
+The prior entry's "consistent ~2-3% DG under-shoot" was OVER-SIMPLIFIED from stand 3 alone. Multi-stand first-cycle
+(2009) BA check REFUTES it — the sign is MIXED across stands:
+  388912505489998: jl 2nd-BA 112 vs live 105 (+7%);  3159202010690: 89 vs 81 (+10%);
+  2783239010690: 229 vs 231 (-0.9%);  11790600010690: 47 vs 22 (+114%).
+★ Stand 4's BA=47/QMD=2.2 with 31 initial TPA does NOT reconcile (needs ~1780 TPA) ⇒ it is REGEN-DOMINATED — its
+divergence is ESTABLISHMENT AMOUNT (jl over-establishes), NOT diameter growth. ⇒ the TT sweep under-thins are
+MULTI-CAUSAL: (a) establishment/regen-amount differences (cf #143 AUTOES), (b) MIXED-SIGN small-tree DG straddle on
+dense-regen cohorts (the accepted ZZRAN/DGSCOR dense-regen straddle per the 2026-08-03 whole-cluster sweep memo),
+(c) AMPLIFIED by the steep Zeide self-thin (D^-1.605) into large final TPA%. This is DIFFERENT from a systematic
+growth bias. What HOLDS from the prior entry: #148 DR10 is faithful+correct (TT Zeide, morts.f:267), and DR10's
+steeper sensitivity amplifies these dense-regen straddles MORE than the old QMD did (so #148's aggregate .sum looks
+worse on dense-regen stands even though the model is right — doctrine #4, keep it). What does NOT hold: the "single
+clean cluster-wide DG under-shoot = BM #140" claim — BM #140 (NOTRIPLE QMD low, converges = transition-timing) and
+the TT sweep (mixed-sign + establishment) have DIFFERENT characters; do not conflate. NET: the TT dense-regen sweep
+residuals are most likely the ACCEPTED straddle class amplified by Zeide self-thin, not a new bug — but the
+establishment-amount piece (stand 4) is worth a look under #143. META (doctrine #2): a clean single-stand story must
+survive a MULTI-stand check before it is committed as a root cause; this one did not.
