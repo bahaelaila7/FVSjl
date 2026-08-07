@@ -942,3 +942,19 @@ The 24-vs-14 tree-count discrepancy is itself a LEAD: jl may read/split this sta
 NOTRIPLE deterministic-DDS with a 1:1 tree correspondence to localize any remaining per-species DG offset; (c) if
 DG is then bit-exact, the non-619 residual is the accepted DGSCOR/self-thin straddle. STATE: forkod bug FIXED
 (18b9de0, real, 619 stands); non-619 residual OPEN and honestly un-localized.
+
+### #140 — HISTORY=6 hypothesis REFUTED; non-619 residual STILL open (2026-08-07)
+
+Checked whether jl includes the 4 HISTORY=6 records on 248804992489998 (DB: 14 HISTORY=1 + 4 HISTORY=6): REFUTED —
+jl cyc0 TPA = 616 = live (jl correctly excludes HISTORY=6, same 14 live trees). The 24-vs-14 DGF-dump discrepancy
+was a DUMP ARTIFACT (jl's dgf! called for calibration AND growth pass at cycle==0, like live's DGDRIV — the same
+calibration-vs-growth confound), NOT a tree-count difference. So the deterministic-DDS on 248804992489998 was
+confounded by uncleaned calibration-pass calls, and its "GF trees off" signal is NOT trustworthy.
+
+TALLY of hypotheses this session on #140: REFUTED = cornered(31493cb) · PP-site-index(SITEAR matched) ·
+HISTORY=6(cyc0 TPA matched) · the 24-vs-14 tree-count lead. CONFIRMED+FIXED = the forkod forest-index remap
+(18b9de0, 619-Whitman stands, PP DGCON + GF SMCON). The forest-INDEPENDENT residual (+5.45% tally mean on 604/607/
+614/616 stands) is GENUINELY UN-LOCALIZED. NEXT: a clean deterministic-DDS that gates OUT jl's calibration-pass
+dgf! calls (need jl's calib-vs-growth flag, analogous to live ICYC.EQ.1) so the jl/live tree sets are 1:1 (14 each)
+on a 614 stand — THEN the per-species offset (if any) is trustworthy; if DG is then bit-exact, the residual is the
+accepted DGSCOR/self-thin straddle. STATE: 1 real #140 fix landed (forkod); residual open, do-not-assume.
