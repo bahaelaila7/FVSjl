@@ -1298,3 +1298,29 @@ META (doctrine #2, hard): I committed TWO wrong root-cause sub-claims this turn 
 establishment) before the data settled — each corrected by the next measurement. LESSON REINFORCED: do not commit a
 root-cause narrative until it survives the disambiguating measurement (here: the TPA-trajectory + DB-composition
 check that distinguishes regen from plot-expansion from small-tree-DG). Verify the REGIME before naming the cause.
+
+## 2026-08-07 — #158 aspen over-growth = the KNOWN "deeper small-tree-regent version divergence" (now UNBLOCKED)
+Ran the recorded per-component measurement (jl instrument + live FVStt_g16 smhtgf.f dump) on stand 11790600010690
+aspen (sp6). Findings:
+- SITAGE UNIT BUG CONFIRMED: jl regent.jl:103 SITAGE=(h/26.9825)^(1/1.1752) uses H in FEET; live findag.f:96 uses
+  (H*2.54*12/26.9825)^… (H→CM). At H=1.01: jl SITAGE=0.058 vs live=1.119 (exact match with the *2.54*12). The
+  one-line fix (multiply h by 2.54*12) reproduces live's SITAGE EXACTLY.
+- BUT the SITAGE fix ALONE REGRESSES stand 4 (2nd-cyc BA 47→54, live 22) and is ~neutral on ttt01 (404/249→402/253,
+  cornered) — because correcting SITAGE INCREASES HTGR, and the DOMINANT bug is DOWNSTREAM: live keeps aspen DBH
+  growth small (DG 0.1-0.67) DESPITE large height growth (HTGR~6ft), while jl's canonical SMDGF converts it to
+  DG=1.4-2.4 (~3× over). So jl's height→DBH conversion over-converts.
+★ ROOT = the KNOWN divergence already documented at regent.jl:35-42: jl's TT small-tree regent is the CANONICAL
+  tt/regent.f (REGYR=5 subcycle + CALL SMDGF), but the LIVE FVStt_clean binary's regent_ calls smdgf_ 0×
+  (disasm-verified) — it is the buildDir SINGLE-STEP model (REGYR=10 + inline HT-DBH DBH + POTHTG·PCTRED·VIGOR·CON
+  SUPPRESSION). That suppression (density·vigor) is why live aspen DG stays small. The FIA sweep re-surfaced this
+  deferred divergence via the sub-1" aspen regime (aspen DGMAX was band-aided 0.2→2.0, letting the over-growth show).
+★★ UNBLOCK: the header says this was "blocked on … un-instrumentable regent (SIGFPE)". My FVStt_g16 FULL-REBUILD
+  recipe (compile ALL *.f with gfortran-16 -std=legacy -w -fno-automatic; 2-3 files fall back to buildDir .o; link
+  w/ isoc23 shim) makes regent/smhtgf INSTRUMENTABLE (I dumped live SITAGE/HTGR cleanly). ⇒ the previously-blocked
+  faithful port of live's single-step suppressed small-tree model is now DOABLE.
+NEXT (the real #158 fix, a chunk not a one-liner): instrument live's buildDir regent single-step DBH path (the
+inline HT-DBH + POTHTG·PCTRED·VIGOR·CON suppression) for aspen on stand 4, port it to replace jl's canonical
+SMDGF-based small_tree_growth default DBH, INCLUDING the SITAGE *2.54*12 fix. Validate ttt01 (aspen sp6) + stand 4
++ the DGMAX band-aids can then be removed. This also likely resolves the conifer 0.2-cap band-aids (same model).
+META: the FIA sweep's value here = it re-surfaced a KNOWN deferred divergence AND my g16 capability removed its
+blocker. The SITAGE fix is correct but must land WITH the single-step model (alone it regresses).
