@@ -806,3 +806,20 @@ booked tree count at the NTALLY=99 ingrowth tally (2028) vs jl's ie_estock PN / 
 per-species comparison at identical inputs will expose the exact diverging term (a coefficient, the ITPP formula, or
 that live's tally genuinely yields ~0 while jl's ITPP rounds up). META: 6 clean negatives via DB-query/jl-eval/
 source-compare — a model of eliminating candidates cheaply before the expensive live measurement.
+
+## 2026-08-07 (cont.8) — ★★★ #143 DECISIVE: live AF ingrowth = 0.1 TPA vs jl 253 TPA (~2500× over) = STRUCTURAL tally bug
+Instrumented live estab.f tree-booking (FVSem_g16, stand 31446929010690). Live books via path p2 (estab.f:1293, the
+DO 226 II=1,IBRKUP breakup loop): 80 AF(9) records + 6 LP(7) + 3 ES(8). BUT the per-record PROB = (FTEMP2*300*
+XCSMAX)/DUPNPT sums to: AF total TPA=0.1, ES=0.0, LP=0.0 — essentially ZERO. jl's r.tally[AF]=253.4 TPA@2028. ⇒
+live establishes AF at 0.1 TPA where jl establishes 253 TPA = ~2500× OVER-production. Two-branch question SETTLED =
+branch (a) TALLY-AMOUNT (NOT persistence): live's ESTOCK stocking→TPA yields ~0.1 TPA; jl's yields 253. The ~2500×
+magnitude ⇒ a STRUCTURAL error (a missing/wrong factor in jl's stocking→TPA), not a subtle coefficient. All ESTOCK
+INPUTS proven identical (ihab16/iphy3/iprep1/elev87/baaa28/species/TIME1/RNG-seeds), so the divergence is jl's
+PROB/ITPP→TPA COMPUTATION vs live's PROB=(FTEMP2·300·XCSMAX)/DUPNPT. CANDIDATE: jl may miss the XCSMAX (max-crown-
+area normalization) and/or DUPNPT (plot-expansion) divisor, OR FTEMP2 (the realized stocking) — jl's PN→logistic≈0.17
+but live's realized FTEMP2 here is ~0.0004 (0.1/80/~3). NEXT (jl-side, safe): trace jl's r.tally computation
+(ie_autoes_run/ie_esnspe/the ITPP→TPA step) and compare its per-record TPA formula to live PROB=(FTEMP2·300·XCSMAX)/
+DUPNPT — find the missing structural factor. This is the FIX target, now concrete (jl over-scales the tally ~2500×
+for this habitat). Note iet01 stand-4 was "bit-exact" so jl's tally is right for SOME stands — the over-scale is
+habitat/condition-specific (subalpine ihab16 fallback). META: pushing the g16 instrumentation (right target via the
+booking-count intermediate) gave the decisive 0.1-vs-253 number that no amount of input-checking could.
