@@ -690,3 +690,21 @@ NEXT (#143): the jl AUTOES tally (ie_autoes_tally / ie_autoes_run) over-produces
   live yields ~0. Instrument jl vs live AUTOES tally (count/species/schedule) on 31446929010690 at the first firing
   cycle (2028). Either the tally MODEL over-counts, or a gate/threshold (seed source, habitat, stocking) that
   suppresses live's tally is missing in jl. Reuses the ie_autoes machinery. This is the stated open priority.
+
+## 2026-08-07 — ★★ #143 MECHANISM localized: LINGRW auto-INGROWTH (not LAUTAL disturbance) + "EM AUTOES validated" was NOAUTOES+PLANT
+Two findings that sharpen + partly RE-FRAME #143:
+1. emt01.key (the stand where "EM AUTOES wired+bit-exact / #143 closed for EM" was claimed) uses NOAUTOES (natural
+   auto-establishment OFF) + explicit PLANT (planted regen). ⇒ EM's NATURAL AUTOES/ingrowth tally was NEVER
+   validated bit-exact against live — the prior "bit-exact" was the PLANT path (deterministic), not the natural tally.
+   The memory "EM AUTOES bit-exact (#143 closed for EM)" is OVERSTATED for the natural path.
+2. The +63-86% over-establishment fires via LINGRW automatic INGROWTH, NOT LAUTAL disturbance-tally. establishment.jl
+   :1076-1081: idsdat defaults inv_year-20 (esnutr.f:113); the 40-yr-gap ingrowth rule (next_year-idsdat≥40) first
+   fires at inv_year+20 = 2028 — EXACTLY the observed jl establishment cycle on 31446929010690 (then ~every 20-40yr).
+   These FIA stands have NO thinning, so LAUTAL (disturbance ≥THRES removal) is NOT the trigger — it's the periodic
+   ingrowth. jl's ingrowth tally produces hundreds TPA; live produces 0.
+⇒ #143 for keyword-less multi-cycle FIA = jl's LINGRW auto-ingrowth tally OVER-produces vs live (~0). NEXT (measure):
+  instrument live vs jl at 2028 — does live fire the ingrowth tally at all (LINGRW active on plain DATABASE stands?)
+  and if so what count/BAAA/PN, vs jl's. If live's ingrowth yields 0 for these habitat/stocking conditions, jl's
+  ESTOCK/BAAA ingrowth model over-produces (the known #143 baaa/tally-amount root); if live never fires ingrowth on
+  keyword-less DB stands, jl's unconditional LINGRW firing (simulate.jl:565 + ie_autoes_schedule!) is a gate bug.
+  Distinguish via the FVSem_g16 rebuild + an estab-tally dump. This is the stated open priority.
