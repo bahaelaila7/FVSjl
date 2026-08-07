@@ -48,3 +48,14 @@ The western cluster + extensions are at the bit-exact-or-cornered bar. Every non
 measured, documented cornered primitive or a scoped/justified deferral (Climate-FVS). The single genuinely-open
 technical question is #140's count-straddle directional lean — a marginal tie-break effect at the cornered/real
 boundary that needs a dedicated study, not a blocker on the cluster's correctness. The off-switch is the user's call.
+
+---
+## CORRECTION (2026-08-07, later) — #140 is NOT cornered; REOPENED
+An UNBIASED 20-stand BM stride-sample (vs the earlier hand-picked 4-large-stand sample) gives under=15/over=0/
+mean Δ=+5.6% ⇒ #140 IS a REAL systematic under-thin bias (goal-doc verdict stands). The "#140 decomposed/cornered"
+statements ABOVE are WITHDRAWN (commits 553a928 supersede 31493cb/679bfc4). #140 is OPEN: a real BM self-thin
+under-thin whose root (large-tree DG ~1% under-shoot driving dq10-low→target-high, vs a self-thin kill-rate bias)
+needs a cycle-gated per-tree measurement on a clean mid-size reproducer (41134262010497 +18.5%). The DG-adjacent
+bugs fixed this session (habitat 66db612, tem-cap 04b15e6/7ce8f1f) remain valid but are .sum-inert on this bias.
+The rest of the cluster status above is unaffected. LESSON: a systematic-vs-straddle sign-tally MUST use an
+UNBIASED sample — selecting stands on divergence magnitude inverts the apparent sign distribution.
