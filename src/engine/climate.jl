@@ -59,6 +59,27 @@ function parse_climdata(lines::AbstractVector{<:AbstractString}, nplt::AbstractS
 end
 
 """
+    algslp(xx, x, y) -> Float32
+
+Port of `algslp.f` — piecewise-linear interpolation of the series `(x, y)` at `xx`, with FLAT
+extrapolation: `xx < x[1] → y[1]`; `xx ≥ x[end] → y[end]`; else linearly interpolate between the
+bracketing knots. `x` must be ascending (the climate `YEARS`). Used by clgmult/clmorts to sample
+a climate attribute's time-series at the inventory / current / birth year.
+"""
+function algslp(xx::Real, x::AbstractVector{<:Real}, y::AbstractVector{<:Real})::Float32
+    n = length(x)
+    x1 = Float32(xx)
+    x1 < x[1] && return Float32(y[1])
+    x1 >= x[n] && return Float32(y[n])
+    @inbounds for i in 1:(n - 1)
+        if x1 < x[i + 1]
+            return Float32(y[i] + ((y[i + 1] - y[i]) / (x[i + 1] - x[i])) * (x1 - x[i]))
+        end
+    end
+    return Float32(y[n])
+end
+
+"""
     resolve_climate_indices(labels) -> Dict{Symbol,Int}
 
 Port of clin.f:210-227 — locate the column of each named climate attribute used by the
