@@ -80,6 +80,34 @@ function algslp(xx::Real, x::AbstractVector{<:Real}, y::AbstractVector{<:Real}):
 end
 
 """
+    vscore_transform(spviab) -> Float32
+
+Port of clgmult.f:118-123 — turn a raw species viability score (0..1, the interpolated
+per-species climate-viability attribute) into the growth-viability score VSCORE:
+`>0.5 → 1.0`; else `-0.66666667 + 3.3333333·spviab`; floored at 0.2.
+"""
+@inline function vscore_transform(spviab::Real)::Float32
+    s = Float32(spviab)
+    v = s > 0.5f0 ? 1.0f0 : (-0.66666667f0 + s * 3.3333333f0)
+    return v < 0.2f0 ? 0.2f0 : v
+end
+
+"""
+    species_vscore(cd, plant_symbol, thisyr) -> (spviab, vscore)
+
+Port of clgmult.f:112-127 for one species: locate the species' viability column in `cd`
+by its PLANTS symbol (INDXSPECIES = the label matching `plant_symbol`, clin.f:241-248),
+interpolate it to `thisyr` (= IY(ICYC)+FINT/2), and apply [`vscore_transform`](@ref).
+Returns `(1.0, 1.0)` when the species has no viability column (clgmult leaves VSCORE=1).
+"""
+function species_vscore(cd::ClimateData, plant_symbol::AbstractString, thisyr::Real)
+    col = findfirst(==(plant_symbol), cd.labels)
+    col === nothing && return (1.0f0, 1.0f0)
+    spviab = algslp(thisyr, cd.years, view(cd.attrs, :, col))
+    return (spviab, vscore_transform(spviab))
+end
+
+"""
     resolve_climate_indices(labels) -> Dict{Symbol,Int}
 
 Port of clin.f:210-227 — locate the column of each named climate attribute used by the
