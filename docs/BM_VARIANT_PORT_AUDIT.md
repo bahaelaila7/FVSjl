@@ -958,3 +958,20 @@ HISTORY=6(cyc0 TPA matched) · the 24-vs-14 tree-count lead. CONFIRMED+FIXED = t
 dgf! calls (need jl's calib-vs-growth flag, analogous to live ICYC.EQ.1) so the jl/live tree sets are 1:1 (14 each)
 on a 614 stand — THEN the per-species offset (if any) is trustworthy; if DG is then bit-exact, the residual is the
 accepted DGSCOR/self-thin straddle. STATE: 1 real #140 fix landed (forkod); residual open, do-not-assume.
+
+### #140 non-619 residual — CONFIRMED a real DG under-shoot (not cornered), forest-independent (2026-08-07)
+
+Aggregate BA-vs-TPA disambiguation (confound-free) on 248804992489998 (614, +14.6%, forkod-INERT): cyc0 bit-exact
+(616/70), then jl BA runs LOW early (2033: 164 vs live 170, −3.5%; 2023: 119 vs 121) and CONVERGES to ~bit-exact
+at maturity (185 vs 186), while TPA systematically under-thins (2093: 82 vs 94). BA-low-EARLY (not density-
+preserved) ⇒ a genuine DG UNDER-SHOOT, same mechanism as the forkod case (DG low → higher self-thin target →
+under-kill, extra survivors compensate BA) but a DIFFERENT cause (forkod inert on 614; bmt01 [also 614] is
+bit-exact, so it's site/habitat/species-specific to THIS stand, in the MSS-spline blend region, QMD starts 4.6").
+
+⇒ The forest-independent #140 residual (+5.45% tally) is a REAL DG under-shoot, NOT the cornered straddle (that
+uncertainty is now RESOLVED via the clean aggregate test). NEXT (confound-free localization, mirroring the forkod
+find): dump jl dg_const[sp]/sm_const[sp] per species for 248804992489998 vs live's DGCON(sp)/SMCON(sp) (bm/dgf.f
+9050/9040 DGCONS DEBUG) — a PER-STAND comparison (no per-tree/calibration-pass confound). Find which species' DGCON
+or SMCON is off and by what input (site index / habitat SMMAPH / another forest-ish term). bmt01-614-bit-exact +
+248-614-off ⇒ the differentiator is this stand's site index or habitat code. STATE: forkod FIXED; this second DG
+under-shoot is REAL and OPEN, localized to per-species DGCON/SMCON on non-bmt01-614 stands.
