@@ -133,3 +133,25 @@ existing-small-tree (DBH<REGNBK=2.999) stocking `plprob[n] = Σ prob(tree)/dup` 
 mapped to plot n (needs the per-tree→plot `ITRE` assignment — verify jl tracks it), then for ingrowth set
 `es_nstore[n] = INT(plprob[n]*dupnpt/(p1*300)+0.5)` instead of 0. Validate: EM real-FIA sweep net ingrowth
 → ~0 on regen-stocked stands; iet01/IE AUTOES no-regress on UNMODIFIED FVSie_clean/FVSem_clean.
+
+## #143 FIXED + VALIDATED (2026-08-07, commit d089b78)
+
+Ported live's ingrowth NSTORE and validated bit-close vs live FVSem. MEASURED the scaling via a full
+FVSem_g16 rebuild (instrumentable, bit-exact vs FVSem_clean) with NS1/NS2 dumps in estab.f, on a synthetic
+40000-TPA-AF single-plot dense stand (em_dense.db):
+- Live NS1: PLPROB=595, DUPNPT=50, FTEMP=0.973 → NSTORE=INT(595·50/(0.973·300)+0.5)=**102**.
+- Live NS2: all 50 plots NSTORE=102, ESTPP-draw ITPP=1-3 → **NEWTPP=0 on every plot** → ingrowth ≈0.
+- PLPROB·DUP = 595·50 = 29750 = the current (self-thinned) DBH<2.999 TPA ⇒ **NSTORE=INT(tpacre/(prob1·300)+0.5)**
+  (the nptids/idup factors cancel → uniform across plots; exact for the single-point #143 stands).
+
+**Fix** (establishment.jl): `ie_autoes_establish!` sums current DBH<2.999 TPA (is_ingro only) and passes it;
+`ie_autoes_run` fills `es_nstore = INT(tpacre/(prob1·300)+0.5)` per plot before the tally. Guarded by
+is_ingro AND tpacre>0 so bare/disturbance tallies are untouched.
+
+**Validation:** (unit) bare ingrowth 583.66 UNCHANGED (iet01 stand-4 safe), dense 253→0.106 TPA; all 12
+IE estock tests pass. (end-to-end) `run_keyfile` on the dense stand → jl ingrowth total **0.1 TPA == live 0.1**
+(FVSem_clean trajectory 40000→34000→29750, no ingrowth spike). Supersedes the measurement-refuted XCSMAX
+(3dd5ea2) and STOADJ hypotheses.
+
+**Bonus:** the same synthetic dense stand + live FVSem_g16 oracle cleanly reproduces the SEPARATE #137/#140
+self-thin under-kill — jl self-thins 40000→38897 while live →29750 (mortality, not ingrowth). Ready reproducer.
