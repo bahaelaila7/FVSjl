@@ -645,3 +645,20 @@ is stand/species/calibration-specific (candidates: a large-tree DDS coefficient 
 COR/DGSCOR calibration evolution — goal doc "WK3 calib-species COR evolution"). NEXT: per-tree DG jl vs live at
 cyc0 on the 14 trees (NOTRIPLE, clean) — is the ~1% uniform across trees (⇒ coefficient/COR) or size-dependent?
 And compare c.dg_cor[sp] (COR) jl vs live. Do NOT guess coefficient-vs-COR — measure. Oracle FVSbm_g16.
+
+### #140 — classification caveat: ~1% DG is AT cornered magnitude; bug-vs-cornered NOT yet settled (2026-08-07)
+
+The clean-stand cyc0 DG under-shoot (jl DQ10 12.387 vs live 12.51, ~1%) is measured and drives the under-thin on
+41136808010497 — but ~1% is RIGHT AT the magnitude the goal doc accepts as CORNERED for the EM/IE large-tree DG
+tail (0.5-0.8% mixed-sign, RDPSRT/AVHT40 tie-break). So it is NOT yet proven that #140 is a distinct FIXABLE bug
+vs the same cornered large-tree-DG precision AMPLIFIED into a one-sided TPA outcome by the self-thin knife-edge
+(mortality is a threshold on the target, so a symmetric ±1% DG straddle can still yield a mostly-one-sided TPA
+skew). The goal-doc "9:2 skew ⇒ real bias" call itself flipped from an earlier "cornered" read.
+
+TO SETTLE (decisive test, fresh session): measure cyc0 DQ10 (jl vs live) on MULTIPLE CLEAN (0-dead) self-thinning
+BM stands of BOTH TPA signs. If jl-DQ10-low correlates with under-thin AND jl-DQ10-high with over-thin ⇒ it is a
+DG-realization STRADDLE = CORNERED (like CI's DGSCOR). If jl-DQ10 is SYSTEMATICALLY low regardless of TPA sign ⇒
+real DG bias. The current 12-stand bm_sub.db set has NO clean over-thin stand (22960873010497 over-thins but has
+3 HISTORY=8 dead trees ⇒ confounded); need to draw more clean self-thinning BM stands from the 70GB DB
+(extract_sample.jl). Do NOT declare a fix until this sign-correlation is measured — the DG-calibration zone has
+already produced 4 wrong root-causes on CI.
