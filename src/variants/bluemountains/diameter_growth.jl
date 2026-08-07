@@ -17,7 +17,11 @@ function bm_dgcons!(s::StandState)
     isisp = Int(p.site_species); (isisp < 1 || isisp > 18) && (isisp = 10)
     ifor  = Int(p.forest_idx);   (ifor < 1 || ifor > 4) && (ifor = 1)
     elev = p.elevation; aspect = p.aspect; slope = p.slope
-    icl5 = Int(p.habitat_code); (icl5 < 1 || icl5 > 92) && (icl5 = 1)   # ICL5 = KODTYP habitat (SMMAPH row)
+    # ICL5 = KODTYP habitat (SMMAPH row). A MISSING/OOR habitat defaults to 79 (bm/habtyp.f:67-69 "DEFAULT
+    # CONDITIONS — PA = CWG113" → ITYPE=79), NOT 1. #140: jl defaulted to 1, which applied a real DF SMHAB
+    # coefficient (SMMAPH(1,2)=1→SMHAB(2,2)=−0.337) instead of the neutral default (SMMAPH(79,·)=0→SMHAB(1,·)=0),
+    # under-shooting DF small-tree DG ~6% on habitat-less FIA stands → self-thin under-kill (the 9:2 skew).
+    icl5 = Int(p.habitat_code); (icl5 < 1 || icl5 > 92) && (icl5 = 79)
     xsite = p.sp_site_index[isisp]                                      # XSITE = SITEAR(ISISP)
     lsi = trunc(Int, xsite / 10f0)
     isic = lsi < 2 ? 1 : (lsi >= 5 ? 5 : (lsi >= 4 ? 4 : (lsi >= 3 ? 3 : 2)))

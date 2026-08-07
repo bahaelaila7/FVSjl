@@ -121,8 +121,8 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # into BM_PCOML by habtyp/HBDECD. Without it, bm_sitset! gets no ECOCLS row ⇒ SDIDEF=0 ⇒ stand_sdimax=0 ⇒
     # bm/morts.f's "SDIMAX<5 ⇒ kill ALL trees" fires and the stand COLLAPSES to 0 TPA at cycle 1 (cycle-0-only
     # sweeps never caught this). Match live FVSbm, which reads PV_CODE and HBDECDs it to the PCOML index.
-    if s.variant isa BlueMountains && _fia_present(d, "PV_CODE")
-        pv = String(strip(_fia_str(d, "PV_CODE", "")))
+    if s.variant isa BlueMountains
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
         # bm/habtyp.f: when PV_REF_CODE is present, PVREF6 crosswalks (PV_CODE, PV_REF_CODE) → the canonical
         # PCOML code BEFORE the HBDECD/PCOML match (e.g. "CJG111"/622 → "CPG111"). A raw FIA PV code not in
         # PCOML would otherwise fall through to the CWG113 default (SDIMAX 395 vs 166) ⇒ under-thinning (#140).
@@ -140,10 +140,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
                 pv = bm_pvref6(pv, string(pvr))   # PVREF6 blanks on no-match (mapped=="")
             end
         end
+        hc = 0
         if !isempty(pv)
             idx = findfirst(==(pv), BM_PCOML)
-            idx !== nothing && (p.habitat_code = Int32(idx))
+            idx !== nothing && (hc = Int(idx))
         end
+        # bm/habtyp.f:67-69 — a MISSING or UNRESOLVED habitat defaults to CWG113 = KODTYP 79 (measured live
+        # ICL5=79 on habitat-less FIA stands). jl previously left habitat_code at 1 here ⇒ the DF small-tree
+        # SMCON picked SMHAB(2,2)=−0.337 instead of the neutral SMHAB(1,·)=0 ⇒ ~6% DF DG under-shoot ⇒ the #140
+        # self-thin under-kill (9:2 skew). Setting 79 makes the DF small-tree DDS bit-exact vs live.
+        p.habitat_code = Int32(hc == 0 ? 79 : hc)
     end
     # CI: the habitat KODTYP fed to ci_habtyp is the 3-digit NI code in PV_REF_CODE (e.g. 401); PV_CODE holds the
     # 5-digit FIA code (out of ci_habtyp's 10-999 range). Without it habitat_code=0 ⇒ habitat_input defaults to 1
