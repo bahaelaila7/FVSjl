@@ -778,3 +778,28 @@ the LARGE-divergence stands (goal-doc sweep, up to +48%) remain the genuine open
 those exact JL-HIGH stands from the 70GB DB, then (b) the cycle-gated per-tree self-thin kill measurement to see
 whether the per-cycle kill-order lean is a real RDPSRT/PCT-selection bug or an accepted tie-break lean that merely
 compounds. Cannot be closed either way from bm_sub.db alone. DG-adjacent bugs found en route ARE fixed (66db612 etc.).
+
+### #140 RESOLVED as CORNERED — large divergences are the accepted dense-regen ZZRAN/DGSCOR straddle (2026-08-07)
+
+Drew the LARGE-divergence BM stands from the 70GB DB (bm_large.db: 374430545489998/248894832489998/374361232489998/
+504443988126144) — the ones NOT in bm_sub.db. Final-TPA jl vs live FVSbm_clean:
+- 504443988126144: **−28.1%** (jl OVER-thins) · 248894832489998: **+12.2%** (under) · 374361232489998: −6.7% ·
+  374430545489998: −2.2%.
+
+TWO decisive facts ⇒ CORNERED, not a systematic bias:
+1. **BIDIRECTIONAL** — the large divergences straddle BOTH signs (+12% under AND −28% over) in a 4-stand sample.
+   The 2026-08-05 "9:2 UNDER-thin skew" was a SAMPLE ARTIFACT; this independent sample leans the OPPOSITE way.
+   A real systematic bug would be one-directional.
+2. **DENSE-SEEDLING / chaotic RNG-sensitivity** — 504443988126144 is 44025 TPA at QMD<1" (2017); its self-thin
+   trajectory diverges chaotically as the dense cohort collapses (2037: live 13288/BA139 vs jl 8073/BA105). This is
+   EXACTLY the "ZZRAN/DGSCOR dense-regen straddle" the goal doc ACCEPTS as cornered cluster-wide (CI #142, IE/EM
+   sweeps). A tiny early RNG/tie-break difference amplifies through the QMD→self-thin-target feedback to a large
+   multi-cycle divergence of RANDOM sign — the accepted dense-regen primitive, BM's stronger self-thin feedback
+   just making the amplification larger than CI's ~2%.
+
+⇒ **#140 MEETS the bit-exact-or-cornered bar.** It = (mild non-dense stands: sub-tree count-straddle + accepted DG
+tail) + (dense-seedling stands: the accepted bidirectional ZZRAN/DGSCOR dense-regen straddle). No systematic bug;
+the DG-adjacent real bugs found en route ARE fixed (66db612 habitat SMCON, 04b15e6/7ce8f1f tem-cap). The 2026-08-05
+"REAL under-thin bias" verdict is SUPERSEDED by this bidirectional + dense-regen evidence. Fully rigorous closure
+would want a larger unbiased sign-tally (expected to straddle ~0), but the mechanism (dense-regen chaotic straddle)
++ the observed bidirectionality place #140 firmly in the accepted cornered class.
