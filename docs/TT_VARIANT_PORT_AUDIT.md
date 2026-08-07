@@ -1279,3 +1279,22 @@ the TT sweep (mixed-sign + establishment) have DIFFERENT characters; do not conf
 residuals are most likely the ACCEPTED straddle class amplified by Zeide self-thin, not a new bug — but the
 establishment-amount piece (stand 4) is worth a look under #143. META (doctrine #2): a clean single-stand story must
 survive a MULTI-stand check before it is committed as a root cause; this one did not.
+
+## 2026-08-07 — ★ RE-CORRECTION (2nd): TT sweep = SMALL-TREE DG (mixed-sign by size), NOT establishment
+The prior entry's "stand 4 regen-DOMINATED / establishment" claim was ALSO wrong (2 bad sub-claims now, both caught
+by measurement). VERIFIED: stand 4 (11790600010690) live TPA is MONOTONE-DECREASING (2006 1836 → 2096 1214) = NO
+regen; it is PLOT-EXPANDED (10 records/31 raw TPA → 1836 via BASAL_AREA_FACTOR=-24, INV_PLOT_SIZE=300, NUM_PLOTS=4),
+and its trees include a SUB-INCH aspen cohort (sp746=quaking aspen, DBH 0.1-8.6). ⇒ stand 4's +114% cycle-1 BA (jl
+47 vs live 22) is jl OVER-GROWING the sub-1" small-tree cohort — a SMALL-TREE DG error, NOT establishment.
+CORRECTED PICTURE: the TT sweep divergences are SMALL-TREE DG errors, MIXED-SIGN BY SIZE REGIME — jl over-grows
+very-small (sub-1") trees markedly (stand 4 aspen +114% BA cyc1), ~matches/slightly-off medium (stands 1/2/3
++7/+10/-0.9%). This is the SAME FAMILY as the known real small-tree DG bugs #145 (EM hardwood-seedling +2× over),
+#146 (IE WH under), #149 (BM conifer-seedling under) — a per-variant, per-species small-tree DG regime that a
+real-FIA sweep surfaces (cf the dense-seedling sweep campaign). The sub-1" aspen over-growth (stand 4) is the
+strongest lead = likely a real TT aspen small-tree DG (DGFASP or regent) issue, worth instrumenting jl vs live on
+stand 4 cyc1. The final +22/+46% under-thins (stands 2/3) are the Zeide self-thin RESPONSE to these DG errors + the
+accepted dense-regen ZZRAN straddle. #148 DR10 remains faithful/correct (unaffected by this).
+META (doctrine #2, hard): I committed TWO wrong root-cause sub-claims this turn (consistent-under-shoot, then
+establishment) before the data settled — each corrected by the next measurement. LESSON REINFORCED: do not commit a
+root-cause narrative until it survives the disambiguating measurement (here: the TPA-trajectory + DB-composition
+check that distinguishes regen from plot-expansion from small-tree-DG). Verify the REGIME before naming the cause.
