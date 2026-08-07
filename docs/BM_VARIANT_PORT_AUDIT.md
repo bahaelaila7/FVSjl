@@ -1140,3 +1140,25 @@ DECIDER (clean next chunk): per-tree OLDRN(before)+FRM trace, jl vs g16 dgdriv, 
 ⇒ pure BACHLO-sequence realization (cornered, close #140); OLDRN differs ⇒ calibration-seed desync (fixable).
 BOTTOM LINE: #140's deterministic model is FAITHFUL/bit-exact; the residual is the RNG realization = at the
 cornered bar. This validates the original MEMORY verdict and supersedes the "REOPENED as real DG under-shoot bias".
+
+### #140 — REAL BUG FOUND+FIXED (DGSD field disconnect) + residual is the RNG straddle (2026-08-07)
+Per-tree OLDRN(before)+FRM trace (jl vs instrumented FVSbm_g16 dgdriv.f, bmt01 sp4) decoded the root:
+- MEASURED trees (i=13/14/16/27): OLDRN bit-exact jl==live.
+- Regression-FILLED non-measured trees (i=3/6/21): live clamps OLDRN to ±0.38379 = 1.5·σ (BM DGSD=1.5); jl
+  clamped to ±0.51172 = 2.0·σ. ⇒ **jl used DGSD=2.0 for BM's large-tree DGSCOR, not 1.5.**
+ROOT: two disconnected control fields both mean "DGSD" — `dg_sd` (→ small-tree regent/crown random) and
+`dg_stddev_bound` (→ large-tree DGSCOR reject bound + OLDRN clamp + mortality). BM set only `dg_sd=1.5`, leaving
+`dg_stddev_bound` at the SN default 2.0. In FVS grinit there is ONE DGSD feeding both. CI had the IDENTICAL bug
+(dg_sd=1.7, dg_stddev_bound=2.0). FIX: bluemountains/species.jl + centralidaho/species.jl now also set
+`dg_stddev_bound` = 1.5 / 1.7. VALIDATED: OLDRN clamp now matches live (±0.38379); cyc0 bit-exact both variants;
+multi-cycle comparable (BM under-thin marginally reduced 110→108 @2090; CI unchanged); no collapse, no regression.
+
+RESIDUAL (the #140 aggregate under-thin PERSISTS, ~cornered): even after the DGSD fix, the per-tree FRM still
+differs (i=13 OLDRN matches but FRM jl 1.44 vs live 0.88) — the BACHLO RNG-realized DRAW differs. jl's RNG is a
+faithful PORT but not byte-sequence-identical to FVS for the stochastic-DG path; the desync is triggered by
+UNCALIBRATED species (fn<5: bmt01 sp2/3/7/8) whose OLDRN is bachlo-seeded in calibration, desyncing the growth
+draws. This is the accepted "DGSCOR RNG-realization straddle" (doctrine: Never FFI the RNG; #142's class). The
+ENTIRE DETERMINISTIC path is bit-exact (DDS/DGCON/SMCON/COR/SSIG/RHO/VARDG/VMLT + now the OLDRN clamp); the
+residual is pure RNG realization ⇒ #140 MEETS the bit-exact-or-cornered bar. A future bit-exact-RNG effort
+(matching FVS's BACHLO byte-stream through the calibration OLDRN seeding) could close the last ~5% but is a
+separate, large, cross-variant undertaking (would also tighten CI #142, EM/IE tails).

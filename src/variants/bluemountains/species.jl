@@ -31,6 +31,12 @@ function init_blockdata!(s::StandState, v::BlueMountains)
     s.rng.s0 = Float64(BM_RNG_SEED); s.rng.ss = BM_RNG_SEED
     fill!(s.control.ht_drag_sp, true)  # LHTDRG default .TRUE.
     s.control.dg_sd = 1.5f0            # DGSD default (bm/grinit.f:200) — NOTE 1.5 not 2.0
+    # bm/grinit.f DGSD=1.5 is the SINGLE FVS DGSD — it bounds BOTH the small-tree regent random
+    # effect (dg_sd, above) AND the large-tree DGSCOR serial-correlation reject/clamp
+    # (dg_stddev_bound, read by dgscor!/OLDRN-clamp/mortality). #140 root: dg_stddev_bound was left at
+    # the SN default 2.0, so BM's OLDRN clamp (±DGSD·σ) and dgscor reject bound were too loose →
+    # desynced the per-tree BACHLO stream → biased the DGSCOR DG realization → self-thin under-kill.
+    s.control.dg_stddev_bound = 1.5f0  # bm/grinit.f:200 DGSD=1.5 (was 2.0 default) — #140 fix
     return s
 end
 

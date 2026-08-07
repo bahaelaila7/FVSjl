@@ -31,6 +31,8 @@ function init_blockdata!(s::StandState, v::CentralIdaho)
     fill!(s.control.ht_drag_sp, true)  # LHTDRG default .TRUE. (ci/grinit.f)
     s.control.ht_drag_sp[15] = false   # ci/grinit.f LHTDRG(15)=.FALSE. (MC)
     s.control.dg_sd = 1.7f0            # DGSD default (ci/grinit.f DGSD=1.7)
+    s.control.dg_stddev_bound = 1.7f0  # ci/grinit.f DGSD=1.7 also bounds the large-tree DGSCOR reject/clamp
+                                       # (was SN default 2.0) — same disconnected-field bug as BM #140
     return s
 end
 
