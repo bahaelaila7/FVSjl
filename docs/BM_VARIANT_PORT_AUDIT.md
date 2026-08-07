@@ -531,3 +531,23 @@ the QMD→target→survivor-QMD feedback. CONFIRMS the documented "#140 = jl dq1
 DG precision tail (goal doc: RDPSRT/AVHT40 tie-break, mixed-sign ~0.5-0.8%, cancels in BA)? Here it is SYSTEMATIC
 (consistently low from cyc2) and ~2% > the cornered 0.8% — so it may be a real DG under-shoot on this regime, NOT
 just precision. NEXT: per-tree DG comparison jl vs live at cyc2 (pre-self-thin) on this stand to classify it.
+
+### #140 CLASSIFIED — REAL DG under-shoot, NOT cornered (2026-08-07)
+
+Applied the goal-doc's own cornered test (cornered ⇒ aggregate BA bit-exact since mixed-sign DG cancels) to
+reproducer 645155287126144, cycle-by-cycle jl vs live FVSbm_clean:
+- 2018/2028/2038 (cyc0-2): TPA/BA/QMD BIT-EXACT (jl==live: 14 BA, 3.4 QMD @2038).
+- 2048 (cyc3, PRE-self-thin, both 231 TPA): jl BA **41 vs live 43 (−4.7%)**, QMD 5.7 vs 5.8.
+- 2058 (cyc4): jl BA **79 vs live 89 (−11%)**, QMD 8.0 vs 8.4.
+
+At cyc3 NEITHER side has self-thinned (both 231 TPA) ⇒ the BA gap is PURE diameter growth. jl's BA is
+SYSTEMATICALLY LOW (one-sided), which the cornered mixed-sign tail CANNOT produce (it keeps BA bit-exact).
+⇒ **#140 is a REAL BM diameter-growth under-shoot**, distinct from the accepted EM/IE cornered precision tail.
+It first appears at cyc3 as trees cross ~5" (cyc0-2 were bit-exact, small-tree/regen regime) ⇒ the divergence
+is in the **BM LARGE-TREE DG** (Wykoff DDS) or its COR/DGSCOR calibration evolution, NOT small-tree/mortality.
+The self-thin under-kill (#140's surface symptom) is the DOWNSTREAM amplification via QMD→target feedback.
+
+NEXT: per-tree/per-species DG jl vs live at cyc3 (2048, pre-self-thin, single-plot pre-split ⇒ treelist valid)
+to localize — is it a large-tree DDS coefficient/dispatch, or COR-evolution? Oracle FVSbm_g16 ready (instrument
+bm/dgf.f or the DDS path). CAUTION: distinguish a real coefficient bug from the settled DGSCOR realization —
+the SYSTEMATIC one-sided BA sign here argues for a real bug, but confirm per-species before fixing.
