@@ -128,3 +128,22 @@ stand shows a >10% divergence that would indicate a missed deterministic bug. �
 real FIA data through the full projection (cyc0 12/12 bit-exact + multi-cycle ≤6.4%), post the DGSD-disconnect +
 crown-init fixes. This closes the loop: the session's cluster-wide real-FIA sweep is validated at BOTH cyc0 (32/32
 across 6 variants) AND multi-cycle (BM ≤6.4%, no outliers).
+
+---
+## ⚠️ CRITICAL (2026-08-07, later 6) — MULTI-CYCLE real-FIA sweep reveals LARGE cross-variant divergences (cyc0 MASKED them)
+Extending the real-FIA sweep from cyc0 to MULTI-CYCLE (max|ΔBA%| across all cycles) surfaced LARGE divergences the
+cyc0-32/32-bit-exact result HID: CI worst 114.7% (753180709290487) + 20/20/50/18% on 4 more CI · EM 29.0%
+(474180830489998) · TT 33.3% (753186539290487) · UT 16.4% (3624632010690) · IE 4.8% (only IE cornered-small).
+NOT AUTOES (jl==jl+NOAUTOES on the worst CI stand). NOT my session's fixes (EM/TT/UT unchanged this session ⇒
+PRE-EXISTING). ROOT = jl OVER-GROWS the large-tree DG on MATURE real-FIA stands: on 753180709290487 the stand
+DECLINES in live (BA 52→37, mortality>growth) but GROWS in jl (BA 52→74); decomposed at 2029 the +19% BA gap is
++8 from QMD over-growth (jl 9.3 vs live 8.66) + only +1 from mortality (TPA 118 vs 115). A per-cycle DG
+over-prediction compounds over 8 cycles into the 16-114% BA blow-up — FAR beyond the accepted ~7% cornered tail.
+⇒ THE "cluster bit-exact-or-cornered" VERDICT IS CYC0-ONLY AND INCOMPLETE: real-FIA MULTI-CYCLE has a systematic
+cross-variant large-tree-DG over-growth on mature stands (species/condition-specific — cit01/synthetic use GF and
+were bit-exact, hiding it). This is the HIGHEST-priority open item, reopened by this measurement. NEXT: instrument
+FVS{v}_g16 dgf vs jl on 753180709290487 (CI) at the first divergent cycle (2019→2029) — per-tree DG by species,
+find which species/term over-grows; likely a large-tree DG coefficient/site/CCF term wrong for the real-FIA species
+mix (NOT GF). META (doctrine, hard): cyc0 bit-exactness is NECESSARY BUT NOT SUFFICIENT — a small per-cycle DG
+error is invisible at cyc0 and compounds to catastrophic multi-cycle divergence; ALL "bit-exact-or-cornered"
+claims must be MULTI-CYCLE on real FIA data, not cyc0. My prior "32/32 mission satisfied" was premature.
