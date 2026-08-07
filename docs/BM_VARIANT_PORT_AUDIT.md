@@ -479,3 +479,18 @@ signed BA divergence. The genuine systematic divergence in the set was this over
 prior 3-cycle sign-tally missed — it manifests only in LATE cycles), now fixed. #140 ⇒ bit-exact-or-cornered:
 one real bug fixed; residual = the accepted BA-pinned dense-regen TPA-count straddle. Live sources restored (morts.f,
 pvref6.f un-instrumented, FVSbm_clean relinked). Harness: scratchpad/bm140_verify.jl + bm40_all.jl.
+
+## 2026-08-07 — #140 under-thin ROOT-CAUSE REDIRECTED: small-tree DG under-shoot, NOT mortality formula
+Multi-stand tally (bm_sub.db self-thinning stands) confirms a real +4-9% under-thin skew (645155287126144 +8.9%,
+41136808010497 +5.8%, 1127619588290487 +3.7%; densest 22960873010497 -1.4%; 2 match). MEASURED the mortality
+internals via a full gfortran-16 rebuild of FVSbm (single-.o swap ABI-SIGFPEs; full rebuild runs clean + matches
+FVSbm_clean) + jl _pretzsch_tn10 instrumentation. First density cycle (2058, T=229.9 exact match): live DIA0=8.42/
+D10=10.81/TN10=196.4 vs jl 7.96/10.13/206.8 → jl TN10 too high → under-kill. BOTH dia0+d10 ~5.5% low by the SAME
+ratio ⇒ the mortality FORMULA is correct: (1) G-extrap matches (jl yr=htg_period=10 ⇒ _mort_traj_g identity DG/bark
+= live morts.f:222 (DG/BARK)·(FINT/10)); (2) DBHSTAGE=0 both; (3) tn10/rn correct. TRUE ROOT = a small-tree-regime
+DIAMETER-GROWTH under-shoot: NOTRIPLE jl QMD matches live to 2038 (3.3) then diverges LOW at 2048 (5.8 vs 6.0) &
+2058 (8.4 vs 9.0) BEFORE density mortality begins, converging by 2098 (16.1 vs 16.0). Lower QMD → lower SDI → higher
+tn10 → under-kill. Consistent-sign (not the mixed-sign cornered RDPSRT tail), likely a real DG residual in the QMD
+3-6" transition (cf #149). NEXT = instrument jl vs live bm dgf.f+regent DG at 2038→2048 on the NOTRIPLE stand. This
+is a GROWTH fix, not mortality. META: the goal-charter's "dq10 formula runs low" hypothesis is REFUTED — the formula
+is bit-exact; the low d10 is downstream of the growth under-shoot. Doctrine #2 measurement redirected the fix target.
