@@ -568,10 +568,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # bogus into next cycle's DGF/mortality).
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
-    establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
-    # Climate-FVS AutoEstb (clauestb.f, gradd.f:223): schedule NATURAL regen for NEXT cycle off the current
-    # (post-growth) density + species viability. Picked up by establish! next cycle. Inert unless AutoEstb parsed.
+    # Climate-FVS AutoEstb (clauestb.f) runs BEFORE ESNUTR (gradd.f:223 < :229): schedule NATURAL regen off the
+    # current (post-growth) density + species viability, for a year WITHIN this cycle (IY(ICYC+1)-1) so the
+    # establish! immediately below picks it up SAME cycle. Inert unless a CLIMATE block parsed AutoEstb.
     (s.climate !== nothing && s.climate.active) && clim_autoestb!(s, Int(s.control.cycle) + 1, fint)
+    establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
     # AUTOES (IE): automatic natural establishment (esnutr.f scheduler → estab.f tally). Fires off the removal/
     # ingrowth rules (not a scheduled PLANT/NATURAL), so it runs separately from establish!.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)

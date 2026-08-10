@@ -459,7 +459,7 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
     ssum = 0f0; @inbounds for sp in top; ssum += pot[sp]; end
     ssum > 0.001f0 || return s
     tprob > tmaxtrs * aestock * 0.01f0 && return s                    # stocking gate (clauestb.f:219)
-    nextyr = Int(current_cycle_year(s)) + round(Int, fint)
+    nextyr = Int(current_cycle_year(s)) + round(Int, fint) - 1        # OPADD IY(ICYC+1)-1 — WITHIN this cycle
     @inbounds for sp in top
         trees = ptrees * ttoadd * (pot[sp] / ssum)
         trees <= 1f0 && continue
