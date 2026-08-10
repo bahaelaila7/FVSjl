@@ -180,6 +180,10 @@ unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGR
 end
 
 # --- Climate mortality (clmorts.f) — viability → survival → mortality rate ---
+# VALIDATED 8/8 IE species vs live FVSie_g16 clmorts debug (cyc1: WH XV.0585→X0→MORT1; RC .489→.9633→.0367;
+# LP mult=.5). This is the base viability-mortality path (SPMORT1/FYRMORT). NOT YET ported: the SPCALIB first-
+# cycle presence-calibration branch (clmorts.f:92-98) + the SPMORT2 transfer-distance DMORT (clmorts.f:128-223,
+# uses the DE* climate-distance attributes) — chunk-1c.2.
 const _CLM_VS = Float32[0.2f0, 0.5f0]   # clmorts.f DATA VS/.2,.5/  (viability knots)
 const _CLM_SR = Float32[0.0f0, 1.0f0]   # clmorts.f DATA SR/0.,1./  (survival-rate knots)
 
