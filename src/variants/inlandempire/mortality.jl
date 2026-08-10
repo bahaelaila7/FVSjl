@@ -76,6 +76,10 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         sdimax < 5f0 && (wki = pr)
         killed[i] = wki
     end
+    # Climate-FVS mortality (clmorts.f:369 CALL, after base mort, before booking): viability path, THISYR mid-cycle
+    # (clmorts.f:78 THISYR=IY(ICYC)+FINT/2). Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

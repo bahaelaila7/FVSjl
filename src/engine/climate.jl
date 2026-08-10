@@ -275,6 +275,70 @@ function clim_mort_rates(x::Real, fint::Real, mult::Real)
 end
 
 """
+    apply_climate_mort!(s, killed, thisyr, fint)
+
+Apply Climate-FVS mortality (clmorts.f:240-259): per tree the applied mortality rate = MAX(base FVS rate,
+climate rate), where the climate rate is the viability-driven `fyrmort` (clim_survival→clim_mort_rates).
+If the climate rate exceeds the base, `killed[i] = tpa[i]·fyrmort[sp]` (clmorts.f:259 WK2=PROB·DMORT).
+No-op when climate is inactive. (The SPMORT2 transfer-distance DMORT path, clmorts.f:145-237, needs the
+DE* attributes + LDMORT gate — chunk-M2; the viability path drives the warming-scenario stand die-off.)
+"""
+function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thisyr::Real, fint::Real)
+    c = s.climate
+    (c === nothing || !c.active) && return s
+    cd = c.data; ix = c.indices; t = s.trees; ns = length(c.plant_symbols)
+    ty = Float32(thisyr); fi = Float32(fint)
+    # (1) Per-species viability FYRMORT (clmorts.f:79-126) — the SPMORT1/FYRMORT loop.
+    fy = zeros(Float32, ns)
+    @inbounds for sp in 1:ns
+        xv, _ = species_vscore(cd, c.plant_symbols[sp], ty)   # raw viability at THISYR
+        _, fy[sp] = clim_mort_rates(clim_survival(xv), fi, c.mortmult[sp])
+    end
+    # (2) Climate-transfer-distance DMORT (clmorts.f:133-237). LDMORT gate = all DE* + the
+    # climate columns present (clmorts.f:133-138). CTHISYR = current-year climate metrics.
+    A(sym, yr) = algslp(yr, cd.years, view(cd.attrs, :, ix[sym]))
+    de(sym) = (j = ix[sym]; j > 0 ? cd.attrs[1, j] : 0f0)     # DE threshold = row-1 value (constant)
+    ldmort = ix[:DEmtwm] > 0 && ix[:DEmtcm] > 0 && ix[:DEdd5] > 0 && ix[:DEsdi] > 0 &&
+             ix[:DEdd0] > 0 && ix[:DEpdd5] > 0 && ix[:mtwm] > 0 && ix[:mtcm] > 0 &&
+             ix[:dd5] > 0 && ix[:dd0] > 0 && ix[:map] > 0 && ix[:gsp] > 0 && ix[:gsdd5] > 0
+    if ldmort
+        ct1 = A(:mtwm, ty); ct2 = A(:mtcm, ty); ct3 = A(:dd5, ty)
+        ct4 = sqrt(A(:gsdd5, ty)) / A(:gsp, ty)               # sdi = sqrt(gsdd5)/gsp
+        ct5 = A(:dd0, ty); ct6 = A(:map, ty) * ct3 / 1000f0   # mapdd5 = map·dd5/1000
+        de1 = de(:DEmtwm); de2 = de(:DEmtcm); de3 = de(:DEdd5)
+        de4 = de(:DEsdi); de5 = de(:DEdd0); de6 = de(:DEpdd5)
+        clmrtmlt2 = 1f0                                        # CLMRTMLT2 (MortMult 2nd param); default 1
+        @inbounds for i in 1:t.n
+            pr = t.tpa[i]; pr <= 0f0 && continue
+            sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+            by = ty - t.birth_age[i]                          # BIRTHYR = THISYR - ABIRTH
+            # DTV = CTHISYR - CBIRTH, each normalized by its DE* threshold (1.0 if threshold ≤0)
+            d1 = de1 > 0f0 ? (ct1 - A(:mtwm, by)) / de1 : 1f0
+            d2 = de2 > 0f0 ? (ct2 - A(:mtcm, by)) / de2 : 1f0
+            d3 = de3 > 0f0 ? (ct3 - A(:dd5, by)) / de3 : 1f0
+            d4 = de4 > 0f0 ? (ct4 - sqrt(A(:gsdd5, by)) / A(:gsp, by)) / de4 : 1f0
+            d5 = de5 > 0f0 ? (ct5 - A(:dd0, by)) / de5 : 1f0
+            d6 = de6 > 0f0 ? (ct6 - A(:map, by) * A(:dd5, by) / 1000f0) / de6 : 1f0
+            dm = (d1 + d2 + d3 + d4 + d5 + d6) / 6f0 - 1.1f0
+            dm = clamp(dm, 0f0, 5.9f0)
+            dm = 0.9f0 * (1f0 - exp(-dm^2.5f0))               # transfer-distance mortality curve
+            surv = 1f0 - dm                                    # → survival, then FINT-yr rate
+            surv = surv > 1f-5 ? clamp(exp(log(surv) / 10f0)^fi, 0f0, 1f0) : 0f0
+            dmr = (1f0 - surv) * clmrtmlt2                     # back to mortality rate ·CLMRTMLT2
+            rate = max(fy[sp], dmr)                            # clmorts.f:258 DMORT = max(FYRMORT, DMORT)
+            rate > killed[i] / pr && (killed[i] = pr * rate)   # clmorts.f:259 WK2 = PROB·DMORT
+        end
+    else
+        @inbounds for i in 1:t.n                               # viability-only fallback (no DE* columns)
+            pr = t.tpa[i]; pr <= 0f0 && continue
+            sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+            fy[sp] > killed[i] / pr && (killed[i] = pr * fy[sp])
+        end
+    end
+    return s
+end
+
+"""
     resolve_climate_indices(labels) -> Dict{Symbol,Int}
 
 Port of clin.f:210-227 — locate the column of each named climate attribute used by the
