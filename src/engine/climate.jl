@@ -55,6 +55,9 @@ mutable struct ClimateState <: AbstractClimateState
     # A RECURRING activity: once icyc ≥ its cycle it fires EVERY cycle (OPINCR), scheduling NATURAL regen.
     # The latest event with cycle ≤ icyc supplies the active params.
     autoestb::Vector{Tuple{Int,Float32,Float32,Int}}
+    # MxDenMlt (climate max-density weight CLMXDENMULT, clmaxden.f) events = (cycle, weight). Scales the
+    # SDI-max XMAX by MXDENMLT = 1+(XX−1)·weight; latest event with cycle ≤ icyc supplies the weight (dflt 1).
+    mxden::Vector{Tuple{Int,Float32}}
 end
 
 """
@@ -377,6 +380,43 @@ function apply_climate_schedule!(s::StandState, icyc::Integer)
 end
 
 """
+    clim_maxden_mult(s, thisyr, clmxdenmult) -> Float32
+
+Climate max-density multiplier (clmaxden.f): scales the SDI-max XMAX by the ratio of the viability-weighted
+per-species SDImax between the current year and the inventory year. Per species (with a viability column)
+score = clamp(−1+2.5·viab, 0, 1); FIRST/CURRENT = Σ(score·SDIDEF)/Σ(score + (1−maxscore)); XX = 1 if equal,
+1.5819767 if first≈0<current, else 1.5819767·(1−exp(−curr/first)) floored 0.15; MXDENMLT = 1+(XX−1)·CLMXDENMULT
+(clamped ≥0). CLMXDENMULT defaults 1 (so clmaxden runs even without a MxDenMlt keyword). Used by clim_autoestb!'s
+TMAXTRS (for IE, SDI-max only feeds establishment, not the BA-based mortality).
+"""
+function clim_maxden_mult(s::StandState, thisyr::Real, clmxdenmult::Real)::Float32
+    c = s.climate; cd = c.data; ns = length(c.plant_symbols); p = s.plot
+    firstyr = Float32(c.inv_year); ty = Float32(thisyr)
+    sumwf = 0f0; weisumf = 0f0; sumwc = 0f0; weisumc = 0f0; maxf = 0f0; maxc = 0f0
+    @inbounds for sp in 1:ns
+        vf = clamp(-1f0 + 2.5f0 * species_vscore(cd, c.plant_symbols[sp], firstyr)[1], 0f0, 1f0)
+        vc = clamp(-1f0 + 2.5f0 * species_vscore(cd, c.plant_symbols[sp], ty)[1], 0f0, 1f0)
+        sdidef = p.sp_sdi_def[sp]
+        maxf < vf && (maxf = vf); maxc < vc && (maxc = vc)
+        sumwf += vf; weisumf += vf * sdidef
+        sumwc += vc; weisumc += vc * sdidef
+    end
+    sumwf += (1f0 - maxf); sumwc += (1f0 - maxc)
+    fscore = sumwf > 0f0 ? weisumf / sumwf : 0f0
+    cscore = sumwc > 0f0 ? weisumc / sumwc : 0f0
+    xx = if abs(cscore - fscore) <= 1f-5
+        1f0
+    elseif fscore <= 1f-10
+        cscore > 1f-10 ? 1.5819767f0 : 1f0
+    else
+        v = 1.5819767f0 * (1f0 - exp(-(cscore / fscore)))
+        v < 0.15f0 ? 0.15f0 : v
+    end
+    m = 1f0 + (xx - 1f0) * Float32(clmxdenmult)
+    return m < 0f0 ? 0f0 : m
+end
+
+"""
     clim_autoestb!(s, icyc, fint)
 
 Climate auto-establishment (clauestb.f): when an AutoEstb activity is active (icyc ≥ its cycle), schedule
@@ -394,7 +434,11 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
     active === nothing && return s
     aestock = active[2]; aesntrees = active[3]; nespecies = active[4]
     t = s.trees; cd = c.data; ns = length(c.plant_symbols)
-    xmax = stand_sdimax(s)                                             # SDICAL XMAX (pre-CLMAXDEN)
+    xmax = stand_sdimax(s)                                             # SDICAL XMAX
+    if icyc > 1                                                        # clmaxden.f:48 (ICYC≤1 ⇒ MXDENMLT=1)
+        clmxden = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmxden = e[2]); end
+        xmax *= clim_maxden_mult(s, Float32(current_cycle_year(s)) + Float32(fint) / 2f0, clmxden)
+    end
     rmsqd = max(5f0, stand_qmd(s))
     tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)                 # 0.02483133 = 10^-1.605
     tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end

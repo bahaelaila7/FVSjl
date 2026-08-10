@@ -1378,6 +1378,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     grow_events = Tuple{Int,Int,Float32}[]     # GrowMult (cycle, sp[0=all], value); clin.f opt5
     mort_events = Tuple{Int,Int,Float32}[]     # MortMult CLMRTMLT1 (cycle, sp, value); clin.f opt3
     autoestb_events = Tuple{Int,Float32,Float32,Int}[]   # AutoEstb (cycle, aestock%, aesntrees, nespecies); clin.f opt4
+    mxden_events = Tuple{Int,Float32}[]                  # MxDenMlt (cycle, CLMXDENMULT weight); clin.f opt (clmaxden)
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -1428,14 +1429,19 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             aesntrees = length(args) >= 2 ? something(tryparse(Float32, args[2]), 500f0) : 500f0
             nespecies = length(args) >= 3 ? something(tryparse(Int, args[3]), 4) : 4
             push!(autoestb_events, (cyc, aestock, aesntrees, nespecies))
-        # MXDENMLT/CLIMREPT/SETATTR: recognized, applied in a later chunk
+        elseif k == "MXDENMLT"
+            # clmaxden weight: cycle (blank⇒1) + CLMXDENMULT value (dflt 1). Plain OR parms(value) form.
+            cyc, args = _clim_kw_fields(r)
+            val = length(args) >= 1 ? something(tryparse(Float32, args[1]), 1f0) : 1f0
+            push!(mxden_events, (cyc, val))
+        # CLIMREPT/SETATTR: recognized, applied in a later chunk
         end
     end
     if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
-                                 grow_events, mort_events, autoestb_events)
+                                 grow_events, mort_events, autoestb_events, mxden_events)
     end
     return s
 end
