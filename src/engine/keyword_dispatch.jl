@@ -1361,6 +1361,8 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     nplt = strip(s.plot.stand_id)
     invyr = length(s.control.cycle_year) >= 1 ? Int(s.control.cycle_year[1]) : 0
     cdata::Union{ClimateData,Nothing} = nothing
+    grow_events = Tuple{Int,Int,Float32}[]     # GrowMult (cycle, sp[0=all], value); clin.f opt5
+    mort_events = Tuple{Int,Int,Float32}[]     # MortMult CLMRTMLT1 (cycle, sp, value); clin.f opt3
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -1391,13 +1393,28 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                     err isa ErrorException && occursin("TOO MANY YEARS", err.msg) || rethrow()
                 end
             end
-        # GROWMULT/MORTMULT/MXDENMLT/AUTOESTB/CLIMREPT/SETATTR: recognized, applied in a later chunk
+        elseif k == "GROWMULT" || k == "MORTMULT"
+            # clin.f opt5/opt3: field1=schedule cycle (blank ⇒ apply from cycle 1); SPDECD field2=species
+            # (blank/All/0 ⇒ 0=all); field3=value (CLMRTMLT1). PARMS() form (parms_field>0) deferred.
+            if r.parms_field == 0
+                cyc = (length(r.present) >= 1 && r.present[1]) ? max(1, Int(nint(r.values[1]))) : 1
+                spf = length(r.fields) >= 2 ? strip(r.fields[2]) : ""
+                sp = 0
+                if !(isempty(spf) || uppercase(spf) == "ALL" || spf == "0")
+                    n2 = tryparse(Int, spf)
+                    sp = n2 !== nothing ? n2 : Int(first(resolve_species(spf, s.variant, s.species, s.coef)))
+                end
+                val = (length(r.present) >= 3 && r.present[3]) ? Float32(r.values[3]) : 1f0
+                push!(k == "GROWMULT" ? grow_events : mort_events, (cyc, sp, val))
+            end
+        # MXDENMLT/AUTOESTB/CLIMREPT/SETATTR: recognized, applied in a later chunk
         end
     end
     if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
-                                 climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr)
+                                 climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
+                                 grow_events, mort_events)
     end
     return s
 end

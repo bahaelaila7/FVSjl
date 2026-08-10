@@ -410,6 +410,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
+    # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
+    # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
+    (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
     # IE crown OLDPCT init (cratet.f:513): at the first grow cycle, seed OLDPCT = inventory (pre-growth) PCT so
     # cycle-1's crown DCR uses it (not the post-growth PCT). Later cycles get OLDPCT from the post-crown snapshot.
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)

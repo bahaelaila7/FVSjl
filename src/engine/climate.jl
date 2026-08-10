@@ -46,6 +46,11 @@ mutable struct ClimateState <: AbstractClimateState
     growmult::Vector{Float32}
     mortmult::Vector{Float32}
     inv_year::Int
+    # GrowMult/MortMult keyword weights, cycle-SCHEDULED (clin.f opt5/opt3 → OPADD; clgmult.f:44/clmorts.f:41
+    # OPGET applies the value when ICYC reaches the scheduled cycle, then it persists). Each event =
+    # (cycle, sp, value); sp=0 ⇒ all species. Applied per-cycle by `apply_climate_schedule!`.
+    grow_events::Vector{Tuple{Int,Int,Float32}}
+    mort_events::Vector{Tuple{Int,Int,Float32}}
 end
 
 """
@@ -333,6 +338,35 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
             pr = t.tpa[i]; pr <= 0f0 && continue
             sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
             fy[sp] > killed[i] / pr && (killed[i] = pr * fy[sp])
+        end
+    end
+    return s
+end
+
+"""
+    apply_climate_schedule!(s, icyc)
+
+Realize the cycle-SCHEDULED GrowMult/MortMult keyword weights for cycle `icyc` (FVS OPADD/OPGET: an event
+scheduled for cycle N takes effect once ICYC≥N and persists). Resets `growmult`/`mortmult` to 1 then applies
+every event with `cycle ≤ icyc` in keyword-file order (later entries override earlier — matches a specific
+species overriding a preceding `All`). No-op when climate is inactive or no events were parsed.
+"""
+function apply_climate_schedule!(s::StandState, icyc::Integer)
+    c = s.climate
+    (c === nothing || !c.active) && return s
+    ns = length(c.growmult)
+    if !isempty(c.grow_events)
+        fill!(c.growmult, 1f0)
+        @inbounds for (cyc, sp, val) in c.grow_events
+            cyc <= icyc || continue
+            sp == 0 ? fill!(c.growmult, val) : (1 <= sp <= ns && (c.growmult[sp] = val))
+        end
+    end
+    if !isempty(c.mort_events)
+        fill!(c.mortmult, 1f0)
+        @inbounds for (cyc, sp, val) in c.mort_events
+            cyc <= icyc || continue
+            sp == 0 ? fill!(c.mortmult, val) : (1 <= sp <= ns && (c.mortmult[sp] = val))
         end
     end
     return s
