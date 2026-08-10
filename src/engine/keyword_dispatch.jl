@@ -1351,6 +1351,57 @@ end
 # activity (year, species, TPA, %survival, age, height, shade); END closes it. Other
 # establishment keywords (TALLY/SPROUT/…) are recognized and skipped for now. At END a
 # TALLY(427) trigger is scheduled at the disturbance date and IDSDAT→-9999 (esin.f:100-117).
+# OPTION — CLIMATE…END Climate-FVS block (clin.f). Sub-keywords: CLIMDATA (scenario + `*`/file +
+# CSV records → the climate attribute matrix), GROWMULT/MORTMULT/MXDENMLT/AUTOESTB/CLIMREPT/SETATTR.
+# W2 (this): parse the inline CLIMDATA and populate `s.climate` (LCLIMATE = NATTRS>0 && NYEARS>0).
+# The GrowMult/MortMult weights + the file-based CLIMDATA + the application to growth/mortality are
+# the follow-on chunks (W3+). Reads the CLIMDATA data rows RAW (clin.f reads them via READ(A), and the
+# keyword reader would mis-decode/skip them — `*` inline marker looks like a comment to read_keyword!).
+function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+    nplt = strip(s.plot.stand_id)
+    invyr = length(s.control.cycle_year) >= 1 ? Int(s.control.cycle_year[1]) : 0
+    cdata::Union{ClimateData,Nothing} = nothing
+    while true
+        r = read_keyword!(kr)
+        (r.status == KW_EOF || r.status == KW_STOP) && break
+        k = strip(r.name)
+        isempty(k) && continue
+        if k == "END"
+            break
+        elseif k == "CLIMDATA"
+            climname = strip(readline(kr.io))          # scenario name (e.g. CGCM3_A2), raw
+            fline    = strip(readline(kr.io))           # `*` (inline) or a CSV filename, raw
+            datalines = String[]
+            if fline == "*"
+                while !eof(kr.io)
+                    ln = readline(kr.io)
+                    strip(ln) == "-999" && break
+                    isempty(strip(ln)) && continue
+                    push!(datalines, ln)
+                end
+            end
+            # (file-based CLIMDATA — fline != "*" — is a follow-on; needs the run-dir path resolution)
+            if !isempty(datalines)
+                # clin.f rejects a block that exceeds MXCLYEARS (resets NATTRS/NYEARS) and reads on to the
+                # next CLIMDATA — parse_climdata throws "TOO MANY YEARS", so treat that as a rejected block.
+                try
+                    cd = parse_climdata(datalines, nplt, climname)
+                    isempty(cd.years) || (cdata = cd)                       # keep the last stand-matching good block
+                catch err
+                    err isa ErrorException && occursin("TOO MANY YEARS", err.msg) || rethrow()
+                end
+            end
+        # GROWMULT/MORTMULT/MXDENMLT/AUTOESTB/CLIMREPT/SETATTR: recognized, applied in a later chunk
+        end
+    end
+    if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
+        ns = nspecies(s.variant)
+        s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
+                                 String[], fill(1f0, ns), fill(1f0, ns), invyr)
+    end
+    return s
+end
+
 function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     s.estab.active = true
     idsdat = rec.present[1] ? nint(rec.values[1]) : Int32(-1)   # ESTAB date field
@@ -2225,6 +2276,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "DATABASE"; kw_database!(s, rec, kr)  # DBS output block (DSNOUT/SUMMARY → SQLite)
         elseif kw == "FMIN";     kw_fmin!(s, rec, kr)      # Fire & Fuels Extension block (SIMFIRE/FLAMEADJ)
         elseif kw == "ECON";     kw_econ!(s, rec, kr)      # ECON economic-analysis block (ANNUCST/HRVVRCST/HRVRVN)
+        elseif kw == "CLIMATE";  kw_climate!(s, rec, kr)   # Climate-FVS block (CLIMDATA/GROWMULT/… → s.climate)
         # SPROUT/NOSPROUT are establishment-extension sub-keywords (read by ESIN inside an
         # ESTAB…END block, esin.f opt 26/27) — NOT top-level base keywords (the Fortran base
         # processor rejects a standalone SPROUT with "INVALID KEYWORD"). Handled in kw_estab!.
