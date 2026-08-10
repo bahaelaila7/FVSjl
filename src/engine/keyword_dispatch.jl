@@ -1353,10 +1353,24 @@ end
 # TALLY(427) trigger is scheduled at the disturbance date and IDSDAT→-9999 (esin.f:100-117).
 # OPTION — CLIMATE…END Climate-FVS block (clin.f). Sub-keywords: CLIMDATA (scenario + `*`/file +
 # CSV records → the climate attribute matrix), GROWMULT/MORTMULT/MXDENMLT/AUTOESTB/CLIMREPT/SETATTR.
-# W2 (this): parse the inline CLIMDATA and populate `s.climate` (LCLIMATE = NATTRS>0 && NYEARS>0).
-# The GrowMult/MortMult weights + the file-based CLIMDATA + the application to growth/mortality are
-# the follow-on chunks (W3+). Reads the CLIMDATA data rows RAW (clin.f reads them via READ(A), and the
-# keyword reader would mis-decode/skip them — `*` inline marker looks like a comment to read_keyword!).
+# Effective post-name fields for a Climate keyword (GrowMult/MortMult/AutoEstb): field1 = schedule cycle
+# (fixed column, blank ⇒ 1). The remaining args (species/values) come from the fixed columns (non-parms) OR
+# from the `parms(a,b,…)` content (clin.f routes both to the same ARRAY(2..4)). Returns (cycle, arg_strings).
+function _clim_kw_fields(r::KeywordRecord)
+    cyc = (length(r.present) >= 1 && r.present[1]) ? max(1, Int(nint(r.values[1]))) : 1
+    if r.parms_field == 0
+        args = String[strip(r.fields[i]) for i in 2:min(length(r.fields), 5)]
+    else
+        raw = r.raw; lp = findfirst('(', raw); rp = findlast(')', raw)
+        args = (lp !== nothing && rp !== nothing && rp > lp) ?
+               String[strip(String(x)) for x in split(raw[nextind(raw, lp):prevind(raw, rp)], ',')] : String[]
+    end
+    return cyc, args
+end
+
+# W2: parse the inline CLIMDATA and populate `s.climate` (LCLIMATE = NATTRS>0 && NYEARS>0), plus the
+# cycle-scheduled GrowMult/MortMult/AutoEstb weights (both plain and parms() forms). Reads the CLIMDATA
+# data rows RAW (clin.f reads them via READ(A); the keyword reader would mis-decode the `*` inline marker).
 function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     nplt = strip(s.plot.stand_id)
     invyr = length(s.control.cycle_year) >= 1 ? Int(s.control.cycle_year[1]) : 0
@@ -1395,29 +1409,25 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 end
             end
         elseif k == "GROWMULT" || k == "MORTMULT"
-            # clin.f opt5/opt3: field1=schedule cycle (blank ⇒ apply from cycle 1); SPDECD field2=species
-            # (blank/All/0 ⇒ 0=all); field3=value (CLMRTMLT1). PARMS() form (parms_field>0) deferred.
-            if r.parms_field == 0
-                cyc = (length(r.present) >= 1 && r.present[1]) ? max(1, Int(nint(r.values[1]))) : 1
-                spf = length(r.fields) >= 2 ? strip(r.fields[2]) : ""
-                sp = 0
-                if !(isempty(spf) || uppercase(spf) == "ALL" || spf == "0")
-                    n2 = tryparse(Int, spf)
-                    sp = n2 !== nothing ? n2 : Int(first(resolve_species(spf, s.variant, s.species, s.coef)))
-                end
-                val = (length(r.present) >= 3 && r.present[3]) ? Float32(r.values[3]) : 1f0
-                push!(k == "GROWMULT" ? grow_events : mort_events, (cyc, sp, val))
+            # clin.f opt5/opt3: cycle (blank⇒1) + SPDECD species (blank/All/0⇒0=all) + value (CLMRTMLT1).
+            # Plain OR parms(species,value) form (via _clim_kw_fields).
+            cyc, args = _clim_kw_fields(r)
+            spf = length(args) >= 1 ? args[1] : ""
+            sp = 0
+            if !(isempty(spf) || uppercase(spf) == "ALL" || spf == "0")
+                n2 = tryparse(Int, spf)
+                sp = n2 !== nothing ? n2 : Int(first(resolve_species(spf, s.variant, s.species, s.coef)))
             end
+            val = length(args) >= 2 ? something(tryparse(Float32, args[2]), 1f0) : 1f0
+            push!(k == "GROWMULT" ? grow_events : mort_events, (cyc, sp, val))
         elseif k == "AUTOESTB"
-            # clin.f opt4: ARRAY(1)=cycle (blank⇒1), (2)=AESTOCK% dflt 40, (3)=AESNTREES dflt 500,
-            # (4)=NESPECIES dflt 4 (clinit.f:40-42). PARMS() form deferred.
-            if r.parms_field == 0
-                cyc = (length(r.present) >= 1 && r.present[1]) ? max(1, Int(nint(r.values[1]))) : 1
-                aestock   = (length(r.present) >= 2 && r.present[2]) ? Float32(r.values[2]) : 40f0
-                aesntrees = (length(r.present) >= 3 && r.present[3]) ? Float32(r.values[3]) : 500f0
-                nespecies = (length(r.present) >= 4 && r.present[4]) ? Int(nint(r.values[4])) : 4
-                push!(autoestb_events, (cyc, aestock, aesntrees, nespecies))
-            end
+            # clin.f opt4: cycle (blank⇒1) + AESTOCK% dflt 40 + AESNTREES dflt 500 + NESPECIES dflt 4
+            # (clinit.f:40-42). Plain OR parms(aestock,aesntrees,nespecies) form.
+            cyc, args = _clim_kw_fields(r)
+            aestock   = length(args) >= 1 ? something(tryparse(Float32, args[1]), 40f0) : 40f0
+            aesntrees = length(args) >= 2 ? something(tryparse(Float32, args[2]), 500f0) : 500f0
+            nespecies = length(args) >= 3 ? something(tryparse(Int, args[3]), 4) : 4
+            push!(autoestb_events, (cyc, aestock, aesntrees, nespecies))
         # MXDENMLT/CLIMREPT/SETATTR: recognized, applied in a later chunk
         end
     end
