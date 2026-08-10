@@ -51,6 +51,10 @@ mutable struct ClimateState <: AbstractClimateState
     # (cycle, sp, value); sp=0 ⇒ all species. Applied per-cycle by `apply_climate_schedule!`.
     grow_events::Vector{Tuple{Int,Int,Float32}}
     mort_events::Vector{Tuple{Int,Int,Float32}}
+    # AutoEstb (climate auto-establishment, clauestb.f) events = (cycle, aestock%, aesntrees, nespecies).
+    # A RECURRING activity: once icyc ≥ its cycle it fires EVERY cycle (OPINCR), scheduling NATURAL regen.
+    # The latest event with cycle ≤ icyc supplies the active params.
+    autoestb::Vector{Tuple{Int,Float32,Float32,Int}}
 end
 
 """
@@ -368,6 +372,55 @@ function apply_climate_schedule!(s::StandState, icyc::Integer)
             cyc <= icyc || continue
             sp == 0 ? fill!(c.mortmult, val) : (1 <= sp <= ns && (c.mortmult[sp] = val))
         end
+    end
+    return s
+end
+
+"""
+    clim_autoestb!(s, icyc, fint)
+
+Climate auto-establishment (clauestb.f): when an AutoEstb activity is active (icyc ≥ its cycle), schedule
+NATURAL(431) regen for next cycle. TMAXTRS = (XMAX/0.02483133)·max(5,QMD)^−1.605 (max trees at current QMD);
+PTREES = clamp(2−4·TPROB/TMAXTRS, 0,1) (low stocking ⇒ establish more); per-species viability POTESTAB (top
+`nespecies` with viab≥0.4), scaled XX=clamp(−1+2.5·viab,0,1), normalized, trees = PTREES·TTOADD·frac (dropped
+if ≤1). Skips if stocking TPROB > TMAXTRS·AESTOCK·0.01. Trees enter via jl's existing `establish!` (params =
+[sp, tpa, 100%surv, age0, ht0, shade0], clauestb.f:226-232). No-op unless a CLIMATE block parsed AutoEstb.
+"""
+function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
+    c = s.climate
+    (c === nothing || !c.active || isempty(c.autoestb)) && return s
+    active = nothing
+    @inbounds for e in c.autoestb; e[1] <= icyc && (active = e); end   # latest event with cycle ≤ icyc
+    active === nothing && return s
+    aestock = active[2]; aesntrees = active[3]; nespecies = active[4]
+    t = s.trees; cd = c.data; ns = length(c.plant_symbols)
+    xmax = stand_sdimax(s)                                             # SDICAL XMAX (pre-CLMAXDEN)
+    rmsqd = max(5f0, stand_qmd(s))
+    tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)                 # 0.02483133 = 10^-1.605
+    tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
+    ptrees = tmaxtrs > 1f0 ? clamp(2f0 - 4f0 * (tprob / tmaxtrs), 0f0, 1f0) : 1f0
+    (ptrees * aesntrees > 0f0) || return s
+    ty = Float32(current_cycle_year(s)) + Float32(fint) / 2f0
+    pot = zeros(Float32, ns)
+    @inbounds for sp in 1:ns; pot[sp] = species_vscore(cd, c.plant_symbols[sp], ty)[1]; end   # raw viability
+    order = sortperm(pot; rev = true)                                 # RDPSRT desc (ties rare among viabilities)
+    nspec = 0
+    for sp in order; pot[sp] < 0.4f0 && break; nspec += 1; end
+    nspec == 0 && return s
+    nspec > nespecies && (nspec = round(Int, nespecies))
+    top = order[1:nspec]
+    @inbounds for sp in top; pot[sp] = clamp(-1f0 + 2.5f0 * pot[sp], 0f0, 1f0); end
+    ttoadd = pot[top[1]] > 0.8f0 ? aesntrees : aesntrees * pot[top[1]]
+    ssum = 0f0; @inbounds for sp in top; ssum += pot[sp]; end
+    ssum > 0.001f0 || return s
+    tprob > tmaxtrs * aestock * 0.01f0 && return s                    # stocking gate (clauestb.f:219)
+    nextyr = Int(current_cycle_year(s)) + round(Int, fint)
+    @inbounds for sp in top
+        trees = ptrees * ttoadd * (pot[sp] / ssum)
+        trees <= 1f0 && continue
+        push!(s.control.schedule, ScheduledActivity(nextyr, Int32(431),
+                                                    (Float32(sp), trees, 100f0, 0f0, 0f0, 0f0)))
+        s.estab.active = true    # activate the ESTAB packet so establish! processes the scheduled NATURAL regen
     end
     return s
 end

@@ -1363,6 +1363,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     cdata::Union{ClimateData,Nothing} = nothing
     grow_events = Tuple{Int,Int,Float32}[]     # GrowMult (cycle, sp[0=all], value); clin.f opt5
     mort_events = Tuple{Int,Int,Float32}[]     # MortMult CLMRTMLT1 (cycle, sp, value); clin.f opt3
+    autoestb_events = Tuple{Int,Float32,Float32,Int}[]   # AutoEstb (cycle, aestock%, aesntrees, nespecies); clin.f opt4
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -1407,14 +1408,24 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 val = (length(r.present) >= 3 && r.present[3]) ? Float32(r.values[3]) : 1f0
                 push!(k == "GROWMULT" ? grow_events : mort_events, (cyc, sp, val))
             end
-        # MXDENMLT/AUTOESTB/CLIMREPT/SETATTR: recognized, applied in a later chunk
+        elseif k == "AUTOESTB"
+            # clin.f opt4: ARRAY(1)=cycle (blank⇒1), (2)=AESTOCK% dflt 40, (3)=AESNTREES dflt 500,
+            # (4)=NESPECIES dflt 4 (clinit.f:40-42). PARMS() form deferred.
+            if r.parms_field == 0
+                cyc = (length(r.present) >= 1 && r.present[1]) ? max(1, Int(nint(r.values[1]))) : 1
+                aestock   = (length(r.present) >= 2 && r.present[2]) ? Float32(r.values[2]) : 40f0
+                aesntrees = (length(r.present) >= 3 && r.present[3]) ? Float32(r.values[3]) : 500f0
+                nespecies = (length(r.present) >= 4 && r.present[4]) ? Int(nint(r.values[4])) : 4
+                push!(autoestb_events, (cyc, aestock, aesntrees, nespecies))
+            end
+        # MXDENMLT/CLIMREPT/SETATTR: recognized, applied in a later chunk
         end
     end
     if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
-                                 grow_events, mort_events)
+                                 grow_events, mort_events, autoestb_events)
     end
     return s
 end
