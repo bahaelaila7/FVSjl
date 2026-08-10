@@ -204,6 +204,45 @@ unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGR
     return ps, (tm < 0.0f0 ? 0.0f0 : tm)
 end
 
+"""
+    apply_climate_dds!(s, wk2, thisyr)
+
+Apply the Climate-FVS growth multiplier to the large-tree DDS (`wk2` = ln(DDS)), mirroring
+dgdriv.f:217 `DDS = EXP(WK2)·WK4` where WK4 = clgmult's per-tree TREEMULT — so here `wk2[i] +=
+log(treemult[i])`. Per cycle: XGSITE + per-species VSCORE at `thisyr`; per tree: BIRTHYR = thisyr −
+birth_age, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP), and `clim_treemult`. No-op when climate is
+inactive or the required attribute columns are absent.
+"""
+function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr::Real)
+    c = s.climate
+    (c === nothing || !c.active) && return s
+    cd = c.data; ix = c.indices; t = s.trees
+    (ix[:mtcm] == 0 || ix[:mmin] == 0 || ix[:dd0] == 0 || ix[:d100] == 0 ||
+     ix[:dd5] == 0 || ix[:gsp] == 0) && return s
+    ty = Float32(thisyr)
+    A(sym, yr) = algslp(yr, cd.years, view(cd.attrs, :, ix[sym]))
+    smi(yr) = (g = A(:gsp, yr); g > 0f0 ? A(:dd5, yr) / g : 0f0)
+    xgsite = ix[:pSite] > 0 ? clim_xgsite(A(:pSite, ty), A(:pSite, Float32(c.inv_year))) : 1f0
+    mtcm_now = A(:mtcm, ty); mmin_now = A(:mmin, ty); smi_now = smi(ty)
+    ns = length(c.plant_symbols)
+    vscore = ones(Float32, ns)
+    @inbounds for sp in 1:ns
+        _, vscore[sp] = species_vscore(cd, c.plant_symbols[sp], ty)
+    end
+    @inbounds for i in 1:t.n
+        t.dbh[i] <= 0f0 && continue
+        sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+        birthyr = ty - t.birth_age[i]
+        xdf = leites_xdf(mtcm_now, A(:mtcm, birthyr))
+        xwl = leites_xwl(mmin_now, A(:mmin, birthyr), A(:dd0, birthyr))
+        xpp = leites_xpp(smi_now, smi(birthyr), A(:d100, birthyr))
+        xr  = clim_xrelgr(c.plant_symbols[sp], xdf, xpp, xwl)
+        _, tm = clim_treemult(xgsite, xr, vscore[sp], c.growmult[sp])
+        tm > 0f0 && (wk2[i] += log(tm))
+    end
+    return s
+end
+
 # --- Climate mortality (clmorts.f) — viability → survival → mortality rate ---
 # VALIDATED 8/8 IE species vs live FVSie_g16 clmorts debug (cyc1: WH XV.0585→X0→MORT1; RC .489→.9633→.0367;
 # LP mult=.5). This is the base viability-mortality path (SPMORT1/FYRMORT). NOT YET ported: the SPCALIB first-
