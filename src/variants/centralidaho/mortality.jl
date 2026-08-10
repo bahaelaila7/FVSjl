@@ -95,6 +95,10 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         sdimax < 5f0 && (wki = pr)
         killed[i] = wki
     end
+    # Dwarf-mistletoe mortality (mismrt.f): MAX-combine the per-tree DM kill into killed[] before
+    # snags/removal, exactly as the shared N-Rockies path does (southern/mortality.jl). CI has its own
+    # mortality! so this must be wired here too; inert on stands with no DM ratings (dmr==0 ⇒ no-op).
+    _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
