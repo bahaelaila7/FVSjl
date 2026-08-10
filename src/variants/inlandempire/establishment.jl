@@ -1228,3 +1228,6 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     compute_density!(s)
     return true
 end
+
+# Climate-FVS: IE PLANTS symbols (PLNJSP, blkdat.f:186) for the viability-column lookup.
+climate_plant_symbols(::InlandEmpire) = _IE_PLNJSP

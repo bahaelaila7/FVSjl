@@ -29,6 +29,15 @@ Per-stand Climate-FVS state (held by `StandState.climate`, `nothing` until a CLI
 CLMRTMLT1 keyword weights (GrowMult/MortMult), default 1. `plant_symbols` maps species index → PLANTS
 symbol for viability-column lookup. `indices` caches the named-attribute columns (resolve_climate_indices).
 """
+# Per-variant PLANTS symbols (PLNJSP) — species index → USDA PLANTS code, used to locate each
+# species' climate-viability column and drive the clgmult XRELGR dispatch. IE: blkdat.f:186.
+const _IE_PLNJSP = String[
+    "PIMO3","LAOC","PSME","ABGR","TSHE","THPL","PICO","PIEN","ABLA","PIPO",
+    "TSME","PIAL","PIFL2","LALY","PIMO","JUSC2","TABR2","POTR5","POPUL","ACGL","BEPA","2TB","2TN"]
+
+"PLANTS symbols per species for the Climate-FVS viability lookup (empty ⇒ variant not climate-wired)."
+climate_plant_symbols(::AbstractVariant) = String[]
+
 mutable struct ClimateState <: AbstractClimateState
     active::Bool
     data::ClimateData

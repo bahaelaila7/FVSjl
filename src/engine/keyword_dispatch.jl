@@ -1397,7 +1397,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
-                                 String[], fill(1f0, ns), fill(1f0, ns), invyr)
+                                 climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr)
     end
     return s
 end
