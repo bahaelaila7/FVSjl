@@ -1397,8 +1397,17 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                     isempty(strip(ln)) && continue
                     push!(datalines, ln)
                 end
+            elseif !isempty(fline)
+                # file-based CLIMDATA (clin.f:118 OPEN): a CSV filename (quoted fields), resolved relative to
+                # the run cwd (FVS convention). Read all rows (no -999 terminator); parse_climdata filters by
+                # stand_id+scenario and strips the surrounding quotes. Silently skip if the file is absent.
+                if isfile(fline)
+                    for ln in eachline(fline)
+                        isempty(strip(ln)) && continue
+                        push!(datalines, ln)
+                    end
+                end
             end
-            # (file-based CLIMDATA — fline != "*" — is a follow-on; needs the run-dir path resolution)
             if !isempty(datalines)
                 # clin.f rejects a block that exceeds MXCLYEARS (resets NATTRS/NYEARS) and reads on to the
                 # next CLIMDATA — parse_climdata throws "TOO MANY YEARS", so treat that as a rejected block.

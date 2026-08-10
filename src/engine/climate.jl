@@ -72,9 +72,10 @@ beyond `MXCLYEARS` raises the "TOO MANY YEARS" error (clin.f:157). `-999` termin
 """
 function parse_climdata(lines::AbstractVector{<:AbstractString}, nplt::AbstractString, climname::AbstractString)::ClimateData
     isempty(lines) && error("CLIMDATA: empty block")
+    _unq(x) = strip(x, ['"', ' '])          # strip surrounding whitespace AND quotes (file-based CSV is quoted)
     hdr = split(strip(lines[1]), ',')
     length(hdr) < 4 && error("CLIMDATA: header has no attribute labels")
-    labels = String[strip(x) for x in hdr[4:end]]
+    labels = String[_unq(x) for x in hdr[4:end]]
     while !isempty(labels) && isempty(last(labels)); pop!(labels); end   # clin.f:132-136
     nattrs = length(labels)
     years = Int[]; rows = Vector{Float32}[]
@@ -84,12 +85,12 @@ function parse_climdata(lines::AbstractVector{<:AbstractString}, nplt::AbstractS
         s == "-999" && break
         f = split(s, ',')
         length(f) < 3 + nattrs && continue
-        (strip(f[1]) == nplt && strip(f[2]) == climname) || continue     # clin.f:142-143
-        yr = parse(Int, strip(f[3]))
+        (_unq(f[1]) == nplt && _unq(f[2]) == climname) || continue       # clin.f:142-143
+        yr = parse(Int, _unq(f[3]))
         yr in years && continue
         length(years) >= MXCLYEARS && error("TOO MANY YEARS IN CLIMATE DATA (>$MXCLYEARS)")  # clin.f:157
         push!(years, yr)
-        push!(rows, Float32[parse(Float32, strip(f[3 + k])) for k in 1:nattrs])
+        push!(rows, Float32[parse(Float32, _unq(f[3 + k])) for k in 1:nattrs])
     end
     attrs = isempty(rows) ? zeros(Float32, 0, nattrs) : reduce(vcat, (permutedims(r) for r in rows))
     return ClimateData(labels, years, attrs)
