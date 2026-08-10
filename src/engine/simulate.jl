@@ -522,6 +522,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
+    _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
+                                          # birth_age nowhere else ⇒ inert for climate-off IE runs (bit-exact).
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
@@ -540,7 +542,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                                                 # mortality on mature real-FIA stands (the multi-cycle blow-up).
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up || _ut_up) && (t.birth_age[i] += fint)   # CR/TT/UT age ABIRTH by cycle length (gradd.f:205)
+        (_cr_up || _tt_up || _ut_up || _ie_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
