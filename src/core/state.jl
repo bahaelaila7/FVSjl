@@ -868,6 +868,11 @@ EconState() = EconState(false, 0.0f0, 0f0, EconCostRev[], EconCostRev[], Int32(-
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the
 # variant so variant hooks dispatch at zero cost. One per thread → no contention.
 # ---------------------------------------------------------------------------
+# Forward declaration so StandState can hold the Climate-FVS state (concrete `ClimateState`
+# is defined in engine/climate.jl, which is included after this file). `nothing` until a
+# CLIMATE keyword activates it — inert for every non-climate run.
+abstract type AbstractClimateState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -884,6 +889,7 @@ mutable struct StandState{V<:AbstractVariant}
     dbs::DbsState
     fire::Union{FireState,Nothing}
     econ::Union{EconState,Nothing}
+    climate::Union{AbstractClimateState,Nothing}
 end
 
 """
@@ -900,6 +906,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing,
+        DbsState(), nothing, nothing, nothing,
     )
 end

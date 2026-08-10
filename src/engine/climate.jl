@@ -24,6 +24,22 @@ struct ClimateData
 end
 
 """
+Per-stand Climate-FVS state (held by `StandState.climate`, `nothing` until a CLIMATE keyword fires).
+`active` = LCLIMATE (NATTRS>0 && NYEARS>0). `growmult`/`mortmult` are the per-species CLGROWMULT /
+CLMRTMLT1 keyword weights (GrowMult/MortMult), default 1. `plant_symbols` maps species index → PLANTS
+symbol for viability-column lookup. `indices` caches the named-attribute columns (resolve_climate_indices).
+"""
+mutable struct ClimateState <: AbstractClimateState
+    active::Bool
+    data::ClimateData
+    indices::Dict{Symbol,Int}
+    plant_symbols::Vector{String}
+    growmult::Vector{Float32}
+    mortmult::Vector{Float32}
+    inv_year::Int
+end
+
+"""
     parse_climdata(lines, nplt, climname) -> ClimateData
 
 Port of the CLIMDATA inline read (clin.f:108-239). `lines` are the records after the
