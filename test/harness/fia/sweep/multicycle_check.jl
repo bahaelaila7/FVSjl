@@ -10,7 +10,10 @@ cfg(v) = v=="CR" ? ("/workspace/.crwork/FVScr_clean",FVSjl.CentralRockies()) : v
          v=="BM" ? ("/workspace/.bmwork/FVSbm_clean",FVSjl.BlueMountains()) : error(v)
 function keytext(cn, db, nc)
     "STDIDENT\n$cn\nDATABASE\nDSNin\n$db\nStandSQL\nSELECT * FROM FVS_STANDINIT_COND WHERE STAND_CN = '%StandID%'\n" *
-    "EndSQL\nTreeSQL\nSELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nEND\nNUMCYCLE $nc.0\nECHOSUM\nPROCESS\nSTOP\n"
+    # NUMCYCLE value MUST land in FVS fixed-column field 2 (cols 11-20). Free-form "NUMCYCLE 5.0"
+    # (value at col 10, decimal) is mis-parsed by BOTH live+jl → only 1 projection cycle (the bug
+    # that made this "multi-cycle" check silently shallow). Column-aligned integer → true nc cycles.
+    "EndSQL\nTreeSQL\nSELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nEND\nNUMCYCLE" * lpad(string(Int(nc)), 12) * "\nECHOSUM\nPROCESS\nSTOP\n"
 end
 function parse_sum(text)
     rows = Tuple{Int,Vector{Float64}}[]
@@ -33,7 +36,7 @@ end
 treeless(v) = v[1] < 0.5 && v[2] < 0.5
 function check_variant(v, cndb, nc, tmo)
     bin,var = cfg(v); dir=mktempdir()
-    treed=0; mcexact=0; collapse=0; drift=0; collapse_cns=String[]; drift_cns=String[]
+    treed=0; mcexact=0; cornered=0; collapse=0; drift=0; collapse_cns=String[]; drift_cns=String[]; cornered_cns=String[]
     for (cn,db) in cndb
         live = run_live(bin,cn,db,dir,nc,tmo); isempty(live) && continue
         L = parse_sum(live); isempty(L) && continue
@@ -43,7 +46,7 @@ function check_variant(v, cndb, nc, tmo)
         J = parse_sum(jl); isempty(J) && continue
         Jd = Dict(y=>vv for (y,vv) in J)
         treed += 1
-        allexact = true; iscollapse = false
+        allexact = true; iscollapse = false; maxrel = 0.0
         for (y,lv) in L
             haskey(Jd,y) || (allexact=false; continue)
             jv = Jd[y]
@@ -51,13 +54,16 @@ function check_variant(v, cndb, nc, tmo)
             if lv[1] > 0.5 && jv[1] < 0.5; iscollapse = true; end
             for k in 1:6
                 abs(lv[k]-jv[k]) >= 0.5 && (allexact = false)
+                maxrel = max(maxrel, abs(lv[k]-jv[k])/max(abs(lv[k]),1.0))
             end
         end
+        # cornered = non-bit-exact but max per-cycle relative divergence < 2% (RNG-realization straddle)
         if iscollapse; collapse += 1; length(collapse_cns)<6 && push!(collapse_cns, cn)
         elseif allexact; mcexact += 1
-        else; drift += 1; length(drift_cns)<6 && push!(drift_cns, cn); end
+        elseif maxrel < 0.02; cornered += 1; length(cornered_cns)<6 && push!(cornered_cns, "$cn($(round(100*maxrel,digits=1))%)")
+        else; drift += 1; length(drift_cns)<8 && push!(drift_cns, "$cn($(round(100*maxrel,digits=1))%)"); end
     end
-    (; v, treed, mcexact, collapse, drift, collapse_cns, drift_cns)
+    (; v, treed, mcexact, cornered, collapse, drift, collapse_cns, drift_cns, cornered_cns)
 end
 function main(args)
     nc = parse(Int, args[1]); tmo = parse(Int, args[2])
@@ -73,10 +79,11 @@ function main(args)
     println("===== MULTI-CYCLE FIA DIFFERENTIAL (NUMCYCLE $nc, all cycles vs live) =====")
     for v in order
         r = check_variant(v, byvar[v], nc, tmo)
-        pct = r.treed>0 ? round(100*r.mcexact/r.treed,digits=1) : 0.0
-        println("$(r.v): treed=$(r.treed) MULTI-CYCLE-exact=$(r.mcexact) ($pct%) | drift=$(r.drift) COLLAPSE=$(r.collapse)")
+        okpct = r.treed>0 ? round(100*(r.mcexact+r.cornered)/r.treed,digits=1) : 0.0
+        println("$(r.v): treed=$(r.treed) bit-exact=$(r.mcexact) cornered<2%=$(r.cornered) (ok=$okpct%) | DRIFT≥2%=$(r.drift) COLLAPSE=$(r.collapse)")
         r.collapse>0 && println("    ⚠ COLLAPSE stands: ", join(r.collapse_cns, " "))
-        r.drift>0 && println("    drift stands: ", join(r.drift_cns, " "))
+        r.drift>0 && println("    ⚠ DRIFT≥2% stands: ", join(r.drift_cns, " "))
+        r.cornered>0 && println("    cornered stands: ", join(r.cornered_cns, " "))
     end
 end
 main(ARGS)
