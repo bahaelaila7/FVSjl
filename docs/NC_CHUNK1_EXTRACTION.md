@@ -256,3 +256,13 @@ DG (D<DGMIN): HK=H+HTG; HK≤4.5→DBH+=HK·0.001,DG=0; else DK=HT2/(ln(HK-4.5)-
 (forest HT-DBH refine, since LHTDRG=F ⇒ called); DGSM=(DK-DKK)·BARK·XRDGRO; blend DG w/ large-tree via XWT.
 DEPENDENCY: HTDBH (nc/htdbh.f, forest-specific IFOR 1-7 HT-DBH curve) — STILL TO READ before coding regent.
 ⇒ chunk-6 port: nc_htgr5 (have coeffs) + nc_htdbh (read next) + small_tree_growth!(::Klamath) (RELHT/HTGR/blend/DG).
+
+## HTDBH (nc/htdbh.f) — MEASURED. ONE Curtis-Arney curve SISKIY(12,3) for ALL forests (not forest-specific!):
+H = 4.5 + P2·EXP(-P3·D^P4) [MODE0 D→H, D>0.3; else linear]; MODE1 H→D: D=EXP(ln((ln(H-4.5)-ln(P2))/(-P3))/P4).
+- P2: 523.0987,819.8690,523.0987,604.8450,160.6821,1530.3300,48.6795,679.1972,202.8860,1348.0419,679.1972,595.1068
+- P3: 5.7243,6.4531,5.7243,5.9835,4.1677,7.0811,8.9420,5.5698,8.7469,7.0463,5.5698,5.8103
+- P4: -0.4109,-0.3434,-0.4109,-0.3789,-0.4954,-0.2544,-1.4832,-0.3074,-0.8317,-0.3076,-0.3074,-0.3821
+⇒ nc_htdbh(sp,d,h,mode) simple; used by regent (diameter refine) + CRATET height-dubbing. NOT forest-specific
+(SISKIYOU eqns for all IFOR) — simplifies the earlier "forest-specific htdbh" note.
+⇒ ALL NC GROWTH-CHUNK COEFFICIENTS NOW MEASURED (ch3 DG, ch4 height, ch6 regent+htgr5+htdbh). Only ch8 volume
+(vollib VEQNNC) data remains. Chunk-6 ready to CODE: nc_htgr5 + nc_htdbh + small_tree_growth!(::Klamath).
