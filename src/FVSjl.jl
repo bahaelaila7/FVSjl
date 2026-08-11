@@ -200,6 +200,7 @@ include("variants/lakestates/height_growth.jl")      # LS HTGF: NC-128 (MAPLS/IV
 include("variants/lakestates/small_tree_growth.jl")  # LS REGENT (d<5): NE/CS shape, XMIN=3, MAPLS + ls_balmod
 include("variants/klamath/klamath.jl")               # NC (Klamath Mtns) singleton + registration (MAXSP 12, Zeide) — chunk 0 scaffold
 include("variants/klamath/species.jl")               # NC species block-data init (nc/blkdat.f + grinit.f) — chunk 1
+include("variants/klamath/site_index.jl")            # NC site index + SDImax (nc/sitcind.f + ecocls.f) — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
