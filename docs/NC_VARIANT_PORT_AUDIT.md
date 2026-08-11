@@ -164,3 +164,14 @@ voleqdef.f confirms NC uses 500WO2W* (conifers) + 500DVEW* (hardwoods). The NVEL
 ⇒ chunk-8 is MORE reusable than feared: WO2W ≈ jl cr_fw2_vol (Flewelling) + WO2W coeffs; DVEW = port dvest.f R5
 coeffs (small). compute_volumes!(::Klamath) = cr_fw2_vol(conifers, WO2W) + dvest(hardwoods). Measure the WO2W/DVE
 coefficients from fwinit.f/dvest.f, validate TCuFt/MCuFt per-tree vs FVSnc_dbg (1990 1308/449). Doctrine-#5 reuse.
+
+## Chunk-8 volume — FINAL scope (2026-08-11): genuine NVEL R5/R6 port (cr_fw2_vol INGY-only, needs West-side coeffs)
+Tested: cr_fw2_vol("500WO2W202",...) returns 0 — jl's Flewelling is the INGY (Inland NW) + R2/R3 subregion set only
+(_fw2_is_ingy || 22≤jsp≤29 gate). NC's 500WO2W is the Region-6 Flewelling WEST-SIDE profile (fwinit.f SHP_C2 west
+coeffs), a DIFFERENT coefficient set + species map than jl has. ⇒ chunk-8 = a real NVEL port:
+- WO2W conifers: extend cr_fw2_vol (or a nc_fw2) with the R6 West-side SHP/taper coefficients from fwinit.f + the
+  NC species→Flewelling-jsp map (framework reused; coefficients new).
+- DVE hardwoods (MA/BO/TO/OH): port dvest.f's DVE D²H estimator + the R5 coefficients for 361/818/631/981.
+Substantial but SELF-CONTAINED + OUTPUT-ONLY (volume is a .sum reporting column; the growth port is complete and
+unaffected). All eqnums measured; sources = volume/NVEL/{fwinit.f, r6vol.f, dvest.f}. Validate TCuFt/MCuFt per-tree
++ .sum vs FVSnc_dbg (1990 1308/449). This is the last NC chunk; growth (ch1-7) tracks live end-to-end.
