@@ -46,9 +46,28 @@ per-species diameter SECTIONS via ISCT(ISPC,1/2); DGHAH habitat term; TWO coeffi
   - DGDBA2: 0.0, -0.79922, 0.0, -0.44256, -0.79922, -0.16000, -0.16000, 0.0, -0.44256, -0.32497, -0.16000, 0.0
 - DGDS (dgf.f:231) + DGFOR, ISCT section indices, CONSPP per-species: STILL TO READ (dgf.f:135-290).
 
+## Bark (bratio.f BRKRAT(4,12)) — MEASURED. ⚠ MIXED TYPES; sp12 (RW) is POWER ⇒ needs a special branch (BM#140/CI class)
+BRKRAT row = (idx, a, b, eqtype). Three forms: type1 DBT=a+b·D ⇒ BRATIO=(D−DBT)/D=(1−b)−a/D ; type2 DIB=a+b·D ⇒
+BRATIO=b+a/D ; type3 DIB=a·D^b ⇒ BRATIO=a·D^(b−1) [POWER]. Shared bark_ratio(bark_a,bark_b,sp,d)=bark_b+bark_a/d.
+| sp | a | b | type | ⇒ bark_b | bark_a | note |
+|----|-----|-----|----|-----|-----|-----|
+| 1 OS | 0.1429 | 0.1137 | 1 | 0.8863 | −0.1429 | linear |
+| 2 SP | 0.1429 | 0.1137 | 1 | 0.8863 | −0.1429 | linear |
+| 3 DF | 0.1045 | 0.1661 | 1 | 0.8339 | −0.1045 | linear |
+| 4 WF | 0.1593 | 0.1089 | 1 | 0.8911 | −0.1593 | linear |
+| 5 MA | −0.01348 | 0.98155 | 2 | 0.98155 | −0.01348 | linear |
+| 6 IC | −0.0549 | 0.1626 | 1 | 0.8374 | 0.0549 | linear |
+| 7 BO | −0.26824 | 0.95767 | 2 | 0.95767 | −0.26824 | linear |
+| 8 TO | −0.26824 | 0.95354 | 2 | 0.95354 | −0.26824 | linear |
+| 9 RF | 0.1593 | 0.1089 | 1 | 0.8911 | −0.1593 | linear |
+| 10 PP | 0.4448 | 0.1033 | 1 | 0.8967 | −0.4448 | linear |
+| 11 OH | −0.26824 | 0.95767 | 2 | 0.95767 | −0.26824 | linear |
+| 12 RW | 0.70120 | 1.04862 | **3 POWER** | — | — | **nc_bratio: 0.70120·D^0.04862 (≈0.78-0.81, near 0.80 clamp) — NEEDS a POWER branch in the shared DDS→DG apply-loop like bm_bratio/ci_bratio** |
+⇒ sp1-11 encode into c.bark_a/c.bark_b (bark_imap=linear); sp12 RW needs a POWER special-function branch at EVERY
+shared bark site (bark dispatch + backdating), else DG bias on redwood (the BM#140 lesson). Verify vs FVSnc_clean.
+
 ## STILL TO MEASURE (chunk-1 completion)
-- bark: bratio.f BRKRAT(4,12) — the imap/DIB form; verify linear-encodable vs [0.80,0.99] clamp.
-- dbh_max; small-tree st_* (regent.f DATA); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
+- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); small-tree st_* (regent.f DATA); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
   (sdical.f: BAMAX=XMAX·0.5454154·PMSDIU ⇐ per-sp XMAX SDI); volume stump/top_dib/dbh_min/scf_*/bf_* (grinit.f/
   vollib); htdbh_* (htdbh.f); varmrt_varadj; is_sprouting; dg_resid_sd (SIGMAR).
 - species_translation.csv: full FIA-species→NC-12 crosswalk (dgf.f OSPMAP / the FIA map, NOT just the 12).
