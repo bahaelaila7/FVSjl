@@ -196,3 +196,21 @@ amplification of a subtle self-thin-solve/kill-distribution difference, not clea
 the per-tree WKI distribution vs live's morts.f (does live's uniform kill really leave QMD invariant, or is there a
 size-dependent X/XMORT or a DR10-vs-DQ10 mismatch feeding the IPASS?). Distinct from the accepted UT #156 dense-PJ
 regent-ZZRAN straddle (that's growth; this is mortality). Oracle FVSut_g16 durable at /workspace/.utwork.
+
+## UT under-kill — REFINED 2026-08-11 (root is the entry DR10 seed, NOT the line/IPASS)
+Followed up the UT self-thin under-kill with FVSut_g16 (dumped SLPMRT/CEPMRT/D10/T85D10/TN10) — and RULED OUT the
+two natural hypotheses:
+- Self-thin LINE calibration MATCHES: live SLPMRT=−0.6040, CEPMRT=8.2902 == jl's exactly. Implemented line
+  PERSISTENCE (jl was re-solving each cycle) — confirmed jl's slp stays −0.6040 across cycles — but it did NOT change
+  the result (the persisted line is already right). REVERTED (touched validated EM, no benefit).
+- IPASS QMD-convergence: live's tn10 caps at T85D10 each pass, and its IPASS lowers T85D10 by raising the post-kill
+  D10 (4.239→4.394 within cyc3). Implemented the IPASS loop — but jl's D10 doesn't rise (converges pass 1), so
+  inert. REVERTED.
+REAL ROOT (measured, identical cyc1 trees): jl's ENTRY Reineke DR10 = 2.961 vs live 2.918 (+1.5%). Since DR0/sumdr0
+MATCH (8523/8527, no growth), the difference is in the GROWTH term of the Reineke sum: jl `g = diam_growth/bark`
+(sumdr10 = Σp·(D+g)^1.605) vs live `G = (DG(I)/BRATIO)·(FINT/10)`. jl's DR10 slightly HIGH ⇒ TMD10 low ⇒ T85D10
+slightly low at entry but the self-thin FEEDBACK (higher D10 → the line evaluates higher tn10 as the stand thins)
+compounds it to the +43% under-kill. NEXT: dump jl per-tree (d, diam_growth, bark, g) vs FVSut_g16 morts.f
+(D, DG, BRATIO, G) at cyc1 — likely a DG-period/bark subtlety in the mortality g (the mortality sum uses the shared
+bark_ratio; verify it equals live's BRATIO and that diam_growth is the FINT-period DG, not 5-yr). Distinct from the
+growth-DG which is bit-exact (the mortality g-reconstruction from diam_growth is the suspect, not the DG itself).
