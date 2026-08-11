@@ -87,3 +87,18 @@ NC htgf = per-species SELECT CASE, using DG(I) (from dgf!) + the site-index heig
 TO CODE (chunk 4): read nc/findag.f (the site-curve age/height solve) + the DEFAULT POTHTG iteration (lines 200-280);
 port nc_findag + height_growth!(::Klamath) (redwood LTHTG + default FINDAG/POTHTG); validate HTG per-tree /aggregate.
 Coefficients: HD1-4 measured (extraction doc); SITEAR from site chunk; HTCON/XHMULT default 0/1.
+
+## ★★★ 2026-08-11 MILESTONE: NC nct01 control stand RUNS END-TO-END, cyc0 BIT-EXACT
+All 8 growth+mortality+crown chunks implemented (ch1 species, ch2 site, ch3 DG, ch4 height, ch5 crown, ch6 regent,
+ch7 mortality) + pipeline plumbing (FFE-inert gate, bark_intercept cols, v2t, volume placeholder). NC nct01
+(control stand) runs full multi-cycle. cyc0 (1990 inventory) BIT-EXACT vs live: TPA 536, BA 77, SDI 160, TopHt 63,
+QMD 5.1 (all ==). ⇒ chunks 1/2 + the stand summary are FAITHFUL.
+REMAINING (3 items to bit-exact-or-cornered):
+1. CYCLE LENGTH: live nct01 runs 5-YR cycles (1990,1995,...→2040); jl ran 10-yr (control.year=10 in species.jl is
+   WRONG for NC — set to 5). nc/grinit IFINT=10 but the stand default cycle is 5 (verify: no TIMEINT in nct01.key
+   ⇒ NC default cycle = 5, fix species.jl control.year/growth_fint = 5).
+2. CCF = 0 in jl vs 87 live — the crown-competition-factor / per-tree CCF not wired for NC (crown.f ccfcal). Affects
+   the .sum CCF column + RELDEN (density → DG/crown). Wire nc CCF (ccfcal) — likely reuse the shared ccfcal.
+3. VOLUME = 0 (CI r4vol placeholder gives 0 for NC species). Real NC VEQNNC (R5/NVEL California equations) = chunk-8.
+After cycle-length fix + CCF, validate the multi-cycle trajectory vs nct01.sum.save (5-yr, TPA 536→357 by 2040,
+BA 77→301). This is the aggregate .sum gate.
