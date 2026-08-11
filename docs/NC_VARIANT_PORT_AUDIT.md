@@ -71,3 +71,19 @@ site inputs (SITEAR/ELEV/SLOPE for nct01 — verify jl's sp_site_index[2,6,9] + 
 per-tree CRID/PBAL/ALPBA. CLEAN NEXT: use nc/dgf.f's own DEBUG FORMAT-334 (DDS,CONSPP,ALD,ALPBA,CRID) — enable
 DEBUG on FVSnc_dbg for ONE cyc1 growth-pass tree + match jl by exact (species,DBH) ⇒ isolates CONSPP vs the terms.
 BETTER GATE (once ch4-8 land): the aggregate cyc1 .sum (TPA/BA/QMD) which averages out per-tree/pass noise, like CI.
+
+## Chunk-4 height (nc/htgf.f) — structure characterized (2026-08-11), substantial port (NOT CI-reusable)
+NC htgf = per-species SELECT CASE, using DG(I) (from dgf!) + the site-index height curve:
+- CASE(12) redwood: DG10=DGLT/BRAT; LTHTG=EXP(1.412947 −0.000204·D² +0.31971·lnD +0.394005·ln(SINDX)
+  +0.399888·ln(DG10) −0.451708·lnH)·0.5; HGBND height bound (H<217→1.0; 217-380 ramp to 0.1; ≥380→0.1);
+  HTG=LTHTG·HGBND. (If H<4.5, DG10=0.1.)
+- CASE DEFAULT (conifers+hardwoods): CALL FINDAG(I,ISPC,D1,D2,H,SITAGE,SITHT,AGMAX,HTMAX,HTMAX2,…) using HD1-4
+  (P1-P4, the HT-DBH coeffs) + SITEAR → SITAGE (site age from H) + HTMAX. Then POTHTG from the site-curve
+  (HGUESS−SITHT over SITAGE→SITAGE+5); H≥HTMAX→HTG=0.1. Scaled by SCALE=FINT/YR, XHT=XHMULT (MULTS keyword),
+  exp(HTCON). Hardwoods (sp5/7/8/11) use their HD1-4; conifers use the site curve too (HD1-4=0 ⇒ different FINDAG path).
+- NOT reusable from CI height_growth.jl (CI = NI-conifer exp form + Weibull, a DIFFERENT model). NC needs its own
+  height_growth.jl porting FINDAG (nc/findag.f: site-index age↔height curve) + the redwood LTHTG + the DEFAULT
+  POTHTG loop. FINDAG is the Dixon site-index curve (shared by the Pacific-coast/CA variants NC belongs to).
+TO CODE (chunk 4): read nc/findag.f (the site-curve age/height solve) + the DEFAULT POTHTG iteration (lines 200-280);
+port nc_findag + height_growth!(::Klamath) (redwood LTHTG + default FINDAG/POTHTG); validate HTG per-tree /aggregate.
+Coefficients: HD1-4 measured (extraction doc); SITEAR from site chunk; HTCON/XHMULT default 0/1.
