@@ -324,3 +324,28 @@ cluster-wide no-regression validation, then trace the summary-merch O-array (B).
 layout-only fix wouldn't bit-match (B still differs) and touching the shared _SUM_ROW_FMT needs careful before/after
 .sum validation across all 5 passing imperial variants. BC GROWTH remains validated (e2e harness cols 3-8); this is
 purely the .sum volume-column reporting fidelity.
+
+## BC .sum FULL column enumeration + (B) root RESOLVED to FVS source 2026-08-11 (doctrine #2 satisfied)
+Full-row jl-vs-FVSbc_clean comparison on all_BC (11 cycles), every column classified:
+- ★ (B) MERCH ROOT = FVS SOURCE, not inference: the standard imperial vols.f loads `MCFV(I)=MCF` (CI/SN vols.f:199)
+  but BC's vols.f NEVER assigns MCFV — it computes merch into `WK1(I)=VM` (vols.f:167, defect-corrected :221) and
+  routes it ONLY to the per-species accumulator SPCMC + ECON, never to the standing MCFV array (grep: "no MCFV=
+  assignment in BC vols.f"). So OMCCUR(7)=PCTILE(MCFV)=0 (gradd.f:319) ⇒ live BC .sum merch (IOSUM 5, disply.f:427)
+  is STRUCTURALLY 0 every cycle. Also vols.f:236-240 `BFV(I)=0.0` "Board feet not computed in this variant" ⇒ board
+  structurally 0. ⇒ FAITHFUL jl behavior = BC .sum merch AND board = 0 (mirror FVS's unpopulated MCFV/BFV), NOT jl's
+  computed 863 (jl's per-tree merch_cuft_vol stays correct for CSV/other outputs). Resolves (B) WITHOUT inference.
+- (A) LAYOUT: metric 7I6 (drops sawlog scuft + rem_scuft vs imperial 9I6), as established.
+- TOPHT: jl 25/21/24 vs live 50/47/47 from 2010 = the NOISY-HEIGHT AVHT40 cornered class. all_BC.tre carries noisy/
+  partially-missing heights (DBH 12.7cm→HT 6.7m vs DBH 7.9→7.5; many blank → HTCALC-filled) ⇒ top-height is
+  noise-dominated and swings with the mortality realization (which tall trees survive). The ROBUST DIAMETER metrics
+  BA/SDI/QMD/total-cuft all TRACK within a few % every cycle (2090: BA 62/57, SDI 1235/1163, QMD 25.2/23.8, cuft
+  1075/1025) ⇒ the BC growth+volume EQUATIONS are faithful; only the noise-dominated TopHt swings (same class as the
+  all_BC_essf "garbage heights" cornered note the e2e harness already accepts).
+- FORTYPE: jl 999 vs live 201 = BC forest-type classification not ported (jl defaults 999); cosmetic .sum column.
+- TPA/SDI/TopHt ±1-2: the known #129 plot-area TPA rounding (2089 vs 2087) + integer-round straddle.
+VERDICT: BC growth+volume EQUATIONS remain bit-exact-or-cornered (diameter metrics track; merch/total volume
+equations faithful). ALL BC .sum residuals are OUTPUT-ONLY (metric 7I6 layout + structural merch/board=0 + BC
+forest-type classification) or CORNERED realization (noisy-height TopHt, #129 rounding) — NONE affects the
+simulation. The output-only .sum-fidelity fix (metric layout + merch/board=0 + BC fortype) is a bounded focused pass,
+lowest priority; the growth/volume port is validated. This CLOSES the "BC merch/board vol" investigation: the
+equations are faithful, the .sum merch=0 is FVS-structural (vols.f), and board has no target (not computed in BC).
