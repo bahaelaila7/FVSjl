@@ -95,5 +95,20 @@ loop ESTOCK over all `nptids` with each point's `point_ba[pt]` and combine per e
 `point_ba[1]` scalar. Shared EM+IE (simulate.jl:586) ⇒ also closes the IE #143 ingrowth residual. Instrumentation
 recipe durable in FVSem_buildDir/estab.f + build_g16.sh; oracle restored clean. Task #172.
 
+### FIXED (f598868) — but the driver was plot_id, not PROB1
+Continued measurement REFUTED the per-point-PROB1 fix (ie_estock CLAMPS BAA above ~13 ⇒ per-point prob1 all-equal,
+inert) and re-examined the g16 tally: live's 2nd ingrowth tally **NEWTPP sum = 20** (vs tally-1's 69) — suppressed
+by the carried per-point stock (a tally-2 plot showed `PLPROB=1.003, NSTORE=3, NEWTPP=2`). jl at tally-2 DID see
+the stock (`tpacre_ingro=44.67`) but **all on one point** (`nz_points=1`). **REAL ROOT**: `ie_autoes_establish!`
+set `t.plot_id[n]=Int32(1)` for every established tree ⇒ the whole cohort lands on point 1 ⇒ only point-1 plots get
+NSTORE-suppressed next tally; the other points re-establish full. **FIX**: `ie_autoes_tally` accumulates a
+per-inventory-point tally (plot n → point `div(n-1,idup)+1`), `ie_autoes_run` returns it, `ie_autoes_establish!`
+creates a seedling per `(species,point)` with the true `plot_id` + that point's `point_ccf`. Summed tally
+byte-unchanged ⇒ single-point stands & every first tally identical (canonical + single-point FIA inert by
+construction); unit suite passes. **EM 11864108010690 drift 30.9% → 10.4%** (2046 TPA 125→86 vs live 96), 0
+collapse. Residual ~10% = per-point cohort-distribution / BAAA magnitude (jl point_ba ~1.3× low; PROB1-magnitude
+secondary since ie_estock clamps). Doctrine win: two measured refutations (per-point PROB1, NSTORE-absent) before
+the plot_id root. Task #172.
+
 Doctrine reminder: per-record treelist INVALID after tripling — use .sum aggregates per cycle (as here).
 All reproducers durable in `test/harness/fia/{BM,ci,cr,em,ie,tt,ut}_sample.txt` + `scratchpad/percycle.jl`.
