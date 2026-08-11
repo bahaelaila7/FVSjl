@@ -242,6 +242,34 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         tokill < 0f0 && (tokill = 0f0)
         _tt_ttmrt!(killed, tokill, s, n)
     end
+    # BAMAX residual-BA cap (tt/morts.f BA-check, tt/morts.f:823-852 — runs AFTER TTMRT redistribution + the
+    # SIZCAP loop). When the user did not set BAMAX, residual BA is capped at BAMAX = SDIMAX·0.5454154·PMSDIU
+    # (== `bamax` above; PMSDIU converted 85→0.85 before the SDICAL call) by scaling every record's kill up by
+    # ADJFAC=(BANEW−BAMAX)/BADEAD, iterating ≤100× until residual BA ≤ BAMAX. This own-copy had OMITTED it (the
+    # shared southern/mortality.jl + NC/UT have it). Inert (immediate break) whenever residual BA ≤ BAMAX, so it
+    # cannot regress ttt01 or below-cap stands. BA uses tt_bratio (== tt/morts.f BRATIO) and g=diam_growth/bark.
+    let bamax = sdimax * 0.5454154f0 * pmsdiu
+        if sdimax >= 5f0 && bamax > 0f0
+            for _ in 1:100
+                banew = 0f0; badead = 0f0
+                @inbounds for i in 1:n
+                    d = t.dbh[i]; sp = Int(t.species[i])
+                    bark = tt_bratio(sp, d)
+                    g = t.diam_growth[i] / bark
+                    ba_ = 0.0054542f0 * (d + g)^2
+                    banew  += ba_ * (t.tpa[i] - killed[i])
+                    badead += ba_ * killed[i]
+                end
+                ((banew - bamax) > 1f0 && badead > 0f0) || break
+                adjfac = (banew - bamax) / badead
+                @inbounds for i in 1:n
+                    wki = killed[i] * (1f0 + adjfac)
+                    wki > t.tpa[i] && (wki = t.tpa[i])
+                    killed[i] = wki
+                end
+            end
+        end
+    end
     # Dwarf-mistletoe mortality (mismrt.f): MAX-combine per-tree DM kill into killed[] before snags/removal,
     # same as the shared N-Rockies path (southern/mortality.jl). This variant has its own mortality! so it
     # must be wired here; inert on stands with no DM ratings (dmr==0 ⇒ per-tree no-op).
