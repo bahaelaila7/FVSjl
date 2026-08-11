@@ -24,11 +24,24 @@ what's fixable, corner what's stochastic, mark what's blocked — and measure BE
 - **Dwarf mistletoe "ALL western DONE ✓"** — was WRONG (validated DG-loss+spread, not the KILL); now genuinely
   done after the 3 mistletoe commits above.
 - **Climate-FVS "TODO"** — DONE this session (7 commits, IE-validated).
-- **#140 BM under-thinning** — RESOLVED 2026-08-07 (e130546, DGSD field-disconnect; deterministic self-thin path
-  bit-exact, residual = accepted RNG-realization straddle). CORROBORATED 2026-08-11: the BM larch stand
-  449746614489998 (actively self-thinning, TPA 1026→624) TRACKS live's decline (→578, ~7% straddle) — jl is NOT
-  systematically under-thinning. Goal doc's "REAL under-thin bias (NOT cornered)" is the pre-e130546 (2026-08-05)
-  state, superseded.
+- **#140 BM under-thinning** — ★★★ ACTUALLY FIXED 2026-08-11 (2c26eca); the goal doc was RIGHT and this doc's
+  earlier "RESOLVED e130546 / one-stand corroborated" was WRONG (over-optimistic single-stand check — the exact
+  "multi-stand tally buries a real bug" trap the mistletoe fix warned of). A 14-stand BM FIA sign-tally showed a
+  SYSTEMATIC 11-HIGH/1-LOW/2-BE under-thin bias (mean +8%). ROOT (measured via FVSbm_g16 per-tree, bmt01 icyc1):
+  the DDS prediction is BIT-EXACT (jl/live=1.0000) but DG=sqrt(D_ib²+DDS)−D_ib used the WRONG bark — the shared
+  diameter_growth! DDS→DG apply loop dispatched POWER bark for CR/TT/BC but BM (also POWER, bm_bratio) fell through
+  to the LINEAR bark_ratio (~0.99 vs correct ~0.86) ⇒ D_ib too large ⇒ DG 7-8% LOW on EVERY tree ⇒ dq10 low ⇒
+  self-thin under-kill, feedback-amplified. Fix = add the `_bm_dg ? bm_bratio` branch. Post-fix: deterministic DG
+  bit-exact; bmt01 2090 TPA 108→94 vs live 96; tally → 6-HIGH/3-LOW/5-BE (mean +0.6%, STRADDLES). Residual = the
+  cornered DGSCOR straddle. ⇒ #140 truly resolved.
+- **BARK-DISPATCH AUDIT COMPLETE 2026-08-11** — the BM bug was a MISSING-VARIANT branch class; swept the whole
+  DDS→DG bark dispatch: POWER-bark variants (CR/TT/BC/BM/CI) MUST have a special-function branch — BM (2c26eca) and
+  CI (6d94b6a) were the two missing (CI minor, ~0.3% net, .sum-inert on cit01 but bit-exact-DG faithful; CI #142
+  confirmed a cornered count-straddle, 2-HIGH/5-LOW/3-BE, NOT a bias). Linear/reciprocal variants (EM/IE/UT/KT)
+  correctly ENCODE their bark into c.bark_a/c.bark_b (incl. the 0.9002−0.3089/D zero-coef case) so the shared
+  bark_ratio is faithful — verified in each variant's diameter_growth.jl. ⇒ dispatch now complete; no remaining
+  missing-bark branches. LESSON: the earlier audit's "DDS bit-exact ⇒ DG faithful" was the trap — DDS≠DG when the
+  bark differs; always measure the bark-converted DG, not just DDS.
 - **#143 IE AUTOES** — FIXED+VALIDATED (d089b78) per memory; goal doc stale.
 - **#142 CI tail / EM-IE growth tail** — CORNERED (DGSCOR/RDPSRT RNG straddles), meets the bar.
 - **#137 EM estab / EM AUTOES over-establishment** — RESOLVED. The AUTOES "+63-86% TPA over-establishment" flagged
