@@ -76,6 +76,9 @@ const NC_DGSLP2 = Float32[0,0,0,0,0,0,0,0,0,0.80370,0,0]
 const NC_DGSLQ2 = Float32[0,0,0,-0.83400,0,0,0,0,-0.83400,0,0,0]
 const NC_DGEL2  = Float32[0,0,0,0,0,0,0,0,-0.00700,0,0,0]
 const NC_DGSITE = Float32[0.47932,0.01401,0.56356,0.47360,0.20189,0.01200,0.32093,0.00659,0.00734,1.10842,0.00659,0.0]
+# Empirical-Bayes prior variance for DG calibration shrinkage (nc/dgdriv.f:95 DATA PSIGSQ) — NC was MISSING
+# from the shared PSIGSQ dispatch (fell through to the SN 0.0898 default), the CI/IE-class calibration bug.
+const NC_PSIGSQ = Float32[0.0408,0.0586,0.1556,0.0970,0.0858,0.1433,0.0636,0.0970,0.0970,0.0636,0.0858,0.0898]
 # DEFAULT-branch DGCON slope/aspect terms (nc/dgf.f DATA DGSASP/DGCASP/DGSLOP/DGSLSQ) — dgf.f:478-485.
 const NC_DGSASP = Float32[-0.02884,0.0,-0.040708,-0.01560,-0.10656,0.0,-0.11954,-0.03587,0.0,0.0,-0.03587,0.0]
 const NC_DGCASP = Float32[-0.14319,0.0,-0.16836,-0.15630,-0.19174,0.0,0.08632,-0.19935,0.0,0.0,-0.19935,0.0]

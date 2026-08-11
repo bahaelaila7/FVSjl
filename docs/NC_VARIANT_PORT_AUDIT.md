@@ -397,3 +397,21 @@ faithful base + the wrong cor nets ~14% over). .sum regressed to 14% over TEMPOR
 WF cor is fixed. NEXT: instrument calibrate_diameter_growth! for NC WF — compare jl's measured-DG (WK1) +
 residual + dg_cor[4] to live's calibration (nct01.out ZNC dump); DF works so it's WF-species-specific.
 Live dgf debug recipe (durable): /workspace/.ncwork/nctree.key (DEBUG 1./1. + DGF record) → fort.16.
+
+## NC PSIGSQ missing-branch FIXED (2026-08-11) — CI/IE-class
+
+NC was MISSING from the shared PSIGSQ dispatch (southern/diameter_growth.jl:538) → fell through to the SN
+default DG_PSIGSQ=0.0898. Real gap (same class as the CI 3b9aa35 / IE 96cde22 fixes). Added NC_PSIGSQ from
+nc/dgdriv.f:95 DATA: [0.0408,0.0586,0.1556,0.0970,0.0858,0.1433,0.0636,0.0970,0.0970,0.0636,0.0858,0.0898].
+WF(sp4)=0.0970 vs 0.0898. Wired `s.variant isa Klamath ? NC_PSIGSQ[sp]`. NC-only, no cross-variant regression.
+
+⚠ But it did NOT resolve the WF cor gap (.sum still ~14% over): the shrunk cor `corv = wc·cornew` follows the
+SIGN of the RAW cornew, and PSIGSQ only scales the shrinkage weight `wc∈[0,1]` — it cannot flip +0.059→−0.546.
+So the WF divergence is the RAW cornew (the calibration regression residual): jl WF cornew is ~+ (measured≈base)
+while live's is ~− (measured<base). Since the growth-pass BASE now matches live (DF bit-exact, WF base 3.282==),
+the raw-residual difference is in the CALIBRATION pass — either jl reads WF's measured past-DG (the .tre F2.1
+field) differently, or the backdated-DBH base at the calibration state differs. DF cornew≈0 matches (so it's
+WF-specific, likely a per-species measured-DG or backdated-state handling). NEXT: instrument
+calibrate_diameter_growth! for NC — dump per-WF-tree measured-DG (WK1) + backdated base + the accumulated
+cornew, compare to live (nct01.out ZNC dump / an instrumented nc/dgdriv.f). The DGCON + PSIGSQ fixes are
+faithful and KEPT; the .sum will converge once the WF calibration raw-cornew is corrected.
