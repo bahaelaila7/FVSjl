@@ -66,6 +66,15 @@ BRATIO=b+a/D ; type3 DIB=a·D^b ⇒ BRATIO=a·D^(b−1) [POWER]. Shared bark_rat
 ⇒ sp1-11 encode into c.bark_a/c.bark_b (bark_imap=linear); sp12 RW needs a POWER special-function branch at EVERY
 shared bark site (bark dispatch + backdating), else DG bias on redwood (the BM#140 lesson). Verify vs FVSnc_clean.
 
+★ CSV REPRESENTATION RESOLVED (2026-08-11): store the RAW BRKRAT values + eqtype (cleanest, all 3 forms preserved):
+- bark1 (=BRKRAT(2,sp), raw a): 0.1429, 0.1429, 0.1045, 0.1593, -0.01348, -0.0549, -0.26824, -0.26824, 0.1593, 0.4448, -0.26824, 0.70120
+- bark2 (=BRKRAT(3,sp), raw b): 0.1137, 0.1137, 0.1661, 0.1089, 0.98155, 0.1626, 0.95767, 0.95354, 0.1089, 0.1033, 0.95767, 1.04862
+- bark_imap (=BRKRAT(4,sp), eqtype): 1, 1, 1, 1, 2, 1, 2, 2, 1, 1, 2, 3
+NC needs its OWN `nc_bratio(a,b,eqtype,d)` in chunk-3 diameter_growth (the shared bark_ratio only does type-2 b+a/D):
+type1 → (D−(a+b·D))/D = 1−b−a/D ; type2 → b+a/D ; type3 → a·D^(b−1). Dispatch `_nc_dg = s.variant isa Klamath`
+at EVERY shared DDS→DG bark site (apply-loop + backdating + mortality bark), like _ci_dg/_bm_dg. CI used bark_imap=4
+for its all-POWER set; NC's per-species eqtype 1/2/3 selects the form within nc_bratio.
+
 ## Small-tree regent (regent.f:94-97) — MEASURED
 - st_diam (DIAM): 0.3, 0.4, 0.3, 0.3, 0.2, 0.2, 0.2, 0.2, 0.3, 0.5, 0.2, 0.3
 - st_xmax (XMAX): 5,5,5,5,5,5,5,5,5,5,5, 10  (sp12 RW = 10; blend cap)
