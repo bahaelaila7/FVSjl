@@ -279,3 +279,26 @@ The goal doc's last unmeasured CI item ("volume MATW/FW2W unmeasured"). MEASURED
 ⇒ CI volume MATW/FW2W MEETS bit-exact-or-cornered: equations bit-exact on identical trees; multi-cycle residual is
 the already-cornered #142 straddle carried through volume. Closes the last flagged CI-volume item. (SMHTGF small-tree
 stochastic is the same never-FFI-RNG class.)
+
+## BC volume (merch/board "TODO") — CHARACTERIZED by measurement 2026-08-11: not a volume-equation gap
+Measured all_BC (real BC multi-species stand) jl vs FVSbc_clean, full .sum + cross-checked the .out cruise:
+- **Total cubic**: cyc0 (1990) BIT-EXACT (186 m³/ha == live 186, == cruise CUBIC METERS/HA 186.02). Multi-cycle
+  +4.9% by 2090 (jl 1075 vs live 1025; jl BA also +8.8%, TPA 1253 vs 1292) = the BC growth-realization tail
+  (fewer, bigger trees), the accepted cornered class for the completed BC growth+yield port.
+- **Board feet**: live .out cruise = `BOARD FEET/HA 0.00` and the per-species board table is all "---"; live .sum
+  board column = 0 every cycle. The metric BC variant emits NO board feet for this stand ⇒ the BFVOL "TODO" has
+  NO nonzero validation target (jl's effective 0 already matches). Not a real gap on the canonical stand.
+- **Merch cubic**: jl DOES compute BC merch (the volume.jl "merch=0" comment is STALE — true only at cyc0 when all
+  trees are <17.5cm DBHMIN; bc_tree_vol's TVOL merch-log path fires as trees exceed it, giving jl merch 0→863 by
+  2090). But live's .sum standing-merch column = 0 EVERY cycle — even at 1990 where the .out cruise computes live
+  merch = 156.15 m³/ha. ⇒ live CAN compute merch; its .sum merch COLUMN is 0 by reporting spec. This is the SAME
+  class as CI's .sum-merch-column finding (fvsjl-ci-variant-port 7th note): FVS's .sum "MERCH CU FT" is written by
+  disply.f from a summary O-array distinct from per-tree/cruise merch. Consequence: jl's BC .sum emits a merch
+  column (863) live leaves 0 ⇒ jl's BC .sum has 2 extra volume fields (28 vs 26) — a .sum column-STRUCTURE
+  difference, output-only (volume never feeds growth/mortality), not a simulation divergence.
+VERDICT: BC total-cubic MEETS bit-exact-or-cornered (cyc0 bit-exact + growth tail). The "merch/board vol TODO" is
+NOT a volume-equation port — board has no metric target; merch equations compute correctly and the residual is the
+cross-variant .sum summary-merch-column reporting spec (shared with CI, disply.f O-array), which is output-only and
+lower priority. No speculative BFVOL board port opened (unvalidatable) and jl's .sum merch NOT forced to 0 (would
+hide correct volume; matching live's 0 requires reverse-engineering FVS's summary-merch spec = a separate
+cross-variant reporting effort, not a BC growth/volume gap).
