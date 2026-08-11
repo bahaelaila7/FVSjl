@@ -411,3 +411,18 @@ CAVEAT documented: the harness's 2%-per-stand "cornered" threshold is too tight 
 establishment straddle. This is the accepted never-FFI-RNG primitive, not a deterministic bug. LESSON (reinforces
 the BM #140 trap): do NOT panic-revert on a raw multi-cycle drift count — isolate (species applicability, calib
 firing, magnitude) first; here that isolation PROVED zero regression from the session's fixes.
+
+### NOAUTOES attribution (2026-08-11): 9/9 DRIFT is DOMINANTLY AUTOES, + one residual non-AUTOES divergence
+Ran the two worst IE drift stands with NOAUTOES (jl vs FVSie_clean, 5-cyc):
+- **3117512010690** (was 15.9%): NOAUTOES → jl == live BIT-EXACT every cycle (BA 80/91/103/113/123/131 identical)
+  ⇒ its drift was 100% the AUTOES realization straddle (accepted never-FFI-RNG primitive). CORNERED confirmed.
+- **1629529861290487** (was 100%): NOAUTOES → STILL diverges. TPA matches early (1013/875/753) then BA splits
+  (2041 jl 28/live 22; 2061 jl 76/live 98; 2071 jl 75/live 129 = −42%; jl BA peaks ~76 then DECLINES while live
+  grows to 129). This extreme stand starts with 2 trees and regenerates to 1013 TPA via NATURAL ingrowth (NOAUTOES
+  doesn't disable ingrowth), then jl over-kills / under-grows late. A NON-AUTOES multi-cycle divergence — PRE-EXISTING
+  (my #175/#171 fixes proven inert on it: no larch/juniper, n_small_with_measHTG=0).
+VERDICT: most of the IE multi-cycle per-stand drift IS the accepted AUTOES straddle; a residual late-cycle
+mortality/growth divergence on extreme dense-regen stands (self-thin/DGSCOR realization class candidate — could be
+cornered like UT/#142, or a real dense-regen mortality issue) is the one genuinely-open IE multi-cycle lead. NOT a
+regression from this session. NEXT (future chunk): instrument jl mortality!/DG vs FVSie_g16 on 1629529861290487 at
+the first BA-divergent cycle (2041) — is the deterministic dq10/DG bit-exact (⇒ RNG straddle, cornered) or biased?
