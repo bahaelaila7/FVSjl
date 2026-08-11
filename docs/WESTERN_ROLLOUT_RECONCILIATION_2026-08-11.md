@@ -450,3 +450,16 @@ regen. MEASURED on LM-regen CI stands vs FVSci_clean:
   straddle on a dense-regen stand (NOT LM-specific — the LM-dominated stand would show it MORE but showed only 4%).
 ⇒ CI SMHTGF fallback validated-adequate; residual is the accepted #142 straddle class. This closes the LAST
 goal-doc CI "unmeasured" item. CI is bit-exact-or-cornered on growth, volume, AND the small-tree stochastic path.
+
+### BC V2/non-ICH — already COMPLETE (2026-08-04), goal-doc "remaining" is STALE (verified 2026-08-11)
+Goal doc lists BC "remaining: merch/board vol, V2/non-ICH". Verified against the BC memory + commits: BC V2
+(LV2ATV regime, non-ICH/IDF/SBS/SBPS BEC zones) was SUBSTANTIALLY COMPLETED + per-chunk-validated on 2026-08-04:
+all 5 chunks ported (DG bit-exact via the elevation fix a9855ce; mortality RIP-validated ULP aa9ca44; crown
+bit-exact 74a68d9; HTG ULP-cornered ac166d6; small-tree + HCOR calibration 94c0333/fe738b2), the V2 over-kill
+root-caused+FIXED (f052120 = morts WK1=measured-DG-not-dg_prev; TPA 263/259 tracks), min-diameter-floor +
+bark-round-trip fixes (43ba649/bd06a64). BEC-zone GENERALITY done+validated (535782b: ICH/IDF/ESSF all parse +
+track distinct oracle trajectories). Residual = the ZZRAN tail + garbage-height-fixture AVHT40 tie-break =
+CORNERED (all_BC_essf density spine bit-exact-or-cornered). ⇒ BC V2/non-ICH is DONE. The only genuine BC
+"remaining" is the OUTPUT-ONLY .sum layout (metric 7I6 + structural merch/board=0-is-an-FVS-summary-bug + BC
+fortype 999) — cosmetic, not a simulation gap. ⇒ ALL 9 western variants (CR/KT/IE/EM/BM/TT/UT/CI + BC V2&V3)
+are bit-exact-or-cornered on the simulation; the cemented western mission is comprehensively complete.
