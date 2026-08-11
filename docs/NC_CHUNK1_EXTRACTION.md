@@ -84,8 +84,27 @@ shared bark site (bark dispatch + backdating), else DG bias on redwood (the BM#1
 NOTE: these HD1-4 are height-GROWTH coeffs; the species_coefficients.csv ht1/ht2/htdbh_* (height-DIAMETER curve) are
 SEPARATE — still to read from htdbh.f / the HT-DBH DATA.
 
+## Background mortality (morts.f:99-104) — MEASURED. ⇒ REUSES the EM/UT mortality path (doctrine #5)
+NC background mortality = EM/UT form RI=0.5·(1/(1+exp(PMSC+PMD·D))) + Zeide self-thin (LZEIDE=T). sp1-11 PMSC/PMD
+are IDENTICAL to the EM/UT coefficients ⇒ chunk-7 mortality reuses the shared easternmontana/utah mortality! path.
+- PMSC: 6.5112, 6.5112, 7.2985, 5.1677, 9.6943, 5.1677, 5.9617, 9.6943, 5.1677, 5.5877, 5.1677, **2.59680**
+- PMD: -.0052485, -.0052485, -.0129121, -.0077681, -.0127328, -.0077681, -.0340128, -.0127328, -.0077681,
+  -.005348, -.0077681, **+0.51261**
+- ⚠ sp12 RW (redwood) is SPECIAL: PMSC=2.5968, PMD=+0.51261 (POSITIVE slope — redwood-specific; verify the RI
+  form still holds or if redwood takes a separate branch in nc/morts.f). Zeide self-thin: reuse _em_tn10_iter etc.
+
+## HT-DBH curve (htdbh.f) — STRUCTURE NOTED (chunk-4). ⚠ FOREST-SPECIFIC, not simple per-species ht1/ht2
+NC htdbh depends on IFOR forest code (1=Klamath/505, 2=Six Rivers/510, 3=Trinity/514, 4=Siskiyou/611, 5=Hoopa/705,
+6=Simpson/800, 7=BLM Coos Bay/712) — e.g. a SISKIY coefficient array (htdbh.f:48). So the species_coefficients.csv
+ht1/ht2/htdbh_* columns need the FOREST-appropriate curve (nct01 forest=371... verify which IFOR). Port htdbh.f
+logic (CRATET height-dubbing + REGENT diameter est, MODE 0/1) rather than a flat per-species ht1/ht2. Still to read
+the full SISKIY + per-forest coefficient arrays.
+
+## SDImax (sdical.f) — computed, not DATA: BAMAX=XMAX·0.5454154·PMSDIU (sdical.f:204); SDIDEF default 0 (grinit:72).
+Per-species SDImax source (SDIDEF fill / habitat table) still to locate — likely forest/habitat-driven like CI's R4SDI.
+
 ## STILL TO MEASURE (chunk-1 completion)
-- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); ht1/ht2/wykoff_ht2 + htdbh_* (htdbh.f HT-DBH DATA); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
+- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); the forest-specific htdbh coeff arrays (htdbh.f); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
   (sdical.f: BAMAX=XMAX·0.5454154·PMSDIU ⇐ per-sp XMAX SDI); volume stump/top_dib/dbh_min/scf_*/bf_* (grinit.f/
   vollib); htdbh_* (htdbh.f); varmrt_varadj; is_sprouting; dg_resid_sd (SIGMAR).
 - species_translation.csv: full FIA-species→NC-12 crosswalk (dgf.f OSPMAP / the FIA map, NOT just the 12).
