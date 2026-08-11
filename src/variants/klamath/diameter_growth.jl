@@ -99,7 +99,7 @@ end
 
 "NC DGCONS: per-species DGCON (nc/dgf.f ENTRY DGCONS), 3 branches. Stored in c.dg_const[sp]."
 function nc_dgcons!(s::StandState)
-    c = s.calib; p = s.plot
+    c = s.calib; p = s.plot; sd = s.coef.species
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 7) && (ifor = 1)
     elev = p.elevation; slope = p.slope
     @inbounds for sp in 1:12
@@ -118,7 +118,19 @@ function nc_dgcons!(s::StandState)
                     NC_DGSITE[sp] * log(si3)
         end
         c.dg_const[sp] = dgcon
-        c.bark_a[sp] = 0f0; c.bark_b[sp] = 0.9f0       # NC uses nc_bratio directly in dgf! (not the linear cache)
+        # Encode NC's real bark (nc/bratio.f) into the shared linear cache (bark_a+bark_b·D)/D, which the
+        # shared DDS→increment realization (dbh += dg/bark) AND the calibration term (2·bark·wk3) use. Was a
+        # 0/0.9 PLACEHOLDER (constant 0.9) ⇒ wrong applied increment + wrong calibration residual for every NC
+        # species. eqtype 1 (DBT=a+b·D): bratio=(D−DBT)/D ⇒ bark_a=−a, bark_b=1−b. eqtype 2 (DIB=a+b·D):
+        # bratio=(a+b·D)/D ⇒ bark_a=a, bark_b=b. eqtype 3 (sp12 RW POWER): not linear-encodable (RW-only, no nct01).
+        et = Int(sd[:bark_imap][sp]); ba1 = sd[:bark1][sp]; bb1 = sd[:bark2][sp]
+        if et == 1
+            c.bark_a[sp] = -ba1; c.bark_b[sp] = 1f0 - bb1
+        elseif et == 2
+            c.bark_a[sp] = ba1;  c.bark_b[sp] = bb1
+        else                                            # POWER (sp12 RW) — no linear encoding; 0.9 fallback
+            c.bark_a[sp] = 0f0;  c.bark_b[sp] = 0.9f0
+        end
     end
     return s
 end

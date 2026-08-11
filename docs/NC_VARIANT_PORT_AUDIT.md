@@ -415,3 +415,23 @@ WF-specific, likely a per-species measured-DG or backdated-state handling). NEXT
 calibrate_diameter_growth! for NC — dump per-WF-tree measured-DG (WK1) + backdated base + the accumulated
 cornew, compare to live (nct01.out ZNC dump / an instrumented nc/dgdriv.f). The DGCON + PSIGSQ fixes are
 faithful and KEPT; the .sum will converge once the WF calibration raw-cornew is corrected.
+
+## NC bark cache = real nc_bratio (was 0/0.9 placeholder) — faithful; WF cornew still the blocker (2026-08-11)
+
+nc_dgcons! set c.bark_a/bark_b to a 0/0.9 PLACEHOLDER (constant 0.9) with a comment "NC uses nc_bratio
+directly in dgf!". But the SHARED code uses this cache: the DDS→increment realization (dbh += dg/bark,
+simulate.jl:556) AND the calibration term (2·bark·wk3). Live (dgdriv.f:205) uses BRATIO(ISPC,D,HT) = the
+real varying nc bark. FIXED: encode nc/bratio.f into the linear cache (eqtype 1: bark_a=−a,bark_b=1−b;
+eqtype 2: bark_a=a,bark_b=b; sp12 RW eqtype 3 POWER left as 0.9 — RW-only, no nct01). Verified: (bark_a+
+bark_b·D)/D == nc_bratio (DF@10 0.8235, WF@10.9 0.8765). Faithful — matches live BRATIO.
+
+⚠ This barely moved the WF cornew (0.059→0.039) — confirming the WF divergence is NOT bark, it's the
+calibration RAW RESIDUAL. And because the correct (lower) bark increases the realized increment (OB_incr =
+sqrt(d²+dds/bark²)−d), it AMPLIFIES the still-unfixed WF over-growth ⇒ .sum 2010 191→201 over (oracle 167).
+⇒ THE .sum WILL NOT CONVERGE until the WF calibration cornew is fixed; each faithful fix (DGCON/PSIGSQ/bark)
+UNMASKS/amplifies it. This is the doctrine's "faithful fix regresses ⇒ masked bug" — the masked bug is the
+WF (sp4) calibration raw cornew: jl +0.039 vs live −0.546, WF base matches live (3.282), DF cornew≈0 matches.
+NEXT (the ONE remaining NC-growth bug): instrument calibrate_diameter_growth!'s residual accumulation for NC
+WF — the measured-DG (WK1/`dg`) + backdated DIB (`wk3`) + reslog=log(dg·(2·bark·wk3+dg))−wk2 per WF tree vs
+live (an instrumented nc/dgdriv.f writing the per-tree residual, same DEBUG-DGF technique). DF works ⇒ it's a
+WF-species-specific measured-DG or backdated-state handling diff. All of DGCON+PSIGSQ+bark are FAITHFUL & KEPT.
