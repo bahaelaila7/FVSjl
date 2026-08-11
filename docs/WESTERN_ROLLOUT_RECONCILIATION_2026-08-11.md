@@ -131,3 +131,24 @@ incomplete — it fixed single-ingrowth stands but not the multi-ingrowth-cycle 
 habitats zero the wet-side estb species; EM deterministic DG bit-exact + balanced tally). NEXT: instrument jl's
 ie_autoes_tally inputs (tpacre_ingro, itpp, newtpp per plot) vs FVSie_g16's estab.f at icyc4 on 1143092701290487,
 and port the ITPP−NSTORE increment (excluding the prior-established sub-3" cohort) into the ingrowth tally magnitude.
+
+## IE #143 — ROOT CAUSE FOUND (2026-08-11 cont.): jl can't parse STRING plant-association habitat codes
+Drilled the AUTOES over-establishment to its ultimate root (measured FVSie_g16, stand 1143092701290487, ihab path):
+the AUTOES tally magnitude is driven by PROB1 (ESTOCK P(stocking)). At the 2nd (pure-ingrowth) tally jl PROB1=0.645
+vs live 0.181 → jl over-books 584 TPA. PROB1=logistic(PN+esb_shift); at the inventory tally jl's WRONG PN (+0.556)
+is masked by a compensating esb_shift (−2.035), but at the ingrowth tally esb_shift=0 EXPOSES it. PN comes from
+`ie_estock`, whose per-series (IEQ) formulas are BIT-IDENTICAL jl↔live — so the error is the SERIES SELECTED:
+- Live ESTOCK uses ihab=3 → IEQ=1 (Douglas-fir series, NO ba term ⇒ PN=−1.5085 CONSTANT).
+- jl uses ihab=13 → IEQ=4 (subalpine series) ⇒ PN=+0.556.
+ihab comes from the habitat code. This stand's `PV_CODE = "CDS715"` (a STRING plant-association code); `PV_REF_CODE
+= "627.0"`. jl's FIA reader (fia_database.jl:184) parses PV_CODE as a Float32 → "CDS715" → 0 → FALLS BACK to the
+numeric PV_REF_CODE 627 → ie_estab_indices(627) → ihab=13. LIVE instead runs `ie/habtyp.f` HABTYP, a STRING
+crosswalk: "CDS715" → PCOML index 9 → MAPR6[9]=15 → JTYPE/KTYPE → ITYPE=4 → **KODTYP=260** (MTYPE[4]); 260 ≤ 269 ⇒
+ie_estab_indices(260) → ihab=3. (Live ignores PV_REF_CODE when PV_CODE is present.)
+FIX (bounded but substantial): port ie/habtyp.f's plant-association string crosswalk (DATA tables PCOML[40 strings],
+MAPR6[40], JTYPE[95], KTYPE[95], MTYPE[30] + HBDECD string-match) into fia_database.jl so a string PV_CODE resolves
+to the FVS habitat code (CDS715→260) instead of falling back to PV_REF_CODE. LIKELY SYSTEMATIC across IE (and EM/UT/TT
+— same numeric-only PV_CODE reader) FIA stands carrying alphanumeric plant-association codes ⇒ explains the 9H:2L IE
+tally. VALIDATION PLAN: after the port, ie_estab_indices(260)→ihab=3→IEQ=1 (DF, ba-independent) ⇒ jl PN=−1.5085
+(identical formula) ⇒ PROB1 matches live ⇒ AUTOES tally collapses to live's; re-run the 12-stand IE sign-tally
+(expect it to balance like EM's) + confirm iet01 (numeric-code path) byte-unchanged.
