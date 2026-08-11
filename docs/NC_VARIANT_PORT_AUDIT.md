@@ -154,3 +154,13 @@ R5-DVE coefficients in ForestVegetationSimulator/volume/NVEL (voleqdef/the R5 ta
 D²H woodland eq for the 12 NC species, wire compute_volumes!(::Klamath), validate TCuFt/MCuFt vs FVSnc_dbg. All 12
 eqnums measured (500WO2W108/117/202/015/081/020/122/211 conifers+IC; 500DVEW361/818/631/981 hardwoods). Substantial
 but self-contained; the growth port is unaffected (volume is a reporting/.sum column, output-only).
+
+## Chunk-8 volume — NVEL sources located (2026-08-11): WO2W=Flewelling(r6vol/fwinit), DVE=dvest.f
+voleqdef.f confirms NC uses 500WO2W* (conifers) + 500DVEW* (hardwoods). The NVEL profile routines:
+- WO2W → fwinit.f + r6vol.f/r6vol1.f (Region-6 FLEWELLING West-side 2-point taper) — the SAME Flewelling family
+  jl's cr_fw2_vol already implements (jl uses it for CI/EM/BM/UT "FW2W"). ⇒ the WO2W conifer volume likely REUSES
+  cr_fw2_vol with the WO2W (Flewelling-West) profile coefficients — verify the fwinit coeff set for WO2W vs FW2W.
+- DVEW → dvest.f (the DVE woodland/D²H estimator) — region-5 species coefficients (361/818/631/981) in dvest.f.
+⇒ chunk-8 is MORE reusable than feared: WO2W ≈ jl cr_fw2_vol (Flewelling) + WO2W coeffs; DVEW = port dvest.f R5
+coeffs (small). compute_volumes!(::Klamath) = cr_fw2_vol(conifers, WO2W) + dvest(hardwoods). Measure the WO2W/DVE
+coefficients from fwinit.f/dvest.f, validate TCuFt/MCuFt per-tree vs FVSnc_dbg (1990 1308/449). Doctrine-#5 reuse.
