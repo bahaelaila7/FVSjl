@@ -38,11 +38,22 @@ what's fixable, corner what's stochastic, mark what's blocked — and measure BE
   which would blow up most stands). The dense-cohort self-thin piece was separately fixed by 04b15e6/7ce8f1f
   (SDI-gate tem 35000-cap). ⇒ EM is bit-exact-or-cornered; goal-doc "still open" is stale.
 
+## TT #158 small-tree-regent — RESOLVED 2026-08-11 (f66f1fd), was mis-classified BLOCKED
+The 33% dense-stand over-growth was NOT blocked on an un-portable inline model. ROOT (MEASURED via FVStt_g16 on
+dense FIA stand 1629318558290487): jl capped per-cycle small-tree DG at the RAW per-year DGMAX (tt/regent.f:175-177,
+0.2 for conifers) but live's regent.f:684 applies `IF(TTVAR)DGMX=FINT*DGMAX` — the FINT(=10) multiplier was missing,
+so jl clamped correct 0.6-1.0"/cycle sub-1" DG down to 0.2 → flat DG → low Reineke DR10 → self-thin never fired.
+jl's UNCAPPED SMDGF dgr already matches live's DG bit-close per-tree (i34: DK 1.789/1.798, dgr 0.637/0.646) ⇒ the
+earlier "smdgf_ called 0× ⇒ different single-step model" read was the compiler INLINING smdgf (no CALL), not a
+different model; the earlier "POTHTG ABI un-derivable / regent un-instrumentable (SIGFPE)" blockers were both false
+(FVStt_g16==clean and instruments the regent path cleanly). FIX: cap at FINT·DGMAX_RAW at the default + esgent sites.
+Validation: #158 stand final BA 33%→7% (jl now completes 5 cycles tracking live's self-thin, was stalling at 2);
+ttt01 +1.7%→+2.6% BA (~1% nudge, both within the pre-existing cornered straddle — ttt01 was never bit-exact); 8-stand
+TT FIA sweep inert (±2 BA) + 0 crashes, pre-existing per-stand over-growths unchanged (no regression). Residual on
+dense stands (~7% BA, self-thin ~1 cycle late) = the small systematic SMDGF-vs-live-inline DG realization difference
+(~1-2%/tree), CORNERED. ⇒ TT small-tree growth is now bit-exact-or-cornered cluster-wide.
+
 ## Remaining — correctly classified, none a low-risk quick win
-- **TT #158 small-tree-regent** (BLOCKED) — the TT 33% dense-stand over-growth traced end-to-end: jl's flat
-  sub-1" DG (DGMAX band-aid caps) → low Reineke DR10 → self-thin never fires. jl ports canonical tt/regent.f
-  (SMDGF) but live is the buildDir SINGLE-STEP model (POTHTG suppression, smdgf_ called 0×, disasm-verified).
-  Blocked on the SMHTGF POTHTG ABI (un-derivable from source) + un-instrumentable regent (SIGFPE). See TT audit.
 - **MORTMSB** (zero-practical-value; investigated, prototyped, reverted) — mature-stand-breakup keyword. SCOPE
   CORRECTED by measurement: only EM/UT/TT have the inline morts.f MSB block; CI/IE/KT have NO MSB (live ignores it —
   PROVEN byte-identical — so jl ignoring it is FAITHFUL; adding it would have regressed them). Prototyped the UT port

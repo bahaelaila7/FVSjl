@@ -682,6 +682,28 @@ latent "fast growth would over-cap" class is closed for conifers (aspen was the 
 the DGMAX correction. Remaining aspen residual (~10%, POTHTG·PCTRED·VIGOR·CON on the shared default-regent
 height) + TT FFE + DVEW volume remain the follow-ups.
 
+### ★★★ #158 RESOLVED 2026-08-11 (f66f1fd) — the conifer caps were the FINT multiplier, and NOT inert
+Supersedes the two notes above (the "0.2 conifer caps are inert (DG<0.2)" META at 670-671 and the reverted
+"corrected to buildDir 2.8/2.4/3.5" claim — the current TT_RG_DGMAX is back at 0.2 for conifers, and the authoritative
+buildDir `DATA DGMAX` at regent.f:175-177 is **0.2** for conifers, NOT 2.8/2.4/3.5; that earlier value was a misread).
+AUTHORITATIVE mechanism (regent.f:683-684): `DGMX=DGMAX(ISPC); IF(TTVAR)DGMX=FINT*DGMAX(ISPC)` ⇒ live's TT per-cycle
+cap is **FINT·DGMAX** = 10·0.2 = **2.0** for conifers. jl capped at the RAW 0.2 (the FINT multiplier was dropped) — and
+the "inert (DG<0.2)" assumption was FALSE on ultra-dense sub-1" cohorts, where the correct DG is 0.6-1.0"/cycle. That
+over-clamp (0.6-1.0 → 0.2) flattened DG → low Reineke DR10 → self-thin never fired → the #158 33% dense-stand
+over-growth. NOTE this also explains why aspen's 0.2→2.0 fix worked: 2.0 = FINT·0.2, i.e. the aspen fix was
+accidentally the FINT-scaled value; my fix generalizes it correctly to every default species via FINT·DGMAX_RAW.
+MEASURED via FVStt_g16 (dense FIA stand 1629318558290487): jl's UNCAPPED SMDGF dgr already matches live's DG
+bit-close per-tree (i34: DK 1.789/1.798, dgr 0.637/0.646) — so the long-standing "smdgf_ called 0× ⇒ live is a
+different inline single-step model, un-portable" verdict was WRONG: that was the compiler INLINING smdgf (no CALL
+instruction). FVStt_g16 == FVStt_clean AND instruments the regent path cleanly (no SIGFPE) — both prior blockers false.
+FIX: cap at FINT·TT_RG_DGMAX_RAW at the default-path (small_tree_growth!) + birth-cycle (tt_esgent!) sites; UTVAR
+untouched (≥2.0 caps inert, #157-bit-exact). VALIDATION: #158 stand final BA 33%→7% over live, jl completes all 5
+cycles tracking live's self-thin (was stalling at 2); ttt01 +1.7%→+2.6% BA (~1% nudge, both within the pre-existing
+cornered DGSCOR/regent straddle — ttt01 was never bit-exact, the 0.2 cap masked ~1.7% of the same residual); 8-stand
+TT FIA sweep inert (±2 BA), 0 crashes, pre-existing per-stand over-growths unchanged (11794027010690 PRE 155/POST 157).
+Residual on dense stands (self-thin ~1 cycle late, ~7% BA) = the small systematic SMDGF-vs-live-inline DG realization
+difference (~1-2%/tree), CORNERED. ⇒ #158 was mis-classified BLOCKED; TT small-tree growth is bit-exact-or-cornered.
+
 ### aspen residual ~10% — smdgf coefs VERIFIED correct; residual = H-D allocation (height chain)
 Verified jl _tt_smdgf sp6 coefs vs buildDir smdgf.f DATA (all EXACT: SDHTCR=-0.41227, SDHPCF=0.16944, SDCR=
 0.003191, SDHL4=-0.0022; sp6∈CASE(3,5:9) uses form SDIAM=SDHTCR+SDHPCF·H+SDCR·CR+SDHL4·RD = jl's _tt_smdg_alt
