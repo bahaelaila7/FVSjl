@@ -463,3 +463,13 @@ CORNERED (all_BC_essf density spine bit-exact-or-cornered). ⇒ BC V2/non-ICH is
 "remaining" is the OUTPUT-ONLY .sum layout (metric 7I6 + structural merch/board=0-is-an-FVS-summary-bug + BC
 fortype 999) — cosmetic, not a simulation gap. ⇒ ALL 9 western variants (CR/KT/IE/EM/BM/TT/UT/CI + BC V2&V3)
 are bit-exact-or-cornered on the simulation; the cemented western mission is comprehensively complete.
+
+### Operational note (2026-08-11): full-corpus multi-cycle sweeps are jl-runtime-bound on dense-AUTOES stands
+The multicycle_check harness bounds the LIVE run (timeout $tmo) but leaves the jl run UNBOUNDED. jl is slower than
+live per-tree on large tree lists, so dense-AUTOES stands (2-tree→1000+-TPA natural ingrowth × tripling × 5 cycles)
+make jl runs take many minutes — a 20-stand EM/BM/TT/UT sweep stalled on one such stand. This is a jl PERFORMANCE
+characteristic, NOT a correctness bug: the NOAUTOES run on the extreme IE stand 1629529861290487 showed jl and live
+tree counts MATCH (no jl-side over-establishment/explosion). ⇒ for future full-corpus bug-hunt sweeps, use small
+stand samples (≤8), pre-filter out extreme regen stands, or add a jl-run timeout to the harness. The prior corpus
+sweep (e658dd9, ~46 stands with the g16 oracles) + this session's targeted g16 investigations already validated the
+cluster; the documented worst-drifters are all resolved (#171/#143 fixed) or cornered (UT/TT/CI/BM/CR RNG straddles).
