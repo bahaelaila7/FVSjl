@@ -206,6 +206,7 @@ include("variants/klamath/height_growth.jl")         # NC height growth (nc/htgf
 include("variants/klamath/regent.jl")                # NC small-tree growth (nc/regent.f+htgr5.f+htdbh.f) — chunk 6
 include("variants/klamath/mortality.jl")             # NC mortality (nc/morts.f — reuses EM/UT Zeide form) — chunk 7
 include("variants/klamath/crown.jl")                 # NC crown ratio (nc/crown.f — Weibull) — chunk 5
+include("variants/klamath/volume.jl")                # NC volume (nc VEQNNC): WO2W R5TAP taper + DVEW r5harv — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

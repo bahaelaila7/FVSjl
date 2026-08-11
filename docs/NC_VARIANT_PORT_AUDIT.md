@@ -198,3 +198,46 @@ sitset.f DO-30 HTCALC conversion; exact for nct01, approximate if a SITECODE set
 this is a focused multi-file NVEL port (r5harv.f + fwinit.f + coeffs). OUTPUT-ONLY; growth port (ch1-7) is complete
 + tracks live. All eqnums measured, sources traced end-to-end (dvest→R5HARV, voleqdef→fwinit/r6vol). Validate vs
 FVSnc_dbg .sum (1990 TCuFt 1308/MCuFt 449).
+
+## Chunk 8 — Volume (2026-08-11): R5TAP total-cubic BIT-EXACT; merch-driver measured
+
+**VEQNNC (12 species) CONFIRMED bit-exact** vs live oracle (nct01.out:68-70, from voleqdef.f R5_EQN):
+OS 500WO2W108 · SP 500WO2W117 · DF 500WO2W202 · WF 500WO2W015 · MA 500DVEW361 · IC 500WO2W081 ·
+BO 500DVEW818 · TO 500DVEW631 · RF 500WO2W020 · PP 500WO2W122 · OH 500DVEW981 · RW 500WO2W211.
+⇒ 8 conifers+redwood = WO2W (Wensel-Krumland R5 profile, r5tap.f — NOT Flewelling); 4 hardwoods
+MA/BO/TO/OH = DVEW (R5 CA-hardwood D²H, r5harv.f). nct01 = 100% conifers ⇒ only WO2W exercised.
+
+**Dispatch (MEASURED, agent trace):** volinit.f MDL='WO2' → PROFILE → TAPERMODEL → R5TAP (profile.f:1368).
+FWINIT is SKIPPED (VOLEQ(4:4)='W' not 'F') ⇒ JSP=0, no Flewelling coeffs. R5TAP gives inside-bark DIB;
+DOB stays 0 (no bark in the taper). TCUBIC (stump 1-ft cyl + 4-ft Smalian + tip) = VOL(1). Merch = GETDIB
+1-inch-class log bucking to MTOPP.
+
+**R5TAP taper — coefficients (r5tap.f:16-55), VOLEQ(8:10)→SP 1-9:** DF202=1,PP122=2,SP117=3,WF015=4,
+RF020=5,IC081=6,JP116=7,LP108=8,RW211=9. R5WKC(5,sp)=C1..C5, R5WKB(2,sp)=B1,B2. White fir (sp4) has the
+TERM2≥-1 clamp. Formula: upper stem (htup≥4.499): DIB=DBH·(C1 - TERM2·log(1-TERM3·(1-exp(C1/TERM2)))),
+TERM2=C3+C4·DBH+C5·TOTHT, TERM3=((htup-1)/(TOTHT-1))^C2; stump (htup<4.499): DIB=(1-B1)·DBH·exp(B2·(4.5-htup)).
+All coeffs + the port in src/variants/klamath/volume.jl (NC_R5WKC/NC_R5WKB/nc_r5tap_dib).
+
+**VALIDATION (per-tree vs standalone live R5TAP driver /workspace/.ncwork/r5drv + FVSnc treelist):**
+- ★ TOTAL CUBIC VOL(1): **BIT-EXACT** every tree — SP D11.5 H73 =17.6, DF D12.7 H67 =20.9, SP D9.5 =10.0,
+  DF D10 =12.8, WF D10.9 =15.9, RF D6.5 =2.7, big-SP D34.6 =277.4≈277.3. R5TAP DIBs match live to 4dp
+  (4.5→9.9332, 17.5→8.4859, 28→7.2509, 38.5→5.9022 — jl identical).
+- MERCH: jl VOL(4) to MTOPP=6" IB gives SP#1=12.6; live treelist 'MCH CU FT'=13.9 because the FVS
+  reported merch = **MCF = VOL(4)+VOL(7)** (primary-to-6" + topwood 6"→4"), fvsvol.f:512, gated D≥DBHMIN(ISPC).
+  MERLEN merch length == jl (_fw2_hs) to 2dp — the gap is the missing VOL(7) topwood, not the length.
+- Board VOL(2): jl Scribner to 6"; live uses BFTOPD·BARK top (fvsvol.f:382) — bark-adjusted.
+
+**.sum (control stand):** growth BIT-EXACT (TPA 536/BA 77/SDI 160/CCF 87/TopHt 63/QMD 5.1 == oracle all
+cycles). Volume 1990: jl TCuFt 1261 / MCuFt 522 / BdFt 2249 vs oracle 1308 / 449 / 2000. (Old CI-r4vol
+placeholder was 1540/833 — R5TAP is far closer.) TCuFt aggregate −3.6% despite per-tree bit-exact =
+each_stand pre-expansion/mortality-tree summation nuance (CI #142 class; the big D34.6 mortality tree #5
+carries 277 ft³). MCuFt +16% = jl uses VOL(4)-only without the DBHMIN(ISPC) gate (small trees D<9 that
+live's fvsvol zeros still get merch in jl) — the DBHMIN gate DROPS jl toward 449; VOL(7) topwood adds back.
+
+**REMAINING chunk-8 driver (fully scoped, MEASURED — port these to reach bit-exact merch/board):**
+1. VOL(7) topwood (profile.f secondary-product loop, 6"→4" = MTOPP→MTOPS bucking) → MCF=VOL4+VOL7.
+2. DBHMIN(ISPC) gate on merch (fvsvol.f:337,512) — find NC's per-species value (grinit=0 ⇒ a default
+   applies; treelist shows the merch cutoff at D≈9).
+3. Board recompute with BFTOPD·BARK top (fvsvol.f:362-383) — needs the NC volume BARK ratio.
+4. Resolve the TCuFt aggregate via a REAL-run per-tree dump (not each_stand) — pre-expansion summation.
+Oracle: /workspace/.ncwork/FVSnc_clean; standalone taper driver: /workspace/.ncwork/r5drv.f (r5tap.f linked).
