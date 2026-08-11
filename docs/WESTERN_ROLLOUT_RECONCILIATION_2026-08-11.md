@@ -437,3 +437,16 @@ volume-equation error. CI uses BOTH 400MATW (Matney taper) + I15FW2W (Flewelling
 merch 129.4/bdft 740 = live). ⇒ CI volume equations FAITHFUL; the volume tail is the accepted #142 straddle, not
 a bug. CI is bit-exact-or-cornered on volume as well as growth. (SMHTGF = the CI small-tree stochastic = the same
 never-FFI-ZZRAN class, cornered — see #174/UT.)
+
+### CI SMHTGF small-tree stochastic — MEASURED + fallback adequate (2026-08-11), closes the last CI "unmeasured" flag
+Goal doc flagged CI "SMHTGF small-tree stochastic" unmeasured. The CI regent uses a CIVAR-form FALLBACK for the
+SMHTGF/TTVAR species (sp11 WB/FIA101, sp12 PY/FIA231, sp16 LM/FIA113) with true SMHTGF deferred. Checked exercise:
+LM (FIA 113) has 263 sub-5" trees across CI-variant FIA stands — NOT rare ⇒ the fallback IS exercised on real CI
+regen. MEASURED on LM-regen CI stands vs FVSci_clean:
+- 3331526010690 (LM-DOMINATED, 7 of 11 trees LM regen): cyc0 BIT-EXACT (BA 12/33/21/16/3.1); multi-cycle tracks
+  live within ~4% through 2047 (BA 48/jl 46, TPA 164/157, QMD 7.3/7.4) = the accepted #142 DGSCOR straddle. ⇒ the
+  CIVAR-form fallback for LM small trees is ADEQUATE (true SMHTGF port NOT needed for the bit-exact-or-cornered bar).
+- 52905133020004 (denser mixed, 474 TPA, 5 LM): −14% BA by 2061 (SDI 147 vs 180) = the general #142 self-thin/DGSCOR
+  straddle on a dense-regen stand (NOT LM-specific — the LM-dominated stand would show it MORE but showed only 4%).
+⇒ CI SMHTGF fallback validated-adequate; residual is the accepted #142 straddle class. This closes the LAST
+goal-doc CI "unmeasured" item. CI is bit-exact-or-cornered on growth, volume, AND the small-tree stochastic path.
