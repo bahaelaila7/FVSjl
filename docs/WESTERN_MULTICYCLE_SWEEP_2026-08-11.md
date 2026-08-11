@@ -26,6 +26,21 @@ bug #168). Harness also now self-classifies non-bit-exact stands: `cornered<2%` 
 | BM | 645068643126144 / 658202425126144 | 2.4% / 1.2% | BA bit-exact-or-Δ1; 2.4% is a QMD 4.1-vs-4.0 print-rounding artifact; TPA ±0.25% | cornered (RNG straddle) |
 | CR | 3307550010690 | 0.5% | — | cornered ✓ |
 
+## ⚠ UPDATE 2026-08-11 (measured): UT is NOT a DG bug — hypothesis refuted
+Deep per-tree instrumentation of UT 286792451489998 (pure Utah juniper) REFUTED the "large-tree DG
+under-growth" reading, and nearly prevented a wrong fix (doctrine save):
+- jl DGF LN(DDS) is bit-exact vs live FVSut_clean DEBUG (small trees) / +0.02 on 2 big trees (bark).
+- BUT the APPLIED jl DG is a constant ~0.5455"/tree — UT REGENT (`small_tree_growth!`, regent.jl:129)
+  overwrites `diam_growth` with a height-derived value for all `d < UT_RG_XMAX` (woodland XMAX>44, so
+  the 43.6" juniper is regent-grown), discarding the DGF DDS. Looked like the bug.
+- Live TREELIST proves live does the SAME: 43.6→44.15 (+0.55) == jl +0.5455; live grows ALL junipers
+  ~+0.5" (11.2→11.7, 30.1→30.6, 43.6→44.1), NOT the DGF ~1.0". So jl woodland DG MATCHES live.
+⇒ UT drift is NOT large-tree DG. With TPA matched (36→35 both), it's MORTALITY SELECTION (which juniper
+dies each cycle → different BA removed) or a slow straddle. Reclassified — see task #170.
+NOTE: IE(#171)/EM(#172) mechanisms below are inferred from .sum column signatures, NOT yet per-tree
+verified — the UT lesson (regent-overwrite mimics DG divergence; live may match) means they need the
+same per-tree measurement before any fix.
+
 ## The headline: multi-causal, mechanism differs by variant/regime
 Confirms the TOP-PRIORITY note ("LARGE cross-variant large-tree-DG issue on MATURE/low-density stands")
 AND refutes it being one root or one sign:
