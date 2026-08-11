@@ -76,6 +76,10 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     # Dwarf-mistletoe mortality (mismrt.f): MAX-combine per-tree DM kill into killed[] before snags/removal,
     # same as the shared N-Rockies path (southern/mortality.jl). This variant has its own mortality! so it
     # must be wired here; inert on stands with no DM ratings (dmr==0 ⇒ per-tree no-op).
+    # FIXMORT (morts.f:781): forced-mortality override applied AFTER the BA-check, before the DM combine —
+    # same as southern/mortality.jl:499. This variant has its own mortality! so it must be wired here;
+    # inert unless a FIXMORT keyword scheduled events (apply_fixmort! returns early on empty).
+    apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
