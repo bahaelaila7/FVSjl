@@ -145,3 +145,12 @@ FW2 family jl already has, or a distinct NVEL call). Replace the CI-r4vol placeh
   (check ForestVegetationSimulator/volume/NVEL for the WO2W equation). This is the substantial chunk-8 piece.
 ⇒ compute_volumes!(::Klamath) = DVEW branch (r4d2h + NC hardwood coeffs) + WO2W branch (verify/port), validate
 TCuFt/MCuFt per-tree + .sum vs FVSnc_dbg (1990 1308/449). Replaces the CI-r4vol placeholder. All eqnums measured.
+
+## Chunk-8 volume — REFINED (2026-08-11): NC 500* = Region-5 California NVEL, NEW to jl (not R4 reuse)
+The NC DVEW codes 361/818/631/981 are NOT in jl's R4 r4d2h_vol1 branches (which cover 064/066/106/475/... R4
+species). ⇒ NC's 500DVEW (hardwoods) + 500WO2W (conifers) are the REGION-5 (California) NVEL equations, distinct
+from the R4 Matney/Chojnacky and R1 Flewelling jl already has. chunk-8 = a genuine NVEL R5 port: locate the WO2W +
+R5-DVE coefficients in ForestVegetationSimulator/volume/NVEL (voleqdef/the R5 taper source), port the taper + the
+D²H woodland eq for the 12 NC species, wire compute_volumes!(::Klamath), validate TCuFt/MCuFt vs FVSnc_dbg. All 12
+eqnums measured (500WO2W108/117/202/015/081/020/122/211 conifers+IC; 500DVEW361/818/631/981 hardwoods). Substantial
+but self-contained; the growth port is unaffected (volume is a reporting/.sum column, output-only).
