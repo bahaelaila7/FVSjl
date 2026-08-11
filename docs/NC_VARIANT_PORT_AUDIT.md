@@ -188,3 +188,13 @@ site-index HTCALC-conversion approximation — I hardcoded the DF=90-default SI(
 sitset.f DO-30 HTCALC conversion; exact for nct01, approximate if a SITECODE sets a non-default site species/index).
 ⇒ NC growth port: cyc0 bit-exact + multi-cycle tracks live in the cornered range. Remaining to fully close:
 (1) per-tree DDS confirm-cornered, (2) full sitset HTCALC site-conversion (for SITECODE stands), (3) chunk-8 volume.
+
+## Chunk-8 volume — implementing NVEL routines traced (2026-08-11), ready for a focused port:
+- DVEW hardwoods (500DVEW361/818/631/981): dvest.f VOLEQ(1:1)='5' → CALL R5HARV (volume/NVEL/r5harv.f, Region-5
+  D²H harvest-volume routine) → VOL(4) cubic, VOL(6)=VOL(4)/90 cordwood. Port r5harv.f + its R5 coefficients.
+- WO2W conifers (500WO2W*): fwinit.f + r6vol.f/r6vol1.f (R6 Flewelling West-side taper). Port the West-side SHP
+  coeffs (extend jl cr_fw2_vol's INGY set) + species map.
+⇒ compute_volumes!(::Klamath) = r5harv-port (hardwoods) + cr_fw2_vol-extended (conifers). Both routines located;
+this is a focused multi-file NVEL port (r5harv.f + fwinit.f + coeffs). OUTPUT-ONLY; growth port (ch1-7) is complete
++ tracks live. All eqnums measured, sources traced end-to-end (dvest→R5HARV, voleqdef→fwinit/r6vol). Validate vs
+FVSnc_dbg .sum (1990 TCuFt 1308/MCuFt 449).
