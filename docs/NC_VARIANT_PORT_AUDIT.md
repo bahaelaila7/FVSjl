@@ -12,14 +12,14 @@ Coefficient extraction (ground-truth): docs/NC_CHUNK1_EXTRACTION.md.
 - **ch2 site_index** ◐ IMPLEMENTED (63c0ead), NOT yet validated: site_setup! = nc_forkod (505/510/514/611/705/800/
   712→IFOR1-7) + nc_sitset (SITEAR site-range interp + provisional SDImax). Pipeline runs through init + into
   grow_cycle!, advancing to the ch3 gate dgf!(::Klamath).
-  ⚠ **cyc0 VALIDATION BLOCKER (found)**: jl cyc0 summary is FAR off — jl TPA 28 / BA 7 / SDI 14 / TopHt 32 vs live
-  536 / 77 / 160 / 63. ROOT = TREE-INPUT EXPANSION, not a growth chunk: jl reads 27 trees (file has 30) at tpa≈1.0
-  each (sum 31, gross_space 1.1 ⇒ 28/ac) but live expands each ~18× to 536/ac. nct01.key `DESIGN 11.0 1.0` (11-plot
-  design) + the tree-record count/prob field are not applying the plot expansion. NEXT: trace DEFAULT_TREE_FORMAT
-  vs nct01.tre column layout (`011SP 11510 0734 00111`) + the DESIGN 11-plot expansion in the shared tree reader —
-  is jl dropping the 3 records + not multiplying by the per-plot expansion? Likely a shared reader/DESIGN path NC's
-  stand exercises differently (check how CI/other stands' DESIGN + tree count expand). This gates ALL cyc0 .sum
-  validation — resolve before ch3.
+  ✅ **cyc0 "blocker" was a HARNESS ARTIFACT, NOT a bug** (corrected): the jl TPA 28 came from measuring
+  `each_stand`'s PRE-EXPANSION state — the documented "each_stand returns pre-calibration state, measure in the REAL
+  run only" trap (CI #142 hard lesson). PROOF: CI cit01 (same 248112 stand) gives the IDENTICAL pre-expansion state
+  via each_stand (n=27, gross_space 1.1, TPA 28, tpa[1:3]=[1,3,1]) yet its REAL-run cyc0 is bit-exact 536. So NC's
+  tree reading is fine (identical to CI); the PROB×plot-design expansion to 536/ac happens in the real run, after
+  each_stand's yield. ⇒ cyc0 must be validated from run_keyfile's .sum, NOT each_stand. That currently needs the ch3
+  dgf! gate to not crash (a no-op stub suffices for the cyc0 row, which is pre-growth). NEXT: stub/implement dgf!
+  → get run_keyfile's 1990 .sum row → validate TPA/BA/SDI/TopHt/QMD vs live 536/77/160/63/5.1.
 - **ch3 DG** ▶ NEXT gate: dgf!(::Klamath). NC-specific (ISCT sections + DGHAH + 2 sets + sp12 redwood + nc_bratio
   POWER). Coefficients measured (extraction doc).
 - ch4 height · ch5 crown · ch6 regent · ch7 mortality (reuses EM/UT) · ch8 volume (vollib): pending.
