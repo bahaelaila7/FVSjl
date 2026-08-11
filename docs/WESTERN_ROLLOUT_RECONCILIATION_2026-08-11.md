@@ -426,3 +426,14 @@ mortality/growth divergence on extreme dense-regen stands (self-thin/DGSCOR real
 cornered like UT/#142, or a real dense-regen mortality issue) is the one genuinely-open IE multi-cycle lead. NOT a
 regression from this session. NEXT (future chunk): instrument jl mortality!/DG vs FVSie_g16 on 1629529861290487 at
 the first BA-divergent cycle (2041) — is the deterministic dq10/DG bit-exact (⇒ RNG straddle, cornered) or biased?
+
+### CI volume MATW/FW2W — MEASURED + validated (2026-08-11), closes the goal-doc "unmeasured" flag
+Goal doc flagged "CI volume MATW/FW2W · SMHTGF small-tree stochastic" as STILL open (unmeasured). Measured cit01
+vs FVSci_clean: cyc0 (1990) volume BIT-EXACT — TCUFT 1541/jl 1540 (1-unit rounding), MCUFT 833/833 exact, BDFT
+3912/3912 exact. Multi-cycle tracks within ~1-3% (jl slightly low: 2000 TCUFT 2177/2140) = the DOWNSTREAM #142
+DGSCOR/mortality straddle (jl's ~2% TPA over-kill ⇒ fewer/smaller trees ⇒ proportionally less volume), NOT a
+volume-equation error. CI uses BOTH 400MATW (Matney taper) + I15FW2W (Flewelling) forest-dependently
+(volume.jl dispatch); volume.jl already carried a per-tree MATW bit-exact confirmation (DBH34.1 DF 400MATW202
+merch 129.4/bdft 740 = live). ⇒ CI volume equations FAITHFUL; the volume tail is the accepted #142 straddle, not
+a bug. CI is bit-exact-or-cornered on volume as well as growth. (SMHTGF = the CI small-tree stochastic = the same
+never-FFI-ZZRAN class, cornered — see #174/UT.)
