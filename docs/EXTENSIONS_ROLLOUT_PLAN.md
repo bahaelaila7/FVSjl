@@ -201,3 +201,29 @@ VERDICT: correctly DEFERRED (lowest priority). It is a ~1739-line self-contained
 exercised by an explicit ClimateFVS-ready scenario — a separate validation case that does not exist in the current
 corpus. Recommend porting only when/if a climate-ON validation keyfile is provided. This CLOSES the extensions
 matrix scope: FFE ✓ · Dwarf mistletoe ✓ · ECON ✓ · Climate-FVS = scoped, justified-deferred (guarded-inert).
+
+## Dwarf-mistletoe MORTALITY + per-variant tables — FIXED + VALIDATED (2026-08-11, commits 3d4144e/0a39576/6b048e3)
+Multi-cycle real-FIA measurement found the "Dwarf mistletoe ✓" verdict had validated the DG-loss + spread but NOT
+the KILL. Two distinct bugs, both root-caused by instrumenting live FVS{v}_g16 on the worst real-FIA stands:
+
+1. **Mortality wiring gap (3d4144e)** — ie_dm_mortality_combine! (mismrt.f) was wired ONLY into the shared
+   southern/mortality.jl (used by SN + BM + CR). The 6 western variants with their OWN Hamilton-RIP mortality!
+   (CI/IE/KT/EM/UT/TT) never called it ⇒ DM-infected trees never DIED. = ROOT of the cross-variant "mature
+   low-density over-growth" headline (CI 114% / TT 33% / EM 29% / UT 16% max|ΔBA| on multi-cycle real-FIA).
+   MEASURED on CI 753180709290487 (age 233 DF, DMR 5-6 from FIA DAMAGE1=23023): live's .sum MORT=27 comes from
+   mistletoe WK2/IMC=3 booked in update.f, NOT the RIP loop (which kills near-identical TPA in jl & live). FIX =
+   MAX-combine the DM kill into killed[] before snags/removal in all 6. VALIDATED: CI now declines BA 52→42 bit-
+   exact vs live (was growing 52→66); MORT 27/23/20 vs 27/23/21.
+
+2. **Per-variant species tables (0a39576 UT; 6b048e3 EM/KT/BM/TT/CI)** — the misint{v}.f species DATA
+   (AFIT/ADGP/APMC) is PER-VARIANT; jl applied IE's 23-sp table to all. DF(3)/LP(7)/PP(10) align across the Wykoff
+   cluster (so DF/LP mistletoe stands validated), but each variant's non-aligned hosts (UT pinyon PM14/PI11/GB17,
+   EM WP1/GF4, …) were mis-mapped → rate 0. Ported each variant's misint{v}.f table (parser-extracted, verified vs
+   IE/UT) + a _mis_tables(variant) dispatch; the model is now table-driven.
+
+VALIDATION (vs live FVS{v}_g16 on real-FIA infected stands): CI bit-exact; EM/IE track live's decline (~2-6%
+RNG-spread straddle); UT pinyon 198806078020004 now BA 130 vs live 131 @2060 (was 156/19%-over); BM larch
+449746614489998 tracks live (non-aligned host confirms the dispatch end-to-end). NO-REGRESSION: emt01/utt01/ttt01
+byte-identical (per-tree dmr==0-gated ⇒ inert on non-mistletoe/aligned trees). EM/CI corpus has no non-aligned-host
+DM stands ⇒ their non-aligned coef are source-verbatim but not live-exercised (acceptable). ⇒ dwarf-mistletoe
+mortality + per-variant tables COMPLETE across the western Wykoff cluster.

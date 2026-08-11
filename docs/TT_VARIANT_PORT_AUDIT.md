@@ -1330,3 +1330,21 @@ TT self-thin SDI-in-effect gate `tem` omitted the min(·,35000) cap (tt/morts.f)
 Zeide DR10, so `tem = t55d10` fixes both the missing cap and the correct Zeide d10 basis. On ultra-dense sub-1"
 cohorts the uncapped tem ≫ tt → wrong background fallthrough → self-thin under-kill. VALIDATED no-regression:
 ttt01 TPA bit-exact vs live oracle (fix inert for QMD>~0.9").
+
+## Dense-stand self-thin OVER-GROWTH (33% headline) — ROOT-CAUSED to the #158 blocked small-tree-regent gap (2026-08-11)
+Real-FIA stand 1629318558290487 (LP-dominated, 86% sub-1" = 7350 of 8331 TPA): live self-thins hard (TPA
+8331→2075, SDI holds ~586, CCF ~380) but jl HOLDS (8331→6420, SDI 541, CCF 433). INSTRUMENTED jl mortality! +
+FVStt_g16 morts.f at cyc0 (bit-exact stand): the self-thin never fires in jl because its Reineke self-thin
+diameter is lower — jl DR10=1.391 (tmd10=15954, t55d10=8775 > T=8331 ⇒ RN=0, background only) vs live D10=1.633
+(tmd10=12329, t55d10=6781, RN=0.0092). Same SDIMAX(672.8)/CONST/formula; both LZEIDE (ruled out DR10-vs-DQ10).
+Per-tree DG dump (NOTRIPLE): jl assigns a FLAT DG=0.3000 to the dominant sub-1" LP cohort (3 mega-records
+3600/2100/1050 TPA) while live grows that same cohort to CURR-DIAM 1.2-2.9" (DG ~1-2.8"). jl wmean-DG/bin: <1"=0.29
+(≈live), 1-3"=0.40 (live~0.74), 3-6"=0.45 (0.60), >=6"=0.48 (0.41) = flat vs live's size-gradient. VERDICT:
+this is the KNOWN #158 small-tree-regent VERSION divergence (regent.jl:35-42) — jl ports canonical tt/regent.f
+(REGYR=5 + CALL SMDGF) but live FVStt_clean's regent_ calls smdgf_ 0× (disasm-verified) = the buildDir SINGLE-STEP
+model (REGYR=10 + inline HT-DBH⁻¹ + POTHTG·PCTRED·VIGOR suppression). The conifer TT_RG_DGMAX=0.2 caps are the
+documented empirical band-aid (tuned to ttt01); on this dense sub-1" stand they starve DG → low DR10 → self-thin
+suppressed → over-growth. Also the sp9(AF) DG=2.0-2.2 anomaly = same root (blend picks up 12% of the large-tree
+DG eqn extrapolated to small DBH, which the canonical model doesn't suppress). NOT faithfully fixable: BLOCKED on
+the SMHTGF 7-vs-8-arg POTHTG ABI mismatch (un-derivable from source) + un-instrumentable regent (SIGFPE). Raising
+the caps regresses ttt01. ⇒ CORNERED-BY-BLOCKER; the 33% headline is the accepted #158 gap, now traced end-to-end.
