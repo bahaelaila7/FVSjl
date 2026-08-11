@@ -1162,3 +1162,21 @@ ENTIRE DETERMINISTIC path is bit-exact (DDS/DGCON/SMCON/COR/SSIG/RHO/VARDG/VMLT 
 residual is pure RNG realization ⇒ #140 MEETS the bit-exact-or-cornered bar. A future bit-exact-RNG effort
 (matching FVS's BACHLO byte-stream through the calibration OLDRN seeding) could close the last ~5% but is a
 separate, large, cross-variant undertaking (would also tighten CI #142, EM/IE tails).
+
+### #140 — ★★★ ACTUALLY FIXED 2026-08-11 (2c26eca): the residual was NOT the RNG straddle — it was a WRONG BARK
+Every "residual is the DGSCOR RNG realization / MEETS the bar" verdict above is SUPERSEDED. The 2026-08-07 traces
+concluded the deterministic path was "FULLY bit-exact" — but they checked DDS/DGCON/COR/SSIG, i.e. the ln-DDS
+PREDICTION, and NEVER the bark-converted per-tree DG that actually feeds dq10. Re-measured 2026-08-11 via FVSbm_g16
+(bmt01 icyc1, NOTRIPLE), per-tree DETERMINISTIC DG `sqrt(D_ib²+DDS)−D_ib`:
+- DDS bit-exact (jl/live = 1.0000 every tree) — as the old traces said.
+- but deterministic DG ~7-8% LOW on EVERY tree; total Σp·g jl 613 vs live 657; dq10 jl 5.61 vs live 5.70 (−1.6%).
+ROOT: `D_ib = DBH·BARK`, and the shared `diameter_growth!` DDS→DG apply loop dispatched POWER bark for CR/TT/BC but
+BM (also POWER, bm_bratio) FELL THROUGH to the linear `bark_ratio`, which for BM (no linear coeffs) returns ~0.99 vs
+the correct bm_bratio ~0.86. D_ib too large ⇒ DG too small ⇒ dq10 low ⇒ self-thin under-kill, feedback-amplified.
+The large mixed-sign per-tree RNG (bachlo FRM, ±20-40%) MASKED this uniform deterministic deficit — which is why it
+read as a "straddle" for four sessions. FIX: add `_bm_dg ? bm_bratio` to the dispatch (calibration + mortality
+already used bm_bratio; only this apply site was missed). VALIDATION: deterministic DG now bit-exact (jl/live=1.0000);
+bmt01 2090 TPA 108→94 vs live 96 (was +12.5% under-thin → −2%); 14-stand BM FIA sign-tally 11-HIGH/1-LOW/2-BE (mean
++8%, biased) → 6-HIGH/3-LOW/5-BE (mean +0.6%, STRADDLES). The under-thin BIAS is eliminated; the now-small straddle
+IS the genuine DGSCOR RNG realization. Same class found+fixed in CI (6d94b6a, minor). LESSON (see memory
+feedback-dds-not-dg-and-tally-traps): DDS bit-exact ≠ DG faithful; and a one-stand check can't tell straddle from bias.
