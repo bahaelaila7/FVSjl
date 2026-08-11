@@ -201,6 +201,7 @@ include("variants/lakestates/small_tree_growth.jl")  # LS REGENT (d<5): NE/CS sh
 include("variants/klamath/klamath.jl")               # NC (Klamath Mtns) singleton + registration (MAXSP 12, Zeide) — chunk 0 scaffold
 include("variants/klamath/species.jl")               # NC species block-data init (nc/blkdat.f + grinit.f) — chunk 1
 include("variants/klamath/site_index.jl")            # NC site index + SDImax (nc/sitcind.f + ecocls.f) — chunk 2
+include("variants/klamath/diameter_growth.jl")       # NC large-tree DDS (nc/dgf.f): nc_bratio + nc_dgcons! + dgf! — chunk 3
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
