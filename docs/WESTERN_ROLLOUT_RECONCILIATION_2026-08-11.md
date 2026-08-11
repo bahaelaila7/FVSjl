@@ -105,3 +105,27 @@ pre-existing DGSCOR/density/#158 straddles, not the commits.)
 Unit/integration suite ALSO green (complementary coverage): test_fixmort, test_mortmsb, test_allspecies,
 test_canonical_multistand (multi-variant), test_dgstdev, test_multistand, test_multistand_sum all PASS ⇒ the
 mistletoe + FIXMORT commits regress nothing at the unit level either.
+
+## IE #143 AUTOES over-establishment — CONFIRMED REAL + SYSTEMATIC (2026-08-11), goal-doc "cornered" is WRONG for IE
+Applied the BM/EM sign-tally lens to IE and it FAILED the straddle test: 12-stand IE FIA sign-tally = 9-HIGH/2-LOW/
+1-BE (0 crashes), magnitudes up to **+108%** (mean strongly +). This is a SYSTEMATIC bias, NOT the "EM/IE ~7% tail
+cornered" the goal doc claims (that verdict was verified for EM — which is genuinely 5H/5L balanced — but IE is
+different). MEASURED root chain (FVSie_g16 + NOAUTOES):
+- NOAUTOES collapses the 4 worst stands from +108%/+32%/+21%/+20% to +2.5-6.1% (the small growth straddle) ⇒ AUTOES
+  is the cause, not growth/mortality.
+- On stand 1143092701290487: jl AUTOES establishes 98 TPA @icyc2 then **584 TPA @icyc4** (exploding; TPA jumps
+  426→924 at 2061); live establishes small, DECREASING increments (Σnewtpp 56→38 plot-trees across 50 plots).
+- Live FIRES the ingrowth tally (ntally=99) at the SAME cycles (icyc2, icyc4) — the SCHEDULE matches. The bug is
+  the tally MAGNITUDE: jl books the full MAXING-capped ITPP (~3/plot → 584 TPA); live books the INCREMENT
+  NEWTPP=ITPP−NSTORE (~0.76/plot). jl re-books the standing sub-3" cohort every ingrowth cycle (compounding:
+  icyc2's established trees are still sub-3" at icyc4 → re-tallied); live's NSTORE tracks them so they aren't.
+- The `es_nstore`-reset-on-ntally==99 hypothesis was TESTED and REFUTED (persisting es_nstore changed nothing) ⇒
+  the re-booking flows through `tpacre_ingro` (the current DBH<2.999 TPA sum that seeds the ingrowth tally), NOT
+  es_nstore. The fix must EXCLUDE already-established/counted sub-3" trees from the ingrowth base — i.e., port
+  live's NSTORE increment semantics into the tally MAGNITUDE (ie_autoes_tally/run), which is where d089b78's
+  single-ingrowth fix stops short of the multi-ingrowth compounding.
+STATUS: #143 is the genuine top open bug for the cluster (reconciliation's earlier "#143 fixed d089b78" is
+incomplete — it fixed single-ingrowth stands but not the multi-ingrowth-cycle compounding). EM is NOT affected (dry
+habitats zero the wet-side estb species; EM deterministic DG bit-exact + balanced tally). NEXT: instrument jl's
+ie_autoes_tally inputs (tpacre_ingro, itpp, newtpp per plot) vs FVSie_g16's estab.f at icyc4 on 1143092701290487,
+and port the ITPP−NSTORE increment (excluding the prior-established sub-3" cohort) into the ingrowth tally magnitude.
