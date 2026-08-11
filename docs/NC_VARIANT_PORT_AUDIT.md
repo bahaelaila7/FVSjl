@@ -374,3 +374,26 @@ nc/dgf.f writing WK2 unconditionally, OR a standalone dgf driver): compare jl ba
 per species to live's, WITH the DGCON site term applied, to find the calibration/DGFOR discrepancy. THEN
 apply the DGCON term + the calibration fix together. NC growth ~5% multi-cycle over is likely DGSCOR-class
 (cornered like EM/CI) once the base is faithful; volume remains done (VOL1 bit-exact).
+
+## DGCON fix VALIDATED BIT-EXACT via live dgf debug (2026-08-11) — APPLIED
+
+UNBLOCKED the live dgf debug: the FVS `DEBUG <cycle> <nonblank>` keyword + a `DGF` supplemental record
+debugs ONLY dgf (the bare `DEBUG` → DBALL segfaults). Output → fort.16. dgf.f:435 prints per-tree
+I/ISPC/DBH/BAL/CR/RELDEN/BA/**LN(DDS)**. The 3rd pass (RELDEN 95.7/BA 85.1) is the growth pass (current DBH).
+
+Applied the DGCON default-branch fix (nc_dgcons!: + DGEL2·elev² + slope/aspect + DGSITE·ln(SITEAR(3))).
+**DF now BIT-EXACT vs live** (growth-pass LN(DDS), ba=85.1):
+  DF D10.0  jl 2.794  == live 2.7940 ✓   DF D12.7  jl 3.0123 == live 3.0123 ✓
+  DF D10.4  jl 3.0428 == live 3.0428 ✓   DF D9.4   jl 2.7204 == live 2.7204 ✓
+The +2.570 the port was missing = exactly DGSITE(3)·ln(90)+slope = 2.536+0.034. Fix is CORRECT & KEPT.
+
+**Remaining: WF (sp4) calibration COR** — jl WF D10.9 LN(DDS)=3.3406 (cor=+0.0591) vs live 2.7362. The WF
+BASE matches (computed from live coeffs = 3.282 == jl 3.2815; all sp4 coeffs DGLD/DGCR/DGCRSQ/DGDBAL/DGBA/
+DGSITE/DGSASP.. verified == nc/dgf.f DATA). So the 0.60 gap is PURELY the cor: live WF cor = 2.7362−3.282 =
+**−0.546**, jl computes **+0.059**. DF cor matches (both ~0). ⇒ jl's DGSCOR calibration produces a wrong
+per-species cor for WF (reads WF measured-DG or the residual/shrinkage differently). The DGCON fix EXPOSED
+this pre-existing WF-cor bug (previously masked: the too-small base + a compensating cor netted ~5%; now the
+faithful base + the wrong cor nets ~14% over). .sum regressed to 14% over TEMPORARILY — will resolve when the
+WF cor is fixed. NEXT: instrument calibrate_diameter_growth! for NC WF — compare jl's measured-DG (WK1) +
+residual + dg_cor[4] to live's calibration (nct01.out ZNC dump); DF works so it's WF-species-specific.
+Live dgf debug recipe (durable): /workspace/.ncwork/nctree.key (DEBUG 1./1. + DGF record) → fort.16.

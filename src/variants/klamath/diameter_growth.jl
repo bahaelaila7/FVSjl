@@ -76,6 +76,11 @@ const NC_DGSLP2 = Float32[0,0,0,0,0,0,0,0,0,0.80370,0,0]
 const NC_DGSLQ2 = Float32[0,0,0,-0.83400,0,0,0,0,-0.83400,0,0,0]
 const NC_DGEL2  = Float32[0,0,0,0,0,0,0,0,-0.00700,0,0,0]
 const NC_DGSITE = Float32[0.47932,0.01401,0.56356,0.47360,0.20189,0.01200,0.32093,0.00659,0.00734,1.10842,0.00659,0.0]
+# DEFAULT-branch DGCON slope/aspect terms (nc/dgf.f DATA DGSASP/DGCASP/DGSLOP/DGSLSQ) — dgf.f:478-485.
+const NC_DGSASP = Float32[-0.02884,0.0,-0.040708,-0.01560,-0.10656,0.0,-0.11954,-0.03587,0.0,0.0,-0.03587,0.0]
+const NC_DGCASP = Float32[-0.14319,0.0,-0.16836,-0.15630,-0.19174,0.0,0.08632,-0.19935,0.0,0.0,-0.19935,0.0]
+const NC_DGSLOP = Float32[0.63500,0.0,0.46468,0.58937,-1.29627,0.0,0.85815,0.73530,0.0,0.0,0.73530,0.0]
+const NC_DGSLSQ = Float32[-1.09400,0.0,-0.87145,-1.05045,0.87335,0.0,-1.17209,-0.99561,0.0,0.0,-0.99561,0.0]
 
 # NC bark BRATIO: eqtype 1 DBT=a+b·D→(D−DBT)/D ; 2 DIB=a+b·D→DIB/D ; 3 DIB=a·D^b→a·D^(b−1) [POWER].
 @inline function nc_bratio(a::Float32, b::Float32, eqtype::Int, d::Float32)
@@ -101,8 +106,13 @@ function nc_dgcons!(s::StandState)
         elseif sp == 2 || sp == 6 || sp == 9          # SP/IC/RF: site form
             dgcon = NC_DGLAT2_5[sp] + NC_DGEL2[sp] * elev + NC_DGSLP2[sp] * slope +
                     NC_DGSLQ2[sp] * slope * slope + NC_DGSITE[sp] * si
-        else                                          # default: forest location class
-            dgcon = NC_DGFOR[sp, NC_MAPLOC[sp, ifor]]
+        else                                          # default: DGFOR + elev²/slope/aspect + DGSITE·ln(SITEAR(3))
+            asp = p.aspect; si3 = max(p.sp_site_index[3], 1f0)   # nc/dgf.f:478-485; SITEAR(3)=DF site, ALL sp
+            dgcon = NC_DGFOR[sp, NC_MAPLOC[sp, ifor]] +
+                    NC_DGEL2[sp] * elev * elev +
+                    (NC_DGSASP[sp] * sin(asp) + NC_DGCASP[sp] * cos(asp) + NC_DGSLOP[sp]) * slope +
+                    NC_DGSLSQ[sp] * slope * slope +
+                    NC_DGSITE[sp] * log(si3)
         end
         c.dg_const[sp] = dgcon
         c.bark_a[sp] = 0f0; c.bark_b[sp] = 0.9f0       # NC uses nc_bratio directly in dgf! (not the linear cache)
