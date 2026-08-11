@@ -171,7 +171,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # fire behavior depends on them having evolved since inventory. The prior carbon-only gate froze cwd
     # at the inventory value (fire_fuel9 2005 sm=7.02 == 1990, vs FVS's accumulated 9.19), which selected
     # fuel model 5 over 12 and gave byram 2905 vs FVS's 4194 (~6× low on the FM5 component).
-    ffe_on = s.fire !== nothing && s.fire.active
+    # FFE dynamics require the variant's fuel tables to be ported; a variant still building its growth port
+    # (e.g. NC/Klamath) has no ffe_fuel_live yet ⇒ FFE stays inert (no snag seeding / fuel dynamics) rather
+    # than erroring. Ported variants all have fuel tables ⇒ unaffected.
+    ffe_on = s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
@@ -237,7 +240,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             _carb_push(s)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
-        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active
+        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
             compute_density!(s)
             pfr = potential_fire_report(s)
             pfr !== nothing && push!(potfire_collect, (r.year, pfr))

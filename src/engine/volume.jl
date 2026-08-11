@@ -559,6 +559,7 @@ function compute_volumes!(s::StandState)
     s.variant isa Utah && return compute_volumes_ut!(s)            # UT = MATW r4vol + FW2 + DVEW woodland
     s.variant isa BlueMountains && return compute_volumes_bm!(s)   # BM = FW2W Flewelling conifers (BEHW minor deferred)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
+    s.variant isa Klamath && return compute_volumes_ci!(s)         # NC — TEMP placeholder (CI r4vol); real NC VEQNNC (R5/NVEL) chunk-8 pending. Lets the growth pipeline complete for density validation.
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)
