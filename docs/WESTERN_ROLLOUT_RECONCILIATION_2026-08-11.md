@@ -165,3 +165,15 @@ string PV_CODEs. All 40 PCOML→code mappings validated BIT-IDENTICAL vs a live 
   variants byte-identical by construction.
 FOLLOW-UP: EM/UT/TT share the numeric-only PV_CODE reader and have their OWN per-variant habtyp string tables — port
 each if their FIA stands carry alphanumeric plant-association codes (run a per-variant sign-tally to check).
+
+## String-habitat bug — cluster-wide sweep COMPLETE (2026-08-11): IE-only, no follow-up needed
+Checked all western variants' FIA PV_CODE format + reader handling (the follow-up flagged after the IE #143 fix):
+- EM/UT/TT/CI: FIA stands carry NUMERIC PV_CODEs (e.g. EM "380", UT "204091", TT "46111", CI "41732") ⇒ the
+  numeric reader is correct; no string crosswalk needed.
+- KT: no PV_CODE column.
+- BM: DOES carry STRING plant-association codes (CWG111/CDS625/CDG112…) — BUT its FIA reader ALREADY does the
+  BM_PCOML string→KODTYP lookup (fia_database.jl:143-147), added previously. VERIFIED vs FVSbm_g16: CWG111 →
+  BM_PCOML idx 77 → bm_habtyp→"CWG111" → ecocls SDIDEF PP=263/DF=376/GF=700 == live (I'd wrongly hypothesized jl
+  defaulted to CWG113; it does not). End-to-end stand 1127530489290487: jl vs live BA 244/244, SDI 479/479
+  bit-exact.
+⇒ The string-habitat-code parse bug was IE-ONLY (now fixed, 9cc7d7a). No further habitat-crosswalk ports needed.
