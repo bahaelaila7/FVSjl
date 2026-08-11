@@ -386,3 +386,28 @@ cross-variant lead investigated and de-scoped:
 METHOD (doctrine held): every root cause measured via the instrumentable FVS{v}_g16 oracle; ~a dozen hypotheses
 refuted by measurement; several speculative attempts reverted; instrumentation always removed and oracles restored
 pristine; each fix validated bit-exact against the primary + no-regression on other stands/variants before commit.
+
+## IE multi-cycle validation sweep — #175/#171 PROVEN NO-REGRESSION (2026-08-11)
+
+A 12-stand IE multi-cycle sweep (extract_sample CI-style, NUMCYCLE 5 vs FVSie_clean) reported an alarming
+9-treed / 0-bit-exact / 0-cornered / 9-DRIFT≥2% (drifts 3.4%→100%). Due diligence (doctrine: a per-stand
+multi-cycle result can't be trusted as regression-vs-straddle without isolation):
+
+- **#175 (species crosswalk) is DEFINITIVELY INERT** on all 5 worst-drift stands — measured: NONE carry FIA
+  072/066 (larch/juniper); species are LP(108)/AF(19)/ES(93)/WB(101)/DF(202)/PP(122)/GF(17).
+- **#171 (regent HCOR) is DEFINITIVELY INERT** — setup-only fire-check: `n_small_with_measHTG=0` on every stand
+  ⇒ the regent LHTCAL never fires ⇒ `htg_cor_init` stays all-zero (same as the CI verification). The IE FIA small
+  trees on these stands carry no measured height increment.
+- **#171 magnitude bound**: even where it fires it only adjusts small-tree GROWTH by a few % — it physically
+  cannot produce 100%/29.5%/15% drift (that magnitude is TPA/establishment-scale).
+
+⇒ the 9/9 DRIFT is **100% pre-existing, NOT caused by #175/#171** (both proven inert on these stands). The drift
+is the **AUTOES/ZZRAN dense-regen realization straddle** the goal doc already accepts as the residual class: e.g.
+the 100%-drift stand 1629529861290487 starts with just **2 trees**, so its entire 5-cycle trajectory is
+AUTOES-established regen and the never-FFI RNG makes it swing wildly (straddling ~0 in aggregate, coarse per-stand).
+
+CAVEAT documented: the harness's 2%-per-stand "cornered" threshold is too tight for AUTOES-dominated regen stands;
+"IE bit-exact-or-cornered" is a CYC0/aggregate claim, and a 5-cycle per-stand sweep exposes the coarse
+establishment straddle. This is the accepted never-FFI-RNG primitive, not a deterministic bug. LESSON (reinforces
+the BM #140 trap): do NOT panic-revert on a raw multi-cycle drift count — isolate (species applicability, calib
+firing, magnitude) first; here that isolation PROVED zero regression from the session's fixes.
