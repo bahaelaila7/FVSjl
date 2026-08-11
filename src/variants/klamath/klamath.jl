@@ -31,7 +31,7 @@ struct Klamath <: AbstractVariant end
 
 variant_code(::Klamath) = "NC"
 nspecies(::Klamath) = 12
-htg_period(::Klamath) = 10f0
+htg_period(::Klamath) = 5f0    # NC htgf POTHTG is a 5-yr site-curve rise (HTCALC SITAGE+5) ⇒ YR=5 (scale=fint/5)
 
 const NC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "klamath"))
 
