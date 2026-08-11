@@ -344,3 +344,33 @@ distinguish by comparing jl's pre-cal base DDS + dg_cor[sp] per species to live'
 the NC calibration (WK1), and that calibrate_diameter_growth! sets dg_cor[sp] for NC's default species.
 Repro: reinsert the per-term probe at diameter_growth.jl:163 (Klamath default branch). SUPERSEDES the 10/9
 framing in fcfdba3. NC growth NOT complete; volume unaffected (VOL1 bit-exact per-tree).
+
+## DGCON DEFAULT-branch missing terms + calibration interaction (2026-08-11)
+
+The nc_dgcons! DEFAULT branch (diameter_growth.jl) is `dgcon = DGFOR[sp,MAPLOC]` ONLY — but live
+nc/dgf.f:478-485 DGCON(default) = DGFOR + DGEL2·ELEV² + (DGSASP·sinAsp + DGCASP·cosAsp + DGSLOP)·SLOPE
++ DGSLSQ·SLOPE² + **DGSITE·ln(SITEAR(3))**. The site term alone is DGSITE(3)·ln(90)=0.56356·4.4998=**+2.536**
+for DF (SITEAR(3)=DF site index=90, confirmed sitset.f:120,152; used for ALL default species). So jl's
+default-species base DDS is ~2.5 too LOW in ln-space (DF base exp 0.224/1.25 vs faithful ~2.87/17.7).
+Coefficients captured (ready to apply): DGSASP/DGCASP/DGSLOP/DGSLSQ = nc/dgf.f DATA (per species):
+  DGSASP[3,4]=-0.040708,-0.01560 · DGCASP[3,4]=-0.16836,-0.15630 · DGSLOP[3,4]=0.46468,0.58937 ·
+  DGSLSQ[3,4]=-0.87145,-1.05045 · DGSITE (jl NC_DGSITE, already present) · DGEL2 (present, 0 for defaults).
+  Formula: dgcon += DGEL2·elev² + (DGSASP·sin(asp)+DGCASP·cos(asp)+DGSLOP)·slope + DGSLSQ·slope² + DGSITE·log(SITEAR(3)).
+
+⚠ APPLYING IT ALONE REGRESSES the .sum: 1995 UNCHANGED (101, the calibration pins cycle-1 growth to the
+measured past-DG in nct01.tre regardless of base), but 2010 BA 171→191 (oracle 167) — WORSE. ⇒ a masked
+interaction: jl's DGSCOR calibration cor was tuned against the too-low base; the faithful base + the same
+calibration double-counts in later cycles. Since live HAS the site term and matches (167) while jl WITH it
+overshoots (191), jl's calibration cor (or DGFOR value, or cor decay) differs from live's. REVERTED to
+preserve the validated ~5%-over state (was assessed plausibly-cornered) rather than ship an unresolved
+14%-over regression.
+
+⚠ DOCTRINE LESSON (twice this session): per-species DG measured via a probe at the calibrate branch
+(simulate.jl:118) OR during calibration passes is CONFOUNDED — calibrate_diameter_growth! calls dgf! MANY
+times (backdated calibration iterations) with different ba/relden/cor. Measure the REALIZED DG only in the
+growth-pass realization (diameter_growth! @ simulate.jl:474), and even there the cor differs from the base.
+NEXT (needs a working live dgf debug — the DEBUG keyword SEGFAULTs FVSnc_clean/dbg; use a g16-instrumented
+nc/dgf.f writing WK2 unconditionally, OR a standalone dgf driver): compare jl base DDS (pre-cor) + dg_cor[sp]
+per species to live's, WITH the DGCON site term applied, to find the calibration/DGFOR discrepancy. THEN
+apply the DGCON term + the calibration fix together. NC growth ~5% multi-cycle over is likely DGSCOR-class
+(cornered like EM/CI) once the base is faithful; volume remains done (VOL1 bit-exact).
