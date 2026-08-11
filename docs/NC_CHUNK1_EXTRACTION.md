@@ -266,3 +266,21 @@ H = 4.5 + P2·EXP(-P3·D^P4) [MODE0 D→H, D>0.3; else linear]; MODE1 H→D: D=E
 (SISKIYOU eqns for all IFOR) — simplifies the earlier "forest-specific htdbh" note.
 ⇒ ALL NC GROWTH-CHUNK COEFFICIENTS NOW MEASURED (ch3 DG, ch4 height, ch6 regent+htgr5+htdbh). Only ch8 volume
 (vollib VEQNNC) data remains. Chunk-6 ready to CODE: nc_htgr5 + nc_htdbh + small_tree_growth!(::Klamath).
+
+## ═══ CHUNK-5 CROWN (nc/crown.f) — Weibull crown-ratio, MEASURED 2026-08-11 ═══
+Per-tree crown ratio from a Weibull dist parameterized by mean-CR (ACRNEW) from RELSDI:
+- ACRNEW = C0 + C1·(RELSDI·100); A=WEIBA(=0); B=WEIBB0+WEIBB1·ACRNEW; C=WEIBC0+WEIBC1·ACRNEW.
+- Per-tree X: DEFAULT = (ISORT(I)/ITRN)·SCALE where SCALE=clamp(1.5−RELSDI, 0.30, 1.0), ISORT=rank; (DBH≤0 → RANN·SCALE).
+  sp12 RW = logistic: X = 1/(1+EXP(−1.021064 +0.309296·ln(HDR) +0.869720·PRD −0.116274·(D/QMDPLT))).
+- X clamped [0.05,0.95]; CR (%) from the Weibull quantile CR = A + B·(−ln(1−X))^(1/C) (verify exact form vs crown.f
+  ~300-320) ×100; then change-limit vs old crown + [0.05,0.95]. RELSDI = point/stand Zeide RD; HDR=H/D; PRD point-RD.
+Coefficients (12 sp; sp12=0 → uses the logistic instead):
+- WEIBB0: 0.52909,0.25115,0.52909,0.48464,0.08402,0.29964,0.06607,0.25667,0.16601,0.03685,0.25667,0.0
+- WEIBB1: 1.00677,1.05987,1.00677,1.01272,1.10297,1.05398,1.10705,1.06474,1.08150,1.09499,1.06474,0.0
+- WEIBC0: -3.48211,0.33383,-3.48211,-2.78353,0.91078,-1.09270,2.04714,0.11729,0.91420,4.01340,0.11729,0.0
+- WEIBC1: 1.38780,0.63833,1.38780,1.27283,0.45819,0.80687,0.15070,0.61681,0.45768,0.04946,0.61681,0.0
+- C0: 7.48846,6.92893,7.48846,7.44422,3.64292,5.12357,6.82187,5.95912,6.14578,6.04928,5.95912,0.0
+- C1: -0.02899,-0.04053,-0.02899,-0.04779,-0.00317,-0.01042,-0.02247,-0.01812,-0.02781,-0.01091,-0.01812,0.0
+⇒ chunk-5 port: crown_ratio_update!(::Klamath) — Weibull CR (default rank-pctile×SCALE / redwood logistic) + change
+limits (model CI/EM crown.jl). Read crown.f ~300-330 for the exact Weibull quantile + change-limit before coding.
+Only ch8 volume (vollib) data remains after this.
