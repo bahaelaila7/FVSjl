@@ -83,5 +83,17 @@ FVSJL_AUTOES_DEBUG + live estb/estab.f + base/dense.f source read):
    per-point BA attribution as measured. Shared `ie_autoes_establish!` (EM+IE) ⇒ also closes IE #143 ingrowth.
    Task #172.
 
+### ROOT PROVEN (instrumented FVSem_g16, 2026-08-11)
+Instrumented `estab.f:430` (unguarded `BAAA(NNID)` dump) on stand 11864108010690 → **NPTIDS=4 inventory
+points**. Live BAAA per point: 2026 `[9.61, 71.85, 0, 0]`; 2046 `[14.37, 92.69, …]`. jl's `s.density.point_ba`
+holds the SAME per-point data (2026 `[7.35, 61.3, 0, 0]`; 2046 `[13.99, 82.59, …]`) — **but jl uses only
+`point_ba[1]`** (establishment.jl:1170) for the whole-stand ESTOCK. Live computes ESTOCK **per inventory point**
+(estab.f `DO 245`/`DO 2451` over NPTIDS: `SUM1=Σmax(BAAA,1)`, `SUM2=Σ SUM1/max(BAAA,1)`, then per-plot ITPP), so
+its high-BAAA point 2 (61→82) suppresses ingrowth; jl ignores points 2-4 ⇒ over-establishes, worsening as point
+2 fills (2026 ≈matches; 2046 jl+52 vs live+20). **FIX**: restructure `ie_autoes_run`/`ie_autoes_establish!` to
+loop ESTOCK over all `nptids` with each point's `point_ba[pt]` and combine per estab.f, instead of the single
+`point_ba[1]` scalar. Shared EM+IE (simulate.jl:586) ⇒ also closes the IE #143 ingrowth residual. Instrumentation
+recipe durable in FVSem_buildDir/estab.f + build_g16.sh; oracle restored clean. Task #172.
+
 Doctrine reminder: per-record treelist INVALID after tripling — use .sum aggregates per cycle (as here).
 All reproducers durable in `test/harness/fia/{BM,ci,cr,em,ie,tt,ut}_sample.txt` + `scratchpad/percycle.jl`.
