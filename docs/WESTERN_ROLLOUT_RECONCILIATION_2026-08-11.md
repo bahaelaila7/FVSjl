@@ -265,3 +265,17 @@ mortality (IPASS/line/DR10) and the DG (htgr/DK/DKK/DGF) are all confirmed faith
 effort (matching bachlo's byte-stream to FVS ZZRAN through the regent) would tighten UT the most (its PJ-heavy dense
 stands amplify the RNG residual hardest), but that is the cross-variant never-FFI-RNG undertaking, not a UT bug.
 ⇒ Western cluster growth/mortality: all variants bit-exact-or-cornered.
+
+## CI volume (MATW/FW2W) — CLOSED bit-exact-or-cornered 2026-08-11: equations faithful; multi-cycle = #142 straddle
+The goal doc's last unmeasured CI item ("volume MATW/FW2W unmeasured"). MEASURED on 3 real CI FIA stands
+(11790085/11791809/11792275 010690), full .sum vol columns jl vs FVSci_clean:
+- **Cycle 0 (identical input trees): volume is BIT-EXACT on all 3 stands** — TCuFt 964/964, 2944/2944, 1782/1782;
+  MCuFt and BdFt likewise identical. The MATW (merch cubic) / FW2W (board) equations reproduce live exactly.
+- Divergence appears ONLY in later cycles and TRACKS the growth/mortality straddle: by 2056 jl has HIGHER TPA
+  (1579 vs 1524) yet LOWER volume (TCuFt −1.2%, MCuFt −5.6%, BdFt −6.3%) — jl retains more, individually-smaller
+  trees (less large-tree DG). Mixed-sign across stands (stand 11792275 MCuFt +6.1%). That is the signature of the
+  accepted CI #142 DGSCOR/mortality RNG realization propagating into the volume totals, NOT a volume-equation bug
+  (a wrong equation would bias one sign on identical input at cyc0 — it doesn't).
+⇒ CI volume MATW/FW2W MEETS bit-exact-or-cornered: equations bit-exact on identical trees; multi-cycle residual is
+the already-cornered #142 straddle carried through volume. Closes the last flagged CI-volume item. (SMHTGF small-tree
+stochastic is the same never-FFI-RNG class.)
