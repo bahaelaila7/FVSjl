@@ -112,3 +112,14 @@ from the tree input, but the growth site curve uses the wrong (low) index. nct01
 real site index (STDINFO field ~84). FIX: parse the SITECODE/STDINFO site species+index into p.site_species +
 p.sp_site_index[isisp] so nc_sitset! interpolates from the REAL index. This should fix TopHt (and refine DG, which
 reads SITEAR). Then re-validate multi-cycle. cyc0 fully bit-exact; BA/SDI/QMD good; TopHt gated on the site index.
+
+## Site-index/TopHt — CONFIRMED root (2026-08-11 test): forcing site index 84 (STDINFO fld2) makes TopHt GROW
+Temp test (reverted): default site index 50→84 ⇒ TopHt 63→57(decrease) becomes 63→72(grows); live 63→91. So the
+site index IS the TopHt driver — the site_lo default (50) froze/shrank it. Proper FIX (chunk-2 completion): NC has
+NO SITECODE in nct01 ⇒ live DEFAULTS the site species to DF (sp3, per the .out "SITE SPECIES=DF CODE=3") and derives
+the site index from the habitat/ecocls SITE (or estimates from the site-species trees). Wire in nc_sitset!: default
+site_species=DF; get the real site index (STDINFO habitat 84 → ecocls SITE per PA, OR the sitcind.f site-tree
+estimate) → p.sp_site_index[DF] → interpolate. Residual after 84 (jl 72 vs live 91) ⇒ the true index is higher
+and/or a small height-model residual — measure live's exact SITEAR (instrument FVSnc_dbg sitcind) to pin it.
+STATUS: NC growth port ~90% — cyc0 FULLY bit-exact; BA/SDI/QMD track live closely; TopHt gated on the site-index
+derivation (confirmed root); volume = placeholder (real NC VEQNNC R5/NVEL pending). Clear remaining scope.
