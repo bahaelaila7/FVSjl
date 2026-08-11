@@ -221,6 +221,8 @@ function point_density!(s::StandState)
             ccft = bm_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # bm/ccfcal.f MODE=1 (PCCF for dgf! DGPCCF)
         elseif s.variant isa CentralIdaho
             ccft = ci_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ci/ccfcal.f MODE=1 (PCCF for dgf! DGPCCF)
+        elseif s.variant isa Klamath
+            ccft = nc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # nc/ccfcal.f MODE=1 (PCCF for dgf! DGPCCF)
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -322,6 +324,12 @@ function stand_ccf(s::StandState)
         # BM CCF is the same direct per-species polynomial (bm/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
         @inbounds for i in 1:t.n
             ccf += bm_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
+    elseif s.variant isa Klamath
+        # NC CCF = the direct per-species ccfcal polynomial (nc/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
+        @inbounds for i in 1:t.n
+            ccf += nc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
     elseif s.variant isa CentralIdaho

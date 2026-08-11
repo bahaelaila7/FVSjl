@@ -13,6 +13,24 @@ const NC_WEIBC1 = Float32[1.38780,0.63833,1.38780,1.27283,0.45819,0.80687,0.1507
 const NC_CRC0 = Float32[7.48846,6.92893,7.48846,7.44422,3.64292,5.12357,6.82187,5.95912,6.14578,6.04928,5.95912,0.0]
 const NC_CRC1 = Float32[-0.02899,-0.04053,-0.02899,-0.04779,-0.00317,-0.01042,-0.02247,-0.01812,-0.02781,-0.01091,-0.01812,0.0]
 
+# nc/ccfcal.f MODE=1 per-tree CCF: RD1+D·RD2+D²·RD3 (D≥1); RDA·D^RDB (0.1<D<1); 0.001 (D≤0.1). (×P by caller.)
+const NC_RD1 = Float32[.0388,.0392,.0388,.0690,.0212,.0194,.0204,.0356,.0172,.0219,.0356,.0388]
+const NC_RD2 = Float32[.0269,.0180,.0269,.0225,.0167,.0142,.0246,.0273,.00877,.0169,.0273,.0269]
+const NC_RD3 = Float32[.00466,.00207,.00466,.00183,.00330,.00261,.0074,.00524,.00112,.00325,.00524,.00466]
+const NC_RDA = Float32[0.009884,0.007244,0.017299,0.015248,0.011109,0.008915,0.009187,0.007875,0.011402,0.007813,0.011109,0.017299]
+const NC_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,1.7560,1.7780,1.7250,1.5571]
+
+@inline function nc_tree_ccf(sp::Integer, d::Real)::Float32
+    dd = Float32(d)
+    if dd >= 1.0f0
+        return NC_RD1[sp] + dd * NC_RD2[sp] + dd * dd * NC_RD3[sp]
+    elseif dd > 0.1f0
+        return NC_RDA[sp] * dd^NC_RDB[sp]
+    else
+        return 0.001f0
+    end
+end
+
 function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
