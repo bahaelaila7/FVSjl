@@ -231,3 +231,18 @@ LARGE-TREE DGF bug for UT PI(11)/MC(20), distinct from the #156 dense-PJ regent 
 were the small-tree PJ regent; these are the LARGE-tree (d>3") woodland DGF. NEXT: instrument jl's UT dgf!/DDS for
 PI(11) at d=3.9 vs FVSut_g16 dgf.f (DGCON/DGFOR/model-type/surrogate coeffs) — a bounded per-species coefficient
 trace. This REDIRECTS the UT fix from mortality to growth.
+
+## UT under-kill — FINAL root pinned 2026-08-11: the PJ/woodland small-tree REGENT (not large-tree DGF)
+Corrected the "large-tree DGF" lead: UT_RG_XMAX[11=PI]=99, XMIN[11]=90 — so ALL pinyon (PI) trees below 90" DBH (i.e.
+every PI in a real stand) use the PURE small-tree REGENT path (xwt=0), NOT the large-tree DGF. Verified the large-tree
+DGF DDS for PI d=3.9 is BIT-EXACT vs FVSut_g16 (both 0.72555, df/bark/conspp identical) — but it's IRRELEVANT because
+PI never reaches the large-tree threshold. Same for MC(20) (XMAX=99). So the DG divergence (jl 1.095 vs live 1.401 for
+PI; 0.0019 vs 0.0139 for MC) comes from `utah/regent.jl` small_tree_growth!'s PJ/woodland branch (regent.jl:68
+"PJ/GB/MC non-aspen non-conifer" → the ((SJ/5)(SJ·1.5−H)/(SJ·1.5))·0.83 POTHTG form → DK/DKK inline H-D → DDS →
+XWT-blend), which regent.jl:11 EXPLICITLY flags "ported faithfully (need pure stands to validate)" — i.e. never
+validated. ⇒ UT self-thin under-kill (7:0, +43%) ROOT = the under-validated UT PJ/woodland small-tree REGENT DG for
+PI/MC (and likely WJ/PM/RM/GB). The mortality (line/IPASS/DR10) and large-tree DGF were all confirmed correct/symptom.
+NEXT: instrument jl small_tree_growth! for PI(11) d=3.9 (SJ/SITEAR, POTHTG, VIGOR, DK/DKK, DDS, xwt) vs FVSut_g16
+regent.f — a bounded per-branch trace of the PJ regent, analogous to the TT #158 regent work. This is the last open
+western-cluster growth bug; distinct from #156 (that reproducer's PJ regent was proven bit-exact — a different stand
+/species mix; this shows PI/MC specifically diverge).
