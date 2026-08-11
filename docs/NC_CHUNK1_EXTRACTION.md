@@ -240,3 +240,19 @@ FINDAG/POTHTG]. All formulas measured; validate HTG per-tree / aggregate vs FVSn
 Used in nc/regent.f: BX=HT2, AX=HT1 (IABFLG=1) or AA (IABFLG=0) → Wykoff HT-DBH DK=BX/(ln(HK-4.5)-AX)-1 for small-tree DG.
 CSV updated (cols 17/18). Still placeholder in CSV: dbh_max, st_htadj, st_break, wykoff_ht2, sdi_max_default (ecocls),
 volume cols, htdbh cols, varmrt — filled as chunks 6/8 land.
+
+## ═══ CHUNK-6 REGENT (nc/regent.f + htgr5.f) — MEASURED 2026-08-11 ═══
+Small-tree HTG+DG for D<XMAX (blend w/ large-tree over XMIN..XMAX). SCALE=FNT/REGYR(=5). XWT=(D-XMN)/(XMX-XMN).
+**HTGR5(sp,SSITE,BAA,RELHT,CR,H)→HTGR** (htgr5.f), 3 methods IMETH=[1,1,1,1,2,1,2,2,1,1,2,3]:
+- IMETH1 (sp1,2,3,4,6,10): HTGR = HCON + RELHT·4.292 + 0.0566·CR² + 0.1699·H + HBA·BAA + 0.00768·SSITE.
+- IMETH2 (sp5,7,8,11): BAA=max(BAA,5); HTGR = EXP(HCON + HBA·ln(BAA)).
+- IMETH3 (sp12 RW): HTMAX=2.242202·SSITE; if HTMAX-H≤1 →0; else AGE1=(1/-0.010742)·ln(1-(H/2.242202/SSITE)^(1/0.919076));
+  AGE2=AGE1+5; H1/H2 = 2.242202·SSITE·(1-EXP(-0.010742·AGEn))^0.919076; HTGR=H2-H1.
+- HCON=[-2.193×4, 3.560, -2.193, 3.817, 3.385, -2.193,-2.193, 3.385, -2.193]; HBA=[-0.00828×4, -0.54648, -0.00828,
+  -0.78296, -0.58984, -0.00828,-0.00828, -0.54984, -0.00828]; HRELHT=4.292,HCRSQ=0.0566,HHT=0.1699,HSITE=0.00768 (uniform).
+**regent driver**: RELHT=H/AVH adj by TPCCF (if ≤75: RELHT=1-((RELHT-1)/75)·TPCCF; cap 1.5). HTGR=HTGR5·CON·XRHGRO
+(CON=RHCON·exp(HCOR)=1 baseline). Height blend: HTG=HTGR·(1-XWT)+XWT·HTG_large (sp12: HTGR2=(HTGR+LTHG)/2 first).
+DG (D<DGMIN): HK=H+HTG; HK≤4.5→DBH+=HK·0.001,DG=0; else DK=HT2/(ln(HK-4.5)-HT1)-1, DKK similar, then CALL HTDBH
+(forest HT-DBH refine, since LHTDRG=F ⇒ called); DGSM=(DK-DKK)·BARK·XRDGRO; blend DG w/ large-tree via XWT.
+DEPENDENCY: HTDBH (nc/htdbh.f, forest-specific IFOR 1-7 HT-DBH curve) — STILL TO READ before coding regent.
+⇒ chunk-6 port: nc_htgr5 (have coeffs) + nc_htdbh (read next) + small_tree_growth!(::Klamath) (RELHT/HTGR/blend/DG).
