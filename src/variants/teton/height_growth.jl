@@ -46,8 +46,11 @@ function _tt_dub_ages!(s::StandState)
 end
 
 function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
-    p, t, c = s.plot, s.trees, s.calib
+    p, t, c, ctl = s.plot, s.trees, s.calib, s.control
     elev = p.elevation
+    relden = p.relative_density
+    iage = Int(p.stand_age)
+    cur_year = current_cycle_year(s); icyc = Int(ctl.cycle)
     zon = (elev >= 55f0 && elev <= 80f0)             # ZBIAS only active for ELEV∈[55,80]
     # NC/OH (sp15,18) GENGYM height needs the BADIST BA-above-class + stand age range (even/uneven blend)
     has_ncoh = any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n)
@@ -119,6 +122,21 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
                 zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
                 zadj < 0f0 && (zadj = 0f0)
                 z += zadj
+            end
+            # Young-small-tree HTG accelerator (htgf.f:664-691): first cycle only (ICYC==1 ⇒ jl cycle 0), young
+            # (IXAGE∈(10,40)) small (DBH<9) trees get Z += ZADJ = 0.3564·DG·(FINT/YR)·CLOSUR (·1.1 long crowns),
+            # Z capped 2.0. jl omitted it ⇒ young DF under-grew height (TopHt -9% real-FIA). Mirrors CI/IE
+            # (centralidaho/height_growth.jl:66-74). SCALE = FINT/YR, so ZADJ = 0.3564·DG·scale. The exposed BA
+            # over-growth on such stands is the cornered DGSCOR straddle (deterministic DDS bit-exact vs FVStt_g16).
+            if iage != 0 && icyc == 0
+                ixage = iage + cur_year - Int(ctl.cycle_year[1])
+                if ixage < 40 && ixage > 10 && d < 9.0f0 && z <= 2.0f0
+                    zadj = 0.3564f0 * t.diam_growth[i] * scale
+                    closur = relden < 100.0f0 ? 1.0f0 : Float32(t.crown_ratio[i]) / 100.0f0
+                    zadj *= closur
+                    (iicr == 9 || iicr == 8) && (zadj *= 1.1f0)
+                    z += zadj; z > 2.0f0 && (z = 2.0f0)
+                end
             end
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
             dia = d + t.diam_growth[i] / bark
