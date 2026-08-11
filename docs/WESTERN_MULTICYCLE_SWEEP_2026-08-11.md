@@ -63,5 +63,25 @@ AND refutes it being one root or one sign:
 3. **EM 11864108010690**: FVSem_g16 AUTOES NSTORE dump at 2036→2046 — confirm over-establishment count
    vs live; port the EM-side of the #143 ie_autoes NSTORE fix if the mechanism matches.
 
+## EM AUTOES deep-dive (2026-08-11) — root narrowed to per-point BAAA/ESTOCK attribution
+Measured the EM reproducer (11864108010690) end-to-end (scratchpad/em_autoes.jl NOAUTOES toggle + jl
+FVSJL_AUTOES_DEBUG + live estb/estab.f + base/dense.f source read):
+1. **jl-NOAUTOES == live-NOAUTOES BIT-EXACT** ⇒ 100% of the divergence is AUTOES; growth+mortality faithful.
+2. TPA/cyc: live 30,29,78,76,96,94 | jl 30,29,77,75,125,123. **1st ingrowth (2026) MATCHES** (jl+47.9 ≈
+   live+49); the **2nd ingrowth (2046) over-establishes** — jl +51.9 vs live +20.
+3. jl AUTOES_IN: icyc=2 baaa=7.35 total=47.9 | icyc=4 baaa=13.99 total=51.9 — jl ingrowth does NOT taper
+   as the plot fills.
+4. NSTORE suppression RULED OUT: live PLPROB counts only DBH<REGNBK small trees (estab.f:177) == jl point_small.
+5. **ROOT = ESTOCK PROB1 via BAAA (per-inventory-point BA).** Source `base/dense.f:206-213`: live
+   `BAAA(IP)` counts ONLY overstory (`D≥REGNBK`) trees, `BATREE·PI/GROSPC` per point. At 2046 the 2026
+   cohort has grown into the overstory ⇒ live BAAA rises ⇒ ESTOCK suppresses to +20; jl `point_ba[1]`
+   (all-tree, no PI/GROSPC) = 13.99 ⇒ under-suppresses ⇒ +52.
+   ⚠ Contradiction to resolve by measurement: jl comment establishment.jl:1165-1169 says a prior
+   overstory-only BAAA attempt was refuted by live measurement on an all-small-tree stand (live BAAA=20.66
+   with no overstory) — so PI/GROSPC per-point expansion and/or backdated WK3 diameters matter.
+   NEXT: FVSem_g16-dump BAAA(NNID)+PI/GROSPC+per-point overstory count at the icyc=4 tally; fix jl's
+   per-point BA attribution as measured. Shared `ie_autoes_establish!` (EM+IE) ⇒ also closes IE #143 ingrowth.
+   Task #172.
+
 Doctrine reminder: per-record treelist INVALID after tripling — use .sum aggregates per cycle (as here).
 All reproducers durable in `test/harness/fia/{BM,ci,cr,em,ie,tt,ut}_sample.txt` + `scratchpad/percycle.jl`.
