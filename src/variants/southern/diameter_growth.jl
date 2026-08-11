@@ -984,6 +984,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
     _tt_dg = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model); DDS→DG dib must match
     _bc_dg = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant; calib.bark_a/b=0 ⇒ 0.80 floor otherwise)
+    _bm_dg = s.variant isa BlueMountains     # ★#140: BM bark = bm_bratio (POWER); the linear fallback here gave
+                                             # ~0.99 (no linear coeffs) vs POWER ~0.86 ⇒ d_ib too large ⇒ DDS→DG
+                                             # 7-8% LOW on EVERY tree ⇒ dq10 low ⇒ self-thin under-kill (the #140
+                                             # under-thin). Calibration (line 279) + mortality (_mbark) already use
+                                             # bm_bratio; this DDS→DG apply site was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
     # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
@@ -1095,7 +1100,8 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             i = ind1[k]
             bark = _cr_dg ? cr_bratio(sd, sp, t.dbh[i], _cr_imodty) :
                    _tt_dg ? tt_bratio(Int(sp), t.dbh[i]) :
-                   _bc_dg ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+                   _bc_dg ? bc_bratio(Int(sp)) :
+                   _bm_dg ? bm_bratio(sd, Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
