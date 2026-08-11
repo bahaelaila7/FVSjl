@@ -302,3 +302,25 @@ cross-variant .sum summary-merch-column reporting spec (shared with CI, disply.f
 lower priority. No speculative BFVOL board port opened (unvalidatable) and jl's .sum merch NOT forced to 0 (would
 hide correct volume; matching live's 0 requires reverse-engineering FVS's summary-merch spec = a separate
 cross-variant reporting effort, not a BC growth/volume gap).
+
+★ 2026-08-11 ROOT RESOLVED TO FVS SOURCE (supersedes "reporting spec" above with the exact FORMAT): BC uses
+metric/vbase/sumout.f (confirmed: `diff bin/FVSbc_buildDir/sumout.f metric/vbase/sumout.f` == identical). The
+METRIC .sum row FORMAT 20 = `2I4,I6,I4,I5,2I4,F5.1,7I6,I4,I5,2I4,F5.1,2X,I6,I5,I6,2X,F6.1,1X,I3,1X,2I1` — **7I6**
+volume integers (IOSUM 4=TotalCuM, 5=MerchCuM, 6=MerchCuM-net-of-cull, 7=RemTrees, 8=RemTotal, 9=RemMerch,
+10=RemMerch-net); the imperial FORMAT 20 has **9I6** (adds the SAWLOG/board columns, dropped as "N/A" in the metric
+BC header FORMAT 13). jl's src/io/summary.jl:16-19 `_SUM_ROW_FMT` HARDCODES the imperial 9-integer layout
+(`%6d`×9 = cuft/mcuft/scuft/bdft + 5 removed) ⇒ applies it to BC too ⇒ the 2 extra fields (28 vs 26) + misplaced
+values. ⇒ TWO distinct BC .sum issues, BOTH output-only (volume never feeds growth/mortality):
+ (A) COLUMN LAYOUT — jl needs a metric 7I6 variant of _SUM_ROW_FMT keyed on metric variants (BC/ON), dropping the
+     sawlog/board ints. Bounded fix (add a second Printf.Format + a metric branch in write_sum_row); MUST leave the
+     imperial path byte-identical (SN/CI/NE/CS/LS .sum tests pass bit-exact) — validate no-regression cluster-wide.
+ (B) MERCH VALUE — even with layout (A) fixed, jl's IOSUM(5) merch (863 by 2090) ≠ live's 0. Live's .sum merch is 0
+     every cycle even at 1990 where the .out cruise computes merch=156.15 ⇒ live's SUMMARY-merch O-array (grstat/
+     disply.f accumulation feeding IOSUM(5)) is 0, distinct from per-tree/cruise merch — the SAME summary-merch spec
+     as CI (833 treelist vs 758 .sum). Resolving B needs the FVS summary-merch-accumulation trace (why IOSUM(5)=0
+     for BC) — deep, output-only, shared with CI.
+⇒ ACTIONABLE next (focused fresh pass, output-only lowest priority): implement the metric 7I6 .sum layout (A) with
+cluster-wide no-regression validation, then trace the summary-merch O-array (B). NOT bolted on at this depth: a
+layout-only fix wouldn't bit-match (B still differs) and touching the shared _SUM_ROW_FMT needs careful before/after
+.sum validation across all 5 passing imperial variants. BC GROWTH remains validated (e2e harness cols 3-8); this is
+purely the .sum volume-column reporting fidelity.
