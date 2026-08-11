@@ -32,14 +32,21 @@ const TT_RG_DIAM = Float32[0.4, 0.3, 0.3, 0.4, 0.3, 0.2, 0.4, 0.3, 0.3, 0.5, 0.3
 # representation; their buildDir 2.0/4.0 would wrongly EXCLUDE them from the UTVAR pass at D>4).
 const TT_RG_XMIN = Float32[2.0, 1.0, 2.0, 90.0, 1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.0, 0.5]
 const TT_RG_XMAX = Float32[3.0, 2.0, 4.0, 99.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 5.0, 2.0]  # default species = buildDir DATA (DF sp3=4.0); UTVAR (4,11,12,16) keep 99
-# jl per-cycle regent DG cap. NOTE: these are EMPIRICAL effective caps (NOT the raw buildDir DGMAX·SCALE) — the
-# conifer 0.2 caps band-aid a DEEPER small-tree-regent version divergence (see below / audit): jl's TT small-tree
-# regent is modeled on CANONICAL tt/regent.f (REGYR=5 subcycle + CALL SMDGF), but the live FVStt_clean binary's
-# regent_ calls smdgf_ 0× (disasm-verified) and is the buildDir SINGLE-STEP model (REGYR=10 + inline HT-DBH⁻¹ DBH
-# + POTHTG·PCTRED·VIGOR·CON suppression). The full faithful port is blocked on the SMHTGF 7-vs-8-arg mismatch
-# (POTHTG semantics ABI-dependent, un-derivable from source) + un-instrumentable regent (SIGFPE). Only aspen sp6
-# was genuinely too tight (0.2→2.0, validated on ttasg).
+# jl per-cycle regent DG cap. ★#158 RESOLVED 2026-08-11 (see TT audit): the conifer 0.2 caps were NOT a band-aid
+# for an un-portable model — they were the RAW per-YEAR DGMAX (tt/regent.f:175-177) applied WITHOUT the FINT
+# multiplier that live's regent.f:684 applies (IF(TTVAR)DGMX=FINT*DGMAX). MEASURED via FVStt_g16: jl's uncapped
+# SMDGF-based dgr already matches live's DG bit-close (i34 0.637 vs 0.646) — so the earlier "smdgf_ called 0×
+# ⇒ different single-step model" read was the compiler INLINING smdgf (no CALL), not a different model. The 0.2
+# cap over-clamped correct 0.6-1.0 sub-1" DG on ultra-dense cohorts → flat DG → low Reineke DR10 → self-thin
+# never fired → the 33% dense-stand over-growth (#158). Fix: cap at FINT·TT_RG_DGMAX_RAW (below). Residual on the
+# dense stand (~7% BA, self-thin ~1 cycle late) = the small systematic SMDGF-vs-live-inline DG realization
+# difference (~1-2%/tree), the known regent model-version straddle. This TT_RG_DGMAX array is now UNUSED for the
+# default+esgent paths (they use TT_RG_DGMAX_RAW×FINT); it is retained only for the UTVAR woodland pass, whose
+# ≥2.0 caps are inert (woodland DG ≪ 2.0) and #157-bit-exact.
 const TT_RG_DGMAX = Float32[0.2, 0.2, 0.2, 2.0, 0.2, 2.0, 0.2, 0.2, 0.2, 99.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.0, 0.2, 2.5]
+# RAW per-year DGMAX (tt/regent.f:175-177 DATA DGMAX, verbatim). The DEFAULT small-tree path caps DG at
+# DGMX=FINT·DGMAX(ISPC) (regent.f:684 IF(TTVAR)DGMX=FINT*DGMAX) — NOT the raw value. #158 fix uses this × fint.
+const TT_RG_DGMAX_RAW = Float32[0.2, 0.2, 0.2, 2.0, 0.2, 0.2, 0.2, 0.2, 0.2, 99.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.0, 0.2, 2.5]
 const _TT_REGYR = 5.0f0
 const _TT_BACON = 0.005454154f0
 
@@ -213,7 +220,13 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             dds = dgr * (2f0 * bark * dfl + dgr) * scale2
             arg = (dfl * bark)^2 + dds
             dgk = arg > 0f0 ? sqrt(arg) - bark * dfl : 0f0
-            dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])           # DGMAX cap
+            # DGMX cap (regent.f:720). ★#158 FIX: live's TT DGMX = FINT·DGMAX(ISPC) (regent.f:684, IF(TTVAR)
+            # DGMX=FINT*DGMAX) — the raw DGMAX (0.2 for conifers) is a per-YEAR cap that MUST be scaled by FINT.
+            # jl previously capped at the raw DGMAX ⇒ clamped correct 0.6-1.0 sub-1" DG down to 0.2 → the #158
+            # 33% dense-stand over-growth (flat DG → low Reineke DR10 → self-thin never fires). MEASURED: jl's
+            # uncapped dgr already matches live's DG bit-close (i34 0.637 vs 0.646); the cap was the sole bug.
+            dgmx = fint * TT_RG_DGMAX_RAW[sp]
+            dgk > dgmx && (dgk = dgmx)
         end
         t.diam_growth[i] = dgk * (1.0f0 - xwt) + xwt * t.diam_growth[i]
         # #148 latent bug (2): DIAM floor on the DEFAULT path (regent.f:576 D2=max(smdgf,DIAM) + :1056), missing here.
@@ -302,7 +315,8 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
             dds = dgr * (2.0f0 * bark * dfl + dgr) * scale2
             arg = (dfl * bark)^2 + dds
             dgk = arg > 0.0f0 ? sqrt(arg) - bark * dfl : 0.0f0
-            dgk > TT_RG_DGMAX[sp] && (dgk = TT_RG_DGMAX[sp])
+            dgmx = fint * TT_RG_DGMAX_RAW[sp]                       # ★#158: live DGMX=FINT·DGMAX (regent.f:684), not raw
+            dgk > dgmx && (dgk = dgmx)
         end
         t.height[i] = h2
         dgk > 0.0f0 && (t.dbh[i] = d + dgk / tt_bratio(sp, d))   # outside-bark DBH (simulate.jl:499)
