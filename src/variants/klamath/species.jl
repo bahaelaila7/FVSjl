@@ -23,8 +23,8 @@ function init_blockdata!(s::StandState, v::Klamath)
     copyto!(s.plot.valid_habitat, 1, hab, 1, min(length(hab), length(s.plot.valid_habitat)))
 
     s.control.tree_format = DEFAULT_TREE_FORMAT
-    s.control.year = 10.0f0            # NC YR default cycle length (IFINT=10, nc/grinit.f)
-    s.control.growth_fint = 10.0f0     # NC FINT default = 10
+    s.control.year = 5.0f0             # NC YR default cycle length = 5 (nct01 live runs 5-yr; NC growth models
+    s.control.growth_fint = 5.0f0      # are 5-yr-based: dgf TDDS/2, REGYR=5). IFINT=10 is the calibration interval.
     s.control.zeide_sdi = true         # NC uses ZEIDE SDI (nc/grinit.f LZEIDE=.TRUE.)
     s.rng.s0 = Float64(NC_RNG_SEED); s.rng.ss = NC_RNG_SEED
     fill!(s.control.ht_drag_sp, false) # nc/grinit.f:102 LHTDRG default .FALSE. (verify per-species exceptions ch4)
