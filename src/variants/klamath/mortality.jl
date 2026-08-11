@@ -59,6 +59,34 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         sdimax < 5f0 && (wki = pr)
         killed[i] = wki
     end
+    # BAMAX residual-BA cap (nc/morts.f:685-754 + sdical.f:203-208). When the user did
+    # NOT set BAMAX, live caps residual BA at BAMAX = SDIMAX·0.5454154·PMSDIU (SDI max at
+    # 10" DBH) and scales all mortality up proportionally (ADJFAC, iterated ≤100×) until
+    # residual BA ≤ BAMAX. The Zeide SDI self-thin above is the QMD<10" regime; this is the
+    # QMD≥10"/high-BA regime. Absent here → very dense stands (e.g. redwood, SDIMAX~1000)
+    # under-kill by ~2×. Inert (immediate break) whenever residual BA is already ≤ BAMAX,
+    # so it cannot touch below-cap stands. sdimax<5 (full-kill) handled above.
+    if sdimax >= 5f0
+        bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+        for _ in 1:100
+            banew = 0f0; badead = 0f0
+            @inbounds for i in 1:n
+                d = t.dbh[i]; sp = Int(t.species[i])
+                bark = bark_ratio(bark_a, bark_b, sp, d)
+                g = t.diam_growth[i] / bark
+                ba = 0.0054542f0 * (d + g)^2
+                banew  += ba * (t.tpa[i] - killed[i])
+                badead += ba * killed[i]
+            end
+            ((banew - bamax) > 1f0 && badead > 0f0) || break
+            adjfac = (banew - bamax) / badead
+            @inbounds for i in 1:n
+                wki = killed[i] * (1f0 + adjfac)
+                wki > t.tpa[i] && (wki = t.tpa[i])
+                killed[i] = wki
+            end
+        end
+    end
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

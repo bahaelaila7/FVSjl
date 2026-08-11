@@ -475,3 +475,40 @@ REMAINING 3 divergences (task #164):
   the BM #140 class. Distinct from DG.
 NEXT: instrument the degenerate BA=1 stand (per-tree DG dump — why zero growth) + the mortality-2× stand
 (DEBUG-DGDRIV/self-thin vs live). NC species beyond nct01's DF/WF/SP/RF need per-tree DG validation.
+
+## RESOLUTION (2026-08-11) — species-crosswalk completion + BAMAX residual-BA cap
+
+Two SYSTEMIC fixes drove the 3 remaining divergences down; NC FIA now ~10/12 cornered (0 crashes).
+
+### Fix 1 — species_translation.csv completeness (commit d0d40a9)
+jl's NC crosswalk (data/klamath/species_translation.csv) carried ONLY the 12 PRIMARY species' FIA codes;
+all other FIA species (150) DEFAULTED to OS (softwood) instead of live's spctrn.f NC mapping. Parsed
+spctrn.f (NC = COLUMN 13: CASE('NC') SPCOUT=ASPT(I,13); two DATA blocks, FIA@col2 in J=1-10, NC@col13 in
+J=11-21, aligned by I) and appended the 150 missing FIA→NC rows. VALIDATED:
+- cn 1288130126 (801 coast-live-oak → BO, was OS): BA 181→172 vs live 167 (8.4%→3.0%, CORNERED).
+- cn 850447807 (768 → OH, was OS): BA 1→36 vs 59 (98%→39%; the mis-mapped SEEDLING now grows).
+META: MEASURED MA(sp5) DG bit-exact FIRST (ruled out the assumed madrone-DG culprit) → the real bug was the
+crosswalk. Systemic — every hardwood/mixed-species FIA stand had been mis-grown as softwood.
+
+### Fix 2 — BAMAX residual-BA mortality cap (klamath/mortality.jl) — the redwood self-thin root
+nc/morts.f header: "SDI-BASED MORTALITY IS USED AS LONG AS QMD < 10 INCHES, AT WHICH TIME BAMAX-BASED
+MORTALITY TAKES OVER. IF NOT SET BY THE USER, BAMAX IS DETERMINED FROM MAX SDI AT 10 INCH DBH." Mechanism:
+- morts.f:308 CALL SDICAL(0,SDIMAX) → vbase/sdical.f:203-204 (.NOT.LBAMAX branch): BAMAX = SDIMAX·0.5454154·PMSDIU.
+  (PMSDIU=85 in grinit is converted 85→0.85 at morts.f:167 BEFORE the SDICAL call, so BAMAX uses 0.85.)
+- morts.f:685-754: after the SDI/Zeide self-thin AND size-cap loops, if residual BANEW > BAMAX+1, scale ALL
+  per-tree mortality up by ADJFAC=(BANEW-BAMAX)/BADEAD, iterate ≤100× until residual BA ≤ BAMAX.
+jl had NO such cap → dense stands (redwood, SDIMAX~1000) under-killed ~2×. Ported the loop into
+mortality!(::Klamath) after the per-tree kill loop, before apply_fixmort!. Inert (immediate break) when BA is
+already ≤ BAMAX, so it CANNOT touch below-cap stands. VALIDATED cn 1123874220 (99% RW1): BA 597→464 vs live
+468 (27.6%→0.9%, CORNERED); the 2 cornered control stands unchanged (no regression). Residual: TPA 909 vs 625
+(QMD 9.7 vs 11.7) — finer per-tree kill realization; BA (the cap variable + classified metric) meets the bar.
+
+★ CROSS-VARIANT LEAD: the identical BANEW-BAMAX cap block exists in bm/em/ut/tt morts.f (all CALL vbase/sdical.f,
+all convert PMSDIU 85→0.85 before SDICAL) but is ABSENT from the shared jl mortality (southern/mortality.jl).
+Latent under-kill on any >BAMAX dense stand — matches the BM #140 "under-thin on actively-self-thinning stands"
+signature exactly. NEXT CHUNK: port the cap into the shared mortality apply-path (after MSB + size-cap), validate
+per-variant vs FVSbm/em/ut/tt_clean on a dense self-thinning stand each.
+
+### Remaining NC divergences
+- cn 850447807: 39% residual (seedling regent small-tree tail beyond the crosswalk fix).
+- cn 504618389: 3.0% borderline (accepted DGSCOR/tie-break tail).
