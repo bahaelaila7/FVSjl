@@ -284,3 +284,9 @@ Coefficients (12 sp; sp12=0 → uses the logistic instead):
 ⇒ chunk-5 port: crown_ratio_update!(::Klamath) — Weibull CR (default rank-pctile×SCALE / redwood logistic) + change
 limits (model CI/EM crown.jl). Read crown.f ~300-330 for the exact Weibull quantile + change-limit before coding.
 Only ch8 volume (vollib) data remains after this.
+
+## Chunk-5 crown (cont'd) — Weibull quantile + change-limit MEASURED (crown.f:300-322):
+- CRNEW = (sp12 RW: X·10) else (A + B·(−ln(1−X))^(1/C)); then CRNEW ×= 10 ⇒ crown % (RW: X·100).
+- Change-limit (not LSTART, ICR≠0): CHG=CRNEW−ICR; PDIFPY=CHG/ICR/FINT; |ΔCR|≤1%/yr (CHG=ICR·±0.01·FINT);
+  if DLOW≤DBH≤DHI: CRNEW=ICR+CHG·CRNMLT else ICR+CHG. ICRI=INT(CRNEW+0.5). (LSTART: ICRI×=CRNMLT if in band.)
+- DLOW/DHI/CRNMLT DATA = see below (crown-multiplier DBH band); RELSDI=Zeide RD, HDR=H/D, PRD=point-RD, ISORT=rank.
