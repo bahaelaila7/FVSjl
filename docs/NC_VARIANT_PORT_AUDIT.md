@@ -288,3 +288,33 @@ each_stand) compounded downstream by the pre-existing TopHt-low growth residual.
 Remaining (low priority): board BFTOPD·BARK top (−3.1% already ≈ TPA residual ⇒ bark effect is minor here);
 DVEW hardwood path unexercised on nct01 (ported faithfully, needs a hardwood stand to validate); the
 real-run TPA hook to close the aggregate is a GROWTH/expansion item, not volume.
+
+## GROWTH BUG FOUND (2026-08-11): NC large-tree DG over-grows EXACTLY 10/9 uniformly
+
+While validating volume I found NC growth OVER-predicts on nct01: cyc0 1990 bit-exact, but 1995 BA jl 101
+vs oracle 96 (+26% BA-growth: jl 77→101 vs live 77→96). MEASURED (real-run per-tree DG dump at the Klamath
+branch, applied increment = diam_growth/bark, vs the live cycle-0 treelist DIAM INCR column — pre-tripling,
+valid per-tree):
+
+  tree        live DG   jl DG   ratio
+  SP D11.5     1.00     1.111   1.111
+  SP D9.5      1.10     1.222   1.111
+  SP D9.6      0.50     0.556   1.111
+  DF D10.0     1.00     1.111   1.111
+  DF D12.7     1.60     1.778   1.111
+  DF D9.4      1.80     2.00    1.111
+  WF D10.9     1.00     1.111   1.111
+  RF D6.5      2.30     2.556   1.111
+
+jl DG = live × 1.111 (= 10/9) for EVERY tree — UNIFORM across the DEFAULT branch (DF sp3, WF sp4) AND the
+special sp2/6/9 branch (SP sp2, RF sp9). A perfectly uniform multiplicative factor ⇒ NOT a per-tree/species
+DG-equation coefficient error, NOT the bark (nc_bratio verified CORRECT vs live nc/bratio.f: SP 0.874, DF
+0.824 — matches; and a bark error would vary by species), NOT the 5-vs-10-yr period (that would be 2×, and
+would differ between the TDDS/2 specials and the no-/2 default). ⇒ isolated to a GLOBAL 10/9 multiplier in
+the shared DDS→increment path (calibrate_diameter_growth! / the DGDRIV stochastic realization: XDGROW
+variance/Jensen correction exp(σ²/2), or a dgscale). Candidate: the E[ln DDS]→E[DDS] variance correction or
+a DGSD/period constant applied for NC. NEXT: instrument calibrate_diameter_growth! for NC — dump wk2 (ln DDS)
++ XDGROW + WK4 + the final sqrt, compare each factor to live DGDRIV; the 10/9 (ln=0.10536) is a constant
+additive offset in ln(DDS)-space. Repro: scratchpad/nct01_ctl.key + the FVSJL_NC_DG_DEBUG dump (reinsert at
+the Klamath dgcons branch, simulate.jl:118). This is DISTINCT from (and larger than) the TopHt-low residual;
+it is the dominant NC multi-cycle divergence. Volume port is unaffected (VOL(1) bit-exact per-tree at cyc0).
