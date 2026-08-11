@@ -350,3 +350,39 @@ forest-type classification) or CORNERED realization (noisy-height TopHt, #129 ro
 simulation. The output-only .sum-fidelity fix (metric layout + merch/board=0 + BC fortype) is a bounded focused pass,
 lowest priority; the growth/volume port is validated. This CLOSES the "BC merch/board vol" investigation: the
 equations are faithful, the .sum merch=0 is FVS-structural (vols.f), and board has no target (not computed in BC).
+
+## IE growth-path TAIL COMPLETED 2026-08-11 (session continuation) — #175 / #171 / #174 / #176
+
+Three IE items root-caused by FVSie_g16 instrumentation (not inference) and driven to resolution, plus a
+cross-variant lead investigated and de-scoped:
+
+- **#175 species crosswalk** (`0f0d50b`): the FIA-DB reader zero-pads 2-digit FIA codes ("72"→"072") but the
+  variant coef stores them unpadded, so `resolve_species`'s direct FIA match failed and fell through to the SPCTRN
+  "unknown species" crosswalk — folding IE subalpine larch (072)→WL(sp2) and RM juniper (066)→OS(sp23). Fix =
+  leading-zero-normalize the direct FIA match. Proven via FVSie_g16 (live uses ISPC 14); cyc0 bit-exact + CCF
+  86→99=live on 3 stands; iet01 byte-identical; regression-free for the other 7 variants (0 own-species mismatches).
+
+- **#171 regent HEIGHT calibration (HCOR)** (`2fce800`): the largest remaining IE residual. Layered instrumentation
+  showed large-tree DG bit-exact and the regent DG formula faithful, so the +39% ACC over-growth was the regent
+  HEIGHT growth, diverging only in CON=RHCON+HCOR. RHCON bit-exact; jl used the leaked large-tree diameter COR
+  (+0.129) where live computes the regent's OWN LHTCAL HCOR (−1.016). IE was the lone western Wykoff variant with
+  no NIVAR `htg_cor_init` branch. Ported `ie_regent_hcor_init!` (regent.f:1138-1337). Stand 373781950489998 BA
+  +14%→+2% (2045 exact 120=120); iet01 byte-identical (calibration doesn't fire — no measured small-tree HTG);
+  4 other IE stands byte-identical; IE-guarded. SUPERSEDES the memory's "EM/IE ~7% tail is cornered" for
+  larch/subalpine dense stands (it was a real, now-fixed bug there).
+
+- **#174 dense-seedling under-growth** — RESOLVED to CORNERED. FVSie_g16 showed the regent CON bit-exact and the
+  per-subcycle NIVAR height accumulation bit-exact (seedling 1.01→5.39→14.68 to 6 digits); the divergence is the
+  never-FFI ZZRAN multiplicative realization, amplified on a 3-seedling-record stand. The BM-#140-critical
+  deterministic-path check PASSES ⇒ no hidden bug; jl straddles on regen stands. Meets the bar.
+
+- **#176 cross-variant regent HCOR gap** — INVESTIGATED + DE-SCOPED to LOW. KT/EM/CI/BM/UT/TT-NIVAR structurally
+  lack the NIVAR regent HCOR branch too, BUT the gap bites ONLY when the regent LHTCAL fires (≥5 sub-5" trees with
+  measured HTG). VERIFIED via FVSci_g16 on the densest CI stand (325592871489998): jl CI regent CON BIT-EXACT with
+  live (incl. sp7 HCOR=−0.0664) because CI's LHTCAL does NOT fire (CI FIA small trees carry no measured HTG) ⇒ live
+  HCOR = the diameter-COR bleed = jl's leak. So #171's impact was IE-stand-data-specific, not a uniform cluster bug.
+  Port a variant's calibration ONLY if a sweep finds a biting stand (small trees with measured HTG). Do NOT bulk-port.
+
+METHOD (doctrine held): every root cause measured via the instrumentable FVS{v}_g16 oracle; ~a dozen hypotheses
+refuted by measurement; several speculative attempts reverted; instrumentation always removed and oracles restored
+pristine; each fix validated bit-exact against the primary + no-regression on other stands/variants before commit.
