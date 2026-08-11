@@ -454,3 +454,24 @@ RESULT (nct01 control, all 4 NC-DG fixes DGCON+PSIGSQ+bark+scale): WF SNY −54.
 OVER before scale). Early cycles now bit-exact-or-cornered. Later cycles (2015+) drift to ~+5-9% BA / −SDI
 (mixed-sign compounding, the accepted DGSCOR/tie-break tail like EM/CI) — residual, not the dominant bug.
 The DEBUG-DGDRIV technique + the 4 fixes together resolve the NC large-tree DG. NC growth now tracks live.
+
+## MULTI-STAND FIA SWEEP (2026-08-11) — the real validation gate; scale refinement fixes 4/7 divergences
+
+Ran a 12-stand NC FIA sweep (scratchpad/nc_sweep.jl, live oracle FVSnc_clean via DATABASE keyword). Initial
+(with the hardcoded 0.5·dgscale): bit-exact=0, cornered(≤3%)=5, DIVERGED(>3%)=7, 0 crashes. ⇒ nct01
+single-stand was INSUFFICIENT (doctrine: multi-stand FIA is the real gate).
+
+SCALE REFINEMENT (growth_dg_set ? dgscale : 0.5): the hardcoded 0.5·dgscale DOUBLE-SCALED any FIA stand that
+carries a GROWTH card (which supplies the remeasurement FINT ⇒ dgscale=yr/dfint IS already YR/FINT_meas). The
+no-GROWTH default keeps the 10-yr-measurement 0.5. nct01-inert (no GROWTH ⇒ still 0.5, bit-exact unchanged).
+Re-ran the 7 divergent CNs — FIXED 4: 850447806 6.2%→0.4%, 248613816 18%→2.8%, 248615564 4.4%→0.8%,
+1123874415 3.2%→0.0%. ⇒ NC now 9/12 cornered.
+
+REMAINING 3 divergences (task #164):
+- cn 850447807 jl BA=1 vs live 59 (98%): DEGENERATE near-total growth failure (TPA 2390 present but BA=1 ⇒
+  the trees exist but don't grow — likely a species/site edge case, a NaN, or all-large-trees-excluded). REAL bug.
+- cn 1288130126 +8.4% DG-over (TPA 1598 vs 1474): DG over-prediction / minor mortality; species mix ≠ nct01 conifers.
+- cn 1123874220 jl TPA 1168 vs live 625 (+27.6% BA): MORTALITY UNDER-KILL ~2× — NC Zeide self-thin under-kills,
+  the BM #140 class. Distinct from DG.
+NEXT: instrument the degenerate BA=1 stand (per-tree DG dump — why zero growth) + the mortality-2× stand
+(DEBUG-DGDRIV/self-thin vs live). NC species beyond nct01's DF/WF/SP/RF need per-tree DG validation.

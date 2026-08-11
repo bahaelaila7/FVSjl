@@ -117,11 +117,12 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Klamath
         nc_dgcons!(s)                     # NC DGCON (DGFOR/MAPLOC default + DGLAT2 site sp2/6/9 + redwood ln SITEAR) — chunk 3
-        # NC calibration SCALE = YR/FINT_meas = 5/10 = 0.5: NC's DG MODEL basis is 5-yr (blkdat YR=5.0) but the
-        # measured past-DG (nct01.tre) is a 10-YEAR measurement (nct01.out "TALLY 2 AT 10 YEARS") ⇒ the measured
-        # DDS must be halved to the 5-yr model basis (dgdriv.f:419 TERM·SCALE). Other western variants have YR=10
-        # + 10-yr measurement ⇒ scale 1; NC is the YR=5-with-10yr-measurement case.
-        calibrate_diameter_growth!(s; scale = 0.5f0 * dgscale)
+        # NC calibration SCALE = YR/FINT_meas: NC's DG MODEL basis is 5-yr (blkdat YR=5.0) but the measured past-DG
+        # period defaults to IFINT=10 (nct01 "TALLY 2 AT 10 YEARS") ⇒ SCALE=5/10=0.5 (dgdriv.f:419,328 TERM·SCALE).
+        # When a GROWTH keyword sets the remeasurement FINT, dgscale=yr/dfint IS that YR/FINT_meas already (so use
+        # it directly); only the NO-GROWTH default (dgscale=1) needs the 10-yr-measurement 0.5. Other western
+        # variants have YR=IFINT ⇒ scale 1; NC is the unique YR=5-with-10yr-default-measurement case.
+        calibrate_diameter_growth!(s; scale = s.control.growth_dg_set ? dgscale : 0.5f0)
     end
     return s
 end
