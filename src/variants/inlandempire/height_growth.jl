@@ -88,7 +88,7 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
                     z = z + zadj
                 end
                 # young-lodgepole/aspen accelerator (age 10..40, D<9, cycle 1)
-                if iage != 0 && icyc <= 1
+                if iage != 0 && icyc == 0                  # FVS ICYC==1 only (jl cycle 0-based); <=1 double-fires
                     ixage = iage + cur_year - Int(ctl.cycle_year[1])
                     if ixage < 40 && ixage > 10 && d < 9.0f0 && z <= 2.0f0
                         zadj = 0.3564f0 * dg * fint / 10f0
