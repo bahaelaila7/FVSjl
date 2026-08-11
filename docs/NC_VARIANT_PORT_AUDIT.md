@@ -42,3 +42,19 @@ All DDS coefficients measured (docs/NC_CHUNK1_EXTRACTION.md chunk-3 section). In
 TO CODE (next): src/variants/klamath/diameter_growth.jl = nc_bratio(a,b,eqtype,d) + nc_dgcons!(s) [DGCON/DGDSQ per
 sp, 3 branches: DGFOR/MAPLOC default, DGLAT2+site sp2/6/9, redwood ln(SITEAR)] + dgf!(s,::Klamath) [3-branch DDS →
 wk2, 5-yr TDDS/2] + point-Zeide-RD. Then validate DDS per-tree vs FVSnc_clean dgf DEBUG dump on nct01.
+
+## Chunk-3 DG — IMPLEMENTED (ce5111c) + first validation vs FVSnc_dbg (2026-08-11): NOT yet bit-exact
+- ★ BUG FOUND + FIXED by reading nc/dgf.f: the 5-yr TDDS/2 conversion applies ONLY to the redwood + sp2/6/9
+  branches, NOT the DEFAULT branch (nc/dgf.f has TDDS/2 inside CASE(12) and CASE(2,6,9), none in CASE DEFAULT).
+  jl had applied /2 to ALL branches ⇒ DEFAULT species off by ln(2)≈0.693. Moved /2 into the two special branches.
+- VALIDATION SETUP: instrumented FVSnc dgf.f (WRITE 'ZNC',I,ISPC,D,DDS after WK2(I)=DDS), recompiled dgf.o
+  (gfortran-16 -std=legacy -w -fno-automatic -O0 -fPIC -I../../common), relinked → /workspace/.ncwork/FVSnc_dbg
+  (ZNC dump in fort.16). Oracle dgf.f/dgf.o restored pristine after. jl side: env NC_DDS_DBG print in dgf!.
+- FIRST COMPARISON (not yet aligned): jl sp2 D=10.39 DDS=2.50 vs live sp2 D~10.41 DDS~2.17; jl sp9 D=3.94 DDS=1.675
+  vs live 1.171. jl HIGHER on the set-2 (sp2/6/9) species by ~0.3-0.5. ⚠ CAVEAT: both dumps mix CALIBRATION passes
+  (backdated/modified DIAM) + the growth pass, and tree indices don't align 1:1 (jl re-sorts) ⇒ the comparison is
+  NOT pass-aligned yet (doctrine #3 class). NEXT: align by (ISPC, exact DBH) on the GROWTH pass only (gate the dump
+  on a growth flag or match DBH exactly), then diagnose the set-2 residual (candidates: the sp2/6/9 DGCON site form
+  DGLAT2/DGSITE, the CRID/PBAL terms, or the -8.52-then-/2 order). DEFAULT-species DDS (post-/2-fix) still to compare.
+⇒ Chunk-3 status: IMPLEMENTED + running to ch4; /2 bug fixed; per-tree DDS validation IN PROGRESS (not bit-exact
+yet — set-2 species show a residual to diagnose). FVSnc_dbg durable for the aligned comparison.

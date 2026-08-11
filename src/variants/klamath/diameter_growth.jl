@@ -145,13 +145,15 @@ function dgf!(s::StandState, ::Klamath)
             brat = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
             t1 = d * brat; t2 = (d + dglt) * brat
             dds = log(t2 * t2 - t1 * t1) + cor          # + LN(COR2)=0 baseline
+            dds = log(exp(dds) / 2f0)                    # redwood: TDDS/2 (nc/dgf.f:393-394)
         elseif sp == 2 || sp == 6 || sp == 9           # SP/IC/RF (set-2)
             conspp = c.dg_const[sp] + cor + NC_DGCCFA[sp] * alrd + NC_DGBA[sp] * alba
             dds = conspp + NC_DGLD2[sp] * ald + NC_DGDSQ2[sp] * d * d / 1000f0 +
                   NC_DGCR2[sp] * crid + NC_DGDBA2[sp] * pbal / log(d + 1f0) / 100f0 +
                   NC_DGBA2[sp] * alpba
             dds < -8.52f0 && (dds = -8.52f0)
-        else                                           # DEFAULT
+            dds = log(exp(dds) / 2f0)                    # sp2/6/9: TDDS/2 (nc/dgf.f:410-411)
+        else                                           # DEFAULT — NO TDDS/2 (nc/dgf.f has none here)
             dgdsq = NC_DGDS[sp, NC_MAPDSQ[sp, ifor]]
             conspp = c.dg_const[sp] + cor + NC_DGCCFA[sp] * alrd + NC_DGBA[sp] * alba
             hoavh = avh > 0f0 ? min(t.height[i] / avh, 1.5f0) : 1f0
@@ -160,9 +162,7 @@ function dgf!(s::StandState, ::Klamath)
                   NC_DGPCCF[sp] * pccf + NC_DGHAH[sp] * hoavh
             sp == 4 && (dds -= 0.15032f0)
         end
-        dds < -9.21f0 && (dds = -9.21f0)
-        # 5-year rate: TDDS=EXP(DDS); DDS=LN(TDDS/2)
-        dds = log(exp(dds) / 2f0)
+        dds < -9.21f0 && (dds = -9.21f0)                # shared final clamp (nc/dgf.f:429)
         wk2[i] = dds
     end
     return s
