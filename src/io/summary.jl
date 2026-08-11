@@ -18,6 +18,14 @@ const _SUM_ROW_FMT = Printf.Format(
     "%6d%6d%6d%6d%6d%6d%6d%6d%6d" *
     "%4d%5d%4d%4d%5.1f  %6d%5d%6d  %6.1f %3d %1d%1d\n")
 
+# METRIC variants (BC, Canada/ON) use metric/vbase/sumout.f, whose row FORMAT 20 writes 7I6 volume
+# integers (IOSUM 4-10 = total, merch, board, remTrees, remTotal, remMerch, remBoard) — it DROPS the
+# sawlog cubic (scuft) + removed-sawlog columns the imperial 9I6 carries. Same leading/trailing fields.
+const _SUM_ROW_FMT_METRIC = Printf.Format(
+    "%4d%4d%6d%4d%5d%4d%4d%5.1f" *
+    "%6d%6d%6d%6d%6d%6d%6d" *
+    "%4d%5d%4d%4d%5.1f  %6d%5d%6d  %6.1f %3d %1d%1d\n")
+
 """
     SummaryRow
 
@@ -36,14 +44,26 @@ Base.@kwdef mutable struct SummaryRow
 end
 
 "Write one SUMOUT-format period row."
-function write_sum_row(io::IO, r::SummaryRow)
-    Printf.format(io, _SUM_ROW_FMT,
-        r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, r.qmd,
-        r.cuft, r.mcuft, r.scuft, r.bdft,
-        r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_scuft, r.rem_bdft,
-        r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, r.at_qmd,
-        r.period, r.accretion, r.mortality, r.mai,
-        r.fortype, r.sizecls, r.stockcls)
+function write_sum_row(io::IO, r::SummaryRow; metric::Bool = false)
+    if metric
+        # metric/vbase/sumout.f FORMAT 20: 7I6 volume block (total, merch, board, remTrees, remTotal,
+        # remMerch, remBoard) — DROP the imperial-only sawlog columns scuft + rem_scuft.
+        Printf.format(io, _SUM_ROW_FMT_METRIC,
+            r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, r.qmd,
+            r.cuft, r.mcuft, r.bdft,
+            r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_bdft,
+            r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, r.at_qmd,
+            r.period, r.accretion, r.mortality, r.mai,
+            r.fortype, r.sizecls, r.stockcls)
+    else
+        Printf.format(io, _SUM_ROW_FMT,
+            r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, r.qmd,
+            r.cuft, r.mcuft, r.scuft, r.bdft,
+            r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_scuft, r.rem_bdft,
+            r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, r.at_qmd,
+            r.period, r.accretion, r.mortality, r.mai,
+            r.fortype, r.sizecls, r.stockcls)
+    end
     return io
 end
 
@@ -299,7 +319,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
-        write_sum_row(io, r)
+        write_sum_row(io, r; metric = s.variant isa BritishColumbia)
         collect_rows === nothing || push!(collect_rows, r)
     end
     return io
@@ -357,6 +377,11 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     ry = Int(s.control.age_reset_year)
     (ry >= 0 && yr > ry) && (age = Int(s.control.age_reset_age) + (yr - ry))
     mcuft = vtot(:merch_cuft_vol)
+    # BC (metric): vols.f computes merch into WK1 but NEVER loads the MCFV summary array (imperial vols.f
+    # does: MCFV=MCF), so live's OMCCUR(7)=PCTILE(MCFV)=0 ⇒ the .sum merch column (IOSUM 5) AND the
+    # merch-based MAI (BCYMAI) are structurally 0 every cycle. Mirror that: zero the summary merch (the
+    # per-tree merch_cuft_vol stays intact for other consumers). Board is 0 too ("not computed in this variant").
+    met && (mcuft = 0)
     # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
     # `total_removed_merch` carries cross-cycle removals (0 at the inventory).
     # Computed in Float32 to match FVS REAL*4 (the %.1f rounding differs from Float64).
@@ -370,7 +395,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,
         cuft = vtot(:cuft_vol), mcuft = mcuft,
-        scuft = vtot(:saw_cuft_vol), bdft = vtot(:bdft_vol),
+        scuft = met ? 0 : vtot(:saw_cuft_vol), bdft = met ? 0 : vtot(:bdft_vol),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
         period = period, mai = mai,
         accretion = trunc(Int, fvol * accretion + 0.5), mortality = trunc(Int, fvol * mortality + 0.5),
