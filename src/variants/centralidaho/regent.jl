@@ -148,9 +148,19 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         htgr1 = h2 - h0; htgr1 < 0.0f0 && (htgr1 = 0.0f0) # HTGR1 = HK−H (regent.f:907-908)
         htgr = htgr1                                      # + ZZRAN*0.1*SCALE deferred
         htgr < 0.1f0 && (htgr = 0.1f0)                    # Dixon 3/4/09 floor (regent.f:961)
-        htg = htgr                                        # XWT=0 for D≤XMN small trees ⇒ HTG=HTGR
+        # Blend the small-tree (regent) HTGR with the large-tree HTG(K) via XWT (regent.f:973-979): for a tree
+        # with XMN<D<XMAX the final height increment is a diameter-weighted mix of the regent prediction and the
+        # large-tree htgf increment already in t.ht_growth[i]. jl previously used pure HTGR (XWT=0) — correct only
+        # for D≤XMN; trees between XMN and XMAX (e.g. 2-5" CIVAR conifers) then under-grew (the large-tree htgf
+        # increment is much bigger for young vigorous stems). Both HK and the DBH below flow from the blended HTG
+        # (regent.f:998 HK=H+HTG(K)), matching live.
+        xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
+        xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
+        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
+        hcap = s.control.sp_size_cap[sp, 4]               # SIZCAP(sp,4) max height (regent.f:983-986)
+        (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
         t.ht_growth[i] = htg
-        hk = h0 + htg                                     # HK = H + HTG (regent.f:1002)
+        hk = h0 + htg                                     # HK = H + HTG(K) (blended, regent.f:998)
         if hk < 4.5f0
             t.diam_growth[i] = 0.0f0
             _ci_rg_stash!(stash, t, i, d0 < 3.0f0)
