@@ -233,3 +233,10 @@ htgf.f:240-290 for the exact POTHTG age step — FINT vs 5 — before coding.) N
 FINDAG (the height curves are the CASE formulas above, not HD1-4) — verify HD1-4 aren't used elsewhere in htgf.
 ⇒ chunk-4 port: nc_htcalc(si,sp,ag) + nc_findag(h,sp,si) + height_growth!(::Klamath) [redwood LTHTG + default
 FINDAG/POTHTG]. All formulas measured; validate HTG per-tree / aggregate vs FVSnc_clean.
+
+## HT1/HT2 (blkdat.f:167-178) — MEASURED (regent height-DBH model, chunk 6; were CSV placeholders):
+- ht1: 4.78737,4.74961,4.78737,4.80268,4.73881,4.89619,4.80420,4.66181,4.83642,4.23251,4.66181,5.3401
+- ht2: -7.31698,-7.19103,-7.31698,-8.40657,-9.44913,-12.55873,-9.92422,-8.33117,-7.04795,-8.31711,-8.33117,-15.9354
+Used in nc/regent.f: BX=HT2, AX=HT1 (IABFLG=1) or AA (IABFLG=0) → Wykoff HT-DBH DK=BX/(ln(HK-4.5)-AX)-1 for small-tree DG.
+CSV updated (cols 17/18). Still placeholder in CSV: dbh_max, st_htadj, st_break, wykoff_ht2, sdi_max_default (ecocls),
+volume cols, htdbh cols, varmrt — filled as chunks 6/8 land.
