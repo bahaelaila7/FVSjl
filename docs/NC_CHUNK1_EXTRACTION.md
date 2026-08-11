@@ -196,3 +196,18 @@ Forest-dependent DGCONS arrays (dgf.f):
   PCCF stand-density arrays (shared engine — verify jl provides point-BA PTBAA + point-Zeide ZRD/XMAXPT).
 NC dgf! port: nc_dgcons!(s) (DGCON/DGDSQ per sp) + dgf!(s) (3-branch DDS) + nc_bratio for the bark. Validate DDS
 per-tree vs a live FVSnc_clean dgf DEBUG dump on nct01 (add WRITE at WK2(I)=DDS).
+
+## Chunk-3 sp2/6/9 + redwood DGCON site arrays (dgf.f:182-217) — MEASURED (completes chunk-3 data):
+DGCON(2,6,9) = DGLAT2(5,sp) + DGEL2·ELEV + DGSLP2·SLOPE + DGSLQ2·SLOPE² + DGSITE·SITEAR  (ILAT=5 ⇒ 5th col).
+- DGLAT2(5,sp) [the ILAT=5 element per species]: sp1 0.1630, sp2 -0.4297, sp3 -0.1043, sp4 0.1434, sp5 -0.4297,
+  sp6 0.0540, sp7 0.0540, sp8 0.1630, sp9 0.1434, sp10 -0.3995, sp11 0.0540, sp12 0.0000.
+- DGSLP2(12): 0,0,0,0,0,0,0,0,0, 0.80370, 0,0  (only sp10).
+- DGSLQ2(12): 0,0,0,-0.83400,0,0,0,0,-0.83400,0,0,0  (sp4, sp9).
+- DGEL2(12): 0,0,0,0,0,0,0,0,-0.00700,0,0,0  (sp9).
+- DGSITE(12): 0.47932, 0.01401, 0.56356, 0.47360, 0.20189, 0.01200, 0.32093, 0.00659, 0.00734, 1.10842, 0.00659, 0.
+- COR2(12): the DGSCOR "COR2" calibration multiplier — DGCON += LN(COR2) when LDCOR2 & COR2>0 (dgf.f:508); redwood/
+  sp2,6,9 also `DDS += COR + LN(COR2)`. Init COR2=1.0 (⇒ LN=0, no effect) until DGSCOR calibrates ⇒ port as 1.0
+  baseline (calibration refinement later, the never-FFI-RNG class). COR (additive) likewise 0 baseline.
+⇒ ALL chunk-3 DGCONS + DDS coefficients now MEASURED. Next = WRITE src/variants/klamath/diameter_growth.jl:
+nc_dgcons!(s) [DGCON/DGDSQ per sp, 3 branches] + dgf!(s) [3-branch DDS → WK2] + nc_bratio(a,b,eqtype,d), integrate
+with the shared DDS→DG + serial-corr engine (study CI diameter_growth.jl), validate DDS per-tree vs FVSnc_clean.
