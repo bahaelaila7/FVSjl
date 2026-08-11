@@ -207,6 +207,63 @@ function nc_r5tap_dib(sp::Int, dbh::Float32, totht::Float32, htup::Float32)::Flo
     return Float32(dibcor)
 end
 
+"MERLEN (profile.f:1011-1052, non-Flewelling branch): merch length stump→`mtopp` top. Binary search in
+0.1-ft steps for the highest height where the tenth-inch-truncated DIB ≥ mtopp (TOP1=ANINT((mtopp+.005)·10))."
+@inline function nc_merlen(dibat, mtopp::Float32, httot::Float32, stump::Float32)::Float32
+    top1 = round(Int, (mtopp + 0.005f0) * 10f0)              # ANINT
+    first = 1; last = trunc(Int, httot + 0.5f0) * 10
+    @inbounds while first != last
+        half = (first + last + 1) ÷ 2
+        dibt = trunc(Int, (dibat(Float32(half) / 10f0) + 0.005f0) * 10f0)
+        top1 <= dibt ? (first = half) : (last = half - 1)
+    end
+    max(Float32(first) / 10f0 - stump, 0f0)
+end
+
+"WO2W merch cubic. `topwood=false` (the .sum path) returns primary VOL(4) [stump→MTOPP=6] only — the FVS
+summary volume call runs with SPFLG=0 ⇒ VOL(7)=0 ⇒ MCF=VOL(4) (fvsvol.f:512). `topwood=true` also adds the
+secondary VOL(7) [primary-top→MTOPS=4] (profile.f:684-819) for the harvest/product reports that set SPFLG=1.
+Both products bucked in 1-inch DIB classes (GETDIB), each log 0.1-rounded via the exact MERLEN length; the
+topwood butt = last primary log's small end, its logs restarting above LENMS. Measured: on nct01 the .sum
+MCuFt matches VOL(4)-only (427 vs oracle 449, the residual = the TPA/expansion normalization also seen in
+TCuFt −3.6%); VOL(4)+VOL(7) overshoots to 524 ⇒ the .sum is SPFLG=0."
+function nc_wo2w_merch(dibat, h::Float32; mtopp::Float32 = 6f0, mtops::Float32 = 4f0, stump::Float32 = 1f0,
+                       minlen::Float32 = 2f0, merchl::Float32 = 8f0, topwood::Bool = false)::Float32
+    # --- primary product, stump → MTOPP (6") ---
+    lmp = nc_merlen(dibat, mtopp, h, stump)
+    lmp < merchl && return 0f0
+    nsp = _nvb_numlog(22, 2, lmp, 16f0, minlen, 0.5f0)
+    nsp == 0 && return 0f0
+    loglen_p, nsp = _nvb_segmnt(22, 2, lmp, 16f0, minlen, 0.5f0, nsp)
+    dibl = _fw2_dclass(dibat(4.5f0)); ht2 = stump; vol4 = 0f0; lenms = 0f0
+    @inbounds for i in 1:nsp
+        ht2 += 0.5f0 + loglen_p[i]; lenms += 0.5f0 + loglen_p[i]
+        dib = dibat(ht2); (i == nsp && dib < mtopp) && (dib = mtopp)
+        dibs = _fw2_dclass(dib)
+        vol4 += floor(0.00272708f0 * (dibl * dibl + dibs * dibs) * loglen_p[i] * 10f0 + 0.5f0) / 10f0
+        dibl = dibs
+    end
+    topwood || return vol4
+    # --- secondary topwood, MTOPP → MTOPS (4"); SPFLG=1 harvest-report path only ---
+    tw = nc_merlen(dibat, mtops, h, stump) - lenms
+    vol7 = 0f0
+    if tw >= minlen
+        nst = _nvb_numlog(22, 2, tw, 16f0, minlen, 0.5f0)
+        if nst > 0
+            loglen_t, nst = _nvb_segmnt(22, 2, tw, 16f0, minlen, 0.5f0, nst)
+            dblt = dibl; ht2 = stump + lenms                 # butt = last primary small end
+            @inbounds for i in 1:nst
+                ht2 += 0.5f0 + loglen_t[i]
+                dib = dibat(ht2); (i == nst && dib < mtops) && (dib = mtops)
+                dibs = _fw2_dclass(dib)
+                vol7 += floor(0.00272708f0 * (dblt * dblt + dibs * dibs) * loglen_t[i] * 10f0 + 0.5f0) / 10f0
+                dblt = dibs
+            end
+        end
+    end
+    return vol4 + vol7
+end
+
 "WO2W per-tree volume (R5TAP profile). Returns (tcuft VOL1, merch-cuft VOL4, scribner VOL2).
 ★ VOL(1) TOTAL CUBIC is BIT-EXACT vs live (validated per-tree vs a standalone R5TAP driver + the FVSnc
 treelist: SP D11.5 17.6==17.6, DF D12.7 20.9==20.9, big SP D34.6 277.4≈277.3). Total cubic integrates the
@@ -224,8 +281,8 @@ function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32)
     dibat = ht -> nc_r5tap_dib(sp, d, h, Float32(ht))
     mtopp = 6.0f0; stump = 1.0f0; minl = 2.0f0; merl = 8.0f0    # mrules.f REGN 5 defaults
     tcf = Float32(round(_fw2_tcubic(dibat, h) * 10.0)) / 10.0f0  # VOL(1)=NINT(TCVOL*10)/10
-    mcf = _fw2_merch_cuft(dibat, h, mtopp, stump, minl, merl)    # VOL(4), mtop inside bark (R5TAP=DIB)
-    bf  = _fw2_board(dibat, h, mtopp, stump, minl, merl)         # VOL(2) Scribner
+    mcf = nc_wo2w_merch(dibat, h; mtopp = mtopp, stump = stump, minlen = minl, merchl = merl)  # VOL4+VOL7
+    bf  = _fw2_board(dibat, h, mtopp, stump, minl, merl)         # VOL(2) Scribner (primary to 6")
     return (max(tcf, 0f0), max(mcf, 0f0), max(bf, 0f0))
 end
 

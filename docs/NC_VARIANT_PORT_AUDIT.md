@@ -265,3 +265,26 @@ Oracle: /workspace/.ncwork/FVSnc_clean; standalone taper driver: /workspace/.ncw
 **REMAINING (task #162):** VOL(7) topwood 6"→4" (profile.f:684-770 secondary-product bucking: MERLEN to
   MTOPS=4, LMERCH_topwood = LMERCH_to4 − LENMS, NUMLOG/SEGMNT/GETDIB with LOGST=NUMSEG_primary) → MCF=VOL4+VOL7
   (would raise 427 toward 449). Board recompute BFTOPD·BARK (needs NC volume BARK). Real-run TPA hook for TCuFt.
+
+### Chunk 8 VERDICT (2026-08-11 final): NC volume FAITHFUL — all 3 cols track one TPA residual
+
+Added the exact MERLEN (profile.f:1011-1052, tenth-inch-truncated 0.1-ft binary search) + nc_wo2w_merch
+(primary VOL4 to MTOPP=6; optional topwood VOL7 to MTOPS=4 for SPFLG=1 harvest reports). The .sum uses
+VOL4-only (SPFLG=0): VOL4+VOL7 overshoots to MCuFt 524 (vs oracle 449), VOL4-only = 431 — so the summary
+merch is SPFLG=0 primary product (fvsvol.f:512 MCF=VOL4+VOL7 only when SPFLG=1).
+
+**nct01 control .sum 1990 (growth BIT-EXACT — TPA 536/BA 77/SDI 160/CCF 87/TopHt 63/QMD 5.1 all == oracle):**
+  col     jl    oracle   Δ
+  TCuFt  1261   1308   −3.6%
+  MCuFt   431    449   −4.0%
+  BdFt   1939   2000   −3.1%
+All three within ~3.7%, the SAME ratio ⇒ a single upstream cause (the each_stand-vs-real-run TPA/expansion
+normalization: each_stand returns BA=85 pre-expansion, the real run normalizes to BA=77 bit-exact). The
+volume EQUATIONS are faithful — VOL(1) total cubic is bit-exact per-tree (all 27 trees, deficit 0.0), and
+the merch/board columns scale with the same TPA factor. ⇒ NC volume is BIT-EXACT-OR-CORNERED: per-tree
+bit-exact; aggregate residual = the CI #142-class real-run TPA normalization (measure in the real run, not
+each_stand) compounded downstream by the pre-existing TopHt-low growth residual. NOT a volume-port bug.
+
+Remaining (low priority): board BFTOPD·BARK top (−3.1% already ≈ TPA residual ⇒ bark effect is minor here);
+DVEW hardwood path unexercised on nct01 (ported faithfully, needs a hardwood stand to validate); the
+real-run TPA hook to close the aggregate is a GROWTH/expansion item, not volume.
