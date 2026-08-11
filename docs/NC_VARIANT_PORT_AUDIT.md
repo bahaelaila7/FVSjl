@@ -58,3 +58,16 @@ wk2, 5-yr TDDS/2] + point-Zeide-RD. Then validate DDS per-tree vs FVSnc_clean dg
   DGLAT2/DGSITE, the CRID/PBAL terms, or the -8.52-then-/2 order). DEFAULT-species DDS (post-/2-fix) still to compare.
 ⇒ Chunk-3 status: IMPLEMENTED + running to ch4; /2 bug fixed; per-tree DDS validation IN PROGRESS (not bit-exact
 yet — set-2 species show a residual to diagnose). FVSnc_dbg durable for the aligned comparison.
+
+## Chunk-3 DDS validation — refined diagnosis (2026-08-11): sp2/6/9 FORMULA verified faithful; residual = align/COR
+Re-checked the jl sp2/6/9 branch term-by-term vs nc/dgf.f CASE(2,6,9): DDS = CONSPP + DGLD2·ALD + DGDSQ2·D²/1000 +
+DGCR2·CRID + DGDBA2·PBAL/ln(D+1)/100 + DGBA2·ALPBA — EXACT match. So the ~0.3-0.5 jl-high on set-2 is NOT a formula
+bug. The dump comparison was NOT valid: (a) fort.16 holds ZNC for ALL 10 nct01 cycles (the "last block" is a LATER
+cycle with grown DBH 15-19", not cyc1); (b) both sides mix calibration passes (backdated DIAM, COR=0) + the growth
+pass (which adds the DGSCOR-calibrated COR); (c) tree indices don't align (jl re-sorts). ⇒ residual candidates,
+in order: (1) the growth-pass calibration COR (jl c.dg_cor set by the shared calibrate_diameter_growth! — verify it
+computes NC COR like live's DGSCOR; the deterministic pre-COR DDS is the thing to match first), (2) CONSPP/DGCON
+site inputs (SITEAR/ELEV/SLOPE for nct01 — verify jl's sp_site_index[2,6,9] + p.elevation/slope match live), (3)
+per-tree CRID/PBAL/ALPBA. CLEAN NEXT: use nc/dgf.f's own DEBUG FORMAT-334 (DDS,CONSPP,ALD,ALPBA,CRID) — enable
+DEBUG on FVSnc_dbg for ONE cyc1 growth-pass tree + match jl by exact (species,DBH) ⇒ isolates CONSPP vs the terms.
+BETTER GATE (once ch4-8 land): the aggregate cyc1 .sum (TPA/BA/QMD) which averages out per-tree/pass noise, like CI.
