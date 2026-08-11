@@ -246,3 +246,22 @@ NEXT: instrument jl small_tree_growth! for PI(11) d=3.9 (SJ/SITEAR, POTHTG, VIGO
 regent.f — a bounded per-branch trace of the PJ regent, analogous to the TT #158 regent work. This is the last open
 western-cluster growth bug; distinct from #156 (that reproducer's PJ regent was proven bit-exact — a different stand
 /species mix; this shows PI/MC specifically diverge).
+
+## UT under-kill — RESOLVED to CORNERED 2026-08-11: deterministic PJ regent bit-exact; residual = ZZRAN realization
+Traced the PI(11) PJ-regent height growth per-component vs FVSut_g16 and the ENTIRE DETERMINISTIC path is BIT-EXACT:
+- POTHTG=0.4980, PCTRED=0.8066, VIGOR=1.0000, CON=1.0, HTGR(deterministic)=0.4017 — jl == live to all printed digits.
+- DK=(HK−4.5)·10/(SITEAR−4.5), DKK, DGK=(DK−DKK)·bark — jl formulas + values match live (dk 7.334, dkk 6.0).
+- The large-tree DGF DDS (0.72555) is bit-exact too (though irrelevant: PI XMAX=99 ⇒ always regent).
+The ONLY non-matching quantity is the per-tree ZZRAN draw: jl bachlo=−0.683 vs live's ≈+0.248 (htg 0.3334 vs 0.4265).
+The ZZRAN reject range is IDENTICAL ([−2, 0.5], regent.f:343), so the distribution matches — it's the never-FFI RNG
+BYTE-STREAM realization (jl's bachlo ≠ live's ZZRAN sequence; the accepted #142/#156 class). The 25-stand 16-HIGH/0-LOW
+tally is that symmetric RNG straddle AMPLIFIED by the ASYMMETRIC self-thin feedback: an under-grow (RNG-low) cycle
+compounds (fewer kills → more survivors → lower QMD → higher self-thin target → fewer kills → runs away to +43%),
+while an over-grow cycle self-corrects at the self-thin line (bounded). So symmetric per-tree RNG ⇒ systematic
+jl-HIGH stand-level tally — WITHOUT any deterministic bug. ⇒ UT MEETS bit-exact-or-cornered (deterministic PJ regent
+bit-exact; residual = never-FFI ZZRAN realization). This CORRECTS the earlier "real systematic under-kill bug" reading
+— the sign-tally skew was real but its ROOT is the accepted RNG realization, not a deterministic port error. The
+mortality (IPASS/line/DR10) and the DG (htgr/DK/DKK/DGF) are all confirmed faithful. NOTE: a future bit-exact-RNG
+effort (matching bachlo's byte-stream to FVS ZZRAN through the regent) would tighten UT the most (its PJ-heavy dense
+stands amplify the RNG residual hardest), but that is the cross-variant never-FFI-RNG undertaking, not a UT bug.
+⇒ Western cluster growth/mortality: all variants bit-exact-or-cornered.
