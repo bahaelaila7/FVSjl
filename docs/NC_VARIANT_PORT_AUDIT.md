@@ -102,3 +102,13 @@ REMAINING (3 items to bit-exact-or-cornered):
 3. VOLUME = 0 (CI r4vol placeholder gives 0 for NC species). Real NC VEQNNC (R5/NVEL California equations) = chunk-8.
 After cycle-length fix + CCF, validate the multi-cycle trajectory vs nct01.sum.save (5-yr, TPA 536→357 by 2040,
 BA 77→301). This is the aggregate .sum gate.
+
+## ★ 2026-08-11 TopHt under-growth ROOT: site index defaults to site_lo (chunk-2 site-input bug)
+After the htg_period=5 fix, BA/SDI/QMD track live closely but TopHt DECREASES (jl 64→57 vs live 72→91). Traced:
+the largest-DBH DF tree gets SITE INDEX = 50 = its site_lo DEFAULT, not the input value → FINDAG SITAGE=86 (old) →
+POTHTG=1.45 (tiny) → height barely grows. ROOT: nc_sitset! (site_index.jl) fills sp_site_index from site_lo when
+p.site_species/site index isn't set from the SITECODE/STDINFO input. cyc0 is bit-exact because initial HEIGHTS come
+from the tree input, but the growth site curve uses the wrong (low) index. nct01 SITECODE/STDINFO should set the
+real site index (STDINFO field ~84). FIX: parse the SITECODE/STDINFO site species+index into p.site_species +
+p.sp_site_index[isisp] so nc_sitset! interpolates from the REAL index. This should fix TopHt (and refine DG, which
+reads SITEAR). Then re-validate multi-cycle. cyc0 fully bit-exact; BA/SDI/QMD good; TopHt gated on the site index.
