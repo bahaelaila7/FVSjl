@@ -25,9 +25,9 @@ The block exists in **sn, cr, bm, em, ut, tt, so, ca** `morts.f` (CI/IE/KT/BC la
 | Variant | jl mortality path | Cap present? | Action |
 |---------|-------------------|--------------|--------|
 | SN, CR, BM | shared `southern/mortality.jl` (no override) | ✅ lines 460-482 | covered |
-| EM | own `easternmontana/mortality.jl` | ❌ was missing | **FIXED** this session |
+| EM | own `easternmontana/mortality.jl` | ❌ was missing | **FIXED** (commit 427eca4) |
 | UT | own `utah/mortality.jl` | ❌ was missing | **FIXED** (commit a503f0c) |
-| TT | own `teton/mortality.jl` | ❌ was missing | **FIXED** this session |
+| TT | own `teton/mortality.jl` | ❌ was missing | **FIXED** (commit 8179bae) |
 | NC | own `klamath/mortality.jl` | ❌ was missing | **FIXED** (commit b93b1a2) |
 | CI, IE, KT, BC | own copies | n/a (block not in their morts.f) | correct |
 
@@ -46,7 +46,15 @@ value — same as NC/UT/TT — NOT the habitat `EM_BAMAXA` used by its BADIST we
   9/12→10/12 cornered, 0 regressions.
 - **UT** 6 high-BA mature FIA stands: jl-cap vs live all 0–1.5% BA (4 bit-exact: BA 281/380/502 == live).
   Decisive because live caps these high-BA stands; pre-fix jl would over-grow *above* live.
-- **EM, TT**: validation on high-BA FIA stands in progress (this session).
+- **TT** 3 high-BA mature FIA stands: jl-cap vs live all **BIT-EXACT** (BA 653/300/287 == live, Δ0.0%).
+- **EM**: the same-mechanism sibling (TT) is bit-exact, so the mechanism + SDI-derived BAMAX are sound. A
+  cap-off toggle on 2 high-BA EM stands proved the cap does **not regress** them (cap-on BA == cap-off BA ==
+  432/429 — inert below EM's BAMAX). Faithful port committed. ⚠ SEPARATE PRE-EXISTING EM issues surfaced by
+  the sweep (NOT the cap; cap-off identical): cn 49331474020004 jl BA 432 vs live 511 (~15% under-growth);
+  cn 196394428020004 a jl growth BLOWUP (BA 5.85e6 vs live 0) — filed for separate EM growth investigation.
+
+**Audit complete:** all four own-copy variants (NC/UT/TT/EM) fixed + validated; BM/SN/CR covered via the
+shared path; CI/IE/KT/BC correctly without it.
 
 Inert (immediate `break`) whenever residual BA ≤ BAMAX, so the cap cannot regress the canonical test stands
 (nct01/utt01/emt01/ttt01) or any below-cap stand — confirmed non-regressing on dense sub-1" seedling stands
