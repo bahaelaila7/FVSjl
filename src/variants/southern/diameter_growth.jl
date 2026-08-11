@@ -685,6 +685,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
     end
 
+    # IE regent small-tree HEIGHT calibration (ie/regent.f:1138-1337): compute the RAW regent HCOR into
+    # htg_cor_init for NIVAR species via the NIVAR EDH model. Without it, IE NIVAR species had htg_cor_init=0,
+    # so the shared attenuation below leaked the diameter COR into the regent height CON ⇒ small-tree
+    # over-growth on dense stands where the calibration fires (#171). Inert on iet01 (no measured small-tree HTG).
+    s.variant isa InlandEmpire && ie_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
     # LIVE + the RECENTLY-DEAD records (trees that died within the measurement period, added back at their dbh);

@@ -11,6 +11,94 @@
 # (stochastic BETA/POTHTG/aspen-FINDAG) — not in iet01, validated later.
 # =============================================================================
 
+"""
+IE regent small-tree HEIGHT calibration (ie/regent.f:1138-1337, the LHTCAL/mode-40 pass). Computes the RAW
+regent HCOR into `c.htg_cor_init[sp]` for NIVAR species: for each sub-5" tree with a measured height
+increment, accumulate the predicted regent height growth (EDH = HK−H, HK grown over the subcycles by the
+NIVAR model with HCOR=0) and the measured TERM=HTG·SCALE3; CORNEW = Σ(TERM·P)/Σ(EDH·P); HCOR_raw =
+ln(CORNEW), trapped to [0.0821, 12.1825]. `calibrate_diameter_growth!`'s shared attenuation (dgdriv.f:188-194,
+`htg_cor_small = dg_cor_goal + cormlt_h·(htg_cor_init − dg_cor_goal)`) then produces the applied HCOR.
+
+Without this, IE NIVAR species had htg_cor_init=0 ⇒ the diameter COR (dg_cor_goal) leaked into the regent
+height CON, over-growing the small-tree cohort on dense stands where the calibration fires (#171). Inert where
+fewer than NCALHT(5) sub-5" trees carry a measured height increment (e.g. iet01) ⇒ htg_cor_init stays 0.
+"""
+function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    rhcon = ie_regcons!(s)                              # raw RHCON (no HCOR)
+    # BACKDATED stand density (t.dbh is backdated here): the calibration predicts the PAST growth period, so
+    # RDNEXT(1)/BANEXT(1) use the start-of-period BA/RELDEN summed over LIVE + RECENTLY-DEAD records (dense.f:79-86,
+    # the notre.f-inflated dead added back at their backdated dbh), not the current live-only stand.
+    ba = 0f0; relden = 0f0
+    @inbounds for i in 1:(t.n + t.ndead)
+        d = t.dbh[i]; pr = t.tpa[i]
+        ba += 0.005454154f0 * d * d * pr
+        relden += ie_tree_ccf(Int(t.species[i]), d) * pr
+    end
+    regyr = IE_RG_REGYR
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : Float32(htg_period(s.variant))
+    scale3 = regyr / finth                              # regent.f:1065 SCALE3 = REGYR/FINTH
+    fint = s.control.growth_fint > 0f0 ? s.control.growth_fint : Float32(htg_period(s.variant))
+    ntyr = Int(round(fint)); iyr = Int(regyr)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for i in 1:nper
+        if nn == 1; kper[i] = itot; break; end
+        kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
+    end
+    # per-subcycle density from the large trees (inert at calibration: diam_growth≈0 ⇒ flat = ba/relden)
+    banext = fill(ba, nper); rdnext = fill(relden, nper)
+    if nper > 1
+        @inbounds for i in 1:t.n
+            d1 = t.dbh[i]; d1 < 3.0f0 && continue          # backdated dbh
+            sp = Int(t.species[i]); pr = t.tpa[i]
+            bark = ie_bratio(sp, d1)
+            d2 = d1 + t.diam_growth[i] / bark
+            b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
+            c1 = ie_tree_ccf(sp, d1); c2 = ie_tree_ccf(sp, d2)
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]; pn = pr * 0.985f0^k
+                rdnext[j] += k * ci * pn; banext[j] += k * bi * pn
+            end
+        end
+    end
+    @inbounds for sp in 1:23
+        (sp <= 12 || sp == 14 || sp == 23) || continue    # NIVAR only
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
+        for k in i1:i2
+            i = ind1[k]
+            saved_dbh[i] >= 5.0f0 && continue             # DBH<5 (regent.f:1159)
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required
+            hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2)
+            pct = t.crown_ratio[i]
+            hk = hb
+            for j in 1:nper
+                bal = banext[j] * (100.0f0 - pct) * 0.0001f0
+                htgrl = rhcon[sp] + IE_RG_RHLH[sp]*log(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
+                        IE_RG_RHBAL[sp]*bal
+                hk += exp(htgrl)                          # regent.f:1174-1175 (NO scale in the calib pass)
+            end
+            edh = hk - hb                                 # regent.f NIVAR EDH = HK−H
+            term = hg * scale3
+            pr = t.tpa[i]
+            snx += edh * pr; sny += term * pr; snp += pr; nh += 1
+        end
+        nh < 5 && continue                                # NCALHT
+        snx /= snp; sny /= snp
+        cornew = snx > 0f0 ? sny / snx : 1f0
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end
+
 """IE REGCON (ie/regent.f:1479): per-species small-tree height constant RHCON."""
 function ie_regcons!(s::StandState)
     p = s.plot
