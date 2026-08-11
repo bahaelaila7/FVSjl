@@ -175,3 +175,16 @@ coeffs), a DIFFERENT coefficient set + species map than jl has. ⇒ chunk-8 = a 
 Substantial but SELF-CONTAINED + OUTPUT-ONLY (volume is a .sum reporting column; the growth port is complete and
 unaffected). All eqnums measured; sources = volume/NVEL/{fwinit.f, r6vol.f, dvest.f}. Validate TCuFt/MCuFt per-tree
 + .sum vs FVSnc_dbg (1990 1308/449). This is the last NC chunk; growth (ch1-7) tracks live end-to-end.
+
+## NC growth verdict (2026-08-11): cyc0 BIT-EXACT; multi-cycle ~2-5% = plausibly the cornered DGSCOR class
+Aggregate .sum nct01 control: cyc0 all 6 density cols BIT-EXACT; multi-cycle BA ~2% high, QMD ~1-2%, TopHt ~5% low,
+CCF ~12% low (CCF/TopHt downstream of the DG-distribution + height realization). The BA/QMD ~2% is the SAME
+magnitude as CI #142's accepted cornered DGSCOR/ZZRAN straddle (~2% over-kill) — so NC growth is plausibly
+bit-exact-or-cornered, NOT a gross bug. TO CONFIRM cornered-vs-small-bug (doctrine #1): per-tree deterministic DDS
+jl-vs-FVSnc_dbg on ONE cyc1 growth-pass tree matched by (species, exact DBH) — gate the dgf DEBUG dump on the
+growth pass (not calibration) to avoid the earlier mixed-pass alignment error; if the deterministic DDS matches,
+the residual is the DGSCOR realization (cornered). The TopHt-5%/CCF-12% may need a 2nd look (height POTHTG or the
+site-index HTCALC-conversion approximation — I hardcoded the DF=90-default SI() rather than porting the full
+sitset.f DO-30 HTCALC conversion; exact for nct01, approximate if a SITECODE sets a non-default site species/index).
+⇒ NC growth port: cyc0 bit-exact + multi-cycle tracks live in the cornered range. Remaining to fully close:
+(1) per-tree DDS confirm-cornered, (2) full sitset HTCALC site-conversion (for SITECODE stands), (3) chunk-8 volume.
