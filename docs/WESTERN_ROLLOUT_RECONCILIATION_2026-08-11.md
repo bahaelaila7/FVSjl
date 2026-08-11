@@ -54,7 +54,9 @@ larger per-stand magnitude (±7-18%) is the DGSCOR RNG realization amplified by 
 straddling ~0. ⇒ EM is genuinely bit-exact-or-cornered; the "cornered" verdict is CORRECT — now confirmed by the
 sign-tally + deterministic-DG measurement, not the aggregate-BA reasoning that had masked BM #140. EM #137
 (dense-cohort self-thin) was already fixed (c7c7d2f + 04b15e6/7ce8f1f tem 35000-cap) per memory; goal doc stale.
-- **#143 IE AUTOES** — FIXED+VALIDATED (d089b78) per memory; goal doc stale.
+- **#143 IE AUTOES** — ⚠ NOT fully fixed: d089b78 fixed SINGLE-ingrowth stands but MULTI-ingrowth-cycle compounding
+  still over-establishes up to +108% — CONFIRMED REAL+SYSTEMATIC this session (see the dedicated IE #143 section
+  below). This corrects both the goal doc AND the earlier "fixed" note here.
 - **#142 CI tail / EM-IE growth tail** — CORNERED (DGSCOR/RDPSRT RNG straddles), meets the bar.
 - **#137 EM estab / EM AUTOES over-establishment** — RESOLVED. The AUTOES "+63-86% TPA over-establishment" flagged
   as "likely systematic EM/IE" was fixed by d089b78 (ingrowth NSTORE) — CONFIRMED this covers EM: simulate.jl:578
