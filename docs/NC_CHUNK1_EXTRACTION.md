@@ -66,8 +66,26 @@ BRATIO=b+a/D ; type3 DIB=a·D^b ⇒ BRATIO=a·D^(b−1) [POWER]. Shared bark_rat
 ⇒ sp1-11 encode into c.bark_a/c.bark_b (bark_imap=linear); sp12 RW needs a POWER special-function branch at EVERY
 shared bark site (bark dispatch + backdating), else DG bias on redwood (the BM#140 lesson). Verify vs FVSnc_clean.
 
+## Small-tree regent (regent.f:94-97) — MEASURED
+- st_diam (DIAM): 0.3, 0.4, 0.3, 0.3, 0.2, 0.2, 0.2, 0.2, 0.3, 0.5, 0.2, 0.3
+- st_xmax (XMAX): 5,5,5,5,5,5,5,5,5,5,5, 10  (sp12 RW = 10; blend cap)
+- st_xmin (XMIN): 12*2.0
+- DGMIN: 3,3,3,3,3,3,3,3,3,3,3, 7  (sp12 RW = 7 — NC uses DGMIN, note name vs CI's st_dgmax; verify role in regent.f)
+- REGYR = 5.0 (small-tree growth period; SCALE=FNT/REGYR, SCALE2=YR/FNT). Small-tree HTG model = blended, NOT simple
+  per-sp DATA — port the regent.f logic (chunk 6). ht-inc model based on 5-yr growth data.
+
+## Large-tree height (htgf.f:58-68) — MEASURED. Hardwoods (sp5/7/8/11) use HD1-4 curve; CONIFERS 0.0 ⇒ site-index path
+- HD1: 0,0,0,0, 4.4666, 0, 4.80758, 4.9684, 0,0, 4.9684, 0
+- HD2: 0,0,0,0, -0.00179, 0, -0.00224, -0.004057, 0,0, -0.004057, 0
+- HD3: 0,0,0,0, 0.002048, 0, -0.000513, 0.000924, 0,0, 0.000924, 0
+- HD4: 0,0,0,0, -7.9428, 0, -7.729644, -10.45158, 0,0, -10.45158, 0
+⇒ NC htgf chunk-4 = shared conifer site-index potential-height (sp1-4,6,9,10,12) + variant hardwood HD1-4 curve
+(sp5 MA, sp7 BO, sp8 TO, sp11 OH). Structured port, not coefficient-only.
+NOTE: these HD1-4 are height-GROWTH coeffs; the species_coefficients.csv ht1/ht2/htdbh_* (height-DIAMETER curve) are
+SEPARATE — still to read from htdbh.f / the HT-DBH DATA.
+
 ## STILL TO MEASURE (chunk-1 completion)
-- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); small-tree st_* (regent.f DATA); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
+- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); ht1/ht2/wykoff_ht2 + htdbh_* (htdbh.f HT-DBH DATA); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
   (sdical.f: BAMAX=XMAX·0.5454154·PMSDIU ⇐ per-sp XMAX SDI); volume stump/top_dib/dbh_min/scf_*/bf_* (grinit.f/
   vollib); htdbh_* (htdbh.f); varmrt_varadj; is_sprouting; dg_resid_sd (SIGMAR).
 - species_translation.csv: full FIA-species→NC-12 crosswalk (dgf.f OSPMAP / the FIA map, NOT just the 12).
