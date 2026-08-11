@@ -211,3 +211,25 @@ DGCON(2,6,9) = DGLAT2(5,sp) + DGEL2·ELEV + DGSLP2·SLOPE + DGSLQ2·SLOPE² + DG
 ⇒ ALL chunk-3 DGCONS + DDS coefficients now MEASURED. Next = WRITE src/variants/klamath/diameter_growth.jl:
 nc_dgcons!(s) [DGCON/DGDSQ per sp, 3 branches] + dgf!(s) [3-branch DDS → WK2] + nc_bratio(a,b,eqtype,d), integrate
 with the shared DDS→DG + serial-corr engine (study CI diameter_growth.jl), validate DDS per-tree vs FVSnc_clean.
+
+## ═══ CHUNK-4 HEIGHT (nc/htgf.f + findag.f + htcalc.f) — MEASURED 2026-08-11 ═══
+Model = htgf driver → FINDAG (age solve) → HTCALC (site-height curve). SCALE=FINT/YR, XHT=XHMULT (MULTS kw, def 1).
+**HTCALC(SINDX,ISPC,AG)→HGUESS** (site height at age AG); 6 species-group branches:
+- CASE(1,3,12) OS/DF/RW: Z=2500/(SI−4.5); A=−0.954038+0.109757·Z; B=0.055818+0.0079224·Z; C=−0.0007338+0.0001977·Z;
+  HGUESS = AG²/(A+B·AG+C·AG²) + 4.5.
+- CASE(4,6,9) WF/IC/RF: X1=38.0202·AG^(−1.05213)·EXP(0.009557·AG); X2=101.842894·(1−EXP(−0.001442·AG^1.679259));
+  HGUESS = (SI−69.91+X1·X2)/X1 + 4.5.
+- CASE(5) MA: HGUESS = SI/(0.375 + 31.233/AG).
+- CASE(7) BO: A=√AG−√50; HGUESS = (SI·(1+0.322·A) − 6.413·A)·0.80.
+- CASE(8,11) TO/OH: HGUESS = SI/(0.204 + 39.787/AG)·0.85.
+- CASE(2,10) SP/PP: HGUESS = (1.88·SI − 7.178)·(1−EXP(−0.025·AG))^(0.001·SI+1.64).
+**FINDAG(H)→SITAGE,SITHT** (findag.f): AGMAX=200, HTMAX=300; if H≥300 SITAGE=200+(H−300)/0.10,SITHT=H. Else AG=2
+step +2: HGUESS=HTCALC(AG); if HGUESS≥1 and (|HGUESS−H|≤TOLER=2 or H<HGUESS)→SITAGE=AG,SITHT=HGUESS; else if the
+curve flattens (INCRNG: OLDHG≠0 & ΔHGUESS≥0.05 then <0.05)→lock SITAGE=AG; AG>AGMAX→SITAGE=AGMAX,SITHT=H.
+**htgf DRIVER**: redwood(12) = special LTHTG(D,SINDX,DG10=DG/bark,H)·0.5·HGBND (see audit). DEFAULT = FINDAG(H)→
+SITAGE; if H≥HTMAX→HTG=0.1; if SITAGE≥AGMAX→POTHTG=0.10; else AGP05=SITAGE+5, HGUESS2=HTCALC(SITAGE+FINT?),
+POTHTG=HGUESS_next − SITHT (the site-curve height rise over the period); HTG=SCALE·XHT·POTHTG·EXP(HTCON). (Read
+htgf.f:240-290 for the exact POTHTG age step — FINT vs 5 — before coding.) NOTE: HD1-4 appear UNUSED by HTCALC/
+FINDAG (the height curves are the CASE formulas above, not HD1-4) — verify HD1-4 aren't used elsewhere in htgf.
+⇒ chunk-4 port: nc_htcalc(si,sp,ag) + nc_findag(h,sp,si) + height_growth!(::Klamath) [redwood LTHTG + default
+FINDAG/POTHTG]. All formulas measured; validate HTG per-tree / aggregate vs FVSnc_clean.
