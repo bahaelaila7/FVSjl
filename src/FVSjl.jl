@@ -203,6 +203,7 @@ include("variants/klamath/species.jl")               # NC species block-data ini
 include("variants/klamath/site_index.jl")            # NC site index + SDImax (nc/sitcind.f + ecocls.f) — chunk 2
 include("variants/klamath/diameter_growth.jl")       # NC large-tree DDS (nc/dgf.f): nc_bratio + nc_dgcons! + dgf! — chunk 3
 include("variants/klamath/height_growth.jl")         # NC height growth (nc/htgf.f+findag.f+htcalc.f) — chunk 4
+include("variants/klamath/regent.jl")                # NC small-tree growth (nc/regent.f+htgr5.f+htdbh.f) — chunk 6
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
