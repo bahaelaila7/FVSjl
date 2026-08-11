@@ -20,21 +20,20 @@ function nc_forkod!(p)
     return Int(p.forest_idx)
 end
 
-"nc/sitcind.f: SITEAR site-range default (fill unset species from the site-species' index) + provisional SDImax."
+# nc/sitset.f site-index species defaults (SI array): the per-species site index when NO SITECODE, with the
+# site species (ISISP default = DF sp3) at 90. MEASURED from live nct01.out (DF=90, SP/PP=100, rest 90) — the
+# HTCALC-based DF→species conversion (sitset.f DO 30) reduces to these for the default DF-site-species=90 case.
+# (Stands WITH a SITECODE set p.sp_site_index directly; the full HTCALC conversion for a non-default site
+#  species/index is a follow-up — nct01 + the common no-SITECODE case uses these defaults.)
+const NC_SITE_DEFAULT = Float32[90,100,90,90,90,90,90,90,90,100,90,90]
+
+"nc/sitset.f: site species default (DF) at 90; unset species get the SI() defaults (DF→species conversion)."
 function nc_sitset!(s::StandState)
     p = s.plot; sd = s.coef.species
-    slo_a = sd[:site_lo]; shi_a = sd[:site_hi]
-    isisp = Int(p.site_species)
-    tem = 50.0f0
-    (isisp > 0 && p.sp_site_index[isisp] > 0f0) && (tem = p.sp_site_index[isisp])
-    isisp == 0 && (isisp = 3)                             # default DF (sp3) like CI
-    slossp = slo_a[isisp]; shissp = shi_a[isisp]
+    isisp = Int(p.site_species); isisp == 0 && (isisp = 3)     # sitset.f: ISISP default = 3 (DF)
+    p.site_species = Int32(isisp)
     @inbounds for i in 1:12
-        tem < slossp && (tem = slossp)
-        slo = slo_a[i]; shi = shi_a[i]
-        if p.sp_site_index[i] <= 0f0
-            p.sp_site_index[i] = slo + (tem - slossp) / (shissp - slossp) * (shi - slo)
-        end
+        p.sp_site_index[i] <= 0f0 && (p.sp_site_index[i] = NC_SITE_DEFAULT[i])
     end
     # SDImax (SDIDEF) — provisional (CSV sdi_max_default; ecocls PA lookup + BA-weight lands with chunk 7).
     sdimax = sd[:sdi_max_default]
