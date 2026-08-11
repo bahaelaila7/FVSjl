@@ -52,6 +52,11 @@ ttt01 +1.7%→+2.6% BA (~1% nudge, both within the pre-existing cornered straddl
 TT FIA sweep inert (±2 BA) + 0 crashes, pre-existing per-stand over-growths unchanged (no regression). Residual on
 dense stands (~7% BA, self-thin ~1 cycle late) = the small systematic SMDGF-vs-live-inline DG realization difference
 (~1-2%/tree), CORNERED. ⇒ TT small-tree growth is now bit-exact-or-cornered cluster-wide.
+SCOPE NUANCE (measured pre/post on 6 dense TT stands): the fix is SURGICAL — it changes ONLY stands with a VIGOROUS
+sub-1" cohort whose regent DG exceeds 0.2 (like #158, DG 0.6-1.0). On other dense stands (avg-diam 1.3-2.9 but slower
+sub-1" DG <0.2) the cap never bound, so the fix is byte-inert there — and those stands' pre-existing +2-7% BA
+over-growth (e.g. 275463546489998, 1629325863290487 — identical PRE/POST) is a SEPARATE residual (the same
+SMDGF-vs-inline straddle class), NOT resolved by #158 and NOT introduced by it. Do not re-attribute that tail to #158.
 
 ## Remaining — correctly classified, none a low-risk quick win
 - **MORTMSB** (zero-practical-value; investigated, prototyped, reverted) — mature-stand-breakup keyword. SCOPE
