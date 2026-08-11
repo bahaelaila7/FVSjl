@@ -464,7 +464,18 @@ CORNERED (all_BC_essf density spine bit-exact-or-cornered). ⇒ BC V2/non-ICH is
 fortype 999) — cosmetic, not a simulation gap. ⇒ ALL 9 western variants (CR/KT/IE/EM/BM/TT/UT/CI + BC V2&V3)
 are bit-exact-or-cornered on the simulation; the cemented western mission is comprehensively complete.
 
-### Operational note (2026-08-11): full-corpus multi-cycle sweeps are jl-runtime-bound on dense-AUTOES stands
+### CORRECTED (2026-08-11): full-corpus sweep slowness is UNINDEXED DB QUERIES, not jl runtime — FIXED by an index
+★ PROFILED jl on dense stand 39518122010690 (Profile flat): ~52,486 of ~53,000 non-idle samples are in
+sqlite3_step / _fia_rows / load_fia_stand! (the DB read) — for a 3-RECORD stand, 55s is spent SCANNING the 70GB
+FVS_TREEINIT_COND per stand because there was NO index on STAND_CN. The simulation is negligible. This affects
+EVERY stand (jl AND live both full-scan), not just dense ones — the "dense stands hang" read was WRONG.
+FIX = CREATE INDEX on STAND_CN for FVS_TREEINIT_COND + FVS_STANDINIT_COND (one-time; ~50× faster per-stand load).
+⇒ full-corpus multi-cycle sweeps become fast. (Superseded note below kept for history.) ★ APPLIED + CONFIRMED: created idx_treeinit_cn/idx_standinit_cn (STAND_CN) on the 70GB DB — per-stand run
+39518122010690 (3-record) dropped from 55.16s → 0.003s (~18,000×). Full-corpus multi-cycle sweeps are now feasible.
+LESSON: PROFILE before optimizing — the assumed 'jl simulation slow on dense stands' was WRONG; measurement showed
+it was the unindexed DB query (affecting every stand). doctrine #2 (measure) applies to performance too.
+
+### (superseded) Operational note: full-corpus multi-cycle sweeps are jl-runtime-bound on dense-AUTOES stands
 The multicycle_check harness bounds the LIVE run (timeout $tmo) but leaves the jl run UNBOUNDED. jl is slower than
 live per-tree on large tree lists, so dense-AUTOES stands (2-tree→1000+-TPA natural ingrowth × tripling × 5 cycles)
 make jl runs take many minutes — a 20-stand EM/BM/TT/UT sweep stalled on one such stand. This is a jl PERFORMANCE
