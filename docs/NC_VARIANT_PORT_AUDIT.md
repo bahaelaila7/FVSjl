@@ -435,3 +435,22 @@ NEXT (the ONE remaining NC-growth bug): instrument calibrate_diameter_growth!'s 
 WF — the measured-DG (WK1/`dg`) + backdated DIB (`wk3`) + reslog=log(dg·(2·bark·wk3+dg))−wk2 per WF tree vs
 live (an instrumented nc/dgdriv.f writing the per-tree residual, same DEBUG-DGF technique). DF works ⇒ it's a
 WF-species-specific measured-DG or backdated-state handling diff. All of DGCON+PSIGSQ+bark are FAITHFUL & KEPT.
+
+## ★★ ROOT CAUSE — calibration SCALE=0.5 (measured-DG 10yr → model 5yr) FIXED (2026-08-11)
+
+Instrumented live DGDRIV (DEBUG + `DGDRIV` supplemental record → fort.16, dgdriv.f:449 prints per-tree
+OBS.DG/TERM/RESLOG + the SNX/SNY sums). Found: DF has FN=4 measured-DG trees (<FNMIN=5 ⇒ NOT calibrated,
+cor=0 — matches jl) but WF has FN=5 (calibrated, cor=−0.5454). jl's WF FN=5 too, BUT jl's calibration TERM
+was EXACTLY 2× live's for every WF tree (jl 17.462 vs live 8.731, etc.) ⇒ RESLOG wrong sign ⇒ SNY +6.0 vs
+live −53.5 ⇒ WF cor +0.04 vs −0.55.
+
+ROOT: NC's DG MODEL basis is 5-yr (blkdat DATA YR/5.0/) but the measured past-DG in nct01.tre is a 10-YEAR
+measurement (nct01.out:12879 "TALLY 2 AT 10 YEARS"). Live scales the measured DDS by SCALE=YR/FINT=5/10=0.5
+(dgdriv.f:419,328); jl used scale=1. FIX: NC calibrate scale = 0.5·dgscale (simulate.jl Klamath branch).
+Other western variants have YR=10 + 10-yr measurement ⇒ scale 1; NC is the unique YR=5-with-10yr-measurement.
+
+RESULT (nct01 control, all 4 NC-DG fixes DGCON+PSIGSQ+bark+scale): WF SNY −54.92 == live −53.51; .sum
+1990 BIT-EXACT, then 1995 BA 94/96, 2000 115/119, 2005 138/142, 2010 162/167 — all within ~2-3% (was 14%
+OVER before scale). Early cycles now bit-exact-or-cornered. Later cycles (2015+) drift to ~+5-9% BA / −SDI
+(mixed-sign compounding, the accepted DGSCOR/tie-break tail like EM/CI) — residual, not the dominant bug.
+The DEBUG-DGDRIV technique + the 4 fixes together resolve the NC large-tree DG. NC growth now tracks live.
