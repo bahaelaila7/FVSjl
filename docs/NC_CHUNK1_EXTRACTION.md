@@ -157,3 +157,42 @@ htdbh, ecocls SDImax, sp12 redwood (POWER bark + special mort). This is a multi-
 Finish reading the above arrays → assemble data/klamath/species_coefficients.csv + species_translation.csv →
 wire src/variants/klamath/species.jl + site_index.jl → validate SITE INDEX on nct01 vs FVSnc_clean (chunk-2 gate).
 Then NC-specific dg_coefficients.jl + diameter_growth.jl (port the ISCT-section/DGHAH/2-set dgf logic) → chunk-3.
+
+## ═══ CHUNK-3 DG (nc/dgf.f) — DDS spec + coefficient arrays (MEASURED 2026-08-11) ═══
+NC dgf: DGCONS entry loads site/forest-specific DGCON+DGDSQ per species; dgf loops species×trees computing
+LN(DDS) into WK2. 5-yr rate: after DDS, TDDS=EXP(DDS); DDS=LOG(TDDS/2.0) (the /2 gives the 5-yr increment).
+Clamp DDS≥-9.21 (default) / ≥-8.52 (sp2,6,9). Per-tree vars: ALD=ln(D); CRID=(ICR²/ln(D+1))/1000, =1.8 if D<2;
+CR=ICR·0.01; BAL=(1-PCT/100)·BA; HOAVH=min(HT/AVH,1.5); PBA=PTBAA(pt); PBAL=PBA·(1-PCT/100) (→BAL if ≤0);
+ALPBA=ln(PBA); PRD=ZRD(pt)/XMAXPT(pt) (point Zeide RD); PCCF(pt).
+
+DGCONS setup (per species, IFOR=forest 1-7; nct01 forest 505=IFOR 1):
+- CONSPP(default) = DGCON + COR + DGCCFA·ALRD + DGBA·ALBA ; CONSPP(sp12) = DGCON only.
+- DGCON(default) = DGFOR(MAPLOC(IFOR,sp), sp) ; DGDSQ(default) = DGDS(MAPDSQ(IFOR,sp), sp).
+- DGCON(12 RW) = -3.502444 + 0.415435·ln(SITEAR); DGCON(2,6,9) = DGLAT2(5,sp)+DGEL2·ELEV+DGSLP2·SLOPE+
+  DGSLQ2·SLOPE²+DGSITE·SITEAR (ILAT=5).
+
+DDS branches:
+- DEFAULT (sp1,3,4,5,7,8,10,11): DDS = CONSPP + DGLD·ALD + CR·(DGCR+CR·DGCRSQ) + DGDSQ·D² + DGDBAL·BAL/ln(D+1)
+  + DGPCCF·PCCF + DGHAH·HOAVH ; sp4(WF): DDS -= 0.15032.
+- sp2,6,9 (SP/IC/RF): DDS = CONSPP + DGLD2·ALD + DGDSQ2·D²/1000 + DGCR2·CRID + DGDBA2·PBAL/ln(D+1)/100 + DGBA2·ALPBA.
+- sp12 (RW): DGLT=EXP(CONSPP +0.185911·ln(D) -0.000073·D² -0.001796·PBAL -0.42078·PRD +0.589318·ln(CR·100)
+  -0.000926·SLOPE·100 -0.002203·(SLOPE·100)·cos(ASPECT)); BRAT=nc_bratio(12,D); DDS=LN((D+DGLT)²·BRAT² - (D·BRAT)²)
+  + COR + LN(COR2). (redwood uses the POWER bark BRATIO directly + a DIB-squared-diff DDS, then /2 for 5-yr.)
+
+Forest-dependent DGCONS arrays (dgf.f):
+- DGCCFA(12): -0.06784, 0,0,0,0,0,0,0,0,0,0,0  (only sp1).
+- MAPLOC(7 forest,12 sp) col-major (sp-major rows), each row = sp's loc-class per forest 1-7:
+  sp1 [1,1,1,2,3,3,2]; sp4 [1,1,1,2,3,3,2]; sp5 [1,1,1,1,1,1,1]... (sp2,3,6-12 all [1,1,1,1,1,1,1] except sp1/sp4).
+  Actually rows: sp1=1,1,1,2,3,3,2 / sp2=1×7 / sp3=1,1,1,2,3,3,2 / sp4=1,1,1,2,3,3,2 / sp5-12=1×7.
+- MAPDSQ(7,12): sp1=1,1,1,1,2,2,1 / sp4=1,1,1,1,2,2,1 / all others=1×7.
+- DGFOR(6 locclass,12 sp): sp1[-2.00201,-2.19449,-1.84083,0,0,0] sp2[0×6] sp3[-2.54402,-2.41928,-2.75656,0,0,0]
+  sp4[-1.88042,-2.06853,-1.69815,0,0,0] sp5[-1.69950,0,0,0,0,0] sp6[0×6] sp7[-2.68349,0×5] sp8[-0.94563,0×5]
+  sp9[0×6] sp10[-4.6744,0×5] sp11[-0.94563,0×5] sp12[0×6].
+- DGDS(4 idx,12 sp): sp1[-0.000328,-0.000248,0,0] sp2[0,0,0,0] sp3[-0.000313,0,0,0] sp4[-0.000356,-0.000268,0,0]
+  sp5[-0.000875,0,0,0] sp6[0,0,0,0] sp7[-0.000338,0,0,0] sp8[-0.000373,0,0,0] sp9[0,0,0,0] sp10[-0.000728,0,0,0]
+  sp11[-0.000373,0,0,0] sp12[0,0,0,0].
+- STILL TO READ: DGLAT2(5,12)@182, DGSLP2@201, DGEL2@207, DGSITE@210, DGSLQ2, COR2 (sp2/6/9 + redwood), DGDSQ2/
+  DGCR2/DGDBA2/DGBA2 (have from set-2), DGLD2 (have). + ELEV/SLOPE/ASPECT from stand; ICR/ITRE/PTBAA/ZRD/XMAXPT/
+  PCCF stand-density arrays (shared engine — verify jl provides point-BA PTBAA + point-Zeide ZRD/XMAXPT).
+NC dgf! port: nc_dgcons!(s) (DGCON/DGDSQ per sp) + dgf!(s) (3-branch DDS) + nc_bratio for the bark. Validate DDS
+per-tree vs a live FVSnc_clean dgf DEBUG dump on nct01 (add WRITE at WK2(I)=DDS).
