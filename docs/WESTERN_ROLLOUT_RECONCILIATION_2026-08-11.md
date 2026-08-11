@@ -152,3 +152,16 @@ to the FVS habitat code (CDS715→260) instead of falling back to PV_REF_CODE. L
 tally. VALIDATION PLAN: after the port, ie_estab_indices(260)→ihab=3→IEQ=1 (DF, ba-independent) ⇒ jl PN=−1.5085
 (identical formula) ⇒ PROB1 matches live ⇒ AUTOES tally collapses to live's; re-run the 12-stand IE sign-tally
 (expect it to balance like EM's) + confirm iet01 (numeric-code path) byte-unchanged.
+
+## IE #143 — ★★★ FIXED 2026-08-11 (9cc7d7a): ported ie/habtyp.f string habitat crosswalk
+The habitat-string-crosswalk root cause (above) is RESOLVED. Added `ie_pa_habitat_code` (PCOML[40]/MAPR6[40]/
+KTYPE[95]/MTYPE[30]; final=MTYPE[KTYPE[MAPR6[i]]], JTYPE strictly ascending) and wired it into the FIA reader for IE
+string PV_CODEs. All 40 PCOML→code mappings validated BIT-IDENTICAL vs a live FVSie_g16 habtyp dump. Results:
+- Worst stand 1143092701290487: 2071 TPA +107.9% → +4.1%.
+- 12-stand IE FIA sign-tally: 9H/2L/1BE (systematic, up to +108%) → 6H/4L/2BE (STRADDLES, mostly ±4%), 0 crashes.
+  The systematic over-establishment bias is eliminated; the residual is the cornered growth/AUTOES RNG straddle
+  (same class as EM). ⇒ IE is now bit-exact-or-cornered like EM.
+- Gated to InlandEmpire + string PV_CODE ⇒ numeric-code IE stands, non-DB stands (iet01 unchanged), and all other
+  variants byte-identical by construction.
+FOLLOW-UP: EM/UT/TT share the numeric-only PV_CODE reader and have their OWN per-variant habtyp string tables — port
+each if their FIA stands carry alphanumeric plant-association codes (run a per-variant sign-tally to check).
