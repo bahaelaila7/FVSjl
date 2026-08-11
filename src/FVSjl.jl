@@ -205,6 +205,7 @@ include("variants/klamath/diameter_growth.jl")       # NC large-tree DDS (nc/dgf
 include("variants/klamath/height_growth.jl")         # NC height growth (nc/htgf.f+findag.f+htcalc.f) — chunk 4
 include("variants/klamath/regent.jl")                # NC small-tree growth (nc/regent.f+htgr5.f+htdbh.f) — chunk 6
 include("variants/klamath/mortality.jl")             # NC mortality (nc/morts.f — reuses EM/UT Zeide form) — chunk 7
+include("variants/klamath/crown.jl")                 # NC crown ratio (nc/crown.f — Weibull) — chunk 5
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
