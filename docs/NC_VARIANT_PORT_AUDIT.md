@@ -135,3 +135,13 @@ NC 500DVEW eqnums; (b) conifers = port the 500WO2W NVEL profile (West-side 2-poi
 FW2 family jl already has, or a distinct NVEL call). Replace the CI-r4vol placeholder (compute_volumes!(::Klamath)
 -> compute_volumes_ci!) with compute_volumes!(::Klamath) using these. Validate TCuFt/MCuFt vs live nct01.sum
 (1990 TCuFt 1308/MCuFt 449). All VEQNNC measured; DVEW reusable, WO2W is the new piece.
+
+## Chunk-8 volume — implementation scoping (2026-08-11):
+- DVEW hardwoods (MA361/BO818/TO631/OH981): jl r4d2h_vol (Chojnacky INT-339 D²H) exists (TT/UT/CI/CR) but is keyed
+  by species code — the NC R5 hardwood codes 361/818/631/981 are NOT in the existing table (those variants use
+  066/475/998/133/065 etc.). ⇒ add the 500DVEW coefficients for the 4 NC hardwoods to r4d2h (or a NC table).
+- WO2W conifers (OS/SP/DF/WF/IC/RF/PP/RW): "WO2W" is a DISTINCT NVEL eqtype vs jl's "FW2W" (Flewelling, cr_fw2_vol)
+  and "MATW" (Matney, r4vol). VERIFY whether 500WO2W maps to an existing jl profile or is a new NVEL taper to port
+  (check ForestVegetationSimulator/volume/NVEL for the WO2W equation). This is the substantial chunk-8 piece.
+⇒ compute_volumes!(::Klamath) = DVEW branch (r4d2h + NC hardwood coeffs) + WO2W branch (verify/port), validate
+TCuFt/MCuFt per-tree + .sum vs FVSnc_dbg (1990 1308/449). Replaces the CI-r4vol placeholder. All eqnums measured.
