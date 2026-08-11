@@ -198,6 +198,7 @@ include("variants/lakestates/site_index.jl")         # LS SITSET (68×68 SICOEF 
 include("variants/lakestates/diameter_growth.jl")    # LS DG: ls_dgf! ln(DDS) (== CS model, LS caps) + ls_dgcons!
 include("variants/lakestates/height_growth.jl")      # LS HTGF: NC-128 (MAPLS/IVAR=1) + ls_balmod competition
 include("variants/lakestates/small_tree_growth.jl")  # LS REGENT (d<5): NE/CS shape, XMIN=3, MAPLS + ls_balmod
+include("variants/klamath/klamath.jl")               # NC (Klamath Mtns) singleton + registration (MAXSP 12, Zeide) — chunk 0 scaffold
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
