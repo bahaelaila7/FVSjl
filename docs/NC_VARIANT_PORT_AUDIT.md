@@ -123,3 +123,15 @@ estimate) → p.sp_site_index[DF] → interpolate. Residual after 84 (jl 72 vs l
 and/or a small height-model residual — measure live's exact SITEAR (instrument FVSnc_dbg sitcind) to pin it.
 STATUS: NC growth port ~90% — cyc0 FULLY bit-exact; BA/SDI/QMD track live closely; TopHt gated on the site-index
 derivation (confirmed root); volume = placeholder (real NC VEQNNC R5/NVEL pending). Clear remaining scope.
+
+## Chunk-8 VOLUME — VEQNNC measured from live nct01.out (2026-08-11): NVEL 500WO2W conifers + 500DVEW hardwoods
+NC volume = National Volume Estimator Library, region/forest 500 (California). Per-species equation numbers:
+- OS 500WO2W108 · SP 500WO2W117 · DF 500WO2W202 · WF 500WO2W015 · IC 500WO2W081 · RF 500WO2W020 · PP 500WO2W122 ·
+  RW 500WO2W211  (conifers + IC → 500WO2W* profile — the R5 West-side 2-point taper).
+- MA 500DVEW361 · BO 500DVEW818 · TO 500DVEW631 · OH 500DVEW981  (hardwoods → 500DVEW* woodland D²H — the SAME
+  DVEW/r4d2h family CI/UT/TT already implement; reuse r4d2h_vol with the 500DVEW coefficients).
+⇒ chunk-8 port: (a) hardwoods = REUSE the shared DVEW/r4d2h (like CI's compute_volumes_ci! DVEW branch) with the
+NC 500DVEW eqnums; (b) conifers = port the 500WO2W NVEL profile (West-side 2-point — check if it's the Flewelling
+FW2 family jl already has, or a distinct NVEL call). Replace the CI-r4vol placeholder (compute_volumes!(::Klamath)
+-> compute_volumes_ci!) with compute_volumes!(::Klamath) using these. Validate TCuFt/MCuFt vs live nct01.sum
+(1990 TCuFt 1308/MCuFt 449). All VEQNNC measured; DVEW reusable, WO2W is the new piece.
