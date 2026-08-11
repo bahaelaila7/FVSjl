@@ -214,3 +214,20 @@ compounds it to the +43% under-kill. NEXT: dump jl per-tree (d, diam_growth, bar
 (D, DG, BRATIO, G) at cyc1 — likely a DG-period/bark subtlety in the mortality g (the mortality sum uses the shared
 bark_ratio; verify it equals live's BRATIO and that diam_growth is the FINT-period DG, not 5-yr). Distinct from the
 growth-DG which is bit-exact (the mortality g-reconstruction from diam_growth is the suspect, not the DG itself).
+
+## UT under-kill — TRUE ROOT FOUND 2026-08-11: species-specific DG (PI/MC), NOT the mortality
+The mortality investigation (line/IPASS/DR10) was chasing a SYMPTOM. Per-tree comparison of the mortality Reineke
+sum at cyc1 (jl vs FVSut_g16, identical trees) shows the mortality g-reconstruction (g = diam_growth/bark) is
+computed IDENTICALLY (bark matches per-tree) — the divergence is in the DIAMETER-GROWTH `diam_growth` INPUT for
+specific UT woodland species:
+- sp11 **PI (pinyon)**, d=3.9: jl dg=1.095 vs live 1.401 (−22%).
+- sp20 **MC (curl-leaf mountain-mahogany)**, d=10: jl dg=0.0019 vs live 0.0139 (~7× low).
+- sp16 **UJ (Utah juniper)** (d 12-17): dg MATCHES bit-close (0.481/0.481 etc.) — so NOT all woodland species,
+  just PI + MC (and likely other surrogate-equation species).
+UT's dgf.f notes "SPECIES USING SURROGATE EQUATIONS FROM THE CR VARIANT HAVE SPECIAL..." handling — PI/MC use CR
+surrogate DGF; jl's port of those surrogates is wrong (under-grows). The wrong DG ⇒ wrong Reineke DR10 (jl 2.961 vs
+live 2.918) ⇒ wrong self-thin target ⇒ the +43% under-kill (7:0 tally), amplified by QMD-feedback. ⇒ this is a
+LARGE-TREE DGF bug for UT PI(11)/MC(20), distinct from the #156 dense-PJ regent (which was proven bit-exact) — those
+were the small-tree PJ regent; these are the LARGE-tree (d>3") woodland DGF. NEXT: instrument jl's UT dgf!/DDS for
+PI(11) at d=3.9 vs FVSut_g16 dgf.f (DGCON/DGFOR/model-type/surrogate coeffs) — a bounded per-species coefficient
+trace. This REDIRECTS the UT fix from mortality to growth.
