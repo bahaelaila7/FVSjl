@@ -661,7 +661,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          occ::AbstractVector, over::AbstractVector, time::Real = 1f0,
                          is_ingro::Bool = true, nstore::AbstractVector = Int32[],
                          pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50,
-                         idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0))
+                         idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
+                         point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[])
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -702,7 +703,20 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         rng = IEEstabRNG(sd)
         for _ in 1:(n == 1 ? wk6fill : 0); ie_esrann!(rng); end
         ie_esrann!(rng); ie_esrann!(rng)                                     # EMSQR
-        itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, xc, xs, sl, Float32(regt), Float32(bwaf))), 1, cap)
+        # Per-INVENTORY-POINT slope/aspect for ESTPP (live SLO=PSLO(NNID), XCOS=cos(PASP)·PSLO). Plot n → point
+        # div(n-1,idup)+1. When per-point topo is supplied (FIA per-plot SLOPE/ASPECT) each plot's ESTPP uses ITS
+        # point's slope; else fall back to the uniform (stand/TREEDATA) xc/xs/sl. FIXES #143 (jl formerly used the
+        # stand slope for all plots ⇒ over-suppressed ESTPP on sloped stands). Does NOT draw ⇒ RNG order unchanged.
+        local _sln::Float32, _xcn::Float32, _xsn::Float32
+        _ptn = idup > 0 ? div(n - 1, Int(idup)) + 1 : 1
+        if !isempty(point_slope) && _ptn <= length(point_slope)
+            _sln = point_slope[_ptn]                                         # tree-bearing point: its PSLO
+            _aspn = _ptn <= length(point_aspect) ? point_aspect[_ptn] : 0f0
+            _xcn = cos(_aspn) * _sln; _xsn = sin(_aspn) * _sln
+        else
+            _sln = sl; _xcn = xc; _xsn = xs                                  # empty point (no tree) → stand slope
+        end
+        itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, _xcn, _xsn, _sln, Float32(regt), Float32(bwaf))), 1, cap)
         ns = has_state ? Int(nstore[n]) : 0
         pn = has_state ? pnn[n] : 0f0
         newtpp = max(0, itpp - ns)
@@ -1069,7 +1083,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        esb_shift::Real = 0f0, is_ingro::Bool = true,
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
-                       idup::Integer = 0, nsp::Integer = 23)
+                       idup::Integer = 0, nsp::Integer = 23,
+                       point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[])
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1113,7 +1128,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
-                            nsp = nsp, idup = Int(idup), tally_pt = tally_pt)
+                            nsp = nsp, idup = Int(idup), tally_pt = tally_pt,
+                            point_slope = point_slope, point_aspect = point_aspect)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
@@ -1235,7 +1251,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
-                      point_small_tpa = point_small, idup = idup)
+                      point_small_tpa = point_small, idup = idup,
+                      # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
+                      # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
+                      point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
+                      point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]))
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")

@@ -453,6 +453,12 @@ mutable struct PlotData
     # FFEParams.stfuel_hard/soft from these (the reader's equivalent of dbsstandin.f injecting a FUELINIT keyword).
     ffe_fuel_hard::Vector{Float32}
     ffe_fuel_soft::Vector{Float32}
+    # Per-inventory-point topography (PSLO/PASP, esplt2.f), indexed by point id (1..MAXPLT). Loaded once from the
+    # FVS_TREEINIT per-tree SLOPE/ASPECT columns (each tree carries its plot's topo). Used by AUTOES establishment
+    # (ESTPP/species-probs read per-point SLO/XCOS/XSIN, estab.f:476); 0 when the DB slope is missing (#143). Empty
+    # ⇒ fall back to the stand slope/aspect (TREEDATA / no per-plot topo).
+    point_slope::Vector{Float32}    # per-point slope fraction 0..1        (PSLO)
+    point_aspect::Vector{Float32}   # per-point aspect radians             (PASP)
 end
 
 function PlotData()
@@ -469,6 +475,7 @@ function PlotData()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSTR,6),
         Float32[], Float32[],
+        Float32[], Float32[],           # point_slope, point_aspect (FIA reader fills when per-plot topo present)
     )
 end
 

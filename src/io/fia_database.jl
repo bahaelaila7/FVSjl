@@ -345,7 +345,32 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
         )
         push!(recs, rec)
     end
-    return ingest_tree_records!(s, recs)
+    # Per-plot topography (PSLO/PASP, esplt2.f): each FVS_TREEINIT row carries its plot's SLOPE(%)/ASPECT(deg).
+    # Keyed by the RAW DB PLOT_ID here; ingest_tree_records! REMAPS plot numbers to a 1..NPTS internal index
+    # (first-appearance order) and records the raw→internal map in p.point_ids. So collect raw per-plot topo now,
+    # then reindex to the internal point order AFTER ingest. A missing/NULL SLOPE ⇒ 0 (matches live's PSLO default)
+    # — the #143 slope-dependent under-establishment root (jl formerly used the uniform stand slope for all points).
+    raw_slo = Dict{Int,Float32}(); raw_asp = Dict{Int,Float32}()
+    for d in rows
+        pid = _fia_int(d, "PLOT_ID", 1)
+        haskey(raw_slo, pid) && continue
+        raw_slo[pid] = _fia_present(d, "SLOPE")  ? _fia_f32(d, "SLOPE", 0f0) * 0.01f0     : 0f0
+        raw_asp[pid] = _fia_present(d, "ASPECT") ? _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0 : 0f0
+    end
+    res = ingest_tree_records!(s, recs)
+    p = s.plot
+    npt = s.trees.n > 0 ? maximum(Int(p) for p in @view s.trees.plot_id[1:s.trees.n]) : 0
+    # Always populate for DATABASE input (this reader is DATABASE-only; TREEDATA uses a different path so iet01 etc.
+    # keep the empty→stand-slope fallback). A NULL DB slope ⇒ 0, which is the CORRECT establishment slope live uses.
+    if npt >= 1
+        ps = zeros(Float32, npt); pa = zeros(Float32, npt)
+        @inbounds for k in 1:npt
+            rawp = k <= length(p.point_ids) ? Int(p.point_ids[k]) : k    # internal k → raw plot number (IPVEC)
+            ps[k] = get(raw_slo, rawp, 0f0); pa[k] = get(raw_asp, rawp, 0f0)
+        end
+        p.point_slope = ps; p.point_aspect = pa
+    end
+    return res
 end
 
 """
