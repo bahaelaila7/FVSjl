@@ -103,8 +103,20 @@ the full SISKIY + per-forest coefficient arrays.
 ## SDImax (sdical.f) — computed, not DATA: BAMAX=XMAX·0.5454154·PMSDIU (sdical.f:204); SDIDEF default 0 (grinit:72).
 Per-species SDImax source (SDIDEF fill / habitat table) still to locate — likely forest/habitat-driven like CI's R4SDI.
 
-## STILL TO MEASURE (chunk-1 completion)
-- dbh_max (not `DBHMAX`/`DIAMAX` — find NC's diam-cap name); the forest-specific htdbh coeff arrays (htdbh.f); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
+## dg_resid_sd (SIGMAR, blkdat.f:180-184) — MEASURED (active DATA, not the commented-out higher set):
+0.3300, 0.2713, 0.3300, 0.3300, 0.3306, 0.3513, 0.3541, 0.3558, 0.3136, 0.1954, 0.3558, 0.6178  (sp12 RW=0.6178)
+(NC DGSD=2.0 from grinit; dg_stddev_bound must also be set 2.0 — the BM/CI DGSD field-disconnect lesson.)
+
+## Volume (grinit.f:85-94) — vollib-driven, NOT simple DATA: TOPD/DBHMIN/BFTOPD/SCFTOPD init 0, filled by the
+volume library defaults (VOLKEY/vollib per species+forest, like CI's r4vol/VEQNNC). Chunk-8 = wire NC's VEQNNC/
+vollib defaults (read from a live nct01.out VOLUME echo, as CI did). Not a species_coefficients.csv DATA read.
+
+## SDImax — habitat/forest-driven (not a flat per-sp DATA): grinit SDIDEF=0 default; sdical BAMAX=XMAX·0.5454154·
+PMSDIU. Per-species/stand SDImax set in rcon.f/sdical from the habitat or a forest SDI table — locate + port (chunk 2).
+
+## STILL TO MEASURE (chunk-1 completion) — remaining are STRUCTURAL (not flat DATA), deeper reads:
+- dbh_max (find NC's diam-cap name); is_sprouting (which sp sprout — hardwoods BO/TO/OH + RW redwood); varmrt_varadj
+  (varmrt.f); the forest-specific htdbh coeff arrays (htdbh.f SISKIY + per-forest); ht1/ht2/wykoff_ht2 (htgf.f); mort_bkgd (morts.f); sdi_max_default
   (sdical.f: BAMAX=XMAX·0.5454154·PMSDIU ⇐ per-sp XMAX SDI); volume stump/top_dib/dbh_min/scf_*/bf_* (grinit.f/
   vollib); htdbh_* (htdbh.f); varmrt_varadj; is_sprouting; dg_resid_sd (SIGMAR).
 - species_translation.csv: full FIA-species→NC-12 crosswalk (dgf.f OSPMAP / the FIA map, NOT just the 12).
