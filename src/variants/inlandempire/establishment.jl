@@ -984,6 +984,39 @@ const _IE_ESTAB_MYHABG = Int[1,1,1,1,2,2,2,2,3,4,5,5,5,5,5,5]           # estab.
 const _IE_ESTAB_IFORCD = Int[103,104,105,106,621,110,113,114,116,117,118,109,111,112,412,402,108,102,115,0]
 const _IE_ESTAB_IFORST = Int[3,4,5,4,7,10,4,14,16,17,4,9,11,12,19,20,11,9,12,4]
 
+# ie/habtyp.f plant-association string crosswalk (Colville R6). A 6-char alphanumeric PV_CODE (e.g. "CDS715") is
+# matched in PCOML → index i → the NI habitat code = MTYPE[KTYPE[MAPR6[i]]]. (habtyp.f maps NITYPE=MAPR6[i] to
+# KODTYP=JTYPE[NITYPE], then the general lookup `first K: KODTYP<JTYPE[K]` gives ITYPE=KTYPE[K-1]=KTYPE[NITYPE]
+# since JTYPE (blkdat.f) is strictly ascending; final KODTYP=MTYPE[ITYPE].) ★#143: jl's FIA reader parsed the
+# STRING PV_CODE as a number (→0) and fell back to the numeric PV_REF_CODE, selecting the WRONG ESTOCK habitat
+# series (ihab=13/subalpine vs live's 3/DF) ⇒ AUTOES over-established up to +108%. This resolves it (CDS715→260).
+const _IE_HABTYP_PCOML = ("CCF221","CCF222","CCS311","CDG131","CDG311","CDS632","CDS633","CDS637","CDS715","CDS716",
+    "CDS813","CDS814","CEF111","CEF211","CEF421","CEF422","CEF423","CEG311","CEM211","CES210","CES211","CES312",
+    "CES313","CES412","CES422","CHF311","CHF312","CHF422","CHF521","CHS711","CLS521","CWF411","CWS214","CWS421",
+    "CWS422","CWS821","CCS211","CHS411","CAG112","CDG123")
+const _IE_HABTYP_MAPR6 = Int32[45,45,45,19,4,25,18,18,15,17,14,16,68,63,58,60,58,75,27,64,64,72,72,73,61,52,52,
+    51,52,54,88,43,43,39,43,55,48,51,84,22]
+const _IE_HABTYP_KTYPE = Int32[1,1,1,1,1,2,2,2,2,4,1,1,1,3,4,5,6,7,8,9,8,8,9,7,3,10,10,10,4,11,20,29,11,11,13,14,
+    17,12,12,12,12,13,13,13,14,15,14,16,14,16,17,17,17,24,12,24,18,19,21,19,20,20,21,22,19,23,19,24,27,25,25,26,
+    27,22,24,27,24,27,28,28,29,28,28,29,29,29,29,27,9,20,24,21,27,24,30]
+const _IE_HABTYP_MTYPE = Int32[130,170,250,260,280,290,310,320,330,420,470,510,520,530,540,550,570,610,620,640,
+    660,670,680,690,710,720,730,830,850,999]
+
+# ie_pa_habitat_code(code) → NI habitat code (KODTYP), or 0 if `code` isn't a recognized 6-char plant-association
+# PV_CODE. Maps e.g. "CDS715"→260 via ie/habtyp.f's PCOML→MAPR6→KTYPE→MTYPE crosswalk. Caller keeps its numeric
+# fallback on 0.
+function ie_pa_habitat_code(code::AbstractString)::Int
+    s = strip(uppercase(code))
+    length(s) == 6 || return 0
+    idx = findfirst(==(s), _IE_HABTYP_PCOML)
+    idx === nothing && return 0
+    nitype = Int(_IE_HABTYP_MAPR6[idx])                 # NITYPE = MAPR6[i]
+    (1 <= nitype <= length(_IE_HABTYP_KTYPE)) || return 0
+    itype = Int(_IE_HABTYP_KTYPE[nitype])               # ITYPE = KTYPE[NITYPE] (JTYPE strictly ascending)
+    (1 <= itype <= length(_IE_HABTYP_MTYPE)) || return 0
+    return Int(_IE_HABTYP_MTYPE[itype])                 # final KODTYP = MTYPE[ITYPE]
+end
+
 """
     ie_estab_indices(habitat_code, forest_code) -> (ihab, iser, ifo, iphy, iprep)
 

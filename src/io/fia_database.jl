@@ -182,7 +182,14 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # (live habitat 470, jl was defaulting to 1).
     if s.variant isa EasternMontana || s.variant isa Utah || s.variant isa Teton || s.variant isa InlandEmpire
         hc = 0
-        if _fia_present(d, "PV_CODE")
+        # ★#143: IE PV_CODE can be a 6-char alphanumeric plant-association code (e.g. "CDS715") that FVS maps via
+        # ie/habtyp.f's string crosswalk (CDS715→NI code 260). jl previously parsed the STRING as a number (→0) and
+        # fell back to the numeric PV_REF_CODE, selecting the WRONG ESTOCK habitat series ⇒ AUTOES over-establishment
+        # (up to +108%). Try the string crosswalk first; fall through to the numeric parse when it isn't a PA code.
+        if s.variant isa InlandEmpire && _fia_present(d, "PV_CODE")
+            hc = ie_pa_habitat_code(_fia_str(d, "PV_CODE", ""))
+        end
+        if hc == 0 && _fia_present(d, "PV_CODE")
             pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
             pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41780 → 780)
             (10 <= pvc <= 999) && (hc = pvc)
