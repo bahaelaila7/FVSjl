@@ -54,9 +54,10 @@ larger per-stand magnitude (±7-18%) is the DGSCOR RNG realization amplified by 
 straddling ~0. ⇒ EM is genuinely bit-exact-or-cornered; the "cornered" verdict is CORRECT — now confirmed by the
 sign-tally + deterministic-DG measurement, not the aggregate-BA reasoning that had masked BM #140. EM #137
 (dense-cohort self-thin) was already fixed (c7c7d2f + 04b15e6/7ce8f1f tem 35000-cap) per memory; goal doc stale.
-- **#143 IE AUTOES** — ⚠ NOT fully fixed: d089b78 fixed SINGLE-ingrowth stands but MULTI-ingrowth-cycle compounding
-  still over-establishes up to +108% — CONFIRMED REAL+SYSTEMATIC this session (see the dedicated IE #143 section
-  below). This corrects both the goal doc AND the earlier "fixed" note here.
+- **#143 IE AUTOES** — ✅ FIXED 2026-08-11 (9cc7d7a): d089b78 fixed single-ingrowth stands but MULTI-ingrowth-cycle
+  compounding still over-established up to +108% (confirmed real+systematic, 9H/2L tally) — ROOT was jl failing to
+  parse STRING plant-association PV_CODEs; fixed by porting ie/habtyp.f's crosswalk. Post-fix tally 6H/4L/2BE
+  (straddles, ±4%) ⇒ IE now bit-exact-or-cornered like EM. See the dedicated IE #143 resolution section below.
 - **#142 CI tail / EM-IE growth tail** — CORNERED (DGSCOR/RDPSRT RNG straddles), meets the bar.
 - **#137 EM estab / EM AUTOES over-establishment** — RESOLVED. The AUTOES "+63-86% TPA over-establishment" flagged
   as "likely systematic EM/IE" was fixed by d089b78 (ingrowth NSTORE) — CONFIRMED this covers EM: simulate.jl:578
@@ -178,7 +179,7 @@ Checked all western variants' FIA PV_CODE format + reader handling (the follow-u
   bit-exact.
 ⇒ The string-habitat-code parse bug was IE-ONLY (now fixed, 9cc7d7a). No further habitat-crosswalk ports needed.
 
-## NEW FINDING 2026-08-11: UT systematic self-thin UNDER-KILL (7:0 tally) — real, localized, NOT yet cracked
+## NEW FINDING 2026-08-11: UT systematic self-thin UNDER-KILL (7:0 tally) — RESOLVED to CORNERED (see the later "UT under-kill — RESOLVED to CORNERED" section; deterministic PJ regent proven bit-exact, residual = ZZRAN realization amplified by asymmetric self-thin feedback). The "NOT yet cracked" below is the mid-investigation state, superseded.
 Completed the cluster-wide FIA sign-tally (UT/TT/KT/CR, the ones not tallied earlier this session): CR 2H/0L/8BE and
 TT 4H/1L/5BE (mild, mostly cornered), KT no FIA stands — but **UT = 7-HIGH/0-LOW/3-BE, up to +43% TPA** — a
 SYSTEMATIC bias (the BM #140 signature), overturning the goal-doc "UT complete". jl UNDER-thins (worst stand
