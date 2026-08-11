@@ -660,8 +660,17 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          baa::Real, regt::Real, bwaf::Real, bwb4::Real, prob1::Real, dupnpt::Real,
                          occ::AbstractVector, over::AbstractVector, time::Real = 1f0,
                          is_ingro::Bool = true, nstore::AbstractVector = Int32[],
-                         pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50)
+                         pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50,
+                         idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0))
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
+    # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
+    # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
+    # tally_pt; the summed `tally` return is byte-unchanged. Lets ie_autoes_establish! place each
+    # established tree on its true inventory point (plot_id) instead of hardcoding point 1 — so the
+    # NEXT ingrowth tally's per-point NSTORE suppresses ALL stocked points, not just point 1 (#172).
+    _fillpt = idup > 0 && size(tally_pt, 1) == nsp && size(tally_pt, 2) >= 1
+    _npt = _fillpt ? size(tally_pt, 2) : 1
+    _ptof(n) = _fillpt ? min(div(n - 1, Int(idup)) + 1, _npt) : 1
     padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                              Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
     pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
@@ -713,7 +722,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         su = copy(sumup_base); ibest = zeros(Int, nsp)
         iplot = 0                                                            # tree index within the plot (1..itpp)
         for i in 1:numspe
-            iplot += 1; j = ie_estab_pick_species(wk6s[i], su); tally[j] += esprob(iplot) * scale; ibest[j] = 1
+            iplot += 1; j = ie_estab_pick_species(wk6s[i], su); _c = esprob(iplot) * scale
+            tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c); ibest[j] = 1
             su[j] = 0f0; t = sum(su); t > 0 && (su ./= t)
         end
         we = zeros(Float32, nsp)
@@ -725,7 +735,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         wk6e = ntuple(_ -> ie_esrann!(rng), excess_draws)                    # excess-WK6 (2·MAXTPP[ihab])
         nd = 0
         for _ in 1:(itpp - numspe)
-            nd += 1; iplot += 1; j = ie_estab_pick_species(wk6e[nd], we); tally[j] += esprob(iplot) * scale; nd += 1
+            nd += 1; iplot += 1; j = ie_estab_pick_species(wk6e[nd], we); _c = esprob(iplot) * scale
+            tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c); nd += 1
         end
         has_state && (nstore[n] = Int32(itpp); pnn[n] = p1)                  # carry to the next tally
     end
@@ -1095,13 +1106,15 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     end
     occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:nsp]
     over = zeros(Float32, 10)
+    _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
+    tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
-                            nsp = nsp)
-    return (tally = tally, prob1 = prob1, idx = idx)
+                            nsp = nsp, idup = Int(idup), tally_pt = tally_pt)
+    return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
 # =============================================================================
@@ -1229,32 +1242,37 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     t = s.trees
     xmin = _IE_ES_XMIN
     created = false
-    @inbounds for sp in 1:nsp
-        tpa_sp = Float32(r.tally[sp])
-        tpa_sp > 0f0 || continue
+    npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
+    @inbounds for sp in 1:nsp                            # each seedling record carries its TRUE plot_id (not 1) —
+        Float32(r.tally[sp]) > 0f0 || continue           # feeds the next ingrowth tally's per-point NSTORE (#172).
         hht = xmin[sp] + 0.2f0                           # est. height floor TALL=max(HHT,XMIN+0.2) (estab.f:838);
                                                          # the computed ESADVH/ESSUBH heights (0.14-0.65) fall below
                                                          # it, so XMIN+0.2 is the effective seedling height (per-tree
                                                          # ESADVH/ESSUBH refinement pending — this is the floor value)
         dbh = 0.1f0 + 0.001f0 * hht                      # esgent.f:56 sub-breast-height nominal DBH
-        n = t.n + 1; n > length(t.dbh) && break
-        t.n = n
-        t.species[n]     = Int32(sp)
-        t.dbh[n]         = dbh
-        t.height[n]      = hht
-        t.tpa[n]         = tpa_sp
-        t.plot_id[n]     = Int32(1)
-        # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
-        # A near-bare regen stand has PCCF≈0 ⇒ CR≈0.90; a nominal deterministic value here (the ±1% RANN draw is
-        # a refinement) keeps the downstream crown/DG models well-defined (crown_ratio=0 produced NaN TopHt).
-        pccf = s.density.point_ccf[1]
-        cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
-        icr0 = floor(Int32, cr * 100f0 + 0.5f0)
-        t.crown_pct[n]   = icr0
-        t.crown_ratio[n] = Float32(icr0)
-        t.norm_ht[n]     = Int32(0)
-        t.sort_key[n]    = Float64(n)
-        created = true
+        for pt in 1:npt_c
+            tpa_sp = Float32(r.tally_pt[sp, pt])
+            tpa_sp > 0f0 || continue
+            n = t.n + 1; n > length(t.dbh) && break
+            t.n = n
+            t.species[n]     = Int32(sp)
+            t.dbh[n]         = dbh
+            t.height[n]      = hht
+            t.tpa[n]         = tpa_sp
+            t.plot_id[n]     = Int32(pt)
+            # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
+            # A near-bare regen stand has PCCF≈0 ⇒ CR≈0.90; a nominal deterministic value here (the ±1% RANN draw is
+            # a refinement) keeps the downstream crown/DG models well-defined (crown_ratio=0 produced NaN TopHt).
+            pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
+                   (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])
+            cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
+            icr0 = floor(Int32, cr * 100f0 + 0.5f0)
+            t.crown_pct[n]   = icr0
+            t.crown_ratio[n] = Float32(icr0)
+            t.norm_ht[n]     = Int32(0)
+            t.sort_key[n]    = Float64(n)
+            created = true
+        end
     end
     created || return false
     push!(est.years_done, Int32(year))
