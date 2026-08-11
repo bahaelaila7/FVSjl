@@ -177,3 +177,22 @@ Checked all western variants' FIA PV_CODE format + reader handling (the follow-u
   defaulted to CWG113; it does not). End-to-end stand 1127530489290487: jl vs live BA 244/244, SDI 479/479
   bit-exact.
 ⇒ The string-habitat-code parse bug was IE-ONLY (now fixed, 9cc7d7a). No further habitat-crosswalk ports needed.
+
+## NEW FINDING 2026-08-11: UT systematic self-thin UNDER-KILL (7:0 tally) — real, localized, NOT yet cracked
+Completed the cluster-wide FIA sign-tally (UT/TT/KT/CR, the ones not tallied earlier this session): CR 2H/0L/8BE and
+TT 4H/1L/5BE (mild, mostly cornered), KT no FIA stands — but **UT = 7-HIGH/0-LOW/3-BE, up to +43% TPA** — a
+SYSTEMATIC bias (the BM #140 signature), overturning the goal-doc "UT complete". jl UNDER-thins (worst stand
+11937105010690: 2056 TPA 797/1137 live/jl, QMD 7.0/5.8, BA close 216/211 — same pattern as BM #140).
+LOCALIZED (FVSut_g16 morts.f instrumentation): the Reineke self-thin INPUTS match — sumdr0 jl 8523 vs live 8527
+(same 34 trees, dmin 0.10 dmax 17.0), and UT's DBHZEIDE=0 so no min-DBH filter gap. The divergence is in the
+self-thin SOLVE/kill dynamics: live's ut/morts.f runs an IPASS QMD-CONVERGENCE loop (morts.f:561-604 — recompute
+the post-kill Reineke DR10N from survivors, and if |D10−D10N|>0.1 set D10=D10N and GO TO 10 to re-solve tn10),
+which jl's utah/mortality.jl LACKS (one pass). On the worst stand live iterates tn10 1593.7→1504.3 (more kill).
+BUT — adding the IPASS loop to jl did NOT fix it: jl's uniform-RN kill leaves the post-kill QMD ~unchanged ⇒ the
+loop converges in one pass, while live's shifts. AND at cyc1 with IDENTICAL inputs (tt=2259, sdimax=460.7) jl
+tn10=2068 vs live 2087 (jl slightly OVER-kills), so the sign FLIPS across cycles ⇒ the +43% is a QMD-feedback
+amplification of a subtle self-thin-solve/kill-distribution difference, not cleanly the IPASS. ROOT NOT YET cracked
+— reverted the IPASS attempt (unvalidated). NEXT: at MATCHED (tt, DR10, sdimax) compare jl's _em_tn10_iter output +
+the per-tree WKI distribution vs live's morts.f (does live's uniform kill really leave QMD invariant, or is there a
+size-dependent X/XMORT or a DR10-vs-DQ10 mismatch feeding the IPASS?). Distinct from the accepted UT #156 dense-PJ
+regent-ZZRAN straddle (that's growth; this is mortality). Oracle FVSut_g16 durable at /workspace/.utwork.
