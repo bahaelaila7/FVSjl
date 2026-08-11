@@ -28,3 +28,17 @@ Coefficient extraction (ground-truth): docs/NC_CHUNK1_EXTRACTION.md.
 cyc0 nct01 (live 1990): TPA 536 BA 77 SDI 160 CCF 87 TopHt 63 QMD 5.1 TCuFt 1308 MCuFt 449 (forest 371... wait
 STDINFO forest=505 Klamath; .sum ForType col=371). Validate TPA/BA/SDI/TopHt/QMD FIRST (no growth models needed) —
 currently blocked by the tree-expansion bug above.
+
+## Chunk-3 DG — data COMPLETE + integration scoped (2026-08-11), ready to code
+All DDS coefficients measured (docs/NC_CHUNK1_EXTRACTION.md chunk-3 section). Integration with the shared engine:
+- jl PROVIDES the point-level density NC's dgf needs (density.point_ba=PTBAA, point_bal=PTBALT, point_ccf=PCCF,
+  point_tpa=PTPA) — the shared standstats even computes PCCF specifically for the dgf DGPCCF term (doctrine #5 win).
+- dgf! stores per-tree DDS in scratch.wk[2,i]=wk2 (CI pattern); the shared DDS→DG + serial-corr engine converts.
+- ONE gap: PRD = ZRD(pt)/XMAXPT(pt) (point ZEIDE relative density) used ONLY by sp2/6/9 + redwood branches — jl
+  has no point-Zeide-RD yet; add it (point Σ(D)^1.605 / point XMAXPT=Σ SDIDEF·point-BA-frac) OR compute inline in
+  nc dgf!. nct01 has SP(sp2) trees ⇒ needed for nct01 validation.
+- NC redwood DDS is a DIB²-diff form (like CI's diagr species) + POWER bark (nc_bratio) — the shared engine handles
+  the diagr convention (CI proves it).
+TO CODE (next): src/variants/klamath/diameter_growth.jl = nc_bratio(a,b,eqtype,d) + nc_dgcons!(s) [DGCON/DGDSQ per
+sp, 3 branches: DGFOR/MAPLOC default, DGLAT2+site sp2/6/9, redwood ln(SITEAR)] + dgf!(s,::Klamath) [3-branch DDS →
+wk2, 5-yr TDDS/2] + point-Zeide-RD. Then validate DDS per-tree vs FVSnc_clean dgf DEBUG dump on nct01.
