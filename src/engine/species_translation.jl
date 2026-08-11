@@ -67,9 +67,18 @@ function resolve_species(code::AbstractString, variant::AbstractVariant,
                          sp::SpeciesData, coef::SpeciesCoefficients)
     c = uppercase(strip(code))
     isempty(c) && (c = "OT")
+    # Numeric FIA codes arrive zero-padded to 3 chars from the FIA-DB reader ("72"→"072"),
+    # but the variant coef stores them UNPADDED ("72"). Compare leading-zero-normalized so a
+    # tree whose FIA code IS one of the variant's own species direct-matches here (intree.f:240)
+    # instead of falling through to the SPCTRN "unknown species" crosswalk — which folds
+    # variant-distinct species into a coarser set (e.g. IE subalpine larch 072→WL, RM juniper
+    # 066→OS) built for variants that lack them. All-digit only; non-numeric codes are exact-matched.
+    cnum = (!isempty(c) && all(isdigit, c)) ? lstrip(c, '0') : ""
     @inbounds for j in 1:MAXSP
         strip(sp.alpha[j])  == c && return (Int32(j), Int32(1))
-        strip(sp.fia[j])    == c && return (Int32(j), Int32(2))
+        fj = strip(sp.fia[j])
+        (fj == c || (!isempty(cnum) && all(isdigit, fj) && lstrip(fj, '0') == cnum)) &&
+            return (Int32(j), Int32(2))
         strip(sp.plants[j]) == c && return (Int32(j), Int32(3))
     end
     return translate_species(c, variant, sp, coef)
