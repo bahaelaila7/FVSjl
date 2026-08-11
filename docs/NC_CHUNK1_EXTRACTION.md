@@ -124,6 +124,26 @@ port ecocls SITE/SDIMX + the ecological-class crosswalk (nct01 forest 371 → it
   vollib); htdbh_* (htdbh.f); varmrt_varadj; is_sprouting; dg_resid_sd (SIGMAR).
 - species_translation.csv: full FIA-species→NC-12 crosswalk (dgf.f OSPMAP / the FIA map, NOT just the 12).
 
+## SDImax detail (ecocls.f) — 90-entry PLANT-ASSOCIATION table (chunk-2 data extraction):
+ecocls.f DATA (PA, SCIEN, SDIMX, SPC, SITE, NUMBR, IFLAG, FVSSEQ), NENTRY=90 plant associations (CDC411/CDC412/
+CDC421/... = PSME-ABCO-PIJE etc.). Each PA → SDIMX (SDImax) + SITE + species. So NC SDImax = a 90-row PA→SDIMX
+table + a PA-STRING crosswalk (the IE #143 habtyp pattern; FIA PV_CODE / plant-assoc string → PA row → SDIMX).
+Chunk-2 = extract the 90-entry table (ecocls.f DATA blocks, I=1..90) + port the PA-string lookup + BA-weight
+XMAX=Σ SDIDEF·BAXSP. Substantial (90 rows) — extract during chunk-2 implementation, validate SDI/BAMAX on nct01.
+
+## PORT SCOPE (fully mapped 2026-08-11) — NC is a genuine ~8-chunk port, NOT a coefficient swap:
+- ch1 species coeffs: flat DATA all MEASURED (this doc). ~16 of 41 species_coefficients.csv cols are flat; the rest
+  (sdi_max/ht1/ht2/htdbh/volume) are STRUCTURAL (below) ⇒ the CSV can't be faithfully assembled standalone — build
+  it alongside chunks 2/4/8.
+- ch2 site/SDImax: 90-entry ecocls PA→SDIMX table + PA-string crosswalk (IE#143 pattern). REAL sub-port.
+- ch3 DG: dgf.f ISCT diameter-sections + DGHAH habitat + 2 coeff sets + sp12 REDWOOD special CONSPP. REAL port.
+- ch4 height: conifer site-index potential-ht (shared) + hardwood HD1-4 (sp5/7/8/11) + FOREST-specific htdbh (IFOR 1-7). REAL.
+- ch5 crown / ch6 regent: per CI template + NC regent blend (SCALE=FNT/REGYR=5).
+- ch7 mortality: REUSES easternmontana/utah mortality! (PMSC/PMD measured, EM/UT-form, Zeide self-thin) + sp12 RW special. MOSTLY SHARED.
+- ch8 volume: vollib VEQNNC defaults (echo from nct01.out, like CI). REAL.
+⇒ Reuse: mortality (EM/UT), conifer height (site path), linear bark (sp1-11). Variant-specific: DG, hardwood ht,
+htdbh, ecocls SDImax, sp12 redwood (POWER bark + special mort). This is a multi-session implementation effort.
+
 ## NEXT
 Finish reading the above arrays → assemble data/klamath/species_coefficients.csv + species_translation.csv →
 wire src/variants/klamath/species.jl + site_index.jl → validate SITE INDEX on nct01 vs FVSnc_clean (chunk-2 gate).
