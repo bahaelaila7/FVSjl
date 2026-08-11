@@ -39,9 +39,21 @@ what's fixable, corner what's stochastic, mark what's blocked — and measure BE
   CI (6d94b6a) were the two missing (CI minor, ~0.3% net, .sum-inert on cit01 but bit-exact-DG faithful; CI #142
   confirmed a cornered count-straddle, 2-HIGH/5-LOW/3-BE, NOT a bias). Linear/reciprocal variants (EM/IE/UT/KT)
   correctly ENCODE their bark into c.bark_a/c.bark_b (incl. the 0.9002−0.3089/D zero-coef case) so the shared
-  bark_ratio is faithful — verified in each variant's diameter_growth.jl. ⇒ dispatch now complete; no remaining
-  missing-bark branches. LESSON: the earlier audit's "DDS bit-exact ⇒ DG faithful" was the trap — DDS≠DG when the
-  bark differs; always measure the bark-converted DG, not just DDS.
+  bark_ratio is faithful — verified in each variant's diameter_growth.jl AND now MEASUREMENT-CONFIRMED per-tree vs
+  FVS{v}_g16: EM (constant BARK1 form, emt01) and UT (reciprocal BARK1+BARK2/D form, utt01) both have deterministic
+  DG jl/live = 1.0000 (0 non-det trees), bark matching per-tree; IE/KT use EM's verified constant form. ⇒ all three
+  bark forms (POWER/constant/reciprocal) verified; dispatch complete; no remaining missing-bark branches. LESSON:
+  the earlier audit's "DDS bit-exact ⇒ DG faithful" was the trap — DDS≠DG when the bark differs; measure the
+  bark-converted DG, not just DDS.
+
+## EM tail re-checked with the proven method — genuinely CORNERED (2026-08-11)
+Applied the BM lens to EM (goal doc flags EM #137 open + "EM/IE ~7% tail cornered" on the discredited aggregate
+reasoning): (1) per-tree deterministic DG on emt01 vs FVSem_g16 = BIT-EXACT (jl/live 1.0000) ⇒ NO bark/DG bias like
+BM; (2) 12-stand EM FIA sign-tally = 5-HIGH/5-LOW/2-BE, 0 crashes ⇒ BALANCED straddle, not a systematic bias. The
+larger per-stand magnitude (±7-18%) is the DGSCOR RNG realization amplified by self-thin feedback (+ AUTOES variance),
+straddling ~0. ⇒ EM is genuinely bit-exact-or-cornered; the "cornered" verdict is CORRECT — now confirmed by the
+sign-tally + deterministic-DG measurement, not the aggregate-BA reasoning that had masked BM #140. EM #137
+(dense-cohort self-thin) was already fixed (c7c7d2f + 04b15e6/7ce8f1f tem 35000-cap) per memory; goal doc stale.
 - **#143 IE AUTOES** — FIXED+VALIDATED (d089b78) per memory; goal doc stale.
 - **#142 CI tail / EM-IE growth tail** — CORNERED (DGSCOR/RDPSRT RNG straddles), meets the bar.
 - **#137 EM estab / EM AUTOES over-establishment** — RESOLVED. The AUTOES "+63-86% TPA over-establishment" flagged
