@@ -318,3 +318,29 @@ a DGSD/period constant applied for NC. NEXT: instrument calibrate_diameter_growt
 additive offset in ln(DDS)-space. Repro: scratchpad/nct01_ctl.key + the FVSJL_NC_DG_DEBUG dump (reinsert at
 the Klamath dgcons branch, simulate.jl:118). This is DISTINCT from (and larger than) the TopHt-low residual;
 it is the dominant NC multi-cycle divergence. Volume port is unaffected (VOL(1) bit-exact per-tree at cyc0).
+
+## CORRECTION (2026-08-11): DG bug is PER-SPECIES (calibration), NOT uniform 10/9
+
+The prior "uniform 10/9" finding was a MEASUREMENT ARTIFACT: the FVSJL_NC_DG_DEBUG probe read
+t.diam_growth at the calibrate branch (simulate.jl:118) — but the REAL DG realization happens later
+(diameter_growth! at simulate.jl:474). t.diam_growth at line 118 held STALE data. Re-measured IN the
+realization loop (variants/southern/diameter_growth.jl:1138, computing dgc/bark), the ACTUAL per-tree DG
+is WILDLY per-species (NOT uniform):
+  SP (sp2) D11.5: jl ~1.08× live  (base DDS ~right)
+  DF (sp3) D10.0: jl ~0.08× live  (base DDS=0.224/exp1.25, ~12× TOO SMALL — massive UNDER-grow)
+  WF (sp4) D10.9: jl ~1.96× live  (DDS=3.386/exp29.5, ~2× TOO BIG — OVER-grow)
+The aggregate BA (+5% by 1995) MASKED this by mixed-sign cancellation (DF under vs WF/SP over) — the
+same "measure per-species, aggregate hides it" doctrine lesson as EM/CI.
+
+ROOT (isolated by per-term dump of the DEFAULT branch): the base (uncalibrated) DDS is too small for the
+default species (DF terms sum to 0.224; DGHAH/DGPCCF verified CORRECTLY 0 vs nc/dgf.f DATA:108-114 — NOT a
+missing term). **Live CALIBRATES nct01** (nct01.out:155 "DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED" —
+the trees carry a measured past-DG F2.1 field in nct01.tre, e.g. SP D11.5 DG=1.0). Live's per-species COR
+boosts the small base DDS to match the measured growth (~1.0"/5yr). jl's dg_cor[sp] comes out 0 in the
+growth pass (DF) ⇒ the uncalibrated (too-small) base DDS is used ⇒ DF under-grows; WF's COR path over-shoots.
+⇒ the bug is jl's NC DGSCOR CALIBRATION (per-species COR wrong/not applied), OR a base DGCON coefficient —
+distinguish by comparing jl's pre-cal base DDS + dg_cor[sp] per species to live's ZNC calibration dump
+(nct01.out:157-185) and the computed scale factors. NEXT: verify jl reads nct01.tre's measured past-DG into
+the NC calibration (WK1), and that calibrate_diameter_growth! sets dg_cor[sp] for NC's default species.
+Repro: reinsert the per-term probe at diameter_growth.jl:163 (Klamath default branch). SUPERSEDES the 10/9
+framing in fcfdba3. NC growth NOT complete; volume unaffected (VOL1 bit-exact per-tree).
