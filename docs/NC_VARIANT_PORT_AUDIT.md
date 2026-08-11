@@ -241,3 +241,27 @@ live's fvsvol zeros still get merch in jl) — the DBHMIN gate DROPS jl toward 4
 3. Board recompute with BFTOPD·BARK top (fvsvol.f:362-383) — needs the NC volume BARK ratio.
 4. Resolve the TCuFt aggregate via a REAL-run per-tree dump (not each_stand) — pre-expansion summation.
 Oracle: /workspace/.ncwork/FVSnc_clean; standalone taper driver: /workspace/.ncwork/r5drv.f (r5tap.f linked).
+
+### Chunk 8 UPDATE (2026-08-11 cont.): DBHMIN=9 gate LANDED; per-tree cubic bit-exact confirmed
+
+**★ DBHMIN(ISPC)=9.0 FOUND + APPLIED** (nc/sitset.f:196-224, forest-default merch specs by IFOR):
+  IFOR 4 (Siskiyou/R6): DBHMIN=9, TOPD=4.5. IFOR 5,7 (Simpson/BLM): DBHMIN=9, TOPD=5.0.
+  DEFAULT (IFOR 1=Klamath 505, our nct01): **DBHMIN=9.0, TOPD=BFTOPD=SCFTOPD=6.0**, BFMIND=SCFMIND=9.0.
+  Applied as the merch/board gate (fvsvol.f:337,512: MCF/board=0 for D<DBHMIN) in compute_volumes_nc!.
+  ⇒ .sum MCuFt 1990: 522 → **427** (oracle 449; +16% → −4.9%). Matches the .out MERCH report (smallest
+  merch quantile 9.4"). No effect on TCuFt (gate is merch-only).
+
+**★ PER-TREE TOTAL CUBIC BIT-EXACT for ALL 27 trees** (not just large): measured jl nc_wo2w_vol vs FVSnc
+  treelist across D=1.2..34.6 incl. every small tree — TPA-weighted deficit = 0.0. The live treelist LIVE
+  trees sum to exactly 1308 = oracle TCuFt.
+
+**TCuFt aggregate 1261 vs 1308 (−3.6%) EXPLAINED — NOT a volume bug:** per-tree cubic is bit-exact + TPA-
+  weighted per-tree deficit is 0, so the gap is the each_stand-vs-real-run TPA normalization (each_stand
+  returns BA=85 PRE-expansion; the real run correctly normalizes to BA=77 bit-exact — the CI #142 trap).
+  Pinning the real-run per-tree TPA needs a real-run cycle-0 hook (each_stand is INVALID for this). The
+  volume port itself is faithful. NOTE the pre-existing growth residual (TopHt ~5% low / BA drift by 1995:
+  jl BA 101 vs oracle 96) also perturbs multi-cycle volume — a GROWTH refinement (#158 class), not volume.
+
+**REMAINING (task #162):** VOL(7) topwood 6"→4" (profile.f:684-770 secondary-product bucking: MERLEN to
+  MTOPS=4, LMERCH_topwood = LMERCH_to4 − LENMS, NUMLOG/SEGMNT/GETDIB with LOGST=NUMSEG_primary) → MCF=VOL4+VOL7
+  (would raise 427 toward 449). Board recompute BFTOPD·BARK (needs NC volume BARK). Real-run TPA hook for TCuFt.

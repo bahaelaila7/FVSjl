@@ -242,15 +242,21 @@ function compute_volumes_nc!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = NC_VOL_EQ[sp]; mdl = eq[4:6]
+        # nc/sitset.f:196-224 forest-default merch specs (IFOR 1 = Klamath 505 = DEFAULT case):
+        # DBHMIN=9.0, TOPD=BFTOPD=6.0. Merch/board are ZEROED for D < DBHMIN (fvsvol.f:337,512 gate).
+        dbhmin = 9.0f0
         # Top-killed: full cubic uses the NORMAL height, then the profile naturally truncates at the break.
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         if mdl == "WO2"
             tcf, mcf, bf = nc_wo2w_vol(eq, d, hv)
-            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = bf
+            t.cuft_vol[i] = tcf
+            t.merch_cuft_vol[i] = d >= dbhmin ? mcf : 0f0
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= dbhmin ? bf : 0f0
         else                                       # DVE — California hardwood D²H (r5harv.f), MTOPP=6
             tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, 6.0f0)
-            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
+            t.cuft_vol[i] = tcf
+            t.merch_cuft_vol[i] = d >= dbhmin ? mcf : 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0   # DVE board deferred (no hardwood on nct01)
         end
     end
