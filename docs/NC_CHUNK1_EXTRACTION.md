@@ -111,8 +111,11 @@ Per-species SDImax source (SDIDEF fill / habitat table) still to locate — like
 volume library defaults (VOLKEY/vollib per species+forest, like CI's r4vol/VEQNNC). Chunk-8 = wire NC's VEQNNC/
 vollib defaults (read from a live nct01.out VOLUME echo, as CI did). Not a species_coefficients.csv DATA read.
 
-## SDImax — habitat/forest-driven (not a flat per-sp DATA): grinit SDIDEF=0 default; sdical BAMAX=XMAX·0.5454154·
-PMSDIU. Per-species/stand SDImax set in rcon.f/sdical from the habitat or a forest SDI table — locate + port (chunk 2).
+## SDImax — ECOCLASS/habitat-driven (RESOLVED source, chunk 2): SDIDEF(sp) is filled from ecocls.f's per-ecological-
+class SDIMX table (ecocls.f:46 SITE/SDIMX(NENTRY)) OR from stand-input MAX_SDI (dbsstandin.f:798 RSTANDDATA(36)).
+grinit SDIDEF=0 default; sdical weights XMAX=Σ SDIDEF(I)·BAXSP(I) (BA-weighted, sdical.f:170) then BAMAX=XMAX·
+0.5454154·PMSDIU. So NC SDImax = the ecocls SDIMX-per-ecoclass table (like CI's R4SDI habitat SDImax). Chunk-2 =
+port ecocls SITE/SDIMX + the ecological-class crosswalk (nct01 forest 371 → its ecoclass → SDIMX). Read ecocls.f.
 
 ## STILL TO MEASURE (chunk-1 completion) — remaining are STRUCTURAL (not flat DATA), deeper reads:
 - dbh_max (find NC's diam-cap name); is_sprouting (which sp sprout — hardwoods BO/TO/OH + RW redwood); varmrt_varadj
