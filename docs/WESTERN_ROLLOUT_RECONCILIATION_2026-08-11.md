@@ -1,0 +1,66 @@
+# Western Rollout Reconciliation — 2026-08-11
+
+Reconciles the ACTIVE-GOAL stop-hook doc (which has gone stale) against the measured/committed state after this
+session. Method throughout: instrument the live `FVS{v}_g16` oracle, root-cause each divergence, fix-and-validate
+what's fixable, corner what's stochastic, mark what's blocked — and measure BEFORE fixing so wrong fixes never land.
+
+## Fixed + validated this session (commits on `kt-variant-port`)
+- **Dwarf-mistletoe MORTALITY wiring** (`3d4144e`) — `ie_dm_mortality_combine!` (mismrt.f) was wired only in the
+  shared `southern/mortality.jl`; the 6 western variants with their own Hamilton-RIP `mortality!`
+  (CI/IE/KT/EM/UT/TT) never applied it ⇒ DM-infected trees never died. THIS is the root of the cross-variant
+  "mature low-density over-growth" headline (CI 114% / TT 33% / EM 29% / UT 16% max|ΔBA|). Validated: CI
+  753180709290487 now declines BA 52→42 bit-exact vs live (was growing 52→66).
+- **Per-variant mistletoe tables** (`0a39576` UT, `6b048e3` EM/KT/BM/TT/CI) — misint{v}.f AFIT/ADGP/APMC are
+  per-variant; jl applied IE's table to all. DF(3)/LP(7)/PP(10) align (so DF/LP stands validated) but each
+  variant's non-aligned hosts (UT pinyon, EM WP/GF, …) were mis-mapped. Validated on 2 non-aligned hosts (UT
+  pinyon ~bit-exact; BM larch tracks live).
+- **FIXMORT** (`1462434`) — same "southern-only wiring" class: `apply_fixmort!` (morts.f:781) had one call site
+  (southern). The 6 western variants silently IGNORED the FIXMORT keyword. Fixed + validated on CI (90% kill
+  115→12 = live →11) AND TT (Zeide/ttmrt: 8107→811 = live →759). Inert-guarded ⇒ non-FIXMORT stands byte-identical.
+- **Climate-FVS** (`3e0bb1c`→`230d4e7`, 7 commits, earlier this session) — clmorts/clgmult/GrowMult/MortMult/
+  clauestb/clmaxden/file-CLIMDATA ported + validated bit-exact-or-cornered on IE.
+
+## Stop-hook goal doc is STALE — actual status of its "remaining work"
+- **Dwarf mistletoe "ALL western DONE ✓"** — was WRONG (validated DG-loss+spread, not the KILL); now genuinely
+  done after the 3 mistletoe commits above.
+- **Climate-FVS "TODO"** — DONE this session (7 commits, IE-validated).
+- **#140 BM under-thinning** — RESOLVED 2026-08-07 (e130546, DGSD field-disconnect; deterministic self-thin path
+  bit-exact, residual = accepted RNG-realization straddle). CORROBORATED 2026-08-11: the BM larch stand
+  449746614489998 (actively self-thinning, TPA 1026→624) TRACKS live's decline (→578, ~7% straddle) — jl is NOT
+  systematically under-thinning. Goal doc's "REAL under-thin bias (NOT cornered)" is the pre-e130546 (2026-08-05)
+  state, superseded.
+- **#143 IE AUTOES** — FIXED+VALIDATED (d089b78) per memory; goal doc stale.
+- **#142 CI tail / EM-IE growth tail** — CORNERED (DGSCOR/RDPSRT RNG straddles), meets the bar.
+- **#137 EM estab / EM AUTOES over-establishment** — RESOLVED. The AUTOES "+63-86% TPA over-establishment" flagged
+  as "likely systematic EM/IE" was fixed by d089b78 (ingrowth NSTORE) — CONFIRMED this covers EM: simulate.jl:578
+  routes BOTH IE and EM through the SAME shared `ie_autoes_establish!` the fix touched. Corroborated by the
+  2026-08-11 corpus sweep (EM 8/10 bit-exact-or-cornered — inconsistent with a systematic over-establishment,
+  which would blow up most stands). The dense-cohort self-thin piece was separately fixed by 04b15e6/7ce8f1f
+  (SDI-gate tem 35000-cap). ⇒ EM is bit-exact-or-cornered; goal-doc "still open" is stale.
+
+## Remaining — correctly classified, none a low-risk quick win
+- **TT #158 small-tree-regent** (BLOCKED) — the TT 33% dense-stand over-growth traced end-to-end: jl's flat
+  sub-1" DG (DGMAX band-aid caps) → low Reineke DR10 → self-thin never fires. jl ports canonical tt/regent.f
+  (SMDGF) but live is the buildDir SINGLE-STEP model (POTHTG suppression, smdgf_ called 0×, disasm-verified).
+  Blocked on the SMHTGF POTHTG ABI (un-derivable from source) + un-instrumentable regent (SIGFPE). See TT audit.
+- **MORTMSB** (zero-practical-value; investigated, prototyped, reverted) — mature-stand-breakup keyword. SCOPE
+  CORRECTED by measurement: only EM/UT/TT have the inline morts.f MSB block; CI/IE/KT have NO MSB (live ignores it —
+  PROVEN byte-identical — so jl ignoring it is FAITHFUL; adding it would have regressed them). Prototyped the UT port
+  and found it TRACTABLE (faithful-by-composition: const_/msb_d10=dq10/bark all align with southern's validated
+  block + shared _msbmrt!) — BUT it NEVER fires on real UT FIA data (dense stands run low-QMD from seedling cohorts;
+  mature stands are sparse) ⇒ jl-ignoring-MORTMSB == live on ALL real UT stands, zero real-FIA effect, and the firing
+  path can't be live-validated (no triggerable stand; SN mortmsb.tre breaks under UT on SN site/habitat). REVERTED
+  the prototype — committing unvalidated firing logic for a never-fires mechanism isn't disciplined. A future session
+  may commit the faithful-by-composition EM/UT/TT ports for completeness; it changes nothing on real FIA.
+- **non-IE climate-mort** — `apply_climate_mort!` only wired to IE (Climate-FVS is IE-scoped); extending = separate task.
+- **BC merch/board volume, V2/non-ICH** — pre-existing, lower priority.
+
+## Validation
+Corpus sweep (jl vs FVS{v}_g16, final-BA classification): ALL 6 western g16-oracle variants swept, ZERO jl crashes
+across ~46 stands. CI 6-bitexact/1-cornered/2-div; EM 4/4/2; TT 3/2/5 (TT div corroborates the #158 gap); IE 4/3/1;
+UT 3/3/2; BM 5/2/0. No-regression on the mortality commits established by construction (per-tree dmr==0 /
+empty-events guards ⇒ inert) + byte-identical primary stands + this cluster-wide sweep. (Divergences are the
+pre-existing DGSCOR/density/#158 straddles, not the commits.)
+Unit/integration suite ALSO green (complementary coverage): test_fixmort, test_mortmsb, test_allspecies,
+test_canonical_multistand (multi-variant), test_dgstdev, test_multistand, test_multistand_sum all PASS ⇒ the
+mistletoe + FIXMORT commits regress nothing at the unit level either.
