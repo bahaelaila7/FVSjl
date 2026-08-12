@@ -1386,3 +1386,17 @@ vs predicted. Candidates: the DG-field interpretation (DG_TRANS/DG_MEASURE past-
 or the backdated wk3. NEXT: dump jl per-aspen-tree (dg, wk3, bark, scale, term, wk2, reslog) and compare to FVStt_g16
 dgdriv/readcor DEBUG; align jl's measured aspen DDS so corv flips to live's reduction. Then #191 is bit-exact-or-
 cornered. (The earlier RMSQD-actual-growth and sub-1"/DGFASP framings are fully superseded.)
+
+## #191 CORRECTION+UPGRADE — the RMSQD fix (42f4860) made the aspen COR BIT-EXACT (1.1062=live); residual is sub-1"
+FVStt_g16 has a G16ASP DEBUG that prints the exact per-tree ASPDG + COR. MEASURED after the RMSQD fix: jl's aspen
+calibration corv = 1.1062 = live's COR 1.1062 EXACTLY (bnyv/bnxv/slp/dist all consistent); jl's predicted ASPDG
+(1.5704 @d=5.7) = live 1.5704 EXACTLY; jl's APPLIED dg_cor at actual growth = 1.1062 = live. ⇒ the large-tree
+aspen DGFASP path (predicted + COR + applied) is now BIT-EXACT with live — the DGFASP-RMSQD half of #191 is RESOLVED
+(not "partial/measured-DDS-open" as 42f4860's message said; the earlier "0.94"/"measured>>predicted" reads were
+WRONG — 0.94 was an unrelated readin diagnostic, and live's aspen COR is a genuine +1.1062 BOOST that jl now matches).
+Live aspen COR IS a boost (aspen grows ~2× the raw model here) — jl agrees. RESIDUAL: asp.key still +9% BA / QMD
++0.2-0.3 (jl 5.8 vs live 5.5 @2049), present from cyc1. With the large-tree DG bit-exact, this residual is the
+SUB-1" regent subcycle (aspen SMHTGF/regent, the #158 "single-step-suppressed-model" half) feeding slightly-bigger
+trees into the DGFASP pool — the OTHER half of the #191 pair. NEXT: instrument the aspen sub-1"/regent DG on asp.key
+vs FVStt_g16 regent DEBUG (the #158 work). The RMSQD fix is faithful+validated (COR bit-exact, ttt01 inert). NOTE:
+correct 42f4860's residual description in the record — it's sub-1", not measured-DDS.
