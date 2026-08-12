@@ -1001,3 +1001,38 @@ branch (didn't fire; background-mortality stand) AND/OR the crash beat the cycle
 UNDER-THIN mortality path (dq10/T85D10) remains crash-blocked on this stand; a Zeide-active stand may emit it.
 COROLLARY: 374430545489998 (bm140.key) is an UNDER-THIN stand (1 SMHTGF tree, faithful growth) — DISTINCT from
 the dense-seedling htg=10.5ft stand of the sub-inch over-growth finding. #140's two framings live on two stands.
+
+## #140 BM self-thin — COMPLETE ROOT-CAUSE (goal-doc's #1 priority; measured end-to-end via scoped DEBUG)
+
+UNBLOCKED by the scoped-DEBUG capability (`DEBUG`+field2 non-blank → DBPRSE reads a routine name onto DBSTK;
+`DEBUG\n<blank field2>` = ALLSUB and crashes in the fvsvol volume-DEBUG path — the actual keyword syntax, not the
+`DEBUG\nMORTS` I'd used before which parsed MORTS as a keyword). Repro: FVSbm_clean stand 22960873010497 (dense,
+self-thins 7953→7106→6205), scoped MORTS/DGF/REGENT/SMHTGF DEBUG + jl FVSJL_MORT_DEBUG/FVSJL_RG_DEBUG.
+
+THE CHAIN (each step measured, not inferred):
+1. Cycle-1 self-thin is BIT-EXACT: jl sdimax=487.745=live, d10=1.70298 vs 1.70266, tn10=7104 vs T85D10=7106.43,
+   TPA 7104 vs 7106. The self-thin/Pretzsch/`_mort_traj_g` code is CORRECT (BM htg_period=10 ⇒ `_mort_traj_g`
+   takes the fint==yr fast path = live morts.f:222 `G=(DG/BARK)·(FINT/10)` exactly).
+2. Cycle-2 DIVERGES: live DQ10=1.85→T85D10=6205; jl d10=1.9367→tn10=5779 ⇒ jl OVER-thins by ~426 TPA
+   (5779 vs 6205). NOTE this FLIPS the goal-doc's "under-thin" framing — on this stand jl OVER-thins.
+3. WHY d10 inflates: the top cycle-2 sd2sq contributors are SUB-INCH sp7 trees (d=0.1, TPA 683-1808) with
+   diam_growth g=0.37-0.98. Live SD2SQ=24397.58 (=7106·1.85²); jl needs ~26660 (7104·1.937²) — the ~2263 excess
+   = these sub-inch trees' over-contribution (top-3 alone = 921+830+400).
+4. WHY those trees have DBH growth: they CROSS breast height (4.5ft) at cycle 2. jl hk=h+htg=4.69-5.92>4.5 ⇒
+   H-D assigns dk≈1.0 ⇒ dg=0.37-0.98. Live's stay lower (max h=3.177, hk≈4.68 ⇒ dk≈0.5, small).
+5. WHY jl's trees are taller: jl cycle-1 sub-inch HTGR=2.05-2.59 vs live 1.57-2.16 (~25% high) ⇒ jl h reaches
+   3.60 vs live 3.18 by cycle 2 — and the extra height crosses 4.5 far more (nonlinear at the boundary).
+6. WHY htg is high: pctred (0.3595), pothtg (8.638), con (1.0) ALL MATCH live. The ONLY differing factor is
+   VIGOR: jl 0.66-0.85 vs live 0.51-0.69. Vigor = 150·x³·e^(-6x)+0.3 (x=crown/100) is IDENTICAL both sides ⇒
+   the input CROWN RATIO differs: jl crpct=20-26 vs live ~15-21 for the SAME fresh (h=1.01) sub-inch trees.
+7. ROOT: these sp7 sub-inch trees have MISSING crown ratios in FIA ("NUMBER OF RECORDS WITH MISSING CROWN
+   RATIOS 2 3 1 3") ⇒ crown is DUBBED. jl's crown-ratio DUBBING for missing-crown sub-inch trees is ~5 points
+   HIGH (20-26 vs 15-21).
+
+⇒ #140 ROOT = BM missing-crown-ratio DUBBING too high on sub-inch trees → vigor↑ → sub-inch HTGR↑ → breast-height
+crossing a cycle early → spurious DBH → self-thin QMD-projection (d10) inflation → cycle-2 over-thin. The
+mortality/self-thin port is FAITHFUL. This is the same SUB-INCH-GROWTH theme as #158/#191 (now shown to have a
+MORTALITY consequence via the QMD projection), and it REFRAMES the goal-doc's "#140 under-thin / mortality dq10"
+(that was cyc0-Zeide reasoning; the real effect is cyc2 over-thin from crown-dubbing→growth).
+FIX LOCUS (next step, well-defined): BM crown-ratio dubbing for missing-crown small trees (dense.jl/CRATET area,
+cf #149/#151) — must be validated non-regressing vs the bit-exact bmt01 before landing (crown touches everything).
