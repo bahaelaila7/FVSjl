@@ -78,10 +78,13 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    crown dub (CR/BM/CI had it; EM/KT/IE/TT/UT did not) ⇒ missing-CRRATIO seedlings kept crown_pct=0 ⇒ `_em_smhtgf`
    beta2·cr=0 ⇒ HTGR crawled ⇒ never crossed 4.5' ⇒ DBH skipped ⇒ QMD frozen. FIX: wire crown_ratio_update!(lstart)
    in the EM branch + apply the ported em/crown.f DCR model to d<3 seedlings (was a flat-40 placeholder). em_dense
-   QMD 0.3→0.5→0.7=live (was frozen), BA cyc1=38=live; emt01 non-regressing. ⇒ **CLUSTER FOLLOW-UP: IE/TT/UT have
-   the SAME latent bug** (their small-tree HTG also uses beta2·cr / vigor(CR); they also lack the lstart dub). KT
-   does NOT (no crown in its small-tree HTG). Audit+fix IE/TT/UT per-variant (validate vs iet01/ttt01/utt01 +
-   a dense missing-crown reproducer). Same fix pattern as EM.
+   QMD 0.3→0.5→0.7=live (was frozen), BA cyc1=38=live; emt01 non-regressing. **IE ALSO FIXED 2026-08-12** (same
+   wiring; IE crown model already dubbed d<3 at lstart so only the call was missing): iet01 IMPROVED — 2000 TPA
+   429→443 (=live 441, was −12), 2040 TPA 212→215 (=live 215 exact); the known IE "~3% tail" was PARTLY this bug.
+   **TT/UT HELD**: same-pattern fix written (wire lstart dub; their crown models already dub missing crown at
+   lstart) but validation surfaced an INTERMITTENT ttt01 jl segfault (1/2 runs) — attribution pending (pre-existing
+   latent OOB [cf the check-bounds hole] vs the fix; CR/BM/CI call the same lstart dub without crashing). Fix is
+   stashed until the segfault is attributed. KT does NOT have the bug (no crown in its small-tree HTG).
 4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
    #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
 5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
