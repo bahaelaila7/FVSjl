@@ -95,3 +95,36 @@ are young-stand-only; esgent is a no-op without a scheduled ESTAB/AUTOES) ⇒ th
 the pre-existing cornered straddles, not regressions.
 
 The off-switch (`docs/WESTERN_ROLLOUT_COMPLETE`) remains the user's call.
+
+## CRATET 50-yr-base site-index adjustment — cross-variant fix (#190, TT/CI/IE/UT)
+
+Investigating the top-priority "mature-stand large-tree DG over-growth" item (MEMORY 2026-08-07:
+CI 114%/TT 33%/EM 29%/UT 16%), a fresh multi-cycle reproduction found the divergences much smaller
+than recorded (intervening mistletoe-mortality + DGSD fixes) and **heterogeneous** (per-stand roots):
+CI 753180709290487 = mortality-count drift +18% (age-233 DF; MORT now ~matches live); TT 753186539290487
+= **pure large-tree DG over-growth +12%** (TPA bit-identical, TopHt bit-exact — the cleanest signal);
+UT 3624632010690 = large-tree UNDER-growth −16%; EM 474180830489998 = establishment.
+
+The TT clean signal rooted a REAL cross-variant bug. FVStt_g16 per-tree DDS dump showed jl's **lodgepole
+(sp7) DDS is a constant +0.315 in ln-space above live on EVERY LP tree** (≈37% excess dds) — a wrong
+constant term, not a straddle. Decomposing DGCON: `DGSIC·XSITE` used **XSITE=85 (jl) vs 52.68 (live)**;
+0.009756·(85−52.68)=+0.315 exactly. The 85 is the raw FIA `SITE_INDEX` (SITE_SPECIES=108=LP, base age 100);
+live's 52.68 comes from **CRATET (cratet.f:117-142)**, which adjusts SITEAR to a 50-YEAR age base for the
+species whose growth equations were fit on that basis (RM-29 Alexander-Tackle-Dahms; RM-32 Alexander;
+Meyer-1961 for PP), using stand CCF (TEMCCF, floored 125). **jl omitted this adjustment entirely.**
+
+It is UNCONDITIONAL in FVS (keyword stands too) but INERT when the site species / present species are
+DF/GF/PJ (not in the adjusted set) — which is exactly why ttt01/cit01/iet01 (DF/GF-dominated) were bit-exact,
+hiding it. Ported per variant (adjusted-species sets differ): TT {1,2,7,17}+{5,8,9}; CI {11,12,16};
+IE {13,17}; UT {1,2,7,23}+{4,5,8,9}+{10 Meyer}. EM/BM/CR/KT have no cratet 50-yr block (correctly unchanged).
+
+VALIDATION: ttt01/cit01/iet01 IDENTICAL before/after (git-stash A/B). utt01 changed, but FVSut_g16's CRATET
+SITEAR dump proved jl's post-fix `sp_site_index` equals live EXACTLY for all 24 species — so the fix is
+faithful; the utt01 BA shift (−7%→−9% vs live, both cornered) is the pre-existing UT large-tree under-growth
+REVEALED by the now-correct site index (doctrine #4), and utt01 TopHt improved to match live (71=71). TT mature
+BA 118→112 vs live 105; residual +6.7% is a separate small-tree-cohort effect (TopHt bit-exact, TPA identical).
+
+LESSON: cyc0 bit-exactness is necessary-not-sufficient — a small per-cycle site-index error is invisible at
+cyc0 and compounds catastrophically multi-cycle. And the SAME symptom ("mature over-growth") had TWO independent
+roots (dwarf-mistletoe mortality 3d4144e + this site-index adjustment); always instrument the cleanest-signal
+stand (here: TPA-bit-identical pure-DG) to isolate one root at a time.
