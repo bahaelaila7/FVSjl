@@ -1315,3 +1315,23 @@ growth is now faithful. The residual (cibare cyc0 TopHt 11 vs live 12 → BA 72 
 HTGRL regression — it's downstream: (a) the DBH assigned at the 4.5' crossing / DDS accumulation for the just-grown
 regen, and/or (b) the ongoing small_tree_growth! in later cycles. = the CI "SMHTGF small-tree" tail (goal-doc item
 6, unmeasured). Precisely scoped for a focused next session; the birth-cycle HTGRL itself is settled.
+
+## #191 TT aspen — MEASURED precisely (was vague "sub-1 over + DGFASP under"); current, NOT stale
+asp.key (753175613290487, 100% aspen sp6): jl OVER-grows BA +8-13% (2049 BA 111 vs live 98), QMD over (5.9 vs 5.5),
+TPA identical → deterministic DG over-growth. Instrumented BOTH sides (FVStt_g16 DEBUG DGFASP + jl TT_ASP_DUMP):
+• DGFASP formula + coefficients BIT-MATCH pristine dgfasp.f; BA input matches (~22, both backdated growth-period BA;
+  verified live BAACT≈22 back-derived from VALMOD=0.4559).
+• RMSQD DIFFERS: jl=2.495 vs live=2.96 (back-derived from live GOFAD=0.6031; live cyc2 GOFAD=0.6905→rmsqd 3.77).
+  RMSQD=SQRT(TSUMD2/TPROB) (base/dense.f:250) = QMD over the summed trees, NO threshold ⇒ the gap is a TREE-
+  POPULATION difference: jl's DG-point QMD (2.495) < live's (2.96 ≈ reported QMD 3.0). Since cyc0 .sum QMD is
+  bit-exact (3.0), jl's DG-point stand carries EXTRA low-DBH aspen that drag RMSQD down — the "sub-1" component.
+  Likely SAME CLASS as CI #194: jl computes the stand stat over a population INCLUDING regen/sub-1" that live's
+  RMSQD excludes (pre- vs post- a step). Lower RMSQD → lower GOFAD → lower large-tree DGFASP (UNDER) — the
+  "DGFASP-RMSQD under" half.
+• COR: jl aspen dg_cor=0/cor2=1 vs live DGSCOR scale ~0.94-0.99 (live reduces DG). The two ERRORS PARTIALLY CANCEL
+  (d=5.7: jl aspdg 1.5103 ≈ live 1.570·0.94≈1.508) — masking each other ⇒ this is why #191 is "entangled, land
+  together". NET over-growth = the sub-1" aspen (extra population + their own over-growth) dominating.
+⇒ #191 FIX (land together): (a) determine why jl's DG-point aspen population has extra low-DBH trees (dump jl t.n +
+diameter distribution at the DG point vs live ITRN; check DG-vs-establishment order & whether RMSQD should exclude
+birth-cycle regen — cf. #194 pre-regen ATAVH); (b) confirm/port the aspen DGSCOR COR. Precise numbers now in hand;
+distinct from #142/#158.
