@@ -63,9 +63,12 @@ TT/EM accelerator/CCF), jl vs live FVS{v}_clean, multi-cycle — confirming NO r
 - **IE**: cornered (TopHt ±2: 84/86, 54/54, 141/142; BA −9..0%).
 - **TT**: conifer stands cornered (264/265, 286/286, 252/249), BUT a 9-stand follow-up tally found a real
   PURE-ASPEN residual — 3 HIGH (+6/+20/+22%) / 6 ~BE / 0 LOW (positive-skew, NOT a symmetric straddle).
-  Reproducer 753175613290487 (pure FIA 746 aspen): cyc0 bit-exact, jl QMD over-grows +12% systematically ⇒
-  BA +20%, TopHt bit-exact. NOT the small-tree SMDGF (jl-low there) ⇒ large-tree aspen DG or mortality — a
-  genuine open TT-aspen item (#188), at/over the cornered bar; corrects the prior "TT fully cornered" verdict.
+  Reproducer 753175613290487 (pure FIA 746 aspen): cyc0/TopHt/TPA bit-exact, ACCRE-driven (not mortality).
+  INVESTIGATED via FVStt_g16 (#188, resolved): large-tree aspen DG REFUTED (live ASPDG higher, jl-low),
+  aspen SMDGF coeffs+form MATCH live bit-for-bit ⇒ it's a small-aspen (D<3) height→SDIAM realization (~13%/tree)
+  amplified on DENSE pure-aspen to +20% aggregate — a small-systematic residual at the cornered boundary, no
+  clean coefficient fix. Corrects BOTH the prior "TT fully cornered" (real +20% exists) and "it's a bug"
+  (coeffs/large-tree faithful). Aspen-specific; conifer TT stands bit-exact-or-cornered.
 - **EM**: TopHt BIT-EXACT (75/75, 52/52, 59/59); BA −14/+3/+5%.
 
 TopHt (the sensitive top-percentile metric) is bit-exact-or-±2 on all 18; BA sits in the
