@@ -41,6 +41,56 @@ const UT_CRC1   = Float32[-0.02216,-0.02216,-0.02944,-0.03513,-0.01037,-0.01516,
 # Weibull species (nonzero coeffs) = 1-10,20,21,23; PJ/hardwoods (11-19,22,24) get crown from REGENT (skip).
 @inline _ut_crown_weibull(sp::Int) = sp <= 10 || sp == 20 || sp == 21 || sp == 23
 
+# ===================== small-tree crown dub (ut/dubscr.f) — DBH<1" at LSTART =====================
+# ut/crown.f:220 `IF(D.LT.1.0.AND.LSTART) GO TO 58` routes sub-1" inventory seedlings to label 58 (crown.f:322):
+# sp17 → CL=-0.59373+0.67703·HF; sp18/19/22 → CL=5.17281+0.32552·HF-0.01675·BA; else CALL DUBSCR (logistic on
+# BA / per-POINT PCCF / top-40 AVH / RMAI). jl formerly SKIPPED all non-Weibull species here (crown from REGENT) and
+# applied Weibull to Weibull-species seedlings — same bug class as TT #198. Validated offline vs FVSut_g16 DEBUG
+# DUBSCR (sp7 D0.9→CR.830, sp8 D3.8→CR.628 reproduce exactly). Coefficients verbatim ut/dubscr.f DATA (CASE(20:21)
+# linear). Reuses the shared _adjmai (base/adjmai.f) defined in teton/crown.jl.
+const UT_BCR0  = Float32[-1.66949,-1.66949,-0.426688,-0.426688,-0.426688,-0.426688,-1.66949,-0.426688,-0.426688,-1.66949,-2.19723,-2.19723,-1.66949,-2.19723,-2.19723,-2.19723,-1.66949,-0.426688,-0.426688,5.0,5.0,-0.426688,-2.19723,-1.66949]
+const UT_BCR1  = Float32[-0.209765,-0.209765,-0.093105,-0.093105,-0.093105,-0.093105,-0.209765,-0.093105,-0.093105,-0.209765,0.0,0.0,-0.209765,0.0,0.0,0.0,-0.209765,-0.093105,-0.093105,0.0,0.0,-0.093105,0.0,-0.209765]
+const UT_BCR2  = Float32[0.0,0.0,0.022409,0.022409,0.022409,0.022409,0.0,0.022409,0.022409,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.022409,0.022409,0.0,0.0,0.022409,0.0,0.0]
+const UT_BCR3  = Float32[0.003359,0.003359,0.002633,0.002633,0.002633,0.002633,0.003359,0.002633,0.002633,0.003359,0.0,0.0,0.003359,0.0,0.0,0.0,0.003359,0.002633,0.002633,0.0,0.0,0.002633,0.0,0.003359]
+const UT_BCR5  = Float32[0.011032,0.011032,0.0,0.0,0.0,0.0,0.011032,0.0,0.0,0.011032,0.0,0.0,0.011032,0.0,0.0,0.0,0.011032,0.0,0.0,0.0,0.0,0.0,0.0,0.011032]
+const UT_BCR6  = Float32[0.0,0.0,-0.045532,-0.045532,-0.045532,-0.045532,0.0,-0.045532,-0.045532,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-0.045532,-0.045532,0.0,0.0,-0.045532,0.0,0.0]
+const UT_BCR8  = Float32[0.017727,0.017727,0.0,0.0,0.0,0.0,0.017727,0.0,0.0,0.017727,0.0,0.0,0.017727,0.0,0.0,0.0,0.017727,0.0,0.0,0.0,0.0,0.0,0.0,0.017727]
+const UT_BCR9  = Float32[-0.000053,-0.000053,0.000022,0.000022,0.000022,0.000022,-0.000053,0.000022,0.000022,-0.000053,0.0,0.0,-0.000053,0.0,0.0,0.0,-0.000053,0.000022,0.000022,0.0,0.0,0.000022,0.0,-0.000053]
+const UT_BCR10 = Float32[0.014098,0.014098,-0.013115,-0.013115,-0.013115,-0.013115,0.014098,-0.013115,-0.013115,0.014098,0.0,0.0,0.014098,0.0,0.0,0.0,0.014098,-0.013115,-0.013115,0.0,0.0,-0.013115,0.0,0.014098]
+const UT_CRSD  = Float32[0.5,0.5,0.6957,0.6957,0.6957,0.931,0.6124,0.6957,0.6957,0.4942,0.2,0.2,0.5,0.2,0.2,0.2,0.5,0.6957,0.6957,0.5,0.5,0.6957,0.2,0.5]
+const UT_MAI_ISPNUM = Int32[101,101,202,15,93,746,108,93,19,122,101,101,101,101,101,101,101,101,101,746,746,101,101,101]
+
+@inline function _ut_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real, tmai::Real)::Float32
+    hf = Float32(h); hf <= 0f0 && (hf = 0.1f0)
+    cr = UT_BCR0[sp] + UT_BCR1[sp]*Float32(d) + UT_BCR2[sp]*hf + UT_BCR3[sp]*Float32(ba) +
+         UT_BCR5[sp]*Float32(tpccf) + UT_BCR6[sp]*(Float32(avh)/hf) + UT_BCR8[sp]*Float32(avh) +
+         UT_BCR9[sp]*(Float32(ba)*Float32(tpccf)) + UT_BCR10[sp]*Float32(tmai)
+    sd = UT_CRSD[sp]
+    fcr = 0f0
+    while true                                          # dubscr.f label 10: reject |FCR|>SD (DGSD=2.0≥1 ⇒ draws)
+        fcr = bachlo(rng, 0f0, sd)
+        abs(fcr) > sd && continue
+        break
+    end
+    if sp == 20 || sp == 21                             # dubscr.f CASE(20:21) linear form
+        cr = ((cr - 1f0)*10f0 + 1f0)/100f0
+    else
+        abs(cr + fcr) >= 86f0 && (cr = 86f0)
+        cr = 1f0/(1f0 + exp(cr + fcr))
+    end
+    cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+    return cr
+end
+
+function _ut_rmai(s::StandState)::Float32               # ut/maical.f (shared base/adjmai.f)
+    p = s.plot
+    isisp = Int(p.site_species); isisp == 0 && (isisp = 3)
+    sssi = p.sp_site_index[isisp]; sssi == 0f0 && (sssi = 140f0)
+    rmai = _adjmai(UT_MAI_ISPNUM[isisp], sssi, 10f0)
+    rmai > 128f0 && (rmai = 128f0)
+    return rmai
+end
+
 # ut/crown.f crown-ratio change (Weibull) — mirror TT crown_ratio_update! with UT coeffs + sp5/sp23 RELSDI cap.
 function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
@@ -55,11 +105,35 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
     _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    p_pccf = s.density.point_ccf
+    rmai = lstart ? _ut_rmai(s) : 0f0
     @inbounds for i in 1:n
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue
-        _ut_crown_weibull(sp) || continue                  # PJ/hardwoods → crown from REGENT
+        # ut/crown.f:220 — DBH<1" at LSTART routes to label 58 (small-tree dub), for ALL species.
+        if d < 1f0 && lstart
+            if sp == 17                                    # ut/crown.f:326 CASE(17): GB crown-length form
+                hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)
+                cl = -0.59373f0 + 0.67703f0*hf
+                cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+                icri = trunc(Int, (cl/hf)*100f0 + 0.5f0)
+            elseif sp == 18 || sp == 19 || sp == 22        # NC/FC/BE crown-length form
+                hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)
+                cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area
+                cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+                icri = trunc(Int, (cl/hf)*100f0 + 0.5f0)
+            else                                           # label 58 CASE DEFAULT → DUBSCR
+                pt = Int(t.plot_id[i])
+                tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
+                cr = _ut_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
+                icri = trunc(Int, cr*100f0 + 0.5f0)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
+        _ut_crown_weibull(sp) || continue                  # PJ/hardwoods → crown from REGENT (cycling)
         icr = Int(t.crown_pct[i])
         relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
         relsdi > 1.5f0 && (relsdi = 1.5f0)
