@@ -106,7 +106,11 @@ function setup_growth!(s::StandState)
                                           # crown model already dubs missing crown at lstart (Weibull); only the call missing.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
-        ut_cratet_siteconv!(s)            # UT CRATET: convert SITEAR → age-50 site-curve height (ut/cratet.f), BEFORE dgcons
+        # NB: the CRATET age-50 site-curve conversion (ut/cratet.f) is ALREADY applied once in site_setup!
+        # (ut_cratet_site_adjust!, site_index.jl). Calling ut_cratet_siteconv! here too DOUBLE-CONVERTED the
+        # site index for the RM-29/RM-32/Meyer site species (1,2,4,5,7,8,9,10,23) — e.g. LP-site FIA stand
+        # 3626079010690: raw 46 → 30 (correct=live) → 20.8 (wrong), dropping DGCON ~0.178 ⇒ conifer DG/BA
+        # under-grew ~8%. utt01 masked it (DF site species, not in the conversion groups). Removed the dup call.
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
                                           # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
