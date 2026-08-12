@@ -467,3 +467,24 @@ at ALL sizes (D>=1) ⇒ changes emt01's multi-cycle crowns/growth ⇒ MUST be ch
 FVSem_g16 (ISORT/IND sort order, SDIAC, SDIDEF table must be byte-exact) per doctrine ("regression on a faithful
 chunk = examine"). Coefficients + mechanism are now fully in hand ⇒ next session is a turnkey implement+validate.
 IE side of #193 (ie_autoes crown +0.07985*RAN term, RNG-order-faithful) still pairs with this.
+
+## #193/#194 cross-check — CI crown is the READY TEMPLATE; #194 is a SEPARATE ci_esgent root
+
+Verified jl src/variants/centralidaho/crown.jl:105-144 ALREADY implements the EMVAR-style Weibull-rank crown
+CORRECTLY for CI: ISORT diameter-rank (`isort[idx[jj]]=n-jj+1`), `d<1 && lstart → ci_dubscr` gate
+(== ci/crown.f:290 `IF(D.LT.1.0 .AND. LSTART) GO TO 58`), then the Weibull `CRNEW=(A+B(-ln(1-X))^(1/C))·10`
+with SDIAC/sp_sdi_def/CI_WEIBA/B0/B1/C0/C1 and the 1%/yr label-53 recession. CI regen with D>=1 RECEDES.
+
+Two consequences:
+1. CONTRAST VALIDATES #193: CI (HAS the Weibull recession) shows NO crown-driven over-growth; EM (jl uses
+   NIVAR-DCR for all, LACKS the Weibull recession) DOES. This is strong confirmation that the missing EMVAR
+   Weibull-rank recession is the EM over-growth driver — not a coincidence, a controlled A/B across variants.
+2. #194 RE-SCOPED: CI's crown is faithful ⇒ #194's CI bare-establishment over-growth is NOT a crown-recession
+   bug. It lives in ci_esgent itself (establishment tally amount / birth height / birth crown), a SEPARATE root
+   from #193. #193 and #194 are NO LONGER the same class.
+
+⇒ The EM crown port (#193) is DE-RISKED: mirror jl's validated CI crown_ratio_update! — same ISORT/SDIAC/
+  Weibull machinery — swapping CI coefficient tables for EM's (tables captured above) and wiring EM's per-species
+  dispatch (sp5 NIVAR-DCR jl already has; CRVAR sp{11,13-16,19} CL=5.17281+.32552HF-.01675BA; LPIJU sp6
+  CL=-.59373+.67703HF; EMVAR/UTTVAR Weibull for the rest) + EM's dubscr for the D<1&lstart path. Still needs
+  per-cycle emt01 A/B vs FVSem_g16 before landing (changes most-species crowns).
