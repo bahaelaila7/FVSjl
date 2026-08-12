@@ -75,3 +75,21 @@ Re-ran the sub-1" reproducers with NOTRIPLE (tripling OFF ⇒ no per-triple ZZRA
   tripling-flipped). NEXT (fix): instrument FVStt_g16 (/workspace/.ttwork/FVStt_g16) sub-1" per-tree DG for sp108 on
   1629326355290487 @2030 (NOTRIPLE) vs jl's teton/regent.jl small_tree path — find where jl under-assigns DBH/HTGR
   to sub-1" LP seedlings. This is the PRIORITY genuinely-open GROWTH bug (real, on-FIA, deterministic, not gated).
+
+## ★★ TT #198 ROOT-CAUSED (2026-08-12): crown-model density excludes recent-mortality trees
+Reproducer 1629326355290487 (TT sp108/LP) is a POST-MORTALITY stand: 4 LIVE seedlings (D0.1) + 89 DEAD/mortality
+large trees (D5-9.8, tpa 6 each) — jl loads all (t.n=4 live, t.ndead=89). MEASURED chain:
+- jl seedling CR 59/45/94/73 vs live (.trl) 58/17/15/31 — jl OVER-assigns CR to 3 of 4.
+- NOT the DBH-rank: the .trl %-TILE (63/10/100/97) matches ranking over the 4 LIVE trees (both jl+live); same
+  %-TILE gives different CR (live %-TILE-100 seedling CR 15 vs jl 94).
+- ROOT = the Weibull crown DENSITY terms (teton/crown.jl:74-87): jl relative_density=5.3 / crown_sdi~0 (computed
+  over ONLY the 4 live seedlings, BA 0.29) ⇒ scale=1−0.00167·(5.3−100)→capped 1.0 (NO suppression) ⇒ HIGH crnew.
+  Live includes the 89 dead trees (high SDI/relden) ⇒ scale<1 + higher acrnew ⇒ SUPPRESSED crnew (low CR).
+- The inflated CR → _tt_smhtgf BETA2·CR → seedling HEIGHT over-growth (2070 TopHt jl 34 vs 22) → tall/thin/low-BA
+  → self-thin never fires → 2.5× TPA over-retention (4406 vs 1724).
+⇒ FIX (task #198): include the recent-mortality trees in the TT crown-model density (relative_density + the
+  crown_sdi passed to crown_ratio_update!), matching live cratet.f. VERIFY vs cratet.f (does it use mortality-
+  inclusive SDIAC/RELDEN?); after fix jl seedling CR should → 58/17/15/31 = live and NOTRIPLE .sum → TopHt 9/QMD
+  1.0 @2030. Non-regress ttt01 + the fresh FIA sweep. CAVEAT: mortality-inclusive density may touch other variants'
+  crown/density — scope to the crown dub if needed. This is the ONE real growth bug the fresh sweep surfaced,
+  now mechanistically root-caused (measure-don't-infer, doctrine #2).
