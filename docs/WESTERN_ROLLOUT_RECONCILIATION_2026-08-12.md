@@ -1346,3 +1346,18 @@ the dgf! rmsqd call (and the dumped d=5.7 is coincidental/also-backdated) or rms
 p.basal_area path elsewhere. NEXT (focused): dump jl t.n + full diameter list AT the dgf! rmsqd line vs the cyc0
 stand, and trace whether tt dgf! backdates t.dbh before line 153. Then align RMSQD to live's current-QMD source
 while keeping BA backdated. (Still land together with the aspen COR.)
+
+## #191 CORRECTED ROOT — aspen DGSCOR calibration over-corrects (POSITIVE COR), RMSQD was a red herring
+Deeper measurement RETRACTS the RMSQD/backdating lead above: jl's dgf! is called TWICE per cycle — a CALIBRATION
+pass (backdated stand: rmsqd 2.495, ba 21.91, dg_cor=0 by design) and the ACTUAL-growth pass (rmsqd 2.964 == live
+2.96 ✓, ba 30.9). My first TT_ASP_DUMP only captured the calibration pass ⇒ the "RMSQD 2.495 vs 2.96" and "aspen
+COR=0" were both CALIBRATION-pass artifacts, NOT the actual-growth values. Actual-growth RMSQD MATCHES live.
+TRUE ROOT: jl's aspen DGSCOR calibration computes corv=+1.1656 (bnyv=1.0466 = mean measured-vs-predicted residual,
+POSITIVE ⇒ measured >> predicted ⇒ COR *BOOSTS* aspen DG). Live's DGSCOR for this stand REDUCES DG (scale 0.94).
+OPPOSITE SIGN ⇒ jl over-grows +13% BA. Calibration gate passes (calib_sp=T, isct=1, fn=10≥5, snp=60; trap doesn't
+fire, exp(corv)=3.21 in range). Since the aspdg PREDICTED DDS is bit-matched (formula+coeffs verified vs pristine
+dgfasp.f), the divergence is in the MEASURED aspen DDS (from the FIA DG field) or the per-tree residual accumulation
+(snx/sny/snp) — jl's measured aspen growth reads much higher-vs-predicted than live's. NEXT (focused): instrument the
+calibration per-tree loop — dump jl's measured DDS + predicted DDS per aspen tree vs FVStt_g16 (readdgf/dgdriv DEBUG),
+find why jl's measured/predicted ratio is inverted vs live. This is the "land together" root (the earlier
+sub-1"/DGFASP-RMSQD framing is superseded). Distinct from #142.
