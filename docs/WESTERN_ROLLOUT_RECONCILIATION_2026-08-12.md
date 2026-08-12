@@ -176,3 +176,20 @@ as in the growth path) into `dg_prev` at the end of the LSTART pass, so cyc0 MOR
 stays bit-exact (its keyword trees may carry measured DG → different path — check), and the mature FIA stand's
 +18% shrinks. Care: this touches ALL variants' cyc0 mortality vigor; gate/validate per variant. Still the
 recommended next implementation target; the mechanism is now fully measured, not inferred.
+
+### CI dg_prev — tractability confirmed; it is the cyc0 COMPLEMENT of 96d79c7
+
+`96d79c7` (prior session) already fixed the dg_prev cycle-to-cycle CARRY (simulate.jl:550, dg_prev=diam_growth
+after each cycle) for CI/EM — which "HALVES cit01 #142 over-kill" — but that only populates cyc1+; **cyc0
+dg_prev stays 0** (the remaining half of the over-kill, and the +18% on the mature FIA stand). That commit even
+measured "live CI WK1 nonzero=1.19" but did not close the cyc0 init. So this is the exact complement: populate
+dg_prev at cyc0 with the backdated-density calibration DG.
+
+Tractability MEASURED: jl's `calibrate_diameter_growth!` already produces the backdated-stand DDS (`wk2` after the
+backdated `dgf!`). A rough DDS→DG conversion `(sqrt(dib²+exp(wk2))−dib)/bark` at the backdated dbh gives **1.29**
+vs live **1.19** — the right magnitude, confirming jl has all the pieces. The ~8% gap is the missing DGDRIV
+factor chain (XDMULT/XDGROW, WK4 clgmult, COR/DGSCOR, tripling FRM) that the growth path applies. So the FIX is:
+at the end of the LSTART pass, run the SAME DDS→DG conversion the growth path uses on the backdated `wk2`, and
+store per-tree into `t.dg_prev` (guarded so cyc0 mortality reads it). Bounded, but must be bit-exact (the full
+factor chain) and validated per variant that uses dg_prev (CI/EM/IE/KT/TT/BM) — cit01/emt01 bit-exact + mature
+FIA improves. Recommended next implementation; mechanism + tractability fully measured this session.
