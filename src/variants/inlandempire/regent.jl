@@ -573,7 +573,9 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
         dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
         htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden + IE_RG_RHBAL[sp]*bal
-        h2 = h + exp(htgrl) * bscale * xrhgro            # birth-cycle subperiod (was ·SCALE=kper/regyr)
+        # ×per-tree WK4=HTIMLT birth-cycle multiplier (live esgent.f:23 HTG=HTG*WK4; #193). PLANT/existing=1.0
+        # (= old bscale ⇒ iet01 unchanged); AUTOES natural regen=0.40 (was bscale=1.0 ⇒ 2.5× seedling over-growth).
+        h2 = h + exp(htgrl) * t.htimlt[i] * xrhgro
         htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
         ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
