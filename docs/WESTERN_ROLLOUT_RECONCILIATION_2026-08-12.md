@@ -61,8 +61,11 @@ TT/EM accelerator/CCF), jl vs live FVS{v}_clean, multi-cycle — confirming NO r
 - **CI**: cornered (TopHt bit-exact 29/29, 65/66, 95/96; BA within ±13% DGSCOR straddle).
 - **UT**: cornered (TopHt ±1: 22/21, 57/57, 33/34; BA −7..−11% cornered lean, #142/#156 class).
 - **IE**: cornered (TopHt ±2: 84/86, 54/54, 141/142; BA −9..0%).
-- **TT**: cornered (TopHt ±1: 85/84, 68/67, 80/81; BA −0/+20/+22% — the widest straddle, mixed-sign,
-  consistent with TT's documented small-tree-DG cornered residual; TopHt bit-exact confirms determinism).
+- **TT**: conifer stands cornered (264/265, 286/286, 252/249), BUT a 9-stand follow-up tally found a real
+  PURE-ASPEN residual — 3 HIGH (+6/+20/+22%) / 6 ~BE / 0 LOW (positive-skew, NOT a symmetric straddle).
+  Reproducer 753175613290487 (pure FIA 746 aspen): cyc0 bit-exact, jl QMD over-grows +12% systematically ⇒
+  BA +20%, TopHt bit-exact. NOT the small-tree SMDGF (jl-low there) ⇒ large-tree aspen DG or mortality — a
+  genuine open TT-aspen item (#188), at/over the cornered bar; corrects the prior "TT fully cornered" verdict.
 - **EM**: TopHt BIT-EXACT (75/75, 52/52, 59/59); BA −14/+3/+5%.
 
 TopHt (the sensitive top-percentile metric) is bit-exact-or-±2 on all 18; BA sits in the
