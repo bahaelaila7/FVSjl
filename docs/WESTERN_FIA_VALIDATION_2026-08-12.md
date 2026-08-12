@@ -60,3 +60,18 @@ OPEN QUESTION (bug vs cornered): is #158 a real SMDGF-single-step-suppression MO
   /workspace/.ttwork/FVStt_g16): instrument live's sub-1" per-tree DG on 1629326355290487 @2030 (the over-growth
   point, NOTRIPLE) vs jl's SMDGF/regent DBH assignment — if the DETERMINISTIC per-tree DG differs = real gap to
   port; if it matches = accepted straddle. This is the priority genuinely-open GROWTH item (real, on-FIA, not gated).
+
+## ★ TT #158 bug-vs-cornered SETTLED (2026-08-12): REAL DETERMINISTIC BUG (via NOTRIPLE)
+Re-ran the sub-1" reproducers with NOTRIPLE (tripling OFF ⇒ no per-triple ZZRAN — pure deterministic path):
+- **1629326355290487** (sp108/LODGEPOLE, dense sub-inch, cyc0 QMD 0.1 BIT-EXACT jl==live): the divergence PERSISTS
+  and GROWS deterministically — 2030 BA jl 9 vs live 27 (~3× UNDER), QMD 0.6 vs 1.0; by 2070 TPA jl 4406 vs live
+  1724 (2.5× over-retained), QMD 2.6 vs 5.2. jl UNDER-grows the sub-1" LP seedlings ⇒ they never cross the
+  self-thin thresholds ⇒ jl retains 2.5× too many. NOT an RNG/tripling straddle (NOTRIPLE removes tripling and the
+  gap remains) ⇒ a REAL deterministic small-tree-DG bug in TT's smhtgf/smdgf/regent for sub-1" seedlings.
+- 533757478126144 is closer under NOTRIPLE (jl BA 254 vs 234 @2067) — milder.
+⇒ VERDICT: the one non-cornered growth divergence on real FIA data is a CONFIRMED REAL BUG (TT sub-1" small-tree DG
+  under-grows dense LP/sp108 seedlings), NOT the accepted straddle. Note the SIGN: jl UNDER-grows here (opp. to the
+  memory's "aspen OVER-grows #158" — likely a DIFFERENT species/path than the aspen case, or the aspen framing was
+  tripling-flipped). NEXT (fix): instrument FVStt_g16 (/workspace/.ttwork/FVStt_g16) sub-1" per-tree DG for sp108 on
+  1629326355290487 @2030 (NOTRIPLE) vs jl's teton/regent.jl small_tree path — find where jl under-assigns DBH/HTGR
+  to sub-1" LP seedlings. This is the PRIORITY genuinely-open GROWTH bug (real, on-FIA, deterministic, not gated).
