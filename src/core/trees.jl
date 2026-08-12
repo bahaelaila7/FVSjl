@@ -104,6 +104,12 @@ mutable struct TreeList
     # at setup (western variants only; 0 for non-DM variants). Carried through tripling/compaction.
     dmr       ::Vector{Int32}      # dwarf mistletoe rating 0..6              (IMIST)
 
+    # Birth-cycle height-growth multiplier (live WK4=HTIMLT, estab.f:1063 HTIMLT=FTEMP/(GENTIM+0.0001)).
+    # em_esgent!/*_esgent! scale the new tree's HTG by this the cycle it is established. 1.0 = full growth
+    # (PLANT/existing, TRAGE≥GENTIM); AUTOES natural regen gets min(TRAGE,GENTIM)/(GENTIM+ε) < 1 (TRAGE=2 ⇒ 0.40
+    # at FINT=10). Transient (used only in the birth cycle) but carried through tripling/compaction for safety.
+    htimlt    ::Vector{Float32}    # birth-cycle HTG multiplier               (WK4)
+
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
     pest_vars::Matrix{Int32}     # 5 pest extension variables              (IPVARS)
@@ -129,6 +135,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(),                                  # vol_bark
         fz(),                                  # dg_prev
         iz(),                                  # dmr
+        ones(Float32, maxtre),                 # htimlt (WK4, default 1.0 = full birth-cycle growth)
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
     )
@@ -146,7 +153,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied

@@ -378,9 +378,7 @@ function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     t = s.trees; c = s.calib; dens = s.density
     nstart >= t.n && return s
     rhcon = em_regcons!(s)                              # RHCON (also refreshes birth-cycle density constants)
-    regyr = _EM_RG_REGYR; dgsd = s.control.dg_sd
-    gentim = max(fint - 5.0f0, 0.0f0)                   # germination offset (tt_esgent! form)
-    subyr = fint - gentim                               # birth-cycle growth years (=5 for fint=10)
+    dgsd = s.control.dg_sd
     @inbounds for i in (nstart+1):t.n
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -394,7 +392,9 @@ function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         end
         htgrth = _em_smhtgf(sp, cr, tpccf, zrand)
         con = exp(c.htg_cor_small[sp])                  # RHCON(=1)·exp(HCOR)
-        htg = htgrth * (subyr / regyr) * con; htg < 0.0f0 && (htg = 0.0f0)
+        # HTG × per-tree WK4=HTIMLT birth-cycle multiplier (live em/esgent.f:23 HTG=HTG*WK4). PLANT/existing=1.0;
+        # AUTOES natural regen=0.40 (#193 — jl formerly used a constant subyr/regyr=1 ⇒ 2.5× seedling over-growth).
+        htg = htgrth * t.htimlt[i] * con; htg < 0.0f0 && (htg = 0.0f0)
         cap = s.control.sp_size_cap[sp, 4]; (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         h2 = h + htg
         t.height[i] = h2; t.ht_growth[i] = htg

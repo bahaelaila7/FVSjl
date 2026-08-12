@@ -338,6 +338,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
+                t.htimlt[n]      = 1.0f0     # PLANT/NATURAL: full birth-cycle HTG (TRAGE≥GENTIM ⇒ WK4≈1; guards slot reuse). #193
                 # ABIRTH = AGEPL + GENTIM (estab.f:628/707) — the REGENT-start `age` already computed above IS
                 # FVS's tree age (essubh.f:93). jl left birth_age=0 ⇒ established trees ran ~AGEPL+GENTIM (=7 for a
                 # default PLANT) years too YOUNG ⇒ htgf's even-aged site curve (steeper when young) over-predicted

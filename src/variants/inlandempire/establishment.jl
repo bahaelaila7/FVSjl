@@ -1261,6 +1261,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
     t = s.trees
     xmin = _IE_ES_XMIN
+    # Birth-cycle HTG multiplier WK4=HTIMLT (estab.f:1054-1063): GENTIM=max(FINT-DELAY-5,0), TRAGE=2.0 (AUTOES
+    # default PRMS(4), estab.f:987-989), HTIMLT=min(TRAGE,GENTIM)/(GENTIM+1e-4). DELAY=0 for cycle-boundary
+    # AUTOES ingrowth. At FINT=10 ⇒ 0.40 (was jl's wrong constant subyr/regyr=1 in em_esgent! ⇒ #193 over-growth).
+    _autoes_gentim = max(fint - 5f0, 0f0)
+    _autoes_htimlt = min(2f0, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
     @inbounds for sp in 1:nsp                            # each seedling record carries its TRUE plot_id (not 1) —
@@ -1280,6 +1285,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             t.height[n]      = hht
             t.tpa[n]         = tpa_sp
             t.plot_id[n]     = Int32(pt)
+            t.htimlt[n]      = _autoes_htimlt     # WK4 birth-cycle HTG scale (#193): AUTOES ⇒ 0.40 at FINT=10
             # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
             # A near-bare regen stand has PCCF≈0 ⇒ CR≈0.90; a nominal deterministic value here (the ±1% RANN draw is
             # a refinement) keeps the downstream crown/DG models well-defined (crown_ratio=0 produced NaN TopHt).
