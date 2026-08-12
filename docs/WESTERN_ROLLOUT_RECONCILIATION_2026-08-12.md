@@ -193,3 +193,25 @@ at the end of the LSTART pass, run the SAME DDS→DG conversion the growth path 
 store per-tree into `t.dg_prev` (guarded so cyc0 mortality reads it). Bounded, but must be bit-exact (the full
 factor chain) and validated per variant that uses dg_prev (CI/EM/IE/KT/TT/BM) — cit01/emt01 bit-exact + mature
 FIA improves. Recommended next implementation; mechanism + tractability fully measured this session.
+
+### CI dg_prev — hypothesis REFUTED by implementation: the +18% is CORNERED (DGSCOR straddle)
+
+Implemented the cyc0 dg_prev fix (ci/dgdriv.f stmt 215-220: `dg_prev = sqrt(D_bd²+exp(WK2+OLDRN)·(1/SCALE))−D`,
+D_bd = backdated_dbh·bark, DGBND-capped) in `calibrate_diameter_growth!`, CI-gated. It WORKS mechanically — the
+D=30.5 tree's cyc0 WK1 went 0 → 0.756 (a formula-faithful value; it straddles live's 1.19 via the RNG-drawn
+OLDRN on this all-missing-increment stand, exactly the expected cornered behavior). **But the CI mature stand
+result is BIT-IDENTICAL with vs without the fix** (git-stash A/B) ⇒ the cyc0 dg_prev is INERT on the +18%.
+
+Why: at cyc0 the CI mortality (ci/morts.f:327) overrides `g = dgi/(bark·10)` whenever `dgi>0.5` — which covers
+all the fast-growing trees; the only trees whose cyc0 `g` depends on WK1 are slow large trees (dgi<0.5), which
+carry very low mortality anyway, so their WK1 barely moves the stand. And cyc1+ already uses the applied-DG carry
+(96d79c7). So the cyc0 WK1=0 gap, though a real faithfulness deviation, does NOT drive the mature divergence.
+
+CORRECTED VERDICT: the CI mature +18% is the **DGSCOR DG-realization straddle** (the cyc1+ applied DG differs
+from live by the accepted ZZRAN/OLDRN realization — #142 class) amplified over 8 cycles by the DG↔mortality
+feedback on a near-BAMAX age-233 stand. It is CORNERED, not a systematic bug. The dg_prev fix was REVERTED —
+faithful in formula but inert on its target and unvalidated on the other references, so keeping it adds risk
+without benefit. DOCTRINE WIN: implementing the hypothesized fix and measuring it inert REFUTED my own
+"cyc0-dg_prev root" — the same measure-don't-infer discipline applied to a self-authored hypothesis. (The cyc0
+dg_prev=0 faithfulness gap remains noted for a future faithful-completeness pass, but it is not a divergence
+driver on the mature real-FIA stands.)
