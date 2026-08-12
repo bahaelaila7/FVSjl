@@ -535,3 +535,78 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     end
     return s
 end
+
+# ie/esgent.f (CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle. IE was OMITTED
+# from the esgent dispatch (simulate.jl had CR/TT/EM/UT/CI/BM), so planted/established IE seedlings never got their
+# first-cycle height growth (IE BARE-PLANT: TopHt frozen at ~2 ft, BA 50-60% under). Same class as EM #137 /
+# UT #184 / CI/BM #185. SINGLE birth-subperiod pass (esgent grows the new records one partial cycle, not the full
+# NPER subcycle machinery): mirrors small_tree_growth!'s NIVAR height (HTGRL=CON+RHLH·lnH+RHCCF·RDEN+RHBAL·BAL) +
+# AX/BX power H→D dub over the birth fraction (subyr=FINT−GENTIM=5=WK4), applying HT/DBH directly. NIVAR conifers
+# (sp≤12,14,23) — the planted-conifer case. Non-NIVAR planted species (PI/JU 15,16 / TT 13,17 / CR 19,22) are rare
+# as planting stock and left un-birth-grown here (would need their special-species branches; see #186 follow-up).
+function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    sd = s.coef.species
+    nstart >= t.n && return s
+    rhcon = ie_regcons!(s)
+    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height; ah = avh
+    dgsd = s.control.dg_sd
+    regyr = IE_RG_REGYR; yr = s.control.year
+    ntyr = Int(round(fint))
+    scale2 = ntyr > 0 ? yr / Float32(ntyr) : 1.0f0
+    gentim = max(fint - 5.0f0, 0.0f0)
+    bscale = (fint - gentim) / regyr                     # birth-cycle fraction (WK4; =0.5 for fint=10)
+    cur_year = current_cycle_year(s)
+    delmax = (ah / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
+    @inbounds for i in (nstart+1):t.n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= IE_RG_XMAX[sp] && continue
+        t.tpa[i] <= 0.0f0 && continue
+        (sp <= 12 || sp == 14 || sp == 23) || continue   # NIVAR conifers only (planted-conifer case)
+        h = t.height[i]
+        con = rhcon[sp] + c.htg_cor_small[sp]             # CON = RHCON + HCOR
+        pct = t.crown_ratio[i]
+        bal = ba * (100.0f0 - pct) * 0.0001f0
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+        relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
+        relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
+        dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
+        htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden + IE_RG_RHBAL[sp]*bal
+        h2 = h + exp(htgrl) * bscale * xrhgro            # birth-cycle subperiod (was ·SCALE=kper/regyr)
+        htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
+        ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
+        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+        diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)
+        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * (h - 4.5f0)^bx + dadj)
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 1.0f0 && zzran >= -1.5f0) && break
+            end
+        end
+        htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)
+        htg = htgr * (1.0f0 - xwt)                       # new tree: large-tree HTG(K)=0
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        hk = h + htg
+        t.height[i] = hk; t.ht_growth[i] = htg
+        if d < 3.0f0                                     # small-tree DBH dub (regent.f:938-987)
+            if hk < 4.5f0
+                t.dbh[i] = 0.1f0 + diam * 0.01f0 + hk * 0.001f0; t.diam_growth[i] = 0.0f0
+            else
+                dk = ax * (hk - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk * 0.001f0
+                dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0)
+                dg0 = dgk * bark
+                dds = dg0 * (2.0f0*bark*d + dg0) * scale2
+                dg_inc = sqrt((d*bark)^2 + dds) - bark*d
+                (d + dg_inc) < diam && (dg_inc = diam - d)
+                dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)
+                dg_inc > 0.0f0 && (t.dbh[i] = d + dg_inc; t.diam_growth[i] = dg_inc)
+            end
+        end
+    end
+    return s
+end
