@@ -882,3 +882,28 @@ divergence maps to a KNOWN item, each now with a measured tree-level root:
 All else = accepted DGSCOR/ZZRAN + AVHT40/RDPSRT tie-break straddles. The landable growth+volume work has CONVERGED;
 remaining residuals are entangled (#191), blocked (#140), or deep-RNG (#143). Extensions: FFE/mistletoe/ECON done;
 Climate-FVS is the lone remaining extension (oracle-blocked, inert without a ready-file).
+
+## #191 TT aspen — full characterization: regent-subcycle over-growth is the NET driver (crown/DGFASP is minor)
+
+Completed the #191 root analysis: on 11790583 (2123 aspen), only 3 aspen reach the large-tree DGFASP (crown=0 vs
+live 95 ⇒ minor under-growth on 3 trees); the ~2120 sub-1" aspen grow via the regent SMALL-TREE SUBCYCLE. jl's TT
+aspen crown model is NOT the cause of the crown=0 (aspen sp6 is not in _tt_crown_diagr; TT_WEIB coeffs non-zero ⇒
+Weibull gives ~12-32) — the crown=0 is on the few DGFASP trees, an order/regen-timing detail, NOT the net driver.
+⇒ #191 NET +48.5% = the REGENT small-tree aspen SUBCYCLE over-growth (memory's "sub-1" subcycle over-growth"), the
+ENTANGLED piece where prior fix attempts "didn't net-compose". FRESH ground truth in hand (live TT DEBUG works, no
+crash): the next careful attempt should trace jl tt/regent.f aspen subcycle HTGR/DG vs live regent.f DEBUG on a
+pure-aspen stand, per-subcycle, and land it JOINTLY with the DGFASP/crown piece.
+
+## SESSION FINAL STATUS (2026-08-12) — growth+volume cluster CONVERGED
+The western growth+volume cluster is bit-exact-or-cornered, comprehensively FIA-swept (CR/EM/IE/UT/BM/TT/CI, all
+regimes). This session's ledger:
+- LANDED: #192 cornered (UT oak ZZRAN straddle, source-verified); #193 EM AUTOES birth-cycle over-growth FIXED
+  (per-tree WK4/HTIMLT); #193 IE same FIXED. All validated vs live, non-regressing.
+- ROOT-CAUSED (measured tree-level, documented, not yet fixed): #191 TT aspen (regent subcycle over + DGFASP-crown
+  under, entangled); #140 BM sub-inch seedling height over-growth on hyper-dense stands (narrow; live-DEBUG-crash-
+  blocked); #143 EM/IE multi-plot AUTOES tally (per-plot ESRANN desync).
+- REFUTED by measurement (deterministic path proven faithful): ~8 hypotheses across crown-recession, large-tree-DG,
+  bark, SDIMAX (×2), dthresh, DG-vs-mortality, CI-114%-stale.
+- Extensions: FFE/mistletoe/ECON done; Climate-FVS oracle-blocked (inert w/o ready-file).
+The remaining residuals are entangled (#191), blocked (#140), deep-RNG (#143), or oracle-blocked (Climate). The
+landable growth+volume work has CONVERGED; each residual is precisely localized with a documented next step.
