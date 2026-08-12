@@ -1056,3 +1056,20 @@ mortality dq10 low" framing is superseded: the mortality port is faithful; the d
 straddle amplified by self-thin sensitivity (sign varies by stand/realization, not a fixed bias).
 NOTE: the crown straddle's amplification is largest on dense sub-inch cohorts (self-thin hyper-sensitivity) — same
 REGIME flag as the dense-seedling sweep; not a new bug.
+
+## #137 EM em_dense self-thin — self-thin EXONERATED (faithful); divergence is UPSTREAM (EM sub-inch DG stuck at floor)
+
+Applied the #140 method to the #137 reproducer (synthetic em_dense.db stand 5317149010661, 40000-TPA seedlings).
+LIVE 40000→34000→29750, QMD 0.30→0.45→0.70, BA 20→38→90 (classic self-thin: fewer/BIGGER trees).
+JL   40000→29750→29337, QMD 0.30→0.30→0.30 (STUCK at DIA0 floor), BA 20→15→14 (trees never grow).
+Scoped MORTS DEBUG (live) + EMMORT instrument (jl): the EM self-thin is FAITHFUL — jl tn10=t85d10=29750=live's
+(both cap TMD10 at 35000 → T85D10=29750). jl kills the full excess to 29750; the ISSUE is that jl's DQ10=0.30
+(=DQ0, growth≈4e-8) every cycle while live's DQ10=0.45 (grew 0.15) — so live's stand climbs the SDI ladder
+(QMD↑ → BA↑ to 90) while jl's is frozen at the sub-inch floor.
+⇒ #137 ROOT = jl's EM SUB-INCH DIAMETER GROWTH ≈ 0 on ultra-dense seedling cohorts (QMD never lifts off the 0.3
+DIA0 floor; trees never accumulate DBH / never cross breast height), NOT a mortality bug. Same SUB-INCH-GROWTH
+theme as #140/#158/#191 but the EM/UNDER-grow direction (BM over-grew; EM under-grows to zero). Distinct from the
+real-FIA #143 EM AUTOES over-establishment (that ADDS trees; here jl has FEWER trees, 29750<34000 — pure growth).
+CAVEAT: em_dense is a SYNTHETIC 40000-TPA stress-test; the mission's real-FIA EM priority remains #143 (AUTOES).
+NEXT (well-defined): trace jl EM small-tree DG for a d=0.1-0.3 seedling vs live regent/SMDGF (the breast-height-
+crossing DBH assignment) on em_dense — mirror of the BM #140 trace, opposite sign. Self-thin needs NO further work.
