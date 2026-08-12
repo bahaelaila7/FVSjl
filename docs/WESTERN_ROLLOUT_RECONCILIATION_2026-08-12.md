@@ -1287,3 +1287,14 @@ establishment (elsewhere — estab/esinit, not regent.f). ⇒ #194 FIX = port li
 same single-pass bscale, so their PLANTED-regen birth cycle may share this; NATURAL-regen validations (emt01/utt01)
 didn't exercise PLANT-at-cycle-start). NEXT: find WK4(I) assignment (grep estab/esinit), confirm KPER stepping for a
 10-yr cycle, port. This is a genuine model port, not a scalar tweak. Distinct from #142 (large-tree DGSCOR).
+
+## #194 CI — birth-cycle RELHT FIXED (eb3395b); residual is a separate small-tree DBH tail
+FIXED the birth-cycle component: ci_esgent! CIVAR RELHT now uses the PRE-regen ATAVH (=0 on bare ⇒ RELHT=1.5),
+captured as es_avh_pre before establish! (which recomputes avg_height WITH the new regen). MEASURED-exact for DF
+(HTGRL 4.08→5.259 = live 5.258). cibare cyc0 QMD 0.9→1.0 / TopHt 9→11 (live 1.1/12); cit01 INERT (stand_top_height
+= AVHT40 is invariant to adding tiny regen ⇒ avh_pre==avh for established stands; = live's AVH/ATAVH, which is why
+the established-stand RELHT was already right). RESIDUAL: cibare later-cycle DBH still ~12% under (QMD 4.9 vs 5.6,
+BA 72 vs 89 @cyc4) — NOT RELHT (jl's AVHT40 proxy == live AVH) and NOT the birth cycle; it's the ongoing small-tree
+DBH growth on an even-aged pure-regen stand = the CI "SMHTGF small-tree stochastic" tail the goal-doc lists. NEXT
+for that residual: instrument small_tree_growth! DBH regression (dk-dkk / DDS) vs FVSci_g16 regent.f on cibare at a
+mid cycle (e.g. 2022). Distinct from #142 (large-tree DGSCOR).
