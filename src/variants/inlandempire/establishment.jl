@@ -574,6 +574,26 @@ end
 IE habitat-type-group occupancy flag (ie/blkdat.f OCURHT). 0 zeroes out a species' regen probability in
 a habitat type. Added species (11-23) → 0 (no natural regen).
 """
+# IE AUTOES per-National-Forest occupancy OCURNF(IFO,sp) (ie/blkdat.f) — same gate as EM's, IE's 10 species
+# WP/WL/DF/GF/WH/RC/LP/ES/AF/PP. [sp,ifo] 10×20; added species 11-23 → no natural regen (1.0 = inert, gated by
+# OCURHT anyway). #143: completes the occ=OCURHT·OCURNF fix for IE (was default 1.0). iet01's forest/species have
+# OCURNF=1 (iet01 was bit-exact vs live WITHOUT this ⇒ OCURNF must be 1 there) ⇒ iet01 stays bit-exact.
+const IE_AUTOES_OCURNF = let m = ones(Float32, 23, 20)   # default 1.0 for added sp (11-23), OCURHT gates them
+    m[1,:]  = Float32[0,0,0,1,1,0,1,0,0,1,0,0,0,1,0,1,0,0,0,0]  # WP
+    m[2,:]  = Float32[0,0,1,1,1,0,1,0,1,1,0,0,0,1,0,1,1,0,1,0]  # WL
+    m[3,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # DF
+    m[4,:]  = Float32[0,0,1,1,1,0,1,0,0,1,0,0,0,1,0,1,1,0,1,1]  # GF
+    m[5,:]  = Float32[0,0,0,1,1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0]  # WH
+    m[6,:]  = Float32[0,0,0,1,1,0,1,0,0,0,0,0,0,1,0,1,1,0,0,0]  # RC
+    m[7,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # LP
+    m[8,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # ES
+    m[9,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # AF
+    m[10,:] = Float32[0,0,1,1,1,0,1,0,1,0,0,0,0,1,0,1,1,0,1,1]  # PP
+    m
+end
+@inline autoes_ocurnf(::InlandEmpire, ifo::Integer, sp::Integer)::Float32 =
+    (1 <= sp <= 23 && 1 <= ifo <= 20) ? @inbounds(IE_AUTOES_OCURNF[sp, ifo]) : 1.0f0
+
 @inline ie_ocurht(ihab::Integer, sp::Integer)::Float32 =
     (1 <= ihab <= 16 && 1 <= sp <= 23) ? @inbounds(_IE_OCURHT[ihab, sp]) : 0f0
 
