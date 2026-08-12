@@ -294,3 +294,26 @@ the aspen COR/growth-DGFASP realization on seedling/establishment stands — a d
 calibration-RMSQD lever is eliminated; next is the growth-path aspen COR↔DGFASP realization. DOCTRINE (#4, twice this
 session): a faithful fix that regresses = a masked interaction — here BOTH the RMSQD "fix" and the isolated j>1 fix
 regressed, proving the pair is not the whole story.
+
+## UT FIA sweep — systematic woodland (UTVAR regent) DG under-growth (#192); + a META-pattern
+
+Ran the mission's sweep on UT (12 stands, 0 jl crashes). 3 treed stands, ALL woodland, ALL systematically
+UNDER-growing: s1 559749299126144 (pinyon+juniper) BA −10% with jl TopHt DECLINING 21→17 (live holds ~20);
+s2 2343035010690 (juniper+pinyon) −5%; s9 434206325489998 (Gambel oak, 11695-TPA dense seedlings) BA −26%
+(jl BA flat ~50 vs live 54→68; TPA bit-identical ⇒ jl oak DBH barely grows). This is SYSTEMATIC (all under,
+jl height declines), NOT the ZZRAN straddle.
+
+⚠ This CONTRADICTS the "#156 UT PJ cornered" verdict, which rested on a single dense-PJ reproducer
+(39467329010690) where the deterministic PJ growth measured bit-exact. On a diverse real-FIA woodland sample
+the UTVAR regent DG (POTHTG/VIGOR height or the H-D DK=(H2−4.5)·10/(SJ−4.5) diameter conversion) is
+systematically LOW. Tasked #192 (instrument FVSut_g16 UTVAR regent vs jl on s1/s9).
+
+### META-PATTERN (this session): FIA sweeps expose real bugs the reference/repro stands mask
+Two variant sweeps this session, two real systematic divergences found — each previously accepted as
+"cornered": **TT** aspen sub-1" j>1 subcycle over-growth (#191, seedling stand 11790600010690) and **UT**
+woodland DG under-growth (#192, PJ+oak stands). Both were invisible on the mature/curated reference stands
+(ttt01/utt01) and the single-stand repros. This VALIDATES the mission's insistence on a full FIA sweep, and
+means the cluster-wide "bit-exact-or-cornered" status is really "bit-exact-or-cornered ON THE TESTED STANDS" —
+seedling-dominated and woodland-dominated real-FIA regimes still harbor real, systematic (non-straddle) bugs.
+Recommended: sweep the remaining variants (EM/BM/CI/IE/KT/CR/BC) the same way; expect a real finding per
+regime not represented in the reference stands.
