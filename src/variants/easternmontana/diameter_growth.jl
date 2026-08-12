@@ -50,7 +50,11 @@ function em_dgcons!(s::StandState)
         c.dg_dsq[sp] = EM_DGDS[ispdsq, sp]
         ccf = 0f0
         if sp == 4
-            ccf = -0.199592f0; c.atten[sp] = EM_OBSERV[isic, sp]; dgcon += 0.001766f0 * xsite
+            # LM CCF coefficient: the base DGCCF(4)=−0.199592 (LM table) PLUS the em/dgf.f:489 addition
+            # `CONSPP += 0.01·(−0.199592)·RELDEN` — live applies −0.199592 TWICE. jl previously had it once, so
+            # CONSPP ran 0.01·0.199592·RELDEN too high ⇒ LM DDS/DG ~+17% over. MEASURED via FVSem_g16 (live CONSPP
+            # 0.8055 vs jl 0.9689; post-fix jl LM DDS 2.1602==live 2.1602, 1.6371==live 1.6371). Fold both into ccf.
+            ccf = -0.199592f0 - 0.199592f0; c.atten[sp] = EM_OBSERV[isic, sp]; dgcon += 0.001766f0 * xsite
         elseif sp == 5
             ccf = EM_DGCCFA[ispccf]; c.atten[sp] = EM_OBSERV[min(isphab, 6), sp]
         elseif sp == 12 || sp == 17
@@ -108,9 +112,10 @@ function dgf!(s::StandState, ::EasternMontana)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba                 # PCT = BA percentile
         conspp = c.dg_const[sp] + c.dg_cor[sp] + 0.01f0 * c.dg_ccf[sp] * relden
         if sp == 4 || sp == 5
-            # NI section (LM/LL, em/dgf.f:562-565): BAL uses BA100=BA/100; no PCCF/RELDEN²/DGLCCF terms.
-            # conspp already carries the sp4 DGCCF=−0.199592 via em_dgcons!. FAITHFUL but UNVALIDATED (emt01
-            # has no LM/LL — needs a test stand to bit-verify).
+            # NI section (LM/LL, em/dgf.f:563-566): BAL uses BA100=BA/100; no PCCF/RELDEN²/DGLCCF terms. conspp
+            # carries the sp4 CCF = base DGCCF(4)+line-489 addition (BOTH −0.199592, see em_dgcons!). VALIDATED
+            # 2026-08-12 vs FVSem_g16 on a real LM FIA stand (DDS bit-exact for the CCF-dominated terms; small
+            # residual on mid-DBH from the BAL PCT=crown_ratio approximation, shared with the main-conifer path).
             bal100 = (1f0 - t.crown_ratio[i] / 100f0) * (ba / 100f0)
             dds = conspp + EM_DGLD[sp] * ald + EM_DGBAL[sp] * bal100 +
                   cr * (EM_DGCR[sp] + cr * EM_DGCRSQ[sp]) + c.dg_dsq[sp] * d * d +
