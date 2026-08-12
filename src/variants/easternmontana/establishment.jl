@@ -13,6 +13,26 @@ const _EM_ES_IEND = Int32[269,299,319,335,385,394,399,499,509,515,519,522,523,52
 const _EM_ES_MYGRUP = Int32[3,1,4,2,4,3,4,3,8,6,8,7,5,7,8,9,10,6,8,5,13,16,11,14,16,12,15,12,14,15,11,15,14]
 const _EM_ES_MYHTS = Int32[1,2,2,2,3,3,3,3,4,4,5,5,5,5,5,5]   # em/estab.f:111 MYHTS/1,3*2,4*3,2*4,6*5/
 
+# EM AUTOES per-National-Forest occupancy OCURNF(IFO,sp) (em/blkdat.f) — the espadv/espxcs occupancy gate
+# occ=OCURHT·XESMLT·OCURNF that zeroes species that cannot regen on a given NF. [sp,ifo], sp 1-19 × ifo 1-20.
+# Species 4(LM)/5(LL)/6(RM)/11-19 never natural-regen (all 0). #143: without this, PP (OCURNF(ifo,PP)=0 on many
+# NFs incl forest-108) over-establishes and over-grows (htg1≈4.22 vs DF≈1.50 ⇒ BA 6.5×).
+const EM_AUTOES_OCURNF = let m = zeros(Float32, 19, 20)
+    m[1,:]  = Float32[0,0,0,1,1,0,1,0,0,1,0,0,0,1,0,1,0,0,0,0]  # WB
+    m[2,:]  = Float32[0,0,1,1,1,0,1,0,1,1,0,0,0,1,0,1,1,0,1,0]  # WL
+    m[3,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # DF
+    m[7,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # LP
+    m[8,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # ES
+    m[9,:]  = Float32[0,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,0,1,1]  # AF
+    m[10,:] = Float32[0,0,1,1,1,0,1,0,1,0,0,0,0,1,0,1,1,0,1,1]  # PP
+    m
+end
+# AUTOES OCURNF dispatch: default 1.0 (IE keeps its validated occ=OCURHT behavior; its own OCURNF is a TODO);
+# EM uses its table. (esinit.f XESMLT=1.0 default ⇒ XESMLT factor inert; only OCURNF needed.)
+@inline autoes_ocurnf(::AbstractVariant, ifo::Integer, sp::Integer)::Float32 = 1.0f0
+@inline autoes_ocurnf(::EasternMontana, ifo::Integer, sp::Integer)::Float32 =
+    (1 <= sp <= 19 && 1 <= ifo <= 20) ? @inbounds(EM_AUTOES_OCURNF[sp, ifo]) : 1.0f0
+
 @inline function em_ihtser(kodtyp::Integer)::Int
     ihab = 16
     @inbounds for j in 1:length(_EM_ES_IEND)

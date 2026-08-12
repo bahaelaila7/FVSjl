@@ -1083,7 +1083,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        esb_shift::Real = 0f0, is_ingro::Bool = true,
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
-                       idup::Integer = 0, nsp::Integer = 23,
+                       idup::Integer = 0, nsp::Integer = 23, variant = nothing,
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[])
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
@@ -1119,7 +1119,12 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             fill!(nstore, nsval)
         end
     end
-    occ = Float32[ie_ocurht(idx.ihab, s) for s in 1:nsp]
+    # espadv/espxcs occupancy = OCURHT(ihab,sp)·XESMLT(sp)·OCURNF(ifo,sp) (estab.f). jl formerly applied only
+    # OCURHT; the OCURNF (per-National-Forest occupancy) gate was omitted (validated inert on iet01 where
+    # OCURNF·XESMLT=1). On EM bare-establishment stands this let species EXCLUDED on the stand's NF (e.g. PP on
+    # forest 108, OCURNF(ifo,PP)=0) over-establish and over-grow (#143: PP htg1≈4.22 vs DF≈1.50 ⇒ BA 6.5×). Now
+    # multiplied in via autoes_ocurnf(variant,ifo,sp) (XESMLT=1 default). EM has its table; other variants→1.0.
+    occ = Float32[ie_ocurht(idx.ihab, sp) * (variant === nothing ? 1f0 : autoes_ocurnf(variant, Int(idx.ifo), sp)) for sp in 1:nsp]
     over = zeros(Float32, 10)
     _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
     tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
@@ -1251,7 +1256,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
-                      point_small_tpa = point_small, idup = idup,
+                      point_small_tpa = point_small, idup = idup, variant = s.variant,
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
