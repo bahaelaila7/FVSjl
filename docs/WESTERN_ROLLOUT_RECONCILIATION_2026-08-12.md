@@ -317,3 +317,25 @@ means the cluster-wide "bit-exact-or-cornered" status is really "bit-exact-or-co
 seedling-dominated and woodland-dominated real-FIA regimes still harbor real, systematic (non-straddle) bugs.
 Recommended: sweep the remaining variants (EM/BM/CI/IE/KT/CR/BC) the same way; expect a real finding per
 regime not represented in the reference stands.
+
+## EM FIA sweep — MASSIVE AUTOES-established regen over-growth (+200-492% BA) (#193) — biggest find yet
+
+EM sweep (14 stands, 0 crashes): 13/14 show jl BA +200-492% over live (jl TopHt +8-10); only the one mature stand
+(s14, initial trees) is +3% cornered. DIAGNOSED s1 3035453010690 = a BARE stand fully established by AUTOES (jl
+NOAUTOES → 0 trees): jl establishes ~the same initial TPA (201@2000=live) but OVER-GROWS the regen — cycle-1 (2010)
+jl BA=3 vs live 1, TopHt 15 vs 10; compounding to 2050 jl BA71/TPA334/QMD6.2"/TopHt45 vs live BA12/TPA260/QMD2.9"/
+TopHt36. TPA only +30% (mild over-establish, the known caveat) but BA +492% because the established seedlings'
+DIAMETER grows ~2× too fast (QMD 6.2 vs 2.9), immediately from the first growth cycle. Prime suspects: the EM
+young-tree HTG accelerator (ad87e87) wrongly firing on age-0 AUTOES regen, or em_esgent!, or the EM small-tree DG.
+
+⇒ EM STATUS CORRECTED: bit-exact-or-cornered on MATURE-inventory stands (emt01 + the 730-stand mortality sweep, which
+were mature) but MASSIVELY over-grows on BARE/ESTABLISHMENT real-FIA stands — a large fraction of the corpus. Tasked #193.
+
+### META-PATTERN now 3/3: every variant swept this session found a real systematic bug the reference stands masked
+TT (#191 aspen sub-1" subcycle over-growth) · UT (#192 woodland UTVAR under-growth) · EM (#193 AUTOES-regen +492%
+over-growth). All three regimes — seedling-dominated, woodland, bare-establishment — are UNREPRESENTED in the curated
+reference stands (ttt01/utt01/emt01 are all mature inventories) and were previously stamped "bit-exact-or-cornered".
+The cluster is validated on MATURE stands; the small-tree/regen/establishment/woodland regimes harbor real, often
+LARGE, systematic (non-straddle) growth bugs. STRONG RECOMMENDATION: the mission's "full FVS-ready FIA sweep" must
+drive each variant's SEEDLING + ESTABLISHMENT + WOODLAND regimes to bit-exact-or-cornered, not just the mature
+reference stand. Remaining to sweep: BM/CI/IE/KT/CR/BC (KT has no FIA-DB stands).
