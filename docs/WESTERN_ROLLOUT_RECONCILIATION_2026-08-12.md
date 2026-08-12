@@ -1400,3 +1400,15 @@ SUB-1" regent subcycle (aspen SMHTGF/regent, the #158 "single-step-suppressed-mo
 trees into the DGFASP pool — the OTHER half of the #191 pair. NEXT: instrument the aspen sub-1"/regent DG on asp.key
 vs FVStt_g16 regent DEBUG (the #158 work). The RMSQD fix is faithful+validated (COR bit-exact, ttt01 inert). NOTE:
 correct 42f4860's residual description in the record — it's sub-1", not measured-DDS.
+
+## #191 residual REFINED — it's DIAMETER, not height (TopHt matches live exactly)
+asp.key TopHt is bit-exact vs live (31/38/46/53-54/61/67 = live) while QMD/BA is over (BA cyc1 51 vs 48, QMD
+3.9 vs 3.8; growing to +9% BA / QMD 5.8 vs 5.5 @2049). ⇒ the residual is a DIAMETER-growth residual, NOT the sub-1"
+HEIGHT-crossing hypothesized above (height growth matches). With the large-tree DGFASP predicted+COR bit-exact
+(verified for the calibration-range trees), the residual is an ACTUAL-GROWTH aspen diameter residual in some subset
+— candidates: (a) the actual-growth DGFASP BA basis (jl uses current p.basal_area 30.9; confirm live's actual-growth
+DGFASP BA — the calibration pass used backdated ~22), (b) aspen below the calibration DBH range (dn-dx) getting a
+different endpoint DG, (c) the DDS→diameter conversion for aspen. NEXT (bounded): per-tree actual-growth DGFASP
+compare jl vs FVStt_g16 (D, BA, ASPDG, applied dg_cor, resulting dg) on a few aspen across the size range at cyc1 —
+find which trees over-grow their DBH. NOTE tripling fires (25 recs ≤ MAXTRE/3) so use the pre-split window or the
+per-DBH-class .sum distribution, not the raw treelist. The DGFASP-RMSQD/COR half stays RESOLVED (42f4860, bit-exact).
