@@ -1459,3 +1459,14 @@ generalize _TT_CUR_RMSQD → a shared _CALIB_CUR_RMSQD set for all variants, eac
 per-variant non-regression + an aspen-heavy FIA stand. Also check the DKK=D-when-H<4.5 smdgf floor (929e6a3) across
 the other variants' small-tree DBH paths (CIVAR/UTVAR floor per live regent.f:824/838 — verify jl's ports do too).
 Not done here to keep the 6-file change out of a very deep context; per-variant FVS{v}_g16 validation required.
+
+## #194 CI residual — REFINED (re-measured with all fixes): TRANSIENT small→large transition, converges
+cibare current (birth-cycle RELHT eb3395b + #195 inert on DF/LP): 2002 QMD 1.0 vs live 1.1 (was 0.9, birth-cycle
+fixed); TopHt bit-tracks live (12/25/36/46/54/61 ≈ 11/24/35/45/55/62); TPA mild +5% (675 vs 645); BA UNDER, gap
+PEAKS at 2032 (jl 72 vs live 89, −19%; QMD 4.9 vs 5.6) then CONVERGES (2042 122 vs 132 −8%; 2052 159 vs 163 −2.5%).
+The peak coincides with the planted DF/LP regen crossing the small→large-tree XMAX (~4-5") ~2032, so it's the CI
+small-tree→large-tree DBH-growth realization on an even-aged pure-regen stand — TopHt-matches ⇒ diameter-only, and
+it CONVERGES rather than compounding ⇒ a transient realization, not a persistent bug (same class as the accepted
+CI SMHTGF small-tree straddle; cit01 the main CI validation is bit-exact-or-cornered). #194 birth-cycle half FIXED;
+this transition residual is at/near the cornered bar. A focused next step (if pursued): instrument the CI small-tree
+dgk vs FVSci_g16 at 2032 for the DF/LP regen crossing XMAX. Distinct from #142 (large-tree DGSCOR).
