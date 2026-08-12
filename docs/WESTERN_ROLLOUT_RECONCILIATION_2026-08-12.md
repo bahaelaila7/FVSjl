@@ -1298,3 +1298,11 @@ BA 72 vs 89 @cyc4) — NOT RELHT (jl's AVHT40 proxy == live AVH) and NOT the bir
 DBH growth on an even-aged pure-regen stand = the CI "SMHTGF small-tree stochastic" tail the goal-doc lists. NEXT
 for that residual: instrument small_tree_growth! DBH regression (dk-dkk / DDS) vs FVSci_g16 regent.f on cibare at a
 mid cycle (e.g. 2022). Distinct from #142 (large-tree DGSCOR).
+
+## #194 META check — birth-cycle RELHT bug is CI-SPECIFIC (not cluster-wide)
+Checked whether the ci_esgent! RELHT-uses-post-regen-avh bug extends to EM/UT/TT/BM/IE esgent (they share the
+"grow birth-cycle regen" pattern). CONCLUSION: CI-specific. The direct RELHT=h0/ATAVH term lives ONLY in CI's CIVAR
+HTGRL regression (SRLHT·RELHT). EM/TT use the Wykoff crown form HTGRL=BETA1+BETA2·CR (crown-ratio, no RELHT); UT/BM
+use POTHTG·PCTRED·VIGOR. The other variants' only avh use is xd=avh·(relden/100) (the PCTRED density arg) or EM's
+delmax — both relden-GATED, so ~inert on bare-plant stands (relden≈0). ⇒ no cluster-wide extension of eb3395b
+needed; the earlier "likely applies to EM/UT/TT/BM/IE" note is RETRACTED.
