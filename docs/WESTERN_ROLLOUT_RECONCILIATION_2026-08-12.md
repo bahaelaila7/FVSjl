@@ -1126,3 +1126,15 @@ and "per-plot ESRANN desync" framings for the GROWTH magnitude (the ESRANN desyn
 TPA tally, but the 6.5× BA is the species-selection). FIX (substantial): port EM-specific AUTOES species selection
 (em/estab.f) instead of sharing IE's. Reproducers /workspace/.emwork/sweep_val/. Measurement chain: sweep→per-cycle
 QMD→jl-growth-debug(sp10)→live-scoped-REGENT-DEBUG(ISPC 3+7)→species-table(PP vs DF/LP).
+
+## #143 EM — FIX SCOPE CONFIRMED: EM has its OWN espadv.f/espxcs.f (different coefficients), port needed
+Confirmed the fix is a coefficient-table port (not a structural redesign): EM's establishment species-selection
+uses the SAME model structure as IE (PADV(i)=logistic(PNᵢ)·OCURHT(IHAB,i)·XESMLT(i), same espadv/espxcs/espsub
+subroutines) but with EM-SPECIFIC coefficient tables. Live em/espadv.f:54 PN=-1.8733029+CHAB(IHAB,1)-1.5893204·XCOS
+… differs from IE's ie_espadv PN. EM has its own OCURHT(16,MAXSP) (em/blkdat.f:130-158) + CHAB/CPRE (em/esblkd.f).
+jl currently calls ie_espadv/ie_espxcs (IE coefficients) for EM via em_ihtser→ihab, which selects PP for hab 260
+where EM's own tables select DF+LP. FIX = transcribe EM's espadv.f/espxcs.f PN regressions + em/esblkd.f CHAB/CPRE
++ em/blkdat.f OCURHT into an em_espadv/em_espxcs, and dispatch EM to them (mirror the ie_ functions; the shared
+ie_autoes_tally/run scaffold + ESRANN/ESTPP/heights are already correct & validated). SUBSTANTIAL but MECHANICAL
+(≈10 species × the PN coeff sets + 3 tables); best done in a focused session with per-species validation vs live
+FVSem on the /workspace/.emwork/sweep_val/ reproducers (target: jl establishes DF+LP not PP; BA 4.5-6.5×→~1×).
