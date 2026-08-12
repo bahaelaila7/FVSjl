@@ -71,9 +71,14 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    Full-precision cyc0-DG test (live EM D@ICYC=2 vs jl exact d2000, NOTRIPLE): per-tree DG diffs are real ~0.5-0.8%
    (large-tree) but MIXED-SIGN and mostly-cancelling (aggregate BA bit-exact) = the accepted RDPSRT/AVHT40 BA-
    percentile/crown-ratio tie-break precision compounding. No fix warranted. (docs/EM_VARIANT_PORT_AUDIT.md)
-2. **EM/IE AUTOES establishment [#143]** — the genuine real-FIA establishment priority. AUTOES over-establishes on
-   bare/establishment FIA stands (IE fixed earlier — d089b78, jl 253→0.1=live; EM multi-cycle AUTOES still open,
-   jl+NOAUTOES bit-exact w/ live). Validate vs stand4_booktpa on UNMODIFIED FVSie_clean. See fvsjl-em/ie memories.
+2. **EM/IE AUTOES establishment [#143]** — ★ EM ROOT NAILED 2026-08-12: jl's EM AUTOES establishes the WRONG
+   SPECIES. On 5 real bare-establishment stands jl over-grows regen BA 4.5-6.5× live; on 488938604126144 (hab 260)
+   live establishes DF(sp3)+LP(sp7) but jl establishes PP(sp10) — and PP's small-tree htg1(~4.22) is ~2.8× DF's
+   (~1.50) ⇒ the QMD 2.4×/BA 6.5× over-shoot. Root = the shared ie_autoes applies IE's species-selection
+   (ie_espadv/espxcs probs + IE OCURHT habitat-occupancy) to EM; EM needs its OWN (em/estab.f). The height model,
+   ZRAND clamp, ESRANN LCG are ALL faithful — the bug is purely WHICH species establishes. FIX (substantial): port
+   EM-specific AUTOES species selection. Reproducers /workspace/.emwork/sweep_val/. (IE was fixed earlier d089b78;
+   IE's own species model is correct — this is EM applying IE's.) Detail: docs/…RECONCILIATION_2026-08-12.md.
 3. **★ EM sub-inch small-tree DG [#137 follow-on] — FIXED 2026-08-12.** Root: EM was MISSING the lstart CRATET
    crown dub (CR/BM/CI had it; EM/KT/IE/TT/UT did not) ⇒ missing-CRRATIO seedlings kept crown_pct=0 ⇒ `_em_smhtgf`
    beta2·cr=0 ⇒ HTGR crawled ⇒ never crossed 4.5' ⇒ DBH skipped ⇒ QMD frozen. FIX: wire crown_ratio_update!(lstart)
