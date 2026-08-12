@@ -33,9 +33,13 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
   SPATIAL DM model** (variant-comparable: dmcycl 593 driver / mistoe 558 spread / dmtreg 553 / dmshap 378 / bndist
   342 between-tree-distance / dminitbc 284 / dmblkd 256 coef / dmauto 149 kw + 12 per-variant dmcw* 148 ea). It is
   an OPTIONAL keyword-activated model whose only exercised corpus case is the YSM DATABASE stand, and its clean
-  validation A/B is CRASH-BLOCKED (FVSbc_clean SIGSEGV dbstreesin.f:57 on DATABASE — genuine oracle bug, NOT bc_stubs
-  which stub only 4 DBS-output routines). A MAJOR multi-session port for niche value; the base (non-spatial) mistoe.f
-  is done+validated. Weigh before committing. + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
+  validation A/B is CRASH-BLOCKED — but the block is MY-RELINK-SPECIFIC, not a production-FVS bug: the gfortran-16
+  relinked FVSbc_clean SIGSEGVs on ALL DATABASE reads (YSM029-271 AND -264 both crash in dbstreesin.f DB path;
+  sqlite3.o/fvsqlite3.o ARE linked, so it's the isoc23-shim×SQLite-C-interop, not linkage), while the 2022 production
+  FVSbc reads these DBs fine (it made the .sum.save). So crash-doctrine does NOT apply; the DM attribution rests on
+  the all_BC DM-free control (solid), and a YSM A/B would need a DB-capable FVSbc relink (or inline TREEDATA). A MAJOR
+  multi-session port for niche value; the base (non-spatial) mistoe.f is done+validated. Weigh before committing.
+  + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
