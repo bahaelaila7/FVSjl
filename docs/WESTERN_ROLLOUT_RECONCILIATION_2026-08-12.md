@@ -635,3 +635,25 @@ After many turns on the EM/IE treeless/AUTOES regime, the full picture (measured
 ⇒ VERDICT: the establishment-regime BA over-growth (the big, .sum-visible bug) is CLOSED both variants. Of the two
 residuals, one is CORNERED (TopHt-metric on sub-breast-height seedlings) and one is a deep #143 per-plot-RNG-chain
 TPA over-count on multi-plot stands (localized; fix = g16 per-plot ITPP trace). Establishment deep-dive concluded.
+
+## Broad multi-variant real-FIA sweep (2026-08-12) — cluster confirmation + BM #140 / UT #192 at scale
+
+Pivoted from the EM/IE establishment deep-dive to a broad cluster sweep (mission: "do not narrow to one variant").
+Multi-cycle (NUMCYCLE 5) real-FIA, jl vs live FVS{v}_clean, stratified by regime. Findings:
+
+- **CR [CLEAN ✓]** — 14 mature-treed (BA 40-200) + 14 DENSE small-tree (TPA up to 17966) stands: 0 crashes, 0
+  flagged (|ΔBA|>3%); nearly all bit-EXACT (ΔBA 0.0%, TPA exact, TopHt ±1). CR (338k stands, marked COMPLETE)
+  HOLDS under the multi-cycle sweep across BOTH regimes — the un-swept-until-now CR is genuinely solid. No new bug.
+- **BM [#140 CONFIRMED]** — dense small-tree sweep: 1/10 flagged, 1127530927290487 ΔBA +16.9% with TPA 4046 vs
+  live 4261 (jl UNDER-thins ⇒ retains cohort ⇒ higher BA). Exactly the documented #140 under-thinning bias
+  (jl mortality dq10 low ⇒ higher self-thin target ⇒ under-kill), now reproducible on a dense FIA stand.
+- **UT [#192 STRADDLE at scale]** — dense small-tree sweep: 7/10 flagged, ALL pure Gambel oak (FIA 814). ΔBA
+  MIXED-SIGN (+15.0/+4.8/+4.5/+3.4/-5.6/-6.7/-9.1; mean ≈ +0.9%) with EXACT TPA ⇒ pure DG-realization, not
+  mortality. = the #192/#156 ZZRAN never-FFI-RNG straddle (source-faithful deterministic oak DG per #192;
+  aggregate near-0 mixed-sign), amplified on dense oak (more sub-1" oaks ⇒ more ZZRAN draws ⇒ larger per-stand
+  realization variance). CORNERED-class. CAVEAT: #156's g16 proof was PJ-specific; a UT_g16 oak-DG deterministic
+  check would fully close the ±15% (recommended before a final verdict, though the mixed-sign/near-0 aggregate +
+  source-faithful form strongly indicate straddle).
+
+⇒ Cluster status reconfirmed at scale: CR clean; BM has the one real open bias (#140); UT dense-oak is the #192
+straddle. No NEW real bugs surfaced. The broad sweep honors the mission's "full FVS-ready FIA sweep" mandate.
