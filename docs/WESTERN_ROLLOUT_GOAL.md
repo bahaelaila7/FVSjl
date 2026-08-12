@@ -81,12 +81,16 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    QMD 0.3→0.5→0.7=live (was frozen), BA cyc1=38=live; emt01 non-regressing. **IE ALSO FIXED 2026-08-12** (same
    wiring; IE crown model already dubbed d<3 at lstart so only the call was missing): iet01 IMPROVED — 2000 TPA
    429→443 (=live 441, was −12), 2040 TPA 212→215 (=live 215 exact); the known IE "~3% tail" was PARTLY this bug.
-   **TT/UT**: same-pattern fix written (wire lstart dub; their crown models already dub missing crown at lstart),
-   validated INERT on ttt01 (before=after trajectory). Validation surfaced an INTERMITTENT ttt01 jl segfault —
-   ATTRIBUTION CONFIRMED PRE-EXISTING: 1/6 segfaults WITHOUT the fix (the check-bounds latent-OOB hole), so the
-   crown-dub fix is safe. Committing TT/UT gated on FIRST fixing that pre-existing ttt01 OOB (crash ⇒ fix doctrine;
-   --check-bounds=yes trace in progress to pinpoint it). KT does NOT have the crown-dub bug (no crown in its
-   small-tree HTG).
+   **TT/UT ALSO FIXED 2026-08-12** (6e6c11a; wire lstart dub, crown models already dub missing crown at lstart) —
+   INERT on ttt01/emt01 (crowns present). ⇒ crown-dub sweep COMPLETE across EM/IE/TT/UT; KT unaffected.
+   ★ ALONG THE WAY: root-caused + FIXED a PRE-EXISTING intermittent ttt01 SIGSEGV (surfaced during TT/UT
+   validation; 1/6 WITHOUT the crown-dub fix, so orthogonal). --check-bounds=yes → teton/volume.jl:57 BoundsError
+   @3001 on the 3000-elt arrays: jl's record-adding let t.n+t.ndead exceed MAXTRE=3000. TWO contributors fixed
+   (6e6c11a): (1) TRIPLING missing FVS's grincr.f:31 ITRN≤MAXTRE/3 guard (added nlive≤(MAXTRE−ndead)/3 — jl's dead
+   block grows UPWARD so it leaves room, vs FVS's downward IREC2…MAXTRE); (2) record-add sites (establishment.jl,
+   sprout.jl, inlandempire/establishment.jl) broke at n>MAXTRE ignoring the dead block → break at n+ndead>MAXTRE.
+   Invariant t.n+t.ndead≤MAXTRE now holds. Faithful, .sum-inert. Diagnostic in MEMORY.md (intermittent SIGSEGV ⇒
+   MAXTRE overflow ⇒ --check-bounds=yes).
 4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
    #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
 5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
