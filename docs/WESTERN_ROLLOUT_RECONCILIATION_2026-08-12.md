@@ -1448,3 +1448,14 @@ DBH without touching height. This is the last-mile of the #158 "single-step-supp
 regent DEBUG (DK/DKK/DGR/DGMX) for the xwt<1 trees; the height/large-tree halves are proven exact so this isolates
 the smdgf DBH. #191 is now: DGFASP-RMSQD/COR half RESOLVED bit-exact (42f4860); #189 height RSIMOD landed; residual =
 the _tt_smdgf DBH-blend for small aspen (bounded).
+
+## #191 → cluster-wide follow-up (#195): the aspen current-RMSQD-in-calibration fix generalizes
+The TT #191 fix 42f4860 (aspen DGFASP calibration uses CURRENT stand RMSQD, not stand_qmd on the backdated stand)
+is a CLUSTER-WIDE class: UT/BM/CI/EM/IE ALL compute `rmsqd = stand_qmd(s)` in their aspen DGFASP dgf! (utah:133,
+bluemountains:131, centralidaho:78, easternmontana _em_dgfasp, inlandempire ie_dgfasp — the shared UT dgfasp form).
+So during the DGSCOR calibration (backdated stand) they too under-predict aspen ⇒ COR over-boost. INERT on their
+test stands (aspen minor/absent in utt01/cit01/emt01/iet01) but real on aspen-heavy real-FIA. Filed as task #195:
+generalize _TT_CUR_RMSQD → a shared _CALIB_CUR_RMSQD set for all variants, each aspen dgf! reads it; validate
+per-variant non-regression + an aspen-heavy FIA stand. Also check the DKK=D-when-H<4.5 smdgf floor (929e6a3) across
+the other variants' small-tree DBH paths (CIVAR/UTVAR floor per live regent.f:824/838 — verify jl's ports do too).
+Not done here to keep the 6-file change out of a very deep context; per-variant FVS{v}_g16 validation required.
