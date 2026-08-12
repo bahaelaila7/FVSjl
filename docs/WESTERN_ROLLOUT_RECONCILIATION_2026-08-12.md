@@ -1090,3 +1090,21 @@ open-grown crowns cr 0.20-0.90 ⇒ high vigor ⇒ over-grow). Reframes the goal-
 (crown-dub is lstart/inventory-only, inert on bare stands; crash fix inert on small stands) — pre-existing #143.
 NEXT: instrument jl EM small_tree_growth! regen DBH increment vs live regent.f for an established seedling on
 488938604126144 (mirror the #137 method, opposite sign). Reproducers durable at /workspace/.emwork/sweep_val/.
+
+## #143 EM regen — deeper trace (partial): CR-units CORRECT, per-subcycle HTGR ~faithful; systematic component still open
+Instrumented jl small_tree_growth! EMVAR (regent.jl:363) vs live scoped-REGENT-DEBUG on 488938604126144:
+- CR UNITS NOT a bug: live regent.f:468 CR=FLOAT(ICR(I))=90 (PERCENT) passed to SMHTGF; jl passes crown_pct=90 too.
+  (regent.f:154-161's fraction CR is a SEPARATE lestb-local; the growth path uses FLOAT(ICR).) So htg1=beta1+beta2·90
+  is correct both sides.
+- PER-SUBCYCLE HTGR ~FAITHFUL: live SMHTGF H1=1.2→H2=4.05 (HTGRR≈2.85-3.82/subcycle, CR=90); jl typical ~3.25/subcycle
+  — matches. Live FLOORS some regen at HTGRR=0.1 (ZRAND very negative); jl floors a different subset (ZRAND realization).
+- REMAINING (unresolved): jl has some trees at full-cycle htg=15.7ft (h 3.3→19.0) = 2× live's max ~7.6/cycle,
+  traced to a positive ZRAND=1.37 draw (htgrth=htg1+zrand·stddev). So the spread is ZRAND-driven (bachlo not
+  FVS-byte-identical — same class as #140/#142). BUT cyc1 QMD jl 1.4 vs live 0.8 is a SYSTEMATIC mean shift a pure
+  straddle wouldn't give. Candidate systematic drivers NOT yet isolated: (a) establishment COUNT/timing (jl +12% TPA),
+  (b) the floored-fraction distribution, (c) crown not decreasing as density fills in later cycles (jl d<3 cycling
+  keeps crown; does live?). ⇒ #143 EM = regen height-growth DISTRIBUTION over-shoot; the height MODEL is ~faithful,
+  the ZRAND spread is cornered-class, the systematic mean shift needs a subcycle-by-subcycle matched-tree jl-vs-live
+  trace (ZRAND draws + subcycle count + estab timing). Reproducers durable at /workspace/.emwork/sweep_val/;
+  live scoped-REGENT-DEBUG works on these real stands (no SIGFPE, unlike synthetic em_dense). Deep — defer to a
+  focused session. NOTE: NOT this session's crown-dub/crash fixes (bare stands, inert).
