@@ -44,3 +44,19 @@ Completed the fresh sweep across the remaining western variants (KT has 0 FIA st
   post-this-session's-fixes: bit-exact-or-cornered, ZERO jl crashes across ~90 stands, no regression. The only
   notable multi-cycle divergence is the pre-existing, documented TT #158 dense small-tree gap. The mission's
   "full FVS-ready FIA sweep" co-goal is satisfied for the current code.
+
+## TT #158 sweep-divergence CHARACTERIZED (2026-08-12) — confirmed the documented gap, not new
+Dumped the 2 TT sweep divergences full multi-cycle (FVStt_clean vs jl, no-thin):
+- 533757478126144 (9549 TPA QMD 1.1 = dense sub-1" seedlings): cyc0 bit-exact; jl UNDER-mortalizes the cohort
+  (2047 TPA 7084 vs live 4055, ~1.7×) + UNDER-grows QMD (2.3 vs 3.1).
+- 1629326355290487 (5325 TPA QMD 0.1 = bare sub-inch seedlings): jl OVER-grows sub-1" DBH EARLY (2030 QMD 1.2 vs
+  live 0.8) then retains the excess (2050 TPA 4880 vs 4186).
+⇒ EXACTLY the documented TT #158 (sub-1" over-growth via the SMDGF/regent small-tree DG). The fresh full-cluster
+  sweep found NO NEW bug — the one divergence is the one documented gap. On NORMAL stands the SMDGF residual is
+  small (~7%, TT audit "bit-close" i34 0.637/0.646); on DENSE SUB-1" SEEDLING stands the tiny per-tree DG diff
+  COMPOUNDS (self-thin timing is knife-edge — the #140-BM hyper-sensitivity class).
+OPEN QUESTION (bug vs cornered): is #158 a real SMDGF-single-step-suppression MODEL gap (fixable port) or a
+  hyper-sensitive dense-seedling realization straddle (cornered, like #140 BM)? RESOLVE via FVStt_g16 (exists,
+  /workspace/.ttwork/FVStt_g16): instrument live's sub-1" per-tree DG on 1629326355290487 @2030 (the over-growth
+  point, NOTRIPLE) vs jl's SMDGF/regent DBH assignment — if the DETERMINISTIC per-tree DG differs = real gap to
+  port; if it matches = accepted straddle. This is the priority genuinely-open GROWTH item (real, on-FIA, not gated).
