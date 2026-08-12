@@ -241,3 +241,32 @@ real bugs found+fixed this session (TT aspen RSIMOD #189; CRATET 50-yr-base site
 last systematic large-tree-growth divergences on real-FIA mature/site-species-sensitive stands; all remaining
 residuals are the accepted ZZRAN/DGSCOR/RDPSRT realization straddles. The off-switch (docs/WESTERN_ROLLOUT_COMPLETE)
 remains the USER's call.
+
+## TT FIA sweep (12 stands) — surfaced a REAL aspen bug PAIR (previously mislabeled cornered)
+
+Ran the mission's FIA-sweep harness (extract_sample.jl TT 12 + per-stand live-vs-jl) with this session's fixes in
+place. Result: 0 jl crashes; 4/5 treed stands bit-exact-or-cornered (±0-2% BA). ONE outlier — **11790600010690**
+(seedling-dominated AF+aspen, 1836 TPA/QMD 1.2) — jl +114% BA mid-sim (settling to +10%), TopHt bit-exact. MEASURED
+via FVStt_g16 (regent.f H2 + dgfasp.f input dumps), this is a REAL **compensating bug PAIR** in the TT aspen path,
+NOT the "cornered small-tree straddle" the aggregate +10% suggested:
+
+1. **Aspen sub-1" HEIGHT over-growth — jl runs the wrong subcycle count.** regent.f:405-407: aspen (ISPC.EQ.6) uses
+   a 10-yr REGYR ⇒ ONE pass (`IF(ISPC.EQ.6 .AND. J.GT.1)GO TO 16`). jl's `small_tree_growth!` loops `for j in 1:nper`
+   over ALL nper subcycles for aspen too ⇒ ~2× height growth. MEASURED: live grows a 1.01-ft aspen seedling to 4.41
+   ft/cycle (HTGRL=3.40, SCALE=1.0, one pass); jl grows it to ~7.6 ft (two 5-yr subcycles). FIX = `sp == 6 && j > 1 &&
+   continue` in the subcycle loop (MM sp14 still subcycles — live gates on ISPC.EQ.6; UTVAR runs the separate pass).
+   VALIDATED the fix ALONE: 11790600010690 early cycles → bit-exact (2026 jl 36 = live 36, was +114%); **ttt01 stand-1
+   → bit-exact** (was +2..+5% "cornered", e.g. 2050/60/70 L194/208/221 = jl exactly) — i.e. the fix RESOLVES a residual
+   previously accepted as a straddle.
+2. **BUT it exposes a compensating large-tree aspen DGFASP UNDER-growth** (the #189 −6% ASPDG). The DGFASP formula is
+   bit-identical to live; the culprit is an INPUT: **RMSQD (stand QMD) fed to DGFASP is jl 4.33 vs live 5.47** at the
+   same BA=68.2 (ttt01) ⇒ jl's QMD denominator carries extra small-tree TPA that live's DENSE RMSQD does not (a
+   density-partition/timing difference; jl `stand_qmd` sums all t.n, live `RMSQD=SQRT(TSUMD2/TPROB)` from DENSE).
+   Lower RMSQD → lower GOFAD/VALMOD/PREDGR → ~6% low ASPDG. This drives the s11 LATE under-growth and, with fix #1
+   applied alone, regresses the ttt01 aggregate 5.2%→5.8% (the two errors were partially cancelling).
+
+BOTH are faithful/real and must be fixed TOGETHER (fixing #1 alone regresses via #2). Fix #1 reverted for now (won't
+ship half a compensating pair). NEXT TT-aspen target: root the RMSQD-into-DGFASP partition difference (why jl's QMD
+is 4.33 vs live 5.47 — candidate: dead/ESGENT/tripled-record inclusion at the dgf! call), then land #1+#2 together and
+re-validate ttt01 (expect stand-1 bit-exact + the aspen-establishment stands improved). META: the FIA sweep did its
+job — a seedling-dominated real-FIA stand exposed a real bug that ttt01's mature inventory masked.
