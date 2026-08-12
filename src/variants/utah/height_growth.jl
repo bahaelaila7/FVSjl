@@ -34,6 +34,11 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
     isisp = Int(p.site_species); (isisp < 1 || isisp > 24) && (isisp = 7)
     lsimap = clamp(trunc(Int, p.sp_site_index[isisp] / 10f0 - 0.5f0), 2, 6) - 1
     ba = p.basal_area; avh = p.avg_height; dgsd = s.control.dg_sd
+    # Young-small-tree HTG accelerator context (ut/htgf.f:667-693): fires cycle-1 only (jl icyc==0) on
+    # young (10<IXAGE<40) small (D<9) SBB trees when IAGE>0 (FIA StandInit sets STAND_AGE). PCT=t.crown_ratio.
+    relden = p.relative_density
+    iage = Int(p.stand_age)
+    iy1 = Int(s.control.cycle_year[1]); cur_year = current_cycle_year(s); icyc = Int(s.control.cycle)
     # CR-surrogate (17:19,22) needs the BADIST BA-above-class (BAUTBA) + stand age range (even/uneven blend).
     has_crsurr = any(j -> _ut_ht_crsurr(Int(t.species[j])), 1:t.n)
     ht_bau = has_crsurr ? _cr_badist_bau(t) : nothing
@@ -95,6 +100,18 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
             zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z       # UT: unconditional (ut/htgf.f:661)
             zadj < 0f0 && (zadj = 0f0)
             z += zadj
+            # ut/htgf.f:667-693 young-small-tree HTG accelerator (Targhee). Cycle-1 only, young (10<IXAGE<40),
+            # small (D<9), Z<2. ZADJ=.3564·DG·FINT/YR·CLOSUR (CLOSUR=PCT/100, =1 if RELDEN<100), +10% for IICR 8/9.
+            if iage != 0 && icyc == 0
+                ixage = iage + cur_year - iy1
+                if ixage < 40 && ixage > 10 && d < 9.0f0 && z <= 2.0f0
+                    zadja = 0.3564f0 * t.diam_growth[i] * scale
+                    closur = relden < 100.0f0 ? 1.0f0 : Float32(t.crown_ratio[i]) / 100.0f0
+                    zadja *= closur
+                    (iicr == 9 || iicr == 8) && (zadja *= 1.1f0)
+                    z += zadja; z > 2.0f0 && (z = 2.0f0)
+                end
+            end
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
             dia = d + t.diam_growth[i] / bark
             if (_UT_XI1 + cof1) > dia
