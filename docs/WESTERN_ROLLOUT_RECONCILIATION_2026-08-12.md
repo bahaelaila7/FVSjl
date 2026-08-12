@@ -1225,3 +1225,17 @@ permits GF on forest 4 — OCURNF does not gate this stand either. ⇒ #143 IE t
 live 88, TPA 51 vs 40) has ihab/MYGRUP/MAXSPP/OCURNF all == live; TRUE cause is still OPEN — candidates now narrowed
 to NUMSPE/ITPP per-plot counts or ESRANN species-draw desync, NOT habitat. Next = MEASURE jl vs live per-species
 established TPA on this reproducer (live .out ESTAB report vs jl AUTOSP dump).
+
+## #143 IE tally outlier — RESOLVED (00d36b0): ported ie/pvref1.f (PV_CODE,PV_REF_CODE)→HABPVR
+The true root (MEASURED, after retracting the earlier inferred habtyp/MAPR6 guesses): jl's FIA reader had NO
+PVREF1 crosswalk and fell back to the RAW PV_REF_CODE (639) as the habitat. Live habtyp.f calls PVREF1 whenever a
+reference code is present; the raw ref is never a habitat. Unrecognized pair (ABR8+639, absent from PVREF1's 879
+rows) → live default 260 → establishment ihab 3 (permits DF/PP); jl's 639 → ihab 11 (permits GF, forbids PP) →
+PADV GF=0.51 dominant → over-establishment. Verified via a jl PADV dump (GF=0.51/PP=0 at ihab 11) against live's
+ESTAB report (DF 63/PP 35/GF 0). FIX: ported the 879-row (PVCODE,PVREF)→HABPVR table (pvref1_data.jl + ie_pvref1);
+IE resolution = PVREF1(precedence when ref present) → PCOML string → numeric PV_CODE → default 260 (not raw ref).
+VALIDATED: reproducer TPA 809→203 (live 181), BA 51→41 (live 40), QMD 3.4→6.1 (live 6.4); recognized 860/101→850
+stand bit-close (1053/134 vs 1061/136); iet01 (STDINFO) unaffected. Residual (203 vs 181 TPA) = cornered ESRANN
+species-draw straddle (#142-class). META: the 4/5 "NOT RECOGNIZED → 260" sweep prevalence means this was a
+SYSTEMATIC IE FIA habitat bug, not a one-off. EM/UT/TT keep their raw-ref fallback (unproven for them; a possible
+follow-up is whether they need their own PVREF crosswalk — em/ut/tt each have a pvref1.f).
