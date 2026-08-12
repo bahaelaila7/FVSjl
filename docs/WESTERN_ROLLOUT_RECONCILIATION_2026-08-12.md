@@ -1152,3 +1152,19 @@ shared ie_autoes_tally/run/ESRANN/ESTPP/heights scaffold. Validate per-species v
 /workspace/.emwork/sweep_val/ reproducers (target: DF+LP not PP; BA 6.5×→~1×). ESPADV PN coeffs are captured in
 this session's transcript; remaining to gather = em/espxcs.f + em CHAB/CPRE. Substantial mechanical port, best
 executed with sustained focus + incremental per-species validation (NOT rushed — the doctrine is port-faithfully).
+
+## #143 EM — TRUE ROOT (corrects the "port EM espadv" framing): jl's AUTOES occ OMITS OCURNF·XESMLT
+Deeper measurement CORRECTS the earlier "EM needs its own espadv" conclusion. The espadv PN regressions, CHAB(16,·),
+CPRE, and OCURHT(16,·) are ALL SHARED and IDENTICAL between IE and EM (verified line-by-line: EM espadv.f == jl
+ie_espadv; EM CHAB/OCURHT == jl _IE_CHAB/_IE_OCURHT for the relevant species). The ihab mapping is also correct
+(hab 260→ihab 3, matches live). So EM does NOT need its own espadv. The REAL bug: the espadv occupancy is
+PADV(i)=logistic(PN)·OCURHT(IHAB,i)·XESMLT(i)·**OCURNF(IFO,i)**, but jl's occ (inlandempire/establishment.jl:1122)
+= [ie_ocurht(ihab,s) …] applies ONLY OCURHT — it OMITS XESMLT·OCURNF (the per-National-Forest occupancy gate).
+MEASURED: jl establishes DF(3)×12 + PP(10)×12 + WL(2)×6 + LP(7)×1; live establishes DF(3)+LP(7) only. The PP(10)
+records (fast htg1≈4.22) drive the BA 6.5× over-shoot. EM OCURNF(·,PP=10) = 0,0,1,1,1,0,1,0,1,0,… ⇒ PP is EXCLUDED
+on many NFs; on this stand's forest (loc-code 108) live's OCURNF(IFO,PP)=0 zeroes PP, but jl keeps it. ⇒ TRUE ROOT
+= the SHARED-ENGINE occ multiplier drops OCURNF·XESMLT (a known gap — the code comment at :337 says occ SHOULD be
+OCURHT·XESMLT·OCURNF; validated inert on iet01 because iet01's XESMLT·OCURNF=1). FIX (moderate, shared-engine, helps
+both EM & any IE forest where OCURNF≠1): add EM+IE OCURNF(20,·)/XESMLT tables + the forest-location→IFO map, and
+multiply occ by OCURNF(ifo,sp)·XESMLT(sp) at :1122. Validate: jl establishes DF+LP not PP; BA 6.5×→~1× on the 5
+/workspace/.emwork/sweep_val/ reproducers; iet01/emt01 non-regressing. SUPERSEDES the "port EM espadv" scope.
