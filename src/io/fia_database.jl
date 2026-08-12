@@ -366,10 +366,7 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
         raw_slo[pid] = _fia_present(d, "SLOPE")  ? _fia_f32(d, "SLOPE", 0f0) * 0.01f0     : 0f0
         raw_asp[pid] = _fia_present(d, "ASPECT") ? _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0 : 0f0
     end
-    # Metric-variant DATABASE input (BC): convert cm→in / m→ft on ingest, exactly as the inline/.tre path
-    # (treeinput.jl:82) does. Without this the DATABASE reader fed cm-valued DBH to the inch-based growth
-    # equations (a 7.3in tree read as 18.5) ⇒ corrupted growth. Gated on BC ⇒ US-FIA sweeps (imperial) unchanged.
-    res = ingest_tree_records!(s, recs; metric = s.variant isa BritishColumbia)
+    res = ingest_tree_records!(s, recs)
     p = s.plot
     npt = s.trees.n > 0 ? maximum(Int(p) for p in @view s.trees.plot_id[1:s.trees.n]) : 0
     # Always populate for DATABASE input (this reader is DATABASE-only; TREEDATA uses a different path so iet01 etc.
