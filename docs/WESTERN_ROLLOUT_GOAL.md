@@ -81,6 +81,15 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    (currently default 1.0 = its validated occ=OCURHT; inert on iet01, but other IE forests may need it). 4 wrong
    hypotheses refuted en route (100× crown-units / asymmetric-ZRAND / ESRANN-as-driver / port-EM-espadv). Detail:
    docs/…RECONCILIATION_2026-08-12.md. Reproducers /workspace/.emwork/sweep_val/.
+   ★★ 2026-08-12 UPDATE — IE OCURNF landed (82771ed) AND IE AUTOES-over-establishment ROOT FIXED via PVREF1 PORT
+   (00d36b0): the DOMINANT IE symptom was NOT OCURNF but a HABITAT-RESOLUTION bug — jl's FIA reader used the RAW
+   PV_REF_CODE (639) as the habitat KODTYP instead of ie/pvref1.f's (PV_CODE,PV_REF)→HABPVR crosswalk (unrecognized
+   pair → live default 260). Wrong ESTOCK ihab 11 (GF-dominant) vs live 3 (DF/PP). Ported PVREF1's 879 rows;
+   reproducer 177562547020004 TPA 809→203 (live 181), BA 51→41 (live 40), QMD 3.4→6.1 (live 6.4). 4/5 IE sweep stands
+   were "NOT RECOGNIZED→260" ⇒ SYSTEMATIC. EM half is NOT this bug (EM FIA stands carry no PV/ref ⇒ habitat_code=0 →
+   ihab 3 coincidentally == live default-260 ihab 3); EM's residual +200-492% is ie_autoes TREE-COUNT over-production
+   (NUMSPE/ITPP/nstore), a SEPARATE still-open task. Two earlier inferred IE roots (habtyp MAPR6 / ihab-3-crosswalk)
+   were RETRACTED by measuring live esplt2.f/habtyp.f — doctrine #2.
 3. **★ EM sub-inch small-tree DG [#137 follow-on] — FIXED 2026-08-12.** Root: EM was MISSING the lstart CRATET
    crown dub (CR/BM/CI had it; EM/KT/IE/TT/UT did not) ⇒ missing-CRRATIO seedlings kept crown_pct=0 ⇒ `_em_smhtgf`
    beta2·cr=0 ⇒ HTGR crawled ⇒ never crossed 4.5' ⇒ DBH skipped ⇒ QMD frozen. FIX: wire crown_ratio_update!(lstart)
