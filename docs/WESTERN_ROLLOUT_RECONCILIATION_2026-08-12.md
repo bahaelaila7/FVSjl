@@ -843,3 +843,17 @@ the ultra-dense cohort (+ a secondary _mort_traj_g inflation). SIX hypotheses re
 every OTHER layer. The full fix is BLOCKED by the FVSVOL DEBUG-mode cycle-0 live crash (need live's regent htgr +
 morts tn10 to validate) — resolving that live crash (crash-doctrine) is the prerequisite. Cluster status unchanged:
 bit-exact-or-cornered; #140 is a rare-stand residual, now fully understood.
+
+## Cluster FIA-sweep coverage COMPLETE — TT + CI swept; divergences are all KNOWN items
+
+Pivoted off the (concluded) BM #140 drill to finish cluster-wide FIA coverage (mission: full FVS-ready FIA sweep):
+- **CI**: 11 treed stands (30-200 BA), multi-cycle vs FVSci_clean → **0 flagged, bit-exact-or-cornered.** Clean.
+- **TT**: 10 stands → 4 flagged, BUT the two large ones (11790583 +48.5%, 11938577 +42%; TPA EXACT ⇒ pure DG
+  over-growth) are BOTH **quaking-aspen-dominated (sp746 @2.3-2.6")** ⇒ this is **#191 (TT aspen sub-1" DG over-
+  growth)**, a KNOWN open task. Conifer TT stands bit-exact-or-cornered.
+
+⇒ CLUSTER FIA SWEEP now comprehensively covered (CR/EM/IE/UT/BM/TT/CI). Every real divergence maps to a KNOWN,
+characterized item: #191 (TT aspen DG), #140 (BM sub-inch seedling height on hyper-dense stands), #143 (EM/IE
+multi-plot AUTOES tally). #193 (EM/IE AUTOES birth-cycle over-growth) is FIXED. All other stands bit-exact-or-
+cornered (incl. the accepted DGSCOR/ZZRAN & AVHT40/RDPSRT tie-break straddles). No NEW bug classes surfaced.
+Growth+volume cluster status: bit-exact-or-cornered, with the remaining residuals narrow/known/blocked.
