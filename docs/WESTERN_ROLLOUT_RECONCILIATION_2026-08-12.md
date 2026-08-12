@@ -682,3 +682,23 @@ The "⚠⚠ TOP PRIORITY" framing appears STALE — DOWNGRADE pending a genuine 
 CONSEQUENCE: cycle-1 sweeps reliably catch ROOT bugs (BM DG, EM/IE establishment all showed at cyc1), but true
 multi-cycle COMPOUNDING validation requires selecting multi-cycle-capable stands. This session's sweeps were
 effectively cyc0→cyc1 — sufficient for root-bug discovery, insufficient for the compounding tail.
+
+## BM dense "DG over-growth" — REFUTED by g16 DEBUG measurement: deterministic DG is BIT-EXACT (it's mortality/realization)
+
+Root-caused the BM 1127530927290487 +16.9% BA via the live bm/dgf.f DEBUG dump (keyword DEBUG → 9025: D,XWT,DDSS,
+DDSL,DDS) vs a jl per-tree DDS probe:
+- Small-tree DDSS (1-3in, xwt=1) BIT-EXACT: D=1.02→1.736, D=1.25→1.409, D=1.41→1.890/2.102, D=1.80→2.413,
+  D=1.96→2.616 — jl == live on every tree.
+- Large-tree DDSL (>10in) BIT-EXACT: D=16.04 sp2 → 2.973 jl == 2.973 live.
+⇒ The ENTIRE deterministic BM DG term (DDSS + DDSL + the (SQRT(D²+DSQ)-D)*2 5→10yr adjust, bm/dgf.f:450) is FAITHFUL.
+
+So the +16.9% BA / +11.8% QMD is NOT a DG over-growth (my hypothesis — REFUTED). With bit-exact DG, the .sum
+divergence is the MORTALITY/ZZRAN realization: on this dense sub-1" stand jl self-thins 4457→4046 vs live 4457→4261
+(jl kills 411 vs 196), removing more small trees ⇒ higher QMD/BA. That is the BM mortality realization (#140 class /
+never-FFI-RN self-thin tree-selection straddle), NOT a deterministic bug. The 2/10 dense-BM flags are this
+mortality-realization class, consistent with the goal-doc #140 (BM self-thin) — NOT a new DG bug.
+
+⇒ 4th measurement-refuted hypothesis this session (after crown-recession, the #140-vs-DG mis-attribution, and the
+CI-114%-stale). The BM deterministic DG is bit-exact; the residual is the BM self-thin mortality realization (#140).
+Method win: the live bm/dgf.f `DEBUG` keyword gives a per-tree DDSS/DDSL dump directly — no rebuild needed — the
+fastest way to prove a deterministic DG term faithful (reusable for the CI/TT/UT large-tree-DG questions).
