@@ -857,3 +857,28 @@ characterized item: #191 (TT aspen DG), #140 (BM sub-inch seedling height on hyp
 multi-plot AUTOES tally). #193 (EM/IE AUTOES birth-cycle over-growth) is FIXED. All other stands bit-exact-or-
 cornered (incl. the accepted DGSCOR/ZZRAN & AVHT40/RDPSRT tie-break straddles). No NEW bug classes surfaced.
 Growth+volume cluster status: bit-exact-or-cornered, with the remaining residuals narrow/known/blocked.
+
+## #191 TT aspen — fresh DEBUG-method ground truth (confirms entanglement)
+
+Live TT runs in DEBUG WITHOUT crashing (unlike BM), so the aspen DG is directly measurable. Reproducer 11790583
+(sp746 aspen @2.6", BA +48.5%, TPA-exact ⇒ pure DG over-growth):
+- Live dgfasp.f "IN ASPEN DIA GR": D=0.1, ASPCR=95.0, POT=0.5665, ASPDG=-4.881.
+- jl _tt_dgfasp: D=0.1, **cr=0.0**, rmsqd=1.57, aspdg=**-5.037**. ⇒ jl passes CROWN=0 to DGFASP where live passes 95
+  ⇒ jl's DGFASP UNDER-grows (matches memory "DGFASP-RMSQD under"). But the NET .sum is +48.5% OVER ⇒ the regent
+  small-tree SUBCYCLE over-growth DOMINATES (memory "sub-1" subcycle over-growth"); the DGFASP/crown under-growth
+  only partially compensates. CONFIRMS #191 is the entangled PAIR (prior fix attempts "didn't net-compose" —
+  fixing DGFASP-under alone makes the net WORSE).
+CONCRETE LEADS: (a) jl crown=0 vs live 95 for these sub-1" aspen in the DGFASP path — a crown-assignment gap;
+(b) the regent subcycle aspen over-growth (the net driver) — needs the subcycle vs live tt/regent.f trace. Same
+sub-inch-tree over-growth FAMILY as #140 (BM) and #193 (fixed EM/IE). #191 stays entangled — a careful joint fix.
+
+## SESSION CONVERGENCE (honest status)
+Growth+volume cluster: bit-exact-or-cornered, comprehensively FIA-swept (CR/EM/IE/UT/BM/TT/CI). Every real
+divergence maps to a KNOWN item, each now with a measured tree-level root:
+- #193 EM/IE AUTOES birth-cycle over-growth — FIXED + validated (per-tree WK4/HTIMLT).
+- #191 TT aspen — entangled regent-subcycle-over + DGFASP-crown-under (fresh DEBUG ground truth above).
+- #140 BM sub-inch seedling height over-growth on hyper-dense stands — narrow; fix-BLOCKED by the FVSVOL DEBUG crash.
+- #143 EM/IE multi-plot AUTOES tally — per-plot ESRANN-chain desync.
+All else = accepted DGSCOR/ZZRAN + AVHT40/RDPSRT tie-break straddles. The landable growth+volume work has CONVERGED;
+remaining residuals are entangled (#191), blocked (#140), or deep-RNG (#143). Extensions: FFE/mistletoe/ECON done;
+Climate-FVS is the lone remaining extension (oracle-blocked, inert without a ready-file).
