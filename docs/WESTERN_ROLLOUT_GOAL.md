@@ -42,7 +42,13 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
 ⇒ No remaining missing-branch bugs in the shared DG-calibration path cluster-wide.
 
 ## Extensions matrix — ALL DONE-OR-CORNERED ✓ (2026-08-12)
-- **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe**: ALL western DONE ✓.
+- **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe (BASE mistoe.f)**: DONE ✓ for the
+  N-Rockies cluster (IE/KT/EM/BM/UT/TT/CI via _ie_mis_variant) + CR (own cr_mistoe!). ★ 2026-08-12 CORRECTION — the
+  "ALL western DONE" was an OVERCLAIM: the SPATIAL model **NEWSPRED (canada/newmist, ~50 routines incl. dmauto.f)
+  is UNPORTED**; jl does NOT parse MISTOE/NEWSPRED/DMAUTO (they land in unrecognized_keywords) and BC has NO DM
+  model wired at all (_ie_mis_variant excludes BC; cr_mistoe! is CR-only). This is the MEASURED cause of the YSM
+  metric-DB multi-cycle under-mortalization (jl runs zero DM where the oracle runs NEWSPRED; run WITH vs WITHOUT the
+  MISTOE block is BYTE-IDENTICAL in jl). Porting newmist NEWSPRED = a genuine open BC/western extension task (#196).
   **ECON**: DONE ✓.  **Climate-FVS**: ✓ DONE (~95%, FAITHFUL) — 2026-08-12 line-by-line re-assessment: the
   CLIMDATA reader + clgmult(growth) + clmorts(viability + SPMORT2 transfer-distance DMORT) + clmaxden + clim_autoestb
   are ALL ported, WIRED, and cycle-0 bit-exact vs FVSie_clean; `apply_climate_mort!` matches clmorts.f:205-230 line
