@@ -1373,3 +1373,16 @@ measured aspen DDS. NEXT (the fix step): instrument the calibration per-tree loo
 (measured_DDS, predicted_DDS, DG-field value, bark, period) vs FVStt_g16 readdgf/dgdriv DEBUG; align the measured
 aspen DDS. This is the precise, corrected #191 root (supersedes both the sub-1"/DGFASP-RMSQD and the calibration-
 RMSQD framings). Bounded next-session task.
+
+## #191 PARTIAL FIX LANDED (42f4860) — current RMSQD in aspen calibration; residual = measured-DDS driver
+Landed: the aspen DGFASP calibration now uses the CURRENT stand RMSQD (not the backdated stand_qmd) — FVS does
+this (asp_dbg.out shows only current-QMD GOFAD, never backdated), same class as the validated AVH exception.
+Reduced asp.key over-growth +13%→+9% (BA 2049 111→107 vs live 98). ttt01 INERT (jlPRE==jlFIX, no measured aspen
+DG) — no regression. REMAINING (bounded next step): the corv stays POSITIVE (~+1.0, boost) while live REDUCES
+(scale 0.94) ⇒ jl's calibration still finds measured aspen DDS >> predicted (~3× vs live's 0.94×). Predicted (aspdg
+formula + now-current RMSQD + bark, aspen IMAP=2 const 0.969) all match live ⇒ the driver is the MEASURED aspen DDS
+term = dg·(2·bark·wk3 + dg)·scale (southern/diameter_growth.jl:508): jl's measured aspen growth reads ~3× too high
+vs predicted. Candidates: the DG-field interpretation (DG_TRANS/DG_MEASURE past-dbh vs increment), the period `scale`,
+or the backdated wk3. NEXT: dump jl per-aspen-tree (dg, wk3, bark, scale, term, wk2, reslog) and compare to FVStt_g16
+dgdriv/readcor DEBUG; align jl's measured aspen DDS so corv flips to live's reduction. Then #191 is bit-exact-or-
+cornered. (The earlier RMSQD-actual-growth and sub-1"/DGFASP framings are fully superseded.)
