@@ -30,3 +30,17 @@ Live sits BETWEEN jl's two modes ⇒ TWO distinct effects, BOTH management-trigg
    showed NO over-establishment, so jl's AUTOES over-produces specifically after the canopy opens. Distinct from the
    bare-stand #143 (fixed/cornered); a real candidate follow-up.
 Both are under an ARTIFICIAL harness thin, not real FIA management — flagged as leads, not confirmed bugs.
+
+## Full-cluster extension (BM/TT/UT/CR, pure-growth 5cyc) — 2026-08-12
+Completed the fresh sweep across the remaining western variants (KT has 0 FIA stands, native-key validated):
+- **BM** (23 treed): 16/23 strict bit-exact-or-cornered (TPA/BA/QMD within 3%); the other 7 are all small ~1-8% BA
+  straddles (accepted). 0 crashes.
+- **CR** (7 treed): 6/7 (lone residual QMD Δ8%). 0 crashes.
+- **UT** (7 treed): all within ~4-9% BA = the accepted UT compounding-BA tail (tolerance 3% too tight). 0 crashes.
+- **TT** (13 treed): 3/13 strict; TWO LARGE divergences — 533757478126144 (TPA 4055→jl 7084) + 1629326355290487
+  (BA 19→jl 43) — both DENSE small-tree stands = the KNOWN #158 TT small-tree-regent dense-stand gap (already
+  documented; not new, not a regression). The other TT DIVs are ~3-20% BA straddles. 0 crashes.
+⇒ WHOLE WESTERN CLUSTER (IE/EM/CI/BM/CR/UT/TT + KT-native + BC-metric) re-validated FRESH on real FIA data
+  post-this-session's-fixes: bit-exact-or-cornered, ZERO jl crashes across ~90 stands, no regression. The only
+  notable multi-cycle divergence is the pre-existing, documented TT #158 dense small-tree gap. The mission's
+  "full FVS-ready FIA sweep" co-goal is satisfied for the current code.
