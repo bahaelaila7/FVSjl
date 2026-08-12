@@ -1168,3 +1168,18 @@ OCURHT·XESMLT·OCURNF; validated inert on iet01 because iet01's XESMLT·OCURNF=
 both EM & any IE forest where OCURNF≠1): add EM+IE OCURNF(20,·)/XESMLT tables + the forest-location→IFO map, and
 multiply occ by OCURNF(ifo,sp)·XESMLT(sp) at :1122. Validate: jl establishes DF+LP not PP; BA 6.5×→~1× on the 5
 /workspace/.emwork/sweep_val/ reproducers; iet01/emt01 non-regressing. SUPERSEDES the "port EM espadv" scope.
+
+## #143 residual — the establishment AMOUNT (NUMSPE×ITPP tally), post-OCURNF-fix (separate sub-problem)
+With the OCURNF species-occupancy fix landed (EM 1fb8dcc + IE 82771ed; BA now exact on the 5 EM reproducers), the
+remaining #143 divergence is the establishment TALLY AMOUNT, not the species set. MEASURED on IE outlier
+177562547020004 (bare, hab-establishment): jl establishes 6 species (WL/DF/GF/LP/ES/AF, all OCURNF-allowed) ×
+~1112 TPA total across 5 cycles; live establishes ~101 TPA/cycle (2022=101→2062=181). ⇒ jl over-establishes the
+AMOUNT ~2× (this stand); the EM reproducers show a milder +3-10% TPA (BA already exact). Candidate roots (ESRANN-
+driven, deterministic LCG so FIXABLE in principle): ie_esnspe NUMSPE (# species/plot, capped at MAXSPP(ihab)) and/or
+ie_estpp ITPP (trees/plot, capped MAXTPP(ihab)) — if jl's NUMSPE or ITPP or the MAXSPP/MAXTPP(ihab) cap differs
+from live, the fresh-cohort tally on BARE stands (NSTORE=0 ⇒ NEWTPP=full ITPP) balloons. NOTE the OCURNF fix made
+BA exact because it removed the FAST-growing wrong species (PP); the residual amount is spread over slow species so
+its BA impact is small (BA exact) but TPA over-counts. ⇒ #143 remaining = a focused NUMSPE/ITPP/MAXSPP tally audit
+(the "IE +19-29%" / this 2× outlier class); the ESRANN per-plot desync (multi-plot) is the harder cornered part.
+This is a SEPARATE sub-problem from the now-fixed occupancy gate. Reproducers: /workspace/.emwork/sweep_val/ (EM),
+/workspace/.iework/ie_sweep/ (IE).
