@@ -6,6 +6,37 @@ FVS-ready FIA sweep as well. Do NOT stop." Port + validate the WESTERN FVS varia
 bit-exact-or-cornered vs live FVS oracles, chunk by chunk. Branch: `kt-variant-port`.
 DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cluster + extensions + FIA sweep.
 
+## ★★★ 2026-08-12 (LATEST session) — UT/TT crown-dub family + UT double-site-conversion FIXED; "bit-exact-or-cornered" claim REFINED
+6 commits, all measurement-driven + validated. A coherent FAMILY of missing UT/TT crown-dub branches, surfaced by real-FIA:
+- **TT #198 (862f320) + UT #199 (f3edc5b)** — sub-1" INVENTORY-SEEDLING crown: jl applied rank-Weibull / skipped
+  non-Weibull to DBH<1" lstart seedlings; ported {tt,ut}/dubscr.f + MAICAL RMAI. Root-caused/validated via
+  FVS{tt,ut}_g16 DEBUG-DUBSCR (CR reproduced exactly). TT repro 1629326355290487 BA 2040 303/309 (was 19/43).
+- **UT double-site-conversion (12dbc6e)** — the ut/cratet.f age-50 site-index conversion was applied TWICE
+  (ut_cratet_site_adjust! + dup ut_cratet_siteconv! @simulate.jl:109) ⇒ LP-site SITEAR 46→30→20.8 ⇒ every UT RM-site
+  conifer's DGCON dropped ~0.178 ⇒ ~5-8% BA under-growth on ALL UT RM-site stands. Removed the dup call; PP LN(DDS)
+  now BIT-EXACT vs FVSut_g16. BROAD fix (all LP/WF/BS/ES/AF/PP/WB/LM/OS-site UT stands).
+- **UT #203 (a0e8cee) + TT #204 (2249737)** — d≥1 WOODLAND/PJ crown: jl SKIPPED species {11-19,22,24}(UT)/{4,11,12,15,18}(TT)
+  at DBH≥1 ("crown from REGENT"), leaving crown≈0 ⇒ low regent VIGOR ⇒ woodland small-tree under-growth. Ported the
+  CL-crown branch (crown.f d≥1 CASE). UT oak stand 3626079010690 ΔBA −6%→within −2%; ttt01/utt01 byte-identical.
+  CI = CLEAN (dubs woodland via Weibull, no skip). ⇒ crown-dub family COMPLETE: UT+TT fixed, CI clean, BM/EM/IE=d<1 DUBSCR.
+- Measured RECONCILIATIONS: #200 EM/IE lstart-dub = PCR-approximates-DUBSCR (RNG-aligned, cornered, not a bug);
+  #201 TOP-PRIORITY large-tree DG-over-growth RESOLVED cluster-wide (IE 373781950489998 BA within 1%/80yr via pvref1);
+  #192 UT juniper woodland DG proven BIT-EXACT (residual = mortality-selection, not DG).
+
+⚠ HONEST CORRECTION to the "WHOLE WESTERN CLUSTER bit-exact-or-cornored" claim below: that holds at CYC0 and for
+LARGE-TREE DG (extensively proven), but MULTI-CYCLE real-FIA carries REAL DETERMINISTIC (non-straddle) residuals in the
+SMALL-TREE/WOODLAND/ASPEN regimes that the curated ref stands (ttt01/utt01/…) MASK. This session FIXED several (crown-dub
+family, double-conversion) and MEASURED two still-OPEN:
+  • **#206 utt01 REAL ~6% under-growth** — the primary UT ref stand, NOTRIPLE (deterministic) −6.6% BA @2090 (was
+    claimed "bit-exact-or-cornered" = cyc0-only). LP-site mixed conifers; PP DDS bit-exact ⇒ candidate non-PP-species
+    DG / small-tree regent / mortality. A REAL bug on the REF stand.
+  • **#205 TT dense-stand +30% OVER-growth** — aspen-DOMINATED (1200 TPA of 0.1" aspen), deterministic, TPA-matched.
+    DGFASP-DBH + height-growth measured FAITHFUL ⇒ localized to the aspen DBH-at-4.5'-crossing (smdgf/DKK). RECONCILES:
+    the "#158 cornered" AND "#191 resolved" verdicts are INCOMPLETE for aspen-DOMINATED stands. (Delicate/over-claim-prone
+    aspen code — measure per-tree before touching.)
+META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
+sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #205 + #206 + #197.
+
 ## Variant status — growth+volume ports (oracle = live FVS relinked from bin/FVS{v}_buildDir/*.o)
 - **CR** (Central Rockies) ★★ COMPLETE (2026-08-05: 3 bugs fixed — backdated-density dub / forkod imodty /
   strict site-species — DB sweep 1/40→39/40; every residual bit-exact or measured accepted primitive).
@@ -125,8 +156,11 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
   so the real-FIA EM priority is #143. Self-thin needs NO further work.
 - **Climate-FVS — DONE** (see Extensions matrix above; ~95%, faithful, cyc0 bit-exact).
 
-## REMAINING WORK — cornered residuals + LOW-PRI alt-modes ONLY (whole cluster growth+vol at bar)
-## (task-tracker #142/#194 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol CLOSED; genuinely-open = #196 + BC V2/non-ICH)
+## REMAINING WORK — cornered residuals + LOW-PRI alt-modes + NEW measured real-FIA residuals (see the 2026-08-12 LATEST block up top)
+## (task-tracker: #142/#194 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198/#199/#200/#201/#202/#203/#204 CLOSED;
+##  genuinely-open = #196(BC NEWSPRED, USER decision) + #205(TT aspen +30% over-growth) + #206(utt01 real −6% under-growth)
+##  + #197(mgmt-regime leads) + BC V2/non-ICH. NB: the "at bar" framing below is CYC0/large-tree; multi-cycle real-FIA
+##  has the OPEN #205/#206 small-tree/aspen residuals the ref stands mask — see the ⚠ CORRECTION in the LATEST block.)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
