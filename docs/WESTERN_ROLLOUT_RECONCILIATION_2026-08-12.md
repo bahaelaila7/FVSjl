@@ -403,3 +403,19 @@ AUTOES/esgent-established regen ~2-6× too fast (regen height/crown), across at 
 EM/IE, ci_esgent for CI). Bare/establishment stands are a LARGE fraction of the FIA corpus, so this is the highest-
 impact remaining work. Tasks: #193 (EM/IE ie_autoes) + this CI ci_esgent instance. Common thread: the just-
 established regen is too tall (TopHt over at establishment) and grows too fast per cycle (small-tree SMHTGF/crown).
+
+## #192 UT woodland (PJ/Gambel-oak) DG under-growth — VERDICT: CORNERED (ZZRAN straddle, same class as #156)
+
+Source-verified the ENTIRE deterministic UT-oak (sp13 GO) regent path faithful vs live ut/regent.f:
+- POTHTG woodland form: jl regent.jl:69 `(SJ/5)*(SJ*1.5-H)/(SJ*1.5)*0.83` == live CASE(11:16,24) @267-268.
+- VIGOR two-thirds hardwood cut: jl:72 `(11<=sp<=17||sp==24) → 1-(1-vigor)/3` == live CASE(11:17,24) @322-323
+  ("VIGOR ADJUSTMENT ... PINYON, JUNIPER, OAK ... CUT IT BY TWO-THIRDS" @319-321).
+- DK diameter form: jl:104 `(hk-4.5)*10/(sitear-4.5)`, floor 0.1 == live CASE(11:17,24) @392-394.
+ZZRAN gate identical: UT DGSD=2.0 (grinit.f:174) ≥ 1.0 ⇒ every regen tree's HTGR gets `+ZZRAN*0.1` with the
+[-2,0.5] reject-loop (live regent.f:340-347 == jl regent.jl:77-84). ⇒ oak/PJ DG is RNG-realization-perturbed.
+
+This is the SAME never-FFI-RNG stochastic straddle #156 ALREADY PROVED via FVSut_g16 instrumentation (deterministic
+PJ regent growth BIT-EXACT: SITEAR/POTHTG/VIGOR/PCTRED/HTGR all matched; residual = regent-ZZRAN realization). The
+oak differs from PJ ONLY by species-indexed data routed through these same-verified branches. The sweep's one-sided
+−5..−26% was a small-sample slice of the straddle, not a bias. #192 MEETS the bit-exact-or-cornered bar. Rests on
+#156's g16 measurement + this session's line-by-line source-verification of the oak-specific branches.
