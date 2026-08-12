@@ -13,9 +13,15 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
 - **BC** (British Columbia) ★★ METRIC growth+volume AT-BAR (2026-08-12) — total cubic validated (all_BC); the
   metric .sum merch column is STRUCTURALLY 0 = FAITHFUL to live (metric vols.f computes merch into WK1 but never
   loads MCFV; summary.jl:387 `met && mcuft=0` mirrors it — MEASURED, do NOT remove). BC merch COMPUTATION works
-  (bc_tree_vol vm~2 ft³/tree). Remaining = the IMPERIAL OUTPUT MODE (units + imperial MCFV merch load + BFVOL board)
-  for imperial-requesting BC stands (e.g. YSM-SkyRanch, an imperial-mode oracle) — a reporting-mode feature, NOT a
-  volume-model port; LOW priority (metric is the validated production path). See #196. + V2/non-ICH.
+  (bc_tree_vol vm~2 ft³/tree). ★ 2026-08-12 RE-MEASURED #196 (corrects earlier scoping): summary.jl write_sum_row
+  `metric` flag is FORMAT-ONLY (7I6 vol block dropping the sawlog col vs imperial 9I6) — converts NO unit values;
+  units come from what the ENGINE stored. BC V2/inline-TREEDATA path ALREADY stores+reports IMPERIAL and the
+  v2_e2e_validate test PASSES vs the imperial all_BC_essf.oracle.sum (TopHt 89ft/QMD 15.8in — the "metric/ha"
+  code-comment is a MISLABEL). The ACTUAL remaining gap is NARROW: the metric-DATABASE input path (YSM-SkyRanch V3/ICH)
+  reports METRIC (5683/ha,18.5cm) where live converts metric-DB input→English and reports IMPERIAL (2300/acre,7.3in;
+  cyc0 exact-converted ×2.47/×2.54). FIX (fresh focus, #196): convert BC metric-DB read→English (or add an English
+  summary path for the DB case) + imperial MCFV merch + BFVOL board; validate vs YSM-SkyRanch.sum.save; must not
+  regress the PASSING v2_e2e imperial or all_BC metric harness. LOW priority. + V2/non-ICH.
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
