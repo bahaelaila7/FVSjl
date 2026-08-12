@@ -359,3 +359,14 @@ curated reference stands don't represent, and they surface when a sweep sample h
 stands into the sample per variant) rather than trust a random draw — a random draw of a mature-heavy variant (BM
 here) misses its establishment bug. Tasks #191/#192/#193 opened; remaining variants to sweep (regime-stratified):
 CI/IE/KT/CR/BC.
+
+### #193 ROOT-CAUSED — EM AUTOES-regen crown ratio clamps to 90 (should vary ~74-91)
+
+FVSem_g16 SMHTGF trace on s1 3035453010690: the same sp3/DF regen tree (D≈0.1, H1≈1.28) has CR=74 in live but
+CR=90 in jl. EM _em_smhtgf (HTG1=BETA1+BETA2·CR) is extremely CR-sensitive — live CR=74→HTGRR=0.10, jl CR=90→
+HTGRR=2.75 (27×). So the too-high uniform CR drives SMHTGF height ~2× over → SMDGF diameter over → BA +200-492%.
+SOURCE: establishment.jl:412 `cr = clamp(0.89722 − 0.0000461·PCCF + 0.07985·ran, 0.20, 0.90)` — on sparse AUTOES
+stands (PCCF≈0) this clamps to 0.90 for ~all regen; jl's regen CR stays ~90 while live's recedes/varies to 74-91
+by the growth cycle. FIX = match live's regen CR (establishment draw and/or the per-cycle crown-ratio evolution jl
+isn't applying to regen). Likely affects other variants' AUTOES regen (check the crown-0.90-clamp on sparse stands).
+NOT a subcycle bug (EM conifers correctly subcycle). Tasked #193; validate s1/13-bare-stands → live, emt01 unchanged.
