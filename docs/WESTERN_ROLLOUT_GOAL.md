@@ -74,9 +74,14 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 2. **EM/IE AUTOES establishment [#143]** — the genuine real-FIA establishment priority. AUTOES over-establishes on
    bare/establishment FIA stands (IE fixed earlier — d089b78, jl 253→0.1=live; EM multi-cycle AUTOES still open,
    jl+NOAUTOES bit-exact w/ live). Validate vs stand4_booktpa on UNMODIFIED FVSie_clean. See fvsjl-em/ie memories.
-3. **EM sub-inch small-tree DG** (#137 follow-on) — jl's EM sub-inch seedlings under-grow (QMD frozen) on dense
-   cohorts; measured lead = crown_pct=0 killing `_em_smhtgf`'s beta2·cr term (regent.jl:340-345). Confirm vs live
-   crown-dub; the MIRROR of BM #140 (BM over-grew sub-inch; EM under-grows). Real-FIA impact still to be scoped.
+3. **★ EM sub-inch small-tree DG [#137 follow-on] — FIXED 2026-08-12.** Root: EM was MISSING the lstart CRATET
+   crown dub (CR/BM/CI had it; EM/KT/IE/TT/UT did not) ⇒ missing-CRRATIO seedlings kept crown_pct=0 ⇒ `_em_smhtgf`
+   beta2·cr=0 ⇒ HTGR crawled ⇒ never crossed 4.5' ⇒ DBH skipped ⇒ QMD frozen. FIX: wire crown_ratio_update!(lstart)
+   in the EM branch + apply the ported em/crown.f DCR model to d<3 seedlings (was a flat-40 placeholder). em_dense
+   QMD 0.3→0.5→0.7=live (was frozen), BA cyc1=38=live; emt01 non-regressing. ⇒ **CLUSTER FOLLOW-UP: IE/TT/UT have
+   the SAME latent bug** (their small-tree HTG also uses beta2·cr / vigor(CR); they also lack the lstart dub). KT
+   does NOT (no crown in its small-tree HTG). Audit+fix IE/TT/UT per-variant (validate vs iet01/ttt01/utt01 +
+   a dense missing-crown reproducer). Same fix pattern as EM.
 4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
    #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
 5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
