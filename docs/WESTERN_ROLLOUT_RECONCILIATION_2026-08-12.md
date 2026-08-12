@@ -387,3 +387,19 @@ over-growth is a MULTI-CYCLE establishment-regen compounding.
   BM (clean — all-mature sample). MATURE stands bit-exact-or-cornered cluster-wide; SEEDLING/WOODLAND/ESTABLISHMENT
   regimes carry real bugs. #193 is now confirmed a shared EM+IE establishment-regen bug; fixing the ie_autoes crown
   (RAN term + D<3 recession, RNG-order-faithful) serves both.
+
+## CI FIA sweep — bare-establishment over-growth TOO (+282%), via ci_esgent (SEPARATE path from #193's ie_autoes)
+
+CI sweep (14 stands, 0 crashes): mature stands cornered (s7 +2%, s8 −2%, s13 −1%) — confirms CI mature validation.
+BUT the one BARE stand s9 195373733020004 over-grows +282% (jl BA 65 vs live 17, TopHt 56 vs 40) — the SAME
+bare-establishment AUTOES-regen over-growth symptom as EM/IE #193. CI does NOT dispatch ie_autoes_establish!
+(simulate.jl:586 = IE/EM only); CI establishes + grows regen via ci_esgent! (simulate.jl:593). So this is a
+SEPARATE code path with the SAME symptom ⇒ the establishment-regime over-growth is a WIDESPREAD class, not one bug.
+
+### ESTABLISHMENT-REGIME OVER-GROWTH is now the biggest open class (EM/IE/CI confirmed; magnitude EM +492% / CI +282% / IE +19-29%)
+6 variant sweeps this session (TT/UT/EM/BM/IE/CI). MATURE stands bit-exact-or-cornered cluster-wide (re-confirmed on
+CI/BM mature samples). The dominant open real-FIA divergence is BARE/ESTABLISHMENT regen over-growth — jl grows the
+AUTOES/esgent-established regen ~2-6× too fast (regen height/crown), across at least two code paths (ie_autoes for
+EM/IE, ci_esgent for CI). Bare/establishment stands are a LARGE fraction of the FIA corpus, so this is the highest-
+impact remaining work. Tasks: #193 (EM/IE ie_autoes) + this CI ci_esgent instance. Common thread: the just-
+established regen is too tall (TopHt over at establishment) and grows too fast per cycle (small-tree SMHTGF/crown).
