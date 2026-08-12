@@ -1073,3 +1073,20 @@ real-FIA #143 EM AUTOES over-establishment (that ADDS trees; here jl has FEWER t
 CAVEAT: em_dense is a SYNTHETIC 40000-TPA stress-test; the mission's real-FIA EM priority remains #143 (AUTOES).
 NEXT (well-defined): trace jl EM small-tree DG for a d=0.1-0.3 seedling vs live regent/SMDGF (the breast-height-
 crossing DBH assignment) on em_dense — mirror of the BM #140 trace, opposite sign. Self-thin needs NO further work.
+
+## #143 EM AUTOES — CONFIRMED + LOCALIZED on 5 real bare-establishment FIA stands (post-crown-dub-fix sweep)
+Ran a 5-stand real-FIA EM validation sweep (VARIANT=EM, extract_sample.jl; entire DB) to confirm this session's
+crown-dub + MAXTRE-crash fixes are safe on real data. RESULT: (a) ZERO jl crashes on all 5 (crash fix + fixes safe
+on real EM data ✓); (b) all 5 are BARE establishment stands (cyc0=0/0) and jl massively over-grows the AUTOES regen.
+Reproducers (5-cycle, jl vs live final BA): 31432185010690 38/8, 2999058010690 40/8, 5403641010661 18/4,
+488938604126144 73/12, 39592472010690 10/2 — BA 4.5-6.5× live across the board.
+ROOT LOCALIZED (488938604126144 per-cycle QMD): establishment COUNT is close (jl 253 vs live 226 TPA @2027, +12%),
+but jl's regen QMD grows ~2.4× too fast: 0.1→1.4→3.1→5.0→5.9 vs live 0.1→0.8→1.3→2.1→2.5. BA 6.5× = TPA 1.16× ×
+QMD² 5.6× ⇒ the divergence is GROWTH over-prediction of the AUTOES regen, NOT over-count. The #193 birth-cycle
+HTIMLT fix addressed only cycle-1 height; here the regen over-grows EVERY cycle (compounding QMD). ⇒ #143 real-FIA
+EM = EM small-tree/regent DBH-growth over-prediction for open-grown AUTOES-established seedlings (they get phase-2
+open-grown crowns cr 0.20-0.90 ⇒ high vigor ⇒ over-grow). Reframes the goal-doc's "over-establishes +63-86% TPA"
+(the TPA over-count is mild +12%; the real driver is +460-550% BA via QMD²). NOTE: NOT this session's fixes
+(crown-dub is lstart/inventory-only, inert on bare stands; crash fix inert on small stands) — pre-existing #143.
+NEXT: instrument jl EM small_tree_growth! regen DBH increment vs live regent.f for an established seedling on
+488938604126144 (mirror the #137 method, opposite sign). Reproducers durable at /workspace/.emwork/sweep_val/.
