@@ -590,6 +590,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint)   # EM western: grow birth-cycle regen (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint)   # UT western: grow birth-cycle regen (ut/esgent.f, #184)
+    s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint)   # CI western: grow birth-cycle regen (ci/esgent.f, #185)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.

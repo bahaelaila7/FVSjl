@@ -181,3 +181,120 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
     end
     return s
 end
+
+# ci/esgent.f (CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle. CI was OMITTED
+# from the esgent dispatch (simulate.jl had CR/TT/EM/UT), so planted/established CI seedlings never got their
+# first-cycle height growth (CI BARE-PLANT: TopHt 2 vs live 12, BA ~half thru age 40). Same class as EM #137 /
+# UT #184. Mirrors small_tree_growth!'s UTVAR + CIVAR height/DBH over the birth subperiod (subyr=FINT−GENTIM=5),
+# applying HT/DBH directly (esgent.f HT(I)=HT(I)+HTG(I)·WK4). Gated to the new records nstart+1:n.
+function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    sd = s.coef.species
+    nstart >= t.n && return s
+    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
+    kodtyp = Int(p.habitat_code)
+    rhdm1 = (500 <= kodtyp < 600) ? 1.0f0 : 0.0f0
+    rhdm2 = (600 <= kodtyp < 700) ? 1.0f0 : 0.0f0
+    regyr = CI_RG_REGYR
+    gentim = max(fint - 5.0f0, 0.0f0)
+    bscale = (fint - gentim) / regyr                     # birth-cycle fraction (WK4; =0.5 for fint=10)
+    scale2 = 1.0f0
+    cur_year = current_cycle_year(s)
+    slo_a = sd[:site_lo]; shi_a = sd[:site_hi]
+    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
+    pctred = CI_RG_AB[1] + xd*(CI_RG_AB[2] + xd*(CI_RG_AB[3] + xd*(CI_RG_AB[4] + xd*(CI_RG_AB[5] + xd*CI_RG_AB[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for i in (nstart+1):t.n
+        sp = Int(t.species[i]); d0 = t.dbh[i]
+        d0 >= CI_RG_XMAX[sp] && continue
+        t.tpa[i] <= 0.0f0 && continue
+        (sp < 1 || sp > 19) && continue
+        h0 = t.height[i]
+        if _ci_ut_species(sp)                            # UTVAR aspen/juniper/MC/CW/hardwood
+            sitear = p.sp_site_index[sp]; sj = sitear
+            con = exp(c.htg_cor_small[sp])
+            if sp == 13
+                slo = slo_a[sp]; shi = shi_a[sp]
+                si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
+                relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
+                age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+                hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+                htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+            else
+                pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h0) / (sj * 1.5f0) * 0.83f0
+                xcr = Float32(t.crown_pct[i]) / 100.0f0
+                vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
+                htgr = pothtg * pctred * vigor * con
+            end
+            htgr = htgr * bscale                         # birth-cycle subperiod (was scale_ut)
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
+            xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
+            htg = htgr * (1.0f0 - xwt); htg < 0.1f0 && (htg = 0.1f0)   # new tree: large-tree HTG(K)=0
+            hcap = s.control.sp_size_cap[sp, 4]
+            (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
+            hk = h0 + htg
+            t.height[i] = hk; t.ht_growth[i] = htg
+            bark = ci_bratio(sd, sp, d0)
+            if hk > 4.5f0
+                local dk::Float32, dkk::Float32
+                if sp == 14
+                    dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                    dkk = h0 < 4.5f0 ? d0 : (h0 - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                elseif sp == 15
+                    dk = 3.1020f0 + 0.0210f0 * hk
+                    dkk = 3.1020f0 + 0.0210f0 * h0; dkk < 0.0f0 && (dkk = d0); dk < dkk && (dk = dkk + 0.01f0)
+                else
+                    dk = _ci_ut_htdbh(hk)
+                    dkk = h0 <= 4.5f0 ? d0 : _ci_ut_htdbh(h0)
+                end
+                dg = (dk - dkk) * bark; dg < 0.0f0 && (dg = 0.0f0)
+                dgmx = CI_RG_DGMAX[sp] * bscale; dg > dgmx && (dg = dgmx)
+                dds = dg * (2.0f0 * bark * d0 + dg) * scale2
+                dg = sqrt((d0 * bark)^2 + dds) - bark * d0
+                (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
+                dg > 0.0f0 && (t.dbh[i] = d0 + dg; t.diam_growth[i] = dg)
+            end
+            continue
+        end
+        # CIVAR conifers (HTGRL regression)
+        pt = Int(t.plot_id[i])
+        ptba = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : ba
+        pct = t.crown_ratio[i]
+        relht = avh > 0f0 ? h0 / avh : 1.5f0; relht > 1.5f0 && (relht = 1.5f0)
+        ptbali = ptba * (1.0f0 - pct / 100.0f0)
+        tbal = (1.0f0 - pct / 100.0f0) * ba
+        iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
+        rcr = Float32(iicr)
+        htgrl = CI_RG_CNST[sp] + CI_RG_HTBA[sp]*relht*ptba + CI_RG_PBAL[sp]*ptbali +
+                CI_RG_STBA[sp]*ba + CI_RG_RLHT[sp]*relht + CI_RG_CRSQ[sp]*rcr*rcr +
+                CI_RG_CR[sp]*rcr + CI_RG_BAL[sp]*tbal + CI_RG_HDM1[sp]*rhdm1 +
+                CI_RG_HDM2[sp]*rhdm2 + CI_RG_PTBA[sp]*ptba
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        con = exp(c.htg_cor_small[sp])
+        h2 = h0 + htgrl * bscale * xrhgro * con          # birth-cycle fraction (was scale_h)
+        htgr1 = h2 - h0; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        htgr = htgr1 < 0.1f0 ? 0.1f0 : htgr1
+        xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
+        xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
+        htg = htgr * (1.0f0 - xwt)                       # new tree: large-tree HTG(K)=0
+        hcap = s.control.sp_size_cap[sp, 4]
+        (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
+        hk = h0 + htg
+        t.height[i] = hk; t.ht_growth[i] = htg
+        if hk >= 4.5f0
+            dhcn = CI_RG_DHCN[sp]; dhht = CI_RG_DHHT[sp]; dhcr = CI_RG_DHCR[sp]
+            dk = exp(dhcn + dhht * log(hk) + dhcr * log(rcr))
+            dkk = h0 < 4.5f0 ? d0 : exp(dhcn + dhht * log(h0) + dhcr * log(rcr))
+            xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+            bark = ci_bratio(sd, sp, d0)
+            dg = (dk - dkk) * bark * xrdgro; dg < 0.0f0 && (dg = 0.0f0)
+            dds = dg * (2.0f0 * bark * d0 + dg) * scale2
+            dg = sqrt((d0 * bark)^2 + dds) - bark * d0; dg < 0.0f0 && (dg = 0.0f0)
+            (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
+            dg > 0.0f0 && (t.dbh[i] = d0 + dg; t.diam_growth[i] = dg)
+        end
+    end
+    return s
+end
