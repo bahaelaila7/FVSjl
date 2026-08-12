@@ -1183,3 +1183,17 @@ its BA impact is small (BA exact) but TPA over-counts. ⇒ #143 remaining = a fo
 (the "IE +19-29%" / this 2× outlier class); the ESRANN per-plot desync (multi-plot) is the harder cornered part.
 This is a SEPARATE sub-problem from the now-fixed occupancy gate. Reproducers: /workspace/.emwork/sweep_val/ (EM),
 /workspace/.iework/ie_sweep/ (IE).
+
+## #143 IE tally outlier — ROOT: IE establishment uses the RAW habitat code, not the habtyp-mapped one (639→260 gap)
+Measured the IE 4.5×-TPA outlier (177562547020004): jl ie_estab_indices gets habcode=639 → ihab=11 (MAXSPP=4,
+MAXTPP=10); live habtyp.f MAPS 639→260 (MAPR6→JTYPE, "HABITAT TYPE WILL BE MAPPED TO 260") → ihab=3 (MAXSPP=3,
+MAXTPP=5). jl's higher caps ⇒ over-establishment. ROOT: establishment.jl:1180-1181 dispatches the ESTAB habitat as
+`EM_JTYPE[habitat_code]` for EM (so the EM OCURNF fix landed on the right ihab) but the RAW `s.plot.habitat_code`
+for IE — IE never applies its habtyp MAPR6/JTYPE crosswalk to the establishment ihab. jl's IE growth DOES map the
+habitat (site_index.jl habtyp→ITYPE, validated), so the bug is establishment-specific: the ESTAB ihab bracket
+(_IE_ESTAB_MYGRUP) runs on the unmapped code. FIX: apply IE's habtyp(MAPR6/JTYPE) mapping to the establishment
+habitat before ie_estab_indices (mirror the EM_JTYPE dispatch), so ie_estab_indices sees 260 not 639 ⇒ ihab 3 =
+live. Needs the IE MAPR6/JTYPE tables (ie/habtyp.f). This is the #143 IE tally-outlier class (habitat-crosswalk
+gap); DISTINCT from the multi-plot ESRANN per-plot desync (the milder cornered part) and from the now-fixed OCURNF
+occupancy. So #143 IE tally = (a) habtyp-crosswalk for the establishment ihab [FIXABLE, this finding] + (b) ESRANN
+per-plot desync [cornered]. Reproducer /workspace/.iework/ie_sweep/177562547020004.
