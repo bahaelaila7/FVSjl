@@ -801,3 +801,25 @@ NARROW (catastrophic only on the rare hyper-dense all-0.1" inventory stands; mos
 this session on #140: crown, large-tree-DG, bark, SDIMAX-resolution, SDIMAX-collapse — all correct; root is the
 sub-inch SMDGF/dthresh in the self-thin Zeide. NEXT: dump jl SMDGF dgk (small_tree_growth!, 2 diam_growth sites) +
 mort_dbh_threshold(BM) vs live morts.f DBH cut for d=0.1.
+
+## #140 CLS417 — ROOT NAILED (8 layers deep): jl over-grows 0.1" seedlings' HEIGHT (+10.5 ft) on the hyper-dense cohort
+
+Final tree-level trace of the CLS417 catastrophe: the d=0.1" inventory seedlings (h=1.01 ft) get **htg=10.5 ft**
+of height growth in ONE cycle (bm small_tree_growth!, regent.jl:104 htgr=(si/5)·pctred·vigor·con ≈ 14·0.75) ⇒
+hk=11.5 ft ⇒ they CROSS breast height ⇒ HT-DBH gives DBH 1.14" (dgk≈1.04). That grown DBH inflates the self-thin
+Zeide d10 to 2.78 ⇒ tn10 collapses ⇒ jl kills 24391 (to 2927) vs live's 10468. dgf/bark/SDIMAX/dthresh all FAITHFUL
+(ruled out over the prior sections); the driver is the SMALL-TREE HEIGHT GROWTH not being suppressed on the
+hyper-dense (26988-TPA) cohort: pctred·vigor≈0.75 (little competition reduction) so a 1-ft seedling "releases" to
+11.5 ft. Live keeps the stand at 10468 ⇒ live's seedlings grow far LESS (stay near/below breast height).
+
+⇒ #140-CLS417 DETERMINISTIC ROOT = jl's BM small-tree POTHTG density-modifier (pctred, from AVH·RELDEN) failing to
+suppress height growth on the ultra-dense sub-inch cohort (RELDEN too low because 0.1" trees contribute ~0 SDI ⇒
+pctred≈max ⇒ full POTHTG). CANDIDATES for the fix: (a) pctred/RELDEN computation on all-sub-inch stands (does live's
+RELDEN include the seedlings' CCF differently?), (b) the (si/5) large-tree POTHTG being used where live uses a
+suppressed SMHTGF for sub-breast-height regen. This is NARROW (rare all-0.1"-inventory hyper-dense stands; most BM
+bit-exact) and the FULL fix needs live's regent.f height-growth trace (regent DEBUG) for these trees.
+
+★ #140 INVESTIGATION SUMMARY (this session, 8 turns): drilled sweep-flag→SDIMAX→d10→0.1"-seedlings→their DG→
+height-growth. SIX hypotheses refuted by measurement (crown, large-tree-DG, bark, SDIMAX-resolution, SDIMAX-collapse,
+dthresh) — the deterministic path is faithful at every layer EXCEPT the sub-inch seedling POTHTG suppression on
+hyper-dense stands. #140 is a NARROW deterministic residual, now fully localized; most BM stands are bit-exact.
