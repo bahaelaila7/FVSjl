@@ -132,3 +132,93 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
     end
     return s
 end
+
+# ut/esgent.f (CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle. UT was OMITTED
+# from the birth-cycle esgent dispatch (simulate.jl had only CR/TT/EM), so planted/established UT seedlings never
+# got their first-cycle height growth ⇒ the cohort stayed at the ~plant height (PP HHT=3.0) at the birth-cycle
+# report (BARE-PLANT: TopHt 3 vs live 6, BA ~half thru age 60). Mirrors small_tree_growth!'s HTGR over the birth
+# subperiod (subyr=FINT−GENTIM=5, germination offset like tt_esgent!), then DBH once the seedling crosses 4.5 ft.
+function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
+    relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
+    gentim = max(fint - 5.0f0, 0.0f0)
+    bscale = (fint - gentim) / _UT_RG_REGYR            # birth-cycle time fraction (=0.5 for fint=10)
+    xd = avh * (relden / 100.0f0)
+    ab = UT_RG_AB
+    pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for i in (nstart+1):t.n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= UT_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        h = t.height[i]
+        sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
+        relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+        sj = sitear
+        con = exp(c.htg_cor_small[sp])
+        if _ut_rg_conifer(sp)
+            pothtg = sj / 5.0f0
+            xcr = Float32(t.crown_pct[i]) / 100.0f0
+            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+            htgr = pothtg * pctred * vigor * con
+        elseif sp == 6
+            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+            htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+        else
+            pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0) * 0.83f0
+            xcr = Float32(t.crown_pct[i]) / 100.0f0
+            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+            (11 <= sp <= 17 || sp == 24) && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
+            htgr = pothtg * pctred * vigor * con
+        end
+        zzran = 0.0f0
+        if dgsd >= 1.0f0
+            while true
+                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+            end
+        end
+        htg = (htgr + zzran * 0.1f0) * bscale           # birth-cycle subperiod (WK4 in esgent.f)
+        htg < 0.0f0 && (htg = 0.0f0)
+        # XWT blend uses the large-tree HTG(K), which is 0 for brand-new seedlings ⇒ htg = htgr·(1−xwt).
+        xmn = UT_RG_XMIN[sp]; xmx = UT_RG_XMAX[sp]
+        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+        htg = htg * (1.0f0 - xwt)
+        cap = s.control.sp_size_cap[sp, 4]
+        (h + htg > cap) && (htg = max(cap - h, 0.0f0))
+        h2 = h + htg
+        t.height[i] = h2; t.ht_growth[i] = htg
+        if h2 > 4.5f0
+            hk = h2
+            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            local dk::Float32, dkk::Float32
+            if sp == 10
+                dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
+                dkk = h < 4.5f0 ? d : (h - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
+            elseif (11 <= sp <= 17) || sp == 24
+                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+            elseif sp == 20 || sp == 21
+                dk = 3.1020f0 + 0.0210f0 * hk
+                dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
+                dk < dkk && (dk = dkk + 0.01f0)
+            else
+                ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
+                bx = sd[:ht2][sp]
+                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+            end
+            dgk = (dk - dkk) * bark; dgk < 0.0f0 && (dgk = 0.0f0)
+            dgmx = UT_RG_DGMAX[sp] * bscale
+            dgk > dgmx && (dgk = dgmx)
+            dds = dgk * (2.0f0 * bark * d + dgk)
+            dgk = sqrt((d * bark)^2 + dds) - bark * d
+            (d + dgk) < UT_RG_DIAM[sp] && (dgk = UT_RG_DIAM[sp] - d)
+            dgk > 0.0f0 && (t.dbh[i] = d + dgk; t.diam_growth[i] = dgk)
+        end
+    end
+    return s
+end
