@@ -156,3 +156,23 @@ only bites if RIP saturates.
 
 This is a per-cyc0-initialization mortality-vigor bug, DISTINCT from the CRATET site-index root and from the
 DGSCOR/#142 straddle; it is the largest remaining #190 residual and the recommended next target.
+
+### CI dg_prev — mechanism FULLY understood (implementation path identified)
+
+Further FVSci_g16 tracing (dgdriv.f) pins the exact provenance of live's WK1=1.19 (D=30.5 DF): the FIA tree
+has NO measured increment (FVS_TREEINIT has DIAMETER/HT/AGE only), so live's WK1 is the **backdated-density
+calibration DG** — DGDRIV's LSTART/calibration segment (stmt 100+) runs with LBKDEN (tree diameters backdated
+~10yr → smaller trees → lower BA/competition → HIGHER DG estimate) and leaves that estimate in DG(I); the
+per-cycle DGDRIV growth call then copies DG(I)→WK1 (dgdriv.f:171) for MORTS. So WK1 = the tree's estimated
+PAST-10yr growth (1.19) under past density, NOT this cycle's applied DG (0.42) under current density.
+
+KEY: jl **already runs this backdated-density pass** — `calibrate_diameter_growth!` (src/variants/southern/
+diameter_growth.jl) backdates diameters (`_backdate_dbh!`), recomputes past-stand density (`compute_density!`),
+and evaluates `dgf!` → WK2 (backdated DDS) for the DGSCOR/COR calibration. It then DISCARDS the resulting
+per-tree DG instead of storing it into `t.dg_prev`. IMPLEMENTATION PATH (lower-risk than a subsystem port):
+capture the per-tree calibrated DG at the backdated stand (the same DDS→DG the COR loop already forms:
+`DG = sqrt(d² + exp(WK2)·factors) − d`, with the DGDRIV FRM/XDGROW/WK4 tripling+multiplier factors applied
+as in the growth path) into `dg_prev` at the end of the LSTART pass, so cyc0 MORTS reads it. VALIDATE: cit01
+stays bit-exact (its keyword trees may carry measured DG → different path — check), and the mature FIA stand's
++18% shrinks. Care: this touches ALL variants' cyc0 mortality vigor; gate/validate per variant. Still the
+recommended next implementation target; the mechanism is now fully measured, not inferred.
