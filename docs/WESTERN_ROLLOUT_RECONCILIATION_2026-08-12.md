@@ -781,3 +781,23 @@ grown-QMD) over-estimate on dense sub-inch cohorts — likely the DGSCOR/ZZRAN d
 sub-inch d10^-1.605 sensitivity (#142 cornered class), though a deterministic regen-DG/dthresh difference isn't
 excluded. NEXT: bm/dgf.f DEBUG dump on CLS417's sub-inch trees (is the regen DG bit-exact there?) + compare jl
 dthresh to live morts.f. Corrects the last-2-turns' SDIMAX framing.
+
+## #140 CLS417 — ROOT: 0.1" inventory seedlings drive the self-thin d10 (DG over-extrapolation OR dthresh)
+
+Drilled the CLS417 (12777466) catastrophe (jl 2927 vs live 10468 TPA) to the tree level:
+- The stand is 10495+ TPA of **d=0.1" INVENTORY seedlings** (FIA TreeInit, NOT regen — bm_esgent doesn't touch them).
+- self-thin Zeide dump: n=14 records ALL d=0.1, **g(DG-trajectory)=2.8** ⇒ raw diam_growth ≈ 1.8" for a 0.1" tree.
+  d10 = Zeide of (0.1+~1.8) ≈ 2.78 ⇒ tn10=2597 ⇒ kill-to-collapse. Live keeps 10468 ⇒ live d10≈1.17.
+- The dgf DDSS (large-tree-blend path) for these d=0.1 trees is small/negative (jl −0.46..−0.84 ≈ live −0.2..−1.6,
+  DG≈0.4") — so the LARGE-tree path is faithful. The ~1.8" DG comes from the BM **small-tree regent SMDGF**
+  (small_tree_growth!), the actual grower of sub-inch trees.
+
+⇒ #140-CLS417 root = jl's self-thin d10 inflated by the 0.1" seedlings' DG. TWO candidates (next turn):
+  (a) BM SMDGF (small_tree_growth!) OVER-extrapolates DG (~1.8") for sub-0.5" trees vs live's smaller — a DBH-floor/
+      clamp gap; OR (b) jl's self-thin dthresh (mort_dbh_threshold) INCLUDES the 0.1" seedlings in the Zeide where
+      live EXCLUDES them (so live's d10 is set by larger trees only). Either is a REAL deterministic fix.
+This finally moves CLS417 from "cornered realization" to a DETERMINISTIC sub-inch-seedling self-thin bug — but it is
+NARROW (catastrophic only on the rare hyper-dense all-0.1" inventory stands; most BM stands bit-exact). REFUTATIONS
+this session on #140: crown, large-tree-DG, bark, SDIMAX-resolution, SDIMAX-collapse — all correct; root is the
+sub-inch SMDGF/dthresh in the self-thin Zeide. NEXT: dump jl SMDGF dgk (small_tree_growth!, 2 diam_growth sites) +
+mort_dbh_threshold(BM) vs live morts.f DBH cut for d=0.1.
