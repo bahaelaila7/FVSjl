@@ -970,3 +970,20 @@ transfer distance, clmaxden SDImax coupling, RDPSRT tie-break on the climate-shi
 cornered bar, like the rest of the cluster. The goal-doc "Climate-FVS TODO (largest remaining extension; inert)"
 is STALE — it is essentially COMPLETE. (Corrects this session's own earlier "clgmult over-suppresses" and
 "clmorts incomplete" reads — 10th measurement-driven correction; here the correction is GOOD NEWS.)
+
+## Unification hypothesis (#140 BM ≡ #191 TT ≡ #193) — REFUTED by measurement (11th correction)
+
+Tested whether the recurring "jl over-grows sub-inch trees on dense real-FIA stands" theme is ONE shared root
+across #140/#191/#193. It is NOT — the mechanisms differ per variant:
+- #193 (EM/IE, FIXED): birth-cycle HEIGHT via the WK4/HTIMLT multiplier (estab path). Fixed.
+- #140 (BM): small-tree height = pothtg·pctred·vigor·con (bluemountains/regent.jl:104) — the DENSITY modifier
+  (pctred) under-suppresses tiny-tree htg (measured htg=10.5ft). Density-path root.
+- #191 (TT aspen sp6): FINDAG CLOSED-FORM height (teton/regent.jl:108-119, smhtgf.f CASE(6):
+  htgr=(hite2−hite1)/(2.54·12)·0.75) — the documented #158 "single-step-suppressed-model gap" (jl canonical
+  SMDGF vs live INLINE HT-DBH+POTHTG suppression), ENTANGLED with a compensating DGFASP crown-under (jl cr=0 vs
+  live ASPCR=95). Model-port gap, not a density-modifier tweak.
+⇒ Same OBSERVABLE (sub-inch dense over-growth) but THREE distinct code paths. No single unified fix. #140 and
+#191 must be fixed independently in their own paths. The theme is a useful REGIME flag (dense sub-inch cohorts
+are the under-tested regime — see fvsjl-dense-seedling-sweep-campaign) but not a shared bug. #191 specifically =
+the #158 model port (canonical→inline-suppressed SMHTGF), entangled with DGFASP crown-init — a careful joint
+model port, deferred at this session's length (high-risk, prior partial fixes did not compose).
