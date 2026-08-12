@@ -1,0 +1,53 @@
+# NEWMIST (spatial dwarf mistletoe) port — chunk plan
+
+**Status: PLANNED, not started — pending a user go/no-go (see #196 cost/benefit flag).**
+This is the fix for the BC YSM multi-cycle under-mortalization (isolated 2026-08-12 to the missing
+spatial DM via the DM-free `all_BC` self-thin control). It is a MAJOR port; this plan makes it
+executable chunk-by-chunk (doctrine: one chunk/session, commit frequently, validate each chunk).
+
+## Scope
+`canada/newmist/` = **~8,761 lines / ~55 routines**, the FVS **spatial** dwarf-mistletoe model activated by
+the `NEWSPRED` keyword (distinct from the non-spatial base `mistoe/mistoe.f` already ported for the N-Rockies
+cluster via `_ie_mis_variant`). FVSbc links the newmist `mistoe.f` (confirmed: `diff` == `canada/newmist/mistoe.f`).
+Currently jl does NOT parse MISTOE/NEWSPRED/DMAUTO (→ `unrecognized_keywords`) and BC is not in any DM dispatch,
+so jl runs ZERO DM on these stands.
+
+## Architecture (measured)
+- Per-cycle entry: `gradd.f:96 CALL MISTOE` (same site as the base model).
+- `MISTOE` (newmist, mistoe.f): `OPFIND` scheduled actions (DMAUTO etc.) → `DMTREG` (spread/intensify) →
+  `DMMDMR` (stand-mean DMR) → `RANN` draws (spatial spread — ZZRAN/RNG-straddle class) → `MISINF` (infection)
+  → `IF(DMFLAG) MISMRT` (DM-caused mortality). DG-loss via `misdgf`/`dgdriv`.
+- Key routines: dmcycl(593 scheduler-driver) / mistoe(558 spread entry) / dmtreg(553) / dmshap(378 crown shape) /
+  dmadlv(349 adjust DM levels) / **bndist(342 between-tree distance — the core novel spatial piece)** /
+  dminitbc(284 BC init) / dmblkd(256 coefficients block-data) / dmauto(149 DMAUTO keyword) / dmopts(157 keywords) /
+  12× dmcw*(148 ea, per-variant crown-width).
+
+## Chunks (each: port faithfully → validate → commit)
+1. **Keywords + DMR init.** Parse MISTOE/NEWSPRED/DMAUTO/MISTPRT (dmopts, dmauto); DMR auto-assign (dmauto.f) +
+   BC init (dminitbc.f); coefficients (dmblkd.f). `t.dmr` already exists. Wire into keyword_dispatch. NOT
+   `.sum`-validatable alone (DMR seeded but no effect yet) — validate the DMR values vs an instrumented dump.
+2. **Spatial distance core.** `bndist.f` (between-tree distance) + tree-position/grid handling. The novel piece
+   the base model lacks. Unit-test the distance math against instrumented newmist values.
+3. **Crown width.** The per-variant `dmcw*` (BC's — verify which; dminitbc may select). Feeds spread.
+4. **Spread / intensify.** `DMTREG` + `dmshap` + `dmadlv` + the RANN spread draws + `DMMDMR`/`MISINF`. RNG order
+   MUST match live (ZZRAN discipline — never FFI the RNG; derive draw order from mistoe.f).
+5. **DG-loss.** `misdgf` DMR→DG multiplier. Check reuse of the ported `ie_dm_dg_mult` vs newmist-specific coef.
+6. **DM mortality.** `MISMRT` (mismrt.f) — combine into the BC mortality driver (like `ie_dm_mortality_combine!`).
+7. **Output.** dmsum/misprt/dmtlst/dmslst DM reports (optional; `.sum`-inert).
+8. **BC wiring + end-to-end.** Dispatch newmist for BC; end-to-end validate.
+
+## Validation
+- **Primary target EXISTS** (no DB-capable oracle needed): `tests/FVSbc/YSM-SkyRanch.sum.save` (2022 production
+  FVSbc output, WITH MISTOE/NEWSPRED/DMAUTO). Run jl on the YSM stand (units now correct after 42eb555) and diff
+  the multi-cycle `.sum` — the target is jl's TPA declining toward the oracle's harder mortality (2077 ~1366).
+- **Regression control:** the DM-free `mrun/all_BC.key` (V3, no MISTOE) — jl already MATCHES it (TPA 2089→1253 vs
+  2087→1292); the newmist port must leave it BYTE-IDENTICAL (DMR=0 ⇒ inert, like the base model).
+- **A/B (optional, currently blocked):** `FVSbc_clean` WITH vs WITHOUT MISTOE would isolate the DM contribution,
+  but the relinked oracle SIGSEGVs on ALL DATABASE reads (isoc23-shim × SQLite-C-interop — a relink-infra issue,
+  NOT a production-FVS bug; the 2022 oracle read these DBs fine). Either fix the relink (DB-capable FVSbc) or
+  convert YSM to inline TREEDATA. Not required — the `.sum.save` is the trustworthy target.
+
+## Cost/benefit (why this is a user decision)
+~8,800-line port of an OPTIONAL keyword model whose only exercised corpus case is the single YSM DATABASE stand.
+The base (non-spatial) mistoe.f is done+validated for the N-Rockies cluster. Weigh before committing a
+multi-session effort. If greenlit, execute the chunks above in fresh sessions.
