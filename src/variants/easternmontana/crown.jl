@@ -73,31 +73,34 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         bark = bark_ratio(ba_a, ba_b, sp, d)
         local icri::Int
-        if d >= 3.0f0
-            xcrcon = crcon + P[1]*ba + P[2]*ba*ba + P[3]*lnba + P[4]*relden + P[5]*relden*relden + P[6]*lnrd
-            pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
-            pcr = xcrcon + P[7]*d + P[8]*d*d + P[9]*log(d) + P[10]*h + P[11]*h*h + P[12]*log(h) + P[13]*pp + P[14]*log(pp)
-            exppcr = exp(pcr)
-            if lstart
-                icri = trunc(Int, icr + exppcr*100f0 + 0.50005f0)
-                dgsd >= 1.0f0 && (icri = trunc(Int, bachlo(s.rng, Float32(icri), _EM_CRSD)))
-            else
-                dcrcon = crcon + P[1]*oba + P[2]*oba*oba + P[3]*x1 + P[4]*reldm1 + P[5]*reldm1*reldm1 + P[6]*x2
-                db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
-                hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-                pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)
-                dcr = dcrcon + P[7]*db + P[8]*db*db + P[9]*log(db) + P[10]*hb + P[11]*hb*hb + P[12]*log(hb) + P[13]*pb + P[14]*log(pb)
-                chg = exppcr - exp(dcr)
-                if icr > 0
-                    pdifpy = chg / Float32(icr) / fint * 100f0
-                    pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
-                    pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
-                end
-                icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
-            end
+        # em/crown.f: the DCR change-in-crown model applies to the lstart DUB (all sizes) and to CYCLING
+        # d≥3; cycling d<3 keeps its crown. (Previously d<3 at lstart used a flat-40 placeholder — never
+        # exercised because EM wasn't calling the lstart dub at all. Now that the dub is wired (simulate.jl),
+        # a 0.1" seedling with ICR=0 dubs via the same model ⇒ CR≈50-79 like live's DUBSCR, activating the
+        # _em_smhtgf beta2·cr height term instead of the crown_pct=0 freeze (#137).)
+        if d < 3.0f0 && !lstart
+            continue                                  # cycling: D<3 keeps its crown
+        end
+        xcrcon = crcon + P[1]*ba + P[2]*ba*ba + P[3]*lnba + P[4]*relden + P[5]*relden*relden + P[6]*lnrd
+        pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
+        pcr = xcrcon + P[7]*d + P[8]*d*d + P[9]*log(d) + P[10]*h + P[11]*h*h + P[12]*log(h) + P[13]*pp + P[14]*log(pp)
+        exppcr = exp(pcr)
+        if lstart
+            icri = trunc(Int, icr + exppcr*100f0 + 0.50005f0)
+            dgsd >= 1.0f0 && (icri = trunc(Int, bachlo(s.rng, Float32(icri), _EM_CRSD)))
         else
-            lstart || continue                       # cycling: D<3 keeps its crown
-            icri = icr > 0 ? icr : 40                 # minimal lstart dub (emt01 inventory crowns present)
+            dcrcon = crcon + P[1]*oba + P[2]*oba*oba + P[3]*x1 + P[4]*reldm1 + P[5]*reldm1*reldm1 + P[6]*x2
+            db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
+            hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
+            pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)
+            dcr = dcrcon + P[7]*db + P[8]*db*db + P[9]*log(db) + P[10]*hb + P[11]*hb*hb + P[12]*log(hb) + P[13]*pb + P[14]*log(pb)
+            chg = exppcr - exp(dcr)
+            if icr > 0
+                pdifpy = chg / Float32(icr) / fint * 100f0
+                pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
+                pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
+            end
+            icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
         end
         icri > 95 && (icri = 95); icri < 5 && (icri = 5)
         t.crown_pct[i] = Int32(icri)

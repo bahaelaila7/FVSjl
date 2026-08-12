@@ -83,6 +83,12 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa EasternMontana
         em_dgcons!(s)                     # EM DGCON/DGDSQ/DGCCF (DGHAB+DGFOR+MAPDSQ+elev/slope-aspect+site adj), ATTEN=OBSERV
+        compute_density!(s)               # current-stand density for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns
+                                          # (em/crown.f). Was MISSING (unlike CR/BM/CI) ⇒ 0.1" seedlings kept
+                                          # crown_pct=0 ⇒ _em_smhtgf beta2·cr term = 0 ⇒ HTGR under-predicts ⇒
+                                          # never cross 4.5' ⇒ DBH growth skipped ⇒ QMD frozen ⇒ dense self-thin
+                                          # holds at the tiny-QMD target (#137). Live dubs these to CR 51-79%.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Teton
         tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
