@@ -1273,3 +1273,17 @@ birth-cycle DBH growth is under; NOT the AUTOES count. NEXT: instrument FVSci_g1
 at cyc0 — compare the birth DBH + HTG/DG applied to the just-established regen (esgent.f HT(I)+=HTG·WK4, DBH via
 SMDGF). Distinct from the CI #142 large-tree DGSCOR tail. Task #194 re-scoped from "over-establishment" to
 "established-regen DBH under-growth".
+
+## #194 CI — root NARROWED (experiment): ci_esgent! single-pass bscale ≠ live's multi-step KPER-loop regen growth
+MEASURED jl birth-cycle values on cibare (planted DF sp3 + LP sp7, both d0=0.102"): DF h 1.52→5.6 (DBH 0.53),
+LP 2.4→9.36 (DBH 1.13) ⇒ jl cyc0 TopHt 9 / QMD 0.9 vs live 12 / 1.1 — the birth-cycle HEIGHT growth is ~25% under.
+ci_esgent! applies a SINGLE-PASS scalar bscale=(fint-gentim)/regyr=(10-5)/5=1.0. EXPERIMENT (bscale=fint/regyr=2.0,
+full cycle): OVERSHOOTS at birth (TopHt 16 / QMD 1.5 / BA 9 vs live 12/1.1/5) though it matches by cyc4 (BA 89=89).
+So the true live birth-cycle scale is INTERMEDIATE (~1.4×), NOT a clean scalar ⇒ jl's single-pass bscale can't
+reproduce it. Live's regent.f grows regen over a KPER-STEP LOOP (SCALE=FLOAT(KPER(J))/REGYR per step, regent.f:510)
+with a PER-TREE WK4(I) birth fraction (H2=H1+HTGRL·SCALE·XRHGRO·CON·WK4(I), regent.f:709). WK4(I) is set per tree at
+establishment (elsewhere — estab/esinit, not regent.f). ⇒ #194 FIX = port live's multi-step regen-growth iteration
+(KPER loop + per-tree WK4) into ci_esgent! (and likely the shared esgent path cluster-wide — EM/UT/TT/BM/IE use the
+same single-pass bscale, so their PLANTED-regen birth cycle may share this; NATURAL-regen validations (emt01/utt01)
+didn't exercise PLANT-at-cycle-start). NEXT: find WK4(I) assignment (grep estab/esinit), confirm KPER stepping for a
+10-yr cycle, port. This is a genuine model port, not a scalar tweak. Distinct from #142 (large-tree DGSCOR).
