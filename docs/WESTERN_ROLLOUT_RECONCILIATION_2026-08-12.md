@@ -1424,3 +1424,14 @@ line-1046 evolution, jl's applied DG is higher → uniform over-growth. (For CI 
 per-tree treelist; run jl NOTRIPLE (or the pre-split window) and compare per-aspen-tree DBH growth 2019→2029 to live
 asp_tl.out — measure jl's vs live's APPLIED COR/DG per cycle. This isolates COR-clock vs a DDS→diameter/other factor.
 The DGFASP-RMSQD/COR half stays RESOLVED (42f4860). Residual is small (+6-9% BA on one aspen stand) and bounded.
+
+## #191 residual FULLY LOCALIZED — COR-clock is BIT-EXACT; residual is the small-aspen DBH-at-4.5'-crossing (#158)
+Measured jl's applied aspen dg_cor per cycle vs live's G16ASP decay: 1.1062/0.9722/0.8707/0.7938/0.7355 — jl ==
+live ALL 5 CYCLES bit-exact. ⇒ the aspen large-tree DGFASP + DGSCOR COR + autcor decay are FULLY bit-exact. With
+TopHt also bit-exact (height growth matches) but QMD/BA over (+6-9%), the residual is NECESSARILY the DBH ASSIGNED
+when small aspen cross 4.5' breast height (the HT-DBH / "single-step-suppressed-model" — #158): jl assigns a bigger
+DBH at crossing than live, lifting BA/QMD without touching TopHt or the (bit-exact) large-tree DG. This is the pure
+#158 half of the #191 pair, now cleanly isolated from the DGFASP-RMSQD/COR half (RESOLVED, 42f4860). NEXT: instrument
+the aspen HT-DBH at the 4.5' crossing (the regent/SMHTGF→DBH handoff) on asp.key vs FVStt_g16, for trees transitioning
+sub-4.5'→above. Everything else in the aspen DG chain is proven bit-exact — the #158 DBH-at-crossing is the sole
+remaining driver.
