@@ -741,3 +741,23 @@ g16). NEXT: (a) fix that live DEBUG-volume crash to read live's SDIMAX/DQ10/tn10
 (b) dump jl's resolved per-species sp_sdi_def + ecoclass for the reproducer and cross-check against the BM ecoclass
 SDIMAX table (bm/*.f) — jl-side, no live needed. The #140 search space is now narrowed from {DG, bark, SDIMAX,
 d10-realization} to {SDIMAX lookup} + the accepted DGSCOR/ZZRAN realization straddle (#142 class).
+
+## #140 BM — CONCRETE REPRODUCER + 17% SDIMAX-resolution-failure population (the REAL #140, distinct from the cornered sweep-flag)
+
+Traced #140 to the BM SDIMAX plant-association resolution, and separated the cornered from the real bug:
+- **Sweep-flagged stand 1127530927 (PV=CWG111/622) is CORNERED**: jl reads PV_REF_CODE (DB TEXT "622.0") → Int 622
+  (fia_database.jl:138) → bm_pvref6("CWG111","622")="CWG111" (valid PCOML) → ecocls PP263/DF376/GF700 →
+  stand_sdimax=413.8. SDIMAX RESOLVES CORRECTLY ⇒ its over-kill is the DGSCOR/ZZRAN mortality realization (#142 class),
+  NOT #140. (Corrects last turn's "root=SDIMAX for THIS stand".)
+- **The REAL #140 = the resolution-FAILURE population**: scanning 3000 BM stands, **507 (17%) FAIL** the
+  bm_pvref6→PCOML→bm_ecocls chain (PV codes like CJS221/SD3112/CWF444/CLS417 have no mapping ⇒ empty ecocls ⇒ the
+  fallback). MOST failed stands still match live (fallback OK), but at least one CATASTROPHICALLY diverges:
+  **12777466010497 (PV=CLS417): jl TPA 2927 vs live 10468 (−72%!), BA j106/l77 (+37.7%)** — jl massively OVER-thins.
+  Signature = the site_index.jl:187 "sp_sdi_def=0 ⇒ stand_sdimax=0 ⇒ morts.f SDIMAX<5 kill-ALL" collapse: jl's
+  fallback for CLS417 yields a near-zero SDIMAX ⇒ near-zero self-thin target ⇒ kills to collapse, where live's
+  fallback holds the stand. (Adjacent CLS418=12781342 is BIT-EXACT ⇒ it's SDIMAX-value-specific, not all failures.)
+
+⇒ #140 is a REAL deterministic bug in jl's SDIMAX FALLBACK for the ~17% of BM stands whose (PV_CODE,PV_REF_CODE)
+mis-resolves — most benign, some catastrophic (CLS417 −72% TPA). NEXT (jl-side): dump jl's stand_sdimax + resolved
+ecoclass for 12777466 (confirm ~0), then port live's bm/sitset.f fallback (Region-6 default ISISP=10 PP SDIMAX, NOT
+0/collapse) for empty-ecocls stands. Distinct from the cornered realization straddle on resolves-OK stands.
