@@ -1435,3 +1435,16 @@ DBH at crossing than live, lifting BA/QMD without touching TopHt or the (bit-exa
 the aspen HT-DBH at the 4.5' crossing (the regent/SMHTGF→DBH handoff) on asp.key vs FVStt_g16, for trees transitioning
 sub-4.5'→above. Everything else in the aspen DG chain is proven bit-exact — the #158 DBH-at-crossing is the sole
 remaining driver.
+
+## #191 residual — PINPOINTED to the aspen _tt_smdgf small-tree DBH blend (regent.jl:227-241), #158 model
+Traced the sole remaining driver to small_tree_growth! (teton/regent.jl:207-241): for aspen (sp6, _tt_rg_default),
+the per-tree DBH growth BLENDS the #158 small-tree model `dgk` (from _tt_smdgf: DK=smdgf(grown H), DKK=smdgf(orig H),
+DG=(DK−DKK)·bark→DDS, line 221-239) with the (bit-exact) large-tree DGFASP DG, weighted by xwt=(d−XMIN)/(XMAX−XMIN).
+Small/mid aspen (xwt<1) grow mostly via `dgk`. The large-tree DGFASP + COR + COR-clock are PROVEN bit-exact this
+session, and the aspen SMHTGF HEIGHT has the #189 RSIMOD fix (TopHt bit-exact) + the #158 DGMX=FINT·DGMAX cap
+(f66f1fd) — so the residual +6-9% BA is the `_tt_smdgf` aspen DBH (or the blend) for small/mid aspen that over-grows
+DBH without touching height. This is the last-mile of the #158 "single-step-suppressed-model" ON THIS low-site
+(SITEAR=42) aspen stand. NEXT (bounded, decisive): instrument dgk/_tt_smdgf per aspen tree on asp.key vs FVStt_g16
+regent DEBUG (DK/DKK/DGR/DGMX) for the xwt<1 trees; the height/large-tree halves are proven exact so this isolates
+the smdgf DBH. #191 is now: DGFASP-RMSQD/COR half RESOLVED bit-exact (42f4860); #189 height RSIMOD landed; residual =
+the _tt_smdgf DBH-blend for small aspen (bounded).
