@@ -548,3 +548,27 @@ crown) ⇒ directly validatable.
 FIX SPEC: store a per-tree HTIMLT (=min(TRAGE,GENTIM)/(GENTIM+0.0001)) at establishment — ie_autoes sets TRAGE=2.0
 (⇒0.40 at FINT=10); the shared establish! (PLANT/NATURAL) computes it from its TRAGE/DELAY (PLANT keeps ≈1.0 ⇒
 emt01 preserved) — and em_esgent! scales `htg` (and the DBH via HTG) by that per-tree HTIMLT instead of subyr/regyr.
+
+## #193 EM AUTOES over-growth — FIX LANDED + VALIDATED (per-tree WK4/HTIMLT birth-cycle multiplier)
+
+Implemented the fix from the root-cause above. Commit adds `TreeList.htimlt` (per-tree, default 1.0, carried
+through tripling/compaction via _TREE_VEC_FIELDS); `ie_autoes_establish!` sets it to min(2,GENTIM)/(GENTIM+1e-4)
+with GENTIM=max(FINT-5,0) (AUTOES TRAGE=2 ⇒ 0.40 at FINT=10); the shared `establish!` sets 1.0 (PLANT/NATURAL,
+guards slot reuse); `em_esgent!` scales `htg` by `t.htimlt[i]` instead of the constant `subyr/regyr`.
+
+VALIDATED vs FVSem_clean:
+- Treeless reproducer 5332701010661 (birth-cycle probe): maxH 5.44→2.89 ft (=live ~3), maxD 0.71→0.10 in (=live
+  0.10); .sum QMD 0.4→0.1 (=live 0.1), BA matches.
+- Multi-cycle sweep: TopHt 6→2-3 vs live 3 (was ~5-6 over). Mature/dense EM stands BIT-IDENTICAL before/after
+  (12344117/12356085 ΔBA 0.0%; 149151286/149153412 unchanged) ⇒ NO REGRESSION (em_esgent only touches birth-cycle
+  regen; non-establishment stands have an empty loop; PLANT trees keep htimlt=1.0).
+- Cross-variant: IE + KT/others run clean (struct change additive; no other positional TreeList constructor).
+
+RESIDUALS (follow-up, NOT the height bug just fixed):
+1. TopHt slightly low (jl 2 vs live 3) on some multi-species treeless stands — the reproducer's actual maxH=2.89
+   rounds to 3, so this is the AVHT40 top-height metric weighting a multi-species sub-breast-height cohort (or a
+   minor TRAGE nuance for the ntally=99 path), not the growth magnitude. Huge net improvement over the pre-fix ~6.
+2. AUTOES TPA tally over-count (jl 261-263 vs live 233-234, +12%) on some stands — a SEPARATE tally-amount issue
+   (#143-class), independent of the birth-cycle height fix (the reproducer's tally was 118==live exactly).
+3. IE side: ie_autoes now sets htimlt for IE too, but IE uses ie_esgent! (not em_esgent!) which does NOT yet apply
+   it — IE's +19-29% AUTOES over-growth needs the same one-line scale in ie_esgent! + IE validation. NEXT.
