@@ -130,9 +130,14 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    sprout.jl, inlandempire/establishment.jl) broke at n>MAXTRE ignoring the dead block → break at n+ndead>MAXTRE.
    Invariant t.n+t.ndead≤MAXTRE now holds. Faithful, .sum-inert. Diagnostic in MEMORY.md (intermittent SIGSEGV ⇒
    MAXTRE overflow ⇒ --check-bounds=yes).
-4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
-   #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
-5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
+4. **TT aspen bug PAIR [#191] — ★ RESOLVED 2026-08-12 (42f4860 + 929e6a3).** The large-tree aspen DGFASP chain is
+   PROVEN bit-exact (G16ASP: ASPDG 1.5704, corv 1.1062, + 5-cycle COR decay all = live) after the current-RMSQD-in-
+   calibration fix; TopHt bit-exact (#189 RSIMOD); the DBH-at-4.5'-crossing negative-DKK bug fixed (DKK=D when H<4.5,
+   regent.f:824). asp.key +13%→+4%; residual = the accepted smdgf-vs-inline realization straddle (cornered). ttt01
+   non-regressing. The "sub-1/DGFASP-under" framing was superseded by measurement (~5 red herrings ruled out).
+5. **CI bare-establishment regen [#194] — ★ birth-cycle FIXED 2026-08-12 (eb3395b); residual CORNERED.** "+282%" was
+   STALE. ci_esgent birth-cycle RELHT now uses pre-regen ATAVH (=live); cibare cyc0 QMD 0.9→1.0. Residual = a
+   TRANSIENT small→large transition DBH straddle (peaks 19%@2032, CONVERGES to 2.5%@2052, TopHt-matches) = cornered.
 6. **CI volume tail — ★ MEASURED 2026-08-12: bit-exact-or-cornered.** cit01 merch volume BIT-EXACT @cyc0 (MCuFt
    833/833, BdFt 3912/3912; TCuFt 1541/1540=1-NINT). The multi-cycle ~1-3% divergence EXACTLY tracks the BA/TPA
    growth divergence ⇒ the accepted #142 DGSCOR/growth straddle PROPAGATING into volume, NOT an independent vol bug.
