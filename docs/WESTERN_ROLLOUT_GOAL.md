@@ -28,10 +28,14 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
   1235 vs 1163) — jl's V3 mortality/self-thin MATCHES the oracle on a dense DM-free stand (residual BA +9% by 2090 =
   the accepted growth straddle, TPA-matched). Since jl's self-thin is validated-correct, the YSM under-mortalization
   (jl SDI→1586 vs oracle 926) is attributable to the MISSING dwarf mistletoe: YSM's oracle runs NEWSPRED DM that
-  kills trees jl never models. ⇒ FIX = port canada/newmist NEWSPRED (spatial DM) + wire BC into the DM dispatch. The
-  fully-clean YSM A/B remains crash-blocked (FVSbc_clean SIGSEGV dbstreesin.f:57 on DATABASE — a genuine oracle bug,
-  NOT the bc_stubs which only stub 4 DBS-output routines), but the all_BC control makes the DM attribution well-
-  supported. + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
+  kills trees jl never models. ⇒ FIX = port canada/newmist NEWSPRED (spatial DM) + wire BC into the DM dispatch.
+  ★★ SCOPE (surveyed 2026-08-12) — COST/BENEFIT FLAG for a USER decision: newmist is a **~8,761-line / ~55-routine
+  SPATIAL DM model** (variant-comparable: dmcycl 593 driver / mistoe 558 spread / dmtreg 553 / dmshap 378 / bndist
+  342 between-tree-distance / dminitbc 284 / dmblkd 256 coef / dmauto 149 kw + 12 per-variant dmcw* 148 ea). It is
+  an OPTIONAL keyword-activated model whose only exercised corpus case is the YSM DATABASE stand, and its clean
+  validation A/B is CRASH-BLOCKED (FVSbc_clean SIGSEGV dbstreesin.f:57 on DATABASE — genuine oracle bug, NOT bc_stubs
+  which stub only 4 DBS-output routines). A MAJOR multi-session port for niche value; the base (non-spatial) mistoe.f
+  is done+validated. Weigh before committing. + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
