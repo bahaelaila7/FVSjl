@@ -1260,3 +1260,16 @@ the ESRANN ITPP/es_nstore realization (jl's ESRANN is not byte-identical to live
 BA-exact means species+sizes are right, only a few extra tiny stems. At-bar per doctrine (bit-exact-or-cornered);
 a future refinement could measure jl-vs-live per-plot ITPP to see if a rounding/off-by-one contributes to the sign.
 ⇒ #143 both halves resolved-or-cornered: IE root FIXED (pvref1, 00d36b0); EM at-bar (BA-exact, TPA +5% cornered).
+
+## #194 CI ci_esgent — re-MEASURED: "+282%" STALE; real issue is established-regen UNDER-growth (DBH-limited)
+Ran cibare.key jl vs live FVSci (cibare.sum). Current state is NOT +282% over-establishment (that was pre-#185-
+esgent-fix, when regen never grew → tiny-stem pileup). Now: TPA +2-5% (minor), but BA ~25% UNDER (jl 66 vs live 89
+@2032) and QMD ~10-15% UNDER (jl 4.7 vs live 5.6). DIAGNOSTIC: TopHt TRACKS live (jl 9/23/34/45/54/63 vs live
+12/25/36/46/54/61 — slight early lag, converges) while QMD is consistently under ⇒ DBH-GROWTH-limited, NOT height-
+limited (opposite of EM #137's frozen-height). KEY: the deficit is present AT BIRTH — cyc0 (2002) jl & live BOTH
+727 TPA but jl QMD 0.9 vs live 1.1, BA 3 vs 5 ⇒ CI regen ENTERS ~18% too small in DBH, and the gap roughly persists.
+⇒ ROOT LEAD (not yet instrument-confirmed): the CI establishment initial DBH and/or ci_esgent! (#185, 8cf9c9f)
+birth-cycle DBH growth is under; NOT the AUTOES count. NEXT: instrument FVSci_g16 esgent.f vs ci_esgent! on cibare
+at cyc0 — compare the birth DBH + HTG/DG applied to the just-established regen (esgent.f HT(I)+=HTG·WK4, DBH via
+SMDGF). Distinct from the CI #142 large-tree DGSCOR tail. Task #194 re-scoped from "over-establishment" to
+"established-regen DBH under-growth".
