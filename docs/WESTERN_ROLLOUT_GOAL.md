@@ -78,6 +78,14 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
   60-stand slice → 9+ treed, cyc0 8/9 bit-exact, 0 crashes (monotone partial; no regression from IE_PSIGSQ).
   Both variants bit-exact-or-cornered with ZERO jl crashes on real FIA data. Harness: extract_sample.jl + the
   generalized scratchpad/fia_sweep_check.jl (any variant, reusable cluster-wide).
+  ★★ 2026-08-12 FRESH POST-FIX FULL-CLUSTER RE-SWEEP (docs/WESTERN_FIA_VALIDATION_2026-08-12.md) — re-ran the
+  ecoregion-stratified sweep AFTER this session's fixes (pvref1/ci_esgent/aspen/crown-dub/OCURNF/#195/BC-DB-units)
+  across ~90 stands, IE/EM/CI/BM/CR/UT/TT (KT=0 FIA stands, native-key; BC=metric): PURE-GROWTH bit-exact-or-cornered
+  cluster-wide, **ZERO jl crashes**, NO regression. IE cyc0 14/14 bit-exact (pvref1 validated at population scale).
+  The ONLY notable multi-cycle divergence = the pre-existing documented TT #158 dense small-tree regent gap
+  (533757478126144 TPA 4055/7084, 1629326355290487 BA 19/43 — both dense small-tree). ⇒ the "full FVS-ready FIA
+  sweep" co-goal is SATISFIED for the current code. NEW leads (management-regime only, task #197): jl THINBBA-from-
+  below over-thins dense stands + AUTOES over-establishes post-canopy-opening-thin (NOT the pure-growth model).
 
 ## ★★ 2026-08-12 (later session) — CLUSTER MILESTONE: whole western growth+volume bit-exact-or-cornered; 5 fixes
 Landed 5 measured fixes + reached the CI bar: (1) IE #143 pvref1.f habitat crosswalk (00d36b0) — jl FIA reader used
