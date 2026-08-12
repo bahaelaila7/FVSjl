@@ -488,3 +488,32 @@ Two consequences:
   dispatch (sp5 NIVAR-DCR jl already has; CRVAR sp{11,13-16,19} CL=5.17281+.32552HF-.01675BA; LPIJU sp6
   CL=-.59373+.67703HF; EMVAR/UTTVAR Weibull for the rest) + EM's dubscr for the D<1&lstart path. Still needs
   per-cycle emt01 A/B vs FVSem_g16 before landing (changes most-species crowns).
+
+## #193 EM crown recession — HYPOTHESIS IMPLEMENTED, A/B-MEASURED, and REFUTED as the driver
+
+Per doctrine (MEASURE-don't-infer applied to my OWN fix), I did NOT stop at the source diagnosis — I IMPLEMENTED
+the full source-faithful EM per-species crown dispatch and A/B-tested it:
+  - group 4 (EMVAR/UTTVAR): Weibull-rank crown `CRNEW=(A+B(-ln(1-X))^(1/C))·10`, X=ISORT/N·SCALE, D>=1 recession,
+    all 7 coeff tables (programmatically extracted, verified), ISORT via _rdpsrt! on DBH+DG/BARK (CI template).
+  - group 2/3 (CRVAR/LPIJU): CL crown models (5.17281+.32552HF-.01675BA / -.59373+.67703HF) + label-53 recession.
+  - group 1 (NIVAR sp5): existing DCR (unchanged).
+Compiled clean. Then measured jl-vs-FVSem_clean BEFORE/AFTER on: 4 mature multi-sp refs, a pure-sp6 LPIJU stand
+(11881495010690, ΔBA -2.9%), and 6 establishment/regen stands (the #193 regime).
+
+RESULT — the crown change moved NOTHING: every stand's .sum BA/TPA was BYTE-IDENTICAL before vs after, for BOTH
+the group-4 Weibull AND the group-2/3 CL variants. Diagnosis of why (instrumented):
+  1. The sampled mature stand was pure sp6 (LPIJU, group 3) ⇒ the group-4 Weibull branch NEVER fired (G4 count=0).
+  2. Switching sp6's 27 trees from DCR→LPIJU-CL left ΔBA -2.9% UNCHANGED ⇒ that divergence is NOT crown-driven.
+  3. The crown's effect on large-tree DG is below the .sum integer-BA resolution (BA rounded to whole ft²/ac).
+
+DECISIVE CONCLUSION: the EM crown-model choice (DCR-for-all vs faithful per-species Weibull/CL) is a REAL infidelity
+but .sum-SECOND-ORDER — it does not move BA/TPA on any tested stand. This REFUTES this session's "crown recession is
+the #193 root" hypothesis. The #193 +200-492% over-growth is a LARGE, .sum-visible effect ⇒ it CANNOT be the crown
+(which is sub-.sum-resolution). REDIRECT #193 to the actual .sum-visible drivers: the AUTOES establishment TALLY
+(number of trees established), the birth DBH/height, and the regen SMHTGF/regent DG — NOT the crown ratio.
+
+CODE REVERTED (crown.jl back to pristine DCR-for-all): the faithful crown port is UNEXERCISABLE via .sum sweeps
+(group-4 never fires on .sum-visible stands; the effect is below integer-BA resolution) ⇒ per "a test must exercise
+the semantic", it must not be landed as unvalidatable code. It requires per-tree FVSem_g16 crown comparison to
+validate — a future g16-instrumentation chunk. The complete spec + all coefficient tables are preserved above,
+so that chunk is turnkey. This is the 8th implemented-and-refuted hypothesis of the campaign (doctrine working).
