@@ -610,3 +610,28 @@ Broader single-plot treeless EM sweep (post-htimlt-fix) vs FVSem_clean revealed 
 ⇒ #193's headline OVER-growth (EM +200-492% / IE +19-29%) is FIXED in both variants. The establishment regime is
 NOT yet fully bit-exact: the dense-under-growth (SMHTGF/TPCCF) and multi-plot-tally are distinct open sub-bugs.
 Honest status: one of three establishment-regime bugs closed; two characterized+localized for follow-up.
+
+## Establishment-regime deep-dive — CONSOLIDATION + priority correction (EM/IE AUTOES)
+
+After many turns on the EM/IE treeless/AUTOES regime, the full picture (measured):
+1. **Sparse-establishment BA OVER-growth [FIXED, both variants]** — the headline #193 (EM +200-492% / IE +19-29%).
+   Root: em_esgent!/ie_esgent! applied the full birth-cycle HTG increment instead of live's per-tree WK4=HTIMLT
+   (min(TRAGE,GENTIM)/(GENTIM+1e-4); AUTOES TRAGE=2⇒0.40). Fixed via per-tree TreeList.htimlt; validated
+   (reproducers match live; mature/treed bit-identical; A/B stash confirms non-regressing).
+2. **Dense "under-growth" [CORNERED — priority CORRECTED this turn]** — stands like 103400530010661 report TopHt
+   jl 1 vs live 3, but FULL .sum comparison shows TPA (214=214), BA (0=0) and QMD (0.1=0.1) ALL BIT-EXACT; ONLY
+   the TopHt column differs. MEASURED cause: the seedlings stay sub-breast-height (BA=0) in both; the abundant
+   short DF (sp3, htgrth floored 0.10, 147 TPA @1.2ft) dominates the AVHT40 "top-40-by-DBH" selection over the
+   sparse taller sp10 (reaches 3.6ft) ⇒ jl AVHT40≈1 vs live≈3. This is the ACCEPTED AVHT40 tie-break on equal-
+   nominal-DBH cohorts (goal-doc's cornered class), NOT a growth/BA bug. (I over-prioritized it last turn; the
+   tpccf-over-suppression hypothesis was REFUTED — tpccf=25 floor on both dense and sparse stands.)
+3. **Multi-plot AUTOES tally OVER-count [OPEN — the lone remaining REAL TPA residual, #143]** — single-plot stands
+   are TPA-EXACT (118=118, 214=214, 131=131); NUM_PLOTS>1 over-count (4-plot 103399518: 261 vs 233, +12%).
+   Deterministic (not a straddle). Root: per-plot ITPP=round(ie_estpp(ESRANN)) — the per-plot RNG seed derivation
+   (ie_autoes_plot_seeds + body_n advance, validated SINGLE-plot on iet01/EM) desyncs across >1 plot ⇒ each plot's
+   ITPP slightly high ⇒ summed tally over-counts. Fix needs FVSem_g16 per-plot ESRANN/ITPP trace on a 4-plot stand
+   vs jl (partly UB-cornered per the IE disturbance-tally audit). This is the #143 "diffuse residual."
+
+⇒ VERDICT: the establishment-regime BA over-growth (the big, .sum-visible bug) is CLOSED both variants. Of the two
+residuals, one is CORNERED (TopHt-metric on sub-breast-height seedlings) and one is a deep #143 per-plot-RNG-chain
+TPA over-count on multi-plot stands (localized; fix = g16 per-plot ITPP trace). Establishment deep-dive concluded.
