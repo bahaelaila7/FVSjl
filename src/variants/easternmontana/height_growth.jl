@@ -92,6 +92,11 @@ end
 function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     avh = p.avg_height
+    # Young-small-tree HTG accelerator context (em/htgf.f:311-328 — SB branch, LM/CO/aspen only):
+    # gate on IAGE>0 (FIA StandInit sets STAND_AGE) and ICYC==1 (jl cycle 0). PCT lives in t.crown_ratio.
+    relden = p.relative_density
+    iage = Int(p.stand_age)
+    iy1 = Int(s.control.cycle_year[1]); cur_year = current_cycle_year(s); icyc = Int(s.control.cycle)
     # LL(sp5) habitat-dependent height constants (em/htgf.f HTCONS), resolved once per stand.
     itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     iht = _EM_HT_MAPHAB[itype]
@@ -127,7 +132,7 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             t.ht_growth[i] = htg * scale
         else
             # LM(4)/CO(11,13-16,19)/aspen(12,17) — Schreuder-Hafley SB height (em/htgf.f:236-358). COFLM for
-            # sp4, COFAS otherwise. (Young-tree accelerator at :311 is dead code — IAGE is never set ⇒ 0.)
+            # sp4, COFAS otherwise. Young-tree accelerator at :311 DOES fire on FIA stands (IAGE=STAND_AGE, e.g. 18).
             iicr = trunc(Int, Float32(t.crown_pct[i]) / 10f0 + 0.5f0); iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
             k = iicr <= 2 ? 1 : (iicr <= 7 ? 2 : 3)
             cof = sp == 4 ? _EM_COFLM : _EM_COFAS
@@ -145,6 +150,19 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
                 zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
                 zadj < 0f0 && (zadj = 0f0)
                 z += zadj
+            end
+            # em/htgf.f:311-328 young-small-tree HTG accelerator (Targhee-based). First cycle only (ICYC==1 ⇒
+            # jl icyc==0), young (10<IXAGE<40), small (D<9), and only if Z not already ≥2. ZADJ=.3564·DG·FINT/YR,
+            # scaled by CLOSUR=PCT/100 (=1 when RELDEN<100), +10% for long crowns (IICR 8/9); Z capped at 2.
+            if iage != 0 && icyc == 0
+                ixage = iage + cur_year - iy1
+                if ixage < 40 && ixage > 10 && d < 9.0f0 && z <= 2.0f0
+                    zadj = 0.3564f0 * t.diam_growth[i] * scale
+                    closur = relden < 100.0f0 ? 1.0f0 : Float32(t.crown_ratio[i]) / 100.0f0
+                    zadj *= closur
+                    (iicr == 9 || iicr == 8) && (zadj *= 1.1f0)
+                    z += zadj; z > 2.0f0 && (z = 2.0f0)
+                end
             end
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
             dia = d + t.diam_growth[i] / bark
