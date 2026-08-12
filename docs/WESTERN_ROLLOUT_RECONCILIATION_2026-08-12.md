@@ -657,3 +657,28 @@ Multi-cycle (NUMCYCLE 5) real-FIA, jl vs live FVS{v}_clean, stratified by regime
 
 ⇒ Cluster status reconfirmed at scale: CR clean; BM has the one real open bias (#140); UT dense-oak is the #192
 straddle. No NEW real bugs surfaced. The broad sweep honors the mission's "full FVS-ready FIA sweep" mandate.
+
+## BM dense DG over-growth [NEW REAL BUG] + #140 mis-attribution correction + CI-top-priority re-check + harness note
+
+### BM: last turn's "#140" flag was a MIS-ATTRIBUTION — it's a dense small-tree DG OVER-growth, not under-thinning.
+Per-cycle trace of 1127530927290487: cyc0 (2021) bit-exact (TPA 4457/BA 25/QMD 1.0), cyc1 (2031) BA j76/l65
+(+16.9%) with QMD j1.9/l1.7 (+11.8%) and TPA j4046/l4261 — jl has FEWER trees (kills MORE) yet HIGHER BA ⇒ the
+BA gain is from DG OVER-GROWTH (jl over-grows diameter ⇒ higher SDI ⇒ over-thins as a consequence), NOT the #140
+under-thin (that would be jl-HIGH TPA). Dense-BM sub-3in sweep: 8/10 bit-exact, 2 flagged POSITIVE-sign (1127530927
++11.8% QMD, 1127576412 +25.0% QMD j1.5/l1.2, TPA j7459/l10999) ⇒ SYSTEMATIC (not a straddle) dense small-tree DG
+over-growth on ~20% of dense BM stands. No single species trigger (larch+tiny-DF vs dense small lodgepole). REAL,
+cycle-1-visible. NEXT: FVSbm_g16 DG trace (small-tree SMDGF vs large-tree DGF) on 1127530927 at 2021→2031.
+
+### CI TOP-PRIORITY large-tree DG over-growth (memory-flagged 114%) — NOT reproducing at reachable cycles.
+Repro 753180709290487: cyc1 BA j47/l47 BIT-EXACT (memory claimed jl 52→74 vs live 52→37 by 2090). 10 early-INV CI
+stands: ALL bit-exact-or-cornered (ΔBA −2.9%..0.0%). The memory's 114% was a multi-cycle-to-2090 figure; at the 1-2
+growth cycles these stands actually project, jl matches live. ⇒ Either resolved by intervening fixes OR = the
+#142-SETTLED cornered compounding tail (mixed-sign RDPSRT/AVHT40 tie-break, mostly-cancelling, no fix warranted).
+The "⚠⚠ TOP PRIORITY" framing appears STALE — DOWNGRADE pending a genuine multi-cycle-capable reproducer.
+
+### HARNESS NOTE (affects all FIA sweeps): FIA-DB stands project a STAND-SPECIFIC number of cycles — many late-INV
+(2019+) stands run only 1 growth cycle (cyc0→cyc1) regardless of NUMCYCLE/TIMEINT/INVYEAR; some early-INV stands
+(e.g. CR 103420133010661, INV 2006) run 5-6. Root not fully pinned (FVS reads the DB stand's projection horizon).
+CONSEQUENCE: cycle-1 sweeps reliably catch ROOT bugs (BM DG, EM/IE establishment all showed at cyc1), but true
+multi-cycle COMPOUNDING validation requires selecting multi-cycle-capable stands. This session's sweeps were
+effectively cyc0→cyc1 — sufficient for root-bug discovery, insufficient for the compounding tail.
