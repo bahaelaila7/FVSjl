@@ -22,13 +22,16 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
   TPA 5683→2300, SDI 3428→311, TopHt 3→9, QMD 18.5→7.3 — TPA/SDI/TopHt/QMD now BIT-EXACT (BA 10/9, CCF 60/62 = NINT);
   v2_e2e inline guard still passes (unaffected). REMAINING #196 (now UNMASKED, separate): YSM multi-cycle tail —
   jl UNDER-mortalizes (2077 TPA 1713 vs oracle 1366) + over-grows BA/SDI (internal jl BA ~344 vs oracle ~183 ft²/ac).
-  ★ 2026-08-12 ATTRIBUTION NOT YET ISOLATED (correcting an over-attribution): TWO candidate causes — (i) jl's dwarf
-  mistletoe is INERT on this stand (NEWSPRED spatial DM unported; with-vs-without MISTOE byte-identical in jl), AND
-  (ii) jl's BC BAMAX self-thin (mortality.jl:156, present) UNDER-kills at high density. "jl-mistletoe-inert" does NOT
-  prove the ORACLE mort is DM. The clean oracle A/B (FVSbc_clean YSM WITH vs WITHOUT MISTOE) is BLOCKED — FVSbc_clean
-  SIGSEGVs in its OWN dbstreesin.f:57 (DB tree reader) on the DATABASE path (a live-FVS crash; per crash-doctrine).
-  NEXT: isolate via an INLINE-TREEDATA FVSbc run (dump YSM029-271 → metric TREEDATA, bypass dbstreesin) WITH/WITHOUT
-  MISTOE — THEN decide newmist-NEWSPRED port vs BC self-thin calib. + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
+  ★★ 2026-08-12 ATTRIBUTION ISOLATED (non-blocked control, resolving the prior over-cautious "not isolated"): jl's
+  BC V3 self-thin is CORRECT. Used the DM-FREE V3/ICH inline stand mrun/all_BC.key (no MISTOE, bypasses the DB crash)
+  as a self-thin control: jl TPA 2089→1253 vs oracle 2087→1292 (jl even kills slightly MORE; SDI climbs similarly
+  1235 vs 1163) — jl's V3 mortality/self-thin MATCHES the oracle on a dense DM-free stand (residual BA +9% by 2090 =
+  the accepted growth straddle, TPA-matched). Since jl's self-thin is validated-correct, the YSM under-mortalization
+  (jl SDI→1586 vs oracle 926) is attributable to the MISSING dwarf mistletoe: YSM's oracle runs NEWSPRED DM that
+  kills trees jl never models. ⇒ FIX = port canada/newmist NEWSPRED (spatial DM) + wire BC into the DM dispatch. The
+  fully-clean YSM A/B remains crash-blocked (FVSbc_clean SIGSEGV dbstreesin.f:57 on DATABASE — a genuine oracle bug,
+  NOT the bc_stubs which only stub 4 DBS-output routines), but the all_BC control makes the DM attribution well-
+  supported. + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
@@ -51,10 +54,10 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
   N-Rockies cluster (IE/KT/EM/BM/UT/TT/CI via _ie_mis_variant) + CR (own cr_mistoe!). ★ 2026-08-12 CORRECTION — the
   "ALL western DONE" was an OVERCLAIM: the SPATIAL model **NEWSPRED (canada/newmist, ~50 routines incl. dmauto.f)
   is UNPORTED**; jl does NOT parse MISTOE/NEWSPRED/DMAUTO (they land in unrecognized_keywords) and BC has NO DM
-  model wired at all (_ie_mis_variant excludes BC; cr_mistoe! is CR-only) — a genuine unported extension regardless.
-  It is A CANDIDATE (not yet confirmed) cause of the YSM metric-DB multi-cycle under-mortalization; the other
-  candidate is jl's BC BAMAX self-thin under-killing at high density. The oracle A/B that would isolate it is BLOCKED
-  (FVSbc_clean SIGSEGVs in dbstreesin.f:57 on the DATABASE path). Porting newmist NEWSPRED is still an open task (#196).
+  model wired at all (_ie_mis_variant excludes BC; cr_mistoe! is CR-only) — a genuine unported extension. ★★ 2026-08-12
+  ISOLATED as the YSM under-mortalization cause: the DM-free V3 inline control mrun/all_BC.key shows jl's BC V3
+  self-thin MATCHES the oracle (TPA 2089→1253 vs 2087→1292), so the YSM extra oracle mortality (SDI held 926 vs jl
+  1586) is the missing NEWSPRED DM, not a self-thin bug. ⇒ port canada/newmist NEWSPRED + wire BC = the open #196 fix.
   **ECON**: DONE ✓.  **Climate-FVS**: ✓ DONE (~95%, FAITHFUL) — 2026-08-12 line-by-line re-assessment: the
   CLIMDATA reader + clgmult(growth) + clmorts(viability + SPMORT2 transfer-distance DMORT) + clmaxden + clim_autoestb
   are ALL ported, WIRED, and cycle-0 bit-exact vs FVSie_clean; `apply_climate_mort!` matches clmorts.f:205-230 line
