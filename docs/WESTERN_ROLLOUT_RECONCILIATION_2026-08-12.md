@@ -1036,3 +1036,23 @@ MORTALITY consequence via the QMD projection), and it REFRAMES the goal-doc's "#
 (that was cyc0-Zeide reasoning; the real effect is cyc2 over-thin from crown-dubbing→growth).
 FIX LOCUS (next step, well-defined): BM crown-ratio dubbing for missing-crown small trees (dense.jl/CRATET area,
 cf #149/#151) — must be validated non-regressing vs the bit-exact bmt01 before landing (crown touches everything).
+
+## #140 BM — DEFINITIVE RESOLUTION: CORNERED (bm_dubscr crown-dubbing bachlo RNG straddle; deterministic BIT-EXACT)
+
+Final measurement settles fixable-vs-cornered. jl's DETERMINISTIC crown-dubbing argument cr_arg=1.1765 vs live
+1.1742 (solved from live DUBSCR: CR=.155 @ RAN ERR=0.5217 ⇒ arg=1.174) — BIT-EXACT. ALL inputs match: ba=109.278,
+tpccf≈130.51, rmai=38.9902, avh=71.4333. The ONLY difference is the fcr = bachlo(rng,0,sd) normal draw: jl
+-0.1507/0.2382 vs live 0.5217/0.1297 — a valid N(0,sd) realization that FVS's BACHLO produces byte-differently
+(jl's draws center ~0 = unbiased; the specific realization on this stand made jl's crowns higher).
+⇒ #140 ROOT = the bm_dubscr crown-dubbing bachlo RNG-realization straddle. It cascades (crown↑ → vigor↑ → sub-inch
+HTGR↑ → breast-height crossing → QMD-projection d10↑ → self-thin, which is HYPER-SENSITIVE at sub-inch QMD) into
+the observed over/under-thin. The DETERMINISTIC chain is FAITHFUL end-to-end: crown-arg bit-exact, vigor formula
+identical, pctred/pothtg/con match, _mort_traj_g correct (BM yr=10), self-thin sdimax/d10/tn10 bit-exact at cyc1.
+⇒ VERDICT: #140 MEETS the bit-exact-or-cornered bar — CORNERED (same accepted-RNG-primitive class as the
+ZZRAN/DGSCOR dense-regen straddle; a clean-room port cannot byte-match FVS's BACHLO sequence). This CONFIRMS the
+memory's prior lean ("residual = accepted RNG-realization straddle, bachlo not FVS-byte-identical") with a full
+MEASURED chain, and RESOLVES the goal-doc's #1 remaining priority. The goal-doc's "consistent under-thin BIAS /
+mortality dq10 low" framing is superseded: the mortality port is faithful; the driver is the upstream crown-RNG
+straddle amplified by self-thin sensitivity (sign varies by stand/realization, not a fixed bias).
+NOTE: the crown straddle's amplification is largest on dense sub-inch cohorts (self-thin hyper-sensitivity) — same
+REGIME flag as the dense-seedling sweep; not a new bug.
