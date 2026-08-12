@@ -1335,3 +1335,14 @@ TPA identical → deterministic DG over-growth. Instrumented BOTH sides (FVStt_g
 diameter distribution at the DG point vs live ITRN; check DG-vs-establishment order & whether RMSQD should exclude
 birth-cycle regen — cf. #194 pre-regen ATAVH); (b) confirm/port the aspen DGSCOR COR. Precise numbers now in hand;
 distinct from #142/#158.
+
+## #191 refinement — RMSQD gap is BACKDATING-asymmetry, not extra trees (sharper lead)
+jl DG-point BA 31→21.91 (×0.707) and QMD² 3.0²→2.495² (×0.69) dropped PROPORTIONALLY ⇒ the signature of BACKDATING
+(all diameters scaled down by ~0.83), NOT an extra low-DBH population (which would move BA/QMD/TPA differently). So
+the likely mechanism: live's DGFASP uses the BACKDATED BA but the CURRENT RMSQD (2.96), while jl backdates BOTH
+(rmsqd 2.495). CAVEAT/CONTRADICTION to resolve first: jl's per-tree d=5.7 MATCHES live (current), yet jl's
+stand_qmd(s) (which sums current t.dbh, standstats.jl:90) returns 2.495 not 2.96 — so either t.dbh ARE backdated at
+the dgf! rmsqd call (and the dumped d=5.7 is coincidental/also-backdated) or rmsqd is sourced from the backdated
+p.basal_area path elsewhere. NEXT (focused): dump jl t.n + full diameter list AT the dgf! rmsqd line vs the cyc0
+stand, and trace whether tt dgf! backdates t.dbh before line 153. Then align RMSQD to live's current-QMD source
+while keeping BA backdated. (Still land together with the aspen COR.)
