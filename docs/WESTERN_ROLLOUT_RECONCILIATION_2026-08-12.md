@@ -64,11 +64,14 @@ TT/EM accelerator/CCF), jl vs live FVS{v}_clean, multi-cycle — confirming NO r
 - **TT**: conifer stands cornered (264/265, 286/286, 252/249), BUT a 9-stand follow-up tally found a real
   PURE-ASPEN residual — 3 HIGH (+6/+20/+22%) / 6 ~BE / 0 LOW (positive-skew, NOT a symmetric straddle).
   Reproducer 753175613290487 (pure FIA 746 aspen): cyc0/TopHt/TPA bit-exact, ACCRE-driven (not mortality).
-  INVESTIGATED via FVStt_g16 (#188, resolved): large-tree aspen DG REFUTED (live ASPDG higher, jl-low),
-  aspen SMDGF coeffs+form MATCH live bit-for-bit ⇒ it's a small-aspen (D<3) height→SDIAM realization (~13%/tree)
-  amplified on DENSE pure-aspen to +20% aggregate — a small-systematic residual at the cornered boundary, no
-  clean coefficient fix. Corrects BOTH the prior "TT fully cornered" (real +20% exists) and "it's a bug"
-  (coeffs/large-tree faithful). Aspen-specific; conifer TT stands bit-exact-or-cornered.
+  ⚠ CORRECTION (#189, supersedes the earlier "cornered" verdict below): a per-tree trace (jl FVSJL_TTSM vs
+  FVStt_g16 NOTRIPLE treelist) shows it is a REAL small-aspen HEIGHT over-growth, NOT cornered — jl grows sub-1.8"
+  aspen ~9 ft height / 1.5" DBH per cycle vs live 0-4 ft / 0-0.3" (~2.5× over). Large-tree DG + SMDGF coeffs ARE
+  faithful (refuted/matched), but jl's aspen SMHTGF uses the inverse-height sitage=(h/26.9825)^(1/1.1752) whereas
+  live's tt/smhtgf.f CASE(6) gets SITAGE from CALL FINDAG (+HTMAX cap) ⇒ jl over-predicts tiny-aspen HTGR. Aggregate
+  only +20% BA / TopHt-bit-exact because sub-1.8" aspen are few+tiny. OPEN (#189): port live's FINDAG SITAGE/HTMAX
+  for aspen, re-validate 3189335010690. LESSON (doctrine #2): the "cornered" call was inference; the per-tree
+  MEASUREMENT exposed a real ~2.5× bug. Aspen-specific; conifer TT stands bit-exact-or-cornered.
 - **EM**: TopHt BIT-EXACT (75/75, 52/52, 59/59); BA −14/+3/+5%.
 
 TopHt (the sensitive top-percentile metric) is bit-exact-or-±2 on all 18; BA sits in the
