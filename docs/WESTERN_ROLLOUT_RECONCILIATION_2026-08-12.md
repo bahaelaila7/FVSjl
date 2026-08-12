@@ -572,3 +572,21 @@ RESIDUALS (follow-up, NOT the height bug just fixed):
    (#143-class), independent of the birth-cycle height fix (the reproducer's tally was 118==live exactly).
 3. IE side: ie_autoes now sets htimlt for IE too, but IE uses ie_esgent! (not em_esgent!) which does NOT yet apply
    it — IE's +19-29% AUTOES over-growth needs the same one-line scale in ie_esgent! + IE validation. NEXT.
+
+## #193 IE AUTOES over-growth — FIX LANDED (mirrors EM; ie_esgent WK4/HTIMLT)
+
+MEASURED ie_esgent! on treeless reproducer 753200974290487: bscale=1.0 (the "=0.5" comment was WRONG — IE_RG_REGYR=5
+⇒ (10-5)/5=1.0), so h2=h+exp(htgrl)·1.0 applied the full birth-cycle increment (1.2→5.19 ft) vs live WK4=0.40 (→2.8).
+Identical bug to EM. FIX: scale by per-tree t.htimlt[i] (ie_autoes already sets 0.40; PLANT keeps 1.0=old bscale).
+VALIDATED vs FVSie_clean: reproducer now BIT-EXACT (TPA 131 / TopHt 3 / QMD 0.1 == live; was 7 / 0.3); 3 treeless
+stands TopHt 7→3, QMD 0.3→0.1 = live; treed IE stands BIT-IDENTICAL before/after (no regression).
+
+### #193 status: EM + IE birth-cycle HEIGHT over-growth = FIXED. Remaining #193/related:
+1. AUTOES TPA tally over-count (+8-12% on some stands, e.g. IE 138 vs 128 / EM 261 vs 233) — SEPARATE #143-class
+   tally-amount issue (reproducers with exact tally, e.g. 118==118 / 131==131, prove the height fix is clean).
+2. TopHt ±1 on some multi-species treeless stands (AVHT40 metric on sub-breast-height cohorts).
+3. #194 CI (ci_esgent +282%): likely the SAME WK4/HTIMLT class, BUT CI is not AUTOES — bare CI FIA stands do NOT
+   establish (0 TPA), so #194's reproducer is a treed/keyword-regen stand (needs re-location). ci_esgent uses
+   scale_h=NTYR/REGYR with NO WK4 multiplier ⇒ candidate. ALSO: the shared establish! currently hardcodes
+   htimlt=1.0 for PLANT/NATURAL — faithful for PLANT (TRAGE≥GENTIM) but NATURAL regen with low TRAGE should get
+   WK4<1 (compute from establish!'s TRAGE/DELAY). That refinement would serve CI/BM/TT/UT *_esgent! NATURAL regen.
