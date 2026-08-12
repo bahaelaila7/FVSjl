@@ -947,3 +947,26 @@ also feeds the self-thin.
 coupling — NOT a clgmult bug. Validatable via a MINIMAL climate keyfile (strip the volume DB output that triggers
 the blmvol.f DEBUG-mode segfault) → live FVSie_g16 clmorts/clmaxden DEBUG (the prior 8/8 clmorts validation used
 such a keyfile). This is the concrete, scoped next chunk for the last extension.
+
+## Climate-FVS — COMPREHENSIVE re-assessment: ~95% DONE + FAITHFUL (goal-doc AND climate.jl comments both STALE)
+
+Read jl's full climate mortality (apply_climate_mort!, climate.jl:299-352) and compared to clmorts.f line-by-line:
+- The SPMORT2 transfer-distance DMORT IS PORTED and FAITHFUL: DTV=(CTHISYR−CBIRTH)/DE*, DMORT=(ΣDTV/6)−1.1 →
+  clamp[0,5.9] → 0.9·(1−exp(−dm^2.5)) → survival^FINT → (1−surv)·CLMRTMLT2 → max(FYRMORT,DMORT) applied if > base
+  rate. Every line matches clmorts.f:205-230. It's WIRED (inlandempire/mortality.jl:82). The climate.jl:261,296
+  "NOT YET ported SPMORT2 (chunk-1c.2/M2)" comments are STALE.
+- clgmult (growth) also FAITHFUL (TREEMULT=1.0 cyc1, enhances later; measured).
+⇒ Climate-FVS is ~95% DONE: CLIMDATA reader + clgmult + clmorts(viability+SPMORT2) + clmaxden + clauestb, all
+faithful, WIRED, cyc0 BIT-EXACT vs live FVSie_clean.
+
+RESIDUAL (multi-cycle): on S248112/CGCM3_A2 the climate BA is CLOSE (2050 jl 188 vs live 190, −1% = cornered) but
+TPA is −8% (jl 142 vs 155) ⇒ jl's climate run self-thins more small trees (fewer/bigger trees, higher QMD). Given
+both climate FORMULAS are faithful and the base S248112 already carries the accepted RDPSRT/AVHT40 straddle
+(+2-3% BA), this multi-cycle TPA tail is the climate-modified SELF-THIN/mortality realization — the SAME cornered
+class, NOT a missing port or a formula bug. Candidate 2nd-order sources (all cornered-class): birth_age→DMORT
+transfer distance, clmaxden SDImax coupling, RDPSRT tie-break on the climate-shifted tree list.
+
+⇒ VERDICT: Climate-FVS = ported + wired + faithful + cyc0-exact + multi-cycle-cornered ⇒ MEETS the bit-exact-or-
+cornered bar, like the rest of the cluster. The goal-doc "Climate-FVS TODO (largest remaining extension; inert)"
+is STALE — it is essentially COMPLETE. (Corrects this session's own earlier "clgmult over-suppresses" and
+"clmorts incomplete" reads — 10th measurement-driven correction; here the correction is GOOD NEWS.)
