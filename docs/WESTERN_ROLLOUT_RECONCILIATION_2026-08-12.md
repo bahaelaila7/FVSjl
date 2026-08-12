@@ -1138,3 +1138,17 @@ where EM's own tables select DF+LP. FIX = transcribe EM's espadv.f/espxcs.f PN r
 ie_autoes_tally/run scaffold + ESRANN/ESTPP/heights are already correct & validated). SUBSTANTIAL but MECHANICAL
 (≈10 species × the PN coeff sets + 3 tables); best done in a focused session with per-species validation vs live
 FVSem on the /workspace/.emwork/sweep_val/ reproducers (target: jl establishes DF+LP not PP; BA 4.5-6.5×→~1×).
+
+## #143 EM — fix scope REFINED: OCURHT alone insufficient, need the full espadv/espxcs PN coefficients
+Gathered EM's tables to pin the fix. Habitat 260 → IHAB=3 (jl em_ihtser: bracket _EM_ES_IEND[1]=269≥260 →
+_EM_ES_MYGRUP[1]=3). EM OCURHT(3,·) (em/blkdat.f) allows WL(2)/DF(3)/LP(7)/PP(10) — so PP is NOT gated out by
+occupancy. ⇒ live selects DF+LP over PP via the PN PROBABILITIES (espadv logistic), not OCURHT. So the fix MUST
+port EM's espadv PN coefficients (transcribed from em/espadv.f: advance-regen species {1,2,3,5,7,8,9,10}, each a
+distinct PN regression in XCOS/XSIN/SLO/TIME/BAA/BAASQ/ELEV/REGT/BWAF/ELEVSQ + CHAB(IHAB,sp)+CPRE(IPREP,sp)+
+OVER>9.95 & per-IFO bumps) + em/espxcs.f (excess) + the EM CHAB/CPRE tables (em/esblkd.f) + OCURHT (em/blkdat.f).
+jl currently uses IE's ie_espadv/ie_espxcs coeffs. PLAN: add em_espadv!/em_espxcs! mirroring the jl ie_ functions
+(same logistic×OCURHT×XESMLT×OCURNF structure, already validated) with EM coeffs, and dispatch EM to them; keep the
+shared ie_autoes_tally/run/ESRANN/ESTPP/heights scaffold. Validate per-species vs live FVSem on the 5
+/workspace/.emwork/sweep_val/ reproducers (target: DF+LP not PP; BA 6.5×→~1×). ESPADV PN coeffs are captured in
+this session's transcript; remaining to gather = em/espxcs.f + em CHAB/CPRE. Substantial mechanical port, best
+executed with sustained focus + incremental per-species validation (NOT rushed — the doctrine is port-faithfully).
