@@ -84,10 +84,40 @@ function ut_sitset!(s::StandState)
     return s
 end
 
+# ut/cratet.f — adjust SITEAR to a 50-YEAR age base for the species whose growth eqns were fit on a
+# 50-yr-base site index: WB/LM/LP/OS (1,2,7,23) via Alexander-Tackle-Dahms RM-29; WF/BS/ES/AF (4,5,8,9)
+# via Alexander RM-32; PP (10) via Meyer 1961 (TB-630). Uses stand CCF (floored 125, DBH-only open-grown).
+# Inert unless one of these species/site-species is present (why utt01 — PJ/woodland — was bit-exact).
+function ut_cratet_site_adjust!(s::StandState)
+    p, t = s.plot, s.trees
+    temccf = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0f0 && continue
+        temccf += ut_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+    end
+    temccf < 125f0 && (temccf = 125f0)
+    @inbounds for sp in 1:nspecies(s.variant)
+        si = p.sp_site_index[sp]
+        if sp == 1 || sp == 2 || sp == 7 || sp == 23          # Alexander-Tackle-Dahms RM-29
+            p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * 50f0^2 -
+                0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si -
+                0.0000455f0 * 50f0^2 * si
+        elseif sp == 4 || sp == 5 || sp == 8 || sp == 9       # Alexander RM-32
+            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * si^0.83312f0) *
+                (1f0 - exp(-0.015701f0 * 50f0))^(22.71944f0 * si^(-0.63557f0))
+        elseif sp == 10                                        # Meyer 1961 (TB-630) — PP
+            p.sp_site_index[sp] = (3.635794f0 * si^0.916307f0) /
+                (1f0 + exp(6.09478f0 - 0.96483f0 * log(50f0) - 0.277025f0 * log(si)))
+        end
+    end
+    return s
+end
+
 function ut_site_index_setup!(s::StandState)
     ut_forkod!(s.plot)          # IFOR → p.forest_idx (DG DGFOR/DGDS); IGL → p.geo_location
     s.plot.habitat_input = ut_habtyp(Int(s.plot.habitat_code))   # KODTYP → ITYPE (ut/habtyp.f)
     ut_sitset!(s)               # SITEAR (p.sp_site_index) + SDIDEF (p.sp_sdi_def)
+    ut_cratet_site_adjust!(s)   # CRATET 50-yr-base site adjust (WB/LM/WF/BS/LP/ES/AF/PP/OS)
     return s
 end
 

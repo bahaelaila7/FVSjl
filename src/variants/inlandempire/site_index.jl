@@ -127,6 +127,27 @@ function ie_site_index_setup!(s::StandState)
     (itype < 1 || itype > 30) && (itype = 4)
     p.habitat_input = Int32(itype)                   # ITYPE for dgf!/ie_dgcons! (MAPHAB/MAPCCF)
     ie_sitset!(s, itype)
+    ie_cratet_site_adjust!(s)                        # CRATET 50-yr-base site adjust (WB/LM: sp13,17)
+    return s
+end
+
+# ie/cratet.f — adjust SITEAR to a 50-YEAR age base for WB/LM (13,17), whose growth eqns were
+# fit on a 50-yr-base site index (Alexander-Tackle-Dahms RM-29). Uses stand CCF (floored 125,
+# DBH-only open-grown). Inert unless a WB/LM tree/site-species is present.
+function ie_cratet_site_adjust!(s::StandState)
+    p, t = s.plot, s.trees
+    temccf = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0f0 && continue
+        temccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+    end
+    temccf < 125f0 && (temccf = 125f0)
+    @inbounds for sp in (13, 17)
+        si = p.sp_site_index[sp]
+        p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * 50f0^2 -
+            0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si -
+            0.0000455f0 * 50f0^2 * si
+    end
     return s
 end
 

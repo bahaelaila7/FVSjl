@@ -99,6 +99,27 @@ function ci_sitset!(s::StandState, icindx::Int, ifor::Int)
     return s
 end
 
+# ci/cratet.f:127-168 — adjust SITEAR to a 50-YEAR age base for WB/LM/PY (11,12,16),
+# whose growth eqns were fit on a 50-yr-base site index (Alexander-Tackle-Dahms RM-29).
+# CRATET does this once at init, after SITSET, using stand CCF (TEMCCF, floored 125; DBH-only
+# open-grown CCF, valid at site_setup!). Inert unless a WB/LM/PY tree/site-species is present.
+function ci_cratet_site_adjust!(s::StandState)
+    p, t = s.plot, s.trees
+    temccf = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0f0 && continue
+        temccf += ci_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+    end
+    temccf < 125f0 && (temccf = 125f0)
+    @inbounds for sp in (11, 12, 16)
+        si = p.sp_site_index[sp]
+        p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * 50f0^2 -
+            0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si -
+            0.0000455f0 * 50f0^2 * si
+    end
+    return s
+end
+
 function ci_site_index_setup!(s::StandState)
     p = s.plot
     ifor = ci_forkod!(p)
@@ -107,6 +128,7 @@ function ci_site_index_setup!(s::StandState)
     (icindx < 1 || icindx > 130) && (icindx = 1)
     p.habitat_input = Int32(icindx)                       # DG reads ICHBCL(ICINDX) ← stash ICINDX here
     ci_sitset!(s, icindx, ifor)
+    ci_cratet_site_adjust!(s)                             # CRATET 50-yr-base site adjust (WB/LM/PY)
     return s
 end
 
