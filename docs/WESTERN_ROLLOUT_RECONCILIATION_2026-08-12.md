@@ -52,4 +52,19 @@ Remaining items are narrow and non-blocking: the IE bare-plant AUTOES synthetic 
 stand4 malformed-THINPRSC keyword-validation, cross-variant Climate (oracle-blocked), and BC
 V2/non-ICH + late-cycle-drift fixtures (cornered). No open bit-exactness bug on real FIA data.
 
+## Capstone regression sweep (2026-08-12)
+
+12 real FIA stands (3 each) in the four esgent-changed variants, jl vs live FVS{v}_clean,
+multi-cycle — confirming this session's 9 commits introduce NO real-FIA regression:
+
+- **BM**: BIT-EXACT 3/3 (BA 105/105, 272/272, 220/220; TopHt 81/81, 131/131, 90/90).
+- **CI**: cornered (TopHt bit-exact 29/29, 65/66, 95/96; BA within ±13% DGSCOR straddle).
+- **UT**: cornered (TopHt ±1: 22/21, 57/57, 33/34; BA −7..−11% cornered lean, #142/#156 class).
+- **IE**: cornered (TopHt ±2: 84/86, 54/54, 141/142; BA −9..0%).
+
+TopHt (the sensitive top-percentile metric) is bit-exact-or-±2 on all 12; BA sits in the
+accepted ZZRAN/DGSCOR straddle band. The commits are inert on these AGE>40 stands (accelerators
+are young-stand-only; esgent is a no-op without a scheduled ESTAB/AUTOES) ⇒ the residuals are
+the pre-existing cornered straddles, not regressions.
+
 The off-switch (`docs/WESTERN_ROLLOUT_COMPLETE`) remains the user's call.
