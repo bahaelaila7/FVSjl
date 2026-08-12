@@ -75,7 +75,7 @@ function dgf!(s::StandState, ::CentralIdaho)
     relden = p.relative_density
     ba = p.basal_area; ba100 = ba / 100f0
     logba = ba > 0f0 ? log(ba) : 0f0
-    rmsqd = stand_qmd(s)
+    rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration (aspen DGFASP)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])

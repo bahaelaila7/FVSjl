@@ -354,7 +354,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    _tt_cal && (_TT_CUR_RMSQD[] = stand_qmd(s))
+    _TT_CUR_RMSQD[] = stand_qmd(s)    # #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
@@ -457,7 +457,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _saved_avh = s.plot.avg_height
     s.plot.avg_height = _cur_avh
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
-    _tt_cal && (_TT_CUR_RMSQD[] = -1.0f0)     # #191: clear the current-RMSQD stash (actual growth uses stand_qmd)
+    _TT_CUR_RMSQD[] = -1.0f0     # #191/#195: clear the current-RMSQD stash (actual growth uses stand_qmd); unconditional to avoid leaks
     s.plot.avg_height = _saved_avh
     c.calib_dbh = Float32[]
     s.plot.forest_type = saved_fortype
