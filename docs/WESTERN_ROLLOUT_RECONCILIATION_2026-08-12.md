@@ -720,3 +720,24 @@ projection, NOT the sum of per-tree DG — jl may project higher ⇒ lower tn10 
 to read live's DQ10/DR10/tn10 — OR compute jl's DR10 mean-tree projection and check it against morts.f:220-263.
 NOTE: the goal-doc #140 says jl UNDER-thins on large self-thinning stands; on THIS dense sub-1" stand jl OVER-thins
 (tn10 low) — same root (self-thin target mis-projection) can go either sign depending on the d10 error direction.
+
+## #140 BM self-thin — DG + BARK eliminated; root is the SDIMAX plant-association lookup (site_index.jl:39)
+
+Continued the #140 elimination (self-thin target tn10 = exp(CEPMRT+SLPMRT·ln(d10)), capped T85D10 = (sdimax/K)·
+d10^-1.605·pmsdiu):
+- **DG: bit-exact** (prior section, via bm/dgf.f DEBUG 9025 dump).
+- **Bark: CORRECT** — the self-thin `g = _mort_traj_g(dg, d, bark, fint)` uses `_mbark → bm_bratio` (mortality.jl:282,
+  the `_is_bm` branch), which gives sp3-DF ≈ 0.903563·d^-0.0106 ≈ 0.90 and sp2 = 0.859 — the BM POWER bark, NOT the
+  generic bark_ratio 0.80 floor. So the line-275 "0.80 inflates d10" note does NOT apply to BM (already fixed). RULED OUT.
+- **⇒ Root is SDIMAX** (the only remaining tn10 input): the BM per-species SDIMAX comes from the FIA (PV_CODE,
+  PV_REF_CODE) → bm_pvref6 → PCOML → ecoclass crosswalk (site_index.jl:35-52). A lookup MISS falls to the CWG113
+  DEFAULT (SDIMAX≈395 vs the correct ~166) ⇒ wrong self-thin line ⇒ the #140 under-/over-thin. jl's stand-level
+  stand_sdimax=413.8 for the reproducer (BA-weighted mean of sp_sdi_def). The pvref6/PCOML crosswalk IS implemented,
+  but a specific stand can still mis-resolve (wrong ecoclass ⇒ wrong per-species SDIMAX ⇒ wrong target).
+
+STATUS: #140 mechanism CONFIRMED = SDIMAX self-thin line; DG and bark definitively eliminated. Remaining verification
+(jl sdimax=413.8 vs live for the reproducer) is BLOCKED by the DEBUG-mode FVSVOL cycle-0 segfault (both FVSbm_clean +
+g16). NEXT: (a) fix that live DEBUG-volume crash to read live's SDIMAX/DQ10/tn10 (a live bug per crash-doctrine), OR
+(b) dump jl's resolved per-species sp_sdi_def + ecoclass for the reproducer and cross-check against the BM ecoclass
+SDIMAX table (bm/*.f) — jl-side, no live needed. The #140 search space is now narrowed from {DG, bark, SDIMAX,
+d10-realization} to {SDIMAX lookup} + the accepted DGSCOR/ZZRAN realization straddle (#142 class).
