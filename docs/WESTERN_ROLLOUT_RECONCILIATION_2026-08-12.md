@@ -370,3 +370,20 @@ stands (PCCF≈0) this clamps to 0.90 for ~all regen; jl's regen CR stays ~90 wh
 by the growth cycle. FIX = match live's regen CR (establishment draw and/or the per-cycle crown-ratio evolution jl
 isn't applying to regen). Likely affects other variants' AUTOES regen (check the crown-0.90-clamp on sparse stands).
 NOT a subcycle bug (EM conifers correctly subcycle). Tasked #193; validate s1/13-bare-stands → live, emt01 unchanged.
+
+## IE FIA sweep — confirms #193 is CROSS-VARIANT (shared ie_autoes); + non-bare +22-25% cases
+
+IE sweep (14 stands, 0 crashes): BARE/establishment stands over-grow — s1 273516608489998 +19% (TopHt 103 vs 99),
+s2 24548196010900 +29% (90 vs 85), s4 39618037010690 +22% (106 vs 91); s13 −7%. This is the SAME AUTOES-regen
+over-growth as EM #193 (IE and EM share ie_autoes_establish!), but MUCH MILDER (+19-29% vs EM's +200-492%) —
+plausibly because IE's SMHTGF is less CR-sensitive or its regen densities are lower. So #193 is a SHARED-code bug
+(one fix serves EM+IE). Also: two NON-bare IE stands (s5 1855998210290487 +25%, s6 3320529010690 +22%) over-grow —
+likely establishment-on-top-of-inventory or a related regen path; the mature-inventory stands (s3/s7-s12/s14) are
+cornered ±2%. The 2026-08-05 "IE 60-stand cyc0-bit-exact" validation MISSED this because it was cyc0-focused; the
+over-growth is a MULTI-CYCLE establishment-regen compounding.
+
+### META-PATTERN now 5 variants: TT/UT/EM/BM/IE
+- TT #191 (seedling), UT #192 (woodland), EM #193 (bare-establishment +492%), IE (#193 cross-variant, +19-29%),
+  BM (clean — all-mature sample). MATURE stands bit-exact-or-cornered cluster-wide; SEEDLING/WOODLAND/ESTABLISHMENT
+  regimes carry real bugs. #193 is now confirmed a shared EM+IE establishment-regen bug; fixing the ie_autoes crown
+  (RAN term + D<3 recession, RNG-order-faithful) serves both.
