@@ -987,3 +987,17 @@ across #140/#191/#193. It is NOT — the mechanisms differ per variant:
 are the under-tested regime — see fvsjl-dense-seedling-sweep-campaign) but not a shared bug. #191 specifically =
 the #158 model port (canonical→inline-suppressed SMHTGF), entangled with DGFASP crown-init — a careful joint
 model port, deferred at this session's length (high-risk, prior partial fixes did not compose).
+
+## CAPABILITY: scoped-DEBUG flushes BEFORE the blmvol segfault (partial BM/IE DEBUG unblock)
+
+The blmvol.f cycle-0/downstream volume DEBUG-mode segfault has blocked BM/IE live DEBUG for several sessions.
+FINDING (this turn): a DEBUG keyword SCOPED to a GROWTH routine that runs BEFORE the crashing volume call still
+emits its per-tree dump — the JOSTND writes flush to the .out before the segfault. Verified: `DEBUG\nSMHTGF\nEND`
+on FVSbm_clean (stand 374430545489998) produced 117KB of SMHTGF debug (live tree-6: HHT=1.065ft/10yr, DTIME=10,
+REGENT PCTRED=0.8903 — FAITHFUL-looking, not the dense-stand htg=10.5ft over-growth) THEN crashed in volume.
+⇒ Growth-path routines (SMHTGF/DGF/REGENT/HTGF) ARE now DEBUG-measurable on BM/IE via scoped DEBUG.
+LIMITATION: MORTS scoped DEBUG did NOT emit for 374430545489998 — its self-thin 9020 dump is inside the LZEIDE
+branch (didn't fire; background-mortality stand) AND/OR the crash beat the cycle-1 mortality call. So the #140
+UNDER-THIN mortality path (dq10/T85D10) remains crash-blocked on this stand; a Zeide-active stand may emit it.
+COROLLARY: 374430545489998 (bm140.key) is an UNDER-THIN stand (1 SMHTGF tree, faithful growth) — DISTINCT from
+the dense-seedling htg=10.5ft stand of the sub-inch over-growth finding. #140's two framings live on two stands.
