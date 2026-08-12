@@ -270,3 +270,27 @@ ship half a compensating pair). NEXT TT-aspen target: root the RMSQD-into-DGFASP
 is 4.33 vs live 5.47 — candidate: dead/ESGENT/tripled-record inclusion at the dgf! call), then land #1+#2 together and
 re-validate ttt01 (expect stand-1 bit-exact + the aspen-establishment stands improved). META: the FIA sweep did its
 job — a seedling-dominated real-FIA stand exposed a real bug that ttt01's mature inventory masked.
+
+### #191 implementation ATTEMPTED — both fixes faithful but don't net-compose (deeper aspen COR↔DGFASP interaction)
+
+Fully root-caused the RMSQD half via a live DENSE trace: live's calibration DGFASP RMSQD=5.47 is the BACKDATED,
+DEAD-INCLUSIVE DENSE partition (dense.f LBKDEN=T loads recently-dead history-6,7 trees into TSUMD2/TPROB → ITRN
+27→29, TPROB 589→619; growth pass gives 5.14). jl's `stand_qmd` (live trees only) gives 4.33.
+
+IMPLEMENTED both fixes: (1) aspen `sp==6 && j>1 && continue`; (2) a transient `c.rmsqd_cal` captured from jl's
+calibrate backdated+dead `compute_density!` pass, consumed by TT `dgf!`'s DGFASP (cleared after). RESULT: ttt01
+stand-1 → BIT-EXACT (fix #1 works), but the AGGREGATE did NOT improve — mean|ΔBA| vs live 6.2% (committed) →
+6.3% (both fixes). The calibration-RMSQD fix (#2) does NOT cleanly compensate fix #1's exposed aspen-establishment
+under-growth; it slightly worsened those stands. So the compensation is subtler than "raise the calibration RMSQD":
+the aspen under-growth after fix #1 lives in the GROWTH path (whose DGFASP RMSQD=stand_qmd≈5.14 already matches live
+growth 5.14), routed through the aspen COR that the calibration RMSQD only indirectly sets. Raising the calibration
+RMSQD shifts the COR the wrong way on these no-measured-increment FIA/estab stands.
+
+REVERTED both (net-neutral-to-worse aggregate; won't ship). VERDICT: fix #1 (aspen j>1 subcycle) is REAL and faithful
+(regent.f:405-407) and makes clean-growth aspen stands bit-exact, but it is entangled with a compensating GROWTH-path
+aspen under-growth whose root is NOT the calibration RMSQD (that was measured/refuted here). The true compensator is
+the aspen COR/growth-DGFASP realization on seedling/establishment stands — a deeper interaction needing a growth-path
+(not calibration) per-tree ASPDG+COR trace on a pure-aspen-estab stand. #191 stays open with this narrowed scope: the
+calibration-RMSQD lever is eliminated; next is the growth-path aspen COR↔DGFASP realization. DOCTRINE (#4, twice this
+session): a faithful fix that regresses = a masked interaction — here BOTH the RMSQD "fix" and the isolated j>1 fix
+regressed, proving the pair is not the whole story.
