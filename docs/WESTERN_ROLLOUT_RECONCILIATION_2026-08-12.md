@@ -590,3 +590,23 @@ stands TopHt 7→3, QMD 0.3→0.1 = live; treed IE stands BIT-IDENTICAL before/a
    scale_h=NTYR/REGYR with NO WK4 multiplier ⇒ candidate. ALSO: the shared establish! currently hardcodes
    htimlt=1.0 for PLANT/NATURAL — faithful for PLANT (TRAGE≥GENTIM) but NATURAL regen with low TRAGE should get
    WK4<1 (compute from establish!'s TRAGE/DELAY). That refinement would serve CI/BM/TT/UT *_esgent! NATURAL regen.
+
+## #193 follow-up — treeless EM regime has THREE distinct bugs; the htimlt fix addresses ONE (validated non-regressing)
+
+Broader single-plot treeless EM sweep (post-htimlt-fix) vs FVSem_clean revealed the regime is multi-causal:
+1. **Sparse-establishment OVER-growth [FIXED]**: high htgrth × old-scale-1.0 → TopHt 5-6. The per-tree WK4=HTIMLT
+   fix (×0.40) corrects these (reproducer 5332701010661 5→~3; 103399518010661 6→2). BEFORE/AFTER stash A/B
+   confirms the fix ONLY moves the over-growers and is byte-identical on the under-growers (NO REGRESSION).
+2. **Dense-establishment UNDER-growth [SEPARATE, pre-existing]**: stands like 103400530010661 (sp3 DF 147 TPA,
+   denser) → jl SMHTGF over-suppresses (htgrth≈0 ⇒ htg floored) ⇒ TopHt stuck at birth ~1.2 (=1) vs live 3.
+   IDENTICAL before/after the htimlt fix (htg was already ~0, so scaling is inert). Root candidate: jl's birth-cycle
+   TPCCF/point_ccf over-counts the just-established seedling cohort's competition ⇒ beta1=exp(B0+B1·log(tpccf))
+   collapses. NOT the htimlt bug. Needs FVSem_g16 esgent/smhtgf TPCCF+htg1 trace on a dense treeless stand.
+3. **Multi-plot AUTOES tally OVER-count [SEPARATE, #143]**: single-plot stands now bit-EXACT on TPA (214=214,
+   228=228, …); NUM_PLOTS>1 stands over-count (4-plot 103399518 tally 261.3 vs live 233, +12%). Deterministic
+   (not a straddle) ⇒ a per-plot NSTORE/ESRANN-advance/ESTPP desync for >1 plot (ie_autoes_tally body_n was
+   validated on single-plot iet01/EM). Deep #143 per-plot-chain territory (partly UB-cornered per IE audit).
+
+⇒ #193's headline OVER-growth (EM +200-492% / IE +19-29%) is FIXED in both variants. The establishment regime is
+NOT yet fully bit-exact: the dense-under-growth (SMHTGF/TPCCF) and multi-plot-tally are distinct open sub-bugs.
+Honest status: one of three establishment-regime bugs closed; two characterized+localized for follow-up.
