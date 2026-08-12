@@ -419,3 +419,51 @@ PJ regent growth BIT-EXACT: SITEAR/POTHTG/VIGOR/PCTRED/HTGR all matched; residua
 oak differs from PJ ONLY by species-indexed data routed through these same-verified branches. The sweep's one-sided
 −5..−26% was a small-sample slice of the straddle, not a bias. #192 MEETS the bit-exact-or-cornered bar. Rests on
 #156's g16 measurement + this session's line-by-line source-verification of the oak-specific branches.
+
+## #193 EM crown recession — ROOT CAUSE FULLY MEASURED FROM SOURCE (em/crown.f) — turnkey port spec
+
+The long-ambiguous "does live recede the regen crown, and how" is now SETTLED by reading em/crown.f (not inferred).
+
+### The crown model is dispatched PER-SPECIES (crown.f:238-249), not per-variant:
+  sp 5 (LL)                      → NIVAR   (DCR exp-polynomial, the model jl currently uses for ALL D>=3)
+  sp 1,2,3,7,8,9,10,18           → EMVAR   → WEIBULL-RANK crown  (jl does NOT implement this)
+  sp 4,12,17                     → UTTVAR  → same Weibull block as EMVAR
+  sp 11,13,14,15,16,19           → CRVAR   → CL=5.17281+0.32552*HF-0.01675*BA; CR=CL/HF; ->label 53
+  sp 6                           → LPIJU   → CL=-0.59373+0.67703*HF; CR=CL/HF; ->label 53
+
+### The D-threshold that gates the skip (crown.f:341-345) DIFFERS by group:
+  EMVAR/UTTVAR:  IF(D.LT.1.0 .AND. LSTART) GO TO 58   ← D>=1.0 (or any not-at-start) IS PROCESSED (recedes!)
+  else (NIVAR/CRVAR/LPIJU):  IF(D.LT.3.0) GO TO 58    ← D<3 skipped
+⇒ EMVAR regen with D in [1.0,3.0) RECEDES in live; jl skips ALL D<3 (`continue`) ⇒ jl keeps ~90 estab crown
+  while live receds 90→~74 ⇒ over-crown → over-VIGOR / over CR-linear SMHTGF height → the #193 over-growth.
+
+### EMVAR/UTTVAR Weibull-rank crown (crown.f:277-368):
+  RELSDI = min(SDIAC/SDIDEF(sp), 1.5)                 # SDIAC=stand SDI; SDIDEF=species SDImax (common block)
+  ACRNEW = C0(sp) + C1(sp)*RELSDI*100
+  A = WEIBA(sp);  B = max(WEIBB0(sp)+WEIBB1(sp)*ACRNEW, 1.0);  C = max(WEIBC0(sp)+WEIBC1(sp)*ACRNEW, 2.0)
+  per tree: SCALE = clamp(1-0.00167*(RELDEN-100), 0.30, 1.0)
+            X = clamp( (ISORT(I)/ITRN)*SCALE , 0.05, 0.95 )    # ISORT = diameter rank (crown.f:196-200)
+            CRNEW = ( A + B*(-ln(1-X))^(1/C) ) * 10            # crown-percent 0..100
+  label 53: CHG = CRNEW - ICR;  bound |CHG| to 1%/yr: PDIFPY=CHG/ICR/FINT; if>0.01 CHG=ICR*0.01*FINT; if<-0.01 sym.
+            CRNEW = ICR + CHG*(CRNMLT if DLOW<=DBH<DHI else 1);  ICRI = INT(CRNEW+0.5); clamp [5,95].
+
+### Coefficient tables (crown.f DATA, sp 1..19; zeros = handled by other branch):
+  WEIBA  = [0,0,0, 1.0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  WEIBB0 = [.11035,.11035,.14652,-.82631,0,0,-.00359,.67059,.73693,.02663,0,-.08414,0,0,0,0,-.08414,.11035,0]
+  WEIBB1 = [1.10085,1.10085,1.09052,1.06217,0,0,1.12728,.99349,.98414,1.11477,0,1.14765,0,0,0,0,1.14765,1.10085,0]
+  WEIBC0 = [.02774,.02774,1.04746,3.31429,0,0,2.60377,-4.25938,-4.16681,2.95048,0,2.775,0,0,0,0,2.775,.02774,0]
+  WEIBC1 = [.35524,.35524,.39752,0,0,0,0,1.35687,1.33779,0,0,0,0,0,0,0,0,.35524,0]
+  C0     = [5.68625,5.68625,5.92714,6.19911,0,0,5.0587,7.41093,7.36476,5.61047,0,4.01678,0,0,0,0,4.01678,5.68625,0]
+  C1     = [-.0447,-.0447,-.03346,-.02216,0,0,-.03307,-.03467,-.03761,-.03557,0,-.01516,0,0,0,0,-.01516,-.0447,0]
+
+### CRITICAL COROLLARY — LATENT bug beyond establishment:
+jl `crown_ratio_update!` uses the NIVAR-DCR model for ALL D>=3 species. Faithful ONLY for sp5. For the EMVAR
+species (the majority: 1,2,3,7,8,9,10,18) and UTTVAR (4,12,17), live uses the Weibull-rank crown — so jl's D>=3
+EM crown is ALSO mis-modeled multi-cycle (masked on emt01 because inventory crowns bypass at LSTART and the
+validated window is early/crown-insensitive). This is a broader EM crown port, not just an establishment patch.
+
+### Why deferred (not a rushed edit): implementing the Weibull-rank crown replaces the crown for MOST EM species
+at ALL sizes (D>=1) ⇒ changes emt01's multi-cycle crowns/growth ⇒ MUST be chunked with per-cycle emt01 A/B vs
+FVSem_g16 (ISORT/IND sort order, SDIAC, SDIDEF table must be byte-exact) per doctrine ("regression on a faithful
+chunk = examine"). Coefficients + mechanism are now fully in hand ⇒ next session is a turnkey implement+validate.
+IE side of #193 (ie_autoes crown +0.07985*RAN term, RNG-order-faithful) still pairs with this.
