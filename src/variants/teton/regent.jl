@@ -117,7 +117,17 @@ end
         htgr = (hite2 - hite1) / (2.54f0 * 12f0)
         # ·0.75 (Dixon 8-27-92) is smhtgf.f CASE(6)-specific; MM(14) is CASE DEFAULT ⇒ no ·0.75 (matches live faster MM)
         htgrl = (htgr + zrand * 0.1f0) * (sp == 6 ? 0.75f0 : 1.0f0)
-        return htgrl                              # smhtgf.f CASE(6): NO RSIMOD (that's regent CASE(15)=NC, buildDir)
+        # ★#189 (2026-08-12): tt/regent.f:521-527 applies an ASPEN(sp6)-ONLY RSIMOD after SMHTGF:
+        # RELSI=clamp((SITEAR(6)−30)/70,0,1); RSIMOD=0.5·(1+RELSI); HTGRL·=RSIMOD. jl OMITTED it (the old
+        # "NO RSIMOD, that's CASE(15)=NC" comment MIS-READ the buildDir — regent.f:521 gates on ISPC.EQ.6).
+        # INERT on high-site aspen (SITEAR≥100 ⇒ RSIMOD=1, e.g. 3189335010690 where jl was "validated") but on
+        # low-site (SITEAR=42 → RSIMOD=0.586) jl over-grew small-aspen height ~1.7×. MEASURED via FVStt_g16:
+        # 753175613290487 live grows small aspen ~3.5 ft vs jl ~9. sp14(MM) EXEMPT (live gates ISPC.EQ.6 only).
+        if sp == 6
+            relsi = clamp((si6 - 30f0) / 70f0, 0f0, 1f0)
+            htgrl *= 0.5f0 * (1f0 + relsi)
+        end
+        return htgrl
     else
         beta1 = exp(TT_B0ACCF[sp] + TT_B1ACCF[sp] * log(tpccf))
         beta2 = exp(TT_B0BCCF[sp] + TT_B1BCCF[sp] * log(tpccf))
