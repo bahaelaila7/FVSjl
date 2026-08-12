@@ -1211,3 +1211,17 @@ specific map). ⇒ the IE tally-outlier fix = port live's MAPR6 crosswalk (ie/ha
 DISTINCT from the now-fixed OCURNF occupancy (which made BA exact regardless — the wrong-ihab establishes MORE trees
 of the RIGHT slow species, so TPA over-counts but BA stays ~exact). ⇒ #143 status: BA-over-growth FIXED cluster-wide
 (OCURNF); TPA-tally residual = habtyp-MAPR6-crosswalk (this) + ESRANN per-plot desync (cornered) — a focused chunk.
+
+## #143 IE tally outlier — CORRECTION (doctrine #2): habtyp/ihab root DISPROVEN by live source
+MEASURED live source (NOT inferred): ie/esplt2.f:230-239 brackets the RAW habitat code against IEND(33)→MYGRUP(33)
+→IHAB(1-16) — byte-IDENTICAL logic AND tables to jl's ie_estab_indices (_IE_ESTAB IEND/MYGRUP == jl _EM_ES_IEND/
+MYGRUP == live). For habcode=639: bracket lands J=23 (634<639≤644), MYGRUP(23)=11 ⇒ live establishment IHAB=11 ==
+jl's ihab=11 EXACTLY. The habtyp.f MAPR6→JTYPE path (639→other) fires ONLY for IFOR 5/12 & KODTYP≤40 (line 119) —
+our stand is ifo=4/kod=639, so it does NOT apply; live uses the plain JTYPE bracket→ITYPE=19→MTYPE=620 (== jl),
+purely a DISPLAY remap, unused by establishment. ⇒ the prior two entries' "jl ie_habtyp missing MAPR6 / live maps
+639→260 / ihab 3" root was a HALLUCINATED INFERENCE, now RETRACTED. There is NO habitat/ihab bug. Also verified live
+IE OCURNF (ie/blkdat.f) GF(sp4) row = [0,0,1,1,1,0,1,0,0,1,0,0,0,1,0,1,1,0,1,1]; OCURNF(ifo4,GF)=1 ⇒ live ALSO
+permits GF on forest 4 — OCURNF does not gate this stand either. ⇒ #143 IE tally residual (this stand: jl BA 143 vs
+live 88, TPA 51 vs 40) has ihab/MYGRUP/MAXSPP/OCURNF all == live; TRUE cause is still OPEN — candidates now narrowed
+to NUMSPE/ITPP per-plot counts or ESRANN species-draw desync, NOT habitat. Next = MEASURE jl vs live per-species
+established TPA on this reproducer (live .out ESTAB report vs jl AUTOSP dump).
