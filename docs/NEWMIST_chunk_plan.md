@@ -22,10 +22,19 @@ so jl runs ZERO DM on these stands.
   dminitbc(284 BC init) / dmblkd(256 coefficients block-data) / dmauto(149 DMAUTO keyword) / dmopts(157 keywords) /
   12× dmcw*(148 ea, per-variant crown-width).
 
+## ⚠ Source-read gotchas (found while surveying — save the next session the mis-step)
+- **`dmauto.f` is NOT DMR-seeding.** It is the spatial-autocorrelation REWEIGHTING function
+  `f = EXP(A·|DMR_s−DMR_t|·EXP(B·D))` over the `SF(DMRDFF(i,TrgDMR), RQ)` matrix (sampling ring `RQ`), called by
+  `DMTREG` to redistribute per-DMR-class neighbour densities. The **DMAUTO keyword** just sets its A/B coefficients
+  (the `-0.50`). Initial DMR assignment is elsewhere (dminitbc / misintbc / DB damage codes) — find it before chunk 1.
+- Core spatial state lives in `DMCOM.F77` (SF matrix, DMRDFF delta-DMR index, sampling-ring geometry MESH). Port the
+  common block's meaning, not just arrays.
+
 ## Chunks (each: port faithfully → validate → commit)
-1. **Keywords + DMR init.** Parse MISTOE/NEWSPRED/DMAUTO/MISTPRT (dmopts, dmauto); DMR auto-assign (dmauto.f) +
-   BC init (dminitbc.f); coefficients (dmblkd.f). `t.dmr` already exists. Wire into keyword_dispatch. NOT
-   `.sum`-validatable alone (DMR seeded but no effect yet) — validate the DMR values vs an instrumented dump.
+1. **Keywords + DMR init.** Parse MISTOE/NEWSPRED/DMAUTO/MISTPRT (dmopts) — DMAUTO sets the SF A/B coefs (NOT DMR).
+   Find + port the actual initial-DMR assignment (dminitbc.f / misintbc.f / DB damage codes) + coefficients
+   (dmblkd.f). `t.dmr` already exists. Wire into keyword_dispatch. NOT `.sum`-validatable alone (DMR seeded but no
+   effect yet) — validate the seeded DMR values vs an instrumented newmist dump.
 2. **Spatial distance core.** `bndist.f` (between-tree distance) + tree-position/grid handling. The novel piece
    the base model lacks. Unit-test the distance math against instrumented newmist values.
 3. **Crown width.** The per-variant `dmcw*` (BC's — verify which; dminitbc may select). Feeds spread.
