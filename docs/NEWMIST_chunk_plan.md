@@ -56,6 +56,13 @@ so jl runs ZERO DM on these stands.
   NOT a production-FVS bug; the 2022 oracle read these DBs fine). Either fix the relink (DB-capable FVSbc) or
   convert YSM to inline TREEDATA. Not required — the `.sum.save` is the trustworthy target.
 
+  **DB-capable relink attempts (2026-08-12, both FAILED):** removing the isoc23-shim from relink_bc.sh still
+  SIGSEGVs on DB reads (the shim only provides `__isoc23_sscanf`, resolved from libc without it) ⇒ NOT the shim.
+  The crash is a deeper gfortran-16 C/Fortran-interop issue (ISO_C_BINDING × SQLite fvsqlite3.c binding, or the
+  pre-compiled sqlite3.o ABI). A DB-capable FVSbc relink would need recompiling sqlite3.c/fvsqlite3.c fresh under
+  the current toolchain and/or auditing the fsql3 character-passing — deferred (marginal value vs the .sum.save
+  target). ⇒ Use the INLINE-TREEDATA route for the A/B if needed, not a DB relink.
+
 ## Cost/benefit (why this is a user decision)
 ~8,800-line port of an OPTIONAL keyword model whose only exercised corpus case is the single YSM DATABASE stand.
 The base (non-spatial) mistoe.f is done+validated for the N-Rockies cluster. Weigh before committing a
