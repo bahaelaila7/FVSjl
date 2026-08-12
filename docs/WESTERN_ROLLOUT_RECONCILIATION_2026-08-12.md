@@ -128,3 +128,31 @@ LESSON: cyc0 bit-exactness is necessary-not-sufficient — a small per-cycle sit
 cyc0 and compounds catastrophically multi-cycle. And the SAME symptom ("mature over-growth") had TWO independent
 roots (dwarf-mistletoe mortality 3d4144e + this site-index adjustment); always instrument the cleanest-signal
 stand (here: TPA-bit-identical pure-DG) to isolate one root at a time.
+
+## CI mature-stand mortality residual (#190) — ROOT CHARACTERIZED: jl dg_prev=0 at cyc0
+
+After the CRATET fix, the CI reproducer 753180709290487 (age-233 pure DF, NOT touched by CRATET — DF
+isn't in the adjusted set) still shows BA +18% at cycle 8 (jl 40 vs live 34; jl retains ~11 more TPA).
+MEASURED via FVSci_g16 morts.f instrumentation:
+- Stand-level mortality terms (BAMAX=264.25, SDIMAX=570, DQ10, T, RZ) are BIT-EXACT at cyc0.
+- The divergence is per-tree: **jl `dg_prev` (WK1) = 0 for EVERY tree at cyc0, but live has it POPULATED**
+  (e.g. the D=30.5 DF: live WK1=1.19 vs jl 0). The Hamilton mortality rate RIP uses `g` (recent DG):
+  faster recent growth → lower mortality. With WK1=0, jl's `g` is wrong for slow-growing large trees
+  (dgi<0.5, where the `dgi/(bark·10)` fallback doesn't fire → g=0 → RIP too high on some, the net across
+  the stand under-kills), so jl mis-estimates mature-tree vigor and the error compounds via the
+  DG↔mortality feedback (lower mort → more BA → …) into +18% over 8 cycles.
+- ROOT of the root: live's `dgdriv.f:167-171` loads `WK1(I)=DG(I)` at init — the BACKDATED past-10yr DG
+  estimate (the tree's "recent past" growth, from CRATET/DENSE backdating). jl only sets `dg_prev` AFTER
+  a cycle (simulate.jl:550, `dg_prev=diam_growth`), so it is 0 on the FIRST cycle. The 96d79c7 "dg_prev
+  populated" fix covered the cycle-to-cycle carry, NOT the cyc0 backdated-DG initialization on FIA stands.
+
+FIX (deferred — substantial + sensitive): port the backdated past-DG initialization so jl's `dg_prev` at
+cyc0 equals live's DGDRIV WK1 (the backdated 10-yr DG), NOT this cycle's applied diam_growth (live WK1=1.19
+≠ jl dgi=0.42 for the D=30.5 tree — they are distinct quantities). Touches the mortality path + the
+DG-backdating subsystem; validate cit01 stays bit-exact and the mature stand improves. Also noted while
+here (minor, likely inert on this stand): jl clamps the Hamilton RIP at ±70 for ALL species, but ci/morts.f
+uses ±70 only for CASE(11:17,19) and ±88.5 for DEFAULT (conifers incl. DF sp3) — a faithfulness gap that
+only bites if RIP saturates.
+
+This is a per-cyc0-initialization mortality-vigor bug, DISTINCT from the CRATET site-index root and from the
+DGSCOR/#142 straddle; it is the largest remaining #190 residual and the recommended next target.
