@@ -114,6 +114,7 @@ include("variants/inlandempire/crown.jl")            # IE per-tree CCF (ie/ccfca
 include("variants/inlandempire/mort_coefficients.jl")# IE mortality Hamilton coefficients (ie/morts.f, dumped)
 include("variants/inlandempire/mortality.jl")        # IE mortality (ie/morts.f) — Hamilton, reuses KT form
 include("variants/inlandempire/mistoe_coefficients.jl") # IE MISTOE (dwarf mistletoe) effect coefficients (mistoe/misintie.f)
+include("variants/inlandempire/pvref1_data.jl")        # IE PVREF1 (PVCODE,PVREF)->HABPVR crosswalk table (ie/pvref1.f)
 include("variants/inlandempire/establishment.jl")      # IE ESSUBH subsequent/planted-tree height model (ie/essubh.f)
 include("variants/inlandempire/volume.jl")           # IE volume (ie/sitset.f VOLEQ): FW2 + DVE, reuse CR kernels
 include("variants/inlandempire/regent_coefficients.jl") # IE REGENT small-tree coefficients (ie/regent.f, dumped)

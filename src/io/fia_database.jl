@@ -182,21 +182,30 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # (live habitat 470, jl was defaulting to 1).
     if s.variant isa EasternMontana || s.variant isa Utah || s.variant isa Teton || s.variant isa InlandEmpire
         hc = 0
-        # ★#143: IE PV_CODE can be a 6-char alphanumeric plant-association code (e.g. "CDS715") that FVS maps via
-        # ie/habtyp.f's string crosswalk (CDS715→NI code 260). jl previously parsed the STRING as a number (→0) and
-        # fell back to the numeric PV_REF_CODE, selecting the WRONG ESTOCK habitat series ⇒ AUTOES over-establishment
-        # (up to +108%). Try the string crosswalk first; fall through to the numeric parse when it isn't a PA code.
-        if s.variant isa InlandEmpire && _fia_present(d, "PV_CODE")
+        isie = s.variant isa InlandEmpire
+        pvref = _fia_present(d, "PV_REF_CODE") ? Int(round(_fia_f32(d, "PV_REF_CODE", 0f0))) : 0
+        # ★#143 (IE): ie/pvref1.f crosswalks the (PV_CODE, PV_REF_CODE) PAIR → HABPVR and takes PRECEDENCE whenever
+        # a reference code is present (habtyp.f:91). A full match yields the habitat; a present-but-UNRECOGNIZED pair
+        # (e.g. PV_CODE "ABR8" + ref 639, 4/5 IE sweep stands) defaults to 260 — NOT the raw reference code. jl's old
+        # bug fell back to the raw PV_REF_CODE (639) ⇒ ESTOCK ihab 11 (GF-dominant) vs live's ihab 3 (DF/PP) ⇒ AUTOES
+        # over-establishment. MEASURED vs live esplt2.f/habtyp.f (ihab/MYGRUP/OCURHT/OCURNF/PADV all match at ihab 3).
+        if isie && pvref > 0
+            hc = ie_pvref1(_fia_str(d, "PV_CODE", ""), pvref)
+        end
+        # PV_CODE as a 6-char plant-association string given directly (ie/habtyp.f PCOML path, e.g. "CDS715"→260).
+        if hc == 0 && isie && _fia_present(d, "PV_CODE")
             hc = ie_pa_habitat_code(_fia_str(d, "PV_CODE", ""))
         end
+        # numeric PV_CODE (5-digit 41780 → 780; 3-digit used directly).
         if hc == 0 && _fia_present(d, "PV_CODE")
             pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
             pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41780 → 780)
             (10 <= pvc <= 999) && (hc = pvc)
         end
-        if hc == 0 && _fia_present(d, "PV_REF_CODE")       # fallback
-            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
-            (10 <= pvr <= 999) && (hc = pvr)
+        # Fallback on a present reference code: IE ⇒ live default habitat 260 (habtyp default ITYPE 4, MTYPE(4)=260);
+        # EM/UT/TT ⇒ the raw PV_REF_CODE (their readers use it directly — validated separately).
+        if hc == 0 && pvref > 0
+            hc = isie ? 260 : ((10 <= pvref <= 999) ? pvref : 0)
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end

@@ -1062,6 +1062,38 @@ function ie_pa_habitat_code(code::AbstractString)::Int
     return Int(_IE_HABTYP_MTYPE[itype])                 # final KODTYP = MTYPE[ITYPE]
 end
 
+# ie/pvref1.f: the (PV_CODE, PV_REF_CODE) → HABPVR crosswalk (879 rows, first-match-wins per live's DO-EXIT).
+# Live habtyp.f calls PVREF1 whenever a reference code is present; a FULL match (both PVCODE and PVREF hit the
+# same row) sets KODTYP=HABPVR; ANY non-full-match (incl. neither found, e.g. PV_CODE "ABR8" + ref 639) leaves
+# KODTYP invalid ⇒ habtyp's default ITYPE 4 ⇒ MTYPE(4)=260. #143 ROOT: jl's FIA reader had no PVREF1 and fell
+# back to the RAW PV_REF_CODE (639) as the habitat ⇒ ESTOCK ihab 11 (GF-dominant) vs live's ihab 3 (DF/PP);
+# 4/5 IE sweep stands are "NOT RECOGNIZED → 260". HABPVR is either a numeric habitat code or a 6-char PCOML
+# plant-community code (routed through ie_pa_habitat_code). Built once from the generated data block.
+const _IE_PVREF1 = let d = Dict{Tuple{String,String},String}()
+    for ln in eachline(IOBuffer(_IE_PVREF1_RAW))
+        isempty(strip(ln)) && continue
+        f = split(ln)
+        length(f) == 3 || continue
+        k = (f[1], f[2])
+        haskey(d, k) || (d[k] = f[3])        # first-match-wins (live iterates 1..N, EXIT on first)
+    end
+    d
+end
+
+"""
+    ie_pvref1(pv_code, pv_ref) -> Int
+
+Resolve the IE FIA habitat KODTYP from a (PV_CODE, PV_REF_CODE) pair via the ported ie/pvref1.f crosswalk.
+Returns the HABPVR habitat code on a full match (numeric directly, or a PCOML string mapped through
+[`ie_pa_habitat_code`](@ref)), or `0` if the pair is not in the table (caller then applies the live default 260).
+"""
+function ie_pvref1(pv_code::AbstractString, pv_ref::Integer)::Int
+    hab = get(_IE_PVREF1, (strip(uppercase(pv_code)), string(Int(pv_ref))), "")
+    isempty(hab) && return 0
+    all(isdigit, hab) && return parse(Int, hab)          # numeric HABPVR = habitat code directly
+    return ie_pa_habitat_code(hab)                        # PCOML HABPVR (e.g. "CDS715") → NI code, 0 if unmapped
+end
+
 """
     ie_estab_indices(habitat_code, forest_code) -> (ihab, iser, ifo, iphy, iprep)
 
