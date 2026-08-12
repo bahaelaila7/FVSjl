@@ -180,23 +180,33 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             t.crown_pct[i] = Int32(icri)
             continue
         end
-        _tt_crown_diagr(sp) && continue                 # PM/UJ/RM/NC/OH crown-length form (not ttt01) — skip
         icr = Int(t.crown_pct[i])
-        # per-species Weibull params from mean crown ratio
-        relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
-        relsdi > 1.5f0 && (relsdi = 1.5f0)
-        (sp == 17 && relsdi > 1f0) && (relsdi = 1f0)
-        acrnew = TT_CRC0[sp] + TT_CRC1[sp] * relsdi * 100f0
-        A = TT_WEIBA[sp]
-        B = TT_WEIBB0[sp] + TT_WEIBB1[sp] * acrnew
-        B < (sp == 10 ? 3f0 : 1f0) && (B = sp == 10 ? 3f0 : 1f0)
-        C = TT_WEIBC0[sp] + TT_WEIBC1[sp] * acrnew
-        C < 2f0 && (C = 2f0)
-        scale = 1f0 - 0.00167f0 * (relden - 100f0)
-        scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale   # d≤0 uses RANN (not in ttt01)
-        x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        local crnew::Float32
+        if _tt_crown_diagr(sp)                          # tt/crown.f d≥1 CASE(4,11,12,15,18): CL crown-length form
+            # (runs lstart AND cycling; jl previously SKIPPED these ⇒ crown≈0 ⇒ regent under-growth on woodland
+            # real-FIA stands — the d≥1 counterpart to the d<1 DUBSCR branch; same class as UT #203/a0e8cee).
+            hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)
+            cl = (sp == 15 || sp == 18) ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area) :
+                                          (-0.59373f0 + 0.67703f0*hf)
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            crnew = (cl/hf)*100f0
+        else
+            # per-species Weibull params from mean crown ratio
+            relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
+            relsdi > 1.5f0 && (relsdi = 1.5f0)
+            (sp == 17 && relsdi > 1f0) && (relsdi = 1f0)
+            acrnew = TT_CRC0[sp] + TT_CRC1[sp] * relsdi * 100f0
+            A = TT_WEIBA[sp]
+            B = TT_WEIBB0[sp] + TT_WEIBB1[sp] * acrnew
+            B < (sp == 10 ? 3f0 : 1f0) && (B = sp == 10 ? 3f0 : 1f0)
+            C = TT_WEIBC0[sp] + TT_WEIBC1[sp] * acrnew
+            C < 2f0 && (C = 2f0)
+            scale = 1f0 - 0.00167f0 * (relden - 100f0)
+            scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale   # d≤0 uses RANN (not in ttt01)
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        end
         # change bounded ±1%/yr (skip when lstart or icr==0 → CRNEW stands)
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr)
