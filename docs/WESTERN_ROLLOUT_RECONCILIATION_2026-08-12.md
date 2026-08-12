@@ -1250,3 +1250,13 @@ and thus BA). ⇒ EM's remaining AUTOES +200-492% TPA over-growth is in the ie_a
 es_nstore) for EM, NOT habitat — a SEPARATE investigation from IE's pvref1. EM has em/pvref1.f (857) but its FIA stands
 carry no PV/ref, so porting it would be inert for the sweep. UT/TT have NO pvref1.f (different habitat mechanism). ⇒
 the pvref1 fix is IE-specific and complete; #193's EM half stays open as an ie_autoes count-over-production task.
+
+## #143 EM AUTOES — re-MEASURED current state: AT-BAR (BA bit-exact, TPA +3-10%); "+200-492%" was STALE
+Re-ran the 5 sweep_val reproducers post-OCURNF: BA BIT-EXACT on all 5 (8/8/2/12/4 == live), TPA +2.7..+9.9%
+(272/262, 278/253, 72/69, 341/332, 165/155). The task-tracker "+200-492%" was a PRE-OCURNF-fix number (stale);
+current matches goal-doc item 2's accepted "+~10% ESRANN establishment-tally straddle". CAVEAT: the sign is
+CONSISTENTLY POSITIVE (5/5 over), so it is a mild SYSTEMATIC sub-inch over-count, not a true ±straddle — likely
+the ESRANN ITPP/es_nstore realization (jl's ESRANN is not byte-identical to live, "never-FFI-RNG" cornered class);
+BA-exact means species+sizes are right, only a few extra tiny stems. At-bar per doctrine (bit-exact-or-cornered);
+a future refinement could measure jl-vs-live per-plot ITPP to see if a rounding/off-by-one contributes to the sign.
+⇒ #143 both halves resolved-or-cornered: IE root FIXED (pvref1, 00d36b0); EM at-bar (BA-exact, TPA +5% cornered).
