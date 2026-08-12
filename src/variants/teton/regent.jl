@@ -224,7 +224,10 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
         dgk = 0f0
         if hk >= 4.5f0
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
-            dkk = _tt_smdgf(_tt_rg_esp(sp), h, Float32(t.crown_pct[i]), pccf)      # DBH from the ORIGINAL height (MM→AS)
+            # regent.f:823-824/838: DKK = D (current DBH) when the ORIGINAL height is below breast height (H<4.5);
+            # only H≥4.5 uses smdgf(H). jl formerly used smdgf(H) unconditionally ⇒ NEGATIVE DKK for sub-4.5' aspen
+            # (e.g. h=1.01 → dkk=-0.326) ⇒ (wk5−dkk) over-counts the DBH increment ⇒ #191 aspen QMD/BA over-growth.
+            dkk = h < 4.5f0 ? d : _tt_smdgf(_tt_rg_esp(sp), h, Float32(t.crown_pct[i]), pccf)   # DBH from ORIGINAL height (MM→AS)
             bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
             dgr = (wk5[i] - dkk) * bark
             dds = dgr * (2f0 * bark * dfl + dgr) * scale2
