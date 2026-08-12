@@ -187,11 +187,17 @@ end
 # first-cycle height growth (CI BARE-PLANT: TopHt 2 vs live 12, BA ~half thru age 40). Same class as EM #137 /
 # UT #184. Mirrors small_tree_growth!'s UTVAR + CIVAR height/DBH over the birth subperiod (subyr=FINT−GENTIM=5),
 # applying HT/DBH directly (esgent.f HT(I)=HT(I)+HTG(I)·WK4). Gated to the new records nstart+1:n.
-function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre::Float32 = -1.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
     nstart >= t.n && return s
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
+    # ci/regent.f:624 CIVAR RELHT uses ATAVH (grincr.f:318 ATAVH=AVH, grinit.f:242 ATAVH=0) = the PRE-regen stand
+    # avg height; on a bare-plant stand ATAVH=AVH=0 ⇒ RELHT=1.5 (not HT/avh over the just-established seedlings).
+    # #194: establish! recomputes avg_height INCLUDING the new regen before ci_esgent! runs, so p.avg_height is the
+    # WRONG (post-regen) denominator — jl relht 0.634 vs live 1.5 ⇒ htgrl 4.08 vs live 5.26 (~22% under). Use the
+    # captured pre-establishment avg height (avh_pre); its 0-on-bare ⇒ RELHT=1.5 = live.
+    atavh = avh_pre >= 0.0f0 ? avh_pre : avh
     kodtyp = Int(p.habitat_code)
     rhdm1 = (500 <= kodtyp < 600) ? 1.0f0 : 0.0f0
     rhdm2 = (600 <= kodtyp < 700) ? 1.0f0 : 0.0f0
@@ -262,7 +268,7 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         pt = Int(t.plot_id[i])
         ptba = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : ba
         pct = t.crown_ratio[i]
-        relht = avh > 0f0 ? h0 / avh : 1.5f0; relht > 1.5f0 && (relht = 1.5f0)
+        relht = atavh > 0f0 ? h0 / atavh : 1.5f0; relht > 1.5f0 && (relht = 1.5f0)   # ci/regent.f:624 ATAVH (pre-regen)
         ptbali = ptba * (1.0f0 - pct / 100.0f0)
         tbal = (1.0f0 - pct / 100.0f0) * ba
         iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
