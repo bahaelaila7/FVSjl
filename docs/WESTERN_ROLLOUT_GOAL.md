@@ -24,18 +24,27 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
   #192 UT juniper woodland DG proven BIT-EXACT (residual = mortality-selection, not DG).
 
 ⚠ HONEST CORRECTION to the "WHOLE WESTERN CLUSTER bit-exact-or-cornored" claim below: that holds at CYC0 and for
-LARGE-TREE DG (extensively proven), but MULTI-CYCLE real-FIA carries REAL DETERMINISTIC (non-straddle) residuals in the
-SMALL-TREE/WOODLAND/ASPEN regimes that the curated ref stands (ttt01/utt01/…) MASK. This session FIXED several (crown-dub
-family, double-conversion) and MEASURED two still-OPEN:
-  • **#206 utt01 REAL ~6% under-growth** — the primary UT ref stand, NOTRIPLE (deterministic) −6.6% BA @2090 (was
-    claimed "bit-exact-or-cornered" = cyc0-only). LP-site mixed conifers; PP DDS bit-exact ⇒ candidate non-PP-species
-    DG / small-tree regent / mortality. A REAL bug on the REF stand.
-  • **#205 TT dense-stand +30% OVER-growth** — aspen-DOMINATED (1200 TPA of 0.1" aspen), deterministic, TPA-matched.
-    DGFASP-DBH + height-growth measured FAITHFUL ⇒ localized to the aspen DBH-at-4.5'-crossing (smdgf/DKK). RECONCILES:
-    the "#158 cornered" AND "#191 resolved" verdicts are INCOMPLETE for aspen-DOMINATED stands. (Delicate/over-claim-prone
-    aspen code — measure per-tree before touching.)
+LARGE-TREE DG (extensively proven). MULTI-CYCLE real-FIA carries residuals in the SMALL-TREE/WOODLAND/ASPEN regimes
+that the curated ref stands MASK — this session FIXED several (crown-dub family, double-conversion). One measured
+still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
+  • **#206 utt01 −8.9% under-growth — RESOLVED-CORNERED 2026-08-12 (was mischaracterized as "a REAL bug").** Measured
+    via FVSut_g16 DGFDUMP (unit-88 per-tree LN(DDS)) + jl wk2 dump on utt01_nt (NOTRIPLE). PROVEN faithful: (1) large-
+    tree DDS BIT-EXACT — ALL 27 trees at cyc0 real pass jl==live to 5-6 digits; (2) DGSCOR calibration BIT-EXACT — jl
+    dg_cor sp4=0.5471139=live 0.547115, sp8=0.6483049=live 0.648305; (3) CONSPP/COR-decay tracks live. YET cyc1 DBH
+    diverges MIXED-SIGN per tree (i=3 −0.70/i=4 −0.51 vs i=23 +0.66/i=10 +0.39) ⇒ a per-tree RANDOM residual is applied.
+    ROOT = the DGSCOR/OLDRN serial-corr stochastic residual: LIVE dgdriv.f:795 NOTRIPLE path DG=SQRT(D²+EXP(WK2+OLDRN)·
+    SCALE)−D, OLDRN gated on DGSD≥1 (:602,:656); UT DGSD=2.0 ⇒ OLDRN fires EVERY tree even under NOTRIPLE. The monotone
+    consistent-sign −9% is EXPECTED (OLDRN is serially correlated per tree) and sits in the ±~10% realization band
+    (EM/IE +7%, CI +2%, utt01 −9%). ⇒ CORNERED, meets the bar. Species = WB/WF/AS/LP/ES (NOT "LP-site conifers").
+    ★★ DOCTRINE CORRECTION (broad): "NOTRIPLE = deterministic" is IMPRECISE — NOTRIPLE removes TRIPLING RNG but NOT the
+    OLDRN serial-corr residual (active whenever DGSD≥1, i.e. ALL western variants). A NOTRIPLE multi-cycle divergence is
+    NOT proof of a deterministic bug; prove real-vs-cornered by the g16 per-tree DDS (deterministic) comparison instead.
+  • **#205 TT dense-stand +30% OVER-growth** — aspen-DOMINATED (1200 TPA of 0.1" aspen), TPA-matched. DGFASP-DBH +
+    height-growth measured FAITHFUL ⇒ localized to the aspen DBH-at-4.5'-crossing (smdgf/DKK). NB given #206's lesson,
+    re-test #205 real-vs-cornered via g16 per-tree DDS before assuming deterministic — a dense aspen stand nets to one
+    OLDRN sign too; +30% is larger than the band, so a real component is plausible but UNPROVEN. (Over-claim-prone.)
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
-sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #205 + #206 + #197.
+sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #205 + #197.
 
 ## Variant status — growth+volume ports (oracle = live FVS relinked from bin/FVS{v}_buildDir/*.o)
 - **CR** (Central Rockies) ★★ COMPLETE (2026-08-05: 3 bugs fixed — backdated-density dub / forkod imodty /
@@ -157,10 +166,11 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 - **Climate-FVS — DONE** (see Extensions matrix above; ~95%, faithful, cyc0 bit-exact).
 
 ## REMAINING WORK — cornered residuals + LOW-PRI alt-modes + NEW measured real-FIA residuals (see the 2026-08-12 LATEST block up top)
-## (task-tracker: #142/#194 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198/#199/#200/#201/#202/#203/#204 CLOSED;
-##  genuinely-open = #196(BC NEWSPRED, USER decision) + #205(TT aspen +30% over-growth) + #206(utt01 real −6% under-growth)
-##  + #197(mgmt-regime leads) + BC V2/non-ICH. NB: the "at bar" framing below is CYC0/large-tree; multi-cycle real-FIA
-##  has the OPEN #205/#206 small-tree/aspen residuals the ref stands mask — see the ⚠ CORRECTION in the LATEST block.)
+## (task-tracker: #142/#194/#206 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198/#199/#200/#201/#202/#203/#204 CLOSED;
+##  genuinely-open = #196(BC NEWSPRED, USER decision) + #205(TT aspen +30% over-growth) + #197(mgmt-regime leads) + BC
+##  V2/non-ICH. #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN serial-corr straddle; large-tree DDS + calib
+##  BIT-EXACT, proven via FVSut_g16). NB: the "at bar" framing below is CYC0/large-tree; the ONE open multi-cycle real-FIA
+##  residual is #205 (aspen-dominated, un-proven real-vs-cornered) — see the ⚠ CORRECTION in the LATEST block.)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
