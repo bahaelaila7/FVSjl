@@ -617,7 +617,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         sp2 = s.species.code2[issp]      # 2-char alpha code (for CWCALC)
         prob = prem * smult                            # PROB(ITRN)
         for _ in 1:numspr
-            n = t.n + 1; n > length(t.dbh) && break    # no ESCPRS compression — list-overflow guard
+            n = t.n + 1; n + Int(t.ndead) > length(t.dbh) && break    # no ESCPRS compression — list-overflow guard (leave room for the t.n+1…t.n+ndead dead block; else the volume loop overruns MAXTRE)
             t.n = n
             # height: SPRTHT × HMULT + clamped BACHLO(0,0.5,ESRANN) deviation (× HT/5.5). NE & SN share the
             # SPRTHT formula but differ in the per-variant sprouting-species set (and the DBH coef columns).

@@ -99,12 +99,21 @@ function setup_growth!(s::StandState)
         tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
+        compute_density!(s)               # density for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING crowns (tt/crown.f) — was MISSING
+                                          # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ tt regent
+                                          # HTG1=BETA1+BETA2·CR / VIGOR(CR) lost the crown term ⇒ QMD freeze. TT's
+                                          # crown model already dubs missing crown at lstart (Weibull); only the call missing.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
         ut_cratet_siteconv!(s)            # UT CRATET: convert SITEAR → age-50 site-curve height (ut/cratet.f), BEFORE dgcons
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
                                           # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
+        compute_density!(s)               # density for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING crowns (ut/crown.f) — was MISSING
+                                          # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ ut regent VIGOR(CR)
+                                          # lost the crown term ⇒ QMD freeze. UT crown model already dubs missing at lstart.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
@@ -480,7 +489,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     old_tpa = Float32[t.tpa[i]      for i in 1:nlive]
     # Tripling is active only for the first ICL4 cycles (s.control.icl4; default 2, set to 0
     # by NOTRIPLE / to n by NUMTRIP); afterwards growth is the stochastic serial-correlation path.
-    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4)   # NOTRIP (set by a PRIOR-cycle COMPRESS) suppresses tripling
+    # grincr.f:31 LTRIP = (ICYC.LE.ICL4 .AND. ITRN.LE.(MAXTRE/3) .AND. .NOT.NOTRIP): the ITRN≤MAXTRE/3 guard is
+    # LOAD-BEARING — without it a stand whose (tripled) record count would exceed MAXTRE overflows the MAXTRE-sized
+    # tree arrays (intermittent SIGSEGV in the volume loop `1:(t.n+t.ndead)`, e.g. dense ttt01 realizations at ~1000+
+    # live records × 3). jl stores the dead block UPWARD (t.n+1 … t.n+ndead), unlike FVS's downward IREC2…MAXTRE, so
+    # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
+    # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
+    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (MAXTRE - Int(t.ndead)) ÷ 3   # NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # BC V2 mortality WK1 (morts.f) = DG(I) at the START of dgdriv (dgdriv.f:141 WK1=DG), i.e. the PRE-prediction
     # DG: the measured input increment at cycle 1, or the previous cycle's DG later. Snapshot it before

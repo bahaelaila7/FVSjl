@@ -1278,7 +1278,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         for pt in 1:npt_c
             tpa_sp = Float32(r.tally_pt[sp, pt])
             tpa_sp > 0f0 || continue
-            n = t.n + 1; n > length(t.dbh) && break
+            n = t.n + 1; n + Int(t.ndead) > length(t.dbh) && break   # leave room for the dead block (t.n+1…t.n+ndead); else the volume loop `1:(t.n+ndead)` overruns the MAXTRE arrays
             t.n = n
             t.species[n]     = Int32(sp)
             t.dbh[n]         = dbh
