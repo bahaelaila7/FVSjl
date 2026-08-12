@@ -702,3 +702,21 @@ mortality-realization class, consistent with the goal-doc #140 (BM self-thin) �
 CI-114%-stale). The BM deterministic DG is bit-exact; the residual is the BM self-thin mortality realization (#140).
 Method win: the live bm/dgf.f `DEBUG` keyword gives a per-tree DDSS/DDSL dump directly — no rebuild needed — the
 fastest way to prove a deterministic DG term faithful (reusable for the CI/TT/UT large-tree-DG questions).
+
+## #140 BM self-thin — REFINED: DG ruled out, divergence is the self-thin TARGET tn10 (live-side crash-blocked)
+
+Building on the prior section (BM deterministic DG proven bit-exact), instrumented jl's shared self-thin
+(southern/mortality.jl:357-362) on 1127530927290487:
+  jl: sdimax=413.8, dia0=1.01, d10=1.868, tt=4456.7, tn10=4046.4, tokill=410.3, rn=0.0096
+  live (.sum): kills 196 ⇒ tn10 ≈ 4261. jl kills 410 (tn10=4046) ⇒ jl's self-thin TARGET is ~5% LOWER ⇒ over-kill.
+Live morts DEBUG (keyword `DEBUG`/`DEBUG\nMORTS\nEND`) confirms the STARTING QMD matches (DQ0=RMSQD=1.01100 ==
+jl dia0=1.011), but the CYCLE-1 self-thin dump (DQ10/DR10/tn10) is HARD-BLOCKED by a DEBUG-mode FVSVOL cycle-0
+SEGFAULT (both FVSbm_clean AND FVSbm_g16 crash in the initial-inventory volume under DEBUG, before cycle-1 MORTS).
+
+⇒ #140 localized: with per-tree DG bit-exact and starting QMD matching, the divergence is the self-thin TARGET
+computation — candidates: (a) jl's d10=1.868 self-thin QMD PROJECTION (morts.f DR10 is a SEPARATE mean-tree
+projection, NOT the sum of per-tree DG — jl may project higher ⇒ lower tn10 ⇒ over-kill); (b) sdimax=413.8 vs live;
+(c) the Pretzsch tn10 formula. NEXT: resolve the DEBUG-mode FVSVOL cycle-0 live crash (a live bug per crash-doctrine)
+to read live's DQ10/DR10/tn10 — OR compute jl's DR10 mean-tree projection and check it against morts.f:220-263.
+NOTE: the goal-doc #140 says jl UNDER-thins on large self-thinning stands; on THIS dense sub-1" stand jl OVER-thins
+(tn10 low) — same root (self-thin target mis-projection) can go either sign depending on the d10 error direction.
