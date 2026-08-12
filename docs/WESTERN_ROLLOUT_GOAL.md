@@ -80,7 +80,8 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
   so the real-FIA EM priority is #143. Self-thin needs NO further work.
 - **Climate-FVS — DONE** (see Extensions matrix above; ~95%, faithful, cyc0 bit-exact).
 
-## REMAINING WORK — genuinely open (task-tracker #142/#143/#191/#194 + EM sub-inch DG)
+## REMAINING WORK — cornered residuals + LOW-PRI alt-modes ONLY (whole cluster growth+vol at bar)
+## (task-tracker #142/#194 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol CLOSED; genuinely-open = #196 + BC V2/non-ICH)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
@@ -110,9 +111,14 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    pair → live default 260). Wrong ESTOCK ihab 11 (GF-dominant) vs live 3 (DF/PP). Ported PVREF1's 879 rows;
    reproducer 177562547020004 TPA 809→203 (live 181), BA 51→41 (live 40), QMD 3.4→6.1 (live 6.4). 4/5 IE sweep stands
    were "NOT RECOGNIZED→260" ⇒ SYSTEMATIC. EM half is NOT this bug (EM FIA stands carry no PV/ref ⇒ habitat_code=0 →
-   ihab 3 coincidentally == live default-260 ihab 3); EM's residual +200-492% is ie_autoes TREE-COUNT over-production
-   (NUMSPE/ITPP/nstore), a SEPARATE still-open task. Two earlier inferred IE roots (habtyp MAPR6 / ihab-3-crosswalk)
-   were RETRACTED by measuring live esplt2.f/habtyp.f — doctrine #2.
+   ihab 3 coincidentally == live default-260 ihab 3). ★★ 2026-08-12 (later) — EM AUTOES re-MEASURED, RESOLVED-CORNERED:
+   the "+200-492% ie_autoes TREE-COUNT over-production (NUMSPE/ITPP/nstore) still-open" reading was the PRE-OCURNF-fix
+   symptom and is now STALE. Fresh multi-cycle sums (post-OCURNF + #195, /workspace/.emwork/sweep_val/*.jlNEW.sum vs
+   live *.sum) on the 3 remaining reproducers: last-cycle TPA 262→272 (+3.8%) / 253→278 (+9.9%) / 69→72 (+4.3%),
+   with QMD exact-or-±0.3, BA EXACT, TopHt 1-NINT (2999058010690/31432185010690/39592472010690). Per the doctrine's
+   "measure TopHt not TPA/BA for establishment", faithful growth + a +4-10% establishment-tally (ESRANN) straddle =
+   the accepted cornered class, MEETS the bar. No separate EM tree-count port remains. Two earlier inferred IE roots
+   (habtyp MAPR6 / ihab-3-crosswalk) were RETRACTED by measuring live esplt2.f/habtyp.f — doctrine #2.
 3. **★ EM sub-inch small-tree DG [#137 follow-on] — FIXED 2026-08-12.** Root: EM was MISSING the lstart CRATET
    crown dub (CR/BM/CI had it; EM/KT/IE/TT/UT did not) ⇒ missing-CRRATIO seedlings kept crown_pct=0 ⇒ `_em_smhtgf`
    beta2·cr=0 ⇒ HTGR crawled ⇒ never crossed 4.5' ⇒ DBH skipped ⇒ QMD frozen. FIX: wire crown_ratio_update!(lstart)
