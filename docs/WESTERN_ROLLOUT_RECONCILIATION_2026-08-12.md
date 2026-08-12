@@ -823,3 +823,23 @@ bit-exact) and the FULL fix needs live's regent.f height-growth trace (regent DE
 height-growth. SIX hypotheses refuted by measurement (crown, large-tree-DG, bark, SDIMAX-resolution, SDIMAX-collapse,
 dthresh) — the deterministic path is faithful at every layer EXCEPT the sub-inch seedling POTHTG suppression on
 hyper-dense stands. #140 is a NARROW deterministic residual, now fully localized; most BM stands are bit-exact.
+
+## #140 CLS417 — FINAL findings + drill CONCLUDED (exhaustively characterized, fix-blocked)
+
+Two concrete findings close the 8-layer #140/CLS417 drill:
+1. **PRIMARY (height over-growth)**: sp2/3/4 use bm_smhtgf (NOT the si/5 branch — that's sp12 only). htgr =
+   bm_smhtgf(sp,si,h=1.01)·pctred(≈0.75)·vigor ≈ 10.5 ft for a 1-ft seedling ⇒ crosses breast height ⇒ DBH 1.14.
+   Live keeps the stand (10468) ⇒ live's seedlings grow far less ⇒ jl over-grows their HEIGHT on the hyper-dense
+   cohort (pctred not suppressing). Confirming vs live is BLOCKED (FVSVOL cycle-0 DEBUG segfault).
+2. **SECONDARY (self-thin g)**: jl `_mort_traj_g(dg,d,bark,fint)` does a sqrt-DDS roundtrip that returns 2.77 for
+   dg=1.8/d=0.1, vs live morts.f:225 simple `G=(DG/BARK)·(FINT/10)`=2.0. The roundtrip ≈identity for LARGE trees
+   (bit-exact elsewhere) but INFLATES tiny-d/large-DG trees — compounding the d10 error. NOTE: shared code
+   (southern/mortality.jl) — a "fix" to the simple form risks the bit-exact large-tree stands; needs care.
+
+⇒ #140 DRILL CONCLUDED. It is a NARROW deterministic residual (catastrophic only on rare hyper-dense all-0.1"-
+inventory BM stands; most BM stands bit-exact). Root = jl's BM sub-inch seedling HEIGHT growth not suppressed on
+the ultra-dense cohort (+ a secondary _mort_traj_g inflation). SIX hypotheses refuted by measurement this session
+(crown, large-tree-DG, bark, SDIMAX-resolution, SDIMAX-collapse, dthresh) — the deterministic path is faithful at
+every OTHER layer. The full fix is BLOCKED by the FVSVOL DEBUG-mode cycle-0 live crash (need live's regent htgr +
+morts tn10 to validate) — resolving that live crash (crash-doctrine) is the prerequisite. Cluster status unchanged:
+bit-exact-or-cornered; #140 is a rare-stand residual, now fully understood.
