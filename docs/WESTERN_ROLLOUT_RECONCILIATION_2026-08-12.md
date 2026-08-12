@@ -761,3 +761,23 @@ Traced #140 to the BM SDIMAX plant-association resolution, and separated the cor
 mis-resolves — most benign, some catastrophic (CLS417 −72% TPA). NEXT (jl-side): dump jl's stand_sdimax + resolved
 ecoclass for 12777466 (confirm ~0), then port live's bm/sitset.f fallback (Region-6 default ISISP=10 PP SDIMAX, NOT
 0/collapse) for empty-ecocls stands. Distinct from the cornered realization straddle on resolves-OK stands.
+
+## #140 CLS417 — SDIMAX hypothesis REFUTED (6th this session); real driver is the self-thin d10 (Zeide grown-QMD)
+
+Instrumented jl's bm_sitset! + self-thin for 12777466(CLS417, over-thins −72%) vs 12781342(CLS418, bit-exact):
+- **SDIMAX is CORRECT & IDENTICAL for both**: bm_sitset! → pcom=CWG113(default), isisp=10, sp_sdi_def=[395,384,446,
+  555,395,...] — the values the code comment says were MEASURED against instrumented FVSbm. So last turn's "17%
+  resolution-failure → SDIMAX collapse to 0" root is REFUTED: sp_sdi_def is 395-555 (never 0), matching live.
+- **Real driver = the self-thin d10**: CLS417 self-thin dump: sdimax=391.7, dia0=0.3, **d10=2.781**, tt=26988,
+  tn10=2597, tokill=24391. Live keeps ~10468 ⇒ live tn10≈10468 ⇒ live d10≈1.17 (tn10∝d10^-1.605). jl's d10=2.781
+  is ~2.4× too high ⇒ tn10 catastrophically low ⇒ over-kill. (CLS418: sdimax=527, dia0=3.21, d10=3.684 — a normal
+  large-tree stand, bit-exact.) d10 = (Σ pr·(d+g)^1.605/tt)^(1/1.605), g=_mort_traj_g(per-tree DG). ⇒ the divergence
+  is the grown-diameter (d+g) on this DENSE SUB-INCH cohort (dia0=0.3, tt=26988): either the regen DG isn't
+  bit-exact for these trees, or the dthresh/g-trajectory over-inflates d10 vs live. The self-thin's d10^-1.605 is
+  HYPER-sensitive at sub-inch QMD (small d10 error ⇒ huge tn10 swing ⇒ the −72% magnitude).
+
+⇒ HONEST STATUS: #140 SDIMAX path is CORRECT (matches live). The CLS417 catastrophe is a self-thin d10 (Zeide
+grown-QMD) over-estimate on dense sub-inch cohorts — likely the DGSCOR/ZZRAN d10-realization amplified by the
+sub-inch d10^-1.605 sensitivity (#142 cornered class), though a deterministic regen-DG/dthresh difference isn't
+excluded. NEXT: bm/dgf.f DEBUG dump on CLS417's sub-inch trees (is the regen DG bit-exact there?) + compare jl
+dthresh to live morts.f. Corrects the last-2-turns' SDIMAX framing.
