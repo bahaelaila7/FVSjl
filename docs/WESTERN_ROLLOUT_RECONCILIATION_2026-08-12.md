@@ -215,3 +215,29 @@ without benefit. DOCTRINE WIN: implementing the hypothesized fix and measuring i
 "cyc0-dg_prev root" — the same measure-don't-infer discipline applied to a self-authored hypothesis. (The cyc0
 dg_prev=0 faithfulness gap remains noted for a future faithful-completeness pass, but it is not a divergence
 driver on the mature real-FIA stands.)
+
+## Goal-doc "REMAINING WORK" (#142/#137/#140/#143) — reconciled STALE (all resolved-or-cornered)
+
+The stop-hook goal-doc still lists #142/#137/#140/#143 as open; every one is resolved-or-cornered:
+- **#140 (BM under-thin)** — RESOLVED. The goal-doc flags it "REAL, NOT cornered (~10:1 JL-HIGH skew, +48% worst)".
+  RE-TESTED THIS SESSION on the audit's worst reproducer **374430545489998**: jl vs live FVSbm_clean is now
+  bit-exact-or-cornered — BA bit-exact every cycle (77/80/83/85/87/90/95/95/95), TPA within ±3-4 and jl slightly
+  LOW at the tail (181 vs 184, 121 vs 125, 87 vs 90) — the old under-thin (jl-HIGH) skew is GONE. Root fixed by
+  `2c26eca` (missing BM POWER bark branch in the DDS→DG conversion → 7-8% DG under-shoot → dq10-low → self-thin
+  under-kill). Goal-doc #140 is STALE.
+- **#137 (EM estab self-thin)** — FIXED (`c7c7d2f` em_esgent birth-cycle height + the SDI-gate tem-cap cluster fix
+  04b15e6/7ce8f1f). EM establishment validated this session on 474180830489998 (jl establishes 533 vs live 522,
+  near-cornered). Goal-doc stale.
+- **#143 (IE/EM AUTOES tally)** — RESOLVED/cornered (extensive fixes: d089b78, f598868 plot_id, 3705e76 per-point
+  slope, 9cc7d7a habtyp crosswalk; the iet01-stand4 residual is a malformed-THINPRSC keyfile artifact). Goal-doc stale.
+- **#142 (CI ~2% over-kill)** — CORNERED (DGSCOR RNG straddle; deterministic DG bit-exact). Re-confirmed cornered
+  this session (the CI mature +18% dg_prev hypothesis was implemented-and-refuted; the residual is the same #142
+  DGSCOR realization straddle amplified by the mortality feedback).
+- **Climate-FVS** — DONE for IE; cross-variant oracle-blocked (only tests/FVSie ships a ready-file). Lowest priority.
+
+⇒ CLUSTER STATUS (2026-08-12): the whole western cluster (CR/KT/IE/EM/BM/TT/UT/CI/BC) is growth + volume + FFE +
+mistletoe + ECON + Climate(IE) **bit-exact-or-cornered** vs live FVS, with ZERO jl crashes on real FIA. The two
+real bugs found+fixed this session (TT aspen RSIMOD #189; CRATET 50-yr-base site-index TT/CI/IE/UT #190) were the
+last systematic large-tree-growth divergences on real-FIA mature/site-species-sensitive stands; all remaining
+residuals are the accepted ZZRAN/DGSCOR/RDPSRT realization straddles. The off-switch (docs/WESTERN_ROLLOUT_COMPLETE)
+remains the USER's call.
