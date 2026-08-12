@@ -1197,3 +1197,17 @@ live. Needs the IE MAPR6/JTYPE tables (ie/habtyp.f). This is the #143 IE tally-o
 gap); DISTINCT from the multi-plot ESRANN per-plot desync (the milder cornered part) and from the now-fixed OCURNF
 occupancy. So #143 IE tally = (a) habtyp-crosswalk for the establishment ihab [FIXABLE, this finding] + (b) ESRANN
 per-plot desync [cornered]. Reproducer /workspace/.iework/ie_sweep/177562547020004.
+
+## #143 IE tally outlier — REFINED: jl's ie_habtyp differs from live's MAPR6→JTYPE for code 639 (NOT a 1-line fix)
+Tested the "use the mapped code" fix: jl ie_habtyp(639)→ITYPE=19→IE_MTYPE=620 (NOT live's 260); ie_estab_indices(620)
+→ihab=13 (still not live's 3). So jl's single-bracket ie_habtyp (IE_JTYPE 95-bracket → KTYPE → ITYPE) does NOT
+reproduce live's TWO-LEVEL habtyp.f crosswalk (NITYPE=MAPR6(KODTYP); KODTYP=JTYPE(NITYPE)=260) for code 639. jl is
+missing the MAPR6 level (raw-code→representative-code aggregation) that maps 639→260. This is why the IE
+establishment ihab is wrong (11 or 13, vs live 3). CAVEAT: jl IE GROWTH was validated bit-exact-or-cornered on
+real FIA, so either (a) few real stands hit the mismatched codes, or (b) establishment uses a habitat mapping
+distinct from growth's — needs checking which live routine emits "MAPPED TO 260" (habtyp.f MAPR6 vs an estab-
+specific map). ⇒ the IE tally-outlier fix = port live's MAPR6 crosswalk (ie/habtyp.f) into jl's ie_habtyp so
+639→260, then feed the mapped code to the establishment ihab (mirror EM_JTYPE). Bigger than expected (MAPR6 table).
+DISTINCT from the now-fixed OCURNF occupancy (which made BA exact regardless — the wrong-ihab establishes MORE trees
+of the RIGHT slow species, so TPA over-counts but BA stays ~exact). ⇒ #143 status: BA-over-growth FIXED cluster-wide
+(OCURNF); TPA-tally residual = habtyp-MAPR6-crosswalk (this) + ESRANN per-plot desync (cornered) — a focused chunk.
