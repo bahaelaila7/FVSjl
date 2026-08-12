@@ -1361,3 +1361,15 @@ dgfasp.f), the divergence is in the MEASURED aspen DDS (from the FIA DG field) o
 calibration per-tree loop — dump jl's measured DDS + predicted DDS per aspen tree vs FVStt_g16 (readdgf/dgdriv DEBUG),
 find why jl's measured/predicted ratio is inverted vs live. This is the "land together" root (the earlier
 sub-1"/DGFASP-RMSQD framing is superseded). Distinct from #142.
+
+## #191 final narrowing — the inverted COR is in the MEASURED aspen DDS, not predicted/RMSQD
+Ruled out the calibration-RMSQD candidate: FVS backdates RMSQD in the calibration too (dense.f LBKDEN, D=WK3(I) at
+:184 ⇒ RMSQD from backdated D), so jl's backdated calibration RMSQD (2.495) MATCHES FVS. Predicted aspdg formula+
+coeffs+inputs match. ⇒ the corv sign inversion (jl +1.17 boost vs live 0.94 reduce) must be in the MEASURED aspen
+DDS or the per-tree residual (sny/snp): jl's measured aspen growth-vs-predicted reads much higher than live's. The
+measured DDS derives from the FIA DG field (past dbh, DG_TRANS/DG_MEASURE) via a bark/period conversion — a likely
+aspen-specific error there (bark ratio, the DG→DDS conversion, or the measurement-period FINT) would inflate jl's
+measured aspen DDS. NEXT (the fix step): instrument the calibration per-tree loop for aspen — dump jl's per-tree
+(measured_DDS, predicted_DDS, DG-field value, bark, period) vs FVStt_g16 readdgf/dgdriv DEBUG; align the measured
+aspen DDS. This is the precise, corrected #191 root (supersedes both the sub-1"/DGFASP-RMSQD and the calibration-
+RMSQD framings). Bounded next-session task.
