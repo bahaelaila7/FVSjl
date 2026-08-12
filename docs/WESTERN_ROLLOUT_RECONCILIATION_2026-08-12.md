@@ -67,11 +67,13 @@ TT/EM accelerator/CCF), jl vs live FVS{v}_clean, multi-cycle — confirming NO r
   ⚠ CORRECTION (#189, supersedes the earlier "cornered" verdict below): a per-tree trace (jl FVSJL_TTSM vs
   FVStt_g16 NOTRIPLE treelist) shows it is a REAL small-aspen HEIGHT over-growth, NOT cornered — jl grows sub-1.8"
   aspen ~9 ft height / 1.5" DBH per cycle vs live 0-4 ft / 0-0.3" (~2.5× over). Large-tree DG + SMDGF coeffs ARE
-  faithful (refuted/matched), but jl's aspen SMHTGF uses the inverse-height sitage=(h/26.9825)^(1/1.1752) whereas
-  live's tt/smhtgf.f CASE(6) gets SITAGE from CALL FINDAG (+HTMAX cap) ⇒ jl over-predicts tiny-aspen HTGR. Aggregate
-  only +20% BA / TopHt-bit-exact because sub-1.8" aspen are few+tiny. OPEN (#189): port live's FINDAG SITAGE/HTMAX
-  for aspen, re-validate 3189335010690. LESSON (doctrine #2): the "cornered" call was inference; the per-tree
-  MEASUREMENT exposed a real ~2.5× bug. Aspen-specific; conifer TT stands bit-exact-or-cornered.
+  faithful (refuted/matched). ★ ROOT + FIX (f1bf1a2): jl's aspen SMHTGF OMITTED the aspen(sp6)-only RSIMOD site
+  modifier (tt/regent.f:521-527: RSIMOD=0.5·(1+clamp((SITEAR(6)−30)/70,0,1)); HTGRL·=RSIMOD). INERT on high-site
+  aspen (RSIMOD=1, why ttt01/3189335010690 "validated bit-exact") but low-site (SITEAR=42→0.586) over-grew small-
+  aspen height ~1.7×. VALIDATED: 753175613290487 BA over-growth +20%→+7%, QMD 8.3→7.7 (live 7.4), TopHt bit-exact;
+  ttt01 UNCHANGED. Residual +7% = a secondary alive-small-aspen HT_INCR=0 gate (live suppresses some tall-thin small
+  aspen to 0; open, few trees). LESSON (doctrine #2): I'd committed a wrong "cornered" verdict; the per-tree
+  MEASUREMENT exposed a real ~2.5× bug and a fixable missing modifier. Aspen-specific; conifer TT stands cornered.
 - **EM**: TopHt BIT-EXACT (75/75, 52/52, 59/59); BA −14/+3/+5%.
 
 TopHt (the sensitive top-percentile metric) is bit-exact-or-±2 on all 18; BA sits in the
