@@ -907,3 +907,26 @@ regimes). This session's ledger:
 - Extensions: FFE/mistletoe/ECON done; Climate-FVS oracle-blocked (inert w/o ready-file).
 The remaining residuals are entangled (#191), blocked (#140), deep-RNG (#143), or oracle-blocked (Climate). The
 landable growth+volume work has CONVERGED; each residual is precisely localized with a documented next step.
+
+## Climate-FVS — STATUS CORRECTED (goal-doc STALE) + real clgmult over-suppression found
+
+The goal-doc lists Climate-FVS as "TODO (largest remaining extension; inert w/o ready-file)." MEASURED: it is
+FULLY PORTED + WIRED and runs end-to-end. src/engine/climate.jl (489 lines) implements the CLIMDATA reader
+(parse_climdata, validated), clgmult (Leites transfer-distance XDF/XWL/XPP + xgsite + vscore → PS → TREEMULT),
+clmorts, clmaxden, clim_autoestb!; wired via apply_climate_schedule! (simulate.jl:423) + apply_climate_dds!
+(southern/diameter_growth.jl:1063 scales large-tree DDS by TREEMULT) + clim_autoestb! (simulate.jl:582). The
+climate.jl header "NOT YET WIRED" comment is STALE (predates the wiring).
+
+VALIDATION vs live FVSie_clean on the CGCM3_A2 scenario (clim_iet.key, stand S248112, 10 cycles), isolated against
+the identical no-climate base (base2_iet.key, climate blocks stripped):
+- Cycle-0 (1990) BIT-EXACT (536 TPA / 77 BA) both base and climate.
+- BASE tail: jl vs live = the known cornered S248112 straddle (2080 BA jl 250 vs live 241, +3.7%; TPA ±2).
+- CLIMATE EFFECT (clim−base) at 2000: jl BA −8.8% / TPA −4.9% vs live BA −6.1% / TPA −2.5% ⇒ **jl's climate
+  suppression is ~2× live's**, and BA drops MORE than TPA ⇒ the **clgmult GROWTH multiplier (TREEMULT) over-
+  suppresses** (smaller trees + some extra self-thin), not primarily mortality.
+
+⇒ Climate-FVS is ~90% there (ported/wired/running/cyc0-exact) but has a REAL clgmult over-suppression (~2× the live
+growth reduction). NEXT: trace jl's per-species PS = min(xgsite, xrelgr, vscore) and TREEMULT=1+(PS−1)·CLGROWMULT
+vs the live clgmult echo (FVSie DEBUG CLGMULT) for S248112/PSME at 2000 — likely xrelgr (XDF transfer-distance) or
+vscore differs. This is a NEW, concrete extension bug (the goal-doc's Climate-FVS "TODO" is really "port done,
+validate+fix the growth multiplier").
