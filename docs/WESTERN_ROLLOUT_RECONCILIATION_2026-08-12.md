@@ -1108,3 +1108,21 @@ Instrumented jl small_tree_growth! EMVAR (regent.jl:363) vs live scoped-REGENT-D
   trace (ZRAND draws + subcycle count + estab timing). Reproducers durable at /workspace/.emwork/sweep_val/;
   live scoped-REGENT-DEBUG works on these real stands (no SIGFPE, unlike synthetic em_dense). Deep — defer to a
   focused session. NOTE: NOT this session's crown-dub/crash fixes (bare stands, inert).
+
+## #143 EM — ROOT NAILED: jl AUTOES establishes the WRONG SPECIES (IE species-selection model applied to EM)
+Traced the #143 EM regen over-growth to its actual root (NOT growth-model, NOT RNG-desync — those were faithful):
+jl's EM AUTOES ESTABLISHES THE WRONG SPECIES. On 488938604126144 (habitat 260): live establishes DF(sp3, 2028
+SMHTGF draws) + LP(sp7, 293) [from scoped-REGENT-DEBUG ISPC histogram + the em species table]; jl establishes
+PP(sp10) [from the small_tree_growth! sp=10 dump]. IE and EM species INDICES ALIGN (DF=3, LP=7, PP=10; ie_autoes
+assigns the tally species index directly to t.species at inlandempire/establishment.jl:1283), so the divergence is
+the SPECIES-SELECTION itself: jl's ie_autoes_tally (IE's ie_espadv/espxcs per-species probabilities + IE OCURHT
+habitat-occupancy) selects PP for EM habitat 260, whereas live's EM AUTOES (em/estab.f) selects DF+LP. PP's
+small-tree htg1 (beta1+beta2·90 ≈ 4.22) is ~2.8× DF's (≈1.50), so growing the regen as PP instead of DF ⇒ the
+QMD 2.4×/BA 6.5× over-shoot (0.1→5.9 vs live 0.1→2.5). ⇒ #143 EM ROOT = the shared ie_autoes uses IE's
+species-selection probabilities/habitat model, which is WRONG for EM; EM needs its OWN AUTOES species-selection
+(em/estab.f habitat→species probabilities). The height MODEL, the ZRAND clamp ([-2,2] both, regent.f:286), and the
+ESRANN LCG are all FAITHFUL — the bug is purely WHICH species establishes. This SUPERSEDES the "growth over-prediction"
+and "per-plot ESRANN desync" framings for the GROWTH magnitude (the ESRANN desync may still explain the mild +12%
+TPA tally, but the 6.5× BA is the species-selection). FIX (substantial): port EM-specific AUTOES species selection
+(em/estab.f) instead of sharing IE's. Reproducers /workspace/.emwork/sweep_val/. Measurement chain: sweep→per-cycle
+QMD→jl-growth-debug(sp10)→live-scoped-REGENT-DEBUG(ISPC 3+7)→species-table(PP vs DF/LP).
