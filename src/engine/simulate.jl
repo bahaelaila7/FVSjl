@@ -80,6 +80,11 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa InlandEmpire
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
+        compute_density!(s)               # current-stand density for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (ie/crown.f).
+                                          # Was MISSING (like EM; #137 sibling) ⇒ missing-CR seedlings kept crown_pct=0
+                                          # ⇒ ie regent HTG1=beta1+beta2·cr loses the crown term ⇒ never cross 4.5'
+                                          # ⇒ DBH skipped ⇒ QMD frozen. IE's crown model already dubs d<3 at lstart.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa EasternMontana
         em_dgcons!(s)                     # EM DGCON/DGDSQ/DGCCF (DGHAB+DGFOR+MAPDSQ+elev/slope-aspect+site adj), ATTEN=OBSERV
