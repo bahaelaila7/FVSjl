@@ -1306,3 +1306,12 @@ HTGRL regression (SRLHT·RELHT). EM/TT use the Wykoff crown form HTGRL=BETA1+BET
 use POTHTG·PCTRED·VIGOR. The other variants' only avh use is xd=avh·(relden/100) (the PCTRED density arg) or EM's
 delmax — both relden-GATED, so ~inert on bare-plant stands (relden≈0). ⇒ no cluster-wide extension of eb3395b
 needed; the earlier "likely applies to EM/UT/TT/BM/IE" note is RETRACTED.
+
+## #194 — birth-cycle HTGRL now MATCHES live for BOTH species (fix eb3395b confirmed correct)
+Extracted live's per-species birth HTGRL from FVSci_g16 cibare_dbg.out: DF(sp3)=5.25799847, LP(sp7)=8.24845219
+(each tree grows in ONE REGENT step, no KPER loop). With the RELHT=1.5 fix, jl reproduces both: DF 1.599+1.36·1.5+
+0.02·81=5.259; LP 2.134+2.559·1.5+0.0593·81−0.43·9+1.345=8.251 (≈ live within Float32). So the birth-cycle height
+growth is now faithful. The residual (cibare cyc0 TopHt 11 vs live 12 → BA 72 vs 89 @cyc4) is therefore NOT the
+HTGRL regression — it's downstream: (a) the DBH assigned at the 4.5' crossing / DDS accumulation for the just-grown
+regen, and/or (b) the ongoing small_tree_growth! in later cycles. = the CI "SMHTGF small-tree" tail (goal-doc item
+6, unmeasured). Precisely scoped for a focused next session; the birth-cycle HTGRL itself is settled.
