@@ -13,15 +13,17 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
 - **BC** (British Columbia) ★★ METRIC growth+volume AT-BAR (2026-08-12) — total cubic validated (all_BC); the
   metric .sum merch column is STRUCTURALLY 0 = FAITHFUL to live (metric vols.f computes merch into WK1 but never
   loads MCFV; summary.jl:387 `met && mcuft=0` mirrors it — MEASURED, do NOT remove). BC merch COMPUTATION works
-  (bc_tree_vol vm~2 ft³/tree). ★ 2026-08-12 RE-MEASURED #196 (corrects earlier scoping): summary.jl write_sum_row
-  `metric` flag is FORMAT-ONLY (7I6 vol block dropping the sawlog col vs imperial 9I6) — converts NO unit values;
-  units come from what the ENGINE stored. BC V2/inline-TREEDATA path ALREADY stores+reports IMPERIAL and the
-  v2_e2e_validate test PASSES vs the imperial all_BC_essf.oracle.sum (TopHt 89ft/QMD 15.8in — the "metric/ha"
-  code-comment is a MISLABEL). The ACTUAL remaining gap is NARROW: the metric-DATABASE input path (YSM-SkyRanch V3/ICH)
-  reports METRIC (5683/ha,18.5cm) where live converts metric-DB input→English and reports IMPERIAL (2300/acre,7.3in;
-  cyc0 exact-converted ×2.47/×2.54). FIX (fresh focus, #196): convert BC metric-DB read→English (or add an English
-  summary path for the DB case) + imperial MCFV merch + BFVOL board; validate vs YSM-SkyRanch.sum.save; must not
-  regress the PASSING v2_e2e imperial or all_BC metric harness. LOW priority. + V2/non-ICH.
+  (bc_tree_vol vm~2 ft³/tree). ★★ 2026-08-12 REAL BUG FOUND+FIXED (42eb555) — BC metric-DATABASE input converted
+  NOTHING. Corrects two earlier WRONG scopings (the BC oracles are METRIC, not imperial — the all_BC_essf "TopHt
+  68" is 68 m; a 224 ft tree is impossible — and jl's metric .sum is the CORRECT target). The DATABASE reader
+  (apply_fia_trees!) ingested the metric FVS_TreeInit (cm DBH, m HT, trees/ha) with NO conversion, unlike the
+  inline path (treeinput.jl:82) ⇒ YSM-SkyRanch cyc0 .sum was ~2.5× off. FIX = (1) cm→in/m→ft on ingest (metric=true,
+  intree.f:302-306) + (2) trees/ha→trees/acre on raw PROB (×ACRtoHA 0.40468564). VALIDATED cyc0 vs YSM oracle:
+  TPA 5683→2300, SDI 3428→311, TopHt 3→9, QMD 18.5→7.3 — TPA/SDI/TopHt/QMD now BIT-EXACT (BA 10/9, CCF 60/62 = NINT);
+  v2_e2e inline guard still passes (unaffected). REMAINING #196 (now UNMASKED, separate): YSM multi-cycle tail —
+  jl UNDER-mortalizes (2077 TPA 1713 vs oracle 1366, mort 50 vs 225) + over-grows BA 79 vs 42 / SDI 1586 vs 926 on
+  this dense metric-DB stand (a real BC mortality/self-thin or DM-mort gap, previously hidden by the units bug).
+  + V2/non-ICH. (The imperial-output alt-mode is likely MOOT — the BC oracles are metric.)
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
