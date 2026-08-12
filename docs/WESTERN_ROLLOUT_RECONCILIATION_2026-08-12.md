@@ -1412,3 +1412,15 @@ different endpoint DG, (c) the DDS→diameter conversion for aspen. NEXT (bounde
 compare jl vs FVStt_g16 (D, BA, ASPDG, applied dg_cor, resulting dg) on a few aspen across the size range at cyc1 —
 find which trees over-grow their DBH. NOTE tripling fires (25 recs ≤ MAXTRE/3) so use the pre-split window or the
 per-DBH-class .sum distribution, not the raw treelist. The DGFASP-RMSQD/COR half stays RESOLVED (42f4860, bit-exact).
+
+## #191 residual — BA-basis RULED OUT; candidate is the COR-clock (needs NOTRIPLE per-tree compare)
+tt/dgf.f:565 `CALL DGFASP(D,ASPDG,CR,BARK,SI,DEBUG)` passes NO BA — DGFASP reads BA from the common block (= the
+current stand BA at growth), so jl's `ba = p.basal_area` matches live. BA basis ruled out. With aspdg (predicted),
+COR (1.1062), BA, AND TopHt all matching yet asp.key BA +6% at cyc1 (uniform ~1.5%/tree DBH over-growth, TPA exact),
+the remaining candidate is the DGSCOR COR-CLOCK: jl applies the full corv (dg_cor=1.1062, TTAPPLY-verified at cyc0)
+at growth; if live ATTENUATES the applied COR per cycle (autcor.f decay, dg_cor_goal=0.5·corv) differently than jl's
+line-1046 evolution, jl's applied DG is higher → uniform over-growth. (For CI #142 jl's COR-clock matched live at
+0.05693; the large TT-aspen COR 1.1062 may expose a decay difference.) NEXT (bounded, decisive): asp_tl.key gives a
+per-tree treelist; run jl NOTRIPLE (or the pre-split window) and compare per-aspen-tree DBH growth 2019→2029 to live
+asp_tl.out — measure jl's vs live's APPLIED COR/DG per cycle. This isolates COR-clock vs a DDS→diameter/other factor.
+The DGFASP-RMSQD/COR half stays RESOLVED (42f4860). Residual is small (+6-9% BA on one aspen stand) and bounded.
