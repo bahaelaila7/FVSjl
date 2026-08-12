@@ -82,10 +82,16 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
   ecoregion-stratified sweep AFTER this session's fixes (pvref1/ci_esgent/aspen/crown-dub/OCURNF/#195/BC-DB-units)
   across ~90 stands, IE/EM/CI/BM/CR/UT/TT (KT=0 FIA stands, native-key; BC=metric): PURE-GROWTH bit-exact-or-cornered
   cluster-wide, **ZERO jl crashes**, NO regression. IE cyc0 14/14 bit-exact (pvref1 validated at population scale).
-  The ONLY notable multi-cycle divergence = the pre-existing documented TT #158 dense small-tree regent gap
-  (533757478126144 TPA 4055/7084, 1629326355290487 BA 19/43 — both dense small-tree). ⇒ the "full FVS-ready FIA
-  sweep" co-goal is SATISFIED for the current code. NEW leads (management-regime only, task #197): jl THINBBA-from-
-  below over-thins dense stands + AUTOES over-establishes post-canopy-opening-thin (NOT the pure-growth model).
+  The ONLY notable multi-cycle divergence = TT dense small-tree stands (533757478126144 TPA 4055/7084,
+  1629326355290487 BA 19/43). ★★ 2026-08-12 (later) — 1629326355290487 ROOT-CAUSED + FIXED as #198 (862f320),
+  NOT #158: jl's crown_ratio_update!(::Teton) applied the rank-Weibull to DBH<1" INVENTORY SEEDLINGS at LSTART, but
+  tt/crown.f:237 routes them to DUBSCR (small-tree logistic on BA/per-POINT-PCCF/top-40-AVH/RMAI). Ported tt/dubscr.f
+  + MAICAL/ADJMAI; root-caused by FVStt_g16 DEBUG-DUBSCR dump (live CR 58/17/15/32 = per-point PCCF; solved
+  BA=134.7/AVH=57.5/RMAI=31.2 reproduce exactly). Repro BA now tracks live early (2040 303/309, was 19/43); also
+  fixed a latent RNG-misalign (jl skipped the FCR bachlo draw ⇒ mis-aligned on ANY d<1-inventory stand). Residual =
+  mid-cycle self-thin straddle (cornered-class); ttt01 within ~2%. ⇒ the "full FVS-ready FIA sweep" co-goal is
+  SATISFIED. NEW leads (management-regime only, task #197): jl THINBBA-from-below over-thins dense stands + AUTOES
+  over-establishes post-canopy-opening-thin (NOT the pure-growth model).
 
 ## ★★ 2026-08-12 (later session) — CLUSTER MILESTONE: whole western growth+volume bit-exact-or-cornered; 5 fixes
 Landed 5 measured fixes + reached the CI bar: (1) IE #143 pvref1.f habitat crosswalk (00d36b0) — jl FIA reader used
