@@ -11,7 +11,11 @@ DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cl
   strict site-species — DB sweep 1/40→39/40; every residual bit-exact or measured accepted primitive).
 - **KT / IE / EM / BM / TT / UT** ★★ growth+volume bit-exact-or-cornered.
 - **BC** (British Columbia) — growth+yield complete; remaining: merch/board vol, V2/non-ICH.
-- **CI** (Central Idaho) ◐ IN PROGRESS — 9/9 chunks running, cit01 1990 bit-exact; refinement tail OPEN.
+- **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
+  @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
+  ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
+  only (#142 ~2% over-kill, #194 transition). ⇒ WHOLE WESTERN CLUSTER (CR/KT/IE/EM/BM/TT/UT/CI + BC growth) now
+  bit-exact-or-cornered for growth+volume.
 
 ## Systematic DG-calibration dispatch audit — COMPLETE (2026-08-05)
 Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant branches:
@@ -38,6 +42,19 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
   60-stand slice → 9+ treed, cyc0 8/9 bit-exact, 0 crashes (monotone partial; no regression from IE_PSIGSQ).
   Both variants bit-exact-or-cornered with ZERO jl crashes on real FIA data. Harness: extract_sample.jl + the
   generalized scratchpad/fia_sweep_check.jl (any variant, reusable cluster-wide).
+
+## ★★ 2026-08-12 (later session) — CLUSTER MILESTONE: whole western growth+volume bit-exact-or-cornered; 5 fixes
+Landed 5 measured fixes + reached the CI bar: (1) IE #143 pvref1.f habitat crosswalk (00d36b0) — jl FIA reader used
+the RAW PV_REF_CODE as habitat; unrecognized→260; TPA 809→203=live. (2) CI #194 ci_esgent birth-cycle RELHT →
+pre-regen ATAVH (eb3395b) — HTGRL=live. (3) TT #191 aspen DGFASP calibration → CURRENT RMSQD (42f4860) — G16ASP
+proved the whole large-tree aspen chain bit-exact (corv 1.1062 + 5-cycle COR decay = live). (4) TT #191 DKK=D floor
+for sub-4.5' aspen smdgf (929e6a3). (5) #195 generalized the aspen current-RMSQD-in-calibration fix cluster-wide to
+UT/BM/CI/EM/IE (inert-validated). ⇒ #191/#193/#195 COMPLETE; #194 birth-cycle fixed (transition residual converges,
+cornered); CI VOLUME measured bit-exact-or-cornered (merch MCuFt/BdFt exact @cyc0). CI reaches the bar ⇒ ENTIRE
+WESTERN CLUSTER (CR/KT/IE/EM/BM/TT/UT/CI + BC growth) bit-exact-or-cornered for growth+volume. DURABLE LESSONS: any
+RMSQD-using DG must use CURRENT RMSQD in the DGSCOR calibration (like the AVH exception), not stand_qmd on the
+backdated stand; smdgf/H-D DBH increments must floor DKK=D when original H<4.5. Corrected ~a-dozen stale/wrong roots
+by measurement. Off-switch (docs/WESTERN_ROLLOUT_COMPLETE) untouched = USER's call. docs/…RECONCILIATION_2026-08-12.
 
 ## ★ 2026-08-12 SESSION UPDATE — #140 RESOLVED, #137 self-thin EXONERATED, Climate-FVS DONE
 Two of the four listed "remaining" items are now RESOLVED-or-reframed by end-to-end measurement (via the new
@@ -66,7 +83,8 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
    dense-regen straddle" (cornered; straddles ~0 across stands per the 2026-08-03 FIA-sweep memo) → MEETS the bar.
    ★ HARD LESSON: `each_stand` returns PRE-calibration state (sigma/cor=0) — measure calibration-dependent quantities
    in the REAL run only. 2 real adjacent bugs FIXED (faithful, .sum-inert cit01): 0fa9677 bark branch, 3b9aa35
-   CI_PSIGSQ branch. STILL open (unmeasured): volume MATW/FW2W · SMHTGF small-tree stochastic. Oracle FVSci_clean.
+   CI_PSIGSQ branch. ★ 2026-08-12: volume MATW/FW2W now MEASURED = bit-exact-or-cornered (see item 6); the SMHTGF
+   small-tree part = #194 transition residual (converges/cornered). CI volume no longer open. Oracle FVSci_clean.
    ★ 2026-08-05 SETTLED: the EM/IE growth-only ~7%-BA-by-2090 compounding OVER-GROWTH tail is CORNERED, not a bug.
    Full-precision cyc0-DG test (live EM D@ICYC=2 vs jl exact d2000, NOTRIPLE): per-tree DG diffs are real ~0.5-0.8%
    (large-tree) but MIXED-SIGN and mostly-cancelling (aggregate BA bit-exact) = the accepted RDPSRT/AVHT40 BA-
@@ -110,7 +128,10 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
    #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
 5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
-6. **CI volume tail** — MATW/FW2W merch volume + SMHTGF small-tree stochastic (unmeasured), on cit01. Oracle FVSci_clean.
+6. **CI volume tail — ★ MEASURED 2026-08-12: bit-exact-or-cornered.** cit01 merch volume BIT-EXACT @cyc0 (MCuFt
+   833/833, BdFt 3912/3912; TCuFt 1541/1540=1-NINT). The multi-cycle ~1-3% divergence EXACTLY tracks the BA/TPA
+   growth divergence ⇒ the accepted #142 DGSCOR/growth straddle PROPAGATING into volume, NOT an independent vol bug.
+   The "SMHTGF small-tree stochastic" part = the #194 transition residual (converges, cornered). ⇒ CI volume DONE.
    (#140 BM, #137 EM self-thin, and Climate-FVS are RESOLVED/exonerated/done — see the SESSION UPDATE above.)
 
 ## DOCTRINE (hard-won — carry from the FIA campaign)
