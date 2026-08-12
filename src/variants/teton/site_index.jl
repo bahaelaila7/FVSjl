@@ -81,10 +81,40 @@ function tt_habtyp(kodtyp::Integer)::Int32
     return Int32(0)   # CRDECD IHB=-1 (no valid code) → HABTYP leaves ITYPE 0 (default)
 end
 
+# tt/cratet.f:117-142 — adjust SITEAR to a 50-YEAR age base for the species whose growth
+# equations were fit on a 50-yr-base site index: WB/LM/LP/OS (1,2,7,17) via Alexander-Tackle-
+# Dahms 1967 (RM-29), BS/ES/AF (5,8,9) via Alexander 1967 (RM-32). CRATET does this ONCE at
+# init, AFTER SITSET, using stand CCF (TEMCCF, floored at 125). Uses ONLY DBH (open-grown CCF),
+# so it is valid at site_setup! time (trees loaded, crowns not yet). Inert when the site species
+# is DF/PP/etc (not in the set) — which is why ttt01 (DF-dominated) was bit-exact without it, but
+# an FIA stand whose SITE_SPECIES is LP/WB/… over-grew large-tree DG (raw SI feeds DGCON DGSIC·XSITE).
+function tt_cratet_site_adjust!(s::StandState)
+    p, t = s.plot, s.trees
+    temccf = 0f0
+    @inbounds for i in 1:t.n
+        t.tpa[i] <= 0f0 && continue
+        temccf += tt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # CCFCAL MODE=1 × PROB
+    end
+    temccf < 125f0 && (temccf = 125f0)
+    @inbounds for sp in 1:nspecies(s.variant)
+        si = p.sp_site_index[sp]
+        if sp == 1 || sp == 2 || sp == 7 || sp == 17          # Alexander-Tackle-Dahms (RM-29)
+            p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * 50f0^2 -
+                0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si -
+                0.0000455f0 * 50f0^2 * si
+        elseif sp == 5 || sp == 8 || sp == 9                  # Alexander 1967 (RM-32)
+            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * si^0.83312f0) *
+                (1f0 - exp(-0.015701f0 * 50f0))^(22.71944f0 * si^(-0.63557f0))
+        end
+    end
+    return s
+end
+
 function tt_site_index_setup!(s::StandState)
     tt_forkod!(s.plot)          # IFOR → p.forest_idx (DG DGFOR/DGDS); IGL → p.geo_location
     s.plot.habitat_input = tt_habtyp(Int(s.plot.habitat_code))   # KODTYP → ITYPE (tt/habtyp.f)
     tt_sitset!(s)               # SITEAR (p.sp_site_index) + SDIDEF (p.sp_sdi_def)
+    tt_cratet_site_adjust!(s)   # CRATET 50-yr-base site adjust (WB/LM/BS/LP/ES/AF/OS)
     return s
 end
 
