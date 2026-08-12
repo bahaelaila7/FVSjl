@@ -1481,3 +1481,9 @@ bit-exact-at-cyc0; the "SMHTGF small-tree stochastic" part is the #194 transitio
 +volume is now bit-exact-or-cornered, matching KT/IE/EM/BM/TT/UT — the last IN-PROGRESS western variant reaches the
 bar. Remaining CI residuals (#142 ~2% over-kill straddle, #194 transition, EM sub-inch class) are all cornered/
 accepted. Oracle FVSci_clean.
+
+## #195 validation COMPLETE across all touched variants
+Confirmed the cluster-wide aspen-RMSQD generalization (1e36671) is NON-REGRESSING on ALL variants it touched:
+utt01/emt01/cit01 BIT-IDENTICAL pre/post; ttt01 unchanged (TT already had the fix); iet01 clean; bmt01 BA
+77/99/121/136/142 = live through 2030 (later = known cornered tail). Inert on the conifer test stands (aspen minor/
+absent), improves aspen-heavy real-FIA. #195 fully validated.
