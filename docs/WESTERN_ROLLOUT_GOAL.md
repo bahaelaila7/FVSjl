@@ -24,9 +24,13 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
 - **DGSD**: all 9 western variants set it explicitly from their grinit.f (2.0 except BM 1.5, CI 1.7). No gap.
 ⇒ No remaining missing-branch bugs in the shared DG-calibration path cluster-wide.
 
-## Extensions matrix
+## Extensions matrix — ALL DONE-OR-CORNERED ✓ (2026-08-12)
 - **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe**: ALL western DONE ✓.
-  **ECON**: DONE ✓.  **Climate-FVS**: TODO (largest remaining extension, lowest priority; inert w/o ready-file).
+  **ECON**: DONE ✓.  **Climate-FVS**: ✓ DONE (~95%, FAITHFUL) — 2026-08-12 line-by-line re-assessment: the
+  CLIMDATA reader + clgmult(growth) + clmorts(viability + SPMORT2 transfer-distance DMORT) + clmaxden + clim_autoestb
+  are ALL ported, WIRED, and cycle-0 bit-exact vs FVSie_clean; `apply_climate_mort!` matches clmorts.f:205-230 line
+  for line. The old "TODO/inert" label was STALE (SPMORT2 was already ported, contradicting a stale in-code comment).
+  Residual = a multi-cycle climate-modified self-thin realization (BA cornered, TPA straddle) — same accepted class.
 - **FIA sweep**: whole-cluster multi-cycle validated (2026-08-03); residuals = ZZRAN/DGSCOR dense-regen straddle.
   ★ 2026-08-05 POST-FIX real-FIA re-validation (docs/WESTERN_FIA_VALIDATION_2026-08-05.md, stands drawn live from
   the 70GB FVS-ready DB by VARIANT): **CI** 25-stand slice → 6 treed, 0 jl crashes, cyc0 5/6 bit-exact, remaining
@@ -35,7 +39,26 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
   Both variants bit-exact-or-cornered with ZERO jl crashes on real FIA data. Harness: extract_sample.jl + the
   generalized scratchpad/fia_sweep_check.jl (any variant, reusable cluster-wide).
 
-## REMAINING WORK — drive each to bit-exact-or-cornered (task-tracker #142/#137/#140/#143)
+## ★ 2026-08-12 SESSION UPDATE — #140 RESOLVED, #137 self-thin EXONERATED, Climate-FVS DONE
+Two of the four listed "remaining" items are now RESOLVED-or-reframed by end-to-end measurement (via the new
+scoped-DEBUG capability that unblocks BM/EM/IE live instrumentation past the fvsvol volume-DEBUG crash — the
+DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG=ALLSUB and crashes):
+- **#140 BM — RESOLVED, CORNERED.** The "consistent under-thin bias" framing in item 3 below is SUPERSEDED. Full
+  chain measured on a dense self-thinner (22960873010497): cyc1 self-thin BIT-EXACT (sdimax/d10/tn10 all match);
+  cyc2 divergence traces to the `bm_dubscr` crown-dubbing bachlo N(0,sd) RNG draw (deterministic cr_arg=1.1765 vs
+  live 1.1742 = BIT-EXACT; only the random draw byte-differs), which cascades crown→vigor→sub-inch HTGR→breast-
+  height crossing→QMD-projection→self-thin (hyper-sensitive). Entire deterministic chain FAITHFUL. = ZZRAN/DGSCOR
+  accepted-RNG-primitive class; sign varies by stand (NOT a fixed under-thin bias). docs/…RECONCILIATION_2026-08-12.
+- **#137 EM — self-thin EXONERATED (faithful); root reframed to EM sub-inch DG.** On the em_dense reproducer the EM
+  self-thin is FAITHFUL (jl tn10=t85d10=29750=live); the divergence is UPSTREAM — jl's EM sub-inch seedlings never
+  accumulate DBH (QMD frozen at the 0.3 DIA0 floor while live climbs 0.3→0.7). MEASURED LEAD (2026-08-12): the
+  em_dense seedlings carry crown_pct=0 in jl, so `_em_smhtgf`'s beta2·cr height term vanishes ⇒ height crawls
+  (h 1.5→2.4 over 2 cycles, never crosses 4.5ft) ⇒ SMDGF never assigns DBH. NEXT: confirm live's crown for these
+  seedlings (jl-cr-dub vs live) — if live dubs cr>0 it's a crown-init bug; NOTE em_dense is SYNTHETIC (40000 TPA),
+  so the real-FIA EM priority is #143. Self-thin needs NO further work.
+- **Climate-FVS — DONE** (see Extensions matrix above; ~95%, faithful, cyc0 bit-exact).
+
+## REMAINING WORK — genuinely open (task-tracker #142/#143/#191/#194 + EM sub-inch DG)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
@@ -48,17 +71,17 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
    Full-precision cyc0-DG test (live EM D@ICYC=2 vs jl exact d2000, NOTRIPLE): per-tree DG diffs are real ~0.5-0.8%
    (large-tree) but MIXED-SIGN and mostly-cancelling (aggregate BA bit-exact) = the accepted RDPSRT/AVHT40 BA-
    percentile/crown-ratio tie-break precision compounding. No fix warranted. (docs/EM_VARIANT_PORT_AUDIT.md)
-2. **EM establishment self-thin over-kill [#137]** (shared with BM #140) — dense-cohort self-thin (SEPARATE from
-   the settled growth-only tail above; the estab stand's cyc0 mortality divergence, still open).
-3. **BM under-thinning [#140]** — ★ 2026-08-05 CORRECTED to a REAL consistent under-thin BIAS (NOT cornered).
-   Multi-stand real-FIA sign-tally: non-self-thinning BM stands BIT-EXACT; actively-self-thinning stands jl
-   under-thins with a ~10:1 skew (10 JL-HIGH Δ +1.3% to +48%, 1 borderline JL-LOW −0.9%). Flips the earlier
-   "cornered tie-break" lean (which over-generalized from bmt01's single −0.3% net). ROOT: jl mortality dq10 runs
-   slightly low → higher T85D10 self-thin target → under-kill, amplified by the QMD-feedback. FIX PATH: instrument
-   jl mortality! vs bm/morts.f on a JL-HIGH FIA stand at the first divergent cycle (dq10/TN10/RN/per-tree-kill).
-   docs/BM_VARIANT_PORT_AUDIT.md. NOTE: distinct from EM/IE's growth-only over-growth tail (that one IS cornered).
-4. **IE AUTOES tally-amount close-out [#143]** — ~22% diffuse residual; validate vs stand4_booktpa on UNMODIFIED FVSie_clean.
-5. **Climate-FVS extension** (clinit/clin/clgmult) — lowest priority.
+2. **EM/IE AUTOES establishment [#143]** — the genuine real-FIA establishment priority. AUTOES over-establishes on
+   bare/establishment FIA stands (IE fixed earlier — d089b78, jl 253→0.1=live; EM multi-cycle AUTOES still open,
+   jl+NOAUTOES bit-exact w/ live). Validate vs stand4_booktpa on UNMODIFIED FVSie_clean. See fvsjl-em/ie memories.
+3. **EM sub-inch small-tree DG** (#137 follow-on) — jl's EM sub-inch seedlings under-grow (QMD frozen) on dense
+   cohorts; measured lead = crown_pct=0 killing `_em_smhtgf`'s beta2·cr term (regent.jl:340-345). Confirm vs live
+   crown-dub; the MIRROR of BM #140 (BM over-grew sub-inch; EM under-grows). Real-FIA impact still to be scoped.
+4. **TT aspen bug PAIR [#191]** — sub-1" regent subcycle over-growth + DGFASP-RMSQD under-growth (entangled; the
+   #158 single-step-suppressed-model port, entangled with DGFASP crown-init). Land together.
+5. **CI bare-establishment regen [#194]** — ci_esgent over-establishment (+282%), same class as the fixed #193.
+6. **CI volume tail** — MATW/FW2W merch volume + SMHTGF small-tree stochastic (unmeasured), on cit01. Oracle FVSci_clean.
+   (#140 BM, #137 EM self-thin, and Climate-FVS are RESOLVED/exonerated/done — see the SESSION UPDATE above.)
 
 ## DOCTRINE (hard-won — carry from the FIA campaign)
 1. Validate vs LIVE FVS oracle, bit-exact per chunk. 2. MEASURE, don't infer — instrument the Fortran.
