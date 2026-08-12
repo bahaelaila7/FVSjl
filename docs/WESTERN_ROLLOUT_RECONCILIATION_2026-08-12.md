@@ -1470,3 +1470,14 @@ it CONVERGES rather than compounding ⇒ a transient realization, not a persiste
 CI SMHTGF small-tree straddle; cit01 the main CI validation is bit-exact-or-cornered). #194 birth-cycle half FIXED;
 this transition residual is at/near the cornered bar. A focused next step (if pursued): instrument the CI small-tree
 dgk vs FVSci_g16 at 2032 for the DF/LP regen crossing XMAX. Distinct from #142 (large-tree DGSCOR).
+
+## CI volume tail — MEASURED bit-exact-or-cornered (completes CI growth+volume)
+Compared cit01 volume columns jl vs live FVSci: cyc0 (1990, pre-growth-divergence) is BIT-EXACT for merch —
+MCuFt 833/833, BdFt 3912/3912 (exact); TCuFt 1541/1540 = 1-NINT rounding. So the CI MATW/FW2W merch+board volume
+EQUATIONS are correct. The multi-cycle divergence (2000+ TCuFt/MCuFt/BdFt ~1-3% under/over) EXACTLY tracks the
+BA/TPA growth divergence (jl BA 99/99 @2000 → drifts) ⇒ it is the accepted #142 DGSCOR/growth straddle PROPAGATING
+into volume, NOT an independent volume bug. ⇒ the goal-doc's "CI volume MATW/FW2W (unmeasured)" is now MEASURED
+bit-exact-at-cyc0; the "SMHTGF small-tree stochastic" part is the #194 transition residual (cornered). ⇒ CI growth
++volume is now bit-exact-or-cornered, matching KT/IE/EM/BM/TT/UT — the last IN-PROGRESS western variant reaches the
+bar. Remaining CI residuals (#142 ~2% over-kill straddle, #194 transition, EM sub-inch class) are all cornered/
+accepted. Oracle FVSci_clean.
