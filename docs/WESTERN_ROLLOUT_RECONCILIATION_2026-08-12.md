@@ -930,3 +930,20 @@ growth reduction). NEXT: trace jl's per-species PS = min(xgsite, xrelgr, vscore)
 vs the live clgmult echo (FVSie DEBUG CLGMULT) for S248112/PSME at 2000 — likely xrelgr (XDF transfer-distance) or
 vscore differs. This is a NEW, concrete extension bug (the goal-doc's Climate-FVS "TODO" is really "port done,
 validate+fix the growth multiplier").
+
+## Climate-FVS over-suppression — CORRECTED: it's clmorts/clmaxden (incomplete port), NOT clgmult
+
+Measured jl's per-tree clgmult components for S248112/PSME (apply_climate_dds! dump): at cycle 1 (thisyr=1995)
+xgsite=1.0, xr=1.0, vscore=1.0 ⇒ TREEMULT=1.0 (NO growth effect); later cycles TREEMULT=1.056/1.109/1.157
+(growth ENHANCEMENT, tm>1). ⇒ the clgmult GROWTH multiplier is NOT the over-suppressor (last turn's read was wrong —
+9th measurement correction this session). Yet the climate EFFECT (clim−base) is larger in jl (2050: jl −36 TPA/−37
+BA vs live −25/−30), and it appears at CYCLE 1 where clgmult=1.0 ⇒ the divergence is the climate MORTALITY/DENSITY
+path (clmorts / clmaxden self-thin), which REDUCES TPA/BA. jl's clmorts is DOCUMENTED INCOMPLETE (climate.jl:261-263):
+base viability path validated 8/8, but the SPMORT2 transfer-distance DMORT (clmorts.f:128-223) + the SPCALIB
+first-cycle presence-calibration (clmorts.f:92-98) are NOT YET ported ("chunk-1c.2"). clmaxden (SDImax multiplier)
+also feeds the self-thin.
+
+⇒ Climate-FVS TRUE remaining work = the clmorts SPMORT2/SPCALIB port (chunk-1c.2) + verify clmaxden's self-thin
+coupling — NOT a clgmult bug. Validatable via a MINIMAL climate keyfile (strip the volume DB output that triggers
+the blmvol.f DEBUG-mode segfault) → live FVSie_g16 clmorts/clmaxden DEBUG (the prior 8/8 clmorts validation used
+such a keyfile). This is the concrete, scoped next chunk for the last extension.
