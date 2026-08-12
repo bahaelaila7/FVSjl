@@ -1239,3 +1239,14 @@ stand bit-close (1053/134 vs 1061/136); iet01 (STDINFO) unaffected. Residual (20
 species-draw straddle (#142-class). META: the 4/5 "NOT RECOGNIZED → 260" sweep prevalence means this was a
 SYSTEMATIC IE FIA habitat bug, not a one-off. EM/UT/TT keep their raw-ref fallback (unproven for them; a possible
 follow-up is whether they need their own PVREF crosswalk — em/ut/tt each have a pvref1.f).
+
+## #143 EM half — MEASURED: NOT the pvref1/habitat bug (habitat coincidentally correct)
+Checked EM's FIA stands (HAB_DUMP instrument on sweep/s1-s5): PV_CODE EMPTY, PV_REF=0 ⇒ jl leaves habitat_code=0.
+Live defaults no-habitat stands to NI 260 (em_* synthetic .out all "MAPPED TO 260"). BUT jl's EM establishment maps
+habitat_code=0 → clamp(1) → EM_JTYPE[1]=NI 10 → ie_estab_indices → ihab 3; live's default NI 260 → ihab 3 — BOTH
+bracket to MYGRUP(1)=3 (both ≤ IEND(1)=269). So jl's EM establishment ihab (3) COINCIDENTALLY == live's, and EM has
+NO habitat bug (consistent with the OCURNF fix having made EM BA bit-exact — a wrong ihab would have broken OCURHT/occ
+and thus BA). ⇒ EM's remaining AUTOES +200-492% TPA over-growth is in the ie_autoes TREE-COUNT logic (NUMSPE/ITPP/
+es_nstore) for EM, NOT habitat — a SEPARATE investigation from IE's pvref1. EM has em/pvref1.f (857) but its FIA stands
+carry no PV/ref, so porting it would be inert for the sweep. UT/TT have NO pvref1.f (different habitat mechanism). ⇒
+the pvref1 fix is IE-specific and complete; #193's EM half stays open as an ie_autoes count-over-production task.
