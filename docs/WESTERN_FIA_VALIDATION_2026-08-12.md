@@ -93,3 +93,20 @@ large trees (D5-9.8, tpa 6 each) — jl loads all (t.n=4 live, t.ndead=89). MEAS
   1.0 @2030. Non-regress ttt01 + the fresh FIA sweep. CAVEAT: mortality-inclusive density may touch other variants'
   crown/density — scope to the crown dub if needed. This is the ONE real growth bug the fresh sweep surfaced,
   now mechanistically root-caused (measure-don't-infer, doctrine #2).
+
+## ⚠⚠ TT #198 ROOT-CAUSE RETRACTED (2026-08-12, same day) — over-claimed; read crown.f
+The "crown-model density (relden/sdiac) EXCLUDES the dead trees, which live cratet.f INCLUDES" root-cause above is
+RETRACTED — it was over-claimed. Reading the live crown routine DECISIVELY (bin/FVStt_buildDir/crown.f):
+- the crown Weibull ranking ISORT loops over ITRN = LIVE trees (crown.f:157), NOT the dead — same as jl;
+- the cratet.f IREC2..MAXTRE loops I cited are the NO-LIVE-TREES special case ("DUB CROWNS ON DEAD TREES IF NO
+  LIVE TREES IN INVENTORY", crown.f:95), NOT the density;
+- SCALE=1−.00167·(RELDEN−100) (crown.f:263); RELSDI=SDIAC/SDIDEF (crown.f:183/190) → ACRNEW (198). I do NOT have
+  live's RELDEN/SDIAC values, so whether they differ from jl's (relden 5.3 / crown_sdi~0) is UNKNOWN.
+STILL SOLID (measured): jl seedling CR 59/45/94/73 vs live(.trl) 58/17/15/31 — a real CR-assignment divergence on
+this post-mortality dense-seedling stand. But the ROOT is UNRESOLVED between: (a) live's RELDEN/SDIAC into crown.f
+being higher than jl's (a density bug) — or (b) the ISORT tie-break of the 4 DBH-0.1-TIED seedlings differing
+(jl _rdpsrt! vs live IND) = the ACCEPTED RDPSRT-crown-tie-break cornered class (#142/#140), NOT a fixable bug.
+NOTRIPLE persistence does NOT distinguish (a) from (b). DECISIVE = crown.f DEBUG (line 208 dumps
+ISPC/SDIAC/ORMSQD/RELSDI/ACRNEW/A/B/C) via FVStt_g16 (attempted; DEBUG-keyword mechanics need more setup) OR
+instrument jl's ISORT/x/scale/acrnew per seedling vs live. DO NOT fix until this decides bug-vs-cornered. LESSON
+(doctrine #2/#4): read the actual live routine (crown.f) BEFORE claiming a root-cause "source-confirmed".
