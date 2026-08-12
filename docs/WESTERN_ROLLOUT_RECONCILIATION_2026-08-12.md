@@ -517,3 +517,34 @@ CODE REVERTED (crown.jl back to pristine DCR-for-all): the faithful crown port i
 the semantic", it must not be landed as unvalidatable code. It requires per-tree FVSem_g16 crown comparison to
 validate — a future g16-instrumentation chunk. The complete spec + all coefficient tables are preserved above,
 so that chunk is turnkey. This is the 8th implemented-and-refuted hypothesis of the campaign (doctrine working).
+
+## #193 EM AUTOES over-growth — FULLY ROOT-CAUSED (the WK4/HTIMLT birth-cycle multiplier jl omits)
+
+After REFUTING the crown-recession lead (prior section), traced #193 to the REAL .sum-visible driver via a clean
+treeless reproducer (stand 5332701010661, starts 0 TPA; NUMCYCLE, ECHOSUM; oracle FVSem_clean):
+
+MEASURED (built-in FVSJL_AUTOES_DEBUG + FVSJL_SZDBG probes, real compiled runs):
+- AUTOES TALLY is EXACT: jl establishes 118.1 TPA == live 118 (sp3 DF 71.8 + sp10 45.3 + sp2 1.1).
+- BIRTH is CORRECT: POST-AUTOES maxH=1.2 ft, maxD=0.1 in (hht=XMIN+0.2, dbh=0.1+0.001·hht) — matches live.
+- em_esgent! OVER-GROWS: POST-ESGENT maxH=5.44 maxD=0.71 vs live's cycle-1 TopHt=3 / QMD=0.1. jl grows the
+  1.2-ft seedling +4.24 ft in the birth cycle; live grows it ~+1.8 ft.
+
+ROOT CAUSE — the birth-cycle height-growth MULTIPLIER. Live em/esgent.f:22-24:
+    CALL REGENT(.TRUE.,ITRNIN)      ! computes HTG(I)
+    HTG(I) = HTG(I) * WK4(I)        ! ← scale by per-tree WK4(I)
+    HT(I)  = HT(I) + HTG(I)
+WK4 is set at establishment: WK4(ITRN)=HTIMLT(N) (estab.f:1257), and (estab.f:1054-1063):
+    IF(FINT-DELAY .LT. 5) GENTIM=0. ELSE GENTIM=FINT-DELAY-5.0
+    FTEMP = min(TRAGE, GENTIM);  HTIMLT = FTEMP/(GENTIM+0.0001)
+with TRAGE=PRMS(4) defaulting to 2.0 (estab.f:987-989). For AUTOES (FINT=10, DELAY=0): GENTIM=5, FTEMP=2,
+**HTIMLT = 2.0/5.0001 = 0.40**. jl's em_esgent! instead uses a CONSTANT `subyr/regyr = 5/5 = 1.0` — a DIFFERENT,
+wrong multiplier — so it applies the FULL SMHTGF increment. ARITHMETIC CHECK: 1.2 + 4.24·0.40 = 2.9 ft ≈ live 3 ✓.
+
+Why #137 missed it: em_esgent's subyr/regyr=1.0 was validated on emt01 PLANT regen, where TRAGE≥GENTIM ⇒ HTIMLT≈1.0
+(scale=1 correct). AUTOES natural regen has TRAGE=2 ⇒ HTIMLT=0.40 (scale must be <1). The under-tested-regeneration-
+regime meta-pattern again: PLANT-only validation cannot see the AUTOES multiplier. This is .sum-VISIBLE (unlike the
+crown) ⇒ directly validatable.
+
+FIX SPEC: store a per-tree HTIMLT (=min(TRAGE,GENTIM)/(GENTIM+0.0001)) at establishment — ie_autoes sets TRAGE=2.0
+(⇒0.40 at FINT=10); the shared establish! (PLANT/NATURAL) computes it from its TRAGE/DELAY (PLANT keeps ≈1.0 ⇒
+emt01 preserved) — and em_esgent! scales `htg` (and the DBH via HTG) by that per-tree HTIMLT instead of subyr/regyr.
