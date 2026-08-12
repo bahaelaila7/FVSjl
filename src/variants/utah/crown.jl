@@ -133,20 +133,31 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
             t.crown_pct[i] = Int32(icri)
             continue
         end
-        _ut_crown_weibull(sp) || continue                  # PJ/hardwoods → crown from REGENT (cycling)
         icr = Int(t.crown_pct[i])
-        relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
-        relsdi > 1.5f0 && (relsdi = 1.5f0)
-        ((sp == 5 || sp == 23) && relsdi > 1f0) && (relsdi = 1f0)   # BS/OS cap (ut/crown.f:184)
-        acrnew = UT_CRC0[sp] + UT_CRC1[sp] * relsdi * 100f0
-        A = UT_WEIBA[sp]
-        B = UT_WEIBB0[sp] + UT_WEIBB1[sp] * acrnew; B < 1f0 && (B = 1f0)
-        C = UT_WEIBC0[sp] + UT_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
-        scale = 1f0 - 0.00167f0 * (relden - 100f0)
-        scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
-        x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        local crnew::Float32
+        if 11 <= sp <= 19 || sp == 22 || sp == 24
+            # ut/crown.f d≥1 CASE(11:19,22,24): PJ/woodland CL crown-length form (runs lstart AND cycling —
+            # jl previously SKIPPED these as "crown from REGENT", leaving crown≈0 ⇒ low regent VIGOR ⇒ ~40%
+            # woodland small-tree height-growth under-shoot ⇒ ~5% BA tail on woodland real-FIA stands, #203).
+            hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)
+            cl = (sp == 18 || sp == 19 || sp == 22) ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area) :
+                                                      (-0.59373f0 + 0.67703f0*hf)
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            crnew = (cl/hf)*100f0
+        else                                                # Weibull (sp 1-10,20,21,23)
+            relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
+            relsdi > 1.5f0 && (relsdi = 1.5f0)
+            ((sp == 5 || sp == 23) && relsdi > 1f0) && (relsdi = 1f0)   # BS/OS cap (ut/crown.f:184)
+            acrnew = UT_CRC0[sp] + UT_CRC1[sp] * relsdi * 100f0
+            A = UT_WEIBA[sp]
+            B = UT_WEIBB0[sp] + UT_WEIBB1[sp] * acrnew; B < 1f0 && (B = 1f0)
+            C = UT_WEIBC0[sp] + UT_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
+            scale = 1f0 - 0.00167f0 * (relden - 100f0)
+            scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        end
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
