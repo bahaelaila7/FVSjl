@@ -110,3 +110,18 @@ NOTRIPLE persistence does NOT distinguish (a) from (b). DECISIVE = crown.f DEBUG
 ISPC/SDIAC/ORMSQD/RELSDI/ACRNEW/A/B/C) via FVStt_g16 (attempted; DEBUG-keyword mechanics need more setup) OR
 instrument jl's ISORT/x/scale/acrnew per seedling vs live. DO NOT fix until this decides bug-vs-cornered. LESSON
 (doctrine #2/#4): read the actual live routine (crown.f) BEFORE claiming a root-cause "source-confirmed".
+
+## ★★★ TT #198 DEFINITIVELY ROOT-CAUSED (2026-08-12) — jl missing the DBH<1 DUBSCR crown branch
+After retracting the density hypothesis, read crown.f decisively and PROVED the root by jl-side replication:
+- crown.f:240 `IF(D.LT.1.0 .AND. LSTART) GO TO 58` → label 58 (line 359) `CALL DUBSCR(ISPC,D,H,CR,TPCT,TPCCF)`.
+  Live uses a SEPARATE small-tree crown dub (DUBSCR) for DBH<1" seedlings at lstart — NOT the rank-Weibull.
+- jl's crown_ratio_update!(::Teton) applies the rank-WEIBULL (CASE-DEFAULT) to ALL trees, MISSING that branch.
+- PROOF: jl's measured seedling CR 59/45/94/73 == the Weibull at x=0.5/0.25/1.0/0.75 (scale 1.0) EXACTLY
+  (computed 58.9/44.6/93.8/73.4). Live's 58/17/15/31 is IMPOSSIBLE for that Weibull (its %-TILE-100 seedling has
+  live CR 15, Weibull gives 94) ⇒ live uses DUBSCR. Density (relden 5.3→scale 1.0) and tie-break were RED HERRINGS.
+⇒ REAL bug (side-effect of this session's TT crown-dub 6e6c11a, which used the Weibull for all D). FIX = port
+  tt/dubscr.f (169-line logistic in D/H/CR/TPCT/TPCCF, per-sp BCR + CRSD BACHLO draw; CI ci_dubscr = template) and
+  add the `d<1.0 && lstart → tt_dubscr` branch before the Weibull in crown_ratio_update!(::Teton). Validate:
+  seedling CR → ~58/17/15/31, NOTRIPLE .sum → TopHt 9/QMD 1.0 @2030, non-regress ttt01 + the fresh sweep. (task #198)
+LESSON (doctrine #2): reading the actual live routine (crown.f) end-to-end — not just grepping a comment — is what
+finally nailed it, after TWO wrong hypotheses (density-excludes-dead, then tie-break) that measurement had to kill.
