@@ -339,3 +339,23 @@ The cluster is validated on MATURE stands; the small-tree/regen/establishment/wo
 LARGE, systematic (non-straddle) growth bugs. STRONG RECOMMENDATION: the mission's "full FVS-ready FIA sweep" must
 drive each variant's SEEDLING + ESTABLISHMENT + WOODLAND regimes to bit-exact-or-cornered, not just the mature
 reference stand. Remaining to sweep: BM/CI/IE/KT/CR/BC (KT has no FIA-DB stands).
+
+## BM FIA sweep — CLEAN (mature stands); meta-pattern REFINED to regime-specific (not variant-specific)
+
+BM sweep (12 stands, 0 crashes): 7 treed, ALL bit-exact-or-cornered (±0-1% BA, TopHt ±0-3) — s2 120/120, s3 95/95,
+s4 144/143, s6 153/152, s7 202/202, s9 77/77, s11 137/136. Confirms BM #140 resolved (2c26eca) and NO systematic
+bug on this diverse BM sample. The 5 treeless stands stayed treeless (did NOT establish — unlike EM's AUTOES bare
+stands), so BM's sample was entirely MATURE.
+
+REFINED META-PATTERN: the sweep bugs are REGIME-specific, not variant-specific. Four variants swept this session:
+- TT → #191 (seedling regime: aspen sub-1" over-growth)
+- UT → #192 (woodland regime: UTVAR under-growth)
+- EM → #193 (bare-establishment regime: AUTOES-regen +492% over-growth)
+- BM → CLEAN (its sample was all mature — the validated regime)
+So: MATURE stands are genuinely bit-exact-or-cornered cluster-wide (emt01/utt01/ttt01/bmt01 + the mature sweeps
+confirm this). The real, often-large bugs live in the SEEDLING / WOODLAND / BARE-ESTABLISHMENT regimes, which the
+curated reference stands don't represent, and they surface when a sweep sample happens to hit that regime. A truly
+"full FVS-ready FIA sweep" must STRATIFY by regime (force seedling-, woodland-, and bare/establishment-dominated
+stands into the sample per variant) rather than trust a random draw — a random draw of a mature-heavy variant (BM
+here) misses its establishment bug. Tasks #191/#192/#193 opened; remaining variants to sweep (regime-stratified):
+CI/IE/KT/CR/BC.
