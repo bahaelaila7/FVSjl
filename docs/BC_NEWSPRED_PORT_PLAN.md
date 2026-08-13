@@ -158,4 +158,19 @@ bug. Three vehicles, in priority order:
   NEXT (the RNG-coupled spread core, validate at aggregate FVS_DM_Stnd_Sum_Metric, not per-tree):
   DMFSHD (grid shade sim) + DMNB/BNDIST (neighbour-count PDF) → DMSRC/DMSAMP/DMSLST (source sampling)
   + DMADLV (spread accumulation, needs the Shd1/ShdPtr extract) + DMAUTO (autocorr) → C5 DMCYCL/DMNDMR.
+- **C4/C5 support layer LANDED + unit-validated (2026-08-13)** — the deterministic + RNG-support pieces the
+  spread loop reads, all engine-inert:
+    - Geometry: DMFBRK, DMSHAP, DMRDMX (validated: cone frustum = analytic vol).
+    - Neighbour PDF/CDF: BNDIST+GAMMLN (validated vs Poisson/NegBinom/Binomial), DMNB annulus CDF (+ CrArea/Dstnce).
+    - RNG: DMRANN (MINSTD, validated) + DMRNSD seed + DMSLOP slope offset.
+    - DMR recompute: DMNDMR (stochastic crown-third rating).
+    - Autocorrelation: DMAUTO + SF matrix (validated: SF=exp(-0.5·diff), density-preserving).
+  DMMDMR = trivial per-tree DMR array copy (New→Old), folded in when wired — no standalone port.
+- **NEXT — the coupled SPREAD BLOCK** (needs a coherent DMSPtr/DMSInd treelist-DM-index design first, built by
+  DMFINF): DMFINF (index, 140 lines, det) → DMFDNS (target density, 93, det) / DMSRC (source vector, 136, det) /
+  DMTLST (target list, 114, 1 RNG) → DMSAMP (109, 3 RNG) / DMSLST (160, 2 RNG) source sampling → DMADLV (349, spread
+  accumulation, needs the Shd1/ShdPtr 1496-elt extract) → DMOTHR (apply, 114, det). Plus DMFSHD (231, 4 RNG, grid
+  shade), DMMTRX (73, det, spread-matrix setup), DMNTRD (202, cycle-follow remap). Then C5 DMCYCL (593, det,
+  life-history compartment advance). Then wire the DMTREG driver + C6 payoff (mistoe/mismrt + BHTG/DHTG). Validate
+  the coupled block at the aggregate FVS_DM_Stnd_Sum_Metric trajectory (spatial draws = realization straddle).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
