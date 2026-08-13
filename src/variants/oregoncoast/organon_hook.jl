@@ -69,11 +69,18 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         bark = oc_bratio(sp, d0)
         t.diam_growth[i] = dg
         t.dbh[i] = d0 + dg/bark
-        # HEIGHT + CROWN: ORGANON for IORG=1; the IORG=0 native HTGF is C9 step 4 (HTG stays 0 for now).
+        # HEIGHT + CROWN: ORGANON HGRO/CR2 for IORG=1; FVS-native HTGF for IORG=0 (oc/htgf.f).
         if iorg && g !== nothing
             t.ht_growth[i] = g.hgro[i]
             t.height[i] += g.hgro[i]
             t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))   # ANINT (oc/crown.f:282)
+        else
+            pt = Int(t.plot_id[i])
+            pccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+            htg = oc_htgf_native(sp, t.height[i], t.crown_pct[i], s.plot.avg_height, pccf,
+                                 s.plot.sp_site_index[sp])
+            t.ht_growth[i] = htg
+            t.height[i] += htg
         end
         # MORTALITY: ORGANON MORTEXP for every record it grew (oc/morts.f:498-504).
         if g !== nothing

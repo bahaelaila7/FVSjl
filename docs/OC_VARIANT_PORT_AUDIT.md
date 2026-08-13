@@ -540,6 +540,28 @@ The lone remaining `.sum` residual is **TopHt 70 vs 71** — the IORG=0 trees' H
 calibration (**step 3**) is negligible on ocmin (LP/BR COR=0; only the 0.1" GF tree-13 uses COR=0.288,
 DG=0.004) — the row is bit-exact without it; step 3 is faithfulness for other stands.
 
+## Chunk C9 step 4 delivered (native HTGF for IORG=0 trees) — cyc1 density row FULLY BIT-EXACT
+
+`src/variants/oregoncoast/organon_htgf.jl` ports the OC FVS-native height growth (`oc/htgf.f` CASE
+DEFAULT) for the IORG=0 trees: **`oc_findag`** (`findag.f` — growth-effective age by iterating the
+site curve to the tree height) + **`oc_htcalc`** (`htcalc.f` — region-6 per-species potential-height
+site curves: Hann-Scrivani / Dahms lodgepole / Dolph red fir / Powers oak / Porter-Wiant) + the
+SMHMOD crown/relative-height modifier: `HTG = POTHTG · 1.016605 · CRMOD · RHMOD`. Wired into
+`organon_apply_growth!` (IORG=0 branch).
+
+**MEASURED bit-exact vs FVSoc_clean DEBUG-HTGF (ocmin)**: all **10 IORG=0 trees' HTG max |Δ| = 0.0**
+(LP tree-1 6.90931; 0.1"-regen GF 9.05224 / DF 8.73122; BR 1.52–4.42).
+
+**END-TO-END `run_keyfile(ocmin; output=:sum)` cyc1 (1995) — density row FULLY BIT-EXACT:**
+
+| year | TPA | BA | SDI | TopHt | QMD |
+|---|---|---|---|---|---|
+| **jl** | 504 | 88 | 202 | **71** | 5.7 |
+| oracle | 504 | 88 | 202 | 71 | 5.7 |
+
+TopHt closed 70→71. cyc0 unchanged; ORGANON IORG=1 trees unregressed. The **only** remaining `.sum`
+gap is the volume columns (currently 0) → **C10**.
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
