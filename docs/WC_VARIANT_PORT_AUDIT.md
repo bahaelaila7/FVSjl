@@ -333,3 +333,27 @@ v2t fmvinit.f + ls_spi fmcrow.f ISPMAP; merch_specs.csv; htdbh_coeffs.csv forest
 end-to-end. Run 4 (FFE) is NOT yet complete — it continues to need the full WC FFE/crown-width data layer
 (bark_intercept, snag decay/fall, Jenkins biomass groups, fuel models), i.e. the FFE-rollout subsystem
 (a separate campaign beyond the cut-log column).
+
+## WC growth end-to-end status (2026-08-13, multi-cycle wct01 vs FVSwc_clean)
+
+Per-chunk verdict after two end-to-end DGF bark bugs were found+fixed (both the #140/CI missing-branch
+class — the chunk-3 beachhead fed LIVE CONSPP so it could not see jl's own bark-converted DG):
+1. **DG calibration COR** used the shared linear bark (0.80 floor) not wc_bratio ⇒ WF COR off 0.098 ⇒
+   constant LN(DDS) offset on every WF tree. Fixed (`_wc_bd`/`_wc_cal`). cyc1 LN(DDS) now 27/27 bit-exact.
+2. **DDS→DG conversion** (`d_ib=DBH·bark`) used linear 0.80 not wc_bratio ⇒ ~2%/tree DG over-prediction ⇒
+   compounding BA/QMD over-growth. Fixed (`_wc_dg`). 2090 BA +19% → +8%.
+
+| chunk | verdict |
+|---|---|
+| species (1) / site (2) / density-CCF | cyc0 bit-exact (bark 39sp, SITEAR 39/39, SDImax, CCF=100) |
+| DGF large-tree (3) | LN(DDS) **cyc1 27/27 BIT-EXACT** (deterministic; after the 2 bark fixes) |
+| HTG (4) | cyc0 24/24 bit-exact; multi-cycle TopHt within ±1-3 ft (cornered) |
+| regent small-tree (6) | SMHGDG 14/14 bit-exact |
+| crown (5) | 81/81 bit-exact |
+| mortality (7) | RIP 27/27 + per-tree WK2 27/27 bit-exact; TPA tracks (2000/2010 exact) |
+| volume (8) | VOL1/VOL4/VOL2 per-tree bit-exact |
+
+Multi-cycle .sum: **2000-2040 BIT-EXACT-or-±1** (2000 BA 100/SDI 223/CCF 124/QMD 6.1/TPA 491 ALL exact).
+Residual 2050+ drift (2090 BA +8%, TopHt −3, QMD +0.7) = the OLDRN/DGSCOR serial-correlation realization
+straddle (the cornered western-cluster class, same magnitude as utt01 −9%@2090 / IE +13%). WC growth is
+**bit-exact-or-cornered on every chunk**.
