@@ -115,9 +115,16 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    falldown added ~nothing to classes 4-9. Fixed with `nc_snag_bole_cuft` (total cubic via NC's NVEL model), wired
    into `_snag_merch_cuft_on` + the input/SNAGINIT/fire snag paths (fallvol 0.044 → 1.311, 30×). Per-tree crown biomass
    was already bit-exact; crown-lift feeds only the small classes (correct).
-   POST-FIX (real run_keyfile): FFE stand 1993-2003 BIT-EXACT (536/77, 288/93, 285/112); post-fire 2008 TPA **67 vs
-   live 58** (~4% of the 227-TPA kill; was 68 pre-fix). CORNERED — residual = the last ~6% LARGE-fuel accumulation
-   (12.49 vs 13.28, snag-falldown timing / fmcadd) + the fmeff size-selectivity (jl post-fire BA 36 vs live 45).
+   (c) **NC fuel-moisture table** (`_FM_MOIS_NC`, nc/fmmois.f). NC fell to the SN default (cond-1 1hr=5%); nc/fmmois.f
+   cond-1 = [3,4,5,10,15]% dead / [70,70]% live (1hr=3%) and cond-4==cond-3. The over-wet 1-hr over-damped the byram.
+   Fixed: mois 1hr 5%→3% (=live), live-woody 0.55→0.70 (=live); byram 8122→10172; flame 4.3→4.77.
+   POST-FIX (real run_keyfile): FFE stand 1993-2003 BIT-EXACT (536/77, 288/93, 285/112); post-fire 2008 TPA **54 vs
+   live 58** (BRACKETS live — was 67 under-kill before moisture, now within ~7%). Fuel weights **6@50/10@50** (live
+   6@44/10@56). MORTALITY = CORNERED. ⚠ OPEN: the reported surface **flame 4.77/scorch 21 vs live 8.3/47** — the
+   Rothermel byram is still ~3.7× low (FINTEN 170 vs ~620) DESPITE correct weighted models (6/10), moisture ([3,4,5,
+   10,15]), and midflame wind (1.66 vs 1.8). So the residual is inside the Rothermel intensity (reaction-intensity /
+   fuel-load / packing), not fuel selection — narrowed but not closed. (The mortality is cornered because the fire
+   kills most of the small/mid stand regardless of the exact flame; the flame/scorch REPORT is the open item.)
 
    ★ END-TO-END STATUS (corrected, real run_keyfile path — NB: manual `grow_cycle!` without `fuel_period`/`ffe_init_period`
    SKIPS ffe_fuel_update! and gives artifact fuel/flame numbers; always validate via run_keyfile or the summary loop):
