@@ -6,9 +6,9 @@
 # projection), but the per-subcycle increments come from TT's SMHTGF (height) + SMDGF (DBH):
 #   SMHTGF DEFAULT: BETA1=exp(B0ACCF+B1ACCF·lnTPCCF); BETA2=exp(B0BCCF+B1BCCF·lnTPCCF);
 #                   HTG1=BETA1+BETA2·CR; HTGRL=HTG1+ZRAND·HTG1·(B0ASTD+B1BSTD·CR).  (ZRAND ±2 per tree)
-#   SMHTGF aspen(6): SITAGE=(H/26.9825)^(1/1.1752); HTGR=(26.9825·(SITAGE+5)^1.1752−26.9825·SITAGE^1.1752)/(2.54·12);
-#                    HTGRL=(HTGR+ZRAND·0.1)·0.75·RSIMOD (RSIMOD from SITEAR(6)).
-#   H2 = H1 + HTGRL·(kpj/REGYR).  SMDGF: SDIAM=SDHTCR+SDHPCF·H+SDCR·CR+SDHL4·RD (DF/BS/AS/LP/ES/AF) or a
+#   SMHTGF aspen(6): SITAGE=(H·2.54·12/26.9825)^(1/1.1752) [findag.f:96, metric]; HTGR=(26.9825·(SITAGE+5)^1.1752
+#                    −26.9825·SITAGE^1.1752)/(2.54·12); HTGRL=(HTGR+ZRAND·0.1)·0.75·RSIMOD (RSIMOD from SITEAR(6)).
+#   H2 = H1 + HTGRL·(kpj/REGYR).  ASPEN applies this on the FIRST subcycle ONLY (regent.f:415 label-16 gate).  SMDGF: SDIAM=SDHTCR+SDHPCF·H+SDCR·CR+SDHL4·RD (DF/BS/AS/LP/ES/AF) or a
 #   HLESS4 form (WB/LM/OS); D2=max(SDIAM, DIAM).  Blend XWT=(d−XMIN)/(XMAX−XMIN).
 # =============================================================================
 
@@ -107,11 +107,14 @@ end
 # tt/smhtgf.f — small-tree height increment HTGRL (ZRAND passed in; drawn once per tree).
 @inline function _tt_smhtgf(sp::Int, h::Float32, cr::Float32, tpccf::Float32, zrand::Float32, si6::Float32)::Float32
     if sp == 6 || sp == 14                       # aspen (6) / mountain maple (14, aspen coefs) — FINDAG closed-form
-        # NB (#158, 2026-08-07): sitage here is the INVERSE-height age s.t. hite1=26.9825·sitage^1.1752 = h
-        # (self-consistent: current height in FEET). Do NOT "fix" it to (h·2.54·12/26.9825) to match findag.f:96
-        # literally — MEASURED: that regresses (jl over-grows; nofix is bit-exact with live at 2003/2013 on
-        # 3189335010690). jl's feet-native form is PRIOR-VALIDATED bit-exact vs live; leave as-is.
-        sitage = (h / 26.9825f0)^(1f0 / 1.1752f0)
+        # #205 (2026-08-13): sitage = FINDAG's aspen inverse-height age, findag.f:96 CASE(6,14):
+        # SITAGE=(H·2.54·12/26.9825)^(1/1.1752) — H converted feet→cm (the Sheppard curve 26.9825·age^1.1752 is
+        # METRIC/cm). jl formerly used (h/26.9825)^(1/1.1752) (feet, no conversion), which kept aspen on the flat
+        # young part of the convex curve ⇒ a ~constant per-cycle increment instead of live's increasing one. The
+        # old "don't add ·2.54·12, it regresses" note was a two-bug ARTIFACT: the SITAGE under-growth was masked by
+        # the fint=10 subcycle DOUBLE-APPLY (now gated to J=1 below). With both fixes jl htgr is bit-close to live —
+        # MEASURED FVStt_g16 SMHTGF: #205 seedling jl 2.76=live 4.77·RSIMOD; ttt01 seedling jl 5.06=live 5.09.
+        sitage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
         hite1 = 26.9825f0 * sitage^1.1752f0
         hite2 = 26.9825f0 * (sitage + 5f0)^1.1752f0
         htgr = (hite2 - hite1) / (2.54f0 * 12f0)
@@ -196,6 +199,13 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
             tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)   # smhtgf clamps [25,300]
             esp = _tt_rg_esp(sp)                       # MM(14)→AS(6) coefficient mapping (DBH); smhtgf handles 14 directly
+            # #205 (2026-08-13): tt/regent.f:415 label-16 gate — aspen(6)/CIVAR(10)/UTVAR(4,11:16,18) apply the
+            # small-tree height+DBH increment ONLY on the FIRST subcycle (`(ISPC.EQ.6 .OR. UTVAR .OR. CIVAR) .AND.
+            # J.GT.1 GO TO 16`); only TTVAR conifers (1:3,5:9,17) subcycle across all J. jl formerly subcycled aspen
+            # every j ⇒ for a 10-yr cycle (nper=2) it DOUBLE-applied the Sheppard SMHTGF increment ⇒ aspen small-tree
+            # height/DBH over-grew ~1.9× (11796095010690 +34% BA). At J=1 aspen SCALE=KPER(1)/REGYR=kpj/regyr matches.
+            # (sp14 MM is UTVAR with SCALE=NTYR/YR — separate; jl handles it via aspen coefs, not fixed here.)
+            (sp == 6 && j > 1) && continue
             htgrl = _tt_smhtgf(sp, h1, cr, tpccf, zrand[i], si6)
             h2 = h1 + htgrl * (kpj / regyr)
             wk3[i] = h2
