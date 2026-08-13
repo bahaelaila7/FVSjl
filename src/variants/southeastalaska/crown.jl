@@ -20,6 +20,28 @@ const AK_CRDQMD = Float32[-0.174337,-0.174337,-0.174337,-0.051268,-0.051268,-0.0
 # ak/dubscr.f DATA CRSD — per-species crown-ratio regression standard error (random-error draw).
 const AK_CRSD   = Float32[0.1719,0.1719,0.159,0.1645,0.1542,0.1542,0.1894,0.1719,0.1568,0.1811,0.1582,0.155,0.1542,0.1447,0.1447,0.144,0.144,0.1605,0.1356,0.1605,0.0938,0.0938,0.1605]
 
+# ak/ccfcal.f — open-grown crown width (MCW) coefficients + equation-form map for the per-tree CCF.
+# EQMAP 1 = Smith/Paine-Hann linear (MCW=B1+B2·D); 2 = Russell-Weiskittel (D in cm: MCW=B1·(D·2.54)^B2·3.28).
+const AK_CCF_B1 = Float32[6.1880,6.1880,4.0,0.535,1.50,1.50,0.535,6.5,6.1880,4.0,4.5652,4.5652,1.50,8.0,8.0,1.48,1.48,0.5,1.31,0.5,0.5,0.5,0.5]
+const AK_CCF_B2 = Float32[1.0069,1.0069,1.6,0.742,0.496,0.496,0.742,1.8,1.0069,1.6,1.4147,1.4147,0.496,1.53,1.53,0.623,0.623,1.62,0.586,1.62,1.62,1.62,1.62]
+const AK_CCF_EQMAP = Int[1,1,1,2,2,2,2,1,1,1,1,1,2,1,1,2,2,1,2,1,1,1,1]
+
+"""
+    ak_tree_ccf(sp, d) -> CCFT (per-tree open-grown CCF, before the ×TPA per-acre expansion)
+
+ak/ccfcal.f (MODE=1): MCW → MCA = π·(MCW/2)² → CCFT = (MCA/43560)·100. `D ≤ 0.1 ⇒ CCFT = 0.001`
+(before ×P). EQFORM-2 (`(D·2.54)^B2`) uses the gfortran powf companion `fpow` (doctrine #8). Stand CCF
+= Σ ak_tree_ccf·TPA (= RELDEN); the `.sum` reports it (was 0 — the shared crown-width fallback path).
+"""
+@inline function ak_tree_ccf(sp::Integer, d::Real)::Float32
+    d <= 0.1f0 && return 0.001f0
+    D = Float32(d)
+    mcw = AK_CCF_EQMAP[sp] == 1 ? AK_CCF_B1[sp] + AK_CCF_B2[sp] * D :
+          AK_CCF_B1[sp] * fpow(D * 2.54f0, AK_CCF_B2[sp]) * 3.28f0
+    mca = 3.14159f0 * (mcw / 2f0)^2
+    return (mca / 43560f0) * 100f0
+end
+
 """
     ak_point_zeide!(s) -> (xmaxpt, zrd, xmax)
 
