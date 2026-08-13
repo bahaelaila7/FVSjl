@@ -151,3 +151,17 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
     end
     return s
 end
+
+# wc/ccfcal.f MODE=1 — per-tree crown competition factor (CCFT, before ×P). 16 CCF groups (INDCCF).
+# stand_ccf sums CCFT·P = RELDEN; point_density sums per point (PCCF). D<1 uses the linear-extrapolated form.
+const WC_CCF_INDCCF = Int[4,4,4,13,9,9,13,6,6,14,15,10,1,1,10,3,3,6,12,12,8,2,2,8,16,8,8,8,6,6,15,15,8,8,8,8,8,8,8]
+const WC_CCF_RD1 = Float32[0.0392,0.03561,0.0388,0.0690,0.0392,0.0194,0.0212,0.0204,0.0172,0.0219,0.0388,0.03758,0.02453,0.03,0.01925,0.0160]
+const WC_CCF_RD2 = Float32[0.0180,0.02731,0.0269,0.0225,0.0180,0.0142,0.0167,0.0246,0.00876,0.01676,0.0269,0.0233,0.0115,0.0173,0.0168,0.0167]
+const WC_CCF_RD3 = Float32[0.00207,0.00524,0.00466,0.00183,0.00207,0.00261,0.00330,0.0074,0.00112,0.00325,0.00466,0.00361,0.00134,0.00259,0.00365,0.00434]
+
+@inline function wc_tree_ccf(sp::Integer, d::Real)::Float32
+    (sp < 1 || sp > 39) && return 0f0
+    ic = WC_CCF_INDCCF[sp]; D = Float32(d)
+    return D < 1.0f0 ? D * (WC_CCF_RD1[ic] + WC_CCF_RD2[ic] + WC_CCF_RD3[ic]) :
+                       WC_CCF_RD1[ic] + WC_CCF_RD2[ic] * D + WC_CCF_RD3[ic] * D * D
+end
