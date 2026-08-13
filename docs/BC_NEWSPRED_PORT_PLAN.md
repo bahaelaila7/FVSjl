@@ -228,4 +228,17 @@ bug. Three vehicles, in priority order:
       port is small. Coeffs to extract from dminitbc.f: DMFLWR(=4)/DMCAP(=3)/DMDETH(→DMSURV); DMLtRx defaults inline.
     - Wire the DMTREG driver (the mapped loop) over these, then C6 payoff: mistoe/mismrt (USEMRT extra mortality) +
       BHTG/DHTG growth-mult, wire BC into the DM dispatch. THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
+- **★★ 2026-08-13 — ALL INDIVIDUAL NEWSPRED ROUTINES NOW PORTED + unit-validated (~20 pieces):** the full spread
+  mechanism (geometry/neighbour/RNG/index/sampling/decode + DMADLV accumulation), DMFSHD (stochastic shade grid,
+  aff0159), and the DMCYCL life-history compartment-advance core (dm_cycl_advance, 50262f4). ONLY the pure
+  INTEGRATION remains:
+    1. The DMTREG driver loop (mapped) — build the driver-local state (NewSpr/NewInt/TVol accumulators, ISCT/IND1
+       species index) and wire: setup (DMFBRK/DMSHAP/DMRDMX/DMFSHD/DMFINF) → per-ring DMNB → per-species/DMR-class
+       spread (DMFDNS/DMSRC/DMTLST → DMSAMP/DMSLST source sampling → DMSLOP + DMADLV accumulation w/ the DMFSHD
+       shade) → self-intensification → DMOTHR scale (7.5e-5) → DMCYCL (annual: dm_cycl_advance + New-intake
+       (NewSpr+NewInt)/TVol + DMCAP=3 saturation) → DMNDMR recompute DMR → BrkPnt→PBrkPt.
+    2. C6 PAYOFF — mistoe/mismrt (USEMRT extra mortality from DMR) + BHTG/DHTG growth multipliers; wire BC into the
+       DM dispatch (dm_init!/dm_fbrk! etc. into the BC cycle, gated on the NEWSPRED keyword). THIS closes the YSM gap.
+    3. VALIDATE the whole loop at the aggregate FVS_DM_Stnd_Sum_Metric / YSM .sum.save mortality trajectory
+       (jl SDI→1586 vs oracle 926); spatial draws = accepted realization straddle.
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
