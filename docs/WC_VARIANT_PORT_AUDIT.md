@@ -221,3 +221,68 @@ WO transform) port **bit-exact** with only WC's coefficient DATA swapped in. Com
 already-merged NC (Klamath) port, this confirms the westside R6 family shares one DDS engine; the
 per-variant work is coefficient extraction + the variant's special-species branches (RA/RW here).
 PN is a near-clone of WC (roadmap) and should follow cheaply once WC's remaining chunks land.
+
+## Validation — chunk 6 REGENT small-tree growth (2026-08-13, bit-exact)
+
+`src/variants/westcascades/regent.jl` — `small_tree_growth!(::WestCascades)` ports wc/regent.f (driver)
++ vwc/smhgdg.f (SMHGDG Gould-Harrington 2011 small-tree HTG/DG, called 2×5yr ⇒ 10yr REGYR) + wc/htdbh.f
+(6-forest Curtis-Arney HT-DBH) + wc/dgbnd.f (DG cap). Driver: SMHGDG×2 → `HTGR=(HTGR+ZZRAN·0.1)·SCALE·CON·WK4`,
+XWT blend with the large-tree HTG, small-tree DG (D<DGMIN=3, RW 7) = `DGR·SCALE·BARK` + DDS round-trip
+(identity at FINT=10) + DIAM floor + DGBND. WC LHTDRG=.FALSE. ⇒ `dub_missing_heights!` routes WC to the
+forest-dependent `wc_htdbh_height` (cratet.f:375-377), not the shared single-table `_htdbh_height`.
+
+Oracle = `FVSwc_g16` `DEBUG␠␠1.␠␠1.` / `REGENT` (the LSTART calibration SMHGDG dump flushes before the
+cyc0 volume-DEBUG NATCRS segfault). AVHT resolution: the growth call uses AVHT=AVH (grincr.f:318 sets
+ATAVH=AVH before TREGRO/REGENT); the LSTART dump uses ATAVH=0 (AVHT=0.5·AVH).
+
+> **SMHGDG 14/14 calls BIT-EXACT** (worst |ΔHG5|=9.5e-7, |ΔDG5|=1.5e-7 = Float32 print floor). Groups
+> WF(2)/ES(10)/DF(16) — incl. the DF Curtis→King SI transform. Harness: `smhgdg_validate.jl` +
+> `ref_smhgdg_wct01.txt`. HCOR≡0 (all 39 small-tree scale factors 1.00 on wct01). The driver (ZZRAN/XWT/
+> DDS/DGBND) is ported source-faithful + cross-checked vs BM's identical-structure driver; it runs the
+> full 10-cycle wct01 without error and is validated in aggregate by the multi-cycle .sum (below).
+
+## Validation — chunk 8 R6 volume (2026-08-13, Total CuFt bit-exact)
+
+`src/variants/westcascades/volume.jl` — `compute_volumes_wc!`. Three paths (VOLEQ dumped bit-exact from
+`FVSwc_clean`, forest 618): **westside Flewelling** F05FW2W202 (DF, SHP_W3) / F03FW2W263 (WH, W4) / …242
+(RC, W5) — NEW port of f_west.f SHP_W3/W4/W5, calibrated to **DBHIB = D·wc_bratio** (the fvsvol variant-
+bark that fvsvol passes as sf_shp DBT_USER, bypassing FDBT_C1 — the load-bearing fix: FDBT_C1 gave +8%
+volume), reusing the shared `_fw2_sf_taper`/`_fw2_sf_yhat`/`_fw2_tcubic` UNCHANGED; **INGY** I00FW2W…
+(GF/NF/IC) — reuse `cr_fw2_vol`; **Behre** 616BEHW<fia> — reuse BM `bm_r6vol3`/`r6dibs`/`r6vol1` + NEW
+`wc_formcl` (wc/formcl.f, `data/westcascades/formcl_wc.csv`). Merch (wc/sitset.f westside): TOPD=BFTOPD=4.5,
+DBHMIN=BFMIND=7 (LP=6), stump=1.
+
+Oracle = `FVSwc_clean` with an instrumented fvsvol.f (unconditional per-tree WRITE of ISPC/D/TCF/MCF/BBFV/
+VOLEQ to fort.9 — bypasses the DEBUG NATCRS crash), single-.o relink. Also instrumented f_west.f SHP_W3
+(RFLW/RHFW) and profile.f TCUBIC (per-height DIB + F) to root-cause.
+
+> **Total CuFt VOL(1) BIT-EXACT** on all paths — DF westside 13.3/20.7/10.9 + Behre LP 22.9/SP 9.7/WF 5.1/
+> ES all match (27-tree raw sum jl 1896.4 vs live 1896.6). My SHP_W3 RFLW/RHFW match the live SHP_W3 dump
+> bit-exact. **MerchCuFt VOL(4)** within rounding. **Board VOL(2):** Behre bit-exact; westside DF board
+> off ~1.7% (the height-varying westside **BRK_WS** merch-top is DEFERRED — the INGY topd·bark BH-ratio
+> approximation is used). Harness: `volume_validate.jl` (VOL(1) 8/8 bit-exact).
+
+## End-to-end wct01 cyc0 .sum vs `/workspace/.wcwork/wct01.sum.save` (MEASURED)
+
+| col | oracle | jl | verdict |
+|---|---|---|---|
+| TPA | 536 | 536 | **bit-exact** |
+| BA | 77 | 77 | **bit-exact** |
+| SDI | 184 | 184 | **bit-exact** |
+| CCF | 100 | 100 | **bit-exact** (needed `wc_tree_ccf`, wc/ccfcal.f — added; wired into stand_ccf + point_density) |
+| TopHt | 63 | 63 | **bit-exact** |
+| QMD | 5.1 | 5.1 | **bit-exact** |
+| TotCuFt | 1716 | 1724 | +0.47% (per-tree cubic bit-exact; the aggregate residual is a recent-mortality/tpa-expansion record-partition detail, chunk-7 adjacent) |
+| MerchCuFt | 1062 | 1067 | +0.47% (same) |
+| MerchBdFt | 5358 | 5448 | +1.68% (the westside DF board BRK_WS merch-top, DEFERRED) |
+
+**Chunk 7 (mortality) is a PLACEHOLDER no-op** (`src/variants/westcascades/mortality.jl`): vwc/morts.f is a
+distinct ORGANON logistic-RIP model (BM0..BM5 + MCLASS/MVALUES), NOT the shared MORTS self-thin driver —
+NOT ported here. The stub exists only so the end-to-end run completes and the cyc0 (pre-growth, pre-
+mortality) .sum is producible; cycles 1+ diverge (TPA does not decline) until chunk 7 lands.
+
+## Remaining (post chunks 6/8)
+- **Chunk 7**: vwc/morts.f ORGANON RIP mortality (the multi-cycle blocker).
+- Westside **BRK_WS** height-varying merch/board tops (the ~1.7% DF board residual on VOL(2)/VOL(4)-top).
+- SHP_W4 (WH) / SHP_W5 (RC) ported source-faithful but unexercised on wct01 (no WH/RC); RA/RW DG/crown
+  branches likewise. TotCuFt +0.47% recent-mortality/tpa-expansion residual (verify under chunk 7).
