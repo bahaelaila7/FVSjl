@@ -329,6 +329,21 @@ function dm_src(sp::Int, d, ptr, index, tpa)
     return (srci, srccd, sptr)
 end
 
+# --- DMTLST (dmtlst.f) — the list of TARGET trees of species `sp` with DMR `tdmr` that have
+# positive expansion (PROB>0), via the Ptr range. Deterministic. Returns the vector of tree
+# record indices (Fortran TLst(0)=count → Julia length(tlst)).
+function dm_tlst(sp::Int, tdmr::Int, ptr, index, tpa)
+    tlst = Int32[]
+    fst = ptr[sp, tdmr+1, 1]
+    if fst > 0
+        @inbounds for i in fst:ptr[sp, tdmr+1, 2]
+            j = index[i]
+            tpa[j] > 0f0 && push!(tlst, j)
+        end
+    end
+    return tlst
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
