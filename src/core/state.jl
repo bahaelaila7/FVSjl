@@ -109,6 +109,7 @@ mutable struct Control
     no_tripling::Bool            #                                       (NOTRIP)
     fia_nvb::Bool                # FIA NVB biomass                       (LFIANVB)
     metric::Bool                 # metric output mode                    (LMTRIC)
+    permafrost::Bool             # AK PERMAFROST keyword → DGF PFMOD      (LPERM, ak/dgf.f)
 
     dg_calib_sp::Vector{Bool}    # per-species DG calibration            (LDGCAL)
     leave_species::Vector{Bool}  # per-species leave flag                (LEAVESP)
@@ -298,6 +299,7 @@ function Control()
         s4(MAXSP), fill(" "^10, 30), fill(" "^10, 30),
         false,false,false,false,false,false,false,false,false,false,false,false,
         false,false,false,false,false,false,false,false,false,
+        false,                                                 # permafrost (LPERM, AK) — off by default
         trues(MAXSP), zeros(Bool,MAXSP), zeros(Bool,MAXSP),     # dg_calib_sp(LDGCAL)=on, leave_species, ht_drag_sp
         Int32(0),Int32(0),                                      # error_code, cut_algorithm
         Int32(0),Int32(0),Int32(0),Int32(2),Int32(0),Int32(0), # icl1..6 (icl4=tripling cycle limit, grinit ICL4=2)

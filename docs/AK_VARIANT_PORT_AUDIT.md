@@ -87,11 +87,20 @@ annual base DG, applied to permafrost-affected species (SELECT CASE `4:7, 13, 16
 OS, PB/AB/BA/AS/CW/WI/SU/OH). Second regression (own coeffs PFCON/PFDSQ/PFLD/PFDBAL/PFRD/PFLNCR/
 PFEL/PFSLOP/PFSASP + presence factor PFPRES): `PFMOD = exp(PFCON + [PFPRES if LPERM] + …)/BASEDG`.
 `LPERM` true (PERMAFROST keyword on) ⇒ cap `PFMOD ≤ 1` (permafrost *slows* growth); off ⇒ floor
-`PFMOD ≥ 1`. All coefficient arrays are **already transcribed & shipped** in
-`dg_coefficients.jl` (AK_PF*) and the modifier logic is **already in `dgf!`**. What remains: (a)
-wire the `PERMAFROST` keyword → an `LPERM` control flag, and (b) the `PRD` dependency below.
-Not exercised by akt01 (all its species are non-permafrost, `DGRD=0`), so the cyc0 validation
-covers the base path exactly; the permafrost path needs a permafrost-species stand to validate.
+`PFMOD ≥ 1`. **WIRED + VALIDATED BIT-EXACT (#209).** The `PRMFROST` keyword (keywds.f TABLE(146) —
+NOT "PERMAFROST"; field 2 = 1 ON / 0 OFF) is parsed (`kw_permafrost!`) into `control.permafrost` and
+`dgf!` reads it. **KEY TIMING (MEASURED):** grincr sets LPERM before the GROWTH DGDRIV, but the LSTART
+DG/crown calibration runs earlier in **CRATET with LPERM still .FALSE.** — verified from the live dump
+(the CRATET DGF passes show PFMOD>1 = the floor≥1 branch even with `PRMFROST` ON). So jl applies LPERM
+only on the growth pass, not calibration (gated on `calib_dbh` non-empty). VALIDATED on a white-spruce
+(WS, permafrost sp 5) stand vs `FVSak_g16 DEBUG DGF`: (A) same backdated stand, LPERM=false — jl PFCOMP2
+(**the PFRD·PRD term**) + PFMOD bit-exact per-tree (max Δ 2.5e-7 / 5.3e-7, 27 trees); (B) LPERM=true —
+jl PFMOD = the oracle-derived `min(1, exp(PFCON+PFPRES+PFCOMP1+PFCOMP2)/BASEDG)` from the live-dumped
+intermediates, bit-exact (max Δ 2.6e-7, 27 trees). The live LPERM=true GROWTH-pass dump itself is blocked
+by the DVE-volume segfault (all permafrost species map to DVE/CUR volume, unported+crashing in the g16
+build), so LPERM=true is validated against the live intermediates on the identical stand rather than a
+direct growth dump. Inert for akt01 (all `DGRD=0` non-permafrost species: YC COR 1.4342394 + cyc0
+unchanged). Composes with the now-live PRD (scope note 2) via the PFRD·PRD term.
 
 **2. PRD = point Zeide relative density — PORTED + WIRED + VALIDATED BIT-EXACT (#209).** Both the base
 `b5·PRD` term and the permafrost `PFRD·PRD` term use `PRD = point ZeideSDI / point maxSDI` (`ak/dgf.f`
