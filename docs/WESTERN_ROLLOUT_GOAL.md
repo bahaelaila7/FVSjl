@@ -54,6 +54,12 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
     ★ POPULATION-VALIDATED 2026-08-13: post-fix sweep of 8 TT aspen FIA stands (incl. 11794107010690 = 26/28 aspen,
     aspen-dominated) vs FVStt_clean (NOTRIPLE) — max BA divergence 2-8%, MIXED-SIGN (OLDRN straddle signature, not
     systematic), ZERO crashes, no residual over-growth. Fix is sp==6-gated ⇒ non-aspen trees provably inert.
+    ★★ CROSS-VARIANT AUDIT 2026-08-13 (like #195's diligence, but VERDICT = TT-ONLY, no generalization needed): both
+    #205 bugs are TT-specific. SITAGE-units: EM uses ABIRTH/age (not height-derived); CI/IE/UT/BM/CR/SN all already use
+    the METRIC form (h·2.54·12/26.9825). SUBCYCLE-double-apply: EM applies aspen SINGLE-STEP (separate for-i loop,
+    ·fint10); CI single-pass (SCALE=NTYR/REGYR); IE gated `j==1` (one pass, explicitly contrasts TTVAR conifers=every
+    subcycle); BM has NO subcycle loop at all (single-pass). ⇒ TT was the LONE variant that subcycled aspen with feet
+    SITAGE; the class is CLOSED cluster-wide by source inspection.
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
 sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) ONLY.
   • **#197 mgmt-regime leads (THINBBA over-thin + post-thin AUTOES) — REFUTED/CORNERED 2026-08-13.** My own prior-cycle
