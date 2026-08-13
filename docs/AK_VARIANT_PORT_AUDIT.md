@@ -33,7 +33,7 @@ specialization of the shared engine. AK mirrors that structure.
 | 4 Large-tree HTGF | `ak/htgf.f` single Wykoff HG equation + NOPERM/PERM coeffs + HTLO/HTHI bounding + species mult, wired via `height_growth!(::SoutheastAlaska)` | **VALIDATED BIT-EXACT** vs live FVSak `DEBUG HTGF` on akt01: **27 trees, HTG rel-err 0.0** (POTHTG to F8.4 print precision, ULP-level). Primary gate PASSED. `tools/southeastalaska/validate_htgf.jl` |
 | 4b Height-diameter dub | `ak/cratet.f` Curtis-Arney INVENTORY-EQN (LHTDRG=false): H=4.5+HTT11·(1−exp(HTT12·D))^HTT13 ×spmult; HTT11/12/13 MEASURED from `DEBUG CRATET` (all 23 sp) | **DONE** — wired into `dub_missing_heights!`; akt01 dubbed heights match (5-decimal coeff precision) |
 | 5 Crown | `ak/crown.f` logistic CR (PRD/HDR/D-QMD) + `ak/dubscr.f` (bachlo RNG) + point-Zeide `ak/sdical.f` SDICAL/SDICLS (XMAXPT/ZRD) | **PORTED** — point-Zeide PRD reproduces the oracle (365.0/592=0.6166 verified); feeds DGF ln(CR) from cyc2+. Not yet independently per-tree-validated |
-| 7 Mortality | `ak/morts.f` logistic survival (BM1-5) + SDI/BA iterative-PASS multiplier (NOT SEAMRT — morts.f doesn't call it) | **PORTED** — end-to-end TPA tracks oracle within ~1% mid-run; late-cycle self-thin selection straddle |
+| 7 Mortality | `ak/morts.f` logistic survival (BM1-5) + SDI/BA iterative-PASS multiplier (**NOT SEAMRT** — dead code, 0 `CALL`s in the AK build) | **VALIDATED** — per-tree logistic survival RIP bit-exact vs live `morts.f` DEBUG (single-.o relink, all 27 akt01 cyc1 trees, max ΔRIP 6.4e-8); SDIMAX self-thin threshold bit-exact (660.606). akt01 SDI (≤467) stays below SDIUPR (561) so the PASS self-thin doesn't fire — faithful port validated by the bit-exact RIP+SDIMAX inputs. TPA ~1%; multi-cycle TopHt/TPA divergence = the DGSD=2.0 OLDRN growth straddle (cornered), not a mortality bug |
 | 6 REGENT small-tree | `ak/regent.f` | **STUB (no-op)** — small trees keep large-tree DGF/HTGF; akt01 is mature so bounded. LATER chunk |
 | 8 Volume | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL F32 Flewelling profile (reuses shared `_fw2_*` kernels) + `setcubicdflts.f`/`mrules.f` R10 merch + 32-ft-log board | **VALIDATED BIT-EXACT (per-tree) vs live FVSak_clean TREELIST on akt01 cyc0** — all 29 trees' total cubic + merch cubic + Scribner board match (e.g. LP 21.4/14.5/60, WH 24.9/17.8/60, MH 13.2/10.1/30, YC-dead 240.3/223.9/1010). .sum aggregates: **MCuFt 732 = live 732, BdFt 2417 = live 2417 bit-exact**; TCuFt 2316 vs 2315 (±1 = Float32 summation of the per-acre total, below integer precision). DVE (woodland) + CUR (hardwood) families still 0 (akt01 has none). See §Chunk 8 below |
 
@@ -116,7 +116,14 @@ trees' DGF WK2 (deterministic ln-DDS, incl. the b5·PRD term) bit-exact, max rel
 akt01 (all-`DGRD=0` species: YC COR 1.4342394 + cyc0 unchanged). The interior/permafrost path now has
 its PRD; the PFRD·PRD permafrost term still needs the PERMAFROST keyword wired (scope note 1).
 
-**3. SEAMRT mortality — `ak/seamrt.f`.** AK's density-mortality *distribution* routine (analogous
+**3. SEAMRT mortality — `ak/seamrt.f` = DEAD CODE (#209).** MEASURED: `grep -rn "CALL SEAMRT"` over the
+entire `FVSak_buildDir` returns **zero** — SEAMRT is defined but never invoked (no direct call, no
+external/pointer reference). AK's real periodic mortality is **`ak/morts.f`** (per-tree logistic survival
++ the SDI/BA iterative-PASS density self-thin), ported in chunk 7 and validated bit-exact (per-tree RIP,
+SDIMAX). So there is nothing to port for SEAMRT — it is not on the AK execution path. (Description of the
+unused routine retained below for reference only.)
+
+**3b. SEAMRT (reference only, unused) — `ak/seamrt.f`.** AK's density-mortality *distribution* routine (analogous
 to eastern VARMRT): given a stand kill target `TOKILL`, it distributes deaths across records by a
 per-tree efficiency `EFFTR = PEFF·((100−CR)/100)·VARADJ(sp)·0.01`, where `PEFF = 0.84525 −
 0.01074·PCT + 2e-7·PCT³` (BA-percentile) and `VARADJ` = a 23-species shade-tolerance array
