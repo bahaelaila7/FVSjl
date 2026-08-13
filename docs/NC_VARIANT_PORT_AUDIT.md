@@ -84,14 +84,26 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    FM11 post-activity sharing (AFWT/SLCHNG/HARVYR, <5 yr after an entry) is not yet wired — inert for nct01 (2003 fire is
    10 yr after the 1993 THINDBH ⇒ AFWT=0, FM10=1, exact). (Also SEPARATE from FFE: the BARE/PLANT stand 5 crashes in
    `establish!` on `KeyError :estab_min_ht` — an NC regen coefficient gap, chunk 3.)
-2. **crown biomass (ROUTED) + crown fire (ENABLED) — over-shoots pending chunk 4.** NC's `fmcroww.f` is byte-identical to
-   CR's, so NC routes through `cr_crownw` with `_NC_ISPMAP`=[3,15,3,4,10,20,21,17,4,13,17,19] (nc/fmcrow.f); nct01's groups
-   {3 DF/OS, 4 WF/RF, 15 SP} are already ported (hardwood/cedar {10,17,19,20,21} error loudly, not in nct01). NC added to
-   the fmburn crown-fire variant list + the crowning/torching/crown_fire_result Unions. STATUS: with crown fire enabled,
-   nct01 2003 flame=14.13/scorch=68 vs **live 8.3/47** ⇒ OVER-kill (2003 mortality jl 451 vs live 270; 2008 TPA jl 5 vs live
-   58). Root cause is NOT the crown-biomass port — it is the still-wrong fuel-model WEIGHTS (jl 6@76/10@24 vs live 10@56/6@44,
-   from the LARGE-fuel accumulation gap 10.2 vs 13.28), which the crown-fire boost then amplifies. ⇒ **chunk 4 (Dunning decay)
-   is the gating dependency for flame/scorch/mortality convergence** — it is coupled with this chunk, not independent.
+2. **crown biomass (ROUTED) — crown fire DISABLED pending cbd validation.** NC's `fmcroww.f` is byte-identical to CR's, so NC
+   routes through `cr_crownw` with `_NC_ISPMAP`=[3,15,3,4,10,20,21,17,4,13,17,19] (nc/fmcrow.f); nct01's groups {3,4,15} are
+   ported. The crowning/torching/crown_fire_result Unions include Klamath, but the fmburn crown-fire flame BOOST is left OFF
+   for NC: MEASURED pre-fire 2003 **cbd=0.147 vs live 0.028 (5.3× high), canopy base 6 ft vs live 48 ft** ⇒ with the boost on,
+   flame 14.1/scorch 68 vs live 8.3/47 ⇒ catastrophic over-kill (TPA 5 vs 58). The 5.3× canopy-bulk-density over-prediction is
+   an NC crown-biomass magnitude/vertical-distribution bug (needs per-tree validation vs a live FMCROWW dump) — a distinct
+   OPEN chunk. Surface-only, NC 2003 flame=4.27/scorch=17.9 (under, no crown fire).
+4. **Dunning DKR decay (DONE, faithful) — but NOT the fuel-accumulation lever.** Ported `_FM_DKR_NC` (nc/fmvinit.f:70-92, decay-
+   class-independent, woody 0.0125-0.025 — 3.7-5.6× SLOWER than the SN default NC previously fell to) + `nc_dcymlt` (nc/fmcba.f
+   :395-405 + dunn.f GETDUNN=DUNN50: site index→Dunning code→multiplier), applied at the first FFE year into `params.dkr`
+   (nct01: site 90 → Dunning 1 → DCYMLT 1.5). VERIFIED applied (dkr[4,4]=0.0188). Also rebuilt `fire_species_props.csv` from
+   nc/fmvinit.f (was a CI-copy placeholder — v2t/dkr_cls/leaf_life/snag_fallx/snag_alldwn/tfall now NC-correct). BUT MEASURED:
+   neither the 3.7× decay change nor the corrected snag falldown params move the fire-basis SMALL/LARGE (3.5/10.2, vs live
+   4.80/13.28). ⇒ the ~23% LARGE-fuel accumulation gap is NOT decay/snag-falldown — it is the crown-lift/woody-breakage fuel
+   ADDITIONS (fmcadd, driven by the same NC crown biomass as chunk 2) and/or the fire-basis (start-of-cycle+1yr) timing. Coupled
+   with the chunk-2 crown-biomass fix. OPEN.
+   ★ END-TO-END STATUS: crash RESOLVED (nct01 runs to completion, no fmcba:114); growth `.sum` BIT-IDENTICAL; fuel-model
+   SELECTION bit-exact; initial fuels + PERCOV cornered ~2%. NOT converged: flame/scorch/mortality — gated on the NC
+   crown-biomass magnitude bug (cbd 5.3× high) + the large-fuel ADDITIONS gap, both rooted in crown biomass. Next: validate
+   NC FMCROWW crown biomass per-tree vs a live dump; that one fix feeds BOTH the cbd (crown fire) and the crown-lift additions.
 3. **NC establishment (DONE — nct01 runs to completion).** Wired the western establishment path for Klamath: `_NC_ES_XMIN`
    / `_NC_ES_HHTMAX` (nc/blkdat.f), `_NC_ESSUBH_HHT` fixed base-height table (nc/essubh.f), the western `bc=nothing` +
    PLANT-no-RAN branches. The BARE/PLANT stand 5 now completes. **nct01 runs end-to-end with NO fmcba.jl:114 crash** — the

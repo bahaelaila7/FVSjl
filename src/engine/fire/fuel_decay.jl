@@ -107,6 +107,38 @@ _fm_dkr_default(::EasternMontana) = _FM_DKR_CR   # em/fmcwd.f DKR verified ident
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_CR     # ci/fmcwd.f DKR verified identical to cr
 _fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmcwd.f DKR == cr
 _fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmcwd.f DKR == cr
+# NC (Klamath) base decay table (nc/fmvinit.f:70-92) — decay-class-INDEPENDENT and MUCH slower than the SN
+# default (woody 0.0125-0.025 vs SN 0.07-0.11); subsequently ×DCYMLT (nc/fmcba.f:405, Dunning-code/site index).
+# Without this NC fell through to the SN `_FM_DKR` ⇒ LARGE down-wood decayed ~3.7× too fast ⇒ low fuel-model
+# weight on the hot model ⇒ weak surface fire. Used as the base that the first-FFE-year DCYMLT then scales.
+const _FM_DKR_NC = Float32[
+    0.025  0.025  0.025  0.025     # 1  (<0.25")
+    0.025  0.025  0.025  0.025     # 2  (0.25-1")
+    0.025  0.025  0.025  0.025     # 3  (1-3")
+    0.0125 0.0125 0.0125 0.0125    # 4  (3-6")
+    0.0125 0.0125 0.0125 0.0125    # 5  (6-12")
+    0.0125 0.0125 0.0125 0.0125    # 6  (12-20")
+    0.0125 0.0125 0.0125 0.0125    # 7  (20-35")
+    0.0125 0.0125 0.0125 0.0125    # 8  (35-50")
+    0.0125 0.0125 0.0125 0.0125    # 9  (>50")
+    0.5    0.5    0.5    0.5        # 10 litter
+    0.002  0.002  0.002  0.002     # 11 duff
+]
+_fm_dkr_default(::Klamath) = _FM_DKR_NC          # fallback; the first FFE year replaces it with the ×DCYMLT table
+
+# DCYMLT (nc/fmcba.f:395-405 + dunn.f GETDUNN = DUNN50): the site index of the site species → a Dunning
+# code (0-7, site↑ ⇒ code↓) → the decay-rate multiplier (Dunning 0-1 → 1.5, 2-4 → 1.0, 5-7 → 0.5).
+const _NC_DUNN_XSR = (23f0, 31f0, 39f0, 49f0, 56f0, 75f0, 90f0, 106f0)   # DUNN50, ascending
+const _NC_DUNN_YSR = Float32[7, 6, 5, 4, 3, 2, 1, 0]                     # Dunning codes
+const _NC_DCY_XD   = (0f0, 1f0, 2f0, 3f0, 4f0, 5f0, 6f0, 7f0)
+const _NC_DCY_YD   = Float32[1.5, 1.5, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5]
+@inline function nc_dcymlt(si::Float32)::Float32
+    dun = _ffe_algslp(si, _NC_DUNN_XSR, _NC_DUNN_YSR)
+    return _ffe_algslp(dun, _NC_DCY_XD, _NC_DCY_YD)
+end
+# NC decay table scaled by DCYMLT (all classes; nct01 has no FUELDCAY ⇒ every SETDECAY<0 ⇒ all scaled).
+@inline nc_adjusted_dkr(si::Float32)::Matrix{Float32} = _FM_DKR_NC .* nc_dcymlt(si)
+
 # BM has its OWN base decay table (bm/fmvinit.f:68-113) — NOT the CR table. Faster litter (0.65 vs CR 0.5)
 # and different woody rates; used as the base the habitat DKRADJ then scales (see bm_adjusted_dkr).
 const _FM_DKR_BM = Float32[
