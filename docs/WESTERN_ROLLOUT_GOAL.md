@@ -12,11 +12,18 @@ mission beyond the 9-variant cluster to the remaining western variants (roadmap:
 memory fvsjl-unported-western-variants-roadmap). All reuse the Wykoff-DDS engine jl already has; cluster-specific code
 is disjoint; only the thin variant-registry seam (variant.jl AbstractVariant + variant_from_code + FVSjl.jl includes) is
 shared → worktree isolation per stream, merged sequentially.
-  • **Stream 1 [#207] — Westside R6 Prognosis family** (NC→WC→PN→EC/CA/SO/WS). Reuse anchor = ported BM. Pilot NC
-    (MAXSP=12) proves westside engine reuse. LOW/MED effort.
-  • **Stream 2 [#208] — ORGANON cluster** (OC, OP). HIGH effort — needs the ~14k-line organon/vorganon subsystem jl
-    lacks; first deliverable = OC foundation + an accurate ORGANON chunk-plan.
-  • **Stream 3 [#209] — Alaska (AK)** standalone (MAXSP=23) + PFCON permafrost / SEAMRT / R10 vol. MED effort.
+  • **Stream 1 [#207] — Westside R6 Prognosis family**. ⚠ 2026-08-13 CORRECTION: **NC/Klamath is ALREADY PORTED**
+    (prior session — src/variants/klamath/ full chunks 0-8 + docs/NC_VARIANT_PORT_AUDIT.md + BAMAX/bratio/PSIGSQ fixes).
+    I wrongly listed NC as the unported pilot (my known-ported list omitted it → the roadmap agent inherited the error).
+    NC already PROVES westside Wykoff-DDS reuse. Stream 1 REDIRECTED to WC (West Cascades) as the pilot → PN/EC/CA/SO/WS.
+    So the unported western set is **AK/CA/EC/OC/OP/PN/SO/WC/WS (9, not 10)**. Reuse anchors = BM + the fresh NC/Klamath.
+  • **Stream 2 [#208] — ORGANON cluster** (OC, OP). ★ FOUNDATION LANDED (cherry-picked, OregonCoast MAXSP=50 scaffold +
+    docs/OC_ORGANON_PORT_PLAN.md + relinked /workspace/.ocwork/FVSoc_clean). ★ MEASURED (live FVSoc_clean DEBUG-DGF):
+    OC/OP are **pure ORGANON SWO** — the DGF *is* ORGANON (organon/ 13040 + vorganon/ 1331 lines, UNPORTED); there is NO
+    Wykoff-native DGF to reuse for the 18 ORGANON-eligible species. ⇒ NOT a westside reuse; a genuine ~9,200-line
+    deterministic (DGSD=0, bit-exact bar) subsystem port = the LARGEST single unported western workload. OP = thin
+    follow-on (same engine; MAXSP=39, own species map, NWO/SMC version select). HIGH effort, multi-run.
+  • **Stream 3 [#209] — Alaska (AK)** standalone (MAXSP=23) + PFCON permafrost / SEAMRT / R10 vol. MED effort. (running)
   • **Stream 4 — BC NEWSPRED (#196)** — the main-thread stream (spatial dwarf mistletoe, in progress).
 Each stream = a worktree-isolated background agent bootstrapping its pilot to a per-chunk-VALIDATED beachhead (NOT the
 whole cluster in one shot); doctrine unchanged (bit-exact-or-cornered vs live oracle, MEASURE, never FFI RNG). Off-switch
