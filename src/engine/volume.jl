@@ -346,6 +346,10 @@ function dub_missing_heights!(s::StandState)
             # wc/cratet.f:375-377 — WC LHTDRG=.FALSE. for all species ⇒ ALL missing-height dubbing
             # uses the FOREST-DEPENDENT Curtis-Arney HTDBH (MODE=0), not the shared single-table _htdbh_height.
             wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
+        elseif s.variant isa OregonCoast
+            # oc/cratet.f:679-684 — OC LHTDRG=.FALSE. all species ⇒ HTDBH (CA-family Curtis-Arney)
+            # is the actual missing-height dub (overwrites the Wykoff H). IFOR unused (C8).
+            oc_htdbh_height(Int(sp), d)
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end
@@ -432,6 +436,18 @@ function init_merch_standards!(s::StandState)
     if s.variant isa WestCascades
         # wc/sitset.f westside merch defaults (IFOR 6 Willamette = CASE DEFAULT): TOPD=BFTOPD=SCFTOPD=4.5,
         # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6), stump=1. WC's species CSV carries no merch columns.
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            dm = j == 11 ? 6.0f0 : 7.0f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = 4.5f0; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = 4.5f0; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = 4.5f0; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa OregonCoast
+        # oc/grinit.f:88-131 DBHMIN=7 (sp-index 11 = 6); oc/sitset.f:241-247 westside (IFOR 6-10)
+        # TOPD=BFTOPD=SCFTOPD=4.5; stump=1. OC's species CSV carries no merch columns (like WC).
         @inbounds for j in 1:length(c.sp_dbh_min)
             dm = j == 11 ? 6.0f0 : 7.0f0
             c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = 4.5f0; c.sp_stump_ht[j] = 1.0f0

@@ -220,6 +220,7 @@ include("variants/oregoncoast/organon_crngro.jl")    # OC ORGANON SWO crown grow
 include("variants/oregoncoast/organon_mortality.jl") # OC ORGANON SWO mortality (MORTAL_RUN + PM_SWO/PM_FERT/QUAD1) — chunk C6
 include("variants/oregoncoast/organon_execute.jl")   # OC ORGANON EXECUTE/GROW orchestration + FVS bark/DDS copy-back — chunk C7
 include("variants/oregoncoast/organon_hook.jl")      # OC ORGANON live growth hook + StandState copy-back (diameter_growth!) — chunk C7
+include("variants/oregoncoast/organon_cratet.jl")    # OC setup height dubbing (oc/cratet.f HTDBH Curtis-Arney) — chunk C8
 
 # --- southeastalaska (AK) — Region-10 Wykoff DDS (Zeide SDI), 23 species, permafrost DG modifier; chunk 0 beachhead ---
 include("variants/southeastalaska/southeastalaska.jl") # AK singleton + registration (MAXSP 23, Wykoff DDS, Zeide SDI)

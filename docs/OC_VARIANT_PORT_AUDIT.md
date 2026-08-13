@@ -440,29 +440,46 @@ double-apply a cooperating-hook split would risk.
 apply-loop → the four no-op hooks) on an ocmin `StandState` gives **byte-identical** DBH/HT/CROWN/TPA
 to a single `organon_apply_growth!` — max |Δ| = 0 on all four (applied exactly once).
 
-### Remaining for the end-to-end `.sum` (the mergeable C7 — larger than one sub-step)
+## Chunk C8 delivered (OC setup height dubbing) — BIT-EXACT
 
-Getting `run_keyfile` to a bit-exact ocmin/oct01 cyc0 `.sum` needs three more FVS subsystems the
-OC port does not yet have (each comparable to a growth chunk). Measured blocker order (first crash
-first) via `run_keyfile(ocmin; variant=OregonCoast)`:
+`src/variants/oregoncoast/organon_cratet.jl` ports the OC missing-height dub. OC has
+`LHTDRG=.FALSE.` for every species (`oc/grinit.f`), so `oc/cratet.f:679-684` uses the CA-family
+Curtis-Arney `HTDBH` (INVENTORY equation) — it overwrites the calibrated-Wykoff `H`. `oc_htdbh_height`
+= `bin/FVSoc_buildDir/htdbh.f` MODE=0 (`CURARN(50,3)`+`SPLINE`); `d ≥ Z`: `H=4.5+P2·exp(−P3·D^P4)`,
+`d < Z`: the linear spline to 4.51@D=0.3. An OC branch in the shared `dub_missing_heights!`
+(`volume.jl`) routes the else-case there; `D ≤ 0.1 → 1.01` is handled by the shared code. OC merch
+defaults (`oc/grinit.f`/`oc/sitset.f`: DBHMIN=7 / sp-11=6, westside TOPD=4.5, stump=1) added to
+`init_merch_standards!`.
 
-1. **OC setup dubbing** — `setup_growth!`→`dub_missing_heights!` (CRATET) has no OC branch, so it
-   falls to the shared `_htdbh_height` and `KeyError: htdbh_p2` (OC has no such column). Needs OC's
-   `oc/cratet.f` HTDBH (Wykoff `exp(AX+BX/(D+1))+4.5`, per-species HT1/HT2 — the oracle dubs ocmin
-   tree-20 LP→53.32) for the missing-height NON-ORGANON trees, plus wiring the C2
-   `organon_prepare_swo` HT/CR imputation for the ORGANON trees, plus crown init.
+**MEASURED bit-exact vs the live FVSoc_clean oracle** (ocmin CRATET `INVENTORY EQN DUBBING` dump):
+`oc_htdbh_height` on all 5 dumped cases — LP(12) D=8.5→**53.3234**, DF(7) D=10.4→**64.6109**,
+SP(16) D=8.0→**39.8626** / D=34.6→**121.308**, LP(12) D=7.2→**45.5013** — all exact. The ocmin
+missing-height tree-20 (LP, D=8.5) dubs to 53.3234, matching the oracle.
+
+**C8 verdict: bit-exact.** The `run_keyfile(ocmin)` setup now passes `dub_missing_heights!` and
+`init_merch_standards!`.
+
+### Remaining for the end-to-end `.sum` (measured blocker order after C8)
+
+Each is a real OC subsystem. Next `run_keyfile(ocmin)` blocker after C8:
+
+1. **OC ecoclass / site-index + SDImax sourcing (NEW top blocker).** DF `SITEAR(7)=92` and
+   `SDIMAX=815` come from the OC ECOCLASS table (`oc/habtyp.f`; oracle: STDINFO field-2 → ecoclass
+   `CWC221` → `DF=92, SDIMAX=815`), NOT a SITE keyword. Without it `sp_site_index[7]=0` ⇒
+   `SITE=SI_1=−4.5` ⇒ `flog(SITE)=NaN` in DG_SWO (hit in the real run). Needs the OC plant-assoc →
+   ecoclass → per-species site-index + SDImax table (this also supplies MSDI/SDIDEF faithfully). The
+   growth math itself is C3–C7-validated; this is the missing INPUT.
 2. **Non-ORGANON DGF/HTGF** — `oc/dgf.f` (480-line CA-family Wykoff DDS) + `oc/htgf.f` native path
    for the IORG=0 surrogate / no-big-6 trees (ocmin LP/BR/sub-4.5-ft DF); `organon_apply_growth!`
    currently leaves their DG/HTG at 0.
-3. **OC volume** — `compute_volumes!` for OC (NVEL/CA-family equations) so the `.sum` TPA/BA/SDI/
-   TopHt/QMD/vol row can be built; then the pre-volume-crash `.sum` row compared to FVSoc_clean
-   (GROSPC trap: read the `.sum`-reported per-acre values, not raw `stand_tpa`).
+3. **OC volume** — `compute_volumes!` NVEL/CA-family equations so the `.sum` vol columns build (merch
+   standards done in C8); the TPA/BA/SDI/TopHt/QMD row comes from the tree list once #1/#2 are in.
 
-Plus **MSDI/SDIDEF sourcing** (`oc/sitset.f:327` `RVARS(3..5)=SDIDEF(7/4/18)`; inert on ocmin's
-RD≤RDCC base mortality — msdi 815 vs 0 give byte-identical DEADEXP — but load-bearing for dense
-stands) and the **carried mortality state** (A1MAX/NO/RD0, subsequent-cycle init `mortality.f:177-204`)
-for multi-cycle. The growth science (C3–C6) + orchestration (C7-1) + copy-back (C7-2) + the seam
-(C7-3) are all bit-exact/verified; these three are engine-wiring subsystems, scoped for the next runs.
+Then the pre-volume-crash `.sum` row vs FVSoc_clean (GROSPC trap: read the `.sum`-reported per-acre
+values, not raw `stand_tpa`) + the **carried mortality state** (A1MAX/NO/RD0, subsequent-cycle init
+`mortality.f:177-204`) for multi-cycle. Growth science (C3–C6) + orchestration (C7-1) + copy-back
+(C7-2) + seam (C7-3) + setup dub (C8) are all bit-exact/verified; #1–#3 are the remaining engine-
+wiring subsystems.
 
 ## Oracle status
 
