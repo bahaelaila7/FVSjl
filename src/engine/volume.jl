@@ -340,6 +340,8 @@ function dub_missing_heights!(s::StandState)
                 ax = (lhtdrg[sp] && iabflg[sp] == 0) ? aa[sp] : tt_ht1[sp]
                 exp(ax + tt_wht2[sp] / (d + 1f0)) + 4.5f0
             end
+        elseif s.variant isa SoutheastAlaska
+            ak_htdbh_dub(Int(sp), d)   # ak/cratet.f Curtis-Arney INVENTORY-EQN dub (LHTDRG=false)
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end
@@ -560,6 +562,7 @@ function compute_volumes!(s::StandState)
     s.variant isa BlueMountains && return compute_volumes_bm!(s)   # BM = FW2W Flewelling conifers (BEHW minor deferred)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
+    s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)

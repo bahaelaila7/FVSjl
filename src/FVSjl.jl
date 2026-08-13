@@ -219,6 +219,12 @@ include("variants/southeastalaska/southeastalaska.jl") # AK singleton + registra
 include("variants/southeastalaska/species.jl")         # AK blkdat init (23 species, seed 55329, Zeide SDI, LHTDRG=false) + SPCTRN col 4
 include("variants/southeastalaska/dg_coefficients.jl") # AK large-tree DG + permafrost + bark coefficient arrays (ak/dgf.f, ak/bratio.f)
 include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chunk 3): ak_bratio + ak_dgcons! + dgf! — VALIDATED bit-exact
+include("variants/southeastalaska/site_index.jl")      # AK site index (ak/sitset.f SITEAR) + SDImax + forkod — chunk 2 (SITEAR validated)
+include("variants/southeastalaska/height_growth.jl")   # AK large-tree height growth (ak/htgf.f) — chunk 4 (validated bit-exact cyc0)
+include("variants/southeastalaska/crown.jl")           # AK crown ratio (ak/crown.f logistic + dubscr) + point-Zeide (sdical) — chunk 5
+include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f) — chunk 6 STUB (no-op)
+include("variants/southeastalaska/mortality.jl")       # AK mortality (ak/morts.f logistic survival + SDI/BA iterative pass) — chunk 7
+include("variants/southeastalaska/volume.jl")          # AK Region-10 volume (VOLEQDEF→NVEL) — chunk 8 STUB (cuft=0 until ported)
 
 # --- westcascades (WC) — R6 westside Prognosis (Reineke SDI), 39 species; chunk 0 foundation + DGF validated ---
 include("variants/westcascades/westcascades.jl")     # WC (West Cascades) singleton + registration (MAXSP 39, Reineke) — chunk 0 foundation

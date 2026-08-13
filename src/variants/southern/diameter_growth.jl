@@ -274,10 +274,12 @@ function _backdate_dbh!(s::StandState)
     _ci_bd = s.variant isa CentralIdaho      # CI bark = ci_bratio (POWER DIB=BARK1·D^BARK2) — MISSING branch left the
                                              # DENSE backdating on the linear default (0.9) ⇒ backdated BA 0.13% high
                                              # ⇒ COR fit vs wrong density ⇒ DG low ⇒ ~2% mortality over-kill.
+    _ak_bd = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type: power/linear/power); shared bark_a/bark_b unset
     _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
                  _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
                  _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) :
                  _ci_bd ? ci_bratio(sd, Int(sp), d) :
+                 _ak_bd ? ak_bratio(Int(sp), Float32(d)) :
                  _bc_bd ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
@@ -310,6 +312,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _bm_cal = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model)
     _bc_cal = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant BARK1; shared bark_a/bark_b are 0 → 0.80 floor)
     _ci_cal = s.variant isa CentralIdaho      # CI bark = ci_bratio (POWER) — same missing-branch class as _backdate_dbh!
+    _ak_cal = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type); shared bark_a/bark_b unset ⇒ 0.80 floor otherwise
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -430,6 +433,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                      _tt_cal ? tt_bratio(Int(t.species[i]), saved_dbh[i]) :
                      _bm_cal ? bm_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _ci_cal ? ci_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
+                     _ak_cal ? ak_bratio(Int(t.species[i]), saved_dbh[i]) :
                      _bc_cal ? bc_bratio(Int(t.species[i])) :
                      bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
                 t.diam_growth[i] *= bk
@@ -508,6 +512,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _tt_cal ? tt_bratio(Int(sp), saved_dbh[i]) :
                _bm_cal ? bm_bratio(sd, Int(sp), saved_dbh[i]) :
                _ci_cal ? ci_bratio(sd, Int(sp), saved_dbh[i]) :
+               _ak_cal ? ak_bratio(Int(sp), saved_dbh[i]) :
                _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
@@ -1001,6 +1006,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # 7-8% LOW on EVERY tree ⇒ dq10 low ⇒ self-thin under-kill (the #140
                                              # under-thin). Calibration (line 279) + mortality (_mbark) already use
                                              # bm_bratio; this DDS→DG apply site was the missing branch.
+    _ak_dg = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type); shared bark_a/bark_b unset ⇒ 0.80 floor otherwise
     _ci_dg = s.variant isa CentralIdaho      # ★ same class as #140: CI bark = ci_bratio (POWER). Linear fallback
                                              # gave a FLAT ~0.90 vs ci_bratio's per-sp/dbh 0.88-0.93 ⇒ DDS→DG off
                                              # ~2% on species where they diverge (net ~0.3%, small since 0.90 ≈ CI
@@ -1120,7 +1126,8 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                    _tt_dg ? tt_bratio(Int(sp), t.dbh[i]) :
                    _bc_dg ? bc_bratio(Int(sp)) :
                    _bm_dg ? bm_bratio(sd, Int(sp), t.dbh[i]) :
-                   _ci_dg ? ci_bratio(sd, Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+                   _ci_dg ? ci_bratio(sd, Int(sp), t.dbh[i]) :
+                   _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT
