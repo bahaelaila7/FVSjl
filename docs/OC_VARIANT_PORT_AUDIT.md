@@ -366,6 +366,52 @@ no change on their side.
 copy-back into StandState, so an end-to-end ocmin/oct01 cyc0 run validates against FVSoc_clean via
 `diameter_growth!(::OregonCoast)`.**
 
+## Chunk C7 sub-step 1 delivered (EXECUTE/GROW orchestration + DGRO→DDS copy-back) — BIT-EXACT
+
+`src/variants/oregoncoast/organon_execute.jl` ties the four validated growth components (C3–C6) into
+one per-cycle call in the faithful `execute2.f` EXECUTE + `grow.f` GROW order, and ports the FVS-side
+copy-back seam that turns the ORGANON outputs into FVS tree-record increments.
+
+- **`organon_execute_swo(buf, isp_fvs; si_1, si_2, msdi…)`** = the GROW sequence **DG (C3) → HG (C4)
+  → MORTAL (C6) → CROWGRO (C5)** — mortality BEFORE crown (so C5's survivor-expansion is honoured),
+  returning an `OrganonGrowth` with the per-tree `dgro`/`hgro`/`cr2`/`deadexp` + the `dds` (WK2) FVS
+  loads for the ORGANON trees.
+- **`oc_bratio`** = `bin/FVSoc_buildDir/bratio.f` — the OC (CA-family) variant bark ratio
+  (`BARKB(5,29)` / `JBARK(50)`, three eqn forms, clamp [0.80,0.99]). OC has NO `oc/bratio.f`; the
+  build links this CA-family `bratio.f`, distinct from the shared linear `bark_ratio`.
+- **`oc_organon_dds`** = `oc/dgdriv.f:446-452` — `BARK=BRATIO`, `DIAGR=DGRO·BARK`,
+  `DDS=ln(DIAGR·(2·DBH·BARK+DIAGR))` floored −9.21 → the FVS WK2. **`oc_organon_dg`** = the shared
+  DDS→DG (`√((DBH·BARK)²+exp(DDS))−DBH·BARK`, OLDRN=0/FRM=1) the StandState apply-loop consumes.
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / DGDRIV HTGF CROWN MORTS`, stand
+S248112 / ocmin) — every ORGANON per-tree quantity from a SINGLE `organon_execute_swo` call:
+
+| quantity | trees | result |
+|---|---|---|
+| `DGRO` (C3) | 17 valid | **max \|Δ\| = 0.000e+00** |
+| `BARK` (oc_bratio) | 17 valid | **0.000e+00** |
+| `DIAGR` = DGRO·BARK | 17 valid | **0.000e+00** |
+| `DDS` (WK2 FVS load) | 17 valid | **0.000e+00** |
+| `HGRO` (C4) | 17 valid | **0.000e+00** |
+| `CR2` (C5) | 17 valid | **0.000e+00** |
+| `DEADEXP` (C6) | all 27 | **0.000e+00** |
+
+**C7 sub-step 1 verdict: bit-exact.** The orchestration order + the OC bark ratio + the DGRO→DDS
+copy-back all reproduce the oracle from one call. This is the ORGANON side of C7 fully assembled.
+
+### Remaining C7 sub-steps (next runs)
+
+- **Live-hook wiring + StandState apply:** replace the loud-error `diameter_growth!(::OregonCoast)`
+  stub so `organon_execute_swo` runs on the real `StandState` and writes `t.diam_growth = oc_organon_dg`
+  (→ shared apply-loop `DBH += DG/BARK`), `t.ht_growth = HGRO`, crown `ANINT(CR2·100)`, and mortality
+  `MORTEXP` at their FVS sites — with the OC-dispatched `height_growth!`/`mortality!`/`crown_ratio_update!`
+  reading the stash `organon_execute_swo` computes.
+- **Non-ORGANON DGF (`oc/dgf.f`):** the surrogate / no-big-6 trees (IORG=0) grow FVS-native Wykoff
+  (ocmin has LP/BR/sub-4.5-ft DF). Needed for a full `.sum` — a distinct port (shared Wykoff engine +
+  OC coefficients).
+- **Carried stand state** (A1MAX/NO/RD0, subsequent-cycle mortality init `mortality.f:177-204`) +
+  multi-cycle; **end-to-end `.sum`** (oracle volume-stage crash to be worked around per audit).
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
