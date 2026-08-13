@@ -313,3 +313,23 @@ cluster-wide), NOT mortality — proven by the per-tree cyc1 kill being exact. M
 - The mature-regime growth serial-correlation compounding (cornered class; the BA/QMD late-cycle drift).
 - SHP_W4 (WH) / SHP_W5 (RC), RA/RW branches, and the density-iteration PASS scaling remain unexercised on
   wct01 (below SDIMAX; no WH/RC/RA/RW) — ported source-faithful.
+
+## Follow-on 1 — westside board/merch bit-exact (2026-08-13, R6 log-bucking)
+
+The deferred DF board (MerchBdFt +1.7%) was NOT BRK_WS: the IB top-finding + dibat already reproduce the
+live per-height DIB and log small-end diameters (LOGDIA(:,2)) bit-exact. Root cause = the R6 merch
+log-bucking RULES (NVEL mrules.f REGN 6): OPT=**23** (fill-full-16ft-logs-first SEGMNT, ≠ R3's 22) + board
+SCRIB COR=**'N'** (full board feet AINT(len·volfac+.5), not decimal-C ×10). Added `_wc_fw2_merch_cuft`/
+`_wc_fw2_board` (OPT=23/COR='N'); the shared R3 helpers are untouched. wct01 DF VOL1/VOL4/VOL2 all BIT-EXACT
+(12.7→20.7/17.3/76, 10.0→13.3/12.1/57, 9.4→10.9/8.8/47, 10.4-brokentop→16.3/14.0/67). cyc0 .sum MerchBdFt
+now +0.3% (was +1.7%); the ~+8 TotCuFt residual is the recent-mortality/tpa-expansion record-partition.
+
+## Follow-on 2 — full multi-stand wct01 cut-log gap (2026-08-13)
+
+wct01 runs 2-3 (THINDBH/THINPRSC) hit the ESTUMP sprout-cut log gap (cuts.jl:177 coef_col(:is_sprouting)).
+Added `is_sprouting` to the WC species CSV (blkdat.f:72 ISPSPE) ⇒ the THINNING stands complete their
+cut-log. Also wired the FFE-stand (run 4, SIMFIRE) coef columns from the WC source (fire_species_props.csv:
+v2t fmvinit.f + ls_spi fmcrow.f ISPMAP; merch_specs.csv; htdbh_coeffs.csv forest-618). ⇒ runs 1-3 complete
+end-to-end. Run 4 (FFE) is NOT yet complete — it continues to need the full WC FFE/crown-width data layer
+(bark_intercept, snag decay/fall, Jenkins biomass groups, fuel models), i.e. the FFE-rollout subsystem
+(a separate campaign beyond the cut-log column).
