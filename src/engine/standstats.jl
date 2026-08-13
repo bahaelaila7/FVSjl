@@ -363,6 +363,12 @@ function stand_ccf(s::StandState)
             ccf += tt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa OregonCoast
+        # OC CCF is the open-grown crown-width → area form (oc/ccfcal.f MODE=1, R5CRWD); stand CCF = Σ CCFT·P.
+        @inbounds for i in 1:t.n
+            ccf += oc_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+        end
+        return ccf
     elseif s.variant isa SoutheastAlaska
         # AK CCF is the open-grown crown-width → area form (ak/ccfcal.f MODE=1); stand CCF = Σ CCFT·P.
         @inbounds for i in 1:t.n
