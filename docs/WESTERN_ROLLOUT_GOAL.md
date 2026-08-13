@@ -51,6 +51,9 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
     ~bit-exact; ttt01 ±1 NINT (conifer-dominated, aspen negligible); asp.key early bit-exact. TT-only; sp14 MM (UTVAR)
     a minor follow-up. ★ LESSON: two partially-canceling bugs can hide behind a "validated" high-site ref stand —
     a low-site/dense reproducer exposes them; fixing one alone regresses, so measure BOTH per-tree before committing.
+    ★ POPULATION-VALIDATED 2026-08-13: post-fix sweep of 8 TT aspen FIA stands (incl. 11794107010690 = 26/28 aspen,
+    aspen-dominated) vs FVStt_clean (NOTRIPLE) — max BA divergence 2-8%, MIXED-SIGN (OLDRN straddle signature, not
+    systematic), ZERO crashes, no residual over-growth. Fix is sp==6-gated ⇒ non-aspen trees provably inert.
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
 sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) ONLY.
   • **#197 mgmt-regime leads (THINBBA over-thin + post-thin AUTOES) — REFUTED/CORNERED 2026-08-13.** My own prior-cycle
