@@ -323,6 +323,49 @@ buffer + the C3 `dgro` + C4 `hgro` + the measured per-tree `deadexp` (see C6 not
 **Next: C6 (mortality — `mortality.f` PM_SWO + RAMORT/OLDGRO, supplies DEADEXP); then C7
 GROW/EXECUTE orchestration + the FVS DDS/HTG/CR copy-back into `diameter_growth!(::OregonCoast)`.**
 
+## Chunk C6 delivered (ORGANON SWO mortality) — VALIDATED BIT-EXACT
+
+`src/variants/oregoncoast/organon_mortality.jl` ports the ORGANON **SWO (VERSION=1)** mortality core
+— the deterministic (`DGSD=0`) per-tree `DEADEXP = EXPAN·PM` that C4/C5 have been consuming as the
+measured MORTEXP. FVS copies it as `WK2=MORTEXP·(FINT/5)` (`oc/morts.f:499`; MORTEXP=DEADEXP·NPTS).
+
+- **`organon_mortal_swo(buf, dgro, hgro, spgrp, bal1, ball1, a1, a2; si_1, cyclg, mort)`** =
+  `mortality.f` MORTAL_RUN: stand `STBA/STN/SQMDA/RD`, `OLDGRO(XIND=0)` pre-growth OG, per-tree
+  **`oc_pm_swo`** (PM_SWO logistic linear predictor, `MPAR(18,9)`) + **`oc_pm_fert`** (0 no fert),
+  then `PM = 1 − (1−logistic(PMK))^POW·CRADJ` and `DEADEXP = EXPAN·PM`. The SDI additional-mortality
+  block (MORT=INDS(9)=1, `oc/grinit.f:364`) is ported: `RDA`, the CYCLG=0 `IND`/`A1MAX`/`NO`
+  initialization, **`oc_quad1`** (QUAD1), and the KR1 density-adjustment iteration.
+- Runs inside GROW after growth-1/2 but before the DBH/HT update, so it sees the ORIGINAL DBH/HT/
+  EXPAN + the C3 `dgro` (for the post-growth BA `(DBH+DG)²`), the start-of-growth BAL (`bal1`/`ball1`
+  from C3's SSTATS), and SUBMAX `a1`/`a2` (from C3).
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / DGDRIV HTGF CROWN MORTS`, stand
+S248112 / ocmin; the dgdriv `MORTEXP` dump — **ALL 27 records**):
+
+| quantity | result |
+|---|---|
+| `DEADEXP` (=MORTEXP) — all **27 trees** (valid + surrogate, groups 1–4) | **max \|Δ\| = 0.000e+00 (bit-exact)** |
+| C5 `CR2` recomputed from the C6-**ported** `deadexp` (17 valid trees) | **max \|Δ\| = 0.000e+00** |
+
+**C6 verdict: bit-exact vs the live oracle** on ORGANON SWO mortality (`DEADEXP`, all 27 trees). The
+measured-MORTEXP dependency C4/C5 carried is now **fully closed**: feeding the C6-ported `deadexp`
+back into `organon_cr_swo`/SSTATS2 reproduces the 17-tree CR2 (and the DGRO/HGRO) at max |Δ|=0.0 with
+no change on their side.
+
+### Measured notes (not gaps)
+
+- **SDI additional mortality did not engage on ocmin** — `RD = STN/exp(A1/A2 − ln(SQMDA)/A2) ≤
+  RDCC=0.60` (below carrying capacity, SDI≈184), so the base individual-tree path applies and the
+  KR1 density-adjustment loop is inert. Both are ported; the KR1 branch awaits a dense stand to
+  bit-validate. **PM_SWO's `POW` output overwrites the caller's POW (=MPAR(g,9)=1.0 for all SWO).**
+- **PM_FERT/RAMORT inert:** no fertilizer (FERTADJ=0) and no red alder ≥55 yr (RAMORT skipped).
+- **Subsequent-cycle mortality init** (`mortality.f:177-204`, needs the carried `RD0/PA1MAX/NO`
+  state) is a C7-orchestration follow-up; only the cyc0 (`CYCLG==0`) initialization is ported here.
+
+**Next: C7 — GROW/EXECUTE per-cycle orchestration wiring C3–C6 + the FVS DDS/HTG/CR/MORTEXP
+copy-back into StandState, so an end-to-end ocmin/oct01 cyc0 run validates against FVSoc_clean via
+`diameter_growth!(::OregonCoast)`.**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
