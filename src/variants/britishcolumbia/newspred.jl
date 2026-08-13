@@ -34,6 +34,10 @@ const DM_TWOPIE = 6.283185f0      # 2π (subtended-angle interception, dmtreg.f)
 const _DM_PIE   = 3.14159f0       # dmcom PIE
 const _DM_SQM2AC = 1f0 / 4046.8564f0   # m² → acres
 const DM_DSTLEN = 1000            # max sampling-ring source-count array length (DMCOM DSTLEN)
+const DM_TOP1   = 1496            # length of the Shd1 trajectory table (DMCOM TOP1)
+const DM_MXTRAJ = 1              # max trajectories per grid cell (DMCOM MXTRAJ)
+const DM_XX     = 1              # CShd/DMRDMX 3rd-index: x-position
+const DM_ZZ     = 2              # CShd 3rd-index: z-position
 # CrArea(i) = cumulative circle area (acres) of radius (MESH·i) m; Dstnce(i) = midpoint dist (m)
 # of ring i. Compile-time (dminitbc.f:170-179), i = 1..MXTHRX.
 const DM_CRAREA = Float32[_DM_PIE * _DM_SQM2AC * Float32(DM_MESH * i)^2 for i in 1:DM_MXTHRX]
@@ -391,6 +395,31 @@ function dm_slst!(ms::MistletoeState, dmrcls::Int, n::Int, sind, scd, sptr)
         end
     end
     return (idxs, knts)
+end
+
+# --- DMBSHD (dmbshd.f) — decode the encoded Shd1 trajectory data for grid cell (iz, ix) into the
+# CShd trajectory list: for each of `vcnt` trajectories, a header (weight at cs[i,0,XX], StrtVl,
+# EndVal=Shd1/2) then (x,z) pairs cs[i,j,XX]/cs[i,j,ZZ] for j=StrtVl..EndVal. Deterministic (a pure
+# table decode). Returns (cs[traj, j+1 (j 0:28), {XX,ZZ}], vlen[traj], vcnt). ShdPtr(iz,ix)=0 → vcnt 0.
+function dm_bshd(iz::Int, ix::Int)
+    cs = zeros(Int32, DM_MXTRAJ, 29, 2)
+    vlen = zeros(Int, DM_MXTRAJ)
+    ptr = Int(DM_SHDPTR[iz, ix])
+    vcnt = 0
+    if ptr != 0 && 1 <= ptr < DM_TOP1
+        vcnt = Int(DM_SHD1[ptr]); ptr += 1
+        @inbounds for i in 1:vcnt
+            cs[i, 0+1, DM_XX] = DM_SHD1[ptr]; ptr += 1
+            strtvl = Int(DM_SHD1[ptr]); ptr += 1
+            endval = Int(DM_SHD1[ptr]) ÷ 2; ptr += 1
+            for j in strtvl:endval
+                cs[i, j+1, DM_XX] = DM_SHD1[ptr]; ptr += 1
+                cs[i, j+1, DM_ZZ] = DM_SHD1[ptr]; ptr += 1
+            end
+            vlen[i] = endval
+        end
+    end
+    return (cs, vlen, vcnt)
 end
 
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
