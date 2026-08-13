@@ -6,6 +6,22 @@ FVS-ready FIA sweep as well. Do NOT stop." Port + validate the WESTERN FVS varia
 bit-exact-or-cornered vs live FVS oracles, chunk by chunk. Branch: `kt-variant-port`.
 DO NOT narrow scope to a single variant — CR is DONE; the goal is the whole cluster + extensions + FIA sweep.
 
+## ★★★ 2026-08-13 SCOPE EXPANSION (USER-directed) — 4 PARALLEL STREAMS: port the UNPORTED western variants
+The USER directed working in **4 parallel streams** = the 3 unported-western clusters + BC NEWSPRED. This EXPANDS the
+mission beyond the 9-variant cluster to the remaining western variants (roadmap: docs/WESTERN_UNPORTED_VARIANTS_ROADMAP.md,
+memory fvsjl-unported-western-variants-roadmap). All reuse the Wykoff-DDS engine jl already has; cluster-specific code
+is disjoint; only the thin variant-registry seam (variant.jl AbstractVariant + variant_from_code + FVSjl.jl includes) is
+shared → worktree isolation per stream, merged sequentially.
+  • **Stream 1 [#207] — Westside R6 Prognosis family** (NC→WC→PN→EC/CA/SO/WS). Reuse anchor = ported BM. Pilot NC
+    (MAXSP=12) proves westside engine reuse. LOW/MED effort.
+  • **Stream 2 [#208] — ORGANON cluster** (OC, OP). HIGH effort — needs the ~14k-line organon/vorganon subsystem jl
+    lacks; first deliverable = OC foundation + an accurate ORGANON chunk-plan.
+  • **Stream 3 [#209] — Alaska (AK)** standalone (MAXSP=23) + PFCON permafrost / SEAMRT / R10 vol. MED effort.
+  • **Stream 4 — BC NEWSPRED (#196)** — the main-thread stream (spatial dwarf mistletoe, in progress).
+Each stream = a worktree-isolated background agent bootstrapping its pilot to a per-chunk-VALIDATED beachhead (NOT the
+whole cluster in one shot); doctrine unchanged (bit-exact-or-cornered vs live oracle, MEASURE, never FFI RNG). Off-switch
+STILL the USER's call. Multi-session per stream. Launched 2026-08-13; results merge back to kt-variant-port as they land.
+
 ## ★★★ 2026-08-12 (LATEST session) — UT/TT crown-dub family + UT double-site-conversion FIXED; "bit-exact-or-cornered" claim REFINED
 6 commits, all measurement-driven + validated. A coherent FAMILY of missing UT/TT crown-dub branches, surfaced by real-FIA:
 - **TT #198 (862f320) + UT #199 (f3edc5b)** — sub-1" INVENTORY-SEEDLING crown: jl applied rank-Weibull / skipped
