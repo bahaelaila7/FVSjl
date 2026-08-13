@@ -322,8 +322,14 @@ const CI_MIS_DGP = reshape(Float32[
     v isa BlueMountains && return (BM_MIS_FIT, BM_MIS_DGP, BM_MIS_PMC, 18)
     v isa Teton         && return (TT_MIS_FIT, TT_MIS_DGP, TT_MIS_PMC, 18)
     v isa CentralIdaho  && return (CI_MIS_FIT, CI_MIS_DGP, CI_MIS_PMC, 19)
+    v isa BritishColumbia && return (BC_MIS_FIT, BC_MIS_DGP, BC_MIS_PMC, 15)  # NEWSPRED C6 payoff (misintbc.f)
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
+
+# The DM growth/mortality EFFECTS gate. BC is included here (its DMR comes from NEWSPRED/dm_tregro!,
+# not the base ie_mistoe! spread) so the base misdgf/mismrt effects apply to BC's per-tree t.dmr —
+# but BC is NOT in _ie_mis_variant, so it does NOT run the base (non-spatial) ie_mistoe! spread.
+@inline _dm_effects_variant(v)::Bool = _ie_mis_variant(v) || v isa BritishColumbia
 
 # ============================================================================
 # IE MISTOE effect kernels + apply steps (mistoe/misdgf.f + mismrt.f — the SHARED
@@ -377,7 +383,7 @@ growth (central + tripled dgU/dgL) by IE_MIS_DGP[DMR+1,sp], using START-of-cycle
 No-op for non-IE / uninfected. Deterministic.
 """
 function ie_dm_growth_loss!(s::StandState, stash)
-    _ie_mis_variant(s.variant) || return
+    _dm_effects_variant(s.variant) || return
     t = s.trees
     _, dgp, _, maxsp = _mis_tables(s.variant)
     n = stash === nothing ? t.n : stash.nlive
@@ -399,7 +405,7 @@ mismrt.f:185-191: MAX-combine per-tree DM mortality (WKI = PROB·rate) into `kil
 No-op for non-IE / uninfected. Order-independent (per-tree max).
 """
 function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
-    _ie_mis_variant(s.variant) || return
+    _dm_effects_variant(s.variant) || return
     t = s.trees
     _, _, pmc, maxsp = _mis_tables(s.variant)
     @inbounds for i in 1:n

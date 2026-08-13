@@ -557,6 +557,48 @@ end
 
 const DM_SPSURV_BC = 1f0 - 0.08f0    # DMSURV = 1 − DMDETH; DMDETH=0.08 for all BC species (dminitbc.f:270)
 
+# --- C6 PAYOFF coefficient tables (mistoe/misintbc.f AFIT/ADGP/APMC, BC's 15 species PW/LW/FD/BG/HW/
+# CW/PL/SE/BL/PY/EP/AT/AC/OC/OH). Consumed by _mis_tables → the base ie_dm_dg_mult (misdgf DG loss)
+# + ie_dm_mortality_rate (mismrt DMR-mortality), exactly as the N-Rockies variants. Affected species
+# (AFIT=1): LW=2, FD=3, HW=5, PL=7, PY=10, OC=14. OC copies FD.
+const BC_MIS_FIT = Int32[0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0]
+# ADGP(MAXSP,7): DG multiplier by species(col) × DMR 0..6(row); flat = per-species DMR-fastest → reshape 7×15.
+const BC_MIS_DGP = reshape(Float32[
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # PW
+    1.0,.94,.92,.88,.84,.58,.54,   # LW
+    1.0,.98,.97,.85,.80,.52,.44,   # FD
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # BG
+    1.0,1.0,1.0,1.0,.82,.82,.82,   # HW
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # CW
+    1.0,1.0,1.0,1.0,.94,.80,.59,   # PL
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # SE
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # BL
+    1.0,1.0,1.0,.98,.86,.73,.50,   # PY
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # EP
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # AT
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # AC
+    1.0,.98,.97,.85,.80,.52,.44,   # OC=FD
+    1.0,1.0,1.0,1.0,1.0,1.0,1.0,   # OH
+], 7, 15)
+# APMC(MAXSP,3): DM-mortality quadratic coeffs, 3 per species; flat → reshape 3×15.
+const BC_MIS_PMC = reshape(Float32[
+    0.0,0.0,0.0,                   # PW
+    0.01319,-0.01627,0.00822,      # LW
+    0.01319,-0.01627,0.00822,      # FD
+    0.0,0.0,0.0,                   # BG
+    0.00681,-0.00580,0.00935,      # HW
+    0.0,0.0,0.0,                   # CW
+    0.00112,0.02170,-0.00171,      # PL
+    0.0,0.0,0.0,                   # SE
+    0.0,0.0,0.0,                   # BL
+    0.00681,-0.00580,0.00935,      # PY
+    0.0,0.0,0.0,                   # EP
+    0.0,0.0,0.0,                   # AT
+    0.0,0.0,0.0,                   # AC
+    0.01319,-0.01627,0.00822,      # OC=FD
+    0.0,0.0,0.0,                   # OH
+], 3, 15)
+
 # ===========================================================================================
 # DMTREG (dmtreg.f) — the NISI spread-&-intensification DRIVER for one growth cycle. Weaves the
 # ~27 ported components in FVS order: setup (DMMTRX/DMFBRK/DMFSHD/DMFINF/species-index/DMNB/SF/
@@ -683,6 +725,11 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     dmcap  = fill(DM_CAP, maxsp)
     dm_cycl!(ms, isct, ind1, tvol, fprop, bprop, fprop2, spsurv, dmcap, lastyr)
     dm_ndmr!(s)                                  # recompute per-tree DMR from the advanced pools
+    # C6 payoff hand-off: publish the NEWSPRED DMR to t.dmr, which the base misdgf/mismrt DM effects
+    # (ie_dm_growth_loss! / ie_dm_mortality_combine!, now gated for BC) read to apply DG loss + kill.
+    @inbounds for i in 1:n
+        t.dmr[i] = ms.dmr[i]
+    end
     return s
 end
 
