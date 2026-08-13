@@ -237,8 +237,13 @@ bug. Three vehicles, in priority order:
        spread (DMFDNS/DMSRC/DMTLST → DMSAMP/DMSLST source sampling → DMSLOP + DMADLV accumulation w/ the DMFSHD
        shade) → self-intensification → DMOTHR scale (7.5e-5) → DMCYCL (annual: dm_cycl_advance + New-intake
        (NewSpr+NewInt)/TVol + DMCAP=3 saturation) → DMNDMR recompute DMR → BrkPnt→PBrkPt.
-    2. C6 PAYOFF — mistoe/mismrt (USEMRT extra mortality from DMR) + BHTG/DHTG growth multipliers; wire BC into the
-       DM dispatch (dm_init!/dm_fbrk! etc. into the BC cycle, gated on the NEWSPRED keyword). THIS closes the YSM gap.
+    2. ★★ C6 PAYOFF DE-RISKED (measured 2026-08-13): newmist's mistoe.f calls the BASE MISMRT (line 548
+       `CALL MISMRT(USEMRT)`) + base misdgf growth-mult — NOT its own. jl ALREADY has that framework ported:
+       `ie_dm_mortality_rate` (mismrt.f quadratic-in-DMR mortality) + `ie_dm_dg_mult` (misdgf DGPDMR growth mult),
+       both reading a per-tree `t.dmr`. ⇒ the C6 payoff is mostly WIRING, not new mortality/growth code: (a) the
+       driver writes NEWSPRED's per-tree DMR into `t.dmr`; (b) wire BC into the DM-effects dispatch (the existing
+       ie_dm_* effects, with BC's species mismrt/misdgf coefficient tables — extract if BC-specific). THIS closes
+       the YSM gap. Base mistoe DM effects: src/variants/inlandempire/mistoe_coefficients.jl (_ie_mis_variant).
     3. VALIDATE the whole loop at the aggregate FVS_DM_Stnd_Sum_Metric / YSM .sum.save mortality trajectory
        (jl SDI→1586 vs oracle 926); spatial draws = accepted realization straddle.
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
