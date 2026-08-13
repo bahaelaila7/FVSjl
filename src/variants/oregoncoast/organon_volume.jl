@@ -214,22 +214,185 @@ function oc_tree_cuft(sp::Int, dbh::Float32, ht::Float32)
     return oc_blmtcub(profile, dbh, tth, d17, 16.3f0)
 end
 
+# --- C10b: 16-ft log bucking (BLM), shared by merch-cubic (VOL(4)) and Scribner board-foot (VOL(2)) ---
+# Segmentation constants for the BLM main-stem rule: OPT=23, EVOD=2, MAXLEN=16, MINLEN=8, TRIM=0.3.
+
+"blmmlen.f BLMMLEN — binary search for merchantable length (stump→`top` DIB) in feet. `top`,`d17` inputs."
+function oc_blmmlen(profile::Int, tth::Float32, dbhob::Float32, d17::Float32, stump::Float32, top::Float32)
+    top1 = trunc(top*10.0f0)                 # AINT(TOP*10)
+    first = 1
+    last = trunc(Int, tth + 0.5f0) * 10      # INT(TTH+0.5)*10
+    toplop = last
+    @inbounds for _ in 1:toplop
+        first == last && break
+        half = (first + last + 1) ÷ 2
+        hgt2 = Float32(half)/10.0f0
+        d2 = oc_blmtap(profile, dbhob, tth, hgt2, d17, 16.3f0)
+        d2 = trunc((d2 + 0.005f0)*10.0f0)    # AINT((D2+.005)*10)
+        if top1 <= d2
+            first = half
+        else
+            last = half - 1
+        end
+    end
+    lmerch = Float32(first)/10.0f0 - stump
+    return lmerch < 0f0 ? 0f0 : lmerch
+end
+
+"numlog.f NUMLOG for OPT=23,EVOD=2 (MAXLEN=16,MINLEN=8,TRIM=0.3) — number of 16-ft segments."
+@inline function oc_numlog(lmerch::Float32)
+    numseg = trunc(Int, lmerch/16.3f0)
+    leftov = lmerch - 16.3f0*numseg
+    if numseg > 0 || leftov >= 8.0f0
+        leftov >= 8.3f0 && (numseg += 1)     # OPT 23: LEFTOV >= TRIM+MINLEN
+    else
+        numseg = 0
+    end
+    return numseg > 20 ? 20 : numseg
+end
+
+"segmnt.f SEGMNT for OPT=23,EVOD=2 — fills `loglen[1..numseg]`, returns the (possibly reduced) numseg."
+function oc_segmnt!(loglen::Vector{Float32}, lmerch::Float32, numseg::Int)
+    fill!(loglen, 0f0)
+    numseg == 0 && return 0
+    lm = lmerch - Float32(numseg)*0.3f0
+    lm = trunc((lm + 1.0f0)/2.0f0)*2.0f0          # EVOD=2: round to even foot
+    lm > Float32(numseg)*16.0f0 && (lm = Float32(numseg)*16.0f0)
+    if numseg == 1
+        if lm >= 8.0f0
+            lm > 16.0f0 && (lm = 16.0f0)
+            loglen[1] = lm
+        end
+    else
+        leftov = lm - 16.0f0*Float32(numseg-1)     # INT(MAXLEN)=16
+        @inbounds for i in 1:numseg; loglen[i] = 16.0f0; end
+        if leftov >= 8.0f0
+            loglen[numseg] = leftov
+        else
+            loglen[numseg] = 0f0
+            numseg -= 1
+        end
+    end
+    return numseg
+end
+
+"blmvol.f BLMGDIB — fills `logdia[1..numseg+1]` with per-log-end DIB (main stem, STUMP≤4.5 ⇒ logdia[1]=DBHIB)."
+function oc_blmgdib!(logdia::Vector{Float32}, profile::Int, top::Float32, tth::Float32,
+                     dbhob::Float32, dbhib::Float32, d17::Float32, stump::Float32,
+                     trim::Float32, numseg::Int, loglen::Vector{Float32})
+    fill!(logdia, 0f0)
+    numseg == 0 && return
+    logdia[1] = dbhib                          # STUMP=1.0 ≤ 4.5 ⇒ main-stem branch
+    hgt2 = stump
+    @inbounds for i in 1:numseg
+        hgt2 += trim + loglen[i]
+        logdia[i+1] = oc_blmtap(profile, dbhob, tth, hgt2, d17, 16.3f0)
+    end
+    logdia[numseg+1] < top && (logdia[numseg+1] = top)
+    return
+end
+
+# scrib.f Scribner factor table (COR='N'): idx 1..120 = base DIA factors; 121..126 = 16-ft DIA 6..11.
+const OC_SCRIB_FACTOR = Float32[
+    0.000,0.143,0.390,0.676,1.070,1.160,1.400,1.501,2.084,3.126,3.749,4.900,6.043,7.140,8.880,
+    10.000,11.528,13.290,14.990,17.499,18.990,20.880,23.510,25.218,28.677,31.249,34.220,36.376,
+    38.040,41.060,44.376,45.975,48.990,50.000,54.688,57.660,64.319,66.730,70.000,75.240,79.480,
+    83.910,87.190,92.501,94.990,99.075,103.501,107.970,112.292,116.990,121.650,126.525,131.510,
+    136.510,141.610,146.912,152.210,157.710,163.288,168.990,174.850,180.749,186.623,193.170,199.120,
+    205.685,211.810,218.501,225.685,232.499,239.317,246.615,254.040,261.525,269.040,276.630,284.260,
+    292.501,300.655,308.970,317.360,325.790,334.217,343.290,350.785,359.120,368.380,376.610,385.135,
+    393.380,402.499,410.834,419.166,428.380,437.499,446.565,455.010,464.150,473.430,482.490,491.700,
+    501.700,511.700,521.700,531.700,541.700,552.499,562.501,573.350,583.350,594.150,604.170,615.010,
+    625.890,636.660,648.380,660.000,671.700,683.330,695.011,
+    1.249,1.608,1.854,2.410,3.542,4.167,          # 121..126: 16-ft logs, DIA 6..11
+    1.570,1.800,2.200,2.900,3.815,4.499]          # 127..132: 32-ft logs, DIA 6..11
+
+"scrib.f SCRIB (COR='N') — Scribner board feet for one log of inside-bark class `dia`, length `len`."
+@inline function oc_scrib(dia::Float32, len::Float32)
+    dia < 1f0 && return 0f0
+    dia > 120f0 && (dia = 120f0)
+    q9 = trunc(Int, dia)
+    if dia > 5.0f0 && dia <= 11f0
+        if len > 15f0 && len < 32f0
+            q9 = trunc(Int, dia) + 115
+        elseif len > 31f0 && len < 41f0
+            q9 = trunc(Int, dia) + 121
+        end
+    end
+    return trunc(len*OC_SCRIB_FACTOR[q9] + 0.5f0)   # AINT(LEN*VOLFAC+.5)
+end
+
+"""
+    oc_tree_mvol(sp, dbh, ht) -> (merch_cuft, bdft)
+
+BLM merchantable cubic (VOL(4), Smalian on rounded log DIBs) and Scribner board-foot (VOL(2)) for OC.
+Shares one 16-ft bucking (BLMMLEN→NUMLOG→SEGMNT→BLMGDIB) between the two products, since fvsvol's cubic
+and board-foot VOLINIT calls use the same MTOPP=4.5·BARK, D17, STUMP=1 here. The fvsvol DBHMIN/BFMIND
+gates are applied by the caller. Small trees / merch length < 8 ft ⇒ (0,0).
+"""
+function oc_tree_mvol(sp::Int, dbh::Float32, ht::Float32)
+    dbh <= 0f0 && return (0f0, 0f0)
+    veq = OC_VOLEQ[sp]
+    profile = oc_blmtapeq(veq)
+    tapequ = oc_blmtapeq_tapequ(veq)
+    dbhib = oc_double_bark(tapequ, dbh)
+    dbhib <= 0.0001f0 && return (0f0, 0f0)
+    mtopp = 4.5f0 * oc_bratio(sp, dbh)
+    tth = ht + 1.5f0
+    if tth > 0f0
+        tth <= 17.8f0 && return (0f0, 0f0)
+        smd_17 = trunc(sqrt(dbhib*dbhib - (dbhib*dbhib)*17.3f0/tth) + 0.5f0)
+        smd_17 < mtopp && return (0f0, 0f0)
+    end
+    fclass = Float32(oc_formcl(sp))
+    d17 = round((dbh*fclass)/100.0f0, RoundNearestTiesAway)
+    stump = 1.0f0
+    lmerch = oc_blmmlen(profile, tth, dbh, d17, stump, mtopp)
+    lmerch < 8.0f0 && return (0f0, 0f0)              # MERCHL
+    numseg = oc_numlog(lmerch)
+    loglen = zeros(Float32, 20)
+    numseg = oc_segmnt!(loglen, lmerch, numseg)
+    numseg == 0 && return (0f0, 0f0)
+    logdia = zeros(Float32, 22)
+    oc_blmgdib!(logdia, profile, mtopp, tth, dbh, dbhib, d17, stump, 0.3f0, numseg, loglen)
+    v4 = 0f0                                         # merch cubic (Smalian on logs)
+    dibl = round(dbhib, RoundNearestTiesAway)        # ANINT(DBHIB)
+    @inbounds for i in 1:numseg
+        dibs = round(logdia[i+1], RoundNearestTiesAway)
+        logv = 0.00272708f0*(dibl*dibl + dibs*dibs)*loglen[i]
+        v4 += round(logv*10.0f0, RoundNearestTiesAway)/10.0f0
+        dibl = dibs
+    end
+    v2 = 0f0                                         # Scribner board foot
+    @inbounds for i in 1:numseg
+        dib = round(logdia[i+1], RoundNearestTiesAway)
+        v2 += round(oc_scrib(dib, loglen[i]), RoundNearestTiesAway)
+    end
+    return (v4 < 0f0 ? 0f0 : v4, v2 < 0f0 ? 0f0 : v2)
+end
+
 """
     compute_volumes_oc!(s)
 
-OC total cubic volume (BLM Behre taper). Fills `t.cuft_vol` = `oc_tree_cuft` (total cuft) for every
-live + dead record. Merch-cubic and board-foot (SCRIB) are chunk C10b; the `.sum` TCuFt aggregates
-`cuft_vol·tpa/GROSPC` in the shared reporter.
+OC BLM volume (Behre taper). Fills `cuft_vol` (total cubic, `oc_tree_cuft`), `merch_cuft_vol`
+(VOL(4), gated D≥DBHMIN) and `bdft_vol` (VOL(2) Scribner, gated D≥BFMIND) for every record.
+The `.sum` aggregates `vol·tpa/GROSPC` in the shared reporter.
 """
 function compute_volumes_oc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
+    c = s.control
     t = s.trees
     @inbounds for i in 1:(t.n + t.ndead)
         sp = Int(t.species[i])
-        v = (1 <= sp <= 50) ? oc_tree_cuft(sp, t.dbh[i], t.height[i]) : 0f0
-        t.cuft_vol[i] = v
-        t.merch_cuft_vol[i] = 0f0   # C10b
-        t.bdft_vol[i] = 0f0         # C10b
+        if 1 <= sp <= 50
+            d = t.dbh[i]; h = t.height[i]
+            t.cuft_vol[i] = oc_tree_cuft(sp, d, h)
+            v4, v2 = oc_tree_mvol(sp, d, h)
+            t.merch_cuft_vol[i] = d >= c.sp_dbh_min[sp]  ? v4 : 0f0
+            t.bdft_vol[i]       = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
+        else
+            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
+        end
         t.saw_cuft_vol[i] = 0f0
     end
     return s
