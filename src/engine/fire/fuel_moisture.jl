@@ -35,6 +35,13 @@ const _FM_MOIS_IE = Float32[           # IE-family western (ie/fmmois.f) — sha
     0.12  0.12  0.14  0.25  1.25  1.50   1.50    # 3 moist
     0.16  0.16  0.18  0.50  2.00  1.50   1.50]   # 4 wet
 
+const _FM_MOIS_NC = Float32[           # NC (nc/fmmois.f) — like IE but cond-1 1hr=0.03 (not 0.04) and cond-4 == cond-3
+#   1hr   10hr  100hr 3+    duff  Lwoody Lherb
+    0.03  0.04  0.05  0.10  0.15  0.70   0.70    # 1 very low / wildfire
+    0.08  0.08  0.10  0.15  0.50  1.10   1.10    # 2 low
+    0.12  0.12  0.14  0.25  1.25  1.50   1.50    # 3 moderate
+    0.12  0.12  0.14  0.25  1.25  1.50   1.50]   # 4 high (nc/fmmois.f: identical to cond 3)
+
 fm_mois_table(::Northeast) = _FM_MOIS_NE
 fm_mois_table(::LakeStates) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
 fm_mois_table(::CentralRockies) = _FM_MOIS_CR   # cr/fmmois.f (verified vs buildDir fmmois.f)
@@ -46,6 +53,7 @@ fm_mois_table(::Kootenai) = _FM_MOIS_IE
 fm_mois_table(::EasternMontana) = _FM_MOIS_IE
 fm_mois_table(::BlueMountains) = _FM_MOIS_IE
 fm_mois_table(::CentralIdaho) = _FM_MOIS_IE
+fm_mois_table(::Klamath) = _FM_MOIS_NC          # nc/fmmois.f (cond-1 1hr=0.03, cond-4==cond-3)
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """
