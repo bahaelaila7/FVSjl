@@ -541,6 +541,10 @@ fire=FIRKIL + regular=WK2−FIRKIL).
         # CR vol_eq are NVEL DVE/NVB/FW2 codes ⇒ _R8CLARK_VOL (below) returns 0 ⇒ snag bole collapses to the
         # cone floor. Use the CR NATCRS merch cubic (fmsvol.f→NATCRS), matching compute_volumes_cr!.
         return cr_snag_bole_cuft(s, sp, d, h)
+    elseif s.variant isa Klamath
+        # NC vol_eq are EMPTY (NVEL WO2W/DVE) ⇒ _R8CLARK_VOL returns 0 ⇒ snag bole collapses to the cone
+        # floor ⇒ the >3" down-wood pool shrinks. Use NC's total cubic (FMSVOL TCF), matching compute_volumes_nc!.
+        return nc_snag_bole_cuft(s, sp, d, h)
     else
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])

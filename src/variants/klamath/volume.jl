@@ -319,3 +319,18 @@ function compute_volumes_nc!(s::StandState)
     end
     return s
 end
+
+# ---------------------------------------------------------------------------
+# nc_snag_bole_cuft — the FFE snag-bole TOTAL cubic (FMSVOL→TCF) for NC. NC's `vol_eq` is EMPTY (it uses
+# the NVEL WO2W/DVE models in NC_VOL_EQ, not an R8-Clark string), so the shared _R8CLARK_VOL snag path
+# returns 0 ⇒ every NC snag bole collapses to the tiny cone floor ⇒ snag falldown adds ~nothing to the
+# >3" down-wood pool (the pool shrinks instead of growing). Mirror `cr_snag_bole_cuft`: return the total
+# cubic VOL(1) from NC's own volume model (FVS FMSVOL fmsvol.f:153 VOL2HT=MAX(X,TCF) for the western
+# NVEL variants ⇒ bole==fall==TCF). Used by _snag_merch_cuft_on + the input/SNAGINIT/fire snag paths.
+function nc_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    (d < 1f0 || h <= 0f0 || sp < 1 || sp > 12) && return 0f0
+    eq = NC_VOL_EQ[sp]
+    length(eq) < 6 && return 0f0
+    v = eq[4:6] == "WO2" ? nc_wo2w_vol(eq, d, h) : nc_r5harv_vol(eq, d, h, 6.0f0)
+    return max(v[1], 0f0)                       # VOL(1) total cubic
+end

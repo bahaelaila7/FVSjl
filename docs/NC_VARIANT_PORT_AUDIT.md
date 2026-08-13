@@ -102,6 +102,23 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    4.80/13.28). ⇒ the ~23% LARGE-fuel accumulation gap is NOT decay/snag-falldown — it is the crown-lift/woody-breakage fuel
    ADDITIONS (fmcadd, driven by the same NC crown biomass as chunk 2) and/or the fire-basis (start-of-cycle+1yr) timing. Coupled
    with the chunk-2 crown-biomass fix. OPEN.
+   ★★ FUEL-ACCUMULATION ROOT CAUSE FOUND + FIXED (2026-08-13). Two bugs starved NC's >3" down-wood pool:
+   (a) **`ffe_on` gate (summary.jl:177) — THE dominant bug.** `ffe_on = … && !isempty(coef.ffe_fuel_live)`, but
+   `ffe_fuel_live` is the EASTERN live-fuel table; NC (and the whole CR family) carry live+dead fuel in their own
+   cover-type/top-2 loaders ⇒ empty ffe_fuel_live ⇒ **ffe_on=FALSE ⇒ the per-cycle `ffe_fuel_update!` + `fire_smlg`
+   capture were SKIPPED for NC in run_keyfile.** The 2003 fire sampled an unaccumulated pool: `fire_smlg=(0.37, 0.0)`
+   while the real cwd was ~10 ⇒ fuel weights 6@77/10@23 ⇒ weak fire. Fix: `|| s.variant isa Klamath` in `ffe_on`.
+   Result: fire-basis LARGE **0.0 → 12.49** (live 13.28, within 6%); weights **6@50/10@50** (live 6@44/10@56).
+   (The CR-family variants likely share this latent run_keyfile gap — flagged for separate validation.)
+   (b) **NC snag bole = 0** (`nc_snag_bole_cuft`, new). NC's `vol_eq` is EMPTY (NVEL), so the shared `_R8CLARK_VOL`
+   snag path returned 0 ⇒ snag bolevol/fallvol collapsed to the cone floor (fallvol 0.044 for 19 snags) ⇒ snag
+   falldown added ~nothing to classes 4-9. Fixed with `nc_snag_bole_cuft` (total cubic via NC's NVEL model), wired
+   into `_snag_merch_cuft_on` + the input/SNAGINIT/fire snag paths (fallvol 0.044 → 1.311, 30×). Per-tree crown biomass
+   was already bit-exact; crown-lift feeds only the small classes (correct).
+   POST-FIX (real run_keyfile): FFE stand 1993-2003 BIT-EXACT (536/77, 288/93, 285/112); post-fire 2008 TPA **67 vs
+   live 58** (~4% of the 227-TPA kill; was 68 pre-fix). CORNERED — residual = the last ~6% LARGE-fuel accumulation
+   (12.49 vs 13.28, snag-falldown timing / fmcadd) + the fmeff size-selectivity (jl post-fire BA 36 vs live 45).
+
    ★ END-TO-END STATUS (corrected, real run_keyfile path — NB: manual `grow_cycle!` without `fuel_period`/`ffe_init_period`
    SKIPS ffe_fuel_update! and gives artifact fuel/flame numbers; always validate via run_keyfile or the summary loop):
    crash RESOLVED (nct01 runs to completion, no fmcba:114); growth `.sum` BIT-IDENTICAL; fuel-model SELECTION bit-exact;

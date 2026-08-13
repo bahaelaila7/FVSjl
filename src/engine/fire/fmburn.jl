@@ -213,6 +213,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # vol_eq are NVEL codes, so t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
             mcf = s.variant isa CentralRockies ?
                   max(0.005454154f0 * t.height[i], cr_snag_bole_cuft(s, sp, d, t.height[i])) :
+                  s.variant isa Klamath ?
+                  max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
                   max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
             add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
             # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead

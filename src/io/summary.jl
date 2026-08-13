@@ -174,7 +174,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # FFE dynamics require the variant's fuel tables to be ported; a variant still building its growth port
     # (e.g. NC/Klamath) has no ffe_fuel_live yet ⇒ FFE stays inert (no snag seeding / fuel dynamics) rather
     # than erroring. Ported variants all have fuel tables ⇒ unaffected.
-    ffe_on = s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
+    # `ffe_fuel_live` is the EASTERN (SN/NE/CS/LS) live-fuel table; the WESTERN variants (NC and the CR
+    # family) carry their live+dead fuel in their own cover-type/top-2 loaders, so their ffe_fuel_live is
+    # empty — but their FFE fuel loop MUST still run. Without NC here, ffe_on was false ⇒ the per-cycle
+    # ffe_fuel_update! + fire_smlg were SKIPPED ⇒ the fire sampled an unaccumulated ~empty down-wood pool
+    # (fire_smlg=(0.37,0) vs the real cwd ~10) ⇒ wrong fuel-model weights / under-fire. (The CR-family
+    # variants likely share this latent run_keyfile gap — validate + fold them in separately.)
+    ffe_on = s.fire !== nothing && s.fire.active &&
+             (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath)
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
