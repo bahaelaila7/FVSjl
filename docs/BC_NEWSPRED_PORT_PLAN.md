@@ -169,7 +169,13 @@ bug. Three vehicles, in priority order:
 - **NEXT — the coupled SPREAD BLOCK** (needs a coherent DMSPtr/DMSInd treelist-DM-index design first, built by
   DMFINF): DMFINF (index, 140 lines, det) → DMFDNS (target density, 93, det) / DMSRC (source vector, 136, det) /
   DMTLST (target list, 114, 1 RNG) → DMSAMP (109, 3 RNG) / DMSLST (160, 2 RNG) source sampling → DMADLV (349, spread
-  accumulation, needs the Shd1/ShdPtr 1496-elt extract) → DMOTHR (apply, 114, det). Plus DMFSHD (231, 4 RNG, grid
+  accumulation, needs the Shd1/ShdPtr 1496-elt extract) → DMOTHR (apply, 114, det).
+  ★ BACKBONE DESIGN (mapped 2026-08-13): DMFINF builds `Ptr(MAXSP, 0:6, {FST,LST})` (per species×DMR-class, the
+  first/last positions) + `Index` (a treelist permutation) via **OPSORT** (base/opsort.f) — an UNSTABLE two-key
+  QUICKSORT (primary ISP species, secondary DMRATE DMR, ascending). SAME class as RDPSRT: a jl STABLE sort would
+  mis-order equal-(sp,DMR) ties. Replicate OPSORT's quicksort faithfully to keep the straddle minimal; but since the
+  spread is already an RNG realization straddle and OPSORT ties only feed the RNG sampling, exact tie-order is NOT
+  bit-critical (part of the accepted straddle). Everything downstream indexes trees through this Ptr/Index. Plus DMFSHD (231, 4 RNG, grid
   shade), DMMTRX (73, det, spread-matrix setup), DMNTRD (202, cycle-follow remap). Then C5 DMCYCL (593, det,
   life-history compartment advance). Then wire the DMTREG driver + C6 payoff (mistoe/mismrt + BHTG/DHTG). Validate
   the coupled block at the aggregate FVS_DM_Stnd_Sum_Metric trajectory (spatial draws = realization straddle).
