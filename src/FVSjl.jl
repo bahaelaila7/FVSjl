@@ -264,6 +264,10 @@ include("variants/pacificnorthwest/volume.jl")            # PN volume (WC westsi
 include("variants/eastcascades/eastcascades.jl")          # EC singleton + registration (MAXSP 32, Reineke) — chunk 0
 include("variants/eastcascades/species.jl")               # EC species-coefficient table binding + blkdat init — chunk 1
 include("variants/eastcascades/diameter_growth.jl")       # EC large-tree DDS (ec/dgf.f): ec_dgcons! + dgf! (32-sp, 3-branch) — chunk 3
+include("variants/eastcascades/height_growth.jl")         # EC potential-height curves (ec/htcalc.f) — chunk 4a
+include("variants/eastcascades/site_index.jl")            # EC site (ec/forkod/habtyp/ecocls/sichg/sitset) — chunk 2
+include("variants/eastcascades/crown.jl")                 # EC crown (ec/crown.f per-species Weibull + dubscr) + CCF (ec/ccfcal.f) — chunk 5
+include("variants/eastcascades/regent.jl")                # EC small-tree growth (ec/regent.f + smhtgf.f) + htdbh — chunk 6
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

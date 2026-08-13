@@ -227,6 +227,8 @@ function point_density!(s::StandState)
             ccft = wc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # wc/ccfcal.f MODE=1 (PCCF, RELDEN)
         elseif s.variant isa PacificNorthwest
             ccft = pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # pn/ccfcal.f MODE=1
+        elseif s.variant isa EastCascades
+            ccft = ec_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ec/ccfcal.f MODE=1 (per-species)
         elseif s.variant isa SoutheastAlaska
             ccft = ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ak/ccfcal.f MODE=1
         elseif s.variant isa OregonCoast
@@ -349,6 +351,11 @@ function stand_ccf(s::StandState)
     elseif s.variant isa PacificNorthwest
         @inbounds for i in 1:t.n
             ccf += pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
+    elseif s.variant isa EastCascades
+        @inbounds for i in 1:t.n
+            ccf += ec_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
     elseif s.variant isa CentralIdaho

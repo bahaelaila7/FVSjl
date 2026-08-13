@@ -549,7 +549,8 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
             f1 = length(rec.fields) >= 1 ? String(rec.fields[1]) : ""
             p.eco_unit = f1 * String(rec.fields[2])
         elseif s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
-               s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho
+               s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho ||
+               s.variant isa EastCascades
             p.habitat_code = nint(v[2])
         else
             p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)

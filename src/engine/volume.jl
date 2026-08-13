@@ -348,6 +348,9 @@ function dub_missing_heights!(s::StandState)
             wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
         elseif s.variant isa PacificNorthwest
             pn_htdbh_height(_pn_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
+        elseif s.variant isa EastCascades
+            # ec/cratet.f LHTDRG=.FALSE. all species ⇒ forest-dependent Curtis-Arney HTDBH (MODE=0).
+            ec_htdbh_height(ec_htdbh_ifor(s.plot), Int(sp), d)
         elseif s.variant isa OregonCoast
             # oc/cratet.f:679-684 — OC LHTDRG=.FALSE. all species ⇒ HTDBH (CA-family Curtis-Arney)
             # is the actual missing-height dub (overwrites the Wykoff H). IFOR unused (C8).

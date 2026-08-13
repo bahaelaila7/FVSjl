@@ -132,7 +132,7 @@ function dgf!(s::StandState, ::EastCascades)
     dens = s.density; sd = s.coef.species
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
-    rmai = s.density.mai_adj; relden = s.density.relative_density  # MH/OS CONSPP adjust (RMAI/RELDEN)
+    rmai = s.plot.mai_adj; relden = s.plot.relative_density  # MH/OS CONSPP adjust (RMAI/RELDEN)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i])

@@ -169,6 +169,11 @@ function setup_growth!(s::StandState)
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING inventory crowns (pn/crown.f)
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa EastCascades
+        ec_dgcons!(s)                     # EC DGCON (32-species uncompressed; WO King's-SI sp28, MH/OS ×3.281) — chunk 3
+        compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ec/crown.f)
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -590,6 +595,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
     _pn_up = s.variant isa PacificNorthwest   # PN bark = wc_bratio (POWER, all imap=1) — same as WC
+    _ec_up = s.variant isa EastCascades   # EC bark = wc_bratio (per-species bark_imap POWER/linear)
     _ak_up = s.variant isa SoutheastAlaska # AK bark = ak_bratio (3-type: power/linear/power)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
@@ -605,6 +611,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _ak_up ? ak_bratio(Int(t.species[i]), t.dbh[i]) :
                _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
+               _ec_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
