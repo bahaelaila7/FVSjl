@@ -61,7 +61,18 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
     subcycle); BM has NO subcycle loop at all (single-pass). ⇒ TT was the LONE variant that subcycled aspen with feet
     SITAGE; the class is CLOSED cluster-wide by source inspection.
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
-sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) ONLY.
+sweep and ref-stand validation MISS these.
+
+## ★★★ 2026-08-13 — #196 BC NEWSPRED USER-GREENLIT + SCOPED; port STARTING (was the sole remaining item)
+The USER answered the #196 cost/benefit decision: "scope then start porting." So the last remaining item is now
+IN PROGRESS, not a decision-gate. SCOPE = docs/BC_NEWSPRED_PORT_PLAN.md (canada/newmist NISI spatial dwarf-mistletoe,
+8761 lines/50 files; closes the BC YSM under-mortalization jl SDI→1586 vs oracle 926). Chunk plan C0-C7 (foundation →
+keywords/DMINIT → coeffs+crown-width → spatial substrate bndist/dmshap → NISI spread core dmtreg → life-history
+dmcycl+autocorr dmauto → PAYOFF stand-coupling mistoe/mismrt/growth-mult → reports). VALIDATION VEHICLE: inline
+TREEDATA reproducer of YSM (the inline FVSbc_clean path WORKS; the DB path is crash-blocked isoc23×SQLite) + FVSbc_g16
+instrument-replay. Multi-session; each chunk lands+validates before the next; never FFI the DMRANN spatial RNG (expect
+a realization straddle). Off-switch STILL untouched = USER's call (greenlighting the port is NOT the off-switch).
+Genuinely-open now = #196 (IN PROGRESS, the ONLY remaining item; every other cluster/extension task done-or-cornered).
   • **#197 mgmt-regime leads (THINBBA over-thin + post-thin AUTOES) — REFUTED/CORNERED 2026-08-13.** My own prior-cycle
     "confirmed over-thin" was ENTIRELY a MIS-COLUMNED-KEYFILE artifact (hand-written THINBBA keyfile: input '1.0' →
     cuteff 0.1; blank → cuteff 0 → live appeared to 'remove nothing'). FVS keywords are FIXED 10-col fields (use kwrec:
