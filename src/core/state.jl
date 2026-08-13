@@ -825,7 +825,7 @@ mutable struct FireState
                                        # keeps the fire mortality path allocation-free (bit-exact; see SnagBinScratch)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
-                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, 0f0, SnagList(), 0f0,
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
                         zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
                         (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{6,Float32}[],
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],

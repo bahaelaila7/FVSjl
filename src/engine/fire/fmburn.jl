@@ -135,10 +135,17 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
     # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
     # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains) && flmult == 1f0 && byram > 0f0
+    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
-            crb, rfinal, hpa = crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
+            crb, rfinal, hpa = s.variant isa Klamath ?
+                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind) :
+                  crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
+            # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
+            # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
+            # FLAMEADJ forces CRBURN=1% (0.01) ⇒ FINTEN=(HPA+TCLOAD·7744.8·0.01)·RFINAL/60 ⇒ flame 8.29 (live 8.3),
+            # NOT the ~18 the computed 0.561 would give. Klamath-guarded (the shared CR/NE path is unchanged).
+            s.variant isa Klamath && crburn >= 0f0 && (crb = crburn)
             if crb > 0f0
                 byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN
                 finten = byram / 60f0
