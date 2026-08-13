@@ -219,6 +219,10 @@ include("variants/southeastalaska/species.jl")         # AK blkdat init (23 spec
 include("variants/southeastalaska/dg_coefficients.jl") # AK large-tree DG + permafrost + bark coefficient arrays (ak/dgf.f, ak/bratio.f)
 include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chunk 3): ak_bratio + ak_dgcons! + dgf! — VALIDATED bit-exact
 
+# --- westcascades (WC) — R6 westside Prognosis (Reineke SDI), 39 species; chunk 0 foundation + DGF validated ---
+include("variants/westcascades/westcascades.jl")     # WC (West Cascades) singleton + registration (MAXSP 39, Reineke) — chunk 0 foundation
+include("variants/westcascades/diameter_growth.jl")  # WC large-tree DDS (wc/dgf.f): wc_dgcons! + dgf! (19-group Wykoff) — chunk 3 (DGF validated)
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
@@ -288,7 +292,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, WestCascades, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
