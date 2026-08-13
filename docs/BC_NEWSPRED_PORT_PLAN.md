@@ -93,5 +93,18 @@ bug. Three vehicles, in priority order:
   before trusting spread counts; this is the likely first "cornered vs real" fork.
 
 ## Status
-C0 starting 2026-08-13 (this session). Multi-session; each chunk lands + validates
-before the next. Off-switch untouched (USER's).
+- **C0 validation foundation DONE 2026-08-13.** Key simplification: jl reads the YSM
+  metric DB directly (SQLite.jl + the 42eb555 metric-ingest fix) — NO inline reproducer
+  needed for the PAYOFF validation. Set up `/workspace/.bcwork/newspred/ysm271.key`
+  (YSM029-271 from FVS-BC.YSM-SkyRanch.db, NOTRIPLE, TIMEINT 5/first-4, NUMCYCLE 24).
+  jl(DM-free) vs oracle `YSM-SkyRanch.sum.save`:
+    - **cyc0 (2018) BIT-EXACT** (jl 2300/10/311 vs oracle 2300/9/311) → stand loads +
+      growth correct; the DM effect is the ENTIRE divergence.
+    - **C6 target quantified** — NEWSPRED must kill trees AND suppress growth: by 2077
+      jl 1713/79/1586 (TPA/BA/SDI) → oracle 1366/42/926 (−20% TPA, −47% BA, −42% SDI).
+  Payoff-validation vehicle = jl DB-run vs `.sum.save` (works today). Inline FVSbc
+  reproducer for per-chunk internals DEFERRED to C4 (only chunk likely to need it).
+- **NEXT: C1** — DMCOM common → `MistletoeState` struct + parse MISTOE/NEWSPRED/DMAUTO/
+  DMCLMP/DMALPH/DMBETA/MISTPRT keywords (currently in unrecognized_keywords) + wire
+  DMINIT/DMRNSD. Validate: keyword echo + init state.
+- Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
