@@ -29,6 +29,13 @@ const _CR_ISPMAP = Int[
 # CR species that use the Jenkins FMCROWE (the generic `crown_biomass`) instead of FMCROWW.
 @inline _cr_uses_fmcrowe(spiw::Integer) = spiw == 20 || spiw == 21 || spiw == 22 || spiw == 28 || spiw == 38
 
+# NC (Klamath) crown-biomass group map — nc/fmcrow.f ISPMAP (NC species 1..12 → the crown-equation group
+# passed to FMCROWW). NC's fmcroww.f is byte-identical to CR's and dispatches directly on this SPI (no
+# internal remap), and nc/fmcrow.f calls FMCROWW for ALL species (none use the eastern FMCROWE). So NC
+# routes through `cr_crownw` with this map. Groups {3 DF/OS, 4 WF/RF, 13 PP, 15 SP} are ported; the
+# hardwood/cedar groups {10,17,19,20,21} error loudly (doctrine #5) until ported (not in nct01).
+const _NC_ISPMAP = Int[3, 15, 3, 4, 10, 20, 21, 17, 4, 13, 17, 19]
+
 # SPIE groups whose FMCROWW large-tree LIVEWT branches on the height percentile HP<DOMPCT(60):
 # ponderosa (13), Douglas-fir (3), western larch (8), Black-Hills PP (25). Others ignore HP.
 @inline _cr_crownw_needs_hp(spie::Integer) =

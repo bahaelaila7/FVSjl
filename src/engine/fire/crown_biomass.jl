@@ -98,9 +98,13 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # CR (western) crown biomass: conifers use FMCROWW (cr_crownw); only the aspen/oak SPIW {20,21,22,28,38}
     # use the Jenkins FMCROWE path below (fmcrow.f:161-166). HP (height percentile) is self-computed for the
     # groups whose LIVEWT branches on it (caller may override via `hp`).
-    if (s.variant isa CentralRockies || s.variant isa BlueMountains) &&
-       !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) : bm_uses_fmcrowe(sp))
-        spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] : _BM_ISPMAP[sp]
+    # NC (Klamath) uses FMCROWW for ALL species (nc/fmcrow.f — none map to the eastern FMCROWE); its
+    # fmcroww.f is byte-identical to CR's, so it routes through cr_crownw with _NC_ISPMAP.
+    if (s.variant isa CentralRockies || s.variant isa BlueMountains || s.variant isa Klamath) &&
+       (s.variant isa Klamath ? true :
+        !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) : bm_uses_fmcrowe(sp)))
+        spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] :
+               s.variant isa BlueMountains ? _BM_ISPMAP[sp] : _NC_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
         # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.

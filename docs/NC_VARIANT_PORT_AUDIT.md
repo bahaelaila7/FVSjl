@@ -84,9 +84,21 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    FM11 post-activity sharing (AFWT/SLCHNG/HARVYR, <5 yr after an entry) is not yet wired — inert for nct01 (2003 fire is
    10 yr after the 1993 THINDBH ⇒ AFWT=0, FM10=1, exact). (Also SEPARATE from FFE: the BARE/PLANT stand 5 crashes in
    `establish!` on `KeyError :estab_min_ht` — an NC regen coefficient gap, chunk 3.)
-2. **crown biomass** — NC uses FMCROWW (western, cr/fmcroww.f) via NCMAP final SPIE [3,15,3,4,11,41,17,18,4,13,18,18];
-   `cr_crownw` currently ports only SPIE {4,13,15,18} ⇒ SPIE 3 (Douglas-fir) + 41/17 (Jenkins aspen/oak) need porting.
-   Feeds canopy bulk density (crown fire / torch index) + the ALL FUELS STANDING-WOOD columns.
+2. **crown biomass (ROUTED) + crown fire (ENABLED) — over-shoots pending chunk 4.** NC's `fmcroww.f` is byte-identical to
+   CR's, so NC routes through `cr_crownw` with `_NC_ISPMAP`=[3,15,3,4,10,20,21,17,4,13,17,19] (nc/fmcrow.f); nct01's groups
+   {3 DF/OS, 4 WF/RF, 15 SP} are already ported (hardwood/cedar {10,17,19,20,21} error loudly, not in nct01). NC added to
+   the fmburn crown-fire variant list + the crowning/torching/crown_fire_result Unions. STATUS: with crown fire enabled,
+   nct01 2003 flame=14.13/scorch=68 vs **live 8.3/47** ⇒ OVER-kill (2003 mortality jl 451 vs live 270; 2008 TPA jl 5 vs live
+   58). Root cause is NOT the crown-biomass port — it is the still-wrong fuel-model WEIGHTS (jl 6@76/10@24 vs live 10@56/6@44,
+   from the LARGE-fuel accumulation gap 10.2 vs 13.28), which the crown-fire boost then amplifies. ⇒ **chunk 4 (Dunning decay)
+   is the gating dependency for flame/scorch/mortality convergence** — it is coupled with this chunk, not independent.
+3. **NC establishment (DONE — nct01 runs to completion).** Wired the western establishment path for Klamath: `_NC_ES_XMIN`
+   / `_NC_ES_HHTMAX` (nc/blkdat.f), `_NC_ESSUBH_HHT` fixed base-height table (nc/essubh.f), the western `bc=nothing` +
+   PLANT-no-RAN branches. The BARE/PLANT stand 5 now completes. **nct01 runs end-to-end with NO fmcba.jl:114 crash** — the
+   headline crash is RESOLVED. `.sum` growth columns (TPA/BA/SDI/QMD/removals, e.g. cyc0 536/77/160/5.1) are BIT-IDENTICAL to
+   `.ncwork/ncval/nct01.sum`. (Two residuals visible in the .sum, both PRE-EXISTING / outside the FFE port: a forest-code
+   resolution difference — jl reports forest 999 vs live 371 ⇒ CuFt 1261 vs 1308, a growth/volume matter; and the fire
+   over-mortality above, which is chunk 2/4 fire-behavior.)
 3. **fire mortality (FMEFF) + snag props** — the current `data/klamath/fire_species_props.csv` is a **CI COPY placeholder**
    (commit 00f69ed) whose v2t/dkr_cls/leaf_life/fallx do NOT match nc/fmvinit.f (correct NC DKRCLS=[3,4,3,4,3,2,2,4,4,4,4,1];
    V2T sp1=28.7/sp2=21.2/…). Rebuild it from nc/fmvinit.f before validating snag falldown / decay / mortality. (dkr_cls does
