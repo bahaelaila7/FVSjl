@@ -247,6 +247,15 @@ bug. Three vehicles, in priority order:
            FProp≡1/BProp≡0 (empirically confirmed). DMKTUN=0 (source-DMR loop 0..6); DMOPTS no-op for base BC/YSM.
        REMAINING for the weave: DMNTRD (multi-cycle crown-third infection remap, inert on cycle 1) + the
        dm_tregro! assembly itself (wire the ~27 validated pieces in DMTREG order) + a synthetic-stand smoke test.
+       ★★★ 2026-08-13 — dm_tregro! WEAVE ASSEMBLED + VALIDATED END-TO-END (003486d). The DMTREG driver now
+       runs the full spread mechanism. SMOKE TEST (synthetic 40-tree DF stand, 20 infected): uninfected
+       NEIGHBOURS ACQUIRE dwarf mistletoe by spatial spread (t21-25 → DMR 3/4/1/1/2), infected trees intensify
+       5→6, Σnewspr=1067/Σnewint=102 both fire ⇒ the spatial-spread mechanism that closes the YSM gap is
+       demonstrably working. TWO real bugs the smoke test surfaced + fixed: (a) dm_init! was missing the DMTREG
+       first-pass DMINF(i,j,ACTIVE)=DMDMR(DMR,third) seeding (pools started empty → infection collapsed cyc1);
+       (b) the setup was missing dm_shap! before dm_rdmx! (DMMTRX calls DMSHAP first, dmmtrx.f:63 → idmshp=0 left
+       the crown frustum dmrdmx all-zero). REMAINING: DMNTRD (cyc≥2 crown remap) + C6 wiring (DMR→t.dmr→base
+       ie_dm_* effects w/ BC coeffs + MISFIT list + MISDGF/ADGP table) + wire BC into DM dispatch + YSM validate.
     2. ★★ C6 PAYOFF DE-RISKED (measured 2026-08-13): newmist's mistoe.f calls the BASE MISMRT (line 548
        `CALL MISMRT(USEMRT)`) + base misdgf growth-mult — NOT its own. jl ALREADY has that framework ported:
        `ie_dm_mortality_rate` (mismrt.f quadratic-in-DMR mortality) + `ie_dm_dg_mult` (misdgf DGPDMR growth mult),
