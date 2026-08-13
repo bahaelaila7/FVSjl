@@ -3,12 +3,16 @@
 # Port of canada/newmist (the New & Improved Spread & Intensification model).
 # See docs/BC_NEWSPRED_PORT_PLAN.md for the C0-C7 chunk plan + validation vehicle.
 #
-# CHUNK C1 (this file, so far): DMCOM state → MistletoeState + the DMINIT default
-# tables (DMDMR crown-third distribution, DMOPAQ species opacity) + the keyword
-# params (NEWSPRED/DMAUTO/MISTPRT). NOT yet wired into the engine — the spread
-# (C4), life-history (C5), and stand-coupling/mortality (C6) land in later chunks.
-# Until C6, a NEWSPRED-active stand runs DM-FREE (the current validated baseline);
-# C1 must stay .sum-INERT.
+# STATUS 2026-08-13 — FUNCTIONALLY COMPLETE end-to-end. C0-C6 all landed + wired:
+#   keyword (MISTOE/NEWSPRED/DMAUTO/MISTPRT, keyword_dispatch.jl:2399) → dm_init! seeds
+#   DMR (simulate.jl:142) → dm_tregro! DMTREG spatial spread + DMNDMR (simulate.jl:525) →
+#   ie_dm_growth_loss! DG loss (simulate.jl:514) + ie_dm_mortality_combine! DM mortality
+#   (britishcolumbia/mortality.jl) via t.dmr + the BC C6 tables (BC_MIS_*). All ~27
+#   components unit-validated + the weave smoke-tested (healthy neighbours acquire DM).
+#   ENGINE-ACTIVE only when the NEWSPRED/MISTOE keyword fires (ms.active||newmod); every
+#   non-DM BC run stays .sum-INERT (validated). REMAINING: DMNTRD (cyc≥2 crown-third infection
+#   remap, gated off on first entry) + YSM multi-cycle validation (DB path crash-blocked ⇒
+#   inline TREEDATA reproducer). See docs/BC_NEWSPRED_PORT_PLAN.md + [[fvsjl-bc-newspred-port]].
 # =============================================================================
 
 # --- DMCOM PARAMETERs (canada/newmist/DMCOM.F77) ---
