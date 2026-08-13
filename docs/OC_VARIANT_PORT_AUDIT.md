@@ -88,6 +88,77 @@ species and only when a stand lacks all "big-6" trees.
 buffer fill); the lone SPECIES residual is a pre-flagged C0 crosswalk gap, and the lone HT1OR
 residual is C2 dubbing — neither is a C1 defect. **Next: C2 (setup calibration `prepare.f`/`start2.f`).**
 
+## Chunk C2 delivered (ORGANON PREPARE setup calibration) — VALIDATED BIT-EXACT
+
+`src/variants/oregoncoast/organon_setup.jl` ports the ORGANON **PREPARE** setup path for edition
+**SWO (VERSION=1)** — the deterministic (`DGSD=0`) computation of the `ACALIB`/`TMPCAL` height/
+crown/diameter calibration multipliers ORGANON growth (C3-C6) consumes, plus the ORGANON HT/CR
+imputation (dubbing) for valid ORGANON trees with missing height/crown:
+
+- **`organon_prepare_swo`** = `organon/prepare.f` PREPARE + `oc/cratet.f:129-401` driver. Ported
+  sub-routines: `EDIT` (species groups via `SPGROUP_EDIT`/`SCODE1`, missing-HT/CR flags, RAD
+  detection, DF↔PP SI conversion), `HDCALIB` (H-D calibration ratio → `TMPCAL(1,*)`), `PRDHT`
+  (missing-height imputation), `CRCALIB` (crown-ratio calibration ratio → `TMPCAL(2,*)`), `PRDCR`
+  (missing-CR imputation), plus `SPMIX`, `DFORTY`, `HS_H40`, `HD40_SWO`, `A_HD_SWO`, `A_HCB_SWO`,
+  `CALTST`, `GET_CCFL_EDIT` (`organon/start2.f`); `SSUM`/`OLDGROWTH`/`GET_BAL` (`organon/diamcal.f`);
+  `MCW_SWO` (`organon/crngrow.f`); and the `oc/cratet.f:393-401` `TMPCAL`→`ACALIB` load. All REAL*4
+  math routed through the gfortran-identical `fexp`/`flog`/`fpow` (doctrine #8).
+- **`site_setup!(::OregonCoast)`** now ports the one ORGANON-load-bearing SITSET piece
+  (`oc/sitset.f:181-189`): the DF(7)↔PP(18) site-index conversion feeding ORGANON `SITE_1`/`SITE_2`.
+- **C1 tree-20 residual fixed**: `build_organon_buffer!` floors `HT1OR` to 4.6 only when `HT>0`
+  (`oc/cratet.f:234`), so a missing height (`HT==0`) reaches PREPARE as `0.0` and flags `MISSHT`.
+- **Species-crosswalk fix (C0 TODO, now closed)**: `data/oregoncoast/species_translation.csv` gains
+  the two ASPT alt-code rows `WF→GF` and `ES→BR` (verified from `vie/spctrn.f` column 20 = OC).
+  `resolve_species` now maps `WF`→FVS 4 (GF) and `ES`→FVS 22 (BR); both `ORGSPC`=017 ⇒ **SPECIES
+  27/27 exact**, and IORG is correct (GF valid+big6, BR non-valid → FVS-native).
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / CRATET`, stand S248112/ocmin,
+27 records; oracle `ORGANON TMPCAL(k,grp)` dump). The Julia PREPARE was fed the exact `/ORGANON/`
+buffer the Fortran received (`SPECIES,DBH1,HT1OR,CR1,EXPAN1` — C1-validated), plus `SITE_1=92.0`,
+`SITE_2=86.5528641`, `MSDI=815`, `STAGE=60`, `BHAGE=54`, `EVEN=.TRUE.`, `NPTS=11`:
+
+| calibration entry | jl | oracle | \|Δ\| |
+|---|---|---|---|
+| `TMPCAL(1,1)` DF height | 0.7892899 | 0.789290 | 1.2e-7 |
+| `TMPCAL(2,1)` DF crown  | 0.6240016 | 0.624002 | 4.2e-7 |
+| `TMPCAL(1,2)` GF height | 0.7310810 | 0.731081 | 6.0e-8 |
+| `TMPCAL(2,4)` SP crown  | 0.5000000 | 0.500000 | 0.0 |
+| all other 50 of 54 `TMPCAL(k,grp)` | 1.0 | 1.0 | 0.0 |
+| site conv `SITEAR(18)` | 86.552864 | 86.5528641 | f32 print |
+| `resolve_species` WF/ES | GF(4)/BR(22) | GF/BR | exact |
+
+Max \|Δ\| over all 54 `TMPCAL` entries = **4.2e-7** — pure Float32 print-precision (the oracle
+prints `F9.6`). **C2 CALIBRATION: BIT-EXACT.** ORGANON is deterministic (`DGSD=0`), so this is the
+hard bar, not a straddle. The final `ACALIB` after the cratet load = `[0.789290, 0.731081, 1, 1]`
+(HT), `[0.624002, 1, 1, 0.5]` (CR), `[1,1,1,1]` (DG).
+
+### Measured correction to the C1 "ORGANON-dubbed 53.32" hypothesis
+
+The C1 audit assumed ocmin **tree-20** (raw `HT=0`) was dubbed to 53.32 by ORGANON PREPARE. The
+scoped-`DEBUG CRATET` dump shows otherwise: tree-20 is a **lodgepole-pine (`LP`, FVS 12) record**,
+which is a **non-valid ORGANON species** (`IORG=0`, surrogate `ORGSPC`=122). Its 53.32 height comes
+from the **FVS-native Wykoff HT-D dubbing** (`oc/cratet.f:571` `INVENTORY EQN DUBBING ISPC=12 →
+53.3234`, via `HTDBH`), *not* ORGANON — PREPARE's dub of tree-20 is computed then discarded (CRATET
+reloads only `IORG=1` trees, `oc/cratet.f:349-365`). On this stand **no valid ORGANON tree has a
+missing HT/CR** (`KNTOHT=KNTOCR=0`), so the ORGANON PRDHT/PRDCR dubbing — ported faithfully — is not
+exercised here; a real seedling/partial-inventory stand is needed to bit-validate it. The FVS-native
+Wykoff dubbing (shared engine + OC `HT1`/`HT2` coefficients) is a distinct follow-up, orthogonal to
+the ORGANON calibration.
+
+### Deferred within C2 (measured, not gaps)
+
+- **`DGCALIB` (RAD=.TRUE.) branch** — the diameter-growth calibration reuses `DG_SWO`/bark/BAL
+  (chunk C3). FVS/FIA inventory carries no radial-increment cores ⇒ `RAD=.FALSE.` and
+  `TMPCAL(3,*)=1.0` (`organon/prepare.f:137-140`), confirmed by the oracle (all `TMPCAL(3,*)=1.0`).
+  The port raises a loud error if `RADGRO>0` is ever passed, to be lifted when C3 lands.
+- **NWO(2)/SMC(3)/RAP(4)** version branches (OP=Olympic) raise a clear error; their coefficient
+  tables sit alongside SWO in the same Fortran and are a thin OP follow-on.
+
+**C2 verdict: bit-exact vs the live oracle** on the ORGANON PREPARE calibration (`TMPCAL`/`ACALIB`),
+the DF↔PP site conversion, and the WF/ES species crosswalk. HT/CR dubbing ported faithfully (not
+exercised on ocmin). **Next: C3 (ORGANON diameter growth — `diagro.f` DG_SWO + `diamcal.f` bark/BAL
++ `submax.f` + `statsorg.f`); this also lifts the DGCALIB RAD deferral.**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via

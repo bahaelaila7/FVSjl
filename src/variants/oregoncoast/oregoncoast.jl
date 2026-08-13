@@ -48,8 +48,25 @@ coefficients(::OregonCoast) = cached_coefficients(() -> load_species_coefficient
 
 # SITSET (oc/sitset.f) — fan a per-species site index to species not assigned one by keyword, plus
 # the R5/R6-adjusted SDImax (SDIDEF) defaults. In OC the site index and SDImax feed ONLY the ORGANON
-# growth/calibration path (the ~9k-line unported engine, chunks C2-C6) and Stage self-thin mortality;
-# they are cyc0-INERT for the C1 FVS↔ORGANON boundary marshalling (which reads only DBH/HT/CR/species/
-# TPA/ISPECL). Full oc/sitset.f (SITEAR fan, R5SDI/R5ADJ/R6ADJ, SDImax) is a C2 deliverable; this
-# minimal stub lets an OC stand initialize without fabricating growth-affecting site coefficients.
-site_setup!(s::StandState, ::OregonCoast) = s
+# growth/calibration path (the ~9k-line engine, C2 calibration + C3-C6 growth) and Stage self-thin
+# mortality; they are cyc0-INERT for the C1 FVS↔ORGANON boundary marshalling (which reads only DBH/
+# HT/CR/species/TPA/ISPECL).
+#
+# The one ORGANON-load-bearing SITSET piece needed for the C2 calibration is the DF↔PP site-index
+# conversion (oc/sitset.f:181-189): ORGANON's SITE_1=RVARS(1)=SITEAR(7) (DF) and SITE_2=RVARS(2)=
+# SITEAR(18) (PP) both feed HDCALIB/CRCALIB, and when only one is set the other is derived here
+# (MEASURED: on ocmin SITEAR(7)=92 from the ecoclass, SITEAR(18) unset ⇒ 0.940792·92=86.5528641,
+# exactly the RVARS(2) the oracle passes to PREPARE). The R6ADJ site fan and R5SDI/SDImax defaults,
+# and the RVARS(3-5)=SDIDEF MSDI marshalling, are wired at the growth entry (C3); the ecoclass-
+# derived site species value (SITEAR(7)) itself is supplied by the stand's site-index loader.
+function site_setup!(s::StandState, ::OregonCoast)
+    si = s.plot.sp_site_index
+    if length(si) >= 18 && (si[7] > 0f0 || si[18] > 0f0)
+        if si[7] <= 0f0
+            si[7] = 1.062934f0 * si[18]         # DF from PP  (oc/sitset.f:183)
+        elseif si[18] <= 0f0
+            si[18] = 0.940792f0 * si[7]         # PP from DF  (oc/sitset.f:185)
+        end
+    end
+    return s
+end
