@@ -120,11 +120,19 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    Fixed: mois 1hr 5%→3% (=live), live-woody 0.55→0.70 (=live); byram 8122→10172; flame 4.3→4.77.
    POST-FIX (real run_keyfile): FFE stand 1993-2003 BIT-EXACT (536/77, 288/93, 285/112); post-fire 2008 TPA **54 vs
    live 58** (BRACKETS live — was 67 under-kill before moisture, now within ~7%). Fuel weights **6@50/10@50** (live
-   6@44/10@56). MORTALITY = CORNERED. ⚠ OPEN: the reported surface **flame 4.77/scorch 21 vs live 8.3/47** — the
-   Rothermel byram is still ~3.7× low (FINTEN 170 vs ~620) DESPITE correct weighted models (6/10), moisture ([3,4,5,
-   10,15]), and midflame wind (1.66 vs 1.8). So the residual is inside the Rothermel intensity (reaction-intensity /
-   fuel-load / packing), not fuel selection — narrowed but not closed. (The mortality is cornered because the fire
-   kills most of the small/mid stand regardless of the exact flame; the flame/scorch REPORT is the open item.)
+   6@44/10@56). MORTALITY = CORNERED.
+   ★★ SURFACE ROTHERMEL = BIT-EXACT (corrects the earlier "3.7× byram" claim — that compared to the wrong reference).
+   vs live DEBUG FMFINT @2003 (FTYP=1, midflame wind 1.778): jl **byram 10172 = live 10547**, jl flame 4.77 = live
+   FMFINT flame 4.85. The Rothermel is CORRECT; my "3.7× low" mistakenly compared to the BURN-REPORT flame 8.3, which
+   is NOT the FMFINT output.
+   ⚠ OPEN (final chunk) — NC's own **FMCFIR crown fire**. Live's 2003 SIMFIRE has a PASSIVE crown fire (live FMCFIR:
+   CBD=0.152, CRBURN=0.561, RFINAL=29.03 ⇒ BURN-report flame 8.3 = surface 4.85 + crown boost). jl's crburn is right
+   (0.537 vs 0.561) but the REUSED CR/NE `crown_fire_result` over-boosts for NC: RFINAL 38.9 (1.34×) and (HPA+crown-
+   load) 2384 vs live ~728 (3.3×) ⇒ FINTEN 1546 vs live ~352 (4.4×) ⇒ catastrophic over-kill (TPA 0 vs 58). So crown
+   fire stays DISABLED (surface-only mortality 54 vs 58 is CLOSER than crown-on's 0) until NC's `nc/fmcfir.f` (its
+   SFRATE/RFINAL spread + the crown-HPA/TCLOAD intensity terms) is ported. The byram FORMULA (fmburn.f:540-543) is
+   already bit-exact in jl; the gap is the FMCFIR RFINAL/HPA INPUTS. This is the one remaining chunk for the flame/
+   scorch REPORT to reach bit-exact-or-cornered (the mortality .sum is already cornered surface-only).
 
    ★ END-TO-END STATUS (corrected, real run_keyfile path — NB: manual `grow_cycle!` without `fuel_period`/`ffe_init_period`
    SKIPS ffe_fuel_update! and gives artifact fuel/flame numbers; always validate via run_keyfile or the summary loop):

@@ -125,11 +125,13 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # Crown-fire flame adjustment (fmburn.f:538-543, NE/CR): a passive/active crown fire adds the canopy fuel
     # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
     # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
-    # NOTE: Klamath is intentionally EXCLUDED here pending crown-biomass validation. Enabling the crown-fire
-    # boost for NC over-shoots (measured nct01 2003: cbd=0.147 vs live 0.028 = 5.3× high, canopy base 6 vs 48 ft
-    # ⇒ flame 14.1/scorch 68 vs live 8.3/47 ⇒ catastrophic over-kill TPA 5 vs 58). The 5.3× canopy-bulk-density
-    # over-prediction is an NC crown-biomass magnitude/vertical-distribution bug (FMCROWW group-3 needs per-tree
-    # validation vs a live FMCROWW dump) — a distinct chunk. Left surface-only until that lands.
+    # NC's SURFACE fire is bit-exact (byram 10172 = live FMFINT 10547; cbd 0.147 = live FMPOCR 0.152, actcbh 6=6).
+    # Live's 2003 SIMFIRE DOES have a PASSIVE crown fire (live FMCFIR: CRBURN=0.561, RFINAL=29.03 ⇒ BURN-report flame
+    # 8.3 vs surface 4.85). But the reused CR/NE `crown_fire_result` OVER-boosts for NC — jl RFINAL=38.9 (1.34×) and
+    # (HPA+crown-load)=2384 vs live ~728 (3.3×) ⇒ FINTEN 1546 vs live ~352 (4.4×) ⇒ catastrophic over-kill (TPA 0 vs
+    # 58). Surface-only mortality (54 vs 58) is CLOSER than crown-on (0), so Klamath stays EXCLUDED until NC's own
+    # FMCFIR (nc/fmcfir.f: the SFRATE/RFINAL + crown-HPA/TCLOAD terms) is ported. The crburn magnitude IS right (0.537
+    # vs 0.561); the gap is the RFINAL spread + the crown-load HPA feeding the byram. ⇒ open FMCFIR chunk.
     if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
