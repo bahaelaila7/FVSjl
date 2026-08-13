@@ -35,7 +35,7 @@ specialization of the shared engine. AK mirrors that structure.
 | 5 Crown | `ak/crown.f` logistic CR (PRD/HDR/D-QMD) + `ak/dubscr.f` (bachlo RNG) + point-Zeide `ak/sdical.f` SDICAL/SDICLS (XMAXPT/ZRD) | **PORTED** — point-Zeide PRD reproduces the oracle (365.0/592=0.6166 verified); feeds DGF ln(CR) from cyc2+. Not yet independently per-tree-validated |
 | 7 Mortality | `ak/morts.f` logistic survival (BM1-5) + SDI/BA iterative-PASS multiplier (NOT SEAMRT — morts.f doesn't call it) | **PORTED** — end-to-end TPA tracks oracle within ~1% mid-run; late-cycle self-thin selection straddle |
 | 6 REGENT small-tree | `ak/regent.f` | **STUB (no-op)** — small trees keep large-tree DGF/HTGF; akt01 is mature so bounded. LATER chunk |
-| 8 Volume | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL + `ak/logs.f`/`cubrds.f` | **STUB (cuft=0)** — R10 NVEL crosswalk not ported; .sum cuft/bdft columns are 0. LATER chunk |
+| 8 Volume | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL F32 Flewelling profile (reuses shared `_fw2_*` kernels) + `setcubicdflts.f`/`mrules.f` R10 merch + 32-ft-log board | **VALIDATED BIT-EXACT (per-tree) vs live FVSak_clean TREELIST on akt01 cyc0** — all 29 trees' total cubic + merch cubic + Scribner board match (e.g. LP 21.4/14.5/60, WH 24.9/17.8/60, MH 13.2/10.1/30, YC-dead 240.3/223.9/1010). .sum aggregates: **MCuFt 732 = live 732, BdFt 2417 = live 2417 bit-exact**; TCuFt 2316 vs 2315 (±1 = Float32 summation of the per-acre total, below integer precision). DVE (woodland) + CUR (hardwood) families still 0 (akt01 has none). See §Chunk 8 below |
 
 ### End-to-end akt01 `.sum` vs `akt01.sum.save` (unthinned control, NUMCYCLE 10, NOTRIPLE off)
 
@@ -135,3 +135,44 @@ path · **SEAMRT** mortality + `ak/morts.f` SDIMAX driver · **Region-10 volume*
 ak logs/cubrds) · establishment · full engine-pipeline integration + a multi-cycle `.sum`
 differential vs `FVSak_clean` (incl. an interior permafrost-species stand). The DBH-update step
 must use `ak_bratio` (3-type), not the engine's `b+a/d` bark surrogate.
+
+## Chunk 8 — Region-10 volume (F32 Flewelling profile) — VALIDATED BIT-EXACT (per-tree, akt01 cyc0)
+
+**Crosswalk (MEASURED from live `FVSak_clean` NVEL equation dump):** `ak/sitset.f` VOLEQDEF (VAR='AK',
+IREGN=`KODFOR/100`=10) → `A00F32W###` (R10 Flewelling 2-pt, inside bark; SF/AF/YC/SS/LP/RC/WH/MH),
+`A00DVEW###` (DVEST woodland), `A32CURW###` (R10 CUR hardwoods). **akt01 is 100% F32.** DVE/CUR are
+not yet ported (return 0 — akt01 has none).
+
+**F32 = the shared engine.** grossvol.f dispatches `MDL='F32'` to the SAME NVEL `PROFILE` (Flewelling)
+routine jl already ports (INGY/CR FW2). FWINIT GEOCODE 'A': 042(YC)→JSP31, 242(RC)→32, 098(SS)→33,
+260/263/264(WH/MH/LP/SF/AF)→34; `SHP_AK` (f_alaska.f) is byte-for-byte the shared `_fw2_shp_core`
+kernel with an AK F-coefficient column (JRSP=JSP−30, hemlock folds onto spruce's F3). So the port
+reuses `_fw2_shp_core`/`_fw2_sf_taper`/`_fw2_sf_yhat`/`_fw2_tcubic`/`_fw2_hs`/`_nvb_numlog`/
+`_nvb_segmnt`/`_scrib`/`_fw2_dclass` unchanged and adds only the AK F-table
+(`data/southeastalaska/volume_coefficients.jl`) + the driver (`src/variants/southeastalaska/volume.jl`).
+`COR_AK`/`SF_CORR` is only in the 3-point path — correctly skipped.
+
+**Three MEASURED root-causes closed (instrumented the live NVEL via single-`.o` relinks of `sf_2pt.f`
+/ `profile.f`, dumping DBH_IB / F / RFLW/RHFW and LMERCH/MINLEN/NUMSEG/VOL4/VOL2 per tree):**
+1. **Bark is the AK VARIANT bark, NOT NVEL FDBT_AK.** FVS's volume driver passes `DBT_USER =
+   DBHOB−DBHOB·BRATIO(ISPC)` from `ak/bratio.f`, so SF_SHP's FDBT_AK branch is bypassed. The profile
+   is scaled to — and the merch tops converted with — `DBHIB = D·ak_bratio(sp,d)` (bit-exact vs live
+   SF2PT `DBH_IB`: SS D5.8→5.16169, LP D11.5→10.93604, …). Using FDBT_AK gave the wrong DBHIB (SS
+   5.517) ⇒ the ~1-3% total-cubic error. Fixing it made **total cubic per-tree bit-exact**.
+2. **Merch standards** (`setcubicdflts.f`, VARACD 'AK', KODFOR 1005 → AKMERCHCAT 3): DBHMIN=9, TOPD=7,
+   SCFMIND=9, SCFTOPD=7, STMP=1. Merch top = TOPD·bark (inside), DBH≥9 gate.
+3. **Bucking + board** (`profile.f`): the **Region-10 F3 special** resets `MINLEN=2` when
+   `N16SEG=INT(LMERCH/(MAXLEN+TRIM))` is odd (else 8); merch cubic VOL(4) = Σ 0.1-rounded inch-class
+   Smalian logs; **board VOL(2) uses the 32-FOOT log rule** (pair 16-ft logs → 32-ft, DIB=INT(raw
+   small-end), Σ SCRIB·10) — that 32-ft pairing was the ~1.3× board error. Region-10 NUMLOG/SEGMNT
+   params: OPT=23 EVOD=2 MAXLEN=16 MINLEN=8 MERCHL=8 TRIM=0.5.
+Also: the total-cubic volume floor is `H>4.5` (not `H≤5`) — a broken-top D8.4/H5.0 tree gets 1.7 cuft
+(the H≤5 guard wrongly zeroed it, the −24 cuft aggregate gap).
+
+**Validation vs `FVSak_clean` akt01 cyc0 (TREELIST + .sum):** all **29 trees bit-exact** on total
+cubic, merch cubic, and Scribner board (LP 21.4/14.5/60, WH 24.9/17.8/60, LP D9.5 11.6/6.8/20, MH
+13.2/10.1/30, YC-dead 240.3/223.9/1010, …). .sum aggregates **MCuFt 732 = live 732** and **BdFt 2417 =
+live 2417 bit-exact**; **TCuFt 2316 vs 2315** (±1 = Float32 non-associative summation of the per-acre
+0.1-rounded per-tree cuft, below the integer .sum precision — every per-tree value matches). This meets
+the CI MCuFt/BdFt exact-at-cyc0 bar. Growth columns unchanged (cyc0 still bit-exact). DVE + CUR
+families remain unported (0) — a follow-on chunk; akt01 exercises neither.
