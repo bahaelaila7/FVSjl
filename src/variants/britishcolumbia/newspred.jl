@@ -377,3 +377,67 @@ function dm_rdmx!(s::StandState)
     end
     return s
 end
+
+# --- C4 neighbour-count PDF: BNDIST + GAMMLN (bndist.f) — the Binomial/Poisson/Negative-Binomial
+# family PDF for a population of given mean M and variance V (V≈M→Poisson, V>M→NegBinom, V<M→
+# Binomial). Called by DMNB to distribute source trees across sampling rings. Pure deterministic
+# (no RNG). Returns (pdf[1:ubound+1], endpos, err); pdf[j+1] = P(count=j). GAMMLN = Numerical-
+# Recipes Lanczos log-gamma (float32, faithful to the Fortran cof/SqPI DATA).
+const _DM_GAMMLN_COF = Float32[76.18009173, -86.50532033, 24.01409822, -1.231739516, 0.12085003f-2, -0.536382f-5]
+const _DM_SQPI = 2.50662827465f0
+@inline function dm_gammln(arg::Float32)
+    x = arg - 1f0
+    tmp = x + 5.5f0
+    tmp = tmp - (x + 0.5f0) * log(tmp)
+    ser = 1f0
+    @inbounds for j in 1:6
+        x += 1f0
+        ser += _DM_GAMMLN_COF[j] / x
+    end
+    return -tmp + log(_DM_SQPI * ser)
+end
+
+function dm_bndist(m::Float32, v::Float32, ubound::Int)
+    tol = 1f-6
+    pdf = zeros(Float32, ubound + 1)
+    endpos = 1
+    (m < tol || v < tol) && return (pdf, endpos, true)      # err: degenerate mean/variance
+    local method::Int, t1::Float32, t2::Float32, t3::Float32, k::Float32
+    if abs(v - m) < tol                                     # Poisson
+        method = 1; t1 = -m; t2 = log(m); t3 = 0f0; k = 0f0
+    elseif v > m                                            # Negative Binomial
+        method = 2; p = (v / m) - 1f0; k = m / p
+        t1 = -k * log(1f0 + m/k); t2 = dm_gammln(k); t3 = log(m / (m + k))
+    else                                                    # Binomial
+        method = 3; p = 1f0 - (v / m); k = m / p
+        t1 = dm_gammln(k + 1f0); t2 = log(p); t3 = log(1f0 - p)
+    end
+    sum = 0f0; plast = 0f0
+    for j in 0:ubound
+        jp = j + 1; x = Float32(j)
+        z = if method == 1
+            t1 + x*t2 - dm_gammln(x + 1f0)
+        elseif method == 2
+            t1 + dm_gammln(k + x) - dm_gammln(x + 1f0) - t2 + x*t3
+        else
+            (k - x + 1f0) < 0f0 ? -99f0 :
+                t1 - dm_gammln(x + 1f0) - dm_gammln(k - x + 1f0) + x*t2 + (k - x)*t3
+        end
+        z > -75f0 && (pdf[jp] = exp(z))
+        sum += pdf[jp]
+        if j == 0
+            plast = pdf[jp]
+        else
+            pnow = pdf[jp]
+            if pnow < plast && pnow < tol
+                endpos = j; break
+            elseif sum >= 1f0
+                endpos = j; pdf[jp] -= (sum - 1f0); break
+            elseif j == ubound
+                endpos = j; break
+            end
+            plast = pnow
+        end
+    end
+    return (pdf, endpos, false)
+end
