@@ -1037,6 +1037,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # POWER bark). Calibration (line 280 _ci_bd) + mortality already use
                                              # ci_bratio; this apply site was missed (the "DDS bit-exact" check
                                              # missed the bark-converted DG, exactly as for BM).
+    _wc_dg = s.variant isa WestCascades      # ★ same class as #140/CI: WC bark = wc_bratio (POWER, all imap=1). The
+                                             # linear fallback floors 0.80 vs wc_bratio ~0.83-0.90 ⇒ d_ib understated
+                                             # ⇒ DDS→DG (sqrt(d_ib²+DDS)−d_ib) OVER-predicts ~2%/tree ⇒ the multi-cycle
+                                             # BA/QMD over-growth (2090 BA +19%). Calibration/mortality/update already
+                                             # use wc_bratio; this DDS→DG conversion was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
     # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
@@ -1151,6 +1156,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                    _bc_dg ? bc_bratio(Int(sp)) :
                    _bm_dg ? bm_bratio(sd, Int(sp), t.dbh[i]) :
                    _ci_dg ? ci_bratio(sd, Int(sp), t.dbh[i]) :
+                   _wc_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
