@@ -184,7 +184,9 @@ mutable struct MistletoeState <: AbstractMistletoeState
     brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
     idmshp::Vector{Int32}              # per-tree crown shape 1:5 (DMSHAP Fisher discriminant)
     dmrdmx::Array{Float32,3}           # (tree, MESH band 1:MXHT, {RADIUS=1,VOLUME=2}) crown frustum geometry (DMSUM)
-    rnseed::Int64                      # DMRNSD spatial-model RNG seed (own stream; never FFI'd)
+    dms0::Float64                      # DMRANN current LCG state (own stream; never FFI'd)
+    dmss::Float64                      # DMRANN saved seed (DMRNSD)
+    rnseed::Int64                      # (reserved)
 end
 
 MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.0f0,
@@ -192,11 +194,29 @@ MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
                                   Array{Float32,3}(undef, 0, DM_MXHT, 2),
-                                  0)
+                                  55329.0, 55329.0, 0)
 
 # DMRDMX 3rd-index tags (DMCOM RADIUS/VOLUME)
 const DM_RADIUS = 1
 const DM_VOLUME = 2
+
+# --- DMRANN (dmrann.f) — the DM spatial RNG: a MINSTD/Park-Miller LCG (16807, 2^31-1) whose
+# output divides by 2^31, giving SEL ∈ (0,1). Float64 state (DMS0), seeded to 55329.0 (dminitbc.f:276).
+# Its OWN stream — NEVER FFI'd and NEVER shared with the ZZRAN growth RNG; the spatial draws are an
+# accepted realization straddle vs live (the whole-loop call order can't be byte-matched).
+@inline function dm_rann!(ms::MistletoeState)
+    dms1 = mod(16807.0 * ms.dms0, 2147483647.0)     # DMOD(16807D0*DMS0, 2147483647D0)
+    sel = Float32(dms1 / 2147483648.0)              # /2^31
+    ms.dms0 = dms1
+    return sel
+end
+# DMRNSD: reset the stream to the saved seed (LSET=.FALSE. path, dminitbc.f:281). The LSET=.TRUE.
+# set-path (odd-ify + store) is exposed for completeness though the only corpus seed is the default.
+dm_rnsd_reset!(ms::MistletoeState) = (ms.dms0 = ms.dmss; ms)
+function dm_rnsd_set!(ms::MistletoeState, seed::Float64)
+    (mod(seed, 2.0) == 0.0) && (seed += 1.0)
+    ms.dmss = seed; ms.dms0 = seed; ms
+end
 
 # --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
 # BC-only: for other variants these keywords stay in `unrecognized_keywords` (unchanged
