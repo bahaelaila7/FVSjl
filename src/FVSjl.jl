@@ -252,6 +252,7 @@ include("variants/westcascades/mortality.jl")        # WC mortality — chunk 7 
 include("variants/pacificnorthwest/pacificnorthwest.jl")  # PN singleton + registration (MAXSP 39, Reineke, slot-6 SS) — chunk 0
 include("variants/pacificnorthwest/species.jl")           # PN species-coefficient table binding + blkdat init — chunk 1
 include("variants/pacificnorthwest/diameter_growth.jl")   # PN large-tree DDS (pn/dgf.f): pn_dgcons! + dgf! (20-group Wykoff) — chunk 3
+include("variants/pacificnorthwest/crown.jl")             # PN crown (pn/crown.f 17-group Weibull + dubscr) + CCF (pn/ccfcal.f 19-group) — chunk 5 + density
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
