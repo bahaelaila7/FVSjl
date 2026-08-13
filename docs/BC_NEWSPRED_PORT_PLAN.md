@@ -141,10 +141,21 @@ bug. Three vehicles, in priority order:
   → DMNDMR recompute DMR → BrkPnt→PBrkPt. RNG-heavy sampling (DMSAMP/DMSLST/DMSRC) ⇒ the
   spatial spread is a REALIZATION straddle; validate at the aggregate FVS_DM_Stnd_Sum_Metric
   (Mean_DMR / Inf_TPH / Mort_TPH trajectory), NOT bit-exact per-tree.
-  Deterministic geometry substrate landed (ae259b4): **DMFBRK** (crown-third breakpoints in
-  MESH units) + DMCOM MESH constants (MESH=2, FPM, MXHT=25, MXTHRX=7 rings, ORIGIN, TWOPIE,
-  BPCNT=4). NEXT deterministic pieces before the RNG layer: DMRDMX (per-MESH-band VOLUME/RADIUS
-  frustum geometry, set in dmsum.f:118-256) → DMFSHD (Shd1 shade field, needs the 1496-elt
-  ShdPtr/Shd1 extract from dmblkd.f) → DMNB + BNDIST (neighbour-count PDF family). Then the
-  RNG sampling layer (DMSRC/DMSAMP/DMSLST) + DMADLV + DMAUTO, then C5 (DMCYCL/DMNDMR).
+  ★ DETERMINISTIC GEOMETRY SUBSTRATE COMPLETE (ae259b4/b30fe49/0702c4e) — the per-tree geometry
+  every spread loop reads, all engine-inert + precompile-clean:
+    - **DMFBRK** — crown-third breakpoints in MESH units + DMCOM constants (MESH=2, FPM, MXHT=25,
+      MXTHRX=7 rings, ORIGIN, TWOPIE, BPCNT=4).
+    - **DMSHAP** — per-tree crown shape (5 shapes) via Fisher discriminant; 7 coeff tables (5×11)
+      + BC species→group MAPBC, extracted programmatically.
+    - **DMRDMX** — per-MESH-band frustum VOLUME/RADIUS branching on shape (dmsum.f:96-256);
+      VALIDATED: cone frustum sum == analytic cone volume (523.6 ft³).
+  ★ STRUCTURE CORRECTION (measured 2026-08-13): **DMFSHD is STOCHASTIC**, not part of the
+  deterministic substrate — it simulates each tree's (x,y) on a 121×121 grid via DMRANN (Poisson)
+  to build the shade/light field, so it belongs to the RNG layer (expect a realization straddle).
+  And **Shd1/ShdPtr** (the INTEGER*2 1496-elt encoded seed-TRAJECTORY "black box", COMMON /DMMIST/)
+  is consumed by **DMADLV** during spread accumulation — NOT by DMFSHD. So the Shd1 extract pairs
+  with DMADLV, not the shade field.
+  NEXT (the RNG-coupled spread core, validate at aggregate FVS_DM_Stnd_Sum_Metric, not per-tree):
+  DMFSHD (grid shade sim) + DMNB/BNDIST (neighbour-count PDF) → DMSRC/DMSAMP/DMSLST (source sampling)
+  + DMADLV (spread accumulation, needs the Shd1/ShdPtr extract) + DMAUTO (autocorr) → C5 DMCYCL/DMNDMR.
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
