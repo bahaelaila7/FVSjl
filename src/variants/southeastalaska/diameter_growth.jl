@@ -65,13 +65,21 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     temslp = p.slope * 100f0                  # TEMSLP = SLOPE·100
     temsasp = temslp * cos(p.aspect)          # TEMSASP = TEMSLP·cos(ASPECT)
     lperm = false                             # LPERM (ak PERMAFROST keyword) — not yet wired; default off (later run)
+    # PRD = point ZeideSDI/point maxSDI (ak/dgf.f SDICAL→XMAXPT + SDICLS→ZRD, computed ONCE per DGF call).
+    # dgf.f: SDICAL(IWHO=2) fills XMAXPT (IWHO-independent); the SDICLS loop over points (IWHO=1, JSPEC=0,
+    # DLO=0/DHI=500) fills ZRD(pt). Inert for the DGRD=0 coastal species (AK_DGRD[sp]=0); load-bearing for
+    # the interior/permafrost/hardwood species (4-7,13-23). Computed on the CURRENT t.dbh at call time
+    # (backdated during LSTART calibration, current during growth), matching FVS's per-pass SDICAL/SDICLS.
+    xmaxpt, zrd, _ = ak_point_zeide!(s)
+    npt_prd = length(xmaxpt)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
         d2 = d * d
         cr = Float32(t.crown_pct[i])          # CR = REAL(ICR(I)) — crown ratio in PERCENT
         pbal = dens.point_bal[i]              # PBAL = PTBALT(I)
-        prd = ak_point_zeide_rd(s, i)         # PRD = point ZeideSDI/point maxSDI (0 until SDICLS ported)
+        ip = Int(t.plot_id[i])                # PRD = ZRD(pt)/XMAXPT(pt); 0 if the point has no BA (XMAXPT≤0)
+        prd = (1 <= ip <= npt_prd && xmaxpt[ip] > 0f0) ? zrd[ip] / xmaxpt[ip] : 0f0
         ssite = p.sp_site_index[sp]           # SSITE = SITEAR(ISPC)
         dgcomp1 = AK_DGEL[sp]*temel + AK_DGSLOP[sp]*temslp + AK_DGSASP[sp]*temsasp + AK_DGLNSI[sp]*log(ssite)
         dgcomp2 = AK_DGDISQ[sp]*d2 + AK_DGLD[sp]*log(d) + AK_DGDBAL[sp]*pbal + AK_DGRD[sp]*prd + AK_DGLNCR[sp]*log(cr)
@@ -100,8 +108,5 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     return s
 end
 
-# PRD = per-point Zeide relative density (ak/dgf.f: ZRD(pt)/XMAXPT(pt)). Requires the AK
-# SDICAL/SDICLS point-Zeide-SDI machinery, which the shared engine does not yet provide.
-# Returns 0 until that lands — EXACT for the non-permafrost DGRD=0 species (the SE-Alaska
-# coastal majority), a documented approximation for permafrost species (LATER run).
-ak_point_zeide_rd(::StandState, ::Int) = 0f0
+# PRD point-Zeide relative density is now wired directly in dgf! via ak_point_zeide! (crown.jl),
+# which ports ak/sdical.f SDICAL(XMAXPT) + SDICLS(ZRD). PRD = ZRD(pt)/XMAXPT(pt) per tree's point.

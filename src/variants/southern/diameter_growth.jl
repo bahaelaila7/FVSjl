@@ -464,6 +464,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # backdated dbh — FVS NE calib computes BADIST on the current stand (verified EBAU=52). Stash the current dbh
     # for ne_badist! to read; SN ignores it (point_bal-based, never calls ne_badist!). Cleared right after.
     s.variant isa Northeast && (c.calib_dbh = saved_dbh)
+    # AK: the DGF's point-Zeide PRD (SDICAL XMAXPT + SDICLS ZRD) reads the UNCHANGED DBH(I) = CURRENT
+    # dbh even during calibration (like PTBALT/PTBAA above) — FVS backdates only DIAM(I), not the DBH
+    # array SDICAL/SDICLS sum. Stash the current dbh so ak_point_zeide! uses it (else jl computes PRD on
+    # the backdated stand: WS D11.5 gave PRD 0.2257 vs live 0.2645). Cleared right after with calib_dbh.
+    s.variant isa SoutheastAlaska && (c.calib_dbh = saved_dbh)
     # AVH (AVHT40 top height) is NOT backdated during calibration: FVS's DENSE backdating pass
     # updates BA/point_ba/PCT at the past dbh, but the calibration DGF's relative-height term
     # reads the CURRENT-stand AVH (like the current point_ba restored at line 347 and the NE
