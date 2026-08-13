@@ -599,6 +599,7 @@ function compute_volumes!(s::StandState)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
+    s.variant isa OregonCoast && return compute_volumes_oc!(s)     # OC = BLM Behre-taper cubic (blmvol/blmtap) — chunk C10a; board-foot C10b
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)
