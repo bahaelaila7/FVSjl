@@ -98,7 +98,11 @@ sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED
   FVSbc reads these DBs fine (it made the .sum.save). So crash-doctrine does NOT apply; the DM attribution rests on
   the all_BC DM-free control (solid), and a YSM A/B would need a DB-capable FVSbc relink (or inline TREEDATA). A MAJOR
   multi-session port for niche value; the base (non-spatial) mistoe.f is done+validated. Weigh before committing.
-  + V2/non-ICH. (Imperial-output alt-mode MOOT — BC oracles are metric.)
+  ★ V2/non-ICH — DONE-CORNERED (reconciled at HEAD 2026-08-13; the old "remaining" label was STALE). V2 DG/mort/crown/
+  HTG/small-tree all per-chunk bit-exact-or-cornered (a9855ce…f052120), non-ICH BEC zones (IDF/ESSF) validated
+  (535782b). Fresh all_BC_essf (V2/ESSF) vs FVSbc_clean at HEAD: TPA ±1-6 (self-thin straddle, 2090 258/259), BA
+  within NINT, TopHt converges bit-exact (82/82 @2090), QMD +0.5 (~3% ZZRAN/garbage-height-fixture straddle) = the
+  accepted cornered class. (Imperial-output alt-mode MOOT — BC oracles are metric.)
 - **CI** (Central Idaho) ★★ AT-BAR (2026-08-12) — growth+VOLUME bit-exact-or-cornered. cit01 merch volume BIT-EXACT
   @cyc0 (MCuFt 833/833, BdFt 3912/3912; multi-cycle tail = #142 growth-straddle propagation, NOT a vol bug). #194
   ci_esgent birth-cycle FIXED (eb3395b); its transition residual CONVERGES (cornered). Remaining = cornered residuals
@@ -186,7 +190,8 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 
 ## REMAINING WORK — cornered residuals + LOW-PRI alt-modes + NEW measured real-FIA residuals (see the 2026-08-12 LATEST block up top)
 ## (task-tracker: #142/#194/#206 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198-#206 CLOSED;
-##  genuinely-open = #196(BC NEWSPRED, USER decision) + BC V2/non-ICH ONLY.
+##  genuinely-open = #196(BC NEWSPRED, USER decision) ONLY. [BC V2/non-ICH RECONCILED DONE-CORNERED at HEAD 2026-08-13
+##  — all_BC_essf V2/ESSF vs FVSbc_clean: TPA 2090 258/259, TopHt 82/82, QMD +0.5 ZZRAN straddle; stale label removed.]
 ##  #205 TT aspen +34% FIXED 2026-08-13 (5b82bf8, single-subcycle gate + metric SITAGE, two-bug cancellation);
 ##  #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN straddle; DDS+calib BIT-EXACT via FVSut_g16);
 ##  #197 mgmt-regime leads REFUTED/CORNERED 2026-08-13 (THINBBA "over-thin" was a mis-columned-keyfile artifact; jl
