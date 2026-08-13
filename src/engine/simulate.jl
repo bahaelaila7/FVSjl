@@ -606,7 +606,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
-        t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
+        # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
+        # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
+        s.variant isa OregonCoast || (t.vol_bark[i] = bark)   # stash BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150)
         (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton ||
          s.variant isa CentralIdaho || s.variant isa EasternMontana) &&
             (t.dg_prev[i] = t.diam_growth[i])   # KT/IE/TT/CI/EM mortality WK1 (this cycle's applied DG → next cycle's

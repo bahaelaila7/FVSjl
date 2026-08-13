@@ -67,6 +67,8 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         dds = (iorg && g !== nothing) ? g.dds[i] : wk2[i]
         dg = oc_organon_dg(sp, d0, dds)
         bark = oc_bratio(sp, d0)
+        t.vol_bark[i] = bark             # BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150); the shared
+                                         # apply-loop skips OC so this pre-growth value survives.
         t.diam_growth[i] = dg
         t.dbh[i] = d0 + dg/bark
         # HEIGHT + CROWN: ORGANON HGRO/CR2 for IORG=1; FVS-native HTGF for IORG=0 (oc/htgf.f).
@@ -82,6 +84,10 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
             t.ht_growth[i] = htg
             t.height[i] += htg
         end
+        # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
+        # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).
+        t.norm_ht[i] > 0 &&
+            (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i]*100f0 + 0.5f0)))
         # MORTALITY: ORGANON MORTEXP for every record it grew (oc/morts.f:498-504).
         if g !== nothing
             dead = g.deadexp[i]*fscale

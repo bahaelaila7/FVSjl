@@ -382,14 +382,30 @@ function compute_volumes_oc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     c = s.control
     t = s.trees
+    # Broken-top merch standards for CFTOPK/BFTOPK: raw grinit TOPD/STMP (=4.5/1, NOT ×BARK).
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         sp = Int(t.species[i])
         if 1 <= sp <= 50
             d = t.dbh[i]; h = t.height[i]
-            t.cuft_vol[i] = oc_tree_cuft(sp, d, h)
-            v4, v2 = oc_tree_mvol(sp, d, h)
-            t.merch_cuft_vol[i] = d >= c.sp_dbh_min[sp]  ? v4 : 0f0
-            t.bdft_vol[i]       = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
+            # Broken/dead-top trees (ITRUNC>0, H≥4.5): build the profile from the dubbed NORMAL
+            # height, then truncate back to the break with CFTOPK/BFTOPK (vols.f:164-165, cftopk.f).
+            tkill = h >= 4.5f0 && t.trunc[i] > 0
+            htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
+            tcf = oc_tree_cuft(sp, d, htap)
+            v4, v2 = oc_tree_mvol(sp, d, htap)
+            mcf = d >= c.sp_dbh_min[sp]  ? v4 : 0f0
+            bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
+            if tkill && tcf > 0f0
+                bark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : oc_bratio(sp, d)
+                vmax = tcf
+                tcf, mcf, _ = cftopk(merch, sp, d, htap, tcf, mcf, 0f0, vmax, bark, Int(t.trunc[i]))
+                bf = bftopk(merch, sp, d, htap, bf, vmax, bark, Int(t.trunc[i]))
+            end
+            t.cuft_vol[i] = tcf
+            t.merch_cuft_vol[i] = mcf
+            t.bdft_vol[i] = bf
         else
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
         end
