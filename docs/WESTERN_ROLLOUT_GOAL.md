@@ -23,7 +23,13 @@ shared → worktree isolation per stream, merged sequentially.
     Wykoff-native DGF to reuse for the 18 ORGANON-eligible species. ⇒ NOT a westside reuse; a genuine ~9,200-line
     deterministic (DGSD=0, bit-exact bar) subsystem port = the LARGEST single unported western workload. OP = thin
     follow-on (same engine; MAXSP=39, own species map, NWO/SMC version select). HIGH effort, multi-run.
-  • **Stream 3 [#209] — Alaska (AK)** standalone (MAXSP=23) + PFCON permafrost / SEAMRT / R10 vol. MED effort. (running)
+  • **Stream 3 [#209] — Alaska (AK)** ★ BEACHHEAD DONE + merged (190a2c4): SoutheastAlaska MAXSP=23 foundation +
+    relinked /workspace/.akwork/FVSak_clean + **large-tree DGF cyc0 VALIDATED BIT-EXACT** (akt01: 54 records, 0
+    mismatches, WK2/DDS rel-err 0.0; ported ak/dgf.f single Wykoff ln(DDS) + ak/bratio.f). Unique subsystems scoped
+    (docs/AK_VARIANT_PORT_AUDIT.md): PFCON permafrost DG-mod (coeffs+logic already shipped, needs PERMAFROST kw),
+    SEAMRT density-mortality, R10 volume (VEQNNC reuse). ★ ENGINE-GAP found: PRD (per-point Zeide-SDI SDICAL/SDICLS)
+    is unported — stubbed 0 → EXACT for the DGRD=0 coastal species dominating akt01/SE-Alaska; the interior/permafrost
+    path needs SDICAL/SDICLS (also feeds the base b5·PRD term). MED effort remaining = PFCON kw + SDICAL + SEAMRT + R10.
   • **Stream 4 — BC NEWSPRED (#196)** — the main-thread stream (spatial dwarf mistletoe, in progress).
 Each stream = a worktree-isolated background agent bootstrapping its pilot to a per-chunk-VALIDATED beachhead (NOT the
 whole cluster in one shot); doctrine unchanged (bit-exact-or-cornered vs live oracle, MEASURE, never FFI RNG). Off-switch
