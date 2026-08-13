@@ -60,6 +60,12 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _nc_fm = s.variant isa Klamath              # NC CRWDTH via nc_cwcalc (NCMAP western Bechtold/Crookston library)
     _west_cw = _cr_fm || _bm_fm || _nc_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
+    # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
+    # accumulated ⇒ the R6-Crookston BAREA term hits cwcalc.f:859 `IF(BAREA.LE.1.) BAREA=1.` (BA=0→1).
+    # fmcba in the FIRST FFE cycle reads those load-time CRWDTH; later cycles read the end-of-cycle UPDATE
+    # (actual BA). MEASURED vs FVSnc_clean DEBUG FMCBA cyc1: PERCOV=39.01 matches BAREA=1 (jl 39.72), NOT the
+    # dense stand BA (jl 44.29). Mirror the load-time clamp for cycle 1.
+    _nc_ba = (_nc_fm && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     @inbounds for i in 1:t.n
@@ -69,7 +75,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
-             _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]

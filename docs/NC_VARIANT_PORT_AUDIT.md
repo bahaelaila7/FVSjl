@@ -45,20 +45,28 @@ Ported (all Klamath-guarded; other variants provably inert):
   `nc_cwcalc` in the PERCOV crown-area loop; bare-stand default = DF(3) (full COVINI5/6 R5/R6 habitat maps deferred —
   a bare-stand-only path, trees present in nct01).
 
-**VALIDATION (nct01 FFE TEST stand, cyc1/1993 vs live ALL FUELS row) — FAITHFUL PORT, CORNERED (NOT yet bit-exact):**
-jl (covtyp=2/SP, percov=44.3): LITT 0.506, DUFF 15.73, 0-3" 3.20, >3" 11.86, HERB 0.238, SHRUB 0.504.
-live 1993:                     LITT 0.54,  DUFF 14.7,  0-3" 3.2,  >3" 10.9,  HERB 0.26,  SHRUB 0.64.
-Within ~5-8%; 0-3" bit-exact. The fuel TABLES are bit-exact by construction (verbatim nc/fmcba.f); the residual traces to
-PERCOV + the top-2 COVCA weights, which scale with per-species BA — and **jl's base tree list is ~10% heavier than live**
-(see blocker below), which cascades into covca weights/percov (litter says live percov≈50, duff says lower ⇒ the covca #2
-species/weight differs from live, driven by the BA gap). ⇒ can only be closed to bit-exact once the base TPA/BA matches.
+**VALIDATION (nct01 FFE TEST stand, cyc1/1993 vs LIVE FVSnc_clean `DEBUG FMCBA` + ALL FUELS) — near bit-exact, CORNERED:**
+Live ground truth measured via `DEBUG  1.0  1.0` + supplemental `FMCBA` on FVSnc_clean (initre.f:1045 scopes when DEBUG
+field 2 is non-blank; a bare DEBUG = global and hits the volume-debug segfault): **COVTYP=2, PERCOV=39.01, FLIVE=(0.257,0.639)**.
+| | COVTYP | PERCOV | HERB | SHRUB | LITT | DUFF | 0-3" | 3-6" | 6-12" |
+|---|---|---|---|---|---|---|---|---|---|
+| jl   | 2 | 39.72 | 0.254 | 0.621 | 0.478 | 14.82 | 3.10 | 5.30 | 5.76 |
+| live | 2 | 39.01 | 0.257 | 0.639 | 0.54  | 14.7  | 3.2  | 5.2  | 5.7  |
+COVTYP bit-exact; PERCOV within 1.8%; DUFF/6-12"/3-6"/FLIVE within ~2%. The fuel TABLES are bit-exact by construction
+(verbatim nc/fmcba.f). Residual = the small PERCOV gap (crown-ratio/HT init: jl's cyc1 ICR/HT vs live's) + the LITT term
+(0.478 vs 0.54 — likely one year of FMCADD litterfall folded into the report, a downstream chunk). CORNERED.
 
-### ⚠ BLOCKER (surfaced by this work, NOT an FFE bug) — NC cyc0 tree expansion ~10% heavy
-On the CURRENT worktree, jl's cyc0 stand for nct01 = **590 TPA / 85 BA** (all stands), but the validated live save
-(`tests/FVSnc/nct01.sum.save`) + live `.ncwork/ncval/nct01.sum` both show **536 TPA / 77 BA** at 1990 (same QMD 5.14, so a
-uniform ×1.10 TPA over-expansion, not a growth error). DESIGN parses `sample_weight=11.0` (the keyfile "DESIGN 11.0"), baf=40
-correct. This is a GROWTH/tree-read matter (visible on stand 1, no FFE) that appears to contradict the #210 "growth validated
-bit-exact" claim — flag for the growth owner. It is the dominant reason the FFE fuel numbers are cornered rather than exact.
+### RE-ATTRIBUTION (root cause of the earlier ~5-8% residual — MEASURED, fixed)
+The earlier draft wrongly blamed a "~10% heavy base tree list." **Corrected (per coordinator + measurement):** jl's raw
+`stand_tpa` (589.65) is the INTERNAL ×GROSPC per-stockable PROB (notre.f:69 PROB=P·GROSPC, GROSPC=11/10 on DESIGN `11.0 1.0`);
+the `.sum` divides GROSPC back out (stats.f:128) ⇒ jl cyc0 `.sum` = 536/77/5.1 = live BIT-EXACT (#210 holds). FFE fmcba
+LEGITIMATELY uses the ×GROSPC PROB (per-stockable), which jl's `t.tpa` basis already matches — so that was NOT the cause.
+The real cause of the fuel residual was **jl passing the dense computed stand BA (85) as BAREA to `nc_cwcalc`**: FVS's base
+`cwidth.f`→`cwcalc.f` computes the INITIAL CRWDTH at LOAD time, before the stand BA is accumulated, so the R6-Crookston
+`(BAREA+1)^b` term hits `cwcalc.f:859 IF(BAREA.LE.1.) BAREA=1.` (BA=0→1). cyc1 fmcba reads those load-time crown widths.
+BAREA=85 inflated CW by `(86/2)^0.04267≈1.174` ⇒ TOTCRA +18% ⇒ PERCOV 44.3 (vs live 39.0). **Fix (fmcba.jl):** NC passes
+BAREA=1 for the load/first FFE cycle (`s.control.cycle <= 1`), the actual stand BA thereafter (matching the end-of-cycle
+UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.82 (live 14.7). All Klamath-guarded.
 
 ### Remaining NC FFE chunks (fire-behavior chain — each is a real port, revealed in order by measurement)
 1. **standard fuel models** — next crash: `standard_fuel_model` (fuel_model.jl:44) hits a 0×0 `ffe_fuel_models` for NC ⇒
