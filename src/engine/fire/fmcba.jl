@@ -39,9 +39,11 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         fs.flive = ls_live_fuel_loading(s)
     elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai ||
            s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-           s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains
-        # Western (CR/IE/KT/EM): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
-        # the cover-type block below (needs COVTYP + PERCOV). Placeholder here.
+           s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
+           s.variant isa Klamath
+        # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
+        # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
+        # Placeholder here.
         fs.flive = (0f0, 0f0)
     else
         ovr = ffe_live_fuel_override(s)
@@ -55,7 +57,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # generic crown_width, which returns the 0.5 default for every CR species ⇒ near-zero crown area ⇒ PERCOV≈0.
     _cr_fm = s.variant isa CentralRockies
     _bm_fm = s.variant isa BlueMountains        # BM CRWDTH via bm_cwcalc (BMMAP->cr_cwcalc western library)
-    _west_cw = _cr_fm || _bm_fm
+    _nc_fm = s.variant isa Klamath              # NC CRWDTH via nc_cwcalc (NCMAP western Bechtold/Crookston library)
+    _west_cw = _cr_fm || _bm_fm || _nc_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
@@ -66,6 +69,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -76,6 +80,21 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     @inbounds for ksp in 1:nsp
         tba[ksp] > bamost && (bamost = tba[ksp]; covtyp = Int32(ksp))
         totba += tba[ksp]
+    end
+    # NC (California/westside) uses the TOP TWO cover-type species for the live + initial-dead fuel pools
+    # (nc/fmcba.f:298-310): RDPSRT the per-species BA descending → ICT; COVCA(1..2)=ICT(1..2); COVCAWT(j)=
+    # FMTBA(ICT(j))/Σ_{i=1,2}FMTBA(ICT(i)). COVTYP is ICT(1) when its BA>0.001 (faithful RDPSRT tie-break).
+    covca = (0, 0); covcawt = (0f0, 0f0)
+    if s.variant isa Klamath
+        ict = collect(1:nsp)
+        rdpsrt!(nsp, tba, ict, true)                     # descending indirect sort on tba → ICT
+        covtyp = tba[ict[1]] > 0.001f0 ? Int32(ict[1]) : Int32(0)
+        xx = 0f0
+        @inbounds for i in 1:2
+            tba[ict[i]] > 0f0 && (xx += tba[ict[i]])
+        end
+        covca = (Int(ict[1]), Int(ict[2]))
+        covcawt = xx > 0.001f0 ? (tba[ict[1]] / xx, tba[ict[2]] / xx) : (0f0, 0f0)
     end
     # No basal area: FVS fmcba.f sets COVTYP to a VARIANT-SPECIFIC default cover-type species the first
     # year (SN 75, NE 1, CS 48, LS 3 red pine — fmcba.f "COVTYP.EQ.0" block), else keeps the previous
@@ -93,6 +112,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
                  s.variant isa LakeStates    ? Int32(3)  :
+                 # NC bare stand: COVINI5(ITYPE)/COVINI6(ITYPE) by habitat (nc/fmcba.f:337-355); the full
+                 # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
+                 # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
+                 s.variant isa Klamath ? Int32(3) :
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
@@ -105,6 +128,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa Teton && (fs.flive = tt_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Utah && (fs.flive = ut_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa BlueMountains && (fs.flive = bm_live_fuel_loading(Int(covtyp), fs.percov))
+    s.variant isa Klamath && (fs.flive = nc_live_fuel_loading(covca, covcawt, fs.percov))   # top-2 (nc/fmcba.f:369-378)
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -121,6 +145,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa Teton ? tt_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Utah ? ut_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa BlueMountains ? bm_dead_fuel_loading(Int(covtyp), fs.percov) :
+                  s.variant isa Klamath ? nc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (nc/fmcba.f:421-431)
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set

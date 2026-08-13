@@ -28,6 +28,51 @@ Growth-only NC runs are UNAFFECTED (cyc0 calibration completes; crash is fire-pa
 lead, NOT a growth-parity gap. NOTE: jl should also GATE FFE off (or error cleanly) for variants without fuel tables
 rather than BoundsError — a small defensive-robustness follow-up independent of the NC FFE port.
 
+## ✅ NC FFE chunk 1 — FMCBA initial surface-fuel loading PORTED (2026-08-13)
+Fixes the fmcba crash. NC is a **California/westside** FFE variant: unlike the interior western variants (CR/IE/EM/CI/
+TT/UT/BM, single-COVTYP interpolation), NC (like WS/CA) initializes the live + initial-dead fuel pools from the **TOP
+TWO cover-type species** (COVCA(1..2), weighted COVCAWT by their share of the top-2 BA), interpolated by PERCOV between
+the initiating (10% cover, FULIVI/FUINII) and established (60% cover, FULIVE/FUINIE) tables — nc/fmcba.f:236-431.
+
+Ported (all Klamath-guarded; other variants provably inert):
+- `data/klamath/fire/ffe_fuel.jl` — `_NC_FULIVE/_NC_FULIVI` (2×12) + `_NC_FUINIE/_NC_FUINII` (11×12) verbatim from
+  nc/fmcba.f; `nc_live_fuel_loading` + `nc_dead_fuel_loading` (top-2 COVCA/COVCAWT interpolation, reuse `_cr_algslp2`).
+- `nc_cwcalc` (same file) — NC CRWDTH via NCMAP (nc/cwcalc.f), REQUIRED for PERCOV: the generic `crown_width` returns the
+  0.5 default for every NC species ⇒ PERCOV≈0 ⇒ mis-selects the initiating-stand loads (bug reproduced: 0.27% → 44.3%).
+  Reuses the shared `_cr_r6m2` (Crookston R6 model 2) form; ports the SP/DF/WF/RF/PP/OS equations (forest 505=R5 ⇒ BF=1).
+  MA/IC/BO/TO/OH/RW equations error loudly (not exercised by nct01) — a follow-up crown-width chunk (also NC growth CCF).
+- `fmcba.jl` — Klamath branches: RDPSRT top-2 COVCA/COVCAWT; live-fuel (deferred, post-cover-type); dead-fuel dispatch;
+  `nc_cwcalc` in the PERCOV crown-area loop; bare-stand default = DF(3) (full COVINI5/6 R5/R6 habitat maps deferred —
+  a bare-stand-only path, trees present in nct01).
+
+**VALIDATION (nct01 FFE TEST stand, cyc1/1993 vs live ALL FUELS row) — FAITHFUL PORT, CORNERED (NOT yet bit-exact):**
+jl (covtyp=2/SP, percov=44.3): LITT 0.506, DUFF 15.73, 0-3" 3.20, >3" 11.86, HERB 0.238, SHRUB 0.504.
+live 1993:                     LITT 0.54,  DUFF 14.7,  0-3" 3.2,  >3" 10.9,  HERB 0.26,  SHRUB 0.64.
+Within ~5-8%; 0-3" bit-exact. The fuel TABLES are bit-exact by construction (verbatim nc/fmcba.f); the residual traces to
+PERCOV + the top-2 COVCA weights, which scale with per-species BA — and **jl's base tree list is ~10% heavier than live**
+(see blocker below), which cascades into covca weights/percov (litter says live percov≈50, duff says lower ⇒ the covca #2
+species/weight differs from live, driven by the BA gap). ⇒ can only be closed to bit-exact once the base TPA/BA matches.
+
+### ⚠ BLOCKER (surfaced by this work, NOT an FFE bug) — NC cyc0 tree expansion ~10% heavy
+On the CURRENT worktree, jl's cyc0 stand for nct01 = **590 TPA / 85 BA** (all stands), but the validated live save
+(`tests/FVSnc/nct01.sum.save`) + live `.ncwork/ncval/nct01.sum` both show **536 TPA / 77 BA** at 1990 (same QMD 5.14, so a
+uniform ×1.10 TPA over-expansion, not a growth error). DESIGN parses `sample_weight=11.0` (the keyfile "DESIGN 11.0"), baf=40
+correct. This is a GROWTH/tree-read matter (visible on stand 1, no FFE) that appears to contradict the #210 "growth validated
+bit-exact" claim — flag for the growth owner. It is the dominant reason the FFE fuel numbers are cornered rather than exact.
+
+### Remaining NC FFE chunks (fire-behavior chain — each is a real port, revealed in order by measurement)
+1. **standard fuel models** — next crash: `standard_fuel_model` (fuel_model.jl:44) hits a 0×0 `ffe_fuel_models` for NC ⇒
+   needs `data/klamath/fire_fuel_models.csv` (13 std models) + the NC `fmcfmd` cover-type→model selection (nc/fmcfmd.f).
+2. **crown biomass** — NC uses FMCROWW (western, cr/fmcroww.f) via NCMAP final SPIE [3,15,3,4,11,41,17,18,4,13,18,18];
+   `cr_crownw` currently ports only SPIE {4,13,15,18} ⇒ SPIE 3 (Douglas-fir) + 41/17 (Jenkins aspen/oak) need porting.
+   Feeds canopy bulk density (crown fire / torch index) + the ALL FUELS STANDING-WOOD columns.
+3. **fire mortality (FMEFF) + snag props** — the current `data/klamath/fire_species_props.csv` is a **CI COPY placeholder**
+   (commit 00f69ed) whose v2t/dkr_cls/leaf_life/fallx do NOT match nc/fmvinit.f (correct NC DKRCLS=[3,4,3,4,3,2,2,4,4,4,4,1];
+   V2T sp1=28.7/sp2=21.2/…). Rebuild it from nc/fmvinit.f before validating snag falldown / decay / mortality. (dkr_cls does
+   NOT change the cyc1 SURFACE-DEAD totals — only the decay class the fuel lands in — so it does not affect the cyc1 row above.)
+4. **Dunning decay multiplier** (DCYMLT, nc/fmcba.f:395-414) — first-year DKR adjustment by Dunning-code/site index; affects
+   fuel DECAY in cyc2+, not the cyc1 initial loading.
+
 
 Branch kt-variant-port. Oracle /workspace/.ncwork/FVSnc_clean. Canonical stand nct01
 (tests/FVSnc/nct01.key + nct01.tre + nct01.sum.save). MAXSP=12, imperial, Zeide SDI, DGSD=2.0.
