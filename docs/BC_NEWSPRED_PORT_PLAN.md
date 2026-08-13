@@ -131,4 +131,20 @@ bug. Three vehicles, in priority order:
   bndist.f is NOT "between-tree distance" (a mislabel from the goal-doc survey) — `BNDIST` is the
   Binomial/Poisson/Negative-Binomial PDF family for neighbour counts (V≈M→Poisson, V<M→Binomial,
   V>M→NegBinom), called by DMNB; it belongs with the neighbour-density math in C4, not the geometry.
+- **C4 — spread core (STARTED 2026-08-13).** DMTREG driver FULLY MAPPED (dmtreg.f:239-521):
+  setup (DMOPTS/DMMTRX/DMFBRK/DMFSHD/DMNTRD/DMFINF) → per-ring DMNB neighbour build →
+  per-species loop {DMFDNS density, DMSRC source vector, per-target-DMR-class k {DMTLST
+  targets, per-ring m {DMAUTO autocorr source density, per-source-DMR-class n, per-target u
+  {DMSAMP count, DMSLST select sources, per-source v: MISDGF dgf, DMSLOP slope offset,
+  DMADLV spread-field accumulation over MESH bands (uses Shd1 shade), ATAN subtended-angle
+  interception → NewSpr}}}} → self-intensification NewInt → DMOTHR apply} → DMCYCL life-hist
+  → DMNDMR recompute DMR → BrkPnt→PBrkPt. RNG-heavy sampling (DMSAMP/DMSLST/DMSRC) ⇒ the
+  spatial spread is a REALIZATION straddle; validate at the aggregate FVS_DM_Stnd_Sum_Metric
+  (Mean_DMR / Inf_TPH / Mort_TPH trajectory), NOT bit-exact per-tree.
+  Deterministic geometry substrate landed (ae259b4): **DMFBRK** (crown-third breakpoints in
+  MESH units) + DMCOM MESH constants (MESH=2, FPM, MXHT=25, MXTHRX=7 rings, ORIGIN, TWOPIE,
+  BPCNT=4). NEXT deterministic pieces before the RNG layer: DMRDMX (per-MESH-band VOLUME/RADIUS
+  frustum geometry, set in dmsum.f:118-256) → DMFSHD (Shd1 shade field, needs the 1496-elt
+  ShdPtr/Shd1 extract from dmblkd.f) → DMNB + BNDIST (neighbour-count PDF family). Then the
+  RNG sampling layer (DMSRC/DMSAMP/DMSLST) + DMADLV + DMAUTO, then C5 (DMCYCL/DMNDMR).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
