@@ -148,6 +148,12 @@ function setup_growth!(s::StandState)
         # it directly); only the NO-GROWTH default (dgscale=1) needs the 10-yr-measurement 0.5. Other western
         # variants have YR=IFINT ⇒ scale 1; NC is the unique YR=5-with-10yr-default-measurement case.
         calibrate_diameter_growth!(s; scale = s.control.growth_dg_set ? dgscale : 0.5f0)
+    elseif s.variant isa SoutheastAlaska
+        ak_dgcons!(s)                     # AK DGCON (0 + ln COR2 if READCORD), ATTEN=OBSERV; AK bark via ak_bratio in the driver
+        compute_density!(s)               # current-stand density for the crown dub (point BA/BAL/TPA + point-Zeide inputs)
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
+                                          # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -567,6 +573,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
+    _ak_up = s.variant isa SoutheastAlaska # AK bark = ak_bratio (3-type: power/linear/power)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
                                           # birth_age nowhere else ⇒ inert for climate-off IE runs (bit-exact).
@@ -578,6 +585,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
                _tt_up ? tt_bratio(Int(t.species[i]), t.dbh[i]) :
                _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
+               _ak_up ? ak_bratio(Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton ||

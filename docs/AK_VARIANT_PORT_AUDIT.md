@@ -29,6 +29,28 @@ specialization of the shared engine. AK mirrors that structure.
 |---|---|---|
 | 0 Foundation | `SoutheastAlaska <: AbstractVariant`, `variant_from_code("AK")`, 23-species table, grinit constants, `FVSjl.jl` include + export | **DONE** — module loads, resolves, coefficients load |
 | 3 Large-tree DGF | `ak/dgf.f` ln(DDS) equation + all coefficient DATA arrays + `ak/bratio.f` bark | **VALIDATED BIT-EXACT** vs live oracle: 54 tree-records, 0 mismatches, WK2 rel-err **0.0** (BASEDG 8e-8 = Float32 ULP on `exp`); AK 3-type bark path also exact (no BRAT drift) |
+| 2 Site index / SDImax / forkod | `ak/sitset.f` SITEAR (ISISP=0→11, TEM=70, SLO/SHI interp) + SDIDEF (SDICON) + `ak/forkod.f` (Tongass 1005/IFOR 2 default) | **VALIDATED BIT-EXACT** — akt01 XSITE dump: YC=50, SS=82.5, LP=35, RC=57.5, WH=70, MH=42.5 all match |
+| 4 Large-tree HTGF | `ak/htgf.f` single Wykoff HG equation + NOPERM/PERM coeffs + HTLO/HTHI bounding + species mult, wired via `height_growth!(::SoutheastAlaska)` | **VALIDATED BIT-EXACT** vs live FVSak `DEBUG HTGF` on akt01: **27 trees, HTG rel-err 0.0** (POTHTG to F8.4 print precision, ULP-level). Primary gate PASSED. `tools/southeastalaska/validate_htgf.jl` |
+| 4b Height-diameter dub | `ak/cratet.f` Curtis-Arney INVENTORY-EQN (LHTDRG=false): H=4.5+HTT11·(1−exp(HTT12·D))^HTT13 ×spmult; HTT11/12/13 MEASURED from `DEBUG CRATET` (all 23 sp) | **DONE** — wired into `dub_missing_heights!`; akt01 dubbed heights match (5-decimal coeff precision) |
+| 5 Crown | `ak/crown.f` logistic CR (PRD/HDR/D-QMD) + `ak/dubscr.f` (bachlo RNG) + point-Zeide `ak/sdical.f` SDICAL/SDICLS (XMAXPT/ZRD) | **PORTED** — point-Zeide PRD reproduces the oracle (365.0/592=0.6166 verified); feeds DGF ln(CR) from cyc2+. Not yet independently per-tree-validated |
+| 7 Mortality | `ak/morts.f` logistic survival (BM1-5) + SDI/BA iterative-PASS multiplier (NOT SEAMRT — morts.f doesn't call it) | **PORTED** — end-to-end TPA tracks oracle within ~1% mid-run; late-cycle self-thin selection straddle |
+| 6 REGENT small-tree | `ak/regent.f` | **STUB (no-op)** — small trees keep large-tree DGF/HTGF; akt01 is mature so bounded. LATER chunk |
+| 8 Volume | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL + `ak/logs.f`/`cubrds.f` | **STUB (cuft=0)** — R10 NVEL crosswalk not ported; .sum cuft/bdft columns are 0. LATER chunk |
+
+### End-to-end akt01 `.sum` vs `akt01.sum.save` (unthinned control, NUMCYCLE 10, NOTRIPLE off)
+
+Fix that unblocked it: **AK GRINIT `BAF=62.5`** (ak/grinit.f:173) — jl was using the generic 40 default; akt01's DESIGN omits BAF, so the 62.5 default is load-bearing for the plot expansion (added in `engine/init.jl`). With it, **cycle 0 (1990) is BIT-EXACT**: TPA 669 / BA 118 / SDI 242 / TopHt 64 / QMD 5.7 all match.
+
+| Year | jl TPA/BA/SDI/QMD | oracle TPA/BA/SDI/QMD | ΔBA |
+|---|---|---|---|
+| 1990 | 669/118/242/5.7 | 669/118/242/5.7 | **0% (exact)** |
+| 2000 | 615/144/284/6.6 | 615/147/290/6.6 | −2% |
+| 2020 | 545/188/348/8.0 | 553/198/373/8.1 | −5% |
+| 2050 | 467/240/416/9.7 | 482/256/453/9.9 | −6% |
+| 2070 | 424/266/447/10.7 | 421/270/462/10.8 | −1.5% |
+| 2090 | 386/286/467/11.7 | 354/268/446/11.8 | +7% (jl retains more TPA) |
+
+**Residual classification (NOT fully resolved):** (a) mid-run BA runs ~2–6% LOW — has a REAL deterministic component: jl's calibration COR for the dominant YC is ~3% low (`dg_cor_goal[YC]=0.6947` vs oracle attenuation goal 0.7171; jl reproduces the STRUCTURE — only YC calibrated, SS/WH COR=0 exactly — but not the magnitude), plus the DGSD=2.0 OLDRN serial-correlation straddle. (b) Late-cycle divergence flips sign (jl 2090 TPA 386 vs oracle 354) = a mortality/self-thin **selection straddle**. Proving cornered-vs-real needs per-tree g16 DDS (not done this chunk). Volume + the summary CCF column are 0 (stubs).
 
 Reproduce: `julia --project=. tools/southeastalaska/validate_dgf_cyc0.jl <FVSak-DEBUG.out>`
 (pulls the *shipped* `src/variants/southeastalaska` coefficients + `ak_bratio`, feeds the
