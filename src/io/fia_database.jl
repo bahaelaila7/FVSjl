@@ -77,11 +77,20 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # with large slope coefficients (e.g. sp39 loblolly-bay FCOS=-10.15: a 0.05 slope = -0.68 in
     # ln(DDS) ⇒ ~2× DBH growth). Apply the grinit default so a missing slope matches live FVS.
     p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : 5f0 / 100f0
-    # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710)
+    # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710).
+    # ⚠ METRIC DBs (BC/ON) store ELEVATION in METRES: the metric dbsstandin.f (FVSbc_buildDir, header
+    # "METRIC-VDBSQLITE") does RSTANDDATA(9) = ELEVATION * MtoFt / 100 (:351) — metres→hundreds-of-feet —
+    # while the western VDBSQLITE reader (FVSem_buildDir:303) uses ELEVATION raw (already hundreds-of-ft).
+    # jl elevation feeds the BC crown model (CRCON EL·elev + EL2·elev²) and AUTOES, so a raw-metre store is
+    # ~30.48× too large. ELEVFT is feet in both readers (metric reader still ×0.01, no MtoFt).
     if _fia_present(d, "ELEVFT")
         p.elevation = _fia_f32(d, "ELEVFT", 0f0) * 0.01f0
     elseif _fia_present(d, "ELEVATION")
-        p.elevation = _fia_f32(d, "ELEVATION", p.elevation)
+        if s.variant isa BritishColumbia
+            p.elevation = _fia_f32(d, "ELEVATION", 0f0) * 3.280839895f0 / 100f0   # m → hundreds of ft
+        else
+            p.elevation = _fia_f32(d, "ELEVATION", p.elevation)
+        end
     end
     # Western variants set a per-variant DEFAULT elevation (hundreds of ft) in grinit.f (EM 55, BM 45, IE 38,
     # KT 35, UT 83, TT 65, CI 50); the DB overrides ONLY when >0 (dbsstandin.f:647), so a NULL/≤0 ELEVATION/
