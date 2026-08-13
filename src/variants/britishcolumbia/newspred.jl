@@ -470,6 +470,44 @@ end
 end
 const DM_FLWR = 4      # DMFLWR default: years-to-flower → FProp2 = 1/DMFLWR = 0.25 (dminitbc.f:267)
 const DM_CAP  = 3.0f0  # DMCAP default: per-crown-third infection carrying capacity (dminitbc.f:268)
+const DM_TRAJWT = 1f0 / 1000f0   # DMCOM TRAJWT PARAMETER (1/1000) — per-observation shading weight
+
+# --- DMHtWt (dmtreg.f:533) — weight of a MESH band `s` within crown-third `r` of tree `v`, handling
+# the fractional top/bottom bands. ⚠ Fortran arg-swap: FUNCTION DMHtWt(v,r,s,UHt,LHt) but the callers
+# pass (v,r,s,Lht,Uht) ⇒ the formal UHt binds to the caller's LOWER band, formal LHt to the UPPER.
+# Rewritten here in CALLER terms (lht = lower band index, uht = upper band index):
+#   s==uht & r<BPCNT → 1−frac(BrkPnt[v,r]) (fractional top slice); s==lht & r>2 → frac(BrkPnt[v,r−1])
+#   (fractional bottom slice); else 1.0. Comment: special weighting only for inner breakpoints 2,3.
+@inline function dm_htwt(brkpnt, v::Int, r::Int, s::Int, lht::Int, uht::Int)
+    if uht == s && r < DM_BPCNT
+        return 1f0 - (brkpnt[v, r] - trunc(brkpnt[v, r]))
+    elseif lht == s && r > 2
+        return brkpnt[v, r-1] - trunc(brkpnt[v, r-1])
+    else
+        return 1f0
+    end
+end
+
+# --- DMOTHR (dmothr.f) — scale the per-tree/crown-third NewSpr & NewInt accumulators of species `sp`
+# by the seed-production/interception constant × per-species tuning. Factor = .05·.15·.5·10·.25·MESH³·
+# TRAJWT = 7.5e-5 for BC (MESH=2, TRAJWT=1e-3); FacS=DMETUN·DMSTUN·Factor, FacI=DMETUN·DMITUN·Factor
+# (all three tuning multipliers = 1.0 for BC, dminitbc.f:263-265 ⇒ FacS=FacI=Factor). Runs per species
+# after its spread patch, over its ISCT[sp,1:2] treelist slice via IND1.
+function dm_othr!(ms::MistletoeState, sp::Int, isct, ind1)
+    i1 = isct[sp, 1]; i2 = isct[sp, 2]
+    i1 == 0 && return ms
+    factor = 0.05f0 * 0.15f0 * 0.5f0 * 10f0 * 0.25f0 * Float32(DM_MESH^3) * DM_TRAJWT
+    facs = factor   # DMETUN·DMSTUN = 1.0 for BC
+    faci = factor   # DMETUN·DMITUN = 1.0 for BC
+    @inbounds for jj in i1:i2
+        i = ind1[jj]
+        for j in 1:DM_CRTHRD
+            ms.newspr[i, j] *= facs
+            ms.newint[i, j] *= faci
+        end
+    end
+    return ms
+end
 
 # --- DMFSHD (dmfshd.f) — the per-MESH-band canopy shade field Shade[] that DMADLV reads. STOCHASTIC:
 # for each canopy band, simulate each tree's expected count (PROB·SQM2AC·Grid²) at random (x,y) on a
