@@ -277,6 +277,52 @@ Float32 print precision. Deterministic (`DGSD=0`) — the hard bar, no straddle.
 **Next: C5 (crown — `crngrow.f` CROWGRO/HCB/CW → validate `CR2/CRNEW` from `oc/crown.f:285`); then
 C6 mortality (`mortality.f` PM_SWO), C7 GROW/EXECUTE orchestration + the FVS DDS/HTG copy-back.**
 
+## Chunk C5 delivered (ORGANON SWO crown growth) — VALIDATED BIT-EXACT
+
+`src/variants/oregoncoast/organon_crngro.jl` ports the ORGANON **SWO (VERSION=1)** crown-recession
+core — the deterministic (`DGSD=0`) per-tree `CR2` that FVS rounds into `CRNEW` for the valid
+ORGANON trees (`oc/crown.f:282`: `CRNEW=ANINT(CR2·100)`), bypassing native OC crown. CROWGRO runs
+AFTER DG (C3) + HG (C4) advance DBH/HT and mortality (C6) reduces the expansion.
+
+- **`organon_cr_swo(buf, dgro, hgro, spgrp, deadexp; si_1, si_2)`** = `organon/crngrow.f` CROWGRO:
+  compute start (old DBH/HT) & end (new DBH/HT) height-to-crown-base via **`oc_hcb_swo`** (HCB_SWO,
+  its own `HCBPAR(18,7)` — DISTINCT from C2's start2 A_HCB_SWO), the crown-base growth
+  `HCBG=max(0, HCB2−HCB1)`, the max crown-base cap **`oc_maxhcb_swo`** (MAXHCB_SWO), and the
+  actual/shadow crown-base recession branch → new `CR2`.
+- **`oc_oldgro`** = `organon/mortality.f` OLDGRO — the old-growth indicator OG (5-largest big-6),
+  start (`XIND=-1`, subtract growth + add DEADEXP) and end (`XIND=0`). Reuses `oc_get_ccfl` (C2),
+  `oc_sstats` (C3), `oc_mcw_swo` (C2).
+- The two SSTATS calls: start stats use the **original** expansion (SOG, pre-mortality); end stats
+  use the **survivor** expansion and the **new DBH with OLD HT** (grow.f:169 runs after the DBH
+  update but before the HT update at :184).
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / DGDRIV HTGF CROWN`, stand S248112
+/ ocmin; the `ORG CROWN … CR2 …` dump — **17 valid ORGANON trees**). jl fed the exact `/ORGANON/`
+buffer + the C3 `dgro` + C4 `hgro` + the measured per-tree `deadexp` (see C6 note):
+
+| quantity | result |
+|---|---|
+| `CR2` — all **17 valid ORGANON trees** (DF g1, GW/fir g2, PP g3, SP g4) | **max \|Δ\| = 0.000e+00 (bit-exact)** |
+
+**C5 verdict: bit-exact vs the live oracle** on ORGANON SWO crown growth (`CR2`, all 17 valid trees).
+
+### Root-caused during C5 (load-bearing)
+
+- **The end-of-growth stand stats use SURVIVOR expansion, not original.** ORGANON mortality
+  (`mortality.f:233-234`) runs inside GROW *before* the end-of-growth `SSTATS`/`CROWGRO` and does
+  `DEADEXP=EXPAN·PM; TDATAR(4)=EXPAN·(1−PM)`. Feeding SSTATS2/OLDGRO the original expansion under-
+  predicted every CR2 by ~0.5–1.2% (max rel 5%); using `surv = EXPAN − DEADEXP` makes all 17 exactly
+  0.0. This is the crown analogue of the C4-requires-shim finding: a stand-level input, not a coeff.
+- **C6 dependency (measured, not a gap):** OLDGRO's OG1 and the SSTATS2 survivor expansion both need
+  the ORGANON mortality `DEADEXP`. C5 is validated with the oracle-measured MORTEXP fed in (as C4
+  consumed the measured/ported DGRO). Once C6 (PM_SWO) lands, `organon_cr_swo` takes the ported
+  DEADEXP with no code change.
+- **Shadow-crown (SCR) path inert:** SCR1B=0 on inventory ⇒ `AHCB1 ≤ SHCB1` always, so the shadow
+  branch never fires here; it is ported faithfully for completeness.
+
+**Next: C6 (mortality — `mortality.f` PM_SWO + RAMORT/OLDGRO, supplies DEADEXP); then C7
+GROW/EXECUTE orchestration + the FVS DDS/HTG/CR copy-back into `diameter_growth!(::OregonCoast)`.**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
