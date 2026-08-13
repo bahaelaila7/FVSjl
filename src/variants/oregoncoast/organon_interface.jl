@@ -148,7 +148,10 @@ function build_organon_buffer!(s::StandState)
         buf.ptno[i]   = t.plot_id[i]
         d = t.dbh[i];  d < 0.1f0 && (d = 0.1f0)
         buf.dbh1[i]   = d
-        h = t.height[i]; h < 4.6f0 && (h = 4.6f0)
+        # HT1OR: floor to 4.6 ONLY when HT>0 (oc/cratet.f:234); a MISSING height (HT==0) is passed
+        # as 0.0 so ORGANON PREPARE flags it MISSHT and dubs it (chunk C2). Flooring 0→4.6 here was
+        # the C1 tree-20 residual; this matches the oracle bit-exact.
+        h = t.height[i]; (h > 0f0 && h < 4.6f0) && (h = 4.6f0)
         buf.ht1or[i]  = h
         buf.cr1[i]    = Float32(t.crown_pct[i]) / 100f0
         buf.scr1b[i]  = 0f0

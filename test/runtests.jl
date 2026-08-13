@@ -21,6 +21,7 @@ using FVSjl
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
+    include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips
