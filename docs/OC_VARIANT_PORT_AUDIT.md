@@ -35,6 +35,59 @@ species and only when a stand lacks all "big-6" trees.
 - Growth hooks intentionally UNIMPLEMENTED — dispatching a growth hook on `OregonCoast()` errors
   loudly (doctrine #5), exactly as BC/UT/CI/NC chunk-0 scaffolds do.
 
+## Chunk C1 delivered (FVS↔ORGANON boundary marshalling) — VALIDATED BIT-EXACT
+
+- `src/variants/oregoncoast/organon_interface.jl` — ports **three** pieces (no growth):
+  - **`OC_OSPMAP`** (`oc/orgspc.f` `DATA OSPMAP`): the 50-element FVS-index → ORGANON-FIA-code map,
+    plus `OC_ORGANON_VALID` (the 18 valid-ORGANON species) and `OC_ORGANON_BIG6` (`{2,4,7,16,18}`).
+  - **Per-tree eligibility `IORG`** + **big-6 stand gate** (`oc/dgdriv.f:217-261`): `iorg=1` iff
+    `HT>4.5 ∧ DBH≥0.1 ∧ species∈the 18`; `nbig6 = Σ(gate ∧ species∈big-6)`; if `nbig6==0` all
+    `iorg=0`, `mortexp=0`, `runs=false` (revert to FVS-native, FVS `GO TO 261`).
+  - **`/ORGANON/` input-buffer fill** (`oc/dgdriv.f:268-285`): `OrganonBuffer` (SPECIES, DBH1,
+    HT1OR, CR1, SCR1B, EXPAN1, MGEXP, USER + IORG/TREENO/PTNO) built from `StandState.trees`.
+- Wired as the OC growth entry: `diameter_growth!(s, ::OregonCoast)` calls `build_organon_buffer!(s)`
+  then errors loudly (ORGANON growth = C3-C6, unported). A minimal `site_setup!(s, ::OregonCoast)`
+  (SITSET deferred to C2 — cyc0-inert for marshalling) was added so OC stands initialize.
+- **MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG / CRATET DGDRIV` — see below — stand
+  S248112/ocmin, 27 records). jl loaded via `each_stand`+`notre!` (no growth) then
+  `build_organon_buffer!`; per-tree diff vs the dgdriv `FOR EXECUTE` dump + CRATET `SPECIES` dump:
+
+  | field | result |
+  |---|---|
+  | PTNO | **27/27 exact** |
+  | DBH1 | **bit-exact** (max \|Δ\|=9.5e-8, f32 print precision) |
+  | CR1 | **bit-exact** (max \|Δ\|=1.6e-10) |
+  | EXPAN1 (=PROB) | **bit-exact** (max \|Δ\|=4.9e-8) |
+  | USER (=ISPECL) | **27/27 exact** (all 0) |
+  | HT1OR | **exact on all 26 measured-height trees**; 1 diff = tree 20 (raw HT=0→jl floors 4.6, oracle ORGANON-dubbed 53.32 — that dubbing is **C2**) |
+  | SPECIES (ORGSPC) | **27/27 bit-exact once the FVS index is correct** (see crosswalk note) |
+  | gate | **nbig6=17, nvalid=17, runs=RUN — exact** |
+  | IORG (per-tree) | **bit-exact** (jl raw-height valid set ⊆ oracle dubbed set; both =17 ⇒ identical) |
+
+- **One residual, and it is NOT a C1 bug — it is the C0 species-crosswalk TODO.** With jl's current
+  species table, the alpha codes `WF` and `ES` (which appear in the .tre but are not OC primary
+  species) fall through to `other_species=49 (OH)`, so 10 trees got ORGANON code 492 instead of 017.
+  The live oracle (`base/intree.f` NOTE): **`WF` SET TO `GF` (index 4)** and **`ES` SET TO `BR`
+  (index 22)** via the shared `vie/spctrn.f` 442-row ASPT table (OC has no `oc/spctrn.f`).
+  `OSPMAP[4]=OSPMAP[22]=017`, so the ORGSPC map is already correct — patching those 10 indices to
+  the oracle-confirmed values makes SPECIES **0/27 mismatches**. **Fix belongs to the species chunk
+  (C0): extend `data/oregoncoast/species_translation.csv` with the `vie/spctrn.f` ASPT alt-code rows.**
+
+### DEBUG-seam correction (measurement infra)
+
+- The prior `ocmin.key` used a bare `DEBUG` keyword ⇒ `initre.f:1076` `DBALL` = debug **all**
+  routines, which (a) made `DGF` an "invalid keyword" and (b) triggered the DEBUG-gated volume
+  crash. **The `fvsvol.f:530` SIGSEGV is a DEBUG-only crash** (a `WRITE` under `IF(DEBUG)`), not a
+  growth blocker. Scoping DEBUG to the two growth routines — `DEBUG` with a non-blank field-2 then a
+  `CRATET DGDRIV` supplemental record (`initre.f:1072`/`dbprse.f`) — runs cleanly to completion and
+  emits **both** the CRATET setup dump AND the dgdriv `FOR EXECUTE` per-tree dump (the true C1
+  target). The initial-inventory volume runs before DGDRIV, so a full-DEBUG run never reached the
+  dgdriv dump; the scoped key is the correct recipe for C1/C3-C6 A/B.
+
+**C1 verdict: bit-exact vs the live oracle on every marshalled field it owns** (species map, gate,
+buffer fill); the lone SPECIES residual is a pre-flagged C0 crosswalk gap, and the lone HT1OR
+residual is C2 dubbing — neither is a C1 defect. **Next: C2 (setup calibration `prepare.f`/`start2.f`).**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via

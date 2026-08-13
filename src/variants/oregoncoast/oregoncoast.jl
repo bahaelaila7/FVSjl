@@ -45,3 +45,11 @@ htg_period(::OregonCoast) = 5f0     # /CONTRL/ YR = 5 (oc FINT=5) — ORGANON's 
 const OC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "oregoncoast"))
 
 coefficients(::OregonCoast) = cached_coefficients(() -> load_species_coefficients(OC_DATADIR), "OC")
+
+# SITSET (oc/sitset.f) — fan a per-species site index to species not assigned one by keyword, plus
+# the R5/R6-adjusted SDImax (SDIDEF) defaults. In OC the site index and SDImax feed ONLY the ORGANON
+# growth/calibration path (the ~9k-line unported engine, chunks C2-C6) and Stage self-thin mortality;
+# they are cyc0-INERT for the C1 FVS↔ORGANON boundary marshalling (which reads only DBH/HT/CR/species/
+# TPA/ISPECL). Full oc/sitset.f (SITEAR fan, R5SDI/R5ADJ/R6ADJ, SDImax) is a C2 deliverable; this
+# minimal stub lets an OC stand initialize without fabricating growth-affecting site coefficients.
+site_setup!(s::StandState, ::OregonCoast) = s
