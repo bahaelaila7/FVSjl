@@ -52,7 +52,15 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
     a minor follow-up. ★ LESSON: two partially-canceling bugs can hide behind a "validated" high-site ref stand —
     a low-site/dense reproducer exposes them; fixing one alone regresses, so measure BOTH per-tree before committing.
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
-sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #197(mgmt-regime leads).
+sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) ONLY.
+  • **#197 mgmt-regime leads (THINBBA over-thin + post-thin AUTOES) — REFUTED/CORNERED 2026-08-13.** My own prior-cycle
+    "confirmed over-thin" was ENTIRELY a MIS-COLUMNED-KEYFILE artifact (hand-written THINBBA keyfile: input '1.0' →
+    cuteff 0.1; blank → cuteff 0 → live appeared to 'remove nothing'). FVS keywords are FIXED 10-col fields (use kwrec:
+    keyword lpad 10, each field rpad 10). Properly formatted: live blank-cuteff → CUTEFF defaults 1.000, jl → cut_eff=1.0
+    (state.jl:316) — MATCH. THINBBA→60 (no-op) jl==live ±1; THINBBA→30 (real) jl 270/33 vs live 236/37 = from-below
+    RDPSRT removal-order straddle (cornered). Post-thin AUTOES: TPA declines PARALLEL (no establishment surge) = ESRANN
+    tally straddle (#143 class). ★ LESSON: hand-written FVS keyfiles MUST use kwrec 10-col fields — verify the .out param
+    dump before trusting any management-keyword divergence.
 
 ## Variant status — growth+volume ports (oracle = live FVS relinked from bin/FVS{v}_buildDir/*.o)
 - **CR** (Central Rockies) ★★ COMPLETE (2026-08-05: 3 bugs fixed — backdated-density dub / forkod imodty /
@@ -175,10 +183,13 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 
 ## REMAINING WORK — cornered residuals + LOW-PRI alt-modes + NEW measured real-FIA residuals (see the 2026-08-12 LATEST block up top)
 ## (task-tracker: #142/#194/#206 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198-#206 CLOSED;
-##  genuinely-open = #196(BC NEWSPRED, USER decision) + #197(mgmt-regime leads) + BC V2/non-ICH.
+##  genuinely-open = #196(BC NEWSPRED, USER decision) + BC V2/non-ICH ONLY.
 ##  #205 TT aspen +34% FIXED 2026-08-13 (5b82bf8, single-subcycle gate + metric SITAGE, two-bug cancellation);
-##  #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN straddle; DDS+calib BIT-EXACT via FVSut_g16).
-##  ⇒ NO open pure-growth real-FIA residual remains; the cluster is bit-exact-or-cornered growth+volume incl multi-cycle.)
+##  #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN straddle; DDS+calib BIT-EXACT via FVSut_g16);
+##  #197 mgmt-regime leads REFUTED/CORNERED 2026-08-13 (THINBBA "over-thin" was a mis-columned-keyfile artifact; jl
+##  cut_eff=1.0=live, THINBBA fires+lands within straddle; post-thin AUTOES = parallel-decline ESRANN straddle).
+##  ⇒ NO open pure-growth OR management real-FIA residual remains; cluster bit-exact-or-cornered growth+volume incl
+##  multi-cycle. The ONLY remaining item is the USER-gated #196 (BC NEWSPRED spatial dwarf mistletoe).)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
