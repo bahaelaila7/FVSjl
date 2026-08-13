@@ -69,16 +69,21 @@ BAREA=1 for the load/first FFE cycle (`s.control.cycle <= 1`), the actual stand 
 UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.82 (live 14.7). All Klamath-guarded.
 
 ### Remaining NC FFE chunks (fire-behavior chain — each is a real port, revealed in order by measurement)
-1. **standard fuel models (CSV LANDED) + NC fmcfmd CWHR (PENDING).** `data/klamath/fire_fuel_models.csv` added (the 13
-   universal Anderson models — byte-identical across CI/CR/IE) ⇒ `standard_fuel_model` no longer 0×0, and the FFE stand now
-   runs the full fire chain. But NC's fuel-model SELECTION (`nc/fmcfmd.f`) is the **California CWHR classifier** (FMD_R5/R6
-   forest-type × structural-class matrices + CWXPTS/CCBP/DBHBP sub-model, 467 lines) — DISTINCT from the ported IE/CI XPTS
-   family. NC currently falls through to the SN-default forest-type selection (`select_fuel_models` line 250). MEASURED gap
-   (nct01 2003 burn): jl picks the right candidate models (6,10) but INVERTED weights — jl 6@62%/10@38% vs live 10@56%/6@44%
-   ⇒ jl flame 4.29 / scorch 18.05 vs **live flame 8.3 / scorch 47.0**. The CWHR selection (weights) + the NC crown-fire
-   biomass (chunk 2) drive the flame/scorch/mortality gap. ⇒ port `nc/fmcfmd.f` CWHR next.
-   (Also discovered, SEPARATE from FFE: the BARE/PLANT stand 5 crashes in `establish!` on `KeyError :estab_min_ht` — an NC
-   regen/establishment coefficient gap, not fire.)
+1. **standard fuel models (CSV LANDED) + NC fmcfmd CWHR (PORTED, VALIDATED bit-exact).** `data/klamath/fire_fuel_models.csv`
+   added (13 universal Anderson models). NC's fuel-model SELECTION is the California **CWHR classifier** — ported to
+   `src/engine/fire/nc_fuel_model.jl` (`nc_cwhr` + `nc_select_fuel_models`, verbatim `nc/cwhr.f` + `nc/fmcfmd.f`: PCNETAVG,
+   size 1-6 × density S/P/M/D structural stage, FMD_R5/R6 9×18 table, IFT forest-type, density sub-model blending via FMDYN
+   over CWXPTS, natural fuels 10/12/13). MEASURED vs live `DEBUG FMCFMD` @2003 fire: **IFT=9(OS), base model 6, candidates
+   {6,10,12,13}** — jl's path matches live exactly. And `_fmdyn` fed **live's** point (SMALL=4.80, LARGE=13.28) returns
+   **6@0.443 / 10@0.557 = live's 6@44/10@56 BIT-EXACT.** The port is correct.
+   Residual: jl's own point is SMALL=3.5/LARGE=10.2 (vs live 4.80/13.28) ⇒ jl weights 6@76/10@24, flame 4.27/scorch 17.9 vs
+   live 8.3/47. That gap is the **fuel-ACCUMULATION** difference over 1993→2003 (LARGE 10.2 vs 13.28), NOT the fmcfmd port —
+   it is downstream of (a) the **Dunning decay multiplier** (chunk 4, deferred — scales DKR over the 10-yr run) and (b) the
+   **crown-biomass litterfall/crown-lift additions** (chunk 2). The missing NC crown-fire flame boost (chunk 2, NC absent from
+   the fmburn crown-fire variant list) further lowers flame. ⇒ chunks 2+4 close the flame/scorch/mortality gap.
+   FM11 post-activity sharing (AFWT/SLCHNG/HARVYR, <5 yr after an entry) is not yet wired — inert for nct01 (2003 fire is
+   10 yr after the 1993 THINDBH ⇒ AFWT=0, FM10=1, exact). (Also SEPARATE from FFE: the BARE/PLANT stand 5 crashes in
+   `establish!` on `KeyError :estab_min_ht` — an NC regen coefficient gap, chunk 3.)
 2. **crown biomass** — NC uses FMCROWW (western, cr/fmcroww.f) via NCMAP final SPIE [3,15,3,4,11,41,17,18,4,13,18,18];
    `cr_crownw` currently ports only SPIE {4,13,15,18} ⇒ SPIE 3 (Douglas-fir) + 41/17 (Jenkins aspen/oak) need porting.
    Feeds canopy bulk density (crown fire / torch index) + the ALL FUELS STANDING-WOOD columns.

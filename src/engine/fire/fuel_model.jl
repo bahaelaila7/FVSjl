@@ -191,6 +191,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return bm_select_fuel_models(s, mois, sm, lg)
     end
 
+    # NC (nc/fmcfmd.f + cwhr.f) — California CWHR size×density structural-stage classification.
+    if s.variant isa Klamath
+        return nc_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
