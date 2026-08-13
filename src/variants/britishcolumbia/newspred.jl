@@ -287,6 +287,22 @@ function _dm_build_dm_index(species::AbstractVector{<:Integer}, dmr::AbstractVec
 end
 dm_finf(s::StandState) = _dm_build_dm_index(s.trees.species, s.mistletoe.dmr, s.trees.n)
 
+# --- DMFDNS (dmfdns.f) — trees/acre density of each target DMR class (0..6) for species `sp`:
+# D[i+1] = Σ PROB over the trees in group (sp, i) via the Ptr range. Deterministic.
+function dm_fdns(sp::Int, ptr, index, tpa)
+    d = zeros(Float32, 7)
+    @inbounds for i in 0:6
+        fst = ptr[sp, i+1, 1]
+        fst > 0 || continue
+        acc = 0f0
+        for j in fst:ptr[sp, i+1, 2]
+            acc += tpa[index[j]]
+        end
+        d[i+1] = acc
+    end
+    return d
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
