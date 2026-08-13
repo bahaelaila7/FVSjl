@@ -135,6 +135,14 @@ by the 11 FFE size classes (FUINI, fmcba.f). The first nine are down-wood size c
 then litter and duff.
 """
 @inline function ffe_dead_fuel_loading(coef::SpeciesCoefficients, ifortp::Integer)
+    # FFE (fire) is not ported for every variant: variants with their own dead-fuel loading branch
+    # (CR/IE/KT/EM/CI/TT/UT/BM in fmcba.jl, + NE/CS/LS) return before this generic path; SN uses this
+    # path with a loaded table. A variant that reaches here with an EMPTY ffe_fuel_dead never had its
+    # FFE fuel tables loaded (e.g. Klamath/NC, ported growth+volume only) — fail with an actionable
+    # message instead of an opaque BoundsError deep in the fuel-decay loop (fmcba.jl:133).
+    isempty(coef.ffe_fuel_dead) && error("FFE fire model is not supported for this variant: its FFE " *
+        "fuel-loading tables (ffe_fuel_dead) are not loaded. Remove the FFE keywords or port the " *
+        "variant's FFE fuel tables + fmcba dispatch branch.")
     ft = ffe_dead_fuel_type(ifortp)
     row = @view coef.ffe_fuel_dead[ft, :]
     return ntuple(i -> row[i], 11)
