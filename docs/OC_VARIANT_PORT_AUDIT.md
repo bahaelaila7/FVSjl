@@ -519,6 +519,27 @@ COR is 0 for LP/BR (< FNMIN GSTs); only GF has COR=0.288 (an ORGANON species —
 sub-4.5-ft GF tree-13). The DDS validation fed COR(4)=0.288 from the oracle (the COR calibration is
 **C9 step 3**). **C9 step 1 verdict: bit-exact.** Not yet wired into `diameter_growth!` (step 2).
 
+## Chunk C9 step 2 delivered (diameter_growth! re-architecture) — cyc1 BA/SDI/QMD/TPA BIT-EXACT
+
+`organon_apply_growth!` now mirrors `oc/dgdriv.f`: `oc_dgcons!` + `dgf!` compute WK2 for EVERY tree
+(original DBH), then `organon_execute_swo` overwrites WK2 for the IORG=1 trees; a unified apply loop
+grows DBH by `DG/BARK` for all (ORGANON `dds` for IORG=1, DGF `wk2` for IORG=0), HT/CROWN for IORG=1,
+and MORTEXP for all. `site_setup!` sources `forest_idx` via `oc_forkod` (711→9).
+
+**END-TO-END `run_keyfile(ocmin; output=:sum)` cyc1 (1995):**
+
+| year | TPA | BA | SDI | TopHt | QMD | verdict |
+|---|---|---|---|---|---|---|
+| 1995 (cyc1) jl | 504 | 88 | 202 | 70 | 5.7 | TPA/BA/SDI/QMD **BIT-EXACT** |
+| 1995 (cyc1) oracle | 504 | 88 | 202 | 71 | 5.7 | TopHt −1 (IORG=0 HTGF pending) |
+
+The IORG=0 trees now grow (were DG=0), closing BA 85→88 / SDI 197→202 / QMD 5.6→5.7 to the oracle.
+The lone remaining `.sum` residual is **TopHt 70 vs 71** — the IORG=0 trees' HEIGHT growth
+(`oc/htgf.f` native path) is still 0, so the tallest non-ORGANON tree doesn't gain height. That is
+**C9 step 4**. The ORGANON IORG=1 trees stay bit-exact (no regression); cyc0 row unchanged. The COR
+calibration (**step 3**) is negligible on ocmin (LP/BR COR=0; only the 0.1" GF tree-13 uses COR=0.288,
+DG=0.004) — the row is bit-exact without it; step 3 is faithfulness for other stands.
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via

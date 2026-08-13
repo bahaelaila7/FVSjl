@@ -46,29 +46,42 @@ inspection. Deterministic (DGSD=0). Non-ORGANON records are left unchanged (see 
 function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 0,
                                fint::Float32 = 5f0)
     t = s.trees
-    buf = build_organon_buffer!(s)
-    buf.runs || return nothing                      # no big-6 ⇒ FVS-native (oc/dgf.f), nothing here
+    # oc/dgdriv.f: DGF runs for EVERY tree (WK2 = FVS-native ln DDS), on the ORIGINAL DBH, BEFORE any
+    # growth is applied. Then the ORGANON EXECUTE overwrites WK2 for the valid ORGANON trees (IORG=1).
+    oc_dgcons!(s)                                    # per-species DGCON (site constants)
+    dgf!(s, s.variant)                               # WK2 = FVS-native ln(DDS) for all trees
+    wk2 = view(s.scratch.wk, 2, :)
+    buf = build_organon_buffer!(s)                   # IORG gate + ORGANON input buffer (original DBH)
     si_1, si_2 = _oc_organon_si(s)
     isp_fvs = Int[Int(t.species[i]) for i in 1:t.n]
-    g = organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
-                            msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg)
+    # ORGANON growth (only when a big-6 tree exists); else the whole stand is FVS-native.
+    g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
+                       msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg) : nothing
     fscale = fint/5f0
     @inbounds for i in 1:t.n
-        # mortality applies to every record ORGANON grew (valid + surrogate), oc/morts.f:498-504
-        dead = g.deadexp[i]*fscale
-        dead > t.tpa[i] && (dead = t.tpa[i])
-        t.mort_pa[i] = dead
-        t.tpa[i] -= dead
-        buf.iorg[i] == 1 || continue                # only valid ORGANON trees get DG/HTG/CR from ORGANON
-        dg = oc_organon_dg(isp_fvs[i], t.dbh[i], g.dds[i])
-        bark = oc_bratio(isp_fvs[i], t.dbh[i])
+        d0 = t.dbh[i]; d0 <= 0f0 && continue
+        sp = isp_fvs[i]
+        iorg = buf.iorg[i] == 1
+        # DIAMETER: DDS from ORGANON (IORG=1) or the FVS-native DGF (IORG=0); both → DG via the shared
+        # sqrt path, DBH grows outside-bark by DG/BARK (oc/dgdriv.f:536-557, update.f).
+        dds = (iorg && g !== nothing) ? g.dds[i] : wk2[i]
+        dg = oc_organon_dg(sp, d0, dds)
+        bark = oc_bratio(sp, d0)
         t.diam_growth[i] = dg
-        t.dbh[i]    += dg/bark                       # outside-bark DBH growth (update.f)
-        t.ht_growth[i] = g.hgro[i]
-        t.height[i] += g.hgro[i]
-        crnew = round(g.cr2[i]*100f0, RoundNearestTiesAway)   # ANINT (oc/crown.f:282)
-        t.crown_pct[i]   = Int32(crnew)
-        t.crown_ratio[i] = g.cr2[i]
+        t.dbh[i] = d0 + dg/bark
+        # HEIGHT + CROWN: ORGANON for IORG=1; the IORG=0 native HTGF is C9 step 4 (HTG stays 0 for now).
+        if iorg && g !== nothing
+            t.ht_growth[i] = g.hgro[i]
+            t.height[i] += g.hgro[i]
+            t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))   # ANINT (oc/crown.f:282)
+        end
+        # MORTALITY: ORGANON MORTEXP for every record it grew (oc/morts.f:498-504).
+        if g !== nothing
+            dead = g.deadexp[i]*fscale
+            dead > t.tpa[i] && (dead = t.tpa[i])
+            t.mort_pa[i] = dead
+            t.tpa[i] -= dead
+        end
     end
     return g
 end

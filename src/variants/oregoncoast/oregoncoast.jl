@@ -70,6 +70,7 @@ const OC_R6ADJ = Float32[
 
 function site_setup!(s::StandState, ::OregonCoast)
     p = s.plot; si = p.sp_site_index
+    p.forest_idx = Int32(oc_forkod(Int(p.user_forest_code)))   # oc/forkod.f — KODFOR → IFOR (711→9)
     nsiset = 0
     @inbounds for v in si; v > 0f0 && (nsiset += 1); end          # NSISET (oc/sitset.f:87)
     # OC default ecoclass (oc/sitset.f:105-110 ICL5==0 ⇒ PCOM='CWC221'; ecocls.f:294 CWC221 →
