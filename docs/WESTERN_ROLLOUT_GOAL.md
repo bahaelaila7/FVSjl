@@ -21,10 +21,14 @@ shared → worktree isolation per stream, merged sequentially.
     DGSD 1.7) + wc/dgf.f (19-group Wykoff); **large-tree DGF cyc0 VALIDATED BIT-EXACT** (wct01: 27/27 trees, worst
     |Δ|=0.00007 print-rounding; DGCON bit-exact incl WO King's-SI). ⇒ WESTSIDE REUSE PROVEN (WC+NC share one DDS
     engine). NEXT: WC species+site+density+HTG+regent+crown+mort+vol → end-to-end; then PN (near-clone) then EC/CA/SO/WS.
-    ⚠ NC LEAD (#210, agent-reported, TO VERIFY): NC DGF model bit-exact but the shared calibration COR for NC's 2
-    calibrated species is slightly off (SP 0.3518 vs live 0.3537, WF 0.5680 vs 0.5796) → ~2-3% BA under-growth by 2040;
-    prior NC "cyc0 bit-exact" held for DENSITY columns only. Could be a COR-dispatch regression OR the OLDRN straddle —
-    prove via g16 per-tree DDS before acting.
+    ✅ NC #210 — VERIFIED-CORNERED 2026-08-13 (measured jl DGSCOR vs live nct01.out CALIBRATION STATS/ZNC). The COR
+    calibration is STRUCTURALLY FAITHFUL: jl fn (SP6/WF5) + wc (1.00/0.90) MATCH live exactly; backdating correct. The
+    agent's "COR slightly off" (SP 0.3518 vs 0.3537, WF 0.5680 vs 0.5796 = exp(corv)) is real but COMPENSATED — jl's
+    COR is ~0.005/0.020 more negative precisely to shrink a matching wk2 over-prediction (+0.005/+0.016), netting <0.5%
+    on calibrated trees; measuring COR alone double-counts. Residual ~2-3% = cornered OLDRN straddle (NC DGSD=2.0, #206
+    class). #210 CLOSED. ⚠ SEPARATE NEW BUG found: nct01.key FFE scenario crashes (fmcba.jl:114, 0×0 crown-biomass) —
+    NC ported growth+vol only, FFE arrays uninit ⇒ NC FFE is an unported extension = the next #207-stream NC lead.
+    Detail: docs/NC_VARIANT_PORT_AUDIT.md.
   • **Stream 2 [#208] — ORGANON cluster** (OC, OP). ★ FOUNDATION LANDED (cherry-picked, OregonCoast MAXSP=50 scaffold +
     docs/OC_ORGANON_PORT_PLAN.md + relinked /workspace/.ocwork/FVSoc_clean). ★ MEASURED (live FVSoc_clean DEBUG-DGF):
     OC/OP are **pure ORGANON SWO** — the DGF *is* ORGANON (organon/ 13040 + vorganon/ 1331 lines, UNPORTED); there is NO
