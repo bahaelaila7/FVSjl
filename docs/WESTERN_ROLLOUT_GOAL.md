@@ -39,12 +39,20 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
     ★★ DOCTRINE CORRECTION (broad): "NOTRIPLE = deterministic" is IMPRECISE — NOTRIPLE removes TRIPLING RNG but NOT the
     OLDRN serial-corr residual (active whenever DGSD≥1, i.e. ALL western variants). A NOTRIPLE multi-cycle divergence is
     NOT proof of a deterministic bug; prove real-vs-cornered by the g16 per-tree DDS (deterministic) comparison instead.
-  • **#205 TT dense-stand +30% OVER-growth** — aspen-DOMINATED (1200 TPA of 0.1" aspen), TPA-matched. DGFASP-DBH +
-    height-growth measured FAITHFUL ⇒ localized to the aspen DBH-at-4.5'-crossing (smdgf/DKK). NB given #206's lesson,
-    re-test #205 real-vs-cornered via g16 per-tree DDS before assuming deterministic — a dense aspen stand nets to one
-    OLDRN sign too; +30% is larger than the band, so a real component is plausible but UNPROVEN. (Over-claim-prone.)
+  • **#205 TT aspen +34% OVER-growth — FIXED 2026-08-13 (5b82bf8).** Root-caused via FVStt_g16 to TWO PARTIALLY-
+    CANCELING bugs in the aspen(6) small-tree HEIGHT path (NOT the DBH-crossing/DKK the prior note guessed — that is
+    downstream): (1) SUBCYCLE DOUBLE-APPLY — tt/regent.f:415 gates aspen/CIVAR/UTVAR to apply the SMHTGF increment
+    ONLY on subcycle J=1 (`(ISPC.EQ.6.OR.UTVAR.OR.CIVAR).AND.J.GT.1 GO TO 16`); jl subcycled aspen every j ⇒ 2× for
+    fint=10 (over). (2) SITAGE UNITS — findag.f:96 SITAGE=(H·2.54·12/26.9825)^(1/1.1752) (feet→cm; the Sheppard curve
+    is metric); jl used feet, no conversion ⇒ flat convex-curve increment (under). The old "don't add ·2.54·12, it
+    regresses" comment was a TWO-BUG ARTIFACT (SITAGE-under masked double-apply-over; net +34% low-site, ~canceled
+    high-site). BOTH fixed, source-faithful + MEASURED: FVStt_g16 SMHTGF #205 seedling jl 2.76=live 4.77·RSIMOD;
+    ttt01 jl 5.06=live 5.09. #205 BA +34%→+8%/−6% (cornered OLDRN aspen straddle, cf #206); aspen seedling HT now
+    ~bit-exact; ttt01 ±1 NINT (conifer-dominated, aspen negligible); asp.key early bit-exact. TT-only; sp14 MM (UTVAR)
+    a minor follow-up. ★ LESSON: two partially-canceling bugs can hide behind a "validated" high-site ref stand —
+    a low-site/dense reproducer exposes them; fixing one alone regresses, so measure BOTH per-tree before committing.
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
-sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #205 + #197.
+sweep and ref-stand validation MISS these. Genuinely-open now = #196(BC NEWSPRED, USER decision) + #197(mgmt-regime leads).
 
 ## Variant status — growth+volume ports (oracle = live FVS relinked from bin/FVS{v}_buildDir/*.o)
 - **CR** (Central Rockies) ★★ COMPLETE (2026-08-05: 3 bugs fixed — backdated-density dub / forkod imodty /
@@ -166,11 +174,11 @@ DEBUG keyword needs a NON-BLANK field 2 to read a routine onto DBSTK; bare DEBUG
 - **Climate-FVS — DONE** (see Extensions matrix above; ~95%, faithful, cyc0 bit-exact).
 
 ## REMAINING WORK — cornered residuals + LOW-PRI alt-modes + NEW measured real-FIA residuals (see the 2026-08-12 LATEST block up top)
-## (task-tracker: #142/#194/#206 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198/#199/#200/#201/#202/#203/#204 CLOSED;
-##  genuinely-open = #196(BC NEWSPRED, USER decision) + #205(TT aspen +30% over-growth) + #197(mgmt-regime leads) + BC
-##  V2/non-ICH. #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN serial-corr straddle; large-tree DDS + calib
-##  BIT-EXACT, proven via FVSut_g16). NB: the "at bar" framing below is CYC0/large-tree; the ONE open multi-cycle real-FIA
-##  residual is #205 (aspen-dominated, un-proven real-vs-cornered) — see the ⚠ CORRECTION in the LATEST block.)
+## (task-tracker: #142/#194/#206 cornered-at-bar; #143/#191/#195/EM-sub-inch/CI-vol/#198-#206 CLOSED;
+##  genuinely-open = #196(BC NEWSPRED, USER decision) + #197(mgmt-regime leads) + BC V2/non-ICH.
+##  #205 TT aspen +34% FIXED 2026-08-13 (5b82bf8, single-subcycle gate + metric SITAGE, two-bug cancellation);
+##  #206 utt01 −9% RESOLVED-CORNERED 2026-08-12 (DGSCOR/OLDRN straddle; DDS+calib BIT-EXACT via FVSut_g16).
+##  ⇒ NO open pure-growth real-FIA residual remains; the cluster is bit-exact-or-cornered growth+volume incl multi-cycle.)
 1. **CI refinement tail [#142]**: cit01 jl OVER-KILLS TPA ~2%. RELIABLE STATE (2026-08-05, after FOUR wrong
    root-causes corrected by measurement — backdated-density/GF-COR/bark/deferred-ZZRAN all refuted): CI deterministic
    DG is BIT-EXACT (GF DDS jl==live), serial-corr is ACTIVE (real-run c.sigma[4]=0.26, NOT deferred), COR applied
