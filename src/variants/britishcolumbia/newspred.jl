@@ -555,6 +555,137 @@ function dm_cycl!(ms::MistletoeState, isct, ind1, tvol, fprop, bprop,
     return ms
 end
 
+const DM_SPSURV_BC = 1f0 - 0.08f0    # DMSURV = 1 − DMDETH; DMDETH=0.08 for all BC species (dminitbc.f:270)
+
+# ===========================================================================================
+# DMTREG (dmtreg.f) — the NISI spread-&-intensification DRIVER for one growth cycle. Weaves the
+# ~27 ported components in FVS order: setup (DMMTRX/DMFBRK/DMFSHD/DMFINF/species-index/DMNB/SF/
+# TVol/FProp-BProp) → per-species × target-DMR × ring × source-DMR × target × source spread
+# (DMSAMP/DMSLST → DMSLOP + DMADLV accumulation w/ the DMFSHD shade → NewSpr interception) →
+# self-intensification (NewInt) → DMOTHR scale → DMCYCL annual advance → DMNDMR DMR recompute.
+# `lastyr` = the cycle length in years (IFINT). STOCHASTIC (DMRANN spread draws → realization
+# straddle vs live, expected). Mutates ms.dminf / ms.newspr / ms.newint / s.trees.dmr.
+#
+# ⚠ TWO C6-DATA follow-ups (clearly marked): (1) MISFIT — the BC affected-species gate is proxied
+# by ISCT≠0 (present species); non-DM species never carry DMR so spread is naturally inert, but a
+# faithful MISFIT list should gate which species can be infected. (2) MISDGF — the per-(species,DMR)
+# DG growth-multiplier that scales source seed-production `Level`; held at 1.0 (neutral) pending the
+# BC ADGP extraction (same table that drives the C6 growth payoff). Engine-INERT until C6 validated.
+# DMNTRD (multi-cycle crown-third infection remap) is gated off on the first entry — TODO for cyc≥2.
+function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    n == 0 && return s
+    species = t.species; prob = t.tpa            # PROB = trees/acre expansion factor
+    maxsp = Int(maximum(@view species[1:n]))
+
+    # --- SETUP (DMTREG:239-298) ---
+    dm_shap!(s)                                  # DMSHAP → ms.idmshp (crown shape; DMMTRX calls it first)
+    dm_rdmx!(s)                                  # DMMTRX → ms.dmrdmx (crown frustum radius/volume)
+    dm_fbrk!(s)                                  # DMFBRK → ms.brkpnt (crown-third breakpoints)
+    shade = dm_fshd!(ms, species, prob, n)       # DMFSHD → per-MESH-band shade field
+    fill!(ms.newspr, 0f0); fill!(ms.newint, 0f0) # zero the spread/intensification accumulators
+    ptr, index = dm_finf(s)                      # DMFINF → per-(species,DMR) pointer/index
+    isct, ind1 = dm_species_index(species, n)    # ISCT/IND1 species grouping
+    totd = 0f0; @inbounds for i in 1:n; totd += prob[i]; end
+    nbc = [dm_nb(m, totd, ms.dmclmp)[1] for m in 1:DM_MXTHRX]   # DMNB neighbour CDF vector per ring
+    dm_compute_sf!(ms)                           # SF spatial-autocorrelation reweighting
+    tvol = zeros(Float32, n, DM_CRTHRD)          # per-tree×crown-third infection volume
+    @inbounds for i in 1:n
+        tv = dm_tvol(ms, i); for j in 1:DM_CRTHRD; tvol[i, j] = tv[j]; end
+    end
+    fprop, bprop, _midht = dm_props!(ms, n)      # light-driven forward/backward reaction rates
+
+    sprfld = zeros(Float32, DM_MXHT); intfld = zeros(Float32, DM_MXHT)
+
+    # --- SPREAD LOOP (DMTREG:302-504) ---
+    @inbounds for j in 1:maxsp                   # species
+        isct[j, 1] == 0 && continue              # (MISFIT proxy — see header)
+        dnsty = dm_fdns(j, ptr, index, prob)
+        srci, srccd, sptr = dm_src(j, dnsty, ptr, index, prob)
+        for k in 0:6                             # target DMR class
+            dnsty[k+1] <= 0f0 && continue
+            trglst = dm_tlst(j, k, ptr, index, prob)
+            isempty(trglst) && continue
+            for m in 1:DM_MXTHRX                 # sampling ring
+                sdens = dm_auto(ms, k, m, dnsty)
+                for nn in 0:6                    # source DMR class (DMKTUN(j)=0 for BC ⇒ 0..6)
+                    ptr[j, nn+1, 1] == 0 && continue
+                    for u in trglst              # target trees
+                        sample = dm_samp!(ms, totd, sdens[nn+1], nbc[m], 1f0)
+                        sample == 0 && continue
+                        idxs, knts = dm_slst!(ms, nn, sample, srci, srccd, sptr)
+                        for vv in 1:length(idxs)
+                            fill!(sprfld, 0f0)
+                            v = Int(idxs[vv]); scnt = Int(knts[vv])
+                            dgfx = 1f0           # MISDGF(v,j) — C6 data (see header), neutral for now
+                            offset = dm_slop(ms, m, slope)
+                            for r in 2:DM_BPCNT  # source crown-thirds → SprFld
+                                level = ms.dminf[v, r-1, DM_ACTIVE]
+                                level > 0f0 || continue
+                                lht = trunc(Int, ms.brkpnt[v, r]) + 1
+                                uht = min(DM_MXHT, trunc(Int, ms.brkpnt[v, r-1]) + 1)
+                                for sidx in lht:uht
+                                    htwt = dm_htwt(ms.brkpnt, v, r, sidx, lht, uht)
+                                    x = level * htwt * ms.dmrdmx[v, sidx, DM_VOLUME] * dgfx
+                                    dm_adlv!(ms, species, v, scnt, sprfld, intfld,
+                                             sidx + offset, m, x, shade)
+                                end
+                            end
+                            for r in 2:DM_BPCNT  # target interception → NewSpr
+                                lht = trunc(Int, ms.brkpnt[u, r]) + 1
+                                uht = min(DM_MXHT, trunc(Int, ms.brkpnt[u, r-1]) + 1)
+                                for sidx in lht:uht
+                                    htwt = dm_htwt(ms.brkpnt, v, r, sidx, lht, uht)   # v, per FVS
+                                    rad = ms.dmrdmx[u, sidx, DM_RADIUS]
+                                    xang = atan(rad / (Float32(m) - 0.5f0)) * DM_TWOPIE
+                                    ms.newspr[u, r-1] += htwt * xang * sprfld[sidx] * rad
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        # self-intensification (DMTREG:455-496) — common distance MXTHRX, all trajectories
+        for jj in isct[j, 1]:isct[j, 2]
+            v = Int(ind1[jj])
+            fill!(intfld, 0f0)
+            dgfx = 1f0                           # MISDGF(v,j) — C6 data
+            for r in 2:DM_BPCNT
+                level = ms.dminf[v, r-1, DM_ACTIVE]
+                level > 0f0 || continue
+                lht = trunc(Int, ms.brkpnt[v, r]) + 1
+                uht = min(DM_MXHT, trunc(Int, ms.brkpnt[v, r-1]) + 1)
+                for sidx in lht:uht
+                    htwt = dm_htwt(ms.brkpnt, v, r, sidx, lht, uht)
+                    x = level * htwt * ms.dmrdmx[v, sidx, DM_VOLUME] * dgfx
+                    dm_adlv!(ms, species, v, 1, sprfld, intfld, sidx, DM_MXTHRX, x, shade)
+                end
+            end
+            for r in 2:DM_BPCNT
+                lht = trunc(Int, ms.brkpnt[v, r]) + 1
+                uht = min(DM_MXHT, trunc(Int, ms.brkpnt[v, r-1]) + 1)
+                for sidx in lht:uht
+                    intfld[sidx] > 0f0 || continue
+                    htwt = dm_htwt(ms.brkpnt, v, r, sidx, lht, uht)
+                    ms.newint[v, r-1] += intfld[sidx] * htwt * ms.dmrdmx[v, sidx, DM_VOLUME]
+                end
+            end
+        end
+        dm_othr!(ms, j, isct, ind1)              # DMOTHR scale (7.5e-5)
+    end
+
+    # --- DMCYCL + DMNDMR (DMTREG:509-510) ---
+    fprop2 = fill(1f0 / Float32(DM_FLWR), maxsp)
+    spsurv = fill(DM_SPSURV_BC, maxsp)
+    dmcap  = fill(DM_CAP, maxsp)
+    dm_cycl!(ms, isct, ind1, tvol, fprop, bprop, fprop2, spsurv, dmcap, lastyr)
+    dm_ndmr!(s)                                  # recompute per-tree DMR from the advanced pools
+    return s
+end
+
 # --- DMHtWt (dmtreg.f:533) — weight of a MESH band `s` within crown-third `r` of tree `v`, handling
 # the fractional top/bottom bands. ⚠ Fortran arg-swap: FUNCTION DMHtWt(v,r,s,UHt,LHt) but the callers
 # pass (v,r,s,Lht,Uht) ⇒ the formal UHt binds to the caller's LOWER band, formal LHt to the UPPER.
@@ -817,6 +948,12 @@ function dm_init!(s::StandState)
     @inbounds for i in 1:n, j in (1, 3, 5)
         ag = Int(t.damage[j, i])
         (30 <= ag <= 34) && (ms.dmr[i] = Int32(clamp(Int(t.damage[j+1, i]), 0, 6)))  # last DM code wins (misdam.f)
+    end
+    # DMTREG first-pass seeding (dmtreg.f:215-221, the .NOT.DCDn block): seed each crown-third's
+    # ACTIVE infection pool from the tree's DMR via the DMDMR(rating,third) map (0..6 → per-third
+    # active loading). Without this the pools start empty and the infection collapses on cycle 1.
+    @inbounds for i in 1:n, j in 1:DM_CRTHRD
+        ms.dminf[i, j, DM_ACTIVE] = Float32(DM_DMDMR[Int(ms.dmr[i]) + 1, j])
     end
     return s
 end
