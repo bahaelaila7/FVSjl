@@ -1,9 +1,11 @@
 # =============================================================================
-# height_growth.jl (eastcascades) — EC potential-height curves (ec/htcalc.f). Chunk 4a.
+# height_growth.jl (eastcascades) — EC potential-height curves (ec/htcalc.f) + large-tree HTG. Chunks 4a/4b.
 #
 # ec_htcalc reproduces ec/htcalc.f's per-species SELECT CASE potential-height curves (used by SITSET to
-# fan SITEAR to every species, and by the small-tree/HTG path). The large-tree height-growth driver
-# (ec/htgf.f + findag.f) is added alongside as chunk 4b. Curves transcribed verbatim, Float32 arithmetic.
+# fan SITEAR, and by findag/htgf). ec_findag (ec/findag.f) + height_growth! (ec/htgf.f) are the large-tree
+# height-growth driver: findag inverts the species' OWN site curve to a stand age, htgf grows potential
+# height 10 yr and applies the Hoerl (CRA/CRB/CRC) + generalized-Chapman-Richards (RHR/RHYXS/RHM/RHB)
+# modifiers. Unlike WC/PN, EC's findag uses per-species AGMAX/AHMAX/BHMAX (not MAPHD/HDRAT). All Float32.
 # =============================================================================
 
 """
@@ -74,4 +76,133 @@ function ec_htcalc(sindx::Float32, ispc::Int, ag::Float32)::Float32
     else
         return 0f0
     end
+end
+
+# ── ec/findag.f + ec/htgf.f DATA (per-species, index = ISPC).
+const EC_HT_AGMAX = Float32[200,110,180,130,250,130,140,150,150,200,200,180,200,200,200,130,200,200,200,200,200,200,200,200,200,200,200,200,200,200,180,200]
+const EC_HT_AHMAX = Float32[2.3,12.86,-2.86,21.29,52.27,21.29,2.3,20.0,45.27,-5.00,4.0156013,-2.06,3.2412923,3.2412923,4.3149844,21.29,3.2412923,3.2412923,3.2412923,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,3.9033821,-2.06,3.9033821]
+const EC_HT_BHMAX = Float32[2.39,1.32,1.54,1.24,1.14,1.24,1.75,1.1,1.24,1.30,51.9732476,1.54,62.7139427,62.7139427,39.6317079,1.24,62.7139427,62.7139427,62.7139427,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,59.3370816,1.54,59.3370816]
+const EC_HT_RHR   = Float32[15,12,15,20,20,16,12,16,16,13,20,15,20,15,15,16,12,16,13,20,20,13,13,15,20,12,12,15,13,12,15,12]
+const EC_HT_RHYXS = Float32[0.10,0.01,0.10,0.20,0.20,0.15,0.01,0.15,0.15,0.05,0.20,0.10,0.20,0.10,0.10,0.15,0.01,0.15,0.05,0.20,0.20,0.05,0.05,0.10,0.20,0.01,0.01,0.10,0.05,0.01,0.10,0.01]
+const EC_HT_RHM   = fill(1.10f0, 32)
+const EC_HT_RHB   = Float32[-1.45,-1.60,-1.45,-1.10,-1.10,-1.20,-1.60,-1.20,-1.20,-1.60,-1.10,-1.45,-1.10,0.10,-1.45,-1.20,-1.60,-1.20,-1.60,-1.10,-1.10,-1.60,-1.60,-1.45,-1.10,-1.60,-1.60,-1.45,-1.60,-1.60,-1.45,-1.60]
+const EC_HT_CRA = 100.0f0; const EC_HT_CRB = 3.0f0; const EC_HT_CRC = -5.0f0
+const EC_HT_RHK = 1.0f0; const EC_HT_RHXS = 0.0f0
+const EC_HT_WCFORM = Set{Int}([11,13,14,15,17,18,19,20,21,22,23,24,25,26,27,28,29,30,32])  # WC-form findag/htgf branch
+
+# ec/findag.f — invert the species' OWN site curve (ec_htcalc(SINDX, ISPC, AG)) to a stand age.
+@inline function ec_findag(ispc::Int, d1::Float32, d2::Float32, h::Float32, sindx::Float32)
+    agmax = EC_HT_AGMAX[ispc]
+    htmax1 = 0f0; htmax2 = 0f0; ag = 2.0f0
+    if ispc in EC_HT_WCFORM                              # WC-form: htmax from AHMAX·D+BHMAX
+        htmax1 = EC_HT_AHMAX[ispc]*d1 + EC_HT_BHMAX[ispc]
+        htmax2 = EC_HT_AHMAX[ispc]*d2 + EC_HT_BHMAX[ispc]
+        ag = 2.0f0
+    elseif ispc == 12 || ispc == 31                     # MH/OS: metric site
+        htmax1 = EC_HT_AHMAX[ispc] + EC_HT_BHMAX[ispc]*sindx*3.281f0
+        ag = 0.5f0
+    else                                                # EC-native {1:10,16}
+        htmax1 = EC_HT_AHMAX[ispc] + EC_HT_BHMAX[ispc]*sindx
+        ag = 0.5f0
+        ispc == 10 && (ag = 98.38f0*exp(sindx*(-0.0422f0)) + 1.0f0; ag < 0.5f0 && (ag = 0.5f0))
+        ispc == 3  && (ag = 18.0f0)
+    end
+    if h >= htmax1
+        return (agmax + (h - htmax1)/0.10f0, h, agmax, htmax1, htmax2)
+    end
+    incrng = false; hguess = 0f0
+    while true
+        oldhg = hguess
+        hguess = ec_htcalc(sindx, ispc, ag)
+        if hguess >= 1.0f0
+            diff = abs(hguess - h)
+            (diff <= 2.0f0 || h < hguess) && return (ag, hguess, agmax, htmax1, htmax2)
+            d2h = hguess - oldhg
+            (oldhg != 0f0 && d2h >= 0.05f0) && (incrng = true)
+            (incrng && d2h < 0.05f0) && return (ag, hguess, agmax, htmax1, htmax2)
+        end
+        ag += 2.0f0
+        ag > agmax && return (agmax, h, agmax, htmax1, htmax2)
+    end
+end
+
+function height_growth!(s::StandState, ::EastCascades; scale::Float32 = 1.0f0)
+    p, t, c = s.plot, s.trees, s.calib
+    sd = s.coef.species
+    avh = p.avg_height; ba = p.basal_area
+    @inbounds for i in 1:t.n
+        t.ht_growth[i] = 0f0
+        t.tpa[i] <= 0.0f0 && continue
+        ispc = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; dg = t.diam_growth[i]
+        sindx = p.sp_site_index[ispc]
+        icr_pct = Float32(t.crown_pct[i])
+        htcon = c.htg_cor[ispc]
+        et = Int(sd[:bark_imap][ispc]); brat = wc_bratio(sd[:bark1][ispc], sd[:bark2][ispc], et, d)
+        d1 = d; d2 = d + dg/brat
+        sitage, sitht, agmax, htmax, htmax2 = ec_findag(ispc, d1, d2, h, sindx)
+        wcform = ispc in EC_HT_WCFORM
+        # HTMAX gate (ec/htgf.f SELECT before POTHTG)
+        if wcform
+            if h > htmax
+                local htg::Float32 = 0f0
+                if h >= htmax2
+                    htg = 0.5f0*dg; htg < 0.1f0 && (htg = 0.1f0)
+                    htg = scale*htg*exp(htcon)
+                end
+                cap = s.control.sp_size_cap[ispc, 4]
+                (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+                t.ht_growth[i] = htg; continue
+            end
+        else
+            if h >= htmax
+                htg = scale*0.1f0*exp(htcon)
+                cap = s.control.sp_size_cap[ispc, 4]
+                (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+                t.ht_growth[i] = htg; continue
+            end
+        end
+        # POTHTG
+        local pothtg::Float32
+        if sitage >= agmax
+            pothtg = 0.10f0
+            ispc == 10 && (pothtg = -1.31f0 + 0.05f0*sindx; pothtg < 0.1f0 && (pothtg = 0.1f0))
+        else
+            hguess = ec_htcalc(sindx, ispc, sitage + 10.0f0)
+            pothtg = hguess - sitht
+            if ispc == 28                                # OWO patch
+                maxg = sindx - 18.6024f0/log(2.7f0 + ba)
+                dd2 = d + dg; dd2 < 0f0 && (dd2 = 0.1f0)
+                hg2 = 4.5f0 + maxg*(1f0-exp(-0.137428f0*dd2))^1.38994f0
+                hg1 = 4.5f0 + maxg*(1f0-exp(-0.137428f0*d))^1.38994f0
+                pothtg = hg2 - hg1
+            end
+            pothtg < 0.1f0 && (pothtg = 0.1f0)
+        end
+        # modifiers
+        cr = icr_pct/100f0
+        hgmdcr = EC_HT_CRA * cr^EC_HT_CRB * exp(EC_HT_CRC*cr); hgmdcr > 1f0 && (hgmdcr = 1f0)
+        relht = avh > 0f0 ? h/avh : 0f0; relht > 1.5f0 && (relht = 1.5f0)
+        rhx = relht
+        fctrkx = (EC_HT_RHK/EC_HT_RHYXS[ispc])^(EC_HT_RHM[ispc]-1f0) - 1f0
+        fctrrb = -1f0*(EC_HT_RHR[ispc]/(1f0-EC_HT_RHB[ispc]))
+        fctrxb = rhx^(1f0-EC_HT_RHB[ispc]) - EC_HT_RHXS^(1f0-EC_HT_RHB[ispc])
+        fctrm  = -1f0/(EC_HT_RHM[ispc]-1f0)
+        hgmdrh = EC_HT_RHK * (1f0 + fctrkx*exp(fctrrb*fctrxb))^fctrm
+        htgmod = 0.25f0*hgmdcr + 0.75f0*hgmdrh
+        htgmod >= 2f0 && (htgmod = 2f0); htgmod <= 0f0 && (htgmod = 0.1f0)
+        htg = pothtg*htgmod
+        # cap at site max height
+        temph = h + htg
+        if wcform
+            temph > htmax2 && (htg = htmax2 - h)
+        else
+            temph > htmax && (htg = htmax - h)
+        end
+        htg < 0.1f0 && (htg = 0.1f0)
+        htg = scale*htg*exp(htcon)
+        cap = s.control.sp_size_cap[ispc, 4]
+        (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+        t.ht_growth[i] = htg
+    end
+    return s
 end

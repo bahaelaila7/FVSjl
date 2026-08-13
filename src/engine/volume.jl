@@ -450,6 +450,17 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa EastCascades
+        # ec/sitset.f westside merch defaults: TOPD=BFTOPD=SCFTOPD=4.5, DBHMIN=7 (LP sp-index 7 = 6), stump=1.
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            dm = j == 7 ? 6.0f0 : 7.0f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = 4.5f0; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = 4.5f0; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = 4.5f0; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa OregonCoast
         # oc/grinit.f:88-131 DBHMIN=7 (sp-index 11 = 6); oc/sitset.f:241-247 westside (IFOR 6-10)
         # TOPD=BFTOPD=SCFTOPD=4.5; stump=1. OC's species CSV carries no merch columns (like WC).
@@ -599,6 +610,7 @@ function compute_volumes!(s::StandState)
     s.variant isa BlueMountains && return compute_volumes_bm!(s)   # BM = FW2W Flewelling conifers (BEHW minor deferred)
     s.variant isa WestCascades && return compute_volumes_wc!(s)   # WC = westside Flewelling (SHP_W3/W4/W5) + INGY FW2 + region-6 Behre
     s.variant isa PacificNorthwest && return compute_volumes_pn!(s)   # PN = westside DF F00 + region-6 Behre (near-clone of WC)
+    s.variant isa EastCascades && return compute_volumes_ec!(s)   # EC = forest-8 INGY I11/I12 Flewelling + region-6 Behre
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)

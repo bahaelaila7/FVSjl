@@ -406,6 +406,9 @@ function setup_volume_equations!(s::StandState)
             s.species.vol_eq[sp] = _wc_r6_eqn(kodfor % 100, ifia)
         elseif s.variant isa PacificNorthwest
             s.species.vol_eq[sp] = _pn_r6_eqn(kodfor % 100, ifia)
+        elseif s.variant isa EastCascades
+            # EC VOLEQDEF (voleqdef.f R6_EQN, VAR='EC') — FORNUM 8 (Okanogan) INGY I11/I12 + region-6 Behre.
+            s.species.vol_eq[sp] = _ec_r6_eqn(kodfor % 100, ifia)
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

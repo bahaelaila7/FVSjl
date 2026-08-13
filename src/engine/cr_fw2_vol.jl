@@ -418,13 +418,14 @@ end
 "FW2 merch cubic VOL(4) (profile.f MERLEN→NUMLOG/SEGMNT→GETDIB→CUPFLG loop): buck stump→merch-top,
 sum per-log Smalian .00272708·(DIBL²+DIBS²)·LEN with inch-class DIBs (butt = dib at breast height),
 each log 0.1-rounded. `mtop` = inside-bark merch top = TOPD·BARK."
-function _fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32, minlen::Float32, merchl::Float32)::Float32
+function _fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32, minlen::Float32, merchl::Float32;
+                         opt::Int = _NVB_R3_OPT)::Float32
     hs = _fw2_hs(dibat, mtop, h)
     lmerch = hs - stump
     lmerch < merchl && return 0f0
-    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
+    numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
     numseg == 0 && return 0f0
-    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
+    loglen, numseg = _nvb_segmnt(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
     dibl = _fw2_dclass(dibat(4.5f0))           # butt log large end = DIB class at breast height
     ht2 = stump; vol4 = 0f0
     @inbounds for i in 1:numseg
@@ -440,21 +441,24 @@ function _fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32, minle
 end
 
 "FW2 Scribner board VOL(2) (profile.f BFPFLG loop): buck stump→board-top (BFTOPD·BARK) and sum
-SCRIB(small-end inch-class dib, len)·10 per log. Same region-3 log-bucking as the cubic."
-function _fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32, minlen::Float32, merchl::Float32)::Float32
+per-log SCRIB. Same region-3 log-bucking as the cubic. `cor` = MRULES Scribner flag: 'Y' (region 2/3)
+⇒ decimal-C ×10; 'N' (region 6/EC) ⇒ ANINT(raw board feet) per log (profile.f:441-446)."
+function _fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32, minlen::Float32, merchl::Float32;
+                    cor::Char = 'Y', opt::Int = _NVB_R3_OPT)::Float32
     hs = _fw2_hs(dibat, bftop, h)
     lmerch = hs - stump
     lmerch < merchl && return 0f0
-    numseg = _nvb_numlog(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
+    numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
     numseg == 0 && return 0f0
-    loglen, numseg = _nvb_segmnt(_NVB_R3_OPT, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
+    loglen, numseg = _nvb_segmnt(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
     ht2 = stump; vol2 = 0f0
     @inbounds for i in 1:numseg
         ht2 += _NVB_R3_TRIM + loglen[i]
         dib = dibat(ht2)
         (i == numseg && dib < bftop) && (dib = bftop)
         dibs = _fw2_dclass(dib)                    # small-end inch class
-        vol2 += _scrib(dibs, loglen[i], 'Y') * 10f0   # COR='Y' ⇒ ×10 (decimal-C → bdft)
+        logv = _scrib(dibs, loglen[i], cor)
+        vol2 += cor == 'Y' ? logv * 10f0 : _nint(logv)   # 'Y' ⇒ ×10 decimal-C; 'N' ⇒ ANINT(raw bdft)
     end
     return vol2
 end
@@ -469,9 +473,10 @@ so the section diameter is SF_YHAT reduced by BRK_OT (DBTBH=D·(1-bark)); INGY p
 for DOB, not needed for cubic)."
 function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
                     bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0,
-                    bftopd::Float32 = 6f0, iregn::Int = 3)
+                    bftopd::Float32 = 6f0, iregn::Int = 3, board_cor::Char = 'Y',
+                    merch_opt::Int = _NVB_R3_OPT)
     vol = zeros(Float32, 15)
-    (d < 1f0 || h <= 5f0) && return vol
+    (d < 1f0 || h < 5f0) && return vol   # profile.f:117 HTTOT.LT.5 (strict; h==5.0 IS computed)
     jsp = _fw2_jsp(voleq)
     (_fw2_is_ingy(jsp) || (22 <= jsp <= 29)) || return vol   # supported 2-pt families (22 = Black Hills PP)
     ingy = _fw2_is_ingy(jsp)
@@ -490,8 +495,8 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     # Small trees (HTTOT≤15): FWSMALL corrects the stump diameter; merch/board stay 0 (LMERCH<MERCHL).
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), d * bark) : -1f0
     minl = _cr_merch_minlen(iregn); merl = _cr_merch_merchl(iregn)
-    vol[1] = Float32(round(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0)) / 10.0f0    # NINT(TCVOL*10)/10
-    vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl)
-    vol[2] = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl)
+    vol[1] = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) / 10.0f0    # NINT(TCVOL*10)/10 (ties away from 0)
+    vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl; opt = merch_opt)
+    vol[2] = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl; cor = board_cor, opt = merch_opt)
     return vol
 end

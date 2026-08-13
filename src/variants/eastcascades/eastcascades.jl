@@ -23,6 +23,7 @@ struct EastCascades <: AbstractVariant end
 variant_code(::EastCascades) = "EC"
 nspecies(::EastCascades) = 32
 htg_period(::EastCascades) = 10f0   # /CONTRL/ YR=10 (ec/blkdat.f), like WC/PN
+mort_ri_scale(::EastCascades) = 0.5f0   # ec/morts.f RI = 0.5·RI (background half-rate), like CR/NE
 
 const EC_RNG_SEED = 55329.0f0           # ec/blkdat.f DATA S0/55329D0/,SS/55329./
 

@@ -268,6 +268,8 @@ include("variants/eastcascades/height_growth.jl")         # EC potential-height 
 include("variants/eastcascades/site_index.jl")            # EC site (ec/forkod/habtyp/ecocls/sichg/sitset) — chunk 2
 include("variants/eastcascades/crown.jl")                 # EC crown (ec/crown.f per-species Weibull + dubscr) + CCF (ec/ccfcal.f) — chunk 5
 include("variants/eastcascades/regent.jl")                # EC small-tree growth (ec/regent.f + smhtgf.f) + htdbh — chunk 6
+include("variants/eastcascades/mortality.jl")             # EC mortality (ec/morts.f Stage/Reineke via shared driver + ec/varmrt.f) — chunk 7
+include("variants/eastcascades/volume.jl")                # EC volume (ec/voleqdef R6_EQN forest-8 INGY + Behre) — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

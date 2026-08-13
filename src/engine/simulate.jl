@@ -255,6 +255,7 @@ function compute_density!(s::StandState)
     s.variant isa BritishColumbia && (s.plot.relative_density = bc_stand_ccf(s))  # BC RELDEN (bc/ccfcal.f) — chunk 5 CCF spine
     s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
     s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
+    s.variant isa EastCascades && (s.plot.relative_density = stand_ccf(s))   # EC RELDEN (ec/ccfcal.f) for regent PCTRED density modifier
     return s
 end
 
