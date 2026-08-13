@@ -444,6 +444,56 @@ end
 const DM_FLWR = 4      # DMFLWR default: years-to-flower → FProp2 = 1/DMFLWR = 0.25 (dminitbc.f:267)
 const DM_CAP  = 3.0f0  # DMCAP default: per-crown-third infection carrying capacity (dminitbc.f:268)
 
+# --- DMFSHD (dmfshd.f) — the per-MESH-band canopy shade field Shade[] that DMADLV reads. STOCHASTIC:
+# for each canopy band, simulate each tree's expected count (PROB·SQM2AC·Grid²) at random (x,y) on a
+# 121×121 grid (DMRANN Poisson), painting a disk of the crown radius with the species opacity (max,
+# not additive); Shade = mean opacity over the inner 100×100 (11..110), then per-MESH 1−(1−sh)^MESH.
+# Uses the DM RNG (realization straddle vs live). Returns Shade[1:MXHT].
+function dm_fshd!(ms::MistletoeState, species, prob, itrn::Int)
+    Grid = 121; LowIn = 11; HighIn = 110; Cells = 100f0
+    shade = zeros(Float32, DM_MXHT)
+    shdlst = Int[]
+    @inbounds for u in 1:DM_MXHT
+        for v in 1:itrn                                            # add band u if ANY tree has canopy there
+            if prob[v] > 0.01f0 && ms.dmrdmx[v, u, DM_RADIUS] > 0.1f0
+                push!(shdlst, u); break
+            end
+        end
+    end
+    slstln = min(length(shdlst), DM_MXHT)
+    g = zeros(Float32, Grid, Grid)
+    @inbounds for uu in 1:slstln
+        v = shdlst[uu]
+        fill!(g, 0f0)
+        for i in 1:itrn
+            rad = ms.dmrdmx[i, v, DM_RADIUS] * Float32(DM_MESH)
+            rad > 0f0 || continue
+            tnumbr = prob[i] * _DM_SQM2AC * Float32(Grid)^2
+            n = trunc(Int, tnumbr)
+            (dm_rann!(ms) <= (tnumbr - n)) && (n += 1)
+            opq = ms.opaq[Int(species[i])]                         # DMOPAQ (raw opacity)
+            for _ in 1:n
+                x = Float32(trunc(Int, dm_rann!(ms) * Grid) + 1)
+                y = Float32(trunc(Int, dm_rann!(ms) * Grid) + 1)
+                for s in trunc(Int, x-rad):trunc(Int, x+rad), t in trunc(Int, y-rad):trunc(Int, y+rad)
+                    if 0 < s <= Grid && 0 < t <= Grid
+                        d = sqrt((Float32(s)-x)^2 + (Float32(t)-y)^2)
+                        (d <= rad && g[s, t] < opq) && (g[s, t] = opq)
+                    end
+                end
+            end
+        end
+        sm = 0f0
+        for i in LowIn:HighIn, j in LowIn:HighIn
+            sm += g[i, j]
+        end
+        sh = sm / Cells^2
+        sh = 1f0 - (1f0 - sh)^DM_MESH
+        shade[v] = clamp(sh, 0f0, 1f0)
+    end
+    return shade
+end
+
 # --- DMADLV (dmadlv.f) — accumulate one "level" of the spread field (SFld, to the target) and
 # intensification field (IFld, self) from an infected source `srcind` at MESH height `mshht`,
 # infection `level`, `cnt` copies, to a target at MESH `dist`. Walks each DMBSHD-decoded seed
