@@ -186,6 +186,8 @@ mutable struct MistletoeState <: AbstractMistletoeState
     # per-tree state (sized to the stand's live-record count when DMINIT runs)
     dmr::Vector{Int32}                 # per-tree dwarf-mistletoe rating 0..6
     dminf::Array{Float32,3}            # (tree, crownthird 1:3, compartment 1:5) infection pools
+    newspr::Matrix{Float32}            # (tree, crownthird 1:3) new SPREAD accumulator (DMADLV→DMOTHR→DMCYCL)
+    newint::Matrix{Float32}            # (tree, crownthird 1:3) new INTENSIFICATION accumulator
     brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
     idmshp::Vector{Int32}              # per-tree crown shape 1:5 (DMSHAP Fisher discriminant)
     dmrdmx::Array{Float32,3}           # (tree, MESH band 1:MXHT, {RADIUS=1,VOLUME=2}) crown frustum geometry (DMSUM)
@@ -198,6 +200,7 @@ end
 MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.0f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
+                                  Matrix{Float32}(undef, 0, DM_CRTHRD), Matrix{Float32}(undef, 0, DM_CRTHRD),
                                   Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
                                   Array{Float32,3}(undef, 0, DM_MXHT, 2),
                                   Matrix{Float32}(undef, 7, DM_MXTHRX),
@@ -684,6 +687,8 @@ function dm_init!(s::StandState)
     t = s.trees; n = t.n
     ms.dmr = zeros(Int32, n)
     ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
+    ms.newspr = zeros(Float32, n, DM_CRTHRD)
+    ms.newint = zeros(Float32, n, DM_CRTHRD)
     ms.brkpnt = zeros(Float32, n, DM_BPCNT)
     ms.idmshp = zeros(Int32, n)
     ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2)
