@@ -86,13 +86,27 @@ const WC_DGDS = Float32[
     return 3
 end
 
-"WC bark BRATIO (wc/bratio.f eqtypes) — a+b·D (type1/2) or POWER (type3), returned as DIB/D."
+"""
+    wc_bratio(a, b, eqtype, d) -> bark ratio DIB/D
+
+WC bark BRATIO (wc/bratio.f). `eqtype` is the WC BARKB equation type (species_coefficients.csv
+`bark_imap`): 1 = POWER `DIB=a·Dᵇ`, 2 = LINEAR `DIB=a+b·D`, 3 = `DIB=a·D` (b≡1). Result clamped to
+[0.80, 0.99] and 0.99 for D≤0, matching bratio.f exactly. (`eqtype` values follow the Fortran BARKB
+4th column verbatim — no remap; WC uses only types 1 and 2.)
+"""
 @inline function wc_bratio(a::Float32, b::Float32, eqtype::Int, d::Float32)
     d <= 0f0 && return 0.99f0
-    eqtype == 1 && return (d - (a + b * d)) / d
-    eqtype == 2 && return (a + b * d) / d
-    return (a * d^b) / d
+    br = eqtype == 2 ? (a + b * d) / d :
+         eqtype == 3 ? a :
+         (a * d^b) / d                      # eqtype 1 (POWER) — the WC default
+    br > 0.99f0 && (br = 0.99f0)
+    br < 0.80f0 && (br = 0.80f0)
+    return br
 end
+
+"wc_bratio keyed on the species table (species_coefficients.csv bark1/bark2/bark_imap) for species `sp`."
+@inline wc_bratio(sd::Dict{Symbol,Vector{Float32}}, sp::Integer, d::Real) =
+    wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), Float32(d))
 
 "WC DGCONS: per-species (39) DGCON (wc/dgf.f ENTRY DGCONS). Stored in c.dg_const[sp]."
 function wc_dgcons!(s::StandState)

@@ -120,14 +120,61 @@ wct01. **Multi-cycle `.sum` vs `wct01.sum.save` is not yet possible**: crown/mor
 site-index/small-tree chunks are unported, so a full WC stand cannot be run in jl (the DGF and HTG
 chunks are both validated at the FORMULA level, feeding live inputs — same as chunk 3).
 
-## Remaining chunks (TODO — out of this bounded run's scope)
+## Validation — chunk 1 species-coefficient table (2026-08-13)
 
-Species-coefficient CSV (chunk 1: bark/crown/site/SDImax/volume — needed to RUN a WC stand
-end-to-end), site index + Reineke SDImax (2), crown `crown.f` (5), REGENT small-tree + `htdbh` +
-`dgbnd` DG-bound (6), mortality (base `morts`, Reineke self-thin) (7), volume (shared R6 NVEL) (8).
-Then end-to-end `.sum` vs `wct01.sum.save`. **Chunk 1 (species CSV) is the highest-leverage next
-step** — it unblocks the first end-to-end run and the multi-cycle `.sum` trajectory that both the
-DGF and HTG formula-level validations currently cannot reach.
+`data/westcascades/species_coefficients.csv` (39 species) extracted **verbatim** from the wc/*.f
+block data via `tools/…/gen_wc_csv.py` (committed to scratchpad; deterministic re-run):
+- **bark1/bark2/bark_imap** — `wc/bratio.f` `JBARK[39]→BARKB[4,14]` resolved per species; `bark_imap`
+  is the BARKB eq-type (1=power `a·Dᵇ`, 2=linear `a+b·D`). `wc_bratio` was corrected to the true
+  Fortran eq-type numbering + the `[0.80,0.99]` clamp (the scaffold's `eqtype==1` branch computed
+  `1−bark`, a latent bug — inert until now because chunk-3's 27/27 validated LN(DDS) *before* the
+  bark→DG conversion; the RA/RW branches are the only current callers). A `wc_bratio(sd,sp,d)`
+  overload was added.
+- **dg_resid_sd** (SIGMAR), **ht1/ht2** (Wykoff HTCALC ≥5" dub), **sichg_a/b/refage/refloc**
+  (`wc/sichg.f`), **site_redux** (`wc/sitset.f` misc-hardwood factors), **crown_imap** (`wc/crown.f`
+  IMAP→16 groups, for chunk 5). Plus `ecocls.csv` (139 single-species PA rows, `wc/ecocls.f`),
+  `pcoml.csv` (139 KODTYP→PA, `wc/habtyp.f`), and a minimal FIA-keyed `species_translation.csv`.
+
+> **BARK: `wc_bratio` reproduces `wc/bratio.f` EXACTLY** (39 sp × 7 DBH; worst |Δ| = 1.5e-5 =
+> Float32 rounding). The merged **chunk-3 DGF (27/27) and chunk-4 HTG (24/24) harnesses still
+> PASS**, proving the new CSV + `wc_bratio` edit did not regress the validated DDS/HTG math.
+> `wc_grinit!` `YR` corrected 5→**10** (wc/blkdat.f `DATA YR/10.0/`; wct01 steps 10-yr cycles).
+
+Harness: `test/harness/westcascades/site_validate.jl` (guards chunk 1 bark + chunk 2 site).
+
+## Validation — chunk 2 site index + Reineke SDImax (2026-08-13, BIT-EXACT vs live)
+
+`src/variants/westcascades/site_index.jl` — `wc_forkod!` + `wc_habtyp` + `wc_ecocls` + `wc_sichg` +
+`wc_sitset!`, reusing the **already-validated `wc_htcalc`** (chunk 4) to fan the site-species curve
+to every species. Oracle = `FVSwc_clean` wct01 stand-1 with `DEBUG / SITSET` (the SITSET dump
+flushes before the volume-DEBUG segfault). STDINFO forest 618, habitat 52.
+
+> **forkod 618 → IFOR 6** (Willamette) ✓ · **habitat 52 → PCOML[52]=CFS551 → ECOCLS → site species
+> DF(16), SITEAR(DF)=73, SDIDEF=815** ✓ · **all 39 SITEAR BIT-EXACT** vs the live "AFTER SITE
+> ADJUSTMENT FACTORS" dump (worst |Δ| = 2.67e-5 = F-format print floor; 0/39 mismatch) — incl. the
+> misc-hardwood reductions (BM×0.75=54.75, PB×1.5=109.50, WJ×0.23=16.79) and the MH(20)÷3.281→22.25
+> & WO(28) Gould-max-height→48.79 special transforms · **all 39 SDIDEF = 815** ✓.
+
+## End-to-end blocker (MEASURED, not inferred)
+
+Chunks 1-2 do **not** by themselves unblock the wct01 `.sum` run: the engine's `grow_cycle!`
+dispatches variant hooks with no `AbstractVariant` fallback. Probe (`hasmethod`/`applicable` on
+`WestCascades`): **present** = `load_species_coefficients!`(1), `site_setup!`(2),
+`diameter_growth!`(3), `height_growth!`(4), `mortality!` (base `morts`, WC has no `wc/morts.f`),
+`bark_ratio`. **MISSING** = `crown_ratio!` (**chunk 5**, `wc/crown.f` — Weibull + RW SELECT-CASE +
+DUBSCR, on the cyc0 setup path), `small_tree_growth!` + `regenerate!` (**chunk 6**, `wc/regent.f`
++ `wc/htdbh.f` 6-forest×39 H-D tables + `wc/dgbnd.f`), and the `compute_volumes!` **WC branch**
+(**chunk 8**, shared R6 NVEL). ⇒ the first end-to-end `.sum` needs chunks **5, 6, 8**; mortality (7)
+reuses the base. **`crown.f` (chunk 5) is the next step** — it is on the setup path and gates the
+cyc0 stand statistics.
+
+## Remaining chunks
+
+crown `crown.f` (5: Weibull CR + RW + DUBSCR + CRCONS 16-group coeffs), REGENT small-tree +
+`htdbh`(6-forest) + `dgbnd` (6), volume shared R6 NVEL (8); mortality (7) = base `morts` (Reineke
+self-thin, WC `LZEIDE=.FALSE.`). Also pending: wire the `_wc_dg`/`_wc_cal`/`_wc_bd` branches in the
+shared DDS→DG driver to `wc_bratio` (the #140/CI-class POWER-bark apply sites, currently defaulting
+to the linear `calib.bark` — matters once the DG, not just LN(DDS), is exercised end-to-end).
 
 ## Westside reuse — proven
 
