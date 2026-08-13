@@ -225,6 +225,8 @@ function point_density!(s::StandState)
             ccft = nc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # nc/ccfcal.f MODE=1 (PCCF for dgf! DGPCCF)
         elseif s.variant isa WestCascades
             ccft = wc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # wc/ccfcal.f MODE=1 (PCCF, RELDEN)
+        elseif s.variant isa SoutheastAlaska
+            ccft = ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ak/ccfcal.f MODE=1
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -350,6 +352,12 @@ function stand_ccf(s::StandState)
         # TT CCF is the same direct per-species polynomial (tt/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
         @inbounds for i in 1:t.n
             ccf += tt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
+    elseif s.variant isa SoutheastAlaska
+        # AK CCF is the open-grown crown-width → area form (ak/ccfcal.f MODE=1); stand CCF = Σ CCFT·P.
+        @inbounds for i in 1:t.n
+            ccf += ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
     end
