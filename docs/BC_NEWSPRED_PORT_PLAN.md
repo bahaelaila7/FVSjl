@@ -237,6 +237,16 @@ bug. Three vehicles, in priority order:
        spread (DMFDNS/DMSRC/DMTLST → DMSAMP/DMSLST source sampling → DMSLOP + DMADLV accumulation w/ the DMFSHD
        shade) → self-intensification → DMOTHR scale (7.5e-5) → DMCYCL (annual: dm_cycl_advance + New-intake
        (NewSpr+NewInt)/TVol + DMCAP=3 saturation) → DMNDMR recompute DMR → BrkPnt→PBrkPt.
+       ★★ 2026-08-13 UPDATE — the ENTIRE life-history driver CHAIN is now ported + unit-validated, so the weave
+       is unblocked for the first-cycle path (DMNTRD gated off on entry 1):
+         · dm_htwt (DMHtWt, dmtreg.f:533) — MESH-band crown-slice weight; ⚠ faithfully split from the inline
+           TVol HtWt: dm_htwt uses the FVS FUNCTION's SWAPPED-arg form, dm_tvol the non-swapped inline form.
+         · dm_othr! (DMOTHR) — NewSpr/NewInt scale, Factor = 7.5e-5 for BC (MESH³·TRAJWT; DMETUN/STUN/ITUN=1).
+         · dm_cycl! (DMCYCL) — the annual life-history driver (intake + DMCAP M-M pushback), analytic-validated.
+         · dm_algslp (ALGSLP) + dm_props! (DMCYCL step-2) — FProp/BProp light-reaction rates; default curves ⇒
+           FProp≡1/BProp≡0 (empirically confirmed). DMKTUN=0 (source-DMR loop 0..6); DMOPTS no-op for base BC/YSM.
+       REMAINING for the weave: DMNTRD (multi-cycle crown-third infection remap, inert on cycle 1) + the
+       dm_tregro! assembly itself (wire the ~27 validated pieces in DMTREG order) + a synthetic-stand smoke test.
     2. ★★ C6 PAYOFF DE-RISKED (measured 2026-08-13): newmist's mistoe.f calls the BASE MISMRT (line 548
        `CALL MISMRT(USEMRT)`) + base misdgf growth-mult — NOT its own. jl ALREADY has that framework ported:
        `ie_dm_mortality_rate` (mismrt.f quadratic-in-DMR mortality) + `ie_dm_dg_mult` (misdgf DGPDMR growth mult),
