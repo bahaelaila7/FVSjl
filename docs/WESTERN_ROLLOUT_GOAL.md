@@ -141,11 +141,18 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
 ⚠ 2026-08-13 SCOPE FINDING (user question): **WRD / Western Root Disease (`rd/` model) is an UNPORTED cluster-wide
 western extension** — never in this matrix, never ported. It is variant-GENERIC (host-species-driven Armillaria/
 Phellinus/annosus root-rot spread+mortality) and APPLIES to the whole ported cluster (CR/KT/IE/EM/BM/TT/UT/CI/BC);
-the only variant-specific `rd/` branch is a metric-units flag for BC/ON (rdinit.f:728 LMTRIC). It is NOT compiled into
-any standard variant binary (0 `rd*.f` in all 9 FVS{v}_buildDir ⇒ the oracles lack it, so nothing is out-of-parity),
-NOT ported in jl (only base `rdpsrt` quicksort, unrelated). ⇒ "ALL extensions done" holds for FFE/DM(base)/ECON/
-Climate; NEWSPRED is #196 (in progress); WRD is a genuine NEWSPRED-class overlooked gap — bringing it in scope is a
-USER decision (a large multi-model port, RD ≈ or > DM in size). NOT started.
+the only variant-specific `rd/` branch is a metric-units flag for BC/ON (rdinit.f:728 LMTRIC). ★★ 2026-08-13 CORRECTION
+(measured, via the post-NEWSPRED-readiness scoping — docs/WESTERN_POST_NEWSPRED_READINESS.md): the earlier "0 `rd*.f`
+in any buildDir" claim was FACTUALLY WRONG. WRD IS compiled + linked into EVERY western binary — **75 `rd*.f`/`.o` in
+all 9 FVS{v}_buildDir** (~23k lines/85 routines + per-variant host block-data rdblk1<v>.f). BUT it is **DORMANT by
+default**: RDATV gates activity on `RRTINV .OR. RRMAN` (rdatv.f:41), both default `.FALSE.` (rdinit.f:755-756 /
+rdinitca.f:767-768), set `.TRUE.` ONLY by the RD-keyword parser (rdin.f / rdinca.f). Reference stands + the FIA sweeps
+carry NO RD keywords ⇒ WRD never runs ⇒ never touches the validated growth+volume parity. So the parity conclusion is
+UNCHANGED (WRD is an ADDITIONAL-FEATURE gap, not a parity gap), but the reasoning is "linked everywhere but gated off",
+NOT "not linked". NOT ported in jl (only base `rdpsrt` quicksort, unrelated; southern.jl recognizes the RD keywords as
+no-ops). ⇒ "ALL extensions done" holds for FFE/DM(base)/ECON/Climate; NEWSPRED is #196 (in progress); WRD is a genuine
+NEWSPRED-class overlooked gap — bringing it in scope is a USER decision (a large multi-model port, RD > DM in size,
+~23k lines). NOT started.
 - **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe (BASE mistoe.f)**: DONE ✓ for the
   N-Rockies cluster (IE/KT/EM/BM/UT/TT/CI via _ie_mis_variant) + CR (own cr_mistoe!). ★ 2026-08-12 CORRECTION — the
   "ALL western DONE" was an OVERCLAIM: the SPATIAL model **NEWSPRED (canada/newmist, ~50 routines incl. dmauto.f)
