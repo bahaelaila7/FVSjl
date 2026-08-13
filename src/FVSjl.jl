@@ -260,6 +260,11 @@ include("variants/pacificnorthwest/regent.jl")            # PN small-tree growth
 include("variants/pacificnorthwest/mortality.jl")         # PN mortality (WC ORGANON arrays, raw SITEAR) — chunk 7
 include("variants/pacificnorthwest/volume.jl")            # PN volume (WC westside F00 + PN Behre/formcl) — chunk 8
 
+# --- eastcascades (EC) — R6 westside Wykoff-DDS variant (32-species, own uncompressed coefficient DATA) ---
+include("variants/eastcascades/eastcascades.jl")          # EC singleton + registration (MAXSP 32, Reineke) — chunk 0
+include("variants/eastcascades/species.jl")               # EC species-coefficient table binding + blkdat init — chunk 1
+include("variants/eastcascades/diameter_growth.jl")       # EC large-tree DDS (ec/dgf.f): ec_dgcons! + dgf! (32-sp, 3-branch) — chunk 3
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
@@ -331,7 +336,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, WestCascades, PacificNorthwest, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, WestCascades, PacificNorthwest, EastCascades, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
