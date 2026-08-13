@@ -205,8 +205,16 @@ bug. Three vehicles, in priority order:
     - DMOTHR (114, det) — TRIVIAL per-species tuning scale of the NewSpr/NewInt accumulators: FacS=DMETUN·DMSTUN·F,
       FacI=DMETUN·DMITUN·F, F = 0.05·0.15·0.5·10·0.25·MESH³·TRAJWT = 7.5e-5; DMETUN/DMSTUN/DMITUN default 1.0. Wire
       with the driver (needs the NewSpr/NewInt/ISCT/IND1 driver-local state).
-    - DMCYCL (593, det) — life-history compartment advance (IMMAT→LATENT→SUPRSD→ACTIVE→DEAD) on the DMINF pools; the
-      last large self-contained routine. + DMMTRX/DMNTRD setup/remap.
+    - DMCYCL (593, det) — life-history compartment advance on the DMINF pools; the last large routine. MAPPED
+      (dmcycl.f:390-583): per tree×crown-third, the transition flow is ImmLat=xImm·FProp2 (immature→latent),
+      LatAct=xLat·FProp / SprAct=xSpr·FProp (latent/suppressed→active), ActSpr=xAct·BProp (active→suppressed);
+      subtract from source, add to destination (xLat+=ImmLat; xSpr+=ActSpr; xAct+=LatAct+SprAct); then survival
+      xImm/xLat/xSpr/xAct·=SpSurv; New-infection intake xImm+=New where New=(NewSpr+NewInt)/TVol; then the DMCAP
+      capacity saturation New=xPrv+(DMCAP−xPrv)·(1−exp(−(xNow−xPrv)/DMCAP)) with xPrv/xNow = prev/new ACTIVE+SUPRSD.
+      ★ ALL biocontrol (BC) terms (BCMORT/BCSUPP/HfLf/DMINF_BC/xImmBC…) are ZERO for base BC/YSM (no MISBCI) ⇒ drop
+      them. Coefficients: FProp/FProp2/BProp (forward/backward transition props, per tree×ct), SpSurv, DMCAP(sp) —
+      resolve their DMINIT/DMMTRX source when porting. Plus the event-monitor OPFIND/OPGET DMAUTO mid-cycle scheduling
+      (dmcycl.f:294-329) + xOriginal save (:246). + DMMTRX/DMNTRD setup/remap.
     - Wire the DMTREG driver (the mapped loop) over these, then C6 payoff: mistoe/mismrt (USEMRT extra mortality) +
       BHTG/DHTG growth-mult, wire BC into the DM dispatch. THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
