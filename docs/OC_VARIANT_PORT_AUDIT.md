@@ -224,6 +224,59 @@ trees), SUBMAX A1/A2, and the DGCALIB CALIB(3,*). The C2 DGCALIB/RAD deferral is
 exists). **Next: C4 (height growth `htgrowth.f` HG_SWO → validate `HGRO/HTG` from `oc/htgf.f:97`);
 then C5 crown, C6 mortality, C7 GROW/EXECUTE orchestration + the FVS DDS copy-back.**
 
+## Chunk C4 delivered (ORGANON SWO height growth) — VALIDATED BIT-EXACT
+
+`src/variants/oregoncoast/organon_htgro.jl` ports the ORGANON **SWO (VERSION=1)** height-growth
+core — the deterministic (`DGSD=0`) per-tree `HGRO` that FVS copies into `HTG` for the valid
+ORGANON trees, bypassing the native OC HTGF (`oc/htgf.f:95-101`: `HTG=SCALE·XHT·HGRO·EXP(HTCON)`;
+on cyc0 defaults SCALE=FINT/YR=1, XHT=1, HTCON=0 ⇒ `HTG=HGRO`).
+
+- **`oc_htgro1`** = `organon/htgrowth.f` HTGRO1 (big-6, species groups 1..5): per tree, `TCCH`
+  (crown competition, interpolated from the CCH profile) → **`oc_hs_hg`** (Hann-Scrivani potential
+  height growth + growth-effective age) → **`oc_hg_swo`** (the `MODIFER`/`CRADJ` height-increment
+  equation, `HGPAR(5,8)`) → **`oc_hg_fert`/`oc_hg_thin`** (1.0 no treatment) → **`oc_limit`** (caps
+  HG under the H-D curve using the C3 5-yr `DGRO`). SWO SITE selection: PP(122)→SI_2/ISISP=2,
+  IC(81)→(SI_1+4.5)·0.66−4.5, else SI_1/ISISP=1.
+- **Crown-closure profile** (`organon/crngrow.f`): **`oc_crnclo`** (CRNCLO, IND=0/SCR=0) builds
+  `CCH(1..41)` from the start-of-cycle tree list via **`oc_lcw_swo`** (LCW), **`oc_hlcw_swo`**
+  (HLCW), **`oc_cw_swo`** (CW above LCW) and **`oc_calc_cc!`** (CALC_CC, 40 height strata). `MCW_SWO`
+  is reused from C2.
+- **`organon_hg_swo(buf, dgro, spgrp; si_1, si_2)`** = the `GROW` "growth-2" HG sequence
+  (`grow.f:133-152`): build CRNCLO, then HTGRO1 for every big-6 tree, returning the `HGRO` vector
+  (`oc/htgf.f:96`'s HTG source). It consumes the C3 `dgro`/`spgrp` (LIMIT needs the diameter growth).
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / DGDRIV HTGF`, stand S248112 /
+ocmin; the `HTGF ORGANON … HGRO …` dump — **17 valid big-6 ORGANON trees**). Same exact `/ORGANON/`
+buffer, `SITE_1=92.0` (SI_1=87.5), `SITE_2=86.5528641` (SI_2=82.0528641), `CCH(41)=75.0`:
+
+| quantity | result |
+|---|---|
+| `HGRO` — all **17 valid big-6 ORGANON trees** (DF g1, GW/fir g2, PP g3, SP g4) | **max \|Δ\| = 0.000e+00 (bit-exact)** |
+
+**C4 verdict: bit-exact vs the live oracle** on ORGANON SWO height growth (`HGRO`, all 17 valid
+trees). All 27-tree CRNCLO crown-closure + the per-tree HS_HG/HG_SWO/LIMIT chain reproduce to full
+Float32 print precision. Deterministic (`DGSD=0`) — the hard bar, no straddle.
+
+### Measured notes (not gaps)
+
+- **C4 requires the gfortran `fexp/flog/fpow` shim (`deps/libfvsmath.so`) to be BIT-EXACT** — unlike
+  C3. HS_HG's nested `exp(exp(…))` + `pow(…, 1/b2)` chain is ULP-sensitive: with the openlibm
+  fallback, 3 of 17 trees drift 1–15 ULP (max rel 1.75e-6); with the shim active, **all 17 are
+  exactly 0.0**. This concretely validates doctrine #8 (route all ORGANON REAL*4 math through the
+  gfortran ops). **Infra note:** a fresh git worktree lacks the build artifact `deps/libfvsmath.so`,
+  and `FMath._ensure_built` probes `gfortran` (this env only has `gfortran-16`), so the shim silently
+  falls back. Build it once per worktree: `gfortran-16 -shared -fPIC -O2 -o deps/libfvsmath.so
+  deps/fvsmath.f90`. (The merge target carries the .so, so this is a worktree-only measurement step.)
+- **HTGRO2 (minor ORGANON species, groups > 5)** — the HD-ratio height-growth form for RC/PY/CY/WO/
+  BO/BM/RA/MA/GC/DG/TO/WI — is **not exercised by ocmin** (all 17 valid trees are big-6). Ported as a
+  follow-up when a stand carries a minor ORGANON species; `organon_hg_swo` leaves `hgro=0` for them.
+- **HG_FERT/HG_THIN** return exactly 1.0 on cyc0 (no thin/fert); ported faithfully for later cycles.
+- **LIMIT** is inactive on all 17 ocmin trees (no tree hit the H-D cap), but is ported and wired
+  (consumes the C3 DGRO); its DG-dependent cap will engage on faster-growing stands.
+
+**Next: C5 (crown — `crngrow.f` CROWGRO/HCB/CW → validate `CR2/CRNEW` from `oc/crown.f:285`); then
+C6 mortality (`mortality.f` PM_SWO), C7 GROW/EXECUTE orchestration + the FVS DDS/HTG copy-back.**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via

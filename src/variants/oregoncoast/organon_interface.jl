@@ -173,8 +173,8 @@ end
 function diameter_growth!(s::StandState, ::OregonCoast; kwargs...)
     build_organon_buffer!(s)   # C1: fill the /ORGANON/ input buffer for this cycle
     error("OregonCoast (OC) growth is the ORGANON SWO engine. Ported so far: C1 (boundary " *
-          "marshalling), C2 (PREPARE calibration), C3 (DG_SWO diameter growth — `organon_dg_swo`, " *
-          "bit-exact). Still UNPORTED: height growth HG_SWO (C4), crown (C5), mortality (C6), and " *
-          "the GROW/EXECUTE per-cycle orchestration + FVS DDS copy-back (C7). See " *
-          "docs/OC_ORGANON_PORT_PLAN.md.")
+          "marshalling), C2 (PREPARE calibration), C3 (DG_SWO diameter growth — `organon_dg_swo`), " *
+          "C4 (HG_SWO height growth — `organon_hg_swo`); all bit-exact. Still UNPORTED: crown (C5), " *
+          "mortality (C6), and the GROW/EXECUTE per-cycle orchestration + FVS DDS/HTG copy-back " *
+          "(C7). See docs/OC_ORGANON_PORT_PLAN.md.")
 end
