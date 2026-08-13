@@ -215,6 +215,7 @@ include("variants/oregoncoast/species.jl")           # OC species block-data ini
 include("variants/oregoncoast/organon_interface.jl") # OC FVS↔ORGANON boundary marshalling (orgspc/IORG/big-6/buffer) — chunk C1
 include("variants/oregoncoast/organon_setup.jl")     # OC ORGANON PREPARE setup calibration (ACALIB/TMPCAL + HT/CR dubbing, SWO) — chunk C2
 include("variants/oregoncoast/organon_diamgro.jl")   # OC ORGANON SWO diameter growth (DG_SWO/DIAMGRO_RUN + SSTATS/GET_BAL/SUBMAX/DGCALIB) — chunk C3
+include("variants/oregoncoast/organon_htgro.jl")     # OC ORGANON SWO height growth (HG_SWO/HTGRO1 + HS_HG/CRNCLO/LCW/HLCW/CW/LIMIT) — chunk C4
 
 # --- southeastalaska (AK) — Region-10 Wykoff DDS (Zeide SDI), 23 species, permafrost DG modifier; chunk 0 beachhead ---
 include("variants/southeastalaska/southeastalaska.jl") # AK singleton + registration (MAXSP 23, Wykoff DDS, Zeide SDI)
