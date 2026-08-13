@@ -29,6 +29,7 @@ const DM_MESH   = 2               # MESH grid-cell size (metres)
 const DM_FPM    = 3.2808f0        # feet per metre (HT() is feet, model wants MESH)
 const DM_MXHT   = 50 ÷ DM_MESH    # max stand height in MESH (25)
 const DM_MXTHRX = 14 ÷ DM_MESH    # max lateral seed x-travel in MESH (7) = # sampling rings
+const DM_MXTHRZ = 26 ÷ DM_MESH    # max vertical seed z-travel in MESH (13)
 const DM_ORIGIN = 20 ÷ DM_MESH    # trajectory origin cell (10)
 const DM_TWOPIE = 6.283185f0      # 2π (subtended-angle interception, dmtreg.f)
 const _DM_PIE   = 3.14159f0       # dmcom PIE
