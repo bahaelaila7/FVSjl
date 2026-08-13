@@ -21,6 +21,16 @@ const DM_ACTIVE = 4
 const DM_DEAD   = 5
 const DM_NPOOL  = 5
 const DM_MAXDMR = 6          # DMR (dwarf-mistletoe rating) classes 0..6
+const DM_BPCNT  = DM_CRTHRD + 1   # crown-third breakpoints (4): top, 2 dividers, bottom
+
+# --- DMCOM.F77 spatial-grid PARAMETERs (MESH geometry) ---
+# The spread model works in MESH units — a MESH-metre spatial grid (default 2 m).
+const DM_MESH   = 2               # MESH grid-cell size (metres)
+const DM_FPM    = 3.2808f0        # feet per metre (HT() is feet, model wants MESH)
+const DM_MXHT   = 50 ÷ DM_MESH    # max stand height in MESH (25)
+const DM_MXTHRX = 14 ÷ DM_MESH    # max lateral seed x-travel in MESH (7) = # sampling rings
+const DM_ORIGIN = 20 ÷ DM_MESH    # trajectory origin cell (10)
+const DM_TWOPIE = 6.283185f0      # 2π (subtended-angle interception, dmtreg.f)
 
 # DMDMR[dmr(0:6), crownthird(1:3)] — default initial DM distribution across crown
 # thirds for a tree of rating `dmr` (dminitbc.f TPDMR DATA, column-major). Row index
@@ -61,12 +71,14 @@ mutable struct MistletoeState <: AbstractMistletoeState
     # per-tree state (sized to the stand's live-record count when DMINIT runs)
     dmr::Vector{Int32}                 # per-tree dwarf-mistletoe rating 0..6
     dminf::Array{Float32,3}            # (tree, crownthird 1:3, compartment 1:5) infection pools
+    brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
     rnseed::Int64                      # DMRNSD spatial-model RNG seed (own stream; never FFI'd)
 end
 
 MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
+                                  Matrix{Float32}(undef, 0, DM_BPCNT),
                                   0)
 
 # --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
@@ -132,9 +144,32 @@ function dm_init!(s::StandState)
     t = s.trees; n = t.n
     ms.dmr = zeros(Int32, n)
     ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
+    ms.brkpnt = zeros(Float32, n, DM_BPCNT)
     @inbounds for i in 1:n, j in (1, 3, 5)
         ag = Int(t.damage[j, i])
         (30 <= ag <= 34) && (ms.dmr[i] = Int32(clamp(Int(t.damage[j+1, i]), 0, 6)))  # last DM code wins (misdam.f)
+    end
+    return s
+end
+
+# --- C4 geometry substrate: DMFBRK (dmfbrk.f) — locate the 4 breakpoints defining each
+# tree's crown thirds, in MESH units. BrkPnt[i,1] = TOP of crown, BrkPnt[i,4] = BOTTOM;
+# [i,2]/[i,3] divide the thirds. HT is feet, ICR (crown_pct) is percent → MESH. This is the
+# vertical spatial grid every spread/intensification loop in dmtreg reads. Deterministic;
+# recomputed each cycle before spread. Still engine-INERT (nothing consumes brkpnt until C4/C6).
+function dm_fbrk!(s::StandState)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    size(ms.brkpnt, 1) == n || (ms.brkpnt = zeros(Float32, n, DM_BPCNT))
+    y = 1f0 / (DM_FPM * DM_MESH)                 # feet → MESH
+    x = 0.01f0 * y / Float32(DM_CRTHRD)          # ICR% → MESH-per-crown-third scale
+    @inbounds for i in 1:n
+        z = t.height[i] * Float32(t.crown_pct[i]) * x   # MESH units per crown third
+        ms.brkpnt[i, 1] = t.height[i] * y               # top of crown
+        for j in 2:DM_BPCNT
+            ms.brkpnt[i, j] = ms.brkpnt[i, j-1] - z
+        end
     end
     return s
 end
