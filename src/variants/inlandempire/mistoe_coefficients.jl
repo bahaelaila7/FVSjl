@@ -326,10 +326,17 @@ const CI_MIS_DGP = reshape(Float32[
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
-# The DM growth/mortality EFFECTS gate. BC is included here (its DMR comes from NEWSPRED/dm_tregro!,
-# not the base ie_mistoe! spread) so the base misdgf/mismrt effects apply to BC's per-tree t.dmr —
-# but BC is NOT in _ie_mis_variant, so it does NOT run the base (non-spatial) ie_mistoe! spread.
+# The DM growth/mortality EFFECTS gate. The N-Rockies variants always run the base mistoe model, so
+# their effects apply whenever a tree carries DMR. BC's DM is KEYWORD-ACTIVATED (NEWSPRED/MISTOE) and
+# its DMR comes from dm_tregro! — so BC's effects must be gated on the ACTIVE DM model, else a BC stand
+# that merely carries DB damage codes (t.dmr>0) but has no MISTOE keyword would wrongly apply DM
+# mortality/growth-loss. `_dm_effects_on(s)` is the s-aware gate the effect functions use.
 @inline _dm_effects_variant(v)::Bool = _ie_mis_variant(v) || v isa BritishColumbia
+@inline function _dm_effects_on(s)::Bool
+    _ie_mis_variant(s.variant) && return true
+    return s.variant isa BritishColumbia && s.mistletoe !== nothing &&
+           (s.mistletoe.active || s.mistletoe.newmod)
+end
 
 # ============================================================================
 # IE MISTOE effect kernels + apply steps (mistoe/misdgf.f + mismrt.f — the SHARED
@@ -383,7 +390,7 @@ growth (central + tripled dgU/dgL) by IE_MIS_DGP[DMR+1,sp], using START-of-cycle
 No-op for non-IE / uninfected. Deterministic.
 """
 function ie_dm_growth_loss!(s::StandState, stash)
-    _dm_effects_variant(s.variant) || return
+    _dm_effects_on(s) || return
     t = s.trees
     _, dgp, _, maxsp = _mis_tables(s.variant)
     n = stash === nothing ? t.n : stash.nlive
@@ -405,7 +412,7 @@ mismrt.f:185-191: MAX-combine per-tree DM mortality (WKI = PROB·rate) into `kil
 No-op for non-IE / uninfected. Order-independent (per-tree max).
 """
 function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
-    _dm_effects_variant(s.variant) || return
+    _dm_effects_on(s) || return
     t = s.trees
     _, _, pmc, maxsp = _mis_tables(s.variant)
     @inbounds for i in 1:n
