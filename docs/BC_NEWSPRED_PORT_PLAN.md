@@ -220,6 +220,12 @@ bug. Three vehicles, in priority order:
       piecewise-linear interp helper. DMMTRX = no-op orchestrator (DMCW crown_width + DMSHAP + DMSUM/DMRDMX, all
       ported). Plus the event-monitor OPFIND/OPGET DMAUTO mid-cycle scheduling (dmcycl.f:294-329) + xOriginal save
       (:246) + DMNTRD cycle-follow remap. ⇒ NEWSPRED is now MAPPED END-TO-END; every routine understood.
+      ★★ C5 DE-RISKED (measured): ALGSLP (base/algslp.f) CLAMPS out-of-range to the endpoint Y, and the default
+      DMLtRx curves are forward=(0,0)-(1,1) / backward=(0,1)-(1,0) with X∈[0,1] while IHT≥1 ⇒ **FProp=1.0, BProp=0.0
+      for EVERY crown-third** in the base case. So base DMCYCL is a clean forward cascade: ImmLat=0.25·xImm (FProp2=
+      1/DMFLWR=1/4), LatAct=xLat, SprAct=xSpr, ActSpr=0 → xLat=0.25·xImm, xAct+=xLat+xSpr, xSpr=0; then ·SpSurv
+      (=1−DMDETH) survival, +New intake, DMCAP=3.0 saturation. The 593 lines are mostly ZERO biocontrol ⇒ the base
+      port is small. Coeffs to extract from dminitbc.f: DMFLWR(=4)/DMCAP(=3)/DMDETH(→DMSURV); DMLtRx defaults inline.
     - Wire the DMTREG driver (the mapped loop) over these, then C6 payoff: mistoe/mismrt (USEMRT extra mortality) +
       BHTG/DHTG growth-mult, wire BC into the DM dispatch. THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
