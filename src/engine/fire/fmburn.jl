@@ -126,12 +126,15 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
     # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
     # NC's SURFACE fire is bit-exact (byram 10172 = live FMFINT 10547; cbd 0.147 = live FMPOCR 0.152, actcbh 6=6).
-    # Live's 2003 SIMFIRE DOES have a PASSIVE crown fire (live FMCFIR: CRBURN=0.561, RFINAL=29.03 ⇒ BURN-report flame
-    # 8.3 vs surface 4.85). But the reused CR/NE `crown_fire_result` OVER-boosts for NC — jl RFINAL=38.9 (1.34×) and
-    # (HPA+crown-load)=2384 vs live ~728 (3.3×) ⇒ FINTEN 1546 vs live ~352 (4.4×) ⇒ catastrophic over-kill (TPA 0 vs
-    # 58). Surface-only mortality (54 vs 58) is CLOSER than crown-on (0), so Klamath stays EXCLUDED until NC's own
-    # FMCFIR (nc/fmcfir.f: the SFRATE/RFINAL + crown-HPA/TCLOAD terms) is ported. The crburn magnitude IS right (0.537
-    # vs 0.561); the gap is the RFINAL spread + the crown-load HPA feeding the byram. ⇒ open FMCFIR chunk.
+    # Live's 2003 SIMFIRE has a PASSIVE crown fire (live FMCFIR: CRBURN=0.561, RFINAL=29.03). NC's own FMCFIR is
+    # ported (`nc_crown_fire_result`, below): it reproduces RACT (jl 41.6 = live 41.71), RFINAL (28.4 vs 29.03),
+    # CRBURN (0.537 vs 0.561), HPA (1069.6 vs 1120.5) — the crown-fire SPREAD/type path is now correct (the shared
+    # CR/NE path used the wrong RACT: 3.34·selected@OACT1 instead of 3.34·FM10@SWIND·0.4). BUT the shared crown-fire
+    # BYRAM step still over-drives FINTEN = (HPA + TCLOAD·7744.8·CRBURN)·RFINAL/60 = 1128 vs the ~352 that yields
+    # live's flame 8.3 — even HPA·RFINAL/60 alone (505) exceeds 352, so the residual is the crown-BYRAM HPA/TCLOAD
+    # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
+    # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
+    # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
     if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
@@ -424,6 +427,51 @@ function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::
         den = sfrate_crn - rinit1
         cfb = den != 0f0 ? (sfrate_act - rinit1) / den : 0f0
         cfb = clamp(cfb, 0f0, 1f0)
+        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa)
+    else
+        return (1f0, ract, hpa)                                 # ACTIVE
+    end
+end
+
+# FM10 surface spread (ft/min) at midflame wind `w` (mi/h) — the crown-fire reference fuel model (fmcfir.f:122-133).
+@inline _nc_fm10_spread(s::StandState, mois::AbstractMatrix{Float32}, w::Float32)::Float32 =
+    rothermel_surface_fire(_FM10_LOAD, _FM10_SAV, 1f0, 0.25f0, mois; wind = w, slope_tan = s.plot.slope).spread
+
+# NC crown fire (nc/fmcfir.f) — DIFFERS from the shared CR/NE crown_fire_result: RACT and the PASSIVE CFB use
+# the FM10 reference model (not the selected surface models), and RACT's wind is a FIXED SWIND·0.4 (not OACT1·
+# WMULT). Reusing the CR/NE path over-boosts RACT ~2× (RFINAL 38.9 vs live 29.03) ⇒ over-kill. Returns
+# (crburn, rfinal, hpa). Measured vs live DEBUG FMCFIR @2003: RACT 41.71, RINIT1 6.45, CRBURN 0.561, RFINAL 29.03.
+function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32)
+    oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
+    oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
+    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0)      # SURFACE
+    mois = fuel_moisture(fmois, s.variant)
+    models = select_fuel_models(s, mois)
+    wmult = fire_wind_reduction(s.fire.percov)
+    sxir = 0f0; ssig = 0f0
+    for (fm, w) in models
+        r = rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois; slope_tan = s.plot.slope)
+        sxir += r.xir * w; ssig += r.sigma * w
+    end
+    hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
+    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
+    # SFRATE(FMOIS) = surface spread (SELECTED models) at the actual midflame wind
+    sfrate_act = sum(rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois;
+                     wind = swind * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
+    # RACT (fmcfir.f:143,173): 3.34·SFRATE(2) where SFRATE(2)=FM10 spread at the FIXED midflame SWIND·0.4 (the
+    # fuel model IS still FM10 at this point). This is the fix vs the shared CR/NE path (which used 3.34·selected@oact).
+    ract = 3.34f0 * _nc_fm10_spread(s, mois, swind * 0.4f0)
+    if oinit > swind
+        oact > swind && return (0f0, sfrate_act, hpa)          # SURFACE
+        return (1f0, ract, hpa)                                 # COND_CRN
+    elseif oact > swind                                         # PASSIVE (fmcfir.f:347-359)
+        # SFRATE(2) here is recomputed with the SELECTED surface models at OACT1·WMULT — the FM10 model was
+        # RESTORED (fmcfir.f:180-195) before the torching-bisection + passive blocks, so this is NOT FM10.
+        sfrate_crn = sum(rothermel_surface_fire(fuel_model_resolved(s, fm)..., mois;
+                         wind = oact * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
+        den = sfrate_crn - rinit1
+        cfb = den != 0f0 ? clamp((sfrate_act - rinit1) / den, 0f0, 1f0) : 0f0
         return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa)
     else
         return (1f0, ract, hpa)                                 # ACTIVE
