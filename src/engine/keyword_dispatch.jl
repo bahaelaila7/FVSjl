@@ -2396,6 +2396,10 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS
         elseif kw == "NOHTDREG"; kw_nohtdreg!(s, rec)      # HT-DBH (LHTDRG) calibration control: suppress=no-op, invoke=warn
         elseif kw == "MORTMSB";  kw_mortmsb!(s, rec)       # alternate "mature-stand breakup" mortality (msbmrt.f)
+        elseif kw == "MISTOE";   kw_mistoe!(s, rec)        # BC NEWSPRED/NISI dwarf-mistletoe (#196): activate DM extension
+        elseif kw == "NEWSPRED"; kw_newspred!(s, rec)      #   use the NISI spatial spread model (misin.f opt 12)
+        elseif kw == "DMAUTO";   kw_dmauto!(s, rec)        #   spatial autocorrelation decay (DMALPHA/DMBETA)
+        elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

@@ -880,6 +880,11 @@ EconState() = EconState(false, 0.0f0, 0f0, EconCostRev[], EconCostRev[], Int32(-
 # CLIMATE keyword activates it — inert for every non-climate run.
 abstract type AbstractClimateState end
 
+# Forward declaration for the BC NEWSPRED/NISI spatial dwarf-mistletoe state (#196); concrete
+# `MistletoeState` is in variants/britishcolumbia/newspred.jl (included after this file).
+# `nothing` until a MISTOE/NEWSPRED keyword activates it — inert for every non-DM run.
+abstract type AbstractMistletoeState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -897,6 +902,7 @@ mutable struct StandState{V<:AbstractVariant}
     fire::Union{FireState,Nothing}
     econ::Union{EconState,Nothing}
     climate::Union{AbstractClimateState,Nothing}
+    mistletoe::Union{AbstractMistletoeState,Nothing}   # BC NEWSPRED/NISI spatial DM (#196); nothing until MISTOE/NEWSPRED
 end
 
 """
@@ -913,6 +919,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing,
     )
 end

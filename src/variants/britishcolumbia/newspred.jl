@@ -48,7 +48,7 @@ on the stand until a NEWSPRED/MISTOE keyword activates it. Per-tree×crown-third
 compartment infection pools (`dminf`) + per-tree DMR (`dmr`); the spatial-grid /
 shade / trajectory arrays (DMRDMX/CShd/Shd1/…) are added with the spread core (C4).
 """
-mutable struct MistletoeState
+mutable struct MistletoeState <: AbstractMistletoeState
     active::Bool                       # MISTOE keyword seen (DM extension on)
     newmod::Bool                       # NEWSPRED — use the NISI spatial spread model (misin.f opt 12)
     prtmis::Bool                       # MISTPRT — emit the DM reports (misin.f opt 6)
@@ -68,3 +68,53 @@ MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   0)
+
+# --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
+# BC-only: for other variants these keywords stay in `unrecognized_keywords` (unchanged
+# behaviour). Until C6 wires the model, these only set flags/state and are .sum-INERT.
+_dm_state!(s) = (s.mistletoe === nothing && (s.mistletoe = MistletoeState()); s.mistletoe::MistletoeState)
+
+function kw_mistoe!(s::StandState, rec)
+    if s.variant isa BritishColumbia
+        _dm_state!(s).active = true                         # MISTOE: turn the DM extension on
+    else
+        push!(s.control.unrecognized_keywords, "MISTOE")
+    end
+    return
+end
+
+function kw_newspred!(s::StandState, rec)
+    if s.variant isa BritishColumbia
+        _dm_state!(s).newmod = true                         # misin.f opt 12: NEWMOD=.TRUE. (NISI spatial model)
+    else
+        push!(s.control.unrecognized_keywords, "NEWSPRED")
+    end
+    return
+end
+
+function kw_dmauto!(s::StandState, rec)
+    if s.variant isa BritishColumbia
+        ms = _dm_state!(s)
+        # misin.f opt 24: field1=date, field2=DMALPHA, field3=DMBETA. A supplied >0 value is an
+        # error sentinel (→ −999); a blank stays −999 (detected/defaulted later in DMOPTS).
+        if length(rec.present) >= 2 && rec.present[2]
+            a = Float32(rec.values[2]); ms.dmalpha = a > 0f0 ? -999f0 : a
+        end
+        if length(rec.present) >= 3 && rec.present[3]
+            b = Float32(rec.values[3]); ms.dmbeta = b > 0f0 ? -999f0 : b
+        end
+    else
+        push!(s.control.unrecognized_keywords, "DMAUTO")
+    end
+    return
+end
+
+function kw_mistprt!(s::StandState, rec)
+    if s.variant isa BritishColumbia
+        ms = _dm_state!(s); ms.prtmis = true                # misin.f opt 6: request DM reports
+        (length(rec.present) >= 1 && rec.present[1]) && (ms.dmrmin = Float32(rec.values[1]))  # min DMR to report (default 1.0)
+    else
+        push!(s.control.unrecognized_keywords, "MISTPRT")
+    end
+    return
+end
