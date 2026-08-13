@@ -354,6 +354,18 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.n = nlive0
     end
     cur_point_ba = copy(s.density.point_ba)
+    # PTBALT (point BA-in-larger-trees) is CURRENT-dbh in calibration, exactly like PTBAA above.
+    # dense.f runs a two-pass backdating: pass-1 (LREDO=T) sets WK5=backdated_dbh²·PROB and feeds
+    # PCTILE (the backdated percentile); pass-2 (LREDO=F, dense.f:184) reverts D=DBH(I) so WK5=
+    # CURRENT_dbh²·PROB, and PTBAL (dense.f:280, ptbal.f:148 XBALT+=WK5·.005454154·PI/GROSPC) reads
+    # that CURRENT WK5. So the calibration DGF's PBAL=PTBALT(I) is current, NOT backdated. jl's
+    # compute_density! below overwrites point_bal with the backdated value; capture the current one
+    # here (from point_basal_area! above, dead-exposed, same as cur_point_ba) and restore it after.
+    # AK-scoped: this is shared-faithful (ptbal.f is common to all western/southern variants) and the
+    # same latent gap likely applies cluster-wide, but is validated here only for AK (akt01). On akt01
+    # YC (sp3) the omission gave PBAL 52.8 vs live 187.5 (=3×BAF 62.5) ⇒ COR 1.389 vs live 1.434.
+    _ak_pbal_fix = s.variant isa SoutheastAlaska
+    cur_point_bal = _ak_pbal_fix ? copy(s.density.point_bal) : Float32[]
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
@@ -381,6 +393,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.dbh[j] = saved_dead[k]
     end
     s.density.point_ba .= cur_point_ba        # PTBAA from current DBH, live-only (above)
+    _ak_pbal_fix && (s.density.point_bal .= cur_point_bal)   # PTBALT current-dbh too (dense.f pass-2; see above)
     # PCT (BA percentile, dense.f pass-1 PCTILE) accumulates the BACKDATED point-BA
     # weights in the CURRENT-dbh rank order (IND is fixed at setup). The percentile
     # POPULATION is the full ITRN including recently-dead trees (history≠8) at their
