@@ -17,10 +17,16 @@ is real in isolation but COMPENSATED, netting <0.5% on calibrated trees:
 
 ## ⚠ NEW BUG (2026-08-13, separate from #210) — NC FFE crashes: fmcba.jl:114 BoundsError (0×0 crown-biomass matrix)
 The canonical nct01.key is an **FFE TEST keyfile** (FMIn/SIMFIRE/SNAGINIT/PotFIRE/BurnRept). Running it crashes in
-the FIRE model — `fmcba.jl:114` BoundsError "0×0 Matrix at [6,1:0]" (fmburn.jl:92 → simulate.jl:345). NC/Klamath was
-ported growth+volume ONLY; its FFE fire arrays (crown biomass, MAXSP=12) are NOT initialized ⇒ the fire model runs on
-empty arrays. Growth-only NC runs are fine (cyc0 calibration completes; the crash is fire-path only). ⇒ NC FFE is an
-UNPORTED extension for the newly-added westside variant — a lead for the #207 westside stream, NOT a growth-parity gap.
+the FIRE model — `fmcba.jl:114` BoundsError "0×0 Matrix at [6,1:0]" (fmburn.jl:92 → simulate.jl:345). ROOT (pinned
+2026-08-13): `ffe_dead_fuel_loading(coef, ifortp)` (fuel_loading.jl:137-141) does `coef.ffe_fuel_dead[ft,:]` with
+ft=`ffe_dead_fuel_type(ifortp)`=6, but **`coef.ffe_fuel_dead` is 0×0 for Klamath** — NC's FFE fuel-loading tables were
+never loaded (NC ported growth+volume ONLY). fmcba's live+dead fuel dispatch (fmcba.jl:100-124) also has NO Klamath
+branch ⇒ falls to the generic `ffe_dead_fuel_loading` default, which indexes the empty table. ⇒ NC FFE is a genuine
+UNPORTED extension: the port chunk = load NC's FFE fuel tables (nc/fmcba.f FUINI/FULIVE + dead-fuel-type map) into the
+Klamath SpeciesCoefficients + add Klamath branches to fmcba live/dead dispatch (+ likely snag/decay/potfire chain).
+Growth-only NC runs are UNAFFECTED (cyc0 calibration completes; crash is fire-path only). This is a #207 westside-stream
+lead, NOT a growth-parity gap. NOTE: jl should also GATE FFE off (or error cleanly) for variants without fuel tables
+rather than BoundsError — a small defensive-robustness follow-up independent of the NC FFE port.
 
 
 Branch kt-variant-port. Oracle /workspace/.ncwork/FVSnc_clean. Canonical stand nct01
