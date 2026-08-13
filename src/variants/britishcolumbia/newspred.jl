@@ -303,6 +303,32 @@ function dm_fdns(sp::Int, ptr, index, tpa)
     return d
 end
 
+const DM_TINY = 1f-10   # DMCOM DMTINY
+
+# --- DMSRC (dmsrc.f) — build the packed per-DMR-class cumulative source-selection vectors for
+# species `sp`: for each class i, walk its trees accumulating cumulative proportional probability
+# y += PROB·(1/(D[i]+tiny)) (rises 0→1 within the class); SrcI[k]=tree, SrcCD[k]=cum-prob,
+# SPtr[i+1]=end offset of class i. A later uniform draw picks a source tree by bisecting SrcCD.
+# Deterministic. Returns (srci, srccd, sptr) — class i occupies k in (sptr[i]|0)+1 .. sptr[i+1].
+function dm_src(sp::Int, d, ptr, index, tpa)
+    srci = Int32[]; srccd = Float32[]; sptr = zeros(Int, 7)
+    k = 0
+    @inbounds for i in 0:6
+        fst = ptr[sp, i+1, 1]
+        if fst > 0
+            x = 1f0 / (d[i+1] + DM_TINY)
+            y = 0f0
+            for j in fst:ptr[sp, i+1, 2]
+                k += 1
+                y += tpa[index[j]] * x
+                push!(srci, index[j]); push!(srccd, y)
+            end
+        end
+        sptr[i+1] = k
+    end
+    return (srci, srccd, sptr)
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
