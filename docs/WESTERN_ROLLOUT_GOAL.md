@@ -17,6 +17,14 @@ shared → worktree isolation per stream, merged sequentially.
     I wrongly listed NC as the unported pilot (my known-ported list omitted it → the roadmap agent inherited the error).
     NC already PROVES westside Wykoff-DDS reuse. Stream 1 REDIRECTED to WC (West Cascades) as the pilot → PN/EC/CA/SO/WS.
     So the unported western set is **AK/CA/EC/OC/OP/PN/SO/WC/WS (9, not 10)**. Reuse anchors = BM + the fresh NC/Klamath.
+    ★ WC BEACHHEAD DONE + merged (fd51d90): relinked /workspace/.wcwork/FVSwc_clean + WestCascades (MAXSP 39, Reineke,
+    DGSD 1.7) + wc/dgf.f (19-group Wykoff); **large-tree DGF cyc0 VALIDATED BIT-EXACT** (wct01: 27/27 trees, worst
+    |Δ|=0.00007 print-rounding; DGCON bit-exact incl WO King's-SI). ⇒ WESTSIDE REUSE PROVEN (WC+NC share one DDS
+    engine). NEXT: WC species+site+density+HTG+regent+crown+mort+vol → end-to-end; then PN (near-clone) then EC/CA/SO/WS.
+    ⚠ NC LEAD (#210, agent-reported, TO VERIFY): NC DGF model bit-exact but the shared calibration COR for NC's 2
+    calibrated species is slightly off (SP 0.3518 vs live 0.3537, WF 0.5680 vs 0.5796) → ~2-3% BA under-growth by 2040;
+    prior NC "cyc0 bit-exact" held for DENSITY columns only. Could be a COR-dispatch regression OR the OLDRN straddle —
+    prove via g16 per-tree DDS before acting.
   • **Stream 2 [#208] — ORGANON cluster** (OC, OP). ★ FOUNDATION LANDED (cherry-picked, OregonCoast MAXSP=50 scaffold +
     docs/OC_ORGANON_PORT_PLAN.md + relinked /workspace/.ocwork/FVSoc_clean). ★ MEASURED (live FVSoc_clean DEBUG-DGF):
     OC/OP are **pure ORGANON SWO** — the DGF *is* ORGANON (organon/ 13040 + vorganon/ 1331 lines, UNPORTED); there is NO
