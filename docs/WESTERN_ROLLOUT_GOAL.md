@@ -137,7 +137,15 @@ Swept every shared COR-shrinkage/bark dispatch for CI-class missing-variant bran
 - **DGSD**: all 9 western variants set it explicitly from their grinit.f (2.0 except BM 1.5, CI 1.7). No gap.
 ⇒ No remaining missing-branch bugs in the shared DG-calibration path cluster-wide.
 
-## Extensions matrix — ALL DONE-OR-CORNERED ✓ (2026-08-12)
+## Extensions matrix — DONE-OR-CORNERED ✓ (2026-08-12), except NEWSPRED (in progress) + WRD (never scoped)
+⚠ 2026-08-13 SCOPE FINDING (user question): **WRD / Western Root Disease (`rd/` model) is an UNPORTED cluster-wide
+western extension** — never in this matrix, never ported. It is variant-GENERIC (host-species-driven Armillaria/
+Phellinus/annosus root-rot spread+mortality) and APPLIES to the whole ported cluster (CR/KT/IE/EM/BM/TT/UT/CI/BC);
+the only variant-specific `rd/` branch is a metric-units flag for BC/ON (rdinit.f:728 LMTRIC). It is NOT compiled into
+any standard variant binary (0 `rd*.f` in all 9 FVS{v}_buildDir ⇒ the oracles lack it, so nothing is out-of-parity),
+NOT ported in jl (only base `rdpsrt` quicksort, unrelated). ⇒ "ALL extensions done" holds for FFE/DM(base)/ECON/
+Climate; NEWSPRED is #196 (in progress); WRD is a genuine NEWSPRED-class overlooked gap — bringing it in scope is a
+USER decision (a large multi-model port, RD ≈ or > DM in size). NOT started.
 - **FFE**: ALL western validated-cornered ✓ (+ eastern + CR).  **Dwarf mistletoe (BASE mistoe.f)**: DONE ✓ for the
   N-Rockies cluster (IE/KT/EM/BM/UT/TT/CI via _ie_mis_variant) + CR (own cr_mistoe!). ★ 2026-08-12 CORRECTION — the
   "ALL western DONE" was an OVERCLAIM: the SPATIAL model **NEWSPRED (canada/newmist, ~50 routines incl. dmauto.f)
