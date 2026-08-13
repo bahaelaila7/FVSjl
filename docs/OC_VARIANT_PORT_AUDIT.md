@@ -159,6 +159,71 @@ the DF↔PP site conversion, and the WF/ES species crosswalk. HT/CR dubbing port
 exercised on ocmin). **Next: C3 (ORGANON diameter growth — `diagro.f` DG_SWO + `diamcal.f` bark/BAL
 + `submax.f` + `statsorg.f`); this also lifts the DGCALIB RAD deferral.**
 
+## Chunk C3 delivered (ORGANON SWO diameter growth) — VALIDATED BIT-EXACT
+
+`src/variants/oregoncoast/organon_diamgro.jl` ports the ORGANON **SWO (VERSION=1)** diameter-growth
+core — the deterministic (`DGSD=0`) per-tree `DGRO` that overwrites the FVS Wykoff LN(DDS) for the
+18 valid ORGANON species. FVS serial-corr is suppressed on the ORGANON path (`OLDRN=0`, `FRM=1`,
+`oc/dgdriv.f:549-550`), so `DGRO` is a hard bit-exact target with **no RNG straddle**.
+
+- **`oc_dg_swo`** = `organon/diagro.f` DG_SWO: `LNDG = B0 + B1·ln(DBH+K1) + B2·DBH^K2 +
+  B3·ln((CR+0.2)/1.2) + B4·ln(SITE) + B5·(SBAL1^K3/ln(DBH+K4)) + B6·√SBA1`, then `DG =
+  exp(LNDG)·CRADJ·ADJ`. Full 18-group `DGPAR(18,11)` table + the per-group `ADJ` + the `CR≤0.17`
+  crown adjustment. `SITE = SI_1 = SITE_1−4.5` (`execute2.f:322`, DIAMGRO_RUN CASE(1)). All REAL*4
+  math via `fexp`/`flog`/`fpow`; `√` via `Float32` `sqrt`; `DBH*DBH`/`MCW*MCW` as exact integer
+  products (matching `**2`).
+- **`oc_sstats`** = `organon/statsorg.f` SSTATS: stand `SBA` / `BAL(500)` / `BALL(51)` / `CCFL` /
+  `CCFLL` / `TPA` / `SCCF` from the buffer (`NPTS=1`, so `/FLOAT(NPTS)` is the identity). **`oc_get_bal`**
+  = `diamcal.f` GET_BAL (the `SBAL1` per-tree lookup DG consumes). **`oc_diamgro_run`** =
+  DIAMGRO_RUN (`DGRO = DG·CALIB(3,g)·FERTADJ·THINADJ`); **`oc_dg_thin`/`oc_dg_fert`** ported
+  faithfully (both return 1.0 with no thin/fert).
+- **`oc_submax`** = `organon/submax.f` SUBMAX (VERSION=1): the max size-density line A1/A2 (consumed
+  by mortality C6 / the RD index; **inert on DG**, ported because the task lists it).
+- **`organon_dgcalib_swo`** lifts the **C2 DGCALIB RAD deferral**: on FVS/FIA inventory there are no
+  radial-increment cores ⇒ `RAD=.FALSE.` ⇒ `CALIB(3,*)=1.0` (oracle-confirmed all `TMPCAL(3,*)=1.0`).
+  `DIB_SWO`/`DOB_SWO` bark are ported (`oc_dib_swo`/`oc_dob_swo`); a `RAD=.TRUE.` run raises a clear
+  TODO error (unvalidated — no radial-core stand exists to bit-check it).
+- **`organon_dg_swo(buf; …)`** wraps the `GROW` "growth-1" DG sequence (`grow.f:93-109`) off the C1
+  `/ORGANON/` buffer: species groups → SSTATS → SUBMAX → DGCALIB → per-tree DIAMGRO_RUN, returning
+  the `DGRO` vector. The FVS bark conversion (`BRATIO → DIAGR → DDS → WK2`, `oc/dgdriv.f:446-452`)
+  and the StandState application are the **C7** copy-back seam (FVS-native shared engine), not C3.
+
+**MEASURED vs the live oracle** (`FVSoc_clean`, scoped `DEBUG 1 / DGDRIV`, stand S248112 / ocmin, 27
+records; the growth-cycle `I,ISPC,DBH,DGRO,BARK,DIAGR,DDS=` dump — recipe: `DEBUG` with a **non-blank
+field-2** so `initre.f:1072` calls `DBPRSE` to scope debug to `DGDRIV`, avoiding the DBALL volume
+crash). jl was fed the exact `/ORGANON/` buffer the Fortran received (`SPECIES,DBH1,HT1OR,CR1,EXPAN1`
+— C1-validated), `SITE_1=92.0` (SI_1=87.5), `MSDI_1=815`:
+
+| quantity | jl | oracle | result |
+|---|---|---|---|
+| `DGRO` — all **17 valid ORGANON trees** | — | — | **max \|Δ\| = 0.000e+00 (bit-exact)** |
+| SUBMAX `A1` | 6.4790 | 6.4790 (`STOR(3)`) | **exact** |
+| SUBMAX `A2` | 0.62305 | 0.62305 (`STOR(4)`=0.6230) | **exact** |
+| `CALIB(3,*)` | all 1.0 | all 1.0 | **exact** |
+| `SBA1` | 85.131271 | — | (consumed by DG, validated transitively) |
+
+Every valid tree — DF (g1), GW/fir (g2), PP (g3), SP (g4) — matched to full Float32 print precision
+(`|Δ|=0.0`, not merely f32-print-close). Because ORGANON is deterministic (`DGSD=0`) this is the
+hard bar, not a straddle. **C3 DIAMETER GROWTH: BIT-EXACT.**
+
+### Measured notes (not gaps)
+
+- **Eligibility uses the RAW FVS height, not `HT1OR`.** `oc/dgdriv.f:222` gates `IORG` on `HT(I)>4.5`
+  (the FVS array), while the buffer floors `HT1OR` to 4.6. So tree-2 (`LP`/DF raw HT=2.0), tree-13
+  (raw HT=3.0) and tree-24 (raw HT=2.0) are `IORG=0` despite `HT1OR=4.6` — they get FVS-native
+  growth, not ORGANON. `build_organon_buffer!` already gates on the raw height (C1-correct); the 17
+  ORGANON trees are exactly the oracle's `IORG=1` set.
+- **The copy-back bark is FVS-native `BRATIO`**, not ORGANON DIB/DOB. `oc/dgdriv.f:446` `BARK=BRATIO`,
+  `DIAGR=DGRO·BARK`, `DDS=ln(DIAGR·(2·DBH·BARK+DIAGR))`. Reproducing `DDS` end-to-end needs the FVS
+  bark ratio (shared engine) — that is the **C7** wiring, orthogonal to the ORGANON DG core.
+- **DG_THIN/DG_FERT** return exactly 1.0 on cyc0 (no thin/fert); ported faithfully for later cycles.
+
+**C3 verdict: bit-exact vs the live oracle** on ORGANON SWO diameter growth (`DGRO`, all 17 valid
+trees), SUBMAX A1/A2, and the DGCALIB CALIB(3,*). The C2 DGCALIB/RAD deferral is lifted
+(RAD=.FALSE. path returns 1.0; RAD=.TRUE. machinery present, unvalidated as no radial-core stand
+exists). **Next: C4 (height growth `htgrowth.f` HG_SWO → validate `HGRO/HTG` from `oc/htgf.f:97`);
+then C5 crown, C6 mortality, C7 GROW/EXECUTE orchestration + the FVS DDS copy-back.**
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
