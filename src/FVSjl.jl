@@ -252,7 +252,12 @@ include("variants/westcascades/mortality.jl")        # WC mortality — chunk 7 
 include("variants/pacificnorthwest/pacificnorthwest.jl")  # PN singleton + registration (MAXSP 39, Reineke, slot-6 SS) — chunk 0
 include("variants/pacificnorthwest/species.jl")           # PN species-coefficient table binding + blkdat init — chunk 1
 include("variants/pacificnorthwest/diameter_growth.jl")   # PN large-tree DDS (pn/dgf.f): pn_dgcons! + dgf! (20-group Wykoff) — chunk 3
+include("variants/pacificnorthwest/height_growth.jl")     # PN HTG (pn/htcalc.f Farr SS/RC + King DF; findag/htgf = WC) — chunk 4
+include("variants/pacificnorthwest/site_index.jl")        # PN site (pn/forkod/habtyp/ecocls/sichg/sitset) — chunk 2
 include("variants/pacificnorthwest/crown.jl")             # PN crown (pn/crown.f 17-group Weibull + dubscr) + CCF (pn/ccfcal.f 19-group) — chunk 5 + density
+include("variants/pacificnorthwest/regent.jl")            # PN small-tree growth (WC SMHGDG no-King + PN htdbh) — chunk 6
+include("variants/pacificnorthwest/mortality.jl")         # PN mortality (WC ORGANON arrays, raw SITEAR) — chunk 7
+include("variants/pacificnorthwest/volume.jl")            # PN volume (WC westside F00 + PN Behre/formcl) — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

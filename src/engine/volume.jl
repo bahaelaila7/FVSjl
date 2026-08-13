@@ -346,6 +346,8 @@ function dub_missing_heights!(s::StandState)
             # wc/cratet.f:375-377 — WC LHTDRG=.FALSE. for all species ⇒ ALL missing-height dubbing
             # uses the FOREST-DEPENDENT Curtis-Arney HTDBH (MODE=0), not the shared single-table _htdbh_height.
             wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
+        elseif s.variant isa PacificNorthwest
+            pn_htdbh_height(_pn_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
         elseif s.variant isa OregonCoast
             # oc/cratet.f:679-684 — OC LHTDRG=.FALSE. all species ⇒ HTDBH (CA-family Curtis-Arney)
             # is the actual missing-height dub (overwrites the Wykoff H). IFOR unused (C8).
@@ -433,7 +435,7 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
-    if s.variant isa WestCascades
+    if s.variant isa WestCascades || s.variant isa PacificNorthwest
         # wc/sitset.f westside merch defaults (IFOR 6 Willamette = CASE DEFAULT): TOPD=BFTOPD=SCFTOPD=4.5,
         # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6), stump=1. WC's species CSV carries no merch columns.
         @inbounds for j in 1:length(c.sp_dbh_min)
@@ -593,6 +595,7 @@ function compute_volumes!(s::StandState)
     s.variant isa Utah && return compute_volumes_ut!(s)            # UT = MATW r4vol + FW2 + DVEW woodland
     s.variant isa BlueMountains && return compute_volumes_bm!(s)   # BM = FW2W Flewelling conifers (BEHW minor deferred)
     s.variant isa WestCascades && return compute_volumes_wc!(s)   # WC = westside Flewelling (SHP_W3/W4/W5) + INGY FW2 + region-6 Behre
+    s.variant isa PacificNorthwest && return compute_volumes_pn!(s)   # PN = westside DF F00 + region-6 Behre (near-clone of WC)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)

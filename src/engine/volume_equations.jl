@@ -404,6 +404,8 @@ function setup_volume_equations!(s::StandState)
             # WC VOLEQDEF (voleqdef.f R6_EQN WESTSIDE branch, VAR='WC') — FORNUM=KODFOR%100. Willamette
             # (618→FORNUM 18) validated vs FVSwc_clean; westside Flewelling (DF/WH) + INGY (GF/NF/IC) + Behre.
             s.species.vol_eq[sp] = _wc_r6_eqn(kodfor % 100, ifia)
+        elseif s.variant isa PacificNorthwest
+            s.species.vol_eq[sp] = _pn_r6_eqn(kodfor % 100, ifia)
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end

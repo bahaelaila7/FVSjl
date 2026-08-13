@@ -164,6 +164,11 @@ function setup_growth!(s::StandState)
                                           # LSTART CROWN dump: ICR array unchanged), but it is on the setup path and
                                           # gates real-FIA seedling stands. d<1" missing crowns → wc/dubscr.f (bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa PacificNorthwest
+        pn_dgcons!(s)                     # PN DGCON (20-group; SS g18, WO King's-SI g19, no JFOR remap) — chunk 3
+        compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING inventory crowns (pn/crown.f)
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -584,6 +589,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
+    _pn_up = s.variant isa PacificNorthwest   # PN bark = wc_bratio (POWER, all imap=1) — same as WC
     _ak_up = s.variant isa SoutheastAlaska # AK bark = ak_bratio (3-type: power/linear/power)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
@@ -598,6 +604,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _ak_up ? ak_bratio(Int(t.species[i]), t.dbh[i]) :
                _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
+               _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton ||

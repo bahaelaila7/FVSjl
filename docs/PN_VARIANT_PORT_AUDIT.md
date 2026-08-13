@@ -44,3 +44,27 @@ same POWER wc_bratio, since PN bark is also imap=1) + stand_ccf/point_density/du
 init_merch/setup_volume_equations PN branches. Then run pnt01 end-to-end and validate cyc1 LN(DDS) 27/27
 + the .sum (the WC end-to-end pattern; watch for the same COR-calibration/DDS→DG bark class that hit WC).
 </content>
+
+## Validation — PN growth END-TO-END (2026-08-13, bit-exact-or-cornered per chunk)
+
+All remaining chunks assembled (site/HTG/regent/mortality/crown/CCF/volume) + the shared-engine PN wiring
+(setup dispatch; the `_pn_bd`/`_pn_cal`/`_pn_dg`/`_pn_up` POWER-bark branches applied FROM THE START —
+the #140/CI watchpoint; stand_ccf/point_density/dub_missing_heights/init_merch/setup_volume_equations
+PN branches; compute_volumes_pn!). Reuse per the map: HTG findag/htgf + WC_HT_* consts identical (only
+pn_htcalc's SS(6)/RC(18) Farr + DF(16) King differ); regent reuses WC SMHGDG (pn_smhgdg drops the DF
+Curtis→King, raw SITEAR); mortality reuses the WC ORGANON arrays (raw SITEAR(16)); volume reuses the WC
+westside (DF F00FW2W202, geosub '00') + BM Behre + PN formcl.
+
+MEASURED vs FVSpn_clean/FVSpn_g16 (instrumented dgf.f/htgf.f unconditional dumps), pnt01:
+  • **cyc0 .sum BIT-EXACT** — TPA 536 / BA 77 / SDI 184 / CCF 114 / TopHt 63 / QMD 5.1 (all exact);
+    TotCuFt 1884 vs 1877 (+0.4%), MerchBdFt 6056 vs 6045 (+0.2%) = the recent-mortality/tpa residual.
+  • **DGF cyc1 LN(DDS) 27/27 BIT-EXACT** (worst |Δ|=2.5e-5) — the DEFAULT-DDS scalars + DGCON + COR, with
+    the bark watchpoints in place (no WF-COR / DDS→DG bug — the watchpoints WORKED preemptively).
+  • **HTG cyc1 24/24 BIT-EXACT** (worst |Δ|=0.0) — pn_htcalc (Farr/King) + the shared modifiers.
+  • TPA tracks (mortality good). Multi-cycle BA/TopHt drift (2090 BA +12%) = the OLDRN/DGSCOR serial-
+    correlation realization straddle (the cornered western class, same as WC / utt01 / IE).
+
+⇒ **PN growth is bit-exact-or-cornered on every chunk** (species/site/density/DGF/HTG/regent/crown/mort +
+volume), the same at-bar state as WC. Harness `dgcon_validate.jl` (DGCON 39/39). WC provably inert
+(the `_pn_*` bark branches are PacificNorthwest-guarded; WC harnesses PASS). PN → EC/CA/SO/WS are the
+next near-clones on this same shared engine.
