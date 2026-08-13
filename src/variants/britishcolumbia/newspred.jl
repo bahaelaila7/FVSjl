@@ -175,6 +175,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     dminf::Array{Float32,3}            # (tree, crownthird 1:3, compartment 1:5) infection pools
     brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
     idmshp::Vector{Int32}              # per-tree crown shape 1:5 (DMSHAP Fisher discriminant)
+    dmrdmx::Array{Float32,3}           # (tree, MESH band 1:MXHT, {RADIUS=1,VOLUME=2}) crown frustum geometry (DMSUM)
     rnseed::Int64                      # DMRNSD spatial-model RNG seed (own stream; never FFI'd)
 end
 
@@ -182,7 +183,12 @@ MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
+                                  Array{Float32,3}(undef, 0, DM_MXHT, 2),
                                   0)
+
+# DMRDMX 3rd-index tags (DMCOM RADIUS/VOLUME)
+const DM_RADIUS = 1
+const DM_VOLUME = 2
 
 # --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
 # BC-only: for other variants these keywords stay in `unrecognized_keywords` (unchanged
@@ -249,6 +255,7 @@ function dm_init!(s::StandState)
     ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
     ms.brkpnt = zeros(Float32, n, DM_BPCNT)
     ms.idmshp = zeros(Int32, n)
+    ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2)
     @inbounds for i in 1:n, j in (1, 3, 5)
         ag = Int(t.damage[j, i])
         (30 <= ag <= 34) && (ms.dmr[i] = Int32(clamp(Int(t.damage[j+1, i]), 0, 6)))  # last DM code wins (misdam.f)
@@ -303,6 +310,70 @@ function dm_shap!(s::StandState)
             sc > bestsc && (bestsc = sc; best = Int32(j))    # strict > ⇒ ties keep lower shape (dmshap.f .LE. skip)
         end
         ms.idmshp[i] = best
+    end
+    return s
+end
+
+# --- C3 geometry: DMRDMX (dmsum.f:96-256) — per-tree, per-MESH-band crown RADIUS & VOLUME,
+# branching on the DMSHAP shape. Each band J (MESH height class) gets the frustum volume FRUST
+# and the projected-area-equivalent radius RAD2, both in MESH units. This is what the spread
+# loop reads (Level·HtWt·DMRDMX(VOLUME) for seed production; DMRDMX(RADIUS) for the subtended-
+# angle interception). Deterministic; recomputed each cycle after dm_shap!. Engine-INERT.
+# Faithful to dmsum.f; the dead J1 debug index and DEBUG writes are omitted. A crown with
+# HC<=0 (0% crown) has no infectable volume ⇒ left at 0 (avoids the div-by-HC NaN; live never
+# reaches such a tree with DM, crowns are dubbed >0).
+const _DM_QRTRPI = 1.04720f0   # dmsum.f frustum constant (π/3)
+const _DM_PIE    = 3.14159f0
+const _DM_HLFPIE = 1.57080f0
+function dm_rdmx!(s::StandState)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    (size(ms.dmrdmx, 1) == n && size(ms.idmshp, 1) == n) || (ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2))
+    fill!(ms.dmrdmx, 0f0)
+    mscl = DM_FPM * DM_MESH                       # feet per MESH cell
+    @inbounds for i in 1:n
+        ht = t.height[i]
+        hc = Float32(t.crown_pct[i]) * ht / 100f0    # crown length (feet)
+        hc <= 0f0 && continue
+        shp = Int(ms.idmshp[i])
+        shp == 0 && continue
+        itop = trunc(Int, ht / (mscl + 0.0001f0)) + 1
+        itop > DM_MXHT && (itop = DM_MXHT)
+        bot  = ht - hc
+        ibot = trunc(Int, bot / mscl) + 1
+        base = (shp == 1 || shp == 5) ? bot + hc/2f0 : bot
+        rad  = t.crown_width[i] * 0.5f0
+        cnop1 = mscl * ibot - 2f0*mscl
+        cnop2 = cnop1 + mscl
+        for j in ibot:itop
+            cnop1 += mscl; cnop2 += mscl
+            uplim  = min(ht, cnop2)
+            j == itop && (uplim = ht)
+            lowlim = max(bot, cnop1)
+            h2 = uplim - lowlim
+            h2 <= 0f0 && continue                   # degenerate band (no vertical extent) → 0
+            h1 = lowlim - base
+            # Only FRUST feeds the stored RADIUS/VOLUME (dmsum.f RAD2/FRUST); PAREA→RAD1 is
+            # debug-only, so its Y/asin/^1.5 terms are omitted (same output, no NaN risk).
+            local frust::Float32
+            if shp == 1 || shp == 5                 # sphere / ellipsoid
+                base >= lowlim && (h1 = base - uplim)
+                cst = _DM_QRTRPI * h2 * rad*rad / (hc*hc)
+                frust = cst * (3f0*hc*hc - 12f0*h1*h1 - 12f0*h1*h2 - 4f0*h2*h2)
+            elseif shp == 2                         # cone / triangle
+                r1 = (1f0 - h1/hc) * rad
+                r2 = (1f0 - (h1+h2)/hc) * rad
+                frust = (_DM_QRTRPI * h2) * (r1*r1 + r2*r2 + r1*r2)
+            elseif shp == 3                         # neiloid
+                frust = _DM_PIE*rad*rad*h2 - (_DM_HLFPIE*h2*rad*rad/hc)*(2f0*hc - 2f0*h1 - h2)
+            else                                    # shp == 4, paraboloid
+                frust = (_DM_HLFPIE*h2*rad*rad/hc)*(2f0*hc - 2f0*h1 - h2)
+            end
+            rad2 = sqrt(max(frust, 0f0) / (_DM_PIE * h2))
+            ms.dmrdmx[i, j, DM_RADIUS] = rad2 / mscl
+            ms.dmrdmx[i, j, DM_VOLUME] = frust / mscl^3
+        end
     end
     return s
 end
