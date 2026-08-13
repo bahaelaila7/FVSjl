@@ -130,7 +130,17 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    fixed 0.4 midflame; the passive CFB's SFRATE(2) stays the selected models @ OACT1·WMULT since FM10 is restored first).
    MEASURED vs live DEBUG FMCFIR @2003 — ALL match: RACT jl 41.6 = live 41.71, RFINAL 28.4 vs 29.03, CRBURN 0.537 vs
    0.561, HPA 1069.6 vs 1120.5, RINIT1 6.76 vs 6.45. Also TCLOAD jl 0.3165 = live FMPOCR 0.3207.
-   ⚠ OPEN (crown-fire BYRAM only) — the FLAME REPORT. With ALL inputs matching live, the shared byram FINTEN =
+   ★★ RESOLVED (2026-08-13) — NC-FFE BURN REPORT AT BAR. The crown-fire byram flame is a **FLAMEADJ USER_DEF** path,
+   NOT the FMCFIR-computed crown fraction: nct01's `FLAMEADJ 2003 1 0.00 1.000` FORCES CRBURN=1% (0.01), and FVS uses
+   that in the byram (fmburn.f:507,514) INSTEAD of the computed 0.561 ⇒ FINTEN=(HPA+TCLOAD·7744.8·**0.01**)·RFINAL/60
+   ⇒ flame **8.29** (not the ~18 the 0.561 gives). Wired: enable the crown-fire block for Klamath (via the validated
+   `nc_crown_fire_result`), apply `crb=crburn` when the user set it (crburn≥0; FireState default 0→−1 sentinel). That
+   EXPOSED a second (canceling) bug: NC used the SN bark `_FM_BARK_B1[eqnum=1]=0.019` for every species (~3.3× too thin
+   vs DF 0.063) ⇒ cambium over-kill of the 10-20" overstory (41/58 vs live 19/58). Fixed with `_NC_FM_BARK_B1`
+   (nc/fmbrkt.f) + Klamath in the group-6 Reinhardt list. **RESULT: flame 8.02/scorch 44.91 vs live 8.3/47 (CORNERED);
+   post-fire TPA 60/59 vs live 58/58 (mortality CORNERED); BA 46/52 vs 45/51; pre-fire growth BIT-IDENTICAL.** The full
+   nct01 FFE burn report (flame/scorch/mortality) is now bit-exact-or-cornered. ⇐ was:
+   ⚠ (superseded) crown-fire BYRAM. With ALL inputs matching live, the shared byram FINTEN =
    (HPA+TCLOAD·7744.8·CRBURN)·RFINAL/60 = ~1128 (jl) — and plugging LIVE's own values gives ~1216 → flame ~18, NOT the
    BURN-report 8.3. So **the live BURN-report flame 8.3 is NOT the crown-fire byram output** (the byram would over-kill in
    live too). Live's ACTUAL 2003 mortality keeps 58 TPA (partial) = consistent with jl's surface-only (54), and the fire
