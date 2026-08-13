@@ -125,14 +125,19 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    vs live DEBUG FMFINT @2003 (FTYP=1, midflame wind 1.778): jl **byram 10172 = live 10547**, jl flame 4.77 = live
    FMFINT flame 4.85. The Rothermel is CORRECT; my "3.7× low" mistakenly compared to the BURN-REPORT flame 8.3, which
    is NOT the FMFINT output.
-   ⚠ OPEN (final chunk) — NC's own **FMCFIR crown fire**. Live's 2003 SIMFIRE has a PASSIVE crown fire (live FMCFIR:
-   CBD=0.152, CRBURN=0.561, RFINAL=29.03 ⇒ BURN-report flame 8.3 = surface 4.85 + crown boost). jl's crburn is right
-   (0.537 vs 0.561) but the REUSED CR/NE `crown_fire_result` over-boosts for NC: RFINAL 38.9 (1.34×) and (HPA+crown-
-   load) 2384 vs live ~728 (3.3×) ⇒ FINTEN 1546 vs live ~352 (4.4×) ⇒ catastrophic over-kill (TPA 0 vs 58). So crown
-   fire stays DISABLED (surface-only mortality 54 vs 58 is CLOSER than crown-on's 0) until NC's `nc/fmcfir.f` (its
-   SFRATE/RFINAL spread + the crown-HPA/TCLOAD intensity terms) is ported. The byram FORMULA (fmburn.f:540-543) is
-   already bit-exact in jl; the gap is the FMCFIR RFINAL/HPA INPUTS. This is the one remaining chunk for the flame/
-   scorch REPORT to reach bit-exact-or-cornered (the mortality .sum is already cornered surface-only).
+   **FMCFIR crown-fire SPREAD — PORTED (`nc_crown_fire_result`, 88ba661).** The shared CR/NE `crown_fire_result` used the
+   wrong RACT (3.34·selected-models@OACT1); nc/fmcfir.f uses RACT = 3.34·FM10-spread@(SWIND·0.4) (FM10 reference model,
+   fixed 0.4 midflame; the passive CFB's SFRATE(2) stays the selected models @ OACT1·WMULT since FM10 is restored first).
+   MEASURED vs live DEBUG FMCFIR @2003 — ALL match: RACT jl 41.6 = live 41.71, RFINAL 28.4 vs 29.03, CRBURN 0.537 vs
+   0.561, HPA 1069.6 vs 1120.5, RINIT1 6.76 vs 6.45. Also TCLOAD jl 0.3165 = live FMPOCR 0.3207.
+   ⚠ OPEN (crown-fire BYRAM only) — the FLAME REPORT. With ALL inputs matching live, the shared byram FINTEN =
+   (HPA+TCLOAD·7744.8·CRBURN)·RFINAL/60 = ~1128 (jl) — and plugging LIVE's own values gives ~1216 → flame ~18, NOT the
+   BURN-report 8.3. So **the live BURN-report flame 8.3 is NOT the crown-fire byram output** (the byram would over-kill in
+   live too). Live's ACTUAL 2003 mortality keeps 58 TPA (partial) = consistent with jl's surface-only (54), and the fire
+   type is **USER_DEF** (FLAMEADJ 2003) — so the 8.3/scorch-47 REPORT is a FLAMEADJ/USER_DEF flame path, decoupled from
+   the mortality-driving byram. ⇒ crown-fire boost stays OFF (crown-on over-kills TPA 0; surface-only 54 vs 58 CORNERED),
+   and the flame-REPORT 8.3 needs the FLAMEADJ/USER_DEF path (fmburn.f USRFL), NOT the crown byram. `nc_crown_fire_result`
+   is banked + validated (spread) for when that path is wired. MORTALITY .sum = cornered; the flame REPORT is the open item.
 
    ★ END-TO-END STATUS (corrected, real run_keyfile path — NB: manual `grow_cycle!` without `fuel_period`/`ffe_init_period`
    SKIPS ffe_fuel_update! and gives artifact fuel/flame numbers; always validate via run_keyfile or the summary loop):
