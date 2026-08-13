@@ -496,6 +496,29 @@ DF) don't grow yet (their DG/HTG=0). This isolates the cyc1 residual entirely to
 3. Full OC ECOCLS/HABTYP plant-assoc table (non-default ecoclasses; ocmin uses the default) + carried
    mortality state (A1MAX/NO/RD0) for multi-cycle.
 
+## Chunk C9 step 1 delivered (non-ORGANON DGF equation + DGCONS + forkod + point CCF) — BIT-EXACT
+
+`src/variants/oregoncoast/organon_dgf.jl` ports the OC FVS-native Wykoff diameter growth (`oc/dgf.f`)
+for the IORG=0 trees — the path `oc/dgdriv.f` runs for EVERY tree before ORGANON overwrites WK2 for
+IORG=1:
+- **`oc_dgcons!`** = `oc/dgf.f` DGCONS: `DGCON = DGFOR[ispfor,jspc] + DGEL·ELEV + DGELSQ·ELEV² +
+  DGSITE·ln(SITEAR) + slope/aspect`, via `MAPSPC(50)`→13 groups, `MAPLOC(10,13)` location, `DGFOR(5,13)`.
+- **`dgf!(::OregonCoast)`** = the per-tree `ln(DDS)` (9-term Wykoff + 10→5-yr halving, tanoak ×2).
+- **`oc_forkod`** = `oc/forkod.f` JFOR: KODFOR 711 → IFOR 9 (load-bearing for DF's DGFOR location class).
+- **`oc_r5crwd` / `oc_tree_ccf`** = `bin/FVSoc_buildDir/r5crwd.f` R5CRWD (CA-family crown width) +
+  `oc/ccfcal.f` MODE=1 `CCF=0.001803·CRWD5²`, wired into `point_density!` for the DGF `PCCF` term.
+
+**MEASURED bit-exact vs FVSoc_clean DEBUG-DGF (ocmin, growth cycle):**
+- `DGCON`: DF=1.14167, GF=0.07280, LP=0.44505, BR=−0.02756 — **exact**.
+- per-tree `ln(DDS)`, all **10 IORG=0 trees** (LP×4, BR×4, sub-4.5-ft DF/GF): **max |Δ| = 4.8e-05**
+  (F7.4 oracle print precision). The point `PCCF` root-caused: jl's generic crown width gave PCCF≈0.9
+  vs oracle 20.7 (LP)/308.8 (BR) — the R5CRWD port makes them match (BR's ~0.31 uniform DDS offset,
+  = `DGPCCF·PCCF`, closed).
+
+COR is 0 for LP/BR (< FNMIN GSTs); only GF has COR=0.288 (an ORGANON species — used only by the
+sub-4.5-ft GF tree-13). The DDS validation fed COR(4)=0.288 from the oracle (the COR calibration is
+**C9 step 3**). **C9 step 1 verdict: bit-exact.** Not yet wired into `diameter_growth!` (step 2).
+
 ## Oracle status
 
 - **Relinked OK.** `/workspace/.ocwork/FVSoc_clean` built via
