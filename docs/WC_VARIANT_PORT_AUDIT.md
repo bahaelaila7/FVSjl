@@ -87,12 +87,47 @@ the RW branch is a `0` baseline placeholder (TODO precompute), matching the curr
 
 Module loads + precompiles clean; `variant_from_code("WC")` → `WestCascades()` (nspecies 39).
 
+## Validation — chunk 4 large-tree HTG cyc0 (bit-exact)
+
+Method (mirrors chunk 3): a NUMCYCLE-1 `wct01` keyfile with `DEBUG␠␠␠␠1.␠␠␠␠1.` / `HTGF FINDAG
+HTCALC` dumps the per-tree height chain to the unit-16 output before the volume-DEBUG segfault.
+The 901 `HTGF` record gives `ICR PCT BA DG HT POTHTG AVH HTG(=POTHTG·HTGMOD) PCCF ABIRTH HGUESS
+HTGMOD`; the `LEAVING FINDAG` record gives `SITAGE SITHT`; the trailing `I= … HTG=` record gives
+the final (scaled) HTG; `IN HTCALC ISPC,SINDX,AG` gives per-species `SITEAR`.
+
+**MEASURED calibration constants** (from the same dump): `HTCON ≡ 0` (all 39 species — no height
+calibration on wct01), user `XHMULT ≡ 1`, and **SCALE = 1.0** at wct01's **10-yr** cycle. Since
+the DEFAULT potential is a 10-yr site-curve rise (`AGP10 = SITAGE+10`, wc/htgf.f:283) and
+`SCALE = FINT/YR`, this fixes **`htg_period(WestCascades) = 10`** (engine `scale = fint/10`) —
+correcting the chunk-0 placeholder of 5.
+
+Feeding the live per-tree `{SINDX,D,H,ICR,AVH,DG}` into the shipped WC height functions
+(`wc_findag` → `wc_htcalc` → `wc_htg_default`):
+
+> **24/24 DEFAULT-branch trees BIT-EXACT.** `SITAGE` mismatches = **0** (the FINDAG AG-by-2
+> iteration reproduces the live effective age for every tree); worst final-HTG |Δ| = **0.00008**
+> (= the coarsest printed input, `AVH` at F-format 4 decimals — the same print-precision floor as
+> the DGF 0.00007). Groups exercised: WF/GF (Cochran PNW-252), AF/ES (Alexander RM-32), LP (Dahms
+> PNW-8), SP/WP (Curtis PNW-423), IC/JP/PP (Barrett PNW-232), DF-"misc" (Curtis FS-20).
+
+Harness (committed): `test/harness/westcascades/htg_validate.jl` + `ref_htg_wct01.txt`.
+
+**Not directly validated:** (a) the 3 `H≥HTMAX` trees (I=4,5,10 — very tall for their DBH) take
+the HT/DBH-ratio branch (`GO TO 161`) and print no final HTG, so their `0.5·DG`-or-0 increment is
+source-faithful but unmeasured (needs the bark CSV for `HTMAX2 = HDRAT1·D2`); (b) the RW (ISPC 17)
+LTHTG special and OWO (ISPC 28) King HT-DBH patch — ported source-faithful, no RW/WO trees in
+wct01. **Multi-cycle `.sum` vs `wct01.sum.save` is not yet possible**: crown/mortality/volume/
+site-index/small-tree chunks are unported, so a full WC stand cannot be run in jl (the DGF and HTG
+chunks are both validated at the FORMULA level, feeding live inputs — same as chunk 3).
+
 ## Remaining chunks (TODO — out of this bounded run's scope)
 
 Species-coefficient CSV (chunk 1: bark/crown/site/SDImax/volume — needed to RUN a WC stand
-end-to-end), site index + Reineke SDImax (2), height growth `htgf`/`findag`/`htcalc` (4), crown
-`crown.f` (5), REGENT small-tree + `htdbh` + `dgbnd` DG-bound (6), mortality (base `morts`,
-Reineke self-thin) (7), volume (shared R6 NVEL) (8). Then end-to-end `.sum` vs `wct01.sum.save`.
+end-to-end), site index + Reineke SDImax (2), crown `crown.f` (5), REGENT small-tree + `htdbh` +
+`dgbnd` DG-bound (6), mortality (base `morts`, Reineke self-thin) (7), volume (shared R6 NVEL) (8).
+Then end-to-end `.sum` vs `wct01.sum.save`. **Chunk 1 (species CSV) is the highest-leverage next
+step** — it unblocks the first end-to-end run and the multi-cycle `.sum` trajectory that both the
+DGF and HTG formula-level validations currently cannot reach.
 
 ## Westside reuse — proven
 

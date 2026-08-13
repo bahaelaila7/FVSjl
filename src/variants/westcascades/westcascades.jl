@@ -16,10 +16,12 @@
 # Oracle: /workspace/.wcwork/FVSwc_clean (relink bin/FVSwc_buildDir/*.o + isoc23 shim; relink_wc.sh).
 # Canonical test stand: wct01 (tests/FVSwc/wct01.{key,tre}; stand 248112, forest JFOR=6).
 #
-# PORT STATUS — chunk 0 foundation + chunk 3 large-tree DGF (VALIDATED at formula level vs
-# FVSwc_clean DEBUG DGF: DEFAULT DDS 27/27 trees bit-exact, DGCON reconstruction bit-exact).
-# Remaining chunks (species CSV / site / density / height / regent / crown / mortality / volume)
-# are TODO — dispatching the un-ported hooks on WestCascades() errors loudly (doctrine #5).
+# PORT STATUS — chunk 0 foundation + chunk 3 large-tree DGF + chunk 4 large-tree HTG (both
+# VALIDATED at formula level vs FVSwc_clean DEBUG: DGF DEFAULT DDS 27/27 bit-exact; HTG
+# FINDAG→HTCALC→HGMDCR/HGMDRH 24/24 DEFAULT trees bit-exact, 0 SITAGE mismatches, worst |Δ|
+# 0.00008 = AVH print floor. MEASURED HTCON≡0, XHT≡1, SCALE=1.0 ⇒ htg_period=10, see below).
+# Remaining chunks (species CSV / site / density / regent / crown / mortality / volume) are
+# TODO — dispatching the un-ported hooks on WestCascades() errors loudly (doctrine #5).
 # =============================================================================
 
 """
@@ -32,7 +34,8 @@ struct WestCascades <: AbstractVariant end
 
 variant_code(::WestCascades) = "WC"
 nspecies(::WestCascades) = 39
-htg_period(::WestCascades) = 5f0    # wc IFINTH=5 (height growth is a 5-yr rise); DG model is 5-yr (TDDS/2)
+htg_period(::WestCascades) = 10f0   # /CONTRL/ YR=10: wc/htgf.f POTHTG is a 10-yr site-curve rise (AGP10=SITAGE+10);
+                                    #   SCALE=FINT/YR ⇒ engine scale=fint/10 (MEASURED SCALE=1.0 at wct01's 10-yr cycle)
 
 const WC_RNG_SEED = 55329.0f0       # wc/blkdat.f DATA S0/55329D0/,SS/55329./
 
