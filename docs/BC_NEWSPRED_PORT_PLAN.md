@@ -117,5 +117,16 @@ bug. Three vehicles, in priority order:
   add that (additive, default 0 when absent) before seeding `dmr[i]` + `dminf[i,ct,pool]`
   via DM_DMDMR. Then DMRNSD (dmrann.f) RNG seed. Careful change to the load-bearing DB
   reader — do next, validate the DMR-2 tree loads + seeding matches DMINIT.
-- **NEXT: C2** — dmblkd.f coefficients + BC crown-width (dmcw dispatch).
+- **C2 (coefficients + crown-width) — RESOLVED-MINIMAL 2026-08-13, mostly folded into C1/C4:**
+  - dmblkd.f is dominated by **Shd1** (1496-element encoded spread-field TRAJECTORY table) +
+    ShdPtr — that is the spatial-spread substrate consumed by dmfshd/dmtreg, so it moves to
+    **C4** (extract with the spread core, where it's used). The genuinely-simple coefficients
+    (DMDMR crown-third distribution, DMOPAQ species opacity) already landed in C1.
+  - **BC crown-width = NO new model.** dmcw.f is just `DMTRCW(I) = CRWDTH(I)` — it returns
+    FVS's existing per-tree crown width, which jl already computes (`t.crown_width`). No
+    per-variant dmcw* for BC (BC isn't in the dmcw* list); the DM spread geometry reads the
+    engine's crown width directly. Nothing to port here.
+  ⇒ C2 has no standalone deliverable; its content is absorbed by C1 (coeffs) + C4 (Shd1).
+- **NEXT: C3** — spatial substrate: bndist.f (between-tree distance), dmshap.f (crown shape),
+  dmslop.f (slope). The geometry the spread field integrates over.
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
