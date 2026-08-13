@@ -87,6 +87,86 @@ function rdpsrt!(n::Int, a::AbstractVector{<:Real}, index::AbstractVector{<:Inte
 end
 
 """
+    opsort!(n, a, a2, index, lseq)
+
+Indirect ASCENDING TWO-KEY sort (base/opsort.f): rearrange `index[1:n]` so that the
+records are ordered by `(a, a2)` lexicographically — primary key `a`, secondary `a2`,
+both ascending. `a`/`a2` are indexed by the values in `index` (global record numbers).
+The physical arrays are not modified. If `lseq`, `index` is first loaded with 1..n. Ties
+(equal `a` AND `a2`) resolve by the Quickersort partition order, NOT by index — matching
+FVS. Used by the NEWSPRED DMFINF to group the treelist by (species, DMR).
+"""
+function opsort!(n::Int, a::AbstractVector{<:Integer}, a2::AbstractVector{<:Integer},
+                 index::AbstractVector{<:Integer}, lseq::Bool)
+    if lseq
+        @inbounds for i in 1:n
+            index[i] = i
+        end
+    end
+    n < 2 && return nothing
+
+    ipush = zeros(Int, 33)
+    itop = 0; il = 1; iu = n
+    indil = 0; indiu = 0; indip = 0; indkl = 0; indku = 0
+    ip = 0; kl = 0; ku = 0; jl = 0; ju = 0; t = 0; t2 = 0
+
+    @label l30
+    if iu <= il; @goto l40; end
+    indil = Int(index[il]); indiu = Int(index[iu])
+    if iu > il + 1; @goto l50; end
+    if a[indil] < a[indiu]; @goto l40; end                       # already ordered
+    if a[indil] == a[indiu] && a2[indil] <= a2[indiu]; @goto l40; end
+    index[il] = indiu; index[iu] = indil                          # swap the pair
+
+    @label l40
+    if itop == 0; return nothing; end
+    il = ipush[itop-1]; iu = ipush[itop]; itop -= 2
+    @goto l30
+
+    @label l50
+    ip = (il + iu) ÷ 2
+    indip = Int(index[ip]); t = a[indip]; t2 = a2[indip]
+    index[ip] = indil
+    kl = il; ku = iu
+
+    @label l60
+    kl += 1
+    if kl > ku; @goto l90; end
+    indkl = Int(index[kl])
+    if a[indkl] < t; @goto l60; end                              # < pivot → keep scanning up
+    if a[indkl] == t && a2[indkl] <= t2; @goto l60; end
+
+    @label l70
+    indku = Int(index[ku])
+    if ku < kl; @goto l100; end
+    if a[indku] < t; @goto l80; end                              # < pivot → belongs left
+    if a[indku] == t && a2[indku] < t2; @goto l80; end
+    ku -= 1
+    @goto l70
+
+    @label l80
+    index[kl] = indku; index[ku] = indkl; ku -= 1
+    @goto l60
+
+    @label l90
+    indku = Int(index[ku])
+
+    @label l100
+    index[il] = indku; index[ku] = indip
+    if ku <= ip; @goto l110; end
+    jl = il; ju = ku - 1; il = ku + 1
+    @goto l120
+
+    @label l110
+    jl = ku + 1; ju = iu; iu = ku - 1
+
+    @label l120
+    itop += 2
+    ipush[itop-1] = jl; ipush[itop] = ju
+    @goto l30
+end
+
+"""
     iqrsrt!(list, n)
 
 In-place ASCENDING integer Quickersort (iqrsrt.f): sort `list[1:n]` so that
