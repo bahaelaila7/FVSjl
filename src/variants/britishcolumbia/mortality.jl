@@ -167,6 +167,11 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
         sdimax < 5f0 && (wki = pr)                        # climate death (morts.f:676-678)
         killed[i] = wki
     end
+    # NEWSPRED C6 payoff: MAX-combine the DM-induced mortality (mismrt.f) from each tree's DMR into
+    # `killed` (WK2=max(WK2,PROB·rate)) — the extra kill that closes the YSM under-mortalization. Gated
+    # on _dm_effects_variant (BC included) + self-inert when no tree carries DMR. BC's spatial NEWSPRED
+    # analogue of the N-Rockies ie_dm_mortality_combine! call in each variant's mortality!.
+    ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
@@ -251,6 +256,11 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
         sdimax < 5f0 && (wki = pr)
         killed[i] = wki
     end
+    # NEWSPRED C6 payoff: MAX-combine the DM-induced mortality (mismrt.f) from each tree's DMR into
+    # `killed` (WK2=max(WK2,PROB·rate)) — the extra kill that closes the YSM under-mortalization. Gated
+    # on _dm_effects_variant (BC included) + self-inert when no tree carries DMR. BC's spatial NEWSPRED
+    # analogue of the N-Rockies ie_dm_mortality_combine! call in each variant's mortality!.
+    ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

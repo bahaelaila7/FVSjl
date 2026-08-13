@@ -511,7 +511,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
     s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
-    _ie_mis_variant(s.variant) && ie_dm_growth_loss!(s, stash)   # western MISTOE DG-loss (misdgf.f) — shared model, IE+KT/EM/BM/UT/TT/CI
+    _dm_effects_variant(s.variant) && ie_dm_growth_loss!(s, stash)   # western MISTOE DG-loss (misdgf.f) — IE+KT/EM/BM/UT/TT/CI + BC(NEWSPRED); START-of-cycle DMR
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
@@ -522,6 +522,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
     cr_mistoe!(s; fint = fint)
     _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+    # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
+    # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
+    # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
+    s.variant isa BritishColumbia && dm_tregro!(s, round(Int, fint))
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
     # then GRADD's FMKILL sets WK2(I)=MAX(WK2(I),FIRKIL(I)) (fmkill.f:86) — a tree dies from
     # whichever is LARGER, density/background MORTS or fire, NOT both summed. The old code ran
