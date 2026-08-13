@@ -127,6 +127,8 @@ bug. Three vehicles, in priority order:
     per-variant dmcw* for BC (BC isn't in the dmcw* list); the DM spread geometry reads the
     engine's crown width directly. Nothing to port here.
   ⇒ C2 has no standalone deliverable; its content is absorbed by C1 (coeffs) + C4 (Shd1).
-- **NEXT: C3** — spatial substrate: bndist.f (between-tree distance), dmshap.f (crown shape),
-  dmslop.f (slope). The geometry the spread field integrates over.
+- **NEXT: C3** — spatial substrate: dmshap.f (crown shape, 378), dmslop.f (slope, 69). ⚠ NOTE:
+  bndist.f is NOT "between-tree distance" (a mislabel from the goal-doc survey) — `BNDIST` is the
+  Binomial/Poisson/Negative-Binomial PDF family for neighbour counts (V≈M→Poisson, V<M→Binomial,
+  V>M→NegBinom), called by DMNB; it belongs with the neighbour-density math in C4, not the geometry.
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
