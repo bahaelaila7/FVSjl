@@ -109,6 +109,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # before, a documented follow-up if their FIA differentials show an analogous gap).
     if s.variant isa Southern && _fia_present(d, "ECOREGION")
         p.eco_unit = rpad(resolve_eco_unit(_fia_str(d, "ECOREGION", ""), 0), 10)
+    elseif s.variant isa BritishColumbia && _fia_present(d, "ECOREGION")
+        # BC's ECOREGION is the BEC string (e.g. 'CAR-IDFdk3/01'), which bc_habtyp/bc_becset parse to the
+        # zone/subzone/series driving the V3 DGCON coefficients (dgf.f ZNKONST/SSKONST). Store it RAW — do
+        # NOT route through the SN resolve_eco_unit (which mangles it to a garbage EUT code). Without this the
+        # DB path leaves eco_unit blank ⇒ bc_becset DEFAULTS to ICHmw2/01 ⇒ WRONG DGCON for every non-ICH DB
+        # stand (e.g. YSM029-271 is IDFdk3: ICH cedar-hemlock coeffs over-predict Pl DG on a dry IDF stand).
+        p.eco_unit = rpad(_fia_str(d, "ECOREGION", ""), 10)
     end
     # PV_CODE (potential-vegetation / habitat-type code, e.g. 531) → habitat_code (KODTYP), the input to
     # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
