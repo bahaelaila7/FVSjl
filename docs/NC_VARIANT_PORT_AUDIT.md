@@ -1,5 +1,28 @@
 # NC (Klamath Mountains) variant port — chunk audit (doctrine #6)
 
+## ★★★ 2026-08-13 — #210 DGSCOR CALIBRATION VERIFIED FAITHFUL (agent's "COR regression" REFINED/CORNERED)
+Measured jl's DGSCOR calibration on nct01 vs the live nct01.out CALIBRATION STATISTICS + ZNC dump. NC calibrates
+2 species: SP(sp2) + WF(sp4). VERDICT: the calibration is STRUCTURALLY FAITHFUL — the "COR is slightly off" lead
+is real in isolation but COMPENSATED, netting <0.5% on calibrated trees:
+- **fn (records for scaling) MATCH**: jl SP=6/WF=5 = live "NUMBER OF RECORDS AVAILABLE FOR SCALING" 6/5.
+- **wc (weight to input data) MATCH**: jl SP=1.000/WF=0.9053 = live "WEIGHT GIVEN TO INPUT GROWTH DATA" 1.00/0.90.
+- **backdating correct**: jl calibration wk2 uses the BACKDATED DBH (t.dbh[i]), saved_dbh is current (bark only).
+- The agent's reported values are exp(corv): jl SP exp(−1.0447)=0.3518, WF exp(−0.5656)=0.5680 (agent "jl"); live
+  SP exp(−1.0402)=0.3537, WF exp(−0.5454)=0.5796 (from ZNC pre−post diff). jl COR is ~0.005(SP)/0.020(WF) MORE
+  NEGATIVE — but jl's predicted wk2 is correspondingly ~+0.005(SP)/+0.016(WF) HIGHER, so DG=exp(wk2+COR) NET differs
+  by only ~−0.4%. i.e. the COR shrinks a matching wk2 over-prediction; measuring COR ALONE (as the agent did) double-
+  counts. Residual small wk2 offset (WF ~+1.5%) is a candidate minor DGCON/CONSPP-constant discrepancy, COR-masked on
+  calibrated stands. ⇒ the ~2-3% multi-cycle BA under-growth = the CORNERED OLDRN serial-corr straddle (NC DGSD=2.0,
+  #206 class, same as CI +2% / utt01 −9%), NOT a COR bug. #210 CLOSED-CORNERED; NC growth stays at the bar.
+
+## ⚠ NEW BUG (2026-08-13, separate from #210) — NC FFE crashes: fmcba.jl:114 BoundsError (0×0 crown-biomass matrix)
+The canonical nct01.key is an **FFE TEST keyfile** (FMIn/SIMFIRE/SNAGINIT/PotFIRE/BurnRept). Running it crashes in
+the FIRE model — `fmcba.jl:114` BoundsError "0×0 Matrix at [6,1:0]" (fmburn.jl:92 → simulate.jl:345). NC/Klamath was
+ported growth+volume ONLY; its FFE fire arrays (crown biomass, MAXSP=12) are NOT initialized ⇒ the fire model runs on
+empty arrays. Growth-only NC runs are fine (cyc0 calibration completes; the crash is fire-path only). ⇒ NC FFE is an
+UNPORTED extension for the newly-added westside variant — a lead for the #207 westside stream, NOT a growth-parity gap.
+
+
 Branch kt-variant-port. Oracle /workspace/.ncwork/FVSnc_clean. Canonical stand nct01
 (tests/FVSnc/nct01.key + nct01.tre + nct01.sum.save). MAXSP=12, imperial, Zeide SDI, DGSD=2.0.
 Coefficient extraction (ground-truth): docs/NC_CHUNK1_EXTRACTION.md.
