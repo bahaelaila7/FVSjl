@@ -50,6 +50,7 @@ function variant_from_code(code::AbstractString)
     (c == "OC" || c == "OREGONCOAST" || c == "OREGON COAST") && return OregonCoast()
     (c == "AK" || c == "SOUTHEASTALASKA" || c == "SOUTHEAST ALASKA" || c == "ALASKA") && return SoutheastAlaska()
     (c == "WC" || c == "WESTCASCADES" || c == "WEST CASCADES") && return WestCascades()
+    (c == "PN" || c == "PACIFICNORTHWEST" || c == "PACIFIC NORTHWEST") && return PacificNorthwest()
     error("unknown FVS variant '$code' (supported: SN = Southern, NE = Northeast, CS = Central States, LS = Lake States, CR = Central Rockies, KT = Kootenai, IE = Inland Empire, EM = Eastern Montana, TT = Teton, UT = Utah, BM = Blue Mountains)")
 end
 

@@ -248,6 +248,11 @@ include("variants/westcascades/regent.jl")           # WC small-tree growth (wc/
 include("variants/westcascades/volume.jl")           # WC volume (R6 NVEL): westside Flewelling SHP_W3/W4/W5 + INGY + Behre + wc_formcl — chunk 8
 include("variants/westcascades/mortality.jl")        # WC mortality — chunk 7 PLACEHOLDER no-op (vwc/morts.f ORGANON RIP not yet ported; unblocks cyc0 .sum)
 
+# --- pacificnorthwest (PN) — R6 westside Prognosis near-clone of WC (coefficient swap on the shared engine) ---
+include("variants/pacificnorthwest/pacificnorthwest.jl")  # PN singleton + registration (MAXSP 39, Reineke, slot-6 SS) — chunk 0
+include("variants/pacificnorthwest/species.jl")           # PN species-coefficient table binding + blkdat init — chunk 1
+include("variants/pacificnorthwest/diameter_growth.jl")   # PN large-tree DDS (pn/dgf.f): pn_dgcons! + dgf! (20-group Wykoff) — chunk 3
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
@@ -318,7 +323,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, WestCascades, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, WestCascades, PacificNorthwest, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
