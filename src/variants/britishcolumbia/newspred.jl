@@ -423,6 +423,27 @@ function dm_bshd(iz::Int, ix::Int)
     return (cs, vlen, vcnt)
 end
 
+# --- DMCYCL core (dmcycl.f:405-510) — one YEAR of life-history compartment advance for a crown
+# third. Base BC/YSM path (all biocontrol pools zero): forward cascade ImmLat=xImm·fprop2
+# (immature→latent), LatAct=xLat·fprop, SprAct=xSpr·fprop (latent/suppressed→active), ActSpr=
+# xAct·bprop (active→suppressed); subtract from source + add to destination; then survival ·spsurv.
+# With the default DMLtRx curves + ALGSLP clamp, fprop=1/bprop=0 for every crown third. The New-
+# infection intake (xImm+=New) and the DMCAP saturation happen in the driver loop (need NewSpr/
+# NewInt/TVol). Deterministic. Returns the advanced (imm, lat, spr, act, ded).
+@inline function dm_cycl_advance(imm::Float32, lat::Float32, spr::Float32, act::Float32, ded::Float32,
+                                 fprop::Float32, bprop::Float32, fprop2::Float32, spsurv::Float32)
+    immlat = imm * fprop2
+    latact = lat * fprop
+    spract = spr * fprop
+    actspr = act * bprop
+    imm -= immlat; lat -= latact; spr -= spract; act -= actspr
+    lat += immlat; spr += actspr; act += latact + spract
+    imm *= spsurv; lat *= spsurv; spr *= spsurv; act *= spsurv; ded *= spsurv
+    return (imm, lat, spr, act, ded)
+end
+const DM_FLWR = 4      # DMFLWR default: years-to-flower → FProp2 = 1/DMFLWR = 0.25 (dminitbc.f:267)
+const DM_CAP  = 3.0f0  # DMCAP default: per-crown-third infection carrying capacity (dminitbc.f:268)
+
 # --- DMADLV (dmadlv.f) — accumulate one "level" of the spread field (SFld, to the target) and
 # intensification field (IFld, self) from an infected source `srcind` at MESH height `mshht`,
 # infection `level`, `cnt` copies, to a target at MESH `dist`. Walks each DMBSHD-decoded seed
