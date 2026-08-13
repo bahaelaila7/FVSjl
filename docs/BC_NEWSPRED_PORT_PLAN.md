@@ -104,7 +104,18 @@ bug. Three vehicles, in priority order:
       jl 1713/79/1586 (TPA/BA/SDI) → oracle 1366/42/926 (−20% TPA, −47% BA, −42% SDI).
   Payoff-validation vehicle = jl DB-run vs `.sum.save` (works today). Inline FVSbc
   reproducer for per-chunk internals DEFERRED to C4 (only chunk likely to need it).
-- **NEXT: C1** — DMCOM common → `MistletoeState` struct + parse MISTOE/NEWSPRED/DMAUTO/
-  DMCLMP/DMALPH/DMBETA/MISTPRT keywords (currently in unrecognized_keywords) + wire
-  DMINIT/DMRNSD. Validate: keyword echo + init state.
+- **C1 (state + keywords) DONE 2026-08-13** (9ae3880 + 3d5644d): MistletoeState + DMINIT
+  default tables (DM_DMDMR/DM_OPAQ); StandState.mistletoe field; kw_mistoe!/kw_newspred!/
+  kw_dmauto!/kw_mistprt! recognize the 4 DM keywords (BC-only) and set active/newmod/
+  dmalpha/prtmis. VALIDATED on YSM029-271: state correct (dmalpha=−0.5), keywords out of
+  unrecognized_keywords, .sum data rows byte-identical (inert).
+- **C1 remaining piece — DMINIT infection seeding (SCOPED, not yet done):** misdam.f — DM
+  damage codes 30-34 (30 generic / 31 LP / 32 WL / 33 DF / 34 PP); `IMIST/DMRATE = severity`
+  (capped 0-6). YSM029-271 = ONE initial infection (Pl, Damage1=31/Sev1=2 → DMR 2); the
+  other 38 start clean (infect via spread). PREREQUISITE: jl's DB reader (fia_database.jl
+  load_fia_stand!) does NOT currently load FVS_TreeInit Damage1/Severity1/Damage2/… — must
+  add that (additive, default 0 when absent) before seeding `dmr[i]` + `dminf[i,ct,pool]`
+  via DM_DMDMR. Then DMRNSD (dmrann.f) RNG seed. Careful change to the load-bearing DB
+  reader — do next, validate the DMR-2 tree loads + seeding matches DMINIT.
+- **NEXT: C2** — dmblkd.f coefficients + BC crown-width (dmcw dispatch).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
