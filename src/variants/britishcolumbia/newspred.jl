@@ -257,6 +257,36 @@ function dm_ndmr!(s::StandState)
     return s
 end
 
+# --- DMFINF (dmfinf.f) — build the treelist DM-index: sort records by (species, DMR) via
+# OPSORT, then fill Ptr[sp, dmr+1, {FST=1,LST=2}] = the first/last positions of each
+# (species, DMR) group in the sorted `index`. The spread loop iterates species×DMR through
+# this Ptr. Deterministic (OPSORT unstable tie order). Core split out for testability.
+function _dm_build_dm_index(species::AbstractVector{<:Integer}, dmr::AbstractVector{<:Integer}, n::Int)
+    maxsp = n == 0 ? 1 : Int(maximum(@view species[1:n]))
+    ptr = zeros(Int32, maxsp, 7, 2)      # [species, DMR 0:6→1:7, {1=FST, 2=LST}]
+    index = zeros(Int32, n)
+    n == 0 && return (ptr, index)
+    opsort!(n, species, dmr, index, true)
+    k = Int(index[1]); sp = Int(species[k]); dm = Int(dmr[k])
+    prsp = sp; prdm = dm
+    ptr[sp, dm+1, 1] = 1
+    @inbounds for i in 2:n
+        k = Int(index[i]); sp = Int(species[k]); dm = Int(dmr[k])
+        if sp != prsp
+            ptr[prsp, prdm+1, 2] = i - 1
+            ptr[sp, dm+1, 1] = i
+            prsp = sp; prdm = dm
+        elseif dm != prdm
+            ptr[sp, prdm+1, 2] = i - 1
+            ptr[sp, dm+1, 1] = i
+            prdm = dm
+        end
+    end
+    ptr[sp, dm+1, 2] = n
+    return (ptr, index)
+end
+dm_finf(s::StandState) = _dm_build_dm_index(s.trees.species, s.mistletoe.dmr, s.trees.n)
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
