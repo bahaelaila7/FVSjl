@@ -400,6 +400,10 @@ function setup_volume_equations!(s::StandState)
             # Key off the forkod-REMAPPED forest (619 Whitman -> 616 W-W, 8117 -> 614), as live does.
             bmkf = bm_kodfor_remap(kodfor)
             s.species.vol_eq[sp] = _bm_r6_eqn(bmkf % 100, 0, ifia)
+        elseif s.variant isa WestCascades
+            # WC VOLEQDEF (voleqdef.f R6_EQN WESTSIDE branch, VAR='WC') — FORNUM=KODFOR%100. Willamette
+            # (618→FORNUM 18) validated vs FVSwc_clean; westside Flewelling (DF/WH) + INGY (GF/NF/IC) + Behre.
+            s.species.vol_eq[sp] = _wc_r6_eqn(kodfor % 100, ifia)
         else
             s.species.vol_eq[sp] = (iregn == 8 && ifia > 0) ? _r8_ceqn(forst, dist, ifia) : "           "
         end
