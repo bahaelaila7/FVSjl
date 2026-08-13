@@ -184,6 +184,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
     idmshp::Vector{Int32}              # per-tree crown shape 1:5 (DMSHAP Fisher discriminant)
     dmrdmx::Array{Float32,3}           # (tree, MESH band 1:MXHT, {RADIUS=1,VOLUME=2}) crown frustum geometry (DMSUM)
+    sf::Matrix{Float32}                # (DMR-diff 0:6 → 1:7, ring 1:MXTHRX) autocorrelation scaling (DMINIT/DMAUTO)
     dms0::Float64                      # DMRANN current LCG state (own stream; never FFI'd)
     dmss::Float64                      # DMRANN saved seed (DMRNSD)
     rnseed::Int64                      # (reserved)
@@ -194,6 +195,7 @@ MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
                                   Array{Float32,3}(undef, 0, DM_MXHT, 2),
+                                  Matrix{Float32}(undef, 7, DM_MXTHRX),
                                   55329.0, 55329.0, 0)
 
 # DMRDMX 3rd-index tags (DMCOM RADIUS/VOLUME)
@@ -251,6 +253,44 @@ function dm_ndmr!(s::StandState)
             rate += k
         end
         ms.dmr[i] = Int32(rate)
+    end
+    return s
+end
+
+# --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
+# exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
+# difference between source and target class (spatial autocorrelation). DMALPH default
+# −0.5, DMBETA default 0.0 (DMAUTO keyword overrides; −999 = unset → default).
+function dm_compute_sf!(ms::MistletoeState)
+    alph = ms.dmalpha == -999f0 ? -0.50f0 : ms.dmalpha
+    beta = ms.dmbeta  == -999f0 ?  0.0f0  : ms.dmbeta
+    size(ms.sf) == (7, DM_MXTHRX) || (ms.sf = Matrix{Float32}(undef, 7, DM_MXTHRX))
+    @inbounds for j in 1:DM_MXTHRX
+        tmp = exp(DM_DSTNCE[j] * beta)
+        for i in 0:6
+            ms.sf[i+1, j] = exp(Float32(i) * alph * tmp)
+        end
+    end
+    return ms
+end
+
+# --- DMAUTO (dmauto.f) — reweight the per-DMR-class source density `d[0:6]` for a target of
+# DMR `trgdmr` in ring `rq` by the autocorrelation matrix SF (via the DMR difference |trgdmr−i|),
+# preserving the total density DTot. Deterministic. Returns S[0:6] (as 1-based S[i+1]).
+function dm_auto(ms::MistletoeState, trgdmr::Int, rq::Int, d)
+    s = zeros(Float32, 7)
+    dtot = 0f0
+    @inbounds for i in 0:6
+        dtot += d[i+1]
+    end
+    dtot <= 0f0 && return s
+    ds = 0f0
+    @inbounds for i in 0:6
+        ds += d[i+1] * ms.sf[abs(trgdmr - i) + 1, rq]   # DMRDFF(i,trgdmr) = |trgdmr-i|
+    end
+    dtot /= ds
+    @inbounds for i in 0:6
+        s[i+1] = dtot * d[i+1] * ms.sf[abs(trgdmr - i) + 1, rq]
     end
     return s
 end
@@ -321,6 +361,7 @@ function dm_init!(s::StandState)
     ms.brkpnt = zeros(Float32, n, DM_BPCNT)
     ms.idmshp = zeros(Int32, n)
     ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2)
+    dm_compute_sf!(ms)
     @inbounds for i in 1:n, j in (1, 3, 5)
         ag = Int(t.damage[j, i])
         (30 <= ag <= 34) && (ms.dmr[i] = Int32(clamp(Int(t.damage[j+1, i]), 0, 6)))  # last DM code wins (misdam.f)
