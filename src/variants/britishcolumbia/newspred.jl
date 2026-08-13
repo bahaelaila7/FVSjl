@@ -472,6 +472,53 @@ const DM_FLWR = 4      # DMFLWR default: years-to-flower → FProp2 = 1/DMFLWR =
 const DM_CAP  = 3.0f0  # DMCAP default: per-crown-third infection carrying capacity (dminitbc.f:268)
 const DM_TRAJWT = 1f0 / 1000f0   # DMCOM TRAJWT PARAMETER (1/1000) — per-observation shading weight
 
+# --- DMCYCL (dmcycl.f) — the ANNUAL life-history driver for one growth cycle. Runs `lastyr` (= IFINT
+# cycle length in years) 1-year steps; each step, for every affected tree i × crown-third j:
+#   New = (NewSpr+NewInt)/TVol  (per-MESH-volume seed density; DMTINY if TVol≈0) — SAME every year
+#   advance the pools (dm_cycl_advance: Imm→Lat, Lat/Spr→Act, Act→Spr transfers + ·SpSurv)
+#   xImm += New  (intake AFTER survival)
+#   DMCAP M-M "pushback": xNow=Act+Spr (post-advance), xPrv=Act+Spr (start-of-year), New' = xPrv +
+#     (DMCAP−xPrv)·(1−exp(−(1/DMCAP)·(xNow−xPrv))); x=New'/xNow (1 if xNow≈0); rescale ALL pools by x
+#   store back to DMINF. BC has NO biocontrol pools/spinup ⇒ those branches drop out (all inert).
+# `fprop2`/`spsurv`/`dmcap` are per-species vectors; `tvol`/`fprop`/`bprop` are per-tree×crown-third
+# (constant across the year loop — computed once by the driver before calling). Deterministic.
+function dm_cycl!(ms::MistletoeState, isct, ind1, tvol, fprop, bprop,
+                  fprop2, spsurv, dmcap, lastyr::Int)
+    maxsp = size(isct, 1)
+    @inbounds for _m in 1:lastyr                 # DO M = 1,LastYr (year loop is OUTERMOST in FVS)
+        for ispc in 1:maxsp
+            i1 = isct[ispc, 1]; i1 == 0 && continue
+            i2 = isct[ispc, 2]
+            fp2 = fprop2[ispc]                   # 1/DMFLWR(ISPC)
+            sps = spsurv[ispc]                   # DMSURV(ISPC) = 1 − DMDETH
+            cap = dmcap[ispc]                    # DMCAP(ISPC)
+            for i3 in i1:i2
+                i = ind1[i3]
+                for j in 1:DM_CRTHRD
+                    tv = tvol[i, j]
+                    New = tv > DM_TINY ? (ms.newspr[i, j] + ms.newint[i, j]) / tv : DM_TINY
+                    imm = ms.dminf[i, j, DM_IMMAT]; lat = ms.dminf[i, j, DM_LATENT]
+                    spr = ms.dminf[i, j, DM_SUPRSD]; act = ms.dminf[i, j, DM_ACTIVE]
+                    ded = ms.dminf[i, j, DM_DEAD]
+                    act0 = act; spr0 = spr       # xPrv = start-of-year observables
+                    (imm, lat, spr, act, ded) =
+                        dm_cycl_advance(imm, lat, spr, act, ded, fprop[i, j], bprop[i, j], fp2, sps)
+                    imm += New
+                    xnow = act + spr
+                    xprv = act0 + spr0
+                    newsat = xprv + (cap - xprv) * (1f0 - exp((-1f0 / cap) * (xnow - xprv)))
+                    x = xnow > DM_TINY ? newsat / xnow : 1f0
+                    imm *= x; lat *= x; spr *= x; act *= x; ded *= x
+                    ms.dminf[i, j, DM_IMMAT] = imm; ms.dminf[i, j, DM_LATENT] = lat
+                    ms.dminf[i, j, DM_SUPRSD] = spr; ms.dminf[i, j, DM_ACTIVE] = act
+                    ms.dminf[i, j, DM_DEAD] = ded
+                end
+            end
+        end
+    end
+    return ms
+end
+
 # --- DMHtWt (dmtreg.f:533) — weight of a MESH band `s` within crown-third `r` of tree `v`, handling
 # the fractional top/bottom bands. ⚠ Fortran arg-swap: FUNCTION DMHtWt(v,r,s,UHt,LHt) but the callers
 # pass (v,r,s,Lht,Uht) ⇒ the formal UHt binds to the caller's LOWER band, formal LHt to the UPPER.
