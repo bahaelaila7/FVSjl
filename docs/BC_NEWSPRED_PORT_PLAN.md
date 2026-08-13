@@ -1,7 +1,19 @@
 # BC NEWSPRED (spatial dwarf-mistletoe / NISI) port plan — #196
 
-USER-greenlit 2026-08-13 ("scope then start porting"). Closes the BC YSM multi-cycle
-under-mortalization (jl SDI→1586 vs oracle 926) attributed to the missing spatial DM.
+USER-greenlit 2026-08-13 ("scope then start porting"). Was scoped to close the BC YSM multi-cycle
+under-mortalization (jl SDI→1586 vs oracle 926) ATTRIBUTED to the missing spatial DM.
+
+## ★★★ 2026-08-13 — PORT COMPLETE + PREMISE CORRECTED BY MEASUREMENT (the DM is NOT the YSM gap)
+The full NISI model is ported, engine-integrated, and its DM magnitude MATCHES the oracle. But reading
+the oracle's OWN DM dump (tests/FVSbc/YSM-SkyRanchDBdump.txt.save → FVS_DM_Stnd_Sum_Metric YSM029-271)
+overturned the premise: the oracle's DM kills only ~113 TPH total (~7% of the 1526 TPH mortality) and
+its infected trees stay at Mean_DMI 1-2 (never DMR≥4, so the DG multiplier = 1.0 = NO growth loss). jl
+reproduces this (meanDMI ~1-2, infected fraction ~40% by cyc12, maxDMR 2-3). ⇒ the DM is a MINOR effect,
+correctly ported. The large jl-vs-oracle YSM gap (2137: jl TPA 1271/BA 107/SDI 1915 vs oracle 774/49/936)
+is a SEPARATE BC GROWTH/SELF-THIN divergence on young dense lodgepole (jl over-grows BA ~2×), MISATTRIBUTED
+to DM (the all_BC DM-free control matched because it's a different, mature stand type). NEWSPRED port =
+effectively DONE for its real (minor) effect; the YSM residual is re-scoped as a BC-growth item, NOT DM.
+Detail: memory fvsjl-bc-newspred-port.
 
 ## Model overview
 `canada/newmist` = the **NISI** (New & Improved Spread & Intensification) *spatial*
