@@ -227,6 +227,34 @@ end
     return trunc(Int, d * cos(DM_TWOPIE * rnd) * slope)
 end
 
+# --- DMNDMR (dmndmr.f) — recompute each tree's DMR (dwarf-mistletoe rating 0..6) from the
+# infection pools after a spread cycle. Per crown third: x = ACTIVE + SUPRSD + DEAD infection;
+# rating k = 2 if x>2, else INT(x) with a stochastic +1 (DMRANN draw ≤ frac). DMR = Σ over the
+# 3 thirds (so 0..6, Hawksworth). Biocontrol pools (DMINF_BC, MISBCI) are omitted — unported and
+# zero for BC/YSM. Stochastic (fractional rounding). Runs after the spread core each cycle.
+function dm_ndmr!(s::StandState)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    length(ms.dmr) == n || (ms.dmr = zeros(Int32, n))
+    @inbounds for i in 1:n
+        rate = 0
+        for j in 1:DM_CRTHRD
+            x = ms.dminf[i, j, DM_ACTIVE] + ms.dminf[i, j, DM_SUPRSD] + ms.dminf[i, j, DM_DEAD]
+            if x > 2f0
+                k = 2
+            else
+                k = trunc(Int, x)
+                frac = x - Float32(k)
+                dm_rann!(ms) <= frac && (k += 1)
+            end
+            rate += k
+        end
+        ms.dmr[i] = Int32(rate)
+    end
+    return s
+end
+
 # --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
 # BC-only: for other variants these keywords stay in `unrecognized_keywords` (unchanged
 # behaviour). Until C6 wires the model, these only set flags/state and are .sum-INERT.
