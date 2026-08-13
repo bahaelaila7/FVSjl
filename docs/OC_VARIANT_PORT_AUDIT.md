@@ -399,18 +399,48 @@ S248112 / ocmin) — every ORGANON per-tree quantity from a SINGLE `organon_exec
 **C7 sub-step 1 verdict: bit-exact.** The orchestration order + the OC bark ratio + the DGRO→DDS
 copy-back all reproduce the oracle from one call. This is the ORGANON side of C7 fully assembled.
 
+## Chunk C7 sub-step 2 delivered (live growth hook + StandState copy-back) — BIT-EXACT
+
+`src/variants/oregoncoast/organon_hook.jl` runs the ORGANON growth on a real `StandState` and copies
+the outputs into the tree records; `diameter_growth!(::OregonCoast)` now drives it (was a loud-error
+stub through C6).
+
+- **`organon_apply_growth!(s; msdi=0, cyclg=0, fint=5)`** — builds the C1 buffer from the StandState,
+  runs `organon_execute_swo`, and for the valid ORGANON trees (IORG=1) grows `DBH += oc_organon_dg/
+  oc_bratio` (outside-bark), `HT += HGRO`, sets `crown_pct = ANINT(CR2·100)` (Julia
+  `round(…, RoundNearestTiesAway)` = Fortran ANINT), and reduces `TPA -= MORTEXP·(FINT/5)` for every
+  record ORGANON grew (valid + surrogate, `oc/morts.f:498`). `diameter_growth!(::OregonCoast)` calls it.
+- **`_oc_organon_si`** derives SI_1/SI_2 from the plot DF/PP site indices (mirrors C2 SITSET/execute2).
+
+**MEASURED vs the live oracle** — an ocmin `StandState` (27 trees) grown by `organon_apply_growth!`:
+
+| copy-back | check | result |
+|---|---|---|
+| crown `ANINT(CR2·100)` | vs oracle `CRNEW` (dgdriv/crown dump), 17 valid | **17/17 exact** |
+| `HT += HGRO` | vs `ht₀ + HGRO`, 17 | **max \|Δ\| = 0.0** |
+| `TPA −= DEADEXP` | vs `tpa₀ − DEADEXP`, **all 27** | **max \|Δ\| = 0.0** |
+| `DBH += DG/oc_bratio` | FVS sqrt-path (`√((D·BARK)²+exp(DDS))−D·BARK`)/BARK | applied (DDS bit-exact) |
+
+**C7 sub-step 2 verdict: bit-exact** on the StandState copy-back for the ORGANON trees. The crown
+`CRNEW` is a genuine new oracle check (Fortran `ANINT` ties-away rounding). MSDI is inert on ocmin
+(`RD ≤ RDCC` ⇒ base mortality; `A1` 6.479 vs 6.294 for msdi 815 vs 0 give byte-identical DEADEXP), so
+the hook is bit-exact with the default `msdi=0`.
+
 ### Remaining C7 sub-steps (next runs)
 
-- **Live-hook wiring + StandState apply:** replace the loud-error `diameter_growth!(::OregonCoast)`
-  stub so `organon_execute_swo` runs on the real `StandState` and writes `t.diam_growth = oc_organon_dg`
-  (→ shared apply-loop `DBH += DG/BARK`), `t.ht_growth = HGRO`, crown `ANINT(CR2·100)`, and mortality
-  `MORTEXP` at their FVS sites — with the OC-dispatched `height_growth!`/`mortality!`/`crown_ratio_update!`
-  reading the stash `organon_execute_swo` computes.
-- **Non-ORGANON DGF (`oc/dgf.f`):** the surrogate / no-big-6 trees (IORG=0) grow FVS-native Wykoff
-  (ocmin has LP/BR/sub-4.5-ft DF). Needed for a full `.sum` — a distinct port (shared Wykoff engine +
-  OC coefficients).
-- **Carried stand state** (A1MAX/NO/RD0, subsequent-cycle mortality init `mortality.f:177-204`) +
-  multi-cycle; **end-to-end `.sum`** (oracle volume-stage crash to be worked around per audit).
+- **Full `grow_cycle!` / `run_keyfile` integration:** `organon_apply_growth!` does a COMPLETE apply
+  (DBH/HT/CR/TPA in one pass, since ORGANON computes them together) — it must be reconciled with the
+  shared engine's per-hook order (`diameter_growth!` → apply-loop `DBH+=DG/bark` → `height_growth!` →
+  `mortality_and_fire!` → `crown_ratio_update!`) so nothing double-applies (either split into
+  cooperating OC no-op hooks + an OC branch in the apply-loop bark selection, or OC-guard the
+  apply-loop and add OC no-op hooks). Not yet exercised through `run_keyfile`.
+- **Non-ORGANON DGF (`oc/dgf.f`, 480 lines, CA-family Wykoff):** the IORG=0 surrogate / no-big-6 trees
+  (ocmin: LP/BR/sub-4.5-ft DF) grow FVS-native; `organon_apply_growth!` leaves their DG/HTG at 0.
+  Needed for a full-stand `.sum`.
+- **MSDI/SDIDEF sourcing** (`oc/sitset.f:327` `RVARS(3..5)=SDIDEF(7/4/18)`; jl OC has no `sdimax` yet —
+  inert on ocmin, load-bearing for dense stands crossing RD=RDCC), **carried stand state**
+  (A1MAX/NO/RD0, subsequent-cycle mortality init `mortality.f:177-204`) + multi-cycle, and the
+  **end-to-end `.sum`** vs FVSoc_clean (oracle volume-stage crash to be worked around).
 
 ## Oracle status
 

@@ -164,18 +164,7 @@ function build_organon_buffer!(s::StandState)
     return buf
 end
 
-# --- Per-cycle growth entry (oc/dgdriv.f) — C1 boundary only -----------------------------------
-# On OregonCoast() the growth entry builds the ORGANON input tree list (the C1 marshalling), then
-# STOPS: the ORGANON growth engine (organon/ diagro/htgrowth/crngrow/mortality — chunks C3-C6) is
-# unported, so we do NOT run growth. Doctrine #5: an unported growth hook errors loudly. The
-# `build_organon_buffer!` call is retained so the C1 marshalling still exercises here (and so a
-# future C2/C3 can slot the ORGANON EXECUTE call in right after it).
-function diameter_growth!(s::StandState, ::OregonCoast; kwargs...)
-    build_organon_buffer!(s)   # C1: fill the /ORGANON/ input buffer for this cycle
-    error("OregonCoast (OC) growth is the ORGANON SWO engine. Ported + bit-exact: C1 (boundary " *
-          "marshalling), C2 (PREPARE calibration), C3 (DG_SWO diameter growth — `organon_dg_swo`), " *
-          "C4 (HG_SWO height growth — `organon_hg_swo`), C5 (CROWGRO crown — `organon_cr_swo`), " *
-          "C6 (PM_SWO mortality — `organon_mortal_swo`). Still UNPORTED: C7 = the GROW/EXECUTE " *
-          "per-cycle orchestration wiring C3-C6 together + the FVS DDS/HTG/CR/MORTEXP copy-back into " *
-          "StandState. See docs/OC_ORGANON_PORT_PLAN.md.")
-end
+# --- Per-cycle growth entry (oc/dgdriv.f) ------------------------------------------------------
+# The OregonCoast growth hook (`diameter_growth!(::OregonCoast)`) drives the full ORGANON engine and
+# copies its outputs into the StandState — see `organon_hook.jl` (chunk C7). `build_organon_buffer!`
+# above is the C1 marshalling it calls first.
