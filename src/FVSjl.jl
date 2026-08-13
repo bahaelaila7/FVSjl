@@ -212,6 +212,12 @@ include("variants/klamath/volume.jl")                # NC volume (nc VEQNNC): WO
 include("variants/oregoncoast/oregoncoast.jl")       # OC (Oregon Coast) singleton + registration (MAXSP 50, ORGANON SWO) — chunk 0 foundation
 include("variants/oregoncoast/species.jl")           # OC species block-data init (oc/blkdat.f + grinit.f) — chunk 1; growth = UNPORTED ORGANON
 
+# --- southeastalaska (AK) — Region-10 Wykoff DDS (Zeide SDI), 23 species, permafrost DG modifier; chunk 0 beachhead ---
+include("variants/southeastalaska/southeastalaska.jl") # AK singleton + registration (MAXSP 23, Wykoff DDS, Zeide SDI)
+include("variants/southeastalaska/species.jl")         # AK blkdat init (23 species, seed 55329, Zeide SDI, LHTDRG=false) + SPCTRN col 4
+include("variants/southeastalaska/dg_coefficients.jl") # AK large-tree DG + permafrost + bark coefficient arrays (ak/dgf.f, ak/bratio.f)
+include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chunk 3): ak_bratio + ak_dgcons! + dgf! — VALIDATED bit-exact
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
@@ -281,7 +287,7 @@ include("engine/simulate.jl")
 # include("extensions/...")# C6–C8
 # include("cli.jl")        # C8
 
-export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, AbstractVariant, variant_code, variant_from_code
+export StandState, Southern, Northeast, CentralStates, LakeStates, CentralRockies, Kootenai, InlandEmpire, EasternMontana, Teton, Utah, BlueMountains, CentralIdaho, BritishColumbia, Klamath, OregonCoast, SoutheastAlaska, AbstractVariant, variant_code, variant_from_code
 export load_species_coefficients!, init_blockdata!
 export resolve_species, translate_species
 export FVSRng, rann!, esrann!, bachlo, TreeList, ntrees
