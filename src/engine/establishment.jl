@@ -78,6 +78,12 @@ const _UT_ES_XMIN   = Float32[1,1,1,0.5,0.5,6,1,0.5,0.5,1,0.5,0.5,0.5,0.5,0.5,0.
 const _UT_ES_HHTMAX = Float32[9,9,10,7,7,16,10,7,7,10,6,6,10,6,6,6,9,16,16,6,6,16,9,10]
 const _CI_ES_XMIN   = Float32[1,1,1,0.5,0.5,0.5,1,0.5,0.5,1,1,1,6,0.5,0.5,1,3,0.5,3]
 const _CI_ES_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17,27,27,16,6,6,27,16,22,16]
+# NC (Klamath) establishment per-species min height (XMIN) / max sprout height (HHTMAX) — nc/blkdat.f:73,80.
+const _NC_ES_XMIN   = Float32[1,1,1,0.5,1,0.5,0.5,1,0.5,1,1,1]
+const _NC_ES_HHTMAX = Float32[27,31,25,25,26,24,28,20,20,18,26,25]
+# NC subsequent/planted base height (nc/essubh.f): a FIXED per-species table (no age/site/EMSQR),
+# clamped [XMIN,HHTMAX] by the shared engine (like UT/TT).
+const _NC_ESSUBH_HHT = Float32[1,1,1,1,7,1,7,7,1,0.8,7,2]
 
 """
     establish!(state; fint=5f0) -> Bool
@@ -96,6 +102,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
               s.variant isa BlueMountains ? _BM_ES_XMIN :
               s.variant isa Utah ? _UT_ES_XMIN :
               s.variant isa CentralIdaho ? _CI_ES_XMIN :
+              s.variant isa Klamath ? _NC_ES_XMIN :
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
@@ -106,7 +113,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 s.variant isa EasternMontana ? _EM_ES_HHTMAX :
                 s.variant isa BlueMountains ? _BM_ES_HHTMAX :
                 s.variant isa Utah ? _UT_ES_HHTMAX :
-                s.variant isa CentralIdaho ? _CI_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
+                s.variant isa CentralIdaho ? _CI_ES_HHTMAX :
+                s.variant isa Klamath ? _NC_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     yr in s.estab.years_done && return false
@@ -132,7 +140,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
           s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton ||
           s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
-          s.variant isa CentralIdaho) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa CentralIdaho || s.variant isa Klamath) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -289,6 +297,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 em_essubh_hht(sp, log(age), clamp(s.plot.basal_area, 1f0, 400f0),
                               _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation,
                               em_ihtser(Int(s.plot.habitat_code)), 3, 1)
+            elseif s.variant isa Klamath
+                _NC_ESSUBH_HHT[sp]        # nc/essubh.f fixed per-species base height; clamped [XMIN,HHTMAX]
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -301,7 +311,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 end
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa BlueMountains || s.variant isa Utah
+                   s.variant isa BlueMountains || s.variant isa Utah || s.variant isa Klamath
                 # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
                 # NO RAN draw. Only the user-specified-height branch (treeht≥0.1, estab.f:1026-1034) draws the lognormal
                 # BACHLO perturbation. jl already consumes the per-replicate EMSQR/ESDRAW draws (line ~218) for stream
