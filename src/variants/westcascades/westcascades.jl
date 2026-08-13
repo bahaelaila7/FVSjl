@@ -58,8 +58,8 @@ init once a WC species table lands (chunk 1). Kept separate so the DGF chunk can
 and validated ahead of the full species-coefficient loader.
 """
 function wc_grinit!(s::StandState)
-    s.control.year = 5.0f0             # cycle default (wct01 live runs 5-yr; WC DG models are 5-yr)
-    s.control.growth_fint = 5.0f0
+    s.control.year = 10.0f0            # WC native period YR=10 (wc/blkdat.f DATA YR/10.0/; IFINT=10 grinit.f).
+    s.control.growth_fint = 10.0f0     #   wct01 steps 10-yr cycles (1990,2000,…) ⇒ SCALE=fint/10=1.0 (chunk-4 MEASURED).
     s.control.zeide_sdi = false        # wc/grinit.f LZEIDE=.FALSE. ⇒ Reineke/Stage SDI (base self-thin)
     s.control.dg_sd = 1.7f0            # wc/grinit.f DGSD=1.7
     s.control.dg_stddev_bound = 1.7f0  # set BOTH (the BM/CI DGSD field-disconnect lesson)

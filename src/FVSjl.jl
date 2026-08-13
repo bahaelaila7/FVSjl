@@ -222,8 +222,10 @@ include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chun
 
 # --- westcascades (WC) — R6 westside Prognosis (Reineke SDI), 39 species; chunk 0 foundation + DGF validated ---
 include("variants/westcascades/westcascades.jl")     # WC (West Cascades) singleton + registration (MAXSP 39, Reineke) — chunk 0 foundation
+include("variants/westcascades/species.jl")          # WC species-coefficient table binding + blkdat init (bark/site/crown/vol) — chunk 1
 include("variants/westcascades/diameter_growth.jl")  # WC large-tree DDS (wc/dgf.f): wc_dgcons! + dgf! (19-group Wykoff) — chunk 3 (DGF validated)
 include("variants/westcascades/height_growth.jl")    # WC large-tree HTG (wc/htgf.f + findag.f + htcalc.f): wc_findag/wc_htcalc + height_growth! — chunk 4
+include("variants/westcascades/site_index.jl")       # WC site index + Reineke SDImax (forkod/habtyp/ecocls/sichg/sitset) — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
