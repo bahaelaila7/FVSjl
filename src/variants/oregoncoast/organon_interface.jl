@@ -172,7 +172,9 @@ end
 # future C2/C3 can slot the ORGANON EXECUTE call in right after it).
 function diameter_growth!(s::StandState, ::OregonCoast; kwargs...)
     build_organon_buffer!(s)   # C1: fill the /ORGANON/ input buffer for this cycle
-    error("OregonCoast (OC) growth is the ORGANON SWO engine, which is UNPORTED (chunks C3-C6). " *
-          "C1 (FVS↔ORGANON boundary marshalling) + C2 (PREPARE calibration) must land first. " *
-          "See docs/OC_ORGANON_PORT_PLAN.md.")
+    error("OregonCoast (OC) growth is the ORGANON SWO engine. Ported so far: C1 (boundary " *
+          "marshalling), C2 (PREPARE calibration), C3 (DG_SWO diameter growth — `organon_dg_swo`, " *
+          "bit-exact). Still UNPORTED: height growth HG_SWO (C4), crown (C5), mortality (C6), and " *
+          "the GROW/EXECUTE per-cycle orchestration + FVS DDS copy-back (C7). See " *
+          "docs/OC_ORGANON_PORT_PLAN.md.")
 end
