@@ -30,6 +30,10 @@ BA weights use raw PROB (0.0054542·D²·PROB) — the PI/GROSPC scaling cancels
 function ak_point_zeide!(s::StandState)
     p, t = s.plot, s.trees
     sdidef = p.sp_sdi_def
+    # SDICAL/SDICLS sum the UNCHANGED DBH(I) — during DGF calibration the diameters are backdated in
+    # DIAM(I) only, so use the stashed CURRENT dbh (calib.calib_dbh) when present. Empty otherwise
+    # (growth path + crown init both read the live t.dbh).
+    dbharr = isempty(s.calib.calib_dbh) ? t.dbh : s.calib.calib_dbh
     npt = 0
     @inbounds for i in 1:t.n; npt = max(npt, Int(t.plot_id[i])); end
     ptba  = zeros(Float32, npt)                 # PNTBA(pt) = Σ TREEBA
@@ -40,7 +44,7 @@ function ak_point_zeide!(s::StandState)
     dbhzeide = s.control.dbh_zeide
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0f0 && continue
-        d = t.dbh[i]; sp = Int(t.species[i]); ip = Int(t.plot_id[i])
+        d = dbharr[i]; sp = Int(t.species[i]); ip = Int(t.plot_id[i])
         treeba = 0.0054542f0 * d * d * t.tpa[i]
         totba += treeba; xsdi += sdidef[sp] * treeba
         if 1 <= ip <= npt

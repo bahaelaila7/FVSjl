@@ -93,13 +93,19 @@ wire the `PERMAFROST` keyword → an `LPERM` control flag, and (b) the `PRD` dep
 Not exercised by akt01 (all its species are non-permafrost, `DGRD=0`), so the cyc0 validation
 covers the base path exactly; the permafrost path needs a permafrost-species stand to validate.
 
-**2. PRD = point Zeide relative density — the one engine gap.** Both the base `b5·PRD` term and
-the permafrost `PFRD·PRD` term use `PRD = point ZeideSDI / point maxSDI`, computed in `ak/dgf.f`
-via `SDICAL`(→`XMAXPT`) + `SDICLS`(→`ZRD`) per subplot. The shared FVSjl engine has per-point
-BA/BAL/CCF/TPA (`Density`) but **no per-point Zeide-SDI** machinery. `ak_point_zeide_rd` is a
-documented stub returning 0 — **exact** for the `DGRD=0` coastal majority (SF/AF/YC/SS/LP/RC/WH/MH,
-which dominate SE Alaska), an approximation only for the permafrost/interior species. Porting
-`SDICAL`/`SDICLS` point-Zeide is the prerequisite for validating the permafrost + interior path.
+**2. PRD = point Zeide relative density — PORTED + WIRED + VALIDATED BIT-EXACT (#209).** Both the base
+`b5·PRD` term and the permafrost `PFRD·PRD` term use `PRD = point ZeideSDI / point maxSDI` (`ak/dgf.f`
+via `SDICAL`→`XMAXPT` + `SDICLS`→`ZRD` per subplot). `ak_point_zeide!` (crown.jl) ports SDICAL (XMAXPT =
+BA-weighted SDIDEF per point) + SDICLS (ZRD = Σ PROB·(PI−NONSTK)·(D/10)^1.605, D≥DBHZEIDE=0), and `dgf!`
+now reads `PRD = ZRD(pt)/XMAXPT(pt)` per tree (was a 0 stub). **KEY (MEASURED, same class as the chunk-1
+PTBALT fix): during LSTART calibration SDICAL/SDICLS sum the UNCHANGED `DBH(I)` = CURRENT dbh** (FVS
+backdates only `DIAM(I)`), so jl stashes the current dbh (`calib.calib_dbh`) for `ak_point_zeide!` —
+without it jl computed PRD on the backdated stand (WS D11.5 → PRD 0.2257 vs live 0.2645). VALIDATED vs
+`FVSak_g16 DEBUG DGF`: (a) akt01 per-point PRD bit-exact (pt1 0.160517558, pt2 0.441927820, pt4
+0.311797887, … all = live to Float32 ULP); (b) a white-spruce (WS, `DGRD=−0.4555`) stand — **all 27
+trees' DGF WK2 (deterministic ln-DDS, incl. the b5·PRD term) bit-exact, max rel-err 3.4e-6**. Inert for
+akt01 (all-`DGRD=0` species: YC COR 1.4342394 + cyc0 unchanged). The interior/permafrost path now has
+its PRD; the PFRD·PRD permafrost term still needs the PERMAFROST keyword wired (scope note 1).
 
 **3. SEAMRT mortality — `ak/seamrt.f`.** AK's density-mortality *distribution* routine (analogous
 to eastern VARMRT): given a stand kill target `TOKILL`, it distributes deaths across records by a
