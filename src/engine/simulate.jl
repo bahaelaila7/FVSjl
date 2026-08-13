@@ -154,6 +154,16 @@ function setup_growth!(s::StandState)
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa WestCascades
+        wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
+        compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
+                                          # (wc/crown.f). Missing-CR seedlings would keep crown_pct=0 ⇒ the regent/
+                                          # mortality crown term starves (EM #137 class). wct01's inventory crowns are
+                                          # all present ⇒ this lstart pass bypasses every tree (verified vs the live
+                                          # LSTART CROWN dump: ICR array unchanged), but it is on the setup path and
+                                          # gates real-FIA seedling stands. d<1" missing crowns → wc/dubscr.f (bachlo).
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -573,6 +583,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
+    _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
     _ak_up = s.variant isa SoutheastAlaska # AK bark = ak_bratio (3-type: power/linear/power)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
@@ -586,6 +597,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _tt_up ? tt_bratio(Int(t.species[i]), t.dbh[i]) :
                _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _ak_up ? ak_bratio(Int(t.species[i]), t.dbh[i]) :
+               _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         t.vol_bark[i] = bark             # stash BRATIO(D_start) for CFTOPK/BFTOPK (FVS vols.f:150)
         (s.variant isa Kootenai || s.variant isa InlandEmpire || s.variant isa Teton ||

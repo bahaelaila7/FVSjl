@@ -168,13 +168,51 @@ DUBSCR, on the cyc0 setup path), `small_tree_growth!` + `regenerate!` (**chunk 6
 reuses the base. **`crown.f` (chunk 5) is the next step** — it is on the setup path and gates the
 cyc0 stand statistics.
 
+## Validation — chunk 5 crown ratio (2026-08-13, BIT-EXACT vs live)
+
+`src/variants/westcascades/crown.jl` — `crown_ratio_update!(::WestCascades)`: the rank-based
+Weibull crown model (wc/crown.f), coefficients indexed by the **16 crown groups** (`crown_imap`,
+already in the species CSV; verified group-for-group vs the Fortran `IMAP[39]`). Per group
+`ACRNEW = C0 + C1·RELSDI·100`; `A=WEIBA`, `B=max(WEIBB0+WEIBB1·ACRNEW, 3)`, `C=max(WEIBC0+WEIBC1·
+ACRNEW, 2)`; per tree `X=(ISORT/ITRN)·SCALE`, `SCALE=clamp(1−0.00167·(RELDEN−100),0.30,1.0)`,
+`CRNEW=(A+B·(−ln(1−X))^(1/C))·10`; ±1%/yr change limit + CRMAX cap + topkill; `[10,95]`. Species
+17 (RW) logistic + the `wc/dubscr.f` d<1"-at-LSTART small-tree dub (6 BCR groups + RW) ported
+source-faithful (no RW / no missing-crown sub-1" trees in wct01 ⇒ unexercised, RNG via `bachlo`).
+
+Oracle = `FVSwc_clean` wct01 with `DEBUG␠␠␠␠1.␠␠␠␠1.` / `CROWN` (dumps the per-species `9001`
+{SDIAC,RELSDI,ACRNEW,A,B,C,SDIDEF} + the per-tree `9002` {X,CRNEW}). The **LSTART** CROWN pass
+bypasses every wct01 tree (all inventory crowns present ⇒ `9010` ICR array unchanged — matches the
+new `lstart=true` dispatch being a no-op here); the **cycling** pass dumps 81 tripled trees. Feed
+the live `X` into the shipped `WC_*` coefficients (chunk-3/4 "live-inputs" method — the shared
+rank/SCALE engine is already TT/CI/NC-validated):
+
+> **81/81 trees BIT-EXACT**, all 6 wct01 crown groups exercised (WF=2, SP=5, PP=6, DF=7, ES=11,
+> LP=16). (a) B/C construction from the shipped `WC_CRC0/1`+`WEIB*` worst |Δ| = **0.00005**
+> (= SDIAC F8.2 print floor); (b) `CRNEW = A+B·(−ln(1−X))^(1/C)` worst |Δ| = **0.00011**
+> (= X F-format print floor). A=0 for every wct01 group (WEIBA nonzero only on groups 3/12/13/15,
+> absent here — ported but unvalidated, like the RW/DUBSCR branches).
+
+Harness (committed): `test/harness/westcascades/{crown_validate.jl, ref_crown_wct01.txt}`.
+
+**POWER-bark wiring (also this chunk):** added a `_wc_up` branch to the shared DDS→DG apply driver
+(`simulate.jl`) so WC's outside-bark DBH increment routes through `wc_bratio` (POWER `a·Dᵇ` for
+`bark_imap=1`, which the linear shared `bark_ratio` cannot express — the #140/CI-class latent trap).
+**INERT on the existing harness**: the DGF harness validates LN(DDS) *before* the bark→DG step, so
+the chunk-3 **27/27** DGF and chunk-4 **24/24** HTG and chunk-1/2 site harnesses all still PASS
+unchanged. It only binds once DG (not just LN(DDS)) is exercised end-to-end.
+
+**Still blocked end-to-end (MEASURED):** after chunk 5, the `WestCascades` grow-cycle hooks probe
+as `crown_ratio_update!`=present, but `small_tree_growth!` + `regenerate!` (**chunk 6**, no
+`AbstractVariant` fallback) and the `compute_volumes!` WC branch (**chunk 8**) remain MISSING ⇒
+wct01 cyc0 still cannot run. **Crown alone does not unblock the `.sum`** (honest per doctrine 5);
+the next WC chunk is **6 (REGENT small-tree + `htdbh` 6-forest H-D + `dgbnd`)**, then 8 (R6 NVEL vol).
+
 ## Remaining chunks
 
-crown `crown.f` (5: Weibull CR + RW + DUBSCR + CRCONS 16-group coeffs), REGENT small-tree +
+crown `crown.f` (5: Weibull CR + RW + DUBSCR + CRCONS 16-group coeffs) — **DONE, validated**. REGENT small-tree +
 `htdbh`(6-forest) + `dgbnd` (6), volume shared R6 NVEL (8); mortality (7) = base `morts` (Reineke
-self-thin, WC `LZEIDE=.FALSE.`). Also pending: wire the `_wc_dg`/`_wc_cal`/`_wc_bd` branches in the
-shared DDS→DG driver to `wc_bratio` (the #140/CI-class POWER-bark apply sites, currently defaulting
-to the linear `calib.bark` — matters once the DG, not just LN(DDS), is exercised end-to-end).
+self-thin, WC `LZEIDE=.FALSE.`). The `_wc_up` POWER-bark apply site in the shared DDS→DG driver is
+now wired to `wc_bratio` (chunk 5; inert on the DGF/HTG harnesses, binds once DG runs end-to-end).
 
 ## Westside reuse — proven
 
