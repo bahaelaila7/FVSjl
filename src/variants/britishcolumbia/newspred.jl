@@ -31,6 +31,13 @@ const DM_MXHT   = 50 ÷ DM_MESH    # max stand height in MESH (25)
 const DM_MXTHRX = 14 ÷ DM_MESH    # max lateral seed x-travel in MESH (7) = # sampling rings
 const DM_ORIGIN = 20 ÷ DM_MESH    # trajectory origin cell (10)
 const DM_TWOPIE = 6.283185f0      # 2π (subtended-angle interception, dmtreg.f)
+const _DM_PIE   = 3.14159f0       # dmcom PIE
+const _DM_SQM2AC = 1f0 / 4046.8564f0   # m² → acres
+const DM_DSTLEN = 1000            # max sampling-ring source-count array length (DMCOM DSTLEN)
+# CrArea(i) = cumulative circle area (acres) of radius (MESH·i) m; Dstnce(i) = midpoint dist (m)
+# of ring i. Compile-time (dminitbc.f:170-179), i = 1..MXTHRX.
+const DM_CRAREA = Float32[_DM_PIE * _DM_SQM2AC * Float32(DM_MESH * i)^2 for i in 1:DM_MXTHRX]
+const DM_DSTNCE = Float32[Float32(DM_MESH) * (Float32(i) - 0.5f0) for i in 1:DM_MXTHRX]
 
 # DMDMR[dmr(0:6), crownthird(1:3)] — default initial DM distribution across crown
 # thirds for a tree of rating `dmr` (dminitbc.f TPDMR DATA, column-major). Row index
@@ -167,6 +174,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     dmrmin::Float32                    # MISTPRT field-1 min DMR to report (default 1.0)
     dmalpha::Float32                   # DMAUTO like-class autocorrelation decay (misin.f opt 24; −999 = unset)
     dmbeta::Float32                    # DMAUTO unlike-class decay (−999 = unset)
+    dmclmp::Float32                    # clumping (variance/mean ratio) for the neighbour PDF (DMINIT 1.0; DMCLMP kw)
     # per-DMR-class crown-third distribution (DMDMR, keyword-overridable copy of DM_DMDMR)
     dmdmr::Matrix{Int32}               # (7, 3)
     opaq::Vector{Float32}              # per-species opacity (copy of DM_OPAQ, DMOPQ-overridable)
@@ -179,7 +187,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     rnseed::Int64                      # DMRNSD spatial-model RNG seed (own stream; never FFI'd)
 end
 
-MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0,
+MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.0f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
@@ -440,4 +448,58 @@ function dm_bndist(m::Float32, v::Float32, ubound::Int)
         end
     end
     return (pdf, endpos, false)
+end
+
+# --- C4 neighbour build: DMNB (dmnb.f) — the cumulative distribution of the number of SOURCE
+# trees in sampling-ring `rq`'s annulus (outer disk rq minus inner disk rq-1), for a source
+# density `d` (trees/acre). Builds each disk's count PDF via BNDIST (mean = CrArea·d, var =
+# DMCLMP·mean), conditions each on ≥1 tree, convolves outer⊛inner into the annulus count, then
+# cumulates + normalizes. Deterministic (no RNG). Returns CNB (0-based via CNB[k+1]); only
+# 0..End meaningful. Faithful to dmnb.f including the j==0 degenerate inner disk (target only).
+function dm_nb(rq::Int, d::Float32, dmclmp::Float32)
+    nb = zeros(Float32, DM_DSTLEN + 1, 2)   # nb[count+1, disk]
+    emark = Int[1, 1]
+    cur = 1
+    for j in (rq-1):rq
+        if j == 0
+            nb[2, cur] = 1f0                  # NB(1,1)=1.0: inner disk = the target tree only, P(1)=1
+            emark[cur] = 1
+        else
+            mu  = DM_CRAREA[j] * d
+            var = dmclmp * mu
+            pdf, endpos, _ = dm_bndist(mu, var, DM_DSTLEN)
+            @inbounds for t in 1:DM_DSTLEN+1
+                nb[t, cur] = pdf[t]
+            end
+            emark[cur] = endpos
+        end
+        cur = 2                               # (prv stays 1)
+    end
+    prv = 1; cur = 2
+    # condition each disk's distribution on ≥1 tree (drop the P(0) mass, renormalize)
+    for i in 1:2
+        x = 1f0 / (1f0 - nb[1, i])            # nb[1,i] = P(count=0)
+        nb[1, i] = 0f0
+        @inbounds for j in 1:emark[i]
+            nb[j+1, i] *= x
+        end
+    end
+    cnb = zeros(Float32, DM_DSTLEN + 1)
+    topend = emark[cur]
+    @inbounds for k in 0:topend               # annulus count = outer(cur) ⊛ inner(prv)
+        x = 0f0
+        for j in k:min(k + emark[prv], DM_DSTLEN)
+            yd = Float64(nb[j+1, cur]) * Float64(nb[(j-k)+1, prv])
+            yd > 1.0e-25 && (x += Float32(yd))
+        end
+        cnb[k+1] = x
+    end
+    @inbounds for k in 1:topend               # cumulate
+        cnb[k+1] += cnb[k]
+    end
+    x = 1f0 / cnb[topend+1]                    # normalize
+    @inbounds for k in 0:topend
+        cnb[k+1] *= x
+    end
+    return (cnb, topend)
 end
