@@ -59,13 +59,44 @@ coefficients(::OregonCoast) = cached_coefficients(() -> load_species_coefficient
 # exactly the RVARS(2) the oracle passes to PREPARE). The R6ADJ site fan and R5SDI/SDImax defaults,
 # and the RVARS(3-5)=SDIDEF MSDI marshalling, are wired at the growth entry (C3); the ecoclass-
 # derived site species value (SITEAR(7)) itself is supplied by the stand's site-index loader.
+# oc/sitset.f:68-73 R6ADJ — per-species site-index adjustment relative to the Hann-Scrivani DF
+# site index (SITEAR(I)=HGUESS·R6ADJ(I) for a species with no keyword site index; oc/sitset.f:197).
+const OC_R6ADJ = Float32[
+    0.90,0.70,0.80,1.00,1.00,1.00,1.00,0.95,0.90,0.90,
+    0.90,0.90,0.90,0.90,0.94,1.00,0.94,0.94,0.90,0.90,
+    0.76,0.76,1.00,0.40,0.76,0.28,0.42,0.34,0.28,0.40,
+    0.56,0.76,0.28,0.76,0.56,0.76,0.76,0.76,0.40,0.70,
+    0.40,0.76,0.76,0.40,0.76,0.25,0.25,0.25,0.56,1.00]
+
 function site_setup!(s::StandState, ::OregonCoast)
-    si = s.plot.sp_site_index
+    p = s.plot; si = p.sp_site_index
+    nsiset = 0
+    @inbounds for v in si; v > 0f0 && (nsiset += 1); end          # NSISET (oc/sitset.f:87)
+    # OC default ecoclass (oc/sitset.f:105-110 ICL5==0 ⇒ PCOM='CWC221'; ecocls.f:294 CWC221 →
+    # DF site species ISEQ=7, RSI=92, RSDI=815). ocmin has no SITECODE/ECOCLASS keyword and its
+    # STDINFO field-2 (452) is the default PA, so this default supplies SITEAR(7)/SDImax/ISISP.
+    # NOTE: only the DEFAULT ecoclass is wired here; the full OC ECOCLS/HABTYP plant-assoc → site
+    # table (non-default ecoclasses) is a follow-up. Applied only when no site was set (NSISET==0).
+    if nsiset == 0 && length(si) >= 18 && si[7] <= 0f0 && si[18] <= 0f0
+        si[7] = 92f0                                              # RSI (DF)
+        p.site_species = Int32(7)                                 # ISISP
+        p.sdi_max = 815f0                                         # RSDI
+        @inbounds for i in 1:length(p.sp_sdi_def); p.sp_sdi_def[i] <= 0f0 && (p.sp_sdi_def[i] = 815f0); end
+    end
+    # ORGANON DF↔PP site conversion (oc/sitset.f:181-186), BEFORE the R6ADJ fan.
     if length(si) >= 18 && (si[7] > 0f0 || si[18] > 0f0)
         if si[7] <= 0f0
-            si[7] = 1.062934f0 * si[18]         # DF from PP  (oc/sitset.f:183)
+            si[7] = 1.062934f0 * si[18]                           # DF from PP
         elseif si[18] <= 0f0
-            si[18] = 0.940792f0 * si[7]         # PP from DF  (oc/sitset.f:185)
+            si[18] = 0.940792f0 * si[7]                           # PP from DF
+        end
+    end
+    # HGUESS = SITEAR(ISISP)/R6ADJ(ISISP); fan the remaining species' site indices (oc/sitset.f:169,197).
+    isisp = Int(p.site_species); (isisp < 1 || isisp > 50) && (isisp = 7)
+    if si[isisp] > 0f0
+        hguess = si[isisp] / OC_R6ADJ[isisp]
+        @inbounds for i in 1:min(length(si), 50)
+            si[i] == 0f0 && (si[i] = hguess * OC_R6ADJ[i])
         end
     end
     return s

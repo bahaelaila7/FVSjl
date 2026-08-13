@@ -85,7 +85,10 @@ end
 # (no tripling: INDS(5)=0, DGSD=0 on OC).
 function diameter_growth!(s::StandState, ::OregonCoast; tripling::Bool = false,
                           sfint::Float32 = 5f0, kwargs...)
-    organon_apply_growth!(s; fint=sfint)
+    # MSDI_1/2/3 = SDIDEF(7/18/4) (oc/sitset.f:340-342); inert on ocmin (RD≤RDCC base mortality)
+    # but faithful for dense stands. Sourced from the ecoclass-filled sp_sdi_def (site_setup!).
+    msdi = (length(s.plot.sp_sdi_def) >= 7 && s.plot.sp_sdi_def[7] > 0f0) ? s.plot.sp_sdi_def[7] : 0f0
+    organon_apply_growth!(s; fint=sfint, msdi=msdi)
     t = s.trees
     @inbounds for i in 1:t.n
         t.diam_growth[i] = 0f0    # DBH/HT already grown in organon_apply_growth!; zero so the shared

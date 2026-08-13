@@ -459,27 +459,42 @@ missing-height tree-20 (LP, D=8.5) dubs to 53.3234, matching the oracle.
 **C8 verdict: bit-exact.** The `run_keyfile(ocmin)` setup now passes `dub_missing_heights!` and
 `init_merch_standards!`.
 
-### Remaining for the end-to-end `.sum` (measured blocker order after C8)
+## Chunk C8b delivered (OC ecoclass/site-index sourcing) — run completes, cyc0 `.sum` BIT-EXACT
 
-Each is a real OC subsystem. Next `run_keyfile(ocmin)` blocker after C8:
+`site_setup!(::OregonCoast)` now sources the OC default-ecoclass site indices + SDImax, so
+`run_keyfile(ocmin)` **runs end-to-end** and emits a `.sum`. Ported (`oc/sitset.f`):
+- default ecoclass `CWC221` (`sitset.f:105-110` `ICL5==0`; `ecocls.f:294`) → `SITEAR(7)=92` (DF site
+  species, ISISP=7), `SDImax=815`, when no SITECODE keyword set a site (NSISET==0);
+- the ORGANON DF↔PP conversion (`sitset.f:181-186`, PP = 0.940792·92 = 86.5528641);
+- the `R6ADJ(50)` site fan (`sitset.f:68-73,197`): `SITEAR(I) = HGUESS·R6ADJ(I)`, HGUESS = 92/R6ADJ(7);
+- MSDI = `sp_sdi_def[7]` = 815 sourced into the growth hook (`sitset.f:340-342` RVARS(3..5)=SDIDEF).
 
-1. **OC ecoclass / site-index + SDImax sourcing (NEW top blocker).** DF `SITEAR(7)=92` and
-   `SDIMAX=815` come from the OC ECOCLASS table (`oc/habtyp.f`; oracle: STDINFO field-2 → ecoclass
-   `CWC221` → `DF=92, SDIMAX=815`), NOT a SITE keyword. Without it `sp_site_index[7]=0` ⇒
-   `SITE=SI_1=−4.5` ⇒ `flog(SITE)=NaN` in DG_SWO (hit in the real run). Needs the OC plant-assoc →
-   ecoclass → per-species site-index + SDImax table (this also supplies MSDI/SDIDEF faithfully). The
-   growth math itself is C3–C7-validated; this is the missing INPUT.
-2. **Non-ORGANON DGF/HTGF** — `oc/dgf.f` (480-line CA-family Wykoff DDS) + `oc/htgf.f` native path
-   for the IORG=0 surrogate / no-big-6 trees (ocmin LP/BR/sub-4.5-ft DF); `organon_apply_growth!`
-   currently leaves their DG/HTG at 0.
-3. **OC volume** — `compute_volumes!` NVEL/CA-family equations so the `.sum` vol columns build (merch
-   standards done in C8); the TPA/BA/SDI/TopHt/QMD row comes from the tree list once #1/#2 are in.
+**MEASURED bit-exact vs the oracle SITECODE dump**: DF=92, PP=86.5529, WH=87.4(→87), SP=92, IC=64.4
+(→64), PC=82.8(→83), GF=92 — all match; site species 7, SDImax 815.
 
-Then the pre-volume-crash `.sum` row vs FVSoc_clean (GROSPC trap: read the `.sum`-reported per-acre
-values, not raw `stand_tpa`) + the **carried mortality state** (A1MAX/NO/RD0, subsequent-cycle init
-`mortality.f:177-204`) for multi-cycle. Growth science (C3–C6) + orchestration (C7-1) + copy-back
-(C7-2) + seam (C7-3) + setup dub (C8) are all bit-exact/verified; #1–#3 are the remaining engine-
-wiring subsystems.
+**END-TO-END `run_keyfile(ocmin; output=:sum)` — cyc0 inventory row BIT-EXACT:**
+
+| year | TPA | BA | SDI | TopHt | QMD | verdict |
+|---|---|---|---|---|---|---|
+| **1990 (cyc0)** jl | 536 | 77 | 184 | 63 | 5.1 | — |
+| 1990 (cyc0) oracle | 536 | 77 | 184 | 63 | 5.1 | **BIT-EXACT** |
+| 1995 (cyc1) jl | 504 | 85 | 197 | 70 | 5.6 | TPA exact; BA/SDI/TopHt/QMD low |
+| 1995 (cyc1) oracle | 504 | 88 | 202 | 71 | 5.7 | (non-ORGANON growth pending) |
+
+The **cyc0 (1990) `.sum` density row is bit-exact** (setup/dubbing/site/density all correct). The
+cyc1 (1995) grown row's **TPA=504 matches** (mortality — all 27 trees via ORGANON DEADEXP — is
+correct) but BA/SDI/TopHt/QMD are LOW because the IORG=0 non-ORGANON trees (ocmin LP/BR/sub-4.5-ft
+DF) don't grow yet (their DG/HTG=0). This isolates the cyc1 residual entirely to **C9**.
+
+### Remaining for the cyc1 grown `.sum` (isolated)
+
+1. **Non-ORGANON DGF/HTGF (C9)** — `oc/dgf.f` (CA-family Wykoff DDS) + `oc/htgf.f` native path for the
+   IORG=0 surrogate / no-big-6 trees; `organon_apply_growth!` leaves their DG/HTG at 0. This is the
+   ONLY thing between the current cyc1 row and bit-exact (setup, site, ORGANON growth, mortality all
+   verified correct).
+2. **OC volume (C10)** — `compute_volumes!` NVEL/CA-family for the `.sum` vol columns (currently 0).
+3. Full OC ECOCLS/HABTYP plant-assoc table (non-default ecoclasses; ocmin uses the default) + carried
+   mortality state (A1MAX/NO/RD0) for multi-cycle.
 
 ## Oracle status
 
