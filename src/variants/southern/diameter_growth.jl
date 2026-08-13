@@ -275,11 +275,14 @@ function _backdate_dbh!(s::StandState)
                                              # DENSE backdating on the linear default (0.9) ⇒ backdated BA 0.13% high
                                              # ⇒ COR fit vs wrong density ⇒ DG low ⇒ ~2% mortality over-kill.
     _ak_bd = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type: power/linear/power); shared bark_a/bark_b unset
+    _wc_bd = s.variant isa WestCascades      # WC bark = wc_bratio (POWER a·Dᵇ, all imap=1) — shared linear floors 0.80,
+                                             # corrupting the backdated dbh/density ⇒ wrong WF calibration COR (Δ0.098).
     _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
                  _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
                  _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) :
                  _ci_bd ? ci_bratio(sd, Int(sp), d) :
                  _ak_bd ? ak_bratio(Int(sp), Float32(d)) :
+                 _wc_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
                  _bc_bd ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
@@ -313,6 +316,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _bc_cal = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant BARK1; shared bark_a/bark_b are 0 → 0.80 floor)
     _ci_cal = s.variant isa CentralIdaho      # CI bark = ci_bratio (POWER) — same missing-branch class as _backdate_dbh!
     _ak_cal = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type); shared bark_a/bark_b unset ⇒ 0.80 floor otherwise
+    _wc_cal = s.variant isa WestCascades      # WC bark = wc_bratio (POWER, all imap=1) — shared linear floors 0.80 ⇒ wrong COR
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -447,6 +451,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                      _bm_cal ? bm_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _ci_cal ? ci_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _ak_cal ? ak_bratio(Int(t.species[i]), saved_dbh[i]) :
+                     _wc_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _bc_cal ? bc_bratio(Int(t.species[i])) :
                      bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
                 t.diam_growth[i] *= bk
@@ -531,6 +536,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _bm_cal ? bm_bratio(sd, Int(sp), saved_dbh[i]) :
                _ci_cal ? ci_bratio(sd, Int(sp), saved_dbh[i]) :
                _ak_cal ? ak_bratio(Int(sp), saved_dbh[i]) :
+               _wc_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
