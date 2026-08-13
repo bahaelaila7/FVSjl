@@ -196,4 +196,17 @@ bug. Three vehicles, in priority order:
   → DMOTHR (apply new spread/intensification, 114, det) → DMCYCL (life-history compartment advance, 593, det)
   → wire the DMTREG driver (the mapped loop) → DMMTRX/DMNTRD setup/remap → C6 payoff (mistoe/mismrt USEMRT +
   BHTG/DHTG growth-mult, wire BC into the DM dispatch). THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
+- **★ DMADLV LANDED (bf8ca54) — the spread/intensification accumulation CORE, hardest routine done.**
+  Validated qualitatively (radius routes weight to SFld-spread vs IFld-intensification). ⇒ the ENTIRE NEWSPRED
+  SPREAD MECHANISM is now ported (18 routines: full support/index/sampling/decode layer + DMADLV).
+- **REMAINING = the final assembly + payoff (a coherent block, validate together at YSM DMR/mortality):**
+    - DMFSHD (shade grid, 231, 4 RNG) — produces the per-band `shade[]` DMADLV consumes; simulates tree (x,y) on a
+      121×121 grid via DMRANN (Poisson) → mean opacity per MESH band.
+    - DMOTHR (114, det) — TRIVIAL per-species tuning scale of the NewSpr/NewInt accumulators: FacS=DMETUN·DMSTUN·F,
+      FacI=DMETUN·DMITUN·F, F = 0.05·0.15·0.5·10·0.25·MESH³·TRAJWT = 7.5e-5; DMETUN/DMSTUN/DMITUN default 1.0. Wire
+      with the driver (needs the NewSpr/NewInt/ISCT/IND1 driver-local state).
+    - DMCYCL (593, det) — life-history compartment advance (IMMAT→LATENT→SUPRSD→ACTIVE→DEAD) on the DMINF pools; the
+      last large self-contained routine. + DMMTRX/DMNTRD setup/remap.
+    - Wire the DMTREG driver (the mapped loop) over these, then C6 payoff: mistoe/mismrt (USEMRT extra mortality) +
+      BHTG/DHTG growth-mult, wire BC into the DM dispatch. THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
