@@ -118,3 +118,23 @@ function kw_mistprt!(s::StandState, rec)
     end
     return
 end
+
+# --- C1 DMINIT (partial): seed the per-tree initial DMR from the input damage codes.
+# misdam.f: damage codes 30-34 are dwarf mistletoe (30 generic / 31 LP / 32 WL / 33 DF /
+# 34 PP); IMIST/DMRATE = the SEVERITY that follows the code, capped 0..6. jl already stores
+# the codes in `t.damage` (6×MAXTRE: dmg1/sev1/dmg2/sev2/dmg3/sev3). Runs once at BC setup
+# when the DM model is active. Sizes dmr/dminf to the live-record count. dminf COMPARTMENT
+# seeding (which life-history pool the initial rating enters) is deferred to C5.
+# Still .sum-INERT — nothing consumes dmr until C6.
+function dm_init!(s::StandState)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    ms.dmr = zeros(Int32, n)
+    ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
+    @inbounds for i in 1:n, j in (1, 3, 5)
+        ag = Int(t.damage[j, i])
+        (30 <= ag <= 34) && (ms.dmr[i] = Int32(clamp(Int(t.damage[j+1, i]), 0, 6)))  # last DM code wins (misdam.f)
+    end
+    return s
+end

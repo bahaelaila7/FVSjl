@@ -139,6 +139,7 @@ function setup_growth!(s::StandState)
     elseif s.variant isa BritishColumbia
         bc_dgcons!(s)                     # BC V3 DGCON (ZNKONST/SSKONST via BEC PrettyName match) — chunk 3, V3 zones only
         calibrate_diameter_growth!(s; scale = dgscale)
+        dm_init!(s)                       # #196 C1: seed NEWSPRED per-tree initial DMR from damage codes (inert until C6)
     elseif s.variant isa Klamath
         nc_dgcons!(s)                     # NC DGCON (DGFOR/MAPLOC default + DGLAT2 site sp2/6/9 + redwood ln SITEAR) — chunk 3
         # NC calibration SCALE = YR/FINT_meas: NC's DG MODEL basis is 5-yr (blkdat YR=5.0) but the measured past-DG
