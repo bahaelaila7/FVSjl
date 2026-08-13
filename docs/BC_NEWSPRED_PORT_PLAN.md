@@ -212,9 +212,14 @@ bug. Three vehicles, in priority order:
       xImm/xLat/xSpr/xAct·=SpSurv; New-infection intake xImm+=New where New=(NewSpr+NewInt)/TVol; then the DMCAP
       capacity saturation New=xPrv+(DMCAP−xPrv)·(1−exp(−(xNow−xPrv)/DMCAP)) with xPrv/xNow = prev/new ACTIVE+SUPRSD.
       ★ ALL biocontrol (BC) terms (BCMORT/BCSUPP/HfLf/DMINF_BC/xImmBC…) are ZERO for base BC/YSM (no MISBCI) ⇒ drop
-      them. Coefficients: FProp/FProp2/BProp (forward/backward transition props, per tree×ct), SpSurv, DMCAP(sp) —
-      resolve their DMINIT/DMMTRX source when porting. Plus the event-monitor OPFIND/OPGET DMAUTO mid-cycle scheduling
-      (dmcycl.f:294-329) + xOriginal save (:246). + DMMTRX/DMNTRD setup/remap.
+      them. Coefficients (RESOLVED, dmcycl.f:220-347): DMCYCL runs an ANNUAL loop over LastYr=IFINT(+Spin) years.
+      Per crown-third, FProp(i,j)/BProp(i,j) = interpolate the per-species life-history rate curves DMLtRx (forward
+      FvecX/FvecY, backward BvecX/BvecY; DMLtnp points) at the crown-third mid-height MESH band IHT; FProp2=1/DMFLWR(sp)
+      (1/years-to-flower); SpSurv=DMSURV(sp); DMCAP(sp) default 3.0. ⇒ the port needs the DMLtRx life-history curve
+      table + DMSURV/DMFLWR/DMCAP extracted from dminitbc.f (a bounded coeff extraction, like the DG tables) + a
+      piecewise-linear interp helper. DMMTRX = no-op orchestrator (DMCW crown_width + DMSHAP + DMSUM/DMRDMX, all
+      ported). Plus the event-monitor OPFIND/OPGET DMAUTO mid-cycle scheduling (dmcycl.f:294-329) + xOriginal save
+      (:246) + DMNTRD cycle-follow remap. ⇒ NEWSPRED is now MAPPED END-TO-END; every routine understood.
     - Wire the DMTREG driver (the mapped loop) over these, then C6 payoff: mistoe/mismrt (USEMRT extra mortality) +
       BHTG/DHTG growth-mult, wire BC into the DM dispatch. THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
