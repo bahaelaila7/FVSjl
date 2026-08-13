@@ -472,6 +472,42 @@ const DM_FLWR = 4      # DMFLWR default: years-to-flower → FProp2 = 1/DMFLWR =
 const DM_CAP  = 3.0f0  # DMCAP default: per-crown-third infection carrying capacity (dminitbc.f:268)
 const DM_TRAJWT = 1f0 / 1000f0   # DMCOM TRAJWT PARAMETER (1/1000) — per-observation shading weight
 
+# Default DMLtRx light-response curves (dminitbc.f:248-258): forward (Imm→Lat/Spr→Act) is the identity
+# (0,0)-(1,1); backward (Act→Spr) is (0,1)-(1,0). The DMLIGHT keyword can override per species (deferred).
+const DM_LT_FWD_X = Float32[0f0, 1f0]; const DM_LT_FWD_Y = Float32[0f0, 1f0]
+const DM_LT_BWD_X = Float32[0f0, 1f0]; const DM_LT_BWD_Y = Float32[1f0, 0f0]
+
+# ALGSLP (base/algslp.f) — segmented-linear interpolation of the n-point curve (x[i],y[i]) at xx, clamped
+# to y[1]/y[n] outside [x[1],x[n]]. General form for the DMLtRx light-response curves.
+@inline function dm_algslp(xx::Float32, x, y, n::Int)
+    xx < x[1] && return y[1]
+    xx >= x[n] && return y[n]
+    @inbounds for i in 1:n-1
+        xx < x[i+1] && return y[i] + ((y[i+1] - y[i]) / (x[i+1] - x[i])) * (xx - x[i])
+    end
+    return y[n]
+end
+
+# DMCYCL step 2 (dmcycl.f:216-248) — the light-driven forward/backward reaction proportions per tree ×
+# crown-third. IHT = mid-MESH-cell of crown-third j = INT((BrkPnt[i,j]+BrkPnt[i,j+1])/2)+1 clamped
+# [1,MXHT]; FProp/BProp = ALGSLP(IHT) on the fwd/bwd curves. With the DEFAULT curves + IHT≥1 = X(N)=1 ⇒
+# FProp≡1, BProp≡0 for every crown-third (base BC/YSM; DMLIGHT curves would differ). Returns
+# (fprop, bprop, midht), each sized (n, CRTHRD).
+function dm_props!(ms::MistletoeState, n::Int)
+    fprop = zeros(Float32, n, DM_CRTHRD)
+    bprop = zeros(Float32, n, DM_CRTHRD)
+    midht = zeros(Int, n, DM_CRTHRD)
+    @inbounds for i in 1:n
+        for j in 1:DM_CRTHRD
+            iht = clamp(trunc(Int, (ms.brkpnt[i, j] + ms.brkpnt[i, j+1]) / 2f0) + 1, 1, DM_MXHT)
+            fprop[i, j] = dm_algslp(Float32(iht), DM_LT_FWD_X, DM_LT_FWD_Y, 2)
+            bprop[i, j] = dm_algslp(Float32(iht), DM_LT_BWD_X, DM_LT_BWD_Y, 2)
+            midht[i, j] = iht
+        end
+    end
+    return fprop, bprop, midht
+end
+
 # --- DMCYCL (dmcycl.f) — the ANNUAL life-history driver for one growth cycle. Runs `lastyr` (= IFINT
 # cycle length in years) 1-year steps; each step, for every affected tree i × crown-third j:
 #   New = (NewSpr+NewInt)/TVol  (per-MESH-volume seed density; DMTINY if TVol≈0) — SAME every year
