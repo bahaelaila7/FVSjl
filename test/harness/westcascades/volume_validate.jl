@@ -47,3 +47,17 @@ for (sp, veq, d, h, v1ref) in cases
 end
 println("WC volume VOL(1): $(length(cases)) trees, $(length(cases)-nfail) bit-exact (0.1 round), worst |Δ|=$worst")
 nfail == 0 || error("WC volume VOL(1) validation FAILED ($nfail)")
+
+# Westside DF FULL triple (VOL1 tcuft / VOL4 merch-cuft / VOL2 Scribner board) vs the live fvsvol fort.9
+# dump — the R6 board fix (OPT=23 SEGMNT + SCRIB COR='N'; mrules.f REGN 6). All bit-exact.
+let dfcases = [(12.7f0, 67.0f0, 20.7f0, 17.3f0, 76.0f0),
+               (10.0f0, 65.0f0, 13.3f0, 12.1f0, 57.0f0),
+               ( 9.4f0, 60.0f0, 10.9f0,  8.8f0, 47.0f0)], nf = 0
+    for (d, h, r1, r4, r2) in dfcases
+        v1, v4, v2 = M.wc_fw2_westside_vol("F05FW2W202", d, h, brk(16, d)); v1 = round(v1, digits = 1)
+        (abs(v1-r1) > 0.05f0 || abs(v4-r4) > 0.05f0 || abs(v2-r2) > 0.5f0) &&
+            (nf += 1; println("MISMATCH DF D=$d: jl=($v1,$v4,$v2) live=($r1,$r4,$r2)"))
+    end
+    println("WC westside DF VOL1/VOL4/VOL2: $(length(dfcases)) trees, $(length(dfcases)-nf) bit-exact (R6 OPT=23 + COR='N')")
+    nf == 0 || error("WC westside DF board/merch validation FAILED ($nf)")
+end

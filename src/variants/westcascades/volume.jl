@@ -203,10 +203,48 @@ function _wc_fdbt_c1(jsp::Int, geosub::AbstractString, d::Float32, h::Float32)::
     end
 end
 
+# R6 westside log-bucking constants (NVEL mrules.f REGN 6): OPT=23 (full-log-first SEGMNT, ≠ R3's 22),
+# EVOD=2, MAXLEN=16, MINLEN=2, TRIM=0.5, MERCHL=8, board COR='N' (full board feet AINT(len·volfac+.5), not
+# the R3 decimal-C ×10). Inside-bark log small-end diameters (LOGDIA(:,2)), merch top = TOPD·BARK (IB).
+const _WC_R6_OPT = 23; const _WC_R6_EVOD = 2
+const _WC_R6_MAXLEN = 16.0f0; const _WC_R6_MINLEN = 2.0f0; const _WC_R6_TRIM = 0.5f0; const _WC_R6_MERCHL = 8.0f0
+
+"R6 westside merch cubic VOL(4): buck stump→mtop (IB) with the R6 (OPT=23) SEGMNT, per-log 0.1-rounded Smalian."
+function _wc_fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32)::Float32
+    hs = _fw2_hs(dibat, mtop, h); lmerch = hs - stump
+    lmerch < _WC_R6_MERCHL && return 0f0
+    ns = _nvb_numlog(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM); ns == 0 && return 0f0
+    loglen, ns = _nvb_segmnt(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM, ns)
+    dibl = _fw2_dclass(dibat(4.5f0)); ht2 = stump; vol4 = 0f0
+    @inbounds for i in 1:ns
+        ht2 += _WC_R6_TRIM + loglen[i]; dib = dibat(ht2)
+        (i == ns && dib < mtop) && (dib = mtop)
+        dibs = _fw2_dclass(dib)
+        vol4 += floor(0.00272708f0 * (dibl * dibl + dibs * dibs) * loglen[i] * 10f0 + 0.5f0) / 10f0
+        dibl = dibs
+    end
+    return vol4
+end
+
+"R6 westside Scribner board VOL(2): R6 (OPT=23) SEGMNT + SCRIB COR='N' (full board feet per log)."
+function _wc_fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32)::Float32
+    hs = _fw2_hs(dibat, bftop, h); lmerch = hs - stump
+    lmerch < _WC_R6_MERCHL && return 0f0
+    ns = _nvb_numlog(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM); ns == 0 && return 0f0
+    loglen, ns = _nvb_segmnt(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM, ns)
+    ht2 = stump; vol2 = 0f0
+    @inbounds for i in 1:ns
+        ht2 += _WC_R6_TRIM + loglen[i]; dib = dibat(ht2)
+        (i == ns && dib < bftop) && (dib = bftop)
+        vol2 += _scrib(_fw2_dclass(dib), loglen[i], 'N')   # COR='N': AINT(len·volfac+.5), no ×10, no exception
+    end
+    return vol2
+end
+
 # VOLEQ(1)='F' westside per-tree volume. Returns (VOL1 tcuft, VOL4 merch-cuft, VOL2 Scribner-bf).
 # INSIDE-bark profile calibrated to DBHIB = D·BARK (the fvsvol variant bark, wc_bratio — passed as DBTBH=
 # D·(1−BARK) into sf_shp's DBT_USER, so FDBT_C1 is bypassed): the SAME convention as the INGY dibat path.
-# Merch/board tops use the INGY topd·BARK inside-bark approximation (BRK_WS height-varying tops deferred).
+# Merch/board buck with the R6 rules (mrules.f REGN 6: OPT=23 SEGMNT + board COR='N'); tops = TOPD·BARK (IB).
 function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark::Float32;
                             topd::Float32 = 4.5f0, bftopd::Float32 = 4.5f0, stump::Float32 = 1f0)
     (d < 1f0 || h <= 5f0) && return (0f0, 0f0, 0f0)
@@ -223,10 +261,9 @@ function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark
     f = dbhib / yhat_bh
     dibat = ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), dbhib) : -1f0
-    minl = _cr_merch_minlen(6); merl = _cr_merch_merchl(6)   # R6 merch rules
     v1 = Float32(round(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0)) / 10.0f0
-    v4 = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl)
-    v2 = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl)
+    v4 = _wc_fw2_merch_cuft(dibat, h, topd * bark, stump)
+    v2 = _wc_fw2_board(dibat, h, bftopd * bark, stump)
     return (max(v1, 0f0), max(v4, 0f0), max(v2, 0f0))
 end
 
