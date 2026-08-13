@@ -64,7 +64,13 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     temel  = p.elevation * 100f0              # TEMEL = ELEV·100
     temslp = p.slope * 100f0                  # TEMSLP = SLOPE·100
     temsasp = temslp * cos(p.aspect)          # TEMSASP = TEMSLP·cos(ASPECT)
-    lperm = false                             # LPERM (ak PERMAFROST keyword) — not yet wired; default off (later run)
+    # LPERM — AK PERMAFROST keyword (grincr.f:203). grincr sets LPERM then calls DGDRIV for the GROWTH
+    # prediction (LPERM live), but the LSTART DG/crown calibration runs earlier in CRATET with LPERM still
+    # at its grinit .FALSE. default (verified: the CRATET DGF passes show PFMOD>1 = the floor≥1 branch even
+    # with PRMFROST ON). jl mirrors this: apply LPERM only on the GROWTH pass, NOT during calibration —
+    # signalled by calib_dbh (non-empty only inside the calibration dgf! call, AK-scoped). Off ⇒ PFMOD
+    # floor≥1; On ⇒ +PFPRES presence term, cap PFMOD≤1 (permafrost slows growth).
+    lperm = s.control.permafrost && isempty(s.calib.calib_dbh)
     # PRD = point ZeideSDI/point maxSDI (ak/dgf.f SDICAL→XMAXPT + SDICLS→ZRD, computed ONCE per DGF call).
     # dgf.f: SDICAL(IWHO=2) fills XMAXPT (IWHO-independent); the SDICLS loop over points (IWHO=1, JSPEC=0,
     # DLO=0/DHI=500) fills ZRD(pt). Inert for the DGRD=0 coastal species (AK_DGRD[sp]=0); load-bearing for

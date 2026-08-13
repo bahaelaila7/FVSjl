@@ -261,6 +261,21 @@ function kw_managed!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_permafrost!(s, rec)
+
+PERMAFROST (AK only, initre.f option 146 → OPNEW act 445, processed in grincr.f:203-217): turn the
+permafrost diameter-growth modifier ON/OFF (`LPERM`). Field 1 = date/cycle, field 2 = 0 (OFF) / 1 (ON).
+FVS schedules the activity at the date and grincr sets `LPERM` per cycle; jl applies it directly (the
+common single-setting case; a dated future toggle is applied from parse time, not deferred — permafrost
+is normally set at stand start). Field 2 required by FVS (LNOTBK(2)); a value of 1 sets it on.
+"""
+function kw_permafrost!(s::StandState, rec::KeywordRecord)
+    v = rec.values; p = rec.present
+    s.control.permafrost = p[2] && v[2] == 1f0
+    return
+end
+
+"""
     kw_bamax!(s, rec)
 
 BAMAX (initre.f:6800, option 66): pin the stand's maximum basal area. With field 1 > 0,
@@ -2307,6 +2322,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "SITECODE"; kw_sitecode!(s, rec)
         elseif kw == "STDINFO";  kw_stdinfo!(s, rec)
         elseif kw == "MANAGED";  kw_managed!(s, rec)       # managed-stand flag → DGF kplant term (dgf.f:179)
+        elseif kw == "PRMFROST"; kw_permafrost!(s, rec)    # AK permafrost DGF modifier LPERM (keywds.f TABLE(146), grincr.f:203)
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
