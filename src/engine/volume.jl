@@ -342,6 +342,10 @@ function dub_missing_heights!(s::StandState)
             end
         elseif s.variant isa SoutheastAlaska
             ak_htdbh_dub(Int(sp), d)   # ak/cratet.f Curtis-Arney INVENTORY-EQN dub (LHTDRG=false)
+        elseif s.variant isa WestCascades
+            # wc/cratet.f:375-377 — WC LHTDRG=.FALSE. for all species ⇒ ALL missing-height dubbing
+            # uses the FOREST-DEPENDENT Curtis-Arney HTDBH (MODE=0), not the shared single-table _htdbh_height.
+            wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), d)
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end

@@ -240,6 +240,7 @@ include("variants/westcascades/diameter_growth.jl")  # WC large-tree DDS (wc/dgf
 include("variants/westcascades/height_growth.jl")    # WC large-tree HTG (wc/htgf.f + findag.f + htcalc.f): wc_findag/wc_htcalc + height_growth! — chunk 4
 include("variants/westcascades/site_index.jl")       # WC site index + Reineke SDImax (forkod/habtyp/ecocls/sichg/sitset) — chunk 2
 include("variants/westcascades/crown.jl")            # WC crown ratio (wc/crown.f + wc/dubscr.f): Weibull CR + RW logistic + DUBSCR — chunk 5
+include("variants/westcascades/regent.jl")           # WC small-tree growth (wc/regent.f + vwc/smhgdg.f + wc/htdbh.f + dgbnd.f): SMHGDG + small_tree_growth! — chunk 6
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
