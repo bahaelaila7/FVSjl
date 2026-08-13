@@ -246,6 +246,27 @@ end
 # rating k = 2 if x>2, else INT(x) with a stochastic +1 (DMRANN draw ≤ frac). DMR = Σ over the
 # 3 thirds (so 0..6, Hawksworth). Biocontrol pools (DMINF_BC, MISBCI) are omitted — unported and
 # zero for BC/YSM. Stochastic (fractional rounding). Runs after the spread core each cycle.
+# Grow the DM per-tree arrays to the current tree count `n` (the treelist expands between cycles via
+# tripling/regen, but dm_init! only sized to the inventory count). The PERSISTENT infection state
+# (dmr + dminf pools) is preserved for the existing records + zero-filled for new ones; the per-cycle
+# arrays (newspr/newint/brkpnt/idmshp/dmrdmx — all recomputed each cycle) are (re)allocated to n.
+# ⚠ NOTE: after TRIPLING the new records are copies of parents, so their DM pools should mirror the
+# parent's — that per-copy DMINF propagation is a DMNTRD-class refinement (deferred); new records here
+# start uninfected, so a tripled infected stand slightly under-counts DM until DMNTRD lands.
+function _dm_ensure_capacity!(ms::MistletoeState, n::Int)
+    old = length(ms.dmr)
+    if old < n
+        d = zeros(Int32, n); @inbounds d[1:old] .= ms.dmr; ms.dmr = d
+        inf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL); @inbounds inf[1:old, :, :] .= ms.dminf; ms.dminf = inf
+    end
+    size(ms.newspr, 1) == n || (ms.newspr = zeros(Float32, n, DM_CRTHRD))
+    size(ms.newint, 1) == n || (ms.newint = zeros(Float32, n, DM_CRTHRD))
+    size(ms.brkpnt, 1) == n || (ms.brkpnt = zeros(Float32, n, DM_BPCNT))
+    length(ms.idmshp) == n  || (ms.idmshp = zeros(Int32, n))
+    size(ms.dmrdmx, 1) == n || (ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2))
+    return ms
+end
+
 function dm_ndmr!(s::StandState)
     ms = s.mistletoe
     (ms === nothing || !(ms.active || ms.newmod)) && return s
@@ -625,6 +646,8 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     n == 0 && return s
     species = t.species; prob = t.tpa            # PROB = trees/acre expansion factor
     maxsp = Int(maximum(@view species[1:n]))
+    _dm_ensure_capacity!(ms, n)                  # the treelist can GROW between cycles (tripling/regen)
+                                                 # since dm_init! sized the DM arrays — track current n
 
     # --- SETUP (DMTREG:239-298) ---
     dm_shap!(s)                                  # DMSHAP → ms.idmshp (crown shape; DMMTRX calls it first)
