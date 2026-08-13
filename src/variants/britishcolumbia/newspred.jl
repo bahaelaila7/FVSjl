@@ -344,6 +344,28 @@ function dm_tlst(sp::Int, tdmr::Int, ptr, index, tpa)
     return tlst
 end
 
+# --- DMSAMP (dmsamp.f) — how many SOURCE trees of a given class to place in a target's sampling
+# ring: draw a uniform, bisect the neighbour CDF `cnb` to get BigS = total trees in the ring, then
+# binomially thin BigS by x = Prop·(D/TotD) (the source-class fraction) via BigS more draws.
+# Stochastic (1 + BigS DMRANN draws). Returns S. `cnb` is the (cnb,End) from dm_nb (0-based cnb[j+1]).
+function dm_samp!(ms::MistletoeState, totd::Float32, d::Float32, cnb, prop::Float32)
+    rnd = dm_rann!(ms)
+    bigs = 0
+    @inbounds for j in 0:DM_DSTLEN
+        if rnd <= cnb[j+1]
+            bigs = j; break
+        end
+    end
+    s = 0
+    if bigs > 0
+        x = prop * (d / totd)
+        for _ in 1:bigs
+            dm_rann!(ms) <= x && (s += 1)
+        end
+    end
+    return s
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
