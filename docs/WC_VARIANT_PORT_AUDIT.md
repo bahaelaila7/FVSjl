@@ -286,3 +286,30 @@ mortality) .sum is producible; cycles 1+ diverge (TPA does not decline) until ch
 - Westside **BRK_WS** height-varying merch/board tops (the ~1.7% DF board residual on VOL(2)/VOL(4)-top).
 - SHP_W4 (WH) / SHP_W5 (RC) ported source-faithful but unexercised on wct01 (no WH/RC); RA/RW DG/crown
   branches likewise. TotCuFt +0.47% recent-mortality/tpa-expansion residual (verify under chunk 7).
+
+## Validation — chunk 7 mortality (vwc/morts.f ORGANON RIP) (2026-08-13, per-tree bit-exact)
+
+`src/variants/westcascades/mortality.jl` — replaces the earlier placeholder no-op with the full ORGANON
+logistic-RIP model. Per-species MORTMAP CASE 1-6 (BM0..BM5 5-yr logit → annual survival^(1/5) → annual
+RIP × CRADJ); CASE 5 = Oregon-white-oak (Gould-Harrington), CASE 6 = redwood (Castle 2021); sub-3" trees
+use the Gould-Harrington small-tree RIP. WKI=P·(1−(1−RIP)^FINT); then the integer-PASS density self-thin
+(SDI<SDIMAX AND BA<550). XSITE1 = King-converted DF SI; XSITE2 = SITEAR[WH]. Routes the kill through the
+shared apply_fixmort! / book_mortality_snags! / tpa-reduction.
+
+Oracle = `FVSwc_g16` with an instrumented vwc/morts.f (unconditional per-tree DO-40 WRITE of D/CR/BAL/
+PTBAL/HT/AVH/BA/XSITE/RIP/WK2 to fort.9 — bypasses the cyc0 volume-DEBUG NATCRS crash), wct01 cycle 1.
+
+> **RIP 27/27 BIT-EXACT** (worst |Δ|=0.0) — MORTMAP CASE 1 (DF), CASE 2 (WF/ES), CASE 4 (LP/SP/PP), and
+> the sub-3" Gould-Harrington small-tree branch. Harness `morts_validate.jl` + `ref_morts_wct01.txt`.
+> **End-to-end per-tree WK2 kill 27/27 BIT-EXACT** vs the live dump. **.sum TPA decline** now tracks the
+> oracle — 2000=491 and 2010=454 BIT-EXACT, then within a few % (2090 274 vs 284).
+
+The residual multi-cycle BA/QMD divergence (2090 BA 359 vs 313, QMD 15.5 vs 14.2) is the SEPARATE growth
+serial-correlation compounding (DGF-over/HTGF-under; the cornered OLDRN/DGSCOR straddle class documented
+cluster-wide), NOT mortality — proven by the per-tree cyc1 kill being exact. Multi-cycle wct01 now runs.
+
+## Remaining (post chunks 6/7/8)
+- Westside **BRK_WS** height-varying merch/board tops (the ~1.7% DF board residual on VOL(2)).
+- The mature-regime growth serial-correlation compounding (cornered class; the BA/QMD late-cycle drift).
+- SHP_W4 (WH) / SHP_W5 (RC), RA/RW branches, and the density-iteration PASS scaling remain unexercised on
+  wct01 (below SDIMAX; no WH/RC/RA/RW) — ported source-faithful.
