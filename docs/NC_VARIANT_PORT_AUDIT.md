@@ -84,13 +84,15 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    FM11 post-activity sharing (AFWT/SLCHNG/HARVYR, <5 yr after an entry) is not yet wired — inert for nct01 (2003 fire is
    10 yr after the 1993 THINDBH ⇒ AFWT=0, FM10=1, exact). (Also SEPARATE from FFE: the BARE/PLANT stand 5 crashes in
    `establish!` on `KeyError :estab_min_ht` — an NC regen coefficient gap, chunk 3.)
-2. **crown biomass (ROUTED) — crown fire DISABLED pending cbd validation.** NC's `fmcroww.f` is byte-identical to CR's, so NC
-   routes through `cr_crownw` with `_NC_ISPMAP`=[3,15,3,4,10,20,21,17,4,13,17,19] (nc/fmcrow.f); nct01's groups {3,4,15} are
-   ported. The crowning/torching/crown_fire_result Unions include Klamath, but the fmburn crown-fire flame BOOST is left OFF
-   for NC: MEASURED pre-fire 2003 **cbd=0.147 vs live 0.028 (5.3× high), canopy base 6 ft vs live 48 ft** ⇒ with the boost on,
-   flame 14.1/scorch 68 vs live 8.3/47 ⇒ catastrophic over-kill (TPA 5 vs 58). The 5.3× canopy-bulk-density over-prediction is
-   an NC crown-biomass magnitude/vertical-distribution bug (needs per-tree validation vs a live FMCROWW dump) — a distinct
-   OPEN chunk. Surface-only, NC 2003 flame=4.27/scorch=17.9 (under, no crown fire).
+2. **crown biomass (ROUTED, VALIDATED bit-exact) — crown fire correctly OFF (live is surface).** NC's `fmcroww.f` is byte-
+   identical to CR's; NC routes through `cr_crownw` with `_NC_ISPMAP`=[3,15,3,4,10,20,21,17,4,13,17,19] (nc/fmcrow.f); groups
+   {3,4,15} are ported. **VALIDATED vs live DEBUG FMCROW: per-tree crown biomass is BIT-EXACT for all 27 cyc1 trees (ratio 1.0).**
+   The `canopy_bulk_density` is ALSO correct — vs live DEBUG FMPOCR @2003: jl **cbd=0.147 = live 0.152** (13-ft-max CRFILL, within
+   3%), jl **actcbh=6 = live 6** (the CRFILL profiles match: jl [6,20,25]=27.6/357/362 vs live 27.4/361/367).
+   ⚠ CORRECTION of the earlier draft: the "5.3× cbd / base 6-vs-48" was a MEASUREMENT ERROR — I compared to the potfire
+   REPORT's 0.028/48 (a separate adjusted metric), NOT the FMPOCR cbd (0.152/6) the crown-fire path actually uses. Crown
+   biomass has NO bug. And live's 2003 SIMFIRE is a SURFACE fire (potfire: torch prob 0.00, type S/S) — so leaving the fmburn
+   crown-fire boost OFF for NC is CORRECT, not a workaround.
 4. **Dunning DKR decay (DONE, faithful) — but NOT the fuel-accumulation lever.** Ported `_FM_DKR_NC` (nc/fmvinit.f:70-92, decay-
    class-independent, woody 0.0125-0.025 — 3.7-5.6× SLOWER than the SN default NC previously fell to) + `nc_dcymlt` (nc/fmcba.f
    :395-405 + dunn.f GETDUNN=DUNN50: site index→Dunning code→multiplier), applied at the first FFE year into `params.dkr`
@@ -100,10 +102,16 @@ UPDATE CRWDTH). Measured: PERCOV 44.3 → 39.72 (live 39.01); DUFF 15.73 → 14.
    4.80/13.28). ⇒ the ~23% LARGE-fuel accumulation gap is NOT decay/snag-falldown — it is the crown-lift/woody-breakage fuel
    ADDITIONS (fmcadd, driven by the same NC crown biomass as chunk 2) and/or the fire-basis (start-of-cycle+1yr) timing. Coupled
    with the chunk-2 crown-biomass fix. OPEN.
-   ★ END-TO-END STATUS: crash RESOLVED (nct01 runs to completion, no fmcba:114); growth `.sum` BIT-IDENTICAL; fuel-model
-   SELECTION bit-exact; initial fuels + PERCOV cornered ~2%. NOT converged: flame/scorch/mortality — gated on the NC
-   crown-biomass magnitude bug (cbd 5.3× high) + the large-fuel ADDITIONS gap, both rooted in crown biomass. Next: validate
-   NC FMCROWW crown biomass per-tree vs a live dump; that one fix feeds BOTH the cbd (crown fire) and the crown-lift additions.
+   ★ END-TO-END STATUS (corrected, real run_keyfile path — NB: manual `grow_cycle!` without `fuel_period`/`ffe_init_period`
+   SKIPS ffe_fuel_update! and gives artifact fuel/flame numbers; always validate via run_keyfile or the summary loop):
+   crash RESOLVED (nct01 runs to completion, no fmcba:114); growth `.sum` BIT-IDENTICAL; fuel-model SELECTION bit-exact;
+   crown biomass + canopy bulk density bit-exact; initial fuels + PERCOV cornered ~2%. **Fire MORTALITY is CORNERED**: FFE
+   stand 2003 TPA 285=285 (pre-fire exact), post-fire 2008 TPA **68 vs live 58** (~4% of the ~227-TPA kill — jl slightly
+   under-kills). The ONE residual: jl surface flame **4.27/scorch 17.9 vs live 8.3/47** — from fuel-model weights 6@77/10@23
+   vs live 10@56/6@44 — from the LARGE (>3") down-wood accumulation SHRINKING in jl (1993 11.06 → 1998 10.05 → 2003 9.12)
+   while live GROWS (→12.1→13.28). Decay is now correct + not the lever (verified); the gap is the **fmcadd additions to the
+   >3" pool** (snag-falldown / crown-lift / woody-breakage feeding classes 4-9) being too low. That is the single open chunk
+   for full flame/scorch/mortality convergence — a fuel-ADDITIONS investigation, NOT crown biomass (bit-exact) or decay.
 3. **NC establishment (DONE — nct01 runs to completion).** Wired the western establishment path for Klamath: `_NC_ES_XMIN`
    / `_NC_ES_HHTMAX` (nc/blkdat.f), `_NC_ESSUBH_HHT` fixed base-height table (nc/essubh.f), the western `bc=nothing` +
    PLANT-no-RAN branches. The BARE/PLANT stand 5 now completes. **nct01 runs end-to-end with NO fmcba.jl:114 crash** — the
