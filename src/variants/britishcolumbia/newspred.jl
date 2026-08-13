@@ -810,6 +810,32 @@ function dm_rdmx!(s::StandState)
     return s
 end
 
+# --- TVol (dmcycl.f:178-198) — per-crown-third DM crown VOLUME of tree i: sum over the third's
+# MESH bands of HtWt·DMRDMX(VOLUME), with the crown-third-boundary fractional weighting (DMHtWt).
+# Normalizes the New infection density in DMCYCL (New=(NewSpr+NewInt)/TVol). Deterministic; needs
+# brkpnt (dm_fbrk!) + dmrdmx (dm_rdmx!). Returns tvol[1:CRTHRD].
+function dm_tvol(ms::MistletoeState, i::Int)
+    tvol = zeros(Float32, DM_CRTHRD)
+    @inbounds for r in 2:DM_BPCNT
+        uht = trunc(Int, ms.brkpnt[i, r-1]) + 1
+        lht = trunc(Int, ms.brkpnt[i, r]) + 1
+        y = 0f0
+        for s in lht:uht
+            s > DM_MXHT && continue
+            htwt = if lht == s && r < DM_BPCNT
+                1f0 - (ms.brkpnt[i, r] - trunc(ms.brkpnt[i, r]))
+            elseif uht == s && r > 2
+                ms.brkpnt[i, r-1] - trunc(ms.brkpnt[i, r-1])
+            else
+                1f0
+            end
+            y += htwt * ms.dmrdmx[i, s, DM_VOLUME]
+        end
+        tvol[r-1] = y
+    end
+    return tvol
+end
+
 # --- C4 neighbour-count PDF: BNDIST + GAMMLN (bndist.f) — the Binomial/Poisson/Negative-Binomial
 # family PDF for a population of given mean M and variance V (V≈M→Poisson, V>M→NegBinom, V<M→
 # Binomial). Called by DMNB to distribute source trees across sampling rings. Pure deterministic
