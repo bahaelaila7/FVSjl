@@ -218,6 +218,15 @@ function dm_rnsd_set!(ms::MistletoeState, seed::Float64)
     ms.dmss = seed; ms.dms0 = seed; ms
 end
 
+# --- DMSLOP (dmslop.f) — site-slope offset (in MESH height) between a source tree in sampling
+# ring `ring` and its target: Offset = INT((ring-0.5)·cos(2π·Rnd)·SLOPE). + = source above target.
+# Draws one DMRANN angle ⇒ stochastic. `slope` = stand slope fraction (PLOT SLOPE).
+@inline function dm_slop(ms::MistletoeState, ring::Int, slope::Float32)
+    d = Float32(ring) - 0.5f0
+    rnd = dm_rann!(ms)
+    return trunc(Int, d * cos(DM_TWOPIE * rnd) * slope)
+end
+
 # --- C1 keyword handlers (misin.f) — recognize the DM keywords the YSM stand uses.
 # BC-only: for other variants these keywords stay in `unrecognized_keywords` (unchanged
 # behaviour). Until C6 wires the model, these only set flags/state and are .sum-INERT.
