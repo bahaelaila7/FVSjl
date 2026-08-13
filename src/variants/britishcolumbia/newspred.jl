@@ -423,6 +423,71 @@ function dm_bshd(iz::Int, ix::Int)
     return (cs, vlen, vcnt)
 end
 
+# --- DMADLV (dmadlv.f) — accumulate one "level" of the spread field (SFld, to the target) and
+# intensification field (IFld, self) from an infected source `srcind` at MESH height `mshht`,
+# infection `level`, `cnt` copies, to a target at MESH `dist`. Walks each DMBSHD-decoded seed
+# trajectory: inside the source crown (x≤Rad=DMRDMX radius) → IFld += VecWt·Op (opacity capture);
+# at the target distance (CShd x == dist) → SFld += Cnt·VecWt·Op; else en-route shading loss
+# VecWt −= VecWt·shade[h]. Op = DMOPQ2 = 1−(1−opaq)^MESH (per-MESH-cell opacity, dmtreg.f:229).
+# Deterministic given `shade`. II=0/EB=0 (the DMTREG driver values) ⇒ Shd/Shd0 collapse to shade[h].
+function dm_adlv!(ms::MistletoeState, species, srcind::Int, cnt::Int,
+                  sfld::AbstractVector{Float32}, ifld::AbstractVector{Float32},
+                  mshht::Int, dist::Int, level::Float32, shade::AbstractVector{Float32})
+    op = 1f0 - (1f0 - ms.opaq[Int(species[srcind])])^DM_MESH        # DMOPQ2
+    lszind = max(1, DM_ORIGIN - mshht + 1)                          # source z-index start
+    lfzind = max(1, mshht - DM_ORIGIN + 1)                          # field z-index start
+    hfzind = min(DM_MXHT, mshht - DM_ORIGIN + DM_MXTHRZ)            # field z-index end
+    lsxind = dist                                                  # HSXInd=Dist ⇒ single x
+    u = lszind
+    @inbounds for i in lfzind:hfzind
+        v = lsxind
+        for j in lsxind:lsxind                                      # LFXInd..HFXInd = single (dist)
+            if 1 <= u <= DM_MXTHRZ && 1 <= v <= DM_MXTHRX           # guard ShdPtr bounds (inert when in range)
+                cs, veclen, n = dm_bshd(u, v)
+                for k in 1:n
+                    vecwt = Float32(cs[k, 1, DM_XX]) * level        # CShd(k,0,XX)
+                    xlast = 0f0; hlast = 0
+                    for m in 1:veclen[k]
+                        h = mshht + Int(cs[k, m+1, DM_ZZ]) - DM_ORIGIN
+                        x = Float32(cs[k, m+1, DM_XX]); xlast = x; hlast = h
+                        if 1 <= h <= DM_MXHT
+                            rad = ms.dmrdmx[srcind, h, DM_RADIUS]
+                            y = x - rad
+                            if x <= rad
+                                loss = vecwt*op; vecwt -= loss; ifld[h] += loss
+                            elseif 0f0 < y < 1f0
+                                loss = vecwt*op*y; vecwt -= loss; ifld[h] += loss
+                            elseif Int(cs[k, m+1, DM_XX]) == dist
+                                loss = vecwt*op; sfld[h] += Float32(cnt)*loss
+                            else
+                                loss = vecwt*shade[h]; vecwt -= loss
+                            end
+                        end
+                        if m == veclen[k] && i == lfzind && lfzind > 1   # edge downward loop
+                            for w in i:-1:1
+                                rad = ms.dmrdmx[srcind, w, DM_RADIUS]
+                                y = xlast - rad
+                                if y <= rad
+                                    loss = vecwt*op; vecwt -= loss; ifld[w] += loss
+                                elseif 0f0 < y < 1f0
+                                    loss = vecwt*op*y; vecwt -= loss; ifld[w] += loss
+                                elseif Int(cs[k, m+1, DM_XX]) == dist
+                                    loss = vecwt*op; sfld[w] += Float32(cnt)*loss
+                                else
+                                    loss = vecwt*shade[hlast]; vecwt -= loss
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            v += 1
+        end
+        u += 1
+    end
+    return nothing
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
