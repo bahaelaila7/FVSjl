@@ -366,6 +366,33 @@ function dm_samp!(ms::MistletoeState, totd::Float32, d::Float32, cnb, prop::Floa
     return s
 end
 
+# --- DMSLST (dmslst.f) — select `n` SOURCE trees of DMR class `dmrcls` (with replacement, weighted
+# by the cumulative SrcCD within the class from dm_src), deduped into (tree, count) pairs. For each
+# of n draws, bisect SCD[pFrst..pLast] to pick a tree; accumulate its occurrence count. Stochastic
+# (n DMRANN draws). Returns (idxs, knts) — m unique sources = length(idxs). sptr is dm_src's length-7
+# vector (sptr[c+1] = end offset of class c).
+function dm_slst!(ms::MistletoeState, dmrcls::Int, n::Int, sind, scd, sptr)
+    pfrst = dmrcls == 0 ? 1 : sptr[dmrcls] + 1
+    plast = sptr[dmrcls+1]
+    idxs = Int32[]; knts = Int32[]
+    for _ in 1:n
+        rnd = dm_rann!(ms)
+        @inbounds for j in pfrst:plast
+            if rnd <= scd[j]
+                tree = sind[j]
+                pos = findfirst(==(tree), idxs)
+                if pos === nothing
+                    push!(idxs, tree); push!(knts, Int32(1))
+                else
+                    knts[pos] += Int32(1)
+                end
+                break
+            end
+        end
+    end
+    return (idxs, knts)
+end
+
 # --- SF autocorrelation scaling matrix (dminitbc.f:190-203) — SF[diff,ring] =
 # exp(diff·DMALPH · exp(Dstnce[ring]·DMBETA)); reweights source density by the DMR
 # difference between source and target class (spatial autocorrelation). DMALPH default
