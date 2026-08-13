@@ -73,14 +73,29 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     return g
 end
 
-# --- Live growth hook (oc/dgdriv.f entry) ------------------------------------------------------
-# C7: OregonCoast drives the ORGANON engine. `diameter_growth!` now runs the full ORGANON growth +
-# StandState copy-back for the valid ORGANON trees (was a loud-error stub through C6). It applies DBH/
-# HT/CR/TPA in one pass (ORGANON computes them together), so — unlike the Wykoff variants — the OC
-# height/mortality/crown hooks are no-ops (the work is already done here). Returns `nothing` (no
-# tripling: INDS(5)=0, DGSD=0 on OC). NON-ORGANON trees await the oc/dgf.f port (file header).
+# --- Live growth hook (oc/dgdriv.f entry) — grow_cycle! integration ----------------------------
+# C7: OregonCoast drives the ORGANON engine. Because ORGANON computes DIAMETER, HEIGHT, CROWN and
+# MORTALITY together in one EXECUTE, `diameter_growth!(::OregonCoast)` is the SINGLE authority: it
+# runs the whole growth and applies all four copy-backs to the StandState HERE, then ZEROS
+# `diam_growth`/`ht_growth` so the shared engine's later apply-loop (`DBH += DG/bark`,
+# `HT += HTG`) is a no-op — and the OC `height_growth!`/`mortality!`/`crown_ratio_update!`/
+# `small_tree_growth!` hooks are no-ops (the work is already done). This avoids the double-apply the
+# cooperating-hook split would risk, and is faithful: FVS's `oc/dgdriv.f`→EXECUTE likewise produces
+# DG/HTG/CR/MORTEXP in one call, which FVS then copies at dgf/htgf/crown/morts. Returns `nothing`
+# (no tripling: INDS(5)=0, DGSD=0 on OC).
 function diameter_growth!(s::StandState, ::OregonCoast; tripling::Bool = false,
                           sfint::Float32 = 5f0, kwargs...)
     organon_apply_growth!(s; fint=sfint)
+    t = s.trees
+    @inbounds for i in 1:t.n
+        t.diam_growth[i] = 0f0    # DBH/HT already grown in organon_apply_growth!; zero so the shared
+        t.ht_growth[i]   = 0f0    # grow_cycle! apply-loop (DBH+=DG/bark, HT+=HTG) is inert for OC.
+    end
     return nothing
 end
+
+# ORGANON did height/mortality/crown inside `diameter_growth!` → these shared hooks are no-ops for OC.
+height_growth!(s::StandState, ::OregonCoast; kwargs...) = s
+small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
+mortality!(s::StandState, ::OregonCoast; kwargs...) = s
+crown_ratio_update!(s::StandState, ::OregonCoast; kwargs...) = s

@@ -426,21 +426,43 @@ stub through C6).
 (`RD ≤ RDCC` ⇒ base mortality; `A1` 6.479 vs 6.294 for msdi 815 vs 0 give byte-identical DEADEXP), so
 the hook is bit-exact with the default `msdi=0`.
 
-### Remaining C7 sub-steps (next runs)
+## Chunk C7 sub-step 3 delivered (grow_cycle! seam reconciliation) — no double-apply
 
-- **Full `grow_cycle!` / `run_keyfile` integration:** `organon_apply_growth!` does a COMPLETE apply
-  (DBH/HT/CR/TPA in one pass, since ORGANON computes them together) — it must be reconciled with the
-  shared engine's per-hook order (`diameter_growth!` → apply-loop `DBH+=DG/bark` → `height_growth!` →
-  `mortality_and_fire!` → `crown_ratio_update!`) so nothing double-applies (either split into
-  cooperating OC no-op hooks + an OC branch in the apply-loop bark selection, or OC-guard the
-  apply-loop and add OC no-op hooks). Not yet exercised through `run_keyfile`.
-- **Non-ORGANON DGF (`oc/dgf.f`, 480 lines, CA-family Wykoff):** the IORG=0 surrogate / no-big-6 trees
-  (ocmin: LP/BR/sub-4.5-ft DF) grow FVS-native; `organon_apply_growth!` leaves their DG/HTG at 0.
-  Needed for a full-stand `.sum`.
-- **MSDI/SDIDEF sourcing** (`oc/sitset.f:327` `RVARS(3..5)=SDIDEF(7/4/18)`; jl OC has no `sdimax` yet —
-  inert on ocmin, load-bearing for dense stands crossing RD=RDCC), **carried stand state**
-  (A1MAX/NO/RD0, subsequent-cycle mortality init `mortality.f:177-204`) + multi-cycle, and the
-  **end-to-end `.sum`** vs FVSoc_clean (oracle volume-stage crash to be worked around).
+`diameter_growth!(::OregonCoast)` is now the **single growth authority** in the shared `grow_cycle!`:
+because ORGANON computes diameter/height/crown/mortality together in one EXECUTE, it runs the whole
+`organon_apply_growth!` (applying DBH/HT/CR/TPA) and then **zeros** `diam_growth`/`ht_growth` so the
+engine's later apply-loop (`DBH+=DG/bark`, `HT+=HTG`) is inert, and the OC `height_growth!` /
+`small_tree_growth!` / `mortality!` / `crown_ratio_update!` hooks are **no-ops**. This is faithful
+(FVS's `oc/dgdriv.f`→EXECUTE likewise produces DG/HTG/CR/MORTEXP in one call) and avoids the
+double-apply a cooperating-hook split would risk.
+
+**VERIFIED no double-apply:** replaying the `grow_cycle!` growth order (`diameter_growth!` →
+apply-loop → the four no-op hooks) on an ocmin `StandState` gives **byte-identical** DBH/HT/CROWN/TPA
+to a single `organon_apply_growth!` — max |Δ| = 0 on all four (applied exactly once).
+
+### Remaining for the end-to-end `.sum` (the mergeable C7 — larger than one sub-step)
+
+Getting `run_keyfile` to a bit-exact ocmin/oct01 cyc0 `.sum` needs three more FVS subsystems the
+OC port does not yet have (each comparable to a growth chunk). Measured blocker order (first crash
+first) via `run_keyfile(ocmin; variant=OregonCoast)`:
+
+1. **OC setup dubbing** — `setup_growth!`→`dub_missing_heights!` (CRATET) has no OC branch, so it
+   falls to the shared `_htdbh_height` and `KeyError: htdbh_p2` (OC has no such column). Needs OC's
+   `oc/cratet.f` HTDBH (Wykoff `exp(AX+BX/(D+1))+4.5`, per-species HT1/HT2 — the oracle dubs ocmin
+   tree-20 LP→53.32) for the missing-height NON-ORGANON trees, plus wiring the C2
+   `organon_prepare_swo` HT/CR imputation for the ORGANON trees, plus crown init.
+2. **Non-ORGANON DGF/HTGF** — `oc/dgf.f` (480-line CA-family Wykoff DDS) + `oc/htgf.f` native path
+   for the IORG=0 surrogate / no-big-6 trees (ocmin LP/BR/sub-4.5-ft DF); `organon_apply_growth!`
+   currently leaves their DG/HTG at 0.
+3. **OC volume** — `compute_volumes!` for OC (NVEL/CA-family equations) so the `.sum` TPA/BA/SDI/
+   TopHt/QMD/vol row can be built; then the pre-volume-crash `.sum` row compared to FVSoc_clean
+   (GROSPC trap: read the `.sum`-reported per-acre values, not raw `stand_tpa`).
+
+Plus **MSDI/SDIDEF sourcing** (`oc/sitset.f:327` `RVARS(3..5)=SDIDEF(7/4/18)`; inert on ocmin's
+RD≤RDCC base mortality — msdi 815 vs 0 give byte-identical DEADEXP — but load-bearing for dense
+stands) and the **carried mortality state** (A1MAX/NO/RD0, subsequent-cycle init `mortality.f:177-204`)
+for multi-cycle. The growth science (C3–C6) + orchestration (C7-1) + copy-back (C7-2) + the seam
+(C7-3) are all bit-exact/verified; these three are engine-wiring subsystems, scoped for the next runs.
 
 ## Oracle status
 
