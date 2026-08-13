@@ -179,4 +179,21 @@ bug. Three vehicles, in priority order:
   shade), DMMTRX (73, det, spread-matrix setup), DMNTRD (202, cycle-follow remap). Then C5 DMCYCL (593, det,
   life-history compartment advance). Then wire the DMTREG driver + C6 payoff (mistoe/mismrt + BHTG/DHTG). Validate
   the coupled block at the aggregate FVS_DM_Stnd_Sum_Metric trajectory (spatial draws = realization straddle).
+- **★ SUPPORT LAYER COMPLETE (2026-08-13) — 17 routines landed + unit-validated, all engine-inert:**
+  geometry DMFBRK/DMSHAP/DMRDMX; neighbour BNDIST+GAMMLN/DMNB; RNG DMRANN/DMSLOP; DMR DMNDMR;
+  autocorr DMAUTO+SF; index opsort!/DMFINF/DMFDNS/DMSRC/DMTLST; sampling DMSAMP/DMSLST; trajectory
+  Shd1/ShdPtr extract + DMBSHD decode. Each validated against a known quantity (analytic vol / known
+  distributions / MINSTD / decode-vs-table / density sums).
+- **★ DMADLV FULLY MAPPED (dmadlv.f, the hardest routine — port next):** walks each DMBSHD-decoded seed
+  trajectory from an infected source. Per step: h = MshHt + CShd[k,m,ZZ] − ORIGIN (z-band); if inside the
+  source crown (x≤Rad=DMRDMX[src,h,RADIUS]) → intensification `IFld[h] += VecWt·Op` (self); at the target
+  distance (CShd[k,m,XX]==Dist) → spread `SFld[h] += Cnt·VecWt·Op` (to target); else en-route shading loss
+  `VecWt −= VecWt·Shade[h]`. Op = DMOPQ2[sp] = 1−(1−DM_OPAQ[sp])^MESH (per-MESH-cell opacity, dmtreg.f:229).
+  In the DMTREG driver call II=0 ⇒ the Shd/Shd0 edge-buffer distinction collapses to Shade[h]. Needs the
+  DMFSHD `Shade` per-band field (stochastic grid sim, the one remaining input) + DMRDMX (done).
+- **REMAINING = the ASSEMBLY + PAYOFF phase (a coherent block, validate together at the aggregate DMR
+  trajectory / YSM mortality — NOT independently):** DMFSHD (shade grid, 231, 4 RNG) → DMADLV (accumulation)
+  → DMOTHR (apply new spread/intensification, 114, det) → DMCYCL (life-history compartment advance, 593, det)
+  → wire the DMTREG driver (the mapped loop) → DMMTRX/DMNTRD setup/remap → C6 payoff (mistoe/mismrt USEMRT +
+  BHTG/DHTG growth-mult, wire BC into the DM dispatch). THIS closes the YSM gap (jl SDI→1586 vs oracle 926).
 - Multi-session; each chunk lands + validates before the next. Off-switch untouched (USER's).
