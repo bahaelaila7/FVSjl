@@ -100,16 +100,28 @@ still-OPEN (#205); one now RESOLVED-CORNERED by measurement (#206):
 META (twice+ reinforced): sweep REGIME-stratified real-FIA (seedling/woodland/aspen/bare-establishment); a clean cyc0
 sweep and ref-stand validation MISS these.
 
-## ★★★ 2026-08-13 — #196 BC NEWSPRED USER-GREENLIT + SCOPED; port STARTING (was the sole remaining item)
-The USER answered the #196 cost/benefit decision: "scope then start porting." So the last remaining item is now
-IN PROGRESS, not a decision-gate. SCOPE = docs/BC_NEWSPRED_PORT_PLAN.md (canada/newmist NISI spatial dwarf-mistletoe,
-8761 lines/50 files; closes the BC YSM under-mortalization jl SDI→1586 vs oracle 926). Chunk plan C0-C7 (foundation →
-keywords/DMINIT → coeffs+crown-width → spatial substrate bndist/dmshap → NISI spread core dmtreg → life-history
-dmcycl+autocorr dmauto → PAYOFF stand-coupling mistoe/mismrt/growth-mult → reports). VALIDATION VEHICLE: inline
-TREEDATA reproducer of YSM (the inline FVSbc_clean path WORKS; the DB path is crash-blocked isoc23×SQLite) + FVSbc_g16
-instrument-replay. Multi-session; each chunk lands+validates before the next; never FFI the DMRANN spatial RNG (expect
-a realization straddle). Off-switch STILL untouched = USER's call (greenlighting the port is NOT the off-switch).
-Genuinely-open now = #196 (IN PROGRESS, the ONLY remaining item; every other cluster/extension task done-or-cornered).
+## ★★★ 2026-08-13 (LATEST) — #196 BC NEWSPRED COMPLETE + YSM GROWTH RESIDUAL CLOSED-CORNERED
+The port is DONE (canada/newmist NISI, ~27 components + dm_tregro! weave, engine-wired). ★★ PREMISE OVERTURNED
+by measuring the oracle's OWN DM dump (FVS_DM_Stnd_Sum_Metric): the YSM DM is MINOR (~113 TPH, DMI 1-2) and jl
+MATCHES it — so the "YSM under-mortalization = missing spatial DM" attribution was WRONG. The real YSM gap was
+TWO BC DATABASE-READER bugs, BOTH FIXED this session:
+  (1) **3ff2649** — the reader IGNORED the BEC zone (ECOREGION) ⇒ every BC DB stand defaulted to ICHmw2/01 ⇒
+      wrong DGCON (YSM IDFdk3 Pl −0.2238 vs ICH 0.2625) ⇒ ~2× over-growth. Fix HALVED the gap.
+  (2) **185833a** — metric ELEVATION not converted: the metric reader dbsstandin.f:351 does ELEVATION*MtoFt/100
+      (m→hundreds-of-ft); jl stored metres RAW ⇒ ~30.48× too large ⇒ corrupts BC crown + AUTOES. MEASURED-INERT
+      on YSM (Fd/Pl/At in IDF have DGCON EL=EL2=0) but REAL for elev-sensitive BC DB spp (white pine sp1 / high elev).
+The residual +31% BA is **RESOLVED-CORNERED = the OLDRN serial-corr straddle (#206 class)**: BC DGSD=2.0≥1 ⇒ OLDRN
+fires every tree even under NOTRIPLE; divergence is within-straddle at cyc1 (QMD +3.4%, TopHt EXACT 10/10) then
+compounds through the young/dense/Pl density-mortality feedback; same class as the all_BC ICH control (+9% cornered).
+ALL deterministic inputs verified correct: BAMAX=53=sitset.f (density cap right); Pl DGCON const right; HTG block
+resolution jl==htgf.f (IDFdk3/01-specific CNSI=−1.4182, both CHARACTER*15 single match); V3HTG formula + LTH%MLT=1
+faithful. The "fat-and-short" (QMD over / TopHt under) is DOWNSTREAM of mortality-selection (jl retains suppressed
+DBH-inflated trees into the TopHt cohort), NOT a height-model bug (verified vs Fortran). A belt-and-suspenders g16
+per-tree-DDS proof (inline metric-TREEFMT reproducer) is AVAILABLE but not built — the source verification + DGSD=2.0
++ cyc1-within-straddle is sufficient. NO regression (all_BC 2090 TPA1253/BA62, all_BC_essf 258 — inline path untouched).
+⇒ **#196 is COMPLETE (DM) + CLOSED-CORNERED (growth); the western cluster + extensions mission is done-or-cornered
+with NO open parity item.** Off-switch STILL untouched = USER's call. (WRD/Western Root Disease remains an unported
+ADDITIONAL-FEATURE extension — a separate USER decision, not a parity gap; streams #207-#210 remain USER-gated.)
   • **#197 mgmt-regime leads (THINBBA over-thin + post-thin AUTOES) — REFUTED/CORNERED 2026-08-13.** My own prior-cycle
     "confirmed over-thin" was ENTIRELY a MIS-COLUMNED-KEYFILE artifact (hand-written THINBBA keyfile: input '1.0' →
     cuteff 0.1; blank → cuteff 0 → live appeared to 'remove nothing'). FVS keywords are FIXED 10-col fields (use kwrec:
