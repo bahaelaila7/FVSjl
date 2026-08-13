@@ -292,6 +292,30 @@ function _dm_build_dm_index(species::AbstractVector{<:Integer}, dmr::AbstractVec
 end
 dm_finf(s::StandState) = _dm_build_dm_index(s.trees.species, s.mistletoe.dmr, s.trees.n)
 
+# --- Species index ISCT/IND1 (the DMTREG driver's per-species tree grouping): IND1 = a species-
+# sorted permutation of the treelist (opsort by species, secondary key 0), ISCT[sp,{FST,LST}] =
+# the first/last positions of species `sp` in IND1. Used by the driver's per-species spread loop +
+# DMOTHR. Deterministic. Analogous to DMFINF but keyed on species only.
+function dm_species_index(species::AbstractVector{<:Integer}, n::Int)
+    maxsp = n == 0 ? 1 : Int(maximum(@view species[1:n]))
+    isct = zeros(Int32, maxsp, 2)
+    ind1 = zeros(Int32, n)
+    n == 0 && return (isct, ind1)
+    zerokey = zeros(Int32, n)                       # unused secondary key
+    opsort!(n, species, zerokey, ind1, true)
+    sp = Int(species[ind1[1]]); isct[sp, 1] = 1; prsp = sp
+    @inbounds for i in 2:n
+        sp = Int(species[ind1[i]])
+        if sp != prsp
+            isct[prsp, 2] = i - 1
+            isct[sp, 1] = i
+            prsp = sp
+        end
+    end
+    isct[sp, 2] = n
+    return (isct, ind1)
+end
+
 # --- DMFDNS (dmfdns.f) — trees/acre density of each target DMR class (0..6) for species `sp`:
 # D[i+1] = Σ PROB over the trees in group (sp, i) via the Ptr range. Deterministic.
 function dm_fdns(sp::Int, ptr, index, tpa)
