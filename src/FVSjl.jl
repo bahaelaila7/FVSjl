@@ -224,7 +224,8 @@ include("variants/southeastalaska/height_growth.jl")   # AK large-tree height gr
 include("variants/southeastalaska/crown.jl")           # AK crown ratio (ak/crown.f logistic + dubscr) + point-Zeide (sdical) — chunk 5
 include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f) — chunk 6 STUB (no-op)
 include("variants/southeastalaska/mortality.jl")       # AK mortality (ak/morts.f logistic survival + SDI/BA iterative pass) — chunk 7
-include("variants/southeastalaska/volume.jl")          # AK Region-10 volume (VOLEQDEF→NVEL) — chunk 8 STUB (cuft=0 until ported)
+include("../data/southeastalaska/volume_coefficients.jl") # AK R10 F32 Flewelling profile coeffs (SHP_AK/FDBT_AK)
+include("variants/southeastalaska/volume.jl")          # AK Region-10 volume (VOLEQDEF→NVEL): F32 Flewelling (chunk 8)
 
 # --- westcascades (WC) — R6 westside Prognosis (Reineke SDI), 39 species; chunk 0 foundation + DGF validated ---
 include("variants/westcascades/westcascades.jl")     # WC (West Cascades) singleton + registration (MAXSP 39, Reineke) — chunk 0 foundation
