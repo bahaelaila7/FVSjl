@@ -187,6 +187,7 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa WestSierra
         ws_dgcons!(s)                     # WS DGCON (43-species uncompressed; ws/dgf.f ENTRY DGCONS) — chunk 3
+        ws_htcons!(s)                     # WS HTCON site intercept (ws/htgf.f ENTRY HTCONS) — chunk 4a
         compute_density!(s)               # current-stand density (point BA/CCF) for dgf! competition terms
         # crown_ratio_update! lstart dub = chunk 5 (ws/crown.f), pending; wst01 inventory crowns all present.
         calibrate_diameter_growth!(s; scale = dgscale)

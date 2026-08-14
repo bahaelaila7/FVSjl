@@ -296,6 +296,7 @@ include("variants/westsierra/westsierra.jl")                # WS (Western Sierra
 include("variants/westsierra/species.jl")                   # WS species table binding + ws_bratio (ws/bratio.f IMAP dispatch) — chunk 1
 include("variants/westsierra/site_index.jl")                # WS site (forkod/sichg/htcalc/sitset): SITEAR fan (Zeide) — chunk 2
 include("variants/westsierra/diameter_growth.jl")           # WS large-tree DDS (ws/dgf.f): ws_dgcons! + dgf! (43-sp, 6-branch) — chunk 3
+include("variants/westsierra/height_growth.jl")             # WS large-tree HTG (ws/htgf.f): ws_htcons! + height_growth! (linear CASE DEFAULT) — chunk 4a
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
