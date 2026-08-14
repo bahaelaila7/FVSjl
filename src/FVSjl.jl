@@ -284,6 +284,7 @@ include("variants/centralcalifornia/small_tree_growth.jl")  # CA small-tree grow
 include("variants/centralcalifornia/mortality.jl")          # CA mortality (ca/morts.f + varmrt.f): shared driver + ri_scale 0.5 — chunk 7
 include("variants/southcentraloregon/southcentraloregon.jl")# SO (SORNEC-33) singleton + registration (MAXSP 33, DGSD 2.0, seed 55329) — chunk 0
 include("variants/southcentraloregon/species.jl")           # SO species table binding + so_bratio (so/bratio.f 3-path) — chunk 1
+include("variants/southcentraloregon/site_index.jl")        # SO site (forkod/sichg/htcalc/sitset): SITEAR fan + LZEIDE reset — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
