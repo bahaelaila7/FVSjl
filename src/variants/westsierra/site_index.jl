@@ -11,19 +11,33 @@
 # SI(7)-based interpolation instead of their own curve (ws/sitset.f DO30). SDImax (SDICON) fan = follow-on.
 # =============================================================================
 
-# ws/forkod.f — location code → IFOR by NEAREST forest (MINLOC of |JFOR − KODFOR/100|).
+# ws/forkod.f — location code → IFOR. 5-digit KODFOR (≥40000): KFOR1=KODFOR÷100, MINLOC nearest JFOR.
+# 3-digit forest code (wst01 = 511): EXACT match KODFOR==JFOR(i). Then a post-remap SELECT CASE(IFOR)
+# folds NFs 7-11→3, 12→1, 13→5. (Tribal reservation pseudo-codes 7712…7860→specific IFOR = a follow-on;
+# wst01 is a plain forest code.) ⚠ EARLIER MINLOC-only ws_forkod! was WRONG (gave IFOR=13 for 511; the
+# SITEAR 43/43 check MISSED it because ws/htcalc.f ignores IFOR) — this is the exact-match + gate + remap.
 const WS_JFOR = Int[503, 511, 513, 515, 516, 517, 501, 502, 504, 507, 512, 519, 417]
+
+@inline function _ws_forkod_remap(ifor::Int)::Int      # ws/forkod.f final SELECT CASE(IFOR)
+    (7 <= ifor <= 11) && return 3
+    ifor == 12 && return 1
+    ifor == 13 && return 5
+    return ifor
+end
 
 function ws_forkod!(p)
     kodfor = Int(p.user_forest_code)
-    kfor1 = kodfor ÷ 100
-    ifor = 1; best = typemax(Int)
-    for (i, f) in enumerate(WS_JFOR)
-        d = abs(f - kfor1)
-        d < best && (best = d; ifor = i)
+    ifor = 0
+    if kodfor >= 40000                                 # 5-digit forest×100+district → nearest JFOR
+        kfor1 = kodfor ÷ 100
+        best = typemax(Int)
+        for (i, f) in enumerate(WS_JFOR); d = abs(f - kfor1); d < best && (best = d; ifor = i); end
+    else                                               # DEFAULT: exact 3-digit forest-code match
+        for (i, f) in enumerate(WS_JFOR); kodfor == f && (ifor = i; break); end
     end
+    ifor == 0 && (ifor = 1)                            # not-found fallback (ws errgro path)
+    ifor = _ws_forkod_remap(ifor)
     p.forest_idx = Int32(ifor)
-    p.user_forest_code = Int32(WS_JFOR[ifor])
     return ifor
 end
 
