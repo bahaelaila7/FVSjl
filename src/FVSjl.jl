@@ -280,6 +280,7 @@ include("variants/centralcalifornia/htdbh.jl")              # CA height↔DBH Cu
 include("variants/centralcalifornia/crown.jl")              # CA crown ratio (ca/crown.f 17-group Weibull + ca/dubscr.f) — chunk 5
 include("variants/centralcalifornia/volume.jl")             # CA volume (R6 NVEL: Behre + FW2 Flewelling, ca/formcl.f) — chunk 8
 include("variants/centralcalifornia/height_growth.jl")      # CA large-tree HTG (ca/htgf.f + findag.f + htcalc.f) — chunk 4b
+include("variants/centralcalifornia/small_tree_growth.jl")  # CA small-tree growth (ca/regent.f + smhtgf.f) — chunk 6
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

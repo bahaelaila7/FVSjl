@@ -49,3 +49,18 @@ ca/htdbh.f MODE=0: predicted total height (ft) for species `sp` at DBH `d`. IFOR
         return ((4.5f0 + p2 * fexp(-1.0f0 * p3 * fpow(z, p4)) - 4.51f0) * (d - 0.3f0) / (z - 0.3f0)) + 4.51f0
     end
 end
+
+"""
+    ca_htdbh_dbh(sp, h) -> D
+
+ca/htdbh.f MODE=1: predicted DBH for species `sp` at total height `h` (inverse of ca_htdbh_height). IFOR unused.
+"""
+@inline function ca_htdbh_dbh(sp::Int, h::Float32)
+    p2 = CA_CURARN_P2[sp]; p3 = CA_CURARN_P3[sp]; p4 = CA_CURARN_P4[sp]; z = CA_SPLINE[sp]
+    hatz = 4.5f0 + p2 * fexp(-1.0f0 * p3 * fpow(z, p4))
+    if h >= hatz
+        return fexp(log((log(h - 4.5f0) - log(p2)) / (-1.0f0 * p3)) * (1.0f0 / p4))
+    else
+        return (((h - 4.51f0) * (z - 0.3f0)) / (4.5f0 + p2 * fexp(-1.0f0 * p3 * fpow(z, p4)) - 4.51f0)) + 0.3f0
+    end
+end
