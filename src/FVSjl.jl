@@ -293,6 +293,7 @@ include("variants/southcentraloregon/mortality.jl")         # SO mortality VARMR
 include("variants/southcentraloregon/small_tree_growth.jl") # SO small-tree HEIGHT (so/smhtgf.f) so_smhtgf — chunk 6 step 1 (driver TODO)
 include("variants/southcentraloregon/volume.jl")           # SO volume (so/formcl.f + VOLEQDEF): Behre 616BEHW + INGY FW2 — chunk 8
 include("variants/westsierra/westsierra.jl")                # WS (Western Sierra Nevada) singleton + registration (MAXSP 43, DGSD 2.0, Zeide, seed 55329) — chunk 0
+include("variants/westsierra/species.jl")                   # WS species table binding + ws_bratio (ws/bratio.f IMAP dispatch) — chunk 1
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
