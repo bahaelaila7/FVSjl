@@ -277,11 +277,12 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     _is_cr = s.variant isa CentralRockies
     _is_bm = s.variant isa BlueMountains          # BM POWER bark (bm/bratio.f) — like CR's special bratio
     _is_ec = s.variant isa EastCascades           # EC POWER bark (ec/bratio.f = wc_bratio) — same #140 class
+    _is_ca = s.variant isa CentralCalifornia      # CA POWER bark (ca/bratio.f = wc_bratio) — same #140 class
     _cr_imodty = _is_cr ? Int(s.plot.model_type) : 0
     _sd = s.coef.species
     _mbark(sp, d) = _is_cr ? cr_bratio(_sd, Int(sp), d, _cr_imodty) :
                     _is_bm ? bm_bratio(_sd, Int(sp), d) :
-                    _is_ec ? wc_bratio(_sd, Int(sp), d) : bark_ratio(bark_a, bark_b, sp, d)
+                    (_is_ec || _is_ca) ? wc_bratio(_sd, Int(sp), d) : bark_ratio(bark_a, bark_b, sp, d)
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
     # The SDI sums accumulate in FVS's SPECIES-SORTED IND1 order (morts.f:212-235: DO 20 ISPC,
     # DO 12 I3=I1,I2, I=IND1(I3)), NOT raw record order — Float32 addition is non-associative, so the

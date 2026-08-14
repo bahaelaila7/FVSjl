@@ -281,6 +281,7 @@ include("variants/centralcalifornia/crown.jl")              # CA crown ratio (ca
 include("variants/centralcalifornia/volume.jl")             # CA volume (R6 NVEL: Behre + FW2 Flewelling, ca/formcl.f) — chunk 8
 include("variants/centralcalifornia/height_growth.jl")      # CA large-tree HTG (ca/htgf.f + findag.f + htcalc.f) — chunk 4b
 include("variants/centralcalifornia/small_tree_growth.jl")  # CA small-tree growth (ca/regent.f + smhtgf.f) — chunk 6
+include("variants/centralcalifornia/mortality.jl")          # CA mortality (ca/morts.f + varmrt.f): shared driver + ri_scale 0.5 — chunk 7
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
