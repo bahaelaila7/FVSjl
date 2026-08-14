@@ -61,7 +61,13 @@ end
 
 # CWHR (nc/cwhr.f): classify the stand into a size-class char SZ, density char DN, and the dynamic
 # density sub-model tags/weights CWHR_MOD/CWHR_WT (10/20/30/40). `cws` = per-tree crown widths (CRWDTH).
-function nc_cwhr(s::StandState, cws::Vector{Float32})
+# The base cwhr.f is IDENTICAL across the California variants (ws/cwhr.f == nc/cwhr.f, verified); the only
+# per-variant differences are the DBHBP/CCBP/CWXPTS/IPTR constants (passed as DATA args in fmcfmd.f), so the
+# core is parameterized here and WS calls it with its own constants (defaults = NC's for bit-identical NC).
+nc_cwhr(s::StandState, cws::Vector{Float32}) =
+    _ca_cwhr(s, cws, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
+
+function _ca_cwhr(s::StandState, cws::Vector{Float32}, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
     t = s.trees
     ht  = zeros(Float32, 6)   # [1]=HT(0) total, [2..6]=HT(1..5) by DBH class
     cc  = zeros(Float32, 6)
