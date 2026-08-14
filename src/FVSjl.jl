@@ -287,6 +287,7 @@ include("variants/southcentraloregon/species.jl")           # SO species table b
 include("variants/southcentraloregon/site_index.jl")        # SO site (forkod/sichg/htcalc/sitset): SITEAR fan + LZEIDE reset — chunk 2
 include("variants/southcentraloregon/diameter_growth.jl")   # SO large-tree DDS (so/dgf.f): so_dgcons! + dgf! (33-sp, 4-branch, RMAI/RELDEN) — chunk 3
 include("variants/southcentraloregon/htdbh.jl")             # SO height↔DBH (so/htdbh.f): forest-fanned Curtis DESCHT/FREMNT/WINEMA — chunk 4a
+include("variants/southcentraloregon/height_growth.jl")     # SO large-tree HTG (so/htgf.f + so/findag.f): potential-ht + Hoerl/CR + Ritchie-Hann + Johnson-SBB — chunk 4b
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
