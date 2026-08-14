@@ -25,6 +25,18 @@ const WS_HTDBH_SPLINE = Float32[
   0,0,0,3,0, 0,0,0,5,5, 0,2,0,2,2, 2,2,0,2,2, 0,0,3,0,2,
   2,2,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 3,0,0]
 
+# ws/htdbh.f MODE=0 (D→H). Returns predicted total height (ft) for DBH d. Curtis-Arney with the SPLINE(Z)
+# small-tree linear tie to (0.3, 4.51). Used by cratet.f dubbing for the LHTDRG-false surrogate species
+# (their CURARN P2/P3/P4 are nonzero); native species dub via the Wykoff HT-DBH (ht1/ht2), not this.
+@inline function ws_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
+    p2 = WS_HTDBH_P2[sp]; p3 = WS_HTDBH_P3[sp]; p4 = WS_HTDBH_P4[sp]; z = WS_HTDBH_SPLINE[sp]
+    if d >= z
+        return 4.5f0 + p2 * exp(-1f0 * p3 * fpow(d, p4))
+    else
+        return ((4.5f0 + p2 * exp(-1f0 * p3 * fpow(z, p4)) - 4.51f0) * (d - 0.3f0) / (z - 0.3f0)) + 4.51f0
+    end
+end
+
 # ws/htdbh.f MODE=1 (H→D). Returns predicted DBH for total height h (ft). ifor unused (matches Fortran).
 @inline function ws_htdbh_dbh(ifor::Int, sp::Int, h::Float32)::Float32
     p2 = WS_HTDBH_P2[sp]; p3 = WS_HTDBH_P3[sp]; p4 = WS_HTDBH_P4[sp]; z = WS_HTDBH_SPLINE[sp]

@@ -58,6 +58,13 @@ function ws_grinit!(s::StandState)
     s.control.dg_sd = 2.0f0             # ws/grinit.f:251 DGSD=2.0
     s.control.dg_stddev_bound = 2.0f0
     s.rng.s0 = Float64(WS_RNG_SEED); s.rng.ss = WS_RNG_SEED
-    fill!(s.control.ht_drag_sp, false)  # ws/grinit.f LHTDRG default .FALSE.
+    # ws/grinit.f:178-183 LHTDRG: SELECT CASE — .FALSE. for surrogate/juniper species, .TRUE. (DEFAULT)
+    # for the WS-native conifers (SP/DF/WF/RF/…). Natives use the calibrated Wykoff HT-DBH dub; the FALSE
+    # set overrides with HTDBH MODE=0 (Curtis-Arney). (Was incorrectly all-.FALSE. — masked by controlled-
+    # input validation which bypassed height-dubbing; surfaced by the first full-engine run_keyfile.)
+    fill!(s.control.ht_drag_sp, true)
+    for sp in (9, 10, 12, 14, 15, 16, 17, 19, 20, 25, 26, 27, 41)
+        s.control.ht_drag_sp[sp] = false
+    end
     return s
 end
