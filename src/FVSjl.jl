@@ -275,6 +275,7 @@ include("variants/eastcascades/volume.jl")                # EC volume (ec/voleqd
 include("variants/centralcalifornia/centralcalifornia.jl")  # CA singleton + registration (MAXSP 50, Zeide) — chunk 0
 include("variants/centralcalifornia/species.jl")            # CA species-coefficient table binding + blkdat init — chunk 1
 include("variants/centralcalifornia/diameter_growth.jl")    # CA large-tree DDS (ca/dgf.f): ca_dgcons! + dgf! (13-group, 3-branch) — chunk 3
+include("variants/centralcalifornia/site_index.jl")         # CA site (ca/forkod/habtyp/ecocls/sitset, R6ADJ fan) — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
