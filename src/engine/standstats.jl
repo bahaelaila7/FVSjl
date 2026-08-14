@@ -233,6 +233,8 @@ function point_density!(s::StandState)
             ccft = ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ak/ccfcal.f MODE=1
         elseif s.variant isa OregonCoast
             ccft = oc_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # oc/ccfcal.f MODE=1 (R5CRWD)
+        elseif s.variant isa CentralCalifornia
+            ccft = ca_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # ca/ccfcal.f MODE=1 (R5CRWD = OC's)
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -374,6 +376,12 @@ function stand_ccf(s::StandState)
         # OC CCF is the open-grown crown-width → area form (oc/ccfcal.f MODE=1, R5CRWD); stand CCF = Σ CCFT·P.
         @inbounds for i in 1:t.n
             ccf += oc_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+        end
+        return ccf
+    elseif s.variant isa CentralCalifornia
+        # CA CCF = the open-grown crown-width → area form (ca/ccfcal.f MODE=1, R5CRWD = byte-identical to OC's).
+        @inbounds for i in 1:t.n
+            ccf += ca_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
         end
         return ccf
     elseif s.variant isa SoutheastAlaska

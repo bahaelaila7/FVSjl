@@ -63,6 +63,11 @@ const CA_DUB_CRSD = Float32[1.3167,1.3756,1.9658,2.0426,0.5,0.5,0.15]
     return cr
 end
 
+# ca/ccfcal.f MODE=1 — per-tree CCF (÷TPA) = 0.001803·CRWD5², CRWD5 = ca/r5crwd.f R5CRWD open-grown crown
+# width. CA's R5CRWD (MAPCA species map + WB1/WB2/WB3/DX1/DX2/IEQN/SPLINE/SM) is BYTE-IDENTICAL to OC's copy
+# (both the shared vws/r5crwd.f) — verified MAPCA 27,7,16,4,… == OC_R5CRWD_MAPCA ⇒ reuse (doctrine #5).
+@inline ca_tree_ccf(sp::Int, d::Float32, h::Float32) = oc_tree_ccf(sp, d, h)
+
 function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
