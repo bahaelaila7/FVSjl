@@ -179,6 +179,12 @@ function setup_growth!(s::StandState)
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ca/crown.f)
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa SouthCentralOregon
+        so_dgcons!(s)                     # SO DGCON (33-species uncompressed; RMAI/maical + DGSIC/DGMAI Prognosis terms) — chunk 3
+        compute_density!(s)               # current-stand density (RELDEN) for dgf! CONSPP (DGCCFA/DGMACC) term
+        # TODO(chunk 5): crown_ratio_update!(s, s.variant; lstart=true) — CRATET/DUBSCR dub of MISSING inventory
+        # crowns (so/crown.f). sot01's inventory crowns are all present ⇒ no-op, so deferred to the crown chunk.
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
@@ -261,6 +267,7 @@ function compute_density!(s::StandState)
     s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
     s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
     s.variant isa EastCascades && (s.plot.relative_density = stand_ccf(s))   # EC RELDEN (ec/ccfcal.f) for regent PCTRED density modifier
+    s.variant isa SouthCentralOregon && (s.plot.relative_density = stand_ccf(s))  # SO RELDEN (so/ccfcal.f) for dgf! CONSPP (DGCCFA/DGMACC) + regent
     return s
 end
 
