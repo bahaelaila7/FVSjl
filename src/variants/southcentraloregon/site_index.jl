@@ -111,6 +111,12 @@ function so_htcalc(jfor::Int, sindx::Float32, ispc::Int, ag::Float32)::Float32
     end
 end
 
+# so/siterange.f — per-species site-index range (SITELO/SITEHI); used to interpolate SITEAR for the
+# no-curve species WJ(11)/WB(16)/AS(24).
+const SO_SITELO = Float32[13,27,21,5,5,5,5,12,10,7, 5,9,6,4,7,20,60,29,6,5, 5,56,108,30,10,10,21,20,5,5, 5,5,5]
+const SO_SITEHI = Float32[137,178,148,195,133,169,140,227,134,176, 40,173,127,221,210,65,147,152,203,75,
+                          100,192,142,66,191,104,85,93,100,75, 75,175,125]
+
 # so/sichg.f — SIAGE(i) per species (reference age for the site-species curve). RF(5) is metric.
 function so_sichg(s::StandState, isisp::Integer, ssite::Float32)
     sd = s.coef.species
@@ -147,11 +153,18 @@ function so_sitset!(s::StandState)
 
     sindx = p.sp_site_index[isisp]
     siage = so_sichg(s, isisp, sindx)
+    slossp = SO_SITELO[isisp]; shissp = SO_SITEHI[isisp]
     @inbounds for ispc in 1:maxsp
-        p.sp_site_index[ispc] > 0f0 && continue
-        v = so_htcalc(ifor, sindx, isisp, siage[ispc])
+        ispc == isisp && continue
+        if ispc == 11 || ispc == 16 || ispc == 24       # WJ/WB/AS: no site curve → SITERANGE interpolation
+            tem = sindx < slossp ? slossp : sindx
+            v = SO_SITELO[ispc] + (tem - slossp) / (shissp - slossp) * (SO_SITEHI[ispc] - SO_SITELO[ispc])
+        else
+            v = so_htcalc(ifor, sindx, isisp, siage[ispc])
+            ispc == 5 && (v = v / 3.281f0; v > 28f0 && (v = 28f0))   # MH metric conversion, cap 28
+        end
         v < 0f0 && (v = 0f0)
-        p.sp_site_index[ispc] = v
+        p.sp_site_index[ispc] = v                        # SO sitset is authoritative (overrides the generic reader)
     end
     p.site_species = Int32(isisp)
     return s
