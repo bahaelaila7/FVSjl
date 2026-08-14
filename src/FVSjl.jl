@@ -279,6 +279,7 @@ include("variants/centralcalifornia/site_index.jl")         # CA site (ca/forkod
 include("variants/centralcalifornia/htdbh.jl")              # CA height↔DBH Curtis-Arney missing-height dub (ca/htdbh.f) — chunk 4a
 include("variants/centralcalifornia/crown.jl")              # CA crown ratio (ca/crown.f 17-group Weibull + ca/dubscr.f) — chunk 5
 include("variants/centralcalifornia/volume.jl")             # CA volume (R6 NVEL: Behre + FW2 Flewelling, ca/formcl.f) — chunk 8
+include("variants/centralcalifornia/height_growth.jl")      # CA large-tree HTG (ca/htgf.f + findag.f + htcalc.f) — chunk 4b
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
