@@ -117,6 +117,15 @@ const SO_SITELO = Float32[13,27,21,5,5,5,5,12,10,7, 5,9,6,4,7,20,60,29,6,5, 5,56
 const SO_SITEHI = Float32[137,178,148,195,133,169,140,227,134,176, 40,173,127,221,210,65,147,152,203,75,
                           100,192,142,66,191,104,85,93,100,75, 75,175,125]
 
+# so/sitset.f SDIDEF fan coefficients (chunk 4c): C6 = R6 per-species SDImax-ratio basis (IFOR≤3/10);
+# C5 = the non-R6 fallback SDImax. FORMAX = SDImax cap. PMSDIU (so/grinit.f:240) = the BAMAX→SDImax %.
+const SO_SDIDEF_C6 = Float32[447,447,767,659,758,447,541,659,750,429, 500,659,659,659,659,250,250,650,650,650,
+                             200,300,300,250,250,200,200,150,250,100, 100,447,250]
+const SO_SDIDEF_C5 = Float32[272,561,570,800,687,576,679,620,1000,365, 272,800,602,790,1000,621,423,762,682,576,
+                             441,441,629,562,452,441,440,447,785,501, 501,365,441]
+const SO_FORMAX = 850f0
+const SO_PMSDIU = 85f0
+
 # so/sichg.f — SIAGE(i) per species (reference age for the site-species curve). RF(5) is metric.
 function so_sichg(s::StandState, isisp::Integer, ssite::Float32)
     sd = s.coef.species
@@ -166,6 +175,31 @@ function so_sitset!(s::StandState)
         v < 0f0 && (v = 0f0)
         p.sp_site_index[ispc] = v                        # SO sitset is authoritative (overrides the generic reader)
     end
+
+    # SDIDEF (per-species SDImax) — so/sitset.f:231-247 fan (chunk 4c; prereq for crown+mort RELSDI).
+    # so/habtyp.f DEFAULT plant association = CPS111 (PP, SI 70) ⇒ so/ecocls.f entry RSDI=285 for the site
+    # species. sot01 (+ any no-habitat stand) rides this default, consistent with chunk 2's SITEAR default.
+    # Fan (IFOR≤3/10 R6, BAMAX unset): SDIDEF[i]=SDIDEF[ISISP]·C6[i]/C6[ISISP] (cap FORMAX); else C5[i].
+    # (Explicit-habitat real-FIA stands need the full so/ecocls.f 92-entry PA table — a documented follow-on,
+    #  same deferral as the SITEAR path.) MEASURED bit-exact vs FVSso_g16 sitset SDIDEF dump on sot01.
+    # BAMAX-keyword branch (SDIDEF=BAMAX/(0.5454154·PMSDIU/100)) is a follow-on — sot01 has no BAMAX (=0),
+    # so the R6 C6-ratio fan below is the exercised path; keep the branch for when a BAMAX keyword lands.
+    bamax = 0f0
+    p.sp_sdi_def[isisp] <= 0f0 && (p.sp_sdi_def[isisp] = 285f0)   # ECOCLS CPS111 default RSDI (site species)
+    k = isisp
+    @inbounds for i in 1:maxsp
+        p.sp_sdi_def[i] > 0f0 && continue
+        if bamax > 0f0
+            p.sp_sdi_def[i] = bamax / (0.5454154f0 * (SO_PMSDIU / 100f0))
+        elseif ifor <= 3 || ifor == 10
+            v = p.sp_sdi_def[k] * (SO_SDIDEF_C6[i] / SO_SDIDEF_C6[k])
+            v > SO_FORMAX && (v = SO_FORMAX)
+            p.sp_sdi_def[i] = v
+        else
+            p.sp_sdi_def[i] = SO_SDIDEF_C5[i]
+        end
+    end
+
     p.site_species = Int32(isisp)
     return s
 end
