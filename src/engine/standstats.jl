@@ -397,6 +397,13 @@ function stand_ccf(s::StandState)
             ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa WestSierra
+        # WS CCF = ws/ccfcal.f MODE=1 (crown-width² (RD1+D·RD2)²·0.001803 native; GB/MC/CA specials);
+        # stand CCF = Σ CCFT·P = RELDEN, read by the crown-ratio SCALE (ws/crown.f).
+        @inbounds for i in 1:t.n
+            ccf += ws_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+        end
+        return ccf
     end
     @inbounds for i in 1:t.n
         sp = t.species[i]

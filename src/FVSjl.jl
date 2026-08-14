@@ -297,6 +297,7 @@ include("variants/westsierra/species.jl")                   # WS species table b
 include("variants/westsierra/site_index.jl")                # WS site (forkod/sichg/htcalc/sitset): SITEAR fan (Zeide) — chunk 2
 include("variants/westsierra/diameter_growth.jl")           # WS large-tree DDS (ws/dgf.f): ws_dgcons! + dgf! (43-sp, 6-branch) — chunk 3
 include("variants/westsierra/height_growth.jl")             # WS large-tree HTG (ws/htgf.f): ws_htcons! + height_growth! (linear CASE DEFAULT) — chunk 4a
+include("variants/westsierra/crown.jl")                     # WS crown ratio (ws/crown.f + ccfcal.f): ws_tree_ccf + crown_ratio_update! (rank-Weibull, grouped SCALE) — chunk 5
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

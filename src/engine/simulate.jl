@@ -189,7 +189,9 @@ function setup_growth!(s::StandState)
         ws_dgcons!(s)                     # WS DGCON (43-species uncompressed; ws/dgf.f ENTRY DGCONS) — chunk 3
         ws_htcons!(s)                     # WS HTCON site intercept (ws/htgf.f ENTRY HTCONS) — chunk 4a
         compute_density!(s)               # current-stand density (point BA/CCF) for dgf! competition terms
-        # crown_ratio_update! lstart dub = chunk 5 (ws/crown.f), pending; wst01 inventory crowns all present.
+        s.plot.relative_density = stand_ccf(s)   # WS RELDEN (ws/ccfcal.f) for the crown-ratio SCALE
+        crown_ratio_update!(s, s.variant; lstart = true)  # rank-Weibull dub of MISSING inventory crowns (ws/crown.f);
+                                          # d<1 seedlings → ws/dubscr.f (chunk 5b stub); wst01 crowns present ⇒ bypassed
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
@@ -274,6 +276,7 @@ function compute_density!(s::StandState)
     s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
     s.variant isa EastCascades && (s.plot.relative_density = stand_ccf(s))   # EC RELDEN (ec/ccfcal.f) for regent PCTRED density modifier
     s.variant isa SouthCentralOregon && (s.plot.relative_density = stand_ccf(s))  # SO RELDEN (so/ccfcal.f) for dgf! CONSPP (DGCCFA/DGMACC) + regent
+    s.variant isa WestSierra && (s.plot.relative_density = stand_ccf(s))          # WS RELDEN (ws/ccfcal.f) for crown-ratio SCALE (ws/crown.f)
     return s
 end
 
