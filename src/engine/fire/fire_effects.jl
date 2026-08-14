@@ -56,6 +56,16 @@ const _BM_FM_BARK_B1 = Float32[
 # over-kill of the 10-20" overstory once the crown-fire flame/scorch was corrected. `bt = DBH·B1` (fmbrkt.f).
 const _NC_FM_BARK_B1 = Float32[
     0.063, 0.072, 0.063, 0.048, 0.060, 0.060, 0.030, 0.052, 0.039, 0.063, 0.052, 0.081]
+# WS (WestSierra) fire bark-thickness B1 per species (ws/fmbrkt.f, FOFEM v5.0), 43 species. Same as NC's fix:
+# WS previously fell to the SN _FM_BARK_B1[bark_eqnum=1]=0.019 for EVERY species — ~2-4× too thin for the WS
+# conifers (SP 0.072/DF 0.063/WF 0.048/RF 0.039) ⇒ cambium over-kill of the large overstory (wst01+SIMFIRE
+# post-fire BA kill 142 vs oracle 49) once the fuel-model selection was corrected. `bt = DBH·B1` (fmbrkt.f).
+const _WS_FM_BARK_B1 = Float32[
+    0.072, 0.063, 0.048, 0.081, 0.060, 0.068, 0.039, 0.063, 0.028, 0.030,
+    0.035, 0.030, 0.047, 0.030, 0.030, 0.063, 0.030, 0.030, 0.033, 0.030,
+    0.030, 0.063, 0.081, 0.040, 0.025, 0.025, 0.025, 0.050, 0.024, 0.033,
+    0.030, 0.043, 0.034, 0.052, 0.045, 0.044, 0.026, 0.060, 0.062, 0.024,
+    0.044, 0.028, 0.030]
 
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
@@ -64,6 +74,7 @@ const _NC_FM_BARK_B1 = Float32[
     (variant isa InlandEmpire || variant isa Kootenai) && return dbh * _IE_FM_BARK_B1[Int(sp)]
     variant isa BlueMountains && return dbh * _BM_FM_BARK_B1[Int(sp)]   # bm/fmbrkt.f
     variant isa Klamath && return dbh * _NC_FM_BARK_B1[Int(sp)]         # nc/fmbrkt.f
+    variant isa WestSierra && return dbh * _WS_FM_BARK_B1[Int(sp)]      # ws/fmbrkt.f
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
@@ -153,7 +164,12 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     # fell through to fire_mortality_group(sp) (the SN species map) ⇒ NC large trees mis-assigned to Regelbrugge-
     # Smith DBH+char-height logistics ⇒ over-killed the 10-20" class (jl 41/58 vs live 19/58) once the flame/scorch
     # was corrected (the surface-only low scorch had masked it — the two-canceling-bugs case).
-    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa Klamath) ? 6 :
+    # WS (like NE/LS/CR/BM/NC) gates the Regelbrugge-Smith groups (1-5) to VARACD=='SN'/'CS' ONLY
+    # (ws/fmeff.f:196), so it uses the base Reinhardt crown-scorch+bark logistic (group 6) for EVERY species.
+    # Without WestSierra here it fell through to fire_mortality_group(sp) (the SN species map) ⇒ WS species
+    # mis-assigned to SN Regelbrugge-Smith DBH+char-height logistics ⇒ fire OVER-kill (wst01+SIMFIRE post-fire
+    # TPA 112 vs oracle 218) once the fuel-model selection was corrected (the low-scorch surface fire exposed it).
+    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa Klamath || variant isa WestSierra) ? 6 :
         variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
