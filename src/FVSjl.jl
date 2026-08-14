@@ -282,6 +282,7 @@ include("variants/centralcalifornia/volume.jl")             # CA volume (R6 NVEL
 include("variants/centralcalifornia/height_growth.jl")      # CA large-tree HTG (ca/htgf.f + findag.f + htcalc.f) — chunk 4b
 include("variants/centralcalifornia/small_tree_growth.jl")  # CA small-tree growth (ca/regent.f + smhtgf.f) — chunk 6
 include("variants/centralcalifornia/mortality.jl")          # CA mortality (ca/morts.f + varmrt.f): shared driver + ri_scale 0.5 — chunk 7
+include("variants/southcentraloregon/southcentraloregon.jl")# SO (SORNEC-33) singleton + registration (MAXSP 33, DGSD 2.0, seed 55329) — chunk 0
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
