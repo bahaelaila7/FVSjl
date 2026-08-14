@@ -18,6 +18,14 @@
 # SITEAR 43/43 check MISSED it because ws/htcalc.f ignores IFOR) — this is the exact-match + gate + remap.
 const WS_JFOR = Int[503, 511, 513, 515, 516, 517, 501, 502, 504, 507, 512, 519, 417]
 
+# ws/sitset.f DATA SDICON — per-species default SDImax (used by the DO40 fan when no BAMAX/SDIMAX keyword).
+const WS_SDICON = Float32[
+  561, 570, 800, 1052, 576, 365, 1000, 365, 679, 621,
+  272, 358, 790, 679, 409, 365, 409, 365, 214, 365,
+  409, 570, 1052, 687, 272, 497, 272, 667, 667, 214,
+  406, 440, 667, 785, 785, 562, 406, 515, 406, 629,
+  501, 365, 406]
+
 @inline function _ws_forkod_remap(ifor::Int)::Int      # ws/forkod.f final SELECT CASE(IFOR)
     (7 <= ifor <= 11) && return 3
     ifor == 12 && return 1
@@ -119,8 +127,13 @@ function ws_sitset!(s::StandState)
         v < 0f0 && (v = 0f0)
         p.sp_site_index[i] = v
     end
-    # SDIDEF (per-species SDImax) fan — ws/sitset.f DO40 (BAMAX or SDICON) is a FOLLOW-ON (SDICON DATA not
-    # yet transcribed; needed for crown/mort RELSDI, not for the DGCON/site core validated here).
+    # SDIDEF (per-species SDImax) fan — ws/sitset.f DO40: BAMAX>0 ? BAMAX/(0.5454154·PMSDIU/100) : SDICON.
+    # Needed by crown/mortality RELSDI (= sdiac/sp_sdi_def). wst01 sets no BAMAX ⇒ SDIDEF = SDICON per species.
+    bamax = p.ba_max; pmsdiu = p.pct_sdimax_mort_hi
+    @inbounds for i in 1:maxsp
+        p.sp_sdi_def[i] > 0f0 && continue                        # already set (SDIMAX keyword) → keep
+        p.sp_sdi_def[i] = bamax > 0f0 ? bamax / (0.5454154f0 * (pmsdiu / 100f0)) : WS_SDICON[i]
+    end
     p.site_species = Int32(isisp)
     return s
 end
