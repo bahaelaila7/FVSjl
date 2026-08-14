@@ -294,6 +294,7 @@ include("variants/southcentraloregon/small_tree_growth.jl") # SO small-tree HEIG
 include("variants/southcentraloregon/volume.jl")           # SO volume (so/formcl.f + VOLEQDEF): Behre 616BEHW + INGY FW2 — chunk 8
 include("variants/westsierra/westsierra.jl")                # WS (Western Sierra Nevada) singleton + registration (MAXSP 43, DGSD 2.0, Zeide, seed 55329) — chunk 0
 include("variants/westsierra/species.jl")                   # WS species table binding + ws_bratio (ws/bratio.f IMAP dispatch) — chunk 1
+include("variants/westsierra/site_index.jl")                # WS site (forkod/sichg/htcalc/sitset): SITEAR fan (Zeide) — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
