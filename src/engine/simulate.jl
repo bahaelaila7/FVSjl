@@ -182,8 +182,8 @@ function setup_growth!(s::StandState)
     elseif s.variant isa SouthCentralOregon
         so_dgcons!(s)                     # SO DGCON (33-species uncompressed; RMAI/maical + DGSIC/DGMAI Prognosis terms) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for dgf! CONSPP (DGCCFA/DGMACC) term
-        # TODO(chunk 5): crown_ratio_update!(s, s.variant; lstart=true) — CRATET/DUBSCR dub of MISSING inventory
-        # crowns (so/crown.f). sot01's inventory crowns are all present ⇒ no-op, so deferred to the crown chunk.
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (so/crown.f);
+                                          # d<1 seedlings → so/dubscr.f logistic/linear + BACHLO draw — chunk 5
         calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
