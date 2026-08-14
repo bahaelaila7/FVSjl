@@ -299,6 +299,7 @@ include("variants/westsierra/diameter_growth.jl")           # WS large-tree DDS 
 include("variants/westsierra/height_growth.jl")             # WS large-tree HTG (ws/htgf.f): ws_htcons! + height_growth! (linear CASE DEFAULT) — chunk 4a
 include("variants/westsierra/htdbh.jl")                     # WS Curtis-Arney H→D (ws/htdbh.f MODE=1) for regent CA-surrogate DK/DKK — chunk 4b
 include("variants/westsierra/crown.jl")                     # WS crown ratio (ws/crown.f + ccfcal.f): ws_tree_ccf + crown_ratio_update! (rank-Weibull, grouped SCALE) — chunk 5
+include("variants/westsierra/small_tree_growth.jl")        # WS small-tree HTG+DBH (ws/regent.f + smhtgf.f): ws_smhtgf + small_tree_growth! — chunk 6
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
