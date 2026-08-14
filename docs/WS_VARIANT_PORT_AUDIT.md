@@ -40,9 +40,17 @@ OLDRN self-thin straddle signature (#206 class) — cornered.
 
 ### Cross-variant note (westside FFE template)
 The F2–F5 gaps (missing fuel-model table / merch standards / bark dispatch / fmcfmd / bark thickness / group-6)
-are the **westside-FFE-port template** — the sibling fresh westside ports (NC/WC/PN/EC/CA/SO) will need the
+are the **westside-FFE-port template** — the sibling fresh westside ports (WC/PN/EC/CA/SO) will need the
 same chunks when their FFE is brought up. The bark-intercept crash + bark-thickness over-kill are the exact
 NC/CR/BM bug class.
+
+**NC FFE is already DONE** (beachhead `2841398`, memory `fvsjl-nc-ffe-beachhead`) — the goal-doc's "NC FFE
+crashes fmcba.jl:114 / next #207-stream lead" predates that merge and is STALE. Re-confirmed 2026-08-14: nct01
+FFE (SIMFIRE 2003) still validates bit-exact-or-cornered AFTER the WS commits touched shared code — the
+`nc_cwhr → _ca_cwhr` refactor (F4) and the group-6 gate list (F5). Fire stand: pre-fire 1993-2003 bit-exact
+(TPA exact, BA 1-NINT), fire year 2008 jl 60/77 vs oracle **58/76** (matches the recorded 60/58), post-fire
+2013-2053 cornered (TPA ±1-2, BA drifts to +8% @2053 = growth straddle). ⇒ NO NC/SN FFE regression from the WS
+work (also confirmed by the FFE fire test suite, 22/22 green).
 
 ## Open (low priority, not reference-parity blockers)
 - **#219** FFE multi-cycle DCYMLT (ws/fmcba.f:543-580 Dunning-site-idx decay mult) — ~1-ton DUFF drift.
