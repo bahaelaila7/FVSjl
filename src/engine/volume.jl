@@ -476,6 +476,19 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa CentralCalifornia
+        # ca/grinit.f:85-134 DBHMIN=BFMIND=7 (sp-index 11 = 6); ca/sitset.f:225-238 top diameter is
+        # FOREST-dependent — IFOR 6-10 (R6) → 4.5, else (R5) → 6.0; stump=1. No merch CSV columns.
+        topd = (6 <= Int(s.plot.forest_idx) <= 10) ? 4.5f0 : 6.0f0
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            dm = j == 11 ? 6.0f0 : 7.0f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     sd = s.coef.species
     @inbounds for j in 1:length(c.sp_dbh_min)
         c.sp_scf_dbhmin[j] = sd[:scf_min_dbh][j]
