@@ -479,6 +479,18 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa SouthCentralOregon
+        # so/grinit.f DBHMIN=BFMIND=SCFMIND=9.0 ALL species (no sp-11 special, unlike CA);
+        # so/sitset.f:167 TOPD=BFTOPD=SCFTOPD = (IFOR∈{1,2,3,10} ? 4.5 : 6.0); stump=1. No merch CSV columns.
+        topd = (Int(s.plot.forest_idx) <= 3 || Int(s.plot.forest_idx) == 10) ? 4.5f0 : 6.0f0
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            c.sp_dbh_min[j] = 9.0f0; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = 9.0f0; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = 9.0f0; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa CentralCalifornia
         # ca/grinit.f:85-134 DBHMIN=BFMIND=7 (sp-index 11 = 6); ca/sitset.f:225-238 top diameter is
         # FOREST-dependent — IFOR 6-10 (R6) → 4.5, else (R5) → 6.0; stump=1. No merch CSV columns.
@@ -634,6 +646,7 @@ function compute_volumes!(s::StandState)
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
+    s.variant isa SouthCentralOregon && return compute_volumes_so!(s) # SO = R6 Behre 616BEHW + INGY FW2 (so/formcl.f) — chunk 8
     s.variant isa OregonCoast && return compute_volumes_oc!(s)     # OC = BLM Behre-taper cubic (blmvol/blmtap) — chunk C10a; board-foot C10b
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)

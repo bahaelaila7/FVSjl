@@ -291,6 +291,7 @@ include("variants/southcentraloregon/height_growth.jl")     # SO large-tree HTG 
 include("variants/southcentraloregon/crown.jl")             # SO crown ratio (so/crown.f + so/dubscr.f): rank-Weibull + logistic/linear DUBSCR — chunk 5
 include("variants/southcentraloregon/mortality.jl")         # SO mortality VARMRT (so/scomrt.f): PEFF·VARADJ·0.01 — chunk 7
 include("variants/southcentraloregon/small_tree_growth.jl") # SO small-tree HEIGHT (so/smhtgf.f) so_smhtgf — chunk 6 step 1 (driver TODO)
+include("variants/southcentraloregon/volume.jl")           # SO volume (so/formcl.f + VOLEQDEF): Behre 616BEHW + INGY FW2 — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
