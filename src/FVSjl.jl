@@ -300,6 +300,7 @@ include("variants/westsierra/height_growth.jl")             # WS large-tree HTG 
 include("variants/westsierra/htdbh.jl")                     # WS Curtis-Arney H→D (ws/htdbh.f MODE=1) for regent CA-surrogate DK/DKK — chunk 4b
 include("variants/westsierra/crown.jl")                     # WS crown ratio (ws/crown.f + ccfcal.f): ws_tree_ccf + crown_ratio_update! (rank-Weibull, grouped SCALE) — chunk 5
 include("variants/westsierra/small_tree_growth.jl")        # WS small-tree HTG+DBH (ws/regent.f + smhtgf.f): ws_smhtgf + small_tree_growth! — chunk 6
+include("variants/westsierra/mortality.jl")                   # WS mortality VARMRT efficiency (ws/varmrt.f): _varmrt_efftr! (×0.1 default, GB ×0.01) — chunk 7
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
