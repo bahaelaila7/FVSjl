@@ -301,6 +301,7 @@ include("variants/westsierra/htdbh.jl")                     # WS Curtis-Arney H�
 include("variants/westsierra/crown.jl")                     # WS crown ratio (ws/crown.f + ccfcal.f): ws_tree_ccf + crown_ratio_update! (rank-Weibull, grouped SCALE) — chunk 5
 include("variants/westsierra/small_tree_growth.jl")        # WS small-tree HTG+DBH (ws/regent.f + smhtgf.f): ws_smhtgf + small_tree_growth! — chunk 6
 include("variants/westsierra/mortality.jl")                   # WS mortality VARMRT efficiency (ws/varmrt.f): _varmrt_efftr! (×0.1 default, GB ×0.01) — chunk 7
+include("variants/westsierra/volume.jl")                      # WS volume (ws VEQNNC): 500WO2W R5TAP + 500DVEW r5harv (reuse NC kernels) — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

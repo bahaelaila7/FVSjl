@@ -645,6 +645,7 @@ function compute_volumes!(s::StandState)
     s.variant isa CentralCalifornia && return compute_volumes_ca!(s)  # CA = R6 Behre + FW2 Flewelling (F06/I00), ca/formcl.f
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
+    s.variant isa WestSierra && return compute_volumes_ws!(s)      # WS = 500WO2W R5TAP + 500DVEW r5harv (reuse NC kernels) — chunk 8
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
     s.variant isa SouthCentralOregon && return compute_volumes_so!(s) # SO = R6 Behre 616BEHW + INGY FW2 (so/formcl.f) — chunk 8
     s.variant isa OregonCoast && return compute_volumes_oc!(s)     # OC = BLM Behre-taper cubic (blmvol/blmtap) — chunk C10a; board-foot C10b
