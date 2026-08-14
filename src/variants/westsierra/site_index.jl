@@ -129,7 +129,7 @@ function ws_sitset!(s::StandState)
     end
     # SDIDEF (per-species SDImax) fan — ws/sitset.f DO40: BAMAX>0 ? BAMAX/(0.5454154·PMSDIU/100) : SDICON.
     # Needed by crown/mortality RELSDI (= sdiac/sp_sdi_def). wst01 sets no BAMAX ⇒ SDIDEF = SDICON per species.
-    bamax = p.ba_max; pmsdiu = p.pct_sdimax_mort_hi
+    bamax = s.control.ba_max; pmsdiu = 85f0     # PMSDIU = ws/grinit.f:325 (BAMAX→SDImax %); BAMAX keyword ⇒ s.control.ba_max
     @inbounds for i in 1:maxsp
         p.sp_sdi_def[i] > 0f0 && continue                        # already set (SDIMAX keyword) → keep
         p.sp_sdi_def[i] = bamax > 0f0 ? bamax / (0.5454154f0 * (pmsdiu / 100f0)) : WS_SDICON[i]
