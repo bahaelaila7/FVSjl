@@ -278,6 +278,7 @@ include("variants/centralcalifornia/diameter_growth.jl")    # CA large-tree DDS 
 include("variants/centralcalifornia/site_index.jl")         # CA site (ca/forkod/habtyp/ecocls/sitset, R6ADJ fan) — chunk 2
 include("variants/centralcalifornia/htdbh.jl")              # CA height↔DBH Curtis-Arney missing-height dub (ca/htdbh.f) — chunk 4a
 include("variants/centralcalifornia/crown.jl")              # CA crown ratio (ca/crown.f 17-group Weibull + ca/dubscr.f) — chunk 5
+include("variants/centralcalifornia/volume.jl")             # CA volume (R6 NVEL: Behre + FW2 Flewelling, ca/formcl.f) — chunk 8
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

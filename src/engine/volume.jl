@@ -627,6 +627,7 @@ function compute_volumes!(s::StandState)
     s.variant isa WestCascades && return compute_volumes_wc!(s)   # WC = westside Flewelling (SHP_W3/W4/W5) + INGY FW2 + region-6 Behre
     s.variant isa PacificNorthwest && return compute_volumes_pn!(s)   # PN = westside DF F00 + region-6 Behre (near-clone of WC)
     s.variant isa EastCascades && return compute_volumes_ec!(s)   # EC = forest-8 INGY I11/I12 Flewelling + region-6 Behre
+    s.variant isa CentralCalifornia && return compute_volumes_ca!(s)  # CA = R6 Behre + FW2 Flewelling (F06/I00), ca/formcl.f
     s.variant isa CentralIdaho && return compute_volumes_ci!(s)   # CI = MATW r4vol + FW2W Flewelling + DVEW woodland (= UT)
     s.variant isa Klamath && return compute_volumes_nc!(s)         # NC = WO2W R5TAP (Wensel-Krumland) taper + DVEW r5harv CA-hardwood D²H
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
