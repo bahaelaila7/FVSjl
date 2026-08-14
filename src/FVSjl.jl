@@ -295,6 +295,7 @@ include("variants/southcentraloregon/volume.jl")           # SO volume (so/formc
 include("variants/westsierra/westsierra.jl")                # WS (Western Sierra Nevada) singleton + registration (MAXSP 43, DGSD 2.0, Zeide, seed 55329) — chunk 0
 include("variants/westsierra/species.jl")                   # WS species table binding + ws_bratio (ws/bratio.f IMAP dispatch) — chunk 1
 include("variants/westsierra/site_index.jl")                # WS site (forkod/sichg/htcalc/sitset): SITEAR fan (Zeide) — chunk 2
+include("variants/westsierra/diameter_growth.jl")           # WS large-tree DDS (ws/dgf.f): ws_dgcons! + dgf! (43-sp, 6-branch) — chunk 3
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

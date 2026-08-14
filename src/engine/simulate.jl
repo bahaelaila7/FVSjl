@@ -185,6 +185,11 @@ function setup_growth!(s::StandState)
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (so/crown.f);
                                           # d<1 seedlings → so/dubscr.f logistic/linear + BACHLO draw — chunk 5
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa WestSierra
+        ws_dgcons!(s)                     # WS DGCON (43-species uncompressed; ws/dgf.f ENTRY DGCONS) — chunk 3
+        compute_density!(s)               # current-stand density (point BA/CCF) for dgf! competition terms
+        # crown_ratio_update! lstart dub = chunk 5 (ws/crown.f), pending; wst01 inventory crowns all present.
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end
