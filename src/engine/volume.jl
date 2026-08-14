@@ -498,6 +498,18 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa WestSierra
+        # ws/grinit.f:159-170 — UNIFORM all species (no forest/sp-11 special): cubic DBHMIN=7 TOPD=4.5;
+        # board BFMIND=10 BFTOPD=6.0; scribner-cubic SCFMIND=10 SCFTOPD=6.0; all stumps=1. No merch CSV columns
+        # (WS computes volume via the VEQNNC WO2W/DVEW kernels). Needed by the FFE fire biomass path (_fm_cuft).
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            c.sp_dbh_min[j]    = 7.0f0; c.sp_top_diam[j]  = 4.5f0; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = 10.0f0; c.sp_scf_topd[j] = 6.0f0; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j]  = 10.0f0; c.sp_bf_topd[j]  = 6.0f0; c.sp_bf_stump[j]  = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa CentralCalifornia
         # ca/grinit.f:85-134 DBHMIN=BFMIND=7 (sp-index 11 = 6); ca/sitset.f:225-238 top diameter is
         # FOREST-dependent — IFOR 6-10 (R6) → 4.5, else (R5) → 6.0; stump=1. No merch CSV columns.
