@@ -81,7 +81,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
     sd = s.coef.species
-    avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
+    avh = stand_top_height(s); ba = p.basal_area; dgsd = s.control.dg_sd   # AVHT40 top-40 (ca/htgf regent AVH), NOT p.avg_height
     scale = fint / CA_RG_REGYR                       # SCALE = FNT/REGYR (non-estab FNT=FINT)
     scale2 = s.control.year / fint                   # SCALE2 = YR/FNT
     @inbounds for i in 1:n
