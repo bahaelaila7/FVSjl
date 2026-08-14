@@ -44,6 +44,21 @@ function ws_forkod!(p)
         for (i, f) in enumerate(WS_JFOR); kodfor == f && (ifor = i; break); end
     end
     ifor == 0 && (ifor = 1)                            # not-found fallback (ws errgro path)
+    # ws/forkod.f:98-118 — forest-DEPENDENT stand latitude TLAT (feeds ILAT for HGLAT2/DGLAT9); keyed on the
+    # ORIGINAL forest code KFOR1 + district KDIS, NOT the remapped IFOR. Only these 6 R5 forests set TLAT
+    # explicitly; the FVS location code is region×10000+forest×100 (511 → KFOR1=511, KDIS=0). Without this jl
+    # left latitude 0 ⇒ ILAT=1 ⇒ wrong HGLAT2/DGLAT9 band for latitude-varying species (WF/RF/…).
+    kfor1 = kodfor >= 40000 ? kodfor ÷ 100 : kodfor
+    kdis  = kodfor >= 40000 ? kodfor - kfor1 * 100 : 0
+    tlat = 0f0
+    if     kfor1 == 503; tlat = kdis == 53 ? 39f0 : 38f0
+    elseif kfor1 == 511; tlat = kdis <= 52 ? 40f0 : 39f0
+    elseif kfor1 == 513; tlat = kdis <= 52 ? 36f0 : 35f0
+    elseif kfor1 == 515; tlat = kdis == 54 ? 36f0 : 37f0
+    elseif kfor1 == 516; tlat = kdis == 54 ? 37f0 : 38f0
+    elseif kfor1 == 517; tlat = 39f0
+    end
+    tlat > 0f0 && (p.latitude = tlat)
     ifor = _ws_forkod_remap(ifor)
     p.forest_idx = Int32(ifor)
     return ifor
