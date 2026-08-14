@@ -194,3 +194,16 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     end
     return s
 end
+
+# ---------------------------------------------------------------------------
+# WS FFE crown-biomass species map (ws/fmcrow.f:108 DATA ISPMAP) — the Jenkins/FMCROWE
+# crown-biomass group per species. ws/fmcrow.f:165 routes CASE(36,39,41)=AS/DG/MC → FMCROWE
+# (eastern Jenkins TOTABV), all others → FMCROWW (western crown-width, shared cr_crownw). WS FFE chunk-0.
+# ---------------------------------------------------------------------------
+const WS_ISPMAP = Int[
+  15, 3, 4, 19, 20, 15, 4, 13, 11, 14,
+  15, 12, 4, 11, 11, 11, 11, 13, 11, 11,
+   9, 3, 19, 24, 16, 16, 16, 17, 17, 21,
+  21, 21, 17, 17, 17, 41, 17, 10, 56, 5,
+  41, 11, 21]
+@inline ws_uses_fmcrowe(sp::Integer) = (sp == 36 || sp == 39 || sp == 41)
