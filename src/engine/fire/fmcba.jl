@@ -58,14 +58,15 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _cr_fm = s.variant isa CentralRockies
     _bm_fm = s.variant isa BlueMountains        # BM CRWDTH via bm_cwcalc (BMMAP->cr_cwcalc western library)
     _nc_fm = s.variant isa Klamath              # NC CRWDTH via nc_cwcalc (NCMAP western Bechtold/Crookston library)
-    _west_cw = _cr_fm || _bm_fm || _nc_fm
+    _ws_fm = s.variant isa WestSierra           # WS CRWDTH via ws_cwcalc (WSMAP; R5 forest 511 ⇒ BF=1, same forms as NC)
+    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
     # accumulated ⇒ the R6-Crookston BAREA term hits cwcalc.f:859 `IF(BAREA.LE.1.) BAREA=1.` (BA=0→1).
     # fmcba in the FIRST FFE cycle reads those load-time CRWDTH; later cycles read the end-of-cycle UPDATE
     # (actual BA). MEASURED vs FVSnc_clean DEBUG FMCBA cyc1: PERCOV=39.01 matches BAREA=1 (jl 39.72), NOT the
     # dense stand BA (jl 44.29). Mirror the load-time clamp for cycle 1.
-    _nc_ba = (_nc_fm && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
+    _nc_ba = ((_nc_fm || _ws_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     @inbounds for i in 1:t.n
@@ -76,6 +77,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
+             _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -91,7 +93,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # (nc/fmcba.f:298-310): RDPSRT the per-species BA descending → ICT; COVCA(1..2)=ICT(1..2); COVCAWT(j)=
     # FMTBA(ICT(j))/Σ_{i=1,2}FMTBA(ICT(i)). COVTYP is ICT(1) when its BA>0.001 (faithful RDPSRT tie-break).
     covca = (0, 0); covcawt = (0f0, 0f0)
-    if s.variant isa Klamath
+    if s.variant isa Klamath || s.variant isa WestSierra
         ict = collect(1:nsp)
         rdpsrt!(nsp, tba, ict, true)                     # descending indirect sort on tba → ICT
         covtyp = tba[ict[1]] > 0.001f0 ? Int32(ict[1]) : Int32(0)
@@ -135,6 +137,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa Utah && (fs.flive = ut_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa BlueMountains && (fs.flive = bm_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Klamath && (fs.flive = nc_live_fuel_loading(covca, covcawt, fs.percov))   # top-2 (nc/fmcba.f:369-378)
+    s.variant isa WestSierra && (fs.flive = ws_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ws/fmcba.f:519-533)
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -152,6 +155,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa Utah ? ut_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa BlueMountains ? bm_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Klamath ? nc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (nc/fmcba.f:421-431)
+                  s.variant isa WestSierra ? ws_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (ws/fmcba.f:587-597)
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set

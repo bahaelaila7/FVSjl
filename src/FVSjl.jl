@@ -351,6 +351,7 @@ include("../data/bluemountains/fire/ffe_fuel.jl")        # BM FFE FULIVE/FUINIE 
 include("../data/teton/fire/ffe_fuel.jl")                # TT FFE FULIVE/FUINIE (reuses cr_select fmcfmd)
 include("../data/utah/fire/ffe_fuel.jl")                 # UT FFE FULIVE/FUINIE (reuses cr_select fmcfmd)
 include("../data/klamath/fire/ffe_fuel.jl")              # NC FFE FULIVE/FULIVI/FUINIE/FUINII (top-2 cover-type; reuses _cr_algslp2)
+include("../data/westsierra/fire/ffe_fuel.jl")           # WS FFE FULIVE/FULIVI/FUINIE/FUINII (43-species top-2 cover-type; reuses _cr_algslp2)
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
 include("engine/fire/fuel_decay.jl")     # FFE F3 — per-cycle surface-fuel decay (FMCWD)
