@@ -390,6 +390,13 @@ function stand_ccf(s::StandState)
             ccf += ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa SouthCentralOregon
+        # SO CCF = so/ccfcal.f MODE=1 (RD polynomial + WC-hardwood + SH/WO r6crwd crown-width²);
+        # stand CCF = Σ CCFT·P = RELDEN, read by dgf! CONSPP and regent PCTRED.
+        @inbounds for i in 1:t.n
+            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+        end
+        return ccf
     end
     @inbounds for i in 1:t.n
         sp = t.species[i]

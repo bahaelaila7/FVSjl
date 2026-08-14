@@ -118,3 +118,37 @@ function crown_ratio_update!(s::StandState, ::SouthCentralOregon; fint::Float32 
     end
     return s
 end
+
+# =============================================================================
+# so/ccfcal.f — per-tree crown competition factor (MODE=1). stand CCF = Σ CCFT·P = RELDEN,
+# read by dgf! CONSPP (DGCCFA/DGMACC) AND regent PCTRED (X=AVHT·CCF/100). Wired into stand_ccf.
+# Most species use the RD1/RD2/RD3 (D≥1) / RDA·D^RDB (0.1<D<1) polynomial; the WC-hardwood set
+# {15,19:23,25,26,28:31,33} uses D<1 → D·(RD1+RD2+RD3); SH(9)/WO(27) use crown-width² (r6crwd.f
+# MAPSO 6/30). ★ SO was ABSENT from the stand_ccf dispatch ⇒ fell through to the generic eastern
+# crown_width path (RELDEN≈0.42 vs the true ≈144) — latent in dgf (DGCCFA≈0 on sot01) but exposed
+# by regent PCTRED. so_grinit! forest is R6 (sot01 IFOR=1 ⇒ r6crwd, not the R5 IFOR 4-9 path).
+# =============================================================================
+const SO_CCF_RD1 = Float32[.0186,.0392,.0388,.0690,.03,.0194,.01925,.03,.0,.0219,.01925,.0690,.0172,.04,.02453,.01925,.02,.03,.03758,.0204,.03561,.03561,.0204,.03,.0204,.0204,.0,.0204,.0204,.0204,.0204,.0388,.0204]
+const SO_CCF_RD2 = Float32[.0146,.0180,.0269,.0225,.018,.0142,.01676,.0173,.0,.0169,.01676,.0225,.00877,.0270,.01147,.01676,.0148,.0238,.02329,.0246,.0273,.0273,.0246,.0238,.0246,.0246,.0,.0246,.0246,.0246,.0246,.0269,.0246]
+const SO_CCF_RD3 = Float32[.00288,.00207,.00466,.00183,.00281,.00261,.00365,.00259,.0,.00325,.00365,.00183,.00112,.00405,.00134,.00365,.00338,.00490,.00361,.0074,.00524,.00524,.0074,.00490,.0074,.0074,.0,.0074,.0074,.0074,.0074,.00466,.0074]
+const SO_CCF_RDA = Float32[.009884,.007244,.017299,.015248,.011109,.008915,.009187,.007875,.0,.007813,.009187,.015248,.011402,.015248,.0,.009187,.007244,.008915,.0,.0,.0,.0,.0,.008915,.0,.0,.0,.0,.0,.0,.0,.017299,.0]
+const SO_CCF_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,.0,1.7780,1.7600,1.7333,1.7560,1.7333,.0,1.7600,1.8182,1.7800,.0,.0,.0,.0,.0,1.7800,.0,.0,.0,.0,.0,.0,.0,1.5571,.0]
+const SO_CCF_HARDWOOD = Set([15, 19, 20, 21, 22, 23, 25, 26, 28, 29, 30, 31, 33])
+
+# so/ccfcal.f MODE=1 CCFT (per tree, before ×P). `h` only used for SH(9)/WO(27) small-tree crown width.
+@inline function so_tree_ccf(sp::Integer, d::Real, h::Real)::Float32
+    (sp < 1 || sp > 33) && return 0f0
+    D = Float32(d)
+    if sp == 9 || sp == 27                              # SH/WO — r6crwd crown-width² (MAPSO 6/30)
+        bg1, bg2, sm = sp == 9 ? (3.1146f0, 0.5780f0, 0.345f0) : (2.4922f0, 0.8544f0, 0.140f0)
+        crwd = Float32(h) > 4.5f0 ? bg1 * fpow(D, bg2) : sm * Float32(h)
+        return crwd * crwd * 0.001803f0
+    end
+    if sp in SO_CCF_HARDWOOD                            # WC-hardwood set
+        D < 1f0 && return D * (SO_CCF_RD1[sp] + SO_CCF_RD2[sp] + SO_CCF_RD3[sp])
+        return SO_CCF_RD1[sp] + SO_CCF_RD2[sp]*D + SO_CCF_RD3[sp]*D*D
+    end
+    D >= 1f0 && return SO_CCF_RD1[sp] + D*SO_CCF_RD2[sp] + D*D*SO_CCF_RD3[sp]
+    D > 0.1f0 && return SO_CCF_RDA[sp] * fpow(D, SO_CCF_RDB[sp])
+    return 0.001f0
+end
