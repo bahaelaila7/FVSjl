@@ -174,6 +174,11 @@ function setup_growth!(s::StandState)
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ec/crown.f)
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa CentralCalifornia
+        ca_dgcons!(s)                     # CA DGCON (50-species / 13-group-compressed; ln(SITEAR) form for GS/RW) — chunk 3
+        compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ca/crown.f)
+        calibrate_diameter_growth!(s; scale = dgscale)
     end
     return s
 end

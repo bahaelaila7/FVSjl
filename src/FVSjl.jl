@@ -271,6 +271,11 @@ include("variants/eastcascades/regent.jl")                # EC small-tree growth
 include("variants/eastcascades/mortality.jl")             # EC mortality (ec/morts.f Stage/Reineke via shared driver + ec/varmrt.f) — chunk 7
 include("variants/eastcascades/volume.jl")                # EC volume (ec/voleqdef R6_EQN forest-8 INGY + Behre) — chunk 8
 
+# --- centralcalifornia (CA) — Inland California westside Wykoff-DDS (50-species, 13-group-compressed, Zeide SDI) ---
+include("variants/centralcalifornia/centralcalifornia.jl")  # CA singleton + registration (MAXSP 50, Zeide) — chunk 0
+include("variants/centralcalifornia/species.jl")            # CA species-coefficient table binding + blkdat init — chunk 1
+include("variants/centralcalifornia/diameter_growth.jl")    # CA large-tree DDS (ca/dgf.f): ca_dgcons! + dgf! (13-group, 3-branch) — chunk 3
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
