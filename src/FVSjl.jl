@@ -289,6 +289,7 @@ include("variants/southcentraloregon/diameter_growth.jl")   # SO large-tree DDS 
 include("variants/southcentraloregon/htdbh.jl")             # SO height↔DBH (so/htdbh.f): forest-fanned Curtis DESCHT/FREMNT/WINEMA — chunk 4a
 include("variants/southcentraloregon/height_growth.jl")     # SO large-tree HTG (so/htgf.f + so/findag.f): potential-ht + Hoerl/CR + Ritchie-Hann + Johnson-SBB — chunk 4b
 include("variants/southcentraloregon/crown.jl")             # SO crown ratio (so/crown.f + so/dubscr.f): rank-Weibull + logistic/linear DUBSCR — chunk 5
+include("variants/southcentraloregon/mortality.jl")         # SO mortality VARMRT (so/scomrt.f): PEFF·VARADJ·0.01 — chunk 7
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

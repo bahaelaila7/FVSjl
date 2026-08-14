@@ -280,6 +280,7 @@ function _backdate_dbh!(s::StandState)
     _pn_bd = s.variant isa PacificNorthwest  # PN bark = wc_bratio (POWER, all imap=1) — same #140/CI class as WC
     _ec_bd = s.variant isa EastCascades      # EC bark = wc_bratio (per-species bark_imap POWER/linear) — same watchpoint
     _ca_bd = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class as WC/EC
+    _so_bd = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path: CASE1 BARKB / juniper / BRDAT)
     _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
                  _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
                  _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) :
@@ -288,6 +289,7 @@ function _backdate_dbh!(s::StandState)
                  _wc_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
                  _pn_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
                  (_ec_bd || _ca_bd) ? wc_bratio(sd, Int(sp), Float32(d)) :
+                 _so_bd ? so_bratio(sd, Int(sp), Float32(d)) :
                  _bc_bd ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
@@ -325,6 +327,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _pn_cal = s.variant isa PacificNorthwest  # PN bark = wc_bratio (POWER) — apply the WC watchpoint from the start
     _ec_cal = s.variant isa EastCascades      # EC bark = wc_bratio (per-species bark_imap) — WC watchpoint from the start
     _ca_cal = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class (WF COR fix)
+    _so_cal = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path)
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
 
@@ -462,6 +465,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                      _wc_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _pn_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
+                     _so_cal ? so_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _bc_cal ? bc_bratio(Int(t.species[i])) :
                      bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
                 t.diam_growth[i] *= bk
@@ -549,6 +553,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _wc_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                _pn_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
+               _so_cal ? so_bratio(sd, Int(sp), saved_dbh[i]) :
                _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
@@ -1054,6 +1059,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     _ec_dg = s.variant isa EastCascades      # EC bark = wc_bratio — DDS→DG conversion watchpoint (from the start)
                                              # linear fallback floors 0.80 vs wc_bratio ~0.83-0.90 ⇒ d_ib understated
     _ca_dg = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — SAME class: linear-0.80 floor
+    _so_dg = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path) — DDS→DG conversion
                                              # understated d_ib ⇒ same DDS gave a LARGER DG ⇒ cat01 ~+6% BA/cyc over-growth
                                              # ⇒ DDS→DG (sqrt(d_ib²+DDS)−d_ib) OVER-predicts ~2%/tree ⇒ the multi-cycle
                                              # BA/QMD over-growth (2090 BA +19%). Calibration/mortality/update already
@@ -1175,6 +1181,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                    _wc_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    _pn_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    (_ec_dg || _ca_dg) ? wc_bratio(sd, Int(sp), t.dbh[i]) :
+                   _so_dg ? so_bratio(sd, Int(sp), t.dbh[i]) :
                    _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
