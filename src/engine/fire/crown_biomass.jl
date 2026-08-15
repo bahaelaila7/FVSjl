@@ -154,6 +154,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
         # uncalibrated, HT2 = TT :wykoff_ht2 / UT :ht2; cratet.f CASE DEFAULT). Others use the shared htdbh.
         hmin = s.variant isa Teton ? (exp(coef.species[:ht1][sp] + coef.species[:wykoff_ht2][sp] / (dmin + 1f0)) + 4.5f0) :
                s.variant isa Utah  ? (exp(coef.species[:ht1][sp] + coef.species[:ht2][sp] / (dmin + 1f0)) + 4.5f0) :
+               s.variant isa CentralCalifornia ? ca_htdbh_height(Int(sp), dmin) :   # CA Curtis-Arney (ca/htdbh.f); CA has no shared htdbh_p2
+               s.variant isa WestSierra ? ws_htdbh_height(0, Int(sp), dmin) :        # WS Curtis-Arney (ws/htdbh.f MODE=0)
                _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
