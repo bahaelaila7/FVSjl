@@ -233,3 +233,31 @@ function ca_dead_fuel_loading(covca::NTuple{2,Int}, covcawt::NTuple{2,Float32}, 
     end
     return out
 end
+
+# =============================================================================
+# ca_cwcalc — CA crown width (ft) for FMCBA's PERCOV. cat01 is forest 610 = R6 (IFOR=6 > 5), so CA uses the
+# Crookston R6 CAMAP path (ca/cwcalc.f), NOT R5CRWD (ca/cwcalc.f:385 branches R5CRWD only for IFOR≤5). Without
+# it the generic crown_width=0.5 collapses PERCOV≈0 → the wrong initiating-stand fuel loads (measured PERCOV
+# 0.27). CA_CWMAP maps CA species 1..50 → a 5-char CWEQN (FIA code + eqn#) from ca/cwcalc.f DATA CAMAP. The five
+# cat01 species (DF/WF/SP/LP/PP) use the Crookston-R6 model-2 form (_cr_r6m2); DF/WF/SP coefficients are IDENTICAL
+# to NC/WS (20205/01505/11705). LP(10805)/PP(12205) added here. Errors on CA species whose CWEQN is not yet ported.
+const _CA_CWMAP = ("04105","08105","24205","01505","02006","02105","20205","26305","26403","10105",
+                   "10305","10805","10805","11301","11605","11705","11905","12205","12702","12702",
+                   "06405","09204","21104","23104","11605","80102","80502","80702","80702","81505",
+                   "81802","82102","83902","31206","31206","35106","36102","63102","35106","31206",
+                   "31206","63102","63102","74605","74705","31206","98102","98102","31206","21104")
+
+function ca_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
+    (1 <= sp <= 50) || return 0f0
+    eqn = _CA_CWMAP[sp]; cl = cr * h * 0.01f0; ba1 = barea + 1f0
+    if     eqn == "20205"; return _cr_r6m2(6.0227f0,0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)  # Douglas-fir
+    elseif eqn == "01505"; return _cr_r6m2(5.0312f0,0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)  # white fir
+    elseif eqn == "11705"; return _cr_r6m2(3.5930f0,0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el, 5f0,75f0,56f0)  # sugar pine
+    elseif eqn == "10805"; return _cr_r6m2(6.6941f0,0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)  # lodgepole pine
+    elseif eqn == "12205"; return _cr_r6m2(4.7762f0,0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0) # ponderosa pine
+    elseif eqn == "09204"; return _nc_donnelly(2.8232f0,0.66326f0, d, 38f0)   # bristlecone/BR (Donnelly R6)
+    else
+        error("ca_cwcalc: crown-width equation $(eqn) (CA species $(sp)) not yet ported — cat01 exercises only " *
+              "DF/WF/SP/LP/PP; the remaining CAMAP equations are a follow-up crown-width chunk.")
+    end
+end
