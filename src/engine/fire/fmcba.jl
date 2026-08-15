@@ -93,7 +93,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # (nc/fmcba.f:298-310): RDPSRT the per-species BA descending → ICT; COVCA(1..2)=ICT(1..2); COVCAWT(j)=
     # FMTBA(ICT(j))/Σ_{i=1,2}FMTBA(ICT(i)). COVTYP is ICT(1) when its BA>0.001 (faithful RDPSRT tie-break).
     covca = (0, 0); covcawt = (0f0, 0f0)
-    if s.variant isa Klamath || s.variant isa WestSierra
+    if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia
         ict = collect(1:nsp)
         rdpsrt!(nsp, tba, ict, true)                     # descending indirect sort on tba → ICT
         covtyp = tba[ict[1]] > 0.001f0 ? Int32(ict[1]) : Int32(0)
@@ -138,6 +138,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa BlueMountains && (fs.flive = bm_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Klamath && (fs.flive = nc_live_fuel_loading(covca, covcawt, fs.percov))   # top-2 (nc/fmcba.f:369-378)
     s.variant isa WestSierra && (fs.flive = ws_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ws/fmcba.f:519-533)
+    s.variant isa CentralCalifornia && (fs.flive = ca_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ca/fmcba.f)
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -156,6 +157,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa BlueMountains ? bm_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Klamath ? nc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (nc/fmcba.f:421-431)
                   s.variant isa WestSierra ? ws_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (ws/fmcba.f:587-597)
+                  s.variant isa CentralCalifornia ? ca_dead_fuel_loading(covca, covcawt, fs.percov) :
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set

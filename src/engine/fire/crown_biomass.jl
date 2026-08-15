@@ -197,6 +197,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa CentralIdaho ? ci_bratio(coef.species, Int(sp), d) :  # CI per-species bark branches
              s.variant isa BlueMountains ? bm_bratio(coef.species, Int(sp), d) :  # BM POWER bark (bm/bratio.f)
              s.variant isa WestSierra ? ws_bratio(coef.species, Int(sp), d) :  # WS POWER/reciprocal bark (ws/bratio.f)
+             s.variant isa CentralCalifornia ? wc_bratio(coef.species[:bark1][Int(sp)], coef.species[:bark2][Int(sp)], Int(coef.species[:bark_imap][Int(sp)]), d) :  # CA bark (ca/bratio.f, shared wc_bratio 3-method)
              (s.variant isa Kootenai || s.variant isa EasternMontana ||
               s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
