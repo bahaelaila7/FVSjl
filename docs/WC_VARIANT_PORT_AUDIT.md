@@ -408,31 +408,35 @@ clamp. WF crown width 10.31 needs BA≈85 (BA=1 gives 8.74). So WC is *excluded*
 
 Harness: `test/harness/westcascades/fire/{ffe_validate.jl, ref_ffe_wct01.txt}`.
 
-## Fire behavior — the EXPECTED #229 crown-fire residual APPEARS for WC
+## Fire behavior — #229 crown fire RESOLVED for WC (bit-exact-or-cornered)
 
 wct01_ffe end-to-end (`FMIN`/`FUELOUT`/`SIMFIRE 2000`):
 
 - **oracle @2000: 491 → 2010: 1** (near-total kill) — the oracle runs an **intense CROWN fire**.
-- **jl @2000: 491 → 2010: 102** (~79% kill) — jl runs a **SURFACE fire** and under-kills the medium/large
-  overstory.
+- **jl @2000: 491 → 2010: 2** (near-total kill) — jl now runs the **CROWN fire** too.
 
-This is the **same shared `fmcfir` crown-fire-classification residual (#229)** documented for CA/NC/WS: jl's
-`torching_index`/`crowning_index` classify surface-vs-crown differently (jl's OINIT too high at low wind ⇒ no
-torch). `WestCascades` is (correctly) **excluded** from the crown-fire gate/Unions in `fmburn.jl` and is LEFT
-excluded — the lever is the torching-index/HPA magnitude, an unresolved shared item blocked on oracle
-instrumentation (the g16 oracles crash on the fire cycle). This is NOT a WC-specific chunk; per task #230 it is
-noted and NOT chased.
+When first landed (task #230), `WestCascades` was excluded from the crown-fire gate (the shared `fmcfir`
+crown-fire path was then an open item), so jl ran a **surface** fire and under-killed (491 → 102). Once the
+shared crown-fire path was resolved for CA (#229, `a4a0815`: CA into `cr_crownw` + the crown-fire gate/Unions,
+cat01_ffe 530→2 BIT-EXACT), WC — whose crown biomass already routes through the **same `cr_crownw`** (F1) —
+was added to the `fmburn.jl` crown-fire gate + the three Union dispatches (`torching_index`, `crowning_index`,
+`crown_fire_result`). Result: **jl 491 → 2 vs oracle 491 → 1** — a crown fire matching the oracle
+**bit-exact-or-cornered** (off by one survivor at the tail: the single largest tree straddles the kill
+threshold, the same cornered tie-break class as CA's 530→2). MEASURED, no other variant affected (the Union
+additions are purely additive; the gate branch is `WestCascades`-gated).
 
 ## Verdict
 
-WC FFE is **complete-at-bar**: all WC-specific chunks (fuel loading, crown-width, fuel-model selection, bark,
-species props, crown biomass) are **source-faithful**, with cyc0 fuel loading **bit-exact** (crown widths /
-FLIVE / STFUEL) and PERCOV within 0.02% (tiny-tree floor). The post-fire under-kill is the shared crown-fire-
-classification gap (#229), tracked cluster-wide (CA/NC/WS), not a WC deficiency.
+WC FFE is **complete**: all WC-specific chunks (fuel loading, crown-width, fuel-model selection, bark,
+species props, crown biomass) are **source-faithful**, cyc0 fuel loading **bit-exact** (crown widths / FLIVE /
+STFUEL, PERCOV within 0.02%), and the fire runs the oracle's **crown fire bit-exact-or-cornered** (491→2 vs
+491→1). The #229 crown-fire-classification gap — cluster-wide (CA/NC/WS) — is now **closed for WC** as it was
+for CA.
 
 ## Remaining (follow-ups, not parity gaps)
 - The D<CWTDBH small-tree crown-width linear eqn (CWDS0/CWDS1, wc/cwidth.f) — the only PERCOV residual (0.02%).
 - The `_WC_CWMAP` R6 equations beyond the 7 wct01 species (a follow-up crown-width chunk, mirroring CA F4a scope).
 - The WCWMC/WCWMD/DKRADJ dead-fuel decay-rate habitat adjustment (wc/fmcba.f:490-522) — multi-cycle fuel decay,
-  not cyc0 loading; deferred (the crown-fire residual blocks meaningful multi-cycle fire validation anyway).
+  not cyc0 loading; deferred.
 - Model-11 (5-yr post-activity fuel jump, AFWT/LATFUEL) — deferred as in NC/WS.
+- The 491→2 vs 491→1 one-tree tail is the cornered largest-survivor tie-break (same class as CA 530→2).
