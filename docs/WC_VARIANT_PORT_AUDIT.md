@@ -357,3 +357,82 @@ Multi-cycle .sum: **2000-2040 BIT-EXACT-or-±1** (2000 BA 100/SDI 223/CCF 124/QM
 Residual 2050+ drift (2090 BA +8%, TopHt −3, QMD +0.7) = the OLDRN/DGSCOR serial-correlation realization
 straddle (the cornered western-cluster class, same magnitude as utt01 −9%@2090 / IE +13%). WC growth is
 **bit-exact-or-cornered on every chunk**.
+
+---
+
+# WC FFE (Fire & Fuels Extension) port — #230 (2026-08-15)
+
+Task #230 ports the FFE for WC, continuing the western extensions rollout (after CA/WS/NC FFE). Oracle =
+`/workspace/.wcwork/FVSwc_clean`, reference stand `wct01_ffe` (S248112, forest 618, habitat 52, SIMFIRE @2000:
+SWIND=10, FMOIS=1, ATEMP=50). Growth+volume already bit-exact-or-cornered (above).
+
+## KEY STRUCTURAL FINDING — WC FFE is FIRE-VPN, not California-CWHR
+
+The task template assumed WC mirrors the CA/WS/NC "California-CWHR" FFE. **It does not.** WC's `fmcfmd.f` header
+is `FIRE-VPN` (Pacific-Northwest), and:
+- **fuel loading** (`wc/fmcba.f`) uses the **SINGLE dominant cover type** COVTYP (like CR/IE/EM), NOT the
+  top-2-cover COVCA/COVCAWT interpolation of NC/WS/CA.
+- **fuel-model selection** (`wc/fmcfmd.f`) is the **6-cover-metagroup** structure (SF/DF/MH/RA/LP/WO), top-2 by
+  BA, QMD80 (lower-80%-BA QMD, borrowed from WS-CWHR only for the QMD calc) + PERCOV + habitat forb/grass/
+  shrub/wet weighting rules — NOT the CWHRFMD size×density matrix.
+So the port reuses the *interior-western* single-COVTYP fuel machinery + a new VPN selection routine, not the
+CA-CWHR code.
+
+## FFE chunk verdicts
+
+| Chunk | What | Commit | Verdict |
+|-------|------|--------|---------|
+| F1 | `fire_species_props.csv` (39 sp: v2t, ls_spi=wc/fmcrow.f ISPMAP, tfall_cls, leaf_life, dkr_cls, snag_cls, snag_decayx/fallx=1.0, snag_alldwn, biogrp) from wc/fmvinit.f + wc/fmcblk.f; `WC_ISPMAP` + `wc_uses_fmcrowe` (FMCROWE for sp {24,26,27,34,35,36,37,39}, else FMCROWW) | `60720b2` | ✅ source-faithful; DKRCLS SELECT CASE resolved per-species |
+| F2 | Fuel loading — 39-sp FULIVE/FULIVI/FUINIE/FUINII, **single-COVTYP** PERCOV interpolation (`wc_live/dead_fuel_loading`) + `wc_cwcalc` (Crookston R6 CAMAP, forest-618 BF) | `c5934aa` | ✅ **crown widths BIT-EXACT** (7 wct01 species); FLIVE + STFUEL BIT-EXACT |
+| F5 | Fire-mortality bark `_WC_FM_BARK_B1` (39 sp, wc/fmbrkt.f `bt=DBH·B1`) + group-6 gate (wc/fmeff.f restricts Regelbrugge-Smith to SN/CS) | `05eebb1` | ✅ source-faithful, values verified vs fmbrkt.f |
+| F4b | FIRE-VPN cover-metagroup fuel-model selection `wc_select_fuel_models` (wc/fmcfmd.f) — 6 cover groups + QMD80 + MAPFGS/MAPDRY habitat + WC's 13-model XPTS | `752ced8` | ✅ source-faithful; oracle @1990 ICT=(2,5), QMD80=4.70, FMD=5 reproduced by hand from the ported rules |
+| — | Anderson-13 `fire_fuel_models.csv` (universal, = klamath/CR) + harness | (fuel-models commit) | ✅ unblocks the burn (was empty ⇒ BoundsError) |
+
+## MEASURED cyc0 fuel loading vs FVSwc_clean (instrumented fmcba.f, restored pristine)
+
+The oracle FMCBA/FMCFMD were instrumented (unconditional WRITE to fort.9), measured, then restored to pristine
+(grep-verified 0 markers, relinked clean, fort.9 empty). Ground truth (1990, BAREA=FFE-stand-BA 85.13, EL=35):
+
+| quantity | oracle | jl | verdict |
+|---|---|---|---|
+| COVTYP | 2 (white fir) | 2 | **bit-exact** |
+| per-tree crown width (WF/GF/LP/SP/PP/DF/ES) | ZCW dump | — | **BIT-EXACT** (worst \|Δ\|<1e-5) |
+| PERCOV | 48.7366 | 48.7271 | Δ0.0095 (0.02%) — the D<CWTDBH tiny-tree crown-width floor (oracle 0.5 on 3 D=0.1 trees; jl computes ~0.45 via cwcalc). Negligible; not the R6 CAMAP path |
+| FLIVE (herb, shrub) | (0.18379, 0.52801) | (0.18379, 0.52801) | **BIT-EXACT** |
+| STFUEL (11 dead size classes) | 0.655/0.655/2.775/6.054/6.054/0/0/0/0/0.532/22.07 | identical | **BIT-EXACT** |
+| FMCFMD ICT / QMD80 / FMD | (2,5) / 4.702 / 5 | reproduced from the ported rules | ✅ |
+
+**KEY MEASURED FIX:** WC's CRWDTH (wc/cwcalc.f, computed by CWIDTH *after* the stand BA is accumulated) uses the
+actual FFE stand BA (~85) for the Crookston `(BAREA+1)^e` term — NOT the NC/WS/CA cycle-1 `BAREA=1` load-time
+clamp. WF crown width 10.31 needs BA≈85 (BA=1 gives 8.74). So WC is *excluded* from the `_nc_ba` clamp.
+
+Harness: `test/harness/westcascades/fire/{ffe_validate.jl, ref_ffe_wct01.txt}`.
+
+## Fire behavior — the EXPECTED #229 crown-fire residual APPEARS for WC
+
+wct01_ffe end-to-end (`FMIN`/`FUELOUT`/`SIMFIRE 2000`):
+
+- **oracle @2000: 491 → 2010: 1** (near-total kill) — the oracle runs an **intense CROWN fire**.
+- **jl @2000: 491 → 2010: 102** (~79% kill) — jl runs a **SURFACE fire** and under-kills the medium/large
+  overstory.
+
+This is the **same shared `fmcfir` crown-fire-classification residual (#229)** documented for CA/NC/WS: jl's
+`torching_index`/`crowning_index` classify surface-vs-crown differently (jl's OINIT too high at low wind ⇒ no
+torch). `WestCascades` is (correctly) **excluded** from the crown-fire gate/Unions in `fmburn.jl` and is LEFT
+excluded — the lever is the torching-index/HPA magnitude, an unresolved shared item blocked on oracle
+instrumentation (the g16 oracles crash on the fire cycle). This is NOT a WC-specific chunk; per task #230 it is
+noted and NOT chased.
+
+## Verdict
+
+WC FFE is **complete-at-bar**: all WC-specific chunks (fuel loading, crown-width, fuel-model selection, bark,
+species props, crown biomass) are **source-faithful**, with cyc0 fuel loading **bit-exact** (crown widths /
+FLIVE / STFUEL) and PERCOV within 0.02% (tiny-tree floor). The post-fire under-kill is the shared crown-fire-
+classification gap (#229), tracked cluster-wide (CA/NC/WS), not a WC deficiency.
+
+## Remaining (follow-ups, not parity gaps)
+- The D<CWTDBH small-tree crown-width linear eqn (CWDS0/CWDS1, wc/cwidth.f) — the only PERCOV residual (0.02%).
+- The `_WC_CWMAP` R6 equations beyond the 7 wct01 species (a follow-up crown-width chunk, mirroring CA F4a scope).
+- The WCWMC/WCWMD/DKRADJ dead-fuel decay-rate habitat adjustment (wc/fmcba.f:490-522) — multi-cycle fuel decay,
+  not cyc0 loading; deferred (the crown-fire residual blocks meaningful multi-cycle fire validation anyway).
+- Model-11 (5-yr post-activity fuel jump, AFWT/LATFUEL) — deferred as in NC/WS.
