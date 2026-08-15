@@ -206,6 +206,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return ca_select_fuel_models(s, mois, sm, lg)
     end
 
+    # WC (wc/fmcfmd.f) — the FIRE-VPN cover-type-metagroup selection (SF/DF/MH/RA/LP/WO groups), top-2 by BA,
+    # QMD80 (lower-80%-BA QMD) + PERCOV + habitat forb/grass/shrub/wet weighting rules. NOT California-CWHR.
+    if s.variant isa WestCascades
+        return wc_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
