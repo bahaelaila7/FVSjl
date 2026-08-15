@@ -21,7 +21,28 @@ Growth + volume: **bit-exact** vs FVSca_clean (prior CA beachhead; cyc0 536/184)
 All CA-specific ported chunks are **source-faithful and validated** (bit-exact where measurable; fuel
 model selection, crown-width, and bark verified against the FVS source directly).
 
-## Open residual — fire runs SURFACE where the oracle CROWNS (shared crown-fire path)
+## ✅ #229 RESOLVED (a4a0815) — CA crown-fire now BIT-EXACT (530→2)
+
+The crown-fire under-kill below is **FIXED**. Root cause (measured, table retained for the record):
+`crown_biomass` omitted CentralCalifornia from the `cr_crownw` (FMCROWW) dispatch → CA fell to the Jenkins
+FMCROWE eastern path → conifer crown biomass 6–20× too low → `canopy_bulk_density` gave actcbh=12/cbd=0.049
+(vs oracle 4/0.129) → RINIT1=24.7 > surface spread 8.84 → never torched → surface fire.
+
+**Fix** (two commits): `2c45d0c` (part 1) added `CA_ISPMAP`/`ca_uses_fmcrowe` from ca/fmcrow.f;
+`a4a0815` (part 2) wired CentralCalifornia into the `cr_crownw` gate + spie/spils selectors in
+`crown_biomass.jl`, and into the crown-fire gate (fmburn.jl:138) + the 3 crown-fire dispatch Unions
+(crowning_index/torching_index/crown_fire_result → shared `crown_fire_result`, mirroring WestSierra).
+
+**VALIDATED:** `cat01_ffe` 2000: 530 → 2010: **2** — BIT-EXACT vs FVSca_clean (the 2 survivors are the
+largest trees, growing through 2090). Non-regression: fire suite **272 pass / 2 pre-existing-broken / 0 fail**;
+all edits are CentralCalifornia-gated (inert for CR/NC/WS/BM/eastern by construction). ⇒ **CA FFE is now
+complete-at-bar end-to-end** (fuel loading, fuel-model selection, crown-width, bark, AND crown fire).
+
+NOTE: WS and WC remain **excluded** from the crown-fire gate — they carry the same latent surface-vs-crown
+gap on crowning stands (their crown biomass is correct via `cr_crownw`, but they don't enter the crown
+classification). That is a separate follow-up (each variant's own verdict), not chased here.
+
+## Open residual — fire runs SURFACE where the oracle CROWNS (shared crown-fire path) — ⬆ RESOLVED, see above
 
 Measured end-to-end on cat01_ffe:
 
