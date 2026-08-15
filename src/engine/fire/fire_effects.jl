@@ -66,6 +66,14 @@ const _WS_FM_BARK_B1 = Float32[
     0.030, 0.063, 0.081, 0.040, 0.025, 0.025, 0.025, 0.050, 0.024, 0.033,
     0.030, 0.043, 0.034, 0.052, 0.045, 0.044, 0.026, 0.060, 0.062, 0.024,
     0.044, 0.028, 0.030]
+# CA (CentralCalifornia) fire bark-thickness B1 per species (ca/fmbrkt.f, FOFEM v5.0), 50 species. Same class
+# as WS/NC: CA fell to the SN _FM_BARK_B1[bark_eqnum=1]=0.019 default ⇒ fire mortality wrong. `bt = DBH·B1`.
+const _CA_FM_BARK_B1 = Float32[
+    0.081, 0.06, 0.035, 0.048, 0.039, 0.039, 0.063, 0.035, 0.04, 0.03,
+    0.03, 0.028, 0.063, 0.03, 0.068, 0.072, 0.035, 0.063, 0.03, 0.033,
+    0.025, 0.025, 0.081, 0.025, 0.063, 0.05, 0.024, 0.033, 0.059, 0.029,
+    0.03, 0.043, 0.034, 0.024, 0.036, 0.026, 0.06, 0.045, 0.062, 0.042,
+    0.041, 0.052, 0.033, 0.044, 0.044, 0.041, 0.025, 0.026, 0.03, 0.081]
 
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
@@ -75,6 +83,7 @@ const _WS_FM_BARK_B1 = Float32[
     variant isa BlueMountains && return dbh * _BM_FM_BARK_B1[Int(sp)]   # bm/fmbrkt.f
     variant isa Klamath && return dbh * _NC_FM_BARK_B1[Int(sp)]         # nc/fmbrkt.f
     variant isa WestSierra && return dbh * _WS_FM_BARK_B1[Int(sp)]      # ws/fmbrkt.f
+    variant isa CentralCalifornia && return dbh * _CA_FM_BARK_B1[Int(sp)]  # ca/fmbrkt.f
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
@@ -169,7 +178,7 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     # Without WestSierra here it fell through to fire_mortality_group(sp) (the SN species map) ⇒ WS species
     # mis-assigned to SN Regelbrugge-Smith DBH+char-height logistics ⇒ fire OVER-kill (wst01+SIMFIRE post-fire
     # TPA 112 vs oracle 218) once the fuel-model selection was corrected (the low-scorch surface fire exposed it).
-    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa Klamath || variant isa WestSierra) ? 6 :
+    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa Klamath || variant isa WestSierra || variant isa CentralCalifornia) ? 6 :
         variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
