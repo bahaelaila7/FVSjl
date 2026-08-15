@@ -41,7 +41,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
            s.variant isa EasternMontana || s.variant isa CentralIdaho ||
            s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
            s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest ||
-           s.variant isa EastCascades
+           s.variant isa EastCascades || s.variant isa SouthCentralOregon
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
@@ -64,7 +64,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _wc_fm = s.variant isa WestCascades         # WC CRWDTH via wc_cwcalc (WCMAP Crookston R6; forest 618 IFOR=6)
     _pn_fm = s.variant isa PacificNorthwest      # PN CRWDTH via pn_cwcalc (same WCMAP; forest 612 SIUSLAW BF)
     _ec_fm = s.variant isa EastCascades          # EC CRWDTH via ec_cwcalc (ECMAP Crookston R6; forest 608 OKANOGAN BF)
-    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm
+    _so_fm = s.variant isa SouthCentralOregon     # SO CRWDTH via so_cwcalc (SOMAP Crookston R6; forest 601 DESCHUTES BF)
+    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
     # accumulated ⇒ the R6-Crookston BAREA term hits cwcalc.f:859 `IF(BAREA.LE.1.) BAREA=1.` (BA=0→1).
@@ -90,6 +91,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
              _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # PN R6 Crookston (pn/cwcalc.f; forest-612 BF)
              _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
+             _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -142,10 +144,27 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa WestCascades ? Int32(16) :
                  s.variant isa PacificNorthwest ? Int32(16) :   # PN bare-stand fallback: Douglas-fir (pn/fmcba.f)
                  s.variant isa EastCascades ? Int32(3) :        # EC bare-stand fallback: Douglas-fir (ec/fmcba.f:431)
+                 s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
     fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
+    # SO (FCCS/Ottmar) resolves BOTH the live (herb,shrub) and the 11-class dead pool from one COVRINI→FUELINI
+    # lookup keyed by COVTYP, the FMSSTAGE structural stage ISSX (with the PERCOV≥60 SE-open→SE-closed bump),
+    # and the logging-history model index (so/fmcba.f:639-726). Computed here (once COVTYP+PERCOV are known);
+    # the dead pool is reused by the first-year dead-fuel block below.
+    so_ini = nothing
+    if s.variant isa SouthCentralOregon
+        _cls = Int(structure_class(s).class)               # FMSSTAGE IFMST
+        _issx = _cls; _logmod = 1
+        if _issx == 0
+            _issx = 1; _logmod = 2                          # bare/unclassified ⇒ SI + regenerated logging model
+        elseif _issx == 2 && fs.percov >= 60f0
+            _issx = 3                                       # SE open → SE closed (Ottmar) when cover ≥ 60%
+        end
+        so_ini = so_fuel_ini(Int(covtyp), _issx, _logmod)
+        fs.flive = (so_ini[1], so_ini[2])
+    end
     # Western live fuel now that COVTYP + PERCOV are known (fmcba.f:443-449 / ie:283-289)
     s.variant isa CentralRockies && (fs.flive = cr_live_fuel_loading(Int(covtyp), fs.percov))
     (s.variant isa InlandEmpire || s.variant isa Kootenai) && (fs.flive = ie_live_fuel_loading(Int(covtyp), fs.percov))
@@ -182,6 +201,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa WestCascades ? wc_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (wc/fmcba.f:528-533)
                   s.variant isa PacificNorthwest ? pn_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (pn/fmcba.f)
                   s.variant isa EastCascades ? ec_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (ec/fmcba.f)
+                  s.variant isa SouthCentralOregon ? Float32[so_ini[3]...] :  # FCCS/Ottmar STFUEL (so/fmcba.f)
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set
@@ -224,6 +244,15 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input))
+        end
+        # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)
+        # from SOHMC/SOWMD at the first FFE year. The reference stand rides so/habtyp.f's DEFAULT plant
+        # association CPS111 = ITYPE 49 (SI 70; same default the SO growth port's SITEAR/SDIDEF ride), giving
+        # TEMP=hot/MOIST=dry — explicit-habitat real-FIA stands need the full so/ecocls.f PA decode (documented
+        # follow-on, same deferral as growth). habitat_input>0 (a decoded PA) is honored when present.
+        if s.variant isa SouthCentralOregon && size(fs.params.dkr, 1) != 11
+            _ity = Int(s.plot.habitat_input); _ity <= 0 && (_ity = 49)
+            fs.params.dkr = so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
     end

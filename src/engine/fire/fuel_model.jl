@@ -224,6 +224,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return ec_select_fuel_models(s, mois, sm, lg)
     end
 
+    # SO (so/fmcfmd.f Oregon branch) — 8 SORNEC plant super-groups (IPAG=IPASO(ITYPE)) → EQWT by PERCOV /
+    # ACTCBH / FMSSTAGE + natural fuels {10,12,13}. (The R5-California SOSPDM branch is deferred.)
+    if s.variant isa SouthCentralOregon
+        return so_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0

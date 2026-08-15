@@ -175,6 +175,65 @@ const _FM_DKR_EC = Float32[
 ]
 _fm_dkr_default(::EastCascades) = _FM_DKR_EC      # ec/fmvinit.f — DKRADJ-scaled at 1st yr
 
+# SO (SouthCentralOregon) Oregon base decay table (so/fmcba.f:770-808) — BYTE-IDENTICAL to the EC/BM woody
+# rates (0.076-0.113 fine, 0.019-0.058 coarse) with litter 0.50/yr (so/fmcba.f:844) and duff 0.002 — i.e. the
+# same matrix as _FM_DKR_EC. Reused via the alias. (SO's California-forest branch uses a flat 0.025/0.0125
+# table — a KODFOR 500-599/701 path not exercised by the R6 Deschutes reference stand.) Scaled by the habitat
+# DKRADJ(TEMP,MOIST,K) at the first FFE year (so_adjusted_dkr).
+const _FM_DKR_SO = _FM_DKR_EC
+_fm_dkr_default(::SouthCentralOregon) = _FM_DKR_SO
+
+# SO habitat → temperature (SOHMC) / moisture (SOWMD) class (so/fmcba.f:93-119, from FMR6SDCY). Same DKRADJ
+# table as BM/EC (_FM_DKRADJ). 92 plant-association codes; SOHMC 1=hot/2=mod/3=cold, SOWMD 1=wet/2=mesic/3=dry.
+const _FM_SOHMC = Int8[
+    2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 3,
+    3, 1, 2, 2, 2, 2, 2, 2, 2, 3,
+    3, 3, 1, 3, 1, 2, 2, 2, 1, 1,
+    1, 1, 1, 1, 2, 2, 1, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 1, 3, 2, 2, 2, 1,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2]
+const _FM_SOWMD = Int8[
+    2, 2, 2, 1, 1, 2, 1, 1, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 2,
+    1, 2, 1, 1, 2, 1, 1, 2, 1, 3,
+    1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 2, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 2, 3, 3, 3, 2, 3, 2, 2,
+    2, 2, 3, 2, 3, 1, 2, 2, 2, 3,
+    1, 3, 3, 3, 3, 2, 3, 2, 2, 2,
+    1, 2]
+
+"""
+    so_adjusted_dkr(itype) -> Matrix{Float32}
+
+SO habitat-conditioned decay rates (so/fmcba.f:764-836): the SO base DKR scaled by `DKRADJ(TEMP,MOIST,K)`
+(the SAME table BM/EC use) for the stand's habitat `itype` (SOHMC/SOWMD), capped at 1.0, then a second pass
+(size 9→2) bumps any size class decaying slower than the next-larger class up to the larger's rate. Only
+woody classes 1-9; litter (10)/duff (11) keep the base. Applied once at the first FFE year (no FuelDcay).
+"""
+function so_adjusted_dkr(itype::Integer)::Matrix{Float32}
+    dkr = copy(_FM_DKR_SO)
+    (itype < 1 || itype > length(_FM_SOHMC)) && return dkr
+    temp = Int(_FM_SOHMC[itype]); moist = Int(_FM_SOWMD[itype])
+    @inbounds for i in 1:9
+        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
+        adj = _FM_DKRADJ[temp, moist, k]
+        for j in 1:4
+            v = dkr[i, j] * adj
+            dkr[i, j] = v > 1f0 ? 1f0 : v
+        end
+    end
+    @inbounds for i in 9:-1:2, j in 1:4
+        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
+    end
+    return dkr
+end
+
 # EC habitat → temperature (ECHMC) / moisture (ECWMD) class (ec/fmcba.f:82-124, from FMR6SDCY). Same DKRADJ
 # table as BM (_FM_DKRADJ). 155 habitat codes; 1=hot/2=mod/3=cold (ECHMC), 1=wet/2=mesic/3=dry (ECWMD).
 const _FM_ECHMC = Int8[

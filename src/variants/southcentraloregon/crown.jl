@@ -135,6 +135,21 @@ const SO_CCF_RDA = Float32[.009884,.007244,.017299,.015248,.011109,.008915,.0091
 const SO_CCF_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,.0,1.7780,1.7600,1.7333,1.7560,1.7333,.0,1.7600,1.8182,1.7800,.0,.0,.0,.0,.0,1.7800,.0,.0,.0,.0,.0,.0,.0,1.5571,.0]
 const SO_CCF_HARDWOOD = Set([15, 19, 20, 21, 22, 23, 25, 26, 28, 29, 30, 31, 33])
 
+# =============================================================================
+# so/fmcrow.f DATA ISPMAP — SO FFE crown-biomass species map (the FMCROWW/FMCROWE index). Identical to the
+# `ls_spi` column of data/southcentraloregon/fire_species_props.csv; kept here as a named const for the
+# crown_biomass cr_crownw dispatch (mirrors EC_ISPMAP/WC_ISPMAP). so/fmcrow.f:94.
+const SO_ISPMAP = Int32[
+    15, 15,  3,  4, 24, 20, 11, 18,  4, 13,
+    16,  4,  1,  4,  4, 14,  8,  7,  6,  7,
+    23, 23,  5, 41, 17, 61, 17, 64, 17, 41,
+    41,  3, 41]
+
+# so/fmcrow.f SELECT CASE (SPIW): CASE (24,25,26,28,30,31,33) routes through the eastern Jenkins FMCROWE;
+# every other species uses the shared western FMCROWW (= jl `cr_crownw`). Mirrors ec_uses_fmcrowe.
+@inline so_uses_fmcrowe(sp::Integer)::Bool =
+    sp == 24 || sp == 25 || sp == 26 || sp == 28 || sp == 30 || sp == 31 || sp == 33
+
 # so/ccfcal.f MODE=1 CCFT (per tree, before ×P). `h` only used for SH(9)/WO(27) small-tree crown width.
 @inline function so_tree_ccf(sp::Integer, d::Real, h::Real)::Float32
     (sp < 1 || sp > 33) && return 0f0

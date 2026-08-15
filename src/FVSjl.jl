@@ -356,6 +356,8 @@ include("../data/centralcalifornia/fire/ffe_fuel.jl")    # CA FFE FULIVE/FULIVI/
 include("../data/westcascades/fire/ffe_fuel.jl")         # WC FFE FULIVE/FULIVI/FUINIE/FUINII (39-species SINGLE cover-type) + wc_cwcalc
 include("../data/pacificnorthwest/fire/ffe_fuel.jl")     # PN FFE FULIVE/FULIVI/FUINIE/FUINII (39-species SINGLE cover-type) + pn_cwcalc (forest-612 BF)
 include("../data/eastcascades/fire/ffe_fuel.jl")         # EC FFE FULIVE/FULIVI/FUINIE/FUINII (32-species SINGLE cover-type) + ec_cwcalc (forest-608 BF) + ec_moist
+include("../data/southcentraloregon/fire/so_cwcalc.jl")  # SO crown width (so/cwcalc.f SOMAP, forest-601 DESCHUTES BF)
+include("../data/southcentraloregon/fire/ffe_fuel.jl")   # SO FFE FCCS/Ottmar fuel loading (so/fmcba.f COVRINI/FUELINI, FMSSTAGE-keyed)
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
 include("engine/fire/fuel_decay.jl")     # FFE F3 — per-cycle surface-fuel decay (FMCWD)
@@ -369,6 +371,7 @@ include("engine/fire/ws_fuel_model.jl")  # FFE F5c — WS California-CWHR fuel-m
 include("engine/fire/ca_fuel_model.jl")  # FFE F5d — CA California-CWHR fuel-model selection (ca/fmcfmd.f; reuses _ca_cwhr)
 include("engine/fire/wc_fuel_model.jl")  # FFE F4b — WC FIRE-VPN cover-metagroup fuel-model selection (wc/fmcfmd.f)
 include("engine/fire/ec_fuel_model.jl")  # FFE F4  — EC FMDYN dynamic cover-metagroup fuel-model selection (ec/fmcfmd.f)
+include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-group fuel-model selection (so/fmcfmd.f)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
