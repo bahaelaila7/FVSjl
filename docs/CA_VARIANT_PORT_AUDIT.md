@@ -53,16 +53,29 @@ With the oracle's actcbh=4, RINIT1=60·INIT1/HPA=6.17 < surface spread 8.84 ⇒ 
 any wind ⇒ PASSIVE crown fire (CRBURN=0.554, flame 16.4, scorch 72) ⇒ near-total kill. jl's actcbh=12 makes
 RINIT1=24.7 > 8.84 ⇒ never torches ⇒ surface (flame 4.16) ⇒ under-kill.
 
-Why jl's `canopy_bulk_density` is wrong for cat01: its crown-fuel profile is too thin/high — the 1-ft-layer
-crown-fuel array `crfill[6]=12.3, crfill[10]=7.8, crfill[15]=75, crfill[20]=105` reaches the 30-lb/ac-ft
-crown-base threshold only at layer 12, while the oracle reaches it at layer 4 (much more crown fuel packed
-into the 4–12 ft band, cbd 0.129 vs 0.049). Sub-cause is the CA crown-fuel profile feeding it — the CA
-`fmcrow`/`fmpocr` foliage biomass or its low-tree inclusion — NOT the shared crown-fire classification math.
-(This overturns the earlier speculation that the gap was the shared `fmcfir` torching-index/HPA and that CA
-was "correctly excluded from the crown gate": in fact CA SHOULD get the crown-fire path once `canopy_bulk_density`
-is fixed to match the oracle's actcbh/cbd.) `fm_canopy_lsw` has no CA method (falls to `sp<=25`) — plausibly
-part of the low-tree inclusion issue; to be confirmed by instrumenting the oracle's ca/fmpocr.f + ca/fmcrow.f
-per-tree crown-fuel profile.
+SUB-CAUSE PINNED (instrumented oracle ca/fmpocr.f + ca/fmcrow.f, restored pristine). The FMPOCR algorithm is
+byte-for-byte identical to jl's (CBHCUT=30, 13-ft CBD running mean, 3-ft crown-base mean; CA has no LBHPP case
+so it uses the uniform crown-fill — same as jl). The ONLY difference is the per-tree crown biomass `CROWNW`
+feeding the profile — jl's `crown_biomass` is **6–20× too low on foliage and ≈0 on the 1-hr woody**:
+
+| tree (D",H,ICR) | jl fol / w1 | oracle CROWNW0 / CROWNW1 |
+|---|---|---|
+| SP12 4.85/86.5/39 | 6.28 / 0.01 | 39.5 / 33.25 |
+| SP4  2.97/54.9/50 | 2.25 / 0.01 | 48.0 / 19.7 |
+| SP7  2.09/33.5/28 | 1.23 / 0.01 | 19.0 / 9.88 |
+
+ROOT: `crown_biomass` (src/engine/fire/crown_biomass.jl:103-104) routes CR/BM/Klamath/WestSierra through
+`cr_crownw` (the FMCROWW western engine) but **omits CentralCalifornia** — so CA falls through to the Jenkins
+FMCROWE eastern-hardwood path (via `ls_spi`), which gives tiny conifer foliage and ~0 woody. `ca/fmcroww.f`
+is BYTE-IDENTICAL (md5 f764dce1) to CR/WC/WS's, so CA reuses `cr_crownw` directly. **FIX** (turnkey, deferred
+until the WC-FFE agent frees crown_biomass.jl, which it is editing for WC's own routing): add a `CA_ISPMAP[50]`
+(`7,20,7,4,4,4,3,6,24,14, 11,11,11,11,15,15,15,13,13,11, 16,18,19,7,11,17,17,21,17,21, 21,21,17,5,44,23,10,17,
+56,29, 46,17,60,41,17,64,17,17,21,19` from ca/fmcrow.f) + `ca_uses_fmcrowe(sp)= sp∈{35,39,40,41,43,44,45,46}`
++ route CentralCalifornia through `cr_crownw` (mirror WestSierra). Then add CA to the crown-fire gate/Unions
+(fmburn.jl:138/359/379/412) and validate cat01_ffe 530→2; regress NC (actcbh 6=6)/WS/CR. NOTE the F2 fuel
+loading was unaffected because it uses the FULIVE/FUINI tables (`ca_live/dead_fuel_loading`), not `crown_biomass`
+— which is why the cyc0 PERCOV validation didn't catch this. This overturns the earlier "shared fmcfir
+classification, CA correctly excluded from the crown gate" framing.
 
 **Verdict:** CA FFE port is **complete at bar** for the CA-specific FUEL/FUEL-MODEL/CROWN-WIDTH/BARK subsystems
 (all source-faithful). The residual post-fire under-kill is a **measured, localized jl `canopy_bulk_density`
