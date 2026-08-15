@@ -101,13 +101,15 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # NC (Klamath) uses FMCROWW for ALL species (nc/fmcrow.f — none map to the eastern FMCROWE); its
     # fmcroww.f is byte-identical to CR's, so it routes through cr_crownw with _NC_ISPMAP.
     if (s.variant isa CentralRockies || s.variant isa BlueMountains || s.variant isa Klamath ||
-        s.variant isa WestSierra) &&
+        s.variant isa WestSierra || s.variant isa WestCascades) &&
        (s.variant isa Klamath ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
-          s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
+          s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) :
+          s.variant isa WestCascades ? wc_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
         spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] :
                s.variant isa BlueMountains ? _BM_ISPMAP[sp] :
-               s.variant isa WestSierra ? WS_ISPMAP[sp] : _NC_ISPMAP[sp]
+               s.variant isa WestSierra ? WS_ISPMAP[sp] :
+               s.variant isa WestCascades ? WC_ISPMAP[sp] : _NC_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
         # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.
@@ -120,7 +122,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # <15 hardwood foliage ⇒ ~2.45× too much aspen foliage ⇒ the crt01 litter over-accumulation.
     spils = s.variant isa CentralRockies ? Int(_CR_ISPMAP[sp]) :
             s.variant isa BlueMountains ? Int(_BM_ISPMAP[sp]) :
-            s.variant isa WestSierra ? Int(WS_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
+            s.variant isa WestSierra ? Int(WS_ISPMAP[sp]) :
+            s.variant isa WestCascades ? Int(WC_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]
@@ -156,6 +159,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa Utah  ? (exp(coef.species[:ht1][sp] + coef.species[:ht2][sp] / (dmin + 1f0)) + 4.5f0) :
                s.variant isa CentralCalifornia ? ca_htdbh_height(Int(sp), dmin) :   # CA Curtis-Arney (ca/htdbh.f); CA has no shared htdbh_p2
                s.variant isa WestSierra ? ws_htdbh_height(0, Int(sp), dmin) :        # WS Curtis-Arney (ws/htdbh.f MODE=0)
+               s.variant isa WestCascades ? wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), dmin) :  # WC forest-dependent (wc/htdbh.f)
                _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
@@ -200,6 +204,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa BlueMountains ? bm_bratio(coef.species, Int(sp), d) :  # BM POWER bark (bm/bratio.f)
              s.variant isa WestSierra ? ws_bratio(coef.species, Int(sp), d) :  # WS POWER/reciprocal bark (ws/bratio.f)
              s.variant isa CentralCalifornia ? wc_bratio(coef.species[:bark1][Int(sp)], coef.species[:bark2][Int(sp)], Int(coef.species[:bark_imap][Int(sp)]), d) :  # CA bark (ca/bratio.f, shared wc_bratio 3-method)
+             s.variant isa WestCascades ? wc_bratio(coef.species[:bark1][Int(sp)], coef.species[:bark2][Int(sp)], Int(coef.species[:bark_imap][Int(sp)]), d) :  # WC bark (wc/bratio.f POWER/linear)
              (s.variant isa Kootenai || s.variant isa EasternMontana ||
               s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark

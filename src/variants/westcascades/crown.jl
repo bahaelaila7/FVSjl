@@ -165,3 +165,16 @@ const WC_CCF_RD3 = Float32[0.00207,0.00524,0.00466,0.00183,0.00207,0.00261,0.003
     return D < 1.0f0 ? D * (WC_CCF_RD1[ic] + WC_CCF_RD2[ic] + WC_CCF_RD3[ic]) :
                        WC_CCF_RD1[ic] + WC_CCF_RD2[ic] * D + WC_CCF_RD3[ic] * D * D
 end
+
+# ---------------------------------------------------------------------------
+# FFE crown-biomass group per species (wc/fmcrow.f:103 DATA ISPMAP). wc/fmcrow.f:157-162 routes
+# CASE(24,26,27,34,35,36,37,39)=PB/AS/CW/DG/HT/CH/WI/OT → FMCROWE (eastern Jenkins TOTABV), all others
+# → FMCROWW (western crown-width, shared cr_crownw). WC FFE chunk F1.
+# ---------------------------------------------------------------------------
+const WC_ISPMAP = Int[
+   4,  4,  4,  1,  4,  0,  4,  8, 20, 18,
+  11, 15, 15, 15, 13,  3, 19,  7,  6, 24,
+   5, 23, 10, 43, 17, 41, 17, 17, 16,  1,
+  14, 11,  7, 56, 57, 61, 64,  0, 41]
+@inline wc_uses_fmcrowe(sp::Integer) = (sp == 24 || sp == 26 || sp == 27 || sp == 34 ||
+                                        sp == 35 || sp == 36 || sp == 37 || sp == 39)
