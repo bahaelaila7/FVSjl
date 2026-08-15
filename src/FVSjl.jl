@@ -303,6 +303,11 @@ include("variants/westsierra/small_tree_growth.jl")        # WS small-tree HTG+D
 include("variants/westsierra/mortality.jl")                   # WS mortality VARMRT efficiency (ws/varmrt.f): _varmrt_efftr! (×0.1 default, GB ×0.01) — chunk 7
 include("variants/westsierra/volume.jl")                      # WS volume (ws VEQNNC): 500WO2W R5TAP + 500DVEW r5harv (reuse NC kernels) — chunk 8
 
+# --- olympic (OP) — ORGANON NWO (VERSION=2) follow-on to OC, MAXSP=39; foundation + DG_NWO core ---
+include("variants/olympic/olympic.jl")                        # OP (Olympic) singleton + registration (MAXSP 39, ORGANON NWO) — foundation
+include("variants/olympic/species.jl")                        # OP species map (orgspc OSPMAP ∘ SPGROUP_RUN SCODE2) → NWO group — validated
+include("variants/olympic/organon_diamgro_nwo.jl")            # OP ORGANON NWO diameter-growth core (DG_NWO_RUN) — VALIDATED bit-exact vs FVSop_clean
+
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
 include("io/keyword.jl")
