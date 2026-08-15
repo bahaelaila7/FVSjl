@@ -13,10 +13,9 @@
 # TRIM=0.5 MERCHL=8 MINBFD=1. Merch top (MERLEN F-branch, profile.f:1004: SF_HS with DS=MTOPP) is the
 # INSIDE-bark profile diameter = MTOPP directly (the F/Flewelling profile is inside bark — no ·bark).
 #
-# STUB for DVE (woodland TA/WS/LS/BE/OS/PB/AB/BA/AS/CW/WI/SU/OH → DVEST) and CUR (AD/RA → R10 CUR
-# profile): those families are not yet ported (0 volume). akt01 contains none of them, so cyc0 is a
-# full F32-path validation; DVE/CUR are a follow-on chunk.
-# VALIDATED BIT-EXACT vs live FVSak_clean akt01 TREELIST cyc0 (total + merch cubic + board).
+# DVE (woodland → DVEST/R10D2H) and CUR (AD/RA → A32CURW351 R10TAP profile) are ported below.
+# akt01 is 100% F32, so cyc0 is a full F32-path validation; DVE/CUR validated on synthetic all-species
+# stands. VALIDATED BIT-EXACT vs live FVSak_clean akt01 TREELIST cyc0 (total + merch cubic + board).
 # =============================================================================
 
 # AK species (1..23) → internal Flewelling JSP (fwinit.f GEOCODE 'A'); 0 = not an F32 species (DVE/CUR).
@@ -170,17 +169,173 @@ function _ak_dve_vol(grp::Int, d::Float32, h::Float32)
     return (v1, v4, v2)
 end
 
+# =============================================================================
+# CUR (AD/RA → A32CURW351) — Region-10 red-alder taper (R10TAP DVREDA) via the shared PROFILE
+# machinery (grossvol MDL='CUR' → PROFILE). Both hardwoods use the SAME NVEL equation A32CURW351
+# (MEASURED from the live FVSak_clean VOLEQHEAD table). MDL='CUR' with VOLEQ(1:3)='A32' dispatches
+# to PROFILE (not R10VOL) only for the large-tree branch; the FVS driver (volinit.f:466) routes
+# DBHOB<9 (REGN 10) to R10VOL instead. So the CUR path is TWO routines:
+#   • D≥9  → PROFILE: total cubic = TCUBIC 4-ft Smalian of the R10TAP profile; merch length from
+#            R10HTS (Newton solve DVREDA(RH)=TOP²/D²); A32 32-ft-log bucking (VOL4 cubic, VOL2 board).
+#   • D<9  → R10VOL small-tree: FSTGRO (D≤3.5 or H<18) / SECGRO cubic estimators, total cubic only.
+# DBHOB is OUTSIDE-bark; R10TAP red-alder taper carries NO bark (BK=0 for RA), so profile diameters
+# are used directly. Merch top MTOPP = BFTOPD·bark = 7·ak_bratio(sp,D) (fvsvol.f:382). Merch/board
+# gated to D≥DBHMIN=9 by the driver. VALIDATED per-tree bit-exact vs live FVSak_clean on all-AD/all-RA
+# synthetic stands (akAD/akRA .trl cyc0): merch cubic + Scribner board bit-exact for ALL trees; total
+# cubic bit-exact except the damage-97 broken-top tree (0.1 cuft — the same synthetic broken-top height
+# artifact documented for the DVE chunk) and Float32 0.1-cuft summation straddles on tall dead trees.
+# =============================================================================
+
+# DVREDA (r10tap.f/r10hts.f red-alder statement function): the inside-bark taper RATIO at relative
+# height RH (before √·D). Fortran evaluates it in single precision (all operands REAL*4, result stored
+# into a REAL variable); computing the powers in Float64 then narrowing to Float32 reproduces it to
+# well within the 0.1-cuft output precision.
+@inline function _ak_cur_dvreda(rh::Float32, rh32::Float32, rh40::Float32, h::Float32, d::Float32)::Float32
+    r = Float64(rh); dd = Float64(d); hh = Float64(h)
+    r15 = r^1.5; r3 = r^3.0
+    v = 0.91274 * r15 -
+        1.9758 * (r15 - r3) * (dd * 1e-2) +
+        8.2375 * (r15 - r3) * hh * 1e-3 -
+        4.964 * (r15 - Float64(rh32)^32.0) * (hh * dd) * 1e-5 +
+        3.773 * (r15 - Float64(rh32)^32.0) * (hh^0.5) * 1e-3 -
+        7.417 * (r15 - Float64(rh40)^40.0) * (hh^2.0) * 1e-6
+    return Float32(v)
+end
+
+# R10TAP red-alder inside-bark section diameter at height `htup` (RH clamp per r10tap.f:169-196).
+@inline function _ak_cur_dib(d::Float32, h::Float32, htup::Float32)::Float32
+    rh = (h - htup) / (h - 4.5f0)
+    rh <= 0f0 && return 0f0
+    rh32 = rh; rh40 = rh
+    if rh < 0.078f0
+        rh40 = 0.15f0; rh32 = 0.078f0
+    elseif rh < 0.15f0
+        rh40 = 0.15f0
+    end
+    d2 = _ak_cur_dvreda(rh, rh32, rh40, h, d)
+    d2 < 0f0 && (d2 = 0f0)
+    return sqrt(d2) * d
+end
+
+# RH clamp for the R10HTS Newton iteration (RA rules). `rh13` selects the RH40=0.13 quirk that the
+# initial-RH clamp uses (r10hts.f:1863) — RXL and inner-loop clamps use 0.15 (rh13=false).
+@inline function _ak_cur_clamp(rh::Float32, rh13::Bool)
+    rh <= 0f0 && return (0f0, 0f0, 0f0)
+    rh < 0.078f0 && return (rh, 0.078f0, 0.15f0)
+    rh < 0.15f0 && return (rh, rh, rh13 ? 0.13f0 : 0.15f0)
+    return (rh, rh, rh)
+end
+
+# R10HTS (profile.f:1642, RA branch, total height given): Newton solve for the relative height RH where
+# the taper ratio DVREDA(RH) equals TOP²/D², then merch length = (H − RH·(H−4.5)) − STUMP.
+function _ak_cur_lmerch(d::Float32, h::Float32, top::Float32, stump::Float32)::Float32
+    limd = top
+    xll = 1f0 - (2f0/3f0) * (limd / d)
+    hh = h * xll
+    rh = (h - hh) / (h - 4.5f0)
+    _, rh32, rh40 = _ak_cur_clamp(rh, true)
+    dst = (limd * limd) / (d * d)
+    dslo = dst - 0.0001f0; dshi = dst + 0.0001f0
+    ds = _ak_cur_dvreda(rh, rh32, rh40, h, d); ds < 0f0 && (ds = 0f0)
+    rxl = 0.9f0 * rh
+    _, rh32x, rh40x = _ak_cur_clamp(rxl, false)
+    dxl = _ak_cur_dvreda(rxl, rh32x, rh40x, h, d); dxl < 0f0 && (dxl = 0f0)
+    taper = (ds - dxl) / (0.1f0 * rh)
+    @inbounds for _ in 1:10
+        (ds > dslo && ds < dshi) && break
+        rh = taper != 0f0 ? rh + (dst - ds) / taper : rh
+        rh, rh32, rh40 = _ak_cur_clamp(rh, false)
+        ds = _ak_cur_dvreda(rh, rh32, rh40, h, d); ds < 0f0 && (ds = 0f0)
+    end
+    lm = h - rh * (h - 4.5f0) - stump
+    return lm < 0f0 ? 0f0 : lm
+end
+
+# R10VOL small-tree cubic (r10vol.f FSTGRO/SECGRO), the CUR/DEM D<9 (REGN 10) path — total cubic only.
+function _ak_cur_smalltree(d::Float32, h::Float32)::Float32
+    if d <= 3.5f0 || h < 18f0                 # FSTGRO
+        h <= 4.5f0 && return 0f0
+        if h <= 18f0
+            t1 = (h - 0.9f0) / (h - 4.5f0); t1 = t1 * t1
+            t2 = t1 * (h - 0.9f0) / (h - 4.5f0)
+            form = 0.406098f0 * t1 - 0.0762998f0 * d * t2 + 0.00262615f0 * d * h * t2
+        else
+            form = 0.480961f0 + 42.46542f0/(h*h) - 10.99643f0*d/(h*h) - 0.107809f0*d/h - 0.00409083f0*d
+        end
+        vn = 0.005454154f0 * form * d * d * h
+        return vn < 0f0 ? 0f0 : vn
+    else                                       # SECGRO (D>3.5 and H≥18, up to D<9/H≤40)
+        return exp(-5.577f0 + 1.9067f0 * log(d) + 0.9416f0 * log(h))
+    end
+end
+
+# A32 bucking (profile.f, REGN 10 32-ft-log rule) for the CUR profile — same structure as the F32
+# `_ak_buck` but with the R10HTS-derived merch length (`lmerch`) instead of the SF_HS bisection.
+function _ak_cur_buck(dibat, lmerch::Float32, mtop::Float32, stump::Float32)
+    lmerch < _AK_VOL_MERCHL && return (0f0, 0f0)
+    n16 = trunc(Int, lmerch / (_AK_VOL_MAXLEN + _AK_VOL_TRIM))    # F3/A32 MINLEN reset
+    minlen = isodd(n16) ? 2.0f0 : _AK_VOL_MINLEN
+    numseg = _nvb_numlog(_AK_VOL_OPT, _AK_VOL_EVOD, lmerch, _AK_VOL_MAXLEN, minlen, _AK_VOL_TRIM)
+    numseg == 0 && return (0f0, 0f0)
+    loglen, numseg = _nvb_segmnt(_AK_VOL_OPT, _AK_VOL_EVOD, lmerch, _AK_VOL_MAXLEN, minlen, _AK_VOL_TRIM, numseg)
+    numseg == 0 && return (0f0, 0f0)
+    rawdib = zeros(Float32, numseg + 1)
+    rawdib[1] = dibat(4.5f0)
+    ht2 = stump
+    @inbounds for i in 1:numseg
+        ht2 += _AK_VOL_TRIM + loglen[i]
+        rawdib[i + 1] = dibat(ht2)
+    end
+    rawdib[numseg + 1] < mtop && (rawdib[numseg + 1] = mtop)
+    dibl = _fw2_dclass(rawdib[1]); vol4 = 0f0
+    @inbounds for i in 1:numseg
+        dibs = _fw2_dclass(rawdib[i + 1])
+        logv = 0.00272708f0 * (dibl * dibl + dibs * dibs) * loglen[i]
+        vol4 += floor(logv * 10f0 + 0.5f0) / 10f0
+        dibl = dibs
+    end
+    vol2 = 0f0
+    @inbounds for i in 2:2:numseg
+        dib = Float32(floor(rawdib[i + 1]))
+        len = loglen[i] + loglen[i - 1]
+        vol2 += _scrib(dib, len, 'Y') * 10f0
+    end
+    if isodd(numseg)
+        dib = Float32(floor(rawdib[numseg + 1]))
+        vol2 += _scrib(dib, loglen[numseg], 'Y') * 10f0
+    end
+    return (vol4, vol2)
+end
+
+# Per-tree AK CUR volume (AD/RA). Returns (total_cuft, merch_cuft, bdft).
+function _ak_cur_vol(sp::Int, d::Float32, h::Float32)
+    (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)          # PROFILE DBHOB<1 / HTTOT<5 guard
+    if d < _AK_VOL_DBHMIN                                   # driver routes D<9 (REGN 10) to R10VOL
+        return (Float32(round(_ak_cur_smalltree(d, h) * 10f0)) / 10f0, 0f0, 0f0)
+    end
+    bark = ak_bratio(sp, d)
+    mtop = _AK_VOL_TOPD * bark                              # MTOPP = BFTOPD·bark = 7·ak_bratio
+    stump = d > 36f0 ? d / 36f0 : _AK_VOL_STUMP             # DEM/CUR stump fix (profile.f:1145)
+    dibat = ht -> _ak_cur_dib(d, h, ht)
+    tcf = Float32(round(_fw2_tcubic(dibat, h) * 10f0)) / 10f0
+    lmerch = _ak_cur_lmerch(d, h, mtop, stump)
+    mcf, bf = _ak_cur_buck(dibat, lmerch, mtop, stump)
+    return (tcf, mcf, bf)
+end
+
 function compute_volumes_ak!(s::StandState)
     t = s.trees
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         jsp = (1 <= sp <= 23) ? _AK_VOL_JSP[sp] : 0
         grp = (1 <= sp <= 23) ? _AK_DVE_GRP[sp] : 0
-        if d < 1f0 || (jsp == 0 && grp == 0)                  # CUR (AD/RA) still stubbed 0 (follow-on)
+        iscur = (sp == 14 || sp == 15)                        # AD/RA → A32CURW351
+        if d < 1f0 || (jsp == 0 && grp == 0 && !iscur)
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         tcf, mcf, bf = jsp != 0 ? _ak_f32_vol(sp, jsp, d, Float32(h)) :
+                       iscur    ? _ak_cur_vol(sp, d, Float32(h)) :
                                   _ak_dve_vol(grp, d, Float32(h))
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = max(mcf, 0f0)
