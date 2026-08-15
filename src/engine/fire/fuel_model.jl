@@ -218,6 +218,12 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return wc_select_fuel_models(s, mois, sm, lg)
     end
 
+    # EC (ec/fmcfmd.f) — the "detailed low fuel model selection": 15 cover-type metagroups, dominant ICT,
+    # ALGSLP weighting by PERCOV/QMD + single-vs-multi-strata (FMSSTAGE). NOT FIRE-VPN, NOT California-CWHR.
+    if s.variant isa EastCascades
+        return ec_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0

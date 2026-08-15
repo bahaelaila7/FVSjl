@@ -180,8 +180,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # ffe_fuel_update! + fire_smlg were SKIPPED ⇒ the fire sampled an unaccumulated ~empty down-wood pool
     # (fire_smlg=(0.37,0) vs the real cwd ~10) ⇒ wrong fuel-model weights / under-fire. (The CR-family
     # variants likely share this latent run_keyfile gap — validate + fold them in separately.)
+    # EastCascades (like NC/the CR family) carries its live+dead fuel in its own single-cover-type loaders
+    # (ec_live/dead_fuel_loading), so its ffe_fuel_live is empty — but its FFE fuel loop MUST still run, else
+    # the per-cycle ffe_fuel_update! + fire_smlg stash are skipped ⇒ the SIMFIRE samples a (0,0) down-wood
+    # point ⇒ FMDYN drops the natural-fuel model (ect01_ffe FMD-set {6,9} vs live {9,10,6}) ⇒ under-fire.
+    # (Unlike WC/PN/CA/WS whose crown fire dominates and masks the fuel-model weights, EC's is a SURFACE fire.)
     ffe_on = s.fire !== nothing && s.fire.active &&
-             (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath)
+             (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades)
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)

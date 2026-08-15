@@ -116,6 +116,19 @@ function crown_ratio_update!(s::StandState, ::EastCascades; fint::Float32 = 10.0
     return s
 end
 
+# ec/fmcrow.f DATA ISPMAP — EC FFE crown-biomass species map (the FMCROWW/FMCROWE index). Identical to the
+# `ls_spi` column of data/eastcascades/fire_species_props.csv; kept here as a named const for the crown_biomass
+# cr_crownw dispatch (mirrors _CR_ISPMAP/WC_ISPMAP). ec/fmcrow.f:100.
+const EC_ISPMAP = Int32[
+    15,  8,  3,  4,  7,  4, 11, 18,  1, 13,
+     6, 24,  7, 14,  4,  4,  1,  8, 16,  5,
+     5, 23, 43, 17, 56, 41, 17, 17, 61, 64,
+    24, 41]
+
+# ec/fmcrow.f SELECT CASE (SPIW): CASE (23,25:27,29,30,32) routes through the eastern Jenkins FMCROWE; every
+# other species uses the shared western FMCROWW (= jl `cr_crownw`). Mirrors wc_uses_fmcrowe/ca_uses_fmcrowe.
+@inline ec_uses_fmcrowe(sp::Integer)::Bool = sp == 23 || (25 <= sp <= 27) || sp == 29 || sp == 30 || sp == 32
+
 # ec/ccfcal.f — per-species CCF (no INDCCF). D≥1": RD1+D·RD2+D²·RD3; 0.1<D<1": RDA·D^RDB.
 const EC_CCF_RD1 = Float32[0.03,0.02,0.0388,0.04,0.03,0.04,0.01925,0.03,0.03,0.0219,0.03758,0.03,0.0204,0.01925,0.02453,0.04,0.0194,0.0194,0.0194,0.0204,0.0204,0.03561,0.0204,0.0160,0.0204,0.0204,0.0204,0.0204,0.0204,0.0204,0.03,0.0204]
 const EC_CCF_RD2 = Float32[0.0167,0.0148,0.0269,0.0270,0.0238,0.027,0.01676,0.0173,0.0216,0.0169,0.0233,0.0215,0.0246,0.0168,0.0115,0.027,0.0142,0.0142,0.0142,0.0246,0.0246,0.02731,0.0246,0.0167,0.0246,0.0246,0.0246,0.0246,0.0246,0.0246,0.0215,0.0246]

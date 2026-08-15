@@ -102,19 +102,21 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # fmcroww.f is byte-identical to CR's, so it routes through cr_crownw with _NC_ISPMAP.
     if (s.variant isa CentralRockies || s.variant isa BlueMountains || s.variant isa Klamath ||
         s.variant isa WestSierra || s.variant isa WestCascades || s.variant isa CentralCalifornia ||
-        s.variant isa PacificNorthwest) &&
+        s.variant isa PacificNorthwest || s.variant isa EastCascades) &&
        (s.variant isa Klamath ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
           s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) :
           s.variant isa WestCascades ? wc_uses_fmcrowe(sp) :
           s.variant isa PacificNorthwest ? pn_uses_fmcrowe(sp) :
-          s.variant isa CentralCalifornia ? ca_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
+          s.variant isa CentralCalifornia ? ca_uses_fmcrowe(sp) :
+          s.variant isa EastCascades ? ec_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
         spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] :
                s.variant isa BlueMountains ? _BM_ISPMAP[sp] :
                s.variant isa WestSierra ? WS_ISPMAP[sp] :
                s.variant isa WestCascades ? WC_ISPMAP[sp] :
                s.variant isa PacificNorthwest ? PN_ISPMAP[sp] :
-               s.variant isa CentralCalifornia ? CA_ISPMAP[sp] : _NC_ISPMAP[sp]
+               s.variant isa CentralCalifornia ? CA_ISPMAP[sp] :
+               s.variant isa EastCascades ? EC_ISPMAP[sp] : _NC_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
         # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.
@@ -130,7 +132,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa WestSierra ? Int(WS_ISPMAP[sp]) :
             s.variant isa WestCascades ? Int(WC_ISPMAP[sp]) :
             s.variant isa PacificNorthwest ? Int(PN_ISPMAP[sp]) :
-            s.variant isa CentralCalifornia ? Int(CA_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
+            s.variant isa CentralCalifornia ? Int(CA_ISPMAP[sp]) :
+            s.variant isa EastCascades ? Int(EC_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]

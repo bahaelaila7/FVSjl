@@ -155,6 +155,70 @@ const _FM_DKR_BM = Float32[
     0.002  0.002  0.002  0.002      # 11 duff  (bm/fmvinit.f:112)
 ]
 _fm_dkr_default(::BlueMountains) = _FM_DKR_BM     # bm/fmvinit.f — distinct from CR; DKRADJ-scaled at 1st yr
+
+# EC has its OWN base decay table (ec/fmvinit.f:79-124) — the SAME woody rates as BM (0.076-0.113 fine,
+# 0.019-0.058 coarse) but litter = 0.50/yr (ec/fmvinit.f:123, NOT BM 0.65). Used as the base the habitat
+# DKRADJ then scales (ec_adjusted_dkr). Without it EC fell through to the SN _FM_DKR ⇒ coarse down-wood
+# decayed ~3× too fast ⇒ LARGE down-wood ~1.8× low ⇒ FMDYN dropped the natural-fuel model 10 ⇒ under-fire.
+const _FM_DKR_EC = Float32[
+    0.076  0.081  0.090  0.113      # 1  (<0.25")
+    0.076  0.081  0.090  0.113      # 2  (0.25-1")
+    0.076  0.081  0.090  0.113      # 3  (1-3")
+    0.019  0.025  0.033  0.058      # 4  (3-6")
+    0.019  0.025  0.033  0.058      # 5  (6-12")
+    0.019  0.025  0.033  0.058      # 6  (12-20")
+    0.019  0.025  0.033  0.058      # 7  (20-35")
+    0.019  0.025  0.033  0.058      # 8  (35-50")
+    0.019  0.025  0.033  0.058      # 9  (>50")
+    0.50   0.50   0.50   0.50       # 10 litter (ec/fmvinit.f:123)
+    0.002  0.002  0.002  0.002      # 11 duff  (ec/fmvinit.f:124)
+]
+_fm_dkr_default(::EastCascades) = _FM_DKR_EC      # ec/fmvinit.f — DKRADJ-scaled at 1st yr
+
+# EC habitat → temperature (ECHMC) / moisture (ECWMD) class (ec/fmcba.f:82-124, from FMR6SDCY). Same DKRADJ
+# table as BM (_FM_DKRADJ). 155 habitat codes; 1=hot/2=mod/3=cold (ECHMC), 1=wet/2=mesic/3=dry (ECWMD).
+const _FM_ECHMC = Int8[
+    3,3,2,2,2,2,2,2,2,2, 2,2,2,2,1,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,
+    2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,3,3,3,3,
+    3,3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3,3, 3,3,2,2,2,3,3,2,2,3,
+    2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,3,3,
+    3,3,3,3,3,3,3,3,3,1, 1,1,2,1,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,
+    2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,
+    2,2,2,2,2]
+const _FM_ECWMD = Int8[
+    3,3,2,2,2,2,1,2,2,2, 3,3,3,3,3,2,3,3,3,3, 2,2,3,3,2,2,3,2,2,2,
+    2,3,2,2,2,3,3,3,3,3, 2,2,2,2,2,2,3,2,2,2,
+    1,2,2,2,3,3,1,2,2,3, 1,2,2,2,2,3,3,2,2,3, 3,3,2,2,2,2,2,1,1,1,
+    2,2,2,2,2,2,2,2,3,2, 2,2,2,2,2,2,1,2,3,2,
+    3,2,1,1,2,2,2,1,2,3, 3,3,3,3,2,2,2,2,2,2, 2,3,3,3,3,3,2,2,2,2,
+    2,2,2,2,2,2,2,3,2,3, 2,3,2,3,3,2,2,2,2,2,
+    2,3,2,3,2]
+
+"""
+    ec_adjusted_dkr(itype) -> Matrix{Float32}
+
+EC habitat-conditioned decay rates (ec/fmcba.f:457-491): the EC base DKR scaled by `DKRADJ(TEMP,MOIST,K)`
+(the SAME table BM uses) for the stand's habitat `itype` (ECHMC/ECWMD), capped at 1.0, then a second pass
+(size 9→2) bumps any size class decaying slower than the next-larger class up to the larger's rate. Only
+woody classes 1-9; litter (10)/duff (11) keep the base. Applied once at the first FFE year (no FuelDcay).
+"""
+function ec_adjusted_dkr(itype::Integer)::Matrix{Float32}
+    dkr = copy(_FM_DKR_EC)
+    (itype < 1 || itype > length(_FM_ECHMC)) && return dkr
+    temp = Int(_FM_ECHMC[itype]); moist = Int(_FM_ECWMD[itype])
+    @inbounds for i in 1:9
+        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
+        adj = _FM_DKRADJ[temp, moist, k]
+        for j in 1:4
+            v = dkr[i, j] * adj
+            dkr[i, j] = v > 1f0 ? 1f0 : v
+        end
+    end
+    @inbounds for i in 9:-1:2, j in 1:4
+        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
+    end
+    return dkr
+end
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
 # ── BM decay-rate habitat adjustment (bm/fmcba.f:67-113, 333-368) ──────────────────────────────────
