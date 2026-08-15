@@ -31,31 +31,41 @@ Measured end-to-end on cat01_ffe:
 - **jl @2000: 530 → 133** (75% kill). jl computes a **surface** fire: flame 4.16 ft, scorch 17.32 ft — enough
   to kill small trees but not the medium/large overstory.
 
-Root cause (measured, not inferred): jl classifies the fire as **surface**, not crown. For cat01
-(`canopy_bulk_density`: cbd=0.0492, actcbh=12, tcload=0.161):
-`torching_index` OINIT = **23.78**, `crowning_index` OACT = **36.08**, both > SWIND = **10** ⇒
-`crown_fire_result` returns CRBURN=0 (SURFACE, fmcfir.f:334). The critical torching spread
-`rinit1 = 60·init1/hpa = 24.68 ft/min` (init1 from actcbh=12, hpa=828.4) is reached only at ~24 mph, so at
-10 mph jl never torches. The oracle crowns at 10 mph ⇒ its critical spread / HPA / surface-vs-crown
-classification differs.
+Root cause (MEASURED via FVSca_g16 — the g16 DOES run the fire; the earlier "g16 crashes on the fire cycle"
+was a misread of exit-10 = normal FVS completion). Instrumented ca/fmburn.f + ca/fmcfir.f dumps (restored
+pristine after) captured the oracle's crown-fire internals at the SIMFIRE @2000 vs jl:
 
-This is the **shared `fmcfir` crown-fire path**, not a CA-specific chunk:
-- It is the **same family** as the open NC crown-fire issue (fmburn.jl:129-137: the shared crown-fire BYRAM
-  step over-drives FINTEN; NC surface-only 54 vs 58 is cornered, crown-on over-kills 0 vs 58). CA/WS are
-  currently **excluded** from the crown-fire boost gate (fmburn.jl:138) and the `crown_fire_result` /
-  `torching_index` / `crowning_index` Union dispatch.
-- Adding CA to the gate + Unions was tested and is **inert** for cat01 (crb=0, because OINIT=23.78 > 10) —
-  the lever is the torching-index / HPA magnitude, not the gate membership. Reverted (kept faithful).
-- jl's `actcbh` is validated against NC live (cbd 0.147 = live 0.152, actcbh 6=6), so the discrepancy is in
-  the HPA / critical-spread / crown-type classification, needing the oracle's internal OINIT/flame.
+| FMCFIR input | Oracle | jl |
+|---|---|---|
+| ACTCBH (crown base ht) | **4 ft** | **12 ft** |
+| CBD (crown bulk density) | **0.1294** | **0.0492** |
+| INIT1 | 65.58 | ~341 |
+| RINIT1 (critical torch spread) | 6.17 | 24.7 |
+| OINIT1 (torching index) | **0.0** | 23.78 |
+| OACT1 (crowning index) | 17.13 | 36.08 |
+| SFRATE (surface spread @10mph) | 8.84 | 8.84 |
+| CRBURN / FIRTYPE | **0.554 / PASSIVE** | 0 / SURFACE |
+| FLAME / SCORCH | **16.42 / 72.3** | 4.16 / 17.32 |
 
-**Blocked measurement:** the CA g16 oracle (`FVSca_g16`) crashes on the fire cycle (exit 2 at 2000, known
-g16 fragility — the CA volume path SIGFPEs under the isoc23 shim), so the oracle's OINIT/flame/fire-type
-cannot be dumped. FVSca_clean's fire-report keywords (BURNREPT/FUELREPT/MORTREPT) require an open DATABASE
-and exit 10 in this build; SIMFIRE only accepts cycle-boundary dates. ⇒ oracle crown-fire internals not yet
-measurable.
+The surface spread (8.84) and HPA are fine; the torching MATH is fine. The **single root cause is jl's
+`canopy_bulk_density`**: it computes ACTCBH=12 / CBD=0.0492 where the oracle gets ACTCBH=4 / CBD=0.1294.
+With the oracle's actcbh=4, RINIT1=60·INIT1/HPA=6.17 < surface spread 8.84 ⇒ OINIT1=0 ⇒ the fire torches at
+any wind ⇒ PASSIVE crown fire (CRBURN=0.554, flame 16.4, scorch 72) ⇒ near-total kill. jl's actcbh=12 makes
+RINIT1=24.7 > 8.84 ⇒ never torches ⇒ surface (flame 4.16) ⇒ under-kill.
 
-**Verdict:** CA FFE port is **complete at bar** for the CA-specific subsystems (fuel, fuel-model, crown-width,
-bark — all source-faithful). The residual post-fire under-kill is a **shared crown-fire-classification** gap
+Why jl's `canopy_bulk_density` is wrong for cat01: its crown-fuel profile is too thin/high — the 1-ft-layer
+crown-fuel array `crfill[6]=12.3, crfill[10]=7.8, crfill[15]=75, crfill[20]=105` reaches the 30-lb/ac-ft
+crown-base threshold only at layer 12, while the oracle reaches it at layer 4 (much more crown fuel packed
+into the 4–12 ft band, cbd 0.129 vs 0.049). Sub-cause is the CA crown-fuel profile feeding it — the CA
+`fmcrow`/`fmpocr` foliage biomass or its low-tree inclusion — NOT the shared crown-fire classification math.
+(This overturns the earlier speculation that the gap was the shared `fmcfir` torching-index/HPA and that CA
+was "correctly excluded from the crown gate": in fact CA SHOULD get the crown-fire path once `canopy_bulk_density`
+is fixed to match the oracle's actcbh/cbd.) `fm_canopy_lsw` has no CA method (falls to `sp<=25`) — plausibly
+part of the low-tree inclusion issue; to be confirmed by instrumenting the oracle's ca/fmpocr.f + ca/fmcrow.f
+per-tree crown-fuel profile.
+
+**Verdict:** CA FFE port is **complete at bar** for the CA-specific FUEL/FUEL-MODEL/CROWN-WIDTH/BARK subsystems
+(all source-faithful). The residual post-fire under-kill is a **measured, localized jl `canopy_bulk_density`
+(crown-fuel profile) bug for CA** (actcbh 12 vs 4, cbd 0.049 vs 0.129), tracked as #229 — NOT a shared
 (surface-vs-crown at low wind), tracked with the NC crown-fire byram/torching-index open item — resolving it
 closes CA and NC together and is gated on being able to instrument an oracle crown-fire event.
