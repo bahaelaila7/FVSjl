@@ -35,7 +35,8 @@ specialization of the shared engine. AK mirrors that structure.
 | 5 Crown | `ak/crown.f` logistic CR (PRD/HDR/D-QMD) + `ak/dubscr.f` (bachlo RNG) + point-Zeide `ak/sdical.f` SDICAL/SDICLS (XMAXPT/ZRD) | **PORTED** — point-Zeide PRD reproduces the oracle (365.0/592=0.6166 verified); feeds DGF ln(CR) from cyc2+. Not yet independently per-tree-validated |
 | 7 Mortality | `ak/morts.f` logistic survival (BM1-5) + SDI/BA iterative-PASS multiplier (**NOT SEAMRT** — dead code, 0 `CALL`s in the AK build) | **VALIDATED** — per-tree logistic survival RIP bit-exact vs live `morts.f` DEBUG (single-.o relink, all 27 akt01 cyc1 trees, max ΔRIP 6.4e-8); SDIMAX self-thin threshold bit-exact (660.606). akt01 SDI (≤467) stays below SDIUPR (561) so the PASS self-thin doesn't fire — faithful port validated by the bit-exact RIP+SDIMAX inputs. TPA ~1%; multi-cycle TopHt/TPA divergence = the DGSD=2.0 OLDRN growth straddle (cornered), not a mortality bug |
 | 6 REGENT small-tree | `ak/regent.f` | **STUB (no-op)** — small trees keep large-tree DGF/HTGF; akt01 is mature so bounded. LATER chunk |
-| 8 Volume | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL F32 Flewelling profile (reuses shared `_fw2_*` kernels) + `setcubicdflts.f`/`mrules.f` R10 merch + 32-ft-log board | **VALIDATED BIT-EXACT (per-tree) vs live FVSak_clean TREELIST on akt01 cyc0** — all 29 trees' total cubic + merch cubic + Scribner board match (e.g. LP 21.4/14.5/60, WH 24.9/17.8/60, MH 13.2/10.1/30, YC-dead 240.3/223.9/1010). .sum aggregates: **MCuFt 732 = live 732, BdFt 2417 = live 2417 bit-exact**; TCuFt 2316 vs 2315 (±1 = Float32 summation of the per-acre total, below integer precision). DVE (woodland) + CUR (hardwood) families still 0 (akt01 has none). See §Chunk 8 below |
+| 8 Volume (F32 conifers) | `ak/sitset.f` VOLEQDEF(VAR='AK',IREGN=10)→NVEL F32 Flewelling profile (reuses shared `_fw2_*` kernels) + `setcubicdflts.f`/`mrules.f` R10 merch + 32-ft-log board | **VALIDATED BIT-EXACT (per-tree) vs live FVSak_clean TREELIST on akt01 cyc0** — all 29 trees' total cubic + merch cubic + Scribner board match (e.g. LP 21.4/14.5/60, WH 24.9/17.8/60, MH 13.2/10.1/30, YC-dead 240.3/223.9/1010). .sum aggregates: **MCuFt 732 = live 732, BdFt 2417 = live 2417 bit-exact**; TCuFt 2316 vs 2315 (±1 = Float32 summation of the per-acre total, below integer precision). See §Chunk 8 below |
+| 8b Volume (DVE woodland) | `ak/r10d2h.f` Region-10 D²H direct estimators (Larsen & Winterberger PNW-RN-478/495) via grossvol MDL='DVE'→DVEST→R10D2H; driver gates (fvsvol.f NATCRS) | **VALIDATED BIT-EXACT** vs live FVSak_clean on an all-white-spruce (WS, sp5, `A00DVEW094`) interior stand cyc0 — instrumented NATCRS per-tree dump: **28/29 trees bit-exact on total + merch cubic + Scribner board** (the 29th is a synthetic broken-top height-input difference, not volume — see §Chunk 8b). Covers TA/WS/LS/BE/OS=094, PB/AB/AS=375, BA/CW/WI/SU/OH=747 (13 of the 15 previously-stubbed species, incl. the documented ~4000-cuft WS gap). akt01 F32 non-regression bit-exact. **CUR (AD/RA → `A32CURW351`) still 0 — a scoped follow-on** (R10TAP DVREDA red-alder taper + PROFILE integration; oracle AD stand = 2512/917/3187) |
 
 ### End-to-end akt01 `.sum` vs `akt01.sum.save` (unthinned control, NUMCYCLE 10, NOTRIPLE off)
 
@@ -198,3 +199,59 @@ live 2417 bit-exact**; **TCuFt 2316 vs 2315** (±1 = Float32 non-associative sum
 0.1-rounded per-tree cuft, below the integer .sum precision — every per-tree value matches). This meets
 the CI MCuFt/BdFt exact-at-cyc0 bar. Growth columns unchanged (cyc0 still bit-exact). DVE + CUR
 families remain unported (0) — a follow-on chunk; akt01 exercises neither.
+
+## Chunk 8b — DVE woodland/interior volume (R10D2H) — VALIDATED BIT-EXACT (per-tree, WS interior stand)
+
+**Which equation the missing species hit (MEASURED from the live FVSak_clean VOLEQHEAD `.out` table):**
+the 15 previously-stubbed species split into two NVEL families — **DVE** (`A00DVEW###`, grossvol MDL='DVE'
+→ `DVEST` → `R10D2H`) and **CUR** (`A32CURW351`, MDL='CUR' → `PROFILE` → `R10TAP`). White spruce
+(WS, sp5) = **`A00DVEW094`** → DVE → **R10D2H** (Larsen & Winterberger PNW-RN-478/495 D²H direct
+estimators). DVE FIA-code groups: **094**=TA/WS/LS/BE/OS, **375**=PB/AB/AS, **747**=BA/CW/WI/SU/OH.
+CUR: AD/RA → 351.
+
+**R10D2H model (coastal AK `A00`, EQN='00'; DBHOB = OUTSIDE-bark dbh — no bark conversion):**
+```
+D2H = DBHOB²·HTTOT
+VOL(1) total  = c1 + c2·D2H     [094: 0.65559,0.00191 | 375: 0.64456,0.00206 | 747: 0.9864,0.00181]
+                minus small-tree corr c1·(1−(D/6)³) when DBH<6
+VOL(4) merch  = c3 + c4·D2H     [094: −0.21849,0.00189 | 375: −0.7126,0.00211 | 747: −1.39764,0.00188], DBH>4
+VOL(2) board  = 094/375 power-law k·D2H^p ; 747 linear −28.0674+0.00937·D2H, DBH>6, then ANINT
+```
+dvest.f rounds ONLY VOL(2)=ANINT (2025/05/07: VOL(1)/VOL(4) left unrounded for biomass — the F32 0.1-cuft
+rounding lives in profile.f and does NOT apply here); r10d2h clamps every VOL<0 → 0.
+
+**The driver gate is the key non-obvious piece (MEASURED — instrumented fvsvol.f NATCRS single-`.o`
+relink → `FVSak_r10dbg`, per-tree dump of D/H/DBHMIN/BFMIND/TVOL/TCF/MCF/BBFV):** R10D2H's own inner
+gates are DBH>4 (merch) / DBH>6 (board), but the FVS driver (`fvsvol.f` NATCRS→VOLINITNVB→…) then applies
+the **AK merch STANDARDS**: `TCF=VOL(1)` unconditionally, but **`MCF=VOL(4)+VOL(7)` only if DBH≥DBHMIN**
+and **`BBFV=VOL(2)` only if DBH≥BFMIND** (fvsvol.f:512/519). For KODFOR 1005 (AKMERCHCAT 3,
+setcubicdflts.f) **DBHMIN=BFMIND=SCFMIND=9** (dump confirmed 9.0/9.0). Without the 9″ gate the initial
+port over-reported merch ~1.9× and board ~1.5×; with it, per-tree bit-exact. (VOL(7)=0 for AK — only the
+r10d2h 108/310/351/660 branch sets it, and those codes are never assigned in AK.)
+
+**Validation vs live `FVSak_clean` on an all-white-spruce interior stand (`A00DVEW094`, DGRD=−0.4555,
+NOTRIPLE, cyc0):** instrumented NATCRS per-tree dump — **28 of 29 trees BIT-EXACT on total cubic, merch
+cubic, AND Scribner board** (e.g. D11.5/H73 → 19.095/18.028/53; D34.6/H108.87 → 249.602/249.601 Float32
+ULP; D9.5 → 10.998/10.016/24; D<9 → total-only, merch/board correctly 0). The 29th tree (record 22,
+damage-code-97 broken top) differs ONLY in the height fed to volume (jl 55.00 vs oracle 61.03 — a
+broken-top height-reconstruction difference exposed by the synthetic WS species-substitution; its volume
+is correct for its height) and accounts for the entire aggregate residual (.sum TCuFt 2212 vs 2222, MCuFt
+977 vs 989, BdFt 2562 vs 2601). akt01's real broken-top trees are bit-exact end-to-end, so this is a
+cornered synthetic-stand height artifact, NOT a volume bug.
+
+**akt01 F32 non-regression (RUN vs a fresh clean oracle, not trusted):** cyc0 BIT-EXACT — TPA 669 / BA
+118 / SDI 242 / CCF 184 / TopHt 64 / QMD 5.7 / MCuFt 732 / BdFt 2417 all match; TCuFt 2316 vs 2315 = the
+documented ±1 Float32 (unchanged). Full jl suite: my change is **failure-neutral** (37169 passed / 854
+failed / 21 errored / 130 broken with AND without the change — the 854 are pre-existing WIP failures on
+kt-variant-port; none touch AK/southeastalaska/DVE).
+
+**Files:** `src/variants/southeastalaska/volume.jl` (`_ak_dve_vol` + `_AK_DVE_GRP` species→FIA-group map +
+DBHMIN gate in `compute_volumes_ak!`). Reproduce the oracle dump:
+`gfortran-16 -c -std=legacy -w -fno-automatic -O0 -I<buildDir>` a NATCRS-instrumented `fvsvol.f`, then
+`relink_ak.sh r10dbg fvsvol.o` and run any WS stand.
+
+**Still open (CUR, AD/RA → `A32CURW351`):** MDL='CUR' → `PROFILE` → **`R10TAP`** (DVREDA red-alder taper,
+a closed-form DIB/DBH ratio) fed through the shared PROFILE Smalian integration + A32 bucking. Oracle
+all-AD stand cyc0 = TCuFt 2512 / MCuFt 917 / BdFt 3187 (per-tree via PROFILE, 0.1-rounded like F32, same
+DBHMIN=9 gate). A distinct taper model serving only 2 minor hardwoods — a cleanly-scoped follow-on chunk,
+not started (doctrine: don't half-port).

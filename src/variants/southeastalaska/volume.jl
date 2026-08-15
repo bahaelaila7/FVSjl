@@ -23,6 +23,13 @@
 # SF AF YC TA WS LS BE SS LP RC WH MH OS AD RA PB AB BA AS CW WI SU OH
 const _AK_VOL_JSP = Int[34, 34, 31, 0, 0, 0, 0, 33, 34, 32, 34, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+# AK species (1..23) → R10D2H equation group = the voleq(8:10) FIA code that VOLEQDEF assigns
+# (MEASURED from the live FVSak_clean VOLEQHEAD table: TA/WS/LS/BE/OS=094, PB/AB/AS=375,
+# BA/CW/WI/SU/OH=747). 0 = F32 (conifers) or CUR (AD/RA → A32CURW351, follow-on). These are the
+# `A00DVEW###` woodland/interior species that dispatch grossvol MDL='DVE' → DVEST → R10D2H.
+# SF AF YC  TA WS LS BE  SS LP RC WH MH  OS  AD RA  PB  AB  BA  AS  CW  WI  SU  OH
+const _AK_DVE_GRP = Int[0, 0, 0, 94, 94, 94, 94, 0, 0, 0, 0, 0, 94, 0, 0, 375, 375, 747, 375, 747, 747, 747, 747]
+
 # JSP → F-coefficient column (31=YC/F1, 32=RC/F2, 33=spruce/F3, 34=spruce+hemlock share/F3).
 @inline function _ak_vol_fcoef(jsp::Int)
     jsp == 31 && return _AK_VOL_F1
@@ -124,16 +131,57 @@ function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32)
     return (tcf, mcf, bf)
 end
 
+# R10D2H (ak/r10d2h.f) — Region-10 direct D²H volume estimators (Larsen & Winterberger, PNW-RN-478/495;
+# board Scribner from PNW-RN-495 eq.6). Coastal AK path EQN='00' (VOLEQ 'A00DVEW###', the only variant
+# used per the VOLEQHEAD crosswalk — A01 interior-NW/A02 statewide are not assigned to any AK forest).
+# DBHOB is the tree's OUTSIDE-bark dbh — no bark conversion (unlike the F32 profile). Returns
+# (total_cuft VOL(1), merch_cuft VOL(4), bdft VOL(2)). dvest.f rounds ONLY VOL(2)=ANINT (2025/05/07:
+# VOL(1)/VOL(4) left unrounded for biomass); r10d2h clamps every VOL<0 → 0.
+#
+# The FVS driver (fvsvol.f NATCRS→VOLINIT) applies the AK merch STANDARDS after r10d2h returns:
+# TCF=VOL(1) unconditionally, but **MCF=VOL(4) only if DBHOB≥DBHMIN and BBFV=VOL(2) only if DBHOB≥BFMIND**
+# (fvsvol.f:512/519). For KODFOR 1005 (AKMERCHCAT 3, setcubicdflts.f) DBHMIN=BFMIND=SCFMIND=9 — MEASURED
+# from the live NATCRS dump (DBHMIN=9.0 BFMIND=9.0). So a D<9 tree contributes total-only. (r10d2h's own
+# D>4 / D>6 inner gates still hold; the 9" driver gate dominates.)
+const _AK_DVE_DBHMIN = 9f0   # DBHMIN (merch cubic) = BFMIND (board) for AK cat-3 (KODFOR 1005)
+function _ak_dve_vol(grp::Int, d::Float32, h::Float32)
+    (d <= 1f0 || h <= 0f0) && return (0f0, 0f0, 0f0)   # r10d2h ERRFLAG 3 (DBH≤1) / 4 (HT≤0)
+    d2h = d * d * h
+    v1 = 0f0; v4 = 0f0; v2 = 0f0
+    if grp == 94                       # A00DVEW094: TA/WS/LS/BE/OS
+        v1 = 0.65559f0 + 0.00191f0 * d2h
+        (d < 6f0) && (v1 -= 0.65559f0 * (1f0 - (d / 6f0)^3))   # small-tree (DBH<6) correction
+        d > 4f0 && (v4 = -0.21849f0 + 0.00189f0 * d2h)
+        d > 6f0 && (v2 = 0.000136f0 * d2h^1.40338f0)
+    elseif grp == 375                  # A00DVEW375: PB/AB/AS
+        v1 = 0.64456f0 + 0.00206f0 * d2h
+        (d < 6f0) && (v1 -= 0.64456f0 * (1f0 - (d / 6f0)^3))
+        d > 4f0 && (v4 = -0.7126f0 + 0.00211f0 * d2h)
+        d > 6f0 && (v2 = 0.000081f0 * d2h^1.48459f0)
+    elseif grp == 747                  # A00DVEW747: BA/CW/WI/SU/OH
+        v1 = 0.9864f0 + 0.00181f0 * d2h
+        (d < 6f0) && (v1 -= 0.9864f0 * (1f0 - (d / 6f0)^3))
+        d > 4f0 && (v4 = -1.39764f0 + 0.00188f0 * d2h)
+        d > 6f0 && (v2 = -28.0674f0 + 0.00937f0 * d2h)
+    end
+    v1 = max(v1, 0f0)                                          # r10d2h VOL(1)<0 → 0
+    v4 = d >= _AK_DVE_DBHMIN ? max(v4, 0f0) : 0f0              # driver DBHMIN gate on merch cubic
+    v2 = d >= _AK_DVE_DBHMIN ? Float32(round(max(v2, 0f0))) : 0f0  # driver BFMIND gate + VOL(2)=ANINT
+    return (v1, v4, v2)
+end
+
 function compute_volumes_ak!(s::StandState)
     t = s.trees
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         jsp = (1 <= sp <= 23) ? _AK_VOL_JSP[sp] : 0
-        if jsp == 0 || d < 1f0
+        grp = (1 <= sp <= 23) ? _AK_DVE_GRP[sp] : 0
+        if d < 1f0 || (jsp == 0 && grp == 0)                  # CUR (AD/RA) still stubbed 0 (follow-on)
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
-        tcf, mcf, bf = _ak_f32_vol(sp, jsp, d, Float32(h))
+        tcf, mcf, bf = jsp != 0 ? _ak_f32_vol(sp, jsp, d, Float32(h)) :
+                                  _ak_dve_vol(grp, d, Float32(h))
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = max(mcf, 0f0)
         t.saw_cuft_vol[i] = 0f0
