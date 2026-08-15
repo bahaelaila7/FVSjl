@@ -40,7 +40,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai ||
            s.variant isa EasternMontana || s.variant isa CentralIdaho ||
            s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
-           s.variant isa Klamath
+           s.variant isa Klamath || s.variant isa WestCascades
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
@@ -60,13 +60,17 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _nc_fm = s.variant isa Klamath              # NC CRWDTH via nc_cwcalc (NCMAP western Bechtold/Crookston library)
     _ws_fm = s.variant isa WestSierra           # WS CRWDTH via ws_cwcalc (WSMAP; R5 forest 511 ⇒ BF=1, same forms as NC)
     _ca_fm = s.variant isa CentralCalifornia    # CA CRWDTH via ca_cwcalc (CAMAP Crookston R6; forest 610 IFOR>5)
-    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm
+    _wc_fm = s.variant isa WestCascades         # WC CRWDTH via wc_cwcalc (WCMAP Crookston R6; forest 618 IFOR=6)
+    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
     # accumulated ⇒ the R6-Crookston BAREA term hits cwcalc.f:859 `IF(BAREA.LE.1.) BAREA=1.` (BA=0→1).
     # fmcba in the FIRST FFE cycle reads those load-time CRWDTH; later cycles read the end-of-cycle UPDATE
     # (actual BA). MEASURED vs FVSnc_clean DEBUG FMCBA cyc1: PERCOV=39.01 matches BAREA=1 (jl 39.72), NOT the
     # dense stand BA (jl 44.29). Mirror the load-time clamp for cycle 1.
+    # WC differs from NC/WS/CA: its CRWDTH (wc/cwcalc.f) is computed AFTER the stand BA is accumulated, so
+    # the Crookston BAREA term uses the actual FFE stand BA (~85 on wct01), NOT the BAREA=1 load-time clamp.
+    # MEASURED vs FVSwc_clean cyc0: WF CW 10.31 needs (BA+1)^e with BA≈85 (BA=1 gives 8.74). So WC uses _cr_ba.
     _nc_ba = ((_nc_fm || _ws_fm || _ca_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
@@ -80,6 +84,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
+             _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -126,6 +131,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
                  s.variant isa Klamath ? Int32(3) :
+                 # WC bare stand: COVINI6(ITYPE) by R6 habitat (wc/fmcba.f:454-455); the full habitat→cover
+                 # map is a bare-stand-only path not exercised by wct01 (trees present) — fmcba.f's "no valid
+                 # habitat" fallback is Douglas-fir (16, wc/fmcba.f:462), used here until that map ports.
+                 s.variant isa WestCascades ? Int32(16) :
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
@@ -141,6 +150,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa Klamath && (fs.flive = nc_live_fuel_loading(covca, covcawt, fs.percov))   # top-2 (nc/fmcba.f:369-378)
     s.variant isa WestSierra && (fs.flive = ws_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ws/fmcba.f:519-533)
     s.variant isa CentralCalifornia && (fs.flive = ca_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ca/fmcba.f)
+    s.variant isa WestCascades && (fs.flive = wc_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (wc/fmcba.f:476-480)
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -160,6 +170,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa Klamath ? nc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (nc/fmcba.f:421-431)
                   s.variant isa WestSierra ? ws_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (ws/fmcba.f:587-597)
                   s.variant isa CentralCalifornia ? ca_dead_fuel_loading(covca, covcawt, fs.percov) :
+                  s.variant isa WestCascades ? wc_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (wc/fmcba.f:528-533)
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f
         # FUELINIT, read into plot.ffe_fuel_*) when present AND no explicit FUELINIT/FUELSOFT keyword already set
