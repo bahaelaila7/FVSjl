@@ -50,17 +50,5 @@ const OP_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "olympi
 # FVS-native DGF/HTGF port uses its own hard-coded op/dgf.f + op/htgf.f tables, not this dict).
 coefficients(::Olympic) = cached_coefficients(() -> load_species_coefficients(OP_DATADIR), "OP")
 
-# op/sitset.f — ORGANON site-index conversion between DF (species 16) and WH (species 19), Nigh
-# (1995) Forest Science 41:84-98. Analogous to OC's DF↔PP; MEASURED from op/sitset.f:144-156. Wired
-# here for the foundation; the full R6ADJ site fan + ORGANON SI_1/SI_2 marshalling is a follow-on.
-function site_setup!(s::StandState, ::Olympic)
-    p = s.plot; si = p.sp_site_index
-    if length(si) >= 19 && (si[16] > 0f0 || si[19] > 0f0)
-        if si[16] <= 0f0
-            si[16] = 0.480f0 + 1.110f0*si[19]      # DF from WH
-        elseif si[19] <= 0f0
-            si[19] = -0.432f0 + 0.899f0*si[16]     # WH from DF
-        end
-    end
-    return s
-end
+# op/sitset.f site-index fan — the full ECOCLS/SICHG/HTCALC Region-6 chain (incl. the DF(16)↔WH(19)
+# Nigh-1995 conversion) is ported in site_index.jl, which defines `site_setup!(::Olympic)`.

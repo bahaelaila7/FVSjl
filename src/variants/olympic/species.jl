@@ -44,3 +44,39 @@ ORGANON FIA code is not an NWO species (should not occur — OSPMAP maps every O
     end
     return 0
 end
+
+# op/blkdat.f + op/grinit.f block-data init (mirrors OC; MEASURED grinit.f: 5-yr FINT, Stage SDI
+# (LZEIDE=.FALSE.), DGSD=0, LHTDRG all .FALSE., BAMAX=0). ORGANON DG/HG/CR/mort coefficients live in
+# organon_nwo.jl; the FVS-native DGF/HTGF tables are in diameter_growth.jl/height_growth.jl.
+const OP_RNG_SEED = 55329.0f0   # blkdat.f DATA S0/SS (shared across variants)
+
+function init_blockdata!(s::StandState, v::Olympic)
+    sd = s.species
+    alpha = s.coef.code_alpha; fia = s.coef.code_fia; plants = s.coef.code_plants
+    @inbounds for i in 1:nspecies(v)
+        sd.alpha[i]  = alpha[i]
+        sd.fia[i]    = fia[i]
+        sd.plants[i] = plants[i]
+        code = rstrip(alpha[i])
+        sd.class_codes[i, 1] = code * "1"
+        sd.class_codes[i, 2] = code * "2"
+        sd.class_codes[i, 3] = code * "3"
+        sd.code2[i] = String(rstrip(first(sd.class_codes[i, 1], 2)))
+    end
+    hab = s.coef.valid_habitat
+    copyto!(s.plot.valid_habitat, 1, hab, 1, min(length(hab), length(s.plot.valid_habitat)))
+
+    s.control.tree_format = DEFAULT_TREE_FORMAT
+    s.control.year = 5.0f0             # OP YR default cycle length (op FINT=5)
+    s.control.growth_fint = 5.0f0      # OP FINT default = 5 (op/grinit.f:173)
+    s.control.zeide_sdi = false        # OP uses STAGE SDI (op/grinit.f:130 LZEIDE=.FALSE.)
+    s.rng.s0 = Float64(OP_RNG_SEED); s.rng.ss = OP_RNG_SEED
+    fill!(s.control.ht_drag_sp, false) # LHTDRG all .FALSE. (op/grinit.f:106)
+    s.control.dg_sd = 0.0f0            # DGSD=0 (op/grinit.f:170) — ORGANON + FVS-native both deterministic here
+    return s
+end
+
+load_species_coefficients!(s::StandState, v::Olympic) = init_blockdata!(s, v)
+
+spctrn_column(::Olympic) = 4
+other_species(::Olympic) = Int32(39)   # OT (last OP species)

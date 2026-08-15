@@ -310,6 +310,8 @@ include("variants/olympic/organon_diamgro_nwo.jl")            # OP ORGANON NWO d
 include("variants/olympic/organon_nwo.jl")                    # OP ORGANON NWO engine: bark + MCW/LCW/HLCW/CW/HCB/MAXHCB + HG_NWO/B_HG/HD_NWO/LIMIT + PM_NWO + SUBMAX + SSTATS/CRNCLO + DG/HG/CR/MORT passes
 include("variants/olympic/diameter_growth.jl")                # OP FVS-native large-tree DGF (op/dgf.f Wykoff ln(DDS)) for the non-ORGANON species — VALIDATED per-tree vs FVSop_clean
 include("variants/olympic/height_growth.jl")                  # OP FVS-native large-tree HTGF (op/htgf.f+findag+htcalc) for the non-ORGANON species — VALIDATED per-tree vs FVSop_clean
+include("variants/olympic/site_index.jl")                     # OP site-index fan (op/forkod+habtyp+ecocls+sichg+htcalc+sitset) — chunk 2; SITEAR validated vs FVSop_clean
+include("variants/olympic/volume.jl")                         # OP BLM Behre-taper cubic+board volume (blmvol/blmtap, reuse OC) — chunk 2
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

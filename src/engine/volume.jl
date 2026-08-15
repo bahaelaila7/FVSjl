@@ -486,6 +486,21 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa Olympic
+        # op/sitset.f:228-250 — IFOR 4,5,6 (BLM Salem/Eugene/Coos Bay) ⇒ TOPD=BFTOPD=SCFTOPD=5.0,
+        # DBHMIN=BFMIND=SCFMIND=7 (ALL species, no LP special); NF forests (IFOR 1,2,3 = CASE DEFAULT)
+        # ⇒ TOPD=4.5, LP(sp-index 11)=6. stump=1. OP's species CSV carries no merch columns.
+         blm = 4 <= Int(s.plot.forest_idx) <= 6
+        topd = blm ? 5.0f0 : 4.5f0
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            dm = (!blm && j == 11) ? 6.0f0 : 7.0f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa SouthCentralOregon
         # so/grinit.f DBHMIN=BFMIND=SCFMIND=9.0 ALL species (no sp-11 special, unlike CA);
         # so/sitset.f:167 TOPD=BFTOPD=SCFTOPD = (IFOR∈{1,2,3,10} ? 4.5 : 6.0); stump=1. No merch CSV columns.
@@ -668,6 +683,7 @@ function compute_volumes!(s::StandState)
     s.variant isa SoutheastAlaska && return compute_volumes_ak!(s) # AK = R10 VOLEQDEF→NVEL (chunk 8, not yet ported — cuft stubbed 0)
     s.variant isa SouthCentralOregon && return compute_volumes_so!(s) # SO = R6 Behre 616BEHW + INGY FW2 (so/formcl.f) — chunk 8
     s.variant isa OregonCoast && return compute_volumes_oc!(s)     # OC = BLM Behre-taper cubic (blmvol/blmtap) — chunk C10a; board-foot C10b
+    s.variant isa Olympic && return compute_volumes_op!(s)         # OP = BLM Behre-taper cubic+board (blmvol/blmtap, reuse OC) — chunk 2
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)

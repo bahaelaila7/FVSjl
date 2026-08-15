@@ -180,3 +180,57 @@ needs the OTHER chunks, none ported yet:
 So the delivered bar is the stated fallback: **cyc0 large-tree DGF/HTGF bit-exact-or-input-print-limited
 per-tree vs the live oracle**, plus `coefficients(::Olympic)` no longer erroring and both growth hooks
 dispatching.
+
+## CHUNK 2 — Ecoclass site-index fan + BLM Behre volume — BIT-EXACT vs live FVSop_clean
+
+Stand S248112 (opdbg.key), forest 708 (BLM Salem, forkod IFOR=4), habitat 40 → PA CHS133 → DF(16)
+site species, SITEAR(16)=98.
+
+### Site-index fan — `src/variants/olympic/site_index.jl`
+Ports op/forkod.f + op/habtyp.f + op/ecocls.f (buildDir 75-entry table) + op/sichg.f + op/htcalc.f
+(reuses the validated `op_htcalc`) + op/sitset.f. `site_setup!(::Olympic)` = `op_site_index_setup!`
+(the olympic.jl DF↔WH stub was removed). Numeric habitat KODTYP indexes the ecocls table directly
+(PA order == habtyp PCOML); default = CHS133 (idx 40). SDIDEF ← min(RSDI, FORMAX=950).
+
+**Validation** — RUN vs the FVSop_clean SITECODE dump (all 18 printed species, bit-exact):
+
+| species | jl SITEAR | oracle | Δ |
+|---|---|---|---|
+| WF(2)  | 97.98189  | 97.98189 | 0.0 |
+| ES(10) | 139.15092 | 139.15092 | 0.0 |
+| LP(11) | 98.228264 | 98.22826 | print-limited (King curve exact) |
+| SP(13) | 139.15092 | 139.15092 | 0.0 |
+| PP(15) | 139.15092 | 139.15092 | 0.0 |
+| DF(16) | 98.00     | 98.00 | 0.0 |
+| WH(19) | 87.67     | 87.67 | 0.0 (DF→WH Nigh 1995) |
+
+whole rounded fan SF..RC = `[139,98,98,139,98,98,139,139,139,139,98,139,139,139,139,98,139,98]`
+matches the dump exactly. SDIDEF(16)=950, BAMAX=440.43.
+
+### BLM Behre volume — `src/variants/olympic/volume.jl`
+OP VOLEQDEF = BLM Behre (`B00/B01 BEHW`, dumped from the FVSop_clean NVEL equation table); the
+`volinit.f:367` `VOLEQ(1:1)=='B'` route → BLMVOL. blmvol.f + blmtap.f are **byte-identical** between
+the OC and OP buildDirs, so the whole taper/bucking machinery is REUSED from OC's organon_volume.jl;
+only OP-specific data differ: `OP_VOLEQ` (39-species), `op_formcl` (op/formcl.f BLM708 per-species,
+IFOR=4), `op_bratio` (op bark), and MTOPP = TOPD·BARK with **TOPD=5.0** (op/sitset.f IFOR 4,5,6 BLM
+CASE), DBHMIN=BFMIND=7 (verified vs the oracle merch-standard table). `init_merch_standards!` +
+`compute_volumes!` gained an Olympic branch; STDINFO field-2 now stores `habitat_code` for Olympic.
+
+**Validation** — INSTRUMENTED live oracle (fvsvol.f temp copy + WRITE; buildDir restored PRISTINE,
+marker 0; FVSop_clean relinked, reference .sum reproduced 1472/972/5003). All **27 cyc0 tree records**
+reproduce the oracle TCF (total cuft) / MCF (merch, D≥7) / Scribner BF (D≥7) to the F10.3 print —
+e.g. LP D11.5/H73 → 16.879/16.2/73, DF D12.7/H67 → 24.841/22.6/116, DF D10.4/H66.31 → 15.810/14.4/73.
+Test `test/unit/test_op_site_and_volume.jl` (92 assertions: 11 fan + 81 volume). No regression in the
+existing OP tests (native DGF/HTGF 41, ORGANON NWO 38).
+
+### buildDir-pristine confirmation
+`FVSop_buildDir/fvsvol.f`: marker count 0; the instrumented copy lived in the scratchpad and compiled
+to a temp `.o` swapped only into `FVSop_dbg`. `build_g16.sh clean` relinked `FVSop_clean`; its .sum is
+bit-identical to the reference (1472/972/5003).
+
+### End-to-end .sum — STILL BLOCKED on chunk-3 driver
+`run_keyfile(...; variant=Olympic())` reaches `dub_missing_heights!` and errors: OP has no HTDBH
+branch (CRATET) yet, and the ORGANON PREPARE height-dub is not wired into `setup_growth!` for Olympic.
+The two dubbed heights the oracle uses (DF tree → 66.31 via ORGANON PRDHT, LP tree → 62.39 via op
+HTDBH) are exactly this missing piece. Given site-fan + volume are bit-exact on correct inputs, the
+remaining gap to a bit-exact cyc0 `.sum` is the chunk-3 CRATET/PREPARE + per-cycle growth driver.
