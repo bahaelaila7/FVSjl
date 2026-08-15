@@ -129,3 +129,54 @@ that is bit-exact.
 was run (writes to `/workspace/.opwork/opdbg.out`); no Fortran/buildDir object was modified.
 
 Do NOT merge until the orchestrator re-runs and verifies.
+
+## CHUNK 1 — FVS-native Wykoff DGF/HTGF for the non-ORGANON species — VALIDATED per-tree
+
+Ports the FVS-native large-tree growth (op/dgf.f + op/htgf.f + op/findag.f + op/htcalc.f) for the
+20 non-ORGANON trees (op is ORGANON only for {3,16,18,19,21,22,23,28,33,34,37}; everything else —
+LP/PP/SP/ES/WF — grows FVS-native). Files:
+- `src/variants/olympic/diameter_growth.jl` — `op_dgcon` (ENTRY DGCONS), `op_dg_dgdsq`, `op_dgf_dds`
+  (DEFAULT ln(DDS)), `op_dgcons!`/`dgf!(::Olympic)`. op/dgf.f MAPSPC (39→20 groups) + all DATA tables.
+- `src/variants/olympic/height_growth.jl` — `op_htcalc` (PN edition: DF/WO King, SS/RC Farr, Curtis
+  "misc" EXCLUDES 16:18), `op_findag` (findag.f byte-identical to WC), `op_htg_default` (5-YEAR step,
+  AGP10=SITAGE+5), `height_growth!(::Olympic)`. Reuses `op_bratio` (organon_nwo.jl).
+- `data/olympic/{species_coefficients,species_translation}.csv` — op/blkdat.f 39-species table +
+  op/bratio.f bark ⇒ `coefficients(::Olympic)` now returns a valid struct (was: errored).
+
+**Validation — RUN vs live FVSop_clean, stand S248112, cyc0** (`/workspace/.opwork/opdbg.out`, DEBUG
+DGF/HTGF dump). Feeding the exact oracle per-tree inputs (ELEV=7, SLOPE=0.30, ASPECT=5.49779, IFOR=6,
+BA=62.5335, AVH=63.4388; SITEAR WF=97.98189/ES=139.15092/LP=98.22826/SP=PP=139.15092):
+
+| Chunk | quantity | result |
+|---|---|---|
+| **DGCONS** | DGCON(ISPC) for WF/ES/LP/SP/PP | **5/5 bit-exact to the F9.5 9030 print** |
+| **DGF DEFAULT** | LN(DDS), 19 non-ORGANON trees | **17/19 bit-exact to the F7.4 9001 print; 2 sub-0.1" trees input-print-limited** |
+| **HTGF DEFAULT** | HTG(I), 16 trees with a format-901 dump | **16/16 bit-exact to the F9.2 print** |
+
+Test `test/unit/test_op_native_growth.jl` (41 assertions, all pass; wired into `test/runtests.jl`).
+The two sub-0.1" DGF trees are DBH=0.1 input records that DGDRIV back-dates to an internally-computed
+diameter the DGF DEBUG dump prints only to F11.4 (=0.0828); for a sub-0.1" tree ln(D) is hyper-
+sensitive to that 5th digit, so they are INPUT-print-limited (the ORGANON decimal-vs-hex lesson), not
+a formula error — the other 17 are exact at the oracle's full print precision. op is DGSD>0 (OLDRN
+serial-corr on this path) so multi-cycle is straddle-class; the cyc0 DDS is a deterministic bit-exact
+target.
+
+**Growth hook.** `dgf!(::Olympic)` and `height_growth!(::Olympic)` are defined and dispatch; both
+coexist with the ORGANON-NWO engine via the inline op/dgdriv.f IORG gate (sp∈valid ∧ HT>4.5 ∧
+DBH≥0.1 ⇒ ORGANON, skipped in the FVS-native path). `StandState(Olympic())` now constructs.
+
+**End-to-end opt01 `.sum` — STILL BLOCKED** (documented, not reached). Reaching the cyc0 `.sum`
+needs the OTHER chunks, none ported yet:
+1. **Site-index fan** (op/sitset.f ECOCLS/SICHG/HTCALC) — the DGF/HTGF above CONSUME `SITEAR(ISPC)`
+   (WF=97.98189, ES/SP/PP=139.15092, LP=98.22826, DF=98.00) which the fan produces from the ecoclass
+   `CHS133`. The port fed these as measured inputs; a live run needs the fan + a forest_idx/`IFOR=6`
+   loader.
+2. **DGDRIV calibration + ORGANON coexistence driver** — no OP method wires the FVS-native `dgf!`
+   into the shared DGDRIV calibration loop AND the ORGANON `op_build_organon_buffer!`/`op_execute_nwo`
+   into one per-cycle growth step (the generic `diameter_growth!(::AbstractVariant)` calls only `dgf!`).
+3. **R6 volume** (`compute_volumes_op!`) — the `.sum` TCuFt/MCuFt/BdFt columns.
+4. **Crown + mortality** wiring for the FVS-native trees.
+
+So the delivered bar is the stated fallback: **cyc0 large-tree DGF/HTGF bit-exact-or-input-print-limited
+per-tree vs the live oracle**, plus `coefficients(::Olympic)` no longer erroring and both growth hooks
+dispatching.

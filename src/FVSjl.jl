@@ -308,6 +308,8 @@ include("variants/olympic/olympic.jl")                        # OP (Olympic) sin
 include("variants/olympic/species.jl")                        # OP species map (orgspc OSPMAP ∘ SPGROUP_RUN SCODE2) → NWO group — validated
 include("variants/olympic/organon_diamgro_nwo.jl")            # OP ORGANON NWO diameter-growth core (DG_NWO_RUN) — VALIDATED bit-exact vs FVSop_clean
 include("variants/olympic/organon_nwo.jl")                    # OP ORGANON NWO engine: bark + MCW/LCW/HLCW/CW/HCB/MAXHCB + HG_NWO/B_HG/HD_NWO/LIMIT + PM_NWO + SUBMAX + SSTATS/CRNCLO + DG/HG/CR/MORT passes
+include("variants/olympic/diameter_growth.jl")                # OP FVS-native large-tree DGF (op/dgf.f Wykoff ln(DDS)) for the non-ORGANON species — VALIDATED per-tree vs FVSop_clean
+include("variants/olympic/height_growth.jl")                  # OP FVS-native large-tree HTGF (op/htgf.f+findag+htcalc) for the non-ORGANON species — VALIDATED per-tree vs FVSop_clean
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

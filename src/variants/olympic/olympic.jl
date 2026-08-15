@@ -43,12 +43,12 @@ nspecies(::Olympic) = 39
 htg_period(::Olympic) = 5f0     # /CONTRL/ YR = 5 (op FINT=5) — ORGANON's native 5-yr step
 organon_version(::Olympic) = 2  # MEASURED: sitset.f IMODTY=2 default ⇒ VERSION=2 (NWO)
 
-function coefficients(::Olympic)
-    error("OP (Olympic) species coefficients are UNPORTED — foundation chunk only. The validated " *
-          "piece is the DG_NWO diameter-growth core (organon_diamgro_nwo.jl, bit-exact vs " *
-          "FVSop_clean). Full ORGANON NWO marshalling/PREPARE/height/crown/mort/volume is the " *
-          "follow-on (see docs/OP_VARIANT_PORT_AUDIT.md).")
-end
+const OP_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "olympic"))
+
+# op species table (op/blkdat.f JSP/FIAJSP/PLNJSP, 39 species) + op/bratio.f bark. Chunk 1 carries
+# the code columns + bark; the full merch/htdbh/crown/site coefficient columns are follow-ons (the
+# FVS-native DGF/HTGF port uses its own hard-coded op/dgf.f + op/htgf.f tables, not this dict).
+coefficients(::Olympic) = cached_coefficients(() -> load_species_coefficients(OP_DATADIR), "OP")
 
 # op/sitset.f — ORGANON site-index conversion between DF (species 16) and WH (species 19), Nigh
 # (1995) Forest Science 41:84-98. Analogous to OC's DF↔PP; MEASURED from op/sitset.f:144-156. Wired
