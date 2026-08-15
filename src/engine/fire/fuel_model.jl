@@ -201,6 +201,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         return ws_select_fuel_models(s, mois, sm, lg)
     end
 
+    # CA (ca/fmcfmd.f + cwhr.f) — California CWHR, CA CWHRFMD 11×18 + 50-species forest-type; reuses _ca_cwhr.
+    if s.variant isa CentralCalifornia
+        return ca_select_fuel_models(s, mois, sm, lg)
+    end
+
     # --- SN candidate-model selection (fmcfmd.f:131) ---
     if iffeft in (1, 2, 3)                             # hardwood / hwd-pine / pine-hwd
         if sm > 6f0
