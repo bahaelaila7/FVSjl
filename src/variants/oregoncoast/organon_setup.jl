@@ -491,3 +491,85 @@ function organon_prepare_swo(species::Vector{Int32}, dbh0::Vector{Float32}, ht0:
 
     return OrganonCalib(acalib, tmpcal, dbh, ht, cr, expan, 0)
 end
+
+"""
+    oc_organon_prepare!(s) -> nothing
+
+Run the OC ORGANON setup (`oc/cratet.f:155-401` — the CRATET ORGANON section) on the initialized
+`StandState`, ONCE, before the FVS-native missing-value dubbing. It:
+
+ 1. Flags valid ORGANON trees with the CRATET (setup) eligibility gate — `DBH >= 0.1 AND
+    (HT == 0 OR HT > 4.5)` AND species ∈ the 18 ORGANON species (`oc/cratet.f:171-201`). NOTE this
+    gate INCLUDES blank-height (`HT == 0`) valid records, unlike the grow-time `build_organon_buffer!`
+    gate (`HT > 4.5`) — that is the whole point: a blank-height ORGANON tree must be dubbed HERE.
+ 2. If the stand has ≥1 big-6 tree, marshals ALL live records into the `/ORGANON/` PREPARE buffer
+    (`oc/cratet.f:227-252`: `DBH1=max(DBH,0.1)`, `HT1OR=HT` (floored to 4.6 only when HT>0, so a
+    missing height stays 0), `CR1=ICR/100`, `EXPAN1=PROB·PI` where `PI=IPTINV`, `SPECIES=ORGSPC`),
+    calls `organon_prepare_swo`, and writes the ORGANON-dubbed HT/CR back into the valid ORGANON
+    tree records that were MISSING them (`oc/cratet.f:349-365`). The dubbed HT then survives the
+    subsequent FVS `dub_missing_heights!` (HT > 0 ⇒ skipped there).
+ 3. Stores the resulting `ACALIB(3,18)` on `s.calib.organon_acalib` for the growth path (HTGRO2
+    consumes row 1; SWO grow-time crown/DG ignore rows 2/3 — only NWO/SMC crown and the RAD DG path
+    use them, neither active on OC/FIA inventory).
+
+No-op unless the stand has a big-6 tree (`oc/cratet.f:215-219` `GO TO 261`) — then ACALIB stays
+all-1.0 and every tree is dubbed FVS-native. OC is hardcoded even-aged (`oc/grinit.f:359` INDS(4)=1)
+and SWO (VERSION=1). Deterministic (DGSD=0).
+"""
+function oc_organon_prepare!(s::StandState)
+    t = s.trees
+    n = t.n
+    n == 0 && return nothing
+    # --- CRATET setup-time eligibility gate (oc/cratet.f:171-201) ---
+    iorg   = zeros(Int32, n)
+    nbig6  = 0
+    @inbounds for i in 1:n
+        sp = Int(t.species[i])
+        h  = t.height[i]
+        ihflag = (h == 0.0f0) || (h > 4.5f0)           # measured-HT lower limit OR missing (cratet.f:178)
+        if t.dbh[i] >= 0.1f0 && ihflag
+            (sp in OC_ORGANON_BIG6) && (nbig6 += 1)
+            iorg[i] = (sp in OC_ORGANON_VALID) ? Int32(1) : Int32(0)
+        end
+    end
+    # --- no big-6 ⇒ ORGANON does not run; FVS-native dubbing/calibration for all (cratet.f:215-219) ---
+    nbig6 == 0 && return nothing
+    # --- marshal ALL live records into the PREPARE buffer (cratet.f:227-252) ---
+    species = Vector{Int32}(undef, n)
+    dbh1    = Vector{Float32}(undef, n)
+    ht1or   = Vector{Float32}(undef, n)
+    cr1     = Vector{Float32}(undef, n)
+    expan1  = Vector{Float32}(undef, n)
+    pival   = s.plot.pi > 0f0 ? s.plot.pi : 1f0        # PI = FLOAT(IPTINV) (initre.f:336; standstats.jl)
+    @inbounds for i in 1:n
+        species[i] = orgspc(Int(t.species[i]))
+        d = t.dbh[i]; d < 0.1f0 && (d = 0.1f0)
+        dbh1[i]  = d
+        h = t.height[i]; (h > 0f0 && h < 4.6f0) && (h = 4.6f0)   # floor to 4.6 ONLY when HT>0 (cratet.f:234)
+        ht1or[i] = h
+        cr1[i]   = Float32(t.crown_pct[i]) / 100f0
+        expan1[i] = t.tpa[i] * pival                              # EXPAN1 = PROB·PI (cratet.f:236)
+    end
+    radgro = zeros(Float32, n)
+    stage  = Int(s.plot.stand_age)                     # STAGE = IAGE + IY(ICYC)-IY(1); ICYC=1 ⇒ = IAGE (cratet.f:259)
+    bhage  = stage - 6                                  # BREAST HEIGHT AGE (cratet.f:260)
+    si_1 = s.plot.sp_site_index[7]                      # DF site (SI_1); PREPARE's own conversion handles ≤0
+    si_2 = s.plot.sp_site_index[18]                     # PP site (SI_2)
+    npts = max(1, Int(round(pival)))
+    res = organon_prepare_swo(species, dbh1, ht1or, cr1, expan1, radgro, n, npts, stage, bhage,
+                              si_1, si_2, 0f0, 0f0, 0f0, 0f0, 1)   # IEVEN=1 (OC hardcoded even-aged)
+    # --- write ORGANON-dubbed HT/CR back into the valid-ORGANON records that were MISSING them
+    #     (oc/cratet.f:349-365: only IORG=1 trees are reloaded; KNTOHT/KNTOCR count the imputed ones) ---
+    @inbounds for i in 1:n
+        iorg[i] == 1 || continue
+        if t.height[i] <= 0.0f0 && res.ht[i] > 0.0f0
+            t.height[i] = res.ht[i]
+        end
+        if t.crown_pct[i] <= 0 && res.cr[i] > 0.0f0
+            t.crown_pct[i] = round(Int32, res.cr[i] * 100.0f0, RoundNearestTiesAway)  # NINT (cratet.f:359)
+        end
+    end
+    # --- store ACALIB for the growth path (cratet.f:393-401 already folded into organon_prepare_swo) ---
+    copyto!(s.calib.organon_acalib, res.acalib)
+    return nothing
+end

@@ -370,9 +370,11 @@ The ORGANON SWO height-growth pass for one cycle — the `GROW` "growth-2" HG se
 value `oc/htgf.f:96` copies into `HTG`.
 
 `si_1`/`si_2` are SITE_1−4.5 / SITE_2−4.5 (the ORGANON SI the potential-height model consumes).
-`calib1` is ACALIB(1,1..18) (HTGRO2's height calibration); `nothing` ⇒ all-1.0 (the growth path
-does not yet consume PREPARE's ACALIB, and on FVS/FIA inventory the minor-species rows are 1.0 —
-threading a non-1.0 minor-species ACALIB is a follow-up, exactly as HTGRO1 ignores ACALIB(1,big-6)).
+`calib1` is ACALIB(1,1..18) (HTGRO2's height calibration), threaded from setup PREPARE
+(`oc_organon_prepare!` → `s.calib.organon_acalib`); `nothing` ⇒ all-1.0. On FVS/FIA inventory the
+minor-species rows are 1.0 (a minor ORGANON species needs ≥2 measured-height trees to calibrate),
+so it is normally inert — but faithful for a stand that does calibrate a minor species. HTGRO1
+(big-6) ignores ACALIB(1,·) entirely (organon/htgrowth.f:56 `RDANUW=CALIB(1,1)` is a dead read).
 """
 function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32};
         si_1::Float32, si_2::Float32, cyclg::Int=0,

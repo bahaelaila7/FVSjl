@@ -527,6 +527,9 @@ mutable struct Calibration
     dg_dsq::Vector{Float32}      # EM per-stand DGDSQ = DGDS[ISPDSQ,sp] (em/dgf.f DGCONS); unused by other variants
     dg_ccf::Vector{Float32}      # EM per-stand DGCCF (em/dgf.f DGCONS, sp-specific); unused by other variants
     sm_const::Vector{Float32}    # BM small-tree (<10") DG constant SMCON (bm/dgf.f DGCONS); unused by other variants
+    organon_acalib::Matrix{Float32}  # OC ORGANON PREPARE calibration ACALIB(3,18) (row 1=HT/HDCALIB, 2=CR/CRCALIB,
+                                     # 3=DG/DGCALIB), loaded once at setup by oc_organon_prepare! (oc/cratet.f:393-401);
+                                     # all-1.0 for non-OC / no-big-6. HTGRO2 consumes row 1; SWO growth ignores 2/3.
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -534,7 +537,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[],   # ht_dbh_aa=0, iabflg=1, calib_dbh empty
-    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP))  # dg_dsq, dg_ccf (EM), sm_const (BM)
+    zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # dg_dsq, dg_ccf (EM), sm_const (BM)
+    ones(Float32, 3, 18))                                             # organon_acalib (OC) — default all-1.0
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

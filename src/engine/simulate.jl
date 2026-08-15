@@ -18,6 +18,12 @@ calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
     build_cycle_schedule!(s)             # CYCLEAT/TIMEINT → cycle-boundary year array (IY)
+    # OC ORGANON: the CRATET ORGANON section (oc/cratet.f:155-401) runs BEFORE the FVS-native
+    # missing-value dubbing — it dubs valid-ORGANON trees' missing HT/CR via ORGANON PREPARE
+    # (PRDHT/PRDCR) and computes ACALIB. A blank-height ORGANON tree gets its ORGANON dub here;
+    # dub_missing_heights! then only dubs the NON-ORGANON records (their HT is still 0). No-op
+    # for other variants and for OC stands without a big-6 tree.
+    s.variant isa OregonCoast && oc_organon_prepare!(s)
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids

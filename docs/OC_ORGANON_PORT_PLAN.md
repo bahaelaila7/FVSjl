@@ -203,16 +203,41 @@ UPDATE-DIAMETERS-then-HTGRO2 order. After the port, the coverage stand is bit-ex
 component for all 18 groups (max rel 6e-6). `ocmin` unchanged (all groups ≤ 5 ⇒ HTGRO1 branch,
 inert). Regression pins in `test/unit/test_oc_organon_setup.jl` (`OC C4b`).
 
-**One residual, root-caused (NOT an HTGRO2 error): ORGANON missing-height dubbing.** A minor-species
-record with a BLANK height in the tree list is dubbed by the oracle via ORGANON `PREPARE`
-(`HD_SWO`-based, e.g. BO D=8.5 → HT=46.41 = `oc_hd_swo(15,8.5)`), but the FVSjl growth path does not
-yet wire `organon_prepare_swo` (it dubs such heights via the non-ORGANON HTDBH path). That single
-wrong height makes the BO HGRO differ 6.4% AND slightly perturbs the shared CRNCLO crown-closure
-profile (→ ~0.1–0.25% on nearby big-6 HGRO). With the height PRESENT, all 24 trees are bit-exact.
-This is the previously-noted C2/C8 follow-up (wire PREPARE's HT/CR dub into the growth path); the
-`HD_SWO` machinery it needs now exists. This is the recommended NEXT chunk.
+## Chunk C8b delivered (2026-08-15) — ORGANON PREPARE dubbing + ACALIB wired into growth — BIT-EXACT
 
-**Calibration note.** On FVS/FIA inventory the minor-species `ACALIB(1,g)` rows are 1.0 (verified on
-the coverage stand: only DF group 1 calibrates HT/CR); HTGRO1 ignores `ACALIB(1,big-6)` too, so the
-growth path's implicit ACALIB=1.0 is exact here. Threading a non-1.0 minor-species ACALIB (needs
-PREPARE wired) is bundled with the missing-height-dubbing follow-up.
+The C4b residual is CLOSED. `oc_organon_prepare!` (`src/variants/oregoncoast/organon_setup.jl`) ports
+the CRATET ORGANON section (`oc/cratet.f:155-401`) into the growth-setup path: at `setup_growth!`,
+BEFORE the FVS-native `dub_missing_heights!`, OC now (1) flags valid ORGANON trees with the CRATET
+setup gate `DBH≥0.1 AND (HT==0 OR HT>4.5)` — which, unlike the grow-time `build_organon_buffer!`
+gate `HT>4.5`, INCLUDES blank-height records so they can be dubbed; (2) if a big-6 tree exists,
+marshals all live records (`EXPAN1=PROB·PI`, `PI=IPTINV`) and calls `organon_prepare_swo`, writing
+the ORGANON-dubbed HT/CR back into the missing valid-ORGANON records (`oc/cratet.f:349-365`); and
+(3) stores the resulting `ACALIB(3,18)` on `s.calib.organon_acalib`. The growth hook threads
+`ACALIB(1,·)` into HTGRO2 (`organon_execute_swo(...; calib1=...)`).
+
+**MEASURED bit-exact vs the live FVSoc_clean oracle** on a coverage stand = ocmin with tree-4
+reassigned to a blank-height **BO** (black oak, group 15), fresh oracle DGDRIV/HTGF DEBUG dump:
+
+| quantity (tree 4, blank-height BO, D=7.9) | FVSjl | oracle | Δ |
+|---|---|---|---|
+| dubbed HT (ORGANON PREPARE PRDHT / A_HD_SWO) | 44.74038 | 44.7403793 | 0.0 |
+| LN(DDS) | 1.584088 | 1.58408797 | 0.0 |
+| HGRO (HTGRO2) | 1.0411453 | 1.04114532 | ~1e-7 |
+| CR2 | 0.23435229 | 0.234352291 | ~6e-9 |
+| DEADEXP | 0.040978774 | 0.0409787744 | 0.0 |
+
+**All 17 valid ORGANON trees bit-exact** (max |Δ| HT/LN(DDS) = 0.0, HGRO 1.4e-5, CR2 6e-8) — the
+prior CRNCLO cross-perturbation of nearby big-6 heights (the wrong-HTDBH-dub side effect) is GONE.
+The OLD non-ORGANON HTDBH path dubbed BO ~6.4% low (43.44 vs 44.74), confirming the root cause. The
+plan's earlier "= `oc_hd_swo`" note was imprecise: the dub uses start2 **`A_HD_SWO`** (via PREPARE
+PRDHT), which for BO differs from htgrowth's HD_SWO in the 4th decimal (46.412 vs 46.412 at D=8.5).
+`ocmin.sum` stays bit-exact on every growth/volume column (the only Δ is the out-of-scope
+FORTYP/STRCLS classification `999/55` vs `201/23`). Regression pins: `test/unit/test_oc_organon_setup.jl`
+(`OC C8b`). ACALIB row 1 flows correctly (DF `ACALIB(1,1)=0.789`; minor-species rows 1.0 unless a
+minor ORGANON species has ≥2 measured-height trees — inert here but now faithful).
+
+**Calibration note.** For SWO (VERSION=1) growth, only HTGRO2 consumes `ACALIB(1,g)`; HTGRO1 (big-6)
+ignores it (`htgrowth.f:56` dead read), SWO CROWGRO uses NO `CALIB(2)` (only NWO/SMC do, `crngrow.f:73`),
+and DG's `CALIB(3)` is 1.0 (RAD=.FALSE.). So the ACALIB `HT`/`CR` rows PREPARE computes (DF 0.789/0.624)
+matter for the *dubbing* (PRDHT/PRDCR) but are inert in SWO grow-time crown/height — which is why the
+pre-C8b growth path was already bit-exact wherever no blank-height valid-ORGANON record existed.

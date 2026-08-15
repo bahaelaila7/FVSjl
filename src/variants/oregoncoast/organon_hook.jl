@@ -54,9 +54,13 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     buf = build_organon_buffer!(s)                   # IORG gate + ORGANON input buffer (original DBH)
     si_1, si_2 = _oc_organon_si(s)
     isp_fvs = Int[Int(t.species[i]) for i in 1:t.n]
+    # ACALIB(1,1..18) from setup PREPARE (oc_organon_prepare!) — HTGRO2's minor-species height
+    # calibration (organon/htgrowth.f:235-236). Inert (1.0) on FVS/FIA inventory unless a minor
+    # ORGANON species had ≥2 measured-height trees; HTGRO1 (big-6) ignores it (htgrowth.f:56).
+    calib1 = Float32[s.calib.organon_acalib[1, g] for g in 1:18]
     # ORGANON growth (only when a big-6 tree exists); else the whole stand is FVS-native.
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
-                       msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg) : nothing
+                       msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg, calib1=calib1) : nothing
     fscale = fint/5f0
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue

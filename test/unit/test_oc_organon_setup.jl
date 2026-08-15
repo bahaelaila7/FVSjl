@@ -87,3 +87,33 @@ end
     ge = FVSjl.oc_ragea(17.0f0, 71.988f0)
     @test isapprox(FVSjl.oc_rah40(ge, 71.988f0), 17.0f0; atol=1f-3)
 end
+
+# --- C8b: ORGANON PREPARE missing-HT/CR dubbing + ACALIB wired into the growth path -----------
+# The residual C4b left open: a BLANK-height valid-ORGANON record is dubbed by the oracle via
+# ORGANON PREPARE (PRDHT, start2 A_HD_SWO), NOT the FVS-native HTDBH curve. `oc_organon_prepare!`
+# (oc/cratet.f:155-401) now runs at setup before dub_missing_heights! and writes the ORGANON dub
+# back into the tree record, and the growth path threads PREPARE's ACALIB(1,·) into HTGRO2.
+# MEASURED bit-exact vs the live FVSoc_clean oracle on a coverage stand = ocmin with record 4
+# reassigned to a blank-height BO (black oak, group 15): tree-4 dub HT=44.7403793, LN(DDS)=1.58408797,
+# HGRO=1.04114532, CR2=0.234352291; all 17 valid ORGANON trees bit-exact (max |Δ| HGRO 1.4e-5,
+# CR2 6e-8) — the previous CRNCLO cross-perturbation of nearby big-6 heights is gone.
+@testset "OC C8b — ORGANON PREPARE dubbing + ACALIB into growth (bit-exact vs live oracle)" begin
+    # ocmin /ORGANON/ PREPARE buffer with record 4 reassigned to a blank-height BO (FIA 818, group 15)
+    species = Int32[122,202,122,818,117,17,117,122,202,117,202,202,17,17,202,17,202,122,202,122,17,202,17,17,17,17,17]
+    dbh = Float32[11.5,0.1,6.5,7.9,8.0,6.2,8.4,9.5,4.0,8.2,1.2,1.9,0.1,5.3,10.0,6.1,12.7,9.6,10.4,8.5,10.9,9.4,3.2,0.1,5.8,5.0,6.6]
+    ht  = Float32[73,4.6,30,0,63,38,5,60,20,65,11,13,4.6,27,65,38,67,60,55,0,65,60,17,4.6,28,25,30]  # rec 4 HT blank
+    icr = Int[35,55,75,25,25,45,35,25,25,45,55,45,65,65,35,75,35,25,45,25,65,35,45,65,65,25,65]
+    cr1 = Float32[Float32(c)/100f0 for c in icr]
+    ex  = _OC_EXPAN1  # PROB·PI (setup EXPAN1); recomputing SBA/CCFL with it is part of the calibration
+    ex4 = vcat(ex[1:3], Float32(129.262070), ex[5:end])  # rec-4 expansion unchanged from ocmin
+    res = organon_prepare_swo(species, dbh, ht, cr1, ex4, zeros(Float32,27), 27, 11, 60, 54,
+            92.0f0, 86.5528641f0, 815.0f0, 815.0f0, 815.0f0, 0.0f0, 1)
+    # PRDHT dub of the blank BO height via A_HD_SWO (oracle 44.7403793)
+    @test isapprox(res.ht[4], 44.7403793f0; atol=1f-4)
+    # DF still calibrates HT (ACALIB(1,1)=0.789; consumed only by HTGRO2, HTGRO1 ignores it); BO
+    # (single tree ⇒ entht<2) stays 1.0
+    @test isapprox(res.acalib[1,1], 0.789290f0; atol=1f-5)
+    @test res.acalib[1,15] == 1.0f0
+    # The non-ORGANON HTDBH curve (the OLD wrong path) dubs BO ~6.4% low — the residual this fixes
+    @test !isapprox(FVSjl.oc_htdbh_height(31, 7.9f0), res.ht[4]; atol=1f0)
+end
