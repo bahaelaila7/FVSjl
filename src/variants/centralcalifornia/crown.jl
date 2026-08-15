@@ -160,3 +160,22 @@ function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 =
     end
     return s
 end
+
+# ---------------------------------------------------------------------------
+# CA FFE crown-biomass species map (ca/fmcrow.f:109 DATA ISPMAP) — the Jenkins/FMCROWE
+# crown-biomass group per species. ca/fmcrow.f:167-169 routes CASE(35,39,40,41,43,44,45,46)
+# → FMCROWE (eastern Jenkins TOTABV), all others → FMCROWW (western, shared cr_crownw).
+# ca/fmcroww.f is byte-identical (md5 f764dce1) to CR/WC/WS's, so CA reuses cr_crownw.
+# Fixes #229 (the CA crown-fire under-kill): without this, CentralCalifornia fell to the
+# Jenkins FMCROWE path (via ls_spi) ⇒ crown biomass 6-20× too low ⇒ canopy_bulk_density
+# actcbh=12/cbd=0.049 vs oracle 4/0.129 ⇒ surface fire instead of the oracle's passive crown.
+# (Consumed by crown_biomass.jl once CentralCalifornia is wired into the cr_crownw dispatch.)
+# ---------------------------------------------------------------------------
+const CA_ISPMAP = Int[
+   7, 20,  7,  4,  4,  4,  3,  6, 24, 14,
+  11, 11, 11, 11, 15, 15, 15, 13, 13, 11,
+  16, 18, 19,  7, 11, 17, 17, 21, 17, 21,
+  21, 21, 17,  5, 44, 23, 10, 17, 56, 29,
+  46, 17, 60, 41, 17, 64, 17, 17, 21, 19]
+@inline ca_uses_fmcrowe(sp::Integer) =
+    (sp == 35 || sp == 39 || sp == 40 || sp == 41 || sp == 43 || sp == 44 || sp == 45 || sp == 46)
