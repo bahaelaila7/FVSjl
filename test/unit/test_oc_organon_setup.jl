@@ -64,3 +64,26 @@ end
     @test orgspc(4)  == Int32(17)   # both surrogate to ORGANON GF code 017
     @test orgspc(22) == Int32(17)
 end
+
+# --- C4b: ORGANON SWO minor-species height growth (HTGRO2) -------------------------------------
+# Validated bit-exact vs the live FVSoc_clean oracle on a 14-species coverage stand (S248112 with
+# records reassigned to IC/WH/RC/PY/MA/GC/TO/CY/BM/WO/BO/RA/DG/WI). ocmin exercises ONLY the big-6
+# conifers (groups 1-4), so the minor-species HTGRO2 path was previously unported (HGRO=0). These
+# pin the HD_SWO H-D coefficients + the HTGRO2 ratio form + the red-alder Worthington H40 path.
+@testset "OC C4b — ORGANON HTGRO2 minor-species height growth (bit-exact vs live oracle)" begin
+    # HD_SWO predicted height from DBH (organon/htgrowth.f HDPAR): note the oracle's ORGANON
+    # missing-height dub of the BO record (group 15, DBH 8.5) was 46.4124 — HD_SWO(15, 8.5).
+    @test isapprox(FVSjl.oc_hd_swo(6,  6.5f0), 44.80421f0;  atol=1f-3)   # WH
+    @test isapprox(FVSjl.oc_hd_swo(15, 8.5f0), 46.411728f0; atol=1f-3)   # BO
+    # WH (FIA 263, group 6), DBH 6.5, DGRO 0.6273517, HT 30, CALIB(1,6)=1 → HGRO (oracle 2.35722)
+    @test isapprox(FVSjl.oc_htgro2(Int32(263), 6, 6.5f0, 0.6273517f0, 30.0f0, 1.0f0, 0.0f0),
+                   2.35722f0; atol=1f-4)
+    # Red-alder site index (organon/statsorg.f CON_RASI) from the DF SITE_1=92
+    @test isapprox(FVSjl.oc_con_rasi(92.0f0), 71.987946f0; atol=1f-4)
+    # Red alder (FIA 351), HT 17, RASI 71.988 → Worthington H40 5-yr increment (oracle 11.9128)
+    @test isapprox(FVSjl.oc_htgro2(Int32(351), 16, 3.2f0, 0.510054f0, 17.0f0, 1.0f0, 71.988f0),
+                   11.9128f0; atol=1f-3)
+    # RAGEA/RAH40 round-trip (organon/htgrowth.f): H40 at the growth-effective age recovers HT
+    ge = FVSjl.oc_ragea(17.0f0, 71.988f0)
+    @test isapprox(FVSjl.oc_rah40(ge, 71.988f0), 17.0f0; atol=1f-3)
+end

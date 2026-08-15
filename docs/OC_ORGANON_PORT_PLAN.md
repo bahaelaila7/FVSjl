@@ -176,3 +176,43 @@ chunk of unported western work**, on the order of the BC full port but with a st
 (deterministic, no RNG cover). Recommended sequencing: C1→C2 first (marshalling + calibration
 proven bit-exact) before committing to the four growth chunks. OC (SWO) is the pilot; OP (NWO/SMC)
 is a thin follow-on once the engine + branch scaffolding exist.
+
+## 9. Species-coverage validation (2026-08-15) — all 18 ORGANON groups measured bit-exact
+
+The `ocmin`/`oct01` reference stand contains ONLY big-6 conifers (DF, GF/WF, PP, SP), so the C3–C6
+"bit-exact" commits validated only **species groups 1–4**. Groups 5–18 (IC + the 13 minor/hardwood
+ORGANON species) carried coefficients but were never exercised against the oracle. A 14-species
+coverage stand (`ocmin` records reassigned to IC/WH/RC/PY/MA/GC/TO/CY/BM/WO/BO/RA/DG/WI, keeping
+big-6 conifers so the stand gate stays open) was run through the live `FVSoc_clean` DEBUG-DGDRIV
+dump and A/B'd per-tree against FVSjl. Verdict (per-tree `DGRO/BARK/DIAGR/DDS` and `HGRO/CR2/MORTEXP`,
+Float32 print precision):
+
+| Component | Groups 1–4 (DF/GF/PP/SP) | Group 5 (IC) | Groups 6–18 (WH,RC,PY,MA,GC,TO,CY,BM,WO,BO,RA,DG,WI) |
+|---|---|---|---|
+| **Diameter (C3, DG_SWO)** | bit-exact | bit-exact | **bit-exact** (all 18 DGPAR groups measured) |
+| **Mortality (C6, PM_SWO)** | bit-exact | bit-exact | **bit-exact** (MORTEXP all 18) |
+| **Height (C4)** | bit-exact (HTGRO1) | bit-exact (HTGRO1) | **bit-exact (HTGRO2 — newly ported 2026-08-15)** |
+| **Crown (C5, CROWGRO)** | bit-exact | bit-exact | **bit-exact** (was off ~1–10% only while HGRO=0) |
+
+**C4 gap found + closed.** `organon_hg_swo` previously ran HTGRO1 for groups ≤ 5 only and returned
+`HGRO=0` for the 13 minor species (`organon/htgrowth.f` HTGRO2 was unported). Ported HTGRO2 =
+`HD_SWO` (its own HDPAR(18,3), distinct from start2.f A_HD_SWO) height-ratio form
+`PRDHT=(HD(D+DGRO)/HD(D))·HT` (calibrated by `ACALIB(1,g)`) + the red-alder Worthington-1960 H40
+path (`CON_RASI`/`RAGEA`/`RAH40`/`RASITE`). Runs on the END-of-cycle DBH per the grow.f
+UPDATE-DIAMETERS-then-HTGRO2 order. After the port, the coverage stand is bit-exact on **every**
+component for all 18 groups (max rel 6e-6). `ocmin` unchanged (all groups ≤ 5 ⇒ HTGRO1 branch,
+inert). Regression pins in `test/unit/test_oc_organon_setup.jl` (`OC C4b`).
+
+**One residual, root-caused (NOT an HTGRO2 error): ORGANON missing-height dubbing.** A minor-species
+record with a BLANK height in the tree list is dubbed by the oracle via ORGANON `PREPARE`
+(`HD_SWO`-based, e.g. BO D=8.5 → HT=46.41 = `oc_hd_swo(15,8.5)`), but the FVSjl growth path does not
+yet wire `organon_prepare_swo` (it dubs such heights via the non-ORGANON HTDBH path). That single
+wrong height makes the BO HGRO differ 6.4% AND slightly perturbs the shared CRNCLO crown-closure
+profile (→ ~0.1–0.25% on nearby big-6 HGRO). With the height PRESENT, all 24 trees are bit-exact.
+This is the previously-noted C2/C8 follow-up (wire PREPARE's HT/CR dub into the growth path); the
+`HD_SWO` machinery it needs now exists. This is the recommended NEXT chunk.
+
+**Calibration note.** On FVS/FIA inventory the minor-species `ACALIB(1,g)` rows are 1.0 (verified on
+the coverage stand: only DF group 1 calibrates HT/CR); HTGRO1 ignores `ACALIB(1,big-6)` too, so the
+growth path's implicit ACALIB=1.0 is exact here. Threading a non-1.0 minor-species ACALIB (needs
+PREPARE wired) is bundled with the missing-height-dubbing follow-up.

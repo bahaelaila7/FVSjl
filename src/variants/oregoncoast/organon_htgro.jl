@@ -296,28 +296,101 @@ function oc_htgro1(isp::Int32, ispgrp::Int, dbh::Float32, ht::Float32, cr::Float
     return oc_limit(isp, dbh, ht, dgro, hg)
 end
 
+# --- HD_SWO HDPAR(18,3): B0,B1,B2 (height-diameter, ALL species groups; used by HTGRO2) --------
+# organon/htgrowth.f HD_SWO DATA HDPAR. NOTE: this is a DISTINCT table from the start2.f A_HD_SWO
+# HDPAR (OC_AHD_SWO_* in organon_setup.jl) — HTGRO2 uses these growth-model H-D coefficients.
+const OC_HD_SWO_B0 = Float32[7.133682298,6.75286569,6.27233557,5.81876360,10.04621768,6.58804,6.14817441,5.10707208,6.53558288,9.2251518,8.49655416,9.01612971,5.20018445,4.69753118,5.04832439,5.59759126,7.49095931,3.26840527]
+const OC_HD_SWO_B1 = Float32[-5.433744897,-5.52614439,-5.57306985,-5.31082668,-8.72915115,-5.25312496,-5.40092761,-3.28638769,-4.69059053,-7.65310387,-6.68904033,-7.34813829,-2.86671078,-3.51586969,-3.32715915,-3.19942952,-5.40872209,-0.95270859]
+const OC_HD_SWO_B2 = Float32[-0.266398088,-0.33012156,-0.40384171,-0.47349388,-0.14040106,-0.31895401,-0.38922036,-0.24016101,-0.24934807,-0.15480725,-0.16105112,-0.134025626,-0.42255220,-0.57665068,-0.43456034,-0.38783403,-0.16874962,-0.98015696]
+
+"organon/htgrowth.f HD_SWO — predicted height from DBH for group `g` (growth-model H-D form)."
+@inline function oc_hd_swo(g::Int, dbh::Float32)
+    return 4.5f0 + fexp(OC_HD_SWO_B0[g] + OC_HD_SWO_B1[g]*fpow(dbh, OC_HD_SWO_B2[g]))
+end
+
+# --- red-alder site/age (organon/statsorg.f + htgrowth.f; Worthington et al. 1960) -------------
+"organon/statsorg.f CON_RASI — red-alder site index from the conifer (DF) SITE_1 (full site)."
+@inline oc_con_rasi(site1::Float32) = 9.73f0 + 0.64516f0*(site1 + 4.5f0)
+"organon/htgrowth.f RAGEA — red-alder growth-effective age from height `h` and red-alder site."
+@inline oc_ragea(h::Float32, si::Float32) = 19.538f0*h/(si - 0.60924f0*h)
+"organon/htgrowth.f RAH40 — red-alder top height at age `a` and red-alder site."
+@inline oc_rah40(a::Float32, si::Float32) = si/(0.60924f0 + 19.538f0/a)
+"organon/statsorg.f RASITE — red-alder site index from height `h` at age `a`."
+@inline oc_rasite(h::Float32, a::Float32) = (0.60924f0 + 19.538f0/a)*h
+
 """
-    organon_hg_swo(buf, dgro, spgrp; si_1, si_2, cyclg=0) -> hgro::Vector{Float32}
+    oc_ra_site(buf, si_1) -> RASI
+
+organon/execute2.f:300-321 — the per-stand red-alder site index consumed by HTGRO2. `RASI =
+CON_RASI(SITE_1)`; if the tallest red alder (FIA 351) gives a non-positive growth-effective age it
+is re-derived from RASITE(MAXRAH, 55). `si_1` = SITE_1 − 4.5, so SITE_1 = si_1 + 4.5.
+"""
+function oc_ra_site(buf::OrganonBuffer, si_1::Float32)
+    rasi = oc_con_rasi(si_1 + 4.5f0)
+    maxrah = 0.0f0
+    @inbounds for i in 1:buf.ntrees
+        buf.species[i] == 351 && buf.ht1or[i] > maxrah && (maxrah = buf.ht1or[i])
+    end
+    if maxrah > 0.0f0
+        raage = oc_ragea(maxrah, rasi)
+        raage <= 0.0f0 && (rasi = oc_rasite(maxrah, 55.0f0))
+    end
+    return rasi
+end
+
+"""
+    oc_htgro2(isp, g, dbh_start, dgro, ht, calib1, rasi) -> HGRO
+
+organon/htgrowth.f HTGRO2 (VERSION=1) — 5-yr height growth for a MINOR ORGANON species (group>5).
+Runs on the END-of-cycle DBH (`dbh_start+dgro`, mirroring the grow.f UPDATE-DIAMETERS-then-HTGRO2
+order): `PRDHT = (HD_SWO(dbh_end)/HD_SWO(dbh_start))·HT`, both calibrated by `calib1`=ACALIB(1,g),
+`HGRO = PRDHT − HT`. Red alder (FIA 351) instead uses the Worthington H40 age/height increment.
+"""
+@inline function oc_htgro2(isp::Int32, g::Int, dbh_start::Float32, dgro::Float32, ht::Float32,
+                           calib1::Float32, rasi::Float32)
+    if isp == 351                                  # red alder — H40 age/height increment
+        geara = oc_ragea(ht, rasi)
+        geara <= 0.0f0 && return 0.0f0
+        return oc_rah40(geara + 5.0f0, rasi) - oc_rah40(geara, rasi)
+    end
+    dbh_end = dbh_start + dgro
+    prdht1 = 4.5f0 + calib1*(oc_hd_swo(g, dbh_start) - 4.5f0)
+    prdht2 = 4.5f0 + calib1*(oc_hd_swo(g, dbh_end) - 4.5f0)
+    prdht = (prdht2/prdht1)*ht
+    return prdht - ht
+end
+
+"""
+    organon_hg_swo(buf, dgro, spgrp; si_1, si_2, cyclg=0, calib1=nothing) -> hgro::Vector{Float32}
 
 The ORGANON SWO height-growth pass for one cycle — the `GROW` "growth-2" HG sequence
-(organon/grow.f:133-152) driven off the C1 `/ORGANON/` buffer and the C3 `dgro`/`spgrp`. Builds the
-`CRNCLO` crown-closure profile from the start-of-cycle tree list, then runs `HTGRO1` for every
-big-6 tree (species group ≤ 5), returning `hgro[i]` — the value `oc/htgf.f:96` copies into `HTG`.
+(organon/grow.f:133-184) driven off the C1 `/ORGANON/` buffer and the C3 `dgro`/`spgrp`. Builds the
+`CRNCLO` crown-closure profile from the start-of-cycle tree list, runs `HTGRO1` for every big-6 tree
+(species group ≤ 5) and `HTGRO2` for every minor ORGANON tree (group > 5), returning `hgro[i]` — the
+value `oc/htgf.f:96` copies into `HTG`.
 
 `si_1`/`si_2` are SITE_1−4.5 / SITE_2−4.5 (the ORGANON SI the potential-height model consumes).
-Minor ORGANON species (group > 5) use HTGRO2 (not yet ported); `hgro[i]` stays 0 for them here.
+`calib1` is ACALIB(1,1..18) (HTGRO2's height calibration); `nothing` ⇒ all-1.0 (the growth path
+does not yet consume PREPARE's ACALIB, and on FVS/FIA inventory the minor-species rows are 1.0 —
+threading a non-1.0 minor-species ACALIB is a follow-up, exactly as HTGRO1 ignores ACALIB(1,big-6)).
 """
 function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32};
-        si_1::Float32, si_2::Float32, cyclg::Int=0)
+        si_1::Float32, si_2::Float32, cyclg::Int=0,
+        calib1::Union{Nothing,Vector{Float32}}=nothing)
     n = buf.ntrees
     cch = oc_crnclo(spgrp, buf.dbh1, buf.ht1or, buf.cr1, buf.expan1, n)
+    rasi = oc_ra_site(buf, si_1)
     hgro = zeros(Float32, n)
     @inbounds for i in 1:n
         buf.expan1[i] <= 0.0f0 && continue
         g = Int(spgrp[i])
-        g <= 5 || continue                         # big-6 (HTGRO1); minor species = HTGRO2 (TODO)
-        hgro[i] = oc_htgro1(buf.species[i], g, buf.dbh1[i], buf.ht1or[i], buf.cr1[i], dgro[i],
-                            cch, si_1, si_2; cyclg=cyclg)
+        if g <= 5                                  # big-6 → HTGRO1 (HS_HG potential + HG_SWO)
+            hgro[i] = oc_htgro1(buf.species[i], g, buf.dbh1[i], buf.ht1or[i], buf.cr1[i], dgro[i],
+                                cch, si_1, si_2; cyclg=cyclg)
+        else                                       # minor species → HTGRO2 (HD-ratio / red-alder H40)
+            c1 = calib1 === nothing ? 1.0f0 : calib1[g]
+            hgro[i] = oc_htgro2(buf.species[i], g, buf.dbh1[i], dgro[i], buf.ht1or[i], c1, rasi)
+        end
     end
     return hgro
 end
