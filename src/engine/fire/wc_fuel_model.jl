@@ -35,6 +35,18 @@ const _WC_MAPDRY = Int[
     2,2,2,2,2,2,0,2,1,1, 1,1,2,2,0,1,0,1,2,2, 2,1,0,0,2,1,1,2,0,2,
     2,1,1,2,2,1,0,0,0]
 
+# pn/fmcba.f DATA MAPFGS(75) / MAPDRY(75) — PN's own R6-habitat forb/grass/shrub + moist maps (DIFFER from
+# WC's 139-code arrays; pn/fmcba.f MXR6CODE=75). fmcfmd.f itself is byte-identical to WC (same XPTS, same
+# _wc_covgrp cover-metagroup pooling, same ALGSLP rules) — only these fmcba.f habitat arrays are PN-specific.
+const _PN_MAPFGS = Int[
+    3,3,3,3,3,3,3,1,1,1, 1,1,0,3,3,3,3,3,3,3, 3,3,3,3,3,1,1,1,1,1,
+    3,1,0,1,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3,1,
+    3,3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,1,1,1, 3,3,3,3,3]
+const _PN_MAPDRY = Int[
+    0,0,0,0,0,0,0,2,0,0, 1,2,1,1,0,1,1,0,1,2, 1,1,2,0,1,2,2,1,2,2,
+    2,0,1,2,1,1,0,1,0,0, 0,2,1,1,1,1,2,0,0,2,
+    0,1,0,0,0,2,1,2,1,2, 2,1,1,0,2,2,2,2,2,2, 2,2,2,2,2]
+
 # wc/fmcfmd.f:174-190 — pool species into the 6 cover metagroups (VARACD 'WC' branch).
 @inline function _wc_covgrp(sp::Int)::Int
     (sp == 1 || sp == 19 || sp == 10 || sp == 18) && return 1   # SFCT: SF,WH,ES,RC
@@ -57,12 +69,15 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     percov = s.fire.percov
     itype = Int(s.plot.habitat_input)
 
-    # PNFGS / PNWET (wc/fmcba.f entry points): habitat forb/grass/shrub + moist flags.
-    icov = (1 <= itype <= length(_WC_MAPFGS)) ? _WC_MAPFGS[itype] : 0
+    # PNFGS / PNWET (wc/fmcba.f entry points): habitat forb/grass/shrub + moist flags. PN carries its own
+    # 75-code habitat arrays (pn/fmcba.f); WC uses the 139-code arrays. fmcfmd.f logic is shared (identical).
+    _mapfgs = s.variant isa PacificNorthwest ? _PN_MAPFGS : _WC_MAPFGS
+    _mapdry = s.variant isa PacificNorthwest ? _PN_MAPDRY : _WC_MAPDRY
+    icov = (1 <= itype <= length(_mapfgs)) ? _mapfgs[itype] : 0
     lforb  = icov == 1
     lgrass = icov == 0 || icov == 2
     lshrub = icov == 3
-    iwet = (1 <= itype <= length(_WC_MAPDRY)) ? _WC_MAPDRY[itype] : 0
+    iwet = (1 <= itype <= length(_mapdry)) ? _mapdry[itype] : 0
     lwet = iwet == 2
 
     # per-species FFE basal area (FMTBA) and cover-group BA (CTBA[1..6]).

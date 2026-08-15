@@ -123,6 +123,20 @@ const PN_CCF_RD1 = Float32[0.10142,0.0690403,0.0245276,0.0172,0.0194415,0.031805
 const PN_CCF_RD2 = Float32[0.0432725,0.0224682,0.0114741,0.00876,0.0142461,0.0215065,0.0173091,0.0421908,0.01676,0.0252424,0.014621,0.0268821,0.0237999,0.0232893,0.0166659,0.0441381,0.0213617,0.0029209,0.0168]
 const PN_CCF_RD3 = Float32[0.00461575,0.00182799,0.0013419,0.00112,0.00260979,0.00363562,0.00259636,0.0058418,0.00365,0.0072121,0.0028775,0.00466086,0.00490874,0.00360853,0.00433848,0.0042207,0.00667579,0.00473186,0.00325]
 
+# ---------------------------------------------------------------------------
+# FFE crown-biomass group per species (pn/fmcrow.f:103 DATA ISPMAP). pn/fmcrow.f routes
+# CASE(24,26,27,34,35,36,37,39)=PB/AS/CW/DG/HT/CH/WI/OT → FMCROWE (eastern Jenkins TOTABV), all others
+# → FMCROWW (western crown-width, shared cr_crownw). Identical to WC's ISPMAP except slot 6 = 18 (SS,
+# uses ES; WC blank=0). FMCROWE routing CASE is byte-identical to WC. PN FFE chunk F1.
+# ---------------------------------------------------------------------------
+const PN_ISPMAP = Int[
+   4,  4,  4,  1,  4, 18,  4,  8, 20, 18,
+  11, 15, 15, 15, 13,  3, 19,  7,  6, 24,
+   5, 23, 10, 43, 17, 41, 17, 17, 16,  1,
+  14, 11,  7, 56, 57, 61, 64,  0, 41]
+@inline pn_uses_fmcrowe(sp::Integer) = (sp == 24 || sp == 26 || sp == 27 || sp == 34 ||
+                                        sp == 35 || sp == 36 || sp == 37 || sp == 39)
+
 @inline function pn_tree_ccf(sp::Integer, d::Real)::Float32
     (sp < 1 || sp > 39) && return 0f0
     ic = PN_CCF_INDCCF[sp]; D = Float32(d)
