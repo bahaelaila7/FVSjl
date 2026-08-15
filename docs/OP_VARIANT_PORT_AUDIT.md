@@ -71,20 +71,61 @@ conversion (analogous to OC's DF↔PP). `using FVSjl` loads clean and precompile
 untouched (Jun 4 timestamp; swaps used `.opwork/diagro.o`). Clean relink from the restored tree
 succeeds.
 
-## What remains for the next OP chunk (mirrors OC C1-C10)
+## ORGANON NWO growth ENGINE — VALIDATED bit-exact-or-1-ULP (this session)
 
-The DG_NWO *equation* is validated in isolation; a full end-to-end cyc0 `.sum` beachhead still needs
-the shared ORGANON engine wired for NWO (mostly reuse of OC's version-agnostic plumbing):
+`src/variants/olympic/organon_nwo.jl` ports the full NWO growth engine (C1 marshalling, C2 PREPARE,
+C3 DG, C4 HG, C5 crown, C6 mortality, C7 execute), reusing OC's version-agnostic helpers
+(`OrganonBuffer`, `oc_get_bal`, `oc_get_ccfl`, `oc_caltst`, `oc_quad1`, `oc_spmix`, `oc_dforty`,
+`oc_oldgrowth`, `oc_oldgro`, `oc_pm_fert`, `oc_hg_fert`, `oc_hg_thin`) + the NWO coefficient tables
+and NWO structural differences (all cited `organon/*.f`).
 
-1. **ORGANON marshalling (C1):** `org_intree` FVS→ORGANON buffer for MAXSP=39 (species → FIA →
-   ISPGRP into TDATAI(,2)); IORG/big-6 classification.
-2. **PREPARE setup (C2):** the VERSION=2 branch of organon/prepare.f (ACALIB/TMPCAL, HT/CR dubbing,
-   the SI_1/SI_2 marshalling — SITE feeds DG_NWO's `ln(SITE)`; WH group 3 uses SITE_2).
-3. **Stand-stat plumbing:** reuse OC's version-agnostic `SSTATS`/`GET_BAL`/`SUBMAX` (DBH²·EXPAN) to
-   produce the `sbal1`/`sba1` that DG_NWO consumes — validated here via the oracle's values.
-4. **DGDRIV COR calibration:** the FVS-native DGDRIV self-calibration from observed treelist DG
-   (fort.16 showed nonzero COR, e.g. ISPC=2 COR=0.0338) — shared with OC's `dg_cor`.
-5. **Height / crown / mortality / volume:** NWO branches of htgrowth.f (HG_NWO), crngrow.f,
-   mortality.f (op/morts.f has explicit NWO tables), orgvol.f — each a bit-exact chunk.
+**Validation.** The live `FVSop_clean` was run on `opdbg.key` (stand S248112, DEBUG 1 / DGDRIV HTGF
+CROWN MORTS) → `/workspace/.opwork/opdbg.out`, the per-tree ORGANON dump. Feeding the engine the
+exact `/ORGANON/` FOR EXECUTE buffer (27 trees) + SI_1=93.5, SI_2=83.17, ACALIB(1,1)=0.795231164,
+ACALIB(2,1)=0.667298734, MSDI=950 reproduces (test `test/unit/test_op_organon_nwo.jl`, 38 assertions):
+
+| Chunk | quantity | result |
+|---|---|---|
+| **C2 PREPARE** (VERSION=2) | ACALIB(1,1) height calib | **0.795231164 — Δ=0.0 (bit-exact)** |
+| | ACALIB(2,1) crown calib | **0.667298734 — Δ=0.0 (bit-exact)** |
+| **C3 DG_NWO** | DGRO, 7 IORG=1 (DF) trees | **7/7 bit-exact (maxΔ=0)** |
+| **C4 HG_NWO** (B_HG+HG_NWO) | HGRO, all 27 buffer trees | **25/27 bit-exact, 2×1-ULP (maxΔ=9.5e-7)** |
+| **C5 CROWGRO** (NWO CALIB(2)) | CR2, all 27 buffer trees | **18/27 bit-exact, rest ≤2-ULP (maxΔ=1.2e-7)** |
+| **C6 PM_NWO** | MORTEXP/DEADEXP, all 27 | **27/27 bit-exact (maxΔ=0)** |
+
+ORGANON is DGSD=0 (deterministic) ⇒ genuine bit-exact targets; the HGRO/CR2 residuals are the
+documented irreducible gfortran-16↔Julia libm exp/log/pow ULP (crown chains exp/log through
+HCB→PCR→CALIB2, accumulating the ULP — same as OC). Key measured NWO facts: SI_1=98 (DF), SI_2=87.67
+(WH, via the DF→WH −0.432+0.899·SI conversion); MSDI=950; **big-6 stand gate counts only GF(3)/DF(16),
+valid ORGANON species = {3,16,18,19,21,22,23,28,33,34,37}** (op/dgdriv.f) — so in S248112 only the 7
+DF trees are ORGANON-grown, the 20 LP/PP/SP/ES/WF trees grow FVS-native (see below). PM_NWO has a
+DISTINCT per-group form (DF: √DBH & CR^0.25; GF: BAL/DBH). CROWGRO applies CALIB(2) (SWO does not).
+
+## What remains for the full end-to-end cyc0 `.sum` (NOT ORGANON-specific)
+
+The ORGANON NWO engine is complete + validated, but the reference `.sum` needs three more subsystems,
+none ORGANON and all large (measured, not assumed):
+
+1. **FVS-native Wykoff DGF/HTGF/crown for the 20 non-ORGANON trees.** In S248112 only 7 of 27 trees
+   are valid-ORGANON (DF); LP/PP/SP/ES/WF grow via op/dgf.f (Wykoff LN(DDS)) + op/htgf.f — a
+   separate variant-scale port (OC's chunk C9 analogue). The `.sum` growth columns cannot be
+   bit-exact without it. `op_build_organon_buffer!` + `op_execute_nwo` handle the ORGANON side; the
+   StandState growth hook (`diameter_growth!(::Olympic)`) and species/blockdata loader are NOT yet
+   wired (`coefficients(::Olympic)` still errors) pending this.
+2. **Ecoclass site-index fan** (op/sitset.f ECOCLS/SICHG/HTCALC) — plant association `CHS133` →
+   DF SITEAR(16)=98 → the per-species fan. ORGANON only consumes SITE_1(DF)/SITE_2(WH), but the
+   FVS-native trees + volume need the full fan.
+3. **R6 volume** (`compute_volumes_op!`) — OP has no dedicated volume routine; it uses the shared
+   Region-6 Behre/Flewelling path (like SO/WC/PN chunk 8). The `.sum` TCuFt/MCuFt/BdFt columns
+   (1990: 1472/972/5003; 1995: 2256/1745/9249) need it.
+
+`op_prepare_nwo`'s internal HT dub for a NON-valid tree (e.g. tree20 LP → 49.84) is intentionally NOT
+written back (IORG=0 trees get FVS HTDBH → 62.39, item 1); only the ACALIB it produces is used, and
+that is bit-exact.
+
+## buildDir-pristine confirmation (this session)
+
+`FVSop_buildDir/diagro.f`: marker count 0, `diff` vs `organon/diagro.f` = identical. Only the ORACLE
+was run (writes to `/workspace/.opwork/opdbg.out`); no Fortran/buildDir object was modified.
 
 Do NOT merge until the orchestrator re-runs and verifies.
