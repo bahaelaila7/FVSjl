@@ -25,6 +25,7 @@ using FVSjl
     include("unit/test_op_organon_nwo.jl") # OP ORGANON NWO engine (DG/HG/CR/MORT + PREPARE ACALIB) vs live FVSop
     include("unit/test_op_native_growth.jl") # OP FVS-native large-tree DGF/HTGF (non-ORGANON species) vs live FVSop
     include("unit/test_op_site_and_volume.jl") # OP site-index fan + BLM Behre volume (chunk 2) vs live FVSop
+    include("integration/test_opt01_cyc0.jl") # OP chunk 3: opt01 cyc0 .sum (density+volume) bit-exact vs live FVSop
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips

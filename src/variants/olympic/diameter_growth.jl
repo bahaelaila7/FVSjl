@@ -24,9 +24,39 @@
 #
 # VALIDATED per-tree vs live FVSop_clean (stand S248112, DEBUG DGF dump, cyc0): the 19
 # FVS-native trees (WF/ES/LP/SP/PP) reproduce the oracle LN(DDS) to its F7.4 print — see
-# test/unit/test_op_native_growth.jl. op is DGSD from op/grinit.f (OLDRN serial-corr on
-# this path), so multi-cycle is straddle-class, but the cyc0 DDS is a bit-exact target.
+# test/unit/test_op_native_growth.jl. op/grinit.f sets DGSD=0 and ICL4=0, so OP has NO OLDRN
+# serial-correlation and NO record tripling — it is fully DETERMINISTIC, and every cycle's DDS
+# is a genuine bit-exact target (not a straddle). Multi-cycle validation is blocked oracle-side:
+# FVSop_clean SIGSEGVs in the FVS-native fvsvol path on cycle ≥1.
 # =============================================================================
+
+# =============================================================================
+# op/htdbh.f — the CRATET missing-height dub (Curtis-Arney HT-DBH). op/htdbh.f is BYTE-IDENTICAL to
+# pn/htdbh.f (verified), so the 6-forest × 39-species P2/P3/P4 tables are REUSED from PN
+# (PN_HTDBH_P2/P3/P4, regent.jl). LHTDRG is .FALSE. for all OP species (op/grinit.f:106), so
+# missing-height dubbing ALWAYS routes through HTDBH MODE=0 (op/cratet.f:692-694). Faithful to the
+# htdbh.f MODE=0 branch: D≥3 Curtis-Arney (D<3 linear splice), DF(ISPC 16) on the Siuslaw-family
+# forests {2,4,6} splines at 5.0" (op/htdbh.f:228,252), and the D≥100 Sitka-spruce(ISPC 6) OLY/QUIN
+# linear override (op/htdbh.f:233). IFOR = op forkod forest index (1..6) = p.forest_idx directly.
+# =============================================================================
+@inline function op_htdbh_height(ifor::Int, ispc::Int, d::Float32)::Float32
+    (ifor < 1 || ifor > 6) && (ifor = 1)
+    p2 = PN_HTDBH_P2[ifor, ispc]; p3 = PN_HTDBH_P3[ifor, ispc]; p4 = PN_HTDBH_P4[ifor, ispc]
+    if (ifor == 2 || ifor == 4 || ifor == 6) && ispc == 16          # DF splines at 5.0" (op/htdbh.f:252)
+        if d >= 5.0f0
+            return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        else
+            return ((4.5f0 + p2*exp(-1f0*p3*(5.0f0^p4)) - 4.51f0)*(d - 0.3f0)/4.7f0) + 4.51f0
+        end
+    end
+    if d >= 3.0f0
+        h = 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        (d >= 100f0 && ispc == 6 && (ifor == 1 || ifor == 3)) && (h = 0.25f0*d + 248f0)  # Sitka OLY
+        return h
+    else
+        return ((4.5f0 + p2*exp(-1f0*p3*(3.0f0^p4)) - 4.51f0)*(d - 0.3f0)/2.7f0) + 4.51f0
+    end
+end
 
 # op/dgf.f MAPSPC(39): FVS species 1..39 → coefficient group JSPC (1..20).
 const OP_DG_MAPSPC = Int[

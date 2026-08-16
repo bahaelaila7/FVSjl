@@ -355,6 +355,11 @@ function dub_missing_heights!(s::StandState)
             # oc/cratet.f:679-684 — OC LHTDRG=.FALSE. all species ⇒ HTDBH (CA-family Curtis-Arney)
             # is the actual missing-height dub (overwrites the Wykoff H). IFOR unused (C8).
             oc_htdbh_height(Int(sp), d)
+        elseif s.variant isa Olympic
+            # op/cratet.f:692-694 — OP LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (forest-dependent
+            # Curtis-Arney, op/htdbh.f == pn/htdbh.f). ORGANON trees are dubbed earlier in PREPARE
+            # (op_organon_prepare!); only the FVS-native missing-height records reach here.
+            op_htdbh_height(Int(s.plot.forest_idx), Int(sp), d)
         elseif s.variant isa CentralCalifornia
             # ca/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH (Curtis-Arney) missing-height dub. IFOR unused.
             ca_htdbh_height(Int(sp), d)

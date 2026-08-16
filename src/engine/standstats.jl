@@ -355,6 +355,14 @@ function stand_ccf(s::StandState)
             ccf += pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa Olympic
+        # OP CCF = op/ccfcal.f MODE=1, a direct per-species RD1+RD2·D+RD3·D² polynomial. op/ccfcal.f
+        # carries the "PN $Id$" header and its INDCCF/RD1/RD2/RD3 DATA blocks are byte-identical to
+        # pn/ccfcal.f, so `pn_tree_ccf` reproduces it exactly; stand CCF = Σ CCFT·P.
+        @inbounds for i in 1:t.n
+            ccf += pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        end
+        return ccf
     elseif s.variant isa EastCascades
         @inbounds for i in 1:t.n
             ccf += ec_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
