@@ -133,4 +133,57 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         # header (-999) carries a wall-clock timestamp; compare the data rows only
         @test _datarows(out_ctrl) == _datarows(out_rd)
     end
+
+    # -------------------------------------------------------------------------
+    # Chunk 0a — RD stochastic primitives (rd/rdrani.f + rd/rdrann.f + rd/rdranp.f).
+    # Golden values captured from the LIVE relinked FVSkt oracle (a single-.o
+    # instrumentation swap dumping the RD RNG stream and every RDRANP call; the
+    # instrumented .sum was byte-identical to FVSkt_clean). Full runs were checked
+    # bit-exact: 2000 RNG draws (0 mismatch) and 297 RDRANP calls (0 mismatch).
+    # -------------------------------------------------------------------------
+    @testset "RD RNG (rdrani/rdrann) — bit-exact vs live FVSkt" begin
+        rd = FVSjl.RootDiseaseState()
+        FVSjl.rd_rani!(rd, 889347.0)              # rd/rdinit.f DSEED default
+        @test rd.rd_ss == 889347.0                # INT(889347) already odd
+        @test rd.rd_s0 == 889347.0
+        # (integer state S1, Float32 return) for the first 8 draws, seed 889347
+        golden = [
+            (2062353147.0, 0.9603580236434937),
+            (1583279049.0, 0.7372717857360840),
+            ( 701106566.0, 0.3264781832695007),
+            ( 255283673.0, 0.1188757270574570),
+            (2027849052.0, 0.9442908167839050),
+            (1493539074.0, 0.6954833269119263),
+            (2122350582.0, 0.9882965087890625),
+            ( 642855004.0, 0.2993526756763458),
+        ]
+        for (s1, val) in golden
+            v_jl = FVSjl.rd_rann!(rd)
+            @test rd.rd_s1 == s1                  # exact integer generator state
+            @test v_jl === Float32(val)           # exact Float32 return
+        end
+        # default-constructed state is already seeded from DSEED
+        rd2 = FVSjl.RootDiseaseState()
+        @test rd2.dseed == 889347.0 && rd2.rd_s0 == 889347.0
+    end
+
+    @testset "RD binomial proportion (rdranp) — bit-exact vs live FVSkt" begin
+        rd = FVSjl.RootDiseaseState()
+        # (prop, rannum, expected) triples straight from the oracle dump.
+        triples = [
+            (0.1,  0.2924090325832367, 0.07999999821186066),
+            (0.1,  0.8925243616104126, 0.15999999642372131),
+            (0.1,  0.04066308960318565, 0.03999999910593033),
+            (0.6,  0.2924090325832367, 0.6999999880790710),   # LREV (prop>0.5)
+            (0.6,  0.6669166088104248, 0.5000000000000000),
+            (0.6,  0.8678408265113831, 0.3999999761581421),
+            (0.05, 0.2255645245313644, 0.02999999932944775),
+            (0.05, 0.06300469487905502, 0.01999999955296516),
+            (0.05, 0.9199229478836060, 0.07999999821186066),
+        ]
+        for (prop, rannum, exp) in triples
+            got = FVSjl.rd_ranp_from(rd, Float32(prop), Float32(rannum))
+            @test got === Float32(exp)
+        end
+    end
 end

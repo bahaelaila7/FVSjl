@@ -84,6 +84,18 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     xminkl::Vector{Float32}   # min time-to-kill offset per disease (=0)
     xminlf::Vector{Float32}   # min inoculum lifespan per disease ({1,1,1,20})
 
+    # ---- RD random-number generator (rd/RDADD.F77 /RRANN/ + rd/rdin.f RSEED) ----
+    #   The WRD model uses its OWN Park–Miller stream (16807, mod 2147483647), seeded
+    #   from DSEED, kept SEPARATE from the base FVS `rann` stream. rd/rdrani.f init,
+    #   rd/rdrann.f draw. DSEED default 889347.0 (rd/rdinit.f); RSEED keyword overrides.
+    dseed::Float64            # RD seed (rd/rdinit.f DSEED; RSEED keyword sets it)
+    rd_s0::Float64            # /RRANN/ S0 — current generator state
+    rd_s1::Float64            # /RRANN/ S1 — last-produced state
+    rd_ss::Float64            # /RRANN/ SS — seed state (odd-forced INT(DSEED))
+    # ---- rd/rdranp.f binomial random-proportion memo (/RDCOM/ OLDPRP,CDF) ----
+    rd_oldprp::Float32        # last PROPIN (skips CDF rebuild when unchanged)
+    rd_cdf::Vector{Float32}   # cumulative distribution buffer (size 1001 in FVS)
+
     RootDiseaseState() = rd_init_defaults!(new())
 end
 
@@ -127,7 +139,126 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.stcut = (0.0f0, 12.0f0, 24.0f0, 48.0f0, 100.0f0)
     rd.xminkl = fill(0.0f0, n)
     rd.xminlf = Float32[1.0, 1.0, 1.0, 20.0]            # TEMP15
+
+    rd.dseed = 889347.0                                 # rd/rdinit.f DSEED = 889347.0
+    rd.rd_oldprp = -1.0f0                                # forces first CDF build
+    rd.rd_cdf = Float32[]
+    rd_rani!(rd, rd.dseed)                               # seed the RD stream (rd/rdrani.f)
     return rd
+end
+
+# -----------------------------------------------------------------------------
+# RD random-number generator (rd/rdrani.f, rd/rdrann.f) — the WRD model's OWN
+# Park–Miller minimal-standard stream (16807, mod 2^31−1), SEPARATE from the base
+# `rann` stream. Ported faithfully (never FFI). Validated bit-exact against the
+# live relinked FVSkt oracle: 2000 draws, 0 mismatches on both the integer state
+# S1 and the Float32 return value.
+# -----------------------------------------------------------------------------
+
+"""
+    rd_rani!(rd, sseed)
+
+Port of rd/rdrani.f: seed the RD generator. `ISEED = INT(SSEED)`, forced odd,
+`SS = S0 = FLOAT(ISEED)`.
+"""
+function rd_rani!(rd::RootDiseaseState, sseed::Real)
+    iseed = trunc(Int, sseed)
+    iseed % 2 == 0 && (iseed += 1)          # rdrani: force odd
+    rd.rd_ss = Float64(iseed)
+    rd.rd_s0 = rd.rd_ss
+    rd.rd_s1 = 0.0
+    return rd
+end
+
+"""
+    rd_rann!(rd) -> Float32
+
+Port of rd/rdrann.f: one uniform draw. `S1 = DMOD(16807·S0, 2147483647)` in double
+precision; returns `REAL(S1 / 2147483648)` (Float32); advances `S0 = S1`.
+"""
+function rd_rann!(rd::RootDiseaseState)
+    rd.rd_s1 = rem(16807.0 * rd.rd_s0, 2147483647.0)     # DMOD (double precision)
+    val = Float32(rd.rd_s1 / 2147483648.0)               # REAL(...) — Float32
+    rd.rd_s0 = rd.rd_s1
+    return val
+end
+
+"""
+    rd_ranp!(rd, prop) -> Float32
+
+Port of rd/rdranp.f: a random proportion drawn from a truncated binomial CDF with
+mean `prop`, using the RD stream. All arithmetic in Float32 (matches the 2014 REAL
+CDF). `OLDPRP`/`CDF` memoization is carried in `rd`; the RESULT is a pure function of
+`(PROPIN, INTNUM, RANNUM)`, so a rebuild produces identical values. Validated
+bit-exact against the live FVSkt oracle: 297 calls, 0 mismatches.
+"""
+function rd_ranp!(rd::RootDiseaseState, prop::Real)
+    intnum, lrev = _rd_ranp_setup!(rd, prop)             # adjusts PROPIN + builds CDF
+    rannum = rd_rann!(rd)                                 # rdranp.f label 300: RANNUM>0
+    while rannum == 0.0f0
+        rannum = rd_rann!(rd)
+    end
+    return _rd_ranp_walk(rd.rd_cdf, intnum, lrev, rannum)
+end
+
+# rdranp.f labels 100–200: adjust PROPIN and (re)build the truncated-binomial CDF into
+# rd.rd_cdf, memoized on OLDPRP. Returns (INTNUM, LREV).
+function _rd_ranp_setup!(rd::RootDiseaseState, prop::Real)
+    propin = Float32(prop)
+    intnum = round(Int, 5.0f0 / propin)                  # NINT(5/PROPIN)
+    intnum > 100 && (intnum = 100)
+    intnum < 10  && (intnum = 10)
+
+    L = 0                                                # rdranp.f label 100
+    while true
+        exprop = propin / (1.0f0 - (1.0f0 - propin)^intnum)
+        if abs(propin - exprop) > (1.0f0 / Float32(intnum)) && L < 10
+            propin = propin - (0.5f0 * (propin - exprop))
+            L += 1
+        else
+            break
+        end
+    end
+
+    lrev = false
+    if propin > 0.5f0                                    # use lower half, reverse later
+        propin = 1.0f0 - propin
+        lrev = true
+    end
+
+    if propin != rd.rd_oldprp                            # rebuild only when changed
+        rd.rd_oldprp = propin
+        length(rd.rd_cdf) < intnum + 1 && (rd.rd_cdf = zeros(Float32, max(intnum + 1, 1001)))
+        cdf = rd.rd_cdf
+        pdf = (1.0f0 - propin)^intnum
+        cdf[1] = pdf
+        @inbounds for k in 1:intnum
+            pdf = pdf > 1.0f-15 ?
+                pdf * (propin / (1.0f0 - propin) * Float32(intnum - k + 1)) / Float32(k) :
+                0.0f0
+            cdf[k+1] = cdf[k] + (pdf / (1.0f0 - cdf[1]))
+        end
+    end
+    return intnum, lrev
+end
+
+# rdranp.f label 400: walk the CDF with a given draw. Pure (used by rd_ranp! and tests).
+function _rd_ranp_walk(cdf::Vector{Float32}, intnum::Int, lrev::Bool, rannum::Float32)
+    res = 0.7f0 * (1.0f0 / Float32(intnum))
+    k = 1
+    @inbounds while rannum >= cdf[k+1] && k <= intnum
+        res = Float32(k + 1) / Float32(intnum)
+        k += 1
+    end
+    lrev && (res = 1.0f0 - res)
+    return res
+end
+
+# Test/validation entry: RDRANP evaluated for a supplied RANNUM (no stream draw), with a
+# fresh CDF rebuild. Pure function of (prop, rannum) — matches the live oracle bit-exact.
+function rd_ranp_from(rd::RootDiseaseState, prop::Real, rannum::Real)
+    intnum, lrev = _rd_ranp_setup!(rd, prop)
+    return _rd_ranp_walk(rd.rd_cdf, intnum, lrev, Float32(rannum))
 end
 
 """
@@ -167,6 +298,12 @@ function kw_rdin!(s::StandState, rec, kr::KeywordReader)
             rd_in_rrinit!(rd, r)
         elseif k == "SAREA"                 # rd/rdin.f option 10
             rd_in_sarea!(rd, r)
+        elseif k == "RSEED"                 # rd/rdin.f option 25 — reseed the RD RNG
+            # ARRAY(1)==0 ⇒ GETSED clock-seed (non-deterministic; out of scope).
+            if r.present[1] && r.values[1] != 0.0f0
+                rd.dseed = Float64(r.values[1])
+                rd_rani!(rd, rd.dseed)      # RDMN1(1) reseeds from DSEED after parse
+            end
         elseif k == "BBCLEAR"               # rd/rdin.f option 41 — suppress default bark beetles
             rd.bbclear = true; rd.lbbon = false
         elseif k == "RRDOUT" || k == "BBOUT" || k == "RRECHO" || k == "SMCOUT"
