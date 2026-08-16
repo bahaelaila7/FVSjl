@@ -499,4 +499,36 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test Int(rd0.istep) == s0
     end
 
+    @testset "RD live-tree root radius (rdroot) — bit-exact vs live FVSkt" begin
+        # Upstream spread-chain routine rd/rdroot.f (RDTREG DO-1001), the deterministic
+        # ROOTL(record) that feeds RDSPRD/RDJUMP/RDINSD. Golden per-tree inputs+ROOTL
+        # dumped at E22.13 from the g16-instrumented FVSkt (rd/rdtreg.f, turnkey rd.key,
+        # stand S248112, RRType 3 Armillaria). Each tuple:
+        #   (DBH, HT, PROOT, RSLOP, expected ROOTL); scalars are (SDISLP,YINCPT,OLDTPA,
+        #   GROSPC,ORMSQD,BA) for that cycle. Full Float32 identity (===) incl. ^1.605.
+        sc1 = (-0.329999998211861f-02, 2.21770000457764f0, 589.652709960938f0,
+               1.10000002384186f0, 5.14496803283691f0, 85.1312713623047f0)
+        cyc1 = [
+            (11.5f0,              73.0f0, 14.2600002288818f0, 1.0f0, 20.4987487792969f0),
+            (0.107423655688763f0,  2.0f0, 14.2600002288818f0, 1.0f0,  1.22190737724304f0),  # sub-3.5" HT/BA allometry
+            (6.5f0,               30.0f0, 14.5f0,             1.0f0, 11.78125f0),
+            (7.9f0,               75.0f0, 14.2600002288818f0, 1.0f0, 14.0817499160767f0),
+            (8.0f0,               63.0f0, 14.2600002288818f0, 1.0f0, 14.2599992752075f0),
+        ]
+        for (dbh, ht, proot, rslop, gold) in cyc1
+            @test FVSjl.rd_root(dbh, ht, proot, rslop, sc1...) === gold
+        end
+        sc2 = (-0.329999998211861f-02, 2.21770000457764f0, 489.120605468750f0,
+               1.10000002384186f0, 6.32937335968018f0, 106.872207641602f0)
+        cyc2 = [
+            (12.1517381668091f0,   78.5633239746094f0, 14.2600002288818f0, 1.0f0, 21.6604709625244f0),
+            (0.107538998126984f0,   4.42365455627441f0, 14.2600002288818f0, 1.0f0,  2.00382804870605f0),  # sub-3.5"
+            (7.74255752563477f0,   36.2947998046875f0, 14.5f0,             1.0f0, 14.0333852767944f0),
+            (8.80230426788330f0,   82.8553771972656f0, 14.2600002288818f0, 1.0f0, 15.6901063919067f0),
+        ]
+        for (dbh, ht, proot, rslop, gold) in cyc2
+            @test FVSjl.rd_root(dbh, ht, proot, rslop, sc2...) === gold
+        end
+    end
+
 end
