@@ -24,6 +24,7 @@ function setup_growth!(s::StandState)
     # dub_missing_heights! then only dubs the NON-ORGANON records (their HT is still 0). No-op
     # for other variants and for OC stands without a big-6 tree.
     s.variant isa OregonCoast && oc_organon_prepare!(s)
+    s.variant isa Olympic && op_organon_prepare!(s)   # OP ORGANON NWO PREPARE (op/cratet.f) — dub valid-ORGANON HT/CR + ACALIB
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
@@ -200,6 +201,14 @@ function setup_growth!(s::StandState)
         crown_ratio_update!(s, s.variant; lstart = true)  # rank-Weibull dub of MISSING inventory crowns (ws/crown.f);
                                           # d<1 seedlings → ws/dubscr.f (chunk 5b stub); wst01 crowns present ⇒ bypassed
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa Olympic
+        op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
+        compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)
+        crown_ratio_update!(s, s.variant; lstart = true)  # op/crown.f LSTART dub of MISSING inventory crowns
+                                          # (Weibull rank d≥1; op/dubscr.f d<1); ORGANON-dubbed HT/CR already set by op_organon_prepare!.
+        calibrate_diameter_growth!(s; scale = dgscale)     # op/dgdriv.f LSTART large-tree DG COR (SIGMAR/OBSERV/
+                                          # PSIGSQ=0.0898, op_bratio in BOTH the backdating AND the TERM bark).
+                                          # WF COR = +0.03379 bit-exact vs live FVSop_clean (op2c_dbg.out:344).
     end
     return s
 end
@@ -284,6 +293,7 @@ function compute_density!(s::StandState)
     s.variant isa EastCascades && (s.plot.relative_density = stand_ccf(s))   # EC RELDEN (ec/ccfcal.f) for regent PCTRED density modifier
     s.variant isa SouthCentralOregon && (s.plot.relative_density = stand_ccf(s))  # SO RELDEN (so/ccfcal.f) for dgf! CONSPP (DGCCFA/DGMACC) + regent
     s.variant isa WestSierra && (s.plot.relative_density = stand_ccf(s))          # WS RELDEN (ws/ccfcal.f) for crown-ratio SCALE (ws/crown.f)
+    s.variant isa Olympic && (s.plot.relative_density = stand_ccf(s))             # OP RELDEN (op/ccfcal.f) for crown-ratio SCALE (op/crown.f)
     return s
 end
 
@@ -627,6 +637,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
     _pn_up = s.variant isa PacificNorthwest   # PN bark = wc_bratio (POWER, all imap=1) — same as WC
     _ec_up = s.variant isa EastCascades   # EC bark = wc_bratio (per-species bark_imap POWER/linear)
+    _op_up = s.variant isa Olympic        # OP bark = op_bratio (op/bratio.f 3-path); the DDS→DG conversion used it,
+                                          # so the DBH += DG/bark apply MUST use the same bark (else the round-trip breaks)
     _ak_up = s.variant isa SoutheastAlaska # AK bark = ak_bratio (3-type: power/linear/power)
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
@@ -643,6 +655,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _ec_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
+               _op_up ? op_bratio(Int(t.species[i]), t.dbh[i]) :
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).

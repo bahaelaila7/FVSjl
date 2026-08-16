@@ -41,14 +41,18 @@ const OP_FORMCL_BLM708 = Int[
 @inline op_formcl(sp::Int) = OP_FORMCL_BLM708[sp]
 
 "blmvol.f BLMVOL total-cubic driver for OP (mirror of oc_tree_cuft, MTOPP=TOPD·BARK with TOPD=5.0)."
-function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0)
+function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
     dbh <= 0f0 && return 0f0
     veq = OP_VOLEQ[sp]
     profile = oc_blmtapeq(veq)
     tapequ = oc_blmtapeq_tapequ(veq)
     dbhib = oc_double_bark(tapequ, dbh)
     dbhib <= 0.0001f0 && return 0f0
-    mtopp = topd * op_bratio(sp, dbh)
+    # MTOPP = TOPD·BARK with BARK = BRATIO at the START-of-cycle DBH (vols.f:150-151, `BARK=BRATIO(D)`
+    # BEFORE `D=D+DG/BARK`). Pass the stashed `vol_bark` via `topbark`; fall back to the grown-DBH bark
+    # (cyc0 / no stash, where pre-growth==current). The 0.001 pre-vs-grown bark difference flips a Scribner
+    # log class on broken-top trees (op2c tree 19: last log 16ft/dib4 vs the oracle's 14ft/dib5).
+    mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))
     tth = ht + 1.5f0
     fclass = Float32(op_formcl(sp))
     if tth > 0f0
@@ -61,14 +65,14 @@ function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0)
 end
 
 "blmvol.f BLM merch-cubic VOL(4) + Scribner VOL(2) for OP (mirror of oc_tree_mvol, TOPD=5.0)."
-function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0)
+function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
     dbh <= 0f0 && return (0f0, 0f0)
     veq = OP_VOLEQ[sp]
     profile = oc_blmtapeq(veq)
     tapequ = oc_blmtapeq_tapequ(veq)
     dbhib = oc_double_bark(tapequ, dbh)
     dbhib <= 0.0001f0 && return (0f0, 0f0)
-    mtopp = topd * op_bratio(sp, dbh)
+    mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))   # BRATIO(D_start) top bark (vols.f:150) — see op_tree_cuft
     tth = ht + 1.5f0
     if tth > 0f0
         tth <= 17.8f0 && return (0f0, 0f0)
@@ -122,8 +126,10 @@ function compute_volumes_op!(s::StandState)
             d = t.dbh[i]; h = t.height[i]
             tkill = h >= 4.5f0 && t.trunc[i] > 0
             htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
-            tcf = op_tree_cuft(sp, d, htap; topd = topd)
-            v4, v2 = op_tree_mvol(sp, d, htap; topd = topd)
+            # Merch-top bark = BRATIO(D_start) (vols.f:150) — the stashed `vol_bark` (0 at cyc0 ⇒ grown-DBH bark).
+            topbark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : op_bratio(sp, d)
+            tcf = op_tree_cuft(sp, d, htap; topd = topd, topbark = topbark)
+            v4, v2 = op_tree_mvol(sp, d, htap; topd = topd, topbark = topbark)
             mcf = d >= c.sp_dbh_min[sp]   ? v4 : 0f0
             bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
             if tkill && tcf > 0f0

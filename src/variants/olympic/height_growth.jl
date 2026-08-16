@@ -214,12 +214,16 @@ uses the LTHTG special form. Requires the tree's `diam_growth` (DG) already comp
 function height_growth!(s::StandState, ::Olympic; scale::Float32 = 1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     avh = p.avg_height; ba = p.basal_area
+    org_ran = length(c.op_iorg) == t.n           # ORGANON ran this cycle ⇒ IORG=1 trees take stashed HGRO
     @inbounds for i in 1:t.n
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
         ispc = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; dg = t.diam_growth[i]
-        # ORGANON-grown trees take their HTG from HGRO — skip the FVS-native path.
-        (ispc in OP_ORGANON_VALID && h > 4.5f0 && d >= 0.1f0) && continue
+        # ORGANON-grown trees (IORG=1) take HTG=SCALE·XHT·HGRO·exp(HTCON) (op/htgf.f:167).
+        if org_ran && c.op_iorg[i] == 1
+            t.ht_growth[i] = scale * c.htg_mult[ispc] * c.op_hgro[i] * exp(c.htg_cor[ispc])
+            continue
+        end
         sindx = ispc <= length(p.sp_site_index) ? p.sp_site_index[ispc] : 0f0
         icr_pct = Float32(t.crown_pct[i])
         htcon = c.htg_cor[ispc]

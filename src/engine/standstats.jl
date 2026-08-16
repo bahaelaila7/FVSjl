@@ -227,6 +227,8 @@ function point_density!(s::StandState)
             ccft = wc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # wc/ccfcal.f MODE=1 (PCCF, RELDEN)
         elseif s.variant isa PacificNorthwest
             ccft = pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # pn/ccfcal.f MODE=1
+        elseif s.variant isa Olympic
+            ccft = pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # op/ccfcal.f MODE=1 (byte-identical to pn) — PCCF for dgf! DGPCCF term (SP/PP)
         elseif s.variant isa EastCascades
             ccft = ec_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]   # ec/ccfcal.f MODE=1 (per-species)
         elseif s.variant isa SoutheastAlaska

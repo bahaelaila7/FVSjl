@@ -281,6 +281,7 @@ function _backdate_dbh!(s::StandState)
     _ec_bd = s.variant isa EastCascades      # EC bark = wc_bratio (per-species bark_imap POWER/linear) — same watchpoint
     _ca_bd = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class as WC/EC
     _so_bd = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path: CASE1 BARKB / juniper / BRDAT)
+    _op_bd = s.variant isa Olympic            # OP bark = op_bratio (op/bratio.f 3-path) — same watchpoint class as WC (WF COR)
     _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
                  _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
                  _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) :
@@ -290,6 +291,7 @@ function _backdate_dbh!(s::StandState)
                  _pn_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
                  (_ec_bd || _ca_bd) ? wc_bratio(sd, Int(sp), Float32(d)) :
                  _so_bd ? so_bratio(sd, Int(sp), Float32(d)) :
+                 _op_bd ? op_bratio(Int(sp), Float32(d)) :        # OP bark = op_bratio (op/bratio.f 3-path) — backdating must match dgf/update
                  _bc_bd ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, d)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
@@ -316,7 +318,9 @@ end
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
     t, c = s.trees, s.calib
     sd = s.coef.species
-    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b; sigmar = sd[:dg_resid_sd]
+    bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    sigmar = s.variant isa Olympic ? OP_DG_SIGMAR : sd[:dg_resid_sd]   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
+    _op_cal = s.variant isa Olympic           # OP bark = op_bratio (op/bratio.f) — same watchpoint class as WC (WF COR)
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
     _bm_cal = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model)
@@ -466,6 +470,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                      _pn_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
                      _so_cal ? so_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
+                     _op_cal ? op_bratio(Int(t.species[i]), saved_dbh[i]) :   # OP bark = op_bratio (op/bratio.f) — COR must use it
                      _bc_cal ? bc_bratio(Int(t.species[i])) :
                      bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
                 t.diam_growth[i] *= bk
@@ -554,6 +559,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _pn_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                _so_cal ? so_bratio(sd, Int(sp), saved_dbh[i]) :
+               _op_cal ? op_bratio(Int(sp), saved_dbh[i]) :   # OP: op_bratio (op/bratio.f) — the TERM bark MUST match
+                                                              # (shared bark_a/bark_b=0 floored to 0.80 ⇒ TERM low ⇒ RESLOG −0.098 ⇒ WF COR flips negative)
                _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
@@ -596,7 +603,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          s.variant isa BritishColumbia ? BC_PSIGSQ[sp] :
                          s.variant isa CentralIdaho ? CI_PSIGSQ[sp] :
                          s.variant isa InlandEmpire ? IE_PSIGSQ[sp] :
-                         s.variant isa Klamath ? NC_PSIGSQ[sp] : DG_PSIGSQ   # NE 0.0898 / CR 0.07 / KT,EM,TT,UT,BM,BC,CI,IE,NC per-species / SN default
+                         s.variant isa Klamath ? NC_PSIGSQ[sp] :
+                         s.variant isa Olympic ? 0.0898f0 : DG_PSIGSQ   # OP 0.0898 (op/dgdriv.f DATA PSIGSQ/MAXSP*0.0898/) / NE 0.0898 / SN default
                 temp = min(cornew * cornew / psigsq, 72f0)
                 wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
                 corv = wc * cornew

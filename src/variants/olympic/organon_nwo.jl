@@ -857,12 +857,16 @@ DG_NWO → HG_NWO → MORTAL_RUN → CROWGRO, then the op/dgdriv.f DGRO→DDS co
 SITE−4.5. Deterministic (DGSD=0). Reuses OC's OrganonGrowth container.
 """
 function op_execute_nwo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integer}; si_1::Float32,
-        si_2::Float32, msdi::Float32=0f0, calib1::Vector{Float32}=ones(Float32,11),
+        si_2::Float32, msdi::Float32=0f0, msdi_1::Float32=NaN32, msdi_2::Float32=NaN32,
+        msdi_3::Float32=NaN32, calib1::Vector{Float32}=ones(Float32,11),
         calib2::Vector{Float32}=ones(Float32,11), cyclg::Int=0)
+    # MSDI_1/2/3 = RVARS(3/4/5) = SDIDEF(16=DF)/SDIDEF(3=GF)/SDIDEF(19=WH) (op/sitset.f:325-327). Back-compat:
+    # a single `msdi` fills all three (the validated 27-tree unit test path); pass msdi_1/2/3 for the real fan.
+    isnan(msdi_1) && (msdi_1 = msdi); isnan(msdi_2) && (msdi_2 = msdi); isnan(msdi_3) && (msdi_3 = msdi)
     n = buf.ntrees
     spgrp = Int32[op_spgroup_nwo(Int(isp)) for isp in isp_fvs]
     dgro, sba1, bal1, ball1, a1, a2 = op_dg_nwo_pass(buf, spgrp; si_1=si_1, si_2=si_2,
-                                          msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg)
+                                          msdi_1=msdi_1, msdi_2=msdi_2, msdi_3=msdi_3, cyclg=cyclg)
     hgro = op_hg_nwo_pass(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1)
     deadexp = op_mortal_nwo(buf, dgro, spgrp, bal1, ball1, a1, a2; si_1=si_1, si_2=si_2, cyclg=cyclg)
     cr2 = op_cr_nwo(buf, dgro, hgro, spgrp, deadexp; si_1=si_1, si_2=si_2, calib2=calib2, cyclg=cyclg)
