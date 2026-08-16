@@ -205,11 +205,9 @@ function setup_growth!(s::StandState)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)
         crown_ratio_update!(s, s.variant; lstart = true)  # op/crown.f LSTART dub of MISSING inventory crowns
                                           # (Weibull rank d≥1; op/dubscr.f d<1); ORGANON-dubbed HT/CR already set by op_organon_prepare!.
-        # OP large-tree DG calibration (op/dgdriv.f LSTART COR) is DEFERRED — the shared SN-framework
-        # calibrate_diameter_growth! produces a wrong-sign COR for OP (WF −0.025 vs the oracle's +0.034):
-        # op's calibration reference-species IREF grouping / backdating differ from the SN path. The
-        # SIGMAR/OBSERV/PSIGSQ/op_bratio hooks are in place (op_dgcons! sets ATTEN); the follow-on is the
-        # op-specific COR regression. Effect on S248112: WF DG ~3% low ⇒ cyc1 BA 97 vs 98 (the residual).
+        calibrate_diameter_growth!(s; scale = dgscale)     # op/dgdriv.f LSTART large-tree DG COR (SIGMAR/OBSERV/
+                                          # PSIGSQ=0.0898, op_bratio in BOTH the backdating AND the TERM bark).
+                                          # WF COR = +0.03379 bit-exact vs live FVSop_clean (op2c_dbg.out:344).
     end
     return s
 end

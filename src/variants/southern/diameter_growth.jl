@@ -559,6 +559,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _pn_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
                _so_cal ? so_bratio(sd, Int(sp), saved_dbh[i]) :
+               _op_cal ? op_bratio(Int(sp), saved_dbh[i]) :   # OP: op_bratio (op/bratio.f) — the TERM bark MUST match
+                                                              # (shared bark_a/bark_b=0 floored to 0.80 ⇒ TERM low ⇒ RESLOG −0.098 ⇒ WF COR flips negative)
                _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
