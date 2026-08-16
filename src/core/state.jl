@@ -289,6 +289,13 @@ mutable struct Control
                                               # (distinguishes an EXPLICIT FINT=5 — non-native on NE/CS — from the default)
     sp_methc::Vector{Int32}                   # VOLUME field 7: cubic volume METHOD per species (default 6=Clark;
                                               # 5 ⇒ CS DVEE/Gevorkiantz r9vol_gevorkiantz). initre.f:1804 METHC (D35)
+
+    # SVS (Stand Visualization System) data path — base/svkey.f (SVKEY). JSVOUT≠0 ⇒ produce .svs output.
+    svs_on::Bool                              # SVS keyword seen and output enabled (JSVOUT≠0)          (JSVOUT)
+    svs_iplgem::Int32                         # plot geometry: 0=square/ignore pts, 1=subdiv sq, …      (IPLGEM)
+    svs_igrid::Int32                          # ground-file grid resolution (0 ⇒ none)                 (IGRID)
+    svs_imetric::Int32                        # 0=imperial, 1=metric output                            (IMETRIC)
+    svs_keystem::String                       # stem for <stem>_index.svs / <stem>_NNN.svs             (KWDFIL)
 end
 
 function Control()
@@ -352,6 +359,7 @@ function Control()
         Set{String}(),                                           # unrecognized_keywords
         false,                                                   # growth_dg_set (GROWTH FINT explicitly set?)
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
+        false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
     )
 end
 

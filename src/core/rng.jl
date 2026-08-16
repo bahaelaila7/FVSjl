@@ -34,10 +34,15 @@ mutable struct FVSRng
     es0::Float64       # establishment stream current state  (ESRNCM ESS0)
     es1::Float64       # establishment stream scratch        (ESRNCM ESS1)
     ess::Float32       # establishment stream saved seed     (ESRNCM ESSS)
+    # SVS visualization stream (base/svrann.f, common SVRCOM /SVS0,SVS1,SVSS/). A THIRD Park–Miller
+    # stream (16807/2^31-1) but with divisor 2^31 (NOT 2^31-1), seeded from the MAIN stream's current
+    # s0 at the SVSTART seam (svstart.f:50 CALL RANNGET(SVS0)) so it tracks the RANNSEED keyword.
+    svs0::Float64      # SVS stream current state             (SVRCOM SVS0)
+    svs1::Float64      # SVS stream scratch                   (SVRCOM SVS1)
 end
 
-# ESBLKD block-data defaults: establishment stream seeded to 55329.
-FVSRng() = FVSRng(0.0, 0.0, 0.0f0, 55329.0, 0.0, 55329.0f0)
+# ESBLKD block-data defaults: establishment stream seeded to 55329; SVS stream idle until svs_seed!.
+FVSRng() = FVSRng(0.0, 0.0, 0.0f0, 55329.0, 0.0, 55329.0f0, 0.0, 0.0)
 
 """
     rann!(r::FVSRng) -> Float32
@@ -86,6 +91,33 @@ end
 
 rannget(r::FVSRng)::Float64 = r.s0
 rannput!(r::FVSRng, s0::Float64) = (r.s0 = s0; nothing)
+
+# SVS visualization stream constants: SAME multiplier/modulus as the main stream, but the
+# result divisor is 2^31 exactly (svrann.f:43 SEL=REAL(SVS1/2147483648D0)) — NOT 2^31-1.
+const _SVS_DIV = 2147483648.0     # 2^31
+
+"""
+    svs_seed!(r::FVSRng)
+
+Seed the SVS stream from the MAIN stream's current state (svstart.f:50 `CALL RANNGET(SVS0)`),
+so the picture placement responds to RANNSEED exactly as the live model does. Call once at the
+SVSTART seam (cycle-0 inventory picture) before any `svrann!`.
+"""
+svs_seed!(r::FVSRng) = (r.svs0 = r.s0; nothing)
+
+"""
+    svrann!(r::FVSRng) -> Float32
+
+One draw from the SVS uniform(0,1) stream (`svrann.f`): advances SVS0 via the Park–Miller LCG
+(16807 / 2^31-1) and returns SVS1/2^31. Independent of the main/establishment streams. Used only
+by the SVS object placement (SVGTPT rectangle draws, SVESTB lottery start).
+"""
+@inline function svrann!(r::FVSRng)::Float32
+    r.svs1 = _RANN_MULT * r.svs0 % _RANN_MOD
+    sel = Float32(r.svs1 / _SVS_DIV)
+    r.svs0 = r.svs1
+    return sel
+end
 
 """
     bachlo(r, xbar, stdev; stream=:main) -> Float32

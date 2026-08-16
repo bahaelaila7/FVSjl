@@ -461,6 +461,31 @@ function kw_rannseed!(s::StandState, rec::KeywordRecord)
 end
 
 """
+    kw_svs!(s, rec)
+
+SVS (base/svkey.f, SVKEY): request SVS-ready per-tree object output. Field 1 = plot geometry
+IPLGEM (0=square/ignore pts, 1=subdivided square, 2=round, 3=subdivided circle; out of range → 1),
+field 2 = ground-file grid resolution IGRID (0..256), field 6 = IMETRIC (0 imperial / 1 metric),
+field 7 present ⇒ JSVOUT=-1 (SVS runs but writes no files). Enabling SVS sets JSVOUT=90 in FVS;
+here `svs_on=true` marks that the cycle-0 picture (and later cycles) should be written. Chunk 0
+supports IPLGEM=0 only.
+"""
+function kw_svs!(s::StandState, rec::KeywordRecord)
+    c = s.control
+    iplgem = rec.present[1] ? trunc(Int, rec.values[1]) : 1     # IFIX(ARRAY(1))
+    (iplgem < 0 || iplgem > 3) && (iplgem = 1)
+    igrid = rec.present[2] ? trunc(Int, rec.values[2]) : 0      # INT(ARRAY(2))
+    igrid > 256 && (igrid = 256); igrid < 0 && (igrid = 0)
+    imetric = rec.present[6] ? trunc(Int, rec.values[6]) : 0    # IFIX(ARRAY(6))
+    imetric > 1 && (imetric = 1); imetric < 0 && (imetric = 0)
+    c.svs_iplgem  = Int32(iplgem)
+    c.svs_igrid   = Int32(igrid)
+    c.svs_imetric = Int32(imetric)
+    c.svs_on      = !rec.present[7]     # field 7 present ⇒ JSVOUT=-1 (no files); else JSVOUT=90 (on)
+    return
+end
+
+"""
     kw_sdimax!(s, rec)
 
 SDIMAX (initre.f:3072, option 89): override the maximum stand density index and the self-
@@ -2327,6 +2352,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BAMAX";    kw_bamax!(s, rec)         # max basal area → SDImax override (initre.f:6800)
         elseif kw == "SDIMAX";   kw_sdimax!(s, rec)        # per-species SDImax + PMSDIL/PMSDIU (initre.f:3072)
         elseif kw == "RANNSEED"; kw_rannseed!(s, rec)      # reseed the main RNG stream (initre.f:6300)
+        elseif kw == "SVS";      kw_svs!(s, rec)           # SVS visualization data path (svkey.f)
         elseif kw == "DGSTDEV";  kw_dgstdev!(s, rec)       # DGSD bound on stochastic DG variation (initre.f:5900)
         elseif kw == "NOCALIB";  kw_nocalib!(s, rec)       # disable DG self-calibration per species (initre.f:5800)
         elseif kw == "SERLCORR"; kw_serlcorr!(s, rec)      # ARMA(1,1) DGSCOR phi/theta (initre.f:9300)

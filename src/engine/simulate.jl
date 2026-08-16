@@ -746,6 +746,15 @@ function run_keyfile(keypath::AbstractString;
         notre!(s)
         setup_growth!(s)
         compute_volumes!(s)
+        # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
+        # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.
+        if s.control.svs_on
+            stem = isempty(s.control.svs_keystem) ?
+                   (isempty(keypath) ? "svs" :
+                    joinpath(dirname(keypath), first(splitext(basename(keypath))))) :
+                   s.control.svs_keystem
+            svs_write_cycle0_files(stem, s)
+        end
         sid = strip(s.plot.stand_id)
         mid = strip(s.plot.mgmt_id); mid = isempty(mid) ? "NONE" : String(mid)
         # DBS output (DATABASE block): collect this stand's summary rows and/or per-cycle tree

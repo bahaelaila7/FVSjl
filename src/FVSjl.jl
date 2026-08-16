@@ -391,6 +391,7 @@ include("engine/econ.jl")                # C8 — ECON economic-analysis core (e
 include("io/summary.jl")
 include("io/dbs_output.jl")
 include("engine/simulate.jl")
+include("engine/svs.jl")                 # SVS (Stand Visualization System) data path — chunk 0
 
 # --- more engine, extensions, cli are added in later chunks -----------------
 # include("engine/...")    # C2–C5
