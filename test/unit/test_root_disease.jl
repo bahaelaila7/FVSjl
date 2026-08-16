@@ -186,4 +186,56 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
             @test got === Float32(exp)
         end
     end
+
+    # -------------------------------------------------------------------------
+    # Chunk 0b-1 — disease-center placement (rd/rdcloc.f + rd/rdarea.f). Golden
+    # PCENTS/PAREA captured from the LIVE relinked FVSkt oracle (single-.o swap of
+    # rdcloc/rdarea dumping PCENTS after placement and PAREA after the grid-area
+    # match; the instrumented .sum was byte-identical to FVSkt_clean). Dominant-
+    # signal keyfile: RDin/RRType 2 (S-annosus)/RRInit 0 20 300 300 1.0 100 2/SArea
+    # 100, seed 889347. All 20 centers + PAREA reproduced bit-exact.
+    # -------------------------------------------------------------------------
+    @testset "RD center placement (rdcloc/rdarea) — bit-exact vs live FVSkt" begin
+        rd = FVSjl.RootDiseaseState()
+        rd.minrr = Int32(2); rd.maxrr = Int32(2)     # S-annosus only
+        rd.ncents[2] = Int32(20)
+        rd.parea[2]  = 100.0f0
+        rd.ipcflg[2] = Int32(0)                      # random centers
+        rd.lonect[2] = Int32(0)
+        rd.sarea = 100.0f0
+        FVSjl.rd_rani!(rd, 889347.0)                 # placement is the first RD-stream consumer
+        FVSjl.rd_place_centers!(rd, true)            # LSTART init placement
+
+        # (x, y) of all 20 centers, straight from the oracle PCENTS dump.
+        xy = [
+            (2004.267211914062, 1538.686157226562),
+            ( 681.3599853515625, 248.0936431884766),
+            (1122.115234375000, 1258.004516601562),
+            (1442.703369140625,  748.8413085937500),
+            ( 187.6241149902344, 2028.444458007812),
+            (2049.195068359375, 1148.000610351562),
+            ( 727.5288085937500, 1931.427978515625),
+            ( 798.1463623046875, 1296.653808593750),
+            ( 262.4423828125000, 1037.846435546875),
+            ( 470.4659729003906, 1565.640991210938),
+            (1903.835449218750, 1966.276367187500),
+            ( 626.0647583007812, 1703.881835937500),
+            (1977.244140625000,  240.7441101074219),
+            (1673.016357421875,  235.7854003906250),
+            (1702.945556640625,  288.0748291015625),
+            (2036.563476562500, 1721.330932617188),
+            ( 536.5933227539062,  596.2082519531250),
+            (2071.151855468750,  778.6830444335938),
+            (1288.900634765625, 1580.191650390625),
+            (1161.100952148438, 1173.102539062500),
+        ]
+        for (i, (x, y)) in enumerate(xy)
+            @test rd.pcents[2, i, 1] === Float32(x)
+            @test rd.pcents[2, i, 2] === Float32(y)
+        end
+        # rdarea grew every radius to hit the target area; final PAREA/OOAREA match.
+        @test rd.pcents[2, 1, 3] === 525.50903f0     # grown radius (init 263.289)
+        @test rd.parea[2]  === 99.022224f0           # SAREA·IN/75²
+        @test rd.ooarea[2] === 99.022224f0
+    end
 end

@@ -96,6 +96,13 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     rd_oldprp::Float32        # last PROPIN (skips CDF rebuild when unchanged)
     rd_cdf::Vector{Float32}   # cumulative distribution buffer (size 1001 in FVS)
 
+    # ---- disease-center geometry (rd/RDCOM.F77 PCENTS/IRRSP; rd/rdcloc.f, rd/rdarea.f) ----
+    irrsp::Int32                     # current disease type being placed (rdsetp DO-600 loop)
+    pcents::Array{Float32,3}         # PCENTS(ITOTRR,100,3): (x,y,radius) ft, per center
+    yincpt::Float32                  # SDI→roots effect intercept (rdsetp; 1.0 when SDISLP=0)
+    sdislp::Float32                  # SDI slope (default 0 ⇒ YINCPT=1)
+    sdnorm::Float32                  # SDI normal (default 0)
+
     RootDiseaseState() = rd_init_defaults!(new())
 end
 
@@ -144,6 +151,12 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.rd_oldprp = -1.0f0                                # forces first CDF build
     rd.rd_cdf = Float32[]
     rd_rani!(rd, rd.dseed)                               # seed the RD stream (rd/rdrani.f)
+
+    rd.irrsp  = Int32(0)
+    rd.pcents = zeros(Float32, RD_ITOTRR, 100, 3)
+    rd.yincpt = 1.0f0
+    rd.sdislp = 0.0f0
+    rd.sdnorm = 0.0f0
     return rd
 end
 
@@ -259,6 +272,176 @@ end
 function rd_ranp_from(rd::RootDiseaseState, prop::Real, rannum::Real)
     intnum, lrev = _rd_ranp_setup!(rd, prop)
     return _rd_ranp_walk(rd.rd_cdf, intnum, lrev, Float32(rannum))
+end
+
+# -----------------------------------------------------------------------------
+# RD disease-center placement (rd/rdcloc.f) + patch-area grid sampling (rd/rdarea.f).
+# rdcloc lays NCENTS non-overlapping circles at random (RD-stream) locations; rdarea
+# grids them on a 75×75 mesh and, during LSTART, grows the radii to match the target
+# input area. Validated bit-exact vs the live FVSkt oracle (dominant-signal keyfile,
+# S-annosus, 20 centers): all 20 PCENTS (x,y,radius) and PAREA/OOAREA at LSTART.
+# -----------------------------------------------------------------------------
+
+"""
+    rd_cloc!(rd)
+
+Port of rd/rdcloc.f: place `NCENTS[IRRSP]` disease centers. LONECT==1 ⇒ a single stand-
+covering center (deterministic). Otherwise each center gets radius
+`sqrt(PAREA/(3.14159·NCENTS))·208.7` and a random (x,y) = `RDRANN·DIMEN`, rejected (≤20
+tries) if it overlaps a prior center's x- or y-extent. Advances the RD stream.
+"""
+function rd_cloc!(rd::RootDiseaseState)
+    irrsp = Int(rd.irrsp)
+    nc    = Int(rd.ncents[irrsp])
+    dimen = sqrt(rd.sarea) * 208.7f0
+    rd.dimen = dimen
+    P = rd.pcents
+    if rd.lonect[irrsp] == 1
+        P[irrsp,1,3] = dimen
+        P[irrsp,1,1] = 0.5f0 * dimen
+        P[irrsp,1,2] = 0.5f0 * dimen
+        return rd
+    end
+    ax1 = zeros(Float32, nc); ax2 = zeros(Float32, nc)
+    ay1 = zeros(Float32, nc); ay2 = zeros(Float32, nc)
+    r0  = sqrt(rd.parea[irrsp] / (3.14159f0 * nc)) * 208.7f0
+    ii = 1
+    @inbounds while ii <= nc
+        P[irrsp,ii,3] = r0
+        ntry = 0
+        while true                                   # rdcloc.f label 101
+            ntry += 1
+            ntry > 20 && break                       # abandon center (GOTO 100)
+            P[irrsp,ii,1] = rd_rann!(rd) * dimen
+            P[irrsp,ii,2] = rd_rann!(rd) * dimen
+            x = P[irrsp,ii,1]; y = P[irrsp,ii,2]; r = P[irrsp,ii,3]
+            ax2[ii] = x + r; ax1[ii] = x - r
+            ay2[ii] = y + r; ay1[ii] = y - r
+            ii == 1 && break                         # first center: accept (GOTO 100)
+            overlap = false
+            for jj in 1:ii-1
+                if (x < ax2[jj] && x > ax1[jj]) || (y < ay2[jj] && y > ay1[jj])
+                    overlap = true; break            # GOTO 101 (retry)
+                end
+            end
+            overlap || break                         # accepted
+        end
+        ii += 1
+    end
+    return rd
+end
+
+"""
+    rd_area!(rd, lstart) -> Float32
+
+Port of rd/rdarea.f: grid-sample the `NCENTS[IRRSP]` circles on a 75×75 mesh and set
+`PAREA[IRRSP] = SAREA·(IN/75²)`. During `lstart` (and unless PAREA==−1, user-supplied
+centers) iteratively grow every radius toward the input-area target within `TOLER`
+(≤25 passes). Sets `OOAREA[IRRSP]` when `lstart`. Uses Fortran IFIX truncation.
+"""
+function rd_area!(rd::RootDiseaseState, lstart::Bool)
+    irrsp = Int(rd.irrsp)
+    nc    = Int(rd.ncents[irrsp])
+    P     = rd.pcents
+    igrid = 75
+    toler = 0.01f0
+    itrn1(v, s) = trunc(Int, (v * s) + 0.5f0)        # rdarea.f ITRN1 = IFIX(r*s+0.5)
+    itrn0(v, s) = trunc(Int, (v * s) - 0.3f0)        # rdarea.f ITRN0 = IFIX(r*s-0.3)
+    if nc <= 0
+        rd.parea[irrsp] = 0.0f0
+        return 0.0f0
+    end
+    areai = rd.parea[irrsp]
+    artem = areai
+    ntry  = 0
+    arcal = 0.0f0
+    lmem  = falses(igrid, igrid)
+    while true                                        # rdarea.f label 6
+        fill!(lmem, false)
+        scl = Float32(igrid) / sqrt(rd.sarea * 43560.0f0)
+        @inbounds for ipat in 1:nc
+            cx = P[irrsp,ipat,1]; cy = P[irrsp,ipat,2]; cr = P[irrsp,ipat,3]
+            ixc = itrn1(cx, scl); iyc = itrn1(cy, scl)
+            ix1 = itrn0(cx - cr, scl); ix2 = itrn1(cx + cr, scl)
+            iy1 = itrn0(cy - cr, scl); iy2 = itrn1(cy + cr, scl)
+            if !(iyc <= 0 || iyc > igrid)
+                for ix in ix1:ix2
+                    (ix > 0 && ix <= igrid) && (lmem[ix, iyc] = true)
+                end
+            end
+            if !(ixc <= 0 || ixc > igrid)
+                for iyy in iy1:iy2
+                    (iyy > 0 && iyy <= igrid) && (lmem[ixc, iyy] = true)
+                end
+            end
+            ix1b = ixc + 1; ix3 = ix2 - 1
+            if ix1b <= ix2
+                for ix in ix1b:ix3
+                    ixx = ixc + ixc - ix
+                    x = Float32(ix - ixc) / scl
+                    x > cr && continue
+                    y2 = sqrt((cr * cr) - (x * x))
+                    iy2b = iyc + itrn0(y2, scl)
+                    iy1b = iyc - itrn1(y2, scl)
+                    iy1b <= 0 && (iy1b = 1)
+                    iy1b > iy2b && continue
+                    for iyr in iy1b:iy2b
+                        iyr > igrid && continue
+                        (ix  >= 1 && ix  <= igrid) && (lmem[ix,  iyr] = true)
+                        (ixx >= 1 && ixx <= igrid) && (lmem[ixx, iyr] = true)
+                    end
+                end
+            end
+        end
+        IN = count(lmem)
+        arcal = rd.sarea * (Float32(IN) / Float32(igrid * igrid))
+        lstart || break
+        rd.parea[irrsp] == -1.0f0 && break            # user centers: no target
+        perdif = (areai - arcal) / areai
+        delta  = artem - arcal
+        (abs(perdif) <= toler || abs(delta) < toler) && break
+        artar = artem + artem * perdif                # ARINC=ARTEM·PERDIF; ARTAR=ARTEM+ARINC
+        artem = artar
+        artar = artar * 43560.0f0 / Float32(nc)
+        rnurad = sqrt(artar / 3.14159f0)
+        @inbounds for k in 1:nc
+            P[irrsp,k,3] = rnurad
+        end
+        ntry += 1
+        ntry > 25 && break
+    end
+    rd.parea[irrsp] = arcal
+    lstart && (rd.ooarea[irrsp] = arcal)
+    return arcal
+end
+
+"""
+    rd_place_centers!(rd, lstart)
+
+Port of the rd/rdsetp.f disease-area section (DO-600 loop): set DIMEN and YINCPT, then
+for each active disease place its centers (rd_cloc!) and compute its patch area
+(rd_area!). Manual-RRINIT / random-center path (IPCFLG==0); PLOTINF sub-plot init is a
+later chunk. Populates `rd.pcents`, `rd.parea`, `rd.ooarea`.
+"""
+function rd_place_centers!(rd::RootDiseaseState, lstart::Bool)
+    rd.yincpt = (rd.sdislp == 0.0f0 || rd.sdnorm == 0.0f0) ?
+                1.0f0 : 1.0f0 - (rd.sdnorm * rd.sdislp)
+    rd.dimen = rd.sarea != 0.0f0 ? sqrt(rd.sarea) * 208.7f0 : 0.0f0
+    @inbounds for idi in Int(rd.minrr):Int(rd.maxrr)
+        rd.irrsp = Int32(idi)
+        if rd.ipcflg[idi] == 1
+            rd_area!(rd, lstart)                      # user-assigned centers
+        elseif rd.parea[idi] > 0.0f0
+            rd_cloc!(rd); rd_area!(rd, lstart)
+        else
+            # rdsetp.f:174  PAREA = SAREA·NDPLTS/PI. Manual-RRINIT init has no diseased
+            # sub-plots (IRDPLT all 0 ⇒ NDPLTS=0 ⇒ PAREA=0); the PLOTINF sub-plot path
+            # that sets NDPLTS>0 is a later chunk.
+            rd.parea[idi] = 0.0f0
+            rd_cloc!(rd)
+        end
+    end
+    return rd
 end
 
 """
