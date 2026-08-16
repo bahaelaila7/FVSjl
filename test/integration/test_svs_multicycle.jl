@@ -95,5 +95,32 @@ end
           read(joinpath(_SVSMC_DIR, "kt2c_index.svs.oracle"), String)
     # _002 "Beginning of cycle" (2000) — SVS structure bit-exact; same 2 tripled-upper residuals.
     _svs_assert_picture(stem2 * "_002.svs", joinpath(_SVSMC_DIR, "kt2c_002.svs.oracle"))
-    # (_003 end-of-projection after 2 cycles needs mortality→dead-object handling — next chunk.)
+
+    # --- _003 "End of projection" (2010): SVS mortality→snag #2 (svmort/svrmov/svsnad seam) ---
+    # The cycle-2 SVMORT removes the tripled-upper WL object (rec8) and converts it to a standing
+    # snag (SVSNAD). The SVS DATA PATH is bit-exact — object count/order, species, tree# (incl. the
+    # snag's IDEAD=1), tree CLASS (0 live / 98 red standing dead), DBH, and (x,y) — while displayed
+    # HT/CR are the pre-existing tripled-record growth residual (accumulated over 2 cycles, ≤2 ft),
+    # the same residual already cornered in _002. The RNG stream is byte-synced at the SVMORT seam
+    # (svrann draws #17/#18/#19 = 0.4955/0.1365/0.2479, verified vs the live oracle).
+    ghdr, grecs = _svs_parse(stem2 * "_003.svs")
+    ohdr, orecs = _svs_parse(joinpath(_SVSMC_DIR, "kt2c_003.svs.oracle"))
+    @test ghdr == ohdr
+    @test length(grecs) == length(orecs) == 8
+    _fld_cls(r) = r[3]                                   # tree class: [3] (0 live, 98 red snag)
+    for (g, o) in zip(grecs, orecs)
+        @test _fld_sp(g)   == _fld_sp(o)                 # species (WL snag included)
+        @test _fld_tr(g)   == _fld_tr(o)                 # tree# = IS2F (snag ⇒ IDEAD=1)
+        @test _fld_cls(g)  == _fld_cls(o)                # tree class (0 / 98) — the snag marker
+        @test _fld_dbh(g)  == _fld_dbh(o)                # DBH bit-exact (snag ODIA=10.1)
+        @test _fld_xloc(g) == _fld_xloc(o)               # xloc bit-exact
+        @test _fld_yloc(g) == _fld_yloc(o)               # yloc bit-exact
+        @test abs(_fld_ht(g) - _fld_ht(o)) <= 2.0        # HT cornered: tripled-upper residual (2 cyc)
+        @test abs(_fld_cr(g) - _fld_cr(o)) <= 0.021      # crown-ratio cornered
+    end
+    # The one snag object: WL, tree#=1 (IDEAD), class 98 (red standing dead), at rec8's (x,y).
+    snag = only(filter(r -> _fld_cls(r) == "98", grecs))
+    @test _fld_sp(snag) == "WL" && _fld_tr(snag) == "1"
+    @test _fld_xloc(snag) == "201.15" && _fld_yloc(snag) == "181.52"
+    @test _fld_dbh(snag) == "10.1"
 end
