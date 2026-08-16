@@ -99,9 +99,22 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     # ---- disease-center geometry (rd/RDCOM.F77 PCENTS/IRRSP; rd/rdcloc.f, rd/rdarea.f) ----
     irrsp::Int32                     # current disease type being placed (rdsetp DO-600 loop)
     pcents::Array{Float32,3}         # PCENTS(ITOTRR,100,3): (x,y,radius) ft, per center
-    yincpt::Float32                  # SDI→roots effect intercept (rdsetp; 1.0 when SDISLP=0)
-    sdislp::Float32                  # SDI slope (default 0 ⇒ YINCPT=1)
-    sdnorm::Float32                  # SDI normal (default 0)
+    yincpt::Float32                  # SDI→roots effect intercept (rdsetp)
+    sdislp::Float32                  # SDI slope (rdinit −0.0033)
+    sdnorm::Float32                  # SDI normal (rdinit 369.0)
+
+    # ---- host-species crosswalk + per-disease density normalizer (rd/rdsetp.f) ----
+    irtspc::Vector{Int32}     # host-species → base-RD-species crosswalk (rdblk1.f IRTSPC)
+    rrgen1::Vector{Float32}   # RRGEN(idi,1): infected+uninfected density → normalized to 1
+
+    # ---- per-record initial-infection state (rd/rdsetp.f tree loop) ----
+    #   Sized to the tree list at rd_setp!; the reduced RRINIT manual-init path.
+    probi::Vector{Float32}    # PROBI(I,1,1)  infected TPA inside patches
+    probiu::Vector{Float32}   # PROBIU(I)     uninfected TPA inside patches
+    fprob::Vector{Float32}    # FPROB(I)      TPA outside patches
+    propi::Vector{Float32}    # PROPI(I,1,1)  proportion of roots infected (RDRANP draw)
+    probl::Vector{Float32}    # PROBL(I) = PROB(I)
+    propn::Vector{Float32}    # PROPN(I)      per-record infected proportion (rdiprp)
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -155,8 +168,17 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.irrsp  = Int32(0)
     rd.pcents = zeros(Float32, RD_ITOTRR, 100, 3)
     rd.yincpt = 1.0f0
-    rd.sdislp = 0.0f0
-    rd.sdnorm = 0.0f0
+    rd.sdislp = -0.0033f0                                # rd/rdinit.f SDISLP = -0.0033
+    rd.sdnorm = 369.0f0                                  # rd/rdinit.f SDNORM = 369.0
+
+    rd.irtspc = copy(RD_IRTSPC_KT)                       # rdblk1.f IRTSPC (NI/CI/KT base crosswalk)
+    rd.rrgen1 = zeros(Float32, n)                        # rdinit RRGEN(IDI,1) = 0
+    rd.probi  = Float32[]
+    rd.probiu = Float32[]
+    rd.fprob  = Float32[]
+    rd.propi  = Float32[]
+    rd.probl  = Float32[]
+    rd.propn  = Float32[]
     return rd
 end
 
@@ -454,6 +476,252 @@ rd_active(rd::RootDiseaseState) = rd.rrtinv || rd.rrman
 rd_active(::Nothing) = false
 
 # -----------------------------------------------------------------------------
+# Host-species coefficient tables (rd/rdinit.f DATA blocks TEMP4/TEMP6/TEMP7,
+# ITEMP2; rd/rdblk1.f IRTSPC). Variant-GENERIC base RD tables (NI/CI/KT share the
+# base IRTSPC). Stored column-major exactly as the Fortran DATA order (KSP fastest),
+# so `reshape` reproduces the Fortran (KSP,IDI,IHAB) indexing directly.
+#   HABFAC(ksp,idi,ihab) — relative time-to-death           (TEMP4, 40×4×2)
+#   PNINF(ksp,idi)       — probability of infection         (TEMP7, 40×4)
+#   PKILLS(ksp,idi)      — proportion roots infected at death(TEMP6, 40×4; RRTREIN path)
+#   IDITYP(ksp)          — annosus host type 0/1/2           (ITEMP2, 40)
+#   IRTSPC_KT            — KT host-species → base-RD-species  (rdblk1.f)
+# -----------------------------------------------------------------------------
+const RD_HABFAC_FLAT = Float32[1.0f0, 1.0f0, 1.0f0, 1.5f0, 1.75f0, 1.0f0, 1.5f0, 1.0f0, 1.5f0, 0.5f0, 1.75f0, 1.0f0, 1.5f0, 1.75f0, 1.5f0, 1.5f0, 1.5f0, 1.0f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 99.0f0, 1.0f0, 0.5f0, 1.0f0, 1.75f0, 99.0f0, 1.0f0, 0.5f0, 99.0f0, 1.0f0, 1.5f0, 2.0f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.5f0, 1.75f0, 1.0f0, 1.5f0, 1.0f0, 1.5f0, 0.5f0, 1.75f0, 1.0f0, 1.5f0, 1.75f0, 1.5f0, 1.5f0, 1.5f0, 1.0f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 99.0f0, 1.0f0, 0.5f0, 1.0f0, 1.75f0, 99.0f0, 1.0f0, 0.5f0, 99.0f0, 1.0f0, 1.5f0, 2.0f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 99.0f0, 1.8f0, 2.0f0, 1.0f0, 0.75f0, 0.9f0, 1.2f0, 1.8f0, 1.1f0, 0.75f0, 1.8f0, 0.9f0, 1.8f0, 0.75f0, 0.9f0, 0.75f0, 0.75f0, 1.8f0, 0.9f0, 0.9f0, 1.1f0, 0.75f0, 1.8f0, 1.8f0, 0.9f0, 1.1f0, 0.9f0, 0.75f0, 0.9f0, 0.9f0, 0.9f0, 1.8f0, 0.9f0, 0.9f0, 0.2f0, 10.0f0, 1.1f0, 10.0f0, 0.2f0, 0.75f0, 99.0f0, 3.0f0, 1.5f0, 1.0f0, 1.0f0, 1.5f0, 10.0f0, 3.0f0, 1.1f0, 1.0f0, 3.0f0, 1.5f0, 3.0f0, 1.0f0, 1.5f0, 1.0f0, 1.0f0, 3.0f0, 1.5f0, 1.5f0, 1.1f0, 1.0f0, 3.0f0, 3.0f0, 1.5f0, 1.1f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 1.5f0, 3.0f0, 1.5f0, 1.5f0, 10.0f0, 10.0f0, 1.5f0, 10.0f0, 10.0f0, 1.0f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.5f0, 1.75f0, 1.0f0, 1.5f0, 1.0f0, 1.5f0, 0.5f0, 1.75f0, 1.0f0, 1.5f0, 1.75f0, 1.5f0, 1.5f0, 1.5f0, 1.0f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 99.0f0, 1.0f0, 0.5f0, 1.0f0, 1.75f0, 99.0f0, 1.0f0, 0.5f0, 99.0f0, 1.0f0, 1.5f0, 2.0f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.5f0, 1.75f0, 1.0f0, 1.5f0, 1.0f0, 1.5f0, 0.5f0, 1.75f0, 1.0f0, 1.5f0, 1.75f0, 1.5f0, 1.5f0, 1.5f0, 1.0f0, 99.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 99.0f0, 1.0f0, 0.5f0, 1.0f0, 1.75f0, 99.0f0, 1.0f0, 0.5f0, 99.0f0, 1.0f0, 1.5f0, 2.0f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 99.0f0, 1.8f0, 2.0f0, 1.0f0, 0.75f0, 0.9f0, 1.2f0, 1.8f0, 1.1f0, 0.75f0, 1.8f0, 0.9f0, 1.8f0, 0.75f0, 0.9f0, 0.75f0, 0.75f0, 1.8f0, 0.9f0, 0.9f0, 1.1f0, 0.75f0, 1.8f0, 1.8f0, 0.9f0, 1.1f0, 0.9f0, 0.75f0, 0.9f0, 0.9f0, 0.9f0, 1.8f0, 0.9f0, 0.9f0, 0.2f0, 10.0f0, 1.1f0, 10.0f0, 0.2f0, 0.75f0, 99.0f0, 3.0f0, 1.5f0, 1.0f0, 1.0f0, 1.5f0, 10.0f0, 3.0f0, 1.1f0, 1.0f0, 3.0f0, 1.5f0, 3.0f0, 1.0f0, 1.5f0, 1.0f0, 1.0f0, 3.0f0, 1.5f0, 1.5f0, 1.1f0, 1.0f0, 3.0f0, 3.0f0, 1.5f0, 1.1f0, 1.5f0, 1.0f0, 1.5f0, 1.5f0, 1.5f0, 3.0f0, 1.5f0, 1.5f0, 10.0f0, 10.0f0, 1.5f0, 10.0f0, 10.0f0, 1.0f0, 99.0f0]
+const RD_PNINF_FLAT = Float32[0.4f0, 0.4f0, 0.4f0, 0.5f0, 0.5f0, 0.0f0, 0.4f0, 0.4f0, 0.5f0, 0.5f0, 0.5f0, 0.4f0, 0.5f0, 0.5f0, 0.5f0, 0.5f0, 0.5f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0, 0.4f0, 0.0f0, 0.0f0, 0.4f0, 0.4f0, 0.45f0, 0.5f0, 0.0f0, 0.0f0, 0.5f0, 0.0f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.0f0, 0.4f0, 0.4f0, 0.4f0, 0.5f0, 0.5f0, 0.0f0, 0.4f0, 0.4f0, 0.5f0, 0.5f0, 0.5f0, 0.4f0, 0.5f0, 0.5f0, 0.5f0, 0.5f0, 0.5f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0, 0.4f0, 0.0f0, 0.0f0, 0.0f0, 0.4f0, 0.45f0, 0.5f0, 0.0f0, 0.0f0, 0.5f0, 0.0f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.0f0, 0.1f0, 0.05f0, 0.5f0, 0.6f0, 0.1f0, 0.1f0, 0.2f0, 0.5f0, 0.5f0, 0.2f0, 0.1f0, 0.1f0, 0.6f0, 0.1f0, 0.5f0, 0.6f0, 0.1f0, 0.1f0, 0.1f0, 0.5f0, 0.6f0, 0.1f0, 0.1f0, 0.1f0, 0.5f0, 0.1f0, 0.6f0, 0.1f0, 0.1f0, 0.1f0, 0.2f0, 0.1f0, 0.1f0, 0.1f0, 0.1f0, 0.1f0, 0.1f0, 0.1f0, 0.4f0, 0.0f0, 0.1f0, 0.2f0, 0.4f0, 0.4f0, 0.2f0, 0.02f0, 0.1f0, 0.2f0, 0.4f0, 0.1f0, 0.4f0, 0.1f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.1f0, 0.4f0, 0.4f0, 0.2f0, 0.4f0, 0.1f0, 0.1f0, 0.4f0, 0.2f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.4f0, 0.1f0, 0.4f0, 0.4f0, 0.02f0, 0.02f0, 0.4f0, 0.1f0, 0.02f0, 0.4f0, 0.0f0]
+const RD_PKILLS_FLAT = Float32[0.6f0, 0.9f0, 0.9f0, 0.8f0, 0.8f0, 1.0f0, 0.5f0, 0.9f0, 0.8f0, 0.5f0, 0.8f0, 0.6f0, 0.8f0, 0.9f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.6f0, 1.0f0, 0.0f0, 0.9f0, 0.5f0, 0.75f0, 0.9f0, 0.0f0, 1.0f0, 0.5f0, 0.0f0, 0.7f0, 0.8f0, 0.8f0, 0.8f0, 0.7f0, 0.8f0, 0.8f0, 1.0f0, 0.6f0, 0.9f0, 0.9f0, 0.8f0, 0.8f0, 1.0f0, 0.5f0, 0.9f0, 0.8f0, 0.5f0, 0.8f0, 0.6f0, 0.8f0, 0.9f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.6f0, 1.0f0, 0.0f0, 0.9f0, 0.5f0, 0.75f0, 0.9f0, 0.0f0, 1.0f0, 0.5f0, 0.0f0, 0.7f0, 0.8f0, 0.8f0, 0.8f0, 0.7f0, 0.8f0, 0.8f0, 1.0f0, 0.3f0, 1.0f0, 0.8f0, 0.8f0, 0.8f0, 0.75f0, 0.3f0, 0.75f0, 0.8f0, 0.3f0, 0.8f0, 0.3f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.3f0, 0.8f0, 0.8f0, 0.75f0, 0.8f0, 0.3f0, 0.3f0, 0.8f0, 0.75f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.85f0, 0.75f0, 0.8f0, 0.6f0, 0.8f0, 0.85f0, 0.85f0, 0.65f0, 0.6f0, 0.85f0, 0.8f0, 0.85f0, 0.6f0, 0.8f0, 0.6f0, 0.6f0, 0.85f0, 0.8f0, 0.8f0, 0.65f0, 0.6f0, 0.85f0, 0.85f0, 0.8f0, 0.65f0, 0.8f0, 0.6f0, 0.8f0, 0.8f0, 0.8f0, 0.85f0, 0.8f0, 0.8f0, 0.85f0, 0.85f0, 0.8f0, 0.85f0, 0.85f0, 0.6f0, 1.0f0]
+const RD_IDITYP = Int32[1, 2, 2, 2, 2, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 2, 1, 0, 0, 2, 1, 1, 1, 0, 2, 1, 1, 2, 0, 1, 1, 0, 1, 2, 2, 2, 1, 1, 2, 0]
+const RD_IRTSPC_KT = Int32[1,2,3,4,5,6,7,8,9,10,30]
+const RD_HABFAC = reshape(RD_HABFAC_FLAT, RD_ITOTSP, RD_ITOTRR, 2)   # HABFAC(ksp,idi,ihab)
+const RD_PNINF  = reshape(RD_PNINF_FLAT,  RD_ITOTSP, RD_ITOTRR)      # PNINF(ksp,idi)
+const RD_PKILLS = reshape(RD_PKILLS_FLAT, RD_ITOTSP, RD_ITOTRR)      # PKILLS(ksp,idi)
+# RRPSWT (rd/rdinit.f) defaults to 1.0 for every species; only the RRPSWT keyword
+# (not in the chunk-0b-2 turnkey path) changes it, so the const default is faithful here.
+const RD_RRPSWT = ones(Float32, RD_ITOTSP)
+
+"""
+    rd_slp(x, xx, yy, n) -> Float32
+
+Port of rd/rdslp.f: piecewise-linear interpolation of `x` on the knot series
+`(xx, yy)` (xx strictly increasing, `n` active knots). Clamped to the end values.
+"""
+function rd_slp(x::Float32, xx, yy, n::Int)
+    x < xx[1] && return Float32(yy[1])
+    x > xx[n] && return Float32(yy[n])
+    i = 1
+    @inbounds while x > xx[i+1]
+        i += 1
+    end
+    @inbounds return yy[i] + (yy[i+1] - yy[i]) / (xx[i+1] - xx[i]) * (x - xx[i])
+end
+
+"""
+    rd_iprp!(rd, s, noplot, pran)
+
+Port of rd/rdiprp.f: compute the per-record infected proportion `PROPN` for the
+manual-RRINIT init (NOPLOT=0). Distributes `PRAN[idi]·TOTREE` infected trees over
+the host species by their relative value (PNINF × average years-to-kill), capping
+each species at proportion 1.0 and redistributing the overflow (labels 1750–1900).
+All arithmetic in Float32 (matches the FVS REAL path). Writes `rd.propn` (size ITRN).
+"""
+function rd_iprp!(rd::RootDiseaseState, s::StandState, noplot::Int, pran::Vector{Float32})
+    t   = s.trees
+    nsp = nspecies(s.variant)
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr)
+    irt = rd.irtspc; ihab = Int(rd.irhab)
+    xxinf = rd.xxinf; yyinf = rd.yyinf; nninf = Int(rd.nninf)
+
+    totval = zeros(Float32, RD_ITOTRR); totinf = zeros(Float32, RD_ITOTRR)
+    totree = zeros(Float32, RD_ITOTRR); inumsp = zeros(Int, RD_ITOTRR)
+    sstval = zeros(Float32, RD_ITOTRR); numful = zeros(Int, RD_ITOTRR)
+    yessp  = falses(nsp); full = falses(nsp)
+    totsp  = zeros(Float32, nsp); totytk = zeros(Float32, nsp)
+    treeno = zeros(Float32, nsp); relval = zeros(Float32, nsp); tmpprp = zeros(Float32, nsp)
+
+    # DO 1500 — totals by species (ITRN = t.n; no recently-dead at LSTART init).
+    idi = maxrr
+    @inbounds for i in 1:t.n
+        # IDPLOT(I)=0 for the turnkey manual path ⇒ ((IDPLOT==NOPLOT) .OR. (NOPLOT==0)) true
+        ((0 == noplot) || (noplot == 0)) || continue
+        t.species[i] == 0 && continue
+        ksp = Int(t.species[i])
+        maxrr < 3 && (idi = Int(RD_IDITYP[irt[ksp]]))
+        idi <= 0 && continue
+        totnum = t.tpa[i] * rd.parea[idi]
+        totsp[ksp] += totnum
+        habsp = RD_HABFAC[irt[ksp], idi, ihab]
+        ytk = rd_slp(t.dbh[i], xxinf, yyinf, nninf)
+        if ytk > rd.xminkl[idi]
+            ytk = (ytk - rd.xminkl[idi]) * habsp * RD_RRPSWT[irt[ksp]] + rd.xminkl[idi]
+        end
+        totytk[ksp] += ytk * totnum
+        (!yessp[ksp] && totsp[ksp] > 0.0f0) && (yessp[ksp] = true)
+    end
+
+    # DO 1600 — relative value + per-disease totals.
+    idi = maxrr
+    @inbounds for ksp in 1:nsp
+        totsp[ksp] > 0.0f0 || continue
+        maxrr < 3 && (idi = Int(RD_IDITYP[irt[ksp]]))
+        idi <= 0 && continue
+        avgytk = totytk[ksp] / totsp[ksp]
+        relval[ksp] = RD_PNINF[irt[ksp], idi] * avgytk
+        totval[idi] += relval[ksp]
+        totree[idi] += totsp[ksp]
+        yessp[ksp] && (inumsp[idi] += 1)
+    end
+
+    # DO 1699 — TOTINF target + SSTVAL normalizer.
+    @inbounds for id2 in minrr:maxrr
+        totinf[id2] = pran[id2] * totree[id2]
+        for ksp in 1:nsp
+            totval[id2] > 0.0f0 && (sstval[id2] += relval[ksp] * totsp[ksp] / totval[id2])
+        end
+    end
+
+    # DO 1700 — trees-to-infect by species.
+    idi = maxrr
+    @inbounds for ksp in 1:nsp
+        maxrr < 3 && (idi = Int(RD_IDITYP[irt[ksp]]))
+        idi <= 0 && continue
+        if totsp[ksp] > 0.0f0 && totval[idi] > 0.0f0 && sstval[idi] > 0.0f0
+            treeno[ksp] = totinf[idi] * totsp[ksp] * relval[ksp] / sstval[idi] / totval[idi]
+        end
+    end
+
+    # DO 1900 with the 1750 redistribution restart (GOTO 1750 restarts the whole
+    # MINRR..MAXRR loop, carrying OVER; OVER is zeroed at each 1850 exit).
+    over = 0.0f0
+    restart = true
+    @inbounds while restart
+        restart = false
+        for irrsp in minrr:maxrr
+            if inumsp[irrsp] > numful[irrsp]
+                addon = over / Float32(inumsp[irrsp] - numful[irrsp]); over = 0.0f0
+                idi3 = irrsp
+                for ksp in 1:nsp
+                    irrsp < 3 && (idi3 = Int(RD_IDITYP[irt[ksp]]))
+                    idi3 != irrsp && continue
+                    if yessp[ksp] && !full[ksp]
+                        treeno[ksp] += addon
+                        tmpprp[ksp] = treeno[ksp] / totsp[ksp]
+                        if tmpprp[ksp] > 1.0f0
+                            tmpprp[ksp] = 1.0f0; full[ksp] = true; numful[irrsp] += 1
+                            over += treeno[ksp] - totsp[ksp]
+                        end
+                    end
+                end
+                if numful[irrsp] != inumsp[irrsp] && over > 0.0f0 && numful[irrsp] < inumsp[irrsp]
+                    restart = true; break          # GOTO 1750
+                end
+            end
+            over = 0.0f0                            # 1850 CONTINUE
+        end
+    end
+
+    # DO 2000 — PROPN by record from the species proportion.
+    resize!(rd.propn, t.n); fill!(rd.propn, 0.0f0)
+    @inbounds for ii in 1:t.n
+        ((0 == noplot) || (noplot == 0)) || continue
+        ksp = Int(t.species[ii])
+        ksp == 0 && continue
+        rd.propn[ii] = tmpprp[ksp]
+    end
+    return rd
+end
+
+"""
+    rd_inoc!(rd, s, licall)
+
+Port of rd/rdinoc.f: decompose infected root systems in the dead-tree/stump list.
+At LSTART init (`licall=true`) FVS decays any stumps carried in from a treelist/STREAD
+init. In the chunk-0b-2 manual-RRINIT turnkey there are NO initialized stumps (the
+PROBDA/DBHDA stump-decay arrays are all zero), so every guarded branch is skipped and
+this is a verified no-op that does not touch PROBI/PROBIU/FPROB/PROPI. The full
+stump-decay body activates once stumps exist (RRTREIN treelist-init / per-cycle
+mortality) — a later chunk. See the port report for the validated boundary.
+"""
+function rd_inoc!(::RootDiseaseState, ::StandState, ::Bool)
+    # No stump-root inoculum records at manual-RRINIT LSTART ⇒ nothing to decay.
+    return nothing
+end
+
+"""
+    rd_setp!(rd, s)
+
+Port of rd/rdsetp.f (manual-RRINIT init path): place disease centers, normalize the
+per-disease infected/uninfected densities, distribute infection over species
+(rd_iprp!), then set the per-record initial-infection state PROBI/PROBIU/FPROB/PROPI
+and PROBL. Called once at LSTART from `root_disease_setup!`. Advances the RD stream
+(center placement + one RDRANP draw per host record).
+"""
+function rd_setp!(rd::RootDiseaseState, s::StandState)
+    t = s.trees; p = s.plot
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr)
+
+    # Diseased sub-plot count. The manual-RRINIT turnkey has no PLOTINF/IRDPLT ⇒ 0.
+    ndplts = zeros(Int, RD_ITOTRR)
+    iipi = trunc(Int, p.pi)                        # IIPI = INT(PI) (points inventoried)
+    @inbounds for idi in minrr:maxrr
+        if iipi == ndplts[idi]
+            rd.lonect[idi] = Int32(1); rd.parea[idi] = rd.sarea
+        end
+        rd.lonect[idi] == 1 && (ndplts[idi] = 1)
+    end
+
+    # SDI-effect intercept + stand square dimension.
+    rd.yincpt = (rd.sdislp == 0.0f0 || rd.sdnorm == 0.0f0) ? 1.0f0 : 1.0f0 - (rd.sdnorm * rd.sdislp)
+    rd.dimen  = rd.sarea != 0.0f0 ? sqrt(rd.sarea) * 208.7f0 : 0.0f0
+
+    # DO 600 — place centers (rd_cloc!/rd_area!) and normalize RRGEN densities.
+    @inbounds for irrsp in minrr:maxrr
+        rd.irrsp = Int32(irrsp)
+        if rd.ipcflg[irrsp] == 1
+            rd_area!(rd, true)                     # user-assigned centers
+        elseif rd.parea[irrsp] > 0.0f0
+            rd_cloc!(rd); rd_area!(rd, true)
+        else
+            rd.parea[irrsp] = rd.sarea * Float32(ndplts[irrsp]) / p.pi   # rdsetp.f:174 (PI = points)
+            rd_cloc!(rd)
+        end
+        # RRGEN normalization (.NOT. RRTINV .AND. .NOT. LPLINF): PRKILL/PRUN densities → proportions.
+        rd.rrgen1[irrsp] = rd.prkill[irrsp] + rd.prun[irrsp]
+        if rd.rrgen1[irrsp] > 0.0f0
+            rd.prkill[irrsp] = rd.prkill[irrsp] / rd.rrgen1[irrsp]
+            rd.prun[irrsp]   = rd.prun[irrsp]   / rd.rrgen1[irrsp]
+            rd.rrgen1[irrsp] = 1.0f0
+        end
+    end
+
+    # Distribute infection over species → PROPN by record.
+    rd_iprp!(rd, s, 0, rd.prkill)
+
+    # Per-record initial-infection state.
+    nrec = t.n
+    rd.probi  = zeros(Float32, nrec); rd.probiu = zeros(Float32, nrec)
+    rd.fprob  = zeros(Float32, nrec); rd.propi  = zeros(Float32, nrec)
+    rd.probl  = zeros(Float32, nrec)
+
+    idi = maxrr
+    @inbounds for i in 1:t.n
+        if maxrr < 3 && minrr != maxrr
+            idi = Int(RD_IDITYP[rd.irtspc[t.species[i]]])
+        end
+        idi <= 0 && continue                       # non-host record: skip (GOTO 2100)
+        prob_i = t.tpa[i]                           # FVS PROB(I)
+        # Manual-RRINIT path ((.NOT. LPLINF .OR. IDPLOT>0) .AND. IDI≠0): LPLINF false ⇒ true.
+        rd.parea[idi] > 0.0f0 && (rd.propi[i] = rd_ranp!(rd, rd.rrincs[idi]))
+        denom = rd.rrgen1[idi] + 0.00001f0
+        rd.probi[i]  = rd.propn[i] * prob_i * rd.parea[idi] / denom
+        rd.probiu[i] = (1.0f0 - rd.propn[i]) * prob_i * rd.parea[idi] / denom
+        rd.fprob[i]  = prob_i
+        rd.probl[i]  = prob_i                       # PROBL(I) = PROB(I)
+    end
+
+    rd_inoc!(rd, s, true)                           # rd/rdinoc.f (.TRUE.) — inert (no stumps)
+    return rd
+end
+
+# -----------------------------------------------------------------------------
 # kw_rdin! — RDIN keyword block reader (rd/rdin.f entry RDKEY subset)
 # -----------------------------------------------------------------------------
 """
@@ -588,7 +856,10 @@ Chunk 0 will call the ported RDSETP here (center placement + initial infection).
 function root_disease_setup!(s::StandState)
     rd = s.root_disease
     rd_active(rd) || return nothing
-    # Chunk 0 (pending): RDSETP → RDCLOC/RDAREA, RDIPRP, per-record PROBI/PROPI, RDINOC(true).
+    # Chunk 0b-2: RDSETP → RDCLOC/RDAREA (center placement) + RDIPRP + per-record
+    # PROBI/PROBIU/FPROB/PROPI + RDINOC(true). Sets the initial-infection state; the
+    # per-cycle mortality driver (RDMORT/RDGROW) that makes this .sum-visible is 0b-3.
+    rd_setp!(rd, s)
     return nothing
 end
 

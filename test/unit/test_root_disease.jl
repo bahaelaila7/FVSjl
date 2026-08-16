@@ -238,4 +238,60 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test rd.parea[2]  === 99.022224f0           # SAREA·IN/75²
         @test rd.ooarea[2] === 99.022224f0
     end
+
+    # -------------------------------------------------------------------------
+    # Chunk 0b-2 — initial infection state (rd/rdinit.f host tables + rd/rdslp.f +
+    # rd/rdiprp.f + the rd/rdsetp.f tree loop + rd/rdinoc.f). Golden PROPN/PROPI/
+    # PROBI/PROBIU/FPROB captured from the LIVE relinked FVSkt oracle via a single-.o
+    # swap of rdsetp.f dumping every per-record value at LSTART (RRType 3 Armillaria,
+    # RRInit 0 10 10 20 0.1 10 3, SArea 100, seed 889347; the instrumented .sum was
+    # byte-identical to FVSkt_clean). All 27 records × 5 fields verified 0-ULP
+    # bit-exact (parsing the oracle's E18.10 dump to Float32). Not yet .sum-visible
+    # (mortality is 0b-3), so the g16 dump IS the oracle here.
+    # -------------------------------------------------------------------------
+    @testset "RD initial infection (rdsetp/rdiprp) — bit-exact vs live FVSkt" begin
+        s = nothing
+        for st in FVSjl.each_stand(rd_key; variant = v)
+            s = st; break
+        end
+        FVSjl.notre!(s)
+        FVSjl.setup_growth!(s)              # runs root_disease_setup! → rd_setp!
+        rd = s.root_disease; t = s.trees
+
+        # RDSETP header scalars (oracle HDR dump).
+        @test rd.yincpt === 2.2177f0                     # 1 - SDNORM·SDISLP (369·-0.0033)
+        @test isapprox(rd.dimen, 2087.0f0; atol = 0.5f0)
+        @test rd.rrgen1[3] === 1.0f0                     # RRGEN(3,1) after normalization
+        @test rd.prkill[3] === 0.33333334f0              # 10/(10+20)
+        @test rd.prun[3]   === 0.6666667f0               # 20/(10+20)
+        @test rd.parea[3]  === 10.026667f0               # grid-matched disease area (rdarea)
+
+        # 27 projectable records (ITRN = IREC1, 0 dead in FVS partition).
+        @test t.n == 27
+
+        # Per-species PROPN (rdiprp) — same value for every record of a species.
+        propn_sp = Dict(2 => 0.18032679f0, 3 => 0.27565289f0, 4 => 0.32363024f0,
+                        5 => 0.13220361f0, 7 => 0.75632572f0, 8 => 0.42801791f0)
+        for i in 1:t.n
+            @test rd.propn[i] === propn_sp[Int(t.species[i])]
+        end
+
+        # Full per-record golden vectors (oracle rdsetp dump), asserted bit-exact.
+        GOLD_PROPI = Float32[0.07999999821186066, 0.10000000149011612, 0.07999999821186066, 0.11999999731779099, 0.14000000059604645, 0.14000000059604645, 0.07999999821186066, 0.10000000149011612, 0.11999999731779099, 0.03999999910593033, 0.07999999821186066, 0.03999999910593033, 0.14000000059604645, 0.07999999821186066, 0.1599999964237213, 0.11999999731779099, 0.20000000298023224, 0.10000000149011612, 0.03999999910593033, 0.20000000298023224, 0.14000000059604645, 0.0139999995008111, 0.05999999865889549, 0.07999999821186066, 0.07999999821186066, 0.07999999821186066, 0.03999999910593033]
+        GOLD_PROBI = Float32[42.053104400634766, 248.74668884277344, 23.009193420410156, 21.24666976928711, 20.71882438659668, 61.90854263305664, 18.792587280273438, 61.62351989746094, 82.91556549072266, 19.720476150512695, 82.91556549072266, 82.91556549072266, 292.041015625, 84.71927642822266, 20.269702911376953, 63.95496368408203, 12.567241668701172, 60.34638214111328, 18.7404842376709, 76.9760971069336, 20.03000259399414, 22.939910888671875, 128.7465057373047, 128.7465057373047, 93.56011962890625, 125.8945083618164, 54.63187789916992]
+        GOLD_PROBIU = Float32[13.548739433288574, 653.6443481445312, 151.034423828125, 96.57648468017578, 94.17716217041016, 129.38552856445312, 85.42147064208984, 19.853967666625977, 217.88145446777344, 89.63917541503906, 217.88145446777344, 217.88145446777344, 610.3500366210938, 177.0587158203125, 53.263729095458984, 133.6624298095703, 33.02357864379883, 19.44249725341797, 49.24531936645508, 24.8002872467041, 41.86162185668945, 60.280372619628906, 172.05050659179688, 172.05050659179688, 125.0291519165039, 168.23924255371094, 114.17767333984375]
+        GOLD_FPROB = Float32[5.545452117919922, 90.00000762939453, 17.358247756958008, 11.751097679138184, 11.459156036376953, 19.07872200012207, 10.393794059753418, 8.126160621643066, 30.000001907348633, 10.906990051269531, 30.000001907348633, 30.000001907348633, 90.00000762939453, 26.108436584472656, 7.333859920501709, 19.709379196166992, 4.54700231552124, 7.957746982574463, 6.780566692352295, 10.15067195892334, 6.172763824462891, 8.299978256225586, 30.000001907348633, 30.000001907348633, 21.801010131835938, 29.335439682006836, 16.836227416992188]
+        for i in 1:t.n
+            @test rd.propi[i]  === GOLD_PROPI[i]
+            @test rd.probi[i]  === GOLD_PROBI[i]
+            @test rd.probiu[i] === GOLD_PROBIU[i]
+            @test rd.fprob[i]  === GOLD_FPROB[i]
+            @test rd.probl[i]  === GOLD_FPROB[i]         # PROBL(I) = PROB(I) = FPROB(I)
+        end
+
+        # rd_slp (rd/rdslp.f) knot interpolation — spot values on the YTKILL curve.
+        @test FVSjl.rd_slp(0.0f0,  rd.xxinf, rd.yyinf, 3) === 0.0f0    # below XX(1)
+        @test FVSjl.rd_slp(3.9f0,  rd.xxinf, rd.yyinf, 3) === 5.0f0    # exactly XX(2)
+        @test FVSjl.rd_slp(50.0f0, rd.xxinf, rd.yyinf, 3) === 40.0f0   # above XX(3) → YY(3)
+    end
 end
